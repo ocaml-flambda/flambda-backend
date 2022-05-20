@@ -172,6 +172,7 @@ AC_SUBST([compute_deps])
 AC_SUBST([naked_pointers])
 AC_SUBST([naked_pointers_checker])
 AC_SUBST([intel_jcc_bug_cflags])
+AC_SUBST([stack_allocation])
 
 ## Generated files
 
@@ -398,6 +399,10 @@ AC_ARG_ENABLE([function-sections],
 AC_ARG_WITH([afl],
   [AS_HELP_STRING([--with-afl],
     [use the AFL fuzzer])])
+
+AC_ARG_ENABLE([stack-allocation],
+  [AS_HELP_STRING([--enable-stack-allocation],
+    [enable stack allocation of local values])])
 
 AS_IF([test x"$enable_unix_lib" = "xno"],
   [AS_IF([test x"$enable_debugger" = "xyes"],
@@ -1877,6 +1882,11 @@ AS_IF([test x"$enable_force_safe_string" = "xno"],
 AS_IF([test x"$DEFAULT_STRING" = "xunsafe"],
   [default_safe_string=false],
   [default_safe_string=true])
+
+AS_IF([test x"$enable_stack_allocation" = "xyes"],
+  [AC_DEFINE([STACK_ALLOCATION])
+   stack_allocation=true],
+  [stack_allocation=false])
 
 oc_cflags="$common_cflags $internal_cflags"
 oc_cppflags="$common_cppflags $internal_cppflags"

@@ -1,5 +1,4 @@
 (* TEST
-   flags += "-extension local"
    * native *)
 
 external local_stack_offset : unit -> int = "caml_local_stack_offset"

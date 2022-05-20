@@ -1,5 +1,4 @@
 (* TEST
-   flags += "-extension local"
    * expect *)
 
 let leak n =
@@ -75,6 +74,18 @@ Line 3, characters 2-3:
       ^
 Error: This local value escapes its region
   Hint: Cannot return local value without an explicit "local_" annotation
+|}]
+
+(* If both type and mode are wrong, complain about type *)
+let f () =
+  let local_ r = ref 42 in
+  print_endline r
+[%%expect{|
+Line 3, characters 16-17:
+3 |   print_endline r
+                    ^
+Error: This expression has type int ref
+       but an expression was expected of type string
 |}]
 
 (*
@@ -1863,4 +1874,266 @@ Error: This expression has type (local_ int list -> unit) -> int -> unit
          (int list -> unit) -> int -> unit
        Type local_ int list -> unit is not compatible with type
          int list -> unit
+|}]
+
+(* Subtyping *)
+
+let foo f = (f : local_ string -> float :> string -> float)
+[%%expect{|
+val foo : (local_ string -> float) -> string -> float = <fun>
+|}]
+
+let foo f = (f : string -> float :> string -> local_ float)
+[%%expect{|
+val foo : (string -> float) -> string -> local_ float = <fun>
+|}]
+
+let foo f = (f : string -> local_ float :> string -> float)
+[%%expect{|
+Line 1, characters 12-59:
+1 | let foo f = (f : string -> local_ float :> string -> float)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Type string -> local_ float is not a subtype of string -> float
+|}]
+
+let foo f = (f : string -> float :> local_ string -> local_ float)
+[%%expect{|
+Line 1, characters 12-66:
+1 | let foo f = (f : string -> float :> local_ string -> local_ float)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Type string -> float is not a subtype of local_ string -> local_ float
+|}]
+
+let foo f = ignore (f :> string -> float); ()
+[%%expect{|
+val foo : (string -> float) -> unit = <fun>
+|}]
+
+let use_local_to_global (f : local_ string -> float) = ()
+
+let foo f = ignore (f :> string -> float); use_local_to_global f
+[%%expect{|
+val use_local_to_global : (local_ string -> float) -> unit = <fun>
+val foo : (local_ string -> float) -> unit = <fun>
+|}]
+
+let use_global_to_local (f : string -> local_ float) = ()
+
+let foo f = ignore (f :> string -> float); use_global_to_local f
+[%%expect{|
+val use_global_to_local : (string -> local_ float) -> unit = <fun>
+Line 3, characters 63-64:
+3 | let foo f = ignore (f :> string -> float); use_global_to_local f
+                                                                   ^
+Error: This expression has type string -> float
+       but an expression was expected of type string -> local_ float
+|}]
+
+(* Submoding during module inclusion *)
+
+module F (X : sig val foo : local_ float -> string end) : sig
+  val foo : float -> string
+end = X;;
+[%%expect{|
+module F :
+  functor (X : sig val foo : local_ float -> string end) ->
+    sig val foo : float -> string end
+|}]
+
+module F (X : sig val foo : float -> string end) : sig
+  val foo : float -> local_ string
+end = X;;
+[%%expect{|
+module F :
+  functor (X : sig val foo : float -> string end) ->
+    sig val foo : float -> local_ string end
+|}]
+
+module F (X : sig val foo : float -> string end) : sig
+  val foo : local_ float -> string
+end = X;;
+[%%expect{|
+Line 3, characters 6-7:
+3 | end = X;;
+          ^
+Error: Signature mismatch:
+       Modules do not match:
+         sig val foo : float -> string end
+       is not included in
+         sig val foo : local_ float -> string end
+       Values do not match:
+         val foo : float -> string
+       is not included in
+         val foo : local_ float -> string
+|}]
+
+module F (X : sig val foo : float -> local_ string end) : sig
+  val foo : float -> string
+end = X;;
+[%%expect{|
+Line 3, characters 6-7:
+3 | end = X;;
+          ^
+Error: Signature mismatch:
+       Modules do not match:
+         sig val foo : float -> local_ string end
+       is not included in
+         sig val foo : float -> string end
+       Values do not match:
+         val foo : float -> local_ string
+       is not included in
+         val foo : float -> string
+|}]
+
+module F (X : sig val foo : local_ float -> float -> string end) : sig
+  val foo : float -> float -> string
+end = X;;
+[%%expect{|
+Line 3, characters 6-7:
+3 | end = X;;
+          ^
+Error: Signature mismatch:
+       Modules do not match:
+         sig val foo : local_ float -> float -> string end
+       is not included in
+         sig val foo : float -> float -> string end
+       Values do not match:
+         val foo : local_ float -> float -> string
+       is not included in
+         val foo : float -> float -> string
+|}]
+
+module F (X : sig val foo : local_ float -> float -> string end) : sig
+  val foo : float -> local_ (float -> string)
+end = X;;
+[%%expect{|
+module F :
+  functor (X : sig val foo : local_ float -> float -> string end) ->
+    sig val foo : float -> local_ (float -> string) end
+|}]
+
+module F (X : sig val foo : float -> float -> string end) : sig
+  val foo : float -> local_ (float -> string)
+end = X;;
+[%%expect{|
+module F :
+  functor (X : sig val foo : float -> float -> string end) ->
+    sig val foo : float -> local_ (float -> string) end
+|}]
+
+type 'a inv = Inv of ('a -> 'a)
+type 'a co = Co of 'a
+type 'a contra = Contra of ('a -> int)
+type 'a bi = Bi
+
+module F (X : sig val foo : (float -> string) inv end) : sig
+  val foo : (float -> local_ string) inv
+end = X;;
+[%%expect{|
+type 'a inv = Inv of ('a -> 'a)
+type 'a co = Co of 'a
+type 'a contra = Contra of ('a -> int)
+type 'a bi = Bi
+Line 8, characters 6-7:
+8 | end = X;;
+          ^
+Error: Signature mismatch:
+       Modules do not match:
+         sig val foo : (float -> string) inv end
+       is not included in
+         sig val foo : (float -> local_ string) inv end
+       Values do not match:
+         val foo : (float -> string) inv
+       is not included in
+         val foo : (float -> local_ string) inv
+|}]
+
+module F (X : sig val foo : (float -> string) co end) : sig
+  val foo : (float -> local_ string) co
+end = X;;
+[%%expect{|
+module F :
+  functor (X : sig val foo : (float -> string) co end) ->
+    sig val foo : (float -> local_ string) co end
+|}]
+
+module F (X : sig val foo : (float -> string) contra end) : sig
+  val foo : (float -> local_ string) contra
+end = X;;
+[%%expect{|
+Line 3, characters 6-7:
+3 | end = X;;
+          ^
+Error: Signature mismatch:
+       Modules do not match:
+         sig val foo : (float -> string) contra end
+       is not included in
+         sig val foo : (float -> local_ string) contra end
+       Values do not match:
+         val foo : (float -> string) contra
+       is not included in
+         val foo : (float -> local_ string) contra
+|}]
+
+module F (X : sig val foo : (float -> string) bi end) : sig
+  val foo : (float -> local_ string) bi
+end = X;;
+[%%expect{|
+module F :
+  functor (X : sig val foo : (float -> string) bi end) ->
+    sig val foo : (float -> local_ string) bi end
+|}]
+
+module F (X : sig val foo : (float -> local_ string) inv end) : sig
+  val foo : (float -> string) inv
+end = X;;
+[%%expect{|
+Line 3, characters 6-7:
+3 | end = X;;
+          ^
+Error: Signature mismatch:
+       Modules do not match:
+         sig val foo : (float -> local_ string) inv end
+       is not included in
+         sig val foo : (float -> string) inv end
+       Values do not match:
+         val foo : (float -> local_ string) inv
+       is not included in
+         val foo : (float -> string) inv
+|}]
+
+module F (X : sig val foo : (float -> local_ string) co end) : sig
+  val foo : (float -> string) co
+end = X;;
+[%%expect{|
+Line 3, characters 6-7:
+3 | end = X;;
+          ^
+Error: Signature mismatch:
+       Modules do not match:
+         sig val foo : (float -> local_ string) co end
+       is not included in
+         sig val foo : (float -> string) co end
+       Values do not match:
+         val foo : (float -> local_ string) co
+       is not included in
+         val foo : (float -> string) co
+|}]
+
+module F (X : sig val foo : (float -> local_ string) contra end) : sig
+  val foo : (float -> string) contra
+end = X;;
+[%%expect{|
+module F :
+  functor (X : sig val foo : (float -> local_ string) contra end) ->
+    sig val foo : (float -> string) contra end
+|}]
+
+module F (X : sig val foo : (float -> local_ string) bi end) : sig
+  val foo : (float -> string) bi
+end = X;;
+[%%expect{|
+module F :
+  functor (X : sig val foo : (float -> local_ string) bi end) ->
+    sig val foo : (float -> string) bi end
 |}]

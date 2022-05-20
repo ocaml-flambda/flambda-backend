@@ -318,7 +318,7 @@ and print_out_type_local m ppf ty =
     pp_print_space ppf ();
     print_out_type_2 m ppf ty
   end else begin
-    print_out_type ppf (Otyp_attribute (ty, {oattr_name="ocaml.local"}))
+    print_out_type ppf (Otyp_attribute (ty, {oattr_name="local"}))
   end
 
 and print_out_type_2 mode ppf =

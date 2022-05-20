@@ -1,5 +1,13 @@
 (* TEST
-   flags += "-extension local" *)
+   * bytecode
+     reference = "${test_source_directory}/alloc.heap.reference"
+   * stack-allocation
+   ** native
+      reference = "${test_source_directory}/alloc.stack.reference"
+   * no-stack-allocation
+   ** native
+      reference = "${test_source_directory}/alloc.heap.reference"
+ *)
 
 type t = int
 
@@ -395,6 +403,14 @@ let makeverylong n =
   ignore_local (local_array 100_000 n);
   ()
 
+let fun_with_optional_arg ?(local_ foo = 5) () =
+  let _ = foo + 5 in
+  ()
+
+let optionalarg ((f : ?foo:local_ int -> unit -> unit), n) =
+  let () = f ~foo:n () in
+  ()
+
 let run name f x =
   let prebefore = Gc.allocated_bytes () in
   let before = Gc.allocated_bytes () in
@@ -406,9 +422,8 @@ let run name f x =
   in
   let msg =
     match delta with
-    | 0 -> "OK"
-    | _ when Sys.backend_type <> Sys.Native -> "OK"
-    | n -> Printf.sprintf "%d words allocated" n
+    | 0 -> "No Allocation"
+    | n -> "Allocation"
   in
   Printf.printf "%15s: %s\n" name msg;
   r
@@ -446,7 +461,8 @@ let () =
   run "stringbint" readstringbint ();
   run "bigstringbint" readbigstringbint ();
   run "verylong" makeverylong 42;
-  run "manylong" makemanylong 100
+  run "manylong" makemanylong 100;
+  run "optionalarg" optionalarg (fun_with_optional_arg, 10)
 
 
 (* In debug mode, Gc.minor () checks for minor heap->local pointers *)

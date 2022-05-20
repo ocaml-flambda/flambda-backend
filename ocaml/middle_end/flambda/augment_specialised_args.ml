@@ -452,7 +452,7 @@ module Make (T : S) = struct
         new_inner_vars_to_spec_args_bound_in_the_wrapper_renaming
     in
     let mode =
-      if function_decl.region then Lambda.Alloc_heap else Lambda.Alloc_local in
+      if function_decl.region then Lambda.alloc_heap else Lambda.alloc_local in
     (* New definitions that project from existing specialised args need
        to be rewritten to use the corresponding specialised args of
        the wrapper.  Definitions that are just equality to existing

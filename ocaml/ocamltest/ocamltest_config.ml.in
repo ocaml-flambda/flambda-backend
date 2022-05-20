@@ -88,3 +88,5 @@ let has_instrumented_runtime = %%RUNTIMEI%%
 let naked_pointers = %%NAKED_POINTERS%%
 
 let probes = %%PROBES%%
+
+let stack_allocation = %%STACK_ALLOCATION%%

@@ -379,6 +379,7 @@ module Extension = struct
   type t = Comprehensions | Local
 
   let all = [ Comprehensions; Local ]
+  let default_extensions = [ Local ]
 
   let extensions = ref ([] : t list)   (* -extension *)
   let equal (a : t) (b : t) = (a = b)
@@ -414,7 +415,10 @@ module Extension = struct
     if not (List.exists (equal t) !extensions) then
       extensions := t :: !extensions
 
-  let is_enabled ext = not !disable_all_extensions && List.mem ext !extensions
+  let is_enabled ext =
+    not !disable_all_extensions
+    && (List.mem ext default_extensions
+        || List.mem ext !extensions)
 end
 
 let dump_into_file = ref false (* -dump-into-file *)

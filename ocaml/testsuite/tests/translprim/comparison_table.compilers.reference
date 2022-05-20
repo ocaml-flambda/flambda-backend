@@ -158,7 +158,7 @@
               (function f param[0: *, *]
                 (apply f (field 0 param) (field 1 param)))
             map =
-              (function f[->L] l[->L]
+              (function f l
                 (apply (field 18 (global Stdlib__List!)) (apply uncurry f) l)))
            (makeblock 0 ([0: *, *],*)
              (makeblock 0 (apply map gen_cmp vec) (apply map cmp vec))
@@ -197,7 +197,7 @@
                   (function f param[0: *, *]
                     (apply f (field 0 param) (field 1 param)))
                 map =
-                  (function f[->L] l[->L]
+                  (function f l
                     (apply (field 18 (global Stdlib__List!))
                       (apply uncurry f) l)))
                (makeblock 0 ([0: *, *],*)

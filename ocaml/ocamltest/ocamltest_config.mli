@@ -124,3 +124,6 @@ val naked_pointers : bool
 
 val probes : bool
 (** Whether the target supports tracing probes *)
+
+val stack_allocation : bool
+(** Whether stack allocation is enabled *)

@@ -26,7 +26,7 @@ let prim_size (prim : Clambda_primitives.primitive) args =
   | Psetfield (_, isptr, init) ->
     begin match init with
     | Root_initialization -> 1  (* never causes a write barrier hit *)
-    | Assignment | Local_assignment | Heap_initialization ->
+    | Assignment _ | Heap_initialization ->
       match isptr with
       | Pointer -> 4
       | Immediate -> 1

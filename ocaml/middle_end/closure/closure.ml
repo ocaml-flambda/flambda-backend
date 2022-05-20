@@ -142,7 +142,7 @@ let prim_size prim args =
   | Psetfield(_f, isptr, init) ->
     begin match init with
     | Root_initialization -> 1  (* never causes a write barrier hit *)
-    | Assignment | Local_assignment | Heap_initialization ->
+    | Assignment _ | Heap_initialization ->
       match isptr with
       | Pointer -> 4
       | Immediate -> 1
@@ -1046,13 +1046,16 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
           assert (nparams >= nlocal);
           let heap_params = nparams - nlocal in
           if nargs <= heap_params then
-            Alloc_heap, Curried {nlocal}
+            alloc_heap, Curried {nlocal}
           else
             let supplied_local_args = nargs - heap_params in
-            Alloc_local, Curried {nlocal = nlocal - supplied_local_args}
+            alloc_local, Curried {nlocal = nlocal - supplied_local_args}
         in
-        if clos_mode = Alloc_local then assert (new_clos_mode = Alloc_local);
-        let ret_mode = if fundesc.fun_region then Alloc_heap else Alloc_local in
+        if Lambda.is_local_mode clos_mode then
+          assert (Lambda.is_local_mode new_clos_mode);
+        let ret_mode =
+          if fundesc.fun_region then alloc_heap else alloc_local
+        in
         let (new_fun, approx) = close { backend; fenv; cenv; mutable_vars }
           (Lfunction{
                kind;
@@ -1092,7 +1095,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
           let dbg = Debuginfo.from_location loc in
           warning_if_forced_inlined ~loc ~attribute "Over-application";
           fail_if_probe ~probe "Over-application";
-          let mode' = if fundesc.fun_region then Alloc_heap else Alloc_local in
+          let mode' = if fundesc.fun_region then alloc_heap else alloc_local in
           let body =
             Ugeneric_apply(direct_apply env ~loc ~attribute
                               fundesc ufunct first_args
@@ -1214,7 +1217,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
            ap_func=funct;
            ap_args=[arg];
            ap_region_close=pos;
-           ap_mode=Alloc_heap;
+           ap_mode=alloc_heap;
            ap_tailcall=Default_tailcall;
            ap_inlined=Default_inlined;
            ap_specialised=Default_specialise;
@@ -1643,7 +1646,7 @@ let intro ~backend ~size lam =
   reset ();
   let id = Compilenv.make_symbol None in
   global_approx := Array.init size (fun i -> Value_global_field (id, i));
-  Compilenv.set_global_approx(Value_tuple (Alloc_heap, !global_approx));
+  Compilenv.set_global_approx(Value_tuple (alloc_heap, !global_approx));
   let (ulam, _approx) =
     close { backend; fenv = V.Map.empty;
             cenv = V.Map.empty; mutable_vars = V.Set.empty } lam
@@ -1654,6 +1657,7 @@ let intro ~backend ~size lam =
   in
   if opaque
   then Compilenv.set_global_approx(Value_unknown)
-  else collect_exported_structured_constants (Value_tuple (Alloc_heap, !global_approx));
+  else collect_exported_structured_constants
+         (Value_tuple (alloc_heap, !global_approx));
   global_approx := [||];
   ulam

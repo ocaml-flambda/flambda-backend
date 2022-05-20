@@ -84,8 +84,8 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
         match init with
         | Heap_initialization -> "(heap-init)"
         | Root_initialization -> "(root-init)"
-        | Assignment -> ""
-        | Local_assignment -> "(local)"
+        | Assignment Alloc_heap -> ""
+        | Assignment Alloc_local -> "(local)"
       in
       fprintf ppf "setfield_%s%s %i" instr init n
   | Psetfield_computed (ptr, init) ->
@@ -98,8 +98,8 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
         match init with
         | Heap_initialization -> "(heap-init)"
         | Root_initialization -> "(root-init)"
-        | Assignment -> ""
-        | Local_assignment -> "(local)"
+        | Assignment Alloc_heap -> ""
+        | Assignment Alloc_local -> "(local)"
       in
       fprintf ppf "setfield_%s%s_computed" instr init
   | Pfloatfield (n, Alloc_heap) -> fprintf ppf "floatfield %i" n
@@ -109,8 +109,8 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
         match init with
         | Heap_initialization -> "(heap-init)"
         | Root_initialization -> "(root-init)"
-        | Assignment -> ""
-        | Local_assignment -> "(local)"
+        | Assignment Alloc_heap -> ""
+        | Assignment Alloc_local -> "(local)"
       in
       fprintf ppf "setfloatfield%s %i" init n
   | Pduprecord (rep, size) ->
@@ -178,7 +178,7 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   | Pisint -> fprintf ppf "isint"
   | Pisout -> fprintf ppf "isout"
   | Pbintofint (bi,m) -> print_boxed_integer "of_int" ppf bi m
-  | Pintofbint bi -> print_boxed_integer "to_int" ppf bi Alloc_heap
+  | Pintofbint bi -> print_boxed_integer "to_int" ppf bi alloc_heap
   | Pcvtbint (bi1, bi2, m) ->
       fprintf ppf "%s_of_%s%s" (boxed_integer_name bi2) (boxed_integer_name bi1)
         (alloc_kind m)
@@ -200,12 +200,12 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   | Plslbint (bi,m) -> print_boxed_integer "lsl" ppf bi m
   | Plsrbint (bi,m) -> print_boxed_integer "lsr" ppf bi m
   | Pasrbint (bi,m) -> print_boxed_integer "asr" ppf bi m
-  | Pbintcomp(bi, Ceq) -> print_boxed_integer "==" ppf bi Alloc_heap
-  | Pbintcomp(bi, Cne) -> print_boxed_integer "!=" ppf bi Alloc_heap
-  | Pbintcomp(bi, Clt) -> print_boxed_integer "<" ppf bi Alloc_heap
-  | Pbintcomp(bi, Cgt) -> print_boxed_integer ">" ppf bi Alloc_heap
-  | Pbintcomp(bi, Cle) -> print_boxed_integer "<=" ppf bi Alloc_heap
-  | Pbintcomp(bi, Cge) -> print_boxed_integer ">=" ppf bi Alloc_heap
+  | Pbintcomp(bi, Ceq) -> print_boxed_integer "==" ppf bi alloc_heap
+  | Pbintcomp(bi, Cne) -> print_boxed_integer "!=" ppf bi alloc_heap
+  | Pbintcomp(bi, Clt) -> print_boxed_integer "<" ppf bi alloc_heap
+  | Pbintcomp(bi, Cgt) -> print_boxed_integer ">" ppf bi alloc_heap
+  | Pbintcomp(bi, Cle) -> print_boxed_integer "<=" ppf bi alloc_heap
+  | Pbintcomp(bi, Cge) -> print_boxed_integer ">=" ppf bi alloc_heap
   | Pbigarrayref(unsafe, _n, kind, layout) ->
       Printlambda.print_bigarray "get" unsafe kind ppf layout
   | Pbigarrayset(unsafe, _n, kind, layout) ->

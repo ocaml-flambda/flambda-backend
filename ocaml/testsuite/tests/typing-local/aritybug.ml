@@ -1,5 +1,4 @@
-(* TEST
-   flags += "-extension local" *)
+(* TEST *)
 
 let[@inline never] wat x =
   let f ~a:_ ~b:_ ~c:_ () () = x in

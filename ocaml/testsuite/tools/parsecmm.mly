@@ -220,7 +220,7 @@ expr:
                       $4 :: List.rev $5, debuginfo ?loc:$3 ()) }
   | LPAREN EXTCALL STRING exprlist machtype RPAREN
                {Cop(Cextcall($3, $5, [], false), List.rev $4, debuginfo ())}
-  | LPAREN ALLOC exprlist RPAREN { Cop(Calloc Lambda.Alloc_heap, List.rev $3, debuginfo ()) }
+  | LPAREN ALLOC exprlist RPAREN { Cop(Calloc Lambda.alloc_heap, List.rev $3, debuginfo ()) }
   | LPAREN SUBF expr RPAREN { Cop(Cnegf, [$3], debuginfo ()) }
   | LPAREN SUBF expr expr RPAREN { Cop(Csubf, [$3; $4], debuginfo ()) }
   | LPAREN unaryop expr RPAREN { Cop($2, [$3], debuginfo ()) }
@@ -271,15 +271,15 @@ expr:
           Debuginfo.none) }
   | LPAREN ADDRASET expr expr expr RPAREN
       { let open Lambda in
-        Cop(Cstore (Word_val, Assignment),
+        Cop(Cstore (Word_val, Assignment Lambda.alloc_heap),
             [access_array $3 $4 Arch.size_addr; $5], Debuginfo.none) }
   | LPAREN INTASET expr expr expr RPAREN
       { let open Lambda in
-        Cop(Cstore (Word_int, Assignment),
+        Cop(Cstore (Word_int, Assignment Lambda.alloc_heap),
             [access_array $3 $4 Arch.size_int; $5], Debuginfo.none) }
   | LPAREN FLOATASET expr expr expr RPAREN
       { let open Lambda in
-        Cop(Cstore (Double, Assignment),
+        Cop(Cstore (Double, Assignment Lambda.alloc_heap),
             [access_array $3 $4 Arch.size_float; $5], Debuginfo.none) }
 ;
 exprlist:
@@ -330,7 +330,7 @@ unaryop:
   | ABSF                        { Cabsf }
 ;
 binaryop:
-    STORE chunk                 { Cstore ($2, Lambda.Assignment) }
+    STORE chunk                 { Cstore ($2, Lambda.Assignment Lambda.alloc_heap) }
   | ADDI                        { Caddi }
   | SUBI                        { Csubi }
   | STAR                        { Cmuli }

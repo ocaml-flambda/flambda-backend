@@ -1,6 +1,7 @@
 (* TEST
-   flags += "-extension local"
-   * native *)
+   * stack-allocation
+   ** native
+ *)
 
 open Printexc
 

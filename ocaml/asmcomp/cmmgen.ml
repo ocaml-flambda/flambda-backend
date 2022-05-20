@@ -341,13 +341,13 @@ let is_unboxed_number_cmm ~strict cmm =
     | Cconst_symbol (s, _) ->
         begin match Cmmgen_state.structured_constant_of_sym s with
         | Some (Uconst_float _) ->
-            notify (Boxed (Boxed_float (Alloc_heap, Debuginfo.none), true))
+            notify (Boxed (Boxed_float (alloc_heap, Debuginfo.none), true))
         | Some (Uconst_nativeint _) ->
-            notify (Boxed (Boxed_integer (Pnativeint, Alloc_heap, Debuginfo.none), true))
+            notify (Boxed (Boxed_integer (Pnativeint, alloc_heap, Debuginfo.none), true))
         | Some (Uconst_int32 _) ->
-            notify (Boxed (Boxed_integer (Pint32, Alloc_heap, Debuginfo.none), true))
+            notify (Boxed (Boxed_integer (Pint32, alloc_heap, Debuginfo.none), true))
         | Some (Uconst_int64 _) ->
-            notify (Boxed (Boxed_integer (Pint64, Alloc_heap, Debuginfo.none), true))
+            notify (Boxed (Boxed_integer (Pint64, alloc_heap, Debuginfo.none), true))
         | _ ->
             notify No_unboxing
         end
@@ -494,7 +494,7 @@ let rec transl env e =
              state of [Translcore], we will in fact only get here with
              [Pfloatarray]s. *)
           assert (kind = kind');
-          transl_make_array dbg env kind Alloc_heap args
+          transl_make_array dbg env kind alloc_heap args
       | (Pduparray _, [arg]) ->
           let prim_obj_dup =
             Primitive.simple ~name:"caml_obj_dup" ~arity:1 ~alloc:true
@@ -510,11 +510,11 @@ let rec transl env e =
               (transl env arg1) (List.map (transl env) argl) dbg in
           begin match elt_kind with
           (* TODO: local allocation of bigarray elements *)
-            Pbigarray_float32 | Pbigarray_float64 -> box_float dbg Alloc_heap elt
+            Pbigarray_float32 | Pbigarray_float64 -> box_float dbg alloc_heap elt
           | Pbigarray_complex32 | Pbigarray_complex64 -> elt
-          | Pbigarray_int32 -> box_int dbg Pint32 Alloc_heap elt
-          | Pbigarray_int64 -> box_int dbg Pint64 Alloc_heap elt
-          | Pbigarray_native_int -> box_int dbg Pnativeint Alloc_heap elt
+          | Pbigarray_int32 -> box_int dbg Pint32 alloc_heap elt
+          | Pbigarray_int64 -> box_int dbg Pint64 alloc_heap elt
+          | Pbigarray_native_int -> box_int dbg Pnativeint alloc_heap elt
           | Pbigarray_caml_int -> tag_int elt dbg
           | Pbigarray_sint8 | Pbigarray_uint8
           | Pbigarray_sint16 | Pbigarray_uint16 -> tag_int elt dbg
@@ -760,7 +760,9 @@ and transl_make_array dbg env kind mode args =
       let prim =
         match (mode : Lambda.alloc_mode) with
         | Alloc_heap -> "caml_make_array"
-        | Alloc_local -> "caml_make_array_local"
+        | Alloc_local ->
+          assert Config.stack_allocation;
+          "caml_make_array_local"
       in
       Cop(Cextcall(prim, typ_val, [], true),
           [make_alloc ~mode dbg 0 (List.map (transl env) args)], dbg)
@@ -804,10 +806,10 @@ and transl_ccall env prim args dbg =
     match prim.prim_native_repr_res with
     | _, Same_as_ocaml_repr -> (typ_val, fun x -> x)
     (* TODO: Allow Alloc_local on suitably typed C stubs *)
-    | _, Unboxed_float -> (typ_float, box_float dbg Alloc_heap)
+    | _, Unboxed_float -> (typ_float, box_float dbg alloc_heap)
     | _, Unboxed_integer Pint64 when size_int = 4 ->
-        ([|Int; Int|], box_int dbg Pint64 Alloc_heap)
-    | _, Unboxed_integer bi -> (typ_int, box_int dbg bi Alloc_heap)
+        ([|Int; Int|], box_int dbg Pint64 alloc_heap)
+    | _, Unboxed_integer bi -> (typ_int, box_int dbg bi alloc_heap)
     | _, Untagged_int -> (typ_int, (fun i -> tag_int i dbg))
   in
   let typ_args, args = transl_args prim.prim_native_repr_args args in
@@ -1169,9 +1171,9 @@ and transl_let env str kind id exp transl_body =
        of allocation mode it may be possible to mark some Alloc_local *)
     match str, kind with
     | Mutable, Pfloatval ->
-        Boxed (Boxed_float (Alloc_heap, dbg), false)
+        Boxed (Boxed_float (alloc_heap, dbg), false)
     | Mutable, Pboxedintval bi ->
-        Boxed (Boxed_integer (bi, Alloc_heap, dbg), false)
+        Boxed (Boxed_integer (bi, alloc_heap, dbg), false)
     | _, (Pfloatval | Pboxedintval _) ->
         (* It would be safe to always unbox in this case, but
            we do it only if this indeed allows us to get rid of
