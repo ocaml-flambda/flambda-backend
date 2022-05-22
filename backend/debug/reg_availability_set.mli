@@ -18,20 +18,17 @@ type t =
   | Ok of Reg_with_debug_info.Set.t
   | Unreachable
 
-val inter : t -> t -> t
 (** Intersection of availabilities. *)
+val inter : t -> t -> t
 
-val canonicalise : t -> t
 (** Return a subset of the given availability set which contains no registers
     that are not associated with debug info (and holding values of
     non-persistent identifiers); and where no two registers share the same
     location. *)
+val canonicalise : t -> t
 
 val equal : t -> t -> bool
 
-val print
-   : print_reg:(Format.formatter -> Reg.t -> unit)
-  -> Format.formatter
-  -> t
-  -> unit
 (** For debugging purposes only. *)
+val print :
+  print_reg:(Format.formatter -> Reg.t -> unit) -> Format.formatter -> t -> unit
