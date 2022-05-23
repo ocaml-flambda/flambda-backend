@@ -152,6 +152,7 @@ _install: compiler
 
 # Copy _install to the final install directory (no-op if they are the same)
 install: _install
+	mkdir -p '$(prefix)'
 	rsync --chmod=u+rw,go+r -rl _install/ '$(prefix)'
 
 main_prefix = _build/install/main
