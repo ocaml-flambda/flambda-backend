@@ -37,23 +37,40 @@ type export_info =
   | Flambda2 of Flambda2_cmx.Flambda_cmx_format.t option
 
 type apply_fn := int * Lambda.alloc_mode
+
+(* Curry/apply/send functions *)
+type generic_fns =
+  { curry_fun: Clambda.arity list;
+    apply_fun: apply_fn list;
+    send_fun: apply_fn list }
+
 type unit_infos =
   { mutable ui_name: modname;             (* Name of unit implemented *)
     mutable ui_symbol: string;            (* Prefix for symbols *)
     mutable ui_defines: string list;      (* Unit and sub-units implemented *)
     mutable ui_imports_cmi: crcs;         (* Interfaces imported *)
     mutable ui_imports_cmx: crcs;         (* Infos imported *)
-    mutable ui_curry_fun: Clambda.arity list; (* Currying functions needed *)
-    mutable ui_apply_fun: apply_fn list;  (* Apply functions needed *)
-    mutable ui_send_fun: apply_fn list;   (* Send functions needed *)
+    mutable ui_generic_fns: generic_fns;  (* Generic functions needed *)
     mutable ui_export_info: export_info;
     mutable ui_force_link: bool }         (* Always linked *)
 
 (* Each .a library has a matching .cmxa file that provides the following
    infos on the library: *)
 
+type lib_unit_info =
+  { li_name: modname;
+    li_symbol: string;
+    li_crc: Digest.t;
+    li_defines: string list;
+    li_force_link: bool;
+    li_imports_cmi : Bitmap.t;  (* subset of lib_imports_cmi *)
+    li_imports_cmx : Bitmap.t } (* subset of lib_imports_cmx *)
+
 type library_infos =
-  { lib_units: (unit_infos * Digest.t) list;  (* List of unit infos w/ MD5s *)
+  { lib_imports_cmi: (modname * Digest.t option) array;
+    lib_imports_cmx: (modname * Digest.t option) array;
+    lib_units: lib_unit_info list;
+    lib_generic_fns: generic_fns;
     (* In the following fields the lists are reversed with respect to
        how they end up being used on the command line. *)
     lib_ccobjs: string list;            (* C object files needed *)

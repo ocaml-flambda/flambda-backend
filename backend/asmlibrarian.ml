@@ -18,6 +18,7 @@
 open Misc
 open Config
 open Cmx_format
+module String = Misc.Stdlib.String
 
 type error =
     File_not_found of string
@@ -62,8 +63,36 @@ let create_archive file_list lib_name =
          (fun file_name (unit, crc) ->
             Asmlink.check_consistency file_name unit crc)
          file_list descr_list;
+       let cmis = Asmlink.extract_crc_interfaces () |> Array.of_list in
+       let cmxs = Asmlink.extract_crc_implementations () |> Array.of_list in
+       let cmi_index = String.Tbl.create 42 in
+       Array.iteri (fun i (name, _crc) -> String.Tbl.add cmi_index name i) cmis;
+       let cmx_index = String.Tbl.create 42 in
+       Array.iteri (fun i (name, _crc) -> String.Tbl.add cmx_index name i) cmxs;
+       let genfns = Cmm_helpers.Generic_fns_tbl.make () in
+       let mk_bitmap arr ix entries =
+         let module B = Misc.Bitmap in
+         let b = B.make (Array.length arr) in
+         entries |> List.iter (fun (name, _crc) -> B.set b (String.Tbl.find ix name));
+         b
+       in
+       let units =
+         List.map (fun (unit, crc) ->
+           Cmm_helpers.Generic_fns_tbl.add genfns unit.ui_generic_fns;
+           { li_name = unit.ui_name;
+             li_symbol = unit.ui_symbol;
+             li_crc = crc;
+             li_defines = unit.ui_defines;
+             li_force_link = unit.ui_force_link;
+             li_imports_cmi = mk_bitmap cmis cmi_index unit.ui_imports_cmi;
+             li_imports_cmx = mk_bitmap cmxs cmx_index unit.ui_imports_cmx })
+         descr_list
+       in
        let infos =
-         { lib_units = descr_list;
+         { lib_units = units;
+           lib_imports_cmi = cmis;
+           lib_imports_cmx = cmxs;
+           lib_generic_fns = Cmm_helpers.Generic_fns_tbl.entries genfns;
            lib_ccobjs = !Clflags.ccobjs;
            lib_ccopts = !Clflags.all_ccopts } in
        output_value outchan infos;
