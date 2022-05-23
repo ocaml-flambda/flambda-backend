@@ -1711,6 +1711,17 @@ Error: Signature mismatch:
        is not included in
          val add : local_ int32 -> local_ int32 -> int32
 |}]
+
+module Contravariant_instantiation : sig
+  external to_int_trunc : Int64.t -> int = "%int64_to_int"
+end = struct
+  external to_int_trunc : (Int64.t [@local_opt]) -> int = "%int64_to_int"
+end
+[%%expect{|
+module Contravariant_instantiation :
+  sig external to_int_trunc : Int64.t -> int = "%int64_to_int" end
+|}]
+
 (* Return modes *)
 let zx : int ref -> (int -> unit) = (:=)
 let zz : local_ (int ref) -> int -> unit = (:=)
