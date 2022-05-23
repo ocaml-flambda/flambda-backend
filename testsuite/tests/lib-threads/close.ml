@@ -11,7 +11,7 @@ let main () =
   let (rd, wr) = Unix.pipe() in
   let t = Thread.create
     (fun () ->
-      Thread.delay 1.0;
+      Thread.delay 0.1;
       print_endline "closing fd...";
       Unix.close wr;
     )

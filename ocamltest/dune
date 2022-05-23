@@ -31,7 +31,7 @@
    Makefile
    ./ocamltest_config.ml.in
    ./getocamloptdefaultflags)
- (action (run make %{targets} COMPUTE_DEPS=false)))
+ (action (run make -s %{targets} COMPUTE_DEPS=false)))
 
 ;; FIXME: handle UNIX_OR_WIN32 or something similar
 (library
@@ -40,8 +40,8 @@
  (wrapped false)
  ; -linkall so we don't fail to include e.g. ocaml_modifiers.ml, which only
  ; has top-level side effects.
- (flags (:standard -nostdlib -linkall))
- (libraries ocamlcommon stdlib
+ (flags (:standard -linkall))
+ (libraries ocamlcommon
   (select ocamltest_unix.ml from
    (unix -> ocamltest_unix.real.ml)
    (-> ocamltest_unix.dummy.ml)))
@@ -49,8 +49,7 @@
  (foreign_stubs (language c) (names run_unix run_stubs)
    (flags ((-DCAML_INTERNALS)
            (:include %{project_root}/oc_cflags.sexp)
-           (:include %{project_root}/oc_cppflags.sexp)))
-   (include_dirs %{project_root}/ocaml/runtime)))
+           (:include %{project_root}/oc_cppflags.sexp)))))
 
 (rule
  (targets empty.ml)
@@ -60,9 +59,9 @@
 (executable
  (name main)
  (modes byte)
- (flags (:standard -principal -nostdlib
+ (flags (:standard -principal
    -cclib "-I%{project_root}/ocaml/runtime"))
  (modules options main)
- (libraries ocamltest_core_and_plugin runtime_byte stdlib))
+ (libraries ocamltest_core_and_plugin))
 
 (rule (copy main.exe ocamltest.byte))

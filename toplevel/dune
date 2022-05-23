@@ -16,34 +16,28 @@
  (name ocamltoplevel)
  (wrapped false)
  (modes byte)
- (flags (:standard -principal -nostdlib))
- (libraries stdlib ocamlcommon ocamlbytecomp)
+ (flags (:standard -principal))
+ (libraries ocamlcommon ocamlbytecomp)
  (modules genprintval toploop trace topdirs topmain))
 
 (executable
  (name topstart)
  (modes byte)
- ; Without -nopervasives the stdlib modules are specified twice, which
- ; causes errors.  Maybe this needs a dune fix?
- (flags (:standard -principal -nostdlib -linkall -nopervasives
-   -cclib "-I ocaml/runtime" -cclib "-L ocaml/runtime" -cclib -lcamlrun))
- (link_deps (file ../stdlib/camlheader) (file ../runtime/libcamlrun.a))
- (libraries ocamlbytecomp ocamlcommon ocamltoplevel stdlib)
+ (flags (:standard -principal -linkall))
+ (libraries ocamlbytecomp ocamlcommon ocamltoplevel)
  (modules topstart))
 
 (executable
  (name expunge)
  (modes byte)
- (flags (:standard -principal -nostdlib
-   -cclib "-I ../runtime" -cclib "-L ../runtime" -cclib -lcamlrun))
- (link_deps (file ../stdlib/camlheader) (file ../runtime/libcamlrun.a))
- (libraries ocamlbytecomp ocamlcommon stdlib)
+ (flags (:standard -principal))
+ (libraries ocamlbytecomp ocamlcommon)
  (modules expunge))
 
 (rule
  (targets byte)
  ; This should be generated from the stdlib modules files
- (action (run %{ocaml_where}/expunge %{dep:topstart.bc} %{targets}
+ (action (run %{ocaml_where}/../../bin/ocamlrun %{exe:expunge.bc} %{dep:topstart.bc} %{targets}
                     stdlib__Arg
                     stdlib__Array
                     stdlib__ArrayLabels
