@@ -278,6 +278,10 @@ module Alloc_mode : sig
 
   val equate : t -> t -> (unit, unit) result
 
+  val make_global_exn : t -> unit
+
+  val make_local_exn : t -> unit
+
   val join_const : const -> const -> const
 
   val join : t list -> t
