@@ -276,18 +276,49 @@ let native_name p =
 let byte_name p =
   p.prim_name
 
+let equal_boxed_integer bi1 bi2 =
+  match bi1, bi2 with
+  | Pnativeint, Pnativeint
+  | Pint32, Pint32
+  | Pint64, Pint64 ->
+    true
+  | (Pnativeint | Pint32 | Pint64), _ ->
+    false
+
+let equal_native_repr nr1 nr2 =
+  match nr1, nr2 with
+  | Same_as_ocaml_repr, Same_as_ocaml_repr -> true
+  | Same_as_ocaml_repr,
+    (Unboxed_float | Unboxed_integer _ | Untagged_int) -> false
+  | Unboxed_float, Unboxed_float -> true
+  | Unboxed_float,
+    (Same_as_ocaml_repr | Unboxed_integer _ | Untagged_int) -> false
+  | Unboxed_integer bi1, Unboxed_integer bi2 -> equal_boxed_integer bi1 bi2
+  | Unboxed_integer _,
+    (Same_as_ocaml_repr | Unboxed_float | Untagged_int) -> false
+  | Untagged_int, Untagged_int -> true
+  | Untagged_int,
+    (Same_as_ocaml_repr | Unboxed_float | Unboxed_integer _) -> false
+
+let equal_effects ef1 ef2 =
+  match ef1, ef2 with
+  | No_effects, No_effects -> true
+  | No_effects, (Only_generative_effects | Arbitrary_effects) -> false
+  | Only_generative_effects, Only_generative_effects -> true
+  | Only_generative_effects, (No_effects | Arbitrary_effects) -> false
+  | Arbitrary_effects, Arbitrary_effects -> true
+  | Arbitrary_effects, (No_effects | Only_generative_effects) -> false
+
+let equal_coeffects cf1 cf2 =
+  match cf1, cf2 with
+  | No_coeffects, No_coeffects -> true
+  | No_coeffects, Has_coeffects -> false
+  | Has_coeffects, Has_coeffects -> true
+  | Has_coeffects, No_coeffects -> false
+
 let native_name_is_external p =
   let nat_name = native_name p in
   nat_name <> "" && nat_name.[0] <> '%'
-
-let inst_mode mode p =
-  let inst_repr = function
-    | Prim_poly, r -> mode, r
-    | (Prim_global|Prim_local) as m, r -> m, r
-  in
-  { p with
-    prim_native_repr_args = List.map inst_repr p.prim_native_repr_args;
-    prim_native_repr_res = inst_repr p.prim_native_repr_res }
 
 let report_error ppf err =
   match err with
