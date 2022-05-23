@@ -36,26 +36,19 @@ _ocamltestd
 .merlin
 
 _build/
-_build0/
-_build1/
-_build2/
 _build_upstream/
 .rsync-output
 .rsync-output-compare
 _compare/
 _runtest/
-_stage2_configure/
 autom4te.cache
 _install/
 
-/Makefile
+/Makefile.config
 /config.log
 /config.status
+/config.cache
 /configure
-/configure_opts
-/configure_opts_stage0
-/ocaml-stage1-config.status
-/ocaml-stage2-config.status
 /ocamlopt_flags.sexp
 /oc_cflags.sexp
 /oc_cppflags.sexp

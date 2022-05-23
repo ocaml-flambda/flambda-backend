@@ -6,7 +6,6 @@
  (flags
   (:standard
    -principal
-   -nostdlib
    -open
    Flambda2_bound_identifiers
    -open
@@ -32,7 +31,6 @@
  (ocamlopt_flags
   (:standard -O3))
  (libraries
-  stdlib
   ocamlcommon
   ocamloptcomp
   flambda2_bound_identifiers

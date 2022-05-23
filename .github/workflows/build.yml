@@ -1,0 +1,123 @@
+name: build
+on: [push, pull_request]
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: closure
+            config: --enable-middle-end=closure
+            os: ubuntu-latest
+            ocamlparam: ''
+            check_arch: true
+
+          - name: closure_cfg_local
+            config: --enable-middle-end=closure --enable-stack-allocation
+            os: ubuntu-latest
+            ocamlparam: _,ocamlcfg=1
+
+          - name: flambda1
+            config: --enable-middle-end=flambda
+            os: ubuntu-latest
+            ocamlparam: ''
+
+          - name: flambda1_cfg_local
+            config: --enable-middle-end=flambda --enable-stack-allocation
+            os: ubuntu-latest
+            ocamlparam: _,ocamlcfg=1
+
+          - name: flambda2
+            config: --enable-middle-end=flambda2
+            os: ubuntu-latest
+            ocamlparam: ''
+
+          - name: flambda2_cfg_local
+            config: --enable-middle-end=flambda2 --enable-stack-allocation
+            os: ubuntu-latest
+            ocamlparam: _,ocamlcfg=1
+
+          - name: flambda2_macos
+            config: --enable-middle-end=flambda2
+            os: macos-latest
+
+    env:
+      J: "3"
+      # On macOS, the testsuite is slow, so run only on push to main (#507)
+      run_testsuite: "${{matrix.os != 'macos-latest' || (github.event_name == 'push' && github.event.ref == 'refs/heads/main')}}"
+
+    steps:
+    - name: Checkout the Flambda backend repo
+      uses: actions/checkout@master
+      with:
+        path: 'flambda_backend'
+
+    - name: Cache OCaml 4.12 and dune
+      uses: actions/cache@v1
+      id: cache
+      with:
+        path: ${{ github.workspace }}/ocaml-412/_install
+        key: ${{ matrix.os }}-cache-ocaml-412-dune-2.7.0-275-gf01752f7
+
+    - name: Checkout OCaml 4.12
+      uses: actions/checkout@master
+      if: steps.cache.outputs.cache-hit != 'true'
+      with:
+        repository: 'ocaml/ocaml'
+        path: 'ocaml-412'
+        ref: '4.12'
+
+    - name: Build OCaml 4.12
+      if: steps.cache.outputs.cache-hit != 'true'
+      working-directory: ocaml-412
+      run: |
+        ./configure --prefix=$GITHUB_WORKSPACE/ocaml-412/_install
+        make -j $J world.opt
+        make install
+        # Remove unneeded parts to shrink cache file
+        rm -rf $GITHUB_WORKSPACE/ocaml-412/_install/{lib/ocaml/compiler-libs,lib/ocaml/expunge,bin/*.byte}
+
+    - name: Checkout dune github repo
+      uses: actions/checkout@master
+      if: steps.cache.outputs.cache-hit != 'true'
+      with:
+        repository: 'ocaml-flambda/dune'
+        ref: 'special_dune'
+        path: 'dune'
+
+    - name: Build dune
+      working-directory: dune
+      if: steps.cache.outputs.cache-hit != 'true'
+      run: |
+        PATH=$GITHUB_WORKSPACE/ocaml-412/_install/bin:$PATH make release
+        cp dune.exe $GITHUB_WORKSPACE/ocaml-412/_install/bin/dune
+
+    - name: Install GNU parallel
+      if: matrix.os == 'macos-latest'
+      run: HOMEBREW_NO_INSTALL_CLEANUP=TRUE brew install parallel
+
+    - name: Configure Flambda backend
+      working-directory: flambda_backend
+      run: |
+        autoconf
+        ./configure \
+          --prefix=$GITHUB_WORKSPACE/_install \
+          --with-dune=$GITHUB_WORKSPACE/ocaml-412/_install/bin/dune \
+          ${{ matrix.config }}
+
+    - name: Build, install and test Flambda backend
+      working-directory: flambda_backend
+      run: |
+        if [ $run_testsuite = true ]; then target=ci; else target=compiler; fi
+        PATH=$GITHUB_WORKSPACE/ocaml-412/_install/bin:$PATH make $target
+      env:
+        BUILD_OCAMLPARAM: ${{ matrix.ocamlparam }}
+
+    - name: Check other architectures
+      working-directory: flambda_backend
+      if: matrix.check_arch == true
+      run: |
+        PATH=$GITHUB_WORKSPACE/ocaml-412/_install/bin:$PATH make check_all_arches

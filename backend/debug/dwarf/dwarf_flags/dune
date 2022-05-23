@@ -3,7 +3,7 @@
 (library
   (name dwarf_flags)
   (wrapped true)
-  (flags (:standard -principal -nostdlib))
+  (flags (:standard -principal))
   (ocamlopt_flags (:standard -O3))
-  (libraries stdlib ocamlcommon)
+  (libraries ocamlcommon)
 )

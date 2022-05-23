@@ -4,7 +4,7 @@
  (name flambda2_ui)
  (wrapped true)
  (flags
-  (:standard -principal -nostdlib))
+  (:standard -principal))
  (ocamlopt_flags
   (:standard -O3))
- (libraries stdlib ocamlcommon flambda_backend_common))
+ (libraries ocamlcommon flambda_backend_common))

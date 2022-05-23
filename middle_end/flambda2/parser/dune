@@ -103,7 +103,6 @@
  (flags
   (:standard
    -principal
-   -nostdlib
    -open
    Flambda2_bound_identifiers
    -open
@@ -128,7 +127,6 @@
   (:standard \ flambda_parser_in))
  ; ignore inputs to sed
  (libraries
-  stdlib
   ocamlcommon
   flambda2_algorithms
   flambda2_terms
