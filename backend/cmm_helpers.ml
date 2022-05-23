@@ -2589,41 +2589,51 @@ let curry_function = function
     assert (n > 0);
     intermediate_curry_functions ~nlocal ~arity:n 0
 
-module ApplyFnSet = Set.Make (struct
-  type t = int * Lambda.alloc_mode
+let default_generic_fns : Cmx_format.generic_fns =
+  { curry_fun = [];
+    apply_fun = [2,Lambda.alloc_heap; 3,Lambda.alloc_heap];
+    send_fun = [] }
+(* These apply funs are always present in the main program because
+   the run-time system needs them (cf. runtime/<arch>.S) . *)
 
-  let compare = compare
-end)
+module Generic_fns_tbl = struct
+  type t = {
+    curry: (Clambda.arity, unit) Hashtbl.t;
+    apply: (int * Lambda.alloc_mode, unit) Hashtbl.t;
+    send: (int * Lambda.alloc_mode, unit) Hashtbl.t
+  }
+  let make () = {
+    curry = Hashtbl.create 10;
+    apply = Hashtbl.create 10;
+    send = Hashtbl.create 10;
+  }
+  let add t Cmx_format.{ curry_fun; apply_fun; send_fun } =
+    List.iter (fun f -> Hashtbl.replace t.curry f ()) curry_fun;
+    List.iter (fun f -> Hashtbl.replace t.apply f ()) apply_fun;
+    List.iter (fun f -> Hashtbl.replace t.send f ()) send_fun
 
-module AritySet = Set.Make (struct
-  type t = Clambda.arity
+  let of_fns fns =
+    let t = make () in
+    add t fns;
+    t
 
-  let compare = compare
-end)
+  let entries t : Cmx_format.generic_fns =
+    let sorted_keys tbl =
+      let keys = Hashtbl.fold (fun k () acc -> k :: acc) tbl [] in
+      List.sort compare keys
+    in
+    { curry_fun = sorted_keys t.curry;
+      apply_fun = sorted_keys t.apply;
+      send_fun = sorted_keys t.send }
+end
 
-let default_apply =
-  ApplyFnSet.of_list [2, Lambda.alloc_heap; 3, Lambda.alloc_heap]
-(* These apply funs are always present in the main program because the run-time
-   system needs them (cf. runtime/<arch>.S) . *)
-
-let generic_functions shared units =
-  let apply, send, curry =
-    List.fold_left
-      (fun (apply, send, curry) (ui : Cmx_format.unit_infos) ->
-        ( List.fold_right ApplyFnSet.add ui.ui_apply_fun apply,
-          List.fold_right ApplyFnSet.add ui.ui_send_fun send,
-          List.fold_right AritySet.add ui.ui_curry_fun curry ))
-      (ApplyFnSet.empty, ApplyFnSet.empty, AritySet.empty)
-      units
-  in
-  let apply = if shared then apply else ApplyFnSet.union apply default_apply in
-  let accu =
-    ApplyFnSet.fold (fun nr accu -> apply_function nr :: accu) apply []
-  in
-  let accu =
-    ApplyFnSet.fold (fun nr accu -> send_function nr :: accu) send accu
-  in
-  AritySet.fold (fun arity accu -> curry_function arity @ accu) curry accu
+let generic_functions shared tbl =
+  if not shared then Generic_fns_tbl.add tbl default_generic_fns;
+  let {curry_fun;apply_fun;send_fun} : Cmx_format.generic_fns =
+    Generic_fns_tbl.entries tbl in
+  List.concat_map curry_function curry_fun
+  @ List.map send_function send_fun
+  @ List.map apply_function apply_fun
 
 (* Primitives *)
 
@@ -3674,17 +3684,10 @@ let predef_exception i name =
 (* Header for a plugin *)
 
 let plugin_header units =
-  let mk ((ui : Cmx_format.unit_infos), crc) : Cmxs_format.dynunit =
-    { dynu_name = ui.ui_name;
-      dynu_crc = crc;
-      dynu_imports_cmi = ui.ui_imports_cmi;
-      dynu_imports_cmx = ui.ui_imports_cmx;
-      dynu_defines = ui.ui_defines
-    }
-  in
   global_data "caml_plugin_header"
-    ({ dynu_magic = Config.cmxs_magic_number; dynu_units = List.map mk units }
-      : Cmxs_format.dynheader)
+    ({ dynu_magic = Config.cmxs_magic_number;
+       dynu_units = units }
+     : Cmxs_format.dynheader)
 
 (* To compile "let rec" over values *)
 

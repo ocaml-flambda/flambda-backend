@@ -88,9 +88,7 @@ let current_unit =
     ui_defines = [];
     ui_imports_cmi = [];
     ui_imports_cmx = [];
-    ui_curry_fun = [];
-    ui_apply_fun = [];
-    ui_send_fun = [];
+    ui_generic_fns = { curry_fun = []; apply_fun = []; send_fun = [] };
     ui_force_link = false;
     ui_export_info = default_ui_export_info }
 
@@ -137,9 +135,8 @@ let reset ?packname name =
   current_unit.ui_defines <- [symbol];
   current_unit.ui_imports_cmi <- [];
   current_unit.ui_imports_cmx <- [];
-  current_unit.ui_curry_fun <- [];
-  current_unit.ui_apply_fun <- [];
-  current_unit.ui_send_fun <- [];
+  current_unit.ui_generic_fns <-
+    { curry_fun = []; apply_fun = []; send_fun = [] };
   current_unit.ui_force_link <- !Clflags.link_everything;
   Hashtbl.clear exported_constants;
   structured_constants := structured_constants_empty;
@@ -349,17 +346,23 @@ let approx_env () = !merged_environment
 (* Record that a currying function or application function is needed *)
 
 let need_curry_fun arity =
-  if not (List.mem arity current_unit.ui_curry_fun) then
-    current_unit.ui_curry_fun <- arity :: current_unit.ui_curry_fun
+  let fns = current_unit.ui_generic_fns in
+  if not (List.mem arity fns.curry_fun) then
+    current_unit.ui_generic_fns <-
+      { fns with curry_fun = arity :: fns.curry_fun }
 
 let need_apply_fun n mode =
   assert(n > 0);
-  if not (List.mem (n,mode) current_unit.ui_apply_fun) then
-    current_unit.ui_apply_fun <- (n,mode) :: current_unit.ui_apply_fun
+  let fns = current_unit.ui_generic_fns in
+  if not (List.mem (n,mode) fns.apply_fun) then
+    current_unit.ui_generic_fns <-
+      { fns with apply_fun = (n,mode) :: fns.apply_fun }
 
 let need_send_fun n mode =
-  if not (List.mem (n,mode) current_unit.ui_send_fun) then
-    current_unit.ui_send_fun <- (n,mode) :: current_unit.ui_send_fun
+  let fns = current_unit.ui_generic_fns in
+  if not (List.mem (n,mode) fns.send_fun) then
+    current_unit.ui_generic_fns <-
+      { fns with send_fun = (n,mode) :: fns.send_fun }
 
 (* Write the description of the current unit *)
 

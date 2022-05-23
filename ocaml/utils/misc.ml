@@ -903,6 +903,53 @@ type crcs = (modname * Digest.t option) list
 
 type alerts = string Stdlib.String.Map.t
 
+module Bitmap = struct
+  type t = {
+    length: int;
+    bits: bytes
+  }
+
+  let length_bytes len =
+    (len + 7) lsr 3
+
+  let make n =
+    { length = n;
+      bits = Bytes.make (length_bytes n) '\000' }
+
+  let unsafe_get_byte t n =
+    Char.code (Bytes.unsafe_get t.bits n)
+
+  let unsafe_set_byte t n x =
+    Bytes.unsafe_set t.bits n (Char.unsafe_chr x)
+
+  let check_bound t n =
+    if n < 0 || n >= t.length then invalid_arg "Bitmap.check_bound"
+
+  let set t n =
+    check_bound t n;
+    let pos = n lsr 3 and bit = 1 lsl (n land 7) in
+    unsafe_set_byte t pos (unsafe_get_byte t pos lor bit)
+
+  let clear t n =
+    check_bound t n;
+    let pos = n lsr 3 and nbit = 0xff lxor (1 lsl (n land 7)) in
+    unsafe_set_byte t pos (unsafe_get_byte t pos land nbit)
+
+  let get t n =
+    check_bound t n;
+    let pos = n lsr 3 and bit = 1 lsl (n land 7) in
+    (unsafe_get_byte t pos land bit) <> 0
+
+  let iter f t =
+    for i = 0 to length_bytes t.length - 1 do
+      let c = unsafe_get_byte t i in
+      let pos = i lsl 3 in
+      for j = 0 to 7 do
+        if c land (1 lsl j) <> 0 then
+          f (pos + j)
+      done
+    done
+end
 
 module EnvLazy = struct
   type ('a,'b) t = ('a,'b) eval ref

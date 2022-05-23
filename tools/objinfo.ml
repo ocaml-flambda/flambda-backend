@@ -116,15 +116,15 @@ let print_cmt_infos cmt =
      | None -> ""
      | Some crc -> string_of_crc crc)
 
-let print_general_infos name crc defines cmi cmx =
+let print_general_infos name crc defines iter_cmi iter_cmx =
   printf "Name: %s\n" name;
   printf "CRC of implementation: %s\n" (string_of_crc crc);
   printf "Globals defined:\n";
   List.iter print_line defines;
   printf "Interfaces imported:\n";
-  List.iter print_name_crc cmi;
+  iter_cmi print_name_crc;
   printf "Implementations imported:\n";
-  List.iter print_name_crc cmx
+  iter_cmx print_name_crc
 
 let print_global_table table =
   printf "Globals defined:\n";
@@ -135,9 +135,23 @@ let print_global_table table =
 open Cmx_format
 open Cmxs_format
 
+let print_generic_fns gfns =
+  let pr_afuns _ fns =
+    let mode = function Lambda.Alloc_heap -> "" | Lambda.Alloc_local -> "L" in
+    List.iter (fun (arity,m) -> printf " %d%s" arity (mode m)) fns in
+  let pr_cfuns _ fns =
+    List.iter (function
+      | (Lambda.Curried {nlocal},a) -> printf " %dL%d" a nlocal
+      | (Lambda.Tupled, a) -> printf " -%d" a) fns in
+  printf "Currying functions:%a\n" pr_cfuns gfns.curry_fun;
+  printf "Apply functions:%a\n" pr_afuns gfns.apply_fun;
+  printf "Send functions:%a\n" pr_afuns gfns.send_fun
+
+
 let print_cmx_infos (ui, crc) =
-  print_general_infos
-    ui.ui_name crc ui.ui_defines ui.ui_imports_cmi ui.ui_imports_cmx;
+  print_general_infos ui.ui_name crc ui.ui_defines
+    (fun f -> List.iter f ui.ui_imports_cmi)
+    (fun f -> List.iter f ui.ui_imports_cmx);
   begin match ui.ui_export_info with
   | Clambda approx ->
     if not !no_approx then begin
@@ -174,16 +188,7 @@ let print_cmx_infos (ui, crc) =
     flush stdout;
     Format.printf "%a\n%!" Flambda2_cmx.Flambda_cmx_format.print cmx
   end;
-  let pr_afuns _ fns =
-    let mode = function Lambda.Alloc_heap -> "" | Lambda.Alloc_local -> "L" in
-    List.iter (fun (arity,m) -> printf " %d%s" arity (mode m)) fns in
-  let pr_cfuns _ fns =
-    List.iter (function
-      | (Lambda.Curried {nlocal},a) -> printf " %dL%d" a nlocal
-      | (Lambda.Tupled, a) -> printf " -%d" a) fns in
-  printf "Currying functions:%a\n" pr_cfuns ui.ui_curry_fun;
-  printf "Apply functions:%a\n" pr_afuns ui.ui_apply_fun;
-  printf "Send functions:%a\n" pr_afuns ui.ui_send_fun;
+  print_generic_fns ui.ui_generic_fns;
   printf "Force link: %s\n" (if ui.ui_force_link then "YES" else "no")
 
 let print_cmxa_infos (lib : Cmx_format.library_infos) =
@@ -192,7 +197,13 @@ let print_cmxa_infos (lib : Cmx_format.library_infos) =
   printf "\nExtra C options:";
   List.iter print_spaced_string (List.rev lib.lib_ccopts);
   printf "\n";
-  List.iter print_cmx_infos lib.lib_units
+  print_generic_fns lib.lib_generic_fns;
+  let module B = Misc.Bitmap in
+  lib.lib_units |> List.iter (fun u ->
+    print_general_infos u.li_name u.li_crc u.li_defines
+      (fun f -> B.iter (fun i -> f lib.lib_imports_cmi.(i)) u.li_imports_cmi)
+      (fun f -> B.iter (fun i -> f lib.lib_imports_cmx.(i)) u.li_imports_cmx);
+    printf "Force link: %s\n" (if u.li_force_link then "YES" else "no"))
 
 let print_cmxs_infos header =
   List.iter
@@ -201,8 +212,8 @@ let print_cmxs_infos header =
          ui.dynu_name
          ui.dynu_crc
          ui.dynu_defines
-         ui.dynu_imports_cmi
-         ui.dynu_imports_cmx)
+         (fun f -> List.iter f ui.dynu_imports_cmi)
+         (fun f -> List.iter f ui.dynu_imports_cmx))
     header.dynu_units
 
 let p_title title = printf "%s:\n" title

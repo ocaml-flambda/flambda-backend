@@ -473,6 +473,14 @@ type crcs = (modname * Digest.t option) list
 
 type alerts = string Stdlib.String.Map.t
 
+module Bitmap : sig
+  type t
+  val make : int -> t
+  val set : t -> int -> unit
+  val clear : t -> int -> unit
+  val get : t -> int -> bool
+  val iter : (int -> unit) -> t -> unit
+end
 
 module EnvLazy: sig
   type ('a,'b) t
