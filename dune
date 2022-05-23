@@ -34,14 +34,13 @@
  (name ocamlcommon)
  (wrapped false)
  (flags (
-   -nostdlib -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66
+   -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66
    -warn-error A -bin-annot -safe-string -strict-formats
    -w -67
    ; remove -w -67 by adding the camlinternalMenhirLib hack like the Makefile
  ))
  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
  (library_flags -linkall)
- (libraries stdlib)
  (modules_without_implementation
    annot asttypes cmo_format outcometree parsetree debug_event)
  (modules
@@ -88,11 +87,11 @@
  (name ocamlbytecomp)
  (wrapped false)
  (flags (
-   -nostdlib -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66
+   -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66
    -warn-error A -bin-annot -safe-string -strict-formats
  ))
  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
- (libraries stdlib ocamlcommon)
+ (libraries ocamlcommon)
  (modules
     ;; bytecomp/
     bytegen bytelibrarian bytelink bytepackager emitcode printinstr
@@ -105,28 +104,21 @@
 (executable
  (name main)
  (modes byte)
- ; We need to use ocamlmklib in "custom" mode for the runtime library
- ; in bytecode otherwise the compiler will end up looking for dllruntime.so
- ; which doesn't exist.  Since we don't seem to be able to do this, we
- ; currently don't add "runtime_byte" as a "libraries" dependency, but
- ; instead explicitly provide "-cclib" flags to pull it in.
  (flags (
-   -nostdlib -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66
+   -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66
    -warn-error A -bin-annot -safe-string -strict-formats
-   -cclib "-I runtime" -cclib "-L runtime" -cclib -lcamlrun
  ))
- (link_deps (file stdlib/camlheader) (file runtime/libcamlrun.a))
- (libraries ocamlbytecomp ocamlcommon stdlib)
+ (libraries ocamlbytecomp ocamlcommon)
  (modules main))
 
 (executable
  (name main_native)
  (modes native)
  (flags (
-   -nostdlib -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66
+   -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66
    -warn-error A -bin-annot -safe-string -strict-formats
  ))
- (libraries ocamlbytecomp ocamlcommon runtime_native stdlib)
+ (libraries ocamlbytecomp ocamlcommon)
  (modules main_native))
 
 (data_only_dirs yacc)
@@ -137,7 +129,7 @@
  (action
  (no-infer
   (progn
-   (chdir yacc (run make -j8))
+   (chdir yacc (run make -sj8 OCAMLYACC_INCLUDE_PATH=%{ocaml_where}))
    (copy yacc/ocamlyacc ocamlyacc)))))
 
 (install
@@ -160,7 +152,6 @@
 (install
   (files
     (main.bc as ocamlc.byte)
-    (main_native.exe as ocamlc)
     (main_native.exe as ocamlc.opt)
   )
   (section bin)

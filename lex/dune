@@ -15,9 +15,8 @@
   (name ocamllex_lib)
   (wrapped false)
   (modes byte native)
-  (flags (:standard -principal -nostdlib))
+  (flags (:standard -principal))
   (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
-  (libraries stdlib)
   (modules
     common
     compact
@@ -33,10 +32,8 @@
 (executable
   (name main)
   (modes byte)
-  (flags (:standard -principal -nostdlib
-    -cclib "-I runtime" -cclib "-L runtime" -cclib -lcamlrun))
-  (link_deps (file ../stdlib/camlheader) (file ../runtime/libcamlrun.a))
-  (libraries ocamllex_lib stdlib)
+  (flags (:standard -principal))
+  (libraries ocamllex_lib)
   (modules main))
 
 (rule
@@ -46,15 +43,9 @@
 (executable
   (name main_native)
   (modes native)
-  (flags (:standard -principal -nostdlib))
-  (libraries ocamllex_lib stdlib runtime_native)
+  (flags (:standard -principal))
+  (libraries ocamllex_lib)
   (modules main_native))
-
-; For some reason if we install files as "ocamllex" then dune claims there
-; is a circular dependency, which there should not be, since ocamllex from
-; the "ocamllex" stanza above should be the one on the PATH and not from the
-; build directory.  For the moment we do the copy to "ocamllex" in the
-; Flambda backend Makefile.
 
 (install
   (files
