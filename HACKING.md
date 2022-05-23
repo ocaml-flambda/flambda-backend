@@ -84,7 +84,9 @@ Depending on the initial changes, it might be necessary to do this multiple time
 
 ## Rebuilding during dev work
 
-To rebuild after making changes, you can just type `make` (or `make -j16`, etc).
+To rebuild after making changes, you can just type `make`. You need to
+have a working OCaml 4.12 compiler on your PATH before doing so,
+e.g. installed via OPAM.
 
 There is a special target `make hacking` which starts Dune in polling mode.  The rebuild
 performed here is equivalent to `make ocamlopt` in the upstream distribution: it rebuilds the
@@ -115,8 +117,7 @@ testsuite runs much faster if you install GNU parallel. This is likely
 already present on Linux machines. On macOS, install Homebrew, then `brew
 install parallel`.
 
-There is also a `make ci` target (best run as e.g. `make -j16 ci`) which does a full build
-and test run.
+There is also a `make ci` target which does a full build and test run.
 
 Some of our tests are expect tests run using a custom tool called `flexpect`.
 Corrected outputs can be promoted using `make promote`.
@@ -139,19 +140,17 @@ For small examples that don't need the stdlib or any other library provided by t
 compiler distribution, it suffices to have run `make hacking`, followed by
 something like:
 ```
-./_build1/default/flambda_backend_main_native.exe -nostdlib -nopervasives -c test.ml
+./_build/_bootinstall/bin/ocamlopt.opt -nostdlib -nopervasives -c test.ml
 ```
-(The `flambda_backend_main_native.exe` executable is the one that ends up as `ocamlopt.opt` in
-the installation directory.)
 
 ## Getting the compilation command for a stdlib file
 
 For example because you need to get the `-dflambda` output because of a bug.
 ```
-rm -f _build2/default/ocaml/stdlib/.stdlib.objs/native/std_exit.cmx
-PATH=<FLAMBDA_BACKEND>/_build1/install/default/bin:$PATH <DUNE> build --profile=release --build-dir=_build2 --verbose _build2/default/ocaml/stdlib/.stdlib.objs/native/std_exit.cmx
+rm -f _build/runtime_stdlib/ocaml/stdlib/.stdlib.objs/native/std_exit.cmx
+<DUNE> build --workspace=duneconf/runtime_stdlib.ws --verbose ocaml/stdlib/.stdlib.objs/native/std_exit.cmx
 ```
-where `<FLAMBDA_BACKEND>` is the path to your clone and `<DUNE>` is the path to the dune provided to `configure`.
+where `<DUNE>` is the path to the dune provided to `configure`.
 
 ## Bootstrapping the ocaml subtree
 

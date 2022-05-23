@@ -18,7 +18,7 @@ Only currently tested on Linux/x86-64 and macOS/x86-64.
 
 One-time setup:
 ```
-$ opam switch 4.11.1  # or "opam switch create 4.11.1" if you haven't got that switch already
+$ opam switch 4.12.0  # or "opam switch create 4.12.0" if you haven't got that switch already
 $ eval $(opam env)
 $ git clone https://github.com/ocaml-flambda/dune
 $ cd dune  # We'll refer to this "dune" directory below as $DUNE_DIR
@@ -51,6 +51,5 @@ compiler is not yet ready for production use.)
 To build and install the Flambda backend, which produces a compiler installation directory whose
 layout is compatible with upstream, run:
 ```
-$ make  # or e.g. make -j16
 $ make install
 ```

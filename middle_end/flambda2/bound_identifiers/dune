@@ -6,7 +6,6 @@
  (flags
   (:standard
    -principal
-   -nostdlib
    -open
    Flambda2_algorithms
    -open
@@ -20,7 +19,6 @@
  (ocamlopt_flags
   (:standard -O3))
  (libraries
-  stdlib
   ocamlcommon
   flambda2_algorithms
   flambda2_identifiers

@@ -36,58 +36,19 @@ AC_ARG_ENABLE([middle-end],
     [*], [AC_MSG_ERROR([Bad middle end (not closure, flambda or flambda2)])])],
   [AC_MSG_ERROR([--enable-middle-end=closure|flambda|flambda2 must be provided])])
 
-stage0_prefix=$ac_abs_confdir/_build0/_install
-stage1_prefix=$ac_abs_confdir/_build1/install/default
-stage2_prefix=$ac_abs_confdir/_build2/install/default
-
 AC_SUBST([prefix])
 AC_SUBST([middle_end])
-AC_SUBST([stage0_prefix])
-AC_SUBST([stage1_prefix])
-AC_SUBST([stage2_prefix])
 AC_SUBST([dune])
 
 # Don't error on options that this configure script doesn't understand but
 # the ocaml/ one does.
 AC_DISABLE_OPTION_CHECKING
 
-# The "real" --prefix will still be on the command line, but our new one here
-# will take priority.
-# This should match configure_args_for_ocaml, below.
 AX_SUBDIRS_CONFIGURE([ocaml],
-  [$middle_end_arg,-C,--disable-ocamldoc],
+  [$middle_end_arg,-C,--disable-ocamldoc,--disable-stdlib-manpages],
   [],
-  [--prefix=$stage1_prefix],
+  [],
   [])
 
-temp=$(mktemp)
-
-echo "$middle_end_arg" > $temp
-echo "--disable-ocamldoc" >> $temp
-
-# The following trick ensures that if one of the arguments to configure
-# contains a space, the argument is not incorrectly split on such space.
-eval 'for option in '$ac_configure_args'; do echo $option; done' \
-  | grep -v '^--prefix=' \
-  | grep -v '^--enable-middle-end=' \
-  | grep -v '^--with-dune=' \
-  >> $temp
-
-# We prefer nulls to newlines as delimiters as it makes it easier to
-# use xargs across platforms (macOS doesn't support xargs -d'\n' for
-# example).
-cat $temp | tr '\n' '\0' > configure_opts
-
-# For stage0 when Flambda 2 is enabled, the stage0 compiler is
-# configured in Closure mode.
-# We use "." instead of "\x00" since the latter may not work on non-GNU sed.
-cat configure_opts | sed 's/^--enable-flambda2.//g' > configure_opts_stage0
-
-rm -f $temp
-
-AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([Makefile.config])
 AC_OUTPUT
-
-# We need a copy of config.status that is, for certain, the correct one
-# for the stage1 build.
-cp ocaml/config.status ocaml-stage1-config.status
