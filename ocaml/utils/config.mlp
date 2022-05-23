@@ -103,17 +103,17 @@ and cmo_magic_number = "Caml1999O500"
 and cma_magic_number = "Caml1999A500"
 and cmx_magic_number =
   if flambda || flambda2 then
-    "Caml2021y500"
+    "Caml2021y501"
   else
-    "Caml2021Y500"
+    "Caml2021Y501"
 and cmxa_magic_number =
   if flambda || flambda2 then
-    "Caml2021z500"
+    "Caml2021z501"
   else
-    "Caml2021Z500"
+    "Caml2021Z501"
 and ast_impl_magic_number = "Caml1999M029"
 and ast_intf_magic_number = "Caml1999N029"
-and cmxs_magic_number = "Caml1999D500"
+and cmxs_magic_number = "Caml1999D501"
 and cmt_magic_number = "Caml1999T500"
 and linear_magic_number = "Caml1999L500"
 and cfg_magic_number = "Caml2021G500"
