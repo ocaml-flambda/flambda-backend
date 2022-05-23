@@ -1543,12 +1543,15 @@ let instance_label fixed lbl =
 let prim_mode mvar = function
   | Primitive.Prim_global, _ -> Alloc_mode.global
   | Primitive.Prim_local, _ -> Alloc_mode.local
-  | Primitive.Prim_poly, _ -> mvar
+  | Primitive.Prim_poly, _ ->
+    match mvar with
+    | Some mvar -> mvar
+    | None -> assert false
 
 let rec instance_prim_locals locals mvar macc finalret ty =
   match locals, (repr ty).desc with
   | l :: locals, Tarrow ((lbl,_,mret),arg,ret,commu) ->
-     let marg = prim_mode mvar l in
+     let marg = prim_mode (Some mvar) l in
      let macc = Alloc_mode.join [marg; mret; macc] in
      let mret =
        match locals with
@@ -1566,12 +1569,12 @@ let instance_prim_mode (desc : Primitive.description) ty =
   if is_poly desc.prim_native_repr_res ||
        List.exists is_poly desc.prim_native_repr_args then
     let mode = Alloc_mode.newvar () in
-    let finalret = prim_mode mode desc.prim_native_repr_res in
+    let finalret = prim_mode (Some mode) desc.prim_native_repr_res in
     instance_prim_locals desc.prim_native_repr_args
       mode Alloc_mode.global finalret ty,
-    mode
+    Some mode
   else
-    ty, Alloc_mode.global
+    ty, None
 
 (**** Instantiation with parameter substitution ****)
 

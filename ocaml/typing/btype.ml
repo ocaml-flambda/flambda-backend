@@ -966,6 +966,12 @@ module Alloc_mode = struct
     | Ok (), Ok () -> Ok ()
     | Error (), _ | _, Error () -> Error ()
 
+  let make_global_exn t =
+    submode_exn t global
+
+  let make_local_exn t =
+    submode_exn local t
+
   let next_id = ref (-1)
   let fresh () =
     incr next_id;

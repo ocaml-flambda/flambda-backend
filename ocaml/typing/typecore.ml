@@ -4712,8 +4712,8 @@ and type_ident env ?(recarg=Rejected) lid =
     match desc.val_kind with
     | Val_prim prim ->
        let ty, mode = instance_prim_mode prim (instance desc.val_type) in
-       begin match prim.prim_native_repr_res with
-       | Prim_poly, _ -> register_allocation_mode mode
+       begin match prim.prim_native_repr_res, mode with
+       | (Prim_poly, _), Some mode -> register_allocation_mode mode
        | _ -> ()
        end;
        ty, Id_prim mode
