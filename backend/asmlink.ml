@@ -364,11 +364,11 @@ let call_linker_shared file_list output_name =
 let link_shared ~ppf_dump objfiles output_name =
   Profile.record_call output_name (fun () ->
     let genfns = Cmm_helpers.Generic_fns_tbl.make () in
-    let ml_objfiles_rev, units_tolink =
+    let ml_objfiles, units_tolink =
       List.fold_right (scan_file ~shared:true genfns) objfiles ([],[]) in
     Clflags.ccobjs := !Clflags.ccobjs @ !lib_ccobjs;
     Clflags.all_ccopts := !lib_ccopts @ !Clflags.all_ccopts;
-    let objfiles = List.rev ml_objfiles_rev @ List.rev !Clflags.ccobjs in
+    let objfiles = List.rev ml_objfiles @ List.rev !Clflags.ccobjs in
     let startup =
       if !Clflags.keep_startup_file || !Emitaux.binary_backend_available
       then output_name ^ ".startup" ^ ext_asm
@@ -385,12 +385,12 @@ let link_shared ~ppf_dump objfiles output_name =
     remove_file startup_obj
   )
 
-let call_linker file_list startup_file output_name =
+let call_linker file_list_rev startup_file output_name =
   let main_dll = !Clflags.output_c_object
                  && Filename.check_suffix output_name Config.ext_dll
   and main_obj_runtime = !Clflags.output_complete_object
   in
-  let files = startup_file :: (List.rev file_list) in
+  let files = startup_file :: (List.rev file_list_rev) in
   let files, c_lib =
     if (not !Clflags.output_c_object) || main_dll || main_obj_runtime then
       files @ (List.rev !Clflags.ccobjs) @ runtime_lib (),
@@ -429,7 +429,7 @@ let link ~ppf_dump objfiles output_name =
       else if !Clflags.output_c_object then stdlib :: objfiles
       else stdlib :: (objfiles @ [stdexit]) in
     let genfns = Cmm_helpers.Generic_fns_tbl.make () in
-    let ml_objfiles_rev, units_tolink =
+    let ml_objfiles, units_tolink =
       List.fold_right (scan_file ~shared:false genfns) objfiles ([],[]) in
     Array.iter remove_required Runtimedef.builtin_exceptions;
     begin match extract_missing_globals() with
@@ -451,7 +451,7 @@ let link ~ppf_dump objfiles output_name =
       (fun () -> make_startup_file ~ppf_dump ~filename:startup genfns units_tolink);
     Emitaux.reduce_heap_size ~reset:(fun () -> reset ());
     Misc.try_finally
-      (fun () -> call_linker (List.rev ml_objfiles_rev) startup_obj output_name)
+      (fun () -> call_linker ml_objfiles startup_obj output_name)
       ~always:(fun () -> remove_file startup_obj)
   )
 
