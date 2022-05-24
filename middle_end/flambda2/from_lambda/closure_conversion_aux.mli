@@ -362,11 +362,7 @@ end
 
 module Let_with_acc : sig
   val create :
-    Acc.t ->
-    Bound_pattern.t ->
-    Named.t ->
-    body:Expr.t ->
-    Expr_with_acc.t
+    Acc.t -> Bound_pattern.t -> Named.t -> body:Expr.t -> Expr_with_acc.t
 end
 
 module Let_cont_with_acc : sig
