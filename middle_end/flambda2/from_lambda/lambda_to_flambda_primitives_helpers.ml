@@ -190,8 +190,8 @@ let expression_for_failure acc exn_cont ~register_const_string primitive dbg
       (Some extra_let_binding)
 
 let rec bind_rec acc exn_cont ~register_const_string (prim : expr_primitive)
-    (dbg : Debuginfo.t) (cont : Acc.t -> Named.t -> Acc.t * Expr_with_acc.t) :
-    Acc.t * Expr_with_acc.t =
+    (dbg : Debuginfo.t) (cont : Acc.t -> Named.t -> Expr_with_acc.t) :
+    Expr_with_acc.t =
   match prim with
   | Simple simple ->
     let named = Named.create_simple simple in
@@ -359,8 +359,7 @@ let rec bind_rec acc exn_cont ~register_const_string (prim : expr_primitive)
 
 and bind_rec_primitive acc exn_cont ~register_const_string
     (prim : simple_or_prim) (dbg : Debuginfo.t)
-    (cont : Acc.t -> Simple.t -> Acc.t * Expr_with_acc.t) :
-    Acc.t * Expr_with_acc.t =
+    (cont : Acc.t -> Simple.t -> Expr_with_acc.t) : Expr_with_acc.t =
   match prim with
   | Simple s -> cont acc s
   | Prim p ->

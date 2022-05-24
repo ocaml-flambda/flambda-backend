@@ -347,7 +347,7 @@ let _print_stack ppf stack =
    the correct number of pop trap operations must be inserted. A similar thing
    is also necessary for closing local allocation regions. *)
 let compile_staticfail acc env ccenv ~(continuation : Continuation.t) ~args :
-    Acc.t * Expr_with_acc.t =
+    Expr_with_acc.t =
   let try_stack_at_handler = Env.get_try_stack_at_handler env continuation in
   let try_stack_now = Env.get_try_stack env in
   let dbg =
@@ -644,10 +644,9 @@ let rec_catch_for_for_loop env ident start stop (dir : Asttypes.direction_flag)
 
 let let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler
     ~params
-    ~(body :
-       Acc.t -> Env.t -> CCenv.t -> Continuation.t -> Acc.t * Expr_with_acc.t)
-    ~(handler : Acc.t -> Env.t -> CCenv.t -> Acc.t * Expr_with_acc.t) :
-    Acc.t * Expr_with_acc.t =
+    ~(body : Acc.t -> Env.t -> CCenv.t -> Continuation.t -> Expr_with_acc.t)
+    ~(handler : Acc.t -> Env.t -> CCenv.t -> Expr_with_acc.t) : Expr_with_acc.t
+    =
   let cont = Continuation.create () in
   let { Env.body_env; handler_env; extra_params } =
     Env.add_continuation env cont ~push_to_try_stack:is_exn_handler Nonrecursive
@@ -782,8 +781,8 @@ let primitive_can_raise (prim : Lambda.primitive) =
    the return continuation rather than relying on a wrapper to be removed. *)
 
 let rec cps_non_tail acc env ccenv (lam : L.lambda)
-    (k : Acc.t -> Env.t -> CCenv.t -> Ident.t -> Acc.t * Expr_with_acc.t)
-    (k_exn : Continuation.t) : Acc.t * Expr_with_acc.t =
+    (k : Acc.t -> Env.t -> CCenv.t -> Ident.t -> Expr_with_acc.t)
+    (k_exn : Continuation.t) : Expr_with_acc.t =
   match lam with
   | Lvar id ->
     if Env.is_mutable env id
@@ -1131,8 +1130,8 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
           ~handler:(fun acc env ccenv -> k acc env ccenv return))
 
 and cps_non_tail_simple acc env ccenv (lam : L.lambda)
-    (k : Acc.t -> Env.t -> CCenv.t -> IR.simple -> Acc.t * Expr_with_acc.t)
-    (k_exn : Continuation.t) : Acc.t * Expr_with_acc.t =
+    (k : Acc.t -> Env.t -> CCenv.t -> IR.simple -> Expr_with_acc.t)
+    (k_exn : Continuation.t) : Expr_with_acc.t =
   match lam with
   | Lvar id when not (Env.is_mutable env id) -> k acc env ccenv (IR.Var id)
   | Lconst const -> k acc env ccenv (IR.Const const)
@@ -1146,7 +1145,7 @@ and cps_non_tail_simple acc env ccenv (lam : L.lambda)
       k_exn
 
 and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
-    (k_exn : Continuation.t) : Acc.t * Expr_with_acc.t =
+    (k_exn : Continuation.t) : Expr_with_acc.t =
   match lam with
   | Lvar id ->
     let dbg = Debuginfo.none in
@@ -1474,13 +1473,13 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
                   [IR.Var wrap_return])))
 
 and name_then_cps_non_tail acc env ccenv name defining_expr k _k_exn :
-    Acc.t * Expr_with_acc.t =
+    Expr_with_acc.t =
   let id = Ident.create_local name in
   let body acc ccenv = k acc env ccenv id in
   CC.close_let acc ccenv id Not_user_visible defining_expr ~body
 
 and name_then_cps_tail acc env ccenv ~dbg name defining_expr k _k_exn :
-    Acc.t * Expr_with_acc.t =
+    Expr_with_acc.t =
   let id = Ident.create_local name in
   let body acc ccenv =
     apply_cont_with_extra_args acc env ccenv ~dbg k None [IR.Var id]
@@ -1495,7 +1494,7 @@ and cps_non_tail_list acc env ccenv lams k k_exn =
     k_exn
 
 and cps_non_tail_list_core acc env ccenv (lams : L.lambda list)
-    (k : Acc.t -> Env.t -> CCenv.t -> IR.simple list -> Acc.t * Expr_with_acc.t)
+    (k : Acc.t -> Env.t -> CCenv.t -> IR.simple list -> Expr_with_acc.t)
     (k_exn : Continuation.t) =
   match lams with
   | [] -> k acc env ccenv []
@@ -1636,8 +1635,7 @@ and cps_function env ~fid ~stub ~(recursive : Recursive.t) ?free_idents
     ~num_trailing_local_params ~contains_no_escaping_local_allocs:region
 
 and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
-    ~scrutinee (k : Continuation.t) (k_exn : Continuation.t) :
-    Acc.t * Expr_with_acc.t =
+    ~scrutinee (k : Continuation.t) (k_exn : Continuation.t) : Expr_with_acc.t =
   let block_nums, sw_blocks = List.split switch.sw_blocks in
   let block_nums =
     List.map
@@ -1786,6 +1784,8 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
       switch_expr acc ccenv)
     k_exn
 
+(* CR pchambart: define a record `target_config` to hold things like
+   `big_endian` *)
 let lambda_to_flambda ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
     ~module_block_size_in_words (lam : Lambda.lambda) :
     Flambda_unit.t
