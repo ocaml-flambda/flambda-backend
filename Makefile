@@ -378,7 +378,7 @@ _build_upstream/config.status: ocaml/configure.ac
 	mkdir _build_upstream
 	rsync -a $$(pwd)/ocaml/ $$(pwd)/_build_upstream
 	(cd _build_upstream && \
-	  ./configure -C $(CONFIGURE_ARGS) --prefix=$$(pwd)/_install \
+	  ./configure -C $(CONFIGURE_ARGS) --prefix=$(prefix) \
 	    --disable-ocamldoc \
 	    --enable-ocamltest)
 
