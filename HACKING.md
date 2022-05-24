@@ -9,6 +9,7 @@ want to modify the Flambda backend.  Jump to:
   - [Rebuilding during dev work](#rebuilding-during-dev-work)
   - [Running tests](#running-tests)
   - [Running only part of the upstream testsuite](#running-only-part-of-the-upstream-testsuite)
+  - [Running tests with coverage analysis](#running-tests-with-coverage-analysis)
   - [Running the compiler produced by "make hacking" on an example without the stdlib](#running-the-compiler-produced-by-make-hacking-on-an-example-without-the-stdlib)
   - [Getting the compilation command for a stdlib file](#getting-the-compilation-command-for-a-stdlib-file)
   - [Bootstrapping the ocaml subtree](#bootstrapping-the-ocaml-subtree)
@@ -133,6 +134,27 @@ OCAMLSRCDIR=<FLAMBDA_BACKEND>/_runtest make one DIR=tests/runtime-errors
 where `<FLAMBDA_BACKEND>` is the path to your clone.
 You may also need the `CAML_LD_LIBRARY_PATH` setting depending on what you are testing (see `Makefile.in` at the
 root).
+
+## Running tests with coverage analysis
+
+Coverage analysis is available for the Flambda backend tests (that is, just the
+ones run by `make runtest`), which are intended to provide good coverage on
+their own. We use `bisect_ppx` to perform the analysis. Since binaries
+instrumented with `bisect_ppx` have coverage enabled unconditionally, coverage
+support is disabled by default at compile time.
+
+Coverage requires the `bisect_ppx` package to be installed in your OPAM switch.
+Since no OPAM environment is available when building the final compiler, we
+instead enable coverage on the boot compiler and run the tests directly on the
+boot compiler.
+
+To enable coverage, pass the `--enable-coverage` flag to `./configure`.
+(Remember to clean, as by `git clean -dfX`, whenever re-running
+`./configure`). When coverage is enabled, `make boot-runtest` will
+run the tests on the boot compiler and produce coverage data, and
+`make coverage` will produce an HTML report in `_coverage/`. Alternatively,
+with coverage enabled, `make ci` will build the boot compiler, run the
+tests, and produce the report.
 
 ## Running the compiler produced by "make hacking" on an example without the stdlib
 
