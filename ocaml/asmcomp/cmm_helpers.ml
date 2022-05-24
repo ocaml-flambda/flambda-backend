@@ -606,7 +606,8 @@ let unbox_float dbg =
 (* Complex *)
 
 let box_complex dbg c_re c_im =
-  Cop(Calloc Alloc_heap, [alloc_floatarray_header 2 dbg; c_re; c_im], dbg)
+  Cop(Calloc Lambda.alloc_heap,
+      [alloc_floatarray_header 2 dbg; c_re; c_im], dbg)
 
 let complex_re c dbg = Cop(Cload (Double, Immutable), [c], dbg)
 let complex_im c dbg = Cop(Cload (Double, Immutable),
@@ -760,16 +761,16 @@ let unboxed_float_array_ref arr ofs dbg =
   Cop(Cload (Double, Mutable),
     [array_indexing log2_size_float arr ofs dbg], dbg)
 let float_array_ref arr ofs dbg =
-  box_float dbg Alloc_heap (unboxed_float_array_ref arr ofs dbg)
+  box_float dbg Lambda.alloc_heap (unboxed_float_array_ref arr ofs dbg)
 
 let addr_array_set arr ofs newval dbg =
   Cop(Cextcall("caml_modify", typ_void, [], false),
       [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
 let int_array_set arr ofs newval dbg =
-  Cop(Cstore (Word_int, Lambda.Assignment),
+  Cop(Cstore (Word_int, Assignment),
     [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
 let float_array_set arr ofs newval dbg =
-  Cop(Cstore (Double, Lambda.Assignment),
+  Cop(Cstore (Double, Assignment),
     [array_indexing log2_size_float arr ofs dbg; newval], dbg)
 
 let addr_array_set_local arr ofs newval dbg =
@@ -828,7 +829,7 @@ let call_cached_method obj tag cache pos args (apos,mode) dbg =
 (* Allocation *)
 
 let make_alloc_generic ~mode set_fn dbg tag wordsize args =
-  if mode = Lambda.Alloc_local || wordsize <= Config.max_young_wosize then
+  if Lambda.is_local_mode mode || wordsize <= Config.max_young_wosize then
     let hdr =
       match mode with
       | Lambda.Alloc_local -> local_block_header tag wordsize
@@ -1003,7 +1004,8 @@ let bigarray_set unsafe elt_kind layout b args newval dbg =
         bind "addr" (bigarray_indexing unsafe elt_kind layout b args dbg)
           (fun addr ->
           Csequence(
-            Cop(Cstore (kind, Assignment), [addr; complex_re newv dbg], dbg),
+            Cop(Cstore (kind, Assignment),
+                [addr; complex_re newv dbg], dbg),
             Cop(Cstore (kind, Assignment),
                 [Cop(Cadda, [addr; Cconst_int (sz, dbg)], dbg);
                  complex_im newv dbg],
@@ -1896,9 +1898,12 @@ let apply_function_body (arity, (mode : Lambda.alloc_mode)) =
   (* In the slowpath, a region is necessary in case
      the initial applications do local allocations *)
   let region =
-    match mode with
-    | Alloc_heap -> Some (V.create_local "region")
-    | Alloc_local -> None
+    if not Config.stack_allocation then None
+    else begin
+      match mode with
+      | Alloc_heap -> Some (V.create_local "region")
+      | Alloc_local -> None
+    end
   in
   let rec app_fun clos n =
     if n = arity-1 then begin
@@ -2130,8 +2135,9 @@ let rec intermediate_curry_functions ~nlocal ~arity num =
     let name2 = if num = 0 then name1 else name1 ^ "_" ^ Int.to_string num in
     let arg = V.create_local "arg" and clos = V.create_local "clos" in
     let fun_dbg = placeholder_fun_dbg ~human_name:name2 in
-    let mode : Lambda.alloc_mode =
-      if num >= arity - nlocal then Alloc_local else Alloc_heap in
+    let mode =
+      if num >= arity - nlocal then Lambda.alloc_local else Lambda.alloc_heap
+    in
     let curried n : Clambda.arity = (Curried {nlocal=min nlocal n}, n) in
     Cfunction
      {fun_name = name2;
@@ -2214,7 +2220,7 @@ module ApplyFnSet =
 module AritySet =
   Set.Make (struct type t = Clambda.arity let compare = compare end)
 
-let default_apply = ApplyFnSet.of_list [2,Alloc_heap; 3,Alloc_heap]
+let default_apply = ApplyFnSet.of_list [2,Lambda.alloc_heap; 3,Lambda.alloc_heap]
   (* These apply funs are always present in the main program because
      the run-time system needs them (cf. runtime/<arch>.S) . *)
 
@@ -2312,18 +2318,23 @@ type binary_primitive = expression -> expression -> Debuginfo.t -> expression
 
 (* Helper for compilation of initialization and assignment operations *)
 
-type assignment_kind = Caml_modify | Caml_modify_local | Simple
+type assignment_kind =
+    | Caml_modify
+    | Caml_modify_local
+    | Simple of initialization_or_assignment
 
 let assignment_kind
     (ptr: Lambda.immediate_or_pointer)
     (init: Lambda.initialization_or_assignment) =
   match init, ptr with
-  | Assignment, Pointer -> Caml_modify
-  | Local_assignment, Pointer -> Caml_modify_local
+  | Assignment Alloc_heap, Pointer -> Caml_modify
+  | Assignment Alloc_local, Pointer ->
+    assert Config.stack_allocation;
+    Caml_modify_local
   | Heap_initialization, _ ->
      Misc.fatal_error "Cmm_helpers: Lambda.Heap_initialization unsupported"
-  | (Assignment | Local_assignment), Immediate
-  | Root_initialization, (Immediate | Pointer) -> Simple
+  | (Assignment _), Immediate -> Simple Assignment
+  | Root_initialization, (Immediate | Pointer) -> Simple Initialization
 
 let setfield n ptr init arg1 arg2 dbg =
   match assignment_kind ptr init with
@@ -2337,10 +2348,15 @@ let setfield n ptr init arg1 arg2 dbg =
         (Cop(Cextcall("caml_modify_local", typ_void, [], false),
              [arg1; Cconst_int (n,dbg); arg2],
              dbg))
-  | Simple ->
+  | Simple init ->
       return_unit dbg (set_field arg1 n arg2 init dbg)
 
 let setfloatfield n init arg1 arg2 dbg =
+  let init =
+    match init with
+    | Lambda.Assignment _ -> Assignment
+    | Lambda.Heap_initialization | Lambda.Root_initialization -> Initialization
+  in
   return_unit dbg (
     Cop(Cstore (Double, init),
         [if n = 0 then arg1
@@ -2505,7 +2521,7 @@ let arrayref_safe kind arg1 arg2 dbg =
                   (get_header_without_profinfo arr dbg) dbg; idx],
               int_array_ref arr idx dbg)))
       | Pfloatarray ->
-          box_float dbg Alloc_heap (
+          box_float dbg Lambda.alloc_heap (
             bind "index" arg2 (fun idx ->
             bind "arr" arg1 (fun arr ->
               Csequence(
@@ -2524,7 +2540,7 @@ let setfield_computed ptr init arg1 arg2 arg3 dbg =
       return_unit dbg (addr_array_set arg1 arg2 arg3 dbg)
   | Caml_modify_local ->
       return_unit dbg (addr_array_set_local arg1 arg2 arg3 dbg)
-  | Simple ->
+  | Simple _ ->
       return_unit dbg (int_array_set arg1 arg2 arg3 dbg)
 
 let bytesset_unsafe arg1 arg2 arg3 dbg =

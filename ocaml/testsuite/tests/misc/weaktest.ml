@@ -22,7 +22,7 @@ let r = ref [];;
 
 let bunch =
   if Array.length Sys.argv < 2
-  then 10000
+  then 1000
   else int_of_string Sys.argv.(1)
 ;;
 

@@ -103,9 +103,6 @@ let keyword_table =
 
 let lookup_keyword name =
   match Hashtbl.find keyword_table name with
-  | LOCAL | NONLOCAL | GLOBAL
-       when not (Clflags.Extension.is_enabled Local) ->
-     LIDENT name
   | kw -> kw
   | exception Not_found ->
      LIDENT name

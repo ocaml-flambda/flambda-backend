@@ -1,9 +1,14 @@
 (* TEST
-   flags += "-extension local"
    * bytecode
-     reference = "${test_source_directory}/curry.byte.reference"
-   * native
-     reference = "${test_source_directory}/curry.opt.reference" *)
+     reference = "${test_source_directory}/curry.heap.reference"
+   * stack-allocation
+   ** native
+      reference = "${test_source_directory}/curry.stack.reference"
+   * no-stack-allocation
+   ** native
+      reference = "${test_source_directory}/curry.heap.reference"
+ *)
+
 module M : sig
   (* explicit signature to force return modes *)
   val part_local : int -> int -> local_ string -> int -> int -> int -> int list

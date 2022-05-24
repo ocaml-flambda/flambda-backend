@@ -5,11 +5,11 @@ let () =
       (fun () ->
          for i = 1 to 5 do
            print_endline "Thread"; flush stdout;
-           Thread.delay 1.;
+           Thread.delay 0.1;
          done
       ) ()
   in
   for i = 1 to 10 do
     print_endline "Thread"; flush stdout;
-    Thread.delay 0.50;
+    Thread.delay 0.05;
   done

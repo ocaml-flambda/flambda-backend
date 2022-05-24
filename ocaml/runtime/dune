@@ -45,13 +45,13 @@
           instrtrace.c caml/opnames.h prims.c) 
  (action
    (progn
-     (run make %{targets}))))
+     (run make -sj8 %{targets}))))
 
 (rule
   (targets prims.c)
   (mode fallback)
   (deps primitives Makefile)
-  (action (run make %{targets})))
+  (action (run make -s %{targets})))
 
 (rule
  (targets libasmrun.a libasmrund.a libasmruni.a libasmrun_pic.a
@@ -69,12 +69,12 @@
   caml/domain_state.tbl eventlog.c prims.c)
  (action
   (progn
-   (run make %{targets}))))
+   (run make -sj8 %{targets}))))
 
 (rule
   (targets ld.conf)
   (deps %{project_root}/ocaml/Makefile.config)
-  (action (run make -j8 %{targets})))
+  (action (run make -s %{targets})))
 
 ;(rule
 ;  (targets prims.o)
@@ -91,7 +91,7 @@
   (deps libcamlrun.a prims.o)
   (action
     (progn
-    (run make %{targets}))))
+    (run make -s %{targets}))))
 
 (rule
   (targets ocamlrund)
@@ -100,50 +100,14 @@
   (deps libcamlrund.a prims.o ocamlrun)
   (action
     (progn
-      (run make %{targets}))))
+      (run make -s %{targets}))))
 
 (rule
   (targets ocamlruni)
   (deps libcamlruni.a prims.o ocamlrund)
   (action
     (progn
-      (run make %{targets}))))
-
-(library
-  (name runtime_byte)
-  (modes byte)
-  (wrapped false)
-  (modules runtime_byte)
-  (flags (-nostdlib -nopervasives))
-  (foreign_archives camlrun))
-
-; To be in sync with the expectations of special_dune
-(rule
-  (targets libasmrun_native.a)
-  (deps libasmrun.a)
-  (action (copy %{deps} %{targets})))
-
-(library
-  (name runtime_native)
-  (modes native)
-  (wrapped false)
-  (modules runtime_native)
-  (flags (-nostdlib -nopervasives))
-  (foreign_archives asmrun))
-
-; We should fix this so runtime_byte can actually be used (see comment in
-; toplevel dune file).
-(rule
-  (targets dllcamlrun.so)
-  (action (write-file %{targets} "")))
-
-(rule
-  (targets runtime_byte.ml)
-  (action (write-file %{targets} "let linkme = ()")))
-
-(rule
-  (targets runtime_native.ml)
-  (action (write-file %{targets} "")))
+      (run make -s %{targets}))))
 
 (install
   (files
@@ -152,7 +116,7 @@
     ocamlruni
   )
   (section bin)
-  (package ocaml))
+  (package ocaml_runtime_stdlib))
 
 (install
   (files
@@ -165,7 +129,7 @@
     libcamlrun_shared.so
   )
   (section lib)
-  (package ocaml))
+  (package ocaml_runtime_stdlib))
 
 (install
   (files
@@ -176,4 +140,4 @@
     libasmrun_shared.so
   )
   (section lib)
-  (package ocaml))
+  (package ocaml_runtime_stdlib))

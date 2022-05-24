@@ -43,12 +43,11 @@ val transl_extension_constructor: scopes:scopes ->
 
 val transl_scoped_exp : scopes:scopes -> expression -> lambda
 
-val transl_alloc_mode : Location.t -> Types.alloc_mode -> Lambda.alloc_mode
+val transl_alloc_mode : Types.alloc_mode -> Lambda.alloc_mode
 
 type error =
     Free_super_var
   | Unreachable_reached
-  | Local_allocs_not_enabled
 
 exception Error of Location.t * error
 

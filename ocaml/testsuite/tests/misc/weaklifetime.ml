@@ -68,7 +68,7 @@ let check_and_change i j =
 
 let dummy = ref [||];;
 
-while gccount () < 20 do
+while gccount () < 10 do
   dummy := Array.make (Random.int 300) 0;
   let i = Random.int size in
   let j = Random.int (Array.length data.(i).objs) in

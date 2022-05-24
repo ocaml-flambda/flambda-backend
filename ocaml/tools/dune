@@ -14,8 +14,7 @@
 
 (executables
  (names   make_opcodes cvt_emit)
- (modules make_opcodes cvt_emit)
- (libraries stdlib))
+ (modules make_opcodes cvt_emit))
 
 (ocamllex
  (modules make_opcodes)
@@ -30,7 +29,7 @@
   (modes byte)
   (modules ocamldep_byte)
   ; See note in the toplevel dune file about this.
-  (flags (:standard -nostdlib -cclib "-L ../runtime" -cclib -lcamlrun))
+  (flags (:standard -cclib "-L ../runtime" -cclib -lcamlrun))
   (libraries ocamlcommon ocamlbytecomp))
 
 (rule
@@ -40,9 +39,8 @@
 (executable
   (name ocamldep_native)
   (modes native)
-  (flags -nostdlib)
   (modules ocamldep_native)
-  (libraries ocamlcommon ocamlbytecomp runtime_native))
+  (libraries ocamlcommon ocamlbytecomp))
 
 (rule
   (targets ocamldep_native.ml)
@@ -51,7 +49,6 @@
 (install
   (files
     (ocamldep_byte.bc as ocamldep.byte)
-    (ocamldep_native.exe as ocamldep)
     (ocamldep_native.exe as ocamldep.opt)
   )
   (section bin)
@@ -61,7 +58,7 @@
   (name cmpbyt)
   (modes byte)
   (modules cmpbyt)
-  (flags (:standard -nostdlib -cclib "-L ../runtime" -cclib -lcamlrun))
+  (flags (:standard -cclib "-L ../runtime" -cclib -lcamlrun))
   (libraries ocamlcommon ocamlbytecomp))
 
 (library
@@ -79,14 +76,14 @@
     %{project_root}/ocaml/Makefile
     Makefile
     .depend)
-  (action (run make %{targets})))
+  (action (run make -s %{targets})))
 
 (executable
   (name ocamlmklib_byte)
   (modes byte)
   (modules ocamlmklib_byte)
   ; See note in the toplevel dune file about this.
-  (flags (:standard -nostdlib -cclib "-L ../runtime" -cclib -lcamlrun))
+  (flags (:standard -cclib "-L ../runtime" -cclib -lcamlrun))
   (libraries ocamlcommon ocamlbytecomp ocamlmklib_common))
 
 (rule
@@ -96,9 +93,8 @@
 (executable
   (name ocamlmklib_native)
   (modes native)
-  (flags -nostdlib)
   (modules ocamlmklib_native)
-  (libraries ocamlcommon ocamlbytecomp runtime_native ocamlmklib_common))
+  (libraries ocamlcommon ocamlbytecomp ocamlmklib_common))
 
 (rule
   (targets ocamlmklib_native.ml)
@@ -107,7 +103,6 @@
 (install
   (files
     (ocamlmklib_byte.bc as ocamlmklib.byte)
-    (ocamlmklib_native.exe as ocamlmklib)
     (ocamlmklib_native.exe as ocamlmklib.opt)
   )
   (section bin)
@@ -118,7 +113,7 @@
   (modes byte)
   (modules ocamlmktop_byte)
   ; See note in the toplevel dune file about this.
-  (flags (:standard -nostdlib -cclib "-L ../runtime" -cclib -lcamlrun))
+  (flags (:standard -cclib "-L ../runtime" -cclib -lcamlrun))
   (libraries ocamlcommon ocamlbytecomp))
 
 (rule
@@ -128,9 +123,8 @@
 (executable
   (name ocamlmktop_native)
   (modes native)
-  (flags -nostdlib)
   (modules ocamlmktop_native)
-  (libraries ocamlcommon ocamlbytecomp runtime_native))
+  (libraries ocamlcommon ocamlbytecomp))
 
 (rule
   (targets ocamlmktop_native.ml)
@@ -139,7 +133,6 @@
 (install
   (files
     (ocamlmktop_byte.bc as ocamlmktop.byte)
-    (ocamlmktop_native.exe as ocamlmktop)
     (ocamlmktop_native.exe as ocamlmktop.opt)
   )
   (section bin)

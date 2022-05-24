@@ -715,7 +715,7 @@ Error: Multiple definition of the type name t.
 
 fun x -> (x :> < m : 'a -> 'a > as 'a);;
 [%%expect{|
-- : < m : (< m : 'a > as 'b) -> 'b as 'a; .. > -> 'b = <fun>
+- : < m : (< m : 'a -> 'a > as 'a) -> 'a; .. > -> 'a = <fun>
 |}];;
 
 fun x -> (x : int -> bool :> 'a -> 'a);;

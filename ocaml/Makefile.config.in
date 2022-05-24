@@ -246,6 +246,7 @@ AWK=@AWK@
 STDLIB_MANPAGES=@stdlib_manpages@
 NAKED_POINTERS=@naked_pointers@
 INTEL_JCC_BUG_CFLAGS=@intel_jcc_bug_cflags@
+STACK_ALLOCATION=@stack_allocation@
 
 ### Native command to build ocamlrun.exe
 

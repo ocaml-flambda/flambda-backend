@@ -126,6 +126,10 @@ let new_label() = incr label_counter; !label_counter
 
 type rec_flag = Nonrecursive | Recursive
 
+type initialization_or_assignment =
+  | Initialization
+  | Assignment
+
 type phantom_defining_expr =
   | Cphantom_const_int of Targetint.t
   | Cphantom_const_symbol of string
@@ -152,7 +156,7 @@ and operation =
   | Cextcall of string * machtype * exttype list * bool
   | Cload of memory_chunk * Asttypes.mutable_flag
   | Calloc of Lambda.alloc_mode
-  | Cstore of memory_chunk * Lambda.initialization_or_assignment
+  | Cstore of memory_chunk * initialization_or_assignment
   | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
   | Ccmpi of integer_comparison

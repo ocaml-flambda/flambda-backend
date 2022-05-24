@@ -231,7 +231,7 @@ let simplify_exits lam =
             ap_func=f;
             ap_args=[x];
             ap_region_close=pos;
-            ap_mode=Alloc_heap;
+            ap_mode=alloc_heap;
             ap_tailcall=Default_tailcall;
             ap_inlined=Default_inlined;
             ap_specialised=Default_specialise;
@@ -248,7 +248,7 @@ let simplify_exits lam =
             ap_func=f;
             ap_args=[x];
             ap_region_close=pos;
-            ap_mode=Alloc_heap;
+            ap_mode=alloc_heap;
             ap_tailcall=Default_tailcall;
             ap_inlined=Default_inlined;
             ap_specialised=Default_specialise;
@@ -541,7 +541,7 @@ let simplify_lets lam =
         when optimize &&
              List.length params + List.length params' <= Lambda.max_arity() ->
           (* The returned function's mode should match the outer return mode *)
-          assert (inner_mode = Alloc_heap);
+          assert (is_heap_mode inner_mode);
           (* The return type is the type of the value returned after
              applying all the parameters to the function. The return
              type of the merged function taking [params @ params'] as
@@ -768,7 +768,7 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
             ap_args = args;
             ap_loc = Loc_unknown;
             ap_region_close = Rc_normal;
-            ap_mode = Alloc_heap;
+            ap_mode = alloc_heap;
             ap_tailcall = Default_tailcall;
             ap_inlined = Default_inlined;
             ap_specialised = Default_specialise;

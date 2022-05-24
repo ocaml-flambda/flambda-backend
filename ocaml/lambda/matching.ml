@@ -1847,7 +1847,7 @@ let inline_lazy_force_cond arg pos loc =
                       ap_func = force_fun;
                       ap_args = [ varg ];
                       ap_region_close = pos;
-                      ap_mode = Alloc_heap;
+                      ap_mode = alloc_heap;
                       ap_inlined = Default_inlined;
                       ap_specialised = Default_specialise;
                       ap_probe=None
@@ -1883,7 +1883,7 @@ let inline_lazy_force_switch arg pos loc =
                           ap_func = force_fun;
                           ap_args = [ varg ];
                           ap_region_close = pos;
-                          ap_mode = Alloc_heap;
+                          ap_mode = alloc_heap;
                           ap_inlined = Default_inlined;
                           ap_specialised = Default_specialise;
                           ap_probe=None;
@@ -1905,7 +1905,7 @@ let inline_lazy_force arg pos loc =
         ap_func = Lazy.force code_force_lazy;
         ap_args = [ arg ];
         ap_region_close = pos;
-        ap_mode = Alloc_heap;
+        ap_mode = alloc_heap;
         ap_inlined = Default_inlined;
         ap_specialised = Default_specialise;
         ap_probe=None;
@@ -1999,7 +1999,7 @@ let get_expr_args_record ~scopes head (arg, _mut) rem =
         | Record_unboxed _ -> arg
         | Record_float ->
            (* TODO: could optimise to Alloc_local sometimes *)
-           Lprim (Pfloatfield (lbl.lbl_pos, sem, Alloc_heap), [ arg ], loc)
+           Lprim (Pfloatfield (lbl.lbl_pos, sem, alloc_heap), [ arg ], loc)
         | Record_extension _ ->
             Lprim (Pfield (lbl.lbl_pos + 1, sem), [ arg ], loc)
       in
@@ -3402,7 +3402,7 @@ let failure_handler ~scopes loc ~failer () =
     Lprim
       ( Praise Raise_regular,
         [ Lprim
-            ( Pmakeblock (0, Immutable, None, Alloc_heap),
+            ( Pmakeblock (0, Immutable, None, alloc_heap),
               [ slot;
                 Lconst
                   (Const_block

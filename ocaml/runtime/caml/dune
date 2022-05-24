@@ -24,7 +24,7 @@
 (rule
   (targets opnames.h)
   (deps instruct.h)
-  (action (run make -C .. caml/opnames.h)))
+  (action (run make -s -C .. caml/opnames.h)))
 
 (rule
  (targets version.h)
@@ -97,4 +97,4 @@
     (weak.h as caml/weak.h)
   )
   (section lib)
-  (package ocaml))
+  (package ocaml_runtime_stdlib))
