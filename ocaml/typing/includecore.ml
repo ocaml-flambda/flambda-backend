@@ -59,7 +59,7 @@ let primitive_descriptions pd1 pd2 =
     Some (No_alloc First)
   else if pd1.prim_alloc && (not pd2.prim_alloc) then
     Some (No_alloc Second)
-  else if pd1.prim_c_builtin && pd2.prim_c_builtin then
+  else if not (Bool.equal pd1.prim_c_builtin pd2.prim_c_builtin) then
     Some Builtin
   else if not (Primitive.equal_effects pd1.prim_effects pd2.prim_effects) then
     Some Effects
