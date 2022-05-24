@@ -32,12 +32,6 @@ type immediate_or_pointer =
   | Immediate
   | Pointer
 
-type initialization_or_assignment =
-  | Assignment
-  | Local_assignment
-  | Heap_initialization
-  | Root_initialization
-
 type is_safe =
   | Safe
   | Unsafe
@@ -46,9 +40,62 @@ type field_read_semantics =
   | Reads_agree
   | Reads_vary
 
-type alloc_mode =
-  | Alloc_heap
-  | Alloc_local
+include (struct
+
+  type alloc_mode =
+    | Alloc_heap
+    | Alloc_local
+
+  let alloc_heap = Alloc_heap
+
+  let alloc_local : alloc_mode =
+    if Config.stack_allocation then Alloc_local
+    else Alloc_heap
+
+  let join_mode a b =
+    match a, b with
+    | Alloc_local, _ | _, Alloc_local -> Alloc_local
+    | Alloc_heap, Alloc_heap -> Alloc_heap
+
+end : sig
+
+  type alloc_mode = private
+    | Alloc_heap
+    | Alloc_local
+
+  val alloc_heap : alloc_mode
+
+  val alloc_local : alloc_mode
+
+  val join_mode : alloc_mode -> alloc_mode -> alloc_mode
+
+end)
+
+let is_local_mode = function
+  | Alloc_heap -> false
+  | Alloc_local -> true
+
+let is_heap_mode = function
+  | Alloc_heap -> true
+  | Alloc_local -> false
+
+let sub_mode a b =
+  match a, b with
+  | Alloc_heap, _ -> true
+  | _, Alloc_local -> true
+  | Alloc_local, Alloc_heap -> false
+
+let eq_mode a b =
+  match a, b with
+  | Alloc_heap, Alloc_heap -> true
+  | Alloc_local, Alloc_local -> true
+  | Alloc_heap, Alloc_local -> false
+  | Alloc_local, Alloc_heap -> false
+
+type initialization_or_assignment =
+  | Assignment of alloc_mode
+  | Heap_initialization
+  | Root_initialization
 
 type region_close =
   | Rc_normal
@@ -435,7 +482,7 @@ let check_lfunction fn =
      assert (0 <= nlocal);
      assert (nlocal <= nparams);
      if not fn.region then assert (nlocal >= 1);
-     if mode = Alloc_local then assert (nlocal = nparams)
+     if is_local_mode mode then assert (nlocal = nparams)
   end
 
 let default_function_attribute = {
@@ -1060,39 +1107,21 @@ let mod_field ?(read_semantics=Reads_agree) pos =
 let mod_setfield pos =
   Psetfield (pos, Pointer, Root_initialization)
 
-let join_mode a b =
-  match a, b with
-  | Alloc_local, _ | _, Alloc_local -> Alloc_local
-  | Alloc_heap, Alloc_heap -> Alloc_heap
-
-let sub_mode a b =
-  match a, b with
-  | Alloc_heap, _ -> true
-  | _, Alloc_local -> true
-  | Alloc_local, Alloc_heap -> false
-
-let eq_mode a b =
-  match a, b with
-  | Alloc_heap, Alloc_heap -> true
-  | Alloc_local, Alloc_local -> true
-  | Alloc_heap, Alloc_local -> false
-  | Alloc_local, Alloc_heap -> false
-
 let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pidentity | Pbytes_to_string | Pbytes_of_string | Pignore -> None
-  | Prevapply _ | Pdirapply _ -> Some Alloc_local
+  | Prevapply _ | Pdirapply _ -> Some alloc_local
   | Pgetglobal _ | Psetglobal _ -> None
   | Pmakeblock (_, _, _, m) -> Some m
   | Pmakefloatblock (_, m) -> Some m
   | Pfield _ | Pfield_computed _ | Psetfield _ | Psetfield_computed _ -> None
   | Pfloatfield (_, _, m) -> Some m
   | Psetfloatfield _ -> None
-  | Pduprecord _ -> Some Alloc_heap
+  | Pduprecord _ -> Some alloc_heap
   | Pccall p ->
      if not p.prim_alloc then None
      else begin match p.prim_native_repr_res with
-       | (Prim_local|Prim_poly), _ -> Some Alloc_local
-       | Prim_global, _ -> Some Alloc_heap
+       | (Prim_local|Prim_poly), _ -> Some alloc_local
+       | Prim_global, _ -> Some alloc_heap
      end
   | Praise _ -> None
   | Psequor | Psequand | Pnot
@@ -1113,7 +1142,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pstringlength | Pstringrefu  | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets -> None
   | Pmakearray (_, _, m) -> Some m
-  | Pduparray _ -> Some Alloc_heap
+  | Pduparray _ -> Some alloc_heap
   | Parraylength _ -> None
   | Parraysetu _ | Parraysets _
   | Parrayrefu (Paddrarray|Pintarray)
@@ -1121,7 +1150,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Parrayrefu (Pgenarray|Pfloatarray)
   | Parrayrefs (Pgenarray|Pfloatarray) ->
      (* The float box from flat floatarray access is always Alloc_heap *)
-     Some Alloc_heap
+     Some alloc_heap
   | Pisint | Pisout -> None
   | Pintofbint _ -> None
   | Pbintofint (_,m)
@@ -1142,7 +1171,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pbigarrayset _ | Pbigarraydim _ -> None
   | Pbigarrayref (_, _, _, _) ->
      (* Boxes arising from Bigarray access are always Alloc_heap *)
-     Some Alloc_heap
+     Some alloc_heap
   | Pstring_load_16 _ | Pbytes_load_16 _ -> None
   | Pstring_load_32 (_, m) | Pbytes_load_32 (_, m)
   | Pstring_load_64 (_, m) | Pbytes_load_64 (_, m) -> Some m

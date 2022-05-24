@@ -478,16 +478,15 @@ method select_operation op args _dbg =
     (Icall_ind, args)
   | (Cextcall(func, ty_res, ty_args, alloc), _) ->
     Iextcall { func; ty_res; ty_args; alloc; }, args
-  | (Cload (chunk, _mut), [arg]) ->
+  | (Cload (chunk, mut), [arg]) ->
       let (addr, eloc) = self#select_addressing chunk arg in
-      (Iload(chunk, addr), [eloc])
+      (Iload(chunk, addr, mut), [eloc])
   | (Cstore (chunk, init), [arg1; arg2]) ->
       let (addr, eloc) = self#select_addressing chunk arg1 in
       let is_assign =
         match init with
-        | Lambda.Root_initialization -> false
-        | Lambda.Heap_initialization -> false
-        | Lambda.Assignment | Lambda.Local_assignment -> true
+        | Initialization -> false
+        | Assignment -> true
       in
       if chunk = Word_int || chunk = Word_val then begin
         let (op, newarg2) = self#select_store is_assign addr arg2 in
@@ -889,6 +888,7 @@ method emit_expr (env:environment) exp =
         [||] [||];
       r
   | Cregion e ->
+     assert (Config.stack_allocation);
      let reg = self#regs_for typ_int in
      self#insert env (Iop Ibeginregion) [| |] reg;
      let env = { env with regions = reg::env.regions; region_tail = true } in
@@ -1239,6 +1239,7 @@ method emit_tail (env:environment) exp =
         [||] [||];
       self#insert_return env opt_r1
   | Cregion e ->
+      assert (Config.stack_allocation);
       if env.region_tail then
         self#emit_return env exp
       else begin

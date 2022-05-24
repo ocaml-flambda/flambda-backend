@@ -152,6 +152,7 @@ AC_SUBST([install_source_artifacts])
 AC_SUBST([profinfo])
 AC_SUBST([profinfo_width])
 AC_SUBST([frame_pointers])
+AC_SUBST([cpp_mangling])
 AC_SUBST([flambda])
 AC_SUBST([flambda2])
 AC_SUBST([flambda_invariants])
@@ -171,6 +172,7 @@ AC_SUBST([compute_deps])
 AC_SUBST([naked_pointers])
 AC_SUBST([naked_pointers_checker])
 AC_SUBST([intel_jcc_bug_cflags])
+AC_SUBST([stack_allocation])
 
 ## Generated files
 
@@ -277,6 +279,10 @@ AC_ARG_ENABLE([ocamltest],
 AC_ARG_ENABLE([frame-pointers],
   [AS_HELP_STRING([--enable-frame-pointers],
     [use frame pointers in runtime and generated code])])
+
+AC_ARG_ENABLE([cpp-mangling],
+  [AS_HELP_STRING([--enable-cpp-mangling],
+    [use cpp mangling for exported symbols])])
 
 AC_ARG_ENABLE([naked-pointers],
   [AS_HELP_STRING([--disable-naked-pointers],
@@ -393,6 +399,10 @@ AC_ARG_ENABLE([function-sections],
 AC_ARG_WITH([afl],
   [AS_HELP_STRING([--with-afl],
     [use the AFL fuzzer])])
+
+AC_ARG_ENABLE([stack-allocation],
+  [AS_HELP_STRING([--enable-stack-allocation],
+    [enable stack allocation of local values])])
 
 AS_IF([test x"$enable_unix_lib" = "xno"],
   [AS_IF([test x"$enable_debugger" = "xyes"],
@@ -1738,6 +1748,13 @@ AS_IF([test x"$enable_frame_pointers" = "xyes"],
   [AC_MSG_NOTICE([not using frame pointers])
   frame_pointers=false])
 
+## CPP mangling
+
+AS_IF([test x"$enable_cpp_mangling" = "xyes"],
+  [cpp_mangling=true
+    AC_DEFINE([WITH_CPP_MANGLING])],
+  [cpp_mangling=false])
+
 ## No naked pointers
 
 AS_IF([test x"$enable_naked_pointers" = "xno" ],
@@ -1865,6 +1882,11 @@ AS_IF([test x"$enable_force_safe_string" = "xno"],
 AS_IF([test x"$DEFAULT_STRING" = "xunsafe"],
   [default_safe_string=false],
   [default_safe_string=true])
+
+AS_IF([test x"$enable_stack_allocation" = "xyes"],
+  [AC_DEFINE([STACK_ALLOCATION])
+   stack_allocation=true],
+  [stack_allocation=false])
 
 oc_cflags="$common_cflags $internal_cflags"
 oc_cppflags="$common_cppflags $internal_cppflags"

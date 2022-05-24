@@ -379,6 +379,7 @@ module Extension = struct
   type t = Comprehensions | Local
 
   let all = [ Comprehensions; Local ]
+  let default_extensions = [ Local ]
 
   let extensions = ref ([] : t list)   (* -extension *)
   let equal (a : t) (b : t) = (a = b)
@@ -414,7 +415,10 @@ module Extension = struct
     if not (List.exists (equal t) !extensions) then
       extensions := t :: !extensions
 
-  let is_enabled ext = not !disable_all_extensions && List.mem ext !extensions
+  let is_enabled ext =
+    not !disable_all_extensions
+    && (List.mem ext default_extensions
+        || List.mem ext !extensions)
 end
 
 let dump_into_file = ref false (* -dump-into-file *)
@@ -546,7 +550,7 @@ module Compiler_pass = struct
      - the manpages in man/ocaml{c,opt}.m
      - the manual manual/manual/cmds/unified-options.etex
   *)
-  type t = Parsing | Typing | Scheduling | Emit | Simplify_cfg
+  type t = Parsing | Typing | Scheduling | Emit | Simplify_cfg | Selection
 
   let to_string = function
     | Parsing -> "parsing"
@@ -554,6 +558,7 @@ module Compiler_pass = struct
     | Scheduling -> "scheduling"
     | Emit -> "emit"
     | Simplify_cfg -> "simplify_cfg"
+    | Selection -> "selection"
 
   let of_string = function
     | "parsing" -> Some Parsing
@@ -561,11 +566,13 @@ module Compiler_pass = struct
     | "scheduling" -> Some Scheduling
     | "emit" -> Some Emit
     | "simplify_cfg" -> Some Simplify_cfg
+    | "selection" -> Some Selection
     | _ -> None
 
   let rank = function
     | Parsing -> 0
     | Typing -> 1
+    | Selection -> 20
     | Simplify_cfg -> 49
     | Scheduling -> 50
     | Emit -> 60
@@ -576,19 +583,22 @@ module Compiler_pass = struct
     Scheduling;
     Emit;
     Simplify_cfg;
+    Selection;
   ]
   let is_compilation_pass _ = true
   let is_native_only = function
     | Scheduling -> true
     | Emit -> true
     | Simplify_cfg -> true
+    | Selection -> true
     | Parsing | Typing -> false
 
   let enabled is_native t = not (is_native_only t) || is_native
   let can_save_ir_after = function
     | Scheduling -> true
     | Simplify_cfg -> true
-    | _ -> false
+    | Selection -> true
+    | Parsing | Typing | Emit -> false
 
   let available_pass_names ~filter ~native =
     passes
@@ -603,6 +613,7 @@ module Compiler_pass = struct
     match t with
     | Scheduling -> prefix ^ Compiler_ir.(extension Linear)
     | Simplify_cfg -> prefix ^ Compiler_ir.(extension Cfg)
+    | Selection -> prefix ^ Compiler_ir.(extension Cfg) ^ "-sel"
     | Emit | Parsing | Typing -> Misc.fatal_error "Not supported"
 
   let of_input_filename name =

@@ -25,6 +25,8 @@ module type Common_options = sig
   val _no_alias_deps : unit -> unit
   val _app_funct : unit -> unit
   val _no_app_funct : unit -> unit
+  val _disable_all_extensions : unit -> unit
+  val _extension : string -> unit
   val _noassert : unit -> unit
   val _nolabels : unit -> unit
   val _nostdlib : unit -> unit
@@ -47,6 +49,7 @@ module type Common_options = sig
   val _vnum : unit -> unit
   val _w : string -> unit
 
+
   val anonymous : string -> unit
 end
 
@@ -67,7 +70,6 @@ module type Core_options = sig
   val _dtypedtree : unit -> unit
   val _drawlambda : unit -> unit
   val _dlambda : unit -> unit
-  val _extension : string -> unit
 
 end
 
@@ -119,7 +121,6 @@ module type Compiler_options = sig
   val _match_context_rows : int -> unit
   val _dtimings : unit -> unit
   val _dprofile : unit -> unit
-  val _disable_all_extensions : unit -> unit
   val _dump_into_file : unit -> unit
 
   val _args: string -> string array

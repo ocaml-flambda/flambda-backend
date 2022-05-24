@@ -31,7 +31,7 @@ let rec iter_stream_match f s =
 ;;
 
 let test_iter_stream =
-  let limit = 10000000 in
+  let limit = 1000000 in
   try
     iter_stream_match ignore (make_stream_up_to limit);
     print_endline "iter_stream with handler case (match) is tail recursive"

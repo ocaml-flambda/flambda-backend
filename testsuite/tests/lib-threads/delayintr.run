@@ -1,5 +1,5 @@
 ${program} > ${output} &
 pid=$!
-sleep 2
+sleep 0.2
 ./sigint $pid
 wait

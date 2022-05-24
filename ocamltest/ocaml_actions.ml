@@ -1190,6 +1190,18 @@ let no_afl_instrument = Actions.make
     "AFL instrumentation disabled"
     "AFL instrumentation enabled")
 
+let stack_allocation = Actions.make
+  "stack-allocation"
+  (Actions_helpers.pass_or_skip Ocamltest_config.stack_allocation
+    "Stack allocation enabled"
+    "Stack allocation disabled")
+
+let no_stack_allocation = Actions.make
+  "no-stack-allocation"
+  (Actions_helpers.pass_or_skip (not Ocamltest_config.stack_allocation)
+    "Stack allocation disabled"
+    "Stack allocation enabled")
+
 let ocamldoc = Ocaml_tools.ocamldoc
 
 let ocamldoc_output_file env prefix =
@@ -1384,6 +1396,8 @@ let _ =
     windows_unicode;
     afl_instrument;
     no_afl_instrument;
+    stack_allocation;
+    no_stack_allocation;
     setup_ocamldoc_build_env;
     run_ocamldoc;
     check_ocamldoc_output;

@@ -87,7 +87,7 @@ let rec apply_coercion loc strict restr arg =
             Lprim(mod_field pos,[Lvar id], loc)
         in
         let lam =
-          Lprim(Pmakeblock(0, Immutable, None, Alloc_heap),
+          Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
                 List.map (apply_coercion_field loc get_field) pos_cc_list,
                 loc)
         in
@@ -96,8 +96,8 @@ let rec apply_coercion loc strict restr arg =
       let param = Ident.create_local "funarg" in
       let carg = apply_coercion loc Alias cc_arg (Lvar param) in
       apply_coercion_result loc strict arg [param, Pgenval] [carg] cc_res
-  | Tcoerce_primitive { pc_loc; pc_desc; pc_env; pc_type; pc_poly_mode } ->
-      let poly_mode = Translcore.transl_alloc_mode pc_loc pc_poly_mode in
+  | Tcoerce_primitive { pc_desc; pc_env; pc_type; pc_poly_mode } ->
+      let poly_mode = Translcore.transl_alloc_mode pc_poly_mode in
       Translprim.transl_primitive loc pc_desc pc_env pc_type ~poly_mode None
   | Tcoerce_alias (env, path, cc) ->
       let lam = transl_module_path loc env path in
@@ -126,7 +126,7 @@ and apply_coercion_result loc strict funct params args cc_res =
                         is_a_functor = true;
                         stub = true; };
                loc = loc;
-               mode = Alloc_heap;
+               mode = alloc_heap;
                region = true;
                body = apply_coercion
                    loc Strict cc_res
@@ -135,7 +135,7 @@ and apply_coercion_result loc strict funct params args cc_res =
                       ap_func=Lvar id;
                       ap_args=List.rev args;
                       ap_region_close=Rc_normal;
-                      ap_mode=Alloc_heap;
+                      ap_mode=alloc_heap;
                       ap_tailcall=Default_tailcall;
                       ap_inlined=Default_inlined;
                       ap_specialised=Default_specialise;
@@ -400,7 +400,7 @@ let eval_rec_bindings bindings cont =
              ap_func=mod_prim "init_mod";
              ap_args=[loc; shape];
              ap_region_close=Rc_normal;
-             ap_mode=Alloc_heap;
+             ap_mode=alloc_heap;
              ap_tailcall=Default_tailcall;
              ap_inlined=Default_inlined;
              ap_specialised=Default_specialise;
@@ -429,7 +429,7 @@ let eval_rec_bindings bindings cont =
           ap_func=mod_prim "update_mod";
           ap_args=[shape; Lvar id; rhs];
           ap_region_close=Rc_normal;
-          ap_mode=Alloc_heap;
+          ap_mode=alloc_heap;
           ap_tailcall=Default_tailcall;
           ap_inlined=Default_inlined;
           ap_specialised=Default_specialise;
@@ -538,7 +538,7 @@ let rec compile_functor ~scopes mexp coercion root_path loc =
       stub = false;
     };
     loc;
-    mode = Alloc_heap;
+    mode = alloc_heap;
     region = true;
     body;
   }
@@ -569,7 +569,7 @@ and transl_module ~scopes cc rootpath mexp =
            ap_func=transl_module ~scopes Tcoerce_none None funct;
            ap_args=[transl_module ~scopes ccarg None arg];
            ap_region_close=Rc_normal;
-           ap_mode=Alloc_heap;
+           ap_mode=alloc_heap;
            ap_tailcall=Default_tailcall;
            ap_inlined=inlined_attribute;
            ap_specialised=Default_specialise;
@@ -590,7 +590,7 @@ and transl_structure ~scopes loc fields cc rootpath final_env = function
       let body, size =
         match cc with
           Tcoerce_none ->
-            Lprim(Pmakeblock(0, Immutable, None, Alloc_heap),
+            Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
                   List.map (fun id -> Lvar id) (List.rev fields), loc),
               List.length fields
         | Tcoerce_structure(pos_cc_list, id_pos_list) ->
@@ -606,17 +606,17 @@ and transl_structure ~scopes loc fields cc rootpath final_env = function
             in
             let ids = List.fold_right Ident.Set.add fields Ident.Set.empty in
             let lam =
-              Lprim(Pmakeblock(0, Immutable, None, Alloc_heap),
+              Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
                   List.map
                     (fun (pos, cc) ->
                       match cc with
-                        Tcoerce_primitive p ->
+                      | Tcoerce_primitive p ->
+                          let loc = of_location ~scopes p.pc_loc in
+                          let poly_mode =
+                            Translcore.transl_alloc_mode p.pc_poly_mode
+                          in
                           Translprim.transl_primitive
-                            (of_location ~scopes p.pc_loc)
-                            p.pc_desc p.pc_env p.pc_type
-                            ~poly_mode:(Translcore.transl_alloc_mode
-                                          p.pc_loc p.pc_poly_mode)
-                            None
+                            loc p.pc_desc p.pc_env p.pc_type ~poly_mode None
                       | _ -> apply_coercion loc Strict cc (get_field pos))
                     pos_cc_list, loc)
             and id_pos_list =
@@ -943,7 +943,8 @@ let rec more_idents = function
     | Tstr_class_type _ -> more_idents rem
     | Tstr_include{incl_mod={mod_desc =
                              Tmod_constraint ({mod_desc = Tmod_structure str},
-                                              _, _, _)}} ->
+                                              _, _, _)
+                            | Tmod_structure str }} ->
         all_idents str.str_items @ more_idents rem
     | Tstr_include _ -> more_idents rem
     | Tstr_module
@@ -1036,8 +1037,8 @@ let field_of_str loc str =
   let ids = Array.of_list (defined_idents str.str_items) in
   fun (pos, cc) ->
     match cc with
-    | Tcoerce_primitive { pc_loc; pc_desc; pc_env; pc_type; pc_poly_mode } ->
-        let poly_mode = Translcore.transl_alloc_mode pc_loc pc_poly_mode in
+    | Tcoerce_primitive { pc_desc; pc_env; pc_type; pc_poly_mode } ->
+        let poly_mode = Translcore.transl_alloc_mode pc_poly_mode in
         Translprim.transl_primitive loc pc_desc pc_env pc_type ~poly_mode None
     | Tcoerce_alias (env, path, cc) ->
         let lam = transl_module_path loc env path in
@@ -1128,7 +1129,7 @@ let transl_store_structure ~scopes glob map prims aliases str =
             Lsequence(lam,
                       Llet(Strict, Pgenval, id,
                            Lambda.subst no_env_update subst
-                             (Lprim(Pmakeblock(0, Immutable, None, Alloc_heap),
+                             (Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
                                     List.map (fun id -> Lvar id)
                                       (defined_idents str.str_items), loc)),
                            Lsequence(store_ident loc id,
@@ -1160,7 +1161,7 @@ let transl_store_structure ~scopes glob map prims aliases str =
             Lsequence(lam,
                       Llet(Strict, Pgenval, id,
                            Lambda.subst no_env_update subst
-                             (Lprim(Pmakeblock(0, Immutable, None, Alloc_heap),
+                             (Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
                                     List.map field map, loc)),
                            Lsequence(store_ident loc id,
                                      transl_store ~scopes rootpath
@@ -1227,15 +1228,16 @@ let transl_store_structure ~scopes glob map prims aliases str =
                       transl_store ~scopes rootpath (add_idents false ids subst)
                         cont rem)
 
-        | Tstr_include{
+        | Tstr_include({
             incl_loc=loc;
             incl_mod= {
               mod_desc = Tmod_constraint (
                   ({mod_desc = Tmod_structure str} as mexp), _, _,
-                  (Tcoerce_structure (map, _)))};
+                  (Tcoerce_structure _ | Tcoerce_none))}
+            | ({ mod_desc = Tmod_structure str} as mexp);
             incl_attributes;
             incl_type;
-          } ->
+          } as incl) ->
             List.iter (Translattribute.check_attribute_on_module mexp)
               incl_attributes;
             (* Shouldn't we use mod_attributes instead of incl_attributes?
@@ -1262,8 +1264,16 @@ let transl_store_structure ~scopes glob map prims aliases str =
                                  loop ids args))
               | _ -> assert false
             in
+            let map =
+              match incl.incl_mod.mod_desc with
+              | Tmod_constraint (_, _, _, Tcoerce_structure (map, _)) ->
+                 map
+              | Tmod_structure _
+              | Tmod_constraint (_, _, _, Tcoerce_none) ->
+                 List.init (List.length ids0) (fun i -> i, Tcoerce_none)
+              | _ -> assert false
+            in
             Lsequence(lam, loop ids0 map)
-
 
         | Tstr_include incl ->
             let ids = bound_value_identifiers incl.incl_type in
@@ -1369,8 +1379,7 @@ let transl_store_structure ~scopes glob map prims aliases str =
     List.fold_right (add_ident may_coerce) idlist subst
 
   and store_primitive (pos, prim) cont =
-    let poly_mode =
-      Translcore.transl_alloc_mode prim.pc_loc prim.pc_poly_mode in
+    let poly_mode = Translcore.transl_alloc_mode prim.pc_poly_mode in
     Lsequence(Lprim(mod_setfield pos,
                     [Lprim(Pgetglobal glob, [], Loc_unknown);
                      Translprim.transl_primitive Loc_unknown
@@ -1508,7 +1517,7 @@ let toploop_getvalue id =
     ap_args=[Lconst(Const_base(
       Const_string (toplevel_name id, Location.none, None)))];
     ap_region_close=Rc_normal;
-    ap_mode=Alloc_heap;
+    ap_mode=alloc_heap;
     ap_tailcall=Default_tailcall;
     ap_inlined=Default_inlined;
     ap_specialised=Default_specialise;
@@ -1526,7 +1535,7 @@ let toploop_setvalue id lam =
          Const_string(toplevel_name id, Location.none, None)));
        lam];
     ap_region_close=Rc_normal;
-    ap_mode=Alloc_heap;
+    ap_mode=alloc_heap;
     ap_tailcall=Default_tailcall;
     ap_inlined=Default_inlined;
     ap_specialised=Default_specialise;
@@ -1688,13 +1697,13 @@ let transl_package_flambda component_names coercion =
   in
   size,
   apply_coercion Loc_unknown Strict coercion
-    (Lprim(Pmakeblock(0, Immutable, None, Alloc_heap),
+    (Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
            List.map get_component component_names,
            Loc_unknown))
 
 let transl_package component_names target_name coercion =
   let components =
-    Lprim(Pmakeblock(0, Immutable, None, Alloc_heap),
+    Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
           List.map get_component component_names, Loc_unknown) in
   Lprim(Psetglobal target_name,
         [apply_coercion Loc_unknown Strict coercion components],
@@ -1732,7 +1741,7 @@ let transl_store_package component_names target_name coercion =
          0 component_names)
   | Tcoerce_structure (pos_cc_list, _id_pos_list) ->
       let components =
-        Lprim(Pmakeblock(0, Immutable, None, Alloc_heap),
+        Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
               List.map get_component component_names,
               Loc_unknown)
       in

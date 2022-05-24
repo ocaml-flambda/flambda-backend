@@ -86,12 +86,14 @@ config.ml: config.mlp $(ROOTDIR)/Makefile.config Makefile
 	    $(call SUBST,SYSTHREAD_SUPPORT) \
 	    $(call SUBST,TARGET) \
 	    $(call SUBST,WITH_FRAME_POINTERS) \
+	    $(call SUBST,WITH_CPP_MANGLING) \
 	    $(call SUBST,WITH_PROFINFO) \
 	    $(call SUBST,FLAT_FLOAT_ARRAY) \
 	    $(call SUBST,FUNCTION_SECTIONS) \
 	    $(call SUBST,PROBES) \
 	    $(call SUBST,CC_HAS_DEBUG_PREFIX_MAP) \
 	    $(call SUBST,AS_HAS_DEBUG_PREFIX_MAP) \
+	    $(call SUBST,STACK_ALLOCATION) \
 	    $< > $@
 
 # Test for the substitution functions above

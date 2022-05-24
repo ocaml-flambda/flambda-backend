@@ -19,7 +19,9 @@ ROOTDIR = ..
 
 include $(ROOTDIR)/Makefile.common
 
-OC_CPPFLAGS += -I$(ROOTDIR)/runtime
+OCAMLYACC_INCLUDE_PATH = $(ROOTDIR)/runtime
+
+OC_CPPFLAGS += -I$(OCAMLYACC_INCLUDE_PATH)
 
 ifeq "$(UNIX_OR_WIN32)" "win32"
 WSTR_OBJ = wstr
