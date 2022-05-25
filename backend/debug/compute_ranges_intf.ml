@@ -15,35 +15,36 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 (** This file defines types that are used to specify the interface of
-    [Compute_ranges].  The description of [Compute_ranges] is:
+    [Compute_ranges]. The description of [Compute_ranges] is:
 
-      "Coalescing of per-instruction information into possibly-discontiguous
-       regions of code delimited by labels. This is used for collating register
-       availability and lexical block scoping information into a concise form."
+    "Coalescing of per-instruction information into possibly-discontiguous
+    regions of code delimited by labels. This is used for collating register
+    availability and lexical block scoping information into a concise form."
 
     [Compute_ranges] defines a functor, whose argument has type [S_functor], and
     whose result has type [S]. Both [S_functor] and [S] are defined here.
 
-    It is suggested that those unfamiliar with this module start by reading
-    the documentation on module type [S], below.
-*)
+    It is suggested that those unfamiliar with this module start by reading the
+    documentation on module type [S], below. *)
 
 module L = Linear
 
-(** The type of caller-defined contextual state associated with subranges.
-    This may be used to track information throughout the range-computing
-    process. *)
+(** The type of caller-defined contextual state associated with subranges. This
+    may be used to track information throughout the range-computing process. *)
 module type S_subrange_state = sig
   type t
 
   val create : unit -> t
+
   val advance_over_instruction : t -> L.instruction -> t
 end
 
 (** The type of caller-defined information associated with subranges. *)
 module type S_subrange_info = sig
   type t
+
   type key
+
   type subrange_state
 
   val create : key -> subrange_state -> t
@@ -52,14 +53,13 @@ end
 (** The type of caller-defined information associated with ranges. *)
 module type S_range_info = sig
   type t
+
   type key
+
   type index
 
-  val create
-     : L.fundecl
-    -> key
-    -> start_insn:L.instruction
-    -> (index * t) option
+  val create :
+    L.fundecl -> key -> start_insn:L.instruction -> (index * t) option
 end
 
 (** This module type specifies what the caller has to provide in order to
@@ -92,6 +92,7 @@ module type S_functor = sig
 
     module Set : sig
       include Set.S with type elt = t
+
       val print : Format.formatter -> t -> unit
     end
 
@@ -120,9 +121,8 @@ module type S_functor = sig
       also as the creator of the [Range_info.t] structure. When several
       subranges are contained in a single range, the associated [Range_info.t]
       will correspond to the first closed subrange. *)
-  module Range_info : S_range_info
-    with type key := Key.t
-    with type index := Index.t
+  module Range_info :
+    S_range_info with type key := Key.t with type index := Index.t
 
   (** The module [Subrange_state] describes information that needs to be
       propagated and passed to [Subrange_info.create]. The state that will be
@@ -134,17 +134,18 @@ module type S_functor = sig
       subranges. Its distinguishing property is that it can store information
       about its context using the additional [subrange_state] parameter of its
       [create] function. *)
-  module Subrange_info : S_subrange_info
-    with type key := Key.t
-    with type subrange_state := Subrange_state.t
+  module Subrange_info :
+    S_subrange_info
+      with type key := Key.t
+      with type subrange_state := Subrange_state.t
 
   (** How to retrieve from an instruction those keys that are available
       immediately before the instruction starts executing. *)
   val available_before : L.instruction -> Key.Set.t
 
-  (** How to retrieve from an instruction those keys that are available
-      between the points at which the instruction reads its arguments and
-      writes its results. *)
+  (** How to retrieve from an instruction those keys that are available between
+      the points at which the instruction reads its arguments and writes its
+      results. *)
   val available_across : L.instruction -> Key.Set.t
 
   (** This [must_restart_ranges_upon_any_change] boolean exists because some
@@ -158,9 +159,9 @@ end
 (** This module type is the result type of the [Compute_ranges.Make] functor.
 
     The _ranges_ being computed are composed of contiguous _subranges_ delimited
-    by two labels (of type [Linear.label]). These labels will be added by
-    this pass to the code being inspected, which is why the [create] function in
-    the result of the functor returns not only the ranges but also the updated
+    by two labels (of type [Linear.label]). These labels will be added by this
+    pass to the code being inspected, which is why the [create] function in the
+    result of the functor returns not only the ranges but also the updated
     function with the labels added. The [start_pos_offset] and [end_pos_offset]
     components of the subranges are there to allow a distinction between ranges
     starting (or ending) right at the start of the corresponding instruction
@@ -173,7 +174,9 @@ module type S = sig
   (** Corresponds to [Key] in the [S_functor] module type. *)
   module Key : sig
     type t
+
     module Set : Set.S with type elt = t
+
     module Map : Map.S with type key = t
   end
 
@@ -181,18 +184,18 @@ module type S = sig
   module Subrange_state : S_subrange_state
 
   (** Corresponds to [Subrange_info] in the [S_functor] module type. *)
-  module Subrange_info : S_subrange_info
-    with type key := Key.t
-    with type subrange_state := Subrange_state.t
+  module Subrange_info :
+    S_subrange_info
+      with type key := Key.t
+      with type subrange_state := Subrange_state.t
 
   (** Corresponds to [Range_info] in the [S_functor] module type. *)
-  module Range_info : S_range_info
-    with type key := Key.t
-    with type index := Index.t
+  module Range_info :
+    S_range_info with type key := Key.t with type index := Index.t
 
   module Subrange : sig
-    (** The type of subranges.  Each subrange is a contiguous region of
-        code delimited by labels. *)
+    (** The type of subranges. Each subrange is a contiguous region of code
+        delimited by labels. *)
     type t
 
     (** The caller's information about the subrange. *)
@@ -202,8 +205,8 @@ module type S = sig
     val start_pos : t -> Linear.label
 
     (** How many bytes from the label at [start_pos] the range actually
-        commences.  If this value is zero, then the first byte of the range
-        has the address of the label given by [start_pos]. *)
+        commences. If this value is zero, then the first byte of the range has
+        the address of the label given by [start_pos]. *)
     val start_pos_offset : t -> int
 
     (** The label at the end of the range. *)
@@ -218,7 +221,7 @@ module type S = sig
   end
 
   module Range : sig
-    (** The type of ranges.  Each range is a list of subranges, so a
+    (** The type of ranges. Each range is a list of subranges, so a
         possibly-discontiguous region of code. *)
     type t
 
@@ -235,11 +238,7 @@ module type S = sig
     val estimate_lowest_address : t -> (Linear.label * int) option
 
     (** Fold over all subranges within the given range. *)
-    val fold
-       : t
-      -> init:'a
-      -> f:('a -> Subrange.t -> 'a)
-      -> 'a
+    val fold : t -> init:'a -> f:('a -> Subrange.t -> 'a) -> 'a
   end
 
   (** The type holding information on computed ranges. *)
@@ -248,12 +247,12 @@ module type S = sig
   (** A value of type [t] that holds no range information. *)
   val empty : t
 
-  (** Compute ranges for the code in the given linearized function
-      declaration, returning the ranges as a value of type [t] and the
-      rewritten code that must go forward for emission. *)
+  (** Compute ranges for the code in the given linearized function declaration,
+      returning the ranges as a value of type [t] and the rewritten code that
+      must go forward for emission. *)
   val create : Linear.fundecl -> t * Linear.fundecl
 
-  (** Iterate through ranges.  Each range is associated with an index. *)
+  (** Iterate through ranges. Each range is associated with an index. *)
   val iter : t -> f:(Index.t -> Range.t -> unit) -> unit
 
   (** Like [iter], but a fold. *)
@@ -265,10 +264,8 @@ module type S = sig
   (** All indexes for which the given value of type [t] contains ranges. *)
   val all_indexes : t -> Index.Set.t
 
-  (** An internal function used by [Coalesce_labels].
-      The [env] should come from [Coalesce_labels.fundecl]. *)
-  val rewrite_labels_and_remove_empty_subranges_and_ranges
-     : t
-    -> env:int Numbers.Int.Map.t
-    -> t
+  (** An internal function used by [Coalesce_labels]. The [env] should come from
+      [Coalesce_labels.fundecl]. *)
+  val rewrite_labels_and_remove_empty_subranges_and_ranges :
+    t -> env:int Numbers.Int.Map.t -> t
 end
