@@ -246,7 +246,8 @@ let dump_call ppf = function
     | Direct { func_symbol : string; _ } ->
       Format.fprintf ppf "direct %s" func_symbol)
 
-let dump_instr ~sep ~(f : Format.formatter -> 'a -> unit) ppf (i : 'a instruction) =
+let dump_instr ~sep ~(f : Format.formatter -> 'a -> unit) ppf
+    (i : 'a instruction) =
   let open Format in
   if i.stack_offset > 0 then fprintf ppf "[T%d] " i.stack_offset;
   fprintf ppf "%d: " i.id;
@@ -258,7 +259,7 @@ let dump_basic ppf (basic : basic) =
   let open Format in
   match basic with
   | Op op -> dump_op ppf op
-  | Call call -> fprintf ppf "Call %a" dump_call call;
+  | Call call -> fprintf ppf "Call %a" dump_call call
   | Reloadretaddr -> fprintf ppf "Reloadretaddr"
   | Pushtrap { lbl_handler } -> fprintf ppf "Pushtrap handler=%d" lbl_handler
   | Poptrap -> fprintf ppf "Poptrap"

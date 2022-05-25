@@ -12,7 +12,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Available registers analysis used to determine which variables may be
-    shown in the debugger. *)
+(** Available registers analysis used to determine which variables may be shown
+    in the debugger. *)
 
 val fundecl : Mach.fundecl -> Mach.fundecl

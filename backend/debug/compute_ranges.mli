@@ -13,16 +13,15 @@
 (**************************************************************************)
 
 (** Coalescing of per-instruction information into possibly-discontiguous
-    regions of code delimited by labels.  This is used for collating
-    register availability and lexical block scoping information into a
-    concise form. *)
+    regions of code delimited by labels. This is used for collating register
+    availability and lexical block scoping information into a concise form. *)
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-module Make (S : Compute_ranges_intf.S_functor)
-  : Compute_ranges_intf.S
-      with module Index := S.Index
-      with module Key := S.Key
-      with module Subrange_state := S.Subrange_state
-      with module Subrange_info := S.Subrange_info
-      with module Range_info := S.Range_info
+module Make (S : Compute_ranges_intf.S_functor) :
+  Compute_ranges_intf.S
+    with module Index := S.Index
+    with module Key := S.Key
+    with module Subrange_state := S.Subrange_state
+    with module Subrange_info := S.Subrange_info
+    with module Range_info := S.Range_info

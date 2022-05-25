@@ -146,8 +146,8 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
     sections_seen := [];
     temp_var_counter := 0;
     current_dwarf_section_ref := None;
-    (* Forward label references are illegal on some assemblers/platforms.
-       To avoid errors, emit the beginning of all dwarf sections in advance. *)
+    (* Forward label references are illegal on some assemblers/platforms. To
+       avoid errors, emit the beginning of all dwarf sections in advance. *)
     if is_gas () || is_macos ()
     then List.iter switch_to_section (Asm_section.dwarf_sections_in_order ());
     (* Stop dsymutil complaining about empty __debug_line sections (produces
@@ -277,7 +277,8 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
     let upper = D.const_label (Asm_symbol.encode upper) in
     let lower = D.const_label (Asm_symbol.encode lower) in
     let expr = D.const_sub upper lower in
-    if is_macos () then const_machine_width (force_assembly_time_constant expr)
+    if is_macos ()
+    then const_machine_width (force_assembly_time_constant expr)
     else const_machine_width expr
 
   let between_labels_16_bit ?comment:_ ~upper:_ ~lower:_ () =
@@ -325,13 +326,13 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
       if is_macos ()
       then
         let lower = Asm_label.for_dwarf_section section in
-        if Asm_label.equal lower upper then
-          D.const_int64 0L
+        if Asm_label.equal lower upper
+        then D.const_int64 0L
         else
           force_assembly_time_constant
             (D.const_sub
-              (D.const_label (Asm_label.encode upper))
-              (D.const_label (Asm_label.encode lower)))
+               (D.const_label (Asm_label.encode upper))
+               (D.const_label (Asm_label.encode lower)))
       else D.const_label (Asm_label.encode upper)
     in
     const ~width expr
