@@ -373,20 +373,9 @@ regen-flambda2-parser:
 
 
 ## Build upstream compiler.
-_build_upstream/config.status: ocaml/configure.ac
-	rm -rf _build_upstream
-	mkdir _build_upstream
-	rsync -a $$(pwd)/ocaml/ $$(pwd)/_build_upstream
-	(cd _build_upstream && \
-	  ./configure -C $(CONFIGURE_ARGS) --prefix=$(prefix) \
-	    --disable-ocamldoc \
-	    --enable-ocamltest)
-
 .PHONY: build_upstream
-build_upstream: _build_upstream/config.status
-	rsync -a \
-	  --filter=':- $$(pwd)/ocaml/.gitignore' \
-		$$(pwd)/ocaml/ $$(pwd)/_build_upstream
+build_upstream: ocaml/config.status
+	rsync -a ocaml/ _build_upstream
 	(cd _build_upstream && \
 	    $(MAKE) world.opt && \
 	    $(MAKE) ocamlnat)
