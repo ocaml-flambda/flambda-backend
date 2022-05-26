@@ -43,6 +43,7 @@ _compare/
 _runtest/
 autom4te.cache
 _install/
+_coverage/
 
 /Makefile.config
 /config.log

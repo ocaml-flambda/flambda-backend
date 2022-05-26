@@ -66,6 +66,7 @@
   (:standard -principal -w -9))
  (ocamlopt_flags
   (:include %{project_root}/ocamlopt_flags.sexp))
+ (instrumentation (backend bisect_ppx))
  (modules_without_implementation
   backend_intf
   cmx_format
@@ -282,12 +283,14 @@
    ))
  (ocamlopt_flags
   (:include %{project_root}/ocamlopt_flags.sexp))
+ (instrumentation (backend bisect_ppx))
  (libraries ocamlcommon dwarf_flags asm_targets)
  (modules flambda_backend_args flambda_backend_flags))
 
 (executable
  (name flambda_backend_main)
  (modes byte)
+ (instrumentation (backend bisect_ppx))
  (flags (:standard -principal))
  (libraries
   flambda_backend_driver
@@ -307,6 +310,7 @@
 (executable
  (name flambda_backend_main_native)
  (modes native)
+ (instrumentation (backend bisect_ppx))
  (flags
   (:standard -principal))
  (libraries
@@ -328,6 +332,7 @@
 (executable
  (name boot_ocamlopt)
  (modes native)
+ (instrumentation (backend bisect_ppx))
  (flags
   (:standard -principal))
  (libraries

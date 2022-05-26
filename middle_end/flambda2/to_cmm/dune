@@ -3,6 +3,7 @@
 (library
  (name flambda2_to_cmm)
  (wrapped true)
+ (instrumentation (backend bisect_ppx))
  (flags
   (:standard
    -principal

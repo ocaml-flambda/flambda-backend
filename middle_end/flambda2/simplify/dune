@@ -3,6 +3,7 @@
 (library
  (name flambda2_simplify)
  (wrapped true)
+ (instrumentation (backend bisect_ppx))
  (flags
   (:standard
    -principal
