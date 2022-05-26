@@ -9,10 +9,10 @@ ws_main   = --root=. --workspace=duneconf/main.ws
 
 ifeq ($(coverage),yes)
   coverage_dune_flags=--instrument-with bisect_ppx
-	ocaml_subdirs_to_ignore=otherlibs
+  ocaml_subdirs_to_ignore=otherlibs
 else
   coverage_dune_flags=
-	ocaml_subdirs_to_ignore=
+  ocaml_subdirs_to_ignore=
 endif
 
 define dune_boot_context
