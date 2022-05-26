@@ -36,9 +36,18 @@ AC_ARG_ENABLE([middle-end],
     [*], [AC_MSG_ERROR([Bad middle end (not closure, flambda or flambda2)])])],
   [AC_MSG_ERROR([--enable-middle-end=closure|flambda|flambda2 must be provided])])
 
+AC_ARG_ENABLE([coverage],
+  [AS_HELP_STRING([--enable-coverage],
+    [Run compiler tests instrumented to output coverage data using bisect_ppx
+     (WARNING: Cannot build an installable compiler with this flag enabled.
+     Mainly intended for use in CI.)])],
+  [coverage=yes],
+  [coverage=no])
+
 AC_SUBST([prefix])
 AC_SUBST([middle_end])
 AC_SUBST([dune])
+AC_SUBST([coverage])
 
 # Don't error on options that this configure script doesn't understand but
 # the ocaml/ one does.
