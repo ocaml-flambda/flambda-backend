@@ -85,6 +85,7 @@ end
 (** Command line arguments required for ocamlopt.*)
 module type Debugging_options = sig
   val _restrict_to_upstream_dwarf : unit -> unit
+  val _no_restrict_to_upstream_dwarf : unit -> unit
 end
 
 (** Command line arguments required for ocamlopt. *)
