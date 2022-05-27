@@ -379,6 +379,9 @@ module Debugging = Dwarf_flags
 let mk_restrict_to_upstream_dwarf f =
   "-gupstream-dwarf", Arg.Unit f, " Only emit the same DWARF information as the upstream compiler"
 
+let mk_no_restrict_to_upstream_dwarf f =
+  "-gno-upstream-dwarf", Arg.Unit f, " Emit potentially more DWARF information than the upstream compiler"
+
 module type Flambda_backend_options = sig
   val ocamlcfg : unit -> unit
   val no_ocamlcfg : unit -> unit
@@ -677,17 +680,21 @@ end
 
 module type Debugging_options = sig
   val _restrict_to_upstream_dwarf : unit -> unit
+  val _no_restrict_to_upstream_dwarf : unit -> unit
 end
 
 module Make_debugging_options (F : Debugging_options) = struct
   let list3 = [
-    mk_restrict_to_upstream_dwarf F._restrict_to_upstream_dwarf
+    mk_restrict_to_upstream_dwarf F._restrict_to_upstream_dwarf;
+    mk_no_restrict_to_upstream_dwarf F._no_restrict_to_upstream_dwarf
    ]
 end
 
 module Debugging_options_impl = struct
   let _restrict_to_upstream_dwarf () =
     Debugging.restrict_to_upstream_dwarf := true
+  let _no_restrict_to_upstream_dwarf () =
+    Debugging.restrict_to_upstream_dwarf := false
 end
 
 module Extra_params = struct
