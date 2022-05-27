@@ -50,8 +50,15 @@ let emit ~asm_directives t =
       match t.name with
       | None -> ()
       | Some symbol ->
-        A.define_data_symbol symbol;
-        A.global symbol
+        A.define_data_symbol symbol
+        (* CR-someday poechsel: Understand what is going wrong when linking
+           large executables with global DWARF symbols. We don't need to export
+           them globally right now as we never cross-reference DIEs between
+           files but we will need to do it eventually (to reference the abstract
+           DIE for a function being inlined for instance). There should also be
+           a way to make these symbols not end up in the dynamic symbol table.
+
+           A.global symbol *)
     end;
     A.define_label t.label
   end;
