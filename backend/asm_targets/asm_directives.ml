@@ -294,11 +294,11 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
     (* CR poechsel: use the arguments *)
     A.emit_line "between_labels_64_bit"
 
-  let between_symbol_in_current_unit_and_label_offset ?comment ~upper ~lower
-      ~offset_upper () =
+  let between_symbol_in_current_unit_and_label_offset ?comment:comment' ~upper
+      ~lower ~offset_upper () =
     (* CR mshinwell: add checks, as above: check_symbol_in_current_unit lower;
        check_symbol_and_label_in_same_section lower upper; *)
-    if A.debugging_comments_in_asm_files then Option.iter D.comment comment;
+    Option.iter D.comment comment';
     if Targetint.compare offset_upper Targetint.zero = 0
     then
       let expr =
