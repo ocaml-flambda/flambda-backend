@@ -1049,6 +1049,10 @@ let fundecl fundecl =
   List.iter emit_call_bound_error !bound_error_sites;
   assert (List.length !call_gc_sites = num_call_gc);
   assert (List.length !bound_error_sites = num_check_bound);
+  let end_label =
+    Dwarf_ocaml.Dwarf_concrete_instances.end_label fundecl.fun_name
+  in
+  D.label end_label;
   cfi_endproc();
   emit_symbol_type emit_symbol fundecl.fun_name "function";
   emit_symbol_size fundecl.fun_name;

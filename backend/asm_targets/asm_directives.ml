@@ -294,10 +294,29 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
     (* CR poechsel: use the arguments *)
     A.emit_line "between_labels_64_bit"
 
-  let between_symbol_in_current_unit_and_label_offset ?comment:_ ~upper:_
-      ~lower:_ ~offset_upper:_ () =
-    (* CR poechsel: use the arguments *)
-    A.emit_line "between_symbol_in_current_unit_and_label_offset"
+  let between_symbol_in_current_unit_and_label_offset ?comment ~upper ~lower
+      ~offset_upper () =
+    (* CR mshinwell: add checks, as above: check_symbol_in_current_unit lower;
+       check_symbol_and_label_in_same_section lower upper; *)
+    if A.debugging_comments_in_asm_files then Option.iter D.comment comment;
+    if Targetint.compare offset_upper Targetint.zero = 0
+    then
+      let expr =
+        D.const_sub
+          (D.const_label (Asm_label.encode upper))
+          (D.const_label (Asm_symbol.encode lower))
+      in
+      const_machine_width (force_assembly_time_constant expr)
+    else
+      let offset_upper = Targetint.to_int64 offset_upper in
+      let expr =
+        D.const_sub
+          (D.const_add
+             (D.const_label (Asm_label.encode upper))
+             (D.const_int64 offset_upper))
+          (D.const_label (Asm_symbol.encode lower))
+      in
+      const_machine_width (force_assembly_time_constant expr)
 
   let const ~width constant =
     match width with

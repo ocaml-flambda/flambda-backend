@@ -177,9 +177,13 @@ let emit_fundecl ~dwarf =
         match dwarf with
         | None -> ()
         | Some dwarf ->
+          let fun_end_label =
+            Asm_targets.Asm_label.create_int Text fundecl.fun_end_label
+          in
           let fundecl : Dwarf_concrete_instances.fundecl =
-            { fun_name = fundecl.fun_name
-            ; fun_dbg = fundecl.fun_dbg
+            { fun_name = fundecl.fun_name;
+              fun_dbg = fundecl.fun_dbg;
+              fun_end_label;
             }
           in
           Dwarf.dwarf_for_fundecl dwarf fundecl

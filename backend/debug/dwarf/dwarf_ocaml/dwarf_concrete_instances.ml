@@ -19,12 +19,11 @@ open Dwarf_high
 
 type fundecl =
   { fun_name : string;
-    fun_dbg : Debuginfo.t
+    fun_dbg : Debuginfo.t;
+    fun_end_label : Asm_label.t
   }
 
 module DAH = Dwarf_attribute_helpers
-
-let end_symbol_name ~start_symbol = start_symbol ^ "__end"
 
 let for_fundecl ~get_file_id state fundecl =
   let parent = Dwarf_state.compilation_unit_proto_die state in
@@ -36,7 +35,6 @@ let for_fundecl ~get_file_id state fundecl =
     | [] | _ :: _ -> fun_name
   in
   let start_sym = Asm_symbol.create fun_name in
-  let end_sym = Asm_symbol.create (end_symbol_name ~start_symbol:fun_name) in
   let location_attributes =
     let loc = Debuginfo.to_location fundecl.fun_dbg in
     if Location.is_none loc
@@ -49,7 +47,7 @@ let for_fundecl ~get_file_id state fundecl =
       else if startchar < 0
       then DAH.create_decl_line line :: attributes
       else
-        (* Both line and startchar are >= 0*)
+        (* Both line and startchar are >= 0 *)
         DAH.create_decl_line line
         :: DAH.create_decl_column startchar
         :: attributes
@@ -59,7 +57,9 @@ let for_fundecl ~get_file_id state fundecl =
     @ [ DAH.create_name fun_name;
         DAH.create_linkage_name ~linkage_name;
         DAH.create_low_pc_from_symbol start_sym;
-        DAH.create_high_pc_from_symbol ~low_pc:start_sym end_sym;
+        DAH.create_high_pc ~low_pc:start_sym fundecl.fun_end_label;
+        (* CR mshinwell: Probably no need to set this at the moment since the
+           low PC value should be assumed, which is correct. *)
         DAH.create_entry_pc_from_symbol start_sym;
         DAH.create_stmt_list
           ~debug_line_label:(Asm_label.for_dwarf_section Asm_section.Debug_line)
