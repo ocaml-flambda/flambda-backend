@@ -40,9 +40,9 @@ type dwarf_section =
   | Debug_str
   | Debug_line
 
-(* Right now [Asm_section] is only meant to represent dwarf sections. This type
-   is kept as-is to make it obvious. *)
-type t = DWARF of dwarf_section
+type t =
+  | DWARF of dwarf_section
+  | Text
 
 val to_string : t -> string
 

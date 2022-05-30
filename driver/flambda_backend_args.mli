@@ -29,6 +29,9 @@ module type Flambda_backend_options = sig
 
   val reorder_blocks_random : int -> unit
 
+  val dasm_comments : unit -> unit
+  val dno_asm_comments : unit -> unit
+
   val heap_reduction_threshold : int -> unit
 
   val flambda2_join_points : unit -> unit
@@ -86,6 +89,8 @@ end
 module type Debugging_options = sig
   val _restrict_to_upstream_dwarf : unit -> unit
   val _no_restrict_to_upstream_dwarf : unit -> unit
+  val _dwarf_for_startup_file : unit -> unit
+  val _no_dwarf_for_startup_file : unit -> unit
 end
 
 (** Command line arguments required for ocamlopt. *)

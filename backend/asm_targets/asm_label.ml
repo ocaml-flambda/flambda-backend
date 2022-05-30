@@ -125,4 +125,6 @@ let for_dwarf_section (dwarf_section : Asm_section.dwarf_section) =
   | Debug_line -> Lazy.force debug_line_label
 
 let for_section (section : Asm_section.t) =
-  match section with DWARF dwarf_section -> for_dwarf_section dwarf_section
+  match section with
+  | DWARF dwarf_section -> for_dwarf_section dwarf_section
+  | Text -> Misc.fatal_error "Not yet implemented"

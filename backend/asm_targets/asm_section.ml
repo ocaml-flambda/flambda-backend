@@ -38,7 +38,9 @@ type dwarf_section =
   | Debug_str
   | Debug_line
 
-type t = DWARF of dwarf_section
+type t =
+  | DWARF of dwarf_section
+  | Text
 
 type section_details =
   { names : string list;
@@ -96,6 +98,7 @@ let details t ~first_occurrence =
       let flags = if first_occurrence then Some "" else None in
       let args = if first_occurrence then ["%progbits"] else [] in
       [name], flags, args
+    | Text, _ -> Misc.fatal_error "Not yet implemented"
   in
   { names; flags; args }
 
@@ -116,6 +119,7 @@ let print ppf t =
     | DWARF Debug_rnglists -> "(DWARF Debug_rnglists)"
     | DWARF Debug_str -> "(DWARF Debug_str)"
     | DWARF Debug_line -> "(DWARF Debug_line)"
+    | Text -> "Text"
   in
   Format.pp_print_string ppf str
 

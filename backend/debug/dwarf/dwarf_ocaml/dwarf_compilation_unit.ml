@@ -19,21 +19,17 @@ open Dwarf_high
 module DAH = Dwarf_attribute_helpers
 
 let compile_unit_proto_die ~sourcefile ~unit_name =
-  let cwd = Sys.getcwd () in
-  let source_directory_path, source_filename =
-    if Filename.is_relative sourcefile
-    then cwd, sourcefile
-    else Filename.dirname sourcefile, Filename.basename sourcefile
-  in
-  let source_directory_path =
-    Location.rewrite_absolute_path source_directory_path
+  let source_filename =
+    (* CR mshinwell: Think more about build reproducibility and what we should
+       be putting here (and also in the compilation directory attribute). For
+       the moment this is very conservative. *)
+    Filename.basename sourcefile
   in
   let attribute_values =
     [ DAH.create_name source_filename;
-      DAH.create_comp_dir source_directory_path
       (* The [OCaml] attribute value here is only defined in DWARF-5, but it
          doesn't mean anything else in DWARF-4, so we always emit it. This saves
-         special-case logic in gdb based on the producer name. *);
+         special-case logic in gdb based on the producer name. *)
       DAH.create_language OCaml;
       DAH.create_producer "ocamlopt";
       DAH.create_ocaml_unit_name unit_name;

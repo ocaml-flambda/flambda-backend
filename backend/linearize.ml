@@ -389,4 +389,5 @@ let fundecl f =
     fun_num_stack_slots;
     fun_frame_required;
     fun_prologue_required;
+    fun_end_label = Cmm.new_label ()
   }

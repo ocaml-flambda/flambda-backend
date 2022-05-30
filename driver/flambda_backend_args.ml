@@ -39,6 +39,12 @@ let mk_reorder_blocks_random f =
   Printf.sprintf "<seed> Randomly reorder basic blocks in every function, \
                   using the provided seed (intended for testing, off by default)."
 
+let mk_dasm_comments f =
+  "-dasm-comments", Arg.Unit f, " Add comments in .s files (e.g. for DWARF)"
+
+let mk_dno_asm_comments f =
+  "-dno-asm-comments", Arg.Unit f, " Do not add comments in .s files"
+
 let mk_heap_reduction_threshold f =
   "-heap-reduction-threshold",
   Arg.Int f,
@@ -376,11 +382,22 @@ let mk_dfreshen f =
 
 module Debugging = Dwarf_flags
 
+(* CR mshinwell: These help texts should show the default values. *)
+
 let mk_restrict_to_upstream_dwarf f =
   "-gupstream-dwarf", Arg.Unit f, " Only emit the same DWARF information as the upstream compiler"
 
 let mk_no_restrict_to_upstream_dwarf f =
   "-gno-upstream-dwarf", Arg.Unit f, " Emit potentially more DWARF information than the upstream compiler"
+
+let mk_dwarf_for_startup_file f =
+  "-gstartup", Arg.Unit f, " Emit potentially more DWARF information\n\
+    \     for the startup file than the upstream compiler\n\
+    \     (only takes effect with -gno-upstream-dwarf)"
+
+let mk_no_dwarf_for_startup_file f =
+  "-gno-startup", Arg.Unit f, " Emit the same DWARF information for the\n\
+    \     startup file as the upstream compiler"
 
 module type Flambda_backend_options = sig
   val ocamlcfg : unit -> unit
@@ -391,6 +408,9 @@ module type Flambda_backend_options = sig
   val dcfg_equivalence_check : unit -> unit
 
   val reorder_blocks_random : int -> unit
+
+  val dasm_comments : unit -> unit
+  val dno_asm_comments : unit -> unit
 
   val heap_reduction_threshold : int -> unit
 
@@ -456,6 +476,9 @@ struct
     mk_dcfg_equivalence_check F.dcfg_equivalence_check;
 
     mk_reorder_blocks_random F.reorder_blocks_random;
+
+    mk_dasm_comments F.dasm_comments;
+    mk_dno_asm_comments F.dno_asm_comments;
 
     mk_heap_reduction_threshold F.heap_reduction_threshold;
 
@@ -550,6 +573,12 @@ module Flambda_backend_options_impl = struct
 
   let reorder_blocks_random seed =
     Flambda_backend_flags.reorder_blocks_random := Some seed
+
+  let dasm_comments =
+    set' Flambda_backend_flags.dasm_comments
+
+  let dno_asm_comments =
+    clear' Flambda_backend_flags.dasm_comments
 
   let dump_inlining_paths = set' Flambda_backend_flags.dump_inlining_paths
 
@@ -681,12 +710,16 @@ end
 module type Debugging_options = sig
   val _restrict_to_upstream_dwarf : unit -> unit
   val _no_restrict_to_upstream_dwarf : unit -> unit
+  val _dwarf_for_startup_file : unit -> unit
+  val _no_dwarf_for_startup_file : unit -> unit
 end
 
 module Make_debugging_options (F : Debugging_options) = struct
   let list3 = [
     mk_restrict_to_upstream_dwarf F._restrict_to_upstream_dwarf;
-    mk_no_restrict_to_upstream_dwarf F._no_restrict_to_upstream_dwarf
+    mk_no_restrict_to_upstream_dwarf F._no_restrict_to_upstream_dwarf;
+    mk_dwarf_for_startup_file F._dwarf_for_startup_file;
+    mk_no_dwarf_for_startup_file F._no_dwarf_for_startup_file;
    ]
 end
 
@@ -695,6 +728,10 @@ module Debugging_options_impl = struct
     Debugging.restrict_to_upstream_dwarf := true
   let _no_restrict_to_upstream_dwarf () =
     Debugging.restrict_to_upstream_dwarf := false
+  let _dwarf_for_startup_file () =
+    Debugging.dwarf_for_startup_file := true
+  let _no_dwarf_for_startup_file () =
+    Debugging.dwarf_for_startup_file := false
 end
 
 module Extra_params = struct
@@ -729,6 +766,9 @@ module Extra_params = struct
       end;
       true
     in
+    let clear' option =
+      Compenv.setter ppf (fun b -> b) name [ option ] v; false
+    in
     match name with
     | "ocamlcfg" -> set' Flambda_backend_flags.use_ocamlcfg
     | "cfg-invariants" -> set' Flambda_backend_flags.cfg_invariants
@@ -737,6 +777,12 @@ module Extra_params = struct
     | "reorder-blocks-random" ->
        set_int_option' Flambda_backend_flags.reorder_blocks_random
     | "heap-reduction-threshold" -> set_int' Flambda_backend_flags.heap_reduction_threshold
+    | "dasm-comments" -> set' Flambda_backend_flags.dasm_comments
+    | "dno-asm-comments" -> clear' Flambda_backend_flags.dasm_comments
+    | "gupstream-dwarf" -> set' Debugging.restrict_to_upstream_dwarf
+    | "gno-upstream-dwarf" -> clear' Debugging.restrict_to_upstream_dwarf
+    | "gstartup" -> set' Debugging.dwarf_for_startup_file
+    | "gno-startup" -> clear' Debugging.dwarf_for_startup_file
     | "flambda2-join-points" -> set Flambda2.join_points
     | "flambda2-result-types" ->
       (match String.lowercase_ascii v with

@@ -20,6 +20,8 @@ let cfg_equivalence_check = ref false   (* -dcfg-equivalence-check *)
 
 let reorder_blocks_random = ref None    (* -reorder-blocks-random seed *)
 
+let dasm_comments = ref false (* -dasm-comments *)
+
 let default_heap_reduction_threshold = 500_000_000 / (Sys.word_size / 8)
 let heap_reduction_threshold = ref default_heap_reduction_threshold (* -heap-reduction-threshold *)
 
