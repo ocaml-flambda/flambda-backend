@@ -22,7 +22,7 @@ README.md       @mshinwell
 build_ocaml_compiler.sexp       @poechsel
 
 backend/                        @gretay-js @xclerc
-backend/debug/                  @mshinwell
+backend/debug/                  @mshinwell @poechsel
 
 driver/                         @mshinwell
 
