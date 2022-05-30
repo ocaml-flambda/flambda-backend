@@ -284,6 +284,9 @@ let scan_file ~shared genfns file (objfiles, tolink) =
 
 (* Second pass: generate the startup file and link it with everything else *)
 
+let named_startup_file () =
+  !Clflags.keep_startup_file || !Emitaux.binary_backend_available
+
 let force_linking_of_startup ~ppf_dump =
   Asmgen.compile_phrase ~ppf_dump
     (Cmm.Cdata ([Cmm.Csymbol_address "caml_startup"]))
@@ -377,7 +380,7 @@ let link_shared ~ppf_dump objfiles output_name =
     Clflags.all_ccopts := !lib_ccopts @ !Clflags.all_ccopts;
     let objfiles = List.rev ml_objfiles @ List.rev !Clflags.ccobjs in
     let startup =
-      if !Clflags.keep_startup_file || !Emitaux.binary_backend_available
+      if named_startup_file ()
       then output_name ^ ".startup" ^ ext_asm
       else Filename.temp_file "camlstartup" ext_asm in
     let startup_obj = output_name ^ ".startup" ^ ext_obj in
@@ -446,9 +449,7 @@ let link ~ppf_dump objfiles output_name =
     Clflags.ccobjs := !Clflags.ccobjs @ !lib_ccobjs;
     Clflags.all_ccopts := !lib_ccopts @ !Clflags.all_ccopts;
                                                  (* put user's opts first *)
-    let named_startup_file =
-      !Clflags.keep_startup_file || !Emitaux.binary_backend_available
-    in
+    let named_startup_file = named_startup_file () in
     let startup =
       if named_startup_file
       then output_name ^ ".startup" ^ ext_asm
