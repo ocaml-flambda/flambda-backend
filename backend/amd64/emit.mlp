@@ -1243,8 +1243,7 @@ let fundecl fundecl =
       cfi_adjust_cfa_offset (-n);
     end;
   end;
-  let end_symbol = Dwarf_ocaml.Dwarf_concrete_instances.end_symbol_name fundecl.fun_name in
-  D.label (emit_symbol end_symbol);
+  def_label fundecl.fun_end_label;
   cfi_endproc ();
   emit_function_type_and_size fundecl.fun_name
 
