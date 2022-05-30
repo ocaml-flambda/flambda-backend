@@ -74,6 +74,8 @@ let use_g () =
 
 let restrict_to_upstream_dwarf = ref false
 
+let dwarf_for_startup_file = ref false
+
 let debug_thing thing = List.mem thing !current_debug_settings
 
 let set_debug_thing thing =

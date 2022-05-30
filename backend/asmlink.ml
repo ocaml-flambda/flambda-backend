@@ -306,11 +306,18 @@ let make_globals_map units_list =
     interfaces
     defined
 
-let make_startup_file ~ppf_dump ~filename genfns units =
+let make_startup_file ~ppf_dump ~named_startup_file ~filename genfns units =
   Location.input_name := "caml_startup"; (* set name of "current" input *)
   Compilenv.reset "_startup"; (* set the name of the "current" compunit *)
   let dwarf =
+    let filename =
+      (* Ensure the name emitted into the DWARF is stable, for build
+         reproducibility purposes. *)
+      if named_startup_file then filename
+      else ".startup"
+    in
     Asmgen.emit_begin_assembly_with_dwarf
+      ~disable_dwarf:(not !Dwarf_flags.dwarf_for_startup_file)
       ~emit_begin_assembly:Emit.begin_assembly
       ~sourcefile:filename
       ()
@@ -439,8 +446,11 @@ let link ~ppf_dump objfiles output_name =
     Clflags.ccobjs := !Clflags.ccobjs @ !lib_ccobjs;
     Clflags.all_ccopts := !lib_ccopts @ !Clflags.all_ccopts;
                                                  (* put user's opts first *)
+    let named_startup_file =
+      !Clflags.keep_startup_file || !Emitaux.binary_backend_available
+    in
     let startup =
-      if !Clflags.keep_startup_file || !Emitaux.binary_backend_available
+      if named_startup_file
       then output_name ^ ".startup" ^ ext_asm
       else Filename.temp_file "camlstartup" ext_asm in
     let startup_obj = Filename.temp_file "camlstartup" ext_obj in
@@ -448,7 +458,7 @@ let link ~ppf_dump objfiles output_name =
       ~asm_filename:startup ~keep_asm:!Clflags.keep_startup_file
       ~obj_filename:startup_obj
       ~may_reduce_heap:true
-      (fun () -> make_startup_file ~ppf_dump ~filename:startup genfns units_tolink);
+      (fun () -> make_startup_file ~ppf_dump ~named_startup_file ~filename:startup genfns units_tolink);
     Emitaux.reduce_heap_size ~reset:(fun () -> reset ());
     Misc.try_finally
       (fun () -> call_linker ml_objfiles startup_obj output_name)

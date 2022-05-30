@@ -29,6 +29,8 @@ module type Arg = sig
   (* Should be Emitaux.get_file_num *)
   val get_file_num : string -> int
 
+  val debugging_comments_in_asm_files : bool
+
   module D : sig
     type constant
 

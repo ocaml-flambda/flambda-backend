@@ -65,8 +65,11 @@ let for_fundecl ~get_file_id state fundecl =
           ~debug_line_label:(Asm_label.for_dwarf_section Asm_section.Debug_line)
       ]
   in
-  let concrete_instance_proto_die =
+  let _concrete_instance_proto_die =
     Proto_die.create ~parent:(Some parent) ~tag:Subprogram ~attribute_values ()
   in
-  let name = Printf.sprintf "__concrete_instance_%s" fun_name in
-  Proto_die.set_name concrete_instance_proto_die (Asm_symbol.create name)
+  (* CR mshinwell: When cross-referencing of DIEs across files is necessary we
+     need to be careful about symbol table size. let name = Printf.sprintf
+     "__concrete_instance_%s" fun_name in Proto_die.set_name
+     concrete_instance_proto_die (Asm_symbol.create name) *)
+  ()

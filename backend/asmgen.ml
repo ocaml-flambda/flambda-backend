@@ -445,6 +445,9 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) = (
       let get_file_num file_name =
         Emitaux.get_file_num ~file_emitter:X86_dsl.D.file file_name
 
+      let debugging_comments_in_asm_files =
+        !Flambda_backend_flags.dasm_comments
+
       module D = struct
         open X86_ast
 
@@ -473,12 +476,16 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) = (
     end)
   )
 
-let emit_begin_assembly_with_dwarf  ~emit_begin_assembly ~sourcefile () =
+let emit_begin_assembly_with_dwarf ~disable_dwarf ~emit_begin_assembly ~sourcefile () =
   let no_dwarf () =
     emit_begin_assembly ~init_dwarf:(fun () -> ());
     None
   in
-  let can_emit = !Clflags.debug && not(!Dwarf_flags.restrict_to_upstream_dwarf) in
+  let can_emit =
+    !Clflags.debug
+    && not !Dwarf_flags.restrict_to_upstream_dwarf
+    && not disable_dwarf
+  in
   match can_emit, Target_system.architecture (), Target_system.derived_system () with
   | true, X86_64, _ ->
     let asm_directives = build_asm_directives () in
@@ -494,7 +501,10 @@ let emit_begin_assembly_with_dwarf  ~emit_begin_assembly ~sourcefile () =
   | false, _, _ -> no_dwarf ()
 
 let end_gen_implementation0 ?toplevel ~ppf_dump ~sourcefile make_cmm =
-  let dwarf = emit_begin_assembly_with_dwarf ~emit_begin_assembly ~sourcefile () in
+  let dwarf =
+    emit_begin_assembly_with_dwarf ~disable_dwarf:false ~emit_begin_assembly
+      ~sourcefile ()
+  in
   make_cmm ()
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cmm
   ++ Profile.record "compile_phrases" (List.iter (compile_phrase ?dwarf ~ppf_dump))
@@ -571,7 +581,10 @@ let linear_gen_implementation filename =
     | Func f -> emit_fundecl ~dwarf f
   in
   start_from_emit := true;
-  let dwarf = emit_begin_assembly_with_dwarf ~emit_begin_assembly ~sourcefile:filename () in
+  let dwarf =
+    emit_begin_assembly_with_dwarf ~disable_dwarf:false ~emit_begin_assembly
+      ~sourcefile:filename ()
+  in
   Profile.record "Emit" (List.iter (emit_item ~dwarf)) linear_unit_info.items;
   emit_end_assembly dwarf
 

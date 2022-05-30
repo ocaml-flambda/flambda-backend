@@ -35,6 +35,8 @@ val use_g3 : unit -> unit
 
 val restrict_to_upstream_dwarf : bool ref
 
+val dwarf_for_startup_file : bool ref
+
 type dwarf_version =
   | Four
   | Five

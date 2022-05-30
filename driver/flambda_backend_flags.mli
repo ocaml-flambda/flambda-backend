@@ -21,6 +21,8 @@ val cfg_equivalence_check : bool ref
 
 val reorder_blocks_random : int option ref
 
+val dasm_comments : bool ref
+
 val default_heap_reduction_threshold : int
 val heap_reduction_threshold : int ref
 

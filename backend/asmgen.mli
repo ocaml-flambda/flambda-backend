@@ -94,7 +94,8 @@ val compile_unit
   Might return an instance of [Dwarf_ocaml.Dwarf.t] that can be used to generate
   dwarf information for the target system. *)
 val emit_begin_assembly_with_dwarf
-  : emit_begin_assembly:(init_dwarf:(unit -> unit) -> unit)
+   : disable_dwarf:bool
+  -> emit_begin_assembly:(init_dwarf:(unit -> unit) -> unit)
   -> sourcefile:string
   -> unit
   -> Dwarf_ocaml.Dwarf.t option

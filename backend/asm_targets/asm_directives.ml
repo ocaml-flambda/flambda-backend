@@ -158,7 +158,7 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
     D.text ()
 
   let with_comment f ?comment x =
-    Option.iter D.comment comment;
+    if A.debugging_comments_in_asm_files then Option.iter D.comment comment;
     f x
 
   let ( >> ) f g x = g (f x)
@@ -202,6 +202,7 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
 
   let cache_string ?comment section str =
     assert_string_has_no_null_bytes str;
+    let comment = if A.debugging_comments_in_asm_files then comment else None in
     let cached : Cached_string.t = { section; str; comment } in
     match Cached_string.Map.find cached !cached_strings with
     | label -> label
