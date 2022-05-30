@@ -223,7 +223,7 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
     cached_strings := Cached_string.Map.empty;
     Option.iter switch_to_section old_dwarf_section
 
-  let comment str = D.comment str
+  let comment str = if A.debugging_comments_in_asm_files then D.comment str
 
   let define_data_symbol symbol =
     (* CR-someday bkhajwal: Asm_symbol currently is just a string, if
