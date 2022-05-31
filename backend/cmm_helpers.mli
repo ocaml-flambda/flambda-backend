@@ -777,11 +777,16 @@ val cextcall :
 (** Generate generic functions *)
 module Generic_fns_tbl : sig
   type t
+
   val make : unit -> t
+
   val add : t -> Cmx_format.generic_fns -> unit
+
   val of_fns : Cmx_format.generic_fns -> t
+
   val entries : t -> Cmx_format.generic_fns
 end
+
 val generic_functions : bool -> Generic_fns_tbl.t -> Cmm.phrase list
 
 val placeholder_dbg : unit -> Debuginfo.t
