@@ -579,7 +579,7 @@ method select_operation op args _dbg =
     (Icall_imm { func; }, rem)
   | (Capply _, _) ->
     (Icall_ind, args)
-  | (Cextcall { func; alloc; ty; ty_args; returns; builtin = true }, _) ->
+  | (Cextcall { func; builtin = true }, _) ->
      Misc.fatal_errorf "Selection.select_operation: builtin not recognized %s"
        func ();
   | (Cextcall { func; alloc; ty; ty_args; returns; builtin = false }, _) ->
