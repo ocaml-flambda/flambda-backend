@@ -322,7 +322,7 @@ method! select_operation op args dbg =
          Ispecific Ifloat_min, args
       | "caml_float_max_unboxed", [|Float|] ->
          Ispecific Ifloat_max, args
-      | "caml_pause_hint", [|Val|] ->
+      | "caml_pause_hint", ([|Val|] | [| |]) ->
          Ispecific Ipause, args
       | _ ->
         super#select_operation op args dbg
