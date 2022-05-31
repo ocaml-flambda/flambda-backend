@@ -664,8 +664,8 @@ let unbox_float dbg =
 (* Complex *)
 
 let box_complex dbg c_re c_im =
-  Cop (Calloc Lambda.alloc_heap,
-       [alloc_floatarray_header 2 dbg; c_re; c_im], dbg)
+  Cop
+    (Calloc Lambda.alloc_heap, [alloc_floatarray_header 2 dbg; c_re; c_im], dbg)
 
 let complex_re c dbg = Cop (Cload (Double, Immutable), [c], dbg)
 
@@ -1378,8 +1378,7 @@ let unaligned_set_16 ptr idx newval dbg =
   if Arch.allow_unaligned_access
   then
     Cop
-      (Cstore (Sixteen_unsigned, Assignment),
-       [add_int ptr idx dbg; newval], dbg)
+      (Cstore (Sixteen_unsigned, Assignment), [add_int ptr idx dbg; newval], dbg)
   else
     let cconst_int i = Cconst_int (i, dbg) in
     let v1 =
@@ -1388,8 +1387,7 @@ let unaligned_set_16 ptr idx newval dbg =
     let v2 = Cop (Cand, [newval; cconst_int 0xFF], dbg) in
     let b1, b2 = if Arch.big_endian then v1, v2 else v2, v1 in
     Csequence
-      ( Cop (Cstore (Byte_unsigned, Assignment),
-             [add_int ptr idx dbg; b1], dbg),
+      ( Cop (Cstore (Byte_unsigned, Assignment), [add_int ptr idx dbg; b1], dbg),
         Cop
           ( Cstore (Byte_unsigned, Assignment),
             [add_int (add_int ptr idx dbg) (cconst_int 1) dbg; b2],
@@ -1558,8 +1556,7 @@ let unaligned_load_64 ptr idx dbg =
 let unaligned_set_64 ptr idx newval dbg =
   assert (size_int = 8);
   if Arch.allow_unaligned_access
-  then Cop (Cstore (Word_int, Assignment),
-            [add_int ptr idx dbg; newval], dbg)
+  then Cop (Cstore (Word_int, Assignment), [add_int ptr idx dbg; newval], dbg)
   else
     let cconst_int i = Cconst_int (i, dbg) in
     let v1 =
@@ -2591,22 +2588,25 @@ let curry_function = function
 
 let default_generic_fns : Cmx_format.generic_fns =
   { curry_fun = [];
-    apply_fun = [2,Lambda.alloc_heap; 3,Lambda.alloc_heap];
-    send_fun = [] }
-(* These apply funs are always present in the main program because
-   the run-time system needs them (cf. runtime/<arch>.S) . *)
+    apply_fun = [2, Lambda.alloc_heap; 3, Lambda.alloc_heap];
+    send_fun = []
+  }
+(* These apply funs are always present in the main program because the run-time
+   system needs them (cf. runtime/<arch>.S) . *)
 
 module Generic_fns_tbl = struct
-  type t = {
-    curry: (Clambda.arity, unit) Hashtbl.t;
-    apply: (int * Lambda.alloc_mode, unit) Hashtbl.t;
-    send: (int * Lambda.alloc_mode, unit) Hashtbl.t
-  }
-  let make () = {
-    curry = Hashtbl.create 10;
-    apply = Hashtbl.create 10;
-    send = Hashtbl.create 10;
-  }
+  type t =
+    { curry : (Clambda.arity, unit) Hashtbl.t;
+      apply : (int * Lambda.alloc_mode, unit) Hashtbl.t;
+      send : (int * Lambda.alloc_mode, unit) Hashtbl.t
+    }
+
+  let make () =
+    { curry = Hashtbl.create 10;
+      apply = Hashtbl.create 10;
+      send = Hashtbl.create 10
+    }
+
   let add t Cmx_format.{ curry_fun; apply_fun; send_fun } =
     List.iter (fun f -> Hashtbl.replace t.curry f ()) curry_fun;
     List.iter (fun f -> Hashtbl.replace t.apply f ()) apply_fun;
@@ -2624,13 +2624,15 @@ module Generic_fns_tbl = struct
     in
     { curry_fun = sorted_keys t.curry;
       apply_fun = sorted_keys t.apply;
-      send_fun = sorted_keys t.send }
+      send_fun = sorted_keys t.send
+    }
 end
 
 let generic_functions shared tbl =
   if not shared then Generic_fns_tbl.add tbl default_generic_fns;
-  let {curry_fun;apply_fun;send_fun} : Cmx_format.generic_fns =
-    Generic_fns_tbl.entries tbl in
+  let ({ curry_fun; apply_fun; send_fun } : Cmx_format.generic_fns) =
+    Generic_fns_tbl.entries tbl
+  in
   List.concat_map curry_function curry_fun
   @ List.map send_function send_fun
   @ List.map apply_function apply_fun
@@ -2842,8 +2844,7 @@ let setfield n ptr init arg1 arg2 dbg =
              },
            [arg1; Cconst_int (n, dbg); arg2],
            dbg ))
-  | Simple init ->
-    return_unit dbg (set_field arg1 n arg2 init dbg)
+  | Simple init -> return_unit dbg (set_field arg1 n arg2 init dbg)
 
 let setfloatfield n init arg1 arg2 dbg =
   let init =
@@ -3206,9 +3207,7 @@ let ext_pointer_load chunk name args dbg =
 let ext_pointer_store chunk name args dbg =
   let arg1, arg2 = two_args name args in
   let p = int_as_pointer arg1 dbg in
-  Some (return_unit dbg
-          (Cop (Cstore (chunk, Assignment),
-                [p; arg2], dbg)))
+  Some (return_unit dbg (Cop (Cstore (chunk, Assignment), [p; arg2], dbg)))
 
 let bigstring_prefetch ~is_write locality args dbg =
   let op = Cprefetch { is_write; locality } in
@@ -3337,37 +3336,28 @@ let transl_builtin name args dbg =
     Some (Cop (Cload (Word_int, Mutable), args, dbg))
   | "caml_native_pointer_store_immediate"
   | "caml_native_pointer_store_unboxed_nativeint" ->
-    Some (return_unit dbg
-            (Cop (Cstore (Word_int, Assignment),
-                  args, dbg)))
+    Some (return_unit dbg (Cop (Cstore (Word_int, Assignment), args, dbg)))
   | "caml_native_pointer_load_unboxed_int64" when size_int = 8 ->
     Some (Cop (Cload (Word_int, Mutable), args, dbg))
   | "caml_native_pointer_store_unboxed_int64" when size_int = 8 ->
-    Some (return_unit dbg
-            (Cop (Cstore (Word_int, Assignment),
-                  args, dbg)))
+    Some (return_unit dbg (Cop (Cstore (Word_int, Assignment), args, dbg)))
   | "caml_native_pointer_load_signed_int32"
   | "caml_native_pointer_load_unboxed_int32" ->
     Some (Cop (Cload (Thirtytwo_signed, Mutable), args, dbg))
   | "caml_native_pointer_store_signed_int32"
   | "caml_native_pointer_store_unboxed_int32" ->
     Some
-      (return_unit dbg
-         (Cop (Cstore (Thirtytwo_signed, Assignment),
-               args, dbg)))
+      (return_unit dbg (Cop (Cstore (Thirtytwo_signed, Assignment), args, dbg)))
   | "caml_native_pointer_load_unsigned_int32" ->
     Some (Cop (Cload (Thirtytwo_unsigned, Mutable), args, dbg))
   | "caml_native_pointer_store_unsigned_int32" ->
     Some
       (return_unit dbg
-         (Cop (Cstore (Thirtytwo_unsigned, Assignment),
-               args, dbg)))
+         (Cop (Cstore (Thirtytwo_unsigned, Assignment), args, dbg)))
   | "caml_native_pointer_load_unboxed_float" ->
     Some (Cop (Cload (Double, Mutable), args, dbg))
   | "caml_native_pointer_store_unboxed_float" ->
-    Some (return_unit dbg
-            (Cop (Cstore (Double, Assignment),
-                  args, dbg)))
+    Some (return_unit dbg (Cop (Cstore (Double, Assignment), args, dbg)))
   | "caml_native_pointer_load_unsigned_int8" ->
     Some (Cop (Cload (Byte_unsigned, Mutable), args, dbg))
   | "caml_native_pointer_load_signed_int8" ->
@@ -3377,23 +3367,15 @@ let transl_builtin name args dbg =
   | "caml_native_pointer_load_signed_int16" ->
     Some (Cop (Cload (Sixteen_signed, Mutable), args, dbg))
   | "caml_native_pointer_store_unsigned_int8" ->
-    Some (return_unit dbg
-            (Cop (Cstore (Byte_unsigned, Assignment),
-                  args, dbg)))
+    Some (return_unit dbg (Cop (Cstore (Byte_unsigned, Assignment), args, dbg)))
   | "caml_native_pointer_store_signed_int8" ->
-    Some (return_unit dbg
-            (Cop (Cstore (Byte_signed, Assignment),
-                  args, dbg)))
+    Some (return_unit dbg (Cop (Cstore (Byte_signed, Assignment), args, dbg)))
   | "caml_native_pointer_store_unsigned_int16" ->
     Some
-      (return_unit dbg
-         (Cop (Cstore (Sixteen_unsigned, Assignment),
-               args, dbg)))
+      (return_unit dbg (Cop (Cstore (Sixteen_unsigned, Assignment), args, dbg)))
   | "caml_native_pointer_store_signed_int16" ->
     Some
-      (return_unit dbg
-         (Cop (Cstore (Sixteen_signed, Assignment),
-               args, dbg)))
+      (return_unit dbg (Cop (Cstore (Sixteen_signed, Assignment), args, dbg)))
   (* Ext_pointer: handled as tagged int *)
   | "caml_ext_pointer_load_immediate"
   | "caml_ext_pointer_load_unboxed_nativeint" ->
@@ -3685,9 +3667,8 @@ let predef_exception i name =
 
 let plugin_header units =
   global_data "caml_plugin_header"
-    ({ dynu_magic = Config.cmxs_magic_number;
-       dynu_units = units }
-     : Cmxs_format.dynheader)
+    ({ dynu_magic = Config.cmxs_magic_number; dynu_units = units }
+      : Cmxs_format.dynheader)
 
 (* To compile "let rec" over values *)
 
