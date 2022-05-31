@@ -4031,19 +4031,24 @@ let indirect_full_call ~dbg ty alloc_mode f = function
 
 let extcall ~dbg ~returns ~alloc ~is_c_builtin ~ty_args name typ_res args =
   if not returns then assert (typ_res = typ_void);
-  Cop
-    ( Cextcall
-        { func = name;
-          ty = typ_res;
-          alloc;
-          ty_args;
-          returns;
-          builtin = is_c_builtin;
-          effects = Arbitrary_effects;
-          coeffects = Has_coeffects
-        },
-      args,
-      dbg )
+  let default =
+    Cop
+      ( Cextcall
+          { func = name;
+            ty = typ_res;
+            alloc;
+            ty_args;
+            returns;
+            builtin = is_c_builtin;
+            effects = Arbitrary_effects;
+            coeffects = Has_coeffects
+          },
+        args,
+        dbg )
+  in
+  if is_c_builtin
+  then match transl_builtin name args dbg with Some op -> op | None -> default
+  else default
 
 let bigarray_load ~dbg ~elt_kind ~elt_size ~elt_chunk ~bigarray ~offset =
   let ba_data_f = field_address bigarray 1 dbg in

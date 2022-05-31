@@ -58,6 +58,8 @@ type t = private
         param_arity : Flambda_arity.t;
         return_arity : Flambda_arity.t;
         is_c_builtin : bool
+            (* CR mshinwell: This should have the effects and coeffects
+               fields *)
       }
 
 include Expr_std.S with type t := t
