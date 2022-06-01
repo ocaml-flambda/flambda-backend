@@ -276,9 +276,11 @@ type data_item =
   | Csingle of float
   | Cdouble of float
   | Csymbol_address of string
+  | Coffset_symbol_address of { symbol : string; bytes : Targetint.t }
   | Cstring of string
   | Cskip of int
   | Calign of int
+  | Ccomment of string
 
 type phrase =
     Cfunction of fundecl

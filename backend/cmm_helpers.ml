@@ -4098,6 +4098,9 @@ let cfloat f = Cmm.Cdouble f
 
 let symbol_address s = Cmm.Csymbol_address s
 
+let offset_symbol_address symbol ~bytes =
+  Cmm.Coffset_symbol_address { symbol; bytes }
+
 let define_symbol ~global s =
   if global
   then [Cmm.Cglobal_symbol s; Cmm.Cdefine_symbol s]
@@ -4114,9 +4117,6 @@ let fundecl fun_name fun_args fun_body fun_codegen_options fun_dbg =
 
 (* Gc root table *)
 
-let gc_root_table ~make_symbol syms =
+let gc_root_table ~make_symbol sym_addresses =
   let table_symbol = make_symbol ?unitname:None (Some "gc_roots") in
-  cdata
-    (define_symbol ~global:true table_symbol
-    @ List.map symbol_address syms
-    @ [cint 0n])
+  cdata (define_symbol ~global:true table_symbol @ sym_addresses @ [cint 0n])

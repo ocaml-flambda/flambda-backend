@@ -700,23 +700,23 @@ let prim env res dbg p =
     let extra, expr = nullary_primitive env dbg prim in
     expr, extra, env, res, Ece.pure
   | Unary (f, x) ->
-    let x, env, eff = C.simple ~dbg env x in
+    let x, env, eff = C.simple ~dbg env res x in
     let extra, res, expr = unary_primitive env res dbg f x in
     expr, extra, env, res, eff
   | Binary (f, x, y) ->
-    let x, env, effx = C.simple ~dbg env x in
-    let y, env, effy = C.simple ~dbg env y in
+    let x, env, effx = C.simple ~dbg env res x in
+    let y, env, effy = C.simple ~dbg env res y in
     let effs = Ece.join effx effy in
     let expr = binary_primitive env dbg f x y in
     expr, None, env, res, effs
   | Ternary (f, x, y, z) ->
-    let x, env, effx = C.simple ~dbg env x in
-    let y, env, effy = C.simple ~dbg env y in
-    let z, env, effz = C.simple ~dbg env z in
+    let x, env, effx = C.simple ~dbg env res x in
+    let y, env, effy = C.simple ~dbg env res y in
+    let z, env, effz = C.simple ~dbg env res z in
     let effs = Ece.join (Ece.join effx effy) effz in
     let expr = ternary_primitive env dbg f x y z in
     expr, None, env, res, effs
   | Variadic (f, l) ->
-    let args, env, effs = C.simple_list ~dbg env l in
+    let args, env, effs = C.simple_list ~dbg env res l in
     let expr = variadic_primitive env dbg f args in
     expr, None, env, res, effs

@@ -85,7 +85,16 @@ let unit0 ~offsets ~make_symbol flambda_unit ~all_code =
       (Flambda_unit.return_continuation flambda_unit)
       ~param_types:(List.map snd return_cont_params)
   in
-  let r = R.create ~module_symbol:(Flambda_unit.module_symbol flambda_unit) in
+  let data_symbol =
+    Symbol.create
+      (Compilation_unit.get_current_exn ())
+      (Linkage_name.create "data_symbol")
+  in
+  let r =
+    R.create
+      ~module_symbol:(Flambda_unit.module_symbol flambda_unit)
+      ~data_symbol offsets
+  in
   let body, res = To_cmm_expr.expr env r (Flambda_unit.body flambda_unit) in
   let body =
     let dbg = Debuginfo.none in
@@ -105,15 +114,13 @@ let unit0 ~offsets ~make_symbol flambda_unit ~all_code =
     in
     C.cfunction (C.fundecl fun_name [] body fun_codegen dbg)
   in
-  let { R.data_items; gc_roots; functions } = R.to_cmm res in
+  let { R.data_items; gc_roots; functions; offsets } = R.to_cmm res in
   let cmm_helpers_data = flush_cmm_helpers_state () in
   let gc_root_data =
     C.gc_root_table ~make_symbol
-      (List.map
-         (fun sym -> Linkage_name.to_string (Symbol.linkage_name sym))
-         gc_roots)
+      (List.map (fun sym -> R.static_symbol_address res sym) gc_roots)
   in
-  (gc_root_data :: data_items) @ cmm_helpers_data @ functions @ [entry]
+  (gc_root_data :: data_items) @ cmm_helpers_data @ functions @ [entry], offsets
 
 let unit ~offsets ~make_symbol flambda_unit ~all_code =
   Profile.record_call "flambda_to_cmm" (fun () ->

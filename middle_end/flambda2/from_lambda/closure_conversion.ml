@@ -1686,30 +1686,33 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
   let callee = find_simple_from_id env apply.func in
   let approx = Env.find_value_approximation env callee in
   let code_info =
-    match approx with
-    | Closure_approximation (_, _, Code_present code) ->
-      Some
-        ( Code.params_arity code,
-          Code.is_tupled code,
-          Code.num_trailing_local_params code,
-          Code.contains_no_escaping_local_allocs code,
-          Code.result_arity code )
-    | Closure_approximation (_, _, Metadata_only metadata) ->
-      Some
-        ( Code_metadata.params_arity metadata,
-          Code_metadata.is_tupled metadata,
-          Code_metadata.num_trailing_local_params metadata,
-          Code_metadata.contains_no_escaping_local_allocs metadata,
-          Code_metadata.result_arity metadata )
-    | Value_unknown -> None
-    | _ ->
-      if Flambda_features.check_invariants ()
-      then
-        Misc.fatal_errorf
-          "Unexpected approximation for callee %a in [Closure_conversion], \
-           expected a closure approximation."
-          Simple.print callee
-      else None
+    if not (Flambda_features.classic_mode ())
+    then None
+    else
+      match approx with
+      | Closure_approximation (_, _, Code_present code) ->
+        Some
+          ( Code.params_arity code,
+            Code.is_tupled code,
+            Code.num_trailing_local_params code,
+            Code.contains_no_escaping_local_allocs code,
+            Code.result_arity code )
+      | Closure_approximation (_, _, Metadata_only metadata) ->
+        Some
+          ( Code_metadata.params_arity metadata,
+            Code_metadata.is_tupled metadata,
+            Code_metadata.num_trailing_local_params metadata,
+            Code_metadata.contains_no_escaping_local_allocs metadata,
+            Code_metadata.result_arity metadata )
+      | Value_unknown -> None
+      | _ ->
+        if Flambda_features.check_invariants ()
+        then
+          Misc.fatal_errorf
+            "Unexpected approximation for callee %a in [Closure_conversion], \
+             expected a closure approximation."
+            Simple.print callee
+        else None
   in
   match code_info with
   | None -> close_exact_or_unknown_apply acc env apply None

@@ -38,7 +38,7 @@ val load_symbol_approx :
   loader -> Symbol.t -> Code_or_metadata.t Value_approximation.t
 
 val prepare_cmx_file_contents :
-  final_typing_env:Flambda2_types.Typing_env.t option ->
+  final_typing_env:Flambda2_types.Typing_env.t ->
   module_symbol:Symbol.t ->
   used_value_slots:Value_slot.Set.t ->
   exported_offsets:Exported_offsets.t ->

@@ -16,6 +16,7 @@
 
 open! Cmm_helpers
 module Ece = Effects_and_coeffects
+module R = To_cmm_result
 
 let unsupported_32_bit () =
   Misc.fatal_errorf
@@ -64,14 +65,14 @@ let nativeint_of_targetint t =
 let symbol_from_linkage_name ~dbg ln =
   symbol_from_string ~dbg (Linkage_name.to_string ln)
 
-let symbol ~dbg sym = symbol_from_linkage_name ~dbg (Symbol.linkage_name sym)
+let symbol r ~dbg sym = R.expr_symbol_address r sym dbg
 
-let name env name =
+let name env r name =
   Name.pattern_match name
     ~var:(fun v -> To_cmm_env.inline_variable env v)
     ~symbol:(fun s ->
       (* CR mshinwell: fix debuginfo? *)
-      symbol ~dbg:Debuginfo.none s, env, Ece.pure)
+      symbol r ~dbg:Debuginfo.none s, env, Ece.pure)
 
 let const ~dbg cst =
   match Reg_width_const.descr cst with
@@ -83,15 +84,15 @@ let const ~dbg cst =
   | Naked_int64 i -> int64 ~dbg i
   | Naked_nativeint t -> targetint ~dbg t
 
-let simple ~dbg env s =
+let simple ~dbg env r s =
   Simple.pattern_match s
-    ~name:(fun n ~coercion:_ -> name env n)
+    ~name:(fun n ~coercion:_ -> name env r n)
     ~const:(fun c -> const ~dbg c, env, Ece.pure)
 
-let name_static name =
+let name_static r name =
   Name.pattern_match name
     ~var:(fun v -> `Var v)
-    ~symbol:(fun s -> `Data [symbol_address (Symbol.linkage_name_as_string s)])
+    ~symbol:(fun s -> `Data [R.static_symbol_address r s])
 
 let const_static cst =
   match Reg_width_const.descr cst with
@@ -110,14 +111,14 @@ let const_static cst =
     else [cint (Int64.to_nativeint i)]
   | Naked_nativeint t -> [cint (nativeint_of_targetint t)]
 
-let simple_static s =
+let simple_static r s =
   Simple.pattern_match s
-    ~name:(fun n ~coercion:_ -> name_static n)
+    ~name:(fun n ~coercion:_ -> name_static r n)
     ~const:(fun c -> `Data (const_static c))
 
-let simple_list ~dbg env l =
+let simple_list ~dbg env r l =
   let aux (list, env, effs) x =
-    let y, env, eff = simple ~dbg env x in
+    let y, env, eff = simple ~dbg env r x in
     y :: list, env, Ece.join eff effs
   in
   let args, env, effs = List.fold_left aux ([], env, Ece.pure) l in
@@ -141,17 +142,22 @@ let invalid res ~message =
       (Compilation_unit.get_current_exn ())
       (Linkage_name.create (Variable.unique_name (Variable.create "invalid")))
   in
-  let data_items =
+  let res =
+    To_cmm_result.record_symbol_offset res message_sym
+      ~size_in_words_excluding_header:((String.length message + 8) / 8)
+  in
+  let res =
     Cmm_helpers.emit_string_constant
       (Symbol.linkage_name_as_string message_sym, Global)
       message []
-    |> To_cmm_result.add_archive_data_items res
+    |> To_cmm_result.set_data res |> To_cmm_result.archive_offset_data
   in
   let call_expr =
     extcall ~dbg ~alloc:false ~is_c_builtin:false ~returns:false ~ty_args:[XInt]
-      "caml_flambda2_invalid" Cmm.typ_void [symbol ~dbg message_sym]
+      "caml_flambda2_invalid" Cmm.typ_void
+      [To_cmm_result.expr_symbol_address res message_sym dbg]
   in
-  call_expr, data_items
+  call_expr, res
 
 let make_update env dbg kind ~symbol var ~index ~prev_updates =
   let e, env, _ece = To_cmm_env.inline_variable env var in

@@ -1259,9 +1259,15 @@ let emit_item = function
   | Csingle f -> D.long  (Const (Int64.of_int32 (Int32.bits_of_float f)))
   | Cdouble f -> D.qword (Const (Int64.bits_of_float f))
   | Csymbol_address s -> add_used_symbol s; D.qword (ConstLabel (emit_symbol s))
+  | Coffset_symbol_address { symbol; bytes } ->
+    add_used_symbol symbol;
+    D.qword (ConstAdd (
+      ConstLabel (emit_symbol symbol),
+      const_nat (Int64.to_nativeint (Targetint.to_int64 bytes))))
   | Cstring s -> D.bytes s
   | Cskip n -> if n > 0 then D.space n
   | Calign n -> D.align n
+  | Ccomment s -> D.comment s
 
 let data l =
   D.data ();

@@ -63,8 +63,12 @@ let run ~cmx_loader ~round unit =
         ~symbol:(fun _symbol -> ()));
   let final_typing_env =
     let cont_uses_env = DA.continuation_uses_env (UA.creation_dacc uacc) in
-    Continuation_uses_env.get_typing_env_no_more_than_one_use cont_uses_env
-      return_continuation
+    match
+      Continuation_uses_env.get_typing_env_no_more_than_one_use cont_uses_env
+        return_continuation
+    with
+    | Some typing_env -> typing_env
+    | None -> TE.create ~resolver ~get_imported_names
   in
   let all_code =
     Exported_code.merge (UA.all_code uacc)

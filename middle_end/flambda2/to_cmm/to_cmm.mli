@@ -20,4 +20,4 @@ val unit :
   make_symbol:(?unitname:string -> string option -> string) ->
   Flambda_unit.t ->
   all_code:Exported_code.t ->
-  Cmm.phrase list
+  Cmm.phrase list * Exported_offsets.t

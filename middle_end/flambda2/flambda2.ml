@@ -209,16 +209,20 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
               Flambda2_identifiers.Code_id.print (Code.code_id code)
               Cost_metrics.print size)
     end;
-    begin
-      match cmx with
-      | None ->
-        () (* Either opaque was passed, or there is no need to export offsets *)
-      | Some cmx -> Compilenv.flambda2_set_export_info cmx
-    end;
-    let cmm =
+    let cmm, offsets =
       Flambda2_to_cmm.To_cmm.unit ~make_symbol:Compilenv.make_symbol flambda
         ~all_code ~offsets
     in
+    begin
+      match cmx with
+      | None -> assert !Clflags.opaque
+      | Some cmx ->
+        let cmx =
+          Flambda_cmx_format.with_exported_offsets cmx offsets
+          |> Flambda_cmx_format.prepare_for_serialization
+        in
+        Compilenv.flambda2_set_export_info cmx
+    end;
     if not keep_symbol_tables
     then begin
       Compilenv.reset_info_tables ();

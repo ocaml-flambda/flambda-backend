@@ -55,11 +55,17 @@ val value_slot_offset : t -> Value_slot.t -> value_slot_info option
     the given function slot. *)
 val function_slot_offset : t -> Function_slot.t -> function_slot_info option
 
+val symbol_offset_in_bytes : t -> Symbol.t -> Targetint.t option
+
 (** Record the assignment of the given offset to the given function slot *)
 val add_function_slot_offset : t -> Function_slot.t -> function_slot_info -> t
 
 (** Record the assignment of the given offset to the given value slot *)
 val add_value_slot_offset : t -> Value_slot.t -> value_slot_info -> t
+
+val add_symbol_offset : t -> Symbol.t -> bytes:Targetint.t -> t
+
+val symbol_offsets : t -> Targetint.t Symbol.Map.t
 
 val map_function_slot_offsets :
   t -> (Function_slot.t -> function_slot_info -> 'a) -> 'a Function_slot.Map.t
@@ -76,3 +82,7 @@ val imported_offsets : unit -> t
 
 (** Merge the offsets from two files *)
 val merge : t -> t -> t
+
+val apply_renaming : t -> Renaming.t -> t
+
+val all_ids_for_export : t -> Ids_for_export.t

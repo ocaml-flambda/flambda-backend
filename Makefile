@@ -63,12 +63,12 @@ boot-runtest: boot-compiler
 	$(dune) runtest $(ws_boot) $(coverage_dune_flags) --force
 
 runtime-stdlib: boot-compiler
-	$(dune) build $(ws_runstd) --only-package=ocaml_runtime_stdlib @install
+	$(dune) build --verbose $(ws_runstd) --only-package=ocaml_runtime_stdlib @install
 #	dune does not believe the compiler can make .cmxs unless the following file exists
 	@touch _build/install/runtime_stdlib/lib/ocaml_runtime_stdlib/dynlink.cmxa
 
 compiler: runtime-stdlib
-	$(dune) build $(ws_main) --only-package=ocaml @install ocaml/ocamltest/ocamltest.byte
+	$(dune) build $(ws_main) --verbose --only-package=ocaml @install ocaml/ocamltest/ocamltest.byte
 
 runtest: compiler
 	$(dune) runtest $(ws_main)

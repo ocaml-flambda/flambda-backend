@@ -149,9 +149,9 @@ let match_var_with_extra_info env simple : Env.extra_info option =
 
 (* Helper for the translation of [Simple]s. *)
 
-let bind_simple ~dbg env v ~num_normal_occurrences_of_bound_vars s =
+let bind_simple ~dbg env r v ~num_normal_occurrences_of_bound_vars s =
   let defining_expr, env, effects_and_coeffects_of_defining_expr =
-    C.simple ~dbg env s
+    C.simple ~dbg env r s
   in
   Env.bind_variable env v
     ~num_normal_occurrences_of_bound_vars:
@@ -160,7 +160,7 @@ let bind_simple ~dbg env v ~num_normal_occurrences_of_bound_vars s =
 
 (* Helpers for the translation of [Apply] expressions. *)
 
-let apply_call env e =
+let apply_call env r e =
   let f = Apply.callee e in
   let args = Apply.args e in
   let dbg = Apply.dbg e in
@@ -187,11 +187,11 @@ let apply_call env e =
       return_arity |> Flambda_arity.With_subkinds.to_arity
       |> machtype_of_return_arity
     in
-    let args, env, _ = C.simple_list ~dbg env args in
+    let args, env, _ = C.simple_list ~dbg env r args in
     let args, env =
       if Code_metadata.is_my_closure_used info
       then
-        let f, env, _ = C.simple ~dbg env f in
+        let f, env, _ = C.simple ~dbg env r f in
         args @ [f], env
       else args, env
     in
@@ -211,8 +211,8 @@ let apply_call env e =
         effs ))
   | Function { function_call = Indirect_unknown_arity; alloc_mode } ->
     fail_if_probe e;
-    let f, env, _ = C.simple ~dbg env f in
-    let args, env, _ = C.simple_list ~dbg env args in
+    let f, env, _ = C.simple ~dbg env r f in
+    let args, env, _ = C.simple_list ~dbg env r args in
     ( C.indirect_call ~dbg typ_val (Alloc_mode.to_lambda alloc_mode) f args,
       env,
       effs )
@@ -227,8 +227,8 @@ let apply_call env e =
         "To_cmm expects indirect_known_arity calls to be full applications in \
          order to translate it"
     else
-      let f, env, _ = C.simple ~dbg env f in
-      let args, env, _ = C.simple_list ~dbg env args in
+      let f, env, _ = C.simple ~dbg env r f in
+      let args, env, _ = C.simple_list ~dbg env r args in
       let ty =
         return_arity |> Flambda_arity.With_subkinds.to_arity
         |> machtype_of_return_arity
@@ -245,7 +245,7 @@ let apply_call env e =
     assert (String.sub f 0 9 = ".extern__");
     let f = String.sub f 9 (len - 9) in
     let returns = apply_returns e in
-    let args, env, _ = C.simple_list ~dbg env args in
+    let args, env, _ = C.simple_list ~dbg env r args in
     let ty = machtype_of_return_arity return_arity in
     let wrap = wrap_extcall_result return_arity in
     let ty_args =
@@ -256,10 +256,10 @@ let apply_call env e =
       effs )
   | Call_kind.Method { kind; obj; alloc_mode } ->
     fail_if_probe e;
-    let obj, env, _ = C.simple ~dbg env obj in
-    let meth, env, _ = C.simple ~dbg env f in
+    let obj, env, _ = C.simple ~dbg env r obj in
+    let meth, env, _ = C.simple ~dbg env r f in
     let kind = meth_kind kind in
-    let args, env, _ = C.simple_list ~dbg env args in
+    let args, env, _ = C.simple_list ~dbg env r args in
     let alloc_mode = Alloc_mode.to_lambda alloc_mode in
     C.send kind meth obj args (Rc_normal, alloc_mode) dbg, env, effs
 
@@ -268,14 +268,14 @@ let apply_call env e =
    arguments. *)
 (* CR mshinwell: Add first-class support in Cmm for the concept of an exception
    handler with extra arguments. *)
-let wrap_call_exn ~dbg env e call k_exn =
+let wrap_call_exn ~dbg env r e call k_exn =
   let h_exn = Exn_continuation.exn_handler k_exn in
   let mut_vars = Env.get_exn_extra_args env h_exn in
   let extra_args = Exn_continuation.extra_args k_exn in
   if List.compare_lengths extra_args mut_vars = 0
   then
     let aux (call, env) (arg, _k) v =
-      let arg, env, _ = C.simple ~dbg env arg in
+      let arg, env, _ = C.simple ~dbg env r arg in
       C.sequence (C.assign v arg) call, env
     in
     List.fold_left2 aux (call, env) extra_args mut_vars
@@ -293,7 +293,7 @@ let wrap_call_exn ~dbg env e call k_exn =
    to be an exception). Additionally, they may have extra arguments that are
    passed to the handler via mutables variables (which are expected to be
    spilled on the stack). *)
-let apply_cont_exn env e k = function
+let apply_cont_exn env r e k = function
   | exn :: extra ->
     let raise_kind =
       match Apply_cont.trap_action e with
@@ -305,8 +305,8 @@ let apply_cont_exn env e k = function
           Apply_cont.print e
     in
     let dbg = Apply_cont.debuginfo e in
-    let exn, env, _ = C.simple ~dbg env exn in
-    let extra, env, _ = C.simple_list ~dbg env extra in
+    let exn, env, _ = C.simple ~dbg env r exn in
+    let extra, env, _ = C.simple_list ~dbg env r extra in
     let mut_vars = Env.get_exn_extra_args env k in
     let wrap, _ = Env.flush_delayed_lets env in
     let cmm = C.raise_prim raise_kind exn (Apply_cont.debuginfo e) in
@@ -334,7 +334,7 @@ let apply_cont_jump env res e types cont args =
   then
     let trap_actions = apply_cont_trap_actions env e in
     let dbg = Apply_cont.debuginfo e in
-    let args, env, _ = C.simple_list ~dbg env args in
+    let args, env, _ = C.simple_list ~dbg env res args in
     let wrap, _ = Env.flush_delayed_lets env in
     wrap (C.cexit cont args trap_actions), res
   else
@@ -344,10 +344,10 @@ let apply_cont_jump env res e types cont args =
 
 (* A call to the return continuation of the current block simply is the return
    value for the current block being translated. *)
-let apply_cont_ret env e k = function
+let apply_cont_ret env res e k = function
   | [ret] -> (
     let dbg = Apply_cont.debuginfo e in
-    let ret, env, _ = C.simple ~dbg env ret in
+    let ret, env, _ = C.simple ~dbg env res ret in
     let wrap, _ = Env.flush_delayed_lets env in
     match Apply_cont.trap_action e with
     | None -> wrap ret
@@ -389,7 +389,7 @@ and let_expr env res let_expr =
              of these bindings should have been substituted out). *)
           let dbg = Debuginfo.none in
           let env =
-            bind_simple ~dbg env v ~num_normal_occurrences_of_bound_vars s
+            bind_simple ~dbg env res v ~num_normal_occurrences_of_bound_vars s
           in
           expr env res body
         | Singleton v, Prim (p, dbg) ->
@@ -577,10 +577,10 @@ and continuation_handler env res h =
 
    - translate the call continuation (either through a jump, or inlining). *)
 and apply_expr env res e =
-  let call, env, effs = apply_call env e in
+  let call, env, effs = apply_call env res e in
   let k_exn = Apply.exn_continuation e in
   let dbg = Apply.dbg e in
-  let call, env = wrap_call_exn ~dbg env e call k_exn in
+  let call, env = wrap_call_exn ~dbg env res e call k_exn in
   match Apply.continuation e with
   | Never_returns ->
     let wrap, _ = Env.flush_delayed_lets env in
@@ -636,9 +636,9 @@ and apply_cont env res e =
   let k = Apply_cont.continuation e in
   let args = Apply_cont.args e in
   if Env.is_exn_handler env k
-  then apply_cont_exn env e k args, res
+  then apply_cont_exn env res e k args, res
   else if Continuation.equal (Env.return_continuation env) k
-  then apply_cont_ret env e k args, res
+  then apply_cont_ret env res e k args, res
   else
     match Env.get_continuation env k with
     | Jump { param_types; cont } ->
@@ -658,7 +658,7 @@ and apply_cont env res e =
         let env =
           List.fold_left2
             (fun env param ->
-              bind_simple ~dbg:(Apply_cont.debuginfo e) env
+              bind_simple ~dbg:(Apply_cont.debuginfo e) env res
                 (Bound_parameter.var param)
                 ~num_normal_occurrences_of_bound_vars:handler_params_occurrences)
             env handler_params args
@@ -674,7 +674,7 @@ and apply_cont env res e =
 and switch env res s =
   let scrutinee = Switch.scrutinee s in
   let dbg = Switch.condition_dbg s in
-  let e, env, _ = C.simple ~dbg env scrutinee in
+  let e, env, _ = C.simple ~dbg env res scrutinee in
   let arms = Switch.arms s in
   (* For binary switches, which can be translated to an if-then-else, it can be
      interesting to *not* untag the scrutinee (particularly for those coming

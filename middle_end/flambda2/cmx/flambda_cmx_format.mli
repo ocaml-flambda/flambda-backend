@@ -27,10 +27,13 @@ val create :
   used_value_slots:Value_slot.Set.t ->
   t
 
-val import_typing_env_and_code :
-  t -> Flambda2_types.Typing_env.Serializable.t * Exported_code.t
+val prepare_for_serialization : t -> t
 
-val exported_offsets : t -> Exported_offsets.t
+val import_typing_env_and_code :
+  t ->
+  Flambda2_types.Typing_env.Serializable.t
+  * Exported_code.t
+  * Exported_offsets.t
 
 val functions_info : t -> Exported_code.t
 

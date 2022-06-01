@@ -32,13 +32,15 @@ val tag_targetint : Targetint_32_64.t -> Targetint_32_64.t
 
 val nativeint_of_targetint : Targetint_32_64.t -> Nativeint.t
 
+(* Only used to be used for symbols without offsets *)
 val symbol_from_linkage_name :
   dbg:Debuginfo.t -> Linkage_name.t -> Cmm.expression
 
-val symbol : dbg:Debuginfo.t -> Symbol.t -> Cmm.expression
+val symbol : To_cmm_result.t -> dbg:Debuginfo.t -> Symbol.t -> Cmm.expression
 
 val name :
   To_cmm_env.t ->
+  To_cmm_result.t ->
   Name.t ->
   Cmm.expression * To_cmm_env.t * Effects_and_coeffects.t
 
@@ -47,15 +49,19 @@ val const : dbg:Debuginfo.t -> Reg_width_const.t -> Cmm.expression
 val simple :
   dbg:Debuginfo.t ->
   To_cmm_env.t ->
+  To_cmm_result.t ->
   Simple.t ->
   Cmm.expression * To_cmm_env.t * Effects_and_coeffects.t
 
 val simple_static :
-  Simple.t -> [`Data of Cmm.data_item list | `Var of Variable.t]
+  To_cmm_result.t ->
+  Simple.t ->
+  [`Data of Cmm.data_item list | `Var of Variable.t]
 
 val simple_list :
   dbg:Debuginfo.t ->
   To_cmm_env.t ->
+  To_cmm_result.t ->
   Simple.t list ->
   Cmm.expression list * To_cmm_env.t * Effects_and_coeffects.t
 
