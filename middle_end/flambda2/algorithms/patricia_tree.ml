@@ -325,6 +325,8 @@ module Tree_operations (Tree : Tree) : sig
     'a t
 
   val map_keys : (key -> key) -> 'a t -> 'a t
+
+  val valid : 'a t -> bool
 end = struct
   include Tree
 
@@ -887,6 +889,19 @@ end = struct
   let map_keys f t =
     let iv = is_value_of t in
     fold (Callback.of_func iv (fun i d acc -> add (f i) d acc)) t (empty iv)
+
+  let valid t =
+    let rec check prefix bit t =
+      match descr t with
+      | Empty -> true
+      | Leaf (i, _) -> bit = 0 || match_prefix i prefix bit
+      | Branch (prefix', bit', t0, t1) ->
+        (bit = bit' || shorter bit bit')
+        && (bit = 0 || match_prefix prefix' prefix bit)
+        && check prefix' (bit' lsl 1) t0
+        && check (prefix' lor bit') (bit' lsl 1) t1
+    in
+    check 0 0 t
 end
 [@@inline always]
 

@@ -79,6 +79,8 @@ module Set_specs = struct
 
   let is_empty_vs_equal s = Set.is_empty s <=> Set.equal s Set.empty
 
+  let add_valid e s = Set.valid (Set.add e s)
+
   let add_mem e s = Set.mem e (Set.add e s)
 
   let add_subset e s = Set.subset s (Set.add e s)
@@ -88,8 +90,12 @@ module Set_specs = struct
 
   let add_elt s = Set.for_all (fun e -> Set.equal (Set.add e s) s) s
 
+  let singleton_valid e = Set.valid (Set.singleton e)
+
   let singleton_vs_elements e =
     List.equal Int.equal (Set.singleton e |> Set.elements) [e]
+
+  let remove_valid e s = Set.valid (Set.remove e s)
 
   let remove_elt_not_mem s =
     Set.for_all (fun e -> not (Set.mem e (Set.remove e s))) s
@@ -102,6 +108,8 @@ module Set_specs = struct
 
   let remove_non_elt e s = Set.mem e s || Set.equal (Set.remove e s) s
 
+  let union_valid s1 s2 = Set.valid (Set.union s1 s2)
+
   let union s1 s2 =
     let su = Set.union s1 s2 in
     Set.subset s1 su && Set.subset s2 su
@@ -109,12 +117,16 @@ module Set_specs = struct
 
   let union_with_self s = Set.equal (Set.union s s) s
 
+  let inter_valid s1 s2 = Set.valid (Set.inter s1 s2)
+
   let inter s1 s2 =
     Set.equal (Set.inter s1 s2) (Set.filter (fun e -> Set.mem e s2) s1)
 
   let inter_with_self s = Set.equal (Set.inter s s) s
 
   let disjoint s1 s2 = Set.disjoint s1 s2 <=> Set.is_empty (Set.inter s1 s2)
+
+  let diff_valid s1 s2 = Set.valid (Set.diff s1 s2)
 
   let diff s1 s2 =
     Set.equal (Set.diff s1 s2) (Set.filter (fun e -> not (Set.mem e s2)) s1)
@@ -158,12 +170,16 @@ module Set_specs = struct
     Set.equal s1 s2
     <=> List.equal Int.equal (s1 |> Set.elements) (s2 |> Set.elements)
 
+  let map_valid f s = Set.valid (Set.map f s)
+
   let map_vs_elements f s =
     Set.equal (Set.map f s) (List.map f (s |> Set.elements) |> Set.of_list)
 
   let for_all f s = Set.for_all f s <=> List.for_all f (s |> Set.elements)
 
   let exists f s = Set.exists f s <=> List.exists f (s |> Set.elements)
+
+  let filter_valid f s = Set.valid (Set.filter f s)
 
   let filter_vs_elements f s =
     List.equal Int.equal
@@ -173,6 +189,10 @@ module Set_specs = struct
   let filter_map_vs_elements f s =
     Set.equal (Set.filter_map f s)
       (List.filter_map f (s |> Set.elements) |> Set.of_list)
+
+  let partition_valid f s =
+    let s_t, s_f = Set.partition f s in
+    Set.valid s_t && Set.valid s_f
 
   let partition f s =
     let s_t, s_f = Set.partition f s in
@@ -212,6 +232,10 @@ module Set_specs = struct
     | exception Not_found -> Set.is_empty s
     | e -> Set.mem e s
 
+  let split_valid e s =
+    let s_lo, _, s_hi = Set.split e s in
+    Set.valid s_lo && Set.valid s_hi
+
   let split e s =
     let s_lo, is_mem, s_hi = Set.split e s in
     Set.equal s_lo (Set.filter (fun e' -> e' < e) s)
@@ -221,6 +245,15 @@ module Set_specs = struct
   let find_elt s = Set.for_all (fun e -> Set.find e s = e) s
 
   let find_non_elt e s = Set.mem e s || raises_not_found (Set.find e) s
+
+  let of_list_valid l = Set.valid (Set.of_list l)
+
+  let of_list_then_elements l =
+    List.equal Int.equal
+      (l |> Set.of_list |> Set.elements |> List.sort Int.compare)
+      (l |> List.sort_uniq Int.compare)
+
+  let elements_then_of_list s = Set.equal s (s |> Set.elements |> Set.of_list)
 
   let to_seq s =
     List.equal Int.equal
@@ -252,10 +285,14 @@ module Map_specs (V : Value) = struct
 
   let is_empty_vs_equal m = Map.is_empty m <=> Map.equal V.equal m Map.empty
 
+  let add_valid k v m = Map.valid (Map.add k v m)
+
   let add_same k v m = Map.find_opt k (Map.add k v m) =? Some v
 
   let add_other k1 k2 v m =
     k1 = k2 || Map.find_opt k1 (Map.add k2 v m) =? Map.find_opt k1 m
+
+  let update_valid k f m = Map.valid (Map.update k f m)
 
   let update_same k f m =
     Map.find_opt k (Map.update k f m) =? f (Map.find_opt k m)
@@ -263,13 +300,19 @@ module Map_specs (V : Value) = struct
   let update_other k1 k2 f m =
     k1 = k2 || Map.find_opt k1 (Map.update k2 f m) =? Map.find_opt k1 m
 
+  let singleton_valid k v = Map.valid (Map.singleton k v)
+
   let singleton k1 k2 v =
     Map.find_opt k1 (Map.singleton k2 v) =? if k1 = k2 then Some v else None
+
+  let remove_valid k m = Map.valid (Map.remove k m)
 
   let remove_same k m = Map.find_opt k (Map.remove k m) =? None
 
   let remove_other k1 k2 m =
     k1 = k2 || Map.find_opt k1 (Map.remove k2 m) =? Map.find_opt k1 m
+
+  let merge_valid f m1 m2 = Map.valid (Map.merge f m1 m2)
 
   let merge f m1 m2 =
     let mm = Map.merge f m1 m2 in
@@ -278,6 +321,8 @@ module Map_specs (V : Value) = struct
     in
     Map.for_all (fun k _ -> correct_for_key k) m1
     && Map.for_all (fun k _ -> correct_for_key k) m2
+
+  let union_valid f m1 m2 = Map.valid (Map.union f m1 m2)
 
   let union f m1 m2 =
     let mu = Map.union f m1 m2 in
@@ -325,6 +370,8 @@ module Map_specs (V : Value) = struct
     in
     result_by_iter = result_by_fold
 
+  let filter_valid f m = Map.valid (Map.filter f m)
+
   let filter f m =
     let mf = Map.filter f m in
     Set.subset (Map.keys mf) (Map.keys m)
@@ -332,10 +379,16 @@ module Map_specs (V : Value) = struct
        |> Map.for_all (fun k v ->
               Map.find_opt k mf =? if f k v then Some v else None)
 
+  let filter_map_valid f m = Map.valid (Map.filter_map f m)
+
   let filter_map f m =
     let mf = Map.filter_map f m in
     Set.subset (Map.keys mf) (Map.keys m)
     && m |> Map.for_all (fun k v -> Map.find_opt k mf =? f k v)
+
+  let partition_valid f m =
+    let m_t, m_f = Map.partition f m in
+    Map.valid m_t && Map.valid m_f
 
   let partition f m =
     let m_t, m_f = Map.partition f m in
@@ -380,16 +433,24 @@ module Map_specs (V : Value) = struct
     | None -> Map.is_empty m
     | Some (k, v) -> Map.find_opt k m =? Some v
 
+  let split_valid k m =
+    let m_lo, _, m_hi = Map.split k m in
+    Map.valid m_lo && Map.valid m_hi
+
   let split k m =
     let m_lo, binding, m_hi = Map.split k m in
     binding =? Map.find_opt k m
     && Map.equal V.equal m_lo (Map.filter (fun k' _ -> k' < k) m)
     && Map.equal V.equal m_hi (Map.filter (fun k' _ -> k' > k) m)
 
+  let map_valid f m = Map.valid (Map.map f m)
+
   let map f m =
     List.equal equal_bindings
       (Map.map f m |> Map.bindings)
       (List.map (fun (k, v) -> k, f v) (m |> Map.bindings))
+
+  let mapi_valid f m = Map.valid (Map.mapi f m)
 
   let mapi f m =
     List.equal equal_bindings
@@ -400,6 +461,8 @@ module Map_specs (V : Value) = struct
     List.equal equal_bindings
       (m |> Map.to_seq |> List.of_seq |> List.sort compare_bindings)
       (m |> Map.bindings)
+
+  let of_list_valid l = Map.valid (Map.of_list l)
 
   module Equality_on_bindings = struct
     let sort_by_key l = List.sort (fun (k1, _) (k2, _) -> Int.compare k1 k2) l
@@ -447,6 +510,8 @@ module Map_specs (V : Value) = struct
 
   (* CR lmaurer: Fix [Tree.Map.disjoint_union] so we can test it *)
 
+  let map_keys_valid f m = Map.valid (Map.map_keys f m)
+
   let map_keys f m =
     same_bindings_up_to_duplicate_keys
       (Map.map_keys f m |> Map.bindings)
@@ -463,11 +528,15 @@ module Map_specs (V : Value) = struct
     Map.equal V.equal (Map.of_set f s)
       (Map.of_list (s |> Set.elements |> List.map (fun k -> k, f k)))
 
+  let diff_domains_valid m1 m2 = Map.valid (Map.diff_domains m1 m2)
+
   let diff_domains m1 m2 =
     let md = Map.diff_domains m1 m2 in
     m1
     |> Map.for_all (fun k v1 ->
            Map.find_opt k md =? if Map.mem k m2 then None else Some v1)
+
+  let inter_valid f m1 m2 = Map.valid (Map.inter f m1 m2)
 
   let inter f m1 m2 =
     let mi = Map.inter f m1 m2 in
@@ -487,11 +556,15 @@ module Map_specs (V : Value) = struct
     | 1 -> Option.equal equal_bindings (Map.get_singleton m) (Map.choose_opt m)
     | _ -> Option.is_none (Map.get_singleton m)
 
+  let replace_valid k f m = Map.valid (Map.replace k f m)
+
   let replace_same k f m =
     Map.find_opt k (Map.replace k f m) =? Option.map f (Map.find_opt k m)
 
   let replace_other k1 k2 f m =
     k1 = k2 || Map.find_opt k1 (Map.replace k2 f m) =? Map.find_opt k1 m
+
+  let map_sharing_valid f m = Map.valid (Map.map_sharing f m)
 
   let map_sharing_vs_map f m =
     Map.equal V.equal (Map.map_sharing f m) (Map.map f m)
@@ -555,6 +628,8 @@ let () =
 
     c "is_empty vs. equal" is_empty_vs_equal [set];
 
+    c "add is valid" add_valid [elt; set];
+
     c "add then mem" add_mem [elt; set];
 
     c "add then subset" add_subset [elt; set];
@@ -563,7 +638,11 @@ let () =
 
     c "add existing element" add_elt [set];
 
+    c "singleton is valid" singleton_valid [elt];
+
     c "singleton vs. elements" singleton_vs_elements [elt];
+
+    c "remove is valid" remove_valid [elt; set];
 
     c "remove element then mem" remove_elt_not_mem [set];
 
@@ -573,15 +652,21 @@ let () =
 
     c "remove non-element" remove_non_elt [elt; set];
 
+    c "union is valid" union_valid [set; set];
+
     c "union" union [set; set];
 
     c "union with self" union_with_self [set];
+
+    c "inter is valid" inter_valid [set; set];
 
     c "inter" inter [set; set];
 
     c "inter with self" inter_with_self [set];
 
     c "disjoint" disjoint [set; set];
+
+    c "diff is valid" diff_valid [set; set];
 
     c "diff" diff [set; set];
 
@@ -605,15 +690,21 @@ let () =
 
     c "iter vs. fold" iter_vs_fold [set];
 
+    c "map is valid" map_valid [elt_to_elt; set];
+
     c "map vs. elements" map_vs_elements [elt_to_elt; set];
 
     c "for_all" for_all [elt_to_bool; set];
 
     c "exists" exists [elt_to_bool; set];
 
+    c "filter is valid" filter_valid [elt_to_bool; set];
+
     c "filter vs. elements" filter_vs_elements [elt_to_bool; set];
 
     c "filter_map vs. elements" filter_map_vs_elements [elt_to_elt_option; set];
+
+    c "partition is valid" partition_valid [elt_to_bool; set];
 
     c "partition" partition [elt_to_bool; set];
 
@@ -633,11 +724,20 @@ let () =
 
     c "choose" choose [set];
 
+    c "split is valid" split_valid [elt; set];
+
     c "split" split [elt; set];
 
-    c "find_elt" find_elt [set];
+    c "find on element" find_elt [set];
 
-    c "find_non_elt" find_non_elt [elt; set];
+    c "find on non-element" find_non_elt [elt; set];
+
+    c "of_list is valid" of_list_valid [Type.list elt ~expected_length:20];
+
+    c "of_list then elements" of_list_then_elements
+      [Type.list elt ~expected_length:20];
+
+    c "elements_then_of_list" elements_then_of_list [set];
 
     c "to_seq" to_seq [set];
 
@@ -679,22 +779,34 @@ let () =
 
     c "is_empty vs. equal" is_empty_vs_equal [map];
 
+    c "add is valid" add_valid [key; value; map];
+
     c "add then find_opt" add_same [key; value; map];
 
     c "add then find_opt other" add_other [key; key; value; map];
+
+    c "update is valid" update_valid [key; value_option_to_value_option; map];
 
     c "update then find_opt" update_same [key; value_option_to_value_option; map];
 
     c "update then find_opt other" update_other
       [key; key; value_option_to_value_option; map];
 
+    c "singleton is valid" singleton_valid [key; value];
+
     c "singleton" singleton [key; key; value];
+
+    c "remove is valid" remove_valid [key; map];
 
     c "remove then find_opt" remove_same [key; map];
 
     c "remove then find_opt other" remove_other [key; key; map];
 
+    c "merge is valid" merge_valid [merging_function; map; map];
+
     c "merge" merge [merging_function; map; map];
+
+    c "union is valid" union_valid [union_function; map; map];
 
     c "union" union [union_function; map; map];
 
@@ -714,9 +826,15 @@ let () =
 
     c "exists vs. bindings" exists_vs_bindings [key_and_value_to_bool; map];
 
+    c "filter is valid" filter_valid [key_and_value_to_bool; map];
+
     c "filter" filter [key_and_value_to_bool; map];
 
+    c "filter_map is valid" filter_map_valid [key_and_value_to_value_option; map];
+
     c "filter_map" filter_map [key_and_value_to_value_option; map];
+
+    c "partition is valid" partition_valid [key_and_value_to_bool; map];
 
     c "partition" partition [key_and_value_to_bool; map];
 
@@ -739,17 +857,27 @@ let () =
 
     c "choose_opt" choose_opt [map];
 
+    c "split is valid" split_valid [key; map];
+
     c "split" split [key; map];
 
+    c "map is valid" map_valid [value_to_value; map];
+
     c "map" Map_specs.map [value_to_value; map];
+
+    c "mapi is valid" mapi_valid [key_and_value_to_value; map];
 
     c "mapi" mapi [key_and_value_to_value; map];
 
     c "to_seq vs. bindings" to_seq_vs_bindings [map];
 
+    c "of_list is valid" of_list_valid [assoc_list key value];
+
     c "of_list then bindings" of_list_then_bindings [assoc_list key value];
 
     c "bindings_then_of_list" bindings_then_of_list [map];
+
+    c "map_keys is valid" map_keys_valid [key_to_key; map];
 
     c "map_keys" map_keys [key_to_key; map];
 
@@ -759,7 +887,11 @@ let () =
 
     c "of_set vs. of_list" of_set_vs_of_list [key_to_value; set];
 
+    c "diff_domains valid" diff_domains_valid [map; map];
+
     c "diff_domains" diff_domains [map; map];
+
+    c "inter is valid" inter_valid [inter_function; map; map];
 
     c "inter" inter [inter_function; map; map];
 
@@ -767,9 +899,13 @@ let () =
 
     c "get_singleton" get_singleton [map];
 
+    c "replace is valid" replace_valid [key; value_to_value; map];
+
     c "replace then find_opt" replace_same [key; value_to_value; map];
 
     c "replace then find_opt other" replace_other [key; key; value_to_value; map];
+
+    c "map_sharing is valid" map_sharing_valid [value_to_value; map];
 
     c "map_sharing vs. map" map_sharing_vs_map [value_to_value; map];
 

@@ -15,7 +15,15 @@
 module Make (_ : sig
   val print : Format.formatter -> int -> unit
 end) : sig
-  module Set : Container_types.Set with type elt = int
+  module Set : sig
+    include Container_types.Set with type elt = int
 
-  module Map : Container_types.Map with type key = int with module Set = Set
+    val valid : t -> bool
+  end
+
+  module Map : sig
+    include Container_types.Map with type key = int with module Set = Set
+
+    val valid : _ t -> bool
+  end
 end
