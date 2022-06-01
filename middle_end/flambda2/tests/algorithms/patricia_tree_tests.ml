@@ -129,6 +129,31 @@ module Set_specs = struct
 
   let compare_trans = transitive Set.compare
 
+  let subset_refl s = Set.subset s s
+
+  (* CR lmaurer: Probably terrible case coverage; should use small sets with
+     small keys *)
+  let subset_antisym s1 s2 =
+    (Set.subset s1 s2 && Set.subset s2 s1) <=> Set.equal s1 s2
+
+  (* CR lmaurer: Probably terrible case coverage; should use small sets with
+     small keys *)
+  let subset_trans s1 s2 s3 =
+    (not (Set.subset s1 s2)) || (not (Set.subset s2 s3)) || Set.subset s1 s3
+
+  let iter_vs_fold s =
+    (* Might like to use a random function to transform a state, but the
+       traversal order isn't specified (and it's different between [iter] and
+       [fold]), so we can just add instead of trying to generate a random
+       commutative function *)
+    let result_by_iter =
+      let state = ref 0 in
+      Set.iter (fun i -> state := i + !state) s;
+      !state
+    in
+    let result_by_fold = Set.fold ( + ) s 0 in
+    result_by_iter = result_by_fold
+
   let equal_vs_elements s1 s2 =
     Set.equal s1 s2
     <=> List.equal Int.equal (s1 |> Set.elements) (s2 |> Set.elements)
@@ -286,6 +311,19 @@ module Map_specs (V : Value) = struct
 
   let exists_vs_bindings f m =
     Map.exists f m <=> List.exists (fun (k, v) -> f k v) (m |> Map.bindings)
+
+  let iter_vs_fold m =
+    (* See comment on [Set_specs.iter_vs_fold] *)
+    let int_of_value (v : Value.t) = match v with A -> 1 | B -> 2 in
+    let result_by_iter =
+      let state = ref 0 in
+      Map.iter (fun k v -> state := k + (v |> int_of_value) + !state) m;
+      !state
+    in
+    let result_by_fold =
+      Map.fold (fun k v state -> k + (v |> int_of_value) + state) m 0
+    in
+    result_by_iter = result_by_fold
 
   let filter f m =
     let mf = Map.filter f m in
@@ -559,6 +597,14 @@ let () =
 
     c "equal vs. elements" equal_vs_elements [set; set];
 
+    c "subset is reflexive" subset_refl [set];
+
+    c "subset is antisymmetric" subset_antisym [set; set];
+
+    c "subset is transitive" subset_trans [set; set; set];
+
+    c "iter vs. fold" iter_vs_fold [set];
+
     c "map vs. elements" map_vs_elements [elt_to_elt; set];
 
     c "for_all" for_all [elt_to_bool; set];
@@ -661,6 +707,8 @@ let () =
     c "compare is transitive" compare_trans [map; map; map];
 
     c "equal vs. bindings" equal_vs_bindings [map; map];
+
+    c "iter vs. fold" iter_vs_fold [map];
 
     c "for_all vs. bindings" for_all_vs_bindings [key_and_value_to_bool; map];
 
