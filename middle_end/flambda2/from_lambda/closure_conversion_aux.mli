@@ -336,15 +336,15 @@ end
 open! Flambda.Import
 
 module Expr_with_acc : sig
-  type t = Expr.t
+  type t = Acc.t * Expr.t
 
-  val create_apply_cont : Acc.t -> Apply_cont.t -> Acc.t * t
+  val create_apply_cont : Acc.t -> Apply_cont.t -> t
 
-  val create_apply : Acc.t -> Apply.t -> Acc.t * t
+  val create_apply : Acc.t -> Apply.t -> t
 
-  val create_switch : Acc.t -> Switch.t -> Acc.t * t
+  val create_switch : Acc.t -> Switch.t -> t
 
-  val create_invalid : Acc.t -> Flambda.Invalid.t -> Acc.t * t
+  val create_invalid : Acc.t -> Flambda.Invalid.t -> t
 end
 
 module Apply_cont_with_acc : sig
@@ -362,28 +362,24 @@ end
 
 module Let_with_acc : sig
   val create :
-    Acc.t ->
-    Bound_pattern.t ->
-    Named.t ->
-    body:Expr_with_acc.t ->
-    Acc.t * Expr_with_acc.t
+    Acc.t -> Bound_pattern.t -> Named.t -> body:Expr.t -> Expr_with_acc.t
 end
 
 module Let_cont_with_acc : sig
   val build_recursive :
     Acc.t ->
     handlers:
-      ((Acc.t -> Acc.t * Expr_with_acc.t) * Bound_parameters.t * bool)
+      ((Acc.t -> Expr_with_acc.t) * Bound_parameters.t * bool)
       Continuation.Map.t ->
-    body:(Acc.t -> Acc.t * Expr_with_acc.t) ->
-    Acc.t * Expr_with_acc.t
+    body:(Acc.t -> Expr_with_acc.t) ->
+    Expr_with_acc.t
 
   val build_non_recursive :
     Acc.t ->
     Continuation.t ->
     handler_params:Bound_parameters.t ->
-    handler:(Acc.t -> Acc.t * Expr_with_acc.t) ->
-    body:(Acc.t -> Acc.t * Expr_with_acc.t) ->
+    handler:(Acc.t -> Expr_with_acc.t) ->
+    body:(Acc.t -> Expr_with_acc.t) ->
     is_exn_handler:bool ->
-    Acc.t * Expr_with_acc.t
+    Expr_with_acc.t
 end

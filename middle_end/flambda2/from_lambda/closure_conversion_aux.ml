@@ -683,7 +683,7 @@ end
 open Flambda.Import
 
 module Expr_with_acc = struct
-  type t = Expr.t
+  type t = Acc.t * Expr.t
 
   let create_apply_cont acc apply_cont =
     let acc =

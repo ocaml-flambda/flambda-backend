@@ -349,8 +349,7 @@ let close_c_call acc env ~loc ~let_bound_var
        prim_native_repr_res
      } :
       Primitive.description) ~(args : Simple.t list) exn_continuation dbg
-    (k : Acc.t -> Named.t option -> Acc.t * Expr_with_acc.t) :
-    Acc.t * Expr_with_acc.t =
+    (k : Acc.t -> Named.t option -> Expr_with_acc.t) : Expr_with_acc.t =
   (* We always replace the original let-binding with an Flambda expression, so
      we call [k] with [None], to get just the closure-converted body of that
      binding. *)
@@ -457,9 +456,9 @@ let close_c_call acc env ~loc ~let_bound_var
       in
       Expr_with_acc.create_apply acc apply
   in
-  let call : Acc.t -> Acc.t * Expr_with_acc.t =
+  let call : Acc.t -> Expr_with_acc.t =
     List.fold_left2
-      (fun (call : Simple.t list -> Acc.t -> Acc.t * Expr_with_acc.t) arg
+      (fun (call : Simple.t list -> Acc.t -> Expr_with_acc.t) arg
            (arg_repr : Primitive.mode * Primitive.native_repr) ->
         let unbox_arg : P.unary_primitive option =
           match arg_repr with
@@ -548,8 +547,7 @@ let close_exn_continuation acc env (exn_continuation : IR.exn_continuation) =
 
 let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
     loc (exn_continuation : IR.exn_continuation option)
-    (k : Acc.t -> Named.t option -> Acc.t * Expr_with_acc.t) :
-    Acc.t * Expr_with_acc.t =
+    (k : Acc.t -> Named.t option -> Expr_with_acc.t) : Expr_with_acc.t =
   let acc, exn_continuation =
     match exn_continuation with
     | None -> acc, None
@@ -662,8 +660,7 @@ let close_trap_action_opt trap_action =
     trap_action
 
 let close_named acc env ~let_bound_var (named : IR.named)
-    (k : Acc.t -> Named.t option -> Acc.t * Expr_with_acc.t) :
-    Acc.t * Expr_with_acc.t =
+    (k : Acc.t -> Named.t option -> Expr_with_acc.t) : Expr_with_acc.t =
   match named with
   | Simple (Var id) ->
     let acc, simple =
@@ -707,8 +704,7 @@ let close_named acc env ~let_bound_var (named : IR.named)
       k
 
 let close_let acc env id user_visible defining_expr
-    ~(body : Acc.t -> Env.t -> Acc.t * Expr_with_acc.t) :
-    Acc.t * Expr_with_acc.t =
+    ~(body : Acc.t -> Env.t -> Expr_with_acc.t) : Expr_with_acc.t =
   let body_env, var = Env.add_var_like env id user_visible in
   let cont acc (defining_expr : Named.t option) =
     match defining_expr with
@@ -717,7 +713,6 @@ let close_let acc env id user_visible defining_expr
       body acc body_env
     | None -> body acc body_env
     | Some defining_expr -> (
-      (* CR pchambart: Not tail ! *)
       let body_env =
         match defining_expr with
         | Prim (Variadic (Make_block (_, Immutable, alloc_mode), fields), _) ->
@@ -782,6 +777,7 @@ let close_let acc env id user_visible defining_expr
       let bound_pattern = Bound_pattern.singleton var in
       match body_env with
       | Some body_env ->
+        (* CR pchambart: Not tail ! The body function is the recursion *)
         let acc, body = body acc body_env in
         Let_with_acc.create acc bound_pattern defining_expr ~body
       | None ->
@@ -793,9 +789,8 @@ let close_let acc env id user_visible defining_expr
 
 let close_let_cont acc env ~name ~is_exn_handler ~params
     ~(recursive : Asttypes.rec_flag)
-    ~(handler : Acc.t -> Env.t -> Acc.t * Expr_with_acc.t)
-    ~(body : Acc.t -> Env.t -> Acc.t * Expr_with_acc.t) :
-    Acc.t * Expr_with_acc.t =
+    ~(handler : Acc.t -> Env.t -> Expr_with_acc.t)
+    ~(body : Acc.t -> Env.t -> Expr_with_acc.t) : Expr_with_acc.t =
   (if is_exn_handler
   then
     match recursive with
@@ -853,7 +848,7 @@ let close_exact_or_unknown_apply acc env
        mode;
        region_close = _
      } :
-      IR.apply) callee_approx : Acc.t * Expr_with_acc.t =
+      IR.apply) callee_approx : Expr_with_acc.t =
   let callee = find_simple_from_id env func in
   let mode = Alloc_mode.from_lambda mode in
   let acc, call_kind =
@@ -908,8 +903,7 @@ let close_exact_or_unknown_apply acc env
       Inlining.inline acc ~apply ~apply_depth:(Env.current_depth env) ~func_desc
   else Expr_with_acc.create_apply acc apply
 
-let close_apply_cont acc env ~dbg cont trap_action args :
-    Acc.t * Expr_with_acc.t =
+let close_apply_cont acc env ~dbg cont trap_action args : Expr_with_acc.t =
   let acc, args = find_simples acc env args in
   let trap_action = close_trap_action_opt trap_action in
   let args_approx = List.map (Env.find_value_approximation env) args in
@@ -919,7 +913,7 @@ let close_apply_cont acc env ~dbg cont trap_action args :
   Expr_with_acc.create_apply_cont acc apply_cont
 
 let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
-    Acc.t * Expr_with_acc.t =
+    Expr_with_acc.t =
   let scrutinee = find_simple_from_id env scrutinee in
   let untagged_scrutinee = Variable.create "untagged" in
   let untagged_scrutinee' = VB.create untagged_scrutinee Name_mode.normal in
@@ -1413,7 +1407,7 @@ let close_functions acc external_env function_declarations =
   else acc, Dynamic (set_of_closures, approximations)
 
 let close_let_rec acc env ~function_declarations
-    ~(body : Acc.t -> Env.t -> Acc.t * Expr_with_acc.t) =
+    ~(body : Acc.t -> Env.t -> Expr_with_acc.t) =
   let env =
     List.fold_right
       (fun decl env ->
@@ -1688,7 +1682,7 @@ type call_args_split =
   | Partial_app of IR.simple list * Flambda_arity.With_subkinds.t
   | Over_app of IR.simple list * IR.simple list
 
-let close_apply acc env (apply : IR.apply) : Acc.t * Expr_with_acc.t =
+let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
   let callee = find_simple_from_id env apply.func in
   let approx = Env.find_value_approximation env callee in
   let code_info =

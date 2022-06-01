@@ -62,5 +62,5 @@ val bind_rec :
   register_const_string:(Acc.t -> string -> Acc.t * Symbol.t) ->
   expr_primitive ->
   Debuginfo.t ->
-  (Acc.t -> Flambda.Named.t -> Acc.t * Expr_with_acc.t) ->
-  Acc.t * Expr_with_acc.t
+  (Acc.t -> Flambda.Named.t -> Expr_with_acc.t) ->
+  Expr_with_acc.t

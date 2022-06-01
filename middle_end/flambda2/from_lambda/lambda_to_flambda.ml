@@ -77,17 +77,32 @@ module Env : sig
 
   val get_mutable_variable : t -> Ident.t -> Ident.t
 
-  val entering_region : t -> Ident.t -> closure_continuation:Continuation.t -> t
+  val entering_region :
+    t ->
+    Ident.t ->
+    continuation_closing_region:Continuation.t ->
+    continuation_after_closing_region:Continuation.t ->
+    t
 
   (** The innermost (newest) region is first in the list. *)
   val region_stack : t -> Ident.t list
 
   val region_stack_in_cont_scope : t -> Continuation.t -> Ident.t list
 
-  val pop_regions_to_context : t -> Continuation.t -> Ident.t option
+  val pop_regions_up_to_context : t -> Continuation.t -> Ident.t option
 
-  val region_closure_continuation : t -> Ident.t -> Continuation.t
+  type region_closure_continuation =
+    { continuation_closing_region : Continuation.t;
+      continuation_after_closing_region : Continuation.t
+    }
+
+  val region_closure_continuation : t -> Ident.t -> region_closure_continuation
 end = struct
+  type region_closure_continuation =
+    { continuation_closing_region : Continuation.t;
+      continuation_after_closing_region : Continuation.t
+    }
+
   type t =
     { current_unit_id : Ident.t;
       current_values_of_mutables_in_scope :
@@ -99,7 +114,7 @@ end = struct
       recursive_static_catches : Numeric_types.Int.Set.t;
       region_stack : Ident.t list;
       region_stack_in_cont_scope : Ident.t list Continuation.Map.t;
-      region_closure_continuations : Continuation.t Ident.Map.t
+      region_closure_continuations : region_closure_continuation Ident.Map.t
     }
 
   let create ~current_unit_id ~return_continuation ~exn_continuation =
@@ -268,11 +283,14 @@ end = struct
       Misc.fatal_errorf "Mutable variable %a not bound in env" Ident.print id
     | id, _kind -> id
 
-  let entering_region t id ~closure_continuation =
+  let entering_region t id ~continuation_closing_region
+      ~continuation_after_closing_region =
     { t with
       region_stack = id :: t.region_stack;
       region_closure_continuations =
-        Ident.Map.add id closure_continuation t.region_closure_continuations
+        Ident.Map.add id
+          { continuation_closing_region; continuation_after_closing_region }
+          t.region_closure_continuations
     }
 
   let region_stack t = t.region_stack
@@ -284,7 +302,7 @@ end = struct
         Continuation.print continuation
     | stack -> stack
 
-  let pop_regions_to_context t continuation =
+  let pop_regions_up_to_context t continuation =
     let initial_stack_context = region_stack_in_cont_scope t continuation in
     let rec pop to_pop region_stack =
       match initial_stack_context, region_stack with
@@ -308,6 +326,8 @@ end = struct
 end
 
 module CCenv = Closure_conversion_aux.Env
+
+(* CR pchambart: Replace uses by CC.Acc.t *)
 module Acc = Closure_conversion_aux.Acc
 
 type primitive_transform_result =
@@ -347,7 +367,7 @@ let _print_stack ppf stack =
    the correct number of pop trap operations must be inserted. A similar thing
    is also necessary for closing local allocation regions. *)
 let compile_staticfail acc env ccenv ~(continuation : Continuation.t) ~args :
-    Acc.t * Expr_with_acc.t =
+    Expr_with_acc.t =
   let try_stack_at_handler = Env.get_try_stack_at_handler env continuation in
   let try_stack_now = Env.get_try_stack env in
   let dbg =
@@ -403,6 +423,11 @@ let compile_staticfail acc env ccenv ~(continuation : Continuation.t) ~args :
       (Ident.Set.of_list region_stack_at_handler)
       (Ident.Set.of_list region_stack_now));
   let rec add_end_regions acc ~region_stack_now =
+    (* CR pchambart: this probably can't be exercised right now, no lambda
+       jumping through a region seems to be generated. *)
+    (* CR pchambart: This closes all the regions between region_stack_now and
+       region_stack_at_handler, but closing only the last one should be
+       sufficient. *)
     let add_end_region region ~region_stack_now after_everything =
       let add_remaining_end_regions acc =
         add_end_regions acc ~region_stack_now
@@ -644,10 +669,9 @@ let rec_catch_for_for_loop env ident start stop (dir : Asttypes.direction_flag)
 
 let let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler
     ~params
-    ~(body :
-       Acc.t -> Env.t -> CCenv.t -> Continuation.t -> Acc.t * Expr_with_acc.t)
-    ~(handler : Acc.t -> Env.t -> CCenv.t -> Acc.t * Expr_with_acc.t) :
-    Acc.t * Expr_with_acc.t =
+    ~(body : Acc.t -> Env.t -> CCenv.t -> Continuation.t -> Expr_with_acc.t)
+    ~(handler : Acc.t -> Env.t -> CCenv.t -> Expr_with_acc.t) : Expr_with_acc.t
+    =
   let cont = Continuation.create () in
   let { Env.body_env; handler_env; extra_params } =
     Env.add_continuation env cont ~push_to_try_stack:is_exn_handler Nonrecursive
@@ -661,7 +685,7 @@ let let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler
     ~params:(params @ extra_params) ~recursive:Nonrecursive ~body ~handler
 
 let restore_continuation_context acc env ccenv cont ~close_early body =
-  match Env.pop_regions_to_context env cont with
+  match Env.pop_regions_up_to_context env cont with
   | None -> body acc ccenv cont
   | Some region ->
     if close_early
@@ -670,8 +694,18 @@ let restore_continuation_context acc env ccenv cont ~close_early body =
         Not_user_visible (End_region region) ~body:(fun acc ccenv ->
           body acc ccenv cont)
     else
-      let region_closure_cont = Env.region_closure_continuation env region in
-      body acc ccenv region_closure_cont
+      let ({ continuation_closing_region; continuation_after_closing_region }
+            : Env.region_closure_continuation) =
+        Env.region_closure_continuation env region
+      in
+      if not (Continuation.equal cont continuation_after_closing_region)
+      then
+        Misc.fatal_errorf
+          "The continuation %a following the region closure shouldbe the \
+           current continuation %a"
+          Continuation.print continuation_after_closing_region
+          Continuation.print cont;
+      body acc ccenv continuation_closing_region
 
 let apply_cont_with_extra_args acc env ccenv ~dbg cont traps args =
   let extra_args =
@@ -782,16 +816,16 @@ let primitive_can_raise (prim : Lambda.primitive) =
    the return continuation rather than relying on a wrapper to be removed. *)
 
 let rec cps_non_tail acc env ccenv (lam : L.lambda)
-    (k : Acc.t -> Env.t -> CCenv.t -> Ident.t -> Acc.t * Expr_with_acc.t)
-    (k_exn : Continuation.t) : Acc.t * Expr_with_acc.t =
+    (* CR pchambart: The Ident.t argument of k could probably be something
+       similar to a simple *)
+      (k : Acc.t -> Env.t -> CCenv.t -> Ident.t -> Expr_with_acc.t)
+    (k_exn : Continuation.t) : Expr_with_acc.t =
   match lam with
   | Lvar id ->
-    if Env.is_mutable env id
-    then
-      name_then_cps_non_tail acc env ccenv "mutable_read"
-        (IR.Simple (Var (Env.get_mutable_variable env id)))
-        k k_exn
-    else k acc env ccenv id
+    let return_id =
+      if Env.is_mutable env id then Env.get_mutable_variable env id else id
+    in
+    k acc env ccenv return_id
   | Lconst const ->
     name_then_cps_non_tail acc env ccenv "const" (IR.Simple (Const const)) k
       k_exn
@@ -806,37 +840,13 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
         ap_specialised = _;
         ap_probe
       } ->
-    cps_non_tail_list acc env ccenv ap_args
-      (fun acc env ccenv args ->
-        cps_non_tail acc env ccenv ap_func
-          (fun acc env ccenv func ->
-            let result_var = Ident.create_local "apply_result" in
-            let_cont_nonrecursive_with_extra_params acc env ccenv
-              ~is_exn_handler:false
-              ~params:[result_var, IR.Not_user_visible, Pgenval]
-              ~body:(fun acc env ccenv continuation ->
-                let exn_continuation : IR.exn_continuation =
-                  { exn_handler = k_exn;
-                    extra_args = extra_args_for_exn_continuation env k_exn
-                  }
-                in
-                let apply : IR.apply =
-                  { kind = Function;
-                    func;
-                    continuation;
-                    exn_continuation;
-                    args;
-                    loc = ap_loc;
-                    region_close = ap_region_close;
-                    inlined = ap_inlined;
-                    probe = ap_probe;
-                    mode = ap_mode
-                  }
-                in
-                wrap_return_continuation acc env ccenv apply)
-              ~handler:(fun acc env ccenv -> k acc env ccenv result_var))
-          k_exn)
-      k_exn
+    let result_var = Ident.create_local "apply_result" in
+    let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler:false
+      ~params:[result_var, IR.Not_user_visible, Pgenval]
+      ~handler:(fun acc env ccenv -> k acc env ccenv result_var)
+      ~body:(fun acc env ccenv continuation ->
+        cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode
+          ap_loc ap_inlined ap_probe continuation k_exn)
   | Lfunction func ->
     let id = Ident.create_local (name_for_function func) in
     let func =
@@ -898,6 +908,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
         k k_exn
   end
   | Llet (_let_kind, value_kind, id, defining_expr, body) ->
+    (* CR pchambart: see similar case in cps_tail *)
     let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler:false
       ~params:[id, IR.User_visible, value_kind]
       ~body:(fun acc env ccenv after_defining_expr ->
@@ -1118,9 +1129,10 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
             let_cont_nonrecursive_with_extra_params acc env ccenv
               ~is_exn_handler:false
               ~params:[wrap_return, Not_user_visible, Pgenval]
-              ~body:(fun acc env ccenv closure_continuation ->
+              ~body:(fun acc env ccenv continuation_closing_region ->
                 let env =
-                  Env.entering_region env region ~closure_continuation
+                  Env.entering_region env region ~continuation_closing_region
+                    ~continuation_after_closing_region:return_continuation
                 in
                 cps_tail acc env ccenv body return_continuation k_exn)
               ~handler:(fun acc env ccenv ->
@@ -1131,8 +1143,8 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
           ~handler:(fun acc env ccenv -> k acc env ccenv return))
 
 and cps_non_tail_simple acc env ccenv (lam : L.lambda)
-    (k : Acc.t -> Env.t -> CCenv.t -> IR.simple -> Acc.t * Expr_with_acc.t)
-    (k_exn : Continuation.t) : Acc.t * Expr_with_acc.t =
+    (k : Acc.t -> Env.t -> CCenv.t -> IR.simple -> Expr_with_acc.t)
+    (k_exn : Continuation.t) : Expr_with_acc.t =
   match lam with
   | Lvar id when not (Env.is_mutable env id) -> k acc env ccenv (IR.Var id)
   | Lconst const -> k acc env ccenv (IR.Const const)
@@ -1145,21 +1157,47 @@ and cps_non_tail_simple acc env ccenv (lam : L.lambda)
       (fun acc env ccenv id -> k acc env ccenv (IR.Var id))
       k_exn
 
+and cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode ap_loc
+    ap_inlined ap_probe (k : Continuation.t) (k_exn : Continuation.t) :
+    Expr_with_acc.t =
+  cps_non_tail_list acc env ccenv ap_args
+    (fun acc env ccenv args ->
+      cps_non_tail acc env ccenv ap_func
+        (fun acc env ccenv func ->
+          let exn_continuation : IR.exn_continuation =
+            { exn_handler = k_exn;
+              extra_args = extra_args_for_exn_continuation env k_exn
+            }
+          in
+          let apply : IR.apply =
+            { kind = Function;
+              func;
+              continuation = k;
+              exn_continuation;
+              args;
+              loc = ap_loc;
+              region_close = ap_region_close;
+              inlined = ap_inlined;
+              probe = ap_probe;
+              mode = ap_mode
+            }
+          in
+          wrap_return_continuation acc env ccenv apply)
+        k_exn)
+    k_exn
+
 and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
-    (k_exn : Continuation.t) : Acc.t * Expr_with_acc.t =
+    (k_exn : Continuation.t) : Expr_with_acc.t =
   match lam with
   | Lvar id ->
     let dbg = Debuginfo.none in
-    if Env.is_mutable env id
-    then
-      name_then_cps_tail acc env ccenv ~dbg "mutable_read"
-        (IR.Simple (Var (Env.get_mutable_variable env id)))
-        k k_exn
-    else apply_cont_with_extra_args acc env ccenv ~dbg k None [IR.Var id]
+    let var =
+      if Env.is_mutable env id then Env.get_mutable_variable env id else id
+    in
+    apply_cont_with_extra_args acc env ccenv ~dbg k None [IR.Var var]
   | Lconst const ->
     let dbg = Debuginfo.none in
-    name_then_cps_tail acc env ccenv ~dbg "const" (IR.Simple (Const const)) k
-      k_exn
+    apply_cont_with_extra_args acc env ccenv ~dbg k None [IR.Const const]
   | Lapply
       { ap_func;
         ap_args;
@@ -1171,31 +1209,8 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
         ap_specialised = _;
         ap_probe
       } ->
-    cps_non_tail_list acc env ccenv ap_args
-      (fun acc env ccenv args ->
-        cps_non_tail acc env ccenv ap_func
-          (fun acc env ccenv func ->
-            let exn_continuation : IR.exn_continuation =
-              { exn_handler = k_exn;
-                extra_args = extra_args_for_exn_continuation env k_exn
-              }
-            in
-            let apply : IR.apply =
-              { kind = Function;
-                func;
-                continuation = k;
-                exn_continuation;
-                args;
-                loc = ap_loc;
-                region_close = ap_region_close;
-                inlined = ap_inlined;
-                probe = ap_probe;
-                mode = ap_mode
-              }
-            in
-            wrap_return_continuation acc env ccenv apply)
-          k_exn)
-      k_exn
+    cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode ap_loc
+      ap_inlined ap_probe k k_exn
   | Lfunction func ->
     let id = Ident.create_local (name_for_function func) in
     let dbg = Debuginfo.from_location func.loc in
@@ -1283,6 +1298,14 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
       ~body:(fun acc env ccenv after_defining_expr ->
         cps_tail acc env ccenv defining_expr after_defining_expr k_exn)
       ~handler:(fun acc env ccenv -> cps_tail acc env ccenv body k k_exn)
+    (* CR pchambart: This version would avoid one let cont, but would miss the
+       value kind. It should be used when CC.close_let can propagate the
+       value_kind. The same thing applies to the cps_non_tail version *)
+    (* let k acc env ccenv value =
+     *   let body acc ccenv = cps_tail acc env ccenv body k k_exn in
+     *   CC.close_let acc ccenv id User_visible (Simple (Var value)) ~body
+     * in
+     * cps_non_tail acc env ccenv defining_expr k k_exn *)
   | Lletrec (bindings, body) -> begin
     match Dissect_letrec.dissect_letrec ~bindings ~body with
     | Unchanged ->
@@ -1464,8 +1487,11 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
         let_cont_nonrecursive_with_extra_params acc env ccenv
           ~is_exn_handler:false
           ~params:[wrap_return, Not_user_visible, Pgenval]
-          ~body:(fun acc env ccenv closure_continuation ->
-            let env = Env.entering_region env region ~closure_continuation in
+          ~body:(fun acc env ccenv continuation_closing_region ->
+            let env =
+              Env.entering_region env region ~continuation_closing_region
+                ~continuation_after_closing_region:k
+            in
             cps_tail acc env ccenv body k k_exn)
           ~handler:(fun acc env ccenv ->
             CC.close_let acc ccenv (Ident.create_local "unit")
@@ -1474,13 +1500,13 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
                   [IR.Var wrap_return])))
 
 and name_then_cps_non_tail acc env ccenv name defining_expr k _k_exn :
-    Acc.t * Expr_with_acc.t =
+    Expr_with_acc.t =
   let id = Ident.create_local name in
   let body acc ccenv = k acc env ccenv id in
   CC.close_let acc ccenv id Not_user_visible defining_expr ~body
 
 and name_then_cps_tail acc env ccenv ~dbg name defining_expr k _k_exn :
-    Acc.t * Expr_with_acc.t =
+    Expr_with_acc.t =
   let id = Ident.create_local name in
   let body acc ccenv =
     apply_cont_with_extra_args acc env ccenv ~dbg k None [IR.Var id]
@@ -1495,7 +1521,7 @@ and cps_non_tail_list acc env ccenv lams k k_exn =
     k_exn
 
 and cps_non_tail_list_core acc env ccenv (lams : L.lambda list)
-    (k : Acc.t -> Env.t -> CCenv.t -> IR.simple list -> Acc.t * Expr_with_acc.t)
+    (k : Acc.t -> Env.t -> CCenv.t -> IR.simple list -> Expr_with_acc.t)
     (k_exn : Continuation.t) =
   match lams with
   | [] -> k acc env ccenv []
@@ -1519,9 +1545,9 @@ and cps_function_bindings env (bindings : (Ident.t * L.lambda) list) =
             Simplif.split_default_wrapper ~id:fun_id ~kind ~params ~body:fbody
               ~return ~attr ~loc ~mode ~region
           with
-          | ([(_, L.Lfunction _)] | [(_, L.Lfunction _); (_, L.Lfunction _)]) as
-            binding ->
-            binding
+          | [(id, L.Lfunction lfun)] -> [id, lfun]
+          | [(id1, L.Lfunction lfun1); (id2, L.Lfunction lfun2)] ->
+            [id1, lfun1; id2, lfun2]
           | [(_, _)] | [(_, _); (_, _)] ->
             Misc.fatal_errorf
               "Expected `Lfunction` terms from [split_default_wrapper] when \
@@ -1540,22 +1566,17 @@ and cps_function_bindings env (bindings : (Ident.t * L.lambda) list) =
             Printlambda.lambda binding)
       bindings
   in
-  let bindings = List.flatten bindings_with_wrappers in
   let free_idents, directed_graph =
     let fun_ids = Ident.Set.of_list (List.map fst bindings) in
     List.fold_left
-      (fun (free_ids, graph) (fun_id, binding) ->
-        match binding with
-        | L.Lfunction { body; _ } ->
-          let free_ids_of_body = Lambda.free_variables body in
-          let free_ids = Ident.Map.add fun_id free_ids_of_body free_ids in
-          let free_fun_ids = Ident.Set.inter fun_ids free_ids_of_body in
-          let graph = Ident.Map.add fun_id free_fun_ids graph in
-          free_ids, graph
-        | _ -> assert false
-        (* checked above *))
+      (fun (free_ids, graph) (fun_id, ({ body; _ } : L.lfunction)) ->
+        let free_ids_of_body = Lambda.free_variables body in
+        let free_ids = Ident.Map.add fun_id free_ids_of_body free_ids in
+        let free_fun_ids = Ident.Set.inter fun_ids free_ids_of_body in
+        let graph = Ident.Map.add fun_id free_fun_ids graph in
+        free_ids, graph)
       (Ident.Map.empty, Ident.Map.empty)
-      bindings
+      (List.flatten bindings_with_wrappers)
   in
   let recursive_functions =
     let module SCC = Strongly_connected_components.Make (Ident) in
@@ -1577,23 +1598,23 @@ and cps_function_bindings env (bindings : (Ident.t * L.lambda) list) =
   List.fold_left
     (fun bindings binding ->
       match binding with
-      | [(fun_id, L.Lfunction def)] ->
+      | [(fun_id, def)] ->
         let fundef =
           cps_function env ~fid:fun_id ~stub:false ~recursive:(recursive fun_id)
-            ~free_idents:(Ident.Map.find fun_id free_idents)
+            ~precomputed_free_idents:(Ident.Map.find fun_id free_idents)
             def
         in
         bindings @ [fundef]
-      | [(fun_id, L.Lfunction def); (inner_id, L.Lfunction inner_def)] ->
+      | [(fun_id, def); (inner_id, inner_def)] ->
         let fundef =
           cps_function env ~fid:fun_id ~stub:false ~recursive:(recursive fun_id)
-            ~free_idents:(Ident.Map.find fun_id free_idents)
+            ~precomputed_free_idents:(Ident.Map.find fun_id free_idents)
             def
         in
         let inner_fundef =
           cps_function env ~fid:inner_id ~stub:true
             ~recursive:(recursive inner_id)
-            ~free_idents:(Ident.Map.find inner_id free_idents)
+            ~precomputed_free_idents:(Ident.Map.find inner_id free_idents)
             inner_def
         in
         bindings @ [fundef; inner_fundef]
@@ -1601,7 +1622,8 @@ and cps_function_bindings env (bindings : (Ident.t * L.lambda) list) =
       (* checked above *))
     [] bindings_with_wrappers
 
-and cps_function env ~fid ~stub ~(recursive : Recursive.t) ?free_idents
+and cps_function env ~fid ~stub ~(recursive : Recursive.t)
+    ?precomputed_free_idents
     ({ kind; params; return; body; attr; loc; mode; region } : L.lfunction) :
     Function_decl.t =
   let num_trailing_local_params =
@@ -1610,7 +1632,7 @@ and cps_function env ~fid ~stub ~(recursive : Recursive.t) ?free_idents
   let body_cont = Continuation.create ~sort:Return () in
   let body_exn_cont = Continuation.create () in
   let free_idents_of_body =
-    match free_idents with
+    match precomputed_free_idents with
     | Some ids -> ids
     | None -> Lambda.free_variables body
   in
@@ -1636,31 +1658,24 @@ and cps_function env ~fid ~stub ~(recursive : Recursive.t) ?free_idents
     ~num_trailing_local_params ~contains_no_escaping_local_allocs:region
 
 and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
-    ~scrutinee (k : Continuation.t) (k_exn : Continuation.t) :
-    Acc.t * Expr_with_acc.t =
+    ~scrutinee (k : Continuation.t) (k_exn : Continuation.t) : Expr_with_acc.t =
   let block_nums, sw_blocks = List.split switch.sw_blocks in
-  let block_nums =
-    List.map
-      (fun sw_tag ->
-        begin
-          match Tag.Scannable.create sw_tag with
-          | Some tag ->
-            let tag' = Tag.Scannable.to_tag tag in
-            if Tag.is_structured_block_but_not_data_constructor tag'
-            then
-              Misc.fatal_errorf
-                "Bad tag %a in [Lswitch] (tag is that of a scannable block, \
-                 but not one treated like a variant; [Lswitch] can only be \
-                 used for variant matching)"
-                Tag.print tag'
-          | None ->
-            Misc.fatal_errorf
-              "Bad tag %d in [Lswitch] (not the tag of a GC-scannable block)"
-              sw_tag
-        end;
-        sw_tag)
-      block_nums
-  in
+  List.iter
+    (fun sw_tag ->
+      match Tag.Scannable.create sw_tag with
+      | Some tag ->
+        let tag' = Tag.Scannable.to_tag tag in
+        if Tag.is_structured_block_but_not_data_constructor tag'
+        then
+          Misc.fatal_errorf
+            "Bad tag %a in [Lswitch] (tag is that of a scannable block, but \
+             not one treated like a variant; [Lswitch] can only be used for \
+             variant matching)"
+            Tag.print tag'
+      | None ->
+        Misc.fatal_errorf
+          "Bad tag %d in [Lswitch] (not the tag of a GC-scannable block)" sw_tag)
+    block_nums;
   if switch.sw_numblocks > Obj.last_non_constant_constructor_tag + 1
   then
     Misc.fatal_errorf
@@ -1697,10 +1712,10 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
         | Lstringswitch _ | Lstaticraise _ | Lstaticcatch _ | Ltrywith _
         | Lifthenelse _ | Lsequence _ | Lwhile _ | Lfor _ | Lassign _ | Lsend _
         | Levent _ | Lifused _ | Lregion _ ->
-          (* The continuations created here (and for failactions) are local and
-             their bodies will not modify mutable variables. Hence, it is safe
-             to exclude them from passing along the extra arguments for mutable
-             values. *)
+          (* The continuations created here (and for failactions) are local. The
+             bodies of the let_conts will not modify mutable variables. Hence,
+             it is safe to exclude them from passing along the extra arguments
+             for mutable values. *)
           let cont = Continuation.create () in
           let action acc ccenv = cps_tail acc env ccenv action k k_exn in
           let consts_rev = (arm, cont, None, []) :: consts_rev in
@@ -1786,6 +1801,8 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
       switch_expr acc ccenv)
     k_exn
 
+(* CR pchambart: define a record `target_config` to hold things like
+   `big_endian` *)
 let lambda_to_flambda ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
     ~module_block_size_in_words (lam : Lambda.lambda) :
     Flambda_unit.t
