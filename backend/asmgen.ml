@@ -218,6 +218,10 @@ let rec regalloc ~ppf_dump round fd =
   end else begin
     (* Ensure the hooks are called only once. *)
     Compiler_hooks.execute Compiler_hooks.Mach_reload newfd;
+    Cfg_regalloc_utils.Stats.update_fun_name
+      fd.Mach.fun_name
+      Cfg_regalloc_utils.Stats.num_rounds
+      round;
     newfd
   end
 
@@ -314,6 +318,27 @@ let reorder_blocks_random ppf_dump cl =
      pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg
        "After reorder_blocks_random" cl
 
+let cfgize (f : Mach.fundecl) : Cfg_with_layout.t =
+  if ocamlcfg_verbose then begin
+    Format.eprintf "Asmgen.cfgize on function %s...\n%!" f.Mach.fun_name;
+  end;
+  Cfgize.fundecl
+    f
+    ~preserve_orig_labels:false
+    ~simplify_terminators:true
+
+type register_allocator =
+  | Upstream
+  | IRC
+
+let register_allocator : register_allocator =
+  match Sys.getenv_opt "REGISTER_ALLOCATOR" with
+  | None -> Upstream
+  | Some id ->
+    match String.lowercase_ascii id with
+    | "irc" -> IRC
+    | _ -> Misc.fatal_errorf "unknown register allocator %S" id
+
 let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
   Proc.init ();
   Reg.reset();
@@ -333,24 +358,64 @@ let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
   ++ Profile.record ~accumulate:true "deadcode" Deadcode.fundecl
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_live
   ++ pass_dump_if ppf_dump dump_live "Liveness analysis"
-  ++ Profile.record ~accumulate:true "spill" Spill.fundecl
-  ++ Profile.record ~accumulate:true "liveness" liveness
-  ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_spill
-  ++ pass_dump_if ppf_dump dump_spill "After spilling"
-  ++ Profile.record ~accumulate:true "split" Split.fundecl
-  ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_split
-  ++ pass_dump_if ppf_dump dump_split "After live range splitting"
-  ++ Profile.record ~accumulate:true "liveness" liveness
-  ++ Profile.record ~accumulate:true "regalloc" (regalloc ~ppf_dump 1)
-  ++ Profile.record ~accumulate:true "available_regs" Available_regs.fundecl
-  ++ Profile.record ~accumulate:true "linearize" (fun (f : Mach.fundecl) ->
-      let res = Linearize.fundecl f in
-      (* CR xclerc for xclerc: temporary, for testing. *)
-      if !Flambda_backend_flags.cfg_equivalence_check then begin
-        test_cfgize f res;
-      end;
-      res)
-  ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code"
+  ++ (fun (fd : Mach.fundecl) ->
+      match register_allocator with
+      | IRC ->
+        Cfg_regalloc_utils.gc_for_benchmarks ();
+        let x =
+          fd
+          ++ Profile.record ~accumulate:true "cfgize" cfgize
+        in
+        let before = Cfg_regalloc_utils.cpu_time () in
+        let res =
+          x
+          ++ Profile.record ~accumulate:true "cfg_irc" Cfg_irc.run
+        in
+        let after = Cfg_regalloc_utils.cpu_time () in
+        Cfg_regalloc_utils.Stats.update_fun_name
+          fd.fun_name
+          Cfg_regalloc_utils.Stats.allocator
+          "irc";
+        Cfg_regalloc_utils.Stats.update_fun_name
+          fd.fun_name
+          Cfg_regalloc_utils.Stats.total_time
+          (after -. before);
+        (Cfg_regalloc_utils.simplify_cfg res)
+        ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run
+      | Upstream ->
+        Cfg_regalloc_utils.gc_for_benchmarks ();
+        let before = Cfg_regalloc_utils.cpu_time () in
+        let res =
+          fd
+          ++ Profile.record ~accumulate:true "spill" Spill.fundecl
+          ++ Profile.record ~accumulate:true "liveness" liveness
+          ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_spill
+          ++ pass_dump_if ppf_dump dump_spill "After spilling"
+          ++ Profile.record ~accumulate:true "split" Split.fundecl
+          ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_split
+          ++ pass_dump_if ppf_dump dump_split "After live range splitting"
+          ++ Profile.record ~accumulate:true "liveness" liveness
+          ++ Profile.record ~accumulate:true "regalloc" (regalloc ~ppf_dump 1)
+          ++ Profile.record ~accumulate:true "available_regs" Available_regs.fundecl
+        in
+        let after = Cfg_regalloc_utils.cpu_time () in
+        Cfg_regalloc_utils.Stats.update_fun_name
+          fd.fun_name
+          Cfg_regalloc_utils.Stats.allocator
+          "upstream";
+        Cfg_regalloc_utils.Stats.update_fun_name
+          fd.fun_name
+          Cfg_regalloc_utils.Stats.total_time
+          (after -. before);
+        res
+        ++ Profile.record ~accumulate:true "linearize" (fun (f : Mach.fundecl) ->
+            let res = Linearize.fundecl f in
+            (* CR xclerc for xclerc: temporary, for testing. *)
+            if !Flambda_backend_flags.use_ocamlcfg then begin
+              test_cfgize f res;
+            end;
+            res)
+        ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code")
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Linear
   ++ (fun (fd : Linear.fundecl) ->
     if !Flambda_backend_flags.use_ocamlcfg then begin

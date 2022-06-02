@@ -152,10 +152,10 @@ end
 module type Backward_transfer = sig
   type domain
 
-  val basic : domain -> exn:domain -> Cfg.basic Cfg.instruction -> domain
+  val basic : domain -> exn:domain -> has_an_exceptional_successor:bool -> Cfg.basic Cfg.instruction -> domain
 
   val terminator :
-    domain -> exn:domain -> Cfg.terminator Cfg.instruction -> domain
+    domain -> exn:domain -> has_an_exceptional_successor:bool -> Cfg.terminator Cfg.instruction -> domain
 
   val exception_ : domain -> domain
 end
@@ -219,12 +219,15 @@ module Backward
         Instr.Tbl.replace tbl instr.id value;
         value
     in
+    let has_an_exceptional_successor =
+      not (Label.Set.is_empty (Cfg.successor_labels ~normal:false ~exn:true block))
+    in
     let value =
-      replace block.terminator (T.terminator value ~exn block.terminator)
+      replace block.terminator (T.terminator value ~exn ~has_an_exceptional_successor block.terminator)
     in
     let value =
       ListLabels.fold_right block.body ~init:value ~f:(fun instr value ->
-          replace instr (T.basic value ~exn instr))
+          replace instr (T.basic value ~exn ~has_an_exceptional_successor instr))
     in
     value
 
@@ -234,7 +237,7 @@ module Backward
       domain Label.Tbl.t * domain Instr.Tbl.t * WorkSet.t ref =
    fun cfg ~init ->
     let map_block = Label.Tbl.create (Label.Tbl.length cfg.Cfg.blocks) in
-    let map_instr = Instr.Tbl.create (Label.Tbl.length cfg.Cfg.blocks) in
+    let map_instr = Instr.Tbl.create (Label.Tbl.length cfg.Cfg.blocks * 16) in
     let set = ref WorkSet.empty in
     let value = init in
     Cfg.iter_blocks cfg ~f:(fun label _block ->
