@@ -15,6 +15,30 @@
 
 open Cmm
 
+type irc_work_list =
+  | Unknown_list
+  | Precolored
+  | Initial
+  | Simplify
+  | Freeze
+  | Spill
+  | Spilled
+  | Coalesced
+  | Colored
+  | Select_stack
+
+let string_of_irc_work_list = function
+  | Unknown_list -> "unknown_list"
+  | Precolored -> "precolored"
+  | Initial -> "initial"
+  | Simplify -> "simplify"
+  | Freeze -> "freeze"
+  | Spill -> "spill"
+  | Spilled -> "spilled"
+  | Coalesced -> "coalesced"
+  | Colored -> "colored"
+  | Select_stack -> "select_stack"
+
 module V = Backend_var
 
 module Raw_name = struct
@@ -38,7 +62,11 @@ type t =
   { mutable raw_name: Raw_name.t;
     stamp: int;
     typ: Cmm.machtype_component;
+    clas: int;
     mutable loc: location;
+    mutable irc_work_list: irc_work_list;
+    mutable irc_color : int option;
+    mutable irc_alias : t option;
     mutable spill: bool;
     mutable part: int option;
     mutable interf: t list;
@@ -60,8 +88,14 @@ and stack_location =
 
 type reg = t
 
+(* CR xclerc for xclerc: amd64 *)
+let clas_of_typ = function
+  | Val | Int | Addr -> 0
+  | Float -> 1
+
 let dummy =
-  { raw_name = Raw_name.Anon; stamp = 0; typ = Int; loc = Unknown;
+  { raw_name = Raw_name.Anon; stamp = 0; typ = Int; clas = clas_of_typ Int; loc = Unknown;
+    irc_work_list = Unknown_list; irc_color = None; irc_alias = None;
     spill = false; interf = []; prefer = []; degree = 0; spill_cost = 0;
     visited = 0; part = None;
   }
@@ -86,8 +120,10 @@ let clear_visited_marks () =
 
 
 let create ty =
-  let r = { raw_name = Raw_name.Anon; stamp = !currstamp; typ = ty;
-            loc = Unknown; spill = false; interf = []; prefer = []; degree = 0;
+  let r = { raw_name = Raw_name.Anon; stamp = !currstamp; typ = ty; clas = clas_of_typ ty;
+            loc = Unknown;
+            irc_work_list = Unknown_list; irc_color = None; irc_alias = None;
+            spill = false; interf = []; prefer = []; degree = 0;
             spill_cost = 0; visited = unvisited; part = None; } in
   reg_list := r :: !reg_list;
   incr currstamp;
@@ -111,7 +147,8 @@ let clone r =
   nr
 
 let at_location ty loc =
-  let r = { raw_name = Raw_name.R; stamp = !currstamp; typ = ty; loc;
+  let r = { raw_name = Raw_name.R; stamp = !currstamp; typ = ty; clas = clas_of_typ ty; loc;
+            irc_work_list = Unknown_list; irc_color = None; irc_alias = None;
             spill = false; interf = []; prefer = []; degree = 0;
             spill_cost = 0; visited = unvisited; part = None; } in
   hw_reg_list := r :: !hw_reg_list;
@@ -180,6 +217,9 @@ let num_registers() = !currstamp
 
 let reinit_reg r =
   r.loc <- Unknown;
+  r.irc_work_list <- Unknown_list;
+  r.irc_color <- None;
+  r.irc_alias <- None;
   r.interf <- [];
   r.prefer <- [];
   r.degree <- 0;
@@ -199,6 +239,11 @@ module RegOrder =
 
 module Set = Set.Make(RegOrder)
 module Map = Map.Make(RegOrder)
+module Tbl = Hashtbl.Make (struct
+    type t = reg
+    let equal r1 r2 = r1.stamp = r2.stamp
+    let hash r = r.stamp
+  end)
 
 let add_set_array s v =
   match Array.length v with
