@@ -205,7 +205,8 @@ module Make (I : S) : S with type t = I.t = struct
 
   let mul x y = sign_extend (I.mul x y)
 
-  let mod_ x y = sign_extend (I.mod_ x y)
+  (* No sign-extension: the result is always in the correct range *)
+  let mod_ = I.mod_
 
   let div x y = sign_extend (I.div x y)
 
@@ -217,9 +218,11 @@ module Make (I : S) : S with type t = I.t = struct
 
   let shift_left t i = sign_extend (I.shift_left t i)
 
-  let shift_right t i = sign_extend (I.shift_right t i)
+  (* No sign-extension: the result is always in the correct range *)
+  let shift_right = I.shift_right
 
-  let shift_right_logical t i = I.shift_right_logical (I.shift_left t 1) (i + 1)
+  let shift_right_logical t i =
+    I.shift_right (I.shift_right_logical (I.shift_left t 1) i) 1
 
   let max = I.max
 
