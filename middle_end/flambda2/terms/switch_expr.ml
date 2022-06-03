@@ -91,13 +91,11 @@ let scrutinee t = t.scrutinee
 let arms t = t.arms
 
 let free_names { condition_dbg = _; scrutinee; arms } =
-  let free_names_in_arms =
-    Targetint_31_63.Map.fold
-      (fun _discr action free_names ->
-        Name_occurrences.union (Apply_cont_expr.free_names action) free_names)
-      arms Name_occurrences.empty
-  in
-  Name_occurrences.union (Simple.free_names scrutinee) free_names_in_arms
+  let free_names_of_scrutinee = Simple.free_names scrutinee in
+  Targetint_31_63.Map.fold
+    (fun _discr action free_names ->
+      Name_occurrences.union (Apply_cont_expr.free_names action) free_names)
+    arms free_names_of_scrutinee
 
 let apply_renaming ({ condition_dbg; scrutinee; arms } as t) perm =
   let scrutinee' = Simple.apply_renaming scrutinee perm in
