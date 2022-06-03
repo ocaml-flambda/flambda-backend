@@ -267,7 +267,16 @@ let make_instruction : type a. State.t -> desc:a -> a Cfg.instruction =
   let stack_offset = invalid_stack_offset in
   let id = State.get_next_instruction_id state in
   let fdo = Fdo_info.none in
-  { desc; arg; res; dbg; live; stack_offset; id; fdo; irc_work_list = Unknown_list }
+  { desc;
+    arg;
+    res;
+    dbg;
+    live;
+    stack_offset;
+    id;
+    fdo;
+    irc_work_list = Unknown_list
+  }
 
 let copy_instruction :
     type a. State.t -> Mach.instruction -> desc:a -> a Cfg.instruction =
@@ -286,7 +295,16 @@ let copy_instruction :
   let stack_offset = invalid_stack_offset in
   let id = State.get_next_instruction_id state in
   let fdo = Fdo_info.none in
-  { desc; arg; res; dbg; live; stack_offset; id; fdo; irc_work_list = Unknown_list }
+  { desc;
+    arg;
+    res;
+    dbg;
+    live;
+    stack_offset;
+    id;
+    fdo;
+    irc_work_list = Unknown_list
+  }
 
 let copy_instruction_no_reg :
     type a. State.t -> Mach.instruction -> desc:a -> a Cfg.instruction =
@@ -307,7 +325,16 @@ let copy_instruction_no_reg :
   let stack_offset = invalid_stack_offset in
   let id = State.get_next_instruction_id state in
   let fdo = Fdo_info.none in
-  { desc; arg; res; dbg; live; stack_offset; id; fdo; irc_work_list = Unknown_list }
+  { desc;
+    arg;
+    res;
+    dbg;
+    live;
+    stack_offset;
+    id;
+    fdo;
+    irc_work_list = Unknown_list
+  }
 
 let rec get_end : Mach.instruction -> Mach.instruction =
  fun instr ->
@@ -704,9 +731,9 @@ let fundecl :
   let start_label = Cmm.new_label () in
   let tailrec_label = Cmm.new_label () in
   let fun_fast = not (List.mem Cmm.Reduce_code_size fun_codegen_options) in
-  (* CR xclerc for xclerc: with the new pipeline, stacks slots are always 0
-     when Cfgize is called; we (temporarily?) always add a prologue and
-     remove it after register allocation if it is not required. *)
+  (* CR xclerc for xclerc: with the new pipeline, stacks slots are always 0 when
+     Cfgize is called; we (temporarily?) always add a prologue and remove it
+     after register allocation if it is not required. *)
   let prologue_required = true in
   let cfg =
     Cfg.create ~fun_name ~fun_args ~fun_dbg ~fun_fast ~fun_contains_calls

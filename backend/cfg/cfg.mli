@@ -165,4 +165,5 @@ val set_live : 'a instruction -> Reg.Set.t -> 'a instruction
 val string_of_irc_work_list : irc_work_list -> string
 
 val dump_basic : Format.formatter -> basic -> unit
+
 val dump_terminator : ?sep:string -> Format.formatter -> terminator -> unit

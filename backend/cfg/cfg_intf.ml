@@ -141,7 +141,7 @@ module S = struct
       live : Reg.Set.t;
       stack_offset : int;
       id : int;
-      mutable irc_work_list : irc_work_list;
+      mutable irc_work_list : irc_work_list
     }
 
   type basic =
