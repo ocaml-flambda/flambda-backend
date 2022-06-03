@@ -65,7 +65,8 @@ let rec merge_blocks (modified : bool) (cfg_with_layout : Cfg_with_layout.t) :
              && (not (Label.equal b1_label b2_label))
              && List.compare_length_with b2_predecessors 1 = 0
              && Cfg.is_pure_terminator b1_block.terminator.desc
-             && Label.Set.is_empty (Cfg.successor_labels ~normal:false ~exn:true b1_block)
+             && Label.Set.is_empty
+                  (Cfg.successor_labels ~normal:false ~exn:true b1_block)
           then begin
             assert (Label.equal b1_label (List.hd b2_predecessors));
             (* modify b1 *)

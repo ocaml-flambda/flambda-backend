@@ -404,8 +404,8 @@ let check_basic_instruction :
     | Poptrap -> false
     | Prologue -> false
   in
-  check_instruction ~check_live ~check_dbg ~check_arg:true idx location
-    expected result
+  check_instruction ~check_live ~check_dbg ~check_arg:true idx location expected
+    result
 
 let rec check_basic_instruction_list :
     State.t ->

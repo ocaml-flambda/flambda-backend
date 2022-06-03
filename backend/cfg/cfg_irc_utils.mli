@@ -10,20 +10,20 @@ val irc_invariants : bool
 
 val log : indent:int -> ('a, Format.formatter, unit) format -> 'a
 
-val log_body_and_terminator : indent:int -> Cfg.basic Cfg.instruction list -> Cfg.terminator Cfg.instruction -> unit
+val log_body_and_terminator :
+  indent:int ->
+  Cfg.basic Cfg.instruction list ->
+  Cfg.terminator Cfg.instruction ->
+  unit
 
 module Color : sig
-
   type t = int
-
 end
 
 module RegisterStamp : sig
-
   type t = int
 
   module PairSet : sig
-
     type stamp := t
 
     type t
@@ -39,13 +39,10 @@ module RegisterStamp : sig
     val cardinal : t -> int
 
     val iter : t -> f:(stamp * stamp -> unit) -> unit
-
   end
-
 end
 
 module Degree : sig
-
   type t = int
 
   val infinite : t
@@ -53,7 +50,6 @@ module Degree : sig
   val to_string : t -> string
 
   val to_float : t -> float
-
 end
 
 val is_move_instruction : Instruction.t -> bool
@@ -65,7 +61,6 @@ val k : Reg.t -> int
 val update_register_locations : unit -> unit
 
 module Split_mode : sig
-
   type t =
     | Off
     | Naive
@@ -75,20 +70,17 @@ module Split_mode : sig
   val to_string : t -> string
 
   val env : t Lazy.t
-
 end
 
 module Spilling_heuristics : sig
-
   type t =
     | Set_choose
     | Flat_uses
-    (* CR xclerc for xclerc: | Hierarchical_uses *)
+  (* CR xclerc for xclerc: | Hierarchical_uses *)
 
   val all : t list
 
   val to_string : t -> string
 
   val env : t Lazy.t
-
 end

@@ -152,10 +152,19 @@ end
 module type Backward_transfer = sig
   type domain
 
-  val basic : domain -> exn:domain -> has_an_exceptional_successor:bool -> Cfg.basic Cfg.instruction -> domain
+  val basic :
+    domain ->
+    exn:domain ->
+    has_an_exceptional_successor:bool ->
+    Cfg.basic Cfg.instruction ->
+    domain
 
   val terminator :
-    domain -> exn:domain -> has_an_exceptional_successor:bool -> Cfg.terminator Cfg.instruction -> domain
+    domain ->
+    exn:domain ->
+    has_an_exceptional_successor:bool ->
+    Cfg.terminator Cfg.instruction ->
+    domain
 
   val exception_ : domain -> domain
 end
@@ -220,10 +229,13 @@ module Backward
         value
     in
     let has_an_exceptional_successor =
-      not (Label.Set.is_empty (Cfg.successor_labels ~normal:false ~exn:true block))
+      not
+        (Label.Set.is_empty
+           (Cfg.successor_labels ~normal:false ~exn:true block))
     in
     let value =
-      replace block.terminator (T.terminator value ~exn ~has_an_exceptional_successor block.terminator)
+      replace block.terminator
+        (T.terminator value ~exn ~has_an_exceptional_successor block.terminator)
     in
     let value =
       ListLabels.fold_right block.body ~init:value ~f:(fun instr value ->
