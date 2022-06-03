@@ -156,7 +156,7 @@ let free_names t =
   | Function
       { function_call = Direct { code_id; return_arity = _ }; alloc_mode = _ }
     ->
-    Name_occurrences.add_code_id Name_occurrences.empty code_id Name_mode.normal
+    Name_occurrences.singleton_code_id code_id Name_mode.normal
   | Function { function_call = Indirect_unknown_arity; alloc_mode = _ }
   | Function
       { function_call =
@@ -165,11 +165,7 @@ let free_names t =
       }
   | C_call { alloc = _; param_arity = _; return_arity = _; is_c_builtin = _ } ->
     Name_occurrences.empty
-  | Method { kind = _; obj; alloc_mode = _ } ->
-    Simple.pattern_match obj
-      ~name:(fun obj ~coercion:_ ->
-        Name_occurrences.singleton_name obj Name_mode.normal)
-      ~const:(fun _ -> Name_occurrences.empty)
+  | Method { kind = _; obj; alloc_mode = _ } -> Simple.free_names obj
 
 let apply_renaming t renaming =
   match t with
