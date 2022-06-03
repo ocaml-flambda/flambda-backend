@@ -142,16 +142,16 @@ let block_set (kind : Flambda_primitive.Block_access_kind.t)
     (init : Flambda_primitive.Init_or_assign.t) =
   (* XXX these need checking for [Local_assignment] *)
   match kind, init with
-  | Values _, (Assignment _ | Initialization) -> 1 (* cadda + store *)
+  | Values _, Assignment Heap -> nonalloc_extcall_size (* caml_modify *)
+  | Values _, (Assignment Local | Initialization) -> 1 (* cadda + store *)
   | Naked_floats _, (Assignment _ | Initialization) -> 1
 
 let array_set (kind : Flambda_primitive.Array_kind.t)
-    (_init : Flambda_primitive.Init_or_assign.t) =
-  (* CR mshinwell: Check whether [init] should matter *)
-  match kind with
-  | Immediates -> 1 (* cadda + store *)
-  | Naked_floats -> 1
-  | Values -> 1
+    (init : Flambda_primitive.Init_or_assign.t) =
+  match kind, init with
+  | Values, Assignment Heap -> nonalloc_extcall_size
+  | Values, (Assignment Local | Initialization) -> 1
+  | (Immediates | Naked_floats), (Assignment _ | Initialization) -> 1
 
 let string_or_bigstring_load kind width =
   let start_address_load =
