@@ -35,13 +35,17 @@ module Bound = struct
         Name_occurrences.add_variable free_names var Name_mode.in_types)
       free_names other_vars
 
-  let apply_renaming { params; results; other_vars } renaming =
-    let params = Bound_parameters.apply_renaming params renaming in
-    let results = Bound_parameters.apply_renaming results renaming in
-    let other_vars =
-      List.map (fun var -> Renaming.apply_variable renaming var) other_vars
+  let apply_renaming ({ params; results; other_vars } as t) renaming =
+    let params' = Bound_parameters.apply_renaming params renaming in
+    let results' = Bound_parameters.apply_renaming results renaming in
+    let other_vars' =
+      Misc.Stdlib.List.map_sharing
+        (fun var -> Renaming.apply_variable renaming var)
+        other_vars
     in
-    { params; results; other_vars }
+    if params == params' && results == results' && other_vars == other_vars'
+    then t
+    else { params = params'; results = results'; other_vars = other_vars' }
 
   let all_ids_for_export { params; results; other_vars } =
     let ids =
