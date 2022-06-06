@@ -107,7 +107,8 @@ let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
   in
   C.return_unit dbg expr
 
-(* Array creation and access. *)
+(* Array creation and access. For these functions, [index] is a tagged
+   integer. *)
 
 let make_array ~dbg kind alloc_mode args =
   check_alloc_fields args;
@@ -229,36 +230,29 @@ let dead_slots_msg dbg function_slots value_slots =
 
 (* Arithmetic primitives *)
 
-let primitive_boxed_int_of_standard_int x : Primitive.boxed_integer =
-  match (x : K.Standard_int.t) with
-  | Naked_int32 -> Pint32
-  | Naked_int64 -> Pint64
-  | Naked_nativeint -> Pnativeint
-  | Tagged_immediate | Naked_immediate -> assert false
-
 let unary_int_arith_primitive _env dbg kind op arg =
   match (kind : K.Standard_int.t), (op : P.unary_int_arith_op) with
   | Tagged_immediate, Neg -> C.negint arg dbg
   | Tagged_immediate, Swap_byte_endianness ->
-    (* CR mshinwell for gbury: This could maybe cause a fatal error now? *)
-    let untagged = C.untag_int arg dbg in
-    let swapped = C.bswap16 untagged dbg in
-    C.tag_int swapped dbg
-  | Naked_immediate, Swap_byte_endianness -> C.bswap16 arg dbg
+    (* This isn't currently needed since [Lambda_to_flambda_primitives] always
+       untags the integer first. *)
+    Misc.fatal_error "Not yet implemented"
+  | Naked_immediate, Swap_byte_endianness ->
+    (* XXX Is this correct? mshinwell had an old note saying that this case
+       indeed should not be sign extended, but this needs checking *)
+    C.bswap16 arg dbg
   (* Special case for manipulating int64 on 32-bit hosts *)
   | Naked_int64, Neg when Target_system.is_32_bit -> C.unsupported_32_bit ()
   (* General case *)
   | (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint), Neg ->
-    (* XXX is this right for Naked_immediate? Same above *)
+    (* XXX is this correct for Naked_immediate? *)
     C.sub_int (C.int ~dbg 0) arg dbg
-  (* Byte swap of 32-bits ints on 64-bit arch need a sign-extension *)
+  (* Byte swaps of 32-bit integers on 64-bit targets need a sign-extension *)
   | Naked_int32, Swap_byte_endianness when Target_system.is_64_bit ->
-    let primitive_kind = primitive_boxed_int_of_standard_int kind in
-    C.sign_extend_32 dbg (C.bbswap primitive_kind arg dbg)
-  | (Naked_int32 | Naked_int64 | Naked_nativeint), Swap_byte_endianness ->
-    let primitive_kind = primitive_boxed_int_of_standard_int kind in
-    C.bbswap primitive_kind arg dbg
-  [@@ocaml.warning "-fragile-match"]
+    C.sign_extend_32 dbg (C.bbswap Pint32 arg dbg)
+  | Naked_int32, Swap_byte_endianness -> C.bbswap Pint32 arg dbg
+  | Naked_int64, Swap_byte_endianness -> C.bbswap Pint64 arg dbg
+  | Naked_nativeint, Swap_byte_endianness -> C.bbswap Pnativeint arg dbg
 
 let unary_float_arith_primitive _env dbg op arg =
   match (op : P.unary_float_arith_op) with
@@ -288,7 +282,7 @@ let arithmetic_conversion dbg src dst arg =
     None, C.tag_int arg dbg
   | Tagged_immediate, (Naked_int64 | Naked_nativeint | Naked_immediate) ->
     Some (Env.Untag arg), C.untag_int arg dbg
-  (* Operations resulting in int32s must take care to sign_extend the res *)
+  (* Operations resulting in int32s must take care to sign extend the result *)
   | Tagged_immediate, Naked_int32 ->
     None, C.sign_extend_32 dbg (C.untag_int arg dbg)
   | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Naked_int32
@@ -379,14 +373,19 @@ let binary_int_arith_primitive0 _env dbg (kind : K.Standard_int.t)
          if it doesn't support operations on 32-bit physical registers. There
          was a prototype developed of this but it was quite complicated and
          didn't get merged.) *)
-      let bi = primitive_boxed_int_of_standard_int kind in
-      C.sign_extend_32 dbg (C.safe_div_bi Unsafe x y bi dbg)
-    | Mod ->
-      let bi = primitive_boxed_int_of_standard_int kind in
-      C.sign_extend_32 dbg (C.safe_mod_bi Unsafe x y bi dbg))
+      C.sign_extend_32 dbg (C.safe_div_bi Unsafe x y Pint32 dbg)
+    | Mod -> C.sign_extend_32 dbg (C.safe_mod_bi Unsafe x y Pint32 dbg))
   | Naked_int64 | Naked_nativeint | Naked_immediate -> (
     (* Machine-width integers, no sign extension required. *)
-    (* XXX this is wrong for Naked_immediate *)
+    let bi : Primitive.boxed_integer =
+      match kind with
+      | Naked_int64 -> Pint64
+      | Naked_nativeint -> Pnativeint
+      | Naked_immediate -> Misc.fatal_error "TBD"
+      | Naked_int32 | Tagged_immediate -> assert false
+    in
+    (* XXX this is wrong for Naked_immediate ("TBD" case also needs fixing
+       above) *)
     match op with
     | Add -> C.add_int x y dbg
     | Sub -> C.sub_int x y dbg
@@ -394,15 +393,8 @@ let binary_int_arith_primitive0 _env dbg (kind : K.Standard_int.t)
     | And -> C.and_int x y dbg
     | Or -> C.or_int x y dbg
     | Xor -> C.xor_int x y dbg
-    | Div ->
-      let bi = primitive_boxed_int_of_standard_int kind in
-      C.safe_div_bi Unsafe x y bi dbg
-    | Mod ->
-      let bi = primitive_boxed_int_of_standard_int kind in
-      C.safe_mod_bi Unsafe x y bi dbg)
-
-(* Add comment on flambda2 Swap_byte_endianness Naked_immediate case is bswap16,
-   not sign extended, unlike Naked_int64 *)
+    | Div -> C.safe_div_bi Unsafe x y bi dbg
+    | Mod -> C.safe_mod_bi Unsafe x y bi dbg)
 
 (* Temporary wrapper until the PR for removing 32-bit support is done, to permit
    refactoring of the above function *)
@@ -436,7 +428,14 @@ let binary_int_shift_primitive _env dbg kind op x y =
      and use of [C.low_32]. *)
   | Naked_int32, Lsl -> C.sign_extend_32 dbg (C.lsl_int (C.low_32 dbg x) y dbg)
   | Naked_int32, Lsr ->
-    let arg = if Target_system.is_64_bit then C.zero_extend_32 dbg x else x in
+    let arg =
+      if Target_system.is_64_bit
+      then
+        (* Ensure that the top half of the register is cleared, as some of those
+           bits are likely to get shifted into the result. *)
+        C.zero_extend_32 dbg x
+      else x
+    in
     C.sign_extend_32 dbg (C.lsr_int arg y dbg)
   | Naked_int32, Asr -> C.sign_extend_32 dbg (C.asr_int x y dbg)
   (* Naked ints *)
@@ -469,7 +468,7 @@ let binary_int_comp_primitive0 _env dbg (kind : K.Standard_int.t)
     | Unsigned, Gt -> C.ugt ~dbg (C.ignore_low_bit_int x) y
     | Unsigned, Ge -> C.uge ~dbg x (C.ignore_low_bit_int y))
   | Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate -> (
-    (* XXX check if this is right *)
+    (* XXX check if this is right for Naked_immediate *)
     match signed, cmp with
     | Signed, Lt -> C.lt ~dbg x y
     | Signed, Le -> C.le ~dbg x y
@@ -541,12 +540,7 @@ let nullary_primitive _env dbg prim : _ * Cmm.expression =
 
 let unary_primitive env res dbg f arg =
   match (f : P.unary_primitive) with
-  | Duplicate_array _ ->
-    ( None,
-      res,
-      C.extcall ~dbg ~alloc:true ~returns:true ~is_c_builtin:false ~ty_args:[]
-        "caml_obj_dup" Cmm.typ_val [arg] )
-  | Duplicate_block _ ->
+  | Duplicate_array _ | Duplicate_block _ ->
     ( None,
       res,
       C.extcall ~dbg ~alloc:true ~returns:true ~is_c_builtin:false ~ty_args:[]
@@ -583,18 +577,19 @@ let unary_primitive env res dbg f arg =
   | Box_number (kind, alloc_mode) ->
     Some Env.Boxed_number, res, box_number ~dbg kind alloc_mode arg
   | Tag_immediate ->
-    (* We could have an [Env.Tag] which would be returned here, but probably
-       unnecessary at the moment. *)
+    (* We could return [Env.Tag] here, but probably unnecessary at the
+       moment. *)
     None, res, C.tag_int arg dbg
   | Project_function_slot { move_from = c1; move_to = c2 } -> (
     match function_slot_offset env c1, function_slot_offset env c2 with
     | ( Live_function_slot { offset = c1_offset; _ },
         Live_function_slot { offset = c2_offset; _ } ) ->
+      (* Normal case. *)
       let diff = c2_offset - c1_offset in
       None, res, C.infix_field_address ~dbg arg diff
-    (* one of the ids has been marked as dead, the code should be
-       unreachable. *)
     | Dead_function_slot, Live_function_slot _ ->
+      (* Code whose projections involve dead slots (ones that have been removed)
+         should be unreachable. *)
       let message = dead_slots_msg dbg [c1] [] in
       let expr, res = C.invalid res ~message in
       None, res, expr
@@ -610,11 +605,8 @@ let unary_primitive env res dbg f arg =
     match
       value_slot_offset env value_slot, function_slot_offset env project_from
     with
-    (* Normal case: we have offsets for everything *)
     | Live_value_slot { offset }, Live_function_slot { offset = base; _ } ->
       None, res, C.get_field_gen Asttypes.Immutable arg (offset - base) dbg
-    (* the value slot and/or function slot has been explicitly removed, the code
-       is unreachable *)
     | Dead_value_slot, Live_function_slot _ ->
       let message = dead_slots_msg dbg [] [value_slot] in
       let expr, res = C.invalid res ~message in
