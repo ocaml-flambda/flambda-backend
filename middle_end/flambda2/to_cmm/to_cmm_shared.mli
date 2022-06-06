@@ -45,7 +45,9 @@ val name :
 
 val const : dbg:Debuginfo.t -> Reg_width_const.t -> Cmm.expression
 
-(** [consider_inlining_effectful_expressions] defaults to [false]. *)
+(** The default behaviour is to use
+    [Flambda_features.Expert.inline_effects_in_cmm], which defaults to [false]
+    if no command-line flag is given. *)
 val simple :
   ?consider_inlining_effectful_expressions:bool ->
   dbg:Debuginfo.t ->
@@ -57,7 +59,7 @@ val simple_static :
   Simple.t -> [`Data of Cmm.data_item list | `Var of Variable.t]
 
 (** This function translates the [Simple] at the head of the list first.
-    [consider_inlining_effectful_expressions] defaults to [false]. *)
+    Regarding [consider_inlining_effectful_expressions], see [simple] above. *)
 val simple_list :
   ?consider_inlining_effectful_expressions:bool ->
   dbg:Debuginfo.t ->
