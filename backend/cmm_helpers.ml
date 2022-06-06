@@ -4050,11 +4050,11 @@ let extcall ~dbg ~returns ~alloc ~is_c_builtin ~ty_args name typ_res args =
   then match transl_builtin name args dbg with Some op -> op | None -> default
   else default
 
-let bigarray_load ~dbg ~elt_kind ~elt_size ~elt_chunk ~bigarray ~offset =
+let bigarray_load ~dbg ~elt_kind ~elt_size ~elt_chunk ~bigarray ~index =
   let ba_data_f = field_address bigarray 1 dbg in
   let ba_data_p = load ~dbg Word_int Mutable ~addr:ba_data_f in
   let addr =
-    array_indexing ~typ:Addr (Misc.log2 elt_size) ba_data_p offset dbg
+    array_indexing ~typ:Addr (Misc.log2 elt_size) ba_data_p index dbg
   in
   match (elt_kind : Lambda.bigarray_kind) with
   | Pbigarray_complex32 | Pbigarray_complex64 ->
@@ -4062,14 +4062,18 @@ let bigarray_load ~dbg ~elt_kind ~elt_size ~elt_chunk ~bigarray ~offset =
     box_complex dbg
       (load ~dbg elt_chunk Mutable ~addr)
       (load ~dbg elt_chunk Mutable ~addr:addr')
-  | _ -> load ~dbg elt_chunk Mutable ~addr
+  | _ ->
+    (* Note that no sign extension operation is necessary here: if the element
+       type of the bigarray is signed, then the backend will emit a
+       sign-extending load instruction. *)
+    load ~dbg elt_chunk Mutable ~addr
 
 let bigarray_store ~dbg ~(elt_kind : Lambda.bigarray_kind) ~elt_size ~elt_chunk
-    ~bigarray ~offset ~new_value =
+    ~bigarray ~index ~new_value =
   let ba_data_f = field_address bigarray 1 dbg in
   let ba_data_p = load ~dbg Word_int Mutable ~addr:ba_data_f in
   let addr =
-    array_indexing ~typ:Addr (Misc.log2 elt_size) ba_data_p offset dbg
+    array_indexing ~typ:Addr (Misc.log2 elt_size) ba_data_p index dbg
   in
   match elt_kind with
   | Pbigarray_complex32 | Pbigarray_complex64 ->

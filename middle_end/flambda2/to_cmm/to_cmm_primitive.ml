@@ -87,7 +87,7 @@ let make_block ~dbg kind alloc_mode args =
     C.make_float_alloc ~mode dbg (Tag.to_int Tag.double_array_tag) args
 
 let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
-    block index =
+    ~block ~index =
   let mutability = Mutability.to_lambda mutability in
   match kind with
   | Values { field_kind = Any_value; _ } ->
@@ -97,17 +97,17 @@ let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
   | Naked_floats _ -> C.unboxed_float_array_ref block index dbg
 
 let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
-    block index new_value =
+    ~block ~index ~new_value =
   let init_or_assign = P.Init_or_assign.to_lambda init in
-  match kind with
-  | Values { field_kind = Any_value; _ } ->
-    C.setfield_computed Pointer init_or_assign block index new_value dbg
-    |> C.return_unit dbg
-  | Values { field_kind = Immediate; _ } ->
-    C.setfield_computed Immediate init_or_assign block index new_value dbg
-    |> C.return_unit dbg
-  | Naked_floats _ ->
-    C.float_array_set block index new_value dbg |> C.return_unit dbg
+  let expr =
+    match kind with
+    | Values { field_kind = Any_value; _ } ->
+      C.setfield_computed Pointer init_or_assign block index new_value dbg
+    | Values { field_kind = Immediate; _ } ->
+      C.setfield_computed Immediate init_or_assign block index new_value dbg
+    | Naked_floats _ -> C.float_array_set block index new_value dbg
+  in
+  C.return_unit dbg expr
 
 (* Array creation and access. *)
 
@@ -126,102 +126,92 @@ let array_length ~dbg arr =
   assert (C.wordsize_shift = C.numfloat_shift);
   C.arraylength Paddrarray arr dbg
 
-let array_load ~dbg (kind : P.Array_kind.t) arr index =
+let array_load ~dbg (kind : P.Array_kind.t) ~arr ~index =
   match kind with
   | Immediates -> C.int_array_ref arr index dbg
   | Values -> C.addr_array_ref arr index dbg
   | Naked_floats -> C.unboxed_float_array_ref arr index dbg
 
-let addr_array_store init arr index value dbg =
+let addr_array_store init ~arr ~index ~new_value dbg =
   match (init : P.Init_or_assign.t) with
-  | Assignment Heap -> C.addr_array_set arr index value dbg
-  | Assignment Local -> C.addr_array_set_local arr index value dbg
-  | Initialization -> C.addr_array_initialize arr index value dbg
+  | Assignment Heap -> C.addr_array_set arr index new_value dbg
+  | Assignment Local -> C.addr_array_set_local arr index new_value dbg
+  | Initialization -> C.addr_array_initialize arr index new_value dbg
 
-let array_set ~dbg (kind : P.Array_kind.t) (init : P.Init_or_assign.t) arr index
-    value =
-  match kind with
-  | Immediates -> C.return_unit dbg (C.int_array_set arr index value dbg)
-  | Values -> C.return_unit dbg (addr_array_store init arr index value dbg)
-  | Naked_floats -> C.return_unit dbg (C.float_array_set arr index value dbg)
+let array_set ~dbg (kind : P.Array_kind.t) (init : P.Init_or_assign.t) ~arr
+    ~index ~new_value =
+  let expr =
+    match kind with
+    | Immediates -> C.int_array_set arr index new_value dbg
+    | Values -> addr_array_store init ~arr ~index ~new_value dbg
+    | Naked_floats -> C.float_array_set arr index new_value dbg
+  in
+  C.return_unit dbg expr
 
-(* Bigarrays. For these functions, [offset] is a tagged integer, representing
-   the desired position in the bigarray in units of the [elt_size] (so not
+(* Bigarrays. For these functions, [index] is a tagged integer, representing the
+   desired position in the bigarray in units of the [elt_size] (so not
    necessarily in bytes, words, etc). *)
 
-let bigarray_load ~dbg kind ~bigarray ~offset =
+let bigarray_load_or_store ~dbg kind ~bigarray ~index f =
   let elt_kind = P.Bigarray_kind.to_lambda kind in
   let elt_size = C.bigarray_elt_size_in_bytes elt_kind in
   let elt_chunk = C.bigarray_word_kind elt_kind in
-  C.bigarray_load ~dbg ~elt_kind ~elt_size ~elt_chunk ~bigarray ~offset
+  f ~dbg ~elt_kind ~elt_size ~elt_chunk ~bigarray ~index
 
-let bigarray_store ~dbg kind ~bigarray ~offset ~new_value =
-  let elt_kind = P.Bigarray_kind.to_lambda kind in
-  let elt_size = C.bigarray_elt_size_in_bytes elt_kind in
-  let elt_chunk = C.bigarray_word_kind elt_kind in
-  C.bigarray_store ~dbg ~elt_kind ~elt_size ~elt_chunk ~bigarray ~offset
-    ~new_value
+let bigarray_load ~dbg kind ~bigarray ~index =
+  bigarray_load_or_store ~dbg kind ~bigarray ~index C.bigarray_load
+
+let bigarray_store ~dbg kind ~bigarray ~index ~new_value =
+  bigarray_load_or_store ~dbg kind ~bigarray ~index
+    (C.bigarray_store ~new_value)
 
 (* String and bytes access. For these functions, [index] is a tagged integer. *)
 
-let string_like_load_aux ~dbg width ptr index =
+let string_like_load_aux ~dbg width ~str ~index =
+  let index = C.untag_int index dbg in
   match (width : P.string_accessor_width) with
-  | Eight ->
-    let index = C.untag_int index dbg in
-    C.load ~dbg Byte_unsigned Mutable ~addr:(C.add_int ptr index dbg)
-  | Sixteen ->
-    let index = C.untag_int index dbg in
-    C.unaligned_load_16 ptr index dbg
-  | Thirty_two ->
-    let index = C.untag_int index dbg in
-    C.sign_extend_32 dbg (C.unaligned_load_32 ptr index dbg)
+  (* XXX sign extensions? Cmmgen appears to be all-unsigned *)
+  | Eight -> C.load ~dbg Byte_unsigned Mutable ~addr:(C.add_int str index dbg)
+  | Sixteen -> C.unaligned_load_16 str index dbg
+  | Thirty_two -> C.sign_extend_32 dbg (C.unaligned_load_32 str index dbg)
   | Sixty_four ->
     if Target_system.is_32_bit
     then C.unsupported_32_bit ()
-    else
-      let index = C.untag_int index dbg in
-      C.unaligned_load_64 ptr index dbg
+    else C.unaligned_load_64 str index dbg
 
-let string_like_load ~dbg kind width block index =
+let string_like_load ~dbg kind width ~str ~index =
   match (kind : P.string_like_value) with
-  | String | Bytes -> string_like_load_aux ~dbg width block index
+  | String | Bytes -> string_like_load_aux ~dbg width ~str ~index
   | Bigstring ->
-    let ba_data_addr = C.field_address block 1 dbg in
+    let ba_data_addr = C.field_address str 1 dbg in
     let ba_data = C.load ~dbg Word_int Mutable ~addr:ba_data_addr in
-    C.bind "ba_data" ba_data (fun ptr ->
-        string_like_load_aux ~dbg width ptr index)
+    C.bind "ba_data" ba_data (fun str ->
+        string_like_load_aux ~dbg width ~str ~index)
 
-(* same as {string_like_load_aux} *)
-let bytes_like_set_aux ~dbg _kind width _block ptr idx value =
+let bytes_or_bigstring_set_aux ~dbg width ~bytes ~index ~new_value =
+  let index = C.untag_int index dbg in
   match (width : P.string_accessor_width) with
   | Eight ->
-    let idx = C.untag_int idx dbg in
-    C.store ~dbg Byte_unsigned Assignment ~addr:(C.add_int ptr idx dbg)
-      ~new_value:value
-  | Sixteen ->
-    let idx = C.untag_int idx dbg in
-    C.unaligned_set_16 ptr idx value dbg
-  | Thirty_two ->
-    let idx = C.untag_int idx dbg in
-    C.unaligned_set_32 ptr idx value dbg
+    let addr = C.add_int bytes index dbg in
+    C.store ~dbg Byte_unsigned Assignment ~addr ~new_value
+  | Sixteen -> C.unaligned_set_16 bytes index new_value dbg
+  | Thirty_two -> C.unaligned_set_32 bytes index new_value dbg
   | Sixty_four ->
     if Target_system.is_32_bit
     then C.unsupported_32_bit ()
-    else
-      let idx = C.untag_int idx dbg in
-      C.unaligned_set_64 ptr idx value dbg
+    else C.unaligned_set_64 bytes index new_value dbg
 
-let bytes_like_set ~dbg kind width block index value =
-  match (kind : P.bytes_like_value) with
-  | Bytes ->
-    C.return_unit dbg
-      (bytes_like_set_aux ~dbg kind width block block index value)
-  | Bigstring ->
-    let ba_data_addr = C.field_address block 1 dbg in
-    let ba_data = C.load ~dbg Word_int Mutable ~addr:ba_data_addr in
-    C.return_unit dbg
-      (C.bind "ba_data" ba_data (fun ptr ->
-           bytes_like_set_aux ~dbg kind width block ptr index value))
+let bytes_or_bigstring_set ~dbg kind width ~bytes ~index ~new_value =
+  let expr =
+    match (kind : P.bytes_like_value) with
+    | Bytes -> bytes_or_bigstring_set_aux ~dbg width ~bytes ~index ~new_value
+    | Bigstring ->
+      let addr = C.field_address bytes 1 dbg in
+      let ba_data = C.load ~dbg Word_int Mutable ~addr in
+      C.bind "ba_data" ba_data (fun bytes ->
+          bytes_or_bigstring_set_aux ~dbg width ~bytes ~index ~new_value)
+  in
+  C.return_unit dbg expr
 
 (* Handling of dead function and value slots *)
 
@@ -658,12 +648,12 @@ let unary_primitive env res dbg f arg =
 
 let binary_primitive env dbg f x y =
   match (f : P.binary_primitive) with
-  | Block_load (kind, mut) -> block_load ~dbg kind mut x y
-  | Array_load (kind, _mut) -> array_load ~dbg kind x y
+  | Block_load (kind, mut) -> block_load ~dbg kind mut ~block:x ~index:y
+  | Array_load (kind, _mut) -> array_load ~dbg kind ~arr:x ~index:y
   | String_or_bigstring_load (kind, width) ->
-    string_like_load ~dbg kind width x y
+    string_like_load ~dbg kind width ~str:x ~index:y
   | Bigarray_load (_dimensions, kind, _layout) ->
-    bigarray_load ~dbg kind ~bigarray:x ~offset:y
+    bigarray_load ~dbg kind ~bigarray:x ~index:y
   | Phys_equal (kind, op) -> binary_phys_comparison env dbg kind op x y
   | Int_arith (kind, op) -> binary_int_arith_primitive env dbg kind op x y
   | Int_shift (kind, op) -> binary_int_shift_primitive env dbg kind op x y
@@ -679,11 +669,14 @@ let binary_primitive env dbg f x y =
 
 let ternary_primitive _env dbg f x y z =
   match (f : P.ternary_primitive) with
-  | Block_set (block_access, init) -> block_set ~dbg block_access init x y z
-  | Array_set (array_kind, init) -> array_set ~dbg array_kind init x y z
-  | Bytes_or_bigstring_set (kind, width) -> bytes_like_set ~dbg kind width x y z
+  | Block_set (block_access, init) ->
+    block_set ~dbg block_access init ~block:x ~index:y ~new_value:z
+  | Array_set (array_kind, init) ->
+    array_set ~dbg array_kind init ~arr:x ~index:y ~new_value:z
+  | Bytes_or_bigstring_set (kind, width) ->
+    bytes_or_bigstring_set ~dbg kind width ~bytes:x ~index:y ~new_value:z
   | Bigarray_set (_dimensions, kind, _layout) ->
-    bigarray_store ~dbg kind ~bigarray:x ~offset:y ~new_value:z
+    bigarray_store ~dbg kind ~bigarray:x ~index:y ~new_value:z
 
 let variadic_primitive _env dbg f args =
   match (f : P.variadic_primitive) with
