@@ -60,19 +60,19 @@ let box_number ?(dbg = Debuginfo.none) kind alloc_mode arg =
 (* Block creation and access. For these functions, [index] is a tagged
    integer. *)
 
-(* Blocks of size 0 (i.e. with an empty list of fields) must be statically
-   allocated, else the GC will bug (cf `make_alloc_generic` in cmm_helpers.ml).
-   More precisely, blocks of size 0 must have a black header, which means they
-   must either be statically allocated, or be pointers to one of the cell of the
-   atom_table (see `startup_aux.c`).
+(* Blocks of size 0 (i.e. with an empty list of fields) must have a black
+   header, or the GC will fail (cf `make_alloc_generic` in cmm_helpers.ml).
+
+   This means they must either be statically allocated, or be pointers to one of
+   the entries of the atom_table (see `startup_aux.c`).
 
    Both `make_alloc` and `make_float_alloc` from `cmm_helpers.ml` already check
-   for that, but with an assertion, which do not produce helpful error
+   for that, but with an assertion, which does not produce helpful error
    messages. *)
 let check_alloc_fields = function
   | [] ->
     Misc.fatal_error
-      "Blocks dynamically allocated cannot have size 0 (empty arrays have to \
+      "Dynamically allocated blocks cannot have size 0 (empty arrays have to \
        be lifted so they can be statically allocated)"
   | _ -> ()
 
@@ -111,15 +111,11 @@ let block_set ?(dbg = Debuginfo.none) (kind : P.Block_access_kind.t)
 
 let make_array ?(dbg = Debuginfo.none) kind alloc_mode args =
   check_alloc_fields args;
+  let mode = Alloc_mode.to_lambda alloc_mode in
   match (kind : P.Array_kind.t) with
-  | Immediates | Values ->
-    C.make_alloc ~mode:(Alloc_mode.to_lambda alloc_mode) dbg 0 args
+  | Immediates | Values -> C.make_alloc ~mode dbg 0 args
   | Naked_floats ->
-    C.make_float_alloc
-      ~mode:(Alloc_mode.to_lambda alloc_mode)
-      dbg
-      (Tag.to_int Tag.double_array_tag)
-      args
+    C.make_float_alloc ~mode dbg (Tag.to_int Tag.double_array_tag) args
 
 let array_length ?(dbg = Debuginfo.none) arr =
   (* [Paddrarray] may be a lie sometimes, but we know for certain that the bit
@@ -147,9 +143,10 @@ let array_set ?(dbg = Debuginfo.none) (kind : P.Array_kind.t)
   | Values -> C.return_unit dbg (addr_array_store init arr index value dbg)
   | Naked_floats -> C.return_unit dbg (C.float_array_set arr index value dbg)
 
-(* Bigarrays *)
+(* Bigarrays. For these functions, [offset] is a tagged integer, representing
+   the desired position in the bigarray in units of the [elt_size] (so not
+   necessarily in bytes, words, etc). *)
 
-(* CR mshinwell: Document [offset] including tagging *)
 let bigarray_load ?(dbg = Debuginfo.none) kind ~bigarray ~offset =
   let elt_kind = P.Bigarray_kind.to_lambda kind in
   let elt_size = C.bigarray_elt_size_in_bytes elt_kind in
