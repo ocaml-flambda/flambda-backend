@@ -713,6 +713,21 @@ let prim env res dbg (p : P.t) =
     | Variadic ((Make_block _ | Make_array _), _) -> Some true
   in
   let simple = C.simple ?consider_inlining_effectful_expressions ~dbg in
+  (* Somewhat counter-intuitively, the left-to-right translation below (e.g. [x]
+     before [y] in the [Binary] case) correctly matches right-to-left evaluation
+     order---ensuring maximal inlining---since [C.simple_list] translates the
+     first [Simple] in the list first. Consider in pseudo-code:
+
+     let x = <effect-x> in let y = <effect-y> in Make_block [y; x]
+
+     We would like both [x] and [y] to be inlined. The environment will have [y]
+     on the most recent stage since it was the most recent binding. The [Simple]
+     for [y] will be translated first by the code below, meaning inlining is
+     permitted (since [y] is on the most recent stage), producing Make_block
+     [effect-y; y]. Then the [Simple] for [x] will be translated, producing the
+     desired output Make_block [effect-y; effect-x]. The backend will compile
+     this to run effect-x before effect-y by virtue of right-to-left evaluation
+     order. This therefore matches the original source code. *)
   match p with
   | Nullary prim ->
     let extra, expr = nullary_primitive env dbg prim in
@@ -735,23 +750,6 @@ let prim env res dbg (p : P.t) =
     let expr = ternary_primitive env dbg ternary x y z in
     expr, None, env, res, effs
   | Variadic (((Make_block _ | Make_array _) as variadic), l) ->
-    (* Somewhat counter-intuitively, this correctly matches right-to-left
-       evaluation order---ensuring maximal inlining---since [C.simple_list]
-       translates the first [Simple] in the list first. Consider in pseudo-code:
-
-       let x = <effect-x> in let y = <effect-y> in Make_block [y; x]
-
-       We would like both [x] and [y] to be inlined. The environment will have
-       [y] on the most recent stage since it was the most recent binding. The
-       [Simple] for [y] will be translated first by the code below, meaning
-       inlining is permitted (since [y] is on the most recent stage), producing
-       Make_block [effect-y; y]. Then the [Simple] for [x] will be translated,
-       producing the desired output Make_block [effect-y; effect-x]. The backend
-       will compile this to run effect-x before effect-y by virtue of
-       right-to-left evaluation order. This therefore matches the original code.
-
-       (Same for the binary and ternary cases above, although it usually isn't
-       relevant, as inline-effects-in-cmm is defaulted off.) *)
     let args, env, effs =
       C.simple_list ?consider_inlining_effectful_expressions ~dbg env l
     in
