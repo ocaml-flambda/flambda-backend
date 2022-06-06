@@ -162,14 +162,16 @@ let mk_no_flambda2_expert_fallback_inlining_heuristic f =
 let mk_flambda2_expert_inline_effects_in_cmm f =
   "-flambda2-expert-inline-effects-in-cmm", Arg.Unit f,
   Printf.sprintf " Allow inlining of effectful\n\
-      \     expressions in the produced Cmm code%s (Flambda 2 only)"
+      \     expressions in the produced Cmm code\n\
+      \     into any context%s (Flambda 2 only)"
     (format_default Flambda2.Expert.Default.inline_effects_in_cmm)
 ;;
 
 let mk_no_flambda2_expert_inline_effects_in_cmm f =
   "-no-flambda2-expert-inline-effects-in-cmm", Arg.Unit f,
-  Printf.sprintf " Prevent inlining of effectful\n\
-      \     expressions in the produced Cmm code%s (Flambda 2 only)"
+  Printf.sprintf " Only allow inlining of effectful\n\
+      \     expressions in the produced Cmm code into\n\
+      \     the arguments of allocation primitives%s (Flambda 2 only)"
     (format_not_default Flambda2.Expert.Default.inline_effects_in_cmm)
 ;;
 

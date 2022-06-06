@@ -37,6 +37,7 @@ val symbol_from_linkage_name :
 
 val symbol : dbg:Debuginfo.t -> Symbol.t -> Cmm.expression
 
+(** This does not inline effectful expressions. *)
 val name :
   To_cmm_env.t ->
   Name.t ->
@@ -44,7 +45,11 @@ val name :
 
 val const : dbg:Debuginfo.t -> Reg_width_const.t -> Cmm.expression
 
+(** The default behaviour is to use
+    [Flambda_features.Expert.inline_effects_in_cmm], which defaults to [false]
+    if no command-line flag is given. *)
 val simple :
+  ?consider_inlining_effectful_expressions:bool ->
   dbg:Debuginfo.t ->
   To_cmm_env.t ->
   Simple.t ->
@@ -53,7 +58,10 @@ val simple :
 val simple_static :
   Simple.t -> [`Data of Cmm.data_item list | `Var of Variable.t]
 
+(** This function translates the [Simple] at the head of the list first.
+    Regarding [consider_inlining_effectful_expressions], see [simple] above. *)
 val simple_list :
+  ?consider_inlining_effectful_expressions:bool ->
   dbg:Debuginfo.t ->
   To_cmm_env.t ->
   Simple.t list ->

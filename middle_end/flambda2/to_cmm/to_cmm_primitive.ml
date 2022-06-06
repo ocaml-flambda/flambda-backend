@@ -692,31 +692,66 @@ let variadic_primitive _env dbg f args =
   | Make_block (kind, _mut, alloc_mode) -> make_block ~dbg kind alloc_mode args
   | Make_array (kind, _mut, alloc_mode) -> make_array ~dbg kind alloc_mode args
 
-(* CR Gbury: check the order in which the primitive arguments are given to
-   [Env.inline_variable]. *)
-let prim env res dbg p =
-  match (p : P.t) with
+let prim env res dbg (p : P.t) =
+  let consider_inlining_effectful_expressions =
+    (* By default we are very conservative about the inlining of effectful
+       expressions into the arguments of primitives. We only consider inlining
+       in the case where the primitive compiles directly to an allocation.
+       Unlike for most primitives, inlining of the arguments gives a real
+       benefit for these, by keeping live ranges shorter (which could be
+       critical for register allocation performance in cases such as
+       initialisation of very large arrays). We are also confident that the code
+       for compiling allocations does not incorrectly reorder or duplicate
+       arguments, whereas we are not universally confident about that for the
+       other Cmm translation functions.
+
+       This criterion should not be relaxed for any primitive until it is
+       certain that the Cmm translation for such primitive both respects
+       right-to-left evaluation order and does not duplicate any arguments. *)
+    match p with
+    | Nullary _ | Unary _ | Binary _ | Ternary _ -> None
+    | Variadic ((Make_block _ | Make_array _), _) -> Some true
+  in
+  let simple = C.simple ?consider_inlining_effectful_expressions ~dbg in
+  (* Somewhat counter-intuitively, the left-to-right translation below (e.g. [x]
+     before [y] in the [Binary] case) correctly matches right-to-left evaluation
+     order---ensuring maximal inlining---since [C.simple_list] translates the
+     first [Simple] in the list first. Consider in pseudo-code:
+
+     let x = <effect-x> in let y = <effect-y> in Make_block [y; x]
+
+     We would like both [x] and [y] to be inlined. The environment will have [y]
+     on the most recent stage since it was the most recent binding. The [Simple]
+     for [y] will be translated first by the code below, meaning inlining is
+     permitted (since [y] is on the most recent stage), producing Make_block
+     [effect-y; y]. Then the [Simple] for [x] will be translated, producing the
+     desired output Make_block [effect-y; effect-x]. The backend will compile
+     this to run effect-x before effect-y by virtue of right-to-left evaluation
+     order. This therefore matches the original source code. *)
+  match p with
   | Nullary prim ->
     let extra, expr = nullary_primitive env dbg prim in
     expr, extra, env, res, Ece.pure
-  | Unary (f, x) ->
-    let x, env, eff = C.simple ~dbg env x in
-    let extra, res, expr = unary_primitive env res dbg f x in
+  | Unary (unary, x) ->
+    let x, env, eff = simple env x in
+    let extra, res, expr = unary_primitive env res dbg unary x in
     expr, extra, env, res, eff
-  | Binary (f, x, y) ->
-    let x, env, effx = C.simple ~dbg env x in
-    let y, env, effy = C.simple ~dbg env y in
+  | Binary (binary, x, y) ->
+    let x, env, effx = simple env x in
+    let y, env, effy = simple env y in
     let effs = Ece.join effx effy in
-    let expr = binary_primitive env dbg f x y in
+    let expr = binary_primitive env dbg binary x y in
     expr, None, env, res, effs
-  | Ternary (f, x, y, z) ->
-    let x, env, effx = C.simple ~dbg env x in
-    let y, env, effy = C.simple ~dbg env y in
-    let z, env, effz = C.simple ~dbg env z in
+  | Ternary (ternary, x, y, z) ->
+    let x, env, effx = simple env x in
+    let y, env, effy = simple env y in
+    let z, env, effz = simple env z in
     let effs = Ece.join (Ece.join effx effy) effz in
-    let expr = ternary_primitive env dbg f x y z in
+    let expr = ternary_primitive env dbg ternary x y z in
     expr, None, env, res, effs
-  | Variadic (f, l) ->
-    let args, env, effs = C.simple_list ~dbg env l in
-    let expr = variadic_primitive env dbg f args in
+  | Variadic (((Make_block _ | Make_array _) as variadic), l) ->
+    let args, env, effs =
+      C.simple_list ?consider_inlining_effectful_expressions ~dbg env l
+    in
+    let expr = variadic_primitive env dbg variadic args in
     expr, None, env, res, effs

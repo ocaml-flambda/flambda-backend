@@ -136,7 +136,10 @@ val bind_variable :
 
 (** Try and inline an Flambda variable using the delayed let-bindings. *)
 val inline_variable :
-  t -> Variable.t -> Cmm.expression * t * Effects_and_coeffects.t
+  ?consider_inlining_effectful_expressions:bool ->
+  t ->
+  Variable.t ->
+  Cmm.expression * t * Effects_and_coeffects.t
 
 (** Wrap the given Cmm expression with all the delayed let bindings accumulated
     in the environment. *)
