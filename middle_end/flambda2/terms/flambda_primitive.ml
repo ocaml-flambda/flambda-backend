@@ -1544,15 +1544,27 @@ let free_names t =
       [Simple.free_names x0; Simple.free_names x1; Simple.free_names x2]
   | Variadic (_prim, xs) -> Simple.List.free_names xs
 
-let apply_renaming t perm =
-  (* CR mshinwell: add phys-equal checks *)
-  let apply simple = Simple.apply_renaming simple perm in
+let apply_renaming t renaming =
+  let apply simple = Simple.apply_renaming simple renaming in
   match t with
   | Nullary _ -> t
-  | Unary (prim, x0) -> Unary (prim, apply x0)
-  | Binary (prim, x0, x1) -> Binary (prim, apply x0, apply x1)
-  | Ternary (prim, x0, x1, x2) -> Ternary (prim, apply x0, apply x1, apply x2)
-  | Variadic (prim, xs) -> Variadic (prim, Simple.List.apply_renaming xs perm)
+  | Unary (prim, x0) ->
+    let x0' = apply x0 in
+    if x0' == x0 then t else Unary (prim, x0')
+  | Binary (prim, x0, x1) ->
+    let x0' = apply x0 in
+    let x1' = apply x1 in
+    if x0' == x0 && x1' == x1 then t else Binary (prim, x0', x1')
+  | Ternary (prim, x0, x1, x2) ->
+    let x0' = apply x0 in
+    let x1' = apply x1 in
+    let x2' = apply x2 in
+    if x0' == x0 && x1' == x1 && x2' == x2
+    then t
+    else Ternary (prim, x0', x1', x2')
+  | Variadic (prim, xs) ->
+    let xs' = Simple.List.apply_renaming xs renaming in
+    if xs' == xs then t else Variadic (prim, xs')
 
 let all_ids_for_export t =
   match t with

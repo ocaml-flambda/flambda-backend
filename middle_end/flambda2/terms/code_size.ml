@@ -20,11 +20,11 @@ type t = int
 
 let zero = 0
 
-let equal a b = a = b
+let equal (a : t) (b : t) = a = b
 
 let ( + ) (a : t) (b : t) : t = a + b
 
-let ( <= ) a b = a <= b
+let ( <= ) (a : t) (b : t) = a <= b
 
 let arch32 = Targetint_32_64.size = 32 (* are we compiling for a 32-bit arch *)
 
@@ -65,7 +65,10 @@ let unary_int_prim_size kind op =
       (op : Flambda_primitive.unary_int_arith_op) )
   with
   | Tagged_immediate, Neg -> 1
-  | Tagged_immediate, Swap_byte_endianness -> 2 + nonalloc_extcall_size + 1
+  | Tagged_immediate, Swap_byte_endianness ->
+    (* CR pchambart: size depends a lot of the architecture. If the backend
+       handles it, this is a single arith op. *)
+    2 + nonalloc_extcall_size + 1
   | Naked_immediate, Neg -> 1
   | Naked_immediate, Swap_byte_endianness -> nonalloc_extcall_size + 1
   | Naked_int64, Neg when arch32 -> nonalloc_extcall_size + 1
@@ -140,18 +143,17 @@ let array_load (kind : Flambda_primitive.Array_kind.t) =
 
 let block_set (kind : Flambda_primitive.Block_access_kind.t)
     (init : Flambda_primitive.Init_or_assign.t) =
-  (* XXX these need checking for [Local_assignment] *)
   match kind, init with
-  | Values _, (Assignment _ | Initialization) -> 1 (* cadda + store *)
+  | Values _, Assignment Heap -> nonalloc_extcall_size (* caml_modify *)
+  | Values _, (Assignment Local | Initialization) -> 1 (* cadda + store *)
   | Naked_floats _, (Assignment _ | Initialization) -> 1
 
 let array_set (kind : Flambda_primitive.Array_kind.t)
-    (_init : Flambda_primitive.Init_or_assign.t) =
-  (* CR mshinwell: Check whether [init] should matter *)
-  match kind with
-  | Immediates -> 1 (* cadda + store *)
-  | Naked_floats -> 1
-  | Values -> 1
+    (init : Flambda_primitive.Init_or_assign.t) =
+  match kind, init with
+  | Values, Assignment Heap -> nonalloc_extcall_size
+  | Values, (Assignment Local | Initialization) -> 1
+  | (Immediates | Naked_floats), (Assignment _ | Initialization) -> 1
 
 let string_or_bigstring_load kind width =
   let start_address_load =
@@ -390,6 +392,7 @@ let prim (prim : Flambda_primitive.t) =
   | Variadic (p, args) -> variadic_prim_size p args
 
 let simple simple =
+  (* CR pchambart: some large const on ARM might be considered larger *)
   Simple.pattern_match simple ~const:(fun _ -> 1) ~name:(fun _ ~coercion:_ -> 0)
 
 let static_consts _ = 0

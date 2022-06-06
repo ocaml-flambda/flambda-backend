@@ -156,7 +156,7 @@ let free_names t =
   | Function
       { function_call = Direct { code_id; return_arity = _ }; alloc_mode = _ }
     ->
-    Name_occurrences.add_code_id Name_occurrences.empty code_id Name_mode.normal
+    Name_occurrences.singleton_code_id code_id Name_mode.normal
   | Function { function_call = Indirect_unknown_arity; alloc_mode = _ }
   | Function
       { function_call =
@@ -165,16 +165,12 @@ let free_names t =
       }
   | C_call { alloc = _; param_arity = _; return_arity = _; is_c_builtin = _ } ->
     Name_occurrences.empty
-  | Method { kind = _; obj; alloc_mode = _ } ->
-    Simple.pattern_match obj
-      ~name:(fun obj ~coercion:_ ->
-        Name_occurrences.singleton_name obj Name_mode.normal)
-      ~const:(fun _ -> Name_occurrences.empty)
+  | Method { kind = _; obj; alloc_mode = _ } -> Simple.free_names obj
 
-let apply_renaming t perm =
+let apply_renaming t renaming =
   match t with
   | Function { function_call = Direct { code_id; return_arity }; alloc_mode } ->
-    let code_id' = Renaming.apply_code_id perm code_id in
+    let code_id' = Renaming.apply_code_id renaming code_id in
     if code_id == code_id'
     then t
     else
@@ -191,7 +187,7 @@ let apply_renaming t perm =
   | C_call { alloc = _; param_arity = _; return_arity = _; is_c_builtin = _ } ->
     t
   | Method { kind; obj; alloc_mode } ->
-    let obj' = Simple.apply_renaming obj perm in
+    let obj' = Simple.apply_renaming obj renaming in
     if obj == obj' then t else Method { kind; obj = obj'; alloc_mode }
 
 let all_ids_for_export t =

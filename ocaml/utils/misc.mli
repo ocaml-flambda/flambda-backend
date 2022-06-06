@@ -116,6 +116,10 @@ module Stdlib : sig
         the [n] first elements of [l] and [after] the remaining ones.
         If [l] has less than [n] elements, raises Invalid_argument. *)
 
+    val map_sharing : ('a -> 'a) -> 'a t -> 'a t
+    (** [map_sharing f l] is [map f l]. If for all elements of the list
+        [f e == e] then [map_sharing f l == l] *)
+
     val is_prefix
        : equal:('a -> 'a -> bool)
       -> 'a list

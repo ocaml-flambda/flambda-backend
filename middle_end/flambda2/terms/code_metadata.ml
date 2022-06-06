@@ -292,17 +292,17 @@ let apply_renaming
        inlining_decision = _;
        absolute_history = _;
        relative_history = _
-     } as t) perm =
+     } as t) renaming =
   (* inlined and modified version of Option.map to preserve sharing *)
   let newer_version_of' =
     match newer_version_of with
     | None -> newer_version_of
     | Some code_id ->
-      let code_id' = Renaming.apply_code_id perm code_id in
+      let code_id' = Renaming.apply_code_id renaming code_id in
       if code_id == code_id' then newer_version_of else Some code_id'
   in
-  let code_id' = Renaming.apply_code_id perm code_id in
-  let result_types' = Result_types.apply_renaming result_types perm in
+  let code_id' = Renaming.apply_code_id renaming code_id in
+  let result_types' = Result_types.apply_renaming result_types renaming in
   if code_id == code_id'
      && newer_version_of == newer_version_of'
      && result_types == result_types'

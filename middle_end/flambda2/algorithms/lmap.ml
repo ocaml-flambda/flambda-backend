@@ -120,16 +120,8 @@ module Make (T : Thing) : S with type key = T.t = struct
 
   let mapi f m = List.map (fun (k, v) -> k, f k v) m
 
-  let rec map_sharing f l0 =
-    match l0 with
-    | a :: l ->
-      let a' = f a in
-      let l' = map_sharing f l in
-      if a' == a && l' == l then l0 else a' :: l'
-    | [] -> []
-
   let map_sharing f m =
-    map_sharing
+    Misc.Stdlib.List.map_sharing
       (fun ((k, v) as pair) ->
         let v' = f v in
         if v' == v then pair else k, v')

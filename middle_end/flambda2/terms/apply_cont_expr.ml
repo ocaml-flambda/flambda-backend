@@ -125,10 +125,10 @@ let free_names { k; args; trap_action; dbg = _ } =
       (Name_occurrences.union default (Trap_action.free_names trap_action))
       k ~has_traps:true
 
-let apply_renaming ({ k; args; trap_action; dbg } as t) perm =
-  let k' = Renaming.apply_continuation perm k in
-  let args' = Simple.List.apply_renaming args perm in
-  let trap_action' = Trap_action.Option.apply_renaming trap_action perm in
+let apply_renaming ({ k; args; trap_action; dbg } as t) renaming =
+  let k' = Renaming.apply_continuation renaming k in
+  let args' = Simple.List.apply_renaming args renaming in
+  let trap_action' = Trap_action.Option.apply_renaming trap_action renaming in
   if k == k' && args == args' && trap_action == trap_action'
   then t
   else { k = k'; args = args'; trap_action = trap_action'; dbg }
@@ -141,9 +141,9 @@ let all_ids_for_export { k; args; trap_action; dbg = _ } =
        k)
     args
 
-let update_continuation t continuation = { t with k = continuation }
+let with_continuation t continuation = { t with k = continuation }
 
-let update_continuation_and_args t cont ~args =
+let with_continuation_and_args t cont ~args =
   if Continuation.equal t.k cont && args == t.args
   then t
   else { t with k = cont; args }
@@ -155,13 +155,6 @@ let with_debuginfo t ~dbg = if dbg == t.dbg then t else { t with dbg }
 let no_args t = match args t with [] -> true | _ :: _ -> false
 
 let is_goto t = no_args t && Option.is_none (trap_action t)
-
-let is_goto_to t k = Continuation.equal (continuation t) k && is_goto t
-
-let to_goto t =
-  if no_args t && Option.is_none (trap_action t)
-  then Some (continuation t)
-  else None
 
 let is_raise t =
   match t.trap_action with

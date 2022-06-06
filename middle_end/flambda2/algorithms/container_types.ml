@@ -161,7 +161,17 @@ module Make_map (T : Thing) (Set : Set_plus_stdlib with type elt = T.t) = struct
 
   let replace _ _ _ : _ t = Misc.fatal_error "Not yet implemented"
 
-  let map_sharing = map
+  let map_sharing f t =
+    let changed = ref false in
+    let t' =
+      map
+        (fun v ->
+          let v' = f v in
+          if not (v == v') then changed := true;
+          v')
+        t
+    in
+    if not !changed then t else t'
 end
 [@@inline always]
 

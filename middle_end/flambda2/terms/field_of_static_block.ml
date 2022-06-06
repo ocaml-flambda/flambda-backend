@@ -48,9 +48,21 @@ include Container_types.Make (struct
 
   let print ppf t =
     match t with
-    | Symbol symbol -> Symbol.print ppf symbol
-    | Tagged_immediate immediate -> Targetint_31_63.print ppf immediate
-    | Dynamically_computed (var, _dbg) -> Variable.print ppf var
+    | Symbol symbol ->
+      Format.fprintf ppf "%s%a%s"
+        (Flambda_colours.symbol ())
+        Symbol.print symbol
+        (Flambda_colours.normal ())
+    | Tagged_immediate immediate ->
+      Format.fprintf ppf "%s%a%s"
+        (Flambda_colours.tagged_immediate ())
+        Targetint_31_63.print immediate
+        (Flambda_colours.normal ())
+    | Dynamically_computed (var, _dbg) ->
+      Format.fprintf ppf "%s%a%s"
+        (Flambda_colours.variable ())
+        Variable.print var
+        (Flambda_colours.normal ())
 end)
 
 let apply_renaming t renaming =

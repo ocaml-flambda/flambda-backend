@@ -863,7 +863,7 @@ let add_wrapper_for_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id
         in
         new_wrapper params expr ~free_names ~cost_metrics)
     | Apply_cont apply_cont -> (
-      let apply_cont = Apply_cont.update_continuation apply_cont cont in
+      let apply_cont = Apply_cont.with_continuation apply_cont cont in
       match rewrite_use uacc rewrite ~ctx:Apply_cont use_id apply_cont with
       | Apply_cont apply_cont -> Apply_cont apply_cont
       | Expr build_expr ->
@@ -890,7 +890,7 @@ let add_wrapper_for_switch_arm uacc apply_cont ~use_id arity :
       ~use_id arity
   with
   | This_continuation cont ->
-    Apply_cont (Apply_cont.update_continuation apply_cont cont)
+    Apply_cont (Apply_cont.with_continuation apply_cont cont)
   | Apply_cont apply_cont -> Apply_cont apply_cont
   | New_wrapper (cont, wrapper, free_names_of_handler, cost_metrics) ->
     New_wrapper (cont, wrapper, free_names_of_handler, cost_metrics)

@@ -46,9 +46,9 @@ module Result_continuation = struct
     | Return k -> Name_occurrences.singleton_continuation k
     | Never_returns -> Name_occurrences.empty
 
-  let apply_renaming t perm =
+  let apply_renaming t renaming =
     match t with
-    | Return k -> Return (Renaming.apply_continuation perm k)
+    | Return k -> Return (Renaming.apply_continuation renaming k)
     | Never_returns -> Never_returns
 
   let all_ids_for_export t =
@@ -207,14 +207,16 @@ let apply_renaming
        inlining_state;
        probe_name;
        relative_history
-     } as t) perm =
-  let continuation' = Result_continuation.apply_renaming continuation perm in
-  let exn_continuation' =
-    Exn_continuation.apply_renaming exn_continuation perm
+     } as t) renaming =
+  let continuation' =
+    Result_continuation.apply_renaming continuation renaming
   in
-  let callee' = Simple.apply_renaming callee perm in
-  let args' = Simple.List.apply_renaming args perm in
-  let call_kind' = Call_kind.apply_renaming call_kind perm in
+  let exn_continuation' =
+    Exn_continuation.apply_renaming exn_continuation renaming
+  in
+  let callee' = Simple.apply_renaming callee renaming in
+  let args' = Simple.List.apply_renaming args renaming in
+  let call_kind' = Call_kind.apply_renaming call_kind renaming in
   if continuation == continuation'
      && exn_continuation == exn_continuation'
      && callee == callee' && args == args' && call_kind == call_kind'

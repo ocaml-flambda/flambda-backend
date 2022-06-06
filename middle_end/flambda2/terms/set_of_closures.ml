@@ -120,15 +120,22 @@ let apply_renaming ({ function_decls; value_slots; alloc_mode } as t) renaming =
   let function_decls' =
     Function_declarations.apply_renaming function_decls renaming
   in
+  let changed = ref false in
   let value_slots' =
     Value_slot.Map.filter_map
       (fun var simple ->
         if Renaming.value_slot_is_used renaming var
-        then Some (Simple.apply_renaming simple renaming)
-        else None)
+        then (
+          let simple' = Simple.apply_renaming simple renaming in
+          if not (simple == simple') then changed := true;
+          Some simple')
+        else begin
+          changed := true;
+          None
+        end)
       value_slots
   in
-  if function_decls == function_decls' && value_slots == value_slots'
+  if function_decls == function_decls' && not !changed
   then t
   else
     { function_decls = function_decls'; value_slots = value_slots'; alloc_mode }

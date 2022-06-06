@@ -72,8 +72,8 @@ let free_names t =
     (fun result param -> Name_occurrences.union result (BP.free_names param))
     Name_occurrences.empty t
 
-let apply_renaming t perm =
-  List.map (fun param -> BP.apply_renaming param perm) t
+let apply_renaming t renaming =
+  Misc.Stdlib.List.map_sharing (fun param -> BP.apply_renaming param renaming) t
 
 let all_ids_for_export t =
   Ids_for_export.union_list (List.map BP.all_ids_for_export t)

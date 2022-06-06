@@ -42,11 +42,9 @@ val trap_action : t -> Trap_action.t option
 
 val debuginfo : t -> Debuginfo.t
 
-(* CR mshinwell: Use "with" not "update" *)
-val update_continuation : t -> Continuation.t -> t
+val with_continuation : t -> Continuation.t -> t
 
-val update_continuation_and_args :
-  t -> Continuation.t -> args:Simple.t list -> t
+val with_continuation_and_args : t -> Continuation.t -> args:Simple.t list -> t
 
 val update_args : t -> args:Simple.t list -> t
 
@@ -55,10 +53,6 @@ val with_debuginfo : t -> dbg:Debuginfo.t -> t
 val is_raise : t -> bool
 
 val is_goto : t -> bool
-
-val is_goto_to : t -> Continuation.t -> bool
-
-val to_goto : t -> Continuation.t option
 
 val clear_trap_action : t -> t
 
