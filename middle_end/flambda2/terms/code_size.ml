@@ -143,7 +143,6 @@ let array_load (kind : Flambda_primitive.Array_kind.t) =
 
 let block_set (kind : Flambda_primitive.Block_access_kind.t)
     (init : Flambda_primitive.Init_or_assign.t) =
-  (* XXX these need checking for [Local_assignment] *)
   match kind, init with
   | Values _, Assignment Heap -> nonalloc_extcall_size (* caml_modify *)
   | Values _, (Assignment Local | Initialization) -> 1 (* cadda + store *)
