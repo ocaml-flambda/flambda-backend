@@ -42,14 +42,14 @@ let value_slot_offset env value_slot =
 
 (* Boxed numbers *)
 
-let unbox_number ?(dbg = Debuginfo.none) kind arg =
+let unbox_number ~dbg kind arg =
   match (kind : K.Boxable_number.t) with
   | Naked_float -> C.unbox_float dbg arg
   | Naked_int32 | Naked_int64 | Naked_nativeint ->
     let primitive_kind = K.Boxable_number.primitive_kind kind in
     C.unbox_int dbg primitive_kind arg
 
-let box_number ?(dbg = Debuginfo.none) kind alloc_mode arg =
+let box_number ~dbg kind alloc_mode arg =
   let alloc_mode = Alloc_mode.to_lambda alloc_mode in
   match (kind : K.Boxable_number.t) with
   | Naked_float -> C.box_float dbg alloc_mode arg
@@ -76,7 +76,7 @@ let check_alloc_fields = function
        be lifted so they can be statically allocated)"
   | _ -> ()
 
-let make_block ?(dbg = Debuginfo.none) kind alloc_mode args =
+let make_block ~dbg kind alloc_mode args =
   check_alloc_fields args;
   let mode = Alloc_mode.to_lambda alloc_mode in
   match (kind : P.Block_kind.t) with
@@ -84,8 +84,8 @@ let make_block ?(dbg = Debuginfo.none) kind alloc_mode args =
   | Naked_floats ->
     C.make_float_alloc ~mode dbg (Tag.to_int Tag.double_array_tag) args
 
-let block_load ?(dbg = Debuginfo.none) (kind : P.Block_access_kind.t)
-    (mutability : Mutability.t) block index =
+let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
+    block index =
   let mutability = Mutability.to_lambda mutability in
   match kind with
   | Values { field_kind = Any_value; _ } ->
@@ -94,8 +94,8 @@ let block_load ?(dbg = Debuginfo.none) (kind : P.Block_access_kind.t)
     C.get_field_computed Immediate mutability ~block ~index dbg
   | Naked_floats _ -> C.unboxed_float_array_ref block index dbg
 
-let block_set ?(dbg = Debuginfo.none) (kind : P.Block_access_kind.t)
-    (init : P.Init_or_assign.t) block index new_value =
+let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
+    block index new_value =
   let init_or_assign = P.Init_or_assign.to_lambda init in
   match kind with
   | Values { field_kind = Any_value; _ } ->
@@ -109,7 +109,7 @@ let block_set ?(dbg = Debuginfo.none) (kind : P.Block_access_kind.t)
 
 (* Array creation and access. *)
 
-let make_array ?(dbg = Debuginfo.none) kind alloc_mode args =
+let make_array ~dbg kind alloc_mode args =
   check_alloc_fields args;
   let mode = Alloc_mode.to_lambda alloc_mode in
   match (kind : P.Array_kind.t) with
@@ -117,14 +117,14 @@ let make_array ?(dbg = Debuginfo.none) kind alloc_mode args =
   | Naked_floats ->
     C.make_float_alloc ~mode dbg (Tag.to_int Tag.double_array_tag) args
 
-let array_length ?(dbg = Debuginfo.none) arr =
+let array_length ~dbg arr =
   (* [Paddrarray] may be a lie sometimes, but we know for certain that the bit
      width of floats is equal to the machine word width (see flambda2.ml). This
      means that [arraylength] will not use the kind information. *)
   assert (C.wordsize_shift = C.numfloat_shift);
   C.arraylength Paddrarray arr dbg
 
-let array_load ?(dbg = Debuginfo.none) (kind : P.Array_kind.t) arr index =
+let array_load ~dbg (kind : P.Array_kind.t) arr index =
   match kind with
   | Immediates -> C.int_array_ref arr index dbg
   | Values -> C.addr_array_ref arr index dbg
@@ -136,8 +136,8 @@ let addr_array_store init arr index value dbg =
   | Assignment Local -> C.addr_array_set_local arr index value dbg
   | Initialization -> C.addr_array_initialize arr index value dbg
 
-let array_set ?(dbg = Debuginfo.none) (kind : P.Array_kind.t)
-    (init : P.Init_or_assign.t) arr index value =
+let array_set ~dbg (kind : P.Array_kind.t) (init : P.Init_or_assign.t) arr index
+    value =
   match kind with
   | Immediates -> C.return_unit dbg (C.int_array_set arr index value dbg)
   | Values -> C.return_unit dbg (addr_array_store init arr index value dbg)
@@ -147,13 +147,13 @@ let array_set ?(dbg = Debuginfo.none) (kind : P.Array_kind.t)
    the desired position in the bigarray in units of the [elt_size] (so not
    necessarily in bytes, words, etc). *)
 
-let bigarray_load ?(dbg = Debuginfo.none) kind ~bigarray ~offset =
+let bigarray_load ~dbg kind ~bigarray ~offset =
   let elt_kind = P.Bigarray_kind.to_lambda kind in
   let elt_size = C.bigarray_elt_size_in_bytes elt_kind in
   let elt_chunk = C.bigarray_word_kind elt_kind in
   C.bigarray_load ~dbg ~elt_kind ~elt_size ~elt_chunk ~bigarray ~offset
 
-let bigarray_store ?(dbg = Debuginfo.none) kind ~bigarray ~offset ~new_value =
+let bigarray_store ~dbg kind ~bigarray ~offset ~new_value =
   let elt_kind = P.Bigarray_kind.to_lambda kind in
   let elt_size = C.bigarray_elt_size_in_bytes elt_kind in
   let elt_chunk = C.bigarray_word_kind elt_kind in
@@ -180,7 +180,7 @@ let string_like_load_aux ~dbg width ptr index =
       let index = C.untag_int index dbg in
       C.unaligned_load_64 ptr index dbg
 
-let string_like_load ?(dbg = Debuginfo.none) kind width block index =
+let string_like_load ~dbg kind width block index =
   match (kind : P.string_like_value) with
   | String | Bytes -> string_like_load_aux ~dbg width block index
   | Bigstring ->
@@ -209,7 +209,7 @@ let bytes_like_set_aux ~dbg _kind width _block ptr idx value =
       let idx = C.untag_int idx dbg in
       C.unaligned_set_64 ptr idx value dbg
 
-let bytes_like_set ?(dbg = Debuginfo.none) kind width block index value =
+let bytes_like_set ~dbg kind width block index value =
   match (kind : P.bytes_like_value) with
   | Bytes ->
     C.return_unit dbg
