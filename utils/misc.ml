@@ -148,6 +148,14 @@ module Stdlib = struct
       in
       aux n [] l
 
+    let rec map_sharing f l0 =
+      match l0 with
+      | a :: l ->
+        let a' = f a in
+        let l' = map_sharing f l in
+        if a' == a && l' == l then l0 else a' :: l'
+      | [] -> []
+
     let rec is_prefix ~equal t ~of_ =
       match t, of_ with
       | [], [] -> true
