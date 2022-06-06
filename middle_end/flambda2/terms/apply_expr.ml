@@ -208,7 +208,9 @@ let apply_renaming
        probe_name;
        relative_history
      } as t) renaming =
-  let continuation' = Result_continuation.apply_renaming continuation renaming in
+  let continuation' =
+    Result_continuation.apply_renaming continuation renaming
+  in
   let exn_continuation' =
     Exn_continuation.apply_renaming exn_continuation renaming
   in

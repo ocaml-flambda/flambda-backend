@@ -1564,9 +1564,7 @@ let apply_renaming t renaming =
     else Ternary (prim, x0', x1', x2')
   | Variadic (prim, xs) ->
     let xs' = Simple.List.apply_renaming xs renaming in
-    if xs' == xs
-    then t
-    else Variadic (prim, xs')
+    if xs' == xs then t else Variadic (prim, xs')
 
 let all_ids_for_export t =
   match t with

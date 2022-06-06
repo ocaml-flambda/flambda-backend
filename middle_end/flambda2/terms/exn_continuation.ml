@@ -102,7 +102,9 @@ let apply_renaming ({ exn_handler; extra_args } as t) renaming =
         end)
       extra_args
   in
-  let extra_args' = if !extra_args_changed then new_extra_args else extra_args in
+  let extra_args' =
+    if !extra_args_changed then new_extra_args else extra_args
+  in
   if exn_handler == exn_handler' && extra_args == extra_args'
   then t
   else { exn_handler = exn_handler'; extra_args = extra_args' }

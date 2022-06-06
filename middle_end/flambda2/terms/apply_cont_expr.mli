@@ -44,8 +44,7 @@ val debuginfo : t -> Debuginfo.t
 
 val with_continuation : t -> Continuation.t -> t
 
-val with_continuation_and_args :
-  t -> Continuation.t -> args:Simple.t list -> t
+val with_continuation_and_args : t -> Continuation.t -> args:Simple.t list -> t
 
 val update_args : t -> args:Simple.t list -> t
 
