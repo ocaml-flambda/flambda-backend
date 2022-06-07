@@ -22,39 +22,61 @@ open! Int_replace_polymorphic_compare
 (* The following is a "little endian" implementation. *)
 
 (* CR mshinwell: Can we fix the traversal order by swapping endianness? What
-   other (dis)advantages might that have? *)
+   other (dis)advantages might that have?
 
+   lmaurer: It would make [split] nearly as fast as [find]. One issue is we'd
+   want fast clz in order to implement [highest_bit]. *)
+
+(* A bit [b] is represented throughout as a bitmask with only [b] set. This
+   makes testing an individual bit very cheap. *)
 let zero_bit i bit = i land bit = 0
 
+(* Least significant 1 bit *)
 let lowest_bit x = x land -x
 
+(* Lowest bit at which [prefix0] and [prefix1] differ *)
 let branching_bit prefix0 prefix1 = lowest_bit (prefix0 lxor prefix1)
 
+(* Keep only the bits strictly lower than [i] *)
 let mask i bit = i land (bit - 1)
 
+(* Does [i] match [prefix] in all bits strictly lower than [bit]? *)
 let match_prefix i prefix bit = mask i bit = prefix
 
 let equal_prefix prefix0 bit0 prefix1 bit1 = bit0 = bit1 && prefix0 = prefix1
 
-let shorter bit0 bit1 =
+(* Assumes [bit0 != bit1] *)
+let lower bit0 bit1 =
+  (* Need to do _unsigned_ int comparison *)
   match bit0 < 0, bit1 < 0 with
   | false, false -> bit0 < bit1
-  | true, false | false, true -> bit0 > bit1
+  | true, false ->
+    false (* the only bit < 0 is 0x4000..., which is the longest *)
+  | false, true -> true
   | true, true -> assert false
 
+(* Is [prefix0] (up to [bit0]) a sub-prefix of [prefix1] (up to [bit1])? *)
 let includes_prefix prefix0 bit0 prefix1 bit1 =
-  shorter bit0 bit1 && match_prefix prefix1 prefix0 bit0
+  lower bit0 bit1 && match_prefix prefix1 prefix0 bit0
 
-(* let includes_prefix prefix0 bit0 prefix1 bit1 = (bit0 - 1) < (bit1 - 1) &&
-   match_prefix prefix1 prefix0 bit0 *)
-
+(* Provides a total ordering over [(prefix, bit)] pairs. Not otherwise
+   specified. (Only useful for implementing [compare], which is similarly
+   loosely specified.) *)
 let compare_prefix prefix0 bit0 prefix1 bit1 =
+  (* Signed comparison is fine here, so long as it's a total ordering *)
   let c = compare bit0 bit1 in
   if c = 0 then compare prefix0 prefix1 else c
 
 type key = int
 
+(* A tree structure that will be used to implement a datatype, either sets or
+   maps. Many algorithms operate identically on sets and maps, so they are
+   implemented in the functor [Tree_operations] over this module type. *)
 module type Tree = sig
+  (* A Patricia tree. For a sequence of bits P, we write that the tree has
+     prefix P if every node in the tree has a key whose lowest bits equal P.
+     (Note that a tree with prefix P also has any sub-prefix of P. For instance,
+     if the tree has prefix 011, it also has prefix 01.) *)
   type 'a t
 
   (* A witness that ['a] is a valid type for a value stored in the tree. Maps
@@ -64,12 +86,24 @@ module type Tree = sig
   (* Deduce that ['a] is a value type from a pre-existing ['a t]. *)
   val is_value_of : 'a t -> 'a is_value
 
+  (* An empty tree. Since it has no nodes, it is safe to treat it as having any
+     prefix. *)
   val empty : 'a is_value -> 'a t
 
+  (* A tree containing a single key-value pair. It has the entire key as a
+     prefix. *)
   val leaf : 'a is_value -> key -> 'a -> 'a t
 
+  (* A tree with the given prefix, bit, and subtrees. If called as [branch
+     prefix bit t0 t1], writing [P] as the sequence of bits in [prefix] strictly
+     lower than [bit], we require that [t0] has prefix P0 and [t1] has prefix P1
+     (note that this is little-endian notation). For efficiency, [t0] and [t1]
+     are assumed to be non-empty. The tree will have prefix P. *)
   val branch : key -> key -> 'a t -> 'a t -> 'a t
 
+  (* A view on a given node, corresponding to which of [empty], [leaf], or
+     [branch] constructed it. Passing the fields back in as arguments will
+     construct an identical tree. *)
   type 'a descr =
     | Empty
     | Leaf of key * 'a
@@ -291,6 +325,9 @@ module Tree_operations (Tree : Tree) : sig
 end = struct
   include Tree
 
+  (* A relaxed version of [Tree.branch], allowing [t0] and/or [t1] to be empty.
+     It still requires that [t0] and [t1] have prefix [P0] and [P1],
+     respectively, where [P] is the bits in [prefix] lower than [bit]. *)
   let branch prefix bit t0 t1 =
     match (descr [@inlined hint]) t0, (descr [@inlined hint]) t1 with
     | Empty, _ -> t1
@@ -318,6 +355,12 @@ end = struct
       then mem i t0
       else mem i t1
 
+  (* Join two subtrees whose prefixes are disjoint (neither includes the other)
+     but otherwise arbitrary. Assumes that [t0] has prefix [prefix0] and [t1]
+     has prefix [prefix1]. *)
+  (* CR lmaurer: Actually, I'm not quite sure what the constraints are, since in
+     general [t0] won't have _all_ of [prefix0] as its prefix. What about the
+     places where this is called makes this okay? *)
   let join prefix0 t0 prefix1 t1 =
     let bit = branching_bit prefix0 prefix1 in
     if zero_bit prefix0 bit
@@ -406,9 +449,13 @@ end = struct
     | Leaf (i, d0), Leaf (j, d1) when i = j -> (
       (* CR mshinwell: [join] in [Typing_env_level] is relying on the fact that
          the arguments to [f] are always in the correct order, i.e. that the
-         first datum comes from [t0] and the second from [t1]. Document. *)
+         first datum comes from [t0] and the second from [t1]. Document.
+
+         lmaurer: This is a good reason to implement [union] in terms of (a
+         generalized) [merge], since implementing [merge] requires the types to
+         line up like this. *)
       match f i d0 d1 with None -> empty iv | Some datum -> leaf iv i datum)
-    | Leaf (i, d0), Leaf (j, _) -> join i (leaf iv i d0) j t1
+    | Leaf (i, _), Leaf (j, _) -> join i t0 j t1
     | Leaf (i, d), Branch (prefix, bit, t10, t11) ->
       if match_prefix i prefix bit
       then
@@ -419,11 +466,9 @@ end = struct
     | Branch (prefix, bit, t00, t01), Leaf (i, d) ->
       if match_prefix i prefix bit
       then
-        let f i d0 d1 = f i d1 d0 in
-        (* CR mshinwell: add flag to disable? *)
         if zero_bit i bit
-        then branch prefix bit (union f t1 t00) t01
-        else branch prefix bit t00 (union f t1 t01)
+        then branch prefix bit (union f t00 t1) t01
+        else branch prefix bit t00 (union f t01 t1)
       else join i (leaf iv i d) prefix t0
     | Branch (prefix0, bit0, t00, t01), Branch (prefix1, bit1, t10, t11) ->
       if equal_prefix prefix0 bit0 prefix1 bit1
@@ -455,6 +500,7 @@ end = struct
       then if zero_bit prefix0 bit1 then subset t0 t10 else subset t0 t11
       else false
 
+  (* CR lmaurer: Should use [raise_notrace] internally *)
   let rec find i t =
     match descr t with
     | Empty -> raise Not_found
@@ -562,14 +608,16 @@ end = struct
     | Branch (_, _, t0, t1) -> exists p t0 || exists p t1
 
   let filter p t =
-    let rec loop acc t =
+    let rec loop t =
+      let iv = is_value_of t in
       match descr t with
-      | Empty -> acc
-      | Leaf (i, d) -> if Callback.call p i d then add i d acc else acc
-      | Branch (_, _, t0, t1) -> loop (loop acc t0) t1
+      | Empty -> t
+      | Leaf (i, d) -> if Callback.call p i d then t else empty iv
+      | Branch (prefix, bit, t0, t1) -> branch prefix bit (loop t0) (loop t1)
     in
-    loop (empty (is_value_of t)) t
+    loop t
 
+  (* CR lmaurer: Make this O(n) rather than O(n log n). *)
   let partition p t =
     let rec loop ((true_, false_) as acc) t =
       match descr t with
@@ -632,25 +680,31 @@ end = struct
       | _, _ -> false
 
   let rec compare f t0 t1 =
-    match descr t0, descr t1 with
-    | Empty, Empty -> 0
-    | Leaf (i, d0), Leaf (j, d1) ->
-      let c = if i = j then 0 else if i < j then -1 else 1 in
-      if c <> 0 then c else f d0 d1
-    | Branch (prefix0, bit0, t00, t01), Branch (prefix1, bit1, t10, t11) ->
-      let c = compare_prefix prefix0 bit0 prefix1 bit1 in
-      if c = 0
-      then
-        let c = compare f t00 t10 in
-        if c = 0 then compare f t01 t11 else c
-      else c
-    | Empty, Leaf _ -> 1
-    | Empty, Branch _ -> 1
-    | Leaf _, Branch _ -> 1
-    | Leaf _, Empty -> -1
-    | Branch _, Empty -> -1
-    | Branch _, Leaf _ -> -1
+    if t0 == t1
+    then 0
+    else
+      match descr t0, descr t1 with
+      | Empty, Empty -> assert false (* already covered *)
+      | Leaf (i, d0), Leaf (j, d1) ->
+        let c = if i = j then 0 else if i < j then -1 else 1 in
+        if c <> 0 then c else f d0 d1
+      | Branch (prefix0, bit0, t00, t01), Branch (prefix1, bit1, t10, t11) ->
+        let c = compare_prefix prefix0 bit0 prefix1 bit1 in
+        if c = 0
+        then
+          let c = compare f t00 t10 in
+          if c = 0 then compare f t01 t11 else c
+        else c
+      | Empty, Leaf _ -> 1
+      | Empty, Branch _ -> 1
+      | Leaf _, Branch _ -> 1
+      | Leaf _, Empty -> -1
+      | Branch _, Empty -> -1
+      | Branch _, Leaf _ -> -1
 
+  (* CR lmaurer: Make this O(n) rather than O(n log n). Easy if we make a
+     version of [partition] that can drop the element. Even easier if we switch
+     to big-endian. *)
   let[@inline always] split ~found ~not_found i t =
     let rec loop ((lt, mem, gt) as acc) t =
       match descr t with
@@ -774,7 +828,7 @@ end = struct
     | Empty -> empty iv
     | Leaf (k, datum) -> leaf iv k (f datum)
     | Branch (prefix, bit, t0, t1) ->
-      branch prefix bit (map iv f t0) (map iv f t1)
+      branch_non_empty prefix bit (map iv f t0) (map iv f t1)
 
   let rec map_sharing f t =
     let iv = is_value_of t in
@@ -786,14 +840,14 @@ end = struct
     | Branch (prefix, bit, t0, t1) ->
       let t0' = map_sharing f t0 in
       let t1' = map_sharing f t1 in
-      if t0' == t0 && t1' == t1 then t else branch prefix bit t0' t1'
+      if t0' == t0 && t1' == t1 then t else branch_non_empty prefix bit t0' t1'
 
   let rec mapi iv f t =
     match descr t with
     | Empty -> empty iv
     | Leaf (key, datum) -> leaf iv key (Callback.call f key datum)
     | Branch (prefix, bit, t0, t1) ->
-      branch prefix bit (mapi iv f t0) (mapi iv f t1)
+      branch_non_empty prefix bit (mapi iv f t0) (mapi iv f t1)
 
   let to_seq t =
     let rec aux acc () =
@@ -855,7 +909,6 @@ module Set = struct
 
   let add i t = Ops.add i () t
 
-  (* CR lmaurer: This is slow, but [Ops.union] is hard to specialize *)
   let union t0 t1 = Ops.union (fun _ () () -> Some ()) t0 t1
 
   let disjoint t0 t1 = not (Ops.inter_domain_is_non_empty t0 t1)
@@ -919,6 +972,10 @@ module Map = struct
 
   let mapi f t = Ops.mapi Any f t
 
+  (* CR lmaurer: Implement this in [Ops] in O(n) time rather than O(n log n).
+     Should be able to implement [filter] in terms of it, though Flambda2
+     currently has trouble preserving sharing (unnecessary control flow obscures
+     a CSE opportunity). *)
   let filter_map f t =
     fold
       (fun id v map -> match f id v with None -> map | Some r -> add id r map)
@@ -928,7 +985,7 @@ module Map = struct
 
   let merge f t0 t1 = Ops.merge Any f t0 t1
 
-  (* CR lmaurer: This should be doable as a map operation if we generalize
+  (* CR lmaurer: This should be doable as a fast map operation if we generalize
      [Ops.map] by letting the returned tree be built by a different [Tree]
      module *)
   let keys map = fold (fun k _ set -> Set.add k set) map Set.empty
@@ -951,7 +1008,7 @@ struct
 
     let [@ocamlformat "disable"] print ppf s =
       let elts ppf s = iter (fun e -> Format.fprintf ppf "@ %a" Elt.print e) s in
-      Format.fprintf ppf "@[<1>{@[%a@ @]}@]" elts s
+      Format.fprintf ppf "@[<1>{@[<1>%a@ @]}@]" elts s
 
     let to_string s = Format.asprintf "%a" print s
   end
