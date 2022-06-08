@@ -183,10 +183,10 @@ $(LOCAL_SRC)/%.cmx: $(LOCAL_SRC)/%.ml
 # Rules for building the [Dynlink_compilerlibs] bytecode and native packs
 # from their components.
 
-dynlink_compilerlibs.cmo: $(COMPILERLIBS_CMO)
-	$(OCAMLC) $(COMPFLAGS) -pack -o $@ $(COMPILERLIBS_CMO)
+dynlink_compilerlibs.cmi: $(COMPILERLIBS_CMO)
+	$(OCAMLC) $(COMPFLAGS) -pack -o dynlink_compilerlibs.cmo $(COMPILERLIBS_CMO)
 
-dynlink_compilerlibs.cmi: dynlink_compilerlibs.cmo
+dynlink_compilerlibs.cmo: dynlink_compilerlibs.cmi
 
 dynlink_compilerlibs.cmx: $(COMPILERLIBS_CMX)
 	$(OCAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) -pack -o $@ $(COMPILERLIBS_CMX)
@@ -264,7 +264,7 @@ DEPEND_DUMMY_FILES=\
 depend: beforedepend
 	touch $(DEPEND_DUMMY_FILES)
 	$(CAMLRUN) $(ROOTDIR)/boot/ocamlc -depend -slash \
-	  -bytecode -native *.mli *.ml dynlink.ml > .depend
+	  *.mli *.ml > .depend
 	rm -f $(DEPEND_DUMMY_FILES)
 
 include .depend
