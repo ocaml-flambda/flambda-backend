@@ -1197,3 +1197,5 @@ val gc_root_table :
   make_symbol:(?unitname:string -> string option -> string) ->
   string list ->
   phrase
+
+val cmm_arith_size : expression -> int

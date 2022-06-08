@@ -12,6 +12,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+[@@@ocaml.warning "+a-30-40-41-42"]
+
 open! Flambda.Import
 module Env = To_cmm_env
 module Ece = Effects_and_coeffects
@@ -22,87 +24,9 @@ module C = struct
   include To_cmm_shared
 end
 
-let check_arity arity args =
-  Flambda_arity.With_subkinds.cardinal arity = List.length args
+(* Bind a Cmm variable to the result of translating a [Simple] into Cmm. *)
 
-let default_of_kind ~dbg (kind : K.t) =
-  match kind with
-  | Value -> C.int ~dbg 1
-  | Naked_number Naked_immediate -> C.int ~dbg 0
-  | Naked_number Naked_float -> C.float ~dbg 0.
-  | Naked_number Naked_int32 -> C.int ~dbg 0
-  | Naked_number Naked_int64 -> C.int ~dbg 0
-  | Naked_number Naked_nativeint -> C.int ~dbg 0
-  | Region | Rec_info ->
-    Misc.fatal_errorf "No default value for kind %a" K.print kind
-
-let function_name simple =
-  let fail simple =
-    Misc.fatal_errorf "Expected a function symbol, instead of@ %a" Simple.print
-      simple
-  in
-  Simple.pattern_match simple
-    ~name:(fun name ->
-      Name.pattern_match name
-        ~var:(fun _ ~coercion:_ -> fail simple)
-        ~symbol:(fun sym ~coercion:_ ->
-          Symbol.linkage_name sym |> Linkage_name.to_string))
-    ~const:(fun _ -> fail simple)
-
-let machtype_of_return_arity arity =
-  (* Functions that never return have arity 0. In that case, we use the most
-     restrictive machtype to ensure that the return value of the function is not
-     used. *)
-  match Flambda_arity.to_list arity with
-  | [] -> Cmm.typ_void
-  (* Regular functions with a single return value *)
-  | [k] -> C.machtype_of_kind k
-  | _ ->
-    (* CR gbury: update when unboxed tuples are used *)
-    Misc.fatal_errorf "Functions are currently limited to a single return value"
-
-let wrap_extcall_result arity =
-  match Flambda_arity.to_list arity with
-  (* Int32 need to be sign_extended because it's not clear whether C code that
-     returns an int32 returns one that is sign extended or not *)
-  | [Naked_number Naked_int32] -> C.sign_extend_32
-  (* No need to wrap other return arities.
-
-     Note that extcall of arity 0 are allowed (these are extcalls that never
-     return, such as caml_ml_array_bound_error) *)
-  | [] | [_] -> fun _dbg cmm -> cmm
-  | _ ->
-    (* CR gbury: update when unboxed tuples are used *)
-    Misc.fatal_errorf
-      "C functions are currently limited to a single return value"
-  [@@ocaml.warning "-fragile-match"]
-
-(* Small function to estimate the number of arithmetic instructions in a cmm
-   expression. This is currently used to determine whether untagging an
-   expression resulted in a smaller expression or not (as can happen because of
-   some arithmetic simplifications performed by cmm_helpers.ml) *)
-let rec cmm_arith_size e =
-  match (e : Cmm.expression) with
-  | Cop
-      ( ( Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi | Cand | Cor | Cxor
-        | Clsl | Clsr | Casr ),
-        l,
-        _ ) ->
-    List.fold_left ( + ) 1 (List.map cmm_arith_size l)
-  | _ -> 0
-  [@@ocaml.warning "-fragile-match"]
-
-let match_var_with_extra_info env simple : Env.extra_info option =
-  Simple.pattern_match simple
-    ~const:(fun _ -> None)
-    ~name:(fun n ~coercion:_ ->
-      Name.pattern_match n
-        ~symbol:(fun _ -> None)
-        ~var:(fun var -> Env.extra_info env var))
-
-(* Helper for the translation of [Simple]s. *)
-
-let bind_simple ~dbg env v ~num_normal_occurrences_of_bound_vars s =
+let bind_var_to_simple ~dbg env v ~num_normal_occurrences_of_bound_vars s =
   let defining_expr, env, effects_and_coeffects_of_defining_expr =
     C.simple ~dbg env s
   in
@@ -117,7 +41,6 @@ let apply_call env e =
   let f = Apply.callee e in
   let args = Apply.args e in
   let dbg = Apply.dbg e in
-  let effs = Ece.all in
   let fail_if_probe apply =
     match Apply.probe_name apply with
     | None -> ()
@@ -142,11 +65,11 @@ let apply_call env e =
       { function_call = Direct { code_id; return_arity }; alloc_mode = _ } -> (
     let info = Env.get_code_metadata env code_id in
     let params_arity = Code_metadata.params_arity info in
-    if not (check_arity params_arity args)
+    if not (C.check_arity params_arity args)
     then Misc.fatal_errorf "Wrong arity for direct call";
     let ty =
       return_arity |> Flambda_arity.With_subkinds.to_arity
-      |> machtype_of_return_arity
+      |> C.machtype_of_return_arity
     in
     let args, env, _ = C.simple_list ~dbg env args in
     let args, env =
@@ -163,14 +86,14 @@ let apply_call env e =
           (C.symbol_from_linkage_name ~dbg code_linkage_name)
           args,
         env,
-        effs )
+        Ece.all )
     | Some name ->
       ( C.probe ~dbg ~name
           ~handler_code_linkage_name:(Linkage_name.to_string code_linkage_name)
           ~args
         |> C.return_unit dbg,
         env,
-        effs ))
+        Ece.all ))
   | Function { function_call = Indirect_unknown_arity; alloc_mode } ->
     fail_if_probe e;
     let f, env, _ = C.simple ~dbg env f in
@@ -179,13 +102,13 @@ let apply_call env e =
         (Alloc_mode.to_lambda alloc_mode)
         f args,
       env,
-      effs )
+      Ece.all )
   | Function
       { function_call = Indirect_known_arity { return_arity; param_arity };
         alloc_mode
       } ->
     fail_if_probe e;
-    if not (check_arity param_arity args)
+    if not (C.check_arity param_arity args)
     then
       Misc.fatal_errorf
         "To_cmm expects indirect_known_arity calls to be full applications in \
@@ -195,24 +118,42 @@ let apply_call env e =
       let args, env, _ = C.simple_list ~dbg env args in
       let ty =
         return_arity |> Flambda_arity.With_subkinds.to_arity
-        |> machtype_of_return_arity
+        |> C.machtype_of_return_arity
       in
       ( C.indirect_full_call ~dbg ty pos (Alloc_mode.to_lambda alloc_mode) f args,
         env,
-        effs )
+        Ece.all )
   | Call_kind.C_call { alloc; return_arity; param_arity; is_c_builtin } ->
     fail_if_probe e;
     let f = function_name f in
     let returns = Apply.returns e in
     let args, env, _ = C.simple_list ~dbg env args in
-    let ty = machtype_of_return_arity return_arity in
-    let wrap = wrap_extcall_result return_arity in
+    let ty = C.machtype_of_return_arity return_arity in
+    let wrap =
+      match Flambda_arity.to_list return_arity with
+      (* Returned int32 values need to be sign_extended because it's not clear
+         whether C code that returns an int32 returns one that is sign extended
+         or not. There is no need to wrap other return arities. Note that
+         extcalls of arity 0 are allowed (these never return). *)
+      | [] -> fun _dbg cmm -> cmm
+      | [kind] -> (
+        match kind with
+        | Naked_number Naked_int32 -> C.sign_extend_32
+        | Naked_number
+            (Naked_float | Naked_immediate | Naked_int64 | Naked_nativeint)
+        | Value | Rec_info | Region ->
+          fun _dbg cmm -> cmm)
+      | _ ->
+        (* CR gbury: update when unboxed tuples are used *)
+        Misc.fatal_errorf
+          "C functions are currently limited to a single return value"
+    in
     let ty_args =
       List.map C.exttype_of_kind (Flambda_arity.to_list param_arity)
     in
     ( wrap dbg (C.extcall ~dbg ~alloc ~is_c_builtin ~returns ~ty_args f ty args),
       env,
-      effs )
+      Ece.all )
   | Call_kind.Method { kind; obj; alloc_mode } ->
     fail_if_probe e;
     let obj, env, _ = C.simple ~dbg env obj in
@@ -220,7 +161,7 @@ let apply_call env e =
     let kind = Call_kind.Method_kind.to_lambda kind in
     let args, env, _ = C.simple_list ~dbg env args in
     let alloc_mode = Alloc_mode.to_lambda alloc_mode in
-    C.send kind meth obj args (pos, alloc_mode) dbg, env, effs
+    C.send kind meth obj args (pos, alloc_mode) dbg, env, Ece.all
 
 (* Function calls that have an exn continuation with extra arguments must be
    wrapped with assignments for the mutable variables used to pass the extra
@@ -258,7 +199,7 @@ let apply_cont_exn env e k = function
       match Apply_cont.trap_action e with
       | Some (Pop { raise_kind; _ }) ->
         Trap_action.Raise_kind.option_to_lambda raise_kind
-      | None | Some (Push _) ->
+      | Some (Push _) | None ->
         Misc.fatal_errorf
           "Apply cont %a calls an exception cont without a Pop trap action"
           Apply_cont.print e
@@ -348,7 +289,8 @@ and let_expr env res let_expr =
              of these bindings should have been substituted out). *)
           let dbg = Debuginfo.none in
           let env =
-            bind_simple ~dbg env v ~num_normal_occurrences_of_bound_vars s
+            bind_var_to_simple ~dbg env v ~num_normal_occurrences_of_bound_vars
+              s
           in
           expr env res body
         | Singleton v, Prim (p, dbg) ->
@@ -438,17 +380,17 @@ and let_cont_jump env res k h body =
   let wrap, env = Env.flush_delayed_lets env in
   let vars, arity, handle, res = continuation_handler env res h in
   let id, env = Env.add_jump_cont env k ~param_types:(List.map snd vars) in
-  if Continuation_handler.is_exn_handler h
-  then
-    let body, res = let_cont_exn env res k body vars handle id arity in
-    wrap body, res
-  else
-    let dbg = Debuginfo.none (* CR mshinwell: fix debuginfo *) in
-    let body, res = expr env res body in
-    ( wrap
-        (C.create_ccatch ~rec_flag:false ~body
-           ~handlers:[C.handler ~dbg id vars handle]),
-      res )
+  let cmm, res =
+    if Continuation_handler.is_exn_handler h
+    then let_cont_exn env res k body vars handle id arity
+    else
+      let dbg = Debuginfo.none (* CR mshinwell: fix debuginfo *) in
+      let body, res = expr env res body in
+      ( C.create_ccatch ~rec_flag:false ~body
+          ~handlers:[C.handler ~dbg id vars handle],
+        res )
+  in
+  wrap cmm, res
 
 (* Exception continuations, translated using delayed trywith blocks.
 
@@ -480,10 +422,23 @@ and let_cont_exn env res k body vars handle id arity =
      args *)
   let cmm =
     List.fold_left
-      (fun cmm (v, k) ->
+      (fun cmm (v, (kind : K.t)) ->
         (* CR mshinwell: Fix [provenance] *)
         let v = Backend_var.With_provenance.create ?provenance:None v in
-        C.letin_mut v (C.machtype_of_kind k) (default_of_kind ~dbg k) cmm)
+        let dummy_value =
+          match kind with
+          | Value -> C.int ~dbg 1
+          | Naked_number Naked_float -> C.float ~dbg 0.
+          | Naked_number Naked_int64 when Target_system.is_32_bit ->
+            C.unsupported_32_bit ()
+          | Naked_number
+              (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint) ->
+            C.int ~dbg 0
+          | Region | Rec_info ->
+            Misc.fatal_errorf "No dummy value available for kind %a" K.print
+              kind
+        in
+        C.letin_mut v (C.machtype_of_kind kind) dummy_value cmm)
       trywith extra_vars
   in
   cmm, res
@@ -624,7 +579,7 @@ and apply_cont env res e =
         let env =
           List.fold_left2
             (fun env param ->
-              bind_simple ~dbg:(Apply_cont.debuginfo e) env
+              bind_var_to_simple ~dbg:(Apply_cont.debuginfo e) env
                 (Bound_parameter.var param)
                 ~num_normal_occurrences_of_bound_vars:handler_params_occurrences)
             env handler_params args
@@ -660,11 +615,11 @@ and switch env res s =
   let scrutinee, tag_discriminant =
     match Targetint_31_63.Map.cardinal arms with
     | 2 -> (
-      match match_var_with_extra_info env scrutinee with
+      match Env.extra_info env scrutinee with
       | None | Some Boxed_number -> e, false
       | Some (Untag e') ->
-        let size_e = cmm_arith_size e in
-        let size_e' = cmm_arith_size e' in
+        let size_e = C.cmm_arith_size e in
+        let size_e' = C.cmm_arith_size e' in
         if size_e' < size_e then e', true else e, false)
     | _ -> e, false
   in

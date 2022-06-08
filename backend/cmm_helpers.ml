@@ -4149,3 +4149,17 @@ let gc_root_table ~make_symbol syms =
     (define_symbol ~global:true table_symbol
     @ List.map symbol_address syms
     @ [cint 0n])
+
+(* An estimate of the number of arithmetic instructions in a Cmm expression.
+   This is currently used in Flambda 2 to determine whether untagging an
+   expression resulted in a smaller expression or not (as can happen because of
+   some arithmetic simplifications performed by functions in this file). *)
+let rec cmm_arith_size e =
+  match (e : Cmm.expression) with
+  | Cop
+      ( ( Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi | Cand | Cor | Cxor
+        | Clsl | Clsr | Casr ),
+        l,
+        _ ) ->
+    List.fold_left ( + ) 1 (List.map cmm_arith_size l)
+  | _ -> 0
