@@ -263,3 +263,12 @@ include (val match size with
              | 32 -> (module Int32)
              | 64 -> (module Int64)
              | _ -> assert false : S)
+
+let to_int_checked t =
+  let i = to_int t in
+  let t' = of_int i in
+  if not (equal t t')
+  then
+    Misc.fatal_errorf "Cannot translate Targetint_32_64 %a to an OCaml integer"
+      print t;
+  i

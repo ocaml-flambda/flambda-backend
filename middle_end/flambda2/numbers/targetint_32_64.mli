@@ -152,6 +152,9 @@ val of_int_exn : int -> t
     high-order bit is lost during the conversion. *)
 val to_int : t -> int
 
+(** Like [to_int] but will raise an exception if the integer doesn't fit. *)
+val to_int_checked : t -> int
+
 (** Convert the given floating-point number to a target integer, discarding the
     fractional part (truncate towards 0).
 

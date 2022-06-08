@@ -56,19 +56,24 @@ module Function_call = struct
       Flambda_arity.With_subkinds.create [Flambda_kind.With_subkind.any_value]
 end
 
-type method_kind =
-  | Self
-  | Public
-  | Cached
+module Method_kind = struct
+  type t =
+    | Self
+    | Public
+    | Cached
 
-let print_method_kind ppf kind =
-  match kind with
-  | Self -> fprintf ppf "Self"
-  | Public -> fprintf ppf "Public"
-  | Cached -> fprintf ppf "Cached"
+  let print ppf t =
+    match t with
+    | Self -> fprintf ppf "Self"
+    | Public -> fprintf ppf "Public"
+    | Cached -> fprintf ppf "Cached"
 
-let method_kind_from_lambda (kind : Lambda.meth_kind) =
-  match kind with Self -> Self | Public -> Public | Cached -> Cached
+  let from_lambda (kind : Lambda.meth_kind) =
+    match kind with Self -> Self | Public -> Public | Cached -> Cached
+
+  let to_lambda t : Lambda.meth_kind =
+    match t with Self -> Self | Public -> Public | Cached -> Cached
+end
 
 type t =
   | Function of
@@ -76,7 +81,7 @@ type t =
         alloc_mode : Alloc_mode.t
       }
   | Method of
-      { kind : method_kind;
+      { kind : Method_kind.t;
         obj : Simple.t;
         alloc_mode : Alloc_mode.t
       }
@@ -103,7 +108,7 @@ let [@ocamlformat "disable"] print ppf t =
         @[<hov 1>(alloc_mode@ %a)@]\
         )@]"
       Simple.print obj
-      print_method_kind kind
+      Method_kind.print kind
       Alloc_mode.print alloc_mode
   | C_call { alloc; param_arity; return_arity; is_c_builtin; } ->
     fprintf ppf "@[(C@ @[(alloc %b)@]@ @[(is_c_builtin %b)@]@ \

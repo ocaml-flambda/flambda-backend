@@ -15,53 +15,26 @@
 open! Flambda.Import
 module Env = To_cmm_env
 module Ece = Effects_and_coeffects
+module K = Flambda_kind
 
-(* Notes:
-
-   - an int64 on a 32-bit host is represented across two registers, hence most
-   operations on them will actually need to call C primitive that can handle
-   them.
-
-   - int32 on 64 bits are represented as an int64 in the range of 32-bit
-   integers. Thus we insert sign extensions after every operation on 32-bits
-   integers that may have a result outside of the range. *)
-
-(* Cmm helpers *)
 module C = struct
   include Cmm_helpers
   include To_cmm_shared
 end
 
-(* Shortcuts for useful cmm machtypes *)
-
-let typ_val = Cmm.typ_val
-
-let typ_void = Cmm.typ_void
-
 let check_arity arity args =
   Flambda_arity.With_subkinds.cardinal arity = List.length args
 
-(* CR gbury: {Targetint_32_64.to_int} should raise an error when converting an
-   out-of-range integer. *)
-let int_of_targetint t =
-  let i = Targetint_32_64.to_int t in
-  let t' = Targetint_32_64.of_int i in
-  if not (Targetint_32_64.equal t t')
-  then Misc.fatal_errorf "Cannot translate targetint to caml int";
-  i
-
-let default_of_kind ~dbg (k : Flambda_kind.t) =
-  match k with
+let default_of_kind ~dbg (kind : K.t) =
+  match kind with
   | Value -> C.int ~dbg 1
   | Naked_number Naked_immediate -> C.int ~dbg 0
   | Naked_number Naked_float -> C.float ~dbg 0.
   | Naked_number Naked_int32 -> C.int ~dbg 0
   | Naked_number Naked_int64 -> C.int ~dbg 0
   | Naked_number Naked_nativeint -> C.int ~dbg 0
-  | Region -> Misc.fatal_error "Region_kind have no default value"
-  | Rec_info -> Misc.fatal_error "Rec_info has no default value"
-
-(* Function symbol *)
+  | Region | Rec_info ->
+    Misc.fatal_errorf "No default value for kind %a" K.print kind
 
 let function_name simple =
   let fail simple =
@@ -81,21 +54,12 @@ let machtype_of_return_arity arity =
      restrictive machtype to ensure that the return value of the function is not
      used. *)
   match Flambda_arity.to_list arity with
-  | [] -> typ_void
+  | [] -> Cmm.typ_void
   (* Regular functions with a single return value *)
   | [k] -> C.machtype_of_kind k
   | _ ->
     (* CR gbury: update when unboxed tuples are used *)
     Misc.fatal_errorf "Functions are currently limited to a single return value"
-
-let meth_kind k =
-  match (k : Call_kind.method_kind) with
-  | Self -> (Self : Lambda.meth_kind)
-  | Public -> (Public : Lambda.meth_kind)
-  | Cached -> (Cached : Lambda.meth_kind)
-
-let apply_returns (e : Apply.t) =
-  match Apply.continuation e with Return _ -> true | Never_returns -> false
 
 let wrap_extcall_result arity =
   match Flambda_arity.to_list arity with
@@ -112,15 +76,6 @@ let wrap_extcall_result arity =
     Misc.fatal_errorf
       "C functions are currently limited to a single return value"
   [@@ocaml.warning "-fragile-match"]
-
-(* Helpers for exception continuations *)
-
-let split_exn_cont_args k = function
-  | (v, _) :: rest -> v, rest
-  | [] ->
-    Misc.fatal_errorf
-      "Exception continuation %a should have at least one argument"
-      Continuation.print k
 
 (* Small function to estimate the number of arithmetic instructions in a cmm
    expression. This is currently used to determine whether untagging an
@@ -220,7 +175,9 @@ let apply_call env e =
     fail_if_probe e;
     let f, env, _ = C.simple ~dbg env f in
     let args, env, _ = C.simple_list ~dbg env args in
-    ( C.indirect_call ~dbg typ_val pos (Alloc_mode.to_lambda alloc_mode) f args,
+    ( C.indirect_call ~dbg Cmm.typ_val pos
+        (Alloc_mode.to_lambda alloc_mode)
+        f args,
       env,
       effs )
   | Function
@@ -246,7 +203,7 @@ let apply_call env e =
   | Call_kind.C_call { alloc; return_arity; param_arity; is_c_builtin } ->
     fail_if_probe e;
     let f = function_name f in
-    let returns = apply_returns e in
+    let returns = Apply.returns e in
     let args, env, _ = C.simple_list ~dbg env args in
     let ty = machtype_of_return_arity return_arity in
     let wrap = wrap_extcall_result return_arity in
@@ -260,7 +217,7 @@ let apply_call env e =
     fail_if_probe e;
     let obj, env, _ = C.simple ~dbg env obj in
     let meth, env, _ = C.simple ~dbg env f in
-    let kind = meth_kind kind in
+    let kind = Call_kind.Method_kind.to_lambda kind in
     let args, env, _ = C.simple_list ~dbg env args in
     let alloc_mode = Alloc_mode.to_lambda alloc_mode in
     C.send kind meth obj args (pos, alloc_mode) dbg, env, effs
@@ -500,7 +457,14 @@ and let_cont_jump env res k h body =
    must first read the contents of thos extra args (eagerly in order to minmize
    the lifetime of the mutable variables) *)
 and let_cont_exn env res k body vars handle id arity =
-  let exn_var, extra_params = split_exn_cont_args k vars in
+  let exn_var, extra_params =
+    match vars with
+    | (v, _) :: rest -> v, rest
+    | [] ->
+      Misc.fatal_errorf
+        "Exception continuation %a should have at least one argument"
+        Continuation.print k
+  in
   let env_body, extra_vars = Env.add_exn_handler env k arity in
   let handler =
     (* wrap the exn handler with reads of the mutable variables *)
@@ -708,7 +672,7 @@ and switch env res s =
   let prepare_discriminant ~tag d =
     let targetint_d = Targetint_31_63.to_targetint' d in
     let prepared_d = if tag then C.tag_targetint targetint_d else targetint_d in
-    int_of_targetint prepared_d
+    Targetint_32_64.to_int_checked prepared_d
   in
   let make_arm ~tag_discriminant env res (d, action) =
     let d = prepare_discriminant ~tag:tag_discriminant d in
