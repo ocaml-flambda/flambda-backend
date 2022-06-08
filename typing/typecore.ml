@@ -5205,9 +5205,27 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
     let ls, tvar = list_labels env ty in
     not tvar && List.for_all ((=) Nolabel) ls
   in
+  let inferred = is_inferred sarg in
+  let rec loosen_ret_modes ty' ty =
+    match expand_head env ty', expand_head env ty with
+    | {desc = Tarrow((l', marg', mret'), ty_arg', ty_res', _); level = lv'},
+      {desc = Tarrow((l,  marg,  mret ), ty_arg,  ty_res,  _); level = lv }
+      when lv' = generic_level || not !Clflags.principal ->
+      let ty_res', ty_res = loosen_ret_modes ty_res' ty_res in
+      let mret', _ = Alloc_mode.newvar_below mret' in
+      let mret,  _ = Alloc_mode.newvar_below mret in
+      newty2 lv' (Tarrow((l', marg', mret'), ty_arg', ty_res', Cok)),
+      newty2 lv  (Tarrow((l,  marg,  mret),  ty_arg,  ty_res,  Cok))
+    | _ ->
+      ty', ty
+  in
+  let ty_expected', ty_expected =
+    if inferred then loosen_ret_modes ty_expected' ty_expected
+    else ty_expected', ty_expected
+  in
   match expand_head env ty_expected' with
     {desc = Tarrow((Nolabel,marg,mret),ty_arg,ty_res,_); level = lv}
-    when is_inferred sarg ->
+    when inferred ->
       (* apply optional arguments when expected type is "" *)
       (* we must be very careful about not breaking the semantics *)
       if !Clflags.principal then begin_def ();
@@ -5344,7 +5362,7 @@ and type_application env app_loc expected_mode funct funct_mode sargs =
       submode ~loc:app_loc ~env
         (Value_mode.of_alloc mres) expected_mode;
       let marg =
-        mode_argument ~funct ~index:0 ~position:expected_mode.position 
+        mode_argument ~funct ~index:0 ~position:expected_mode.position
           ~partial_app:false marg
       in
       let exp = type_expect env marg sarg (mk_expected ty_arg) in

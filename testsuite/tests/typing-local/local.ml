@@ -230,15 +230,15 @@ let foo (local_ bar : int -> int -> int) =
 val foo : local_ (int -> int -> int) -> unit = <fun>
 |}]
 
-let foo (bar : int -> int -> int) =
-  let _ = (bar : int -> local_ (int -> int)) in
+let foo (bar : int -> local_ (int -> int)) =
+  let _ = (bar : int -> int -> int) in
   ()
 [%%expect{|
 Line 2, characters 11-14:
-2 |   let _ = (bar : int -> local_ (int -> int)) in
+2 |   let _ = (bar : int -> int -> int) in
                ^^^
-Error: This expression has type int -> int -> int
-       but an expression was expected of type int -> local_ (int -> int)
+Error: This expression has type int -> local_ (int -> int)
+       but an expression was expected of type int -> int -> int
 |}]
 
 
@@ -557,6 +557,29 @@ Line 1, characters 21-35:
                          ^^^^^^^^^^^^^^
 Error: This value escapes its region
 |}]
+
+(*
+ * Modification of return modes in argument position
+ *)
+
+let use (local_ f : _ -> _ -> _) x y =
+  f x y
+let result = use (+) 1 2
+[%%expect{|
+val use : local_ ('a -> 'b -> 'c) -> 'a -> 'b -> 'c = <fun>
+val result : int = 3
+|}]
+
+let baduse (f : _ -> _ -> _) x y = lazy (f x y)
+let result = baduse (fun a b -> local_ (a,b)) 1 2
+[%%expect{|
+val baduse : ('a -> 'b -> 'c) -> 'a -> 'b -> 'c lazy_t = <fun>
+Line 2, characters 32-44:
+2 | let result = baduse (fun a b -> local_ (a,b)) 1 2
+                                    ^^^^^^^^^^^^
+Error: This value escapes its region
+|}]
+
 
 (*
  * Closures and context locks
@@ -1909,24 +1932,24 @@ let foo f = ignore (f :> string -> float); ()
 val foo : (string -> float) -> unit = <fun>
 |}]
 
-let use_local_to_global (f : local_ string -> float) = ()
+let local_to_global (local_ _s : string) = 42.0
 
-let foo f = ignore (f :> string -> float); use_local_to_global f
+let foo f = ignore (f :> string -> float); [f; local_to_global]
 [%%expect{|
-val use_local_to_global : (local_ string -> float) -> unit = <fun>
-val foo : (local_ string -> float) -> unit = <fun>
+val local_to_global : local_ string -> float = <fun>
+val foo : (local_ string -> float) -> (local_ string -> float) list = <fun>
 |}]
 
-let use_global_to_local (f : string -> local_ float) = ()
+let global_to_local (_s : string) = local_ 42.0
 
-let foo f = ignore (f :> string -> float); use_global_to_local f
+let foo f = ignore (f :> string -> float); [f; global_to_local]
 [%%expect{|
-val use_global_to_local : (string -> local_ float) -> unit = <fun>
-Line 3, characters 63-64:
-3 | let foo f = ignore (f :> string -> float); use_global_to_local f
-                                                                   ^
-Error: This expression has type string -> float
-       but an expression was expected of type string -> local_ float
+val global_to_local : string -> local_ float = <fun>
+Line 3, characters 47-62:
+3 | let foo f = ignore (f :> string -> float); [f; global_to_local]
+                                                   ^^^^^^^^^^^^^^^
+Error: This expression has type string -> local_ float
+       but an expression was expected of type string -> float
 |}]
 
 (* Submoding during module inclusion *)
