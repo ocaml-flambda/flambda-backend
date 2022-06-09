@@ -636,8 +636,14 @@ and switch env res switch =
       match Env.extra_info env scrutinee with
       | None | Some Boxed_number -> untagged_scrutinee_cmm, false
       | Some (Untag tagged_scrutinee_cmm) ->
-        let size_untagged = C.cmm_arith_size untagged_scrutinee_cmm in
-        let size_tagged = C.cmm_arith_size tagged_scrutinee_cmm in
+        let size_untagged =
+          Option.value
+            (C.cmm_arith_size untagged_scrutinee_cmm)
+            ~default:max_int
+        in
+        let size_tagged =
+          Option.value (C.cmm_arith_size tagged_scrutinee_cmm) ~default:max_int
+        in
         if size_tagged < size_untagged
         then tagged_scrutinee_cmm, true
         else untagged_scrutinee_cmm, false)

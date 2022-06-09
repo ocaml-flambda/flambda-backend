@@ -4150,16 +4150,23 @@ let gc_root_table ~make_symbol syms =
     @ List.map symbol_address syms
     @ [cint 0n])
 
-(* An estimate of the number of arithmetic instructions in a Cmm expression.
-   This is currently used in Flambda 2 to determine whether untagging an
-   expression resulted in a smaller expression or not (as can happen because of
-   some arithmetic simplifications performed by functions in this file). *)
-let rec cmm_arith_size e =
-  match (e : Cmm.expression) with
-  | Cop
-      ( ( Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi | Cand | Cor | Cxor
-        | Clsl | Clsr | Casr ),
-        l,
-        _ ) ->
-    List.fold_left ( + ) 1 (List.map cmm_arith_size l)
-  | _ -> 0
+let cmm_arith_size (e : Cmm.expression) =
+  let rec cmm_arith_size0 (e : Cmm.expression) =
+    match e with
+    | Cop
+        ( ( Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi | Cand | Cor | Cxor
+          | Clsl | Clsr | Casr ),
+          l,
+          _ ) ->
+      List.fold_left ( + ) 1 (List.map cmm_arith_size0 l)
+    | _ -> 0
+  in
+  match e with
+  | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _ | Cvar _
+    ->
+    Some 0
+  | Cop _ -> Some (cmm_arith_size0 e)
+  | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _ | Ctuple _ | Csequence _
+  | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ | Cregion _
+  | Ctail _ ->
+    None
