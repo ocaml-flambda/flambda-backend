@@ -354,16 +354,21 @@ and let_cont env res (let_cont : Flambda.Let_cont.t) =
           To_cmm_effects.classify_continuation_handler k handler
             ~num_free_occurrences ~is_applied_with_traps
         with
-        | May_inline -> let_cont_inline env res k handler body
-        | Regular -> let_cont_jump env res k handler body)
+        | May_inline -> let_cont_inlined env res k handler body
+        | Regular -> let_cont_not_inlined env res k handler body)
   | Recursive handlers ->
     Recursive_let_cont_handlers.pattern_match handlers ~f:(fun ~body conts ->
-        assert (not (Continuation_handlers.contains_exn_handler conts));
+        if Continuation_handlers.contains_exn_handler conts
+        then
+          Misc.fatal_errorf
+            "Recursive continuation bindings cannot involve exception \
+             handlers:@ %a"
+            Let_cont.print let_cont;
         let_cont_rec env res conts body)
 
 (* The bound continuation [k] will be inlined. *)
-and let_cont_inline env res k h body =
-  Continuation_handler.pattern_match' h
+and let_cont_inlined env res k handler body =
+  Continuation_handler.pattern_match' handler
     ~f:(fun handler_params ~num_normal_occurrences_of_params ~handler ->
       let env =
         Env.add_inline_cont env k ~handler_params
@@ -372,65 +377,71 @@ and let_cont_inline env res k h body =
       in
       expr env res body)
 
-(* Continuations that are not inlined are translated using a jump:
-
-   - exceptions continuations use "dynamic" jumps using the raise/trywith cmm
-   mechanism
-
-   - regular continuations use static jumps, through the exit/catch cmm
-   mechanism *)
-(* CR Gbury: "split" the environment according to which variables the handler
-   and the body uses, to allow for inlining to proceed within each
-   expression. *)
-and let_cont_jump env res k h body =
+and let_cont_not_inlined env res k handler body =
+  (* The environment must be flushed to ensure that expressions are not
+     duplicated into both the body and the handler. *)
+  (* CR gbury: "split" the environment according to which variables the handler
+     and the body uses, to allow for inlining to proceed within each
+     expression. *)
   let wrap, env = Env.flush_delayed_lets env in
-  let vars, arity, handle, res = continuation_handler env res h in
-  let id, env = Env.add_jump_cont env k ~param_types:(List.map snd vars) in
+  let is_exn_handler = Continuation_handler.is_exn_handler handler in
+  let vars, arity, handler, res = continuation_handler env res handler in
+  let catch_id, env =
+    Env.add_jump_cont env k ~param_types:(List.map snd vars)
+  in
   let cmm, res =
-    if Continuation_handler.is_exn_handler h
-    then let_cont_exn env res k body vars handle id arity
+    (* Exception continuations are translated specially -- these will be reached
+       via the raising of exceptions, whereas other continuations are reached
+       using a normal jump. *)
+    if is_exn_handler
+    then let_cont_exn_handler env res k body vars handler ~catch_id arity
     else
       let dbg = Debuginfo.none (* CR mshinwell: fix debuginfo *) in
       let body, res = expr env res body in
       ( C.create_ccatch ~rec_flag:false ~body
-          ~handlers:[C.handler ~dbg id vars handle],
+          ~handlers:[C.handler ~dbg catch_id vars handler],
         res )
   in
   wrap cmm, res
 
-(* Exception continuations, translated using delayed trywith blocks.
+(* Exception continuations are translated using delayed Ctrywith blocks. The
+   exception handler parts of these blocks are identified by the [catch_id]s.
 
-   Additionally, exn continuations in flambda can have extra args, which are
-   passed through the trywith using mutable cmm variables. Thus the exn handler
-   must first read the contents of thos extra args (eagerly in order to minmize
-   the lifetime of the mutable variables) *)
-and let_cont_exn env res k body vars handle id arity =
+   Additionally, exception continuations can have extra args, which are passed
+   through the try-with using mutable Cmm variables. Thus the exception handler
+   must first read the contents of those extra args (eagerly, in order to
+   minmize the lifetime of the mutable variables). *)
+and let_cont_exn_handler env res k body vars handler ~catch_id arity =
   let exn_var, extra_params =
     match vars with
     | (v, _) :: rest -> v, rest
     | [] ->
+      (* See comment on [translate_raise], above. *)
       Misc.fatal_errorf
         "Exception continuation %a should have at least one argument"
         Continuation.print k
   in
-  let env_body, extra_vars = Env.add_exn_handler env k arity in
+  let env_body, mut_vars = Env.add_exn_handler env k arity in
   let handler =
-    (* wrap the exn handler with reads of the mutable variables *)
+    (* Wrap the exn handler with reads of the mutable variables *)
     List.fold_left2
-      (fun handler (v, _) (p, _) ->
-        C.letin p ~defining_expr:(C.var v) ~body:handler)
-      handle extra_vars extra_params
+      (fun handler (mut_var, _) (extra_param, _) ->
+        C.letin extra_param ~defining_expr:(C.var mut_var) ~body:handler)
+      handler mut_vars extra_params
   in
   let body, res = expr env_body res body in
   let dbg = Debuginfo.none (* CR mshinwell: fix debuginfo *) in
-  let trywith = C.trywith ~dbg ~kind:(Delayed id) ~body ~exn_var ~handler () in
-  (* define and initialize the mutable cmm variables used by an exn extra
-     args *)
+  let trywith =
+    C.trywith ~dbg ~kind:(Delayed catch_id) ~body ~exn_var ~handler ()
+  in
+  (* Define and initialize the mutable Cmm variables for extra args *)
   let cmm =
     List.fold_left
-      (fun cmm (v, (kind : K.t)) ->
+      (fun cmm (mut_var, (kind : K.t)) ->
         (* CR mshinwell: Fix [provenance] *)
-        let v = Backend_var.With_provenance.create ?provenance:None v in
+        let mut_var =
+          Backend_var.With_provenance.create ?provenance:None mut_var
+        in
         let dummy_value =
           match kind with
           | Value -> C.int ~dbg 1
@@ -444,59 +455,61 @@ and let_cont_exn env res k body vars handle id arity =
             Misc.fatal_errorf "No dummy value available for kind %a" K.print
               kind
         in
-        C.letin_mut v (C.machtype_of_kind kind) dummy_value cmm)
-      trywith extra_vars
+        C.letin_mut mut_var (C.machtype_of_kind kind) dummy_value cmm)
+      trywith mut_vars
   in
   cmm, res
 
 and let_cont_rec env res conts body =
-  (* Flush the env before anything to avoid inlining something inside of a
-     recursive cont (aka a loop), as it would increase the number of times the
+  (* Flush the env now to avoid inlining something inside of a recursive
+     continuation (aka a loop), as it would increase the number of times the
      computation is performed (even if there is only one syntactic
      occurrence) *)
+  (* CR-someday mshinwell: As discussed, the tradeoff here is not clear, since
+     flushing might increase register pressure. *)
   let wrap, env = Env.flush_delayed_lets ~entering_loop:true env in
-  (* Compute the environment for jump ids *)
-  let map = Continuation_handlers.to_map conts in
+  (* Compute the environment for Ccatch ids *)
+  let conts_to_handlers = Continuation_handlers.to_map conts in
   let env =
     Continuation.Map.fold
-      (fun k h acc ->
+      (fun k handler acc ->
         let continuation_arg_tys =
-          Continuation_handler.pattern_match' h
+          Continuation_handler.pattern_match' handler
             ~f:(fun params ~num_normal_occurrences_of_params:_ ~handler:_ ->
               List.map C.machtype_of_kinded_parameter
                 (Bound_parameters.to_list params))
         in
         snd (Env.add_jump_cont acc k ~param_types:continuation_arg_tys))
-      map env
+      conts_to_handlers env
   in
   (* Translate each continuation handler *)
-  let map, res =
+  let conts_to_handlers, res =
     Continuation.Map.fold
-      (fun k h (map, res) ->
-        let vars, _arity, handler, res = continuation_handler env res h in
-        Continuation.Map.add k (vars, handler) map, res)
-      map
+      (fun k handler (conts_to_handlers, res) ->
+        let vars, _arity, handler, res = continuation_handler env res handler in
+        Continuation.Map.add k (vars, handler) conts_to_handlers, res)
+      conts_to_handlers
       (Continuation.Map.empty, res)
   in
   let dbg = Debuginfo.none (* CR mshinwell: fix debuginfo *) in
-  (* Setup the cmm handlers for the static catch *)
+  (* Setup the Cmm handlers for the Ccatch *)
   let handlers =
     Continuation.Map.fold
-      (fun k (vars, handle) acc ->
+      (fun k (vars, handler) acc ->
         let id = Env.get_cmm_continuation env k in
-        C.handler ~dbg id vars handle :: acc)
-      map []
+        C.handler ~dbg id vars handler :: acc)
+      conts_to_handlers []
   in
   let body, res = expr env res body in
   wrap (C.create_ccatch ~rec_flag:true ~body ~handlers), res
 
-and continuation_handler env res h =
-  Continuation_handler.pattern_match' h
+and continuation_handler env res handler =
+  Continuation_handler.pattern_match' handler
     ~f:(fun params ~num_normal_occurrences_of_params:_ ~handler ->
       let arity = Bound_parameters.arity params in
       let env, vars = C.bound_parameters env params in
-      let e, res = expr env res handler in
-      vars, arity, e, res)
+      let expr, res = expr env res handler in
+      vars, arity, expr, res)
 
 (* Function calls: besides the function calls, there are a few things to do:
 
