@@ -125,7 +125,13 @@ let apply_call env e =
         Ece.all )
   | Call_kind.C_call { alloc; return_arity; param_arity; is_c_builtin } ->
     fail_if_probe e;
-    let f = function_name f in
+    let f =
+      match Simple.must_be_symbol f with
+      | Some (sym, _) -> Symbol.linkage_name sym |> Linkage_name.to_string
+      | None ->
+        Misc.fatal_errorf "Expected a function symbol instead of:@ %a"
+          Simple.print f
+    in
     let returns = Apply.returns e in
     let args, env, _ = C.simple_list ~dbg env args in
     let ty = C.machtype_of_return_arity return_arity in
