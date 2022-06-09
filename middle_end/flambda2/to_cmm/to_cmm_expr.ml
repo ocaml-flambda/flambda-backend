@@ -511,8 +511,8 @@ and continuation_handler env res handler =
       let expr, res = expr env res handler in
       vars, arity, expr, res)
 
-and apply_expr env res e =
-  let call, env, effs = translate_apply env e in
+and apply_expr env res apply =
+  let call, env, effs = translate_apply env apply in
   (* With respect to flushing the environment we have three cases:
 
      1. The call never returns or jumps to another function
@@ -528,7 +528,7 @@ and apply_expr env res e =
      the environment must be flushed prior to the call. In case 3 we can avoid
      flushing the environment due to the linearity of the control flow and the
      fact that we are able to control the code generation at the jump target. *)
-  match Apply.continuation e with
+  match Apply.continuation apply with
   | Never_returns ->
     let wrap, _ = Env.flush_delayed_lets env in
     wrap call, res
@@ -542,7 +542,7 @@ and apply_expr env res e =
         "Return continuation %a should be applied to a single argument in@\n\
          %a@\n\
          Multiple return values from functions are not yet supported"
-        Continuation.print k Apply.print e
+        Continuation.print k Apply.print apply
     in
     match Env.get_continuation env k with
     | Jump { param_types = []; cont } ->
@@ -571,33 +571,33 @@ and apply_expr env res e =
       expr env res body
     | Jump _ -> unsupported ())
 
-and apply_cont env res e =
-  let k = Apply_cont.continuation e in
-  let args = Apply_cont.args e in
+and apply_cont env res apply_cont =
+  let k = Apply_cont.continuation apply_cont in
+  let args = Apply_cont.args apply_cont in
   if Env.is_exn_handler env k
-  then translate_raise env e k args, res
+  then translate_raise env apply_cont k args, res
   else if Continuation.equal (Env.return_continuation env) k
-  then translate_jump_to_return_continuation env e k args, res
+  then translate_jump_to_return_continuation env apply_cont k args, res
   else
     match Env.get_continuation env k with
     | Jump { param_types; cont } ->
-      translate_jump_to_continuation env res e param_types cont args
+      translate_jump_to_continuation env res apply_cont param_types cont args
     | Inline { handler_params; handler_body; handler_params_occurrences } ->
-      (* CR mshinwell: We should fix this. See comment in apply_cont_expr.ml *)
-      if not (Apply_cont.trap_action e = None)
+      if Option.is_some (Apply_cont.trap_action apply_cont)
       then
         Misc.fatal_errorf "This [Apply_cont] should not have a trap action:@ %a"
-          Apply_cont.print e;
+          Apply_cont.print apply_cont;
       (* Inlining a continuation call simply needs to bind the arguments to the
-         variables that the continuation's body expects. The delayed lets in the
-         environment enables that translation to be tail-rec. *)
+         variables that the continuation's handler expects. *)
       let handler_params = Bound_parameters.to_list handler_params in
       if List.compare_lengths args handler_params = 0
       then
         let env =
           List.fold_left2
             (fun env param ->
-              bind_var_to_simple ~dbg:(Apply_cont.debuginfo e) env
+              bind_var_to_simple
+                ~dbg:(Apply_cont.debuginfo apply_cont)
+                env
                 (Bound_parameter.var param)
                 ~num_normal_occurrences_of_bound_vars:handler_params_occurrences)
             env handler_params args
@@ -606,70 +606,72 @@ and apply_cont env res e =
       else
         Misc.fatal_errorf
           "Continuation %a in@\n%a@\nExpected %d arguments but got %a."
-          Continuation.print k Apply_cont.print e
+          Continuation.print k Apply_cont.print apply_cont
           (List.length handler_params)
-          Apply_cont.print e
+          Apply_cont.print apply_cont
 
-and switch env res s =
-  let scrutinee = Switch.scrutinee s in
-  let dbg = Switch.condition_dbg s in
-  let e, env, _ = C.simple ~dbg env scrutinee in
-  let arms = Switch.arms s in
+and switch env res switch =
+  let scrutinee = Switch.scrutinee switch in
+  let dbg = Switch.condition_dbg switch in
+  let untagged_scrutinee_cmm, env, _ = C.simple ~dbg env scrutinee in
+  let arms = Switch.arms switch in
   (* For binary switches, which can be translated to an if-then-else, it can be
-     interesting to *not* untag the scrutinee (particularly for those coming
-     from a source if-then-else on booleans) as that way the translation can use
-     2 instructions instead of 3.
+     interesting for the scrutinee to be tagged (particularly for switches
+     coming from a source level if-then-else on booleans) as that way the
+     translation can use 2 instructions instead of 3.
 
      However, this is only useful to do if the tagged expression is smaller then
      the untagged one (which is not always true due to arithmetic
-     simplifications performed by cmm_helpers).
+     simplifications performed by Cmm_helpers).
 
-     Additionally for switches with more than 2 arms, not untagging and lifting
-     the switch to perform on tagged integer might be worse (because the
-     discriminant of the arms may not be successive anymore, thus preventing the
-     use of a table), or simply not worth it given the already high number of
-     instructions needed for big switches (but that might be up-to-debate on
-     small switches with 3-5 arms). *)
-  let scrutinee, tag_discriminant =
+     Additionally for switches with more than 2 arms, not untagging and
+     adjusting the switch to work on tagged integers might be worse. The
+     discriminants of the arms might not be successive machine integers anymore,
+     thus preventing the use of a table. Alternatively it might not be worth it
+     given the already high number of instructions needed for big switches (but
+     this might be debatable for small switches with 3 to 5 arms). *)
+  let scrutinee, must_tag_discriminant =
     match Targetint_31_63.Map.cardinal arms with
     | 2 -> (
       match Env.extra_info env scrutinee with
-      | None | Some Boxed_number -> e, false
-      | Some (Untag e') ->
-        let size_e = C.cmm_arith_size e in
-        let size_e' = C.cmm_arith_size e' in
-        if size_e' < size_e then e', true else e, false)
-    | _ -> e, false
+      | None | Some Boxed_number -> untagged_scrutinee_cmm, false
+      | Some (Untag tagged_scrutinee_cmm) ->
+        let size_untagged = C.cmm_arith_size untagged_scrutinee_cmm in
+        let size_tagged = C.cmm_arith_size tagged_scrutinee_cmm in
+        if size_tagged < size_untagged
+        then tagged_scrutinee_cmm, true
+        else untagged_scrutinee_cmm, false)
+    | _ -> untagged_scrutinee_cmm, false
   in
   let wrap, env = Env.flush_delayed_lets env in
-  let prepare_discriminant ~tag d =
+  let prepare_discriminant ~must_tag d =
     let targetint_d = Targetint_31_63.to_targetint' d in
-    let prepared_d = if tag then C.tag_targetint targetint_d else targetint_d in
-    Targetint_32_64.to_int_checked prepared_d
+    Targetint_32_64.to_int_checked
+      (if must_tag then C.tag_targetint targetint_d else targetint_d)
   in
-  let make_arm ~tag_discriminant env res (d, action) =
-    let d = prepare_discriminant ~tag:tag_discriminant d in
+  let make_arm ~must_tag_discriminant env res (d, action) =
+    let d = prepare_discriminant ~must_tag:must_tag_discriminant d in
     let cmm_action, res = apply_cont env res action in
     (d, cmm_action, Apply_cont.debuginfo action), res
   in
   match Targetint_31_63.Map.cardinal arms with
   (* Binary case: if-then-else *)
   | 2 -> (
-    let aux = make_arm ~tag_discriminant env in
+    let aux = make_arm ~must_tag_discriminant env in
     let first_arm, res = aux res (Targetint_31_63.Map.min_binding arms) in
     let second_arm, res = aux res (Targetint_31_63.Map.max_binding arms) in
     match first_arm, second_arm with
-    (* These switchs are actually if-then-elses. On such switches,
-       transl_switch_clambda will introduce a let-binding to the scrutinee
+    (* These switches are actually if-then-elses. On such switches,
+       transl_switch_clambda will introduce a let-binding of the scrutinee
        before creating an if-then-else, introducing an indirection that might
-       prevent some optimizations performed by selectgen/emit when the condition
-       is inlined in the if-then-else. *)
+       prevent some optimizations performed by Selectgen/Emit when the condition
+       is inlined in the if-then-else. Instead we use [C.ite]. *)
     | (0, else_, else_dbg), (_, then_, then_dbg)
     | (_, then_, then_dbg), (0, else_, else_dbg) ->
       wrap (C.ite ~dbg scrutinee ~then_dbg ~then_ ~else_dbg ~else_), res
-    (* Similar case to the if/then/else but none of the arms match 0, so we have
-       to generate an equality test, and make sure it is inside the condition to
-       ensure selectgen and emit can take advantage of it. *)
+    (* Similar case to the previous but none of the arms match 0, so we have to
+       generate an equality test, and make sure it is inside the condition to
+       ensure Selectgen and Emit can take advantage of it. *)
     | (x, if_x, if_x_dbg), (_, if_not, if_not_dbg) ->
       let expr =
         C.ite ~dbg
@@ -682,7 +684,7 @@ and switch env res s =
     (* transl_switch_clambda expects an [index] array such that index.(d) is the
        index in [cases] of the expression to execute when [e] matches [d]. *)
     let max_d, _ = Targetint_31_63.Map.max_binding arms in
-    let m = prepare_discriminant ~tag:tag_discriminant max_d in
+    let m = prepare_discriminant ~must_tag:must_tag_discriminant max_d in
     let unreachable, res = C.invalid res ~message:"unreachable switch case" in
     let cases = Array.make (n + 1) unreachable in
     let index = Array.make (m + 1) n in
@@ -690,7 +692,7 @@ and switch env res s =
       Targetint_31_63.Map.fold
         (fun discriminant action (i, res) ->
           let (d, cmm_action, _dbg), res =
-            make_arm ~tag_discriminant env res (discriminant, action)
+            make_arm ~must_tag_discriminant env res (discriminant, action)
           in
           cases.(i) <- cmm_action;
           index.(d) <- i;
@@ -698,11 +700,6 @@ and switch env res s =
         arms (0, res)
     in
     (* CR-someday poechsel: Put a more precise value kind here *)
-    (* The cases of the switch must have a value kind (i.e. they cannot be
-       unboxed). This is because each case will either end in a `Cexit` or end
-       by "calling" the return continuation, in which case it will just return
-       the argument to that continuation. Currently functions cannot return
-       unboxed values, so that argument must have a value kind. *)
     let expr =
       C.transl_switch_clambda dbg (Vval Pgenval) scrutinee index cases
     in
