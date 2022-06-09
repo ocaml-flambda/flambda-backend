@@ -653,16 +653,16 @@ and switch env res s =
        to generate an equality test, and make sure it is inside the condition to
        ensure selectgen and emit can take advantage of it. *)
     | (x, if_x, if_x_dbg), (_, if_not, if_not_dbg) ->
-      ( wrap
-          (C.ite ~dbg
-             (C.eq ~dbg (C.int ~dbg x) scrutinee)
-             ~then_dbg:if_x_dbg ~then_:if_x ~else_dbg:if_not_dbg ~else_:if_not),
-        res ))
+      let expr =
+        C.ite ~dbg
+          (C.eq ~dbg (C.int ~dbg x) scrutinee)
+          ~then_dbg:if_x_dbg ~then_:if_x ~else_dbg:if_not_dbg ~else_:if_not
+      in
+      wrap expr, res)
   (* General case *)
   | n ->
-    (* The transl_switch_clambda expects an index array such that index.(d) is
-       the index in [cases] of the expression to execute when [e] matches
-       [d]. *)
+    (* transl_switch_clambda expects an [index] array such that index.(d) is the
+       index in [cases] of the expression to execute when [e] matches [d]. *)
     let max_d, _ = Targetint_31_63.Map.max_binding arms in
     let m = prepare_discriminant ~tag:tag_discriminant max_d in
     let unreachable, res = C.invalid res ~message:"unreachable switch case" in
@@ -685,7 +685,7 @@ and switch env res s =
        by "calling" the return continuation, in which case it will just return
        the argument to that continuation. Currently functions cannot return
        unboxed values, so that argument must have a value kind. *)
-    ( wrap
-        (C.transl_switch_clambda Debuginfo.none (Vval Pgenval) scrutinee index
-           cases),
-      res )
+    let expr =
+      C.transl_switch_clambda dbg (Vval Pgenval) scrutinee index cases
+    in
+    wrap expr, res
