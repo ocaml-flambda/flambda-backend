@@ -285,67 +285,65 @@ let rec expr env res e =
 
 and let_expr0 env res let_expr (bound_pattern : Bound_pattern.t)
     ~num_normal_occurrences_of_bound_vars ~body =
-  match Bound_pattern.name_mode bound_pattern with
-  | Normal -> (
-    match bound_pattern, Let.defining_expr let_expr with
-    | Singleton v, Simple s ->
-      let v = Bound_var.var v in
-      (* CR mshinwell: Try to get a proper [dbg] here (although the majority of
-         these bindings should have been substituted out). *)
-      let dbg = Debuginfo.none in
-      let env =
-        bind_var_to_simple ~dbg env v ~num_normal_occurrences_of_bound_vars s
-      in
-      expr env res body
-    | Singleton v, Prim (p, dbg) ->
-      let v = Bound_var.var v in
-      let defining_expr, extra, env, res, effs =
-        To_cmm_primitive.prim env res dbg p
-      in
-      let effects_and_coeffects_of_defining_expr =
-        Ece.join effs (Flambda_primitive.effects_and_coeffects p)
-      in
-      let env =
-        Env.bind_variable ?extra env v
-          ~num_normal_occurrences_of_bound_vars:
-            (Known num_normal_occurrences_of_bound_vars)
-          ~effects_and_coeffects_of_defining_expr ~defining_expr
-      in
-      expr env res body
-    | Set_of_closures bound_vars, Set_of_closures soc ->
-      To_cmm_set_of_closures.let_dynamic_set_of_closures env res ~body
-        ~bound_vars ~num_normal_occurrences_of_bound_vars soc
-        ~translate_expr:expr
-    | Static bound_static, Static_consts consts -> (
-      let env, res, update_opt =
-        To_cmm_static.static_consts env res
-          ~params_and_body:
-            (To_cmm_set_of_closures.params_and_body ~translate_expr:expr)
-          bound_static consts
-      in
-      match update_opt with
-      | None ->
-        expr env res body (* trying to preserve tail calls whenever we can *)
-      | Some update ->
-        let wrap, env = Env.flush_delayed_lets env in
-        let body, res = expr env res body in
-        wrap (C.sequence update body), res)
-    | Singleton _, Rec_info _ -> expr env res body
-    | Singleton _, (Set_of_closures _ | Static_consts _)
-    | Set_of_closures _, (Simple _ | Prim _ | Static_consts _ | Rec_info _)
-    | Static _, (Simple _ | Prim _ | Set_of_closures _ | Rec_info _) ->
-      Misc.fatal_errorf "Mismatch between pattern and defining expression:@ %a"
-        Let.print let_expr)
-  | Phantom -> expr env res body
-  | In_types ->
-    Misc.fatal_errorf "Cannot bind In_types variables in terms:@ %a" Let.print
-      let_expr
+  match bound_pattern, Let.defining_expr let_expr with
+  | Singleton v, Simple s ->
+    let v = Bound_var.var v in
+    (* CR mshinwell: Try to get a proper [dbg] here (although the majority of
+       these bindings should have been substituted out). *)
+    let dbg = Debuginfo.none in
+    let env =
+      bind_var_to_simple ~dbg env v ~num_normal_occurrences_of_bound_vars s
+    in
+    expr env res body
+  | Singleton v, Prim (p, dbg) ->
+    let v = Bound_var.var v in
+    let defining_expr, extra, env, res, effs =
+      To_cmm_primitive.prim env res dbg p
+    in
+    let effects_and_coeffects_of_defining_expr =
+      Ece.join effs (Flambda_primitive.effects_and_coeffects p)
+    in
+    let env =
+      Env.bind_variable ?extra env v
+        ~num_normal_occurrences_of_bound_vars:
+          (Known num_normal_occurrences_of_bound_vars)
+        ~effects_and_coeffects_of_defining_expr ~defining_expr
+    in
+    expr env res body
+  | Set_of_closures bound_vars, Set_of_closures soc ->
+    To_cmm_set_of_closures.let_dynamic_set_of_closures env res ~body ~bound_vars
+      ~num_normal_occurrences_of_bound_vars soc ~translate_expr:expr
+  | Static bound_static, Static_consts consts -> (
+    let env, res, update_opt =
+      To_cmm_static.static_consts env res
+        ~params_and_body:
+          (To_cmm_set_of_closures.params_and_body ~translate_expr:expr)
+        bound_static consts
+    in
+    match update_opt with
+    | None -> expr env res body
+    | Some update ->
+      let wrap, env = Env.flush_delayed_lets env in
+      let body, res = expr env res body in
+      wrap (C.sequence update body), res)
+  | Singleton _, Rec_info _ -> expr env res body
+  | Singleton _, (Set_of_closures _ | Static_consts _)
+  | Set_of_closures _, (Simple _ | Prim _ | Static_consts _ | Rec_info _)
+  | Static _, (Simple _ | Prim _ | Set_of_closures _ | Rec_info _) ->
+    Misc.fatal_errorf "Mismatch between pattern and defining expression:@ %a"
+      Let.print let_expr
 
 and let_expr env res let_expr =
   Let.pattern_match' let_expr
     ~f:(fun bound_pattern ~num_normal_occurrences_of_bound_vars ~body ->
-      let_expr0 env res let_expr bound_pattern
-        ~num_normal_occurrences_of_bound_vars ~body)
+      match Bound_pattern.name_mode bound_pattern with
+      | Normal ->
+        let_expr0 env res let_expr bound_pattern
+          ~num_normal_occurrences_of_bound_vars ~body
+      | Phantom -> expr env res body
+      | In_types ->
+        Misc.fatal_errorf "Cannot bind In_types variables in terms:@ %a"
+          Let.print let_expr)
 
 and let_cont env res (let_cont : Flambda.Let_cont.t) =
   match let_cont with
