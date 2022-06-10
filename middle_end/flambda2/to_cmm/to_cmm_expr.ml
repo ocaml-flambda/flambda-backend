@@ -56,8 +56,6 @@ let default_of_kind ~dbg (k : Flambda_kind.t) =
   | Naked_number Naked_immediate -> C.int ~dbg 0
   | Naked_number Naked_float -> C.float ~dbg 0.
   | Naked_number Naked_int32 -> C.int ~dbg 0
-  | Naked_number Naked_int64 when Target_system.is_32_bit ->
-    C.unsupported_32_bit ()
   | Naked_number Naked_int64 -> C.int ~dbg 0
   | Naked_number Naked_nativeint -> C.int ~dbg 0
   | Region -> Misc.fatal_error "Region_kind have no default value"

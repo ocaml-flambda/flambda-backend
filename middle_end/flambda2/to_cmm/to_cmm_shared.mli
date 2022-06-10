@@ -16,8 +16,6 @@
     this module, unlike the ones in [Cmm_helpers], depend on Flambda 2 data
     types. *)
 
-val unsupported_32_bit : unit -> 'a
-
 val exttype_of_kind : Flambda_kind.t -> Cmm.exttype
 
 val machtype_of_kind : Flambda_kind.t -> Cmm.machtype_component array
