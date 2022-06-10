@@ -239,11 +239,6 @@ let apply_call env e =
   | Call_kind.C_call { alloc; return_arity; param_arity; is_c_builtin } ->
     fail_if_probe e;
     let f = function_name f in
-    (* CR vlaviron: temporary hack to recover the right symbol *)
-    let len = String.length f in
-    assert (len >= 9);
-    assert (String.sub f 0 9 = ".extern__");
-    let f = String.sub f 9 (len - 9) in
     let returns = apply_returns e in
     let args, env, _ = C.simple_list ~dbg env args in
     let ty = machtype_of_return_arity return_arity in

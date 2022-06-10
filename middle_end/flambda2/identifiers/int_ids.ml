@@ -468,8 +468,12 @@ module Symbol = struct
         (Compilation_unit.get_linkage_name compilation_unit)
     in
     let linkage_name =
-      Linkage_name.create
-        (unit_linkage_name ^ "__" ^ Linkage_name.to_string linkage_name)
+      if Compilation_unit.equal compilation_unit
+           (Compilation_unit.external_symbols ())
+      then linkage_name
+      else
+        Linkage_name.create
+          (unit_linkage_name ^ "__" ^ Linkage_name.to_string linkage_name)
     in
     unsafe_create compilation_unit linkage_name
 
