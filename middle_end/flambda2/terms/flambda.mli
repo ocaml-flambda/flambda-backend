@@ -192,6 +192,13 @@ module Named : sig
   val must_be_static_consts : t -> static_const_group
 
   val at_most_generative_effects : t -> bool
+
+  val fold_code_and_sets_of_closures :
+    t ->
+    init:'a ->
+    f_code:('a -> function_params_and_body Code0.t -> 'a) ->
+    f_set:('a -> Set_of_closures.t -> 'a) ->
+    'a
 end
 
 module Let_expr : sig

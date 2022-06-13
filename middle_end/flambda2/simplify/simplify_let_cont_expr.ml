@@ -261,7 +261,7 @@ let simplify_one_continuation_handler ~simplify_expr dacc cont ~at_unit_toplevel
   simplify_expr dacc handler ~down_to_up
 
 type behaviour =
-  | Unreachable
+  | Invalid
   | Alias_for of Continuation.t
   | Unknown
 
@@ -311,13 +311,13 @@ let rebuild_non_recursive_let_cont_handler cont
                 else Unknown)
             | None ->
               if RE.is_unreachable handler (UA.are_rebuilding_terms uacc)
-              then Unreachable
+              then Invalid
               else Unknown
         in
         match behaviour with
-        | Unreachable ->
+        | Invalid ->
           let arity = Bound_parameters.arity_with_subkinds params in
-          UE.add_unreachable_continuation uenv cont scope arity
+          UE.add_invalid_continuation uenv cont scope arity
         | Alias_for alias_for ->
           let arity = Bound_parameters.arity_with_subkinds params in
           UE.add_continuation_alias uenv cont arity ~alias_for

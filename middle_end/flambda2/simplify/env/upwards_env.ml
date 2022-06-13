@@ -87,8 +87,8 @@ let add_non_inlinable_continuation t cont scope ~params ~handler =
     let arity = Bound_parameters.arity_with_subkinds params in
     add_continuation0 t cont scope (Non_inlinable_non_zero_arity { arity })
 
-let add_unreachable_continuation t cont scope arity =
-  add_continuation0 t cont scope (Unreachable { arity })
+let add_invalid_continuation t cont scope arity =
+  add_continuation0 t cont scope (Invalid { arity })
 
 let add_continuation_alias t cont arity ~alias_for =
   let arity = Flambda_arity.With_subkinds.to_arity arity in

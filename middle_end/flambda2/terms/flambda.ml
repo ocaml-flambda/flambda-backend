@@ -1552,6 +1552,26 @@ module Named = struct
     | Simple _ | Prim _ | Set_of_closures _ | Rec_info _ -> false
 
   let must_be_static_consts = named_must_be_static_consts
+
+  let fold_code_and_sets_of_closures t ~init ~f_code ~f_set =
+    match t with
+    | Set_of_closures s -> f_set init s
+    | Rec_info _ | Simple _ | Prim _ -> init
+    | Static_consts group ->
+      Static_const_group.to_list group
+      |> List.fold_left
+           (fun acc static_const_or_code ->
+             match (static_const_or_code : Static_const_or_code.t) with
+             | Static_const (Set_of_closures s) -> f_set acc s
+             | Code code -> f_code acc code
+             | Deleted_code
+             | Static_const
+                 ( Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
+                 | Boxed_nativeint _ | Immutable_float_block _
+                 | Immutable_float_array _ | Mutable_string _
+                 | Immutable_string _ | Empty_array ) ->
+               acc)
+           init
 end
 
 module Invalid = struct

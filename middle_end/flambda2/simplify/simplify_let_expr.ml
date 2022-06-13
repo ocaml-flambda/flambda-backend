@@ -88,7 +88,6 @@ let rebuild_let simplify_named_result removed_operations
     let body, uacc =
       EB.make_new_let_bindings uacc ~bindings_outermost_first:bindings ~body
     in
-    (* The let binding was removed. *)
     after_rebuild body uacc
   else
     let body, uacc =
@@ -229,8 +228,10 @@ let simplify_let0 ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up
     Simplify_named.simplify_named dacc bound_pattern defining_expr
       ~simplify_toplevel
   in
-  (* We don't need to simplify the body of the [Let] if the defining expression
-     simplified to [Invalid]. *)
+  (* We must make sure that if [Invalid] is going to be produced, [uacc] doesn't
+     contain any extraneous data for e.g. lifted constants that will never be
+     placed, since this can lead to errors when loading .cmx files or similar.
+     To avoid this we don't traverse [body]. *)
   if Simplify_named_result.is_invalid simplify_named_result
   then
     down_to_up original_dacc ~rebuild:(fun uacc ~after_rebuild ->

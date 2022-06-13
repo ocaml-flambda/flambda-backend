@@ -42,7 +42,7 @@ let equal_let_creation_results r1 r2 =
     false
 
 let add_set_of_closures_offsets ~is_phantom named uacc =
-  let add_set uacc set_of_closures =
+  let add_offsets_from_set uacc set_of_closures =
     match UA.slot_offsets uacc with
     | Unknown -> uacc
     | Known slot_offsets ->
@@ -53,6 +53,7 @@ let add_set_of_closures_offsets ~is_phantom named uacc =
       UA.with_slot_offsets uacc (Known slot_offsets)
   in
   let add_offsets_from_code uacc code =
+    (* XXX consider removing this Or_unknown.t *)
     match UA.slot_offsets uacc with
     | Unknown -> uacc
     | Known slot_offsets ->
@@ -69,24 +70,8 @@ let add_set_of_closures_offsets ~is_phantom named uacc =
       in
       UA.with_slot_offsets uacc (Known slot_offsets)
   in
-  match (named : Named.t) with
-  | Set_of_closures s -> add_set uacc s
-  | Rec_info _ | Simple _ | Prim _ -> uacc
-  | Static_consts group ->
-    Static_const_group.to_list group
-    |> List.fold_left
-         (fun acc static_const_or_code ->
-           match (static_const_or_code : Static_const_or_code.t) with
-           | Static_const (Set_of_closures s) -> add_set acc s
-           | Code code -> add_offsets_from_code acc code
-           | Deleted_code
-           | Static_const
-               ( Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
-               | Boxed_nativeint _ | Immutable_float_block _
-               | Immutable_float_array _ | Mutable_string _ | Immutable_string _
-               | Empty_array ) ->
-             acc)
-         uacc
+  Named.fold_code_and_sets_of_closures named ~init:uacc
+    ~f_code:add_offsets_from_code ~f_set:add_offsets_from_set
 
 let create_let uacc (bound_vars : Bound_pattern.t) (defining_expr : Named.t)
     ~free_names_of_defining_expr ~body ~cost_metrics_of_defining_expr =
@@ -104,40 +89,33 @@ let create_let uacc (bound_vars : Bound_pattern.t) (defining_expr : Named.t)
       | Set_of_closures _ ->
         Bound_pattern.fold_all_bound_vars bound_vars
           ~init:Name_mode.Or_absent.absent
-          ~f:(fun (greatest_name_mode : Name_mode.Or_absent.t) bound_var ->
-            let name_mode =
-              Name_occurrences.greatest_name_mode_var free_names_of_body
-                (VB.var bound_var)
-            in
-            match name_mode, greatest_name_mode with
-            | Absent, Absent -> Name_mode.Or_absent.absent
-            | Absent, Present _ -> greatest_name_mode
-            | Present _, Absent -> name_mode
-            | Present name_mode, Present greatest_name_mode ->
-              Name_mode.join_in_terms name_mode greatest_name_mode
-              |> Name_mode.Or_absent.present)
+          ~f:(fun greatest_name_mode bound_var ->
+            Name_occurrences.greatest_name_mode_var free_names_of_body
+              (VB.var bound_var)
+            |> Name_mode.Or_absent.join_in_terms greatest_name_mode)
       | Static _ -> assert false
       (* see below *)
     in
     let declared_name_mode = Bound_pattern.name_mode bound_vars in
-    (match
-       Name_mode.Or_absent.compare_partial_order greatest_name_mode
-         (Name_mode.Or_absent.present declared_name_mode)
-     with
-    | None -> ()
-    | Some c ->
-      if c <= 0
-      then ()
-      else
-        Misc.fatal_errorf
-          "[Let]-binding declares variable(s) %a (mode %a) to be bound to@ \
-           %a,@ but there exist occurrences for such variable(s) at a higher \
-           mode@ (>= %a)@ in the body (free names %a):@ %a"
-          Bound_pattern.print bound_vars Name_mode.print declared_name_mode
-          Named.print defining_expr Name_mode.Or_absent.print greatest_name_mode
-          Name_occurrences.print free_names_of_body
-          (RE.print (UA.are_rebuilding_terms uacc))
-          body);
+    let mismatched_modes =
+      match
+        Name_mode.Or_absent.compare_partial_order greatest_name_mode
+          (Name_mode.Or_absent.present declared_name_mode)
+      with
+      | None -> true
+      | Some c -> c > 0
+    in
+    if mismatched_modes
+    then
+      Misc.fatal_errorf
+        "[Let]-binding declares variable(s) %a (mode %a) to be bound to@ %a,@ \
+         but there exist occurrences for such variable(s) at incompatible \
+         mode(s)@ (compared to %a)@ in the body (free names %a):@ %a"
+        Bound_pattern.print bound_vars Name_mode.print declared_name_mode
+        Named.print defining_expr Name_mode.Or_absent.print greatest_name_mode
+        Name_occurrences.print free_names_of_body
+        (RE.print (UA.are_rebuilding_terms uacc))
+        body;
     if not (Named.at_most_generative_effects defining_expr)
     then (
       if not (Name_mode.is_normal declared_name_mode)
@@ -307,6 +285,8 @@ let make_new_let_bindings uacc
        ->
       match (simplified_defining_expr : Simplified_named.t) with
       | Invalid ->
+        (* XXX this case should be made statically impossible, but maybe we can
+           remove the non-reify/reify split below at the same time *)
         let uacc =
           UA.with_name_occurrences uacc ~name_occurrences:Name_occurrences.empty
           |> UA.notify_added ~code_size:Code_size.invalid
@@ -607,20 +587,21 @@ let create_switch uacc ~condition_dbg ~scrutinee ~arms =
 let rebuild_invalid uacc reason ~after_rebuild =
   after_rebuild (RE.create_invalid reason) uacc
 
-type rewrite_use_ctx =
+type rewrite_apply_cont_ctx =
   | Apply_cont
   | Apply_expr of Simple.t list
 
-type rewrite_use_result =
+type rewrite_apply_cont_result =
   | Apply_cont of Apply_cont.t
   | Expr of
       (apply_cont_to_expr:
          (Apply_cont.t -> RE.t * Cost_metrics.t * Name_occurrences.t) ->
       RE.t * Cost_metrics.t * Name_occurrences.t)
 
-let no_rewrite apply_cont = Apply_cont apply_cont
+let no_rewrite_apply_cont apply_cont = Apply_cont apply_cont
 
-let rewrite_use uacc rewrite ~ctx id apply_cont : rewrite_use_result =
+let rewrite_apply_cont uacc rewrite ~ctx id apply_cont :
+    rewrite_apply_cont_result =
   let args = Apply_cont.args apply_cont in
   let original_params' = Apply_cont_rewrite.original_params rewrite in
   let original_params = Bound_parameters.to_list original_params' in
@@ -657,7 +638,7 @@ let rewrite_use uacc rewrite ~ctx id apply_cont : rewrite_use_result =
             Simple.var temp, [extra_let], Flambda_primitive.free_names prim
           | New_let_binding_with_named_args (temp, gen_prim) ->
             let prim =
-              match (ctx : rewrite_use_ctx) with
+              match (ctx : rewrite_apply_cont_ctx) with
               | Apply_expr args -> gen_prim args
               | Apply_cont ->
                 Misc.fatal_errorf
@@ -768,7 +749,7 @@ let rewrite_exn_continuation rewrite id exn_cont =
     ~exn_handler:(Exn_continuation.exn_handler exn_cont)
     ~extra_args
 
-type add_wrapper_for_fixed_arity_continuation0_result =
+type rewrite_fixed_arity_continuation0_result =
   | This_continuation of Continuation.t
   | Apply_cont of Apply_cont.t
   | New_wrapper of
@@ -781,8 +762,8 @@ type cont_or_apply_cont =
   | Continuation of Continuation.t
   | Apply_cont of Apply_cont.t
 
-let add_wrapper_for_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id
-    arity : add_wrapper_for_fixed_arity_continuation0_result =
+let rewrite_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id arity :
+    rewrite_fixed_arity_continuation0_result =
   let uenv = UA.uenv uacc in
   let cont =
     match cont_or_apply_cont with
@@ -839,7 +820,7 @@ let add_wrapper_for_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id
       let params = Bound_parameters.create params in
       let apply_cont = Apply_cont.create cont ~args ~dbg:Debuginfo.none in
       let ctx = Apply_expr args in
-      match rewrite_use uacc rewrite use_id ~ctx apply_cont with
+      match rewrite_apply_cont uacc rewrite use_id ~ctx apply_cont with
       | Apply_cont apply_cont ->
         let cost_metrics =
           Cost_metrics.from_size (Code_size.apply_cont apply_cont)
@@ -858,7 +839,9 @@ let add_wrapper_for_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id
         new_wrapper params expr ~free_names ~cost_metrics)
     | Apply_cont apply_cont -> (
       let apply_cont = Apply_cont.with_continuation apply_cont cont in
-      match rewrite_use uacc rewrite ~ctx:Apply_cont use_id apply_cont with
+      match
+        rewrite_apply_cont uacc rewrite ~ctx:Apply_cont use_id apply_cont
+      with
       | Apply_cont apply_cont -> Apply_cont apply_cont
       | Expr build_expr ->
         let expr, cost_metrics, free_names =
@@ -869,7 +852,7 @@ let add_wrapper_for_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id
         in
         new_wrapper Bound_parameters.empty expr ~free_names ~cost_metrics))
 
-type add_wrapper_for_switch_arm_result =
+type rewrite_switch_arm_result =
   | Apply_cont of Apply_cont.t
   | New_wrapper of
       Continuation.t
@@ -877,11 +860,10 @@ type add_wrapper_for_switch_arm_result =
       * Name_occurrences.t
       * Cost_metrics.t
 
-let add_wrapper_for_switch_arm uacc apply_cont ~use_id arity :
-    add_wrapper_for_switch_arm_result =
+let rewrite_switch_arm uacc apply_cont ~use_id arity : rewrite_switch_arm_result
+    =
   match
-    add_wrapper_for_fixed_arity_continuation0 uacc (Apply_cont apply_cont)
-      ~use_id arity
+    rewrite_fixed_arity_continuation0 uacc (Apply_cont apply_cont) ~use_id arity
   with
   | This_continuation cont ->
     Apply_cont (Apply_cont.with_continuation apply_cont cont)
@@ -889,10 +871,9 @@ let add_wrapper_for_switch_arm uacc apply_cont ~use_id arity :
   | New_wrapper (cont, wrapper, free_names_of_handler, cost_metrics) ->
     New_wrapper (cont, wrapper, free_names_of_handler, cost_metrics)
 
-let add_wrapper_for_fixed_arity_continuation uacc cont ~use_id arity ~around =
+let rewrite_fixed_arity_continuation uacc cont ~use_id arity ~around =
   match
-    add_wrapper_for_fixed_arity_continuation0 uacc (Continuation cont) ~use_id
-      arity
+    rewrite_fixed_arity_continuation0 uacc (Continuation cont) ~use_id arity
   with
   | This_continuation cont -> around uacc cont
   | Apply_cont _ -> assert false
@@ -919,7 +900,7 @@ let add_wrapper_for_fixed_arity_continuation uacc cont ~use_id arity ~around =
     in
     expr, uacc
 
-let add_wrapper_for_fixed_arity_apply uacc ~use_id arity apply =
+let rewrite_fixed_arity_apply uacc ~use_id arity apply =
   match Apply.continuation apply with
   | Never_returns ->
     let uacc =
@@ -928,7 +909,7 @@ let add_wrapper_for_fixed_arity_apply uacc ~use_id arity apply =
     in
     RE.create_apply (UA.are_rebuilding_terms uacc) apply, uacc
   | Return cont ->
-    add_wrapper_for_fixed_arity_continuation uacc cont ~use_id arity
+    rewrite_fixed_arity_continuation uacc cont ~use_id arity
       ~around:(fun uacc return_cont ->
         let exn_cont =
           UE.resolve_exn_continuation_aliases (UA.uenv uacc)

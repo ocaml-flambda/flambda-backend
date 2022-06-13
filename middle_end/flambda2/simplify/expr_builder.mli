@@ -86,7 +86,20 @@ val rebuild_invalid :
     (Rebuilt_expr.t -> Upwards_acc.t -> Rebuilt_expr.t * Upwards_acc.t) ->
   Rebuilt_expr.t * Upwards_acc.t
 
-type add_wrapper_for_switch_arm_result = private
+(** Handling of the rewriting of continuation use sites. *)
+
+type rewrite_apply_cont_ctx =
+  | Apply_cont
+  | Apply_expr of Simple.t list
+
+type rewrite_apply_cont_result = private
+  | Apply_cont of Apply_cont.t
+  | Expr of
+      (apply_cont_to_expr:
+         (Apply_cont.t -> Rebuilt_expr.t * Cost_metrics.t * Name_occurrences.t) ->
+      Rebuilt_expr.t * Cost_metrics.t * Name_occurrences.t)
+
+type rewrite_switch_arm_result = private
   | Apply_cont of Apply_cont.t
   | New_wrapper of
       Continuation.t
@@ -94,40 +107,29 @@ type add_wrapper_for_switch_arm_result = private
       * Name_occurrences.t
       * Cost_metrics.t
 
-val add_wrapper_for_switch_arm :
+val no_rewrite_apply_cont : Apply_cont.t -> rewrite_apply_cont_result
+
+val rewrite_apply_cont :
+  Upwards_acc.t ->
+  Apply_cont_rewrite.t ->
+  ctx:rewrite_apply_cont_ctx ->
+  Apply_cont_rewrite_id.t ->
+  Apply_cont.t ->
+  rewrite_apply_cont_result
+
+val rewrite_switch_arm :
   Upwards_acc.t ->
   Apply_cont.t ->
   use_id:Apply_cont_rewrite_id.t ->
   Flambda_arity.With_subkinds.t ->
-  add_wrapper_for_switch_arm_result
+  rewrite_switch_arm_result
 
-val add_wrapper_for_fixed_arity_apply :
+val rewrite_fixed_arity_apply :
   Upwards_acc.t ->
   use_id:Apply_cont_rewrite_id.t ->
   Flambda_arity.With_subkinds.t ->
   Apply.t ->
   Rebuilt_expr.t * Upwards_acc.t
-
-type rewrite_use_ctx =
-  | Apply_cont
-  | Apply_expr of Simple.t list
-
-type rewrite_use_result = private
-  | Apply_cont of Apply_cont.t
-  | Expr of
-      (apply_cont_to_expr:
-         (Apply_cont.t -> Rebuilt_expr.t * Cost_metrics.t * Name_occurrences.t) ->
-      Rebuilt_expr.t * Cost_metrics.t * Name_occurrences.t)
-
-val no_rewrite : Apply_cont.t -> rewrite_use_result
-
-val rewrite_use :
-  Upwards_acc.t ->
-  Apply_cont_rewrite.t ->
-  ctx:rewrite_use_ctx ->
-  Apply_cont_rewrite_id.t ->
-  Apply_cont.t ->
-  rewrite_use_result
 
 val rewrite_exn_continuation :
   Apply_cont_rewrite.t ->

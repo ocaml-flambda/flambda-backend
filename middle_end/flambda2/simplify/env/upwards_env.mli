@@ -30,7 +30,7 @@ val add_non_inlinable_continuation :
   handler:Rebuilt_expr.t Or_unknown.t ->
   t
 
-val add_unreachable_continuation :
+val add_invalid_continuation :
   t -> Continuation.t -> Scope.t -> Flambda_arity.With_subkinds.t -> t
 
 val add_continuation_alias :

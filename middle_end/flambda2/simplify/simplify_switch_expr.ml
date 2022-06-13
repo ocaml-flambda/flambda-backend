@@ -23,7 +23,7 @@ let rebuild_arm uacc arm (action, use_id, arity)
       action
   in
   match
-    EB.add_wrapper_for_switch_arm uacc action ~use_id
+    EB.rewrite_switch_arm uacc action ~use_id
       (Flambda_arity.With_subkinds.of_arity arity)
   with
   | Apply_cont action -> (
@@ -52,7 +52,7 @@ let rebuild_arm uacc arm (action, use_id, arity)
         | Non_inlinable_zero_arity { handler = Known handler } ->
           check_handler ~handler ~action
         | Non_inlinable_zero_arity { handler = Unknown } -> Some action
-        | Unreachable _ -> None
+        | Invalid _ -> None
         | Non_inlinable_non_zero_arity _
         | Toplevel_or_function_return_or_exn_continuation _ ->
           Misc.fatal_errorf

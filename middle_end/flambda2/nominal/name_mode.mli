@@ -75,4 +75,6 @@ module Or_absent : sig
 
   (** This shadows [compare] from the above [include]. *)
   val compare : t -> t -> [`Be_explicit_about_total_or_partial_ordering]
+
+  val join_in_terms : t -> t -> t
 end

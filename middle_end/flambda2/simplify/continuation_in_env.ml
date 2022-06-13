@@ -25,7 +25,7 @@ type t =
   | Non_inlinable_non_zero_arity of { arity : Flambda_arity.With_subkinds.t }
   | Toplevel_or_function_return_or_exn_continuation of
       { arity : Flambda_arity.With_subkinds.t }
-  | Unreachable of { arity : Flambda_arity.With_subkinds.t }
+  | Invalid of { arity : Flambda_arity.With_subkinds.t }
 
 let [@ocamlformat "disable"] print are_rebuilding_terms ppf t =
   match t with
@@ -57,8 +57,8 @@ let [@ocamlformat "disable"] print are_rebuilding_terms ppf t =
         @[<hov 1>(arity@ %a)@]\
         )@]"
       Flambda_arity.With_subkinds.print arity
-  | Unreachable { arity } ->
-    Format.fprintf ppf "@[<hov 1>(Unreachable@ \
+  | Invalid { arity } ->
+    Format.fprintf ppf "@[<hov 1>(Invalid@ \
         @[<hov 1>(arity@ %a)@]\
         )@]"
       Flambda_arity.With_subkinds.print arity
@@ -75,5 +75,5 @@ let arity t =
   | Non_inlinable_zero_arity _ -> Flambda_arity.With_subkinds.nullary
   | Non_inlinable_non_zero_arity { arity }
   | Toplevel_or_function_return_or_exn_continuation { arity }
-  | Unreachable { arity } ->
+  | Invalid { arity } ->
     arity
