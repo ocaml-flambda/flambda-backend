@@ -142,6 +142,7 @@ val check_single_closures_entry :
   Type_grammar.t ->
   (Function_slot.t
   * Alloc_mode.t Or_unknown.t
+  (* CR vlaviron: remove the Closures_entry.t field *)
   * Type_grammar.Closures_entry.t
   * Type_grammar.Function_type.t)
   proof_of_operation
@@ -151,6 +152,7 @@ val prove_single_closures_entry :
   Type_grammar.t ->
   (Function_slot.t
   * Alloc_mode.t Or_unknown.t
+  (* CR vlaviron: remove the Closures_entry.t field *)
   * Type_grammar.Closures_entry.t
   * Type_grammar.Function_type.t)
   proof_of_property
