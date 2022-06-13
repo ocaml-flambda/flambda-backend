@@ -88,10 +88,6 @@ val rebuild_invalid :
 
 (** Handling of the rewriting of continuation use sites. *)
 
-type rewrite_apply_cont_ctx =
-  | Apply_cont
-  | Apply_expr of Simple.t list
-
 type rewrite_apply_cont_result = private
   | Apply_cont of Apply_cont.t
   | Expr of
@@ -112,7 +108,6 @@ val no_rewrite_apply_cont : Apply_cont.t -> rewrite_apply_cont_result
 val rewrite_apply_cont :
   Upwards_acc.t ->
   Apply_cont_rewrite.t ->
-  ctx:rewrite_apply_cont_ctx ->
   Apply_cont_rewrite_id.t ->
   Apply_cont.t ->
   rewrite_apply_cont_result

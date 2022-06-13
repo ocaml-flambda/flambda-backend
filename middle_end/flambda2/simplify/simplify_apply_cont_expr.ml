@@ -84,8 +84,7 @@ let rebuild_apply_cont apply_cont ~args ~rewrite_id uacc ~after_rebuild =
       in
       match rewrite with
       | None -> EB.no_rewrite_apply_cont apply_cont
-      | Some rewrite ->
-        EB.rewrite_apply_cont uacc rewrite ~ctx:Apply_cont rewrite_id apply_cont
+      | Some rewrite -> EB.rewrite_apply_cont uacc rewrite rewrite_id apply_cont
     in
     let expr, cost_metrics, free_names =
       match rewrite_use_result with

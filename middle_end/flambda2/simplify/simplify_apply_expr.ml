@@ -933,7 +933,7 @@ let simplify_method_call dacc apply ~callee_ty ~kind:_ ~obj ~arg_types
   let apply_cont =
     match Apply.continuation apply with
     | Never_returns ->
-      Misc.fatal_error "cannot simplify a method call that never returns"
+      Misc.fatal_error "Cannot simplify a method call that never returns"
     | Return continuation -> continuation
   in
   let denv = DA.denv dacc in
@@ -945,7 +945,7 @@ let simplify_method_call dacc apply ~callee_ty ~kind:_ ~obj ~arg_types
   if not (Flambda_arity.equal expected_arity args_arity)
   then
     Misc.fatal_errorf
-      "All arguments to a method call must be of kind [value]:@ %a" Apply.print
+      "All arguments to a method call must be of kind [Value]:@ %a" Apply.print
       apply;
   let dacc = record_free_names_of_apply_as_used dacc apply in
   let dacc, use_id =
@@ -991,7 +991,7 @@ let simplify_c_call ~simplify_expr dacc apply ~callee_ty ~param_arity
   let callee_kind = T.kind callee_ty in
   if not (K.is_value callee_kind)
   then
-    Misc.fatal_errorf "C callees must be of kind [value], not %a: %a" K.print
+    Misc.fatal_errorf "C callees must be of kind [Value], not %a: %a" K.print
       callee_kind T.print callee_ty;
   let args_arity = T.arity_of_list arg_types in
   if not (Flambda_arity.equal args_arity param_arity)
@@ -1006,13 +1006,10 @@ let simplify_c_call ~simplify_expr dacc apply ~callee_ty ~param_arity
       ~return_arity ~arg_types
   in
   match simplified with
-  | Poly_compare_specialized (dacc, expr) ->
+  | Specialised (dacc, expr, operation) ->
     let down_to_up dacc ~rebuild =
       let rebuild uacc ~after_rebuild =
-        let uacc =
-          UA.notify_removed uacc
-            ~operation:Removed_operations.specialized_poly_compare
-        in
+        let uacc = UA.notify_removed uacc ~operation in
         rebuild uacc ~after_rebuild
       in
       down_to_up dacc ~rebuild

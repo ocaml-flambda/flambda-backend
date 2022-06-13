@@ -17,7 +17,7 @@
 
 type t =
   | Unchanged of { return_types : Flambda2_types.t list Or_unknown.t }
-  | Poly_compare_specialized of Downwards_acc.t * Flambda.Expr.t
+  | Specialised of Downwards_acc.t * Flambda.Expr.t * Removed_operations.t
   | Invalid
 
 val simplify_extcall :

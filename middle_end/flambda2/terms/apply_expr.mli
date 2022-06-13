@@ -56,6 +56,10 @@ val create :
   relative_history:Inlining_history.Relative.t ->
   t
 
+(* CR mshinwell: This doesn't really make sense for C calls; we should have a
+   separate type of symbols for those too, since [Symbol.t] is for data
+   symbols. *)
+
 (** The function or method being applied. *)
 val callee : t -> Simple.t
 

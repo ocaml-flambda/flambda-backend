@@ -600,7 +600,7 @@ type rewrite_apply_cont_result =
 
 let no_rewrite_apply_cont apply_cont = Apply_cont apply_cont
 
-let rewrite_apply_cont uacc rewrite ~ctx id apply_cont :
+let rewrite_apply_cont0 uacc rewrite ~ctx id apply_cont :
     rewrite_apply_cont_result =
   let args = Apply_cont.args apply_cont in
   let original_params' = Apply_cont_rewrite.original_params rewrite in
@@ -688,6 +688,9 @@ let rewrite_apply_cont uacc rewrite ~ctx id apply_cont :
         ~bindings:extra_lets ~body ~cost_metrics_of_body ~free_names_of_body
     in
     Expr build_expr
+
+let rewrite_apply_cont uacc rewrite id apply_cont =
+  rewrite_apply_cont0 uacc rewrite ~ctx:Apply_cont id apply_cont
 
 (* CR-someday mshinwell: The code of this function could maybe be improved. *)
 let rewrite_exn_continuation rewrite id exn_cont =
@@ -820,7 +823,7 @@ let rewrite_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id arity :
       let params = Bound_parameters.create params in
       let apply_cont = Apply_cont.create cont ~args ~dbg:Debuginfo.none in
       let ctx = Apply_expr args in
-      match rewrite_apply_cont uacc rewrite use_id ~ctx apply_cont with
+      match rewrite_apply_cont0 uacc rewrite use_id ~ctx apply_cont with
       | Apply_cont apply_cont ->
         let cost_metrics =
           Cost_metrics.from_size (Code_size.apply_cont apply_cont)
@@ -839,9 +842,7 @@ let rewrite_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id arity :
         new_wrapper params expr ~free_names ~cost_metrics)
     | Apply_cont apply_cont -> (
       let apply_cont = Apply_cont.with_continuation apply_cont cont in
-      match
-        rewrite_apply_cont uacc rewrite ~ctx:Apply_cont use_id apply_cont
-      with
+      match rewrite_apply_cont uacc rewrite use_id apply_cont with
       | Apply_cont apply_cont -> Apply_cont apply_cont
       | Expr build_expr ->
         let expr, cost_metrics, free_names =

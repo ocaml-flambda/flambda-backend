@@ -14,10 +14,11 @@
 (**************************************************************************)
 
 open! Simplify_import
+module RO = Removed_operations
 
 type t =
   | Unchanged of { return_types : Flambda2_types.t list Or_unknown.t }
-  | Poly_compare_specialized of DA.t * Expr.t
+  | Specialised of DA.t * Expr.t * Removed_operations.t
   | Invalid
 
 (* Helpers *)
@@ -63,7 +64,7 @@ let simplify_comparison_of_tagged_immediates ~dbg dacc ~cmp_prim cont a b =
     @@ let_prim ~dbg tagged (P.Unary (Tag_immediate, Simple.var v_comp))
     @@ apply_cont ~dbg cont tagged
   in
-  Poly_compare_specialized (dacc, res)
+  Specialised (dacc, res, RO.specialized_poly_compare)
 
 let simplify_comparison_of_boxed_numbers ~dbg dacc ~kind ~cmp_prim cont a b =
   let a_naked = Variable.create "unboxed" in
@@ -71,6 +72,7 @@ let simplify_comparison_of_boxed_numbers ~dbg dacc ~kind ~cmp_prim cont a b =
   let v_comp = Variable.create "comp" in
   let tagged = Variable.create "tagged" in
   let _free_names, res =
+    (* XXX try to remove @@ *)
     let_prim ~dbg a_naked (P.Unary (Unbox_number kind, a))
     @@ let_prim ~dbg b_naked (P.Unary (Unbox_number kind, b))
     @@ let_prim ~dbg v_comp
@@ -78,7 +80,7 @@ let simplify_comparison_of_boxed_numbers ~dbg dacc ~kind ~cmp_prim cont a b =
     @@ let_prim ~dbg tagged (P.Unary (Tag_immediate, Simple.var v_comp))
     @@ apply_cont ~dbg cont tagged
   in
-  Poly_compare_specialized (dacc, res)
+  Specialised (dacc, res, RO.specialized_poly_compare)
 
 let simplify_comparison ~dbg ~dacc ~cont ~tagged_prim ~float_prim
     ~boxed_int_prim a b a_ty b_ty =
@@ -146,7 +148,10 @@ let simplify_caml_make_vect dacc ~len_ty ~init_value_ty : t =
        -- but that will need some more infrastructure, since the actual
        continuation definition needs to be changed on the upwards traversal.
        Also we would need to think about what would happen if there were other
-       uses of the return continuation possibly with different kinds. *)
+       uses of the return continuation possibly with different kinds.
+
+       Also maybe we should allow static allocation of these arrays for
+       reasonable sizes. *)
     let type_of_returned_array = T.array_of_length ~element_kind ~length in
     Unchanged { return_types = Known [type_of_returned_array] }
 
