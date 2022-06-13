@@ -60,6 +60,9 @@ val create :
    separate type of symbols for those too, since [Symbol.t] is for data
    symbols. *)
 
+(* CR mshinwell: Try to have a more robust way of tracking applications of
+   probes *)
+
 (** The function or method being applied. *)
 val callee : t -> Simple.t
 

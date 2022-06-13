@@ -8,4 +8,7 @@ Removal of unused value slots - dataflow through all functions
 More information about in which branch free names are used, for To_cmm
 Problem about rebuilding of let-bindings with Invalid
 
+Poison / loss of information after unboxing variants on second round
+(also relates to storing Typing_env_extensions in terms)
+
 Mark to check JS example with value slots
