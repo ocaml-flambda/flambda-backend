@@ -39,6 +39,19 @@ let mk_reorder_blocks_random f =
   Printf.sprintf "<seed> Randomly reorder basic blocks in every function, \
                   using the provided seed (intended for testing, off by default)."
 
+let mk_basic_block_sections f =
+  if Config.function_sections then
+    "-basic-block-sections",  Arg.Unit f,
+    " Emit each basic block in a separate section if target supports it. Implies \
+     -ocamlcfg."
+  else
+    let err () =
+      raise (Arg.Bad "OCaml has been configured without support for \
+                      -function-sections which is required for -basic-block-sections")
+    in
+    "-basic-block-sections", Arg.Unit err, " (option not available)"
+;;
+
 let mk_dasm_comments f =
   "-dasm-comments", Arg.Unit f, " Add comments in .s files (e.g. for DWARF)"
 
@@ -461,6 +474,7 @@ module type Flambda_backend_options = sig
   val dcfg_equivalence_check : unit -> unit
 
   val reorder_blocks_random : int -> unit
+  val basic_block_sections : unit -> unit
 
   val dasm_comments : unit -> unit
   val dno_asm_comments : unit -> unit
@@ -542,6 +556,7 @@ struct
     mk_dcfg_equivalence_check F.dcfg_equivalence_check;
 
     mk_reorder_blocks_random F.reorder_blocks_random;
+    mk_basic_block_sections F.basic_block_sections;
 
     mk_dasm_comments F.dasm_comments;
     mk_dno_asm_comments F.dno_asm_comments;
@@ -653,6 +668,9 @@ module Flambda_backend_options_impl = struct
 
   let reorder_blocks_random seed =
     Flambda_backend_flags.reorder_blocks_random := Some seed
+  let basic_block_sections () =
+    set' Flambda_backend_flags.basic_block_sections ();
+    set' Flambda_backend_flags.use_ocamlcfg ()
 
   let dasm_comments =
     set' Flambda_backend_flags.dasm_comments
@@ -868,6 +886,11 @@ module Extra_params = struct
     | "dump-inlining-paths" -> set' Flambda_backend_flags.dump_inlining_paths
     | "reorder-blocks-random" ->
        set_int_option' Flambda_backend_flags.reorder_blocks_random
+    | "basic-block-sections" ->
+      let options = [ Flambda_backend_flags.basic_block_sections;
+                      Flambda_backend_flags.use_ocamlcfg ] in
+      Compenv.setter ppf (fun b -> b) name options v;
+      true
     | "heap-reduction-threshold" -> set_int' Flambda_backend_flags.heap_reduction_threshold
     | "alloc-check" -> set' Flambda_backend_flags.alloc_check
     | "dump-checkmach" -> set' Flambda_backend_flags.dump_checkmach
