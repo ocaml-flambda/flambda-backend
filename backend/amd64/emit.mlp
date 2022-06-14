@@ -201,6 +201,29 @@ let label s = sym (emit_label s)
 let def_label ?typ s =
   D.label ?typ (emit_label s)
 
+(* Output .text section directive, or named .text.caml.<name> if enabled and
+   supported on the target system. *)
+
+let emit_named_text_section func_name =
+  if !Clflags.function_sections then
+    begin match system with
+    | S_macosx
+    (* Names of section segments in macosx are restricted to 16 characters,
+       but function names are often longer, especially anonymous functions. *)
+    | S_win64 | S_mingw64 | S_cygwin
+    (* Win systems provide named text sections, but configure on these
+       systems does not support function sections. *)
+      ->  assert false
+    | _ -> D.section
+             [ ".text.caml."^(emit_symbol func_name) ]
+             (Some "ax")
+             ["@progbits"]
+    end
+  else D.text ()
+
+(* Name of current function *)
+let function_name = ref ""
+
 let emit_Llabel fallthrough lbl =
   if not fallthrough && !fastcode_flag then D.align ~data:false 4;
   def_label lbl
@@ -610,28 +633,6 @@ let move_allowing_stack_to_stack src dst =
   | true, true -> stack_to_stack_move src dst
   | _ -> move src dst
 
-(* Output .text section directive, or named .text.caml.<name> if enabled and
-   supported on the target system. *)
-
-let emit_named_text_section func_name =
-  if !Clflags.function_sections then
-    begin match system with
-    | S_macosx
-    (* Names of section segments in macosx are restricted to 16 characters,
-       but function names are often longer, especially anonymous functions. *)
-    | S_win64 | S_mingw64 | S_cygwin
-    (* Win systems provide named text sections, but configure on these
-       systems does not support function sections. *)
-      ->  assert false
-    | _ -> D.section
-             [ ".text.caml."^(emit_symbol func_name) ]
-             (Some "ax")
-             ["@progbits"]
-    end
-  else D.text ()
-
-(* Name of current function *)
-let function_name = ref ""
 (* Entry point for tail recursive calls *)
 let tailrec_entry_point = ref None
 
