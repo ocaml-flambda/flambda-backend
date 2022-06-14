@@ -264,17 +264,17 @@ type behaviour =
   | Unknown
 
 let rebuild_non_recursive_let_cont_handler cont
-    (uses : Continuation_env_and_param_types.t) ~params ~handler
-    ~free_names_of_handler ~cost_metrics_of_handler ~is_single_inlinable_use
-    scope ~is_exn_handler (extra_params_and_args : EPA.t)
-    (cont_handler : RE.Continuation_handler.t) uacc ~after_rebuild =
+    (uses : Join_points.result option) ~params ~handler ~free_names_of_handler
+    ~cost_metrics_of_handler ~is_single_inlinable_use scope ~is_exn_handler
+    (extra_params_and_args : EPA.t) (cont_handler : RE.Continuation_handler.t)
+    uacc ~after_rebuild =
   let uenv = UA.uenv uacc in
   let uenv =
     (* CR mshinwell: Change types so that [free_names_of_handler] only needs to
        be provided in the [Uses] case. *)
     match uses with
-    | No_uses -> uenv
-    | Uses _ -> (
+    | None -> uenv
+    | Some _ -> (
       if (* We must make the final decision now as to whether to inline this
             continuation or not; we can't wait until
             [Simplify_apply_cont.rebuild_apply_cont] because we need to decide
@@ -348,19 +348,20 @@ let simplify_non_recursive_let_cont_handler ~simplify_expr ~denv_before_body
     TE.code_age_relation (DA.typing_env dacc_after_body)
   in
   let consts_lifted_during_body = DA.get_lifted_constants dacc_after_body in
-  let uses : Continuation_env_and_param_types.t =
+  let uses =
     match CUE.get_continuation_uses cont_uses_env cont with
-    | None -> No_uses
+    | None -> None
     | Some uses ->
-      Join_points.compute_handler_env uses ~params
-        ~env_at_fork_plus_params:denv_before_body ~consts_lifted_during_body
-        ~code_age_relation_after_body
+      Some
+        (Join_points.compute_handler_env uses ~params
+           ~env_at_fork_plus_params:denv_before_body ~consts_lifted_during_body
+           ~code_age_relation_after_body)
   in
   let dacc =
     DA.add_to_lifted_constant_accumulator dacc_after_body prior_lifted_constants
   in
   match uses with
-  | No_uses ->
+  | None ->
     (* Don't simplify the handler if there aren't any uses: otherwise, its code
        will be deleted but any continuation usage information collected during
        its simplification will remain. *)
@@ -387,7 +388,7 @@ let simplify_non_recursive_let_cont_handler ~simplify_expr ~denv_before_body
         cont_handler uacc ~after_rebuild
     in
     down_to_up dacc ~continuation_has_zero_uses:true ~rebuild
-  | Uses
+  | Some
       { handler_env;
         arg_types_by_use_id;
         extra_params_and_args;

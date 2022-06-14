@@ -35,8 +35,14 @@ val add_use :
 
 val get_uses : t -> One_continuation_use.t list
 
-val get_arg_types_by_use_id :
-  t -> Continuation_env_and_param_types.arg_types_by_use_id list
+type arg_at_use = private
+  { arg_type : Flambda2_types.t;
+    typing_env : Flambda2_types.Typing_env.t
+  }
+
+type arg_types_by_use_id = arg_at_use Apply_cont_rewrite_id.Map.t list
+
+val get_arg_types_by_use_id : t -> arg_types_by_use_id
 
 val number_of_uses : t -> int
 

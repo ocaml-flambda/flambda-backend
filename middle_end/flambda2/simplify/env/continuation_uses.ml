@@ -71,6 +71,13 @@ let arity t = t.arity
 
 let get_uses t = t.uses
 
+type arg_at_use =
+  { arg_type : Flambda2_types.t;
+    typing_env : Flambda2_types.Typing_env.t
+  }
+
+type arg_types_by_use_id = arg_at_use Apply_cont_rewrite_id.Map.t list
+
 let get_arg_types_by_use_id t =
   let empty_arg_maps : CEPT.arg_types_by_use_id list =
     List.map

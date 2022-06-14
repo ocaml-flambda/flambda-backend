@@ -21,6 +21,14 @@ module T = Flambda2_types
 module TE = Flambda2_types.Typing_env
 module U = One_continuation_use
 
+type result =
+  { handler_env : DE.t;
+    arg_types_by_use_id : Continuation_uses.arg_types_by_use_id;
+    extra_params_and_args : Continuation_extra_params_and_args.t;
+    is_single_inlinable_use : bool;
+    escapes : bool
+  }
+
 let join ?unknown_if_defined_at_or_later_than denv typing_env params
     ~env_at_fork_plus_params ~consts_lifted_during_body ~use_envs_with_ids =
   let definition_scope = DE.get_continuation_scope env_at_fork_plus_params in
@@ -112,7 +120,7 @@ let meet_equations_on_params typing_env ~params:params' ~param_types =
 
 let compute_handler_env ?unknown_if_defined_at_or_later_than uses
     ~env_at_fork_plus_params ~consts_lifted_during_body ~params
-    ~code_age_relation_after_body : Continuation_env_and_param_types.t =
+    ~code_age_relation_after_body =
   (* Augment the environment at each use with the necessary equations about the
      parameters (whose variables will already be defined in the environment). *)
   let need_to_meet_param_types =
@@ -157,13 +165,12 @@ let compute_handler_env ?unknown_if_defined_at_or_later_than uses
       LCS.add_to_denv ~maybe_already_defined:() use_env
         consts_lifted_during_body
     in
-    Uses
-      { handler_env;
-        arg_types_by_use_id;
-        extra_params_and_args = Continuation_extra_params_and_args.empty;
-        is_single_inlinable_use = true;
-        escapes = false
-      }
+    { handler_env;
+      arg_types_by_use_id;
+      extra_params_and_args = Continuation_extra_params_and_args.empty;
+      is_single_inlinable_use = true;
+      escapes = false
+    }
   | [] | [(_, _, Non_inlinable _)] | (_, _, (Inlinable | Non_inlinable _)) :: _
     ->
     (* This is the general case.
@@ -199,10 +206,9 @@ let compute_handler_env ?unknown_if_defined_at_or_later_than uses
           | Non_inlinable { escaping = true } -> true)
         use_envs_with_ids
     in
-    Uses
-      { handler_env;
-        arg_types_by_use_id;
-        extra_params_and_args;
-        is_single_inlinable_use = false;
-        escapes
-      }
+    { handler_env;
+      arg_types_by_use_id;
+      extra_params_and_args;
+      is_single_inlinable_use = false;
+      escapes
+    }

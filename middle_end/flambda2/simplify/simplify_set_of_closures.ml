@@ -690,7 +690,7 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
     else
       match return_cont_uses with
       | None -> Result_types.create_bottom ~params ~result_arity
-      | Some uses -> (
+      | Some uses ->
         (* CR mshinwell: Should we meet the result types with the arity? Also at
            applications? *)
         let code_age_relation_after_function =
@@ -712,29 +712,26 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
             ~consts_lifted_during_body:lifted_consts_this_function
             ~code_age_relation_after_body:code_age_relation_after_function
         in
-        match join with
-        | No_uses -> assert false (* should have been caught above *)
-        | Uses { handler_env; _ } ->
-          let params_and_results =
-            Bound_parameters.var_set
-              (Bound_parameters.append params return_cont_params)
-          in
-          let typing_env = DE.typing_env handler_env in
-          let results_and_types =
-            List.map
-              (fun result ->
-                let ty =
-                  TE.find typing_env (BP.name result)
-                    (Some (K.With_subkind.kind (BP.kind result)))
-                in
-                BP.name result, ty)
-              (Bound_parameters.to_list return_cont_params)
-          in
-          let env_extension =
-            T.make_suitable_for_environment typing_env
-              (All_variables_except params_and_results) results_and_types
-          in
-          Result_types.create ~params ~results:return_cont_params env_extension)
+        let params_and_results =
+          Bound_parameters.var_set
+            (Bound_parameters.append params return_cont_params)
+        in
+        let typing_env = DE.typing_env join.handler_env in
+        let results_and_types =
+          List.map
+            (fun result ->
+              let ty =
+                TE.find typing_env (BP.name result)
+                  (Some (K.With_subkind.kind (BP.kind result)))
+              in
+              BP.name result, ty)
+            (Bound_parameters.to_list return_cont_params)
+        in
+        let env_extension =
+          T.make_suitable_for_environment typing_env
+            (All_variables_except params_and_results) results_and_types
+        in
+        Result_types.create ~params ~results:return_cont_params env_extension
   in
   let outer_dacc =
     match UA.slot_offsets uacc_after_upwards_traversal with
