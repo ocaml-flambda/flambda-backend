@@ -40,3 +40,24 @@ are present in the joined env
 
 Exception handlers that are converted into jump targets aren't inlined.
 Presumably the inlining decision is taken too early
+
+Removed operations aren't taking into account whether the code
+might be called.  Better optimisation might be turning into worse
+cost metrics.
+e.g. two branches and one allocation removed in each branch --
+this is considered better than removing one branch plus one
+allocation.
+May make inlining less predictable
+
+Continuation aliases
+let_cont k1 x = ... in
+let_cont k2 y = k1 y in
+...
+apply_cont k2 0
+...
+apply_cont k2 0
+
+Since the handler of k2 will be simplified because of the typing information
+known about y, then it won't be seen as an alias to k1.
+
+Maybe these aliases should be done via Apply_cont_rewrites

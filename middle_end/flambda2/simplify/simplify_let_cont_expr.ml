@@ -244,7 +244,7 @@ let simplify_one_continuation_handler ~simplify_expr dacc cont ~at_unit_toplevel
   let down_to_up dacc ~rebuild =
     let rebuild uacc ~after_rebuild =
       (* The name occurrences component of this [uacc] is cleared (see further
-         down this file) before simplifying a handler. This is done so we can
+         down this file) before rebuilding a handler. This is done so we can
          precisely identify the free names of the handler. *)
       assert (Name_occurrences.is_empty (UA.name_occurrences uacc));
       let after_rebuild handler uacc =
@@ -308,7 +308,8 @@ let rebuild_non_recursive_let_cont_handler cont
                 then Alias_for (Apply_cont.continuation apply_cont)
                 else Unknown)
             | None ->
-              if RE.is_unreachable handler (UA.are_rebuilding_terms uacc)
+              if RE.can_be_removed_as_invalid handler
+                   (UA.are_rebuilding_terms uacc)
               then Invalid
               else Unknown
         in
@@ -502,7 +503,10 @@ let after_non_recursive_let_cont_body_rebuilt cont ~uenv_without_cont
     ~after_rebuild body uacc =
   let name_occurrences_body = UA.name_occurrences uacc in
   let num_free_occurrences_of_cont_in_body =
-    (* Note that this does not count uses in trap actions. *)
+    (* Note that this does not count uses in trap actions. If there are uses in
+       trap actions, but [remove_let_cont_leaving_body] is [true] below, then
+       this must be a case where the exception handler can be demoted to a
+       normal handler. This will cause the trap actions to be erased. *)
     Name_occurrences.count_continuation name_occurrences_body cont
   in
   let is_applied_with_traps =
@@ -604,6 +608,10 @@ let after_non_recursive_let_cont_handler_rebuilt ~rebuild_body
     else UA.name_occurrences uacc
   in
   let cost_metrics_of_handler = UA.cost_metrics uacc in
+  (* As was done for the handler (see next function below), the free names
+     information and the cost metrics are set aside, then cleared in [uacc].
+     This is so that the free names and cost metrics arising from the body can
+     be identified. *)
   let uacc = uacc |> UA.clear_name_occurrences |> UA.clear_cost_metrics in
   (* Having rebuilt the handler, we now rebuild the body. *)
   rebuild_body uacc
@@ -620,13 +628,18 @@ let after_downwards_traversal_of_non_recursive_let_cont_handler ~down_to_up
   let rebuild uacc ~after_rebuild =
     let uenv_without_cont = UA.uenv uacc in
     (* Now, on the upwards traversal, the handler is rebuilt. We need to be
-       careful with the free name information returned in [uacc] in two ways:
+       careful with the free names information returned in [uacc] in two ways:
 
        - Observe that linear inlining of the continuation doesn't change the
        free names of the whole [Let_cont] (so nothing extra to do here).
 
        - If the continuation has zero uses, we must not count the free names of
-       the handler, as it will be removed. *)
+       the handler, as it will be removed.
+
+       The free names information and the cost metrics currently in [uacc],
+       which arose from the rebuilding of subsequent expressions, are set aside
+       so that we can identify exactly what arises from rebuilding the
+       handler. *)
     let name_occurrences_subsequent_exprs = UA.name_occurrences uacc in
     let cost_metrics_of_subsequent_exprs = UA.cost_metrics uacc in
     let uacc = uacc |> UA.clear_name_occurrences |> UA.clear_cost_metrics in
