@@ -24,3 +24,6 @@ let print f ppf t =
   match t with
   | Ok contents -> Format.fprintf ppf "@[(Ok %a)@]" f contents
   | Invalid -> Format.pp_print_string ppf "Invalid"
+
+let map t ~f =
+  match t with Ok contents -> Ok (f contents) | Invalid -> Invalid

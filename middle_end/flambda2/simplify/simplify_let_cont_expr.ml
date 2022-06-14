@@ -674,16 +674,20 @@ let after_downwards_traversal_of_non_recursive_let_cont_body ~simplify_expr
          downwards traversal of any surrounding expression (which would have to
          be a [Let_cont]; as such, there's no problem with returning the [DE]
          from the [handler] inside [dacc] since it will be replaced by the one
-         from the surrounding context). *)
+         from the surrounding context). This is the end of the current scope. *)
     ~down_to_up:
       (after_downwards_traversal_of_non_recursive_let_cont_handler ~down_to_up
          ~rebuild_body cont)
 
-let simplify_non_recursive_let_cont_stage1 ~simplify_expr dacc cont cont_handler
-    ~body ~down_to_up params ~handler =
+let simplify_non_recursive_let_cont_stage1 ~simplify_expr dacc cont
+    ~is_exn_handler ~body ~down_to_up params ~handler =
   let denv = DA.denv dacc in
   let denv_for_toplevel_check = denv in
   let unit_toplevel_exn_cont = DE.unit_toplevel_exn_continuation denv in
+  let inlining_state_at_let_cont = DE.get_inlining_state denv in
+  let inlined_debuginfo_at_let_cont = DE.get_inlined_debuginfo denv in
+  let history_tracker_at_let_cont = DE.inlining_history_tracker denv in
+  let scope = DE.get_continuation_scope denv in
   let dacc, prior_lifted_constants =
     (* We clear the lifted constants accumulator so that we can easily obtain,
        below, any constants that are generated during the simplification of the
@@ -691,21 +695,16 @@ let simplify_non_recursive_let_cont_stage1 ~simplify_expr dacc cont cont_handler
        later. *)
     DA.get_and_clear_lifted_constants dacc
   in
-  let inlining_state_at_let_cont = DE.get_inlining_state (DA.denv dacc) in
-  let inlined_debuginfo_at_let_cont = DE.get_inlined_debuginfo (DA.denv dacc) in
-  let history_tracker_at_let_cont =
-    DE.inlining_history_tracker (DA.denv dacc)
-  in
-  let scope = DE.get_continuation_scope (DA.denv dacc) in
-  let is_exn_handler = CH.is_exn_handler cont_handler in
   let denv_before_body =
     (* We add the parameters assuming that none of them are at toplevel. When we
        do the toplevel calculation before simplifying the handler, we will mark
        any of the parameters that are in fact at toplevel as such. *)
-    DE.add_parameters_with_unknown_types (DA.denv dacc) params
-      ~at_unit_toplevel:false
+    DE.add_parameters_with_unknown_types denv params ~at_unit_toplevel:false
   in
   let dacc_for_body =
+    (* This increment is required so that we can extract the portion of the
+       environment(s) arising between the fork point and the use(s) of the
+       continuation. *)
     DE.increment_continuation_scope denv_before_body |> DA.with_denv dacc
   in
   let prior_cont_uses_env = DA.continuation_uses_env dacc_for_body in
@@ -727,10 +726,11 @@ let simplify_non_recursive_let_cont_stage1 ~simplify_expr dacc cont cont_handler
 let simplify_non_recursive_let_cont_stage0 ~simplify_expr dacc non_rec
     ~down_to_up cont ~body =
   let cont_handler = Non_recursive_let_cont_handler.handler non_rec in
+  let is_exn_handler = CH.is_exn_handler cont_handler in
   CH.pattern_match cont_handler
     ~f:
       (simplify_non_recursive_let_cont_stage1 ~simplify_expr dacc cont
-         cont_handler ~body ~down_to_up)
+         ~is_exn_handler ~body ~down_to_up)
 
 let simplify_non_recursive_let_cont ~simplify_expr dacc non_rec ~down_to_up =
   Non_recursive_let_cont_handler.pattern_match non_rec

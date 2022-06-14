@@ -39,9 +39,8 @@ let print_ea_used ppf t =
          Format.fprintf ppf "%a%a" EA.print ea print_used used))
     t
 
-let [@ocamlformat "disable"] print ppf { original_params; used_params; used_extra_params;
-                extra_args;
-              } =
+let [@ocamlformat "disable"] print ppf
+  { original_params; used_params; used_extra_params; extra_args; } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(original_params@ (%a))@]@ \
       @[<hov 1>(used_params@ %a)@]@ \

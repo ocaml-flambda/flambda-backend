@@ -21,3 +21,5 @@ type 'a t =
   | Invalid
 
 val print : (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a t -> unit
+
+val map : 'a t -> f:('a -> 'b) -> 'b t

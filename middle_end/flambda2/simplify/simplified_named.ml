@@ -43,8 +43,8 @@ let create (named : Named.t) =
       Prim (prim, dbg), Cost_metrics.from_size (Code_size.prim prim)
     | Set_of_closures _ ->
       Misc.fatal_errorf
-        "Cannot use [Simplified_named.reachable] on [Set_of_closures];@ use \
-         [reachable_with_known_free_names] instead:@ %a"
+        "Cannot use [Simplified_named.create] on [Set_of_closures];@ use \
+         [create_with_known_free_names] instead:@ %a"
         Named.print named
     | Static_consts _ ->
       Misc.fatal_errorf
@@ -53,7 +53,6 @@ let create (named : Named.t) =
         Named.print named
     | Rec_info rec_info_expr -> Rec_info rec_info_expr, Cost_metrics.zero
   in
-
   { named = simplified_named;
     cost_metrics;
     free_names = Named.free_names named

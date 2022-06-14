@@ -12,3 +12,9 @@ Poison / loss of information after unboxing variants on second round
 (also relates to storing Typing_env_extensions in terms)
 
 Mark to check JS example with value slots
+
+Invariant checks need fixing - maybe a CI job somehow
+
+check_cse_environment in simplify_switch expr is a problem
+
+Rename "lifted constant"

@@ -96,38 +96,27 @@ let simplify_named0 dacc (bound_pattern : Bound_pattern.t) (named : Named.t)
     match simplified_named with
     | Invalid -> Invalid
     | Ok simplified_named ->
-      if try_reify
+      if not try_reify
       then
-        let kind = P.result_kind' prim in
-        (* CR mshinwell: Add check along the lines of: types are unknown
-           whenever [not (P.With_fixed_value.eligible prim)] holds. *)
+        Ok
+          (Simplify_named_result.have_simplified_to_single_term dacc
+             bound_pattern simplified_named ~original_defining_expr:named)
+      else
         (* Primitives with generative effects correspond to allocations. Without
            this check, we could end up lifting definitions that have a type that
            looks like an allocation but that are instead a projection from a
            bigger structure. *)
         let allow_lifting =
-          (* CR mshinwell: We probably shouldn't lift if the let binding is
-             going to be deleted, as lifting may cause [Dominator]-scoped
-             bindings to be inserted, that cannot be deleted. However this
-             situation probably doesn't arise that much, and won't be an issue
-             once we can lift [Dominator]-scoped bindings. *)
           P.only_generative_effects prim
           && Name_mode.is_normal (Bound_var.name_mode bound_var)
         in
         let defining_expr, dacc =
           Reification.try_to_reify dacc dbg simplified_named ~bound_to:bound_var
-            ~kind_of_bound_to:kind ~allow_lifting
+            ~kind_of_bound_to:(P.result_kind' prim) ~allow_lifting
         in
-        match defining_expr with
-        | Invalid -> Invalid
-        | Ok defining_expr ->
-          Ok
-            (Simplify_named_result.have_simplified_to_single_term dacc
-               bound_pattern defining_expr ~original_defining_expr:named)
-      else
-        Ok
-          (Simplify_named_result.have_simplified_to_single_term dacc
-             bound_pattern simplified_named ~original_defining_expr:named))
+        Or_invalid.map defining_expr ~f:(fun defining_expr ->
+            Simplify_named_result.have_simplified_to_single_term dacc
+              bound_pattern defining_expr ~original_defining_expr:named))
   | Set_of_closures set_of_closures ->
     Ok
       (Simplify_set_of_closures.simplify_non_lifted_set_of_closures dacc
