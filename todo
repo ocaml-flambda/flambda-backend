@@ -18,3 +18,25 @@ Invariant checks need fixing - maybe a CI job somehow
 check_cse_environment in simplify_switch expr is a problem
 
 Rename "lifted constant"
+
+Maybe we can remove prior_cont_uses stuff in simplify_let_cont
+
+Exceptions to jumps: adding to the backtrace buffer, and a less
+restrictive algorithm
+
+Might be a problem with the let-symbol for module initialisers
+ending up not at toplevel?
+
+Already seems like a problem if Simplify is being re-run as
+a continuation containing a let symbol could be inlined into
+a non-toplevel position.
+
+Continuation specialisation at toplevel needs care not to run into
+trouble with being "at toplevel"
+
+Should we relax the toplevel criterion?
+Problem in that join assumes all symbols named on the branches
+are present in the joined env
+
+Exception handlers that are converted into jump targets aren't inlined.
+Presumably the inlining decision is taken too early
