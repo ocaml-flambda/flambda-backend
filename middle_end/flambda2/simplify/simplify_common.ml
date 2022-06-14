@@ -91,14 +91,14 @@ let simplify_projection dacc ~original_term ~deconstructing ~shape ~result_var
   match T.meet_shape env deconstructing ~shape ~result_var ~result_kind with
   | Bottom ->
     let dacc = DA.add_variable dacc result_var (T.bottom result_kind) in
-    Simplified_named.invalid (), dacc
+    Simplify_primitive_result.create_invalid dacc
   | Ok env_extension ->
     let dacc =
       DA.map_denv dacc ~f:(fun denv ->
           DE.define_variable_and_extend_typing_environment denv result_var
             result_kind env_extension)
     in
-    Simplified_named.reachable original_term ~try_reify:true, dacc
+    Simplify_primitive_result.create original_term ~try_reify:true dacc
 
 let update_exn_continuation_extra_args uacc ~exn_cont_use_id apply =
   let exn_cont_rewrite =

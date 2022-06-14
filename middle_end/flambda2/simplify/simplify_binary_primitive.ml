@@ -75,7 +75,7 @@ module Binary_arith_like (N : Binary_arith_like_sig) : sig
     arg2:Simple.t ->
     arg2_ty:Flambda2_types.t ->
     result_var:Bound_var.t ->
-    Simplified_named.t * DA.t
+    Simplify_primitive_result.t
 end = struct
   module Possible_result = struct
     type t =
@@ -131,11 +131,11 @@ end = struct
     let kind = N.result_kind in
     let[@inline always] result_unknown () =
       let dacc = DA.add_variable dacc result_var (N.unknown op) in
-      Simplified_named.reachable original_term ~try_reify:false, dacc
+      Simplify_primitive_result.create original_term ~try_reify:false dacc
     in
     let[@inline always] result_invalid () =
       let dacc = DA.add_variable dacc result_var (T.bottom kind) in
-      Simplified_named.invalid (), dacc
+      Simplify_primitive_result.create_invalid dacc
     in
     let check_possible_results ~possible_results =
       if PR.Set.is_empty possible_results
@@ -167,10 +167,10 @@ end = struct
         let dacc = DA.add_variable dacc result_var ty in
         match T.get_alias_exn ty with
         | exception Not_found ->
-          Simplified_named.reachable named ~try_reify:false, dacc
+          Simplify_primitive_result.create named ~try_reify:false dacc
         | simple ->
           let named = Named.create_simple simple in
-          Simplified_named.reachable named ~try_reify:false, dacc
+          Simplify_primitive_result.create named ~try_reify:false dacc
     in
     let only_one_side_known op nums ~folder ~other_side =
       let possible_results =
@@ -983,19 +983,19 @@ let[@inline always] simplify_immutable_block_load0
   let[@inline always] unchanged () =
     let ty = T.unknown result_kind in
     let dacc = DA.add_variable dacc result_var ty in
-    Simplified_named.reachable original_term ~try_reify:false, dacc
+    Simplify_primitive_result.create original_term ~try_reify:false dacc
   in
   let[@inline always] invalid () =
     let ty = T.bottom result_kind in
     let dacc = DA.add_variable dacc result_var ty in
-    Simplified_named.invalid (), dacc
+    Simplify_primitive_result.create_invalid dacc
   in
   let exactly simple =
     let dacc =
       DA.add_variable dacc result_var (T.alias_type_of result_kind simple)
     in
     let named = Named.create_simple simple in
-    Simplified_named.reachable named ~try_reify:false, dacc
+    Simplify_primitive_result.create named ~try_reify:false dacc
   in
   let typing_env = DA.typing_env dacc in
   match T.prove_equals_single_tagged_immediate typing_env index_ty with
@@ -1054,15 +1054,17 @@ let[@inline always] simplify_immutable_block_load0
 
 let simplify_immutable_block_load access_kind ~min_name_mode dacc ~original_term
     dbg ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var =
-  let ((reachable, dacc) as reachable_and_dacc) =
+  let result =
     simplify_immutable_block_load0 access_kind ~min_name_mode dacc
       ~original_term dbg ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var
   in
   let dacc' =
-    record_any_symbol_projection_for_block_load dacc ~result_var ~block:arg1
-      ~index:arg2
+    record_any_symbol_projection_for_block_load result.dacc ~result_var
+      ~block:arg1 ~index:arg2
   in
-  if dacc == dacc' then reachable_and_dacc else reachable, dacc'
+  if dacc == dacc'
+  then result
+  else Simplify_primitive_result.with_dacc result dacc'
 
 let simplify_phys_equal (op : P.equality_comparison) (kind : K.t) dacc
     ~original_term dbg ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var =
@@ -1071,10 +1073,9 @@ let simplify_phys_equal (op : P.equality_comparison) (kind : K.t) dacc
       DA.add_variable dacc result_var
         (T.this_naked_immediate (Targetint_31_63.bool bool))
     in
-    ( Simplified_named.reachable
-        (Named.create_simple (Simple.const_bool bool))
-        ~try_reify:false,
-      dacc )
+    Simplify_primitive_result.create
+      (Named.create_simple (Simple.const_bool bool))
+      ~try_reify:false dacc
   in
   if Simple.equal arg1 arg2
   then match op with Eq -> const true | Neq -> const false
@@ -1109,7 +1110,7 @@ let simplify_phys_equal (op : P.equality_comparison) (kind : K.t) dacc
             DA.add_variable dacc result_var
               (T.these_naked_immediates Targetint_31_63.all_bools)
           in
-          Simplified_named.reachable original_term ~try_reify:false, dacc))
+          Simplify_primitive_result.create original_term ~try_reify:false dacc))
     | Naked_number Naked_immediate -> (
       let typing_env = DA.typing_env dacc in
       let proof1 = T.prove_naked_immediates typing_env arg1_ty in
@@ -1123,7 +1124,7 @@ let simplify_phys_equal (op : P.equality_comparison) (kind : K.t) dacc
           DA.add_variable dacc result_var
             (T.these_naked_immediates Targetint_31_63.all_bools)
         in
-        Simplified_named.reachable original_term ~try_reify:false, dacc)
+        Simplify_primitive_result.create original_term ~try_reify:false dacc)
     | Naked_number Naked_float ->
       (* CR mshinwell: Should this case be statically disallowed in the type, to
          force people to use [Float_comp]? *)
@@ -1155,7 +1156,7 @@ let simplify_array_load (array_kind : P.Array_kind.t) mutability dacc
   | Bottom ->
     let ty = T.bottom result_kind in
     let dacc = DA.add_variable dacc result_var ty in
-    Simplified_named.invalid (), dacc
+    Simplify_primitive_result.create_invalid dacc
   | Ok array_kind ->
     let result_kind' =
       P.Array_kind.element_kind array_kind |> K.With_subkind.kind
@@ -1165,7 +1166,7 @@ let simplify_array_load (array_kind : P.Array_kind.t) mutability dacc
     let named = Named.create_prim prim dbg in
     let ty = T.unknown (P.result_kind' prim) in
     let dacc = DA.add_variable dacc result_var ty in
-    Simplified_named.reachable named ~try_reify:false, dacc
+    Simplify_primitive_result.create named ~try_reify:false dacc
 
 let simplify_binary_primitive dacc original_prim (prim : P.binary_primitive)
     ~arg1 ~arg1_ty ~arg2 ~arg2_ty dbg ~result_var =
@@ -1216,7 +1217,7 @@ let simplify_binary_primitive dacc original_prim (prim : P.binary_primitive)
         let named = Named.create_prim prim dbg in
         let ty = T.unknown (P.result_kind' prim) in
         let dacc = DA.add_variable dacc result_var ty in
-        Simplified_named.reachable named ~try_reify:false, dacc
+        Simplify_primitive_result.create named ~try_reify:false dacc
     | String_or_bigstring_load _ | Bigarray_load _ ->
       fun dacc ~original_term:_ dbg ~arg1 ~arg1_ty:_ ~arg2 ~arg2_ty:_
           ~result_var ->
@@ -1224,9 +1225,6 @@ let simplify_binary_primitive dacc original_prim (prim : P.binary_primitive)
         let named = Named.create_prim prim dbg in
         let ty = T.unknown (P.result_kind' prim) in
         let dacc = DA.add_variable dacc result_var ty in
-        Simplified_named.reachable named ~try_reify:false, dacc
+        Simplify_primitive_result.create named ~try_reify:false dacc
   in
-  let reachable, dacc =
-    simplifier dacc ~original_term dbg ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var
-  in
-  reachable, dacc
+  simplifier dacc ~original_term dbg ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var

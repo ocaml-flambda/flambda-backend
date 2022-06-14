@@ -284,26 +284,10 @@ let make_new_let_bindings uacc
            Simplify_named_result.binding_to_place)
        ->
       match (simplified_defining_expr : Simplified_named.t) with
-      | Invalid ->
-        (* XXX this case should be made statically impossible, but maybe we can
-           remove the non-reify/reify split below at the same time *)
-        let uacc =
-          UA.with_name_occurrences uacc ~name_occurrences:Name_occurrences.empty
-          |> UA.notify_added ~code_size:Code_size.invalid
-        in
-        ( RE.create_invalid
-            (Defining_expr_of_let (let_bound, original_defining_expr)),
-          uacc )
-      | Reachable
-          { named = defining_expr;
-            free_names = free_names_of_defining_expr;
-            cost_metrics = cost_metrics_of_defining_expr
-          }
-      | Reachable_try_reify
-          { named = defining_expr;
-            free_names = free_names_of_defining_expr;
-            cost_metrics = cost_metrics_of_defining_expr
-          } ->
+      | { named = defining_expr;
+          free_names = free_names_of_defining_expr;
+          cost_metrics = cost_metrics_of_defining_expr
+        } ->
         let defining_expr = Simplified_named.to_named defining_expr in
         let expr, uacc, creation_result =
           match (let_bound : Bound_pattern.t) with

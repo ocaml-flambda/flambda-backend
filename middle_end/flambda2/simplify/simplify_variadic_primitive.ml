@@ -60,7 +60,7 @@ let simplify_make_block_of_values dacc prim dbg tag ~shape
   (* CR mshinwell: here and in the next function, should we be adding CSE
      equations, like we do for unboxing boxed numbers? (see
      Simplify_unary_primitive) *)
-  Simplified_named.reachable term ~try_reify:true, dacc
+  Simplify_primitive_result.create term ~try_reify:true dacc
 
 let simplify_make_block_of_floats dacc _prim dbg
     ~(mutable_or_immutable : Mutability.t) alloc_mode args_with_tys ~result_var
@@ -92,7 +92,7 @@ let simplify_make_block_of_floats dacc _prim dbg
     | Mutable -> T.any_value
   in
   let dacc = DA.add_variable dacc result_var ty in
-  Simplified_named.reachable term ~try_reify:true, dacc
+  Simplify_primitive_result.create term ~try_reify:true dacc
 
 let simplify_make_array dacc dbg (array_kind : P.Array_kind.t)
     ~mutable_or_immutable alloc_mode args_with_tys ~result_var =
@@ -100,7 +100,7 @@ let simplify_make_array dacc dbg (array_kind : P.Array_kind.t)
   let invalid () =
     let ty = T.bottom K.value in
     let dacc = DA.add_variable dacc result_var ty in
-    Simplified_named.invalid (), dacc
+    Simplify_primitive_result.create_invalid dacc
   in
   let length =
     match Targetint_31_63.Imm.of_int_option (List.length args) with
@@ -146,7 +146,7 @@ let simplify_make_array dacc dbg (array_kind : P.Array_kind.t)
           DE.add_variable_and_extend_typing_environment denv result_var ty
             env_extension)
     in
-    Simplified_named.reachable named ~try_reify:true, dacc
+    Simplify_primitive_result.create named ~try_reify:true dacc
 
 let simplify_variadic_primitive dacc _original_prim
     (prim : P.variadic_primitive) ~args_with_tys dbg ~result_var =

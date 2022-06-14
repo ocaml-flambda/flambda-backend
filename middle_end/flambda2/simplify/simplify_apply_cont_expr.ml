@@ -48,8 +48,7 @@ let inline_linearly_used_continuation uacc ~create_apply_cont ~params:params'
           in
           let named = Named.create_simple arg in
           { Simplify_named_result.let_bound;
-            simplified_defining_expr =
-              Simplified_named.reachable named ~try_reify:false;
+            simplified_defining_expr = Simplified_named.create named;
             original_defining_expr = named
           })
     in

@@ -29,19 +29,12 @@ let to_named = function
   | Rec_info rec_info_expr -> Named.create_rec_info rec_info_expr
 
 type t =
-  | Reachable of
-      { named : simplified_named;
-        cost_metrics : Cost_metrics.t;
-        free_names : Name_occurrences.t
-      }
-  | Reachable_try_reify of
-      { named : simplified_named;
-        cost_metrics : Cost_metrics.t;
-        free_names : Name_occurrences.t
-      }
-  | Invalid
+  { named : simplified_named;
+    cost_metrics : Cost_metrics.t;
+    free_names : Name_occurrences.t
+  }
 
-let reachable (named : Named.t) ~try_reify =
+let create (named : Named.t) =
   let (simplified_named : simplified_named), cost_metrics =
     match named with
     | Simple simple ->
@@ -60,22 +53,14 @@ let reachable (named : Named.t) ~try_reify =
         Named.print named
     | Rec_info rec_info_expr -> Rec_info rec_info_expr, Cost_metrics.zero
   in
-  if try_reify
-  then
-    Reachable_try_reify
-      { named = simplified_named;
-        cost_metrics;
-        free_names = Named.free_names named
-      }
-  else
-    Reachable
-      { named = simplified_named;
-        cost_metrics;
-        free_names = Named.free_names named
-      }
 
-let reachable_with_known_free_names ~find_code_characteristics (named : Named.t)
-    ~free_names ~try_reify =
+  { named = simplified_named;
+    cost_metrics;
+    free_names = Named.free_names named
+  }
+
+let create_with_known_free_names ~find_code_characteristics (named : Named.t)
+    ~free_names =
   let (simplified_named : simplified_named), cost_metrics =
     match named with
     | Simple simple ->
@@ -92,30 +77,10 @@ let reachable_with_known_free_names ~find_code_characteristics (named : Named.t)
         Named.print named
     | Rec_info rec_info_expr -> Rec_info rec_info_expr, Cost_metrics.zero
   in
-  if try_reify
-  then
-    Reachable_try_reify { named = simplified_named; cost_metrics; free_names }
-  else Reachable { named = simplified_named; cost_metrics; free_names }
+  { named = simplified_named; cost_metrics; free_names }
 
-let invalid () = Invalid
+let print ppf { named; _ } = Named.print ppf (to_named named)
 
-let print ppf t =
-  match t with
-  | Reachable { named; _ } | Reachable_try_reify { named; _ } ->
-    Named.print ppf (to_named named)
-  | Invalid -> Format.pp_print_string ppf "Invalid"
+let cost_metrics { cost_metrics; _ } = cost_metrics
 
-let is_invalid t =
-  match t with Reachable _ | Reachable_try_reify _ -> false | Invalid -> true
-
-let cost_metrics t =
-  match t with
-  | Reachable { cost_metrics; _ } | Reachable_try_reify { cost_metrics; _ } ->
-    cost_metrics
-  | Invalid -> Cost_metrics.zero
-
-let update_cost_metrics cost_metrics t =
-  match t with
-  | Reachable r -> Reachable { r with cost_metrics }
-  | Reachable_try_reify r -> Reachable_try_reify { r with cost_metrics }
-  | Invalid -> assert false
+let update_cost_metrics cost_metrics t = { t with cost_metrics }

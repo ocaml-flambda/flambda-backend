@@ -2,10 +2,11 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*      Pierre Chambart & Guillaume Bury, OCamlPro                        *)
+(*                       Pierre Chambart, OCamlPro                        *)
+(*           Mark Shinwell and Leo White, Jane Street Europe              *)
 (*                                                                        *)
-(*   Copyright 2013--2019 OCamlPro SAS                                    *)
-(*   Copyright 2014--2019 Jane Street Group LLC                           *)
+(*   Copyright 2018 OCamlPro SAS                                          *)
+(*   Copyright 2018 Jane Street Group LLC                                 *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -13,12 +14,13 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Simplification of primitives taking no argument. *)
+[@@@ocaml.warning "+a-4-30-40-41-42"]
 
-val simplify_nullary_primitive :
-  Downwards_acc.t ->
-  Flambda_primitive.t ->
-  Flambda_primitive.nullary_primitive ->
-  Debuginfo.t ->
-  result_var:Bound_var.t ->
-  Simplify_primitive_result.t
+type 'a t =
+  | Ok of 'a
+  | Invalid
+
+let print f ppf t =
+  match t with
+  | Ok contents -> Format.fprintf ppf "@[(Ok %a)@]" f contents
+  | Invalid -> Format.pp_print_string ppf "Invalid"

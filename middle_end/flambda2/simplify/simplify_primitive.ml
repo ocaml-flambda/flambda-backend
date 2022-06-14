@@ -17,7 +17,7 @@
 open! Simplify_import
 
 type cse_result =
-  | Applied of (Simplified_named.t * DA.t)
+  | Applied of Simplify_primitive_result.t
   | Not_applied of DA.t
 
 let apply_cse dacc ~original_prim =
@@ -47,16 +47,20 @@ let try_cse dacc ~original_prim ~min_name_mode ~result_var : cse_result =
       let named = Named.create_simple replace_with in
       let ty = T.alias_type_of (P.result_kind' original_prim) replace_with in
       let dacc = DA.add_variable dacc result_var ty in
-      let simplified_named =
+      let result =
         let cost_metrics =
           Cost_metrics.notify_removed
             ~operation:(Removed_operations.prim original_prim)
             Cost_metrics.zero
         in
-        Simplified_named.reachable named ~try_reify:true
-        |> Simplified_named.update_cost_metrics cost_metrics
+        let simplified_named =
+          Simplified_named.create named
+          |> Simplified_named.update_cost_metrics cost_metrics
+        in
+        Simplify_primitive_result.create_simplified simplified_named
+          ~try_reify:true dacc
       in
-      Applied (simplified_named, dacc)
+      Applied result
     | None ->
       let dacc =
         match P.Eligible_for_cse.create original_prim with

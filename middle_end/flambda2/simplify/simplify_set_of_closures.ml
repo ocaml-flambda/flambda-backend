@@ -1023,9 +1023,9 @@ let simplify_non_lifted_set_of_closures0 dacc bound_vars ~closure_bound_vars
               (Code_metadata.params_arity code_metadata)
         }
     in
-    Simplified_named.reachable_with_known_free_names ~find_code_characteristics
+    Simplified_named.create_with_known_free_names ~find_code_characteristics
       (Named.create_set_of_closures set_of_closures)
-      ~free_names:(Named.free_names named) ~try_reify:false
+      ~free_names:(Named.free_names named)
   in
   Simplify_named_result.have_simplified_to_single_term dacc bound_vars
     defining_expr

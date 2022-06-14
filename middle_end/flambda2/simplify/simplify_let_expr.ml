@@ -178,9 +178,7 @@ let record_lifted_constant_for_data_flow data_flow lifted_constant =
 let record_new_defining_expression_binding_for_data_flow dacc data_flow
     (binding : Simplify_named_result.binding_to_place) =
   match binding.simplified_defining_expr with
-  | Invalid -> data_flow
-  | Reachable { free_names; named; cost_metrics = _ }
-  | Reachable_try_reify { free_names; named; cost_metrics = _ } ->
+  | { free_names; named; cost_metrics = _ } ->
     let can_be_removed =
       match named with
       | Simple _ | Set_of_closures _ | Rec_info _ -> true
@@ -232,14 +230,14 @@ let simplify_let0 ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up
      contain any extraneous data for e.g. lifted constants that will never be
      placed, since this can lead to errors when loading .cmx files or similar.
      To avoid this we don't traverse [body]. *)
-  if Simplify_named_result.is_invalid simplify_named_result
-  then
+  match simplify_named_result with
+  | Invalid ->
     down_to_up original_dacc ~rebuild:(fun uacc ~after_rebuild ->
         let uacc = UA.notify_removed ~operation:removed_operations uacc in
         EB.rebuild_invalid uacc
           (Defining_expr_of_let (bound_pattern, defining_expr))
           ~after_rebuild)
-  else
+  | Ok simplify_named_result ->
     let dacc = Simplify_named_result.dacc simplify_named_result in
     (* First accumulate variable, symbol and code ID usage information. *)
     (* CR-someday gbury/pchambart : in the case of an invalid, we currently

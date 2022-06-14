@@ -78,13 +78,7 @@ let bindings_to_place_in_any_order t =
         let let_bound = Bound_pattern.singleton bound_var in
         let simplified_defining_expr =
           Simple.symbol symbol |> Flambda.Named.create_simple
-          |> Simplified_named.reachable ~try_reify:false
+          |> Simplified_named.create
         in
         { let_bound; simplified_defining_expr; original_defining_expr }
         :: bindings)
-
-let is_invalid t =
-  match t.descr with
-  | Zero_terms | Multiple_bindings_to_symbols _ -> false
-  | Single_term { simplified_defining_expr; _ } ->
-    Simplified_named.is_invalid simplified_defining_expr
