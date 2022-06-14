@@ -813,7 +813,9 @@ let simplify_set_of_closures0 outer_dacc context set_of_closures
           | None -> code
           | Some new_code -> (code_id, new_code) :: code
         in
-        let fun_types = Function_slot.Map.add function_slot function_type fun_types in
+        let fun_types =
+          Function_slot.Map.add function_slot function_type fun_types
+        in
         result_function_decls_in_set, code, fun_types, outer_dacc)
       all_function_decls_in_set
       ([], [], Function_slot.Map.empty, outer_dacc)
@@ -1156,8 +1158,7 @@ let simplify_non_lifted_set_of_closures dacc (bound_vars : Bound_pattern.t)
       set_of_closures ~value_slots ~value_slot_types
 
 let simplify_lifted_set_of_closures0 dacc context ~closure_symbols
-    ~closure_bound_names_inside ~value_slots ~value_slot_types
-    set_of_closures =
+    ~closure_bound_names_inside ~value_slots ~value_slot_types set_of_closures =
   let closure_bound_names =
     Function_slot.Lmap.map Bound_name.create_symbol closure_symbols
     |> Function_slot.Lmap.bindings |> Function_slot.Map.of_list
