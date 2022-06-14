@@ -165,6 +165,24 @@ let compute_handler_env ?unknown_if_defined_at_or_later_than uses
       LCS.add_to_denv ~maybe_already_defined:() use_env
         consts_lifted_during_body
     in
+    (* The use environment might have a deeper inlining depth increment than the
+       fork environment. (e.g. where an [Apply] was inlined, revealing the
+       linear inlinable use of the continuation). We need to make sure the
+       handler is simplified using the depth from the fork environment. Likewise
+       for the inlining history tracker and debuginfo. *)
+    let handler_env =
+      DE.set_inlining_state handler_env
+        (DE.get_inlining_state env_at_fork_plus_params)
+    in
+    let handler_env =
+      DE.set_inlining_history_tracker
+        (DE.inlining_history_tracker env_at_fork_plus_params)
+        handler_env
+    in
+    let handler_env =
+      DE.set_inlined_debuginfo handler_env
+        (DE.get_inlined_debuginfo env_at_fork_plus_params)
+    in
     { handler_env;
       arg_types_by_use_id;
       extra_params_and_args = Continuation_extra_params_and_args.empty;
