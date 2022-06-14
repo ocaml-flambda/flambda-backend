@@ -224,7 +224,18 @@ let emit_named_text_section func_name =
 (* Name of current function *)
 let function_name = ref ""
 
+(* Keep current block label for -basic-block-sections to get back to it
+   after emitting data. *)
+let current_basic_block_section = ref ""
+
 let emit_Llabel fallthrough lbl =
+  if !Flambda_backend_flags.basic_block_sections then begin
+     let name = Printf.sprintf "%s_L%d" !function_name lbl in
+     current_basic_block_section := name;
+     cfi_endproc ();
+     emit_named_text_section name;
+     cfi_startproc ()
+  end;
   if not fallthrough && !fastcode_flag then D.align ~data:false 4;
   def_label lbl
 
@@ -1246,7 +1257,10 @@ let emit_instr fallthrough i =
         D.long (ConstSub (ConstLabel(emit_label jumptbl.(i)),
                          ConstLabel lbl))
       done;
-      emit_named_text_section !function_name
+      if (!Flambda_backend_flags.basic_block_sections) then begin
+        emit_named_text_section !current_basic_block_section
+      end else
+        emit_named_text_section !function_name
   | Lentertrap ->
       if fp then begin
         let delta = frame_size () - 16 (* retaddr + rbp *) in
@@ -1306,6 +1320,7 @@ let emit_function_type_and_size fun_name =
   match system with
   | S_gnu | S_linux ->
     D.type_ (emit_symbol fun_name) "@function";
+    if not !Flambda_backend_flags.basic_block_sections then
     D.size (emit_symbol fun_name)
       (ConstSub (
          ConstThis,
@@ -1323,6 +1338,7 @@ let fundecl fundecl =
   local_realloc_sites := [];
   bound_error_sites := [];
   bound_error_call := 0;
+  current_basic_block_section := "";
   for i = 0 to Proc.num_register_classes - 1 do
     num_stack_slots.(i) <- fundecl.fun_num_stack_slots.(i);
   done;
