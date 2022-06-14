@@ -101,15 +101,23 @@ let linearize_terminator cfg (terminator : Cfg.terminator Cfg.instruction)
   (* If one of the successors is a fallthrough label, do not emit a jump for it.
      Otherwise, the last jump is unconditional. *)
   let branch_or_fallthrough d lbl =
-    if Label.equal next.label lbl then d else d @ [L.Lbranch lbl]
+    if !Flambda_backend_flags.basic_block_sections
+       || not (Label.equal next.label lbl)
+    then d @ [L.Lbranch lbl]
+    else d
+  in
+  let branch_or_fallthrough_next =
+    if !Flambda_backend_flags.basic_block_sections
+    then [L.Lbranch next.label]
+    else []
   in
   let single d = [d], None in
   let emit_bool (c1, l1) (c2, l2) =
     (* c1 must be the inverse of c2 *)
     match Label.equal l1 next.label, Label.equal l2 next.label with
-    | true, true -> []
-    | false, true -> [L.Lcondbranch (c1, l1)]
-    | true, false -> [L.Lcondbranch (c2, l2)]
+    | true, true -> branch_or_fallthrough_next
+    | false, true -> [L.Lcondbranch (c1, l1)] @ branch_or_fallthrough_next
+    | true, false -> [L.Lcondbranch (c2, l2)] @ branch_or_fallthrough_next
     | false, false ->
       if Label.equal l1 l2
       then [L.Lbranch l1]
@@ -117,11 +125,11 @@ let linearize_terminator cfg (terminator : Cfg.terminator Cfg.instruction)
   in
   let desc_list, tailrec_label =
     match terminator.desc with
-    | Return -> single L.Lreturn
-    | Raise kind -> single (L.Lraise kind)
-    | Tailcall_func Indirect -> single (L.Lop Itailcall_ind)
+    | Return -> [L.Lreturn], None
+    | Raise kind -> [L.Lraise kind], None
+    | Tailcall_func Indirect -> [L.Lop Itailcall_ind], None
     | Tailcall_func (Direct { func_symbol }) ->
-      single (L.Lop (Itailcall_imm { func = func_symbol }))
+      [L.Lop (Itailcall_imm { func = func_symbol })], None
     | Tailcall_self { destination } ->
       [L.Lop (Itailcall_imm { func = Cfg.fun_name cfg })], Some destination
     | Call_no_return { func_symbol; alloc; ty_args; ty_res } ->
@@ -237,7 +245,12 @@ let linearize_terminator cfg (terminator : Cfg.terminator Cfg.instruction)
         if Label.Set.cardinal cond_successor_labels = 2 && can_emit_Lcondbranch3
         then
           (* generates one cmp instruction for all conditional jumps here *)
-          let find l = if Label.equal next.label l then None else Some l in
+          let find l =
+            if (not !Flambda_backend_flags.basic_block_sections)
+               && Label.equal next.label l
+            then None
+            else Some l
+          in
           [L.Lcondbranch3 (find lt, find eq, find gt)], None
         else
           let init = branch_or_fallthrough [] last in
@@ -346,9 +359,10 @@ let run cfg_with_layout =
         let prev = layout.(i - 1) in
         let prev_block = Label.Tbl.find cfg.blocks prev in
         let body =
-          if not (need_starting_label cfg_with_layout block ~prev_block)
-          then body
-          else to_linear_instr (Llabel block.start) ~next:body
+          if !Flambda_backend_flags.basic_block_sections
+             || need_starting_label cfg_with_layout block ~prev_block
+          then to_linear_instr (Llabel block.start) ~next:body
+          else body
         in
         adjust_stack_offset body block ~prev_block
     in
