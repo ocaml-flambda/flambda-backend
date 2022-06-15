@@ -488,7 +488,9 @@ let extract_accumulators_from_function outer_dacc ~dacc_after_body
     UA.shareable_constants uacc_after_upwards_traversal
   in
   let slot_offsets = DA.slot_offsets dacc_after_body in
-  let code_age_relation = TE.code_age_relation (DA.typing_env dacc_after_body) in
+  let code_age_relation =
+    TE.code_age_relation (DA.typing_env dacc_after_body)
+  in
   let outer_dacc =
     DA.add_to_lifted_constant_accumulator ~also_add_to_env:() outer_dacc
       lifted_consts_this_function
