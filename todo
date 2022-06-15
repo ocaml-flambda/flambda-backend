@@ -72,3 +72,5 @@ Maybe try to reduce the number of different code paths for nonrecursive
 and recursive continuations in Simplify_let_cont
 
 Can we make switch simplification easier?
+
+Vincent to coordinate comment-writing about slots
