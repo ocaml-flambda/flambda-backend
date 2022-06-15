@@ -389,7 +389,8 @@ module C = Context_for_multiple_sets_of_closures
 
 let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_depth
     function_slot_opt ~closure_bound_names_inside_function ~inlining_arguments
-    ~absolute_history =
+    ~absolute_history code_id ~return_continuation ~exn_continuation
+    ~return_cont_params =
   let dacc =
     DA.map_denv (C.dacc_inside_functions context) ~f:(fun denv ->
         let denv = DE.add_parameters_with_unknown_types denv params in
@@ -402,6 +403,8 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_depth
         let denv =
           match function_slot_opt with
           | None ->
+            (* This happens in the stub case, where we are only simplifying
+               code, not a set of closures. *)
             DE.add_variable denv
               (Bound_var.create my_closure NM.normal)
               (T.unknown K.value)
@@ -431,12 +434,18 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_depth
           LCS.add_to_denv ~maybe_already_defined:() denv
             (DA.get_lifted_constants outer_dacc)
         in
-        denv)
+        let denv =
+          DE.enter_closure code_id ~return_continuation ~exn_continuation denv
+        in
+        DE.add_parameters_with_unknown_types denv return_cont_params)
   in
   let code_ids_to_remember = DA.code_ids_to_remember outer_dacc in
   let used_value_slots = DA.used_value_slots outer_dacc in
   let shareable_constants = DA.shareable_constants outer_dacc in
   let slot_offsets = DA.slot_offsets outer_dacc in
+  (* CR vlaviron: maybe DA could be restructured so that it can keep track of
+     the global values going around the loop here, so we don't forget to add one
+     of these lines below... *)
   dacc
   |> DA.with_code_ids_to_remember ~code_ids_to_remember
   |> DA.with_used_value_slots ~used_value_slots
@@ -539,19 +548,13 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
         let dacc =
           dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_depth
             function_slot_opt ~closure_bound_names_inside_function
-            ~inlining_arguments ~absolute_history
+            ~inlining_arguments ~absolute_history code_id ~return_continuation
+            ~exn_continuation ~return_cont_params
         in
         if not (DA.no_lifted_constants dacc)
         then
           Misc.fatal_errorf "Did not expect lifted constants in [dacc]:@ %a"
             DA.print dacc;
-        let dacc =
-          DA.map_denv dacc ~f:(fun denv ->
-              denv
-              |> DE.enter_closure code_id ~return_continuation ~exn_continuation
-              |> fun denv ->
-              DE.add_parameters_with_unknown_types denv return_cont_params)
-        in
         assert (not (DE.at_unit_toplevel (DA.denv dacc)));
         match
           C.simplify_toplevel context dacc body ~return_continuation
@@ -666,8 +669,6 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
       match return_cont_uses with
       | None -> Result_types.create_bottom ~params ~result_arity
       | Some uses ->
-        (* CR mshinwell: Should we meet the result types with the arity? Also at
-           applications? *)
         let code_age_relation_after_function =
           TE.code_age_relation (DA.typing_env dacc_after_body)
         in
@@ -703,12 +704,23 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
             (Bound_parameters.to_list return_cont_params)
         in
         let env_extension =
+          (* This call is important for compilation time performance, to cut
+             down the size of the return types. *)
           T.make_suitable_for_environment typing_env
             (All_variables_except params_and_results) results_and_types
         in
         Result_types.create ~params ~results:return_cont_params env_extension
   in
   let outer_dacc =
+    (* This is the complicated part about slot offsets. We just traversed the
+       body of the function and have accumulated constraints (via [Expr_builder]
+       when rebuilding expressions involving sets of closures). These
+       constraints are only useful if we end up keeping the current code
+       binding. The slot offsets are registered in a map from code IDs to
+       offsets in [DA]. A global map of slot offsets is accumulated in [UA],
+       using the information from [DA], according to whether particular code
+       bindings do indeed get kept. This is how we avoid traversing the code in
+       the upwards pass to extract offsets. *)
     match UA.slot_offsets uacc_after_upwards_traversal with
     | Unknown -> outer_dacc
     | Known offsets ->

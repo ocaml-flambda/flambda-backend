@@ -227,6 +227,10 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
                 denv result_arity results
             in
             let denv = DE.extend_typing_environment denv env_extension in
+            (* Note: the result types of the application will go into a meet
+               with the kind information on the parameter(s) of the return
+               continuation (just like the normal [Apply_cont] case where the
+               meet is only done upon reaching the handler). *)
             let arg_types =
               List.map2
                 (fun kind result_var ->
