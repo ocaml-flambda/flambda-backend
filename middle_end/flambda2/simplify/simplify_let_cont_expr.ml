@@ -802,6 +802,8 @@ let after_downwards_traversal_of_one_recursive_let_cont_handler cont
     ~rebuild:rebuild_handler =
   let dacc = DA.map_data_flow dacc ~f:(Data_flow.exit_continuation cont) in
   let arg_types_by_use_id =
+    (* At this point all uses (in both the body and the handler) of [cont] are
+       in [dacc]. *)
     match CUE.get_continuation_uses (DA.continuation_uses_env dacc) cont with
     (* CR gbury: in this case, the continuation is neither recursive, nor
        reachable, and it could be removed. *)
@@ -816,6 +818,8 @@ let after_downwards_traversal_of_one_recursive_let_cont_handler cont
       ~arg_types_by_use_id EPA.empty
   in
   let dacc =
+    (* CR pchambart: perhaps the normal parameters and the extra params/args
+       could be added in a single call to [Data_flow] *)
     DA.map_data_flow dacc ~f:(fun data_flow ->
         Data_flow.add_extra_params_and_args cont extra_params_and_args data_flow)
   in
@@ -835,8 +839,7 @@ let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
     DA.map_data_flow dacc_after_body
       ~f:(Data_flow.enter_continuation cont (Bound_parameters.vars params))
   in
-  let denv =
-    (* XXX These don't have the same scope level as the non-recursive case *)
+  let denv, _arg_types =
     DE.add_parameters_with_unknown_types ~at_unit_toplevel:false
       denv_before_body params
   in
@@ -855,7 +858,7 @@ let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
   let dacc =
     DA.map_denv dacc ~f:(fun denv -> DE.set_at_unit_toplevel_state denv false)
   in
-  let arg_types_by_use_id_outside_of_handler =
+  let arg_types_by_use_id_in_body =
     match CUE.get_continuation_uses (DA.continuation_uses_env dacc) cont with
     (* CR gbury: if this happens, we should rather remove the continuation,
        since it is not reachable. *)
@@ -865,26 +868,29 @@ let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
     | Some continuation_uses ->
       Continuation_uses.get_arg_types_by_use_id continuation_uses
   in
-  (* Compute unboxing decisions *)
+  (* Compute unboxing decisions. This works only from the subkind information
+     since no other types are available: there are no types on the continuation
+     parameters in the terms, and a join cannot be performed (unlike in the
+     non-recursive case) as not all of the uses have been seen yet. *)
   let param_types =
     ListLabels.map (Bound_parameters.to_list params) ~f:(fun param ->
         Flambda2_types.unknown_with_subkind (BP.kind param))
   in
   let denv, unboxing_decisions =
     Unbox_continuation_params.make_decisions ~continuation_is_recursive:true
-      ~arg_types_by_use_id:arg_types_by_use_id_outside_of_handler (DA.denv dacc)
-      params param_types
+      ~arg_types_by_use_id:arg_types_by_use_id_in_body (DA.denv dacc) params
+      param_types
   in
   let dacc = DA.with_denv dacc denv in
-  (* CR gbury: {simplify_one_continuation_handler} requires an
-     [extra_params_and_args] argument, but we can't provide a meaningful one at
-     this point: we need to finish the downwards traversal of the handler to
-     compute the extra args for unboxing.
+  (* {simplify_one_continuation_handler} requires an [extra_params_and_args]
+     argument, but we can't provide a meaningful one at this point: we need to
+     finish the downwards traversal of the handler to compute the extra args for
+     unboxing.
 
-     Thankfully, for recursive continuations, this argument is not really used
-     (see the use of [extra_params_and_args] in
-     {rebuild_one_continuation_handler}. Therefore, we pass an empty one to
-     {simplify_one_continuation_handler}. *)
+     Thankfully, for recursive continuations, this argument is not used (see the
+     use of [extra_params_and_args] in {rebuild_one_continuation_handler})
+     because there are no CSE parameters introduced. Therefore, we pass an empty
+     one to {simplify_one_continuation_handler}. *)
   let extra_params_and_args = EPA.empty in
   simplify_one_continuation_handler ~simplify_expr dacc cont
     ~at_unit_toplevel:false Recursive ~params ~handler ~extra_params_and_args
@@ -958,6 +964,9 @@ let simplify_recursive_let_cont_stage1 ~simplify_expr ~denv_before_body ~body
        later. *)
     DA.get_and_clear_lifted_constants dacc
   in
+  (* The body is simplified before the handler, so that if there are no uses
+     found in the body, the handler's simplification could be skipped (although
+     this is not currently implemented). *)
   simplify_expr dacc body
     ~down_to_up:
       (after_downwards_traversal_of_recursive_let_cont_body ~simplify_expr
