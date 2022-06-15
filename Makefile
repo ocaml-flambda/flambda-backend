@@ -152,7 +152,7 @@ cpl=$(if $(filter linux,$(SYSTEM)),cp -l,cp -L)
 # We use a local directory rather than the final install path, since
 # the final install path may be on a different filesystem (and hence be
 # slow and/or unable to make hardlinks)
-.PHONY: _install
+.PHONY: _install install install-no-compiling
 _install: compiler
 	rm -rf _install
 	mkdir -p _install/{bin,lib/ocaml}
@@ -175,6 +175,11 @@ _install: compiler
 
 # Copy _install to the final install directory (no-op if they are the same)
 install: _install
+	mkdir -p '$(prefix)'
+	rsync --chmod=u+rw,go+r -rl _install/ '$(prefix)'
+
+# Same as above, but relies on a successfull independent _install
+install-no-compiling:
 	mkdir -p '$(prefix)'
 	rsync --chmod=u+rw,go+r -rl _install/ '$(prefix)'
 
