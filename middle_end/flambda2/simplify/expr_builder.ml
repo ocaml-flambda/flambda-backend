@@ -442,18 +442,36 @@ let create_let_symbols uacc lifted_constant ~body =
               Code_size.simple simple )
           in
           (* If the projection is from one of the symbols bound by the "let
-             symbol" that we've just created, we'll always end up here, avoiding
-             any problem about where to do the projection versus the
-             initialisation of a possibly-recursive group of symbols. We may end
-             up with a "variable = variable" [Let] here, but [To_cmm] (or a
-             subsequent pass of [Simplify]) will remove it. This is the same
-             situation as when continuations are inlined; we can't use a name
-             permutation to resolve the problem as both [var] and [var'] may
-             occur in [expr], and permuting could cause an unbound name.
+             symbol" that we've just created, we'll always end up here (i.e. in
+             the case where the result of the projection is known now as a
+             [Simple]), avoiding any problem about where to do the projection
+             versus the initialisation of a possibly-recursive group of symbols.
+             The result of the projection will always be known in this case
+             because the full definition of the symbol binding is available. We
+             may end up with a "variable = variable" [Let] here, but [To_cmm]
+             (or a subsequent pass of [Simplify]) will remove it. This is the
+             same situation as when continuations are inlined; we can't use a
+             name permutation to resolve the problem as both [var] and [var']
+             may occur in [expr], and permuting could cause an unbound name.
+
+             One might consider the case where a symbol's field is defined using
+             a variable that itself is assigned a symbol projection from that
+             same field. However we believe such cases cannot arise at present
+             because there is a strict ordering of lifting decisions. All symbol
+             projections are introduced based on lifting decisions made in the
+             past.
+
+             The ordering of lifting decisions notwithstanding, it would still
+             not be possible to create this kind of cycle, because the
+             translation from the source language will ensure that the recursion
+             goes through at least one piece of [Code] -- from which no symbol
+             projections are possible. These properties are preserved by
+             [Simplify].
 
              It is possible for one projection to yield a variable that is in
              turn defined by another symbol projection, so we need to expand
-             transitively. *)
+             transitively. This process will always terminate by virtue of the
+             arguments just made. *)
           Simple.pattern_match' simple
             ~const:(fun _ -> stop_here ())
             ~symbol:(fun _ ~coercion:_ ->

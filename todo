@@ -74,3 +74,9 @@ and recursive continuations in Simplify_let_cont
 Can we make switch simplification easier?
 
 Vincent to coordinate comment-writing about slots
+
+Testing with multiple rounds of Simplify
+
+Use In_types mode to track compilation unit-local symbols
+
+Mark to write up lifting proposal without symbols
