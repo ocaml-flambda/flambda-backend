@@ -785,7 +785,9 @@ let simplify_set_of_closures0 outer_dacc context set_of_closures
         in
         let code =
           match new_code with
-          | None -> code
+          | None ->
+            (* CR mshinwell: Does this case ever occur? *)
+            code
           | Some new_code -> (code_id, new_code) :: code
         in
         let fun_types =
@@ -829,20 +831,19 @@ let simplify_set_of_closures0 outer_dacc context set_of_closures
               ~all_value_slots_in_set:value_slot_types
               (Known (Set_of_closures.alloc_mode set_of_closures))
           in
-          Name.Map.add (Bound_name.name bound_name) closure_type closure_types)
-      fun_types Name.Map.empty
+          (bound_name, closure_type) :: closure_types)
+      fun_types []
   in
   let dacc =
     DA.map_denv dacc ~f:(fun denv ->
-        denv
-        |> Function_slot.Map.fold
-             (fun _function_slot bound_name denv ->
-               DE.define_name_if_undefined denv bound_name K.value)
-             closure_bound_names
-        |> Name.Map.fold
-             (fun bound_name closure_type denv ->
-               DE.add_equation_on_name denv bound_name closure_type)
-             closure_types_by_bound_name)
+        List.fold_left
+          (fun denv (bound_name, closure_type) ->
+            (* In the lifting case the symbols could be defined already. *)
+            let denv = DE.define_name_if_undefined denv bound_name K.value in
+            DE.add_equation_on_name denv
+              (Bound_name.name bound_name)
+              closure_type)
+          denv closure_types_by_bound_name)
   in
   let set_of_closures =
     Function_declarations.create all_function_decls_in_set
@@ -1186,17 +1187,9 @@ let simplify_lifted_sets_of_closures dacc ~all_sets_of_closures_and_symbols
          (closure_symbols, set_of_closures) closure_bound_names_inside
          (value_slots, value_slot_types) ->
       let pattern, static_const, dacc =
-        if Set_of_closures.is_empty set_of_closures
-        then
-          ( Bound_static.Pattern.set_of_closures closure_symbols,
-            Rebuilt_static_const.create_set_of_closures
-              (DA.are_rebuilding_terms dacc)
-              set_of_closures,
-            dacc )
-        else
-          simplify_lifted_set_of_closures0 dacc context ~closure_symbols
-            ~closure_bound_names_inside ~value_slots ~value_slot_types
-            set_of_closures
+        simplify_lifted_set_of_closures0 dacc context ~closure_symbols
+          ~closure_bound_names_inside ~value_slots ~value_slot_types
+          set_of_closures
       in
       (* The order doesn't matter here -- see comment in [Simplify_static_const]
          where this function is called from. *)
