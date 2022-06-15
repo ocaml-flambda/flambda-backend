@@ -920,6 +920,7 @@ let simplify_and_lift_set_of_closures dacc ~closure_bound_vars_inverse
     Symbol.Set.cardinal closure_symbols_set
     = Function_slot.Map.cardinal closure_symbols_map);
   let denv = DA.denv dacc in
+  let dacc = introduce_code dacc code in
   let closure_symbols_with_types =
     Function_slot.Map.map
       (fun symbol ->
@@ -928,7 +929,6 @@ let simplify_and_lift_set_of_closures dacc ~closure_bound_vars_inverse
       closure_symbols_map
     |> Function_slot.Map.to_seq |> Function_slot.Lmap.of_seq
   in
-  let dacc = introduce_code dacc code in
   let set_of_closures_lifted_constant =
     LC.create_set_of_closures denv ~closure_symbols_with_types
       ~symbol_projections
@@ -1096,11 +1096,6 @@ let type_value_slots_and_make_lifting_decision_for_one_set dacc
   in
   { can_lift; value_slots; value_slot_types; symbol_projections }
 
-let type_value_slots_for_previously_lifted_set dacc ~name_mode_of_bound_vars
-    set_of_closures =
-  type_value_slots_and_make_lifting_decision_for_one_set dacc
-    ~name_mode_of_bound_vars set_of_closures
-
 let simplify_non_lifted_set_of_closures dacc (bound_vars : Bound_pattern.t)
     set_of_closures =
   let closure_bound_vars = Bound_pattern.must_be_set_of_closures bound_vars in
@@ -1172,7 +1167,7 @@ let simplify_lifted_sets_of_closures dacc ~all_sets_of_closures_and_symbols
               value_slot_types;
               symbol_projections = _
             } =
-          type_value_slots_for_previously_lifted_set dacc
+          type_value_slots_and_make_lifting_decision_for_one_set dacc
             ~name_mode_of_bound_vars:Name_mode.normal set_of_closures
         in
         value_slots, value_slot_types)
