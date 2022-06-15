@@ -227,12 +227,16 @@ let simplify_static_consts dacc (bound_static : Bound_static.t) static_consts
   (* Next we simplify all the constants that are not closures. The ordering of
      the bindings is respected. This step also adds code into the environment.
      We can do that here because we're not simplifying the code (which may
-     contain recursive references to symbols and/or code IDs being defined). *)
+     contain recursive references to symbols and/or code IDs being defined).
+     This step will give values such as blocks various types involving aliases
+     whose types in turn may currently be imprecise, for example if they
+     reference a mutually-defined closure, but will be able to be refined
+     further. *)
   (* CR vlaviron: With the exception of stubs, code bindings in the input term
      are never going to be simplified directly. Instead, when a closure that
      binds them is encountered, a specialised version of the code is created,
      simplified, and bound to a new code ID. But as a consequence, we never
-     traverse the code and in particular we do not compute closure offset
+     traverse the code and in particular we do not compute slot offset
      constraints for the body. In the common case, a code ID is only used in a
      single set of closures and all occurrences of the old code ID will be
      replaced by the new code ID computed while simplifying the closure. The old
@@ -301,7 +305,10 @@ let simplify_static_consts dacc (bound_static : Bound_static.t) static_consts
   let bound_static' = Bound_static.create bound_static' in
   let static_consts' = Rebuilt_static_const.Group.create static_consts' in
   (* We now collect together all of the closures, from all of the sets being
-     defined, and simplify them together. *)
+     defined, and simplify them together. It's important to do this step of
+     simplification at the end to maximise the information available, since this
+     can be highly beneficial to simplifying [Code] (which will be done as part
+     of simplifying the closures). *)
   let closure_bound_names_all_sets, all_sets_of_closures_and_symbols =
     Static_const_group.match_against_bound_static static_consts bound_static
       ~init:([], [])
