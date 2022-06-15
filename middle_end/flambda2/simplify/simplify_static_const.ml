@@ -17,8 +17,6 @@
 open! Flambda.Import
 open! Simplify_import
 
-(* CR-someday mshinwell: Finish improved simplification using types *)
-
 let simplify_field_of_block dacc (field : Field_of_static_block.t) =
   match field with
   | Symbol sym -> field, T.alias_type_of K.value (Simple.symbol sym)
@@ -30,9 +28,20 @@ let simplify_field_of_block dacc (field : Field_of_static_block.t) =
     Simple.pattern_match simple
       ~name:(fun name ~coercion ->
         (* CR lmaurer for lmaurer: This will break if you try and put a coerced
-           thing in a block mshinwell: is that guaranteed not to occur? It isn't
-           obvious to me why this would be the case. *)
-        assert (Coercion.is_id coercion);
+           thing in a block
+
+           mshinwell: is that guaranteed not to occur? It isn't obvious to me
+           why this would be the case. (Update: this won't happen at the moment,
+           since [Lambda_to_flambda] doesn't generate these and let-symbol
+           bindings cannot occur under lambdas, so we may be able to wait until
+           attempting to convert coercions to use some kind of primitive
+           mechanism instead of being attached to [Simple]s.) *)
+        if not (Coercion.is_id coercion)
+        then
+          Misc.fatal_errorf
+            "Coercion in field of static block is not the identity: %a, \
+             field:@ %a"
+            Coercion.print coercion Field_of_static_block.print field;
         Name.pattern_match name
           ~var:(fun var ->
             Field_of_static_block.Dynamically_computed (var, dbg), ty)
@@ -51,9 +60,7 @@ let simplify_or_variable dacc type_for_const (or_variable : _ Or_variable.t)
   match or_variable with
   | Const const -> or_variable, type_for_const const
   | Var (var, _dbg) ->
-    (* CR mshinwell: This needs to check the type of the variable according to
-       the various cases below. *)
-    (* CR mshinwell: This should be calling [simplify_simple] *)
+    (* CR mshinwell: There should be some kind of reification here *)
     or_variable, TE.find (DE.typing_env denv) (Name.var var) (Some kind)
 
 let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
@@ -75,7 +82,6 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
       let fields = field_tys in
       match is_mutable with
       | Immutable ->
-        (* XXX Should we have [Alloc_mode.Static]? *)
         T.immutable_block ~is_unique:false tag ~field_kind:K.value ~fields
           (Known Heap)
       | Immutable_unique ->
@@ -88,7 +94,6 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
         (DA.are_rebuilding_terms dacc)
         tag is_mutable ~fields,
       dacc )
-  (* CR mshinwell: Need to reify to change Equals types into new terms *)
   | Boxed_float or_var ->
     let or_var, ty =
       simplify_or_variable dacc
