@@ -90,9 +90,9 @@ let compute_used_params uacc params ~is_exn_handler ~is_single_inlinable_use
          parameter is the exception bucket. Then this hack can be removed. *)
       if !first && is_exn_handler
       then (
-        (* If this argument is actually unused, the apply_conts is updated
+        (* If this argument is actually unused, the Apply_conts are updated
            accordingly in simplify_apply_cont. Apply_cont_rewrite can't at the
-           moment represent this transformation, so it has to be done manualy *)
+           moment represent this transformation. *)
         first := false;
         true)
       else (
@@ -212,14 +212,14 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
         Bound_parameters.create new_phantom_params )
   in
   let handler, uacc =
-    let bindings_outermost_first =
+    let new_phantom_param_bindings_outermost_first =
       List.map
         (fun param ->
-          let v = BP.var param in
-          let k = K.With_subkind.kind (BP.kind param) in
-          let var = Bound_var.create v Name_mode.phantom in
+          let var = BP.var param in
+          let kind = K.With_subkind.kind (BP.kind param) in
+          let var = Bound_var.create var Name_mode.phantom in
           let let_bound = Bound_pattern.singleton var in
-          let prim = Flambda_primitive.(Nullary (Optimised_out k)) in
+          let prim = Flambda_primitive.(Nullary (Optimised_out kind)) in
           let named = Named.create_prim prim Debuginfo.none in
           let simplified_defining_expr = Simplified_named.create named in
           { Simplify_named_result.let_bound;
@@ -228,7 +228,8 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
           })
         (Bound_parameters.to_list new_phantom_params)
     in
-    EB.make_new_let_bindings uacc ~body:handler ~bindings_outermost_first
+    EB.make_new_let_bindings uacc ~body:handler
+      ~bindings_outermost_first:new_phantom_param_bindings_outermost_first
   in
   let cont_handler =
     RE.Continuation_handler.create
@@ -983,8 +984,6 @@ let simplify_recursive_let_cont_stage0 ~simplify_expr dacc ~down_to_up ~body
       (simplify_recursive_let_cont_stage1 ~simplify_expr ~denv_before_body ~body
          cont ~original_cont_scope ~down_to_up dacc)
 
-(* CR mshinwell: We should not simplify recursive continuations with no entry
-   point -- could loop forever. (Need to think about this again.) *)
 let simplify_recursive_let_cont ~simplify_expr dacc recs ~down_to_up =
   Recursive_let_cont_handlers.pattern_match recs
     ~f:(simplify_recursive_let_cont_stage0 ~simplify_expr dacc ~down_to_up)

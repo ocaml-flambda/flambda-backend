@@ -313,15 +313,22 @@ let patch_unused_exn_bucket uacc apply_cont =
   then
     match AC.args apply_cont with
     | [] -> assert false
-    | exn_bucket :: other_args ->
-      let exn_bucket_is_used =
+    | exn_value :: other_args ->
+      (* Note: [exn_value_is_used] is a global property, not one local to the
+         continuation specified by [apply_cont]. In the event of one exception
+         value propagating to (say) two different exception continuations, where
+         only one of them uses the value, it will still be passed to both
+         continuations. However this should be fine as the value still needed to
+         be allocated anyway and some value still has to be passed (because of
+         the calling convention of exception continuations). *)
+      let exn_value_is_used =
         Simple.pattern_match
           ~const:(fun _ -> true)
           ~name:(fun name ~coercion:_ ->
             Name.Set.mem name (UA.required_names uacc))
-          exn_bucket
+          exn_value
       in
-      if exn_bucket_is_used
+      if exn_value_is_used
       then apply_cont
       else
         (* The raise argument must be present, if it is unused, we replace it by
