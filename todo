@@ -82,3 +82,7 @@ Use In_types mode to track compilation unit-local symbols
 Mark to write up lifting proposal without symbols
 
 Remove "lazy"
+
+Mark to look at classic mode bug
+
+Removing things from Simplif? - on the list for later
