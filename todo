@@ -80,3 +80,5 @@ Testing with multiple rounds of Simplify
 Use In_types mode to track compilation unit-local symbols
 
 Mark to write up lifting proposal without symbols
+
+Remove "lazy"

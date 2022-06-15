@@ -106,8 +106,6 @@ val is_code : t -> bool
 
 val is_fully_static : t -> bool
 
-val make_all_code_deleted : t -> t
-
 val make_code_deleted : t -> if_code_id_is_member_of:Code_id.Set.t -> t
 
 (** This will return [None] if terms are not being rebuilt. *)
