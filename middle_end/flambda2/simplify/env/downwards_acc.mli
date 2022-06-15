@@ -53,7 +53,7 @@ val demoted_exn_handlers : t -> Continuation.Set.t
 
 val code_age_relation : t -> Code_age_relation.t
 
-val with_code_age_relation : t -> Code_age_relation.t -> t
+val with_code_age_relation : t -> code_age_relation:Code_age_relation.t -> t
 
 val typing_env : t -> Flambda2_types.Typing_env.t
 

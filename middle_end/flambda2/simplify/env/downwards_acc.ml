@@ -103,7 +103,7 @@ let continuation_uses_env t = t.continuation_uses_env
 
 let code_age_relation t = TE.code_age_relation (DE.typing_env (denv t))
 
-let with_code_age_relation t code_age_relation =
+let with_code_age_relation t ~code_age_relation =
   let typing_env =
     TE.with_code_age_relation (DE.typing_env (denv t)) code_age_relation
   in
