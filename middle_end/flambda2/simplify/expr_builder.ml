@@ -568,6 +568,37 @@ let create_switch uacc ~condition_dbg ~scrutinee ~arms =
         in
         RE.create_switch (UA.are_rebuilding_terms uacc) switch, uacc)
 
+type new_let_cont =
+  { cont : Continuation.t;
+    handler : RE.Continuation_handler.t;
+    free_names_of_handler : Name_occurrences.t;
+    cost_metrics_of_handler : Cost_metrics.t
+  }
+
+let bind_let_conts uacc ~body new_handlers =
+  let bind_let_cont (uacc, body)
+      { cont; handler; free_names_of_handler; cost_metrics_of_handler } =
+    let free_names_of_body = UA.name_occurrences uacc in
+    let expr =
+      RE.create_non_recursive_let_cont
+        (UA.are_rebuilding_terms uacc)
+        cont handler ~body ~free_names_of_body
+    in
+    let name_occurrences =
+      Name_occurrences.remove_continuation
+        (Name_occurrences.union free_names_of_body free_names_of_handler)
+        cont
+    in
+    let uacc =
+      UA.with_name_occurrences uacc ~name_occurrences
+      |> UA.add_cost_metrics
+           (Cost_metrics.increase_due_to_let_cont_non_recursive
+              ~cost_metrics_of_handler)
+    in
+    uacc, expr
+  in
+  ListLabels.fold_left new_handlers ~init:(uacc, body) ~f:bind_let_cont
+
 let rebuild_invalid uacc reason ~after_rebuild =
   after_rebuild (RE.create_invalid reason) uacc
 
@@ -739,11 +770,7 @@ let rewrite_exn_continuation rewrite id exn_cont =
 type rewrite_fixed_arity_continuation0_result =
   | This_continuation of Continuation.t
   | Apply_cont of Apply_cont.t
-  | New_wrapper of
-      Continuation.t
-      * RE.Continuation_handler.t
-      * Name_occurrences.t
-      * Cost_metrics.t
+  | New_wrapper of new_let_cont
 
 type cont_or_apply_cont =
   | Continuation of Continuation.t
@@ -776,20 +803,22 @@ let rewrite_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id arity :
         Apply_cont_rewrite.print rewrite;
     This_continuation cont
   | Some rewrite -> (
-    let new_wrapper params expr ~free_names ~cost_metrics =
-      let new_cont = Continuation.create () in
-      let new_handler =
+    let new_wrapper params expr ~free_names
+        ~cost_metrics:cost_metrics_of_handler =
+      let cont = Continuation.create () in
+      let handler =
         RE.Continuation_handler.create
           (UA.are_rebuilding_terms uacc)
           params ~handler:expr ~free_names_of_handler:free_names
           ~is_exn_handler:false
       in
-      let free_names =
+      let free_names_of_handler =
         ListLabels.fold_left (Bound_parameters.to_list params) ~init:free_names
           ~f:(fun free_names param ->
             Name_occurrences.remove_var free_names (Bound_parameter.var param))
       in
-      New_wrapper (new_cont, new_handler, free_names, cost_metrics)
+      New_wrapper
+        { cont; handler; free_names_of_handler; cost_metrics_of_handler }
     in
     match cont_or_apply_cont with
     | Continuation cont -> (
@@ -839,11 +868,7 @@ let rewrite_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id arity :
 
 type rewrite_switch_arm_result =
   | Apply_cont of Apply_cont.t
-  | New_wrapper of
-      Continuation.t
-      * RE.Continuation_handler.t
-      * Name_occurrences.t
-      * Cost_metrics.t
+  | New_wrapper of new_let_cont
 
 let rewrite_switch_arm uacc apply_cont ~use_id arity : rewrite_switch_arm_result
     =
@@ -853,8 +878,7 @@ let rewrite_switch_arm uacc apply_cont ~use_id arity : rewrite_switch_arm_result
   | This_continuation cont ->
     Apply_cont (Apply_cont.with_continuation apply_cont cont)
   | Apply_cont apply_cont -> Apply_cont apply_cont
-  | New_wrapper (cont, wrapper, free_names_of_handler, cost_metrics) ->
-    New_wrapper (cont, wrapper, free_names_of_handler, cost_metrics)
+  | New_wrapper new_let_cont -> New_wrapper new_let_cont
 
 let rewrite_fixed_arity_continuation uacc cont ~use_id arity ~around =
   match
@@ -862,23 +886,25 @@ let rewrite_fixed_arity_continuation uacc cont ~use_id arity ~around =
   with
   | This_continuation cont -> around uacc cont
   | Apply_cont _ -> assert false
-  | New_wrapper
-      (new_cont, new_handler, free_names_of_handler, cost_metrics_of_handler) ->
-    let body, uacc = around uacc new_cont in
+  | New_wrapper new_let_cont ->
+    let body, uacc = around uacc new_let_cont.cont in
     let free_names_of_body = UA.name_occurrences uacc in
     let expr =
       RE.create_non_recursive_let_cont
         (UA.are_rebuilding_terms uacc)
-        new_cont new_handler ~body ~free_names_of_body
+        new_let_cont.cont new_let_cont.handler ~body ~free_names_of_body
     in
     let free_names =
-      Name_occurrences.union free_names_of_handler free_names_of_body
+      Name_occurrences.union new_let_cont.free_names_of_handler
+        free_names_of_body
     in
-    let free_names = Name_occurrences.remove_continuation free_names new_cont in
+    let free_names =
+      Name_occurrences.remove_continuation free_names new_let_cont.cont
+    in
     let uacc =
       let added =
         Cost_metrics.increase_due_to_let_cont_non_recursive
-          ~cost_metrics_of_handler
+          ~cost_metrics_of_handler:new_let_cont.cost_metrics_of_handler
       in
       UA.with_name_occurrences uacc ~name_occurrences:free_names
       |> UA.add_cost_metrics added

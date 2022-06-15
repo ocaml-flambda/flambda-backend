@@ -102,13 +102,9 @@ let rebuild_arm uacc arm (action, use_id, arity)
         in
         Simple.pattern_match arg ~const ~name:(fun _ ~coercion:_ ->
             normal_case ~identity_arms ~not_arms)))
-  | New_wrapper
-      (new_cont, new_handler, free_names_of_handler, cost_metrics_handler) ->
-    let new_let_cont =
-      new_cont, new_handler, free_names_of_handler, cost_metrics_handler
-    in
+  | New_wrapper new_let_cont ->
     let new_let_conts = new_let_cont :: new_let_conts in
-    let action = Apply_cont.goto new_cont in
+    let action = Apply_cont.goto new_let_cont.cont in
     let arms = Targetint_31_63.Map.add arm action arms in
     new_let_conts, arms, identity_arms, not_arms
 
@@ -245,30 +241,7 @@ let rebuild_switch ~simplify_let dacc ~arms ~condition_dbg ~scrutinee
               expr;
           expr, uacc)
   in
-  let bind_let_cont (uacc, body)
-      (new_cont, new_handler, free_names_of_handler, cost_metrics_of_handler) =
-    let free_names_of_body = UA.name_occurrences uacc in
-    let expr =
-      RE.create_non_recursive_let_cont
-        (UA.are_rebuilding_terms uacc)
-        new_cont new_handler ~body ~free_names_of_body
-    in
-    let name_occurrences =
-      Name_occurrences.remove_continuation
-        (Name_occurrences.union free_names_of_body free_names_of_handler)
-        new_cont
-    in
-    let uacc =
-      UA.with_name_occurrences uacc ~name_occurrences
-      |> UA.add_cost_metrics
-           (Cost_metrics.increase_due_to_let_cont_non_recursive
-              ~cost_metrics_of_handler)
-    in
-    uacc, expr
-  in
-  let uacc, expr =
-    ListLabels.fold_left new_let_conts ~init:(uacc, body) ~f:bind_let_cont
-  in
+  let uacc, expr = EB.bind_let_conts uacc ~body new_let_conts in
   after_rebuild expr uacc
 
 let find_cse_simple dacc prim =
@@ -348,7 +321,7 @@ let simplify_arm ~typing_env_at_use ~scrutinee_ty arm action (arms, dacc) =
   in
   match T.meet typing_env_at_use scrutinee_ty shape with
   | Bottom -> arms, dacc
-  | Ok (_meet_ty, env_extension) -> (
+  | Ok (_meet_ty, env_extension) ->
     let env_at_use =
       TE.add_env_extension typing_env_at_use env_extension
       |> DE.with_typing_env (DA.denv dacc)
@@ -357,44 +330,24 @@ let simplify_arm ~typing_env_at_use ~scrutinee_ty arm action (arms, dacc) =
     let use_kind =
       Simplify_common.apply_cont_use_kind ~context:Switch_branch action
     in
-    match args with
-    | [] ->
-      let dacc, rewrite_id =
-        DA.record_continuation_use dacc (AC.continuation action) use_kind
-          ~env_at_use ~arg_types:[]
-      in
-      let dacc =
-        DA.map_data_flow dacc
-          ~f:
-            (Data_flow.add_apply_cont_args
-               (Apply_cont.continuation action)
-               (List.map Simple.free_names args))
-      in
-      let arms =
-        Targetint_31_63.Map.add arm
-          (action, rewrite_id, Flambda_arity.nullary)
-          arms
-      in
-      arms, dacc
-    | _ :: _ ->
-      let { S.simples = args; simple_tys = arg_types } =
-        S.simplify_simples dacc args
-      in
-      let dacc, rewrite_id =
-        DA.record_continuation_use dacc (AC.continuation action) use_kind
-          ~env_at_use ~arg_types
-      in
-      let arity = List.map T.kind arg_types |> Flambda_arity.create in
-      let action = Apply_cont.update_args action ~args in
-      let dacc =
-        DA.map_data_flow dacc
-          ~f:
-            (Data_flow.add_apply_cont_args
-               (Apply_cont.continuation action)
-               (List.map Simple.free_names args))
-      in
-      let arms = Targetint_31_63.Map.add arm (action, rewrite_id, arity) arms in
-      arms, dacc)
+    let { S.simples = args; simple_tys = arg_types } =
+      S.simplify_simples dacc args
+    in
+    let dacc, rewrite_id =
+      DA.record_continuation_use dacc (AC.continuation action) use_kind
+        ~env_at_use ~arg_types
+    in
+    let arity = List.map T.kind arg_types |> Flambda_arity.create in
+    let action = Apply_cont.update_args action ~args in
+    let dacc =
+      DA.map_data_flow dacc
+        ~f:
+          (Data_flow.add_apply_cont_args
+             (Apply_cont.continuation action)
+             (List.map Simple.free_names args))
+    in
+    let arms = Targetint_31_63.Map.add arm (action, rewrite_id, arity) arms in
+    arms, dacc
 
 let simplify_switch ~simplify_let dacc switch ~down_to_up =
   let scrutinee = Switch.scrutinee switch in
