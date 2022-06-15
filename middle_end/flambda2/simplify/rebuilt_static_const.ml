@@ -362,6 +362,8 @@ module Group = struct
 
   let fold_left t ~init ~f = ListLabels.fold_left t.consts ~init ~f
 
+  let add const t = { consts = const :: t.consts; free_names = Unknown }
+
   let concat t1 t2 =
     let free_names : _ Or_unknown.t =
       match t1.free_names, t2.free_names with

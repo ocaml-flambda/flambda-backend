@@ -147,5 +147,7 @@ module Group : sig
       intermediate lists. *)
   val to_list : t -> rebuilt_static_const list
 
+  val add : rebuilt_static_const -> t -> t
+
   val concat : t -> t -> t
 end
