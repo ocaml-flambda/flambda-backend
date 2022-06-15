@@ -27,11 +27,14 @@ let apply_cse dacc ~original_prim =
     match DE.find_cse (DA.denv dacc) with_fixed_value with
     | None -> None
     | Some simple -> (
-      let canonical =
+      match
         TE.get_canonical_simple_exn (DA.typing_env dacc) simple
           ~min_name_mode:NM.normal ~name_mode_of_existing_simple:NM.normal
-      in
-      match canonical with exception Not_found -> None | simple -> Some simple))
+      with
+      | exception Not_found ->
+        Misc.fatal_errorf "No canonical simple for the CSE candidate: %a"
+          Simple.print simple
+      | canonical -> Some canonical))
 
 let try_cse dacc ~original_prim ~min_name_mode ~result_var : cse_result =
   (* CR-someday mshinwell: Use [meet] and [reify] for CSE? (discuss with
