@@ -170,7 +170,6 @@ end = struct
             closure_bound_names_inside)
         closure_bound_names_all_sets_inside
     in
-
     let closure_types_inside_functions =
       List.map2
         (fun set_of_closures
