@@ -64,3 +64,9 @@ known about y, then it won't be seen as an alias to k1.
 Maybe these aliases should be done via Apply_cont_rewrites
 
 Proper way of identifying which continuation parameters are exception buckets
+
+Unboxing of variants for recursive continuations?
+Will introduce an extra switch
+
+Maybe try to reduce the number of different code paths for nonrecursive
+and recursive continuations in Simplify_let_cont
