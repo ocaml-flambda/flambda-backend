@@ -111,14 +111,14 @@ let rebuild_non_inlined_direct_full_application apply ~use_id ~exn_cont_use_id
     Simplify_common.update_exn_continuation_extra_args uacc ~exn_cont_use_id
       apply
   in
-  let expr, uacc =
+  let uacc, expr =
     match use_id with
     | None ->
       let uacc =
         UA.add_free_names uacc (Apply.free_names apply)
         |> UA.notify_added ~code_size:(Code_size.apply apply)
       in
-      RE.create_apply (UA.are_rebuilding_terms uacc) apply, uacc
+      uacc, RE.create_apply (UA.are_rebuilding_terms uacc) apply
     | Some use_id ->
       EB.rewrite_fixed_arity_apply uacc ~use_id result_arity apply
   in
@@ -702,7 +702,7 @@ let rebuild_function_call_where_callee's_type_unavailable apply call_kind
     Apply.with_call_kind apply call_kind
     |> Simplify_common.update_exn_continuation_extra_args uacc ~exn_cont_use_id
   in
-  let expr, uacc =
+  let uacc, expr =
     EB.rewrite_fixed_arity_apply uacc ~use_id
       (Call_kind.return_arity call_kind)
       apply
@@ -905,7 +905,7 @@ let rebuild_method_call apply ~use_id ~exn_cont_use_id uacc ~after_rebuild =
     Simplify_common.update_exn_continuation_extra_args uacc ~exn_cont_use_id
       apply
   in
-  let expr, uacc =
+  let uacc, expr =
     EB.rewrite_fixed_arity_apply uacc ~use_id
       (Flambda_arity.With_subkinds.create [K.With_subkind.any_value])
       apply
@@ -960,7 +960,7 @@ let rebuild_c_call apply ~use_id ~exn_cont_use_id ~return_arity uacc
     Simplify_common.update_exn_continuation_extra_args uacc ~exn_cont_use_id
       apply
   in
-  let expr, uacc =
+  let uacc, expr =
     match use_id with
     | Some use_id ->
       EB.rewrite_fixed_arity_apply uacc ~use_id
@@ -971,7 +971,7 @@ let rebuild_c_call apply ~use_id ~exn_cont_use_id ~return_arity uacc
         UA.add_free_names uacc (Apply.free_names apply)
         |> UA.notify_added ~code_size:(Code_size.apply apply)
       in
-      RE.create_apply (UA.are_rebuilding_terms uacc) apply, uacc
+      uacc, RE.create_apply (UA.are_rebuilding_terms uacc) apply
   in
   after_rebuild expr uacc
 

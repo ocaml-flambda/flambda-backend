@@ -133,7 +133,7 @@ val rewrite_fixed_arity_apply :
   use_id:Apply_cont_rewrite_id.t ->
   Flambda_arity.With_subkinds.t ->
   Apply.t ->
-  Rebuilt_expr.t * Upwards_acc.t
+  Upwards_acc.t * Rebuilt_expr.t
 
 val rewrite_exn_continuation :
   Apply_cont_rewrite.t ->
