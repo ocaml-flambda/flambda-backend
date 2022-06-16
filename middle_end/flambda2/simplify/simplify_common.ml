@@ -48,43 +48,6 @@ type simplify_toplevel =
   exn_cont_scope:Scope.t ->
   Rebuilt_expr.t * Upwards_acc.t
 
-let is_self_tail_call dacc apply =
-  let denv = DA.denv dacc in
-  match DE.closure_info denv with
-  | Not_in_a_closure -> false
-  | In_a_set_of_closures_but_not_yet_in_a_specific_closure ->
-    (* It's safe to return false here (even, though this should not happen) *)
-    false
-  | Closure
-      { code_id = fun_code_id;
-        return_continuation = fun_cont;
-        exn_continuation = fun_exn_cont
-      } -> (
-    (* 1st check: exn continuations match *)
-    let apply_exn_cont = Apply.exn_continuation apply in
-    Exn_continuation.equal
-      (Exn_continuation.create ~exn_handler:fun_exn_cont ~extra_args:[])
-      apply_exn_cont
-    (* 2nd check: return continuations match *)
-    && (match Apply.continuation apply with
-       (* a function that raises unconditionally can be a tail-call *)
-       | Never_returns -> true
-       | Return apply_cont -> Continuation.equal fun_cont apply_cont)
-    &&
-    (* 3rd check: check this is a self-call. *)
-    match Apply.call_kind apply with
-    | Function
-        { function_call = Direct { code_id = apply_code_id; _ };
-          alloc_mode = _
-        } ->
-      Code_id.equal fun_code_id apply_code_id
-    | Method _ | C_call _
-    | Function
-        { function_call = Indirect_known_arity _ | Indirect_unknown_arity;
-          alloc_mode = _
-        } ->
-      false)
-
 let simplify_projection dacc ~original_term ~deconstructing ~shape ~result_var
     ~result_kind =
   let env = DA.typing_env dacc in

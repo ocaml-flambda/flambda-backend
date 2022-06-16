@@ -82,8 +82,6 @@ type simplify_toplevel =
   exn_cont_scope:Scope.t ->
   Rebuilt_expr.t * Upwards_acc.t
 
-val is_self_tail_call : Downwards_acc.t -> Apply_expr.t -> bool
-
 val simplify_projection :
   Downwards_acc.t ->
   original_term:Named.t ->
