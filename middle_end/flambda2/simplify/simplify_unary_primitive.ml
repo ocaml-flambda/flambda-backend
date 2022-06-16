@@ -20,40 +20,8 @@ module Float = Numeric_types.Float_by_bit_pattern
 module Int32 = Numeric_types.Int32
 module Int64 = Numeric_types.Int64
 
-(* CR mshinwell: [meet] operations should not return types that are already
- * known about.  The majority of problems like this have been fixed.
- * However it looks like there may be another hanging around somewhere.
- * In flambdatest/mlexamples/tuple_stub.ml, the [Project_function_slot] yields the
- * following env extension:
- *
- *  ((equations
- * (Tuple_stub.camlTuple_stub__thd3_2 :
- *   (Val
- *    ((known_tags
- *      {(thd3/0 => (Known ((closures { thd3/0 thd3/1 }) (value_slots { }))),
- *        ((function_decls
- *          {(thd3/0
- *            (Ok (Inlinable (code_id thd3_0_tuple_stub/2) (param_arity 𝕍)
- *                 (result_arity 𝕍) (stub true) (dbg ) (inline Default_inline)
- *                 (is_a_functor false) (recursive Non_recursive) (coercion ((depth 1) (unroll_to None))))))
- *           (thd3/1
- *            (Ok (Inlinable (code_id thd3_0/3) (param_arity 𝕍 ⨯ 𝕍 ⨯ 𝕍)
- *                 (result_arity 𝕍) (stub false) (dbg tuple_stub.ml:1,9--20)
- *                 (inline Default_inline) (is_a_functor false) (recursive Non_recursive)
- *                 (coercion ((depth 1) (unroll_to None))))))})
- *         (closure_types ((components_by_index {(thd3/0 (Val (= Tuple_stub.camlTuple_stub__thd3_2))) (thd3/1 (Val (= Tuple_stub.camlTuple_stub__thd3_3)))})))
- *         (value_slot_types ((components_by_index {})))))}) (other_tags Bottom)))
- *  unboxed_version/48 : (Val (= Tuple_stub.camlTuple_stub__thd3_3)))))
- *
- *  All that should be present here is the equation on [unboxed_version].
- *  The type of the symbol appears to be the same as already known in [dacc].
- *)
-
 let simplify_project_function_slot ~move_from ~move_to ~min_name_mode dacc
     ~original_term ~arg:closure ~arg_ty:closure_ty ~result_var =
-  (* Format.eprintf "Project_function_slot %a -> %a, closure type:@ %a@ dacc:@
-     %a\n%!" Function_slot.print move_from Function_slot.print move_to T.print
-     closure_ty DA.print dacc; *)
   let typing_env = DA.typing_env dacc in
   match
     T.prove_project_function_slot_simple typing_env ~min_name_mode closure_ty
@@ -360,7 +328,6 @@ module Make_simplify_int_conv (N : A.Number_kind) = struct
     if K.Standard_int_or_float.equal N.standard_int_or_float_kind dst
     then
       let dacc = DA.add_variable dacc result_var arg_ty in
-      (* [arg] has already been simplified, so no point in reifying. *)
       Simplify_primitive_result.create (Named.create_simple arg)
         ~try_reify:false dacc
     else
@@ -369,115 +336,105 @@ module Make_simplify_int_conv (N : A.Number_kind) = struct
       match proof with
       | Proved is -> (
         assert (Num.Set.cardinal is > 0);
+        let module For_kind (P : sig
+          module Result_num : Container_types.S
+
+          val num_to_result_num : Num.t -> Result_num.t
+
+          val these : Result_num.Set.t -> T.t
+
+          val const : Result_num.t -> Reg_width_const.t
+        end) =
+        struct
+          let result =
+            let res_ns =
+              Num.Set.fold
+                (fun n res_ns ->
+                  P.Result_num.Set.add (P.num_to_result_num n) res_ns)
+                is P.Result_num.Set.empty
+            in
+            let ty = P.these res_ns in
+            let dacc = DA.add_variable dacc result_var ty in
+            match P.Result_num.Set.get_singleton res_ns with
+            | None ->
+              Simplify_primitive_result.create original_term ~try_reify:false
+                dacc
+            | Some f ->
+              let named = Named.create_simple (Simple.const (P.const f)) in
+              Simplify_primitive_result.create named ~try_reify:false dacc
+        end in
         match dst with
-        | Tagged_immediate -> (
-          let imms =
-            Num.Set.fold
-              (fun i imms -> Targetint_31_63.Set.add (Num.to_immediate i) imms)
-              is Targetint_31_63.Set.empty
-          in
-          let ty = T.these_tagged_immediates imms in
-          let dacc = DA.add_variable dacc result_var ty in
-          match Targetint_31_63.Set.get_singleton imms with
-          | None ->
-            Simplify_primitive_result.create original_term ~try_reify:false dacc
-          | Some i ->
-            let named =
-              Named.create_simple
-                (Simple.const_int (Targetint_31_63.to_targetint i))
-            in
-            Simplify_primitive_result.create named ~try_reify:false dacc)
-        | Naked_immediate -> (
-          let imms =
-            Num.Set.fold
-              (fun i imms -> Targetint_31_63.Set.add (Num.to_immediate i) imms)
-              is Targetint_31_63.Set.empty
-          in
-          let ty = T.these_naked_immediates imms in
-          let dacc = DA.add_variable dacc result_var ty in
-          match Targetint_31_63.Set.get_singleton imms with
-          | None ->
-            Simplify_primitive_result.create original_term ~try_reify:false dacc
-          | Some i ->
-            let named =
-              Named.create_simple
-                (Simple.untagged_const_int (Targetint_31_63.to_targetint i))
-            in
-            Simplify_primitive_result.create named ~try_reify:false dacc)
-        | Naked_float -> (
-          let fs =
-            Num.Set.fold
-              (fun i fs -> Float.Set.add (Num.to_naked_float i) fs)
-              is Float.Set.empty
-          in
-          let ty = T.these_naked_floats fs in
-          let dacc = DA.add_variable dacc result_var ty in
-          match Float.Set.get_singleton fs with
-          | None ->
-            Simplify_primitive_result.create original_term ~try_reify:false dacc
-          | Some f ->
-            let named =
-              Named.create_simple (Simple.const (Reg_width_const.naked_float f))
-            in
-            Simplify_primitive_result.create named ~try_reify:false dacc)
-        | Naked_int32 -> (
-          let is =
-            Num.Set.fold
-              (fun i is -> Int32.Set.add (Num.to_naked_int32 i) is)
-              is Int32.Set.empty
-          in
-          let ty = T.these_naked_int32s is in
-          let dacc = DA.add_variable dacc result_var ty in
-          match Int32.Set.get_singleton is with
-          | None ->
-            Simplify_primitive_result.create original_term ~try_reify:false dacc
-          | Some i ->
-            let named =
-              Named.create_simple (Simple.const (Reg_width_const.naked_int32 i))
-            in
-            Simplify_primitive_result.create named ~try_reify:false dacc)
-        | Naked_int64 -> (
-          let is =
-            Num.Set.fold
-              (fun i is -> Int64.Set.add (Num.to_naked_int64 i) is)
-              is Int64.Set.empty
-          in
-          let ty = T.these_naked_int64s is in
-          let dacc = DA.add_variable dacc result_var ty in
-          match Int64.Set.get_singleton is with
-          | None ->
-            Simplify_primitive_result.create original_term ~try_reify:false dacc
-          | Some i ->
-            let named =
-              Named.create_simple (Simple.const (Reg_width_const.naked_int64 i))
-            in
-            Simplify_primitive_result.create named ~try_reify:false dacc)
-        | Naked_nativeint -> (
-          let is =
-            Num.Set.fold
-              (fun i is ->
-                Targetint_32_64.Set.add (Num.to_naked_nativeint i) is)
-              is Targetint_32_64.Set.empty
-          in
-          let ty = T.these_naked_nativeints is in
-          let dacc = DA.add_variable dacc result_var ty in
-          match Targetint_32_64.Set.get_singleton is with
-          | None ->
-            Simplify_primitive_result.create original_term ~try_reify:false dacc
-          | Some i ->
-            let named =
-              Named.create_simple
-                (Simple.const (Reg_width_const.naked_nativeint i))
-            in
-            Simplify_primitive_result.create named ~try_reify:false dacc))
+        | Tagged_immediate ->
+          let module M = For_kind (struct
+            module Result_num = Targetint_31_63
+
+            let num_to_result_num = Num.to_immediate
+
+            let these = T.these_tagged_immediates
+
+            let const = Reg_width_const.tagged_immediate
+          end) in
+          M.result
+        | Naked_immediate ->
+          let module M = For_kind (struct
+            module Result_num = Targetint_31_63
+
+            let num_to_result_num = Num.to_immediate
+
+            let these = T.these_naked_immediates
+
+            let const = Reg_width_const.naked_immediate
+          end) in
+          M.result
+        | Naked_float ->
+          let module M = For_kind (struct
+            module Result_num = Float
+
+            let num_to_result_num = Num.to_naked_float
+
+            let these = T.these_naked_floats
+
+            let const = Reg_width_const.naked_float
+          end) in
+          M.result
+        | Naked_int32 ->
+          let module M = For_kind (struct
+            module Result_num = Int32
+
+            let num_to_result_num = Num.to_naked_int32
+
+            let these = T.these_naked_int32s
+
+            let const = Reg_width_const.naked_int32
+          end) in
+          M.result
+        | Naked_int64 ->
+          let module M = For_kind (struct
+            module Result_num = Int64
+
+            let num_to_result_num = Num.to_naked_int64
+
+            let these = T.these_naked_int64s
+
+            let const = Reg_width_const.naked_int64
+          end) in
+          M.result
+        | Naked_nativeint ->
+          let module M = For_kind (struct
+            module Result_num = Targetint_32_64
+
+            let num_to_result_num = Num.to_naked_nativeint
+
+            let these = T.these_naked_nativeints
+
+            let const = Reg_width_const.naked_nativeint
+          end) in
+          M.result)
       | Unknown ->
         let ty = T.unknown (K.Standard_int_or_float.to_kind dst) in
         let dacc = DA.add_variable dacc result_var ty in
         Simplify_primitive_result.create original_term ~try_reify:false dacc
-      | Invalid ->
-        let ty = T.bottom (K.Standard_int_or_float.to_kind dst) in
-        let dacc = DA.add_variable dacc result_var ty in
-        Simplify_primitive_result.create original_term ~try_reify:false dacc
+      | Invalid -> Simplify_primitive_result.create_invalid dacc
 end
 
 module Simplify_int_conv_tagged_immediate =
