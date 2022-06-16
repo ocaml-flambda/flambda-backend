@@ -495,35 +495,27 @@ let simplify_boolean_not dacc ~original_term ~arg:_ ~arg_ty ~result_var =
   let typing_env = DE.typing_env denv in
   let proof = T.prove_equals_tagged_immediates typing_env arg_ty in
   let[@inline always] result_unknown () =
-    let ty = T.unknown K.value in
+    (* CR-someday mshinwell: This could say something like (in the type) "when
+       the input is 0, the value is 1" and vice-versa. *)
+    let ty = T.these_tagged_immediates Targetint_31_63.all_bools in
     let dacc = DA.add_variable dacc result_var ty in
     Simplify_primitive_result.create original_term ~try_reify:false dacc
   in
-  let[@inline always] result_invalid () =
-    let ty = T.bottom K.value in
-    let dacc = DA.add_variable dacc result_var ty in
-    Simplify_primitive_result.create_invalid dacc
-  in
   match proof with
   | Proved imms -> (
-    let imms_ok =
-      Targetint_31_63.Set.for_all
+    let imms =
+      Targetint_31_63.Set.filter_map
         (fun imm ->
-          Targetint_31_63.equal imm Targetint_31_63.zero
-          || Targetint_31_63.equal imm Targetint_31_63.one)
+          if Targetint_31_63.equal imm Targetint_31_63.zero
+          then Some Targetint_31_63.one
+          else if Targetint_31_63.equal imm Targetint_31_63.one
+          then Some Targetint_31_63.zero
+          else None)
         imms
     in
-    if not imms_ok
-    then result_unknown ()
+    if Targetint_31_63.Set.is_empty imms
+    then Simplify_primitive_result.create_invalid dacc
     else
-      let imms =
-        Targetint_31_63.Set.map
-          (fun imm ->
-            if Targetint_31_63.equal imm Targetint_31_63.zero
-            then Targetint_31_63.one
-            else Targetint_31_63.zero)
-          imms
-      in
       let ty = T.these_tagged_immediates imms in
       let dacc = DA.add_variable dacc result_var ty in
       match Targetint_31_63.Set.get_singleton imms with
@@ -535,13 +527,8 @@ let simplify_boolean_not dacc ~original_term ~arg:_ ~arg_ty ~result_var =
             (Simple.const_int (Targetint_31_63.to_targetint imm))
         in
         Simplify_primitive_result.create named ~try_reify:false dacc)
-  | Unknown ->
-    (* CR-someday mshinwell: This could say something like (in the type) "when
-       the input is 0, the value is 1" and vice-versa. *)
-    let ty = T.these_tagged_immediates Targetint_31_63.all_bools in
-    let dacc = DA.add_variable dacc result_var ty in
-    Simplify_primitive_result.create original_term ~try_reify:false dacc
-  | Invalid -> result_invalid ()
+  | Unknown -> result_unknown ()
+  | Invalid -> Simplify_primitive_result.create_invalid dacc
 
 let simplify_reinterpret_int64_as_float dacc ~original_term ~arg:_ ~arg_ty
     ~result_var =
@@ -567,9 +554,7 @@ let simplify_reinterpret_int64_as_float dacc ~original_term ~arg:_ ~arg_ty
   | Unknown ->
     let dacc = DA.add_variable dacc result_var T.any_naked_float in
     Simplify_primitive_result.create original_term ~try_reify:false dacc
-  | Invalid ->
-    let dacc = DA.add_variable dacc result_var (T.bottom K.naked_float) in
-    Simplify_primitive_result.create_invalid dacc
+  | Invalid -> Simplify_primitive_result.create_invalid dacc
 
 let simplify_float_arith_op (op : P.unary_float_arith_op) dacc ~original_term
     ~arg:_ ~arg_ty ~result_var =
@@ -581,11 +566,6 @@ let simplify_float_arith_op (op : P.unary_float_arith_op) dacc ~original_term
     let ty = T.unknown K.naked_float in
     let dacc = DA.add_variable dacc result_var ty in
     Simplify_primitive_result.create original_term ~try_reify:false dacc
-  in
-  let[@inline always] result_invalid () =
-    let ty = T.bottom K.naked_float in
-    let dacc = DA.add_variable dacc result_var ty in
-    Simplify_primitive_result.create_invalid dacc
   in
   match proof with
   | Proved fs when DE.propagating_float_consts denv -> (
@@ -606,7 +586,7 @@ let simplify_float_arith_op (op : P.unary_float_arith_op) dacc ~original_term
       in
       Simplify_primitive_result.create named ~try_reify:false dacc)
   | Proved _ | Unknown -> result_unknown ()
-  | Invalid -> result_invalid ()
+  | Invalid -> Simplify_primitive_result.create_invalid dacc
 
 let simplify_is_boxed_float dacc ~original_term ~arg:_ ~arg_ty ~result_var =
   assert (Flambda_features.flat_float_array ());
@@ -622,39 +602,40 @@ let simplify_is_boxed_float dacc ~original_term ~arg:_ ~arg_ty ~result_var =
     let ty = T.unknown K.naked_immediate in
     let dacc = DA.add_variable dacc result_var ty in
     Simplify_primitive_result.create original_term ~try_reify:false dacc
-  | Invalid | Wrong_kind ->
-    let ty = T.bottom K.naked_immediate in
-    let dacc = DA.add_variable dacc result_var ty in
-    Simplify_primitive_result.create_invalid dacc
+  | Invalid | Wrong_kind -> Simplify_primitive_result.create_invalid dacc
 
 let simplify_is_flat_float_array dacc ~original_term ~arg:_ ~arg_ty ~result_var
     =
   assert (Flambda_features.flat_float_array ());
-  match
-    T.prove_is_array_with_element_kind (DA.typing_env dacc) arg_ty
-      ~element_kind:K.With_subkind.naked_float
-  with
-  | Proved ((Exact | Incompatible) as compat) ->
-    let is_flat_float_array =
-      match compat with
-      | Exact -> true
-      | Incompatible -> false
-      | Compatible -> assert false
-    in
+  let[@inline] known_answer ~is_flat_float_array =
     let imm = Targetint_31_63.bool is_flat_float_array in
     let ty = T.this_naked_immediate imm in
     let dacc = DA.add_variable dacc result_var ty in
     Simplify_primitive_result.create
       (Named.create_simple (Simple.const (Reg_width_const.naked_immediate imm)))
       ~try_reify:false dacc
+  in
+  match
+    T.prove_is_array_with_element_kind (DA.typing_env dacc) arg_ty
+      ~element_kind:K.With_subkind.naked_float
+  with
+  | Proved Exact -> known_answer ~is_flat_float_array:true
+  | Proved Incompatible -> known_answer ~is_flat_float_array:false
   | Proved Compatible | Unknown ->
     let ty = T.unknown K.naked_immediate in
     let dacc = DA.add_variable dacc result_var ty in
     Simplify_primitive_result.create original_term ~try_reify:false dacc
-  | Invalid ->
-    let ty = T.bottom K.naked_immediate in
-    let dacc = DA.add_variable dacc result_var ty in
-    Simplify_primitive_result.create_invalid dacc
+  | Invalid -> Simplify_primitive_result.create_invalid dacc
+
+let simplify_opaque_identity dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
+  let ty = T.unknown K.value in
+  let dacc = DA.add_variable dacc result_var ty in
+  Simplify_primitive_result.create original_term ~try_reify:false dacc
+
+let simplify_end_region dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
+  let ty = T.this_tagged_immediate Targetint_31_63.zero in
+  let dacc = DA.add_variable dacc result_var ty in
+  Simplify_primitive_result.create original_term ~try_reify:false dacc
 
 let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     ~arg_ty dbg ~result_var =
@@ -697,14 +678,8 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     | Is_boxed_float -> simplify_is_boxed_float
     | Is_flat_float_array -> simplify_is_flat_float_array
     | Int_as_pointer | Bigarray_length _ | Duplicate_array _ | Duplicate_block _
-    | Opaque_identity | End_region ->
-      (* CR mshinwell: In these cases, the type of the argument should still be
-         checked. Same for binary/ternary/etc. *)
-      fun dacc ~original_term:_ ~arg ~arg_ty:_ ~result_var ->
-       let prim : P.t = Unary (prim, arg) in
-       let named = Named.create_prim prim dbg in
-       let ty = T.unknown (P.result_kind' prim) in
-       let dacc = DA.add_variable dacc result_var ty in
-       Simplify_primitive_result.create named ~try_reify:true dacc
+    | Opaque_identity ->
+      simplify_opaque_identity
+    | End_region -> simplify_end_region
   in
   simplifier dacc ~original_term ~arg ~arg_ty ~result_var
