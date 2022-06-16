@@ -93,40 +93,6 @@ type static_data =
   | Mutable_string of { initial_value : string }
   | Immutable_string of string
 
-(* type naked_number_kind = Flambda_kind.Naked_number_kind.t =
- *   | Naked_immediate
- *   | Naked_float
- *   | Naked_int32
- *   | Naked_int64
- *   | Naked_nativeint
- * 
- * type kind =
- *   (\* can't alias because Flambda_kind.t is private *\)
- *   | Value
- *   | Naked_number of naked_number_kind
- *   | Region
- *   | Rec_info
- * 
- * type kind_with_subkind =
- *   (\* can't alias for same reason as [kind] *\)
- *   | Any_value
- *   | Block of
- *       { tag : Tag.t;
- *         fields : kind_with_subkind list
- *       }
- *   | Float_block of { num_fields : int }
- *   | Naked_number of naked_number_kind
- *   | Boxed_float
- *   | Boxed_int32
- *   | Boxed_int64
- *   | Boxed_nativeint
- *   | Tagged_immediate
- *   | Rec_info
- *   | Float_array
- *   | Immediate_array
- *   | Value_array
- *   | Generic_array *)
-
 type kind = Flambda_kind.t
 
 type kind_with_subkind = Flambda_kind.With_subkind.t

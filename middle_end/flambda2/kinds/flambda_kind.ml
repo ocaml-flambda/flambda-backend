@@ -499,48 +499,6 @@ module With_subkind = struct
     let hash { kind; subkind } = Hashtbl.hash (hash kind, Subkind.hash subkind)
   end)
 
-  (* type descr =
-   *   | Any_value
-   *   | Naked_number of Naked_number_kind.t
-   *   | Boxed_float
-   *   | Boxed_int32
-   *   | Boxed_int64
-   *   | Boxed_nativeint
-   *   | Tagged_immediate
-   *   | Rec_info
-   *   | Block of
-   *       { tag : Tag.t;
-   *         fields : descr list
-   *       }
-   *   | Float_block of { num_fields : int }
-   *   | Float_array
-   *   | Immediate_array
-   *   | Value_array
-   *   | Generic_array
-   * 
-   * let rec subkind_descr (t : Subkind.t) : descr =
-   *   match t with
-   *   | Anything -> Any_value
-   *   | Tagged_immediate -> Tagged_immediate
-   *   | Boxed_float -> Boxed_float
-   *   | Boxed_int32 -> Boxed_int32
-   *   | Boxed_int64 -> Boxed_int64
-   *   | Boxed_nativeint -> Boxed_nativeint
-   *   | Block { tag; fields } ->
-   *     Block { tag; fields = List.map subkind_descr fields }
-   *   | Float_block { num_fields } -> Float_block { num_fields }
-   *   | Float_array -> Float_array
-   *   | Immediate_array -> Immediate_array
-   *   | Value_array -> Value_array
-   *   | Generic_array -> Generic_array
-   * 
-   * let descr t : descr =
-   *   match t.kind with
-   *   | Value -> subkind_descr t.subkind
-   *   | Naked_number naked_number_kind -> Naked_number naked_number_kind
-   *   | Rec_info -> Rec_info
-   *   | Region -> Misc.fatal_error "Not implemented" *)
-
   let compatible t ~when_used_at =
     Subkind.compatible t.subkind ~when_used_at:when_used_at.subkind
 
