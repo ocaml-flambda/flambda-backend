@@ -18,13 +18,7 @@ type t =
   | Linearly_used_and_inlinable of
       { params : Bound_parameters.t;
             (** To avoid re-opening name abstractions, we store the opened
-                parameters and handler here. Note that the properties of
-                [Name_abstraction] mean that this is safe even if the expression
-                were to be substituted in multiple places, with corresponding
-                bindings of the [params]. There is no requirement for binders to
-                use fresh names when name abstractions are being constructed;
-                they just have to match the ones in the terms being closed
-                over. *)
+                parameters and handler here. *)
         handler : Rebuilt_expr.t;
             (** [free_names_of_handler] includes entries for any occurrences of
                 the [params] in the [handler]. *)
