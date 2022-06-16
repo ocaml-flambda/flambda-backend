@@ -54,7 +54,7 @@ let [@ocamlformat "disable"] print ppf
 
 let does_nothing t =
   Bound_parameters.cardinal t.original_params = BP.Set.cardinal t.used_params
-  && Id.Map.is_empty t.extra_args
+  && Bound_parameters.is_empty t.used_extra_params
 
 let create ~original_params ~used_params ~extra_params ~extra_args
     ~used_extra_params =
