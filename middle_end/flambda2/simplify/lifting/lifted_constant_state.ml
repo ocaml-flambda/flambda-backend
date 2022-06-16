@@ -107,6 +107,8 @@ let add_to_denv ?maybe_already_defined denv lifted =
               let env_extension =
                 (* CR mshinwell: Maybe sometimes this could be done at a time
                    previous to this point. *)
+                (* CR pchambart: Maybe some of these make_suitable calls could
+                   be combined into one *)
                 T.make_suitable_for_environment
                   (DE.typing_env denv_at_definition)
                   (Everything_not_in typing_env) [sym, typ]
