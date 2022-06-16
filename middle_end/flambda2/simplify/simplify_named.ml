@@ -107,6 +107,9 @@ let simplify_named0 dacc (bound_pattern : Bound_pattern.t) (named : Named.t)
            looks like an allocation but that are instead a projection from a
            bigger structure. *)
         let allow_lifting =
+          (* CR mshinwell: Perhaps this could be relaxed to
+             [at_most_generative_effects], but there are concerns about
+             compilation speed *)
           P.only_generative_effects prim
           && Name_mode.is_normal (Bound_var.name_mode bound_var)
         in
