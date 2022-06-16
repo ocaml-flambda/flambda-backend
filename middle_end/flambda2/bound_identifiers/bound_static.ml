@@ -150,10 +150,7 @@ let symbols_being_defined t =
   List.map Pattern.symbols_being_defined t |> Symbol.Set.union_list
 
 let code_being_defined t =
-  List.fold_left
-    (fun code_ids pattern ->
-      Code_id.Set.union code_ids (Pattern.code_being_defined pattern))
-    Code_id.Set.empty t
+  List.map Pattern.code_being_defined t |> Code_id.Set.union_list
 
 let binds_code t = List.exists Pattern.binds_code t
 
@@ -173,4 +170,4 @@ let all_ids_for_export t =
 
 let concat t1 t2 = t1 @ t2
 
-let gc_roots t = List.map Pattern.gc_roots t |> List.concat
+let gc_roots t = List.concat_map Pattern.gc_roots t

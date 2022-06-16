@@ -867,6 +867,8 @@ module Code_id_or_symbol = struct
   module Lmap = Lmap.Make (T)
 
   let set_of_code_id_set code_ids =
+    (* CR-someday lmaurer: This is just an expensive identity. Should add
+       something to [Patricia_tree] to let us translate. *)
     Code_id.Set.fold
       (fun code_id free_code_ids ->
         Set.add (create_code_id code_id) free_code_ids)
