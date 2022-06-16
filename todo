@@ -91,3 +91,5 @@ Mark to check what else can be merged from the symbol offsets patch
 
 For contification in the future: Simplify_common.is_self_tail_call
 which will be on a separate branch flambda2-contification on gbury's github
+
+Rename perm -> renaming
