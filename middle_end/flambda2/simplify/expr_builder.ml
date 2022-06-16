@@ -662,9 +662,14 @@ let rewrite_apply_cont0 uacc rewrite ~ctx id apply_cont :
       (fun (extra_args_rev, extra_lets, required_by_other_extra_args)
            ( (arg : Continuation_extra_params_and_args.Extra_arg.t),
              (used : Apply_cont_rewrite.used) ) ->
+        (* Some extra_args computation can depend on other extra args. But those
+           required extra args might not be needed as argument to the
+           continuation. But we want to keep the let bindings.
+           [required_by_other_extra_args] tracks that dependency. It is the set
+           of free variables of [extra_args_rev] *)
         let extra_arg, extra_let, free_names =
           match arg with
-          | Already_in_scope simple -> simple, [], Name_occurrences.empty
+          | Already_in_scope simple -> simple, [], Simple.free_names simple
           | New_let_binding (temp, prim) ->
             let extra_let =
               ( Bound_var.create temp Name_mode.normal,
@@ -675,7 +680,8 @@ let rewrite_apply_cont0 uacc rewrite ~ctx id apply_cont :
           | New_let_binding_with_named_args (temp, gen_prim) ->
             let prim =
               match (ctx : rewrite_apply_cont_ctx) with
-              | Apply_expr args -> gen_prim args
+              | Apply_expr function_return_values ->
+                gen_prim function_return_values
               | Apply_cont ->
                 Misc.fatal_errorf
                   "Apply_cont rewrites should not need to name arguments, \
