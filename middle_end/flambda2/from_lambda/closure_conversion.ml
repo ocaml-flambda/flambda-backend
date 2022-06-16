@@ -212,13 +212,12 @@ module Inlining = struct
         |> Flambda_arity.length
       in
       if fun_params_length > List.length (Apply_expr.args apply)
-      then begin
+      then (
         Inlining_report.record_decision_at_call_site_for_known_function ~tracker
           ~apply ~pass:After_closure_conversion ~unrolling_depth:None
           ~callee:(Code.absolute_history code)
           ~are_rebuilding_terms Definition_says_not_to_inline;
-        Not_inlinable
-      end
+        Not_inlinable)
       else
         let inlined_call = Apply_expr.inlined apply in
         let decision, res =
@@ -422,7 +421,7 @@ let close_c_call acc env ~loc ~let_bound_var
       then Misc.fatal_errorf "Expected arity one for %s" prim_native_name
       else
         match prim_native_repr_args, prim_native_repr_res with
-        | [(_, Unboxed_integer Pint64)], (_, Unboxed_float) -> begin
+        | [(_, Unboxed_integer Pint64)], (_, Unboxed_float) -> (
           match args with
           | [arg] ->
             let result = Variable.create "reinterpreted_int64" in
@@ -440,8 +439,7 @@ let close_c_call acc env ~loc ~let_bound_var
               (Named.create_prim prim dbg)
               ~body:return_result_expr
           | [] | _ :: _ ->
-            Misc.fatal_errorf "Expected one arg for %s" prim_native_name
-        end
+            Misc.fatal_errorf "Expected one arg for %s" prim_native_name)
         | _, _ ->
           Misc.fatal_errorf "Wrong argument and/or result kind(s) for %s"
             prim_native_name)
@@ -728,7 +726,7 @@ let close_let acc env id user_visible defining_expr
           Some
             (Env.add_block_approximation body_env (Name.var var) approxs
                alloc_mode)
-        | Prim (Binary (Block_load _, block, field), _) -> begin
+        | Prim (Binary (Block_load _, block, field), _) -> (
           match Env.find_value_approximation body_env block with
           | Value_unknown -> Some body_env
           | Closure_approximation _ | Value_symbol _ ->
@@ -770,7 +768,7 @@ let close_let acc env id user_visible defining_expr
               Some (Env.add_simple_to_substitute env id (Simple.symbol sym))
             | _ ->
               Some (Env.add_value_approximation body_env (Name.var var) approx))
-        end
+          )
         | _ -> Some body_env
       in
       let var = VB.create var Name_mode.normal in
@@ -1270,7 +1268,7 @@ let close_one_function acc ~external_env ~by_function_slot decl
     let code = Code_or_metadata.create code in
     let meta = Code_or_metadata.remember_only_metadata code in
     if Flambda_features.classic_mode ()
-    then begin
+    then (
       Inlining_report.record_decision_at_function_definition ~absolute_history
         ~code_metadata:(Code_or_metadata.code_metadata meta)
         ~pass:After_closure_conversion
@@ -1278,8 +1276,7 @@ let close_one_function acc ~external_env ~by_function_slot decl
         inlining_decision;
       if Function_decl_inlining_decision_type.must_be_inlined inlining_decision
       then code
-      else meta
-    end
+      else meta)
     else meta
   in
   let acc = Acc.add_code ~code_id ~code acc in

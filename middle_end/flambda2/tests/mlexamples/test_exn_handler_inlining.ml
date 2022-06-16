@@ -16,11 +16,9 @@ let g y =
 
 let f x =
   let c = ref x in
-  begin
-    try
-      while true do
-        c := g !c
-      done
-    with _ -> ()
-  end;
+  (try
+     while true do
+       c := g !c
+     done
+   with _ -> ());
   !c

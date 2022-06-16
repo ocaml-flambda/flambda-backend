@@ -163,9 +163,7 @@ let parse ~symbol_for_global filename =
          let flambda =
            Fexpr_to_flambda.conv ~symbol_for_global ~module_ident fexpr
          in
-         begin
-           match old_comp_unit with
-           | Some old_comp_unit -> Compilation_unit.set_current old_comp_unit
-           | None -> ()
-         end;
+         (match old_comp_unit with
+         | Some old_comp_unit -> Compilation_unit.set_current old_comp_unit
+         | None -> ());
          flambda)

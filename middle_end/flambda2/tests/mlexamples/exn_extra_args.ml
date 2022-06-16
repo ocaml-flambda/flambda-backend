@@ -12,13 +12,11 @@ let[@inline never] input_line () = "bar"
 
 let ld_conf_contents () =
   let path = ref [] in
-  begin
-    try
-      try
-        while true do
-          path := input_line () :: !path
-        done
-      with End_of_file -> ()
-    with Sys_error _ -> ()
-  end;
+  (try
+     try
+       while true do
+         path := input_line () :: !path
+       done
+     with End_of_file -> ()
+   with Sys_error _ -> ());
   !path

@@ -67,14 +67,11 @@ include Container_types.Make (struct
 end)
 
 let create ~exn_handler ~extra_args =
-  begin
-    match Continuation.sort exn_handler with
-    | Normal_or_exn -> ()
-    | _ ->
-      Misc.fatal_errorf
-        "Continuation %a has wrong sort (must be [Normal_or_exn])"
-        Continuation.print exn_handler
-  end;
+  (match Continuation.sort exn_handler with
+  | Normal_or_exn -> ()
+  | _ ->
+    Misc.fatal_errorf "Continuation %a has wrong sort (must be [Normal_or_exn])"
+      Continuation.print exn_handler);
   { exn_handler; extra_args }
 
 let exn_handler t = t.exn_handler
@@ -96,10 +93,9 @@ let apply_renaming ({ exn_handler; extra_args } as t) renaming =
         let simple' = Simple.apply_renaming simple renaming in
         if simple == simple'
         then extra_arg
-        else begin
+        else (
           extra_args_changed := true;
-          simple', kind
-        end)
+          simple', kind))
       extra_args
   in
   let extra_args' =

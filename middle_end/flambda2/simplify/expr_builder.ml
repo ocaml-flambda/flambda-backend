@@ -122,36 +122,33 @@ let create_let uacc (bound_vars : Bound_pattern.t) (defining_expr : Named.t)
       (* see below *)
     in
     let declared_name_mode = Bound_pattern.name_mode bound_vars in
-    begin
-      match
-        Name_mode.Or_absent.compare_partial_order greatest_name_mode
-          (Name_mode.Or_absent.present declared_name_mode)
-      with
-      | None -> ()
-      | Some c ->
-        if c <= 0
-        then ()
-        else
-          Misc.fatal_errorf
-            "[Let]-binding declares variable(s) %a (mode %a) to be bound to@ \
-             %a,@ but there exist occurrences for such variable(s) at a higher \
-             mode@ (>= %a)@ in the body (free names %a):@ %a"
-            Bound_pattern.print bound_vars Name_mode.print declared_name_mode
-            Named.print defining_expr Name_mode.Or_absent.print
-            greatest_name_mode Name_occurrences.print free_names_of_body
-            (RE.print (UA.are_rebuilding_terms uacc))
-            body
-    end;
+    (match
+       Name_mode.Or_absent.compare_partial_order greatest_name_mode
+         (Name_mode.Or_absent.present declared_name_mode)
+     with
+    | None -> ()
+    | Some c ->
+      if c <= 0
+      then ()
+      else
+        Misc.fatal_errorf
+          "[Let]-binding declares variable(s) %a (mode %a) to be bound to@ \
+           %a,@ but there exist occurrences for such variable(s) at a higher \
+           mode@ (>= %a)@ in the body (free names %a):@ %a"
+          Bound_pattern.print bound_vars Name_mode.print declared_name_mode
+          Named.print defining_expr Name_mode.Or_absent.print greatest_name_mode
+          Name_occurrences.print free_names_of_body
+          (RE.print (UA.are_rebuilding_terms uacc))
+          body);
     if not (Named.at_most_generative_effects defining_expr)
-    then begin
+    then (
       if not (Name_mode.is_normal declared_name_mode)
       then
         Misc.fatal_errorf
           "Cannot [Let]-bind non-normal variable(s) to a [Named] that has more \
            than generative effects:@ %a@ =@ %a"
           Bound_pattern.print bound_vars Named.print defining_expr;
-      bound_vars, Some Name_mode.normal, Nothing_deleted_at_runtime
-    end
+      bound_vars, Some Name_mode.normal, Nothing_deleted_at_runtime)
     else
       let is_depth =
         match defining_expr with
@@ -347,14 +344,13 @@ let make_new_let_bindings uacc
           match creation_result with
           | Nothing_deleted_at_runtime -> uacc
           | Defining_expr_deleted_at_compile_time
-          | Defining_expr_deleted_at_runtime -> begin
+          | Defining_expr_deleted_at_runtime -> (
             match (original_defining_expr : Named.t) with
             | Prim (prim, _dbg) ->
               UA.notify_removed ~operation:(Removed_operations.prim prim) uacc
             | Set_of_closures _ ->
               UA.notify_removed ~operation:Removed_operations.alloc uacc
-            | Simple _ | Static_consts _ | Rec_info _ -> uacc
-          end
+            | Simple _ | Static_consts _ | Rec_info _ -> uacc)
         in
         expr, uacc)
 

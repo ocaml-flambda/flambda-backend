@@ -106,34 +106,30 @@ let debugging_verbose = false
 
 let log f e1 e2 thunk =
   if debugging
-  then begin
+  then (
     if debugging_verbose
-    then begin
+    then (
       Format.eprintf
         "@[<v>@[<hv>COMPARING@;<1 2>%a@;<1 0>TO@;<1 2>%a@]@,---@;<0 2>" f e1 f
         e2;
       let ans = thunk () in
       Format.eprintf "%a@]@," (Comparison.print f) ans;
-      ans
-    end
+      ans)
     else
       let ans : _ Comparison.t = thunk () in
-      begin
-        match ans with
-        | Equivalent -> ()
-        | Different { approximant } ->
-          Format.eprintf
-            "@[<hv>FOUND DIFFERENCE:@;\
-             <1 2>%a@;\
-             <1 0>!=@;\
-             <1 2>%a@;\
-             <1 0>approx@;\
-             <1 2>%a@]\n\
-             %!"
-            f e1 f e2 f approximant
-      end;
-      ans
-  end
+      (match ans with
+      | Equivalent -> ()
+      | Different { approximant } ->
+        Format.eprintf
+          "@[<hv>FOUND DIFFERENCE:@;\
+           <1 2>%a@;\
+           <1 0>!=@;\
+           <1 2>%a@;\
+           <1 0>approx@;\
+           <1 2>%a@]\n\
+           %!"
+          f e1 f e2 f approximant);
+      ans)
   else thunk ()
 
 let log_rel f e1 rel e2 =
@@ -482,15 +478,14 @@ let pairs ~(f1 : 'a Comparator.t) ~(f2 : 'b Comparator.t)
  fun env (a1, b1) (a2, b2) ->
   match f1 env a1 a2 with
   | Equivalent -> f2 env b1 b2 |> Comparison.map ~f:(fun b1' -> a2, b1')
-  | Different { approximant = a1' } -> begin
+  | Different { approximant = a1' } -> (
     match subst2 with
     | Some subst2 -> Different { approximant = a1', subst2 env b1 }
-    | None -> begin
+    | None -> (
       match f2 env b1 b2 with
       | Equivalent -> Different { approximant = a1', b2 }
-      | Different { approximant = b1' } -> Different { approximant = a1', b1' }
-    end
-  end
+      | Different { approximant = b1' } -> Different { approximant = a1', b1' })
+    )
 
 let triples ~(f1 : 'a Comparator.t) ~(f2 : 'b Comparator.t)
     ~(f3 : 'c Comparator.t) ?(subst2 : (Env.t -> 'b -> 'b) option)
@@ -713,7 +708,7 @@ let iter2_merged l1 l2 ~compare ~f =
     | [], a2 :: l2 ->
       f None (Some a2);
       go [] l2
-    | a1 :: l1, a2 :: l2 -> begin
+    | a1 :: l1, a2 :: l2 -> (
       match compare a1 a2 with
       | 0 ->
         f (Some a1) (Some a2);
@@ -723,8 +718,7 @@ let iter2_merged l1 l2 ~compare ~f =
         go l1 (a2 :: l2)
       | _ ->
         f None (Some a2);
-        go (a1 :: l1) l2
-    end
+        go (a1 :: l1) l2)
   in
   go l1 l2
 
@@ -750,11 +744,10 @@ let sets_of_closures env set1 set2 : Set_of_closures.t Comparison.t =
         match elt1, elt2 with
         | None, None -> ()
         | Some _, None | None, Some _ -> ok := false
-        | Some (_value1, var1), Some (_value2, var2) -> begin
+        | Some (_value1, var1), Some (_value2, var2) -> (
           match value_slots env var1 var2 with
           | Equivalent -> ()
-          | Different { approximant = _ } -> ok := false
-        end)
+          | Different { approximant = _ } -> ok := false))
   in
   let function_slots_and_fun_decls_by_code_id set =
     let map = Function_declarations.funs (Set_of_closures.function_decls set) in
@@ -768,22 +761,17 @@ let sets_of_closures env set1 set2 : Set_of_closures.t Comparison.t =
   let (_ : unit Code_id.Map.t) =
     Code_id.Map.merge
       (fun _code_id value1 value2 ->
-        begin
-          match value1, value2 with
-          | None, None -> ()
-          | Some _, None | None, Some _ -> ok := false
-          | Some (function_slot1, fun_decl1), Some (function_slot2, fun_decl2)
-            -> begin
-            begin
-              match function_slots env function_slot1 function_slot2 with
-              | Equivalent -> ()
-              | Different _ -> ok := false
-            end;
-            match function_decls env fun_decl1 fun_decl2 with
-            | Equivalent -> ()
-            | Different _ -> ok := false
-          end
-        end;
+        (match value1, value2 with
+        | None, None -> ()
+        | Some _, None | None, Some _ -> ok := false
+        | Some (function_slot1, fun_decl1), Some (function_slot2, fun_decl2)
+          -> (
+          (match function_slots env function_slot1 function_slot2 with
+          | Equivalent -> ()
+          | Different _ -> ok := false);
+          match function_decls env fun_decl1 fun_decl2 with
+          | Equivalent -> ()
+          | Different _ -> ok := false));
         None)
       (function_slots_and_fun_decls_by_code_id set1)
       (function_slots_and_fun_decls_by_code_id set2)

@@ -463,11 +463,9 @@ let flush_all () =
   let rec iter = function
     | [] -> ()
     | a :: l ->
-      begin
-        try flush a
-        with Sys_error _ ->
-          () (* ignore channels closed during a preceding flush. *)
-      end;
+      (try flush a
+       with Sys_error _ ->
+         () (* ignore channels closed during a preceding flush. *));
       iter l
   in
   iter (out_channels_list ())
@@ -584,7 +582,7 @@ let input_line chan =
       | [] -> raise End_of_file
       | _ -> build_result (bytes_create len) len accu
     else if n > 0
-    then begin
+    then (
       (* n > 0: newline found in buffer *)
       let res = bytes_create (n - 1) in
       ignore (unsafe_input chan res 0 (n - 1));
@@ -594,8 +592,7 @@ let input_line chan =
       | [] -> res
       | _ ->
         let len = len + n - 1 in
-        build_result (bytes_create len) len (res :: accu)
-    end
+        build_result (bytes_create len) len (res :: accu))
     else
       (* n < 0: newline not found *)
       let beg = bytes_create (-n) in
@@ -727,10 +724,9 @@ let at_exit f =
   exit_function
     := fun () ->
          if not !f_already_ran
-         then begin
+         then (
            f_already_ran := true;
-           f ()
-         end;
+           f ());
          g ()
 
 let do_at_exit () = !exit_function ()
@@ -1044,7 +1040,7 @@ let add_substitute b f s =
   let lim = String.length s in
   let rec subst previous i =
     if i < lim
-    then begin
+    then (
       match s.[i] with
       | '$' as current when previous = '\\' ->
         add_char b current;
@@ -1061,8 +1057,7 @@ let add_substitute b f s =
       | '\\' as current -> subst current (i + 1)
       | current ->
         add_char b current;
-        subst current (i + 1)
-    end
+        subst current (i + 1))
     else if previous = '\\'
     then add_char b previous
   in

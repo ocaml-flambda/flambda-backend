@@ -447,11 +447,9 @@ module Stdlib = struct
     let rec iter = function
       | [] -> ()
       | a :: l ->
-        begin
-          try flush a
-          with Sys_error _ ->
-            () (* ignore channels closed during a preceding flush. *)
-        end;
+        (try flush a
+         with Sys_error _ ->
+           () (* ignore channels closed during a preceding flush. *));
         iter l
     in
     iter (out_channels_list ())
@@ -568,7 +566,7 @@ module Stdlib = struct
         | [] -> raise End_of_file
         | _ -> build_result (bytes_create len) len accu
       else if n > 0
-      then begin
+      then (
         (* n > 0: newline found in buffer *)
         let res = bytes_create (n - 1) in
         ignore (unsafe_input chan res 0 (n - 1));
@@ -578,8 +576,7 @@ module Stdlib = struct
         | [] -> res
         | _ ->
           let len = len + n - 1 in
-          build_result (bytes_create len) len (res :: accu)
-      end
+          build_result (bytes_create len) len (res :: accu))
       else
         (* n < 0: newline not found *)
         let beg = bytes_create (-n) in
@@ -712,10 +709,9 @@ module Stdlib = struct
     exit_function
       := fun () ->
            if not !f_already_ran
-           then begin
+           then (
              f_already_ran := true;
-             f ()
-           end;
+             f ());
            g ()
 
   let do_at_exit () = !exit_function ()
@@ -2196,20 +2192,16 @@ let fix_padding padty width str =
   then str
   else
     let res = Bytes.make width (if padty = Zeros then '0' else ' ') in
-    begin
-      match padty with
-      | Left -> String.blit str 0 res 0 len
-      | Right -> String.blit str 0 res (width - len) len
-      | Zeros when len > 0 && (str.[0] = '+' || str.[0] = '-' || str.[0] = ' ')
-        ->
-        Bytes.set res 0 str.[0];
-        String.blit str 1 res (width - len + 1) (len - 1)
-      | Zeros when len > 1 && str.[0] = '0' && (str.[1] = 'x' || str.[1] = 'X')
-        ->
-        Bytes.set res 1 str.[1];
-        String.blit str 2 res (width - len + 2) (len - 2)
-      | Zeros -> String.blit str 0 res (width - len) len
-    end;
+    (match padty with
+    | Left -> String.blit str 0 res 0 len
+    | Right -> String.blit str 0 res (width - len) len
+    | Zeros when len > 0 && (str.[0] = '+' || str.[0] = '-' || str.[0] = ' ') ->
+      Bytes.set res 0 str.[0];
+      String.blit str 1 res (width - len + 1) (len - 1)
+    | Zeros when len > 1 && str.[0] = '0' && (str.[1] = 'x' || str.[1] = 'X') ->
+      Bytes.set res 1 str.[1];
+      String.blit str 2 res (width - len + 2) (len - 2)
+    | Zeros -> String.blit str 0 res (width - len) len);
     Bytes.unsafe_to_string res
 
 (* Add '0' padding to int, int32, nativeint or int64 string representation. *)
@@ -3149,7 +3141,7 @@ let fmt_ebb_of_string ?legacy_behavior str =
     | '*' ->
       parse_after_padding pct_ind (str_ind + 1) end_ind minus plus hash space
         ign (Arg_padding padty)
-    | _ -> begin
+    | _ -> (
       match padty with
       | Left ->
         if not legacy_behavior
@@ -3164,8 +3156,7 @@ let fmt_ebb_of_string ?legacy_behavior str =
           (Lit_padding (Right, 0))
       | Right ->
         parse_after_padding pct_ind str_ind end_ind minus plus hash space ign
-          No_padding
-    end
+          No_padding)
   (* Is precision defined? *)
   and parse_after_padding :
       type x e f.
@@ -3600,7 +3591,7 @@ let fmt_ebb_of_string ?legacy_behavior str =
        Such checks need to be disabled in legacy mode, as the legacy parser
        silently ignored incompatible flags. *)
     if not legacy_behavior
-    then begin
+    then (
       if (not !plus_used) && plus
       then incompatible_flag pct_ind str_ind symb "'+'";
       if (not !hash_used) && hash
@@ -3614,8 +3605,7 @@ let fmt_ebb_of_string ?legacy_behavior str =
         incompatible_flag pct_ind str_ind
           (if ign then '_' else symb)
           "`precision'";
-      if ign && plus then incompatible_flag pct_ind str_ind '_' "'+'"
-    end;
+      if ign && plus then incompatible_flag pct_ind str_ind '_' "'+'");
     (* this last test must not be disabled in legacy mode, as ignoring it would
        typically result in a different typing than what the legacy parser
        used *)

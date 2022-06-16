@@ -85,7 +85,7 @@ let save_corrected ~desc ~print ~orig_filename corrected =
 
 let run_flt_file filename : Outcome.t =
   match Parse_flambda.parse_expect_test_spec filename with
-  | Ok test_spec -> begin
+  | Ok test_spec -> (
     match
       run_expect_test ~symbol_for_global ~get_global_info ~extension:".flt"
         ~filename test_spec
@@ -97,8 +97,7 @@ let run_flt_file filename : Outcome.t =
       Format.eprintf "FAIL@.";
       save_corrected corrected ~desc:"test" ~print:Print_fexpr.expect_test_spec
         ~orig_filename:filename;
-      Failure
-  end
+      Failure)
   | Error e ->
     dump_error e;
     Error
@@ -128,11 +127,10 @@ let run_mdflx_file filename : Outcome.t =
     in
     if !all_passed
     then Outcome.Success
-    else begin
+    else (
       save_corrected corrected_doc ~desc:"document"
         ~print:Print_fexpr.markdown_doc ~orig_filename:filename;
-      Failure
-    end
+      Failure)
   | Error e ->
     dump_error e;
     Error

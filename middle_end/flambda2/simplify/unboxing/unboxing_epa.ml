@@ -127,15 +127,14 @@ let extra_args_for_const_ctor_of_variant
     (const_ctors_decision : U.const_ctors_decision) ~typing_env_at_use
     rewrite_id variant_arg : U.const_ctors_decision =
   match const_ctors_decision with
-  | Zero -> begin
+  | Zero -> (
     match variant_arg with
     | Not_a_constant_constructor -> const_ctors_decision
     | Maybe_constant_constructor _ ->
       Misc.fatal_errorf
         "The unboxed variant parameter was determined to have no constant \
          cases when deciding to unbox it (using the parameter type), but at \
-         the use site, it is a constant constructor."
-  end
+         the use site, it is a constant constructor.")
   | At_least_one { ctor = Do_not_unbox reason; is_int } ->
     let is_int =
       Extra_param_and_args.update_param_args is_int rewrite_id
@@ -230,7 +229,7 @@ and compute_extra_args_for_one_decision_and_use_aux ~(pass : U.pass) rewrite_id
       in
       match type_of_arg_being_unboxed arg_being_unboxed with
       | None -> invalid ()
-      | Some arg_type -> begin
+      | Some arg_type -> (
         match T.prove_variant_like typing_env_at_use arg_type with
         | Wrong_kind -> Misc.fatal_errorf "Kind error while unboxing a variant"
         | Unknown -> prevent_current_unboxing ()
@@ -240,8 +239,7 @@ and compute_extra_args_for_one_decision_and_use_aux ~(pass : U.pass) rewrite_id
             arg_being_unboxed ~tag_from_decision:tag ~const_ctors_from_decision
             ~fields_by_tag_from_decision:fields_by_tag
             ~const_ctors_at_use:const_ctors
-            ~non_const_ctors_with_sizes_at_use:non_const_ctors_with_sizes
-      end)
+            ~non_const_ctors_with_sizes_at_use:non_const_ctors_with_sizes))
   | Unbox (Number (Naked_float, epa)) ->
     compute_extra_arg_for_number Naked_float Unboxers.Float.unboxer epa
       rewrite_id ~typing_env_at_use arg_being_unboxed

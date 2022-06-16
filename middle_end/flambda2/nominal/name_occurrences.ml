@@ -273,13 +273,12 @@ end = struct
     | Empty, Potentially_many map | Potentially_many map, Empty ->
       N.Map.is_empty map
     | One (n1, name_mode1), Potentially_many map
-    | Potentially_many map, One (n1, name_mode1) -> begin
+    | Potentially_many map, One (n1, name_mode1) -> (
       match N.Map.get_singleton map with
       | None -> false
       | Some (n2, for_one_name2) ->
         let for_one_name1 = For_one_name.one_occurrence name_mode1 in
-        N.equal n1 n2 && For_one_name.equal for_one_name1 for_one_name2
-    end
+        N.equal n1 n2 && For_one_name.equal for_one_name1 for_one_name2)
     | (Empty | One _), _ -> false
 
   let empty = Empty
@@ -541,16 +540,15 @@ end = struct
        closure allocation if [max_name_mode] is captured. *)
     match max_name_mode with
     | Normal -> t
-    | Phantom -> begin
+    | Phantom -> (
       match t with
       | Empty -> Empty
-      | One (name, name_mode) -> begin
+      | One (name, name_mode) -> (
         match name_mode with
         | Normal | Phantom -> One (name, Name_mode.phantom)
         | In_types ->
           Misc.fatal_errorf "Cannot downgrade [In_types] to [Phantom]:@ %a"
-            print t
-      end
+            print t)
       | Potentially_many map ->
         let map =
           N.Map.map_sharing
@@ -559,18 +557,16 @@ end = struct
                 for_one_name Name_mode.phantom)
             map
         in
-        Potentially_many map
-    end
-    | In_types -> begin
+        Potentially_many map)
+    | In_types -> (
       match t with
       | Empty -> Empty
-      | One (name, name_mode) -> begin
+      | One (name, name_mode) -> (
         match name_mode with
         | Normal | In_types -> One (name, Name_mode.in_types)
         | Phantom ->
           Misc.fatal_errorf "Cannot downgrade [Phantom] to [In_types]:@ %a"
-            print t
-      end
+            print t)
       | Potentially_many map ->
         let map =
           N.Map.map_sharing
@@ -579,8 +575,7 @@ end = struct
                 for_one_name Name_mode.in_types)
             map
         in
-        Potentially_many map
-    end
+        Potentially_many map)
 
   let for_all t ~f =
     match t with

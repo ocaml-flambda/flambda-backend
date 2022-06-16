@@ -360,19 +360,17 @@ let depth_or_infinity (d : int Or_infinity.t) : Fexpr.rec_info =
 
 let rec rec_info env (ri : Rec_info_expr.t) : Fexpr.rec_info =
   match ri with
-  | Const { depth; unrolling } -> begin
+  | Const { depth; unrolling } -> (
     match unrolling with
     | Not_unrolling -> depth_or_infinity depth
     | Unrolling { remaining_depth } ->
       Unroll (remaining_depth, depth_or_infinity depth)
-    | Do_not_unroll -> begin
+    | Do_not_unroll -> (
       match depth with
       | Infinity -> Do_not_inline
       | Finite _ ->
         Misc.fatal_errorf "unexpected finite depth with Do_not_unroll:@ %a"
-          Rec_info_expr.print ri
-    end
-  end
+          Rec_info_expr.print ri))
   | Var dv -> Var (Env.find_var_exn env dv)
   | Succ ri -> Succ (rec_info env ri)
   | Unroll_to (d, ri) -> Unroll (d, rec_info env ri)
@@ -803,9 +801,8 @@ and static_let_expr env bound_static defining_expr body : Fexpr.expr =
     let rec loop only_set (bindings : Fexpr.symbol_binding list) =
       match bindings with
       | [] -> only_set
-      | Set_of_closures set :: bindings -> begin
-        match only_set with None -> loop (Some set) bindings | Some _ -> None
-      end
+      | Set_of_closures set :: bindings -> (
+        match only_set with None -> loop (Some set) bindings | Some _ -> None)
       | (Data _ | Code _ | Deleted_code _ | Closure _) :: bindings ->
         loop only_set bindings
     in

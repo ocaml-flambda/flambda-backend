@@ -430,7 +430,7 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_depth
             DE.add_variable denv
               (Bound_var.create my_closure NM.normal)
               (T.unknown K.value)
-          | Some function_slot -> begin
+          | Some function_slot -> (
             match
               Function_slot.Map.find function_slot
                 closure_bound_names_inside_function
@@ -446,8 +446,7 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_depth
               let name = Bound_name.name name in
               DE.add_variable denv
                 (Bound_var.create my_closure NM.normal)
-                (T.alias_type_of K.value (Simple.name name))
-          end
+                (T.alias_type_of K.value (Simple.name name)))
         in
         let denv =
           let my_depth = Bound_var.create my_depth Name_mode.normal in

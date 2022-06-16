@@ -105,7 +105,7 @@ let rec make_optimistic_decision ~depth tenv ~param_type : U.decision =
                 non_const_ctors_with_sizes
             in
             Unbox (Variant { tag; const_ctors; fields_by_tag })
-          | Proved _ | Wrong_kind | Invalid | Unknown -> begin
+          | Proved _ | Wrong_kind | Invalid | Unknown -> (
             match T.prove_single_closures_entry' tenv param_type with
             | Proved (function_slot, _, closures_entry, _fun_decl)
               when unbox_closures ->
@@ -115,8 +115,7 @@ let rec make_optimistic_decision ~depth tenv ~param_type : U.decision =
               Unbox
                 (Closure_single_entry { function_slot; vars_within_closure })
             | Proved _ | Wrong_kind | Invalid | Unknown ->
-              Do_not_unbox Incomplete_parameter_type
-          end))
+              Do_not_unbox Incomplete_parameter_type)))
 
 and make_optimistic_fields ~add_tag_to_name ~depth tenv param_type (tag : Tag.t)
     size =

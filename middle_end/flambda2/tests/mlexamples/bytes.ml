@@ -398,39 +398,37 @@ let escaped s =
     let s' = create !n in
     n := 0;
     for i = 0 to length s - 1 do
-      begin
-        match unsafe_get s i with
-        | ('\"' | '\\') as c ->
-          unsafe_set s' !n '\\';
-          incr n;
-          unsafe_set s' !n c
-        | '\n' ->
-          unsafe_set s' !n '\\';
-          incr n;
-          unsafe_set s' !n 'n'
-        | '\t' ->
-          unsafe_set s' !n '\\';
-          incr n;
-          unsafe_set s' !n 't'
-        | '\r' ->
-          unsafe_set s' !n '\\';
-          incr n;
-          unsafe_set s' !n 'r'
-        | '\b' ->
-          unsafe_set s' !n '\\';
-          incr n;
-          unsafe_set s' !n 'b'
-        | ' ' .. '~' as c -> unsafe_set s' !n c
-        | c ->
-          let a = char_code c in
-          unsafe_set s' !n '\\';
-          incr n;
-          unsafe_set s' !n (char_chr (48 + (a / 100)));
-          incr n;
-          unsafe_set s' !n (char_chr (48 + (a / 10 mod 10)));
-          incr n;
-          unsafe_set s' !n (char_chr (48 + (a mod 10)))
-      end;
+      (match unsafe_get s i with
+      | ('\"' | '\\') as c ->
+        unsafe_set s' !n '\\';
+        incr n;
+        unsafe_set s' !n c
+      | '\n' ->
+        unsafe_set s' !n '\\';
+        incr n;
+        unsafe_set s' !n 'n'
+      | '\t' ->
+        unsafe_set s' !n '\\';
+        incr n;
+        unsafe_set s' !n 't'
+      | '\r' ->
+        unsafe_set s' !n '\\';
+        incr n;
+        unsafe_set s' !n 'r'
+      | '\b' ->
+        unsafe_set s' !n '\\';
+        incr n;
+        unsafe_set s' !n 'b'
+      | ' ' .. '~' as c -> unsafe_set s' !n c
+      | c ->
+        let a = char_code c in
+        unsafe_set s' !n '\\';
+        incr n;
+        unsafe_set s' !n (char_chr (48 + (a / 100)));
+        incr n;
+        unsafe_set s' !n (char_chr (48 + (a / 10 mod 10)));
+        incr n;
+        unsafe_set s' !n (char_chr (48 + (a mod 10))));
       incr n
     done;
     s'

@@ -553,7 +553,7 @@ let transform_primitive env (prim : L.primitive) args loc =
     Primitive (L.Pnot, [L.Lprim (Pfloatcomp CFle, args, loc)], loc)
   | Pfloatcomp CFnge, args ->
     Primitive (L.Pnot, [L.Lprim (Pfloatcomp CFge, args, loc)], loc)
-  | Pbigarrayref (_unsafe, num_dimensions, kind, layout), args -> begin
+  | Pbigarrayref (_unsafe, num_dimensions, kind, layout), args -> (
     match
       P.bigarray_kind_from_lambda kind, P.bigarray_layout_from_lambda layout
     with
@@ -569,9 +569,8 @@ let transform_primitive env (prim : L.primitive) args loc =
         Misc.fatal_errorf
           "Lambda_to_flambda.transform_primitive: Pbigarrayref with unknown \
            layout and elements should only have dimensions between 1 and 3 \
-           (see translprim)."
-  end
-  | Pbigarrayset (_unsafe, num_dimensions, kind, layout), args -> begin
+           (see translprim).")
+  | Pbigarrayset (_unsafe, num_dimensions, kind, layout), args -> (
     match
       P.bigarray_kind_from_lambda kind, P.bigarray_layout_from_lambda layout
     with
@@ -587,8 +586,7 @@ let transform_primitive env (prim : L.primitive) args loc =
         Misc.fatal_errorf
           "Lambda_to_flambda.transform_primimive: Pbigarrayset with unknown \
            layout and elements should only have dimensions between 1 and 3 \
-           (see translprim)."
-  end
+           (see translprim).")
   | _, _ -> Primitive (prim, args, loc)
 
 let rec_catch_for_while_loop env cond body =
@@ -882,7 +880,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
     (* This case avoids extraneous continuations. *)
     let body acc ccenv = cps_non_tail acc env ccenv body k k_exn in
     CC.close_let acc ccenv id User_visible (Simple (Const const)) ~body
-  | Llet (let_kind, value_kind, id, Lprim (prim, args, loc), body) -> begin
+  | Llet (let_kind, value_kind, id, Lprim (prim, args, loc), body) -> (
     match transform_primitive env prim args loc with
     | Primitive (prim, args, loc) ->
       (* This case avoids extraneous continuations. *)
@@ -905,8 +903,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
     | Transformed lam ->
       cps_non_tail acc env ccenv
         (L.Llet (let_kind, value_kind, id, lam, body))
-        k k_exn
-  end
+        k k_exn)
   | Llet (_let_kind, value_kind, id, defining_expr, body) ->
     (* CR pchambart: see similar case in cps_tail *)
     let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler:false
@@ -914,15 +911,14 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
       ~body:(fun acc env ccenv after_defining_expr ->
         cps_tail acc env ccenv defining_expr after_defining_expr k_exn)
       ~handler:(fun acc env ccenv -> cps_non_tail acc env ccenv body k k_exn)
-  | Lletrec (bindings, body) -> begin
+  | Lletrec (bindings, body) -> (
     match Dissect_letrec.dissect_letrec ~bindings ~body with
     | Unchanged ->
       let function_declarations = cps_function_bindings env bindings in
       let body acc ccenv = cps_non_tail acc env ccenv body k k_exn in
       CC.close_let_rec acc ccenv ~function_declarations ~body
-    | Dissected lam -> cps_non_tail acc env ccenv lam k k_exn
-  end
-  | Lprim (prim, args, loc) -> begin
+    | Dissected lam -> cps_non_tail acc env ccenv lam k k_exn)
+  | Lprim (prim, args, loc) -> (
     match transform_primitive env prim args loc with
     | Primitive (prim, args, loc) ->
       let name = Printlambda.name_of_primitive prim in
@@ -943,8 +939,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
             (Prim { prim; args; loc; exn_continuation })
             ~body)
         k_exn
-    | Transformed lam -> cps_non_tail acc env ccenv lam k k_exn
-  end
+    | Transformed lam -> cps_non_tail acc env ccenv lam k k_exn)
   | Lswitch (scrutinee, switch, loc, kind) ->
     let result_var = Ident.create_local "switch_result" in
     let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler:false
@@ -1249,7 +1244,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
     (* This case avoids extraneous continuations. *)
     let body acc ccenv = cps_tail acc env ccenv body k k_exn in
     CC.close_let acc ccenv id User_visible (Simple (Const const)) ~body
-  | Llet (let_kind, value_kind, id, Lprim (prim, args, loc), body) -> begin
+  | Llet (let_kind, value_kind, id, Lprim (prim, args, loc), body) -> (
     match transform_primitive env prim args loc with
     | Primitive (prim, args, loc) ->
       (* This case avoids extraneous continuations. *)
@@ -1272,8 +1267,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
     | Transformed lam ->
       cps_tail acc env ccenv
         (L.Llet (let_kind, value_kind, id, lam, body))
-        k k_exn
-  end
+        k k_exn)
   | Llet (_let_kind, _value_kind, id, Lassign (being_assigned, new_value), body)
     ->
     (* This case is also to avoid extraneous continuations in code that relies
@@ -1306,15 +1300,14 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
      *   CC.close_let acc ccenv id User_visible (Simple (Var value)) ~body
      * in
      * cps_non_tail acc env ccenv defining_expr k k_exn *)
-  | Lletrec (bindings, body) -> begin
+  | Lletrec (bindings, body) -> (
     match Dissect_letrec.dissect_letrec ~bindings ~body with
     | Unchanged ->
       let function_declarations = cps_function_bindings env bindings in
       let body acc ccenv = cps_tail acc env ccenv body k k_exn in
       CC.close_let_rec acc ccenv ~function_declarations ~body
-    | Dissected lam -> cps_tail acc env ccenv lam k k_exn
-  end
-  | Lprim (prim, args, loc) -> begin
+    | Dissected lam -> cps_tail acc env ccenv lam k k_exn)
+  | Lprim (prim, args, loc) -> (
     match transform_primitive env prim args loc with
     | Primitive (prim, args, loc) ->
       (* CR mshinwell: Arrange for "args" to be named. *)
@@ -1340,8 +1333,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
             (Prim { prim; args; loc; exn_continuation })
             ~body)
         k_exn
-    | Transformed lam -> cps_tail acc env ccenv lam k k_exn
-  end
+    | Transformed lam -> cps_tail acc env ccenv lam k k_exn)
   | Lswitch (scrutinee, switch, loc, _kind) ->
     (* CR-someday poechsel: Use [kind] *)
     cps_switch acc env ccenv switch
@@ -1540,7 +1532,7 @@ and cps_function_bindings env (bindings : (Ident.t * L.lambda) list) =
         match binding with
         | L.Lfunction
             { kind; params; body = fbody; attr; loc; mode; region; return; _ }
-          -> begin
+          -> (
           match
             Simplif.split_default_wrapper ~id:fun_id ~kind ~params ~body:fbody
               ~return ~attr ~loc ~mode ~region
@@ -1557,8 +1549,7 @@ and cps_function_bindings env (bindings : (Ident.t * L.lambda) list) =
             Misc.fatal_errorf
               "Unexpected return value from [split_default_wrapper] when \
                translating:@ %a"
-              Printlambda.lambda binding
-        end
+              Printlambda.lambda binding)
         | _ ->
           Misc.fatal_errorf
             "Only [Lfunction] expressions are permitted in function bindings \

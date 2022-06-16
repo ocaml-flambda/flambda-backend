@@ -116,20 +116,17 @@ let invariant
        probe_name = _;
        relative_history = _
      } as t) =
-  begin
-    match call_kind with
-    | Function _ | Method _ -> ()
-    | C_call { alloc = _; param_arity = _; return_arity = _; is_c_builtin = _ }
-      ->
-      if not (Simple.is_symbol callee)
-      then
-        (* CR-someday mshinwell: We could expose indirect C calls at the source
-           language level. *)
-        Misc.fatal_errorf
-          "For [C_call] applications the callee must be directly specified as \
-           a [Symbol]:@ %a"
-          print t
-  end;
+  (match call_kind with
+  | Function _ | Method _ -> ()
+  | C_call { alloc = _; param_arity = _; return_arity = _; is_c_builtin = _ } ->
+    if not (Simple.is_symbol callee)
+    then
+      (* CR-someday mshinwell: We could expose indirect C calls at the source
+         language level. *)
+      Misc.fatal_errorf
+        "For [C_call] applications the callee must be directly specified as a \
+         [Symbol]:@ %a"
+        print t);
   match continuation with
   | Never_returns ->
     let return_arity = Call_kind.return_arity call_kind in

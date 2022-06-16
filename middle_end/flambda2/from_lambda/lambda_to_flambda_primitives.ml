@@ -958,7 +958,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
         block,
         Simple Simple.const_zero,
         new_ref_value )
-  | Pctconst const, _ -> begin
+  | Pctconst const, _ -> (
     (* CR mshinwell: This doesn't seem to be zero-arity like it should be *)
     (* CR pchambart: It's not obvious when this one should be converted.
        mshinwell: Have put an implementation here for now. *)
@@ -980,8 +980,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
     | Ostype_win32 -> Simple (Simple.const_bool (Sys.os_type = "Win32"))
     | Ostype_cygwin -> Simple (Simple.const_bool (Sys.os_type = "Cygwin"))
     | Backend_type ->
-      Simple Simple.const_zero (* constructor 0 is the same as Native here *)
-  end
+      Simple Simple.const_zero (* constructor 0 is the same as Native here *))
   | Pbswap16, [arg] ->
     tag_int
       (Unary (Int_arith (Naked_immediate, Swap_byte_endianness), untag_int arg))
@@ -990,7 +989,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
   | Pbbswap (Pnativeint, mode), [arg] ->
     bbswap Naked_nativeint Naked_nativeint mode arg
   | Pint_as_pointer, [arg] -> Unary (Int_as_pointer, arg)
-  | Pbigarrayref (unsafe, num_dimensions, kind, layout), args -> begin
+  | Pbigarrayref (unsafe, num_dimensions, kind, layout), args -> (
     match
       P.bigarray_kind_from_lambda kind, P.bigarray_layout_from_lambda layout
     with
@@ -1012,9 +1011,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
     | _, None ->
       Misc.fatal_errorf
         "Lambda_to_flambda_primitives.convert_lprim: Pbigarrayref primitives \
-         with an unknown layout should have been removed by Lambda_to_flambda."
-  end
-  | Pbigarrayset (unsafe, num_dimensions, kind, layout), args -> begin
+         with an unknown layout should have been removed by Lambda_to_flambda.")
+  | Pbigarrayset (unsafe, num_dimensions, kind, layout), args -> (
     match
       P.bigarray_kind_from_lambda kind, P.bigarray_layout_from_lambda layout
     with
@@ -1037,8 +1035,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
     | _, None ->
       Misc.fatal_errorf
         "Lambda_to_flambda_primitives.convert_lprim: Pbigarrayref primitives \
-         with an unknown layout should have been removed by Lambda_to_flambda."
-  end
+         with an unknown layout should have been removed by Lambda_to_flambda.")
   | Pbigarraydim dimension, [arg] ->
     tag_int (Unary (Bigarray_length { dimension }, arg))
   | Pbigstring_load_16 true (* unsafe *), [big_str; index] ->

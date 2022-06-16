@@ -1179,39 +1179,35 @@ let simplify_binary_primitive dacc original_prim (prim : P.binary_primitive)
       simplify_immutable_block_load access_kind ~min_name_mode
     | Array_load (array_kind, mutability) ->
       simplify_array_load array_kind mutability
-    | Int_arith (kind, op) -> begin
+    | Int_arith (kind, op) -> (
       match kind with
       | Tagged_immediate -> Binary_int_arith_tagged_immediate.simplify op
       | Naked_immediate -> Binary_int_arith_naked_immediate.simplify op
       | Naked_int32 -> Binary_int_arith_int32.simplify op
       | Naked_int64 -> Binary_int_arith_int64.simplify op
-      | Naked_nativeint -> Binary_int_arith_nativeint.simplify op
-    end
-    | Int_shift (kind, op) -> begin
+      | Naked_nativeint -> Binary_int_arith_nativeint.simplify op)
+    | Int_shift (kind, op) -> (
       match kind with
       | Tagged_immediate -> Binary_int_shift_tagged_immediate.simplify op
       | Naked_immediate -> Binary_int_shift_naked_immediate.simplify op
       | Naked_int32 -> Binary_int_shift_int32.simplify op
       | Naked_int64 -> Binary_int_shift_int64.simplify op
-      | Naked_nativeint -> Binary_int_shift_nativeint.simplify op
-    end
-    | Int_comp (kind, Signed, op) -> begin
+      | Naked_nativeint -> Binary_int_shift_nativeint.simplify op)
+    | Int_comp (kind, Signed, op) -> (
       match kind with
       | Tagged_immediate -> Binary_int_comp_tagged_immediate.simplify op
       | Naked_immediate -> Binary_int_comp_naked_immediate.simplify op
       | Naked_int32 -> Binary_int_comp_int32.simplify op
       | Naked_int64 -> Binary_int_comp_int64.simplify op
-      | Naked_nativeint -> Binary_int_comp_nativeint.simplify op
-    end
-    | Int_comp (kind, Unsigned, op) -> begin
+      | Naked_nativeint -> Binary_int_comp_nativeint.simplify op)
+    | Int_comp (kind, Unsigned, op) -> (
       match kind with
       | Tagged_immediate ->
         Binary_int_comp_unsigned_tagged_immediate.simplify op
       | Naked_immediate -> Binary_int_comp_unsigned_naked_immediate.simplify op
       | Naked_int32 -> Binary_int_comp_unsigned_int32.simplify op
       | Naked_int64 -> Binary_int_comp_unsigned_int64.simplify op
-      | Naked_nativeint -> Binary_int_comp_unsigned_nativeint.simplify op
-    end
+      | Naked_nativeint -> Binary_int_comp_unsigned_nativeint.simplify op)
     | Float_arith op -> Binary_float_arith.simplify op
     | Float_comp op -> Binary_float_comp.simplify op
     | Phys_equal (kind, op) -> simplify_phys_equal op kind

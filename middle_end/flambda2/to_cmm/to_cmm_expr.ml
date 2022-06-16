@@ -688,14 +688,13 @@ and switch env res s =
      small switches with 3-5 arms). *)
   let scrutinee, tag_discriminant =
     match Targetint_31_63.Map.cardinal arms with
-    | 2 -> begin
+    | 2 -> (
       match match_var_with_extra_info env scrutinee with
       | None | Some Boxed_number -> e, false
       | Some (Untag e') ->
         let size_e = cmm_arith_size e in
         let size_e' = cmm_arith_size e' in
-        if size_e' < size_e then e', true else e, false
-    end
+        if size_e' < size_e then e', true else e, false)
     | _ -> e, false
   in
   let wrap, env = Env.flush_delayed_lets env in
