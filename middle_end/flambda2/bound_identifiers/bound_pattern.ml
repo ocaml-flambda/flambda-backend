@@ -179,11 +179,6 @@ let must_be_static t =
   | Singleton _ | Set_of_closures _ ->
     Misc.fatal_errorf "Bound pattern is not [Static]:@ %a" print t
 
-let may_be_static t =
-  match t with
-  | Static bound_static -> Some bound_static
-  | Singleton _ | Set_of_closures _ -> None
-
 let exists_all_bound_vars t ~f =
   match t with
   | Singleton var -> f var

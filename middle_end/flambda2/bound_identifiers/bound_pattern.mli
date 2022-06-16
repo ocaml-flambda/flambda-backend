@@ -42,8 +42,6 @@ val must_be_set_of_closures : t -> Bound_var.t list
 
 val must_be_static : t -> Bound_static.t
 
-val may_be_static : t -> Bound_static.t option
-
 val name_mode : t -> Name_mode.t
 
 val with_name_mode : t -> Name_mode.t -> t
