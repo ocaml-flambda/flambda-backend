@@ -220,7 +220,7 @@ let make_boxed_const_int (i, m) : static_data =
 %type <Fexpr.kind_with_subkind> kind_with_subkind
 %type <Fexpr.kind_with_subkind list> kinds_with_subkinds
 %type <Fexpr.mutability> mutability
-%type <Fexpr.naked_number_kind> naked_number_kind
+%type <Flambda_kind.Naked_number_kind.t> naked_number_kind
 %type <Fexpr.name> name
 %type <Fexpr.named> named
 %type <Fexpr.rec_info> rec_info
@@ -523,19 +523,19 @@ naked_number_kind:
   | KWD_NATIVEINT { Naked_nativeint }
 ;
 kind:
-  | KWD_VAL { Value }
-  | nnk = naked_number_kind { Naked_number nnk }
-  | KWD_REGION { Region }
-  | KWD_REC_INFO { Rec_info }
+  | KWD_VAL { Flambda_kind.value }
+  | nnk = naked_number_kind { Flambda_kind.naked_number nnk }
+  | KWD_REGION { Flambda_kind.region }
+  | KWD_REC_INFO { Flambda_kind.rec_info }
 ;
 kind_with_subkind:
-  | KWD_VAL { Any_value }
-  | nnk = naked_number_kind { Naked_number nnk }
-  | KWD_FLOAT KWD_BOXED { Boxed_float }
-  | KWD_INT32 KWD_BOXED { Boxed_int32 }
-  | KWD_INT64 KWD_BOXED { Boxed_int64 }
-  | KWD_NATIVEINT KWD_BOXED { Boxed_nativeint }
-  | KWD_IMM KWD_TAGGED { Tagged_immediate }
+  | KWD_VAL { Flambda_kind.With_subkind.any_value }
+  | nnk = naked_number_kind { Flambda_kind.With_subkind.of_naked_number_kind nnk }
+  | KWD_FLOAT KWD_BOXED { Flambda_kind.With_subkind.boxed_float }
+  | KWD_INT32 KWD_BOXED { Flambda_kind.With_subkind.boxed_int32 }
+  | KWD_INT64 KWD_BOXED { Flambda_kind.With_subkind.boxed_int64 }
+  | KWD_NATIVEINT KWD_BOXED { Flambda_kind.With_subkind.boxed_nativeint }
+  | KWD_IMM KWD_TAGGED { Flambda_kind.With_subkind.tagged_immediate }
 ;
 kinds_with_subkinds :
   | KWD_UNIT { [] }

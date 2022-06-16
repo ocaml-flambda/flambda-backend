@@ -234,51 +234,12 @@ let immediate i =
 
 let float f = f |> Numeric_types.Float_by_bit_pattern.create
 
-let rec value_kind_with_subkind (k : Fexpr.kind_with_subkind) :
-    Flambda_kind.With_subkind.t =
-  let module KWS = Flambda_kind.With_subkind in
-  match k with
-  | Any_value -> KWS.any_value
-  | Block { tag; fields } ->
-    KWS.block tag (List.map value_kind_with_subkind fields)
-  | Float_block { num_fields } -> KWS.float_block ~num_fields
-  | Naked_number naked_number_kind -> (
-    match naked_number_kind with
-    | Naked_immediate -> KWS.naked_immediate
-    | Naked_float -> KWS.naked_float
-    | Naked_int32 -> KWS.naked_int32
-    | Naked_int64 -> KWS.naked_int64
-    | Naked_nativeint -> KWS.naked_nativeint)
-  | Boxed_float -> KWS.boxed_float
-  | Boxed_int32 -> KWS.boxed_int32
-  | Boxed_int64 -> KWS.boxed_int64
-  | Boxed_nativeint -> KWS.boxed_nativeint
-  | Tagged_immediate -> KWS.tagged_immediate
-  | Rec_info -> KWS.rec_info
-  | Float_array -> KWS.float_array
-  | Immediate_array -> KWS.immediate_array
-  | Value_array -> KWS.value_array
-  | Generic_array -> KWS.generic_array
-
-let value_kind : Fexpr.kind -> Flambda_kind.t = function
-  | Value -> Flambda_kind.value
-  | Naked_number naked_number_kind -> (
-    match naked_number_kind with
-    | Naked_immediate -> Flambda_kind.naked_immediate
-    | Naked_float -> Flambda_kind.naked_float
-    | Naked_int32 -> Flambda_kind.naked_int32
-    | Naked_int64 -> Flambda_kind.naked_int64
-    | Naked_nativeint -> Flambda_kind.naked_nativeint)
-  | Region -> Misc.fatal_error "Region should not be used"
-  | Rec_info -> Flambda_kind.rec_info
-
 let value_kind_with_subkind_opt :
     Fexpr.kind_with_subkind option -> Flambda_kind.With_subkind.t = function
-  | Some kind -> value_kind_with_subkind kind
+  | Some kind -> kind
   | None -> Flambda_kind.With_subkind.any_value
 
-let arity a =
-  Flambda_arity.With_subkinds.create (List.map value_kind_with_subkind a)
+let arity a = Flambda_arity.With_subkinds.create a
 
 let const (c : Fexpr.const) : Reg_width_const.t =
   match c with
@@ -401,9 +362,7 @@ let binop (binop : Fexpr.binop) : Flambda_primitive.binary_primitive =
     in
     Block_load (access_kind, mutability)
   | Phys_equal (kind, op) ->
-    let kind =
-      value_kind (kind |> Option.value ~default:(Value : Fexpr.kind))
-    in
+    let kind = kind |> Option.value ~default:Flambda_kind.value in
     Phys_equal (kind, op)
   | Infix op -> infix_binop op
   | Int_arith (i, o) -> Int_arith (i, o)
