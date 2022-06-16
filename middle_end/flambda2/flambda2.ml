@@ -171,7 +171,7 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
     print_rawflambda ppf raw_flambda;
     let flambda, offsets, cmx, all_code =
       if Flambda_features.classic_mode ()
-      then begin
+      then (
         (if Flambda_features.inlining_report ()
         then
           let output_prefix = prefixname ^ ".cps_conv" in
@@ -179,8 +179,7 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
             Inlining_report.output_then_forget_decisions ~output_prefix
           in
           Compiler_hooks.execute Inlining_tree inlining_tree);
-        raw_flambda, offsets, cmx, code
-      end
+        raw_flambda, offsets, cmx, code)
       else
         let round = 0 in
         let { Simplify.unit = flambda; exported_offsets; cmx; all_code } =
@@ -199,32 +198,27 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
         output_flexpect ~ml_filename:filename ~raw_flambda flambda;
         flambda, exported_offsets, cmx, all_code
     in
-    begin
-      match Sys.getenv "PRINT_SIZES" with
-      | exception Not_found -> ()
-      | _ ->
-        Exported_code.iter_code all_code ~f:(fun code ->
-            let size = Code.cost_metrics code in
-            Format.fprintf Format.std_formatter "%a %a\n"
-              Flambda2_identifiers.Code_id.print (Code.code_id code)
-              Cost_metrics.print size)
-    end;
-    begin
-      match cmx with
-      | None ->
-        () (* Either opaque was passed, or there is no need to export offsets *)
-      | Some cmx -> Compilenv.flambda2_set_export_info cmx
-    end;
+    (match Sys.getenv "PRINT_SIZES" with
+    | exception Not_found -> ()
+    | _ ->
+      Exported_code.iter_code all_code ~f:(fun code ->
+          let size = Code.cost_metrics code in
+          Format.fprintf Format.std_formatter "%a %a\n"
+            Flambda2_identifiers.Code_id.print (Code.code_id code)
+            Cost_metrics.print size));
+    (match cmx with
+    | None ->
+      () (* Either opaque was passed, or there is no need to export offsets *)
+    | Some cmx -> Compilenv.flambda2_set_export_info cmx);
     let cmm =
       Flambda2_to_cmm.To_cmm.unit ~make_symbol:Compilenv.make_symbol flambda
         ~all_code ~offsets
     in
     if not keep_symbol_tables
-    then begin
+    then (
       Compilenv.reset_info_tables ();
       Flambda2_identifiers.Continuation.reset ();
-      Flambda2_identifiers.Int_ids.reset ()
-    end;
+      Flambda2_identifiers.Int_ids.reset ());
     cmm
   in
   Profile.record_call "flambda2" run

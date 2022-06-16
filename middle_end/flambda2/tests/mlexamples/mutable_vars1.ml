@@ -19,10 +19,6 @@ external incr : int ref -> unit = "%incr"
 let escape_string s s' =
   let n = ref 0 in
   for i = 0 to length s do
-    begin
-      match unsafe_get s i with
-      | '\x00' -> incr n
-      | c -> unsafe_set s' !n c
-    end;
+    (match unsafe_get s i with '\x00' -> incr n | c -> unsafe_set s' !n c);
     incr n
   done

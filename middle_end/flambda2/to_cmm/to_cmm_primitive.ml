@@ -599,7 +599,7 @@ let unary_primitive env res dbg f arg =
     (* We could have an [Env.Tag] which would be returned here, but probably
        unnecessary at the moment. *)
     None, res, C.tag_int arg dbg
-  | Project_function_slot { move_from = c1; move_to = c2 } -> begin
+  | Project_function_slot { move_from = c1; move_to = c2 } -> (
     match function_slot_offset env c1, function_slot_offset env c2 with
     | ( Live_function_slot { offset = c1_offset; _ },
         Live_function_slot { offset = c2_offset; _ } ) ->
@@ -618,9 +618,8 @@ let unary_primitive env res dbg f arg =
     | Dead_function_slot, Dead_function_slot ->
       let message = dead_slots_msg dbg [c1; c2] [] in
       let expr, res = C.invalid res ~message in
-      None, res, expr
-  end
-  | Project_value_slot { project_from; value_slot } -> begin
+      None, res, expr)
+  | Project_value_slot { project_from; value_slot } -> (
     match
       value_slot_offset env value_slot, function_slot_offset env project_from
     with
@@ -640,8 +639,7 @@ let unary_primitive env res dbg f arg =
     | Dead_value_slot, Dead_function_slot ->
       let message = dead_slots_msg dbg [project_from] [value_slot] in
       let expr, res = C.invalid res ~message in
-      None, res, expr
-  end
+      None, res, expr)
   | Is_boxed_float ->
     (* As a note, this omits the [Is_in_value_area] check that exists in
        [caml_make_array], which is used by non-Flambda 2 compilers. This seems

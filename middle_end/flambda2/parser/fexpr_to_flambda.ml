@@ -242,14 +242,13 @@ let rec value_kind_with_subkind (k : Fexpr.kind_with_subkind) :
   | Block { tag; fields } ->
     KWS.block tag (List.map value_kind_with_subkind fields)
   | Float_block { num_fields } -> KWS.float_block ~num_fields
-  | Naked_number naked_number_kind -> begin
+  | Naked_number naked_number_kind -> (
     match naked_number_kind with
     | Naked_immediate -> KWS.naked_immediate
     | Naked_float -> KWS.naked_float
     | Naked_int32 -> KWS.naked_int32
     | Naked_int64 -> KWS.naked_int64
-    | Naked_nativeint -> KWS.naked_nativeint
-  end
+    | Naked_nativeint -> KWS.naked_nativeint)
   | Boxed_float -> KWS.boxed_float
   | Boxed_int32 -> KWS.boxed_int32
   | Boxed_int64 -> KWS.boxed_int64
@@ -263,14 +262,13 @@ let rec value_kind_with_subkind (k : Fexpr.kind_with_subkind) :
 
 let value_kind : Fexpr.kind -> Flambda_kind.t = function
   | Value -> Flambda_kind.value
-  | Naked_number naked_number_kind -> begin
+  | Naked_number naked_number_kind -> (
     match naked_number_kind with
     | Naked_immediate -> Flambda_kind.naked_immediate
     | Naked_float -> Flambda_kind.naked_float
     | Naked_int32 -> Flambda_kind.naked_int32
     | Naked_int64 -> Flambda_kind.naked_int64
-    | Naked_nativeint -> Flambda_kind.naked_nativeint
-  end
+    | Naked_nativeint -> Flambda_kind.naked_nativeint)
   | Region -> Misc.fatal_error "Region should not be used"
   | Rec_info -> Flambda_kind.rec_info
 
@@ -315,24 +313,22 @@ let coercion env (co : Fexpr.coercion) : Coercion.t =
 
 let rec simple env (s : Fexpr.simple) : Simple.t =
   match s with
-  | Var { txt = v; loc } -> begin
+  | Var { txt = v; loc } -> (
     match VM.find_opt v env.variables with
     | None ->
       Misc.fatal_errorf "Unbound variable %s : %a" v print_scoped_location loc
-    | Some var -> Simple.var var
-  end
+    | Some var -> Simple.var var)
   | Const c -> Simple.const (const c)
   | Symbol sym -> Simple.symbol (get_symbol env sym)
   | Coerce (s, co) -> Simple.apply_coercion_exn (simple env s) (coercion env co)
 
 let name env (s : Fexpr.name) : Name.t =
   match s with
-  | Var { txt = v; loc } -> begin
+  | Var { txt = v; loc } -> (
     match VM.find_opt v env.variables with
     | None ->
       Misc.fatal_errorf "Unbound variable %s : %a" v print_scoped_location loc
-    | Some var -> Name.var var
-  end
+    | Some var -> Name.var var)
   | Symbol sym -> Name.symbol (get_symbol env sym)
 
 let field_of_block env (v : Fexpr.field_of_block) : Field_of_static_block.t =
@@ -556,7 +552,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
     Flambda.Let.create bound named ~body ~free_names_of_body:Unknown
     |> Flambda.Expr.create_let
   | Let_cont { recursive; body; bindings = [{ name; params; sort; handler }] }
-    -> begin
+    -> (
     let sort =
       sort |> Option.value ~default:(Normal : Fexpr.continuation_sort)
     in
@@ -591,8 +587,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         ~free_names_of_body:Unknown
     | Recursive ->
       let handlers = Continuation.Map.singleton name handler in
-      Flambda.Let_cont.create_recursive handlers ~body
-  end
+      Flambda.Let_cont.create_recursive handlers ~body)
   | Let_cont _ -> failwith "TODO andwhere"
   | Apply_cont ac -> Flambda.Expr.create_apply_cont (apply_cont env ac)
   | Switch { scrutinee; cases } ->
@@ -640,10 +635,9 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             | Closure _ ->
               if !found_the_first_closure
               then None
-              else begin
+              else (
                 found_the_first_closure := true;
-                Some (Set_of_closures implicit_set : Fexpr.symbol_binding)
-              end
+                Some (Set_of_closures implicit_set : Fexpr.symbol_binding))
             | _ -> Some binding)
           bindings
     in
@@ -693,7 +687,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         Flambda.Static_const_or_code.create_static_const const
       in
       match b with
-      | Data { symbol = _; defining_expr = def } -> begin
+      | Data { symbol = _; defining_expr = def } -> (
         match def with
         | Block { tag; mutability; elements = args } ->
           let tag = Tag.Scannable.create_exn tag in
@@ -713,8 +707,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         | Empty_array -> static_const Empty_array
         | Mutable_string { initial_value = s } ->
           static_const (Mutable_string { initial_value = s })
-        | Immutable_string s -> static_const (Immutable_string s)
-      end
+        | Immutable_string s -> static_const (Immutable_string s))
       | Set_of_closures { bindings; elements } ->
         let fun_decls =
           List.map
@@ -863,7 +856,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           | Some { ret_arity; _ } -> arity ret_arity
         in
         Call_kind.direct_function_call code_id ~return_arity Heap
-      | Function Indirect -> begin
+      | Function Indirect -> (
         match arities with
         | Some { params_arity = Some params_arity; ret_arity } ->
           let param_arity = arity params_arity in
@@ -871,9 +864,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           Call_kind.indirect_function_call_known_arity ~param_arity
             ~return_arity Heap
         | None | Some { params_arity = None; ret_arity = _ } ->
-          Call_kind.indirect_function_call_unknown_arity Heap
-      end
-      | C_call { alloc } -> begin
+          Call_kind.indirect_function_call_unknown_arity Heap)
+      | C_call { alloc } -> (
         match arities with
         | Some { params_arity = Some params_arity; ret_arity } ->
           let param_arity =
@@ -884,8 +876,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           in
           Call_kind.c_call ~alloc ~param_arity ~return_arity ~is_c_builtin:false
         | None | Some { params_arity = None; ret_arity = _ } ->
-          Misc.fatal_errorf "Must specify arities for C call"
-      end
+          Misc.fatal_errorf "Must specify arities for C call")
     in
     let inlined =
       inlined |> Option.value ~default:Inlined_attribute.Default_inlined

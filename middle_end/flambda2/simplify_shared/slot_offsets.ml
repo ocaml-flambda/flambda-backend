@@ -219,14 +219,13 @@ let layout env function_slots value_slots =
     match startenv_opt, acc_slots with
     | Some i, _ -> i, false
     | None, [] -> 0, true
-    | None, (j, Function_slot function_slot) :: _ -> begin
+    | None, (j, Function_slot function_slot) :: _ -> (
       match EO.function_slot_offset env function_slot with
       | Some (Live_function_slot { size; _ }) -> j + size, true
       | Some Dead_function_slot | None ->
         (* the function slot was found earlier during the call to
            order_function_slots *)
-        assert false
-    end
+        assert false)
     | None, (_, Infix_header) :: _ ->
       (* Cannot happen because a infix header is *always* preceded by a function
          slot (because the slot list is reversed) *)
@@ -390,19 +389,16 @@ module Greedy = struct
   (* Keep the value slots offsets in sets up-to-date *)
 
   let update_set_for_slot slot set =
-    begin
-      match slot.pos with
-      | Unassigned | Removed -> ()
-      | Assigned i -> begin
-        match slot.desc with
-        | Value_slot _ ->
-          set.first_slot_used_by_value_slots
-            <- min set.first_slot_used_by_value_slots i
-        | Function_slot _ ->
-          set.first_slot_after_function_slots
-            <- max set.first_slot_after_function_slots (i + slot.size)
-      end
-    end;
+    (match slot.pos with
+    | Unassigned | Removed -> ()
+    | Assigned i -> (
+      match slot.desc with
+      | Value_slot _ ->
+        set.first_slot_used_by_value_slots
+          <- min set.first_slot_used_by_value_slots i
+      | Function_slot _ ->
+        set.first_slot_after_function_slots
+          <- max set.first_slot_after_function_slots (i + slot.size)));
     if set.first_slot_used_by_value_slots < set.first_slot_after_function_slots
     then
       Misc.fatal_errorf
@@ -634,10 +630,9 @@ module Greedy = struct
       | ({ desc = Value_slot v; _ } as slot) :: r ->
         set.unallocated_value_slots <- r;
         if keep_value_slot ~used_value_slots v
-        then begin
+        then (
           has_work_been_done := true;
-          f_kept acc slot
-        end
+          f_kept acc slot)
         else aux (f_removed acc slot) set
       | { desc = Function_slot _; _ } :: _ -> assert false
       (* invariant *)

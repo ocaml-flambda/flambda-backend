@@ -67,28 +67,26 @@ let rec simplify_rec_info_expr0 denv orig ~on_unknown : Rec_info_expr.t =
     | Proved rec_info_expr ->
       (* All bound names are fresh, so fine to use the same environment *)
       simplify_rec_info_expr0 denv rec_info_expr ~on_unknown
-    | Unknown -> begin
+    | Unknown -> (
       match on_unknown with
       | Leave_unevaluated -> orig
-      | Assume_value value -> value
-    end
+      | Assume_value value -> value)
     | Invalid ->
       (* Shouldn't currently be possible *)
       Misc.fatal_errorf "Invalid result from [prove_rec_info] of %a" T.print ty)
-  | Succ ri -> begin
+  | Succ ri -> (
     match simplify_rec_info_expr0 denv ri ~on_unknown with
     | Const { depth; unrolling } -> compute_succ ~depth ~unrolling
     | (Var _ | Succ _ | Unroll_to _) as new_ri ->
-      if ri == new_ri then orig else Rec_info_expr.succ new_ri
-  end
-  | Unroll_to (unroll_depth, ri) -> begin
+      if ri == new_ri then orig else Rec_info_expr.succ new_ri)
+  | Unroll_to (unroll_depth, ri) -> (
     match simplify_rec_info_expr0 denv ri ~on_unknown with
     | Const { depth; unrolling } ->
       compute_unroll_to ~depth ~old_unrolling_state:unrolling
         ~unroll_to:unroll_depth
     | (Var _ | Succ _ | Unroll_to _) as new_ri ->
       if ri == new_ri then orig else Rec_info_expr.unroll_to unroll_depth new_ri
-  end
+    )
 
 let simplify_rec_info_expr dacc rec_info_expr =
   let ans =

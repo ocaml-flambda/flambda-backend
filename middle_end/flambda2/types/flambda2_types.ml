@@ -78,7 +78,7 @@ let extract_symbol_approx env symbol find_code =
            We should make a proper fix in the [Variant] case below in due course
            and return to having a fatal error here. *)
         Value_unknown
-      | Ok (Value ty) -> begin
+      | Ok (Value ty) -> (
         match ty with
         | Array _ | String _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
         | Boxed_nativeint _ | Mutable_block _ ->
@@ -86,7 +86,7 @@ let extract_symbol_approx env symbol find_code =
         | Closures { by_function_slot; alloc_mode = _ } -> (
           match Row_like_for_closures.get_singleton by_function_slot with
           | None -> Value_unknown
-          | Some ((function_slot, _contents), closures_entry) -> begin
+          | Some ((function_slot, _contents), closures_entry) -> (
             match
               Closures_entry.find_function_type closures_entry function_slot
             with
@@ -94,8 +94,7 @@ let extract_symbol_approx env symbol find_code =
             | Ok function_type ->
               let code_id = Function_type.code_id function_type in
               let code_or_meta = find_code code_id in
-              Closure_approximation (code_id, function_slot, code_or_meta)
-          end)
+              Closure_approximation (code_id, function_slot, code_or_meta)))
         | Variant
             { immediates = Unknown; blocks = _; is_unique = _; alloc_mode = _ }
         | Variant
@@ -122,12 +121,11 @@ let extract_symbol_approx env symbol find_code =
                 | Unknown -> Alloc_mode.Heap
               in
               Block_approximation (Array.of_list fields, alloc_mode)
-          else Value_unknown
-      end
+          else Value_unknown)
     in
     match Type_grammar.get_alias_exn ty with
     | exception Not_found -> expand ty
-    | simple -> begin
+    | simple -> (
       match
         Typing_env.get_canonical_simple_exn env simple
           ~min_name_mode:Name_mode.normal
@@ -139,8 +137,7 @@ let extract_symbol_approx env symbol find_code =
           Value_approximation.Value_symbol symbol
         in
         let[@inline always] const _const = expand ty in
-        Simple.pattern_match' simple ~var ~symbol ~const
-    end
+        Simple.pattern_match' simple ~var ~symbol ~const)
   in
   let get_symbol_type sym =
     Typing_env.find env (Name.symbol sym) (Some Flambda_kind.value)

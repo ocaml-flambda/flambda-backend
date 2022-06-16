@@ -42,13 +42,12 @@ let rec all_ids_up_to_root t ~resolver id =
         Misc.fatal_errorf "Exception in resolver@ Backtrace is: %s"
           (Printexc.raw_backtrace_to_string (Printexc.get_raw_backtrace ()))
       | None -> Code_id.Set.singleton id
-      | Some t -> begin
+      | Some t -> (
         (* Inlining the base case, so that we do not recursively loop in case of
            a code_id that is not bound in the map *)
         match Code_id.Map.find id t with
         | exception Not_found -> Code_id.Set.singleton id
-        | older -> Code_id.Set.add id (all_ids_up_to_root t ~resolver older)
-      end)
+        | older -> Code_id.Set.add id (all_ids_up_to_root t ~resolver older)))
   | older -> Code_id.Set.add id (all_ids_up_to_root t ~resolver older)
 
 let num_ids_up_to_root t ~resolver id =

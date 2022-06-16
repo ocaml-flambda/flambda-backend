@@ -276,11 +276,10 @@ let simplify_static_consts dacc (bound_static : Bound_static.t) static_consts
             | None ->
               (* Not rebuilding terms: return the original code *)
               code, Rebuilt_static_const.create_code' code, dacc
-            | Some static_const_or_code -> begin
+            | Some static_const_or_code -> (
               match Static_const_or_code.to_code static_const_or_code with
               | None -> assert false
-              | Some code -> code, static_const, dacc_after_function
-            end
+              | Some code -> code, static_const, dacc_after_function)
           else code, Rebuilt_static_const.create_code' code, dacc
         in
         let dacc =

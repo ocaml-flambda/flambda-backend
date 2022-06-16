@@ -583,11 +583,9 @@ and print_continuation_handler (recursive : Recursive.t) ppf k
   let fprintf = Format.fprintf in
   if not first then fprintf ppf "@ ";
   let print params ~handler =
-    begin
-      match descr handler with
-      | Apply_cont _ | Invalid _ -> fprintf ppf "@[<hov 0>"
-      | Let _ | Let_cont _ | Apply _ | Switch _ -> fprintf ppf "@[<v 0>"
-    end;
+    (match descr handler with
+    | Apply_cont _ | Invalid _ -> fprintf ppf "@[<hov 0>"
+    | Let _ | Let_cont _ | Apply _ | Switch _ -> fprintf ppf "@[<v 0>");
     fprintf ppf "@[<hov 1>@<0>%s%a@<0>%s%s@<0>%s%s@<0>%s"
       (Flambda_colours.continuation_definition ())
       Continuation.print k
@@ -868,13 +866,12 @@ and print_flattened ppf
 and flatten_let_symbol t : _ * expr =
   let rec flatten (expr : expr) : _ * expr =
     match descr expr with
-    | Let t -> begin
+    | Let t -> (
       match flatten_for_printing t with
       | Some (flattened, body) ->
         let flattened', body = flatten body in
         flattened @ flattened', body
-      | None -> [], expr
-    end
+      | None -> [], expr)
     | Let_cont _ | Apply _ | Apply_cont _ | Switch _ | Invalid _ -> [], expr
   in
   match flatten_for_printing t with
@@ -1226,32 +1223,29 @@ module Let_expr = struct
 
   let create (bound_pattern : Bound_pattern.t) (defining_expr : named) ~body
       ~(free_names_of_body : _ Or_unknown.t) =
-    begin
-      match defining_expr, bound_pattern with
-      | Prim _, Singleton _
-      | Simple _, Singleton _
-      | Rec_info _, Singleton _
-      | Set_of_closures _, Set_of_closures _ ->
-        ()
-      | Set_of_closures _, Singleton _ ->
-        Misc.fatal_errorf
-          "Cannot bind a [Set_of_closures] to a [Singleton]:@ %a =@ %a"
-          Bound_pattern.print bound_pattern print_named defining_expr
-      | _, Set_of_closures _ ->
-        Misc.fatal_errorf
-          "Cannot bind a non-[Set_of_closures] to a [Set_of_closures]:@ %a =@ \
-           %a"
-          Bound_pattern.print bound_pattern print_named defining_expr
-      | Static_consts _, Static _ -> ()
-      | Static_consts _, Singleton _ ->
-        Misc.fatal_errorf
-          "Cannot bind a [Static_const] to a [Singleton]:@ %a =@ %a"
-          Bound_pattern.print bound_pattern print_named defining_expr
-      | (Simple _ | Prim _ | Set_of_closures _ | Rec_info _), Static _ ->
-        Misc.fatal_errorf
-          "Cannot bind a non-[Static_const] to [Symbols]:@ %a =@ %a"
-          Bound_pattern.print bound_pattern print_named defining_expr
-    end;
+    (match defining_expr, bound_pattern with
+    | Prim _, Singleton _
+    | Simple _, Singleton _
+    | Rec_info _, Singleton _
+    | Set_of_closures _, Set_of_closures _ ->
+      ()
+    | Set_of_closures _, Singleton _ ->
+      Misc.fatal_errorf
+        "Cannot bind a [Set_of_closures] to a [Singleton]:@ %a =@ %a"
+        Bound_pattern.print bound_pattern print_named defining_expr
+    | _, Set_of_closures _ ->
+      Misc.fatal_errorf
+        "Cannot bind a non-[Set_of_closures] to a [Set_of_closures]:@ %a =@ %a"
+        Bound_pattern.print bound_pattern print_named defining_expr
+    | Static_consts _, Static _ -> ()
+    | Static_consts _, Singleton _ ->
+      Misc.fatal_errorf
+        "Cannot bind a [Static_const] to a [Singleton]:@ %a =@ %a"
+        Bound_pattern.print bound_pattern print_named defining_expr
+    | (Simple _ | Prim _ | Set_of_closures _ | Rec_info _), Static _ ->
+      Misc.fatal_errorf
+        "Cannot bind a non-[Static_const] to [Symbols]:@ %a =@ %a"
+        Bound_pattern.print bound_pattern print_named defining_expr);
     let num_normal_occurrences_of_bound_vars =
       match free_names_of_body with
       | Unknown -> Variable.Map.empty

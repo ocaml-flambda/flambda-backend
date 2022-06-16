@@ -167,7 +167,7 @@ end = struct
       (fun order aliases res_opt ->
         match res_opt with
         | Some _ -> res_opt
-        | None -> begin
+        | None -> (
           match Name_mode.compare_partial_order order min_name_mode with
           | None -> None
           | Some result ->
@@ -175,8 +175,7 @@ end = struct
             then
               let aliases = filter_by_scope order aliases in
               if Name.Map.is_empty aliases then None else Some aliases
-            else None
-        end)
+            else None))
       t.aliases None
 
   let mem t elt = Name.Map.mem elt t.all
@@ -658,7 +657,7 @@ let add_alias_between_canonical_elements ~binding_time_resolver
       get_aliases_of_canonical_element t ~canonical_element
     in
     if Flambda_features.check_invariants ()
-    then begin
+    then (
       assert (
         not
           (Aliases_of_canonical_element.mem aliases_of_canonical_element
@@ -666,8 +665,7 @@ let add_alias_between_canonical_elements ~binding_time_resolver
       assert (
         Aliases_of_canonical_element.is_empty
           (Aliases_of_canonical_element.inter aliases_of_canonical_element
-             aliases_of_to_be_demoted))
-    end;
+             aliases_of_to_be_demoted)));
     let aliases =
       (* CR lmaurer: Consider adding a combination [union] and [compose] to
          [Aliases_of_canonical_element] to save a map traversal here (a single
@@ -721,7 +719,7 @@ type add_result =
 let invariant_add_result ~binding_time_resolver ~binding_times_and_modes
     ~original_t { canonical_element; alias_of_demoted_element; t } =
   if Flambda_features.check_invariants ()
-  then begin
+  then (
     invariant ~binding_time_resolver ~binding_times_and_modes t;
     if not
          (defined_earlier ~binding_time_resolver ~binding_times_and_modes
@@ -738,8 +736,7 @@ let invariant_add_result ~binding_time_resolver ~binding_times_and_modes
         "Alias %a must not be must not be canonical anymore.@ Original alias \
          tracker:@ %a@ Resulting alias tracker:@ %a"
         Simple.print alias_of_demoted_element print original_t print t
-    | Alias_of_canonical _ -> ()
-  end
+    | Alias_of_canonical _ -> ())
 
 let add_alias ~binding_time_resolver ~binding_times_and_modes t
     ~canonical_element1 ~coercion_from_canonical_element2_to_canonical_element1
@@ -798,7 +795,7 @@ let add ~binding_time_resolver ~binding_times_and_modes t
       ~then_:(Coercion.inverse (Simple.coercion element1_with_coercion))
   in
   if Flambda_features.check_invariants ()
-  then begin
+  then (
     if Simple.equal canonical_element1 canonical_element2
     then
       Misc.fatal_errorf "Cannot alias an element to itself: %a" Simple.print
@@ -810,8 +807,7 @@ let add ~binding_time_resolver ~binding_times_and_modes t
           ~name:(fun _ ~coercion:_ -> ())
           ~const:(fun const2 ->
             Misc.fatal_errorf "Cannot add alias between two consts: %a, %a"
-              Reg_width_const.print const1 Reg_width_const.print const2))
-  end;
+              Reg_width_const.print const1 Reg_width_const.print const2)));
   let add_result =
     add_alias ~binding_time_resolver ~binding_times_and_modes t
       ~canonical_element1

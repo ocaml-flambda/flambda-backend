@@ -287,20 +287,18 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         "cannot simplify a partial application that never returns"
     | Return continuation -> continuation
   in
-  begin
-    match Apply.inlined apply with
-    | Always_inlined | Never_inlined ->
-      Location.prerr_warning
-        (Debuginfo.to_location dbg)
-        (Warnings.Inlining_impossible
-           "[@inlined] attributes may not be used on partial applications")
-    | Unroll _ ->
-      Location.prerr_warning
-        (Debuginfo.to_location dbg)
-        (Warnings.Inlining_impossible
-           "[@unroll] attributes may not be used on partial applications")
-    | Default_inlined | Hint_inlined -> ()
-  end;
+  (match Apply.inlined apply with
+  | Always_inlined | Never_inlined ->
+    Location.prerr_warning
+      (Debuginfo.to_location dbg)
+      (Warnings.Inlining_impossible
+         "[@inlined] attributes may not be used on partial applications")
+  | Unroll _ ->
+    Location.prerr_warning
+      (Debuginfo.to_location dbg)
+      (Warnings.Inlining_impossible
+         "[@unroll] attributes may not be used on partial applications")
+  | Default_inlined | Hint_inlined -> ());
   let arity = Flambda_arity.With_subkinds.cardinal param_arity in
   let args_arity = List.length args in
   assert (arity > args_arity);
@@ -597,15 +595,13 @@ let simplify_direct_function_call ~simplify_expr dacc apply
     ~callee's_function_slot ~result_arity ~result_types ~recursive ~arg_types:_
     ~must_be_detupled ~closure_alloc_mode ~apply_alloc_mode function_decl
     ~down_to_up =
-  begin
-    match Apply.probe_name apply, Apply.inlined apply with
-    | None, _ | Some _, Never_inlined -> ()
-    | Some _, (Hint_inlined | Unroll _ | Default_inlined | Always_inlined) ->
-      Misc.fatal_errorf
-        "[Apply] terms with a [probe_name] (i.e. that call a tracing probe) \
-         must always be marked as [Never_inline]:@ %a"
-        Apply.print apply
-  end;
+  (match Apply.probe_name apply, Apply.inlined apply with
+  | None, _ | Some _, Never_inlined -> ()
+  | Some _, (Hint_inlined | Unroll _ | Default_inlined | Always_inlined) ->
+    Misc.fatal_errorf
+      "[Apply] terms with a [probe_name] (i.e. that call a tracing probe) must \
+       always be marked as [Never_inline]:@ %a"
+      Apply.print apply);
   let result_arity_of_application =
     Call_kind.return_arity (Apply.call_kind apply)
   in

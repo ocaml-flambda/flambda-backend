@@ -176,7 +176,7 @@ let create_immutable_string are_rebuilding str =
 
 let map_set_of_closures t ~f =
   match t with
-  | Normal { const; _ } -> begin
+  | Normal { const; _ } -> (
     match const with
     | Code _ | Deleted_code -> t
     | Static_const const -> (
@@ -192,8 +192,7 @@ let map_set_of_closures t ~f =
       | Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
       | Boxed_nativeint _ | Immutable_float_block _ | Immutable_float_array _
       | Empty_array | Mutable_string _ | Immutable_string _ ->
-        t)
-  end
+        t))
   | Block_not_rebuilt _ | Set_of_closures_not_rebuilt _ | Code_not_rebuilt _ ->
     t
 
@@ -232,24 +231,22 @@ let deleted_code =
 
 let make_all_code_deleted t =
   match t with
-  | Normal { const; _ } -> begin
+  | Normal { const; _ } -> (
     match Static_const_or_code.to_code const with
     | None -> t
-    | Some _code -> deleted_code
-  end
+    | Some _code -> deleted_code)
   | Block_not_rebuilt _ | Set_of_closures_not_rebuilt _ -> t
   | Code_not_rebuilt _ -> deleted_code
 
 let make_code_deleted t ~if_code_id_is_member_of =
   match t with
-  | Normal { const; _ } -> begin
+  | Normal { const; _ } -> (
     match Static_const_or_code.to_code const with
     | None -> t
     | Some code ->
       if Code_id.Set.mem (Code.code_id code) if_code_id_is_member_of
       then deleted_code
-      else t
-  end
+      else t)
   | Block_not_rebuilt _ | Set_of_closures_not_rebuilt _ -> t
   | Code_not_rebuilt code ->
     if Code_id.Set.mem

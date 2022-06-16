@@ -359,9 +359,8 @@ end = struct
   let rec update key f t =
     let iv = is_value_of t in
     match descr t with
-    | Empty -> begin
-      match f None with None -> empty iv | Some datum -> leaf iv key datum
-    end
+    | Empty -> (
+      match f None with None -> empty iv | Some datum -> leaf iv key datum)
     | Leaf (key', datum) -> (
       if key = key'
       then
@@ -404,12 +403,11 @@ end = struct
     match descr t0, descr t1 with
     | Empty, _ -> t1
     | _, Empty -> t0
-    | Leaf (i, d0), Leaf (j, d1) when i = j -> begin
+    | Leaf (i, d0), Leaf (j, d1) when i = j -> (
       (* CR mshinwell: [join] in [Typing_env_level] is relying on the fact that
          the arguments to [f] are always in the correct order, i.e. that the
          first datum comes from [t0] and the second from [t1]. Document. *)
-      match f i d0 d1 with None -> empty iv | Some datum -> leaf iv i datum
-    end
+      match f i d0 d1 with None -> empty iv | Some datum -> leaf iv i datum)
     | Leaf (i, d0), Leaf (j, _) -> join i (leaf iv i d0) j t1
     | Leaf (i, d), Branch (prefix, bit, t10, t11) ->
       if match_prefix i prefix bit
@@ -472,16 +470,14 @@ end = struct
     match descr t0, descr t1 with
     | Empty, _ -> empty iv
     | _, Empty -> empty iv
-    | Leaf (i, d0), _ -> begin
+    | Leaf (i, d0), _ -> (
       match find i t1 with
       | exception Not_found -> empty iv
-      | d1 -> leaf iv i (f i d0 d1)
-    end
-    | _, Leaf (i, d1) -> begin
+      | d1 -> leaf iv i (f i d0 d1))
+    | _, Leaf (i, d1) -> (
       match find i t0 with
       | exception Not_found -> empty iv
-      | d0 -> leaf iv i (f i d0 d1)
-    end
+      | d0 -> leaf iv i (f i d0 d1))
     | Branch (prefix0, bit0, t00, t01), Branch (prefix1, bit1, t10, t11) ->
       if equal_prefix prefix0 bit0 prefix1 bit1
       then branch prefix0 bit0 (inter iv f t00 t10) (inter iv f t01 t11)
@@ -698,29 +694,25 @@ end = struct
     (* Empty cases, just recurse and be sure to call f on all leaf cases
        recursively *)
     | Empty, Empty -> empty iv
-    | Empty, Leaf (i, d) -> begin
-      match f i None (Some d) with None -> empty iv | Some d' -> leaf iv i d'
-    end
-    | Leaf (i, d), Empty -> begin
-      match f i (Some d) None with None -> empty iv | Some d' -> leaf iv i d'
-    end
+    | Empty, Leaf (i, d) -> (
+      match f i None (Some d) with None -> empty iv | Some d' -> leaf iv i d')
+    | Leaf (i, d), Empty -> (
+      match f i (Some d) None with None -> empty iv | Some d' -> leaf iv i d')
     | Empty, Branch (prefix, bit, t10, t11) ->
       branch prefix bit (merge' iv f t0 t10) (merge' iv f t0 t11)
     | Branch (prefix, bit, t00, t01), Empty ->
       branch prefix bit (merge' iv f t00 t1) (merge' iv f t01 t1)
     (* Leaf cases *)
-    | Leaf (i, d0), Leaf (j, d1) when i = j -> begin
+    | Leaf (i, d0), Leaf (j, d1) when i = j -> (
       match f i (Some d0) (Some d1) with
       | None -> empty iv
-      | Some datum -> leaf iv i datum
-    end
-    | Leaf (i, d0), Leaf (j, d1) -> begin
+      | Some datum -> leaf iv i datum)
+    | Leaf (i, d0), Leaf (j, d1) -> (
       match f i (Some d0) None, f j None (Some d1) with
       | None, None -> empty iv
       | Some d0, None -> leaf iv i d0
       | None, Some d1 -> leaf iv j d1
-      | Some d0, Some d1 -> join i (leaf iv i d0) j (leaf iv j d1)
-    end
+      | Some d0, Some d1 -> join i (leaf iv i d0) j (leaf iv j d1))
     (* leaf <-> Branch cases *)
     | Leaf (i, d), Branch (prefix, bit, t10, t11) -> (
       if match_prefix i prefix bit
@@ -807,12 +799,11 @@ end = struct
     let rec aux acc () =
       match acc with
       | [] -> Seq.Nil
-      | t0 :: r -> begin
+      | t0 :: r -> (
         match descr t0 with
         | Empty -> aux r ()
         | Leaf (key, value) -> Seq.Cons (Binding.create key value, aux r)
-        | Branch (_, _, t1, t2) -> aux (t1 :: t2 :: r) ()
-      end
+        | Branch (_, _, t1, t2) -> aux (t1 :: t2 :: r) ())
     in
     aux [t]
 
@@ -878,7 +869,7 @@ module Set = struct
   let filter_map f t =
     let rec loop f acc = function
       | Empty -> acc
-      | Leaf i -> begin match f i with None -> acc | Some j -> add j acc end
+      | Leaf i -> ( match f i with None -> acc | Some j -> add j acc)
       | Branch (_, _, t0, t1) -> loop f (loop f acc t0) t1
     in
     loop f Empty t

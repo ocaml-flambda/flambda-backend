@@ -347,18 +347,16 @@ module With_subkind = struct
     }
 
   let create (kind : kind) (subkind : Subkind.t) =
-    begin
-      match kind with
-      | Value -> ()
-      | Naked_number _ | Region | Rec_info -> (
-        match subkind with
-        | Anything -> ()
-        | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
-        | Tagged_immediate | Block _ | Float_block _ | Float_array
-        | Immediate_array | Value_array | Generic_array ->
-          Misc.fatal_errorf "Subkind %a is not valid for kind %a" Subkind.print
-            subkind print kind)
-    end;
+    (match kind with
+    | Value -> ()
+    | Naked_number _ | Region | Rec_info -> (
+      match subkind with
+      | Anything -> ()
+      | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
+      | Tagged_immediate | Block _ | Float_block _ | Float_array
+      | Immediate_array | Value_array | Generic_array ->
+        Misc.fatal_errorf "Subkind %a is not valid for kind %a" Subkind.print
+          subkind print kind));
     { kind; subkind }
 
   let kind t = t.kind

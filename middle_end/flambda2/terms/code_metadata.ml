@@ -92,17 +92,14 @@ let create code_id ~newer_version_of ~params_arity ~num_trailing_local_params
     ~(inline : Inline_attribute.t) ~is_a_functor ~recursive ~cost_metrics
     ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used ~inlining_decision
     ~absolute_history ~relative_history =
-  begin
-    match stub, inline with
-    | true, (Available_inline | Never_inline | Default_inline)
-    | ( false,
-        ( Never_inline | Default_inline | Always_inline | Available_inline
-        | Unroll _ ) ) ->
-      ()
-    | true, (Always_inline | Unroll _) ->
-      Misc.fatal_error
-        "Stubs may not be annotated as [Always_inline] or [Unroll]"
-  end;
+  (match stub, inline with
+  | true, (Available_inline | Never_inline | Default_inline)
+  | ( false,
+      ( Never_inline | Default_inline | Always_inline | Available_inline
+      | Unroll _ ) ) ->
+    ()
+  | true, (Always_inline | Unroll _) ->
+    Misc.fatal_error "Stubs may not be annotated as [Always_inline] or [Unroll]");
   if num_trailing_local_params < 0
      || num_trailing_local_params
         > Flambda_arity.With_subkinds.cardinal params_arity

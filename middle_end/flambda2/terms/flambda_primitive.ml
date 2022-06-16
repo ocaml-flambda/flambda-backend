@@ -370,20 +370,18 @@ type ordered_comparison =
 let print_ordered_comparison ppf signedness c =
   let fprintf = Format.fprintf in
   match signedness with
-  | Unsigned -> begin
+  | Unsigned -> (
     match c with
     | Lt -> fprintf ppf "<u"
     | Le -> fprintf ppf "<=u"
     | Gt -> fprintf ppf ">u"
-    | Ge -> fprintf ppf ">=u"
-  end
-  | Signed -> begin
+    | Ge -> fprintf ppf ">=u")
+  | Signed -> (
     match c with
     | Lt -> fprintf ppf "<"
     | Le -> fprintf ppf "<="
     | Gt -> fprintf ppf ">"
-    | Ge -> fprintf ppf ">="
-  end
+    | Ge -> fprintf ppf ">=")
 
 let print_ordered_comparison_and_behaviour ppf signedness behaviour =
   match behaviour with
@@ -913,7 +911,7 @@ let effects_and_coeffects_of_unary_primitive p =
   match p with
   | Duplicate_array { kind = _; source_mutability; destination_mutability; _ }
   | Duplicate_block { kind = _; source_mutability; destination_mutability; _ }
-    -> begin
+    -> (
     match source_mutability with
     | Immutable ->
       (* [Obj.truncate] has now been removed. *)
@@ -928,8 +926,7 @@ let effects_and_coeffects_of_unary_primitive p =
         Coeffects.No_coeffects )
     | Mutable ->
       ( Effects.Only_generative_effects destination_mutability,
-        Coeffects.Has_coeffects )
-  end
+        Coeffects.Has_coeffects ))
   | Is_int -> Effects.No_effects, Coeffects.No_coeffects
   | Get_tag ->
     (* [Obj.truncate] has now been removed. *)
@@ -1750,12 +1747,11 @@ module Eligible_for_cse = struct
   let filter_map_args t ~f =
     match t with
     | Nullary _ -> Some t
-    | Unary (prim, arg) -> begin
+    | Unary (prim, arg) -> (
       match f arg with
       | None -> None
-      | Some arg' -> if arg == arg' then Some t else Some (Unary (prim, arg'))
-    end
-    | Binary (prim, arg1, arg2) -> begin
+      | Some arg' -> if arg == arg' then Some t else Some (Unary (prim, arg')))
+    | Binary (prim, arg1, arg2) -> (
       match f arg1 with
       | None -> None
       | Some arg1' -> (
@@ -1764,9 +1760,8 @@ module Eligible_for_cse = struct
         | Some arg2' ->
           if arg1 == arg1' && arg2 == arg2'
           then Some t
-          else Some (Binary (prim, arg1', arg2')))
-    end
-    | Ternary (prim, arg1, arg2, arg3) -> begin
+          else Some (Binary (prim, arg1', arg2'))))
+    | Ternary (prim, arg1, arg2, arg3) -> (
       match f arg1 with
       | None -> None
       | Some arg1' -> (
@@ -1778,8 +1773,7 @@ module Eligible_for_cse = struct
           | Some arg3' ->
             if arg1 == arg1' && arg2 == arg2' && arg3 == arg3'
             then Some t
-            else Some (Ternary (prim, arg1', arg2', arg3'))))
-    end
+            else Some (Ternary (prim, arg1', arg2', arg3')))))
     | Variadic (prim, args) ->
       let args' = List.filter_map f args in
       if List.compare_lengths args args' = 0

@@ -494,11 +494,10 @@ let mem ?min_name_mode t name =
       match name_mode, min_name_mode with
       | None, _ -> false
       | Some _, None -> true
-      | Some name_mode, Some min_name_mode -> begin
+      | Some name_mode, Some min_name_mode -> (
         match Name_mode.compare_partial_order min_name_mode name_mode with
         | None -> false
-        | Some c -> c <= 0
-      end)
+        | Some c -> c <= 0))
     ~symbol:(fun sym ->
       (* CR mshinwell: This might not take account of symbols in missing .cmx
          files *)
@@ -628,7 +627,7 @@ let invariant_for_alias (t : t) name ty =
 
 let invariant_for_new_equation (t : t) name ty =
   if Flambda_features.check_invariants ()
-  then begin
+  then (
     invariant_for_alias t name ty;
     (* CR mshinwell: This should check that precision is not decreasing. *)
     let defined_names =
@@ -642,8 +641,7 @@ let invariant_for_new_equation (t : t) name ty =
     then
       let unbound_names = Name_occurrences.diff free_names defined_names in
       Misc.fatal_errorf "New equation@ %a@ =@ %a@ has unbound names@ (%a):@ %a"
-        Name.print name TG.print ty Name_occurrences.print unbound_names print t
-  end
+        Name.print name TG.print ty Name_occurrences.print unbound_names print t)
 
 let rec add_equation0 (t : t) name ty =
   (if Flambda_features.Debug.concrete_types_only_on_canonicals ()
