@@ -75,6 +75,18 @@ let try_cse dacc ~original_prim ~min_name_mode ~result_var : cse_result =
       in
       Not_applied dacc
 
+let check_arg_kinds prim arg_tys_with_expected_kinds =
+  List.iter
+    (fun (arg_ty, expected_kind) ->
+      let arg_kind = T.kind arg_ty in
+      if not (K.equal arg_kind expected_kind)
+      then
+        Misc.fatal_errorf
+          "Argument type %a has wrong kind (%a), expected kind %a for \
+           primitive: %a"
+          T.print arg_ty K.print arg_kind K.print expected_kind P.print prim)
+    arg_tys_with_expected_kinds
+
 let simplify_primitive dacc (prim : P.t) dbg ~result_var =
   let min_name_mode = Bound_var.name_mode result_var in
   match prim with
@@ -84,6 +96,10 @@ let simplify_primitive dacc (prim : P.t) dbg ~result_var =
   | Unary (unary_prim, orig_arg) -> (
     let arg_ty = S.simplify_simple dacc orig_arg ~min_name_mode in
     let arg = T.get_alias_exn arg_ty in
+    (if Flambda_features.check_invariants ()
+    then
+      let arg_kind = P.arg_kind_of_unary_primitive unary_prim in
+      check_arg_kinds prim [arg_ty, arg_kind]);
     let original_prim : P.t =
       if orig_arg == arg then prim else Unary (unary_prim, arg)
     in
@@ -97,6 +113,10 @@ let simplify_primitive dacc (prim : P.t) dbg ~result_var =
     let arg1 = T.get_alias_exn arg1_ty in
     let arg2_ty = S.simplify_simple dacc orig_arg2 ~min_name_mode in
     let arg2 = T.get_alias_exn arg2_ty in
+    (if Flambda_features.check_invariants ()
+    then
+      let arg1_kind, arg2_kind = P.args_kind_of_binary_primitive binary_prim in
+      check_arg_kinds prim [arg1_ty, arg1_kind; arg2_ty, arg2_kind]);
     let original_prim : P.t =
       if orig_arg1 == arg1 && orig_arg2 == arg2
       then prim
@@ -114,6 +134,13 @@ let simplify_primitive dacc (prim : P.t) dbg ~result_var =
     let arg2 = T.get_alias_exn arg2_ty in
     let arg3_ty = S.simplify_simple dacc orig_arg3 ~min_name_mode in
     let arg3 = T.get_alias_exn arg3_ty in
+    (if Flambda_features.check_invariants ()
+    then
+      let arg1_kind, arg2_kind, arg3_kind =
+        P.args_kind_of_ternary_primitive ternary_prim
+      in
+      check_arg_kinds prim
+        [arg1_ty, arg1_kind; arg2_ty, arg2_kind; arg3_ty, arg3_kind]);
     let original_prim : P.t =
       if orig_arg1 == arg1 && orig_arg2 == arg2 && orig_arg3 = arg3
       then prim
@@ -132,6 +159,16 @@ let simplify_primitive dacc (prim : P.t) dbg ~result_var =
           let arg = T.get_alias_exn arg_ty in
           (arg, arg_ty) :: args_rev)
     in
+    (if Flambda_features.check_invariants ()
+    then
+      let arg_tys = List.map snd args_with_tys in
+      let arg_tys_and_expected_kinds =
+        match P.args_kind_of_variadic_primitive variadic_prim with
+        | Variadic arg_kinds -> List.combine arg_tys arg_kinds
+        | Variadic_all_of_kind kind ->
+          List.map (fun arg_ty -> arg_ty, kind) arg_tys
+      in
+      check_arg_kinds prim arg_tys_and_expected_kinds);
     let original_prim : P.t =
       Variadic (variadic_prim, List.map fst args_with_tys)
     in

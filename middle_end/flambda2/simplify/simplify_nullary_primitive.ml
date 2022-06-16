@@ -23,7 +23,7 @@ let simplify_nullary_primitive dacc original_prim (prim : P.nullary_primitive)
     | Phantom -> ()
     | Normal | In_types ->
       Misc.fatal_errorf
-        "The 'optimised_out' primitive should only be used in bindings of \
+        "The [Optimised_out] primitive should only be used in bindings of \
          phantom variables");
     let named = Named.create_prim original_prim dbg in
     let ty = T.unknown result_kind in

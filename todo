@@ -101,3 +101,6 @@ by Apply_cont after reifying the result types.  Otherwise reification of
 result types of a function is only going to be useful if it allows
 a subsequent allocation to be removed (because the allocation during the
 application must remain).
+
+Mark to check that all Cmm operations returning typ_void have
+return_unit in To_cmm
