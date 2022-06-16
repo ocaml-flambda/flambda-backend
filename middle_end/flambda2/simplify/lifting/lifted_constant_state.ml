@@ -22,27 +22,26 @@ module TE = T.Typing_env
 type t =
   | Empty
   | Leaf of LC.t
-  | Leaf_array of { innermost_first : LC.t array }
+  | Leaf_array of { ts : LC.t array }
   | Union of
-      { outer : t;
-        inner : t
+      { t1 : t;
+        t2 : t
       }
 
-let to_list_outermost_first t =
-  let rec to_list t acc =
-    match t with
-    | Empty -> acc
-    | Leaf const -> const :: acc
-    | Leaf_array { innermost_first } ->
-      List.rev (Array.to_list innermost_first) @ acc
-    | Union { inner; outer } -> to_list outer (to_list inner acc)
+let print ppf t =
+  let to_list t =
+    let rec to_list t acc =
+      match t with
+      | Empty -> acc
+      | Leaf const -> const :: acc
+      | Leaf_array { ts } -> List.rev (Array.to_list ts) @ acc
+      | Union { t2; t1 } -> to_list t1 (to_list t2 acc)
+    in
+    to_list t []
   in
-  to_list t []
-
-let [@ocamlformat "disable"] print ppf t =
-  Format.fprintf ppf "@[<hov 1>(outermost_first@ %a)@]"
+  Format.fprintf ppf "@[<hov 1>(%a)@]"
     (Format.pp_print_list ~pp_sep:Format.pp_print_space LC.print)
-    (to_list_outermost_first t)
+    (to_list t)
 
 let empty = Empty
 
@@ -51,57 +50,30 @@ let is_empty t =
 
 let singleton const = Leaf const
 
-let singleton_sorted_array_of_constants ~innermost_first =
-  if Array.length innermost_first < 1
-  then empty
-  else Leaf_array { innermost_first }
+let singleton_list_of_constants constants =
+  match constants with
+  | [] -> empty
+  | [constant] -> singleton constant
+  | _ :: _ -> Leaf_array { ts = Array.of_list constants }
 
-let singleton_list_of_constants_order_does_not_matter constants =
-  singleton_sorted_array_of_constants ~innermost_first:(Array.of_list constants)
+let add t const =
+  if is_empty t then Leaf const else Union { t2 = Leaf const; t1 = t }
 
-let union_ordered ~innermost ~outermost =
-  match innermost, outermost with
-  | Empty, _ -> outermost
-  | _, Empty -> innermost
-  | ((Leaf _ | Leaf_array _ | Union _) as inner), outer ->
-    Union { inner; outer }
+let union t1 t2 =
+  match t1, t2 with
+  | Empty, Empty -> Empty
+  | Empty, (Leaf _ | Leaf_array _ | Union _) -> t2
+  | (Leaf _ | Leaf_array _ | Union _), Empty -> t1
+  | (Leaf _ | Leaf_array _ | Union _), t2 -> Union { t2 = t1; t1 = t2 }
 
-let union t1 t2 = union_ordered ~innermost:t1 ~outermost:t2
-
-let add_innermost t const =
-  if is_empty t then Leaf const else Union { inner = Leaf const; outer = t }
-
-let add_outermost t const =
-  if is_empty t then Leaf const else Union { outer = Leaf const; inner = t }
-
-let add = add_innermost
-
-let rec fold_outermost_first t ~init ~f =
+let rec fold t ~init ~f =
   match t with
   | Empty -> init
   | Leaf const -> f init const
-  | Leaf_array { innermost_first } ->
-    (* Avoid [Array.fold_right] as it would require a closure allocation. *)
-    let acc = ref init in
-    for i = Array.length innermost_first - 1 downto 0 do
-      acc := f !acc innermost_first.(i)
-    done;
-    !acc
-  | Union { inner; outer } ->
-    let init = fold_outermost_first outer ~init ~f in
-    fold_outermost_first inner ~init ~f
-
-let rec fold_innermost_first t ~init ~f =
-  match t with
-  | Empty -> init
-  | Leaf const -> f init const
-  | Leaf_array { innermost_first } ->
-    ArrayLabels.fold_left innermost_first ~init ~f
-  | Union { inner; outer } ->
-    let init = fold_innermost_first inner ~init ~f in
-    fold_innermost_first outer ~init ~f
-
-let fold = fold_innermost_first
+  | Leaf_array { ts } -> ArrayLabels.fold_left ts ~init ~f
+  | Union { t2; t1 } ->
+    let init = fold t2 ~init ~f in
+    fold t1 ~init ~f
 
 let all_defined_symbols t =
   fold t ~init:Symbol.Set.empty ~f:(fun symbols const ->
@@ -133,11 +105,8 @@ let add_to_denv ?maybe_already_defined denv lifted =
             else
               let sym = Name.symbol sym in
               let env_extension =
-                (* CR-someday mshinwell: Sometimes we might already have the
-                   types "made suitable" in the [closure_env] field of the
-                   typing environment, perhaps? For example when lifted
-                   constants' types are coming out of a closure into the
-                   enclosing scope. *)
+                (* CR mshinwell: Maybe sometimes this could be done at a time
+                   previous to this point. *)
                 T.make_suitable_for_environment
                   (DE.typing_env denv_at_definition)
                   (Everything_not_in typing_env) [sym, typ]
@@ -215,6 +184,8 @@ let remove_values_not_in_domain (m : CIS.Set.t CIS.Map.t) =
       CIS.Set.filter (fun value -> CIS.Map.mem value m) values)
     m
 
+type sort_result = { innermost_first : LC.t array }
+
 let sort0 t =
   (* The various lifted constants may exhibit recursion between themselves
      (specifically between closures and/or code). We use SCC to obtain a
@@ -265,12 +236,10 @@ let sort0 t =
            in
            LC.concat lifted_constants)
   in
-  (* We may wish to traverse the array of constants in either direction.
-   * This can be done by virtue of the following property:
-   *   Let the list/array L be a topological sort of a directed graph G.
-   *   Then the reverse of L is a topological sort of the transpose of G.
-   *)
-  singleton_sorted_array_of_constants ~innermost_first
+  { innermost_first }
 
 let sort t =
-  match t with Empty | Leaf _ -> t | Leaf_array _ | Union _ -> sort0 t
+  match t with
+  | Empty -> { innermost_first = [||] }
+  | Leaf const -> { innermost_first = [| const |] }
+  | Leaf_array _ | Union _ -> sort0 t

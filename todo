@@ -95,3 +95,9 @@ which will be on a separate branch flambda2-contification on gbury's github
 Rename perm -> renaming
 
 Was ocamldoc built before the build system changes?
+
+If we had function purity annotations then we could replace Apply_expr
+by Apply_cont after reifying the result types.  Otherwise reification of
+result types of a function is only going to be useful if it allows
+a subsequent allocation to be removed (because the allocation during the
+application must remain).

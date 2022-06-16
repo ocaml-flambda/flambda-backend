@@ -446,13 +446,13 @@ let create_let_symbols uacc lifted_constant ~body =
              the case where the result of the projection is known now as a
              [Simple]), avoiding any problem about where to do the projection
              versus the initialisation of a possibly-recursive group of symbols.
-             The result of the projection will always be known in this case
-             because the full definition of the symbol binding is available. We
-             may end up with a "variable = variable" [Let] here, but [To_cmm]
-             (or a subsequent pass of [Simplify]) will remove it. This is the
-             same situation as when continuations are inlined; we can't use a
-             name permutation to resolve the problem as both [var] and [var']
-             may occur in [expr], and permuting could cause an unbound name.
+             The result of the projection can here be assumed to always be known
+             (as a [Simple]) in this case (see LC.apply_projection). We may end
+             up with a "variable = variable" [Let] here, but [To_cmm] (or a
+             subsequent pass of [Simplify]) will remove it. This is the same
+             situation as when continuations are inlined; we can't use a name
+             permutation to resolve the problem as both [var] and [var'] may
+             occur in [expr], and permuting could cause an unbound name.
 
              One might consider the case where a symbol's field is defined using
              a variable that itself is assigned a symbol projection from that
@@ -542,12 +542,14 @@ let place_lifted_constants uacc ~lifted_constants_from_defining_expr
     ~lifted_constants_from_body ~put_bindings_around_body ~body =
   (* Lifted constants are placed as soon as they reach toplevel. *)
   let uacc = UA.with_lifted_constants uacc LCS.empty in
-  (* Place constants whose definitions must go at the current binding. *)
   let place_constants uacc ~around constants =
-    LCS.fold_innermost_first constants ~init:(around, uacc)
+    let sorted = LCS.sort constants in
+    ArrayLabels.fold_left sorted.innermost_first ~init:(around, uacc)
       ~f:(fun (body, uacc) lifted_const ->
         create_let_symbols uacc lifted_const ~body)
   in
+  (* Place constants whose definitions may depend on the bound name(s) of the
+     current binding(s) to be introduced by [put_bindings_around_body]. *)
   let body, uacc =
     place_constants uacc ~around:body lifted_constants_from_body
   in

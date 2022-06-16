@@ -122,9 +122,6 @@ let cost_metrics t = t.cost_metrics
 
 let are_rebuilding_terms t = t.are_rebuilding_terms
 
-let add_outermost_lifted_constant t const =
-  { t with lifted_constants = LCS.add_outermost t.lifted_constants const }
-
 let with_lifted_constants t lifted_constants = { t with lifted_constants }
 
 let no_lifted_constants t = LCS.is_empty t.lifted_constants

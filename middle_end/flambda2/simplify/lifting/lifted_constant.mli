@@ -14,7 +14,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* CR mshinwell: The name of this module is a bit misleading *)
+(* CR mshinwell: The name of this module is a bit misleading (some of these
+   lifted values may be inconstant). *)
 
 (** Description of a group of statically-allocated constants discovered during
     simplification. *)

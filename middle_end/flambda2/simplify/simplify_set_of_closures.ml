@@ -867,7 +867,7 @@ let simplify_set_of_closures0 outer_dacc context set_of_closures
 let introduce_code dacc code =
   Code_id.Lmap.bindings code
   |> List.map (fun (code_id, code) -> LC.create_code code_id code)
-  |> LCS.singleton_list_of_constants_order_does_not_matter
+  |> LCS.singleton_list_of_constants
   |> DA.add_to_lifted_constant_accumulator ~also_add_to_env:() dacc
 
 let simplify_and_lift_set_of_closures dacc ~closure_bound_vars_inverse

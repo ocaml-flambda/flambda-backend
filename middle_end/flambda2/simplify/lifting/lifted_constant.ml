@@ -280,12 +280,14 @@ let apply_projection t proj =
   let matching_defining_exprs =
     ListLabels.filter_map t.definitions ~f:(fun definition ->
         if Definition.binds_symbol definition symbol
-        then Some (Definition.defining_expr definition)
+        then Some definition
         else None)
   in
   match matching_defining_exprs with
-  | [_] -> (
-    let denv, ty = Symbol.Map.find symbol (types_of_symbols t) in
+  | [matched_defining_expr] -> (
+    let denv, ty =
+      Symbol.Map.find symbol (Definition.types_of_symbols matched_defining_expr)
+    in
     let typing_env = DE.typing_env denv in
     let proof =
       match Symbol_projection.projection proj with
