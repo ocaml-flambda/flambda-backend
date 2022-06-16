@@ -5093,7 +5093,7 @@ module Tables = struct
 # 5094 "flambda_parser_in.ml"
         ) = 
 # 526 "flambda_parser.mly"
-            ( Value )
+            ( Flambda_kind.value )
 # 5098 "flambda_parser_in.ml"
          in
         {
@@ -5114,7 +5114,7 @@ module Tables = struct
         } = _menhir_stack in
         let nnk : (
 # 223 "flambda_parser.mly"
-      (Fexpr.naked_number_kind)
+      (Flambda_kind.Naked_number_kind.t)
 # 5119 "flambda_parser_in.ml"
         ) = Obj.magic nnk in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -5126,7 +5126,7 @@ module Tables = struct
 # 5127 "flambda_parser_in.ml"
         ) = 
 # 527 "flambda_parser.mly"
-                            ( Naked_number nnk )
+                            ( Flambda_kind.naked_number nnk )
 # 5131 "flambda_parser_in.ml"
          in
         {
@@ -5155,7 +5155,7 @@ module Tables = struct
 # 5156 "flambda_parser_in.ml"
         ) = 
 # 528 "flambda_parser.mly"
-               ( Region )
+               ( Flambda_kind.region )
 # 5160 "flambda_parser_in.ml"
          in
         {
@@ -5184,7 +5184,7 @@ module Tables = struct
 # 5185 "flambda_parser_in.ml"
         ) = 
 # 529 "flambda_parser.mly"
-                 ( Rec_info )
+                 ( Flambda_kind.rec_info )
 # 5189 "flambda_parser_in.ml"
          in
         {
@@ -5274,7 +5274,7 @@ module Tables = struct
 # 5275 "flambda_parser_in.ml"
         ) = 
 # 532 "flambda_parser.mly"
-            ( Any_value )
+            ( Flambda_kind.With_subkind.any_value )
 # 5279 "flambda_parser_in.ml"
          in
         {
@@ -5295,7 +5295,7 @@ module Tables = struct
         } = _menhir_stack in
         let nnk : (
 # 223 "flambda_parser.mly"
-      (Fexpr.naked_number_kind)
+      (Flambda_kind.Naked_number_kind.t)
 # 5300 "flambda_parser_in.ml"
         ) = Obj.magic nnk in
         let _endpos__0_ = _menhir_stack.CamlinternalMenhirLib.EngineTypes.endp in
@@ -5307,7 +5307,7 @@ module Tables = struct
 # 5308 "flambda_parser_in.ml"
         ) = 
 # 533 "flambda_parser.mly"
-                            ( Naked_number nnk )
+                            ( Flambda_kind.With_subkind.of_naked_number_kind nnk )
 # 5312 "flambda_parser_in.ml"
          in
         {
@@ -5343,7 +5343,7 @@ module Tables = struct
 # 5344 "flambda_parser_in.ml"
         ) = 
 # 534 "flambda_parser.mly"
-                        ( Boxed_float )
+                        ( Flambda_kind.With_subkind.boxed_float )
 # 5348 "flambda_parser_in.ml"
          in
         {
@@ -5379,7 +5379,7 @@ module Tables = struct
 # 5380 "flambda_parser_in.ml"
         ) = 
 # 535 "flambda_parser.mly"
-                        ( Boxed_int32 )
+                        ( Flambda_kind.With_subkind.boxed_int32 )
 # 5384 "flambda_parser_in.ml"
          in
         {
@@ -5415,7 +5415,7 @@ module Tables = struct
 # 5416 "flambda_parser_in.ml"
         ) = 
 # 536 "flambda_parser.mly"
-                        ( Boxed_int64 )
+                        ( Flambda_kind.With_subkind.boxed_int64 )
 # 5420 "flambda_parser_in.ml"
          in
         {
@@ -5451,7 +5451,7 @@ module Tables = struct
 # 5452 "flambda_parser_in.ml"
         ) = 
 # 537 "flambda_parser.mly"
-                            ( Boxed_nativeint )
+                            ( Flambda_kind.With_subkind.boxed_nativeint )
 # 5456 "flambda_parser_in.ml"
          in
         {
@@ -5487,7 +5487,7 @@ module Tables = struct
 # 5488 "flambda_parser_in.ml"
         ) = 
 # 538 "flambda_parser.mly"
-                       ( Tagged_immediate )
+                       ( Flambda_kind.With_subkind.tagged_immediate )
 # 5492 "flambda_parser_in.ml"
          in
         {
@@ -6474,7 +6474,7 @@ module Tables = struct
         let _endpos = _endpos__1_ in
         let _v : (
 # 223 "flambda_parser.mly"
-      (Fexpr.naked_number_kind)
+      (Flambda_kind.Naked_number_kind.t)
 # 6479 "flambda_parser_in.ml"
         ) = 
 # 519 "flambda_parser.mly"
@@ -6503,7 +6503,7 @@ module Tables = struct
         let _endpos = _endpos__1_ in
         let _v : (
 # 223 "flambda_parser.mly"
-      (Fexpr.naked_number_kind)
+      (Flambda_kind.Naked_number_kind.t)
 # 6508 "flambda_parser_in.ml"
         ) = 
 # 520 "flambda_parser.mly"
@@ -6532,7 +6532,7 @@ module Tables = struct
         let _endpos = _endpos__1_ in
         let _v : (
 # 223 "flambda_parser.mly"
-      (Fexpr.naked_number_kind)
+      (Flambda_kind.Naked_number_kind.t)
 # 6537 "flambda_parser_in.ml"
         ) = 
 # 521 "flambda_parser.mly"
@@ -6561,7 +6561,7 @@ module Tables = struct
         let _endpos = _endpos__1_ in
         let _v : (
 # 223 "flambda_parser.mly"
-      (Fexpr.naked_number_kind)
+      (Flambda_kind.Naked_number_kind.t)
 # 6566 "flambda_parser_in.ml"
         ) = 
 # 522 "flambda_parser.mly"
@@ -6590,7 +6590,7 @@ module Tables = struct
         let _endpos = _endpos__1_ in
         let _v : (
 # 223 "flambda_parser.mly"
-      (Fexpr.naked_number_kind)
+      (Flambda_kind.Naked_number_kind.t)
 # 6595 "flambda_parser_in.ml"
         ) = 
 # 523 "flambda_parser.mly"

@@ -46,6 +46,8 @@ type kind = t
 (** Constructors for the various kinds. *)
 val value : t
 
+val naked_number : Naked_number_kind.t -> t
+
 val naked_immediate : t
 
 val naked_float : t
@@ -193,27 +195,6 @@ module With_subkind : sig
   val of_naked_number_kind : Naked_number_kind.t -> t
 
   val from_lambda : Lambda.value_kind -> t
-
-  type descr = private
-    | Any_value
-    | Naked_number of Naked_number_kind.t
-    | Boxed_float
-    | Boxed_int32
-    | Boxed_int64
-    | Boxed_nativeint
-    | Tagged_immediate
-    | Rec_info
-    | Block of
-        { tag : Tag.t;
-          fields : descr list
-        }
-    | Float_block of { num_fields : int }
-    | Float_array
-    | Immediate_array
-    | Value_array
-    | Generic_array
-
-  val descr : t -> descr
 
   val compatible : t -> when_used_at:t -> bool
 

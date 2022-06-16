@@ -396,55 +396,21 @@ let simple env s =
         Coerce (s, co))
     ~const:(fun c -> Fexpr.Const (const c))
 
-let kind (k : Flambda_kind.t) : Fexpr.kind =
-  match k with
-  | Value -> Value
-  | Region -> Region
-  | Naked_number nnk -> Naked_number nnk
-  | Rec_info -> Rec_info
-
-let kind_with_subkind (k : Flambda_kind.With_subkind.t) =
-  let rec convert (k : Flambda_kind.With_subkind.descr) :
-      Fexpr.kind_with_subkind =
-    match k with
-    | Any_value -> Any_value
-    | Block { tag; fields } ->
-      let fields = List.map convert fields in
-      Block { tag; fields }
-    | Float_block { num_fields } -> Float_block { num_fields }
-    | Naked_number nnk -> Naked_number nnk
-    | Boxed_float -> Boxed_float
-    | Boxed_int32 -> Boxed_int32
-    | Boxed_int64 -> Boxed_int64
-    | Boxed_nativeint -> Boxed_nativeint
-    | Tagged_immediate -> Tagged_immediate
-    | Rec_info -> Rec_info
-    | Float_array -> Float_array
-    | Immediate_array -> Immediate_array
-    | Value_array -> Value_array
-    | Generic_array -> Generic_array
-  in
-  convert (Flambda_kind.With_subkind.descr k)
-
-let arity (a : Flambda_arity.With_subkinds.t) : Fexpr.arity =
-  List.map kind_with_subkind (Flambda_arity.With_subkinds.to_list a)
-
 let is_default_kind_with_subkind (k : Flambda_kind.With_subkind.t) =
-  match Flambda_kind.With_subkind.descr k with
-  | Any_value -> true
-  | Block _ | Float_block _ | Naked_number _ | Boxed_float | Boxed_int32
-  | Boxed_int64 | Boxed_nativeint | Tagged_immediate | Rec_info | Float_array
-  | Immediate_array | Value_array | Generic_array ->
-    false
+  Flambda_kind.is_value (Flambda_kind.With_subkind.kind k)
+  && not (Flambda_kind.With_subkind.has_useful_subkind_info k)
 
 let kind_with_subkind_opt (k : Flambda_kind.With_subkind.t) :
     Fexpr.kind_with_subkind option =
-  if is_default_kind_with_subkind k then None else Some (kind_with_subkind k)
+  if is_default_kind_with_subkind k then None else Some k
 
 let is_default_arity (a : Flambda_arity.With_subkinds.t) =
   match Flambda_arity.With_subkinds.to_list a with
   | [k] -> is_default_kind_with_subkind k
   | _ -> false
+
+let arity (a : Flambda_arity.With_subkinds.t) : Fexpr.arity =
+  Flambda_arity.With_subkinds.to_list a
 
 let arity_opt (a : Flambda_arity.With_subkinds.t) : Fexpr.arity option =
   if is_default_arity a then None else Some (arity a)
@@ -512,7 +478,7 @@ let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
     in
     Block_load (access_kind, mutability)
   | Phys_equal (k, op) ->
-    let k = if Flambda_kind.is_value k then None else Some (kind k) in
+    let k = if Flambda_kind.is_value k then None else Some k in
     Phys_equal (k, op)
   | Int_arith (Tagged_immediate, o) -> Infix (Int_arith o)
   | Int_arith

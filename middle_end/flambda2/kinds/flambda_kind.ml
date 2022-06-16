@@ -31,10 +31,6 @@ module Naked_number_kind = struct
     | Naked_int32 -> Format.pp_print_string ppf "Naked_int32"
     | Naked_int64 -> Format.pp_print_string ppf "Naked_int64"
     | Naked_nativeint -> Format.pp_print_string ppf "Naked_nativeint"
-
-  let compare = Stdlib.compare
-
-  let equal t1 t2 = compare t1 t2 = 0
 end
 
 type t =
@@ -46,6 +42,8 @@ type t =
 type kind = t
 
 let value = Value
+
+let naked_number number_kind = Naked_number number_kind
 
 let naked_immediate = Naked_number Naked_immediate
 
@@ -283,6 +281,49 @@ module With_subkind = struct
       | Value_array
       | Generic_array
 
+    let rec compatible (t : t) ~(when_used_at : t) =
+      match t, when_used_at with
+      (* Simple equality cases: *)
+      | Anything, Anything
+      | Boxed_float, Boxed_float
+      | Boxed_int32, Boxed_int32
+      | Boxed_int64, Boxed_int64
+      | Boxed_nativeint, Boxed_nativeint
+      | Tagged_immediate, Tagged_immediate
+      | Float_array, Float_array
+      | Immediate_array, Immediate_array
+      | Value_array, Value_array
+      | Generic_array, Generic_array ->
+        true
+      | ( Block { tag = t1; fields = fields1 },
+          Block { tag = t2; fields = fields2 } ) ->
+        Tag.equal t1 t2
+        && List.length fields1 = List.length fields2
+        && List.for_all2
+             (fun d when_used_at -> compatible d ~when_used_at)
+             fields1 fields2
+      | ( Float_block { num_fields = num_fields1 },
+          Float_block { num_fields = num_fields2 } ) ->
+        num_fields1 = num_fields2
+      (* Subkinds of [Value] may always be used at [Value] (but not the
+         converse): *)
+      | ( ( Block _ | Float_block _ | Float_array | Immediate_array
+          | Value_array | Generic_array | Boxed_float | Boxed_int32
+          | Boxed_int64 | Boxed_nativeint | Tagged_immediate ),
+          Anything ) ->
+        true
+      (* All specialised array kinds may be used at kind [Generic_array], and
+         [Immediate_array] may be used at kind [Value_array]: *)
+      | (Float_array | Immediate_array | Value_array), Generic_array
+      | Immediate_array, Value_array ->
+        true
+      (* All other combinations are incompatible: *)
+      | ( ( Anything | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
+          | Tagged_immediate | Block _ | Float_block _ | Float_array
+          | Immediate_array | Value_array | Generic_array ),
+          _ ) ->
+        false
+
     include Container_types.Make (struct
       type nonrec t = t
 
@@ -458,96 +499,50 @@ module With_subkind = struct
     let hash { kind; subkind } = Hashtbl.hash (hash kind, Subkind.hash subkind)
   end)
 
-  type descr =
-    | Any_value
-    | Naked_number of Naked_number_kind.t
-    | Boxed_float
-    | Boxed_int32
-    | Boxed_int64
-    | Boxed_nativeint
-    | Tagged_immediate
-    | Rec_info
-    | Block of
-        { tag : Tag.t;
-          fields : descr list
-        }
-    | Float_block of { num_fields : int }
-    | Float_array
-    | Immediate_array
-    | Value_array
-    | Generic_array
-
-  let rec subkind_descr (t : Subkind.t) : descr =
-    match t with
-    | Anything -> Any_value
-    | Tagged_immediate -> Tagged_immediate
-    | Boxed_float -> Boxed_float
-    | Boxed_int32 -> Boxed_int32
-    | Boxed_int64 -> Boxed_int64
-    | Boxed_nativeint -> Boxed_nativeint
-    | Block { tag; fields } ->
-      Block { tag; fields = List.map subkind_descr fields }
-    | Float_block { num_fields } -> Float_block { num_fields }
-    | Float_array -> Float_array
-    | Immediate_array -> Immediate_array
-    | Value_array -> Value_array
-    | Generic_array -> Generic_array
-
-  let descr t : descr =
-    match t.kind with
-    | Value -> subkind_descr t.subkind
-    | Naked_number naked_number_kind -> Naked_number naked_number_kind
-    | Rec_info -> Rec_info
-    | Region -> Misc.fatal_error "Not implemented"
-
-  let rec compatible_descr descr ~when_used_at =
-    match descr, when_used_at with
-    (* Simple equality cases: *)
-    | Naked_number nn1, Naked_number nn2 -> Naked_number_kind.equal nn1 nn2
-    | Any_value, Any_value
-    | Boxed_float, Boxed_float
-    | Boxed_int32, Boxed_int32
-    | Boxed_int64, Boxed_int64
-    | Boxed_nativeint, Boxed_nativeint
-    | Tagged_immediate, Tagged_immediate
-    | Float_array, Float_array
-    | Immediate_array, Immediate_array
-    | Value_array, Value_array
-    | Generic_array, Generic_array
-    | Rec_info, Rec_info ->
-      true
-    | Block { tag = t1; fields = fields1 }, Block { tag = t2; fields = fields2 }
-      ->
-      Tag.equal t1 t2
-      && List.length fields1 = List.length fields2
-      && List.for_all2
-           (fun d when_used_at -> compatible_descr d ~when_used_at)
-           fields1 fields2
-    | ( Float_block { num_fields = num_fields1 },
-        Float_block { num_fields = num_fields2 } ) ->
-      num_fields1 = num_fields2
-    (* Subkinds of [Value] may always be used at [Value] (but not the
-       converse): *)
-    | ( ( Block _ | Float_block _ | Float_array | Immediate_array | Value_array
-        | Generic_array | Boxed_float | Boxed_int32 | Boxed_int64
-        | Boxed_nativeint | Tagged_immediate ),
-        Any_value ) ->
-      true
-    (* All specialised array kinds may be used at kind [Generic_array], and
-       [Immediate_array] may be used at kind [Value_array]: *)
-    | (Float_array | Immediate_array | Value_array), Generic_array
-    | Immediate_array, Value_array ->
-      true
-    (* All other combinations are incompatible: *)
-    | ( ( Any_value | Naked_number _ | Boxed_float | Boxed_int32 | Boxed_int64
-        | Boxed_nativeint | Tagged_immediate | Block _ | Float_block _
-        | Float_array | Immediate_array | Value_array | Generic_array | Rec_info
-          ),
-        _ ) ->
-      false
+  (* type descr =
+   *   | Any_value
+   *   | Naked_number of Naked_number_kind.t
+   *   | Boxed_float
+   *   | Boxed_int32
+   *   | Boxed_int64
+   *   | Boxed_nativeint
+   *   | Tagged_immediate
+   *   | Rec_info
+   *   | Block of
+   *       { tag : Tag.t;
+   *         fields : descr list
+   *       }
+   *   | Float_block of { num_fields : int }
+   *   | Float_array
+   *   | Immediate_array
+   *   | Value_array
+   *   | Generic_array
+   * 
+   * let rec subkind_descr (t : Subkind.t) : descr =
+   *   match t with
+   *   | Anything -> Any_value
+   *   | Tagged_immediate -> Tagged_immediate
+   *   | Boxed_float -> Boxed_float
+   *   | Boxed_int32 -> Boxed_int32
+   *   | Boxed_int64 -> Boxed_int64
+   *   | Boxed_nativeint -> Boxed_nativeint
+   *   | Block { tag; fields } ->
+   *     Block { tag; fields = List.map subkind_descr fields }
+   *   | Float_block { num_fields } -> Float_block { num_fields }
+   *   | Float_array -> Float_array
+   *   | Immediate_array -> Immediate_array
+   *   | Value_array -> Value_array
+   *   | Generic_array -> Generic_array
+   * 
+   * let descr t : descr =
+   *   match t.kind with
+   *   | Value -> subkind_descr t.subkind
+   *   | Naked_number naked_number_kind -> Naked_number naked_number_kind
+   *   | Rec_info -> Rec_info
+   *   | Region -> Misc.fatal_error "Not implemented" *)
 
   let compatible t ~when_used_at =
-    compatible_descr (descr t) ~when_used_at:(descr when_used_at)
+    Subkind.compatible t.subkind ~when_used_at:when_used_at.subkind
 
   let has_useful_subkind_info t =
     match t.subkind with

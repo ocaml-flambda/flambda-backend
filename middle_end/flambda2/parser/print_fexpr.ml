@@ -118,7 +118,7 @@ let result_continuation ppf rcont =
 
 let exn_continuation ppf c = Format.fprintf ppf "* %a" continuation c
 
-let naked_number_kind ppf (nnk : naked_number_kind) =
+let naked_number_kind ppf (nnk : Flambda_kind.Naked_number_kind.t) =
   Format.pp_print_string ppf
   @@
   match nnk with
@@ -137,21 +137,24 @@ let kind ppf (k : kind) =
 
 let kind_with_subkind ppf (k : kind_with_subkind) =
   let str s = Format.pp_print_string ppf s in
-  match k with
-  | Any_value -> str "val"
-  | Block _ -> str "block" (* CR mshinwell: improve this *)
-  | Float_block _ -> str "float_block"
+  match Flambda_kind.With_subkind.kind k with
   | Naked_number nnk -> naked_number_kind ppf nnk
-  | Boxed_float -> str "float boxed"
-  | Boxed_int32 -> str "int32 boxed"
-  | Boxed_int64 -> str "int64 boxed"
-  | Boxed_nativeint -> str "nativeint boxed"
-  | Tagged_immediate -> str "imm tagged"
   | Rec_info -> str "rec_info"
-  | Float_array -> str "float_array"
-  | Immediate_array -> str "immediate_array"
-  | Value_array -> str "value_array"
-  | Generic_array -> str "generic_array"
+  | Region -> str "region"
+  | Value -> (
+    match Flambda_kind.With_subkind.subkind k with
+    | Anything -> str "val"
+    | Block _ -> str "block" (* CR mshinwell: improve this *)
+    | Float_block _ -> str "float_block"
+    | Boxed_float -> str "float boxed"
+    | Boxed_int32 -> str "int32 boxed"
+    | Boxed_int64 -> str "int64 boxed"
+    | Boxed_nativeint -> str "nativeint boxed"
+    | Tagged_immediate -> str "imm tagged"
+    | Float_array -> str "float_array"
+    | Immediate_array -> str "immediate_array"
+    | Value_array -> str "value_array"
+    | Generic_array -> str "generic_array")
 
 let arity ppf (a : arity) =
   match a with
