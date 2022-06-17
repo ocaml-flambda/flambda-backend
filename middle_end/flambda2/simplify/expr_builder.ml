@@ -740,7 +740,6 @@ let rewrite_apply_cont0 uacc rewrite ~ctx id apply_cont :
 let rewrite_apply_cont uacc rewrite id apply_cont =
   rewrite_apply_cont0 uacc rewrite ~ctx:Apply_cont id apply_cont
 
-(* CR-someday mshinwell: The code of this function could maybe be improved. *)
 let rewrite_exn_continuation rewrite id exn_cont =
   let exn_cont_arity = Exn_continuation.arity exn_cont in
   let original_params' = Apply_cont_rewrite.original_params rewrite in
@@ -774,13 +773,16 @@ let rewrite_exn_continuation rewrite id exn_cont =
       List.filter_map
         (fun ( (arg : Continuation_extra_params_and_args.Extra_arg.t),
                (used : Apply_cont_rewrite.used) ) ->
-          match used with
-          | Used -> Some arg
-          | Unused -> (
-            match arg with
-            | Already_in_scope _ -> None
-            | New_let_binding _ | New_let_binding_with_named_args _ ->
-              Misc.fatal_error "[New_let_binding] not expected here"))
+          match used, arg with
+          | Used, Already_in_scope simple -> Some simple
+          | Unused, Already_in_scope _ -> None
+          | (Used | Unused), (New_let_binding _ | New_let_binding_with_named_args _) ->
+            (* CR gbury: is there a reason not to allow [New_let_bindings] ?
+               Currently new let bindings are only generated during unboxing, and we happen
+               to not unbox parameters of exn continuations, but there's no reason why we
+               could not. In such a case, we'd need to add some let bindings and/or a wrapper
+               continuation, the same way as how it's done in the "regular" continuation case. *)
+              Misc.fatal_error "[New_let_binding] are currently forbidden for exn continuation rewrites")
         (Apply_cont_rewrite.extra_args rewrite id)
     in
     let used_extra_params =
@@ -788,11 +790,7 @@ let rewrite_exn_continuation rewrite id exn_cont =
     in
     assert (List.compare_lengths used_extra_params extra_args_list = 0);
     List.map2
-      (fun param (arg : Continuation_extra_params_and_args.Extra_arg.t) ->
-        match arg with
-        | Already_in_scope simple -> simple, BP.kind param
-        | New_let_binding _ | New_let_binding_with_named_args _ ->
-          Misc.fatal_error "[New_let_binding] not expected here")
+      (fun param arg -> arg, BP.kind param)
       used_extra_params extra_args_list
   in
   let extra_args = extra_args0 @ extra_args1 in
