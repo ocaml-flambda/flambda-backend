@@ -16,7 +16,7 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-open! Flambda.Import
+open! Simplify_import
 
 type t = private
   { simplified_named : Simplified_named.t Or_invalid.t;
@@ -30,5 +30,12 @@ val create_simplified :
   Simplified_named.t -> try_reify:bool -> Downwards_acc.t -> t
 
 val create_invalid : Downwards_acc.t -> t
+
+val create_unknown :
+  Downwards_acc.t ->
+  result_var:Bound_var.t ->
+  Flambda_kind.t ->
+  original_term:Flambda.Named.t ->
+  t
 
 val with_dacc : t -> Downwards_acc.t -> t
