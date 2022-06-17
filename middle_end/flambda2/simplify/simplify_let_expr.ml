@@ -94,7 +94,9 @@ let rebuild_let simplify_named_result removed_operations
     in
     after_rebuild body uacc
   else
-    let uacc, lifted_constants_from_body = UA.get_and_clear_lifted_constants uacc in
+    let uacc, lifted_constants_from_body =
+      UA.get_and_clear_lifted_constants uacc
+    in
     let body, uacc =
       EB.place_lifted_constants uacc ~lifted_constants_from_defining_expr
         ~lifted_constants_from_body

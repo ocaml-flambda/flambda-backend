@@ -132,7 +132,9 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
     if not at_unit_toplevel
     then handler, uacc
     else
-      let uacc, lifted_constants_from_body = UA.get_and_clear_lifted_constants uacc in
+      let uacc, lifted_constants_from_body =
+        UA.get_and_clear_lifted_constants uacc
+      in
       EB.place_lifted_constants uacc
         ~lifted_constants_from_defining_expr:LCS.empty
         ~lifted_constants_from_body

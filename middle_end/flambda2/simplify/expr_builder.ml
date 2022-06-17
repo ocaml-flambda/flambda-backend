@@ -287,38 +287,38 @@ let make_new_let_bindings uacc
          ({ let_bound; simplified_defining_expr; original_defining_expr } :
            Simplify_named_result.binding_to_place)
        ->
-        let { named = defining_expr;
+      let ({ named = defining_expr;
              free_names = free_names_of_defining_expr;
-               cost_metrics = cost_metrics_of_defining_expr; } =
-           (simplified_defining_expr : Simplified_named.t)
-        in
-        let defining_expr = Simplified_named.to_named defining_expr in
-        let expr, uacc, creation_result =
-          match (let_bound : Bound_pattern.t) with
-          | Singleton _ | Set_of_closures _ ->
-            create_let uacc let_bound defining_expr ~free_names_of_defining_expr
-              ~body:expr ~cost_metrics_of_defining_expr
-          | Static _ ->
-            (* Since [Simplified_named] doesn't permit the [Static_consts] case,
-               this must be a malformed binding. *)
-            Misc.fatal_errorf
-              "Mismatch between bound name(s) and defining expression:@ %a@ =@ \
-               %a"
-              Bound_pattern.print let_bound Named.print defining_expr
-        in
-        let uacc =
-          match creation_result with
-          | Nothing_deleted_at_runtime -> uacc
-          | Defining_expr_deleted_at_compile_time
-          | Defining_expr_deleted_at_runtime -> (
-            match (original_defining_expr : Named.t) with
-            | Prim (prim, _dbg) ->
-              UA.notify_removed ~operation:(Removed_operations.prim prim) uacc
-            | Set_of_closures _ ->
-              UA.notify_removed ~operation:Removed_operations.alloc uacc
-            | Simple _ | Static_consts _ | Rec_info _ -> uacc)
-        in
-        expr, uacc)
+             cost_metrics = cost_metrics_of_defining_expr
+           }) =
+        (simplified_defining_expr : Simplified_named.t)
+      in
+      let defining_expr = Simplified_named.to_named defining_expr in
+      let expr, uacc, creation_result =
+        match (let_bound : Bound_pattern.t) with
+        | Singleton _ | Set_of_closures _ ->
+          create_let uacc let_bound defining_expr ~free_names_of_defining_expr
+            ~body:expr ~cost_metrics_of_defining_expr
+        | Static _ ->
+          (* Since [Simplified_named] doesn't permit the [Static_consts] case,
+             this must be a malformed binding. *)
+          Misc.fatal_errorf
+            "Mismatch between bound name(s) and defining expression:@ %a@ =@ %a"
+            Bound_pattern.print let_bound Named.print defining_expr
+      in
+      let uacc =
+        match creation_result with
+        | Nothing_deleted_at_runtime -> uacc
+        | Defining_expr_deleted_at_compile_time
+        | Defining_expr_deleted_at_runtime -> (
+          match (original_defining_expr : Named.t) with
+          | Prim (prim, _dbg) ->
+            UA.notify_removed ~operation:(Removed_operations.prim prim) uacc
+          | Set_of_closures _ ->
+            UA.notify_removed ~operation:Removed_operations.alloc uacc
+          | Simple _ | Static_consts _ | Rec_info _ -> uacc)
+      in
+      expr, uacc)
 
 let create_raw_let_symbol uacc bound_static static_consts ~body =
   (* Upon entry to this function, [UA.name_occurrences uacc] must precisely
@@ -377,7 +377,7 @@ let create_let_symbol0 uacc (bound_static : Bound_static.t)
       match UA.reachable_code_ids uacc with
       | Unknown -> Code_id.Set.empty
       | Known { live_code_ids; ancestors_of_live_code_ids = _ } ->
-      Code_id.Set.diff all_code_ids_bound_names live_code_ids
+        Code_id.Set.diff all_code_ids_bound_names live_code_ids
   in
   let static_consts =
     if Code_id.Set.is_empty code_ids_to_make_deleted
@@ -537,9 +537,11 @@ let create_let_symbols uacc lifted_constant ~body =
 let place_lifted_constants uacc ~lifted_constants_from_defining_expr
     ~lifted_constants_from_body ~put_bindings_around_body ~body =
   (* Lifted constants are placed as soon as they reach toplevel. *)
-  if not (UA.no_lifted_constants uacc) then
-    Misc.fatal_errorf "All lifted constants of the body should have been
-                        removed from the uacc";
+  if not (UA.no_lifted_constants uacc)
+  then
+    Misc.fatal_errorf
+      "All lifted constants of the body should have been\n\
+      \                        removed from the uacc";
   let place_constants uacc ~around constants =
     let sorted = LCS.sort constants in
     ArrayLabels.fold_left sorted.innermost_first ~init:(around, uacc)
@@ -570,16 +572,16 @@ let create_switch uacc ~condition_dbg ~scrutinee ~arms =
     match Targetint_31_63.Map.get_singleton arms with
     | Some (_discriminant, action) -> change_to_apply_cont action
     | None -> (
-      (* At that point, we've already applied the apply cont rewrite to
-         the action of the arms. *)
+      (* At that point, we've already applied the apply cont rewrite to the
+         action of the arms. *)
       let actions =
         Apply_cont_expr.Set.of_list (Targetint_31_63.Map.data arms)
       in
       match Apply_cont_expr.Set.get_singleton actions with
       | Some action ->
         (* The resulting [Debuginfo] on the [Apply_cont] will be arbitrarily
-           chosen from amongst the [Debuginfo] values on the arms, but this seems
-           fine. *)
+           chosen from amongst the [Debuginfo] values on the arms, but this
+           seems fine. *)
         change_to_apply_cont action
       | None ->
         let switch = Switch.create ~condition_dbg ~scrutinee ~arms in
@@ -771,13 +773,17 @@ let rewrite_exn_continuation rewrite id exn_cont =
           match used, arg with
           | Used, Already_in_scope simple -> Some simple
           | Unused, Already_in_scope _ -> None
-          | (Used | Unused), (New_let_binding _ | New_let_binding_with_named_args _) ->
+          | ( (Used | Unused),
+              (New_let_binding _ | New_let_binding_with_named_args _) ) ->
             (* CR gbury: is there a reason not to allow [New_let_bindings] ?
-               Currently new let bindings are only generated during unboxing, and we happen
-               to not unbox parameters of exn continuations, but there's no reason why we
-               could not. In such a case, we'd need to add some let bindings and/or a wrapper
-               continuation, the same way as how it's done in the "regular" continuation case. *)
-              Misc.fatal_error "[New_let_binding] are currently forbidden for exn continuation rewrites")
+               Currently new let bindings are only generated during unboxing,
+               and we happen to not unbox parameters of exn continuations, but
+               there's no reason why we could not. In such a case, we'd need to
+               add some let bindings and/or a wrapper continuation, the same way
+               as how it's done in the "regular" continuation case. *)
+            Misc.fatal_error
+              "[New_let_binding] are currently forbidden for exn continuation \
+               rewrites")
         (Apply_cont_rewrite.extra_args rewrite id)
     in
     let used_extra_params =

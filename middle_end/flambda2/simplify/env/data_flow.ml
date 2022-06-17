@@ -33,8 +33,8 @@ end
 (* Typedefs *)
 (* ******** *)
 
-(* CR chambart/gbury: we might want to also track function_slots in addition
-   to value_slots. *)
+(* CR chambart/gbury: we might want to also track function_slots in addition to
+   value_slots. *)
 
 (* CR-someday chambart/gbury: get rid of Name_occurences everywhere, this is not
    small while we need only the names

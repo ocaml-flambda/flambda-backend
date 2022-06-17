@@ -41,8 +41,8 @@ val make_new_let_bindings :
 (** Create the "let symbol" binding(s) around a given body necessary to define
     the given lifted constant.
 
-    Value slots are removed if they are not used according to the given
-    [uacc]. (Such [uacc] must have seen all uses in the whole compilation unit.)
+    Value slots are removed if they are not used according to the given [uacc].
+    (Such [uacc] must have seen all uses in the whole compilation unit.)
 
     The [name_occurrences] in the provided [uacc] must contain exactly the free
     names of the [body]. *)
