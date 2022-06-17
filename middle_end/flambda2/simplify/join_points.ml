@@ -20,6 +20,7 @@ module LCS = Lifted_constant_state
 module T = Flambda2_types
 module TE = Flambda2_types.Typing_env
 module U = One_continuation_use
+module EPA = Continuation_extra_params_and_args
 
 type result =
   { handler_env : DE.t;
@@ -75,7 +76,7 @@ let join ?unknown_if_defined_at_or_later_than denv typing_env params
   in
   let handler_env =
     env
-    |> TE.add_definitions_of_params ~params:extra_params_and_args.extra_params
+    |> TE.add_definitions_of_params ~params:(EPA.extra_params extra_params_and_args)
   in
   let handler_env =
     match cse_join_result with

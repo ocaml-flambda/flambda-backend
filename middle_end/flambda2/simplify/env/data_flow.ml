@@ -12,6 +12,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+module EPA = Continuation_extra_params_and_args
+
 (* Helper module *)
 (* ************* *)
 
@@ -681,9 +683,11 @@ module Dependency_graph = struct
                        unneeded. *)
                     t)
                 t
-                (Bound_parameters.to_list extra_params_and_args.extra_params)
+                (Bound_parameters.to_list
+                   (EPA.extra_params extra_params_and_args))
                 extra_args)
-            extra_params_and_args.extra_args t)
+            (EPA.extra_args extra_params_and_args)
+            t)
         extra t
     in
     t

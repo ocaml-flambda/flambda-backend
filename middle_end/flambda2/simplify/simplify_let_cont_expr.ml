@@ -29,7 +29,7 @@ let compute_used_extra_params uacc (extra_params_and_args : EPA.t)
   if is_single_inlinable_use
   then
     { extra_params_used_as_normal =
-        Bound_parameters.to_list extra_params_and_args.extra_params;
+        Bound_parameters.to_list (EPA.extra_params extra_params_and_args);
       extra_params_not_used_as_normal = []
     }
   else
@@ -68,7 +68,7 @@ let compute_used_extra_params uacc (extra_params_and_args : EPA.t)
     in
     let extra_params_used_as_normal, extra_params_not_used_as_normal =
       ListLabels.partition
-        (Bound_parameters.to_list extra_params_and_args.extra_params)
+        (Bound_parameters.to_list (EPA.extra_params extra_params_and_args))
         ~f:used_or_not
     in
     { extra_params_used_as_normal; extra_params_not_used_as_normal }
@@ -198,8 +198,8 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
           ~original_params:
             params (* CR mshinwell: We should stop this set/list translation *)
           ~used_params:(BP.Set.of_list params_used_as_normal)
-          ~extra_params:extra_params_and_args.extra_params
-          ~extra_args:extra_params_and_args.extra_args
+          ~extra_params:(EPA.extra_params extra_params_and_args)
+          ~extra_args:(EPA.extra_args extra_params_and_args)
           ~used_extra_params:(BP.Set.of_list extra_params_used_as_normal)
       in
       let uacc =
@@ -770,13 +770,13 @@ let prepare_to_rebuild_one_recursive_let_cont_handler cont params
   let used_extra_params_list =
     Bound_parameters.filter
       (fun param -> Name.Set.mem (Name.var (BP.var param)) required_names)
-      extra_params_and_args.extra_params
+      (EPA.extra_params extra_params_and_args)
   in
   let used_extra_params = Bound_parameters.to_set used_extra_params_list in
   let rewrite =
     Apply_cont_rewrite.create ~original_params:params ~used_params
-      ~extra_params:extra_params_and_args.extra_params
-      ~extra_args:extra_params_and_args.extra_args ~used_extra_params
+      ~extra_params:(EPA.extra_params extra_params_and_args)
+      ~extra_args:(EPA.extra_args extra_params_and_args) ~used_extra_params
   in
   let uacc =
     UA.map_uenv uacc ~f:(fun uenv ->
