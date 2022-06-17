@@ -127,3 +127,29 @@ val specialise_array_kind :
   Flambda_primitive.Array_kind.t ->
   array_ty:Flambda2_types.t ->
   Flambda_primitive.Array_kind.t Or_bottom.t
+
+(** General notes about symbol projections (applicable to [Block_load] and
+    [Project_value_slot] primitives):
+
+    Projections from symbols bound to variables are important to remember, since
+    if such a variable occurs in a set of closures environment or other value
+    that can potentially be lifted, the knowledge that the variable is equal to
+    a symbol projection can make the difference between being able to lift and
+    not being able to lift. We try to avoid recording symbol projections whose
+    answer is known (in particular the answer is a symbol or a constant), since
+    such symbol projection knowledge doesn't affect lifting decisions.
+
+    We only need to record a projection if the defining expression remains as a
+    [Prim]. In particular if the defining expression simplified to a variable
+    (via the [Simple] constructor), then in the event that the variable is
+    itself a symbol projection, the environment will already know this fact.
+
+    We don't need to record a projection if we are currently at toplevel, since
+    any variable involved in a constant to be lifted from that position will
+    also be at toplevel. *)
+val add_symbol_projection :
+  Downwards_acc.t ->
+  projected_from:Simple.t ->
+  Symbol_projection.Projection.t ->
+  projection_bound_to:Bound_var.t ->
+  Downwards_acc.t

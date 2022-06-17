@@ -53,77 +53,62 @@ let simplify_project_function_slot ~move_from ~move_to ~min_name_mode dacc
 
 let simplify_project_value_slot function_slot value_slot ~min_name_mode dacc
     ~original_term ~arg:closure ~arg_ty:closure_ty ~result_var =
-  let typing_env = DA.typing_env dacc in
-  match
-    T.prove_project_value_slot_simple typing_env ~min_name_mode closure_ty
-      value_slot
-  with
-  | Invalid ->
-    let ty = T.bottom K.value in
-    let dacc = DA.add_variable dacc result_var ty in
-    SPR.create_invalid dacc
-  | Proved simple ->
-    (* Owing to the semantics of [Simplify_set_of_closures] when computing the
-       types of value slots -- in particular because it allows depth variables
-       to exist in such types that are not in scope in the body of the function
-       -- we need to ensure that any [Simple] retrieved here from the closure
-       environment is simplified. This will ensure that if it is not in scope,
-       any associated coercion will be erased appropriately. *)
-    let simple =
-      if Coercion.is_id (Simple.coercion simple)
-      then simple
-      else
-        let ty = S.simplify_simple dacc simple ~min_name_mode in
-        T.get_alias_exn ty
-    in
-    let reachable = SPR.create (Named.create_simple simple) ~try_reify:true in
-    let dacc =
-      DA.add_variable dacc result_var (T.alias_type_of K.value simple)
-    in
-    reachable dacc
-  | Unknown ->
-    let result =
-      Simplify_common.simplify_projection dacc ~original_term
-        ~deconstructing:closure_ty
-        ~shape:
-          (T.closure_with_at_least_this_value_slot
-             ~this_function_slot:function_slot value_slot
-             ~value_slot_var:(Bound_var.var result_var))
-        ~result_var ~result_kind:K.value
-    in
-    let dacc =
-      (* See comments on the [Block_load] cases in [Simplify_binary_primitive]
-         that explain what is going on with symbol projections. *)
-      let module SP = Symbol_projection in
-      let dacc = result.dacc in
-      Simple.pattern_match' closure
-        ~const:(fun _ -> dacc)
-        ~symbol:(fun symbol_projected_from ~coercion:_ ->
-          let proj =
-            SP.create symbol_projected_from
-              (SP.Projection.project_value_slot function_slot value_slot)
-          in
-          let var = Bound_var.var result_var in
-          DA.map_denv dacc ~f:(fun denv ->
-              DE.add_symbol_projection denv var proj))
-        ~var:(fun _ ~coercion:_ -> dacc)
-    in
-    let dacc = DA.add_use_of_value_slot dacc value_slot in
-    SPR.with_dacc result dacc
+  let result =
+    (* We try a faster method before falling back to [simplify_projection]. *)
+    match
+      T.prove_project_value_slot_simple (DA.typing_env dacc) ~min_name_mode
+        closure_ty value_slot
+    with
+    | Invalid -> SPR.create_invalid dacc
+    | Proved simple ->
+      (* Owing to the semantics of [Simplify_set_of_closures] when computing the
+         types of value slots -- in particular because it allows depth variables
+         to exist in such types that are not in scope in the body of the
+         function -- we need to ensure that any [Simple] retrieved here from the
+         closure environment is simplified. This will ensure that if it is not
+         in scope, any associated coercion will be erased appropriately. *)
+      let simple =
+        if Coercion.is_id (Simple.coercion simple)
+        then simple
+        else T.get_alias_exn (S.simplify_simple dacc simple ~min_name_mode)
+      in
+      let dacc =
+        DA.add_variable dacc result_var (T.alias_type_of K.value simple)
+      in
+      SPR.create (Named.create_simple simple) ~try_reify:true dacc
+    | Unknown ->
+      let result =
+        Simplify_common.simplify_projection dacc ~original_term
+          ~deconstructing:closure_ty
+          ~shape:
+            (T.closure_with_at_least_this_value_slot
+               ~this_function_slot:function_slot value_slot
+               ~value_slot_var:(Bound_var.var result_var))
+          ~result_var ~result_kind:K.value
+      in
+      let dacc = DA.add_use_of_value_slot result.dacc value_slot in
+      SPR.with_dacc result dacc
+  in
+  let dacc =
+    Simplify_common.add_symbol_projection result.dacc ~projected_from:closure
+      (Symbol_projection.Projection.project_value_slot function_slot value_slot)
+      ~projection_bound_to:result_var
+  in
+  SPR.with_dacc result dacc
 
 let simplify_unbox_number (boxable_number_kind : K.Boxable_number.t) dacc
     ~original_term ~arg ~arg_ty:boxed_number_ty ~result_var =
+  let result_var' = Bound_var.var result_var in
   let shape, result_kind =
-    let result_var = Bound_var.var result_var in
     match boxable_number_kind with
     | Naked_float ->
-      T.boxed_float_alias_to ~naked_float:result_var Unknown, K.naked_float
+      T.boxed_float_alias_to ~naked_float:result_var' Unknown, K.naked_float
     | Naked_int32 ->
-      T.boxed_int32_alias_to ~naked_int32:result_var Unknown, K.naked_int32
+      T.boxed_int32_alias_to ~naked_int32:result_var' Unknown, K.naked_int32
     | Naked_int64 ->
-      T.boxed_int64_alias_to ~naked_int64:result_var Unknown, K.naked_int64
+      T.boxed_int64_alias_to ~naked_int64:result_var' Unknown, K.naked_int64
     | Naked_nativeint ->
-      ( T.boxed_nativeint_alias_to ~naked_nativeint:result_var Unknown,
+      ( T.boxed_nativeint_alias_to ~naked_nativeint:result_var' Unknown,
         K.naked_nativeint )
   in
   let alloc_mode =
@@ -141,50 +126,44 @@ let simplify_unbox_number (boxable_number_kind : K.Boxable_number.t) dacc
     match alloc_mode with
     | Unknown | Known Local -> dacc
     | Known Heap ->
-      let boxing_prim : P.t =
-        Unary
-          ( Box_number (boxable_number_kind, Heap),
-            Simple.var (Bound_var.var result_var) )
-      in
       DA.map_denv dacc ~f:(fun denv ->
           DE.add_cse denv
-            (P.Eligible_for_cse.create_exn boxing_prim)
+            (P.Eligible_for_cse.create_exn
+               (Unary
+                  ( Box_number (boxable_number_kind, Heap),
+                    Simple.var result_var' )))
             ~bound_to:arg)
   in
   SPR.with_dacc result dacc
 
 let simplify_untag_immediate dacc ~original_term ~arg ~arg_ty:boxed_number_ty
     ~result_var =
+  let result_var' = Bound_var.var result_var in
   let shape, result_kind =
-    let result_var = Bound_var.var result_var in
-    T.tagged_immediate_alias_to ~naked_immediate:result_var, K.naked_immediate
+    T.tagged_immediate_alias_to ~naked_immediate:result_var', K.naked_immediate
   in
   let result =
     Simplify_common.simplify_projection dacc ~original_term
       ~deconstructing:boxed_number_ty ~shape ~result_var ~result_kind
   in
   let dacc =
-    let dacc = result.dacc in
-    let tagging_prim : P.t =
-      Unary (Tag_immediate, Simple.var (Bound_var.var result_var))
-    in
-    DA.map_denv dacc ~f:(fun denv ->
+    DA.map_denv result.dacc ~f:(fun denv ->
         DE.add_cse denv
-          (P.Eligible_for_cse.create_exn tagging_prim)
+          (P.Eligible_for_cse.create_exn
+             (Unary (Tag_immediate, Simple.var result_var')))
           ~bound_to:arg)
   in
   SPR.with_dacc result dacc
 
 let simplify_box_number (boxable_number_kind : K.Boxable_number.t) alloc_mode
     dacc ~original_term ~arg:_ ~arg_ty:naked_number_ty ~result_var =
-  (* CR mshinwell: This should check the kind of [naked_number_ty] (or the
-     creation functions used below should). *)
   let ty =
+    let alloc_mode = Or_unknown.Known alloc_mode in
     match boxable_number_kind with
-    | Naked_float -> T.box_float naked_number_ty (Known alloc_mode)
-    | Naked_int32 -> T.box_int32 naked_number_ty (Known alloc_mode)
-    | Naked_int64 -> T.box_int64 naked_number_ty (Known alloc_mode)
-    | Naked_nativeint -> T.box_nativeint naked_number_ty (Known alloc_mode)
+    | Naked_float -> T.box_float naked_number_ty alloc_mode
+    | Naked_int32 -> T.box_int32 naked_number_ty alloc_mode
+    | Naked_int64 -> T.box_int64 naked_number_ty alloc_mode
+    | Naked_nativeint -> T.box_nativeint naked_number_ty alloc_mode
   in
   let dacc = DA.add_variable dacc result_var ty in
   SPR.create original_term ~try_reify:true dacc

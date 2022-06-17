@@ -104,3 +104,5 @@ application must remain).
 
 Mark to check that all Cmm operations returning typ_void have
 return_unit in To_cmm
+
+Proper way of writing "print" functions
