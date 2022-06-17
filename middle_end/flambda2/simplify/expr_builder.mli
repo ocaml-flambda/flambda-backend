@@ -39,12 +39,9 @@ val make_new_let_bindings :
   Rebuilt_expr.t * Upwards_acc.t
 
 (** Create the "let symbol" binding(s) around a given body necessary to define
-    the given lifted constant. Two optimisations are performed:
+    the given lifted constant.
 
-    1. Best efforts are made not to create the binding(s) if it/they would be
-    redundant.
-
-    2. Closure variables are removed if they are not used according to the given
+    Value slots are removed if they are not used according to the given
     [uacc]. (Such [uacc] must have seen all uses in the whole compilation unit.)
 
     The [name_occurrences] in the provided [uacc] must contain exactly the free

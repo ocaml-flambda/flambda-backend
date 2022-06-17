@@ -287,11 +287,11 @@ let make_new_let_bindings uacc
          ({ let_bound; simplified_defining_expr; original_defining_expr } :
            Simplify_named_result.binding_to_place)
        ->
-      match (simplified_defining_expr : Simplified_named.t) with
-      | { named = defining_expr;
-          free_names = free_names_of_defining_expr;
-          cost_metrics = cost_metrics_of_defining_expr
-        } ->
+        let { named = defining_expr;
+             free_names = free_names_of_defining_expr;
+               cost_metrics = cost_metrics_of_defining_expr; } =
+           (simplified_defining_expr : Simplified_named.t)
+        in
         let defining_expr = Simplified_named.to_named defining_expr in
         let expr, uacc, creation_result =
           match (let_bound : Bound_pattern.t) with
@@ -374,21 +374,13 @@ let create_let_symbol0 uacc (bound_static : Bound_static.t)
       let all_code_ids_bound_names =
         Bound_static.code_being_defined bound_static
       in
-      Code_id.Set.fold
-        (fun bound_code_id result ->
-          let can_make_deleted =
-            match UA.reachable_code_ids uacc with
-            | Unknown -> false
-            | Known { live_code_ids; ancestors_of_live_code_ids = _ } ->
-              not (Code_id.Set.mem bound_code_id live_code_ids)
-          in
-          if can_make_deleted
-          then Code_id.Set.add bound_code_id result
-          else result)
-        all_code_ids_bound_names Code_id.Set.empty
+      match UA.reachable_code_ids uacc with
+      | Unknown -> Code_id.Set.empty
+      | Known { live_code_ids; ancestors_of_live_code_ids = _ } ->
+      Code_id.Set.diff all_code_ids_bound_names live_code_ids
   in
   let static_consts =
-    if not will_bind_code
+    if Code_id.Set.is_empty code_ids_to_make_deleted
     then static_consts
     else
       Rebuilt_static_const.Group.map static_consts ~f:(fun static_const ->
@@ -573,19 +565,22 @@ let create_switch uacc ~condition_dbg ~scrutinee ~arms =
         UA.add_free_names uacc (Apply_cont.free_names action)
         |> UA.notify_added ~code_size:(Code_size.apply_cont action)
       in
-      (* The resulting [Debuginfo] on the [Apply_cont] will be arbitrarily
-         chosen from amongst the [Debuginfo] values on the arms, but this seems
-         fine. *)
       RE.create_apply_cont action, uacc
     in
     match Targetint_31_63.Map.get_singleton arms with
     | Some (_discriminant, action) -> change_to_apply_cont action
     | None -> (
+      (* At that point, we've already applied the apply cont rewrite to
+         the action of the arms. *)
       let actions =
         Apply_cont_expr.Set.of_list (Targetint_31_63.Map.data arms)
       in
       match Apply_cont_expr.Set.get_singleton actions with
-      | Some action -> change_to_apply_cont action
+      | Some action ->
+        (* The resulting [Debuginfo] on the [Apply_cont] will be arbitrarily
+           chosen from amongst the [Debuginfo] values on the arms, but this seems
+           fine. *)
+        change_to_apply_cont action
       | None ->
         let switch = Switch.create ~condition_dbg ~scrutinee ~arms in
         let uacc =
