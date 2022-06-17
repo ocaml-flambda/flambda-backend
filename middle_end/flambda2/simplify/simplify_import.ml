@@ -52,6 +52,7 @@ module RSC = Rebuilt_static_const
 module RI = Apply_cont_rewrite_id
 module S = Simplify_simple
 module SC = Static_const
+module SPR = Simplify_primitive_result
 module T = Flambda2_types
 module TE = Flambda2_types.Typing_env
 module TEE = Flambda2_types.Typing_env_extension
