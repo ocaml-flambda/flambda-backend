@@ -776,7 +776,8 @@ let prepare_to_rebuild_one_recursive_let_cont_handler cont params
   let rewrite =
     Apply_cont_rewrite.create ~original_params:params ~used_params
       ~extra_params:(EPA.extra_params extra_params_and_args)
-      ~extra_args:(EPA.extra_args extra_params_and_args) ~used_extra_params
+      ~extra_args:(EPA.extra_args extra_params_and_args)
+      ~used_extra_params
   in
   let uacc =
     UA.map_uenv uacc ~f:(fun uenv ->

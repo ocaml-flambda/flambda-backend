@@ -45,10 +45,10 @@ end
 
 type t =
   | Empty
-  | Non_empty of {
-      extra_params : Bound_parameters.t;
-      extra_args : Extra_arg.t list Apply_cont_rewrite_id.Map.t;
-    }
+  | Non_empty of
+      { extra_params : Bound_parameters.t;
+        extra_args : Extra_arg.t list Apply_cont_rewrite_id.Map.t
+      }
 
 let [@ocamlformat "disable"] print ppf = function
   | Empty -> Format.fprintf ppf "(empty)"
@@ -62,17 +62,19 @@ let [@ocamlformat "disable"] print ppf = function
 
 let empty = Empty
 
-let is_empty = function
-  | Empty -> true
-  | Non_empty _ -> false
+let is_empty = function Empty -> true | Non_empty _ -> false
 
 let add t ~extra_param ~extra_args =
   match t with
-  | Empty -> Non_empty {
-      extra_params = Bound_parameters.create [extra_param];
-      extra_args = Apply_cont_rewrite_id.Map.map (fun extra_args -> [extra_args]) extra_args;
-    }
-  | Non_empty { extra_params; extra_args = already_extra_args; } ->
+  | Empty ->
+    Non_empty
+      { extra_params = Bound_parameters.create [extra_param];
+        extra_args =
+          Apply_cont_rewrite_id.Map.map
+            (fun extra_args -> [extra_args])
+            extra_args
+      }
+  | Non_empty { extra_params; extra_args = already_extra_args } ->
     let extra_params = Bound_parameters.cons extra_param extra_params in
     let extra_args =
       Apply_cont_rewrite_id.Map.merge
@@ -86,8 +88,8 @@ let add t ~extra_param ~extra_args =
           | Some already_extra_args, Some extra_arg ->
             Some (extra_arg :: already_extra_args))
         already_extra_args extra_args
-  in
-  Non_empty { extra_params; extra_args; }
+    in
+    Non_empty { extra_params; extra_args }
 
 let concat ~outer:t1 ~inner:t2 =
   match t1, t2 with
@@ -105,9 +107,10 @@ let concat ~outer:t1 ~inner:t2 =
             Some (extra_args1 @ extra_args2))
         t1.extra_args t2.extra_args
     in
-    Non_empty { extra_params = Bound_parameters.append t1.extra_params t2.extra_params;
-      extra_args
-    }
+    Non_empty
+      { extra_params = Bound_parameters.append t1.extra_params t2.extra_params;
+        extra_args
+      }
 
 let extra_params = function
   | Empty -> Bound_parameters.empty
@@ -116,4 +119,3 @@ let extra_params = function
 let extra_args = function
   | Empty -> Apply_cont_rewrite_id.Map.empty
   | Non_empty { extra_args; _ } -> extra_args
-

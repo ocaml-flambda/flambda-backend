@@ -32,10 +32,10 @@ end
 
 type t = private
   | Empty
-  | Non_empty of {
-      extra_params : Bound_parameters.t;
-      extra_args : Extra_arg.t list Apply_cont_rewrite_id.Map.t
-    }
+  | Non_empty of
+      { extra_params : Bound_parameters.t;
+        extra_args : Extra_arg.t list Apply_cont_rewrite_id.Map.t
+      }
 
 val print : Format.formatter -> t -> unit
 
@@ -52,4 +52,5 @@ val add :
 val concat : outer:t -> inner:t -> t
 
 val extra_params : t -> Bound_parameters.t
+
 val extra_args : t -> Extra_arg.t list Apply_cont_rewrite_id.Map.t

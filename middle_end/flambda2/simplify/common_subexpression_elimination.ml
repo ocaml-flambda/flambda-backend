@@ -116,10 +116,10 @@ let cse_with_eligible_lhs ~typing_env_at_fork ~cse_at_each_use ~params prev_cse
   in
   List.fold_left cse_at_each_use ~init:EP.Map.empty
     ~f:(fun eligible (env_at_use, id, cse) ->
-        let find_new_name =
-          match (extra_bindings : EPA.t) with
-          | Empty -> fun _arg -> None
-          | Non_empty { extra_args; extra_params; } ->
+      let find_new_name =
+        match (extra_bindings : EPA.t) with
+        | Empty -> fun _arg -> None
+        | Non_empty { extra_args; extra_params } ->
           let extra_args = RI.Map.find id extra_args in
           let rec find_name simple params args =
             match args, params with
@@ -140,9 +140,7 @@ let cse_with_eligible_lhs ~typing_env_at_fork ~cse_at_each_use ~params prev_cse
                 find_name simple params args)
           in
           fun arg ->
-            find_name arg
-              (Bound_parameters.to_list extra_params)
-              extra_args
+            find_name arg (Bound_parameters.to_list extra_params) extra_args
       in
       EP.Map.fold
         (fun prim bound_to eligible ->
@@ -311,8 +309,8 @@ let join0 ~typing_env_at_fork ~cse_at_fork ~cse_at_each_use ~params
       not (EPA.is_empty extra_params')
     in
     let cse = EP.Map.disjoint_union prev_cse cse' in
-    (* The order of cse arguments does not matter since only simples already in scope
-       are used as extra arguments. *)
+    (* The order of cse arguments does not matter since only simples already in
+       scope are used as extra arguments. *)
     let extra_params = EPA.concat ~outer:extra_params' ~inner:extra_params in
     let extra_equations =
       Name.Map.disjoint_union extra_equations extra_equations'

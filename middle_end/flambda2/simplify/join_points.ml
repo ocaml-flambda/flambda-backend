@@ -76,7 +76,8 @@ let join ?unknown_if_defined_at_or_later_than denv typing_env params
   in
   let handler_env =
     env
-    |> TE.add_definitions_of_params ~params:(EPA.extra_params extra_params_and_args)
+    |> TE.add_definitions_of_params
+         ~params:(EPA.extra_params extra_params_and_args)
   in
   let handler_env =
     match cse_join_result with
