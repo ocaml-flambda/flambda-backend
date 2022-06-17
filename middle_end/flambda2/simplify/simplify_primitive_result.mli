@@ -16,15 +16,13 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-open! Simplify_import
-
 type t = private
   { simplified_named : Simplified_named.t Or_invalid.t;
     try_reify : bool;
     dacc : Downwards_acc.t
   }
 
-val create : Named.t -> try_reify:bool -> Downwards_acc.t -> t
+val create : Flambda.Named.t -> try_reify:bool -> Downwards_acc.t -> t
 
 val create_simplified :
   Simplified_named.t -> try_reify:bool -> Downwards_acc.t -> t

@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open! Simplify_import
-
 [@@@ocaml.warning "+a-30-40-41-42"]
 
 type t =
@@ -34,8 +32,8 @@ let create_invalid dacc =
   { simplified_named = Invalid; try_reify = false; dacc }
 
 let create_unknown dacc ~result_var kind ~original_term =
-  let ty = T.unknown kind in
-  let dacc = DA.add_variable dacc result_var ty in
-  SPR.create original_term ~try_reify:false dacc
+  let ty = Flambda2_types.unknown kind in
+  let dacc = Downwards_acc.add_variable dacc result_var ty in
+  create original_term ~try_reify:false dacc
 
 let with_dacc t dacc = { t with dacc }
