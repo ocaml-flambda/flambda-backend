@@ -197,7 +197,6 @@ let simplify_tag_immediate dacc ~original_term ~arg:_ ~arg_ty:naked_number_ty
 
 let simplify_is_int_or_get_tag dacc ~original_term ~scrutinee ~scrutinee_ty:_
     ~result_var ~make_shape =
-  (* CR mshinwell: Check [scrutinee_ty] (e.g. its kind)? *)
   let dacc = DA.add_variable dacc result_var (make_shape scrutinee) in
   SPR.create original_term ~try_reify:true dacc
 
