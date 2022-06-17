@@ -73,6 +73,10 @@ let add_set_of_closures_offsets ~is_phantom named uacc =
   Named.fold_code_and_sets_of_closures named ~init:uacc
     ~f_code:add_offsets_from_code ~f_set:add_offsets_from_set
 
+type keep_binding_decision =
+  | Delete_binding
+  | Keep_binding of Name_mode.t
+
 let create_let uacc (bound_vars : Bound_pattern.t) (defining_expr : Named.t)
     ~free_names_of_defining_expr ~body ~cost_metrics_of_defining_expr =
   (* The name occurrences component of [uacc] is expected to be in the state
@@ -124,7 +128,7 @@ let create_let uacc (bound_vars : Bound_pattern.t) (defining_expr : Named.t)
           "Cannot [Let]-bind non-normal variable(s) to a [Named] that has more \
            than generative effects:@ %a@ =@ %a"
           Bound_pattern.print bound_vars Named.print defining_expr;
-      bound_vars, Some Name_mode.normal, Nothing_deleted_at_runtime)
+      bound_vars, Keep_binding Name_mode.normal, Nothing_deleted_at_runtime)
     else
       let is_depth =
         match defining_expr with
@@ -145,7 +149,7 @@ let create_let uacc (bound_vars : Bound_pattern.t) (defining_expr : Named.t)
         not (has_uses || (generate_phantom_lets && can_phantomise))
       in
       if will_delete_binding
-      then bound_vars, None, Defining_expr_deleted_at_compile_time
+      then bound_vars, Delete_binding, Defining_expr_deleted_at_compile_time
       else
         let name_mode =
           match greatest_name_mode with
@@ -155,7 +159,7 @@ let create_let uacc (bound_vars : Bound_pattern.t) (defining_expr : Named.t)
         assert (Name_mode.can_be_in_terms name_mode);
         let bound_vars = Bound_pattern.with_name_mode bound_vars name_mode in
         if Name_mode.is_normal name_mode
-        then bound_vars, Some name_mode, Nothing_deleted_at_runtime
+        then bound_vars, Keep_binding name_mode, Nothing_deleted_at_runtime
         else
           (* CR lmaurer for poechsel: This seems to suggest (and the code toward
              the end of [make_new_let_bindings] seems to assume) that we're
@@ -164,7 +168,7 @@ let create_let uacc (bound_vars : Bound_pattern.t) (defining_expr : Named.t)
              Presumably this will cause double-counting of deleted code, which
              is to say, the second pass will get as much credit for phantomising
              as the first one did. *)
-          bound_vars, Some name_mode, Defining_expr_deleted_at_runtime
+          bound_vars, Keep_binding name_mode, Defining_expr_deleted_at_runtime
   in
   (* CR-someday mshinwell: When leaving behind phantom lets, maybe we should
      turn the defining expressions into simpler ones by using the type, if
@@ -173,8 +177,8 @@ let create_let uacc (bound_vars : Bound_pattern.t) (defining_expr : Named.t)
      types propagate the information forward. mshinwell: this might be done now
      in Simplify_named, check. *)
   match keep_binding with
-  | None -> body, uacc, let_creation_result
-  | Some name_mode ->
+  | Delete_binding -> body, uacc, let_creation_result
+  | Keep_binding name_mode ->
     let is_phantom = Name_mode.is_phantom name_mode in
     let free_names_of_body = UA.name_occurrences uacc in
     let free_names_of_defining_expr =
