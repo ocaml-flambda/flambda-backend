@@ -468,6 +468,29 @@ let simplify_end_region dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
   let dacc = DA.add_variable dacc result_var ty in
   SPR.create original_term ~try_reify:false dacc
 
+let simplify_int_as_pointer dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
+  let ty = T.unknown K.value in
+  let dacc = DA.add_variable dacc result_var ty in
+  SPR.create original_term ~try_reify:false dacc
+
+let simplify_bigarray_length ~dimension:_ dacc ~original_term ~arg:_ ~arg_ty:_
+    ~result_var =
+  let ty = T.unknown K.naked_immediate in
+  let dacc = DA.add_variable dacc result_var ty in
+  SPR.create original_term ~try_reify:false dacc
+
+let simplify_duplicate_array ~kind:_ ~source_mutability:_
+    ~destination_mutability:_ dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
+  let ty = T.unknown K.value in
+  let dacc = DA.add_variable dacc result_var ty in
+  SPR.create original_term ~try_reify:false dacc
+
+let simplify_duplicate_block ~kind:_ ~source_mutability:_
+    ~destination_mutability:_ dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
+  let ty = T.unknown K.value in
+  let dacc = DA.add_variable dacc result_var ty in
+  SPR.create original_term ~try_reify:false dacc
+
 let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     ~arg_ty dbg ~result_var =
   let min_name_mode = Bound_var.name_mode result_var in
@@ -508,9 +531,13 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     | Reinterpret_int64_as_float -> simplify_reinterpret_int64_as_float
     | Is_boxed_float -> simplify_is_boxed_float
     | Is_flat_float_array -> simplify_is_flat_float_array
-    | Int_as_pointer | Bigarray_length _ | Duplicate_array _ | Duplicate_block _
-    | Opaque_identity ->
-      simplify_opaque_identity
+    | Int_as_pointer -> simplify_int_as_pointer
+    | Bigarray_length { dimension } -> simplify_bigarray_length ~dimension
+    | Duplicate_array { kind; source_mutability; destination_mutability } ->
+      simplify_duplicate_array ~kind ~source_mutability ~destination_mutability
+    | Duplicate_block { kind; source_mutability; destination_mutability } ->
+      simplify_duplicate_block ~kind ~source_mutability ~destination_mutability
+    | Opaque_identity -> simplify_opaque_identity
     | End_region -> simplify_end_region
   in
   simplifier dacc ~original_term ~arg ~arg_ty ~result_var
