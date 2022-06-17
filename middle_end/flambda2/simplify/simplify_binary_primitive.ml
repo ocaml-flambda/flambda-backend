@@ -1018,7 +1018,7 @@ let simplify_immutable_block_load access_kind ~min_name_mode dacc ~original_term
         match Reg_width_const.descr const with
         | Tagged_immediate imm ->
           let index = Targetint_31_63.to_targetint imm in
-          Simplify_common.add_symbol_projection dacc ~projected_from:arg1
+          Simplify_common.add_symbol_projection result.dacc ~projected_from:arg1
             (Symbol_projection.Projection.block_load ~index)
             ~projection_bound_to:result_var
         | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
@@ -1133,6 +1133,26 @@ let simplify_array_load (array_kind : P.Array_kind.t) mutability dacc
     let dacc = DA.add_variable dacc result_var ty in
     Simplify_primitive_result.create named ~try_reify:false dacc
 
+let simplify_non_immutable_block_load _access_kind ~original_prim dacc
+    ~original_term _dbg ~arg1:_ ~arg1_ty:_ ~arg2:_ ~arg2_ty:_ ~result_var =
+  let ty = T.unknown (P.result_kind' original_prim) in
+  let dacc = DA.add_variable dacc result_var ty in
+  Simplify_primitive_result.create original_term ~try_reify:false dacc
+
+let simplify_string_or_bigstring_load _string_like_value _string_accessor_width
+    ~original_prim dacc ~original_term _dbg ~arg1:_ ~arg1_ty:_ ~arg2:_
+    ~arg2_ty:_ ~result_var =
+  let ty = T.unknown (P.result_kind' original_prim) in
+  let dacc = DA.add_variable dacc result_var ty in
+  Simplify_primitive_result.create original_term ~try_reify:false dacc
+
+let simplify_bigarray_load _num_dimensions _bigarray_kind _bigarray_layout
+    ~original_prim dacc ~original_term _dbg ~arg1:_ ~arg1_ty:_ ~arg2:_
+    ~arg2_ty:_ ~result_var =
+  let ty = T.unknown (P.result_kind' original_prim) in
+  let dacc = DA.add_variable dacc result_var ty in
+  Simplify_primitive_result.create original_term ~try_reify:false dacc
+
 let simplify_binary_primitive dacc original_prim (prim : P.binary_primitive)
     ~arg1 ~arg1_ty ~arg2 ~arg2_ty dbg ~result_var =
   let min_name_mode = Bound_var.name_mode result_var in
@@ -1141,6 +1161,8 @@ let simplify_binary_primitive dacc original_prim (prim : P.binary_primitive)
     match prim with
     | Block_load (access_kind, Immutable) ->
       simplify_immutable_block_load access_kind ~min_name_mode
+    | Block_load (access_kind, (Immutable_unique | Mutable)) ->
+      simplify_non_immutable_block_load access_kind ~original_prim
     | Array_load (array_kind, mutability) ->
       simplify_array_load array_kind mutability
     | Int_arith (kind, op) -> (
@@ -1175,21 +1197,11 @@ let simplify_binary_primitive dacc original_prim (prim : P.binary_primitive)
     | Float_arith op -> Binary_float_arith.simplify op
     | Float_comp op -> Binary_float_comp.simplify op
     | Phys_equal (kind, op) -> simplify_phys_equal op kind
-    | Block_load (_, (Immutable_unique | Mutable)) ->
-      fun dacc ~original_term:_ dbg ~arg1 ~arg1_ty:_ ~arg2 ~arg2_ty:_
-          ~result_var ->
-        let prim : P.t = Binary (prim, arg1, arg2) in
-        let named = Named.create_prim prim dbg in
-        let ty = T.unknown (P.result_kind' prim) in
-        let dacc = DA.add_variable dacc result_var ty in
-        Simplify_primitive_result.create named ~try_reify:false dacc
-    | String_or_bigstring_load _ | Bigarray_load _ ->
-      fun dacc ~original_term:_ dbg ~arg1 ~arg1_ty:_ ~arg2 ~arg2_ty:_
-          ~result_var ->
-        let prim : P.t = Binary (prim, arg1, arg2) in
-        let named = Named.create_prim prim dbg in
-        let ty = T.unknown (P.result_kind' prim) in
-        let dacc = DA.add_variable dacc result_var ty in
-        Simplify_primitive_result.create named ~try_reify:false dacc
+    | String_or_bigstring_load (string_like_value, string_accessor_width) ->
+      simplify_string_or_bigstring_load string_like_value string_accessor_width
+        ~original_prim
+    | Bigarray_load (num_dimensions, bigarray_kind, bigarray_layout) ->
+      simplify_bigarray_load num_dimensions bigarray_kind bigarray_layout
+        ~original_prim
   in
   simplifier dacc ~original_term dbg ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var
