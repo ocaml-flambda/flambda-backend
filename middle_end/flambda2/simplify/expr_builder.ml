@@ -541,7 +541,9 @@ let create_let_symbols uacc lifted_constant ~body =
 let place_lifted_constants uacc ~lifted_constants_from_defining_expr
     ~lifted_constants_from_body ~put_bindings_around_body ~body =
   (* Lifted constants are placed as soon as they reach toplevel. *)
-  let uacc = UA.with_lifted_constants uacc LCS.empty in
+  if not (UA.no_lifted_constants uacc) then
+    Misc.fatal_errorf "All lifted constants of the body should have been
+                        removed from the uacc";
   let place_constants uacc ~around constants =
     let sorted = LCS.sort constants in
     ArrayLabels.fold_left sorted.innermost_first ~init:(around, uacc)

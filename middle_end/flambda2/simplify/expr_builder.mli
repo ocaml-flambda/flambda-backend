@@ -55,12 +55,8 @@ val create_let_symbols :
   body:Rebuilt_expr.t ->
   Rebuilt_expr.t * Upwards_acc.t
 
-(** Place lifted constants whose defining expressions involve [Name]s (for
-    example those bound by a [Let] or a [Let_cont]) that are about to go out of
-    scope.
-
-    The [name_occurrences] in the provided [uacc] must contain exactly the free
-    names of the [body]. *)
+(** Place lifted constants arising from a let-expr (coming from both the
+    defining_expr and the body). *)
 val place_lifted_constants :
   Upwards_acc.t ->
   lifted_constants_from_defining_expr:Lifted_constant_state.t ->

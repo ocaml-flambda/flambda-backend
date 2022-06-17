@@ -44,6 +44,8 @@ val reachable_code_ids : t -> Data_flow.Reachable_code_ids.t Or_unknown.t
     [Let]-expressions made for them) on the upwards traversal. *)
 val lifted_constants : t -> Lifted_constant_state.t
 
+val get_and_clear_lifted_constants : t -> t * Lifted_constant_state.t
+
 (** Replace the accumulator of lifted constants. *)
 val with_lifted_constants : t -> Lifted_constant_state.t -> t
 

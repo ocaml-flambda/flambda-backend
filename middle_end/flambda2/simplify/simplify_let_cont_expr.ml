@@ -126,18 +126,16 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
     (recursive : Recursive.t) ~params ~(extra_params_and_args : EPA.t)
     ~is_single_inlinable_use ~is_exn_handler handler uacc ~after_rebuild =
   let handler, uacc =
-    let params =
-      Bound_parameters.append params extra_params_and_args.extra_params
-    in
     (* We might need to place lifted constants now, as they could depend on
        continuation parameters. As such we must also compute the unused
        parameters after placing any constants! *)
-    if (not at_unit_toplevel) || Bound_parameters.is_empty params
+    if not at_unit_toplevel
     then handler, uacc
     else
+      let uacc, lifted_constants_from_body = UA.get_and_clear_lifted_constants uacc in
       EB.place_lifted_constants uacc
         ~lifted_constants_from_defining_expr:LCS.empty
-        ~lifted_constants_from_body:(UA.lifted_constants uacc)
+        ~lifted_constants_from_body
         ~put_bindings_around_body:(fun uacc ~body -> body, uacc)
         ~body:handler
   in

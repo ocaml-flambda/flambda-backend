@@ -69,9 +69,8 @@ let rebuild_let simplify_named_result removed_operations
      constants cannot be placed. *)
   (* CR mshinwell: We don't actually have to have this logic for placing lifted
      constants here; it could be done before any other kind of expression. *)
-  let lifted_constants_from_body = UA.lifted_constants uacc in
   let no_constants_to_place =
-    no_constants_from_defining_expr && LCS.is_empty lifted_constants_from_body
+    no_constants_from_defining_expr && UA.no_lifted_constants uacc
   in
   let uacc = UA.notify_removed ~operation:removed_operations uacc in
   let bindings =
@@ -86,6 +85,7 @@ let rebuild_let simplify_named_result removed_operations
       if no_constants_from_defining_expr
       then uacc
       else
+        let lifted_constants_from_body = UA.lifted_constants uacc in
         LCS.union lifted_constants_from_body lifted_constants_from_defining_expr
         |> UA.with_lifted_constants uacc
     in
@@ -94,6 +94,7 @@ let rebuild_let simplify_named_result removed_operations
     in
     after_rebuild body uacc
   else
+    let uacc, lifted_constants_from_body = UA.get_and_clear_lifted_constants uacc in
     let body, uacc =
       EB.place_lifted_constants uacc ~lifted_constants_from_defining_expr
         ~lifted_constants_from_body

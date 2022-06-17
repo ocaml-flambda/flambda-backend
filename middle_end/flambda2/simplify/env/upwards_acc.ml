@@ -114,6 +114,9 @@ let code_age_relation t = t.code_age_relation
 
 let lifted_constants t = t.lifted_constants
 
+let get_and_clear_lifted_constants t =
+  { t with lifted_constants = LCS.empty; }, t.lifted_constants
+
 let required_names t = t.required_names
 
 let reachable_code_ids t = t.reachable_code_ids
