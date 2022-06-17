@@ -22,27 +22,19 @@ module Int64 = Numeric_types.Int64
 
 let simplify_project_function_slot ~move_from ~move_to ~min_name_mode dacc
     ~original_term ~arg:closure ~arg_ty:closure_ty ~result_var =
-  let typing_env = DA.typing_env dacc in
   match
-    T.prove_project_function_slot_simple typing_env ~min_name_mode closure_ty
-      move_to
+    T.prove_project_function_slot_simple (DA.typing_env dacc) ~min_name_mode
+      closure_ty move_to
   with
-  | Invalid ->
-    let ty = T.bottom K.value in
-    let dacc = DA.add_variable dacc result_var ty in
-    SPR.create_invalid dacc
+  | Invalid -> SPR.create_invalid dacc
   | Proved simple ->
-    let reachable = SPR.create (Named.create_simple simple) ~try_reify:true in
-    let dacc =
-      DA.add_variable dacc result_var (T.alias_type_of K.value simple)
-    in
-    reachable dacc
+    DA.add_variable dacc result_var (T.alias_type_of K.value simple)
+    |> SPR.create (Named.create_simple simple) ~try_reify:true
   | Unknown ->
-    let result = Simple.var (Bound_var.var result_var) in
     let closures =
       Function_slot.Map.empty
       |> Function_slot.Map.add move_from closure
-      |> Function_slot.Map.add move_to result
+      |> Function_slot.Map.add move_to (Simple.var (Bound_var.var result_var))
     in
     Simplify_common.simplify_projection dacc ~original_term
       ~deconstructing:closure_ty
