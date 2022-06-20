@@ -44,6 +44,23 @@ type generic_fns =
     apply_fun: apply_fn list;
     send_fun: apply_fn list }
 
+(* Symbols of function that pass certain checks for special properties. *)
+type checks =
+  {
+    mutable ui_noeffects_functions: Misc.Stdlib.String.Set.t;
+    (* Functions without effects, allocations, raises with traces, and indirect calls *)
+
+    mutable ui_noalloc_functions: Misc.Stdlib.String.Set.t;
+    (* Functions without allocations, raises with traces, and indirect calls *)
+
+     mutable ui_noalloc_exn_functions: Misc.Stdlib.String.Set.t;
+    (* Same as noalloc, but raises are allowed and no restrictions on instructions
+       post-dominated by a raise with trace. *)
+
+    mutable ui_noindirect_functions: Misc.Stdlib.String.Set.t;
+    (* Functions without indirect calls *)
+}
+
 type unit_infos =
   { mutable ui_name: modname;             (* Name of unit implemented *)
     mutable ui_symbol: string;            (* Prefix for symbols *)
@@ -52,6 +69,7 @@ type unit_infos =
     mutable ui_imports_cmx: crcs;         (* Infos imported *)
     mutable ui_generic_fns: generic_fns;  (* Generic functions needed *)
     mutable ui_export_info: export_info;
+    mutable ui_checks: checks;
     mutable ui_force_link: bool }         (* Always linked *)
 
 (* Each .a library has a matching .cmxa file that provides the following

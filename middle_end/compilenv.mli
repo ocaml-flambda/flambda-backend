@@ -112,6 +112,25 @@ val need_send_fun: int -> Lambda.alloc_mode -> unit
         (* Record the need of a currying (resp. application,
            message sending) function with the given arity *)
 
+module Checks : sig
+  (* mutable state *)
+  type t = Cmx_format.checks
+
+  val create : unit -> t
+
+  val reset : t -> unit
+
+  (* [merge_checks c ~into] modifies [into] by adding information from [src]. *)
+  val merge : t -> into:t -> unit
+end
+
+(* Return cached information about functions (from other complication units)
+   that satisfy certain properties. *)
+val cached_checks : Cmx_format.checks
+
+(* [cache_checks c] adds [c] to [cached_checks] *)
+val cache_checks : Cmx_format.checks -> unit
+
 val new_const_symbol : unit -> string
 val closure_symbol : Closure_id.t -> Symbol.t
         (* Symbol of a function if the function is
