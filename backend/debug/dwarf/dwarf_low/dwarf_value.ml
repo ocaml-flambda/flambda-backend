@@ -273,12 +273,11 @@ let size { value; comment = _ } =
   | Sleb128 i -> sleb128_size i
   | Absolute_address _ | Code_address_from_label _ | Code_address_from_symbol _
   | Code_address_from_label_symbol_diff _ | Code_address_from_symbol_diff _
-  | Code_address_from_symbol_plus_bytes _ -> begin
+  | Code_address_from_symbol_plus_bytes _ -> (
     match Targetint.size with
     | 32 -> Dwarf_int.four ()
     | 64 -> Dwarf_int.eight ()
-    | bits -> Misc.fatal_errorf "Unsupported Targetint.size %d" bits
-  end
+    | bits -> Misc.fatal_errorf "Unsupported Targetint.size %d" bits)
   | String str ->
     Dwarf_int.of_targetint_exn (Targetint.of_int (String.length str + 1))
   | Indirect_string _ | Offset_into_debug_line _
@@ -296,12 +295,11 @@ let emit ~asm_directives { value; comment } =
   let module A = (val asm_directives : Asm_directives.S) in
   let width_for_ref_addr_or_sec_offset = !Dwarf_flags.gdwarf_format in
   match value with
-  | Flag_true -> begin
+  | Flag_true -> (
     (* See DWARF-4 specification p.148 *)
     match comment with
     | None -> ()
-    | Some comment -> A.comment (comment ^ " (Flag_true elided)")
-  end
+    | Some comment -> A.comment (comment ^ " (Flag_true elided)"))
   | Bool b -> A.int8 ?comment (if b then Int8.one else Int8.zero)
   | Int8 i -> A.int8 ?comment i
   | Int16 i -> A.int16 ?comment i

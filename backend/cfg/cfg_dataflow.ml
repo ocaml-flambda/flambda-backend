@@ -118,15 +118,14 @@ module Forward
             in
             let new_value = D.join old_value value in
             if not (D.compare new_value old_value <= 0)
-            then begin
+            then (
               Label.Tbl.replace res successor_label new_value;
               work_set
                 := WorkSet.add
                      { WorkSetElement.label = successor_label;
                        value = new_value
                      }
-                     !work_set
-            end)
+                     !work_set))
           (Cfg.successor_labels ~normal ~exn block)
       in
       update ~normal:true ~exn:false normal;
@@ -280,7 +279,7 @@ module Backward
       in
       let value = transfer_block instr_map element.value ~exn block in
       if block.is_trap_handler
-      then begin
+      then (
         let old_value =
           Option.value
             (Label.Tbl.find_opt handler_map block.start)
@@ -288,7 +287,7 @@ module Backward
         in
         let new_value = T.exception_ value in
         if not (D.less_equal new_value old_value)
-        then begin
+        then (
           Label.Tbl.replace handler_map block.start new_value;
           List.iter
             (fun predecessor_label ->
@@ -303,9 +302,7 @@ module Backward
                        value = current_value
                      }
                      !work_set)
-            (Cfg.predecessor_labels block)
-        end
-      end
+            (Cfg.predecessor_labels block)))
       else
         List.iter
           (fun predecessor_label ->
@@ -316,18 +313,17 @@ module Backward
             in
             let new_value = D.join old_value value in
             if not (D.less_equal new_value old_value)
-            then begin
+            then (
               Label.Tbl.replace res_block predecessor_label new_value;
               let already_in_workset = ref false in
               work_set
                 := WorkSet.filter
                      (fun { WorkSetElement.label; value } ->
                        if Label.equal label predecessor_label
-                       then begin
+                       then (
                          if D.less_equal new_value value
                          then already_in_workset := true;
-                         not (D.less_equal value new_value)
-                       end
+                         not (D.less_equal value new_value))
                        else true)
                      !work_set;
               if not !already_in_workset
@@ -337,8 +333,7 @@ module Backward
                        { WorkSetElement.label = predecessor_label;
                          value = new_value
                        }
-                       !work_set
-            end)
+                       !work_set))
           (Cfg.predecessor_labels block)
     done;
     let return x =

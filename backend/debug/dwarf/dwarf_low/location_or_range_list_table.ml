@@ -117,7 +117,7 @@ struct
     A.comment "Base label:";
     A.define_label t.base_addr;
     if offset_array_supported ()
-    then begin
+    then (
       A.comment "Offset array:";
       let offset_array_size = offset_array_size t in
       List.iteri
@@ -129,8 +129,7 @@ struct
             else None
           in
           Dwarf_int.emit ~asm_directives ?comment offset)
-        t.lists
-    end;
+        t.lists);
     A.comment "Range or location list(s):";
     List.iter
       (fun { list; label; _ } ->

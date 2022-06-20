@@ -161,47 +161,44 @@ struct
       else None
     in
     A.int8 ?comment (Int8.of_int_exn (P.code_for_entry_kind t.entry));
-    begin
-      match t.entry with
-      | End_of_list -> ()
-      | Base_addressx addr_index ->
-        Address_index.emit ~asm_directives ~comment:"base address" addr_index
-      | Startx_endx { start_inclusive; end_exclusive; payload } ->
-        Address_index.emit ~asm_directives ~comment:"start_inclusive"
-          start_inclusive;
-        Address_index.emit ~asm_directives ~comment:"end_exclusive"
-          end_exclusive;
-        Payload.emit ~asm_directives payload
-      | Startx_length { start_inclusive; length; payload } ->
-        Address_index.emit ~asm_directives ~comment:"start_inclusive"
-          start_inclusive;
-        A.targetint ~comment:"length" length;
-        Payload.emit ~asm_directives payload
-      | Offset_pair { start_offset_inclusive; end_offset_exclusive; payload } ->
-        Dwarf_value.emit ~asm_directives
-          (Dwarf_value.sleb128 ~comment:"start_offset_inclusive"
-             (Targetint.to_int64 start_offset_inclusive));
-        Dwarf_value.emit ~asm_directives
-          (Dwarf_value.sleb128 ~comment:"end_offset_exclusive"
-             (Targetint.to_int64 end_offset_exclusive));
-        Payload.emit ~asm_directives payload
-      | Base_address sym -> A.symbol sym
-      | Start_end { start_inclusive; end_exclusive; end_adjustment; payload } ->
-        Dwarf_value.emit ~asm_directives
-          (label_address ~comment:"start_inclusive" t start_inclusive
-             ~adjustment:0);
-        Dwarf_value.emit ~asm_directives
-          (label_address ~comment:"end_exclusive" t end_exclusive
-             ~adjustment:end_adjustment);
-        Payload.emit ~asm_directives payload
-      | Start_length { start_inclusive; length; payload } ->
-        Dwarf_value.emit ~asm_directives
-          (label_address ~comment:"start_inclusive" t start_inclusive
-             ~adjustment:0);
-        Dwarf_value.emit ~asm_directives
-          (Dwarf_value.uleb128 ~comment:"length"
-             (Targetint.nonnegative_to_uint64_exn length));
-        Payload.emit ~asm_directives payload
-    end;
+    (match t.entry with
+    | End_of_list -> ()
+    | Base_addressx addr_index ->
+      Address_index.emit ~asm_directives ~comment:"base address" addr_index
+    | Startx_endx { start_inclusive; end_exclusive; payload } ->
+      Address_index.emit ~asm_directives ~comment:"start_inclusive"
+        start_inclusive;
+      Address_index.emit ~asm_directives ~comment:"end_exclusive" end_exclusive;
+      Payload.emit ~asm_directives payload
+    | Startx_length { start_inclusive; length; payload } ->
+      Address_index.emit ~asm_directives ~comment:"start_inclusive"
+        start_inclusive;
+      A.targetint ~comment:"length" length;
+      Payload.emit ~asm_directives payload
+    | Offset_pair { start_offset_inclusive; end_offset_exclusive; payload } ->
+      Dwarf_value.emit ~asm_directives
+        (Dwarf_value.sleb128 ~comment:"start_offset_inclusive"
+           (Targetint.to_int64 start_offset_inclusive));
+      Dwarf_value.emit ~asm_directives
+        (Dwarf_value.sleb128 ~comment:"end_offset_exclusive"
+           (Targetint.to_int64 end_offset_exclusive));
+      Payload.emit ~asm_directives payload
+    | Base_address sym -> A.symbol sym
+    | Start_end { start_inclusive; end_exclusive; end_adjustment; payload } ->
+      Dwarf_value.emit ~asm_directives
+        (label_address ~comment:"start_inclusive" t start_inclusive
+           ~adjustment:0);
+      Dwarf_value.emit ~asm_directives
+        (label_address ~comment:"end_exclusive" t end_exclusive
+           ~adjustment:end_adjustment);
+      Payload.emit ~asm_directives payload
+    | Start_length { start_inclusive; length; payload } ->
+      Dwarf_value.emit ~asm_directives
+        (label_address ~comment:"start_inclusive" t start_inclusive
+           ~adjustment:0);
+      Dwarf_value.emit ~asm_directives
+        (Dwarf_value.uleb128 ~comment:"length"
+           (Targetint.nonnegative_to_uint64_exn length));
+      Payload.emit ~asm_directives payload);
     if !Clflags.keep_asm_file then A.new_line ()
 end

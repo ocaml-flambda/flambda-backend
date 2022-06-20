@@ -45,23 +45,20 @@ let emit ~asm_directives t =
      need to point at the null DIE from anywhere else, so we elide emission of
      the label altogether. *)
   if not (Abbreviation_code.is_null t.abbreviation_code)
-  then begin
-    begin
-      match t.name with
-      | None -> ()
-      | Some symbol ->
-        A.define_data_symbol symbol
-        (* CR-someday poechsel: Understand what is going wrong when linking
-           large executables with global DWARF symbols. We don't need to export
-           them globally right now as we never cross-reference DIEs between
-           files but we will need to do it eventually (to reference the abstract
-           DIE for a function being inlined for instance). There should also be
-           a way to make these symbols not end up in the dynamic symbol table.
+  then (
+    (match t.name with
+    | None -> ()
+    | Some symbol ->
+      A.define_data_symbol symbol
+      (* CR-someday poechsel: Understand what is going wrong when linking large
+         executables with global DWARF symbols. We don't need to export them
+         globally right now as we never cross-reference DIEs between files but
+         we will need to do it eventually (to reference the abstract DIE for a
+         function being inlined for instance). There should also be a way to
+         make these symbols not end up in the dynamic symbol table.
 
-           A.global symbol *)
-    end;
-    A.define_label t.label
-  end;
+         A.global symbol *));
+    A.define_label t.label);
   Abbreviation_code.emit ~asm_directives t.abbreviation_code;
   ASS.Map.iter (fun _spec av -> AV.emit ~asm_directives av) t.attribute_values
 

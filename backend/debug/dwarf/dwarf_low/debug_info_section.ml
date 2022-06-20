@@ -76,16 +76,14 @@ let emit ~asm_directives t =
   A.define_label t.compilation_unit_header_label;
   Initial_length.emit ~asm_directives initial_length;
   Dwarf_version.emit ~asm_directives (dwarf_version ());
-  begin
-    match dwarf_version () with
-    | Four ->
-      Dwarf_value.emit ~asm_directives (debug_abbrev_offset t);
-      Dwarf_value.emit ~asm_directives address_width_in_bytes_on_target
-    | Five ->
-      Unit_type.emit ~asm_directives unit_type;
-      Dwarf_value.emit ~asm_directives address_width_in_bytes_on_target;
-      Dwarf_value.emit ~asm_directives (debug_abbrev_offset t)
-  end;
+  (match dwarf_version () with
+  | Four ->
+    Dwarf_value.emit ~asm_directives (debug_abbrev_offset t);
+    Dwarf_value.emit ~asm_directives address_width_in_bytes_on_target
+  | Five ->
+    Unit_type.emit ~asm_directives unit_type;
+    Dwarf_value.emit ~asm_directives address_width_in_bytes_on_target;
+    Dwarf_value.emit ~asm_directives (debug_abbrev_offset t));
   A.new_line ();
   A.comment "Debugging information entries:";
   A.new_line ();

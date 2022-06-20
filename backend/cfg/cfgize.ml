@@ -77,10 +77,9 @@ end = struct
     then
       Misc.fatal_errorf "Cfgize.State.add_block: duplicate block for label %d"
         label
-    else begin
+    else (
       t.layout <- label :: t.layout;
-      Label.Tbl.replace t.blocks label block
-    end
+      Label.Tbl.replace t.blocks label block)
 
   let get_layout t = List.rev t.layout
 
@@ -337,7 +336,7 @@ let extract_block_info : State.t -> Mach.instruction -> block_info =
       { instrs; last = instr; terminator }
     in
     match instr.desc with
-    | Iop op -> begin
+    | Iop op -> (
       match basic_or_terminator_of_operation state op with
       | Basic desc ->
         let instr' = copy_instruction state instr ~desc in
@@ -350,8 +349,7 @@ let extract_block_info : State.t -> Mach.instruction -> block_info =
         then return None acc
         else loop instr.next acc
       | Terminator terminator ->
-        return (Some (copy_instruction state instr ~desc:terminator)) acc
-    end
+        return (Some (copy_instruction state instr ~desc:terminator)) acc)
     | Iend | Ireturn _ | Iifthenelse _ | Iswitch _ | Icatch _ | Iexit _
     | Itrywith _ ->
       return None acc
@@ -617,14 +615,13 @@ module Stack_offset_and_exn = struct
     | Pushtrap { lbl_handler } ->
       update_block cfg lbl_handler ~stack_offset ~traps;
       stack_offset, lbl_handler :: traps, instr
-    | Poptrap -> begin
+    | Poptrap -> (
       match traps with
       | [] ->
         Misc.fatal_error
           "Cfgize.Stack_offset_and_exn.process_basic: trying to pop from an \
            empty stack"
-      | _ :: traps -> stack_offset, traps, instr
-    end
+      | _ :: traps -> stack_offset, traps, instr)
     | Op (Stackoffset n) -> stack_offset + n, traps, instr
     | Op
         ( Move | Spill | Reload | Const_int _ | Const_float _ | Const_symbol _
@@ -647,13 +644,12 @@ module Stack_offset_and_exn = struct
     let was_invalid =
       if block.stack_offset = invalid_stack_offset
       then true
-      else begin
+      else (
         assert (block.stack_offset = compute_stack_offset ~stack_offset ~traps);
-        false
-      end
+        false)
     in
     if was_invalid
-    then begin
+    then (
       block.stack_offset <- compute_stack_offset ~stack_offset ~traps;
       let stack_offset, traps, body =
         ListLabels.fold_left block.body ~init:(stack_offset, traps, [])
@@ -674,13 +670,11 @@ module Stack_offset_and_exn = struct
         (Cfg.successor_labels ~normal:true ~exn:false block);
       (* exceptional successor *)
       if block.can_raise
-      then begin
+      then (
         assert (Option.is_none block.exn);
         match traps with
         | [] -> ()
-        | handler_label :: _ -> block.exn <- Some handler_label
-      end
-    end
+        | handler_label :: _ -> block.exn <- Some handler_label))
 
   let update_cfg : Cfg.t -> unit =
    fun cfg ->
@@ -725,17 +719,15 @@ let fundecl :
     ~block:
       { start = Cfg.entry_label cfg;
         body =
-          begin
-            match prologue_required with
-            | false -> []
-            | true ->
-              let dbg = fun_body.dbg in
-              let fdo = Fdo_info.none in
-              (* Note: the prologue must come after all `Iname_for_debugger`
-                 instructions (this is currently not a concern because we do not
-                 support such instructions). *)
-              [{ (make_instruction state ~desc:Cfg.Prologue) with dbg; fdo }]
-          end;
+          (match prologue_required with
+          | false -> []
+          | true ->
+            let dbg = fun_body.dbg in
+            let fdo = Fdo_info.none in
+            (* Note: the prologue must come after all `Iname_for_debugger`
+               instructions (this is currently not a concern because we do not
+               support such instructions). *)
+            [{ (make_instruction state ~desc:Cfg.Prologue) with dbg; fdo }]);
         terminator =
           copy_instruction_no_reg state fun_body
             ~desc:(Cfg.Always tailrec_label);

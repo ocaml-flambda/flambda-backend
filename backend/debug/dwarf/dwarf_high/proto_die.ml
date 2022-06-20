@@ -49,13 +49,11 @@ let attribute_values_map attribute_values =
 
 let create ?reference ?(sort_priority = -1) ?location_list_in_debug_loc_table
     ~parent ~tag ~attribute_values () =
-  begin
-    match parent with
-    | None ->
-      if tag <> Dwarf_tag.Compile_unit
-      then failwith "only compilation unit proto-DIEs may be without parents"
-    | Some _parent -> ()
-  end;
+  (match parent with
+  | None ->
+    if tag <> Dwarf_tag.Compile_unit
+    then failwith "only compilation unit proto-DIEs may be without parents"
+  | Some _parent -> ());
   let reference =
     match reference with
     | None -> Asm_label.create (DWARF Debug_info)
@@ -72,20 +70,18 @@ let create ?reference ?(sort_priority = -1) ?location_list_in_debug_loc_table
       location_list_in_debug_loc_table
     }
   in
-  begin
-    match parent with
-    | None -> ()
-    | Some parent ->
-      let with_same_sort_priority =
-        match Int.Map.find sort_priority parent.children_by_sort_priority with
-        | exception Not_found -> []
-        | children -> children
-      in
-      let with_same_sort_priority = t :: with_same_sort_priority in
-      parent.children_by_sort_priority
-        <- Int.Map.add sort_priority with_same_sort_priority
-             parent.children_by_sort_priority
-  end;
+  (match parent with
+  | None -> ()
+  | Some parent ->
+    let with_same_sort_priority =
+      match Int.Map.find sort_priority parent.children_by_sort_priority with
+      | exception Not_found -> []
+      | children -> children
+    in
+    let with_same_sort_priority = t :: with_same_sort_priority in
+    parent.children_by_sort_priority
+      <- Int.Map.add sort_priority with_same_sort_priority
+           parent.children_by_sort_priority);
   t
 
 let create_ignore ?reference ?sort_priority ?location_list_in_debug_loc_table
