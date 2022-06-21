@@ -260,9 +260,9 @@ let expr sub x =
     | Texp_let (rec_flag, list, exp) ->
         let (rec_flag, list) = sub.value_bindings sub (rec_flag, list) in
         Texp_let (rec_flag, list, sub.expr sub exp)
-    | Texp_function { arg_label; param; cases; partial; region; } ->
+    | Texp_function { arg_label; param; cases; partial; region; warnings } ->
         let cases = List.map (sub.case sub) cases in
-        Texp_function { arg_label; param; cases; partial; region; }
+        Texp_function { arg_label; param; cases; partial; region; warnings }
     | Texp_apply (exp, list, pos) ->
         Texp_apply (
           sub.expr sub exp,
@@ -389,13 +389,14 @@ let expr sub x =
         Texp_object (sub.class_structure sub cl, sl)
     | Texp_pack mexpr ->
         Texp_pack (sub.module_expr sub mexpr)
-    | Texp_letop {let_; ands; param; body; partial} ->
+    | Texp_letop {let_; ands; param; body; partial; warnings} ->
         Texp_letop{
           let_ = sub.binding_op sub let_;
           ands = List.map (sub.binding_op sub) ands;
           param;
           body = sub.case sub body;
           partial;
+          warnings
         }
     | Texp_unreachable ->
         Texp_unreachable

@@ -4585,8 +4585,9 @@ and type_expect_
           bop_exp = exp;
           bop_loc = slet.pbop_loc; }
       in
+      let warnings = Warnings.backup () in
       let desc =
-        Texp_letop{let_; ands; param; body; partial}
+        Texp_letop{let_; ands; param; body; partial; warnings}
       in
       rue { exp_desc = desc;
             exp_loc = sexp.pexp_loc;
@@ -4851,10 +4852,11 @@ and type_function ?in_function loc attrs env (expected_mode : expected_mode)
       Warnings.Unerasable_optional_argument;
   let param = name_cases "param" cases in
   let region = region_locked && not uncurried_function in
+  let warnings = Warnings.backup () in
   re {
     exp_desc =
       Texp_function
-        { arg_label = l; param; cases; partial; region };
+        { arg_label = l; param; cases; partial; region; warnings };
     exp_loc = loc; exp_extra = [];
     exp_type =
       instance (newgenty (Tarrow((l,arg_mode,ret_mode), ty_arg, ty_res, Cok)));
@@ -5291,7 +5293,8 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
         let param = name_cases "param" cases in
         { texp with exp_type = ty_fun; exp_mode = mode.mode;
             exp_desc = Texp_function { arg_label = Nolabel; param; cases;
-                                       partial = Total; region = false } }
+                                       partial = Total; region = false;
+                                       warnings = Warnings.backup () } }
       in
       Location.prerr_warning texp.exp_loc
         (Warnings.Eliminated_optional_arguments
