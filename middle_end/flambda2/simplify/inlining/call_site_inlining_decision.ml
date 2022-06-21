@@ -169,9 +169,9 @@ let might_inline dacc ~apply ~code_or_metadata ~function_type ~simplify_expr
 
 let get_rec_info dacc ~function_type =
   let rec_info = FT.rec_info function_type in
-  match Flambda2_types.check_rec_info (DA.typing_env dacc) rec_info with
+  match Flambda2_types.meet_rec_info (DA.typing_env dacc) rec_info with
   | Known_result rec_info -> rec_info
-  | Unknown -> Rec_info_expr.unknown
+  | Need_meet -> Rec_info_expr.unknown
   | Invalid -> (* CR vlaviron: ? *) Rec_info_expr.do_not_inline
 
 let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity :

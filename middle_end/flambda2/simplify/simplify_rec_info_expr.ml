@@ -63,11 +63,11 @@ let rec simplify_rec_info_expr0 denv orig ~on_unknown : Rec_info_expr.t =
   | Const _ -> orig
   | Var dv -> (
     let ty = TE.find (DE.typing_env denv) (Name.var dv) (Some K.rec_info) in
-    match T.check_rec_info (DE.typing_env denv) ty with
+    match T.meet_rec_info (DE.typing_env denv) ty with
     | Known_result rec_info_expr ->
       (* All bound names are fresh, so fine to use the same environment *)
       simplify_rec_info_expr0 denv rec_info_expr ~on_unknown
-    | Unknown -> (
+    | Need_meet -> (
       match on_unknown with
       | Leave_unevaluated -> orig
       | Assume_value value -> value)

@@ -71,7 +71,7 @@ module type Number_kind_common = sig
   val unboxed_prover :
     Flambda2_types.Typing_env.t ->
     Flambda2_types.t ->
-    Num.Set.t Flambda2_types.proof_of_operation
+    Num.Set.t Flambda2_types.meet_shortcut
 
   val this_unboxed : Num.t -> Flambda2_types.t
 
@@ -122,7 +122,7 @@ module type Boxable = sig
   val boxed_prover :
     Flambda2_types.Typing_env.t ->
     Flambda2_types.t ->
-    Num.Set.t Flambda2_types.proof_of_operation
+    Num.Set.t Flambda2_types.meet_shortcut
 
   val this_boxed : Num.t -> Alloc_mode.t Or_unknown.t -> Flambda2_types.t
 
@@ -218,7 +218,7 @@ module For_tagged_immediates : Int_number_kind = struct
 
   let standard_int_kind : K.Standard_int.t = Tagged_immediate
 
-  let unboxed_prover = T.check_equals_tagged_immediates
+  let unboxed_prover = T.meet_equals_tagged_immediates
 
   let this_unboxed = T.this_tagged_immediate
 
@@ -291,7 +291,7 @@ module For_naked_immediates : Int_number_kind = struct
 
   let standard_int_kind : K.Standard_int.t = Naked_immediate
 
-  let unboxed_prover = T.check_naked_immediates
+  let unboxed_prover = T.meet_naked_immediates
 
   let this_unboxed = T.this_naked_immediate
 
@@ -337,13 +337,13 @@ module For_floats : Boxable_number_kind = struct
 
   let boxable_number_kind = K.Boxable_number.Naked_float
 
-  let unboxed_prover = T.check_naked_floats
+  let unboxed_prover = T.meet_naked_floats
 
   let this_unboxed = T.this_naked_float
 
   let these_unboxed = T.these_naked_floats
 
-  let boxed_prover = T.check_boxed_floats
+  let boxed_prover = T.meet_boxed_floats
 
   let this_boxed = T.this_boxed_float
 
@@ -406,13 +406,13 @@ module For_int32s : Boxable_int_number_kind = struct
 
   let boxable_number_kind = K.Boxable_number.Naked_int32
 
-  let unboxed_prover = T.check_naked_int32s
+  let unboxed_prover = T.meet_naked_int32s
 
   let this_unboxed = T.this_naked_int32
 
   let these_unboxed = T.these_naked_int32s
 
-  let boxed_prover = T.check_boxed_int32s
+  let boxed_prover = T.meet_boxed_int32s
 
   let this_boxed = T.this_boxed_int32
 
@@ -475,13 +475,13 @@ module For_int64s : Boxable_int_number_kind = struct
 
   let boxable_number_kind = K.Boxable_number.Naked_int64
 
-  let unboxed_prover = T.check_naked_int64s
+  let unboxed_prover = T.meet_naked_int64s
 
   let this_unboxed = T.this_naked_int64
 
   let these_unboxed = T.these_naked_int64s
 
-  let boxed_prover = T.check_boxed_int64s
+  let boxed_prover = T.meet_boxed_int64s
 
   let this_boxed = T.this_boxed_int64
 
@@ -540,13 +540,13 @@ module For_nativeints : Boxable_int_number_kind = struct
 
   let boxable_number_kind = K.Boxable_number.Naked_nativeint
 
-  let unboxed_prover = T.check_naked_nativeints
+  let unboxed_prover = T.meet_naked_nativeints
 
   let this_unboxed = T.this_naked_nativeint
 
   let these_unboxed = T.these_naked_nativeints
 
-  let boxed_prover = T.check_boxed_nativeints
+  let boxed_prover = T.meet_boxed_nativeints
 
   let this_boxed = T.this_boxed_nativeint
 

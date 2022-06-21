@@ -530,9 +530,9 @@ val type_for_const : Reg_width_const.t -> t
 
 val kind_for_const : Reg_width_const.t -> Flambda_kind.t
 
-type 'a proof_of_operation = private
+type 'a meet_shortcut = private
   | Known_result of 'a
-  | Unknown
+  | Need_meet
   | Invalid
 
 type 'a proof_of_property = private
@@ -544,36 +544,33 @@ type 'a proof_of_property = private
 val prove_equals_tagged_immediates :
   Typing_env.t -> t -> Targetint_31_63.Set.t proof_of_property
 
-val check_equals_tagged_immediates :
-  Typing_env.t -> t -> Targetint_31_63.Set.t proof_of_operation
+val meet_equals_tagged_immediates :
+  Typing_env.t -> t -> Targetint_31_63.Set.t meet_shortcut
 
-val check_naked_immediates :
-  Typing_env.t -> t -> Targetint_31_63.Set.t proof_of_operation
+val meet_naked_immediates :
+  Typing_env.t -> t -> Targetint_31_63.Set.t meet_shortcut
 
-val check_equals_single_tagged_immediate :
-  Typing_env.t -> t -> Targetint_31_63.t proof_of_operation
+val meet_equals_single_tagged_immediate :
+  Typing_env.t -> t -> Targetint_31_63.t meet_shortcut
 
-val check_naked_floats :
-  Typing_env.t ->
-  t ->
-  Numeric_types.Float_by_bit_pattern.Set.t proof_of_operation
+val meet_naked_floats :
+  Typing_env.t -> t -> Numeric_types.Float_by_bit_pattern.Set.t meet_shortcut
 
-val check_naked_int32s :
-  Typing_env.t -> t -> Numeric_types.Int32.Set.t proof_of_operation
+val meet_naked_int32s :
+  Typing_env.t -> t -> Numeric_types.Int32.Set.t meet_shortcut
 
-val check_naked_int64s :
-  Typing_env.t -> t -> Numeric_types.Int64.Set.t proof_of_operation
+val meet_naked_int64s :
+  Typing_env.t -> t -> Numeric_types.Int64.Set.t meet_shortcut
 
-val check_naked_nativeints :
-  Typing_env.t -> t -> Targetint_32_64.Set.t proof_of_operation
+val meet_naked_nativeints :
+  Typing_env.t -> t -> Targetint_32_64.Set.t meet_shortcut
 
 type variant_like_proof = private
   { const_ctors : Targetint_31_63.Set.t Or_unknown.t;
     non_const_ctors_with_sizes : Targetint_31_63.Imm.t Tag.Scannable.Map.t
   }
 
-val check_variant_like :
-  Typing_env.t -> t -> variant_like_proof proof_of_operation
+val meet_variant_like : Typing_env.t -> t -> variant_like_proof meet_shortcut
 
 val prove_variant_like :
   Typing_env.t -> t -> variant_like_proof proof_of_property
@@ -606,19 +603,17 @@ val prove_is_a_boxed_nativeint : Typing_env.t -> t -> unit proof_of_property
 val prove_is_or_is_not_a_boxed_float :
   Typing_env.t -> t -> bool proof_of_property
 
-val check_boxed_floats :
-  Typing_env.t ->
-  t ->
-  Numeric_types.Float_by_bit_pattern.Set.t proof_of_operation
+val meet_boxed_floats :
+  Typing_env.t -> t -> Numeric_types.Float_by_bit_pattern.Set.t meet_shortcut
 
-val check_boxed_int32s :
-  Typing_env.t -> t -> Numeric_types.Int32.Set.t proof_of_operation
+val meet_boxed_int32s :
+  Typing_env.t -> t -> Numeric_types.Int32.Set.t meet_shortcut
 
-val check_boxed_int64s :
-  Typing_env.t -> t -> Numeric_types.Int64.Set.t proof_of_operation
+val meet_boxed_int64s :
+  Typing_env.t -> t -> Numeric_types.Int64.Set.t meet_shortcut
 
-val check_boxed_nativeints :
-  Typing_env.t -> t -> Targetint_32_64.Set.t proof_of_operation
+val meet_boxed_nativeints :
+  Typing_env.t -> t -> Targetint_32_64.Set.t meet_shortcut
 
 val prove_unique_tag_and_size :
   Typing_env.t -> t -> (Tag.t * Targetint_31_63.Imm.t) proof_of_property
@@ -631,25 +626,25 @@ type array_kind_compatibility =
   | Incompatible
 
 (** This function deems non-[Array] types of kind [Value] to be [Invalid]. *)
-val check_is_array_with_element_kind :
+val meet_is_array_with_element_kind :
   Typing_env.t ->
   t ->
   element_kind:Flambda_kind.With_subkind.t ->
-  array_kind_compatibility proof_of_operation
+  array_kind_compatibility meet_shortcut
 
 (* CR mshinwell: Fix comment and/or function name *)
 
 (** Prove that the given type, of kind [Value], is a closures type describing
     exactly one set of closures. The function declaration type corresponding to
     such closure is returned together with its function slot, if it is known. *)
-val check_single_closures_entry :
+val meet_single_closures_entry :
   Typing_env.t ->
   t ->
   (Function_slot.t
   * Alloc_mode.t Or_unknown.t
   * Closures_entry.t
   * Function_type.t)
-  proof_of_operation
+  meet_shortcut
 
 val prove_single_closures_entry :
   Typing_env.t ->
@@ -660,7 +655,7 @@ val prove_single_closures_entry :
   * Function_type.t)
   proof_of_property
 
-val check_strings : Typing_env.t -> t -> String_info.Set.t proof_of_operation
+val meet_strings : Typing_env.t -> t -> String_info.Set.t meet_shortcut
 
 (** Attempt to show that the provided type describes the tagged version of a
     unique naked immediate [Simple].
@@ -675,51 +670,51 @@ val prove_tagging_of_simple :
     describe, the tagged version of a unique naked immediate [Simple]. It is
     guaranteed that if a [Simple] is returned, the type does not describe any
     other tagged immediate. *)
-val check_tagging_of_simple :
-  Typing_env.t -> min_name_mode:Name_mode.t -> t -> Simple.t proof_of_operation
+val meet_tagging_of_simple :
+  Typing_env.t -> min_name_mode:Name_mode.t -> t -> Simple.t meet_shortcut
 
-val check_boxed_float_containing_simple :
-  Typing_env.t -> min_name_mode:Name_mode.t -> t -> Simple.t proof_of_operation
+val meet_boxed_float_containing_simple :
+  Typing_env.t -> min_name_mode:Name_mode.t -> t -> Simple.t meet_shortcut
 
-val check_boxed_int32_containing_simple :
-  Typing_env.t -> min_name_mode:Name_mode.t -> t -> Simple.t proof_of_operation
+val meet_boxed_int32_containing_simple :
+  Typing_env.t -> min_name_mode:Name_mode.t -> t -> Simple.t meet_shortcut
 
-val check_boxed_int64_containing_simple :
-  Typing_env.t -> min_name_mode:Name_mode.t -> t -> Simple.t proof_of_operation
+val meet_boxed_int64_containing_simple :
+  Typing_env.t -> min_name_mode:Name_mode.t -> t -> Simple.t meet_shortcut
 
-val check_boxed_nativeint_containing_simple :
-  Typing_env.t -> min_name_mode:Name_mode.t -> t -> Simple.t proof_of_operation
+val meet_boxed_nativeint_containing_simple :
+  Typing_env.t -> min_name_mode:Name_mode.t -> t -> Simple.t meet_shortcut
 
-val check_block_field_simple :
+val meet_block_field_simple :
   Typing_env.t ->
   min_name_mode:Name_mode.t ->
   t ->
   Targetint_31_63.t ->
-  Simple.t proof_of_operation
+  Simple.t meet_shortcut
 
-val check_variant_field_simple :
+val meet_variant_field_simple :
   Typing_env.t ->
   min_name_mode:Name_mode.t ->
   t ->
   Tag.t ->
   Targetint_31_63.t ->
-  Simple.t proof_of_operation
+  Simple.t meet_shortcut
 
-val check_project_value_slot_simple :
+val meet_project_value_slot_simple :
   Typing_env.t ->
   min_name_mode:Name_mode.t ->
   t ->
   Value_slot.t ->
-  Simple.t proof_of_operation
+  Simple.t meet_shortcut
 
-val check_project_function_slot_simple :
+val meet_project_function_slot_simple :
   Typing_env.t ->
   min_name_mode:Name_mode.t ->
   t ->
   Function_slot.t ->
-  Simple.t proof_of_operation
+  Simple.t meet_shortcut
 
-val check_rec_info : Typing_env.t -> t -> Rec_info_expr.t proof_of_operation
+val meet_rec_info : Typing_env.t -> t -> Rec_info_expr.t meet_shortcut
 
 val prove_alloc_mode_of_boxed_number :
   Typing_env.t -> t -> Alloc_mode.t proof_of_property

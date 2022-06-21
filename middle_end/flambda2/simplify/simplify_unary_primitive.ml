@@ -58,7 +58,7 @@ let simplify_project_function_slot ~move_from ~move_to ~min_name_mode dacc
      closure_ty DA.print dacc; *)
   let typing_env = DA.typing_env dacc in
   match
-    T.check_project_function_slot_simple typing_env ~min_name_mode closure_ty
+    T.meet_project_function_slot_simple typing_env ~min_name_mode closure_ty
       move_to
   with
   | Invalid ->
@@ -73,7 +73,7 @@ let simplify_project_function_slot ~move_from ~move_to ~min_name_mode dacc
       DA.add_variable dacc result_var (T.alias_type_of K.value simple)
     in
     reachable, dacc
-  | Unknown ->
+  | Need_meet ->
     let result = Simple.var (Bound_var.var result_var) in
     let closures =
       Function_slot.Map.empty
@@ -91,7 +91,7 @@ let simplify_project_value_slot function_slot value_slot ~min_name_mode dacc
     ~original_term ~arg:closure ~arg_ty:closure_ty ~result_var =
   let typing_env = DA.typing_env dacc in
   match
-    T.check_project_value_slot_simple typing_env ~min_name_mode closure_ty
+    T.meet_project_value_slot_simple typing_env ~min_name_mode closure_ty
       value_slot
   with
   | Invalid ->
@@ -119,7 +119,7 @@ let simplify_project_value_slot function_slot value_slot ~min_name_mode dacc
       DA.add_variable dacc result_var (T.alias_type_of K.value simple)
     in
     reachable, dacc
-  | Unknown ->
+  | Need_meet ->
     let reachable, dacc =
       Simplify_common.simplify_projection dacc ~original_term
         ~deconstructing:closure_ty
@@ -260,7 +260,7 @@ let simplify_array_length dacc ~original_term ~arg:_ ~arg_ty:array_ty
 let simplify_string_length dacc ~original_term ~arg:_ ~arg_ty:str_ty ~result_var
     =
   let typing_env = DA.typing_env dacc in
-  match T.check_strings typing_env str_ty with
+  match T.meet_strings typing_env str_ty with
   | Known_result str_infos -> (
     if String_info.Set.is_empty str_infos
     then
@@ -280,7 +280,7 @@ let simplify_string_length dacc ~original_term ~arg:_ ~arg_ty:str_ty ~result_var
         let dacc = DA.add_variable dacc result_var ty in
         let named = Named.create_simple (Simple.const_int size) in
         Simplified_named.reachable named ~try_reify:false, dacc)
-  | Unknown ->
+  | Need_meet ->
     let ty = T.unknown K.naked_immediate in
     let dacc = DA.add_variable dacc result_var ty in
     Simplified_named.reachable original_term ~try_reify:false, dacc
@@ -334,7 +334,7 @@ module Unary_int_arith (I : A.Int_number_kind) = struct
         let ty = I.these_unboxed possible_results in
         let dacc = DA.add_variable dacc result_var ty in
         normal_case dacc ~possible_results)
-    | Unknown -> result_unknown ()
+    | Need_meet -> result_unknown ()
     | Invalid -> result_invalid ()
 end
 
@@ -463,7 +463,7 @@ module Make_simplify_int_conv (N : A.Number_kind) = struct
                 (Simple.const (Reg_width_const.naked_nativeint i))
             in
             Simplified_named.reachable named ~try_reify:false, dacc))
-      | Unknown ->
+      | Need_meet ->
         let ty = T.unknown (K.Standard_int_or_float.to_kind dst) in
         let dacc = DA.add_variable dacc result_var ty in
         Simplified_named.reachable original_term ~try_reify:false, dacc
@@ -486,7 +486,7 @@ module Simplify_int_conv_naked_nativeint =
 let simplify_boolean_not dacc ~original_term ~arg:_ ~arg_ty ~result_var =
   let denv = DA.denv dacc in
   let typing_env = DE.typing_env denv in
-  let proof = T.check_equals_tagged_immediates typing_env arg_ty in
+  let proof = T.meet_equals_tagged_immediates typing_env arg_ty in
   let[@inline always] result_unknown () =
     let ty = T.unknown K.value in
     let dacc = DA.add_variable dacc result_var ty in
@@ -527,7 +527,7 @@ let simplify_boolean_not dacc ~original_term ~arg:_ ~arg_ty ~result_var =
             (Simple.const_int (Targetint_31_63.to_targetint imm))
         in
         Simplified_named.reachable named ~try_reify:false, dacc)
-  | Unknown ->
+  | Need_meet ->
     (* CR-someday mshinwell: This could say something like (in the type) "when
        the input is 0, the value is 1" and vice-versa. *)
     let ty = T.these_tagged_immediates Targetint_31_63.all_bools in
@@ -538,7 +538,7 @@ let simplify_boolean_not dacc ~original_term ~arg:_ ~arg_ty ~result_var =
 let simplify_reinterpret_int64_as_float dacc ~original_term ~arg:_ ~arg_ty
     ~result_var =
   let typing_env = DE.typing_env (DA.denv dacc) in
-  let proof = T.check_naked_int64s typing_env arg_ty in
+  let proof = T.meet_naked_int64s typing_env arg_ty in
   match proof with
   | Known_result int64s -> (
     let floats =
@@ -555,7 +555,7 @@ let simplify_reinterpret_int64_as_float dacc ~original_term ~arg:_ ~arg_ty
         Named.create_simple (Simple.const (Reg_width_const.naked_float f))
       in
       Simplified_named.reachable named ~try_reify:false, dacc)
-  | Unknown ->
+  | Need_meet ->
     let dacc = DA.add_variable dacc result_var T.any_naked_float in
     Simplified_named.reachable original_term ~try_reify:false, dacc
   | Invalid ->
@@ -567,7 +567,7 @@ let simplify_float_arith_op (op : P.unary_float_arith_op) dacc ~original_term
   let module F = Numeric_types.Float_by_bit_pattern in
   let denv = DA.denv dacc in
   let typing_env = DE.typing_env denv in
-  let proof = T.check_naked_floats typing_env arg_ty in
+  let proof = T.meet_naked_floats typing_env arg_ty in
   let[@inline always] result_unknown () =
     let ty = T.unknown K.naked_float in
     let dacc = DA.add_variable dacc result_var ty in
@@ -595,7 +595,7 @@ let simplify_float_arith_op (op : P.unary_float_arith_op) dacc ~original_term
         Named.create_simple (Simple.const (Reg_width_const.naked_float f))
       in
       Simplified_named.reachable named ~try_reify:false, dacc)
-  | Known_result _ | Unknown -> result_unknown ()
+  | Known_result _ | Need_meet -> result_unknown ()
   | Invalid -> result_invalid ()
 
 let simplify_is_boxed_float dacc ~original_term ~arg:_ ~arg_ty ~result_var =
@@ -623,7 +623,7 @@ let simplify_is_flat_float_array dacc ~original_term ~arg:_ ~arg_ty ~result_var
     =
   assert (Flambda_features.flat_float_array ());
   match
-    T.check_is_array_with_element_kind (DA.typing_env dacc) arg_ty
+    T.meet_is_array_with_element_kind (DA.typing_env dacc) arg_ty
       ~element_kind:K.With_subkind.naked_float
   with
   | Known_result ((Exact | Incompatible) as compat) ->
@@ -641,7 +641,7 @@ let simplify_is_flat_float_array dacc ~original_term ~arg:_ ~arg_ty ~result_var
            (Simple.const (Reg_width_const.naked_immediate imm)))
         ~try_reify:false,
       dacc )
-  | Known_result Compatible | Unknown ->
+  | Known_result Compatible | Need_meet ->
     let ty = T.unknown K.naked_immediate in
     let dacc = DA.add_variable dacc result_var ty in
     Simplified_named.reachable original_term ~try_reify:false, dacc

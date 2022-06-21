@@ -289,18 +289,18 @@ let apply_projection t proj =
   | [_] -> (
     let denv, ty = Symbol.Map.find symbol (types_of_symbols t) in
     let typing_env = DE.typing_env denv in
-    let proof =
+    let meet_shortcut =
       match Symbol_projection.projection proj with
       | Block_load { index } ->
-        T.check_block_field_simple typing_env ~min_name_mode:Name_mode.normal ty
+        T.meet_block_field_simple typing_env ~min_name_mode:Name_mode.normal ty
           (Targetint_31_63.int index)
       | Project_value_slot { project_from = _; value_slot } ->
-        T.check_project_value_slot_simple typing_env
+        T.meet_project_value_slot_simple typing_env
           ~min_name_mode:Name_mode.normal ty value_slot
     in
-    match proof with
+    match meet_shortcut with
     | Known_result simple -> Some simple
-    | Unknown ->
+    | Need_meet ->
       (* [Simplify_named], which calls this function, requires [Some] to be
          returned iff the projection is from a symbol defined in the same
          recursive group (see the comment in that module). As such, if the
@@ -308,7 +308,7 @@ let apply_projection t proj =
          unlikely that this will happen; we can reconsider in the future if
          necessary. *)
       Misc.fatal_errorf
-        "Symbol projection@ %a@ produced [Unknown]:@ type is@ %a@ in env:@ %a"
+        "Symbol projection@ %a@ produced [Need_meet]:@ type is@ %a@ in env:@ %a"
         Symbol_projection.print proj T.print ty T.Typing_env.print typing_env
     | Invalid ->
       Misc.fatal_errorf
