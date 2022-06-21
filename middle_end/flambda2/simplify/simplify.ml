@@ -32,7 +32,7 @@ let run ~cmx_loader ~round unit =
   let get_imported_code = Flambda_cmx.get_imported_code cmx_loader in
   let denv =
     DE.create ~round ~resolver ~get_imported_names ~get_imported_code
-      ~float_const_prop:(Flambda_features.float_const_prop ())
+      ~propagating_float_consts:(Flambda_features.float_const_prop ())
       ~unit_toplevel_return_continuation:return_continuation
       ~unit_toplevel_exn_continuation:exn_continuation
   in

@@ -41,7 +41,10 @@ module FT = Flambda2_types.Function_type
 
 let speculative_inlining dacc ~apply ~function_type ~simplify_expr ~return_arity
     =
-  let dacc = DA.set_do_not_rebuild_terms_and_disable_inlining dacc in
+  let dacc =
+    DA.map_denv dacc ~f:(fun denv ->
+        DE.set_do_not_rebuild_terms_and_disable_inlining denv)
+  in
   (* CR-someday poechsel: [Inlining_transforms.inline] is preparing the body for
      inlining. Right know it may be called twice (once there and once in
      [simplify_apply_expr]) on the same apply expr. It should be possible to

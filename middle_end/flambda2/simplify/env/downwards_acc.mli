@@ -91,11 +91,7 @@ val code_ids_to_remember : t -> Code_id.Set.t
 
 val with_code_ids_to_remember : t -> code_ids_to_remember:Code_id.Set.t -> t
 
-val set_do_not_rebuild_terms_and_disable_inlining : t -> t
-
 val are_rebuilding_terms : t -> Are_rebuilding_terms.t
-
-val do_not_rebuild_terms : t -> bool
 
 val slot_offsets : t -> Slot_offsets.t Code_id.Map.t
 

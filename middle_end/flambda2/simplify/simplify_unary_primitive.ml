@@ -577,7 +577,7 @@ let simplify_float_arith_op (op : P.unary_float_arith_op) dacc ~original_term
     Simplified_named.invalid (), dacc
   in
   match proof with
-  | Proved fs when DE.float_const_prop denv -> (
+  | Proved fs when DE.propagating_float_consts denv -> (
     assert (not (Float.Set.is_empty fs));
     let possible_results =
       match op with
