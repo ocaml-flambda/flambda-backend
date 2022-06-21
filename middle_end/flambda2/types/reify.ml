@@ -159,13 +159,13 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
                 else try_canonical_simple ())
           else if TG.Row_like_for_blocks.is_bottom blocks
           then
-            match Provers.check_naked_immediates env imms with
+            match Provers.meet_naked_immediates env imms with
             | Known_result imms -> (
               match Targetint_31_63.Set.get_singleton imms with
               | None -> try_canonical_simple ()
               | Some imm ->
                 Simple (Simple.const (Reg_width_const.tagged_immediate imm)))
-            | Unknown -> try_canonical_simple ()
+            | Need_meet -> try_canonical_simple ()
             | Invalid -> Invalid
           else try_canonical_simple ()
         | Known _, Unknown | Unknown, Known _ | Unknown, Unknown ->
@@ -335,44 +335,44 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
     (* CR-someday mshinwell: These could lift at toplevel when [ty_naked_float]
        is an alias type. That would require checking the alloc mode. *)
     | Value (Ok (Boxed_float (ty_naked_float, _alloc_mode))) -> (
-      match Provers.check_naked_floats env ty_naked_float with
-      | Unknown -> try_canonical_simple ()
+      match Provers.meet_naked_floats env ty_naked_float with
+      | Need_meet -> try_canonical_simple ()
       | Invalid -> Invalid
       | Known_result fs -> (
         match Float.Set.get_singleton fs with
         | None -> try_canonical_simple ()
         | Some f -> Lift (Boxed_float f)))
     | Value (Ok (Boxed_int32 (ty_naked_int32, _alloc_mode))) -> (
-      match Provers.check_naked_int32s env ty_naked_int32 with
-      | Unknown -> try_canonical_simple ()
+      match Provers.meet_naked_int32s env ty_naked_int32 with
+      | Need_meet -> try_canonical_simple ()
       | Invalid -> Invalid
       | Known_result ns -> (
         match Int32.Set.get_singleton ns with
         | None -> try_canonical_simple ()
         | Some n -> Lift (Boxed_int32 n)))
     | Value (Ok (Boxed_int64 (ty_naked_int64, _alloc_mode))) -> (
-      match Provers.check_naked_int64s env ty_naked_int64 with
-      | Unknown -> try_canonical_simple ()
+      match Provers.meet_naked_int64s env ty_naked_int64 with
+      | Need_meet -> try_canonical_simple ()
       | Invalid -> Invalid
       | Known_result ns -> (
         match Int64.Set.get_singleton ns with
         | None -> try_canonical_simple ()
         | Some n -> Lift (Boxed_int64 n)))
     | Value (Ok (Boxed_nativeint (ty_naked_nativeint, _alloc_mode))) -> (
-      match Provers.check_naked_nativeints env ty_naked_nativeint with
-      | Unknown -> try_canonical_simple ()
+      match Provers.meet_naked_nativeints env ty_naked_nativeint with
+      | Need_meet -> try_canonical_simple ()
       | Invalid -> Invalid
       | Known_result ns -> (
         match Targetint_32_64.Set.get_singleton ns with
         | None -> try_canonical_simple ()
         | Some n -> Lift (Boxed_nativeint n)))
     | Value (Ok (Array { length; element_kind = _ })) -> (
-      match Provers.check_equals_single_tagged_immediate env length with
+      match Provers.meet_equals_single_tagged_immediate env length with
       | Known_result length ->
         if Targetint_31_63.equal length Targetint_31_63.zero
         then Lift Empty_array
         else try_canonical_simple ()
-      | Unknown -> try_canonical_simple ()
+      | Need_meet -> try_canonical_simple ()
       | Invalid -> Invalid)
     | Value Bottom
     | Naked_immediate Bottom

@@ -63,7 +63,7 @@ let unbox_arg (unboxer : Unboxers.unboxer) ~typing_env_at_use arg_being_unboxed
         EPA.Extra_arg.Already_in_scope (Simple.const unboxer.invalid_const)
       in
       extra_arg, Poison
-    | Unknown ->
+    | Need_meet ->
       let var = Variable.create unboxer.var_name in
       let prim = unboxer.unboxing_prim arg_at_use in
       let extra_arg = EPA.Extra_arg.New_let_binding (var, prim) in
@@ -110,11 +110,11 @@ let extra_arg_for_ctor ~typing_env_at_use = function
         (Simple.untagged_const_int (Targetint_31_63.of_int 0))
     | Some arg_type -> (
       match
-        T.check_tagging_of_simple typing_env_at_use
+        T.meet_tagging_of_simple typing_env_at_use
           ~min_name_mode:Name_mode.normal arg_type
       with
       | Known_result simple -> EPA.Extra_arg.Already_in_scope simple
-      | Unknown -> prevent_current_unboxing ()
+      | Need_meet -> prevent_current_unboxing ()
       | Invalid ->
         (* [Invalid] this means that we are in an impossible-to-reach case, and
            thus as in other cases, we only need to provide well-kinded
@@ -229,8 +229,8 @@ and compute_extra_args_for_one_decision_and_use_aux ~(pass : U.pass) rewrite_id
       match type_of_arg_being_unboxed arg_being_unboxed with
       | None -> invalid ()
       | Some arg_type -> (
-        match T.check_variant_like typing_env_at_use arg_type with
-        | Unknown -> prevent_current_unboxing ()
+        match T.meet_variant_like typing_env_at_use arg_type with
+        | Need_meet -> prevent_current_unboxing ()
         | Invalid -> invalid ()
         | Known_result { const_ctors; non_const_ctors_with_sizes } ->
           compute_extra_args_for_variant ~pass rewrite_id ~typing_env_at_use

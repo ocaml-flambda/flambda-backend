@@ -98,9 +98,9 @@ let inline dacc ~apply ~unroll_to function_decl =
         Code_metadata.print code_metadata
   in
   let rec_info =
-    match T.check_rec_info (DE.typing_env denv) (FT.rec_info function_decl) with
+    match T.meet_rec_info (DE.typing_env denv) (FT.rec_info function_decl) with
     | Known_result rec_info -> rec_info
-    | Unknown -> Rec_info_expr.unknown
+    | Need_meet -> Rec_info_expr.unknown
     | Invalid -> (* CR vlaviron: ? *) Rec_info_expr.do_not_inline
   in
   let denv = DE.enter_inlined_apply ~called_code:code ~apply denv in

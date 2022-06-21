@@ -826,7 +826,7 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
   (* CR-someday mshinwell: Should this be using [meet_shape], like for
      primitives? *)
   let denv = DA.denv dacc in
-  match T.check_single_closures_entry (DE.typing_env denv) callee_ty with
+  match T.meet_single_closures_entry (DE.typing_env denv) callee_ty with
   | Known_result
       ( callee's_function_slot,
         closure_alloc_mode,
@@ -855,7 +855,7 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
       ~recursive:(Code_metadata.recursive callee's_code_metadata)
       ~must_be_detupled ~closure_alloc_mode ~apply_alloc_mode func_decl_type
       ~down_to_up
-  | Unknown -> type_unavailable ()
+  | Need_meet -> type_unavailable ()
   | Invalid ->
     let rebuild uacc ~after_rebuild =
       let uacc = UA.notify_removed ~operation:Removed_operations.call uacc in
