@@ -70,12 +70,6 @@ type existential_restriction =
   | In_class_def  (** or in [class c = let ... in ...] *)
   | In_self_pattern (** or in self pattern *)
 
-type escaping_context =
-  | Return
-  | Tailcall_argument
-  | Tailcall_function
-  | Partial_application
-
 type error =
   | Constructor_arity_mismatch of Longident.t * int * int
   | Label_mismatch of Longident.t * Ctype.Unification_trace.t
@@ -143,7 +137,7 @@ type error =
   | Letop_type_clash of string * Ctype.Unification_trace.t
   | Andop_type_clash of string * Ctype.Unification_trace.t
   | Bindings_type_clash of Ctype.Unification_trace.t
-  | Local_value_escapes of Value_mode.error * escaping_context option
+  | Local_value_escapes of Value_mode.error * Env.escaping_context option
   | Param_mode_mismatch of type_expr
   | Uncurried_function_escapes
   | Local_return_annotation_mismatch of Location.t
@@ -224,7 +218,7 @@ let case lhs rhs =
 
 type expected_mode =
   { position : apply_position;
-    escaping_context : escaping_context option;
+    escaping_context : Env.escaping_context option;
     mode : Value_mode.t;
     tuple_modes : Value_mode.t list;
     (* for t in tuple_modes, t <= regional_to_global mode *)
@@ -232,71 +226,67 @@ type expected_mode =
 
 
 let mode_return mode =
-  let position = Tail in
-  let escaping_context = Some Return in
-  let tuple_modes = [] in
-  { position; escaping_context; mode; tuple_modes }
+  { position = Tail;
+    escaping_context = Some Return;
+    mode;
+    tuple_modes = []}
 
 let mode_var () =
-  let position = Nontail in
-  let escaping_context = None in
-  let mode = Value_mode.newvar () in
-  let tuple_modes = [] in
-  { position; escaping_context; mode; tuple_modes }
+  { position = Nontail;
+    escaping_context = None;
+    mode = Value_mode.newvar ();
+    tuple_modes = [] }
 
 let mode_local =
-  let position = Nontail in
-  let escaping_context = None in
-  let mode = Value_mode.local in
-  let tuple_modes = [] in
-  { position; escaping_context; mode; tuple_modes }
+  { position = Nontail;
+    escaping_context = None;
+    mode = Value_mode.local;
+    tuple_modes = [] }
 
 let mode_global =
-  let position = Nontail in
-  let escaping_context = None in
-  let mode = Value_mode.global in
-  let tuple_modes = [] in
-  { position; escaping_context; mode; tuple_modes }
+  { position = Nontail;
+    escaping_context = None;
+    mode = Value_mode.global;
+    tuple_modes = [] }
 
 let mode_subcomponent expected_mode =
-  let position = Nontail in
-  let escaping_context = None in
-  let mode = Value_mode.regional_to_global expected_mode.mode in
-  let tuple_modes = [] in
-  { position; escaping_context; mode; tuple_modes }
+  { position = Nontail;
+    escaping_context = None;
+    mode = Value_mode.regional_to_global expected_mode.mode;
+    tuple_modes = [] }
 
 let mode_tailcall_function mode =
-  let position = Nontail in
-  let escaping_context = Some Tailcall_function in
-  let tuple_modes = [] in
-  { position; escaping_context; mode; tuple_modes }
+  { position = Nontail;
+    escaping_context = Some Tailcall_function;
+    mode;
+    tuple_modes = [] }
 
 let mode_tailcall_argument mode =
-  let position = Nontail in
-  let escaping_context = Some Tailcall_argument in
-  let tuple_modes = [] in
-  { position; escaping_context; mode; tuple_modes }
+  { position = Nontail;
+    escaping_context = Some Tailcall_argument;
+    mode;
+    tuple_modes = [] }
 
 let mode_partial_application expected_mode =
-  let position = Nontail in
-  let escaping_context = Some Partial_application in
-  let mode = Value_mode.regional_to_global expected_mode.mode in
-  let tuple_modes = [] in
-  { position; escaping_context; mode; tuple_modes }
+  { position = Nontail;
+    escaping_context = Some Partial_application;
+    mode = Value_mode.regional_to_global expected_mode.mode;
+    tuple_modes = [] }
 
 let mode_trywith expected_mode =
   { expected_mode with position = Nontail }
 
 let mode_nontail mode =
-  let position = Nontail in
-  let escaping_context = None in
-  let tuple_modes = [] in
-  { position; escaping_context; mode; tuple_modes }
+  { position = Nontail;
+    escaping_context = None;
+    mode;
+    tuple_modes = [] }
 
 let mode_tuple mode tuple_modes =
-  let position = Nontail in
-  let escaping_context = None in
-  { position; escaping_context; mode; tuple_modes }
+  { position = Nontail;
+    escaping_context = None;
+    mode;
+    tuple_modes }
 
 let mode_argument ~funct ~index ~position ~partial_app alloc_mode =
   let vmode = Value_mode.of_alloc alloc_mode in
@@ -4809,7 +4799,10 @@ and type_function ?in_function loc attrs env (expected_mode : expected_mode)
     | None ->
       let region_locked = not (is_local_returning_function caselist) in
       let env =
-        Env.add_lock (Value_mode.regional_to_global expected_mode.mode) env
+        Env.add_lock
+          ?escaping_context:expected_mode.escaping_context
+          (Value_mode.regional_to_global expected_mode.mode)
+          env
       in
       let env =
         if region_locked then Env.add_region_lock env
@@ -6380,7 +6373,7 @@ let report_type_expected_explanation expl ppf =
   | When_guard ->
       because "a when-guard"
 
-let escaping_hint reason context =
+let escaping_hint reason (context : Env.escaping_context option) =
   match reason, context with
   | `Locality, Some Return ->
       [ Location.msg

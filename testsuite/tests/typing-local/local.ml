@@ -1056,6 +1056,17 @@ Error: This local value escapes its region
   Hint: This argument cannot be local, because this is a tail call
 |}]
 
+let local_cb (local_ f) = f ()
+let foo (local_ x) = local_cb (fun () -> x := 17; 42)
+[%%expect{|
+val local_cb : local_ (unit -> 'a) -> 'a = <fun>
+Line 2, characters 41-42:
+2 | let foo (local_ x) = local_cb (fun () -> x := 17; 42)
+                                             ^
+Error: The value x is local, so cannot be used inside a closure that might escape
+Hint: The closure might escape because it is an argument to a tail call
+|}]
+
 let foo x =
   let r = local_ { contents = x } in
   print r;
