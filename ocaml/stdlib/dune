@@ -25,7 +25,7 @@
      -g -warn-error A -bin-annot -nostdlib
      -safe-string -strict-formats
  ))
- (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
+ (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp) -alloc-check -indirect-call-check)
  (preprocess
    (per_module
      ((action
