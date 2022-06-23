@@ -80,7 +80,7 @@ let create ~required_names ~reachable_code_ids ~compute_slot_offsets uenv dacc =
   let are_rebuilding_terms = DE.are_rebuilding_terms (DA.denv dacc) in
   let generate_phantom_lets = DE.generate_phantom_lets (DA.denv dacc) in
   let slot_offsets : _ Or_unknown.t =
-    if compute_slot_offsets then Known (Slot_offsets.create ()) else Unknown
+    if compute_slot_offsets then Known Slot_offsets.empty else Unknown
   in
   { uenv;
     creation_dacc = dacc;

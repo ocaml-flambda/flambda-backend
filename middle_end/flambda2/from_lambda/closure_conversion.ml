@@ -1868,7 +1868,7 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
   let module_block_tag = Tag.Scannable.zero in
   let module_block_var = Variable.create "module_block" in
   let return_cont = Continuation.create ~sort:Toplevel_return () in
-  let slot_offsets = Slot_offsets.create () in
+  let slot_offsets = Slot_offsets.empty in
   let acc = Acc.create ~symbol_for_global ~slot_offsets in
   let load_fields_body acc =
     let field_vars =
@@ -2010,7 +2010,7 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
       (Exported_code.mark_as_imported
          (Flambda_cmx.get_imported_code cmx_loader ()))
   in
-  let used_value_slots, exported_offsets =
+  let Slot_offsets.{ used_value_slots; exported_offsets } =
     let used_slots =
       let free_names = Acc.free_names acc in
       Or_unknown.Known

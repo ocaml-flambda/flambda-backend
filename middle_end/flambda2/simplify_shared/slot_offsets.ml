@@ -17,6 +17,11 @@
 open! Flambda.Import
 module EO = Exported_offsets
 
+type result =
+  { exported_offsets : EO.t;
+    used_value_slots : Value_slot.Set.t Or_unknown.t
+  }
+
 type used_slots =
   { function_slots_in_normal_projections : Function_slot.Set.t;
     all_function_slots : Function_slot.Set.t;
@@ -263,15 +268,30 @@ let print_layout fmt l =
 
 (* Greedy algorithm *)
 
-module Greedy = struct
+module Greedy : sig
+  type state
+
+  val print : Format.formatter -> state -> unit
+
+  val create_initial_state : unit -> state
+
+  val create_slots_for_set :
+    state ->
+    get_code_metadata:(Code_id.t -> Code_metadata.t) ->
+    Set_of_closures.t ->
+    state
+
+  val finalize : used_slots:used_slots Or_unknown.t -> state -> result
+end = struct
   (** Greedy algorithm for assigning offsets ("indexes") to slots.
 
       Slots are assigned using a "first comes, first served" basis, filling
       upwards from 0.
 
-      As much as is possible, the algorithm tries to put all the function slots
-      first, and then all the value slots; however, that may be impossible
-      because of constraints read from a .cmx file.
+      The algorithm will put all the function slots first, and then all the
+      value slots; however, that may be impossible because of constraints read
+      from a .cmx file (although, currently, this situation is not possible with
+      flambda2), in which case a fatal_error is raised.
 
       This strategy should be able to correctly compute offsets for all
       legitimate situations, with no expected blowup of computation time.
@@ -585,7 +605,7 @@ module Greedy = struct
       let () = add_unallocated_slot_to_set s set in
       create_value_slots set state r
 
-  let create_slots_for_set state get_code_metadata set_id =
+  let create_slots_for_set state ~get_code_metadata set_id =
     let set = make_set set_id in
     let state = add_set_to_state state set in
     (* Fill closure slots *)
@@ -831,7 +851,7 @@ module Greedy = struct
     let used_value_slots, offsets = live_value_slots state offsets used_slots in
     let offsets = assign_function_slot_offsets state offsets in
     let offsets = assign_value_slot_offsets ~used_value_slots state offsets in
-    used_value_slots, offsets
+    { used_value_slots; exported_offsets = offsets }
 end
 
 type t = Set_of_closures.t list
@@ -839,7 +859,7 @@ type t = Set_of_closures.t list
 let print fmt l =
   Format.fprintf fmt "@[<hv>%a@]" (Format.pp_print_list Set_of_closures.print) l
 
-let create () = []
+let empty = []
 
 let add_set_of_closures l ~is_phantom set_of_closures =
   if is_phantom then l else set_of_closures :: l
@@ -855,7 +875,7 @@ let finalize_offsets ~get_code_metadata ~used_slots l =
       List.iter
         (fun set_of_closures ->
           state
-            := Greedy.create_slots_for_set !state get_code_metadata
+            := Greedy.create_slots_for_set !state ~get_code_metadata
                  set_of_closures)
         l;
       Greedy.finalize ~used_slots !state)

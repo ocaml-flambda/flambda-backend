@@ -102,8 +102,9 @@ let run ~cmx_loader ~round unit =
         Slot_offsets.finalize_offsets slot_offsets ~get_code_metadata
           ~used_slots
       with
-      | Known used_value_slots, offsets -> used_value_slots, offsets
-      | Unknown, _ ->
+      | { used_value_slots = Known used_value_slots; exported_offsets } ->
+        used_value_slots, exported_offsets
+      | { used_value_slots = Unknown; _ } ->
         (* could be an assert false *)
         Misc.fatal_error
           "Slot_offsets should not have returned Unknown when given a Known \

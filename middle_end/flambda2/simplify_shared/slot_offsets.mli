@@ -33,17 +33,30 @@ type used_slots =
             of name mode *)
   }
 
+(** The result of the slot offset computation *)
+type result =
+  { exported_offsets : Exported_offsets.t;
+        (** This includes all offsets for function/value slots that occur in the
+            current compilation unit. This includes offsets for slots from other
+            compilation units that appear in the current compilation unit.
+
+            Some slots can be marked as dead, because they are unused but
+            simplify could not remove them. For instance, this occurs for unused
+            value slots of non-liftable functions (.e.g in functors). *)
+    used_value_slots : Value_slot.Set.t Or_unknown.t
+        (** If known, this is the set of values slots that appears after
+            simplify, minus the slots that are marked as dead in
+            [exported_offsets]. *)
+  }
+
 (** Printing function. *)
 val print : Format.formatter -> t -> unit
 
 (** Create an empty set of constraints. *)
-val create : unit -> t
+val empty : t
 
 (** Add a set of closure to the set of constraints. *)
 val add_set_of_closures : t -> is_phantom:bool -> Set_of_closures.t -> t
-
-(** Aggregate sets of closures from two contexts *)
-val add_offsets_from_function : t -> from_function:t -> t
 
 (** Aggregate sets of closures from two contexts *)
 val add_offsets_from_function : t -> from_function:t -> t
@@ -56,7 +69,7 @@ val finalize_offsets :
   get_code_metadata:(Code_id.t -> Code_metadata.t) ->
   used_slots:used_slots Or_unknown.t ->
   t ->
-  Value_slot.Set.t Or_unknown.t * Exported_offsets.t
+  result
 
 (** {2 Helper functions} *)
 
