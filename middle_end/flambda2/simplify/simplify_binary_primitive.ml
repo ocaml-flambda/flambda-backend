@@ -846,48 +846,20 @@ let[@inline always] simplify_immutable_block_load0
     | Naked_floats _ -> K.naked_float
   in
   let result_var' = Bound_var.var result_var in
-  let[@inline always] unchanged () =
-    let ty = T.unknown result_kind in
-    let dacc = DA.add_variable dacc result_var ty in
-    SPR.create original_term ~try_reify:false dacc
-  in
-  let[@inline always] invalid () =
-    let ty = T.bottom result_kind in
-    let dacc = DA.add_variable dacc result_var ty in
-    SPR.create_invalid dacc
-  in
-  let exactly simple =
-    let dacc =
-      DA.add_variable dacc result_var (T.alias_type_of result_kind simple)
-    in
-    let named = Named.create_simple simple in
-    SPR.create named ~try_reify:false dacc
-  in
   let typing_env = DA.typing_env dacc in
   match T.prove_equals_single_tagged_immediate typing_env index_ty with
-  | Invalid -> invalid ()
-  | Unknown -> unchanged ()
+  | Invalid -> SPR.create_invalid dacc
+  | Unknown -> SPR.create_unknown dacc ~result_var result_kind ~original_term
   | Proved index -> (
-    let skip_simplification =
-      let size =
-        match access_kind with
-        | Values { size; _ } | Naked_floats { size } -> size
-      in
-      match size with
-      | Unknown -> false
-      | Known size -> (
-        match Flambda_features.Expert.max_block_size_for_projections () with
-        | None -> false
-        | Some max_size ->
-          let max_size = Targetint_31_63.Imm.of_int max_size in
-          not (Targetint_31_63.Imm.( <= ) size max_size))
-    in
     match
       T.prove_block_field_simple typing_env ~min_name_mode block_ty index
     with
-    | Invalid -> invalid ()
-    | Proved simple -> exactly simple
-    | Unknown when skip_simplification -> unchanged ()
+    | Invalid -> SPR.create_invalid dacc
+    | Proved simple ->
+      let dacc =
+        DA.add_variable dacc result_var (T.alias_type_of result_kind simple)
+      in
+      SPR.create (Named.create_simple simple) ~try_reify:false dacc
     | Unknown ->
       let n =
         Targetint_31_63.Imm.add
@@ -946,6 +918,7 @@ let simplify_immutable_block_load access_kind ~min_name_mode dacc ~original_term
 
 let simplify_phys_equal (op : P.equality_comparison) dacc ~original_term dbg
     ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var =
+  (* This primitive is only used for arguments of kind [Value]. *)
   if Simple.equal arg1 arg2
   then
     let const bool =
