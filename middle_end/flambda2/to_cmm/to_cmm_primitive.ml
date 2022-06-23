@@ -29,13 +29,11 @@ end
 let sign_extend_63 dbg e =
   let open Cmm in
   Cop
-    ( Casr,
-      [Cop (Clsl, [e; Cconst_int (1, dbg)], dbg); Cconst_int (1, dbg)],
-      dbg )
+    (Casr, [Cop (Clsl, [e; Cconst_int (1, dbg)], dbg); Cconst_int (1, dbg)], dbg)
 
 let zero_extend_63 dbg e =
   let open Cmm in
-  Cop (Cand, [e; C.natint_const_untagged dbg 0xFFFFFFFFn(*XXX*)], dbg)
+  Cop (Cand, [e; C.natint_const_untagged dbg 0xFFFFFFFFn (*XXX*)], dbg)
 
 let[@ocaml.warning "-4"] rec low_63 dbg e =
   let open Cmm in
@@ -267,11 +265,9 @@ let unary_int_arith_primitive _env dbg kind op arg =
   (* Negation needs a sign-extension for 32-bit and 63-bit values *)
   | Naked_immediate, Neg ->
     sign_extend_63 dbg (C.sub_int (C.int ~dbg 0) arg dbg)
-  | Naked_int32, Neg ->
-    C.sign_extend_32 dbg (C.sub_int (C.int ~dbg 0) arg dbg)
+  | Naked_int32, Neg -> C.sign_extend_32 dbg (C.sub_int (C.int ~dbg 0) arg dbg)
   (* General case *)
-  | (Naked_int64 | Naked_nativeint), Neg ->
-    C.sub_int (C.int ~dbg 0) arg dbg
+  | (Naked_int64 | Naked_nativeint), Neg -> C.sub_int (C.int ~dbg 0) arg dbg
   (* Byte swaps of 32-bit integers on 64-bit targets need a sign-extension *)
   | Naked_int32, Swap_byte_endianness when Target_system.is_64_bit ->
     C.sign_extend_32 dbg (C.bbswap Pint32 arg dbg)
@@ -413,7 +409,7 @@ let binary_int_arith_primitive0 _env dbg (kind : K.Standard_int.t)
     | Or -> sign_extend_63_can_delay_overflow C.or_int
     | Div -> sign_extend_63 dbg (C.safe_div_bi Unsafe x y Pint64 dbg)
     | Mod -> sign_extend_63 dbg (C.safe_mod_bi Unsafe x y Pint64 dbg))
-  | Naked_int64 | Naked_nativeint  -> (
+  | Naked_int64 | Naked_nativeint -> (
     (* Machine-width integers, no sign extension required. *)
     let bi : Primitive.boxed_integer =
       match kind with
@@ -468,13 +464,11 @@ let binary_int_shift_primitive _env dbg kind op x y =
     let arg = C.zero_extend_32 dbg x in
     C.sign_extend_32 dbg (C.lsr_int arg y dbg)
   | Naked_int32, Asr -> C.sign_extend_32 dbg (C.asr_int x y dbg)
-  | Naked_immediate, Lsl ->
-    sign_extend_63 dbg (C.lsl_int (low_63 dbg x) y dbg)
+  | Naked_immediate, Lsl -> sign_extend_63 dbg (C.lsl_int (low_63 dbg x) y dbg)
   | Naked_immediate, Lsr ->
     let arg = zero_extend_63 dbg x in
     sign_extend_63 dbg (C.lsr_int arg y dbg)
-  | Naked_immediate, Asr ->
-    sign_extend_63 dbg (C.asr_int x y dbg)
+  | Naked_immediate, Asr -> sign_extend_63 dbg (C.asr_int x y dbg)
   (* Naked ints *)
   | (Naked_int64 | Naked_nativeint), Lsl -> C.lsl_int x y dbg
   | (Naked_int64 | Naked_nativeint), Lsr -> C.lsr_int x y dbg
