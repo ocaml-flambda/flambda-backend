@@ -66,6 +66,7 @@ let run_parser ~start_symbol ~start_pos (lb : Lexing.lexbuf) =
       supplier start
   with Lex.Error (error, loc) ->
     Error (Lexing_error (error, make_loc ~relative_to:start_pos loc))
+  [@@ocaml.warning "-fragile-match"]
 
 let run_parser_on_file ~start_symbol filename =
   let ic = open_in filename in

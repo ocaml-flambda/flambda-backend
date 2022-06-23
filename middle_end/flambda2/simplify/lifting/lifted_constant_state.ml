@@ -63,7 +63,8 @@ let union_ordered ~innermost ~outermost =
   match innermost, outermost with
   | Empty, _ -> outermost
   | _, Empty -> innermost
-  | inner, outer -> Union { inner; outer }
+  | ((Leaf _ | Leaf_array _ | Union _) as inner), outer ->
+    Union { inner; outer }
 
 let union t1 t2 = union_ordered ~innermost:t1 ~outermost:t2
 

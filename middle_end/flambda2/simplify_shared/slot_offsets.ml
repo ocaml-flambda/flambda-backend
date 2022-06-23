@@ -215,7 +215,7 @@ module Layout = struct
     let res = { startenv; slots; empty_env } in
     match slots with
     | (0, Function_slot _) :: _ -> res
-    | _ ->
+    | [] | (_, (Function_slot _ | Infix_header | Value_slot _)) :: _ ->
       Misc.fatal_errorf
         "Sets of closures must start with a function slot at offset 0:@\n%a"
         print res

@@ -51,26 +51,6 @@ module Make_map (T : Thing) (Set : Set_plus_stdlib with type elt = T.t) = struct
         else Some v1)
       m1 m2
 
-  let union_right m1 m2 =
-    merge
-      (fun _id x y ->
-        match x, y with
-        | None, None -> None
-        | None, Some v | Some v, None | Some _, Some v -> Some v)
-      m1 m2
-
-  let union_left m1 m2 = union_right m2 m1
-
-  let union_merge f m1 m2 =
-    let aux _ m1 m2 =
-      match m1, m2 with
-      | None, m | m, None -> m
-      | Some m1, Some m2 -> Some (f m1 m2)
-    in
-    merge aux m1 m2
-
-  let rename m v = try find v m with Not_found -> v
-
   let map_keys f m = of_list (List.map (fun (k, v) -> f k, v) (bindings m))
 
   let [@ocamlformat "disable"] print print_datum ppf t =
@@ -85,19 +65,6 @@ module Make_map (T : Thing) (Set : Set_plus_stdlib with type elt = T.t) = struct
 
   let of_set f set = Set.fold (fun e map -> add e (f e) map) set empty
 
-  let transpose_keys_and_data map = fold (fun k v m -> add v k m) map empty
-
-  let transpose_keys_and_data_set map =
-    fold
-      (fun k v m ->
-        let set =
-          match find v m with
-          | exception Not_found -> Set.singleton k
-          | set -> Set.add k set
-        in
-        add v set m)
-      map empty
-
   let diff_domains t1 t2 =
     merge
       (fun _key datum1 datum2 ->
@@ -107,23 +74,6 @@ module Make_map (T : Thing) (Set : Set_plus_stdlib with type elt = T.t) = struct
         | None, Some _datum2 -> None
         | Some _datum1, Some _datum2 -> None)
       t1 t2
-
-  let fold2_stop_on_key_mismatch f t1 t2 init =
-    (* CR mshinwell: Provide a proper implementation *)
-    if cardinal t1 <> cardinal t2
-    then None
-    else
-      let t1 = bindings t1 in
-      let t2 = bindings t2 in
-      List.fold_left2
-        (fun acc (key1, datum1) (key2, datum2) ->
-          match acc with
-          | None -> None
-          | Some acc ->
-            if T.compare key1 key2 <> 0
-            then None
-            else Some (f key1 datum1 datum2 acc))
-        (Some init) t1 t2
 
   let inter f t1 t2 =
     merge
@@ -173,7 +123,8 @@ module Make_map (T : Thing) (Set : Set_plus_stdlib with type elt = T.t) = struct
 end
 [@@inline always]
 
-module Make_set (T : Thing_no_hash) = struct
+module Make_set (T : Thing_no_hash) : Set_plus_stdlib with type elt = T.t =
+struct
   include Set.Make [@inlined hint] (T)
 
   let [@ocamlformat "disable"] print ppf s =
@@ -192,19 +143,6 @@ module Make_set (T : Thing_no_hash) = struct
 
   let rec union_list ts =
     match ts with [] -> empty | t :: ts -> union t (union_list ts)
-
-  let intersection_is_empty t1 t2 = is_empty (inter t1 t2)
-
-  let fixpoint f set =
-    let rec aux acc set =
-      if is_empty set
-      then acc
-      else
-        let set' = fold (fun x -> union (f x)) set empty in
-        let acc = union acc set in
-        aux acc (diff set' acc)
-    in
-    aux empty set
 
   exception More_than_one_element
 

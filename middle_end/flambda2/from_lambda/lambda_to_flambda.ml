@@ -14,6 +14,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+[@@@ocaml.warning "-fragile-match"]
+
 (* "Use CPS". -- A. Kennedy, "Compiling with Continuations Continued", ICFP
    2007. *)
 

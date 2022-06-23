@@ -1,5 +1,3 @@
-(* CR lmaurer: Get rid of -4 and fix the fragile matches. *)
-
 let map_accum_left f env l =
   let next (acc, env) x =
     let y, env = f env x in
@@ -404,7 +402,7 @@ let defining_expr env (named : Fexpr.named) : Flambda.Named.t =
   | Rec_info ri ->
     let ri = rec_info env ri in
     Flambda.Named.create_rec_info ri
-  | _ -> assert false
+  | Closure _ -> assert false
 
 let set_of_closures env fun_decls value_slots =
   let fun_decls : Function_declarations.t =
@@ -471,7 +469,10 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
       } ->
     let binding_to_var_and_closure_binding : Fexpr.let_binding -> _ = function
       | { var; defining_expr = Closure binding; _ } -> var, binding
-      | { var = { txt = _; loc }; _ } ->
+      | { var = { txt = _; loc };
+          defining_expr = Simple _ | Prim _ | Rec_info _;
+          _
+        } ->
         Misc.fatal_errorf "Cannot use 'and' with non-closure: %a"
           print_scoped_location loc
     in
@@ -495,7 +496,11 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
     let body = expr env body in
     Flambda.Let.create bound named ~body ~free_names_of_body:Unknown
     |> Flambda.Expr.create_let
-  | Let { bindings = _ :: _ :: _; _ } ->
+  | Let
+      { bindings =
+          { defining_expr = Simple _ | Prim _ | Rec_info _; _ } :: _ :: _;
+        _
+      } ->
     Misc.fatal_errorf
       "Multiple let bindings only allowed when defining closures"
   | Let { value_slots = Some _; _ } ->
@@ -513,7 +518,9 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
     let sort =
       sort |> Option.value ~default:(Normal : Fexpr.continuation_sort)
     in
-    let is_exn_handler = match sort with Exn -> true | _ -> false in
+    let is_exn_handler =
+      match sort with Exn -> true | Normal | Define_root_symbol -> false
+    in
     let sort = continuation_sort sort in
     let name, body_env =
       fresh_cont env name ~sort ~arity:(List.length params)
@@ -570,7 +577,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           | Set_of_closures _ ->
             found_explicit_set := true;
             None
-          | _ -> None)
+          | Data _ | Code _ | Deleted_code _ -> None)
         bindings
     in
     let bindings =
@@ -595,7 +602,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
               else (
                 found_the_first_closure := true;
                 Some (Set_of_closures implicit_set : Fexpr.symbol_binding))
-            | _ -> Some binding)
+            | Data _ | Code _ | Deleted_code _ | Set_of_closures _ ->
+              Some binding)
           bindings
     in
     let bound_static, env =

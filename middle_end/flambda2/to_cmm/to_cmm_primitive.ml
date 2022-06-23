@@ -55,7 +55,7 @@ let primitive_boxed_int_of_boxable_number b =
 let unbox_number ?(dbg = Debuginfo.none) kind arg =
   match (kind : Flambda_kind.Boxable_number.t) with
   | Naked_float -> C.unbox_float dbg arg
-  | _ ->
+  | Naked_int32 | Naked_int64 | Naked_nativeint ->
     let primitive_kind = primitive_boxed_int_of_boxable_number kind in
     C.unbox_int dbg primitive_kind arg
 
@@ -63,7 +63,7 @@ let box_number ?(dbg = Debuginfo.none) kind alloc_mode arg =
   let alloc_mode = Alloc_mode.to_lambda alloc_mode in
   match (kind : Flambda_kind.Boxable_number.t) with
   | Naked_float -> C.box_float dbg alloc_mode arg
-  | _ ->
+  | Naked_int32 | Naked_int64 | Naked_nativeint ->
     let primitive_kind = primitive_boxed_int_of_boxable_number kind in
     C.box_int_gen dbg primitive_kind alloc_mode arg
 
@@ -302,6 +302,7 @@ let unary_int_arith_primitive _env dbg kind op arg =
   | _, Swap_byte_endianness ->
     let primitive_kind = primitive_boxed_int_of_standard_int kind in
     C.bbswap primitive_kind arg dbg
+  [@@ocaml.warning "-fragile-match"]
 
 let unary_float_arith_primitive _env dbg op arg =
   match (op : P.unary_float_arith_op) with
@@ -365,6 +366,7 @@ let binary_phys_comparison _env dbg kind op x y =
   (* General case *)
   | _, Eq -> C.eq ~dbg x y
   | _, Neq -> C.neq ~dbg x y
+  [@@ocaml.warning "-fragile-match"]
 
 let binary_int_arith_primitive _env dbg kind op x y =
   match (kind : Flambda_kind.Standard_int.t), (op : P.binary_int_arith_op) with

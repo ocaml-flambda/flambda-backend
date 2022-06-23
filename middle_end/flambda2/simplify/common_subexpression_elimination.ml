@@ -241,7 +241,7 @@ let join_one_cse_equation ~cse_at_each_use prim bound_to_map
            their argument: additional information on the cse parameter should
            translate into additional information on the argument. This can be
            done by giving them the appropriate type. *)
-        match EP.to_primitive prim with
+        match[@ocaml.warning "-fragile-match"] EP.to_primitive prim with
         | Unary (Is_int, scrutinee) ->
           Name.Map.add (Name.var var)
             (T.is_int_for_scrutinee ~scrutinee)

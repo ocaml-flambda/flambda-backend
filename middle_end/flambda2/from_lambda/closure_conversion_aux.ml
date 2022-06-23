@@ -110,7 +110,7 @@ module Inlining = struct
       Function_decl_inlining_decision_type.Never_inline_attribute
     | Always_inline | Available_inline ->
       Function_decl_inlining_decision_type.Attribute_inline
-    | _ ->
+    | Unroll _ | Default_inline ->
       if Code_size.to_int code_size <= inline_threshold
       then
         Function_decl_inlining_decision_type.Small_function
@@ -174,7 +174,7 @@ module Env = struct
             Value_approximation.Block_approximation (approxs, alloc_mode)
           | Closure_approximation (code_id, function_slot, Code_present code)
             -> (
-            match
+            match[@ocaml.warning "-fragile-match"]
               Inlining.definition_inlining_decision (Code.inline code)
                 (Code.cost_metrics code)
             with
@@ -341,7 +341,9 @@ module Env = struct
   let add_approximation_alias t name alias =
     match find_value_approximation t (Simple.name name) with
     | Value_unknown -> t
-    | approx -> add_value_approximation t alias approx
+    | (Value_symbol _ | Closure_approximation _ | Block_approximation _) as
+      approx ->
+      add_value_approximation t alias approx
 
   let set_path_to_root t path_to_root =
     if path_to_root = Debuginfo.Scoped_location.Loc_unknown
@@ -879,7 +881,7 @@ module Let_cont_with_acc = struct
     match Name_occurrences.count_continuation free_names_of_body cont with
     | Zero when not (Continuation_handler.is_exn_handler handler) ->
       Acc.with_free_names free_names_of_body body_acc, body
-    | _ ->
+    | Zero | One | More_than_one ->
       (* [create_non_recursive] assumes [acc] contains free names of the body *)
       let acc, expr =
         create_non_recursive
