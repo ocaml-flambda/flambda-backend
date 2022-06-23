@@ -118,9 +118,6 @@ val prove_boxed_int64s :
 val prove_boxed_nativeints :
   Typing_env.t -> Type_grammar.t -> Targetint_32_64.Set.t proof
 
-val prove_tags_and_sizes :
-  Typing_env.t -> Type_grammar.t -> Targetint_31_63.Imm.t Tag.Map.t proof
-
 val prove_tags_must_be_a_block :
   Typing_env.t -> Type_grammar.t -> Tag.Set.t proof
 

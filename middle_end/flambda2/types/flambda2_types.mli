@@ -606,9 +606,6 @@ val prove_boxed_int64s : Typing_env.t -> t -> Numeric_types.Int64.Set.t proof
 
 val prove_boxed_nativeints : Typing_env.t -> t -> Targetint_32_64.Set.t proof
 
-val prove_tags_and_sizes :
-  Typing_env.t -> t -> Targetint_31_63.Imm.t Tag.Map.t proof
-
 val prove_unique_tag_and_size :
   Typing_env.t ->
   t ->

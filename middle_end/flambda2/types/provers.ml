@@ -361,7 +361,7 @@ let prove_equals_single_tagged_immediate env t : _ proof =
   | Unknown -> Unknown
   | Invalid -> Invalid
 
-let prove_tags_and_sizes env t : Targetint_31_63.Imm.t Tag.Map.t proof =
+let prove_tags_and_sizes env t : _ proof =
   let wrong_kind () =
     Misc.fatal_errorf "Kind error: expected [Value]:@ %a" TG.print t
   in
@@ -379,7 +379,9 @@ let prove_tags_and_sizes env t : Targetint_31_63.Imm.t Tag.Map.t proof =
         | Known blocks -> (
           match TG.Row_like_for_blocks.all_tags_and_sizes blocks with
           | Unknown -> Unknown
-          | Known tags_and_sizes -> Proved tags_and_sizes)
+          | Known tags_and_sizes ->
+            Proved (tags_and_sizes, TG.Row_like_for_blocks.get_singleton blocks)
+          )
       else Unknown)
   | Value (Ok (Mutable_block _)) -> Unknown
   | Value (Ok _) -> Invalid
@@ -402,7 +404,7 @@ let prove_unique_tag_and_size env t :
     match prove_tags_and_sizes env t with
     | Invalid -> Invalid
     | Unknown -> Unknown
-    | Proved tags_to_sizes -> (
+    | Proved (tags_to_sizes, _) -> (
       match Tag.Map.get_singleton tags_to_sizes with
       | None -> Unknown
       | Some (tag, size) -> Proved (tag, size))
