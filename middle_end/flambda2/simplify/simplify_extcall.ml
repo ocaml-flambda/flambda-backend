@@ -161,42 +161,39 @@ let simplify_returning_extcall ~dbg ~cont ~exn_cont:_ dacc fun_name args
   (* Polymorphic comparisons *)
   | ".extern__caml_compare", [a; b], [a_ty; b_ty] ->
     simplify_comparison ~dbg ~dacc ~cont a b a_ty b_ty
-      ~float_prim:(Float_comp Yielding_int_like_compare_functions)
+      ~float_prim:(Float_comp (Yielding_int_like_compare_functions ()))
       ~tagged_prim:
-        (Int_comp (Tagged_immediate, Signed, Yielding_int_like_compare_functions))
+        (Int_comp (Tagged_immediate, Yielding_int_like_compare_functions Signed))
       ~boxed_int_prim:(fun kind ->
-        Int_comp (kind, Signed, Yielding_int_like_compare_functions))
+        Int_comp (kind, Yielding_int_like_compare_functions Signed))
   | ".extern__caml_equal", [a; b], [a_ty; b_ty] ->
     simplify_comparison ~dbg ~dacc ~cont a b a_ty b_ty
-      ~tagged_prim:(Phys_equal (K.value, Eq))
-      ~float_prim:(Float_comp (Yielding_bool Eq))
-      ~boxed_int_prim:(fun kind -> Phys_equal (K.Standard_int.to_kind kind, Eq))
+      ~tagged_prim:(Phys_equal Eq) ~float_prim:(Float_comp (Yielding_bool Eq))
+      ~boxed_int_prim:(fun kind -> Int_comp (kind, Yielding_bool Eq))
   | ".extern__caml_notequal", [a; b], [a_ty; b_ty] ->
     simplify_comparison ~dbg ~dacc ~cont a b a_ty b_ty
-      ~tagged_prim:(Phys_equal (K.value, Neq))
-      ~float_prim:(Float_comp (Yielding_bool Neq))
-      ~boxed_int_prim:(fun kind ->
-        Phys_equal (K.Standard_int.to_kind kind, Neq))
+      ~tagged_prim:(Phys_equal Neq) ~float_prim:(Float_comp (Yielding_bool Neq))
+      ~boxed_int_prim:(fun kind -> Int_comp (kind, Yielding_bool Neq))
   | ".extern__caml_lessequal", [a; b], [a_ty; b_ty] ->
     simplify_comparison ~dbg ~dacc ~cont a b a_ty b_ty
-      ~float_prim:(Float_comp (Yielding_bool Le))
-      ~tagged_prim:(Int_comp (Tagged_immediate, Signed, Yielding_bool Le))
-      ~boxed_int_prim:(fun kind -> Int_comp (kind, Signed, Yielding_bool Le))
+      ~float_prim:(Float_comp (Yielding_bool (Le ())))
+      ~tagged_prim:(Int_comp (Tagged_immediate, Yielding_bool (Le Signed)))
+      ~boxed_int_prim:(fun kind -> Int_comp (kind, Yielding_bool (Le Signed)))
   | ".extern__caml_lessthan", [a; b], [a_ty; b_ty] ->
     simplify_comparison ~dbg ~dacc ~cont a b a_ty b_ty
-      ~float_prim:(Float_comp (Yielding_bool Lt))
-      ~tagged_prim:(Int_comp (Tagged_immediate, Signed, Yielding_bool Lt))
-      ~boxed_int_prim:(fun kind -> Int_comp (kind, Signed, Yielding_bool Lt))
+      ~float_prim:(Float_comp (Yielding_bool (Lt ())))
+      ~tagged_prim:(Int_comp (Tagged_immediate, Yielding_bool (Lt Signed)))
+      ~boxed_int_prim:(fun kind -> Int_comp (kind, Yielding_bool (Lt Signed)))
   | ".extern__caml_greaterequal", [a; b], [a_ty; b_ty] ->
     simplify_comparison ~dbg ~dacc ~cont a b a_ty b_ty
-      ~float_prim:(Float_comp (Yielding_bool Ge))
-      ~tagged_prim:(Int_comp (Tagged_immediate, Signed, Yielding_bool Ge))
-      ~boxed_int_prim:(fun kind -> Int_comp (kind, Signed, Yielding_bool Ge))
+      ~float_prim:(Float_comp (Yielding_bool (Ge ())))
+      ~tagged_prim:(Int_comp (Tagged_immediate, Yielding_bool (Ge Signed)))
+      ~boxed_int_prim:(fun kind -> Int_comp (kind, Yielding_bool (Ge Signed)))
   | ".extern__caml_greaterthan", [a; b], [a_ty; b_ty] ->
     simplify_comparison ~dbg ~dacc ~cont a b a_ty b_ty
-      ~float_prim:(Float_comp (Yielding_bool Gt))
-      ~tagged_prim:(Int_comp (Tagged_immediate, Signed, Yielding_bool Gt))
-      ~boxed_int_prim:(fun kind -> Int_comp (kind, Signed, Yielding_bool Gt))
+      ~float_prim:(Float_comp (Yielding_bool (Gt ())))
+      ~tagged_prim:(Int_comp (Tagged_immediate, Yielding_bool (Gt Signed)))
+      ~boxed_int_prim:(fun kind -> Int_comp (kind, Yielding_bool (Gt Signed)))
   | ".extern__caml_make_vect", [_; _], [len_ty; init_value_ty] ->
     simplify_caml_make_vect dacc ~len_ty ~init_value_ty
   | _ -> Unchanged { return_types = Unknown }

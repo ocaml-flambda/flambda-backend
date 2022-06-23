@@ -511,13 +511,13 @@ module Binary_int_shift_nativeint =
 module Int_ops_for_binary_comp (I : A.Int_number_kind) : sig
   include
     Binary_arith_like_sig
-      with type op = P.ordered_comparison P.comparison_behaviour
+      with type op = P.signed_or_unsigned P.comparison_behaviour
 end = struct
   module Lhs = I.Num
   module Rhs = I.Num
   module Result = Targetint_31_63
 
-  type op = P.ordered_comparison P.comparison_behaviour
+  type op = P.signed_or_unsigned P.comparison_behaviour
 
   let arg_kind = I.standard_int_or_float_kind
 
@@ -532,7 +532,7 @@ end = struct
   let unknown (op : op) =
     match op with
     | Yielding_bool _ -> T.these_naked_immediates Targetint_31_63.all_bools
-    | Yielding_int_like_compare_functions ->
+    | Yielding_int_like_compare_functions _signedness ->
       T.these_naked_immediates Targetint_31_63.zero_one_and_minus_one
 
   let these = T.these_naked_immediates
@@ -546,23 +546,39 @@ end = struct
 
   module Num = I.Num
 
-  let op (op : P.ordered_comparison P.comparison_behaviour) n1 n2 =
+  let op (op : P.signed_or_unsigned P.comparison_behaviour) n1 n2 =
     match op with
     | Yielding_bool op -> (
       let bool b = Targetint_31_63.bool b in
       match op with
-      | Lt -> Some (bool (Num.compare n1 n2 < 0))
-      | Gt -> Some (bool (Num.compare n1 n2 > 0))
-      | Le -> Some (bool (Num.compare n1 n2 <= 0))
-      | Ge -> Some (bool (Num.compare n1 n2 >= 0)))
-    | Yielding_int_like_compare_functions ->
-      let int i = Targetint_31_63.int (Targetint_31_63.Imm.of_int i) in
-      let c = Num.compare n1 n2 in
-      if c < 0
-      then Some (int (-1))
-      else if c = 0
-      then Some (int 0)
-      else Some (int 1)
+      | Eq -> Some (bool (Num.compare n1 n2 = 0))
+      | Neq -> Some (bool (Num.compare n1 n2 <> 0))
+      | Lt Signed -> Some (bool (Num.compare n1 n2 < 0))
+      | Gt Signed -> Some (bool (Num.compare n1 n2 > 0))
+      | Le Signed -> Some (bool (Num.compare n1 n2 <= 0))
+      | Ge Signed -> Some (bool (Num.compare n1 n2 >= 0))
+      | Lt Unsigned -> Some (bool (Num.compare_unsigned n1 n2 < 0))
+      | Gt Unsigned -> Some (bool (Num.compare_unsigned n1 n2 > 0))
+      | Le Unsigned -> Some (bool (Num.compare_unsigned n1 n2 <= 0))
+      | Ge Unsigned -> Some (bool (Num.compare_unsigned n1 n2 >= 0)))
+    | Yielding_int_like_compare_functions signed_or_unsigned -> (
+      match signed_or_unsigned with
+      | Signed ->
+        let int i = Targetint_31_63.int (Targetint_31_63.Imm.of_int i) in
+        let c = Num.compare n1 n2 in
+        if c < 0
+        then Some (int (-1))
+        else if c = 0
+        then Some (int 0)
+        else Some (int 1)
+      | Unsigned ->
+        let int i = Targetint_31_63.int (Targetint_31_63.Imm.of_int i) in
+        let c = Num.compare_unsigned n1 n2 in
+        if c < 0
+        then Some (int (-1))
+        else if c = 0
+        then Some (int 0)
+        else Some (int 1))
 
   let op_lhs_unknown _op ~rhs:_ = Cannot_simplify
 
@@ -586,89 +602,6 @@ module Binary_int_comp_int32 = Binary_arith_like (Int_ops_for_binary_comp_int32)
 module Binary_int_comp_int64 = Binary_arith_like (Int_ops_for_binary_comp_int64)
 module Binary_int_comp_nativeint =
   Binary_arith_like (Int_ops_for_binary_comp_nativeint)
-
-module Int_ops_for_binary_comp_unsigned (I : A.Int_number_kind) : sig
-  include
-    Binary_arith_like_sig
-      with type op = P.ordered_comparison P.comparison_behaviour
-end = struct
-  module Lhs = I.Num
-  module Rhs = I.Num
-  module Result = Targetint_31_63
-
-  type op = P.ordered_comparison P.comparison_behaviour
-
-  let arg_kind = I.standard_int_or_float_kind
-
-  let result_kind = K.naked_immediate
-
-  let ok_to_evaluate _env = true
-
-  let prover_lhs = I.unboxed_prover
-
-  let prover_rhs = I.unboxed_prover
-
-  let unknown (op : op) =
-    match op with
-    | Yielding_bool _ -> T.these_naked_immediates Targetint_31_63.all_bools
-    | Yielding_int_like_compare_functions ->
-      T.these_naked_immediates Targetint_31_63.zero_one_and_minus_one
-
-  let these = T.these_naked_immediates
-
-  let term imm : Named.t =
-    Named.create_simple (Simple.const (Reg_width_const.naked_immediate imm))
-
-  module Pair = I.Num.Pair
-
-  let cross_product = I.Num.cross_product
-
-  module Num = I.Num
-
-  let op (op : P.ordered_comparison P.comparison_behaviour) n1 n2 =
-    match op with
-    | Yielding_bool op -> (
-      let bool b = Targetint_31_63.bool b in
-      match op with
-      | Lt -> Some (bool (Num.compare_unsigned n1 n2 < 0))
-      | Gt -> Some (bool (Num.compare_unsigned n1 n2 > 0))
-      | Le -> Some (bool (Num.compare_unsigned n1 n2 <= 0))
-      | Ge -> Some (bool (Num.compare_unsigned n1 n2 >= 0)))
-    | Yielding_int_like_compare_functions ->
-      let int i = Targetint_31_63.int (Targetint_31_63.Imm.of_int i) in
-      let c = Num.compare_unsigned n1 n2 in
-      if c < 0
-      then Some (int (-1))
-      else if c = 0
-      then Some (int 0)
-      else Some (int 1)
-
-  let op_lhs_unknown _op ~rhs:_ = Cannot_simplify
-
-  let op_rhs_unknown _op ~lhs:_ = Cannot_simplify
-end
-[@@inline always]
-
-module Int_ops_for_binary_comp_unsigned_tagged_immediate =
-  Int_ops_for_binary_comp_unsigned (A.For_tagged_immediates)
-module Int_ops_for_binary_comp_unsigned_naked_immediate =
-  Int_ops_for_binary_comp_unsigned (A.For_naked_immediates)
-module Int_ops_for_binary_comp_unsigned_int32 =
-  Int_ops_for_binary_comp_unsigned (A.For_int32s)
-module Int_ops_for_binary_comp_unsigned_int64 =
-  Int_ops_for_binary_comp_unsigned (A.For_int64s)
-module Int_ops_for_binary_comp_unsigned_nativeint =
-  Int_ops_for_binary_comp_unsigned (A.For_nativeints)
-module Binary_int_comp_unsigned_tagged_immediate =
-  Binary_arith_like (Int_ops_for_binary_comp_unsigned_tagged_immediate)
-module Binary_int_comp_unsigned_naked_immediate =
-  Binary_arith_like (Int_ops_for_binary_comp_unsigned_naked_immediate)
-module Binary_int_comp_unsigned_int32 =
-  Binary_arith_like (Int_ops_for_binary_comp_unsigned_int32)
-module Binary_int_comp_unsigned_int64 =
-  Binary_arith_like (Int_ops_for_binary_comp_unsigned_int64)
-module Binary_int_comp_unsigned_nativeint =
-  Binary_arith_like (Int_ops_for_binary_comp_unsigned_nativeint)
 
 module Float_ops_for_binary_arith : sig
   include Binary_arith_like_sig with type op = P.binary_float_arith_op
@@ -764,15 +697,14 @@ end
 module Binary_float_arith = Binary_arith_like (Float_ops_for_binary_arith)
 
 module Float_ops_for_binary_comp : sig
-  include
-    Binary_arith_like_sig with type op = P.comparison P.comparison_behaviour
+  include Binary_arith_like_sig with type op = unit P.comparison_behaviour
 end = struct
   module F = Float_by_bit_pattern
   module Lhs = F
   module Rhs = F
   module Result = Targetint_31_63
 
-  type op = P.comparison P.comparison_behaviour
+  type op = unit P.comparison_behaviour
 
   let arg_kind = K.Standard_int_or_float.Naked_float
 
@@ -787,7 +719,7 @@ end = struct
   let unknown (op : op) =
     match op with
     | Yielding_bool _ -> T.these_naked_immediates Targetint_31_63.all_bools
-    | Yielding_int_like_compare_functions ->
+    | Yielding_int_like_compare_functions () ->
       T.these_naked_immediates Targetint_31_63.zero_one_and_minus_one
 
   let these = T.these_naked_immediates
@@ -807,23 +739,23 @@ end = struct
       match op with
       | Eq -> Some (bool (F.IEEE_semantics.equal n1 n2))
       | Neq -> Some (bool (not (F.IEEE_semantics.equal n1 n2)))
-      | Lt ->
+      | Lt () ->
         if has_nan
         then Some (bool false)
         else Some (bool (F.IEEE_semantics.compare n1 n2 < 0))
-      | Gt ->
+      | Gt () ->
         if has_nan
         then Some (bool false)
         else Some (bool (F.IEEE_semantics.compare n1 n2 > 0))
-      | Le ->
+      | Le () ->
         if has_nan
         then Some (bool false)
         else Some (bool (F.IEEE_semantics.compare n1 n2 <= 0))
-      | Ge ->
+      | Ge () ->
         if has_nan
         then Some (bool false)
         else Some (bool (F.IEEE_semantics.compare n1 n2 >= 0)))
-    | Yielding_int_like_compare_functions ->
+    | Yielding_int_like_compare_functions () ->
       let int i = Targetint_31_63.int (Targetint_31_63.Imm.of_int i) in
       let c = F.IEEE_semantics.compare n1 n2 in
       if c < 0
@@ -832,10 +764,10 @@ end = struct
       then Some (int 0)
       else Some (int 1)
 
-  let result_of_comparison_with_nan (op : P.comparison) =
+  let result_of_comparison_with_nan (op : unit P.comparison) =
     match op with
     | Neq -> Exactly Targetint_31_63.bool_true
-    | Eq | Lt | Gt | Le | Ge -> Exactly Targetint_31_63.bool_false
+    | Eq | Lt () | Gt () | Le () | Ge () -> Exactly Targetint_31_63.bool_false
 
   let op_lhs_unknown (op : op) ~rhs : _ binary_arith_outcome_for_one_side_only =
     match op with
@@ -843,7 +775,7 @@ end = struct
       if F.is_any_nan rhs
       then result_of_comparison_with_nan op
       else Cannot_simplify
-    | Yielding_int_like_compare_functions -> Cannot_simplify
+    | Yielding_int_like_compare_functions () -> Cannot_simplify
 
   let op_rhs_unknown (op : op) ~lhs : _ binary_arith_outcome_for_one_side_only =
     match op with
@@ -851,7 +783,7 @@ end = struct
       if F.is_any_nan lhs
       then result_of_comparison_with_nan op
       else Cannot_simplify
-    | Yielding_int_like_compare_functions -> Cannot_simplify
+    | Yielding_int_like_compare_functions () -> Cannot_simplify
 end
 
 module Binary_float_comp = Binary_arith_like (Float_ops_for_binary_comp)
@@ -902,24 +834,8 @@ end
 
 module Int_ops_for_binary_eq_comp_tagged_immediate =
   Int_ops_for_binary_eq_comp (A.For_tagged_immediates)
-module Int_ops_for_binary_eq_comp_naked_immediate =
-  Int_ops_for_binary_eq_comp (A.For_naked_immediates)
-module Int_ops_for_binary_eq_comp_int32 =
-  Int_ops_for_binary_eq_comp (A.For_int32s)
-module Int_ops_for_binary_eq_comp_int64 =
-  Int_ops_for_binary_eq_comp (A.For_int64s)
-module Int_ops_for_binary_eq_comp_nativeint =
-  Int_ops_for_binary_eq_comp (A.For_nativeints)
 module Binary_int_eq_comp_tagged_immediate =
   Binary_arith_like (Int_ops_for_binary_eq_comp_tagged_immediate)
-module Binary_int_eq_comp_naked_immediate =
-  Binary_arith_like (Int_ops_for_binary_eq_comp_naked_immediate)
-module Binary_int_eq_comp_int32 =
-  Binary_arith_like (Int_ops_for_binary_eq_comp_int32)
-module Binary_int_eq_comp_int64 =
-  Binary_arith_like (Int_ops_for_binary_eq_comp_int64)
-module Binary_int_eq_comp_nativeint =
-  Binary_arith_like (Int_ops_for_binary_eq_comp_nativeint)
 
 let[@inline always] simplify_immutable_block_load0
     (access_kind : P.Block_access_kind.t) ~min_name_mode dacc ~original_term
@@ -1028,8 +944,8 @@ let simplify_immutable_block_load access_kind ~min_name_mode dacc ~original_term
   in
   if dacc == dacc' then result else SPR.with_dacc result dacc'
 
-let simplify_phys_equal (op : P.equality_comparison) (kind : K.t) dacc
-    ~original_term dbg ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var =
+let simplify_phys_equal (op : P.equality_comparison) dacc ~original_term dbg
+    ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var =
   if Simple.equal arg1 arg2
   then
     let const bool =
@@ -1043,52 +959,19 @@ let simplify_phys_equal (op : P.equality_comparison) (kind : K.t) dacc
     in
     match op with Eq -> const true | Neq -> const false
   else
-    match kind with
-    | Value -> (
-      let typing_env = DA.typing_env dacc in
-      let proof1 = T.prove_equals_tagged_immediates typing_env arg1_ty in
-      let proof2 = T.prove_equals_tagged_immediates typing_env arg2_ty in
-      match proof1, proof2 with
-      | Proved _, Proved _ ->
-        Binary_int_eq_comp_tagged_immediate.simplify op dacc ~original_term dbg
-          ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var
-      | _, _ ->
-        let dacc =
-          DA.add_variable dacc result_var
-            (T.these_naked_immediates Targetint_31_63.all_bools)
-        in
-        SPR.create original_term ~try_reify:false dacc)
-    | Naked_number Naked_immediate -> (
-      let typing_env = DA.typing_env dacc in
-      let proof1 = T.prove_naked_immediates typing_env arg1_ty in
-      let proof2 = T.prove_naked_immediates typing_env arg2_ty in
-      match proof1, proof2 with
-      | Proved _, Proved _ ->
-        Binary_int_eq_comp_naked_immediate.simplify op dacc ~original_term dbg
-          ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var
-      | (Proved _ | Unknown | Invalid), _ ->
-        let dacc =
-          DA.add_variable dacc result_var
-            (T.these_naked_immediates Targetint_31_63.all_bools)
-        in
-        SPR.create original_term ~try_reify:false dacc)
-    | Naked_number Naked_float ->
-      (* CR mshinwell: Should this case be statically disallowed in the type, to
-         force people to use [Float_comp]? *)
-      let op : P.comparison = match op with Eq -> Eq | Neq -> Neq in
-      Binary_float_comp.simplify (Yielding_bool op) dacc ~original_term dbg
+    let typing_env = DA.typing_env dacc in
+    let proof1 = T.prove_equals_tagged_immediates typing_env arg1_ty in
+    let proof2 = T.prove_equals_tagged_immediates typing_env arg2_ty in
+    match proof1, proof2 with
+    | Proved _, Proved _ ->
+      Binary_int_eq_comp_tagged_immediate.simplify op dacc ~original_term dbg
         ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var
-    | Naked_number Naked_int32 ->
-      Binary_int_eq_comp_int32.simplify op dacc ~original_term dbg ~arg1
-        ~arg1_ty ~arg2 ~arg2_ty ~result_var
-    | Naked_number Naked_int64 ->
-      Binary_int_eq_comp_int64.simplify op dacc ~original_term dbg ~arg1
-        ~arg1_ty ~arg2 ~arg2_ty ~result_var
-    | Naked_number Naked_nativeint ->
-      Binary_int_eq_comp_nativeint.simplify op dacc ~original_term dbg ~arg1
-        ~arg1_ty ~arg2 ~arg2_ty ~result_var
-    | Region -> Misc.fatal_error "Region kind not expected here"
-    | Rec_info -> Misc.fatal_error "Rec_info kind not expected here"
+    | _, _ ->
+      let dacc =
+        DA.add_variable dacc result_var
+          (T.these_naked_immediates Targetint_31_63.all_bools)
+      in
+      SPR.create original_term ~try_reify:false dacc
   [@@ocaml.warning "-fragile-match"]
 
 let simplify_array_load (array_kind : P.Array_kind.t) mutability dacc
@@ -1163,24 +1046,16 @@ let simplify_binary_primitive dacc original_prim (prim : P.binary_primitive)
       | Naked_int32 -> Binary_int_shift_int32.simplify op
       | Naked_int64 -> Binary_int_shift_int64.simplify op
       | Naked_nativeint -> Binary_int_shift_nativeint.simplify op)
-    | Int_comp (kind, Signed, op) -> (
+    | Int_comp (kind, op) -> (
       match kind with
       | Tagged_immediate -> Binary_int_comp_tagged_immediate.simplify op
       | Naked_immediate -> Binary_int_comp_naked_immediate.simplify op
       | Naked_int32 -> Binary_int_comp_int32.simplify op
       | Naked_int64 -> Binary_int_comp_int64.simplify op
       | Naked_nativeint -> Binary_int_comp_nativeint.simplify op)
-    | Int_comp (kind, Unsigned, op) -> (
-      match kind with
-      | Tagged_immediate ->
-        Binary_int_comp_unsigned_tagged_immediate.simplify op
-      | Naked_immediate -> Binary_int_comp_unsigned_naked_immediate.simplify op
-      | Naked_int32 -> Binary_int_comp_unsigned_int32.simplify op
-      | Naked_int64 -> Binary_int_comp_unsigned_int64.simplify op
-      | Naked_nativeint -> Binary_int_comp_unsigned_nativeint.simplify op)
     | Float_arith op -> Binary_float_arith.simplify op
     | Float_comp op -> Binary_float_comp.simplify op
-    | Phys_equal (kind, op) -> simplify_phys_equal op kind
+    | Phys_equal op -> simplify_phys_equal op
     | String_or_bigstring_load (string_like_value, string_accessor_width) ->
       simplify_string_or_bigstring_load string_like_value string_accessor_width
         ~original_prim

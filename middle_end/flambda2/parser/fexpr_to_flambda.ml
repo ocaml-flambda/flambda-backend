@@ -328,7 +328,7 @@ let infix_binop (binop : Fexpr.infix_binop) : Flambda_primitive.binary_primitive
     =
   match binop with
   | Int_arith o -> Int_arith (Tagged_immediate, o)
-  | Int_comp c -> Int_comp (Tagged_immediate, Signed, c)
+  | Int_comp c -> Int_comp (Tagged_immediate, c)
   | Int_shift s -> Int_shift (Tagged_immediate, s)
   | Float_arith o -> Float_arith o
   | Float_comp c -> Float_comp c
@@ -357,12 +357,10 @@ let binop (binop : Fexpr.binop) : Flambda_primitive.binary_primitive =
         Naked_floats { size }
     in
     Block_load (access_kind, mutability)
-  | Phys_equal (kind, op) ->
-    let kind = kind |> Option.value ~default:Flambda_kind.value in
-    Phys_equal (kind, op)
+  | Phys_equal op -> Phys_equal op
   | Infix op -> infix_binop op
   | Int_arith (i, o) -> Int_arith (i, o)
-  | Int_comp (i, s, c) -> Int_comp (i, s, c)
+  | Int_comp (i, c) -> Int_comp (i, c)
   | Int_shift (i, s) -> Int_shift (i, s)
 
 let ternop (ternop : Fexpr.ternop) : Flambda_primitive.ternary_primitive =

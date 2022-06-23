@@ -475,16 +475,13 @@ let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
         Naked_floats { size }
     in
     Block_load (access_kind, mutability)
-  | Phys_equal (k, op) ->
-    let k = if Flambda_kind.is_value k then None else Some k in
-    Phys_equal (k, op)
+  | Phys_equal op -> Phys_equal op
   | Int_arith (Tagged_immediate, o) -> Infix (Int_arith o)
   | Int_arith
       (((Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint) as i), o)
     ->
     Int_arith (i, o)
-  | Int_comp (Tagged_immediate, Signed, c) -> Infix (Int_comp c)
-  | Int_comp (i, ((Signed | Unsigned) as s), c) -> Int_comp (i, s, c)
+  | Int_comp (i, c) -> Int_comp (i, c)
   | Int_shift (Tagged_immediate, s) -> Infix (Int_shift s)
   | Int_shift (i, s) -> Int_shift (i, s)
   | Float_arith o -> Infix (Float_arith o)

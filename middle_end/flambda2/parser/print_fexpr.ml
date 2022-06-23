@@ -126,13 +126,6 @@ let naked_number_kind ppf (nnk : Flambda_kind.Naked_number_kind.t) =
   | Naked_int64 -> "int64"
   | Naked_nativeint -> "nativeint"
 
-let kind ppf (k : kind) =
-  match k with
-  | Value -> Format.pp_print_string ppf "val"
-  | Naked_number nnk -> naked_number_kind ppf nnk
-  | Region -> Format.pp_print_string ppf "region"
-  | Rec_info -> Format.pp_print_string ppf "rec_info"
-
 let kind_with_subkind ppf (k : kind_with_subkind) =
   let str s = Format.pp_print_string ppf s in
   match Flambda_kind.With_subkind.kind k with
@@ -187,9 +180,6 @@ let convertible_type ppf (t : standard_int_or_float) =
     | Naked_nativeint -> "nativeint"
   in
   Format.pp_print_string ppf str
-
-let signed_or_unsigned ~space ppf (s : signed_or_unsigned) =
-  match s with Signed -> () | Unsigned -> pp_spaced ~space ppf "unsigned"
 
 let field_of_block ppf : field_of_block -> unit = function
   | Symbol s -> symbol ppf s
@@ -326,15 +316,22 @@ let binary_int_arith_op ppf (o : binary_int_arith_op) =
   | Or -> "lor"
   | Xor -> "lxor"
 
-let int_comp ppf (o : ordered_comparison comparison_behaviour) =
+let int_comp ppf (o : signed_or_unsigned comparison_behaviour) =
   Format.pp_print_string ppf
   @@
   match o with
-  | Yielding_bool Lt -> "<"
-  | Yielding_bool Gt -> ">"
-  | Yielding_bool Le -> "<="
-  | Yielding_bool Ge -> ">="
-  | Yielding_int_like_compare_functions -> "?"
+  | Yielding_bool Neq -> "<>"
+  | Yielding_bool Eq -> "="
+  | Yielding_bool (Lt Signed) -> "<"
+  | Yielding_bool (Gt Signed) -> ">"
+  | Yielding_bool (Le Signed) -> "<="
+  | Yielding_bool (Ge Signed) -> ">="
+  | Yielding_bool (Lt Unsigned) -> "<u"
+  | Yielding_bool (Gt Unsigned) -> ">u"
+  | Yielding_bool (Le Unsigned) -> "<=u"
+  | Yielding_bool (Ge Unsigned) -> ">=u"
+  | Yielding_int_like_compare_functions Signed -> "?"
+  | Yielding_int_like_compare_functions Unsigned -> "?u"
 
 let int_shift_op ppf (s : int_shift_op) =
   Format.pp_print_string ppf
@@ -344,17 +341,17 @@ let binary_float_arith_op ppf (o : binary_float_arith_op) =
   Format.pp_print_string ppf
   @@ match o with Add -> "+." | Sub -> "-." | Mul -> "*." | Div -> "/."
 
-let float_comp ppf (o : comparison comparison_behaviour) =
+let float_comp ppf (o : unit comparison_behaviour) =
   Format.pp_print_string ppf
   @@
   match o with
   | Yielding_bool Eq -> "=."
   | Yielding_bool Neq -> "!=."
-  | Yielding_bool Lt -> "<."
-  | Yielding_bool Gt -> ">."
-  | Yielding_bool Le -> "<=."
-  | Yielding_bool Ge -> ">=."
-  | Yielding_int_like_compare_functions -> "?"
+  | Yielding_bool (Lt ()) -> "<."
+  | Yielding_bool (Gt ()) -> ">."
+  | Yielding_bool (Le ()) -> "<=."
+  | Yielding_bool (Ge ()) -> ">=."
+  | Yielding_int_like_compare_functions () -> "?"
 
 let infix_binop ppf (b : infix_binop) =
   match b with
@@ -392,22 +389,18 @@ let binop ppf binop a b =
     Format.fprintf ppf "@[<2>%%block_load%a%a@ (%a,@ %a)@]"
       (mutability ~space:Before) mut pp_access_kind access_kind simple a simple
       b
-  | Phys_equal (k, comp) ->
+  | Phys_equal comp ->
     let name = match comp with Eq -> "%phys_eq" | Neq -> "%phys_ne" in
-    Format.fprintf ppf "@[<2>%s%a@ (%a,@ %a)@]" name
-      (pp_option ~space:Before kind)
-      k simple a simple b
+    Format.fprintf ppf "@[<2>%s@ (%a,@ %a)@]" name simple a simple b
   | Infix op -> Format.fprintf ppf "%a %a %a" simple a infix_binop op simple b
   | Int_arith (i, o) ->
     Format.fprintf ppf "@[<2>%%int_arith %a%a@ %a@ %a@]"
       (standard_int ~space:After)
       i simple a binary_int_arith_op o simple b
-  | Int_comp (i, s, c) ->
-    Format.fprintf ppf "@[<2>%%int_comp %a%a%a@ %a@ %a@]"
+  | Int_comp (i, c) ->
+    Format.fprintf ppf "@[<2>%%int_comp %a%a@ %a@ %a@]"
       (standard_int ~space:After)
-      i
-      (signed_or_unsigned ~space:After)
-      s simple a int_comp c simple b
+      i simple a int_comp c simple b
   | Int_shift (i, s) ->
     Format.fprintf ppf "@[<2>%%int_shift %a%a@ %a@ %a@]"
       (standard_int ~space:After)

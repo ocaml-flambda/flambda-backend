@@ -954,7 +954,7 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
     let compare =
       Named.create_prim
         (Binary
-           ( Phys_equal (Flambda_kind.naked_immediate, Eq),
+           ( Int_comp (Naked_immediate, Yielding_bool Eq),
              Simple.var untagged_scrutinee,
              Simple.const (Reg_width_const.naked_immediate case) ))
         condition_dbg

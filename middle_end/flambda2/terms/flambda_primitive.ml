@@ -327,68 +327,47 @@ let string_or_bigstring_index_kind = K.value
 
 let bytes_or_bigstring_index_kind = K.value
 
-type 'op comparison_behaviour =
-  | Yielding_bool of 'op
-  | Yielding_int_like_compare_functions
-
-type comparison =
+type 'signed_or_unsigned comparison =
   | Eq
   | Neq
-  | Lt
-  | Gt
-  | Le
-  | Ge
+  | Lt of 'signed_or_unsigned
+  | Gt of 'signed_or_unsigned
+  | Le of 'signed_or_unsigned
+  | Ge of 'signed_or_unsigned
 
-let print_comparison ppf c =
+type 'signed_or_unsigned comparison_behaviour =
+  | Yielding_bool of 'signed_or_unsigned comparison
+  | Yielding_int_like_compare_functions of 'signed_or_unsigned
+
+let print_comparison print_signed_or_unsigned ppf c =
   let fprintf = Format.fprintf in
   match c with
   | Neq -> fprintf ppf "<>"
   | Eq -> fprintf ppf "="
-  | Lt -> fprintf ppf "<"
-  | Le -> fprintf ppf "<="
-  | Gt -> fprintf ppf ">"
-  | Ge -> fprintf ppf ">="
+  | Lt signed_or_unsigned ->
+    fprintf ppf "<%a" print_signed_or_unsigned signed_or_unsigned
+  | Le signed_or_unsigned ->
+    fprintf ppf "<=%a" print_signed_or_unsigned signed_or_unsigned
+  | Gt signed_or_unsigned ->
+    fprintf ppf ">%a" print_signed_or_unsigned signed_or_unsigned
+  | Ge signed_or_unsigned ->
+    fprintf ppf ">=%a" print_signed_or_unsigned signed_or_unsigned
 
-let print_comparison_and_behaviour ppf behaviour =
+let print_comparison_and_behaviour print_signed_or_unsigned ppf behaviour =
   match behaviour with
-  | Yielding_bool op -> print_comparison ppf op
-  | Yielding_int_like_compare_functions ->
-    Format.pp_print_string ppf "<compare>"
+  | Yielding_bool comparison ->
+    print_comparison print_signed_or_unsigned ppf comparison
+  | Yielding_int_like_compare_functions signed_or_unsigned ->
+    Format.fprintf ppf "<compare%a>" print_signed_or_unsigned signed_or_unsigned
 
 type signed_or_unsigned =
   | Signed
   | Unsigned
 
-type ordered_comparison =
-  | Lt
-  | Gt
-  | Le
-  | Ge
-
-let print_ordered_comparison ppf signedness c =
-  let fprintf = Format.fprintf in
-  match signedness with
-  | Unsigned -> (
-    match c with
-    | Lt -> fprintf ppf "<u"
-    | Le -> fprintf ppf "<=u"
-    | Gt -> fprintf ppf ">u"
-    | Ge -> fprintf ppf ">=u")
-  | Signed -> (
-    match c with
-    | Lt -> fprintf ppf "<"
-    | Le -> fprintf ppf "<="
-    | Gt -> fprintf ppf ">"
-    | Ge -> fprintf ppf ">=")
-
-let print_ordered_comparison_and_behaviour ppf signedness behaviour =
-  match behaviour with
-  | Yielding_bool op -> print_ordered_comparison ppf signedness op
-  | Yielding_int_like_compare_functions ->
-    let signedness =
-      match signedness with Signed -> "signed" | Unsigned -> "unsigned"
-    in
-    Format.fprintf ppf "<ordered-%s-compare>" signedness
+let print_signed_or_unsigned ppf signed_or_unsigned =
+  match signed_or_unsigned with
+  | Signed -> Format.fprintf ppf ""
+  | Unsigned -> Format.fprintf ppf "u"
 
 type equality_comparison =
   | Eq
@@ -1059,15 +1038,13 @@ type binary_primitive =
   | Array_load of Array_kind.t * Mutability.t
   | String_or_bigstring_load of string_like_value * string_accessor_width
   | Bigarray_load of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
-  | Phys_equal of Flambda_kind.t * equality_comparison
+  | Phys_equal of equality_comparison
   | Int_arith of Flambda_kind.Standard_int.t * binary_int_arith_op
   | Int_shift of Flambda_kind.Standard_int.t * int_shift_op
   | Int_comp of
-      Flambda_kind.Standard_int.t
-      * signed_or_unsigned
-      * ordered_comparison comparison_behaviour
+      Flambda_kind.Standard_int.t * signed_or_unsigned comparison_behaviour
   | Float_arith of binary_float_arith_op
-  | Float_comp of comparison comparison_behaviour
+  | Float_comp of unit comparison_behaviour
 
 let binary_primitive_eligible_for_cse p =
   match p with
@@ -1118,23 +1095,16 @@ let compare_binary_primitive p1 p2 =
     else
       let c = Stdlib.compare kind1 kind2 in
       if c <> 0 then c else Stdlib.compare layout1 layout2
-  | Phys_equal (kind1, comp1), Phys_equal (kind2, comp2) ->
-    let c = K.compare kind1 kind2 in
-    if c <> 0 then c else Stdlib.compare comp1 comp2
+  | Phys_equal comp1, Phys_equal comp2 -> Stdlib.compare comp1 comp2
   | Int_arith (kind1, op1), Int_arith (kind2, op2) ->
     let c = K.Standard_int.compare kind1 kind2 in
     if c <> 0 then c else Stdlib.compare op1 op2
   | Int_shift (kind1, op1), Int_shift (kind2, op2) ->
     let c = K.Standard_int.compare kind1 kind2 in
     if c <> 0 then c else Stdlib.compare op1 op2
-  | Int_comp (kind1, signedness1, comp1), Int_comp (kind2, signedness2, comp2)
-    ->
+  | Int_comp (kind1, comp_behaviour1), Int_comp (kind2, comp_behaviour2) ->
     let c = K.Standard_int.compare kind1 kind2 in
-    if c <> 0
-    then c
-    else
-      let c = Stdlib.compare signedness1 signedness2 in
-      if c <> 0 then c else Stdlib.compare comp1 comp2
+    if c <> 0 then c else Stdlib.compare comp_behaviour1 comp_behaviour2
   | Float_arith op1, Float_arith op2 -> Stdlib.compare op1 op2
   | Float_comp comp1, Float_comp comp2 -> Stdlib.compare comp1 comp2
   | ( ( Block_load _ | Array_load _ | String_or_bigstring_load _
@@ -1163,16 +1133,15 @@ let print_binary_primitive ppf p =
     fprintf ppf
       "@[(Bigarray_load (num_dimensions@ %d)@ (kind@ %a)@ (layout@ %a))@]"
       num_dimensions Bigarray_kind.print kind Bigarray_layout.print layout
-  | Phys_equal (kind, op) ->
-    Format.fprintf ppf "@[(Phys_equal %a %a)@]" K.print kind
-      print_equality_comparison op
+  | Phys_equal op ->
+    Format.fprintf ppf "@[(Phys_equal %a)@]" print_equality_comparison op
   | Int_arith (_k, op) -> print_binary_int_arith_op ppf op
   | Int_shift (_k, op) -> print_int_shift_op ppf op
-  | Int_comp (_, signedness, c) ->
-    print_ordered_comparison_and_behaviour ppf signedness c
+  | Int_comp (_, comp_behaviour) ->
+    print_comparison_and_behaviour print_signed_or_unsigned ppf comp_behaviour
   | Float_arith op -> print_binary_float_arith_op ppf op
-  | Float_comp c ->
-    print_comparison_and_behaviour ppf c;
+  | Float_comp comp_behaviour ->
+    print_comparison_and_behaviour (fun _ppf () -> ()) ppf comp_behaviour;
     fprintf ppf "."
 
 let args_kind_of_binary_primitive p =
@@ -1184,12 +1153,12 @@ let args_kind_of_binary_primitive p =
   | String_or_bigstring_load (Bigstring, _) ->
     bigstring_kind, string_or_bigstring_index_kind
   | Bigarray_load (_, _, _) -> bigarray_kind, bigarray_index_kind
-  | Phys_equal (kind, _) -> kind, kind
+  | Phys_equal _ -> K.value, K.value
   | Int_arith (kind, _) ->
     let kind = K.Standard_int.to_kind kind in
     kind, kind
   | Int_shift (kind, _) -> K.Standard_int.to_kind kind, K.naked_immediate
-  | Int_comp (kind, _, _) ->
+  | Int_comp (kind, _) ->
     let kind = K.Standard_int.to_kind kind in
     kind, kind
   | Float_arith _ | Float_comp _ -> K.naked_float, K.naked_float

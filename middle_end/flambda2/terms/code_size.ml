@@ -185,20 +185,6 @@ let bytes_like_set kind width =
   | Bytes -> string_or_bigstring_load Bytes width
   | Bigstring -> string_or_bigstring_load Bigstring width
 
-let binary_phys_comparison kind op =
-  match
-    (kind : Flambda_kind.t), (op : Flambda_primitive.equality_comparison)
-  with
-  (* int64 special case *)
-  | (Naked_number Naked_int64, Eq | Naked_number Naked_int64, Neq) when arch32
-    ->
-    1 (* untag *) + alloc_extcall_size
-    + 2 (* args *)
-    + (2 * box_number Naked_int64)
-  (* generic case *)
-  | _, Eq -> 2
-  | _, Neq -> 2
-
 let divmod_bi_check else_branch_size bi =
   (* CR gbury: we should allow check Arch.division_crashed_on_overflow, but
      that's likely a dependency we want to avoid ? *)
@@ -259,50 +245,52 @@ let binary_int_shift_primitive kind op =
   | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Asr ->
     1
 
-let binary_int_comp_primitive kind signed cmp =
+let binary_int_comp_primitive kind cmp =
   match
     ( (kind : Flambda_kind.Standard_int.t),
-      (signed : Flambda_primitive.signed_or_unsigned),
-      (cmp : Flambda_primitive.ordered_comparison) )
+      (cmp : Flambda_primitive.signed_or_unsigned Flambda_primitive.comparison)
+    )
   with
-  | Naked_int64, Signed, Lt
-  | Naked_int64, Signed, Le
-  | Naked_int64, Signed, Gt
-  | Naked_int64, Signed, Ge
+  | Naked_int64, Neq
+  | Naked_int64, Eq
+  | Naked_int64, Lt Signed
+  | Naked_int64, Le Signed
+  | Naked_int64, Gt Signed
+  | Naked_int64, Ge Signed
     when arch32 ->
     alloc_extcall_size + 2
-  | Naked_int64, Unsigned, (Lt | Le | Gt | Ge) when arch32 ->
+  | ( Naked_int64,
+      (Neq | Eq | Lt Unsigned | Le Unsigned | Gt Unsigned | Ge Unsigned) )
+    when arch32 ->
     alloc_extcall_size + 2
   (* Tagged integers *)
-  | Tagged_immediate, Signed, Lt
-  | Tagged_immediate, Signed, Le
-  | Tagged_immediate, Signed, Gt
-  | Tagged_immediate, Signed, Ge
-  | Tagged_immediate, Unsigned, Lt
-  | Tagged_immediate, Unsigned, Le
-  | Tagged_immediate, Unsigned, Gt
-  | Tagged_immediate, Unsigned, Ge ->
+  | Tagged_immediate, Neq
+  | Tagged_immediate, Eq
+  | Tagged_immediate, Lt Signed
+  | Tagged_immediate, Le Signed
+  | Tagged_immediate, Gt Signed
+  | Tagged_immediate, Ge Signed
+  | Tagged_immediate, Lt Unsigned
+  | Tagged_immediate, Le Unsigned
+  | Tagged_immediate, Gt Unsigned
+  | Tagged_immediate, Ge Unsigned ->
     2
   (* Naked integers. *)
-  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Signed, Lt
-  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Signed, Le
-  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Signed, Gt
-  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Signed, Ge
-  | ( (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate),
-      Unsigned,
-      Lt )
-  | ( (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate),
-      Unsigned,
-      Le )
-  | ( (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate),
-      Unsigned,
-      Gt )
-  | ( (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate),
-      Unsigned,
-      Ge ) ->
+  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Neq
+  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Eq
+  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Lt Signed
+  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Le Signed
+  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Gt Signed
+  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Ge Signed
+  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Lt Unsigned
+  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Le Unsigned
+  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Gt Unsigned
+  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Ge Unsigned
+    ->
     2
 
-let int_comparison_like_compare_functions (kind : Flambda_kind.Standard_int.t) =
+let int_comparison_like_compare_functions (kind : Flambda_kind.Standard_int.t)
+    (_signedness : Flambda_primitive.signed_or_unsigned) =
   match kind with
   | Tagged_immediate | Naked_immediate | Naked_int32 | Naked_int64
   | Naked_nativeint ->
@@ -354,16 +342,15 @@ let binary_prim_size prim =
   | Bigarray_load (_dims, (Complex32 | Complex64), _layout) ->
     5 (* ~ 5 block_loads *) + alloc_size (* complex allocation *)
   | Bigarray_load (_dims, _kind, _layout) -> 2 (* ~ 2 block loads *)
-  | Phys_equal (kind, op) -> binary_phys_comparison kind op
+  | Phys_equal _op -> 2
   | Int_arith (kind, op) -> binary_int_arith_primitive kind op
   | Int_shift (kind, op) -> binary_int_shift_primitive kind op
-  | Int_comp (kind, signed, Yielding_bool cmp) ->
-    binary_int_comp_primitive kind signed cmp
-  | Int_comp (kind, _, Yielding_int_like_compare_functions) ->
-    int_comparison_like_compare_functions kind
+  | Int_comp (kind, Yielding_bool cmp) -> binary_int_comp_primitive kind cmp
+  | Int_comp (kind, Yielding_int_like_compare_functions signedness) ->
+    int_comparison_like_compare_functions kind signedness
   | Float_arith op -> binary_float_arith_primitive op
   | Float_comp (Yielding_bool cmp) -> binary_float_comp_primitive cmp
-  | Float_comp Yielding_int_like_compare_functions -> 8
+  | Float_comp (Yielding_int_like_compare_functions ()) -> 8
 
 let ternary_prim_size prim =
   match (prim : Flambda_primitive.ternary_primitive) with

@@ -194,19 +194,14 @@ type init_or_assign = Flambda_primitive.Init_or_assign.t =
   | Initialization
   | Assignment of Alloc_mode.t
 
-type comparison = Flambda_primitive.comparison =
+type 'signed_or_unsigned comparison =
+      'signed_or_unsigned Flambda_primitive.comparison =
   | Eq
   | Neq
-  | Lt
-  | Gt
-  | Le
-  | Ge
-
-type ordered_comparison = Flambda_primitive.ordered_comparison =
-  | Lt
-  | Gt
-  | Le
-  | Ge
+  | Lt of 'signed_or_unsigned
+  | Gt of 'signed_or_unsigned
+  | Le of 'signed_or_unsigned
+  | Ge of 'signed_or_unsigned
 
 type equality_comparison = Flambda_primitive.equality_comparison =
   | Eq
@@ -239,9 +234,10 @@ type unop =
   | Untag_immediate
   | Tag_immediate
 
-type 'a comparison_behaviour = 'a Flambda_primitive.comparison_behaviour =
-  | Yielding_bool of 'a
-  | Yielding_int_like_compare_functions
+type 'signed_or_unsigned comparison_behaviour =
+      'signed_or_unsigned Flambda_primitive.comparison_behaviour =
+  | Yielding_bool of 'signed_or_unsigned comparison
+  | Yielding_int_like_compare_functions of 'signed_or_unsigned
 
 type binary_int_arith_op = Flambda_primitive.binary_int_arith_op =
   | Add
@@ -267,19 +263,16 @@ type binary_float_arith_op = Flambda_primitive.binary_float_arith_op =
 type infix_binop =
   | Int_arith of binary_int_arith_op (* on tagged immediates *)
   | Int_shift of int_shift_op (* on tagged immediates *)
-  | Int_comp of ordered_comparison comparison_behaviour (* on tagged imms *)
+  | Int_comp of signed_or_unsigned comparison_behaviour (* on tagged imms *)
   | Float_arith of binary_float_arith_op
-  | Float_comp of comparison comparison_behaviour
+  | Float_comp of unit comparison_behaviour
 
 type binop =
   | Array_load of array_kind * mutability
   | Block_load of block_access_kind * mutability
-  | Phys_equal of Flambda_kind.t option * equality_comparison
+  | Phys_equal of equality_comparison
   | Int_arith of standard_int * binary_int_arith_op
-  | Int_comp of
-      standard_int
-      * signed_or_unsigned
-      * ordered_comparison comparison_behaviour
+  | Int_comp of standard_int * signed_or_unsigned comparison_behaviour
   | Int_shift of standard_int * int_shift_op
   | Infix of infix_binop
 
