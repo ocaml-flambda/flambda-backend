@@ -26,6 +26,25 @@ module C = struct
   include To_cmm_shared
 end
 
+let sign_extend_63 dbg e =
+  let open Cmm in
+  Cop
+    ( Casr,
+      [Cop (Clsl, [e; Cconst_int (1, dbg)], dbg); Cconst_int (1, dbg)],
+      dbg )
+
+let zero_extend_63 dbg e =
+  let open Cmm in
+  Cop (Cand, [e; C.natint_const_untagged dbg 0xFFFFFFFFn(*XXX*)], dbg)
+
+let[@ocaml.warning "-4"] rec low_63 dbg e =
+  let open Cmm in
+  match e with
+  | Cop (Casr, [Cop (Clsl, [x; Cconst_int (1, _)], _); Cconst_int (1, _)], _) ->
+    low_63 dbg x
+  | Clet (id, x, body) -> Clet (id, x, low_63 dbg body)
+  | _ -> e
+
 (* Closure offsets *)
 
 let function_slot_offset env function_slot =
@@ -245,9 +264,13 @@ let unary_int_arith_primitive _env dbg kind op arg =
     C.bswap16 arg dbg
   (* Special case for manipulating int64 on 32-bit hosts *)
   | Naked_int64, Neg when Target_system.is_32_bit -> C.unsupported_32_bit ()
+  (* Negation needs a sign-extension for 32-bit and 63-bit values *)
+  | Naked_immediate, Neg ->
+    sign_extend_63 dbg (C.sub_int (C.int ~dbg 0) arg dbg)
+  | Naked_int32, Neg ->
+    C.sign_extend_32 dbg (C.sub_int (C.int ~dbg 0) arg dbg)
   (* General case *)
-  | (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint), Neg ->
-    (* XXX is this correct for Naked_immediate? *)
+  | (Naked_int64 | Naked_nativeint), Neg ->
     C.sub_int (C.int ~dbg 0) arg dbg
   (* Byte swaps of 32-bit integers on 64-bit targets need a sign-extension *)
   | Naked_int32, Swap_byte_endianness when Target_system.is_64_bit ->
@@ -377,14 +400,26 @@ let binary_int_arith_primitive0 _env dbg (kind : K.Standard_int.t)
          didn't get merged.) *)
       C.sign_extend_32 dbg (C.safe_div_bi Unsafe x y Pint32 dbg)
     | Mod -> C.sign_extend_32 dbg (C.safe_mod_bi Unsafe x y Pint32 dbg))
-  | Naked_int64 | Naked_nativeint | Naked_immediate -> (
+  | Naked_immediate -> (
+    let sign_extend_63_can_delay_overflow f =
+      sign_extend_63 dbg (f (low_63 dbg x) (low_63 dbg y) dbg)
+    in
+    match op with
+    | Add -> sign_extend_63_can_delay_overflow C.add_int
+    | Sub -> sign_extend_63_can_delay_overflow C.sub_int
+    | Mul -> sign_extend_63_can_delay_overflow C.mul_int
+    | Xor -> sign_extend_63_can_delay_overflow C.xor_int
+    | And -> sign_extend_63_can_delay_overflow C.and_int
+    | Or -> sign_extend_63_can_delay_overflow C.or_int
+    | Div -> sign_extend_63 dbg (C.safe_div_bi Unsafe x y Pint64 dbg)
+    | Mod -> sign_extend_63 dbg (C.safe_mod_bi Unsafe x y Pint64 dbg))
+  | Naked_int64 | Naked_nativeint  -> (
     (* Machine-width integers, no sign extension required. *)
     let bi : Primitive.boxed_integer =
       match kind with
       | Naked_int64 -> Pint64
       | Naked_nativeint -> Pnativeint
-      | Naked_immediate -> Misc.fatal_error "TBD"
-      | Naked_int32 | Tagged_immediate -> assert false
+      | Naked_int32 | Naked_immediate | Tagged_immediate -> assert false
     in
     (* XXX this is wrong for Naked_immediate ("TBD" case also needs fixing
        above) *)
@@ -430,21 +465,20 @@ let binary_int_shift_primitive _env dbg kind op x y =
      and use of [C.low_32]. *)
   | Naked_int32, Lsl -> C.sign_extend_32 dbg (C.lsl_int (C.low_32 dbg x) y dbg)
   | Naked_int32, Lsr ->
-    let arg =
-      if Target_system.is_64_bit
-      then
-        (* Ensure that the top half of the register is cleared, as some of those
-           bits are likely to get shifted into the result. *)
-        C.zero_extend_32 dbg x
-      else x
-    in
+    let arg = C.zero_extend_32 dbg x in
     C.sign_extend_32 dbg (C.lsr_int arg y dbg)
   | Naked_int32, Asr -> C.sign_extend_32 dbg (C.asr_int x y dbg)
+  | Naked_immediate, Lsl ->
+    sign_extend_63 dbg (C.lsl_int (low_63 dbg x) y dbg)
+  | Naked_immediate, Lsr ->
+    let arg = zero_extend_63 dbg x in
+    sign_extend_63 dbg (C.lsr_int arg y dbg)
+  | Naked_immediate, Asr ->
+    sign_extend_63 dbg (C.asr_int x y dbg)
   (* Naked ints *)
-  (* XXX wrong for Naked_immediate *)
-  | (Naked_int64 | Naked_nativeint | Naked_immediate), Lsl -> C.lsl_int x y dbg
-  | (Naked_int64 | Naked_nativeint | Naked_immediate), Lsr -> C.lsr_int x y dbg
-  | (Naked_int64 | Naked_nativeint | Naked_immediate), Asr -> C.asr_int x y dbg
+  | (Naked_int64 | Naked_nativeint), Lsl -> C.lsl_int x y dbg
+  | (Naked_int64 | Naked_nativeint), Lsr -> C.lsr_int x y dbg
+  | (Naked_int64 | Naked_nativeint), Asr -> C.asr_int x y dbg
 
 let binary_int_comp_primitive0 _env dbg (kind : K.Standard_int.t)
     (signed : P.signed_or_unsigned) (cmp : P.ordered_comparison) x y =
