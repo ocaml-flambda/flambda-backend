@@ -16,7 +16,7 @@
 
 open! Simplify_import
 
-let simplify_make_block ~field_kind tag ~shape
+let simplify_make_block ~original_prim ~field_kind tag ~shape
     ~(mutable_or_immutable : Mutability.t) alloc_mode dacc ~original_term _dbg
     ~args_with_tys ~result_var =
   let args, _arg_tys = List.split args_with_tys in
@@ -71,17 +71,25 @@ let simplify_make_block ~field_kind tag ~shape
       | Mutable -> T.mutable_block alloc_mode
     in
     let dacc = DA.add_variable dacc result_var ty in
-    (* CR mshinwell: here and in the next function, should we be adding CSE
-       equations, like we do for unboxing boxed numbers? (see
-       Simplify_unary_primitive) *)
+    let dacc =
+      match mutable_or_immutable with
+      | Immutable_unique | Mutable -> dacc
+      | Immutable -> (
+        match P.Eligible_for_cse.create original_prim with
+        | None -> dacc
+        | Some prim ->
+          DA.map_denv dacc ~f:(fun denv ->
+              DE.add_cse denv prim
+                ~bound_to:(Simple.var (Bound_var.var result_var))))
+    in
     SPR.create original_term ~try_reify:true dacc
 
-let simplify_make_block_of_floats ~mutable_or_immutable alloc_mode dacc
-    ~original_term dbg ~args_with_tys ~result_var =
+let simplify_make_block_of_floats ~original_prim ~mutable_or_immutable
+    alloc_mode dacc ~original_term dbg ~args_with_tys ~result_var =
   let shape = List.map (fun _ -> K.With_subkind.naked_float) args_with_tys in
-  simplify_make_block ~field_kind:K.naked_float Tag.double_array_tag ~shape
-    ~mutable_or_immutable alloc_mode dacc ~original_term dbg ~args_with_tys
-    ~result_var
+  simplify_make_block ~original_prim ~field_kind:K.naked_float
+    Tag.double_array_tag ~shape ~mutable_or_immutable alloc_mode dacc
+    ~original_term dbg ~args_with_tys ~result_var
 
 let simplify_make_array (array_kind : P.Array_kind.t) ~mutable_or_immutable
     alloc_mode dacc ~original_term:_ dbg ~args_with_tys ~result_var =
@@ -134,10 +142,11 @@ let simplify_variadic_primitive dacc original_prim (prim : P.variadic_primitive)
     match prim with
     | Make_block (Values (tag, shape), mutable_or_immutable, alloc_mode) ->
       let tag = Tag.Scannable.to_tag tag in
-      simplify_make_block ~field_kind:K.value tag ~shape ~mutable_or_immutable
-        alloc_mode
+      simplify_make_block ~original_prim ~field_kind:K.value tag ~shape
+        ~mutable_or_immutable alloc_mode
     | Make_block (Naked_floats, mutable_or_immutable, alloc_mode) ->
-      simplify_make_block_of_floats ~mutable_or_immutable alloc_mode
+      simplify_make_block_of_floats ~original_prim ~mutable_or_immutable
+        alloc_mode
     | Make_array (array_kind, mutable_or_immutable, alloc_mode) ->
       simplify_make_array array_kind ~mutable_or_immutable alloc_mode
   in
