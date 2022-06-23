@@ -837,6 +837,39 @@ module Int_ops_for_binary_eq_comp_tagged_immediate =
 module Binary_int_eq_comp_tagged_immediate =
   Binary_arith_like (Int_ops_for_binary_eq_comp_tagged_immediate)
 
+let simplify_phys_equal (op : P.equality_comparison) dacc ~original_term dbg
+    ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var =
+  (* This primitive is only used for arguments of kind [Value]. *)
+  if Simple.equal arg1 arg2
+  then
+    let const bool =
+      let dacc =
+        DA.add_variable dacc result_var
+          (T.this_naked_immediate (Targetint_31_63.bool bool))
+      in
+      SPR.create
+        (Named.create_simple (Simple.const_bool bool))
+        ~try_reify:false dacc
+    in
+    match op with Eq -> const true | Neq -> const false
+  else
+    let typing_env = DA.typing_env dacc in
+    let proof1 = T.prove_equals_tagged_immediates typing_env arg1_ty in
+    let proof2 = T.prove_equals_tagged_immediates typing_env arg2_ty in
+    match proof1, proof2 with
+    | Proved _, Proved _ ->
+      Binary_int_eq_comp_tagged_immediate.simplify op dacc ~original_term dbg
+        ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var
+    | Proved _, (Unknown | Invalid)
+    | (Unknown | Invalid), Proved _
+    | Unknown, (Unknown | Invalid)
+    | Invalid, (Unknown | Invalid) ->
+      let dacc =
+        DA.add_variable dacc result_var
+          (T.these_naked_immediates Targetint_31_63.all_bools)
+      in
+      SPR.create original_term ~try_reify:false dacc
+
 let[@inline always] simplify_immutable_block_load0
     (access_kind : P.Block_access_kind.t) ~min_name_mode dacc ~original_term
     _dbg ~arg1:_ ~arg1_ty:block_ty ~arg2:_ ~arg2_ty:index_ty ~result_var =
@@ -889,40 +922,6 @@ let[@inline always] simplify_immutable_block_load0
           (T.immutable_block_with_size_at_least ~tag ~n ~field_kind:result_kind
              ~field_n_minus_one:result_var')
         ~result_var ~result_kind)
-
-let simplify_phys_equal (op : P.equality_comparison) dacc ~original_term dbg
-    ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var =
-  (* This primitive is only used for arguments of kind [Value]. *)
-  if Simple.equal arg1 arg2
-  then
-    let const bool =
-      let dacc =
-        DA.add_variable dacc result_var
-          (T.this_naked_immediate (Targetint_31_63.bool bool))
-      in
-      SPR.create
-        (Named.create_simple (Simple.const_bool bool))
-        ~try_reify:false dacc
-    in
-    match op with Eq -> const true | Neq -> const false
-  else
-    let typing_env = DA.typing_env dacc in
-    let proof1 = T.prove_equals_tagged_immediates typing_env arg1_ty in
-    let proof2 = T.prove_equals_tagged_immediates typing_env arg2_ty in
-    match proof1, proof2 with
-    | Proved _, Proved _ ->
-      Binary_int_eq_comp_tagged_immediate.simplify op dacc ~original_term dbg
-        ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var
-    | Proved _, (Unknown | Invalid)
-    | (Unknown | Invalid), Proved _
-    | Unknown, (Unknown | Invalid)
-    | Invalid, (Unknown | Invalid) ->
-      let dacc =
-        DA.add_variable dacc result_var
-          (T.these_naked_immediates Targetint_31_63.all_bools)
-      in
-      SPR.create original_term ~try_reify:false dacc
-  [@@ocaml.warning "-fragile-match"]
 
 let simplify_immutable_block_load access_kind ~min_name_mode dacc ~original_term
     dbg ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var =
