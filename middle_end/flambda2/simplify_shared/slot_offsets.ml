@@ -22,7 +22,7 @@ module EO = Exported_offsets
 
 type result =
   { exported_offsets : EO.t;
-    used_value_slots : Value_slot.Set.t Or_unknown.t
+    used_value_slots : Value_slot.Set.t
   }
 
 type used_slots =
@@ -36,11 +36,6 @@ let[@inline] value_slot_is_used ~used_value_slots v =
   if Compilation_unit.is_current (Value_slot.get_compilation_unit v)
   then Value_slot.Set.mem v used_value_slots
   else true
-
-let keep_value_slot ~used_value_slots v =
-  match (used_value_slots : _ Or_unknown.t) with
-  | Unknown -> true
-  | Known used_value_slots -> value_slot_is_used ~used_value_slots v
 
 (* Compute offsets ("indexes") for slots within a block having tag Closure_tag.
 
@@ -248,7 +243,7 @@ module Greedy : sig
     Set_of_closures.t ->
     state
 
-  val finalize : used_slots:used_slots Or_unknown.t -> state -> result
+  val finalize : used_slots:used_slots -> state -> result
 end = struct
   (** Greedy algorithm for assigning offsets ("indexes") to slots.
 
@@ -616,7 +611,7 @@ end = struct
       | [] -> acc
       | ({ desc = Value_slot v; _ } as slot) :: r ->
         set.unallocated_value_slots <- r;
-        if keep_value_slot ~used_value_slots v
+        if value_slot_is_used ~used_value_slots v
         then (
           has_work_been_done := true;
           f_kept acc slot)
@@ -751,65 +746,60 @@ end = struct
   (* Ensure function slots/value slots that are used in projections in the
      current compilation unit are present in the offsets returned by finalize *)
   let imported_and_used_offsets ~used_slots state =
-    match (used_slots : _ Or_unknown.t) with
-    | Known
-        { function_slots_in_normal_projections;
+    let { function_slots_in_normal_projections;
           all_function_slots;
           value_slots_in_normal_projections;
           all_value_slots
-        } ->
-      state.used_offsets
-      |> EO.reexport_function_slots function_slots_in_normal_projections
-      |> EO.reexport_function_slots all_function_slots
-      |> EO.reexport_value_slots value_slots_in_normal_projections
-      |> EO.reexport_value_slots all_value_slots
-    | Unknown -> EO.imported_offsets ()
+        } =
+      used_slots
+    in
+    state.used_offsets
+    |> EO.reexport_function_slots function_slots_in_normal_projections
+    |> EO.reexport_function_slots all_function_slots
+    |> EO.reexport_value_slots value_slots_in_normal_projections
+    |> EO.reexport_value_slots all_value_slots
 
   (* We only want to keep value slots that appear in the creation of a set of
      closures, *and* appear as projection (at normal name mode). And we need to
      mark value_slots/ids that are not live, as dead in the exported_offsets, so
      that later compilation unit do not mistake that for a missing offset info
      on a value_slot/id. *)
-  let live_value_slots state offsets used_slots =
-    match (used_slots : used_slots Or_unknown.t) with
-    | Unknown -> Or_unknown.Unknown, offsets
-    | Known
-        { value_slots_in_normal_projections;
-          function_slots_in_normal_projections;
-          _
-        } ->
-      let offsets =
-        Function_slot.Set.fold
-          (fun function_slot acc ->
-            if Compilation_unit.is_current
-                 (Function_slot.get_compilation_unit function_slot)
-            then
-              match find_function_slot state function_slot with
-              | Some _ -> acc
-              | None ->
-                EO.add_function_slot_offset acc function_slot Dead_function_slot
-            else acc)
-          function_slots_in_normal_projections offsets
-      in
-      let offsets = ref offsets in
-      let used_value_slots =
-        Value_slot.Set.filter
-          (fun value_slot ->
-            if Compilation_unit.is_current
-                 (Value_slot.get_compilation_unit value_slot)
-            then (
-              (* a value slot appears in a set of closures iff it has a slot *)
-              match find_value_slot state value_slot with
-              | Some _ -> true
-              | None ->
-                offsets
-                  := EO.add_value_slot_offset !offsets value_slot
-                       Dead_value_slot;
-                false)
-            else true)
-          value_slots_in_normal_projections
-      in
-      Or_unknown.Known used_value_slots, !offsets
+  let live_value_slots state offsets
+      { value_slots_in_normal_projections;
+        function_slots_in_normal_projections;
+        _
+      } =
+    let offsets =
+      Function_slot.Set.fold
+        (fun function_slot acc ->
+          if Compilation_unit.is_current
+               (Function_slot.get_compilation_unit function_slot)
+          then
+            match find_function_slot state function_slot with
+            | Some _ -> acc
+            | None ->
+              EO.add_function_slot_offset acc function_slot Dead_function_slot
+          else acc)
+        function_slots_in_normal_projections offsets
+    in
+    let offsets = ref offsets in
+    let used_value_slots =
+      Value_slot.Set.filter
+        (fun value_slot ->
+          if Compilation_unit.is_current
+               (Value_slot.get_compilation_unit value_slot)
+          then (
+            (* a value slot appears in a set of closures iff it has a slot *)
+            match find_value_slot state value_slot with
+            | Some _ -> true
+            | None ->
+              offsets
+                := EO.add_value_slot_offset !offsets value_slot Dead_value_slot;
+              false)
+          else true)
+        value_slots_in_normal_projections
+    in
+    used_value_slots, !offsets
 
   (* Transform an internal accumulator state for slots into an actual mapping
      that assigns offsets. *)

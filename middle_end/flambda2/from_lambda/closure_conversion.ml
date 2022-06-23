@@ -2013,24 +2013,17 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
   let Slot_offsets.{ used_value_slots; exported_offsets } =
     let used_slots =
       let free_names = Acc.free_names acc in
-      Or_unknown.Known
-        Slot_offsets.
-          { function_slots_in_normal_projections =
-              Name_occurrences.function_slots_in_normal_projections free_names;
-            all_function_slots = Name_occurrences.all_function_slots free_names;
-            value_slots_in_normal_projections =
-              Name_occurrences.value_slots_in_normal_projections free_names;
-            all_value_slots = Name_occurrences.all_value_slots free_names
-          }
+      Slot_offsets.
+        { function_slots_in_normal_projections =
+            Name_occurrences.function_slots_in_normal_projections free_names;
+          all_function_slots = Name_occurrences.all_function_slots free_names;
+          value_slots_in_normal_projections =
+            Name_occurrences.value_slots_in_normal_projections free_names;
+          all_value_slots = Name_occurrences.all_value_slots free_names
+        }
     in
     Slot_offsets.finalize_offsets (Acc.slot_offsets acc) ~get_code_metadata
       ~used_slots
-  in
-  let used_value_slots =
-    match used_value_slots with
-    | Known used_value_slots -> used_value_slots
-    | Unknown ->
-      Misc.fatal_error "Closure_conversion needs to know its used value slots."
   in
   let cmx =
     Flambda_cmx.prepare_cmx_from_approx ~approxs:symbols_approximations

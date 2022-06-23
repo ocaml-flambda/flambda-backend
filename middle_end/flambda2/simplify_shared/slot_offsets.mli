@@ -43,10 +43,9 @@ type result =
             Some slots can be marked as dead, because they are unused but
             simplify could not remove them. For instance, this occurs for unused
             value slots of non-liftable functions (.e.g in functors). *)
-    used_value_slots : Value_slot.Set.t Or_unknown.t
-        (** If known, this is the set of values slots that appears after
-            simplify, minus the slots that are marked as dead in
-            [exported_offsets]. *)
+    used_value_slots : Value_slot.Set.t
+        (** This is the set of values slots that appears after simplify, minus
+            the slots that are marked as dead in [exported_offsets]. *)
   }
 
 (** Printing function. *)
@@ -67,7 +66,7 @@ val add_offsets_from_function : t -> from_function:t -> t
     for more details). *)
 val finalize_offsets :
   get_code_metadata:(Code_id.t -> Code_metadata.t) ->
-  used_slots:used_slots Or_unknown.t ->
+  used_slots:used_slots ->
   t ->
   result
 
