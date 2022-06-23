@@ -28,7 +28,7 @@ let simplify_make_block ~field_kind tag ~shape
   let result =
     let typing_env = DA.typing_env dacc in
     List.fold_left2
-      (fun (env_extension : _ Or_bottom.t) arg arg_kind : _ Or_bottom.t ->
+      (fun env_extension arg arg_kind : _ Or_bottom.t ->
         let open Or_bottom.Let_syntax in
         let<* env_extension = env_extension in
         Simple.pattern_match' arg
@@ -99,25 +99,20 @@ let simplify_make_array (array_kind : P.Array_kind.t) ~mutable_or_immutable
   in
   let initial_element_type = T.unknown_with_subkind element_kind in
   let typing_env = DA.typing_env dacc in
-  let found_bottom = ref false in
   let env_extension =
     List.fold_left
-      (fun resulting_env_extension element_type ->
-        match T.meet typing_env initial_element_type element_type with
-        | Bottom ->
-          found_bottom := true;
-          resulting_env_extension
-        | Ok (_, env_extension) -> (
-          match TEE.meet typing_env resulting_env_extension env_extension with
-          | Bottom ->
-            found_bottom := true;
-            resulting_env_extension
-          | Ok env_extension -> env_extension))
-      TEE.empty tys
+      (fun env_extension element_type ->
+        let open Or_bottom.Let_syntax in
+        let<* env_extension = env_extension in
+        let<* _, env_extension' =
+          T.meet typing_env initial_element_type element_type
+        in
+        TEE.meet typing_env env_extension env_extension')
+      (Or_bottom.Ok TEE.empty) tys
   in
-  if !found_bottom
-  then Simplify_primitive_result.create_invalid dacc
-  else
+  match env_extension with
+  | Bottom -> SPR.create_invalid dacc
+  | Ok env_extension ->
     let ty = T.array_of_length ~element_kind:(Known element_kind) ~length in
     let named =
       Named.create_prim
@@ -130,7 +125,7 @@ let simplify_make_array (array_kind : P.Array_kind.t) ~mutable_or_immutable
           DE.add_variable_and_extend_typing_environment denv result_var ty
             env_extension)
     in
-    Simplify_primitive_result.create named ~try_reify:true dacc
+    SPR.create named ~try_reify:true dacc
 
 let simplify_variadic_primitive dacc original_prim (prim : P.variadic_primitive)
     ~args_with_tys dbg ~result_var =
