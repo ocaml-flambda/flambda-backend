@@ -17,7 +17,7 @@
 open! Simplify_import
 
 let simplify_make_block_of_values tag ~shape
-    ~(mutable_or_immutable : Mutability.t) alloc_mode dacc ~original_term dbg
+    ~(mutable_or_immutable : Mutability.t) alloc_mode dacc ~original_term _dbg
     ~args_with_tys ~result_var =
   let args, _arg_tys = List.split args_with_tys in
   if List.compare_lengths shape args <> 0
@@ -25,39 +25,58 @@ let simplify_make_block_of_values tag ~shape
     Misc.fatal_errorf
       "Shape in [Make_block] of different length from argument list:@ %a"
       Named.print original_term;
-  let fields =
-    List.map2
-      (fun ((arg : Simple.t), arg_ty) _block_of_values_kind ->
-        (* CR mshinwell: There should be a meet against a skeleton type computed
-           from [block_of_values_kind]. *)
-        Simple.pattern_match arg
-          ~const:(fun _ -> arg_ty)
-          ~name:(fun _ ~coercion:_ -> T.alias_type_of K.value arg))
-      args_with_tys shape
+  let result =
+    let typing_env = DA.typing_env dacc in
+    List.fold_left2
+      (fun (env_extension : _ Or_bottom.t) arg arg_kind : _ Or_bottom.t ->
+        let open Or_bottom.Let_syntax in
+        let<* env_extension = env_extension in
+        Simple.pattern_match' arg
+          ~var:(fun _ ~coercion:_ : _ Or_bottom.t ->
+            let<* _ty, env_extension' =
+              T.meet typing_env
+                (T.alias_type_of (K.With_subkind.kind arg_kind) arg)
+                (T.unknown_with_subkind arg_kind)
+            in
+            let<+ env_extension =
+              T.Typing_env_extension.meet typing_env env_extension
+                env_extension'
+            in
+            env_extension)
+          ~const:(fun _ : _ Or_bottom.t -> Ok env_extension)
+          ~symbol:(fun _ ~coercion:_ : _ Or_bottom.t -> Ok env_extension))
+      (Or_bottom.Ok TEE.empty) args shape
   in
-  let term : Named.t =
-    Named.create_prim
-      (Variadic
-         ( Make_block (Values (tag, shape), mutable_or_immutable, alloc_mode),
-           args ))
-      dbg
-  in
-  let ty =
-    let tag = Tag.Scannable.to_tag tag in
-    let field_kind = K.value in
-    let alloc_mode = Or_unknown.Known alloc_mode in
-    match mutable_or_immutable with
-    | Immutable ->
-      T.immutable_block ~is_unique:false tag ~field_kind alloc_mode ~fields
-    | Immutable_unique ->
-      T.immutable_block ~is_unique:true tag ~field_kind alloc_mode ~fields
-    | Mutable -> T.mutable_block alloc_mode
-  in
-  let dacc = DA.add_variable dacc result_var ty in
-  (* CR mshinwell: here and in the next function, should we be adding CSE
-     equations, like we do for unboxing boxed numbers? (see
-     Simplify_unary_primitive) *)
-  Simplify_primitive_result.create term ~try_reify:true dacc
+  match result with
+  | Bottom -> SPR.create_invalid dacc
+  | Ok env_extension ->
+    let dacc =
+      DA.map_denv dacc ~f:(fun denv ->
+          DE.map_typing_env denv ~f:(fun typing_env ->
+              TE.add_env_extension typing_env env_extension))
+    in
+    let ty =
+      let fields =
+        List.map2
+          (fun arg kind_with_subkind ->
+            T.alias_type_of (K.With_subkind.kind kind_with_subkind) arg)
+          args shape
+      in
+      let tag = Tag.Scannable.to_tag tag in
+      let field_kind = K.value in
+      let alloc_mode = Or_unknown.Known alloc_mode in
+      match mutable_or_immutable with
+      | Immutable ->
+        T.immutable_block ~is_unique:false tag ~field_kind alloc_mode ~fields
+      | Immutable_unique ->
+        T.immutable_block ~is_unique:true tag ~field_kind alloc_mode ~fields
+      | Mutable -> T.mutable_block alloc_mode
+    in
+    let dacc = DA.add_variable dacc result_var ty in
+    (* CR mshinwell: here and in the next function, should we be adding CSE
+       equations, like we do for unboxing boxed numbers? (see
+       Simplify_unary_primitive) *)
+    SPR.create original_term ~try_reify:true dacc
 
 let simplify_make_block_of_floats ~(mutable_or_immutable : Mutability.t)
     alloc_mode dacc ~original_term:_ dbg ~args_with_tys ~result_var =
