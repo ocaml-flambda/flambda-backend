@@ -14,7 +14,7 @@ let option t ppf o =
   Format.pp_print_option ~none:(fun ppf () -> str ppf "<none>") t ppf o
 
 let [@ocamlformat "disable"] list t ppf l =
-  let pp_sep ppf () = Format.fprintf ppf "@,, " in
+  let pp_sep ppf () = Format.fprintf ppf "@,; " in
   Format.fprintf ppf "@[<hov>[ %a ]@]"
     (Format.pp_print_list ~pp_sep t) l
 
