@@ -939,7 +939,10 @@ let simplify_phys_equal (op : P.equality_comparison) dacc ~original_term dbg
     | Proved _, Proved _ ->
       Binary_int_eq_comp_tagged_immediate.simplify op dacc ~original_term dbg
         ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var
-    | _, _ ->
+    | Proved _, (Unknown | Invalid)
+    | (Unknown | Invalid), Proved _
+    | Unknown, (Unknown | Invalid)
+    | Invalid, (Unknown | Invalid) ->
       let dacc =
         DA.add_variable dacc result_var
           (T.these_naked_immediates Targetint_31_63.all_bools)
