@@ -354,10 +354,9 @@ end = struct
 
   (* Join two subtrees whose prefixes are disjoint (neither includes the other)
      but otherwise arbitrary. Assumes that [t0] has prefix [prefix0] and [t1]
-     has prefix [prefix1]. *)
-  (* CR lmaurer: Actually, I'm not quite sure what the constraints are, since in
-     general [t0] won't have _all_ of [prefix0] as its prefix. What about the
-     places where this is called makes this okay? *)
+     has prefix [prefix1]. (Most functions that take a prefix also take a bit
+     representing the length of the prefix, but in this case, the lengths don't
+     matter: the prefixes must differ at some shorter length anyway.) *)
   let join prefix0 t0 prefix1 t1 =
     let bit = branching_bit prefix0 prefix1 in
     if zero_bit prefix0 bit
