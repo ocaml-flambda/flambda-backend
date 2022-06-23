@@ -122,6 +122,7 @@ and row_like_for_closures =
   }
 
 and closures_entry =
+  (* CR: Forbid the Bottom case in function types (propagate to the whole environment *)
   { function_types : function_type Or_unknown_or_bottom.t Function_slot.Map.t;
     closure_types : function_slot_indexed_product;
     value_slot_types : value_slot_indexed_product

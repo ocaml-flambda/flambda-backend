@@ -101,20 +101,6 @@ val prove_is_a_boxed_nativeint :
 val prove_is_or_is_not_a_boxed_float :
   Typing_env.t -> Type_grammar.t -> bool proof_of_property
 
-val meet_boxed_floats :
-  Typing_env.t ->
-  Type_grammar.t ->
-  Numeric_types.Float_by_bit_pattern.Set.t meet_shortcut
-
-val meet_boxed_int32s :
-  Typing_env.t -> Type_grammar.t -> Numeric_types.Int32.Set.t meet_shortcut
-
-val meet_boxed_int64s :
-  Typing_env.t -> Type_grammar.t -> Numeric_types.Int64.Set.t meet_shortcut
-
-val meet_boxed_nativeints :
-  Typing_env.t -> Type_grammar.t -> Targetint_32_64.Set.t meet_shortcut
-
 val prove_unique_tag_and_size :
   Typing_env.t ->
   Type_grammar.t ->
@@ -129,6 +115,9 @@ type array_kind_compatibility =
   | Exact
   | Compatible
   | Incompatible
+
+val prove_is_flat_float_array : Typing_env.t -> Type_grammar.t ->
+  bool proof_of_property
 
 val meet_is_array_with_element_kind :
   Typing_env.t ->

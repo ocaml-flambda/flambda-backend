@@ -118,11 +118,6 @@ module type Boxable = sig
 
   val boxable_number_kind : Flambda_kind.Boxable_number.t
 
-  val boxed_prover :
-    Flambda2_types.Typing_env.t ->
-    Flambda2_types.t ->
-    Num.Set.t Flambda2_types.meet_shortcut
-
   val this_boxed : Num.t -> Alloc_mode.t Or_unknown.t -> Flambda2_types.t
 
   val these_boxed : Num.Set.t -> Alloc_mode.t Or_unknown.t -> Flambda2_types.t
