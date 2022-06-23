@@ -45,15 +45,12 @@ let match_prefix i prefix bit = mask i bit = prefix
 
 let equal_prefix prefix0 bit0 prefix1 bit1 = bit0 = bit1 && prefix0 = prefix1
 
-(* Assumes [bit0 != bit1] *)
 let lower bit0 bit1 =
   (* Need to do _unsigned_ int comparison *)
   match bit0 < 0, bit1 < 0 with
   | false, false -> bit0 < bit1
-  | true, false ->
-    false (* the only bit < 0 is 0x4000..., which is the longest *)
+  | true, _ -> false (* the only bit < 0 is 0x4000..., which is the longest *)
   | false, true -> true
-  | true, true -> assert false
 
 (* Is [prefix0] (up to [bit0]) a sub-prefix of [prefix1] (up to [bit1])? *)
 let includes_prefix prefix0 bit0 prefix1 bit1 =
