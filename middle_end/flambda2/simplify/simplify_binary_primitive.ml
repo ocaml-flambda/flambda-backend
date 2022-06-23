@@ -890,32 +890,6 @@ let[@inline always] simplify_immutable_block_load0
              ~field_n_minus_one:result_var')
         ~result_var ~result_kind)
 
-let simplify_immutable_block_load access_kind ~min_name_mode dacc ~original_term
-    dbg ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var =
-  let result =
-    simplify_immutable_block_load0 access_kind ~min_name_mode dacc
-      ~original_term dbg ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var
-  in
-  let dacc' =
-    (* The [args] being queried here are the post-simplification arguments of
-       the primitive, so we can directly read off whether they are symbols or
-       constants, as needed. *)
-    Simple.pattern_match arg2
-      ~const:(fun const ->
-        match Reg_width_const.descr const with
-        | Tagged_immediate imm ->
-          let index = Targetint_31_63.to_targetint imm in
-          Simplify_common.add_symbol_projection result.dacc ~projected_from:arg1
-            (Symbol_projection.Projection.block_load ~index)
-            ~projection_bound_to:result_var
-        | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
-        | Naked_nativeint _ ->
-          Misc.fatal_errorf "Kind error for [Block_load] of %a at index %a"
-            Simple.print arg1 Simple.print arg2)
-      ~name:(fun _ ~coercion:_ -> dacc)
-  in
-  if dacc == dacc' then result else SPR.with_dacc result dacc'
-
 let simplify_phys_equal (op : P.equality_comparison) dacc ~original_term dbg
     ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var =
   (* This primitive is only used for arguments of kind [Value]. *)
@@ -950,6 +924,38 @@ let simplify_phys_equal (op : P.equality_comparison) dacc ~original_term dbg
       SPR.create original_term ~try_reify:false dacc
   [@@ocaml.warning "-fragile-match"]
 
+let simplify_immutable_block_load access_kind ~min_name_mode dacc ~original_term
+    dbg ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var =
+  let result =
+    simplify_immutable_block_load0 access_kind ~min_name_mode dacc
+      ~original_term dbg ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var
+  in
+  let dacc' =
+    (* The [args] being queried here are the post-simplification arguments of
+       the primitive, so we can directly read off whether they are symbols or
+       constants, as needed. *)
+    Simple.pattern_match arg2
+      ~const:(fun const ->
+        match Reg_width_const.descr const with
+        | Tagged_immediate imm ->
+          let index = Targetint_31_63.to_targetint imm in
+          Simplify_common.add_symbol_projection result.dacc ~projected_from:arg1
+            (Symbol_projection.Projection.block_load ~index)
+            ~projection_bound_to:result_var
+        | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
+        | Naked_nativeint _ ->
+          Misc.fatal_errorf "Kind error for [Block_load] of %a at index %a"
+            Simple.print arg1 Simple.print arg2)
+      ~name:(fun _ ~coercion:_ -> dacc)
+  in
+  if dacc == dacc' then result else SPR.with_dacc result dacc'
+
+let simplify_mutable_block_load _access_kind ~original_prim dacc ~original_term
+    _dbg ~arg1:_ ~arg1_ty:_ ~arg2:_ ~arg2_ty:_ ~result_var =
+  SPR.create_unknown dacc ~result_var
+    (P.result_kind' original_prim)
+    ~original_term
+
 let simplify_array_load (array_kind : P.Array_kind.t) mutability dacc
     ~original_term:_ dbg ~arg1 ~arg1_ty:array_ty ~arg2 ~arg2_ty:_ ~result_var =
   let result_kind =
@@ -974,12 +980,6 @@ let simplify_array_load (array_kind : P.Array_kind.t) mutability dacc
     let ty = T.unknown (P.result_kind' prim) in
     let dacc = DA.add_variable dacc result_var ty in
     SPR.create named ~try_reify:false dacc
-
-let simplify_mutable_block_load _access_kind ~original_prim dacc ~original_term
-    _dbg ~arg1:_ ~arg1_ty:_ ~arg2:_ ~arg2_ty:_ ~result_var =
-  SPR.create_unknown dacc ~result_var
-    (P.result_kind' original_prim)
-    ~original_term
 
 let simplify_string_or_bigstring_load _string_like_value _string_accessor_width
     ~original_prim dacc ~original_term _dbg ~arg1:_ ~arg1_ty:_ ~arg2:_
