@@ -168,6 +168,8 @@ let simplify_tag_immediate dacc ~original_term ~arg:_ ~arg_ty:naked_number_ty
 
 let simplify_is_int_or_get_tag dacc ~original_term ~scrutinee ~scrutinee_ty:_
     ~result_var ~make_shape =
+  (* CR vlaviron: We could use prover functions to simplify but it's probably
+     not going to help that much *)
   let dacc = DA.add_variable dacc result_var (make_shape scrutinee) in
   SPR.create original_term ~try_reify:true dacc
 
@@ -445,6 +447,7 @@ let simplify_is_flat_float_array dacc ~original_term ~arg:_ ~arg_ty ~result_var
       ~try_reify:false dacc
   in
   match
+    (* CR: Should use prove_ function *)
     T.meet_is_array_with_element_kind (DA.typing_env dacc) arg_ty
       ~element_kind:K.With_subkind.naked_float
   with

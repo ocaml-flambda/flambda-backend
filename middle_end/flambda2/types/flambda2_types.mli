@@ -598,18 +598,6 @@ val prove_is_a_boxed_nativeint : Typing_env.t -> t -> unit proof_of_property
 val prove_is_or_is_not_a_boxed_float :
   Typing_env.t -> t -> bool proof_of_property
 
-val meet_boxed_floats :
-  Typing_env.t -> t -> Numeric_types.Float_by_bit_pattern.Set.t meet_shortcut
-
-val meet_boxed_int32s :
-  Typing_env.t -> t -> Numeric_types.Int32.Set.t meet_shortcut
-
-val meet_boxed_int64s :
-  Typing_env.t -> t -> Numeric_types.Int64.Set.t meet_shortcut
-
-val meet_boxed_nativeints :
-  Typing_env.t -> t -> Targetint_32_64.Set.t meet_shortcut
-
 val prove_unique_tag_and_size :
   Typing_env.t -> t -> (Tag.t * Targetint_31_63.t) proof_of_property
 

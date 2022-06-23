@@ -39,6 +39,7 @@ type 'a proof_of_property =
   | Proved of 'a
   | Unknown
   | Wrong_kind
+(* CR: try to find real uses and remove the rest *)
 
 type 'a generic_proof =
   | Proved of 'a
@@ -46,10 +47,12 @@ type 'a generic_proof =
   | Invalid
   | Wrong_kind
 
+(* CR: Naming Either Sub-module or complete name *)
 let as_meet_shortcut (p : _ generic_proof) : _ meet_shortcut =
   match p with
   | Proved x -> Known_result x
   | Unknown -> Need_meet
+  (* CR: Consider fatal error for Wrong_kind *)
   | Invalid | Wrong_kind -> Invalid
 
 let as_property (p : _ generic_proof) : _ proof_of_property =
@@ -63,6 +66,7 @@ let prove_equals_to_simple_of_kind_value env t : Simple.t proof_of_property =
   if not (K.equal original_kind K.value)
   then Wrong_kind
   else
+    (* CR: add TE.get_alias_opt *)
     match TG.get_alias_exn t with
     | exception Not_found ->
       (* CR vlaviron: We could try to turn singleton types into constants here.
@@ -109,6 +113,7 @@ let prove_is_int env t = as_property (prove_is_int_generic env t)
    Invalid cases to prove_naked_immediates_generic, but it's not suitable for
    implementing [meet_get_tag] because it doesn't ignore the immediates part of
    the variant. *)
+(* CR: Switch to Tag.Scannable *)
 let prove_get_tag_generic env t : Tag.Set.t generic_proof =
   match expand_head env t with
   | Value (Ok (Variant blocks_imms)) -> (
@@ -143,6 +148,7 @@ let prove_get_tag_generic env t : Tag.Set.t generic_proof =
 
 let prove_get_tag env t = as_property (prove_get_tag_generic env t)
 
+(* CR: Specialise to meet, Wrong_kind -> fatal error *)
 let prove_naked_immediates_generic env t : Targetint_31_63.Set.t generic_proof =
   match expand_head env t with
   | Naked_immediate (Ok (Naked_immediates is)) ->
@@ -194,9 +200,11 @@ let prove_equals_tagged_immediates env t : _ proof_of_property =
         match immediates with
         | Unknown -> Unknown
         | Known imms -> (
-          match meet_naked_immediates env imms with
-          | Known_result imms -> Proved imms
-          | Invalid | Need_meet -> Unknown)
+          match prove_naked_immediates_generic env imms with
+          | Proved imms -> Proved imms
+          | Invalid -> Proved Targetint_31_63.Set.empty
+          | Unknown -> Unknown
+          | Wrong_kind -> Wrong_kind)
       else Unknown)
   | Value (Ok _ | Unknown | Bottom) -> Unknown
   | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
@@ -211,7 +219,12 @@ let meet_equals_tagged_immediates env t : _ meet_shortcut =
     match immediates with
     | Unknown -> Need_meet
     | Known imms -> meet_naked_immediates env imms)
-  | Value (Ok _ | Unknown) -> Need_meet
+  | Value
+      (Ok
+        ( Mutable_block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
+        | Boxed_nativeint _ | Closures _ | String _ | Array _ )) ->
+    Invalid
+  | Value Unknown -> Need_meet
   | Value Bottom
   | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
   | Naked_nativeint _ | Rec_info _ | Region _ ->
@@ -232,51 +245,61 @@ type _ meet_naked_number_kind =
   | Int64 : Int64.Set.t meet_naked_number_kind
   | Nativeint : Targetint_32_64.Set.t meet_naked_number_kind
 
-let meet_naked_number (type a) (kind : a meet_naked_number_kind) env t :
-    a meet_shortcut =
-  let set_oub_to_proof (set_oub : _ Or_unknown_or_bottom.t) coercion ~is_empty :
+let[@inline] meet_naked_number (type a) (kind : a meet_naked_number_kind) env t
+    : a meet_shortcut =
+  let head_to_proof (head : _ Or_unknown_or_bottom.t) coercion ~is_empty :
       _ meet_shortcut =
-    match set_oub with
+    match head with
     | Ok set ->
       let set = coercion set in
       if is_empty set then Invalid else Known_result set
     | Unknown -> Need_meet
     | Bottom -> Invalid
   in
+  let wrong_kind () =
+    let kind_string =
+      match kind with
+      | Float -> "Naked_float"
+      | Int32 -> "Naked_int32"
+      | Int64 -> "Naked_int64"
+      | Nativeint -> "Naked_nativeint"
+    in
+    Misc.fatal_errorf "Kind error: expected [%s]:@ %a" kind_string TG.print t
+  in
   match expand_head env t with
-  | Value _ -> Invalid
-  | Naked_immediate _ -> Invalid
-  | Rec_info _ -> Invalid
-  | Region _ -> Invalid
+  | Value _ -> wrong_kind ()
+  | Naked_immediate _ -> wrong_kind ()
+  | Rec_info _ -> wrong_kind ()
+  | Region _ -> wrong_kind ()
   | Naked_float fs -> (
     match kind with
     | Float ->
-      set_oub_to_proof fs
+      head_to_proof fs
         (fun (fs : TG.head_of_kind_naked_float) -> (fs :> Float.Set.t))
         ~is_empty:Float.Set.is_empty
-    | _ -> Invalid)
+    | _ -> wrong_kind ())
   | Naked_int32 is -> (
     match kind with
     | Int32 ->
-      set_oub_to_proof is
+      head_to_proof is
         (fun (is : TG.head_of_kind_naked_int32) -> (is :> Int32.Set.t))
         ~is_empty:Int32.Set.is_empty
-    | _ -> Invalid)
+    | _ -> wrong_kind ())
   | Naked_int64 is -> (
     match kind with
     | Int64 ->
-      set_oub_to_proof is
+      head_to_proof is
         (fun (is : TG.head_of_kind_naked_int64) -> (is :> Int64.Set.t))
         ~is_empty:Int64.Set.is_empty
-    | _ -> Invalid)
+    | _ -> wrong_kind ())
   | Naked_nativeint is -> (
     match kind with
     | Nativeint ->
-      set_oub_to_proof is
+      head_to_proof is
         (fun (is : TG.head_of_kind_naked_nativeint) ->
           (is :> Targetint_32_64.Set.t))
         ~is_empty:Targetint_32_64.Set.is_empty
-    | _ -> Invalid)
+    | _ -> wrong_kind ())
 
 let meet_naked_floats = meet_naked_number Float
 
@@ -301,6 +324,7 @@ let prove_variant_like_generic env t : variant_like_proof generic_proof =
       | Unknown -> Unknown
       | Known non_const_ctors_with_sizes -> (
         let non_const_ctors_with_sizes =
+          (* CR: we could ignore non-scannable tags for the meet_ version *)
           Tag.Map.fold
             (fun tag size (result : _ Or_unknown.t) : _ Or_unknown.t ->
               match result with
@@ -319,14 +343,21 @@ let prove_variant_like_generic env t : variant_like_proof generic_proof =
             match blocks_imms.immediates with
             | Unknown -> Unknown
             | Known imms -> (
-              match meet_naked_immediates env imms with
-              | Need_meet -> Unknown
+              match prove_naked_immediates_generic env imms with
+              | Unknown -> Unknown
               | Invalid -> Known Targetint_31_63.Set.empty
-              | Known_result const_ctors -> Known const_ctors)
+              | Proved const_ctors -> Known const_ctors
+              | Wrong_kind -> Misc.fatal_error "To remove")
           in
           Proved { const_ctors; non_const_ctors_with_sizes })))
   | Value (Ok (Mutable_block _)) -> Unknown
-  | Value (Ok _) -> Invalid
+  | Value (Ok (Array _)) ->
+    Unknown (* We could return Invalid in a strict mode *)
+  | Value
+      (Ok
+        ( Closures _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
+        | Boxed_nativeint _ | String _ )) ->
+    Invalid
   | Value Unknown -> Unknown
   | Value Bottom -> Invalid
   | Naked_immediate _ -> Wrong_kind
@@ -346,6 +377,7 @@ type boxed_or_tagged_number =
   | Boxed of Flambda_kind.Boxable_number.t
   | Tagged_immediate
 
+(* CR: Remove fragile matchs and reuse this function *)
 let prove_is_a_boxed_or_tagged_number env t :
     boxed_or_tagged_number proof_of_property =
   match expand_head env t with
@@ -409,34 +441,6 @@ let prove_is_a_boxed_nativeint env t : _ proof_of_property =
   | Value _ -> Unknown
   | _ -> Wrong_kind
 
-let meet_boxed_floats env t : _ meet_shortcut =
-  match expand_head env t with
-  | Value Unknown -> Need_meet
-  | Value (Ok (Boxed_float (ty, _mode))) -> meet_naked_floats env ty
-  | Value _ -> Invalid
-  | _ -> Invalid
-
-let meet_boxed_int32s env t : _ meet_shortcut =
-  match expand_head env t with
-  | Value Unknown -> Need_meet
-  | Value (Ok (Boxed_int32 (ty, _mode))) -> meet_naked_int32s env ty
-  | Value _ -> Invalid
-  | _ -> Invalid
-
-let meet_boxed_int64s env t : _ meet_shortcut =
-  match expand_head env t with
-  | Value Unknown -> Need_meet
-  | Value (Ok (Boxed_int64 (ty, _mode))) -> meet_naked_int64s env ty
-  | Value _ -> Invalid
-  | _ -> Invalid
-
-let meet_boxed_nativeints env t : _ meet_shortcut =
-  match expand_head env t with
-  | Value Unknown -> Need_meet
-  | Value (Ok (Boxed_nativeint (ty, _mode))) -> meet_naked_nativeints env ty
-  | Value _ -> Invalid
-  | _ -> Invalid
-
 let prove_unique_tag_and_size0 env t :
     (Tag_and_size.t * TG.Product.Int_indexed.t * Alloc_mode.t Or_unknown.t)
     proof_of_property =
@@ -497,6 +501,29 @@ type array_kind_compatibility =
   | Compatible
   | Incompatible
 
+let prove_is_flat_float_array env t : bool proof_of_property =
+  match expand_head env t with
+  | Value (Unknown | Bottom) -> Unknown
+  | Value (Ok (Array { element_kind = Unknown; _ })) -> Unknown
+  | Value (Ok (Array { element_kind = Known element_kind; _ })) -> (
+    match K.With_subkind.kind element_kind with
+    | Value -> Proved false
+    | Naked_number Naked_float -> Proved true
+    | Naked_number
+        (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint)
+    | Region | Rec_info ->
+      Misc.fatal_errorf "Wrong element kind for array: %a" K.With_subkind.print
+        element_kind)
+  | Value
+      (Ok
+        ( Variant _ | Mutable_block _ | Boxed_float _ | Boxed_int32 _
+        | Boxed_int64 _ | Boxed_nativeint _ | Closures _ | String _ )) ->
+    Unknown
+  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
+  | Naked_nativeint _ | Rec_info _ | Region _ ->
+    Wrong_kind
+(* Misc.fatal_errorf "Kind error: expected [Value]:@ %a" TG.print t *)
+
 let meet_is_array_with_element_kind env t ~element_kind : _ meet_shortcut =
   match expand_head env t with
   | Value Unknown -> Need_meet
@@ -510,15 +537,19 @@ let meet_is_array_with_element_kind env t ~element_kind : _ meet_shortcut =
                  ~when_used_at:element_kind
     then Known_result Compatible
     else Known_result Incompatible
-  | Value (Ok (Variant _)) ->
+  | Value (Ok (Variant _ | Mutable_block _)) ->
     (* CR vlaviron: This case is here to avoiding breaking code such as:
      * Array.get (Obj.magic (0, 0)) 1
      * If we decide that this code should segfault, we could return Invalid. *)
     Need_meet
-  | Value (Ok _)
+  | Value
+      (Ok
+        ( Boxed_float _ | Boxed_int32 _ | Boxed_int64 _ | Boxed_nativeint _
+        | Closures _ | String _ )) ->
+    Invalid
   | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
   | Naked_nativeint _ | Rec_info _ | Region _ ->
-    Invalid
+    Misc.fatal_errorf "Kind error: expected [Value]:@ %a" TG.print t
 
 let prove_single_closures_entry_generic env t : _ generic_proof =
   match expand_head env t with
@@ -534,7 +565,8 @@ let prove_single_closures_entry_generic env t : _ generic_proof =
         TG.Closures_entry.find_function_type closures_entry function_slot
       in
       match function_type with
-      | Bottom | Unknown -> Unknown
+      | Bottom -> Invalid
+      | Unknown -> Unknown
       | Ok function_type ->
         Proved (function_slot, alloc_mode, closures_entry, function_type)))
   | Value
@@ -566,7 +598,7 @@ let meet_strings env t : String_info.Set.t meet_shortcut =
   | Value Bottom -> Invalid
   | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
   | Naked_nativeint _ | Rec_info _ | Region _ ->
-    Invalid
+    Misc.fatal_errorf "Kind error: expected [Value]:@ %a" TG.print t
 
 type tagging_proof_kind =
   | Prove
