@@ -27,8 +27,17 @@ open! Int_replace_polymorphic_compare
    lmaurer: It would make [split] nearly as fast as [find]. One issue is we'd
    want fast clz in order to implement [highest_bit]. *)
 
-(* A bit [b] is represented throughout as a bitmask with only [b] set. This
-   makes testing an individual bit very cheap. *)
+type key = int
+
+(* A bit [b], represented as a bitmask with only [b] set. This makes testing an
+   individual bit very cheap. *)
+type bit = int
+
+(* A sequence of bits matched by the beginning (little-endian!) of every key in
+   a subtree. It has some length, represented as the first [bit] after the
+   entire prefix. *)
+type prefix = int
+
 let zero_bit i bit = i land bit = 0
 
 (* Least significant 1 bit *)
@@ -40,7 +49,8 @@ let branching_bit prefix0 prefix1 = lowest_bit (prefix0 lxor prefix1)
 (* Keep only the bits strictly lower than [i] *)
 let mask i bit = i land (bit - 1)
 
-(* Does [i] match [prefix] in all bits strictly lower than [bit]? *)
+(* Does [i] match [prefix], whose length is [bit]? In other words, does [i]
+   match [prefix] at every position strictly lower than [bit]? *)
 let match_prefix i prefix bit = mask i bit = prefix
 
 let equal_prefix prefix0 bit0 prefix1 bit1 = bit0 = bit1 && prefix0 = prefix1
@@ -49,10 +59,11 @@ let lower bit0 bit1 =
   (* Need to do _unsigned_ int comparison *)
   match bit0 < 0, bit1 < 0 with
   | false, false -> bit0 < bit1
-  | true, _ -> false (* the only bit < 0 is 0x4000..., which is the longest *)
+  | true, _ -> false (* the only bit < 0 is 0x4000..., which is the highest *)
   | false, true -> true
 
-(* Is [prefix0] (up to [bit0]) a sub-prefix of [prefix1] (up to [bit1])? *)
+(* Is [prefix0], of length [bit0], a sub-prefix of [prefix1], of length
+   [bit1]? *)
 let includes_prefix prefix0 bit0 prefix1 bit1 =
   lower bit0 bit1 && match_prefix prefix1 prefix0 bit0
 
@@ -64,16 +75,14 @@ let compare_prefix prefix0 bit0 prefix1 bit1 =
   let c = compare bit0 bit1 in
   if c = 0 then compare prefix0 prefix1 else c
 
-type key = int
-
 (* A tree structure that will be used to implement a datatype, either sets or
    maps. Many algorithms operate identically on sets and maps, so they are
    implemented in the functor [Tree_operations] over this module type. *)
 module type Tree = sig
-  (* A Patricia tree. For a sequence of bits P, we write that the tree has
-     prefix P if every node in the tree has a key whose lowest bits equal P.
-     (Note that a tree with prefix P also has any sub-prefix of P. For instance,
-     if the tree has prefix 011, it also has prefix 01.) *)
+  (* A Patricia tree. For a prefix P, we write that the tree has prefix P if
+     every node in the tree has a key that matches P. (Note that a tree with
+     prefix P also has any sub-prefix of P. For instance, if the tree has prefix
+     011, it also has prefix 01.) *)
   type 'a t
 
   (* A witness that ['a] is a valid type for a value stored in the tree. Maps
@@ -91,12 +100,11 @@ module type Tree = sig
      prefix. *)
   val leaf : 'a is_value -> key -> 'a -> 'a t
 
-  (* A tree with the given prefix, bit, and subtrees. If called as [branch
-     prefix bit t0 t1], writing [P] as the sequence of bits in [prefix] strictly
-     lower than [bit], we require that [t0] has prefix P0 and [t1] has prefix P1
-     (note that this is little-endian notation). For efficiency, [t0] and [t1]
-     are assumed to be non-empty. The tree will have prefix P. *)
-  val branch : key -> key -> 'a t -> 'a t -> 'a t
+  (* A tree with the given prefix, the length of the prefix, and two subtrees.
+     If the prefix is P, we require that [t0] has prefix P0 and [t1] has prefix
+     P1 (note that this is little-endian notation). For efficiency, [t0] and
+     [t1] are assumed to be non-empty. *)
+  val branch : prefix -> bit -> 'a t -> 'a t -> 'a t
 
   (* A view on a given node, corresponding to which of [empty], [leaf], or
      [branch] constructed it. Passing the fields back in as arguments will
@@ -104,7 +112,7 @@ module type Tree = sig
   type 'a descr =
     | Empty
     | Leaf of key * 'a
-    | Branch of key * key * 'a t * 'a t
+    | Branch of prefix * bit * 'a t * 'a t
 
   val descr : 'a t -> 'a descr
 
@@ -131,7 +139,7 @@ module Set0 = struct
   type 'a t =
     | Empty : unit t
     | Leaf : key -> unit t
-    | Branch : key * key * unit t * unit t -> unit t
+    | Branch : prefix * bit * unit t * unit t -> unit t
 
   type 'a is_value = Unit : unit is_value
 
@@ -152,7 +160,7 @@ module Set0 = struct
   type 'a descr =
     | Empty
     | Leaf of key * 'a
-    | Branch of key * key * 'a t * 'a t
+    | Branch of prefix * bit * 'a t * 'a t
 
   let descr (type a) : a t -> a descr = function
     | Empty -> Empty
@@ -186,7 +194,7 @@ module Map0 = struct
   type 'a t =
     | Empty
     | Leaf of key * 'a
-    | Branch of key * key * 'a t * 'a t
+    | Branch of prefix * bit * 'a t * 'a t
 
   type _ is_value = Any : 'a is_value
 
@@ -201,7 +209,7 @@ module Map0 = struct
   type 'a descr = 'a t =
     | Empty
     | Leaf of key * 'a
-    | Branch of key * key * 'a t * 'a t
+    | Branch of prefix * bit * 'a t * 'a t
 
   let descr = Fun.id
 
