@@ -80,16 +80,6 @@ val function_slot_symbol : Function_slot.t -> string
     symbol for the corresponding piece of code. *)
 val code_symbol : function_slot_symbol:string -> string
 
-(** Ensure the offsets for the given function slots are in the given exported
-    offsets. *)
-val reexport_function_slots :
-  Function_slot.Set.t -> Exported_offsets.t -> Exported_offsets.t
-
-(** Ensure the offsets for the given function slots are in the given exported
-    offsets. *)
-val reexport_value_slots :
-  Value_slot.Set.t -> Exported_offsets.t -> Exported_offsets.t
-
 (** {2 Offsets & Layouts} *)
 
 (** Layout slots, aka what might be found in a block at a given offset. A layout

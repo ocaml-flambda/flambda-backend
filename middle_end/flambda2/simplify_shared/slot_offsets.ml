@@ -39,44 +39,6 @@ let keep_value_slot ~used_value_slots v =
   | Unknown -> true
   | Known used_value_slots -> value_slot_is_used ~used_value_slots v
 
-(* CR gbury: considering that the goal is to have `offsets` significantly
-   smaller than the `imported_offsets`, it might be better for performance to
-   check whether the function slot is already in the offsets before looking it
-   up in the imported offsets ? *)
-let reexport_function_slots function_slot_set offsets =
-  let imported_offsets = EO.imported_offsets () in
-  Function_slot.Set.fold
-    (fun function_slot offsets ->
-      if Compilation_unit.is_current
-           (Function_slot.get_compilation_unit function_slot)
-      then offsets
-      else
-        match EO.function_slot_offset imported_offsets function_slot with
-        | None ->
-          Misc.fatal_errorf
-            "Function slot %a is used in the current compilation unit, but not \
-             present in the imported offsets."
-            Function_slot.print function_slot
-        | Some info -> EO.add_function_slot_offset offsets function_slot info)
-    function_slot_set offsets
-
-let reexport_value_slots value_slot_set offsets =
-  let imported_offsets = EO.imported_offsets () in
-  Value_slot.Set.fold
-    (fun value_slot offsets ->
-      if Compilation_unit.is_current
-           (Value_slot.get_compilation_unit value_slot)
-      then offsets
-      else
-        match EO.value_slot_offset imported_offsets value_slot with
-        | None ->
-          Misc.fatal_errorf
-            "value slot %a is used in the current compilation unit, but not \
-             present in the imported offsets."
-            Value_slot.print value_slot
-        | Some info -> EO.add_value_slot_offset offsets value_slot info)
-    value_slot_set offsets
-
 (* Compute offsets ("indexes") for slots within a block having tag Closure_tag.
 
    A particular function slot or value slot might appear in more than one such
@@ -792,10 +754,10 @@ end = struct
           all_value_slots
         } ->
       state.used_offsets
-      |> reexport_function_slots function_slots_in_normal_projections
-      |> reexport_function_slots all_function_slots
-      |> reexport_value_slots value_slots_in_normal_projections
-      |> reexport_value_slots all_value_slots
+      |> EO.reexport_function_slots function_slots_in_normal_projections
+      |> EO.reexport_function_slots all_function_slots
+      |> EO.reexport_value_slots value_slots_in_normal_projections
+      |> EO.reexport_value_slots all_value_slots
     | Unknown -> EO.imported_offsets ()
 
   (* We only want to keep value slots that appear in the creation of a set of
