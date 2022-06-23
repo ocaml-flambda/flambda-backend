@@ -611,6 +611,9 @@ val prove_unique_tag_and_size :
   t ->
   (Tag.t * Targetint_31_63.Imm.t) proof_allowing_kind_mismatch
 
+val prove_unique_fully_constructed_immutable_heap_block :
+  Typing_env.t -> t -> (Tag_and_size.t * Simple.t list) proof
+
 val prove_is_int : Typing_env.t -> t -> bool proof
 
 type array_kind_compatibility =

@@ -481,7 +481,9 @@ let simplify_bigarray_length ~dimension:_ dacc ~original_term ~arg:_ ~arg_ty:_
 
 let simplify_duplicate_array ~kind:_ ~source_mutability:_
     ~destination_mutability:_ dacc ~original_term ~arg:_ ~arg_ty ~result_var =
-  (* Any alias in the type to the whole array will be dropped, but aliases
+  (* This simplification should eliminate bounds checks on array literals.
+
+     Any alias in the type to the whole array will be dropped, but aliases
      inside the type (in this case for the length) can remain. Similarly for
      blocks in [simplify_duplicate_block] below, aliases to the fields can
      remain. *)

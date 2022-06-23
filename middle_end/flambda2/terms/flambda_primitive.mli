@@ -78,6 +78,7 @@ module Duplicate_array_kind : sig
 end
 
 module Block_access_field_kind : sig
+  (* CR mshinwell: For [Block_load] this is always [Any_value]. *)
   type t =
     | Any_value
     | Immediate

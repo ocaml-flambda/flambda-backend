@@ -872,7 +872,7 @@ let simplify_phys_equal (op : P.equality_comparison) dacc ~original_term dbg
 
 let[@inline always] simplify_immutable_block_load0
     (access_kind : P.Block_access_kind.t) ~min_name_mode dacc ~original_term
-    _dbg ~arg1:_ ~arg1_ty:block_ty ~arg2:_ ~arg2_ty:index_ty ~result_var =
+    _dbg ~arg1:block ~arg1_ty:block_ty ~arg2:_ ~arg2_ty:index_ty ~result_var =
   let result_kind =
     match access_kind with
     | Values _ -> K.value
@@ -893,7 +893,7 @@ let[@inline always] simplify_immutable_block_load0
         DA.add_variable dacc result_var (T.alias_type_of result_kind simple)
       in
       SPR.create (Named.create_simple simple) ~try_reify:false dacc
-    | Unknown ->
+    | Unknown -> (
       let n =
         Targetint_31_63.Imm.add
           (Targetint_31_63.to_targetint index)
@@ -916,12 +916,57 @@ let[@inline always] simplify_immutable_block_load0
             else Known Tag.double_array_tag
           | Unknown -> Unknown)
       in
-      Simplify_common.simplify_projection dacc ~original_term
-        ~deconstructing:block_ty
-        ~shape:
-          (T.immutable_block_with_size_at_least ~tag ~n ~field_kind:result_kind
-             ~field_n_minus_one:result_var')
-        ~result_var ~result_kind)
+      let result =
+        Simplify_common.simplify_projection dacc ~original_term
+          ~deconstructing:block_ty
+          ~shape:
+            (T.immutable_block_with_size_at_least ~tag ~n
+               ~field_kind:result_kind ~field_n_minus_one:result_var')
+          ~result_var ~result_kind
+      in
+      match result.simplified_named with
+      | Invalid -> result
+      | Ok _ -> (
+        (* If the type contains enough information to actually build a primitive
+           to make the corresponding block, then we add a CSE equation, to try
+           to avoid duplicate allocations in the future. This should help with
+           cases such as "Some x -> Some x". *)
+        let dacc = result.dacc in
+        Format.eprintf "Trying to prove from:@ %a@ in env:@ %a\n%!" T.print
+          block_ty DA.print dacc;
+        match
+          T.prove_unique_fully_constructed_immutable_heap_block
+            (DA.typing_env dacc) block_ty
+        with
+        | Invalid -> SPR.create_invalid dacc
+        | Unknown -> result
+        | Proved (tag_and_size, field_simples) -> (
+          match Tag_and_size.tag tag_and_size |> Tag.Scannable.of_tag with
+          | None -> result
+          | Some tag -> (
+            let block_kind : P.Block_kind.t =
+              match access_kind with
+              | Values _ ->
+                let arity =
+                  List.map (fun _ -> K.With_subkind.any_value) field_simples
+                in
+                Values (tag, arity)
+              | Naked_floats _ -> Naked_floats
+            in
+            let prim =
+              P.Eligible_for_cse.create
+                (Variadic
+                   (Make_block (block_kind, Immutable, Heap), field_simples))
+            in
+            match prim with
+            | None -> result
+            | Some prim ->
+              Format.eprintf "Adding prim %a\n%!" P.Eligible_for_cse.print prim;
+              let dacc =
+                DA.map_denv dacc ~f:(fun denv ->
+                    DE.add_cse denv prim ~bound_to:block)
+              in
+              SPR.with_dacc result dacc)))))
 
 let simplify_immutable_block_load access_kind ~min_name_mode dacc ~original_term
     dbg ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var =
