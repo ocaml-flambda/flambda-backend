@@ -367,8 +367,7 @@ let ternop (ternop : Fexpr.ternop) : Flambda_primitive.ternary_primitive =
   match ternop with Array_set (ak, ia) -> Array_set (ak, ia)
 
 let convert_block_shape ~num_fields =
-  List.init num_fields
-    (fun _field : Flambda_primitive.Block_of_values_field.t -> Any_value)
+  List.init num_fields (fun _field -> Flambda_kind.With_subkind.any_value)
 
 let varop (varop : Fexpr.varop) n : Flambda_primitive.variadic_primitive =
   match varop with

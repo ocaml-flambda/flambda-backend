@@ -25,30 +25,9 @@ type classification_for_printing =
   | Destructive
   | Neither
 
-module Block_of_values_field = struct
-  type t =
-    | Any_value
-    | Immediate
-    | Boxed_float
-    | Boxed_int32
-    | Boxed_int64
-    | Boxed_nativeint
-
-  let [@ocamlformat "disable"] print ppf t =
-    match t with
-    | Any_value -> Format.fprintf ppf "Any_value"
-    | Immediate -> Format.fprintf ppf "Immediate"
-    | Boxed_float -> Format.fprintf ppf "Boxed_float"
-    | Boxed_int32 -> Format.fprintf ppf "Boxed_int32"
-    | Boxed_int64 -> Format.fprintf ppf "Boxed_int64"
-    | Boxed_nativeint -> Format.fprintf ppf "Boxed_nativeint"
-
-  let compare = Stdlib.compare
-end
-
 module Block_kind = struct
   type t =
-    | Values of Tag.Scannable.t * Block_of_values_field.t list
+    | Values of Tag.Scannable.t * K.With_subkind.t list
     | Naked_floats
 
   let [@ocamlformat "disable"] print ppf t =
@@ -60,7 +39,7 @@ module Block_kind = struct
          @[<hov 1>(shape@ @[<hov 1>(%a)@])@])@]"
        Tag.Scannable.print tag
        (Format.pp_print_list ~pp_sep:Format.pp_print_space
-         Block_of_values_field.print) shape
+      K.With_subkind.print) shape
    | Naked_floats ->
      Format.pp_print_string ppf "Naked_floats"
 
@@ -70,7 +49,7 @@ module Block_kind = struct
       let c = Tag.Scannable.compare tag1 tag2 in
       if c <> 0
       then c
-      else Misc.Stdlib.List.compare Block_of_values_field.compare shape1 shape2
+      else Misc.Stdlib.List.compare K.With_subkind.compare shape1 shape2
     | Naked_floats, Naked_floats -> 0
     | Values _, _ -> -1
     | _, Values _ -> 1

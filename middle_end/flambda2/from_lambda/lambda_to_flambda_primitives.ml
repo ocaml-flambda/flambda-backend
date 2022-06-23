@@ -21,17 +21,6 @@ module K = Flambda_kind
 module L = Lambda
 module P = Flambda_primitive
 
-let convert_block_of_values_field (value_kind : L.value_kind) :
-    P.Block_of_values_field.t =
-  match value_kind with
-  | Pgenval -> Any_value
-  | Pfloatval -> Boxed_float
-  | Pboxedintval Pint32 -> Boxed_int32
-  | Pboxedintval Pint64 -> Boxed_int64
-  | Pboxedintval Pnativeint -> Boxed_nativeint
-  | Pintval -> Immediate
-  | Pvariant _ | Parrayval _ -> Any_value
-
 let convert_integer_comparison_prim (comp : L.integer_comparison) :
     P.binary_primitive =
   match comp with
@@ -111,8 +100,7 @@ let convert_init_or_assign (i_or_a : L.initialization_or_assignment) :
 
 let convert_block_shape (shape : L.block_shape) ~num_fields =
   match shape with
-  | None ->
-    List.init num_fields (fun _field : P.Block_of_values_field.t -> Any_value)
+  | None -> List.init num_fields (fun _field -> K.With_subkind.any_value)
   | Some shape ->
     let shape_length = List.length shape in
     if num_fields <> shape_length
@@ -121,7 +109,7 @@ let convert_block_shape (shape : L.block_shape) ~num_fields =
         "Flambda_arity.of_block_shape: num_fields is %d yet the shape has %d \
          fields"
         num_fields shape_length;
-    List.map convert_block_of_values_field shape
+    List.map K.With_subkind.from_lambda shape
 
 let check_float_array_optimisation_enabled () =
   if not (Flambda_features.flat_float_array ())

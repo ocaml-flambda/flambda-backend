@@ -24,23 +24,9 @@
 
     No primitive raises an exception. (Bounds checking is handled separately.) *)
 
-module Block_of_values_field : sig
-  type t =
-    | Any_value
-    | Immediate
-    | Boxed_float
-    | Boxed_int32
-    | Boxed_int64
-    | Boxed_nativeint
-
-  val compare : t -> t -> int
-
-  val print : Format.formatter -> t -> unit
-end
-
 module Block_kind : sig
   type t =
-    | Values of Tag.Scannable.t * Block_of_values_field.t list
+    | Values of Tag.Scannable.t * Flambda_kind.With_subkind.t list
     | Naked_floats
 
   val print : Format.formatter -> t -> unit
