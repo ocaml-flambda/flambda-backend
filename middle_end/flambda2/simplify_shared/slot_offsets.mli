@@ -80,7 +80,10 @@ module Layout : sig
   type slot = private
     | Value_slot of Value_slot.t
     | Infix_header
-    | Function_slot of Function_slot.t
+    | Function_slot of
+        { size : int;
+          function_slot : Function_slot.t
+        }
   (**)
 
   (** Alias for complete layouts. The list is sorted according to offsets (in

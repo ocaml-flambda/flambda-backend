@@ -20,6 +20,8 @@
 open! Flambda.Import
 module EO = Exported_offsets
 
+type words = int
+
 type result =
   { exported_offsets : EO.t;
     used_value_slots : Value_slot.Set.t
@@ -37,25 +39,21 @@ let[@inline] value_slot_is_used ~used_value_slots v =
   then Value_slot.Set.mem v used_value_slots
   else true
 
-(* Compute offsets ("indexes") for slots within a block having tag Closure_tag.
+(* Compute offsets of the runtime memory layout of sets of closures. These
+   offsets are computed in words, not in bytes.
 
-   A particular function slot or value slot might appear in more than one such
-   block. However at present we insist that slots must have the same offset in
-   all blocks where they appear.
-
-   We assume an ideal (i.e. compact) layout for a block describing a set of
-   closures is the following: *)
+   The layout for a block describing a set of closures is the following: *)
 (*
  * |----------------------|
  * | Closure_tag header   |
  * |----------------------| offset 0
- * | function slot 0      | <- pointer to the block
+ * | function slot 0      | <- pointer to the block (and pointer to function slot 0)
  * | (pos 0, size 2 or 3) |
  * |----------------------|
- * | Infix_tag header     |
+ * | Infix_tag header     | (size=1)
  * |----------------------|
- * | function slot 1      |
- * | (pos x, size 2 or 3) |  (x=3 if function slot 0 is of size 2 for instance)
+ * | function slot 1      | <- pointer to function slot 1
+ * | (pos x, size 2 or 3) |  (x=1+size_of_function_slot_0)
  * |----------------------|
  * | Infix_tag header     |
  * |----------------------|
@@ -68,7 +66,7 @@ let[@inline] value_slot_is_used ~used_value_slots v =
  * | last function slot   |
  * |                      |
  * |----------------------|
- * | value slot 0         | <- start of the environment part of the block
+ * | value slot 0  size=1 | <- start of the environment part of the block
  * |----------------------|
  * | value slot 1         |
  * |----------------------|
@@ -81,32 +79,23 @@ let[@inline] value_slot_is_used ~used_value_slots v =
 (* However, that ideal layout may not be possible in certain circumstances, as
    there may be arbitrary holes between slots (i.e. unused words in the block).
 
-   Starting from OCaml 4.12, all function slots must occur before all value
-   slots, since the offset to the start of the environment is recorded in the
-   arity field of each function slot.
-
-   This additional requirement makes more constraints impossible to satisfy (to
-   be clear, there are situations impossible to satisfy regardless of this
-   requirement; it's just that this requirement makes some situations that were
-   previously possible to satisfy be now unsatisfiable).
-
-   For instance, it is perfectly possible to have a situation where a value slot
-   has been fixed at offset 3 (because it is in a simple set of closures with
-   one function of arity > 1 in another cmx), however it is in a set of closures
-   with more than one function slot in the current compilation unit. In this
-   case, it is impossible to make all the function slots fit before the value
-   slot in the block. *)
+   All function slots must occur before all value slots, since the offset to the
+   start of the environment is recorded in the arity field of each function
+   slot. *)
 
 module Layout = struct
   type slot =
     | Value_slot of Value_slot.t
     | Infix_header
-    | Function_slot of Function_slot.t
+    | Function_slot of
+        { size : words;
+          function_slot : Function_slot.t
+        }
 
   type t =
-    { startenv : int;
+    { startenv : words;
       empty_env : bool;
-      slots : (int * slot) list
+      slots : (words * slot) list
     }
 
   let order_function_slots env l acc =
@@ -114,8 +103,10 @@ module Layout = struct
       (fun function_slot _ acc ->
         match EO.function_slot_offset env function_slot with
         | Some Dead_function_slot -> acc
-        | Some (Live_function_slot { size = _; offset }) ->
-          Numeric_types.Int.Map.add offset (Function_slot function_slot) acc
+        | Some (Live_function_slot { size; offset }) ->
+          Numeric_types.Int.Map.add offset
+            (Function_slot { size; function_slot })
+            acc
         | None ->
           Misc.fatal_errorf "No function_slot offset for %a" Function_slot.print
             function_slot)
@@ -133,7 +124,7 @@ module Layout = struct
             value_slot)
       l acc
 
-  let layout_aux j slot (startenv, acc_slots) =
+  let layout_aux offset slot (startenv, acc_slots) =
     match slot with
     (* Starting from OCaml 4.12, all function slots *must* precede all value
        slots. The algorithms in this file should thus only generate slot
@@ -144,7 +135,7 @@ module Layout = struct
        when scanning the block. Thus, if we see a function slot, we check that
        then the environment has not started yet (i.e. we have not seen any value
        slots). *)
-    | Function_slot _ when j = 0 ->
+    | Function_slot _ when offset = 0 ->
       assert (acc_slots = []);
       assert (startenv = None);
       (* see comment above *)
@@ -153,17 +144,19 @@ module Layout = struct
     | Function_slot _ ->
       assert (startenv = None);
       (* see comment above *)
-      let acc_slots = (j, slot) :: (j - 1, Infix_header) :: acc_slots in
+      let acc_slots =
+        (offset, slot) :: (offset - 1, Infix_header) :: acc_slots
+      in
       startenv, acc_slots
     | Value_slot _ ->
       let startenv =
         match startenv with
         | Some i ->
-          assert (i < j);
+          assert (i < offset);
           startenv
-        | None -> Some j
+        | None -> Some offset
       in
-      let acc_slots = (j, slot) :: acc_slots in
+      let acc_slots = (offset, slot) :: acc_slots in
       startenv, acc_slots
     | Infix_header ->
       (* Internal invariant: such layout slots are not generated by the {order}
@@ -176,23 +169,17 @@ module Layout = struct
       |> order_value_slots env value_slots
       |> order_function_slots env function_slots
     in
-    let startenv_opt, acc_slots =
+    let startenv_opt, rev_slots =
       Numeric_types.Int.Map.fold layout_aux map (None, [])
     in
     let startenv, empty_env =
       (* If there are no value slots, the start of env is considered to be the
          (non-existing) slot after the last slot used, and if the set is empty,
          the value does not matter. *)
-      match startenv_opt, acc_slots with
+      match startenv_opt, rev_slots with
       | Some i, _ -> i, false
-      | None, [] -> 0, true
-      | None, (j, Function_slot function_slot) :: _ -> (
-        match EO.function_slot_offset env function_slot with
-        | Some (Live_function_slot { size; _ }) -> j + size, true
-        | Some Dead_function_slot | None ->
-          (* the function slot was found earlier during the call to
-             order_function_slots *)
-          assert false)
+      | None, [] -> 0, true (* will raise a fatal_error later *)
+      | None, (offset, Function_slot { size; _ }) :: _ -> offset + size, true
       | None, (_, Infix_header) :: _ ->
         (* Cannot happen because a infix header is *always* preceded by a
            function slot (because the slot list is reversed) *)
@@ -202,7 +189,7 @@ module Layout = struct
            startenv_opt should be Some _ *)
         assert false
     in
-    let slots = List.rev acc_slots in
+    let slots = List.rev rev_slots in
     (* The Gc assumes that a Closure_tag block actually starts with a function
        slot at offset 0. Or more precisely, the GC unconditionally reads the
        second field of a Closure_tag block to find out the start of environment.
@@ -217,8 +204,9 @@ module Layout = struct
   let print_slot fmt = function
     | Value_slot v -> Format.fprintf fmt "value_slot %a" Value_slot.print v
     | Infix_header -> Format.fprintf fmt "infix_header"
-    | Function_slot cid ->
-      Format.fprintf fmt "function_slot %a" Function_slot.print cid
+    | Function_slot { size; function_slot } ->
+      Format.fprintf fmt "function_slot(%d) %a" size Function_slot.print
+        function_slot
 
   let print fmt l =
     Format.fprintf fmt "@[<v>startenv: %d;@ " l.startenv;
@@ -241,24 +229,32 @@ module Greedy : sig
     state ->
     get_code_metadata:(Code_id.t -> Code_metadata.t) ->
     Set_of_closures.t ->
-    state
+    unit
 
   val finalize : used_slots:used_slots -> state -> result
 end = struct
-  (** Greedy algorithm for assigning offsets ("indexes") to slots.
+  (* Greedy algorithm for assigning offsets (in terms of words) to slots.
 
-      Slots are assigned using a "first comes, first served" basis, filling
-      upwards from 0.
+     The goal is to assign an offset to each slot (function slot or value slot).
+     As input we have: - a size for each slot (currently between 1 and 3) - for
+     each slot, a set of sets of closures in which it appears - some slots have
+     already fixed offsets (i.e. slots from other compilation units)
 
-      The algorithm will put all the function slots first, and then all the
-      value slots; however, that may be impossible because of constraints read
-      from a .cmx file (although, currently, this situation is not possible with
-      flambda2), in which case a fatal_error is raised.
+     The constraints we want to satisfy are: - each slot has a unique offset -
+     for each set of closures, the slots that appear in it should not overlap.
+     Two slots s and s' overlap s.offset + s.size <= s'.offset (assuming
+     s.offset <= s'.offset) - for each set of closures, the offset for all
+     function slots is smaller than the offset of all value slots
 
-      This strategy should be able to correctly compute offsets for all
-      legitimate situations, with no expected blowup of computation time.
-      However the generated offsets can be far from optimal (i.e. leave more
-      holes than necessary). *)
+     Some inputs can be unsatisfiable. This can only occur because of the fixed
+     offsets imposed by previous compilation units. However, the current
+     flambda2 does not generate such unsatisfiable situations.
+
+     Slots are assigned using a "first comes, first served" basis, filling
+     upwards from 0. This is complete (for satisfiable cases), but may return a
+     non-optimal assignement of offsets (in the sens that there may be more
+     unused fields in sets of closures than necessary), however that case should
+     be fairly rare given the current behaviour of Simplify. *)
 
   (* Internal types *)
 
@@ -267,15 +263,17 @@ end = struct
     | Value_slot of Value_slot.t
 
   type slot_pos =
-    | Assigned of int
+    | Assigned of words
     | Unassigned
     | Removed
 
   type set_of_closures =
     { id : int;
       (* Info about start of environment *)
-      mutable first_slot_used_by_value_slots : int;
-      mutable first_slot_after_function_slots : int;
+      mutable first_slot_used_by_value_slots : words;
+      mutable first_slot_after_function_slots : words;
+      (* invariant : first_slot_after_function_slots <=
+         first_slot_used_by_calue_slots *)
       (* Slots to be allocated *)
       mutable unallocated_function_slots : slot list;
       mutable unallocated_value_slots : slot list;
@@ -292,20 +290,20 @@ end = struct
   (** Intermediate state to store offsets for function and value slots before
       computing the actual offsets of these elements within a block. *)
   type state =
-    { used_offsets : EO.t;
-      function_slots : slot Function_slot.Map.t;
-      value_slots : slot Value_slot.Map.t;
-      sets_of_closures : set_of_closures list
+    { mutable used_offsets : EO.t;
+      mutable function_slots : slot Function_slot.Map.t;
+      mutable value_slots : slot Value_slot.Map.t;
+      mutable sets_of_closures : set_of_closures list
     }
 
   (* Create structures *)
 
   (* create a fresh slot (with no position allocated yet) *)
-  let create_slot size desc = { desc; size; pos = Unassigned; sets = [] }
+  let create_slot ~size desc pos = { desc; size; pos; sets = [] }
 
-  let make_set =
+  let create_set =
     let c = ref 0 in
-    fun _ ->
+    fun () ->
       incr c;
       { id = !c;
         first_slot_after_function_slots = 0;
@@ -437,9 +435,6 @@ end = struct
 
   (* Blocks with tag Closure_tag *)
 
-  let add_set_to_state state set =
-    { state with sets_of_closures = set :: state.sets_of_closures }
-
   let add_unallocated_slot_to_set slot set =
     slot.sets <- set :: slot.sets;
     update_set_for_slot slot set;
@@ -449,24 +444,24 @@ end = struct
     | Value_slot _ ->
       set.unallocated_value_slots <- slot :: set.unallocated_value_slots
 
+  let add_allocated_slot_to_set slot offset set =
+    slot.sets <- set :: slot.sets;
+    add_slot_offset_to_set offset slot set
+
   (* Accumulator state *)
 
   let use_function_slot_info state c info =
-    let used_offsets = EO.add_function_slot_offset state.used_offsets c info in
-    { state with used_offsets }
+    state.used_offsets <- EO.add_function_slot_offset state.used_offsets c info
 
   let add_function_slot state function_slot slot =
-    let function_slots =
-      Function_slot.Map.add function_slot slot state.function_slots
-    in
-    { state with function_slots }
+    state.function_slots
+      <- Function_slot.Map.add function_slot slot state.function_slots
 
   let use_value_slot_info state var info =
-    let used_offsets = EO.add_value_slot_offset state.used_offsets var info in
-    { state with used_offsets }
+    state.used_offsets <- EO.add_value_slot_offset state.used_offsets var info
 
   let add_value_slot state var slot =
-    { state with value_slots = Value_slot.Map.add var slot state.value_slots }
+    state.value_slots <- Value_slot.Map.add var slot state.value_slots
 
   let find_function_slot state closure =
     Function_slot.Map.find_opt closure state.function_slots
@@ -475,113 +470,98 @@ end = struct
 
   (* Create slots (and create the cross-referencing). *)
 
-  let rec create_function_slots set state get_code_metadata = function
-    | [] -> state
-    | (c, code_id) :: r ->
-      let s, state =
-        match find_function_slot state c with
-        | Some s -> s, state
-        | None -> (
-          if Compilation_unit.is_current (Function_slot.get_compilation_unit c)
-          then
-            let code_metadata = get_code_metadata code_id in
-            let module CM = Code_metadata in
-            let is_tupled = CM.is_tupled code_metadata in
-            let params_arity = CM.params_arity code_metadata in
-            let arity = Flambda_arity.With_subkinds.cardinal params_arity in
-            let size = if arity = 1 && not is_tupled then 2 else 3 in
-            let s = create_slot size (Function_slot c) in
-            s, add_function_slot state c s
-          else
-            (* We should be guaranteed that the corresponding compilation unit's
-               cmx file has been read during the downward traversal. *)
-            let imported_offsets = EO.imported_offsets () in
-            match EO.function_slot_offset imported_offsets c with
-            | None ->
-              (* This means that there is no cmx for the given function slot
-                 (either because of opaque, (or missing cmx ?), or that the
-                 offset is missing from the cmx. In any case, this is a hard
-                 error: the function slot must have been given an offset by its
-                 own compilation unit, and we must know it to avoid choosing a
-                 different one. *)
-              Misc.fatal_errorf
-                "Could not find the offset for function slot %a from another \
-                 compilation unit (because of -opaque, or missing cmx)."
-                Function_slot.print c
-            | Some Dead_function_slot ->
-              Misc.fatal_errorf
-                "The function slot %a is dead in its original compilation \
-                 unit, it should not occur in a set of closures in this \
-                 compilation unit."
-                Function_slot.print c
-            | Some (Live_function_slot { offset; size } as info) ->
-              let s =
-                { desc = Function_slot c;
-                  size;
-                  pos = Assigned offset;
-                  sets = []
-                }
-              in
-              s, add_function_slot (use_function_slot_info state c info) c s)
+  let create_function_slot set state get_code_metadata function_slot code_id =
+    if Compilation_unit.is_current
+         (Function_slot.get_compilation_unit function_slot)
+    then (
+      let size =
+        let code_metadata = get_code_metadata code_id in
+        let module CM = Code_metadata in
+        let is_tupled = CM.is_tupled code_metadata in
+        let params_arity = CM.params_arity code_metadata in
+        let arity = Flambda_arity.With_subkinds.cardinal params_arity in
+        if arity = 1 && not is_tupled then 2 else 3
       in
-      let () = add_unallocated_slot_to_set s set in
-      create_function_slots set state get_code_metadata r
+      let s = create_slot ~size (Function_slot function_slot) Unassigned in
+      add_function_slot state function_slot s;
+      add_unallocated_slot_to_set s set)
+    else
+      (* We should be guaranteed that the corresponding compilation unit's cmx
+         file has been read during the downward traversal. *)
+      let imported_offsets = EO.imported_offsets () in
+      match EO.function_slot_offset imported_offsets function_slot with
+      | None ->
+        (* This means that there is no cmx for the given function slot (either
+           because of opaque, (or missing cmx ?), or that the offset is missing
+           from the cmx. In any case, this is a hard error: the function slot
+           must have been given an offset by its own compilation unit, and we
+           must know it to avoid choosing a different one. *)
+        Misc.fatal_errorf
+          "Could not find the offset for function slot %a from another \
+           compilation unit (because of -opaque, or missing cmx)."
+          Function_slot.print function_slot
+      | Some Dead_function_slot ->
+        Misc.fatal_errorf
+          "The function slot %a is dead in its original compilation unit, it \
+           should not occur in a set of closures in this compilation unit."
+          Function_slot.print function_slot
+      | Some (Live_function_slot { offset; size } as info) ->
+        let s =
+          create_slot ~size (Function_slot function_slot) (Assigned offset)
+        in
+        use_function_slot_info state function_slot info;
+        add_function_slot state function_slot s;
+        add_allocated_slot_to_set s offset set
 
-  let rec create_value_slots set state = function
-    | [] -> state
-    | v :: r ->
-      let s, state =
-        match find_value_slot state v with
-        | Some s -> s, state
-        | None -> (
-          if Compilation_unit.is_current (Value_slot.get_compilation_unit v)
-          then
-            let s = create_slot 1 (Value_slot v) in
-            s, add_value_slot state v s
-          else
-            (* Same as the comments for the function_slots *)
-            let imported_offsets = EO.imported_offsets () in
-            match EO.value_slot_offset imported_offsets v with
-            | None ->
-              (* See comment for the function_slot *)
-              Misc.fatal_errorf
-                "Could not find the offset for value slot %a from another \
-                 compilation unit (because of -opaque, or missing cmx)."
-                Value_slot.print v
-            | Some Dead_value_slot ->
-              Misc.fatal_errorf
-                "The value slot %a has been removed by its original \
-                 compilation unit, it should not occur in a set of closures in \
-                 this compilation unit."
-                Value_slot.print v
-            | Some (Live_value_slot { offset } as info) ->
-              let s =
-                { desc = Value_slot v;
-                  size = 1;
-                  pos = Assigned offset;
-                  sets = []
-                }
-              in
-              s, add_value_slot (use_value_slot_info state v info) v s)
-      in
-      let () = add_unallocated_slot_to_set s set in
-      create_value_slots set state r
+  let create_value_slot set state value_slot =
+    if Compilation_unit.is_current (Value_slot.get_compilation_unit value_slot)
+    then (
+      let s = create_slot ~size:1 (Value_slot value_slot) Unassigned in
+      add_value_slot state value_slot s;
+      add_unallocated_slot_to_set s set)
+    else
+      (* Same as the comments for the function_slots *)
+      let imported_offsets = EO.imported_offsets () in
+      match EO.value_slot_offset imported_offsets value_slot with
+      | None ->
+        (* See comment for the function_slot *)
+        Misc.fatal_errorf
+          "Could not find the offset for value slot %a from another \
+           compilation unit (because of -opaque, or missing cmx)."
+          Value_slot.print value_slot
+      | Some Dead_value_slot ->
+        Misc.fatal_errorf
+          "The value slot %a has been removed by its original compilation \
+           unit, it should not occur in a set of closures in this compilation \
+           unit."
+          Value_slot.print value_slot
+      | Some (Live_value_slot { offset } as info) ->
+        let s = create_slot ~size:1 (Value_slot value_slot) (Assigned offset) in
+        use_value_slot_info state value_slot info;
+        add_value_slot state value_slot s;
+        add_allocated_slot_to_set s offset set
 
-  let create_slots_for_set state ~get_code_metadata set_id =
-    let set = make_set set_id in
-    let state = add_set_to_state state set in
+  let create_slots_for_set state ~get_code_metadata set_of_closures =
+    let set = create_set () in
+    state.sets_of_closures <- set :: state.sets_of_closures;
     (* Fill closure slots *)
-    let function_decls = Set_of_closures.function_decls set_id in
-    let closure_map = Function_declarations.funs function_decls in
-    let function_slots = Function_slot.Map.bindings closure_map in
-    let state =
-      create_function_slots set state get_code_metadata function_slots
+    let closure_map =
+      let function_decls = Set_of_closures.function_decls set_of_closures in
+      Function_declarations.funs function_decls
     in
+    Function_slot.Map.iter
+      (fun function_slot code_id ->
+        if not (Function_slot.Map.mem function_slot state.function_slots)
+        then
+          create_function_slot set state get_code_metadata function_slot code_id)
+      closure_map;
     (* Fill value slot slots *)
-    let env_map = Set_of_closures.value_slots set_id in
-    let value_slots = List.map fst (Value_slot.Map.bindings env_map) in
-    let state = create_value_slots set state value_slots in
-    state
+    let env_map = Set_of_closures.value_slots set_of_closures in
+    Value_slot.Map.iter
+      (fun value_slot _ ->
+        if not (Value_slot.Map.mem value_slot state.value_slots)
+        then create_value_slot set state value_slot)
+      env_map
 
   (* Folding functions. To avoid pathological cases in allocating slots to
      offsets, folding on slots is done by consuming the first unallocated slot
@@ -829,12 +809,7 @@ let finalize_offsets ~get_code_metadata ~used_slots l =
   let state = ref (Greedy.create_initial_state ()) in
   Misc.try_finally
     (fun () ->
-      List.iter
-        (fun set_of_closures ->
-          state
-            := Greedy.create_slots_for_set !state ~get_code_metadata
-                 set_of_closures)
-        l;
+      List.iter (Greedy.create_slots_for_set !state ~get_code_metadata) l;
       Greedy.finalize ~used_slots !state)
     ~always:(fun () ->
       if Flambda_features.dump_slot_offsets ()

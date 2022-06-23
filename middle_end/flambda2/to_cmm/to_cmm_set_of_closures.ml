@@ -126,8 +126,8 @@ end = struct
           env, [P.int ~dbg 1n], updates
       in
       List.rev_append fields acc, slot_offset + 1, env, eff, updates
-    | Function_slot c -> (
-      let code_id = Function_slot.Map.find c decls in
+    | Function_slot { size; function_slot } -> (
+      let code_id = Function_slot.Map.find function_slot decls in
       let code_linkage_name = Code_id.linkage_name code_id in
       let arity, closure_code_pointers, dbg =
         get_func_decl_params_arity env code_id
@@ -139,7 +139,7 @@ end = struct
         match symbs with
         | None -> acc
         | Some symbs ->
-          let function_symbol = Function_slot.Map.find c symbs in
+          let function_symbol = Function_slot.Map.find function_slot symbs in
           List.rev_append
             (P.define_global_symbol
                (Symbol.linkage_name_as_string function_symbol))
@@ -148,13 +148,15 @@ end = struct
       (* We build here the **reverse** list of fields for the function slot *)
       match closure_code_pointers with
       | Full_application_only ->
+        assert (size = 2);
         let acc =
           P.int ~dbg closure_info
           :: P.symbol_from_linkage_name ~dbg code_linkage_name
           :: acc
         in
-        acc, slot_offset + 2, env, Ece.pure, updates
+        acc, slot_offset + size, env, Ece.pure, updates
       | Full_and_partial_application ->
+        assert (size = 3);
         let acc =
           P.symbol_from_linkage_name ~dbg code_linkage_name
           :: P.int ~dbg closure_info
@@ -162,7 +164,7 @@ end = struct
                (Linkage_name.create (C.curry_function_sym arity))
           :: acc
         in
-        acc, slot_offset + 3, env, Ece.pure, updates)
+        acc, slot_offset + size, env, Ece.pure, updates)
 
   let rec fill_layout0 ~set_of_closures_symbol_ref symbs decls dbg ~startenv
       value_slots env effs acc updates ~starting_offset slots =
