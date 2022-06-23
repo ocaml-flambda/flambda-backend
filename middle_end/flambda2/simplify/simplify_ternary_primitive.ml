@@ -16,37 +16,56 @@
 
 open! Simplify_import
 
-let simplify_array_set original_prim (array_kind : P.Array_kind.t) dacc dbg
-    ~array_ty ~result_var =
+let simplify_array_set (array_kind : P.Array_kind.t) init_or_assign dacc
+    ~original_term:_ dbg ~arg1:array ~arg1_ty:array_ty ~arg2:index ~arg2_ty:_
+    ~arg3:new_value ~arg3_ty:_ ~result_var =
   let elt_kind = P.Array_kind.element_kind array_kind |> K.With_subkind.kind in
   let array_kind =
     Simplify_common.specialise_array_kind dacc array_kind ~array_ty
   in
-  (* CR-someday mshinwell: should do a meet on the new value too *)
   match array_kind with
-  | Bottom ->
-    let ty = T.bottom K.value (* Unit *) in
-    let dacc = DA.add_variable dacc result_var ty in
-    Simplify_primitive_result.create_invalid dacc
+  | Bottom -> SPR.create_invalid dacc
   | Ok array_kind ->
     let elt_kind' =
       P.Array_kind.element_kind array_kind |> K.With_subkind.kind
     in
     assert (K.equal elt_kind elt_kind');
-    let named = Named.create_prim original_prim dbg in
-    let ty = T.unknown (P.result_kind' original_prim) in
-    let dacc = DA.add_variable dacc result_var ty in
-    Simplify_primitive_result.create named ~try_reify:false dacc
+    let named =
+      Named.create_prim
+        (Ternary
+           (Array_set (array_kind, init_or_assign), array, index, new_value))
+        dbg
+    in
+    let dacc = DA.add_variable dacc result_var T.any_value in
+    SPR.create named ~try_reify:false dacc
+
+let simplify_block_set _block_access_kind _init_or_assign dacc ~original_term
+    _dbg ~arg1:_ ~arg1_ty:_ ~arg2:_ ~arg2_ty:_ ~arg3:_ ~arg3_ty:_ ~result_var =
+  SPR.create_unknown dacc ~result_var K.value ~original_term
+
+let simplify_bytes_or_bigstring_set _bytes_like_value _string_accessor_width
+    dacc ~original_term _dbg ~arg1:_ ~arg1_ty:_ ~arg2:_ ~arg2_ty:_ ~arg3:_
+    ~arg3_ty:_ ~result_var =
+  SPR.create_unknown dacc ~result_var K.value ~original_term
+
+let simplify_bigarray_set ~num_dimensions:_ _bigarray_kind _bigarray_layout dacc
+    ~original_term _dbg ~arg1:_ ~arg1_ty:_ ~arg2:_ ~arg2_ty:_ ~arg3:_ ~arg3_ty:_
+    ~result_var =
+  SPR.create_unknown dacc ~result_var K.value ~original_term
 
 let simplify_ternary_primitive dacc original_prim (prim : P.ternary_primitive)
-    ~arg1 ~arg1_ty ~arg2 ~arg2_ty:_ ~arg3 ~arg3_ty:_ dbg ~result_var =
-  match prim with
-  | Array_set (array_kind, _init_or_assign) ->
-    simplify_array_set original_prim array_kind dacc dbg ~array_ty:arg1_ty
-      ~result_var
-  | Block_set _ | Bytes_or_bigstring_set _ | Bigarray_set _ ->
-    let prim : P.t = Ternary (prim, arg1, arg2, arg3) in
-    let named = Named.create_prim prim dbg in
-    let ty = T.unknown (P.result_kind' prim) in
-    let dacc = DA.add_variable dacc result_var ty in
-    Simplify_primitive_result.create named ~try_reify:false dacc
+    ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~arg3 ~arg3_ty dbg ~result_var =
+  let original_term = Named.create_prim original_prim dbg in
+  let simplifier =
+    match prim with
+    | Array_set (array_kind, init_or_assign) ->
+      simplify_array_set array_kind init_or_assign
+    | Block_set (block_access_kind, init_or_assign) ->
+      simplify_block_set block_access_kind init_or_assign
+    | Bytes_or_bigstring_set (bytes_like_value, string_accessor_width) ->
+      simplify_bytes_or_bigstring_set bytes_like_value string_accessor_width
+    | Bigarray_set (num_dimensions, bigarray_kind, bigarray_layout) ->
+      simplify_bigarray_set ~num_dimensions bigarray_kind bigarray_layout
+  in
+  simplifier dacc ~original_term dbg ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~arg3
+    ~arg3_ty ~result_var
