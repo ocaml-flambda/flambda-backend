@@ -18,12 +18,14 @@ end) : sig
   module Set : sig
     include Container_types.Set with type elt = int
 
+    (*_ For testing *)
     val valid : t -> bool
   end
 
   module Map : sig
     include Container_types.Map with type key = int with module Set = Set
 
+    (*_ For testing *)
     val valid : _ t -> bool
   end
 end

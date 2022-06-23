@@ -12,13 +12,28 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
+[@@@ocaml.warning "+a-4-30-40-41-42"]
 
-module Generator = Generator
-module Printer = Printer
-module Runner = Runner
-module Shrinker = Shrinker
-module Splittable_random = Splittable_random
-module Type = Type
+type 'a t = 'a -> 'a Seq.t
 
-val create_runner : ?verbose:bool -> ?seed:int -> unit -> Runner.t
+val atomic : 'a t
+
+val option : 'a t -> 'a option t
+
+val code : ?const:'b -> 'b t -> ('a, 'b) Code.t t
+
+val code_w_id : ?const:'a -> 'a t -> ('a, 'a) Code.t t
+
+val pair : 'a t -> 'b t -> ('a * 'b) t
+
+val triple : 'a t -> 'b t -> 'c t -> ('a * 'b * 'c) t
+
+val quad : 'a t -> 'b t -> 'c t -> 'd t -> ('a * 'b * 'c * 'd) t
+
+val list : 'a t -> 'a list t
+
+module T : sig
+  type nonrec 'a t = 'a t
+end
+
+val tuple : ('a, 'b) Tuple.Of(T).t -> ('a, 'b) Tuple.t t

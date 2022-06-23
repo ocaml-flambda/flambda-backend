@@ -75,6 +75,8 @@ let equal_list_up_to_order compare l1 l2 =
 module Set_specs = struct
   (* These are all meant to be read as universally-quantified propositions. *)
 
+  let valid s = Set.valid s
+
   let mem_vs_empty k = not (Set.mem k Set.empty)
 
   let is_empty_vs_equal s = Set.is_empty s <=> Set.equal s Set.empty
@@ -270,6 +272,8 @@ end
 
 module Map_specs (V : Value) = struct
   let ( =? ) = Option.equal V.equal
+
+  let valid m = Map.valid m
 
   let equal_bindings (k1, v1) (k2, v2) = Int.equal k1 k2 && V.equal v1 v2
 
@@ -575,43 +579,83 @@ end
 module Types = struct
   open Minicheck
 
-  let key =
-    Type.choose
-      [ 1, Type.one_of [0; 1; 2; 3; -1; Int.min_int; Int.max_int];
-        5, Type.log_int ]
-    |> Type.with_print ~print:Key.print
+  type key = int
 
-  let unique_list ty =
-    Type.choose [9, Type.list ty ~expected_length:20; 1, Type.const []]
-    |> Type.map_generate ~f:(List.sort_uniq Int.compare)
+  let generate_key =
+    Generator.choose
+      [ 1, Generator.one_of [0; 1; 2; 3; -1; Int.min_int; Int.max_int];
+        5, Generator.log_int ]
+
+  let drop_leading_digits key : key Seq.t =
+    let rec next mask : key Seq.node =
+      if mask = 0
+      then Nil
+      else
+        let key' = key land mask in
+        let mask' = mask lsr 1 in
+        if key = key' then next mask' else Cons (key', fun () -> next mask')
+    in
+    fun () -> next (-1 lsr 1)
+
+  let shrink_key key =
+    Seq.append
+      (if key = 0 then Seq.empty else Seq.cons 0 Seq.empty)
+      (drop_leading_digits key)
+
+  let key =
+    Type.define_simple ~generator:generate_key ~shrinker:shrink_key
+      ~printer:Key.print ()
+
+  let unique_list ty ~compare ~max_length =
+    let generator =
+      Generator.list (Type.generate_repr ty) ~length:max_length
+      |> Generator.map ~f:(List.sort_uniq compare)
+    in
+    let shrinker l =
+      Shrinker.list (Type.shrink ty) l |> Seq.map (List.sort_uniq compare)
+    in
+    let printer = Printer.list (Type.print ty) in
+    let get_value = List.map (Type.value ty) in
+    Type.define ~generator ~shrinker ~printer ~get_value ()
 
   let [@ocamlformat "disable"] print_list_as_set print_elt ppf l =
     let pp_sep ppf () = Format.fprintf ppf "@,; " in
     Format.fprintf ppf "@[<hov>{ %a }@]"
       (Format.pp_print_list ~pp_sep print_elt) l
 
+  let set_of_size ~max_size =
+    Type.map ~f:Set.of_list
+      (unique_list key ~max_length:max_size ~compare:Int.compare)
+    |> Type.with_repr_printer ~printer:(fun ppf s ->
+           print_list_as_set Key.print ppf s)
+
   let set =
-    Type.map ~f:Set.of_list (unique_list key)
-    |> Type.with_print ~print:(fun ppf s ->
-           print_list_as_set Key.print ppf (s |> Set.elements))
+    Type.bind_generator (Generator.small_nat ~less_than:20) ~f:(fun max_size ->
+        set_of_size ~max_size)
 
-  let assoc_list key_ty val_ty =
-    Type.list (Type.pair key_ty val_ty) ~expected_length:20
-    |> Type.map_generate ~f:(fun pairs ->
-           List.sort_uniq (fun (k1, _) (k2, _) -> Int.compare k1 k2) pairs)
+  let assoc_list key_ty val_ty ~max_length =
+    unique_list (Type.pair key_ty val_ty) ~max_length
+      ~compare:(fun (k1, _) (k2, _) -> Int.compare k1 k2)
 
-  let map val_ty =
-    let print ppf m =
+  let map_of_size val_ty ~max_size =
+    let printer ppf bindings =
       let print_binding ppf (k, v) =
         Format.fprintf ppf "@[<hv>%a@ -> %a@]" Key.print k (Type.print val_ty) v
       in
-      print_list_as_set print_binding ppf (m |> Map.bindings)
+      print_list_as_set print_binding ppf bindings
     in
-    Type.map ~f:Map.of_list (assoc_list key val_ty) |> Type.with_print ~print
+    assoc_list key val_ty ~max_length:max_size
+    |> Type.with_repr_printer ~printer
+    |> Type.map ~f:Map.of_list
+
+  let map val_ty =
+    Type.bind_generator (Generator.small_nat ~less_than:20) ~f:(fun max_size ->
+        map_of_size ~max_size val_ty)
 end
 
 let () =
   let open Minicheck in
+  let runner = create_runner () in
   let () =
     let open Types in
     let open Set_specs in
@@ -619,10 +663,20 @@ let () =
     let elt_to_elt = Type.fn elt ~hash_arg:Hashtbl.hash in
     let elt_to_bool = Type.fn Type.bool ~hash_arg:Hashtbl.hash in
     let elt_to_elt_option = Type.fn (Type.option elt) ~hash_arg:Hashtbl.hash in
-
-    let c ?n ?verbose name f types =
-      check ~name:("Set: " ^ name) ?n ?verbose ~types ~f ()
+    let elt_list =
+      Type.bind_generator (Generator.small_nat ~less_than:20) ~f:(fun length ->
+          Type.list elt ~length)
     in
+    let set_list =
+      Type.bind_generator (Generator.small_nat ~less_than:6) ~f:(fun length ->
+          Type.list set ~length)
+    in
+
+    let c ?n ?seed name f types =
+      Runner.check runner ~name:("Set: " ^ name) ?n ?seed ~types ~f
+    in
+
+    c "sets are valid" valid [set];
 
     c "mem vs. empty" mem_vs_empty [elt];
 
@@ -732,16 +786,15 @@ let () =
 
     c "find on non-element" find_non_elt [elt; set];
 
-    c "of_list is valid" of_list_valid [Type.list elt ~expected_length:20];
+    c "of_list is valid" of_list_valid [elt_list];
 
-    c "of_list then elements" of_list_then_elements
-      [Type.list elt ~expected_length:20];
+    c "of_list then elements" of_list_then_elements [elt_list];
 
     c "elements_then_of_list" elements_then_of_list [set];
 
     c "to_seq" to_seq [set];
 
-    c "union_list" union_list [Type.list set ~expected_length:5];
+    c "union_list" union_list [set_list];
 
     c "get_singleton" get_singleton [set];
     ()
@@ -750,10 +803,14 @@ let () =
     let module Map_specs = Map_specs (Value) in
     let open Types in
     let open Map_specs in
-    let key : Key.t Type.t = key in
-    let value : Value.t Type.t =
+    let key : Key.t Type.simple = key in
+    let value : (Value.t, _) Type.t =
       Type.map Type.bool ~f:(fun b -> if b then Value.A else Value.B)
-      |> Type.with_print ~print:Value.print
+      |> Type.with_value_printer ~printer:Value.print
+    in
+    let bindings =
+      Type.bind_generator (Generator.small_nat ~less_than:20)
+        ~f:(fun max_length -> assoc_list key value ~max_length)
     in
     let map = Types.map value in
     let key_to_key = Type.fn key in
@@ -767,9 +824,11 @@ let () =
     let union_function = Type.fn3 (Type.option value) in
     let inter_function = Type.fn3 value in
 
-    let c ?n ?verbose name f types =
-      check ~name:("Map: " ^ name) ?n ?verbose ~types ~f ()
+    let c ?n ?seed name f types =
+      Runner.check runner ~name:("Map: " ^ name) ?n ?seed ~types ~f
     in
+
+    c "maps are valid" valid [map];
 
     c "find_opt vs. find" find_opt_vs_find [key; map];
 
@@ -871,9 +930,9 @@ let () =
 
     c "to_seq vs. bindings" to_seq_vs_bindings [map];
 
-    c "of_list is valid" of_list_valid [assoc_list key value];
+    c "of_list is valid" of_list_valid [bindings];
 
-    c "of_list then bindings" of_list_then_bindings [assoc_list key value];
+    c "of_list then bindings" of_list_then_bindings [bindings];
 
     c "bindings_then_of_list" bindings_then_of_list [map];
 
@@ -912,4 +971,4 @@ let () =
     c "map_sharing of id" map_sharing_id [map];
     ()
   in
-  if Minicheck.something_has_failed () then exit 1
+  if Minicheck.Runner.something_has_failed runner then exit 1

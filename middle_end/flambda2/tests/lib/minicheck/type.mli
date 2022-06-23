@@ -12,88 +12,107 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-30-40-41-42"]
 
-type 'a t
+type ('a, 'repr) t
+
+type 'a simple = ('a, 'a) t
 
 val define :
-  generate:(Splittable_random.t -> 'a) ->
-  ?print:(Format.formatter -> 'a -> unit) ->
+  generator:'repr Generator.t ->
+  ?shrinker:'repr Shrinker.t ->
+  ?printer:'repr Printer.t ->
+  get_value:('repr -> 'a) ->
   unit ->
-  'a t
+  ('a, 'repr) t
 
-val with_print : 'a t -> print:(Format.formatter -> 'a -> unit) -> 'a t
+val define_simple :
+  generator:'a Generator.t ->
+  ?shrinker:'a Shrinker.t ->
+  ?printer:'a Printer.t ->
+  unit ->
+  'a simple
 
-val generate : 'a t -> Splittable_random.t -> 'a
+val with_repr_printer :
+  ('a, 'repr) t -> printer:'repr Printer.t -> ('a, 'repr) t
 
-val print : 'a t -> Format.formatter -> 'a -> unit
+val with_value_printer : ('a, 'repr) t -> printer:'a Printer.t -> ('a, 'repr) t
 
-val bool : bool t
+val generate_repr : (_, 'repr) t -> Splittable_random.t -> 'repr
 
-val int : int t
+val generate : ('a, _) t -> Splittable_random.t -> 'a
 
-(** Integer between zero (inclusive) and [less_than] (exclusive). *)
-val small_nat : less_than:int -> int t
+val shrink : (_, 'repr) t -> 'repr -> 'repr Seq.t
 
-val log_int : int t
+val print : (_, 'repr) t -> Format.formatter -> 'repr -> unit
 
-val option : 'a t -> 'a option t
+val value : ('a, 'repr) t -> 'repr -> 'a
 
-val unit : unit t
+val bool : bool simple
 
-val pair : 'a t -> 'b t -> ('a * 'b) t
+val int : int simple
 
-val triple : 'a t -> 'b t -> 'c t -> ('a * 'b * 'c) t
+val option : ('a, 'repr) t -> ('a option, 'repr option) t
 
-val quad : 'a t -> 'b t -> 'c t -> 'd t -> ('a * 'b * 'c * 'd) t
+val list : ('a, 'repr) t -> length:int -> ('a list, 'repr list) t
 
-val const : 'a -> 'a t
+val unit : unit simple
 
-val one_of : 'a list -> 'a t
+val pair : ('a, 'r) t -> ('b, 's) t -> ('a * 'b, 'r * 's) t
 
-val list : 'a t -> expected_length:int -> 'a list t
+val triple :
+  ('a, 'r) t -> ('b, 's) t -> ('c, 't) t -> ('a * 'b * 'c, 'r * 's * 't) t
 
-val fn : ?hash_arg:('a -> int) -> 'b t -> ('a -> 'b) t
+val quad :
+  ('a, 'r) t ->
+  ('b, 's) t ->
+  ('c, 't) t ->
+  ('d, 'u) t ->
+  ('a * 'b * 'c * 'd, 'r * 's * 't * 'u) t
 
-val fn2 : ?hash_args:('a * 'b -> int) -> 'c t -> ('a -> 'b -> 'c) t
-
-val fn3 : ?hash_args:('a * 'b * 'c -> int) -> 'd t -> ('a -> 'b -> 'c -> 'd) t
-
-val map : 'a t -> f:('a -> 'b) -> 'b t
-
-(** Change the generator but keep the printer. *)
-val map_generate : 'a t -> f:('a -> 'a) -> 'a t
-
-val bind : 'a t -> f:('a -> 'b t) -> 'b t
-
-val choose : (int * 'a t) list -> 'a t
-
-module Let_syntax : sig
-  val ( let+ ) : 'a t -> ('a -> 'b) -> 'b t
-
-  val ( and+ ) : 'a t -> 'b t -> ('a * 'b) t
-
-  val ( let* ) : 'a t -> ('a -> 'b t) -> 'b t
-
-  val ( and* ) : 'a t -> 'b t -> ('a * 'b) t
+module T : sig
+  type nonrec ('a, 'repr) t = ('a, 'repr) t
 end
 
-module Tuple : sig
-  type 'a type_ := 'a t
+val tuple :
+  ('a, 'reprs, 'r) Tuple.Of2(T).t -> (('a, 'r) Tuple.t, ('reprs, 'r) Tuple.t) t
 
-  (** A list of types, comprising a tuple type. For example, [[int; bool] : (int
-      -> bool -> 'b, 'b) t]. ['b] should be left polymorphic (a la [format3] and
-      friends). *)
-  type ('a, 'b) t =
-    | [] : ('a, 'a) t
-    | ( :: ) : 'a type_ * ('b, 'c) t -> ('a -> 'b, 'c) t
-
-  module Value : sig
-    (** The value of a tuple type, i.e., a tuple. *)
-    type ('a, 'b) t =
-      | [] : ('a, 'a) t
-      | ( :: ) : 'a * ('b, 'c) t -> ('a -> 'b, 'c) t
-  end
+module Function_repr : sig
+  type ('a, 'b) t
 end
 
-val tuple : ('a, 'b) Tuple.t -> ('a, 'b) Tuple.Value.t t
+val fn :
+  ?hash_arg:('a -> int) ->
+  ('b, 'repr) t ->
+  ('a -> 'b, ('a, 'repr) Function_repr.t) t
+
+val fn_w_id :
+  ?hash_arg:('a -> int) ->
+  ('a, 'repr) t ->
+  ('a -> 'a, ('a, 'repr) Function_repr.t) t
+
+val fn2 :
+  ?hash_args:('a * 'b -> int) ->
+  ('c, 'repr) t ->
+  ('a -> 'b -> 'c, ('a * 'b, 'repr) Function_repr.t) t
+
+val fn3 :
+  ?hash_args:('a * 'b * 'c -> int) ->
+  ('d, 'repr) t ->
+  ('a -> 'b -> 'c -> 'd, ('a * 'b * 'c, 'repr) Function_repr.t) t
+
+val map : ('a, 'repr) t -> f:('a -> 'b) -> ('b, 'repr) t
+
+val map_repr :
+  ('a, 'repr1) t ->
+  f:('repr1 -> 'repr2) ->
+  f_inv:('repr2 -> 'repr1) ->
+  ('a, 'repr2) t
+
+module Bound_repr : sig
+  type ('a, 'repr) t
+end
+
+val bind : ('a, 'a_repr) t -> f:('a -> ('b, 'b_repr) t) -> ('b, ('b, 'b_repr) Bound_repr.t) t
+
+val bind_generator : 'a Generator.t -> f:('a -> ('b, 'b_repr) t) -> ('b, ('b, 'b_repr) Bound_repr.t) t
