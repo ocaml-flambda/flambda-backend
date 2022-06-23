@@ -16,7 +16,7 @@
 
 open! Simplify_import
 
-let simplify_make_block_of_values tag ~shape
+let simplify_make_block ~field_kind tag ~shape
     ~(mutable_or_immutable : Mutability.t) alloc_mode dacc ~original_term _dbg
     ~args_with_tys ~result_var =
   let args, _arg_tys = List.split args_with_tys in
@@ -62,8 +62,6 @@ let simplify_make_block_of_values tag ~shape
             T.alias_type_of (K.With_subkind.kind kind_with_subkind) arg)
           args shape
       in
-      let tag = Tag.Scannable.to_tag tag in
-      let field_kind = K.value in
       let alloc_mode = Or_unknown.Known alloc_mode in
       match mutable_or_immutable with
       | Immutable ->
@@ -78,36 +76,12 @@ let simplify_make_block_of_values tag ~shape
        Simplify_unary_primitive) *)
     SPR.create original_term ~try_reify:true dacc
 
-let simplify_make_block_of_floats ~(mutable_or_immutable : Mutability.t)
-    alloc_mode dacc ~original_term:_ dbg ~args_with_tys ~result_var =
-  let args = List.map fst args_with_tys in
-  let fields =
-    List.map
-      (fun ((arg : Simple.t), arg_ty) ->
-        Simple.pattern_match arg
-          ~const:(fun _ -> arg_ty)
-          ~name:(fun _ ~coercion:_ -> T.alias_type_of K.naked_float arg))
-      args_with_tys
-  in
-  let term : Named.t =
-    Named.create_prim
-      (Variadic
-         (Make_block (Naked_floats, mutable_or_immutable, alloc_mode), args))
-      dbg
-  in
-  let tag = Tag.double_array_tag in
-  let ty =
-    match mutable_or_immutable with
-    | Immutable ->
-      T.immutable_block ~is_unique:false tag ~field_kind:K.naked_float
-        (Known alloc_mode) ~fields
-    | Immutable_unique ->
-      T.immutable_block ~is_unique:true tag ~field_kind:K.naked_float
-        (Known alloc_mode) ~fields
-    | Mutable -> T.any_value
-  in
-  let dacc = DA.add_variable dacc result_var ty in
-  Simplify_primitive_result.create term ~try_reify:true dacc
+let simplify_make_block_of_floats ~mutable_or_immutable alloc_mode dacc
+    ~original_term dbg ~args_with_tys ~result_var =
+  let shape = List.map (fun _ -> K.With_subkind.naked_float) args_with_tys in
+  simplify_make_block ~field_kind:K.naked_float Tag.double_array_tag ~shape
+    ~mutable_or_immutable alloc_mode dacc ~original_term dbg ~args_with_tys
+    ~result_var
 
 let simplify_make_array (array_kind : P.Array_kind.t) ~mutable_or_immutable
     alloc_mode dacc ~original_term:_ dbg ~args_with_tys ~result_var =
@@ -164,7 +138,9 @@ let simplify_variadic_primitive dacc original_prim (prim : P.variadic_primitive)
   let simplifier =
     match prim with
     | Make_block (Values (tag, shape), mutable_or_immutable, alloc_mode) ->
-      simplify_make_block_of_values tag ~shape ~mutable_or_immutable alloc_mode
+      let tag = Tag.Scannable.to_tag tag in
+      simplify_make_block ~field_kind:K.value tag ~shape ~mutable_or_immutable
+        alloc_mode
     | Make_block (Naked_floats, mutable_or_immutable, alloc_mode) ->
       simplify_make_block_of_floats ~mutable_or_immutable alloc_mode
     | Make_array (array_kind, mutable_or_immutable, alloc_mode) ->
