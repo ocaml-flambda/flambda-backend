@@ -757,3 +757,5 @@ val reify :
 
 val never_holds_locally_allocated_values :
   Typing_env.t -> Variable.t -> Flambda_kind.t -> bool
+
+val remove_outermost_alias : Typing_env.t -> t -> t

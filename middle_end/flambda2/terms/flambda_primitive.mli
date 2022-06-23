@@ -222,11 +222,9 @@ type unary_float_arith_op =
 
 (** Primitives taking exactly one argument. *)
 type unary_primitive =
-  | Duplicate_block of
-      { kind : Duplicate_block_kind.t;
-        source_mutability : Mutability.t;
-        destination_mutability : Mutability.t
-      }  (** [Duplicate_block] may not be used to change the tag of a block. *)
+  | Duplicate_block of { kind : Duplicate_block_kind.t }
+      (** [Duplicate_block] may not be used to change the tag or the mutability
+          of a block. *)
   | Duplicate_array of
       { kind : Duplicate_array_kind.t;
         source_mutability : Mutability.t;

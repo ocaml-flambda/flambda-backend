@@ -480,14 +480,18 @@ let simplify_bigarray_length ~dimension:_ dacc ~original_term ~arg:_ ~arg_ty:_
   SPR.create original_term ~try_reify:false dacc
 
 let simplify_duplicate_array ~kind:_ ~source_mutability:_
-    ~destination_mutability:_ dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
-  let ty = T.unknown K.value in
+    ~destination_mutability:_ dacc ~original_term ~arg:_ ~arg_ty ~result_var =
+  (* Any alias in the type to the whole array will be dropped, but aliases
+     inside the type (in this case for the length) can remain. Similarly for
+     blocks in [simplify_duplicate_block] below, aliases to the fields can
+     remain. *)
+  let ty = T.remove_outermost_alias (DA.typing_env dacc) arg_ty in
   let dacc = DA.add_variable dacc result_var ty in
   SPR.create original_term ~try_reify:false dacc
 
-let simplify_duplicate_block ~kind:_ ~source_mutability:_
-    ~destination_mutability:_ dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
-  let ty = T.unknown K.value in
+let simplify_duplicate_block ~kind:_ dacc ~original_term ~arg:_ ~arg_ty
+    ~result_var =
+  let ty = T.remove_outermost_alias (DA.typing_env dacc) arg_ty in
   let dacc = DA.add_variable dacc result_var ty in
   SPR.create original_term ~try_reify:false dacc
 
@@ -535,8 +539,7 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     | Bigarray_length { dimension } -> simplify_bigarray_length ~dimension
     | Duplicate_array { kind; source_mutability; destination_mutability } ->
       simplify_duplicate_array ~kind ~source_mutability ~destination_mutability
-    | Duplicate_block { kind; source_mutability; destination_mutability } ->
-      simplify_duplicate_block ~kind ~source_mutability ~destination_mutability
+    | Duplicate_block { kind } -> simplify_duplicate_block ~kind
     | Opaque_identity -> simplify_opaque_identity
     | End_region -> simplify_end_region
   in

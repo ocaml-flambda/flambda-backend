@@ -631,13 +631,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
             length = Targetint_31_63.Imm.of_int (num_fields + 1)
           }
     in
-    Unary
-      ( Duplicate_block
-          { kind;
-            source_mutability = Mutable;
-            destination_mutability = Mutable
-          },
-        arg )
+    Unary (Duplicate_block { kind }, arg)
   | Pnegint, [arg] -> Unary (Int_arith (I.Tagged_immediate, Neg), arg)
   | Paddint, [arg1; arg2] ->
     Binary (Int_arith (I.Tagged_immediate, Add), arg1, arg2)
