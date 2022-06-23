@@ -274,9 +274,6 @@ end = struct
       mutable first_slot_after_function_slots : words;
       (* invariant : first_slot_after_function_slots <=
          first_slot_used_by_calue_slots *)
-      (* Slots to be allocated *)
-      mutable unallocated_function_slots : slot list;
-      mutable unallocated_value_slots : slot list;
       mutable allocated_slots : slot Numeric_types.Int.Map.t
     }
 
@@ -284,7 +281,10 @@ end = struct
     { desc : slot_desc;
       mutable pos : slot_pos;
       mutable size : int;
-      mutable sets : set_of_closures list
+      mutable sets : set_of_closures list;
+      mutable priority : int
+          (* guides the order of traversal when assigning offsets. smaller
+             priorities are assigned first. *)
     }
 
   (** Intermediate state to store offsets for function and value slots before
@@ -293,13 +293,16 @@ end = struct
     { mutable used_offsets : EO.t;
       mutable function_slots : slot Function_slot.Map.t;
       mutable value_slots : slot Value_slot.Map.t;
-      mutable sets_of_closures : set_of_closures list
+      mutable sets_of_closures : set_of_closures list;
+      mutable function_slots_to_assign : slot list;
+      mutable value_slots_to_assign : slot list
     }
 
   (* Create structures *)
 
   (* create a fresh slot (with no position allocated yet) *)
-  let create_slot ~size desc pos = { desc; size; pos; sets = [] }
+  let create_slot ~size desc pos =
+    { desc; size; pos; sets = []; priority = max_int }
 
   let create_set =
     let c = ref 0 in
@@ -308,8 +311,6 @@ end = struct
       { id = !c;
         first_slot_after_function_slots = 0;
         first_slot_used_by_value_slots = max_int;
-        unallocated_function_slots = [];
-        unallocated_value_slots = [];
         allocated_slots = Numeric_types.Int.Map.empty
       }
 
@@ -317,7 +318,9 @@ end = struct
     { used_offsets = EO.empty;
       function_slots = Function_slot.Map.empty;
       value_slots = Value_slot.Map.empty;
-      sets_of_closures = []
+      sets_of_closures = [];
+      function_slots_to_assign = [];
+      value_slots_to_assign = []
     }
 
   (* debug printing *)
@@ -330,40 +333,51 @@ end = struct
     | Function_slot c -> Format.fprintf fmt "%a" Function_slot.print c
     | Value_slot v -> Format.fprintf fmt "%a" Value_slot.print v
 
-  let print_slot_desc fmt s = print_desc fmt s.desc
-
-  let print_slot_descs fmt l =
-    List.iter (function s -> Format.fprintf fmt "%a,@ " print_slot_desc s) l
-
   let print_slot_pos fmt = function
     | Assigned i -> Format.fprintf fmt "%d" i
     | Unassigned -> Format.fprintf fmt "?"
     | Removed -> Format.fprintf fmt "x"
 
-  let print_slot fmt s =
-    Format.fprintf fmt "@[<h>[pos: %a;@ size: %d;@ sets: %a;@ desc: %a]@]@,"
-      print_slot_pos s.pos s.size print_set_ids s.sets print_desc s.desc
+  let print_slot fmt { pos; size; sets; desc; priority } =
+    Format.fprintf fmt
+      "@[<h>[pos: %a;@ size: %d;@ sets: %a;@ desc: %a;@ priority: %d]@]@,"
+      print_slot_pos pos size print_set_ids sets print_desc desc priority
 
-  let print_slots fmt map =
+  let print_slot_map fmt map =
     Numeric_types.Int.Map.iter (fun _ slot -> print_slot fmt slot) map
 
-  let print_set fmt s =
+  let print_slot_list fmt list =
+    let pp_sep fmt () = Format.fprintf fmt ";@ " in
+    Format.pp_print_list ~pp_sep print_slot fmt list
+
+  let[@ocamlformat "disable"] print_set fmt s =
     Format.fprintf fmt
-      "@[<v 2>%d:@ @[<v>first_slot_after_function_slots: %d;@ \
-       first_slot_used_by_value_slots: %d;@ unallocated_function_slots: \
-       @[<v>%a@];@ unallocated_value_slots: @[<v>%a@];@ allocated: \
-       @[<v>%a@]@]@]"
-      s.id s.first_slot_after_function_slots s.first_slot_used_by_value_slots
-      print_slot_descs s.unallocated_function_slots print_slot_descs
-      s.unallocated_value_slots print_slots s.allocated_slots
+      "@[<v 2>%d:@ \
+         @[<v>first_slot_after_function_slots: %d;@ \
+              first_slot_used_by_value_slots: %d;@ \
+              allocated: @[<v>%a@]\
+          @]\
+        @]"
+      s.id
+      s.first_slot_after_function_slots
+      s.first_slot_used_by_value_slots
+      print_slot_map s.allocated_slots
 
   let print_sets fmt l =
     List.iter (function s -> Format.fprintf fmt "%a@ " print_set s) l
 
-  let [@ocamlformat "disable"] print fmt state =
+  let [@ocamlformat "disable"] print fmt {
+      used_offsets = _; function_slots = _; value_slots = _;
+      sets_of_closures; function_slots_to_assign; value_slots_to_assign; } =
     Format.fprintf fmt
-      "@[<v 2>Sets of closures:@ %a@]"
-      print_sets state.sets_of_closures
+      "@[<v 2>\
+          Sets of closures:@ %a@ \
+          Function slots to assign:@ %a@ \
+          Value slots to assign:@ %a\
+       @]"
+      print_sets sets_of_closures
+      print_slot_list function_slots_to_assign
+      print_slot_list value_slots_to_assign
   [@@warning "-32"]
 
   (* Keep the value slots offsets in sets up-to-date *)
@@ -403,7 +417,7 @@ end = struct
     let map = Numeric_types.Int.Map.add offset slot map in
     set.allocated_slots <- map
 
-  let add_slot_offset env slot offset =
+  let add_slot_offset state slot offset =
     assert (slot.pos = Unassigned);
     slot.pos <- Assigned offset;
     List.iter (add_slot_offset_to_set offset slot) slot.sets;
@@ -412,37 +426,39 @@ end = struct
       let (info : EO.function_slot_info) =
         EO.Live_function_slot { offset; size = slot.size }
       in
-      EO.add_function_slot_offset env c info
+      state.used_offsets
+        <- EO.add_function_slot_offset state.used_offsets c info
     | Value_slot v ->
       let (info : EO.value_slot_info) = EO.Live_value_slot { offset } in
-      EO.add_value_slot_offset env v info
+      state.used_offsets <- EO.add_value_slot_offset state.used_offsets v info
 
-  let mark_slot_as_removed env slot =
+  let mark_slot_as_removed state slot =
     match slot.pos with
-    | Removed -> env
+    | Removed -> Misc.fatal_error "Slot already marked as removed"
     | Unassigned -> (
       slot.pos <- Removed;
       match slot.desc with
-      | Function_slot _ ->
-        (* CR gbury: we can actually remove function slots now, so this branch
-           could be updated accordingly. *)
-        Misc.fatal_error "Function_slot cannot be removed currently"
+      | Function_slot function_slot ->
+        let (info : EO.function_slot_info) = EO.Dead_function_slot in
+        state.used_offsets
+          <- EO.add_function_slot_offset state.used_offsets function_slot info
       | Value_slot v ->
         let (info : EO.value_slot_info) = EO.Dead_value_slot in
-        EO.add_value_slot_offset env v info)
+        state.used_offsets <- EO.add_value_slot_offset state.used_offsets v info
+      )
     | Assigned _ ->
       Misc.fatal_error "Cannot remove slot which is already assigned"
 
   (* Blocks with tag Closure_tag *)
 
-  let add_unallocated_slot_to_set slot set =
+  let add_unallocated_slot_to_set state slot set =
     slot.sets <- set :: slot.sets;
     update_set_for_slot slot set;
     match slot.desc with
     | Function_slot _ ->
-      set.unallocated_function_slots <- slot :: set.unallocated_function_slots
+      state.function_slots_to_assign <- slot :: state.function_slots_to_assign
     | Value_slot _ ->
-      set.unallocated_value_slots <- slot :: set.unallocated_value_slots
+      state.value_slots_to_assign <- slot :: state.value_slots_to_assign
 
   let add_allocated_slot_to_set slot offset set =
     slot.sets <- set :: slot.sets;
@@ -484,7 +500,7 @@ end = struct
       in
       let s = create_slot ~size (Function_slot function_slot) Unassigned in
       add_function_slot state function_slot s;
-      add_unallocated_slot_to_set s set)
+      add_unallocated_slot_to_set state s set)
     else
       (* We should be guaranteed that the corresponding compilation unit's cmx
          file has been read during the downward traversal. *)
@@ -518,7 +534,7 @@ end = struct
     then (
       let s = create_slot ~size:1 (Value_slot value_slot) Unassigned in
       add_value_slot state value_slot s;
-      add_unallocated_slot_to_set s set)
+      add_unallocated_slot_to_set state s set)
     else
       (* Same as the comments for the function_slots *)
       let imported_offsets = EO.imported_offsets () in
@@ -562,49 +578,6 @@ end = struct
         if not (Value_slot.Map.mem value_slot state.value_slots)
         then create_value_slot set state value_slot)
       env_map
-
-  (* Folding functions. To avoid pathological cases in allocating slots to
-     offsets, folding on slots is done by consuming the first unallocated slot
-     of each set of closures, and then repeating until all slots have been
-     consumed. *)
-
-  let rec fold_on_unallocated_function_slots f acc state =
-    let has_work_been_done = ref false in
-    let aux acc set =
-      match set.unallocated_function_slots with
-      | [] -> acc
-      | slot :: r ->
-        has_work_been_done := true;
-        set.unallocated_function_slots <- r;
-        f acc slot
-    in
-    let res = List.fold_left aux acc state.sets_of_closures in
-    if not !has_work_been_done
-    then res
-    else fold_on_unallocated_function_slots f res state
-
-  let rec fold_on_unallocated_value_slots ~used_value_slots f_kept f_removed acc
-      state =
-    let has_work_been_done = ref false in
-    let rec aux acc set =
-      match set.unallocated_value_slots with
-      | [] -> acc
-      | ({ desc = Value_slot v; _ } as slot) :: r ->
-        set.unallocated_value_slots <- r;
-        if value_slot_is_used ~used_value_slots v
-        then (
-          has_work_been_done := true;
-          f_kept acc slot)
-        else aux (f_removed acc slot) set
-      | { desc = Function_slot _; _ } :: _ -> assert false
-      (* invariant *)
-    in
-    let res = List.fold_left aux acc state.sets_of_closures in
-    if not !has_work_been_done
-    then res
-    else
-      fold_on_unallocated_value_slots ~used_value_slots f_kept f_removed res
-        state
 
   (* Find the first space available to fit a given slot.
 
@@ -706,26 +679,39 @@ end = struct
 
   (* Assign offsets to function slots *)
 
-  let assign_slot_offset env slot =
+  let assign_slot_offset state slot =
     match slot.pos with
     | Unassigned ->
       let offset = first_available_offset slot 0 slot.sets in
-      add_slot_offset env slot offset
-    | Assigned _pos -> env
+      add_slot_offset state slot offset
+    | Assigned _pos -> Misc.fatal_error "Slot has already been assigned"
     | Removed ->
       Misc.fatal_error
         "Slot has been explicitly removed, it cannot be assigned anymore"
 
-  let assign_function_slot_offsets state env =
-    fold_on_unallocated_function_slots assign_slot_offset env state
+  let assign_function_slot_offsets state =
+    let function_slots_to_assign = state.function_slots_to_assign in
+    state.function_slots_to_assign <- [];
+    (* TODO: sort the work queue *)
+    List.iter (assign_slot_offset state) function_slots_to_assign
 
-  let assign_value_slot_offsets ~used_value_slots state env =
-    fold_on_unallocated_value_slots ~used_value_slots assign_slot_offset
-      mark_slot_as_removed env state
+  let assign_value_slot_offsets ~used_value_slots state =
+    let value_slots_to_assign = state.value_slots_to_assign in
+    state.value_slots_to_assign <- [];
+    (* TODO: sort the work queue *)
+    List.iter
+      (function
+        | { desc = Value_slot v; _ } as slot ->
+          if value_slot_is_used ~used_value_slots v
+          then assign_slot_offset state slot
+          else mark_slot_as_removed state slot
+        | { desc = Function_slot _; _ } ->
+          Misc.fatal_error "function slot in queue of value slot to assign")
+      value_slots_to_assign
 
-  (* Ensure function slots/value slots that are used in projections in the
-     current compilation unit are present in the offsets returned by finalize *)
-  let imported_and_used_offsets ~used_slots state =
+  (* Ensure function slots/value slots that appear in the code for the current
+     compilation unit are present in the offsets returned by finalize *)
+  let add_used_imported_offsets ~used_slots state =
     let { function_slots_in_normal_projections;
           all_function_slots;
           value_slots_in_normal_projections;
@@ -734,61 +720,58 @@ end = struct
       used_slots
     in
     state.used_offsets
-    |> EO.reexport_function_slots function_slots_in_normal_projections
-    |> EO.reexport_function_slots all_function_slots
-    |> EO.reexport_value_slots value_slots_in_normal_projections
-    |> EO.reexport_value_slots all_value_slots
+      <- state.used_offsets
+         |> EO.reexport_function_slots function_slots_in_normal_projections
+         |> EO.reexport_function_slots all_function_slots
+         |> EO.reexport_value_slots value_slots_in_normal_projections
+         |> EO.reexport_value_slots all_value_slots
 
   (* We only want to keep value slots that appear in the creation of a set of
      closures, *and* appear as projection (at normal name mode). And we need to
      mark value_slots/ids that are not live, as dead in the exported_offsets, so
      that later compilation unit do not mistake that for a missing offset info
      on a value_slot/id. *)
-  let live_value_slots state offsets
+  let live_value_slots state
       { value_slots_in_normal_projections;
         function_slots_in_normal_projections;
         _
       } =
-    let offsets =
-      Function_slot.Set.fold
-        (fun function_slot acc ->
-          if Compilation_unit.is_current
-               (Function_slot.get_compilation_unit function_slot)
-          then
-            match find_function_slot state function_slot with
-            | Some _ -> acc
-            | None ->
-              EO.add_function_slot_offset acc function_slot Dead_function_slot
-          else acc)
-        function_slots_in_normal_projections offsets
-    in
-    let offsets = ref offsets in
-    let used_value_slots =
-      Value_slot.Set.filter
-        (fun value_slot ->
-          if Compilation_unit.is_current
-               (Value_slot.get_compilation_unit value_slot)
-          then (
-            (* a value slot appears in a set of closures iff it has a slot *)
-            match find_value_slot state value_slot with
-            | Some _ -> true
-            | None ->
-              offsets
-                := EO.add_value_slot_offset !offsets value_slot Dead_value_slot;
-              false)
-          else true)
-        value_slots_in_normal_projections
-    in
-    used_value_slots, !offsets
+    Function_slot.Set.iter
+      (fun function_slot ->
+        if Compilation_unit.is_current
+             (Function_slot.get_compilation_unit function_slot)
+        then
+          match find_function_slot state function_slot with
+          | Some _ -> ()
+          | None ->
+            state.used_offsets
+              <- EO.add_function_slot_offset state.used_offsets function_slot
+                   Dead_function_slot)
+      function_slots_in_normal_projections;
+    Value_slot.Set.filter
+      (fun value_slot ->
+        if Compilation_unit.is_current
+             (Value_slot.get_compilation_unit value_slot)
+        then (
+          (* a value slot appears in a set of closures iff it has a slot *)
+          match find_value_slot state value_slot with
+          | Some _ -> true
+          | None ->
+            state.used_offsets
+              <- EO.add_value_slot_offset state.used_offsets value_slot
+                   Dead_value_slot;
+            false)
+        else true)
+      value_slots_in_normal_projections
 
   (* Transform an internal accumulator state for slots into an actual mapping
      that assigns offsets. *)
   let finalize ~used_slots state =
-    let offsets = imported_and_used_offsets ~used_slots state in
-    let used_value_slots, offsets = live_value_slots state offsets used_slots in
-    let offsets = assign_function_slot_offsets state offsets in
-    let offsets = assign_value_slot_offsets ~used_value_slots state offsets in
-    { used_value_slots; exported_offsets = offsets }
+    add_used_imported_offsets ~used_slots state;
+    let used_value_slots = live_value_slots state used_slots in
+    assign_function_slot_offsets state;
+    assign_value_slot_offsets ~used_value_slots state;
+    { used_value_slots; exported_offsets = state.used_offsets }
 end
 
 type t = Set_of_closures.t list
