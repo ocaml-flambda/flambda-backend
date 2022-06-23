@@ -582,8 +582,8 @@ method select_operation op args _dbg =
   | (Cextcall { func; builtin = true }, _) ->
      Misc.fatal_errorf "Selection.select_operation: builtin not recognized %s"
        func ();
-  | (Cextcall { func; alloc; ty; ty_args; returns; builtin = false }, _) ->
-    Iextcall { func; alloc; ty_res = ty; ty_args; returns }, args
+  | (Cextcall { func; alloc; effects; ty; ty_args; returns; builtin = false }, _) ->
+    Iextcall { func; alloc; effects; ty_res = ty; ty_args; returns }, args
   | (Cload (chunk, mut), [arg]) ->
       let (addr, eloc) = self#select_addressing chunk arg in
       (Iload(chunk, addr, select_mutable_flag mut), [eloc])

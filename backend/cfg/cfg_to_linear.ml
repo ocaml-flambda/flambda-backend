@@ -45,9 +45,10 @@ let from_basic (basic : Cfg.basic) : L.instruction_desc =
   | Poptrap -> Lpoptrap
   | Call (F Indirect) -> Lop Icall_ind
   | Call (F (Direct { func_symbol })) -> Lop (Icall_imm { func = func_symbol })
-  | Call (P (External { func_symbol; alloc; ty_args; ty_res })) ->
+  | Call (P (External { func_symbol; alloc; effects; ty_args; ty_res })) ->
     Lop
-      (Iextcall { func = func_symbol; alloc; ty_args; ty_res; returns = true })
+      (Iextcall
+         { func = func_symbol; alloc; effects; ty_args; ty_res; returns = true })
   | Call (P (Checkbound { immediate = None })) -> Lop (Iintop Icheckbound)
   | Call (P (Checkbound { immediate = Some i })) ->
     Lop (Iintop_imm (Icheckbound, i))
@@ -174,11 +175,16 @@ let linearize_terminator cfg (terminator : Cfg.terminator Cfg.instruction)
       [L.Lop (Itailcall_imm { func = func_symbol })], None
     | Tailcall (Self { destination }) ->
       [L.Lop (Itailcall_imm { func = Cfg.fun_name cfg })], Some destination
-    | Call_no_return { func_symbol; alloc; ty_args; ty_res } ->
+    | Call_no_return { func_symbol; alloc; effects; ty_args; ty_res } ->
       ( [ L.Lop
             (Iextcall
-               { func = func_symbol; alloc; ty_args; ty_res; returns = false })
-        ],
+               { func = func_symbol;
+                 alloc;
+                 effects;
+                 ty_args;
+                 ty_res;
+                 returns = false
+               }) ],
         None )
     | Switch labels -> [L.Lswitch labels], None
     | Never -> Misc.fatal_error "Cannot linearize terminator: Never"

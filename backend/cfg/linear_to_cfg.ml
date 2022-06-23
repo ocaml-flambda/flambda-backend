@@ -373,8 +373,8 @@ let to_basic (mop : Mach.operation) : C.basic =
   match mop with
   | Icall_ind -> Call (F Indirect)
   | Icall_imm { func } -> Call (F (Direct { func_symbol = func }))
-  | Iextcall { func; alloc; ty_args; ty_res; returns = true } ->
-    Call (P (External { func_symbol = func; alloc; ty_args; ty_res }))
+  | Iextcall { func; alloc; effects; ty_args; ty_res; returns = true } ->
+    Call (P (External { func_symbol = func; alloc; effects; ty_args; ty_res }))
   | Iintop Icheckbound -> Call (P (Checkbound { immediate = None }))
   | Iintop
       (( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
@@ -584,9 +584,9 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
       in
       add_terminator t block i desc ~stack_offset ~traps;
       create_blocks t i.next block ~stack_offset ~traps
-    | Iextcall { func; alloc; ty_args; ty_res; returns = false } ->
+    | Iextcall { func; alloc; effects; ty_args; ty_res; returns = false } ->
       let desc =
-        C.Call_no_return { func_symbol = func; alloc; ty_args; ty_res }
+        C.Call_no_return { func_symbol = func; alloc; effects; ty_args; ty_res }
       in
       add_terminator t block i desc ~stack_offset ~traps;
       create_blocks t i.next block ~stack_offset ~traps
