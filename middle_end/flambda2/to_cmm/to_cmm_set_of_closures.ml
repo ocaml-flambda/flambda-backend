@@ -96,13 +96,13 @@ end) : sig
     Env.t ->
     Ece.t ->
     prev_updates:Cmm.expression option ->
-    (int * Slot_offsets.layout_slot) list ->
+    (int * Slot_offsets.Layout.slot) list ->
     P.cmm_term list * int * Env.t * Ece.t * Cmm.expression option
 end = struct
   (* The [offset]s here are measured in units of words. *)
   let fill_slot ~set_of_closures_symbol_ref symbs decls dbg ~startenv
       value_slots env acc ~slot_offset updates slot =
-    match (slot : Slot_offsets.layout_slot) with
+    match (slot : Slot_offsets.Layout.slot) with
     | Infix_header ->
       let field = P.infix_header ~function_slot_offset:(slot_offset + 1) ~dbg in
       field :: acc, slot_offset + 1, env, Ece.pure, updates
@@ -296,7 +296,7 @@ let params_and_body env res code_id p ~fun_dbg ~translate_expr =
 (* Translation of sets of closures. *)
 
 let layout_for_set_of_closures env set =
-  Slot_offsets.layout (Env.exported_offsets env)
+  Slot_offsets.Layout.make (Env.exported_offsets env)
     (Set_of_closures.function_decls set |> Function_declarations.funs_in_order)
     (Set_of_closures.value_slots set)
 
@@ -314,7 +314,7 @@ let debuginfo_for_set_of_closures env set =
   (* Choose the debuginfo with the earliest source location. *)
   match dbg with [] -> Debuginfo.none | dbg :: _ -> dbg
 
-let let_static_set_of_closures0 env symbs (layout : Slot_offsets.layout) set
+let let_static_set_of_closures0 env symbs (layout : Slot_offsets.Layout.t) set
     ~prev_updates =
   let set_of_closures_symbol_ref = ref None in
   let fun_decls = Set_of_closures.function_decls set in
@@ -404,7 +404,7 @@ let lift_set_of_closures env res ~body ~bound_vars layout set ~translate_expr =
   translate_expr env res body
 
 let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
-    (layout : Slot_offsets.layout) ~num_normal_occurrences_of_bound_vars
+    (layout : Slot_offsets.Layout.t) ~num_normal_occurrences_of_bound_vars
     ~(closure_alloc_mode : Alloc_mode.t) ~translate_expr =
   let fun_decls = Set_of_closures.function_decls set in
   let decls = Function_declarations.funs_in_order fun_decls in

@@ -14,6 +14,9 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+(* CR chambart/gbury: This module could be renamed into [set_of_closures_layout]
+   or similar. *)
+
 open! Flambda.Import
 module EO = Exported_offsets
 
@@ -99,134 +102,136 @@ let keep_value_slot ~used_value_slots v =
    case, it is impossible to make all the function slots fit before the value
    slot in the block. *)
 
-type layout_slot =
-  | Value_slot of Value_slot.t
-  | Infix_header
-  | Function_slot of Function_slot.t
+module Layout = struct
+  type slot =
+    | Value_slot of Value_slot.t
+    | Infix_header
+    | Function_slot of Function_slot.t
 
-type layout =
-  { startenv : int;
-    empty_env : bool;
-    slots : (int * layout_slot) list
-  }
+  type t =
+    { startenv : int;
+      empty_env : bool;
+      slots : (int * slot) list
+    }
 
-let order_function_slots env l acc =
-  Function_slot.Lmap.fold
-    (fun function_slot _ acc ->
-      match EO.function_slot_offset env function_slot with
-      | Some Dead_function_slot -> acc
-      | Some (Live_function_slot { size = _; offset }) ->
-        Numeric_types.Int.Map.add offset (Function_slot function_slot) acc
-      | None ->
-        Misc.fatal_errorf "No function_slot offset for %a" Function_slot.print
-          function_slot)
-    l acc
+  let order_function_slots env l acc =
+    Function_slot.Lmap.fold
+      (fun function_slot _ acc ->
+        match EO.function_slot_offset env function_slot with
+        | Some Dead_function_slot -> acc
+        | Some (Live_function_slot { size = _; offset }) ->
+          Numeric_types.Int.Map.add offset (Function_slot function_slot) acc
+        | None ->
+          Misc.fatal_errorf "No function_slot offset for %a" Function_slot.print
+            function_slot)
+      l acc
 
-let order_value_slots env l acc =
-  Value_slot.Map.fold
-    (fun value_slot _ acc ->
-      match EO.value_slot_offset env value_slot with
-      | Some Dead_value_slot -> acc
-      | Some (Live_value_slot { offset }) ->
-        Numeric_types.Int.Map.add offset (Value_slot value_slot) acc
-      | None ->
-        Misc.fatal_errorf "No value slot offset for %a" Value_slot.print
-          value_slot)
-    l acc
+  let order_value_slots env l acc =
+    Value_slot.Map.fold
+      (fun value_slot _ acc ->
+        match EO.value_slot_offset env value_slot with
+        | Some Dead_value_slot -> acc
+        | Some (Live_value_slot { offset }) ->
+          Numeric_types.Int.Map.add offset (Value_slot value_slot) acc
+        | None ->
+          Misc.fatal_errorf "No value slot offset for %a" Value_slot.print
+            value_slot)
+      l acc
 
-let layout_aux j slot (startenv, acc_slots) =
-  match slot with
-  (* Starting from OCaml 4.12, all function slots *must* precede all value
-     slots. The algorithms in this file should thus only generate slot
-     assignments that respect this invariant. If that is not the case, this is a
-     fatal error given that the start of the environment (i.e. the offset of the
-     first value slot, with the added property that all slots after that are
-     value slots (or at least scannable by the GC)), is needed by the GC when
-     scanning the block. Thus, if we see a function slot, we check that then the
-     environment has not started yet (i.e. we have not seen any value slots). *)
-  | Function_slot _ when j = 0 ->
-    assert (acc_slots = []);
-    assert (startenv = None);
-    (* see comment above *)
-    let acc_slots = [0, slot] in
-    startenv, acc_slots
-  | Function_slot _ ->
-    assert (startenv = None);
-    (* see comment above *)
-    let acc_slots = (j, slot) :: (j - 1, Infix_header) :: acc_slots in
-    startenv, acc_slots
-  | Value_slot _ ->
-    let startenv =
-      match startenv with
-      | Some i ->
-        assert (i < j);
-        startenv
-      | None -> Some j
+  let layout_aux j slot (startenv, acc_slots) =
+    match slot with
+    (* Starting from OCaml 4.12, all function slots *must* precede all value
+       slots. The algorithms in this file should thus only generate slot
+       assignments that respect this invariant. If that is not the case, this is
+       a fatal error given that the start of the environment (i.e. the offset of
+       the first value slot, with the added property that all slots after that
+       are value slots (or at least scannable by the GC)), is needed by the GC
+       when scanning the block. Thus, if we see a function slot, we check that
+       then the environment has not started yet (i.e. we have not seen any value
+       slots). *)
+    | Function_slot _ when j = 0 ->
+      assert (acc_slots = []);
+      assert (startenv = None);
+      (* see comment above *)
+      let acc_slots = [0, slot] in
+      startenv, acc_slots
+    | Function_slot _ ->
+      assert (startenv = None);
+      (* see comment above *)
+      let acc_slots = (j, slot) :: (j - 1, Infix_header) :: acc_slots in
+      startenv, acc_slots
+    | Value_slot _ ->
+      let startenv =
+        match startenv with
+        | Some i ->
+          assert (i < j);
+          startenv
+        | None -> Some j
+      in
+      let acc_slots = (j, slot) :: acc_slots in
+      startenv, acc_slots
+    | Infix_header ->
+      (* Internal invariant: such layout slots are not generated by the {order}
+         function, so they should not appear. *)
+      assert false
+
+  let make env function_slots value_slots =
+    let map =
+      Numeric_types.Int.Map.empty
+      |> order_value_slots env value_slots
+      |> order_function_slots env function_slots
     in
-    let acc_slots = (j, slot) :: acc_slots in
-    startenv, acc_slots
-  | Infix_header ->
-    (* Internal invariant: such layout slots are not generated by the {order}
-       function, so they should not appear. *)
-    assert false
+    let startenv_opt, acc_slots =
+      Numeric_types.Int.Map.fold layout_aux map (None, [])
+    in
+    let startenv, empty_env =
+      (* If there are no value slots, the start of env is considered to be the
+         (non-existing) slot after the last slot used, and if the set is empty,
+         the value does not matter. *)
+      match startenv_opt, acc_slots with
+      | Some i, _ -> i, false
+      | None, [] -> 0, true
+      | None, (j, Function_slot function_slot) :: _ -> (
+        match EO.function_slot_offset env function_slot with
+        | Some (Live_function_slot { size; _ }) -> j + size, true
+        | Some Dead_function_slot | None ->
+          (* the function slot was found earlier during the call to
+             order_function_slots *)
+          assert false)
+      | None, (_, Infix_header) :: _ ->
+        (* Cannot happen because a infix header is *always* preceded by a
+           function slot (because the slot list is reversed) *)
+        assert false
+      | None, (_, Value_slot _) :: _ ->
+        (* Cannot happen because if there is a value slot in the acc, then
+           startenv_opt should be Some _ *)
+        assert false
+    in
+    let slots = List.rev acc_slots in
+    (* The Gc assumes that a Closure_tag block actually starts with a function
+       slot at offset 0. Or more precisely, the GC unconditionally reads the
+       second field of a Closure_tag block to find out the start of environment.
+       Thus we add a check here to ensure that the slots start with a function
+       slot at offset 0. *)
+    match slots with
+    | (0, Function_slot _) :: _ -> { startenv; slots; empty_env }
+    | _ ->
+      Misc.fatal_error
+        "Sets of closures must start with a function slot at offset 0"
 
-let layout env function_slots value_slots =
-  let map =
-    Numeric_types.Int.Map.empty
-    |> order_value_slots env value_slots
-    |> order_function_slots env function_slots
-  in
-  let startenv_opt, acc_slots =
-    Numeric_types.Int.Map.fold layout_aux map (None, [])
-  in
-  let startenv, empty_env =
-    (* If there are no value slots, the start of env is considered to be the
-       (non-existing) slot after the last slot used, and if the set is empty,
-       the value does not matter. *)
-    match startenv_opt, acc_slots with
-    | Some i, _ -> i, false
-    | None, [] -> 0, true
-    | None, (j, Function_slot function_slot) :: _ -> (
-      match EO.function_slot_offset env function_slot with
-      | Some (Live_function_slot { size; _ }) -> j + size, true
-      | Some Dead_function_slot | None ->
-        (* the function slot was found earlier during the call to
-           order_function_slots *)
-        assert false)
-    | None, (_, Infix_header) :: _ ->
-      (* Cannot happen because a infix header is *always* preceded by a function
-         slot (because the slot list is reversed) *)
-      assert false
-    | None, (_, Value_slot _) :: _ ->
-      (* Cannot happen because if there is a value slot in the acc, then
-         startenv_opt should be Some _ *)
-      assert false
-  in
-  let slots = List.rev acc_slots in
-  (* The Gc assumes that a Closure_tag block actually starts with a function
-     slot at offset 0. Or more precisely, the GC unconditionally reads the
-     second field of a Closure_tag block to find out the start of environment.
-     Thus we add a check here to ensure that the slots start with a function
-     slot at offset 0. *)
-  match slots with
-  | (0, Function_slot _) :: _ -> { startenv; slots; empty_env }
-  | _ ->
-    Misc.fatal_error
-      "Sets of closures must start with a function slot at offset 0"
+  let print_slot fmt = function
+    | Value_slot v -> Format.fprintf fmt "value_slot %a" Value_slot.print v
+    | Infix_header -> Format.fprintf fmt "infix_header"
+    | Function_slot cid ->
+      Format.fprintf fmt "function_slot %a" Function_slot.print cid
 
-let print_layout_slot fmt = function
-  | Value_slot v -> Format.fprintf fmt "value_slot %a" Value_slot.print v
-  | Infix_header -> Format.fprintf fmt "infix_header"
-  | Function_slot cid ->
-    Format.fprintf fmt "function_slot %a" Function_slot.print cid
-
-let print_layout fmt l =
-  Format.fprintf fmt "@[<v>startenv: %d;@ " l.startenv;
-  List.iter
-    (fun (i, slot) ->
-      Format.fprintf fmt "@[<h>%d %a@]@," i print_layout_slot slot)
-    l.slots;
-  Format.fprintf fmt "@]"
+  let print fmt l =
+    Format.fprintf fmt "@[<v>startenv: %d;@ " l.startenv;
+    List.iter
+      (fun (i, slot) -> Format.fprintf fmt "@[<h>%d %a@]@," i print_slot slot)
+      l.slots;
+    Format.fprintf fmt "@]"
+end
 
 (* Greedy algorithm *)
 
@@ -844,12 +849,3 @@ let finalize_offsets ~get_code_metadata ~used_slots l =
     ~always:(fun () ->
       if Flambda_features.dump_slot_offsets ()
       then Format.eprintf "%a@." Greedy.print !state)
-
-let function_slot_symbol function_slot =
-  let compunit = Function_slot.get_compilation_unit function_slot in
-  let name = Compilation_unit.get_linkage_name compunit in
-  Format.asprintf "%a__%s" Linkage_name.print name
-    (Function_slot.to_string function_slot)
-
-let code_symbol ~function_slot_symbol =
-  Format.asprintf "%s_code" function_slot_symbol
