@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 type 'function_params_and_body t =
   { params_and_body : 'function_params_and_body;
     free_names_of_params_and_body : Name_occurrences.t;

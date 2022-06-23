@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 (* CR mshinwell: We need to emit [Warnings.Inlining_impossible] as required.
 
    When in fallback-inlining mode: if we want to follow Closure we should not

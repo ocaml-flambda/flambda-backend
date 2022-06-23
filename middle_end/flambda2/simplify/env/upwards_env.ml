@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 type t =
   { continuations : (Scope.t * Continuation_in_env.t) Continuation.Map.t;
     continuation_aliases : Continuation.t Continuation.Map.t;

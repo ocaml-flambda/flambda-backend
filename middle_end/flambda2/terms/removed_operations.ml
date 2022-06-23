@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 (* Operations are fine grained metrics (number of calls / allocations) about the
    size of an expression. *)
 

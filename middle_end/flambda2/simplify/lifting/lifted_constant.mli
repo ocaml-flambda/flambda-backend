@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 (* CR mshinwell: The name of this module is a bit misleading *)
 
 (** Description of a group of statically-allocated constants discovered during

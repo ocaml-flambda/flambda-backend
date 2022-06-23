@@ -13,8 +13,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-9-30-40-41-42"]
-
 (** Simplification of primitives taking no argument. *)
 
 val simplify_nullary_primitive :

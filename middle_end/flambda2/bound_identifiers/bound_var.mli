@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 (** Variables with name modes, as occur on the left-hand sides of
     [Let]-expressions (see [Bound_pattern]). *)
 

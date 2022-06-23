@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 type t =
   { funs : Code_id.t Function_slot.Map.t;
     in_order : Code_id.t Function_slot.Lmap.t

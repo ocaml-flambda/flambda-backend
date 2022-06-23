@@ -12,8 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 module T = Flambda2_types
 module TEEV = T.Typing_env_extension.With_extra_variables
 

@@ -12,8 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 type t =
   | Singleton of Bound_var.t
   | Set_of_closures of Bound_var.t list

@@ -29,8 +29,6 @@
     but any type-level tweak that we want to attach to a term could be made a
     constructor of [t], so long as it follows the rules. *)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 module type S = sig
   type variable
 

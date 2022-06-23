@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 open! Flambda.Import
 module DE = Downwards_env
 module DA = Downwards_acc

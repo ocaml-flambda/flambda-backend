@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 type t =
   { exn_handler : Continuation.t;
     extra_args : (Simple.t * Flambda_kind.With_subkind.t) list

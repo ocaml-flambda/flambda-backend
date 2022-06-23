@@ -212,8 +212,6 @@ module type OrderedType = sig
   val compare : t -> t -> int
 end
 
-[@@@ocaml.warning "-26"]
-
 module Make (Ord : OrderedType) = struct
   type key = Ord.t
 

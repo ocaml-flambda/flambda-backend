@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 (** Kinds and subkinds of Flambda types. *)
 
 module Naked_number_kind : sig

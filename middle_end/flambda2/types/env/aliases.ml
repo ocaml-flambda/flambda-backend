@@ -12,8 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 type coercion_to_canonical = Coercion.t
 
 let compose_map_values_exn map ~then_:coercion =

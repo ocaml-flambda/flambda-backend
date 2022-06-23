@@ -572,7 +572,6 @@ let compare (x : t) (y : t) = compare x y
 external equal : t -> t -> bool = "caml_bytes_equal" [@@noalloc]
 
 (* Deprecated functions implemented via other deprecated functions *)
-[@@@ocaml.warning "-3"]
 
 let uppercase s = map Char.uppercase s
 

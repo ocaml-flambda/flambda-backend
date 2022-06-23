@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 (** Greatest lower bound of two types. *)
 val meet :
   Typing_env.Meet_env.t ->

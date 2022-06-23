@@ -1,5 +1,3 @@
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 (* CR lmaurer: Get rid of -4 and fix the fragile matches. *)
 
 let map_accum_left f env l =

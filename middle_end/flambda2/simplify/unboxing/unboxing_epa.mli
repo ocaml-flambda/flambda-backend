@@ -17,8 +17,6 @@
 (** Handling of the extra params and args required for the unboxing of a
     continuation's parameter(s). *)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 type unboxed_arg =
   | Poison (* used for recursive calls *)
   | Available of Simple.t

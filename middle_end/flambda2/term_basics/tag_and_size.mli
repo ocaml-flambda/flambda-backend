@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 type t = Tag.t * Targetint_31_63.Imm.t
 
 include Container_types.S with type t := t

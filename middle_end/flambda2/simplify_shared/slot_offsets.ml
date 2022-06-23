@@ -12,8 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 (* CR chambart/gbury: This module could be renamed into [set_of_closures_layout]
    or similar. *)
 

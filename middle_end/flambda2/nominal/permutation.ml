@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 (* The invariant checks are extremely slow and unlikely to be generally
    useful. *)
 let check_invariants = false

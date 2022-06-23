@@ -16,8 +16,6 @@
 
 (** Conversion from Lambda to Flambda. *)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 val lambda_to_flambda :
   symbol_for_global:(?comp_unit:Compilation_unit.t -> Ident.t -> Symbol.t) ->
   big_endian:bool ->

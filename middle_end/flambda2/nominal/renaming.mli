@@ -20,8 +20,6 @@
     Unlike [Name_occurrences] this module does not segregate names according to
     where they occur (e.g. in terms or in types). *)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 module Simple = Int_ids.Simple
 
 type t

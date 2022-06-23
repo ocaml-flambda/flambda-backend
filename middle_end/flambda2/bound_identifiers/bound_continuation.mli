@@ -17,8 +17,6 @@
 (** A [Continuation] equipped with operations that mean it can be used in
     binding position within a [Name_abstraction] value. *)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 type t = Continuation.t
 
 include Bindable.S with type t := t

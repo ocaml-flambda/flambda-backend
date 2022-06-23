@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 (** Simplification of primitives taking variable numbers of arguments. *)
 
 val simplify_variadic_primitive :

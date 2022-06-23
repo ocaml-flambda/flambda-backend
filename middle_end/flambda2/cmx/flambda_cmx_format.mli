@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 (** Contents of middle-end-specific portion of .cmx files when using Flambda. *)
 
 type t

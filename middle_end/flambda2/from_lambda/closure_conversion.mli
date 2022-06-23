@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 (** Introduce closures into CPS code, producing Flambda. *)
 
 module IR = Closure_conversion_aux.IR

@@ -16,8 +16,6 @@
 
 (** The Flambda representation of a single compilation unit's code. *)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 type t
 
 val print : Format.formatter -> t -> unit

@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 let simplify_coercion dacc (coercion : Coercion.t) =
   match coercion with
   | Id -> coercion

@@ -16,8 +16,6 @@
 
 (** Simplification of the right-hand sides of [Let] bindings. *)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 val simplify_named :
   Downwards_acc.t ->
   Bound_pattern.t ->

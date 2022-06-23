@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 (** A label, unique across the whole program, that identifies the value of a
     captured variable in a set of closures. Value slots are assigned integer
     offsets inside [Closure_tag] blocks, where the relevant captured value will

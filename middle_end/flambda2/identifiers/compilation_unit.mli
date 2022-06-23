@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 include Container_types.S
 
 val create : name:string -> Linkage_name.t -> t

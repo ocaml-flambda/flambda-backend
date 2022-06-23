@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "-55"]
-
 include Container_types_intf
 
 module Pair (A : Thing) (B : Thing) : Thing with type t = A.t * B.t = struct

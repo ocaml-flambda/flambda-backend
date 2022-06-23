@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 (* [Simplify_import] cannot be used owing to a circular dependency. *)
 module EA = Continuation_extra_params_and_args.Extra_arg
 module EP = Flambda_primitive.Eligible_for_cse

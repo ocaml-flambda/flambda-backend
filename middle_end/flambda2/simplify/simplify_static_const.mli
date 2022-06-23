@@ -16,8 +16,6 @@
 
 (** Simplification of statically-allocated constants bound to symbols. *)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 open! Flambda
 
 val simplify_static_consts :

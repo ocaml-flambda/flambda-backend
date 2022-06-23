@@ -16,8 +16,6 @@
 
 (** Simplification of recursive groups of sets of closures. *)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 open! Simplify_import
 
 (** Simplify a single, non-lifted set of closures, as may occur on the

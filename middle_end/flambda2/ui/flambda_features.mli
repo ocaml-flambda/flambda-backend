@@ -12,8 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 val flambda2_is_enabled : unit -> bool
 
 val classic_mode : unit -> bool

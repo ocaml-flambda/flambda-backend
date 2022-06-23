@@ -17,8 +17,6 @@
 (** A value that is known to fit into a register (of the appropriate kind) on
     the target machine. We do not require such values to be [Let]-bound. *)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 include module type of struct
   include Int_ids.Simple
 end

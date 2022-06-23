@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 let make_decision ~inlining_arguments:args ~inline ~stub ~cost_metrics:metrics
     ~is_a_functor ~(recursive : Recursive.t) :
     Function_decl_inlining_decision_type.t =

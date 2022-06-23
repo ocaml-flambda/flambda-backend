@@ -16,8 +16,6 @@
 
 (** Translate Lambda code to Cmm using Flambda 2. *)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 (** This function is not currently re-entrant. *)
 val lambda_to_cmm :
   ppf_dump:Format.formatter ->

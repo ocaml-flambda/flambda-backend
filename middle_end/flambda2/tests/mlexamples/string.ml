@@ -435,7 +435,6 @@ let split_on_char sep s =
   sub s 0 !j :: !r
 
 (* Deprecated functions implemented via other deprecated functions *)
-[@@@ocaml.warning "-3"]
 
 let uppercase s = B.uppercase (bos s) |> bts
 

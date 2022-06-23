@@ -1,5 +1,10 @@
 (include_subdirs unqualified)
 
+(env
+ (_
+  (flags
+   (:standard -w +a-30-40-41-42))))
+
 (library
  (name flambda2)
  (wrapped false)

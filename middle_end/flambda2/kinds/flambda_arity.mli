@@ -17,8 +17,6 @@
 (** Arities are lists of kinds, sometimes with subkinds, used to describe things
     such as the kinding of function and continuation parameter lists. *)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 type t
 
 type arity = t

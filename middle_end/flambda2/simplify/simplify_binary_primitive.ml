@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 open! Simplify_import
 module A = Number_adjuncts
 module Float_by_bit_pattern = Numeric_types.Float_by_bit_pattern

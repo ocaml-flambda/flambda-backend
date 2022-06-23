@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 (** One or more [Continuation]s, in an ordered list, equipped with operations
     that mean such list can be used in binding position within a
     [Name_abstraction] value. *)

@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 (** The grammar of the Flambda 2 term language, represented up to
     alpha-conversion of bound variables and continuations.
 

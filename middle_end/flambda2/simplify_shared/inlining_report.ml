@@ -66,8 +66,6 @@
  *    - Printing this tree to a human-readable file compatible with org mode
  *)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 module IHA = Inlining_history.Absolute
 
 module Pass = struct

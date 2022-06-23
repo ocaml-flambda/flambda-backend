@@ -13,8 +13,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 open! Flambda.Import
 module Env = To_cmm_env
 module Ece = Effects_and_coeffects

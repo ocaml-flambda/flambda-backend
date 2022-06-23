@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 module Continuations = Permutation.Make [@inlined hint] (Continuation)
 module Variables = Permutation.Make [@inlined hint] (Variable)
 module Code_ids = Permutation.Make [@inlined hint] (Code_id)

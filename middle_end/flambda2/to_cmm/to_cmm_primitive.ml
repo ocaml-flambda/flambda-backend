@@ -12,8 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 module Env = To_cmm_env
 module Ece = Effects_and_coeffects
 module P = Flambda_primitive

@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 (** The identifiers (implicit and explicit function parameters, together with
     return and exception continuations) bound at a lambda in the term language. *)
 

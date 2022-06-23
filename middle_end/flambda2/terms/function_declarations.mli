@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 (** The part of a [Set_of_closures] that describes the functions therein (as
     opposed to the captured variables). *)
 type t

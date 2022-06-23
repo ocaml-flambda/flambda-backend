@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 (** Approximations used for cross-module inlining in Closure_conversion *)
 
 type 'code t =

@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 (** Cost metrics are a group of metrics tracking the impact of simplifying an
     expression. One of these is an approximation of the size of the generated
     machine code for this expression. It also tracks the number of operations

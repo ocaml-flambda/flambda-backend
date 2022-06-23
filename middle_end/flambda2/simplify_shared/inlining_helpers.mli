@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 val make_inlined_body :
   callee:Simple.t ->
   params:'param list ->

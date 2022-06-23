@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 module DE = Downwards_env
 module LC = Lifted_constant
 module T = Flambda2_types

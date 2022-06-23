@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 module T = Flambda2_types
 
 type t = { continuation_uses : Continuation_uses.t Continuation.Map.t }

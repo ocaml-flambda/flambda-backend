@@ -16,8 +16,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 (* CR mshinwell: Remove uses of polymorphic comparison *)
 
 module K = Flambda_kind

@@ -16,8 +16,6 @@
 
 (** Generic module for handling permutations. *)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 module Make (N : Container_types.S) : sig
   type t
 

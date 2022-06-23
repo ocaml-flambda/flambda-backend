@@ -17,8 +17,6 @@
 (** The sum type holding a [Variable] or a [Symbol]. The injection functions
     into the sum type are the identity. *)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 include module type of struct
   include Int_ids.Name
 end

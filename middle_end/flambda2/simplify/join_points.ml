@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 module DE = Downwards_env
 module BP = Bound_parameter
 module LCS = Lifted_constant_state

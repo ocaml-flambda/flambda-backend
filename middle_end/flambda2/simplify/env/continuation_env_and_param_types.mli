@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 type arg_at_use =
   { arg_type : Flambda2_types.t;
     typing_env : Flambda2_types.Typing_env.t
