@@ -1030,17 +1030,18 @@ let simplify_immutable_block_load access_kind ~min_name_mode dacc ~original_term
 
 let simplify_phys_equal (op : P.equality_comparison) (kind : K.t) dacc
     ~original_term dbg ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var =
-  let const bool =
-    let dacc =
-      DA.add_variable dacc result_var
-        (T.this_naked_immediate (Targetint_31_63.bool bool))
-    in
-    SPR.create
-      (Named.create_simple (Simple.const_bool bool))
-      ~try_reify:false dacc
-  in
   if Simple.equal arg1 arg2
-  then match op with Eq -> const true | Neq -> const false
+  then
+    let const bool =
+      let dacc =
+        DA.add_variable dacc result_var
+          (T.this_naked_immediate (Targetint_31_63.bool bool))
+      in
+      SPR.create
+        (Named.create_simple (Simple.const_bool bool))
+        ~try_reify:false dacc
+    in
+    match op with Eq -> const true | Neq -> const false
   else
     match kind with
     | Value -> (
@@ -1051,28 +1052,12 @@ let simplify_phys_equal (op : P.equality_comparison) (kind : K.t) dacc
       | Proved _, Proved _ ->
         Binary_int_eq_comp_tagged_immediate.simplify op dacc ~original_term dbg
           ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var
-      | (Proved _ | Unknown | Invalid), _ -> (
-        let physically_equal =
-          false
-          (* CR-someday mshinwell: Resurrect this -- see cps_types branch.
-             T.values_physically_equal arg1_ty arg2_ty *)
+      | _, _ ->
+        let dacc =
+          DA.add_variable dacc result_var
+            (T.these_naked_immediates Targetint_31_63.all_bools)
         in
-        let physically_distinct =
-          false
-          (* CR-someday mshinwell: Resurrect this -- see cps_types branch. (*
-             Structural inequality implies physical inequality. *) let env =
-             E.get_typing_environment env in T.values_structurally_distinct
-             (env, arg1_ty) (env, arg2_ty) *)
-        in
-        match op, physically_equal, physically_distinct with
-        (* | Eq, true, _ -> const true | Neq, true, _ -> const false | Eq, _,
-           true -> const false | Neq, _, true -> const true *)
-        | _, _, _ ->
-          let dacc =
-            DA.add_variable dacc result_var
-              (T.these_naked_immediates Targetint_31_63.all_bools)
-          in
-          SPR.create original_term ~try_reify:false dacc))
+        SPR.create original_term ~try_reify:false dacc)
     | Naked_number Naked_immediate -> (
       let typing_env = DA.typing_env dacc in
       let proof1 = T.prove_naked_immediates typing_env arg1_ty in
@@ -1104,6 +1089,7 @@ let simplify_phys_equal (op : P.equality_comparison) (kind : K.t) dacc
         ~arg1_ty ~arg2 ~arg2_ty ~result_var
     | Region -> Misc.fatal_error "Region kind not expected here"
     | Rec_info -> Misc.fatal_error "Rec_info kind not expected here"
+  [@@ocaml.warning "-fragile-match"]
 
 let simplify_array_load (array_kind : P.Array_kind.t) mutability dacc
     ~original_term:_ dbg ~arg1 ~arg1_ty:array_ty ~arg2 ~arg2_ty:_ ~result_var =
