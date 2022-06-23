@@ -390,10 +390,21 @@ module C = Context_for_multiple_sets_of_closures
 let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_depth
     function_slot_opt ~closure_bound_names_inside_function ~inlining_arguments
     ~absolute_history code_id ~return_continuation ~exn_continuation
-    ~return_cont_params =
+    ~return_cont_params code_metadata =
   let dacc =
     DA.map_denv (C.dacc_inside_functions context) ~f:(fun denv ->
-        let denv = DE.add_parameters_with_unknown_types denv params in
+        let num_leading_heap_params =
+          Code_metadata.num_leading_heap_params code_metadata
+        in
+        let alloc_modes =
+          List.mapi
+            (fun index _ : Alloc_mode.t Or_unknown.t ->
+              if index < num_leading_heap_params then Known Heap else Unknown)
+            (Bound_parameters.to_list params)
+        in
+        let denv =
+          DE.add_parameters_with_unknown_types ~alloc_modes denv params
+        in
         let denv = DE.set_inlining_arguments inlining_arguments denv in
         let denv =
           DE.set_inlining_history_tracker
@@ -549,7 +560,7 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
           dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_depth
             function_slot_opt ~closure_bound_names_inside_function
             ~inlining_arguments ~absolute_history code_id ~return_continuation
-            ~exn_continuation ~return_cont_params
+            ~exn_continuation ~return_cont_params (Code.code_metadata code)
         in
         if not (DA.no_lifted_constants dacc)
         then

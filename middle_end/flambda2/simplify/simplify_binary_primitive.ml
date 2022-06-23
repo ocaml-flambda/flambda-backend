@@ -941,6 +941,7 @@ let[@inline always] simplify_immutable_block_load0
         | Invalid -> SPR.create_invalid dacc
         | Unknown -> result
         | Proved (tag_and_size, field_simples) -> (
+          Format.eprintf "PROVED\n%!";
           match Tag_and_size.tag tag_and_size |> Tag.Scannable.of_tag with
           | None -> result
           | Some tag -> (

@@ -106,6 +106,7 @@ val add_parameters :
   t
 
 val add_parameters_with_unknown_types :
+  ?alloc_modes:Alloc_mode.t Or_unknown.t list ->
   ?name_mode:Name_mode.t ->
   ?at_unit_toplevel:bool ->
   t ->

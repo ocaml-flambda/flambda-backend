@@ -298,7 +298,9 @@ let arity_of_list ts = Flambda_arity.create (List.map TG.kind ts)
 let unknown_types_from_arity arity =
   List.map (fun kind -> unknown kind) (Flambda_arity.to_list arity)
 
-let rec unknown_with_subkind (kind : Flambda_kind.With_subkind.t) =
+let rec unknown_with_subkind ?(alloc_mode = Or_unknown.Unknown)
+    (kind : Flambda_kind.With_subkind.t) =
+  (* CR mshinwell: use [alloc_mode] more *)
   match Flambda_kind.With_subkind.subkind kind with
   | Anything -> (
     match Flambda_kind.With_subkind.kind kind with
@@ -327,12 +329,12 @@ let rec unknown_with_subkind (kind : Flambda_kind.With_subkind.t) =
             fields)
         non_consts
     in
-    variant ~const_ctors ~non_const_ctors Unknown
+    variant ~const_ctors ~non_const_ctors alloc_mode
   | Float_block { num_fields } ->
     immutable_block ~is_unique:false Tag.double_array_tag
       ~field_kind:Flambda_kind.naked_float
       ~fields:(List.init num_fields (fun _ -> TG.any_naked_float))
-      Unknown
+      alloc_mode
   | Float_array ->
     TG.array_of_length
       ~element_kind:(Known Flambda_kind.With_subkind.naked_float)

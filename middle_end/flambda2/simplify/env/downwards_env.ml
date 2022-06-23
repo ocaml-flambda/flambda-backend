@@ -325,12 +325,25 @@ let add_parameters ?(name_mode = Name_mode.normal) ?at_unit_toplevel t params
       add_variable0 t var param_type ~at_unit_toplevel)
     t params param_types
 
-let add_parameters_with_unknown_types ?name_mode ?at_unit_toplevel t params =
-  let param_types =
-    ListLabels.map (Bound_parameters.to_list params) ~f:(fun param ->
-        T.unknown_with_subkind (BP.kind param))
+let add_parameters_with_unknown_types' ?alloc_modes ?name_mode ?at_unit_toplevel
+    t params =
+  let params' = params in
+  let params = Bound_parameters.to_list params in
+  let alloc_modes =
+    match alloc_modes with
+    | Some alloc_modes ->
+      if List.compare_lengths alloc_modes params <> 0
+      then
+        Misc.fatal_errorf "Params and alloc modes do not match up:@ %a"
+          Bound_parameters.print params';
+      alloc_modes
+    | None -> List.map (fun _ -> Or_unknown.Unknown) params
   in
-  add_parameters ?name_mode ?at_unit_toplevel t params ~param_types
+  let param_types =
+    ListLabels.map2 params alloc_modes ~f:(fun param alloc_mode ->
+        T.unknown_with_subkind ~alloc_mode (BP.kind param))
+  in
+  add_parameters ?name_mode ?at_unit_toplevel t params' ~param_types
 
 let mark_parameters_as_toplevel t params =
   let variables_defined_at_toplevel =

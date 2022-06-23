@@ -314,7 +314,8 @@ val bottom : Flambda_kind.t -> t
 (** Construct a top ("unknown") type of the given kind. *)
 val unknown : Flambda_kind.t -> t
 
-val unknown_with_subkind : Flambda_kind.With_subkind.t -> t
+val unknown_with_subkind :
+  ?alloc_mode:Alloc_mode.t Or_unknown.t -> Flambda_kind.With_subkind.t -> t
 
 (** Create an bottom type with the same kind as the given type. *)
 val bottom_like : t -> t
