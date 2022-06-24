@@ -2777,8 +2777,8 @@ let rec recover_some_aliases t =
           match immediates with
           | Unknown -> t
           | Known immediates -> (
-            let t = recover_some_aliases immediates in
-            match t with
+            let t' = recover_some_aliases immediates in
+            match t' with
             | Naked_immediate ty -> (
               match TD.descr ty with
               | Ok (Equals alias) ->
@@ -2797,7 +2797,7 @@ let rec recover_some_aliases t =
             | Value _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
             | Naked_nativeint _ | Rec_info _ | Region _ ->
               Misc.fatal_errorf "Immediates case returned wrong kind:@ %a" print
-                t ()))))
+                t' ()))))
   | Naked_immediate ty -> (
     match TD.descr ty with
     | Unknown | Bottom | Ok (Equals _) | Ok (No_alias (Is_int _ | Get_tag _)) ->

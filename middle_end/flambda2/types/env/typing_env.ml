@@ -846,6 +846,7 @@ and add_equation1 t name ty ~(meet_type : meet_type) =
     Simple.pattern_match bare_lhs ~name ~const:(fun _ -> t)
 
 and[@inline always] add_equation t name ty ~meet_type =
+  let ty = TG.recover_some_aliases ty in
   match add_equation1 t name ty ~meet_type with
   | exception Binding_time_resolver_failure ->
     (* Addition of aliases between names that are both in external compilation
