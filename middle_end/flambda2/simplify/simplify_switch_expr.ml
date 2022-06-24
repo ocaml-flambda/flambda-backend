@@ -27,14 +27,14 @@ type mergeable_arms =
   | Not_mergeable
 
 let find_all_aliases env arg =
-  let result = TE.aliases_of_simple env ~min_name_mode:NM.normal arg in
-  Format.eprintf "TE: %a\n%!" TE.print env;
-  Format.eprintf "aliases of %a = %a\n%!" Simple.print arg Alias_set.print
-    result;
-  result
+  TE.aliases_of_simple env ~min_name_mode:NM.normal arg
 
 let rebuild_arm uacc arm (action, use_id, arity, env_at_use)
-    (new_let_conts, arms, (mergeable_arms : mergeable_arms), not_arms) =
+    ( new_let_conts,
+      arms,
+      (mergeable_arms : mergeable_arms),
+      identity_arms,
+      not_arms ) =
   let action =
     Simplify_common.clear_demoted_trap_action_and_patch_unused_exn_bucket uacc
       action
@@ -80,16 +80,20 @@ let rebuild_arm uacc arm (action, use_id, arity, env_at_use)
     match action with
     | None ->
       (* The destination is unreachable; delete the [Switch] arm. *)
-      new_let_conts, arms, mergeable_arms, not_arms
+      new_let_conts, arms, mergeable_arms, identity_arms, not_arms
     | Some action -> (
-      let maybe_mergeable ~mergeable_arms ~not_arms =
+      (* CR mshinwell/vlaviron: Fix alias handling so that identity switches
+         like those in id_switch.ml can be simplified by only using
+         [mergeable_arms]. Then remove [identity_arms]. *)
+      let maybe_mergeable ~mergeable_arms ~identity_arms ~not_arms =
         let arms = Targetint_31_63.Map.add arm action arms in
         (* Check to see if this arm may be merged with others. *)
         if Option.is_some (Apply_cont.trap_action action)
-        then new_let_conts, arms, Not_mergeable, not_arms
+        then new_let_conts, arms, Not_mergeable, identity_arms, not_arms
         else
           match mergeable_arms with
-          | Not_mergeable -> new_let_conts, arms, Not_mergeable, not_arms
+          | Not_mergeable ->
+            new_let_conts, arms, Not_mergeable, identity_arms, not_arms
           | No_arms ->
             let cont = Apply_cont.continuation action in
             let args =
@@ -97,10 +101,14 @@ let rebuild_arm uacc arm (action, use_id, arity, env_at_use)
                 (fun arg -> find_all_aliases env_at_use arg)
                 (Apply_cont.args action)
             in
-            new_let_conts, arms, Mergeable { cont; args }, not_arms
+            ( new_let_conts,
+              arms,
+              Mergeable { cont; args },
+              identity_arms,
+              not_arms )
           | Mergeable { cont; args } ->
             if not (Continuation.equal cont (Apply_cont.continuation action))
-            then new_let_conts, arms, Not_mergeable, not_arms
+            then new_let_conts, arms, Not_mergeable, identity_arms, not_arms
             else
               let args =
                 List.map2
@@ -108,35 +116,45 @@ let rebuild_arm uacc arm (action, use_id, arity, env_at_use)
                     Alias_set.inter (find_all_aliases env_at_use arg) arg_set)
                   args (Apply_cont.args action)
               in
-              new_let_conts, arms, Mergeable { cont; args }, not_arms
+              ( new_let_conts,
+                arms,
+                Mergeable { cont; args },
+                identity_arms,
+                not_arms )
       in
       (* Check to see if the arm is of a form that might mean the whole [Switch]
          is a boolean NOT. *)
       match Apply_cont.to_one_arg_without_trap_action action with
-      | None -> maybe_mergeable ~mergeable_arms ~not_arms
+      | None -> maybe_mergeable ~mergeable_arms ~identity_arms ~not_arms
       | Some arg ->
         let[@inline always] const arg =
           match Reg_width_const.descr arg with
           | Tagged_immediate arg ->
-            if Targetint_31_63.equal arm Targetint_31_63.bool_true
-               && Targetint_31_63.equal arg Targetint_31_63.bool_false
-               || Targetint_31_63.equal arm Targetint_31_63.bool_false
-                  && Targetint_31_63.equal arg Targetint_31_63.bool_true
+            if Targetint_31_63.equal arm arg
+            then
+              let identity_arms =
+                Targetint_31_63.Map.add arm action identity_arms
+              in
+              maybe_mergeable ~mergeable_arms ~identity_arms ~not_arms
+            else if Targetint_31_63.equal arm Targetint_31_63.bool_true
+                    && Targetint_31_63.equal arg Targetint_31_63.bool_false
+                    || Targetint_31_63.equal arm Targetint_31_63.bool_false
+                       && Targetint_31_63.equal arg Targetint_31_63.bool_true
             then
               let not_arms = Targetint_31_63.Map.add arm action not_arms in
-              maybe_mergeable ~mergeable_arms ~not_arms
-            else maybe_mergeable ~mergeable_arms ~not_arms
+              maybe_mergeable ~mergeable_arms ~identity_arms ~not_arms
+            else maybe_mergeable ~mergeable_arms ~identity_arms ~not_arms
           | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
           | Naked_nativeint _ ->
-            maybe_mergeable ~mergeable_arms ~not_arms
+            maybe_mergeable ~mergeable_arms ~identity_arms ~not_arms
         in
         Simple.pattern_match arg ~const ~name:(fun _ ~coercion:_ ->
-            maybe_mergeable ~mergeable_arms ~not_arms)))
+            maybe_mergeable ~mergeable_arms ~identity_arms ~not_arms)))
   | New_wrapper new_let_cont ->
     let new_let_conts = new_let_cont :: new_let_conts in
     let action = Apply_cont.goto new_let_cont.cont in
     let arms = Targetint_31_63.Map.add arm action arms in
-    new_let_conts, arms, Not_mergeable, not_arms
+    new_let_conts, arms, Not_mergeable, identity_arms, not_arms
 
 let find_cse_simple dacc prim =
   match P.Eligible_for_cse.create prim with
@@ -154,9 +172,13 @@ let find_cse_simple dacc prim =
 
 let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
     ~dacc_before_switch uacc ~after_rebuild =
-  let new_let_conts, arms, mergeable_arms, not_arms =
+  let new_let_conts, arms, mergeable_arms, identity_arms, not_arms =
     Targetint_31_63.Map.fold (rebuild_arm uacc) arms
-      ([], Targetint_31_63.Map.empty, No_arms, Targetint_31_63.Map.empty)
+      ( [],
+        Targetint_31_63.Map.empty,
+        No_arms,
+        Targetint_31_63.Map.empty,
+        Targetint_31_63.Map.empty )
   in
   let switch_merged =
     match mergeable_arms with
@@ -167,6 +189,16 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
       if List.compare_length_with args num_args = 0
       then Some (cont, args)
       else None
+  in
+  let switch_is_identity =
+    let arm_discrs = Targetint_31_63.Map.keys arms in
+    let identity_arms_discrs = Targetint_31_63.Map.keys identity_arms in
+    if not (Targetint_31_63.Set.equal arm_discrs identity_arms_discrs)
+    then None
+    else
+      Targetint_31_63.Map.data identity_arms
+      |> List.map Apply_cont.continuation
+      |> Continuation.Set.of_list |> Continuation.Set.get_singleton
   in
   let switch_is_boolean_not =
     let arm_discrs = Targetint_31_63.Map.keys arms in
@@ -215,45 +247,63 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
         let uacc = UA.add_free_names uacc (Apply_cont.free_names apply_cont) in
         expr, uacc
       | None -> (
-        match switch_is_boolean_not with
+        match switch_is_identity with
         | Some dest -> (
           let uacc =
             UA.notify_removed ~operation:Removed_operations.branch uacc
           in
-          let not_scrutinee = Variable.create "not_scrutinee" in
-          let not_scrutinee' = Simple.var not_scrutinee in
           let tagging_prim : P.t = Unary (Tag_immediate, scrutinee) in
           match find_cse_simple dacc_before_switch tagging_prim with
           | None -> normal_case uacc
           | Some tagged_scrutinee ->
-            let do_tagging =
-              Named.create_prim
-                (P.Unary (Boolean_not, tagged_scrutinee))
-                Debuginfo.none
-            in
-            let bound =
-              VB.create not_scrutinee NM.normal |> Bound_pattern.singleton
-            in
             let apply_cont =
-              Apply_cont.create dest ~args:[not_scrutinee'] ~dbg
+              Apply_cont.create dest ~args:[tagged_scrutinee] ~dbg
             in
-            let body = RE.create_apply_cont apply_cont in
-            let free_names_of_body = Apply_cont.free_names apply_cont in
-            let expr =
-              RE.create_let
-                (UA.are_rebuilding_terms uacc)
-                bound do_tagging ~body ~free_names_of_body
-            in
+            let expr = RE.create_apply_cont apply_cont in
             let uacc =
-              UA.add_free_names uacc
-                (Name_occurrences.union
-                   (Named.free_names do_tagging)
-                   (Name_occurrences.diff free_names_of_body
-                      (Name_occurrences.singleton_variable not_scrutinee
-                         NM.normal)))
+              UA.add_free_names uacc (Apply_cont.free_names apply_cont)
             in
             expr, uacc)
-        | None -> normal_case uacc)
+        | None -> (
+          match switch_is_boolean_not with
+          | Some dest -> (
+            let uacc =
+              UA.notify_removed ~operation:Removed_operations.branch uacc
+            in
+            let not_scrutinee = Variable.create "not_scrutinee" in
+            let not_scrutinee' = Simple.var not_scrutinee in
+            let tagging_prim : P.t = Unary (Tag_immediate, scrutinee) in
+            match find_cse_simple dacc_before_switch tagging_prim with
+            | None -> normal_case uacc
+            | Some tagged_scrutinee ->
+              let do_tagging =
+                Named.create_prim
+                  (P.Unary (Boolean_not, tagged_scrutinee))
+                  Debuginfo.none
+              in
+              let bound =
+                VB.create not_scrutinee NM.normal |> Bound_pattern.singleton
+              in
+              let apply_cont =
+                Apply_cont.create dest ~args:[not_scrutinee'] ~dbg
+              in
+              let body = RE.create_apply_cont apply_cont in
+              let free_names_of_body = Apply_cont.free_names apply_cont in
+              let expr =
+                RE.create_let
+                  (UA.are_rebuilding_terms uacc)
+                  bound do_tagging ~body ~free_names_of_body
+              in
+              let uacc =
+                UA.add_free_names uacc
+                  (Name_occurrences.union
+                     (Named.free_names do_tagging)
+                     (Name_occurrences.diff free_names_of_body
+                        (Name_occurrences.singleton_variable not_scrutinee
+                           NM.normal)))
+              in
+              expr, uacc)
+          | None -> normal_case uacc))
   in
   let uacc, expr = EB.bind_let_conts uacc ~body new_let_conts in
   after_rebuild expr uacc
