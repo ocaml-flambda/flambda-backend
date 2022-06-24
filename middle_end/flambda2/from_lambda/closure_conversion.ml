@@ -32,6 +32,14 @@ module K = Flambda_kind
 module P = Flambda_primitive
 module VB = Bound_var
 
+type 'a close_program_metadata =
+  | Normal : [`Normal] close_program_metadata
+  | Classic :
+      (Exported_code.t * Flambda_cmx_format.t option * Exported_offsets.t)
+      -> [`Classic] close_program_metadata
+
+type 'a close_program_result = Flambda_unit.t * 'a close_program_metadata
+
 type close_functions_result =
   | Lifted of (Symbol.t * Env.value_approximation) Function_slot.Lmap.t
   | Dynamic of Set_of_closures.t * Env.value_approximation Function_slot.Map.t
@@ -1861,8 +1869,10 @@ let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
         defining_expr ~body)
     (acc, body) components
 
-let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
-    ~module_block_size_in_words ~program ~prog_return_cont ~exn_continuation =
+let close_program (type mode) ~(mode : mode Flambda_features.mode)
+    ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
+    ~module_block_size_in_words ~program ~prog_return_cont ~exn_continuation :
+    mode close_program_result =
   let symbol_for_global ident = symbol_for_global ?comp_unit:None ident in
   let env = Env.create ~symbol_for_global ~big_endian ~cmx_loader in
   let module_symbol =
@@ -2007,33 +2017,44 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
   let get_code_metadata code_id =
     Code_id.Map.find code_id (Acc.code acc) |> Code.code_metadata
   in
-  let all_code =
-    Exported_code.add_code (Acc.code acc)
-      ~keep_code:(fun _ -> false)
-      (Exported_code.mark_as_imported
-         (Flambda_cmx.get_imported_code cmx_loader ()))
-  in
-  let Slot_offsets.{ used_value_slots; exported_offsets } =
-    let used_slots =
-      let free_names = Acc.free_names acc in
-      Slot_offsets.
-        { function_slots_in_normal_projections =
-            Name_occurrences.function_slots_in_normal_projections free_names;
-          all_function_slots = Name_occurrences.all_function_slots free_names;
-          value_slots_in_normal_projections =
-            Name_occurrences.value_slots_in_normal_projections free_names;
-          all_value_slots = Name_occurrences.all_value_slots free_names
-        }
+  match mode with
+  | Normal ->
+    (* CR chambart/gbury: we could probably get away with not computing some of
+       the fields of the Acc, when not in classic mode. For instance, the slot
+       offsets constraints accumulation is not needed in "normal" mode. *)
+    let unit =
+      Flambda_unit.create ~return_continuation:return_cont ~exn_continuation
+        ~body ~module_symbol ~used_value_slots:Unknown
     in
-    Slot_offsets.finalize_offsets (Acc.slot_offsets acc) ~get_code_metadata
-      ~used_slots
-  in
-  let cmx =
-    Flambda_cmx.prepare_cmx_from_approx ~approxs:symbols_approximations
-      ~module_symbol ~exported_offsets ~used_value_slots all_code
-  in
-  ( Flambda_unit.create ~return_continuation:return_cont ~exn_continuation ~body
-      ~module_symbol ~used_value_slots:(Known used_value_slots),
-    all_code,
-    cmx,
-    exported_offsets )
+    unit, Normal
+  | Classic ->
+    let all_code =
+      Exported_code.add_code (Acc.code acc)
+        ~keep_code:(fun _ -> false)
+        (Exported_code.mark_as_imported
+           (Flambda_cmx.get_imported_code cmx_loader ()))
+    in
+    let Slot_offsets.{ used_value_slots; exported_offsets } =
+      let used_slots =
+        let free_names = Acc.free_names acc in
+        Slot_offsets.
+          { function_slots_in_normal_projections =
+              Name_occurrences.function_slots_in_normal_projections free_names;
+            all_function_slots = Name_occurrences.all_function_slots free_names;
+            value_slots_in_normal_projections =
+              Name_occurrences.value_slots_in_normal_projections free_names;
+            all_value_slots = Name_occurrences.all_value_slots free_names
+          }
+      in
+      Slot_offsets.finalize_offsets (Acc.slot_offsets acc) ~get_code_metadata
+        ~used_slots
+    in
+    let cmx =
+      Flambda_cmx.prepare_cmx_from_approx ~approxs:symbols_approximations
+        ~module_symbol ~exported_offsets ~used_value_slots all_code
+    in
+    let unit =
+      Flambda_unit.create ~return_continuation:return_cont ~exn_continuation
+        ~body ~module_symbol ~used_value_slots:(Known used_value_slots)
+    in
+    unit, Classic (all_code, cmx, exported_offsets)

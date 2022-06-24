@@ -14,7 +14,15 @@
 
 val flambda2_is_enabled : unit -> bool
 
+type 'a mode =
+  | Normal : [`Normal] mode
+  | Classic : [`Classic] mode
+
+type any_mode = Mode : _ mode -> any_mode
+
 val classic_mode : unit -> bool
+
+val mode : unit -> any_mode
 
 val join_points : unit -> bool
 

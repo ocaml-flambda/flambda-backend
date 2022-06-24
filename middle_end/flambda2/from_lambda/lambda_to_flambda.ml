@@ -1794,12 +1794,8 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
 
 (* CR pchambart: define a record `target_config` to hold things like
    `big_endian` *)
-let lambda_to_flambda ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
-    ~module_block_size_in_words (lam : Lambda.lambda) :
-    Flambda_unit.t
-    * Exported_code.t
-    * Flambda_cmx_format.t option
-    * Exported_offsets.t =
+let lambda_to_flambda ~mode ~symbol_for_global ~big_endian ~cmx_loader
+    ~module_ident ~module_block_size_in_words (lam : Lambda.lambda) =
   let current_unit_id =
     Compilation_unit.get_persistent_ident (Compilation_unit.get_current_exn ())
   in
@@ -1811,6 +1807,6 @@ let lambda_to_flambda ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
   let toplevel acc ccenv =
     cps_tail acc env ccenv lam return_continuation exn_continuation
   in
-  CC.close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
-    ~module_block_size_in_words ~program:toplevel
+  CC.close_program ~mode ~symbol_for_global ~big_endian ~cmx_loader
+    ~module_ident ~module_block_size_in_words ~program:toplevel
     ~prog_return_cont:return_continuation ~exn_continuation

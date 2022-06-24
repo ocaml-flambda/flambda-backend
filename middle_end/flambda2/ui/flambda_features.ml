@@ -23,9 +23,17 @@ let with_default (r : 'a Flambda_backend_flags.or_default)
       (Flambda_backend_flags.Flambda2.default_for_opt_level
          !Flambda_backend_flags.opt_level)
 
+type 'a mode =
+  | Normal : [`Normal] mode
+  | Classic : [`Classic] mode
+
+type any_mode = Mode : _ mode -> any_mode
+
 let classic_mode () =
   !Flambda_backend_flags.Flambda2.classic_mode
   |> with_default ~f:(fun d -> d.classic_mode)
+
+let mode () = if classic_mode () then Mode Classic else Mode Normal
 
 let join_points () =
   !Flambda_backend_flags.Flambda2.join_points

@@ -159,17 +159,18 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
     let cmx_loader =
       Flambda_cmx.create_loader ~get_global_info ~symbol_for_global
     in
-    let raw_flambda, code, cmx, offsets =
+    let (Mode mode) = Flambda_features.mode () in
+    let raw_flambda, close_program_metadata =
       Profile.record_call "lambda_to_flambda" (fun () ->
-          Lambda_to_flambda.lambda_to_flambda ~symbol_for_global
+          Lambda_to_flambda.lambda_to_flambda ~mode ~symbol_for_global
             ~big_endian:Arch.big_endian ~cmx_loader ~module_ident
             ~module_block_size_in_words module_initializer)
     in
     Compiler_hooks.execute Raw_flambda2 raw_flambda;
     print_rawflambda ppf raw_flambda;
     let flambda, offsets, cmx, all_code =
-      if Flambda_features.classic_mode ()
-      then (
+      match mode, close_program_metadata with
+      | Classic, Classic (code, cmx, offsets) ->
         (if Flambda_features.inlining_report ()
         then
           let output_prefix = prefixname ^ ".cps_conv" in
@@ -177,8 +178,8 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
             Inlining_report.output_then_forget_decisions ~output_prefix
           in
           Compiler_hooks.execute Inlining_tree inlining_tree);
-        raw_flambda, offsets, cmx, code)
-      else
+        raw_flambda, offsets, cmx, code
+      | Normal, Normal ->
         let round = 0 in
         let { Simplify.unit = flambda; exported_offsets; cmx; all_code } =
           Profile.record_call ~accumulate:true "simplify" (fun () ->
