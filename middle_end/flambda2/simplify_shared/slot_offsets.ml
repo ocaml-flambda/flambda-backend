@@ -269,6 +269,9 @@ end = struct
 
   type function_slot = Function
 
+  (* silence warning 37 (unused constructor) *)
+  let _ = Value, Function
+
   type _ slot_desc =
     | Function_slot : Function_slot.t -> function_slot slot_desc
     | Value_slot : Value_slot.t -> value_slot slot_desc
