@@ -26,10 +26,14 @@ type mergeable_arms =
       }
   | Not_mergeable
 
-let find_all_aliases dacc arg =
-  TE.aliases_of_simple (DA.typing_env dacc) ~min_name_mode:NM.normal arg
+let find_all_aliases env arg =
+  let result = TE.aliases_of_simple env ~min_name_mode:NM.normal arg in
+  Format.eprintf "TE: %a\n%!" TE.print env;
+  Format.eprintf "aliases of %a = %a\n%!" Simple.print arg Alias_set.print
+    result;
+  result
 
-let rebuild_arm uacc arm (action, use_id, arity, dacc_at_use)
+let rebuild_arm uacc arm (action, use_id, arity, env_at_use)
     (new_let_conts, arms, (mergeable_arms : mergeable_arms), not_arms) =
   let action =
     Simplify_common.clear_demoted_trap_action_and_patch_unused_exn_bucket uacc
@@ -90,7 +94,7 @@ let rebuild_arm uacc arm (action, use_id, arity, dacc_at_use)
             let cont = Apply_cont.continuation action in
             let args =
               List.map
-                (fun arg -> find_all_aliases dacc_at_use arg)
+                (fun arg -> find_all_aliases env_at_use arg)
                 (Apply_cont.args action)
             in
             new_let_conts, arms, Mergeable { cont; args }, not_arms
@@ -101,7 +105,7 @@ let rebuild_arm uacc arm (action, use_id, arity, dacc_at_use)
               let args =
                 List.map2
                   (fun arg_set arg ->
-                    Alias_set.inter (find_all_aliases dacc_at_use arg) arg_set)
+                    Alias_set.inter (find_all_aliases env_at_use arg) arg_set)
                   args (Apply_cont.args action)
               in
               new_let_conts, arms, Mergeable { cont; args }, not_arms
@@ -262,10 +266,8 @@ let simplify_arm ~typing_env_at_use ~scrutinee_ty arm action (arms, dacc) =
   match T.meet typing_env_at_use scrutinee_ty shape with
   | Bottom -> arms, dacc
   | Ok (_meet_ty, env_extension) ->
-    let env_at_use =
-      TE.add_env_extension typing_env_at_use env_extension
-      |> DE.with_typing_env (DA.denv dacc)
-    in
+    let env_at_use = TE.add_env_extension typing_env_at_use env_extension in
+    let denv_at_use = DE.with_typing_env (DA.denv dacc) env_at_use in
     let args = AC.args action in
     let use_kind =
       Simplify_common.apply_cont_use_kind ~context:Switch_branch action
@@ -275,7 +277,7 @@ let simplify_arm ~typing_env_at_use ~scrutinee_ty arm action (arms, dacc) =
     in
     let dacc, rewrite_id =
       DA.record_continuation_use dacc (AC.continuation action) use_kind
-        ~env_at_use ~arg_types
+        ~env_at_use:denv_at_use ~arg_types
     in
     let arity = List.map T.kind arg_types |> Flambda_arity.create in
     let action = Apply_cont.update_args action ~args in
@@ -287,7 +289,7 @@ let simplify_arm ~typing_env_at_use ~scrutinee_ty arm action (arms, dacc) =
              (List.map Simple.free_names args))
     in
     let arms =
-      Targetint_31_63.Map.add arm (action, rewrite_id, arity, dacc) arms
+      Targetint_31_63.Map.add arm (action, rewrite_id, arity, env_at_use) arms
     in
     arms, dacc
 
