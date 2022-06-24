@@ -134,8 +134,22 @@ let rebuild_arm uacc arm (action, use_id, arity, dacc_at_use)
     let arms = Targetint_31_63.Map.add arm action arms in
     new_let_conts, arms, mergeable_arms, not_arms
 
-let rebuild_switch ~simplify_let dacc ~arms ~condition_dbg ~scrutinee
-    ~scrutinee_ty uacc ~after_rebuild =
+let find_cse_simple dacc prim =
+  match P.Eligible_for_cse.create prim with
+  | None -> None (* Constant *)
+  | Some with_fixed_value -> (
+    match DE.find_cse (DA.denv dacc) with_fixed_value with
+    | None -> None
+    | Some simple -> (
+      match
+        TE.get_canonical_simple_exn (DA.typing_env dacc) simple
+          ~min_name_mode:NM.normal ~name_mode_of_existing_simple:NM.normal
+      with
+      | exception Not_found -> None
+      | simple -> Some simple))
+
+let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
+    ~dacc_before_switch uacc ~after_rebuild =
   let new_let_conts, arms, mergeable_arms, not_arms =
     Targetint_31_63.Map.fold (rebuild_arm uacc) arms
       ([], Targetint_31_63.Map.empty, No_arms, Targetint_31_63.Map.empty)
@@ -161,45 +175,6 @@ let rebuild_switch ~simplify_let dacc ~arms ~condition_dbg ~scrutinee
       |> List.map Apply_cont.continuation
       |> Continuation.Set.of_list |> Continuation.Set.get_singleton
   in
-  let create_tagged_scrutinee uacc dest ~make_body =
-    (* A problem with using [simplify_let] below is that the continuation [dest]
-       might have [Apply_cont_rewrite]s in the environment, left over from the
-       simplification of the existing uses. We must clear these to avoid a
-       lookup failure for our new [Apply_cont] when [Simplify_apply_cont] tries
-       to rewrite the use. There is no need for the rewrites anyway; they have
-       already been applied. It is of course necessary to restore any rewrite
-       before returning [uacc], since the surrounding context may need it.
-
-       Likewise, we need to clear the continuation uses environment for [dest]
-       in [dacc], since our new [Apply_cont] might not match the original uses
-       (e.g. if a parameter has been removed). *)
-    let rewrite = UE.find_apply_cont_rewrite (UA.uenv uacc) dest in
-    let uacc =
-      UA.map_uenv uacc ~f:(fun uenv -> UE.delete_apply_cont_rewrite uenv dest)
-    in
-    let dacc = DA.delete_continuation_uses dacc dest in
-    let bound_to = Variable.create "tagged_scrutinee" in
-    let body = make_body ~tagged_scrutinee:(Simple.var bound_to) in
-    let bound_to = Bound_var.create bound_to NM.normal in
-    let defining_expr =
-      Named.create_prim (Unary (Tag_immediate, scrutinee)) Debuginfo.none
-    in
-    let let_expr =
-      Let.create
-        (Bound_pattern.singleton bound_to)
-        defining_expr ~body ~free_names_of_body:Unknown
-    in
-    simplify_let dacc let_expr ~down_to_up:(fun _dacc ~rebuild ->
-        rebuild uacc ~after_rebuild:(fun expr uacc ->
-            let uacc =
-              match rewrite with
-              | None -> uacc
-              | Some rewrite ->
-                UA.map_uenv uacc ~f:(fun uenv ->
-                    UE.add_apply_cont_rewrite uenv dest rewrite)
-            in
-            expr, uacc))
-  in
   let body, uacc =
     if Targetint_31_63.Map.cardinal arms < 1
     then
@@ -207,6 +182,25 @@ let rebuild_switch ~simplify_let dacc ~arms ~condition_dbg ~scrutinee
       RE.create_invalid Zero_switch_arms, uacc
     else
       let dbg = Debuginfo.none in
+      let[@inline] normal_case () =
+        (* In that case, even though some branches were removed by simplify we
+           should not count them in the number of removed operations: these
+           branches wouldn't have been taken during execution anyway. *)
+        let expr, uacc =
+          EB.create_switch uacc ~condition_dbg ~scrutinee ~arms
+        in
+        if Flambda_features.check_invariants ()
+           && Simple.is_const scrutinee
+           && Targetint_31_63.Map.cardinal arms > 1
+        then
+          Misc.fatal_errorf
+            "[Switch] with constant scrutinee (type: %a) should have been \
+             simplified away:@ %a"
+            T.print scrutinee_ty
+            (RE.print (UA.are_rebuilding_terms uacc))
+            expr;
+        expr, uacc
+      in
       match switch_merged with
       | Some (dest, args) ->
         let uacc =
@@ -216,13 +210,16 @@ let rebuild_switch ~simplify_let dacc ~arms ~condition_dbg ~scrutinee
         expr, uacc
       | None -> (
         match switch_is_boolean_not with
-        | Some dest ->
+        | Some dest -> (
           let uacc =
             UA.notify_removed ~operation:Removed_operations.branch uacc
           in
-          let make_body ~tagged_scrutinee =
-            let not_scrutinee = Variable.create "not_scrutinee" in
-            let not_scrutinee' = Simple.var not_scrutinee in
+          let not_scrutinee = Variable.create "not_scrutinee" in
+          let not_scrutinee' = Simple.var not_scrutinee in
+          let tagging_prim : P.t = Unary (Tag_immediate, scrutinee) in
+          match find_cse_simple dacc_before_switch tagging_prim with
+          | None -> normal_case ()
+          | Some tagged_scrutinee ->
             let do_tagging =
               Named.create_prim
                 (P.Unary (Boolean_not, tagged_scrutinee))
@@ -231,105 +228,21 @@ let rebuild_switch ~simplify_let dacc ~arms ~condition_dbg ~scrutinee
             let bound =
               VB.create not_scrutinee NM.normal |> Bound_pattern.singleton
             in
-            let body =
+            let apply_cont =
               Apply_cont.create dest ~args:[not_scrutinee'] ~dbg
-              |> Expr.create_apply_cont
             in
-            Let.create bound do_tagging ~body ~free_names_of_body:Unknown
-            |> Expr.create_let
-          in
-          create_tagged_scrutinee uacc dest ~make_body
-        | None ->
-          (* In that case, even though some branches were removed by simplify we
-             should not count them in the number of removed operations: these
-             branches wouldn't have been taken during execution anyway. *)
-          let expr, uacc =
-            EB.create_switch uacc ~condition_dbg ~scrutinee ~arms
-          in
-          if Flambda_features.check_invariants ()
-             && Simple.is_const scrutinee
-             && Targetint_31_63.Map.cardinal arms > 1
-          then
-            Misc.fatal_errorf
-              "[Switch] with constant scrutinee (type: %a) should have been \
-               simplified away:@ %a"
-              T.print scrutinee_ty
-              (RE.print (UA.are_rebuilding_terms uacc))
-              expr;
-          expr, uacc)
+            let body = RE.create_apply_cont apply_cont in
+            let expr =
+              RE.create_let
+                (UA.are_rebuilding_terms uacc)
+                bound do_tagging ~body
+                ~free_names_of_body:(Apply_cont.free_names apply_cont)
+            in
+            expr, uacc)
+        | None -> normal_case ())
   in
   let uacc, expr = EB.bind_let_conts uacc ~body new_let_conts in
   after_rebuild expr uacc
-
-let find_cse_simple dacc prim =
-  match P.Eligible_for_cse.create prim with
-  | None -> None (* Constant *)
-  | Some with_fixed_value -> (
-    match DE.find_cse (DA.denv dacc) with_fixed_value with
-    | None -> None
-    | Some simple -> (
-      match
-        TE.get_canonical_simple_exn (DA.typing_env dacc) simple
-          ~min_name_mode:NM.normal ~name_mode_of_existing_simple:NM.normal
-      with
-      | exception Not_found -> None
-      | simple -> Some simple))
-
-let check_cse_environment dacc ~scrutinee =
-  (* When the switch is an identity or a NOT, the expression is rewritten to
-     remove the switch during the upwards pass. The switch is replaced by either
-     a tagging or a boolean NOT and a tagging. The result of the tagging can be
-     a variable for which dependencies are not tracked by data_flow the usual
-     way during simplification of lets. This could be benign, if a new
-     expression to compute it was always introduced here, because there is
-     already a dependency registered on the scrutinee. But if CSE replaces it by
-     a variable that is only used here, we can create a real new dependency that
-     didn't exist before. For example: *)
-  (*
-   *   let untagged = untag x
-   *   apply_cont k untagged (cse_arg tag(untagged) = x)
-   *   where k x cse_param =
-   *     switch x
-   *     | 0 -> apply_cont k2 0
-   *     | 1 -> apply_cont k2 1
-   *
-   *  would be rewritten to:
-   *
-   *   let untagged = untag x
-   *   apply_cont k untagged (cse_arg tag(untagged) = x)
-   *   where k x cse_param =
-   *     let tagged = tag x
-   *     apply_cont k2 tagged
-   *
-   * And with CSE:
-   *
-   *   let untagged = untag x
-   *   apply_cont k untagged (cse_arg tag(untagged) = x)
-   *   where k x cse_param =
-   *     apply_cont k2 cse_param
-   *)
-  (* If the tracking were not done properly, cse_param could be considered dead
-     and removed from the parameters of continuation k.
-
-     We solve this by always looking for a tagged version of the scrutinee in
-     the CSE environment and registering it as a required variable like the
-     scrutinee. If it is not available, no problem can occur. *)
-  match find_cse_simple dacc (Unary (Tag_immediate, scrutinee)) with
-  | None -> dacc
-  | Some tagged_scrutinee -> (
-    let dacc =
-      DA.map_data_flow dacc
-        ~f:
-          (Data_flow.add_used_in_current_handler
-             (Simple.free_names tagged_scrutinee))
-    in
-    match find_cse_simple dacc (Unary (Boolean_not, tagged_scrutinee)) with
-    | None -> dacc
-    | Some not_scrutinee ->
-      DA.map_data_flow dacc
-        ~f:
-          (Data_flow.add_used_in_current_handler
-             (Simple.free_names not_scrutinee)))
 
 let simplify_arm ~typing_env_at_use ~scrutinee_ty arm action (arms, dacc) =
   let shape =
@@ -368,12 +281,13 @@ let simplify_arm ~typing_env_at_use ~scrutinee_ty arm action (arms, dacc) =
     in
     arms, dacc
 
-let simplify_switch ~simplify_let dacc switch ~down_to_up =
+let simplify_switch0 dacc switch ~down_to_up =
   let scrutinee = Switch.scrutinee switch in
   let scrutinee_ty =
     S.simplify_simple dacc scrutinee ~min_name_mode:NM.normal
   in
   let scrutinee = T.get_alias_exn scrutinee_ty in
+  let dacc_before_switch = dacc in
   let typing_env_at_use = DA.typing_env dacc in
   let arms, dacc =
     Targetint_31_63.Map.fold
@@ -381,7 +295,6 @@ let simplify_switch ~simplify_let dacc switch ~down_to_up =
       (Switch.arms switch)
       (Targetint_31_63.Map.empty, dacc)
   in
-  let dacc = check_cse_environment dacc ~scrutinee in
   let dacc =
     if Targetint_31_63.Map.cardinal arms <= 1
     then dacc
@@ -391,6 +304,32 @@ let simplify_switch ~simplify_let dacc switch ~down_to_up =
   in
   down_to_up dacc
     ~rebuild:
-      (rebuild_switch ~simplify_let dacc ~arms
+      (rebuild_switch ~arms
          ~condition_dbg:(Switch.condition_dbg switch)
-         ~scrutinee ~scrutinee_ty)
+         ~scrutinee ~scrutinee_ty ~dacc_before_switch)
+
+let simplify_switch ~simplify_let ~simplify_toplevel dacc switch ~down_to_up =
+  let tagged_scrutinee = Variable.create "tagged_scrutinee" in
+  let tagging_prim =
+    Named.create_prim
+      (Unary (Tag_immediate, Switch.scrutinee switch))
+      Debuginfo.none
+  in
+  let let_expr =
+    (* [body] won't be looked at (see below). *)
+    Let.create
+      (Bound_pattern.singleton (Bound_var.create tagged_scrutinee NM.normal))
+      tagging_prim
+      ~body:(Expr.create_switch switch)
+      ~free_names_of_body:Unknown
+  in
+  let dacc =
+    DA.map_data_flow dacc
+      ~f:
+        (Data_flow.add_used_in_current_handler
+           (Name_occurrences.singleton_variable tagged_scrutinee NM.normal))
+  in
+  simplify_let
+    ~simplify_expr:(fun dacc _body ~down_to_up ->
+      simplify_switch0 dacc switch ~down_to_up)
+    ~simplify_toplevel dacc let_expr ~down_to_up

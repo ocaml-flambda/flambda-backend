@@ -30,7 +30,9 @@ let rec simplify_expr dacc expr ~down_to_up =
   | Apply_cont apply_cont ->
     Simplify_apply_cont_expr.simplify_apply_cont dacc apply_cont ~down_to_up
   | Switch switch ->
-    Simplify_switch_expr.simplify_switch ~simplify_let dacc switch ~down_to_up
+    Simplify_switch_expr.simplify_switch
+      ~simplify_let:Simplify_let_expr.simplify_let ~simplify_toplevel dacc
+      switch ~down_to_up
   | Invalid { message } ->
     (* CR mshinwell: Make sure that a program can be simplified to just
        [Invalid]. *)
