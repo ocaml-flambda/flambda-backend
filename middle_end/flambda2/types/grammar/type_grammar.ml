@@ -2753,3 +2753,87 @@ module Head_of_kind_naked_immediate = struct
 
   let create_get_tag ty = Get_tag ty
 end
+
+let rec recover_some_aliases t =
+  match t with
+  | Value ty -> (
+    match TD.descr ty with
+    | Unknown | Bottom
+    | Ok (Equals _)
+    | Ok
+        (No_alias
+          ( Mutable_block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
+          | Boxed_nativeint _ | String _ | Closures _ | Array _ )) ->
+      t
+    | Ok
+        (No_alias
+          (Variant { immediates; blocks; is_unique = _; alloc_mode = _ })) -> (
+      match blocks with
+      | Unknown -> t
+      | Known blocks -> (
+        if not (Row_like_for_blocks.is_bottom blocks)
+        then t
+        else
+          match immediates with
+          | Unknown -> t
+          | Known immediates -> (
+            let t = recover_some_aliases immediates in
+            match t with
+            | Naked_immediate ty -> (
+              match TD.descr ty with
+              | Ok (Equals alias) ->
+                Simple.pattern_match' alias
+                  ~var:(fun _ ~coercion:_ -> t)
+                  ~symbol:(fun _ ~coercion:_ -> t)
+                  ~const:(fun const ->
+                    match Reg_width_const.descr const with
+                    | Naked_immediate i -> this_tagged_immediate i
+                    | Tagged_immediate _ | Naked_float _ | Naked_int32 _
+                    | Naked_int64 _ | Naked_nativeint _ ->
+                      Misc.fatal_errorf
+                        "Immediates case returned wrong kind of constant:@ %a"
+                        Reg_width_const.print const)
+              | Unknown | Bottom | Ok (No_alias _) -> t)
+            | Value _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
+            | Naked_nativeint _ | Rec_info _ | Region _ ->
+              Misc.fatal_errorf "Immediates case returned wrong kind:@ %a" print
+                t ()))))
+  | Naked_immediate ty -> (
+    match TD.descr ty with
+    | Unknown | Bottom | Ok (Equals _) | Ok (No_alias (Is_int _ | Get_tag _)) ->
+      t
+    | Ok (No_alias (Naked_immediates is)) -> (
+      match Targetint_31_63.Set.get_singleton is with
+      | Some i -> this_naked_immediate i
+      | None ->
+        if Targetint_31_63.Set.is_empty is then bottom_naked_immediate else t))
+  | Naked_float ty -> (
+    match TD.descr ty with
+    | Unknown | Bottom | Ok (Equals _) -> t
+    | Ok (No_alias fs) -> (
+      match Float.Set.get_singleton fs with
+      | Some f -> this_naked_float f
+      | None -> if Float.Set.is_empty fs then bottom_naked_float else t))
+  | Naked_int32 ty -> (
+    match TD.descr ty with
+    | Unknown | Bottom | Ok (Equals _) -> t
+    | Ok (No_alias is) -> (
+      match Int32.Set.get_singleton is with
+      | Some f -> this_naked_int32 f
+      | None -> if Int32.Set.is_empty is then bottom_naked_int32 else t))
+  | Naked_int64 ty -> (
+    match TD.descr ty with
+    | Unknown | Bottom | Ok (Equals _) -> t
+    | Ok (No_alias is) -> (
+      match Int64.Set.get_singleton is with
+      | Some f -> this_naked_int64 f
+      | None -> if Int64.Set.is_empty is then bottom_naked_int64 else t))
+  | Naked_nativeint ty -> (
+    match TD.descr ty with
+    | Unknown | Bottom | Ok (Equals _) -> t
+    | Ok (No_alias is) -> (
+      match Targetint_32_64.Set.get_singleton is with
+      | Some f -> this_naked_nativeint f
+      | None ->
+        if Targetint_32_64.Set.is_empty is then bottom_naked_nativeint else t))
+  | Rec_info _ | Region _ -> t
