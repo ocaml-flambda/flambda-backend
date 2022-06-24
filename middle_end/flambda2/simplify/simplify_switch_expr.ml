@@ -82,7 +82,7 @@ let rebuild_arm uacc arm (action, use_id, arity, dacc_at_use)
         let arms = Targetint_31_63.Map.add arm action arms in
         (* Check to see if this arm may be merged with others. *)
         if Option.is_some (Apply_cont.trap_action action)
-        then new_let_conts, arms, mergeable_arms, not_arms
+        then new_let_conts, arms, Not_mergeable, not_arms
         else
           match mergeable_arms with
           | Not_mergeable -> new_let_conts, arms, Not_mergeable, not_arms
@@ -132,7 +132,7 @@ let rebuild_arm uacc arm (action, use_id, arity, dacc_at_use)
     let new_let_conts = new_let_cont :: new_let_conts in
     let action = Apply_cont.goto new_let_cont.cont in
     let arms = Targetint_31_63.Map.add arm action arms in
-    new_let_conts, arms, mergeable_arms, not_arms
+    new_let_conts, arms, Not_mergeable, not_arms
 
 let find_cse_simple dacc prim =
   match P.Eligible_for_cse.create prim with
@@ -182,7 +182,7 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
       RE.create_invalid Zero_switch_arms, uacc
     else
       let dbg = Debuginfo.none in
-      let[@inline] normal_case () =
+      let[@inline] normal_case uacc =
         (* In that case, even though some branches were removed by simplify we
            should not count them in the number of removed operations: these
            branches wouldn't have been taken during execution anyway. *)
@@ -206,7 +206,9 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
         let uacc =
           UA.notify_removed ~operation:Removed_operations.branch uacc
         in
-        let expr = Apply_cont.create dest ~args ~dbg |> RE.create_apply_cont in
+        let apply_cont = Apply_cont.create dest ~args ~dbg in
+        let expr = RE.create_apply_cont apply_cont in
+        let uacc = UA.add_free_names uacc (Apply_cont.free_names apply_cont) in
         expr, uacc
       | None -> (
         match switch_is_boolean_not with
@@ -218,7 +220,7 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
           let not_scrutinee' = Simple.var not_scrutinee in
           let tagging_prim : P.t = Unary (Tag_immediate, scrutinee) in
           match find_cse_simple dacc_before_switch tagging_prim with
-          | None -> normal_case ()
+          | None -> normal_case uacc
           | Some tagged_scrutinee ->
             let do_tagging =
               Named.create_prim
@@ -232,14 +234,22 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
               Apply_cont.create dest ~args:[not_scrutinee'] ~dbg
             in
             let body = RE.create_apply_cont apply_cont in
+            let free_names_of_body = Apply_cont.free_names apply_cont in
             let expr =
               RE.create_let
                 (UA.are_rebuilding_terms uacc)
-                bound do_tagging ~body
-                ~free_names_of_body:(Apply_cont.free_names apply_cont)
+                bound do_tagging ~body ~free_names_of_body
+            in
+            let uacc =
+              UA.add_free_names uacc
+                (Name_occurrences.union
+                   (Named.free_names do_tagging)
+                   (Name_occurrences.diff free_names_of_body
+                      (Name_occurrences.singleton_variable not_scrutinee
+                         NM.normal)))
             in
             expr, uacc)
-        | None -> normal_case ())
+        | None -> normal_case uacc)
   in
   let uacc, expr = EB.bind_let_conts uacc ~body new_let_conts in
   after_rebuild expr uacc
