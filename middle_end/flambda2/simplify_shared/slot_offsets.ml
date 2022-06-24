@@ -103,6 +103,20 @@ module Layout = struct
       slots : (words * slot) list
     }
 
+  let print_slot fmt = function
+    | Value_slot v -> Format.fprintf fmt "value_slot %a" Value_slot.print v
+    | Infix_header -> Format.fprintf fmt "infix_header"
+    | Function_slot { size; function_slot } ->
+      Format.fprintf fmt "function_slot(%d) %a" size Function_slot.print
+        function_slot
+
+  let print fmt l =
+    Format.fprintf fmt "@[<v>startenv: %d;@ " l.startenv;
+    List.iter
+      (fun (i, slot) -> Format.fprintf fmt "@[<h>%d %a@]@," i print_slot slot)
+      l.slots;
+    Format.fprintf fmt "@]"
+
   let order_function_slots env l acc =
     Function_slot.Lmap.fold
       (fun function_slot _ acc ->
@@ -200,25 +214,13 @@ module Layout = struct
        second field of a Closure_tag block to find out the start of environment.
        Thus we add a check here to ensure that the slots start with a function
        slot at offset 0. *)
+    let res = { startenv; slots; empty_env } in
     match slots with
-    | (0, Function_slot _) :: _ -> { startenv; slots; empty_env }
+    | (0, Function_slot _) :: _ -> res
     | _ ->
-      Misc.fatal_error
-        "Sets of closures must start with a function slot at offset 0"
-
-  let print_slot fmt = function
-    | Value_slot v -> Format.fprintf fmt "value_slot %a" Value_slot.print v
-    | Infix_header -> Format.fprintf fmt "infix_header"
-    | Function_slot { size; function_slot } ->
-      Format.fprintf fmt "function_slot(%d) %a" size Function_slot.print
-        function_slot
-
-  let print fmt l =
-    Format.fprintf fmt "@[<v>startenv: %d;@ " l.startenv;
-    List.iter
-      (fun (i, slot) -> Format.fprintf fmt "@[<h>%d %a@]@," i print_slot slot)
-      l.slots;
-    Format.fprintf fmt "@]"
+      Misc.fatal_errorf
+        "Sets of closures must start with a function slot at offset 0:@\n%a"
+        print res
 end
 
 (* Greedy algorithm *)
