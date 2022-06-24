@@ -263,13 +263,16 @@ end = struct
     | Value_slot of Value_slot.t
 
   (* This module helps to distinguish between the two different notions of
-     offsets that are used for function slots: - the exported offset (i.e. the
-     one used with Exported_offsets.* , and that is used by to_cmm), it the
-     pointer to the first word of the closure, i.e it points **after** the
-     header for the closure (whether it is the Closure header or the Infix
-     header) - when computing offsets we instead need to use the first offset in
-     the block actually used by a slot, which includes the Infix header (but not
-     the Closure header). *)
+     offsets that are used for function slots:
+
+     - the exported offset (i.e. the one used with Exported_offsets.* , and that
+     is used by to_cmm), it the pointer to the first word of the closure, i.e it
+     points **after** the header for the closure (whether it is the Closure
+     header or the Infix header)
+
+     - when computing offsets we instead need to use the first offset in the
+     block actually used by a slot, which includes the Infix header (but not the
+     Closure header). *)
   module Exported_offset : sig
     type t
 
@@ -277,7 +280,7 @@ end = struct
 
     val from_exported_offset : int -> t
 
-    val mk : slot_desc -> first_offset_used_including_infix_header:int -> t
+    val mk : slot_desc -> first_offset_used_including_header:int -> t
 
     val range_used_by : slot_desc -> t -> slot_size:int -> int * int
 
@@ -293,24 +296,18 @@ end = struct
 
     let from_exported_offset pos = Offset pos
 
-    let mk slot ~first_offset_used_including_infix_header =
+    let mk slot ~first_offset_used_including_header =
       let offset =
         match slot with
-        | Function_slot _ ->
-          if first_offset_used_including_infix_header = 0
-          then 0
-          else first_offset_used_including_infix_header + 1
-        | Value_slot _ -> first_offset_used_including_infix_header
+        | Function_slot _ -> first_offset_used_including_header + 1
+        | Value_slot _ -> first_offset_used_including_header
       in
       Offset offset
 
     let range_used_by slot (Offset pos) ~slot_size =
       match slot with
-      | Function_slot _ when pos = 0 -> pos, pos + slot_size
       | Function_slot _ -> pos - 1, pos + slot_size
-      | Value_slot _ ->
-        assert (slot_size = 1);
-        pos, pos + slot_size
+      | Value_slot _ -> pos, pos + slot_size
 
     let add_slot_to_exported_offsets offsets slot (Offset pos) ~slot_size =
       match slot with
@@ -472,15 +469,6 @@ end = struct
          is broken"
 
   (* Slots *)
-
-  let is_function_slot slot =
-    match slot.desc with
-    | Function_slot _ ->
-      assert (slot.size = 2 || slot.size = 3);
-      true
-    | Value_slot _ ->
-      assert (slot.size = 1);
-      false
 
   let range_used_by slot =
     match slot.pos with
@@ -661,30 +649,31 @@ end = struct
      slot (potential header included), but points at the start of the free space
      (so the header word for function slots).
 
-     This function is a bit more complicated than necessary because each slot's
-     size does not include the headers for function slots. There are two reasons
-     for that choice:
+     In this function, for function slots, we manipulate offsets that include
+     the header (for both Infix header and Closure header). That means that we
+     start the search at offset -1, which is a valid offset for the first
+     function slot.
 
-     - the function slot at offset 0 does not need a header since it uses the
-     header of the whole block, so the necessity of a header is actually
-     dependant on the position of the function slot.
-
-     - that way, the offset/position of a slot corresponds to the actual ocaml
-     pointer (which points at the first field of a block rather than the
-     header). *)
+     Note that since we enforce that each set of closures must have at least one
+     function slot (and that function slot must have a smaller offset than value
+     slots), we also guarantee that a value slot cannot be assigned at offset
+     -1. *)
 
   let first_free_offset slot set start =
-    (* space needed to fit a slot at the current offset. *)
-    let needed_space at_offset =
-      if is_function_slot slot && at_offset <> 0
-      then slot.size + 1
-      else slot.size
+    (* space needed to fit the slot *)
+    let needed_space =
+      match slot.desc with
+      | Function_slot _ -> slot.size + 1 (* header word *)
+      | Value_slot _ -> slot.size
     in
     (* Ensure that for value slots, we are after all function slots. *)
     let curr =
-      if is_function_slot slot
-      then start
-      else max start set.first_slot_after_function_slots
+      match slot.desc with
+      | Function_slot _ -> start
+      | Value_slot _ ->
+        (* first_slot_after_function_slots is always >=0, thus ensuring we do
+           not place a value slot at offset -1 *)
+        max start set.first_slot_after_function_slots
     in
     (* Adjust a starting position to not point in the middle of a block.
        Additionally, ensure the value slot slots are put after the function
@@ -712,7 +701,7 @@ end = struct
         in
         let available_space = next_slot_start - curr in
         assert (available_space >= 0);
-        if available_space >= needed_space curr
+        if available_space >= needed_space
         then curr
         else loop first_free_after_next_slot
     in
@@ -723,8 +712,7 @@ end = struct
   let rec first_available_offset slot ~minimal_offset = function
     | [set] ->
       let offset = first_free_offset slot set minimal_offset in
-      Exported_offset.mk slot.desc
-        ~first_offset_used_including_infix_header:offset
+      Exported_offset.mk slot.desc ~first_offset_used_including_header:offset
     | sets ->
       let offset =
         List.fold_left
@@ -736,8 +724,7 @@ end = struct
       in
       if minimal_offset = offset
       then
-        Exported_offset.mk slot.desc
-          ~first_offset_used_including_infix_header:offset
+        Exported_offset.mk slot.desc ~first_offset_used_including_header:offset
       else first_available_offset slot ~minimal_offset:offset sets
 
   (* Assign offsets to function slots *)
@@ -745,7 +732,7 @@ end = struct
   let assign_slot_offset state slot =
     match slot.pos with
     | Unassigned ->
-      let offset = first_available_offset slot ~minimal_offset:0 slot.sets in
+      let offset = first_available_offset slot ~minimal_offset:~-1 slot.sets in
       add_slot_offset state slot offset
     | Assigned _pos -> Misc.fatal_error "Slot has already been assigned"
     | Removed ->
