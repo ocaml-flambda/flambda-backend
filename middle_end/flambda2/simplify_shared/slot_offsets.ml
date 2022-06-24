@@ -345,6 +345,9 @@ end = struct
 
   type set_of_closures =
     { id : int;
+      (* metadata used for priorities *)
+      num_value_slots : int;
+      num_function_slots : int;
       (* Info about start of environment *)
       mutable first_slot_used_by_value_slots : words;
       mutable first_slot_after_function_slots : words;
@@ -360,9 +363,9 @@ end = struct
       mutable pos : slot_pos;
       mutable size : int;
       mutable sets : set_of_closures list;
-      mutable priority : int
-          (* guides the order of traversal when assigning offsets. smaller
-             priorities are assigned first. *)
+      (* metadata used for priorities *)
+      mutable occurrences : int;
+      mutable lowest_num_slots_in_sets : int
     }
 
   and any_slot = Slot : _ slot -> any_slot [@@unboxed]
@@ -382,13 +385,21 @@ end = struct
 
   (* create a fresh slot (with no position allocated yet) *)
   let create_slot ~size desc pos =
-    { desc; size; pos; sets = []; priority = max_int }
+    { desc;
+      size;
+      pos;
+      sets = [];
+      occurrences = 0;
+      lowest_num_slots_in_sets = max_int
+    }
 
   let create_set =
     let c = ref 0 in
-    fun () ->
+    fun ~num_value_slots ~num_function_slots ->
       incr c;
       { id = !c;
+        num_value_slots;
+        num_function_slots;
         first_slot_after_function_slots = 0;
         first_slot_used_by_value_slots = max_int;
         allocated_slots = Numeric_types.Int.Map.empty
@@ -419,10 +430,13 @@ end = struct
     | Unassigned -> Format.fprintf fmt "?"
     | Removed -> Format.fprintf fmt "x"
 
-  let print_slot fmt { pos; size; sets; desc; priority } =
+  let print_slot fmt
+      { pos; size; sets; desc; occurrences; lowest_num_slots_in_sets } =
     Format.fprintf fmt
-      "@[<h>[pos: %a;@ size: %d;@ sets: %a;@ desc: %a;@ priority: %d]@]@,"
-      print_slot_pos pos size print_set_ids sets print_desc desc priority
+      "@[<h>[pos: %a;@ size: %d;@ sets: %a;@ desc: %a;@ occurrences: %d;@ \
+       lowest_num_slots_in_sets: %d]@]@,"
+      print_slot_pos pos size print_set_ids sets print_desc desc occurrences
+      lowest_num_slots_in_sets
 
   let print_any_slot fmt (Slot slot) = print_slot fmt slot
 
@@ -453,14 +467,14 @@ end = struct
       used_offsets = _; function_slots = _; value_slots = _;
       sets_of_closures; function_slots_to_assign; value_slots_to_assign; } =
     Format.fprintf fmt
-      "@[<v 2>\
-          Sets of closures:@ %a@ \
-          Function slots to assign:@ %a@ \
-          Value slots to assign:@ %a\
-       @]"
-      print_sets sets_of_closures
+      "@[<hov 1>(@,\
+          (function slots to assign@ @[<hov>%a@])@ \
+          (value slots to assign@ @[<hov>%a@])\
+          (sets of closures@ @[<hov>%a@])@,\
+       )@]"
       print_slot_list function_slots_to_assign
       print_slot_list value_slots_to_assign
+      print_sets sets_of_closures
   [@@warning "-32"]
 
   (* Keep the value slots offsets in sets up-to-date *)
@@ -546,6 +560,40 @@ end = struct
     slot.sets <- set :: slot.sets;
     add_slot_offset_to_set slot set
 
+  let update_metadata_for_function_slot set slot =
+    slot.occurrences <- slot.occurrences + 1;
+    slot.lowest_num_slots_in_sets
+      <- min slot.lowest_num_slots_in_sets set.num_function_slots
+
+  let update_metadata_for_value_slot set slot =
+    slot.occurrences <- slot.occurrences + 1;
+    slot.lowest_num_slots_in_sets
+      <- min slot.lowest_num_slots_in_sets set.num_value_slots
+
+  (* priority work queue *)
+
+  let compare_priority slot1 slot2 =
+    match slot1.occurrences, slot2.occurrences with
+    (* slots not shared are put at the end of the work queue, in an order that
+       doesn't matter since they are not shared *)
+    | 1, 1 -> 0
+    | 1, _ -> 1
+    | _, 1 -> -1
+    | _, _ -> (
+      match
+        compare slot1.lowest_num_slots_in_sets slot2.lowest_num_slots_in_sets
+      with
+      | 0 -> (
+        (* slots with the largest number of occurrences first *)
+        match compare slot2.occurrences slot1.occurrences with
+        | 0 ->
+          (* slots of size 3 before those of size 2 *)
+          compare slot2.size slot1.size
+        | c -> c)
+      | c ->
+        (* slots with the smallest "lowest number of slots" in sets first *)
+        c)
+
   (* Accumulator state *)
 
   let use_function_slot_info state c info =
@@ -582,7 +630,8 @@ end = struct
       in
       let s = create_slot ~size (Function_slot function_slot) Unassigned in
       add_function_slot state function_slot s;
-      add_unallocated_slot_to_set state s set)
+      add_unallocated_slot_to_set state s set;
+      s)
     else
       (* We should be guaranteed that the corresponding compilation unit's cmx
          file has been read during the downward traversal. *)
@@ -610,14 +659,16 @@ end = struct
         in
         use_function_slot_info state function_slot info;
         add_function_slot state function_slot s;
-        add_allocated_slot_to_set s set
+        add_allocated_slot_to_set s set;
+        s
 
   let create_value_slot set state value_slot =
     if Compilation_unit.is_current (Value_slot.get_compilation_unit value_slot)
     then (
       let s = create_slot ~size:1 (Value_slot value_slot) Unassigned in
       add_value_slot state value_slot s;
-      add_unallocated_slot_to_set state s set)
+      add_unallocated_slot_to_set state s set;
+      s)
     else
       (* Same as the comments for the function_slots *)
       let imported_offsets = EO.imported_offsets () in
@@ -639,28 +690,44 @@ end = struct
         let s = create_slot ~size:1 (Value_slot value_slot) (Assigned offset) in
         use_value_slot_info state value_slot info;
         add_value_slot state value_slot s;
-        add_allocated_slot_to_set s set
+        add_allocated_slot_to_set s set;
+        s
 
   let create_slots_for_set state ~get_code_metadata set_of_closures =
-    let set = create_set () in
-    state.sets_of_closures <- set :: state.sets_of_closures;
-    (* Fill closure slots *)
+    let env_map = Set_of_closures.value_slots set_of_closures in
     let closure_map =
       let function_decls = Set_of_closures.function_decls set_of_closures in
       Function_declarations.funs function_decls
     in
+    let set =
+      create_set
+        ~num_value_slots:(Value_slot.Map.cardinal env_map)
+        ~num_function_slots:(Function_slot.Map.cardinal closure_map)
+    in
+    state.sets_of_closures <- set :: state.sets_of_closures;
+    (* Fill closure slots *)
     Function_slot.Map.iter
       (fun function_slot code_id ->
-        if not (Function_slot.Map.mem function_slot state.function_slots)
-        then
-          create_function_slot set state get_code_metadata function_slot code_id)
+        let s =
+          match
+            Function_slot.Map.find_opt function_slot state.function_slots
+          with
+          | None ->
+            create_function_slot set state get_code_metadata function_slot
+              code_id
+          | Some s -> s
+        in
+        update_metadata_for_function_slot set s)
       closure_map;
     (* Fill value slot slots *)
-    let env_map = Set_of_closures.value_slots set_of_closures in
     Value_slot.Map.iter
       (fun value_slot _ ->
-        if not (Value_slot.Map.mem value_slot state.value_slots)
-        then create_value_slot set state value_slot)
+        let s =
+          match Value_slot.Map.find_opt value_slot state.value_slots with
+          | None -> create_value_slot set state value_slot
+          | Some s -> s
+        in
+        update_metadata_for_value_slot set s)
       env_map
 
   (* Find the first space available to fit a given slot.
@@ -760,9 +827,10 @@ end = struct
         "Slot has been explicitly removed, it cannot be assigned anymore"
 
   let assign_function_slot_offsets ~used_function_slots state =
-    let function_slots_to_assign = state.function_slots_to_assign in
+    let function_slots_to_assign =
+      List.sort compare_priority state.function_slots_to_assign
+    in
     state.function_slots_to_assign <- [];
-    (* TODO: sort the work queue *)
     List.iter
       (function
         | { desc = Function_slot f; _ } as slot ->
@@ -776,9 +844,10 @@ end = struct
       function_slots_to_assign
 
   let assign_value_slot_offsets ~used_value_slots state =
-    let value_slots_to_assign = state.value_slots_to_assign in
+    let value_slots_to_assign =
+      List.sort compare_priority state.value_slots_to_assign
+    in
     state.value_slots_to_assign <- [];
-    (* TODO: sort the work queue *)
     List.iter
       (function
         | { desc = Value_slot v; _ } as slot ->
