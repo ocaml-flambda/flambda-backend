@@ -113,7 +113,8 @@ let meet_equations_on_params typing_env ~params:params' ~param_types =
       let existing_type = TE.find typing_env name (Some kind) in
       match T.meet typing_env existing_type param_type with
       | Bottom ->
-        (* CR mshinwell for vlaviron: is this correct? *)
+        (* This should really replace the corresponding uses with [Invalid], but
+           this seems an unusual situation, so we don't do that currently. *)
         TE.add_equation typing_env name (T.bottom kind)
       | Ok (meet_ty, env_extension) ->
         let typing_env = TE.add_equation typing_env name meet_ty in
