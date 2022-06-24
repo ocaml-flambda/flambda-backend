@@ -258,52 +258,65 @@ end = struct
 
   (* *)
 
-  module Exported_offset : sig
-    type t
-    val print : Format.formatter -> t -> unit
-    val from_exported_offset : int -> t
-    val mk : first_offset_used_including_infix_header:int -> t
-    val range_used_by : t -> is_function_slot:bool -> slot_size:int -> int * int
-    val add_value_slot_to_exported_offsets :
-      EO.t -> Value_slot.t -> t -> EO.t
-    val add_function_slot_to_exported_offsets :
-      EO.t -> Function_slot.t -> t -> slot_size:int -> EO.t
-  end = struct
-
-    type t = Offset of words
-      (* This is the offset as exported, i.e. for function slots
-         it points **after** the header word. *)
-    [@@unboxed]
-
-    let print fmt (Offset pos) =
-      Format.fprintf fmt "%d" pos
-
-    let from_exported_offset pos = Offset pos
-
-    let mk ~first_offset_used_including_infix_header =
-      Offset first_offset_used_including_infix_header
-
-    let range_used_by (Offset pos) ~is_function_slot ~slot_size =
-      let start = if is_function_slot && pos <> 0 then pos - 1 else pos in
-      start, pos + slot_size
-
-    let add_function_slot_to_exported_offsets offsets function_slot (Offset pos) ~slot_size =
-      let (info : EO.function_slot_info) =
-        EO.Live_function_slot { offset = pos; size = slot_size }
-      in
-      EO.add_function_slot_offset offsets function_slot info
-
-    let add_value_slot_to_exported_offsets offsets value_slot (Offset pos) =
-      let (info : EO.value_slot_info) = EO.Live_value_slot { offset = pos; } in
-      EO.add_value_slot_offset offsets value_slot info
-
-  end
-
-  (* Internal types *)
-
   type slot_desc =
     | Function_slot of Function_slot.t
     | Value_slot of Value_slot.t
+
+  module Exported_offset : sig
+    type t
+
+    val print : Format.formatter -> t -> unit
+
+    val from_exported_offset : int -> t
+
+    val mk : slot_desc -> first_offset_used_including_infix_header:int -> t
+
+    val range_used_by : slot_desc -> t -> slot_size:int -> int * int
+
+    val add_slot_to_exported_offsets :
+      EO.t -> slot_desc -> t -> slot_size:int -> EO.t
+  end = struct
+    type t = Offset of words
+    (* This is the offset as exported, i.e. for function slots it points
+       **after** the header word. *)
+    [@@unboxed]
+
+    let print fmt (Offset pos) = Format.fprintf fmt "%d" pos
+
+    let from_exported_offset pos = Offset pos
+
+    let mk slot ~first_offset_used_including_infix_header =
+      let offset =
+        match slot with
+        | Function_slot _ ->
+          if first_offset_used_including_infix_header = 0
+          then 0
+          else first_offset_used_including_infix_header + 1
+        | Value_slot _ -> first_offset_used_including_infix_header
+      in
+      Offset offset
+
+    let range_used_by slot (Offset pos) ~slot_size =
+      match slot with
+      | Function_slot _ when pos = 0 -> pos, pos + slot_size
+      | Function_slot _ -> pos - 1, pos + slot_size
+      | Value_slot _ ->
+        assert (slot_size = 1);
+        pos, pos + slot_size
+
+    let add_slot_to_exported_offsets offsets slot (Offset pos) ~slot_size =
+      match slot with
+      | Function_slot function_slot ->
+        let (info : EO.function_slot_info) =
+          EO.Live_function_slot { offset = pos; size = slot_size }
+        in
+        EO.add_function_slot_offset offsets function_slot info
+      | Value_slot value_slot ->
+        let (info : EO.value_slot_info) = EO.Live_value_slot { offset = pos } in
+        EO.add_value_slot_offset offsets value_slot info
+  end
+
+  (* Internal types *)
 
   type slot_pos =
     | Assigned of Exported_offset.t
@@ -318,8 +331,8 @@ end = struct
       (* invariant : first_slot_after_function_slots <=
          first_slot_used_by_calue_slots *)
       mutable allocated_slots : slot Numeric_types.Int.Map.t
-      (* map indexed by the offset of the first word used by a slot (including
-         its infix header if it exists). *)
+          (* map indexed by the offset of the first word used by a slot
+             (including its infix header if it exists). *)
     }
 
   and slot =
@@ -433,11 +446,15 @@ end = struct
     | Assigned offset -> (
       match slot.desc with
       | Value_slot _ ->
-        let start, _ = Exported_offset.range_used_by offset ~is_function_slot:false ~slot_size:1 in
+        let start, _ =
+          Exported_offset.range_used_by slot.desc offset ~slot_size:1
+        in
         set.first_slot_used_by_value_slots
           <- min set.first_slot_used_by_value_slots start
       | Function_slot _ ->
-        let _, last = Exported_offset.range_used_by offset ~is_function_slot:true ~slot_size:slot.size in
+        let _, last =
+          Exported_offset.range_used_by slot.desc offset ~slot_size:slot.size
+        in
         set.first_slot_after_function_slots
           <- max set.first_slot_after_function_slots last));
     if set.first_slot_used_by_value_slots < set.first_slot_after_function_slots
@@ -460,33 +477,26 @@ end = struct
   let range_used_by slot =
     match slot.pos with
     | Unassigned | Removed -> assert false
-    | Assigned Offset pos ->
-      let start = if is_function_slot slot && pos <> 0 then pos - 1 else pos in
-      start, pos + slot.size
+    | Assigned offset ->
+      Exported_offset.range_used_by slot.desc offset ~slot_size:slot.size
 
-  let add_slot_offset_to_set offset slot set =
-    let first_used_offset_by_slot =
-      let Offset pos = offset in
-      if is_function_slot slot && pos <> 0 then pos - 1 else pos
-    in
+  let add_slot_offset_to_set slot set =
+    let first_used_offset_by_slot, _ = range_used_by slot in
     update_set_for_slot slot set;
-    assert (not (Numeric_types.Int.Map.mem first_used_offset_by_slot set.allocated_slots));
-    set.allocated_slots <- 
-      Numeric_types.Int.Map.add first_used_offset_by_slot slot set.allocated_slots
+    assert (
+      not
+        (Numeric_types.Int.Map.mem first_used_offset_by_slot set.allocated_slots));
+    set.allocated_slots
+      <- Numeric_types.Int.Map.add first_used_offset_by_slot slot
+           set.allocated_slots
 
   let add_slot_offset state slot offset =
     assert (slot.pos = Unassigned);
     slot.pos <- Assigned offset;
-    List.iter (add_slot_offset_to_set offset slot) slot.sets;
-    match slot.desc with
-    | Function_slot f ->
-      state.used_offsets <-
-        Exported_offset.add_function_slot_to_exported_offsets
-          state.used_offsets f offset
-    | Value_slot v ->
-      state.used_offsets <-
-        Exported_offset.add_value_slot_offset_to_exported_offsets
-          state.used_offsets v offset
+    List.iter (add_slot_offset_to_set slot) slot.sets;
+    state.used_offsets
+      <- Exported_offset.add_slot_to_exported_offsets state.used_offsets
+           slot.desc offset ~slot_size:slot.size
 
   let mark_slot_as_removed state slot =
     match slot.pos with
@@ -516,9 +526,9 @@ end = struct
     | Value_slot _ ->
       state.value_slots_to_assign <- slot :: state.value_slots_to_assign
 
-  let add_allocated_slot_to_set slot offset set =
+  let add_allocated_slot_to_set slot set =
     slot.sets <- set :: slot.sets;
-    add_slot_offset_to_set offset slot set
+    add_slot_offset_to_set slot set
 
   (* Accumulator state *)
 
@@ -578,13 +588,13 @@ end = struct
            should not occur in a set of closures in this compilation unit."
           Function_slot.print function_slot
       | Some (Live_function_slot { offset; size } as info) ->
-        let offset = Offset offset in
+        let offset = Exported_offset.from_exported_offset offset in
         let s =
           create_slot ~size (Function_slot function_slot) (Assigned offset)
         in
         use_function_slot_info state function_slot info;
         add_function_slot state function_slot s;
-        add_allocated_slot_to_set s offset set
+        add_allocated_slot_to_set s set
 
   let create_value_slot set state value_slot =
     if Compilation_unit.is_current (Value_slot.get_compilation_unit value_slot)
@@ -609,11 +619,11 @@ end = struct
            unit."
           Value_slot.print value_slot
       | Some (Live_value_slot { offset } as info) ->
-        let offset = Offset offset in
+        let offset = Exported_offset.from_exported_offset offset in
         let s = create_slot ~size:1 (Value_slot value_slot) (Assigned offset) in
         use_value_slot_info state value_slot info;
         add_value_slot state value_slot s;
-        add_allocated_slot_to_set s offset set
+        add_allocated_slot_to_set s set
 
   let create_slots_for_set state ~get_code_metadata set_of_closures =
     let set = create_set () in
@@ -658,7 +668,9 @@ end = struct
   let first_free_offset slot set start =
     (* space needed to fit a slot at the current offset. *)
     let needed_space at_offset =
-      if is_function_slot slot && at_offset <> 0 then slot.size + 1 else slot.size
+      if is_function_slot slot && at_offset <> 0
+      then slot.size + 1
+      else slot.size
     in
     (* Ensure that for value slots, we are after all function slots. *)
     let curr =
@@ -670,7 +682,9 @@ end = struct
        Additionally, ensure the value slot slots are put after the function
        slots. *)
     let curr =
-      match Numeric_types.Int.Map.find_last (fun i -> i <= curr) set.allocated_slots with
+      match
+        Numeric_types.Int.Map.find_last (fun i -> i <= curr) set.allocated_slots
+      with
       | exception Not_found -> curr
       | _, s ->
         let _first_used_by_s, first_free_after_s = range_used_by s in
@@ -678,10 +692,16 @@ end = struct
     in
     (* find the first available space for the slot. *)
     let rec loop curr =
-      match Numeric_types.Int.Map.find_first (fun i -> i >= curr) set.allocated_slots with
+      match
+        Numeric_types.Int.Map.find_first
+          (fun i -> i >= curr)
+          set.allocated_slots
+      with
       | exception Not_found -> curr
       | _, next_slot ->
-        let next_slot_start, first_free_after_next_slot = range_used_by next_slot in
+        let next_slot_start, first_free_after_next_slot =
+          range_used_by next_slot
+        in
         let available_space = next_slot_start - curr in
         assert (available_space >= 0);
         if available_space >= needed_space curr
@@ -690,30 +710,27 @@ end = struct
     in
     loop curr
 
-  (** Assign an offset using the current offset, assuming there is enough space *)
-  let actual_offset slot offset =
-    if not (is_function_slot slot)
-    then
-      Offset offset
-      (* Function slots need a header (Infix_tag) before them, except for the
-         first one (which uses the Closure_tag header of the block itself). *)
-    else if offset = 0
-    then Offset offset
-    else Offset (offset + 1)
-
   (* Loop to find the first free offset available for a slot given the set of
      sets in which it appears. *)
-  let rec first_available_offset slot ~minimal_offset sets =
-    let offset = List.fold_left (fun offset set ->
-        let new_offset = first_free_offset slot set offset in
-        assert (new_offset >= offset);
-        new_offset
-      ) minimal_offset sets
-    in
-    if minimal_offset = offset
-    then actual_offset slot offset
-    else first_available_offset slot ~minimal_offset:offset sets
-
+  let rec first_available_offset slot ~minimal_offset = function
+    | [set] ->
+      let offset = first_free_offset slot set minimal_offset in
+      Exported_offset.mk slot.desc
+        ~first_offset_used_including_infix_header:offset
+    | sets ->
+      let offset =
+        List.fold_left
+          (fun offset set ->
+            let new_offset = first_free_offset slot set offset in
+            assert (new_offset >= offset);
+            new_offset)
+          minimal_offset sets
+      in
+      if minimal_offset = offset
+      then
+        Exported_offset.mk slot.desc
+          ~first_offset_used_including_infix_header:offset
+      else first_available_offset slot ~minimal_offset:offset sets
 
   (* Assign offsets to function slots *)
 
