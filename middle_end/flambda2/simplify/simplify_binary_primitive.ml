@@ -932,8 +932,6 @@ let[@inline always] simplify_immutable_block_load0
            to avoid duplicate allocations in the future. This should help with
            cases such as "Some x -> Some x". *)
         let dacc = result.dacc in
-        Format.eprintf "Trying to prove from:@ %a@ in env:@ %a\n%!" T.print
-          block_ty DA.print dacc;
         match
           T.prove_unique_fully_constructed_immutable_heap_block
             (DA.typing_env dacc) block_ty
@@ -941,7 +939,6 @@ let[@inline always] simplify_immutable_block_load0
         | Invalid -> SPR.create_invalid dacc
         | Unknown -> result
         | Proved (tag_and_size, field_simples) -> (
-          Format.eprintf "PROVED\n%!";
           match Tag_and_size.tag tag_and_size |> Tag.Scannable.of_tag with
           | None -> result
           | Some tag -> (
@@ -962,7 +959,6 @@ let[@inline always] simplify_immutable_block_load0
             match prim with
             | None -> result
             | Some prim ->
-              Format.eprintf "Adding prim %a\n%!" P.Eligible_for_cse.print prim;
               let dacc =
                 DA.map_denv dacc ~f:(fun denv ->
                     DE.add_cse denv prim ~bound_to:block)
