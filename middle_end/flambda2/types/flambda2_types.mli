@@ -144,8 +144,6 @@ module Typing_env : sig
       t -> Symbol.t -> (Code_id.t -> 'code) -> 'code Value_approximation.t
   end
 
-  val invariant : t -> unit
-
   val print : Format.formatter -> t -> unit
 
   val create :

@@ -86,7 +86,7 @@ module Join_env : sig
 
   val right_join_env : t -> typing_env
 
-  type now_joining_result =
+  type now_joining_result = private
     | Continue of t
     | Stop
 
@@ -100,8 +100,6 @@ type meet_type =
   Type_grammar.t ->
   Type_grammar.t ->
   (Type_grammar.t * Typing_env_extension.t) Or_bottom.t
-
-val invariant : t -> unit
 
 val print : Format.formatter -> t -> unit
 

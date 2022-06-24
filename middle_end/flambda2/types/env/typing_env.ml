@@ -19,29 +19,46 @@ module MTC = More_type_creators
 module TG = Type_grammar
 module TEL = Typing_env_level
 
-(* CR mshinwell: Add signatures to these submodules. *)
-module One_level = struct
+module One_level : sig
+  type t
+
+  val print : min_binding_time:Binding_time.t -> Format.formatter -> t -> unit
+
+  val create : Scope.t -> TEL.t -> just_after_level:Cached_level.t -> t
+
+  val create_empty : Scope.t -> t
+
+  val scope : t -> Scope.t
+
+  val level : t -> TEL.t
+
+  val just_after_level : t -> Cached_level.t
+
+  val with_aliases : t -> aliases:Aliases.t -> t
+
+  val is_empty : t -> bool
+
+  val clean_for_export : t -> reachable_names:Name_occurrences.t -> t
+
+  val remove_unused_value_slots_and_shortcut_aliases :
+    t -> used_value_slots:Value_slot.Set.t -> t
+
+  val canonicalise : t -> Simple.t -> Simple.t
+end = struct
   type t =
     { scope : Scope.t;
       level : TEL.t;
       just_after_level : Cached_level.t
     }
 
-  let [@ocamlformat "disable"] print ~min_binding_time ppf
-        { scope = _; level; just_after_level; } =
+  let print ~min_binding_time ppf { scope = _; level; just_after_level } =
     let restrict_to = TEL.defined_names level in
-    if Name.Set.is_empty restrict_to then
-      Format.fprintf ppf "@[<hov 0>\
-          %a\
-          @]"
-        TEL.print level
+    if Name.Set.is_empty restrict_to
+    then Format.fprintf ppf "@[<hov 0>%a@]" TEL.print level
     else
-      Format.fprintf ppf "@[<hov 0>\
-          @[<hov 1>(defined_vars@ %a)@]@ \
-          %a\
-          @]"
-        (Cached_level.print_name_modes ~restrict_to ~min_binding_time) just_after_level
-        TEL.print level
+      Format.fprintf ppf "@[<hov 0>@[<hov 1>(defined_vars@ %a)@]@ %a@]"
+        (Cached_level.print_name_modes ~restrict_to ~min_binding_time)
+        just_after_level TEL.print level
 
   let create scope level ~just_after_level = { scope; level; just_after_level }
 
@@ -61,9 +78,6 @@ module One_level = struct
     { t with just_after_level }
 
   let is_empty t = TEL.is_empty t.level
-
-  (* let defines_name_but_no_equations t name =
-     TEL.defines_name_but_no_equations t.level name *)
 
   let clean_for_export t ~reachable_names =
     { t with
@@ -109,8 +123,8 @@ let is_empty t =
 let aliases t =
   Cached_level.aliases (One_level.just_after_level t.current_level)
 
-(* CR mshinwell: Should print name occurrence kinds *)
-(* CR mshinwell: Add option to print [aliases] *)
+(* CR-someday mshinwell: Should print name occurrence kinds *)
+(* CR-someday mshinwell: Add option to print [aliases] *)
 let [@ocamlformat "disable"] print ppf
       ({ resolver = _; binding_time_resolver = _;get_imported_names = _;
          prev_levels; current_level; next_binding_time = _;
@@ -128,11 +142,11 @@ let [@ocamlformat "disable"] print ppf
     in
     Format.fprintf ppf
       "@[<hov 1>(\
-          @[<hov 1>(defined_symbols@ %a)@]@ \
-          @[<hov 1>(code_age_relation@ %a)@]@ \
-          @[<hov 1>(levels@ %a)@]@ \
-          @[<hov 1>(aliases@ %a)@]\
-          )@]"
+         @[<hov 1>(defined_symbols@ %a)@]@ \
+         @[<hov 1>(code_age_relation@ %a)@]@ \
+         @[<hov 1>(levels@ %a)@]@ \
+         @[<hov 1>(aliases@ %a)@]\
+       )@]"
       Symbol.Set.print defined_symbols
       Code_age_relation.print code_age_relation
       (Scope.Map.print (One_level.print ~min_binding_time))
@@ -154,81 +168,134 @@ let [@ocamlformat "disable"] print_serializable ppf
     (Cached_level.names_to_types just_after_level)
     Aliases.print (Cached_level.aliases just_after_level)
 
-module Meet_env = struct
+module Meet_or_join_env_base : sig
+  type t
+
+  val print : Format.formatter -> t -> unit
+
+  val create : typing_env -> t
+
+  val env : t -> typing_env
+
+  val now_meeting_or_joining : t -> Simple.t -> Simple.t -> t
+
+  val already_meeting_or_joining : t -> Simple.t -> Simple.t -> bool
+end = struct
   type t =
     { env : typing_env;
-      already_meeting : Name.Pair.Set.t
+      already_meeting_or_joining : Name.Pair.Set.t
     }
 
-  let [@ocamlformat "disable"] print ppf { env; already_meeting; } =
+  let [@ocamlformat "disable"] print ppf { env; already_meeting_or_joining; } =
     Format.fprintf ppf
       "@[<hov 1>(\
-        @[<hov 1>(env@ %a)@]@ \
-        @[<hov 1>(already_meeting@ %a)@])@]"
+         @[<hov 1>(env@ %a)@]@ \
+         @[<hov 1>(already_meeting_or_joining@ %a)@])\
+       @]"
       print env
-      Name.Pair.Set.print already_meeting
+      Name.Pair.Set.print already_meeting_or_joining
 
-  let create env = { env; already_meeting = Name.Pair.Set.empty }
+  let create env = { env; already_meeting_or_joining = Name.Pair.Set.empty }
 
   let env t = t.env
 
-  let already_meeting_names t name1 name2 =
-    Name.Pair.Set.mem (name1, name2) t.already_meeting
-    || Name.Pair.Set.mem (name2, name1) t.already_meeting
+  let already_meeting_or_joining_names t name1 name2 =
+    Name.Pair.Set.mem (name1, name2) t.already_meeting_or_joining
+    || Name.Pair.Set.mem (name2, name1) t.already_meeting_or_joining
 
-  let already_meeting t simple1 simple2 =
+  let already_meeting_or_joining t simple1 simple2 =
     let const _const = false in
     Simple.pattern_match simple1 ~const ~name:(fun name1 ~coercion:_ ->
         Simple.pattern_match simple2 ~const ~name:(fun name2 ~coercion:_ ->
-            already_meeting_names t name1 name2))
+            already_meeting_or_joining_names t name1 name2))
 
-  let now_meeting_names t name1 name2 =
-    if already_meeting_names t name1 name2
+  let now_meeting_or_joining_names t name1 name2 =
+    if already_meeting_or_joining_names t name1 name2
     then
-      Misc.fatal_errorf "Already meeting %a and %a:@ %a" Name.print name1
-        Name.print name2 print t;
-    let already_meeting = Name.Pair.Set.add (name1, name2) t.already_meeting in
-    { t with already_meeting }
+      Misc.fatal_errorf "Already meeting_or_joining %a and %a:@ %a" Name.print
+        name1 Name.print name2 print t;
+    let already_meeting_or_joining =
+      Name.Pair.Set.add (name1, name2) t.already_meeting_or_joining
+    in
+    { t with already_meeting_or_joining }
 
-  let now_meeting t simple1 simple2 =
+  let now_meeting_or_joining t simple1 simple2 =
     let const _const = t in
     Simple.pattern_match simple1 ~const ~name:(fun name1 ~coercion:_ ->
         Simple.pattern_match simple2 ~const ~name:(fun name2 ~coercion:_ ->
-            now_meeting_names t name1 name2))
+            now_meeting_or_joining_names t name1 name2))
+end
+
+module Meet_env : sig
+  type t
+
+  val print : Format.formatter -> t -> unit
+
+  val create : typing_env -> t
+
+  val env : t -> typing_env
+
+  val now_meeting : t -> Simple.t -> Simple.t -> t
+
+  val already_meeting : t -> Simple.t -> Simple.t -> bool
+end = struct
+  include Meet_or_join_env_base
+
+  let now_meeting = now_meeting_or_joining
+
+  let already_meeting = already_meeting_or_joining
 end
 
 type meet_type =
   Meet_env.t -> TG.t -> TG.t -> (TG.t * Typing_env_extension.t) Or_bottom.t
 
-module Join_env = struct
+module Join_env : sig
+  type t
+
+  val print : Format.formatter -> t -> unit
+
+  val create : typing_env -> left_env:typing_env -> right_env:typing_env -> t
+
+  val target_join_env : t -> typing_env
+
+  val left_join_env : t -> typing_env
+
+  val right_join_env : t -> typing_env
+
+  type now_joining_result =
+    | Continue of t
+    | Stop
+
+  val now_joining : t -> Simple.t -> Simple.t -> now_joining_result
+
+  val already_joining : t -> Simple.t -> Simple.t -> bool
+end = struct
   type t =
-    { central_env : Meet_env.t;
+    { central_env : Meet_or_join_env_base.t;
       left_join_env : typing_env;
       right_join_env : typing_env;
       depth : int
     }
 
-  let [@ocamlformat "disable"] print ppf
-      { central_env; left_join_env; right_join_env; depth } =
+  let print ppf { central_env; left_join_env; right_join_env; depth } =
     let join_env name ppf env =
       Format.fprintf ppf "@ @[<hov 1>(%s@ %a)@]@" name print env
     in
-    Format.fprintf ppf "@[<hov 1>(\
-        @[<hov 1>(central_env@ %a)@]\
-        %a%a@ (depth %d))@]"
-      Meet_env.print central_env
-      (join_env "left_join_env") left_join_env
-      (join_env "right_join_env") right_join_env
-      depth
+    Format.fprintf ppf
+      "@[<hov 1>(@[<hov 1>(central_env@ %a)@]%a%a@ (depth %d))@]"
+      Meet_or_join_env_base.print central_env (join_env "left_join_env")
+      left_join_env
+      (join_env "right_join_env")
+      right_join_env depth
 
   let create central_env ~left_env ~right_env =
-    { central_env = Meet_env.create central_env;
+    { central_env = Meet_or_join_env_base.create central_env;
       left_join_env = left_env;
       right_join_env = right_env;
       depth = 0
     }
 
-  let target_join_env t = Meet_env.env t.central_env
+  let target_join_env t = Meet_or_join_env_base.env t.central_env
 
   let left_join_env t = t.left_join_env
 
@@ -238,20 +305,20 @@ module Join_env = struct
     | Continue of t
     | Stop
 
-  (* CR mshinwell: fix naming, it's odd at the moment to be using
-     [already_meeting]... *)
   let now_joining t simple1 simple2 =
     if t.depth >= Flambda_features.join_depth ()
     then Stop
     else
       Continue
         { t with
-          central_env = Meet_env.now_meeting t.central_env simple1 simple2;
+          central_env =
+            Meet_or_join_env_base.now_meeting_or_joining t.central_env simple1
+              simple2;
           depth = t.depth + 1
         }
 
   let already_joining { central_env; _ } simple1 simple2 =
-    Meet_env.already_meeting central_env simple1 simple2
+    Meet_or_join_env_base.already_meeting_or_joining central_env simple1 simple2
 end
 
 let names_to_types t =
@@ -274,25 +341,6 @@ let binding_time_resolver resolver name =
       Misc.fatal_errorf "Binding time resolver cannot find name %a in:@ %a"
         Name.print name print_serializable t
     | _, binding_time_and_mode -> binding_time_and_mode)
-
-let invariant0 ?force _t =
-  if Flambda_features.check_invariants ()
-     || Option.is_some (force : unit option)
-  then
-    ( (* CR mshinwell: Fix things so this check passes, or delete it. let
-         no_empty_prev_levels = Scope.Map.for_all (fun _scope level -> not
-         (One_level.is_empty level)) t.prev_levels in if not
-         no_empty_prev_levels then begin Misc.fatal_errorf "Typing environment
-         contains [prev_levels] that are \ empty:@ %a" print t end; let
-         current_scope = One_level.scope t.current_level in let max_prev_scope =
-         Scope.Map.fold (fun scope _level max_prev_scope -> Scope.max scope
-         max_prev_scope) t.prev_levels Scope.initial in if (not (is_empty t)) &&
-         Scope.(<=) current_scope max_prev_scope then begin Misc.fatal_errorf
-         "Typing environment contains a [current_level] with a \ scope (%a) that
-         is not strictly greater than all scopes in \ [prev_levels] (%a):@ %a"
-         Scope.print current_scope Scope.print max_prev_scope print t end *) )
-
-let invariant t : unit = invariant0 t
 
 let resolver t = t.resolver
 
@@ -360,7 +408,7 @@ let check_optional_kind_matches name ty kind_opt =
 
 exception Missing_cmx_and_kind
 
-(* CR mshinwell: [kind] could also take a [subkind] *)
+(* CR-someday mshinwell: [kind] could also take a [subkind] *)
 let find_with_binding_time_and_mode' t name kind =
   (* Note that [Pre_serializable] (below) assumes this function only looks up
      types of names in the cache for the current level. *)
@@ -530,16 +578,11 @@ let mem_simple ?min_name_mode t simple =
     ~name:(fun name ~coercion:_ -> mem ?min_name_mode t name)
     ~const:(fun _ -> true)
 
-let with_current_level t ~current_level =
-  let t = { t with current_level } in
-  invariant t;
-  t
+let with_current_level t ~current_level = { t with current_level }
 
 let with_current_level_and_next_binding_time t ~current_level next_binding_time
     =
-  let t = { t with current_level; next_binding_time } in
-  invariant t;
-  t
+  { t with current_level; next_binding_time }
 
 let with_aliases t ~aliases =
   let current_level = One_level.with_aliases t.current_level ~aliases in
@@ -650,13 +693,11 @@ let invariant_for_new_equation (t : t) name ty =
   if Flambda_features.check_invariants ()
   then (
     invariant_for_alias t name ty;
-    (* CR mshinwell: This should check that precision is not decreasing. *)
     let defined_names =
       Name_occurrences.create_names
         (Name.Set.union (name_domain t) (t.get_imported_names ()))
         Name_mode.in_types
     in
-    (* CR mshinwell: It's a shame we can't check code IDs here. *)
     let free_names = Name_occurrences.without_code_ids (TG.free_names ty) in
     if not (Name_occurrences.subset_domain free_names defined_names)
     then
@@ -727,15 +768,7 @@ and add_equation1 t name ty ~(meet_type : meet_type) =
       Misc.fatal_errorf
         "Cannot add equation %a = %a@ given existing binding %a = %a@ whose \
          type is of a different kind:@ %a"
-        Name.print name TG.print ty Name.print name TG.print existing_ty print t
-    (* XXX Needs to be guarded let free_names = Type_free_names.free_names ty in
-       if not (Name_occurrences.subset_domain free_names (domain t)) then begin
-       let unbound_names = Name_occurrences.diff free_names (domain t) in
-       Misc.fatal_errorf "Cannot add equation, involving unbound names@ (%a),@
-       on \ name@ %a =@ %a@ (free names %a) in environment with domain %a:@ %a"
-       Name_occurrences.print unbound_names Name.print name TG.print ty
-       Name_occurrences.print free_names Name_occurrences.print (domain t) print
-       t end; *));
+        Name.print name TG.print ty Name.print name TG.print existing_ty print t);
   (if Flambda_features.check_invariants ()
   then
     match TG.get_alias_exn ty with
