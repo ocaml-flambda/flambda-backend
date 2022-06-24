@@ -39,6 +39,11 @@ let[@inline] value_slot_is_used ~used_value_slots v =
   then Value_slot.Set.mem v used_value_slots
   else true
 
+let[@inline] function_slot_is_used ~used_function_slots v =
+  if Compilation_unit.is_current (Function_slot.get_compilation_unit v)
+  then Function_slot.Set.mem v used_function_slots
+  else true
+
 (* Compute offsets of the runtime memory layout of sets of closures. These
    offsets are computed in words, not in bytes.
 
@@ -749,11 +754,21 @@ end = struct
       Misc.fatal_error
         "Slot has been explicitly removed, it cannot be assigned anymore"
 
-  let assign_function_slot_offsets state =
+  let assign_function_slot_offsets ~used_function_slots state =
     let function_slots_to_assign = state.function_slots_to_assign in
     state.function_slots_to_assign <- [];
     (* TODO: sort the work queue *)
-    List.iter (assign_slot_offset state) function_slots_to_assign
+    List.iter
+      (function
+        | { desc = Function_slot f; _ } as slot ->
+          if function_slot_is_used ~used_function_slots f
+          then assign_slot_offset state slot
+          else
+            assign_slot_offset state slot
+            (* CR chambart/gbury: we currently do not track the used function
+               slots precisely enough in simplify/data_flow *)
+            (* else mark_slot_as_removed state slot *))
+      function_slots_to_assign
 
   let assign_value_slot_offsets ~used_value_slots state =
     let value_slots_to_assign = state.value_slots_to_assign in
@@ -789,45 +804,52 @@ end = struct
      mark value_slots/ids that are not live, as dead in the exported_offsets, so
      that later compilation unit do not mistake that for a missing offset info
      on a value_slot/id. *)
-  let live_value_slots state
+  let live_slots state
       { value_slots_in_normal_projections;
         function_slots_in_normal_projections;
         _
       } =
-    Function_slot.Set.iter
-      (fun function_slot ->
-        if Compilation_unit.is_current
-             (Function_slot.get_compilation_unit function_slot)
-        then
-          match find_function_slot state function_slot with
-          | Some _ -> ()
-          | None ->
-            state.used_offsets
-              <- EO.add_function_slot_offset state.used_offsets function_slot
-                   Dead_function_slot)
-      function_slots_in_normal_projections;
-    Value_slot.Set.filter
-      (fun value_slot ->
-        if Compilation_unit.is_current
-             (Value_slot.get_compilation_unit value_slot)
-        then (
-          (* a value slot appears in a set of closures iff it has a slot *)
-          match find_value_slot state value_slot with
-          | Some _ -> true
-          | None ->
-            state.used_offsets
-              <- EO.add_value_slot_offset state.used_offsets value_slot
-                   Dead_value_slot;
-            false)
-        else true)
-      value_slots_in_normal_projections
+    let live_function_slots =
+      Function_slot.Set.filter
+        (fun function_slot ->
+          if Compilation_unit.is_current
+               (Function_slot.get_compilation_unit function_slot)
+          then (
+            match find_function_slot state function_slot with
+            | Some _ -> true
+            | None ->
+              state.used_offsets
+                <- EO.add_function_slot_offset state.used_offsets function_slot
+                     Dead_function_slot;
+              false)
+          else true)
+        function_slots_in_normal_projections
+    in
+    let live_value_slots =
+      Value_slot.Set.filter
+        (fun value_slot ->
+          if Compilation_unit.is_current
+               (Value_slot.get_compilation_unit value_slot)
+          then (
+            (* a value slot appears in a set of closures iff it has a slot *)
+            match find_value_slot state value_slot with
+            | Some _ -> true
+            | None ->
+              state.used_offsets
+                <- EO.add_value_slot_offset state.used_offsets value_slot
+                     Dead_value_slot;
+              false)
+          else true)
+        value_slots_in_normal_projections
+    in
+    live_function_slots, live_value_slots
 
   (* Transform an internal accumulator state for slots into an actual mapping
      that assigns offsets. *)
   let finalize ~used_slots state =
     add_used_imported_offsets ~used_slots state;
-    let used_value_slots = live_value_slots state used_slots in
-    assign_function_slot_offsets state;
+    let used_function_slots, used_value_slots = live_slots state used_slots in
+    assign_function_slot_offsets ~used_function_slots state;
     assign_value_slot_offsets ~used_value_slots state;
     { used_value_slots; exported_offsets = state.used_offsets }
 end
