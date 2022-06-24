@@ -233,6 +233,10 @@ module Typing_env : sig
     val filter : t -> f:(Simple.t -> bool) -> t
 
     val get_singleton : t -> Simple.t option
+
+    val choose_opt : t -> Simple.t option
+
+    val inter : t -> t -> t
   end
 
   val aliases_of_simple :

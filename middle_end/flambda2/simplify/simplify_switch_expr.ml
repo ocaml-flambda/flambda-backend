@@ -15,9 +15,22 @@
 (**************************************************************************)
 
 open! Simplify_import
+module TE = Flambda2_types.Typing_env
+module Alias_set = TE.Alias_set
 
-let rebuild_arm uacc arm (action, use_id, arity)
-    (new_let_conts, arms, identity_arms, not_arms) =
+type mergeable_arms =
+  | No_arms
+  | Mergeable of
+      { cont : Continuation.t;
+        args : Alias_set.t list
+      }
+  | Not_mergeable
+
+let find_all_aliases dacc arg =
+  TE.aliases_of_simple (DA.typing_env dacc) ~min_name_mode:NM.normal arg
+
+let rebuild_arm uacc arm (action, use_id, arity, dacc_at_use)
+    (new_let_conts, arms, (mergeable_arms : mergeable_arms), not_arms) =
   let action =
     Simplify_common.clear_demoted_trap_action_and_patch_unused_exn_bucket uacc
       action
@@ -63,69 +76,79 @@ let rebuild_arm uacc arm (action, use_id, arity)
     match action with
     | None ->
       (* The destination is unreachable; delete the [Switch] arm. *)
-      new_let_conts, arms, identity_arms, not_arms
+      new_let_conts, arms, mergeable_arms, not_arms
     | Some action -> (
-      let normal_case ~identity_arms ~not_arms =
+      let maybe_mergeable ~mergeable_arms ~not_arms =
         let arms = Targetint_31_63.Map.add arm action arms in
-        new_let_conts, arms, identity_arms, not_arms
+        (* Check to see if this arm may be merged with others. *)
+        if Option.is_some (Apply_cont.trap_action action)
+        then new_let_conts, arms, mergeable_arms, not_arms
+        else
+          match mergeable_arms with
+          | Not_mergeable -> new_let_conts, arms, Not_mergeable, not_arms
+          | No_arms ->
+            let cont = Apply_cont.continuation action in
+            let args =
+              List.map
+                (fun arg -> find_all_aliases dacc_at_use arg)
+                (Apply_cont.args action)
+            in
+            new_let_conts, arms, Mergeable { cont; args }, not_arms
+          | Mergeable { cont; args } ->
+            if not (Continuation.equal cont (Apply_cont.continuation action))
+            then new_let_conts, arms, Not_mergeable, not_arms
+            else
+              let args =
+                List.map2
+                  (fun arg_set arg ->
+                    Alias_set.inter (find_all_aliases dacc_at_use arg) arg_set)
+                  args (Apply_cont.args action)
+              in
+              new_let_conts, arms, Mergeable { cont; args }, not_arms
       in
-      (* Now check to see if the arm is of a form that might mean the whole
-         [Switch] is either the identity or a boolean NOT. *)
+      (* Check to see if the arm is of a form that might mean the whole [Switch]
+         is a boolean NOT. *)
       match Apply_cont.to_one_arg_without_trap_action action with
-      | None -> normal_case ~identity_arms ~not_arms
+      | None -> maybe_mergeable ~mergeable_arms ~not_arms
       | Some arg ->
-        (* CR-someday mshinwell: Maybe this check should be generalised
-         * e.g. to detect
-         *   | 0 -> apply_cont k x y 1
-         *   | 1 -> apply_cont k x y 0
-         *)
         let[@inline always] const arg =
           match Reg_width_const.descr arg with
           | Tagged_immediate arg ->
-            if Targetint_31_63.equal arm arg
-            then
-              let identity_arms =
-                Targetint_31_63.Map.add arm action identity_arms
-              in
-              normal_case ~identity_arms ~not_arms
-            else if Targetint_31_63.equal arm Targetint_31_63.bool_true
-                    && Targetint_31_63.equal arg Targetint_31_63.bool_false
-                    || Targetint_31_63.equal arm Targetint_31_63.bool_false
-                       && Targetint_31_63.equal arg Targetint_31_63.bool_true
+            if Targetint_31_63.equal arm Targetint_31_63.bool_true
+               && Targetint_31_63.equal arg Targetint_31_63.bool_false
+               || Targetint_31_63.equal arm Targetint_31_63.bool_false
+                  && Targetint_31_63.equal arg Targetint_31_63.bool_true
             then
               let not_arms = Targetint_31_63.Map.add arm action not_arms in
-              normal_case ~identity_arms ~not_arms
-            else normal_case ~identity_arms ~not_arms
+              maybe_mergeable ~mergeable_arms ~not_arms
+            else maybe_mergeable ~mergeable_arms ~not_arms
           | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
           | Naked_nativeint _ ->
-            normal_case ~identity_arms ~not_arms
+            maybe_mergeable ~mergeable_arms ~not_arms
         in
         Simple.pattern_match arg ~const ~name:(fun _ ~coercion:_ ->
-            normal_case ~identity_arms ~not_arms)))
+            maybe_mergeable ~mergeable_arms ~not_arms)))
   | New_wrapper new_let_cont ->
     let new_let_conts = new_let_cont :: new_let_conts in
     let action = Apply_cont.goto new_let_cont.cont in
     let arms = Targetint_31_63.Map.add arm action arms in
-    new_let_conts, arms, identity_arms, not_arms
+    new_let_conts, arms, mergeable_arms, not_arms
 
 let rebuild_switch ~simplify_let dacc ~arms ~condition_dbg ~scrutinee
     ~scrutinee_ty uacc ~after_rebuild =
-  let new_let_conts, arms, identity_arms, not_arms =
+  let new_let_conts, arms, mergeable_arms, not_arms =
     Targetint_31_63.Map.fold (rebuild_arm uacc) arms
-      ( [],
-        Targetint_31_63.Map.empty,
-        Targetint_31_63.Map.empty,
-        Targetint_31_63.Map.empty )
+      ([], Targetint_31_63.Map.empty, No_arms, Targetint_31_63.Map.empty)
   in
-  let switch_is_identity =
-    let arm_discrs = Targetint_31_63.Map.keys arms in
-    let identity_arms_discrs = Targetint_31_63.Map.keys identity_arms in
-    if not (Targetint_31_63.Set.equal arm_discrs identity_arms_discrs)
-    then None
-    else
-      Targetint_31_63.Map.data identity_arms
-      |> List.map Apply_cont.continuation
-      |> Continuation.Set.of_list |> Continuation.Set.get_singleton
+  let switch_merged =
+    match mergeable_arms with
+    | No_arms | Not_mergeable -> None
+    | Mergeable { cont; args } ->
+      let num_args = List.length args in
+      let args = List.filter_map Alias_set.choose_opt args in
+      if List.compare_length_with args num_args = 0
+      then Some (cont, args)
+      else None
   in
   let switch_is_boolean_not =
     let arm_discrs = Targetint_31_63.Map.keys arms in
@@ -184,19 +207,13 @@ let rebuild_switch ~simplify_let dacc ~arms ~condition_dbg ~scrutinee
       RE.create_invalid Zero_switch_arms, uacc
     else
       let dbg = Debuginfo.none in
-      match switch_is_identity with
-      | Some dest ->
+      match switch_merged with
+      | Some (dest, args) ->
         let uacc =
           UA.notify_removed ~operation:Removed_operations.branch uacc
         in
-        let make_body ~tagged_scrutinee =
-          (* No need to increment the cost_metrics inside
-             [create_tagged_scrutinee] as it will call simplify over the result
-             of [make_body]. *)
-          Apply_cont.create dest ~args:[tagged_scrutinee] ~dbg
-          |> Expr.create_apply_cont
-        in
-        create_tagged_scrutinee uacc dest ~make_body
+        let expr = Apply_cont.create dest ~args ~dbg |> RE.create_apply_cont in
+        expr, uacc
       | None -> (
         match switch_is_boolean_not with
         | Some dest ->
@@ -346,7 +363,9 @@ let simplify_arm ~typing_env_at_use ~scrutinee_ty arm action (arms, dacc) =
              (Apply_cont.continuation action)
              (List.map Simple.free_names args))
     in
-    let arms = Targetint_31_63.Map.add arm (action, rewrite_id, arity) arms in
+    let arms =
+      Targetint_31_63.Map.add arm (action, rewrite_id, arity, dacc) arms
+    in
     arms, dacc
 
 let simplify_switch ~simplify_let dacc switch ~down_to_up =
