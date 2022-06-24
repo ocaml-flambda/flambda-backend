@@ -262,6 +262,14 @@ end = struct
     | Function_slot of Function_slot.t
     | Value_slot of Value_slot.t
 
+  (* This module helps to distinguish between the two different notions of
+     offsets that are used for function slots: - the exported offset (i.e. the
+     one used with Exported_offsets.* , and that is used by to_cmm), it the
+     pointer to the first word of the closure, i.e it points **after** the
+     header for the closure (whether it is the Closure header or the Infix
+     header) - when computing offsets we instead need to use the first offset in
+     the block actually used by a slot, which includes the Infix header (but not
+     the Closure header). *)
   module Exported_offset : sig
     type t
 
