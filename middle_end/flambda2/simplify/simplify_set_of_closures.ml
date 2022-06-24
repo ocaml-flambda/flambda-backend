@@ -448,6 +448,7 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_depth
         let denv =
           DE.enter_closure code_id ~return_continuation ~exn_continuation denv
         in
+        let denv = DE.increment_continuation_scope denv in
         DE.add_parameters_with_unknown_types denv return_cont_params)
   in
   let code_ids_to_remember = DA.code_ids_to_remember outer_dacc in
@@ -541,6 +542,7 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
   in
   let ( params,
         params_and_body,
+        dacc_at_function_entry,
         dacc_after_body,
         free_names_of_code,
         return_cont_uses,
@@ -556,12 +558,13 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
            ~my_depth
            ~free_names_of_body:_
          ->
-        let dacc =
+        let dacc_at_function_entry =
           dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_depth
             function_slot_opt ~closure_bound_names_inside_function
             ~inlining_arguments ~absolute_history code_id ~return_continuation
             ~exn_continuation ~return_cont_params (Code.code_metadata code)
         in
+        let dacc = dacc_at_function_entry in
         if not (DA.no_lifted_constants dacc)
         then
           Misc.fatal_errorf "Did not expect lifted constants in [dacc]:@ %a"
@@ -628,6 +631,7 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
               body;
           ( params,
             params_and_body,
+            dacc_at_function_entry,
             dacc_after_body,
             free_names_of_code,
             return_cont_uses,
@@ -688,7 +692,7 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
              ensure that the environment contains bindings for any symbols being
              defined by the set of closures. *)
           DE.add_parameters_with_unknown_types
-            (DA.denv (C.dacc_inside_functions context))
+            (DA.denv dacc_at_function_entry)
             return_cont_params
         in
         let join =
