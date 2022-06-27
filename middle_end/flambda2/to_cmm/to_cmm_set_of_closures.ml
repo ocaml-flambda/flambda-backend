@@ -96,13 +96,13 @@ end) : sig
     Env.t ->
     Ece.t ->
     prev_updates:Cmm.expression option ->
-    (int * Slot_offsets.layout_slot) list ->
+    (int * Slot_offsets.Layout.slot) list ->
     P.cmm_term list * int * Env.t * Ece.t * Cmm.expression option
 end = struct
   (* The [offset]s here are measured in units of words. *)
   let fill_slot ~set_of_closures_symbol_ref symbs decls dbg ~startenv
       value_slots env acc ~slot_offset updates slot =
-    match (slot : Slot_offsets.layout_slot) with
+    match (slot : Slot_offsets.Layout.slot) with
     | Infix_header ->
       let field = P.infix_header ~function_slot_offset:(slot_offset + 1) ~dbg in
       field :: acc, slot_offset + 1, env, Ece.pure, updates
@@ -126,8 +126,8 @@ end = struct
           env, [P.int ~dbg 1n], updates
       in
       List.rev_append fields acc, slot_offset + 1, env, eff, updates
-    | Function_slot c -> (
-      let code_id = Function_slot.Map.find c decls in
+    | Function_slot { size; function_slot } -> (
+      let code_id = Function_slot.Map.find function_slot decls in
       let code_linkage_name = Code_id.linkage_name code_id in
       let arity, closure_code_pointers, dbg =
         get_func_decl_params_arity env code_id
@@ -139,7 +139,7 @@ end = struct
         match symbs with
         | None -> acc
         | Some symbs ->
-          let function_symbol = Function_slot.Map.find c symbs in
+          let function_symbol = Function_slot.Map.find function_slot symbs in
           List.rev_append
             (P.define_global_symbol
                (Symbol.linkage_name_as_string function_symbol))
@@ -148,13 +148,15 @@ end = struct
       (* We build here the **reverse** list of fields for the function slot *)
       match closure_code_pointers with
       | Full_application_only ->
+        assert (size = 2);
         let acc =
           P.int ~dbg closure_info
           :: P.symbol_from_linkage_name ~dbg code_linkage_name
           :: acc
         in
-        acc, slot_offset + 2, env, Ece.pure, updates
+        acc, slot_offset + size, env, Ece.pure, updates
       | Full_and_partial_application ->
+        assert (size = 3);
         let acc =
           P.symbol_from_linkage_name ~dbg code_linkage_name
           :: P.int ~dbg closure_info
@@ -162,7 +164,7 @@ end = struct
                (Linkage_name.create (C.curry_function_sym arity))
           :: acc
         in
-        acc, slot_offset + 3, env, Ece.pure, updates)
+        acc, slot_offset + size, env, Ece.pure, updates)
 
   let rec fill_layout0 ~set_of_closures_symbol_ref symbs decls dbg ~startenv
       value_slots env effs acc updates ~starting_offset slots =
@@ -296,7 +298,7 @@ let params_and_body env res code_id p ~fun_dbg ~translate_expr =
 (* Translation of sets of closures. *)
 
 let layout_for_set_of_closures env set =
-  Slot_offsets.layout (Env.exported_offsets env)
+  Slot_offsets.Layout.make (Env.exported_offsets env)
     (Set_of_closures.function_decls set |> Function_declarations.funs_in_order)
     (Set_of_closures.value_slots set)
 
@@ -314,7 +316,7 @@ let debuginfo_for_set_of_closures env set =
   (* Choose the debuginfo with the earliest source location. *)
   match dbg with [] -> Debuginfo.none | dbg :: _ -> dbg
 
-let let_static_set_of_closures0 env symbs (layout : Slot_offsets.layout) set
+let let_static_set_of_closures0 env symbs (layout : Slot_offsets.Layout.t) set
     ~prev_updates =
   let set_of_closures_symbol_ref = ref None in
   let fun_decls = Set_of_closures.function_decls set in
@@ -404,7 +406,7 @@ let lift_set_of_closures env res ~body ~bound_vars layout set ~translate_expr =
   translate_expr env res body
 
 let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
-    (layout : Slot_offsets.layout) ~num_normal_occurrences_of_bound_vars
+    (layout : Slot_offsets.Layout.t) ~num_normal_occurrences_of_bound_vars
     ~(closure_alloc_mode : Alloc_mode.t) ~translate_expr =
   let fun_decls = Set_of_closures.function_decls set in
   let decls = Function_declarations.funs_in_order fun_decls in
