@@ -143,35 +143,219 @@
      eta_int32_ge = (function prim prim stub (Int32.>= prim prim))
      eta_int64_ge = (function prim prim stub (Int64.>= prim prim))
      eta_nativeint_ge = (function prim prim stub (Nativeint.>= prim prim))
-     int_vec = [0: [0: 1 1] [0: [0: 1 2] [0: [0: 2 1] 0]]]
-     bool_vec = [0: [0: 0 0] [0: [0: 0 1] [0: [0: 1 0] 0]]]
-     intlike_vec = [0: [0: 0 0] [0: [0: 0 1] [0: [0: 1 0] 0]]]
-     float_vec = [0: [0: 1. 1.] [0: [0: 1. 2.] [0: [0: 2. 1.] 0]]]
-     string_vec = [0: [0: "1" "1"] [0: [0: "1" "2"] [0: [0: "2" "1"] 0]]]
-     int32_vec = [0: [0: 1l 1l] [0: [0: 1l 2l] [0: [0: 2l 1l] 0]]]
-     int64_vec = [0: [0: 1L 1L] [0: [0: 1L 2L] [0: [0: 2L 1L] 0]]]
-     nativeint_vec = [0: [0: 1n 1n] [0: [0: 1n 2n] [0: [0: 2n 1n] 0]]]
+     int_vec =[(consts (0))
+               (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
+       [0: [0: 1 1] [0: [0: 1 2] [0: [0: 2 1] 0]]]
+     bool_vec =[(consts (0))
+                (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
+       [0: [0: 0 0] [0: [0: 0 1] [0: [0: 1 0] 0]]]
+     intlike_vec =[(consts (0))
+                   (non_consts ([0: *,
+                                 [(consts (0)) (non_consts ([0: *, *]))]]))]
+       [0: [0: 0 0] [0: [0: 0 1] [0: [0: 1 0] 0]]]
+     float_vec =[(consts (0))
+                 (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
+       [0: [0: 1. 1.] [0: [0: 1. 2.] [0: [0: 2. 1.] 0]]]
+     string_vec =[(consts (0))
+                  (non_consts ([0: *,
+                                [(consts (0)) (non_consts ([0: *, *]))]]))]
+       [0: [0: "1" "1"] [0: [0: "1" "2"] [0: [0: "2" "1"] 0]]]
+     int32_vec =[(consts (0))
+                 (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
+       [0: [0: 1l 1l] [0: [0: 1l 2l] [0: [0: 2l 1l] 0]]]
+     int64_vec =[(consts (0))
+                 (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
+       [0: [0: 1L 1L] [0: [0: 1L 2L] [0: [0: 2L 1L] 0]]]
+     nativeint_vec =[(consts (0))
+                     (non_consts ([0: *,
+                                   [(consts (0)) (non_consts ([0: *, *]))]]))]
+       [0: [0: 1n 1n] [0: [0: 1n 2n] [0: [0: 2n 1n] 0]]]
      test_vec =
-       (function cmp eq ne lt gt le ge vec : [0: [0: *, *], *]
-         (let
-           (uncurry =
-              (function f param[0: *, *]
-                (apply f (field 0 param) (field 1 param)))
-            map =
-              (function f l
-                (apply (field 18 (global Stdlib__List!)) (apply uncurry f) l)))
-           (makeblock 0 ([0: *, *],*)
-             (makeblock 0 (apply map gen_cmp vec) (apply map cmp vec))
-             (apply map
-               (function gen spec : [0: *, *]
-                 (makeblock 0 (apply map gen vec) (apply map spec vec)))
-               (makeblock 0 ([0: *, *],*) (makeblock 0 gen_eq eq)
-                 (makeblock 0 ([0: *, *],*) (makeblock 0 gen_ne ne)
-                   (makeblock 0 ([0: *, *],*) (makeblock 0 gen_lt lt)
-                     (makeblock 0 ([0: *, *],*) (makeblock 0 gen_gt gt)
-                       (makeblock 0 ([0: *, *],*) (makeblock 0 gen_le le)
-                         (makeblock 0 ([0: *, *],*) (makeblock 0 gen_ge ge)
-                           0)))))))))))
+       (function cmp eq ne lt gt le ge
+         vec[(consts (0))
+             (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
+         [(consts ())
+          (non_consts ([0: [(consts ()) (non_consts ([0: *, *]))],
+                        [(consts (0)) (non_consts ([0: *, *]))]]))](let
+                                                                    (uncurry =
+                                                                    (function
+                                                                    f
+                                                                    param
+                                                                    [(consts ())
+                                                                    (non_consts (
+                                                                    [0: *, *]))]
+                                                                    (apply f
+                                                                    (field 0
+                                                                    param)
+                                                                    (field 1
+                                                                    param)))
+                                                                    map =
+                                                                    (function
+                                                                    f
+                                                                    l[(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]
+                                                                    (apply
+                                                                    (field 18
+                                                                    (global Stdlib__List!))
+                                                                    (apply
+                                                                    uncurry
+                                                                    f) l)))
+                                                                    (makeblock 0 (
+                                                                    [(consts ())
+                                                                    (non_consts (
+                                                                    [0:
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))],
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))],
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))])
+                                                                    (makeblock 0 (
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))],
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))])
+                                                                    (apply
+                                                                    map
+                                                                    gen_cmp
+                                                                    vec)
+                                                                    (apply
+                                                                    map cmp
+                                                                    vec))
+                                                                    (apply
+                                                                    map
+                                                                    (function
+                                                                    gen spec
+                                                                    [(consts ())
+                                                                    (non_consts (
+                                                                    [0:
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))],
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))]
+                                                                    (makeblock 0 (
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))],
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))])
+                                                                    (apply
+                                                                    map gen
+                                                                    vec)
+                                                                    (apply
+                                                                    map spec
+                                                                    vec)))
+                                                                    (makeblock 0 (
+                                                                    [(consts ())
+                                                                    (non_consts (
+                                                                    [0: *, *]))],
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))])
+                                                                    (makeblock 0
+                                                                    gen_eq
+                                                                    eq)
+                                                                    (makeblock 0 (
+                                                                    [(consts ())
+                                                                    (non_consts (
+                                                                    [0: *, *]))],
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))])
+                                                                    (makeblock 0
+                                                                    gen_ne
+                                                                    ne)
+                                                                    (makeblock 0 (
+                                                                    [(consts ())
+                                                                    (non_consts (
+                                                                    [0: *, *]))],
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))])
+                                                                    (makeblock 0
+                                                                    gen_lt
+                                                                    lt)
+                                                                    (makeblock 0 (
+                                                                    [(consts ())
+                                                                    (non_consts (
+                                                                    [0: *, *]))],
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))])
+                                                                    (makeblock 0
+                                                                    gen_gt
+                                                                    gt)
+                                                                    (makeblock 0 (
+                                                                    [(consts ())
+                                                                    (non_consts (
+                                                                    [0: *, *]))],
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))])
+                                                                    (makeblock 0
+                                                                    gen_le
+                                                                    le)
+                                                                    (makeblock 0 (
+                                                                    [(consts ())
+                                                                    (non_consts (
+                                                                    [0: *, *]))],
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))])
+                                                                    (makeblock 0
+                                                                    gen_ge
+                                                                    ge) 0)))))))))))
     (seq
       (apply test_vec int_cmp int_eq int_ne int_lt int_gt int_le int_ge
         int_vec)
@@ -191,29 +375,93 @@
         nativeint_gt nativeint_le nativeint_ge nativeint_vec)
       (let
         (eta_test_vec =
-           (function cmp eq ne lt gt le ge vec : [0: [0: *, *], *]
+           (function cmp eq ne lt gt le ge
+             vec[(consts (0))
+                 (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
+             [(consts ())
+              (non_consts ([0: [(consts ()) (non_consts ([0: *, *]))],
+                            [(consts (0)) (non_consts ([0: *, *]))]]))]
              (let
                (uncurry =
-                  (function f param[0: *, *]
+                  (function f param[(consts ()) (non_consts ([0: *, *]))]
                     (apply f (field 0 param) (field 1 param)))
                 map =
-                  (function f l
+                  (function f
+                    l[(consts (0))
+                      (non_consts ([0: *,
+                                    [(consts (0)) (non_consts ([0: *, *]))]]))]
+                    [(consts (0))
+                     (non_consts ([0: *,
+                                   [(consts (0)) (non_consts ([0: *, *]))]]))]
                     (apply (field 18 (global Stdlib__List!))
                       (apply uncurry f) l)))
-               (makeblock 0 ([0: *, *],*)
-                 (makeblock 0 (apply map eta_gen_cmp vec)
-                   (apply map cmp vec))
+               (makeblock 0 ([(consts ())
+                              (non_consts ([0:
+                                            [(consts (0))
+                                             (non_consts ([0: *, *]))],
+                                            [(consts (0))
+                                             (non_consts ([0: *, *]))]]))],
+                 [(consts (0))
+                  (non_consts ([0: *,
+                                [(consts (0)) (non_consts ([0: *, *]))]]))])
+                 (makeblock 0 ([(consts (0))
+                                (non_consts ([0: *,
+                                              [(consts (0))
+                                               (non_consts ([0: *, *]))]]))],
+                   [(consts (0))
+                    (non_consts ([0: *,
+                                  [(consts (0)) (non_consts ([0: *, *]))]]))])
+                   (apply map eta_gen_cmp vec) (apply map cmp vec))
                  (apply map
-                   (function gen spec : [0: *, *]
-                     (makeblock 0 (apply map gen vec) (apply map spec vec)))
-                   (makeblock 0 ([0: *, *],*) (makeblock 0 eta_gen_eq eq)
-                     (makeblock 0 ([0: *, *],*) (makeblock 0 eta_gen_ne ne)
-                       (makeblock 0 ([0: *, *],*) (makeblock 0 eta_gen_lt lt)
-                         (makeblock 0 ([0: *, *],*)
+                   (function gen spec
+                     [(consts ())
+                      (non_consts ([0:
+                                    [(consts (0)) (non_consts ([0: *, *]))],
+                                    [(consts (0)) (non_consts ([0: *, *]))]]))]
+                     (makeblock 0 ([(consts (0))
+                                    (non_consts ([0: *,
+                                                  [(consts (0))
+                                                   (non_consts ([0: *, *]))]]))],
+                       [(consts (0))
+                        (non_consts ([0: *,
+                                      [(consts (0)) (non_consts ([0: *, *]))]]))])
+                       (apply map gen vec) (apply map spec vec)))
+                   (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],
+                     [(consts (0))
+                      (non_consts ([0: *,
+                                    [(consts (0)) (non_consts ([0: *, *]))]]))])
+                     (makeblock 0 eta_gen_eq eq)
+                     (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],
+                       [(consts (0))
+                        (non_consts ([0: *,
+                                      [(consts (0)) (non_consts ([0: *, *]))]]))])
+                       (makeblock 0 eta_gen_ne ne)
+                       (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],
+                         [(consts (0))
+                          (non_consts ([0: *,
+                                        [(consts (0))
+                                         (non_consts ([0: *, *]))]]))])
+                         (makeblock 0 eta_gen_lt lt)
+                         (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],
+                           [(consts (0))
+                            (non_consts ([0: *,
+                                          [(consts (0))
+                                           (non_consts ([0: *, *]))]]))])
                            (makeblock 0 eta_gen_gt gt)
-                           (makeblock 0 ([0: *, *],*)
+                           (makeblock 0 ([(consts ())
+                                          (non_consts ([0: *, *]))],[(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *,
+                                                                    [(consts (0))
+                                                                    (non_consts (
+                                                                    [0: *, *]))]]))])
                              (makeblock 0 eta_gen_le le)
-                             (makeblock 0 ([0: *, *],*)
+                             (makeblock 0 ([(consts ())
+                                            (non_consts ([0: *, *]))],
+                               [(consts (0))
+                                (non_consts ([0: *,
+                                              [(consts (0))
+                                               (non_consts ([0: *, *]))]]))])
                                (makeblock 0 eta_gen_ge ge) 0)))))))))))
         (seq
           (apply eta_test_vec eta_int_cmp eta_int_eq eta_int_ne eta_int_lt

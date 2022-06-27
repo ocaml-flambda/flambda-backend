@@ -142,7 +142,7 @@ let kind_with_subkind ppf (k : kind_with_subkind) =
   | Value -> (
     match Flambda_kind.With_subkind.subkind k with
     | Anything -> str "val"
-    | Block _ -> str "block" (* CR mshinwell: improve this *)
+    | Variant _ -> str "variant" (* CR mshinwell: improve this *)
     | Float_block _ -> str "float_block"
     | Boxed_float -> str "float boxed"
     | Boxed_int32 -> str "int32 boxed"

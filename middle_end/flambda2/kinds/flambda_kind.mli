@@ -131,9 +131,9 @@ module With_subkind : sig
       | Boxed_int64
       | Boxed_nativeint
       | Tagged_immediate
-      | Block of
-          { tag : Tag.t;
-            fields : t list
+      | Variant of
+          { consts : Targetint_31_63.Set.t;
+            non_consts : t list Tag.Scannable.Map.t
           }
       | Float_block of { num_fields : int }
       | Float_array
@@ -197,6 +197,8 @@ module With_subkind : sig
   val from_lambda : Lambda.value_kind -> t
 
   val compatible : t -> when_used_at:t -> bool
+
+  val erase_subkind : t -> t
 
   include Container_types.S with type t := t
 end

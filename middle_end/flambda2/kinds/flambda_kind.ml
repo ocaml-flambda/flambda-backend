@@ -276,9 +276,9 @@ module With_subkind = struct
       | Boxed_int64
       | Boxed_nativeint
       | Tagged_immediate
-      | Block of
-          { tag : Tag.t;
-            fields : t list
+      | Variant of
+          { consts : Targetint_31_63.Set.t;
+            non_consts : t list Tag.Scannable.Map.t
           }
       | Float_block of { num_fields : int }
       | Float_array
@@ -300,19 +300,34 @@ module With_subkind = struct
       | Value_array, Value_array
       | Generic_array, Generic_array ->
         true
-      | ( Block { tag = t1; fields = fields1 },
-          Block { tag = t2; fields = fields2 } ) ->
-        Tag.equal t1 t2
-        && List.length fields1 = List.length fields2
-        && List.for_all2
-             (fun d when_used_at -> compatible d ~when_used_at)
-             fields1 fields2
+      | ( Variant { consts = consts1; non_consts = non_consts1 },
+          Variant { consts = consts2; non_consts = non_consts2 } ) ->
+        if not (Targetint_31_63.Set.equal consts1 consts2)
+        then false
+        else
+          let tags1 = Tag.Scannable.Map.keys non_consts1 in
+          let tags2 = Tag.Scannable.Map.keys non_consts2 in
+          if not (Tag.Scannable.Set.equal tags1 tags2)
+          then false
+          else
+            let field_lists1 = Tag.Scannable.Map.data non_consts1 in
+            let field_lists2 = Tag.Scannable.Map.data non_consts2 in
+            assert (List.compare_lengths field_lists1 field_lists2 = 0);
+            List.for_all2
+              (fun fields1 fields2 ->
+                if List.compare_lengths fields1 fields2 <> 0
+                then false
+                else
+                  List.for_all2
+                    (fun d when_used_at -> compatible d ~when_used_at)
+                    fields1 fields2)
+              field_lists1 field_lists2
       | ( Float_block { num_fields = num_fields1 },
           Float_block { num_fields = num_fields2 } ) ->
         num_fields1 = num_fields2
       (* Subkinds of [Value] may always be used at [Value] (but not the
          converse): *)
-      | ( ( Block _ | Float_block _ | Float_array | Immediate_array
+      | ( ( Variant _ | Float_block _ | Float_array | Immediate_array
           | Value_array | Generic_array | Boxed_float | Boxed_int32
           | Boxed_int64 | Boxed_nativeint | Tagged_immediate ),
           Anything ) ->
@@ -324,7 +339,7 @@ module With_subkind = struct
         true
       (* All other combinations are incompatible: *)
       | ( ( Anything | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
-          | Tagged_immediate | Block _ | Float_block _ | Float_array
+          | Tagged_immediate | Variant _ | Float_block _ | Float_array
           | Immediate_array | Value_array | Generic_array ),
           _ ) ->
         false
@@ -335,7 +350,7 @@ module With_subkind = struct
       let rec print ppf t =
         let colour = Flambda_colours.subkind () in
         match t with
-        | Anything -> ()
+        | Anything -> Format.fprintf ppf "*"
         | Tagged_immediate ->
           Format.fprintf ppf "@<0>%s=tagged_@<1>\u{2115}@<1>\u{1d55a}@<0>%s"
             colour
@@ -356,10 +371,15 @@ module With_subkind = struct
           Format.fprintf ppf "@<0>%s=boxed_@<1>\u{2115}@<1>\u{2115}@<0>%s"
             colour
             (Flambda_colours.normal ())
-        | Block { tag; fields } ->
-          Format.fprintf ppf "@<0>%s=Block{%a: %a}@<0>%s" colour Tag.print tag
-            (Format.pp_print_list ~pp_sep:Format.pp_print_space print)
-            fields
+        | Variant { consts; non_consts } ->
+          Format.fprintf ppf
+            "@<0>%s=Variant((consts (%a))@ (non_consts (%a)))@<0>%s" colour
+            Targetint_31_63.Set.print consts
+            (Tag.Scannable.Map.print (fun ppf fields ->
+                 Format.fprintf ppf "[%a]"
+                   (Format.pp_print_list ~pp_sep:Format.pp_print_space print)
+                   fields))
+            non_consts
             (Flambda_colours.normal ())
         | Float_block { num_fields } ->
           Format.fprintf ppf "@<0>%s=Float_block(%d)@<0>%s" colour num_fields
@@ -399,7 +419,7 @@ module With_subkind = struct
       match subkind with
       | Anything -> ()
       | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
-      | Tagged_immediate | Block _ | Float_block _ | Float_array
+      | Tagged_immediate | Variant _ | Float_block _ | Float_array
       | Immediate_array | Value_array | Generic_array ->
         Misc.fatal_errorf "Subkind %a is not valid for kind %a" Subkind.print
           subkind print kind));
@@ -448,7 +468,14 @@ module With_subkind = struct
         "Block with fields of non-Value kind (use \
          [Flambda_kind.With_subkind.float_block] for float records)";
     let fields = List.map (fun t -> t.subkind) fields in
-    create value (Block { tag; fields })
+    match Tag.Scannable.of_tag tag with
+    | Some tag ->
+      create value
+        (Variant
+           { consts = Targetint_31_63.Set.empty;
+             non_consts = Tag.Scannable.Map.singleton tag fields
+           })
+    | None -> Misc.fatal_errorf "Tag %a is not scannable" Tag.print tag
 
   let float_block ~num_fields = create value (Float_block { num_fields })
 
@@ -468,12 +495,34 @@ module With_subkind = struct
     | Pboxedintval Pint64 -> boxed_int64
     | Pboxedintval Pnativeint -> boxed_nativeint
     | Pintval -> tagged_immediate
-    | Pblock { tag; fields } ->
-      (* If we have [Obj.double_array_tag] here, this is always an all-float
-         block, not an array. *)
-      if tag = Obj.double_array_tag
-      then float_block ~num_fields:(List.length fields)
-      else block (Tag.create_exn tag) (List.map from_lambda fields)
+    | Pvariant { consts; non_consts } -> (
+      match consts, non_consts with
+      | [], [] -> Misc.fatal_error "[Pvariant] with no constructors at all"
+      | [], [(tag, fields)] when tag = Obj.double_array_tag ->
+        (* If we have [Obj.double_array_tag] here, this is always an all-float
+           block, not an array. *)
+        float_block ~num_fields:(List.length fields)
+      | [], _ :: _ | _ :: _, [] | _ :: _, _ :: _ ->
+        let consts =
+          Targetint_31_63.Set.of_list
+            (List.map
+               (fun const ->
+                 Targetint_31_63.int (Targetint_31_63.Imm.of_int const))
+               consts)
+        in
+        let non_consts =
+          List.fold_left
+            (fun non_consts (tag, fields) ->
+              match Tag.Scannable.create tag with
+              | Some tag ->
+                Tag.Scannable.Map.add tag
+                  (List.map (fun vk -> subkind (from_lambda vk)) fields)
+                  non_consts
+              | None ->
+                Misc.fatal_errorf "Non-scannable tag %d in [Pvariant]" tag)
+            Tag.Scannable.Map.empty non_consts
+        in
+        create value (Variant { consts; non_consts }))
     | Parrayval Pfloatarray -> float_array
     | Parrayval Pintarray -> immediate_array
     | Parrayval Paddrarray -> value_array
@@ -489,7 +538,7 @@ module With_subkind = struct
         Format.fprintf ppf "@[%a%a@]" print kind Subkind.print subkind
       | ( (Naked_number _ | Region | Rec_info),
           ( Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
-          | Tagged_immediate | Block _ | Float_block _ | Float_array
+          | Tagged_immediate | Variant _ | Float_block _ | Float_array
           | Immediate_array | Value_array | Generic_array ) ) ->
         assert false
     (* see [create] *)
@@ -511,7 +560,9 @@ module With_subkind = struct
     match t.subkind with
     | Anything -> false
     | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
-    | Tagged_immediate | Block _ | Float_block _ | Float_array | Immediate_array
-    | Value_array | Generic_array ->
+    | Tagged_immediate | Variant _ | Float_block _ | Float_array
+    | Immediate_array | Value_array | Generic_array ->
       true
+
+  let erase_subkind t = { t with subkind = Anything }
 end

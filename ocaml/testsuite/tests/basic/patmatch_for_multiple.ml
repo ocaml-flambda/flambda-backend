@@ -55,6 +55,7 @@ match (3, 2, 1) with
                *match*/283 =a (field 1 *match*/279))
               (exit 5 *match*/279)))))
      with (6) 0)
-   with (5 x/274[0: [int], [int], [int]]) (seq (ignore x/274) 1)))
+   with (5 x/274[(consts ()) (non_consts ([0: [int], [int], [int]]))])
+    (seq (ignore x/274) 1)))
 - : bool = false
 |}];;

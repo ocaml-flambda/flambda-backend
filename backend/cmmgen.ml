@@ -339,7 +339,7 @@ let join_unboxed_number_kind ~strict k1 k2 =
 
 let is_strict = function
   | Pfloatval | Pboxedintval _ -> false
-  | Pintval | Pgenval | Pblock _ | Parrayval _ -> true
+  | Pintval | Pgenval | Pvariant _ | Parrayval _ -> true
 
 let rec is_unboxed_number_cmm = function
     | Cop(Calloc mode, [Cconst_natint (hdr, _); _], dbg)
@@ -386,10 +386,10 @@ let rec is_unboxed_number_cmm = function
     | Cassign _
     | Ctuple _
     | Cop _ -> No_unboxing
-    | Cifthenelse (_, _, _, _, _, _, Vval (Pintval | Pblock _))
-    | Cswitch (_, _,  _, _, Vval (Pintval | Pblock _))
-    | Ctrywith (_, _, _, _, _, Vval (Pintval | Pblock _))
-    | Ccatch (_, _, _, Vval (Pintval | Pblock _)) ->
+    | Cifthenelse (_, _, _, _, _, _, Vval (Pintval | Pvariant _))
+    | Cswitch (_, _,  _, _, Vval (Pintval | Pvariant _))
+    | Ctrywith (_, _, _, _, _, Vval (Pintval | Pvariant _))
+    | Ccatch (_, _, _, Vval (Pintval | Pvariant _)) ->
       No_unboxing
     | Cifthenelse (_, _, a, _, b, _, Vval kind) ->
       join_unboxed_number_kind ~strict:(is_strict kind)
