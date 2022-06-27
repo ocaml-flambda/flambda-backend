@@ -556,12 +556,16 @@ and transl_exp0 ~in_new_scope ~scopes e =
                    of_location ~scopes e.exp_loc)
         | cl ->
             let imm_array =
-              match kind with
-              | Paddrarray | Pintarray ->
+              if Config.flambda2 then
+                Lprim (Pmakearray (kind, Immutable, mode), ll,
+                       of_location ~scopes e.exp_loc)
+              else
+                match kind with
+                | Paddrarray | Pintarray ->
                   Lconst(Const_block(0, cl))
-              | Pfloatarray ->
+                | Pfloatarray ->
                   Lconst(Const_float_array(List.map extract_float cl))
-              | Pgenarray ->
+                | Pgenarray ->
                   raise Not_constant    (* can this really happen? *)
             in
             Lprim (Pduparray (kind, Mutable), [imm_array],
