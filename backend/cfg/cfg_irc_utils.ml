@@ -55,6 +55,15 @@ end
 module RegisterStamp = struct
   type t = int
 
+  type pair = t * t
+
+  let pair (x : t) (y : t) =
+    if x <= y then x, y else y, x
+
+  let fst = fst
+
+  let snd = snd
+
   (* CR xclerc for xclerc: consider using a bit matrix *)
 
   module PS = Hashtbl.Make (struct
@@ -65,28 +74,25 @@ module RegisterStamp = struct
 
     let hash ((x, y) : t) =
       (* CR xclerc for xclerc: review *)
-      (x lsl 10) lor y
+      (x lsl 17) lor y
   end)
 
   module PairSet = struct
-    type stamp = t
-
     type t = unit PS.t
 
-    let make () = PS.create 256
+    let default_size = 256
+
+    let make ~num_registers =
+      let estimated_size = (num_registers * num_registers) asr 5 in
+      PS.create (if estimated_size < default_size then default_size else estimated_size)
 
     let clear set = PS.clear set
 
-    (* CR xclerc for xclec: the caller is likely to call mem and add, so build
-       the pair there *)
+    let mem set (x : pair) =
+      PS.mem set x
 
-    let mem set (x : stamp) (y : stamp) =
-      let v = if x <= y then x, y else y, x in
-      PS.mem set v
-
-    let add set (x : stamp) (y : stamp) =
-      let v = if x <= y then x, y else y, x in
-      PS.replace set v ()
+    let add set (x : pair) =
+      PS.replace set x ()
 
     let cardinal set = PS.length set
 
@@ -232,4 +238,104 @@ module Spilling_heuristics = struct
             fatal "unknown heuristics %S (possible values: %s)" id
               (available_heuristics ()))
       end
+end
+
+module WorkList = struct
+  module type S = sig
+    type e
+    type t
+    module Set : Set.S with type elt = e
+    val make : expected_max_size:int -> t
+    val empty : t -> t
+    val is_empty : t -> bool
+    val add : t -> e -> t
+    val remove : t -> e -> t
+    val choose_and_remove : t -> (e * t) option
+    val iter : t -> f:(e -> unit) -> unit
+    val fold : t -> f:(e -> 'a -> 'a) -> init:'a -> 'a
+    val to_list : t -> e list
+    val to_set : t -> Set.t
+  end
+  module Make (E : Set.OrderedType) (ES : Set.S with type elt = E.t) : S with type e = E.t and module Set = ES = struct
+    module Set = ES
+    let cut_off = 16
+    type e = E.t
+    type t =
+      | List of e List.t
+      | Set of Set.t
+    let empty_list = List []
+    let empty_set = Set Set.empty
+    let make ~expected_max_size =
+      if expected_max_size < cut_off then
+        empty_list
+      else
+        empty_set
+    let empty t =
+      match t with
+      | List _ -> empty_list
+      | Set _ -> empty_set
+    let is_empty t =
+      match t with
+      | List l -> (match l with [] -> true | _ :: _ -> false)
+      | Set s -> Set.is_empty s
+    let add t e =
+      match t with
+      | List l ->
+        if List.exists l ~f:(fun x -> E.compare x e = 0) then
+          t
+        else
+          List (e :: l)
+      | Set s ->
+        let s' = Set.add e s in
+        if s == s' then
+          t
+        else
+          Set s'
+    let remove t e =
+      match t with
+      | List l ->
+        let rec filter e acc = function
+          | [] -> acc
+          | hd :: tl ->
+            if E.compare e hd = 0 then
+              acc @ tl
+            else
+              filter e (hd :: acc) tl
+        in
+        List (filter e [] l)
+      | Set s ->
+        let s' = Set.remove e s in
+        if s == s' then
+          t
+        else
+          Set s'
+    let choose_and_remove t =
+      match t with
+      | List l ->
+        begin match l with
+        | [] -> None
+        | hd :: tl -> Some (hd, List tl)
+        end
+      | Set s ->
+        begin match Set.choose_opt s with
+        | None -> None
+        | Some e -> Some (e, Set (Set.remove e s))
+        end
+    let iter t ~f =
+      match t with
+      | List l -> List.iter l ~f
+      | Set s -> Set.iter f s
+    let fold t ~f ~init =
+      match t with
+      | List l -> List.fold_left l ~f:(fun acc elem -> f elem acc) ~init
+      | Set s -> Set.fold f s init
+    let to_list t =
+      match t with
+      | List l -> l
+      | Set s -> Set.elements s
+    let to_set t =
+      match t with
+      | List l -> Set.of_list l
+      | Set s -> s
+  end
 end

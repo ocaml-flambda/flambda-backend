@@ -43,7 +43,9 @@ val add_spill_work_list : t -> Reg.t -> unit
 
 val remove_spill_work_list : t -> Reg.t -> unit
 
-val spill_work_list : t -> Reg.t list
+val fold_spill_work_list : t -> f:(Reg.t -> 'a -> 'a) -> init:'a -> 'a
+
+val spill_work_list : t -> Reg.Set.t
 
 val is_empty_spilled_nodes : t -> bool
 
@@ -55,7 +57,7 @@ val clear_spilled_nodes : t -> unit
 
 val add_coalesced_nodes : t -> Reg.t -> unit
 
-val coalesced_nodes : t -> Reg.t list
+val iter_coalesced_nodes : t -> f:(Reg.t -> unit) -> unit
 
 val add_colored_nodes : t -> Reg.t -> unit
 

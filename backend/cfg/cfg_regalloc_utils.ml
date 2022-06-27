@@ -308,10 +308,12 @@ module Instruction = struct
 
   type t = Cfg.basic Cfg.instruction
 
-  module Set = MoreLabels.Set.Make (struct
+  let compare  (left : t) (right : t) : int = Int.compare left.id right.id
+
+  module Set = Set.Make (struct
     type nonrec t = t
 
-    let compare (left : t) (right : t) : int = Int.compare left.id right.id
+    let compare = compare
   end)
 
   module IdSet = MoreLabels.Set.Make (Int)
