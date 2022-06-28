@@ -685,7 +685,7 @@ end = struct
 
   let result_kind = K.naked_float
 
-  let ok_to_evaluate denv = DE.float_const_prop denv
+  let ok_to_evaluate denv = DE.propagating_float_consts denv
 
   let prover_lhs = T.prove_naked_floats
 
@@ -779,7 +779,7 @@ end = struct
 
   let result_kind = K.naked_immediate
 
-  let ok_to_evaluate denv = DE.float_const_prop denv
+  let ok_to_evaluate denv = DE.propagating_float_consts denv
 
   let prover_lhs = T.prove_naked_floats
 

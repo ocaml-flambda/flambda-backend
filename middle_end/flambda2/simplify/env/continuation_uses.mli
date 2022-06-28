@@ -36,8 +36,7 @@ val add_use :
 val get_uses : t -> One_continuation_use.t list
 
 val get_arg_types_by_use_id :
-  t ->
-  Continuation_env_and_param_types.arg_at_use Apply_cont_rewrite_id.Map.t list
+  t -> Continuation_env_and_param_types.arg_types_by_use_id list
 
 val number_of_uses : t -> int
 

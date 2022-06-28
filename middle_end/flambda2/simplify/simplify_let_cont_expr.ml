@@ -845,9 +845,9 @@ let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
     DA.map_data_flow dacc_after_body
       ~f:(Data_flow.enter_continuation cont (Bound_parameters.vars params))
   in
-  let denv, _arg_types =
+  let denv =
     (* XXX These don't have the same scope level as the non-recursive case *)
-    DE.add_parameters_with_unknown_types' ~at_unit_toplevel:false
+    DE.add_parameters_with_unknown_types ~at_unit_toplevel:false
       denv_before_body params
   in
   let code_age_relation_after_body =
@@ -862,7 +862,9 @@ let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
   let dacc =
     DA.add_to_lifted_constant_accumulator dacc prior_lifted_constants
   in
-  let dacc = DA.map_denv dacc ~f:DE.set_not_at_unit_toplevel in
+  let dacc =
+    DA.map_denv dacc ~f:(fun denv -> DE.set_at_unit_toplevel_state denv false)
+  in
   let arg_types_by_use_id_outside_of_handler =
     match CUE.get_continuation_uses (DA.continuation_uses_env dacc) cont with
     (* CR gbury: if this happens, we should rather remove the continuation,

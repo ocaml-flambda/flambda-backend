@@ -19,11 +19,15 @@ type arg_at_use =
     typing_env : Flambda2_types.Typing_env.t
   }
 
+(** The type of an argument at each use site. The moral equivalent of an SSA
+    phi-node. *)
+type arg_types_by_use_id = arg_at_use Apply_cont_rewrite_id.Map.t
+
 type t =
   | No_uses
   | Uses of
       { handler_env : Downwards_env.t;
-        arg_types_by_use_id : arg_at_use Apply_cont_rewrite_id.Map.t list;
+        arg_types_by_use_id : arg_types_by_use_id list;
         extra_params_and_args : Continuation_extra_params_and_args.t;
         is_single_inlinable_use : bool;
         escapes : bool
