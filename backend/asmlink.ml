@@ -388,6 +388,7 @@ let link_shared ~ppf_dump objfiles output_name =
       ~asm_filename:startup ~keep_asm:!Clflags.keep_startup_file
       ~obj_filename:startup_obj
       ~may_reduce_heap:true
+      ~ppf_dump
       (fun () ->
          make_shared_startup_file ~ppf_dump genfns units_tolink
       );
@@ -459,6 +460,7 @@ let link unix ~ppf_dump objfiles output_name =
       ~asm_filename:startup ~keep_asm:!Clflags.keep_startup_file
       ~obj_filename:startup_obj
       ~may_reduce_heap:true
+      ~ppf_dump
       (fun () -> make_startup_file unix ~ppf_dump ~named_startup_file
         ~filename:startup genfns units_tolink);
     Emitaux.reduce_heap_size ~reset:(fun () -> reset ());
