@@ -33,7 +33,7 @@ let sign_extend_63 dbg e =
 
 let zero_extend_63 dbg e =
   let open Cmm in
-  Cop (Cand, [e; C.natint_const_untagged dbg 0xFFFFFFFFn (*XXX*)], dbg)
+  Cop (Cand, [e; C.natint_const_untagged dbg 0x7FFF_FFFF_FFFF_FFFFn], dbg)
 
 let[@ocaml.warning "-4"] rec low_63 dbg e =
   let open Cmm in
