@@ -21,8 +21,8 @@ open! Int_replace_polymorphic_compare
 
 (* The following is a "little endian" implementation. *)
 
-(* CR mshinwell: Can we fix the traversal order by swapping endianness? What
-   other (dis)advantages might that have?
+(* CR-someday mshinwell: Can we fix the traversal order by swapping endianness?
+   What other (dis)advantages might that have?
 
    lmaurer: It would make [split] nearly as fast as [find]. One issue is we'd
    want fast clz in order to implement [highest_bit]. *)
@@ -445,19 +445,16 @@ end = struct
   (* CR mshinwell: Provide a [union] where [f] doesn't return an [option]. *)
   (* CR pchambart: union x x is expensive, while it could be O(1). This would
      require that we demand f x x = x *)
+  (* CR-someday lmaurer: Generalize [merge] so that we can implement this in
+     terms of it. Rather than one callback, it should take three, along the
+     lines of Haskell's implementation; this would let us preserve sharing (see
+     Haskell's [Data.IntMap] for details). *)
   let rec union f t0 t1 =
     let iv = is_value_of t0 in
     match descr t0, descr t1 with
     | Empty, _ -> t1
     | _, Empty -> t0
     | Leaf (i, d0), Leaf (j, d1) when i = j -> (
-      (* CR mshinwell: [join] in [Typing_env_level] is relying on the fact that
-         the arguments to [f] are always in the correct order, i.e. that the
-         first datum comes from [t0] and the second from [t1]. Document.
-
-         lmaurer: This is a good reason to implement [union] in terms of (a
-         generalized) [merge], since implementing [merge] requires the types to
-         line up like this. *)
       match f i d0 d1 with None -> empty iv | Some datum -> leaf iv i datum)
     | Leaf (i, _), Leaf (j, _) -> join i t0 j t1
     | Leaf (i, d), Branch (prefix, bit, t10, t11) ->
@@ -621,7 +618,7 @@ end = struct
     in
     loop t
 
-  (* CR lmaurer: Make this O(n) rather than O(n log n). *)
+  (* CR-someday lmaurer: Make this O(n) rather than O(n log n). *)
   let partition p t =
     let rec loop ((true_, false_) as acc) t =
       match descr t with
@@ -706,9 +703,9 @@ end = struct
       | Branch _, Empty -> -1
       | Branch _, Leaf _ -> -1
 
-  (* CR lmaurer: Make this O(n) rather than O(n log n). Easy if we make a
-     version of [partition] that can drop the element. Even easier if we switch
-     to big-endian. *)
+  (* CR-someday lmaurer: Make this O(n) rather than O(n log n). Easy if we make
+     a version of [partition] that can drop the element. Even easier if we
+     switch to big-endian. *)
   let[@inline always] split ~found ~not_found i t =
     let rec loop ((lt, mem, gt) as acc) t =
       match descr t with
@@ -733,11 +730,12 @@ end = struct
     in
     loop [] t
 
-  (* CR lmaurer: We could borrow Haskell's trick and generalize this function
-     quite a bit, giving us a single implementation of [union], [inter], etc.
-     without sacrificing sharing. It also avoids passing or returning options.
-     We could even turn it into a functor over three [Tree] instances and get
-     arbitrary combinations of taking and returning sets and maps. *)
+  (* CR-someday lmaurer: We could borrow Haskell's trick and generalize this
+     function quite a bit, giving us a single implementation of [union],
+     [inter], etc. without sacrificing sharing. It also avoids passing or
+     returning options. We could even turn it into a functor over three [Tree]
+     instances and get arbitrary combinations of taking and returning sets and
+     maps. *)
   let rec merge' :
       type a b c.
       c Tree.is_value ->
@@ -917,7 +915,6 @@ module Set = struct
 
   let disjoint t0 t1 = not (Ops.inter_domain_is_non_empty t0 t1)
 
-  (* CR lmaurer: Also should probably be specialized *)
   let inter t0 t1 = Ops.inter Unit (fun _ () () -> ()) t0 t1
 
   let rec union_list ts =
@@ -976,10 +973,10 @@ module Map = struct
 
   let mapi f t = Ops.mapi Any f t
 
-  (* CR lmaurer: Implement this in [Ops] in O(n) time rather than O(n log n).
-     Should be able to implement [filter] in terms of it, though Flambda2
-     currently has trouble preserving sharing (unnecessary control flow obscures
-     a CSE opportunity). *)
+  (* CR-someday lmaurer: Implement this in [Ops] in O(n) time rather than O(n
+     log n). Should be able to implement [filter] in terms of it, though
+     Flambda2 currently has trouble preserving sharing (unnecessary control flow
+     obscures a CSE opportunity). *)
   let filter_map f t =
     fold
       (fun id v map -> match f id v with None -> map | Some r -> add id r map)
@@ -989,14 +986,14 @@ module Map = struct
 
   let merge f t0 t1 = Ops.merge Any f t0 t1
 
-  (* CR lmaurer: This should be doable as a fast map operation if we generalize
-     [Ops.map] by letting the returned tree be built by a different [Tree]
-     module *)
+  (* CR-someday lmaurer: This should be doable as a fast map operation if we
+     generalize [Ops.map] by letting the returned tree be built by a different
+     [Tree] module *)
   let keys map = fold (fun k _ set -> Set.add k set) map Set.empty
 
   let data t = List.map snd (bindings t)
 
-  (* CR lmaurer: See comment on [keys] *)
+  (* CR-someday lmaurer: See comment on [keys] *)
   let of_set f set = Set.fold (fun e map -> add e (f e) map) set empty
 
   let diff_domains = diff
