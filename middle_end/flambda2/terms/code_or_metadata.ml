@@ -13,8 +13,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 type t =
   | Code_present of Code.t
   | Metadata_only of Code_metadata.t

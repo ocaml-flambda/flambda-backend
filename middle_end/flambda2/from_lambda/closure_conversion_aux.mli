@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 (** Environments and auxiliary structures used during closure conversion. *)
 
 module IR : sig

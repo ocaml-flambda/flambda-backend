@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 open! Simplify_import
 module A = Number_adjuncts
 module Float_by_bit_pattern = Numeric_types.Float_by_bit_pattern
@@ -1090,7 +1088,7 @@ let simplify_phys_equal (op : P.equality_comparison) (kind : K.t) dacc
       | Proved _, Proved _ ->
         Binary_int_eq_comp_tagged_immediate.simplify op dacc ~original_term dbg
           ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var
-      | _, _ -> (
+      | (Proved _ | Unknown | Invalid), _ -> (
         let physically_equal =
           false
           (* CR-someday mshinwell: Resurrect this -- see cps_types branch.
@@ -1120,7 +1118,7 @@ let simplify_phys_equal (op : P.equality_comparison) (kind : K.t) dacc
       | Proved _, Proved _ ->
         Binary_int_eq_comp_naked_immediate.simplify op dacc ~original_term dbg
           ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var
-      | _, _ ->
+      | (Proved _ | Unknown | Invalid), _ ->
         let dacc =
           DA.add_variable dacc result_var
             (T.these_naked_immediates Targetint_31_63.all_bools)
@@ -1211,7 +1209,7 @@ let simplify_binary_primitive dacc original_prim (prim : P.binary_primitive)
     | Float_arith op -> Binary_float_arith.simplify op
     | Float_comp op -> Binary_float_comp.simplify op
     | Phys_equal (kind, op) -> simplify_phys_equal op kind
-    | Block_load _ ->
+    | Block_load (_, (Immutable_unique | Mutable)) ->
       fun dacc ~original_term:_ dbg ~arg1 ~arg1_ty:_ ~arg2 ~arg2_ty:_
           ~result_var ->
         let prim : P.t = Binary (prim, arg1, arg2) in

@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 (* Operations are fine grained metrics (number of calls / allocations) about the
    size of an expression. *)
 
@@ -59,6 +57,7 @@ let prim (prim : Flambda_primitive.t) =
   | Binary (_, _, _) | Ternary (_, _, _, _) -> { zero with prim = 1 }
   | Variadic (prim, _) -> (
     match prim with Make_block _ | Make_array _ -> alloc)
+  [@@ocaml.warning "-fragile-match"]
 
 let branch = { zero with branch = 1 }
 

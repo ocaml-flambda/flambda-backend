@@ -24,8 +24,6 @@
 
     No primitive raises an exception. (Bounds checking is handled separately.) *)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 module Block_of_values_field : sig
   type t =
     | Any_value

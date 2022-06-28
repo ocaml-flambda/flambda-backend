@@ -1,5 +1,3 @@
-[@@@ocaml.warning "-30"]
-
 type location = Lambda.scoped_location
 
 type 'a located =

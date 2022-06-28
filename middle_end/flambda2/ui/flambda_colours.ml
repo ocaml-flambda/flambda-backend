@@ -12,8 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 let colour_enabled =
   lazy
     ((* This avoids having to alter misc.ml *)

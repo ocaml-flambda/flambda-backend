@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 module ART = Are_rebuilding_terms
 module DA = Downwards_acc
 module DE = Downwards_env

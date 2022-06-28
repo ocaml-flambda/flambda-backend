@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 include Int_ids.Variable
 
 let create_with_same_name_as_ident ?user_visible ident : t =

@@ -22,8 +22,6 @@
     normal continuation (since continuations used as exception handlers use a
     calling convention that may differ from normal). *)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 module Raise_kind : sig
   type t =
     | Regular

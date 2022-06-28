@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 module EC = Exported_code
 module T = Flambda2_types
 module TE = Flambda2_types.Typing_env

@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 module DA = Downwards_acc
 module DE = Downwards_env
 module K = Flambda_kind

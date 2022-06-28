@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 (** A symbol identifies a piece of statically-allocated data. The linkage name
     must be unique across the whole program. *)
 

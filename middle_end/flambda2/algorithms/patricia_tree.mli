@@ -12,8 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 module Make (_ : sig
   val print : Format.formatter -> int -> unit
 end) : sig

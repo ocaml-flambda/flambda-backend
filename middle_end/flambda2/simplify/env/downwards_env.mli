@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 open! Flambda.Import
 
 type resolver = Compilation_unit.t -> Flambda2_types.Typing_env.t option

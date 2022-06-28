@@ -14,10 +14,10 @@
 (*                                                                        *)
 (**************************************************************************)
 
+[@@@ocaml.warning "-fragile-match"]
+
 (* "Use CPS". -- A. Kennedy, "Compiling with Continuations Continued", ICFP
    2007. *)
-
-[@@@ocaml.warning "+a-4-30-40-41-42"]
 
 module L = Lambda
 module CC = Closure_conversion

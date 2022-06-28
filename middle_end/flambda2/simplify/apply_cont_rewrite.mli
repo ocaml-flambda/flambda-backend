@@ -19,8 +19,6 @@
 
     The rewrites are actually applied via [Expr_builder]. *)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 type t
 
 type used = private

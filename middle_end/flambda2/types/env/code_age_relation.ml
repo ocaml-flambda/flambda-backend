@@ -12,8 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 (* If a value of type [t] maps [id1] to [id2], it means that [id1] is a newer
    version of [id2]. The relation forms a partial order. These relations are
    expected to be small in the majority of cases. *)

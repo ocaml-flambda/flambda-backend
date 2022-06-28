@@ -1,5 +1,7 @@
+[@@@ocaml.warning "-fragile-match"]
+
 open! Int_replace_polymorphic_compare
-open Flambda
+open! Flambda
 
 (* General notes on comparison
  *
@@ -394,7 +396,8 @@ and subst_params_and_body env params_and_body =
 
 and subst_let_cont env (let_cont_expr : Let_cont_expr.t) =
   match let_cont_expr with
-  | Non_recursive { handler; num_free_occurrences = _ } ->
+  | Non_recursive
+      { handler; num_free_occurrences = _; is_applied_with_traps = _ } ->
     Non_recursive_let_cont_handler.pattern_match handler ~f:(fun cont ~body ->
         let body = subst_expr env body in
         let handler =
@@ -451,7 +454,7 @@ and subst_switch env switch =
 module Comparator = struct
   type 'a t = Env.t -> 'a -> 'a -> 'a Comparison.t
 
-  let of_predicate ~(f : 'a -> 'a -> bool) ?(subst : (Env.t -> 'a -> 'a) option)
+  let of_predicate ?(subst : (Env.t -> 'a -> 'a) option) (f : 'a -> 'a -> bool)
       : 'a t =
    fun env a1 a2 ->
     if f a1 a2
@@ -462,9 +465,9 @@ module Comparator = struct
       in
       Different { approximant }
 
-  let of_ordering ~(f : 'a -> 'a -> int) ?(subst : (Env.t -> 'a -> 'a) option) :
+  let of_ordering ?(subst : (Env.t -> 'a -> 'a) option) (f : 'a -> 'a -> int) :
       'a t =
-    of_predicate ~f:(fun a1 a2 -> f a1 a2 = 0) ?subst
+    of_predicate ?subst (fun a1 a2 -> f a1 a2 = 0)
 end
 
 (* If subst2 is given and the first components of the pairs are unequal, then
@@ -858,12 +861,12 @@ let fields env (field1 : Field_of_static_block.t)
     symbols env symbol1 symbol2
     |> Comparison.map ~f:(fun symbol1' -> Field_of_static_block.Symbol symbol1')
   | _, _ ->
-    Comparator.of_predicate ~f:Field_of_static_block.equal env field1 field2
+    Comparator.of_predicate Field_of_static_block.equal env field1 field2
 
 let blocks env block1 block2 =
   triples
-    ~f1:(Comparator.of_predicate ~f:Tag.Scannable.equal)
-    ~f2:(Comparator.of_ordering ~f:Mutability.compare)
+    ~f1:(Comparator.of_predicate Tag.Scannable.equal)
+    ~f2:(Comparator.of_ordering Mutability.compare)
     ~f3:(lists ~f:fields ~subst:subst_field ~subst_snd:true)
     ~subst2:(fun _ mut -> mut)
     ~subst3:(fun env -> List.map (subst_field env))
@@ -890,7 +893,7 @@ let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
           _
         } ) ->
     pairs ~f1:code_ids
-      ~f2:(Comparator.of_predicate ~f:Flambda_arity.With_subkinds.equal)
+      ~f2:(Comparator.of_predicate Flambda_arity.With_subkinds.equal)
       ~subst2:(fun _ arity -> arity)
       env (code_id1, return_arity1) (code_id2, return_arity2)
     |> Comparison.map ~f:(fun (code_id, return_arity) ->
@@ -923,12 +926,14 @@ let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
   | ( C_call
         { alloc = alloc1;
           param_arity = param_arity1;
-          return_arity = return_arity1
+          return_arity = return_arity1;
+          is_c_builtin = _
         },
       C_call
         { alloc = alloc2;
           param_arity = param_arity2;
-          return_arity = return_arity2
+          return_arity = return_arity2;
+          is_c_builtin = _
         } ) ->
     if Bool.equal alloc1 alloc2
        && Flambda_arity.equal param_arity1 param_arity2
@@ -1015,7 +1020,7 @@ let switch_exprs env switch1 switch2 : Expr.t Comparison.t =
     lists
       ~f:
         (pairs
-           ~f1:(Comparator.of_predicate ~f:Targetint_31_63.equal)
+           ~f1:(Comparator.of_predicate Targetint_31_63.equal)
            ~f2:apply_cont_exprs ~subst2:subst_apply_cont)
       ~subst:(fun env (target_imm, apply_cont) ->
         target_imm, subst_apply_cont env apply_cont)
@@ -1178,8 +1183,16 @@ and codes env (code1 : Code.t) (code2 : Code.t) =
 and let_cont_exprs env (let_cont1 : Let_cont.t) (let_cont2 : Let_cont.t) :
     Expr.t Comparison.t =
   match let_cont1, let_cont2 with
-  | ( Non_recursive { handler = handler1; num_free_occurrences = _ },
-      Non_recursive { handler = handler2; num_free_occurrences = _ } ) ->
+  | ( Non_recursive
+        { handler = handler1;
+          num_free_occurrences = _;
+          is_applied_with_traps = _
+        },
+      Non_recursive
+        { handler = handler2;
+          num_free_occurrences = _;
+          is_applied_with_traps = _
+        } ) ->
     let module Non_rec = Non_recursive_let_cont_handler in
     let sorts_match =
       let sort handler =

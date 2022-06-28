@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 (** The grammar of Flambda types plus the basic creation functions upon them
     that do not require an environment. *)
 

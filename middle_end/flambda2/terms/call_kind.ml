@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 let check_arity arity =
   if Flambda_arity.With_subkinds.is_nullary arity
   then Misc.fatal_error "Invalid nullary arity"

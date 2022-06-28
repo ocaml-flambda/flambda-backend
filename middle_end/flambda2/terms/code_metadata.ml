@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 type t =
   { code_id : Code_id.t;
     newer_version_of : Code_id.t option;
@@ -176,7 +174,7 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>@<0>%s(dbg@ %a)@<0>%s@]@ \
       @[<hov 1>@<0>%s(is_tupled@ %b)@<0>%s@]@ \
       @[<hov 1>(is_my_closure_used@ %b)@]@ \
-      %a
+      %a\n\
       @[<hov 1>(inlining_decision@ %a)@]\
       )@]"
     (if Option.is_none newer_version_of then Flambda_colours.elide ()

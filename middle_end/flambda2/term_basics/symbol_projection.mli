@@ -12,8 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 module Projection : sig
   type t = private
     | Block_load of { index : Targetint_31_63.Imm.t }

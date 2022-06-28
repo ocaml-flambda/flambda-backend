@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 (* Unlike the rest of Flambda 2, this file depends on ocamloptcomp, meaning it
    can call [Compilenv]. *)
 

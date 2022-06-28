@@ -17,8 +17,6 @@
 (** The signature of "name-like things" that may occur in binding position
     inside [Name_abstraction] constructs. *)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 module type S = sig
   type t
 

@@ -14,7 +14,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42-66"]
+[@@@ocaml.warning "-fragile-match"]
 
 open! Int_replace_polymorphic_compare
 open! Flambda
@@ -868,7 +868,8 @@ let close_exact_or_unknown_apply acc env
             Call_kind.indirect_function_call_unknown_arity mode
           else Call_kind.direct_function_call code_id ~return_arity mode
         | None -> Call_kind.indirect_function_call_unknown_arity mode
-        | _ -> assert false
+        | Some (Value_unknown | Value_symbol _ | Block_approximation _) ->
+          assert false
         (* See [close_apply] *) ))
     | Method { kind; obj } ->
       let acc, obj = find_simple acc env obj in
@@ -1550,7 +1551,9 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
   in
   let free_idents_of_body =
     List.fold_left
-      (fun ids -> function IR.Var id -> Ident.Set.add id ids | _ -> ids)
+      (fun ids -> function
+        | IR.Var id -> Ident.Set.add id ids
+        | IR.Const _ -> ids)
       (Ident.Set.singleton apply.func)
       all_args
   in
@@ -1699,7 +1702,7 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
           Code_metadata.contains_no_escaping_local_allocs metadata,
           Code_metadata.result_arity metadata )
     | Value_unknown -> None
-    | _ ->
+    | Value_symbol _ | Block_approximation _ ->
       if Flambda_features.check_invariants ()
       then
         Misc.fatal_errorf

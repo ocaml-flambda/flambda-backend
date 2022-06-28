@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 include Int_ids.Rec_info_expr
 
 let rec apply_renaming orig perm =

@@ -12,8 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 (** Translation of sets of closures to Cmm. *)
 
 open! Flambda.Import

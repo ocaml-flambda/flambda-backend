@@ -12,8 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 (** Set of all arguments related to inlining. This set is stored inside the term
     language and is used to access the set of parameters to use in the
     simplifier.

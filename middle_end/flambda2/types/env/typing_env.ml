@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 module K = Flambda_kind
 module MTC = More_type_creators
 module TG = Type_grammar

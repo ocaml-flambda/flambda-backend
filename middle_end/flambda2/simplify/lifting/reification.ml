@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 open! Simplify_import
 
 let create_static_const dacc dbg (to_lift : T.to_lift) : Rebuilt_static_const.t

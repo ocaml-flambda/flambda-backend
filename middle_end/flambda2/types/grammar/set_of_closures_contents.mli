@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 (** Descriptions of the entities inside sets of closures: - closures; - closure
     variables. These descriptions do not necessarily describe the entire
     contents of any particular set of closures. *)

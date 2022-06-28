@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 module K = Flambda_kind
 module Apply = Apply_expr
 module Apply_cont = Apply_cont_expr

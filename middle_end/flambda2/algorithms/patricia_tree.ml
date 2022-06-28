@@ -12,8 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 open! Int_replace_polymorphic_compare
 
 (* CR mshinwell: Add a [compare] value to the functor argument and use it to
@@ -295,7 +293,7 @@ end = struct
     match (descr [@inlined hint]) t0, (descr [@inlined hint]) t1 with
     | Empty, _ -> t1
     | _, Empty -> t0
-    | _, _ -> Tree.branch prefix bit t0 t1
+    | (Leaf _ | Branch _), (Leaf _ | Branch _) -> Tree.branch prefix bit t0 t1
     [@@inline always]
 
   let branch_non_empty prefix bit t0 t1 =
@@ -629,7 +627,7 @@ end = struct
         if equal_prefix prefix0 bit0 prefix1 bit1
         then equal f t00 t10 && equal f t01 t11
         else false
-      | _, _ -> false
+      | (Empty | Leaf _ | Branch _), _ -> false
 
   let rec compare f t0 t1 =
     match descr t0, descr t1 with

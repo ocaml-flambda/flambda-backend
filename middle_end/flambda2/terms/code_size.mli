@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 (* Computes an approximation for the code size corresponding to flambda terms.
    The code size of a given term should be a rough estimate of the size of the
    generated machine code. *)

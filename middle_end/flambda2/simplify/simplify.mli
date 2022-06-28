@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 (** Simplification of Flambda programs: inlining, specialisation, unboxing and
     so forth.
 

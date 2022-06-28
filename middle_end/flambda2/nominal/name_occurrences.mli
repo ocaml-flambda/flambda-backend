@@ -23,8 +23,6 @@
    but in the body of a loop can be distinguished from those that are really
    only used once in a program. *)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 type t
 
 val empty : t

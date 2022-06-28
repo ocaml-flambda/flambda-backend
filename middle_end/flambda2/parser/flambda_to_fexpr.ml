@@ -1,5 +1,3 @@
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 open! Flambda.Import
 
 (* CR-someday mshinwell: share with Fexpr_to_flambda / move to Stdlib *)

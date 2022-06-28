@@ -12,8 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 (** Tracking of new versions of code such that it can be determined, for any two
     pieces of code, which one is newer (or that the pieces of code are
     unrelated). *)

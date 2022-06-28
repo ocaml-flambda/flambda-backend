@@ -14,8 +14,6 @@
 
 (** Translation of statically-allocated constants to Cmm. *)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 open! Flambda.Import
 
 val static_consts :

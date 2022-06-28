@@ -12,8 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 let flambda2_is_enabled () = Clflags.is_flambda2 ()
 
 let with_default (r : 'a Flambda_backend_flags.or_default)

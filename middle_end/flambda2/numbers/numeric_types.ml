@@ -19,8 +19,6 @@ module Int_base = Container_types.Make (struct
 
   let compare = Int.compare
 
-  let output oc x = Printf.fprintf oc "%i" x
-
   let hash i = i
 
   let equal (i : int) j = i = j
@@ -81,8 +79,6 @@ module Float = struct
     type t = float
 
     let compare x y = Stdlib.compare x y
-
-    let output oc x = Printf.fprintf oc "%f" x
 
     let hash f = Hashtbl.hash f
 

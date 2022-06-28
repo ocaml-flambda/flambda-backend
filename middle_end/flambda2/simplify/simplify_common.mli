@@ -16,8 +16,6 @@
 
 (** Miscellaneous utility functions and types used by the simplifier. *)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 open! Flambda
 
 type 'a after_rebuild = Rebuilt_expr.t -> Upwards_acc.t -> 'a

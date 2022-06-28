@@ -23,8 +23,6 @@
     Some expressions are rebuilt directly using the functions in [Rebuilt_expr]
     rather than using this module. *)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 open! Flambda.Import
 
 (** Create [Let] binding(s) around a given body. (The type of this function

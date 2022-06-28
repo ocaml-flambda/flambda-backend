@@ -169,6 +169,7 @@ let lsequence (lam1, lam2) =
   | Lsequence (lam, Lconst (Const_base (Const_int 0))) -> Lsequence (lam, lam2)
   | Lconst (Const_base (Const_int 0)) -> lam2
   | _ -> Lsequence (lam1, lam2)
+  [@@ocaml.warning "-fragile-match"]
 
 let caml_update_dummy_prim =
   Primitive.simple ~name:"caml_update_dummy" ~arity:2 ~alloc:true
@@ -184,6 +185,7 @@ let build_block let_def size block_type expr letrec =
 
 let is_simple (lam : Lambda.lambda) =
   match lam with Lvar _ | Lconst _ -> true | _ -> false
+  [@@ocaml.warning "-fragile-match"]
 
 let dead_code lam letrec =
   (* Some cases generate code without effects, and bound to nothing. We use this
@@ -521,6 +523,7 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
   | Lregion body ->
     let letrec = prepare_letrec recursive_set current_let body letrec in
     { letrec with needs_region = true }
+  [@@ocaml.warning "-fragile-match"]
 
 let dissect_letrec ~bindings ~body =
   let letbound = Ident.Set.of_list (List.map fst bindings) in
@@ -615,3 +618,4 @@ let dissect_letrec ~bindings ~body =
     with Bug ->
       Misc.fatal_errorf "let-rec@.%a@." Printlambda.lambda
         (Lletrec (bindings, body))
+  [@@ocaml.warning "-fragile-match"]

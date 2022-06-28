@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 module H = Lambda_to_flambda_primitives_helpers
 module I = Flambda_kind.Standard_int
 module I_or_f = Flambda_kind.Standard_int_or_float

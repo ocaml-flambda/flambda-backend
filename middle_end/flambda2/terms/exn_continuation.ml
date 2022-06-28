@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 type t =
   { exn_handler : Continuation.t;
     extra_args : (Simple.t * Flambda_kind.With_subkind.t) list
@@ -69,7 +67,7 @@ end)
 let create ~exn_handler ~extra_args =
   (match Continuation.sort exn_handler with
   | Normal_or_exn -> ()
-  | _ ->
+  | Return | Define_root_symbol | Toplevel_return ->
     Misc.fatal_errorf "Continuation %a has wrong sort (must be [Normal_or_exn])"
       Continuation.print exn_handler);
   { exn_handler; extra_args }

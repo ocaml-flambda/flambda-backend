@@ -18,8 +18,6 @@
     argument types across the recorded uses; together with the environment to be
     used for simplifying the continuation itself. *)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 val compute_handler_env :
   ?unknown_if_defined_at_or_later_than:Scope.t ->
   Continuation_uses.t ->

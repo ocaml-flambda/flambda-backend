@@ -16,8 +16,6 @@
 
 (** Classification of application expressions. *)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 module Function_call : sig
   type t = private
     | Direct of

@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 (** Inhabitants (of kind [Value]) of fields of statically-allocated blocks. *)
 type t =
   | Symbol of Symbol.t  (** The address of the given symbol. *)

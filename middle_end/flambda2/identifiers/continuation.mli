@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 (** The names of continuations. *)
 
 type t = private Table_by_int_id.Id.t

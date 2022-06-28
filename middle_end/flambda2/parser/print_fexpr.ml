@@ -1,5 +1,3 @@
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 open! Fexpr
 
 let pp_list ~sep f ppf =

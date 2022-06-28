@@ -17,8 +17,6 @@
 (** The representation of the application of a continuation. In the zero-arity
     case this is just "goto". *)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 type t
 
 include Expr_std.S with type t := t

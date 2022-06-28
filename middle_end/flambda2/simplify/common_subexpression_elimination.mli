@@ -17,8 +17,6 @@
 (** Maintenance of environments and associated calculations for common
     subexpression elimination, performed during Simplify. *)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 module EPA = Continuation_extra_params_and_args
 module P = Flambda_primitive
 module RI = Apply_cont_rewrite_id

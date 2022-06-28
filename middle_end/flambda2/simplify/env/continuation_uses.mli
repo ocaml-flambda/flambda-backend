@@ -19,8 +19,6 @@
     argument types across the recorded uses; and the environment to be used for
     simplifying the continuation itself. *)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 type t
 
 val create : Continuation.t -> Flambda_arity.t -> t

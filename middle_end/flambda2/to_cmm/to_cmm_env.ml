@@ -13,8 +13,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 module C = Cmm_helpers
 module Ece = Effects_and_coeffects
 

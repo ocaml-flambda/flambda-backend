@@ -12,8 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 open! Flambda.Import
 module Env = To_cmm_env
 module Ece = Effects_and_coeffects
@@ -115,6 +113,7 @@ let wrap_extcall_result arity =
     (* CR gbury: update when unboxed tuples are used *)
     Misc.fatal_errorf
       "C functions are currently limited to a single return value"
+  [@@ocaml.warning "-fragile-match"]
 
 (* Helpers for exception continuations *)
 
@@ -138,6 +137,7 @@ let rec cmm_arith_size e =
         _ ) ->
     List.fold_left ( + ) 1 (List.map cmm_arith_size l)
   | _ -> 0
+  [@@ocaml.warning "-fragile-match"]
 
 let match_var_with_extra_info env simple : Env.extra_info option =
   Simple.pattern_match simple
@@ -294,7 +294,7 @@ let apply_cont_exn env e k = function
       match Apply_cont.trap_action e with
       | Some (Pop { raise_kind; _ }) ->
         Trap_action.Raise_kind.option_to_lambda raise_kind
-      | _ ->
+      | None | Some (Push _) ->
         Misc.fatal_errorf
           "Apply cont %a calls an exception cont without a Pop trap action"
           Apply_cont.print e

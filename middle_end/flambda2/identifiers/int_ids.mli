@@ -18,8 +18,6 @@
     [Reg_width_const], [Simple], [Code_id] and [Code_id_or_symbol]. These values
     are all represented as integers. *)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 module Const : sig
   type t = private Table_by_int_id.Id.t
 

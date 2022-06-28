@@ -18,8 +18,6 @@
     simplifier. Definitions of the constants themselves are not kept when not
     rebuilding terms, but some of the metadata is. *)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 open! Flambda
 
 type t

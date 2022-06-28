@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 type t =
   { function_decls : Function_declarations.t;
     value_slots : Simple.t Value_slot.Map.t;

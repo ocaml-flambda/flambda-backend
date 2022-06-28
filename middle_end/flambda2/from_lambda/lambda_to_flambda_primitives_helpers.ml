@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 open! Flambda.Import
 open Closure_conversion_aux
 module P = Flambda_primitive

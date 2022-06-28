@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 open! Simplify_import
 module U = Unboxing_types
 module Extra_param_and_args = U.Extra_param_and_args

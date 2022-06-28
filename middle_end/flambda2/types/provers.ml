@@ -14,8 +14,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-(* CR mshinwell: enable warning 4 *)
+(* CR mshinwell: enable warning fragile-match *)
+
+[@@@ocaml.warning "-fragile-match"]
 
 module Float = Numeric_types.Float_by_bit_pattern
 module Int32 = Numeric_types.Int32

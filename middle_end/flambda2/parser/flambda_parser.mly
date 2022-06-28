@@ -1,5 +1,5 @@
 %{
-open Fexpr
+open! Fexpr
 
 let make_loc (startpos, endpos) =
   Debuginfo.Scoped_location.of_location

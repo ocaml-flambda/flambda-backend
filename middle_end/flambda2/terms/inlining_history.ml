@@ -10,8 +10,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 module Absolute = struct
   type t = Compilation_unit.t * path
 

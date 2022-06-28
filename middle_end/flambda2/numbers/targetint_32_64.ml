@@ -139,7 +139,7 @@ module Int32 = struct
     | 32 -> Int32.of_int
     | 64 ->
       fun n ->
-        if (n < Int32.(to_int min_int)) || n > Int32.(to_int max_int)
+        if n < Int32.to_int Int32.min_int || n > Int32.to_int Int32.max_int
         then Misc.fatal_errorf "Targetint_32_64.of_int_exn: 0x%x out of range" n
         else Int32.of_int n
     | _ -> assert false

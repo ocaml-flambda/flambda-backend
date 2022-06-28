@@ -14,6 +14,4 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 val simplify_coercion : Downwards_acc.t -> Coercion.t -> Coercion.t

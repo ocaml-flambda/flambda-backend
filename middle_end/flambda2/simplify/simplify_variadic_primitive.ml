@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-9-30-40-41-42"]
-
 open! Simplify_import
 
 let simplify_make_block_of_values dacc prim dbg tag ~shape

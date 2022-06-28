@@ -12,8 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 (** Offsets for function and value slots inside sets of closures. They're
     computed for elements defined in the current compilation unit by
     [Slot_offsets], and read from cmx files for external symbols. Because an

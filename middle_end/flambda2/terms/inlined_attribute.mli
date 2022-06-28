@@ -16,8 +16,6 @@
 
 (** Call site (not function declaration) inlining annotations. *)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 type t =
   | Always_inlined
   | Hint_inlined

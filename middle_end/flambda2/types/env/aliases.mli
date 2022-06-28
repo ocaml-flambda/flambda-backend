@@ -40,8 +40,6 @@
     enough." In particular, this module keeps track of aliases in this looser
     sense. *)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 type t
 
 include Contains_ids.S with type t := t

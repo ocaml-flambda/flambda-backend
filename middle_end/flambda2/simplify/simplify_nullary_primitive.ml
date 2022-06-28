@@ -13,8 +13,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 open! Simplify_import
 
 let simplify_nullary_primitive dacc original_prim (prim : P.nullary_primitive)
