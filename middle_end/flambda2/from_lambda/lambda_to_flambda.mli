@@ -17,13 +17,11 @@
 (** Conversion from Lambda to Flambda. *)
 
 val lambda_to_flambda :
+  mode:'mode Flambda_features.mode ->
   symbol_for_global:(?comp_unit:Compilation_unit.t -> Ident.t -> Symbol.t) ->
   big_endian:bool ->
   cmx_loader:Flambda_cmx.loader ->
   module_ident:Ident.t ->
   module_block_size_in_words:int ->
   Lambda.lambda ->
-  Flambda_unit.t
-  * Exported_code.t
-  * Flambda_cmx_format.t option
-  * Exported_offsets.t
+  'mode Closure_conversion.close_program_result
