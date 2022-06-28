@@ -27,6 +27,9 @@ let untagged_const_true = const RWC.untagged_const_true
 
 let untagged_const_false = const RWC.untagged_const_false
 
+let untagged_const_bool b =
+  if b then untagged_const_true else untagged_const_false
+
 let untagged_const_zero = const RWC.untagged_const_zero
 
 let untagged_const_int i = const (RWC.untagged_const_int i)

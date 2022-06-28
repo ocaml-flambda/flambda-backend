@@ -24,8 +24,8 @@ module P = Flambda_primitive
 let convert_integer_comparison_prim (comp : L.integer_comparison) :
     P.binary_primitive =
   match comp with
-  | Ceq -> Int_comp (Tagged_immediate, Yielding_bool Eq)
-  | Cne -> Int_comp (Tagged_immediate, Yielding_bool Neq)
+  | Ceq -> Phys_equal Eq
+  | Cne -> Phys_equal Neq
   | Clt -> Int_comp (Tagged_immediate, Yielding_bool (Lt Signed))
   | Cgt -> Int_comp (Tagged_immediate, Yielding_bool (Gt Signed))
   | Cle -> Int_comp (Tagged_immediate, Yielding_bool (Le Signed))

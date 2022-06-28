@@ -848,7 +848,7 @@ let simplify_phys_equal (op : P.equality_comparison) dacc ~original_term dbg
           (T.this_naked_immediate (Targetint_31_63.bool bool))
       in
       SPR.create
-        (Named.create_simple (Simple.const_bool bool))
+        (Named.create_simple (Simple.untagged_const_bool bool))
         ~try_reify:false dacc
     in
     match op with Eq -> const true | Neq -> const false
