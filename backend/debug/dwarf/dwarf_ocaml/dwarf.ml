@@ -29,7 +29,8 @@ type t =
 (* CR mshinwell: On OS X 10.11 (El Capitan), dwarfdump doesn't seem to be able
    to read our 64-bit DWARF output. *)
 
-let create ~sourcefile ~unit_name ~asm_directives ~get_file_id =
+let create ~sourcefile ~unit_name ~asm_directives ~get_file_id ~code_begin
+    ~code_end =
   begin
     match !Dwarf_flags.gdwarf_format with
     | Thirty_two -> Dwarf_format.set Thirty_two
@@ -37,6 +38,7 @@ let create ~sourcefile ~unit_name ~asm_directives ~get_file_id =
   end;
   let compilation_unit_proto_die =
     Dwarf_compilation_unit.compile_unit_proto_die ~sourcefile ~unit_name
+      ~code_begin ~code_end
   in
   let compilation_unit_header_label = Asm_label.create (DWARF Debug_info) in
   let state =
