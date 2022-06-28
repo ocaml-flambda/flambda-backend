@@ -168,9 +168,9 @@ module Int32 = struct
     let [@ocamlformat "disable"] print ppf t = Format.fprintf ppf "%ld" t
   end)
 
-  let min t1 t2 = if compare t1 t2 <= 0 then t1 else t2
+  let min t1 t2 = if Int32.compare t1 t2 <= 0 then t1 else t2
 
-  let max t1 t2 = if compare t1 t2 <= 0 then t2 else t1
+  let max t1 t2 = if Int32.compare t1 t2 <= 0 then t2 else t1
 
   module Targetint_set = Set
 
@@ -215,16 +215,16 @@ module Int64 = struct
 
   let repr x = Int64 x
 
-  let min t1 t2 = if compare t1 t2 <= 0 then t1 else t2
+  let min t1 t2 = if Int64.compare t1 t2 <= 0 then t1 else t2
 
-  let max t1 t2 = if compare t1 t2 <= 0 then t2 else t1
+  let max t1 t2 = if Int64.compare t1 t2 <= 0 then t2 else t1
 
   include Container_types.Make (struct
     type nonrec t = t
 
     let compare = Int64.compare
 
-    let equal t1 t2 = compare t1 t2 = 0
+    let equal = Int64.equal
 
     let hash = Hashtbl.hash
 

@@ -33,11 +33,9 @@ module Imm = struct
   module T0 = struct
     include Numeric_types.Int64
 
-    (* CR mshinwell/gbury: Do these need specialising to int64? *)
+    let compare = Int64.compare
 
-    let compare = compare
-
-    let equal = equal
+    let equal = Int64.equal
 
     let hash = hash
 
@@ -115,9 +113,9 @@ module Imm = struct
 
     let min t1 t2 = if Int64.compare t1 t2 < 0 then t1 else t2
 
-    let ( <= ) t1 t2 = Stdlib.( <= ) (compare t1 t2) 0
+    let ( <= ) t1 t2 = Stdlib.( <= ) (Int64.compare t1 t2) 0
 
-    let ( < ) t1 t2 = Stdlib.( < ) (compare t1 t2) 0
+    let ( < ) t1 t2 = Stdlib.( < ) (Int64.compare t1 t2) 0
 
     let to_int_option t =
       let min_int_as_int64 = Int64.of_int Stdlib.min_int in
@@ -163,7 +161,7 @@ module T0 = struct
 
   let compare t1 t2 = Imm.compare t1.value t2.value
 
-  let equal t1 t2 = compare t1 t2 = 0
+  let equal t1 t2 = Imm.equal t1.value t2.value
 
   let hash t = Imm.hash t.value
 
