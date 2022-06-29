@@ -202,6 +202,7 @@
   printcmm
   printlinear
   printmach
+  checkmach
   proc
   reg
   reload
@@ -710,6 +711,7 @@
   (printcmm.mli as compiler-libs/printcmm.mli)
   (printlinear.mli as compiler-libs/printlinear.mli)
   (printmach.mli as compiler-libs/printmach.mli)
+  (checkmach.mli as compiler-libs/mach_checks.mli)
   (proc.mli as compiler-libs/proc.mli)
   (reg.mli as compiler-libs/reg.mli)
   (reload.mli as compiler-libs/reload.mli)
@@ -1020,6 +1022,11 @@
   (.ocamloptcomp.objs/byte/printmach.cmo as compiler-libs/printmach.cmo)
   (.ocamloptcomp.objs/byte/printmach.cmt as compiler-libs/printmach.cmt)
   (.ocamloptcomp.objs/byte/printmach.cmti as compiler-libs/printmach.cmti)
+  (.ocamloptcomp.objs/native/checkmach.cmx as compiler-libs/checkmach.cmx)
+  (.ocamloptcomp.objs/byte/checkmach.cmi as compiler-libs/checkmach.cmi)
+  (.ocamloptcomp.objs/byte/checkmach.cmo as compiler-libs/checkmach.cmo)
+  (.ocamloptcomp.objs/byte/checkmach.cmt as compiler-libs/checkmach.cmt)
+  (.ocamloptcomp.objs/byte/checkmach.cmti as compiler-libs/checkmach.cmti)
   (.ocamloptcomp.objs/byte/proc.cmi as compiler-libs/proc.cmi)
   (.ocamloptcomp.objs/byte/proc.cmo as compiler-libs/proc.cmo)
   (.ocamloptcomp.objs/byte/proc.cmt as compiler-libs/proc.cmt)
