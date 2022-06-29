@@ -149,7 +149,13 @@ end = struct
       (* We build here the **reverse** list of fields for the function slot *)
       match closure_code_pointers with
       | Full_application_only ->
-        assert (size = 2);
+        if size <> 2
+        then
+          Misc.fatal_errorf
+            "fill_slot: Function slot %a is of size %d, but it is used to \
+             store code ID %a which is classified as Full_application_only (so \
+             the expected size is 2)"
+            Function_slot.print function_slot size Code_id.print code_id;
         let acc =
           P.int ~dbg closure_info
           :: P.symbol_from_linkage_name ~dbg code_linkage_name
@@ -157,7 +163,13 @@ end = struct
         in
         acc, slot_offset + size, env, Ece.pure, updates
       | Full_and_partial_application ->
-        assert (size = 3);
+        if size <> 3
+        then
+          Misc.fatal_errorf
+            "fill_slot: Function slot %a is of size %d, but it is used to \
+             store code ID %a which is classified as \
+             Full_and_partial_application (so the expected size is 3)"
+            Function_slot.print function_slot size Code_id.print code_id;
         let acc =
           P.symbol_from_linkage_name ~dbg code_linkage_name
           :: P.int ~dbg closure_info
