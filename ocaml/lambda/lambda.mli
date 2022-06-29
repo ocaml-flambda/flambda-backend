@@ -283,6 +283,12 @@ type local_attribute =
   | Never_local (* [@local never] *)
   | Default_local (* [@local maybe] or no [@local] attribute *)
 
+type check_attribute =
+  | Default_check
+  | Noeffects_check
+  | Noalloc_check
+  | Noalloc_exn_check
+
 type function_kind = Curried of {nlocal: int} | Tupled
 (* [nlocal] determines how many arguments may be partially applied
    before the resulting closure must be locally allocated.
@@ -309,6 +315,7 @@ type function_attribute = {
   inline : inline_attribute;
   specialise : specialise_attribute;
   local: local_attribute;
+  check : check_attribute;
   is_a_functor: bool;
   stub: bool;
 }
