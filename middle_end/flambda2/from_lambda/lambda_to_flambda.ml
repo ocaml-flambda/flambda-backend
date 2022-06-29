@@ -105,9 +105,9 @@ module Env : sig
       as many [End_region]s as there are leaves in the subsequent term.)
 
       For exceptional control flow, the region closure continuation is not used;
-      instead, [End_region] operations are inserted explicitly having observed
-      the difference in regions open at the time of exception raise versus at
-      the handler.
+      instead, a region is opened before the beginning of a Trywith, so that we
+      can use this region to close every subsequent regions opened in its scope
+      at the beginning of the handler.
 
       Likewise, when regions must be closed explicitly prior to tail calls to
       avoid leaking memory on the local allocation stack, the closure
