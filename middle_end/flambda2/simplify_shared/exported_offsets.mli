@@ -76,11 +76,3 @@ val imported_offsets : unit -> t
 
 (** Merge the offsets from two files *)
 val merge : t -> t -> t
-
-(** Ensure the offsets for the given function slots are in the given exported
-    offsets. *)
-val reexport_function_slots : Function_slot.Set.t -> t -> t
-
-(** Ensure the offsets for the given function slots are in the given exported
-    offsets. *)
-val reexport_value_slots : Value_slot.Set.t -> t -> t
