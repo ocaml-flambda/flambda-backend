@@ -12,8 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 type 'a t = 'a -> 'a Seq.t
 
 let atomic _ = Seq.empty
@@ -32,12 +30,11 @@ module Seq = struct
     end in
     let rec step { next_round_rev; this_round } =
       match this_round with
-      | [] -> begin
+      | [] -> (
         match next_round_rev with
         | [] -> None
         | _ ->
-          step { next_round_rev = []; this_round = List.rev next_round_rev }
-      end
+          step { next_round_rev = []; this_round = List.rev next_round_rev })
       | seq :: this_round -> (
         match (seq () : a Seq.node) with
         | Nil -> step { next_round_rev; this_round }
@@ -77,7 +74,7 @@ let code_w_id : type a. ?const:a -> a t -> (a, a) Code.t t =
  fun ?const t c ->
   match c with
   | Identity -> Seq.empty
-  | _ -> Seq.cons Code.Identity (code ?const t c)
+  | Const _ | Fun _ -> Seq.cons Code.Identity (code ?const t c)
 
 let pair t_a t_b (a, b) =
   Seq.round_robin
@@ -111,4 +108,4 @@ let rec tuple :
       Seq.map (fun tup -> Tuple.cons a tup) (fun () -> tuple ts tup ())
     in
     Seq.round_robin [shrink_a; shrink_tup]
-  | _, _ -> assert false
+  | _ :: _, [] | [], _ :: _ -> assert false

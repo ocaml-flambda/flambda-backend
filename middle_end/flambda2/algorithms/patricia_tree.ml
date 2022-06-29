@@ -906,7 +906,7 @@ end = struct
         let bit0 = bit' lsl 1 in
         let bit1 = bit0 in
         prefix0 = prefix'
-        && (bit = bit' || shorter bit bit')
+        && (bit = bit' || lower bit bit')
         && (bit = 0 || match_prefix prefix' prefix bit)
         && check_deep prefix0 bit0 t0 && check_deep prefix1 bit1 t1
     in

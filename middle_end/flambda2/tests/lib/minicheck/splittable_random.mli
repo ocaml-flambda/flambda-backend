@@ -12,8 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 (** Based on the [splittable_random] library (1), which in turn is based on
     "Fast Splittable Random Number Generators" by Steele et al. (2)
 

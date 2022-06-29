@@ -64,7 +64,7 @@ let tuple : ('a, 'r) Tuple.Of(T).t -> ('a, 'r) Tuple.t t =
       if not first then Format.fprintf ppf "@,, ";
       t ppf a;
       loop ~first:false ts ppf tup
-    | _, _ -> assert false
+    | _ :: _, [] | [], _ :: _ -> assert false
   in
   Format.fprintf ppf "@[<hv>( ";
   loop ~first:true ts ppf tup;

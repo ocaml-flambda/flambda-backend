@@ -12,8 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 type ('a, 'repr) t
 
 type 'a simple = ('a, 'a) t
@@ -113,6 +111,12 @@ module Bound_repr : sig
   type ('a, 'repr) t
 end
 
-val bind : ('a, 'a_repr) t -> f:('a -> ('b, 'b_repr) t) -> ('b, ('b, 'b_repr) Bound_repr.t) t
+val bind :
+  ('a, 'a_repr) t ->
+  f:('a -> ('b, 'b_repr) t) ->
+  ('b, ('b, 'b_repr) Bound_repr.t) t
 
-val bind_generator : 'a Generator.t -> f:('a -> ('b, 'b_repr) t) -> ('b, ('b, 'b_repr) Bound_repr.t) t
+val bind_generator :
+  'a Generator.t ->
+  f:('a -> ('b, 'b_repr) t) ->
+  ('b, ('b, 'b_repr) Bound_repr.t) t

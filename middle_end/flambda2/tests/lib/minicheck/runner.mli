@@ -1,5 +1,3 @@
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 type t
 
 val create : ?verbose:bool -> ?seed:int -> unit -> t

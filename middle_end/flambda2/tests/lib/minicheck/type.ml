@@ -12,8 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 module Impl = struct
   type 'a t =
     { generator : 'a Generator.t;
@@ -189,7 +187,7 @@ let tuple (ts : ('a, 'reprs, 'r) Tuple.Of2(T).t) :
     | [], [] -> []
     | { get_value; _ } :: ts, repr :: reprs ->
       get_value repr :: get_values ts reprs
-    | _, _ -> assert false
+    | _ :: _, [] | [], _ :: _ -> assert false
   in
 
   let impl = tuple_impl (impls ts) in

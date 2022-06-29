@@ -6,12 +6,6 @@ let map (t : 'a t) ~f : 'b t = fun r -> f (t r)
 
 let bind (t : 'a t) ~f : 'b t = fun r -> f (t r) r
 
-let pair t_a t_b : (_ * _) t =
- fun r ->
-  let a = t_a r in
-  let b = t_b r in
-  a, b
-
 module Let_syntax = struct
   let ( let+ ) t f = map t ~f
 

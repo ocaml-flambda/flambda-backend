@@ -1,5 +1,3 @@
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 let max_shrink_steps = 1000
 
 type t =
@@ -41,11 +39,9 @@ module Outcome = struct
       in
       Format.eprintf "FAILED (%s) after %d/%d attempts@." explanation attempt
         attempts;
-      begin
-        match failure with
-        | Returned_false -> ()
-        | Raised exn -> Format.eprintf "%s@." (Printexc.to_string exn)
-      end;
+      (match failure with
+      | Returned_false -> ()
+      | Raised exn -> Format.eprintf "%s@." (Printexc.to_string exn));
       Format.eprintf "@[<hov 2>Counterexample (shrunk %d times):@ %a@]@."
         shrink_steps (Type.print type_) counterexample
 end
@@ -94,7 +90,7 @@ let check0 ?(n = 1000) ?seed t ~type_ ~f ~name =
         else
           match seq () with
           | Nil -> done_ ()
-          | Cons (repr, seq) -> begin
+          | Cons (repr, seq) -> (
             match check_once t ~f ~type_ repr with
             | Success ->
               retry ~shrink_steps:(shrink_steps + 1) ~last_counterexample
@@ -105,8 +101,7 @@ let check0 ?(n = 1000) ?seed t ~type_ ~f ~name =
               let last_failure = failure in
               let last_shrink_steps = shrink_steps in
               retry ~shrink_steps:(shrink_steps + 1) ~last_counterexample
-                ~last_shrink_steps ~last_failure ~seq
-          end
+                ~last_shrink_steps ~last_failure ~seq)
       in
       let shrink_steps = 0 in
       let seq = Type.shrink type_ repr in
