@@ -33,11 +33,26 @@ type used_slots =
             of name mode *)
   }
 
+(** The result of the slot offset computation *)
+type result =
+  { exported_offsets : Exported_offsets.t;
+        (** This includes all offsets for function/value slots that occur in the
+            current compilation unit. This includes offsets for slots from other
+            compilation units that appear in the current compilation unit.
+
+            Some slots can be marked as dead, because they are unused but
+            simplify could not remove them. For instance, this occurs for unused
+            value slots of non-liftable functions (.e.g in functors). *)
+    used_value_slots : Value_slot.Set.t
+        (** This is the set of values slots that appears after simplify, minus
+            the slots that are marked as dead in [exported_offsets]. *)
+  }
+
 (** Printing function. *)
 val print : Format.formatter -> t -> unit
 
 (** Create an empty set of constraints. *)
-val create : unit -> t
+val empty : t
 
 (** Add a set of closure to the set of constraints. *)
 val add_set_of_closures : t -> is_phantom:bool -> Set_of_closures.t -> t
@@ -51,56 +66,43 @@ val add_offsets_from_function : t -> from_function:t -> t
     for more details). *)
 val finalize_offsets :
   get_code_metadata:(Code_id.t -> Code_metadata.t) ->
-  used_slots:used_slots Or_unknown.t ->
+  used_slots:used_slots ->
   t ->
-  Value_slot.Set.t Or_unknown.t * Exported_offsets.t
-
-(** {2 Helper functions} *)
-
-(** Returns the function symbol for a function slot. *)
-val function_slot_symbol : Function_slot.t -> string
-
-(** Turn a function slot symbol (as returned by [function_slot_symbol]) into the
-    symbol for the corresponding piece of code. *)
-val code_symbol : function_slot_symbol:string -> string
-
-(** Ensure the offsets for the given function slots are in the given exported
-    offsets. *)
-val reexport_function_slots :
-  Function_slot.Set.t -> Exported_offsets.t -> Exported_offsets.t
-
-(** Ensure the offsets for the given function slots are in the given exported
-    offsets. *)
-val reexport_value_slots :
-  Value_slot.Set.t -> Exported_offsets.t -> Exported_offsets.t
+  result
 
 (** {2 Offsets & Layouts} *)
+module Layout : sig
+  (**)
 
-(** Layout slots, aka what might be found in a block at a given offset. A layout
-    slot can take up more than one word of memory (this is the case for
-    closures, which can take either 2 or 3 words depending on arity). *)
-type layout_slot = private
-  | Value_slot of Value_slot.t
-  | Infix_header
-  | Function_slot of Function_slot.t
-(**)
+  (** Layout slots, aka what might be found in a block at a given offset. A
+      layout slot can take up more than one word of memory (this is the case for
+      closures, which can take either 2 or 3 words depending on arity). *)
+  type slot = private
+    | Value_slot of Value_slot.t
+    | Infix_header
+    | Function_slot of
+        { size : int;
+          function_slot : Function_slot.t
+        }
+  (**)
 
-(** Alias for complete layouts. The list is sorted according to offsets (in
-    increasing order). *)
-type layout = private
-  { startenv : int;
-    empty_env : bool;
-    slots : (int * layout_slot) list
-  }
+  (** Alias for complete layouts. The list is sorted according to offsets (in
+      increasing order). *)
+  type t = private
+    { startenv : int;
+      empty_env : bool;
+      slots : (int * slot) list
+    }
 
-(** Order the given function slots and env vars into a list of layout slots
-    together with their respective offset. Note that there may be holes between
-    the offsets. *)
-val layout :
-  Exported_offsets.t -> _ Function_slot.Lmap.t -> _ Value_slot.Map.t -> layout
+  (** Order the given function slots and env vars into a list of layout slots
+      together with their respective offset. Note that there may be holes
+      between the offsets. *)
+  val make :
+    Exported_offsets.t -> _ Function_slot.Lmap.t -> _ Value_slot.Map.t -> t
 
-(** Printing function for layouts. *)
-val print_layout : Format.formatter -> layout -> unit
+  (** Printing function for layouts. *)
+  val print : Format.formatter -> t -> unit
 
-(** Printing functions for layout slots. *)
-val print_layout_slot : Format.formatter -> layout_slot -> unit
+  (** Printing functions for layout slots. *)
+  val print_slot : Format.formatter -> slot -> unit
+end
