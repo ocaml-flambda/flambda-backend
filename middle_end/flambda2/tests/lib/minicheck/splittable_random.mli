@@ -14,6 +14,14 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+(** Based on the [splittable_random] library (1), which in turn is based on
+    "Fast Splittable Random Number Generators" by Steele et al. (2)
+
+    (1) https://github.com/janestreet/splittable_random
+
+    (2)
+    http://2014.splashcon.org/event/oopsla2014-fast-splittable-pseudorandom-number-generators *)
+
 type t
 
 (** Create a new [t] that will return identical results to any other [t] created

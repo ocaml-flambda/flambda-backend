@@ -891,17 +891,26 @@ end = struct
     fold (Callback.of_func iv (fun i d acc -> add (f i) d acc)) t (empty iv)
 
   let valid t =
-    let rec check prefix bit t =
+    let rec check_deep prefix bit t =
       match descr t with
-      | Empty -> true
+      | Empty -> false (* [Empty] should only occur at top level *)
       | Leaf (i, _) -> bit = 0 || match_prefix i prefix bit
       | Branch (prefix', bit', t0, t1) ->
-        (bit = bit' || shorter bit bit')
+        (* CR-someday lmaurer: Should check that [bit'] has a POPCOUNT of 1 *)
+        let prefix0 =
+          (* This should be a no-op, since [prefix'] should already have a zero
+             here *)
+          prefix' land lnot bit'
+        in
+        let prefix1 = prefix' lor bit' in
+        let bit0 = bit' lsl 1 in
+        let bit1 = bit0 in
+        prefix0 = prefix'
+        && (bit = bit' || shorter bit bit')
         && (bit = 0 || match_prefix prefix' prefix bit)
-        && check prefix' (bit' lsl 1) t0
-        && check (prefix' lor bit') (bit' lsl 1) t1
+        && check_deep prefix0 bit0 t0 && check_deep prefix1 bit1 t1
     in
-    check 0 0 t
+    is_empty t || check_deep 0 0 t
 end
 [@@inline always]
 

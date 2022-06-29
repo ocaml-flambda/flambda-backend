@@ -54,12 +54,6 @@ let int64_popcount =
     (* sum the bit counts in the top byte and shift it down *)
     Int64.to_int ((x * h01) lsr 56)
 
-(* Taken from the [splittable_random] library, which in turn is based on "Fast
-   Splittable Random Number Generators" by Steele et al. (1)
-
-   (1)
-   http://2014.splashcon.org/event/oopsla2014-fast-splittable-pseudorandom-number-generators *)
-
 type t =
   { mutable seed : int64;
     odd_gamma : int64
@@ -90,8 +84,9 @@ let mix_odd_gamma z =
      this is a typo, and we correct it by using [<]. This was fixed in response
      to [1] and [2].
 
-     [1] https://github.com/janestreet/splittable_random/issues/1 [2]
-     http://www.pcg-random.org/posts/bugs-in-splitmix.html *)
+     [1] https://github.com/janestreet/splittable_random/issues/1
+
+     [2] http://www.pcg-random.org/posts/bugs-in-splitmix.html *)
   if n < 24 then z lxor 0xaaaa_aaaa_aaaa_aaaaL else z
 
 let next_seed t =
