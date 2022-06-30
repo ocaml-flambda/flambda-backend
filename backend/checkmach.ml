@@ -97,7 +97,7 @@ module type Spec = sig
   (** returns true when the check passes. *)
   val check_specific : Arch.specific_operation -> bool
 
-  val annotation : Cmm.codegen_option
+  val annotation : Lambda.check_mode -> Cmm.codegen_option
 end
 (* CR gyorsh: Annotations are not yet implemented. We may also want annotations
    on call sites, not only on functions. *)
@@ -442,17 +442,24 @@ end = struct
           let fun_name = f.fun_name in
           let t = { ppf; fun_name; unresolved_dependencies = false } in
           Unit_info.in_current_unit unit_info fun_name;
-          (try
-             let _ = check_instr_exn t f.fun_body false in
-             if (not t.unresolved_dependencies)
-                && not (Unit_info.is_fail unit_info t.fun_name)
-             then begin
-               report t ~msg:"passed" ~desc:"" f.fun_dbg;
-               Unit_info.add_value t.ppf unit_info fun_name Pass
-             end
-           with Bail -> debug t Fail);
-          if List.mem S.annotation f.fun_codegen_options
-          then Unit_info.annotated unit_info fun_name)
+          if List.mem (S.annotation Lambda.Assume) f.fun_codegen_options
+          then begin
+            report t ~msg:"assumed" ~desc:"" f.fun_dbg;
+            Unit_info.add_value t.ppf unit_info fun_name Pass
+          end
+          else begin
+            (try
+               let _ = check_instr_exn t f.fun_body false in
+               if (not t.unresolved_dependencies)
+                  && not (Unit_info.is_fail unit_info t.fun_name)
+               then begin
+                 report t ~msg:"passed" ~desc:"" f.fun_dbg;
+                 Unit_info.add_value t.ppf unit_info fun_name Pass
+               end
+             with Bail -> debug t Fail);
+            if List.mem (S.annotation Lambda.Assert) f.fun_codegen_options
+            then Unit_info.annotated unit_info fun_name
+          end)
 end
 
 module Spec_alloc : Spec = struct
@@ -478,7 +485,7 @@ module Spec_alloc : Spec = struct
   (** conservative *)
   let check_specific s = not (Arch.operation_can_raise s)
 
-  let annotation = Cmm.Noalloc_check
+  let annotation m = Cmm.Noalloc m
 end
 
 module Spec_alloc_exn : Spec = struct
@@ -506,7 +513,7 @@ module Spec_alloc_exn : Spec = struct
   (** conservative *)
   let check_specific s = not (Arch.operation_can_raise s)
 
-  let annotation = Cmm.Noalloc_exn_check
+  let annotation m = Cmm.Noalloc_exn m
 end
 
 module Spec_indirect_calls : Spec = struct
@@ -534,7 +541,7 @@ module Spec_indirect_calls : Spec = struct
   (** conservative *)
   let check_specific s = not (Arch.operation_can_raise s)
 
-  let annotation = Cmm.Noindirect_calls_check
+  let annotation m = Cmm.Noindirect_calls m
 end
 
 module Spec_effects : Spec = struct
@@ -561,7 +568,7 @@ module Spec_effects : Spec = struct
   let check_specific s =
     Arch.operation_is_pure s && not (Arch.operation_can_raise s)
 
-  let annotation = Cmm.Noeffect_check
+  let annotation m = Cmm.Noeffect m
 end
 
 (***************************************************************************

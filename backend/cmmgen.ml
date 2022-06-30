@@ -1461,9 +1461,9 @@ and transl_letrec env bindings cont =
   in init_blocks bsz
 
 let transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list = function
-  | Noalloc_check -> [ Noalloc_check ]
-  | Noalloc_exn_check -> [ Noalloc_exn_check ]
-  | Noeffects_check -> [ Noeffect_check ]
+  | Noalloc m -> [ Noalloc m]
+  | Noalloc_exn m -> [ Noalloc_exn m ]
+  | Noeffects m -> [ Noeffect m ]
   | Default_check -> []
 
 (* Translate a function definition *)

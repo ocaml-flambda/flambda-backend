@@ -548,6 +548,18 @@ let name_of_primitive = function
   | Popaque -> "Popaque"
   | Pprobe_is_enabled _ -> "Pprobe_is_enabled"
 
+let check_attribute ppf check =
+  let check_mode = function
+    | Assert -> "assert"
+    | Assume -> "assume"
+  in
+  begin match check with
+  | Default_check -> ()
+  | Noalloc m -> fprintf ppf "%s noalloc@ " (check_mode m)
+  | Noalloc_exn m -> fprintf ppf "%s noalloc_exn@ " (check_mode m)
+  | Noeffects m -> fprintf ppf "%s noeffects@ " (check_mode m)
+    end
+
 let function_attribute ppf { inline; specialise; check; local; is_a_functor; stub } =
   if is_a_functor then
     fprintf ppf "is_a_functor@ ";
@@ -570,12 +582,7 @@ let function_attribute ppf { inline; specialise; check; local; is_a_functor; stu
   | Always_local -> fprintf ppf "always_local@ "
   | Never_local -> fprintf ppf "never_local@ "
   end;
-  begin match check with
-  | Default_check -> ()
-  | Noalloc_check -> fprintf ppf "noalloc_check@ "
-  | Noalloc_exn_check -> fprintf ppf "noalloc_exn_check@ "
-  | Noeffects_check -> fprintf ppf "noeffects_check@ "
-  end
+  check_attribute ppf check
 
 let apply_tailcall_attribute ppf = function
   | Default_tailcall -> ()

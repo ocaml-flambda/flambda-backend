@@ -339,14 +339,18 @@ and sequence ppf = function
 
 and expression ppf e = fprintf ppf "%a" expr e
 
+let mode : Lambda.check_mode -> string = function
+    | Assert -> "assert"
+    | Assume -> "assume"
+
 let print_codegen_option = function
   | Reduce_code_size -> "reduce_code_size"
   | No_CSE -> "no_cse"
   | Use_linscan_regalloc -> "linscan"
-  | Noalloc_check -> "noalloc_check"
-  | Noalloc_exn_check -> "noalloc_exn_check"
-  | Noeffect_check -> "noeffect_check"
-  | Noindirect_calls_check -> "noindirect_calls_check"
+  | Noalloc m -> "noalloc_"^(mode m)
+  | Noalloc_exn m -> "noalloc_exn_"^(mode m)
+  | Noeffect m -> "noeffect_"^(mode m)
+  | Noindirect_calls m -> "noindirect_calls_assert"
 
 let print_codegen_options ppf l =
   List.iter (fun c -> fprintf ppf " %s" (print_codegen_option c)) l

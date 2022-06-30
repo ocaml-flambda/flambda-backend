@@ -52,11 +52,15 @@ let rec value_kind0 ppf kind =
 
 let value_kind kind = Format.asprintf "%a" value_kind0 kind
 
+let mode : Lambda.check_mode -> string = function
+  | Assert -> "assert"
+    | Assume -> "assume"
+
 let check : Lambda.check_attribute -> string = function
   | Default_check -> ""
-  | Noalloc_check -> " noalloc_check"
-  | Noalloc_exn_check -> " noalloc_exn_check"
-  | Noeffects_check -> " noeffects_check"
+  | Noalloc m -> " noalloc_assert"^(mode m)
+  | Noalloc_exn m -> " noalloc_exn_"^(mode m)
+  | Noeffects m -> " noeffects_"^(mode m)
 
 let rec structured_constant ppf = function
   | Uconst_float x -> fprintf ppf "%F" x
