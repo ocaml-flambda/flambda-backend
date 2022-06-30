@@ -108,37 +108,24 @@ end = struct
       original_compilation_unit
     }
 
-  let symbol t orig =
-    match Symbol.Map.find orig t.symbols with
-    | symbol -> symbol
-    | exception Not_found -> orig
+  let rename map orig ~find =
+    match find orig map with a -> a | exception Not_found -> orig
 
-  let variable t orig =
-    match Variable.Map.find orig t.variables with
-    | variable -> variable
-    | exception Not_found -> orig
+  let symbol t orig = rename t.symbols orig ~find:Symbol.Map.find
 
-  let const t orig =
-    match Const.Map.find orig t.consts with
-    | const -> const
-    | exception Not_found -> orig
+  let variable t orig = rename t.variables orig ~find:Variable.Map.find
 
-  let code_id t orig =
-    match Code_id.Map.find orig t.code_ids with
-    | code_id -> code_id
-    | exception Not_found -> orig
+  let const t orig = rename t.consts orig ~find:Const.Map.find
+
+  let code_id t orig = rename t.code_ids orig ~find:Code_id.Map.find
 
   let continuation t orig =
-    match Continuation.Map.find orig t.continuations with
-    | continuation -> continuation
-    | exception Not_found -> orig
+    rename t.continuations orig ~find:Continuation.Map.find
 
   let simple t simple =
     (* [t.simples] only holds those [Simple]s with [Coercion] (analogously to
        the grand table of [Simple]s, see reg_width_things.ml). *)
-    match Simple.Map.find simple t.simples with
-    | simple -> simple
-    | exception Not_found -> simple
+    rename t.simples simple ~find:Simple.Map.find
 
   let value_slot_is_used t var =
     if Value_slot.in_compilation_unit var t.original_compilation_unit

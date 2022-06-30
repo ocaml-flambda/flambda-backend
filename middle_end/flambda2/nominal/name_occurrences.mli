@@ -46,8 +46,6 @@ val singleton_continuation_in_trap_action : Continuation.t -> t
 
 val add_continuation : t -> Continuation.t -> has_traps:bool -> t
 
-val add_continuation_in_trap_action : t -> Continuation.t -> t
-
 val count_continuation : t -> Continuation.t -> Num_occurrences.t
 
 val continuation_is_applied_with_traps : t -> Continuation.t -> bool
@@ -93,8 +91,6 @@ val singleton_name : Name.t -> Name_mode.t -> t
 val singleton_symbol : Symbol.t -> Name_mode.t -> t
 
 val create_variables : Variable.Set.t -> Name_mode.t -> t
-
-val create_variables' : Name_mode.t -> Variable.Set.t -> t
 
 val create_names : Name.Set.t -> Name_mode.t -> t
 
@@ -144,8 +140,6 @@ val code_ids : t -> Code_id.Set.t
 
 val newer_version_of_code_ids : t -> Code_id.Set.t
 
-val only_newer_version_of_code_ids : t -> Code_id.Set.t
-
 val restrict_to_value_slots_and_function_slots : t -> t
 
 val code_ids_and_newer_version_of_code_ids : t -> Code_id.Set.t
@@ -175,10 +169,6 @@ val mem_name : t -> Name.t -> bool
 
 val mem_code_id : t -> Code_id.t -> bool
 
-val mem_newer_version_of_code_id : t -> Code_id.t -> bool
-
-val mem_value_slot_in_projections : t -> Value_slot.t -> bool
-
 val value_slot_is_used_or_imported : t -> Value_slot.t -> bool
 
 val remove_var : t -> Variable.t -> t
@@ -187,14 +177,9 @@ val remove_code_id_or_symbol : t -> Code_id_or_symbol.t -> t
 
 val remove_continuation : t -> Continuation.t -> t
 
-val remove_one_occurrence_of_value_slot_in_projections :
-  t -> Value_slot.t -> Name_mode.t -> t
-
 val greatest_name_mode_var : t -> Variable.t -> Name_mode.Or_absent.t
 
 val downgrade_occurrences_at_strictly_greater_name_mode : t -> Name_mode.t -> t
-
-val filter_names : t -> f:(Name.t -> bool) -> t
 
 val fold_names : t -> init:'a -> f:('a -> Name.t -> 'a) -> 'a
 

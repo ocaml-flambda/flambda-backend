@@ -38,6 +38,10 @@ module Make (Bindable : Bindable.S) (Term : Term) : sig
   (** Concretion of an abstraction at a fresh name. *)
   val pattern_match : t -> f:(Bindable.t -> Term.t -> 'a) -> 'a
 
+  (** Like [pattern_match], but only freshen if
+      [Flambda_features.freshen_when_printing] is enabled. *)
+  val pattern_match_for_printing : t -> f:(Bindable.t -> Term.t -> 'a) -> 'a
+
   (** Concretion of a pair of abstractions at the same fresh name. *)
   val pattern_match_pair :
     t -> t -> f:(Bindable.t -> Term.t -> Term.t -> 'a) -> 'a
@@ -82,4 +86,16 @@ module Make_ids_for_export (Bindable : Bindable.S) (Term : Contains_ids.S) : sig
   include Contains_ids.S with type t := t
 end
 
-val peek_for_printing : ('bindable, 'term) t -> 'bindable * 'term
+val pattern_match :
+  (module Bindable.S with type t = 'bindable) ->
+  ('bindable, 'term) t ->
+  apply_renaming_to_term:('term -> Renaming.t -> 'term) ->
+  f:('bindable -> 'term -> 'a) ->
+  'a
+
+val pattern_match_for_printing :
+  (module Bindable.S with type t = 'bindable) ->
+  ('bindable, 'term) t ->
+  apply_renaming_to_term:('term -> Renaming.t -> 'term) ->
+  f:('bindable -> 'term -> 'a) ->
+  'a

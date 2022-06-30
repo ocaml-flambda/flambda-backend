@@ -603,23 +603,12 @@ and print_continuation_handler (recursive : Recursive.t) ppf k
       print handler;
     fprintf ppf "@]"
   in
-  if Flambda_features.freshen_when_printing ()
-  then
-    let open
-      Name_abstraction.Make_matching_and_renaming
-        (Bound_parameters)
-        (struct
-          type t = continuation_handler_t0
-
-          let apply_renaming = apply_renaming_continuation_handler_t0
-        end) in
-    let<> params, { handler; _ } = t.cont_handler_abst in
-    print params ~handler
-  else
-    let params, { handler; num_normal_occurrences_of_params = _ } =
-      Name_abstraction.peek_for_printing t.cont_handler_abst
-    in
-    print params ~handler
+  Name_abstraction.pattern_match_for_printing
+    (module Bound_parameters)
+    t.cont_handler_abst
+    ~apply_renaming_to_term:apply_renaming_continuation_handler_t0
+    ~f:(fun params ({ handler; _ } : continuation_handler_t0) ->
+      print params ~handler)
 
 and print_function_params_and_body ppf t =
   let print ~return_continuation ~exn_continuation params ~body ~my_closure
@@ -640,31 +629,17 @@ and print_function_params_and_body ppf t =
       (Flambda_colours.normal ())
       print body
   in
-  if Flambda_features.freshen_when_printing ()
-  then
-    let module BFF = Bound_for_function in
-    let open
-      Name_abstraction.Make_matching_and_renaming
-        (BFF)
-        (struct
-          type t = function_params_and_body_base
-
-          let apply_renaming = apply_renaming_function_params_and_body_base
-        end) in
-    let<> bff, { expr; free_names } = t.abst in
-    print
-      ~return_continuation:(BFF.return_continuation bff)
-      ~exn_continuation:(BFF.exn_continuation bff) (BFF.params bff) ~body:expr
-      ~my_closure:(BFF.my_closure bff) ~is_my_closure_used:t.is_my_closure_used
-      ~my_depth:(BFF.my_depth bff) ~free_names_of_body:free_names
-  else
-    let bff, { expr = body; _ } = Name_abstraction.peek_for_printing t.abst in
-    let module BFF = Bound_for_function in
-    print
-      ~return_continuation:(BFF.return_continuation bff)
-      ~exn_continuation:(BFF.exn_continuation bff) (BFF.params bff) ~body
-      ~my_closure:(BFF.my_closure bff) ~is_my_closure_used:false
-      ~my_depth:(BFF.my_depth bff) ~free_names_of_body:Name_occurrences.empty
+  let module BFF = Bound_for_function in
+  Name_abstraction.pattern_match_for_printing
+    (module BFF)
+    t.abst ~apply_renaming_to_term:apply_renaming_function_params_and_body_base
+    ~f:(fun bff { expr; free_names } ->
+      print
+        ~return_continuation:(BFF.return_continuation bff)
+        ~exn_continuation:(BFF.exn_continuation bff) (BFF.params bff) ~body:expr
+        ~my_closure:(BFF.my_closure bff)
+        ~is_my_closure_used:t.is_my_closure_used ~my_depth:(BFF.my_depth bff)
+        ~free_names_of_body:free_names)
 
 and print_let_cont_expr ppf t =
   let rec gather_let_conts let_conts let_cont =
@@ -682,23 +657,10 @@ and print_let_cont_expr ppf t =
           :: let_conts,
           body )
       in
-      if Flambda_features.freshen_when_printing ()
-      then
-        let open
-          Name_abstraction.Make_matching_and_renaming
-            (Bound_continuation)
-            (struct
-              type t = expr
-
-              let apply_renaming = apply_renaming
-            end) in
-        let<> k, body = handler.continuation_and_body in
-        print k ~body
-      else
-        let k, body =
-          Name_abstraction.peek_for_printing handler.continuation_and_body
-        in
-        print k ~body
+      Name_abstraction.pattern_match_for_printing
+        (module Bound_continuation)
+        handler.continuation_and_body ~apply_renaming_to_term:apply_renaming
+        ~f:(fun k body -> print k ~body)
     | Recursive handlers ->
       let print ~body handlers =
         let let_conts, body =
@@ -715,23 +677,11 @@ and print_let_cont_expr ppf t =
         in
         new_let_conts @ let_conts, body
       in
-      if Flambda_features.freshen_when_printing ()
-      then
-        let open
-          Name_abstraction.Make_matching_and_renaming
-            (Bound_continuations)
-            (struct
-              type t = recursive_let_cont_handlers_t0
-
-              let apply_renaming = apply_renaming_recursive_let_cont_handlers_t0
-            end) in
-        let<> _, { body; handlers } = handlers in
-        print ~body handlers
-      else
-        let _, { body; handlers } =
-          Name_abstraction.peek_for_printing handlers
-        in
-        print ~body handlers
+      Name_abstraction.pattern_match_for_printing
+        (module Bound_continuations)
+        handlers
+        ~apply_renaming_to_term:apply_renaming_recursive_let_cont_handlers_t0
+        ~f:(fun _ { body; handlers } -> print ~body handlers)
   in
   let let_conts, body = gather_let_conts [] t in
   fprintf ppf "@[<v 1>(%a@;" print body;
@@ -800,23 +750,10 @@ and flatten_for_printing t =
       Some (flattened, body)
     | Singleton _ | Set_of_closures _ -> None
   in
-  if Flambda_features.freshen_when_printing ()
-  then
-    let open
-      Name_abstraction.Make_matching_and_renaming
-        (Bound_pattern)
-        (struct
-          type t = let_expr_t0
-
-          let apply_renaming = apply_renaming_let_expr_t0
-        end) in
-    let<> bound_pattern, { body; _ } = t.let_abst in
-    print bound_pattern ~body
-  else
-    let bound_pattern, { body; _ } =
-      Name_abstraction.peek_for_printing t.let_abst
-    in
-    print bound_pattern ~body
+  Name_abstraction.pattern_match_for_printing
+    (module Bound_pattern)
+    t.let_abst ~apply_renaming_to_term:apply_renaming_let_expr_t0
+    ~f:(fun bound_pattern { body; _ } -> print bound_pattern ~body)
 
 and print_closure_binding ppf (function_slot, sym) =
   Format.fprintf ppf "@[%a @<0>%s\u{21a4}@<0>%s@ %a@]" Symbol.print sym
@@ -913,14 +850,6 @@ and print_let_expr ppf ({ let_abst = _; defining_expr } as t) : unit =
         Flambda_colours.variable ()
   in
 
-  let open
-    Name_abstraction.Make_matching_and_renaming
-      (Bound_pattern)
-      (struct
-        type t = let_expr_t0
-
-        let apply_renaming = apply_renaming_let_expr_t0
-      end) in
   let rec let_body (expr : expr) =
     match descr expr with
     | Let ({ let_abst = _; defining_expr } as t) ->
@@ -935,15 +864,10 @@ and print_let_expr ppf ({ let_abst = _; defining_expr } as t) : unit =
           let_body body
         | Static _ -> expr
       in
-      if Flambda_features.freshen_when_printing ()
-      then
-        let<> bound_pattern, { body; _ } = t.let_abst in
-        print bound_pattern ~body
-      else
-        let bound_pattern, { body; _ } =
-          Name_abstraction.peek_for_printing t.let_abst
-        in
-        print bound_pattern ~body
+      Name_abstraction.pattern_match_for_printing
+        (module Bound_pattern)
+        t.let_abst ~apply_renaming_to_term:apply_renaming_let_expr_t0
+        ~f:(fun bound_pattern { body; _ } -> print bound_pattern ~body)
     | Let_cont _ | Apply _ | Apply_cont _ | Switch _ | Invalid _ -> expr
   in
   let print (bound_pattern : Bound_pattern.t) ~body =
@@ -958,15 +882,10 @@ and print_let_expr ppf ({ let_abst = _; defining_expr } as t) : unit =
       let expr = let_body body in
       fprintf ppf "@]@ %a@]" print expr
   in
-  if Flambda_features.freshen_when_printing ()
-  then
-    let<> bound_pattern, { body; _ } = t.let_abst in
-    print bound_pattern ~body
-  else
-    let bound_pattern, { body; _ } =
-      Name_abstraction.peek_for_printing t.let_abst
-    in
-    print bound_pattern ~body
+  Name_abstraction.pattern_match_for_printing
+    (module Bound_pattern)
+    t.let_abst ~apply_renaming_to_term:apply_renaming_let_expr_t0
+    ~f:(fun bound_pattern { body; _ } -> print bound_pattern ~body)
 
 and print_named ppf (t : named) =
   let print_or_elide_debuginfo ppf dbg =
@@ -1287,16 +1206,8 @@ module Non_recursive_let_cont_handler = struct
     { continuation_and_body; handler }
 
   let pattern_match t ~f =
-    let open
-      Name_abstraction.Make_matching_and_renaming
-        (Bound_continuation)
-        (struct
-          type t = expr
-
-          let apply_renaming = apply_renaming
-        end) in
-    let<> continuation, body = t.continuation_and_body in
-    f continuation ~body
+    Continuation_and_body.pattern_match t.continuation_and_body
+      ~f:(fun continuation body -> f continuation ~body)
 
   let pattern_match_pair t1 t2 ~f =
     Continuation_and_body.pattern_match_pair t1.continuation_and_body

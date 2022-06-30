@@ -114,15 +114,14 @@ module FN = Name_abstraction.Make_free_names (Bound) (TEEV)
 type t = A.t
 
 let print ppf t =
-  let { Bound.params; results; other_vars }, env_extension =
-    Name_abstraction.peek_for_printing t
-  in
-  Format.fprintf ppf
-    "@[<hov 1>(@[<hov 1>(params@ (%a))@]@ @[<hov 1>(results@ %a)@]@ @[<hov \
-     1>(other_vars@ (%a))@]@ @[<hov 1>(env_extension@ (%a))@])@]"
-    Bound_parameters.print params Bound_parameters.print results
-    (Format.pp_print_list ~pp_sep:Format.pp_print_space Variable.print)
-    other_vars TEEV.print env_extension
+  A.pattern_match_for_printing t
+    ~f:(fun { Bound.params; results; other_vars } env_extension ->
+      Format.fprintf ppf
+        "@[<hov 1>(@[<hov 1>(params@ (%a))@]@ @[<hov 1>(results@ %a)@]@ @[<hov \
+         1>(other_vars@ (%a))@]@ @[<hov 1>(env_extension@ (%a))@])@]"
+        Bound_parameters.print params Bound_parameters.print results
+        (Format.pp_print_list ~pp_sep:Format.pp_print_space Variable.print)
+        other_vars TEEV.print env_extension)
 
 let create ~params ~results env_extension =
   let other_vars =
