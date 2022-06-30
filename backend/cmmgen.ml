@@ -1460,6 +1460,12 @@ and transl_letrec env bindings cont =
         fill_blocks rem
   in init_blocks bsz
 
+let transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list = function
+  | Noalloc_check -> [ Noalloc_check ]
+  | Noalloc_exn_check -> [ Noalloc_exn_check ]
+  | Noeffects_check -> [ Noeffect_check ]
+  | Default_check -> []
+
 (* Translate a function definition *)
 
 let transl_function f =
@@ -1471,6 +1477,7 @@ let transl_function f =
     else
       transl env body in
   let fun_codegen_options =
+    transl_attrib f.attrib @
     if !Clflags.optimize_for_speed then
       []
     else

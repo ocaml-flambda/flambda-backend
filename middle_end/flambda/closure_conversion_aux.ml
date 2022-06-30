@@ -125,6 +125,7 @@ module Function_decls = struct
     let free_idents t = t.free_idents_of_body
     let inline t = t.attr.inline
     let specialise t = t.attr.specialise
+    let check t = t.attr.check
     let is_a_functor t = t.attr.is_a_functor
     let stub t = t.attr.stub
     let loc t = t.loc
