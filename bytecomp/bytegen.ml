@@ -512,6 +512,10 @@ let comp_primitive p args =
 
 let is_immed n = immed_min <= n && n <= immed_max
 
+let is_nontail = function
+  | Rc_nontail -> true
+  | Rc_normal | Rc_close_at_apply -> false
+
 module Storer =
   Switch.Store
     (struct type t = lambda type key = lambda
@@ -546,9 +550,9 @@ let rec comp_expr env exp sz cont =
       end
   | Lconst cst ->
       Kconst cst :: cont
-  | Lapply{ap_func = func; ap_args = args} ->
+  | Lapply{ap_func = func; ap_args = args; ap_region_close = rc} ->
       let nargs = List.length args in
-      if is_tailcall cont then begin
+      if is_tailcall cont && not (is_nontail rc) then begin
         comp_args env args sz
           (Kpush :: comp_expr env func (sz + nargs)
             (Kappterm(nargs, sz + nargs) :: discard_dead_code cont))
@@ -564,7 +568,7 @@ let rec comp_expr env exp sz cont =
                       (Kapply nargs :: cont1))
         end
       end
-  | Lsend(kind, met, obj, args, _, _, _) ->
+  | Lsend(kind, met, obj, args, rc, _, _) ->
       let args = if kind = Cached then List.tl args else args in
       let nargs = List.length args + 1 in
       let getmethod, args' =
@@ -573,7 +577,7 @@ let rec comp_expr env exp sz cont =
           Lconst(Const_base(Const_int n)) -> (Kgetpubmet n, obj::args)
         | _ -> (Kgetdynmet, met::obj::args)
       in
-      if is_tailcall cont then
+      if is_tailcall cont && not (is_nontail rc) then
         comp_args env args' sz
           (getmethod :: Kappterm(nargs, sz + nargs) :: discard_dead_code cont)
       else
@@ -978,6 +982,9 @@ let rec comp_expr env exp sz cont =
           let preserve_tailcall =
             match lam with
             | Lprim(prim, _, _) -> preserve_tailcall_for_prim prim
+            | Lapply {ap_region_close=rc; _}
+            | Lsend(_, _, _, _, rc, _, _) ->
+               not (is_nontail rc)
             | _ -> true
           in
           if preserve_tailcall && is_tailcall cont then

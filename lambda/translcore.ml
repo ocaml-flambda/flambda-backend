@@ -108,7 +108,8 @@ let transl_pat_mode p = transl_value_mode p.pat_mode
 
 let transl_apply_position position =
   match position with
-  | Nontail -> Rc_normal
+  | Default -> Rc_normal
+  | Nontail -> Rc_nontail
   | Tail ->
     if Config.stack_allocation then Rc_close_at_apply
     else Rc_normal
@@ -316,7 +317,7 @@ let can_apply_primitive p pmode pos args =
     let nargs = List.length args in
     if nargs = p.prim_arity then true
     else if nargs < p.prim_arity then false
-    else if pos = Typedtree.Nontail then true
+    else if pos <> Typedtree.Tail then true
     else begin
       let return_mode = Ctype.prim_mode pmode p.prim_native_repr_res in
       is_heap_mode (transl_alloc_mode return_mode)
@@ -915,7 +916,8 @@ and transl_apply ~scopes
         Lsend(k, lmet, lobj, args, pos, mode, loc)
     | Lsend(Cached, lmet, lobj, ([_; _] as largs), _, _, _), _ ->
         Lsend(Cached, lmet, lobj, largs @ args, pos, mode, loc)
-    | Lsend(k, lmet, lobj, largs, Rc_normal, _, _), Rc_normal ->
+    | Lsend(k, lmet, lobj, largs, (Rc_normal | Rc_nontail), _, _),
+      (Rc_normal | Rc_nontail) ->
         Lsend(k, lmet, lobj, largs @ args, pos, mode, loc)
     | Levent(
       Lsend((Self | Public) as k, lmet, lobj, [], _, _, _), _), _ ->
@@ -924,9 +926,11 @@ and transl_apply ~scopes
       Lsend(Cached, lmet, lobj, ([_; _] as largs), _, _, _), _), _ ->
         Lsend(Cached, lmet, lobj, largs @ args, pos, mode, loc)
     | Levent(
-      Lsend(k, lmet, lobj, largs, Rc_normal, _, _), _), Rc_normal ->
+      Lsend(k, lmet, lobj, largs, (Rc_normal | Rc_nontail), _, _), _),
+      (Rc_normal | Rc_nontail) ->
         Lsend(k, lmet, lobj, largs @ args, pos, mode, loc)
-    | Lapply ({ ap_region_close = Rc_normal } as ap), Rc_normal ->
+    | Lapply ({ ap_region_close = (Rc_normal | Rc_nontail) } as ap),
+      (Rc_normal | Rc_nontail) ->
         Lapply
           {ap with ap_args = ap.ap_args @ args; ap_loc = loc;
                    ap_region_close = pos; ap_mode = mode}

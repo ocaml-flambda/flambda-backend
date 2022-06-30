@@ -1082,6 +1082,14 @@ let foo x =
 val foo : string -> local_ unit = <fun>
 |}]
 
+(* Can pass local values to calls explicitly marked as nontail *)
+let foo x =
+  let local_ r = ref x in
+  print r [@nontail]
+[%%expect{|
+val foo : string -> unit = <fun>
+|}]
+
 (* Cannot call local values in tail calls *)
 
 let foo x =

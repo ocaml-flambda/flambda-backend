@@ -211,6 +211,7 @@ and apply_arg = (expression, omitted_parameter) arg_or_omitted
 and apply_position =
   | Tail
   | Nontail
+  | Default
 
 (* Value expressions for the class language *)
 

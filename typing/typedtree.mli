@@ -340,8 +340,9 @@ and omitted_parameter =
 and apply_arg = (expression, omitted_parameter) arg_or_omitted
 
 and apply_position =
-  | Tail
-  | Nontail
+  | Tail          (* must be tail-call optimised *)
+  | Nontail       (* must not be tail-call optimised *)
+  | Default       (* tail-call optimised if in tail position *)
 
 (* Value expressions for the class language *)
 
