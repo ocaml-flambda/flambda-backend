@@ -249,6 +249,7 @@ type codegen_option =
   | No_CSE
   | Use_linscan_regalloc
   | Noalloc_check
+  | Noalloc_exn_check
   | Noeffect_check
   | Noindirect_calls_check
 

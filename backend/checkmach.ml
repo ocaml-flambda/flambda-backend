@@ -506,7 +506,7 @@ module Spec_alloc_exn : Spec = struct
   (** conservative *)
   let check_specific s = not (Arch.operation_can_raise s)
 
-  let annotation = Cmm.Noalloc_check
+  let annotation = Cmm.Noalloc_exn_check
 end
 
 module Spec_indirect_calls : Spec = struct
