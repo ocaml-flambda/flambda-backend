@@ -3561,19 +3561,13 @@ and type_expect_
       in
       end_def ();
       unify_var env (newvar()) funct.exp_type;
-      let exp =
-        { exp_desc = Texp_apply(funct, args, position);
-          exp_loc = loc; exp_extra = [];
-          exp_type = ty_res;
-          exp_mode = expected_mode.mode;
-          exp_attributes = sexp.pexp_attributes;
-          exp_env = env } in
-      begin
-        try rue exp
-        with Error (_, _, Expr_type_clash _) as err ->
-          Misc.reraise_preserving_backtrace err (fun () ->
-            check_partial_application false exp)
-      end
+      rue {
+        exp_desc = Texp_apply(funct, args, position);
+        exp_loc = loc; exp_extra = [];
+        exp_type = ty_res;
+        exp_mode = expected_mode.mode;
+        exp_attributes = sexp.pexp_attributes;
+        exp_env = env }
   | Pexp_match(sarg, caselist) ->
       let arg_pat_mode, arg_expected_mode =
         match cases_tuple_arity caselist with
@@ -6354,9 +6348,27 @@ let report_literal_type_constraint const = function
       report_literal_type_constraint typ const
   | Some _ | None -> []
 
+let report_partial_application = function
+  | Some tr -> begin
+      let ty =
+        match tr.Unification_trace.got.Unification_trace.expanded with
+        | None -> tr.Unification_trace.got.Unification_trace.t
+        | Some ty -> ty
+      in
+      let ty = repr ty in
+      match ty.desc with
+      | Tarrow _ ->
+          [ Location.msg
+              "@[Hint: This function application is partial,@ \
+               maybe some arguments are missing.@]" ]
+      | _ -> []
+    end
+  | None -> []
+
 let report_expr_type_clash_hints exp diff =
   match exp with
   | Some (Texp_constant const) -> report_literal_type_constraint const diff
+  | Some (Texp_apply _) -> report_partial_application diff
   | _ -> []
 
 let report_pattern_type_clash_hints
