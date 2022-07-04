@@ -244,6 +244,8 @@ let unary_int_arith_primitive _env dbg kind op arg =
   (* Special case for manipulating int64 on 32-bit hosts *)
   | Naked_int64, Neg when Target_system.is_32_bit -> C.unsupported_32_bit ()
   (* General case *)
+  | Naked_int32, Neg when Target_system.is_64_bit ->
+    C.sign_extend_32 dbg (C.sub_int (C.int ~dbg 0) arg dbg)
   | (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint), Neg ->
     (* XXX is this correct for Naked_immediate? *)
     C.sub_int (C.int ~dbg 0) arg dbg
