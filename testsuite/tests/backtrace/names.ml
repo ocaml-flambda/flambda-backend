@@ -101,6 +101,10 @@ let[@inline never] lazy_ f =
   let x = Sys.opaque_identity (lazy (1 + f ())) in
   Lazy.force x
 
+
+let[@inline never] nontailcall f =
+  f () [@nontail]
+
 let () =
   Printexc.record_backtrace true;
   match
@@ -121,6 +125,7 @@ let () =
     (new klass)#meth @@ fun _ ->
     inline_object @@ fun _ ->
     lazy_ @@ fun _ ->
+    nontailcall @@ fun _ ->
     bang ()
   with
   | _ -> assert false

@@ -134,9 +134,11 @@ camlinternalAtomic.cmx : \
     camlinternalAtomic.cmi
 camlinternalAtomic.cmi :
 camlinternalComprehension.cmo : \
+    stdlib.cmi \
     stdlib__List.cmi \
     camlinternalComprehension.cmi
 camlinternalComprehension.cmx : \
+    stdlib.cmx \
     stdlib__List.cmx \
     camlinternalComprehension.cmi
 camlinternalComprehension.cmi :
@@ -182,22 +184,18 @@ camlinternalLazy.cmx : \
 camlinternalLazy.cmi : \
     stdlib.cmi
 camlinternalMod.cmo : \
-    stdlib__Sys.cmi \
     stdlib.cmi \
     stdlib__Obj.cmi \
-    stdlib__Nativeint.cmi \
+    stdlib__Lazy.cmi \
     camlinternalOO.cmi \
     stdlib__Array.cmi \
-    stdlib__Lazy.cmi \
     camlinternalMod.cmi
 camlinternalMod.cmx : \
-    stdlib__Sys.cmx \
     stdlib.cmx \
     stdlib__Obj.cmx \
-    stdlib__Nativeint.cmx \
+    stdlib__Lazy.cmx \
     camlinternalOO.cmx \
     stdlib__Array.cmx \
-    stdlib__Lazy.cmx \
     camlinternalMod.cmi
 camlinternalMod.cmi : \
     stdlib.cmi \

@@ -104,9 +104,9 @@ and uconstant ppf = function
   | Uconst_int i -> fprintf ppf "%i" i
 
 and apply_kind ppf : apply_kind -> unit = function
-  | Rc_normal, Alloc_heap -> fprintf ppf "apply"
+  | (Rc_normal | Rc_nontail) , Alloc_heap -> fprintf ppf "apply"
   | Rc_close_at_apply, Alloc_heap -> fprintf ppf "apply[end_region]"
-  | Rc_normal, Alloc_local -> fprintf ppf "apply[L]"
+  | (Rc_normal | Rc_nontail), Alloc_local -> fprintf ppf "apply[L]"
   | Rc_close_at_apply, Alloc_local -> fprintf ppf "apply[end_region][L]"
 
 and lam ppf = function
@@ -246,7 +246,7 @@ and lam ppf = function
   | Usend (k, met, obj, largs, (pos,_) , _) ->
       let form =
         match pos with
-        | Rc_normal -> "send"
+        | Rc_normal | Rc_nontail -> "send"
         | Rc_close_at_apply -> "send[end_region]"
       in
       let args ppf largs =
