@@ -426,3 +426,12 @@ let check_local ext_names other_names attr =
 
 let has_local attr =
   check_local ["extension.local"] ["ocaml.local"; "local"] attr
+
+let tailcall attr =
+  let has_tail = List.exists (check ["ocaml.tail"; "tail"]) attr in
+  let has_nontail = List.exists (check ["ocaml.nontail"; "nontail"]) attr in
+  match has_tail, has_nontail with
+  | true, false -> Ok (Some `Tail)
+  | false, true -> Ok (Some `Nontail)
+  | false, false -> Ok None
+  | true, true -> Error `Conflict

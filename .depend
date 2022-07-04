@@ -121,15 +121,12 @@ utils/profile.cmi :
 utils/strongly_connected_components.cmo : \
     utils/numbers.cmi \
     utils/misc.cmi \
-    utils/identifiable.cmi \
     utils/strongly_connected_components.cmi
 utils/strongly_connected_components.cmx : \
     utils/numbers.cmx \
     utils/misc.cmx \
-    utils/identifiable.cmx \
     utils/strongly_connected_components.cmi
-utils/strongly_connected_components.cmi : \
-    utils/identifiable.cmi
+utils/strongly_connected_components.cmi :
 utils/target_system.cmo : \
     utils/misc.cmi \
     utils/config.cmi \
@@ -343,7 +340,6 @@ parsing/lexer.cmo : \
     utils/misc.cmi \
     parsing/location.cmi \
     parsing/docstrings.cmi \
-    utils/clflags.cmi \
     parsing/lexer.cmi
 parsing/lexer.cmx : \
     utils/warnings.cmx \
@@ -351,7 +347,6 @@ parsing/lexer.cmx : \
     utils/misc.cmx \
     parsing/location.cmx \
     parsing/docstrings.cmx \
-    utils/clflags.cmx \
     parsing/lexer.cmi
 parsing/lexer.cmi : \
     parsing/parser.cmi \
@@ -480,6 +475,7 @@ typing/annot.cmi : \
 typing/btype.cmo : \
     typing/types.cmi \
     typing/path.cmi \
+    utils/misc.cmi \
     utils/local_store.cmi \
     typing/ident.cmi \
     parsing/asttypes.cmi \
@@ -487,6 +483,7 @@ typing/btype.cmo : \
 typing/btype.cmx : \
     typing/types.cmx \
     typing/path.cmx \
+    utils/misc.cmx \
     utils/local_store.cmx \
     typing/ident.cmx \
     parsing/asttypes.cmi \
@@ -815,11 +812,13 @@ typing/mtype.cmi : \
 typing/oprint.cmo : \
     parsing/pprintast.cmi \
     typing/outcometree.cmi \
+    utils/clflags.cmi \
     parsing/asttypes.cmi \
     typing/oprint.cmi
 typing/oprint.cmx : \
     parsing/pprintast.cmx \
     typing/outcometree.cmi \
+    utils/clflags.cmx \
     parsing/asttypes.cmi \
     typing/oprint.cmi
 typing/oprint.cmi : \
@@ -2106,14 +2105,12 @@ asmcomp/CSEgen.cmi : \
     asmcomp/mach.cmi \
     parsing/asttypes.cmi
 asmcomp/afl_instrument.cmo : \
-    lambda/lambda.cmi \
     asmcomp/cmm.cmi \
     utils/clflags.cmi \
     middle_end/backend_var.cmi \
     parsing/asttypes.cmi \
     asmcomp/afl_instrument.cmi
 asmcomp/afl_instrument.cmx : \
-    lambda/lambda.cmx \
     asmcomp/cmm.cmx \
     utils/clflags.cmx \
     middle_end/backend_var.cmx \
@@ -2921,6 +2918,7 @@ asmcomp/selectgen.cmo : \
     asmcomp/mach.cmi \
     lambda/lambda.cmi \
     lambda/debuginfo.cmi \
+    utils/config.cmi \
     asmcomp/cmm.cmi \
     middle_end/backend_var.cmi \
     parsing/asttypes.cmi \
@@ -2934,6 +2932,7 @@ asmcomp/selectgen.cmx : \
     asmcomp/mach.cmx \
     lambda/lambda.cmx \
     lambda/debuginfo.cmx \
+    utils/config.cmx \
     asmcomp/cmm.cmx \
     middle_end/backend_var.cmx \
     parsing/asttypes.cmi \
@@ -3343,6 +3342,7 @@ lambda/lambda.cmo : \
     typing/ident.cmi \
     typing/env.cmi \
     lambda/debuginfo.cmi \
+    utils/config.cmi \
     utils/clflags.cmi \
     parsing/asttypes.cmi \
     lambda/lambda.cmi
@@ -3355,6 +3355,7 @@ lambda/lambda.cmx : \
     typing/ident.cmx \
     typing/env.cmx \
     lambda/debuginfo.cmx \
+    utils/config.cmx \
     utils/clflags.cmx \
     parsing/asttypes.cmi \
     lambda/lambda.cmi
@@ -5145,6 +5146,7 @@ middle_end/flambda/lift_let_to_initialize_symbol.cmo : \
     middle_end/variable.cmi \
     middle_end/flambda/base_types/tag.cmi \
     middle_end/symbol.cmi \
+    lambda/lambda.cmi \
     middle_end/internal_variable_names.cmi \
     utils/int_replace_polymorphic_compare.cmi \
     middle_end/flambda/flambda_utils.cmi \
@@ -5155,6 +5157,7 @@ middle_end/flambda/lift_let_to_initialize_symbol.cmx : \
     middle_end/variable.cmx \
     middle_end/flambda/base_types/tag.cmx \
     middle_end/symbol.cmx \
+    lambda/lambda.cmx \
     middle_end/internal_variable_names.cmx \
     utils/int_replace_polymorphic_compare.cmx \
     middle_end/flambda/flambda_utils.cmx \
@@ -5251,6 +5254,7 @@ middle_end/flambda/remove_unused_arguments.cmo : \
     middle_end/variable.cmi \
     middle_end/flambda/projection.cmi \
     middle_end/flambda/parameter.cmi \
+    lambda/lambda.cmi \
     middle_end/flambda/invariant_params.cmi \
     utils/int_replace_polymorphic_compare.cmi \
     middle_end/flambda/flambda_utils.cmi \
@@ -5266,6 +5270,7 @@ middle_end/flambda/remove_unused_arguments.cmx : \
     middle_end/variable.cmx \
     middle_end/flambda/projection.cmx \
     middle_end/flambda/parameter.cmx \
+    lambda/lambda.cmx \
     middle_end/flambda/invariant_params.cmx \
     utils/int_replace_polymorphic_compare.cmx \
     middle_end/flambda/flambda_utils.cmx \
