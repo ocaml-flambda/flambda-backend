@@ -236,8 +236,12 @@ ld.conf: $(ROOTDIR)/Makefile.config
 
 # To speed up builds, we avoid changing "primitives" when files
 # containing primitives change but the primitives table does not
-primitives: $(shell ./gen_primitives.sh > primitives.new; \
-                    cmp -s primitives primitives.new || echo primitives.new)
+gen_prim_cmd = \
+  if [ -x gen_primitives.sh ]; then \
+     ./gen_primitives.sh > primitives.new; \
+     cmp -s primitives primitives.new || echo primitives.new; \
+  else echo gen-primitives-unavailable; fi
+primitives: $(shell $(gen_prim_cmd))
 	cp $^ $@
 
 prims.c : primitives

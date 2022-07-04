@@ -22,7 +22,7 @@
   (name odoc_lib)
   (modes byte native)
   (wrapped false)
-  (flags (:standard -nostdlib -w -9-32))
+  (flags (:standard -w -9-32))
   (modules
     odoc_analyse
     odoc_args
@@ -72,15 +72,15 @@
     odoc_types
     odoc_value
   )
-  (libraries dynlink_internal ocamlcommon stdlib str unix))
+  (libraries dynlink_internal ocamlcommon str unix))
 
 (executable
   (name odoc_byte)
   (modes byte)
   ; See note in the toplevel dune file about this.
-  (flags (:standard -nostdlib -cclib "-L ../runtime" -cclib -lcamlrun))
+  (flags (:standard -cclib "-L ../runtime" -cclib -lcamlrun))
   (modules odoc_byte)
-  (libraries odoc_lib stdlib))
+  (libraries odoc_lib))
 
 (rule
   (targets odoc_byte.ml)
@@ -89,9 +89,8 @@
 (executable
   (name odoc_native)
   (modes native)
-  (flags -nostdlib)
   (modules odoc_native)
-  (libraries odoc_lib runtime_native dynlink_internal stdlib))
+  (libraries odoc_lib dynlink_internal))
 
 (rule
   (targets odoc_native.ml)
@@ -100,7 +99,6 @@
 (install
   (files
 ;    (odoc_byte.bc as ocamldoc.byte)
-    (odoc_native.exe as ocamldoc)
     (odoc_native.exe as ocamldoc.opt))
   (section bin)
   (package ocaml))

@@ -44,11 +44,15 @@
 
 (rule
   (targets camlheader camlheaderd camlheaderi camlheader_ur)
-  (deps Makefile StdlibModules .depend)
-  (action (run make %{targets})))
+  (deps Makefile StdlibModules .depend ../Makefile.common ../Makefile.config_if_required ../Makefile.build_config ../Makefile.config)
+  (action (run make -s %{targets})))
+
+(copy_files ../Makefile.config)
 
 (install
   (files
+    Makefile.config
+
     camlheader
     camlheaderd
     camlheaderi
@@ -450,4 +454,4 @@
     .stdlib.objs/native/stdlib__Either.cmx
   )
   (section lib)
-  (package ocaml))
+  (package ocaml_runtime_stdlib))

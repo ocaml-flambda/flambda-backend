@@ -17,17 +17,15 @@
  (wrapped false)
  (modes byte native)
  (flags (
-   -nostdlib -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66
+   -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66
    -warn-error A -bin-annot -safe-string -strict-formats
  ))
  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
  (library_flags (:standard -linkall))
- (libraries stdlib)
  (foreign_stubs (language c) (names strstubs)
   (flags ((:include %{project_root}/oc_cflags.sexp)
           (:include %{project_root}/sharedlib_cflags.sexp)
-          (:include %{project_root}/oc_cppflags.sexp)))
-  (include_dirs %{project_root}/ocaml/runtime)))
+          (:include %{project_root}/oc_cppflags.sexp)))))
 
 (install
   (files

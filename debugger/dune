@@ -18,11 +18,9 @@
 (executable
   (name main)
   (modes byte)
-  (flags (:standard -principal -w -9
-    -nostdlib -cclib "-I ../runtime" -cclib "-L ../runtime" -cclib -lcamlrun))
-  (link_deps (file ../stdlib/camlheader) (file ../runtime/libcamlrun.a))
+  (flags (:standard -principal -w -9))
   (modules_without_implementation parser_aux)
-  (libraries ocamlcommon ocamltoplevel stdlib unix dynlink_internal))
+  (libraries ocamlcommon ocamltoplevel unix dynlink_internal))
 
 (install
   (files (main.bc as ocamldebug))

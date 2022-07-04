@@ -18,18 +18,21 @@ let rec generate_list n =
   in
   aux [] n
 
+let finished = ref false
+
 let rec long_computation time0 =
   let long_list = generate_list 100000 in
   let res = List.length (List.rev_map sin long_list) in
-  if Sys.time () -. time0 > 2. then
+  if Sys.time () -. time0 > 1. || !finished then
     Printf.printf "Long computation result: %d\n%!" res
   else long_computation time0
 
 let interaction () =
-  Thread.delay 0.1;
+  Thread.delay 0.01;
   Printf.printf "Interaction 1\n";
-  Thread.delay 0.1;
-  Printf.printf "Interaction 2\n"
+  Thread.delay 0.01;
+  Printf.printf "Interaction 2\n";
+  finished := true
 
 let () =
   ignore (Thread.create interaction ());
