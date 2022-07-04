@@ -214,8 +214,14 @@ module TycompTbl =
 
 type empty = |
 
+type escaping_context =
+  | Return
+  | Tailcall_argument
+  | Tailcall_function
+  | Partial_application
+
 type value_lock =
-  | Lock of { mode : Value_mode.t; }
+  | Lock of { mode : Value_mode.t; escaping_context : escaping_context option }
   | Region_lock
 
 module IdTbl =
@@ -563,8 +569,7 @@ type lookup_error =
   | Generative_used_as_applicative of Longident.t
   | Illegal_reference_to_recursive_module
   | Cannot_scrape_alias of Longident.t * Path.t
-  | Local_value_escapes of Longident.t * [`Regionality | `Locality]
-  | Local_value_used_in_closure of Longident.t
+  | Local_value_used_in_closure of Longident.t * escaping_context option
 
 type error =
   | Missing_module of Location.t * Path.t * Path.t
@@ -2010,8 +2015,9 @@ let enter_cltype ~scope name desc env =
 let enter_module ~scope ?arg s presence mty env =
   enter_module_declaration ~scope ?arg s presence (md mty) env
 
-let add_lock mode env =
-  { env with values = IdTbl.add_lock (Lock {mode}) env.values }
+let add_lock ?escaping_context mode env =
+  let lock = Lock { mode; escaping_context } in
+  { env with values = IdTbl.add_lock lock env.values }
 
 let add_region_lock env =
   { env with values = IdTbl.add_lock Region_lock env.values }
@@ -2437,12 +2443,12 @@ let lock_mode ~errors ~loc env id vmode locks =
     (fun vmode lock ->
       match lock with
       | Region_lock -> Value_mode.local_to_regional vmode
-      | Lock {mode} ->
+      | Lock {mode; escaping_context} ->
           match Value_mode.submode vmode mode with
           | Ok () -> vmode
           | Error _ ->
               may_lookup_error errors loc env
-                (Local_value_used_in_closure id))
+                (Local_value_used_in_closure (id, escaping_context)))
     vmode locks
 
 let lookup_ident_value ~errors ~use ~loc name env =
@@ -3277,22 +3283,17 @@ let report_lookup_error _loc env ppf = function
       fprintf ppf
         "The module %a is an alias for module %a, which %s"
         !print_longident lid !print_path p cause
-  | Local_value_escapes(lid, reason) ->
-      let mode =
-        match reason with
-        | `Regionality -> ""
-        | `Locality -> "local "
-      in
-      fprintf ppf
-        "@[The %svalue %a cannot be used here@ \
-           as it escapes its region@]"
-        mode !print_longident lid
-  | Local_value_used_in_closure lid ->
+  | Local_value_used_in_closure (lid, context) ->
       fprintf ppf
         "@[The value %a is local, so cannot be used \
            inside a closure that might escape@]"
-        !print_longident lid
-
+        !print_longident lid;
+      begin match context with
+      | Some Tailcall_argument ->
+         fprintf ppf "@.@[Hint: The closure might escape because it \
+                          is an argument to a tail call@]"
+      | _ -> ()
+      end
 
 let report_error ppf = function
   | Missing_module(_, path1, path2) ->

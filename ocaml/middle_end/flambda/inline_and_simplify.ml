@@ -917,7 +917,7 @@ and simplify_over_application env r ~args ~args_approxs ~function_decls
   let expr =
     match reg_close with
     | Lambda.Rc_close_at_apply -> Flambda.Tail expr
-    | Lambda.Rc_normal -> expr
+    | Lambda.Rc_normal | Lambda.Rc_nontail -> expr
   in
   simplify (E.set_never_inline env) r expr
 

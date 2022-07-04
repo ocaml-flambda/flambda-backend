@@ -118,7 +118,7 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
                     expression 
                       value_mode <modevar>
                       Texp_apply
-                      apply_mode Nontail
+                      apply_mode Default
                       expression 
                         value_mode <modevar>
                         Texp_ident "fib"
@@ -128,7 +128,7 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
                           expression 
                             value_mode global
                             Texp_apply
-                            apply_mode Nontail
+                            apply_mode Default
                             expression 
                               value_mode <modevar>
                               Texp_ident "Stdlib!.-"
@@ -150,7 +150,7 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
                     expression 
                       value_mode <modevar>
                       Texp_apply
-                      apply_mode Nontail
+                      apply_mode Default
                       expression 
                         value_mode <modevar>
                         Texp_ident "fib"
@@ -160,7 +160,7 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
                           expression 
                             value_mode global
                             Texp_apply
-                            apply_mode Nontail
+                            apply_mode Default
                             expression 
                               value_mode <modevar>
                               Texp_ident "Stdlib!.-"

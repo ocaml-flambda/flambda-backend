@@ -55,6 +55,19 @@ module Result_continuation = struct
     | Never_returns -> Ids_for_export.empty
 end
 
+module Position = struct
+  type t =
+    | Normal
+    | Nontail
+
+  let equal t1 t2 =
+    match t1, t2 with
+    | Normal, Normal -> true
+    | Normal, Nontail -> false
+    | Nontail, Normal -> false
+    | Nontail, Nontail -> true
+end
+
 type t =
   { callee : Simple.t;
     continuation : Result_continuation.t;
@@ -65,6 +78,7 @@ type t =
     inlined : Inlined_attribute.t;
     inlining_state : Inlining_state.t;
     probe_name : string option;
+    position : Position.t;
     relative_history : Inlining_history.Relative.t
   }
 
@@ -75,7 +89,7 @@ let [@ocamlformat "disable"] print_inlining_paths ppf relative_history =
 
 let [@ocamlformat "disable"] print ppf
     { callee; continuation; exn_continuation; args; call_kind;
-      dbg; inlined; inlining_state; probe_name; relative_history } =
+      dbg; inlined; inlining_state; probe_name; position; relative_history } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(%a\u{3008}%a\u{3009}\u{300a}%a\u{300b}@ (%a))@]@ \
       @[<hov 1>(call_kind@ %a)@]@ \
@@ -84,6 +98,7 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>(inlining_state@ %a)@]@ \
       %a\n\
       @[<hov 1>(probe_name@ %a)@]\
+      @[<hov 1>(position@ %a)@]\
       )@]"
     Simple.print callee
     Result_continuation.print continuation
@@ -101,6 +116,11 @@ let [@ocamlformat "disable"] print ppf
       | None -> Format.pp_print_string ppf "()"
       | Some probe_name -> Format.pp_print_string ppf probe_name)
     probe_name
+    (fun ppf position ->
+       match position with
+       | Position.Normal -> Format.pp_print_string ppf "Normal"
+       | Position.Nontail -> Format.pp_print_string ppf "Nontail")
+    position
 
 let invariant
     ({ callee;
@@ -112,6 +132,7 @@ let invariant
        inlined = _;
        inlining_state = _;
        probe_name = _;
+       position = _;
        relative_history = _
      } as t) =
   (match call_kind with
@@ -137,7 +158,7 @@ let invariant
   | Return _ -> ()
 
 let create ~callee ~continuation exn_continuation ~args ~call_kind dbg ~inlined
-    ~inlining_state ~probe_name ~relative_history =
+    ~inlining_state ~probe_name ~position ~relative_history =
   let t =
     { callee;
       continuation;
@@ -148,6 +169,7 @@ let create ~callee ~continuation exn_continuation ~args ~call_kind dbg ~inlined
       inlined;
       inlining_state;
       probe_name;
+      position;
       relative_history
     }
   in
@@ -172,6 +194,8 @@ let inlining_state t = t.inlining_state
 
 let relative_history t = t.relative_history
 
+let position t = t.position
+
 let free_names
     { callee;
       continuation;
@@ -182,6 +206,7 @@ let free_names
       inlined = _;
       inlining_state = _;
       probe_name = _;
+      position = _;
       relative_history = _
     } =
   Name_occurrences.union_list
@@ -201,6 +226,7 @@ let apply_renaming
        inlined;
        inlining_state;
        probe_name;
+       position;
        relative_history
      } as t) renaming =
   let continuation' =
@@ -226,6 +252,7 @@ let apply_renaming
       inlined;
       inlining_state;
       probe_name;
+      position;
       relative_history
     }
 
@@ -239,6 +266,7 @@ let all_ids_for_export
       inlined = _;
       inlining_state = _;
       probe_name = _;
+      position = _;
       relative_history = _
     } =
   let callee_ids = Ids_for_export.from_simple callee in
