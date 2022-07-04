@@ -204,7 +204,10 @@ void caml_array_bound_error(void)
       exit(2);
     }
   }
-  caml_raise(*caml_array_bound_error_exn);
+  /* This exception is raised directly from OCaml, not C,
+     so we should not do the C-specific processing in caml_raise.
+     (In particular, we must not invoke GC, even if signals are pending) */
+  caml_raise_exception(Caml_state, *caml_array_bound_error_exn);
 }
 
 int caml_is_special_exception(value exn) {

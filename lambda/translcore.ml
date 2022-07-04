@@ -299,7 +299,7 @@ let rec iter_exn_names f pat =
 let transl_ident loc env ty path desc kind =
   match desc.val_kind, kind with
   | Val_prim p, Id_prim pmode ->
-      let poly_mode = transl_alloc_mode pmode in
+      let poly_mode = Option.map transl_alloc_mode pmode in
       Translprim.transl_primitive loc p env ty ~poly_mode (Some path)
   | Val_anc _, Id_value ->
       raise(Error(to_location loc, Free_super_var))
@@ -374,7 +374,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
         if extra_args = [] then transl_apply_position pos
         else Rc_normal
       in
-      let prim_mode = transl_alloc_mode pmode in
+      let prim_mode = Option.map transl_alloc_mode pmode in
       let lam =
         Translprim.transl_primitive_application
           (of_location ~scopes e.exp_loc) p e.exp_env prim_type prim_mode
@@ -557,12 +557,16 @@ and transl_exp0 ~in_new_scope ~scopes e =
                    of_location ~scopes e.exp_loc)
         | cl ->
             let imm_array =
-              match kind with
-              | Paddrarray | Pintarray ->
+              if Config.flambda2 then
+                Lprim (Pmakearray (kind, Immutable, mode), ll,
+                       of_location ~scopes e.exp_loc)
+              else
+                match kind with
+                | Paddrarray | Pintarray ->
                   Lconst(Const_block(0, cl))
-              | Pfloatarray ->
+                | Pfloatarray ->
                   Lconst(Const_float_array(List.map extract_float cl))
-              | Pgenarray ->
+                | Pgenarray ->
                   raise Not_constant    (* can this really happen? *)
             in
             Lprim (Pduparray (kind, Mutable), [imm_array],

@@ -121,7 +121,9 @@
  (libraries ocamlbytecomp ocamlcommon)
  (modules main_native))
 
-(data_only_dirs yacc)
+; Disabled since there can be only one (data_only_dirs) declaration
+;(data_only_dirs yacc)
+(include dirs-to-ignore.inc)
 
 (rule
  (deps (source_tree yacc))

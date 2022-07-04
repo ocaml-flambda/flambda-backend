@@ -112,7 +112,10 @@ let prim_sys_argv =
 let to_alloc_mode ~poly = function
   | Prim_global, _ -> alloc_heap
   | Prim_local, _ -> alloc_local
-  | Prim_poly, _ -> poly
+  | Prim_poly, _ ->
+    match poly with
+    | None -> assert false
+    | Some mode -> mode
 
 let lookup_primitive loc poly pos p =
   let mode = to_alloc_mode ~poly p.prim_native_repr_res in
@@ -714,8 +717,8 @@ let lambda_of_prim prim_name prim loc args arg_exps =
 let check_primitive_arity loc p =
   let mode =
     match p.prim_native_repr_res with
-    | Prim_global, _ | Prim_poly, _ -> alloc_heap
-    | Prim_local, _ -> alloc_local
+    | Prim_global, _ | Prim_poly, _ -> Some alloc_heap
+    | Prim_local, _ -> Some alloc_local
   in
   let prim = lookup_primitive loc mode Rc_normal p in
   let ok =
