@@ -284,6 +284,10 @@ let arithmetic_conversion dbg src dst arg =
   | Tagged_immediate, (Naked_int64 | Naked_nativeint | Naked_immediate) ->
     Some (Env.Untag arg), C.untag_int arg dbg
   (* Operations resulting in int32s must take care to sign extend the result *)
+  (* CR-someday xclerc: untag_int followed by sign_extend_32 sounds suboptimal,
+     as it performs asr 1; lsl 32; asr 32 while we could do lsl 31; asr 32
+     instead. (Beware of the optimizations / pattern matching in the helpers
+     though.) *)
   | Tagged_immediate, Naked_int32 ->
     None, C.sign_extend_32 dbg (C.untag_int arg dbg)
   | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Naked_int32
