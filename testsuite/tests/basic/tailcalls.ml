@@ -72,21 +72,21 @@ let rec tailcall16_value_closures a b c d e f g h i j k l m n o p =
 and fs = [tailcall16_value_closures]
 
 let _ =
-  print_int (tailcall4 10000000 0 0 0); print_newline();
-  print_int (tailcall8 10000000 0 0 0 0 0 0 0); print_newline();
-  print_int (tailcall16 10000000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0);
+  print_int (tailcall4 1000000 0 0 0); print_newline();
+  print_int (tailcall8 1000000 0 0 0 0 0 0 0); print_newline();
+  print_int (tailcall16 1000000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0);
   print_newline();
-  print_int (tailcall32 10000000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+  print_int (tailcall32 1000000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
                                0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0);
   print_newline();
   print_int (indtailcall8 tailcall8 10 0 0 0 0 0 0 0); print_newline();
   print_int (indtailcall16 tailcall16 10 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0);
   print_newline();
-  print_int (tailcall16_value_closures 10000000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0);
+  print_int (tailcall16_value_closures 1000000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0);
   print_newline();
-  print_int (muttailcall8 10000000 0 0 0 0 0 0 0); print_newline();
-  print_int (muttailcall16 10000000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0);
+  print_int (muttailcall8 1000000 0 0 0 0 0 0 0); print_newline();
+  print_int (muttailcall16 1000000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0);
   print_newline();
-  print_int (muttailcall32 10000000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+  print_int (muttailcall32 1000000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
                                   0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0);
   print_newline()

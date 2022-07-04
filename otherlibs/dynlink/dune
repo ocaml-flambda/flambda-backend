@@ -17,7 +17,7 @@
   (wrapped true)
   (modes byte native)
   (flags (
-    -nostdlib -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48
+    -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48
     -warn-error A -bin-annot -safe-string -strict-formats
   ))
   (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
@@ -73,8 +73,7 @@
     outcometree
     cmo_format
     cmxs_format
-    debug_event)
-  (libraries stdlib))
+    debug_event))
 
 ;(install
 ;  (files
@@ -198,7 +197,7 @@
   (wrapped false)
   (modes byte native)
   (modules dynlink dynlink_common dynlink_types dynlink_platform_intf)
-  (libraries dynlink_compilerlibs stdlib))
+  (libraries dynlink_compilerlibs))
 
 ; The non-installed version of dynlink.cmi is needed to build other parts
 ; of the tree.
@@ -212,7 +211,6 @@
   (deps dynlink_internal.cma)
   (action
     (run %{ocamlc}
-      -nostdlib
       -g -a
       %{read:natdynlinkops1}
       %{read:natdynlinkops2}
@@ -274,7 +272,6 @@
   (deps dynlink_internal.cmxa)
   (action
     (run %{ocamlopt}
-      -nostdlib
       -g -a
       %{read:natdynlinkops1}
       %{read:natdynlinkops2}
@@ -334,12 +331,10 @@
 (executable
  (name extract_crc)
  (modes byte)
- (flags (:standard -principal -nostdlib
-   -cclib "-I ../../runtime" -cclib "-L ../../runtime" -cclib -lcamlrun))
- (link_deps (file ../../stdlib/camlheader) (file ../../runtime/libcamlrun.a))
+ (flags (:standard -principal))
  (libraries
    dynlink_internal
-   stdlib)
+ )
  (modules extract_crc))
 
 (install

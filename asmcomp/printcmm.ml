@@ -124,10 +124,8 @@ let operation d = function
   | Cstore (c, init) ->
     let init =
       match init with
-      | Lambda.Heap_initialization -> "(heap-init)"
-      | Lambda.Root_initialization -> "(root-init)"
-      | Lambda.Assignment Alloc_heap -> ""
-      | Lambda.Assignment Alloc_local -> "(local)"
+      | Initialization -> "(heap-init)"
+      | Assignment -> ""
     in
     Printf.sprintf "store %s%s" (chunk c) init
   | Caddi -> "+"
