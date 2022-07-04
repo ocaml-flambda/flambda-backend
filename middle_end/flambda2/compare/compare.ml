@@ -432,8 +432,9 @@ and subst_apply env apply =
   let inlined = Apply_expr.inlined apply in
   let inlining_state = Apply_expr.inlining_state apply in
   let relative_history = Apply_expr.relative_history apply in
+  let position = Apply_expr.position apply in
   Apply_expr.create ~callee ~continuation exn_continuation ~args ~call_kind dbg
-    ~inlined ~inlining_state ~probe_name:None ~relative_history
+    ~inlined ~inlining_state ~probe_name:None ~position ~relative_history
   |> Expr.create_apply
 
 and subst_apply_cont env apply_cont =
@@ -966,6 +967,7 @@ let apply_exprs env apply1 apply2 : Expr.t Comparison.t =
     && inlining_states_equal
          (Apply.inlining_state apply1)
          (Apply.inlining_state apply2)
+    && Apply.Position.equal (Apply.position apply1) (Apply.position apply2)
   in
   let ok = ref atomic_things_equal in
   let callee1' =
@@ -991,7 +993,7 @@ let apply_exprs env apply1 apply2 : Expr.t Comparison.t =
             ~args:args1' ~call_kind:call_kind1' (Apply.dbg apply1)
             ~inlined:(Apply.inlined apply1)
             ~inlining_state:(Apply.inlining_state apply1)
-            ~probe_name:None
+            ~probe_name:None ~position:(Apply.position apply1)
             ~relative_history:(Apply_expr.relative_history apply1)
           |> Expr.create_apply
       }

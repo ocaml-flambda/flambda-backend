@@ -707,7 +707,7 @@ let wrap_return_continuation acc env ccenv (apply : IR.apply) =
   in
   let close_early =
     match apply.region_close with
-    | Rc_normal -> false
+    | Rc_normal | Rc_nontail -> false
     | Rc_close_at_apply -> true
   in
   restore_continuation_context acc env ccenv apply.continuation ~close_early

@@ -174,6 +174,14 @@ let apply_call env e =
          must always be direct applications of an OCaml function:@ %a"
         Apply.print apply
   in
+  let pos =
+    match Apply.position e with
+    | Normal ->
+      (* We always use [Rc_normal] since the [Lambda_to_flambda] pass has
+         already taken care of the placement of region begin/end primitives. *)
+      Lambda.Rc_normal
+    | Nontail -> Lambda.Rc_nontail
+  in
   match Apply.call_kind e with
   (* Effects from arguments are ignored since a function call will always be
      given arbitrary effects and coeffects. *)
@@ -198,7 +206,7 @@ let apply_call env e =
     let code_linkage_name = Code_id.linkage_name code_id in
     match Apply.probe_name e with
     | None ->
-      ( C.direct_call ~dbg ty
+      ( C.direct_call ~dbg ty pos
           (C.symbol_from_linkage_name ~dbg code_linkage_name)
           args,
         env,
@@ -213,7 +221,7 @@ let apply_call env e =
     fail_if_probe e;
     let f, env, _ = C.simple ~dbg env f in
     let args, env, _ = C.simple_list ~dbg env args in
-    ( C.indirect_call ~dbg typ_val (Alloc_mode.to_lambda alloc_mode) f args,
+    ( C.indirect_call ~dbg typ_val pos (Alloc_mode.to_lambda alloc_mode) f args,
       env,
       effs )
   | Function
@@ -233,7 +241,7 @@ let apply_call env e =
         return_arity |> Flambda_arity.With_subkinds.to_arity
         |> machtype_of_return_arity
       in
-      ( C.indirect_full_call ~dbg ty (Alloc_mode.to_lambda alloc_mode) f args,
+      ( C.indirect_full_call ~dbg ty pos (Alloc_mode.to_lambda alloc_mode) f args,
         env,
         effs )
   | Call_kind.C_call { alloc; return_arity; param_arity; is_c_builtin } ->
@@ -261,7 +269,7 @@ let apply_call env e =
     let kind = meth_kind kind in
     let args, env, _ = C.simple_list ~dbg env args in
     let alloc_mode = Alloc_mode.to_lambda alloc_mode in
-    C.send kind meth obj args (Rc_normal, alloc_mode) dbg, env, effs
+    C.send kind meth obj args (pos, alloc_mode) dbg, env, effs
 
 (* Function calls that have an exn continuation with extra arguments must be
    wrapped with assignments for the mutable variables used to pass the extra

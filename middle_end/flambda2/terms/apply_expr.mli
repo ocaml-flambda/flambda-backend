@@ -35,6 +35,14 @@ module Result_continuation : sig
   include Contains_names.S with type t := t
 end
 
+module Position : sig
+  type t =
+    | Normal
+    | Nontail
+
+  val equal : t -> t -> bool
+end
+
 (** Create an application expression. *)
 val create :
   callee:Simple.t ->
@@ -46,6 +54,7 @@ val create :
   inlined:Inlined_attribute.t ->
   inlining_state:Inlining_state.t ->
   probe_name:string option ->
+  position:Position.t ->
   relative_history:Inlining_history.Relative.t ->
   t
 
@@ -71,6 +80,9 @@ val dbg : t -> Debuginfo.t
 (** Instructions from the source code as to whether the callee should be
     inlined. *)
 val inlined : t -> Inlined_attribute.t
+
+(** Whether the call was marked [@nontail] *)
+val position : t -> Position.t
 
 (** Change the return continuation of an application. *)
 val with_continuation : t -> Result_continuation.t -> t
