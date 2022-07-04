@@ -123,10 +123,9 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
     let first_occurrence =
       if List.mem section !sections_seen
       then false
-      else begin
+      else (
         sections_seen := section :: !sections_seen;
-        true
-      end
+        true)
     in
     match !current_dwarf_section_ref with
     | Some section' when Asm_section.equal section section' ->

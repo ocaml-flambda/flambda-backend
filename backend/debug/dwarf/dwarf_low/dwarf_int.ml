@@ -81,12 +81,10 @@ let to_uint64_exn t =
   | Sixty_four t -> Uint64.of_nonnegative_int64_exn t
 
 let add t1 t2 =
-  begin
-    match t1, t2 with
-    | Thirty_two _, Thirty_two _ | Sixty_four _, Sixty_four _ -> ()
-    | Thirty_two _, Sixty_four _ | Sixty_four _, Thirty_two _ ->
-      Misc.fatal_error "Cannot intermix sizes of [Dwarf_int]s"
-  end;
+  (match t1, t2 with
+  | Thirty_two _, Thirty_two _ | Sixty_four _, Sixty_four _ -> ()
+  | Thirty_two _, Sixty_four _ | Sixty_four _, Thirty_two _ ->
+    Misc.fatal_error "Cannot intermix sizes of [Dwarf_int]s");
   let t1 = to_int64 t1 in
   let t2 = to_int64 t2 in
   of_int64_exn (Int64.add t1 t2)

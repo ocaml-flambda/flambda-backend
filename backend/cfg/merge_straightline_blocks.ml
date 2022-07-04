@@ -66,7 +66,7 @@ let rec merge_blocks (modified : bool) (cfg_with_layout : Cfg_with_layout.t) :
              && List.compare_length_with b2_predecessors 1 = 0
              && Cfg.is_pure_terminator b1_block.terminator.desc
              && not b1_block.can_raise
-          then begin
+          then (
             assert (Label.equal b1_label (List.hd b2_predecessors));
             (* modify b1 *)
             b1_block.body <- b1_block.body @ b2_block.body;
@@ -85,8 +85,7 @@ let rec merge_blocks (modified : bool) (cfg_with_layout : Cfg_with_layout.t) :
             b2_block.terminator
               <- { b2_block.terminator with desc = Cfg_intf.S.Never };
             b2_block.exn <- None;
-            true
-          end
+            true)
           else merged
         | _ -> merged)
       cfg.blocks false

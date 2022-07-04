@@ -69,13 +69,12 @@ let escape name =
 let symbol_prefix () =
   (* CR mshinwell: needs checking *)
   match Target_system.architecture () with
-  | IA32 | X86_64 | AArch64 -> begin
+  | IA32 | X86_64 | AArch64 -> (
     match Target_system.derived_system () with
     | Linux | Win32 | Win64 | MinGW_32 | MinGW_64 | Cygwin | FreeBSD | NetBSD
     | OpenBSD | Generic_BSD | Solaris | BeOS | GNU | Dragonfly | Unknown ->
       "" (* checked ok. *)
-    | MacOS_like -> "_" (* checked ok. *)
-  end
+    | MacOS_like -> "_" (* checked ok. *))
   | ARM | POWER | Z | Riscv -> ""
 
 let to_escaped_string ?suffix ~symbol_prefix t =

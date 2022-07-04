@@ -300,7 +300,7 @@ let mk_if_then_else dbg value_kind cond ifso_dbg ifso ifnot_dbg ifnot =
 let mk_not dbg cmm =
   match cmm with
   | Cop (Caddi, [Cop (Clsl, [c; Cconst_int (1, _)], _); Cconst_int (1, _)], dbg')
-    -> begin
+    -> (
     match c with
     | Cop (Ccmpi cmp, [c1; c2], dbg'') ->
       tag_int
@@ -317,8 +317,7 @@ let mk_not dbg cmm =
       Cop
         ( Csubi,
           [Cconst_int (3, dbg); Cop (Clsl, [c; Cconst_int (1, dbg)], dbg)],
-          dbg )
-  end
+          dbg ))
   | Cconst_int (3, _) -> Cconst_int (1, dbg)
   | Cconst_int (1, _) -> Cconst_int (3, dbg)
   | c ->
@@ -654,11 +653,10 @@ let unbox_float dbg =
     | Cop (Calloc _, [Cconst_natint (hdr, _); c], _)
       when Nativeint.equal hdr float_header ->
       c
-    | Cconst_symbol (s, _dbg) as cmm -> begin
+    | Cconst_symbol (s, _dbg) as cmm -> (
       match Cmmgen_state.structured_constant_of_sym s with
       | Some (Uconst_float x) -> Cconst_float (x, dbg) (* or keep _dbg? *)
-      | _ -> Cop (Cload (Double, Immutable), [cmm], dbg)
-    end
+      | _ -> Cop (Cload (Double, Immutable), [cmm], dbg))
     | cmm -> Cop (Cload (Double, Immutable), [cmm], dbg))
 
 (* Complex *)
@@ -1333,7 +1331,7 @@ let unbox_int dbg bi =
     | Cop (Calloc _, [hdr; ops; contents], _dbg)
       when alloc_matches_boxed_int bi ~hdr ~ops ->
       contents
-    | Cconst_symbol (s, _dbg) as cmm -> begin
+    | Cconst_symbol (s, _dbg) as cmm -> (
       match Cmmgen_state.structured_constant_of_sym s, bi with
       | Some (Uconst_nativeint n), Primitive.Pnativeint ->
         natint_const_untagged dbg n
@@ -1352,8 +1350,7 @@ let unbox_int dbg bi =
           else
             Ctuple
               [natint_const_untagged dbg low; natint_const_untagged dbg high]
-      | _ -> default cmm
-    end
+      | _ -> default cmm)
     | cmm -> default cmm)
 
 let make_unsigned_int bi arg dbg =
@@ -1972,11 +1969,9 @@ let transl_int_switch dbg value_kind arg low high cases default =
           (* pact <> 0 *)
           (plow, phigh, pact)
           ::
-          begin
-            if act = 0
-            then inters (phigh + 1) i 0 rem
-            else (phigh + 1, i - 1, 0) :: inters i i act rem
-          end
+          (if act = 0
+          then inters (phigh + 1) i 0 rem
+          else (phigh + 1, i - 1, 0) :: inters i i act rem)
     in
     let inters =
       match cases with
@@ -2000,12 +1995,11 @@ let transl_switch_clambda loc value_kind arg index cases =
     let act = index.(i) in
     if act = !this_act
     then decr this_low
-    else begin
+    else (
       inters := (!this_low, !this_high, !this_act) :: !inters;
       this_high := i;
       this_low := i;
-      this_act := act
-    end
+      this_act := act)
   done;
   inters := (0, !this_high, !this_act) :: !inters;
   match !inters with

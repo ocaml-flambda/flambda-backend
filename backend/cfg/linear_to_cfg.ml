@@ -605,15 +605,14 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
       let desc = to_basic mop in
       block.body <- create_instruction t desc i ~stack_offset :: block.body;
       if Mach.operation_can_raise mop
-      then begin
+      then (
         (* Instruction that can raise is always at the end of a block. *)
         record_exn t block traps;
         let fallthrough = get_or_make_label t i.next in
         let desc : Cfg.terminator = Always fallthrough.label in
         let i_no_reg = { i with arg = [||]; res = [||]; fdo = Fdo_info.none } in
         add_terminator t block i_no_reg desc ~stack_offset ~traps;
-        create_blocks t fallthrough.insn block ~stack_offset ~traps
-      end
+        create_blocks t fallthrough.insn block ~stack_offset ~traps)
       else create_blocks t i.next block ~stack_offset ~traps)
 
 let run (f : Linear.fundecl) ~preserve_orig_labels =

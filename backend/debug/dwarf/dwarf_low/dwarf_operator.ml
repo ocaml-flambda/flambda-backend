@@ -642,7 +642,7 @@ struct
       value
         (V.distance_between_labels_32_bit ~comment:"call4 target" ~upper:label
            ~lower:compilation_unit_header_label ())
-    | DW_op_call_ref { label; compilation_unit_header_label } -> begin
+    | DW_op_call_ref { label; compilation_unit_header_label } -> (
       match Dwarf_format.get () with
       | Thirty_two ->
         value
@@ -651,8 +651,7 @@ struct
       | Sixty_four ->
         value
           (V.distance_between_labels_64_bit ~comment:"call_ref target"
-             ~upper:label ~lower:compilation_unit_header_label ())
-    end
+             ~upper:label ~lower:compilation_unit_header_label ()))
     | DW_op_nop | DW_op_reg0 | DW_op_reg1 | DW_op_reg2 | DW_op_reg3 | DW_op_reg4
     | DW_op_reg5 | DW_op_reg6 | DW_op_reg7 | DW_op_reg8 | DW_op_reg9
     | DW_op_reg10 | DW_op_reg11 | DW_op_reg12 | DW_op_reg13 | DW_op_reg14

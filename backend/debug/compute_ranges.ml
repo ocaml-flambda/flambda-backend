@@ -80,22 +80,20 @@ module Make (S : Compute_ranges_intf.S_functor) = struct
     let add_subrange t ~subrange =
       let start_pos = Subrange.start_pos subrange in
       let start_pos_offset = Subrange.start_pos_offset subrange in
-      begin
-        match t.min_pos_and_offset with
-        | None -> t.min_pos_and_offset <- Some (start_pos, start_pos_offset)
-        | Some (min_pos, min_pos_offset) ->
-          (* This may seem dubious, but is correct by virtue of the way label
-             counters are allocated sequentially and the fact that, below, we go
-             through the code from lowest (code) address to highest. As such the
-             label with the highest integer value should be the one with the
-             highest address, and vice-versa. (Note that we also exploit the
-             ordering when constructing DWARF-4 location lists, to ensure that
-             they are sorted in increasing program counter order by start
-             address.) *)
-          let c = compare start_pos min_pos in
-          if c < 0 || (c = 0 && start_pos_offset < min_pos_offset)
-          then t.min_pos_and_offset <- Some (start_pos, start_pos_offset)
-      end;
+      (match t.min_pos_and_offset with
+      | None -> t.min_pos_and_offset <- Some (start_pos, start_pos_offset)
+      | Some (min_pos, min_pos_offset) ->
+        (* This may seem dubious, but is correct by virtue of the way label
+           counters are allocated sequentially and the fact that, below, we go
+           through the code from lowest (code) address to highest. As such the
+           label with the highest integer value should be the one with the
+           highest address, and vice-versa. (Note that we also exploit the
+           ordering when constructing DWARF-4 location lists, to ensure that
+           they are sorted in increasing program counter order by start
+           address.) *)
+        let c = compare start_pos min_pos in
+        if c < 0 || (c = 0 && start_pos_offset < min_pos_offset)
+        then t.min_pos_and_offset <- Some (start_pos, start_pos_offset));
       t.subranges <- subrange :: t.subranges
 
     let estimate_lowest_address t =

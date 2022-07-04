@@ -112,7 +112,7 @@ module Make_state (C : Container) : State = struct
 
   let check_label t cfg location lbl1 lbl2 =
     if Label.Tbl.mem cfg.Cfg.blocks lbl1
-    then begin
+    then (
       match Label.Tbl.find_opt t.subst lbl1 with
       | None ->
         different location
@@ -123,8 +123,7 @@ module Make_state (C : Container) : State = struct
           different location
             (Printf.sprintf "label %s is mapped to %s (but %s was expected)"
                (Label.to_string lbl1) (Label.to_string lbl2')
-               (Label.to_string lbl2))
-    end
+               (Label.to_string lbl2)))
     else ()
   (* the label is not present in the "original" CFG, just ignore it *)
 
@@ -423,65 +422,62 @@ let check_terminator_instruction :
     Cfg.terminator Cfg.instruction ->
     unit =
  fun state location expected result ->
-  begin
-    match expected.desc, result.desc with
-    | Never, Never -> ()
-    | Always lbl1, Always lbl2 -> State.add_to_explore state lbl1 lbl2
-    | ( Parity_test { ifso = ifso1; ifnot = ifnot1 },
-        Parity_test { ifso = ifso2; ifnot = ifnot2 } ) ->
-      State.add_to_explore state ifso1 ifso2;
-      State.add_to_explore state ifnot1 ifnot2
-    | ( Truth_test { ifso = ifso1; ifnot = ifnot1 },
-        Truth_test { ifso = ifso2; ifnot = ifnot2 } ) ->
-      State.add_to_explore state ifso1 ifso2;
-      State.add_to_explore state ifnot1 ifnot2
-    | ( Float_test { lt = lt1; eq = eq1; gt = gt1; uo = uo1 },
-        Float_test { lt = lt2; eq = eq2; gt = gt2; uo = uo2 } ) ->
-      State.add_to_explore state lt1 lt2;
-      State.add_to_explore state eq1 eq2;
-      State.add_to_explore state gt1 gt2;
-      State.add_to_explore state uo1 uo2
-    | ( Int_test
-          { lt = lt1; eq = eq1; gt = gt1; is_signed = is_signed1; imm = imm1 },
-        Int_test
-          { lt = lt2; eq = eq2; gt = gt2; is_signed = is_signed2; imm = imm2 } )
-      when Bool.equal is_signed1 is_signed2 && Option.equal Int.equal imm1 imm2
-      ->
-      State.add_to_explore state lt1 lt2;
-      State.add_to_explore state eq1 eq2;
-      State.add_to_explore state gt1 gt2
-    (* The following case is morally the same as the previous one, with a
-       immediate which is off by one. *)
-    | ( Int_test
-          { lt = lt1;
-            eq = eq1;
-            gt = gt1;
-            is_signed = is_signed1;
-            imm = Some imm1
-          },
-        Int_test
-          { lt = lt2;
-            eq = eq2;
-            gt = gt2;
-            is_signed = is_signed2;
-            imm = Some imm2
-          } )
-      when Bool.equal is_signed1 is_signed2
-           && Int.equal imm1 (Int.pred imm2)
-           && Label.equal lt1 eq1 && Label.equal eq2 gt2 ->
-      State.add_to_explore state lt1 lt2;
-      State.add_to_explore state gt1 gt2
-    | Switch a1, Switch a2 when Array.length a1 = Array.length a2 ->
-      Array.iter2 (fun l1 l2 -> State.add_to_explore state l1 l2) a1 a2
-    | Return, Return -> ()
-    | Raise rk1, Raise rk2 when equal_raise_kind rk1 rk2 -> ()
-    | Tailcall tc1, Tailcall tc2 ->
-      let location = location ^ " (terminator)" in
-      check_tail_call_operation state location tc1 tc2
-    | Call_no_return cn1, Call_no_return cn2 ->
-      check_external_call_operation location cn1 cn2
-    | _ -> different location "terminator"
-  end;
+  (match expected.desc, result.desc with
+  | Never, Never -> ()
+  | Always lbl1, Always lbl2 -> State.add_to_explore state lbl1 lbl2
+  | ( Parity_test { ifso = ifso1; ifnot = ifnot1 },
+      Parity_test { ifso = ifso2; ifnot = ifnot2 } ) ->
+    State.add_to_explore state ifso1 ifso2;
+    State.add_to_explore state ifnot1 ifnot2
+  | ( Truth_test { ifso = ifso1; ifnot = ifnot1 },
+      Truth_test { ifso = ifso2; ifnot = ifnot2 } ) ->
+    State.add_to_explore state ifso1 ifso2;
+    State.add_to_explore state ifnot1 ifnot2
+  | ( Float_test { lt = lt1; eq = eq1; gt = gt1; uo = uo1 },
+      Float_test { lt = lt2; eq = eq2; gt = gt2; uo = uo2 } ) ->
+    State.add_to_explore state lt1 lt2;
+    State.add_to_explore state eq1 eq2;
+    State.add_to_explore state gt1 gt2;
+    State.add_to_explore state uo1 uo2
+  | ( Int_test
+        { lt = lt1; eq = eq1; gt = gt1; is_signed = is_signed1; imm = imm1 },
+      Int_test
+        { lt = lt2; eq = eq2; gt = gt2; is_signed = is_signed2; imm = imm2 } )
+    when Bool.equal is_signed1 is_signed2 && Option.equal Int.equal imm1 imm2 ->
+    State.add_to_explore state lt1 lt2;
+    State.add_to_explore state eq1 eq2;
+    State.add_to_explore state gt1 gt2
+  (* The following case is morally the same as the previous one, with a
+     immediate which is off by one. *)
+  | ( Int_test
+        { lt = lt1;
+          eq = eq1;
+          gt = gt1;
+          is_signed = is_signed1;
+          imm = Some imm1
+        },
+      Int_test
+        { lt = lt2;
+          eq = eq2;
+          gt = gt2;
+          is_signed = is_signed2;
+          imm = Some imm2
+        } )
+    when Bool.equal is_signed1 is_signed2
+         && Int.equal imm1 (Int.pred imm2)
+         && Label.equal lt1 eq1 && Label.equal eq2 gt2 ->
+    State.add_to_explore state lt1 lt2;
+    State.add_to_explore state gt1 gt2
+  | Switch a1, Switch a2 when Array.length a1 = Array.length a2 ->
+    Array.iter2 (fun l1 l2 -> State.add_to_explore state l1 l2) a1 a2
+  | Return, Return -> ()
+  | Raise rk1, Raise rk2 when equal_raise_kind rk1 rk2 -> ()
+  | Tailcall tc1, Tailcall tc2 ->
+    let location = location ^ " (terminator)" in
+    check_tail_call_operation state location tc1 tc2
+  | Call_no_return cn1, Call_no_return cn2 ->
+    check_external_call_operation location cn1 cn2
+  | _ -> different location "terminator");
   (* CR xclerc for xclerc: temporary, for testing *)
   let check_arg =
     match expected.desc with
@@ -508,7 +504,7 @@ let check_basic_block : State.t -> Cfg.basic_block -> Cfg.basic_block -> unit =
      expected.predecessors result.predecessors; *)
   if is_valid_stack_offset expected.stack_offset
      && is_valid_stack_offset result.stack_offset
-  then begin
+  then (
     if not (Int.equal expected.stack_offset result.stack_offset)
     then
       different location
@@ -520,8 +516,7 @@ let check_basic_block : State.t -> Cfg.basic_block -> Cfg.basic_block -> unit =
     | None, Some _ -> different location "unexpected successor"
     | Some _, None -> different location "missing successor"
     | Some expected, Some result ->
-      State.add_labels_to_check state location expected result
-  end;
+      State.add_labels_to_check state location expected result);
   if not (Bool.equal expected.can_raise result.can_raise)
   then different location "can_raise";
   if not (Bool.equal expected.is_trap_handler result.is_trap_handler)
