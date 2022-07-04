@@ -169,7 +169,6 @@ let bigarray_store ~dbg kind ~bigarray ~index ~new_value =
 let string_like_load_aux ~dbg width ~str ~index =
   let index = C.untag_int index dbg in
   match (width : P.string_accessor_width) with
-  (* XXX sign extensions? Cmmgen appears to be all-unsigned *)
   | Eight -> C.load ~dbg Byte_unsigned Mutable ~addr:(C.add_int str index dbg)
   | Sixteen -> C.unaligned_load_16 str index dbg
   | Thirty_two -> C.sign_extend_32 dbg (C.unaligned_load_32 str index dbg)
