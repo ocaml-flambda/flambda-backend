@@ -399,80 +399,99 @@ let print_equality_comparison ppf op =
   | Eq -> Format.pp_print_string ppf "Eq"
   | Neq -> Format.pp_print_string ppf "Neq"
 
-type bigarray_kind =
-  | Float32
-  | Float64
-  | Sint8
-  | Uint8
-  | Sint16
-  | Uint16
-  | Int32
-  | Int64
-  | Int_width_int
-  | Targetint_width_int
-  | Complex32
-  | Complex64
+module Bigarray_kind = struct
+  type t =
+    | Float32
+    | Float64
+    | Sint8
+    | Uint8
+    | Sint16
+    | Uint16
+    | Int32
+    | Int64
+    | Int_width_int
+    | Targetint_width_int
+    | Complex32
+    | Complex64
 
-let element_kind_of_bigarray_kind k =
-  match k with
-  | Float32 | Float64 -> K.naked_float
-  | Sint8 | Uint8 | Sint16 | Uint16 -> K.naked_immediate
-  | Int32 -> K.naked_int32
-  | Int64 -> K.naked_int64
-  | Int_width_int -> K.naked_immediate
-  | Targetint_width_int -> K.naked_nativeint
-  | Complex32 | Complex64 ->
-    (* See [copy_two_doubles] in bigarray_stubs.c. *)
-    K.value
+  let element_kind t =
+    match t with
+    | Float32 | Float64 -> K.naked_float
+    | Sint8 | Uint8 | Sint16 | Uint16 -> K.naked_immediate
+    | Int32 -> K.naked_int32
+    | Int64 -> K.naked_int64
+    | Int_width_int -> K.naked_immediate
+    | Targetint_width_int -> K.naked_nativeint
+    | Complex32 | Complex64 ->
+      (* See [copy_two_doubles] in bigarray_stubs.c. *)
+      K.value
 
-let print_bigarray_kind ppf k =
-  let fprintf = Format.fprintf in
-  match k with
-  | Float32 -> fprintf ppf "Float32"
-  | Float64 -> fprintf ppf "Float64"
-  | Sint8 -> fprintf ppf "Sint8"
-  | Uint8 -> fprintf ppf "Uint8"
-  | Sint16 -> fprintf ppf "Sint16"
-  | Uint16 -> fprintf ppf "Uint16"
-  | Int32 -> fprintf ppf "Int32"
-  | Int64 -> fprintf ppf "Int64"
-  | Int_width_int -> fprintf ppf "Int_width_int"
-  | Targetint_width_int -> fprintf ppf "Targetint_width_int"
-  | Complex32 -> fprintf ppf "Complex32"
-  | Complex64 -> fprintf ppf "Complex64"
+  let print ppf t =
+    let fprintf = Format.fprintf in
+    match t with
+    | Float32 -> fprintf ppf "Float32"
+    | Float64 -> fprintf ppf "Float64"
+    | Sint8 -> fprintf ppf "Sint8"
+    | Uint8 -> fprintf ppf "Uint8"
+    | Sint16 -> fprintf ppf "Sint16"
+    | Uint16 -> fprintf ppf "Uint16"
+    | Int32 -> fprintf ppf "Int32"
+    | Int64 -> fprintf ppf "Int64"
+    | Int_width_int -> fprintf ppf "Int_width_int"
+    | Targetint_width_int -> fprintf ppf "Targetint_width_int"
+    | Complex32 -> fprintf ppf "Complex32"
+    | Complex64 -> fprintf ppf "Complex64"
 
-let bigarray_kind_from_lambda (kind : Lambda.bigarray_kind) =
-  match kind with
-  | Pbigarray_unknown -> None
-  | Pbigarray_float32 -> Some Float32
-  | Pbigarray_float64 -> Some Float64
-  | Pbigarray_sint8 -> Some Sint8
-  | Pbigarray_uint8 -> Some Uint8
-  | Pbigarray_sint16 -> Some Sint16
-  | Pbigarray_uint16 -> Some Uint16
-  | Pbigarray_int32 -> Some Int32
-  | Pbigarray_int64 -> Some Int64
-  | Pbigarray_caml_int -> Some Int_width_int
-  | Pbigarray_native_int -> Some Targetint_width_int
-  | Pbigarray_complex32 -> Some Complex32
-  | Pbigarray_complex64 -> Some Complex64
+  let from_lambda (kind : Lambda.bigarray_kind) =
+    match kind with
+    | Pbigarray_unknown -> None
+    | Pbigarray_float32 -> Some Float32
+    | Pbigarray_float64 -> Some Float64
+    | Pbigarray_sint8 -> Some Sint8
+    | Pbigarray_uint8 -> Some Uint8
+    | Pbigarray_sint16 -> Some Sint16
+    | Pbigarray_uint16 -> Some Uint16
+    | Pbigarray_int32 -> Some Int32
+    | Pbigarray_int64 -> Some Int64
+    | Pbigarray_caml_int -> Some Int_width_int
+    | Pbigarray_native_int -> Some Targetint_width_int
+    | Pbigarray_complex32 -> Some Complex32
+    | Pbigarray_complex64 -> Some Complex64
 
-type bigarray_layout =
-  | C
-  | Fortran
+  let to_lambda t : Lambda.bigarray_kind =
+    match t with
+    | Float32 -> Pbigarray_float32
+    | Float64 -> Pbigarray_float64
+    | Sint8 -> Pbigarray_sint8
+    | Uint8 -> Pbigarray_uint8
+    | Sint16 -> Pbigarray_sint16
+    | Uint16 -> Pbigarray_uint16
+    | Int32 -> Pbigarray_int32
+    | Int64 -> Pbigarray_int64
+    | Int_width_int -> Pbigarray_caml_int
+    | Targetint_width_int -> Pbigarray_native_int
+    | Complex32 -> Pbigarray_complex32
+    | Complex64 -> Pbigarray_complex64
+end
 
-let print_bigarray_layout ppf l =
-  let fprintf = Format.fprintf in
-  match l with C -> fprintf ppf "C" | Fortran -> fprintf ppf "Fortran"
+module Bigarray_layout = struct
+  type t =
+    | C
+    | Fortran
 
-let bigarray_layout_from_lambda (layout : Lambda.bigarray_layout) =
-  match layout with
-  | Pbigarray_unknown_layout -> None
-  | Pbigarray_c_layout -> Some C
-  | Pbigarray_fortran_layout -> Some Fortran
+  let print ppf t =
+    let fprintf = Format.fprintf in
+    match t with C -> fprintf ppf "C" | Fortran -> fprintf ppf "Fortran"
+
+  let from_lambda (layout : Lambda.bigarray_layout) =
+    match layout with
+    | Pbigarray_unknown_layout -> None
+    | Pbigarray_c_layout -> Some C
+    | Pbigarray_fortran_layout -> Some Fortran
+end
 
 let reading_from_a_bigarray kind =
-  match (kind : bigarray_kind) with
+  match (kind : Bigarray_kind.t) with
   | Complex32 | Complex64 ->
     Effects.Only_generative_effects Immutable, Coeffects.Has_coeffects
   | Float32 | Float64 | Sint8 | Uint8 | Sint16 | Uint16 | Int32 | Int64
@@ -483,7 +502,7 @@ let reading_from_a_bigarray kind =
    explicit test and switch in the flambda code, see
    lambda_to_flambda_primitives.ml). *)
 let writing_to_a_bigarray kind =
-  match (kind : bigarray_kind) with
+  match (kind : Bigarray_kind.t) with
   | Float32 | Float64 | Sint8 | Uint8 | Sint16 | Uint16 | Int32 | Int64
   | Int_width_int | Targetint_width_int | Complex32
   | Complex64
@@ -1039,7 +1058,7 @@ type binary_primitive =
   | Block_load of Block_access_kind.t * Mutability.t
   | Array_load of Array_kind.t * Mutability.t
   | String_or_bigstring_load of string_like_value * string_accessor_width
-  | Bigarray_load of num_dimensions * bigarray_kind * bigarray_layout
+  | Bigarray_load of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
   | Phys_equal of Flambda_kind.t * equality_comparison
   | Int_arith of Flambda_kind.Standard_int.t * binary_int_arith_op
   | Int_shift of Flambda_kind.Standard_int.t * int_shift_op
@@ -1143,7 +1162,7 @@ let print_binary_primitive ppf p =
   | Bigarray_load (num_dimensions, kind, layout) ->
     fprintf ppf
       "@[(Bigarray_load (num_dimensions@ %d)@ (kind@ %a)@ (layout@ %a))@]"
-      num_dimensions print_bigarray_kind kind print_bigarray_layout layout
+      num_dimensions Bigarray_kind.print kind Bigarray_layout.print layout
   | Phys_equal (kind, op) ->
     Format.fprintf ppf "@[(Phys_equal %a %a)@]" K.print kind
       print_equality_comparison op
@@ -1184,7 +1203,7 @@ let result_kind_of_binary_primitive p : result_kind =
     Singleton K.naked_immediate
   | String_or_bigstring_load (_, Thirty_two) -> Singleton K.naked_int32
   | String_or_bigstring_load (_, Sixty_four) -> Singleton K.naked_int64
-  | Bigarray_load (_, kind, _) -> Singleton (element_kind_of_bigarray_kind kind)
+  | Bigarray_load (_, kind, _) -> Singleton (Bigarray_kind.element_kind kind)
   | Int_arith (kind, _) | Int_shift (kind, _) ->
     Singleton (K.Standard_int.to_kind kind)
   | Float_arith _ -> Singleton K.naked_float
@@ -1226,7 +1245,7 @@ type ternary_primitive =
   | Block_set of Block_access_kind.t * Init_or_assign.t
   | Array_set of Array_kind.t * Init_or_assign.t
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
-  | Bigarray_set of num_dimensions * bigarray_kind * bigarray_layout
+  | Bigarray_set of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
 
 let ternary_primitive_eligible_for_cse p =
   match p with
@@ -1283,7 +1302,7 @@ let print_ternary_primitive ppf p =
   | Bigarray_set (num_dimensions, kind, layout) ->
     fprintf ppf
       "@[(Bigarray_set (num_dimensions@ %d)@ (kind@ %a)@ (layout@ %a))@]"
-      num_dimensions print_bigarray_kind kind print_bigarray_layout layout
+      num_dimensions Bigarray_kind.print kind Bigarray_layout.print layout
 
 let args_kind_of_ternary_primitive p =
   match p with
@@ -1306,7 +1325,7 @@ let args_kind_of_ternary_primitive p =
   | Bytes_or_bigstring_set (Bigstring, Sixty_four) ->
     bigstring_kind, bytes_or_bigstring_index_kind, K.naked_int64
   | Bigarray_set (_, kind, _) ->
-    bigarray_kind, bigarray_index_kind, element_kind_of_bigarray_kind kind
+    bigarray_kind, bigarray_index_kind, Bigarray_kind.element_kind kind
 
 let result_kind_of_ternary_primitive p : result_kind =
   match p with

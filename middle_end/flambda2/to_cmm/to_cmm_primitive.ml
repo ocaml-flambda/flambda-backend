@@ -14,6 +14,8 @@
 
 module Env = To_cmm_env
 module Ece = Effects_and_coeffects
+module EO = Exported_offsets
+module K = Flambda_kind
 module P = Flambda_primitive
 
 (* Cmm helpers *)
@@ -25,19 +27,14 @@ end
 (* Closure offsets *)
 
 let function_slot_offset env function_slot =
-  match
-    Exported_offsets.function_slot_offset (Env.exported_offsets env)
-      function_slot
-  with
+  match EO.function_slot_offset (Env.exported_offsets env) function_slot with
   | Some res -> res
   | None ->
     Misc.fatal_errorf "Missing offset for function slot %a" Function_slot.print
       function_slot
 
 let value_slot_offset env value_slot =
-  match
-    Exported_offsets.value_slot_offset (Env.exported_offsets env) value_slot
-  with
+  match EO.value_slot_offset (Env.exported_offsets env) value_slot with
   | Some res -> res
   | None ->
     Misc.fatal_errorf "Missing offset for value slot %a" Value_slot.print
@@ -45,63 +42,50 @@ let value_slot_offset env value_slot =
 
 (* Boxed numbers *)
 
-let primitive_boxed_int_of_boxable_number b =
-  match (b : Flambda_kind.Boxable_number.t) with
-  | Naked_float -> assert false
-  | Naked_int32 -> Primitive.Pint32
-  | Naked_int64 -> Primitive.Pint64
-  | Naked_nativeint -> Primitive.Pnativeint
-
-let unbox_number ?(dbg = Debuginfo.none) kind arg =
-  match (kind : Flambda_kind.Boxable_number.t) with
+let unbox_number ~dbg kind arg =
+  match (kind : K.Boxable_number.t) with
   | Naked_float -> C.unbox_float dbg arg
   | Naked_int32 | Naked_int64 | Naked_nativeint ->
-    let primitive_kind = primitive_boxed_int_of_boxable_number kind in
+    let primitive_kind = K.Boxable_number.primitive_kind kind in
     C.unbox_int dbg primitive_kind arg
 
-let box_number ?(dbg = Debuginfo.none) kind alloc_mode arg =
+let box_number ~dbg kind alloc_mode arg =
   let alloc_mode = Alloc_mode.to_lambda alloc_mode in
-  match (kind : Flambda_kind.Boxable_number.t) with
+  match (kind : K.Boxable_number.t) with
   | Naked_float -> C.box_float dbg alloc_mode arg
   | Naked_int32 | Naked_int64 | Naked_nativeint ->
-    let primitive_kind = primitive_boxed_int_of_boxable_number kind in
+    let primitive_kind = K.Boxable_number.primitive_kind kind in
     C.box_int_gen dbg primitive_kind alloc_mode arg
 
 (* Block creation and access. For these functions, [index] is a tagged
    integer. *)
 
-(* Blocks of size 0 (i.e. with an empty list of fields) must be statically
-   allocated, else the GC will bug (cf `make_alloc_generic` in cmm_helpers.ml).
-   More precisely, blocks of size 0 must have a black header, which means they
-   must either be statically allocated, or be pointers to one of the cell of the
-   atom_table (see `startup_aux.c`).
+(* Blocks of size 0 (i.e. with an empty list of fields) must have a black
+   header, or the GC will fail (cf `make_alloc_generic` in cmm_helpers.ml).
+
+   This means they must either be statically allocated, or be pointers to one of
+   the entries of the atom_table (see `startup_aux.c`).
 
    Both `make_alloc` and `make_float_alloc` from `cmm_helpers.ml` already check
-   for that, but with an assertion, which do not produce helpful error
+   for that, but with an assertion, which does not produce helpful error
    messages. *)
 let check_alloc_fields = function
   | [] ->
     Misc.fatal_error
-      "Blocks dynamically allocated cannot have size 0 (empty arrays have to \
+      "Dynamically allocated blocks cannot have size 0 (empty arrays have to \
        be lifted so they can be statically allocated)"
   | _ -> ()
 
-let make_block ?(dbg = Debuginfo.none) kind alloc_mode args =
+let make_block ~dbg kind alloc_mode args =
   check_alloc_fields args;
-  match (kind : Flambda_primitive.Block_kind.t) with
-  | Values (tag, _) ->
-    C.make_alloc
-      ~mode:(Alloc_mode.to_lambda alloc_mode)
-      dbg (Tag.Scannable.to_int tag) args
+  let mode = Alloc_mode.to_lambda alloc_mode in
+  match (kind : P.Block_kind.t) with
+  | Values (tag, _) -> C.make_alloc ~mode dbg (Tag.Scannable.to_int tag) args
   | Naked_floats ->
-    C.make_float_alloc
-      ~mode:(Alloc_mode.to_lambda alloc_mode)
-      dbg
-      (Tag.to_int Tag.double_array_tag)
-      args
+    C.make_float_alloc ~mode dbg (Tag.to_int Tag.double_array_tag) args
 
-let block_load ?(dbg = Debuginfo.none) (kind : P.Block_access_kind.t)
-    (mutability : Mutability.t) block index =
+let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
+    ~block ~index =
   let mutability = Mutability.to_lambda mutability in
   match kind with
   | Values { field_kind = Any_value; _ } ->
@@ -110,152 +94,122 @@ let block_load ?(dbg = Debuginfo.none) (kind : P.Block_access_kind.t)
     C.get_field_computed Immediate mutability ~block ~index dbg
   | Naked_floats _ -> C.unboxed_float_array_ref block index dbg
 
-let block_set ?(dbg = Debuginfo.none) (kind : P.Block_access_kind.t)
-    (init : P.Init_or_assign.t) block index new_value =
+let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
+    ~block ~index ~new_value =
   let init_or_assign = P.Init_or_assign.to_lambda init in
-  match kind with
-  | Values { field_kind = Any_value; _ } ->
-    C.setfield_computed Pointer init_or_assign block index new_value dbg
-    |> C.return_unit dbg
-  | Values { field_kind = Immediate; _ } ->
-    C.setfield_computed Immediate init_or_assign block index new_value dbg
-    |> C.return_unit dbg
-  | Naked_floats _ ->
-    C.float_array_set block index new_value dbg |> C.return_unit dbg
+  let expr =
+    match kind with
+    | Values { field_kind = Any_value; _ } ->
+      C.setfield_computed Pointer init_or_assign block index new_value dbg
+    | Values { field_kind = Immediate; _ } ->
+      C.setfield_computed Immediate init_or_assign block index new_value dbg
+    | Naked_floats _ -> C.float_array_set block index new_value dbg
+  in
+  C.return_unit dbg expr
 
-(* Array creation and access. *)
+(* Array creation and access. For these functions, [index] is a tagged
+   integer. *)
 
-let make_array ?(dbg = Debuginfo.none) kind alloc_mode args =
+let make_array ~dbg kind alloc_mode args =
   check_alloc_fields args;
-  match (kind : Flambda_primitive.Array_kind.t) with
-  | Immediates | Values ->
-    C.make_alloc ~mode:(Alloc_mode.to_lambda alloc_mode) dbg 0 args
+  let mode = Alloc_mode.to_lambda alloc_mode in
+  match (kind : P.Array_kind.t) with
+  | Immediates | Values -> C.make_alloc ~mode dbg 0 args
   | Naked_floats ->
-    C.make_float_alloc
-      ~mode:(Alloc_mode.to_lambda alloc_mode)
-      dbg
-      (Tag.to_int Tag.double_array_tag)
-      args
+    C.make_float_alloc ~mode dbg (Tag.to_int Tag.double_array_tag) args
 
-let array_length ?(dbg = Debuginfo.none) arr =
+let array_length ~dbg arr =
   (* [Paddrarray] may be a lie sometimes, but we know for certain that the bit
      width of floats is equal to the machine word width (see flambda2.ml). This
      means that [arraylength] will not use the kind information. *)
   assert (C.wordsize_shift = C.numfloat_shift);
   C.arraylength Paddrarray arr dbg
 
-let array_load ?(dbg = Debuginfo.none) (kind : P.Array_kind.t) arr index =
+let array_load ~dbg (kind : P.Array_kind.t) ~arr ~index =
   match kind with
   | Immediates -> C.int_array_ref arr index dbg
   | Values -> C.addr_array_ref arr index dbg
   | Naked_floats -> C.unboxed_float_array_ref arr index dbg
 
-let addr_array_store init arr index value dbg =
+let addr_array_store init ~arr ~index ~new_value dbg =
   match (init : P.Init_or_assign.t) with
-  | Assignment Heap -> C.addr_array_set arr index value dbg
-  | Assignment Local -> C.addr_array_set_local arr index value dbg
-  | Initialization -> C.addr_array_initialize arr index value dbg
+  | Assignment Heap -> C.addr_array_set arr index new_value dbg
+  | Assignment Local -> C.addr_array_set_local arr index new_value dbg
+  | Initialization -> C.addr_array_initialize arr index new_value dbg
 
-let array_set ?(dbg = Debuginfo.none) (kind : P.Array_kind.t)
-    (init : P.Init_or_assign.t) arr index value =
-  match kind with
-  | Immediates -> C.return_unit dbg (C.int_array_set arr index value dbg)
-  | Values -> C.return_unit dbg (addr_array_store init arr index value dbg)
-  | Naked_floats -> C.return_unit dbg (C.float_array_set arr index value dbg)
+let array_set ~dbg (kind : P.Array_kind.t) (init : P.Init_or_assign.t) ~arr
+    ~index ~new_value =
+  let expr =
+    match kind with
+    | Immediates -> C.int_array_set arr index new_value dbg
+    | Values -> addr_array_store init ~arr ~index ~new_value dbg
+    | Naked_floats -> C.float_array_set arr index new_value dbg
+  in
+  C.return_unit dbg expr
 
-(* Bigarrays *)
+(* Bigarrays. For these functions, [index] is a tagged integer, representing the
+   desired position in the bigarray in units of the [elt_size] (so not
+   necessarily in bytes, words, etc). *)
 
-(* CR mshinwell: Add [Flambda_primitive.Bigarray_kind] and move this function
-   there *)
-let lambda_ba_kind k : Lambda.bigarray_kind =
-  match (k : Flambda_primitive.bigarray_kind) with
-  | Float32 -> Pbigarray_float32
-  | Float64 -> Pbigarray_float64
-  | Sint8 -> Pbigarray_sint8
-  | Uint8 -> Pbigarray_uint8
-  | Sint16 -> Pbigarray_sint16
-  | Uint16 -> Pbigarray_uint16
-  | Int32 -> Pbigarray_int32
-  | Int64 -> Pbigarray_int64
-  | Int_width_int -> Pbigarray_caml_int
-  | Targetint_width_int -> Pbigarray_native_int
-  | Complex32 -> Pbigarray_complex32
-  | Complex64 -> Pbigarray_complex64
-
-(* CR mshinwell: Document [offset] including tagging *)
-let bigarray_load ?(dbg = Debuginfo.none) kind ~bigarray ~offset =
-  let elt_kind = lambda_ba_kind kind in
+let bigarray_load_or_store ~dbg kind ~bigarray ~index f =
+  let elt_kind = P.Bigarray_kind.to_lambda kind in
   let elt_size = C.bigarray_elt_size_in_bytes elt_kind in
   let elt_chunk = C.bigarray_word_kind elt_kind in
-  C.bigarray_load ~dbg ~elt_kind ~elt_size ~elt_chunk ~bigarray ~offset
+  f ~dbg ~elt_kind ~elt_size ~elt_chunk ~bigarray ~index
 
-let bigarray_store ?(dbg = Debuginfo.none) kind ~bigarray ~offset ~new_value =
-  let elt_kind = lambda_ba_kind kind in
-  let elt_size = C.bigarray_elt_size_in_bytes elt_kind in
-  let elt_chunk = C.bigarray_word_kind elt_kind in
-  C.bigarray_store ~dbg ~elt_kind ~elt_size ~elt_chunk ~bigarray ~offset
-    ~new_value
+let bigarray_load ~dbg kind ~bigarray ~index =
+  bigarray_load_or_store ~dbg kind ~bigarray ~index C.bigarray_load
+
+let bigarray_store ~dbg kind ~bigarray ~index ~new_value =
+  bigarray_load_or_store ~dbg kind ~bigarray ~index
+    (C.bigarray_store ~new_value)
 
 (* String and bytes access. For these functions, [index] is a tagged integer. *)
 
-let string_like_load_aux ~dbg width ptr index =
-  match (width : Flambda_primitive.string_accessor_width) with
-  | Eight ->
-    let index = C.untag_int index dbg in
-    C.load ~dbg Byte_unsigned Mutable ~addr:(C.add_int ptr index dbg)
-  | Sixteen ->
-    let index = C.untag_int index dbg in
-    C.unaligned_load_16 ptr index dbg
-  | Thirty_two ->
-    let index = C.untag_int index dbg in
-    C.sign_extend_32 dbg (C.unaligned_load_32 ptr index dbg)
+let string_like_load_aux ~dbg width ~str ~index =
+  let index = C.untag_int index dbg in
+  match (width : P.string_accessor_width) with
+  | Eight -> C.load ~dbg Byte_unsigned Mutable ~addr:(C.add_int str index dbg)
+  | Sixteen -> C.unaligned_load_16 str index dbg
+  | Thirty_two -> C.sign_extend_32 dbg (C.unaligned_load_32 str index dbg)
   | Sixty_four ->
     if Target_system.is_32_bit
     then C.unsupported_32_bit ()
-    else
-      let index = C.untag_int index dbg in
-      C.unaligned_load_64 ptr index dbg
+    else C.unaligned_load_64 str index dbg
 
-let string_like_load ?(dbg = Debuginfo.none) kind width block index =
-  match (kind : Flambda_primitive.string_like_value) with
-  | String | Bytes -> string_like_load_aux ~dbg width block index
+let string_like_load ~dbg kind width ~str ~index =
+  match (kind : P.string_like_value) with
+  | String | Bytes -> string_like_load_aux ~dbg width ~str ~index
   | Bigstring ->
-    let ba_data_addr = C.field_address block 1 dbg in
+    let ba_data_addr = C.field_address str 1 dbg in
     let ba_data = C.load ~dbg Word_int Mutable ~addr:ba_data_addr in
-    C.bind "ba_data" ba_data (fun ptr ->
-        string_like_load_aux ~dbg width ptr index)
+    C.bind "ba_data" ba_data (fun str ->
+        string_like_load_aux ~dbg width ~str ~index)
 
-(* same as {string_like_load_aux} *)
-let bytes_like_set_aux ~dbg _kind width _block ptr idx value =
-  match (width : Flambda_primitive.string_accessor_width) with
+let bytes_or_bigstring_set_aux ~dbg width ~bytes ~index ~new_value =
+  let index = C.untag_int index dbg in
+  match (width : P.string_accessor_width) with
   | Eight ->
-    let idx = C.untag_int idx dbg in
-    C.store ~dbg Byte_unsigned Assignment ~addr:(C.add_int ptr idx dbg)
-      ~new_value:value
-  | Sixteen ->
-    let idx = C.untag_int idx dbg in
-    C.unaligned_set_16 ptr idx value dbg
-  | Thirty_two ->
-    let idx = C.untag_int idx dbg in
-    C.unaligned_set_32 ptr idx value dbg
+    let addr = C.add_int bytes index dbg in
+    C.store ~dbg Byte_unsigned Assignment ~addr ~new_value
+  | Sixteen -> C.unaligned_set_16 bytes index new_value dbg
+  | Thirty_two -> C.unaligned_set_32 bytes index new_value dbg
   | Sixty_four ->
     if Target_system.is_32_bit
     then C.unsupported_32_bit ()
-    else
-      let idx = C.untag_int idx dbg in
-      C.unaligned_set_64 ptr idx value dbg
+    else C.unaligned_set_64 bytes index new_value dbg
 
-let bytes_like_set ?(dbg = Debuginfo.none) kind width block index value =
-  match (kind : Flambda_primitive.bytes_like_value) with
-  | Bytes ->
-    C.return_unit dbg
-      (bytes_like_set_aux ~dbg kind width block block index value)
-  | Bigstring ->
-    let ba_data_addr = C.field_address block 1 dbg in
-    let ba_data = C.load ~dbg Word_int Mutable ~addr:ba_data_addr in
-    C.return_unit dbg
-      (C.bind "ba_data" ba_data (fun ptr ->
-           bytes_like_set_aux ~dbg kind width block ptr index value))
+let bytes_or_bigstring_set ~dbg kind width ~bytes ~index ~new_value =
+  let expr =
+    match (kind : P.bytes_like_value) with
+    | Bytes -> bytes_or_bigstring_set_aux ~dbg width ~bytes ~index ~new_value
+    | Bigstring ->
+      let addr = C.field_address bytes 1 dbg in
+      let ba_data = C.load ~dbg Word_int Mutable ~addr in
+      C.bind "ba_data" ba_data (fun bytes ->
+          bytes_or_bigstring_set_aux ~dbg width ~bytes ~index ~new_value)
+  in
+  C.return_unit dbg expr
 
 (* Handling of dead function and value slots *)
 
@@ -275,34 +229,31 @@ let dead_slots_msg dbg function_slots value_slots =
 
 (* Arithmetic primitives *)
 
-let primitive_boxed_int_of_standard_int x : Primitive.boxed_integer =
-  match (x : Flambda_kind.Standard_int.t) with
-  | Naked_int32 -> Pint32
-  | Naked_int64 -> Pint64
-  | Naked_nativeint -> Pnativeint
-  | Tagged_immediate | Naked_immediate -> assert false
-
 let unary_int_arith_primitive _env dbg kind op arg =
-  match (kind : Flambda_kind.Standard_int.t), (op : P.unary_int_arith_op) with
+  match (kind : K.Standard_int.t), (op : P.unary_int_arith_op) with
   | Tagged_immediate, Neg -> C.negint arg dbg
   | Tagged_immediate, Swap_byte_endianness ->
-    (* CR mshinwell for gbury: This could maybe cause a fatal error now? *)
-    let untagged = C.untag_int arg dbg in
-    let swapped = C.bswap16 untagged dbg in
-    C.tag_int swapped dbg
-  | Naked_immediate, Swap_byte_endianness -> C.bswap16 arg dbg
+    (* This isn't currently needed since [Lambda_to_flambda_primitives] always
+       untags the integer first. *)
+    Misc.fatal_error "Not yet implemented"
+  | Naked_immediate, Swap_byte_endianness ->
+    (* XXX Is this correct? mshinwell had an old note saying that this case
+       indeed should not be sign extended, but this needs checking *)
+    C.bswap16 arg dbg
   (* Special case for manipulating int64 on 32-bit hosts *)
   | Naked_int64, Neg when Target_system.is_32_bit -> C.unsupported_32_bit ()
   (* General case *)
-  | _, Neg -> C.sub_int (C.int ~dbg 0) arg dbg
-  (* Byte swap of 32-bits ints on 64-bit arch need a sign-extension *)
+  | Naked_int32, Neg when Target_system.is_64_bit ->
+    C.sign_extend_32 dbg (C.sub_int (C.int ~dbg 0) arg dbg)
+  | (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint), Neg ->
+    (* XXX is this correct for Naked_immediate? *)
+    C.sub_int (C.int ~dbg 0) arg dbg
+  (* Byte swaps of 32-bit integers on 64-bit targets need a sign-extension *)
   | Naked_int32, Swap_byte_endianness when Target_system.is_64_bit ->
-    let primitive_kind = primitive_boxed_int_of_standard_int kind in
-    C.sign_extend_32 dbg (C.bbswap primitive_kind arg dbg)
-  | _, Swap_byte_endianness ->
-    let primitive_kind = primitive_boxed_int_of_standard_int kind in
-    C.bbswap primitive_kind arg dbg
-  [@@ocaml.warning "-fragile-match"]
+    C.sign_extend_32 dbg (C.bbswap Pint32 arg dbg)
+  | Naked_int32, Swap_byte_endianness -> C.bbswap Pint32 arg dbg
+  | Naked_int64, Swap_byte_endianness -> C.bbswap Pint64 arg dbg
+  | Naked_nativeint, Swap_byte_endianness -> C.bbswap Pnativeint arg dbg
 
 let unary_float_arith_primitive _env dbg op arg =
   match (op : P.unary_float_arith_op) with
@@ -310,7 +261,8 @@ let unary_float_arith_primitive _env dbg op arg =
   | Neg -> C.float_neg ~dbg arg
 
 let arithmetic_conversion dbg src dst arg =
-  let open Flambda_kind.Standard_int_or_float in
+  (* XXX make sure there are no problems here with Naked_immediate *)
+  let open K.Standard_int_or_float in
   match src, dst with
   (* 64-bit on 32-bit host specific cases *)
   | Naked_int64, Tagged_immediate
@@ -331,7 +283,11 @@ let arithmetic_conversion dbg src dst arg =
     None, C.tag_int arg dbg
   | Tagged_immediate, (Naked_int64 | Naked_nativeint | Naked_immediate) ->
     Some (Env.Untag arg), C.untag_int arg dbg
-  (* Operations resulting in int32s must take care to sign_extend the res *)
+  (* Operations resulting in int32s must take care to sign extend the result *)
+  (* CR-someday xclerc: untag_int followed by sign_extend_32 sounds suboptimal,
+     as it performs asr 1; lsl 32; asr 32 while we could do lsl 31; asr 32
+     instead. (Beware of the optimizations / pattern matching in the helpers
+     though.) *)
   | Tagged_immediate, Naked_int32 ->
     None, C.sign_extend_32 dbg (C.untag_int arg dbg)
   | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Naked_int32
@@ -358,75 +314,108 @@ let arithmetic_conversion dbg src dst arg =
     None, C.sign_extend_32 dbg (C.int_of_float ~dbg arg)
 
 let binary_phys_comparison _env dbg kind op x y =
-  match (kind : Flambda_kind.t), (op : P.equality_comparison) with
-  (* int64 special case *)
+  match (kind : K.t), (op : P.equality_comparison) with
+  (* int64 special case on 32-bit platforms *)
   | (Naked_number Naked_int64, Eq | Naked_number Naked_int64, Neq)
     when Target_system.is_32_bit ->
     C.unsupported_32_bit ()
   (* General case *)
-  | _, Eq -> C.eq ~dbg x y
-  | _, Neq -> C.neq ~dbg x y
-  [@@ocaml.warning "-fragile-match"]
+  | ( ( Value
+      | Naked_number
+          ( Naked_float | Naked_int32 | Naked_int64 | Naked_nativeint
+          | Naked_immediate ) ),
+      Eq ) ->
+    C.eq ~dbg x y
+  | (Value | Naked_number _), Neq -> C.neq ~dbg x y
+  | (Region | Rec_info), _ ->
+    Misc.fatal_errorf "Invalid kind %a for binary_phys_comparison" K.print kind
 
-let binary_int_arith_primitive _env dbg kind op x y =
-  match (kind : Flambda_kind.Standard_int.t), (op : P.binary_int_arith_op) with
-  (* Int64 bits ints on 32-bit archs *)
-  | Naked_int64, Add
-  | Naked_int64, Sub
-  | Naked_int64, Mul
-  | Naked_int64, Div
-  | Naked_int64, Mod
-  | Naked_int64, And
-  | Naked_int64, Or
-  | Naked_int64, Xor
+let binary_int_arith_primitive0 _env dbg (kind : K.Standard_int.t)
+    (op : P.binary_int_arith_op) x y =
+  match kind with
+  | Tagged_immediate -> (
+    match op with
+    | Add -> C.add_int_caml x y dbg
+    | Sub -> C.sub_int_caml x y dbg
+    | Mul -> C.mul_int_caml x y dbg
+    | Div -> C.div_int_caml Unsafe x y dbg
+    | Mod -> C.mod_int_caml Unsafe x y dbg
+    | And -> C.and_int_caml x y dbg
+    | Or -> C.or_int_caml x y dbg
+    | Xor -> C.xor_int_caml x y dbg)
+  | Naked_int32 -> (
+    (* Operations on 32-bit integer arguments must return something in the range
+       of 32-bit integers, hence the sign_extensions here. The [C.low_32]
+       operations (see above in [sign_extend_32_can_delay_overflow]) are used to
+       avoid unnecessary sign extensions, e.g. when chaining additions together.
+       Also see comment below about [C.low_32] in the [Div] and [Mod] cases. *)
+    let sign_extend_32_can_delay_overflow f =
+      C.sign_extend_32 dbg (f (C.low_32 dbg x) (C.low_32 dbg y) dbg)
+    in
+    match op with
+    | Add -> sign_extend_32_can_delay_overflow C.add_int
+    | Sub -> sign_extend_32_can_delay_overflow C.sub_int
+    | Mul -> sign_extend_32_can_delay_overflow C.mul_int
+    | Xor -> sign_extend_32_can_delay_overflow C.xor_int
+    | And -> sign_extend_32_can_delay_overflow C.and_int
+    | Or -> sign_extend_32_can_delay_overflow C.or_int
+    | Div ->
+      (* Note that it would be wrong to apply [C.low_32] to [x] and/or [y] here
+         -- likewise in the next [Mod] case. [C.safe_div_bi] and [C.safe_mod_bi]
+         require sign-extended input for both the numerator and denominator.
+
+         Some background: The problem arises in cases like: (num1 * num2) /
+         num3. If an overflow occurs in the multiplication, then we must deal
+         with it by sign-extending before the division. Whereas (num1 * num2) *
+         num3 can delay the sign-extension until the very end, even in the case
+         of overflow in the middle. So in a way, div and mod are regular
+         functions, while all the others are special as they can delay overflow
+         handling.
+
+         We don't have 32-bit registers in Cmm, so sign extension really means
+         modulo 2^31. (If we had 32-bit virtual registers, we could use them in
+         Cmm without sign extension and let the backend insert sign extensions
+         if it doesn't support operations on 32-bit physical registers. There
+         was a prototype developed of this but it was quite complicated and
+         didn't get merged.) *)
+      C.sign_extend_32 dbg (C.safe_div_bi Unsafe x y Pint32 dbg)
+    | Mod -> C.sign_extend_32 dbg (C.safe_mod_bi Unsafe x y Pint32 dbg))
+  | Naked_int64 | Naked_nativeint | Naked_immediate -> (
+    (* Machine-width integers, no sign extension required. *)
+    let bi : Primitive.boxed_integer =
+      match kind with
+      | Naked_int64 -> Pint64
+      | Naked_nativeint -> Pnativeint
+      | Naked_immediate -> Pint64 (* TEMPORARY until PR696 merged *)
+      | Naked_int32 | Tagged_immediate -> assert false
+    in
+    (* XXX this is wrong for Naked_immediate ("TBD" case also needs fixing
+       above) *)
+    match op with
+    | Add -> C.add_int x y dbg
+    | Sub -> C.sub_int x y dbg
+    | Mul -> C.mul_int x y dbg
+    | And -> C.and_int x y dbg
+    | Or -> C.or_int x y dbg
+    | Xor -> C.xor_int x y dbg
+    | Div -> C.safe_div_bi Unsafe x y bi dbg
+    | Mod -> C.safe_mod_bi Unsafe x y bi dbg)
+
+(* Temporary wrapper until the PR for removing 32-bit support is done, to permit
+   refactoring of the above function *)
+let binary_int_arith_primitive env dbg kind op x y =
+  match (kind : K.Standard_int.t), (op : P.binary_int_arith_op) with
+  (* 64-bit ints on 32-bit archs *)
+  | Naked_int64, (Add | Sub | Mul | Div | Mod | And | Or | Xor)
     when Target_system.is_32_bit ->
     C.unsupported_32_bit ()
-  (* Tagged integers *)
-  | Tagged_immediate, Add -> C.add_int_caml x y dbg
-  | Tagged_immediate, Sub -> C.sub_int_caml x y dbg
-  | Tagged_immediate, Mul -> C.mul_int_caml x y dbg
-  | Tagged_immediate, Div -> C.div_int_caml Unsafe x y dbg
-  | Tagged_immediate, Mod -> C.mod_int_caml Unsafe x y dbg
-  | Tagged_immediate, And -> C.and_int_caml x y dbg
-  | Tagged_immediate, Or -> C.or_int_caml x y dbg
-  | Tagged_immediate, Xor -> C.xor_int_caml x y dbg
-  (* Operations on 32-bits integers arguments must return something in the range
-     of 32-bits integers, hence the sign_extensions here *)
-  | Naked_int32, Add ->
-    C.sign_extend_32 dbg (C.add_int (C.low_32 dbg x) (C.low_32 dbg y) dbg)
-  | Naked_int32, Sub ->
-    C.sign_extend_32 dbg (C.sub_int (C.low_32 dbg x) (C.low_32 dbg y) dbg)
-  | Naked_int32, Mul ->
-    C.sign_extend_32 dbg (C.mul_int (C.low_32 dbg x) (C.low_32 dbg y) dbg)
-  | Naked_int32, Xor ->
-    C.sign_extend_32 dbg (C.xor_int (C.low_32 dbg x) (C.low_32 dbg y) dbg)
-  | Naked_int32, And ->
-    C.sign_extend_32 dbg (C.and_int (C.low_32 dbg x) (C.low_32 dbg y) dbg)
-  | Naked_int32, Or ->
-    C.sign_extend_32 dbg (C.or_int (C.low_32 dbg x) (C.low_32 dbg y) dbg)
-  (* Naked ints *)
-  | (Naked_int64 | Naked_nativeint | Naked_immediate), Add -> C.add_int x y dbg
-  | (Naked_int64 | Naked_nativeint | Naked_immediate), Sub -> C.sub_int x y dbg
-  | (Naked_int64 | Naked_nativeint | Naked_immediate), Mul -> C.mul_int x y dbg
-  | (Naked_int64 | Naked_nativeint | Naked_immediate), And -> C.and_int x y dbg
-  | (Naked_int64 | Naked_nativeint | Naked_immediate), Or -> C.or_int x y dbg
-  | (Naked_int64 | Naked_nativeint | Naked_immediate), Xor -> C.xor_int x y dbg
-  (* Division and modulo need some extra care *)
-  | (Naked_int64 | Naked_nativeint | Naked_immediate), Div ->
-    let bi = primitive_boxed_int_of_standard_int kind in
-    C.safe_div_bi Unsafe x y bi dbg
-  | (Naked_int64 | Naked_nativeint | Naked_immediate), Mod ->
-    let bi = primitive_boxed_int_of_standard_int kind in
-    C.safe_mod_bi Unsafe x y bi dbg
-  | Naked_int32, Div ->
-    let bi = primitive_boxed_int_of_standard_int kind in
-    C.sign_extend_32 dbg (C.safe_div_bi Unsafe x y bi dbg)
-  | Naked_int32, Mod ->
-    let bi = primitive_boxed_int_of_standard_int kind in
-    C.sign_extend_32 dbg (C.safe_mod_bi Unsafe x y bi dbg)
+  | ( ( Tagged_immediate | Naked_int32 | Naked_int64 | Naked_nativeint
+      | Naked_immediate ),
+      (Add | Sub | Mul | Div | Mod | And | Or | Xor) ) ->
+    binary_int_arith_primitive0 env dbg kind op x y
 
 let binary_int_shift_primitive _env dbg kind op x y =
-  match (kind : Flambda_kind.Standard_int.t), (op : P.int_shift_op) with
+  match (kind : K.Standard_int.t), (op : P.int_shift_op) with
   (* Int64 special case *)
   | Naked_int64, Lsl when Target_system.is_32_bit ->
     C.unsupported_32_bit ()
@@ -440,21 +429,66 @@ let binary_int_shift_primitive _env dbg kind op x y =
   | Tagged_immediate, Lsl -> C.lsl_int_caml_raw ~dbg x y
   | Tagged_immediate, Lsr -> C.lsr_int_caml_raw ~dbg x y
   | Tagged_immediate, Asr -> C.asr_int_caml_raw ~dbg x y
-  (* Operations on 32-bits integers need to ensure their result are within the
-     32-bit range, hence the sign_extension. *)
+  (* See comments on [binary_int_arity_primitive], above, about sign extension
+     and use of [C.low_32]. *)
   | Naked_int32, Lsl -> C.sign_extend_32 dbg (C.lsl_int (C.low_32 dbg x) y dbg)
   | Naked_int32, Lsr ->
-    let arg = if Target_system.is_64_bit then C.zero_extend_32 dbg x else x in
+    let arg =
+      if Target_system.is_64_bit
+      then
+        (* Ensure that the top half of the register is cleared, as some of those
+           bits are likely to get shifted into the result. *)
+        C.zero_extend_32 dbg x
+      else x
+    in
     C.sign_extend_32 dbg (C.lsr_int arg y dbg)
   | Naked_int32, Asr -> C.sign_extend_32 dbg (C.asr_int x y dbg)
   (* Naked ints *)
+  (* XXX wrong for Naked_immediate *)
   | (Naked_int64 | Naked_nativeint | Naked_immediate), Lsl -> C.lsl_int x y dbg
   | (Naked_int64 | Naked_nativeint | Naked_immediate), Lsr -> C.lsr_int x y dbg
   | (Naked_int64 | Naked_nativeint | Naked_immediate), Asr -> C.asr_int x y dbg
 
-let binary_int_comp_primitive _env dbg kind signed cmp x y =
+let binary_int_comp_primitive0 _env dbg (kind : K.Standard_int.t)
+    (signed : P.signed_or_unsigned) (cmp : P.ordered_comparison) x y =
+  match kind with
+  | Tagged_immediate -> (
+    match signed, cmp with
+    (* [x] and [y] are expressions yielding well-formed tagged immediates, that
+       is to say, their least significant bit (LSB) is 1. However when comparing
+       tagged immediates, there always exists one argument (i.e. either [x] or
+       [y]) for which the setting of that LSB makes no difference to the result.
+       This means that we can optimise in the case where the argument in
+       question contains a tagging operation (or logical OR operation setting
+       the last bit) by removing such operation.
+
+       See middle_end/flambda2/z3/comparisons.smt2 for a Z3 script to prove
+       this. *)
+    | Signed, Lt -> C.lt ~dbg x (C.ignore_low_bit_int y)
+    | Signed, Le -> C.le ~dbg (C.ignore_low_bit_int x) y
+    | Signed, Gt -> C.gt ~dbg (C.ignore_low_bit_int x) y
+    | Signed, Ge -> C.ge ~dbg x (C.ignore_low_bit_int y)
+    | Unsigned, Lt -> C.ult ~dbg x (C.ignore_low_bit_int y)
+    | Unsigned, Le -> C.ule ~dbg (C.ignore_low_bit_int x) y
+    | Unsigned, Gt -> C.ugt ~dbg (C.ignore_low_bit_int x) y
+    | Unsigned, Ge -> C.uge ~dbg x (C.ignore_low_bit_int y))
+  | Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate -> (
+    (* XXX check if this is right for Naked_immediate *)
+    match signed, cmp with
+    | Signed, Lt -> C.lt ~dbg x y
+    | Signed, Le -> C.le ~dbg x y
+    | Signed, Gt -> C.gt ~dbg x y
+    | Signed, Ge -> C.ge ~dbg x y
+    | Unsigned, Lt -> C.ult ~dbg x y
+    | Unsigned, Le -> C.ule ~dbg x y
+    | Unsigned, Gt -> C.ugt ~dbg x y
+    | Unsigned, Ge -> C.uge ~dbg x y)
+
+(* Temporary wrapper until the PR for removing 32-bit support is done, to permit
+   refactoring of the above function *)
+let binary_int_comp_primitive env dbg kind signed cmp x y =
   match
-    ( (kind : Flambda_kind.Standard_int.t),
+    ( (kind : K.Standard_int.t),
       (signed : P.signed_or_unsigned),
       (cmp : P.ordered_comparison) )
   with
@@ -467,54 +501,11 @@ let binary_int_comp_primitive _env dbg kind signed cmp x y =
     when Target_system.is_32_bit ->
     C.unsupported_32_bit ()
   (* There are no runtime C functions to do that afaict *)
-  (* Tagged integers *)
-  (* When comparing tagged integers, there is always one number for which the
-     last bit is irrelevant.
-
-     For x < y, ignoring the last bit of y will not change the result, as if x
-     and y are different (as OCaml integers) then the comparison doesn't need to
-     see the last bit, and if they are equal then if the last bit of x is one
-     (as it is supposed to be) the result will be false for both values of the
-     last bit of y, as expected.
-
-     The same reasoning applies to the other comparisons. *)
-  | Tagged_immediate, Signed, Lt -> C.lt ~dbg x (C.ignore_low_bit_int y)
-  | Tagged_immediate, Signed, Le -> C.le ~dbg (C.ignore_low_bit_int x) y
-  | Tagged_immediate, Signed, Gt -> C.gt ~dbg (C.ignore_low_bit_int x) y
-  | Tagged_immediate, Signed, Ge -> C.ge ~dbg x (C.ignore_low_bit_int y)
-  | Tagged_immediate, Unsigned, Lt -> C.ult ~dbg x (C.ignore_low_bit_int y)
-  | Tagged_immediate, Unsigned, Le -> C.ule ~dbg (C.ignore_low_bit_int x) y
-  | Tagged_immediate, Unsigned, Gt -> C.ugt ~dbg (C.ignore_low_bit_int x) y
-  | Tagged_immediate, Unsigned, Ge -> C.uge ~dbg x (C.ignore_low_bit_int y)
-  (* Naked integers. *)
-  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Signed, Lt
-    ->
-    C.lt ~dbg x y
-  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Signed, Le
-    ->
-    C.le ~dbg x y
-  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Signed, Gt
-    ->
-    C.gt ~dbg x y
-  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Signed, Ge
-    ->
-    C.ge ~dbg x y
-  | ( (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate),
-      Unsigned,
-      Lt ) ->
-    C.ult ~dbg x y
-  | ( (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate),
-      Unsigned,
-      Le ) ->
-    C.ule ~dbg x y
-  | ( (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate),
-      Unsigned,
-      Gt ) ->
-    C.ugt ~dbg x y
-  | ( (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate),
-      Unsigned,
-      Ge ) ->
-    C.uge ~dbg x y
+  | ( ( Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate
+      | Tagged_immediate ),
+      (Signed | Unsigned),
+      (Lt | Le | Gt | Ge) ) ->
+    binary_int_comp_primitive0 env dbg kind signed cmp x y
 
 let binary_int_comp_primitive_yielding_int _env dbg _kind
     (signed : P.signed_or_unsigned) x y =
@@ -554,12 +545,7 @@ let nullary_primitive _env dbg prim : _ * Cmm.expression =
 
 let unary_primitive env res dbg f arg =
   match (f : P.unary_primitive) with
-  | Duplicate_array _ ->
-    ( None,
-      res,
-      C.extcall ~dbg ~alloc:true ~returns:true ~is_c_builtin:false ~ty_args:[]
-        "caml_obj_dup" Cmm.typ_val [arg] )
-  | Duplicate_block _ ->
+  | Duplicate_array _ | Duplicate_block _ ->
     ( None,
       res,
       C.extcall ~dbg ~alloc:true ~returns:true ~is_c_builtin:false ~ty_args:[]
@@ -589,25 +575,26 @@ let unary_primitive env res dbg f arg =
     ( None,
       res,
       C.extcall ~dbg ~alloc:false ~returns:true ~is_c_builtin:false
-        ~ty_args:[C.exttype_of_kind Flambda_kind.naked_int64]
+        ~ty_args:[C.exttype_of_kind K.naked_int64]
         "caml_int64_float_of_bits_unboxed" Cmm.typ_float [arg] )
   | Unbox_number kind -> None, res, unbox_number ~dbg kind arg
   | Untag_immediate -> Some (Env.Untag arg), res, C.untag_int arg dbg
   | Box_number (kind, alloc_mode) ->
     Some Env.Boxed_number, res, box_number ~dbg kind alloc_mode arg
   | Tag_immediate ->
-    (* We could have an [Env.Tag] which would be returned here, but probably
-       unnecessary at the moment. *)
+    (* We could return [Env.Tag] here, but probably unnecessary at the
+       moment. *)
     None, res, C.tag_int arg dbg
   | Project_function_slot { move_from = c1; move_to = c2 } -> (
     match function_slot_offset env c1, function_slot_offset env c2 with
     | ( Live_function_slot { offset = c1_offset; _ },
         Live_function_slot { offset = c2_offset; _ } ) ->
+      (* Normal case. *)
       let diff = c2_offset - c1_offset in
       None, res, C.infix_field_address ~dbg arg diff
-    (* one of the ids has been marked as dead, the code should be
-       unreachable. *)
     | Dead_function_slot, Live_function_slot _ ->
+      (* Code whose projections involve dead slots (ones that have been removed)
+         should be unreachable. *)
       let message = dead_slots_msg dbg [c1] [] in
       let expr, res = C.invalid res ~message in
       None, res, expr
@@ -623,11 +610,8 @@ let unary_primitive env res dbg f arg =
     match
       value_slot_offset env value_slot, function_slot_offset env project_from
     with
-    (* Normal case: we have offsets for everything *)
     | Live_value_slot { offset }, Live_function_slot { offset = base; _ } ->
       None, res, C.get_field_gen Asttypes.Immutable arg (offset - base) dbg
-    (* the value slot and/or function slot has been explicitly removed, the code
-       is unreachable *)
     | Dead_value_slot, Live_function_slot _ ->
       let message = dead_slots_msg dbg [] [value_slot] in
       let expr, res = C.invalid res ~message in
@@ -658,12 +642,12 @@ let unary_primitive env res dbg f arg =
 
 let binary_primitive env dbg f x y =
   match (f : P.binary_primitive) with
-  | Block_load (kind, mut) -> block_load ~dbg kind mut x y
-  | Array_load (kind, _mut) -> array_load ~dbg kind x y
+  | Block_load (kind, mut) -> block_load ~dbg kind mut ~block:x ~index:y
+  | Array_load (kind, _mut) -> array_load ~dbg kind ~arr:x ~index:y
   | String_or_bigstring_load (kind, width) ->
-    string_like_load ~dbg kind width x y
+    string_like_load ~dbg kind width ~str:x ~index:y
   | Bigarray_load (_dimensions, kind, _layout) ->
-    bigarray_load ~dbg kind ~bigarray:x ~offset:y
+    bigarray_load ~dbg kind ~bigarray:x ~index:y
   | Phys_equal (kind, op) -> binary_phys_comparison env dbg kind op x y
   | Int_arith (kind, op) -> binary_int_arith_primitive env dbg kind op x y
   | Int_shift (kind, op) -> binary_int_shift_primitive env dbg kind op x y
@@ -679,11 +663,14 @@ let binary_primitive env dbg f x y =
 
 let ternary_primitive _env dbg f x y z =
   match (f : P.ternary_primitive) with
-  | Block_set (block_access, init) -> block_set ~dbg block_access init x y z
-  | Array_set (array_kind, init) -> array_set ~dbg array_kind init x y z
-  | Bytes_or_bigstring_set (kind, width) -> bytes_like_set ~dbg kind width x y z
+  | Block_set (block_access, init) ->
+    block_set ~dbg block_access init ~block:x ~index:y ~new_value:z
+  | Array_set (array_kind, init) ->
+    array_set ~dbg array_kind init ~arr:x ~index:y ~new_value:z
+  | Bytes_or_bigstring_set (kind, width) ->
+    bytes_or_bigstring_set ~dbg kind width ~bytes:x ~index:y ~new_value:z
   | Bigarray_set (_dimensions, kind, _layout) ->
-    bigarray_store ~dbg kind ~bigarray:x ~offset:y ~new_value:z
+    bigarray_store ~dbg kind ~bigarray:x ~index:y ~new_value:z
 
 let variadic_primitive _env dbg f args =
   match (f : P.variadic_primitive) with

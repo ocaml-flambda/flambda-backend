@@ -145,6 +145,9 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
      [@@@flambda_o3] attribute. *)
   if Flambda_features.classic_mode () then Clflags.use_linscan := true;
   Misc.Color.setup (Flambda_features.colour ());
+  (* CR-someday mshinwell: Note for future WebAssembly work: this thing about
+     the length of arrays will need fixing, I don't think it only applies to the
+     Cmm translation. *)
   (* When the float array optimisation is enabled, the length of an array needs
      to be computed differently according to the array kind, in the case where
      the width of a float is not equal to the machine word width (at present,

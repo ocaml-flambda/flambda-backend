@@ -158,26 +158,35 @@ type equality_comparison =
   | Eq
   | Neq
 
-type bigarray_kind =
-  (* | Unknown *)
-  | Float32
-  | Float64
-  | Sint8
-  | Uint8
-  | Sint16
-  | Uint16
-  | Int32
-  | Int64
-  | Int_width_int
-  | Targetint_width_int
-  | Complex32
-  | Complex64
+module Bigarray_kind : sig
+  type t =
+    | Float32
+    | Float64
+    | Sint8
+    | Uint8
+    | Sint16
+    | Uint16
+    | Int32
+    | Int64
+    | Int_width_int
+    | Targetint_width_int
+    | Complex32
+    | Complex64
 
-val element_kind_of_bigarray_kind : bigarray_kind -> Flambda_kind.t
+  val element_kind : t -> Flambda_kind.t
 
-type bigarray_layout =
-  | (* Unknown | *) C
-  | Fortran
+  val from_lambda : Lambda.bigarray_kind -> t option
+
+  val to_lambda : t -> Lambda.bigarray_kind
+end
+
+module Bigarray_layout : sig
+  type t =
+    | C
+    | Fortran
+
+  val from_lambda : Lambda.bigarray_layout -> t option
+end
 
 type string_accessor_width =
   | Eight
@@ -340,7 +349,7 @@ type binary_primitive =
   | Block_load of Block_access_kind.t * Mutability.t
   | Array_load of Array_kind.t * Mutability.t
   | String_or_bigstring_load of string_like_value * string_accessor_width
-  | Bigarray_load of num_dimensions * bigarray_kind * bigarray_layout
+  | Bigarray_load of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
   | Phys_equal of Flambda_kind.t * equality_comparison
   | Int_arith of Flambda_kind.Standard_int.t * binary_int_arith_op
   | Int_shift of Flambda_kind.Standard_int.t * int_shift_op
@@ -356,7 +365,7 @@ type ternary_primitive =
   | Block_set of Block_access_kind.t * Init_or_assign.t
   | Array_set of Array_kind.t * Init_or_assign.t
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
-  | Bigarray_set of num_dimensions * bigarray_kind * bigarray_layout
+  | Bigarray_set of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
 
 (** Primitives taking zero or more arguments. *)
 type variadic_primitive =
@@ -498,8 +507,3 @@ val equal_binary_primitive : binary_primitive -> binary_primitive -> bool
 val equal_ternary_primitive : ternary_primitive -> ternary_primitive -> bool
 
 val equal_variadic_primitive : variadic_primitive -> variadic_primitive -> bool
-
-val bigarray_kind_from_lambda : Lambda.bigarray_kind -> bigarray_kind option
-
-val bigarray_layout_from_lambda :
-  Lambda.bigarray_layout -> bigarray_layout option

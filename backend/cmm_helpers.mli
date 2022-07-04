@@ -1120,7 +1120,7 @@ val bigarray_load :
   elt_size:int ->
   elt_chunk:memory_chunk ->
   bigarray:expression ->
-  offset:expression ->
+  index:expression ->
   expression
 
 val bigarray_store :
@@ -1129,7 +1129,7 @@ val bigarray_store :
   elt_size:int ->
   elt_chunk:memory_chunk ->
   bigarray:expression ->
-  offset:expression ->
+  index:expression ->
   new_value:expression ->
   expression
 

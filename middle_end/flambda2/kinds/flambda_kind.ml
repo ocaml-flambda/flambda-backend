@@ -228,6 +228,13 @@ module Boxable_number = struct
     | Naked_int64 -> Naked_number Naked_int64
     | Naked_nativeint -> Naked_number Naked_nativeint
 
+  let primitive_kind t : Primitive.boxed_integer =
+    match t with
+    | Naked_float -> assert false
+    | Naked_int32 -> Pint32
+    | Naked_int64 -> Pint64
+    | Naked_nativeint -> Pnativeint
+
   include Container_types.Make (struct
     type nonrec t = t
 
