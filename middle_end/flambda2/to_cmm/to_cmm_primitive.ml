@@ -12,7 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-
 module Env = To_cmm_env
 module Ece = Effects_and_coeffects
 module EO = Exported_offsets
