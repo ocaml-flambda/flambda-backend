@@ -32,3 +32,10 @@ let () =
 
 
 let dont_warn_with_partial_match None x = x
+
+let dont_warn_when_disabled {a} b = a + b
+[@@warning "-68"]
+
+let do_warn_when_enabled {a} b = a + b
+[@@warning "+68"]
+
