@@ -99,7 +99,6 @@
 (install
   (files
 ;    (odoc_byte.bc as ocamldoc.byte)
-    (odoc_native.exe as ocamldoc)
     (odoc_native.exe as ocamldoc.opt))
   (section bin)
   (package ocaml))
