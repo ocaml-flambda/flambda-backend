@@ -16,7 +16,8 @@
 
 open! Flambda.Import
 
-type resolver = Compilation_unit.t -> Flambda2_types.Typing_env.t option
+type resolver =
+  Compilation_unit.t -> Flambda2_types.Typing_env.Serializable.t option
 
 type get_imported_names = unit -> Name.Set.t
 
@@ -41,7 +42,8 @@ val create :
 
 val all_code : t -> Code.t Code_id.Map.t
 
-val resolver : t -> Compilation_unit.t -> Flambda2_types.Typing_env.t option
+val resolver :
+  t -> Compilation_unit.t -> Flambda2_types.Typing_env.Serializable.t option
 
 val propagating_float_consts : t -> bool
 

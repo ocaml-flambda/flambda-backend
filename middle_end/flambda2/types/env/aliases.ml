@@ -371,7 +371,7 @@ type t =
 
 let [@ocamlformat "disable"] print ppf
     { canonical_elements; aliases_of_canonical_names;
-      aliases_of_consts; }=
+      aliases_of_consts }=
   let print_element_and_coercion ppf (elt, coercion) =
     Format.fprintf ppf "@[<hov 1>(\
                         %a@ \
@@ -1027,32 +1027,6 @@ let apply_renaming
   in
   { canonical_elements; aliases_of_canonical_names; aliases_of_consts }
 
-let merge t1 t2 =
-  let canonical_elements =
-    Name.Map.disjoint_union t1.canonical_elements t2.canonical_elements
-  in
-  (* This function should only be called on structures that have gone through
-     [clean_for_export]. *)
-  (if Flambda_features.check_invariants ()
-  then
-    let empty_maps =
-      Name.Map.is_empty t1.aliases_of_canonical_names
-      && Reg_width_const.Map.is_empty t1.aliases_of_consts
-      && Name.Map.is_empty t2.aliases_of_canonical_names
-      && Reg_width_const.Map.is_empty t2.aliases_of_consts
-    in
-    if empty_maps
-    then ()
-    else
-      Misc.fatal_errorf
-        "Aliases.merge: at least one of the inputs has an unexpected non-empty \
-         field.@.t1: %a@.t2: %a@."
-        print t1 print t2);
-  { canonical_elements;
-    aliases_of_canonical_names = Name.Map.empty;
-    aliases_of_consts = Reg_width_const.Map.empty
-  }
-
 let get_canonical_ignoring_name_mode t name =
   let elt = Simple.name name in
   match canonical t elt with
@@ -1060,26 +1034,3 @@ let get_canonical_ignoring_name_mode t name =
   | Alias_of_canonical { canonical_element; coercion_to_canonical } ->
     let coercion_from_canonical = Coercion.inverse coercion_to_canonical in
     Simple.apply_coercion_exn canonical_element coercion_from_canonical
-
-let clean_for_export
-    { canonical_elements;
-      aliases_of_canonical_names = _;
-      aliases_of_consts = _
-    } ~reachable_names =
-  (* From this point, the structure will only be used for looking up names that
-     are defined in this compilation unit. No new aliases will be added, name
-     modes have become irrelevant (Typing_env takes care of setting the mode to
-     In_types for imported variables), so all we really need to keep is the
-     [canonical_elements] map, and we further restrict the map to names that are
-     not imported. *)
-  let canonical_elements =
-    Name.Map.filter
-      (fun name _canonical_and_coercion_to_canonical ->
-        (not (Name.is_imported name))
-        && Name_occurrences.mem_name reachable_names name)
-      canonical_elements
-  in
-  { canonical_elements;
-    aliases_of_canonical_names = Name.Map.empty;
-    aliases_of_consts = Reg_width_const.Map.empty
-  }

@@ -21,7 +21,8 @@ module BP = Bound_parameter
 module T = Flambda2_types
 module TE = Flambda2_types.Typing_env
 
-type resolver = Compilation_unit.t -> Flambda2_types.Typing_env.t option
+type resolver =
+  Compilation_unit.t -> Flambda2_types.Typing_env.Serializable.t option
 
 type get_imported_names = unit -> Name.Set.t
 

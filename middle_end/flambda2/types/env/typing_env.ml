@@ -82,7 +82,7 @@ module One_level = struct
 end
 
 type t =
-  { resolver : Compilation_unit.t -> t option;
+  { resolver : Compilation_unit.t -> serializable option;
     binding_time_resolver : Name.t -> Binding_time.With_name_mode.t;
     get_imported_names : unit -> Name.Set.t;
     defined_symbols : Symbol.Set.t;
@@ -91,6 +91,12 @@ type t =
     current_level : One_level.t;
     next_binding_time : Binding_time.t;
     min_binding_time : Binding_time.t (* Earlier variables have mode In_types *)
+  }
+
+and serializable =
+  { defined_symbols_without_equations : Symbol.t list;
+    code_age_relation : Code_age_relation.t;
+    just_after_level : Cached_level.t
   }
 
 type typing_env = t
@@ -132,6 +138,21 @@ let [@ocamlformat "disable"] print ppf
       (Scope.Map.print (One_level.print ~min_binding_time))
       levels
       Aliases.print (aliases t)
+
+let [@ocamlformat "disable"] print_serializable ppf
+    { defined_symbols_without_equations; code_age_relation; just_after_level } =
+  Format.fprintf ppf
+    "@[<hov 1>(\
+        @[<hov 1>(defined_symbols_without_equations@ (%a))@]@ \
+        @[<hov 1>(code_age_relation@ %a)@]@ \
+        @[<hov 1>(type_equations@ %a)@]@ \
+        @[<hov 1>(aliases@ %a)@]\
+        )@]"
+    (Format.pp_print_list ~pp_sep:Format.pp_print_space Symbol.print) defined_symbols_without_equations
+    Code_age_relation.print code_age_relation
+    (Name.Map.print (fun ppf (ty, _bt_and_mode) -> TG.print ppf ty))
+    (Cached_level.names_to_types just_after_level)
+    Aliases.print (Cached_level.aliases just_after_level)
 
 module Meet_env = struct
   type t =
@@ -246,10 +267,12 @@ let binding_time_resolver resolver name =
       (Printexc.raw_backtrace_to_string (Printexc.get_raw_backtrace ()))
   | None -> raise Binding_time_resolver_failure
   | Some t -> (
-    match Name.Map.find name (names_to_types t) with
+    match
+      Name.Map.find name (Cached_level.names_to_types t.just_after_level)
+    with
     | exception Not_found ->
       Misc.fatal_errorf "Binding time resolver cannot find name %a in:@ %a"
-        Name.print name print t
+        Name.print name print_serializable t
     | _, binding_time_and_mode -> binding_time_and_mode)
 
 let invariant0 ?force _t =
@@ -379,29 +402,30 @@ let find_with_binding_time_and_mode' t name kind =
               MTC.unknown kind, Binding_time.With_name_mode.imported_variables
             | None -> raise Missing_cmx_and_kind)
       | Some t -> (
-        match Name.Map.find name (names_to_types t) with
+        match
+          Name.Map.find name (Cached_level.names_to_types t.just_after_level)
+        with
         | exception Not_found ->
           Name.pattern_match name
-            ~symbol:(fun _ ->
-              (* CR vlaviron: This could be an error, but it can actually occur
-                 with predefined exceptions and maybe regular symbols too *)
-              check_optional_kind_matches name (fst initial_symbol_type) kind;
-              initial_symbol_type)
+            ~symbol:(fun symbol ->
+              (* The symbol has no equation. Check that it is defined and return
+                 the default symbol type. *)
+              if List.mem symbol t.defined_symbols_without_equations
+              then (
+                check_optional_kind_matches name (fst initial_symbol_type) kind;
+                initial_symbol_type)
+              else
+                Misc.fatal_errorf "Reference to undefined symbol %a"
+                  Symbol.print symbol)
             ~var:(fun var ->
               Misc.fatal_errorf
                 "Variable %a not bound in imported typing environment (maybe \
                  the wrong .cmx file is present?):@ %a"
-                Variable.print var print t)
-        | ty, _binding_time_and_mode ->
-          check_optional_kind_matches name ty kind;
-          Name.pattern_match name
-            ~symbol:(fun _ -> ty, Binding_time.With_name_mode.symbols)
-            ~var:(fun _ ->
-              (* Binding times for imported variables are meaningless outside
-                 their original environment. Variables from foreign compilation
-                 units are always out of scope, so their mode must be In_types
-                 (we cannot rely on the scoping by binding time). *)
-              ty, Binding_time.With_name_mode.imported_variables)))
+                Variable.print var print_serializable t)
+        | type_and_binding_time ->
+          (* All variables in exported maps already have the right name mode
+             (see [Cached_level.clean_for_export]) *)
+          type_and_binding_time))
   | found ->
     let ty, _ = found in
     check_optional_kind_matches name ty kind;
@@ -454,24 +478,23 @@ let find_params t params =
       find t name (Some kind))
     (Bound_parameters.to_list params)
 
-let binding_time_and_mode t name ~assume_not_from_missing_cmx_file =
-  if (not assume_not_from_missing_cmx_file)
-     && variable_is_from_missing_cmx_file t name
-  then Binding_time.With_name_mode.imported_variables
-  else
-    Name.pattern_match name
-      ~var:(fun _var ->
+let binding_time_and_mode t name =
+  Name.pattern_match name
+    ~var:(fun var ->
+      let comp_unit = Variable.compilation_unit var in
+      if Compilation_unit.is_current comp_unit
+      then
         let _typ, binding_time_and_mode =
           find_with_binding_time_and_mode t name None
         in
-        binding_time_and_mode)
-      ~symbol:(fun _sym -> Binding_time.With_name_mode.symbols)
+        binding_time_and_mode
+      else Binding_time.With_name_mode.imported_variables)
+    ~symbol:(fun _sym -> Binding_time.With_name_mode.symbols)
 
-let binding_time_and_mode_of_simple t simple ~assume_not_from_missing_cmx_file =
+let binding_time_and_mode_of_simple t simple =
   Simple.pattern_match simple
     ~const:(fun _ -> Binding_time.With_name_mode.consts)
-    ~name:(fun name ~coercion:_ ->
-      binding_time_and_mode t name ~assume_not_from_missing_cmx_file)
+    ~name:(fun name ~coercion:_ -> binding_time_and_mode t name)
 
 let mem ?min_name_mode t name =
   Name.pattern_match name
@@ -726,33 +749,8 @@ and add_equation1 t name ty ~(meet_type : meet_type) =
               "Directly recursive equation@ %a = %a@ disallowed:@ %a" Name.print
               name TG.print ty print t)
         ~const:(fun _ -> ()));
+  let aliases = aliases t in
   let find_canonical name =
-    let aliases =
-      (* If we already have an equation on [name], then we already have the
-         correct alias relation in the current [aliases]. *)
-      if Name.Map.mem name (names_to_types t)
-      then aliases t
-      else
-        (* If we don't have any equation yet, then we can find the canonical
-           element by looking in the corresponding compilation unit *)
-        let comp_unit = Name.compilation_unit name in
-        if Compilation_unit.equal comp_unit
-             (Compilation_unit.get_current_exn ())
-        then aliases t
-        else
-          match (resolver t) comp_unit with
-          | None ->
-            (* The corresponding cmx is unavailable. However, we have ensured
-               that all equations exported in cmx files point to canonical
-               aliases, so there is no way for a non-canonical name to appear
-               outside its own compilation unit. *)
-            aliases t
-          | Some env -> aliases env
-          | exception exn ->
-            Misc.fatal_errorf "Exception in resolver: %s@ Backtrace is: %s"
-              (Printexc.to_string exn)
-              (Printexc.raw_backtrace_to_string (Printexc.get_raw_backtrace ()))
-    in
     Aliases.get_canonical_ignoring_name_mode aliases name
   in
   let inputs =
@@ -785,7 +783,6 @@ and add_equation1 t name ty ~(meet_type : meet_type) =
       if Simple.equal alias_lhs alias_rhs
       then None
       else
-        let aliases = aliases t in
         let kind = TG.kind ty in
         let ({ canonical_element; alias_of_demoted_element; t = aliases }
               : Aliases.add_result) =
@@ -987,41 +984,6 @@ let type_simple_in_term_exn t ?min_name_mode simple =
     else ty
   in
   let kind = TG.kind ty in
-  let binding_times_and_modes, aliases_for_simple, min_binding_time =
-    Simple.pattern_match simple
-      ~const:(fun _ -> names_to_types t, aliases t, t.min_binding_time)
-      ~name:(fun name ->
-        Name.pattern_match name
-          ~var:(fun var ~coercion:_ ->
-            (* We could check [canonical_elements] in [Aliases] instead of
-               [names_to_types] and it might seem more natural to do so. However
-               if we had an imported variable that has a concrete equation in
-               the current environment but is aliased to something else in its
-               original environment, then we'd be in trouble; but it should be
-               impossible to add an equation on an imported variable that is not
-               canonical (the equation should have been added to its canonical
-               element instead). To avoid these potential problems we use
-               [names_to_types]. *)
-            if Name.Map.mem name (names_to_types t)
-            then names_to_types t, aliases t, t.min_binding_time
-            else
-              let comp_unit = Variable.compilation_unit var in
-              if Compilation_unit.equal comp_unit
-                   (Compilation_unit.get_current_exn ())
-              then names_to_types t, aliases t, t.min_binding_time
-              else
-                match (resolver t) comp_unit with
-                | Some env ->
-                  names_to_types env, aliases env, env.min_binding_time
-                | None ->
-                  Misc.fatal_errorf
-                    "Error while looking up variable %a:@ No corresponding \
-                     .cmx file was found"
-                    Variable.print var)
-          ~symbol:(fun _sym ~coercion:_ ->
-            (* Symbols can't alias, so lookup in the current aliases is fine *)
-            names_to_types t, aliases t, t.min_binding_time))
-  in
   let min_name_mode =
     match min_name_mode with
     | None -> name_mode_simple
@@ -1029,9 +991,9 @@ let type_simple_in_term_exn t ?min_name_mode simple =
   in
   match
     Aliases.get_canonical_element_exn
-      ~binding_time_resolver:t.binding_time_resolver aliases_for_simple
-      ~binding_times_and_modes simple name_mode_simple ~min_name_mode
-      ~min_binding_time
+      ~binding_time_resolver:t.binding_time_resolver (aliases t)
+      ~binding_times_and_modes:(names_to_types t) simple name_mode_simple
+      ~min_name_mode ~min_binding_time:t.min_binding_time
   with
   | exception Misc.Fatal_error ->
     let bt = Printexc.get_raw_backtrace () in
@@ -1045,72 +1007,12 @@ let type_simple_in_term_exn t ?min_name_mode simple =
 
 let get_canonical_simple_exn t ?min_name_mode ?name_mode_of_existing_simple
     simple =
-  let variable_is_from_missing_cmx_file = ref false in
-  let binding_times_and_modes, aliases_for_simple, min_binding_time =
-    Simple.pattern_match simple
-      ~const:(fun _ -> names_to_types t, aliases t, t.min_binding_time)
-      ~name:(fun name ~coercion:_ ->
-        Name.pattern_match name
-          ~var:(fun var ->
-            (* See comment in [type_simple_in_term_exn] above relating to this
-               lookup in [names_to_types t]. *)
-            if Name.Map.mem name (names_to_types t)
-            then names_to_types t, aliases t, t.min_binding_time
-            else
-              let comp_unit = Variable.compilation_unit var in
-              if Compilation_unit.equal comp_unit
-                   (Compilation_unit.get_current_exn ())
-              then names_to_types t, aliases t, t.min_binding_time
-              else
-                match (resolver t) comp_unit with
-                | Some env ->
-                  names_to_types env, aliases env, env.min_binding_time
-                | None ->
-                  (* Transcript of Slack conversation relating to the next line:
-
-                     mshinwell: @vlaviron Should it say "aliases t" perhaps?
-                     There could be some weird cases here, e.g. if we are
-                     building c.cmx and b.cmx is unavailable, but if b.cmx were
-                     available it would tell us that this var is an alias to
-                     something in a.cmx, which is available I'm concerned that
-                     this could lead to not propagating a constraint, e.g. if
-                     the var in c.cmx is found to be bottom, it should make the
-                     one in a.cmx bottom too, but it won't as the chain is
-                     broken. That could be observable if something else in c.cmx
-                     directly points at a.cmx. Maybe this won't matter in
-                     practice because the new type should always be more
-                     precise, but I'm unsure. And what happens if it's not?
-
-                     vlaviron: That's actually fine, I think: if you hide b.cmx,
-                     then c.cmx does not know that the two variables are
-                     aliased, so it will be less precise, but that's all Since
-                     we've fixed Get_tag, I don't think loss of precision is a
-                     soundness issue anymore And the new type should always be
-                     the result of a meet with the previous type, I think, so it
-                     should never be less precise For the aliases issue, I think
-                     using aliases t is fine. It would only be a problem if we
-                     had a way to learn later that the variable is actually an
-                     alias, but that would only happen if for some reason we
-                     later successfully load the missing cmx. *)
-                  variable_is_from_missing_cmx_file := true;
-                  names_to_types t, aliases t, t.min_binding_time)
-          ~symbol:(fun _sym ->
-            (* Symbols can't alias, so lookup in the current aliases is fine *)
-            names_to_types t, aliases t, t.min_binding_time))
-  in
   let name_mode_simple =
-    let in_types =
-      if Simple.is_var simple then !variable_is_from_missing_cmx_file else false
-    in
-    if in_types
-    then Name_mode.in_types
-    else
-      match name_mode_of_existing_simple with
-      | Some name_mode -> name_mode
-      | None ->
-        Binding_time.With_name_mode.name_mode
-          (binding_time_and_mode_of_simple t simple
-             ~assume_not_from_missing_cmx_file:true)
+    match name_mode_of_existing_simple with
+    | Some name_mode -> name_mode
+    | None ->
+      Binding_time.With_name_mode.name_mode
+        (binding_time_and_mode_of_simple t simple)
   in
   let min_name_mode =
     match min_name_mode with
@@ -1119,8 +1021,9 @@ let get_canonical_simple_exn t ?min_name_mode ?name_mode_of_existing_simple
   in
   match
     Aliases.get_canonical_element_exn
-      ~binding_time_resolver:t.binding_time_resolver aliases_for_simple simple
-      ~binding_times_and_modes name_mode_simple ~min_name_mode ~min_binding_time
+      ~binding_time_resolver:t.binding_time_resolver (aliases t) simple
+      ~binding_times_and_modes:(names_to_types t) name_mode_simple
+      ~min_name_mode ~min_binding_time:t.min_binding_time
   with
   | exception Misc.Fatal_error ->
     let bt = Printexc.get_raw_backtrace () in
@@ -1142,8 +1045,7 @@ let aliases_of_simple t ~min_name_mode simple =
   |> Aliases.Alias_set.filter ~f:(fun alias ->
          let name_mode =
            Binding_time.With_name_mode.name_mode
-             (binding_time_and_mode_of_simple t alias
-                ~assume_not_from_missing_cmx_file:false)
+             (binding_time_and_mode_of_simple t alias)
          in
          match Name_mode.compare_partial_order name_mode min_name_mode with
          | None -> false
@@ -1197,16 +1099,20 @@ end = struct
 end
 
 module Serializable : sig
-  type t
+  type t = serializable
 
   val create : Pre_serializable.t -> reachable_names:Name_occurrences.t -> t
 
   val create_from_closure_conversion_approx :
     'a Value_approximation.t Symbol.Map.t -> t
 
+  val predefined_exceptions : Symbol.Set.t -> t
+
   val free_function_slots_and_value_slots : t -> Name_occurrences.t
 
   val print : Format.formatter -> t -> unit
+
+  val name_domain : t -> Name.Set.t
 
   val all_ids_for_export : t -> Ids_for_export.t
 
@@ -1214,28 +1120,12 @@ module Serializable : sig
 
   val merge : t -> t -> t
 
-  val to_typing_env :
-    t ->
-    resolver:(Compilation_unit.t -> typing_env option) ->
-    get_imported_names:(unit -> Name.Set.t) ->
-    typing_env
+  val extract_symbol_approx :
+    t -> Symbol.t -> (Code_id.t -> 'code) -> 'code Value_approximation.t
 end = struct
-  type t =
-    { defined_symbols_without_equations : Symbol.t list;
-      code_age_relation : Code_age_relation.t;
-      just_after_level : Cached_level.t;
-      next_binding_time : Binding_time.t
-    }
+  type t = serializable
 
-  let defined_symbols_without_equations t = t.defined_symbols_without_equations
-
-  let code_age_relation t = t.code_age_relation
-
-  let just_after_level t = t.just_after_level
-
-  let next_binding_time t = t.next_binding_time
-
-  let create (env : Pre_serializable.t) ~reachable_names =
+  let create (env : Pre_serializable.t) ~reachable_names : t =
     let current_level =
       One_level.clean_for_export env.current_level ~reachable_names
     in
@@ -1253,19 +1143,21 @@ end = struct
           else defined_symbols_without_equations)
         env.defined_symbols []
     in
+    { defined_symbols_without_equations; code_age_relation; just_after_level }
+
+  let predefined_exceptions symbols : t =
+    let defined_symbols_without_equations = Symbol.Set.elements symbols in
     { defined_symbols_without_equations;
-      code_age_relation;
-      just_after_level;
-      next_binding_time = env.next_binding_time
+      code_age_relation = Code_age_relation.empty;
+      just_after_level = Cached_level.empty
     }
 
   let create_from_closure_conversion_approx
-      (symbols : _ Value_approximation.t Symbol.Map.t) =
+      (symbols : _ Value_approximation.t Symbol.Map.t) : t =
     (* By using Cached_level.add_or_replace_binding below, we ensure that all
        symbols have an equation (that may be Unknown). *)
     let defined_symbols_without_equations = [] in
     let code_age_relation = Code_age_relation.empty in
-    let next_binding_time = Binding_time.earliest_var in
     let rec type_from_approx approx =
       match (approx : _ Value_approximation.t) with
       | Value_unknown -> MTC.unknown Flambda_kind.value
@@ -1299,39 +1191,24 @@ end = struct
             (type_from_approx approx) Binding_time.symbols Name_mode.normal)
         symbols Cached_level.empty
     in
-    { defined_symbols_without_equations;
-      code_age_relation;
-      just_after_level;
-      next_binding_time
-    }
+    { defined_symbols_without_equations; code_age_relation; just_after_level }
 
   let free_function_slots_and_value_slots t =
     Cached_level.free_function_slots_and_value_slots t.just_after_level
 
-  let [@ocamlformat "disable"] print ppf
-      { defined_symbols_without_equations; code_age_relation; just_after_level;
-        next_binding_time = _ } =
-    Format.fprintf ppf
-      "@[<hov 1>(\
-          @[<hov 1>(defined_symbols_without_equations@ (%a))@]@ \
-          @[<hov 1>(code_age_relation@ %a)@]@ \
-          @[<hov 1>(type_equations@ %a)@]@ \
-          @[<hov 1>(aliases@ %a)@]\
-          )@]"
-      (Format.pp_print_list ~pp_sep:Format.pp_print_space Symbol.print) defined_symbols_without_equations
-      Code_age_relation.print code_age_relation
-      (Name.Map.print (fun ppf (ty, _bt_and_mode) -> TG.print ppf ty))
-      (Cached_level.names_to_types just_after_level)
-      Aliases.print (Cached_level.aliases just_after_level)
+  let print = print_serializable
+
+  let name_domain t =
+    List.fold_left
+      (fun name_domain symbol -> Name.Set.add (Name.symbol symbol) name_domain)
+      (Name.Map.keys (Cached_level.names_to_types t.just_after_level))
+      t.defined_symbols_without_equations
 
   (* CR mshinwell for vlaviron: Shouldn't some of this be in
      [Cached_level.all_ids_for_export]? *)
   let all_ids_for_export
-      { defined_symbols_without_equations;
-        code_age_relation;
-        just_after_level;
-        next_binding_time = _
-      } =
+      { defined_symbols_without_equations; code_age_relation; just_after_level }
+      =
     let symbols = Symbol.Set.of_list defined_symbols_without_equations in
     let code_ids =
       Code_age_relation.all_code_ids_for_export code_age_relation
@@ -1363,11 +1240,8 @@ end = struct
     ids
 
   let apply_renaming
-      { defined_symbols_without_equations;
-        code_age_relation;
-        just_after_level;
-        next_binding_time
-      } renaming =
+      { defined_symbols_without_equations; code_age_relation; just_after_level }
+      renaming =
     let defined_symbols_without_equations =
       List.map
         (Renaming.apply_symbol renaming)
@@ -1379,13 +1253,9 @@ end = struct
     let just_after_level =
       Cached_level.apply_renaming just_after_level renaming
     in
-    { defined_symbols_without_equations;
-      code_age_relation;
-      just_after_level;
-      next_binding_time
-    }
+    { defined_symbols_without_equations; code_age_relation; just_after_level }
 
-  let merge t1 t2 =
+  let merge (t1 : t) (t2 : t) : t =
     let defined_symbols_without_equations =
       t1.defined_symbols_without_equations
       @ t2.defined_symbols_without_equations
@@ -1396,43 +1266,80 @@ end = struct
     let just_after_level =
       Cached_level.merge t1.just_after_level t2.just_after_level
     in
-    let next_binding_time =
-      (* Take the latest one *)
-      if Binding_time.strictly_earlier t1.next_binding_time
-           ~than:t2.next_binding_time
-      then t2.next_binding_time
-      else t1.next_binding_time
-    in
-    { defined_symbols_without_equations;
-      code_age_relation;
-      just_after_level;
-      next_binding_time
-    }
+    { defined_symbols_without_equations; code_age_relation; just_after_level }
 
-  let to_typing_env serializable ~resolver ~get_imported_names =
-    let just_after_level = just_after_level serializable in
-    let defined_symbols =
-      Name.Map.fold
-        (fun name _ defined_symbols ->
-          Name.pattern_match name
-            ~var:(fun _ -> defined_symbols)
-            ~symbol:(fun symbol -> Symbol.Set.add symbol defined_symbols))
-        (Cached_level.names_to_types just_after_level)
-        (Symbol.Set.of_list (defined_symbols_without_equations serializable))
+  let extract_symbol_approx env symbol find_code =
+    let rec type_to_approx (ty : Type_grammar.t) : _ Value_approximation.t =
+      let module VA = Value_approximation in
+      match ty with
+      | Value descr -> (
+        match Type_descr.descr descr with
+        | Unknown | Bottom -> Value_unknown
+        | Ok (Equals simple) ->
+          Simple.pattern_match' simple
+            ~const:(fun _ -> VA.Value_unknown)
+            ~var:(fun _ ~coercion:_ -> VA.Value_unknown)
+            ~symbol:(fun symbol ~coercion:_ -> VA.Value_symbol symbol)
+        | Ok (No_alias head) -> (
+          match head with
+          | Mutable_block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
+          | Boxed_nativeint _ | String _ | Array _ ->
+            Value_unknown
+          | Closures { by_function_slot; alloc_mode = _ } -> (
+            match TG.Row_like_for_closures.get_singleton by_function_slot with
+            | None -> Value_unknown
+            | Some ((function_slot, _contents), closures_entry) -> (
+              match
+                TG.Closures_entry.find_function_type closures_entry
+                  function_slot
+              with
+              | Bottom | Unknown -> Value_unknown
+              | Ok function_type ->
+                let code_id = TG.Function_type.code_id function_type in
+                let code_or_meta = find_code code_id in
+                Closure_approximation (code_id, function_slot, code_or_meta)))
+          | Variant
+              { immediates = Unknown;
+                blocks = _;
+                is_unique = _;
+                alloc_mode = _
+              }
+          | Variant
+              { immediates = _;
+                blocks = Unknown;
+                is_unique = _;
+                alloc_mode = _
+              } ->
+            Value_unknown
+          | Variant
+              { immediates = Known imms;
+                blocks = Known blocks;
+                is_unique = _;
+                alloc_mode
+              } ->
+            if TG.is_obviously_bottom imms
+            then
+              match TG.Row_like_for_blocks.get_singleton blocks with
+              | None -> Value_unknown
+              | Some ((_tag, _size), fields) ->
+                let fields =
+                  List.map type_to_approx
+                    (TG.Product.Int_indexed.components fields)
+                in
+                let alloc_mode =
+                  match alloc_mode with
+                  | Known am -> am
+                  | Unknown -> Alloc_mode.Heap
+                in
+                Block_approximation (Array.of_list fields, alloc_mode)
+            else Value_unknown))
+      | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
+      | Naked_nativeint _ | Rec_info _ | Region _ ->
+        assert false
     in
-    let code_age_relation = code_age_relation serializable in
-    let next_binding_time = next_binding_time serializable in
-    { resolver;
-      binding_time_resolver = binding_time_resolver resolver;
-      get_imported_names;
-      defined_symbols;
-      code_age_relation;
-      prev_levels = Scope.Map.empty;
-      current_level = One_level.create Scope.initial TEL.empty ~just_after_level;
-      (* Note: the field [next_binding_time] of the new env will not be used,
-         but setting [min_binding_time] to the value of [next_binding_time] from
-         the serialized env marks all variables as having mode In_types. *)
-      next_binding_time;
-      min_binding_time = next_binding_time
-    }
+    let symbol_ty, _binding_time_and_mode =
+      Name.Map.find (Name.symbol symbol)
+        (Cached_level.names_to_types env.just_after_level)
+    in
+    type_to_approx symbol_ty
 end

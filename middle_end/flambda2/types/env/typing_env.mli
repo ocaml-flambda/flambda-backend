@@ -18,6 +18,43 @@ type typing_env
 
 type t = typing_env
 
+module Pre_serializable : sig
+  type t
+
+  val create :
+    typing_env ->
+    used_value_slots:Value_slot.Set.t ->
+    t * (Simple.t -> Simple.t)
+
+  val find_or_missing : t -> Name.t -> Type_grammar.t option
+end
+
+module Serializable : sig
+  type t
+
+  val create : Pre_serializable.t -> reachable_names:Name_occurrences.t -> t
+
+  val create_from_closure_conversion_approx :
+    'a Value_approximation.t Symbol.Map.t -> t
+
+  val predefined_exceptions : Symbol.Set.t -> t
+
+  val free_function_slots_and_value_slots : t -> Name_occurrences.t
+
+  val print : Format.formatter -> t -> unit
+
+  val name_domain : t -> Name.Set.t
+
+  val all_ids_for_export : t -> Ids_for_export.t
+
+  val apply_renaming : t -> Renaming.t -> t
+
+  val merge : t -> t -> t
+
+  val extract_symbol_approx :
+    t -> Symbol.t -> (Code_id.t -> 'code) -> 'code Value_approximation.t
+end
+
 module Meet_env : sig
   type t
 
@@ -69,18 +106,16 @@ val invariant : t -> unit
 val print : Format.formatter -> t -> unit
 
 val create :
-  resolver:(Compilation_unit.t -> t option) ->
+  resolver:(Compilation_unit.t -> Serializable.t option) ->
   get_imported_names:(unit -> Name.Set.t) ->
   t
 
 val closure_env : t -> t
 
-val resolver : t -> Compilation_unit.t -> t option
+val resolver : t -> Compilation_unit.t -> Serializable.t option
 
 val code_age_relation_resolver :
   t -> Compilation_unit.t -> Code_age_relation.t option
-
-val name_domain : t -> Name.Set.t
 
 val current_scope : t -> Scope.t
 
@@ -171,39 +206,3 @@ val with_code_age_relation : t -> Code_age_relation.t -> t
 val cut : t -> unknown_if_defined_at_or_later_than:Scope.t -> Typing_env_level.t
 
 val free_names_transitive : t -> Type_grammar.t -> Name_occurrences.t
-
-module Pre_serializable : sig
-  type t
-
-  val create :
-    typing_env ->
-    used_value_slots:Value_slot.Set.t ->
-    t * (Simple.t -> Simple.t)
-
-  val find_or_missing : t -> Name.t -> Type_grammar.t option
-end
-
-module Serializable : sig
-  type t
-
-  val create : Pre_serializable.t -> reachable_names:Name_occurrences.t -> t
-
-  val free_function_slots_and_value_slots : t -> Name_occurrences.t
-
-  val create_from_closure_conversion_approx :
-    'a Value_approximation.t Symbol.Map.t -> t
-
-  val print : Format.formatter -> t -> unit
-
-  val to_typing_env :
-    t ->
-    resolver:(Compilation_unit.t -> typing_env option) ->
-    get_imported_names:(unit -> Name.Set.t) ->
-    typing_env
-
-  val all_ids_for_export : t -> Ids_for_export.t
-
-  val apply_renaming : t -> Renaming.t -> t
-
-  val merge : t -> t -> t
-end

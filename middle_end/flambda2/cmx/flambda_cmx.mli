@@ -30,7 +30,9 @@ val get_imported_names : loader -> unit -> Name.Set.t
 val get_imported_code : loader -> unit -> Exported_code.t
 
 val load_cmx_file_contents :
-  loader -> Compilation_unit.t -> Flambda2_types.Typing_env.t option
+  loader ->
+  Compilation_unit.t ->
+  Flambda2_types.Typing_env.Serializable.t option
 
 val load_symbol_approx :
   loader -> Symbol.t -> Code_or_metadata.t Value_approximation.t
