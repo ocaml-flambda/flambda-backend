@@ -398,7 +398,7 @@ let binary_int_arith_primitive0 _env dbg (kind : K.Standard_int.t)
 
 (* Temporary wrapper until the PR for removing 32-bit support is done, to permit
    refactoring of the above function *)
-let binary_int_arith_primitive _env dbg kind op x y =
+let binary_int_arith_primitive env dbg kind op x y =
   match (kind : K.Standard_int.t), (op : P.binary_int_arith_op) with
   (* 64-bit ints on 32-bit archs *)
   | Naked_int64, (Add | Sub | Mul | Div | Mod | And | Or | Xor)
@@ -407,7 +407,7 @@ let binary_int_arith_primitive _env dbg kind op x y =
   | ( ( Tagged_immediate | Naked_int32 | Naked_int64 | Naked_nativeint
       | Naked_immediate ),
       (Add | Sub | Mul | Div | Mod | And | Or | Xor) ) ->
-    binary_int_arith_primitive0 _env dbg kind op x y
+    binary_int_arith_primitive0 env dbg kind op x y
 
 let binary_int_shift_primitive _env dbg kind op x y =
   match (kind : K.Standard_int.t), (op : P.int_shift_op) with
@@ -481,7 +481,7 @@ let binary_int_comp_primitive0 _env dbg (kind : K.Standard_int.t)
 
 (* Temporary wrapper until the PR for removing 32-bit support is done, to permit
    refactoring of the above function *)
-let binary_int_comp_primitive _env dbg kind signed cmp x y =
+let binary_int_comp_primitive env dbg kind signed cmp x y =
   match
     ( (kind : K.Standard_int.t),
       (signed : P.signed_or_unsigned),
@@ -500,7 +500,7 @@ let binary_int_comp_primitive _env dbg kind signed cmp x y =
       | Tagged_immediate ),
       (Signed | Unsigned),
       (Lt | Le | Gt | Ge) ) ->
-    binary_int_comp_primitive0 _env dbg kind signed cmp x y
+    binary_int_comp_primitive0 env dbg kind signed cmp x y
 
 let binary_int_comp_primitive_yielding_int _env dbg _kind
     (signed : P.signed_or_unsigned) x y =
