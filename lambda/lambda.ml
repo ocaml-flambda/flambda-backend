@@ -99,6 +99,7 @@ type initialization_or_assignment =
 
 type region_close =
   | Rc_normal
+  | Rc_nontail
   | Rc_close_at_apply
 
 type primitive =

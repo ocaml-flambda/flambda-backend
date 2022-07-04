@@ -33,7 +33,7 @@ let compute_decl env tdecl =
         | Type_immediacy.Always -> Type_immediacy.Always_on_64bits
         | Type_immediacy.Always_on_64bits | Type_immediacy.Unknown as x -> x
     end
-  | (Type_variant (_ :: _ as cstrs), _) ->
+  | (Type_variant cstrs, _) ->
     if not (List.exists (fun c -> c.Types.cd_args <> Types.Cstr_tuple []) cstrs)
     then
       Type_immediacy.Always

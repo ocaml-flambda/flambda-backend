@@ -351,7 +351,10 @@ and expression i ppf x =
   | Texp_apply (e, l, m) ->
       line i ppf "Texp_apply\n";
       line i ppf "apply_mode %s\n"
-        (match m with Tail -> "Tail" | Nontail -> "Nontail");
+        (match m with
+         | Tail -> "Tail"
+         | Nontail -> "Nontail"
+         | Default -> "Default");
       expression i ppf e;
       list i label_x_apply_arg ppf l;
   | Texp_match (e, l, _partial) ->
