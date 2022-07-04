@@ -1141,7 +1141,10 @@ let emit_instr fallthrough i =
       done;
       emit_named_text_section !function_name
   | Lentertrap ->
-      ()
+      if fp then begin
+        let delta = frame_size () - 16 (* retaddr + rbp *) in
+        I.lea (mem64 NONE delta RSP) rbp
+      end
   | Ladjust_stack_offset { delta_bytes; } ->
       cfi_adjust_cfa_offset delta_bytes;
       stack_offset := !stack_offset + delta_bytes
