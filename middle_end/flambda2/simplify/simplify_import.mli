@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 module Apply = Flambda.Apply
 module Apply_cont = Flambda.Apply_cont
 module Code = Code

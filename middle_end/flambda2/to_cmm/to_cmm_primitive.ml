@@ -12,7 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
 
 module Env = To_cmm_env
 module Ece = Effects_and_coeffects
@@ -188,7 +187,6 @@ let bigarray_store ~dbg kind ~bigarray ~index ~new_value =
 let string_like_load_aux ~dbg width ~str ~index =
   let index = C.untag_int index dbg in
   match (width : P.string_accessor_width) with
-  (* XXX sign extensions? Cmmgen appears to be all-unsigned *)
   | Eight -> C.load ~dbg Byte_unsigned Mutable ~addr:(C.add_int str index dbg)
   | Sixteen -> C.unaligned_load_16 str index dbg
   | Thirty_two -> C.sign_extend_32 dbg (C.unaligned_load_32 str index dbg)
@@ -304,6 +302,10 @@ let arithmetic_conversion dbg src dst arg =
   | Tagged_immediate, (Naked_int64 | Naked_nativeint | Naked_immediate) ->
     Some (Env.Untag arg), C.untag_int arg dbg
   (* Operations resulting in int32s must take care to sign extend the result *)
+  (* CR-someday xclerc: untag_int followed by sign_extend_32 sounds suboptimal,
+     as it performs asr 1; lsl 32; asr 32 while we could do lsl 31; asr 32
+     instead. (Beware of the optimizations / pattern matching in the helpers
+     though.) *)
   | Tagged_immediate, Naked_int32 ->
     None, C.sign_extend_32 dbg (C.untag_int arg dbg)
   | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Naked_int32
@@ -417,8 +419,6 @@ let binary_int_arith_primitive0 _env dbg (kind : K.Standard_int.t)
       | Naked_nativeint -> Pnativeint
       | Naked_int32 | Naked_immediate | Tagged_immediate -> assert false
     in
-    (* XXX this is wrong for Naked_immediate ("TBD" case also needs fixing
-       above) *)
     match op with
     | Add -> C.add_int x y dbg
     | Sub -> C.sub_int x y dbg
@@ -431,7 +431,7 @@ let binary_int_arith_primitive0 _env dbg (kind : K.Standard_int.t)
 
 (* Temporary wrapper until the PR for removing 32-bit support is done, to permit
    refactoring of the above function *)
-let binary_int_arith_primitive _env dbg kind op x y =
+let binary_int_arith_primitive env dbg kind op x y =
   match (kind : K.Standard_int.t), (op : P.binary_int_arith_op) with
   (* 64-bit ints on 32-bit archs *)
   | Naked_int64, (Add | Sub | Mul | Div | Mod | And | Or | Xor)
@@ -440,7 +440,7 @@ let binary_int_arith_primitive _env dbg kind op x y =
   | ( ( Tagged_immediate | Naked_int32 | Naked_int64 | Naked_nativeint
       | Naked_immediate ),
       (Add | Sub | Mul | Div | Mod | And | Or | Xor) ) ->
-    binary_int_arith_primitive0 _env dbg kind op x y
+    binary_int_arith_primitive0 env dbg kind op x y
 
 let binary_int_shift_primitive _env dbg kind op x y =
   match (kind : K.Standard_int.t), (op : P.int_shift_op) with
@@ -511,7 +511,7 @@ let binary_int_comp_primitive0 _env dbg (kind : K.Standard_int.t)
 
 (* Temporary wrapper until the PR for removing 32-bit support is done, to permit
    refactoring of the above function *)
-let binary_int_comp_primitive _env dbg kind signed cmp x y =
+let binary_int_comp_primitive env dbg kind signed cmp x y =
   match
     ( (kind : K.Standard_int.t),
       (signed : P.signed_or_unsigned),
@@ -530,7 +530,7 @@ let binary_int_comp_primitive _env dbg kind signed cmp x y =
       | Tagged_immediate ),
       (Signed | Unsigned),
       (Lt | Le | Gt | Ge) ) ->
-    binary_int_comp_primitive0 _env dbg kind signed cmp x y
+    binary_int_comp_primitive0 env dbg kind signed cmp x y
 
 let binary_int_comp_primitive_yielding_int _env dbg _kind
     (signed : P.signed_or_unsigned) x y =
@@ -610,7 +610,7 @@ let unary_primitive env res dbg f arg =
     (* We could return [Env.Tag] here, but probably unnecessary at the
        moment. *)
     None, res, C.tag_int arg dbg
-  | Project_function_slot { move_from = c1; move_to = c2 } -> begin
+  | Project_function_slot { move_from = c1; move_to = c2 } -> (
     match function_slot_offset env c1, function_slot_offset env c2 with
     | ( Live_function_slot { offset = c1_offset; _ },
         Live_function_slot { offset = c2_offset; _ } ) ->
@@ -630,9 +630,8 @@ let unary_primitive env res dbg f arg =
     | Dead_function_slot, Dead_function_slot ->
       let message = dead_slots_msg dbg [c1; c2] [] in
       let expr, res = C.invalid res ~message in
-      None, res, expr
-  end
-  | Project_value_slot { project_from; value_slot } -> begin
+      None, res, expr)
+  | Project_value_slot { project_from; value_slot } -> (
     match
       value_slot_offset env value_slot, function_slot_offset env project_from
     with
@@ -649,8 +648,7 @@ let unary_primitive env res dbg f arg =
     | Dead_value_slot, Dead_function_slot ->
       let message = dead_slots_msg dbg [project_from] [value_slot] in
       let expr, res = C.invalid res ~message in
-      None, res, expr
-  end
+      None, res, expr)
   | Is_boxed_float ->
     (* As a note, this omits the [Is_in_value_area] check that exists in
        [caml_make_array], which is used by non-Flambda 2 compilers. This seems

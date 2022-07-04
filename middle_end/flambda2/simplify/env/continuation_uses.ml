@@ -14,8 +14,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
+module CEPT = Continuation_env_and_param_types
 module DE = Downwards_env
 module T = Flambda2_types
 module U = One_continuation_use
@@ -73,21 +72,24 @@ let arity t = t.arity
 let get_uses t = t.uses
 
 let get_arg_types_by_use_id t =
+  let empty_arg_maps : CEPT.arg_types_by_use_id list =
+    List.map
+      (fun _ -> Apply_cont_rewrite_id.Map.empty)
+      (Flambda_arity.to_list t.arity)
+  in
+  let add_value_to_arg_map arg_map arg_type ~use =
+    let env_at_use = U.env_at_use use in
+    let typing_env = DE.typing_env env_at_use in
+    let arg_at_use : CEPT.arg_at_use = { arg_type; typing_env } in
+    Apply_cont_rewrite_id.Map.add (U.id use) arg_at_use arg_map
+  in
   List.fold_left
-    (fun args use ->
+    (fun arg_maps use ->
+      let arg_types = U.arg_types use in
       List.map2
-        (fun arg_map arg_type ->
-          let env_at_use = U.env_at_use use in
-          let typing_env = DE.typing_env env_at_use in
-          let arg_at_use : Continuation_env_and_param_types.arg_at_use =
-            { arg_type; typing_env }
-          in
-          Apply_cont_rewrite_id.Map.add (U.id use) arg_at_use arg_map)
-        args (U.arg_types use))
-    (List.map
-       (fun _ -> Apply_cont_rewrite_id.Map.empty)
-       (Flambda_arity.to_list t.arity))
-    t.uses
+        (fun arg_map arg_type -> add_value_to_arg_map arg_map arg_type ~use)
+        arg_maps arg_types)
+    empty_arg_maps t.uses
 
 let get_typing_env_no_more_than_one_use t =
   match t.uses with

@@ -12,8 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 open! Flambda.Import
 
 module C = struct
@@ -40,7 +38,7 @@ let or_variable f default v cont =
 
 let rec static_block_updates symb env acc i = function
   | [] -> env, acc
-  | sv :: r -> begin
+  | sv :: r -> (
     match (sv : Field_of_static_block.t) with
     | Symbol _ | Tagged_immediate _ ->
       static_block_updates symb env acc (i + 1) r
@@ -49,12 +47,11 @@ let rec static_block_updates symb env acc i = function
         C.make_update env dbg Word_val ~symbol:(C.symbol ~dbg symb) var ~index:i
           ~prev_updates:acc
       in
-      static_block_updates symb env acc (i + 1) r
-  end
+      static_block_updates symb env acc (i + 1) r)
 
 let rec static_float_array_updates symb env acc i = function
   | [] -> env, acc
-  | sv :: r -> begin
+  | sv :: r -> (
     match (sv : _ Or_variable.t) with
     | Const _ -> static_float_array_updates symb env acc (i + 1) r
     | Var (var, dbg) ->
@@ -62,8 +59,7 @@ let rec static_float_array_updates symb env acc i = function
         C.make_update env dbg Double ~symbol:(C.symbol ~dbg symb) var ~index:i
           ~prev_updates:acc
       in
-      static_float_array_updates symb env acc (i + 1) r
-  end
+      static_float_array_updates symb env acc (i + 1) r)
 
 let static_boxed_number kind env symbol default emit transl v r updates =
   let aux x cont =

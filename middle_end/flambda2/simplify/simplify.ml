@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 open! Simplify_import
 
 type simplify_result =
@@ -34,7 +32,7 @@ let run ~cmx_loader ~round unit =
   let get_imported_code = Flambda_cmx.get_imported_code cmx_loader in
   let denv =
     DE.create ~round ~resolver ~get_imported_names ~get_imported_code
-      ~float_const_prop:(Flambda_features.float_const_prop ())
+      ~propagating_float_consts:(Flambda_features.float_const_prop ())
       ~unit_toplevel_return_continuation:return_continuation
       ~unit_toplevel_exn_continuation:exn_continuation
   in
@@ -81,33 +79,23 @@ let run ~cmx_loader ~round unit =
     Name_occurrences.all_function_slots name_occurrences
   in
   let all_value_slots = Name_occurrences.all_value_slots name_occurrences in
-  let used_value_slots, exported_offsets =
+  let ({ used_value_slots; exported_offsets } : Slot_offsets.result) =
     match UA.slot_offsets uacc with
     | Unknown ->
       Misc.fatal_error "Slot offsets must be computed and cannot be unknown"
-    | Known slot_offsets -> (
-      let used_slots : Slot_offsets.used_slots Or_unknown.t =
-        Known
-          { function_slots_in_normal_projections;
-            all_function_slots;
-            value_slots_in_normal_projections;
-            all_value_slots
-          }
+    | Known slot_offsets ->
+      let used_slots : Slot_offsets.used_slots =
+        { function_slots_in_normal_projections;
+          all_function_slots;
+          value_slots_in_normal_projections;
+          all_value_slots
+        }
       in
       let get_code_metadata code_id =
         Exported_code.find_exn all_code code_id
         |> Code_or_metadata.code_metadata
       in
-      match
-        Slot_offsets.finalize_offsets slot_offsets ~get_code_metadata
-          ~used_slots
-      with
-      | Known used_value_slots, offsets -> used_value_slots, offsets
-      | Unknown, _ ->
-        (* could be an assert false *)
-        Misc.fatal_error
-          "Slot_offsets should not have returned Unknown when given a Known \
-           used_names.")
+      Slot_offsets.finalize_offsets slot_offsets ~get_code_metadata ~used_slots
   in
   let cmx =
     Flambda_cmx.prepare_cmx_file_contents ~final_typing_env ~module_symbol

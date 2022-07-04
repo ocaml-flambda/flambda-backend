@@ -1,5 +1,3 @@
-[@@@ocaml.warning "-30"]
-
 type location = Lambda.scoped_location
 
 type 'a located =
@@ -93,39 +91,9 @@ type static_data =
   | Mutable_string of { initial_value : string }
   | Immutable_string of string
 
-type naked_number_kind = Flambda_kind.Naked_number_kind.t =
-  | Naked_immediate
-  | Naked_float
-  | Naked_int32
-  | Naked_int64
-  | Naked_nativeint
+type kind = Flambda_kind.t
 
-type kind =
-  (* can't alias because Flambda_kind.t is private *)
-  | Value
-  | Naked_number of naked_number_kind
-  | Region
-  | Rec_info
-
-type kind_with_subkind =
-  (* can't alias for same reason as [kind] *)
-  | Any_value
-  | Block of
-      { tag : Tag.t;
-        fields : kind_with_subkind list
-      }
-  | Float_block of { num_fields : int }
-  | Naked_number of naked_number_kind
-  | Boxed_float
-  | Boxed_int32
-  | Boxed_int64
-  | Boxed_nativeint
-  | Tagged_immediate
-  | Rec_info
-  | Float_array
-  | Immediate_array
-  | Value_array
-  | Generic_array
+type kind_with_subkind = Flambda_kind.With_subkind.t
 
 type static_data_binding =
   { symbol : symbol;
@@ -161,7 +129,7 @@ type coercion =
 
 type kinded_parameter =
   { param : variable;
-    kind : kind_with_subkind option
+    kind : Flambda_kind.With_subkind.t option
   }
 
 type name =
@@ -306,7 +274,7 @@ type infix_binop =
 type binop =
   | Array_load of array_kind * mutability
   | Block_load of block_access_kind * mutability
-  | Phys_equal of kind option * equality_comparison
+  | Phys_equal of Flambda_kind.t option * equality_comparison
   | Int_arith of standard_int * binary_int_arith_op
   | Int_comp of
       standard_int
@@ -325,7 +293,7 @@ type prim =
   | Ternary of ternop * simple * simple * simple
   | Variadic of varop * simple list
 
-type arity = kind_with_subkind list
+type arity = Flambda_kind.With_subkind.t list
 
 type function_call =
   | Direct of

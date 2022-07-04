@@ -12,8 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 (* Helper module *)
 (* ************* *)
 
@@ -382,10 +380,9 @@ module Dependency_graph = struct
         let older_enqueued =
           if Code_id.Set.mem src older_enqueued
           then older_enqueued
-          else begin
+          else (
             Queue.push src older_queue;
-            Code_id.Set.add src older_enqueued
-          end
+            Code_id.Set.add src older_enqueued)
         in
         reachable_code_ids t code_id_queue code_id_enqueued older_queue
           older_enqueued name_queue name_enqueued
@@ -396,7 +393,7 @@ module Dependency_graph = struct
       | exception Queue.Empty ->
         reachable_code_ids t code_id_queue code_id_enqueued older_queue
           older_enqueued name_queue name_enqueued
-      | src -> begin
+      | src -> (
         match
           Code_age_relation.get_older_version_of t.code_age_relation src
         with
@@ -405,7 +402,7 @@ module Dependency_graph = struct
             older_enqueued name_queue name_enqueued
         | Some dst ->
           if Code_id.Set.mem dst older_enqueued
-          then begin
+          then (
             if Code_id.Set.mem dst code_id_enqueued
             then
               reachable_older_code_ids t code_id_queue code_id_enqueued
@@ -414,13 +411,11 @@ module Dependency_graph = struct
               let code_id_enqueued = Code_id.Set.add dst code_id_enqueued in
               Queue.push dst code_id_queue;
               reachable_older_code_ids t code_id_queue code_id_enqueued
-                older_queue older_enqueued name_queue name_enqueued
-          end
+                older_queue older_enqueued name_queue name_enqueued)
           else
             let older_enqueued = Code_id.Set.add dst older_enqueued in
             reachable_older_code_ids t code_id_queue code_id_enqueued
-              older_queue older_enqueued name_queue name_enqueued
-      end
+              older_queue older_enqueued name_queue name_enqueued)
   end
 
   let empty code_age_relation =

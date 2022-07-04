@@ -28,6 +28,8 @@ val create :
   unit_name:Ident.t ->
   asm_directives:(module Asm_directives.S) ->
   get_file_id:(string -> int) ->
+  code_begin:Asm_symbol.t ->
+  code_end:Asm_symbol.t ->
   t
 
 val dwarf_for_fundecl : t -> Dwarf_concrete_instances.fundecl -> unit

@@ -24,8 +24,6 @@
     If you're looking for the full grammar of the Flambda type system please go
     to type_grammar.mli instead. *)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 type 'head t
 
 val print :

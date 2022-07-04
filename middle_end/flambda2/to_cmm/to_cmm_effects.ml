@@ -13,8 +13,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 open! Flambda.Import
 
 type effects_and_coeffects_classification =
@@ -41,7 +39,7 @@ let classify_let_binding var
     ~(num_normal_occurrences_of_bound_vars : Num_occurrences.t Variable.Map.t) =
   match Variable.Map.find var num_normal_occurrences_of_bound_vars with
   | exception Not_found -> Regular
-  | Zero -> begin
+  | Zero -> (
     match
       classify_by_effects_and_coeffects effects_and_coeffects_of_defining_expr
     with
@@ -49,8 +47,7 @@ let classify_let_binding var
     | Effect ->
       Regular
       (* Could be May_inline technically, but it doesn't matter since it can
-         only be flushed by the env. *)
-  end
+         only be flushed by the env. *))
   | One ->
     (* Any defining expression used exactly once is considered for inlining at
        this stage. The environment is going to handle the details of preserving

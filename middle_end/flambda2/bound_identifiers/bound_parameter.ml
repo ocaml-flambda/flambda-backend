@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 module Simple = Int_ids.Simple
 
 type t =
@@ -63,13 +61,9 @@ let equal_kinds t1 t2 = Flambda_kind.With_subkind.equal t1.kind t2.kind
 let free_names ({ param = _; kind = _ } as t) =
   Name_occurrences.singleton_variable (var t) Name_mode.normal
 
-let apply_renaming ({ param = _; kind } as t) perm =
-  Name.pattern_match
-    (Renaming.apply_name perm (name t))
-    ~var:(fun var -> create var kind)
-    ~symbol:(fun _ ->
-      Misc.fatal_errorf "Illegal name permutation on [Bound_parameter]: %a"
-        Renaming.print perm)
+let apply_renaming { param; kind } perm =
+  let param = Renaming.apply_variable perm param in
+  create param kind
 
 let all_ids_for_export { param; kind = _ } =
   Ids_for_export.add_variable Ids_for_export.empty param

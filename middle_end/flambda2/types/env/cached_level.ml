@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 type t =
   { names_to_types :
       (Type_grammar.t * Binding_time.With_name_mode.t) Name.Map.t;

@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 module Float = Numeric_types.Float_by_bit_pattern
 module Int32 = Numeric_types.Int32
 module Int64 = Numeric_types.Int64
@@ -418,16 +416,12 @@ and meet_variant env ~(blocks1 : TG.Row_like_for_blocks.t Or_unknown.t)
     let blocks : _ Or_unknown.t = Known TG.Row_like_for_blocks.bottom in
     Ok (blocks, immediates, env_extension)
   | Ok (blocks, env_extension1), Ok (immediates, env_extension2) ->
-    begin
-      match (blocks : _ Or_unknown.t) with
-      | Unknown -> ()
-      | Known blocks -> assert (not (TG.Row_like_for_blocks.is_bottom blocks))
-    end;
-    begin
-      match (immediates : _ Or_unknown.t) with
-      | Unknown -> ()
-      | Known imms -> assert (not (TG.is_obviously_bottom imms))
-    end;
+    (match (blocks : _ Or_unknown.t) with
+    | Unknown -> ()
+    | Known blocks -> assert (not (TG.Row_like_for_blocks.is_bottom blocks)));
+    (match (immediates : _ Or_unknown.t) with
+    | Unknown -> ()
+    | Known imms -> assert (not (TG.is_obviously_bottom imms)));
     let env_extension =
       let env = Meet_env.env env in
       let join_env = Join_env.create env ~left_env:env ~right_env:env in
@@ -715,11 +709,9 @@ and meet_closures_entry (env : Meet_env.t)
             any_bottom := true;
             None
           | Ok (func_type, env_extension) ->
-            begin
-              match meet_env_extension env !env_extensions env_extension with
-              | Bottom -> any_bottom := true
-              | Ok env_extension -> env_extensions := env_extension
-            end;
+            (match meet_env_extension env !env_extensions env_extension with
+            | Bottom -> any_bottom := true
+            | Ok env_extension -> env_extensions := env_extension);
             Some func_type))
       function_types1 function_types2
   in
@@ -759,15 +751,14 @@ and meet_generic_product :
     union
       (fun _index ty1 ty2 ->
         match meet env ty1 ty2 with
-        | Ok (ty, env_extension') -> begin
+        | Ok (ty, env_extension') -> (
           match meet_env_extension env !env_extension env_extension' with
           | Bottom ->
             any_bottom := true;
             Some (MTC.bottom_like ty1)
           | Ok extension ->
             env_extension := extension;
-            Some ty
-        end
+            Some ty)
         | Bottom ->
           any_bottom := true;
           Some (MTC.bottom_like ty1))
@@ -817,21 +808,19 @@ and meet_int_indexed_product env (prod1 : TG.Product.Int_indexed.t)
           match get_opt fields1, get_opt fields2 with
           | None, None -> assert false
           | Some t, None | None, Some t -> t
-          | Some ty1, Some ty2 -> begin
+          | Some ty1, Some ty2 -> (
             match meet env ty1 ty2 with
-            | Ok (ty, env_extension') -> begin
+            | Ok (ty, env_extension') -> (
               match meet_env_extension env !env_extension env_extension' with
               | Bottom ->
                 any_bottom := true;
                 MTC.bottom_like ty1
               | Ok extension ->
                 env_extension := extension;
-                ty
-            end
+                ty)
             | Bottom ->
               any_bottom := true;
-              MTC.bottom_like ty1
-          end)
+              MTC.bottom_like ty1))
     in
     if !any_bottom
     then Bottom
@@ -878,13 +867,12 @@ and meet_env_extension0 env (ext1 : TEE.t) (ext2 : TEE.t) extra_extensions :
         | None ->
           MTC.check_equation name ty;
           Name.Map.add name ty eqs, extra_extensions
-        | Some ty0 -> begin
+        | Some ty0 -> (
           match meet env ty0 ty with
           | Bottom -> raise Bottom_meet
           | Ok (ty, new_ext) ->
             MTC.check_equation name ty;
-            Name.Map.add (*replace*) name ty eqs, new_ext :: extra_extensions
-        end)
+            Name.Map.add (*replace*) name ty eqs, new_ext :: extra_extensions))
       (TEE.to_map ext2)
       (TEE.to_map ext1, extra_extensions)
   in
@@ -999,11 +987,10 @@ and join ?bound_name env (t1 : TG.t) (t2 : TG.t) : TG.t Or_unknown.t =
         Known (ET.to_type (join_expanded_head env kind expanded1 expanded2))
       in
       match canonical_simple1, canonical_simple2 with
-      | Some simple1, Some simple2 -> begin
+      | Some simple1, Some simple2 -> (
         match Join_env.now_joining env simple1 simple2 with
         | Continue env -> join_heads env
-        | Stop -> unknown ()
-      end
+        | Stop -> unknown ())
       | Some _, None | None, Some _ | None, None -> join_heads env))
 
 and join_expanded_head env kind (expanded1 : ET.t) (expanded2 : ET.t) : ET.t =
@@ -1255,7 +1242,7 @@ and join_row_like :
        the same kinds. *)
     match case1, case2 with
     | None, None -> None
-    | Some case1, None -> begin
+    | Some case1, None -> (
       let only_case1 () =
         (* CF Type_descr.join_head_or_unknown_or_bottom, we need to join those
            to ensure that free variables not present in the target env are
@@ -1276,9 +1263,8 @@ and join_row_like :
         if matching_kinds case1 other_case
         then Some (join_case join_env case1 other_case)
         else (* If kinds don't match, the tags can't match *)
-          only_case1 ()
-    end
-    | None, Some case2 -> begin
+          only_case1 ())
+    | None, Some case2 -> (
       let only_case2 () =
         (* See at the other bottom case *)
         let join_env =
@@ -1295,8 +1281,7 @@ and join_row_like :
       | Ok other_case ->
         if matching_kinds other_case case2
         then Some (join_case join_env other_case case2)
-        else only_case2 ()
-    end
+        else only_case2 ())
     | Some case1, Some case2 -> Some (join_case join_env case1 case2)
   in
   let known =
@@ -1406,9 +1391,8 @@ and join_generic_product :
     (fun _index ty1_opt ty2_opt ->
       match ty1_opt, ty2_opt with
       | None, _ | _, None -> None
-      | Some ty1, Some ty2 -> begin
-        match join env ty1 ty2 with Known ty -> Some ty | Unknown -> None
-      end)
+      | Some ty1, Some ty2 -> (
+        match join env ty1 ty2 with Known ty -> Some ty | Unknown -> None))
     components_by_index1 components_by_index2
 
 and join_function_slot_indexed_product env
@@ -1459,10 +1443,9 @@ and join_int_indexed_product env
     then
       if Int.equal length1 length
       then fields1
-      else begin
+      else (
         assert (Int.equal length2 length);
-        fields2
-      end
+        fields2)
     else
       Array.init length (fun index ->
           if fields1.(index) == fields2.(index)
@@ -1504,7 +1487,7 @@ and join_env_extension env (ext1 : TEE.t) (ext2 : TEE.t) : TEE.t =
       (fun name ty1_opt ty2_opt ->
         match ty1_opt, ty2_opt with
         | None, _ | _, None -> None
-        | Some ty1, Some ty2 -> begin
+        | Some ty1, Some ty2 -> (
           match join env ty1 ty2 with
           | Known ty ->
             if MTC.is_alias_of_name ty name
@@ -1516,13 +1499,11 @@ and join_env_extension env (ext1 : TEE.t) (ext2 : TEE.t) : TEE.t =
                  ([name = name] would be rejected by [TE.add_equation]
                  anyway.) *)
               None
-            else begin
+            else (
               (* This should always pass due to the [is_alias_of_name] check. *)
               MTC.check_equation name ty;
-              Some ty
-            end
-          | Unknown -> None
-        end)
+              Some ty)
+          | Unknown -> None))
       (TEE.to_map ext1) (TEE.to_map ext2)
   in
   TEE.from_map equations

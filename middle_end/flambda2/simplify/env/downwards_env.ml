@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 open! Flambda.Import
 module CSE = Common_subexpression_elimination
 module K = Flambda_kind
@@ -35,7 +33,7 @@ type t =
     inlined_debuginfo : Debuginfo.t;
     can_inline : bool;
     inlining_state : Inlining_state.t;
-    float_const_prop : bool;
+    propagating_float_consts : bool;
     at_unit_toplevel : bool;
     unit_toplevel_return_continuation : Continuation.t;
     unit_toplevel_exn_continuation : Continuation.t;
@@ -55,7 +53,7 @@ let print_debuginfo ppf dbg =
 
 let [@ocamlformat "disable"] print ppf { round; typing_env;
                 inlined_debuginfo; can_inline;
-                inlining_state; float_const_prop;
+                inlining_state; propagating_float_consts;
                 at_unit_toplevel; unit_toplevel_exn_continuation;
                 variables_defined_at_toplevel; cse;
                 do_not_rebuild_terms; closure_info;
@@ -68,7 +66,7 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
       @[<hov 1>(inlined_debuginfo@ %a)@]@ \
       @[<hov 1>(can_inline@ %b)@]@ \
       @[<hov 1>(inlining_state@ %a)@]@ \
-      @[<hov 1>(float_const_prop@ %b)@]@ \
+      @[<hov 1>(propagating_float_consts@ %b)@]@ \
       @[<hov 1>(at_unit_toplevel@ %b)@]@ \
       @[<hov 1>(unit_toplevel_return_continuation@ %a)@]@ \
       @[<hov 1>(unit_toplevel_exn_continuation@ %a)@]@ \
@@ -83,7 +81,7 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
     print_debuginfo inlined_debuginfo
     can_inline
     Inlining_state.print inlining_state
-    float_const_prop
+    propagating_float_consts
     at_unit_toplevel
     Continuation.print unit_toplevel_return_continuation
     Continuation.print unit_toplevel_exn_continuation
@@ -95,14 +93,14 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
 
 let create ~round ~(resolver : resolver)
     ~(get_imported_names : get_imported_names)
-    ~(get_imported_code : get_imported_code) ~float_const_prop
+    ~(get_imported_code : get_imported_code) ~propagating_float_consts
     ~unit_toplevel_exn_continuation ~unit_toplevel_return_continuation =
   { round;
     typing_env = TE.create ~resolver ~get_imported_names;
     inlined_debuginfo = Debuginfo.none;
     can_inline = true;
     inlining_state = Inlining_state.default ~round;
-    float_const_prop;
+    propagating_float_consts;
     at_unit_toplevel = true;
     unit_toplevel_return_continuation;
     unit_toplevel_exn_continuation;
@@ -128,15 +126,13 @@ let get_continuation_scope t = TE.current_scope t.typing_env
 
 let can_inline t = t.can_inline
 
-let float_const_prop t = t.float_const_prop
+let propagating_float_consts t = t.propagating_float_consts
 
 let unit_toplevel_exn_continuation t = t.unit_toplevel_exn_continuation
 
 let unit_toplevel_return_continuation t = t.unit_toplevel_return_continuation
 
 let at_unit_toplevel t = t.at_unit_toplevel
-
-let set_not_at_unit_toplevel t = { t with at_unit_toplevel = false }
 
 let set_at_unit_toplevel_state t at_unit_toplevel = { t with at_unit_toplevel }
 
@@ -158,16 +154,13 @@ let set_inlining_history_tracker inlining_history_tracker t =
 let increment_continuation_scope t =
   { t with typing_env = TE.increment_scope t.typing_env }
 
-let increment_continuation_scope_twice t =
-  increment_continuation_scope (increment_continuation_scope t)
-
 let enter_set_of_closures
     { round;
       typing_env;
       inlined_debuginfo = _;
       can_inline;
       inlining_state;
-      float_const_prop;
+      propagating_float_consts;
       at_unit_toplevel = _;
       unit_toplevel_return_continuation;
       unit_toplevel_exn_continuation;
@@ -184,7 +177,7 @@ let enter_set_of_closures
     inlined_debuginfo = Debuginfo.none;
     can_inline;
     inlining_state;
-    float_const_prop;
+    propagating_float_consts;
     at_unit_toplevel = false;
     unit_toplevel_return_continuation;
     unit_toplevel_exn_continuation;
@@ -257,9 +250,6 @@ let define_symbol t sym kind =
     TE.add_definition t.typing_env sym kind
   in
   { t with typing_env }
-
-let define_symbol_if_undefined t sym kind =
-  if TE.mem t.typing_env (Name.symbol sym) then t else define_symbol t sym kind
 
 let add_symbol t sym ty =
   let typing_env =
@@ -334,15 +324,12 @@ let add_parameters ?(name_mode = Name_mode.normal) ?at_unit_toplevel t params
       add_variable0 t var param_type ~at_unit_toplevel)
     t params param_types
 
-let add_parameters_with_unknown_types' ?name_mode ?at_unit_toplevel t params =
+let add_parameters_with_unknown_types ?name_mode ?at_unit_toplevel t params =
   let param_types =
     ListLabels.map (Bound_parameters.to_list params) ~f:(fun param ->
         T.unknown_with_subkind (BP.kind param))
   in
-  add_parameters ?name_mode ?at_unit_toplevel t params ~param_types, param_types
-
-let add_parameters_with_unknown_types ?name_mode ?at_unit_toplevel t params =
-  fst (add_parameters_with_unknown_types' ?name_mode ?at_unit_toplevel t params)
+  add_parameters ?name_mode ?at_unit_toplevel t params ~param_types
 
 let mark_parameters_as_toplevel t params =
   let variables_defined_at_toplevel =
@@ -480,8 +467,6 @@ let closure_info t = t.closure_info
 
 let inlining_arguments { inlining_state; _ } =
   Inlining_state.arguments inlining_state
-
-let inlining_depth { inlining_state; _ } = Inlining_state.depth inlining_state
 
 let set_inlining_arguments arguments t =
   { t with

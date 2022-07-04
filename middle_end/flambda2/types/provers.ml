@@ -14,8 +14,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-(* CR mshinwell: enable warning 4 *)
+(* CR mshinwell: enable warning fragile-match *)
+
+[@@@ocaml.warning "-fragile-match"]
 
 module Float = Numeric_types.Float_by_bit_pattern
 module Int32 = Numeric_types.Int32
@@ -203,7 +204,7 @@ let prove_is_int env t : bool proof =
     Misc.fatal_errorf "Kind error: expected [Value]:@ %a" TG.print t
   in
   match expand_head env t with
-  | Value (Ok (Variant blocks_imms)) -> begin
+  | Value (Ok (Variant blocks_imms)) -> (
     match blocks_imms.blocks, blocks_imms.immediates with
     | Unknown, Unknown -> Unknown
     | Unknown, Known imms ->
@@ -215,8 +216,7 @@ let prove_is_int env t : bool proof =
       then if is_bottom env imms then Invalid else Proved true
       else if is_bottom env imms
       then Proved false
-      else Unknown
-  end
+      else Unknown)
   | Value
       (Ok
         ( Mutable_block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
@@ -237,7 +237,7 @@ let prove_tags_must_be_a_block env t : Tag.Set.t proof =
     Misc.fatal_errorf "Kind error: expected [Value]:@ %a" TG.print t
   in
   match expand_head env t with
-  | Value (Ok (Variant blocks_imms)) -> begin
+  | Value (Ok (Variant blocks_imms)) -> (
     match blocks_imms.immediates with
     | Unknown -> Unknown
     | Known imms -> (
@@ -264,8 +264,7 @@ let prove_tags_must_be_a_block env t : Tag.Set.t proof =
           match TG.Row_like_for_blocks.all_tags blocks with
           | Unknown -> Unknown
           | Known tags -> if Tag.Set.is_empty tags then Invalid else Proved tags
-          ))
-  end
+          )))
   | Value
       (Ok (Boxed_float _ | Boxed_int32 _ | Boxed_int64 _ | Boxed_nativeint _))
     ->
@@ -294,16 +293,15 @@ let prove_naked_immediates env t : Targetint_31_63.Set.t proof =
   match expand_head env t with
   | Naked_immediate (Ok (Naked_immediates is)) ->
     if Targetint_31_63.Set.is_empty is then Invalid else Proved is
-  | Naked_immediate (Ok (Is_int scrutinee_ty)) -> begin
+  | Naked_immediate (Ok (Is_int scrutinee_ty)) -> (
     match prove_is_int env scrutinee_ty with
     | Proved true ->
       Proved (Targetint_31_63.Set.singleton Targetint_31_63.bool_true)
     | Proved false ->
       Proved (Targetint_31_63.Set.singleton Targetint_31_63.bool_false)
     | Unknown -> Unknown
-    | Invalid -> Invalid
-  end
-  | Naked_immediate (Ok (Get_tag block_ty)) -> begin
+    | Invalid -> Invalid)
+  | Naked_immediate (Ok (Get_tag block_ty)) -> (
     (* CR vlaviron: see the comment in prove_tags_must_be_a_block. See also
        prove_equals_tagged_immediates below, which returns Unknown when the
        blocks part is not bottom. *)
@@ -317,8 +315,7 @@ let prove_naked_immediates env t : Targetint_31_63.Set.t proof =
       in
       Proved is
     | Unknown -> Unknown
-    | Invalid -> Invalid
-  end
+    | Invalid -> Invalid)
   | Naked_immediate Unknown -> Unknown
   | Naked_immediate Bottom -> Invalid
   | Value _ -> wrong_kind ()
@@ -334,7 +331,7 @@ let prove_equals_tagged_immediates env t : Targetint_31_63.Set.t proof =
     Misc.fatal_errorf "Kind error: expected [Value]:@ %a" TG.print t
   in
   match expand_head env t with
-  | Value (Ok (Variant blocks_imms)) -> begin
+  | Value (Ok (Variant blocks_imms)) -> (
     match blocks_imms.blocks, blocks_imms.immediates with
     | Unknown, Unknown | Unknown, Known _ | Known _, Unknown -> Unknown
     | Known blocks, Known imms ->
@@ -342,8 +339,7 @@ let prove_equals_tagged_immediates env t : Targetint_31_63.Set.t proof =
          context where variants are ok? *)
       if not (TG.Row_like_for_blocks.is_bottom blocks)
       then Unknown
-      else prove_naked_immediates env imms
-  end
+      else prove_naked_immediates env imms)
   | Value (Ok (Mutable_block _)) -> Unknown
   | Value (Ok _) -> Invalid
   | Value Unknown -> Unknown
@@ -358,11 +354,10 @@ let prove_equals_tagged_immediates env t : Targetint_31_63.Set.t proof =
 
 let prove_equals_single_tagged_immediate env t : _ proof =
   match prove_equals_tagged_immediates env t with
-  | Proved imms -> begin
+  | Proved imms -> (
     match Targetint_31_63.Set.get_singleton imms with
     | Some imm -> Proved imm
-    | None -> Unknown
-  end
+    | None -> Unknown)
   | Unknown -> Unknown
   | Invalid -> Invalid
 
@@ -371,7 +366,7 @@ let prove_tags_and_sizes env t : Targetint_31_63.Imm.t Tag.Map.t proof =
     Misc.fatal_errorf "Kind error: expected [Value]:@ %a" TG.print t
   in
   match expand_head env t with
-  | Value (Ok (Variant blocks_imms)) -> begin
+  | Value (Ok (Variant blocks_imms)) -> (
     match blocks_imms.immediates with
     (* CR mshinwell: Care. Should this return [Unknown] or [Invalid] if there is
        the possibility of the type representing a tagged immediate? *)
@@ -385,8 +380,7 @@ let prove_tags_and_sizes env t : Targetint_31_63.Imm.t Tag.Map.t proof =
           match TG.Row_like_for_blocks.all_tags_and_sizes blocks with
           | Unknown -> Unknown
           | Known tags_and_sizes -> Proved tags_and_sizes)
-      else Unknown
-  end
+      else Unknown)
   | Value (Ok (Mutable_block _)) -> Unknown
   | Value (Ok _) -> Invalid
   | Value Unknown -> Unknown
@@ -421,7 +415,7 @@ type variant_like_proof =
 let prove_variant_like env t : variant_like_proof proof_allowing_kind_mismatch =
   (* Format.eprintf "prove_variant:@ %a\n%!" TG.print t; *)
   match expand_head env t with
-  | Value (Ok (Variant blocks_imms)) -> begin
+  | Value (Ok (Variant blocks_imms)) -> (
     match blocks_imms.blocks with
     | Unknown -> Unknown
     | Known blocks -> (
@@ -446,15 +440,13 @@ let prove_variant_like env t : variant_like_proof proof_allowing_kind_mismatch =
           let const_ctors : _ Or_unknown.t =
             match blocks_imms.immediates with
             | Unknown -> Unknown
-            | Known imms -> begin
+            | Known imms -> (
               match prove_naked_immediates env imms with
               | Unknown -> Unknown
               | Invalid -> Known Targetint_31_63.Set.empty
-              | Proved const_ctors -> Known const_ctors
-            end
+              | Proved const_ctors -> Known const_ctors)
           in
-          Proved { const_ctors; non_const_ctors_with_sizes }))
-  end
+          Proved { const_ctors; non_const_ctors_with_sizes })))
   | Value (Ok (Mutable_block _)) -> Unknown
   | Value (Ok _) -> Invalid
   | Value Unknown -> Unknown
@@ -476,7 +468,7 @@ let prove_is_a_boxed_or_tagged_number env t :
   match expand_head env t with
   | Value Unknown -> Unknown
   | Value (Ok (Variant { blocks; immediates; is_unique = _; alloc_mode = _ }))
-    -> begin
+    -> (
     match blocks, immediates with
     | Unknown, Unknown -> Unknown
     | Unknown, Known imms -> if is_bottom env imms then Invalid else Unknown
@@ -489,8 +481,7 @@ let prove_is_a_boxed_or_tagged_number env t :
       then Invalid
       else if TG.Row_like_for_blocks.is_bottom blocks
       then Proved Tagged_immediate
-      else Unknown
-  end
+      else Unknown)
   | Value (Ok (Boxed_float _)) -> Proved (Boxed Naked_float)
   | Value (Ok (Boxed_int32 _)) -> Proved (Boxed Naked_int32)
   | Value (Ok (Boxed_int64 _)) -> Proved (Boxed Naked_int64)
@@ -687,7 +678,7 @@ let prove_is_tagging_of_simple ~prove_function env ~min_name_mode t :
   in
   match expand_head env t with
   | Value (Ok (Variant { immediates; blocks; is_unique = _; alloc_mode = _ }))
-    -> begin
+    -> (
     match blocks with
     | Unknown -> Unknown
     | Known blocks -> (
@@ -719,8 +710,7 @@ let prove_is_tagging_of_simple ~prove_function env ~min_name_mode t :
               match Targetint_31_63.Set.get_singleton imms with
               | Some imm ->
                 Proved (Simple.const (Reg_width_const.naked_immediate imm))
-              | None -> Unknown)))))
-  end
+              | None -> Unknown))))))
   | Value Unknown -> Unknown
   | Value _ -> Invalid
   | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
@@ -736,7 +726,7 @@ let prove_could_be_tagging_of_simple =
 let[@inline always] prove_boxed_number_containing_simple
     ~contents_of_boxed_number env ~min_name_mode t : Simple.t proof =
   match expand_head env t with
-  | Value (Ok ty_value) -> begin
+  | Value (Ok ty_value) -> (
     match contents_of_boxed_number ty_value with
     | None -> Invalid
     | Some ty -> (
@@ -744,8 +734,7 @@ let[@inline always] prove_boxed_number_containing_simple
         TE.get_canonical_simple_exn env ~min_name_mode (TG.get_alias_exn ty)
       with
       | simple -> Proved simple
-      | exception Not_found -> Unknown)
-  end
+      | exception Not_found -> Unknown))
   | Value Unknown -> Unknown
   | Value Bottom -> Invalid
   | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
@@ -795,10 +784,10 @@ let[@inline] prove_block_field_simple_aux env ~min_name_mode t get_field :
   in
   match expand_head env t with
   | Value (Ok (Variant { immediates; blocks; is_unique = _; alloc_mode = _ }))
-    -> begin
+    -> (
     match immediates with
     | Unknown -> Unknown
-    | Known imms -> begin
+    | Known imms -> (
       match blocks with
       | Unknown -> Unknown
       | Known blocks -> (
@@ -810,17 +799,13 @@ let[@inline] prove_block_field_simple_aux env ~min_name_mode t get_field :
           match (get_field blocks : _ Or_unknown_or_bottom.t) with
           | Bottom -> Invalid
           | Unknown -> Unknown
-          | Ok ty -> begin
+          | Ok ty -> (
             match TG.get_alias_exn ty with
-            | simple -> begin
+            | simple -> (
               match TE.get_canonical_simple_exn env ~min_name_mode simple with
               | simple -> Proved simple
-              | exception Not_found -> Unknown
-            end
-            | exception Not_found -> Unknown
-          end)
-    end
-  end
+              | exception Not_found -> Unknown)
+            | exception Not_found -> Unknown))))
   | Value (Ok (Mutable_block _)) -> Unknown
   | Value (Ok _) -> Invalid
   | Value Unknown -> Unknown
@@ -852,15 +837,13 @@ let prove_project_function_slot_simple env ~min_name_mode t function_slot :
       TG.Row_like_for_closures.get_closure by_function_slot function_slot
     with
     | Unknown -> Unknown
-    | Known ty -> begin
+    | Known ty -> (
       match TG.get_alias_exn ty with
-      | simple -> begin
+      | simple -> (
         match TE.get_canonical_simple_exn env ~min_name_mode simple with
         | simple -> Proved simple
-        | exception Not_found -> Unknown
-      end
-      | exception Not_found -> Unknown
-    end)
+        | exception Not_found -> Unknown)
+      | exception Not_found -> Unknown))
   | Value (Ok _) -> Invalid
   | Value Unknown -> Unknown
   | Value Bottom -> Invalid
@@ -877,15 +860,13 @@ let prove_project_value_slot_simple env ~min_name_mode t env_var :
   | Value (Ok (Closures { by_function_slot; alloc_mode = _ })) -> (
     match TG.Row_like_for_closures.get_env_var by_function_slot env_var with
     | Unknown -> Unknown
-    | Known ty -> begin
+    | Known ty -> (
       match TG.get_alias_exn ty with
-      | simple -> begin
+      | simple -> (
         match TE.get_canonical_simple_exn env ~min_name_mode simple with
         | simple -> Proved simple
-        | exception Not_found -> Unknown
-      end
-      | exception Not_found -> Unknown
-    end)
+        | exception Not_found -> Unknown)
+      | exception Not_found -> Unknown))
   | Value (Ok _) -> Invalid
   | Value Unknown -> Unknown
   | Value Bottom -> Invalid

@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 (** The left-hand sides of [Let]-expressions that bind statically-allocated
     constants and pieces of code. Used via [Bound_pattern] in the term
     language. *)

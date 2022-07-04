@@ -139,7 +139,7 @@ module Int32 = struct
     | 32 -> Int32.of_int
     | 64 ->
       fun n ->
-        if (n < Int32.(to_int min_int)) || n > Int32.(to_int max_int)
+        if n < Int32.to_int Int32.min_int || n > Int32.to_int Int32.max_int
         then Misc.fatal_errorf "Targetint_32_64.of_int_exn: 0x%x out of range" n
         else Int32.of_int n
     | _ -> assert false
@@ -168,9 +168,9 @@ module Int32 = struct
     let [@ocamlformat "disable"] print ppf t = Format.fprintf ppf "%ld" t
   end)
 
-  let min t1 t2 = if compare t1 t2 <= 0 then t1 else t2
+  let min t1 t2 = if Int32.compare t1 t2 <= 0 then t1 else t2
 
-  let max t1 t2 = if compare t1 t2 <= 0 then t2 else t1
+  let max t1 t2 = if Int32.compare t1 t2 <= 0 then t2 else t1
 
   module Targetint_set = Set
 
@@ -215,16 +215,16 @@ module Int64 = struct
 
   let repr x = Int64 x
 
-  let min t1 t2 = if compare t1 t2 <= 0 then t1 else t2
+  let min t1 t2 = if Int64.compare t1 t2 <= 0 then t1 else t2
 
-  let max t1 t2 = if compare t1 t2 <= 0 then t2 else t1
+  let max t1 t2 = if Int64.compare t1 t2 <= 0 then t2 else t1
 
   include Container_types.Make (struct
     type nonrec t = t
 
     let compare = Int64.compare
 
-    let equal t1 t2 = compare t1 t2 = 0
+    let equal = Int64.equal
 
     let hash = Hashtbl.hash
 

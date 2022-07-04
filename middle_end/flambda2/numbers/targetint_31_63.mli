@@ -159,7 +159,7 @@ module Imm : sig
 
   (** [shift_left x y] shifts [x] to the left by [y] bits. The result is
       unspecified if [y < 0] or [y >= bitsize], where [bitsize] is [31] on a
-      32-bit platform and [61] on a 64-bit platform. *)
+      32-bit platform and [63] on a 64-bit platform. *)
   val shift_left : t -> int -> t
 
   (** [Targetint_32_64.shift_right x y] shifts [x] to the right by [y] bits.

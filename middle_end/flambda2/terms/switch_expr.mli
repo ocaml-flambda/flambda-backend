@@ -19,8 +19,6 @@
     Scrutinees of [Switch]es are of kind [Naked_immediate]. There are no default
     cases. Switches always have at least two cases. *)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 type t
 
 include Expr_std.S with type t := t

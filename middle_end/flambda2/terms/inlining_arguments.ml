@@ -12,8 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 (* CR lmaurer: Flatten this into the top-level module. *)
 module Args = struct
   type t =

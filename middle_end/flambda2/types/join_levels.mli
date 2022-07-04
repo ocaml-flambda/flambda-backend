@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 (** Compute the typing environment for a join point given the environments at
     each of the corresponding continuation's uses. *)
 

@@ -12,8 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 module C = Cmm_helpers
 
 type t =
@@ -36,14 +34,13 @@ let create ~module_symbol =
 
 let check_for_module_symbol t symbol =
   if Symbol.equal symbol t.module_symbol
-  then begin
+  then (
     if t.module_symbol_defined
     then
       Misc.fatal_errorf
         "check_for_module_symbol %a: Module block symbol (%a) already defined"
         Symbol.print symbol Symbol.print t.module_symbol;
-    { t with module_symbol_defined = true }
-  end
+    { t with module_symbol_defined = true })
   else t
 
 let defines_a_symbol data =

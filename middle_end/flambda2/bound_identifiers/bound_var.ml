@@ -14,18 +14,13 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 type t =
   { var : Variable.t;
     name_mode : Name_mode.t
   }
 
-let [@ocamlformat "disable"] print ppf { var; name_mode; } =
-  match name_mode with
-  | Normal -> Variable.print ppf var
-  | In_types -> assert false (* see [create], below *)
-  | Phantom -> Variable.print ppf var
+let [@ocamlformat "disable"] print ppf { var; name_mode = _; } =
+  Variable.print ppf var
 
 let create var name_mode =
   (* Note that [name_mode] might be [In_types], e.g. when dealing with function

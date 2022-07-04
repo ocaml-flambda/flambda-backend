@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 (* CR mshinwell: This module is unpleasant. We should arrange things so that
    [Value_slot.Set.Map] exists. (This should be easier now that things brought
    in using "include" can be shadowed.) *)

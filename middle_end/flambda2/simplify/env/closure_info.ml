@@ -13,8 +13,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 type t =
   | Not_in_a_closure
   | In_a_set_of_closures_but_not_yet_in_a_specific_closure

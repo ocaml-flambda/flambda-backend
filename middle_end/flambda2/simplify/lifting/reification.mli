@@ -16,8 +16,6 @@
 
 (** Construct terms using only information from types. *)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 val try_to_reify :
   Downwards_acc.t ->
   Debuginfo.t ->

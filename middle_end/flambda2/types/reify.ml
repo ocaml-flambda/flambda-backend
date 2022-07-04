@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 module Float = Numeric_types.Float_by_bit_pattern
 module Int32 = Numeric_types.Int32
 module Int64 = Numeric_types.Int64
@@ -72,11 +70,9 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
       | None -> false
       | Some allowed_if_free_vars_defined_in -> (
         TE.mem ~min_name_mode allowed_if_free_vars_defined_in (Name.var var)
-        && begin
-             match additional_free_var_criterion with
-             | None -> true
-             | Some criterion -> criterion var
-           end
+        && (match additional_free_var_criterion with
+           | None -> true
+           | Some criterion -> criterion var)
         &&
         match disallowed_free_vars with
         | None -> true
@@ -172,19 +168,18 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
           else if TG.Row_like_for_blocks.is_bottom blocks
           then
             match Provers.prove_naked_immediates env imms with
-            | Proved imms -> begin
+            | Proved imms -> (
               match Targetint_31_63.Set.get_singleton imms with
               | None -> try_canonical_simple ()
               | Some imm ->
-                Simple (Simple.const (Reg_width_const.tagged_immediate imm))
-            end
+                Simple (Simple.const (Reg_width_const.tagged_immediate imm)))
             | Unknown -> try_canonical_simple ()
             | Invalid -> Invalid
           else try_canonical_simple ()
         | Known _, Unknown | Unknown, Known _ | Unknown, Unknown ->
           try_canonical_simple ())
     | Value (Ok (Mutable_block _)) -> try_canonical_simple ()
-    | Value (Ok (Closures { by_function_slot; alloc_mode })) -> begin
+    | Value (Ok (Closures { by_function_slot; alloc_mode })) -> (
       (* CR mshinwell: Here and above, move to separate function. *)
       match TG.Row_like_for_closures.get_singleton by_function_slot with
       | None -> try_canonical_simple ()
@@ -263,37 +258,33 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
                    all_value_slots ->
                 Value_slot.Map.fold
                   (fun value_slot simple all_value_slots ->
-                    begin
-                      match Value_slot.Map.find value_slot all_value_slots with
-                      | exception Not_found -> ()
-                      | existing_simple ->
-                        if not (Simple.equal simple existing_simple)
-                        then
-                          Misc.fatal_errorf
-                            "Disagreement on %a and %a (value slot %a)@ whilst \
-                             reifying set-of-closures from:@ %a"
-                            Simple.print simple Simple.print existing_simple
-                            Value_slot.print value_slot TG.print t
-                    end;
+                    (match Value_slot.Map.find value_slot all_value_slots with
+                    | exception Not_found -> ()
+                    | existing_simple ->
+                      if not (Simple.equal simple existing_simple)
+                      then
+                        Misc.fatal_errorf
+                          "Disagreement on %a and %a (value slot %a)@ whilst \
+                           reifying set-of-closures from:@ %a"
+                          Simple.print simple Simple.print existing_simple
+                          Value_slot.print value_slot TG.print t);
                     Value_slot.Map.add value_slot simple all_value_slots)
                   value_slot_simples all_value_slots)
               function_types_with_value_slots Value_slot.Map.empty
           in
-          Lift_set_of_closures { function_slot; function_types; value_slots }
-    end
+          Lift_set_of_closures { function_slot; function_types; value_slots })
     | Naked_immediate (Ok (Naked_immediates imms)) -> (
       match Targetint_31_63.Set.get_singleton imms with
       | None -> try_canonical_simple ()
       | Some i -> Simple (Simple.const (Reg_width_const.naked_immediate i)))
     (* CR mshinwell: share code with [prove_equals_tagged_immediates], above *)
-    | Naked_immediate (Ok (Is_int scrutinee_ty)) -> begin
+    | Naked_immediate (Ok (Is_int scrutinee_ty)) -> (
       match Provers.prove_is_int env scrutinee_ty with
       | Proved true -> Simple Simple.untagged_const_true
       | Proved false -> Simple Simple.untagged_const_false
       | Unknown -> try_canonical_simple ()
-      | Invalid -> Invalid
-    end
-    | Naked_immediate (Ok (Get_tag block_ty)) -> begin
+      | Invalid -> Invalid)
+    | Naked_immediate (Ok (Get_tag block_ty)) -> (
       match Provers.prove_tags_must_be_a_block env block_ty with
       | Proved tags -> (
         let is =
@@ -306,66 +297,57 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
         | None -> try_canonical_simple ()
         | Some i -> Simple (Simple.const (Reg_width_const.naked_immediate i)))
       | Unknown -> try_canonical_simple ()
-      | Invalid -> Invalid
-    end
-    | Naked_float (Ok fs) -> begin
+      | Invalid -> Invalid)
+    | Naked_float (Ok fs) -> (
       match Float.Set.get_singleton fs with
       | None -> try_canonical_simple ()
-      | Some f -> Simple (Simple.const (Reg_width_const.naked_float f))
-    end
-    | Naked_int32 (Ok ns) -> begin
+      | Some f -> Simple (Simple.const (Reg_width_const.naked_float f)))
+    | Naked_int32 (Ok ns) -> (
       match Int32.Set.get_singleton ns with
       | None -> try_canonical_simple ()
-      | Some n -> Simple (Simple.const (Reg_width_const.naked_int32 n))
-    end
-    | Naked_int64 (Ok ns) -> begin
+      | Some n -> Simple (Simple.const (Reg_width_const.naked_int32 n)))
+    | Naked_int64 (Ok ns) -> (
       match Int64.Set.get_singleton ns with
       | None -> try_canonical_simple ()
-      | Some n -> Simple (Simple.const (Reg_width_const.naked_int64 n))
-    end
-    | Naked_nativeint (Ok ns) -> begin
+      | Some n -> Simple (Simple.const (Reg_width_const.naked_int64 n)))
+    | Naked_nativeint (Ok ns) -> (
       match Targetint_32_64.Set.get_singleton ns with
       | None -> try_canonical_simple ()
-      | Some n -> Simple (Simple.const (Reg_width_const.naked_nativeint n))
-    end
+      | Some n -> Simple (Simple.const (Reg_width_const.naked_nativeint n)))
     (* CR-someday mshinwell: These could lift at toplevel when [ty_naked_float]
        is an alias type. That would require checking the alloc mode. *)
-    | Value (Ok (Boxed_float (ty_naked_float, _alloc_mode))) -> begin
+    | Value (Ok (Boxed_float (ty_naked_float, _alloc_mode))) -> (
       match Provers.prove_naked_floats env ty_naked_float with
       | Unknown -> try_canonical_simple ()
       | Invalid -> Invalid
       | Proved fs -> (
         match Float.Set.get_singleton fs with
         | None -> try_canonical_simple ()
-        | Some f -> Lift (Boxed_float f))
-    end
-    | Value (Ok (Boxed_int32 (ty_naked_int32, _alloc_mode))) -> begin
+        | Some f -> Lift (Boxed_float f)))
+    | Value (Ok (Boxed_int32 (ty_naked_int32, _alloc_mode))) -> (
       match Provers.prove_naked_int32s env ty_naked_int32 with
       | Unknown -> try_canonical_simple ()
       | Invalid -> Invalid
       | Proved ns -> (
         match Int32.Set.get_singleton ns with
         | None -> try_canonical_simple ()
-        | Some n -> Lift (Boxed_int32 n))
-    end
-    | Value (Ok (Boxed_int64 (ty_naked_int64, _alloc_mode))) -> begin
+        | Some n -> Lift (Boxed_int32 n)))
+    | Value (Ok (Boxed_int64 (ty_naked_int64, _alloc_mode))) -> (
       match Provers.prove_naked_int64s env ty_naked_int64 with
       | Unknown -> try_canonical_simple ()
       | Invalid -> Invalid
       | Proved ns -> (
         match Int64.Set.get_singleton ns with
         | None -> try_canonical_simple ()
-        | Some n -> Lift (Boxed_int64 n))
-    end
-    | Value (Ok (Boxed_nativeint (ty_naked_nativeint, _alloc_mode))) -> begin
+        | Some n -> Lift (Boxed_int64 n)))
+    | Value (Ok (Boxed_nativeint (ty_naked_nativeint, _alloc_mode))) -> (
       match Provers.prove_naked_nativeints env ty_naked_nativeint with
       | Unknown -> try_canonical_simple ()
       | Invalid -> Invalid
       | Proved ns -> (
         match Targetint_32_64.Set.get_singleton ns with
         | None -> try_canonical_simple ()
-        | Some n -> Lift (Boxed_nativeint n))
-    end
+        | Some n -> Lift (Boxed_nativeint n)))
     | Value (Ok (Array { length; element_kind = _ })) -> (
       match Provers.prove_equals_single_tagged_immediate env length with
       | Proved length ->

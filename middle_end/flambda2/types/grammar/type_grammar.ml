@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 module K = Flambda_kind
 module Float = Numeric_types.Float_by_bit_pattern
 module Int32 = Numeric_types.Int32
@@ -1961,10 +1959,9 @@ and project_int_indexed_product ~to_project ~expand
     let field = fields.(i) in
     let field' = project_variables_out ~to_project ~expand field in
     if field != field'
-    then begin
+    then (
       changed := true;
-      fields'.(i) <- field'
-    end
+      fields'.(i) <- field')
   done;
   if !changed then { fields = fields'; kind } else product
 
@@ -1989,10 +1986,9 @@ and project_env_extension ~to_project ~expand ({ equations } as env_extension) =
           ~symbol:(fun _ -> keep_equation ())
           ~var:(fun var ->
             if Variable.Set.mem var to_project
-            then begin
+            then (
               changed := true;
-              acc
-            end
+              acc)
             else keep_equation ()))
       equations Name.Map.empty
   in
@@ -2011,17 +2007,15 @@ let kind t =
 
 let create_variant ~is_unique ~(immediates : _ Or_unknown.t) ~blocks alloc_mode
     =
-  begin
-    match immediates with
-    | Unknown -> ()
-    | Known immediates ->
-      if not (K.equal (kind immediates) K.naked_immediate)
-      then
-        Misc.fatal_errorf
-          "Cannot create [immediates] with type that is not of kind \
-           [Naked_immediate]:@ %a"
-          print immediates
-  end;
+  (match immediates with
+  | Unknown -> ()
+  | Known immediates ->
+    if not (K.equal (kind immediates) K.naked_immediate)
+    then
+      Misc.fatal_errorf
+        "Cannot create [immediates] with type that is not of kind \
+         [Naked_immediate]:@ %a"
+        print immediates);
   Value (TD.create (Variant { immediates; blocks; is_unique; alloc_mode }))
 
 let mutable_block alloc_mode = Value (TD.create (Mutable_block { alloc_mode }))
@@ -2173,17 +2167,15 @@ module Row_like_for_blocks = struct
       |> Flambda_kind.Set.get_singleton
     in
     (* CR pchambart: move to invariant check *)
-    begin
-      match field_kind' with
-      | None ->
-        if List.length field_tys <> 0
-        then Misc.fatal_error "[field_tys] must all be of the same kind"
-      | Some field_kind' ->
-        if not (Flambda_kind.equal field_kind field_kind')
-        then
-          Misc.fatal_errorf "Declared field kind %a doesn't match [field_tys]"
-            Flambda_kind.print field_kind
-    end;
+    (match field_kind' with
+    | None ->
+      if List.length field_tys <> 0
+      then Misc.fatal_error "[field_tys] must all be of the same kind"
+    | Some field_kind' ->
+      if not (Flambda_kind.equal field_kind field_kind')
+      then
+        Misc.fatal_errorf "Declared field kind %a doesn't match [field_tys]"
+          Flambda_kind.print field_kind);
 
     let tag : _ Or_unknown.t =
       let tag : _ Or_unknown.t =
@@ -2193,7 +2185,7 @@ module Row_like_for_blocks = struct
         | Closed tag -> Known tag
       in
       match tag with
-      | Unknown -> begin
+      | Unknown -> (
         match field_kind with
         | Value -> Unknown
         | Naked_number Naked_float -> Known Tag.double_array_tag
@@ -2203,17 +2195,15 @@ module Row_like_for_blocks = struct
         | Naked_number Naked_nativeint
         | Region | Rec_info ->
           Misc.fatal_errorf "Bad kind %a for fields" Flambda_kind.print
-            field_kind
-      end
-      | Known tag -> begin
+            field_kind)
+      | Known tag -> (
         match field_kind with
-        | Value -> begin
+        | Value -> (
           match Tag.Scannable.of_tag tag with
           | Some _ -> Known tag
           | None ->
             Misc.fatal_error
-              "Blocks full of [Value]s must have a tag less than [No_scan_tag]"
-        end
+              "Blocks full of [Value]s must have a tag less than [No_scan_tag]")
         | Naked_number Naked_float ->
           if not (Tag.equal tag Tag.double_array_tag)
           then
@@ -2226,17 +2216,15 @@ module Row_like_for_blocks = struct
         | Naked_number Naked_nativeint
         | Region | Rec_info ->
           Misc.fatal_errorf "Bad kind %a for fields" Flambda_kind.print
-            field_kind
-      end
+            field_kind)
     in
     let product = { kind = field_kind; fields = Array.of_list field_tys } in
     let size = Targetint_31_63.Imm.of_int (List.length field_tys) in
     match open_or_closed with
-    | Open _ -> begin
+    | Open _ -> (
       match tag with
       | Known tag -> create_at_least tag size product
-      | Unknown -> create_at_least_unknown_tag size product
-    end
+      | Unknown -> create_at_least_unknown_tag size product)
     | Closed _ -> (
       match tag with
       | Known tag -> create_exactly tag size product
@@ -2346,9 +2334,8 @@ module Row_like_for_blocks = struct
     in
     match Tag.Map.find variant_tag t.known_tags with
     | case -> aux case
-    | exception Not_found -> begin
-      match t.other_tags with Bottom -> Bottom | Ok case -> aux case
-    end
+    | exception Not_found -> (
+      match t.other_tags with Bottom -> Bottom | Ok case -> aux case)
 end
 
 module Row_like_for_closures = struct

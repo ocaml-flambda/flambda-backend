@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 module K = Flambda_kind
 module RWC = Reg_width_const
 module TG = Type_grammar
@@ -300,24 +298,32 @@ let arity_of_list ts = Flambda_arity.create (List.map TG.kind ts)
 let unknown_types_from_arity arity =
   List.map (fun kind -> unknown kind) (Flambda_arity.to_list arity)
 
-let rec unknown_with_descr (descr : Flambda_kind.With_subkind.descr) =
-  match descr with
-  | Any_value -> TG.any_value
-  | Naked_number Naked_immediate -> TG.any_naked_immediate
-  | Naked_number Naked_float -> TG.any_naked_float
-  | Naked_number Naked_int32 -> TG.any_naked_int32
-  | Naked_number Naked_int64 -> TG.any_naked_int64
-  | Naked_number Naked_nativeint -> TG.any_naked_nativeint
+let rec unknown_with_subkind (kind : Flambda_kind.With_subkind.t) =
+  match Flambda_kind.With_subkind.subkind kind with
+  | Anything -> (
+    match Flambda_kind.With_subkind.kind kind with
+    | Value -> TG.any_value
+    | Naked_number Naked_immediate -> TG.any_naked_immediate
+    | Naked_number Naked_float -> TG.any_naked_float
+    | Naked_number Naked_int32 -> TG.any_naked_int32
+    | Naked_number Naked_int64 -> TG.any_naked_int64
+    | Naked_number Naked_nativeint -> TG.any_naked_nativeint
+    | Rec_info -> TG.any_rec_info
+    | Region -> TG.any_region)
   | Boxed_float -> any_boxed_float
   | Boxed_int32 -> any_boxed_int32
   | Boxed_int64 -> any_boxed_int64
   | Boxed_nativeint -> any_boxed_nativeint
   | Tagged_immediate -> any_tagged_immediate
-  | Rec_info -> TG.any_rec_info
   | Block { tag; fields } ->
     assert (not (Tag.equal tag Tag.double_array_tag));
     immutable_block ~is_unique:false tag ~field_kind:Flambda_kind.value
-      ~fields:(List.map unknown_with_descr fields)
+      ~fields:
+        (List.map
+           (fun subkind ->
+             unknown_with_subkind
+               (Flambda_kind.With_subkind.create Flambda_kind.value subkind))
+           fields)
       Unknown
   | Float_block { num_fields } ->
     immutable_block ~is_unique:false Tag.double_array_tag
@@ -337,9 +343,6 @@ let rec unknown_with_descr (descr : Flambda_kind.With_subkind.descr) =
       ~length:any_tagged_immediate
   | Generic_array ->
     TG.array_of_length ~element_kind:Unknown ~length:any_tagged_immediate
-
-let unknown_with_subkind kind =
-  unknown_with_descr (Flambda_kind.With_subkind.descr kind)
 
 let unknown_types_from_arity_with_subkinds arity =
   List.map

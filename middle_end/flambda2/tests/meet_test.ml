@@ -1,11 +1,9 @@
 open Flambda2_bound_identifiers
-open Flambda2_cmx
 open Flambda2_identifiers
 open Flambda2_kinds
 open Flambda2_nominal
 open Flambda2_numbers
 open Flambda2_term_basics
-open Flambda2_types
 module K = Flambda_kind
 module T = Flambda2_types
 module TE = T.Typing_env

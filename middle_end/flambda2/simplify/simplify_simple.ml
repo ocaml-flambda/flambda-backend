@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 module DA = Downwards_acc
 module T = Flambda2_types
 module TE = T.Typing_env

@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 open! Int_replace_polymorphic_compare
 
 let hash_seed =
@@ -468,8 +466,12 @@ module Symbol = struct
         (Compilation_unit.get_linkage_name compilation_unit)
     in
     let linkage_name =
-      Linkage_name.create
-        (unit_linkage_name ^ "__" ^ Linkage_name.to_string linkage_name)
+      if Compilation_unit.equal compilation_unit
+           (Compilation_unit.external_symbols ())
+      then linkage_name
+      else
+        Linkage_name.create
+          (unit_linkage_name ^ "__" ^ Linkage_name.to_string linkage_name)
     in
     unsafe_create compilation_unit linkage_name
 
@@ -863,6 +865,8 @@ module Code_id_or_symbol = struct
   module Lmap = Lmap.Make (T)
 
   let set_of_code_id_set code_ids =
+    (* CR-someday lmaurer: This is just an expensive identity. Should add
+       something to [Patricia_tree] to let us translate. *)
     Code_id.Set.fold
       (fun code_id free_code_ids ->
         Set.add (create_code_id code_id) free_code_ids)

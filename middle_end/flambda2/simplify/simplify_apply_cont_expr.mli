@@ -14,6 +14,4 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 val simplify_apply_cont : Flambda.Apply_cont.t Simplify_common.expr_simplifier

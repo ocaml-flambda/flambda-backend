@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 module EC = Exported_code
 module T = Flambda2_types
 module TE = Flambda2_types.Typing_env
@@ -212,8 +210,8 @@ let prepare_cmx ~module_symbol create_typing_env ~free_names_of_name
 
      In the case of the exported code, we already have offsets for all
      function_slots/vars reachable from the code of the current compilation
-     unit, but since we also re-export code from other compilation units, we
-     need to take those into account. *)
+     unit, but since we also re-export code metadata (including return types)
+     from other compilation units, we need to take those into account. *)
   (* CR gbury: it might be more efficient to not compute the free names for all
      exported code, but fold over the exported code to avoid allocating some
      free_names *)
@@ -223,13 +221,13 @@ let prepare_cmx ~module_symbol create_typing_env ~free_names_of_name
   in
   let exported_offsets =
     exported_offsets
-    |> Slot_offsets.reexport_function_slots
+    |> Exported_offsets.reexport_function_slots
          (Name_occurrences.all_function_slots free_names_of_all_code)
-    |> Slot_offsets.reexport_value_slots
+    |> Exported_offsets.reexport_value_slots
          (Name_occurrences.all_value_slots free_names_of_all_code)
-    |> Slot_offsets.reexport_function_slots
+    |> Exported_offsets.reexport_function_slots
          (Name_occurrences.all_function_slots slots_used_in_typing_env)
-    |> Slot_offsets.reexport_value_slots
+    |> Exported_offsets.reexport_value_slots
          (Name_occurrences.all_value_slots slots_used_in_typing_env)
   in
   Some

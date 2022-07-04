@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 (* The invariant checks are extremely slow and unlikely to be generally
    useful. *)
 let check_invariants = false
@@ -37,7 +35,7 @@ module Make (N : Container_types.S) = struct
 
   let[@inline always] invariant { forwards; backwards } =
     if check_invariants
-    then begin
+    then (
       let is_bijection map =
         let domain = N.Map.keys map in
         let range_list = N.Map.data map in
@@ -53,8 +51,7 @@ module Make (N : Container_types.S) = struct
             match N.Map.find n2 backwards with
             | exception Not_found -> false
             | n1' -> N.equal n1 n1')
-          forwards)
-    end
+          forwards))
 
   let apply t n =
     match N.Map.find n t.forwards with exception Not_found -> n | n -> n

@@ -14,7 +14,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42-66"]
+[@@@ocaml.warning "-fragile-match"]
 
 open! Int_replace_polymorphic_compare
 open! Flambda
@@ -31,6 +31,14 @@ module Function_decl = Function_decls.Function_decl
 module K = Flambda_kind
 module P = Flambda_primitive
 module VB = Bound_var
+
+type 'a close_program_metadata =
+  | Normal : [`Normal] close_program_metadata
+  | Classic :
+      (Exported_code.t * Flambda_cmx_format.t option * Exported_offsets.t)
+      -> [`Classic] close_program_metadata
+
+type 'a close_program_result = Flambda_unit.t * 'a close_program_metadata
 
 type close_functions_result =
   | Lifted of (Symbol.t * Env.value_approximation) Function_slot.Lmap.t
@@ -212,13 +220,12 @@ module Inlining = struct
         |> Flambda_arity.length
       in
       if fun_params_length > List.length (Apply_expr.args apply)
-      then begin
+      then (
         Inlining_report.record_decision_at_call_site_for_known_function ~tracker
           ~apply ~pass:After_closure_conversion ~unrolling_depth:None
           ~callee:(Code.absolute_history code)
           ~are_rebuilding_terms Definition_says_not_to_inline;
-        Not_inlinable
-      end
+        Not_inlinable)
       else
         let inlined_call = Apply_expr.inlined apply in
         let decision, res =
@@ -422,7 +429,7 @@ let close_c_call acc env ~loc ~let_bound_var
       then Misc.fatal_errorf "Expected arity one for %s" prim_native_name
       else
         match prim_native_repr_args, prim_native_repr_res with
-        | [(_, Unboxed_integer Pint64)], (_, Unboxed_float) -> begin
+        | [(_, Unboxed_integer Pint64)], (_, Unboxed_float) -> (
           match args with
           | [arg] ->
             let result = Variable.create "reinterpreted_int64" in
@@ -440,8 +447,7 @@ let close_c_call acc env ~loc ~let_bound_var
               (Named.create_prim prim dbg)
               ~body:return_result_expr
           | [] | _ :: _ ->
-            Misc.fatal_errorf "Expected one arg for %s" prim_native_name
-        end
+            Misc.fatal_errorf "Expected one arg for %s" prim_native_name)
         | _, _ ->
           Misc.fatal_errorf "Wrong argument and/or result kind(s) for %s"
             prim_native_name)
@@ -728,7 +734,7 @@ let close_let acc env id user_visible defining_expr
           Some
             (Env.add_block_approximation body_env (Name.var var) approxs
                alloc_mode)
-        | Prim (Binary (Block_load _, block, field), _) -> begin
+        | Prim (Binary (Block_load _, block, field), _) -> (
           match Env.find_value_approximation body_env block with
           | Value_unknown -> Some body_env
           | Closure_approximation _ | Value_symbol _ ->
@@ -770,7 +776,7 @@ let close_let acc env id user_visible defining_expr
               Some (Env.add_simple_to_substitute env id (Simple.symbol sym))
             | _ ->
               Some (Env.add_value_approximation body_env (Name.var var) approx))
-        end
+          )
         | _ -> Some body_env
       in
       let var = VB.create var Name_mode.normal in
@@ -870,7 +876,8 @@ let close_exact_or_unknown_apply acc env
             Call_kind.indirect_function_call_unknown_arity mode
           else Call_kind.direct_function_call code_id ~return_arity mode
         | None -> Call_kind.indirect_function_call_unknown_arity mode
-        | _ -> assert false
+        | Some (Value_unknown | Value_symbol _ | Block_approximation _) ->
+          assert false
         (* See [close_apply] *) ))
     | Method { kind; obj } ->
       let acc, obj = find_simple acc env obj in
@@ -1270,7 +1277,7 @@ let close_one_function acc ~external_env ~by_function_slot decl
     let code = Code_or_metadata.create code in
     let meta = Code_or_metadata.remember_only_metadata code in
     if Flambda_features.classic_mode ()
-    then begin
+    then (
       Inlining_report.record_decision_at_function_definition ~absolute_history
         ~code_metadata:(Code_or_metadata.code_metadata meta)
         ~pass:After_closure_conversion
@@ -1278,8 +1285,7 @@ let close_one_function acc ~external_env ~by_function_slot decl
         inlining_decision;
       if Function_decl_inlining_decision_type.must_be_inlined inlining_decision
       then code
-      else meta
-    end
+      else meta)
     else meta
   in
   let acc = Acc.add_code ~code_id ~code acc in
@@ -1553,7 +1559,9 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
   in
   let free_idents_of_body =
     List.fold_left
-      (fun ids -> function IR.Var id -> Ident.Set.add id ids | _ -> ids)
+      (fun ids -> function
+        | IR.Var id -> Ident.Set.add id ids
+        | IR.Const _ -> ids)
       (Ident.Set.singleton apply.func)
       all_args
   in
@@ -1702,7 +1710,7 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
           Code_metadata.contains_no_escaping_local_allocs metadata,
           Code_metadata.result_arity metadata )
     | Value_unknown -> None
-    | _ ->
+    | Value_symbol _ | Block_approximation _ ->
       if Flambda_features.check_invariants ()
       then
         Misc.fatal_errorf
@@ -1861,8 +1869,10 @@ let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
         defining_expr ~body)
     (acc, body) components
 
-let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
-    ~module_block_size_in_words ~program ~prog_return_cont ~exn_continuation =
+let close_program (type mode) ~(mode : mode Flambda_features.mode)
+    ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
+    ~module_block_size_in_words ~program ~prog_return_cont ~exn_continuation :
+    mode close_program_result =
   let symbol_for_global ident = symbol_for_global ?comp_unit:None ident in
   let env = Env.create ~symbol_for_global ~big_endian ~cmx_loader in
   let module_symbol =
@@ -1871,7 +1881,7 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
   let module_block_tag = Tag.Scannable.zero in
   let module_block_var = Variable.create "module_block" in
   let return_cont = Continuation.create ~sort:Toplevel_return () in
-  let slot_offsets = Slot_offsets.create () in
+  let slot_offsets = Slot_offsets.empty in
   let acc = Acc.create ~symbol_for_global ~slot_offsets in
   let load_fields_body acc =
     let field_vars =
@@ -2007,16 +2017,26 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
   let get_code_metadata code_id =
     Code_id.Map.find code_id (Acc.code acc) |> Code.code_metadata
   in
-  let all_code =
-    Exported_code.add_code (Acc.code acc)
-      ~keep_code:(fun _ -> false)
-      (Exported_code.mark_as_imported
-         (Flambda_cmx.get_imported_code cmx_loader ()))
-  in
-  let used_value_slots, exported_offsets =
-    let used_slots =
-      let free_names = Acc.free_names acc in
-      Or_unknown.Known
+  match mode with
+  | Normal ->
+    (* CR chambart/gbury: we could probably get away with not computing some of
+       the fields of the Acc, when not in classic mode. For instance, the slot
+       offsets constraints accumulation is not needed in "normal" mode. *)
+    let unit =
+      Flambda_unit.create ~return_continuation:return_cont ~exn_continuation
+        ~body ~module_symbol ~used_value_slots:Unknown
+    in
+    unit, Normal
+  | Classic ->
+    let all_code =
+      Exported_code.add_code (Acc.code acc)
+        ~keep_code:(fun _ -> false)
+        (Exported_code.mark_as_imported
+           (Flambda_cmx.get_imported_code cmx_loader ()))
+    in
+    let Slot_offsets.{ used_value_slots; exported_offsets } =
+      let used_slots =
+        let free_names = Acc.free_names acc in
         Slot_offsets.
           { function_slots_in_normal_projections =
               Name_occurrences.function_slots_in_normal_projections free_names;
@@ -2025,22 +2045,16 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
               Name_occurrences.value_slots_in_normal_projections free_names;
             all_value_slots = Name_occurrences.all_value_slots free_names
           }
+      in
+      Slot_offsets.finalize_offsets (Acc.slot_offsets acc) ~get_code_metadata
+        ~used_slots
     in
-    Slot_offsets.finalize_offsets (Acc.slot_offsets acc) ~get_code_metadata
-      ~used_slots
-  in
-  let used_value_slots =
-    match used_value_slots with
-    | Known used_value_slots -> used_value_slots
-    | Unknown ->
-      Misc.fatal_error "Closure_conversion needs to know its used value slots."
-  in
-  let cmx =
-    Flambda_cmx.prepare_cmx_from_approx ~approxs:symbols_approximations
-      ~module_symbol ~exported_offsets ~used_value_slots all_code
-  in
-  ( Flambda_unit.create ~return_continuation:return_cont ~exn_continuation ~body
-      ~module_symbol ~used_value_slots:(Known used_value_slots),
-    all_code,
-    cmx,
-    exported_offsets )
+    let cmx =
+      Flambda_cmx.prepare_cmx_from_approx ~approxs:symbols_approximations
+        ~module_symbol ~exported_offsets ~used_value_slots all_code
+    in
+    let unit =
+      Flambda_unit.create ~return_continuation:return_cont ~exn_continuation
+        ~body ~module_symbol ~used_value_slots:(Known used_value_slots)
+    in
+    unit, Classic (all_code, cmx, exported_offsets)

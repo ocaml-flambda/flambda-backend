@@ -16,8 +16,6 @@
 
 (** Simplification functions on [Rec_info_expr.t]. *)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 val simplify_rec_info_expr :
   Downwards_acc.t -> Rec_info_expr.t -> Rec_info_expr.t
 

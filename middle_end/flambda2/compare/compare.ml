@@ -1,5 +1,7 @@
+[@@@ocaml.warning "-fragile-match"]
+
 open! Int_replace_polymorphic_compare
-open Flambda
+open! Flambda
 
 (* General notes on comparison
  *
@@ -106,34 +108,30 @@ let debugging_verbose = false
 
 let log f e1 e2 thunk =
   if debugging
-  then begin
+  then (
     if debugging_verbose
-    then begin
+    then (
       Format.eprintf
         "@[<v>@[<hv>COMPARING@;<1 2>%a@;<1 0>TO@;<1 2>%a@]@,---@;<0 2>" f e1 f
         e2;
       let ans = thunk () in
       Format.eprintf "%a@]@," (Comparison.print f) ans;
-      ans
-    end
+      ans)
     else
       let ans : _ Comparison.t = thunk () in
-      begin
-        match ans with
-        | Equivalent -> ()
-        | Different { approximant } ->
-          Format.eprintf
-            "@[<hv>FOUND DIFFERENCE:@;\
-             <1 2>%a@;\
-             <1 0>!=@;\
-             <1 2>%a@;\
-             <1 0>approx@;\
-             <1 2>%a@]\n\
-             %!"
-            f e1 f e2 f approximant
-      end;
-      ans
-  end
+      (match ans with
+      | Equivalent -> ()
+      | Different { approximant } ->
+        Format.eprintf
+          "@[<hv>FOUND DIFFERENCE:@;\
+           <1 2>%a@;\
+           <1 0>!=@;\
+           <1 2>%a@;\
+           <1 0>approx@;\
+           <1 2>%a@]\n\
+           %!"
+          f e1 f e2 f approximant);
+      ans)
   else thunk ()
 
 let log_rel f e1 rel e2 =
@@ -398,7 +396,8 @@ and subst_params_and_body env params_and_body =
 
 and subst_let_cont env (let_cont_expr : Let_cont_expr.t) =
   match let_cont_expr with
-  | Non_recursive { handler; num_free_occurrences = _ } ->
+  | Non_recursive
+      { handler; num_free_occurrences = _; is_applied_with_traps = _ } ->
     Non_recursive_let_cont_handler.pattern_match handler ~f:(fun cont ~body ->
         let body = subst_expr env body in
         let handler =
@@ -455,7 +454,7 @@ and subst_switch env switch =
 module Comparator = struct
   type 'a t = Env.t -> 'a -> 'a -> 'a Comparison.t
 
-  let of_predicate ~(f : 'a -> 'a -> bool) ?(subst : (Env.t -> 'a -> 'a) option)
+  let of_predicate ?(subst : (Env.t -> 'a -> 'a) option) (f : 'a -> 'a -> bool)
       : 'a t =
    fun env a1 a2 ->
     if f a1 a2
@@ -466,9 +465,9 @@ module Comparator = struct
       in
       Different { approximant }
 
-  let of_ordering ~(f : 'a -> 'a -> int) ?(subst : (Env.t -> 'a -> 'a) option) :
+  let of_ordering ?(subst : (Env.t -> 'a -> 'a) option) (f : 'a -> 'a -> int) :
       'a t =
-    of_predicate ~f:(fun a1 a2 -> f a1 a2 = 0) ?subst
+    of_predicate ?subst (fun a1 a2 -> f a1 a2 = 0)
 end
 
 (* If subst2 is given and the first components of the pairs are unequal, then
@@ -482,15 +481,14 @@ let pairs ~(f1 : 'a Comparator.t) ~(f2 : 'b Comparator.t)
  fun env (a1, b1) (a2, b2) ->
   match f1 env a1 a2 with
   | Equivalent -> f2 env b1 b2 |> Comparison.map ~f:(fun b1' -> a2, b1')
-  | Different { approximant = a1' } -> begin
+  | Different { approximant = a1' } -> (
     match subst2 with
     | Some subst2 -> Different { approximant = a1', subst2 env b1 }
-    | None -> begin
+    | None -> (
       match f2 env b1 b2 with
       | Equivalent -> Different { approximant = a1', b2 }
-      | Different { approximant = b1' } -> Different { approximant = a1', b1' }
-    end
-  end
+      | Different { approximant = b1' } -> Different { approximant = a1', b1' })
+    )
 
 let triples ~(f1 : 'a Comparator.t) ~(f2 : 'b Comparator.t)
     ~(f3 : 'c Comparator.t) ?(subst2 : (Env.t -> 'b -> 'b) option)
@@ -713,7 +711,7 @@ let iter2_merged l1 l2 ~compare ~f =
     | [], a2 :: l2 ->
       f None (Some a2);
       go [] l2
-    | a1 :: l1, a2 :: l2 -> begin
+    | a1 :: l1, a2 :: l2 -> (
       match compare a1 a2 with
       | 0 ->
         f (Some a1) (Some a2);
@@ -723,8 +721,7 @@ let iter2_merged l1 l2 ~compare ~f =
         go l1 (a2 :: l2)
       | _ ->
         f None (Some a2);
-        go (a1 :: l1) l2
-    end
+        go (a1 :: l1) l2)
   in
   go l1 l2
 
@@ -750,11 +747,10 @@ let sets_of_closures env set1 set2 : Set_of_closures.t Comparison.t =
         match elt1, elt2 with
         | None, None -> ()
         | Some _, None | None, Some _ -> ok := false
-        | Some (_value1, var1), Some (_value2, var2) -> begin
+        | Some (_value1, var1), Some (_value2, var2) -> (
           match value_slots env var1 var2 with
           | Equivalent -> ()
-          | Different { approximant = _ } -> ok := false
-        end)
+          | Different { approximant = _ } -> ok := false))
   in
   let function_slots_and_fun_decls_by_code_id set =
     let map = Function_declarations.funs (Set_of_closures.function_decls set) in
@@ -768,22 +764,17 @@ let sets_of_closures env set1 set2 : Set_of_closures.t Comparison.t =
   let (_ : unit Code_id.Map.t) =
     Code_id.Map.merge
       (fun _code_id value1 value2 ->
-        begin
-          match value1, value2 with
-          | None, None -> ()
-          | Some _, None | None, Some _ -> ok := false
-          | Some (function_slot1, fun_decl1), Some (function_slot2, fun_decl2)
-            -> begin
-            begin
-              match function_slots env function_slot1 function_slot2 with
-              | Equivalent -> ()
-              | Different _ -> ok := false
-            end;
-            match function_decls env fun_decl1 fun_decl2 with
-            | Equivalent -> ()
-            | Different _ -> ok := false
-          end
-        end;
+        (match value1, value2 with
+        | None, None -> ()
+        | Some _, None | None, Some _ -> ok := false
+        | Some (function_slot1, fun_decl1), Some (function_slot2, fun_decl2)
+          -> (
+          (match function_slots env function_slot1 function_slot2 with
+          | Equivalent -> ()
+          | Different _ -> ok := false);
+          match function_decls env fun_decl1 fun_decl2 with
+          | Equivalent -> ()
+          | Different _ -> ok := false));
         None)
       (function_slots_and_fun_decls_by_code_id set1)
       (function_slots_and_fun_decls_by_code_id set2)
@@ -870,12 +861,12 @@ let fields env (field1 : Field_of_static_block.t)
     symbols env symbol1 symbol2
     |> Comparison.map ~f:(fun symbol1' -> Field_of_static_block.Symbol symbol1')
   | _, _ ->
-    Comparator.of_predicate ~f:Field_of_static_block.equal env field1 field2
+    Comparator.of_predicate Field_of_static_block.equal env field1 field2
 
 let blocks env block1 block2 =
   triples
-    ~f1:(Comparator.of_predicate ~f:Tag.Scannable.equal)
-    ~f2:(Comparator.of_ordering ~f:Mutability.compare)
+    ~f1:(Comparator.of_predicate Tag.Scannable.equal)
+    ~f2:(Comparator.of_ordering Mutability.compare)
     ~f3:(lists ~f:fields ~subst:subst_field ~subst_snd:true)
     ~subst2:(fun _ mut -> mut)
     ~subst3:(fun env -> List.map (subst_field env))
@@ -902,7 +893,7 @@ let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
           _
         } ) ->
     pairs ~f1:code_ids
-      ~f2:(Comparator.of_predicate ~f:Flambda_arity.With_subkinds.equal)
+      ~f2:(Comparator.of_predicate Flambda_arity.With_subkinds.equal)
       ~subst2:(fun _ arity -> arity)
       env (code_id1, return_arity1) (code_id2, return_arity2)
     |> Comparison.map ~f:(fun (code_id, return_arity) ->
@@ -935,12 +926,14 @@ let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
   | ( C_call
         { alloc = alloc1;
           param_arity = param_arity1;
-          return_arity = return_arity1
+          return_arity = return_arity1;
+          is_c_builtin = _
         },
       C_call
         { alloc = alloc2;
           param_arity = param_arity2;
-          return_arity = return_arity2
+          return_arity = return_arity2;
+          is_c_builtin = _
         } ) ->
     if Bool.equal alloc1 alloc2
        && Flambda_arity.equal param_arity1 param_arity2
@@ -1027,7 +1020,7 @@ let switch_exprs env switch1 switch2 : Expr.t Comparison.t =
     lists
       ~f:
         (pairs
-           ~f1:(Comparator.of_predicate ~f:Targetint_31_63.equal)
+           ~f1:(Comparator.of_predicate Targetint_31_63.equal)
            ~f2:apply_cont_exprs ~subst2:subst_apply_cont)
       ~subst:(fun env (target_imm, apply_cont) ->
         target_imm, subst_apply_cont env apply_cont)
@@ -1190,8 +1183,16 @@ and codes env (code1 : Code.t) (code2 : Code.t) =
 and let_cont_exprs env (let_cont1 : Let_cont.t) (let_cont2 : Let_cont.t) :
     Expr.t Comparison.t =
   match let_cont1, let_cont2 with
-  | ( Non_recursive { handler = handler1; num_free_occurrences = _ },
-      Non_recursive { handler = handler2; num_free_occurrences = _ } ) ->
+  | ( Non_recursive
+        { handler = handler1;
+          num_free_occurrences = _;
+          is_applied_with_traps = _
+        },
+      Non_recursive
+        { handler = handler2;
+          num_free_occurrences = _;
+          is_applied_with_traps = _
+        } ) ->
     let module Non_rec = Non_recursive_let_cont_handler in
     let sorts_match =
       let sort handler =

@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 let check_arity arity =
   if Flambda_arity.With_subkinds.is_nullary arity
   then Misc.fatal_error "Invalid nullary arity"
@@ -134,13 +132,11 @@ let indirect_function_call_known_arity ~param_arity ~return_arity alloc_mode =
 let method_call kind ~obj alloc_mode = Method { kind; obj; alloc_mode }
 
 let c_call ~alloc ~param_arity ~return_arity ~is_c_builtin =
-  begin
-    match Flambda_arity.to_list return_arity with
-    | [] | [_] -> ()
-    | _ :: _ :: _ ->
-      Misc.fatal_errorf "Illegal return arity for C call: %a"
-        Flambda_arity.print return_arity
-  end;
+  (match Flambda_arity.to_list return_arity with
+  | [] | [_] -> ()
+  | _ :: _ :: _ ->
+    Misc.fatal_errorf "Illegal return arity for C call: %a" Flambda_arity.print
+      return_arity);
   C_call { alloc; param_arity; return_arity; is_c_builtin }
 
 let return_arity t =

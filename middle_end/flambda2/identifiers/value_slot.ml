@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 include Slot.Make (struct
   let colour = Flambda_colours.value_slot
 end)

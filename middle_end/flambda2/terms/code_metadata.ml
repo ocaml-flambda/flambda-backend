@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 type t =
   { code_id : Code_id.t;
     newer_version_of : Code_id.t option;
@@ -92,17 +90,14 @@ let create code_id ~newer_version_of ~params_arity ~num_trailing_local_params
     ~(inline : Inline_attribute.t) ~is_a_functor ~recursive ~cost_metrics
     ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used ~inlining_decision
     ~absolute_history ~relative_history =
-  begin
-    match stub, inline with
-    | true, (Available_inline | Never_inline | Default_inline)
-    | ( false,
-        ( Never_inline | Default_inline | Always_inline | Available_inline
-        | Unroll _ ) ) ->
-      ()
-    | true, (Always_inline | Unroll _) ->
-      Misc.fatal_error
-        "Stubs may not be annotated as [Always_inline] or [Unroll]"
-  end;
+  (match stub, inline with
+  | true, (Available_inline | Never_inline | Default_inline)
+  | ( false,
+      ( Never_inline | Default_inline | Always_inline | Available_inline
+      | Unroll _ ) ) ->
+    ()
+  | true, (Always_inline | Unroll _) ->
+    Misc.fatal_error "Stubs may not be annotated as [Always_inline] or [Unroll]");
   if num_trailing_local_params < 0
      || num_trailing_local_params
         > Flambda_arity.With_subkinds.cardinal params_arity
@@ -179,7 +174,7 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>@<0>%s(dbg@ %a)@<0>%s@]@ \
       @[<hov 1>@<0>%s(is_tupled@ %b)@<0>%s@]@ \
       @[<hov 1>(is_my_closure_used@ %b)@]@ \
-      %a
+      %a\n\
       @[<hov 1>(inlining_decision@ %a)@]\
       )@]"
     (if Option.is_none newer_version_of then Flambda_colours.elide ()

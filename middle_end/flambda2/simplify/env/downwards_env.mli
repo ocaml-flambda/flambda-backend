@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 open! Flambda.Import
 
 type resolver = Compilation_unit.t -> Flambda2_types.Typing_env.t option
@@ -36,7 +34,7 @@ val create :
   resolver:resolver ->
   get_imported_names:get_imported_names ->
   get_imported_code:get_imported_code ->
-  float_const_prop:bool ->
+  propagating_float_consts:bool ->
   unit_toplevel_exn_continuation:Continuation.t ->
   unit_toplevel_return_continuation:Continuation.t ->
   t
@@ -45,11 +43,9 @@ val all_code : t -> Code.t Code_id.Map.t
 
 val resolver : t -> Compilation_unit.t -> Flambda2_types.Typing_env.t option
 
-val float_const_prop : t -> bool
+val propagating_float_consts : t -> bool
 
 val at_unit_toplevel : t -> bool
-
-val set_not_at_unit_toplevel : t -> t
 
 val set_at_unit_toplevel_state : t -> bool -> t
 
@@ -66,8 +62,6 @@ val unit_toplevel_exn_continuation : t -> Continuation.t
 val enter_set_of_closures : t -> t
 
 val increment_continuation_scope : t -> t
-
-val increment_continuation_scope_twice : t -> t
 
 val get_continuation_scope : t -> Scope.t
 
@@ -86,8 +80,6 @@ val mem_variable : t -> Variable.t -> bool
 val add_symbol : t -> Symbol.t -> Flambda2_types.t -> t
 
 val define_symbol : t -> Symbol.t -> Flambda_kind.t -> t
-
-val define_symbol_if_undefined : t -> Symbol.t -> Flambda_kind.t -> t
 
 val mem_symbol : t -> Symbol.t -> bool
 
@@ -117,13 +109,6 @@ val add_parameters_with_unknown_types :
   t ->
   Bound_parameters.t ->
   t
-
-val add_parameters_with_unknown_types' :
-  ?name_mode:Name_mode.t ->
-  ?at_unit_toplevel:bool ->
-  t ->
-  Bound_parameters.t ->
-  t * Flambda2_types.t list
 
 val mark_parameters_as_toplevel : t -> Bound_parameters.t -> t
 
@@ -211,5 +196,3 @@ val inlining_history_tracker : t -> Inlining_history.Tracker.t
 val set_inlining_history_tracker : Inlining_history.Tracker.t -> t -> t
 
 val relative_history : t -> Inlining_history.Relative.t
-
-val inlining_depth : t -> int

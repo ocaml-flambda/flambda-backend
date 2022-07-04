@@ -12,8 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 open! Cmm_helpers
 module Ece = Effects_and_coeffects
 
@@ -27,11 +25,10 @@ let exttype_of_kind (k : Flambda_kind.t) : Cmm.exttype =
   | Naked_number Naked_float -> XFloat
   | Naked_number Naked_int64 -> XInt64
   | Naked_number Naked_int32 -> XInt32
-  | Naked_number (Naked_immediate | Naked_nativeint) -> begin
+  | Naked_number (Naked_immediate | Naked_nativeint) -> (
     match Targetint_32_64.num_bits with
     | Thirty_two -> XInt32
-    | Sixty_four -> XInt64
-  end
+    | Sixty_four -> XInt64)
   | Region -> Misc.fatal_error "[Region] kind not expected here"
   | Rec_info -> Misc.fatal_error "[Rec_info] kind not expected here"
 

@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 open! Simplify_import
 
 let create_lifted_constant (dacc, lifted_constants)
@@ -187,10 +185,10 @@ let removed_operations (named : Named.t) result =
   let descr = Simplify_named_result.descr result in
   let zero = Removed_operations.zero in
   match named with
-  | Set_of_closures _ -> begin
+  | Set_of_closures _ -> (
     match descr with
     | Multiple_bindings_to_symbols _ -> Removed_operations.alloc
-    | Single_term { simplified_defining_expr; _ } -> begin
+    | Single_term { simplified_defining_expr; _ } -> (
       match simplified_defining_expr with
       | Reachable { named = Set_of_closures _; _ }
       | Reachable_try_reify { named = Set_of_closures _; _ } ->
@@ -204,18 +202,15 @@ let removed_operations (named : Named.t) result =
       | Reachable_try_reify { named = Prim _; _ }
       | Reachable_try_reify { named = Simple _; _ }
       | Reachable_try_reify { named = Rec_info _; _ } ->
-        assert false
-    end
-    | Zero_terms -> assert false
-  end
-  | Static_consts _ -> begin
+        assert false)
+    | Zero_terms -> assert false)
+  | Static_consts _ -> (
     match descr with
     | Zero_terms -> zero
-    | Single_term _ | Multiple_bindings_to_symbols _ -> assert false
-  end
-  | Simple _ -> begin
+    | Single_term _ | Multiple_bindings_to_symbols _ -> assert false)
+  | Simple _ -> (
     match descr with
-    | Single_term { simplified_defining_expr; _ } -> begin
+    | Single_term { simplified_defining_expr; _ } -> (
       match simplified_defining_expr with
       | Reachable { named = Simple _; _ }
       | Reachable_try_reify { named = Simple _; _ } ->
@@ -228,13 +223,11 @@ let removed_operations (named : Named.t) result =
       | Reachable_try_reify { named = Set_of_closures _; _ }
       | Reachable_try_reify { named = Prim _; _ }
       | Reachable_try_reify { named = Rec_info _; _ } ->
-        assert false
-    end
-    | Zero_terms | Multiple_bindings_to_symbols _ -> assert false
-  end
-  | Prim (original_prim, _) -> begin
+        assert false)
+    | Zero_terms | Multiple_bindings_to_symbols _ -> assert false)
+  | Prim (original_prim, _) -> (
     match descr with
-    | Single_term { simplified_defining_expr; _ } -> begin
+    | Single_term { simplified_defining_expr; _ } -> (
       match simplified_defining_expr with
       | Reachable { named = Prim (rewritten_prim, _); _ }
       | Reachable_try_reify { named = Prim (rewritten_prim, _); _ } ->
@@ -249,10 +242,8 @@ let removed_operations (named : Named.t) result =
         Removed_operations.prim original_prim
       | Reachable { named = Rec_info _; _ }
       | Reachable_try_reify { named = Rec_info _; _ } ->
-        assert false
-    end
-    | Zero_terms | Multiple_bindings_to_symbols _ -> assert false
-  end
+        assert false)
+    | Zero_terms | Multiple_bindings_to_symbols _ -> assert false)
   | Rec_info _ -> zero
 
 let simplify_named dacc bound_pattern named ~simplify_toplevel =

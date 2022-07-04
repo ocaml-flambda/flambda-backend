@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 type t = Flambda.Function_params_and_body.t Code0.t
 
 let code_metadata = Code0.code_metadata

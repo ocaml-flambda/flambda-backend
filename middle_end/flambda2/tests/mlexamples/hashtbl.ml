@@ -445,11 +445,9 @@ module Stdlib = struct
     let rec iter = function
       | [] -> ()
       | a :: l ->
-        begin
-          try flush a
-          with Sys_error _ ->
-            () (* ignore channels closed during a preceding flush. *)
-        end;
+        (try flush a
+         with Sys_error _ ->
+           () (* ignore channels closed during a preceding flush. *));
         iter l
     in
     iter (out_channels_list ())
@@ -566,7 +564,7 @@ module Stdlib = struct
         | [] -> raise End_of_file
         | _ -> build_result (bytes_create len) len accu
       else if n > 0
-      then begin
+      then (
         (* n > 0: newline found in buffer *)
         let res = bytes_create (n - 1) in
         ignore (unsafe_input chan res 0 (n - 1));
@@ -576,8 +574,7 @@ module Stdlib = struct
         | [] -> res
         | _ ->
           let len = len + n - 1 in
-          build_result (bytes_create len) len (res :: accu)
-      end
+          build_result (bytes_create len) len (res :: accu))
       else
         (* n < 0: newline not found *)
         let beg = bytes_create (-n) in
@@ -710,10 +707,9 @@ module Stdlib = struct
     exit_function
       := fun () ->
            if not !f_already_ran
-           then begin
+           then (
              f_already_ran := true;
-             f ()
-           end;
+             f ());
            g ()
 
   let do_at_exit () = !exit_function ()
@@ -814,10 +810,9 @@ let reset h =
   if Obj.size (Obj.repr h) < 4 (* compatibility with old hash tables *)
      || len = abs h.initial_size
   then clear h
-  else begin
+  else (
     h.size <- 0;
-    h.data <- Array.make (abs h.initial_size) Empty
-  end
+    h.data <- Array.make (abs h.initial_size) Empty)
 
 let copy_bucketlist = function
   | Empty -> Empty
@@ -826,11 +821,7 @@ let copy_bucketlist = function
       | Empty -> ()
       | Cons { key; data; next } ->
         let r = Cons { key; data; next } in
-        begin
-          match prec with
-          | Empty -> assert false
-          | Cons prec -> prec.next <- r
-        end;
+        (match prec with Empty -> assert false | Cons prec -> prec.next <- r);
         loop r next
     in
     let r = Cons { key; data; next } in
@@ -846,7 +837,7 @@ let resize indexfun h =
   let osize = Array.length odata in
   let nsize = osize * 2 in
   if nsize < Sys.max_array_length
-  then begin
+  then (
     let ndata = Array.make nsize Empty in
     let ndata_tail = Array.make nsize Empty in
     let inplace = not (ongoing_traversal h) in
@@ -857,11 +848,9 @@ let resize indexfun h =
       | Cons { key; data; next } as cell ->
         let cell = if inplace then cell else Cons { key; data; next = Empty } in
         let nidx = indexfun h key in
-        begin
-          match ndata_tail.(nidx) with
-          | Empty -> ndata.(nidx) <- cell
-          | Cons tail -> tail.next <- cell
-        end;
+        (match ndata_tail.(nidx) with
+        | Empty -> ndata.(nidx) <- cell
+        | Cons tail -> tail.next <- cell);
         ndata_tail.(nidx) <- cell;
         insert_bucket next
     in
@@ -874,8 +863,7 @@ let resize indexfun h =
         match ndata_tail.(i) with
         | Empty -> ()
         | Cons tail -> tail.next <- Empty
-      done
-  end
+      done)
 
 let key_index h key =
   (* compatibility with old hash tables *)
@@ -894,10 +882,9 @@ let rec remove_bucket h i key prec = function
   | Empty -> ()
   | Cons { key = k; next } as c ->
     if compare k key = 0
-    then begin
+    then (
       h.size <- h.size - 1;
-      match prec with Empty -> h.data.(i) <- next | Cons c -> c.next <- next
-    end
+      match prec with Empty -> h.data.(i) <- next | Cons c -> c.next <- next)
     else remove_bucket h i key c next
 
 let remove h key =
@@ -974,11 +961,10 @@ let replace h key data =
   let i = key_index h key in
   let l = h.data.(i) in
   if replace_bucket key data l
-  then begin
+  then (
     h.data.(i) <- Cons { key; data; next = l };
     h.size <- h.size + 1;
-    if h.size > Array.length h.data lsl 1 then resize key_index h
-  end
+    if h.size > Array.length h.data lsl 1 then resize key_index h)
 
 let mem h key =
   let rec mem_in_bucket = function
@@ -1007,23 +993,17 @@ let iter f h =
     raise exn
 
 let rec filter_map_inplace_bucket f h i prec = function
-  | Empty -> begin
-    match prec with Empty -> h.data.(i) <- Empty | Cons c -> c.next <- Empty
-  end
-  | Cons ({ key; data; next } as c) as slot -> begin
+  | Empty -> (
+    match prec with Empty -> h.data.(i) <- Empty | Cons c -> c.next <- Empty)
+  | Cons ({ key; data; next } as c) as slot -> (
     match f key data with
     | None ->
       h.size <- h.size - 1;
       filter_map_inplace_bucket f h i prec next
     | Some data ->
-      begin
-        match prec with
-        | Empty -> h.data.(i) <- slot
-        | Cons c -> c.next <- slot
-      end;
+      (match prec with Empty -> h.data.(i) <- slot | Cons c -> c.next <- slot);
       c.data <- data;
-      filter_map_inplace_bucket f h i slot next
-  end
+      filter_map_inplace_bucket f h i slot next)
 
 let filter_map_inplace f h =
   let d = h.data in
@@ -1256,10 +1236,9 @@ module MakeSeeded (H : SeededHashedType) : SeededS with type key = H.t = struct
     | Empty -> ()
     | Cons { key = k; next } as c ->
       if H.equal k key
-      then begin
+      then (
         h.size <- h.size - 1;
-        match prec with Empty -> h.data.(i) <- next | Cons c -> c.next <- next
-      end
+        match prec with Empty -> h.data.(i) <- next | Cons c -> c.next <- next)
       else remove_bucket h i key c next
 
   let remove h key =
@@ -1334,11 +1313,10 @@ module MakeSeeded (H : SeededHashedType) : SeededS with type key = H.t = struct
     let i = key_index h key in
     let l = h.data.(i) in
     if replace_bucket key data l
-    then begin
+    then (
       h.data.(i) <- Cons { key; data; next = l };
       h.size <- h.size + 1;
-      if h.size > Array.length h.data lsl 1 then resize key_index h
-    end
+      if h.size > Array.length h.data lsl 1 then resize key_index h)
 
   let mem h key =
     let rec mem_in_bucket = function

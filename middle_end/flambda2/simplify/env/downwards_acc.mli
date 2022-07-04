@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 type t
 
 (** Print a downwards accumulator to a formatter. *)
@@ -53,7 +51,7 @@ val demoted_exn_handlers : t -> Continuation.Set.t
 
 val code_age_relation : t -> Code_age_relation.t
 
-val with_code_age_relation : t -> Code_age_relation.t -> t
+val with_code_age_relation : t -> code_age_relation:Code_age_relation.t -> t
 
 val typing_env : t -> Flambda2_types.Typing_env.t
 
@@ -93,11 +91,7 @@ val code_ids_to_remember : t -> Code_id.Set.t
 
 val with_code_ids_to_remember : t -> code_ids_to_remember:Code_id.Set.t -> t
 
-val set_do_not_rebuild_terms_and_disable_inlining : t -> t
-
 val are_rebuilding_terms : t -> Are_rebuilding_terms.t
-
-val do_not_rebuild_terms : t -> bool
 
 val slot_offsets : t -> Slot_offsets.t Code_id.Map.t
 

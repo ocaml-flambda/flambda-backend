@@ -435,11 +435,18 @@ let build_dwarf ~asm_directives:(module Asm_directives : Asm_targets.Asm_directi
   let unit_name =
     Compilation_unit.get_persistent_ident (Compilation_unit.get_current_exn ())
   in
+  let code_begin =
+    Compilenv.make_symbol (Some "code_begin") |> Asm_targets.Asm_symbol.create
+  in
+  let code_end =
+    Compilenv.make_symbol (Some "code_end") |> Asm_targets.Asm_symbol.create
+  in
   Dwarf.create
     ~sourcefile
     ~unit_name
     ~asm_directives:(module Asm_directives)
     ~get_file_id:(Emitaux.get_file_num ~file_emitter:X86_dsl.D.file)
+    ~code_begin ~code_end
 
 let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) = (
     module Asm_targets.Asm_directives.Make(struct

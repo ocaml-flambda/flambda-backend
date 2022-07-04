@@ -66,6 +66,7 @@ let run_parser ~start_symbol ~start_pos (lb : Lexing.lexbuf) =
       supplier start
   with Lex.Error (error, loc) ->
     Error (Lexing_error (error, make_loc ~relative_to:start_pos loc))
+  [@@ocaml.warning "-fragile-match"]
 
 let run_parser_on_file ~start_symbol filename =
   let ic = open_in filename in
@@ -163,9 +164,7 @@ let parse ~symbol_for_global filename =
          let flambda =
            Fexpr_to_flambda.conv ~symbol_for_global ~module_ident fexpr
          in
-         begin
-           match old_comp_unit with
-           | Some old_comp_unit -> Compilation_unit.set_current old_comp_unit
-           | None -> ()
-         end;
+         (match old_comp_unit with
+         | Some old_comp_unit -> Compilation_unit.set_current old_comp_unit
+         | None -> ());
          flambda)

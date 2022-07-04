@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 open! Flambda.Import
 open! Simplify_import
 
@@ -154,7 +152,8 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
       (* emission of the warning at this point should not happen, if it does,
          then that means that {Inlining_decision.make_decision_for_call_site}
          did not honour the attributes on the call site *)
-      if warn_if_attribute_ignored && not (DA.do_not_rebuild_terms dacc)
+      if warn_if_attribute_ignored
+         && Are_rebuilding_terms.are_rebuilding (DA.are_rebuilding_terms dacc)
       then
         if because_of_definition
         then
@@ -287,20 +286,18 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         "cannot simplify a partial application that never returns"
     | Return continuation -> continuation
   in
-  begin
-    match Apply.inlined apply with
-    | Always_inlined | Never_inlined ->
-      Location.prerr_warning
-        (Debuginfo.to_location dbg)
-        (Warnings.Inlining_impossible
-           "[@inlined] attributes may not be used on partial applications")
-    | Unroll _ ->
-      Location.prerr_warning
-        (Debuginfo.to_location dbg)
-        (Warnings.Inlining_impossible
-           "[@unroll] attributes may not be used on partial applications")
-    | Default_inlined | Hint_inlined -> ()
-  end;
+  (match Apply.inlined apply with
+  | Always_inlined | Never_inlined ->
+    Location.prerr_warning
+      (Debuginfo.to_location dbg)
+      (Warnings.Inlining_impossible
+         "[@inlined] attributes may not be used on partial applications")
+  | Unroll _ ->
+    Location.prerr_warning
+      (Debuginfo.to_location dbg)
+      (Warnings.Inlining_impossible
+         "[@unroll] attributes may not be used on partial applications")
+  | Default_inlined | Hint_inlined -> ());
   let arity = Flambda_arity.With_subkinds.cardinal param_arity in
   let args_arity = List.length args in
   assert (arity > args_arity);
@@ -597,15 +594,13 @@ let simplify_direct_function_call ~simplify_expr dacc apply
     ~callee's_function_slot ~result_arity ~result_types ~recursive ~arg_types:_
     ~must_be_detupled ~closure_alloc_mode ~apply_alloc_mode function_decl
     ~down_to_up =
-  begin
-    match Apply.probe_name apply, Apply.inlined apply with
-    | None, _ | Some _, Never_inlined -> ()
-    | Some _, (Hint_inlined | Unroll _ | Default_inlined | Always_inlined) ->
-      Misc.fatal_errorf
-        "[Apply] terms with a [probe_name] (i.e. that call a tracing probe) \
-         must always be marked as [Never_inline]:@ %a"
-        Apply.print apply
-  end;
+  (match Apply.probe_name apply, Apply.inlined apply with
+  | None, _ | Some _, Never_inlined -> ()
+  | Some _, (Hint_inlined | Unroll _ | Default_inlined | Always_inlined) ->
+    Misc.fatal_errorf
+      "[Apply] terms with a [probe_name] (i.e. that call a tracing probe) must \
+       always be marked as [Never_inline]:@ %a"
+      Apply.print apply);
   let result_arity_of_application =
     Call_kind.return_arity (Apply.call_kind apply)
   in
@@ -829,7 +824,7 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
     | Indirect_unknown_arity -> is_function_decl_tupled
   in
   let type_unavailable () =
-    if not (DA.do_not_rebuild_terms dacc)
+    if Are_rebuilding_terms.are_rebuilding (DA.are_rebuilding_terms dacc)
     then
       warn_not_inlined_if_needed apply
         "[@inlined] attribute was not used on this function application (the \

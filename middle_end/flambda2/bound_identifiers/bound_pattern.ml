@@ -12,8 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 type t =
   | Singleton of Bound_var.t
   | Set_of_closures of Bound_var.t list
@@ -178,11 +176,6 @@ let must_be_static t =
   | Static bound_static -> bound_static
   | Singleton _ | Set_of_closures _ ->
     Misc.fatal_errorf "Bound pattern is not [Static]:@ %a" print t
-
-let may_be_static t =
-  match t with
-  | Static bound_static -> Some bound_static
-  | Singleton _ | Set_of_closures _ -> None
 
 let exists_all_bound_vars t ~f =
   match t with

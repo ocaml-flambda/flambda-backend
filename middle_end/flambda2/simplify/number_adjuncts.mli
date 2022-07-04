@@ -18,8 +18,6 @@
     conversions and boxing/unboxing) in a standard form that can be fed to
     functors parametric in number kinds. *)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 module type Num_common = sig
   include Container_types.S
 

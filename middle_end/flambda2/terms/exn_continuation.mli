@@ -24,8 +24,6 @@
    isn't any potential for confusion with extra continuation arguments added as
    a result of unboxing. *)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 type t
 
 include Container_types.S with type t := t

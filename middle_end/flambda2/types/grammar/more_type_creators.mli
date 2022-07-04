@@ -17,8 +17,6 @@
 (** Type creation functions that augment the ones in [Type_grammar] but do not
     require direct access to the representation. *)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 val unknown : Flambda_kind.t -> Type_grammar.t
 
 val unknown_like : Type_grammar.t -> Type_grammar.t

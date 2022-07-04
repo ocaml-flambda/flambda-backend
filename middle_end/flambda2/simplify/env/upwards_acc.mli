@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 type t
 
 (** Print a upwards accumulator to a formatter. *)
@@ -83,6 +81,9 @@ val clear_cost_metrics : t -> t
 val with_cost_metrics : Cost_metrics.t -> t -> t
 
 val add_cost_metrics : Cost_metrics.t -> t -> t
+
+(*_ CR lmaurer: This is tragic. We can be rid of it once we have PDCE, if I
+  understand correctly. *)
 
 (** This function exists as an optimisation to reduce allocation. *)
 val add_cost_metrics_and_with_name_occurrences :

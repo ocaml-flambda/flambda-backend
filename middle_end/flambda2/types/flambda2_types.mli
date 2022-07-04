@@ -17,8 +17,6 @@
 (** The interface to the Flambda type system. This is parameterised over the
     expression language via [Code_id]. *)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 type t
 
 type flambda_type = t

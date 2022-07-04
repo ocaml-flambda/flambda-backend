@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 (** A piece of code, comprising of the parameters and body of a function,
     together with a field indicating whether the piece of code is a newer
     version of one that existed previously (and may still exist), for example

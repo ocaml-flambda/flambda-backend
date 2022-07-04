@@ -12,8 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 (** Offsets for function and value slots inside sets of closures. They're
     computed for elements defined in the current compilation unit by
     [Slot_offsets], and read from cmx files for external symbols. Because an
@@ -135,3 +133,41 @@ let merge env1 env2 =
   { function_slot_offsets; value_slot_offsets }
 
 let import_offsets env = current_offsets := merge env !current_offsets
+
+(* CR gbury: considering that the goal is to have `offsets` significantly
+   smaller than the `imported_offsets`, it might be better for performance to
+   check whether the function slot is already in the offsets before looking it
+   up in the imported offsets ? *)
+let reexport_function_slots function_slot_set offsets =
+  let imported_offsets = imported_offsets () in
+  Function_slot.Set.fold
+    (fun function_slot offsets ->
+      if Compilation_unit.is_current
+           (Function_slot.get_compilation_unit function_slot)
+      then offsets
+      else
+        match function_slot_offset imported_offsets function_slot with
+        | None ->
+          Misc.fatal_errorf
+            "Function slot %a is used in the current compilation unit, but not \
+             present in the imported offsets."
+            Function_slot.print function_slot
+        | Some info -> add_function_slot_offset offsets function_slot info)
+    function_slot_set offsets
+
+let reexport_value_slots value_slot_set offsets =
+  let imported_offsets = imported_offsets () in
+  Value_slot.Set.fold
+    (fun value_slot offsets ->
+      if Compilation_unit.is_current
+           (Value_slot.get_compilation_unit value_slot)
+      then offsets
+      else
+        match value_slot_offset imported_offsets value_slot with
+        | None ->
+          Misc.fatal_errorf
+            "value slot %a is used in the current compilation unit, but not \
+             present in the imported offsets."
+            Value_slot.print value_slot
+        | Some info -> add_value_slot_offset offsets value_slot info)
+    value_slot_set offsets

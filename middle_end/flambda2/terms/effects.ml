@@ -16,8 +16,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 type t =
   | No_effects
   | Only_generative_effects of Mutability.t

@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 (* Operations are fine grained metrics (number of calls / allocations) about the
    size of an expression. *)
 
@@ -47,20 +45,19 @@ let alloc = { zero with alloc = 1 }
 
 let prim (prim : Flambda_primitive.t) =
   match prim with
-  | Unary (prim, _) -> begin
+  | Unary (prim, _) -> (
     match prim with
     | Duplicate_block _ | Duplicate_array _ | Box_number _ | Unbox_number _ ->
       alloc
     | _ ->
       (* Some allocating primitives ([Num_conv] to naked_int64 on arch32 for
          example) are not counted here. *)
-      { zero with prim = 1 }
-  end
+      { zero with prim = 1 })
   | Nullary _ -> zero
   | Binary (_, _, _) | Ternary (_, _, _, _) -> { zero with prim = 1 }
-  | Variadic (prim, _) -> begin
-    match prim with Make_block _ | Make_array _ -> alloc
-  end
+  | Variadic (prim, _) -> (
+    match prim with Make_block _ | Make_array _ -> alloc)
+  [@@ocaml.warning "-fragile-match"]
 
 let branch = { zero with branch = 1 }
 

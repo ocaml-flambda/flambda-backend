@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 open! Simplify_import
 
 type used_extra_params =
@@ -91,14 +89,13 @@ let compute_used_params uacc params ~is_exn_handler ~is_single_inlinable_use
       (* CR mshinwell: We should have a robust means of propagating which
          parameter is the exception bucket. Then this hack can be removed. *)
       if !first && is_exn_handler
-      then begin
+      then (
         (* If this argument is actually unused, the apply_conts is updated
            accordingly in simplify_apply_cont. Apply_cont_rewrite can't at the
            moment represent this transformation, so it has to be done manualy *)
         first := false;
-        true
-      end
-      else begin
+        true)
+      else (
         first := false;
         let param_var = BP.var param in
         let num =
@@ -118,8 +115,7 @@ let compute_used_params uacc params ~is_exn_handler ~is_single_inlinable_use
                handler = %a" BP.print param Name_occurrences.print free_names
               (RE.print (UA.are_rebuilding_terms uacc))
               handler;
-          true
-      end
+          true)
     in
     let params_used_as_normal, params_not_used_as_normal =
       List.partition param_is_used params
@@ -149,7 +145,7 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
   let cost_metrics = UA.cost_metrics uacc in
   let uacc, params, new_phantom_params =
     match recursive with
-    | Recursive -> begin
+    | Recursive -> (
       (* In the recursive case, we have already added an apply_cont_rewrite for
          the recursive continuation to eliminate unused parameters in its
          handler. *)
@@ -178,8 +174,7 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
         in
         ( uacc,
           Bound_parameters.create (used_params @ used_extra_params),
-          new_phantom_params )
-    end
+          new_phantom_params ))
     | Non_recursive ->
       (* If the continuation is going to be inlined out, we don't need to spend
          time here calculating unused parameters, since the creation of
@@ -288,15 +283,14 @@ let rebuild_non_recursive_let_cont_handler cont
             sooner than that whether to keep the [Let_cont] (in order to keep
             free name sets correct). *)
          is_single_inlinable_use
-      then begin
+      then (
         (* Note that [Continuation_uses] won't set [is_single_inlinable_use] if
            [cont] is an exception handler. *)
         assert (not is_exn_handler);
         (* We pass the parameters and the handler expression, rather than the
            [CH.t], to avoid re-opening the name abstraction. *)
         UE.add_linearly_used_inlinable_continuation uenv cont scope ~params
-          ~handler ~free_names_of_handler ~cost_metrics_of_handler
-      end
+          ~handler ~free_names_of_handler ~cost_metrics_of_handler)
       else
         let behaviour =
           (* CR-someday mshinwell: This could be replaced by a more
@@ -306,7 +300,7 @@ let rebuild_non_recursive_let_cont_handler cont
           then Unknown
           else
             match RE.to_apply_cont handler with
-            | Some apply_cont -> begin
+            | Some apply_cont -> (
               match Apply_cont.trap_action apply_cont with
               | Some _ -> Unknown
               | None ->
@@ -314,8 +308,7 @@ let rebuild_non_recursive_let_cont_handler cont
                 let params = Bound_parameters.simples params in
                 if Misc.Stdlib.List.compare Simple.compare args params = 0
                 then Alias_for (Apply_cont.continuation apply_cont)
-                else Unknown
-            end
+                else Unknown)
             | None ->
               if RE.is_unreachable handler (UA.are_rebuilding_terms uacc)
               then Unreachable
@@ -852,9 +845,9 @@ let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
     DA.map_data_flow dacc_after_body
       ~f:(Data_flow.enter_continuation cont (Bound_parameters.vars params))
   in
-  let denv, _arg_types =
+  let denv =
     (* XXX These don't have the same scope level as the non-recursive case *)
-    DE.add_parameters_with_unknown_types' ~at_unit_toplevel:false
+    DE.add_parameters_with_unknown_types ~at_unit_toplevel:false
       denv_before_body params
   in
   let code_age_relation_after_body =
@@ -869,7 +862,9 @@ let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
   let dacc =
     DA.add_to_lifted_constant_accumulator dacc prior_lifted_constants
   in
-  let dacc = DA.map_denv dacc ~f:DE.set_not_at_unit_toplevel in
+  let dacc =
+    DA.map_denv dacc ~f:(fun denv -> DE.set_at_unit_toplevel_state denv false)
+  in
   let arg_types_by_use_id_outside_of_handler =
     match CUE.get_continuation_uses (DA.continuation_uses_env dacc) cont with
     (* CR gbury: if this happens, we should rather remove the continuation,

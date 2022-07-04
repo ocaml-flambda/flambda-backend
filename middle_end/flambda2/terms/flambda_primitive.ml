@@ -16,8 +16,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 (* CR mshinwell: Remove uses of polymorphic comparison *)
 
 module K = Flambda_kind
@@ -370,20 +368,18 @@ type ordered_comparison =
 let print_ordered_comparison ppf signedness c =
   let fprintf = Format.fprintf in
   match signedness with
-  | Unsigned -> begin
+  | Unsigned -> (
     match c with
     | Lt -> fprintf ppf "<u"
     | Le -> fprintf ppf "<=u"
     | Gt -> fprintf ppf ">u"
-    | Ge -> fprintf ppf ">=u"
-  end
-  | Signed -> begin
+    | Ge -> fprintf ppf ">=u")
+  | Signed -> (
     match c with
     | Lt -> fprintf ppf "<"
     | Le -> fprintf ppf "<="
     | Gt -> fprintf ppf ">"
-    | Ge -> fprintf ppf ">="
-  end
+    | Ge -> fprintf ppf ">=")
 
 let print_ordered_comparison_and_behaviour ppf signedness behaviour =
   match behaviour with
@@ -690,18 +686,11 @@ type unary_primitive =
    for CSE, since we deal with projections through types. *)
 let unary_primitive_eligible_for_cse p ~arg =
   match p with
-  | Duplicate_array
-      { kind = _;
-        source_mutability = Immutable;
-        destination_mutability = Immutable
-      }
-  | Duplicate_block
-      { kind = _;
-        source_mutability = Immutable;
-        destination_mutability = Immutable
-      } ->
-    true
-  | Duplicate_array _ | Duplicate_block _ -> false
+  | Duplicate_array { kind = _; source_mutability; destination_mutability }
+  | Duplicate_block { kind = _; source_mutability; destination_mutability } -> (
+    match source_mutability, destination_mutability with
+    | Immutable, Immutable -> true
+    | (Immutable | Immutable_unique | Mutable), _ -> false)
   | Is_int | Get_tag -> true
   | Array_length -> true
   | Bigarray_length _ -> false
@@ -718,7 +707,7 @@ let unary_primitive_eligible_for_cse p ~arg =
     (* For the moment we don't CSE any local allocations. *)
     (* CR mshinwell: relax this in the future? *)
     false
-  | Box_number _ | Tag_immediate ->
+  | Box_number (_, Heap) | Tag_immediate ->
     (* Boxing or tagging of constants will yield values that can be lifted and
        if needs be deduplicated -- so there's no point in adding CSE variables
        to hold them. *)
@@ -932,7 +921,7 @@ let effects_and_coeffects_of_unary_primitive p =
   match p with
   | Duplicate_array { kind = _; source_mutability; destination_mutability; _ }
   | Duplicate_block { kind = _; source_mutability; destination_mutability; _ }
-    -> begin
+    -> (
     match source_mutability with
     | Immutable ->
       (* [Obj.truncate] has now been removed. *)
@@ -947,8 +936,7 @@ let effects_and_coeffects_of_unary_primitive p =
         Coeffects.No_coeffects )
     | Mutable ->
       ( Effects.Only_generative_effects destination_mutability,
-        Coeffects.Has_coeffects )
-  end
+        Coeffects.Has_coeffects ))
   | Is_int -> Effects.No_effects, Coeffects.No_coeffects
   | Get_tag ->
     (* [Obj.truncate] has now been removed. *)
@@ -1363,7 +1351,7 @@ type variadic_primitive =
 let variadic_primitive_eligible_for_cse p ~args =
   match p with
   | Make_block (_, _, Local) | Make_array (_, Immutable, Local) -> false
-  | Make_block (_, Immutable, _) | Make_array (_, Immutable, _) ->
+  | Make_block (_, Immutable, Heap) | Make_array (_, Immutable, _) ->
     (* See comment in [unary_primitive_eligible_for_cse], above, on [Box_number]
        case. *)
     List.exists (fun arg -> Simple.is_var arg) args
@@ -1562,6 +1550,7 @@ let free_names t =
     Name_occurrences.union_list
       [Simple.free_names x0; Simple.free_names x1; Simple.free_names x2]
   | Variadic (_prim, xs) -> Simple.List.free_names xs
+  [@@ocaml.warning "-fragile-match"]
 
 let apply_renaming t renaming =
   let apply simple = Simple.apply_renaming simple renaming in
@@ -1659,17 +1648,19 @@ let effects_and_coeffects (t : t) =
 let no_effects_or_coeffects t =
   match effects_and_coeffects t with
   | No_effects, No_coeffects -> true
-  | _, _ -> false
+  | ( (No_effects | Only_generative_effects _ | Arbitrary_effects),
+      (No_coeffects | Has_coeffects) ) ->
+    false
 
 let at_most_generative_effects t =
   match effects_and_coeffects t with
   | (No_effects | Only_generative_effects _), _ -> true
-  | _, _ -> false
+  | Arbitrary_effects, _ -> false
 
 let only_generative_effects t =
   match effects_and_coeffects t with
   | Only_generative_effects _, _ -> true
-  | _, _ -> false
+  | (No_effects | Arbitrary_effects), _ -> false
 
 module Eligible_for_cse = struct
   type t = primitive_application
@@ -1692,7 +1683,11 @@ module Eligible_for_cse = struct
       | Only_generative_effects Immutable, No_coeffects ->
         (* Allow constructions of immutable blocks to be shared. *)
         true
-      | _, _ -> false
+      | ( ( No_effects
+          | Only_generative_effects (Immutable | Immutable_unique | Mutable)
+          | Arbitrary_effects ),
+          (No_coeffects | Has_coeffects) ) ->
+        false
     in
     if not ((not eligible) || effects_and_coeffects_ok)
     then Misc.fatal_errorf "Eligible_for_cse.create inconsistency: %a" print t;
@@ -1769,12 +1764,11 @@ module Eligible_for_cse = struct
   let filter_map_args t ~f =
     match t with
     | Nullary _ -> Some t
-    | Unary (prim, arg) -> begin
+    | Unary (prim, arg) -> (
       match f arg with
       | None -> None
-      | Some arg' -> if arg == arg' then Some t else Some (Unary (prim, arg'))
-    end
-    | Binary (prim, arg1, arg2) -> begin
+      | Some arg' -> if arg == arg' then Some t else Some (Unary (prim, arg')))
+    | Binary (prim, arg1, arg2) -> (
       match f arg1 with
       | None -> None
       | Some arg1' -> (
@@ -1783,9 +1777,8 @@ module Eligible_for_cse = struct
         | Some arg2' ->
           if arg1 == arg1' && arg2 == arg2'
           then Some t
-          else Some (Binary (prim, arg1', arg2')))
-    end
-    | Ternary (prim, arg1, arg2, arg3) -> begin
+          else Some (Binary (prim, arg1', arg2'))))
+    | Ternary (prim, arg1, arg2, arg3) -> (
       match f arg1 with
       | None -> None
       | Some arg1' -> (
@@ -1797,8 +1790,7 @@ module Eligible_for_cse = struct
           | Some arg3' ->
             if arg1 == arg1' && arg2 == arg2' && arg3 == arg3'
             then Some t
-            else Some (Ternary (prim, arg1', arg2', arg3'))))
-    end
+            else Some (Ternary (prim, arg1', arg2', arg3')))))
     | Variadic (prim, args) ->
       let args' = List.filter_map f args in
       if List.compare_lengths args args' = 0

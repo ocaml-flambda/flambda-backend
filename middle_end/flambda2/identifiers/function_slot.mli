@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 (** A label, unique across the whole program, that identifies a function within
     a set of closures. In essence these function slots describe the semantics of
     a particular piece of code when it is executed in the context of a

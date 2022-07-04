@@ -48,8 +48,6 @@
  *     an apply node, declaring a new function...) while traversing terms.
  *)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 module Absolute : sig
   type t
 

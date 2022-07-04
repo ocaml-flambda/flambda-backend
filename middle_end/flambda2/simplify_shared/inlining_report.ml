@@ -66,8 +66,6 @@
  *    - Printing this tree to a human-readable file compatible with org mode
  *)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 module IHA = Inlining_history.Absolute
 
 module Pass = struct
@@ -657,14 +655,12 @@ module Inlining_tree = struct
             (Uid.print_link_hum ~compilation_unit)
             (Uid.create ~compilation_unit (IHA.path callee));
 
-          begin
-            match decision with
-            | Decision decision_with_context ->
-              Format.fprintf ppf "@[<v>%a@]" print_decision_with_context
-                decision_with_context
-            | Reference path -> print_reference ~compilation_unit ppf path
-            | Unavailable -> print_unavailable ppf ()
-          end;
+          (match decision with
+          | Decision decision_with_context ->
+            Format.fprintf ppf "@[<v>%a@]" print_decision_with_context
+              decision_with_context
+          | Reference path -> print_reference ~compilation_unit ppf path
+          | Unavailable -> print_unavailable ppf ());
 
           Format.fprintf ppf "@]@,@,";
           print ppf ~compilation_unit ~depth:(depth + 1)
@@ -716,11 +712,10 @@ let output_then_forget_decisions ~output_prefix =
           (Lazy.force tree);
         close_out out_channel);
       if Flambda_features.inlining_report_bin ()
-      then begin
+      then (
         let ch = open_out_bin (output_prefix ^ ".inlining") in
         let metadata = { compilation_unit } in
         let report : report = `Flambda2_1_0_0 (metadata, Lazy.force tree) in
         Marshal.to_channel ch report [];
-        close_out ch
-      end;
+        close_out ch);
       Lazy.force tree)

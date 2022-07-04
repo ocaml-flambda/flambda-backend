@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 type 'function_params_and_body t
 
 val code_metadata : _ t -> Code_metadata.t

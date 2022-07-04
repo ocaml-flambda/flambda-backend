@@ -18,8 +18,6 @@
     simplifier. Definitions of the constants themselves are not kept when not
     rebuilding terms, but some of the metadata is. *)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 open! Flambda
 
 type t
@@ -146,6 +144,8 @@ module Group : sig
   (** [map] and [fold_left] should be used in preference, to avoid allocating
       intermediate lists. *)
   val to_list : t -> rebuilt_static_const list
+
+  val add : rebuilt_static_const -> t -> t
 
   val concat : t -> t -> t
 end

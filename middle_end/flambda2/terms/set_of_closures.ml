@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 type t =
   { function_decls : Function_declarations.t;
     value_slots : Simple.t Value_slot.Map.t;
@@ -129,10 +127,9 @@ let apply_renaming ({ function_decls; value_slots; alloc_mode } as t) renaming =
           let simple' = Simple.apply_renaming simple renaming in
           if not (simple == simple') then changed := true;
           Some simple')
-        else begin
+        else (
           changed := true;
-          None
-        end)
+          None))
       value_slots
   in
   if function_decls == function_decls' && not !changed

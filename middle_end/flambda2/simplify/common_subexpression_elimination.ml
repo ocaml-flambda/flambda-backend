@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 (* [Simplify_import] cannot be used owing to a circular dependency. *)
 module EA = Continuation_extra_params_and_args.Extra_arg
 module EP = Flambda_primitive.Eligible_for_cse
@@ -128,7 +126,7 @@ let cse_with_eligible_lhs ~typing_env_at_fork ~cse_at_each_use ~params prev_cse
             | [], [] -> None
             | [], _ | _, [] ->
               Misc.fatal_error "Mismatching params and args arity"
-            | arg :: args, param :: params -> begin
+            | arg :: args, param :: params -> (
               match (arg : EA.t) with
               | Already_in_scope arg when Simple.equal arg simple ->
                 (* If [param] has an extra equation associated to it, we
@@ -139,8 +137,7 @@ let cse_with_eligible_lhs ~typing_env_at_fork ~cse_at_each_use ~params prev_cse
                 else Some (BP.simple param)
               | Already_in_scope _ | New_let_binding _
               | New_let_binding_with_named_args _ ->
-                find_name simple params args
-            end
+                find_name simple params args)
           in
           fun arg ->
             find_name arg
@@ -157,14 +154,13 @@ let cse_with_eligible_lhs ~typing_env_at_fork ~cse_at_each_use ~params prev_cse
                     ~name_mode_of_existing_simple:NM.normal
                 with
                 | exception Not_found -> None
-                | arg -> begin
+                | arg -> (
                   match find_new_name arg with
                   | None ->
                     if TE.mem_simple typing_env_at_fork arg
                     then Some arg
                     else None
-                  | Some _ as arg_opt -> arg_opt
-                end)
+                  | Some _ as arg_opt -> arg_opt))
           in
           match prim with
           | None -> eligible
@@ -245,7 +241,7 @@ let join_one_cse_equation ~cse_at_each_use prim bound_to_map
            their argument: additional information on the cse parameter should
            translate into additional information on the argument. This can be
            done by giving them the appropriate type. *)
-        match EP.to_primitive prim with
+        match[@ocaml.warning "-fragile-match"] EP.to_primitive prim with
         | Unary (Is_int, scrutinee) ->
           Name.Map.add (Name.var var)
             (T.is_int_for_scrutinee ~scrutinee)
@@ -354,10 +350,9 @@ let join0 ~typing_env_at_fork ~cse_at_fork ~cse_at_each_use ~params
         in
         if not propagate
         then cse
-        else begin
+        else (
           have_propagated_something := true;
-          add cse prim ~bound_to (Scope.next scope_at_fork)
-        end)
+          add cse prim ~bound_to (Scope.next scope_at_fork)))
       cse cse_at_fork
   in
   if not !have_propagated_something

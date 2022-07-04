@@ -169,6 +169,7 @@ let lsequence (lam1, lam2) =
   | Lsequence (lam, Lconst (Const_base (Const_int 0))) -> Lsequence (lam, lam2)
   | Lconst (Const_base (Const_int 0)) -> lam2
   | _ -> Lsequence (lam1, lam2)
+  [@@ocaml.warning "-fragile-match"]
 
 let caml_update_dummy_prim =
   Primitive.simple ~name:"caml_update_dummy" ~arity:2 ~alloc:true
@@ -184,6 +185,7 @@ let build_block let_def size block_type expr letrec =
 
 let is_simple (lam : Lambda.lambda) =
   match lam with Lvar _ | Lconst _ -> true | _ -> false
+  [@@ocaml.warning "-fragile-match"]
 
 let dead_code lam letrec =
   (* Some cases generate code without effects, and bound to nothing. We use this
@@ -200,7 +202,7 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
        is part of recursive_set *)
       (lam : Lambda.lambda) (letrec : letrec) =
   match lam with
-  | Lfunction funct -> begin
+  | Lfunction funct -> (
     match current_let with
     | Some current_let when Ident.Set.mem current_let.ident recursive_set ->
       { letrec with functions = (current_let.ident, funct) :: letrec.functions }
@@ -216,8 +218,7 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
             letrec.pre ~tail )
       in
       { letrec with pre }
-    | None -> dead_code lam letrec
-  end
+    | None -> dead_code lam letrec)
   | Lprim (((Pmakeblock _ | Pmakearray _ | Pduprecord _) as prim), args, dbg)
     when not (List.for_all is_simple args) ->
     (* If there are some non-trivial expressions as arguments, we first extract
@@ -246,20 +247,18 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
     in
     prepare_letrec recursive_set current_let lam letrec
   | Lprim (Pmakeblock _, args, _)
-  | Lprim (Pmakearray ((Paddrarray | Pintarray), _, _), args, _) -> begin
+  | Lprim (Pmakearray ((Paddrarray | Pintarray), _, _), args, _) -> (
     match current_let with
     | Some cl -> build_block cl (List.length args) (Normal 0) lam letrec
     | None ->
       dead_code lam letrec
-      (* We know that [args] are all "simple" at this point, so no effects *)
-  end
+      (* We know that [args] are all "simple" at this point, so no effects *))
   | Lprim (Pmakearray (Pfloatarray, _, _), args, _)
-  | Lprim (Pmakefloatblock _, args, _) -> begin
+  | Lprim (Pmakefloatblock _, args, _) -> (
     match current_let with
     | Some cl -> build_block cl (List.length args) Boxed_float lam letrec
-    | None -> dead_code lam letrec
-  end
-  | Lprim (Pduprecord (kind, size), args, _) -> begin
+    | None -> dead_code lam letrec)
+  | Lprim (Pduprecord (kind, size), args, _) -> (
     match current_let with
     | Some cl -> (
       let arg =
@@ -274,8 +273,7 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
         build_block cl (size + 1) (Normal 0) arg letrec
       | Types.Record_unboxed _ -> assert false
       | Types.Record_float -> build_block cl size Boxed_float arg letrec)
-    | None -> dead_code lam letrec
-  end
+    | None -> dead_code lam letrec)
   | Lconst const -> (
     match current_let with
     | Some current_let ->
@@ -525,6 +523,7 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
   | Lregion body ->
     let letrec = prepare_letrec recursive_set current_let body letrec in
     { letrec with needs_region = true }
+  [@@ocaml.warning "-fragile-match"]
 
 let dissect_letrec ~bindings ~body =
   let letbound = Ident.Set.of_list (List.map fst bindings) in
@@ -619,3 +618,4 @@ let dissect_letrec ~bindings ~body =
     with Bug ->
       Misc.fatal_errorf "let-rec@.%a@." Printlambda.lambda
         (Lletrec (bindings, body))
+  [@@ocaml.warning "-fragile-match"]

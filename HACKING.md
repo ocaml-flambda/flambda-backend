@@ -177,7 +177,7 @@ where `<DUNE>` is the path to the dune provided to `configure`.
 ## Bootstrapping the ocaml subtree
 
 This can be done following the usual upstream procedures,
-working entirely within the `ocaml/` subdirectory.  Thoroughly clean the tree (e.g. `git clean -dfx`),
+working entirely within the `ocaml/` subdirectory.  Thoroughly clean the tree (e.g. `git clean -dfX`),
 go into `ocaml/`, then run the upstream configure script.  After that perform the bootstrap (e.g.
 `make world` followed by `make bootstrap`).  Before recompiling the Flambda backend as normal it would
 be advisable to clean the whole tree again.
@@ -211,7 +211,7 @@ needs to exist during the installation step):
 ```
 
 Note that if the Flambda backend tree is already configured, it should be cleaned
-thoroughly (e.g. `git clean -dfx`) before reconfiguring with a different prefix.
+thoroughly (e.g. `git clean -dfX`) before reconfiguring with a different prefix.
 
 Then build the compiler normally (`make`).
 Once that is done, we're ready to install the compiler:

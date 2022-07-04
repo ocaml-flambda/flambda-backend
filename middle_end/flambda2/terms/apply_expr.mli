@@ -17,8 +17,6 @@
 (** The representation of the application of an OCaml function, OCaml method or
     external call to a list of arguments. *)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 type t
 
 include Expr_std.S with type t := t

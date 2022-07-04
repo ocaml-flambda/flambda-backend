@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 (* Unlike the rest of Flambda 2, this file depends on ocamloptcomp, meaning it
    can call [Compilenv]. *)
 
@@ -164,17 +162,18 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
     let cmx_loader =
       Flambda_cmx.create_loader ~get_global_info ~symbol_for_global
     in
-    let raw_flambda, code, cmx, offsets =
+    let (Mode mode) = Flambda_features.mode () in
+    let raw_flambda, close_program_metadata =
       Profile.record_call "lambda_to_flambda" (fun () ->
-          Lambda_to_flambda.lambda_to_flambda ~symbol_for_global
+          Lambda_to_flambda.lambda_to_flambda ~mode ~symbol_for_global
             ~big_endian:Arch.big_endian ~cmx_loader ~module_ident
             ~module_block_size_in_words module_initializer)
     in
     Compiler_hooks.execute Raw_flambda2 raw_flambda;
     print_rawflambda ppf raw_flambda;
     let flambda, offsets, cmx, all_code =
-      if Flambda_features.classic_mode ()
-      then begin
+      match mode, close_program_metadata with
+      | Classic, Classic (code, cmx, offsets) ->
         (if Flambda_features.inlining_report ()
         then
           let output_prefix = prefixname ^ ".cps_conv" in
@@ -183,8 +182,7 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
           in
           Compiler_hooks.execute Inlining_tree inlining_tree);
         raw_flambda, offsets, cmx, code
-      end
-      else
+      | Normal, Normal ->
         let round = 0 in
         let { Simplify.unit = flambda; exported_offsets; cmx; all_code } =
           Profile.record_call ~accumulate:true "simplify" (fun () ->
@@ -202,32 +200,27 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
         output_flexpect ~ml_filename:filename ~raw_flambda flambda;
         flambda, exported_offsets, cmx, all_code
     in
-    begin
-      match Sys.getenv "PRINT_SIZES" with
-      | exception Not_found -> ()
-      | _ ->
-        Exported_code.iter_code all_code ~f:(fun code ->
-            let size = Code.cost_metrics code in
-            Format.fprintf Format.std_formatter "%a %a\n"
-              Flambda2_identifiers.Code_id.print (Code.code_id code)
-              Cost_metrics.print size)
-    end;
-    begin
-      match cmx with
-      | None ->
-        () (* Either opaque was passed, or there is no need to export offsets *)
-      | Some cmx -> Compilenv.flambda2_set_export_info cmx
-    end;
+    (match Sys.getenv "PRINT_SIZES" with
+    | exception Not_found -> ()
+    | _ ->
+      Exported_code.iter_code all_code ~f:(fun code ->
+          let size = Code.cost_metrics code in
+          Format.fprintf Format.std_formatter "%a %a\n"
+            Flambda2_identifiers.Code_id.print (Code.code_id code)
+            Cost_metrics.print size));
+    (match cmx with
+    | None ->
+      () (* Either opaque was passed, or there is no need to export offsets *)
+    | Some cmx -> Compilenv.flambda2_set_export_info cmx);
     let cmm =
       Flambda2_to_cmm.To_cmm.unit ~make_symbol:Compilenv.make_symbol flambda
         ~all_code ~offsets
     in
     if not keep_symbol_tables
-    then begin
+    then (
       Compilenv.reset_info_tables ();
       Flambda2_identifiers.Continuation.reset ();
-      Flambda2_identifiers.Int_ids.reset ()
-    end;
+      Flambda2_identifiers.Int_ids.reset ());
     cmm
   in
   Profile.record_call "flambda2" run

@@ -14,8 +14,6 @@
 
 (** Result structure used during Flambda to Cmm translation. *)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 (** An accumulator for the Cmm phrases and GC roots that result from translating
     statically-allocated blocks and function bodies.
 

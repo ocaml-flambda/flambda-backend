@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 open! Flambda
 module DA = Downwards_acc
 module DE = Downwards_env
@@ -68,12 +66,10 @@ let is_self_tail_call dacc apply =
       (Exn_continuation.create ~exn_handler:fun_exn_cont ~extra_args:[])
       apply_exn_cont
     (* 2nd check: return continuations match *)
-    && begin
-         match Apply.continuation apply with
-         (* a function that raises unconditionally can be a tail-call *)
-         | Never_returns -> true
-         | Return apply_cont -> Continuation.equal fun_cont apply_cont
-       end
+    && (match Apply.continuation apply with
+       (* a function that raises unconditionally can be a tail-call *)
+       | Never_returns -> true
+       | Return apply_cont -> Continuation.equal fun_cont apply_cont)
     &&
     (* 3rd check: check this is a self-call. *)
     match Apply.call_kind apply with
@@ -280,7 +276,7 @@ let apply_cont_use_kind ~context apply_cont : Continuation_use_kind.t =
     | Switch_branch -> Non_inlinable { escaping = false }
   in
   match Continuation.sort (AC.continuation apply_cont) with
-  | Normal_or_exn -> begin
+  | Normal_or_exn -> (
     match Apply_cont.trap_action apply_cont with
     | None -> default
     | Some (Push _) -> Non_inlinable { escaping = false }
@@ -297,8 +293,7 @@ let apply_cont_use_kind ~context apply_cont : Continuation_use_kind.t =
         if Flambda_features.debug ()
         then Non_inlinable { escaping = true }
         else Non_inlinable { escaping = false }
-      | Some No_trace -> Non_inlinable { escaping = false })
-  end
+      | Some No_trace -> Non_inlinable { escaping = false }))
   | Return | Toplevel_return -> Non_inlinable { escaping = false }
   | Define_root_symbol ->
     assert (Option.is_none (Apply_cont.trap_action apply_cont));

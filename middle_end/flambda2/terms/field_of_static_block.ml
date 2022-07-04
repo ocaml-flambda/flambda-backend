@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 type t =
   | Symbol of Symbol.t
   | Tagged_immediate of Targetint_31_63.t

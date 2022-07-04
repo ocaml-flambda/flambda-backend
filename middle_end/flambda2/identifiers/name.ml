@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 include Int_ids.Name
 
 let is_var t = pattern_match t ~var:(fun _ -> true) ~symbol:(fun _ -> false)

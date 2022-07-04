@@ -12,8 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 (* If a value of type [t] maps [id1] to [id2], it means that [id1] is a newer
    version of [id2]. The relation forms a partial order. These relations are
    expected to be small in the majority of cases. *)
@@ -42,13 +40,12 @@ let rec all_ids_up_to_root t ~resolver id =
         Misc.fatal_errorf "Exception in resolver@ Backtrace is: %s"
           (Printexc.raw_backtrace_to_string (Printexc.get_raw_backtrace ()))
       | None -> Code_id.Set.singleton id
-      | Some t -> begin
+      | Some t -> (
         (* Inlining the base case, so that we do not recursively loop in case of
            a code_id that is not bound in the map *)
         match Code_id.Map.find id t with
         | exception Not_found -> Code_id.Set.singleton id
-        | older -> Code_id.Set.add id (all_ids_up_to_root t ~resolver older)
-      end)
+        | older -> Code_id.Set.add id (all_ids_up_to_root t ~resolver older)))
   | older -> Code_id.Set.add id (all_ids_up_to_root t ~resolver older)
 
 let num_ids_up_to_root t ~resolver id =

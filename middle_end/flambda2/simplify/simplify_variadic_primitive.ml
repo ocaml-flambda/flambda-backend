@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-9-30-40-41-42"]
-
 open! Simplify_import
 
 let simplify_make_block_of_values dacc prim dbg tag ~shape
@@ -115,56 +113,23 @@ let simplify_make_array dacc dbg (array_kind : P.Array_kind.t)
        annotations that came via [Lambda]. *)
     P.Array_kind.element_kind array_kind
   in
-  let initial_element_type : _ Or_unknown.t =
-    match K.With_subkind.descr element_kind with
-    | Tagged_immediate -> Known T.any_tagged_immediate
-    | Block _ | Float_block _ -> Known T.any_block
-    | Any_value -> Known T.any_value
-    | Naked_number _ ->
-      Known (T.unknown (Flambda_kind.With_subkind.kind element_kind))
-    | Boxed_float -> Known T.any_boxed_float
-    | Boxed_int32 -> Known T.any_boxed_int32
-    | Boxed_int64 -> Known T.any_boxed_int64
-    | Boxed_nativeint -> Known T.any_boxed_nativeint
-    | Float_array ->
-      Known
-        (T.array_of_length
-           ~element_kind:(Known Flambda_kind.With_subkind.naked_float)
-           ~length:T.any_tagged_immediate)
-    | Immediate_array ->
-      Known
-        (T.array_of_length
-           ~element_kind:(Known Flambda_kind.With_subkind.tagged_immediate)
-           ~length:T.any_tagged_immediate)
-    | Value_array ->
-      Known
-        (T.array_of_length
-           ~element_kind:(Known Flambda_kind.With_subkind.any_value)
-           ~length:T.any_tagged_immediate)
-    | Generic_array ->
-      Known
-        (T.array_of_length ~element_kind:Unknown ~length:T.any_tagged_immediate)
-    | Rec_info -> Misc.fatal_error "Array elements cannot have kind [Rec_info]"
-  in
+  let initial_element_type = T.unknown_with_subkind element_kind in
   let typing_env = DA.typing_env dacc in
   let found_bottom = ref false in
   let env_extension =
-    match initial_element_type with
-    | Unknown -> TEE.empty
-    | Known initial_element_type ->
-      List.fold_left
-        (fun resulting_env_extension element_type ->
-          match T.meet typing_env initial_element_type element_type with
+    List.fold_left
+      (fun resulting_env_extension element_type ->
+        match T.meet typing_env initial_element_type element_type with
+        | Bottom ->
+          found_bottom := true;
+          resulting_env_extension
+        | Ok (_, env_extension) -> (
+          match TEE.meet typing_env resulting_env_extension env_extension with
           | Bottom ->
             found_bottom := true;
             resulting_env_extension
-          | Ok (_, env_extension) -> (
-            match TEE.meet typing_env resulting_env_extension env_extension with
-            | Bottom ->
-              found_bottom := true;
-              resulting_env_extension
-            | Ok env_extension -> env_extension))
-        TEE.empty tys
+          | Ok env_extension -> env_extension))
+      TEE.empty tys
   in
   if !found_bottom
   then invalid ()

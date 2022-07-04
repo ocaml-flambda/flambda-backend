@@ -12,8 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 open! Flambda.Import
 module Env = To_cmm_env
 module Ece = Effects_and_coeffects
@@ -115,6 +113,7 @@ let wrap_extcall_result arity =
     (* CR gbury: update when unboxed tuples are used *)
     Misc.fatal_errorf
       "C functions are currently limited to a single return value"
+  [@@ocaml.warning "-fragile-match"]
 
 (* Helpers for exception continuations *)
 
@@ -138,6 +137,7 @@ let rec cmm_arith_size e =
         _ ) ->
     List.fold_left ( + ) 1 (List.map cmm_arith_size l)
   | _ -> 0
+  [@@ocaml.warning "-fragile-match"]
 
 let match_var_with_extra_info env simple : Env.extra_info option =
   Simple.pattern_match simple
@@ -239,11 +239,6 @@ let apply_call env e =
   | Call_kind.C_call { alloc; return_arity; param_arity; is_c_builtin } ->
     fail_if_probe e;
     let f = function_name f in
-    (* CR vlaviron: temporary hack to recover the right symbol *)
-    let len = String.length f in
-    assert (len >= 9);
-    assert (String.sub f 0 9 = ".extern__");
-    let f = String.sub f 9 (len - 9) in
     let returns = apply_returns e in
     let args, env, _ = C.simple_list ~dbg env args in
     let ty = machtype_of_return_arity return_arity in
@@ -299,7 +294,7 @@ let apply_cont_exn env e k = function
       match Apply_cont.trap_action e with
       | Some (Pop { raise_kind; _ }) ->
         Trap_action.Raise_kind.option_to_lambda raise_kind
-      | _ ->
+      | None | Some (Push _) ->
         Misc.fatal_errorf
           "Apply cont %a calls an exception cont without a Pop trap action"
           Apply_cont.print e
@@ -693,14 +688,13 @@ and switch env res s =
      small switches with 3-5 arms). *)
   let scrutinee, tag_discriminant =
     match Targetint_31_63.Map.cardinal arms with
-    | 2 -> begin
+    | 2 -> (
       match match_var_with_extra_info env scrutinee with
       | None | Some Boxed_number -> e, false
       | Some (Untag e') ->
         let size_e = cmm_arith_size e in
         let size_e' = cmm_arith_size e' in
-        if size_e' < size_e then e', true else e, false
-    end
+        if size_e' < size_e then e', true else e, false)
     | _ -> e, false
   in
   let wrap, env = Env.flush_delayed_lets env in

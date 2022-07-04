@@ -16,8 +16,6 @@
 
 (** Upwards environments used during simplification. *)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 type t
 
 val create : Are_rebuilding_terms.t -> t

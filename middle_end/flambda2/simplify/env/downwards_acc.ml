@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 module CUE = Continuation_uses_env
 module DE = Downwards_env
 module LCS = Lifted_constant_state
@@ -103,7 +101,7 @@ let continuation_uses_env t = t.continuation_uses_env
 
 let code_age_relation t = TE.code_age_relation (DE.typing_env (denv t))
 
-let with_code_age_relation t code_age_relation =
+let with_code_age_relation t ~code_age_relation =
   let typing_env =
     TE.with_code_age_relation (DE.typing_env (denv t)) code_age_relation
   in
@@ -183,13 +181,7 @@ let code_ids_to_remember t = t.code_ids_to_remember
 let with_code_ids_to_remember t ~code_ids_to_remember =
   { t with code_ids_to_remember }
 
-let set_do_not_rebuild_terms_and_disable_inlining t =
-  { t with denv = DE.set_do_not_rebuild_terms_and_disable_inlining t.denv }
-
 let are_rebuilding_terms t = DE.are_rebuilding_terms t.denv
-
-let do_not_rebuild_terms t =
-  Are_rebuilding_terms.do_not_rebuild_terms (are_rebuilding_terms t)
 
 let demote_exn_handler t cont =
   { t with

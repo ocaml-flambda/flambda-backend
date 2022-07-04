@@ -13,22 +13,18 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 open! Simplify_import
 
 let simplify_nullary_primitive dacc original_prim (prim : P.nullary_primitive)
     dbg ~result_var =
   match prim with
   | Optimised_out result_kind ->
-    begin
-      match Bound_var.name_mode result_var with
-      | Phantom -> ()
-      | Normal | In_types ->
-        Misc.fatal_errorf
-          "The 'optimised_out' primitive should only be used in bindings of \
-           phantom variables"
-    end;
+    (match Bound_var.name_mode result_var with
+    | Phantom -> ()
+    | Normal | In_types ->
+      Misc.fatal_errorf
+        "The 'optimised_out' primitive should only be used in bindings of \
+         phantom variables");
     let named = Named.create_prim original_prim dbg in
     let ty = T.unknown result_kind in
     let dacc = DA.add_variable dacc result_var ty in

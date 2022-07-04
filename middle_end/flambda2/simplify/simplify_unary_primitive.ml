@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 open! Simplify_import
 module A = Number_adjuncts
 module Float = Numeric_types.Float_by_bit_pattern
@@ -579,7 +577,7 @@ let simplify_float_arith_op (op : P.unary_float_arith_op) dacc ~original_term
     Simplified_named.invalid (), dacc
   in
   match proof with
-  | Proved fs when DE.float_const_prop denv -> (
+  | Proved fs when DE.propagating_float_consts denv -> (
     assert (not (Float.Set.is_empty fs));
     let possible_results =
       match op with
@@ -670,24 +668,22 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     | Get_tag -> simplify_get_tag
     | Array_length -> simplify_array_length
     | String_length _ -> simplify_string_length
-    | Int_arith (kind, op) -> begin
+    | Int_arith (kind, op) -> (
       match kind with
       | Tagged_immediate -> Unary_int_arith_tagged_immediate.simplify op
       | Naked_immediate -> Unary_int_arith_naked_immediate.simplify op
       | Naked_int32 -> Unary_int_arith_naked_int32.simplify op
       | Naked_int64 -> Unary_int_arith_naked_int64.simplify op
-      | Naked_nativeint -> Unary_int_arith_naked_nativeint.simplify op
-    end
+      | Naked_nativeint -> Unary_int_arith_naked_nativeint.simplify op)
     | Float_arith op -> simplify_float_arith_op op
-    | Num_conv { src; dst } -> begin
+    | Num_conv { src; dst } -> (
       match src with
       | Tagged_immediate -> Simplify_int_conv_tagged_immediate.simplify ~dst
       | Naked_immediate -> Simplify_int_conv_naked_immediate.simplify ~dst
       | Naked_float -> Simplify_int_conv_naked_float.simplify ~dst
       | Naked_int32 -> Simplify_int_conv_naked_int32.simplify ~dst
       | Naked_int64 -> Simplify_int_conv_naked_int64.simplify ~dst
-      | Naked_nativeint -> Simplify_int_conv_naked_nativeint.simplify ~dst
-    end
+      | Naked_nativeint -> Simplify_int_conv_naked_nativeint.simplify ~dst)
     | Boolean_not -> simplify_boolean_not
     | Reinterpret_int64_as_float -> simplify_reinterpret_int64_as_float
     | Is_boxed_float -> simplify_is_boxed_float

@@ -12,8 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 type t
 
 val have_simplified_to_zero_terms : Downwards_acc.t -> t

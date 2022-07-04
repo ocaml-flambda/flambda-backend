@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 (** Functions involving the expansion of any [Alias] type at the outermost level
     of a type. *)
 

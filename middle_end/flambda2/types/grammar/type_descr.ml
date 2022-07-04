@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
-
 open Or_bottom.Let_syntax
 
 (* This module conceals the implementation of type ['head t]. Functions such as
