@@ -155,6 +155,12 @@ type unbound_value_hint =
   | No_hint
   | Missing_rec of Location.t
 
+type escaping_context =
+  | Return
+  | Tailcall_argument
+  | Tailcall_function
+  | Partial_application
+
 type lookup_error =
   | Unbound_value of Longident.t * unbound_value_hint
   | Unbound_type of Longident.t
@@ -176,8 +182,7 @@ type lookup_error =
   | Generative_used_as_applicative of Longident.t
   | Illegal_reference_to_recursive_module
   | Cannot_scrape_alias of Longident.t * Path.t
-  | Local_value_escapes of Longident.t * [`Regionality | `Locality]
-  | Local_value_used_in_closure of Longident.t
+  | Local_value_used_in_closure of Longident.t * escaping_context option
 
 val lookup_error: Location.t -> t -> lookup_error -> 'a
 
@@ -358,7 +363,8 @@ val enter_unbound_value : string -> value_unbound_reason -> t -> t
 val enter_unbound_module : string -> module_unbound_reason -> t -> t
 
 (* Lock the environment *)
-val add_lock : Types.value_mode -> t -> t
+
+val add_lock : ?escaping_context:escaping_context -> Types.value_mode -> t -> t
 val add_region_lock : t -> t
 
 (* Initialize the cache of in-core module interfaces. *)

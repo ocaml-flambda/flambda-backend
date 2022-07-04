@@ -65,8 +65,9 @@ type field_read_semantics =
 
 (* Tail calls can close their enclosing region early *)
 type region_close =
-  | Rc_normal
-  | Rc_close_at_apply
+  | Rc_normal         (* do not close region, may TCO if in tail position *)
+  | Rc_nontail        (* do not close region, must not TCO *)
+  | Rc_close_at_apply (* close region and tail call *)
 
 type primitive =
   | Pidentity
