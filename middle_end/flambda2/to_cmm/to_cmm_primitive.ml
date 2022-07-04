@@ -386,7 +386,7 @@ let binary_int_arith_primitive0 _env dbg (kind : K.Standard_int.t)
       match kind with
       | Naked_int64 -> Pint64
       | Naked_nativeint -> Pnativeint
-      | Naked_immediate -> Misc.fatal_error "TBD"
+      | Naked_immediate -> Pint64 (* TEMPORARY until PR696 merged *)
       | Naked_int32 | Tagged_immediate -> assert false
     in
     (* XXX this is wrong for Naked_immediate ("TBD" case also needs fixing
