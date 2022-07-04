@@ -418,7 +418,8 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         Apply.create ~callee ~continuation:(Return return_continuation)
           exn_continuation ~args ~call_kind dbg ~inlined:Default_inlined
           ~inlining_state:(Apply.inlining_state apply)
-          ~probe_name:None ~relative_history:Inlining_history.Relative.empty
+          ~position:Normal ~probe_name:None
+          ~relative_history:Inlining_history.Relative.empty
       in
       let cost_metrics =
         Cost_metrics.from_size (Code_size.apply full_application)
@@ -901,7 +902,7 @@ let simplify_apply_shared dacc apply =
       ~args ~call_kind:(Apply.call_kind apply)
       (DE.add_inlined_debuginfo (DA.denv dacc) (Apply.dbg apply))
       ~inlined:(Apply.inlined apply) ~inlining_state
-      ~probe_name:(Apply.probe_name apply)
+      ~probe_name:(Apply.probe_name apply) ~position:(Apply.position apply)
       ~relative_history:
         (Inlining_history.Relative.concat
            ~earlier:(DE.relative_history (DA.denv dacc))

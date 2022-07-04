@@ -457,7 +457,7 @@ let close_c_call acc env ~loc ~let_bound_var
         Apply.create ~callee ~continuation:(Return return_continuation)
           exn_continuation ~args ~call_kind dbg ~inlined:Default_inlined
           ~inlining_state:(Inlining_state.default ~round:0)
-          ~probe_name:None
+          ~probe_name:None ~position:Normal
           ~relative_history:(Env.relative_history_from_scoped ~loc env)
       in
       Expr_with_acc.create_apply acc apply
@@ -852,7 +852,7 @@ let close_exact_or_unknown_apply acc env
        inlined;
        probe;
        mode;
-       region_close = _
+       region_close
      } :
       IR.apply) callee_approx : Expr_with_acc.t =
   let callee = find_simple_from_id env func in
@@ -893,13 +893,18 @@ let close_exact_or_unknown_apply acc env
   let probe_name =
     match probe with None -> None | Some { name } -> Some name
   in
+  let position =
+    match region_close with
+    | Rc_normal | Rc_close_at_apply -> Apply.Position.Normal
+    | Rc_nontail -> Apply.Position.Nontail
+  in
   let apply =
     Apply.create ~callee ~continuation:(Return continuation)
       apply_exn_continuation ~args ~call_kind
       (Debuginfo.from_location loc)
       ~inlined:inlined_call
       ~inlining_state:(Inlining_state.default ~round:0)
-      ~probe_name
+      ~probe_name ~position
       ~relative_history:(Env.relative_history_from_scoped ~loc env)
   in
   if Flambda_features.classic_mode ()
@@ -1623,6 +1628,11 @@ let wrap_over_application acc env full_call (apply : IR.apply) over_args
     let probe_name =
       match apply.probe with None -> None | Some { name } -> Some name
     in
+    let position =
+      match apply.region_close with
+      | Rc_normal | Rc_close_at_apply -> Apply.Position.Normal
+      | Rc_nontail -> Apply.Position.Nontail
+    in
     let alloc_mode : Alloc_mode.t =
       if contains_no_escaping_local_allocs then Heap else Local
     in
@@ -1636,7 +1646,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) over_args
       Apply.create ~callee:(Simple.var returned_func) ~continuation
         apply_exn_continuation ~args ~call_kind apply_dbg ~inlined
         ~inlining_state:(Inlining_state.default ~round:0)
-        ~probe_name
+        ~probe_name ~position
         ~relative_history:(Env.relative_history_from_scoped ~loc:apply.loc env)
     in
     match needs_region with

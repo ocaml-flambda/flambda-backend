@@ -1081,12 +1081,18 @@ val store :
 
     If a closure needs to be passed, it must be included in [args]. *)
 val direct_call :
-  dbg:Debuginfo.t -> machtype -> expression -> expression list -> expression
+  dbg:Debuginfo.t ->
+  machtype ->
+  Lambda.region_close ->
+  expression ->
+  expression list ->
+  expression
 
 (** Same as {!direct_call} but for an indirect call. *)
 val indirect_call :
   dbg:Debuginfo.t ->
   machtype ->
+  Lambda.region_close ->
   Lambda.alloc_mode ->
   expression ->
   expression list ->
@@ -1097,6 +1103,7 @@ val indirect_call :
 val indirect_full_call :
   dbg:Debuginfo.t ->
   machtype ->
+  Lambda.region_close ->
   Lambda.alloc_mode ->
   expression ->
   expression list ->

@@ -108,7 +108,8 @@ let transl_pat_mode p = transl_value_mode p.pat_mode
 
 let transl_apply_position position =
   match position with
-  | Nontail -> Rc_normal
+  | Default -> Rc_normal
+  | Nontail -> Rc_nontail
   | Tail ->
     if Config.stack_allocation then Rc_close_at_apply
     else Rc_normal
@@ -173,23 +174,23 @@ type binding =
   | Bind_value of value_binding list
   | Bind_module of Ident.t * string option loc * module_presence * module_expr
 
-let rec push_defaults loc bindings cases partial =
+let rec push_defaults loc bindings cases partial warnings =
   match cases with
     [{c_lhs=pat; c_guard=None;
       c_rhs={exp_desc =
-               Texp_function { arg_label; param; cases; partial; region }}
+               Texp_function { arg_label; param; cases; partial; region; warnings }}
         as exp}] ->
-      let cases = push_defaults exp.exp_loc bindings cases partial in
+      let cases = push_defaults exp.exp_loc bindings cases partial warnings in
       [{c_lhs=pat; c_guard=None;
         c_rhs={exp with exp_desc = Texp_function { arg_label; param; cases;
-          partial; region; }}}]
+          partial; region; warnings }}}]
   | [{c_lhs=pat; c_guard=None;
       c_rhs={exp_attributes=[{Parsetree.attr_name = {txt="#default"};_}];
              exp_desc = Texp_let
                (Nonrecursive, binds, ({exp_desc = Texp_function _} as e2))}}] ->
       push_defaults loc (Bind_value binds :: bindings)
                    [{c_lhs=pat;c_guard=None;c_rhs=e2}]
-                   partial
+                   partial warnings
   | [{c_lhs=pat; c_guard=None;
       c_rhs={exp_attributes=[{Parsetree.attr_name = {txt="#modulepat"};_}];
              exp_desc = Texp_letmodule
@@ -197,7 +198,7 @@ let rec push_defaults loc bindings cases partial =
                 ({exp_desc = Texp_function _} as e2))}}] ->
       push_defaults loc (Bind_module (id, name, pres, mexpr) :: bindings)
                    [{c_lhs=pat;c_guard=None;c_rhs=e2}]
-                   partial
+                   partial warnings
   | [case] ->
       let exp =
         List.fold_left
@@ -235,7 +236,7 @@ let rec push_defaults loc bindings cases partial =
       push_defaults loc bindings
         [{c_lhs={pat with pat_desc = Tpat_var (param, mknoloc name)};
           c_guard=None; c_rhs=exp}]
-        Total
+        Total warnings
   | _ ->
       cases
 
@@ -316,7 +317,7 @@ let can_apply_primitive p pmode pos args =
     let nargs = List.length args in
     if nargs = p.prim_arity then true
     else if nargs < p.prim_arity then false
-    else if pos = Typedtree.Nontail then true
+    else if pos <> Typedtree.Tail then true
     else begin
       let return_mode = Ctype.prim_mode pmode p.prim_native_repr_res in
       is_heap_mode (transl_alloc_mode return_mode)
@@ -353,12 +354,12 @@ and transl_exp0 ~in_new_scope ~scopes e =
       let body_kind = Typeopt.value_kind body.exp_env body.exp_type in
       transl_let ~scopes rec_flag pat_expr_list
         body_kind (event_before ~scopes body (transl_exp ~scopes body))
-  | Texp_function { arg_label = _; param; cases; partial; region } ->
+  | Texp_function { arg_label = _; param; cases; partial; region; warnings } ->
       let scopes =
         if in_new_scope then scopes
         else enter_anonymous_function ~scopes
       in
-      transl_function ~scopes e param cases partial region
+      transl_function ~scopes e param cases partial warnings region
   | Texp_apply({ exp_desc = Texp_ident(path, _, {val_kind = Val_prim p},
                                        Id_prim pmode);
                 exp_type = prim_type } as funct, oargs, pos)
@@ -762,9 +763,10 @@ and transl_exp0 ~in_new_scope ~scopes e =
           cl_env = e.exp_env;
           cl_attributes = [];
          }
-  | Texp_letop{let_; ands; param; body; partial} ->
+  | Texp_letop{let_; ands; param; body; partial; warnings} ->
       event_after ~scopes e
-        (transl_letop ~scopes e.exp_loc e.exp_env let_ ands param body partial)
+        (transl_letop ~scopes e.exp_loc e.exp_env let_ ands
+           param body partial warnings)
   | Texp_unreachable ->
       raise (Error (e.exp_loc, Unreachable_reached))
   | Texp_open (od, e) ->
@@ -918,7 +920,8 @@ and transl_apply ~scopes
         Lsend(k, lmet, lobj, args, pos, mode, loc)
     | Lsend(Cached, lmet, lobj, ([_; _] as largs), _, _, _), _ ->
         Lsend(Cached, lmet, lobj, largs @ args, pos, mode, loc)
-    | Lsend(k, lmet, lobj, largs, Rc_normal, _, _), Rc_normal ->
+    | Lsend(k, lmet, lobj, largs, (Rc_normal | Rc_nontail), _, _),
+      (Rc_normal | Rc_nontail) ->
         Lsend(k, lmet, lobj, largs @ args, pos, mode, loc)
     | Levent(
       Lsend((Self | Public) as k, lmet, lobj, [], _, _, _), _), _ ->
@@ -927,9 +930,11 @@ and transl_apply ~scopes
       Lsend(Cached, lmet, lobj, ([_; _] as largs), _, _, _), _), _ ->
         Lsend(Cached, lmet, lobj, largs @ args, pos, mode, loc)
     | Levent(
-      Lsend(k, lmet, lobj, largs, Rc_normal, _, _), _), Rc_normal ->
+      Lsend(k, lmet, lobj, largs, (Rc_normal | Rc_nontail), _, _), _),
+      (Rc_normal | Rc_nontail) ->
         Lsend(k, lmet, lobj, largs @ args, pos, mode, loc)
-    | Lapply ({ ap_region_close = Rc_normal } as ap), Rc_normal ->
+    | Lapply ({ ap_region_close = (Rc_normal | Rc_nontail) } as ap),
+      (Rc_normal | Rc_nontail) ->
         Lapply
           {ap with ap_args = ap.ap_args @ args; ap_loc = loc;
                    ap_region_close = pos; ap_mode = mode}
@@ -1009,16 +1014,17 @@ and transl_apply ~scopes
 
 and transl_curried_function
       ~scopes loc return
-      repr ~mode ~region partial (param:Ident.t) cases =
+      repr ~mode ~region partial warnings (param:Ident.t) cases =
   let max_arity = Lambda.max_arity () in
-  let rec loop ~scopes loc return ~arity ~mode ~region partial
+  let rec loop ~scopes loc return ~arity ~mode ~region partial warnings
             (param:Ident.t) cases =
     match cases with
       [{c_lhs=pat; c_guard=None;
         c_rhs={exp_desc =
                  Texp_function
                    { arg_label = _; param = param'; cases = cases';
-                     partial = partial'; region = region' };
+                     partial = partial'; region = region';
+                     warnings = warnings' };
                exp_env; exp_type; exp_loc; exp_mode}}]
       when arity < max_arity ->
       let arg_mode = transl_pat_mode pat in
@@ -1035,7 +1041,7 @@ and transl_curried_function
         let ((fnkind, params, return, region), body) =
           loop ~scopes exp_loc return_kind
             ~arity:(arity + 1) ~mode:curry_mode ~region:region'
-            partial' param' cases'
+            partial' warnings' param' cases'
         in
         let fnkind =
           match curry_mode, fnkind with
@@ -1054,8 +1060,11 @@ and transl_curried_function
       else begin
         begin match partial with
         | Total ->
-          Location.prerr_warning pat.pat_loc
-            Match_on_mutable_state_prevent_uncurry
+            let prev = Warnings.backup () in
+            Warnings.restore warnings;
+            Location.prerr_warning pat.pat_loc
+              Match_on_mutable_state_prevent_uncurry;
+            Warnings.restore prev
         | Partial -> ()
         end;
         transl_tupled_function ~scopes ~arity ~mode ~region
@@ -1065,7 +1074,7 @@ and transl_curried_function
       transl_tupled_function ~scopes ~arity ~mode ~region
         loc return repr partial param cases
   in
-  loop ~scopes loc return ~arity:1 ~mode ~region partial param cases
+  loop ~scopes loc return ~arity:1 ~mode ~region partial warnings param cases
 
 and transl_tupled_function
       ~scopes ~arity ~mode ~region loc return
@@ -1150,15 +1159,15 @@ and transl_function0
     in
     ((Curried {nlocal}, [param, kind], return, region), body)
 
-and transl_function ~scopes e param cases partial region =
+and transl_function ~scopes e param cases partial warnings region =
   let mode = transl_exp_mode e in
   let ((kind, params, return, region), body) =
     event_function ~scopes e
       (function repr ->
-         let pl = push_defaults e.exp_loc [] cases partial in
+         let pl = push_defaults e.exp_loc [] cases partial warnings in
          let return_kind = function_return_value_kind e.exp_env e.exp_type in
          transl_curried_function ~scopes e.exp_loc return_kind
-           repr ~mode ~region partial param pl)
+           repr ~mode ~region partial warnings param pl)
   in
   let attr = default_function_attribute in
   let loc = of_location ~scopes e.exp_loc in
@@ -1441,7 +1450,7 @@ and transl_match ~scopes e arg pat_expr_list partial =
     Lstaticcatch (body, (static_exception_id, val_ids), handler, kind)
   ) classic static_handlers
 
-and transl_letop ~scopes loc env let_ ands param case partial =
+and transl_letop ~scopes loc env let_ ands param case partial warnings =
   let rec loop prev_lam = function
     | [] -> prev_lam
     | and_ :: rest ->
@@ -1479,7 +1488,7 @@ and transl_letop ~scopes loc env let_ ands param case partial =
       event_function ~scopes case.c_rhs
         (function repr ->
            transl_curried_function ~scopes case.c_rhs.exp_loc return_kind
-             repr ~mode:alloc_heap ~region:true partial param [case])
+             repr ~mode:alloc_heap ~region:true partial warnings param [case])
     in
     let attr = default_function_attribute in
     let loc = of_location ~scopes case.c_rhs.exp_loc in

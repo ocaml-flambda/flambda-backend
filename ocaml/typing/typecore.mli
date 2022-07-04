@@ -78,12 +78,6 @@ type existential_restriction =
   | In_class_def (** or in [class c = let ... in ...] *)
   | In_self_pattern (** or in self pattern *)
 
-type escaping_context =
-  | Return
-  | Tailcall_argument
-  | Tailcall_function
-  | Partial_application
-
 val type_binding:
         Env.t -> rec_flag ->
           Parsetree.value_binding list ->
@@ -207,10 +201,12 @@ type error =
   | Letop_type_clash of string * Ctype.Unification_trace.t
   | Andop_type_clash of string * Ctype.Unification_trace.t
   | Bindings_type_clash of Ctype.Unification_trace.t
-  | Local_value_escapes of Btype.Value_mode.error * escaping_context option
+  | Local_value_escapes of Btype.Value_mode.error * Env.escaping_context option
   | Param_mode_mismatch of type_expr
   | Uncurried_function_escapes
   | Local_return_annotation_mismatch of Location.t
+  | Bad_tail_annotation of [`Conflict|`Not_a_tailcall]
+
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error

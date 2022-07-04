@@ -3985,21 +3985,19 @@ let load ~dbg kind mut ~addr = Cop (Cload (kind, mut), [addr], dbg)
 let store ~dbg kind init ~addr ~new_value =
   Cop (Cstore (kind, init), [addr; new_value], dbg)
 
-let direct_call ~dbg ty f_code_sym args =
-  Cop (Capply (ty, Rc_normal), f_code_sym :: args, dbg)
+let direct_call ~dbg ty pos f_code_sym args =
+  Cop (Capply (ty, pos), f_code_sym :: args, dbg)
 
-let indirect_call ~dbg ty alloc_mode f args =
+let indirect_call ~dbg ty pos alloc_mode f args =
   match args with
   | [arg] ->
     (* Use a variable to avoid duplicating the cmm code of the closure [f]. *)
     let v = Backend_var.create_local "*closure*" in
     let v' = Backend_var.With_provenance.create v in
-    (* We always use [Rc_normal] since the [Lambda_to_flambda] pass has already
-       taken care of the placement of region begin/end primitives. *)
     letin v' ~defining_expr:f
       ~body:
         (Cop
-           ( Capply (ty, Rc_normal),
+           ( Capply (ty, pos),
              [load ~dbg Word_int Asttypes.Mutable ~addr:(Cvar v); arg; Cvar v],
              dbg ))
   | args ->
@@ -4007,11 +4005,11 @@ let indirect_call ~dbg ty alloc_mode f args =
     let l =
       (Cconst_symbol (apply_function_sym arity alloc_mode, dbg) :: args) @ [f]
     in
-    Cop (Capply (ty, Rc_normal), l, dbg)
+    Cop (Capply (ty, pos), l, dbg)
 
-let indirect_full_call ~dbg ty alloc_mode f = function
+let indirect_full_call ~dbg ty pos alloc_mode f = function
   (* the single-argument case is already optimized by indirect_call *)
-  | [_] as args -> indirect_call ~dbg ty alloc_mode f args
+  | [_] as args -> indirect_call ~dbg ty pos alloc_mode f args
   | args ->
     (* Use a variable to avoid duplicating the cmm code of the closure [f]. *)
     let v = Backend_var.create_local "*closure*" in
@@ -4021,7 +4019,7 @@ let indirect_full_call ~dbg ty alloc_mode f = function
       load ~dbg Word_int Asttypes.Mutable ~addr:(field_address (Cvar v) 2 dbg)
     in
     letin v' ~defining_expr:f
-      ~body:(Cop (Capply (ty, Rc_normal), (fun_ptr :: args) @ [Cvar v], dbg))
+      ~body:(Cop (Capply (ty, pos), (fun_ptr :: args) @ [Cvar v], dbg))
 
 let extcall ~dbg ~returns ~alloc ~is_c_builtin ~ty_args name typ_res args =
   if not returns then assert (typ_res = typ_void);
