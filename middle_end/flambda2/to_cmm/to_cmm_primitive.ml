@@ -245,8 +245,9 @@ let unary_int_arith_primitive _env dbg kind op arg =
   | Naked_int64, Neg when Target_system.is_32_bit -> C.unsupported_32_bit ()
   (* Negation needs a sign-extension for 32-bit and 63-bit values *)
   | Naked_immediate, Neg ->
-    C.sign_extend_63 dbg (C.sub_int (C.int ~dbg 0) arg dbg)
-  | Naked_int32, Neg -> C.sign_extend_32 dbg (C.sub_int (C.int ~dbg 0) arg dbg)
+    C.sign_extend_63 dbg (C.sub_int (C.int ~dbg 0) (C.low_63 dbg arg) dbg)
+  | Naked_int32, Neg ->
+    C.sign_extend_32 dbg (C.sub_int (C.int ~dbg 0) (C.low_32 dbg arg) dbg)
   (* General case *)
   | (Naked_int64 | Naked_nativeint), Neg -> C.sub_int (C.int ~dbg 0) arg dbg
   (* Byte swaps of 32-bit integers on 64-bit targets need a sign-extension in
