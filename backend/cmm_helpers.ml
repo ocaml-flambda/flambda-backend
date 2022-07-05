@@ -1265,6 +1265,7 @@ let zero_extend_32 dbg e =
 
 let zero_extend_63 dbg e =
   check_64_bit_target "zero_extend_63";
+  let e = low_63 dbg e in
   Cop (Cand, [e; natint_const_untagged dbg 0x7FFF_FFFF_FFFF_FFFFn], dbg)
 
 let and_int e1 e2 dbg =
