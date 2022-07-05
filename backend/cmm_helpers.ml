@@ -1221,6 +1221,8 @@ let rec low_32 dbg = function
   | x -> x
 
 (* Like [low_32] but for 63-bit integers held in 64-bit registers. *)
+(* CR gbury: Why not use Cmm.map_tail here ? It seems designed for that kind of
+   thing (and covers more cases than just Clet). *)
 let rec low_63 dbg e =
   check_64_bit_target "low_63";
   match e with
@@ -1247,7 +1249,8 @@ let sign_extend_32 dbg e =
           dbg )
 
 (* CR-someday mshinwell/gbury: sign_extend_63 then tag_int should simplify to
-   just tag_int. *)
+   just tag_int. Similarly, untag_int then sign_extend_63 should simplify to
+   untag_int. *)
 let sign_extend_63 dbg e =
   check_64_bit_target "sign_extend_63";
   let e = low_63 dbg e in
