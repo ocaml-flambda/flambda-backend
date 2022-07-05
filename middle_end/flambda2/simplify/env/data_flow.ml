@@ -12,6 +12,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+module EPA = Continuation_extra_params_and_args
+
 (* Helper module *)
 (* ************* *)
 
@@ -32,6 +34,9 @@ end
 
 (* Typedefs *)
 (* ******** *)
+
+(* CR chambart/gbury: we might want to also track function_slots in addition to
+   value_slots. *)
 
 (* CR-someday chambart/gbury: get rid of Name_occurences everywhere, this is not
    small while we need only the names
@@ -678,9 +683,11 @@ module Dependency_graph = struct
                        unneeded. *)
                     t)
                 t
-                (Bound_parameters.to_list extra_params_and_args.extra_params)
+                (Bound_parameters.to_list
+                   (EPA.extra_params extra_params_and_args))
                 extra_args)
-            extra_params_and_args.extra_args t)
+            (EPA.extra_args extra_params_and_args)
+            t)
         extra t
     in
     t

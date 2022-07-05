@@ -846,6 +846,7 @@ and add_equation1 t name ty ~(meet_type : meet_type) =
     Simple.pattern_match bare_lhs ~name ~const:(fun _ -> t)
 
 and[@inline always] add_equation t name ty ~meet_type =
+  let ty = TG.recover_some_aliases ty in
   match add_equation1 t name ty ~meet_type with
   | exception Binding_time_resolver_failure ->
     (* Addition of aliases between names that are both in external compilation
@@ -1054,7 +1055,8 @@ let aliases_of_simple t ~min_name_mode simple =
 let aliases_of_simple_allowable_in_types t simple =
   aliases_of_simple t ~min_name_mode:Name_mode.in_types simple
 
-let closure_env t = { t with min_binding_time = t.next_binding_time }
+let closure_env t =
+  increment_scope { t with min_binding_time = t.next_binding_time }
 
 let rec free_names_transitive_of_type_of_name t name ~result =
   let result = Name_occurrences.add_name result name Name_mode.in_types in

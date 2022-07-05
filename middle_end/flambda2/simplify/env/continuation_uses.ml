@@ -14,7 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-module CEPT = Continuation_env_and_param_types
 module DE = Downwards_env
 module T = Flambda2_types
 module U = One_continuation_use
@@ -71,8 +70,15 @@ let arity t = t.arity
 
 let get_uses t = t.uses
 
+type arg_at_use =
+  { arg_type : Flambda2_types.t;
+    typing_env : Flambda2_types.Typing_env.t
+  }
+
+type arg_types_by_use_id = arg_at_use Apply_cont_rewrite_id.Map.t list
+
 let get_arg_types_by_use_id t =
-  let empty_arg_maps : CEPT.arg_types_by_use_id list =
+  let empty_arg_maps : arg_types_by_use_id =
     List.map
       (fun _ -> Apply_cont_rewrite_id.Map.empty)
       (Flambda_arity.to_list t.arity)
@@ -80,7 +86,7 @@ let get_arg_types_by_use_id t =
   let add_value_to_arg_map arg_map arg_type ~use =
     let env_at_use = U.env_at_use use in
     let typing_env = DE.typing_env env_at_use in
-    let arg_at_use : CEPT.arg_at_use = { arg_type; typing_env } in
+    let arg_at_use : arg_at_use = { arg_type; typing_env } in
     Apply_cont_rewrite_id.Map.add (U.id use) arg_at_use arg_map
   in
   List.fold_left

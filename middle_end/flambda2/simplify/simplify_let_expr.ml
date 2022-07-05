@@ -51,9 +51,6 @@ let rebuild_let simplify_named_result removed_operations
         LCS.fold lifted_constants_from_defining_expr ~init:LCS.empty
           ~f:(keep_lifted_constant_only_if_used uacc)
   in
-  let lifted_constants_from_defining_expr =
-    LCS.sort lifted_constants_from_defining_expr
-  in
   (* At this point, the free names in [uacc] are the free names of [body], plus
      all used value slots seen in the whole compilation unit. *)
   let no_constants_from_defining_expr =
@@ -62,11 +59,18 @@ let rebuild_let simplify_named_result removed_operations
   (* The lifted constants present in [uacc] are the ones arising from the
      simplification of [body] which still have to be placed. We augment these
      with any constants arising from the simplification of the defining
-     expression. Then we place (some of) them and/or return them in [uacc] for
-     an outer [Let]-binding to deal with. *)
-  let lifted_constants_from_body = UA.lifted_constants uacc in
+     expression. Then we either place all of them, if we are at toplevel, or
+     else return them in [uacc] for an outer [Let]-binding to deal with.
+
+     It may be surprising that lifted constants can arise from the
+     simplification of the body in the case where they have also arisen from the
+     defining expression (since the latter implies that we must be at toplevel).
+     However this can happen in the case of recursive continuations, in which
+     constants cannot be placed. *)
+  (* CR mshinwell: We don't actually have to have this logic for placing lifted
+     constants here; it could be done before any other kind of expression. *)
   let no_constants_to_place =
-    no_constants_from_defining_expr && LCS.is_empty lifted_constants_from_body
+    no_constants_from_defining_expr && UA.no_lifted_constants uacc
   in
   let uacc = UA.notify_removed ~operation:removed_operations uacc in
   let bindings =
@@ -81,16 +85,18 @@ let rebuild_let simplify_named_result removed_operations
       if no_constants_from_defining_expr
       then uacc
       else
-        LCS.union_ordered ~innermost:lifted_constants_from_body
-          ~outermost:lifted_constants_from_defining_expr
+        let lifted_constants_from_body = UA.lifted_constants uacc in
+        LCS.union lifted_constants_from_body lifted_constants_from_defining_expr
         |> UA.with_lifted_constants uacc
     in
     let body, uacc =
       EB.make_new_let_bindings uacc ~bindings_outermost_first:bindings ~body
     in
-    (* The let binding was removed. *)
     after_rebuild body uacc
   else
+    let uacc, lifted_constants_from_body =
+      UA.get_and_clear_lifted_constants uacc
+    in
     let body, uacc =
       EB.place_lifted_constants uacc ~lifted_constants_from_defining_expr
         ~lifted_constants_from_body
@@ -179,9 +185,7 @@ let record_lifted_constant_for_data_flow data_flow lifted_constant =
 let record_new_defining_expression_binding_for_data_flow dacc data_flow
     (binding : Simplify_named_result.binding_to_place) =
   match binding.simplified_defining_expr with
-  | Invalid -> data_flow
-  | Reachable { free_names; named; cost_metrics = _ }
-  | Reachable_try_reify { free_names; named; cost_metrics = _ } ->
+  | { free_names; named; cost_metrics = _ } ->
     let can_be_removed =
       match named with
       | Simple _ | Set_of_closures _ | Rec_info _ -> true
@@ -229,16 +233,18 @@ let simplify_let0 ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up
     Simplify_named.simplify_named dacc bound_pattern defining_expr
       ~simplify_toplevel
   in
-  (* We don't need to simplify the body of the [Let] if the defining expression
-     simplified to [Invalid]. *)
-  if Simplify_named_result.is_invalid simplify_named_result
-  then
+  (* We must make sure that if [Invalid] is going to be produced, [uacc] doesn't
+     contain any extraneous data for e.g. lifted constants that will never be
+     placed, since this can lead to errors when loading .cmx files or similar.
+     To avoid this we don't traverse [body]. *)
+  match simplify_named_result with
+  | Invalid ->
     down_to_up original_dacc ~rebuild:(fun uacc ~after_rebuild ->
         let uacc = UA.notify_removed ~operation:removed_operations uacc in
         EB.rebuild_invalid uacc
           (Defining_expr_of_let (bound_pattern, defining_expr))
           ~after_rebuild)
-  else
+  | Ok simplify_named_result ->
     let dacc = Simplify_named_result.dacc simplify_named_result in
     (* First accumulate variable, symbol and code ID usage information. *)
     (* CR-someday gbury/pchambart : in the case of an invalid, we currently

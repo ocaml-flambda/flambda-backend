@@ -62,3 +62,6 @@ let join ?bound_name central_env ~left_env ~left_ty ~right_env ~right_ty =
   match join ?bound_name join_env left_ty right_ty with
   | Unknown -> unknown_like left_ty
   | Known ty -> ty
+
+let remove_outermost_alias env ty =
+  Expand_head.expand_head env ty |> Expand_head.Expanded_type.to_type

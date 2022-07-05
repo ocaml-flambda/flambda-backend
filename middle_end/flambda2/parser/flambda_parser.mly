@@ -211,11 +211,11 @@ let make_boxed_const_int (i, m) : static_data =
 %type <Fexpr.expect_test_spec> expect_test_spec
 %type <Fexpr.field_of_block> field_of_block
 %type <Fexpr.flambda_unit> flambda_unit
-%type <Fexpr.comparison Fexpr.comparison_behaviour> float_comp
+%type <unit Fexpr.comparison_behaviour> float_comp
 %type <Fexpr.continuation_sort option> continuation_sort
 %type <float Fexpr.or_variable> float_or_variable
 %type <Fexpr.infix_binop> infix_binop
-%type <Fexpr.ordered_comparison Fexpr.comparison_behaviour> int_comp
+%type <Fexpr.signed_or_unsigned -> Fexpr.signed_or_unsigned Fexpr.comparison_behaviour> int_comp
 %type <Fexpr.kind> kind
 %type <Fexpr.kind_with_subkind> kind_with_subkind
 %type <Fexpr.kind_with_subkind list> kinds_with_subkinds
@@ -358,7 +358,7 @@ unop:
 
 infix_binop:
   | o = binary_int_arith_op { Int_arith o }
-  | c = int_comp { Int_comp c }
+  | c = int_comp { Int_comp (c Signed) }
   | s = int_shift { Int_shift s }
   | o = binary_float_arith_op { Float_arith o }
   | c = float_comp { Float_comp c }
@@ -369,8 +369,8 @@ prefix_binop:
     mutability = mutability;
     kind = block_access_kind;
     { Block_load (kind, mutability) }
-  | PRIM_PHYS_EQ; k = kind_arg_opt { Phys_equal(k, Eq) }
-  | PRIM_PHYS_NE; k = kind_arg_opt { Phys_equal(k, Neq) }
+  | PRIM_PHYS_EQ { Phys_equal Eq }
+  | PRIM_PHYS_NE { Phys_equal Neq }
 
 mutability:
   | KWD_MUTABLE { Mutable }
@@ -437,20 +437,20 @@ binary_float_arith_op:
   | SLASHDOT { Div }
 
 int_comp:
-  | LESS { Yielding_bool Lt }
-  | GREATER { Yielding_bool Gt }
-  | LESSEQUAL { Yielding_bool Le }
-  | GREATEREQUAL { Yielding_bool Ge }
-  | QMARK { Yielding_int_like_compare_functions }
+  | LESS { fun s -> Yielding_bool (Lt s) }
+  | GREATER { fun s -> Yielding_bool (Gt s) }
+  | LESSEQUAL { fun s -> Yielding_bool (Le s) }
+  | GREATEREQUAL { fun s -> Yielding_bool (Ge s) }
+  | QMARK { fun s -> Yielding_int_like_compare_functions s }
 
 float_comp:
   | EQUALDOT { Yielding_bool Eq }
   | NOTEQUALDOT { Yielding_bool Neq }
-  | LESSDOT { Yielding_bool Lt }
-  | GREATERDOT { Yielding_bool Gt }
-  | LESSEQUALDOT { Yielding_bool Le }
-  | GREATEREQUALDOT { Yielding_bool Ge }
-  | QMARKDOT { Yielding_int_like_compare_functions }
+  | LESSDOT { Yielding_bool ( Lt ()) }
+  | GREATERDOT { Yielding_bool ( Gt ()) }
+  | LESSEQUALDOT { Yielding_bool (Le()) }
+  | GREATEREQUALDOT { Yielding_bool (Ge ()) }
+  | QMARKDOT { (Yielding_int_like_compare_functions ()) }
 ;
 
 int_shift:
@@ -473,7 +473,7 @@ binop_app:
   | PRIM_INT_COMP;
     i = standard_int; s = signed_or_unsigned;
     arg1 = simple; c = int_comp; arg2 = simple
-    { Binary (Int_comp (i, s, c), arg1, arg2) }
+    { Binary (Int_comp (i, c s), arg1, arg2) }
   | PRIM_INT_SHIFT;
     i = standard_int; arg1 = simple; s = int_shift; arg2 = simple
     { Binary (Int_shift (i, s), arg1, arg2) }

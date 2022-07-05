@@ -20,6 +20,15 @@ module LCS = Lifted_constant_state
 module T = Flambda2_types
 module TE = Flambda2_types.Typing_env
 module U = One_continuation_use
+module EPA = Continuation_extra_params_and_args
+
+type result =
+  { handler_env : DE.t;
+    arg_types_by_use_id : Continuation_uses.arg_types_by_use_id;
+    extra_params_and_args : Continuation_extra_params_and_args.t;
+    is_single_inlinable_use : bool;
+    escapes : bool
+  }
 
 let join ?unknown_if_defined_at_or_later_than denv typing_env params
     ~env_at_fork_plus_params ~consts_lifted_during_body ~use_envs_with_ids =
@@ -67,7 +76,8 @@ let join ?unknown_if_defined_at_or_later_than denv typing_env params
   in
   let handler_env =
     env
-    |> TE.add_definitions_of_params ~params:extra_params_and_args.extra_params
+    |> TE.add_definitions_of_params
+         ~params:(EPA.extra_params extra_params_and_args)
   in
   let handler_env =
     match cse_join_result with
@@ -103,7 +113,8 @@ let meet_equations_on_params typing_env ~params:params' ~param_types =
       let existing_type = TE.find typing_env name (Some kind) in
       match T.meet typing_env existing_type param_type with
       | Bottom ->
-        (* CR mshinwell for vlaviron: is this correct? *)
+        (* This should really replace the corresponding uses with [Invalid], but
+           this seems an unusual situation, so we don't do that currently. *)
         TE.add_equation typing_env name (T.bottom kind)
       | Ok (meet_ty, env_extension) ->
         let typing_env = TE.add_equation typing_env name meet_ty in
@@ -112,7 +123,7 @@ let meet_equations_on_params typing_env ~params:params' ~param_types =
 
 let compute_handler_env ?unknown_if_defined_at_or_later_than uses
     ~env_at_fork_plus_params ~consts_lifted_during_body ~params
-    ~code_age_relation_after_body : Continuation_env_and_param_types.t =
+    ~code_age_relation_after_body =
   (* Augment the environment at each use with the necessary equations about the
      parameters (whose variables will already be defined in the environment). *)
   let need_to_meet_param_types =
@@ -157,13 +168,30 @@ let compute_handler_env ?unknown_if_defined_at_or_later_than uses
       LCS.add_to_denv ~maybe_already_defined:() use_env
         consts_lifted_during_body
     in
-    Uses
-      { handler_env;
-        arg_types_by_use_id;
-        extra_params_and_args = Continuation_extra_params_and_args.empty;
-        is_single_inlinable_use = true;
-        escapes = false
-      }
+    (* The use environment might have a deeper inlining depth increment than the
+       fork environment. (e.g. where an [Apply] was inlined, revealing the
+       linear inlinable use of the continuation). We need to make sure the
+       handler is simplified using the depth from the fork environment. Likewise
+       for the inlining history tracker and debuginfo. *)
+    let handler_env =
+      DE.set_inlining_state handler_env
+        (DE.get_inlining_state env_at_fork_plus_params)
+    in
+    let handler_env =
+      DE.set_inlining_history_tracker
+        (DE.inlining_history_tracker env_at_fork_plus_params)
+        handler_env
+    in
+    let handler_env =
+      DE.set_inlined_debuginfo handler_env
+        (DE.get_inlined_debuginfo env_at_fork_plus_params)
+    in
+    { handler_env;
+      arg_types_by_use_id;
+      extra_params_and_args = Continuation_extra_params_and_args.empty;
+      is_single_inlinable_use = true;
+      escapes = false
+    }
   | [] | [(_, _, Non_inlinable _)] | (_, _, (Inlinable | Non_inlinable _)) :: _
     ->
     (* This is the general case.
@@ -199,10 +227,9 @@ let compute_handler_env ?unknown_if_defined_at_or_later_than uses
           | Non_inlinable { escaping = true } -> true)
         use_envs_with_ids
     in
-    Uses
-      { handler_env;
-        arg_types_by_use_id;
-        extra_params_and_args;
-        is_single_inlinable_use = false;
-        escapes
-      }
+    { handler_env;
+      arg_types_by_use_id;
+      extra_params_and_args;
+      is_single_inlinable_use = false;
+      escapes
+    }

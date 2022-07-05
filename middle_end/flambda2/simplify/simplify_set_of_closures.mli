@@ -14,7 +14,14 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Simplification of recursive groups of sets of closures. *)
+(** Simplification of recursive groups of sets of closures. This process makes
+    new, simplified versions of [Code] bindings based on the contextual
+    information available from the corresponding set of closures definition.
+    ([Code] bindings are not simplified earlier, except in the special case of
+    stub functions, because much more information is available at the set of
+    closures definitions. Stub functions are simplified once since it is
+    unlikely more information will be gained at the set of closures definitions;
+    this also avoids potential performance problems in pathological cases. *)
 
 open! Simplify_import
 

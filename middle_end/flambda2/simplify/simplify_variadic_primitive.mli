@@ -23,4 +23,4 @@ val simplify_variadic_primitive :
   args_with_tys:(Simple.t * Flambda2_types.t) list ->
   Debuginfo.t ->
   result_var:Bound_var.t ->
-  Simplified_named.t * Downwards_acc.t
+  Simplify_primitive_result.t

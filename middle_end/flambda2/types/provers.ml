@@ -361,7 +361,7 @@ let prove_equals_single_tagged_immediate env t : _ proof =
   | Unknown -> Unknown
   | Invalid -> Invalid
 
-let prove_tags_and_sizes env t : Targetint_31_63.Imm.t Tag.Map.t proof =
+let prove_tags_and_sizes env t : _ proof =
   let wrong_kind () =
     Misc.fatal_errorf "Kind error: expected [Value]:@ %a" TG.print t
   in
@@ -379,7 +379,11 @@ let prove_tags_and_sizes env t : Targetint_31_63.Imm.t Tag.Map.t proof =
         | Known blocks -> (
           match TG.Row_like_for_blocks.all_tags_and_sizes blocks with
           | Unknown -> Unknown
-          | Known tags_and_sizes -> Proved tags_and_sizes)
+          | Known tags_and_sizes ->
+            Proved
+              ( tags_and_sizes,
+                TG.Row_like_for_blocks.get_singleton blocks,
+                blocks_imms.alloc_mode ))
       else Unknown)
   | Value (Ok (Mutable_block _)) -> Unknown
   | Value (Ok _) -> Invalid
@@ -402,10 +406,35 @@ let prove_unique_tag_and_size env t :
     match prove_tags_and_sizes env t with
     | Invalid -> Invalid
     | Unknown -> Unknown
-    | Proved tags_to_sizes -> (
+    | Proved (tags_to_sizes, _, _) -> (
       match Tag.Map.get_singleton tags_to_sizes with
       | None -> Unknown
       | Some (tag, size) -> Proved (tag, size))
+
+let prove_unique_fully_constructed_immutable_heap_block env t : _ proof =
+  match prove_tags_and_sizes env t with
+  | Invalid -> Invalid
+  | Unknown
+  | Proved (_, None, (Unknown | Known Heap | Known Local))
+  | Proved (_, Some _, (Unknown | Known Local)) ->
+    Unknown
+  | Proved (_, Some (tag_and_size, product), Known Heap) -> (
+    let result =
+      List.fold_left
+        (fun (result : _ proof) field_ty : _ proof ->
+          match result with
+          | Invalid | Unknown -> result
+          | Proved simples_rev -> (
+            match TG.get_alias_exn field_ty with
+            | exception Not_found -> Unknown
+            | simple -> Proved (simple :: simples_rev)))
+        (Proved [] : _ proof)
+        (TG.Product.Int_indexed.components product)
+    in
+    match result with
+    | Invalid -> Invalid
+    | Unknown -> Unknown
+    | Proved simples -> Proved (tag_and_size, List.rev simples))
 
 type variant_like_proof =
   { const_ctors : Targetint_31_63.Set.t Or_unknown.t;

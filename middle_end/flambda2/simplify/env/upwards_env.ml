@@ -60,16 +60,30 @@ let find_continuation t cont =
 
 let mem_continuation t cont = Continuation.Map.mem cont t.continuations
 
+let check_alias_transitivity t cont alias_for =
+  if Flambda_features.check_invariants ()
+     && Continuation.Map.mem alias_for t.continuation_aliases
+  then
+    Misc.fatal_errorf
+      "@[<hov 2>The continuation alias map does not represent thetransitive \
+       closure of alias equations on continuations:@ %a, alias for %a, is \
+       already bound in %a@]"
+      Continuation.print alias_for Continuation.print cont print t
+
 let resolve_continuation_aliases t cont =
   match Continuation.Map.find cont t.continuation_aliases with
   | exception Not_found -> cont
-  | alias_for -> alias_for
+  | alias_for ->
+    check_alias_transitivity t cont alias_for;
+    alias_for
 
 let resolve_exn_continuation_aliases t exn_cont =
   let cont = Exn_continuation.exn_handler exn_cont in
   match Continuation.Map.find cont t.continuation_aliases with
   | exception Not_found -> exn_cont
-  | alias_for -> Exn_continuation.with_exn_handler exn_cont alias_for
+  | alias_for ->
+    check_alias_transitivity t cont alias_for;
+    Exn_continuation.with_exn_handler exn_cont alias_for
 
 let continuation_arity t cont =
   find_continuation t cont |> Continuation_in_env.arity
@@ -87,8 +101,8 @@ let add_non_inlinable_continuation t cont scope ~params ~handler =
     let arity = Bound_parameters.arity_with_subkinds params in
     add_continuation0 t cont scope (Non_inlinable_non_zero_arity { arity })
 
-let add_unreachable_continuation t cont scope arity =
-  add_continuation0 t cont scope (Unreachable { arity })
+let add_invalid_continuation t cont scope arity =
+  add_continuation0 t cont scope (Invalid { arity })
 
 let add_continuation_alias t cont arity ~alias_for =
   let arity = Flambda_arity.With_subkinds.to_arity arity in
@@ -109,7 +123,6 @@ let add_continuation_alias t cont arity ~alias_for =
       "Cannot add continuation alias %a (as alias for %a); the continuation is \
        already deemed to be an alias"
       Continuation.print cont Continuation.print alias_for;
-  let alias_for = resolve_continuation_aliases t alias_for in
   let continuation_aliases =
     Continuation.Map.add cont alias_for t.continuation_aliases
   in

@@ -1467,6 +1467,9 @@ and join_function_type (env : Join_env.t)
   | ( Ok { code_id = code_id1; rec_info = rec_info1 },
       Ok { code_id = code_id2; rec_info = rec_info2 } ) -> (
     let target_typing_env = Join_env.target_join_env env in
+    (* As a note, sometimes it might be preferable not to do the code age
+       relation join, and take the hit of a direct call in exchange for calling
+       specialised versions of the code. Maybe an annotation would be needed. *)
     match
       Code_age_relation.join
         ~target_t:(TE.code_age_relation target_typing_env)

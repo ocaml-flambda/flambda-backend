@@ -133,4 +133,12 @@ module Or_absent = struct
     | Present _, Absent -> Some 1
     | Present name_mode1, Present name_mode2 ->
       compare_partial_order name_mode1 name_mode2
+
+  let join_in_terms t1 t2 =
+    match t1, t2 with
+    | Absent, Absent -> Absent
+    | Absent, Present _ -> t2
+    | Present _, Absent -> t1
+    | Present name_mode1, Present name_mode2 ->
+      Present (join_in_terms name_mode1 name_mode2)
 end

@@ -48,8 +48,7 @@ let inline_linearly_used_continuation uacc ~create_apply_cont ~params:params'
           in
           let named = Named.create_simple arg in
           { Simplify_named_result.let_bound;
-            simplified_defining_expr =
-              Simplified_named.reachable named ~try_reify:false;
+            simplified_defining_expr = Simplified_named.create named;
             original_defining_expr = named
           })
     in
@@ -83,31 +82,26 @@ let rebuild_apply_cont apply_cont ~args ~rewrite_id uacc ~after_rebuild =
           uacc apply_cont
       in
       match rewrite with
-      | None -> EB.no_rewrite apply_cont
-      | Some rewrite ->
-        EB.rewrite_use uacc rewrite ~ctx:Apply_cont rewrite_id apply_cont
+      | None -> EB.no_rewrite_apply_cont apply_cont
+      | Some rewrite -> EB.rewrite_apply_cont uacc rewrite rewrite_id apply_cont
     in
-    match rewrite_use_result with
-    | Apply_cont apply_cont ->
-      let expr, cost_metrics, free_names = apply_cont_to_expr apply_cont in
-      let uacc =
-        UA.add_free_names uacc free_names |> UA.add_cost_metrics cost_metrics
-      in
-      after_rebuild expr uacc
-    | Expr build_expr ->
-      let expr, cost_metrics, free_names = build_expr ~apply_cont_to_expr in
-      let uacc =
-        UA.add_free_names uacc free_names |> UA.add_cost_metrics cost_metrics
-      in
-      after_rebuild expr uacc
+    let expr, cost_metrics, free_names =
+      match rewrite_use_result with
+      | Apply_cont apply_cont -> apply_cont_to_expr apply_cont
+      | Expr build_expr -> build_expr ~apply_cont_to_expr
+    in
+    let uacc =
+      UA.add_free_names uacc free_names |> UA.add_cost_metrics cost_metrics
+    in
+    after_rebuild expr uacc
   in
   match UE.find_continuation uenv cont with
   | Linearly_used_and_inlinable
       { params; handler; free_names_of_handler; cost_metrics_of_handler } ->
     (* We must not fail to inline here, since we've already decided that the
-       relevant [Let_cont] is no longer needed. *)
+       relevant [Let_cont] is no longer needed.
 
-    (* When removing continuations don't increment the removed branch counter.
+       When removing continuations don't increment the removed branch counter.
        We can't be sure that removing a continuation maps to removing a branch
        as the decision will be taken later on by the backend. If we were able to
        track the number of times each continuation is used then we would be able
@@ -115,11 +109,11 @@ let rebuild_apply_cont apply_cont ~args ~rewrite_id uacc ~after_rebuild =
        number of continuations) that became linearly used. In any case the
        impact of branches is harder to quantify than the impact of allocating
        (branches can be moved by the backend, their runtime depends on the
-       branch predictor...). Underestimating the number of removed branch is
+       branch predictor...). Underestimating the number of removed branches is
        fine. *)
     inline_linearly_used_continuation uacc ~create_apply_cont ~params ~handler
       ~free_names_of_handler ~cost_metrics_of_handler
-  | Unreachable { arity = _ } ->
+  | Invalid { arity = _ } ->
     (* We allow this transformation even if there is a trap action, on the basis
        that there wouldn't be any opportunity to collect any backtrace, even if
        the [Apply_cont] were compiled as "raise". *)

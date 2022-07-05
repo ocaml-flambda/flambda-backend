@@ -199,6 +199,7 @@ module Expert = struct
     !Flambda_backend_flags.Flambda2.Expert.inline_effects_in_cmm
     |> with_default ~f:(fun d -> d.inline_effects_in_cmm)
 
+  (* CR mshinwell: Remove any uses of this flag, then remove the flag. *)
   let max_block_size_for_projections () =
     !Flambda_backend_flags.Flambda2.Expert.max_block_size_for_projections
     |> with_default ~f:(fun d -> d.max_block_size_for_projections)

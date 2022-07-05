@@ -24,8 +24,7 @@ end
 
 val make_decisions :
   continuation_is_recursive:bool ->
-  arg_types_by_use_id:
-    Continuation_env_and_param_types.arg_at_use Apply_cont_rewrite_id.Map.t list ->
+  arg_types_by_use_id:Continuation_uses.arg_types_by_use_id ->
   DE.t ->
   Bound_parameters.t ->
   T.t list ->
@@ -33,7 +32,6 @@ val make_decisions :
 
 val compute_extra_params_and_args :
   Decisions.t ->
-  arg_types_by_use_id:
-    Continuation_env_and_param_types.arg_at_use Apply_cont_rewrite_id.Map.t list ->
+  arg_types_by_use_id:Continuation_uses.arg_types_by_use_id ->
   EPA.t ->
   EPA.t

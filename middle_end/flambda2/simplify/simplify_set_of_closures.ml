@@ -80,6 +80,11 @@ end = struct
 
   let create_for_stub dacc ~all_code ~simplify_toplevel =
     let dacc_inside_functions =
+      (* We ensure that inlining cannot happen inside the code of stubs. This is
+         to avoid compile-time performance problems where large functions (or
+         other stubs) might get inlined repeatedly into stubs. One place where
+         this was seen was code generated for labelled / optional argument
+         application when there are a lot of parameters. *)
       DA.map_denv dacc ~f:(fun denv ->
           Code_id.Map.fold
             (fun code_id code denv -> DE.define_code denv ~code_id ~code)
@@ -113,54 +118,30 @@ end = struct
 
   let previously_free_depth_variables t = t.previously_free_depth_variables
 
-  let compute_value_slot_types_inside_function ~env_prior_to_sets
-      ~env_inside_function ~value_slot_types ~degraded_value_slots =
-    Value_slot.Map.fold
-      (fun clos_var type_prior_to_sets
-           (env_inside_function, types_inside_function) ->
-        let var = Variable.create "clos_var" in
-        let env_inside_function =
-          let var = Bound_var.create var NM.in_types in
-          TE.add_definition env_inside_function
-            (Bound_name.create_var var)
-            K.value
-        in
+  let compute_value_slot_types_inside_function ~value_slot_types
+      ~degraded_value_slots =
+    Value_slot.Map.mapi
+      (fun value_slot type_prior_to_sets ->
         let type_prior_to_sets =
           (* See comment below about [degraded_value_slots]. *)
-          if Value_slot.Set.mem clos_var degraded_value_slots
+          if Value_slot.Set.mem value_slot degraded_value_slots
           then T.any_value
           else type_prior_to_sets
         in
-        let env_extension =
-          T.make_suitable_for_environment env_prior_to_sets
-            (Everything_not_in env_inside_function)
-            [Name.var var, type_prior_to_sets]
-        in
-        let env_inside_function =
-          TE.add_env_extension_with_extra_variables env_inside_function
-            env_extension
-        in
-        let types_inside_function =
-          Value_slot.Map.add clos_var
-            (T.alias_type_of K.value (Simple.var var))
-            types_inside_function
-        in
-        env_inside_function, types_inside_function)
+        type_prior_to_sets)
       value_slot_types
-      (env_inside_function, Value_slot.Map.empty)
 
   let compute_closure_types_inside_functions ~denv ~all_sets_of_closures
       ~closure_bound_names_all_sets ~value_slot_types_inside_functions_all_sets
       ~old_to_new_code_ids_all_sets =
-    let closure_bound_names_all_sets_inside =
-      (* When not lifting (i.e. the bound names are variables), we used to
-         create a fresh set of irrelevant variables, since the let-bound names
-         are not in scope for the closure definition(s). However instead we now
-         actually use the same names, which will be bound at [In_types] mode,
-         and suitably captured by a name abstraction if they escape via function
-         result types. *)
-      closure_bound_names_all_sets
-    in
+    (* There is explicit recursion in closure types, meaning that aliases must
+       be used in order to build the necessary types. In the case where the set
+       of closures will be lifted (note that the lifting decision has already
+       been made by this point), then the names used for the aliases are just
+       the closure symbols. In the non-lifted case we just need a list of
+       variables, so we reuse the "closure bound names". If any of these
+       variables escape in the function result types they will be captured by
+       the name abstraction used there. *)
     let closure_types_via_aliases_all_sets =
       List.map
         (fun closure_bound_names_inside ->
@@ -168,9 +149,8 @@ end = struct
             (fun name ->
               T.alias_type_of K.value (Simple.name (Bound_name.name name)))
             closure_bound_names_inside)
-        closure_bound_names_all_sets_inside
+        closure_bound_names_all_sets
     in
-
     let closure_types_inside_functions =
       List.map2
         (fun set_of_closures
@@ -181,6 +161,9 @@ end = struct
               (fun function_slot old_code_id ->
                 let code_or_metadata = DE.find_code_exn denv old_code_id in
                 let new_code_id =
+                  (* The types of the functions involved should reference the
+                     _new_ code IDs (where such exist), so that direct recursive
+                     calls can be compiled straight to the new code. *)
                   match code_or_metadata with
                   | Code_present code when not (Code.stub code) ->
                     Code_id.Map.find old_code_id old_to_new_code_ids_all_sets
@@ -220,7 +203,7 @@ end = struct
         (List.combine closure_types_via_aliases_all_sets
            value_slot_types_inside_functions_all_sets)
     in
-    closure_bound_names_all_sets_inside, closure_types_inside_functions
+    closure_bound_names_all_sets, closure_types_inside_functions
 
   let bind_closure_types_inside_functions denv_inside_functions
       ~closure_bound_names_inside_functions_all_sets
@@ -231,10 +214,10 @@ end = struct
           Function_slot.Map.fold
             (fun _function_slot bound_name denv ->
               let name = Bound_name.name bound_name in
-              let irrelevant = not (Bound_name.is_symbol bound_name) in
+              let in_types = not (Bound_name.is_symbol bound_name) in
               let bound_name =
                 Bound_name.create name
-                  (if irrelevant then NM.in_types else NM.normal)
+                  (if in_types then NM.in_types else NM.normal)
               in
               DE.define_name denv bound_name K.value)
             closure_bound_names_inside denv)
@@ -299,9 +282,7 @@ end = struct
       ~closure_bound_names_all_sets ~value_slot_types_all_sets =
     let denv = DA.denv dacc_prior_to_sets in
     let denv_inside_functions =
-      (* CR lmaurer: Needs explanation of why we're incrementing twice *)
-      denv |> DE.enter_set_of_closures |> DE.increment_continuation_scope
-      |> DE.increment_continuation_scope
+      denv |> DE.enter_set_of_closures
       (* Even if we are not rebuilding terms we should always rebuild them for
          local functions. The type of a function is dependent on its term and
          not knowing it prohibits us from inlining it. *)
@@ -310,8 +291,9 @@ end = struct
     (* We collect a set of "degraded value slots" whose types involve imported
        variables from missing .cmx files. Since we don't know the kind of these
        variables, we can't run the code below that checks if they might need
-       binding as "never inline" depth variables. Instead we will treat the
-       whole value slot as having [Unknown] type. *)
+       binding as "never inline" depth variables (since we don't know if a given
+       variable is a depth variable or not). Instead we will treat the whole
+       value slot as having [Unknown] type. *)
     let degraded_value_slots = ref Value_slot.Set.empty in
     let free_depth_variables =
       List.concat_map
@@ -341,9 +323,8 @@ end = struct
       |> Variable.Set.union_list
     in
     (* Pretend that any depth variables appearing free in the closure elements
-       are bound to "never inline anything" in the function. This causes them to
-       be skipped over by [make_suitable_for_environment], thus avoiding dealing
-       with in-types depth variables ending up in terms. *)
+       are bound to "never inline anything" in the function. This ensures that
+       in-types depth variables do not end up in terms. *)
     (* CR-someday lmaurer: It would be better to propagate depth variables into
        closures properly, as this would allow things like unrolling [Seq.map]
        where the recursive call goes through a closure. For the moment, we often
@@ -363,21 +344,16 @@ end = struct
             (T.this_rec_info Rec_info_expr.do_not_inline))
         free_depth_variables denv_inside_functions
     in
-    let env_inside_functions, value_slot_types_all_sets_inside_functions_rev =
+    let value_slot_types_all_sets_inside_functions_rev =
       List.fold_left
-        (fun ( env_inside_functions,
-               value_slot_types_all_sets_inside_functions_rev ) value_slot_types ->
-          let env_inside_functions, value_slot_types_inside_function =
-            compute_value_slot_types_inside_function
-              ~env_prior_to_sets:(DE.typing_env denv)
-              ~env_inside_function:env_inside_functions ~value_slot_types
+        (fun value_slot_types_all_sets_inside_functions_rev value_slot_types ->
+          let value_slot_types_inside_function =
+            compute_value_slot_types_inside_function ~value_slot_types
               ~degraded_value_slots:!degraded_value_slots
           in
-          ( env_inside_functions,
-            value_slot_types_inside_function
-            :: value_slot_types_all_sets_inside_functions_rev ))
-        (DE.typing_env denv_inside_functions, [])
-        value_slot_types_all_sets
+          value_slot_types_inside_function
+          :: value_slot_types_all_sets_inside_functions_rev)
+        [] value_slot_types_all_sets
     in
     let value_slot_types_inside_functions_all_sets =
       List.rev value_slot_types_all_sets_inside_functions_rev
@@ -393,8 +369,7 @@ end = struct
         ~old_to_new_code_ids_all_sets
     in
     let dacc_inside_functions =
-      env_inside_functions
-      |> DE.with_typing_env denv_inside_functions
+      denv_inside_functions
       |> bind_existing_code_to_new_code_ids ~old_to_new_code_ids_all_sets
       |> bind_closure_types_inside_functions
            ~closure_bound_names_inside_functions_all_sets
@@ -414,10 +389,22 @@ module C = Context_for_multiple_sets_of_closures
 
 let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_depth
     function_slot_opt ~closure_bound_names_inside_function ~inlining_arguments
-    ~absolute_history =
+    ~absolute_history code_id ~return_continuation ~exn_continuation
+    ~return_cont_params code_metadata =
   let dacc =
     DA.map_denv (C.dacc_inside_functions context) ~f:(fun denv ->
-        let denv = DE.add_parameters_with_unknown_types denv params in
+        let num_leading_heap_params =
+          Code_metadata.num_leading_heap_params code_metadata
+        in
+        let alloc_modes =
+          List.mapi
+            (fun index _ : Alloc_mode.t Or_unknown.t ->
+              if index < num_leading_heap_params then Known Heap else Unknown)
+            (Bound_parameters.to_list params)
+        in
+        let denv =
+          DE.add_parameters_with_unknown_types ~alloc_modes denv params
+        in
         let denv = DE.set_inlining_arguments inlining_arguments denv in
         let denv =
           DE.set_inlining_history_tracker
@@ -427,6 +414,8 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_depth
         let denv =
           match function_slot_opt with
           | None ->
+            (* This happens in the stub case, where we are only simplifying
+               code, not a set of closures. *)
             DE.add_variable denv
               (Bound_var.create my_closure NM.normal)
               (T.unknown K.value)
@@ -456,12 +445,19 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_depth
           LCS.add_to_denv ~maybe_already_defined:() denv
             (DA.get_lifted_constants outer_dacc)
         in
-        denv)
+        let denv =
+          DE.enter_closure code_id ~return_continuation ~exn_continuation denv
+        in
+        let denv = DE.increment_continuation_scope denv in
+        DE.add_parameters_with_unknown_types denv return_cont_params)
   in
   let code_ids_to_remember = DA.code_ids_to_remember outer_dacc in
   let used_value_slots = DA.used_value_slots outer_dacc in
   let shareable_constants = DA.shareable_constants outer_dacc in
   let slot_offsets = DA.slot_offsets outer_dacc in
+  (* CR vlaviron: maybe DA could be restructured so that it can keep track of
+     the global values going around the loop here, so we don't forget to add one
+     of these lines below... *)
   dacc
   |> DA.with_code_ids_to_remember ~code_ids_to_remember
   |> DA.with_used_value_slots ~used_value_slots
@@ -546,6 +542,7 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
   in
   let ( params,
         params_and_body,
+        dacc_at_function_entry,
         dacc_after_body,
         free_names_of_code,
         return_cont_uses,
@@ -561,22 +558,17 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
            ~my_depth
            ~free_names_of_body:_
          ->
-        let dacc =
+        let dacc_at_function_entry =
           dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_depth
             function_slot_opt ~closure_bound_names_inside_function
-            ~inlining_arguments ~absolute_history
+            ~inlining_arguments ~absolute_history code_id ~return_continuation
+            ~exn_continuation ~return_cont_params (Code.code_metadata code)
         in
+        let dacc = dacc_at_function_entry in
         if not (DA.no_lifted_constants dacc)
         then
           Misc.fatal_errorf "Did not expect lifted constants in [dacc]:@ %a"
             DA.print dacc;
-        let dacc =
-          DA.map_denv dacc ~f:(fun denv ->
-              denv
-              |> DE.enter_closure code_id ~return_continuation ~exn_continuation
-              |> fun denv ->
-              DE.add_parameters_with_unknown_types denv return_cont_params)
-        in
         assert (not (DE.at_unit_toplevel (DA.denv dacc)));
         match
           C.simplify_toplevel context dacc body ~return_continuation
@@ -639,6 +631,7 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
               body;
           ( params,
             params_and_body,
+            dacc_at_function_entry,
             dacc_after_body,
             free_names_of_code,
             return_cont_uses,
@@ -690,9 +683,7 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
     else
       match return_cont_uses with
       | None -> Result_types.create_bottom ~params ~result_arity
-      | Some uses -> (
-        (* CR mshinwell: Should we meet the result types with the arity? Also at
-           applications? *)
+      | Some uses ->
         let code_age_relation_after_function =
           TE.code_age_relation (DA.typing_env dacc_after_body)
         in
@@ -701,7 +692,7 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
              ensure that the environment contains bindings for any symbols being
              defined by the set of closures. *)
           DE.add_parameters_with_unknown_types
-            (DA.denv (C.dacc_inside_functions context))
+            (DA.denv dacc_at_function_entry)
             return_cont_params
         in
         let join =
@@ -712,31 +703,39 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
             ~consts_lifted_during_body:lifted_consts_this_function
             ~code_age_relation_after_body:code_age_relation_after_function
         in
-        match join with
-        | No_uses -> assert false (* should have been caught above *)
-        | Uses { handler_env; _ } ->
-          let params_and_results =
-            Bound_parameters.var_set
-              (Bound_parameters.append params return_cont_params)
-          in
-          let typing_env = DE.typing_env handler_env in
-          let results_and_types =
-            List.map
-              (fun result ->
-                let ty =
-                  TE.find typing_env (BP.name result)
-                    (Some (K.With_subkind.kind (BP.kind result)))
-                in
-                BP.name result, ty)
-              (Bound_parameters.to_list return_cont_params)
-          in
-          let env_extension =
-            T.make_suitable_for_environment typing_env
-              (All_variables_except params_and_results) results_and_types
-          in
-          Result_types.create ~params ~results:return_cont_params env_extension)
+        let params_and_results =
+          Bound_parameters.var_set
+            (Bound_parameters.append params return_cont_params)
+        in
+        let typing_env = DE.typing_env join.handler_env in
+        let results_and_types =
+          List.map
+            (fun result ->
+              let ty =
+                TE.find typing_env (BP.name result)
+                  (Some (K.With_subkind.kind (BP.kind result)))
+              in
+              BP.name result, ty)
+            (Bound_parameters.to_list return_cont_params)
+        in
+        let env_extension =
+          (* This call is important for compilation time performance, to cut
+             down the size of the return types. *)
+          T.make_suitable_for_environment typing_env
+            (All_variables_except params_and_results) results_and_types
+        in
+        Result_types.create ~params ~results:return_cont_params env_extension
   in
   let outer_dacc =
+    (* This is the complicated part about slot offsets. We just traversed the
+       body of the function and have accumulated constraints (via [Expr_builder]
+       when rebuilding expressions involving sets of closures). These
+       constraints are only useful if we end up keeping the current code
+       binding. The slot offsets are registered in a map from code IDs to
+       offsets in [DA]. A global map of slot offsets is accumulated in [UA],
+       using the information from [DA], according to whether particular code
+       bindings do indeed get kept. This is how we avoid traversing the code in
+       the upwards pass to extract offsets. *)
     match UA.slot_offsets uacc_after_upwards_traversal with
     | Unknown -> outer_dacc
     | Known offsets ->
@@ -813,7 +812,9 @@ let simplify_set_of_closures0 outer_dacc context set_of_closures
         in
         let code =
           match new_code with
-          | None -> code
+          | None ->
+            (* CR mshinwell: Does this case ever occur? *)
+            code
           | Some new_code -> (code_id, new_code) :: code
         in
         let fun_types =
@@ -857,20 +858,19 @@ let simplify_set_of_closures0 outer_dacc context set_of_closures
               ~all_value_slots_in_set:value_slot_types
               (Known (Set_of_closures.alloc_mode set_of_closures))
           in
-          Name.Map.add (Bound_name.name bound_name) closure_type closure_types)
-      fun_types Name.Map.empty
+          (bound_name, closure_type) :: closure_types)
+      fun_types []
   in
   let dacc =
     DA.map_denv dacc ~f:(fun denv ->
-        denv
-        |> Function_slot.Map.fold
-             (fun _function_slot bound_name denv ->
-               DE.define_name_if_undefined denv bound_name K.value)
-             closure_bound_names
-        |> Name.Map.fold
-             (fun bound_name closure_type denv ->
-               DE.add_equation_on_name denv bound_name closure_type)
-             closure_types_by_bound_name)
+        List.fold_left
+          (fun denv (bound_name, closure_type) ->
+            (* In the lifting case the symbols could be defined already. *)
+            let denv = DE.define_name_if_undefined denv bound_name K.value in
+            DE.add_equation_on_name denv
+              (Bound_name.name bound_name)
+              closure_type)
+          denv closure_types_by_bound_name)
   in
   let set_of_closures =
     Function_declarations.create all_function_decls_in_set
@@ -882,7 +882,7 @@ let simplify_set_of_closures0 outer_dacc context set_of_closures
 let introduce_code dacc code =
   Code_id.Lmap.bindings code
   |> List.map (fun (code_id, code) -> LC.create_code code_id code)
-  |> LCS.singleton_list_of_constants_order_does_not_matter
+  |> LCS.singleton_list_of_constants
   |> DA.add_to_lifted_constant_accumulator ~also_add_to_env:() dacc
 
 let simplify_and_lift_set_of_closures dacc ~closure_bound_vars_inverse
@@ -948,6 +948,7 @@ let simplify_and_lift_set_of_closures dacc ~closure_bound_vars_inverse
     Symbol.Set.cardinal closure_symbols_set
     = Function_slot.Map.cardinal closure_symbols_map);
   let denv = DA.denv dacc in
+  let dacc = introduce_code dacc code in
   let closure_symbols_with_types =
     Function_slot.Map.map
       (fun symbol ->
@@ -956,7 +957,6 @@ let simplify_and_lift_set_of_closures dacc ~closure_bound_vars_inverse
       closure_symbols_map
     |> Function_slot.Map.to_seq |> Function_slot.Lmap.of_seq
   in
-  let dacc = introduce_code dacc code in
   let set_of_closures_lifted_constant =
     LC.create_set_of_closures denv ~closure_symbols_with_types
       ~symbol_projections
@@ -1023,9 +1023,9 @@ let simplify_non_lifted_set_of_closures0 dacc bound_vars ~closure_bound_vars
               (Code_metadata.params_arity code_metadata)
         }
     in
-    Simplified_named.reachable_with_known_free_names ~find_code_characteristics
+    Simplified_named.create_with_known_free_names ~find_code_characteristics
       (Named.create_set_of_closures set_of_closures)
-      ~free_names:(Named.free_names named) ~try_reify:false
+      ~free_names:(Named.free_names named)
   in
   Simplify_named_result.have_simplified_to_single_term dacc bound_vars
     defining_expr
@@ -1039,14 +1039,16 @@ type lifting_decision_result =
   }
 
 let type_value_slots_and_make_lifting_decision_for_one_set dacc
-    ~name_mode_of_bound_vars ~closure_bound_vars_inverse set_of_closures =
+    ~name_mode_of_bound_vars set_of_closures =
   (* By computing the types of the closure elements, attempt to show that the
      set of closures can be lifted, and hence statically allocated. Note that
      simplifying the bodies of the functions won't change the set-of-closures'
      eligibility for lifting. That this is so follows from the fact that closure
-     elements cannot be deleted without a global analysis, as an inlined
-     function's body may reference them out of scope of the closure
-     declaration. *)
+     elements cannot be deleted without an analysis across the whole source
+     file, as an inlined function's body may reference them out of scope of the
+     closure declaration. (Such deletions end up occurring during the upwards
+     traversal and during [To_cmm], by which time the necessary information is
+     available.) *)
   let value_slots, value_slot_types, symbol_projections =
     Value_slot.Map.fold
       (fun value_slot env_entry
@@ -1064,7 +1066,8 @@ let type_value_slots_and_make_lifting_decision_for_one_set dacc
               ~const:(fun _ -> symbol_projections)
               ~symbol:(fun _ ~coercion:_ -> symbol_projections)
               ~var:(fun var ~coercion:_ ->
-                (* [var] will already be canonical, as we require for the symbol
+                (* [var] will already be canonical, by virtue of the semantics
+                   of [S.simplify_simple], as we require for the symbol
                    projections map. *)
                 match DE.find_symbol_projection (DA.denv dacc) var with
                 | None -> symbol_projections
@@ -1097,39 +1100,29 @@ let type_value_slots_and_make_lifting_decision_for_one_set dacc
                 ~const:(fun _ -> true)
                 ~symbol:(fun _ ~coercion:_ -> true)
                 ~var:(fun var ~coercion:_ ->
-                  (* Variables that are not the closure bound vars, including
-                     ones bound to symbol projections (since such projections
-                     might be from inconstant symbols that were lifted [Local]
-                     allocations), in the definition of the set of closures will
-                     currently prevent lifting if the allocation mode is [Local]
-                     and we cannot show that such variables never hold
-                     locally-allocated blocks (pointers to which from
-                     statically-allocated blocks are forbidden). Also see
-                     comment in types/reify.ml. *)
-                  Variable.Map.mem var closure_bound_vars_inverse
-                  (* the closure bound vars will be replaced by symbols upon
-                     lifting *)
-                  || (match Set_of_closures.alloc_mode set_of_closures with
-                     | Local ->
-                       T.never_holds_locally_allocated_values
-                         (DA.typing_env dacc) var K.value
-                     | Heap -> true)
-                     && (DE.is_defined_at_toplevel (DA.denv dacc) var
-                        (* If [var] is known to be a symbol projection, it
-                           doesn't matter if it isn't in scope at the place
-                           where we will eventually insert the "let symbol", as
-                           the binding to the projection from the relevant
-                           symbol can always be rematerialised. *)
-                        || Variable.Map.mem var symbol_projections)))
+                  (* Variables, including ones bound to symbol projections
+                     (since such projections might be from inconstant symbols
+                     that were lifted [Local] allocations), in the definition of
+                     the set of closures will currently prevent lifting if the
+                     allocation mode is [Local] and we cannot show that such
+                     variables never hold locally-allocated blocks (pointers to
+                     which from statically-allocated blocks are forbidden). Also
+                     see comment in types/reify.ml. *)
+                  (match Set_of_closures.alloc_mode set_of_closures with
+                  | Local ->
+                    T.never_holds_locally_allocated_values (DA.typing_env dacc)
+                      var K.value
+                  | Heap -> true)
+                  && (DE.is_defined_at_toplevel (DA.denv dacc) var
+                     (* If [var] is known to be a symbol projection, it doesn't
+                        matter if it isn't in scope at the place where we will
+                        eventually insert the "let symbol", as the binding to
+                        the projection from the relevant symbol can always be
+                        rematerialised. *)
+                     || Variable.Map.mem var symbol_projections)))
          value_slots
   in
   { can_lift; value_slots; value_slot_types; symbol_projections }
-
-let type_value_slots_for_previously_lifted_set dacc ~name_mode_of_bound_vars
-    set_of_closures =
-  type_value_slots_and_make_lifting_decision_for_one_set dacc
-    ~name_mode_of_bound_vars ~closure_bound_vars_inverse:Variable.Map.empty
-    set_of_closures
 
 let simplify_non_lifted_set_of_closures dacc (bound_vars : Bound_pattern.t)
     set_of_closures =
@@ -1150,7 +1143,7 @@ let simplify_non_lifted_set_of_closures dacc (bound_vars : Bound_pattern.t)
   in
   let { can_lift; value_slots; value_slot_types; symbol_projections } =
     type_value_slots_and_make_lifting_decision_for_one_set dacc
-      ~name_mode_of_bound_vars ~closure_bound_vars_inverse set_of_closures
+      ~name_mode_of_bound_vars set_of_closures
   in
   if can_lift
   then
@@ -1202,7 +1195,7 @@ let simplify_lifted_sets_of_closures dacc ~all_sets_of_closures_and_symbols
               value_slot_types;
               symbol_projections = _
             } =
-          type_value_slots_for_previously_lifted_set dacc
+          type_value_slots_and_make_lifting_decision_for_one_set dacc
             ~name_mode_of_bound_vars:Name_mode.normal set_of_closures
         in
         value_slots, value_slot_types)
@@ -1221,17 +1214,9 @@ let simplify_lifted_sets_of_closures dacc ~all_sets_of_closures_and_symbols
          (closure_symbols, set_of_closures) closure_bound_names_inside
          (value_slots, value_slot_types) ->
       let pattern, static_const, dacc =
-        if Set_of_closures.is_empty set_of_closures
-        then
-          ( Bound_static.Pattern.set_of_closures closure_symbols,
-            Rebuilt_static_const.create_set_of_closures
-              (DA.are_rebuilding_terms dacc)
-              set_of_closures,
-            dacc )
-        else
-          simplify_lifted_set_of_closures0 dacc context ~closure_symbols
-            ~closure_bound_names_inside ~value_slots ~value_slot_types
-            set_of_closures
+        simplify_lifted_set_of_closures0 dacc context ~closure_symbols
+          ~closure_bound_names_inside ~value_slots ~value_slot_types
+          set_of_closures
       in
       (* The order doesn't matter here -- see comment in [Simplify_static_const]
          where this function is called from. *)

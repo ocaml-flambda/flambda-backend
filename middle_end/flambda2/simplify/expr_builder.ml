@@ -42,7 +42,7 @@ let equal_let_creation_results r1 r2 =
     false
 
 let add_set_of_closures_offsets ~is_phantom named uacc =
-  let add_set uacc set_of_closures =
+  let add_offsets_from_set uacc set_of_closures =
     match UA.slot_offsets uacc with
     | Unknown -> uacc
     | Known slot_offsets ->
@@ -53,6 +53,7 @@ let add_set_of_closures_offsets ~is_phantom named uacc =
       UA.with_slot_offsets uacc (Known slot_offsets)
   in
   let add_offsets_from_code uacc code =
+    (* XXX consider removing this Or_unknown.t *)
     match UA.slot_offsets uacc with
     | Unknown -> uacc
     | Known slot_offsets ->
@@ -69,24 +70,12 @@ let add_set_of_closures_offsets ~is_phantom named uacc =
       in
       UA.with_slot_offsets uacc (Known slot_offsets)
   in
-  match (named : Named.t) with
-  | Set_of_closures s -> add_set uacc s
-  | Rec_info _ | Simple _ | Prim _ -> uacc
-  | Static_consts group ->
-    Static_const_group.to_list group
-    |> List.fold_left
-         (fun acc static_const_or_code ->
-           match (static_const_or_code : Static_const_or_code.t) with
-           | Static_const (Set_of_closures s) -> add_set acc s
-           | Code code -> add_offsets_from_code acc code
-           | Deleted_code
-           | Static_const
-               ( Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
-               | Boxed_nativeint _ | Immutable_float_block _
-               | Immutable_float_array _ | Mutable_string _ | Immutable_string _
-               | Empty_array ) ->
-             acc)
-         uacc
+  Named.fold_code_and_sets_of_closures named ~init:uacc
+    ~f_code:add_offsets_from_code ~f_set:add_offsets_from_set
+
+type keep_binding_decision =
+  | Delete_binding
+  | Keep_binding of Name_mode.t
 
 let create_let uacc (bound_vars : Bound_pattern.t) (defining_expr : Named.t)
     ~free_names_of_defining_expr ~body ~cost_metrics_of_defining_expr =
@@ -104,40 +93,33 @@ let create_let uacc (bound_vars : Bound_pattern.t) (defining_expr : Named.t)
       | Set_of_closures _ ->
         Bound_pattern.fold_all_bound_vars bound_vars
           ~init:Name_mode.Or_absent.absent
-          ~f:(fun (greatest_name_mode : Name_mode.Or_absent.t) bound_var ->
-            let name_mode =
-              Name_occurrences.greatest_name_mode_var free_names_of_body
-                (VB.var bound_var)
-            in
-            match name_mode, greatest_name_mode with
-            | Absent, Absent -> Name_mode.Or_absent.absent
-            | Absent, Present _ -> greatest_name_mode
-            | Present _, Absent -> name_mode
-            | Present name_mode, Present greatest_name_mode ->
-              Name_mode.join_in_terms name_mode greatest_name_mode
-              |> Name_mode.Or_absent.present)
+          ~f:(fun greatest_name_mode bound_var ->
+            Name_occurrences.greatest_name_mode_var free_names_of_body
+              (VB.var bound_var)
+            |> Name_mode.Or_absent.join_in_terms greatest_name_mode)
       | Static _ -> assert false
       (* see below *)
     in
     let declared_name_mode = Bound_pattern.name_mode bound_vars in
-    (match
-       Name_mode.Or_absent.compare_partial_order greatest_name_mode
-         (Name_mode.Or_absent.present declared_name_mode)
-     with
-    | None -> ()
-    | Some c ->
-      if c <= 0
-      then ()
-      else
-        Misc.fatal_errorf
-          "[Let]-binding declares variable(s) %a (mode %a) to be bound to@ \
-           %a,@ but there exist occurrences for such variable(s) at a higher \
-           mode@ (>= %a)@ in the body (free names %a):@ %a"
-          Bound_pattern.print bound_vars Name_mode.print declared_name_mode
-          Named.print defining_expr Name_mode.Or_absent.print greatest_name_mode
-          Name_occurrences.print free_names_of_body
-          (RE.print (UA.are_rebuilding_terms uacc))
-          body);
+    let mismatched_modes =
+      match
+        Name_mode.Or_absent.compare_partial_order greatest_name_mode
+          (Name_mode.Or_absent.present declared_name_mode)
+      with
+      | None -> true
+      | Some c -> c > 0
+    in
+    if mismatched_modes
+    then
+      Misc.fatal_errorf
+        "[Let]-binding declares variable(s) %a (mode %a) to be bound to@ %a,@ \
+         but there exist occurrences for such variable(s) at incompatible \
+         mode(s)@ (compared to %a)@ in the body (free names %a):@ %a"
+        Bound_pattern.print bound_vars Name_mode.print declared_name_mode
+        Named.print defining_expr Name_mode.Or_absent.print greatest_name_mode
+        Name_occurrences.print free_names_of_body
+        (RE.print (UA.are_rebuilding_terms uacc))
+        body;
     if not (Named.at_most_generative_effects defining_expr)
     then (
       if not (Name_mode.is_normal declared_name_mode)
@@ -146,7 +128,7 @@ let create_let uacc (bound_vars : Bound_pattern.t) (defining_expr : Named.t)
           "Cannot [Let]-bind non-normal variable(s) to a [Named] that has more \
            than generative effects:@ %a@ =@ %a"
           Bound_pattern.print bound_vars Named.print defining_expr;
-      bound_vars, Some Name_mode.normal, Nothing_deleted_at_runtime)
+      bound_vars, Keep_binding Name_mode.normal, Nothing_deleted_at_runtime)
     else
       let is_depth =
         match defining_expr with
@@ -167,7 +149,7 @@ let create_let uacc (bound_vars : Bound_pattern.t) (defining_expr : Named.t)
         not (has_uses || (generate_phantom_lets && can_phantomise))
       in
       if will_delete_binding
-      then bound_vars, None, Defining_expr_deleted_at_compile_time
+      then bound_vars, Delete_binding, Defining_expr_deleted_at_compile_time
       else
         let name_mode =
           match greatest_name_mode with
@@ -177,7 +159,7 @@ let create_let uacc (bound_vars : Bound_pattern.t) (defining_expr : Named.t)
         assert (Name_mode.can_be_in_terms name_mode);
         let bound_vars = Bound_pattern.with_name_mode bound_vars name_mode in
         if Name_mode.is_normal name_mode
-        then bound_vars, Some name_mode, Nothing_deleted_at_runtime
+        then bound_vars, Keep_binding name_mode, Nothing_deleted_at_runtime
         else
           (* CR lmaurer for poechsel: This seems to suggest (and the code toward
              the end of [make_new_let_bindings] seems to assume) that we're
@@ -186,7 +168,7 @@ let create_let uacc (bound_vars : Bound_pattern.t) (defining_expr : Named.t)
              Presumably this will cause double-counting of deleted code, which
              is to say, the second pass will get as much credit for phantomising
              as the first one did. *)
-          bound_vars, Some name_mode, Defining_expr_deleted_at_runtime
+          bound_vars, Keep_binding name_mode, Defining_expr_deleted_at_runtime
   in
   (* CR-someday mshinwell: When leaving behind phantom lets, maybe we should
      turn the defining expressions into simpler ones by using the type, if
@@ -195,8 +177,8 @@ let create_let uacc (bound_vars : Bound_pattern.t) (defining_expr : Named.t)
      types propagate the information forward. mshinwell: this might be done now
      in Simplify_named, check. *)
   match keep_binding with
-  | None -> body, uacc, let_creation_result
-  | Some name_mode ->
+  | Delete_binding -> body, uacc, let_creation_result
+  | Keep_binding name_mode ->
     let is_phantom = Name_mode.is_phantom name_mode in
     let free_names_of_body = UA.name_occurrences uacc in
     let free_names_of_defining_expr =
@@ -305,52 +287,38 @@ let make_new_let_bindings uacc
          ({ let_bound; simplified_defining_expr; original_defining_expr } :
            Simplify_named_result.binding_to_place)
        ->
-      match (simplified_defining_expr : Simplified_named.t) with
-      | Invalid ->
-        let uacc =
-          UA.with_name_occurrences uacc ~name_occurrences:Name_occurrences.empty
-          |> UA.notify_added ~code_size:Code_size.invalid
-        in
-        ( RE.create_invalid
-            (Defining_expr_of_let (let_bound, original_defining_expr)),
-          uacc )
-      | Reachable
-          { named = defining_expr;
-            free_names = free_names_of_defining_expr;
-            cost_metrics = cost_metrics_of_defining_expr
-          }
-      | Reachable_try_reify
-          { named = defining_expr;
-            free_names = free_names_of_defining_expr;
-            cost_metrics = cost_metrics_of_defining_expr
-          } ->
-        let defining_expr = Simplified_named.to_named defining_expr in
-        let expr, uacc, creation_result =
-          match (let_bound : Bound_pattern.t) with
-          | Singleton _ | Set_of_closures _ ->
-            create_let uacc let_bound defining_expr ~free_names_of_defining_expr
-              ~body:expr ~cost_metrics_of_defining_expr
-          | Static _ ->
-            (* Since [Simplified_named] doesn't permit the [Static_consts] case,
-               this must be a malformed binding. *)
-            Misc.fatal_errorf
-              "Mismatch between bound name(s) and defining expression:@ %a@ =@ \
-               %a"
-              Bound_pattern.print let_bound Named.print defining_expr
-        in
-        let uacc =
-          match creation_result with
-          | Nothing_deleted_at_runtime -> uacc
-          | Defining_expr_deleted_at_compile_time
-          | Defining_expr_deleted_at_runtime -> (
-            match (original_defining_expr : Named.t) with
-            | Prim (prim, _dbg) ->
-              UA.notify_removed ~operation:(Removed_operations.prim prim) uacc
-            | Set_of_closures _ ->
-              UA.notify_removed ~operation:Removed_operations.alloc uacc
-            | Simple _ | Static_consts _ | Rec_info _ -> uacc)
-        in
-        expr, uacc)
+      let ({ named = defining_expr;
+             free_names = free_names_of_defining_expr;
+             cost_metrics = cost_metrics_of_defining_expr
+           }) =
+        (simplified_defining_expr : Simplified_named.t)
+      in
+      let defining_expr = Simplified_named.to_named defining_expr in
+      let expr, uacc, creation_result =
+        match (let_bound : Bound_pattern.t) with
+        | Singleton _ | Set_of_closures _ ->
+          create_let uacc let_bound defining_expr ~free_names_of_defining_expr
+            ~body:expr ~cost_metrics_of_defining_expr
+        | Static _ ->
+          (* Since [Simplified_named] doesn't permit the [Static_consts] case,
+             this must be a malformed binding. *)
+          Misc.fatal_errorf
+            "Mismatch between bound name(s) and defining expression:@ %a@ =@ %a"
+            Bound_pattern.print let_bound Named.print defining_expr
+      in
+      let uacc =
+        match creation_result with
+        | Nothing_deleted_at_runtime -> uacc
+        | Defining_expr_deleted_at_compile_time
+        | Defining_expr_deleted_at_runtime -> (
+          match (original_defining_expr : Named.t) with
+          | Prim (prim, _dbg) ->
+            UA.notify_removed ~operation:(Removed_operations.prim prim) uacc
+          | Set_of_closures _ ->
+            UA.notify_removed ~operation:Removed_operations.alloc uacc
+          | Simple _ | Static_consts _ | Rec_info _ -> uacc)
+      in
+      expr, uacc)
 
 let create_raw_let_symbol uacc bound_static static_consts ~body =
   (* Upon entry to this function, [UA.name_occurrences uacc] must precisely
@@ -406,21 +374,13 @@ let create_let_symbol0 uacc (bound_static : Bound_static.t)
       let all_code_ids_bound_names =
         Bound_static.code_being_defined bound_static
       in
-      Code_id.Set.fold
-        (fun bound_code_id result ->
-          let can_make_deleted =
-            match UA.reachable_code_ids uacc with
-            | Unknown -> false
-            | Known { live_code_ids; ancestors_of_live_code_ids = _ } ->
-              not (Code_id.Set.mem bound_code_id live_code_ids)
-          in
-          if can_make_deleted
-          then Code_id.Set.add bound_code_id result
-          else result)
-        all_code_ids_bound_names Code_id.Set.empty
+      match UA.reachable_code_ids uacc with
+      | Unknown -> Code_id.Set.empty
+      | Known { live_code_ids; ancestors_of_live_code_ids = _ } ->
+        Code_id.Set.diff all_code_ids_bound_names live_code_ids
   in
   let static_consts =
-    if not will_bind_code
+    if Code_id.Set.is_empty code_ids_to_make_deleted
     then static_consts
     else
       Rebuilt_static_const.Group.map static_consts ~f:(fun static_const ->
@@ -478,18 +438,36 @@ let create_let_symbols uacc lifted_constant ~body =
               Code_size.simple simple )
           in
           (* If the projection is from one of the symbols bound by the "let
-             symbol" that we've just created, we'll always end up here, avoiding
-             any problem about where to do the projection versus the
-             initialisation of a possibly-recursive group of symbols. We may end
+             symbol" that we've just created, we'll always end up here (i.e. in
+             the case where the result of the projection is known now as a
+             [Simple]), avoiding any problem about where to do the projection
+             versus the initialisation of a possibly-recursive group of symbols.
+             The result of the projection can here be assumed to always be known
+             (as a [Simple]) in this case (see LC.apply_projection). We may end
              up with a "variable = variable" [Let] here, but [To_cmm] (or a
              subsequent pass of [Simplify]) will remove it. This is the same
              situation as when continuations are inlined; we can't use a name
              permutation to resolve the problem as both [var] and [var'] may
              occur in [expr], and permuting could cause an unbound name.
 
+             One might consider the case where a symbol's field is defined using
+             a variable that itself is assigned a symbol projection from that
+             same field. However we believe such cases cannot arise at present
+             because there is a strict ordering of lifting decisions. All symbol
+             projections are introduced based on lifting decisions made in the
+             past.
+
+             The ordering of lifting decisions notwithstanding, it would still
+             not be possible to create this kind of cycle, because the
+             translation from the source language will ensure that the recursion
+             goes through at least one piece of [Code] -- from which no symbol
+             projections are possible. These properties are preserved by
+             [Simplify].
+
              It is possible for one projection to yield a variable that is in
              turn defined by another symbol projection, so we need to expand
-             transitively. *)
+             transitively. This process will always terminate by virtue of the
+             arguments just made. *)
           Simple.pattern_match' simple
             ~const:(fun _ -> stop_here ())
             ~symbol:(fun _ ~coercion:_ ->
@@ -559,13 +537,19 @@ let create_let_symbols uacc lifted_constant ~body =
 let place_lifted_constants uacc ~lifted_constants_from_defining_expr
     ~lifted_constants_from_body ~put_bindings_around_body ~body =
   (* Lifted constants are placed as soon as they reach toplevel. *)
-  let uacc = UA.with_lifted_constants uacc LCS.empty in
-  (* Place constants whose definitions must go at the current binding. *)
+  if not (UA.no_lifted_constants uacc)
+  then
+    Misc.fatal_errorf
+      "All lifted constants of the body should have been\n\
+      \                        removed from the uacc";
   let place_constants uacc ~around constants =
-    LCS.fold_innermost_first constants ~init:(around, uacc)
+    let sorted = LCS.sort constants in
+    ArrayLabels.fold_left sorted.innermost_first ~init:(around, uacc)
       ~f:(fun (body, uacc) lifted_const ->
         create_let_symbols uacc lifted_const ~body)
   in
+  (* Place constants whose definitions may depend on the bound name(s) of the
+     current binding(s) to be introduced by [put_bindings_around_body]. *)
   let body, uacc =
     place_constants uacc ~around:body lifted_constants_from_body
   in
@@ -583,19 +567,22 @@ let create_switch uacc ~condition_dbg ~scrutinee ~arms =
         UA.add_free_names uacc (Apply_cont.free_names action)
         |> UA.notify_added ~code_size:(Code_size.apply_cont action)
       in
-      (* The resulting [Debuginfo] on the [Apply_cont] will be arbitrarily
-         chosen from amongst the [Debuginfo] values on the arms, but this seems
-         fine. *)
       RE.create_apply_cont action, uacc
     in
     match Targetint_31_63.Map.get_singleton arms with
     | Some (_discriminant, action) -> change_to_apply_cont action
     | None -> (
+      (* At that point, we've already applied the apply cont rewrite to the
+         action of the arms. *)
       let actions =
         Apply_cont_expr.Set.of_list (Targetint_31_63.Map.data arms)
       in
       match Apply_cont_expr.Set.get_singleton actions with
-      | Some action -> change_to_apply_cont action
+      | Some action ->
+        (* The resulting [Debuginfo] on the [Apply_cont] will be arbitrarily
+           chosen from amongst the [Debuginfo] values on the arms, but this
+           seems fine. *)
+        change_to_apply_cont action
       | None ->
         let switch = Switch.create ~condition_dbg ~scrutinee ~arms in
         let uacc =
@@ -604,23 +591,56 @@ let create_switch uacc ~condition_dbg ~scrutinee ~arms =
         in
         RE.create_switch (UA.are_rebuilding_terms uacc) switch, uacc)
 
+type new_let_cont =
+  { cont : Continuation.t;
+    handler : RE.Continuation_handler.t;
+    free_names_of_handler : Name_occurrences.t;
+    cost_metrics_of_handler : Cost_metrics.t
+  }
+
+let bind_let_cont (uacc : UA.t) (body : RE.t)
+    { cont; handler; free_names_of_handler; cost_metrics_of_handler } =
+  let free_names_of_body = UA.name_occurrences uacc in
+  let expr =
+    RE.create_non_recursive_let_cont
+      (UA.are_rebuilding_terms uacc)
+      cont handler ~body ~free_names_of_body
+  in
+  let name_occurrences =
+    Name_occurrences.remove_continuation
+      (Name_occurrences.union free_names_of_body free_names_of_handler)
+      cont
+  in
+  let uacc =
+    UA.with_name_occurrences uacc ~name_occurrences
+    |> UA.add_cost_metrics
+         (Cost_metrics.increase_due_to_let_cont_non_recursive
+            ~cost_metrics_of_handler)
+  in
+  uacc, expr
+
+let bind_let_conts uacc ~body new_handlers =
+  ListLabels.fold_left new_handlers ~init:(uacc, body)
+    ~f:(fun (uacc, body) new_let_cont -> bind_let_cont uacc body new_let_cont)
+
 let rebuild_invalid uacc reason ~after_rebuild =
   after_rebuild (RE.create_invalid reason) uacc
 
-type rewrite_use_ctx =
+type rewrite_apply_cont_ctx =
   | Apply_cont
   | Apply_expr of Simple.t list
 
-type rewrite_use_result =
+type rewrite_apply_cont_result =
   | Apply_cont of Apply_cont.t
   | Expr of
       (apply_cont_to_expr:
          (Apply_cont.t -> RE.t * Cost_metrics.t * Name_occurrences.t) ->
       RE.t * Cost_metrics.t * Name_occurrences.t)
 
-let no_rewrite apply_cont = Apply_cont apply_cont
+let no_rewrite_apply_cont apply_cont = Apply_cont apply_cont
 
-let rewrite_use uacc rewrite ~ctx id apply_cont : rewrite_use_result =
+let rewrite_apply_cont0 uacc rewrite ~ctx id apply_cont :
+    rewrite_apply_cont_result =
   let args = Apply_cont.args apply_cont in
   let original_params' = Apply_cont_rewrite.original_params rewrite in
   let original_params = Bound_parameters.to_list original_params' in
@@ -645,9 +665,14 @@ let rewrite_use uacc rewrite ~ctx id apply_cont : rewrite_use_result =
       (fun (extra_args_rev, extra_lets, required_by_other_extra_args)
            ( (arg : Continuation_extra_params_and_args.Extra_arg.t),
              (used : Apply_cont_rewrite.used) ) ->
+        (* Some extra_args computation can depend on other extra args. But those
+           required extra args might not be needed as argument to the
+           continuation. But we want to keep the let bindings.
+           [required_by_other_extra_args] tracks that dependency. It is the set
+           of free variables of [extra_args_rev] *)
         let extra_arg, extra_let, free_names =
           match arg with
-          | Already_in_scope simple -> simple, [], Name_occurrences.empty
+          | Already_in_scope simple -> simple, [], Simple.free_names simple
           | New_let_binding (temp, prim) ->
             let extra_let =
               ( Bound_var.create temp Name_mode.normal,
@@ -657,8 +682,9 @@ let rewrite_use uacc rewrite ~ctx id apply_cont : rewrite_use_result =
             Simple.var temp, [extra_let], Flambda_primitive.free_names prim
           | New_let_binding_with_named_args (temp, gen_prim) ->
             let prim =
-              match (ctx : rewrite_use_ctx) with
-              | Apply_expr args -> gen_prim args
+              match (ctx : rewrite_apply_cont_ctx) with
+              | Apply_expr function_return_values ->
+                gen_prim function_return_values
               | Apply_cont ->
                 Misc.fatal_errorf
                   "Apply_cont rewrites should not need to name arguments, \
@@ -708,7 +734,9 @@ let rewrite_use uacc rewrite ~ctx id apply_cont : rewrite_use_result =
     in
     Expr build_expr
 
-(* CR-someday mshinwell: The code of this function could maybe be improved. *)
+let rewrite_apply_cont uacc rewrite id apply_cont =
+  rewrite_apply_cont0 uacc rewrite ~ctx:Apply_cont id apply_cont
+
 let rewrite_exn_continuation rewrite id exn_cont =
   let exn_cont_arity = Exn_continuation.arity exn_cont in
   let original_params' = Apply_cont_rewrite.original_params rewrite in
@@ -742,13 +770,20 @@ let rewrite_exn_continuation rewrite id exn_cont =
       List.filter_map
         (fun ( (arg : Continuation_extra_params_and_args.Extra_arg.t),
                (used : Apply_cont_rewrite.used) ) ->
-          match used with
-          | Used -> Some arg
-          | Unused -> (
-            match arg with
-            | Already_in_scope _ -> None
-            | New_let_binding _ | New_let_binding_with_named_args _ ->
-              Misc.fatal_error "[New_let_binding] not expected here"))
+          match used, arg with
+          | Used, Already_in_scope simple -> Some simple
+          | Unused, Already_in_scope _ -> None
+          | ( (Used | Unused),
+              (New_let_binding _ | New_let_binding_with_named_args _) ) ->
+            (* CR gbury: is there a reason not to allow [New_let_bindings] ?
+               Currently new let bindings are only generated during unboxing,
+               and we happen to not unbox parameters of exn continuations, but
+               there's no reason why we could not. In such a case, we'd need to
+               add some let bindings and/or a wrapper continuation, the same way
+               as how it's done in the "regular" continuation case. *)
+            Misc.fatal_error
+              "[New_let_binding] are currently forbidden for exn continuation \
+               rewrites")
         (Apply_cont_rewrite.extra_args rewrite id)
     in
     let used_extra_params =
@@ -756,11 +791,7 @@ let rewrite_exn_continuation rewrite id exn_cont =
     in
     assert (List.compare_lengths used_extra_params extra_args_list = 0);
     List.map2
-      (fun param (arg : Continuation_extra_params_and_args.Extra_arg.t) ->
-        match arg with
-        | Already_in_scope simple -> simple, BP.kind param
-        | New_let_binding _ | New_let_binding_with_named_args _ ->
-          Misc.fatal_error "[New_let_binding] not expected here")
+      (fun param arg -> arg, BP.kind param)
       used_extra_params extra_args_list
   in
   let extra_args = extra_args0 @ extra_args1 in
@@ -768,21 +799,17 @@ let rewrite_exn_continuation rewrite id exn_cont =
     ~exn_handler:(Exn_continuation.exn_handler exn_cont)
     ~extra_args
 
-type add_wrapper_for_fixed_arity_continuation0_result =
+type rewrite_fixed_arity_continuation0_result =
   | This_continuation of Continuation.t
   | Apply_cont of Apply_cont.t
-  | New_wrapper of
-      Continuation.t
-      * RE.Continuation_handler.t
-      * Name_occurrences.t
-      * Cost_metrics.t
+  | New_wrapper of new_let_cont
 
 type cont_or_apply_cont =
   | Continuation of Continuation.t
   | Apply_cont of Apply_cont.t
 
-let add_wrapper_for_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id
-    arity : add_wrapper_for_fixed_arity_continuation0_result =
+let rewrite_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id arity :
+    rewrite_fixed_arity_continuation0_result =
   let uenv = UA.uenv uacc in
   let cont =
     match cont_or_apply_cont with
@@ -808,20 +835,22 @@ let add_wrapper_for_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id
         Apply_cont_rewrite.print rewrite;
     This_continuation cont
   | Some rewrite -> (
-    let new_wrapper params expr ~free_names ~cost_metrics =
-      let new_cont = Continuation.create () in
-      let new_handler =
+    let new_wrapper params expr ~free_names
+        ~cost_metrics:cost_metrics_of_handler =
+      let cont = Continuation.create () in
+      let handler =
         RE.Continuation_handler.create
           (UA.are_rebuilding_terms uacc)
           params ~handler:expr ~free_names_of_handler:free_names
           ~is_exn_handler:false
       in
-      let free_names =
+      let free_names_of_handler =
         ListLabels.fold_left (Bound_parameters.to_list params) ~init:free_names
           ~f:(fun free_names param ->
             Name_occurrences.remove_var free_names (Bound_parameter.var param))
       in
-      New_wrapper (new_cont, new_handler, free_names, cost_metrics)
+      New_wrapper
+        { cont; handler; free_names_of_handler; cost_metrics_of_handler }
     in
     match cont_or_apply_cont with
     | Continuation cont -> (
@@ -839,7 +868,7 @@ let add_wrapper_for_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id
       let params = Bound_parameters.create params in
       let apply_cont = Apply_cont.create cont ~args ~dbg:Debuginfo.none in
       let ctx = Apply_expr args in
-      match rewrite_use uacc rewrite use_id ~ctx apply_cont with
+      match rewrite_apply_cont0 uacc rewrite use_id ~ctx apply_cont with
       | Apply_cont apply_cont ->
         let cost_metrics =
           Cost_metrics.from_size (Code_size.apply_cont apply_cont)
@@ -858,7 +887,7 @@ let add_wrapper_for_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id
         new_wrapper params expr ~free_names ~cost_metrics)
     | Apply_cont apply_cont -> (
       let apply_cont = Apply_cont.with_continuation apply_cont cont in
-      match rewrite_use uacc rewrite ~ctx:Apply_cont use_id apply_cont with
+      match rewrite_apply_cont uacc rewrite use_id apply_cont with
       | Apply_cont apply_cont -> Apply_cont apply_cont
       | Expr build_expr ->
         let expr, cost_metrics, free_names =
@@ -869,66 +898,42 @@ let add_wrapper_for_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id
         in
         new_wrapper Bound_parameters.empty expr ~free_names ~cost_metrics))
 
-type add_wrapper_for_switch_arm_result =
+type rewrite_switch_arm_result =
   | Apply_cont of Apply_cont.t
-  | New_wrapper of
-      Continuation.t
-      * RE.Continuation_handler.t
-      * Name_occurrences.t
-      * Cost_metrics.t
+  | New_wrapper of new_let_cont
 
-let add_wrapper_for_switch_arm uacc apply_cont ~use_id arity :
-    add_wrapper_for_switch_arm_result =
+let rewrite_switch_arm uacc apply_cont ~use_id arity : rewrite_switch_arm_result
+    =
   match
-    add_wrapper_for_fixed_arity_continuation0 uacc (Apply_cont apply_cont)
-      ~use_id arity
+    rewrite_fixed_arity_continuation0 uacc (Apply_cont apply_cont) ~use_id arity
   with
   | This_continuation cont ->
     Apply_cont (Apply_cont.with_continuation apply_cont cont)
   | Apply_cont apply_cont -> Apply_cont apply_cont
-  | New_wrapper (cont, wrapper, free_names_of_handler, cost_metrics) ->
-    New_wrapper (cont, wrapper, free_names_of_handler, cost_metrics)
+  | New_wrapper new_let_cont -> New_wrapper new_let_cont
 
-let add_wrapper_for_fixed_arity_continuation uacc cont ~use_id arity ~around =
+let rewrite_fixed_arity_continuation uacc cont ~use_id arity ~around =
   match
-    add_wrapper_for_fixed_arity_continuation0 uacc (Continuation cont) ~use_id
-      arity
+    rewrite_fixed_arity_continuation0 uacc (Continuation cont) ~use_id arity
   with
   | This_continuation cont -> around uacc cont
   | Apply_cont _ -> assert false
-  | New_wrapper
-      (new_cont, new_handler, free_names_of_handler, cost_metrics_of_handler) ->
-    let body, uacc = around uacc new_cont in
-    let free_names_of_body = UA.name_occurrences uacc in
-    let expr =
-      RE.create_non_recursive_let_cont
-        (UA.are_rebuilding_terms uacc)
-        new_cont new_handler ~body ~free_names_of_body
-    in
-    let free_names =
-      Name_occurrences.union free_names_of_handler free_names_of_body
-    in
-    let free_names = Name_occurrences.remove_continuation free_names new_cont in
-    let uacc =
-      let added =
-        Cost_metrics.increase_due_to_let_cont_non_recursive
-          ~cost_metrics_of_handler
-      in
-      UA.with_name_occurrences uacc ~name_occurrences:free_names
-      |> UA.add_cost_metrics added
-    in
-    expr, uacc
+  | New_wrapper new_let_cont ->
+    let body, uacc = around uacc new_let_cont.cont in
+    bind_let_cont body uacc new_let_cont
 
-let add_wrapper_for_fixed_arity_apply uacc ~use_id arity apply =
-  match Apply.continuation apply with
-  | Never_returns ->
+let rewrite_fixed_arity_apply uacc ~use_id arity apply =
+  let make_apply apply =
     let uacc =
       UA.add_free_names uacc (Apply.free_names apply)
       |> UA.notify_added ~code_size:(Code_size.apply apply)
     in
-    RE.create_apply (UA.are_rebuilding_terms uacc) apply, uacc
+    uacc, RE.create_apply (UA.are_rebuilding_terms uacc) apply
+  in
+  match Apply.continuation apply with
+  | Never_returns -> make_apply apply
   | Return cont ->
-    add_wrapper_for_fixed_arity_continuation uacc cont ~use_id arity
+    rewrite_fixed_arity_continuation uacc cont ~use_id arity
       ~around:(fun uacc return_cont ->
         let exn_cont =
           UE.resolve_exn_continuation_aliases (UA.uenv uacc)
@@ -937,8 +942,4 @@ let add_wrapper_for_fixed_arity_apply uacc ~use_id arity apply =
         let apply =
           Apply.with_continuations apply (Return return_cont) exn_cont
         in
-        let uacc =
-          UA.add_free_names uacc (Apply.free_names apply)
-          |> UA.notify_added ~code_size:(Code_size.apply apply)
-        in
-        RE.create_apply (UA.are_rebuilding_terms uacc) apply, uacc)
+        make_apply apply)

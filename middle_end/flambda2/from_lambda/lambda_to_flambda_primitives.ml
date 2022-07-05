@@ -21,57 +21,46 @@ module K = Flambda_kind
 module L = Lambda
 module P = Flambda_primitive
 
-let convert_block_of_values_field (value_kind : L.value_kind) :
-    P.Block_of_values_field.t =
-  match value_kind with
-  | Pgenval -> Any_value
-  | Pfloatval -> Boxed_float
-  | Pboxedintval Pint32 -> Boxed_int32
-  | Pboxedintval Pint64 -> Boxed_int64
-  | Pboxedintval Pnativeint -> Boxed_nativeint
-  | Pintval -> Immediate
-  | Pvariant _ | Parrayval _ -> Any_value
-
 let convert_integer_comparison_prim (comp : L.integer_comparison) :
     P.binary_primitive =
   match comp with
-  | Ceq -> Phys_equal (K.value, Eq)
-  | Cne -> Phys_equal (K.value, Neq)
-  | Clt -> Int_comp (Tagged_immediate, Signed, Yielding_bool Lt)
-  | Cgt -> Int_comp (Tagged_immediate, Signed, Yielding_bool Gt)
-  | Cle -> Int_comp (Tagged_immediate, Signed, Yielding_bool Le)
-  | Cge -> Int_comp (Tagged_immediate, Signed, Yielding_bool Ge)
+  | Ceq -> Phys_equal Eq
+  | Cne -> Phys_equal Neq
+  | Clt -> Int_comp (Tagged_immediate, Yielding_bool (Lt Signed))
+  | Cgt -> Int_comp (Tagged_immediate, Yielding_bool (Gt Signed))
+  | Cle -> Int_comp (Tagged_immediate, Yielding_bool (Le Signed))
+  | Cge -> Int_comp (Tagged_immediate, Yielding_bool (Ge Signed))
 
 let convert_boxed_integer_comparison_prim (kind : L.boxed_integer)
     (comp : L.integer_comparison) : P.binary_primitive =
   match kind, comp with
-  | Pint32, Ceq -> Phys_equal (K.naked_int32, Eq)
-  | Pint32, Cne -> Phys_equal (K.naked_int32, Neq)
-  | Pint32, Clt -> Int_comp (Naked_int32, Signed, Yielding_bool Lt)
-  | Pint32, Cgt -> Int_comp (Naked_int32, Signed, Yielding_bool Gt)
-  | Pint32, Cle -> Int_comp (Naked_int32, Signed, Yielding_bool Le)
-  | Pint32, Cge -> Int_comp (Naked_int32, Signed, Yielding_bool Ge)
-  | Pint64, Ceq -> Phys_equal (K.naked_int64, Eq)
-  | Pint64, Cne -> Phys_equal (K.naked_int64, Neq)
-  | Pint64, Clt -> Int_comp (Naked_int64, Signed, Yielding_bool Lt)
-  | Pint64, Cgt -> Int_comp (Naked_int64, Signed, Yielding_bool Gt)
-  | Pint64, Cle -> Int_comp (Naked_int64, Signed, Yielding_bool Le)
-  | Pint64, Cge -> Int_comp (Naked_int64, Signed, Yielding_bool Ge)
-  | Pnativeint, Ceq -> Phys_equal (K.naked_nativeint, Eq)
-  | Pnativeint, Cne -> Phys_equal (K.naked_nativeint, Neq)
-  | Pnativeint, Clt -> Int_comp (Naked_nativeint, Signed, Yielding_bool Lt)
-  | Pnativeint, Cgt -> Int_comp (Naked_nativeint, Signed, Yielding_bool Gt)
-  | Pnativeint, Cle -> Int_comp (Naked_nativeint, Signed, Yielding_bool Le)
-  | Pnativeint, Cge -> Int_comp (Naked_nativeint, Signed, Yielding_bool Ge)
+  | Pint32, Ceq -> Int_comp (Naked_int32, Yielding_bool Eq)
+  | Pint32, Cne -> Int_comp (Naked_int32, Yielding_bool Neq)
+  | Pint32, Clt -> Int_comp (Naked_int32, Yielding_bool (Lt Signed))
+  | Pint32, Cgt -> Int_comp (Naked_int32, Yielding_bool (Gt Signed))
+  | Pint32, Cle -> Int_comp (Naked_int32, Yielding_bool (Le Signed))
+  | Pint32, Cge -> Int_comp (Naked_int32, Yielding_bool (Ge Signed))
+  | Pint64, Ceq -> Int_comp (Naked_int64, Yielding_bool Eq)
+  | Pint64, Cne -> Int_comp (Naked_int64, Yielding_bool Neq)
+  | Pint64, Clt -> Int_comp (Naked_int64, Yielding_bool (Lt Signed))
+  | Pint64, Cgt -> Int_comp (Naked_int64, Yielding_bool (Gt Signed))
+  | Pint64, Cle -> Int_comp (Naked_int64, Yielding_bool (Le Signed))
+  | Pint64, Cge -> Int_comp (Naked_int64, Yielding_bool (Ge Signed))
+  | Pnativeint, Ceq -> Int_comp (Naked_nativeint, Yielding_bool Eq)
+  | Pnativeint, Cne -> Int_comp (Naked_nativeint, Yielding_bool Neq)
+  | Pnativeint, Clt -> Int_comp (Naked_nativeint, Yielding_bool (Lt Signed))
+  | Pnativeint, Cgt -> Int_comp (Naked_nativeint, Yielding_bool (Gt Signed))
+  | Pnativeint, Cle -> Int_comp (Naked_nativeint, Yielding_bool (Le Signed))
+  | Pnativeint, Cge -> Int_comp (Naked_nativeint, Yielding_bool (Ge Signed))
 
-let convert_float_comparison (comp : L.float_comparison) : P.comparison =
+let convert_float_comparison (comp : L.float_comparison) : unit P.comparison =
   match comp with
   | CFeq -> Eq
   | CFneq -> Neq
-  | CFlt -> Lt
-  | CFgt -> Gt
-  | CFle -> Le
-  | CFge -> Ge
+  | CFlt -> Lt ()
+  | CFgt -> Gt ()
+  | CFle -> Le ()
+  | CFge -> Ge ()
   | CFnlt | CFngt | CFnle | CFnge ->
     Misc.fatal_error
       "Negated floating-point comparisons should have been removed by \
@@ -111,8 +100,7 @@ let convert_init_or_assign (i_or_a : L.initialization_or_assignment) :
 
 let convert_block_shape (shape : L.block_shape) ~num_fields =
   match shape with
-  | None ->
-    List.init num_fields (fun _field : P.Block_of_values_field.t -> Any_value)
+  | None -> List.init num_fields (fun _field -> K.With_subkind.any_value)
   | Some shape ->
     let shape_length = List.length shape in
     if num_fields <> shape_length
@@ -121,7 +109,7 @@ let convert_block_shape (shape : L.block_shape) ~num_fields =
         "Flambda_arity.of_block_shape: num_fields is %d yet the shape has %d \
          fields"
         num_fields shape_length;
-    List.map convert_block_of_values_field shape
+    List.map K.With_subkind.from_lambda shape
 
 let check_float_array_optimisation_enabled () =
   if not (Flambda_features.flat_float_array ())
@@ -224,7 +212,7 @@ let checked_access ~dbg ~primitive ~conditions : H.expr_primitive =
 
 let check_bound_tagged tagged_index bound : H.expr_primitive =
   Binary
-    ( Int_comp (I.Naked_immediate, Unsigned, Yielding_bool Lt),
+    ( Int_comp (I.Naked_immediate, Yielding_bool (Lt Unsigned)),
       untag_int tagged_index,
       bound )
 
@@ -484,7 +472,7 @@ let bigarray_set ~dbg ~unsafe kind layout b indexes value =
 (* Array accesses *)
 let array_access_validity_condition array index =
   [ H.Binary
-      ( Int_comp (Tagged_immediate, Unsigned, Yielding_bool Lt),
+      ( Int_comp (Tagged_immediate, Yielding_bool (Lt Unsigned)),
         index,
         Prim (Unary (Array_length, array)) ) ]
 
@@ -533,17 +521,17 @@ let checked_arith_op ~dbg (bi : Lambda.boxed_integer option) op mode arg1 arg2 :
     match bi, mode with
     | None, None ->
       ( H.Binary (Int_arith (I.Tagged_immediate, op), arg1, arg2),
-        K.value,
+        I.Tagged_immediate,
         Reg_width_const.tagged_immediate
           (Targetint_31_63.int Targetint_31_63.Imm.zero),
         Fun.id )
     | Some bi, Some mode ->
       let kind, zero =
         match bi with
-        | Pint32 -> K.naked_int32, Reg_width_const.naked_int32 0l
-        | Pint64 -> K.naked_int64, Reg_width_const.naked_int64 0L
+        | Pint32 -> I.Naked_int32, Reg_width_const.naked_int32 0l
+        | Pint64 -> I.Naked_int64, Reg_width_const.naked_int64 0L
         | Pnativeint ->
-          ( K.naked_nativeint,
+          ( I.Naked_nativeint,
             Reg_width_const.naked_nativeint Targetint_32_64.zero )
       in
       bint_binary_prim bi mode op arg1 arg2, kind, zero, unbox_bint bi
@@ -556,8 +544,9 @@ let checked_arith_op ~dbg (bi : Lambda.boxed_integer option) op mode arg1 arg2 :
     { primitive;
       validity_conditions =
         [ Binary
-            (Phys_equal (kind, Neq), arg_wrap arg2, Simple (Simple.const zero))
-        ];
+            ( Int_comp (kind, Yielding_bool Neq),
+              arg_wrap arg2,
+              Simple (Simple.const zero) ) ];
       failure = Division_by_zero;
       dbg
     }
@@ -642,13 +631,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
             length = Targetint_31_63.Imm.of_int (num_fields + 1)
           }
     in
-    Unary
-      ( Duplicate_block
-          { kind;
-            source_mutability = Mutable;
-            destination_mutability = Mutable
-          },
-        arg )
+    Unary (Duplicate_block { kind }, arg)
   | Pnegint, [arg] -> Unary (Int_arith (I.Tagged_immediate, Neg), arg)
   | Paddint, [arg1; arg2] ->
     Binary (Int_arith (I.Tagged_immediate, Add), arg1, arg2)
@@ -818,7 +801,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
   | Pisout, [arg1; arg2] ->
     tag_int
       (Binary
-         (Int_comp (I.Tagged_immediate, Unsigned, Yielding_bool Lt), arg1, arg2))
+         (Int_comp (I.Tagged_immediate, Yielding_bool (Lt Unsigned)), arg1, arg2))
   | Pbintofint (bi, mode), [arg] ->
     let dst = standard_int_or_float_of_boxed_integer bi in
     box_bint bi mode
@@ -1075,13 +1058,13 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
     tag_int
       (Binary
          ( Int_comp
-             (Tagged_immediate, Signed, Yielding_int_like_compare_functions),
+             (Tagged_immediate, Yielding_int_like_compare_functions Signed),
            i1,
            i2 ))
   | Pcompare_floats, [f1; f2] ->
     tag_int
       (Binary
-         ( Float_comp Yielding_int_like_compare_functions,
+         ( Float_comp (Yielding_int_like_compare_functions ()),
            Prim (Unary (Unbox_number Naked_float, f1)),
            Prim (Unary (Unbox_number Naked_float, f2)) ))
   | Pcompare_bints int_kind, [i1; i2] ->
@@ -1090,8 +1073,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
       (Binary
          ( Int_comp
              ( standard_int_of_boxed_integer int_kind,
-               Signed,
-               Yielding_int_like_compare_functions ),
+               Yielding_int_like_compare_functions Signed ),
            Prim (Unary (Unbox_number unboxing_kind, i1)),
            Prim (Unary (Unbox_number unboxing_kind, i2)) ))
   | Pprobe_is_enabled { name }, [] ->

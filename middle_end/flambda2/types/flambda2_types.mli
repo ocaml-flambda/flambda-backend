@@ -233,6 +233,12 @@ module Typing_env : sig
     val filter : t -> f:(Simple.t -> bool) -> t
 
     val get_singleton : t -> Simple.t option
+
+    val choose_opt : t -> Simple.t option
+
+    val inter : t -> t -> t
+
+    val print : Format.formatter -> t -> unit
   end
 
   val aliases_of_simple :
@@ -314,7 +320,8 @@ val bottom : Flambda_kind.t -> t
 (** Construct a top ("unknown") type of the given kind. *)
 val unknown : Flambda_kind.t -> t
 
-val unknown_with_subkind : Flambda_kind.With_subkind.t -> t
+val unknown_with_subkind :
+  ?alloc_mode:Alloc_mode.t Or_unknown.t -> Flambda_kind.With_subkind.t -> t
 
 (** Create an bottom type with the same kind as the given type. *)
 val bottom_like : t -> t
@@ -606,13 +613,13 @@ val prove_boxed_int64s : Typing_env.t -> t -> Numeric_types.Int64.Set.t proof
 
 val prove_boxed_nativeints : Typing_env.t -> t -> Targetint_32_64.Set.t proof
 
-val prove_tags_and_sizes :
-  Typing_env.t -> t -> Targetint_31_63.Imm.t Tag.Map.t proof
-
 val prove_unique_tag_and_size :
   Typing_env.t ->
   t ->
   (Tag.t * Targetint_31_63.Imm.t) proof_allowing_kind_mismatch
+
+val prove_unique_fully_constructed_immutable_heap_block :
+  Typing_env.t -> t -> (Tag_and_size.t * Simple.t list) proof
 
 val prove_is_int : Typing_env.t -> t -> bool proof
 
@@ -757,3 +764,5 @@ val reify :
 
 val never_holds_locally_allocated_values :
   Typing_env.t -> Variable.t -> Flambda_kind.t -> bool
+
+val remove_outermost_alias : Typing_env.t -> t -> t

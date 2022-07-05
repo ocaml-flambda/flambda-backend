@@ -25,30 +25,9 @@ type classification_for_printing =
   | Destructive
   | Neither
 
-module Block_of_values_field = struct
-  type t =
-    | Any_value
-    | Immediate
-    | Boxed_float
-    | Boxed_int32
-    | Boxed_int64
-    | Boxed_nativeint
-
-  let [@ocamlformat "disable"] print ppf t =
-    match t with
-    | Any_value -> Format.fprintf ppf "Any_value"
-    | Immediate -> Format.fprintf ppf "Immediate"
-    | Boxed_float -> Format.fprintf ppf "Boxed_float"
-    | Boxed_int32 -> Format.fprintf ppf "Boxed_int32"
-    | Boxed_int64 -> Format.fprintf ppf "Boxed_int64"
-    | Boxed_nativeint -> Format.fprintf ppf "Boxed_nativeint"
-
-  let compare = Stdlib.compare
-end
-
 module Block_kind = struct
   type t =
-    | Values of Tag.Scannable.t * Block_of_values_field.t list
+    | Values of Tag.Scannable.t * K.With_subkind.t list
     | Naked_floats
 
   let [@ocamlformat "disable"] print ppf t =
@@ -60,7 +39,7 @@ module Block_kind = struct
          @[<hov 1>(shape@ @[<hov 1>(%a)@])@])@]"
        Tag.Scannable.print tag
        (Format.pp_print_list ~pp_sep:Format.pp_print_space
-         Block_of_values_field.print) shape
+      K.With_subkind.print) shape
    | Naked_floats ->
      Format.pp_print_string ppf "Naked_floats"
 
@@ -70,7 +49,7 @@ module Block_kind = struct
       let c = Tag.Scannable.compare tag1 tag2 in
       if c <> 0
       then c
-      else Misc.Stdlib.List.compare Block_of_values_field.compare shape1 shape2
+      else Misc.Stdlib.List.compare K.With_subkind.compare shape1 shape2
     | Naked_floats, Naked_floats -> 0
     | Values _, _ -> -1
     | _, Values _ -> 1
@@ -327,68 +306,47 @@ let string_or_bigstring_index_kind = K.value
 
 let bytes_or_bigstring_index_kind = K.value
 
-type 'op comparison_behaviour =
-  | Yielding_bool of 'op
-  | Yielding_int_like_compare_functions
-
-type comparison =
+type 'signed_or_unsigned comparison =
   | Eq
   | Neq
-  | Lt
-  | Gt
-  | Le
-  | Ge
+  | Lt of 'signed_or_unsigned
+  | Gt of 'signed_or_unsigned
+  | Le of 'signed_or_unsigned
+  | Ge of 'signed_or_unsigned
 
-let print_comparison ppf c =
+type 'signed_or_unsigned comparison_behaviour =
+  | Yielding_bool of 'signed_or_unsigned comparison
+  | Yielding_int_like_compare_functions of 'signed_or_unsigned
+
+let print_comparison print_signed_or_unsigned ppf c =
   let fprintf = Format.fprintf in
   match c with
   | Neq -> fprintf ppf "<>"
   | Eq -> fprintf ppf "="
-  | Lt -> fprintf ppf "<"
-  | Le -> fprintf ppf "<="
-  | Gt -> fprintf ppf ">"
-  | Ge -> fprintf ppf ">="
+  | Lt signed_or_unsigned ->
+    fprintf ppf "<%a" print_signed_or_unsigned signed_or_unsigned
+  | Le signed_or_unsigned ->
+    fprintf ppf "<=%a" print_signed_or_unsigned signed_or_unsigned
+  | Gt signed_or_unsigned ->
+    fprintf ppf ">%a" print_signed_or_unsigned signed_or_unsigned
+  | Ge signed_or_unsigned ->
+    fprintf ppf ">=%a" print_signed_or_unsigned signed_or_unsigned
 
-let print_comparison_and_behaviour ppf behaviour =
+let print_comparison_and_behaviour print_signed_or_unsigned ppf behaviour =
   match behaviour with
-  | Yielding_bool op -> print_comparison ppf op
-  | Yielding_int_like_compare_functions ->
-    Format.pp_print_string ppf "<compare>"
+  | Yielding_bool comparison ->
+    print_comparison print_signed_or_unsigned ppf comparison
+  | Yielding_int_like_compare_functions signed_or_unsigned ->
+    Format.fprintf ppf "<compare%a>" print_signed_or_unsigned signed_or_unsigned
 
 type signed_or_unsigned =
   | Signed
   | Unsigned
 
-type ordered_comparison =
-  | Lt
-  | Gt
-  | Le
-  | Ge
-
-let print_ordered_comparison ppf signedness c =
-  let fprintf = Format.fprintf in
-  match signedness with
-  | Unsigned -> (
-    match c with
-    | Lt -> fprintf ppf "<u"
-    | Le -> fprintf ppf "<=u"
-    | Gt -> fprintf ppf ">u"
-    | Ge -> fprintf ppf ">=u")
-  | Signed -> (
-    match c with
-    | Lt -> fprintf ppf "<"
-    | Le -> fprintf ppf "<="
-    | Gt -> fprintf ppf ">"
-    | Ge -> fprintf ppf ">=")
-
-let print_ordered_comparison_and_behaviour ppf signedness behaviour =
-  match behaviour with
-  | Yielding_bool op -> print_ordered_comparison ppf signedness op
-  | Yielding_int_like_compare_functions ->
-    let signedness =
-      match signedness with Signed -> "signed" | Unsigned -> "unsigned"
-    in
-    Format.fprintf ppf "<ordered-%s-compare>" signedness
+let print_signed_or_unsigned ppf signed_or_unsigned =
+  match signed_or_unsigned with
+  | Signed -> Format.fprintf ppf ""
+  | Unsigned -> Format.fprintf ppf "u"
 
 type equality_comparison =
   | Eq
@@ -641,11 +599,7 @@ let nullary_classify_for_printing p =
   match p with Optimised_out _ | Probe_is_enabled _ | Begin_region -> Neither
 
 type unary_primitive =
-  | Duplicate_block of
-      { kind : Duplicate_block_kind.t;
-        source_mutability : Mutability.t;
-        destination_mutability : Mutability.t
-      }
+  | Duplicate_block of { kind : Duplicate_block_kind.t }
   | Duplicate_array of
       { kind : Duplicate_array_kind.t;
         source_mutability : Mutability.t;
@@ -686,11 +640,8 @@ type unary_primitive =
    for CSE, since we deal with projections through types. *)
 let unary_primitive_eligible_for_cse p ~arg =
   match p with
-  | Duplicate_array { kind = _; source_mutability; destination_mutability }
-  | Duplicate_block { kind = _; source_mutability; destination_mutability } -> (
-    match source_mutability, destination_mutability with
-    | Immutable, Immutable -> true
-    | (Immutable | Immutable_unique | Mutable), _ -> false)
+  | Duplicate_array _ -> false
+  | Duplicate_block { kind = _ } -> false
   | Is_int | Get_tag -> true
   | Array_length -> true
   | Bigarray_length _ -> false
@@ -762,24 +713,8 @@ let compare_unary_primitive p1 p2 =
       if c <> 0
       then c
       else Stdlib.compare destination_mutability1 destination_mutability2
-  | ( Duplicate_block
-        { kind = kind1;
-          source_mutability = source_mutability1;
-          destination_mutability = destination_mutability1
-        },
-      Duplicate_block
-        { kind = kind2;
-          source_mutability = source_mutability2;
-          destination_mutability = destination_mutability2
-        } ) ->
-    let c = Duplicate_block_kind.compare kind1 kind2 in
-    if c <> 0
-    then c
-    else
-      let c = Stdlib.compare source_mutability1 source_mutability2 in
-      if c <> 0
-      then c
-      else Stdlib.compare destination_mutability1 destination_mutability2
+  | Duplicate_block { kind = kind1 }, Duplicate_block { kind = kind2 } ->
+    Duplicate_block_kind.compare kind1 kind2
   | Is_int, Is_int -> 0
   | Get_tag, Get_tag -> 0
   | String_length kind1, String_length kind2 -> Stdlib.compare kind1 kind2
@@ -826,10 +761,9 @@ let equal_unary_primitive p1 p2 = compare_unary_primitive p1 p2 = 0
 let print_unary_primitive ppf p =
   let fprintf = Format.fprintf in
   match p with
-  | Duplicate_block { kind; source_mutability; destination_mutability } ->
-    fprintf ppf "@[<hov 1>(Duplicate_block %a (source %a) (dest %a))@]"
-      Duplicate_block_kind.print kind Mutability.print source_mutability
-      Mutability.print destination_mutability
+  | Duplicate_block { kind } ->
+    fprintf ppf "@[<hov 1>(Duplicate_block %a)@]" Duplicate_block_kind.print
+      kind
   | Duplicate_array { kind; source_mutability; destination_mutability } ->
     fprintf ppf "@[<hov 1>(Duplicate_array %a (source %a) (dest %a))@]"
       Duplicate_array_kind.print kind Mutability.print source_mutability
@@ -920,7 +854,6 @@ let result_kind_of_unary_primitive p : result_kind =
 let effects_and_coeffects_of_unary_primitive p =
   match p with
   | Duplicate_array { kind = _; source_mutability; destination_mutability; _ }
-  | Duplicate_block { kind = _; source_mutability; destination_mutability; _ }
     -> (
     match source_mutability with
     | Immutable ->
@@ -929,14 +862,20 @@ let effects_and_coeffects_of_unary_primitive p =
         Coeffects.No_coeffects )
     | Immutable_unique ->
       (* XCR vlaviron: this should never occur, but it's hard to express it
-         without duplicating the mutability type mshinwell: Adding a second
-         mutability type seems like a good thing to avoid confusion in the
-         future. It could maybe be a submodule of [Mutability]. *)
+         without duplicating the mutability type
+
+         mshinwell: Adding a second mutability type seems like a good thing to
+         avoid confusion in the future. It could maybe be a submodule of
+         [Mutability]. *)
       ( Effects.Only_generative_effects destination_mutability,
         Coeffects.No_coeffects )
     | Mutable ->
       ( Effects.Only_generative_effects destination_mutability,
         Coeffects.Has_coeffects ))
+  | Duplicate_block { kind = _ } ->
+    (* We have to assume that the fields might be mutable. (This information
+       isn't currently propagated from [Lambda].) *)
+    Effects.Only_generative_effects Mutable, Coeffects.Has_coeffects
   | Is_int -> Effects.No_effects, Coeffects.No_coeffects
   | Get_tag ->
     (* [Obj.truncate] has now been removed. *)
@@ -1059,15 +998,13 @@ type binary_primitive =
   | Array_load of Array_kind.t * Mutability.t
   | String_or_bigstring_load of string_like_value * string_accessor_width
   | Bigarray_load of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
-  | Phys_equal of Flambda_kind.t * equality_comparison
+  | Phys_equal of equality_comparison
   | Int_arith of Flambda_kind.Standard_int.t * binary_int_arith_op
   | Int_shift of Flambda_kind.Standard_int.t * int_shift_op
   | Int_comp of
-      Flambda_kind.Standard_int.t
-      * signed_or_unsigned
-      * ordered_comparison comparison_behaviour
+      Flambda_kind.Standard_int.t * signed_or_unsigned comparison_behaviour
   | Float_arith of binary_float_arith_op
-  | Float_comp of comparison comparison_behaviour
+  | Float_comp of unit comparison_behaviour
 
 let binary_primitive_eligible_for_cse p =
   match p with
@@ -1118,23 +1055,16 @@ let compare_binary_primitive p1 p2 =
     else
       let c = Stdlib.compare kind1 kind2 in
       if c <> 0 then c else Stdlib.compare layout1 layout2
-  | Phys_equal (kind1, comp1), Phys_equal (kind2, comp2) ->
-    let c = K.compare kind1 kind2 in
-    if c <> 0 then c else Stdlib.compare comp1 comp2
+  | Phys_equal comp1, Phys_equal comp2 -> Stdlib.compare comp1 comp2
   | Int_arith (kind1, op1), Int_arith (kind2, op2) ->
     let c = K.Standard_int.compare kind1 kind2 in
     if c <> 0 then c else Stdlib.compare op1 op2
   | Int_shift (kind1, op1), Int_shift (kind2, op2) ->
     let c = K.Standard_int.compare kind1 kind2 in
     if c <> 0 then c else Stdlib.compare op1 op2
-  | Int_comp (kind1, signedness1, comp1), Int_comp (kind2, signedness2, comp2)
-    ->
+  | Int_comp (kind1, comp_behaviour1), Int_comp (kind2, comp_behaviour2) ->
     let c = K.Standard_int.compare kind1 kind2 in
-    if c <> 0
-    then c
-    else
-      let c = Stdlib.compare signedness1 signedness2 in
-      if c <> 0 then c else Stdlib.compare comp1 comp2
+    if c <> 0 then c else Stdlib.compare comp_behaviour1 comp_behaviour2
   | Float_arith op1, Float_arith op2 -> Stdlib.compare op1 op2
   | Float_comp comp1, Float_comp comp2 -> Stdlib.compare comp1 comp2
   | ( ( Block_load _ | Array_load _ | String_or_bigstring_load _
@@ -1163,16 +1093,15 @@ let print_binary_primitive ppf p =
     fprintf ppf
       "@[(Bigarray_load (num_dimensions@ %d)@ (kind@ %a)@ (layout@ %a))@]"
       num_dimensions Bigarray_kind.print kind Bigarray_layout.print layout
-  | Phys_equal (kind, op) ->
-    Format.fprintf ppf "@[(Phys_equal %a %a)@]" K.print kind
-      print_equality_comparison op
+  | Phys_equal op ->
+    Format.fprintf ppf "@[(Phys_equal %a)@]" print_equality_comparison op
   | Int_arith (_k, op) -> print_binary_int_arith_op ppf op
   | Int_shift (_k, op) -> print_int_shift_op ppf op
-  | Int_comp (_, signedness, c) ->
-    print_ordered_comparison_and_behaviour ppf signedness c
+  | Int_comp (_, comp_behaviour) ->
+    print_comparison_and_behaviour print_signed_or_unsigned ppf comp_behaviour
   | Float_arith op -> print_binary_float_arith_op ppf op
-  | Float_comp c ->
-    print_comparison_and_behaviour ppf c;
+  | Float_comp comp_behaviour ->
+    print_comparison_and_behaviour (fun _ppf () -> ()) ppf comp_behaviour;
     fprintf ppf "."
 
 let args_kind_of_binary_primitive p =
@@ -1184,12 +1113,12 @@ let args_kind_of_binary_primitive p =
   | String_or_bigstring_load (Bigstring, _) ->
     bigstring_kind, string_or_bigstring_index_kind
   | Bigarray_load (_, _, _) -> bigarray_kind, bigarray_index_kind
-  | Phys_equal (kind, _) -> kind, kind
+  | Phys_equal _ -> K.value, K.value
   | Int_arith (kind, _) ->
     let kind = K.Standard_int.to_kind kind in
     kind, kind
   | Int_shift (kind, _) -> K.Standard_int.to_kind kind, K.naked_immediate
-  | Int_comp (kind, _, _) ->
+  | Int_comp (kind, _) ->
     let kind = K.Standard_int.to_kind kind in
     kind, kind
   | Float_arith _ | Float_comp _ -> K.naked_float, K.naked_float
@@ -1717,6 +1646,17 @@ module Eligible_for_cse = struct
             then t
             else Ternary (prim, arg1', arg2', arg3')
           | Variadic (prim, args) ->
+            (* We can't recover subkind information from Flambda types, but
+               sometimes we want to add CSE equations for [Make_block] and
+               [Make_array] irrespective of the _sub_kinds. As such we ignore
+               the subkinds here by erasing them. *)
+            let prim =
+              match prim with
+              | Make_block (Values (tag, kinds), mutability, alloc_mode) ->
+                let kinds = List.map K.With_subkind.erase_subkind kinds in
+                Make_block (Values (tag, kinds), mutability, alloc_mode)
+              | Make_block (Naked_floats, _, _) | Make_array _ -> prim
+            in
             let args' = List.map map_arg args in
             if List.for_all2 ( == ) args args' then t else Variadic (prim, args')
         in

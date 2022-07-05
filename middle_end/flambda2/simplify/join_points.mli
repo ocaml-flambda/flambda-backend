@@ -18,6 +18,14 @@
     argument types across the recorded uses; together with the environment to be
     used for simplifying the continuation itself. *)
 
+type result = private
+  { handler_env : Downwards_env.t;
+    arg_types_by_use_id : Continuation_uses.arg_types_by_use_id;
+    extra_params_and_args : Continuation_extra_params_and_args.t;
+    is_single_inlinable_use : bool;
+    escapes : bool
+  }
+
 val compute_handler_env :
   ?unknown_if_defined_at_or_later_than:Scope.t ->
   Continuation_uses.t ->
@@ -25,4 +33,4 @@ val compute_handler_env :
   consts_lifted_during_body:Lifted_constant_state.t ->
   params:Bound_parameters.t ->
   code_age_relation_after_body:Code_age_relation.t ->
-  Continuation_env_and_param_types.t
+  result

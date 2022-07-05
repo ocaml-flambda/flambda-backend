@@ -59,6 +59,10 @@ let run ~cmx_loader ~round unit =
              term:@ %a"
             Variable.print var Expr.print body)
         ~symbol:(fun _symbol -> ()));
+  if not (LCS.is_empty (UA.lifted_constants uacc))
+  then
+    Misc.fatal_errorf "Lifted constants accumulator should be empty:@ %a"
+      UA.print uacc;
   let final_typing_env =
     let cont_uses_env = DA.continuation_uses_env (UA.creation_dacc uacc) in
     Continuation_uses_env.get_typing_env_no_more_than_one_use cont_uses_env

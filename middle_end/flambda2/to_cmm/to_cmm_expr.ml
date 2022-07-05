@@ -212,7 +212,8 @@ let apply_call env e =
     | Some name ->
       ( C.probe ~dbg ~name
           ~handler_code_linkage_name:(Linkage_name.to_string code_linkage_name)
-          ~args,
+          ~args
+        |> C.return_unit dbg,
         env,
         effs ))
   | Function { function_call = Indirect_unknown_arity; alloc_mode } ->

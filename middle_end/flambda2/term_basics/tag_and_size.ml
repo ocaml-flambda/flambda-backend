@@ -17,3 +17,7 @@
 type t = Tag.t * Targetint_31_63.Imm.t
 
 include Container_types.Make_pair (Tag) (Targetint_31_63.Imm)
+
+let tag (tag, _) = tag
+
+let size (_, size) = size

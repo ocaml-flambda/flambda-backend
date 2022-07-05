@@ -269,6 +269,15 @@ module Alias_set = struct
       ~name:(fun name ~coercion ->
         { const = None; names = Name.Map.singleton name coercion })
 
+  let choose_opt { const; names } =
+    match const with
+    | Some const ->
+      if Name.Map.is_empty names then Some (Simple.const const) else None
+    | None ->
+      Name.Map.choose_opt names
+      |> Option.map (fun (name, coercion) ->
+             Simple.with_coercion (Simple.name name) coercion)
+
   let get_singleton { const; names } =
     match const with
     | Some const ->

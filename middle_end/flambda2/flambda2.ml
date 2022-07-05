@@ -200,14 +200,6 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
         output_flexpect ~ml_filename:filename ~raw_flambda flambda;
         flambda, exported_offsets, cmx, all_code
     in
-    (match Sys.getenv "PRINT_SIZES" with
-    | exception Not_found -> ()
-    | _ ->
-      Exported_code.iter_code all_code ~f:(fun code ->
-          let size = Code.cost_metrics code in
-          Format.fprintf Format.std_formatter "%a %a\n"
-            Flambda2_identifiers.Code_id.print (Code.code_id code)
-            Cost_metrics.print size));
     (match cmx with
     | None ->
       () (* Either opaque was passed, or there is no need to export offsets *)

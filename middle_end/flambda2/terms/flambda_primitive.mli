@@ -24,23 +24,9 @@
 
     No primitive raises an exception. (Bounds checking is handled separately.) *)
 
-module Block_of_values_field : sig
-  type t =
-    | Any_value
-    | Immediate
-    | Boxed_float
-    | Boxed_int32
-    | Boxed_int64
-    | Boxed_nativeint
-
-  val compare : t -> t -> int
-
-  val print : Format.formatter -> t -> unit
-end
-
 module Block_kind : sig
   type t =
-    | Values of Tag.Scannable.t * Block_of_values_field.t list
+    | Values of Tag.Scannable.t * Flambda_kind.With_subkind.t list
     | Naked_floats
 
   val print : Format.formatter -> t -> unit
@@ -92,6 +78,7 @@ module Duplicate_array_kind : sig
 end
 
 module Block_access_field_kind : sig
+  (* CR mshinwell: For [Block_load] this is always [Any_value]. *)
   type t =
     | Any_value
     | Immediate
@@ -140,19 +127,13 @@ module Init_or_assign : sig
   val to_lambda : t -> Lambda.initialization_or_assignment
 end
 
-type comparison =
+type 'signed_or_unsigned comparison =
   | Eq
   | Neq
-  | Lt
-  | Gt
-  | Le
-  | Ge
-
-type ordered_comparison =
-  | Lt
-  | Gt
-  | Le
-  | Ge
+  | Lt of 'signed_or_unsigned
+  | Gt of 'signed_or_unsigned
+  | Le of 'signed_or_unsigned
+  | Ge of 'signed_or_unsigned
 
 type equality_comparison =
   | Eq
@@ -242,11 +223,9 @@ type unary_float_arith_op =
 
 (** Primitives taking exactly one argument. *)
 type unary_primitive =
-  | Duplicate_block of
-      { kind : Duplicate_block_kind.t;
-        source_mutability : Mutability.t;
-        destination_mutability : Mutability.t
-      }  (** [Duplicate_block] may not be used to change the tag of a block. *)
+  | Duplicate_block of { kind : Duplicate_block_kind.t }
+      (** [Duplicate_block] may not be used to change the tag or the mutability
+          of a block. *)
   | Duplicate_array of
       { kind : Duplicate_array_kind.t;
         source_mutability : Mutability.t;
@@ -316,9 +295,9 @@ type unary_primitive =
 (** Whether a comparison is to yield a boolean result, as given by a particular
     comparison operator, or whether it is to behave in the manner of "compare"
     functions that yield tagged immediates -1, 0 or 1. *)
-type 'op comparison_behaviour =
-  | Yielding_bool of 'op
-  | Yielding_int_like_compare_functions
+type 'signed_or_unsigned comparison_behaviour =
+  | Yielding_bool of 'signed_or_unsigned comparison
+  | Yielding_int_like_compare_functions of 'signed_or_unsigned
 
 (** Binary arithmetic operations on integers. *)
 type binary_int_arith_op =
@@ -350,15 +329,14 @@ type binary_primitive =
   | Array_load of Array_kind.t * Mutability.t
   | String_or_bigstring_load of string_like_value * string_accessor_width
   | Bigarray_load of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
-  | Phys_equal of Flambda_kind.t * equality_comparison
+  | Phys_equal of equality_comparison
+      (** [Phys_equal] is only for things of kind [Value]. *)
   | Int_arith of Flambda_kind.Standard_int.t * binary_int_arith_op
   | Int_shift of Flambda_kind.Standard_int.t * int_shift_op
   | Int_comp of
-      Flambda_kind.Standard_int.t
-      * signed_or_unsigned
-      * ordered_comparison comparison_behaviour
+      Flambda_kind.Standard_int.t * signed_or_unsigned comparison_behaviour
   | Float_arith of binary_float_arith_op
-  | Float_comp of comparison comparison_behaviour
+  | Float_comp of unit comparison_behaviour
 
 (** Primitives taking exactly three arguments. *)
 type ternary_primitive =

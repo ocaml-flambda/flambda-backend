@@ -2,7 +2,8 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*      Pierre Chambart & Guillaume Bury, OCamlPro                        *)
+(*                       Pierre Chambart, OCamlPro                        *)
+(*           Mark Shinwell and Leo White, Jane Street Europe              *)
 (*                                                                        *)
 (*   Copyright 2013--2019 OCamlPro SAS                                    *)
 (*   Copyright 2014--2019 Jane Street Group LLC                           *)
@@ -13,12 +14,26 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Simplification of primitives taking no argument. *)
+[@@@ocaml.warning "+a-30-40-41-42"]
 
-val simplify_nullary_primitive :
+type t = private
+  { simplified_named : Simplified_named.t Or_invalid.t;
+    try_reify : bool;
+    dacc : Downwards_acc.t
+  }
+
+val create : Flambda.Named.t -> try_reify:bool -> Downwards_acc.t -> t
+
+val create_simplified :
+  Simplified_named.t -> try_reify:bool -> Downwards_acc.t -> t
+
+val create_invalid : Downwards_acc.t -> t
+
+val create_unknown :
   Downwards_acc.t ->
-  Flambda_primitive.t ->
-  Flambda_primitive.nullary_primitive ->
-  Debuginfo.t ->
   result_var:Bound_var.t ->
-  Simplify_primitive_result.t
+  Flambda_kind.t ->
+  original_term:Flambda.Named.t ->
+  t
+
+val with_dacc : t -> Downwards_acc.t -> t

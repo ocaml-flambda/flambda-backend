@@ -92,11 +92,11 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
     | canonical_simple -> Some canonical_simple
   in
   match canonical_simple with
-  | Some canonical_simple when Simple.is_symbol canonical_simple ->
+  | Some canonical_simple when not (Simple.is_var canonical_simple) ->
     (* Don't lift things that are already bound to symbols. Apart from anything
        else, this could cause aliases between symbols, which are currently
        forbidden (every symbol has the same binding time). *)
-    Cannot_reify
+    Simple canonical_simple
   | canonical_simple_opt -> (
     let try_canonical_simple () =
       match canonical_simple_opt with

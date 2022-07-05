@@ -116,6 +116,8 @@ module Alias_set : sig
 
   val get_singleton : t -> Simple.t option
 
+  val choose_opt : t -> Simple.t option
+
   (* CR lmaurer: Could conceivably also do a join on the coercions. *)
 
   (** Find the aliases that occur in both sets. If a name occurs on both sides

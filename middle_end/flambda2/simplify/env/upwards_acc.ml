@@ -114,6 +114,9 @@ let code_age_relation t = t.code_age_relation
 
 let lifted_constants t = t.lifted_constants
 
+let get_and_clear_lifted_constants t =
+  { t with lifted_constants = LCS.empty }, t.lifted_constants
+
 let required_names t = t.required_names
 
 let reachable_code_ids t = t.reachable_code_ids
@@ -121,9 +124,6 @@ let reachable_code_ids t = t.reachable_code_ids
 let cost_metrics t = t.cost_metrics
 
 let are_rebuilding_terms t = t.are_rebuilding_terms
-
-let add_outermost_lifted_constant t const =
-  { t with lifted_constants = LCS.add_outermost t.lifted_constants const }
 
 let with_lifted_constants t lifted_constants = { t with lifted_constants }
 

@@ -48,57 +48,20 @@ type simplify_toplevel =
   exn_cont_scope:Scope.t ->
   Rebuilt_expr.t * Upwards_acc.t
 
-let is_self_tail_call dacc apply =
-  let denv = DA.denv dacc in
-  match DE.closure_info denv with
-  | Not_in_a_closure -> false
-  | In_a_set_of_closures_but_not_yet_in_a_specific_closure ->
-    (* It's safe to return false here (even, though this should not happen) *)
-    false
-  | Closure
-      { code_id = fun_code_id;
-        return_continuation = fun_cont;
-        exn_continuation = fun_exn_cont
-      } -> (
-    (* 1st check: exn continuations match *)
-    let apply_exn_cont = Apply.exn_continuation apply in
-    Exn_continuation.equal
-      (Exn_continuation.create ~exn_handler:fun_exn_cont ~extra_args:[])
-      apply_exn_cont
-    (* 2nd check: return continuations match *)
-    && (match Apply.continuation apply with
-       (* a function that raises unconditionally can be a tail-call *)
-       | Never_returns -> true
-       | Return apply_cont -> Continuation.equal fun_cont apply_cont)
-    &&
-    (* 3rd check: check this is a self-call. *)
-    match Apply.call_kind apply with
-    | Function
-        { function_call = Direct { code_id = apply_code_id; _ };
-          alloc_mode = _
-        } ->
-      Code_id.equal fun_code_id apply_code_id
-    | Method _ | C_call _
-    | Function
-        { function_call = Indirect_known_arity _ | Indirect_unknown_arity;
-          alloc_mode = _
-        } ->
-      false)
-
 let simplify_projection dacc ~original_term ~deconstructing ~shape ~result_var
     ~result_kind =
   let env = DA.typing_env dacc in
   match T.meet_shape env deconstructing ~shape ~result_var ~result_kind with
   | Bottom ->
     let dacc = DA.add_variable dacc result_var (T.bottom result_kind) in
-    Simplified_named.invalid (), dacc
+    Simplify_primitive_result.create_invalid dacc
   | Ok env_extension ->
     let dacc =
       DA.map_denv dacc ~f:(fun denv ->
           DE.define_variable_and_extend_typing_environment denv result_var
             result_kind env_extension)
     in
-    Simplified_named.reachable original_term ~try_reify:true, dacc
+    Simplify_primitive_result.create original_term ~try_reify:true dacc
 
 let update_exn_continuation_extra_args uacc ~exn_cont_use_id apply =
   let exn_cont_rewrite =
@@ -313,15 +276,22 @@ let patch_unused_exn_bucket uacc apply_cont =
   then
     match AC.args apply_cont with
     | [] -> assert false
-    | exn_bucket :: other_args ->
-      let exn_bucket_is_used =
+    | exn_value :: other_args ->
+      (* Note: [exn_value_is_used] is a global property, not one local to the
+         continuation specified by [apply_cont]. In the event of one exception
+         value propagating to (say) two different exception continuations, where
+         only one of them uses the value, it will still be passed to both
+         continuations. However this should be fine as the value still needed to
+         be allocated anyway and some value still has to be passed (because of
+         the calling convention of exception continuations). *)
+      let exn_value_is_used =
         Simple.pattern_match
           ~const:(fun _ -> true)
           ~name:(fun name ~coercion:_ ->
             Name.Set.mem name (UA.required_names uacc))
-          exn_bucket
+          exn_value
       in
-      if exn_bucket_is_used
+      if exn_value_is_used
       then apply_cont
       else
         (* The raise argument must be present, if it is unused, we replace it by
@@ -362,3 +332,16 @@ let specialise_array_kind dacc (array_kind : P.Array_kind.t) ~array_ty :
       Ok P.Array_kind.Immediates
     | Proved Compatible | Unknown -> Ok array_kind
     | Proved Incompatible | Invalid -> Bottom)
+
+let add_symbol_projection dacc ~projected_from projection ~projection_bound_to =
+  if DE.at_unit_toplevel (DA.denv dacc)
+  then dacc
+  else
+    let module SP = Symbol_projection in
+    Simple.pattern_match' projected_from
+      ~const:(fun _ -> dacc)
+      ~symbol:(fun symbol_projected_from ~coercion:_ ->
+        let proj = SP.create symbol_projected_from projection in
+        let var = Bound_var.var projection_bound_to in
+        DA.map_denv dacc ~f:(fun denv -> DE.add_symbol_projection denv var proj))
+      ~var:(fun _ ~coercion:_ -> dacc)

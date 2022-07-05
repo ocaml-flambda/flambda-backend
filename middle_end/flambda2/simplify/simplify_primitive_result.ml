@@ -14,22 +14,26 @@
 (*                                                                        *)
 (**************************************************************************)
 
-module T = Flambda2_types
-module TE = Flambda2_types.Typing_env
-
-type arg_at_use =
-  { arg_type : T.t;
-    typing_env : TE.t
-  }
-
-type arg_types_by_use_id = arg_at_use Apply_cont_rewrite_id.Map.t
+[@@@ocaml.warning "+a-30-40-41-42"]
 
 type t =
-  | No_uses
-  | Uses of
-      { handler_env : Downwards_env.t;
-        arg_types_by_use_id : arg_types_by_use_id list;
-        extra_params_and_args : Continuation_extra_params_and_args.t;
-        is_single_inlinable_use : bool;
-        escapes : bool
-      }
+  { simplified_named : Simplified_named.t Or_invalid.t;
+    try_reify : bool;
+    dacc : Downwards_acc.t
+  }
+
+let create named ~try_reify dacc =
+  { simplified_named = Ok (Simplified_named.create named); try_reify; dacc }
+
+let create_simplified simplified_named ~try_reify dacc =
+  { simplified_named = Ok simplified_named; try_reify; dacc }
+
+let create_invalid dacc =
+  { simplified_named = Invalid; try_reify = false; dacc }
+
+let create_unknown dacc ~result_var kind ~original_term =
+  let ty = Flambda2_types.unknown kind in
+  let dacc = Downwards_acc.add_variable dacc result_var ty in
+  create original_term ~try_reify:false dacc
+
+let with_dacc t dacc = { t with dacc }

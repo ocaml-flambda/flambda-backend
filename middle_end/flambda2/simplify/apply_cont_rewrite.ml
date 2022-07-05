@@ -39,9 +39,8 @@ let print_ea_used ppf t =
          Format.fprintf ppf "%a%a" EA.print ea print_used used))
     t
 
-let [@ocamlformat "disable"] print ppf { original_params; used_params; used_extra_params;
-                extra_args;
-              } =
+let [@ocamlformat "disable"] print ppf
+  { original_params; used_params; used_extra_params; extra_args; } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(original_params@ (%a))@]@ \
       @[<hov 1>(used_params@ %a)@]@ \
@@ -55,7 +54,7 @@ let [@ocamlformat "disable"] print ppf { original_params; used_params; used_extr
 
 let does_nothing t =
   Bound_parameters.cardinal t.original_params = BP.Set.cardinal t.used_params
-  && Id.Map.is_empty t.extra_args
+  && Bound_parameters.is_empty t.used_extra_params
 
 let create ~original_params ~used_params ~extra_params ~extra_args
     ~used_extra_params =
@@ -73,30 +72,28 @@ let create ~original_params ~used_params ~extra_params ~extra_args
        (%a)"
       Bound_parameters.print extra_params BP.Set.print used_extra_params;
   let extra_args =
-    Id.Map.map
-      (fun extra_args ->
-        if Bound_parameters.cardinal extra_params <> List.length extra_args
-        then
-          Misc.fatal_errorf
-            "Lengths of [extra_params] (%a)@ and all [extra_args] (e.g. %a) \
-             should be equal"
-            Bound_parameters.print extra_params
-            Continuation_extra_params_and_args.Extra_arg.List.print extra_args;
-        let extra_params_and_args =
-          List.combine (Bound_parameters.to_list extra_params) extra_args
-        in
-        List.map
-          (fun (extra_param, extra_arg) ->
-            ( extra_arg,
-              if BP.Set.mem extra_param used_extra_params then Used else Unused
-            ))
-          extra_params_and_args)
-      extra_args
-  in
-  let extra_args =
-    if Id.Map.for_all (fun _ l -> l = []) extra_args
+    if Bound_parameters.is_empty extra_params
     then Id.Map.empty
-    else extra_args
+    else
+      let num_extra_params = Bound_parameters.cardinal extra_params in
+      Id.Map.map
+        (fun extra_args ->
+          if num_extra_params <> List.length extra_args
+          then
+            Misc.fatal_errorf
+              "Lengths of [extra_params] (%a)@ and all [extra_args] (e.g. %a) \
+               should be equal"
+              Bound_parameters.print extra_params
+              Continuation_extra_params_and_args.Extra_arg.List.print extra_args;
+          List.map2
+            (fun extra_param extra_arg ->
+              ( extra_arg,
+                if BP.Set.mem extra_param used_extra_params
+                then Used
+                else Unused ))
+            (Bound_parameters.to_list extra_params)
+            extra_args)
+        extra_args
   in
   let used_extra_params =
     Bound_parameters.filter

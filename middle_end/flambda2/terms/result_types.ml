@@ -149,7 +149,7 @@ let create_trivial ~params ~result_arity create_type =
   create ~params ~results:(Bound_parameters.create results) env_extension
 
 let create_unknown ~params ~result_arity =
-  create_trivial ~params ~result_arity T.unknown_with_subkind
+  create_trivial ~params ~result_arity (T.unknown_with_subkind ?alloc_mode:None)
 
 let create_bottom ~params ~result_arity =
   create_trivial ~params ~result_arity (fun kind_with_subkind ->

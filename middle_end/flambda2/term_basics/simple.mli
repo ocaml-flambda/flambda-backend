@@ -43,6 +43,9 @@ val const_int : Targetint_31_63.Imm.t -> t
 (** The constant representating the given boolean value. *)
 val const_bool : bool -> t
 
+(** The naked immediate constant representating the given boolean value. *)
+val untagged_const_bool : bool -> t
+
 (* CR mshinwell: fix naming *)
 
 (** The constant representating boolean true. *)

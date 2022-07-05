@@ -32,7 +32,7 @@ let to_apply_cont t =
   | Apply_cont apply_cont -> Some apply_cont
   | Let _ | Let_cont _ | Apply _ | Switch _ | Invalid _ -> None
 
-let is_unreachable t are_rebuilding =
+let can_be_removed_as_invalid t are_rebuilding =
   if ART.do_not_rebuild_terms are_rebuilding
   then false
   else

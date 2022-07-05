@@ -24,8 +24,7 @@ let refine_decision_based_on_arg_types_at_uses ~pass ~rewrite_ids_seen nth_arg
   | Do_not_unbox _ as decision -> decision
   | Unbox _ as decision ->
     Apply_cont_rewrite_id.Map.fold
-      (fun rewrite_id (arg_at_use : Continuation_env_and_param_types.arg_at_use)
-           decision ->
+      (fun rewrite_id (arg_at_use : Continuation_uses.arg_at_use) decision ->
         if Apply_cont_rewrite_id.Set.mem rewrite_id rewrite_ids_seen
         then decision
         else

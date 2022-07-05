@@ -14,10 +14,11 @@
 (**************************************************************************)
 
 open! Simplify_import
+module RO = Removed_operations
 
 type t =
   | Unchanged of { return_types : Flambda2_types.t list Or_unknown.t }
-  | Poly_compare_specialized of DA.t * Expr.t
+  | Specialised of DA.t * Expr.t * Removed_operations.t
   | Invalid
 
 (* Helpers *)
@@ -63,7 +64,7 @@ let simplify_comparison_of_tagged_immediates ~dbg dacc ~cmp_prim cont a b =
     @@ let_prim ~dbg tagged (P.Unary (Tag_immediate, Simple.var v_comp))
     @@ apply_cont ~dbg cont tagged
   in
-  Poly_compare_specialized (dacc, res)
+  Specialised (dacc, res, RO.specialized_poly_compare)
 
 let simplify_comparison_of_boxed_numbers ~dbg dacc ~kind ~cmp_prim cont a b =
   let a_naked = Variable.create "unboxed" in
@@ -71,6 +72,7 @@ let simplify_comparison_of_boxed_numbers ~dbg dacc ~kind ~cmp_prim cont a b =
   let v_comp = Variable.create "comp" in
   let tagged = Variable.create "tagged" in
   let _free_names, res =
+    (* XXX try to remove @@ *)
     let_prim ~dbg a_naked (P.Unary (Unbox_number kind, a))
     @@ let_prim ~dbg b_naked (P.Unary (Unbox_number kind, b))
     @@ let_prim ~dbg v_comp
@@ -78,7 +80,7 @@ let simplify_comparison_of_boxed_numbers ~dbg dacc ~kind ~cmp_prim cont a b =
     @@ let_prim ~dbg tagged (P.Unary (Tag_immediate, Simple.var v_comp))
     @@ apply_cont ~dbg cont tagged
   in
-  Poly_compare_specialized (dacc, res)
+  Specialised (dacc, res, RO.specialized_poly_compare)
 
 let simplify_comparison ~dbg ~dacc ~cont ~tagged_prim ~float_prim
     ~boxed_int_prim a b a_ty b_ty =
@@ -146,7 +148,10 @@ let simplify_caml_make_vect dacc ~len_ty ~init_value_ty : t =
        -- but that will need some more infrastructure, since the actual
        continuation definition needs to be changed on the upwards traversal.
        Also we would need to think about what would happen if there were other
-       uses of the return continuation possibly with different kinds. *)
+       uses of the return continuation possibly with different kinds.
+
+       Also maybe we should allow static allocation of these arrays for
+       reasonable sizes. *)
     let type_of_returned_array = T.array_of_length ~element_kind ~length in
     Unchanged { return_types = Known [type_of_returned_array] }
 
@@ -156,42 +161,39 @@ let simplify_returning_extcall ~dbg ~cont ~exn_cont:_ dacc fun_name args
   (* Polymorphic comparisons *)
   | ".extern__caml_compare", [a; b], [a_ty; b_ty] ->
     simplify_comparison ~dbg ~dacc ~cont a b a_ty b_ty
-      ~float_prim:(Float_comp Yielding_int_like_compare_functions)
+      ~float_prim:(Float_comp (Yielding_int_like_compare_functions ()))
       ~tagged_prim:
-        (Int_comp (Tagged_immediate, Signed, Yielding_int_like_compare_functions))
+        (Int_comp (Tagged_immediate, Yielding_int_like_compare_functions Signed))
       ~boxed_int_prim:(fun kind ->
-        Int_comp (kind, Signed, Yielding_int_like_compare_functions))
+        Int_comp (kind, Yielding_int_like_compare_functions Signed))
   | ".extern__caml_equal", [a; b], [a_ty; b_ty] ->
     simplify_comparison ~dbg ~dacc ~cont a b a_ty b_ty
-      ~tagged_prim:(Phys_equal (K.value, Eq))
-      ~float_prim:(Float_comp (Yielding_bool Eq))
-      ~boxed_int_prim:(fun kind -> Phys_equal (K.Standard_int.to_kind kind, Eq))
+      ~tagged_prim:(Phys_equal Eq) ~float_prim:(Float_comp (Yielding_bool Eq))
+      ~boxed_int_prim:(fun kind -> Int_comp (kind, Yielding_bool Eq))
   | ".extern__caml_notequal", [a; b], [a_ty; b_ty] ->
     simplify_comparison ~dbg ~dacc ~cont a b a_ty b_ty
-      ~tagged_prim:(Phys_equal (K.value, Neq))
-      ~float_prim:(Float_comp (Yielding_bool Neq))
-      ~boxed_int_prim:(fun kind ->
-        Phys_equal (K.Standard_int.to_kind kind, Neq))
+      ~tagged_prim:(Phys_equal Neq) ~float_prim:(Float_comp (Yielding_bool Neq))
+      ~boxed_int_prim:(fun kind -> Int_comp (kind, Yielding_bool Neq))
   | ".extern__caml_lessequal", [a; b], [a_ty; b_ty] ->
     simplify_comparison ~dbg ~dacc ~cont a b a_ty b_ty
-      ~float_prim:(Float_comp (Yielding_bool Le))
-      ~tagged_prim:(Int_comp (Tagged_immediate, Signed, Yielding_bool Le))
-      ~boxed_int_prim:(fun kind -> Int_comp (kind, Signed, Yielding_bool Le))
+      ~float_prim:(Float_comp (Yielding_bool (Le ())))
+      ~tagged_prim:(Int_comp (Tagged_immediate, Yielding_bool (Le Signed)))
+      ~boxed_int_prim:(fun kind -> Int_comp (kind, Yielding_bool (Le Signed)))
   | ".extern__caml_lessthan", [a; b], [a_ty; b_ty] ->
     simplify_comparison ~dbg ~dacc ~cont a b a_ty b_ty
-      ~float_prim:(Float_comp (Yielding_bool Lt))
-      ~tagged_prim:(Int_comp (Tagged_immediate, Signed, Yielding_bool Lt))
-      ~boxed_int_prim:(fun kind -> Int_comp (kind, Signed, Yielding_bool Lt))
+      ~float_prim:(Float_comp (Yielding_bool (Lt ())))
+      ~tagged_prim:(Int_comp (Tagged_immediate, Yielding_bool (Lt Signed)))
+      ~boxed_int_prim:(fun kind -> Int_comp (kind, Yielding_bool (Lt Signed)))
   | ".extern__caml_greaterequal", [a; b], [a_ty; b_ty] ->
     simplify_comparison ~dbg ~dacc ~cont a b a_ty b_ty
-      ~float_prim:(Float_comp (Yielding_bool Ge))
-      ~tagged_prim:(Int_comp (Tagged_immediate, Signed, Yielding_bool Ge))
-      ~boxed_int_prim:(fun kind -> Int_comp (kind, Signed, Yielding_bool Ge))
+      ~float_prim:(Float_comp (Yielding_bool (Ge ())))
+      ~tagged_prim:(Int_comp (Tagged_immediate, Yielding_bool (Ge Signed)))
+      ~boxed_int_prim:(fun kind -> Int_comp (kind, Yielding_bool (Ge Signed)))
   | ".extern__caml_greaterthan", [a; b], [a_ty; b_ty] ->
     simplify_comparison ~dbg ~dacc ~cont a b a_ty b_ty
-      ~float_prim:(Float_comp (Yielding_bool Gt))
-      ~tagged_prim:(Int_comp (Tagged_immediate, Signed, Yielding_bool Gt))
-      ~boxed_int_prim:(fun kind -> Int_comp (kind, Signed, Yielding_bool Gt))
+      ~float_prim:(Float_comp (Yielding_bool (Gt ())))
+      ~tagged_prim:(Int_comp (Tagged_immediate, Yielding_bool (Gt Signed)))
+      ~boxed_int_prim:(fun kind -> Int_comp (kind, Yielding_bool (Gt Signed)))
   | ".extern__caml_make_vect", [_; _], [len_ty; init_value_ty] ->
     simplify_caml_make_vect dacc ~len_ty ~init_value_ty
   | _ -> Unchanged { return_types = Unknown }
