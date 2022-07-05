@@ -20,9 +20,6 @@ let is_var t = pattern_match t ~var:(fun _ -> true) ~symbol:(fun _ -> false)
 
 let is_symbol t = pattern_match t ~var:(fun _ -> false) ~symbol:(fun _ -> true)
 
-let to_var t =
-  pattern_match t ~var:(fun var -> Some var) ~symbol:(fun _ -> None)
-
 let to_symbol t =
   pattern_match t ~var:(fun _ -> None) ~symbol:(fun symbol -> Some symbol)
 

@@ -109,17 +109,9 @@ module Data = struct
           } =
         t2
       in
-      let rec previous_compilation_units_match l1 l2 =
-        match l1, l2 with
-        | [], [] -> true
-        | [], _ :: _ | _ :: _, [] -> false
-        | unit1 :: tl1, unit2 :: tl2 ->
-          Compilation_unit.equal unit1 unit2
-          && previous_compilation_units_match tl1 tl2
-      in
       Int.equal name_stamp1 name_stamp2
       && Compilation_unit.equal compilation_unit1 compilation_unit2
-      && previous_compilation_units_match previous_compilation_units1
+      && List.equal Compilation_unit.equal previous_compilation_units1
            previous_compilation_units2
 end
 
@@ -165,9 +157,7 @@ let name_stamp t = (find_data t).name_stamp
 
 let sort t = (find_data t).sort
 
-include Container_types.Make (struct
-  type nonrec t = t
-
+module T0 = struct
   let compare t1 t2 = Id.compare t1 t2
 
   let equal t1 t2 = Id.equal t1 t2
@@ -180,12 +170,17 @@ include Container_types.Make (struct
     then Format.fprintf ppf "k%d" (name_stamp t)
     else Format.fprintf ppf "%s/%d" (name t) (name_stamp t);
     Format.fprintf ppf "@<0>%s" (Flambda_colours.normal ())
-end)
+end
 
-module Tree = Patricia_tree.Make (struct
-  let print = print
-end)
+include T0
 
+module T = struct
+  type nonrec t = t
+
+  include T0
+end
+
+module Tree = Patricia_tree.Make (T)
 module Set = Tree.Set
 module Map = Tree.Map
 

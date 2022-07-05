@@ -21,8 +21,6 @@ include module type of struct
   include Int_ids.Name
 end
 
-val to_var : t -> Variable.t option
-
 val set_of_var_set : Variable.Set.t -> Set.t
 
 val set_of_symbol_set : Symbol.Set.t -> Set.t

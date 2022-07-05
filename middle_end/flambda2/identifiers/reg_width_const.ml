@@ -16,16 +16,6 @@
 
 include Int_ids.Const
 
-let kind t =
-  let module K = Flambda_kind in
-  match descr t with
-  | Naked_immediate _ -> K.naked_immediate
-  | Tagged_immediate _ -> K.value
-  | Naked_float _ -> K.naked_float
-  | Naked_int32 _ -> K.naked_int32
-  | Naked_int64 _ -> K.naked_int64
-  | Naked_nativeint _ -> K.naked_nativeint
-
 let of_descr (descr : Descr.t) =
   match descr with
   | Naked_immediate i -> naked_immediate i

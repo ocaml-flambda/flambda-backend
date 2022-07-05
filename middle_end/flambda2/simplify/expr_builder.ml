@@ -236,7 +236,7 @@ let create_coerced_singleton_let uacc var defining_expr
         ~cost_metrics_of_defining_expr
     | Prim _ | Set_of_closures _ | Static_consts _ | Rec_info _ -> (
       let uncoerced_var =
-        let name = "uncoerced_" ^ Variable.raw_name (VB.var var) in
+        let name = "uncoerced_" ^ Variable.unique_name (VB.var var) in
         Variable.create name
       in
       (* Generate [let var = uncoerced_var @ <coercion>] *)

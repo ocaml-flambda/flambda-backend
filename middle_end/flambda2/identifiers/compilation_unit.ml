@@ -20,11 +20,10 @@ type t =
     hash : int
   }
 
+(* CR mshinwell: This should give the pack prefix too. The forthcoming middle
+   end symbols PR (prerequisite for functor packs) should fix this. *)
 let string_for_printing t = t.name
 
-(* Multiple units can have the same [id] if they come from different packs. To
-   distinguish these we also keep the linkage name, which contains the name of
-   the pack. *)
 let compare v1 v2 =
   if v1 == v2
   then 0
@@ -34,7 +33,8 @@ let compare v1 v2 =
     then c
     else if c = 0
     then
-      (* We don't need to compare [name], [linkage_name] has everything. *)
+      (* We don't need to compare [name], [linkage_name] has everything,
+         including any pack name. *)
       Linkage_name.compare v1.linkage_name v2.linkage_name
     else c
 
@@ -72,7 +72,8 @@ let get_current_exn () =
   | Some current -> current
   | None ->
     Misc.fatal_error
-      "Compilation_unit.get_current_exn: current compilation unit not set"
+      "Flambda2_identifiers.Compilation_unit.get_current_exn: current \
+       compilation unit not set"
 
 let is_current cu =
   match !current with None -> false | Some current -> equal cu current
