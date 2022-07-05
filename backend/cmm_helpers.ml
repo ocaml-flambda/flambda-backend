@@ -1246,6 +1246,8 @@ let sign_extend_32 dbg e =
           [Cop (Clsl, [e; Cconst_int (32, dbg)], dbg); Cconst_int (32, dbg)],
           dbg )
 
+(* CR-someday mshinwell/gbury: sign_extend_63 then tag_int should simplify to
+   just tag_int. *)
 let sign_extend_63 dbg e =
   check_64_bit_target "sign_extend_63";
   let e = low_63 dbg e in
