@@ -26,6 +26,4 @@ val rename : ?append:string -> t -> t
 
 val unique_name : t -> string
 
-val compilation_unit : t -> Compilation_unit.t
-
 val raw_name : t -> string

@@ -20,6 +20,4 @@ include module type of struct
   include Int_ids.Const
 end
 
-val kind : t -> Flambda_kind.t
-
 val of_descr : Descr.t -> t
