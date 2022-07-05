@@ -237,8 +237,9 @@ let unary_int_arith_primitive _env dbg kind op arg =
        untags the integer first. *)
     Misc.fatal_error "Not yet implemented"
   | Naked_immediate, Swap_byte_endianness ->
-    (* XXX Is this correct? mshinwell had an old note saying that this case
-       indeed should not be sign extended, but this needs checking *)
+    (* This case should not have a sign extension, confusingly, because it
+       arises from the [Pbswap16] Lambda primitive. That operation does not
+       affect the sign of the resulting value. *)
     C.bswap16 arg dbg
   (* Special case for manipulating int64 on 32-bit hosts *)
   | Naked_int64, Neg when Target_system.is_32_bit -> C.unsupported_32_bit ()
@@ -248,7 +249,9 @@ let unary_int_arith_primitive _env dbg kind op arg =
   | Naked_int32, Neg -> C.sign_extend_32 dbg (C.sub_int (C.int ~dbg 0) arg dbg)
   (* General case *)
   | (Naked_int64 | Naked_nativeint), Neg -> C.sub_int (C.int ~dbg 0) arg dbg
-  (* Byte swaps of 32-bit integers on 64-bit targets need a sign-extension *)
+  (* Byte swaps of 32-bit integers on 64-bit targets need a sign-extension in
+     order to match the Lambda semantics (where the swap might affect the
+     sign). *)
   | Naked_int32, Swap_byte_endianness when Target_system.is_64_bit ->
     C.sign_extend_32 dbg (C.bbswap Pint32 arg dbg)
   | Naked_int32, Swap_byte_endianness -> C.bbswap Pint32 arg dbg
