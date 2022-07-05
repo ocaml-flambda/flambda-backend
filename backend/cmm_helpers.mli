@@ -464,6 +464,17 @@ val sign_extend_32 : Debuginfo.t -> expression -> expression
 (** Zero extend from 32 bits to the word size *)
 val zero_extend_32 : Debuginfo.t -> expression -> expression
 
+(** Operations on 63-bit integers *)
+
+(** [low_63 _ x] is a value which agrees with x on at least the low 63 bits *)
+val low_63 : Debuginfo.t -> expression -> expression
+
+(** Sign extend from 63 bits to the word size *)
+val sign_extend_63 : Debuginfo.t -> expression -> expression
+
+(** Zero extend from 63 bits to the word size *)
+val zero_extend_63 : Debuginfo.t -> expression -> expression
+
 (** Boxed numbers *)
 
 (** Global symbols for the ops field of boxed integers *)

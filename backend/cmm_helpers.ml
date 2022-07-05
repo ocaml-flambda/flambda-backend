@@ -1214,6 +1214,17 @@ let rec low_32 dbg = function
   | Clet (id, e, body) -> Clet (id, e, low_32 dbg body)
   | x -> x
 
+(* Like [low_32] but for 63-bit integers held in 64-bit registers. *)
+let[@ocaml.warning "-4"] rec low_63 dbg e =
+  let open Cmm in
+  match e with
+  | Cop (Casr, [Cop (Clsl, [x; Cconst_int (1, _)], _); Cconst_int (1, _)], _) ->
+    low_63 dbg x
+  | Cop (Cand, [x; Cconst_natint (0x7FFF_FFFF_FFFF_FFFFn, _)], _) ->
+    low_63 dbg x
+  | Clet (id, x, body) -> Clet (id, x, low_63 dbg body)
+  | _ -> e
+
 (* sign_extend_32 sign-extends values from 32 bits to the word size. (if the
    word size is 32, this is a no-op) *)
 let sign_extend_32 dbg e =
@@ -1229,6 +1240,11 @@ let sign_extend_32 dbg e =
           [Cop (Clsl, [e; Cconst_int (32, dbg)], dbg); Cconst_int (32, dbg)],
           dbg )
 
+let sign_extend_63 dbg e =
+  let open Cmm in
+  Cop
+    (Casr, [Cop (Clsl, [e; Cconst_int (1, dbg)], dbg); Cconst_int (1, dbg)], dbg)
+
 (* zero_extend_32 zero-extends values from 32 bits to the word size. (if the
    word size is 32, this is a no-op) *)
 let zero_extend_32 dbg e =
@@ -1239,6 +1255,10 @@ let zero_extend_32 dbg e =
     | Cop (Cload ((Thirtytwo_signed | Thirtytwo_unsigned), mut), args, dbg) ->
       Cop (Cload (Thirtytwo_unsigned, mut), args, dbg)
     | e -> Cop (Cand, [e; natint_const_untagged dbg 0xFFFFFFFFn], dbg)
+
+let zero_extend_63 dbg e =
+  let open Cmm in
+  Cop (Cand, [e; natint_const_untagged dbg 0x7FFF_FFFF_FFFF_FFFFn], dbg)
 
 let and_int e1 e2 dbg =
   let is_mask32 = function
