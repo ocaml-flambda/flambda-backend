@@ -464,7 +464,8 @@ val sign_extend_32 : Debuginfo.t -> expression -> expression
 (** Zero extend from 32 bits to the word size *)
 val zero_extend_32 : Debuginfo.t -> expression -> expression
 
-(** Operations on 63-bit integers *)
+(** Operations on 63-bit integers. These may only be used for compilation to
+    64-bit targets. *)
 
 (** [low_63 _ x] is a value which agrees with x on at least the low 63 bits *)
 val low_63 : Debuginfo.t -> expression -> expression

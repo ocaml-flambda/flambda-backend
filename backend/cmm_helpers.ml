@@ -1204,6 +1204,12 @@ let bigarray_set unsafe elt_kind layout b args newval dbg =
 (* the three functions below assume either 32-bit or 64-bit words *)
 let () = assert (size_int = 4 || size_int = 8)
 
+let check_64_bit_target func =
+  if size_int <> 8
+  then
+    Misc.fatal_errorf
+      "Cmm helpers function %s can only be used on 64-bit targets" func
+
 (* low_32 x is a value which agrees with x on at least the low 32 bits *)
 let rec low_32 dbg = function
   | x when size_int = 4 ->
@@ -1216,6 +1222,7 @@ let rec low_32 dbg = function
 
 (* Like [low_32] but for 63-bit integers held in 64-bit registers. *)
 let[@ocaml.warning "-4"] rec low_63 dbg e =
+  check_64_bit_target "low_63";
   match e with
   | Cop (Casr, [Cop (Clsl, [x; Cconst_int (1, _)], _); Cconst_int (1, _)], _) ->
     low_63 dbg x
@@ -1240,6 +1247,7 @@ let sign_extend_32 dbg e =
           dbg )
 
 let sign_extend_63 dbg e =
+  check_64_bit_target "sign_extend_63";
   let e = low_63 dbg e in
   Cop
     (Casr, [Cop (Clsl, [e; Cconst_int (1, dbg)], dbg); Cconst_int (1, dbg)], dbg)
@@ -1256,6 +1264,7 @@ let zero_extend_32 dbg e =
     | e -> Cop (Cand, [e; natint_const_untagged dbg 0xFFFFFFFFn], dbg)
 
 let zero_extend_63 dbg e =
+  check_64_bit_target "zero_extend_63";
   Cop (Cand, [e; natint_const_untagged dbg 0x7FFF_FFFF_FFFF_FFFFn], dbg)
 
 let and_int e1 e2 dbg =
