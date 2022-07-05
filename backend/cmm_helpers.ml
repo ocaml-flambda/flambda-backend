@@ -1221,7 +1221,7 @@ let rec low_32 dbg = function
   | x -> x
 
 (* Like [low_32] but for 63-bit integers held in 64-bit registers. *)
-let[@ocaml.warning "-4"] rec low_63 dbg e =
+let rec low_63 dbg e =
   check_64_bit_target "low_63";
   match e with
   | Cop (Casr, [Cop (Clsl, [x; Cconst_int (1, _)], _); Cconst_int (1, _)], _) ->
