@@ -1216,7 +1216,6 @@ let rec low_32 dbg = function
 
 (* Like [low_32] but for 63-bit integers held in 64-bit registers. *)
 let[@ocaml.warning "-4"] rec low_63 dbg e =
-  let open Cmm in
   match e with
   | Cop (Casr, [Cop (Clsl, [x; Cconst_int (1, _)], _); Cconst_int (1, _)], _) ->
     low_63 dbg x
@@ -1257,7 +1256,6 @@ let zero_extend_32 dbg e =
     | e -> Cop (Cand, [e; natint_const_untagged dbg 0xFFFFFFFFn], dbg)
 
 let zero_extend_63 dbg e =
-  let open Cmm in
   Cop (Cand, [e; natint_const_untagged dbg 0x7FFF_FFFF_FFFF_FFFFn], dbg)
 
 let and_int e1 e2 dbg =
