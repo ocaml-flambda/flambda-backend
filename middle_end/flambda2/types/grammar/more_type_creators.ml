@@ -315,16 +315,19 @@ let rec unknown_with_subkind (kind : Flambda_kind.With_subkind.t) =
   | Boxed_int64 -> any_boxed_int64
   | Boxed_nativeint -> any_boxed_nativeint
   | Tagged_immediate -> any_tagged_immediate
-  | Block { tag; fields } ->
-    assert (not (Tag.equal tag Tag.double_array_tag));
-    immutable_block ~is_unique:false tag ~field_kind:Flambda_kind.value
-      ~fields:
-        (List.map
-           (fun subkind ->
-             unknown_with_subkind
-               (Flambda_kind.With_subkind.create Flambda_kind.value subkind))
-           fields)
-      Unknown
+  | Variant { consts; non_consts } ->
+    let const_ctors = these_naked_immediates consts in
+    let non_const_ctors =
+      Tag.Scannable.Map.map
+        (fun fields ->
+          List.map
+            (fun subkind ->
+              unknown_with_subkind
+                (Flambda_kind.With_subkind.create Flambda_kind.value subkind))
+            fields)
+        non_consts
+    in
+    variant ~const_ctors ~non_const_ctors Unknown
   | Float_block { num_fields } ->
     immutable_block ~is_unique:false Tag.double_array_tag
       ~field_kind:Flambda_kind.naked_float

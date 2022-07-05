@@ -138,7 +138,10 @@ and array_kind = Lambda.array_kind =
 and value_kind = Lambda.value_kind =
   (* CR mshinwell: Pfloatval should be renamed to Pboxedfloatval *)
     Pgenval | Pfloatval | Pboxedintval of boxed_integer | Pintval
-  | Pblock of { tag : int; fields : value_kind list }
+  | Pvariant of {
+      consts : int list;
+      non_consts : (int * value_kind list) list;
+    }
   | Parrayval of array_kind
 
 and block_shape = Lambda.block_shape

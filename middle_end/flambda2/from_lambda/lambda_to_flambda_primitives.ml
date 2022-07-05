@@ -30,7 +30,7 @@ let convert_block_of_values_field (value_kind : L.value_kind) :
   | Pboxedintval Pint64 -> Boxed_int64
   | Pboxedintval Pnativeint -> Boxed_nativeint
   | Pintval -> Immediate
-  | Pblock _ | Parrayval _ -> Any_value
+  | Pvariant _ | Parrayval _ -> Any_value
 
 let convert_integer_comparison_prim (comp : L.integer_comparison) :
     P.binary_primitive =

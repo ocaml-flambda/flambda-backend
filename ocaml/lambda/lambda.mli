@@ -193,7 +193,13 @@ and array_kind =
 
 and value_kind =
     Pgenval | Pfloatval | Pboxedintval of boxed_integer | Pintval
-  | Pblock of { tag : int; fields : value_kind list }
+  | Pvariant of {
+      consts : int list;
+      non_consts : (int * value_kind list) list;
+      (** [non_consts] must be non-empty.  For constant variants [Pintval]
+          must be used.  This causes a small loss of precision but it is not
+          expected to be significant. *)
+    }
   | Parrayval of array_kind
 
 and block_shape =
