@@ -63,8 +63,8 @@ let flush_cmm_helpers_state () =
 
 let unit0 ~offsets ~make_symbol flambda_unit ~all_code =
   (* If someone wants to add 32-bit support in the future there will be a
-     (merged) PR on ocaml-flambda/flambda-backend which can be used as a
-     guide. *)
+     (merged) PR on ocaml-flambda/flambda-backend which can be used as a guide:
+     https://github.com/ocaml-flambda/flambda-backend/pull/685 *)
   if Target_system.is_32_bit
   then
     Misc.fatal_error
