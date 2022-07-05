@@ -460,11 +460,14 @@ let binary_int_shift_primitive _env dbg kind op x y =
      and use of [C.low_32]. *)
   | Naked_int32, Lsl -> C.sign_extend_32 dbg (C.lsl_int (C.low_32 dbg x) y dbg)
   | Naked_int32, Lsr ->
+    (* Ensure that the top half of the register is cleared, as some of those
+       bits are likely to get shifted into the result. *)
     let arg = C.zero_extend_32 dbg x in
     C.sign_extend_32 dbg (C.lsr_int arg y dbg)
   | Naked_int32, Asr -> C.sign_extend_32 dbg (C.asr_int x y dbg)
   | Naked_immediate, Lsl -> sign_extend_63 dbg (C.lsl_int (low_63 dbg x) y dbg)
   | Naked_immediate, Lsr ->
+    (* Same comment as in the [Naked_int32] case above re. zero extension. *)
     let arg = zero_extend_63 dbg x in
     sign_extend_63 dbg (C.lsr_int arg y dbg)
   | Naked_immediate, Asr -> sign_extend_63 dbg (C.asr_int x y dbg)
