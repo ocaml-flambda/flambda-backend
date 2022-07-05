@@ -325,7 +325,7 @@ let add_parameters ?(name_mode = Name_mode.normal) ?at_unit_toplevel t params
       add_variable0 t var param_type ~at_unit_toplevel)
     t params param_types
 
-let add_parameters_with_unknown_types' ?alloc_modes ?name_mode ?at_unit_toplevel
+let add_parameters_with_unknown_types ?alloc_modes ?name_mode ?at_unit_toplevel
     t params =
   let params' = params in
   let params = Bound_parameters.to_list params in

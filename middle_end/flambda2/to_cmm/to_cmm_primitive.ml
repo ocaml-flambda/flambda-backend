@@ -463,9 +463,6 @@ let binary_int_comp_primitive _env dbg kind cmp x y =
   | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Ge Unsigned
     ->
     C.uge ~dbg x y
-  (* int64 special case *)
-  | Naked_int64, (Eq | Neq) when Target_system.is_32_bit ->
-    C.unsupported_32_bit ()
   | ( ( Tagged_immediate | Naked_int32 | Naked_int64 | Naked_nativeint
       | Naked_immediate ),
       Eq ) ->

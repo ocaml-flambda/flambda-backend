@@ -840,7 +840,7 @@ let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
     DA.map_data_flow dacc_after_body
       ~f:(Data_flow.enter_continuation cont (Bound_parameters.vars params))
   in
-  let denv, _arg_types =
+  let denv =
     DE.add_parameters_with_unknown_types ~at_unit_toplevel:false
       denv_before_body params
   in
