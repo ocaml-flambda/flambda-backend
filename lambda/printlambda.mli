@@ -24,6 +24,9 @@ val lambda: formatter -> lambda -> unit
 val program: formatter -> program -> unit
 val primitive: formatter -> primitive -> unit
 val name_of_primitive : primitive -> string
+val variant_kind : (formatter -> value_kind -> unit) ->
+  formatter -> consts:int list -> non_consts:(int * value_kind list) list ->
+  unit
 val value_kind : formatter -> value_kind -> unit
 val value_kind' : formatter -> value_kind -> unit
 val block_shape : formatter -> value_kind list option -> unit
