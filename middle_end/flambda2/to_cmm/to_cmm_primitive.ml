@@ -265,7 +265,6 @@ let unary_float_arith_primitive _env dbg op arg =
   | Neg -> C.float_neg ~dbg arg
 
 let arithmetic_conversion dbg src dst arg =
-  (* XXX make sure there are no problems here with Naked_immediate *)
   let open K.Standard_int_or_float in
   match src, dst with
   (* 64-bit on 32-bit host specific cases *)
@@ -285,7 +284,7 @@ let arithmetic_conversion dbg src dst arg =
   | ( (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate),
       Tagged_immediate ) ->
     None, C.tag_int arg dbg
-  | Tagged_immediate, (Naked_int64 | Naked_nativeint | Naked_immediate) ->
+  | Tagged_immediate, (Naked_int64 | Naked_nativeint) ->
     Some (Env.Untag arg), C.untag_int arg dbg
   (* Operations resulting in int32s must take care to sign extend the result *)
   (* CR-someday xclerc: untag_int followed by sign_extend_32 sounds suboptimal,
@@ -294,6 +293,8 @@ let arithmetic_conversion dbg src dst arg =
      though.) *)
   | Tagged_immediate, Naked_int32 ->
     None, C.sign_extend_32 dbg (C.untag_int arg dbg)
+  | Tagged_immediate, Naked_immediate ->
+    None, C.sign_extend_63 dbg (C.untag_int arg dbg)
   | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Naked_int32
     ->
     None, C.sign_extend_32 dbg arg
@@ -312,10 +313,12 @@ let arithmetic_conversion dbg src dst arg =
     None, C.float_of_int ~dbg arg
   | Naked_float, Tagged_immediate ->
     None, C.tag_int (C.int_of_float ~dbg arg) dbg
-  | Naked_float, (Naked_immediate | Naked_int64 | Naked_nativeint) ->
+  | Naked_float, (Naked_int64 | Naked_nativeint) ->
     None, C.int_of_float ~dbg arg
   | Naked_float, Naked_int32 ->
     None, C.sign_extend_32 dbg (C.int_of_float ~dbg arg)
+  | Naked_float, Naked_immediate ->
+    None, C.sign_extend_63 dbg (C.int_of_float ~dbg arg)
 
 let binary_phys_comparison _env dbg kind op x y =
   match (kind : K.t), (op : P.equality_comparison) with
