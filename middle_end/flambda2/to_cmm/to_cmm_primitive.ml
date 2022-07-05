@@ -245,9 +245,8 @@ let unary_int_arith_primitive _env dbg kind op arg =
   (* Byte swaps of 32-bit integers on 64-bit targets need a sign-extension in
      order to match the Lambda semantics (where the swap might affect the
      sign). *)
-  | Naked_int32, Swap_byte_endianness when Target_system.is_64_bit ->
+  | Naked_int32, Swap_byte_endianness ->
     C.sign_extend_32 dbg (C.bbswap Pint32 arg dbg)
-  | Naked_int32, Swap_byte_endianness -> C.bbswap Pint32 arg dbg
   | Naked_int64, Swap_byte_endianness -> C.bbswap Pint64 arg dbg
   | Naked_nativeint, Swap_byte_endianness -> C.bbswap Pnativeint arg dbg
 
