@@ -1241,7 +1241,7 @@ let sign_extend_32 dbg e =
           dbg )
 
 let sign_extend_63 dbg e =
-  let open Cmm in
+  let e = low_63 dbg e in
   Cop
     (Casr, [Cop (Clsl, [e; Cconst_int (1, dbg)], dbg); Cconst_int (1, dbg)], dbg)
 
