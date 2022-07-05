@@ -491,7 +491,6 @@ let binary_int_comp_primitive0 _env dbg (kind : K.Standard_int.t)
     | Unsigned, Gt -> C.ugt ~dbg (C.ignore_low_bit_int x) y
     | Unsigned, Ge -> C.uge ~dbg x (C.ignore_low_bit_int y))
   | Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate -> (
-    (* XXX check if this is right for Naked_immediate *)
     match signed, cmp with
     | Signed, Lt -> C.lt ~dbg x y
     | Signed, Le -> C.le ~dbg x y
