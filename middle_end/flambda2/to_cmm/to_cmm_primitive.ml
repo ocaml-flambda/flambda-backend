@@ -172,10 +172,7 @@ let string_like_load_aux ~dbg width ~str ~index =
   | Eight -> C.load ~dbg Byte_unsigned Mutable ~addr:(C.add_int str index dbg)
   | Sixteen -> C.unaligned_load_16 str index dbg
   | Thirty_two -> C.sign_extend_32 dbg (C.unaligned_load_32 str index dbg)
-  | Sixty_four ->
-    if Target_system.is_32_bit
-    then C.unsupported_32_bit ()
-    else C.unaligned_load_64 str index dbg
+  | Sixty_four -> C.unaligned_load_64 str index dbg
 
 let string_like_load ~dbg kind width ~str ~index =
   match (kind : P.string_like_value) with
@@ -194,10 +191,7 @@ let bytes_or_bigstring_set_aux ~dbg width ~bytes ~index ~new_value =
     C.store ~dbg Byte_unsigned Assignment ~addr ~new_value
   | Sixteen -> C.unaligned_set_16 bytes index new_value dbg
   | Thirty_two -> C.unaligned_set_32 bytes index new_value dbg
-  | Sixty_four ->
-    if Target_system.is_32_bit
-    then C.unsupported_32_bit ()
-    else C.unaligned_set_64 bytes index new_value dbg
+  | Sixty_four -> C.unaligned_set_64 bytes index new_value dbg
 
 let bytes_or_bigstring_set ~dbg kind width ~bytes ~index ~new_value =
   let expr =
@@ -241,8 +235,6 @@ let unary_int_arith_primitive _env dbg kind op arg =
        arises from the [Pbswap16] Lambda primitive. That operation does not
        affect the sign of the resulting value. *)
     C.bswap16 arg dbg
-  (* Special case for manipulating int64 on 32-bit hosts *)
-  | Naked_int64, Neg when Target_system.is_32_bit -> C.unsupported_32_bit ()
   (* Negation needs a sign-extension for 32-bit and 63-bit values *)
   | Naked_immediate, Neg ->
     C.sign_extend_63 dbg (C.sub_int (C.int ~dbg 0) (C.low_63 dbg arg) dbg)
@@ -253,9 +245,8 @@ let unary_int_arith_primitive _env dbg kind op arg =
   (* Byte swaps of 32-bit integers on 64-bit targets need a sign-extension in
      order to match the Lambda semantics (where the swap might affect the
      sign). *)
-  | Naked_int32, Swap_byte_endianness when Target_system.is_64_bit ->
+  | Naked_int32, Swap_byte_endianness ->
     C.sign_extend_32 dbg (C.bbswap Pint32 arg dbg)
-  | Naked_int32, Swap_byte_endianness -> C.bbswap Pint32 arg dbg
   | Naked_int64, Swap_byte_endianness -> C.bbswap Pint64 arg dbg
   | Naked_nativeint, Swap_byte_endianness -> C.bbswap Pnativeint arg dbg
 
@@ -267,17 +258,6 @@ let unary_float_arith_primitive _env dbg op arg =
 let arithmetic_conversion dbg src dst arg =
   let open K.Standard_int_or_float in
   match src, dst with
-  (* 64-bit on 32-bit host specific cases *)
-  | Naked_int64, Tagged_immediate
-  | Naked_int64, Naked_int32
-  | Naked_int64, (Naked_nativeint | Naked_immediate)
-  | Naked_int64, Naked_float
-  | Tagged_immediate, Naked_int64
-  | Naked_int32, Naked_int64
-  | (Naked_nativeint | Naked_immediate), Naked_int64
-  | Naked_float, Naked_int64
-    when Target_system.is_32_bit ->
-    C.unsupported_32_bit ()
   (* Identity on floats *)
   | Naked_float, Naked_float -> None, arg
   (* Conversions to and from tagged ints *)
@@ -322,10 +302,6 @@ let arithmetic_conversion dbg src dst arg =
 
 let binary_phys_comparison _env dbg kind op x y =
   match (kind : K.t), (op : P.equality_comparison) with
-  (* int64 special case on 32-bit platforms *)
-  | (Naked_number Naked_int64, Eq | Naked_number Naked_int64, Neq)
-    when Target_system.is_32_bit ->
-    C.unsupported_32_bit ()
   (* General case *)
   | ( ( Value
       | Naked_number
@@ -337,7 +313,7 @@ let binary_phys_comparison _env dbg kind op x y =
   | (Region | Rec_info), _ ->
     Misc.fatal_errorf "Invalid kind %a for binary_phys_comparison" K.print kind
 
-let binary_int_arith_primitive0 _env dbg (kind : K.Standard_int.t)
+let binary_int_arith_primitive _env dbg (kind : K.Standard_int.t)
     (op : P.binary_int_arith_op) x y =
   match kind with
   | Tagged_immediate -> (
@@ -418,29 +394,8 @@ let binary_int_arith_primitive0 _env dbg (kind : K.Standard_int.t)
     | Div -> C.safe_div_bi Unsafe x y bi dbg
     | Mod -> C.safe_mod_bi Unsafe x y bi dbg)
 
-(* Temporary wrapper until the PR for removing 32-bit support is done, to permit
-   refactoring of the above function *)
-let binary_int_arith_primitive env dbg kind op x y =
-  match (kind : K.Standard_int.t), (op : P.binary_int_arith_op) with
-  (* 64-bit ints on 32-bit archs *)
-  | Naked_int64, (Add | Sub | Mul | Div | Mod | And | Or | Xor)
-    when Target_system.is_32_bit ->
-    C.unsupported_32_bit ()
-  | ( ( Tagged_immediate | Naked_int32 | Naked_int64 | Naked_nativeint
-      | Naked_immediate ),
-      (Add | Sub | Mul | Div | Mod | And | Or | Xor) ) ->
-    binary_int_arith_primitive0 env dbg kind op x y
-
 let binary_int_shift_primitive _env dbg kind op x y =
   match (kind : K.Standard_int.t), (op : P.int_shift_op) with
-  (* Int64 special case *)
-  | Naked_int64, Lsl when Target_system.is_32_bit ->
-    C.unsupported_32_bit ()
-    (* caml primitives for these have no native/unboxed version *)
-  | Naked_int64, Lsr when Target_system.is_32_bit ->
-    C.unsupported_32_bit ()
-    (* caml primitives for these have no native/unboxed version *)
-  | Naked_int64, Asr when Target_system.is_32_bit -> C.unsupported_32_bit ()
   (* caml primitives for these have no native/unboxed version *)
   (* Tagged integers *)
   | Tagged_immediate, Lsl -> C.lsl_int_caml_raw ~dbg x y
@@ -467,7 +422,7 @@ let binary_int_shift_primitive _env dbg kind op x y =
   | (Naked_int64 | Naked_nativeint), Lsr -> C.lsr_int x y dbg
   | (Naked_int64 | Naked_nativeint), Asr -> C.asr_int x y dbg
 
-let binary_int_comp_primitive0 _env dbg (kind : K.Standard_int.t)
+let binary_int_comp_primitive _env dbg (kind : K.Standard_int.t)
     (signed : P.signed_or_unsigned) (cmp : P.ordered_comparison) x y =
   match kind with
   | Tagged_immediate -> (
@@ -500,29 +455,6 @@ let binary_int_comp_primitive0 _env dbg (kind : K.Standard_int.t)
     | Unsigned, Le -> C.ule ~dbg x y
     | Unsigned, Gt -> C.ugt ~dbg x y
     | Unsigned, Ge -> C.uge ~dbg x y)
-
-(* Temporary wrapper until the PR for removing 32-bit support is done, to permit
-   refactoring of the above function *)
-let binary_int_comp_primitive env dbg kind signed cmp x y =
-  match
-    ( (kind : K.Standard_int.t),
-      (signed : P.signed_or_unsigned),
-      (cmp : P.ordered_comparison) )
-  with
-  (* XXX arch32 cases need [untag_int] now. *)
-  | Naked_int64, Signed, Lt
-  | Naked_int64, Signed, Le
-  | Naked_int64, Signed, Gt
-  | Naked_int64, Signed, Ge
-  | Naked_int64, Unsigned, (Lt | Le | Gt | Ge)
-    when Target_system.is_32_bit ->
-    C.unsupported_32_bit ()
-  (* There are no runtime C functions to do that afaict *)
-  | ( ( Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate
-      | Tagged_immediate ),
-      (Signed | Unsigned),
-      (Lt | Le | Gt | Ge) ) ->
-    binary_int_comp_primitive0 env dbg kind signed cmp x y
 
 let binary_int_comp_primitive_yielding_int _env dbg _kind
     (signed : P.signed_or_unsigned) x y =

@@ -15,10 +15,6 @@
 open! Cmm_helpers
 module Ece = Effects_and_coeffects
 
-let unsupported_32_bit () =
-  Misc.fatal_errorf
-    "Flambda 2 does not currently support compilation to 32-bit architectures"
-
 let exttype_of_kind (k : Flambda_kind.t) : Cmm.exttype =
   match k with
   | Value -> XInt
@@ -104,11 +100,7 @@ let const_static cst =
            (tag_targetint (Targetint_31_63.to_targetint' i))) ]
   | Naked_float f -> [cfloat (Numeric_types.Float_by_bit_pattern.to_float f)]
   | Naked_int32 i -> [cint (Nativeint.of_int32 i)]
-  | Naked_int64 i ->
-    (* On 32-bit architectures, int64 values have to be split. *)
-    if Target_system.is_32_bit
-    then unsupported_32_bit ()
-    else [cint (Int64.to_nativeint i)]
+  | Naked_int64 i -> [cint (Int64.to_nativeint i)]
   | Naked_nativeint t -> [cint (nativeint_of_targetint t)]
 
 let simple_static s =
