@@ -1202,6 +1202,12 @@ let bigarray_set unsafe elt_kind layout b args newval dbg =
 (* the three functions below assume either 32-bit or 64-bit words *)
 let () = assert (size_int = 4 || size_int = 8)
 
+let check_64_bit_target func =
+  if size_int <> 8
+  then
+    Misc.fatal_errorf
+      "Cmm helpers function %s can only be used on 64-bit targets" func
+
 (* low_32 x is a value which agrees with x on at least the low 32 bits *)
 let rec low_32 dbg = function
   | x when size_int = 4 ->
@@ -1211,6 +1217,19 @@ let rec low_32 dbg = function
     low_32 dbg x
   | Clet (id, e, body) -> Clet (id, e, low_32 dbg body)
   | x -> x
+
+(* Like [low_32] but for 63-bit integers held in 64-bit registers. *)
+(* CR gbury: Why not use Cmm.map_tail here ? It seems designed for that kind of
+   thing (and covers more cases than just Clet). *)
+let rec low_63 dbg e =
+  check_64_bit_target "low_63";
+  match e with
+  | Cop (Casr, [Cop (Clsl, [x; Cconst_int (1, _)], _); Cconst_int (1, _)], _) ->
+    low_63 dbg x
+  | Cop (Cand, [x; Cconst_natint (0x7FFF_FFFF_FFFF_FFFFn, _)], _) ->
+    low_63 dbg x
+  | Clet (id, x, body) -> Clet (id, x, low_63 dbg body)
+  | _ -> e
 
 (* sign_extend_32 sign-extends values from 32 bits to the word size. (if the
    word size is 32, this is a no-op) *)
@@ -1227,6 +1246,15 @@ let sign_extend_32 dbg e =
           [Cop (Clsl, [e; Cconst_int (32, dbg)], dbg); Cconst_int (32, dbg)],
           dbg )
 
+(* CR-someday mshinwell/gbury: sign_extend_63 then tag_int should simplify to
+   just tag_int. Similarly, untag_int then sign_extend_63 should simplify to
+   untag_int. *)
+let sign_extend_63 dbg e =
+  check_64_bit_target "sign_extend_63";
+  let e = low_63 dbg e in
+  Cop
+    (Casr, [Cop (Clsl, [e; Cconst_int (1, dbg)], dbg); Cconst_int (1, dbg)], dbg)
+
 (* zero_extend_32 zero-extends values from 32 bits to the word size. (if the
    word size is 32, this is a no-op) *)
 let zero_extend_32 dbg e =
@@ -1237,6 +1265,11 @@ let zero_extend_32 dbg e =
     | Cop (Cload ((Thirtytwo_signed | Thirtytwo_unsigned), mut), args, dbg) ->
       Cop (Cload (Thirtytwo_unsigned, mut), args, dbg)
     | e -> Cop (Cand, [e; natint_const_untagged dbg 0xFFFFFFFFn], dbg)
+
+let zero_extend_63 dbg e =
+  check_64_bit_target "zero_extend_63";
+  let e = low_63 dbg e in
+  Cop (Cand, [e; natint_const_untagged dbg 0x7FFF_FFFF_FFFF_FFFFn], dbg)
 
 let and_int e1 e2 dbg =
   let is_mask32 = function
