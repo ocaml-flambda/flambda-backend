@@ -58,7 +58,7 @@ let translate_apply0 env apply =
         Apply.print apply
   in
   let pos =
-    match Apply.position e with
+    match Apply.position apply with
     | Normal ->
       (* We always use [Rc_normal] since the [Lambda_to_flambda] pass has
          already taken care of the placement of region begin/end primitives. *)
@@ -446,8 +446,6 @@ and let_cont_exn_handler env res k body vars handler ~catch_id arity =
           match kind with
           | Value -> C.int ~dbg 1
           | Naked_number Naked_float -> C.float ~dbg 0.
-          | Naked_number Naked_int64 when Target_system.is_32_bit ->
-            C.unsupported_32_bit ()
           | Naked_number
               (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint) ->
             C.int ~dbg 0
