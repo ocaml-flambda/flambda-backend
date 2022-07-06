@@ -871,8 +871,12 @@ and meet_env_extension0 env (ext1 : TEE.t) (ext2 : TEE.t) extra_extensions :
           match meet env ty0 ty with
           | Bottom -> raise Bottom_meet
           | Ok (ty, new_ext) ->
-            MTC.check_equation name ty;
-            Name.Map.add (*replace*) name ty eqs, new_ext :: extra_extensions))
+            let eqs =
+              if MTC.is_alias_of_name ty name
+              then Name.Map.remove name eqs
+              else Name.Map.add (* replace *) name ty eqs
+            in
+            eqs, new_ext :: extra_extensions))
       (TEE.to_map ext2)
       (TEE.to_map ext1, extra_extensions)
   in
