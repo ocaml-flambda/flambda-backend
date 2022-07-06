@@ -83,3 +83,7 @@ val make_update :
   index:int ->
   prev_updates:Cmm.expression option ->
   To_cmm_env.t * Cmm.expression option
+
+val check_arity : Flambda_arity.With_subkinds.t -> _ list -> bool
+
+val machtype_of_return_arity : Flambda_arity.t -> Cmm.machtype

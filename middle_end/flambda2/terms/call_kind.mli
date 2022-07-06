@@ -34,10 +34,16 @@ module Function_call : sig
         }
 end
 
-type method_kind =
-  | Self
-  | Public
-  | Cached
+module Method_kind : sig
+  type t = private
+    | Self
+    | Public
+    | Cached
+
+  val from_lambda : Lambda.meth_kind -> t
+
+  val to_lambda : t -> Lambda.meth_kind
+end
 
 (** Whether an application expression corresponds to an OCaml function
     invocation, an OCaml method invocation, or an external call. *)
@@ -47,7 +53,7 @@ type t = private
         alloc_mode : Alloc_mode.t
       }
   | Method of
-      { kind : method_kind;
+      { kind : Method_kind.t;
         obj : Simple.t;
         alloc_mode : Alloc_mode.t
       }
@@ -75,9 +81,7 @@ val indirect_function_call_known_arity :
   Alloc_mode.t ->
   t
 
-val method_call : method_kind -> obj:Simple.t -> Alloc_mode.t -> t
-
-val method_kind_from_lambda : Lambda.meth_kind -> method_kind
+val method_call : Method_kind.t -> obj:Simple.t -> Alloc_mode.t -> t
 
 val c_call :
   alloc:bool ->

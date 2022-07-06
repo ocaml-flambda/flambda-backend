@@ -139,10 +139,13 @@ let create_variable env v =
 
 let create_variables env vs = List.fold_left_map create_variable env vs
 
-let extra_info env v =
-  match Variable.Map.find v env.vars_extra with
-  | extra_info -> Some extra_info
-  | exception Not_found -> None
+let extra_info env simple =
+  match Simple.must_be_var simple with
+  | None -> None
+  | Some (var, _coercion) -> (
+    match Variable.Map.find var env.vars_extra with
+    | extra_info -> Some extra_info
+    | exception Not_found -> None)
 
 (* Continuations *)
 

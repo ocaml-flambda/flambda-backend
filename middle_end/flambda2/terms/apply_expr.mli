@@ -113,3 +113,7 @@ val inlining_arguments : t -> Inlining_arguments.t
 val probe_name : t -> string option
 
 val relative_history : t -> Inlining_history.Relative.t
+
+(** Returns [true] if the application returns to the caller, [false] if it is
+    non terminating. *)
+val returns : t -> bool

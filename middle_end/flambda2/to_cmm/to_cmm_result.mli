@@ -50,6 +50,11 @@ val add_function : t -> Cmm.fundecl -> t
     of whether the module block symbol for the current unit has been defined. *)
 val check_for_module_symbol : t -> Symbol.t -> t
 
+(** Caching of symbols associated with [Invalid] messages. *)
+val add_invalid_message_symbol : t -> Symbol.t -> message:string -> t
+
+val invalid_message_symbol : t -> message:string -> Symbol.t option
+
 type result = private
   { data_items : Cmm.phrase list;
     gc_roots : Symbol.t list;

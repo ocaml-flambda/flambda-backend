@@ -882,7 +882,7 @@ let close_exact_or_unknown_apply acc env
     | Method { kind; obj } ->
       let acc, obj = find_simple acc env obj in
       ( acc,
-        Call_kind.method_call (Call_kind.method_kind_from_lambda kind) ~obj mode
+        Call_kind.method_call (Call_kind.Method_kind.from_lambda kind) ~obj mode
       )
   in
   let acc, apply_exn_continuation =

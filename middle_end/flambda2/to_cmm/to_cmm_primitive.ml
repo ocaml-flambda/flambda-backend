@@ -18,6 +18,10 @@ module EO = Exported_offsets
 module K = Flambda_kind
 module P = Flambda_primitive
 
+(* Note about [Int32]: values of this kind are stored in 64-bit registers and
+   must be sign extended. We do this immediately after every operation unless it
+   is known that the sign extension can be elided. *)
+
 (* Cmm helpers *)
 module C = struct
   include Cmm_helpers

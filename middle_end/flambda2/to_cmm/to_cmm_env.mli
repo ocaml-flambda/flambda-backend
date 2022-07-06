@@ -146,8 +146,9 @@ val inline_variable :
 val flush_delayed_lets :
   ?entering_loop:bool -> t -> (Cmm.expression -> Cmm.expression) * t
 
-(** Fetch the extra info for a Flambda variable (if any). *)
-val extra_info : t -> Variable.t -> extra_info option
+(** Fetch the extra info for a Flambda variable (if any), specified as a
+    [Simple]. *)
+val extra_info : t -> Simple.t -> extra_info option
 
 (** {2 Continuation bindings} *)
 

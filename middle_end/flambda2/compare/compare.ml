@@ -873,9 +873,9 @@ let blocks env block1 block2 =
     ~subst3:(fun env -> List.map (subst_field env))
     env block1 block2
 
-let method_kinds _env (method_kind1 : Call_kind.method_kind)
-    (method_kind2 : Call_kind.method_kind) : Call_kind.method_kind Comparison.t
-    =
+let method_kinds _env (method_kind1 : Call_kind.Method_kind.t)
+    (method_kind2 : Call_kind.Method_kind.t) :
+    Call_kind.Method_kind.t Comparison.t =
   match method_kind1, method_kind2 with
   | Self, Self | Public, Public | Cached, Cached -> Equivalent
   | _, _ -> Different { approximant = method_kind1 }

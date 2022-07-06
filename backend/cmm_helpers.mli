@@ -1197,3 +1197,12 @@ val gc_root_table :
   make_symbol:(?unitname:string -> string option -> string) ->
   string list ->
   phrase
+
+(* An estimate of the number of arithmetic instructions in a Cmm expression.
+   This is currently used in Flambda 2 to determine whether untagging an
+   expression resulted in a smaller expression or not (as can happen because of
+   some arithmetic simplifications performed by functions in this file).
+
+   If [None] is returned, that means "no estimate available". The expression
+   should be assumed to be potentially large. *)
+val cmm_arith_size : expression -> int option

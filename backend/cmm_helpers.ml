@@ -4149,3 +4149,24 @@ let gc_root_table ~make_symbol syms =
     (define_symbol ~global:true table_symbol
     @ List.map symbol_address syms
     @ [cint 0n])
+
+let cmm_arith_size (e : Cmm.expression) =
+  let rec cmm_arith_size0 (e : Cmm.expression) =
+    match e with
+    | Cop
+        ( ( Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi | Cand | Cor | Cxor
+          | Clsl | Clsr | Casr ),
+          l,
+          _ ) ->
+      List.fold_left ( + ) 1 (List.map cmm_arith_size0 l)
+    | _ -> 0
+  in
+  match e with
+  | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _ | Cvar _
+    ->
+    Some 0
+  | Cop _ -> Some (cmm_arith_size0 e)
+  | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _ | Ctuple _ | Csequence _
+  | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ | Cregion _
+  | Ctail _ ->
+    None

@@ -13,6 +13,7 @@
 (**************************************************************************)
 
 module C = Cmm_helpers
+module String = Misc.Stdlib.String
 
 type t =
   { gc_roots : Symbol.t list;
@@ -20,7 +21,8 @@ type t =
     functions : Cmm.fundecl list;
     current_data : Cmm.data_item list;
     module_symbol : Symbol.t;
-    module_symbol_defined : bool
+    module_symbol_defined : bool;
+    invalid_message_symbols : Symbol.t String.Map.t
   }
 
 let create ~module_symbol =
@@ -29,7 +31,8 @@ let create ~module_symbol =
     functions = [];
     current_data = [];
     module_symbol;
-    module_symbol_defined = false
+    module_symbol_defined = false;
+    invalid_message_symbols = String.Map.empty
   }
 
 let check_for_module_symbol t symbol =
@@ -99,6 +102,15 @@ let define_module_symbol_if_missing r =
     in
     let l = C.emit_block (linkage_name, Global) (C.black_block_header 0 0) [] in
     set_data r l
+
+let add_invalid_message_symbol t symbol ~message =
+  { t with
+    invalid_message_symbols =
+      String.Map.add message symbol t.invalid_message_symbols
+  }
+
+let invalid_message_symbol t ~message =
+  String.Map.find_opt message t.invalid_message_symbols
 
 let to_cmm r =
   (* Make sure the module symbol is defined *)

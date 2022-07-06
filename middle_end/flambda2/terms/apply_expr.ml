@@ -308,3 +308,6 @@ let with_continuation_callee_and_args t continuation ~callee ~args =
 let inlining_arguments t = inlining_state t |> Inlining_state.arguments
 
 let probe_name t = t.probe_name
+
+let returns t =
+  match continuation t with Return _ -> true | Never_returns -> false

@@ -133,22 +133,32 @@ let bound_parameters env l =
 
 let invalid res ~message =
   let dbg = Debuginfo.none in
-  let message_sym =
-    Symbol.create
-      (Compilation_unit.get_current_exn ())
-      (Linkage_name.create (Variable.unique_name (Variable.create "invalid")))
-  in
-  let data_items =
-    Cmm_helpers.emit_string_constant
-      (Symbol.linkage_name_as_string message_sym, Global)
-      message []
-    |> To_cmm_result.add_archive_data_items res
+  let message_sym, res =
+    match To_cmm_result.invalid_message_symbol res ~message with
+    | None ->
+      let message_sym =
+        Symbol.create
+          (Compilation_unit.get_current_exn ())
+          (Linkage_name.create
+             (Variable.unique_name (Variable.create "invalid")))
+      in
+      let res =
+        Cmm_helpers.emit_string_constant
+          (Symbol.linkage_name_as_string message_sym, Global)
+          message []
+        |> To_cmm_result.add_archive_data_items res
+      in
+      let res =
+        To_cmm_result.add_invalid_message_symbol res message_sym ~message
+      in
+      message_sym, res
+    | Some message_sym -> message_sym, res
   in
   let call_expr =
     extcall ~dbg ~alloc:false ~is_c_builtin:false ~returns:false ~ty_args:[XInt]
       "caml_flambda2_invalid" Cmm.typ_void [symbol ~dbg message_sym]
   in
-  call_expr, data_items
+  call_expr, res
 
 let make_update env dbg kind ~symbol var ~index ~prev_updates =
   let e, env, _ece = To_cmm_env.inline_variable env var in
@@ -157,3 +167,18 @@ let make_update env dbg kind ~symbol var ~index ~prev_updates =
   match prev_updates with
   | None -> env, Some update
   | Some prev_updates -> env, Some (sequence prev_updates update)
+
+let check_arity arity args =
+  Flambda_arity.With_subkinds.cardinal arity = List.length args
+
+let machtype_of_return_arity arity =
+  (* Functions that never return have arity 0. In that case, we use the most
+     restrictive machtype to ensure that the return value of the function is not
+     used. *)
+  match Flambda_arity.to_list arity with
+  | [] -> Cmm.typ_void
+  (* Regular functions with a single return value *)
+  | [k] -> machtype_of_kind k
+  | _ ->
+    (* CR gbury: update when unboxed tuples are used *)
+    Misc.fatal_errorf "Functions are currently limited to a single return value"
