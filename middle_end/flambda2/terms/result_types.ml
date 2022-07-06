@@ -109,7 +109,6 @@ module Bound = struct
 end
 
 module A = Name_abstraction.Make (Bound) (TEEV)
-module FN = Name_abstraction.Make_free_names (Bound) (TEEV)
 
 type t = A.t
 
@@ -161,7 +160,10 @@ let pattern_match t ~f =
     ~f:(fun { Bound.params; results; other_vars = _ } env_extension ->
       f ~params ~results env_extension)
 
-let free_names = FN.free_names
+let free_names t =
+  Name_abstraction.free_names
+    (module Bound)
+    t ~free_names_of_term:TEEV.free_names
 
 let apply_renaming = A.apply_renaming
 
