@@ -38,9 +38,9 @@ val fn2 : ?hash_args:('a * 'b -> int) -> 'c t -> ('a -> 'b -> 'c) t
 
 val fn3 : ?hash_args:('a * 'b * 'c -> int) -> 'd t -> ('a -> 'b -> 'c -> 'd) t
 
-val code : ?hash_arg:('a -> int) -> 'b t -> ('a, 'b) Code.t t
+val function_ : ?hash_arg:('a -> int) -> 'b t -> ('a, 'b) Function.t t
 
-val code_w_id : ?hash_arg:('a -> int) -> 'a t -> ('a, 'a) Code.t t
+val function_w_id : ?hash_arg:('a -> int) -> 'a t -> ('a, 'a) Function.t t
 
 (** Generate a value from one of the given generators, each having the given
     relative weight. *)

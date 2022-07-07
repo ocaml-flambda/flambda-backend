@@ -22,7 +22,7 @@ val list : 'a t -> 'a list t
 
 val fn : ('a -> 'b) t
 
-val code : 'b t -> ('a, 'b) Code.t t
+val function_ : 'b t -> ('a, 'b) Function.t t
 
 module T : sig
   type nonrec 'a t = 'a t

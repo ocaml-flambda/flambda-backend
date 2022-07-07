@@ -20,7 +20,7 @@ module Outcome = struct
     | Failure :
         { failure : Failure.t;
           counterexample : 'repr;
-          type_ : ('a, 'repr) Type.t;
+          arbitrary_impl : ('a, 'repr) Arbitrary.t;
           shrink_steps : int;
           attempt : int
         }
@@ -31,7 +31,8 @@ module Outcome = struct
   let report t ~attempts ~duration =
     match t with
     | Success -> Format.eprintf "PASSED %d attempts (%f s)@." attempts duration
-    | Failure { failure; counterexample; type_; shrink_steps; attempt } ->
+    | Failure { failure; counterexample; arbitrary_impl; shrink_steps; attempt }
+      ->
       let explanation =
         match failure with
         | Returned_false -> "returned false"
@@ -44,7 +45,9 @@ module Outcome = struct
       | Returned_false -> ()
       | Raised exn -> Format.eprintf "%s@." (Printexc.to_string exn));
       Format.eprintf "@[<hov 2>Counterexample (shrunk %d times):@ %a@]@."
-        shrink_steps (Type.print type_) counterexample
+        shrink_steps
+        (Arbitrary.print arbitrary_impl)
+        counterexample
 end
 
 type t = { mutable outcomes_rev : Outcome.t list }
@@ -57,34 +60,35 @@ module Outcome_of_one_attempt = struct
     | Failure of Failure.t
 end
 
-let check_once _t ~f ~(type_ : (_, 'repr) Type.t) (repr : 'repr) :
+let check_once _t ~f ~(arbitrary_impl : (_, 'repr) Arbitrary.t) (repr : 'repr) :
     Outcome_of_one_attempt.t =
-  match f (Type.value type_ repr) with
+  match f (Arbitrary.value arbitrary_impl repr) with
   | true -> Success
   | false -> Failure Returned_false
   | exception e -> Failure (Raised e)
 
 let check0 ?(n = default_attempts) ?(seed = default_seed)
-    ?(verbose = default_verbose) t ~type_ ~f ~name =
+    ?(verbose = default_verbose) t ~arbitrary_impl ~f ~name =
   Format.eprintf "%s: " name;
   let start = Sys.time () in
   let r = Splittable_random.of_int seed in
   let i = ref 1 in
   let outcome = ref Outcome.Success in
   while Outcome.is_success !outcome && !i <= n do
-    let repr = Type.generate_repr type_ r in
+    let repr = Arbitrary.generate_repr arbitrary_impl r in
     if verbose
     then
-      Format.eprintf "@[<hov 2>Attempt %d/%d:@ %a@]@." !i n (Type.print type_)
+      Format.eprintf "@[<hov 2>Attempt %d/%d:@ %a@]@." !i n
+        (Arbitrary.print arbitrary_impl)
         repr;
-    match check_once t ~f ~type_ repr with
+    match check_once t ~f ~arbitrary_impl repr with
     | Success -> incr i
     | Failure failure ->
       let rec retry ~shrink_steps ~(seq : _ Seq.t) ~last_counterexample
           ~last_failure ~last_shrink_steps : Outcome.t =
         let done_ () : Outcome.t =
           Failure
-            { type_;
+            { arbitrary_impl;
               failure = last_failure;
               counterexample = last_counterexample;
               shrink_steps = last_shrink_steps;
@@ -97,12 +101,12 @@ let check0 ?(n = default_attempts) ?(seed = default_seed)
           match seq () with
           | Nil -> done_ ()
           | Cons (repr, seq) -> (
-            match check_once t ~f ~type_ repr with
+            match check_once t ~f ~arbitrary_impl repr with
             | Success ->
               retry ~shrink_steps:(shrink_steps + 1) ~last_counterexample
                 ~last_failure ~last_shrink_steps ~seq
             | Failure failure ->
-              let seq = Type.shrink type_ repr in
+              let seq = Arbitrary.shrink arbitrary_impl repr in
               let last_counterexample = repr in
               let last_failure = failure in
               let last_shrink_steps = shrink_steps in
@@ -110,7 +114,7 @@ let check0 ?(n = default_attempts) ?(seed = default_seed)
                 ~last_shrink_steps ~last_failure ~seq)
       in
       let shrink_steps = 0 in
-      let seq = Type.shrink type_ repr in
+      let seq = Arbitrary.shrink arbitrary_impl repr in
       let last_counterexample = repr in
       let last_failure = failure in
       let last_shrink_steps = 0 in
@@ -129,25 +133,28 @@ let check :
     ?seed:int ->
     ?verbose:bool ->
     t ->
-    types:(a, reprs, bool) Tuple.Of2(Type.T).t ->
+    arbitrary_impls:(a, reprs, bool) Tuple.Of2(Arbitrary.T).t ->
     f:a ->
     name:string ->
     unit =
- fun ?n ?seed ?verbose t ~types ~f ~name ->
-  let run type_ f = check0 ?n ?seed ?verbose t ~type_ ~f ~name in
+ fun ?n ?seed ?verbose t ~arbitrary_impls ~f ~name ->
+  let run arbitrary_impl f =
+    check0 ?n ?seed ?verbose t ~arbitrary_impl ~f ~name
+  in
 
-  match types with
-  | [] -> run Type.unit (fun () -> f)
-  | [ty] -> run ty f
-  | [ty1; ty2] -> run (Type.pair ty1 ty2) (fun (a, b) -> f a b)
-  | [ty1; ty2; ty3] -> run (Type.triple ty1 ty2 ty3) (fun (a, b, c) -> f a b c)
-  | [ty1; ty2; ty3; ty4] ->
-    run (Type.quad ty1 ty2 ty3 ty4) (fun (a, b, c, d) -> f a b c d)
-  | ty1 :: ty2 :: ty3 :: types ->
+  match arbitrary_impls with
+  | [] -> run Arbitrary.unit (fun () -> f)
+  | [arb] -> run arb f
+  | [arb1; arb2] -> run (Arbitrary.pair arb1 arb2) (fun (a, b) -> f a b)
+  | [arb1; arb2; arb3] ->
+    run (Arbitrary.triple arb1 arb2 arb3) (fun (a, b, c) -> f a b c)
+  | [arb1; arb2; arb3; arb4] ->
+    run (Arbitrary.quad arb1 arb2 arb3 arb4) (fun (a, b, c, d) -> f a b c d)
+  | arb1 :: arb2 :: arb3 :: arbitrary_impls ->
     (* Could do more to pack the remaining arguments together but I've
        over-engineered this enough as is *)
     run
-      (Type.quad ty1 ty2 ty3 (Type.tuple types))
+      (Arbitrary.quad arb1 arb2 arb3 (Arbitrary.tuple arbitrary_impls))
       (fun (a, b, c, tup) -> Tuple.call ~f:(f a b c) tup)
 
 (* CR-someday lmaurer: Could also return something richer, although the full

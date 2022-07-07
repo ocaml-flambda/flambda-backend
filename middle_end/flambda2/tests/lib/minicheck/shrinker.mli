@@ -18,9 +18,9 @@ val unshrinkable : 'a t
 
 val option : 'a t -> 'a option t
 
-val code : ?const:'b -> 'b t -> ('a, 'b) Code.t t
+val function_ : ?const:'b -> 'b t -> ('a, 'b) Function.t t
 
-val code_w_id : ?const:'a -> 'a t -> ('a, 'a) Code.t t
+val function_w_id : ?const:'a -> 'a t -> ('a, 'a) Function.t t
 
 val pair : 'a t -> 'b t -> ('a * 'b) t
 

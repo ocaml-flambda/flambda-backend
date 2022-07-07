@@ -12,6 +12,12 @@
 (*                                                                        *)
 (**************************************************************************)
 
+(* CR-someday lmaurer: I still don't love the name of this module. An
+   [Arbitrary.t] seems like it should be an arbitrary value, not a description
+   of how a type has arbitrary values. It makes more sense in Haskell since it's
+   a typeclass, not a datatype. (I suppose [Arbitrary.S] would be clearer, but I
+   don't want to use modules all over the place.) *)
+
 module Impl = struct
   type 'a t =
     { generator : 'a Generator.t;
@@ -109,7 +115,7 @@ module Function_repr = struct
   type ('a, 'b) t =
     { (* Pre-generate a constant in case we want to shrink this to a constant
          function *)
-      code : ('a, 'b) Code.t;
+      function_ : ('a, 'b) Function.t;
       const_for_shrinking : 'b
     }
 end
@@ -118,19 +124,19 @@ let fn ?hash_arg { impl = { generator; shrinker; printer }; get_value } =
   let module Repr = Function_repr in
   let generator =
     let open G.Let_syntax in
-    let+ code = G.code ?hash_arg generator
+    let+ function_ = G.function_ ?hash_arg generator
     and+ const_for_shrinking = generator in
-    Repr.{ code; const_for_shrinking }
+    Repr.{ function_; const_for_shrinking }
   in
-  let shrinker Repr.{ code; const_for_shrinking } =
-    S.code shrinker ~const:const_for_shrinking code
-    |> Seq.map (fun code -> Repr.{ code; const_for_shrinking })
+  let shrinker Repr.{ function_; const_for_shrinking } =
+    S.function_ shrinker ~const:const_for_shrinking function_
+    |> Seq.map (fun function_ -> Repr.{ function_; const_for_shrinking })
   in
-  let printer ppf Repr.{ code; _ } = P.code printer ppf code in
-  let get_value Repr.{ code; _ } =
+  let printer ppf Repr.{ function_; _ } = P.function_ printer ppf function_ in
+  let get_value Repr.{ function_; _ } =
     (* () to force ocamlformat to let me write a lambda here *)
     ();
-    fun a -> get_value (Code.call code a)
+    fun a -> get_value (Function.call function_ a)
   in
   { impl = { generator; shrinker; printer }; get_value }
 

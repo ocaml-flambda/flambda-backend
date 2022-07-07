@@ -66,9 +66,9 @@ let tuple : ('a, 'r) Tuple.Of(T).t -> ('a, 'r) Tuple.t t =
   loop ~first:true ts ppf tup;
   Format.fprintf ppf " )@]"
 
-let code : type a b. b t -> (a, b) Code.t t =
- fun t_ret ppf code ->
-  match code with
+let function_ : type a b. b t -> (a, b) Function.t t =
+ fun t_ret ppf function_ ->
+  match function_ with
   | Identity -> str ppf "(fun a -> a)"
   | Const b -> Format.fprintf ppf "@[<hov 2>(fun _ ->@ %a)@]" t_ret b
   | Fun f -> fn ppf f

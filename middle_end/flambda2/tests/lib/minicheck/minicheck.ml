@@ -12,11 +12,11 @@
 (*                                                                        *)
 (**************************************************************************)
 
+module Arbitrary = Arbitrary
 module Generator = Generator
 module Printer = Printer
 module Runner = Runner
 module Shrinker = Shrinker
 module Splittable_random = Splittable_random
-module Type = Type
 
 let create_runner = Runner.create

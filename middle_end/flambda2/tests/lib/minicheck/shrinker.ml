@@ -42,22 +42,22 @@ let option t = function
   | None -> Seq.empty
   | Some a -> Seq.cons None (Seq.map Option.some (t a))
 
-let code : type a b. ?const:b -> b t -> (a, b) Code.t t =
- fun ?const t code ->
-  let shrink_as_const a = Seq.map (fun a -> Code.Const a) (t a) in
-  match code with
+let function_ : type a b. ?const:b -> b t -> (a, b) Function.t t =
+ fun ?const t function_ ->
+  let shrink_as_const a = Seq.map (fun a -> Function.Const a) (t a) in
+  match function_ with
   | Identity -> Seq.empty
   | Const a -> shrink_as_const a
   | Fun _ -> (
     match const with
     | None -> Seq.empty
-    | Some const -> Seq.cons (Code.Const const) (shrink_as_const const))
+    | Some const -> Seq.cons (Function.Const const) (shrink_as_const const))
 
-let code_w_id : type a. ?const:a -> a t -> (a, a) Code.t t =
+let function_w_id : type a. ?const:a -> a t -> (a, a) Function.t t =
  fun ?const t c ->
   match c with
   | Identity -> Seq.empty
-  | Const _ | Fun _ -> Seq.cons Code.Identity (code ?const t c)
+  | Const _ | Fun _ -> Seq.cons Function.Identity (function_ ?const t c)
 
 let pair t_a t_b (a, b) =
   Seq.concat [Seq.map (fun a -> a, b) (t_a a); Seq.map (fun b -> a, b) (t_b b)]

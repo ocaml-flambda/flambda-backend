@@ -687,33 +687,34 @@ module Types = struct
     if key = 0 then Seq.empty else Seq.cons 0 (drop_leading_digits key)
 
   let key =
-    Type.define_simple ~generator:generate_key ~shrinker:shrink_key
+    Arbitrary.define_simple ~generator:generate_key ~shrinker:shrink_key
       ~printer:Key.print ()
 
-  let generate_unique_list_of_length ty ~compare ~max_length =
-    Generator.list (Type.generate_repr ty) ~length:max_length
+  let generate_unique_list_of_length arb ~compare ~max_length =
+    Generator.list (Arbitrary.generate_repr arb) ~length:max_length
     |> Generator.map ~f:(List.sort_uniq compare)
 
-  let generate_unique_list ty ~compare r =
+  let generate_unique_list arb ~compare r =
     let max_length = Generator.small_nat ~less_than:20 r in
-    generate_unique_list_of_length ty ~compare ~max_length r
+    generate_unique_list_of_length arb ~compare ~max_length r
 
-  let shrink_unique_list ty l =
-    Shrinker.list (Type.shrink ty) l |> Seq.map (List.sort_uniq compare)
+  let shrink_unique_list arb l =
+    Shrinker.list (Arbitrary.shrink arb) l |> Seq.map (List.sort_uniq compare)
 
   let [@ocamlformat "disable"] print_list_as_set print_elt ppf l =
     let pp_sep ppf () = Format.fprintf ppf "@,; " in
     Format.fprintf ppf "@[<hov>{ %a }@]"
       (Format.pp_print_list ~pp_sep print_elt) l
 
-  let get_unique_list_as_set ty l = l |> List.map (Type.value ty) |> Set.of_list
+  let get_unique_list_as_set arb l =
+    l |> List.map (Arbitrary.value arb) |> Set.of_list
 
   let set =
     let generator = generate_unique_list key ~compare:Int.compare in
     let shrinker = shrink_unique_list key in
     let printer = print_list_as_set Key.print in
     let get_value = get_unique_list_as_set key in
-    Type.define ~generator ~shrinker ~printer ~get_value ()
+    Arbitrary.define ~generator ~shrinker ~printer ~get_value ()
 
   let set_and_element =
     let generator r =
@@ -736,10 +737,10 @@ module Types = struct
       let s = Set.of_list list in
       Set_and_element.{ set = s; element = e }
     in
-    Type.define ~generator ~shrinker ~printer ~get_value ()
+    Arbitrary.define ~generator ~shrinker ~printer ~get_value ()
 
-  let generate_assoc_list_of_length key_ty val_ty ~max_length =
-    generate_unique_list_of_length (Type.pair key_ty val_ty) ~max_length
+  let generate_assoc_list_of_length key_arb val_arb ~max_length =
+    generate_unique_list_of_length (Arbitrary.pair key_arb val_arb) ~max_length
       ~compare:(fun (k1, _) (k2, _) -> Int.compare k1 k2)
 
   let print_binding print_key print_val ppf (k, v) =
@@ -748,47 +749,49 @@ module Types = struct
   let print_assoc_list_as_set print_key print_val ppf list =
     print_list_as_set (print_binding print_key print_val) ppf list
 
-  let generate_map_repr_of_size val_ty ~max_size =
-    generate_assoc_list_of_length key val_ty ~max_length:max_size
+  let generate_map_repr_of_size val_arb ~max_size =
+    generate_assoc_list_of_length key val_arb ~max_length:max_size
 
-  let generate_map_repr val_ty r =
+  let generate_map_repr val_arb r =
     let max_size = Generator.small_nat ~less_than:20 r in
-    generate_map_repr_of_size val_ty ~max_size r
+    generate_map_repr_of_size val_arb ~max_size r
 
-  let shrink_map_repr val_ty = shrink_unique_list (Type.pair key val_ty)
+  let shrink_map_repr val_arb = shrink_unique_list (Arbitrary.pair key val_arb)
 
-  let print_map_repr val_ty =
-    print_assoc_list_as_set Key.print (Type.print val_ty)
+  let print_map_repr val_arb =
+    print_assoc_list_as_set Key.print (Arbitrary.print val_arb)
 
-  let get_map_value val_ty list =
+  let get_map_value val_arb list =
     list
-    |> List.map (fun (key, value) -> key, Type.value val_ty value)
+    |> List.map (fun (key, value) -> key, Arbitrary.value val_arb value)
     |> Map.of_list
 
-  let assoc_list val_ty =
-    let generator = generate_map_repr val_ty in
-    let shrinker = shrink_map_repr val_ty in
-    let printer = Printer.list (Printer.pair Key.print (Type.print val_ty)) in
-    let get_value l =
-      List.map (fun (key, repr) -> key, Type.value val_ty repr) l
+  let assoc_list val_arb =
+    let generator = generate_map_repr val_arb in
+    let shrinker = shrink_map_repr val_arb in
+    let printer =
+      Printer.list (Printer.pair Key.print (Arbitrary.print val_arb))
     in
-    Type.define ~generator ~shrinker ~printer ~get_value ()
+    let get_value l =
+      List.map (fun (key, repr) -> key, Arbitrary.value val_arb repr) l
+    in
+    Arbitrary.define ~generator ~shrinker ~printer ~get_value ()
 
-  let map val_ty =
-    Type.map (assoc_list val_ty) ~f:Map.of_list
-    |> Type.with_repr_printer ~printer:(print_map_repr val_ty)
+  let map val_arb =
+    Arbitrary.map (assoc_list val_arb) ~f:Map.of_list
+    |> Arbitrary.with_repr_printer ~printer:(print_map_repr val_arb)
 
   (* CR-someday lmaurer: If we ever want a third "thing and an element of the
      thing" construction, this could all be captured as something called
-     [Type.with_element] that needs a generator parameterized by the element,
-     the type of the element (or just a printer and getter), an empty check on
-     the collection, and a function to check whether the element's still present
-     in a shrunk collection. *)
+     [Arbitrary.with_element] that needs a generator parameterized by the
+     element, the type of the element (or just a printer and getter), an empty
+     check on the collection, and a function to check whether the element's
+     still present in a shrunk collection. *)
 
-  let map_and_binding val_ty =
+  let map_and_binding val_arb =
     let generator r =
       let list =
-        Generator.filter (generate_map_repr val_ty) r ~f:(function
+        Generator.filter (generate_map_repr val_arb) r ~f:(function
           | [] -> false
           | _ :: _ -> true)
       in
@@ -799,20 +802,20 @@ module Types = struct
     let shrinker (list, k, v) =
       Seq.filter_map
         (fun list -> if List.mem_assoc k list then Some (list, k, v) else None)
-        (shrink_map_repr val_ty list)
+        (shrink_map_repr val_arb list)
     in
     let printer ppf (list, k, v) =
-      Printer.pair (print_map_repr val_ty)
-        (print_binding Key.print (Type.print val_ty))
+      Printer.pair (print_map_repr val_arb)
+        (print_binding Key.print (Arbitrary.print val_arb))
         ppf
         (list, (k, v))
     in
     let get_value (list, k, v) =
-      let m = get_map_value val_ty list in
-      let v = Type.value val_ty v in
+      let m = get_map_value val_arb list in
+      let v = Arbitrary.value val_arb v in
       Map_and_binding.{ map = m; key = k; value = v }
     in
-    Type.define ~generator ~shrinker ~printer ~get_value ()
+    Arbitrary.define ~generator ~shrinker ~printer ~get_value ()
 end
 
 let () =
@@ -822,20 +825,22 @@ let () =
     let open Types in
     let open Set_specs in
     let elt = key in
-    let elt_to_elt = Type.fn elt ~hash_arg:Hashtbl.hash in
-    let elt_to_bool = Type.fn Type.bool ~hash_arg:Hashtbl.hash in
-    let elt_to_elt_option = Type.fn (Type.option elt) ~hash_arg:Hashtbl.hash in
+    let elt_to_elt = Arbitrary.fn elt ~hash_arg:Hashtbl.hash in
+    let elt_to_bool = Arbitrary.fn Arbitrary.bool ~hash_arg:Hashtbl.hash in
+    let elt_to_elt_option =
+      Arbitrary.fn (Arbitrary.option elt) ~hash_arg:Hashtbl.hash
+    in
     let elt_list =
-      Type.bind_generator (Generator.small_nat ~less_than:20) ~f:(fun length ->
-          Type.list elt ~length)
+      Arbitrary.bind_generator (Generator.small_nat ~less_than:20)
+        ~f:(fun length -> Arbitrary.list elt ~length)
     in
     let set_list =
-      Type.bind_generator (Generator.small_nat ~less_than:6) ~f:(fun length ->
-          Type.list set ~length)
+      Arbitrary.bind_generator (Generator.small_nat ~less_than:6)
+        ~f:(fun length -> Arbitrary.list set ~length)
     in
 
-    let c ?n ?seed name f types =
-      Runner.check runner ~name:("Set: " ^ name) ?n ?seed ~types ~f
+    let c ?n ?seed name f arbitrary_impls =
+      Runner.check runner ~name:("Set: " ^ name) ?n ?seed ~arbitrary_impls ~f
     in
 
     c "sets are valid" valid [set];
@@ -971,27 +976,29 @@ let () =
     let module Map_specs = Map_specs (Value) in
     let open Types in
     let open Map_specs in
-    let key : Key.t Type.simple = key in
-    let value : (Value.t, _) Type.t =
-      Type.map Type.bool ~f:(fun b -> if b then Value.A else Value.B)
-      |> Type.with_value_printer ~printer:Value.print
+    let key : Key.t Arbitrary.simple = key in
+    let value : (Value.t, _) Arbitrary.t =
+      Arbitrary.map Arbitrary.bool ~f:(fun b -> if b then Value.A else Value.B)
+      |> Arbitrary.with_value_printer ~printer:Value.print
     in
     let bindings = assoc_list value in
     let map = Types.map value in
     let map_and_binding = Types.map_and_binding value in
-    let key_to_key = Type.fn key in
-    let key_to_value = Type.fn value in
-    let value_to_value = Type.fn value in
-    let value_option_to_value_option = Type.fn (Type.option value) in
-    let key_and_value_to_bool = Type.fn2 Type.bool in
-    let key_and_value_to_value = Type.fn2 value in
-    let key_and_value_to_value_option = Type.fn2 (Type.option value) in
-    let merging_function = Type.fn3 (Type.option value) in
-    let union_function = Type.fn3 (Type.option value) in
-    let inter_function = Type.fn3 value in
+    let key_to_key = Arbitrary.fn key in
+    let key_to_value = Arbitrary.fn value in
+    let value_to_value = Arbitrary.fn value in
+    let value_option_to_value_option = Arbitrary.fn (Arbitrary.option value) in
+    let key_and_value_to_bool = Arbitrary.fn2 Arbitrary.bool in
+    let key_and_value_to_value = Arbitrary.fn2 value in
+    let key_and_value_to_value_option =
+      Arbitrary.fn2 (Arbitrary.option value)
+    in
+    let merging_function = Arbitrary.fn3 (Arbitrary.option value) in
+    let union_function = Arbitrary.fn3 (Arbitrary.option value) in
+    let inter_function = Arbitrary.fn3 value in
 
-    let c ?n ?seed name f types =
-      Runner.check runner ~name:("Map: " ^ name) ?n ?seed ~types ~f
+    let c ?n ?seed name f arbitrary_impls =
+      Runner.check runner ~name:("Map: " ^ name) ?n ?seed ~arbitrary_impls ~f
     in
 
     c "maps are valid" valid [map];

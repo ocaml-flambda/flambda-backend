@@ -119,17 +119,17 @@ let choose (choices : (int * 'a t) list) : _ t =
     let generator = choose_generator i choices in
     generator r
 
-let code ?hash_arg t_ret : (_, _) Code.t t =
+let function_ ?hash_arg t_ret : (_, _) Function.t t =
   choose
     [ ( 1,
         let+ r = t_ret in
-        Code.Const r );
+        Function.Const r );
       ( 3,
         let+ f = fn ?hash_arg t_ret in
-        Code.Fun f ) ]
+        Function.Fun f ) ]
 
-let code_w_id ?hash_arg t_ret : (_, _) Code.t t =
-  choose [1, const Code.Identity; 4, code ?hash_arg t_ret]
+let function_w_id ?hash_arg t_ret : (_, _) Function.t t =
+  choose [1, const Function.Identity; 4, function_ ?hash_arg t_ret]
 
 let unit = const ()
 
