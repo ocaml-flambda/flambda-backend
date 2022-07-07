@@ -141,7 +141,7 @@ module type Boxable_int_number_kind = sig
   include Boxable with module Num := Num
 end
 
-let with_shift shift if_undefined f =
+let with_shift shift if_undefined f ~integer_bit_width =
   match
     Targetint_31_63.Imm.to_int_option (Targetint_31_63.to_targetint shift)
   with
@@ -149,7 +149,8 @@ let with_shift shift if_undefined f =
     (* As per a similar case in [Simplify_binary_primitive], we are here
        assigning a semantics to an operation which has undefined semantics. *)
     if_undefined
-  | Some shift -> f shift
+  | Some shift ->
+    if shift < 0 || shift >= integer_bit_width then if_undefined else f shift
 
 module For_tagged_immediates : Int_number_kind = struct
   module Num = struct
@@ -176,14 +177,20 @@ module For_tagged_immediates : Int_number_kind = struct
       then None
       else Some (mod_ t1 t2)
 
+    let integer_bit_width = if Target_system.is_32_bit then 31 else 63
+
     let shift_left t shift =
-      with_shift shift zero (fun shift -> shift_left t shift)
+      with_shift shift zero (fun shift -> shift_left t shift) ~integer_bit_width
 
     let shift_right t shift =
-      with_shift shift zero (fun shift -> shift_right t shift)
+      with_shift shift zero
+        (fun shift -> shift_right t shift)
+        ~integer_bit_width
 
     let shift_right_logical t shift =
-      with_shift shift zero (fun shift -> shift_right_logical t shift)
+      with_shift shift zero
+        (fun shift -> shift_right_logical t shift)
+        ~integer_bit_width
 
     let swap_byte_endianness t =
       Targetint_31_63.map
@@ -249,14 +256,20 @@ module For_naked_immediates : Int_number_kind = struct
       then None
       else Some (mod_ t1 t2)
 
+    let integer_bit_width = if Target_system.is_32_bit then 31 else 63
+
     let shift_left t shift =
-      with_shift shift zero (fun shift -> shift_left t shift)
+      with_shift shift zero (fun shift -> shift_left t shift) ~integer_bit_width
 
     let shift_right t shift =
-      with_shift shift zero (fun shift -> shift_right t shift)
+      with_shift shift zero
+        (fun shift -> shift_right t shift)
+        ~integer_bit_width
 
     let shift_right_logical t shift =
-      with_shift shift zero (fun shift -> shift_right_logical t shift)
+      with_shift shift zero
+        (fun shift -> shift_right_logical t shift)
+        ~integer_bit_width
 
     let swap_byte_endianness t =
       Targetint_31_63.map
@@ -377,13 +390,19 @@ module For_int32s : Boxable_int_number_kind = struct
     let mod_ t1 t2 = if equal t2 zero then None else Some (rem t1 t2)
 
     let shift_left t shift =
-      with_shift shift zero (fun shift -> shift_left t shift)
+      with_shift shift zero
+        (fun shift -> shift_left t shift)
+        ~integer_bit_width:32
 
     let shift_right t shift =
-      with_shift shift zero (fun shift -> shift_right t shift)
+      with_shift shift zero
+        (fun shift -> shift_right t shift)
+        ~integer_bit_width:32
 
     let shift_right_logical t shift =
-      with_shift shift zero (fun shift -> shift_right_logical t shift)
+      with_shift shift zero
+        (fun shift -> shift_right_logical t shift)
+        ~integer_bit_width:32
 
     let to_const t = Reg_width_const.naked_int32 t
 
@@ -446,13 +465,19 @@ module For_int64s : Boxable_int_number_kind = struct
     let mod_ t1 t2 = if equal t2 zero then None else Some (rem t1 t2)
 
     let shift_left t shift =
-      with_shift shift zero (fun shift -> shift_left t shift)
+      with_shift shift zero
+        (fun shift -> shift_left t shift)
+        ~integer_bit_width:64
 
     let shift_right t shift =
-      with_shift shift zero (fun shift -> shift_right t shift)
+      with_shift shift zero
+        (fun shift -> shift_right t shift)
+        ~integer_bit_width:64
 
     let shift_right_logical t shift =
-      with_shift shift zero (fun shift -> shift_right_logical t shift)
+      with_shift shift zero
+        (fun shift -> shift_right_logical t shift)
+        ~integer_bit_width:64
 
     let to_const t = Reg_width_const.naked_int64 t
 
@@ -508,14 +533,20 @@ module For_nativeints : Boxable_int_number_kind = struct
 
     let mod_ t1 t2 = if equal t2 zero then None else Some (rem t1 t2)
 
+    let integer_bit_width = if Target_system.is_32_bit then 32 else 64
+
     let shift_left t shift =
-      with_shift shift zero (fun shift -> shift_left t shift)
+      with_shift shift zero (fun shift -> shift_left t shift) ~integer_bit_width
 
     let shift_right t shift =
-      with_shift shift zero (fun shift -> shift_right t shift)
+      with_shift shift zero
+        (fun shift -> shift_right t shift)
+        ~integer_bit_width
 
     let shift_right_logical t shift =
-      with_shift shift zero (fun shift -> shift_right_logical t shift)
+      with_shift shift zero
+        (fun shift -> shift_right_logical t shift)
+        ~integer_bit_width
 
     let to_const t = Reg_width_const.naked_nativeint t
 
