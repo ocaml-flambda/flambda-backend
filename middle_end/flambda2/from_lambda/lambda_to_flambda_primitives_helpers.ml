@@ -19,20 +19,6 @@ open Closure_conversion_aux
 module P = Flambda_primitive
 module VB = Bound_var
 
-(* May be useful for compiling out bounds checks: type bounds_check_result = |
-   In_range | Out_of_range
-
-   let bounds_check ~width ~string_length_in_bytes ~index_in_bytes :
-   bounds_check_result = let index_in_bytes = Targetint_31_63.to_targetint
-   index_in_bytes in if Targetint_31_63.Imm.compare index_in_bytes
-   Targetint_31_63.Imm.zero < 0 then Out_of_range else let result_size_in_bytes
-   = Targetint_31_63.Imm.of_int
-   (Flambda_primitive.byte_width_of_string_accessor_width width) in (* We are
-   careful here to avoid overflow for ease of reasoning. *) let
-   highest_index_allowed = Targetint_31_63.Imm.sub string_length_in_bytes
-   result_size_in_bytes in if Targetint_31_63.Imm.compare index_in_bytes
-   highest_index_allowed >= 0 then Out_of_range else In_range *)
-
 type failure =
   | Division_by_zero
   | Index_out_of_bounds
@@ -85,10 +71,6 @@ let print_list_of_simple_or_prim ppf simple_or_prim_list =
     (Format.pp_print_list ~pp_sep:Format.pp_print_space print_simple_or_prim)
     simple_or_prim_list
 
-(* let caml_ml_array_bound_error =
- *   let name = Linkage_name.create "caml_ml_array_bound_error" in
- *   Symbol.create (Compilation_unit.external_symbols ()) name *)
-
 let raise_exn_for_failure acc ~dbg exn_cont exn_bucket extra_let_binding =
   let exn_handler = Exn_continuation.exn_handler exn_cont in
   let trap_action =
@@ -133,26 +115,6 @@ let expression_for_failure acc exn_cont ~register_const_string primitive dbg
       (Simple.symbol division_by_zero)
       None
   | Index_out_of_bounds ->
-    (* Old code for out of bounds, delegating the raising of the exn
-     *  to the adequate C function.
-     * let call =
-     *   let callee = Simple.symbol caml_ml_array_bound_error in
-     *   let continuation = Apply.Result_continuation.Never_returns in
-     *   let args = [] in
-     *   let call_kind =
-     *     Call_kind.c_call ~alloc:true ~param_arity:[] ~return_arity:[]
-     *       ~is_c_builtin:false
-     *   in
-     *   (* These inlining fields should not be used for C calls since they can't
-     *      really be inlined anyway. *)
-     *   let inlined = Inlined_attribute.Never_inlined in
-     *   let inlining_state = Inlining_state.default ~round:0 in
-     *   Apply.create ~callee ~continuation exn_cont ~args ~call_kind dbg
-     *     ~inlined ~inlining_state ~probe_name:None
-     *     ~relative_history:(Env.relative_history env)
-     * in
-     * Expr_with_acc.create_apply acc call
-     *)
     let exn_bucket = Variable.create "exn_bucket" in
     (* CR mshinwell: Share this text with elsewhere. *)
     let acc, error_text = register_const_string acc "index out of bounds" in
