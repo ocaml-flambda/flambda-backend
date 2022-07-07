@@ -28,9 +28,6 @@ val min_value : t
 (** The maximum integer representable on the target. *)
 val max_value : t
 
-(** The maximum string length on the target. *)
-val max_string_length : t
-
 (** The OCaml integer -1 *)
 val minus_one : t
 

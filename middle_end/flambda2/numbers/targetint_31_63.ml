@@ -23,17 +23,9 @@
 module T0 = struct
   include Numeric_types.Int64
 
-  let compare = Int64.compare
-
-  let equal = Int64.equal
-
   let hash = hash
 
   let minus_one = -1L
-
-  let zero = 0L
-
-  let one = 1L
 
   let ten = 10L
 
@@ -53,16 +45,6 @@ module T0 = struct
 
   let bottom_byte_to_int t = Int64.to_int (Int64.logand t hex_ff)
 
-  let sub = Int64.sub
-
-  let neg = Int64.neg
-
-  let shift_left = Int64.shift_left
-
-  let shift_right = Int64.shift_right
-
-  let shift_right_logical = Int64.shift_right_logical
-
   let xor = Int64.logxor
 
   let or_ = Int64.logor
@@ -71,39 +53,17 @@ module T0 = struct
 
   let mod_ = Int64.rem
 
-  let div = Int64.div
-
-  let mul = Int64.mul
-
-  let add = Int64.add
-
   let of_char c = Int64.of_int (Char.code c)
 
-  let of_int = Int64.of_int
-
-  let to_int = Int64.to_int
-
   let of_int_option i = Some (of_int i)
-
-  let of_int32 t = Int64.of_int32 t
-
-  let to_int32 t = Int64.to_int32 t
 
   let of_int64 t = t
 
   let to_int64 t = t
 
-  let of_float = Int64.of_float
-
-  let to_float = Int64.to_float
-
   let to_targetint = Targetint_32_64.of_int64
 
   let of_targetint = Targetint_32_64.to_int64
-
-  let max_array_length = Int64.sub (Int64.shift_left 1L 54) 1L
-
-  let max_string_length = Int64.sub (Int64.mul 8L max_array_length) 1L
 
   let max t1 t2 = if Int64.compare t1 t2 < 0 then t2 else t1
 

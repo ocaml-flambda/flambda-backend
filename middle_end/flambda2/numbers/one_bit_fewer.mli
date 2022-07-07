@@ -13,8 +13,6 @@ module type S = sig
 
   val max_value : t
 
-  val max_string_length : t
-
   val minus_one : t
 
   val zero : t

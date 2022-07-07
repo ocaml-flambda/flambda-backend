@@ -755,7 +755,7 @@ let close_let acc env id user_visible defining_expr
                 ~const:(fun const ->
                   match Reg_width_const.descr const with
                   | Tagged_immediate i ->
-                    let i = Targetint_31_63.(to_int i) in
+                    let i = Targetint_31_63.to_int i in
                     if i >= Array.length approx
                     then
                       Misc.fatal_errorf
