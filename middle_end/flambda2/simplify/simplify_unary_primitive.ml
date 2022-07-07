@@ -202,9 +202,7 @@ let simplify_string_length dacc ~original_term ~arg:_ ~arg_ty:str_ty ~result_var
     else
       let lengths =
         String_info.Set.elements str_infos
-        |> List.map String_info.size
-        |> List.map Targetint_31_63.int
-        |> Targetint_31_63.Set.of_list
+        |> List.map String_info.size |> Targetint_31_63.Set.of_list
       in
       let ty = T.these_naked_immediates lengths in
       let dacc = DA.add_variable dacc result_var ty in

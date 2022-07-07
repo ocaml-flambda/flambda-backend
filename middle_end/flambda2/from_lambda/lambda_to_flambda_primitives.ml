@@ -226,8 +226,7 @@ let max_with_zero ~size_int x =
     H.Simple
       (Simple.const
          (Reg_width_const.naked_immediate
-            (Targetint_31_63.int
-               (Targetint_31_63.Imm.of_int ((size_int * 8) - 1)))))
+            (Targetint_31_63.of_int ((size_int * 8) - 1))))
   in
   let sign =
     H.Prim
@@ -258,7 +257,7 @@ let actual_max_length_for_string_like_access ~size_int ~access_size length =
       | Thirty_two -> 3
       | Sixty_four -> 7
     in
-    Targetint_31_63.int (Targetint_31_63.Imm.of_int offset)
+    Targetint_31_63.of_int offset
   in
   match (access_size : Flambda_primitive.string_accessor_width) with
   | Eight -> length (* micro-optimization *)
@@ -446,7 +445,7 @@ let bigarray_indexing layout b args =
              (Binary
                 ( Int_arith (I.Tagged_immediate, Sub),
                   idx,
-                  H.Simple (Simple.const_int Targetint_31_63.Imm.one) )))
+                  H.Simple (Simple.const_int Targetint_31_63.one) )))
          args)
 
 let bigarray_access ~dbg ~unsafe ~access layout b indexes =
@@ -522,8 +521,7 @@ let checked_arith_op ~dbg (bi : Lambda.boxed_integer option) op mode arg1 arg2 :
     | None, None ->
       ( H.Binary (Int_arith (I.Tagged_immediate, op), arg1, arg2),
         I.Tagged_immediate,
-        Reg_width_const.tagged_immediate
-          (Targetint_31_63.int Targetint_31_63.Imm.zero),
+        Reg_width_const.tagged_immediate Targetint_31_63.zero,
         Fun.id )
     | Some bi, Some mode ->
       let kind, zero =
@@ -613,22 +611,22 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
       | Record_regular ->
         Values
           { tag = Tag.Scannable.zero;
-            length = Targetint_31_63.Imm.of_int num_fields
+            length = Targetint_31_63.of_int num_fields
           }
       | Record_float ->
-        Naked_floats { length = Targetint_31_63.Imm.of_int num_fields }
+        Naked_floats { length = Targetint_31_63.of_int num_fields }
       | Record_unboxed _ -> Misc.fatal_error "Pduprecord of unboxed record"
       | Record_inlined tag ->
         Values
           { tag = Tag.Scannable.create_exn tag;
-            length = Targetint_31_63.Imm.of_int num_fields
+            length = Targetint_31_63.of_int num_fields
           }
       | Record_extension _ ->
         Values
           { tag = Tag.Scannable.zero;
             (* The "+1" is because there is an extra field containing the hashed
                constructor. *)
-            length = Targetint_31_63.Imm.of_int (num_fields + 1)
+            length = Targetint_31_63.of_int (num_fields + 1)
           }
     in
     Unary (Duplicate_block { kind }, arg)
@@ -829,13 +827,11 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
   | Pasrbint (bi, mode), [arg1; arg2] -> bint_shift bi mode Asr arg1 arg2
   | Poffsetint n, [arg] ->
     let const =
-      Simple.const
-        (Reg_width_const.tagged_immediate
-           (Targetint_31_63.int (Targetint_31_63.Imm.of_int n)))
+      Simple.const (Reg_width_const.tagged_immediate (Targetint_31_63.of_int n))
     in
     Binary (Int_arith (I.Tagged_immediate, Add), arg, Simple const)
   | Pfield (index, sem), [arg] ->
-    let imm = Targetint_31_63.int (Targetint_31_63.Imm.of_int index) in
+    let imm = Targetint_31_63.of_int index in
     check_non_negative_imm imm "Pfield";
     let field = Simple.const (Reg_width_const.tagged_immediate imm) in
     let mutability = convert_field_read_semantics sem in
@@ -844,7 +840,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
     in
     Binary (Block_load (block_access, mutability), arg, Simple field)
   | Pfloatfield (field, sem, mode), [arg] ->
-    let imm = Targetint_31_63.int (Targetint_31_63.Imm.of_int field) in
+    let imm = Targetint_31_63.of_int field in
     check_non_negative_imm imm "Pfloatfield";
     let field = Simple.const (Reg_width_const.tagged_immediate imm) in
     let mutability = convert_field_read_semantics sem in
@@ -856,7 +852,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
   | ( Psetfield (index, immediate_or_pointer, initialization_or_assignment),
       [block; value] ) ->
     let field_kind = convert_block_access_field_kind immediate_or_pointer in
-    let imm = Targetint_31_63.int (Targetint_31_63.Imm.of_int index) in
+    let imm = Targetint_31_63.of_int index in
     check_non_negative_imm imm "Psetfield";
     let field = Simple.const (Reg_width_const.tagged_immediate imm) in
     let init_or_assign = convert_init_or_assign initialization_or_assignment in
@@ -866,7 +862,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
     Ternary
       (Block_set (block_access, init_or_assign), block, Simple field, value)
   | Psetfloatfield (field, initialization_or_assignment), [block; value] ->
-    let imm = Targetint_31_63.int (Targetint_31_63.Imm.of_int field) in
+    let imm = Targetint_31_63.of_int field in
     check_non_negative_imm imm "Psetfloatfield";
     let field = Simple.const (Reg_width_const.tagged_immediate imm) in
     let block_access : P.Block_access_kind.t =
@@ -918,7 +914,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
     let block_access : P.Block_access_kind.t =
       Values
         { tag = Known Tag.Scannable.zero;
-          size = Known Targetint_31_63.Imm.one;
+          size = Known Targetint_31_63.one;
           field_kind = Immediate
         }
     in
@@ -931,7 +927,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
       H.Prim
         (Binary
            ( Int_arith (Tagged_immediate, Add),
-             Simple (Simple.const_int (Targetint_31_63.Imm.of_int n)),
+             Simple (Simple.const_int (Targetint_31_63.of_int n)),
              old_ref_value ))
     in
     Ternary
@@ -946,17 +942,16 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
     match const with
     | Big_endian -> Simple (Simple.const_bool big_endian)
     | Word_size ->
-      Simple (Simple.const_int (Targetint_31_63.Imm.of_int (8 * size_int)))
+      Simple (Simple.const_int (Targetint_31_63.of_int (8 * size_int)))
     | Int_size ->
-      Simple
-        (Simple.const_int (Targetint_31_63.Imm.of_int ((8 * size_int) - 1)))
+      Simple (Simple.const_int (Targetint_31_63.of_int ((8 * size_int) - 1)))
     | Max_wosize ->
       (* CR mshinwell: This depends on the number of bits in the header reserved
          for profinfo, no? If this computation is wrong then the one in
          [Closure] (and maybe Flambda 1) is wrong. *)
       Simple
         (Simple.const_int
-           (Targetint_31_63.Imm.of_int ((1 lsl ((8 * size_int) - 10)) - 1)))
+           (Targetint_31_63.of_int ((1 lsl ((8 * size_int) - 10)) - 1)))
     | Ostype_unix -> Simple (Simple.const_bool (Sys.os_type = "Unix"))
     | Ostype_win32 -> Simple (Simple.const_bool (Sys.os_type = "Win32"))
     | Ostype_cygwin -> Simple (Simple.const_bool (Sys.os_type = "Cygwin"))

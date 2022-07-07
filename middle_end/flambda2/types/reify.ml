@@ -118,7 +118,7 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
             | None -> try_canonical_simple ()
             | Some ((tag, size), field_types) -> (
               assert (
-                Targetint_31_63.Imm.equal size
+                Targetint_31_63.equal size
                   (TG.Product.Int_indexed.width field_types));
               (* CR mshinwell: Could recognise other things, e.g. tagged
                  immediates and float arrays, supported by [Static_part]. *)

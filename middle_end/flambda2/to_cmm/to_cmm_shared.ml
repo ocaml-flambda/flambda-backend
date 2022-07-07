@@ -71,9 +71,9 @@ let name env name = name0 env name
 
 let const ~dbg cst =
   match Reg_width_const.descr cst with
-  | Naked_immediate i -> targetint ~dbg (Targetint_31_63.to_targetint' i)
+  | Naked_immediate i -> targetint ~dbg (Targetint_31_63.to_targetint i)
   | Tagged_immediate i ->
-    targetint ~dbg (tag_targetint (Targetint_31_63.to_targetint' i))
+    targetint ~dbg (tag_targetint (Targetint_31_63.to_targetint i))
   | Naked_float f -> float ~dbg (Numeric_types.Float_by_bit_pattern.to_float f)
   | Naked_int32 i -> int32 ~dbg i
   | Naked_int64 i -> int64 ~dbg i
@@ -93,11 +93,11 @@ let name_static name =
 let const_static cst =
   match Reg_width_const.descr cst with
   | Naked_immediate i ->
-    [cint (nativeint_of_targetint (Targetint_31_63.to_targetint' i))]
+    [cint (nativeint_of_targetint (Targetint_31_63.to_targetint i))]
   | Tagged_immediate i ->
     [ cint
         (nativeint_of_targetint
-           (tag_targetint (Targetint_31_63.to_targetint' i))) ]
+           (tag_targetint (Targetint_31_63.to_targetint i))) ]
   | Naked_float f -> [cfloat (Numeric_types.Float_by_bit_pattern.to_float f)]
   | Naked_int32 i -> [cint (Nativeint.of_int32 i)]
   | Naked_int64 i -> [cint (Int64.to_nativeint i)]

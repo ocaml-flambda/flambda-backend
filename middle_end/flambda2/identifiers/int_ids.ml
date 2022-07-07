@@ -311,9 +311,9 @@ module Const = struct
 
   let untagged_const_zero = naked_immediate Targetint_31_63.zero
 
-  let untagged_const_int i = naked_immediate (Targetint_31_63.int i)
+  let untagged_const_int i = naked_immediate i
 
-  let const_int i = tagged_immediate (Targetint_31_63.int i)
+  let const_int i = tagged_immediate i
 
   let const_zero = tagged_immediate Targetint_31_63.zero
 

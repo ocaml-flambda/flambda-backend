@@ -35,7 +35,7 @@ module Const : sig
 
   val untagged_const_zero : t
 
-  val untagged_const_int : Targetint_31_63.Imm.t -> t
+  val untagged_const_int : Targetint_31_63.t -> t
 
   val const_zero : t
 
@@ -43,7 +43,7 @@ module Const : sig
 
   val const_unit : t
 
-  val const_int : Targetint_31_63.Imm.t -> t
+  val const_int : Targetint_31_63.t -> t
 
   (** [naked_immediate] is similar to [naked_nativeint], but represents integers
       of width [n - 1] bits, where [n] is the native machine width. (By

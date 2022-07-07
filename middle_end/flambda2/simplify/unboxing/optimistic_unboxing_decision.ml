@@ -126,7 +126,7 @@ and make_optimistic_fields ~add_tag_to_name ~depth tenv param_type (tag : Tag.t)
     Format.asprintf "%s%a_%d" field_base_name (pp_tag add_tag_to_name) tag n
   in
   let field_vars =
-    List.init (Targetint_31_63.Imm.to_int size) (fun i ->
+    List.init (Targetint_31_63.to_int size) (fun i ->
         Extra_param_and_args.create ~name:(field_name i))
   in
   let type_of_var (epa : Extra_param_and_args.t) =

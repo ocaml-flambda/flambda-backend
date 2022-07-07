@@ -224,9 +224,7 @@ let find_code_id env code_id =
 let targetint (i : Fexpr.targetint) : Targetint_32_64.t =
   Targetint_32_64.of_int64 i
 
-let immediate i =
-  i |> Targetint_32_64.of_string |> Targetint_31_63.Imm.of_targetint
-  |> Targetint_31_63.int
+let immediate i = i |> Targetint_32_64.of_string |> Targetint_31_63.of_targetint
 
 let float f = f |> Numeric_types.Float_by_bit_pattern.create
 
@@ -293,7 +291,7 @@ let field_of_block env (v : Fexpr.field_of_block) : Field_of_static_block.t =
   | Symbol s -> Symbol (get_symbol env s)
   | Tagged_immediate i ->
     let i = Targetint_32_64.of_string i in
-    Tagged_immediate (Targetint_31_63.int (Targetint_31_63.Imm.of_targetint i))
+    Tagged_immediate (Targetint_31_63.of_targetint i)
   | Dynamically_computed var ->
     let var = find_var env var in
     Dynamically_computed (var, Debuginfo.none)
@@ -340,7 +338,7 @@ let binop (binop : Fexpr.binop) : Flambda_primitive.binary_primitive =
     let size s : _ Or_unknown.t =
       match s with
       | None -> Unknown
-      | Some s -> Known (s |> Targetint_31_63.Imm.of_int64)
+      | Some s -> Known (s |> Targetint_31_63.of_int64)
     in
     let access_kind : Flambda_primitive.Block_access_kind.t =
       match access_kind with
@@ -554,9 +552,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
   | Switch { scrutinee; cases } ->
     let arms =
       List.map
-        (fun (case, apply) ->
-          ( Targetint_31_63.int (Targetint_31_63.Imm.of_int case),
-            apply_cont env apply ))
+        (fun (case, apply) -> Targetint_31_63.of_int case, apply_cont env apply)
         cases
       |> Targetint_31_63.Map.of_list
     in

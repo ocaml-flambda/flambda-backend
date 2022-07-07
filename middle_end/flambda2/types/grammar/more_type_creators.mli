@@ -101,7 +101,7 @@ val immutable_block :
 
 val immutable_block_with_size_at_least :
   tag:Tag.t Or_unknown.t ->
-  n:Targetint_31_63.Imm.t ->
+  n:Targetint_31_63.t ->
   field_kind:Flambda_kind.t ->
   field_n_minus_one:Variable.t ->
   Type_grammar.t
@@ -116,7 +116,7 @@ val open_variant_from_const_ctors_type :
   const_ctors:Type_grammar.t -> Type_grammar.t
 
 val open_variant_from_non_const_ctor_with_size_at_least :
-  n:Targetint_31_63.Imm.t -> field_n_minus_one:Variable.t -> Type_grammar.t
+  n:Targetint_31_63.t -> field_n_minus_one:Variable.t -> Type_grammar.t
 
 val exactly_this_closure :
   Function_slot.t ->

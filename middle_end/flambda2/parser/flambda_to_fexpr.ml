@@ -344,10 +344,10 @@ let const c : Fexpr.const =
   match Reg_width_const.descr c with
   | Naked_immediate imm ->
     Naked_immediate
-      (imm |> Targetint_31_63.to_targetint' |> Targetint_32_64.to_string)
+      (imm |> Targetint_31_63.to_targetint |> Targetint_32_64.to_string)
   | Tagged_immediate imm ->
     Tagged_immediate
-      (imm |> Targetint_31_63.to_targetint' |> Targetint_32_64.to_string)
+      (imm |> Targetint_31_63.to_targetint |> Targetint_32_64.to_string)
   | Naked_float f -> Naked_float (f |> float)
   | Naked_int32 i -> Naked_int32 i
   | Naked_int64 i -> Naked_int64 i
@@ -419,8 +419,8 @@ let kinded_parameter env (kp : Bound_parameter.t) :
   let param, env = Env.bind_var env (Bound_parameter.var kp) in
   { param; kind = k }, env
 
-let targetint_ocaml (i : Targetint_31_63.Imm.t) : Fexpr.targetint =
-  i |> Targetint_31_63.Imm.to_int64
+let targetint_ocaml (i : Targetint_31_63.t) : Fexpr.targetint =
+  i |> Targetint_31_63.to_int64
 
 let recursive_flag (r : Recursive.t) : Fexpr.is_recursive =
   match r with Recursive -> Recursive | Non_recursive -> Nonrecursive
@@ -555,7 +555,7 @@ let field_of_block env (field : Field_of_static_block.t) : Fexpr.field_of_block
   | Symbol symbol -> Symbol (Env.find_symbol_exn env symbol)
   | Tagged_immediate imm ->
     Tagged_immediate
-      (imm |> Targetint_31_63.to_targetint' |> Targetint_32_64.to_string)
+      (imm |> Targetint_31_63.to_targetint |> Targetint_32_64.to_string)
   | Dynamically_computed (var, _dbg) ->
     Dynamically_computed (Env.find_var_exn env var)
 
@@ -956,7 +956,7 @@ and switch_expr env switch : Fexpr.expr =
     List.map
       (fun (imm, app_cont) ->
         let tag =
-          imm |> Targetint_31_63.to_targetint' |> Targetint_32_64.to_int
+          imm |> Targetint_31_63.to_targetint |> Targetint_32_64.to_int
         in
         let app_cont = apply_cont env app_cont in
         tag, app_cont)

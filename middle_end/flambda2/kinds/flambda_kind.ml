@@ -507,7 +507,7 @@ module With_subkind = struct
           Targetint_31_63.Set.of_list
             (List.map
                (fun const ->
-                 Targetint_31_63.int (Targetint_31_63.Imm.of_int const))
+                  (Targetint_31_63.of_int const))
                consts)
         in
         let non_consts =

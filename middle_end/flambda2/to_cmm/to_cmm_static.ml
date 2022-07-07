@@ -29,7 +29,7 @@ let static_value v =
   | Tagged_immediate i ->
     C.cint
       (C.nativeint_of_targetint
-         (C.tag_targetint (Targetint_31_63.to_targetint' i)))
+         (C.tag_targetint (Targetint_31_63.to_targetint i)))
 
 let or_variable f default v cont =
   match (v : _ Or_variable.t) with

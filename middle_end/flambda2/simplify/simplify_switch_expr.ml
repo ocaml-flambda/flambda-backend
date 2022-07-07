@@ -309,10 +309,7 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
   after_rebuild expr uacc
 
 let simplify_arm ~typing_env_at_use ~scrutinee_ty arm action (arms, dacc) =
-  let shape =
-    let imm = Targetint_31_63.int (Targetint_31_63.to_targetint arm) in
-    T.this_naked_immediate imm
-  in
+  let shape = T.this_naked_immediate arm in
   match T.meet typing_env_at_use scrutinee_ty shape with
   | Bottom -> arms, dacc
   | Ok (_meet_ty, env_extension) ->
