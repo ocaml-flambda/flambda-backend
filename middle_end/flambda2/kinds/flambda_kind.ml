@@ -505,10 +505,7 @@ module With_subkind = struct
       | [], _ :: _ | _ :: _, [] | _ :: _, _ :: _ ->
         let consts =
           Targetint_31_63.Set.of_list
-            (List.map
-               (fun const ->
-                  (Targetint_31_63.of_int const))
-               consts)
+            (List.map (fun const -> Targetint_31_63.of_int const) consts)
         in
         let non_consts =
           List.fold_left

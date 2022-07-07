@@ -614,9 +614,7 @@ val prove_boxed_int64s : Typing_env.t -> t -> Numeric_types.Int64.Set.t proof
 val prove_boxed_nativeints : Typing_env.t -> t -> Targetint_32_64.Set.t proof
 
 val prove_unique_tag_and_size :
-  Typing_env.t ->
-  t ->
-  (Tag.t * Targetint_31_63.t) proof_allowing_kind_mismatch
+  Typing_env.t -> t -> (Tag.t * Targetint_31_63.t) proof_allowing_kind_mismatch
 
 val prove_unique_fully_constructed_immutable_heap_block :
   Typing_env.t -> t -> (Tag_and_size.t * Simple.t list) proof
