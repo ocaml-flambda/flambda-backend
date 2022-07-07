@@ -61,7 +61,7 @@ val prove_naked_nativeints :
 
 type variant_like_proof = private
   { const_ctors : Targetint_31_63.Set.t Or_unknown.t;
-    non_const_ctors_with_sizes : Targetint_31_63.Imm.t Tag.Scannable.Map.t
+    non_const_ctors_with_sizes : Targetint_31_63.t Tag.Scannable.Map.t
   }
 
 val prove_variant_like :
@@ -124,7 +124,7 @@ val prove_tags_must_be_a_block :
 val prove_unique_tag_and_size :
   Typing_env.t ->
   Type_grammar.t ->
-  (Tag.t * Targetint_31_63.Imm.t) proof_allowing_kind_mismatch
+  (Tag.t * Targetint_31_63.t) proof_allowing_kind_mismatch
 
 val prove_unique_fully_constructed_immutable_heap_block :
   Typing_env.t -> Type_grammar.t -> (Tag_and_size.t * Simple.t list) proof

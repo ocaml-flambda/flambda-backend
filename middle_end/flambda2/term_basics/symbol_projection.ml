@@ -14,7 +14,7 @@
 
 module Projection = struct
   type t =
-    | Block_load of { index : Targetint_31_63.Imm.t }
+    | Block_load of { index : Targetint_31_63.t }
     | Project_value_slot of
         { project_from : Function_slot.t;
           value_slot : Value_slot.t
@@ -27,7 +27,7 @@ module Projection = struct
 
   let hash t =
     match t with
-    | Block_load { index } -> Targetint_31_63.Imm.hash index
+    | Block_load { index } -> Targetint_31_63.hash index
     | Project_value_slot { project_from; value_slot } ->
       Hashtbl.hash (Function_slot.hash project_from, Value_slot.hash value_slot)
 
@@ -37,7 +37,7 @@ module Projection = struct
       Format.fprintf ppf "@[<hov 1>(Block_load@ \
           @[<hov 1>(index@ %a)@]\
           )@]"
-        Targetint_31_63.Imm.print index
+        Targetint_31_63.print index
     | Project_value_slot { project_from; value_slot; } ->
       Format.fprintf ppf "@[<hov 1>(Project_value_slot@ \
           @[<hov 1>(project_from@ %a)@]@ \
@@ -49,7 +49,7 @@ module Projection = struct
   let compare t1 t2 =
     match t1, t2 with
     | Block_load { index = index1 }, Block_load { index = index2 } ->
-      Targetint_31_63.Imm.compare index1 index2
+      Targetint_31_63.compare index1 index2
     | ( Project_value_slot
           { project_from = project_from1; value_slot = value_slot1 },
         Project_value_slot

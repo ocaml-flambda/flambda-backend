@@ -93,11 +93,9 @@ let rec declare_const acc (const : Lambda.structured_constant) :
     Acc.t * Field_of_static_block.t * string =
   match const with
   | Const_base (Const_int c) ->
-    ( acc,
-      Tagged_immediate (Targetint_31_63.int (Targetint_31_63.Imm.of_int c)),
-      "int" )
+    acc, Tagged_immediate (Targetint_31_63.of_int c), "int"
   | Const_base (Const_char c) ->
-    acc, Tagged_immediate (Targetint_31_63.char c), "char"
+    acc, Tagged_immediate (Targetint_31_63.of_char c), "char"
   | Const_base (Const_string (s, _, _)) ->
     let const, name =
       if Flambda_features.safe_string ()
@@ -155,8 +153,8 @@ let rec declare_const acc (const : Lambda.structured_constant) :
 let close_const0 acc (const : Lambda.structured_constant) =
   let acc, const, name = declare_const acc const in
   match const with
-  | Tagged_immediate c ->
-    acc, Simple.const (Reg_width_const.tagged_immediate c), name
+  | Tagged_immediate i ->
+    acc, Simple.const (Reg_width_const.tagged_immediate i), name
   | Symbol s ->
     let acc, simple = use_of_symbol_as_simple acc s in
     acc, simple, name
@@ -757,7 +755,7 @@ let close_let acc env id user_visible defining_expr
                 ~const:(fun const ->
                   match Reg_width_const.descr const with
                   | Tagged_immediate i ->
-                    let i = Targetint_31_63.(Imm.to_int (to_targetint i)) in
+                    let i = Targetint_31_63.to_int i in
                     if i >= Array.length approx
                     then
                       Misc.fatal_errorf
@@ -941,7 +939,7 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
           Apply_cont_with_acc.create acc ?trap_action cont ~args
             ~dbg:condition_dbg
         in
-        acc, (Targetint_31_63.int (Targetint_31_63.Imm.of_int case), action))
+        acc, (Targetint_31_63.of_int case, action))
       acc sw.consts
   in
   match arms, sw.failaction with
@@ -988,7 +986,7 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
       | Some (default, trap_action, args) ->
         Numeric_types.Int.Set.fold
           (fun case (acc, cases) ->
-            let case = Targetint_31_63.int (Targetint_31_63.Imm.of_int case) in
+            let case = Targetint_31_63.of_int case in
             if Targetint_31_63.Map.mem case cases
             then acc, cases
             else
@@ -1933,14 +1931,14 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode)
     let block_access : P.Block_access_kind.t =
       Values
         { tag = Known Tag.Scannable.zero;
-          size = Known (Targetint_31_63.Imm.of_int module_block_size_in_words);
+          size = Known (Targetint_31_63.of_int module_block_size_in_words);
           field_kind = Any_value
         }
     in
     List.fold_left
       (fun (acc, body) (pos, var) ->
         let var = VB.create var Name_mode.normal in
-        let pos = Targetint_31_63.int (Targetint_31_63.Imm.of_int pos) in
+        let pos = Targetint_31_63.of_int pos in
         let named =
           Named.create_prim
             (Binary

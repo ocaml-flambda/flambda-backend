@@ -57,9 +57,9 @@ module Duplicate_block_kind : sig
   type t =
     | Values of
         { tag : Tag.Scannable.t;
-          length : Targetint_31_63.Imm.t
+          length : Targetint_31_63.t
         }
-    | Naked_floats of { length : Targetint_31_63.Imm.t }
+    | Naked_floats of { length : Targetint_31_63.t }
 
   val print : Format.formatter -> t -> unit
 
@@ -70,7 +70,7 @@ module Duplicate_array_kind : sig
   type t =
     | Immediates
     | Values
-    | Naked_floats of { length : Targetint_31_63.Imm.t option }
+    | Naked_floats of { length : Targetint_31_63.t option }
 
   val print : Format.formatter -> t -> unit
 
@@ -92,10 +92,10 @@ module Block_access_kind : sig
   type t =
     | Values of
         { tag : Tag.Scannable.t Or_unknown.t;
-          size : Targetint_31_63.Imm.t Or_unknown.t;
+          size : Targetint_31_63.t Or_unknown.t;
           field_kind : Block_access_field_kind.t
         }
-    | Naked_floats of { size : Targetint_31_63.Imm.t Or_unknown.t }
+    | Naked_floats of { size : Targetint_31_63.t Or_unknown.t }
 
   val print : Format.formatter -> t -> unit
 

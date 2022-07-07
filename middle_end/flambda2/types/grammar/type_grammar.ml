@@ -24,16 +24,16 @@ open Or_bottom.Let_syntax
 open Or_unknown.Let_syntax
 
 module Block_size = struct
-  include Targetint_31_63.Imm
+  include Targetint_31_63
 
   (** [subset t1 t2] is true if [t1] is a subset of [t2] *)
   let subset t1 t2 = Stdlib.( <= ) (compare t1 t2) 0
 
   (* An integer [i] represents all the values smaller than i, hence a smaller
      number is included in a bigger *)
-  let union t1 t2 = Targetint_31_63.Imm.max t1 t2
+  let union t1 t2 = Targetint_31_63.max t1 t2
 
-  let inter t1 t2 = Targetint_31_63.Imm.min t1 t2
+  let inter t1 t2 = Targetint_31_63.min t1 t2
 end
 
 (* The grammar of Flambda types. *)
@@ -2059,7 +2059,7 @@ module Product = struct
     let top = { function_slot_components_by_index = Function_slot.Map.empty }
 
     let width t =
-      Targetint_31_63.Imm.of_int
+      Targetint_31_63.of_int
         (Function_slot.Map.cardinal t.function_slot_components_by_index)
 
     let components t =
@@ -2076,7 +2076,7 @@ module Product = struct
     let top = { value_slot_components_by_index = Value_slot.Map.empty }
 
     let width t =
-      Targetint_31_63.Imm.of_int
+      Targetint_31_63.of_int
         (Value_slot.Map.cardinal t.value_slot_components_by_index)
 
     let components t = Value_slot.Map.data t.value_slot_components_by_index
@@ -2093,7 +2093,7 @@ module Product = struct
 
     let create_top kind = { kind; fields = [||] }
 
-    let width t = Targetint_31_63.Imm.of_int (Array.length t.fields)
+    let width t = Targetint_31_63.of_int (Array.length t.fields)
 
     let components t = Array.to_list t.fields
   end
@@ -2219,7 +2219,7 @@ module Row_like_for_blocks = struct
             field_kind)
     in
     let product = { kind = field_kind; fields = Array.of_list field_tys } in
-    let size = Targetint_31_63.Imm.of_int (List.length field_tys) in
+    let size = Targetint_31_63.of_int (List.length field_tys) in
     match open_or_closed with
     | Open _ -> (
       match tag with
@@ -2235,7 +2235,7 @@ module Row_like_for_blocks = struct
     let maps_to = Product.Int_indexed.create_top field_kind in
     let case =
       { maps_to;
-        index = At_least Targetint_31_63.Imm.zero;
+        index = At_least Targetint_31_63.zero;
         env_extension = { equations = Name.Map.empty }
       }
     in
@@ -2254,7 +2254,7 @@ module Row_like_for_blocks = struct
           let maps_to =
             { kind = field_kind; fields = Array.of_list field_tys }
           in
-          let size = Targetint_31_63.Imm.of_int (List.length field_tys) in
+          let size = Targetint_31_63.of_int (List.length field_tys) in
           { maps_to;
             index = Known size;
             env_extension = { equations = Name.Map.empty }
@@ -2272,7 +2272,7 @@ module Row_like_for_blocks = struct
     | Ok _ -> Unknown
     | Bottom -> Known (Tag.Map.map (fun case -> case.index) known_tags)
 
-  let all_tags_and_sizes t : Targetint_31_63.Imm.t Tag.Map.t Or_unknown.t =
+  let all_tags_and_sizes t : Targetint_31_63.t Tag.Map.t Or_unknown.t =
     match all_tags_and_indexes t with
     | Unknown -> Unknown
     | Known tags_and_indexes ->
@@ -2305,29 +2305,27 @@ module Row_like_for_blocks = struct
   let project_int_indexed_product { fields; kind = _ } index : _ Or_unknown.t =
     if Array.length fields <= index then Unknown else Known fields.(index)
 
-  let get_field t field_index : _ Or_unknown_or_bottom.t =
+  let get_field t index : _ Or_unknown_or_bottom.t =
     match get_singleton t with
     | None -> Unknown
     | Some ((_tag, size), maps_to) -> (
-      let index = Targetint_31_63.to_targetint field_index in
-      if Targetint_31_63.Imm.( <= ) size index
+      if Targetint_31_63.( <= ) size index
       then Bottom
       else
         match
-          project_int_indexed_product maps_to (Targetint_31_63.Imm.to_int index)
+          project_int_indexed_product maps_to (Targetint_31_63.to_int index)
         with
         | Unknown -> Unknown
         | Known res -> Ok res)
 
-  let get_variant_field t variant_tag field_index : _ Or_unknown_or_bottom.t =
-    let index = Targetint_31_63.to_targetint field_index in
+  let get_variant_field t variant_tag index : _ Or_unknown_or_bottom.t =
     let aux { index = size; maps_to; env_extension = _ } :
         _ Or_unknown_or_bottom.t =
       match size with
       | Known i when i <= index -> Bottom
       | Known _ | At_least _ -> (
         match
-          project_int_indexed_product maps_to (Targetint_31_63.Imm.to_int index)
+          project_int_indexed_product maps_to (Targetint_31_63.to_int index)
         with
         | Unknown -> Unknown
         | Known res -> Ok res)
@@ -2647,7 +2645,7 @@ let boxed_nativeint_alias_to ~naked_nativeint =
 
 let this_immutable_string str =
   (* CR mshinwell: Use "length" not "size" for strings *)
-  let size = Targetint_31_63.Imm.of_int (String.length str) in
+  let size = Targetint_31_63.of_int (String.length str) in
   let string_info =
     String_info.Set.singleton
       (String_info.create ~contents:(Contents str) ~size)
@@ -2655,7 +2653,7 @@ let this_immutable_string str =
   Value (TD.create (String string_info))
 
 let mutable_string ~size =
-  let size = Targetint_31_63.Imm.of_int size in
+  let size = Targetint_31_63.of_int size in
   let string_info =
     String_info.Set.singleton
       (String_info.create ~contents:Unknown_or_mutable ~size)

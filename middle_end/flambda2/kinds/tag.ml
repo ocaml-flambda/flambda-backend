@@ -40,19 +40,17 @@ let create_exn tag =
   then Misc.fatal_error (Printf.sprintf "Tag.create_exn %d" tag)
   else tag
 
-let create_from_targetint imm =
-  let ti = Targetint_31_63.to_targetint imm in
-  let min_tag = Targetint_31_63.Imm.of_int min_tag in
-  let max_tag = Targetint_31_63.Imm.of_int max_tag in
-  if Targetint_31_63.Imm.compare ti min_tag >= 0
-     && Targetint_31_63.Imm.compare ti max_tag <= 0
-  then Some (Targetint_31_63.Imm.to_int ti)
+let create_from_targetint ti =
+  let min_tag = Targetint_31_63.of_int min_tag in
+  let max_tag = Targetint_31_63.of_int max_tag in
+  if Targetint_31_63.compare ti min_tag >= 0
+     && Targetint_31_63.compare ti max_tag <= 0
+  then Some (Targetint_31_63.to_int ti)
   else None
 
 let to_int t = t
 
-let to_targetint_31_63 t =
-  Targetint_31_63.int (Targetint_31_63.Imm.of_int (to_int t))
+let to_targetint_31_63 t = Targetint_31_63.of_int (to_int t)
 
 let zero = 0
 

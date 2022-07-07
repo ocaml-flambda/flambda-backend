@@ -457,8 +457,8 @@ end = struct
 
   let op_lhs_unknown (op : P.int_shift_op) ~rhs :
       Num.t binary_arith_outcome_for_one_side_only =
-    let module O = Targetint_31_63.Imm in
-    let rhs = Targetint_31_63.to_targetint rhs in
+    let module O = Targetint_31_63 in
+    let rhs = rhs in
     match op with
     | Lsl | Lsr | Asr ->
       (* Shifting either way by [Targetint_32_64.size] or above, or by a
@@ -564,7 +564,7 @@ end = struct
     | Yielding_int_like_compare_functions signed_or_unsigned -> (
       match signed_or_unsigned with
       | Signed ->
-        let int i = Targetint_31_63.int (Targetint_31_63.Imm.of_int i) in
+        let int i = Targetint_31_63.of_int i in
         let c = Num.compare n1 n2 in
         if c < 0
         then Some (int (-1))
@@ -572,7 +572,7 @@ end = struct
         then Some (int 0)
         else Some (int 1)
       | Unsigned ->
-        let int i = Targetint_31_63.int (Targetint_31_63.Imm.of_int i) in
+        let int i = Targetint_31_63.of_int i in
         let c = Num.compare_unsigned n1 n2 in
         if c < 0
         then Some (int (-1))
@@ -756,7 +756,7 @@ end = struct
         then Some (bool false)
         else Some (bool (F.IEEE_semantics.compare n1 n2 >= 0)))
     | Yielding_int_like_compare_functions () ->
-      let int i = Targetint_31_63.int (Targetint_31_63.Imm.of_int i) in
+      let int i = Targetint_31_63.of_int i in
       let c = F.IEEE_semantics.compare n1 n2 in
       if c < 0
       then Some (int (-1))
@@ -894,11 +894,7 @@ let[@inline always] simplify_immutable_block_load0
       in
       SPR.create (Named.create_simple simple) ~try_reify:false dacc
     | Unknown -> (
-      let n =
-        Targetint_31_63.Imm.add
-          (Targetint_31_63.to_targetint index)
-          Targetint_31_63.Imm.one
-      in
+      let n = Targetint_31_63.add index Targetint_31_63.one in
       (* CR-someday mshinwell: We should be able to use the size in the
          [access_kind] to constrain the type of the block *)
       let tag : _ Or_unknown.t =
@@ -911,7 +907,7 @@ let[@inline always] simplify_immutable_block_load0
                seem that the frontend currently emits code to create such
                blocks) and so it isn't clear whether such blocks should have tag
                zero (like zero-sized naked float arrays) or another tag. *)
-            if Targetint_31_63.Imm.equal size Targetint_31_63.Imm.zero
+            if Targetint_31_63.equal size Targetint_31_63.zero
             then Unknown
             else Known Tag.double_array_tag
           | Unknown -> Unknown)
@@ -978,8 +974,7 @@ let simplify_immutable_block_load access_kind ~min_name_mode dacc ~original_term
     Simple.pattern_match arg2
       ~const:(fun const ->
         match Reg_width_const.descr const with
-        | Tagged_immediate imm ->
-          let index = Targetint_31_63.to_targetint imm in
+        | Tagged_immediate index ->
           Simplify_common.add_symbol_projection result.dacc ~projected_from:arg1
             (Symbol_projection.Projection.block_load ~index)
             ~projection_bound_to:result_var

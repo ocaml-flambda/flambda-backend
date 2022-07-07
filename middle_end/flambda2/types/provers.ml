@@ -399,7 +399,7 @@ let prove_tags_and_sizes env t : _ proof =
   | Region _ -> wrong_kind ()
 
 let prove_unique_tag_and_size env t :
-    (Tag.t * Targetint_31_63.Imm.t) proof_allowing_kind_mismatch =
+    (Tag.t * Targetint_31_63.t) proof_allowing_kind_mismatch =
   if not (Flambda_kind.equal (TG.kind t) Flambda_kind.value)
   then Wrong_kind
   else
@@ -438,7 +438,7 @@ let prove_unique_fully_constructed_immutable_heap_block env t : _ proof =
 
 type variant_like_proof =
   { const_ctors : Targetint_31_63.Set.t Or_unknown.t;
-    non_const_ctors_with_sizes : Targetint_31_63.Imm.t Tag.Scannable.Map.t
+    non_const_ctors_with_sizes : Targetint_31_63.t Tag.Scannable.Map.t
   }
 
 let prove_variant_like env t : variant_like_proof proof_allowing_kind_mismatch =

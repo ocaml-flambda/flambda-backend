@@ -130,7 +130,7 @@ let blocks_with_these_tags tags : _ Or_unknown.t =
          Unknown)
 
 let immutable_block ~is_unique tag ~field_kind alloc_mode ~fields =
-  match Targetint_31_63.Imm.of_int_option (List.length fields) with
+  match Targetint_31_63.of_int_option (List.length fields) with
   | None ->
     (* CR mshinwell: This should be a special kind of error. *)
     Misc.fatal_error "Block too long for target"
@@ -143,7 +143,7 @@ let immutable_block ~is_unique tag ~field_kind alloc_mode ~fields =
       alloc_mode
 
 let immutable_block_with_size_at_least ~tag ~n ~field_kind ~field_n_minus_one =
-  let n = Targetint_31_63.Imm.to_int n in
+  let n = Targetint_31_63.to_int n in
   let field_tys =
     List.init n (fun index ->
         if index < n - 1
@@ -174,7 +174,7 @@ let open_variant_from_const_ctors_type ~const_ctors =
     ~blocks:Unknown Unknown
 
 let open_variant_from_non_const_ctor_with_size_at_least ~n ~field_n_minus_one =
-  let n = Targetint_31_63.Imm.to_int n in
+  let n = Targetint_31_63.to_int n in
   let field_tys =
     List.init n (fun index ->
         if index < n - 1

@@ -95,8 +95,8 @@ let simplify_make_array (array_kind : P.Array_kind.t) ~mutable_or_immutable
     alloc_mode dacc ~original_term:_ dbg ~args_with_tys ~result_var =
   let args, tys = List.split args_with_tys in
   let length =
-    match Targetint_31_63.Imm.of_int_option (List.length args) with
-    | Some ti -> T.this_tagged_immediate (Targetint_31_63.int ti)
+    match Targetint_31_63.of_int_option (List.length args) with
+    | Some ti -> T.this_tagged_immediate ti
     | None -> T.unknown K.value
   in
   let element_kind =

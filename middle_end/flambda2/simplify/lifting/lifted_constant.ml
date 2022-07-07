@@ -293,7 +293,7 @@ let apply_projection t proj =
       match Symbol_projection.projection proj with
       | Block_load { index } ->
         T.prove_block_field_simple typing_env ~min_name_mode:Name_mode.normal ty
-          (Targetint_31_63.int index)
+          index
       | Project_value_slot { project_from = _; value_slot } ->
         T.prove_project_value_slot_simple typing_env
           ~min_name_mode:Name_mode.normal ty value_slot

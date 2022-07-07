@@ -20,7 +20,7 @@ type string_contents =
 
 type t =
   { contents : string_contents;
-    size : Targetint_31_63.Imm.t
+    size : Targetint_31_63.t
   }
 
 let create ~contents ~size = { contents; size }
@@ -49,15 +49,16 @@ include Container_types.Make (struct
   let [@ocamlformat "disable"] print ppf { contents; size; } =
     match contents with
     | Unknown_or_mutable ->
-      Format.fprintf ppf "(size %a)" Targetint_31_63.Imm.print size
+      Format.fprintf ppf "(size %a)"
+        Targetint_31_63.print size
     | Contents s ->
       let s, dots =
-        let max_size = Targetint_31_63.Imm.ten in
-        let long = Targetint_31_63.Imm.compare size max_size > 0 in
+        let max_size = Targetint_31_63.ten in
+        let long = Targetint_31_63.compare size max_size > 0 in
         if long then String.sub s 0 8, "..."
         else s, ""
       in
       Format.fprintf ppf "(size %a) (contents \"%S\"%s)"
-        Targetint_31_63.Imm.print size
+        Targetint_31_63.print size
         s dots
 end)

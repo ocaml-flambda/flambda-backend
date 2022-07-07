@@ -269,7 +269,7 @@ module Product : sig
 
     val create : flambda_type Function_slot.Map.t -> t
 
-    val width : t -> Targetint_31_63.Imm.t
+    val width : t -> Targetint_31_63.t
 
     (* CR mshinwell: check if this is used *)
     val components : t -> flambda_type list
@@ -282,7 +282,7 @@ module Product : sig
 
     val create : flambda_type Value_slot.Map.t -> t
 
-    val width : t -> Targetint_31_63.Imm.t
+    val width : t -> Targetint_31_63.t
 
     val components : t -> flambda_type list
   end
@@ -298,7 +298,7 @@ module Product : sig
 
     val field_kind : t -> Flambda_kind.t
 
-    val width : t -> Targetint_31_63.Imm.t
+    val width : t -> Targetint_31_63.t
 
     val components : t -> flambda_type list
   end
@@ -375,7 +375,7 @@ module Row_like_for_blocks : sig
 
   val all_tags : t -> Tag.Set.t Or_unknown.t
 
-  val all_tags_and_sizes : t -> Targetint_31_63.Imm.t Tag.Map.t Or_unknown.t
+  val all_tags_and_sizes : t -> Targetint_31_63.t Tag.Map.t Or_unknown.t
 
   val get_singleton : t -> (Tag_and_size.t * Product.Int_indexed.t) option
 

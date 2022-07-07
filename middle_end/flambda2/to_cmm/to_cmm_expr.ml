@@ -665,7 +665,7 @@ and switch env res switch =
   in
   let wrap, env = Env.flush_delayed_lets env in
   let prepare_discriminant ~must_tag d =
-    let targetint_d = Targetint_31_63.to_targetint' d in
+    let targetint_d = Targetint_31_63.to_targetint d in
     Targetint_32_64.to_int_checked
       (if must_tag then C.tag_targetint targetint_d else targetint_d)
   in

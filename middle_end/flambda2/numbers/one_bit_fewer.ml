@@ -27,8 +27,6 @@ module type S = sig
 
   val max_value : t
 
-  val max_string_length : t
-
   val minus_one : t
 
   val zero : t
@@ -133,8 +131,6 @@ module Make (I : S) : S with type t = I.t = struct
   let min_value = I.shift_right I.min_value 1
 
   let max_value = I.shift_right I.max_value 1
-
-  let max_string_length = I.min max_value I.max_string_length
 
   let minus_one = I.minus_one
 

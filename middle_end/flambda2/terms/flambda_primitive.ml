@@ -98,9 +98,9 @@ module Duplicate_block_kind = struct
   type t =
     | Values of
         { tag : Tag.Scannable.t;
-          length : Targetint_31_63.Imm.t
+          length : Targetint_31_63.t
         }
-    | Naked_floats of { length : Targetint_31_63.Imm.t }
+    | Naked_floats of { length : Targetint_31_63.t }
 
   let [@ocamlformat "disable"] print ppf t =
     match t with
@@ -111,22 +111,22 @@ module Duplicate_block_kind = struct
           @[<hov 1>(length@ %a)@]\
           )@]"
         Tag.Scannable.print tag
-        Targetint_31_63.Imm.print length
+        Targetint_31_63.print length
     | Naked_floats { length; } ->
       Format.fprintf ppf
         "@[<hov 1>(Block_of_naked_floats@ \
           @[<hov 1>(length@ %a)@]\
           )@]"
-        Targetint_31_63.Imm.print length
+        Targetint_31_63.print length
 
   let compare t1 t2 =
     match t1, t2 with
     | ( Values { tag = tag1; length = length1 },
         Values { tag = tag2; length = length2 } ) ->
       let c = Tag.Scannable.compare tag1 tag2 in
-      if c <> 0 then c else Targetint_31_63.Imm.compare length1 length2
+      if c <> 0 then c else Targetint_31_63.compare length1 length2
     | Naked_floats { length = length1 }, Naked_floats { length = length2 } ->
-      Targetint_31_63.Imm.compare length1 length2
+      Targetint_31_63.compare length1 length2
     | Values _, Naked_floats _ -> -1
     | Naked_floats _, Values _ -> 1
 end
@@ -135,7 +135,7 @@ module Duplicate_array_kind = struct
   type t =
     | Immediates
     | Values
-    | Naked_floats of { length : Targetint_31_63.Imm.t option }
+    | Naked_floats of { length : Targetint_31_63.t option }
 
   let [@ocamlformat "disable"] print ppf t =
     match t with
@@ -146,13 +146,13 @@ module Duplicate_array_kind = struct
         "@[<hov 1>(Naked_floats@ \
           @[<hov 1>(length@ %a)@]\
           )@]"
-        (Misc.Stdlib.Option.print Targetint_31_63.Imm.print) length
+        (Misc.Stdlib.Option.print Targetint_31_63.print) length
 
   let compare t1 t2 =
     match t1, t2 with
     | Immediates, Immediates | Values, Values -> 0
     | Naked_floats { length = length1 }, Naked_floats { length = length2 } ->
-      Option.compare Targetint_31_63.Imm.compare length1 length2
+      Option.compare Targetint_31_63.compare length1 length2
     | Immediates, _ -> -1
     | _, Immediates -> 1
     | Values, _ -> -1
@@ -176,10 +176,10 @@ module Block_access_kind = struct
   type t =
     | Values of
         { tag : Tag.Scannable.t Or_unknown.t;
-          size : Targetint_31_63.Imm.t Or_unknown.t;
+          size : Targetint_31_63.t Or_unknown.t;
           field_kind : Block_access_field_kind.t
         }
-    | Naked_floats of { size : Targetint_31_63.Imm.t Or_unknown.t }
+    | Naked_floats of { size : Targetint_31_63.t Or_unknown.t }
 
   let [@ocamlformat "disable"] print ppf t =
     match t with
@@ -191,14 +191,14 @@ module Block_access_kind = struct
           @[<hov 1>(field_kind@ %a)@]\
           )@]"
         (Or_unknown.print Tag.Scannable.print) tag
-        (Or_unknown.print Targetint_31_63.Imm.print) size
+        (Or_unknown.print Targetint_31_63.print) size
         Block_access_field_kind.print field_kind
     | Naked_floats { size; } ->
       Format.fprintf ppf
         "@[<hov 1>(Naked_floats@ \
           @[<hov 1>(size@ %a)@]\
           )@]"
-        (Or_unknown.print Targetint_31_63.Imm.print) size
+        (Or_unknown.print Targetint_31_63.print) size
 
   let element_kind_for_load t =
     match t with Values _ -> K.value | Naked_floats _ -> K.naked_float
@@ -213,12 +213,12 @@ module Block_access_kind = struct
       if c <> 0
       then c
       else
-        let c = Or_unknown.compare Targetint_31_63.Imm.compare size1 size2 in
+        let c = Or_unknown.compare Targetint_31_63.compare size1 size2 in
         if c <> 0
         then c
         else Block_access_field_kind.compare field_kind1 field_kind2
     | Naked_floats { size = size1 }, Naked_floats { size = size2 } ->
-      Or_unknown.compare Targetint_31_63.Imm.compare size1 size2
+      Or_unknown.compare Targetint_31_63.compare size1 size2
     | Values _, Naked_floats _ -> -1
     | Naked_floats _, Values _ -> 1
 end
