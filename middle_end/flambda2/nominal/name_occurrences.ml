@@ -51,8 +51,6 @@ end) : sig
 
   val remove : t -> N.t -> t
 
-  val remove_one_occurrence : t -> N.t -> Name_mode.t -> t
-
   val count : t -> N.t -> Num_occurrences.t
 
   val count_normal : t -> N.t -> Num_occurrences.t
@@ -80,13 +78,6 @@ end = struct
     val one_occurrence : Name_mode.t -> t
 
     val add : t -> Name_mode.t -> t
-
-    type remove_one_occurrence_result = private
-      | No_more_occurrences
-      | One_remaining_occurrence of Name_mode.t
-      | Multiple_remaining_occurrences of t
-
-    val remove_one_occurrence : t -> Name_mode.t -> remove_one_occurrence_result
 
     val num_occurrences : t -> int
 
@@ -167,48 +158,6 @@ end = struct
         encode_phantom_occurrences (1 + num_occurrences_phantom t)
         lor without_phantom_occurrences t
 
-    type remove_one_occurrence_result =
-      | No_more_occurrences
-      | One_remaining_occurrence of Name_mode.t
-      | Multiple_remaining_occurrences of t
-
-    let remove_one_occurrence t (name_mode : Name_mode.t) =
-      let t =
-        match name_mode with
-        | Normal ->
-          let num_occurrences =
-            let num = num_occurrences_normal t in
-            if num > 0 then num - 1 else 0
-          in
-          encode_normal_occurrences num_occurrences
-          lor without_normal_occurrences t
-        | In_types ->
-          let num_occurrences =
-            let num = num_occurrences_in_types t in
-            if num > 0 then num - 1 else 0
-          in
-          encode_in_types_occurrences num_occurrences
-          lor without_in_types_occurrences t
-        | Phantom ->
-          let num_occurrences =
-            let num = num_occurrences_phantom t in
-            if num > 0 then num - 1 else 0
-          in
-          encode_phantom_occurrences num_occurrences
-          lor without_phantom_occurrences t
-      in
-      match num_occurrences t with
-      | 0 -> No_more_occurrences
-      | 1 ->
-        if num_occurrences_normal t = 1
-        then One_remaining_occurrence Name_mode.normal
-        else if num_occurrences_phantom t = 1
-        then One_remaining_occurrence Name_mode.phantom
-        else if num_occurrences_in_types t = 1
-        then One_remaining_occurrence Name_mode.in_types
-        else assert false
-      | _ -> Multiple_remaining_occurrences t
-
     (* CR mshinwell: Add -strict-sequence to the build *)
 
     let downgrade_occurrences_at_strictly_greater_name_mode t
@@ -244,293 +193,99 @@ end = struct
             (num_occurrences_phantom t1 + num_occurrences_phantom t2)
   end
 
-  (* CR mshinwell: This type is a pain, see if it's really worth it *)
-  type t =
-    | Empty
-    | One of N.t * Name_mode.t
-    | Potentially_many of For_one_name.t N.Map.t
-
-  let map t =
-    match t with
-    | Empty -> N.Map.empty
-    | One (name, name_mode) ->
-      let for_one_name = For_one_name.one_occurrence name_mode in
-      N.Map.singleton name for_one_name
-    | Potentially_many map -> map
+  type t = For_one_name.t N.Map.t
 
   let [@ocamlformat "disable"] print ppf t =
-    N.Map.print For_one_name.print ppf (map t)
+    N.Map.print For_one_name.print ppf t
 
-  let equal t1 t2 =
-    match t1, t2 with
-    | Empty, Empty -> true
-    | One (n1, name_mode1), One (n2, name_mode2) ->
-      N.equal n1 n2 && Name_mode.equal name_mode1 name_mode2
-    | Potentially_many map1, Potentially_many map2 ->
-      N.Map.equal For_one_name.equal map1 map2
-    | Empty, Potentially_many map | Potentially_many map, Empty ->
-      N.Map.is_empty map
-    | One (n1, name_mode1), Potentially_many map
-    | Potentially_many map, One (n1, name_mode1) -> (
-      match N.Map.get_singleton map with
-      | None -> false
-      | Some (n2, for_one_name2) ->
-        let for_one_name1 = For_one_name.one_occurrence name_mode1 in
-        N.equal n1 n2 && For_one_name.equal for_one_name1 for_one_name2)
-    | (Empty | One _), _ -> false
+  let equal t1 t2 = N.Map.equal For_one_name.equal t1 t2
 
-  let empty = Empty
+  let empty = N.Map.empty
 
-  let is_empty t =
-    match t with
-    | Empty -> true
-    | One _ -> false
-    | Potentially_many map -> N.Map.is_empty map
+  let is_empty t = N.Map.is_empty t
 
-  let singleton name name_mode = One (name, name_mode)
+  let singleton name name_mode =
+    N.Map.singleton name (For_one_name.one_occurrence name_mode)
 
   let add t name name_mode =
-    match t with
-    | Empty -> singleton name name_mode
-    | One (name', name_mode') ->
-      if N.equal name name'
-      then
-        let for_one_name =
-          For_one_name.add (For_one_name.one_occurrence name_mode') name_mode
-        in
-        Potentially_many (N.Map.singleton name for_one_name)
-      else
-        let map =
-          N.Map.empty
-          |> N.Map.add name (For_one_name.one_occurrence name_mode)
-          |> N.Map.add name' (For_one_name.one_occurrence name_mode')
-        in
-        Potentially_many map
-    | Potentially_many map ->
-      let map =
-        N.Map.update name
-          (function
-            | None -> Some (For_one_name.one_occurrence name_mode)
-            | Some for_one_name ->
-              Some (For_one_name.add for_one_name name_mode))
-          map
-      in
-      Potentially_many map
+    N.Map.update name
+      (function
+        | None -> Some (For_one_name.one_occurrence name_mode)
+        | Some for_one_name -> Some (For_one_name.add for_one_name name_mode))
+      t
 
   let apply_renaming t perm =
-    match t with
-    | Empty -> Empty
-    | One (name, name_mode) ->
-      let name' = N.apply_renaming name perm in
-      if name == name' then t else One (name', name_mode)
-    | Potentially_many map ->
-      let map =
-        N.Map.fold
-          (fun name for_one_name result ->
-            let name = N.apply_renaming name perm in
-            N.Map.add name for_one_name result)
-          map N.Map.empty
-      in
-      Potentially_many map
+    N.Map.map_keys (fun name -> N.apply_renaming name perm) t
 
   let affected_by_renaming t perm =
-    match t with
-    | Empty -> false
-    | One (name, _name_mode) -> not (N.equal name (N.apply_renaming name perm))
-    | Potentially_many map ->
-      N.Map.exists
-        (fun name _name_mode -> not (N.equal name (N.apply_renaming name perm)))
-        map
+    (* CR lmaurer: This is ultimately just [N.Map.inter_domain_is_not_equal]. *)
+    N.Map.exists
+      (fun name _name_mode -> not (N.equal name (N.apply_renaming name perm)))
+      t
 
-  let diff t1 t2 =
-    match t1, t2 with
-    | (Empty | One _ | Potentially_many _), Empty -> t1
-    | Empty, (One _ | Potentially_many _) -> Empty
-    | One (name1, _), One (name2, _) ->
-      if N.equal name1 name2 then Empty else t1
-    | One (name1, _), Potentially_many map2 ->
-      if N.Map.mem name1 map2 then Empty else t1
-    | Potentially_many map1, One (name2, _) ->
-      (* CR mshinwell: This and the next case could go back to [Empty] *)
-      let map = N.Map.remove name2 map1 in
-      if N.Map.is_empty map then Empty else Potentially_many map
-    | Potentially_many map1, Potentially_many map2 ->
-      let map = N.Map.diff_domains map1 map2 in
-      if N.Map.is_empty map then Empty else Potentially_many map
+  let diff t1 t2 = N.Map.diff_domains t1 t2
 
   let union t1 t2 =
-    match t1, t2 with
-    | Empty, Empty -> Empty
-    | Empty, (One _ | Potentially_many _) -> t2
-    | (One _ | Potentially_many _), Empty -> t1
-    | One (name1, name_mode1), One (name2, name_mode2) ->
-      let map =
-        if N.equal name1 name2
-        then
-          N.Map.empty
-          |> N.Map.add name1
-               (For_one_name.add
-                  (For_one_name.one_occurrence name_mode1)
-                  name_mode2)
-        else
-          N.Map.empty
-          |> N.Map.add name1 (For_one_name.one_occurrence name_mode1)
-          |> N.Map.add name2 (For_one_name.one_occurrence name_mode2)
-      in
-      Potentially_many map
-    | One (name, name_mode), Potentially_many map
-    | Potentially_many map, One (name, name_mode) ->
-      let map =
-        N.Map.update name
-          (function
-            | None -> Some (For_one_name.one_occurrence name_mode)
-            | Some for_one_name ->
-              Some (For_one_name.add for_one_name name_mode))
-          map
-      in
-      Potentially_many map
-    | Potentially_many map1, Potentially_many map2 ->
-      let map =
-        N.Map.union
-          (fun _name for_one_name1 for_one_name2 ->
-            Some (For_one_name.union for_one_name1 for_one_name2))
-          map1 map2
-      in
-      Potentially_many map
+    N.Map.union
+      (fun _name for_one_name1 for_one_name2 ->
+        Some (For_one_name.union for_one_name1 for_one_name2))
+      t1 t2
 
-  let keys t =
-    match t with
-    | Empty -> N.Set.empty
-    | One (name, _) -> N.Set.singleton name
-    | Potentially_many map -> N.Map.keys map
+  let keys t = N.Map.keys t
 
   let subset_domain t1 t2 =
-    match t1, t2 with
-    | Empty, (Empty | One _ | Potentially_many _) -> true
-    | (One _ | Potentially_many _), Empty -> false
-    | One (name1, _), One (name2, _) -> N.equal name1 name2
-    | One (name1, _), Potentially_many map2 -> N.Map.mem name1 map2
-    | Potentially_many map1, One (name2, _) -> (
-      N.Map.is_empty map1
-      ||
-      match N.Map.get_singleton map1 with
-      | Some (name1, _) -> N.equal name1 name2
-      | None -> false)
-    | Potentially_many map1, Potentially_many map2 ->
-      N.Set.subset (N.Map.keys map1) (N.Map.keys map2)
+    (* CR lmaurer: Add this operation to [Patricia_tree]. ([N.Map.keys] being
+       O(n lg n) makes this especially painful.) *)
+    N.Set.subset (N.Map.keys t1) (N.Map.keys t2)
 
-  let inter_domain_is_non_empty t1 t2 =
-    match t1, t2 with
-    | Empty, (Empty | One _ | Potentially_many _)
-    | (One _ | Potentially_many _), Empty ->
-      false
-    | One (name1, _), One (name2, _) -> N.equal name1 name2
-    | One (name, _), Potentially_many map | Potentially_many map, One (name, _)
-      ->
-      N.Map.mem name map
-    | Potentially_many map1, Potentially_many map2 ->
-      N.Map.inter_domain_is_non_empty map1 map2
+  let inter_domain_is_non_empty t1 t2 = N.Map.inter_domain_is_non_empty t1 t2
 
-  let mem t name =
-    match t with
-    | Empty -> false
-    | One (name', _) -> N.equal name name'
-    | Potentially_many map -> N.Map.mem name map
+  let mem t name = N.Map.mem name t
 
-  let remove t name =
-    match t with
-    | Empty -> Empty
-    | One (name', _) -> if N.equal name name' then Empty else t
-    | Potentially_many map ->
-      let map = N.Map.remove name map in
-      if N.Map.is_empty map then Empty else Potentially_many map
-
-  let remove_one_occurrence t name name_mode =
-    match t with
-    | Empty -> Empty
-    | One (name', name_mode') ->
-      if N.equal name name' && Name_mode.equal name_mode name_mode'
-      then Empty
-      else t
-    | Potentially_many map -> (
-      match N.Map.find name map with
-      | exception Not_found -> Empty
-      | for_one_name -> (
-        match For_one_name.remove_one_occurrence for_one_name name_mode with
-        | No_more_occurrences -> Empty
-        | One_remaining_occurrence name_mode -> One (name, name_mode)
-        | Multiple_remaining_occurrences for_one_name ->
-          let map = N.Map.add name for_one_name map in
-          Potentially_many map))
+  let remove t name = N.Map.remove name t
 
   let count t name : Num_occurrences.t =
-    match t with
-    | Empty -> Zero
-    | One (name', _) -> if N.equal name name' then One else Zero
-    | Potentially_many map -> (
-      match N.Map.find name map with
-      | exception Not_found -> Zero
-      | for_one_name ->
-        let num_occurrences = For_one_name.num_occurrences for_one_name in
-        assert (num_occurrences >= 0);
-        if num_occurrences = 0
-        then Zero
-        else if num_occurrences = 1
-        then One
-        else More_than_one)
+    match N.Map.find name t with
+    | exception Not_found -> Zero
+    | for_one_name ->
+      let num_occurrences = For_one_name.num_occurrences for_one_name in
+      assert (num_occurrences >= 0);
+      if num_occurrences = 0
+      then Zero
+      else if num_occurrences = 1
+      then One
+      else More_than_one
 
   let count_normal t name : Num_occurrences.t =
-    match t with
-    | Empty -> Zero
-    | One (name', mode) ->
-      if N.equal name name' && Name_mode.is_normal mode then One else Zero
-    | Potentially_many map -> (
-      match N.Map.find name map with
-      | exception Not_found -> Zero
-      | for_one_name ->
-        let num_occurrences =
-          For_one_name.num_occurrences_normal for_one_name
-        in
-        assert (num_occurrences >= 0);
-        if num_occurrences = 0
-        then Zero
-        else if num_occurrences = 1
-        then One
-        else More_than_one)
+    match N.Map.find name t with
+    | exception Not_found -> Zero
+    | for_one_name ->
+      let num_occurrences = For_one_name.num_occurrences_normal for_one_name in
+      assert (num_occurrences >= 0);
+      if num_occurrences = 0
+      then Zero
+      else if num_occurrences = 1
+      then One
+      else More_than_one
 
   let greatest_name_mode t name : Name_mode.Or_absent.t =
-    match t with
-    | Empty -> Name_mode.Or_absent.absent
-    | One (name', name_mode) ->
-      if N.equal name name'
-      then Name_mode.Or_absent.present name_mode
-      else Name_mode.Or_absent.absent
-    | Potentially_many map -> (
-      match N.Map.find name map with
-      | exception Not_found -> Name_mode.Or_absent.absent
-      | for_one_name -> (
-        match For_one_name.max_name_mode_opt for_one_name with
-        | None -> Name_mode.Or_absent.absent
-        | Some name_mode -> Name_mode.Or_absent.present name_mode))
+    match N.Map.find name t with
+    | exception Not_found -> Name_mode.Or_absent.absent
+    | for_one_name -> (
+      match For_one_name.max_name_mode_opt for_one_name with
+      | None -> Name_mode.Or_absent.absent
+      | Some name_mode -> Name_mode.Or_absent.present name_mode)
 
   let fold t ~init ~f =
-    match t with
-    | Empty -> init
-    | One (name, _name_mode) -> f init name
-    | Potentially_many map ->
-      N.Map.fold (fun name _name_mode acc -> f acc name) map init
+    N.Map.fold (fun name _name_mode acc -> f acc name) t init
 
   let fold_with_mode t ~init ~f =
-    match t with
-    | Empty -> init
-    | One (name, name_mode) -> f init name name_mode
-    | Potentially_many map ->
-      N.Map.fold
-        (fun name name_mode acc ->
-          match For_one_name.max_name_mode_opt name_mode with
-          | Some name_mode -> f acc name name_mode
-          | None -> acc)
-        map init
+    N.Map.fold
+      (fun name name_mode acc ->
+        match For_one_name.max_name_mode_opt name_mode with
+        | Some name_mode -> f acc name name_mode
+        | None -> acc)
+      t init
 
   let downgrade_occurrences_at_strictly_greater_name_mode t
       (max_name_mode : Name_mode.t) =
@@ -538,56 +293,22 @@ end = struct
        closure allocation if [max_name_mode] is captured. *)
     match max_name_mode with
     | Normal -> t
-    | Phantom -> (
-      match t with
-      | Empty -> Empty
-      | One (name, name_mode) -> (
-        match name_mode with
-        | Normal | Phantom -> One (name, Name_mode.phantom)
-        | In_types ->
-          Misc.fatal_errorf "Cannot downgrade [In_types] to [Phantom]:@ %a"
-            print t)
-      | Potentially_many map ->
-        let map =
-          N.Map.map_sharing
-            (fun for_one_name ->
-              For_one_name.downgrade_occurrences_at_strictly_greater_name_mode
-                for_one_name Name_mode.phantom)
-            map
-        in
-        Potentially_many map)
-    | In_types -> (
-      match t with
-      | Empty -> Empty
-      | One (name, name_mode) -> (
-        match name_mode with
-        | Normal | In_types -> One (name, Name_mode.in_types)
-        | Phantom ->
-          Misc.fatal_errorf "Cannot downgrade [Phantom] to [In_types]:@ %a"
-            print t)
-      | Potentially_many map ->
-        let map =
-          N.Map.map_sharing
-            (fun for_one_name ->
-              For_one_name.downgrade_occurrences_at_strictly_greater_name_mode
-                for_one_name Name_mode.in_types)
-            map
-        in
-        Potentially_many map)
+    | Phantom ->
+      N.Map.map_sharing
+        (fun for_one_name ->
+          For_one_name.downgrade_occurrences_at_strictly_greater_name_mode
+            for_one_name Name_mode.phantom)
+        t
+    | In_types ->
+      N.Map.map_sharing
+        (fun for_one_name ->
+          For_one_name.downgrade_occurrences_at_strictly_greater_name_mode
+            for_one_name Name_mode.in_types)
+        t
 
-  let for_all t ~f =
-    match t with
-    | Empty -> true
-    | One (name, _) -> f name
-    | Potentially_many map -> N.Map.for_all (fun name _ -> f name) map
+  let for_all t ~f = N.Map.for_all (fun name _ -> f name) t
 
-  let filter t ~f =
-    match t with
-    | Empty -> t
-    | One (name, _) -> if f name then t else Empty
-    | Potentially_many map ->
-      let map = N.Map.filter (fun name _ -> f name) map in
-      if N.Map.is_empty map then Empty else Potentially_many map
+  let filter t ~f = N.Map.filter (fun name _ -> f name) t
 end
 [@@inlined always]
 
@@ -712,13 +433,6 @@ let add_continuation t cont ~has_traps =
   in
   { t with continuations; continuations_with_traps }
 
-let add_continuation_in_trap_action t cont =
-  { t with
-    continuations_in_trap_actions =
-      For_continuations.add t.continuations_in_trap_actions cont
-        Name_mode.normal
-  }
-
 let count_continuation t cont = For_continuations.count t.continuations cont
 
 let continuation_is_applied_with_traps t cont =
@@ -809,8 +523,6 @@ let create_variables vars name_mode =
       vars For_names.empty
   in
   { empty with names }
-
-let create_variables' name_mode vars = create_variables vars name_mode
 
 let create_names names name_mode =
   let names =
@@ -1120,9 +832,6 @@ let newer_version_of_code_ids t = For_code_ids.keys t.newer_version_of_code_ids
 let code_ids_and_newer_version_of_code_ids t =
   Code_id.Set.union (code_ids t) (newer_version_of_code_ids t)
 
-let only_newer_version_of_code_ids t =
-  Code_id.Set.diff (newer_version_of_code_ids t) (code_ids t)
-
 let mem_name t name = For_names.mem t.names name
 
 let mem_var t var = For_names.mem t.names (Name.var var)
@@ -1130,12 +839,6 @@ let mem_var t var = For_names.mem t.names (Name.var var)
 let mem_symbol t symbol = For_names.mem t.names (Name.symbol symbol)
 
 let mem_code_id t code_id = For_code_ids.mem t.code_ids code_id
-
-let mem_newer_version_of_code_id t code_id =
-  For_code_ids.mem t.newer_version_of_code_ids code_id
-
-let mem_value_slot_in_projections t value_slot =
-  For_value_slots.mem t.value_slots_in_projections value_slot
 
 let value_slot_is_used_or_imported t value_slot =
   Value_slot.is_imported value_slot
@@ -1188,16 +891,6 @@ let remove_continuation t k =
       continuations_with_traps;
       continuations_in_trap_actions
     }
-
-let remove_one_occurrence_of_value_slot_in_projections t value_slot name_mode =
-  if For_value_slots.is_empty t.value_slots_in_projections
-  then t
-  else
-    let value_slots_in_projections =
-      For_value_slots.remove_one_occurrence t.value_slots_in_projections
-        value_slot name_mode
-    in
-    { t with value_slots_in_projections }
 
 let greatest_name_mode_var t var =
   For_names.greatest_name_mode t.names (Name.var var)
@@ -1313,10 +1006,6 @@ let fold_continuations_including_in_trap_actions t ~init ~f =
   (* Note: continuations_with_traps is included in continuations *)
   let init = For_continuations.fold t.continuations ~init ~f in
   For_continuations.fold t.continuations_in_trap_actions ~init ~f
-
-let filter_names t ~f =
-  let names = For_names.filter t.names ~f in
-  { t with names }
 
 let fold_code_ids t ~init ~f = For_code_ids.fold t.code_ids ~init ~f
 

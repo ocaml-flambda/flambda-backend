@@ -36,6 +36,10 @@ module Make (Bindable : Bindable.S) (Term : Term) : sig
   (** Concretion of an abstraction at a fresh name. *)
   val pattern_match : t -> f:(Bindable.t -> Term.t -> 'a) -> 'a
 
+  (** Like [pattern_match], but only freshen if
+      [Flambda_features.freshen_when_printing] is enabled. *)
+  val pattern_match_for_printing : t -> f:(Bindable.t -> Term.t -> 'a) -> 'a
+
   (** Concretion of a pair of abstractions at the same fresh name. *)
   val pattern_match_pair :
     t -> t -> f:(Bindable.t -> Term.t -> Term.t -> 'a) -> 'a
@@ -46,38 +50,38 @@ module Make (Bindable : Bindable.S) (Term : Term) : sig
   val apply_renaming : t -> Renaming.t -> t
 end
 
-module Make_free_names
-    (Bindable : Bindable.S) (Term : sig
-      include Term
+(*_ One-off versions of the functions, in the form most convenient to
+  [Flambda2_terms.Flambda] *)
 
-      val free_names : t -> Name_occurrences.t
-    end) : sig
-  type nonrec t = (Bindable.t, Term.t) t
+val apply_renaming :
+  (module Bindable.S with type t = 'bindable) ->
+  ('bindable, 'term) t ->
+  Renaming.t ->
+  apply_renaming_to_term:('term -> Renaming.t -> 'term) ->
+  ('bindable, 'term) t
 
-  val free_names : t -> Name_occurrences.t
-end
+val pattern_match :
+  (module Bindable.S with type t = 'bindable) ->
+  ('bindable, 'term) t ->
+  apply_renaming_to_term:('term -> Renaming.t -> 'term) ->
+  f:('bindable -> 'term -> 'a) ->
+  'a
 
-module Make_matching_and_renaming
-    (Bindable : Bindable.S) (Term : sig
-      type t
+val pattern_match_for_printing :
+  (module Bindable.S with type t = 'bindable) ->
+  ('bindable, 'term) t ->
+  apply_renaming_to_term:('term -> Renaming.t -> 'term) ->
+  f:('bindable -> 'term -> 'a) ->
+  'a
 
-      val apply_renaming : t -> Renaming.t -> t
-    end) : sig
-  (* Like [Make] but only produces the let-operator and [apply_renaming]. *)
+val free_names :
+  (module Bindable.S with type t = 'bindable) ->
+  ('bindable, 'term) t ->
+  free_names_of_term:('term -> Name_occurrences.t) ->
+  Name_occurrences.t
 
-  type nonrec t = (Bindable.t, Term.t) t
-
-  val apply_renaming : t -> Renaming.t -> t
-
-  val ( let<> ) : t -> (Bindable.t * Term.t -> 'a) -> 'a
-end
-
-module Make_ids_for_export (Bindable : Bindable.S) (Term : Contains_ids.S) : sig
-  (* Like [Make] but only produces [ids_for_export]. *)
-
-  type nonrec t = (Bindable.t, Term.t) t
-
-  include Contains_ids.S with type t := t
-end
-
-val peek_for_printing : ('bindable, 'term) t -> 'bindable * 'term
+val all_ids_for_export :
+  (module Bindable.S with type t = 'bindable) ->
+  ('bindable, 'term) t ->
+  all_ids_for_export_of_term:('term -> Ids_for_export.t) ->
+  Ids_for_export.t
