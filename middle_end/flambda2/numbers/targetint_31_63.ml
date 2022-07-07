@@ -23,8 +23,6 @@
 module T0 = struct
   include Numeric_types.Int64
 
-  let hash = hash
-
   let minus_one = -1L
 
   let ten = 10L
@@ -40,8 +38,6 @@ module T0 = struct
   let min_value = Int64.min_int
 
   let max_value = Int64.max_int
-
-  let print ppf t = Format.fprintf ppf "%a" print t
 
   let bottom_byte_to_int t = Int64.to_int (Int64.logand t hex_ff)
 
