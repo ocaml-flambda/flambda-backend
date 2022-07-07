@@ -152,6 +152,15 @@ let with_shift shift if_undefined f ~integer_bit_width =
   | Some shift ->
     if shift < 0 || shift >= integer_bit_width then if_undefined else f shift
 
+let compare_unsigned_generic n1 n2 ~compare ~strictly_negative =
+  (* CR-someday mshinwell: Use faster implementation and/or implementation in
+     the stdlib when available. *)
+  match strictly_negative n1, strictly_negative n2 with
+  | true, true -> compare n2 n1
+  | true, false -> -1
+  | false, true -> 1
+  | false, false -> compare n1 n2
+
 module For_tagged_immediates : Int_number_kind = struct
   module Num = struct
     include Targetint_31_63
@@ -159,13 +168,7 @@ module For_tagged_immediates : Int_number_kind = struct
     let strictly_negative t = compare t zero < 0
 
     let compare_unsigned t1 t2 =
-      (* CR-someday mshinwell: Use faster implementation and/or implementation
-         in the stdlib when available. *)
-      match strictly_negative t1, strictly_negative t2 with
-      | true, true -> compare t2 t1
-      | true, false -> -1
-      | false, true -> 1
-      | false, false -> compare t1 t2
+      compare_unsigned_generic t1 t2 ~compare ~strictly_negative
 
     let div t1 t2 =
       if Targetint_31_63.equal t2 Targetint_31_63.zero
@@ -240,11 +243,7 @@ module For_naked_immediates : Int_number_kind = struct
     let strictly_negative t = compare t zero < 0
 
     let compare_unsigned t1 t2 =
-      match strictly_negative t1, strictly_negative t2 with
-      | true, true -> compare t2 t1
-      | true, false -> -1
-      | false, true -> 1
-      | false, false -> compare t1 t2
+      compare_unsigned_generic t1 t2 ~compare ~strictly_negative
 
     let div t1 t2 =
       if Targetint_31_63.equal t2 Targetint_31_63.zero
@@ -373,11 +372,7 @@ module For_int32s : Boxable_int_number_kind = struct
     let strictly_negative t = compare t zero < 0
 
     let compare_unsigned t1 t2 =
-      match strictly_negative t1, strictly_negative t2 with
-      | true, true -> compare t2 t1
-      | true, false -> -1
-      | false, true -> 1
-      | false, false -> compare t1 t2
+      compare_unsigned_generic t1 t2 ~compare ~strictly_negative
 
     let xor = logxor
 
@@ -448,11 +443,7 @@ module For_int64s : Boxable_int_number_kind = struct
     let strictly_negative t = compare t zero < 0
 
     let compare_unsigned t1 t2 =
-      match strictly_negative t1, strictly_negative t2 with
-      | true, true -> compare t2 t1
-      | true, false -> -1
-      | false, true -> 1
-      | false, false -> compare t1 t2
+      compare_unsigned_generic t1 t2 ~compare ~strictly_negative
 
     let xor = logxor
 
