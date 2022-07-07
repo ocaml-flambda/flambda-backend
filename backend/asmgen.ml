@@ -136,7 +136,7 @@ let save_cfg f =
 let save_mach_as_cfg pass f =
   if should_save_ir_after pass && (not !start_from_emit) then begin
     let cfg =
-      Cfgize.fundecl f ~preserve_orig_labels:false ~simplify_terminators:true
+      Cfgize.fundecl f ~before_register_allocation:false ~preserve_orig_labels:false ~simplify_terminators:true
     in
     let cfg_unit_info = Compiler_pass_map.find pass pass_to_cfg in
     cfg_unit_info.items <- Cfg_format.(Cfg cfg) :: cfg_unit_info.items
@@ -288,6 +288,7 @@ let test_cfgize (f : Mach.fundecl) (res : Linear.fundecl) : unit =
   let result =
     Cfgize.fundecl
       f
+      ~before_register_allocation:false
       ~preserve_orig_labels:false
       ~simplify_terminators:false
   in
@@ -324,6 +325,7 @@ let cfgize (f : Mach.fundecl) : Cfg_with_layout.t =
   end;
   Cfgize.fundecl
     f
+    ~before_register_allocation:true
     ~preserve_orig_labels:false
     ~simplify_terminators:true
 
