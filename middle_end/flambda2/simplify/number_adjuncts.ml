@@ -21,6 +21,17 @@ module Float_by_bit_pattern = Numeric_types.Float_by_bit_pattern
 module Int32 = Numeric_types.Int32
 module Int64 = Numeric_types.Int64
 
+(* CR vlaviron: I'm not sure what bit width we should use for naked immediates.
+   My intuition is that we should not do arbitrary arithmetic operations on
+   naked immediates at all, so no option is more correct than the other.
+
+   mshinwell: the byte-swapping semantics is another case where this is weird
+   (in addition to the bit width question, see below) -- we have to avoid a sign
+   extension because that wouldn't match the expected semantics on tagged
+   immediates. Maybe we should check where we are doing arithmetic on naked
+   immediates and rework that to operate on tagged values instead, or
+   somesuch. *)
+
 module type Num_common = sig
   include Container_types.S
 
@@ -141,7 +152,7 @@ module type Boxable_int_number_kind = sig
   include Boxable with module Num := Num
 end
 
-let with_shift shift if_undefined f =
+let with_shift shift if_undefined f ~integer_bit_width =
   match
     Targetint_31_63.Imm.to_int_option (Targetint_31_63.to_targetint shift)
   with
@@ -149,7 +160,18 @@ let with_shift shift if_undefined f =
     (* As per a similar case in [Simplify_binary_primitive], we are here
        assigning a semantics to an operation which has undefined semantics. *)
     if_undefined
-  | Some shift -> f shift
+  | Some shift ->
+    if shift < 0 || shift >= integer_bit_width then if_undefined else f shift
+
+let compare_unsigned_generic n1 n2 ~compare ~strictly_negative =
+  (* CR-someday mshinwell: Use faster implementation and/or implementation in
+     the stdlib when available. *)
+  (* This relies on the two's complement encoding, take care! *)
+  match strictly_negative n1, strictly_negative n2 with
+  | true, true -> compare n1 n2
+  | true, false -> 1
+  | false, true -> -1
+  | false, false -> compare n1 n2
 
 module For_tagged_immediates : Int_number_kind = struct
   module Num = struct
@@ -158,13 +180,7 @@ module For_tagged_immediates : Int_number_kind = struct
     let strictly_negative t = compare t zero < 0
 
     let compare_unsigned t1 t2 =
-      (* CR-someday mshinwell: Use faster implementation and/or implementation
-         in the stdlib when available. *)
-      match strictly_negative t1, strictly_negative t2 with
-      | true, true -> compare t2 t1
-      | true, false -> 1
-      | false, true -> -1
-      | false, false -> compare t1 t2
+      compare_unsigned_generic t1 t2 ~compare ~strictly_negative
 
     let div t1 t2 =
       if Targetint_31_63.equal t2 Targetint_31_63.zero
@@ -176,14 +192,22 @@ module For_tagged_immediates : Int_number_kind = struct
       then None
       else Some (mod_ t1 t2)
 
+    (* Note this doesn't say 31 and 63! See the comments on the shift operations
+       e.g. [lsl] in stdlib.mli. *)
+    let integer_bit_width = if Target_system.is_32_bit then 32 else 64
+
     let shift_left t shift =
-      with_shift shift zero (fun shift -> shift_left t shift)
+      with_shift shift zero (fun shift -> shift_left t shift) ~integer_bit_width
 
     let shift_right t shift =
-      with_shift shift zero (fun shift -> shift_right t shift)
+      with_shift shift zero
+        (fun shift -> shift_right t shift)
+        ~integer_bit_width
 
     let shift_right_logical t shift =
-      with_shift shift zero (fun shift -> shift_right_logical t shift)
+      with_shift shift zero
+        (fun shift -> shift_right_logical t shift)
+        ~integer_bit_width
 
     let swap_byte_endianness t =
       Targetint_31_63.map
@@ -233,11 +257,7 @@ module For_naked_immediates : Int_number_kind = struct
     let strictly_negative t = compare t zero < 0
 
     let compare_unsigned t1 t2 =
-      match strictly_negative t1, strictly_negative t2 with
-      | true, true -> compare t2 t1
-      | true, false -> 1
-      | false, true -> -1
-      | false, false -> compare t1 t2
+      compare_unsigned_generic t1 t2 ~compare ~strictly_negative
 
     let div t1 t2 =
       if Targetint_31_63.equal t2 Targetint_31_63.zero
@@ -249,14 +269,20 @@ module For_naked_immediates : Int_number_kind = struct
       then None
       else Some (mod_ t1 t2)
 
+    let integer_bit_width = if Target_system.is_32_bit then 31 else 63
+
     let shift_left t shift =
-      with_shift shift zero (fun shift -> shift_left t shift)
+      with_shift shift zero (fun shift -> shift_left t shift) ~integer_bit_width
 
     let shift_right t shift =
-      with_shift shift zero (fun shift -> shift_right t shift)
+      with_shift shift zero
+        (fun shift -> shift_right t shift)
+        ~integer_bit_width
 
     let shift_right_logical t shift =
-      with_shift shift zero (fun shift -> shift_right_logical t shift)
+      with_shift shift zero
+        (fun shift -> shift_right_logical t shift)
+        ~integer_bit_width
 
     let swap_byte_endianness t =
       Targetint_31_63.map
@@ -360,11 +386,7 @@ module For_int32s : Boxable_int_number_kind = struct
     let strictly_negative t = compare t zero < 0
 
     let compare_unsigned t1 t2 =
-      match strictly_negative t1, strictly_negative t2 with
-      | true, true -> compare t2 t1
-      | true, false -> 1
-      | false, true -> -1
-      | false, false -> compare t1 t2
+      compare_unsigned_generic t1 t2 ~compare ~strictly_negative
 
     let xor = logxor
 
@@ -377,13 +399,19 @@ module For_int32s : Boxable_int_number_kind = struct
     let mod_ t1 t2 = if equal t2 zero then None else Some (rem t1 t2)
 
     let shift_left t shift =
-      with_shift shift zero (fun shift -> shift_left t shift)
+      with_shift shift zero
+        (fun shift -> shift_left t shift)
+        ~integer_bit_width:32
 
     let shift_right t shift =
-      with_shift shift zero (fun shift -> shift_right t shift)
+      with_shift shift zero
+        (fun shift -> shift_right t shift)
+        ~integer_bit_width:32
 
     let shift_right_logical t shift =
-      with_shift shift zero (fun shift -> shift_right_logical t shift)
+      with_shift shift zero
+        (fun shift -> shift_right_logical t shift)
+        ~integer_bit_width:32
 
     let to_const t = Reg_width_const.naked_int32 t
 
@@ -429,11 +457,7 @@ module For_int64s : Boxable_int_number_kind = struct
     let strictly_negative t = compare t zero < 0
 
     let compare_unsigned t1 t2 =
-      match strictly_negative t1, strictly_negative t2 with
-      | true, true -> compare t2 t1
-      | true, false -> 1
-      | false, true -> -1
-      | false, false -> compare t1 t2
+      compare_unsigned_generic t1 t2 ~compare ~strictly_negative
 
     let xor = logxor
 
@@ -446,13 +470,19 @@ module For_int64s : Boxable_int_number_kind = struct
     let mod_ t1 t2 = if equal t2 zero then None else Some (rem t1 t2)
 
     let shift_left t shift =
-      with_shift shift zero (fun shift -> shift_left t shift)
+      with_shift shift zero
+        (fun shift -> shift_left t shift)
+        ~integer_bit_width:64
 
     let shift_right t shift =
-      with_shift shift zero (fun shift -> shift_right t shift)
+      with_shift shift zero
+        (fun shift -> shift_right t shift)
+        ~integer_bit_width:64
 
     let shift_right_logical t shift =
-      with_shift shift zero (fun shift -> shift_right_logical t shift)
+      with_shift shift zero
+        (fun shift -> shift_right_logical t shift)
+        ~integer_bit_width:64
 
     let to_const t = Reg_width_const.naked_int64 t
 
@@ -495,8 +525,10 @@ module For_nativeints : Boxable_int_number_kind = struct
   module Num = struct
     include Targetint_32_64
 
-    let compare_unsigned _t1 _t2 =
-      Misc.fatal_error "Not yet implemented (waiting on upstream stdlib change)"
+    let strictly_negative t = compare t zero < 0
+
+    let compare_unsigned t1 t2 =
+      compare_unsigned_generic t1 t2 ~compare ~strictly_negative
 
     let xor = logxor
 
@@ -508,14 +540,20 @@ module For_nativeints : Boxable_int_number_kind = struct
 
     let mod_ t1 t2 = if equal t2 zero then None else Some (rem t1 t2)
 
+    let integer_bit_width = if Target_system.is_32_bit then 32 else 64
+
     let shift_left t shift =
-      with_shift shift zero (fun shift -> shift_left t shift)
+      with_shift shift zero (fun shift -> shift_left t shift) ~integer_bit_width
 
     let shift_right t shift =
-      with_shift shift zero (fun shift -> shift_right t shift)
+      with_shift shift zero
+        (fun shift -> shift_right t shift)
+        ~integer_bit_width
 
     let shift_right_logical t shift =
-      with_shift shift zero (fun shift -> shift_right_logical t shift)
+      with_shift shift zero
+        (fun shift -> shift_right_logical t shift)
+        ~integer_bit_width
 
     let to_const t = Reg_width_const.naked_nativeint t
 
