@@ -21,6 +21,17 @@ module Float_by_bit_pattern = Numeric_types.Float_by_bit_pattern
 module Int32 = Numeric_types.Int32
 module Int64 = Numeric_types.Int64
 
+(* CR vlaviron: I'm not sure what bit width we should use for naked immediates.
+   My intuition is that we should not do arbitrary arithmetic operations on
+   naked immediates at all, so no option is more correct than the other.
+
+   mshinwell: the byte-swapping semantics is another case where this is weird
+   (in addition to the bit width question, see below) -- we have to avoid a sign
+   extension because that wouldn't match the expected semantics on tagged
+   immediates. Maybe we should check where we are doing arithmetic on naked
+   immediates and rework that to operate on tagged values instead, or
+   somesuch. *)
+
 module type Num_common = sig
   include Container_types.S
 
@@ -514,8 +525,10 @@ module For_nativeints : Boxable_int_number_kind = struct
   module Num = struct
     include Targetint_32_64
 
-    let compare_unsigned _t1 _t2 =
-      Misc.fatal_error "Not yet implemented (waiting on upstream stdlib change)"
+    let strictly_negative t = compare t zero < 0
+
+    let compare_unsigned t1 t2 =
+      compare_unsigned_generic t1 t2 ~compare ~strictly_negative
 
     let xor = logxor
 
