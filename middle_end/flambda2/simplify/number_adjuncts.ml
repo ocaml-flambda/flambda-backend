@@ -155,10 +155,11 @@ let with_shift shift if_undefined f ~integer_bit_width =
 let compare_unsigned_generic n1 n2 ~compare ~strictly_negative =
   (* CR-someday mshinwell: Use faster implementation and/or implementation in
      the stdlib when available. *)
+  (* This relies on the two's complement encoding, take care! *)
   match strictly_negative n1, strictly_negative n2 with
-  | true, true -> compare n2 n1
-  | true, false -> -1
-  | false, true -> 1
+  | true, true -> compare n1 n2
+  | true, false -> 1
+  | false, true -> -1
   | false, false -> compare n1 n2
 
 module For_tagged_immediates : Int_number_kind = struct
