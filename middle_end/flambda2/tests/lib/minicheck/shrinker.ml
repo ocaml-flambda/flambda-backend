@@ -14,35 +14,17 @@
 
 type 'a t = 'a -> 'a Seq.t
 
-let atomic _ = Seq.empty
+let unshrinkable _ = Seq.empty
 
 module Seq = struct
   include Seq
 
   let singleton a = Seq.cons a Seq.empty
 
-  let round_robin (type a) ts =
-    let open struct
-      type state =
-        { next_round_rev : a t list;
-          this_round : a t list
-        }
-    end in
-    let rec step { next_round_rev; this_round } =
-      match this_round with
-      | [] -> (
-        match next_round_rev with
-        | [] -> None
-        | _ ->
-          step { next_round_rev = []; this_round = List.rev next_round_rev })
-      | seq :: this_round -> (
-        match (seq () : a Seq.node) with
-        | Nil -> step { next_round_rev; this_round }
-        | Cons (a, seq) ->
-          let next_round_rev = seq :: next_round_rev in
-          Some (a, { next_round_rev; this_round }))
-    in
-    Seq.unfold step { next_round_rev = []; this_round = ts }
+  let rec concat ts =
+    match ts with
+    | [] -> Seq.empty
+    | t :: ts -> Seq.append t (fun () -> concat ts ())
 end
 
 let rec list t l =
@@ -50,10 +32,11 @@ let rec list t l =
   | [] -> Seq.empty
   | [a] -> Seq.cons [] (Seq.map (fun a -> [a]) (t a))
   | a :: l ->
+    let empty = Seq.singleton [] in
     let drop_a = Seq.singleton l in
     let shrink_a = Seq.map (fun a -> a :: l) (t a) in
     let keep_a = Seq.map (fun l -> a :: l) (fun () -> list t l ()) in
-    Seq.cons [] (Seq.round_robin [drop_a; shrink_a; keep_a])
+    Seq.concat [empty; drop_a; shrink_a; keep_a]
 
 let option t = function
   | None -> Seq.empty
@@ -77,17 +60,16 @@ let code_w_id : type a. ?const:a -> a t -> (a, a) Code.t t =
   | Const _ | Fun _ -> Seq.cons Code.Identity (code ?const t c)
 
 let pair t_a t_b (a, b) =
-  Seq.round_robin
-    [Seq.map (fun a -> a, b) (t_a a); Seq.map (fun b -> a, b) (t_b b)]
+  Seq.concat [Seq.map (fun a -> a, b) (t_a a); Seq.map (fun b -> a, b) (t_b b)]
 
 let triple t_a t_b t_c (a, b, c) =
-  Seq.round_robin
+  Seq.concat
     [ Seq.map (fun a -> a, b, c) (t_a a);
       Seq.map (fun b -> a, b, c) (t_b b);
       Seq.map (fun c -> a, b, c) (t_c c) ]
 
 let quad t_a t_b t_c t_d (a, b, c, d) =
-  Seq.round_robin
+  Seq.concat
     [ Seq.map (fun a -> a, b, c, d) (t_a a);
       Seq.map (fun b -> a, b, c, d) (t_b b);
       Seq.map (fun c -> a, b, c, d) (t_c c);
@@ -107,5 +89,5 @@ let rec tuple :
     let shrink_tup =
       Seq.map (fun tup -> Tuple.cons a tup) (fun () -> tuple ts tup ())
     in
-    Seq.round_robin [shrink_a; shrink_tup]
+    Seq.concat [shrink_a; shrink_tup]
   | _ :: _, [] | [], _ :: _ -> assert false

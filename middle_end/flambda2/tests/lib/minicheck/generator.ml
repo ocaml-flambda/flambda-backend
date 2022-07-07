@@ -6,6 +6,20 @@ let map (t : 'a t) ~f : 'b t = fun r -> f (t r)
 
 let bind (t : 'a t) ~f : 'b t = fun r -> f (t r) r
 
+let filter ?(max_attempts = 1000) (t : 'a t) ~f : 'a t =
+ fun r ->
+  let rec loop i =
+    if i < 1
+    then
+      failwith
+        (Format.sprintf "filter: no successful value after %d attempts"
+           max_attempts)
+    else
+      let a = t r in
+      if f a then a else loop (i - 1)
+  in
+  loop max_attempts
+
 module Let_syntax = struct
   let ( let+ ) t f = map t ~f
 
@@ -55,7 +69,7 @@ let log_int =
          only remains to pick uniformly a number of size [size-1] *)
       let mask = high_bit - 1 in
       let other_bits = Splittable_random.int r land mask in
-      high_bit land other_bits
+      high_bit lor other_bits
 
 let option t : _ option t =
  fun r ->
@@ -86,6 +100,9 @@ let fn3 ?hash_args ret_ty =
 let const a _r = a
 
 let one_of l =
+  let () =
+    match l with [] -> failwith "Generator.one_of: empty list" | _ :: _ -> ()
+  in
   let+ i = small_nat ~less_than:(List.length l) in
   List.nth l i
 

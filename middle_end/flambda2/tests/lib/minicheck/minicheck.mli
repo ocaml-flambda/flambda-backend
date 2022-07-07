@@ -19,4 +19,4 @@ module Shrinker = Shrinker
 module Splittable_random = Splittable_random
 module Type = Type
 
-val create_runner : ?verbose:bool -> ?seed:int -> unit -> Runner.t
+val create_runner : unit -> Runner.t

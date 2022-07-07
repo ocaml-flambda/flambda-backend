@@ -72,6 +72,10 @@ module type T2 = sig
 end
 
 module Of2 (T : T2) : sig
+  (** Similar to [Of], but where [T.t] has two arguments. ['a] collects the
+      first arguments together and ['b] collects the second arguments. For
+      example, [[Left 3; Right true] : (int -> unit -> 'r, unit -> bool -> 'r,
+      'r) Of2(Either).t]. *)
   type ('a, 'b, 'r) t =
     | [] : ('r, 'r, 'r) t
     | ( :: ) : ('a, 'b) T.t * ('c, 'd, 'r) t -> ('a -> 'c, 'b -> 'd, 'r) t

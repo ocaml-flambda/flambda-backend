@@ -76,7 +76,17 @@ let equal_list_up_to_order compare l1 l2 =
     (fun a1 a2 -> compare a1 a2 = 0)
     (List.sort compare l1) (List.sort compare l2)
 
+module Set_and_element = struct
+  (* A set, bundled with an element of the set. Also known as a pointed set. *)
+  type t =
+    { set : Set.t;
+      element : Key.t
+    }
+end
+
 module Set_specs = struct
+  open Set_and_element
+
   (* These are all meant to be read as universally-quantified propositions. *)
 
   let valid s = Set.valid s
@@ -95,7 +105,7 @@ module Set_specs = struct
     (not (Set.mem e s)) ==> fun () ->
     Set.cardinal (Set.add e s) = Set.cardinal s + 1
 
-  let add_elt s = Set.for_all (fun e -> Set.equal (Set.add e s) s) s
+  let add_elt { set = s; element = e } = Set.equal (Set.add e s) s
 
   let singleton_valid e = Set.valid (Set.singleton e)
 
@@ -104,14 +114,13 @@ module Set_specs = struct
 
   let remove_valid e s = Set.valid (Set.remove e s)
 
-  let remove_elt_not_mem s =
-    Set.for_all (fun e -> not (Set.mem e (Set.remove e s))) s
+  let remove_elt_not_mem { set = s; element = e } =
+    not (Set.mem e (Set.remove e s))
 
-  let remove_elt_subset s =
-    Set.for_all (fun e -> Set.subset (Set.remove e s) s) s
+  let remove_elt_subset { set = s; element = e } = Set.subset (Set.remove e s) s
 
-  let remove_elt_cardinal s =
-    Set.for_all (fun e -> Set.cardinal (Set.remove e s) = Set.cardinal s - 1) s
+  let remove_elt_cardinal { set = s; element = e } =
+    Set.cardinal (Set.remove e s) = Set.cardinal s - 1
 
   let remove_non_elt e s =
     (not (Set.mem e s)) ==> fun () -> Set.equal (Set.remove e s) s
@@ -156,8 +165,7 @@ module Set_specs = struct
 
   let subset_refl s = Set.subset s s
 
-  (* CR lmaurer: Probably terrible case coverage; should use small sets with
-     small keys *)
+  (* Not great coverage in the equal case but this is covered by subset_refl *)
   let subset_antisym s1 s2 =
     (Set.subset s1 s2 && Set.subset s2 s1) <=> Set.equal s1 s2
 
@@ -182,13 +190,13 @@ module Set_specs = struct
     let result_by_fold = Set.fold ( + ) s 0 in
     result_by_iter = result_by_fold
 
-  let equal_vs_elements s1 s2 =
+  let equal_vs_list s1 s2 =
     Set.equal s1 s2
     <=> List.equal Int.equal (s1 |> Set.elements) (s2 |> Set.elements)
 
   let map_valid f s = Set.valid (Set.map f s)
 
-  let map_vs_elements f s =
+  let map_vs_list f s =
     Set.equal (Set.map f s) (List.map f (s |> Set.elements) |> Set.of_list)
 
   let for_all f s = Set.for_all f s <=> List.for_all f (s |> Set.elements)
@@ -197,12 +205,12 @@ module Set_specs = struct
 
   let filter_valid f s = Set.valid (Set.filter f s)
 
-  let filter_vs_elements f s =
+  let filter_vs_list f s =
     List.equal Int.equal
       (Set.filter f s |> Set.elements)
       (List.filter f (s |> Set.elements))
 
-  let filter_map_vs_elements f s =
+  let filter_map_vs_list f s =
     Set.equal (Set.filter_map f s)
       (List.filter_map f (s |> Set.elements) |> Set.of_list)
 
@@ -215,7 +223,8 @@ module Set_specs = struct
     Set.equal s_t (Set.filter f s)
     && Set.equal s_f (Set.filter (fun e -> not (f e)) s)
 
-  let cardinal_vs_elements s = Set.cardinal s = List.length (s |> Set.elements)
+  let cardinal_vs_list_length s =
+    Set.cardinal s = List.length (s |> Set.elements)
 
   let elements s =
     let l = s |> Set.elements in
@@ -288,7 +297,18 @@ module Set_specs = struct
       (match Set.cardinal s with 1 -> Set.choose_opt s | _ -> None)
 end
 
+module Map_and_binding = struct
+  (* A map, together with a key in the map and its value. *)
+  type 'a t =
+    { map : 'a Map.t;
+      key : Key.t;
+      value : 'a
+    }
+end
+
 module Map_specs (V : Value) = struct
+  open Map_and_binding
+
   let ( =? ) = Option.equal V.equal
 
   let valid m = Map.valid m
@@ -341,28 +361,29 @@ module Map_specs (V : Value) = struct
 
   let merge_valid f m1 m2 = Map.valid (Map.merge f m1 m2)
 
-  let merge f m1 m2 =
+  let merge f { map = m1; key = k1; _ } { map = m2; key = k2; _ } =
     let mm = Map.merge f m1 m2 in
     let correct_for_key k =
       Map.find_opt k mm =? f k (Map.find_opt k m1) (Map.find_opt k m2)
     in
-    Map.for_all (fun k _ -> correct_for_key k) m1
-    && Map.for_all (fun k _ -> correct_for_key k) m2
+    correct_for_key k1 && correct_for_key k2
 
   let union_valid f m1 m2 = Map.valid (Map.union f m1 m2)
 
-  let union f m1 m2 =
+  let union f { map = m1; key = k1; value = v1 }
+      { map = m2; key = k2; value = v2 } =
     let mu = Map.union f m1 m2 in
-    m1
-    |> Map.for_all (fun k v1 ->
-           match Map.find_opt k m2 with
-           | None -> Map.find_opt k mu =? Some v1
-           | Some v2 -> Map.find_opt k mu =? f k v1 v2)
-    && m2
-       |> Map.for_all (fun k v2 ->
-              match Map.find_opt k m1 with
-              | None -> Map.find_opt k mu =? Some v2
-              | Some v1 -> Map.find_opt k mu =? f k v1 v2)
+    let correct_for_k1 =
+      match Map.find_opt k1 m2 with
+      | None -> Map.find_opt k1 mu =? Some v1
+      | Some v2 -> Map.find_opt k1 mu =? f k1 v1 v2
+    in
+    let correct_for_k2 =
+      match Map.find_opt k2 m1 with
+      | None -> Map.find_opt k2 mu =? Some v2
+      | Some v1 -> Map.find_opt k2 mu =? f k2 v1 v2
+    in
+    correct_for_k1 && correct_for_k2
 
   let union_mem f m1 m2 =
     let mu = Map.union f m1 m2 in
@@ -377,14 +398,14 @@ module Map_specs (V : Value) = struct
 
   let compare_trans = transitive (Map.compare V.compare)
 
-  let equal_vs_bindings m1 m2 =
+  let equal_vs_list m1 m2 =
     Map.equal V.equal m1 m2
     <=> List.equal equal_bindings (m1 |> Map.bindings) (m2 |> Map.bindings)
 
-  let for_all_vs_bindings f m =
+  let for_all_vs_list f m =
     Map.for_all f m <=> List.for_all (fun (k, v) -> f k v) (m |> Map.bindings)
 
-  let exists_vs_bindings f m =
+  let exists_vs_list f m =
     Map.exists f m <=> List.exists (fun (k, v) -> f k v) (m |> Map.bindings)
 
   let iter_vs_fold m =
@@ -406,18 +427,19 @@ module Map_specs (V : Value) = struct
     let mf = Map.filter f m in
     Set.subset (Map.keys mf) (Map.keys m)
 
-  let filter_find_opt f m =
+  let filter_find_opt f { map = m; key = k; value = v } =
     let mf = Map.filter f m in
-    m
-    |> Map.for_all (fun k v ->
-           Map.find_opt k mf =? if f k v then Some v else None)
+    Map.find_opt k mf =? if f k v then Some v else None
 
   let filter_map_valid f m = Map.valid (Map.filter_map f m)
 
-  let filter_map f m =
+  let filter_map_subset f m =
     let mf = Map.filter_map f m in
     Set.subset (Map.keys mf) (Map.keys m)
-    && m |> Map.for_all (fun k v -> Map.find_opt k mf =? f k v)
+
+  let filter_map f { map = m; key = k; value = v } =
+    let mf = Map.filter_map f m in
+    Map.find_opt k mf =? f k v
 
   let partition_valid f m =
     let m_t, m_f = Map.partition f m in
@@ -428,13 +450,13 @@ module Map_specs (V : Value) = struct
     Map.equal V.equal m_t (Map.filter f m)
     && Map.equal V.equal m_f (Map.filter (fun k e -> not (f k e)) m)
 
-  let cardinal_vs_bindings m = Map.cardinal m = List.length (m |> Map.bindings)
+  let cardinal_vs_list_length m =
+    Map.cardinal m = List.length (m |> Map.bindings)
 
-  let find_opt_elt_vs_bindings m =
-    let bindings = m |> Map.bindings in
-    m |> Map.for_all (fun k v -> List.assoc_opt k bindings =? Some v)
+  let find_opt_elt_vs_list_assoc_opt { map = m; key = k; value = v } =
+    List.assoc_opt k (m |> Map.bindings) =? Some v
 
-  let find_opt_other_vs_bindings k m =
+  let find_opt_other_vs_list_assoc_opt k m =
     (not (Map.mem k m)) ==> fun () ->
     List.assoc_opt k (m |> Map.bindings) =? None
 
@@ -471,9 +493,14 @@ module Map_specs (V : Value) = struct
     let m_lo, _, m_hi = Map.split k m in
     Map.valid m_lo && Map.valid m_hi
 
-  let split_vs_find_opt k m =
+  let split_elt { map = m; key = k; value = v } =
     let _, binding, _ = Map.split k m in
-    binding =? Map.find_opt k m
+    binding =? Some v
+
+  let split_other k m =
+    (not (Map.mem k m)) ==> fun () ->
+    let _, binding, _ = Map.split k m in
+    binding =? None
 
   let split_vs_filter k m =
     let m_lo, _, m_hi = Map.split k m in
@@ -567,11 +594,11 @@ module Map_specs (V : Value) = struct
 
   let diff_domains_valid m1 m2 = Map.valid (Map.diff_domains m1 m2)
 
-  let diff_domains m1 m2 =
+  let diff_domains { map = m1; key = k1; value = v1 } m2 =
     let md = Map.diff_domains m1 m2 in
-    m1
-    |> Map.for_all (fun k v1 ->
-           Map.find_opt k md =? if Map.mem k m2 then None else Some v1)
+    Map.find_opt k1 md =? if Map.mem k1 m2 then None else Some v1
+
+  let diff_domains_self m = Map.is_empty (Map.diff_domains m m)
 
   let inter_valid f m1 m2 = Map.valid (Map.inter f m1 m2)
 
@@ -590,6 +617,8 @@ module Map_specs (V : Value) = struct
     (* Just check the keys; values are checked in [inter_then_find_opt] *)
     Set.equal (Map.keys mi) (Map.keys mf)
 
+  (* See note on [Types.generate_key]; this should actually have good
+     coverage *)
   let inter_domain_is_non_empty m1 m2 =
     Map.inter_domain_is_non_empty m1 m2
     <=> not (Map.is_empty (Map.inter (fun _k v _ -> v) m1 m2))
@@ -603,6 +632,9 @@ module Map_specs (V : Value) = struct
 
   let replace_same k f m =
     Map.find_opt k (Map.replace k f m) =? Option.map f (Map.find_opt k m)
+
+  let replace_elt f { map = m; key = k; value = v } =
+    Map.find_opt k (Map.replace k f m) =? Some (f v)
 
   let replace_other k1 k2 f m =
     k1 != k2 ==> fun () ->
@@ -621,10 +653,24 @@ module Types = struct
 
   type key = int
 
+  (* This is designed to generate collisions reasonably often: there's a ~1/63
+     chance that two calls generate the same result, and I calculate that (a la
+     Birthday Paradox) there's a roughly even chance that 10 calls will generate
+     some key at least twice.
+
+     (Showing my work: For two keys to be the same, they must[1] both use the
+     first generator (1/3 * 1/3 = 1/9 probability) and they must get the same of
+     the 7 possible constants (1/7 probability) for an overall probability of
+     1/63. Among 10 keys, there are 10*9/2 = 45 pairs, and the chance that none
+     of them are equal is (62/63)^45 ~= 48.7%.)
+
+     [1] They could, of course, be the same even if one is generated by
+     [Generator.log_int], but this probability is negligible even given that
+     [log_int] skews toward small numbers. *)
   let generate_key =
     Generator.choose
       [ 1, Generator.one_of [0; 1; 2; 3; -1; Int.min_int; Int.max_int];
-        5, Generator.log_int ]
+        2, Generator.log_int ]
 
   let drop_leading_digits key : key Seq.t =
     let rec next mask : key Seq.node =
@@ -638,59 +684,135 @@ module Types = struct
     fun () -> next (-1 lsr 1)
 
   let shrink_key key =
-    Seq.append
-      (if key = 0 then Seq.empty else Seq.cons 0 Seq.empty)
-      (drop_leading_digits key)
+    if key = 0 then Seq.empty else Seq.cons 0 (drop_leading_digits key)
 
   let key =
     Type.define_simple ~generator:generate_key ~shrinker:shrink_key
       ~printer:Key.print ()
 
-  let unique_list ty ~compare ~max_length =
-    let generator =
-      Generator.list (Type.generate_repr ty) ~length:max_length
-      |> Generator.map ~f:(List.sort_uniq compare)
-    in
-    let shrinker l =
-      Shrinker.list (Type.shrink ty) l |> Seq.map (List.sort_uniq compare)
-    in
-    let printer = Printer.list (Type.print ty) in
-    let get_value = List.map (Type.value ty) in
-    Type.define ~generator ~shrinker ~printer ~get_value ()
+  let generate_unique_list_of_length ty ~compare ~max_length =
+    Generator.list (Type.generate_repr ty) ~length:max_length
+    |> Generator.map ~f:(List.sort_uniq compare)
+
+  let generate_unique_list ty ~compare r =
+    let max_length = Generator.small_nat ~less_than:20 r in
+    generate_unique_list_of_length ty ~compare ~max_length r
+
+  let shrink_unique_list ty l =
+    Shrinker.list (Type.shrink ty) l |> Seq.map (List.sort_uniq compare)
 
   let [@ocamlformat "disable"] print_list_as_set print_elt ppf l =
     let pp_sep ppf () = Format.fprintf ppf "@,; " in
     Format.fprintf ppf "@[<hov>{ %a }@]"
       (Format.pp_print_list ~pp_sep print_elt) l
 
-  let set_of_size ~max_size =
-    Type.map ~f:Set.of_list
-      (unique_list key ~max_length:max_size ~compare:Int.compare)
-    |> Type.with_repr_printer ~printer:(fun ppf s ->
-           print_list_as_set Key.print ppf s)
+  let get_unique_list_as_set ty l = l |> List.map (Type.value ty) |> Set.of_list
 
   let set =
-    Type.bind_generator (Generator.small_nat ~less_than:20) ~f:(fun max_size ->
-        set_of_size ~max_size)
+    let generator = generate_unique_list key ~compare:Int.compare in
+    let shrinker = shrink_unique_list key in
+    let printer = print_list_as_set Key.print in
+    let get_value = get_unique_list_as_set key in
+    Type.define ~generator ~shrinker ~printer ~get_value ()
 
-  let assoc_list key_ty val_ty ~max_length =
-    unique_list (Type.pair key_ty val_ty) ~max_length
+  let set_and_element =
+    let generator r =
+      let list =
+        Generator.filter (generate_unique_list key ~compare:Int.compare) r
+          ~f:(function
+          | [] -> false
+          | _ :: _ -> true)
+      in
+      let e = Generator.one_of list r in
+      list, e
+    in
+    let shrinker (list, e) =
+      Seq.filter_map
+        (fun l -> if List.mem e l then Some (l, e) else None)
+        (shrink_unique_list key list)
+    in
+    let printer = Printer.pair (print_list_as_set Key.print) Key.print in
+    let get_value (list, e) =
+      let s = Set.of_list list in
+      Set_and_element.{ set = s; element = e }
+    in
+    Type.define ~generator ~shrinker ~printer ~get_value ()
+
+  let generate_assoc_list_of_length key_ty val_ty ~max_length =
+    generate_unique_list_of_length (Type.pair key_ty val_ty) ~max_length
       ~compare:(fun (k1, _) (k2, _) -> Int.compare k1 k2)
 
-  let map_of_size val_ty ~max_size =
-    let printer ppf bindings =
-      let print_binding ppf (k, v) =
-        Format.fprintf ppf "@[<hv>%a@ -> %a@]" Key.print k (Type.print val_ty) v
-      in
-      print_list_as_set print_binding ppf bindings
+  let print_binding print_key print_val ppf (k, v) =
+    Format.fprintf ppf "@[<hv>%a@ -> %a@]" print_key k print_val v
+
+  let print_assoc_list_as_set print_key print_val ppf list =
+    print_list_as_set (print_binding print_key print_val) ppf list
+
+  let generate_map_repr_of_size val_ty ~max_size =
+    generate_assoc_list_of_length key val_ty ~max_length:max_size
+
+  let generate_map_repr val_ty r =
+    let max_size = Generator.small_nat ~less_than:20 r in
+    generate_map_repr_of_size val_ty ~max_size r
+
+  let shrink_map_repr val_ty = shrink_unique_list (Type.pair key val_ty)
+
+  let print_map_repr val_ty =
+    print_assoc_list_as_set Key.print (Type.print val_ty)
+
+  let get_map_value val_ty list =
+    list
+    |> List.map (fun (key, value) -> key, Type.value val_ty value)
+    |> Map.of_list
+
+  let assoc_list val_ty =
+    let generator = generate_map_repr val_ty in
+    let shrinker = shrink_map_repr val_ty in
+    let printer = Printer.list (Printer.pair Key.print (Type.print val_ty)) in
+    let get_value l =
+      List.map (fun (key, repr) -> key, Type.value val_ty repr) l
     in
-    assoc_list key val_ty ~max_length:max_size
-    |> Type.with_repr_printer ~printer
-    |> Type.map ~f:Map.of_list
+    Type.define ~generator ~shrinker ~printer ~get_value ()
 
   let map val_ty =
-    Type.bind_generator (Generator.small_nat ~less_than:20) ~f:(fun max_size ->
-        map_of_size ~max_size val_ty)
+    Type.map (assoc_list val_ty) ~f:Map.of_list
+    |> Type.with_repr_printer ~printer:(print_map_repr val_ty)
+
+  (* CR-someday lmaurer: If we ever want a third "thing and an element of the
+     thing" construction, this could all be captured as something called
+     [Type.with_element] that needs a generator parameterized by the element,
+     the type of the element (or just a printer and getter), an empty check on
+     the collection, and a function to check whether the element's still present
+     in a shrunk collection. *)
+
+  let map_and_binding val_ty =
+    let generator r =
+      let list =
+        Generator.filter (generate_map_repr val_ty) r ~f:(function
+          | [] -> false
+          | _ :: _ -> true)
+      in
+
+      let k, v = Generator.one_of list r in
+      list, k, v
+    in
+    let shrinker (list, k, v) =
+      Seq.filter_map
+        (fun list -> if List.mem_assoc k list then Some (list, k, v) else None)
+        (shrink_map_repr val_ty list)
+    in
+    let printer ppf (list, k, v) =
+      Printer.pair (print_map_repr val_ty)
+        (print_binding Key.print (Type.print val_ty))
+        ppf
+        (list, (k, v))
+    in
+    let get_value (list, k, v) =
+      let m = get_map_value val_ty list in
+      let v = Type.value val_ty v in
+      Map_and_binding.{ map = m; key = k; value = v }
+    in
+    Type.define ~generator ~shrinker ~printer ~get_value ()
 end
 
 let () =
@@ -730,7 +852,7 @@ let () =
 
     c "add then cardinal" add_cardinal [elt; set];
 
-    c "add existing element" add_elt [set];
+    c "add existing element" add_elt [set_and_element];
 
     c "singleton is valid" singleton_valid [elt];
 
@@ -738,11 +860,11 @@ let () =
 
     c "remove is valid" remove_valid [elt; set];
 
-    c "remove element then mem" remove_elt_not_mem [set];
+    c "remove element then mem" remove_elt_not_mem [set_and_element];
 
-    c "remove element then subset" remove_elt_subset [set];
+    c "remove element then subset" remove_elt_subset [set_and_element];
 
-    c "remove element then cardinal" remove_elt_cardinal [set];
+    c "remove element then cardinal" remove_elt_cardinal [set_and_element];
 
     c "remove non-element" remove_non_elt [elt; set];
 
@@ -776,7 +898,7 @@ let () =
 
     c "compare is transitive" compare_trans [set; set; set];
 
-    c "equal vs. elements" equal_vs_elements [set; set];
+    c "equal vs. List.equal" equal_vs_list [set; set];
 
     c "subset is reflexive" subset_refl [set];
 
@@ -790,7 +912,7 @@ let () =
 
     c "map is valid" map_valid [elt_to_elt; set];
 
-    c "map vs. elements" map_vs_elements [elt_to_elt; set];
+    c "map vs. List.map" map_vs_list [elt_to_elt; set];
 
     c "for_all" for_all [elt_to_bool; set];
 
@@ -798,15 +920,16 @@ let () =
 
     c "filter is valid" filter_valid [elt_to_bool; set];
 
-    c "filter vs. elements" filter_vs_elements [elt_to_bool; set];
+    c "filter vs. List.filter" filter_vs_list [elt_to_bool; set];
 
-    c "filter_map vs. elements" filter_map_vs_elements [elt_to_elt_option; set];
+    c "filter_map vs. List.filter_map" filter_map_vs_list
+      [elt_to_elt_option; set];
 
     c "partition is valid" partition_valid [elt_to_bool; set];
 
     c "partition" partition [elt_to_bool; set];
 
-    c "cardinal vs. elements" cardinal_vs_elements [set];
+    c "cardinal vs. List.length" cardinal_vs_list_length [set];
 
     c "elements" elements [set];
 
@@ -842,8 +965,7 @@ let () =
 
     c "union_list" union_list [set_list];
 
-    c "get_singleton" get_singleton [set];
-    ()
+    c "get_singleton" get_singleton [set]
   in
   let () =
     let module Map_specs = Map_specs (Value) in
@@ -854,11 +976,9 @@ let () =
       Type.map Type.bool ~f:(fun b -> if b then Value.A else Value.B)
       |> Type.with_value_printer ~printer:Value.print
     in
-    let bindings =
-      Type.bind_generator (Generator.small_nat ~less_than:20)
-        ~f:(fun max_length -> assoc_list key value ~max_length)
-    in
+    let bindings = assoc_list value in
     let map = Types.map value in
+    let map_and_binding = Types.map_and_binding value in
     let key_to_key = Type.fn key in
     let key_to_value = Type.fn value in
     let value_to_value = Type.fn value in
@@ -911,11 +1031,11 @@ let () =
 
     c "merge is valid" merge_valid [merging_function; map; map];
 
-    c "merge" merge [merging_function; map; map];
+    c "merge" merge [merging_function; map_and_binding; map_and_binding];
 
     c "union is valid" union_valid [union_function; map; map];
 
-    c "union" union [union_function; map; map];
+    c "union" union [union_function; map_and_binding; map_and_binding];
 
     c "union then mem" union_mem [union_function; map; map];
 
@@ -927,34 +1047,38 @@ let () =
 
     c "compare is transitive" compare_trans [map; map; map];
 
-    c "equal vs. bindings" equal_vs_bindings [map; map];
+    c "equal vs. List.equal" equal_vs_list [map; map];
 
     c "iter vs. fold" iter_vs_fold [map];
 
-    c "for_all vs. bindings" for_all_vs_bindings [key_and_value_to_bool; map];
+    c "for_all vs. List.for_all" for_all_vs_list [key_and_value_to_bool; map];
 
-    c "exists vs. bindings" exists_vs_bindings [key_and_value_to_bool; map];
+    c "exists vs. List.exists" exists_vs_list [key_and_value_to_bool; map];
 
     c "filter is valid" filter_valid [key_and_value_to_bool; map];
 
     c "filter returns subset" filter_subset [key_and_value_to_bool; map];
 
-    c "filter then find_opt" filter_find_opt [key_and_value_to_bool; map];
+    c "filter then find_opt" filter_find_opt
+      [key_and_value_to_bool; map_and_binding];
 
     c "filter_map is valid" filter_map_valid [key_and_value_to_value_option; map];
 
-    c "filter_map" filter_map [key_and_value_to_value_option; map];
+    c "filter_map_subset" filter_map_subset [key_and_value_to_value_option; map];
+
+    c "filter_map" filter_map [key_and_value_to_value_option; map_and_binding];
 
     c "partition is valid" partition_valid [key_and_value_to_bool; map];
 
     c "partition" partition [key_and_value_to_bool; map];
 
-    c "cardinal vs. bindings" cardinal_vs_bindings [map];
+    c "cardinal vs. List.length" cardinal_vs_list_length [map];
 
-    c "find_opt of element vs. bindings" find_opt_elt_vs_bindings [map];
+    c "find_opt of element vs. List.assoc_opt" find_opt_elt_vs_list_assoc_opt
+      [map_and_binding];
 
-    c "find_opt of non-element vs. bindings" find_opt_other_vs_bindings
-      [key; map];
+    c "find_opt of non-element vs. List.assoc_opt"
+      find_opt_other_vs_list_assoc_opt [key; map];
 
     c "min_binding vs. min_binding_opt" min_binding_vs_opt [map];
 
@@ -970,7 +1094,9 @@ let () =
 
     c "split is valid" split_valid [key; map];
 
-    c "split vs. find_opt" split_vs_find_opt [key; map];
+    c "split on element" split_elt [map_and_binding];
+
+    c "split on non-element" split_other [key; map];
 
     c "split vs. filter" split_vs_filter [key; map];
 
@@ -1002,7 +1128,9 @@ let () =
 
     c "diff_domains valid" diff_domains_valid [map; map];
 
-    c "diff_domains" diff_domains [map; map];
+    c "diff_domains" diff_domains [map_and_binding; map];
+
+    c "diff_domains of self" diff_domains_self [map];
 
     c "inter is valid" inter_valid [inter_function; map; map];
 
@@ -1016,6 +1144,8 @@ let () =
 
     c "replace is valid" replace_valid [key; value_to_value; map];
 
+    c "replace of elt" replace_elt [value_to_value; map_and_binding];
+
     c "replace then find_opt" replace_same [key; value_to_value; map];
 
     c "replace then find_opt other" replace_other [key; key; value_to_value; map];
@@ -1027,4 +1157,11 @@ let () =
     c "map_sharing of id" map_sharing_id [map];
     ()
   in
-  if Minicheck.Runner.something_has_failed runner then exit 1
+  let failure_count = Runner.failure_count runner in
+  if failure_count > 0
+  then
+    let () =
+      Format.printf "%d failures\n" failure_count;
+      exit 1
+    in
+    ()

@@ -14,7 +14,7 @@
 
 type 'a t = 'a -> 'a Seq.t
 
-val atomic : 'a t
+val unshrinkable : 'a t
 
 val option : 'a t -> 'a option t
 

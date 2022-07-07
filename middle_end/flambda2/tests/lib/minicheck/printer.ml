@@ -22,10 +22,6 @@ let unit ppf () = str ppf "()"
 
 let fn ppf = opaque_as "<fun>" ppf
 
-let fn2 = fn
-
-let fn3 = fn
-
 let [@ocamlformat "disable"] pair t_a t_b ppf (a, b) =
   Format.fprintf ppf "@[<hv>( %a@,, %a )@]"
     t_a a

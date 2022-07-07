@@ -2,5 +2,4 @@
 
 (library
  (name minicheck)
- (ocamlopt_flags (:standard -O3))
- (libraries ocamlcommon))
+ (ocamlopt_flags (:standard -O3)))

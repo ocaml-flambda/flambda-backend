@@ -27,8 +27,8 @@ type ('a, 'repr) t =
 
 type 'a simple = ('a, 'a) t
 
-let define ~generator ?(shrinker = Shrinker.atomic) ?(printer = Printer.opaque)
-    ~get_value () =
+let define ~generator ?(shrinker = Shrinker.unshrinkable)
+    ?(printer = Printer.opaque) ~get_value () =
   { impl = { generator; shrinker; printer }; get_value }
 
 let define_simple ~generator ?shrinker ?printer () =
@@ -128,6 +128,7 @@ let fn ?hash_arg { impl = { generator; shrinker; printer }; get_value } =
   in
   let printer ppf Repr.{ code; _ } = P.code printer ppf code in
   let get_value Repr.{ code; _ } =
+    (* () to force ocamlformat to let me write a lambda here *)
     ();
     fun a -> get_value (Code.call code a)
   in

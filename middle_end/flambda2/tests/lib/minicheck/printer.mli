@@ -22,10 +22,6 @@ val list : 'a t -> 'a list t
 
 val fn : ('a -> 'b) t
 
-val fn2 : ('a -> 'b -> 'c) t
-
-val fn3 : ('a -> 'b -> 'c -> 'd) t
-
 val code : 'b t -> ('a, 'b) Code.t t
 
 module T : sig

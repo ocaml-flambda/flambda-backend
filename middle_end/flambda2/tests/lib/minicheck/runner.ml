@@ -1,13 +1,12 @@
-let max_shrink_steps = 1000
+let default_attempts = 1000
 
-type t =
-  { verbose : bool;
-    seed : int;
-    mutable something_has_failed : bool
-  }
+let default_seed = 0
 
-let create ?(verbose = false) ?(seed = 0) () =
-  { verbose; seed; something_has_failed = false }
+let default_verbose = false
+
+(* Guard against non-terminating shrinkers. This should be quite large, as a
+   well-reduced test case is worth waiting for. *)
+let max_shrink_steps = 100000
 
 module Failure = struct
   type t =
@@ -16,21 +15,23 @@ module Failure = struct
 end
 
 module Outcome = struct
-  type 'repr t =
+  type t =
     | Success
-    | Failure of
+    | Failure :
         { failure : Failure.t;
           counterexample : 'repr;
+          type_ : ('a, 'repr) Type.t;
           shrink_steps : int;
           attempt : int
         }
+        -> t
 
   let is_success = function Success -> true | Failure _ -> false
 
-  let report t ~type_ ~attempts ~duration =
+  let report t ~attempts ~duration =
     match t with
     | Success -> Format.eprintf "PASSED %d attempts (%f s)@." attempts duration
-    | Failure { failure; counterexample; shrink_steps; attempt } ->
+    | Failure { failure; counterexample; type_; shrink_steps; attempt } ->
       let explanation =
         match failure with
         | Returned_false -> "returned false"
@@ -46,6 +47,10 @@ module Outcome = struct
         shrink_steps (Type.print type_) counterexample
 end
 
+type t = { mutable outcomes_rev : Outcome.t list }
+
+let create () = { outcomes_rev = [] }
+
 module Outcome_of_one_attempt = struct
   type t =
     | Success
@@ -59,16 +64,16 @@ let check_once _t ~f ~(type_ : (_, 'repr) Type.t) (repr : 'repr) :
   | false -> Failure Returned_false
   | exception e -> Failure (Raised e)
 
-let check0 ?(n = 1000) ?seed t ~type_ ~f ~name =
+let check0 ?(n = default_attempts) ?(seed = default_seed)
+    ?(verbose = default_verbose) t ~type_ ~f ~name =
   Format.eprintf "%s: " name;
   let start = Sys.time () in
-  let seed = seed |> Option.value ~default:t.seed in
   let r = Splittable_random.of_int seed in
   let i = ref 1 in
   let outcome = ref Outcome.Success in
   while Outcome.is_success !outcome && !i <= n do
     let repr = Type.generate_repr type_ r in
-    if t.verbose
+    if verbose
     then
       Format.eprintf "@[<hov 2>Attempt %d/%d:@ %a@]@." !i n (Type.print type_)
         repr;
@@ -76,10 +81,11 @@ let check0 ?(n = 1000) ?seed t ~type_ ~f ~name =
     | Success -> incr i
     | Failure failure ->
       let rec retry ~shrink_steps ~(seq : _ Seq.t) ~last_counterexample
-          ~last_failure ~last_shrink_steps : _ Outcome.t =
-        let done_ () : _ Outcome.t =
+          ~last_failure ~last_shrink_steps : Outcome.t =
+        let done_ () : Outcome.t =
           Failure
-            { failure = last_failure;
+            { type_;
+              failure = last_failure;
               counterexample = last_counterexample;
               shrink_steps = last_shrink_steps;
               attempt = !i
@@ -114,20 +120,21 @@ let check0 ?(n = 1000) ?seed t ~type_ ~f ~name =
   done;
   let finish = Sys.time () in
   let duration = finish -. start in
-  Outcome.report !outcome ~type_ ~attempts:n ~duration;
-  if not (Outcome.is_success !outcome) then t.something_has_failed <- true
+  Outcome.report !outcome ~attempts:n ~duration;
+  t.outcomes_rev <- !outcome :: t.outcomes_rev
 
 let check :
     type a reprs.
     ?n:int ->
     ?seed:int ->
+    ?verbose:bool ->
     t ->
     types:(a, reprs, bool) Tuple.Of2(Type.T).t ->
     f:a ->
     name:string ->
     unit =
- fun ?n ?seed t ~types ~f ~name ->
-  let run type_ f = check0 ?n ?seed t ~type_ ~f ~name in
+ fun ?n ?seed ?verbose t ~types ~f ~name ->
+  let run type_ f = check0 ?n ?seed ?verbose t ~type_ ~f ~name in
 
   match types with
   | [] -> run Type.unit (fun () -> f)
@@ -143,4 +150,11 @@ let check :
       (Type.quad ty1 ty2 ty3 (Type.tuple types))
       (fun (a, b, c, tup) -> Tuple.call ~f:(f a b c) tup)
 
-let something_has_failed t = t.something_has_failed
+(* CR-someday lmaurer: Could also return something richer, although the full
+   [Outcome.t] may be a bit much. *)
+
+let failure_count t =
+  List.length
+    (List.filter
+       (fun outcome -> not (Outcome.is_success outcome))
+       t.outcomes_rev)

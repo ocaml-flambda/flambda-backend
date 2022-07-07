@@ -50,6 +50,9 @@ val map : 'a t -> f:('a -> 'b) -> 'b t
 
 val bind : 'a t -> f:('a -> 'b t) -> 'b t
 
+(** Keep generating a value until one passes the filter *)
+val filter : ?max_attempts:int -> 'a t -> f:('a -> bool) -> 'a t
+
 module Let_syntax : sig
   val ( let+ ) : 'a t -> ('a -> 'b) -> 'b t
 
