@@ -163,8 +163,8 @@ module For_tagged_immediates : Int_number_kind = struct
          in the stdlib when available. *)
       match strictly_negative t1, strictly_negative t2 with
       | true, true -> compare t2 t1
-      | true, false -> 1
-      | false, true -> -1
+      | true, false -> -1
+      | false, true -> 1
       | false, false -> compare t1 t2
 
     let div t1 t2 =
@@ -242,8 +242,8 @@ module For_naked_immediates : Int_number_kind = struct
     let compare_unsigned t1 t2 =
       match strictly_negative t1, strictly_negative t2 with
       | true, true -> compare t2 t1
-      | true, false -> 1
-      | false, true -> -1
+      | true, false -> -1
+      | false, true -> 1
       | false, false -> compare t1 t2
 
     let div t1 t2 =
@@ -375,8 +375,8 @@ module For_int32s : Boxable_int_number_kind = struct
     let compare_unsigned t1 t2 =
       match strictly_negative t1, strictly_negative t2 with
       | true, true -> compare t2 t1
-      | true, false -> 1
-      | false, true -> -1
+      | true, false -> -1
+      | false, true -> 1
       | false, false -> compare t1 t2
 
     let xor = logxor
@@ -450,8 +450,8 @@ module For_int64s : Boxable_int_number_kind = struct
     let compare_unsigned t1 t2 =
       match strictly_negative t1, strictly_negative t2 with
       | true, true -> compare t2 t1
-      | true, false -> 1
-      | false, true -> -1
+      | true, false -> -1
+      | false, true -> 1
       | false, false -> compare t1 t2
 
     let xor = logxor
