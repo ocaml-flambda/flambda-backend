@@ -91,8 +91,9 @@ let simplify_make_block_of_floats ~original_prim ~mutable_or_immutable
     Tag.double_array_tag ~shape ~mutable_or_immutable alloc_mode dacc
     ~original_term dbg ~args_with_tys ~result_var
 
-let simplify_make_array (array_kind : P.Array_kind.t) ~mutable_or_immutable
-    alloc_mode dacc ~original_term:_ dbg ~args_with_tys ~result_var =
+let simplify_make_array (array_kind : P.Array_kind.t)
+    ~(mutable_or_immutable : Mutability.t) alloc_mode dacc ~original_term dbg
+    ~args_with_tys ~result_var =
   let args, tys = List.split args_with_tys in
   let length =
     match Targetint_31_63.of_int_option (List.length args) with
@@ -121,7 +122,18 @@ let simplify_make_array (array_kind : P.Array_kind.t) ~mutable_or_immutable
   match env_extension with
   | Bottom -> SPR.create_invalid dacc
   | Ok env_extension ->
-    let ty = T.array_of_length ~element_kind:(Known element_kind) ~length in
+    let ty =
+      match mutable_or_immutable with
+      | Mutable ->
+        T.mutable_array ~element_kind:(Known element_kind) ~length
+          (Known alloc_mode)
+      | Immutable ->
+        T.immutable_array ~element_kind:(Known element_kind) ~fields:tys
+          (Known alloc_mode)
+      | Immutable_unique ->
+        Misc.fatal_errorf "Immutable_unique is not expected for arrays:@ %a"
+          Named.print original_term
+    in
     let named =
       Named.create_prim
         (Variadic

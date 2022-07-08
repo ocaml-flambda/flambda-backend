@@ -197,7 +197,8 @@ let simplify_array_length dacc ~original_term ~arg:_ ~arg_ty:array_ty
     ~deconstructing:array_ty
     ~shape:
       (T.array_of_length ~element_kind:Unknown
-         ~length:(T.alias_type_of K.value result))
+         ~length:(T.alias_type_of K.value result)
+         Unknown)
     ~result_var ~result_kind:K.value
 
 (* CR-someday mshinwell: Consider whether "string length" should be treated like
@@ -477,20 +478,34 @@ let simplify_bigarray_length ~dimension:_ dacc ~original_term ~arg:_ ~arg_ty:_
   let dacc = DA.add_variable dacc result_var ty in
   SPR.create original_term ~try_reify:false dacc
 
-let simplify_duplicate_array ~kind:_ ~source_mutability:_
-    ~destination_mutability:_ dacc ~original_term ~arg:_ ~arg_ty ~result_var =
-  (* This simplification should eliminate bounds checks on array literals.
-
-     Any alias in the type to the whole array will be dropped, but aliases
-     inside the type (in this case for the length) can remain. Similarly for
-     blocks in [simplify_duplicate_block] below, aliases to the fields can
-     remain. *)
-  let ty = T.remove_outermost_alias (DA.typing_env dacc) arg_ty in
-  let dacc = DA.add_variable dacc result_var ty in
-  SPR.create original_term ~try_reify:false dacc
+let simplify_duplicate_array ~kind:_ ~(source_mutability : Mutability.t)
+    ~(destination_mutability : Mutability.t) dacc ~original_term ~arg:_ ~arg_ty
+    ~result_var =
+  (* This simplification should eliminate bounds checks on array literals. *)
+  match source_mutability, destination_mutability with
+  | Immutable, Mutable -> (
+    match T.meet_is_array (DA.typing_env dacc) arg_ty with
+    | Invalid -> SPR.create_invalid dacc
+    | Need_meet ->
+      let dacc = DA.add_variable dacc result_var T.any_value in
+      SPR.create original_term ~try_reify:false dacc
+    | Known_result (element_kind, length, array_contents, alloc_mode) -> (
+      match array_contents with
+      | Known Mutable -> SPR.create_invalid dacc
+      | Unknown | Known (Immutable _) ->
+        let ty = T.array_of_length ~element_kind ~length alloc_mode in
+        let dacc = DA.add_variable dacc result_var ty in
+        SPR.create original_term ~try_reify:false dacc))
+  | ( (Immutable | Immutable_unique | Mutable),
+      (Immutable | Immutable_unique | Mutable) ) ->
+    Misc.fatal_errorf
+      "Combination of mutabilities not supported for [Duplicate_array]:@ %a"
+      Named.print original_term
 
 let simplify_duplicate_block ~kind:_ dacc ~original_term ~arg:_ ~arg_ty
     ~result_var =
+  (* Any alias in the type to the whole block will be dropped, but aliases
+     inside the type (e.g. in fields) can remain. *)
   let ty = T.remove_outermost_alias (DA.typing_env dacc) arg_ty in
   let dacc = DA.add_variable dacc result_var ty in
   SPR.create original_term ~try_reify:false dacc

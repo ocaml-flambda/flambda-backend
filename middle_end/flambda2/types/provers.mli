@@ -116,6 +116,15 @@ val prove_unique_fully_constructed_immutable_heap_block :
 val meet_is_flat_float_array :
   Typing_env.t -> Type_grammar.t -> bool meet_shortcut
 
+val meet_is_array :
+  Typing_env.t ->
+  Type_grammar.t ->
+  (Flambda_kind.With_subkind.t Or_unknown.t
+  * Type_grammar.t
+  * Type_grammar.array_contents Or_unknown.t
+  * Alloc_mode.t Or_unknown.t)
+  meet_shortcut
+
 val prove_is_immediates_array :
   Typing_env.t -> Type_grammar.t -> unit proof_of_property
 

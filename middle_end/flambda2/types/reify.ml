@@ -30,6 +30,8 @@ type to_lift =
   | Boxed_int32 of Int32.t
   | Boxed_int64 of Int64.t
   | Boxed_nativeint of Targetint_32_64.t
+  | Immutable_float_array of { fields : Float.t list }
+  | Immutable_value_array of { fields : Simple.t list }
   | Empty_array
 
 type reification_result =
@@ -37,6 +39,35 @@ type reification_result =
   | Simple of Simple.t
   | Cannot_reify
   | Invalid
+
+let try_to_reify_fields env ~var_allowed alloc_mode ~field_types =
+  let field_simples =
+    List.filter_map
+      (fun field_type : Simple.t option ->
+        match Provers.prove_equals_to_simple_of_kind_value env field_type with
+        | Proved simple when not (Coercion.is_id (Simple.coercion simple)) ->
+          (* CR-someday lmaurer: Support lifting things whose fields have
+             coercions. *)
+          None
+        | Proved simple ->
+          Simple.pattern_match' simple
+            ~var:(fun var ~coercion:_ ->
+              if var_allowed alloc_mode var then Some simple else None)
+            ~symbol:(fun _sym ~coercion:_ -> Some simple)
+            ~const:(fun const ->
+              match Reg_width_const.descr const with
+              | Tagged_immediate _imm -> Some simple
+              | Naked_immediate _ | Naked_float _ | Naked_int32 _
+              | Naked_int64 _ | Naked_nativeint _ ->
+                (* This should never happen, as we should have got a kind error
+                   instead *)
+                None)
+        | Unknown -> None)
+      field_types
+  in
+  if List.compare_lengths field_types field_simples = 0
+  then Some field_simples
+  else None
 
 (* CR mshinwell: Think more to identify all the cases that should be in this
    function. *)
@@ -118,45 +149,16 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
                  immediates and float arrays, supported by [Static_part]. *)
               match Tag.Scannable.of_tag tag with
               | None -> try_canonical_simple ()
-              | Some tag ->
+              | Some tag -> (
                 let field_types =
                   TG.Product.Int_indexed.components field_types
                 in
-                let field_simples =
-                  List.filter_map
-                    (fun field_type : Simple.t option ->
-                      match
-                        Provers.prove_equals_to_simple_of_kind_value env
-                          field_type
-                      with
-                      | Proved simple
-                        when not (Coercion.is_id (Simple.coercion simple)) ->
-                        (* CR-someday lmaurer: Support lifting things whose
-                           fields have coercions. *)
-                        None
-                      | Proved simple ->
-                        Simple.pattern_match' simple
-                          ~var:(fun var ~coercion:_ ->
-                            if var_allowed alloc_mode var
-                            then Some simple
-                            else None)
-                          ~symbol:(fun _sym ~coercion:_ -> Some simple)
-                          ~const:(fun const ->
-                            match Reg_width_const.descr const with
-                            | Tagged_immediate _imm -> Some simple
-                            | Naked_immediate _ | Naked_float _ | Naked_int32 _
-                            | Naked_int64 _ | Naked_nativeint _ ->
-                              (* This should never happen, as we should have got
-                                 a kind error instead *)
-                              None)
-                      | Unknown -> None)
-                    field_types
-                in
-                if List.compare_lengths field_types field_simples = 0
-                then
-                  Lift
-                    (Immutable_block { tag; is_unique; fields = field_simples })
-                else try_canonical_simple ())
+                match
+                  try_to_reify_fields env ~var_allowed alloc_mode ~field_types
+                with
+                | Some fields ->
+                  Lift (Immutable_block { tag; is_unique; fields })
+                | None -> try_canonical_simple ()))
           else if TG.Row_like_for_blocks.is_bottom blocks
           then
             match Provers.meet_naked_immediates env imms with
@@ -337,6 +339,10 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
       | Need_meet -> try_canonical_simple ()
       | Invalid -> Invalid
       | Known_result fs -> (
+        (* CR mshinwell: This (and the other cases below including that for
+           immutable float arrays) seem not to be taking advantage of the fact
+           that [Static_const] permits variables in the arguments of e.g.
+           [Boxed_float]. *)
         match Float.Set.get_singleton fs with
         | None -> try_canonical_simple ()
         | Some f -> Lift (Boxed_float f)))
@@ -364,7 +370,14 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
         match Targetint_32_64.Set.get_singleton ns with
         | None -> try_canonical_simple ()
         | Some n -> Lift (Boxed_nativeint n)))
-    | Value (Ok (Array { length; element_kind = _ })) -> (
+    | Value
+        (Ok
+          (Array
+            { contents = Unknown | Known Mutable;
+              length;
+              element_kind = _;
+              alloc_mode = _
+            })) -> (
       match Provers.meet_equals_single_tagged_immediate env length with
       | Known_result length ->
         if Targetint_31_63.equal length Targetint_31_63.zero
@@ -372,6 +385,58 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
         else try_canonical_simple ()
       | Need_meet -> try_canonical_simple ()
       | Invalid -> Invalid)
+    | Value
+        (Ok
+          (Array
+            { contents = Known (Immutable { fields });
+              length = _;
+              alloc_mode;
+              element_kind
+            })) -> (
+      match fields with
+      | [] -> Lift Empty_array
+      | _ :: _ -> (
+        match element_kind with
+        | Unknown -> try_canonical_simple ()
+        | Known element_kind -> (
+          let kind = Flambda_kind.With_subkind.kind element_kind in
+          match kind with
+          | Value -> (
+            match
+              try_to_reify_fields env ~var_allowed alloc_mode
+                ~field_types:fields
+            with
+            | Some fields -> Lift (Immutable_value_array { fields })
+            | None -> try_canonical_simple ())
+          | Naked_number Naked_float -> (
+            let fields_rev =
+              List.fold_left
+                (fun (fields_rev : _ Or_unknown_or_bottom.t) field :
+                     _ Or_unknown_or_bottom.t ->
+                  match fields_rev with
+                  | Unknown | Bottom -> fields_rev
+                  | Ok fields_rev -> (
+                    match Provers.meet_naked_floats env field with
+                    | Need_meet -> Unknown
+                    | Invalid -> Bottom
+                    | Known_result fs -> (
+                      match Float.Set.get_singleton fs with
+                      | None -> Unknown
+                      | Some f -> Ok (f :: fields_rev))))
+                (Or_unknown_or_bottom.Ok []) fields
+            in
+            match fields_rev with
+            | Unknown -> try_canonical_simple ()
+            | Bottom -> Invalid
+            | Ok fields_rev ->
+              Lift (Immutable_float_array { fields = List.rev fields_rev }))
+          | Naked_number
+              (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint)
+          | Region | Rec_info ->
+            Misc.fatal_errorf
+              "Unexpected kind %a in immutable array case when reifying type:@ \
+               %a@ in env:@ %a"
+              Flambda_kind.print kind TG.print t TE.print env)))
     | Value Bottom
     | Naked_immediate Bottom
     | Naked_float Bottom

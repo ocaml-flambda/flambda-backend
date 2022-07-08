@@ -331,18 +331,17 @@ let rec unknown_with_subkind ?(alloc_mode = Or_unknown.Unknown)
       ~fields:(List.init num_fields (fun _ -> TG.any_naked_float))
       alloc_mode
   | Float_array ->
-    TG.array_of_length
-      ~element_kind:(Known Flambda_kind.With_subkind.naked_float)
-      ~length:any_tagged_immediate
+    TG.mutable_array ~element_kind:(Known Flambda_kind.With_subkind.naked_float)
+      ~length:any_tagged_immediate Unknown
   | Immediate_array ->
-    TG.array_of_length
+    TG.mutable_array
       ~element_kind:(Known Flambda_kind.With_subkind.tagged_immediate)
-      ~length:any_tagged_immediate
+      ~length:any_tagged_immediate Unknown
   | Value_array ->
-    TG.array_of_length ~element_kind:(Known Flambda_kind.With_subkind.any_value)
-      ~length:any_tagged_immediate
+    TG.mutable_array ~element_kind:(Known Flambda_kind.With_subkind.any_value)
+      ~length:any_tagged_immediate Unknown
   | Generic_array ->
-    TG.array_of_length ~element_kind:Unknown ~length:any_tagged_immediate
+    TG.mutable_array ~element_kind:Unknown ~length:any_tagged_immediate Unknown
 
 let unknown_types_from_arity_with_subkinds arity =
   List.map

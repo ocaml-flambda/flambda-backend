@@ -106,12 +106,12 @@ let static_const0 env r ~updates (bound_static : Bound_static.Pattern.t)
     let tag = Tag.Scannable.to_int tag in
     let block_name = Symbol.linkage_name_as_string s, Cmmgen_state.Global in
     let header = C.black_block_header tag (List.length fields) in
-    let env, static_fields =
+    let static_fields =
       List.fold_right
-        (fun v (env, static_fields) ->
+        (fun v static_fields ->
           let static_field = static_value v in
-          env, static_field :: static_fields)
-        fields (env, [])
+          static_field :: static_fields)
+        fields []
     in
     let block = C.emit_block block_name header static_fields in
     let env, updates = static_block_updates s env updates 0 fields in
@@ -164,6 +164,19 @@ let static_const0 env r ~updates (bound_static : Bound_static.Pattern.t)
     in
     let env, e = static_float_array_updates s env updates 0 fields in
     env, R.update_data r float_array, e
+  | Block_like s, Immutable_value_array fields ->
+    let block_name = Symbol.linkage_name_as_string s, Cmmgen_state.Global in
+    let header = C.black_block_header 0 (List.length fields) in
+    let static_fields =
+      List.fold_right
+        (fun v static_fields ->
+          let static_field = static_value v in
+          static_field :: static_fields)
+        fields []
+    in
+    let block = C.emit_block block_name header static_fields in
+    let env, updates = static_block_updates s env updates 0 fields in
+    env, R.set_data r block, updates
   | Block_like s, Empty_array ->
     (* Recall: empty arrays have tag zero, even if their kind is naked float. *)
     let block_name = Symbol.linkage_name_as_string s, Cmmgen_state.Global in
@@ -182,7 +195,8 @@ let static_const0 env r ~updates (bound_static : Bound_static.Pattern.t)
   | ( (Code _ | Set_of_closures _),
       ( Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
       | Boxed_nativeint _ | Immutable_float_block _ | Immutable_float_array _
-      | Empty_array | Mutable_string _ | Immutable_string _ ) ) ->
+      | Immutable_value_array _ | Empty_array | Mutable_string _
+      | Immutable_string _ ) ) ->
     Misc.fatal_errorf
       "Block-like constants cannot be bound by [Code] or [Set_of_closures] \
        bindings:@ %a"

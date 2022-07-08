@@ -495,6 +495,19 @@ val closure_with_at_least_these_value_slots :
 val array_of_length :
   element_kind:Flambda_kind.With_subkind.t Or_unknown.t ->
   length:flambda_type ->
+  Alloc_mode.t Or_unknown.t ->
+  flambda_type
+
+val mutable_array :
+  element_kind:Flambda_kind.With_subkind.t Or_unknown.t ->
+  length:flambda_type ->
+  Alloc_mode.t Or_unknown.t ->
+  flambda_type
+
+val immutable_array :
+  element_kind:Flambda_kind.With_subkind.t Or_unknown.t ->
+  fields:flambda_type list ->
+  Alloc_mode.t Or_unknown.t ->
   flambda_type
 
 (** Construct a type equal to the type of the given name. (The name must be
@@ -609,6 +622,19 @@ val meet_is_flat_float_array : Typing_env.t -> t -> bool meet_shortcut
 
 val prove_is_immediates_array : Typing_env.t -> t -> unit proof_of_property
 
+type array_contents = private
+  | Immutable of { fields : t list }
+  | Mutable
+
+val meet_is_array :
+  Typing_env.t ->
+  t ->
+  (Flambda_kind.With_subkind.t Or_unknown.t
+  * t
+  * array_contents Or_unknown.t
+  * Alloc_mode.t Or_unknown.t)
+  meet_shortcut
+
 val meet_single_closures_entry :
   Typing_env.t ->
   t ->
@@ -693,6 +719,9 @@ type to_lift = private
   | Boxed_int32 of Numeric_types.Int32.t
   | Boxed_int64 of Numeric_types.Int64.t
   | Boxed_nativeint of Targetint_32_64.t
+  | Immutable_float_array of
+      { fields : Numeric_types.Float_by_bit_pattern.t list }
+  | Immutable_value_array of { fields : Simple.t list }
   | Empty_array
 
 type reification_result = private

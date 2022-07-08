@@ -27,6 +27,7 @@ type t =
       Numeric_types.Float_by_bit_pattern.t Or_variable.t list
   | Immutable_float_array of
       Numeric_types.Float_by_bit_pattern.t Or_variable.t list
+  | Immutable_value_array of Field_of_static_block.t list
   | Empty_array
   | Mutable_string of { initial_value : string }
   | Immutable_string of string
@@ -85,6 +86,12 @@ let [@ocamlformat "disable"] print ppf t =
         ~pp_sep:(fun ppf () -> Format.pp_print_string ppf "@; ")
         (Or_variable.print Numeric_types.Float_by_bit_pattern.print))
       fields
+  | Immutable_value_array fields ->
+    fprintf ppf "@[<hov 1>(@<0>%sImmutable_value_array@<0>%s@ (%a))@]"
+      (Flambda_colours.static_part ())
+      (Flambda_colours.normal ())
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space
+        Field_of_static_block.print) fields
   | Empty_array ->
     fprintf ppf "@<0>%sEmpty_array@<0>%s"
       (Flambda_colours.static_part ())
@@ -136,6 +143,8 @@ include Container_types.Make (struct
       Misc.Stdlib.List.compare
         (Or_variable.compare Numeric_types.Float_by_bit_pattern.compare)
         fields1 fields2
+    | Immutable_value_array fields1, Immutable_value_array fields2 ->
+      Misc.Stdlib.List.compare Field_of_static_block.compare fields1 fields2
     | Empty_array, Empty_array -> 0
     | ( Mutable_string { initial_value = s1 },
         Mutable_string { initial_value = s2 } )
@@ -157,6 +166,8 @@ include Container_types.Make (struct
     | _, Immutable_float_block _ -> 1
     | Immutable_float_array _, _ -> -1
     | _, Immutable_float_array _ -> 1
+    | Immutable_value_array _, _ -> -1
+    | _, Immutable_value_array _ -> 1
     | Empty_array, _ -> -1
     | _, Empty_array -> 1
     | Mutable_string _, _ -> -1
@@ -167,14 +178,16 @@ include Container_types.Make (struct
   let hash _t = Misc.fatal_error "Not yet implemented"
 end)
 
+let free_names_of_fields fields =
+  List.fold_left
+    (fun fvs field ->
+      Name_occurrences.union fvs (Field_of_static_block.free_names field))
+    Name_occurrences.empty fields
+
 let free_names t =
   match t with
   | Set_of_closures set -> Set_of_closures.free_names set
-  | Block (_tag, _mut, fields) ->
-    List.fold_left
-      (fun fvs field ->
-        Name_occurrences.union fvs (Field_of_static_block.free_names field))
-      Name_occurrences.empty fields
+  | Block (_tag, _mut, fields) -> free_names_of_fields fields
   | Boxed_float or_var -> Or_variable.free_names or_var
   | Boxed_int32 or_var -> Or_variable.free_names or_var
   | Boxed_int64 or_var -> Or_variable.free_names or_var
@@ -188,6 +201,7 @@ let free_names t =
         | Var (v, _dbg) -> Name_occurrences.add_variable fns v Name_mode.normal
         | Const _ -> fns)
       Name_occurrences.empty fields
+  | Immutable_value_array fields -> free_names_of_fields fields
 
 let apply_renaming t renaming =
   if Renaming.is_empty renaming
@@ -241,16 +255,25 @@ let apply_renaming t renaming =
           fields
       in
       if fields' == fields then t else Immutable_float_array fields'
+    | Immutable_value_array fields ->
+      let fields' =
+        Misc.Stdlib.List.map_sharing
+          (fun field -> Field_of_static_block.apply_renaming field renaming)
+          fields
+      in
+      if fields' == fields then t else Immutable_value_array fields'
     | Empty_array -> Empty_array
+
+let ids_for_export_fields fields =
+  List.fold_left
+    (fun ids field ->
+      Ids_for_export.union ids (Field_of_static_block.ids_for_export field))
+    Ids_for_export.empty fields
 
 let ids_for_export t =
   match t with
   | Set_of_closures set -> Set_of_closures.ids_for_export set
-  | Block (_tag, _mut, fields) ->
-    List.fold_left
-      (fun ids field ->
-        Ids_for_export.union ids (Field_of_static_block.ids_for_export field))
-      Ids_for_export.empty fields
+  | Block (_tag, _mut, fields) -> ids_for_export_fields fields
   | Boxed_float (Var (var, _dbg))
   | Boxed_int32 (Var (var, _dbg))
   | Boxed_int64 (Var (var, _dbg))
@@ -277,13 +300,14 @@ let ids_for_export t =
         | Var (var, _dbg) -> Ids_for_export.add_variable ids var
         | Const _ -> ids)
       Ids_for_export.empty fields
+  | Immutable_value_array fields -> ids_for_export_fields fields
   | Empty_array -> Ids_for_export.empty
 
 let is_block t =
   match t with
   | Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _ | Boxed_nativeint _
   | Immutable_float_block _ | Immutable_float_array _ | Immutable_string _
-  | Mutable_string _ | Empty_array ->
+  | Mutable_string _ | Empty_array | Immutable_value_array _ ->
     true
   | Set_of_closures _ -> false
 
@@ -292,7 +316,7 @@ let is_set_of_closures t =
   | Set_of_closures _ -> true
   | Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _ | Boxed_nativeint _
   | Immutable_float_block _ | Immutable_float_array _ | Immutable_string _
-  | Mutable_string _ | Empty_array ->
+  | Mutable_string _ | Empty_array | Immutable_value_array _ ->
     false
 
 let is_fully_static t = free_names t |> Name_occurrences.no_variables
@@ -302,7 +326,7 @@ let can_share0 t =
   | Block (_, Immutable, _)
   | Set_of_closures _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
   | Boxed_nativeint _ | Immutable_float_block _ | Immutable_float_array _
-  | Immutable_string _ | Empty_array ->
+  | Immutable_string _ | Empty_array | Immutable_value_array _ ->
     true
   | Block (_, (Mutable | Immutable_unique), _) | Mutable_string _ -> false
 
@@ -313,7 +337,7 @@ let must_be_set_of_closures t =
   | Set_of_closures set -> set
   | Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _ | Boxed_nativeint _
   | Immutable_float_block _ | Immutable_float_array _ | Empty_array
-  | Immutable_string _ | Mutable_string _ ->
+  | Immutable_value_array _ | Immutable_string _ | Mutable_string _ ->
     Misc.fatal_errorf "Not a set of closures:@ %a" print t
 
 let match_against_bound_static_pattern t (pat : Bound_static.Pattern.t)
@@ -338,13 +362,15 @@ let match_against_bound_static_pattern t (pat : Bound_static.Pattern.t)
     set_of_closures_callback ~closure_symbols set_of_closures
   | ( ( Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
       | Boxed_nativeint _ | Immutable_float_block _ | Immutable_float_array _
-      | Empty_array | Immutable_string _ | Mutable_string _ ),
+      | Immutable_value_array _ | Empty_array | Immutable_string _
+      | Mutable_string _ ),
       Block_like symbol ) ->
     block_like_callback symbol t
   | Set_of_closures _, (Block_like _ | Code _)
   | ( ( Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
       | Boxed_nativeint _ | Immutable_float_block _ | Immutable_float_array _
-      | Empty_array | Immutable_string _ | Mutable_string _ ),
+      | Immutable_value_array _ | Empty_array | Immutable_string _
+      | Mutable_string _ ),
       (Set_of_closures _ | Code _) ) ->
     Misc.fatal_errorf "Mismatch on variety of [Static_const]:@ %a@ =@ %a"
       Bound_static.Pattern.print pat print t

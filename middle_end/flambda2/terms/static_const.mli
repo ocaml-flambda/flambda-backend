@@ -30,6 +30,10 @@ type t =
       Numeric_types.Float_by_bit_pattern.t Or_variable.t list
   | Immutable_float_array of
       Numeric_types.Float_by_bit_pattern.t Or_variable.t list
+  | Immutable_value_array of Field_of_static_block.t list
+  (* CR mshinwell: Currently we are assuming that the two array constructors
+     above have non-empty field lists. Should we delete [Empty_array] and remove
+     this assumption? *)
   | Empty_array
   | Mutable_string of { initial_value : string }
   | Immutable_string of string

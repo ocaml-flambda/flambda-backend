@@ -295,6 +295,10 @@ let static_data ppf : static_data -> unit = function
     Format.fprintf ppf "Float_array [|%a|]"
       (pp_semi_list float_or_variable)
       elements
+  | Immutable_value_array elements ->
+    Format.fprintf ppf "Value_array [|%a|]"
+      (pp_semi_list field_of_block)
+      elements
   | Empty_array -> Format.fprintf ppf "Empty_array"
   | Mutable_string { initial_value = s } ->
     Format.fprintf ppf "mutable \"%s\"" (s |> String.escaped)
