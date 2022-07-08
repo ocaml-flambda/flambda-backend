@@ -280,8 +280,9 @@ module Inlining = struct
       ~return_continuation ~apply_exn_continuation ~apply_return_continuation
       ~bind_params ~bind_depth ~apply_renaming
 
-  let wrap_inlined_body_for_exn_support acc ~extra_args ~apply_exn_continuation
-      ~apply_return_continuation ~result_arity ~make_inlined_body =
+  let wrap_inlined_body_for_exn_extra_args acc ~extra_args
+      ~apply_exn_continuation ~apply_return_continuation ~result_arity
+      ~make_inlined_body =
     let apply_cont_create acc ~trap_action cont ~args ~dbg =
       let acc, apply_cont =
         Apply_cont_with_acc.create acc ~trap_action cont ~args ~dbg
@@ -293,7 +294,7 @@ module Inlining = struct
       Let_cont_with_acc.build_non_recursive acc cont ~handler_params ~handler
         ~body ~is_exn_handler
     in
-    Inlining_helpers.wrap_inlined_body_for_exn_support acc ~extra_args
+    Inlining_helpers.wrap_inlined_body_for_exn_extra_args acc ~extra_args
       ~apply_exn_continuation ~apply_return_continuation ~result_arity
       ~make_inlined_body ~apply_cont_create ~let_cont_create
 
@@ -337,7 +338,7 @@ module Inlining = struct
               (Exn_continuation.exn_handler apply_exn_continuation)
             ~apply_return_continuation
         | extra_args ->
-          wrap_inlined_body_for_exn_support acc ~extra_args
+          wrap_inlined_body_for_exn_extra_args acc ~extra_args
             ~apply_exn_continuation ~apply_return_continuation
             ~result_arity:(Code.result_arity code) ~make_inlined_body)
 end

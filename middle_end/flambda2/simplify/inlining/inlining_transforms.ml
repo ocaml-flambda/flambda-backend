@@ -61,13 +61,12 @@ let make_inlined_body ~callee ~unroll_to ~params ~args ~my_closure ~my_depth
       ~body ~free_names_of_body:Unknown
     |> Expr.create_let
   in
-  let apply_renaming = Expr.apply_renaming in
   Inlining_helpers.make_inlined_body ~callee ~params ~args ~my_closure ~my_depth
     ~rec_info ~body ~exn_continuation ~return_continuation
     ~apply_exn_continuation ~apply_return_continuation ~bind_params ~bind_depth
-    ~apply_renaming
+    ~apply_renaming:Expr.apply_renaming
 
-let wrap_inlined_body_for_exn_support ~extra_args ~apply_exn_continuation
+let wrap_inlined_body_for_exn_extra_args ~extra_args ~apply_exn_continuation
     ~apply_return_continuation ~result_arity ~make_inlined_body =
   let apply_cont_create () ~trap_action cont ~args ~dbg =
     Apply_cont.create ~trap_action cont ~args ~dbg |> Expr.create_apply_cont
@@ -80,7 +79,7 @@ let wrap_inlined_body_for_exn_support ~extra_args ~apply_exn_continuation
     Let_cont.create_non_recursive cont handler ~body:(body ())
       ~free_names_of_body:Unknown
   in
-  Inlining_helpers.wrap_inlined_body_for_exn_support () ~extra_args
+  Inlining_helpers.wrap_inlined_body_for_exn_extra_args () ~extra_args
     ~apply_exn_continuation ~apply_return_continuation ~result_arity
     ~make_inlined_body ~apply_cont_create ~let_cont_create
 
@@ -131,12 +130,8 @@ let inline dacc ~apply ~unroll_to function_decl =
               (Exn_continuation.exn_handler apply_exn_continuation)
             ~apply_return_continuation
         | extra_args ->
-          wrap_inlined_body_for_exn_support ~extra_args ~apply_exn_continuation
-            ~apply_return_continuation ~result_arity:(Code.result_arity code)
-            ~make_inlined_body
+          wrap_inlined_body_for_exn_extra_args ~extra_args
+            ~apply_exn_continuation ~apply_return_continuation
+            ~result_arity:(Code.result_arity code) ~make_inlined_body
       in
-      (* Format.eprintf "Inlined body to be simplified:@ %a\n%!" Expr.print
-         expr; *)
-      (* Format.eprintf "Inlined body to be simplified:@ %a@ dacc:@ %a\n%!"
-         Expr.print expr DA.print dacc; *)
       DA.with_denv dacc denv, expr)

@@ -39,7 +39,7 @@ val make_inlined_body :
   apply_renaming:('expr_with_acc -> Renaming.t -> 'expr_with_acc) ->
   'expr_with_acc
 
-val wrap_inlined_body_for_exn_support :
+val wrap_inlined_body_for_exn_extra_args :
   'acc ->
   extra_args:(Simple.t * Flambda_kind.With_subkind.t) list ->
   apply_exn_continuation:Exn_continuation.t ->
