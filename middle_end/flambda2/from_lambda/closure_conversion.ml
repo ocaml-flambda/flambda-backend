@@ -267,13 +267,13 @@ module Inlining = struct
         (Named.create_rec_info rec_info)
         ~body
     in
-    let apply_renaming (acc, body) perm =
+    let apply_renaming (acc, body) renaming =
       let acc =
         Acc.with_free_names
-          (Name_occurrences.apply_renaming (Acc.free_names acc) perm)
+          (Name_occurrences.apply_renaming (Acc.free_names acc) renaming)
           acc
       in
-      acc, Expr.apply_renaming body perm
+      acc, Expr.apply_renaming body renaming
     in
     Inlining_helpers.make_inlined_body ~callee ~params ~args ~my_closure
       ~my_depth ~rec_info ~body:(acc, body) ~exn_continuation

@@ -53,10 +53,10 @@ let free_names { funs; _ } =
 (* Note: the call to {create} at the end already takes into account the
    permutation applied to the function_declarations in {in_order}, so there is
    no need to apply_renaming the func_decls in the {funs} field. *)
-let apply_renaming ({ in_order; _ } as t) perm =
+let apply_renaming ({ in_order; _ } as t) renaming =
   let in_order' =
     Function_slot.Lmap.map_sharing
-      (fun code_id -> Renaming.apply_code_id perm code_id)
+      (fun code_id -> Renaming.apply_code_id renaming code_id)
       in_order
   in
   if in_order == in_order' then t else create in_order'

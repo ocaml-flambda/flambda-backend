@@ -17,20 +17,20 @@
 let make_inlined_body ~callee ~params ~args ~my_closure ~my_depth ~rec_info
     ~body ~exn_continuation ~return_continuation ~apply_exn_continuation
     ~apply_return_continuation ~bind_params ~bind_depth ~apply_renaming =
-  let perm = Renaming.empty in
-  let perm =
+  let renaming = Renaming.empty in
+  let renaming =
     match (apply_return_continuation : Flambda.Apply.Result_continuation.t) with
-    | Return k -> Renaming.add_continuation perm return_continuation k
-    | Never_returns -> perm
+    | Return k -> Renaming.add_continuation renaming return_continuation k
+    | Never_returns -> renaming
   in
-  let perm =
-    Renaming.add_continuation perm exn_continuation apply_exn_continuation
+  let renaming =
+    Renaming.add_continuation renaming exn_continuation apply_exn_continuation
   in
   let body =
     bind_params ~params:(my_closure :: params) ~args:(callee :: args) ~body
   in
   let body = bind_depth ~my_depth ~rec_info ~body in
-  apply_renaming body perm
+  apply_renaming body renaming
 
 let wrap_inlined_body_for_exn_support acc ~extra_args ~apply_exn_continuation
     ~apply_return_continuation ~result_arity ~make_inlined_body

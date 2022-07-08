@@ -115,7 +115,7 @@ let free_names t = free_names_with_mode t Name_mode.normal
 
 let free_names_in_types t = free_names_with_mode t Name_mode.in_types
 
-let apply_renaming t perm = Renaming.apply_simple perm t
+let apply_renaming t renaming = Renaming.apply_simple renaming t
 
 module List = struct
   type nonrec t = t list
@@ -138,12 +138,12 @@ module List = struct
       (fun free t -> Name_occurrences.union free (free_names t))
       Name_occurrences.empty t
 
-  let apply_renaming t perm =
+  let apply_renaming t renaming =
     let changed = ref false in
     let result =
       List.map
         (fun simple ->
-          let simple' = apply_renaming simple perm in
+          let simple' = apply_renaming simple renaming in
           if not (simple == simple') then changed := true;
           simple')
         t
@@ -173,7 +173,7 @@ module With_kind = struct
 
   let free_names (simple, _kind) = free_names simple
 
-  let apply_renaming ((simple, kind) as t) perm =
-    let simple' = apply_renaming simple perm in
+  let apply_renaming ((simple, kind) as t) renaming =
+    let simple' = apply_renaming simple renaming in
     if simple == simple' then t else simple', kind
 end

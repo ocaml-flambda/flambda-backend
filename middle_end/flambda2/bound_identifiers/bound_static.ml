@@ -36,12 +36,13 @@ module Pattern = struct
     | Block_like symbol ->
       Format.fprintf ppf "@[<hov 1>(Block_like@ %a)@]" Symbol.print symbol
 
-  let apply_renaming t perm =
+  let apply_renaming t renaming =
     match t with
-    | Code code_id -> Code (Renaming.apply_code_id perm code_id)
+    | Code code_id -> Code (Renaming.apply_code_id renaming code_id)
     | Set_of_closures map ->
-      Set_of_closures (Function_slot.Lmap.map (Renaming.apply_symbol perm) map)
-    | Block_like symbol -> Block_like (Renaming.apply_symbol perm symbol)
+      Set_of_closures
+        (Function_slot.Lmap.map (Renaming.apply_symbol renaming) map)
+    | Block_like symbol -> Block_like (Renaming.apply_symbol renaming symbol)
 
   let free_names t =
     match t with
@@ -158,8 +159,8 @@ let everything_being_defined t =
   List.map Pattern.everything_being_defined t
   |> Code_id_or_symbol.Set.union_list
 
-let apply_renaming t perm =
-  List.map (fun pattern -> Pattern.apply_renaming pattern perm) t
+let apply_renaming t renaming =
+  List.map (fun pattern -> Pattern.apply_renaming pattern renaming) t
 
 let free_names t = List.map Pattern.free_names t |> Name_occurrences.union_list
 

@@ -95,11 +95,11 @@ let free_names { condition_dbg = _; scrutinee; arms } =
       Name_occurrences.union (Apply_cont_expr.free_names action) free_names)
     arms free_names_of_scrutinee
 
-let apply_renaming ({ condition_dbg; scrutinee; arms } as t) perm =
-  let scrutinee' = Simple.apply_renaming scrutinee perm in
+let apply_renaming ({ condition_dbg; scrutinee; arms } as t) renaming =
+  let scrutinee' = Simple.apply_renaming scrutinee renaming in
   let arms' =
     Targetint_31_63.Map.map_sharing
-      (fun action -> Apply_cont_expr.apply_renaming action perm)
+      (fun action -> Apply_cont_expr.apply_renaming action renaming)
       arms
   in
   if scrutinee == scrutinee' && arms == arms'

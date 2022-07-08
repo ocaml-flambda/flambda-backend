@@ -28,8 +28,8 @@ let[@inline always] pattern_match (type bindable)
     (module Bindable : Bindable.S with type t = bindable) (bindable, term)
     ~apply_renaming_to_term ~f =
   let fresh_bindable = Bindable.rename bindable in
-  let perm = Bindable.renaming bindable ~guaranteed_fresh:fresh_bindable in
-  let fresh_term = apply_renaming_to_term term perm in
+  let renaming = Bindable.renaming bindable ~guaranteed_fresh:fresh_bindable in
+  let fresh_term = apply_renaming_to_term term renaming in
   f fresh_bindable fresh_term
 
 let[@inline always] pattern_match_for_printing bindable_impl
@@ -42,20 +42,24 @@ let[@inline always] pattern_match_pair (type bindable)
     (module Bindable : Bindable.S with type t = bindable) (bindable0, term0)
     (bindable1, term1) ~apply_renaming_to_term ~f =
   let fresh_bindable = Bindable.rename bindable0 in
-  let perm0 = Bindable.renaming bindable0 ~guaranteed_fresh:fresh_bindable in
-  let perm1 = Bindable.renaming bindable1 ~guaranteed_fresh:fresh_bindable in
-  let fresh_term0 = apply_renaming_to_term term0 perm0 in
-  let fresh_term1 = apply_renaming_to_term term1 perm1 in
+  let renaming0 =
+    Bindable.renaming bindable0 ~guaranteed_fresh:fresh_bindable
+  in
+  let renaming1 =
+    Bindable.renaming bindable1 ~guaranteed_fresh:fresh_bindable
+  in
+  let fresh_term0 = apply_renaming_to_term term0 renaming0 in
+  let fresh_term1 = apply_renaming_to_term term1 renaming1 in
   f fresh_bindable fresh_term0 fresh_term1
 
 let apply_renaming (type bindable)
     (module Bindable : Bindable.S with type t = bindable)
-    ((bindable, term) as t) perm ~apply_renaming_to_term =
-  if Renaming.is_empty perm
+    ((bindable, term) as t) renaming ~apply_renaming_to_term =
+  if Renaming.is_empty renaming
   then t
   else
-    let bindable' = Bindable.apply_renaming bindable perm in
-    let term' = apply_renaming_to_term term perm in
+    let bindable' = Bindable.apply_renaming bindable renaming in
+    let term' = apply_renaming_to_term term renaming in
     if bindable == bindable' && term == term' then t else bindable', term'
 
 let free_names (type bindable)
@@ -92,10 +96,10 @@ module Make (Bindable : Bindable.S) (Term : Term) = struct
       (bindable0, term0) (bindable1, term1) ~f
       ~apply_renaming_to_term:Term.apply_renaming
 
-  let apply_renaming t perm =
+  let apply_renaming t renaming =
     apply_renaming
       (module Bindable)
-      t perm ~apply_renaming_to_term:Term.apply_renaming
+      t renaming ~apply_renaming_to_term:Term.apply_renaming
 
   let[@inline always] ( let<> ) t f =
     pattern_match t ~f:(fun bindable term -> f (bindable, term))
