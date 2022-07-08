@@ -214,13 +214,14 @@ end = struct
         | Some for_one_name -> Some (For_one_name.add for_one_name name_mode))
       t
 
-  let apply_renaming t perm =
-    N.Map.map_keys (fun name -> N.apply_renaming name perm) t
+  let apply_renaming t renaming =
+    N.Map.map_keys (fun name -> N.apply_renaming name renaming) t
 
-  let affected_by_renaming t perm =
+  let affected_by_renaming t renaming =
     (* CR lmaurer: This is ultimately just [N.Map.inter_domain_is_not_equal]. *)
     N.Map.exists
-      (fun name _name_mode -> not (N.equal name (N.apply_renaming name perm)))
+      (fun name _name_mode ->
+        not (N.equal name (N.apply_renaming name renaming)))
       t
 
   let diff t1 t2 = N.Map.diff_domains t1 t2
@@ -315,34 +316,34 @@ end
 module For_names = For_one_variety_of_names (struct
   include Name
 
-  let apply_renaming t perm = Renaming.apply_name perm t
+  let apply_renaming t renaming = Renaming.apply_name renaming t
 end)
 
 module For_continuations = For_one_variety_of_names (struct
   include Continuation
 
-  let apply_renaming t perm = Renaming.apply_continuation perm t
+  let apply_renaming t renaming = Renaming.apply_continuation renaming t
 end)
 
 module For_function_slots = For_one_variety_of_names (struct
   include Function_slot
 
   (* We never bind [Function_slot]s using [Name_abstraction]. *)
-  let apply_renaming t _perm = t
+  let apply_renaming t _renaming = t
 end)
 
 module For_value_slots = For_one_variety_of_names (struct
   include Value_slot
 
   (* We never bind [Value_slot]s using [Name_abstraction]. *)
-  let apply_renaming t _perm = t
+  let apply_renaming t _renaming = t
 end)
 
 module For_code_ids = For_one_variety_of_names (struct
   include Code_id
 
   (* We never bind [Code_id]s using [Name_abstraction]. *)
-  let apply_renaming t perm = Renaming.apply_code_id perm t
+  let apply_renaming t renaming = Renaming.apply_code_id renaming t
 end)
 
 type t =

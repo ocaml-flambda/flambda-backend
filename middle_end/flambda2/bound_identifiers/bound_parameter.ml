@@ -61,8 +61,8 @@ let equal_kinds t1 t2 = Flambda_kind.With_subkind.equal t1.kind t2.kind
 let free_names ({ param = _; kind = _ } as t) =
   Name_occurrences.singleton_variable (var t) Name_mode.normal
 
-let apply_renaming { param; kind } perm =
-  let param = Renaming.apply_variable perm param in
+let apply_renaming { param; kind } renaming =
+  let param = Renaming.apply_variable renaming param in
   create param kind
 
 let all_ids_for_export { param; kind = _ } =

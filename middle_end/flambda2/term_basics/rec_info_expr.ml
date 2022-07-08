@@ -16,17 +16,17 @@
 
 include Int_ids.Rec_info_expr
 
-let rec apply_renaming orig perm =
+let rec apply_renaming orig renaming =
   match orig with
   | Const _ -> orig
   | Var dv ->
-    let new_dv = Renaming.apply_variable perm dv in
+    let new_dv = Renaming.apply_variable renaming dv in
     if dv == new_dv then orig else var new_dv
   | Succ t ->
-    let new_t = apply_renaming t perm in
+    let new_t = apply_renaming t renaming in
     if t == new_t then orig else succ new_t
   | Unroll_to (unroll_depth, t) ->
-    let new_t = apply_renaming t perm in
+    let new_t = apply_renaming t renaming in
     if t == new_t then orig else unroll_to unroll_depth new_t
 
 let rec free_names_in_mode t mode =
