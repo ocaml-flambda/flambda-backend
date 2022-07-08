@@ -55,10 +55,7 @@ let add t prim ~bound_to scope =
     { by_scope; combined }
   | _bound_to -> t
 
-let find t prim =
-  match EP.Map.find prim t.combined with
-  | exception Not_found -> None
-  | bound_to -> Some bound_to
+let find t prim = EP.Map.find_opt prim t.combined
 
 module Rhs_kind : sig
   type t =
@@ -238,7 +235,10 @@ let join_one_cse_equation ~cse_at_each_use prim bound_to_map
         (* For the primitives Is_int and Get_tag, they're strongly linked to
            their argument: additional information on the cse parameter should
            translate into additional information on the argument. This can be
-           done by giving them the appropriate type. *)
+           done by giving them the appropriate type. The same could be done for
+           a lot of the other non-arithmetic primitives, but in the other cases
+           the join of the types will usually give us the relevant equation
+           anyway. *)
         match[@ocaml.warning "-fragile-match"] EP.to_primitive prim with
         | Unary (Is_int, scrutinee) ->
           Name.Map.add (Name.var var)
@@ -368,16 +368,17 @@ let join0 ~typing_env_at_fork ~cse_at_fork ~cse_at_each_use ~params
 let join ~typing_env_at_fork ~cse_at_fork ~use_info ~get_typing_env
     ~get_rewrite_id ~get_cse ~params =
   let scope_at_fork = TE.current_scope typing_env_at_fork in
-  let seen_equations = ref false in
+  let no_equations = ref false in
   let cse_at_each_use =
     List.map use_info ~f:(fun use ->
         let t = get_cse use in
         let cse_between_fork_and_use = cut_cse_environment t ~scope_at_fork in
-        if not (EP.Map.is_empty cse_between_fork_and_use)
-        then seen_equations := true;
+        (* If one branch doesn't have any equations, then the join is going to
+           be empty *)
+        if EP.Map.is_empty cse_between_fork_and_use then no_equations := true;
         get_typing_env use, get_rewrite_id use, cse_between_fork_and_use)
   in
-  if not !seen_equations
+  if !no_equations
   then None
   else
     join0 ~typing_env_at_fork ~cse_at_fork ~cse_at_each_use ~params
