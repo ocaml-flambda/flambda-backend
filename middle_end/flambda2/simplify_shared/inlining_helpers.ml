@@ -14,12 +14,15 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Flambda.Import
+module RC = Apply.Result_continuation
+
 let make_inlined_body ~callee ~params ~args ~my_closure ~my_depth ~rec_info
     ~body ~exn_continuation ~return_continuation ~apply_exn_continuation
     ~apply_return_continuation ~bind_params ~bind_depth ~apply_renaming =
   let renaming = Renaming.empty in
   let renaming =
-    match (apply_return_continuation : Flambda.Apply.Result_continuation.t) with
+    match (apply_return_continuation : RC.t) with
     | Return k -> Renaming.add_continuation renaming return_continuation k
     | Never_returns -> renaming
   in
@@ -32,57 +35,32 @@ let make_inlined_body ~callee ~params ~args ~my_closure ~my_depth ~rec_info
   let body = bind_depth ~my_depth ~rec_info ~body in
   apply_renaming body renaming
 
-let wrap_inlined_body_for_exn_support acc ~extra_args ~apply_exn_continuation
+let wrap_inlined_body_for_exn_extra_args acc ~extra_args ~apply_exn_continuation
     ~apply_return_continuation ~result_arity ~make_inlined_body
     ~apply_cont_create ~let_cont_create =
-  (* We need to add a wrapper for the exception handler, so that exceptions
-     coming from the inlined body go through the wrapper and are re-raised with
-     the correct extra arguments.
-
-     This means we also need to add a push trap before the inlined body, and a
-     pop trap after.
-
-     The push trap is simply a matter of jumping to the body, while the pop trap
-     needs to replace the body's return continuation with a wrapper that pops
-     then jumps back. *)
-  (*
-   * As a result, the application [Apply_expr f (args) <k> «k_exn»]
-   * is replaced (before the actual inlining) by:
+  (* We need to add a wrapper for the exception handler so that exceptions
+   * coming from the inlined body are raised with the correct extra arguments:
    *
-   * [let_cont_exn k1 (exn: val) =
-   *   Apply_cont k_exn exn extra_args
-   * in
+   * let_cont_exn k1 (exn: val) = Apply_cont k_exn exn extra_args in
    * let_cont k_pop (args) = Apply_cont<pop k1> k args in
-   * let_cont k_push () = Apply_expr f (args) <k_pop> «k1» in
-   * Apply_cont<push k1> k_push ()]
+   * let_cont k_push () =
+   *   (* inlined body here, was: Apply_expr f (args) <k_pop> «k1» *)
+   * in
+   * Apply_cont<push k1> k_push ()
    *)
-  (* This feels quite heavy, but is necessary because we can rewrite neither the
-     definition and other uses of k_exn nor the uses of the exception
-     continuation in the body of f, so we need two distinct exception
-     continuations; and of course the new exception continuation needs to be
-     correctly pushed and popped.
-
-     The most annoying part of this is that it introduces trywith blocks that
-     were not part of the initial program, will not be removed, and might be
-     useless (if the function never raises).
-
-     Maybe a better solution would be to propagate through dacc a lazy
-     rewriting, that would add the correct extra args to all uses of the
-     exception continuation in the body. *)
+  (* CR mshinwell: Maybe we could extend [Apply_cont_rewrite] to be able to do
+     this rewriting during the normal traversal of the inlined body. *)
   let wrapper = Continuation.create () in
   let body_with_pop acc =
-    match (apply_return_continuation : Flambda.Apply.Result_continuation.t) with
+    match (apply_return_continuation : RC.t) with
     | Never_returns ->
       make_inlined_body acc ~apply_exn_continuation:wrapper
         ~apply_return_continuation
     | Return apply_return_continuation ->
       let pop_wrapper_cont = Continuation.create () in
-      let new_apply_return_continuation =
-        Flambda.Apply.Result_continuation.Return pop_wrapper_cont
-      in
       let body acc =
         make_inlined_body acc ~apply_exn_continuation:wrapper
-          ~apply_return_continuation:new_apply_return_continuation
+          ~apply_return_continuation:(RC.Return pop_wrapper_cont)
       in
       let kinded_params =
         List.map
@@ -92,9 +70,7 @@ let wrap_inlined_body_for_exn_support acc ~extra_args ~apply_exn_continuation
       let trap_action =
         Trap_action.Pop { exn_handler = wrapper; raise_kind = None }
       in
-      let args =
-        List.map (fun param -> Bound_parameter.simple param) kinded_params
-      in
+      let args = List.map Bound_parameter.simple kinded_params in
       let handler acc =
         apply_cont_create acc ~trap_action apply_return_continuation ~args
           ~dbg:Debuginfo.none
