@@ -17,6 +17,9 @@
 (** Handling of permutations and import freshening upon all kinds of bindable
     names and other identifiers (e.g. constants).
 
+    We use permutations instead of substitutions because they cannot
+    accidentally disturb the binding structure of terms. See [Name_abstraction].
+
     Unlike [Name_occurrences] this module does not segregate names according to
     where they occur (e.g. in terms or in types). *)
 
