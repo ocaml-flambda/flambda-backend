@@ -41,12 +41,12 @@ let wrap_inlined_body_for_exn_extra_args acc ~extra_args ~apply_exn_continuation
   (* We need to add a wrapper for the exception handler so that exceptions
    * coming from the inlined body are raised with the correct extra arguments:
    *
-   * [let_cont_exn k1 (exn: val) =
-   *   (* inlined body here, used to be: Apply_cont k_exn exn extra_args *)
-   * in
+   * let_cont_exn k1 (exn: val) = Apply_cont k_exn exn extra_args in
    * let_cont k_pop (args) = Apply_cont<pop k1> k args in
-   * let_cont k_push () = Apply_expr f (args) <k_pop> «k1» in
-   * Apply_cont<push k1> k_push ()]
+   * let_cont k_push () =
+   *   (* inlined body here, was: Apply_expr f (args) <k_pop> «k1» *)
+   * in
+   * Apply_cont<push k1> k_push ()
    *)
   (* CR mshinwell: Maybe we could extend [Apply_cont_rewrite] to be able to do
      this rewriting during the normal traversal of the inlined body. *)
