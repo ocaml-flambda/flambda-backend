@@ -325,6 +325,8 @@ module Tree_operations (Tree : Tree) : sig
     'a t
 
   val map_keys : (key -> key) -> 'a t -> 'a t
+
+  val valid : 'a t -> bool
 end = struct
   include Tree
 
@@ -670,7 +672,7 @@ end = struct
     then true
     else
       match descr t0, descr t1 with
-      | Empty, Empty -> true
+      | Empty, Empty -> assert false (* already covered *)
       | Leaf (i, d0), Leaf (j, d1) -> i = j && f d0 d1
       | Branch (prefix0, bit0, t00, t01), Branch (prefix1, bit1, t10, t11) ->
         if equal_prefix prefix0 bit0 prefix1 bit1
@@ -887,6 +889,28 @@ end = struct
   let map_keys f t =
     let iv = is_value_of t in
     fold (Callback.of_func iv (fun i d acc -> add (f i) d acc)) t (empty iv)
+
+  let valid t =
+    let rec check_deep prefix bit t =
+      match descr t with
+      | Empty -> false (* [Empty] should only occur at top level *)
+      | Leaf (i, _) -> bit = 0 || match_prefix i prefix bit
+      | Branch (prefix', bit', t0, t1) ->
+        (* CR-someday lmaurer: Should check that [bit'] has a POPCOUNT of 1 *)
+        let prefix0 =
+          (* This should be a no-op, since [prefix'] should already have a zero
+             here *)
+          prefix' land lnot bit'
+        in
+        let prefix1 = prefix' lor bit' in
+        let bit0 = bit' lsl 1 in
+        let bit1 = bit0 in
+        prefix0 = prefix'
+        && (bit = bit' || lower bit bit')
+        && (bit = 0 || match_prefix prefix' prefix bit)
+        && check_deep prefix0 bit0 t0 && check_deep prefix1 bit1 t1
+    in
+    is_empty t || check_deep 0 0 t
 end
 [@@inline always]
 
