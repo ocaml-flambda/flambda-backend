@@ -627,7 +627,7 @@ let add_variable_definition t var kind name_mode =
     (Binding_time.succ t.next_binding_time)
 
 let add_symbol_definition t sym =
-  (* CR mshinwell: check for redefinition when invariants enabled? *)
+  (* CR-someday mshinwell: check for redefinition when invariants enabled? *)
   let comp_unit = Symbol.compilation_unit sym in
   let this_comp_unit = Compilation_unit.get_current_exn () in
   if not (Compilation_unit.equal comp_unit this_comp_unit)
@@ -687,10 +687,6 @@ let invariant_for_alias (t : t) name ty =
            equation: %a@\n\
            @."
           Name.print name TG.print ty
-
-(* This is too costly to check, but it can be useful for debugging problems with
-   canonical aliases. let invariant_for_aliases (t:t) = Name.Map.iter (fun name
-   (ty, _, _) -> invariant_for_alias t name ty ) (names_to_types t) *)
 
 let invariant_for_new_equation (t : t) name ty =
   if Flambda_features.check_invariants ()
@@ -758,9 +754,7 @@ let rec add_equation0 (t : t) name ty =
   let current_level =
     One_level.create (current_scope t) level ~just_after_level
   in
-  let res = with_current_level t ~current_level in
-  (* invariant_for_aliases res; *)
-  res
+  with_current_level t ~current_level
 
 and add_equation1 t name ty ~(meet_type : meet_type) =
   (if Flambda_features.check_invariants ()
