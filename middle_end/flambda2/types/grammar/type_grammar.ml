@@ -643,8 +643,8 @@ let rec print ppf t =
 and print_head_of_kind_value ppf head =
   match head with
   | Variant { blocks; immediates; is_unique; alloc_mode } ->
-    (* CR mshinwell: Improve so that we elide blocks and/or immediates when
-       they're empty. *)
+    (* CR-someday mshinwell: Improve so that we elide blocks and/or immediates
+       when they're empty. *)
     Format.fprintf ppf
       "@[<hov 1>(Variant%s@ @[<hov 1>(blocks@ %a)@]@ @[<hov 1>(tagged_imms@ \
        %a)@])@]"
@@ -729,7 +729,6 @@ and print_row_like :
   in
   if row_like_is_bottom ~known ~other ~is_empty_map_known
   then
-    (* CR mshinwell: factor out (and elsewhere) *)
     let colour = Flambda_colours.top_or_bottom_type () in
     if Flambda_features.unicode ()
     then
@@ -1164,13 +1163,11 @@ and apply_coercion_closures_entry row_tag
   let function_types =
     (* Somewhat hackily apply the same coercion to everything in the set of
        closures. After all, we're only adjusting recursion depth, and all
-       closures in the same set have the same depth.
-
-       CR lmaurer: Check that this is consistent with the simplifier's behavior.
+       closures in the same set have the same depth. *)
+    (* CR lmaurer: Check that this is consistent with the simplifier's behavior.
        In particular, [project_function_slot] should return a closure at the
-       same depth as the original closure.
-
-       Exhaustingly, this is _entirely orthogonal_ to the issue with closures
+       same depth as the original closure. *)
+    (* Exhaustingly, this is _entirely orthogonal_ to the issue with closures
        having row-like types. *)
     Function_slot.Map.map_sharing
       (fun function_type ->
@@ -2043,7 +2040,18 @@ module Product = struct
     type t = function_slot_indexed_product
 
     let create function_slot_components_by_index =
-      (* CR mshinwell: Check that the types are all of kind [Value] *)
+      if Flambda_features.check_invariants ()
+      then
+        Function_slot.Map.iter
+          (fun _ ty ->
+            if not (K.equal (kind ty) K.value)
+            then
+              Misc.fatal_errorf
+                "Function-slot-indexed products can only hold types of kind \
+                 [Value]:@ %a"
+                (Function_slot.Map.print print)
+                function_slot_components_by_index)
+          function_slot_components_by_index;
       { function_slot_components_by_index }
 
     let top = { function_slot_components_by_index = Function_slot.Map.empty }
@@ -2051,16 +2059,24 @@ module Product = struct
     let width t =
       Targetint_31_63.of_int
         (Function_slot.Map.cardinal t.function_slot_components_by_index)
-
-    let components t =
-      Function_slot.Map.data t.function_slot_components_by_index
   end
 
   module Value_slot_indexed = struct
     type t = value_slot_indexed_product
 
     let create value_slot_components_by_index =
-      (* CR mshinwell: Check that the types are all of kind [Value] *)
+      if Flambda_features.check_invariants ()
+      then
+        Value_slot.Map.iter
+          (fun _ ty ->
+            if not (K.equal (kind ty) K.value)
+            then
+              Misc.fatal_errorf
+                "Value-slot-indexed products can only hold types of kind \
+                 [Value]:@ %a"
+                (Value_slot.Map.print print)
+                value_slot_components_by_index)
+          value_slot_components_by_index;
       { value_slot_components_by_index }
 
     let top = { value_slot_components_by_index = Value_slot.Map.empty }
@@ -2068,8 +2084,6 @@ module Product = struct
     let width t =
       Targetint_31_63.of_int
         (Value_slot.Map.cardinal t.value_slot_components_by_index)
-
-    let components t = Value_slot.Map.data t.value_slot_components_by_index
   end
 
   module Int_indexed = struct
@@ -2150,23 +2164,26 @@ module Row_like_for_blocks = struct
           }
     }
 
-  let create ~(field_kind : Flambda_kind.t) ~field_tys
-      (open_or_closed : open_or_closed) =
+  let check_field_tys ~field_kind ~field_tys =
     let field_kind' =
       List.map kind field_tys |> Flambda_kind.Set.of_list
       |> Flambda_kind.Set.get_singleton
     in
-    (* CR pchambart: move to invariant check *)
-    (match field_kind' with
-    | None ->
-      if List.length field_tys <> 0
-      then Misc.fatal_error "[field_tys] must all be of the same kind"
-    | Some field_kind' ->
-      if not (Flambda_kind.equal field_kind field_kind')
-      then
-        Misc.fatal_errorf "Declared field kind %a doesn't match [field_tys]"
-          Flambda_kind.print field_kind);
+    if Flambda_features.check_invariants ()
+    then
+      match field_kind' with
+      | None ->
+        if List.length field_tys <> 0
+        then Misc.fatal_error "[field_tys] must all be of the same kind"
+      | Some field_kind' ->
+        if not (Flambda_kind.equal field_kind field_kind')
+        then
+          Misc.fatal_errorf "Declared field kind %a doesn't match [field_tys]"
+            Flambda_kind.print field_kind
 
+  let create ~(field_kind : Flambda_kind.t) ~field_tys
+      (open_or_closed : open_or_closed) =
+    check_field_tys ~field_kind ~field_tys;
     let tag : _ Or_unknown.t =
       let tag : _ Or_unknown.t =
         match open_or_closed with
@@ -2235,12 +2252,12 @@ module Row_like_for_blocks = struct
     let known_tags =
       Tag.Map.map
         (fun field_tys ->
-          (* CR mshinwell: Validate [field_tys] like [create] does, above *)
           let field_kind =
             match field_tys with
             | [] -> Flambda_kind.value
             | field_ty :: _ -> kind field_ty
           in
+          check_field_tys ~field_kind ~field_tys;
           let maps_to =
             { kind = field_kind; fields = Array.of_list field_tys }
           in
@@ -2254,7 +2271,7 @@ module Row_like_for_blocks = struct
     { known_tags; other_tags = Bottom }
 
   let create_raw ~known_tags ~other_tags =
-    (* CR mshinwell: add invariant check? *)
+    (* CR-someday mshinwell: add invariant check? *)
     { known_tags; other_tags }
 
   let all_tags_and_indexes { known_tags; other_tags } : _ Or_unknown.t =
@@ -2354,7 +2371,7 @@ module Row_like_for_closures = struct
     { known_closures; other_closures = Bottom }
 
   let create_raw ~known_closures ~other_closures =
-    (* CR mshinwell: add invariant check? *)
+    (* CR-someday mshinwell: add invariant check? *)
     { known_closures; other_closures }
 
   let get_singleton { known_closures; other_closures } =
@@ -2634,7 +2651,6 @@ let boxed_nativeint_alias_to ~naked_nativeint =
     (Naked_nativeint (TD.create_equals (Simple.var naked_nativeint)))
 
 let this_immutable_string str =
-  (* CR mshinwell: Use "length" not "size" for strings *)
   let size = Targetint_31_63.of_int (String.length str) in
   let string_info =
     String_info.Set.singleton
@@ -2731,16 +2747,66 @@ module Head_of_kind_value = struct
   let create_array ~element_kind ~length = Array { element_kind; length }
 end
 
+module type Head_of_kind_naked_number_intf = sig
+  type t
+
+  type n
+
+  type n_set
+
+  val create : n -> t
+
+  val create_set : n_set -> t Or_bottom.t
+
+  val union : t -> t -> t
+
+  val inter : t -> t -> t Or_bottom.t
+end
+
 module Head_of_kind_naked_immediate = struct
   type t = head_of_kind_naked_immediate
 
-  (* CR mshinwell: maybe this should return [Or_bottom.t]? *)
-  let create_naked_immediates imms = Naked_immediates imms
+  let create_naked_immediate imm =
+    Naked_immediates (Targetint_31_63.Set.singleton imm)
+
+  let create_naked_immediates imms : _ Or_bottom.t =
+    if Targetint_31_63.Set.is_empty imms
+    then Bottom
+    else Ok (Naked_immediates imms)
 
   let create_is_int ty = Is_int ty
 
   let create_get_tag ty = Get_tag ty
 end
+
+module Make_head_of_kind_naked_number (N : Container_types.S) = struct
+  type t = N.Set.t
+
+  type n = N.t
+
+  type n_set = N.Set.t
+
+  module N = struct
+    include N
+  end
+
+  let create i = N.Set.singleton i
+
+  let create_set is : _ Or_bottom.t =
+    if N.Set.is_empty is then Bottom else Ok is
+
+  let union = N.Set.union
+
+  let inter t1 t2 : _ Or_bottom.t =
+    let t = N.Set.inter t1 t2 in
+    if N.Set.is_empty t then Bottom else Ok t
+end
+
+module Head_of_kind_naked_float = Make_head_of_kind_naked_number (Float)
+module Head_of_kind_naked_int32 = Make_head_of_kind_naked_number (Int32)
+module Head_of_kind_naked_int64 = Make_head_of_kind_naked_number (Int64)
+module Head_of_kind_naked_nativeint =
+  Make_head_of_kind_naked_number (Targetint_32_64)
 
 let rec recover_some_aliases t =
   match t with
@@ -2793,35 +2859,33 @@ let rec recover_some_aliases t =
     | Ok (No_alias (Naked_immediates is)) -> (
       match Targetint_31_63.Set.get_singleton is with
       | Some i -> this_naked_immediate i
-      | None ->
-        if Targetint_31_63.Set.is_empty is then bottom_naked_immediate else t))
+      | None -> t))
   | Naked_float ty -> (
     match TD.descr ty with
     | Unknown | Bottom | Ok (Equals _) -> t
     | Ok (No_alias fs) -> (
       match Float.Set.get_singleton fs with
       | Some f -> this_naked_float f
-      | None -> if Float.Set.is_empty fs then bottom_naked_float else t))
+      | None -> t))
   | Naked_int32 ty -> (
     match TD.descr ty with
     | Unknown | Bottom | Ok (Equals _) -> t
     | Ok (No_alias is) -> (
       match Int32.Set.get_singleton is with
       | Some f -> this_naked_int32 f
-      | None -> if Int32.Set.is_empty is then bottom_naked_int32 else t))
+      | None -> t))
   | Naked_int64 ty -> (
     match TD.descr ty with
     | Unknown | Bottom | Ok (Equals _) -> t
     | Ok (No_alias is) -> (
       match Int64.Set.get_singleton is with
       | Some f -> this_naked_int64 f
-      | None -> if Int64.Set.is_empty is then bottom_naked_int64 else t))
+      | None -> t))
   | Naked_nativeint ty -> (
     match TD.descr ty with
     | Unknown | Bottom | Ok (Equals _) -> t
     | Ok (No_alias is) -> (
       match Targetint_32_64.Set.get_singleton is with
       | Some f -> this_naked_nativeint f
-      | None ->
-        if Targetint_32_64.Set.is_empty is then bottom_naked_nativeint else t))
+      | None -> t))
   | Rec_info _ | Region _ -> t

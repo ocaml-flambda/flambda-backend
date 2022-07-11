@@ -27,14 +27,14 @@ val bottom_like : Type_grammar.t -> Type_grammar.t
 
 val these_naked_immediates : Targetint_31_63.Set.t -> Type_grammar.t
 
-val these_naked_floats : Type_grammar.head_of_kind_naked_float -> Type_grammar.t
+val these_naked_floats :
+  Numeric_types.Float_by_bit_pattern.Set.t -> Type_grammar.t
 
-val these_naked_int32s : Type_grammar.head_of_kind_naked_int32 -> Type_grammar.t
+val these_naked_int32s : Numeric_types.Int32.Set.t -> Type_grammar.t
 
-val these_naked_int64s : Type_grammar.head_of_kind_naked_int64 -> Type_grammar.t
+val these_naked_int64s : Numeric_types.Int64.Set.t -> Type_grammar.t
 
-val these_naked_nativeints :
-  Type_grammar.head_of_kind_naked_nativeint -> Type_grammar.t
+val these_naked_nativeints : Targetint_32_64.Set.t -> Type_grammar.t
 
 val any_tagged_immediate : Type_grammar.t
 
@@ -59,24 +59,18 @@ val this_boxed_nativeint :
   Targetint_32_64.t -> Alloc_mode.t Or_unknown.t -> Type_grammar.t
 
 val these_boxed_floats :
-  Type_grammar.head_of_kind_naked_float ->
+  Numeric_types.Float_by_bit_pattern.Set.t ->
   Alloc_mode.t Or_unknown.t ->
   Type_grammar.t
 
 val these_boxed_int32s :
-  Type_grammar.head_of_kind_naked_int32 ->
-  Alloc_mode.t Or_unknown.t ->
-  Type_grammar.t
+  Numeric_types.Int32.Set.t -> Alloc_mode.t Or_unknown.t -> Type_grammar.t
 
 val these_boxed_int64s :
-  Type_grammar.head_of_kind_naked_int64 ->
-  Alloc_mode.t Or_unknown.t ->
-  Type_grammar.t
+  Numeric_types.Int64.Set.t -> Alloc_mode.t Or_unknown.t -> Type_grammar.t
 
 val these_boxed_nativeints :
-  Type_grammar.head_of_kind_naked_nativeint ->
-  Alloc_mode.t Or_unknown.t ->
-  Type_grammar.t
+  Targetint_32_64.Set.t -> Alloc_mode.t Or_unknown.t -> Type_grammar.t
 
 val any_boxed_float : Type_grammar.t
 

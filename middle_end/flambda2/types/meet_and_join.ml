@@ -14,9 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-module Float = Numeric_types.Float_by_bit_pattern
-module Int32 = Numeric_types.Int32
-module Int64 = Numeric_types.Int64
 module Meet_env = Typing_env.Meet_env
 module Join_env = Typing_env.Join_env
 module ET = Expand_head.Expanded_type
@@ -439,7 +436,8 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
     if I.Set.is_empty is
     then Bottom
     else
-      Ok (TG.Head_of_kind_naked_immediate.create_naked_immediates is, TEE.empty)
+      let<+ ty = TG.Head_of_kind_naked_immediate.create_naked_immediates is in
+      ty, TEE.empty
   | Is_int ty1, Is_int ty2 ->
     let<+ ty, env_extension = meet env ty1 ty2 in
     TG.Head_of_kind_naked_immediate.create_is_int ty, env_extension
@@ -489,20 +487,20 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
     Ok (t1, TEE.empty)
 
 and meet_head_of_kind_naked_float _env t1 t2 : _ Or_bottom.t =
-  let t = Float.Set.inter t1 t2 in
-  if Float.Set.is_empty t then Bottom else Ok (t, TEE.empty)
+  let<+ head = TG.Head_of_kind_naked_float.inter t1 t2 in
+  head, TEE.empty
 
 and meet_head_of_kind_naked_int32 _env t1 t2 : _ Or_bottom.t =
-  let t = Int32.Set.inter t1 t2 in
-  if Int32.Set.is_empty t then Bottom else Ok (t, TEE.empty)
+  let<+ head = TG.Head_of_kind_naked_int32.inter t1 t2 in
+  head, TEE.empty
 
 and meet_head_of_kind_naked_int64 _env t1 t2 : _ Or_bottom.t =
-  let t = Int64.Set.inter t1 t2 in
-  if Int64.Set.is_empty t then Bottom else Ok (t, TEE.empty)
+  let<+ head = TG.Head_of_kind_naked_int64.inter t1 t2 in
+  head, TEE.empty
 
 and meet_head_of_kind_naked_nativeint _env t1 t2 : _ Or_bottom.t =
-  let t = Targetint_32_64.Set.inter t1 t2 in
-  if Targetint_32_64.Set.is_empty t then Bottom else Ok (t, TEE.empty)
+  let<+ head = TG.Head_of_kind_naked_nativeint.inter t1 t2 in
+  head, TEE.empty
 
 and meet_head_of_kind_rec_info _env t1 _t2 : _ Or_bottom.t =
   (* CR-someday lmaurer: This could be doing things like discovering two depth
@@ -1138,9 +1136,15 @@ and join_head_of_kind_naked_immediate env
     TG.Head_of_kind_naked_immediate.t Or_unknown.t =
   let module I = Targetint_31_63 in
   match head1, head2 with
-  | Naked_immediates is1, Naked_immediates is2 ->
+  | Naked_immediates is1, Naked_immediates is2 -> (
+    assert (not (Targetint_31_63.Set.is_empty is1));
+    assert (not (Targetint_31_63.Set.is_empty is2));
     let is = I.Set.union is1 is2 in
-    Known (TG.Head_of_kind_naked_immediate.create_naked_immediates is)
+    let head = TG.Head_of_kind_naked_immediate.create_naked_immediates is in
+    match head with
+    | Ok head -> Known head
+    | Bottom ->
+      Misc.fatal_error "Did not expect [Bottom] from [create_naked_immediates]")
   | Is_int ty1, Is_int ty2 ->
     let>+ ty = join env ty1 ty2 in
     TG.Head_of_kind_naked_immediate.create_is_int ty
@@ -1152,14 +1156,20 @@ and join_head_of_kind_naked_immediate env
      reduce the is_int and get_tag cases to naked_immediate sets, then joining
      those) but this looks unlikely to be useful and could end up begin quite
      expensive. *)
-  | Is_int ty, Naked_immediates is_int | Naked_immediates is_int, Is_int ty ->
+  | Is_int ty, Naked_immediates is_int | Naked_immediates is_int, Is_int ty -> (
     if I.Set.is_empty is_int
     then Known (TG.Head_of_kind_naked_immediate.create_is_int ty)
     else
       (* Slightly better than Unknown *)
-      Known
-        (TG.Head_of_kind_naked_immediate.create_naked_immediates
-           (I.Set.add I.zero (I.Set.add I.one is_int)))
+      let head =
+        TG.Head_of_kind_naked_immediate.create_naked_immediates
+          (I.Set.add I.zero (I.Set.add I.one is_int))
+      in
+      match head with
+      | Ok head -> Known head
+      | Bottom ->
+        Misc.fatal_error
+          "Did not expect [Bottom] from [create_naked_immediates]")
   | Get_tag ty, Naked_immediates tags | Naked_immediates tags, Get_tag ty ->
     if I.Set.is_empty tags
     then Known (TG.Head_of_kind_naked_immediate.create_get_tag ty)
@@ -1167,16 +1177,16 @@ and join_head_of_kind_naked_immediate env
   | (Is_int _ | Get_tag _), (Is_int _ | Get_tag _) -> Unknown
 
 and join_head_of_kind_naked_float _env t1 t2 : _ Or_unknown.t =
-  Known (Float.Set.union t1 t2)
+  Known (TG.Head_of_kind_naked_float.union t1 t2)
 
 and join_head_of_kind_naked_int32 _env t1 t2 : _ Or_unknown.t =
-  Known (Int32.Set.union t1 t2)
+  Known (TG.Head_of_kind_naked_int32.union t1 t2)
 
 and join_head_of_kind_naked_int64 _env t1 t2 : _ Or_unknown.t =
-  Known (Int64.Set.union t1 t2)
+  Known (TG.Head_of_kind_naked_int64.union t1 t2)
 
 and join_head_of_kind_naked_nativeint _env t1 t2 : _ Or_unknown.t =
-  Known (Targetint_32_64.Set.union t1 t2)
+  Known (TG.Head_of_kind_naked_nativeint.union t1 t2)
 
 and join_head_of_kind_rec_info _env t1 t2 : _ Or_unknown.t =
   if Rec_info_expr.equal t1 t2 then Known t1 else Unknown

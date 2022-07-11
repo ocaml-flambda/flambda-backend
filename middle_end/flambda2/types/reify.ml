@@ -299,19 +299,19 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
       | Unknown -> try_canonical_simple ()
       | Invalid -> Invalid)
     | Naked_float (Ok fs) -> (
-      match Float.Set.get_singleton fs with
+      match Float.Set.get_singleton (fs :> Float.Set.t) with
       | None -> try_canonical_simple ()
       | Some f -> Simple (Simple.const (Reg_width_const.naked_float f)))
     | Naked_int32 (Ok ns) -> (
-      match Int32.Set.get_singleton ns with
+      match Int32.Set.get_singleton (ns :> Int32.Set.t) with
       | None -> try_canonical_simple ()
       | Some n -> Simple (Simple.const (Reg_width_const.naked_int32 n)))
     | Naked_int64 (Ok ns) -> (
-      match Int64.Set.get_singleton ns with
+      match Int64.Set.get_singleton (ns :> Int64.Set.t) with
       | None -> try_canonical_simple ()
       | Some n -> Simple (Simple.const (Reg_width_const.naked_int64 n)))
     | Naked_nativeint (Ok ns) -> (
-      match Targetint_32_64.Set.get_singleton ns with
+      match Targetint_32_64.Set.get_singleton (ns :> Targetint_32_64.Set.t) with
       | None -> try_canonical_simple ()
       | Some n -> Simple (Simple.const (Reg_width_const.naked_nativeint n)))
     (* CR-someday mshinwell: These could lift at toplevel when [ty_naked_float]

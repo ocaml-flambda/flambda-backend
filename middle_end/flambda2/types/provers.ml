@@ -139,7 +139,7 @@ let prove_naked_floats env t : _ proof =
     Misc.fatal_errorf "Kind error: expected [Naked_float]:@ %a" TG.print t
   in
   match expand_head env t with
-  | Naked_float (Ok fs) -> if Float.Set.is_empty fs then Invalid else Proved fs
+  | Naked_float (Ok fs) -> Proved (fs :> Float.Set.t)
   | Naked_float Unknown -> Unknown
   | Naked_float Bottom -> Invalid
   | Value _ -> wrong_kind ()
@@ -155,7 +155,7 @@ let prove_naked_int32s env t : _ proof =
     Misc.fatal_errorf "Kind error: expected [Naked_int32]:@ %a" TG.print t
   in
   match expand_head env t with
-  | Naked_int32 (Ok is) -> if Int32.Set.is_empty is then Invalid else Proved is
+  | Naked_int32 (Ok is) -> Proved (is :> Int32.Set.t)
   | Naked_int32 Unknown -> Unknown
   | Naked_int32 Bottom -> Invalid
   | Value _ -> wrong_kind ()
@@ -171,7 +171,7 @@ let prove_naked_int64s env t : _ proof =
     Misc.fatal_errorf "Kind error: expected [Naked_int64]:@ %a" TG.print t
   in
   match expand_head env t with
-  | Naked_int64 (Ok is) -> if Int64.Set.is_empty is then Invalid else Proved is
+  | Naked_int64 (Ok is) -> Proved (is :> Int64.Set.t)
   | Naked_int64 Unknown -> Unknown
   | Naked_int64 Bottom -> Invalid
   | Value _ -> wrong_kind ()
@@ -187,8 +187,7 @@ let prove_naked_nativeints env t : _ proof =
     Misc.fatal_errorf "Kind error: expected [Naked_nativeint]:@ %a" TG.print t
   in
   match expand_head env t with
-  | Naked_nativeint (Ok is) ->
-    if Targetint_32_64.Set.is_empty is then Invalid else Proved is
+  | Naked_nativeint (Ok is) -> Proved (is :> Targetint_32_64.Set.t)
   | Naked_nativeint Unknown -> Unknown
   | Naked_nativeint Bottom -> Invalid
   | Value _ -> wrong_kind ()
