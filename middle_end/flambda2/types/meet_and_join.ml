@@ -322,7 +322,6 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
       Mutable_block { alloc_mode = alloc_mode2 } )
   | ( Mutable_block { alloc_mode = alloc_mode1 },
       Variant { alloc_mode = alloc_mode2; _ } ) ->
-    (* CR mshinwell: It would be better to track per-field mutability. *)
     let<+ alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
     TG.Head_of_kind_value.create_mutable_block alloc_mode, TEE.empty
   | Boxed_float (n1, alloc_mode1), Boxed_float (n2, alloc_mode2) ->
@@ -896,14 +895,12 @@ and meet_env_extension0 env (ext1 : TEE.t) (ext2 : TEE.t) extra_extensions :
 and meet_env_extension (env : Meet_env.t) t1 t2 : TEE.t Or_bottom.t =
   try Ok (meet_env_extension0 env t1 t2 []) with Bottom_meet -> Bottom
 
-(* CR mshinwell: Why does this never return [Unknown]? *)
 and join ?bound_name env (t1 : TG.t) (t2 : TG.t) : TG.t Or_unknown.t =
   if not (K.equal (TG.kind t1) (TG.kind t2))
   then
     Misc.fatal_errorf "Kind mismatch upon join:@ %a@ versus@ %a" TG.print t1
       TG.print t2;
   let kind = TG.kind t1 in
-  (* CR mshinwell: See if we can optimise out the [option] allocations below *)
   let canonical_simple1 =
     match
       TE.get_alias_then_canonical_simple_exn
@@ -932,7 +929,6 @@ and join ?bound_name env (t1 : TG.t) (t2 : TG.t) : TG.t Or_unknown.t =
       (Join_env.right_join_env env)
       t2 ~known_canonical_simple_at_in_types_mode:canonical_simple2
   in
-  (* CR mshinwell: Add shortcut when the canonical simples are equal *)
   let shared_aliases =
     let shared_aliases =
       match
@@ -984,8 +980,6 @@ and join ?bound_name env (t1 : TG.t) (t2 : TG.t) : TG.t Or_unknown.t =
       unknown ()
     | Some _, Some _ | Some _, None | None, Some _ | None, None -> (
       let join_heads env : _ Or_unknown.t =
-        (* CR mshinwell: this should presumably check for Unknown (in the same
-           way as the meet case checks for Bottom) *)
         Known (ET.to_type (join_expanded_head env kind expanded1 expanded2))
       in
       match canonical_simple1, canonical_simple2 with
@@ -1258,9 +1252,9 @@ and join_row_like :
     | None, None -> None
     | Some case1, None -> (
       let only_case1 () =
-        (* CF Type_descr.join_head_or_unknown_or_bottom, we need to join those
+        (* cf. Type_descr.join_head_or_unknown_or_bottom, we need to join these
            to ensure that free variables not present in the target env are
-           cleaned out of the types. Same bellow *)
+           cleaned out of the types. Same below *)
         (* CR pchambart: This seams terribly inefficient. *)
         let join_env =
           Join_env.create
@@ -1371,12 +1365,7 @@ and join_closures_entry env
     Function_slot.Map.merge
       (fun _function_slot func_type1 func_type2 ->
         match func_type1, func_type2 with
-        | None, None
-        (* CR mshinwell: Are these next two cases right? Don't we need to do the
-           equivalent of make_suitable_for_environment? *)
-        | Some _, None
-        | None, Some _ ->
-          None
+        | None, None | Some _, None | None, Some _ -> None
         | Some func_type1, Some func_type2 ->
           Some (join_function_type env func_type1 func_type2))
       function_types1 function_types2

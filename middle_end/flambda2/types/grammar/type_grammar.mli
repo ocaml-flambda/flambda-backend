@@ -46,6 +46,7 @@ and head_of_kind_value = private
         is_unique : bool;
         alloc_mode : Alloc_mode.t Or_unknown.t
       }
+  (* CR mshinwell: It would be better to track per-field mutability. *)
   | Mutable_block of { alloc_mode : Alloc_mode.t Or_unknown.t }
   | Boxed_float of t * Alloc_mode.t Or_unknown.t
   | Boxed_int32 of t * Alloc_mode.t Or_unknown.t

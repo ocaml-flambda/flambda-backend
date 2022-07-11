@@ -89,9 +89,6 @@ let join_types ~env_at_fork envs_with_levels =
           ~meet_type:Meet_and_join.meet
       in
       let join_types name joined_ty use_ty =
-        (* CR mshinwell for vlaviron: Looks like [TE.mem] needs fixing with
-           respect to names from other units with their .cmx missing (c.f.
-           testsuite/tests/lib-dynlink-native/). *)
         let same_unit =
           Compilation_unit.equal
             (Name.compilation_unit name)
@@ -263,9 +260,9 @@ let join ~env_at_fork envs_with_levels ~params ~extra_lifted_consts_in_use_envs
      sides of the propagated equations are also themselves propagated. The
      definition of any such propagated name (i.e. one that does not occur in the
      environment at the fork point) will be made existential. *)
-  (* CR vlaviron: We need to compute the free names of joined_types, we can't
-     use a typing environment *)
   let free_names_transitive typ =
+    (* We need to compute the free names of joined_types, but we can't use a
+       typing environment. *)
     let rec free_names_transitive0 typ ~result =
       let free_names = TG.free_names typ in
       let to_traverse = Name_occurrences.diff free_names result in
@@ -312,8 +309,6 @@ let n_way_join ~env_at_fork envs_with_levels ~params
 let cut_and_n_way_join definition_typing_env ts_and_use_ids ~params
     ~unknown_if_defined_later_than ~extra_lifted_consts_in_use_envs
     ~extra_allowed_names =
-  (* CR mshinwell: Can't [unknown_if_defined_at_or_later_than] just be computed
-     by this function? *)
   let after_cuts =
     List.map
       (fun (t, use_id, use_kind) ->

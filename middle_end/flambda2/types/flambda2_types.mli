@@ -293,17 +293,10 @@ type to_erase =
   | Everything_not_in of Typing_env.t
   | All_variables_except of Variable.Set.t
 
-(* CR mshinwell: update comment *)
-
-(** This function takes a type [t] and an environment [env] that assigns types
-    to all the free names of [t]. It also takes an environment, called
-    [suitable_for], in which we would like to use [t]. The function identifies
-    which free names (if any) of [t] would be unbound in [suitable_for]. For
-    each such name a fresh variable is assigned and irrelevantly bound in
-    [suitable_for]; the returned type is like [t] except that the names that
-    would otherwise be unbound are replaced by these fresh variables. The fresh
-    variables are assigned types in the returned environment extension on a best
-    effort basis. *)
+(** Adjust a type so it can be used in a different environment. There are two
+    modes of operation: either a target environment can be specified, in which
+    the resulting type is to be valid; or a set of variables may be supplied
+    which are the only ones allowed to occur in the resulting type. *)
 val make_suitable_for_environment :
   Typing_env.t ->
   to_erase ->
@@ -631,11 +624,6 @@ val prove_is_array_with_element_kind :
   element_kind:Flambda_kind.With_subkind.t ->
   array_kind_compatibility proof
 
-(* CR mshinwell: Fix comment and/or function name *)
-
-(** Prove that the given type, of kind [Value], is a closures type describing
-    exactly one set of closures. The function declaration type corresponding to
-    such closure is returned together with its function slot, if it is known. *)
 val prove_single_closures_entry :
   Typing_env.t ->
   t ->
