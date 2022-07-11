@@ -30,7 +30,7 @@ type result =
     escapes : bool
   }
 
-let join ?unknown_if_defined_at_or_later_than denv typing_env params
+let join ?unknown_if_defined_later_than denv typing_env params
     ~env_at_fork_plus_params ~consts_lifted_during_body ~use_envs_with_ids =
   let definition_scope = DE.get_continuation_scope env_at_fork_plus_params in
   let extra_lifted_consts_in_use_envs =
@@ -62,16 +62,12 @@ let join ?unknown_if_defined_at_or_later_than denv typing_env params
     | None -> Name_occurrences.empty
     | Some cse_join_result -> cse_join_result.extra_allowed_names
   in
-  (* CR-someday mshinwell: If this didn't do Scope.next then TE could probably
-     be slightly more efficient, as it wouldn't need to look at the middle of
-     the three return values from Scope.Map.Split. *)
-  let unknown_if_defined_at_or_later_than =
-    Option.value unknown_if_defined_at_or_later_than
-      ~default:(Scope.next definition_scope)
+  let unknown_if_defined_later_than =
+    Option.value unknown_if_defined_later_than ~default:definition_scope
   in
   let env =
     T.cut_and_n_way_join typing_env use_envs_with_ids' ~params
-      ~unknown_if_defined_at_or_later_than ~extra_lifted_consts_in_use_envs
+      ~unknown_if_defined_later_than ~extra_lifted_consts_in_use_envs
       ~extra_allowed_names
   in
   let handler_env =
@@ -121,7 +117,7 @@ let meet_equations_on_params typing_env ~params:params' ~param_types =
         TE.add_env_extension typing_env env_extension)
     typing_env params param_types
 
-let compute_handler_env ?unknown_if_defined_at_or_later_than uses
+let compute_handler_env ?unknown_if_defined_later_than uses
     ~env_at_fork_plus_params ~consts_lifted_during_body ~params
     ~code_age_relation_after_body =
   (* Augment the environment at each use with the necessary equations about the
@@ -211,7 +207,7 @@ let compute_handler_env ?unknown_if_defined_at_or_later_than uses
     let handler_env, extra_params_and_args =
       if should_do_join
       then
-        join ?unknown_if_defined_at_or_later_than denv typing_env params
+        join ?unknown_if_defined_later_than denv typing_env params
           ~env_at_fork_plus_params ~consts_lifted_during_body ~use_envs_with_ids
       else denv, Continuation_extra_params_and_args.empty
     in

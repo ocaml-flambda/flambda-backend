@@ -27,7 +27,7 @@ type result = private
   }
 
 val compute_handler_env :
-  ?unknown_if_defined_at_or_later_than:Scope.t ->
+  ?unknown_if_defined_later_than:Scope.t ->
   Continuation_uses.t ->
   env_at_fork_plus_params:Downwards_env.t ->
   consts_lifted_during_body:Lifted_constant_state.t ->

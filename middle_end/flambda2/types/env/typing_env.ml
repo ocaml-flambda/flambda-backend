@@ -356,7 +356,10 @@ let create ~resolver ~get_imported_names =
     binding_time_resolver = binding_time_resolver resolver;
     get_imported_names;
     prev_levels = Scope.Map.empty;
-    current_level = One_level.create_empty Scope.initial;
+    (* Since [Scope.prev] may be used in the simplifier on this scope, in order
+       to allow an efficient implementation of [cut] (see below), we always
+       increment the scope by one here. *)
+    current_level = One_level.create_empty (Scope.next Scope.initial);
     next_binding_time = Binding_time.earliest_var;
     defined_symbols = Symbol.Set.empty;
     code_age_relation = Code_age_relation.empty;
@@ -961,28 +964,23 @@ let code_age_relation t = t.code_age_relation
 
 let with_code_age_relation t code_age_relation = { t with code_age_relation }
 
-(* CR mshinwell: Change the name of the labelled argument *)
-let cut t ~unknown_if_defined_at_or_later_than:min_scope =
+let cut t ~unknown_if_defined_later_than =
   let current_scope = current_scope t in
-  if Scope.( > ) min_scope current_scope
+  if Scope.( >= ) unknown_if_defined_later_than current_scope
   then TEL.empty
   else
-    let _strictly_less, at_min_scope, strictly_greater =
-      Scope.Map.split min_scope t.prev_levels
+    let _, _, levels =
+      Scope.Map.split unknown_if_defined_later_than t.prev_levels
     in
-    let at_or_after_cut =
-      match at_min_scope with
-      | None -> strictly_greater
-      | Some typing_env_level ->
-        Scope.Map.add min_scope typing_env_level strictly_greater
-    in
-    let at_or_after_cut =
-      Scope.Map.add current_scope t.current_level at_or_after_cut
+    let levels =
+      (* Owing to the check above it is certain that we want [t.current_level]
+         included in the result. *)
+      Scope.Map.add current_scope t.current_level levels
     in
     Scope.Map.fold
       (fun _scope one_level result ->
         TEL.concat result (One_level.level one_level))
-      at_or_after_cut TEL.empty
+      levels TEL.empty
 
 let type_simple_in_term_exn t ?min_name_mode simple =
   (* If [simple] is a variable then it should not come from a missing .cmx file,

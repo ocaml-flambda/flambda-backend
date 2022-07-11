@@ -697,8 +697,8 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
         in
         let join =
           Join_points.compute_handler_env
-            ~unknown_if_defined_at_or_later_than:
-              (DE.get_continuation_scope env_at_fork_plus_params)
+            ~unknown_if_defined_later_than:
+              (Scope.prev (DE.get_continuation_scope env_at_fork_plus_params))
             uses ~params:return_cont_params ~env_at_fork_plus_params
             ~consts_lifted_during_body:lifted_consts_this_function
             ~code_age_relation_after_body:code_age_relation_after_function
