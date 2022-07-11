@@ -1228,40 +1228,19 @@ end = struct
       (Name.Map.keys (Cached_level.names_to_types t.just_after_level))
       t.defined_symbols_without_equations
 
-  (* CR mshinwell for vlaviron: Shouldn't some of this be in
-     [Cached_level.all_ids_for_export]? *)
   let all_ids_for_export
       { defined_symbols_without_equations; code_age_relation; just_after_level }
       =
-    let symbols = Symbol.Set.of_list defined_symbols_without_equations in
-    let code_ids =
-      Code_age_relation.all_code_ids_for_export code_age_relation
-    in
-    let ids = Ids_for_export.create ~symbols ~code_ids () in
-    let ids =
-      Name.Map.fold
-        (fun name (typ, _binding_time_and_mode) ids ->
-          Ids_for_export.add_name
-            (Ids_for_export.union ids (TG.all_ids_for_export typ))
-            name)
-        (Cached_level.names_to_types just_after_level)
-        ids
-    in
-    let ids =
-      Ids_for_export.union ids
-        (Aliases.all_ids_for_export (Cached_level.aliases just_after_level))
-    in
-    let ids =
-      Variable.Map.fold
-        (fun var proj ids ->
-          let ids =
-            Ids_for_export.union ids (Symbol_projection.all_ids_for_export proj)
-          in
-          Ids_for_export.add_variable ids var)
-        (Cached_level.symbol_projections just_after_level)
-        ids
-    in
-    ids
+    Ids_for_export.create
+      ~symbols:(Symbol.Set.of_list defined_symbols_without_equations)
+      ~code_ids:(Code_age_relation.all_code_ids_for_export code_age_relation)
+      ()
+    |> Ids_for_export.union (Cached_level.all_ids_for_export just_after_level)
+    |> Variable.Map.fold
+         (fun var proj ids ->
+           Ids_for_export.add_variable ids var
+           |> Ids_for_export.union (Symbol_projection.all_ids_for_export proj))
+         (Cached_level.symbol_projections just_after_level)
 
   let apply_renaming
       { defined_symbols_without_equations; code_age_relation; just_after_level }
