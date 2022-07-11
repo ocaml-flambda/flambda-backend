@@ -438,26 +438,16 @@ let simplify_is_boxed_float dacc ~original_term ~arg:_ ~arg_ty ~result_var =
 let simplify_is_flat_float_array dacc ~original_term ~arg:_ ~arg_ty ~result_var
     =
   assert (Flambda_features.flat_float_array ());
-  let[@inline] known_answer ~is_flat_float_array =
+  match T.prove_is_flat_float_array (DA.typing_env dacc) arg_ty with
+  | Proved is_flat_float_array ->
     let imm = Targetint_31_63.bool is_flat_float_array in
     let ty = T.this_naked_immediate imm in
     let dacc = DA.add_variable dacc result_var ty in
     SPR.create
       (Named.create_simple (Simple.const (Reg_width_const.naked_immediate imm)))
       ~try_reify:false dacc
-  in
-  match
-    (* CR: Should use prove_ function *)
-    T.meet_is_array_with_element_kind (DA.typing_env dacc) arg_ty
-      ~element_kind:K.With_subkind.naked_float
-  with
-  | Known_result Exact -> known_answer ~is_flat_float_array:true
-  | Known_result Incompatible -> known_answer ~is_flat_float_array:false
-  | Known_result Compatible | Need_meet ->
-    let ty = T.unknown K.naked_immediate in
-    let dacc = DA.add_variable dacc result_var ty in
-    SPR.create original_term ~try_reify:false dacc
-  | Invalid -> SPR.create_invalid dacc
+  | Unknown | Wrong_kind ->
+    SPR.create_unknown dacc ~result_var K.naked_immediate ~original_term
 
 let simplify_opaque_identity dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
   let ty = T.unknown K.value in

@@ -119,14 +119,11 @@ type array_kind_compatibility =
   | Compatible
   | Incompatible
 
-val prove_is_flat_float_array : Typing_env.t -> Type_grammar.t ->
-  bool proof_of_property
+val prove_is_flat_float_array :
+  Typing_env.t -> Type_grammar.t -> bool proof_of_property
 
-val meet_is_array_with_element_kind :
-  Typing_env.t ->
-  Type_grammar.t ->
-  element_kind:Flambda_kind.With_subkind.t ->
-  array_kind_compatibility meet_shortcut
+val prove_is_immediates_array :
+  Typing_env.t -> Type_grammar.t -> unit proof_of_property
 
 val meet_single_closures_entry :
   Typing_env.t ->

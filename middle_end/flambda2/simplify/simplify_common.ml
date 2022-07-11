@@ -309,29 +309,29 @@ let specialise_array_kind dacc (array_kind : P.Array_kind.t) ~array_ty :
   let typing_env = DA.typing_env dacc in
   match array_kind with
   | Naked_floats -> (
-    match
-      T.meet_is_array_with_element_kind typing_env array_ty
-        ~element_kind:K.With_subkind.naked_float
-    with
-    | Known_result (Exact | Compatible) | Need_meet -> Ok array_kind
-    | Known_result Incompatible | Invalid -> Bottom)
+    match T.prove_is_flat_float_array typing_env array_ty with
+    | Proved true | Unknown -> Ok array_kind
+    | Proved false -> Bottom
+    | Wrong_kind -> Ok array_kind)
   | Immediates -> (
-    match
-      T.meet_is_array_with_element_kind typing_env array_ty
-        ~element_kind:K.With_subkind.tagged_immediate
-    with
-    | Known_result (Exact | Compatible) | Need_meet -> Ok array_kind
-    | Known_result Incompatible | Invalid -> Bottom)
+    (* The only thing worth checking is for float arrays, as that would allow us
+       to remove the branch *)
+    match T.prove_is_flat_float_array typing_env array_ty with
+    | Proved false | Unknown -> Ok array_kind
+    | Proved true -> Bottom
+    | Wrong_kind -> Ok array_kind)
   | Values -> (
-    match
-      T.meet_is_array_with_element_kind typing_env array_ty
-        ~element_kind:K.With_subkind.tagged_immediate
-    with
-    | Known_result Exact ->
+    (* Try to specialise to immediates *)
+    match T.prove_is_immediates_array typing_env array_ty with
+    | Proved () ->
       (* Specialise the array operation to [Immediates]. *)
       Ok P.Array_kind.Immediates
-    | Known_result Compatible | Need_meet -> Ok array_kind
-    | Known_result Incompatible | Invalid -> Bottom)
+    | Unknown | Wrong_kind -> (
+      (* Check for float arrays *)
+      match T.prove_is_flat_float_array typing_env array_ty with
+      | Proved false | Unknown -> Ok array_kind
+      | Proved true -> Bottom
+      | Wrong_kind -> Ok array_kind))
 
 let add_symbol_projection dacc ~projected_from projection ~projection_bound_to =
   if DE.at_unit_toplevel (DA.denv dacc)

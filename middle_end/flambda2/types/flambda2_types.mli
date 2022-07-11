@@ -606,17 +606,9 @@ val prove_unique_fully_constructed_immutable_heap_block :
 
 val prove_is_int : Typing_env.t -> t -> bool proof_of_property
 
-type array_kind_compatibility =
-  | Exact
-  | Compatible
-  | Incompatible
+val prove_is_flat_float_array : Typing_env.t -> t -> bool proof_of_property
 
-(** This function deems non-[Array] types of kind [Value] to be [Invalid]. *)
-val meet_is_array_with_element_kind :
-  Typing_env.t ->
-  t ->
-  element_kind:Flambda_kind.With_subkind.t ->
-  array_kind_compatibility meet_shortcut
+val prove_is_immediates_array : Typing_env.t -> t -> unit proof_of_property
 
 val meet_single_closures_entry :
   Typing_env.t ->
