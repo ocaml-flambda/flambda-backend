@@ -78,7 +78,6 @@ let free_names { closures = _; value_slots } =
     value_slots Name_occurrences.empty
 
 let remove_unused_value_slots { closures; value_slots } ~used_value_slots =
-  (* CR mshinwell: Consider adding [Used_value_slots.t] *)
   let value_slots =
     Value_slot.Set.filter
       (fun var ->
