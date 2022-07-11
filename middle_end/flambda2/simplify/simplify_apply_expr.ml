@@ -876,9 +876,6 @@ let simplify_apply_shared dacc apply =
       (DE.get_inlining_state (DA.denv dacc))
       (Apply.inlining_state apply)
   in
-  (* CR mshinwell: Should this resolve continuation aliases? It seems like it
-     should. We should also check the other places where continuations may
-     occur. *)
   let apply =
     Apply.create ~callee:simplified_callee
       ~continuation:(Apply.continuation apply)
