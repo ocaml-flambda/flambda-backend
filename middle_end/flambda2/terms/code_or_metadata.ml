@@ -66,11 +66,10 @@ let apply_renaming t renaming =
     let code_metadata' = Code_metadata.apply_renaming code_metadata renaming in
     if code_metadata == code_metadata' then t else Metadata_only code_metadata'
 
-let all_ids_for_export t =
+let ids_for_export t =
   match t with
-  | Code_present code -> Code.all_ids_for_export code
-  | Metadata_only code_metadata ->
-    Code_metadata.all_ids_for_export code_metadata
+  | Code_present code -> Code.ids_for_export code
+  | Metadata_only code_metadata -> Code_metadata.ids_for_export code_metadata
 
 let remember_only_metadata t =
   match t with

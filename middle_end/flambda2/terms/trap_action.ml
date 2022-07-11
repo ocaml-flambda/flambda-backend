@@ -106,7 +106,7 @@ let apply_renaming t renaming =
 let exn_handler t =
   match t with Push { exn_handler } | Pop { exn_handler; _ } -> exn_handler
 
-let all_ids_for_export t =
+let ids_for_export t =
   Ids_for_export.add_continuation Ids_for_export.empty (exn_handler t)
 
 module Option = struct
@@ -116,9 +116,9 @@ module Option = struct
     | None -> ()
     | Some t -> print ppf t
 
-  let all_ids_for_export = function
+  let ids_for_export = function
     | None -> Ids_for_export.empty
-    | Some trap_action -> all_ids_for_export trap_action
+    | Some trap_action -> ids_for_export trap_action
 
   let apply_renaming t renaming =
     match t with

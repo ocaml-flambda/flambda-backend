@@ -191,7 +191,7 @@ let apply_renaming t renaming =
     let obj' = Simple.apply_renaming obj renaming in
     if obj == obj' then t else Method { kind; obj = obj'; alloc_mode }
 
-let all_ids_for_export t =
+let ids_for_export t =
   match t with
   | Function
       { function_call = Direct { code_id; return_arity = _ }; alloc_mode = _ }

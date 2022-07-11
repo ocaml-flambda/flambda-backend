@@ -1503,7 +1503,7 @@ let apply_renaming t renaming =
     let xs' = Simple.List.apply_renaming xs renaming in
     if xs' == xs then t else Variadic (prim, xs')
 
-let all_ids_for_export t =
+let ids_for_export t =
   match t with
   | Nullary _ -> Ids_for_export.empty
   | Unary (_prim, x0) -> Ids_for_export.from_simple x0

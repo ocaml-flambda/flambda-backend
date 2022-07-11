@@ -813,73 +813,68 @@ and print_env_extension ppf { equations } =
   Format.fprintf ppf "@[<hov 1>(equations@ @[<v 1>%a@])@]" print_equations
     equations
 
-let rec all_ids_for_export t =
+let rec ids_for_export t =
   match t with
   | Value ty ->
-    TD.all_ids_for_export
-      ~all_ids_for_export_head:all_ids_for_export_head_of_kind_value ty
+    TD.ids_for_export ~ids_for_export_head:ids_for_export_head_of_kind_value ty
   | Naked_immediate ty ->
-    TD.all_ids_for_export
-      ~all_ids_for_export_head:all_ids_for_export_head_of_kind_naked_immediate
-      ty
+    TD.ids_for_export
+      ~ids_for_export_head:ids_for_export_head_of_kind_naked_immediate ty
   | Naked_float ty ->
-    TD.all_ids_for_export
-      ~all_ids_for_export_head:all_ids_for_export_head_of_kind_naked_float ty
+    TD.ids_for_export
+      ~ids_for_export_head:ids_for_export_head_of_kind_naked_float ty
   | Naked_int32 ty ->
-    TD.all_ids_for_export
-      ~all_ids_for_export_head:all_ids_for_export_head_of_kind_naked_int32 ty
+    TD.ids_for_export
+      ~ids_for_export_head:ids_for_export_head_of_kind_naked_int32 ty
   | Naked_int64 ty ->
-    TD.all_ids_for_export
-      ~all_ids_for_export_head:all_ids_for_export_head_of_kind_naked_int64 ty
+    TD.ids_for_export
+      ~ids_for_export_head:ids_for_export_head_of_kind_naked_int64 ty
   | Naked_nativeint ty ->
-    TD.all_ids_for_export
-      ~all_ids_for_export_head:all_ids_for_export_head_of_kind_naked_nativeint
-      ty
+    TD.ids_for_export
+      ~ids_for_export_head:ids_for_export_head_of_kind_naked_nativeint ty
   | Rec_info ty ->
-    TD.all_ids_for_export
-      ~all_ids_for_export_head:all_ids_for_export_head_of_kind_rec_info ty
+    TD.ids_for_export ~ids_for_export_head:ids_for_export_head_of_kind_rec_info
+      ty
   | Region ty ->
-    TD.all_ids_for_export
-      ~all_ids_for_export_head:all_ids_for_export_head_of_kind_region ty
+    TD.ids_for_export ~ids_for_export_head:ids_for_export_head_of_kind_region ty
 
-and all_ids_for_export_head_of_kind_value head =
+and ids_for_export_head_of_kind_value head =
   match head with
   | Variant { blocks; immediates; is_unique = _; alloc_mode = _ } ->
     Ids_for_export.union
-      (Or_unknown.all_ids_for_export all_ids_for_export_row_like_for_blocks
-         blocks)
-      (Or_unknown.all_ids_for_export all_ids_for_export immediates)
+      (Or_unknown.ids_for_export ids_for_export_row_like_for_blocks blocks)
+      (Or_unknown.ids_for_export ids_for_export immediates)
   | Mutable_block { alloc_mode = _ } -> Ids_for_export.empty
-  | Boxed_float (t, _alloc_mode) -> all_ids_for_export t
-  | Boxed_int32 (t, _alloc_mode) -> all_ids_for_export t
-  | Boxed_int64 (t, _alloc_mode) -> all_ids_for_export t
-  | Boxed_nativeint (t, _alloc_mode) -> all_ids_for_export t
+  | Boxed_float (t, _alloc_mode) -> ids_for_export t
+  | Boxed_int32 (t, _alloc_mode) -> ids_for_export t
+  | Boxed_int64 (t, _alloc_mode) -> ids_for_export t
+  | Boxed_nativeint (t, _alloc_mode) -> ids_for_export t
   | Closures { by_function_slot; alloc_mode = _ } ->
-    all_ids_for_export_row_like_for_closures by_function_slot
+    ids_for_export_row_like_for_closures by_function_slot
   | String _ -> Ids_for_export.empty
-  | Array { element_kind = _; length } -> all_ids_for_export length
+  | Array { element_kind = _; length } -> ids_for_export length
 
-and all_ids_for_export_head_of_kind_naked_immediate head =
+and ids_for_export_head_of_kind_naked_immediate head =
   match head with
   | Naked_immediates _ -> Ids_for_export.empty
-  | Is_int t | Get_tag t -> all_ids_for_export t
+  | Is_int t | Get_tag t -> ids_for_export t
 
-and all_ids_for_export_head_of_kind_naked_float _ = Ids_for_export.empty
+and ids_for_export_head_of_kind_naked_float _ = Ids_for_export.empty
 
-and all_ids_for_export_head_of_kind_naked_int32 _ = Ids_for_export.empty
+and ids_for_export_head_of_kind_naked_int32 _ = Ids_for_export.empty
 
-and all_ids_for_export_head_of_kind_naked_int64 _ = Ids_for_export.empty
+and ids_for_export_head_of_kind_naked_int64 _ = Ids_for_export.empty
 
-and all_ids_for_export_head_of_kind_naked_nativeint _ = Ids_for_export.empty
+and ids_for_export_head_of_kind_naked_nativeint _ = Ids_for_export.empty
 
-and all_ids_for_export_head_of_kind_rec_info head =
-  Rec_info_expr.all_ids_for_export head
+and ids_for_export_head_of_kind_rec_info head =
+  Rec_info_expr.ids_for_export head
 
-and all_ids_for_export_head_of_kind_region () = Ids_for_export.empty
+and ids_for_export_head_of_kind_region () = Ids_for_export.empty
 
-and all_ids_for_export_row_like :
+and ids_for_export_row_like :
       'row_tag 'index 'maps_to 'known.
-      all_ids_for_export_maps_to:('maps_to -> Ids_for_export.t) ->
+      ids_for_export_maps_to:('maps_to -> Ids_for_export.t) ->
       known:'known ->
       other:('index, 'maps_to) row_like_case Or_bottom.t ->
       fold_known:
@@ -888,37 +883,35 @@ and all_ids_for_export_row_like :
         'acc ->
         'acc) ->
       Ids_for_export.t =
- fun ~all_ids_for_export_maps_to ~known ~other ~fold_known ->
+ fun ~ids_for_export_maps_to ~known ~other ~fold_known ->
   let from_known =
     fold_known
       (fun _tag { maps_to; env_extension; index = _ } ids ->
         Ids_for_export.union ids
           (Ids_for_export.union
-             (all_ids_for_export_maps_to maps_to)
-             (all_ids_for_export_env_extension env_extension)))
+             (ids_for_export_maps_to maps_to)
+             (ids_for_export_env_extension env_extension)))
       known Ids_for_export.empty
   in
   match other with
   | Bottom -> from_known
   | Ok { maps_to; env_extension; index = _ } ->
     Ids_for_export.union
-      (all_ids_for_export_maps_to maps_to)
+      (ids_for_export_maps_to maps_to)
       (Ids_for_export.union from_known
-         (all_ids_for_export_env_extension env_extension))
+         (ids_for_export_env_extension env_extension))
 
-and all_ids_for_export_row_like_for_blocks { known_tags; other_tags } =
-  all_ids_for_export_row_like
-    ~all_ids_for_export_maps_to:all_ids_for_export_int_indexed_product
-    ~known:known_tags ~other:other_tags ~fold_known:Tag.Map.fold
+and ids_for_export_row_like_for_blocks { known_tags; other_tags } =
+  ids_for_export_row_like
+    ~ids_for_export_maps_to:ids_for_export_int_indexed_product ~known:known_tags
+    ~other:other_tags ~fold_known:Tag.Map.fold
 
-and all_ids_for_export_row_like_for_closures { known_closures; other_closures }
-    =
-  all_ids_for_export_row_like
-    ~all_ids_for_export_maps_to:all_ids_for_export_closures_entry
+and ids_for_export_row_like_for_closures { known_closures; other_closures } =
+  ids_for_export_row_like ~ids_for_export_maps_to:ids_for_export_closures_entry
     ~known:known_closures ~other:other_closures
     ~fold_known:Function_slot.Map.fold
 
-and all_ids_for_export_closures_entry
+and ids_for_export_closures_entry
     { function_types; closure_types; value_slot_types } =
   let function_types_ids =
     Function_slot.Map.fold
@@ -926,43 +919,40 @@ and all_ids_for_export_closures_entry
         match function_type with
         | Unknown | Bottom -> ids
         | Ok function_type ->
-          Ids_for_export.union ids
-            (all_ids_for_export_function_type function_type))
+          Ids_for_export.union ids (ids_for_export_function_type function_type))
       function_types Ids_for_export.empty
   in
   Ids_for_export.union function_types_ids
     (Ids_for_export.union
-       (all_ids_for_export_function_slot_indexed_product closure_types)
-       (all_ids_for_export_value_slot_indexed_product value_slot_types))
+       (ids_for_export_function_slot_indexed_product closure_types)
+       (ids_for_export_value_slot_indexed_product value_slot_types))
 
-and all_ids_for_export_function_slot_indexed_product
+and ids_for_export_function_slot_indexed_product
     { function_slot_components_by_index } =
   Function_slot.Map.fold
-    (fun _ t ids -> Ids_for_export.union ids (all_ids_for_export t))
+    (fun _ t ids -> Ids_for_export.union ids (ids_for_export t))
     function_slot_components_by_index Ids_for_export.empty
 
-and all_ids_for_export_value_slot_indexed_product
-    { value_slot_components_by_index } =
+and ids_for_export_value_slot_indexed_product { value_slot_components_by_index }
+    =
   Value_slot.Map.fold
-    (fun _ t ids -> Ids_for_export.union ids (all_ids_for_export t))
+    (fun _ t ids -> Ids_for_export.union ids (ids_for_export t))
     value_slot_components_by_index Ids_for_export.empty
 
-and all_ids_for_export_int_indexed_product { fields; kind = _ } =
+and ids_for_export_int_indexed_product { fields; kind = _ } =
   Array.fold_left
-    (fun ids field -> Ids_for_export.union ids (all_ids_for_export field))
+    (fun ids field -> Ids_for_export.union ids (ids_for_export field))
     Ids_for_export.empty fields
 
-and all_ids_for_export_function_type { code_id; rec_info } =
+and ids_for_export_function_type { code_id; rec_info } =
   Ids_for_export.union
     (Ids_for_export.singleton_code_id code_id)
-    (all_ids_for_export rec_info)
+    (ids_for_export rec_info)
 
-and all_ids_for_export_env_extension { equations } =
+and ids_for_export_env_extension { equations } =
   Name.Map.fold
     (fun name t ids ->
-      Ids_for_export.add_name
-        (Ids_for_export.union ids (all_ids_for_export t))
-        name)
+      Ids_for_export.add_name (Ids_for_export.union ids (ids_for_export t)) name)
     equations Ids_for_export.empty
 
 (* We need to be very careful here. A non-trivial coercion expects to be dealing
@@ -2432,7 +2422,7 @@ module Env_extension = struct
 
   let create ~equations = { equations }
 
-  let all_ids_for_export = all_ids_for_export_env_extension
+  let ids_for_export = ids_for_export_env_extension
 
   let apply_renaming = apply_renaming_env_extension
 

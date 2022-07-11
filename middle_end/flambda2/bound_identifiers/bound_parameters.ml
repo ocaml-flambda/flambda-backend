@@ -73,8 +73,7 @@ let free_names t =
 let apply_renaming t renaming =
   Misc.Stdlib.List.map_sharing (fun param -> BP.apply_renaming param renaming) t
 
-let all_ids_for_export t =
-  Ids_for_export.union_list (List.map BP.all_ids_for_export t)
+let ids_for_export t = Ids_for_export.union_list (List.map BP.ids_for_export t)
 
 let check_no_duplicates t =
   if not (Flambda_features.check_invariants ())

@@ -80,7 +80,7 @@ let free_names t =
   | Symbol sym -> Name_occurrences.singleton_symbol sym Name_mode.normal
   | Tagged_immediate _ -> Name_occurrences.empty
 
-let all_ids_for_export t =
+let ids_for_export t =
   match t with
   | Dynamically_computed (var, _dbg) ->
     Ids_for_export.add_variable Ids_for_export.empty var

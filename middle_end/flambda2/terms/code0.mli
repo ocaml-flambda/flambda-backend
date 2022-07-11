@@ -120,8 +120,8 @@ val print :
   'function_params_and_body t ->
   unit
 
-val all_ids_for_export :
-  all_ids_for_export_function_params_and_body:
+val ids_for_export :
+  ids_for_export_function_params_and_body:
     ('function_params_and_body -> Ids_for_export.t) ->
   'function_params_and_body t ->
   Ids_for_export.t

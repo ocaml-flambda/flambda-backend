@@ -145,13 +145,13 @@ let apply_renaming ~apply_renaming_function_params_and_body
       code_metadata = code_metadata'
     }
 
-let all_ids_for_export ~all_ids_for_export_function_params_and_body
+let ids_for_export ~ids_for_export_function_params_and_body
     { params_and_body; free_names_of_params_and_body = _; code_metadata } =
   let params_and_body_ids =
-    all_ids_for_export_function_params_and_body params_and_body
+    ids_for_export_function_params_and_body params_and_body
   in
   Ids_for_export.union
-    (Code_metadata.all_ids_for_export code_metadata)
+    (Code_metadata.ids_for_export code_metadata)
     params_and_body_ids
 
 let map_result_types ({ code_metadata; _ } as t) ~f =

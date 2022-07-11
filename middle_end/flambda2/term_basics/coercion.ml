@@ -46,10 +46,10 @@ let compose_exn t1 ~then_:t2 =
   | None ->
     Misc.fatal_errorf "Invalid composition: %a@ >>@ %a" print t1 print t2
 
-let all_ids_for_export t =
+let ids_for_export t =
   match t with
   | Id -> Ids_for_export.empty
   | Change_depth { from; to_ } ->
     Ids_for_export.union
-      (Rec_info_expr.all_ids_for_export from)
-      (Rec_info_expr.all_ids_for_export to_)
+      (Rec_info_expr.ids_for_export from)
+      (Rec_info_expr.ids_for_export to_)

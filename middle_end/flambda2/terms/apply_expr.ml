@@ -49,7 +49,7 @@ module Result_continuation = struct
     | Return k -> Return (Renaming.apply_continuation renaming k)
     | Never_returns -> Never_returns
 
-  let all_ids_for_export t =
+  let ids_for_export t =
     match t with
     | Return k -> Ids_for_export.singleton_continuation k
     | Never_returns -> Ids_for_export.empty
@@ -256,7 +256,7 @@ let apply_renaming
       relative_history
     }
 
-let all_ids_for_export
+let ids_for_export
     { callee;
       continuation;
       exn_continuation;
@@ -275,13 +275,11 @@ let all_ids_for_export
       (fun ids arg -> Ids_for_export.add_simple ids arg)
       callee_ids args
   in
-  let call_kind_ids = Call_kind.all_ids_for_export call_kind in
+  let call_kind_ids = Call_kind.ids_for_export call_kind in
   let result_continuation_ids =
-    Result_continuation.all_ids_for_export continuation
+    Result_continuation.ids_for_export continuation
   in
-  let exn_continuation_ids =
-    Exn_continuation.all_ids_for_export exn_continuation
-  in
+  let exn_continuation_ids = Exn_continuation.ids_for_export exn_continuation in
   Ids_for_export.union
     (Ids_for_export.union callee_and_args_ids call_kind_ids)
     (Ids_for_export.union result_continuation_ids exn_continuation_ids)

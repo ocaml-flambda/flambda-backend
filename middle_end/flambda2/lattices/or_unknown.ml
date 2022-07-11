@@ -58,9 +58,9 @@ let free_names free_names_contents t =
   | Known contents -> free_names_contents contents
   | Unknown -> Name_occurrences.empty
 
-let all_ids_for_export all_ids_for_export_contents t =
+let ids_for_export ids_for_export_contents t =
   match t with
-  | Known contents -> all_ids_for_export_contents contents
+  | Known contents -> ids_for_export_contents contents
   | Unknown -> Ids_for_export.empty
 
 let apply_renaming t renaming rename_contents =

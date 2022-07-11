@@ -130,11 +130,11 @@ let apply_renaming ({ k; args; trap_action; dbg } as t) renaming =
   then t
   else { k = k'; args = args'; trap_action = trap_action'; dbg }
 
-let all_ids_for_export { k; args; trap_action; dbg = _ } =
+let ids_for_export { k; args; trap_action; dbg = _ } =
   List.fold_left
     (fun ids arg -> Ids_for_export.add_simple ids arg)
     (Ids_for_export.add_continuation
-       (Trap_action.Option.all_ids_for_export trap_action)
+       (Trap_action.Option.ids_for_export trap_action)
        k)
     args
 

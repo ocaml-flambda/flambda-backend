@@ -137,9 +137,9 @@ let apply_renaming ({ function_decls; value_slots; alloc_mode } as t) renaming =
   else
     { function_decls = function_decls'; value_slots = value_slots'; alloc_mode }
 
-let all_ids_for_export { function_decls; value_slots; alloc_mode = _ } =
+let ids_for_export { function_decls; value_slots; alloc_mode = _ } =
   let function_decls_ids =
-    Function_declarations.all_ids_for_export function_decls
+    Function_declarations.ids_for_export function_decls
   in
   Value_slot.Map.fold
     (fun _value_slot simple ids -> Ids_for_export.add_simple ids simple)

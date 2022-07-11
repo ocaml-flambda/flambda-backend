@@ -65,5 +65,5 @@ let apply_renaming { param; kind } renaming =
   let param = Renaming.apply_variable renaming param in
   create param kind
 
-let all_ids_for_export { param; kind = _ } =
+let ids_for_export { param; kind = _ } =
   Ids_for_export.add_variable Ids_for_export.empty param

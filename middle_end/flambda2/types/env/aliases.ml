@@ -53,11 +53,11 @@ module Map_to_canonical = struct
               coercion1 coercion2)
       map1 map2
 
-  let all_ids_for_export t =
+  let ids_for_export t =
     Name.Map.fold
       (fun name coercion ids ->
         Ids_for_export.union ids
-          (Ids_for_export.add_name (Coercion.all_ids_for_export coercion) name))
+          (Ids_for_export.add_name (Coercion.ids_for_export coercion) name))
       t Ids_for_export.empty
 
   let apply_renaming t renaming =
@@ -216,15 +216,15 @@ end = struct
     let all = f all in
     { aliases; all }
 
-  let all_ids_for_export { aliases; all } =
+  let ids_for_export { aliases; all } =
     let aliases =
       Name_mode.Map.fold
         (fun _mode map_to_canonical ids ->
           Ids_for_export.union ids
-            (Map_to_canonical.all_ids_for_export map_to_canonical))
+            (Map_to_canonical.ids_for_export map_to_canonical))
         aliases Ids_for_export.empty
     in
-    let all = Map_to_canonical.all_ids_for_export all in
+    let all = Map_to_canonical.ids_for_export all in
     Ids_for_export.union aliases all
 
   let apply_renaming { aliases; all } renaming =
@@ -977,14 +977,12 @@ let get_aliases t element =
     Alias_set.create_aliases_of_element ~element ~canonical_element
       ~coercion_from_canonical_to_element ~alias_names_with_coercions_to_element
 
-let all_ids_for_export
+let ids_for_export
     { canonical_elements; aliases_of_canonical_names; aliases_of_consts } =
   let ids =
     Name.Map.fold
       (fun elt (canonical, coercion) ids ->
-        let ids =
-          Ids_for_export.union ids (Coercion.all_ids_for_export coercion)
-        in
+        let ids = Ids_for_export.union ids (Coercion.ids_for_export coercion) in
         Ids_for_export.add_name (Ids_for_export.add_simple ids canonical) elt)
       canonical_elements Ids_for_export.empty
   in
@@ -993,7 +991,7 @@ let all_ids_for_export
       (fun elt aliases_of ids ->
         Ids_for_export.add_name
           (Ids_for_export.union ids
-             (Aliases_of_canonical_element.all_ids_for_export aliases_of))
+             (Aliases_of_canonical_element.ids_for_export aliases_of))
           elt)
       aliases_of_canonical_names ids
   in
@@ -1001,7 +999,7 @@ let all_ids_for_export
     (fun const aliases_of ids ->
       Ids_for_export.add_const
         (Ids_for_export.union ids
-           (Aliases_of_canonical_element.all_ids_for_export aliases_of))
+           (Aliases_of_canonical_element.ids_for_export aliases_of))
         const)
     aliases_of_consts ids
 

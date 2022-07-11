@@ -56,7 +56,7 @@ let replace_equation ({ equations } : t) name ty =
   TG.Env_extension.create
     ~equations:(Name.Map.add (* replace *) name ty equations)
 
-let all_ids_for_export = TG.Env_extension.all_ids_for_export
+let ids_for_export = TG.Env_extension.ids_for_export
 
 let apply_renaming = TG.Env_extension.apply_renaming
 
@@ -125,13 +125,13 @@ module With_extra_variables = struct
     in
     { existential_vars; equations }
 
-  let all_ids_for_export { existential_vars; equations } =
+  let ids_for_export { existential_vars; equations } =
     let variables = Variable.Map.keys existential_vars in
     let ids = Ids_for_export.create ~variables () in
     Name.Map.fold
       (fun name ty ids ->
         let ids = Ids_for_export.add_name ids name in
-        Ids_for_export.union ids (TG.all_ids_for_export ty))
+        Ids_for_export.union ids (TG.ids_for_export ty))
       equations ids
 
   let existential_vars { existential_vars; _ } =

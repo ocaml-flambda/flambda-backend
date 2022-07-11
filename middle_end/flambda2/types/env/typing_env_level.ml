@@ -171,17 +171,17 @@ let concat (t1 : t) (t2 : t) =
   in
   { defined_vars; binding_times; equations; symbol_projections }
 
-let all_ids_for_export t =
+let ids_for_export t =
   let variables = Variable.Map.keys t.defined_vars in
   let ids = Ids_for_export.create ~variables () in
   let equation name ty ids =
-    let ids = Ids_for_export.union ids (TG.all_ids_for_export ty) in
+    let ids = Ids_for_export.union ids (TG.ids_for_export ty) in
     Ids_for_export.add_name ids name
   in
   let ids = Name.Map.fold equation t.equations ids in
   let symbol_projection var proj ids =
     let ids =
-      Ids_for_export.union ids (Symbol_projection.all_ids_for_export proj)
+      Ids_for_export.union ids (Symbol_projection.ids_for_export proj)
     in
     Ids_for_export.add_variable ids var
   in

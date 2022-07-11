@@ -309,7 +309,7 @@ let apply_renaming
       result_types = result_types'
     }
 
-let all_ids_for_export
+let ids_for_export
     { code_id;
       newer_version_of;
       params_arity = _;
@@ -338,7 +338,7 @@ let all_ids_for_export
     in
     Ids_for_export.add_code_id newer_version_of_ids code_id
   in
-  Ids_for_export.union ids (Result_types.all_ids_for_export result_types)
+  Ids_for_export.union ids (Result_types.ids_for_export result_types)
 
 let approx_equal
     { code_id = code_id1;

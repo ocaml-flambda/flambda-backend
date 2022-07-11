@@ -194,11 +194,11 @@ let free_function_slots_and_value_slots
            free_names_of_ty))
     names_to_types from_projections
 
-let all_ids_for_export t =
+let ids_for_export t =
   Name.Map.fold
     (fun name (typ, _binding_time_and_mode) ids ->
       Ids_for_export.add_name
-        (Ids_for_export.union ids (Type_grammar.all_ids_for_export typ))
+        (Ids_for_export.union ids (Type_grammar.ids_for_export typ))
         name)
     (names_to_types t)
-    (Aliases.all_ids_for_export (aliases t))
+    (Aliases.ids_for_export (aliases t))

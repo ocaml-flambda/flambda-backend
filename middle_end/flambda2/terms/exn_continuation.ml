@@ -114,7 +114,7 @@ let with_exn_handler t exn_handler = { t with exn_handler }
 
 let without_extra_args t = { t with extra_args = [] }
 
-let all_ids_for_export { exn_handler; extra_args } =
+let ids_for_export { exn_handler; extra_args } =
   List.fold_left
     (fun ids (arg, _kind) -> Ids_for_export.add_simple ids arg)
     (Ids_for_export.add_continuation Ids_for_export.empty exn_handler)
