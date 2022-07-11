@@ -341,10 +341,12 @@ end = struct
     | Xor -> symmetric_op_one_side_unknown Xor ~this_side:rhs
     | Sub -> if Num.equal rhs Num.zero then The_other_side else Cannot_simplify
     | Div ->
-      (* CR mshinwell: We should think very carefully to make sure our handling
-         of division is correct. Also see whether unsafe division can be exposed
-         to the user. The current assumption that division by zero reaching here
-         is dead code. *)
+      (* Division ("safe" division, strictly speaking, in Lambda terminology) is
+         translated to a conditional on the denominator followed by an unsafe
+         division (the "Div" seen here) on the way into Flambda 2. So if the
+         denominator turns out to be zero here, via the typing or whatever, then
+         we're in unreachable code. *)
+      (* CR-someday mshinwell: Should we expose unsafe division to the user? *)
       if Num.equal rhs Num.zero
       then Invalid
       else if Num.equal rhs Num.one

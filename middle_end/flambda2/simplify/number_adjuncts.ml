@@ -32,6 +32,18 @@ module Int64 = Numeric_types.Int64
    immediates and rework that to operate on tagged values instead, or
    somesuch. *)
 
+(* Regarding int <-> float conversions, xclerc and mshinwell established with
+   reasonable certainty that the OCaml backend (at least on x86-64) emits the
+   same instructions as C compilers use for compiling the runtime float
+   conversion functions. This means that, even though the results of certain of
+   these conversions are undefined by the C standard (e.g. when NaN is
+   involved), the semantics of the Flambda 2 compile-time evaluation should
+   always match that of runtime evaluation by the processor. *)
+
+(* CR mshinwell: We should try to improve the testing story so properties such
+   as the int <-> float conversions mentioned above can be machine-checked for
+   greater certainty. *)
+
 module type Num_common = sig
   include Container_types.S
 
@@ -214,9 +226,6 @@ module For_tagged_immediates : Int_number_kind = struct
 
     let to_immediate t = t
 
-    (* It seems as if the various [float_of_int] functions never raise an
-       exception even in the case of NaN or infinity. *)
-    (* CR mshinwell: We should be sure this semantics is reasonable. *)
     let to_naked_float t =
       Float_by_bit_pattern.create (Targetint_31_63.to_float t)
 
@@ -282,9 +291,6 @@ module For_naked_immediates : Int_number_kind = struct
 
     let to_immediate t = t
 
-    (* It seems as if the various [float_of_int] functions never raise an
-       exception even in the case of NaN or infinity. *)
-    (* CR mshinwell: We should be sure this semantics is reasonable. *)
     let to_naked_float t =
       Float_by_bit_pattern.create (Targetint_31_63.to_float t)
 
@@ -325,10 +331,6 @@ module For_floats : Boxable_number_kind = struct
 
     let to_const t = Reg_width_const.naked_float t
 
-    (* CR mshinwell: We need to validate that the backend compiles the
-       [Int_of_float] primitive in the same way as [Targetint_32_64.of_float].
-       Ditto for [Float_of_int]. (For the record, [Pervasives.int_of_float] and
-       [Nativeint.of_float] on [nan] produce wildly different results). *)
     let to_immediate t = Targetint_31_63.of_float (to_float t)
 
     let to_naked_float t = t
