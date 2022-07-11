@@ -232,7 +232,8 @@ let simplify_tag_immediate dacc ~original_term ~arg:_ ~arg_ty:naked_number_ty
 let simplify_is_int_or_get_tag dacc ~original_term ~scrutinee ~scrutinee_ty:_
     ~result_var ~make_shape =
   (* CR mshinwell: Check [scrutinee_ty] (e.g. its kind)? *)
-  (* CR vlaviron: We could use prover functions to simplify but it's probably not going to help that much *)
+  (* CR vlaviron: We could use prover functions to simplify but it's probably
+     not going to help that much *)
   let dacc = DA.add_variable dacc result_var (make_shape scrutinee) in
   Simplified_named.reachable original_term ~try_reify:true, dacc
 
@@ -623,18 +624,8 @@ let simplify_is_boxed_float dacc ~original_term ~arg:_ ~arg_ty ~result_var =
 let simplify_is_flat_float_array dacc ~original_term ~arg:_ ~arg_ty ~result_var
     =
   assert (Flambda_features.flat_float_array ());
-  match
-    (* CR: Should use prove_ function *)
-    T.meet_is_array_with_element_kind (DA.typing_env dacc) arg_ty
-      ~element_kind:K.With_subkind.naked_float
-  with
-  | Known_result ((Exact | Incompatible) as compat) ->
-    let is_flat_float_array =
-      match compat with
-      | Exact -> true
-      | Incompatible -> false
-      | Compatible -> assert false
-    in
+  match T.prove_is_flat_float_array (DA.typing_env dacc) arg_ty with
+  | Proved is_flat_float_array ->
     let imm = Targetint_31_63.bool is_flat_float_array in
     let ty = T.this_naked_immediate imm in
     let dacc = DA.add_variable dacc result_var ty in
@@ -643,14 +634,10 @@ let simplify_is_flat_float_array dacc ~original_term ~arg:_ ~arg_ty ~result_var
            (Simple.const (Reg_width_const.naked_immediate imm)))
         ~try_reify:false,
       dacc )
-  | Known_result Compatible | Need_meet ->
+  | Unknown | Wrong_kind ->
     let ty = T.unknown K.naked_immediate in
     let dacc = DA.add_variable dacc result_var ty in
     Simplified_named.reachable original_term ~try_reify:false, dacc
-  | Invalid ->
-    let ty = T.bottom K.naked_immediate in
-    let dacc = DA.add_variable dacc result_var ty in
-    Simplified_named.invalid (), dacc
 
 let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     ~arg_ty dbg ~result_var =
