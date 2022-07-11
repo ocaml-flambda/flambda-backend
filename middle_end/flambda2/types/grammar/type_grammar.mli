@@ -204,16 +204,15 @@ val this_naked_int64 : Numeric_types.Int64.t -> t
 
 val this_naked_nativeint : Targetint_32_64.t -> t
 
-val these_naked_immediates : no_alias:bool -> Targetint_31_63.Set.t -> t
+val these_naked_immediates : Targetint_31_63.Set.t -> t
 
-val these_naked_floats :
-  no_alias:bool -> Numeric_types.Float_by_bit_pattern.Set.t -> t
+val these_naked_floats : Numeric_types.Float_by_bit_pattern.Set.t -> t
 
-val these_naked_int32s : no_alias:bool -> Numeric_types.Int32.Set.t -> t
+val these_naked_int32s : Numeric_types.Int32.Set.t -> t
 
-val these_naked_int64s : no_alias:bool -> Numeric_types.Int64.Set.t -> t
+val these_naked_int64s : Numeric_types.Int64.Set.t -> t
 
-val these_naked_nativeints : no_alias:bool -> Targetint_32_64.Set.t -> t
+val these_naked_nativeints : Targetint_32_64.Set.t -> t
 
 val boxed_float_alias_to :
   naked_float:Variable.t -> Alloc_mode.t Or_unknown.t -> t

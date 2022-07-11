@@ -44,25 +44,23 @@ let bottom (kind : K.t) =
 
 let bottom_like t = bottom (TG.kind t)
 
-(* CR mshinwell: can remove [no_alias] now *)
+let these_naked_immediates is = TG.these_naked_immediates is
 
-let these_naked_immediates is = TG.these_naked_immediates ~no_alias:false is
+let these_naked_floats fs = TG.these_naked_floats fs
 
-let these_naked_floats fs = TG.these_naked_floats ~no_alias:false fs
+let these_naked_int32s is = TG.these_naked_int32s is
 
-let these_naked_int32s is = TG.these_naked_int32s ~no_alias:false is
+let these_naked_int64s is = TG.these_naked_int64s is
 
-let these_naked_int64s is = TG.these_naked_int64s ~no_alias:false is
-
-let these_naked_nativeints is = TG.these_naked_nativeints ~no_alias:false is
+let these_naked_nativeints is = TG.these_naked_nativeints is
 
 let any_tagged_immediate =
   TG.create_variant ~is_unique:false ~immediates:Unknown
     ~blocks:(Known TG.Row_like_for_blocks.bottom) (Known Heap)
 
-let these_tagged_immediates0 ~no_alias imms =
+let these_tagged_immediates0 imms =
   match Targetint_31_63.Set.get_singleton imms with
-  | Some imm when not no_alias -> TG.this_tagged_immediate imm
+  | Some imm -> TG.this_tagged_immediate imm
   | _ ->
     if Targetint_31_63.Set.is_empty imms
     then TG.bottom_value
@@ -71,12 +69,11 @@ let these_tagged_immediates0 ~no_alias imms =
         ~immediates:(Known (these_naked_immediates imms))
         ~blocks:(Known TG.Row_like_for_blocks.bottom) (Known Heap)
 
-let these_tagged_immediates imms = these_tagged_immediates0 ~no_alias:false imms
+let these_tagged_immediates imms = these_tagged_immediates0 imms
 
 let any_tagged_bool = these_tagged_immediates Targetint_31_63.all_bools
 
-let any_naked_bool =
-  TG.these_naked_immediates ~no_alias:false Targetint_31_63.all_bools
+let any_naked_bool = TG.these_naked_immediates Targetint_31_63.all_bools
 
 let this_boxed_float f alloc_mode =
   TG.box_float (TG.this_naked_float f) alloc_mode

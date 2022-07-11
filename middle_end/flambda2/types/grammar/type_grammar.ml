@@ -2524,41 +2524,41 @@ let this_naked_int64 i : t =
 let this_naked_nativeint i : t =
   Naked_nativeint (TD.create_equals (Simple.const (RWC.naked_nativeint i)))
 
-let these_naked_immediates ~no_alias is =
+let these_naked_immediates is =
   match Targetint_31_63.Set.get_singleton is with
-  | Some i when not no_alias -> this_naked_immediate i
+  | Some i -> this_naked_immediate i
   | _ ->
     if Targetint_31_63.Set.is_empty is
     then bottom_naked_immediate
     else Naked_immediate (TD.create (Naked_immediates is))
 
-let these_naked_floats ~no_alias fs =
+let these_naked_floats fs =
   match Float.Set.get_singleton fs with
-  | Some f when not no_alias -> this_naked_float f
+  | Some f -> this_naked_float f
   | _ ->
     if Float.Set.is_empty fs
     then bottom_naked_float
     else Naked_float (TD.create fs)
 
-let these_naked_int32s ~no_alias is =
+let these_naked_int32s is =
   match Int32.Set.get_singleton is with
-  | Some i when not no_alias -> this_naked_int32 i
+  | Some i -> this_naked_int32 i
   | _ ->
     if Int32.Set.is_empty is
     then bottom_naked_int32
     else Naked_int32 (TD.create is)
 
-let these_naked_int64s ~no_alias is =
+let these_naked_int64s is =
   match Int64.Set.get_singleton is with
-  | Some i when not no_alias -> this_naked_int64 i
+  | Some i -> this_naked_int64 i
   | _ ->
     if Int64.Set.is_empty is
     then bottom_naked_int64
     else Naked_int64 (TD.create is)
 
-let these_naked_nativeints ~no_alias is =
+let these_naked_nativeints is =
   match Targetint_32_64.Set.get_singleton is with
-  | Some i when not no_alias -> this_naked_nativeint i
+  | Some i -> this_naked_nativeint i
   | _ ->
     if Targetint_32_64.Set.is_empty is
     then bottom_naked_nativeint
