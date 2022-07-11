@@ -14,9 +14,6 @@
 
 open! Int_replace_polymorphic_compare
 
-(* CR mshinwell: Add a [compare] value to the functor argument and use it to
-   sort the results from [elements], [bindings] etc? *)
-
 (* The following is a "little endian" implementation. *)
 
 (* CR-someday mshinwell: Can we fix the traversal order by swapping endianness?
@@ -442,7 +439,6 @@ end = struct
         else branch prefix bit t0 (remove i t1)
       else t
 
-  (* CR mshinwell: Provide a [union] where [f] doesn't return an [option]. *)
   (* CR pchambart: union x x is expensive, while it could be O(1). This would
      require that we demand f x x = x *)
   (* CR-someday lmaurer: Generalize [merge] so that we can implement this in
@@ -870,7 +866,6 @@ end = struct
 
   let merge f t0 t1 = merge' f t0 t1
 
-  (* CR mshinwell: fix this *)
   let[@inline always] disjoint_union ?eq ~print t1 t2 =
     if t1 == t2
     then t1

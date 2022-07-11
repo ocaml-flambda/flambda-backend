@@ -194,9 +194,7 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
           (params_not_used_as_normal @ extra_params_not_used_as_normal)
       in
       let rewrite =
-        Apply_cont_rewrite.create
-          ~original_params:
-            params (* CR mshinwell: We should stop this set/list translation *)
+        Apply_cont_rewrite.create ~original_params:params
           ~used_params:(BP.Set.of_list params_used_as_normal)
           ~extra_params:(EPA.extra_params extra_params_and_args)
           ~extra_args:(EPA.extra_args extra_params_and_args)

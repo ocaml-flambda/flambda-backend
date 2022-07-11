@@ -936,9 +936,6 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
         Simple Simple.const_zero,
         new_ref_value )
   | Pctconst const, _ -> (
-    (* CR mshinwell: This doesn't seem to be zero-arity like it should be *)
-    (* CR pchambart: It's not obvious when this one should be converted.
-       mshinwell: Have put an implementation here for now. *)
     match const with
     | Big_endian -> Simple (Simple.const_bool big_endian)
     | Word_size ->
@@ -946,12 +943,10 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
     | Int_size ->
       Simple (Simple.const_int (Targetint_31_63.of_int ((8 * size_int) - 1)))
     | Max_wosize ->
-      (* CR mshinwell: This depends on the number of bits in the header reserved
-         for profinfo, no? If this computation is wrong then the one in
-         [Closure] (and maybe Flambda 1) is wrong. *)
       Simple
         (Simple.const_int
-           (Targetint_31_63.of_int ((1 lsl ((8 * size_int) - 10)) - 1)))
+           (Targetint_31_63.of_int
+              ((1 lsl ((8 * size_int) - (10 + Config.profinfo_width))) - 1)))
     | Ostype_unix -> Simple (Simple.const_bool (Sys.os_type = "Unix"))
     | Ostype_win32 -> Simple (Simple.const_bool (Sys.os_type = "Win32"))
     | Ostype_cygwin -> Simple (Simple.const_bool (Sys.os_type = "Cygwin"))

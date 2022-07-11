@@ -270,8 +270,6 @@ module Env = struct
     in
     add_vars t (List.map fst ids) vars, vars
 
-  (* CR mshinwell: Rethink the semantics of these re. fatal errors etc *)
-
   let find_var t id =
     try Ident.Map.find id t.variables
     with Not_found ->

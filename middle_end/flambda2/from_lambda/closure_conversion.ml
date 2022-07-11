@@ -407,7 +407,6 @@ let close_c_call acc env ~loc ~let_bound_var
     let prim_name =
       if String.equal prim_native_name "" then prim_name else prim_native_name
     in
-    (* CR mshinwell: fix "extern" mess (see To_cmm) *)
     Symbol.create
       (Compilation_unit.external_symbols ())
       (Linkage_name.create prim_name)
@@ -1069,8 +1068,7 @@ let close_one_function acc ~external_env ~by_function_slot decl
       "Variables found in closure when trying to lift %a in \
        [Closure_conversion]."
       Ident.print our_let_rec_ident;
-  (* CR mshinwell: Remove "project_closure" names *)
-  let project_closure_to_bind, simples_for_project_closure =
+  let closure_vars_to_bind, simples_for_closure_vars =
     if has_lifted_closure
     then (* No projection needed *)
       Variable.Map.empty, Ident.Map.empty
@@ -1114,7 +1112,7 @@ let close_one_function acc ~external_env ~by_function_slot decl
                 (Name.var var)))
         value_slots_for_idents empty_env
     in
-    Env.add_simple_to_substitute_map env_with_vars simples_for_project_closure
+    Env.add_simple_to_substitute_map env_with_vars simples_for_closure_vars
   in
   let closure_env_without_history =
     List.fold_right
@@ -1183,7 +1181,7 @@ let close_one_function acc ~external_env ~by_function_slot decl
           Named.create_prim (Unary (move, my_closure')) Debuginfo.none
         in
         Let_with_acc.create acc (Bound_pattern.singleton var) named ~body)
-      project_closure_to_bind (acc, body)
+      closure_vars_to_bind (acc, body)
   in
   let acc, body =
     Variable.Map.fold
@@ -1479,7 +1477,6 @@ let close_let_rec acc env ~function_declarations
     in
     body acc env
   | Dynamic (set_of_closures, approximations) ->
-    (* CR mshinwell: We should maybe have something more elegant here *)
     let generated_closures =
       Function_slot.Set.diff
         (Function_slot.Map.keys

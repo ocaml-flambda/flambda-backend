@@ -75,7 +75,7 @@ let set_of_closures ~find_code_characteristics set_of_closures =
           find_code_characteristics code_id
         in
         ( metrics + cost_metrics,
-          (* CR poechsel: valid until OCaml 4.13, as for named_size *)
+          (* CR poechsel: valid until OCaml 4.12, as for named_size *)
           Stdlib.( + ) num_words (if params_arity <= 1 then 2 else 3) ))
       funs (zero, num_clos_vars)
   in

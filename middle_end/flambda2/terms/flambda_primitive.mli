@@ -105,15 +105,10 @@ end
 (* CR-someday mshinwell: We should have unboxed arrays of int32, int64 and
    nativeint. *)
 
-(* CR mshinwell: Some old comments:
-
-   * We should check Pgenarray doesn't occur when the float array optimization
-   is disabled.
-
-   * Another note: the "bit test" primitive now needs to be compiled out in
-   Lambda_to_flambda. It indexes into a string using a number of bits. (See
-   cmmgen.ml) Something that is odd about this primitive is that it does not
-   appear to have a bounds check. Maybe it should? *)
+(* CR mshinwell: An old comment: the "bit test" primitive now needs to be
+   compiled out in Lambda_to_flambda. It indexes into a string using a number of
+   bits. (See cmmgen.ml) Something that is odd about this primitive is that it
+   does not appear to have a bounds check. Maybe it should? *)
 
 type string_or_bytes =
   | String
@@ -243,9 +238,6 @@ type unary_primitive =
   (* CR mshinwell/xclerc: Invariant check: dimension >= 0 *)
   (* CR gbury: Invariant check: 0 < dimension <= 3 *)
   | String_length of string_or_bytes
-  (* XCR pchambart: There are 32 and 64 bits swap, that probably need to be
-     represented differently mshinwell: I think this should be ok now, please
-     check *)
   | Int_as_pointer
   | Opaque_identity
   | Int_arith of Flambda_kind.Standard_int.t * unary_int_arith_op

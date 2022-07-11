@@ -90,7 +90,7 @@ let make_block ~dbg kind alloc_mode args =
 
 let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
     ~block ~index =
-  let mutability = Mutability.to_lambda mutability in
+  let mutability = Mutability.to_asttypes mutability in
   match kind with
   | Values { field_kind = Any_value; _ } ->
     C.get_field_computed Pointer mutability ~block ~index dbg

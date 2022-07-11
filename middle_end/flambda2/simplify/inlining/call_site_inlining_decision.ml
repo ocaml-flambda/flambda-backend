@@ -31,7 +31,10 @@ module UE = Upwards_env
    however contain at call sites if inlining is requested but cannot be done for
    this reason. I think this will probably all happen without any specific code
    once [Inlining_impossible] handling is implemented for the
-   non-fallback-inlining cases. *)
+   non-fallback-inlining cases.
+
+   mshinwell 2022-07-11: we should check this when we look at classic mode
+   again *)
 
 (* CR-someday mshinwell: Overhaul handling of the inlining depth tracking so
    that it takes into account the depth of closures (or code), as per

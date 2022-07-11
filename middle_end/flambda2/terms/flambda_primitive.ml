@@ -1533,31 +1533,26 @@ let result_kind' t =
 
 let result_kind_of_nullary_primitive' t =
   match result_kind_of_nullary_primitive t with
-  (* CR mshinwell: factor out this mapping *)
   | Singleton kind -> kind
   | Unit -> K.value
 
 let result_kind_of_unary_primitive' t =
   match result_kind_of_unary_primitive t with
-  (* CR mshinwell: factor out this mapping *)
   | Singleton kind -> kind
   | Unit -> K.value
 
 let result_kind_of_binary_primitive' t =
   match result_kind_of_binary_primitive t with
-  (* CR mshinwell: factor out this mapping *)
   | Singleton kind -> kind
   | Unit -> K.value
 
 let result_kind_of_ternary_primitive' t =
   match result_kind_of_ternary_primitive t with
-  (* CR mshinwell: factor out this mapping *)
   | Singleton kind -> kind
   | Unit -> K.value
 
 let result_kind_of_variadic_primitive' t =
   match result_kind_of_variadic_primitive t with
-  (* CR mshinwell: factor out this mapping *)
   | Singleton kind -> kind
   | Unit -> K.value
 
