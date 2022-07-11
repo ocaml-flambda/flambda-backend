@@ -37,8 +37,6 @@ let print_name_modes ~restrict_to ~min_binding_time ppf t =
        (fun name _ -> Name.Set.mem name restrict_to)
        t.names_to_types)
 
-(* CR mshinwell: add [invariant] function *)
-
 let empty =
   { names_to_types = Name.Map.empty;
     aliases = Aliases.empty;
@@ -50,10 +48,6 @@ let names_to_types t = t.names_to_types
 let aliases t = t.aliases
 
 let symbol_projections t = t.symbol_projections
-
-(* CR mshinwell: At least before the following two functions were split (used to
-   be add-or-replace), the [names_to_types] map addition was a major source of
-   allocation. *)
 
 let add_or_replace_binding t (name : Name.t) ty binding_time name_mode =
   let binding_time_and_mode =

@@ -716,7 +716,6 @@ let choose_canonical_element_to_be_demoted ~binding_time_resolver
   then Demote_canonical_element2
   else Demote_canonical_element1
 
-(* CR mshinwell: add submodule *)
 type add_result =
   { t : t;
     canonical_element : Simple.t;
@@ -827,10 +826,10 @@ let add ~binding_time_resolver ~binding_times_and_modes t
       ~original_t add_result;
   add_result
 
-(* CR mshinwell: For the moment we allow relations between canonical elements
-   that are actually incomparable under the name mode ordering, and check in
-   [get_canonical_element_exn] accordingly. However maybe we should never allow
-   these situations to arise. *)
+(* CR-someday mshinwell: For the moment we allow relations between canonical
+   elements that are actually incomparable under the name mode ordering, and
+   check in [get_canonical_element_exn] accordingly. However maybe we should
+   never allow these situations to arise. *)
 
 let find_earliest_alias t ~canonical_element ~binding_times_and_modes
     ~min_binding_time ~min_name_mode ~binding_time_resolver

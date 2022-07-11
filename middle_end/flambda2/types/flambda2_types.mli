@@ -723,9 +723,7 @@ type var_or_symbol_or_tagged_immediate = private
   | Symbol of Symbol.t
   | Tagged_immediate of Targetint_31_63.t
 
-type to_lift =
-  (* private *)
-  (* CR mshinwell: resurrect *)
+type to_lift = private
   | Immutable_block of
       { tag : Tag.Scannable.t;
         is_unique : bool;
@@ -738,7 +736,7 @@ type to_lift =
   | Empty_array
 
 type reification_result = private
-  | Lift of to_lift (* CR mshinwell: rename? *)
+  | Lift of to_lift
   | Lift_set_of_closures of
       { function_slot : Function_slot.t;
         function_types : Function_type.t Function_slot.Map.t;
