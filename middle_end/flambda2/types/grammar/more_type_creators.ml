@@ -119,8 +119,6 @@ let blocks_with_these_tags tags : _ Or_unknown.t =
       TG.Row_like_for_blocks.create_blocks_with_these_tags ~field_kind:K.value
         tags
     in
-    (* CR vlaviron: There is a potential soundness issue as this forbids Array
-       values, which could have tag 0. *)
     Known
       (TG.create_variant ~is_unique:false
          ~immediates:(Known TG.bottom_naked_immediate) ~blocks:(Known blocks)
@@ -129,7 +127,7 @@ let blocks_with_these_tags tags : _ Or_unknown.t =
 let immutable_block ~is_unique tag ~field_kind alloc_mode ~fields =
   match Targetint_31_63.of_int_option (List.length fields) with
   | None ->
-    (* CR mshinwell: This should be a special kind of error. *)
+    (* CR-someday mshinwell: This should be a special kind of error. *)
     Misc.fatal_error "Block too long for target"
   | Some _size ->
     TG.create_variant ~is_unique ~immediates:(Known TG.bottom_naked_immediate)
