@@ -901,15 +901,6 @@ and add_env_extension_with_extra_variables t
     ~equation:(fun name ty t -> add_equation t name ty ~meet_type)
     env_extension t
 
-(* These version is outside the [let rec] and thus does not cause [caml_apply*]
-   to be used when calling from outside this module. *)
-let add_equation t name ty ~meet_type = add_equation t name ty ~meet_type
-
-let add_env_extension t env_extension = add_env_extension t env_extension
-
-let add_env_extension_with_extra_variables t env_extension =
-  add_env_extension_with_extra_variables t env_extension
-
 let add_env_extension_from_level t level ~meet_type : t =
   let t =
     TEL.fold_on_defined_vars
