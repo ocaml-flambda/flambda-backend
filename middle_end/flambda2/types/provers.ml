@@ -596,14 +596,14 @@ let meet_strings env t : String_info.Set.t meet_shortcut =
 
 type tagging_proof_kind =
   | Prove
-  | Check
+  | Meet
 
-let prove_tagging_of_simple_aux proof_kind env ~min_name_mode t :
+let[@inline always] inspect_tagging_of_simple proof_kind env ~min_name_mode t :
     Simple.t generic_proof =
   match expand_head env t with
   | Value (Ok (Variant { immediates; blocks; is_unique = _; alloc_mode = _ }))
     -> (
-    let prove_immediates () =
+    let inspect_immediates () =
       match immediates with
       | Unknown -> Unknown
       | Known t -> (
@@ -630,19 +630,19 @@ let prove_tagging_of_simple_aux proof_kind env ~min_name_mode t :
     | Prove, Unknown -> Unknown
     | Prove, Known blocks ->
       if TG.Row_like_for_blocks.is_bottom blocks
-      then prove_immediates ()
+      then inspect_immediates ()
       else Unknown
-    | Check, _ -> prove_immediates ())
+    | Meet, _ -> inspect_immediates ())
   | Value _ -> Unknown
   | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
   | Naked_nativeint _ | Rec_info _ | Region _ ->
     Wrong_kind
 
 let prove_tagging_of_simple env ~min_name_mode t =
-  as_property (prove_tagging_of_simple_aux Prove env ~min_name_mode t)
+  as_property (inspect_tagging_of_simple Prove env ~min_name_mode t)
 
 let meet_tagging_of_simple env ~min_name_mode t =
-  as_meet_shortcut (prove_tagging_of_simple_aux Check env ~min_name_mode t)
+  as_meet_shortcut (inspect_tagging_of_simple Meet env ~min_name_mode t)
 
 let[@inline always] meet_boxed_number_containing_simple
     ~contents_of_boxed_number env ~min_name_mode t : Simple.t meet_shortcut =
@@ -698,7 +698,7 @@ let meet_boxed_nativeint_containing_simple =
       | Boxed_int64 _ | Closures _ | String _ | Array _ ->
         None)
 
-let[@inline] meet_block_field_simple_aux env ~min_name_mode t get_field :
+let meet_block_field_simple env ~min_name_mode t field_index :
     Simple.t meet_shortcut =
   let wrong_kind () =
     Misc.fatal_errorf "Kind error: expected [Value]:@ %a" TG.print t
@@ -713,7 +713,7 @@ let[@inline] meet_block_field_simple_aux env ~min_name_mode t get_field :
       if TG.Row_like_for_blocks.is_bottom blocks
       then Invalid
       else
-        match (get_field blocks : _ Or_unknown_or_bottom.t) with
+        match (TG.Row_like_for_blocks.get_field blocks field_index : _ Or_unknown_or_bottom.t) with
         | Bottom -> Invalid
         | Unknown -> Need_meet
         | Ok ty -> (
@@ -730,18 +730,6 @@ let[@inline] meet_block_field_simple_aux env ~min_name_mode t get_field :
   | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
   | Naked_nativeint _ | Rec_info _ | Region _ ->
     wrong_kind ()
-
-let meet_block_field_simple env ~min_name_mode t field_index =
-  let[@inline] get blocks =
-    TG.Row_like_for_blocks.get_field blocks field_index
-  in
-  (meet_block_field_simple_aux [@inlined]) env ~min_name_mode t get
-
-let meet_variant_field_simple env ~min_name_mode t variant_tag field_index =
-  let[@inline] get blocks =
-    TG.Row_like_for_blocks.get_variant_field blocks variant_tag field_index
-  in
-  (meet_block_field_simple_aux [@inlined]) env ~min_name_mode t get
 
 let meet_project_function_slot_simple env ~min_name_mode t function_slot :
     Simple.t meet_shortcut =
