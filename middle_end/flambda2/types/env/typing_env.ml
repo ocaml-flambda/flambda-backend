@@ -958,13 +958,13 @@ let code_age_relation t = t.code_age_relation
 
 let with_code_age_relation t code_age_relation = { t with code_age_relation }
 
-let cut t ~unknown_if_defined_later_than =
+let cut t ~cut_after =
   let current_scope = current_scope t in
-  if Scope.( >= ) unknown_if_defined_later_than current_scope
+  if Scope.( >= ) cut_after current_scope
   then TEL.empty
   else
     let _, _, levels =
-      Scope.Map.split unknown_if_defined_later_than t.prev_levels
+      Scope.Map.split cut_after t.prev_levels
     in
     let levels =
       (* Owing to the check above it is certain that we want [t.current_level]

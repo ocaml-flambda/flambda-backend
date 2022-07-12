@@ -200,6 +200,6 @@ val code_age_relation : t -> Code_age_relation.t
 
 val with_code_age_relation : t -> Code_age_relation.t -> t
 
-val cut : t -> unknown_if_defined_later_than:Scope.t -> Typing_env_level.t
+val cut : t -> cut_after:Scope.t -> Typing_env_level.t
 
 val free_names_transitive : t -> Type_grammar.t -> Name_occurrences.t
