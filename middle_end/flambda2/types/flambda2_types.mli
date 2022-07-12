@@ -533,7 +533,6 @@ type 'a meet_shortcut = private
 type 'a proof_of_property = private
   | Proved of 'a
   | Unknown
-  | Wrong_kind
 
 (* CR mshinwell: Should remove "_equals_" from these names *)
 val prove_equals_tagged_immediates :

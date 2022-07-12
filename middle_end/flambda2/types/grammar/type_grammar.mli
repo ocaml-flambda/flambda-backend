@@ -409,9 +409,6 @@ module Row_like_for_blocks : sig
       last case where we already know what the result of the meet will be. *)
   val get_field : t -> Targetint_31_63.t -> flambda_type Or_unknown_or_bottom.t
 
-  (* val get_variant_field :
-   *   t -> Tag.t -> Targetint_31_63.t -> flambda_type Or_unknown_or_bottom.t *)
-
   val is_bottom : t -> bool
 
   (** The [Maps_to] value which [meet] returns contains the join of all

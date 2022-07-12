@@ -935,7 +935,6 @@ let[@inline always] simplify_immutable_block_load0
           T.prove_unique_fully_constructed_immutable_heap_block
             (DA.typing_env dacc) block_ty
         with
-        | Wrong_kind -> SPR.create_invalid dacc
         | Unknown -> result
         | Proved (tag_and_size, field_simples) -> (
           match Tag_and_size.tag tag_and_size |> Tag.Scannable.of_tag with

@@ -30,7 +30,6 @@ type 'a meet_shortcut = private
 type 'a proof_of_property = private
   | Proved of 'a
   | Unknown
-  | Wrong_kind
 
 (** If this returns a simple, it is bound with mode Normal *)
 val prove_equals_to_simple_of_kind_value :

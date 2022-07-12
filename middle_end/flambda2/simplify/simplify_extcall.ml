@@ -111,9 +111,9 @@ let simplify_comparison ~dbg ~dacc ~cont ~tagged_prim ~float_prim
   | ( Proved (Boxed (Naked_float | Naked_int32 | Naked_int64 | Naked_nativeint)),
       Proved (Boxed _) )
   (* One or two of the arguments is not known *)
-  | (Unknown | Wrong_kind), (Unknown | Wrong_kind)
-  | (Unknown | Wrong_kind), Proved (Tagged_immediate | Boxed _)
-  | Proved (Tagged_immediate | Boxed _), (Unknown | Wrong_kind) ->
+  | Unknown, Unknown
+  | Unknown, Proved (Tagged_immediate | Boxed _)
+  | Proved (Tagged_immediate | Boxed _), Unknown ->
     Unchanged { return_types = Unknown }
 
 let simplify_caml_make_vect dacc ~len_ty ~init_value_ty : t =
@@ -133,16 +133,10 @@ let simplify_caml_make_vect dacc ~len_ty ~init_value_ty : t =
            optimisation on will always yield a flat array of naked floats. *)
         Ok (Known Flambda_kind.With_subkind.naked_float)
       | Proved false | Unknown -> Ok Unknown
-      | Wrong_kind -> Bottom
   in
-  let length : _ Or_bottom.t =
-    match T.prove_is_a_tagged_immediate typing_env len_ty with
-    | Proved () | Unknown -> Ok len_ty
-    | Wrong_kind -> Bottom
-  in
-  match element_kind, length with
-  | Bottom, Bottom | Ok _, Bottom | Bottom, Ok _ -> Invalid
-  | Ok element_kind, Ok length ->
+  match element_kind with
+  | Bottom -> Invalid
+  | Ok element_kind ->
     (* CR-someday mshinwell: We should really adjust the kind of the parameter
        of the return continuation, e.g. to go from "any value" to "float array"
        -- but that will need some more infrastructure, since the actual
@@ -152,7 +146,9 @@ let simplify_caml_make_vect dacc ~len_ty ~init_value_ty : t =
 
        Also maybe we should allow static allocation of these arrays for
        reasonable sizes. *)
-    let type_of_returned_array = T.array_of_length ~element_kind ~length in
+    let type_of_returned_array =
+      T.array_of_length ~element_kind ~length:len_ty
+    in
     Unchanged { return_types = Known [type_of_returned_array] }
 
 let simplify_returning_extcall ~dbg ~cont ~exn_cont:_ dacc fun_name args

@@ -324,7 +324,7 @@ let specialise_array_kind dacc (array_kind : P.Array_kind.t) ~array_ty :
     | Proved () ->
       (* Specialise the array operation to [Immediates]. *)
       Ok P.Array_kind.Immediates
-    | Unknown | Wrong_kind -> (
+    | Unknown -> (
       (* Check for float arrays *)
       match T.meet_is_flat_float_array typing_env array_ty with
       | Known_result false | Need_meet -> Ok array_kind

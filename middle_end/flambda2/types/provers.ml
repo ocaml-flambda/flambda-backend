@@ -30,6 +30,9 @@ let is_bottom = Expand_head.is_bottom
 let expand_head env ty =
   Expand_head.expand_head env ty |> Expand_head.Expanded_type.descr_oub
 
+let wrong_kind kind_string t =
+  Misc.fatal_errorf "Kind error: expected [%s]:@ %a" kind_string TG.print t
+
 type 'a meet_shortcut =
   | Known_result of 'a
   | Need_meet
@@ -38,33 +41,25 @@ type 'a meet_shortcut =
 type 'a proof_of_property =
   | Proved of 'a
   | Unknown
-  | Wrong_kind
-(* CR: try to find real uses and remove the rest *)
 
 type 'a generic_proof =
   | Proved of 'a
   | Unknown
   | Invalid
-  | Wrong_kind
 
-(* CR: Naming Either Sub-module or complete name *)
 let as_meet_shortcut (p : _ generic_proof) : _ meet_shortcut =
   match p with
   | Proved x -> Known_result x
   | Unknown -> Need_meet
-  (* CR: Consider fatal error for Wrong_kind *)
-  | Invalid | Wrong_kind -> Invalid
+  | Invalid -> Invalid
 
 let as_property (p : _ generic_proof) : _ proof_of_property =
-  match p with
-  | Proved x -> Proved x
-  | Unknown | Invalid -> Unknown
-  | Wrong_kind -> Wrong_kind
+  match p with Proved x -> Proved x | Unknown | Invalid -> Unknown
 
 let prove_equals_to_simple_of_kind_value env t : Simple.t proof_of_property =
   let original_kind = TG.kind t in
   if not (K.equal original_kind K.value)
-  then Wrong_kind
+  then wrong_kind "Value" t
   else
     (* CR: add TE.get_alias_opt *)
     match TG.get_alias_exn t with
@@ -105,7 +100,7 @@ let prove_is_int_generic env t : bool generic_proof =
   | Value Bottom -> Invalid
   | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
   | Naked_nativeint _ | Rec_info _ | Region _ ->
-    Wrong_kind
+    wrong_kind "Value" t
 
 let prove_is_int env t = as_property (prove_is_int_generic env t)
 
@@ -113,7 +108,7 @@ let prove_is_int env t = as_property (prove_is_int_generic env t)
    Invalid cases to prove_naked_immediates_generic, but it's not suitable for
    implementing [meet_get_tag] because it doesn't ignore the immediates part of
    the variant. *)
-(* CR: Switch to Tag.Scannable *)
+(* CR vlaviron: Switch result to Tag.Scannable *)
 let prove_get_tag_generic env t : Tag.Set.t generic_proof =
   match expand_head env t with
   | Value (Ok (Variant blocks_imms)) -> (
@@ -144,11 +139,10 @@ let prove_get_tag_generic env t : Tag.Set.t generic_proof =
   | Value Bottom -> Invalid
   | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
   | Naked_nativeint _ | Rec_info _ | Region _ ->
-    Wrong_kind
+    wrong_kind "Value" t
 
 let prove_get_tag env t = as_property (prove_get_tag_generic env t)
 
-(* CR: Specialise to meet, Wrong_kind -> fatal error *)
 let prove_naked_immediates_generic env t : Targetint_31_63.Set.t generic_proof =
   match expand_head env t with
   | Naked_immediate (Ok (Naked_immediates is)) ->
@@ -160,8 +154,7 @@ let prove_naked_immediates_generic env t : Targetint_31_63.Set.t generic_proof =
     | Proved false ->
       Proved (Targetint_31_63.Set.singleton Targetint_31_63.bool_false)
     | Unknown -> Unknown
-    | Invalid -> Invalid
-    | Wrong_kind -> Wrong_kind)
+    | Invalid -> Invalid)
   | Naked_immediate (Ok (Get_tag block_ty)) -> (
     match prove_get_tag_generic env block_ty with
     | Proved tags ->
@@ -173,17 +166,12 @@ let prove_naked_immediates_generic env t : Targetint_31_63.Set.t generic_proof =
       in
       Proved is
     | Unknown -> Unknown
-    | Invalid -> Invalid
-    | Wrong_kind -> Wrong_kind)
+    | Invalid -> Invalid)
   | Naked_immediate Unknown -> Unknown
   | Naked_immediate Bottom -> Invalid
-  | Value _ -> Wrong_kind
-  | Naked_float _ -> Wrong_kind
-  | Naked_int32 _ -> Wrong_kind
-  | Naked_int64 _ -> Wrong_kind
-  | Naked_nativeint _ -> Wrong_kind
-  | Rec_info _ -> Wrong_kind
-  | Region _ -> Wrong_kind
+  | Value _ | Naked_float _ | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
+  | Rec_info _ | Region _ ->
+    wrong_kind "Naked_immediate" t
 
 let meet_naked_immediates env t =
   as_meet_shortcut (prove_naked_immediates_generic env t)
@@ -203,13 +191,12 @@ let prove_equals_tagged_immediates env t : _ proof_of_property =
           match prove_naked_immediates_generic env imms with
           | Proved imms -> Proved imms
           | Invalid -> Proved Targetint_31_63.Set.empty
-          | Unknown -> Unknown
-          | Wrong_kind -> Wrong_kind)
+          | Unknown -> Unknown)
       else Unknown)
   | Value (Ok _ | Unknown | Bottom) -> Unknown
   | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
   | Naked_nativeint _ | Rec_info _ | Region _ ->
-    Wrong_kind
+    wrong_kind "Value" t
 
 let meet_equals_tagged_immediates env t : _ meet_shortcut =
   match expand_head env t with
@@ -264,7 +251,7 @@ let[@inline] meet_naked_number (type a) (kind : a meet_naked_number_kind) env t
       | Int64 -> "Naked_int64"
       | Nativeint -> "Naked_nativeint"
     in
-    Misc.fatal_errorf "Kind error: expected [%s]:@ %a" kind_string TG.print t
+    wrong_kind kind_string t
   in
   match expand_head env t with
   | Value _ -> wrong_kind ()
@@ -346,8 +333,7 @@ let prove_variant_like_generic env t : variant_like_proof generic_proof =
               match prove_naked_immediates_generic env imms with
               | Unknown -> Unknown
               | Invalid -> Known Targetint_31_63.Set.empty
-              | Proved const_ctors -> Known const_ctors
-              | Wrong_kind -> Misc.fatal_error "To remove")
+              | Proved const_ctors -> Known const_ctors)
           in
           Proved { const_ctors; non_const_ctors_with_sizes })))
   | Value (Ok (Mutable_block _)) -> Unknown
@@ -360,13 +346,9 @@ let prove_variant_like_generic env t : variant_like_proof generic_proof =
     Invalid
   | Value Unknown -> Unknown
   | Value Bottom -> Invalid
-  | Naked_immediate _ -> Wrong_kind
-  | Naked_float _ -> Wrong_kind
-  | Naked_int32 _ -> Wrong_kind
-  | Naked_int64 _ -> Wrong_kind
-  | Naked_nativeint _ -> Wrong_kind
-  | Rec_info _ -> Wrong_kind
-  | Region _ -> Wrong_kind
+  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
+  | Naked_nativeint _ | Rec_info _ | Region _ ->
+    wrong_kind "Value" t
 
 let meet_variant_like env t =
   as_meet_shortcut (prove_variant_like_generic env t)
@@ -395,14 +377,16 @@ let prove_is_a_boxed_or_tagged_number env t :
   | Value (Ok (Boxed_int32 _)) -> Proved (Boxed Naked_int32)
   | Value (Ok (Boxed_int64 _)) -> Proved (Boxed Naked_int64)
   | Value (Ok (Boxed_nativeint _)) -> Proved (Boxed Naked_nativeint)
-  | Value _ -> Unknown
-  | _ -> Wrong_kind
+  | Value (Bottom | Ok (Mutable_block _ | Closures _ | String _ | Array _)) ->
+    Unknown
+  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
+  | Naked_nativeint _ | Rec_info _ | Region _ ->
+    wrong_kind "Value" t
 
 let prove_is_a_tagged_immediate env t : _ proof_of_property =
   match prove_is_a_boxed_or_tagged_number env t with
   | Proved Tagged_immediate -> Proved ()
   | Proved _ -> Unknown
-  | Wrong_kind -> Wrong_kind
   | Unknown -> Unknown
 
 let prove_is_a_boxed_float env t : _ proof_of_property =
@@ -410,7 +394,9 @@ let prove_is_a_boxed_float env t : _ proof_of_property =
   | Value Unknown -> Unknown
   | Value (Ok (Boxed_float _)) -> Proved ()
   | Value _ -> Unknown
-  | _ -> Wrong_kind
+  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
+  | Naked_nativeint _ | Rec_info _ | Region _ ->
+    wrong_kind "Value" t
 
 let prove_is_or_is_not_a_boxed_float env t : _ proof_of_property =
   match expand_head env t with
@@ -418,28 +404,36 @@ let prove_is_or_is_not_a_boxed_float env t : _ proof_of_property =
   | Value Bottom -> Unknown
   | Value (Ok (Boxed_float _)) -> Proved true
   | Value (Ok _) -> Proved false
-  | _ -> Wrong_kind
+  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
+  | Naked_nativeint _ | Rec_info _ | Region _ ->
+    wrong_kind "Value" t
 
 let prove_is_a_boxed_int32 env t : _ proof_of_property =
   match expand_head env t with
   | Value Unknown -> Unknown
   | Value (Ok (Boxed_int32 _)) -> Proved ()
   | Value _ -> Unknown
-  | _ -> Wrong_kind
+  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
+  | Naked_nativeint _ | Rec_info _ | Region _ ->
+    wrong_kind "Value" t
 
 let prove_is_a_boxed_int64 env t : _ proof_of_property =
   match expand_head env t with
   | Value Unknown -> Unknown
   | Value (Ok (Boxed_int64 _)) -> Proved ()
   | Value _ -> Unknown
-  | _ -> Wrong_kind
+  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
+  | Naked_nativeint _ | Rec_info _ | Region _ ->
+    wrong_kind "Value" t
 
 let prove_is_a_boxed_nativeint env t : _ proof_of_property =
   match expand_head env t with
   | Value Unknown -> Unknown
   | Value (Ok (Boxed_nativeint _)) -> Proved ()
   | Value _ -> Unknown
-  | _ -> Wrong_kind
+  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
+  | Naked_nativeint _ | Rec_info _ | Region _ ->
+    wrong_kind "Value" t
 
 let prove_unique_tag_and_size0 env t :
     (Tag_and_size.t * TG.Product.Int_indexed.t * Alloc_mode.t Or_unknown.t)
@@ -464,26 +458,24 @@ let prove_unique_tag_and_size0 env t :
     Unknown
   | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
   | Naked_nativeint _ | Rec_info _ | Region _ ->
-    Wrong_kind
+    wrong_kind "Value" t
 
 let prove_unique_tag_and_size env t :
     (Tag.t * Targetint_31_63.t) proof_of_property =
   match prove_unique_tag_and_size0 env t with
   | Proved (tag_and_size, _, _) -> Proved tag_and_size
   | Unknown -> Unknown
-  | Wrong_kind -> Wrong_kind
 
 let prove_unique_fully_constructed_immutable_heap_block env t :
     _ proof_of_property =
   match prove_unique_tag_and_size0 env t with
-  | Wrong_kind -> Wrong_kind
   | Unknown | Proved (_, _, (Unknown | Known Local)) -> Unknown
   | Proved (tag_and_size, product, Known Heap) -> (
     let result =
       List.fold_left
         (fun (result : _ proof_of_property) field_ty : _ proof_of_property ->
           match result with
-          | Wrong_kind | Unknown -> result
+          | Unknown -> result
           | Proved simples_rev -> (
             match TG.get_alias_exn field_ty with
             | exception Not_found -> Unknown
@@ -492,7 +484,6 @@ let prove_unique_fully_constructed_immutable_heap_block env t :
         (TG.Product.Int_indexed.components product)
     in
     match result with
-    | Wrong_kind -> Wrong_kind
     | Unknown -> Unknown
     | Proved simples -> Proved (tag_and_size, List.rev simples))
 
@@ -540,8 +531,7 @@ let prove_is_immediates_array env t : unit proof_of_property =
     Unknown
   | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
   | Naked_nativeint _ | Rec_info _ | Region _ ->
-    Wrong_kind
-(* Misc.fatal_errorf "Kind error: expected [Value]:@ %a" TG.print t *)
+    wrong_kind "Value" t
 
 let prove_single_closures_entry_generic env t : _ generic_proof =
   match expand_head env t with
@@ -568,13 +558,9 @@ let prove_single_closures_entry_generic env t : _ generic_proof =
     Invalid
   | Value Unknown -> Unknown
   | Value Bottom -> Invalid
-  | Naked_immediate _ -> Wrong_kind
-  | Naked_float _ -> Wrong_kind
-  | Naked_int32 _ -> Wrong_kind
-  | Naked_int64 _ -> Wrong_kind
-  | Naked_nativeint _ -> Wrong_kind
-  | Rec_info _ -> Wrong_kind
-  | Region _ -> Wrong_kind
+  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
+  | Naked_nativeint _ | Rec_info _ | Region _ ->
+    wrong_kind "Value" t
 
 let meet_single_closures_entry env t =
   as_meet_shortcut (prove_single_closures_entry_generic env t)
@@ -634,7 +620,7 @@ let[@inline always] inspect_tagging_of_simple proof_kind env ~min_name_mode t :
   | Value _ -> Unknown
   | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
   | Naked_nativeint _ | Rec_info _ | Region _ ->
-    Wrong_kind
+    wrong_kind "Value" t
 
 let prove_tagging_of_simple env ~min_name_mode t =
   as_property (inspect_tagging_of_simple Prove env ~min_name_mode t)
@@ -698,9 +684,6 @@ let meet_boxed_nativeint_containing_simple =
 
 let meet_block_field_simple env ~min_name_mode t field_index :
     Simple.t meet_shortcut =
-  let wrong_kind () =
-    Misc.fatal_errorf "Kind error: expected [Value]:@ %a" TG.print t
-  in
   match expand_head env t with
   | Value
       (Ok (Variant { immediates = _; blocks; is_unique = _; alloc_mode = _ }))
@@ -730,13 +713,10 @@ let meet_block_field_simple env ~min_name_mode t field_index :
   | Value Bottom -> Invalid
   | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
   | Naked_nativeint _ | Rec_info _ | Region _ ->
-    wrong_kind ()
+    wrong_kind "Value" t
 
 let meet_project_function_slot_simple env ~min_name_mode t function_slot :
     Simple.t meet_shortcut =
-  let wrong_kind () =
-    Misc.fatal_errorf "Kind error: expected [Value]:@ %a" TG.print t
-  in
   match expand_head env t with
   | Value (Ok (Closures { by_function_slot; alloc_mode = _ })) -> (
     match
@@ -755,13 +735,10 @@ let meet_project_function_slot_simple env ~min_name_mode t function_slot :
   | Value Bottom -> Invalid
   | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
   | Naked_nativeint _ | Rec_info _ | Region _ ->
-    wrong_kind ()
+    wrong_kind "Value" t
 
 let meet_project_value_slot_simple env ~min_name_mode t env_var :
     Simple.t meet_shortcut =
-  let wrong_kind () =
-    Misc.fatal_errorf "Kind error: expected [Value]:@ %a" TG.print t
-  in
   match expand_head env t with
   | Value (Ok (Closures { by_function_slot; alloc_mode = _ })) -> (
     match TG.Row_like_for_closures.get_env_var by_function_slot env_var with
@@ -778,19 +755,16 @@ let meet_project_value_slot_simple env ~min_name_mode t env_var :
   | Value Bottom -> Invalid
   | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
   | Naked_nativeint _ | Rec_info _ | Region _ ->
-    wrong_kind ()
+    wrong_kind "Value" t
 
 let meet_rec_info env t : Rec_info_expr.t meet_shortcut =
-  let wrong_kind () =
-    Misc.fatal_errorf "Kind error: expected [Rec_info]:@ %a" TG.print t
-  in
   match expand_head env t with
   | Rec_info (Ok rec_info_expr) -> Known_result rec_info_expr
   | Rec_info Unknown -> Need_meet
   | Rec_info Bottom -> Invalid
   | Value _ | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
   | Naked_nativeint _ | Region _ ->
-    wrong_kind ()
+    wrong_kind "Rec_info" t
 
 let prove_alloc_mode_of_boxed_number env t : Alloc_mode.t proof_of_property =
   match expand_head env t with
@@ -806,7 +780,7 @@ let prove_alloc_mode_of_boxed_number env t : Alloc_mode.t proof_of_property =
     Unknown
   | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
   | Naked_nativeint _ | Rec_info _ | Region _ ->
-    Wrong_kind
+    wrong_kind "Value" t
 
 let never_holds_locally_allocated_values env var kind : _ proof_of_property =
   let t = TE.find env (Name.var var) (Some kind) in

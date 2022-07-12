@@ -1115,7 +1115,7 @@ let type_value_slots_and_make_lifting_decision_for_one_set dacc
                         (DA.typing_env dacc) var K.value
                     with
                     | Proved () -> true
-                    | Unknown | Wrong_kind -> false)
+                    | Unknown -> false)
                   | Heap -> true)
                   && (DE.is_defined_at_toplevel (DA.denv dacc) var
                      (* If [var] is known to be a symbol projection, it doesn't
