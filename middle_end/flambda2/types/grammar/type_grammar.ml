@@ -2786,10 +2786,6 @@ module Make_head_of_kind_naked_number (N : Container_types.S) = struct
 
   type n_set = N.Set.t
 
-  module N = struct
-    include N
-  end
-
   let create i = N.Set.singleton i
 
   let create_set is : _ Or_bottom.t =

@@ -124,7 +124,6 @@ let aliases t =
   Cached_level.aliases (One_level.just_after_level t.current_level)
 
 (* CR-someday mshinwell: Should print name occurrence kinds *)
-(* CR-someday mshinwell: Add option to print [aliases] *)
 let [@ocamlformat "disable"] print ppf
       ({ resolver = _; binding_time_resolver = _;get_imported_names = _;
          prev_levels; current_level; next_binding_time = _;
@@ -963,9 +962,7 @@ let cut t ~cut_after =
   if Scope.( >= ) cut_after current_scope
   then TEL.empty
   else
-    let _, _, levels =
-      Scope.Map.split cut_after t.prev_levels
-    in
+    let _, _, levels = Scope.Map.split cut_after t.prev_levels in
     let levels =
       (* Owing to the check above it is certain that we want [t.current_level]
          included in the result. *)

@@ -432,11 +432,8 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
   match t1, t2 with
   | Naked_immediates is1, Naked_immediates is2 ->
     let is = I.Set.inter is1 is2 in
-    if I.Set.is_empty is
-    then Bottom
-    else
-      let<+ ty = TG.Head_of_kind_naked_immediate.create_naked_immediates is in
-      ty, TEE.empty
+    let<+ ty = TG.Head_of_kind_naked_immediate.create_naked_immediates is in
+    ty, TEE.empty
   | Is_int ty1, Is_int ty2 ->
     let<+ ty, env_extension = meet env ty1 ty2 in
     TG.Head_of_kind_naked_immediate.create_is_int ty, env_extension
