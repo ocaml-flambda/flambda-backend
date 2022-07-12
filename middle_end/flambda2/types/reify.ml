@@ -80,7 +80,7 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
         Provers.never_holds_locally_allocated_values env var Flambda_kind.value
       with
       | Proved () -> true
-      | Unknown | Wrong_kind -> false)
+      | Unknown -> false)
   in
   let canonical_simple =
     match TE.get_alias_then_canonical_simple_exn env ~min_name_mode t with
@@ -149,9 +149,9 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
                             | Naked_immediate _ | Naked_float _ | Naked_int32 _
                             | Naked_int64 _ | Naked_nativeint _ ->
                               (* This should never happen, as we should have got
-                                 [Wrong_kind] instead *)
+                                 a kind error instead *)
                               None)
-                      | Unknown | Wrong_kind -> None)
+                      | Unknown -> None)
                     field_types
                 in
                 if List.compare_lengths field_types field_simples = 0
@@ -302,8 +302,7 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
       match Provers.prove_is_int env scrutinee_ty with
       | Proved true -> Simple Simple.untagged_const_true
       | Proved false -> Simple Simple.untagged_const_false
-      | Unknown -> try_canonical_simple ()
-      | Wrong_kind -> Invalid)
+      | Unknown -> try_canonical_simple ())
     | Naked_immediate (Ok (Get_tag block_ty)) -> (
       match Provers.prove_get_tag env block_ty with
       | Proved tags -> (
@@ -316,8 +315,7 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
         match Targetint_31_63.Set.get_singleton is with
         | None -> try_canonical_simple ()
         | Some i -> Simple (Simple.const (Reg_width_const.naked_immediate i)))
-      | Unknown -> try_canonical_simple ()
-      | Wrong_kind -> Invalid)
+      | Unknown -> try_canonical_simple ())
     | Naked_float (Ok fs) -> (
       match Float.Set.get_singleton fs with
       | None -> try_canonical_simple ()

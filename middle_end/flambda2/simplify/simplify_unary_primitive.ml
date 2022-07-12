@@ -174,7 +174,7 @@ let simplify_unbox_number (boxable_number_kind : K.Boxable_number.t) dacc
        certain and it is [Heap]. (As per [Flambda_primitive] we don't currently
        CSE local allocations.) *)
     match alloc_mode with
-    | Unknown | Proved Local | Wrong_kind -> dacc
+    | Unknown | Proved Local -> dacc
     | Proved Heap ->
       let boxing_prim : P.t =
         Unary
@@ -616,10 +616,6 @@ let simplify_is_boxed_float dacc ~original_term ~arg:_ ~arg_ty ~result_var =
     let ty = T.unknown K.naked_immediate in
     let dacc = DA.add_variable dacc result_var ty in
     Simplified_named.reachable original_term ~try_reify:false, dacc
-  | Wrong_kind ->
-    let ty = T.bottom K.naked_immediate in
-    let dacc = DA.add_variable dacc result_var ty in
-    Simplified_named.invalid (), dacc
 
 let simplify_is_flat_float_array dacc ~original_term ~arg:_ ~arg_ty ~result_var
     =

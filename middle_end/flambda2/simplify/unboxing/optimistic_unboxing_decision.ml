@@ -46,7 +46,7 @@ let make_optimistic_number_decision tenv param_type
   | Proved () ->
     let naked_number = Extra_param_and_args.create ~name:decider.param_name in
     Some (Unbox (Number (decider.kind, naked_number)))
-  | Wrong_kind | Unknown -> None
+  | Unknown -> None
 
 let decide tenv param_type deciders : U.decision option =
   List.find_map (make_optimistic_number_decision tenv param_type) deciders
@@ -69,8 +69,15 @@ let rec make_optimistic_decision ~depth tenv ~param_type : U.decision =
          canonicalise any alias again here. *)
       Simple.is_symbol alias
   in
+  let param_kind_is_not_value =
+    match T.kind param_type with
+    | Value -> false
+    | Naked_number _ | Region | Rec_info -> true
+  in
   if param_type_is_alias_to_symbol
   then Do_not_unbox Not_beneficial
+  else if param_kind_is_not_value
+  then Do_not_unbox Not_of_kind_value
   else
     match decide tenv param_type deciders with
     | Some decision ->
@@ -86,7 +93,7 @@ let rec make_optimistic_decision ~depth tenv ~param_type : U.decision =
               tag size
           in
           Unbox (Unique_tag_and_size { tag; fields })
-        | Proved _ | Wrong_kind | Unknown -> (
+        | Proved _ | Unknown -> (
           match T.prove_variant_like tenv param_type with
           | Proved { const_ctors; non_const_ctors_with_sizes }
             when unbox_variants ->
@@ -105,7 +112,7 @@ let rec make_optimistic_decision ~depth tenv ~param_type : U.decision =
                 non_const_ctors_with_sizes
             in
             Unbox (Variant { tag; const_ctors; fields_by_tag })
-          | Proved _ | Wrong_kind | Unknown -> (
+          | Proved _ | Unknown -> (
             match T.prove_single_closures_entry tenv param_type with
             | Proved (function_slot, _, closures_entry, _fun_decl)
               when unbox_closures ->
@@ -114,8 +121,7 @@ let rec make_optimistic_decision ~depth tenv ~param_type : U.decision =
               in
               Unbox
                 (Closure_single_entry { function_slot; vars_within_closure })
-            | Proved _ | Wrong_kind | Unknown ->
-              Do_not_unbox Incomplete_parameter_type)))
+            | Proved _ | Unknown -> Do_not_unbox Incomplete_parameter_type)))
 
 and make_optimistic_fields ~add_tag_to_name ~depth tenv param_type (tag : Tag.t)
     size =

@@ -26,6 +26,7 @@ type do_not_unbox_reason =
   | Max_depth_exceeded
   | Incomplete_parameter_type
   | Not_enough_information_at_use
+  | Not_of_kind_value
 
 module Extra_param_and_args : sig
   type t = private
