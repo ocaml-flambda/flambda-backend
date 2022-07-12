@@ -111,8 +111,8 @@ val prove_is_int : Typing_env.t -> Type_grammar.t -> bool proof_of_property
 val prove_get_tag :
   Typing_env.t -> Type_grammar.t -> Tag.Set.t proof_of_property
 
-val prove_is_flat_float_array :
-  Typing_env.t -> Type_grammar.t -> bool proof_of_property
+val meet_is_flat_float_array :
+  Typing_env.t -> Type_grammar.t -> bool meet_shortcut
 
 val prove_is_immediates_array :
   Typing_env.t -> Type_grammar.t -> unit proof_of_property
@@ -182,14 +182,6 @@ val meet_block_field_simple :
   Type_grammar.t ->
   Targetint_31_63.t ->
   Simple.t meet_shortcut
-
-(* val meet_variant_field_simple :
- *   Typing_env.t ->
- *   min_name_mode:Name_mode.t ->
- *   Type_grammar.t ->
- *   Tag.t ->
- *   Targetint_31_63.t ->
- *   Simple.t meet_shortcut *)
 
 val meet_project_value_slot_simple :
   Typing_env.t ->

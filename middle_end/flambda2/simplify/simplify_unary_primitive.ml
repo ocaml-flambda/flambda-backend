@@ -624,8 +624,8 @@ let simplify_is_boxed_float dacc ~original_term ~arg:_ ~arg_ty ~result_var =
 let simplify_is_flat_float_array dacc ~original_term ~arg:_ ~arg_ty ~result_var
     =
   assert (Flambda_features.flat_float_array ());
-  match T.prove_is_flat_float_array (DA.typing_env dacc) arg_ty with
-  | Proved is_flat_float_array ->
+  match T.meet_is_flat_float_array (DA.typing_env dacc) arg_ty with
+  | Known_result is_flat_float_array ->
     let imm = Targetint_31_63.bool is_flat_float_array in
     let ty = T.this_naked_immediate imm in
     let dacc = DA.add_variable dacc result_var ty in
@@ -634,10 +634,14 @@ let simplify_is_flat_float_array dacc ~original_term ~arg:_ ~arg_ty ~result_var
            (Simple.const (Reg_width_const.naked_immediate imm)))
         ~try_reify:false,
       dacc )
-  | Unknown | Wrong_kind ->
+  | Need_meet ->
     let ty = T.unknown K.naked_immediate in
     let dacc = DA.add_variable dacc result_var ty in
     Simplified_named.reachable original_term ~try_reify:false, dacc
+  | Invalid ->
+    let ty = T.bottom K.naked_immediate in
+    let dacc = DA.add_variable dacc result_var ty in
+    Simplified_named.invalid (), dacc
 
 let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     ~arg_ty dbg ~result_var =

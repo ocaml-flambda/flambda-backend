@@ -608,7 +608,7 @@ val prove_unique_tag_and_size :
 
 val prove_is_int : Typing_env.t -> t -> bool proof_of_property
 
-val prove_is_flat_float_array : Typing_env.t -> t -> bool proof_of_property
+val meet_is_flat_float_array : Typing_env.t -> t -> bool meet_shortcut
 
 val prove_is_immediates_array : Typing_env.t -> t -> unit proof_of_property
 
