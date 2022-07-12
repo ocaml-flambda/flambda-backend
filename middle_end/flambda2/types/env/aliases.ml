@@ -533,6 +533,12 @@ let empty =
     aliases_of_consts = Reg_width_const.Map.empty
   }
 
+let is_empty
+    { canonical_elements; aliases_of_canonical_names; aliases_of_consts } =
+  Name.Map.is_empty canonical_elements
+  && Name.Map.is_empty aliases_of_canonical_names
+  && Reg_width_const.Map.is_empty aliases_of_consts
+
 type canonical =
   | Is_canonical
   | Alias_of_canonical of
@@ -975,32 +981,6 @@ let get_aliases t element =
           alias_names_with_coercions_to_canonical));
     Alias_set.create_aliases_of_element ~element ~canonical_element
       ~coercion_from_canonical_to_element ~alias_names_with_coercions_to_element
-
-let ids_for_export
-    { canonical_elements; aliases_of_canonical_names; aliases_of_consts } =
-  let ids =
-    Name.Map.fold
-      (fun elt (canonical, coercion) ids ->
-        let ids = Ids_for_export.union ids (Coercion.ids_for_export coercion) in
-        Ids_for_export.add_name (Ids_for_export.add_simple ids canonical) elt)
-      canonical_elements Ids_for_export.empty
-  in
-  let ids =
-    Name.Map.fold
-      (fun elt aliases_of ids ->
-        Ids_for_export.add_name
-          (Ids_for_export.union ids
-             (Aliases_of_canonical_element.ids_for_export aliases_of))
-          elt)
-      aliases_of_canonical_names ids
-  in
-  Reg_width_const.Map.fold
-    (fun const aliases_of ids ->
-      Ids_for_export.add_const
-        (Ids_for_export.union ids
-           (Aliases_of_canonical_element.ids_for_export aliases_of))
-        const)
-    aliases_of_consts ids
 
 let apply_renaming
     { canonical_elements; aliases_of_canonical_names; aliases_of_consts }

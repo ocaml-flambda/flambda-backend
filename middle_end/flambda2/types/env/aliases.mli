@@ -42,8 +42,6 @@
 
 type t
 
-include Contains_ids.S with type t := t
-
 val print : Format.formatter -> t -> unit
 
 (** Functions taking [binding_time_resolver] can raise exceptions from that
@@ -56,6 +54,8 @@ val invariant :
   unit
 
 val empty : t
+
+val is_empty : t -> bool
 
 (** The result of calling [add] to state that two [Simple.t]s are now aliases. *)
 type add_result = private

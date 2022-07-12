@@ -189,10 +189,14 @@ let free_function_slots_and_value_slots
     names_to_types from_projections
 
 let ids_for_export t =
+  if not (Aliases.is_empty t.aliases)
+  then
+    Misc.fatal_error
+      "Aliases structure must be empty for export; did you forget to call \
+       [clean_for_export]?";
   Name.Map.fold
     (fun name (typ, _binding_time_and_mode) ids ->
       Ids_for_export.add_name
         (Ids_for_export.union ids (Type_grammar.ids_for_export typ))
         name)
-    (names_to_types t)
-    (Aliases.ids_for_export (aliases t))
+    (names_to_types t) Ids_for_export.empty
