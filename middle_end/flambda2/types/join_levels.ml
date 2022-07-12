@@ -306,9 +306,8 @@ let n_way_join ~env_at_fork envs_with_levels ~params
     join ~env_at_fork envs_with_levels ~params ~extra_lifted_consts_in_use_envs
       ~extra_allowed_names
 
-let cut_and_n_way_join definition_typing_env ts_and_use_ids ~params
-    ~cut_after ~extra_lifted_consts_in_use_envs
-    ~extra_allowed_names =
+let cut_and_n_way_join definition_typing_env ts_and_use_ids ~params ~cut_after
+    ~extra_lifted_consts_in_use_envs ~extra_allowed_names =
   let after_cuts =
     List.map
       (fun (t, use_id, use_kind) ->

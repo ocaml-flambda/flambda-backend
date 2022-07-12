@@ -30,8 +30,8 @@ type result =
     escapes : bool
   }
 
-let join ?cut_after denv typing_env params
-    ~env_at_fork_plus_params ~consts_lifted_during_body ~use_envs_with_ids =
+let join ?cut_after denv typing_env params ~env_at_fork_plus_params
+    ~consts_lifted_during_body ~use_envs_with_ids =
   let definition_scope = DE.get_continuation_scope env_at_fork_plus_params in
   let extra_lifted_consts_in_use_envs =
     LCS.all_defined_symbols consts_lifted_during_body
@@ -62,13 +62,10 @@ let join ?cut_after denv typing_env params
     | None -> Name_occurrences.empty
     | Some cse_join_result -> cse_join_result.extra_allowed_names
   in
-  let cut_after =
-    Option.value cut_after ~default:definition_scope
-  in
+  let cut_after = Option.value cut_after ~default:definition_scope in
   let env =
-    T.cut_and_n_way_join typing_env use_envs_with_ids' ~params
-      ~cut_after ~extra_lifted_consts_in_use_envs
-      ~extra_allowed_names
+    T.cut_and_n_way_join typing_env use_envs_with_ids' ~params ~cut_after
+      ~extra_lifted_consts_in_use_envs ~extra_allowed_names
   in
   let handler_env =
     env
@@ -117,9 +114,8 @@ let meet_equations_on_params typing_env ~params:params' ~param_types =
         TE.add_env_extension typing_env env_extension)
     typing_env params param_types
 
-let compute_handler_env ?cut_after uses
-    ~env_at_fork_plus_params ~consts_lifted_during_body ~params
-    ~code_age_relation_after_body =
+let compute_handler_env ?cut_after uses ~env_at_fork_plus_params
+    ~consts_lifted_during_body ~params ~code_age_relation_after_body =
   (* Augment the environment at each use with the necessary equations about the
      parameters (whose variables will already be defined in the environment). *)
   let need_to_meet_param_types =
@@ -207,8 +203,8 @@ let compute_handler_env ?cut_after uses
     let handler_env, extra_params_and_args =
       if should_do_join
       then
-        join ?cut_after denv typing_env params
-          ~env_at_fork_plus_params ~consts_lifted_during_body ~use_envs_with_ids
+        join ?cut_after denv typing_env params ~env_at_fork_plus_params
+          ~consts_lifted_during_body ~use_envs_with_ids
       else denv, Continuation_extra_params_and_args.empty
     in
     let handler_env =
