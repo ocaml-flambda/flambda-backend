@@ -233,7 +233,14 @@ let simplify_is_int_or_get_tag dacc ~original_term ~scrutinee ~scrutinee_ty:_
     ~result_var ~make_shape =
   (* CR mshinwell: Check [scrutinee_ty] (e.g. its kind)? *)
   (* CR vlaviron: We could use prover functions to simplify but it's probably
-     not going to help that much *)
+     not going to help that much.
+
+     Example: Option.is_none is compiled to a single [Is_int] primitive
+     (followed by [Tag_immediate]), and if called on a value with statically
+     known shape then the type that will be propagated is not the most precise
+     ([Is_int x] instead of a constant). However, in practice the information
+     can be recovered both when switching on the value (through regular meet) or
+     when trying to lift a block containing the value (through reify). *)
   let dacc = DA.add_variable dacc result_var (make_shape scrutinee) in
   Simplified_named.reachable original_term ~try_reify:true, dacc
 
