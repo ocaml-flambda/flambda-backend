@@ -660,7 +660,10 @@ let meet_block_field_simple env ~min_name_mode t field_index :
       if TG.Row_like_for_blocks.is_bottom blocks
       then Invalid
       else
-        match (TG.Row_like_for_blocks.get_field blocks field_index : _ Or_unknown_or_bottom.t) with
+        match
+          (TG.Row_like_for_blocks.get_field blocks field_index
+            : _ Or_unknown_or_bottom.t)
+        with
         | Bottom -> Invalid
         | Unknown -> Need_meet
         | Ok ty -> (

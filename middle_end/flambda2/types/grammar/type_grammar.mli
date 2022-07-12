@@ -396,8 +396,8 @@ module Row_like_for_blocks : sig
 
       - The nth field exists, is unique, but has Unknown type
 
-      This will return Bottom if there is no nth field
-      (the read is invalid, and will produce bottom)
+      This will return Bottom if there is no nth field (the read is invalid, and
+      will produce bottom)
 
       The handling of those cases could be improved:
 
