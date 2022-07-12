@@ -36,18 +36,16 @@ let find_kind t var = Variable.Map.find var t.defined_vars
 
 let variable_is_defined t var = Variable.Map.mem var t.defined_vars
 
-(* CR mshinwell: print symbol projections along with tidying up this function *)
+(* CR mshinwell: print symbol projections *)
 let print_equations ppf equations =
   let equations = Name.Map.bindings equations in
   match equations with
   | [] -> Format.pp_print_string ppf "()"
   | _ :: _ ->
-    Format.pp_print_string ppf "(";
-    Format.pp_print_list ~pp_sep:Format.pp_print_space
-      (fun ppf (name, ty) ->
-        Format.fprintf ppf "@[<hov 1>%a@ :@ %a@]" Name.print name TG.print ty)
-      ppf equations;
-    Format.pp_print_string ppf ")"
+    Format.fprintf ppf "(%a)"
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space (fun ppf (name, ty) ->
+           Format.fprintf ppf "@[<hov 1>%a@ :@ %a@]" Name.print name TG.print ty))
+      equations
 
 let [@ocamlformat "disable"] print ppf
       { defined_vars; binding_times = _; equations;
@@ -66,7 +64,7 @@ let [@ocamlformat "disable"] print ppf
         @[<hov 1>(defined_vars@ @[<hov 1>%a@])@]@ \
         @[<hov 1>(equations@ @[<v 1>%a@])@]@ \
         )@]"
-      Variable.Set.print (Variable.Map.keys defined_vars) (* XXX *)
+      Variable.Set.print (Variable.Map.keys defined_vars)
       print_equations equations
 
 let fold_on_defined_vars f t init =
@@ -171,17 +169,17 @@ let concat (t1 : t) (t2 : t) =
   in
   { defined_vars; binding_times; equations; symbol_projections }
 
-let all_ids_for_export t =
+let ids_for_export t =
   let variables = Variable.Map.keys t.defined_vars in
   let ids = Ids_for_export.create ~variables () in
   let equation name ty ids =
-    let ids = Ids_for_export.union ids (TG.all_ids_for_export ty) in
+    let ids = Ids_for_export.union ids (TG.ids_for_export ty) in
     Ids_for_export.add_name ids name
   in
   let ids = Name.Map.fold equation t.equations ids in
   let symbol_projection var proj ids =
     let ids =
-      Ids_for_export.union ids (Symbol_projection.all_ids_for_export proj)
+      Ids_for_export.union ids (Symbol_projection.ids_for_export proj)
     in
     Ids_for_export.add_variable ids var
   in

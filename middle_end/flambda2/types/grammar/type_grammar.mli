@@ -46,6 +46,7 @@ and head_of_kind_value = private
         is_unique : bool;
         alloc_mode : Alloc_mode.t Or_unknown.t
       }
+  (* CR mshinwell: It would be better to track per-field mutability. *)
   | Mutable_block of { alloc_mode : Alloc_mode.t Or_unknown.t }
   | Boxed_float of t * Alloc_mode.t Or_unknown.t
   | Boxed_int32 of t * Alloc_mode.t Or_unknown.t
@@ -66,13 +67,17 @@ and head_of_kind_naked_immediate = private
   | Is_int of t
   | Get_tag of t
 
-and head_of_kind_naked_float = Numeric_types.Float_by_bit_pattern.Set.t
+(** Invariant: the float/integer sets for naked float, int32, int64 and
+    nativeint heads are non-empty. (Empty sets are represented as an overall
+    bottom type.) *)
 
-and head_of_kind_naked_int32 = Numeric_types.Int32.Set.t
+and head_of_kind_naked_float = private Numeric_types.Float_by_bit_pattern.Set.t
 
-and head_of_kind_naked_int64 = Numeric_types.Int64.Set.t
+and head_of_kind_naked_int32 = private Numeric_types.Int32.Set.t
 
-and head_of_kind_naked_nativeint = Targetint_32_64.Set.t
+and head_of_kind_naked_int64 = private Numeric_types.Int64.Set.t
+
+and head_of_kind_naked_nativeint = private Targetint_32_64.Set.t
 
 and head_of_kind_rec_info = Rec_info_expr.t
 
@@ -204,16 +209,15 @@ val this_naked_int64 : Numeric_types.Int64.t -> t
 
 val this_naked_nativeint : Targetint_32_64.t -> t
 
-val these_naked_immediates : no_alias:bool -> Targetint_31_63.Set.t -> t
+val these_naked_immediates : Targetint_31_63.Set.t -> t
 
-val these_naked_floats :
-  no_alias:bool -> Numeric_types.Float_by_bit_pattern.Set.t -> t
+val these_naked_floats : Numeric_types.Float_by_bit_pattern.Set.t -> t
 
-val these_naked_int32s : no_alias:bool -> Numeric_types.Int32.Set.t -> t
+val these_naked_int32s : Numeric_types.Int32.Set.t -> t
 
-val these_naked_int64s : no_alias:bool -> Numeric_types.Int64.Set.t -> t
+val these_naked_int64s : Numeric_types.Int64.Set.t -> t
 
-val these_naked_nativeints : no_alias:bool -> Targetint_32_64.Set.t -> t
+val these_naked_nativeints : Targetint_32_64.Set.t -> t
 
 val boxed_float_alias_to :
   naked_float:Variable.t -> Alloc_mode.t Or_unknown.t -> t
@@ -270,9 +274,6 @@ module Product : sig
     val create : flambda_type Function_slot.Map.t -> t
 
     val width : t -> Targetint_31_63.t
-
-    (* CR mshinwell: check if this is used *)
-    val components : t -> flambda_type list
   end
 
   module Value_slot_indexed : sig
@@ -283,8 +284,6 @@ module Product : sig
     val create : flambda_type Value_slot.Map.t -> t
 
     val width : t -> Targetint_31_63.t
-
-    val components : t -> flambda_type list
   end
 
   module Int_indexed : sig
@@ -542,7 +541,8 @@ module Head_of_kind_value : sig
 
   val create_mutable_block : Alloc_mode.t Or_unknown.t -> t
 
-  (* XXX these alloc mode params should probably be labelled *)
+  (* CR-someday mshinwell: these alloc mode params should probably be
+     labelled *)
   val create_boxed_float : flambda_type -> Alloc_mode.t Or_unknown.t -> t
 
   val create_boxed_int32 : flambda_type -> Alloc_mode.t Or_unknown.t -> t
@@ -567,11 +567,53 @@ end
 module Head_of_kind_naked_immediate : sig
   type t = head_of_kind_naked_immediate
 
-  val create_naked_immediates : Targetint_31_63.Set.t -> t
+  val create_naked_immediate : Targetint_31_63.t -> t
+
+  val create_naked_immediates : Targetint_31_63.Set.t -> t Or_bottom.t
 
   val create_is_int : flambda_type -> t
 
   val create_get_tag : flambda_type -> t
 end
+
+module type Head_of_kind_naked_number_intf = sig
+  type t
+
+  type n
+
+  type n_set
+
+  val create : n -> t
+
+  val create_set : n_set -> t Or_bottom.t
+
+  val union : t -> t -> t
+
+  val inter : t -> t -> t Or_bottom.t
+end
+
+module Head_of_kind_naked_float :
+  Head_of_kind_naked_number_intf
+    with type t = head_of_kind_naked_float
+    with type n = Numeric_types.Float_by_bit_pattern.t
+    with type n_set = Numeric_types.Float_by_bit_pattern.Set.t
+
+module Head_of_kind_naked_int32 :
+  Head_of_kind_naked_number_intf
+    with type t = head_of_kind_naked_int32
+    with type n = Numeric_types.Int32.t
+    with type n_set = Numeric_types.Int32.Set.t
+
+module Head_of_kind_naked_int64 :
+  Head_of_kind_naked_number_intf
+    with type t = head_of_kind_naked_int64
+    with type n = Numeric_types.Int64.t
+    with type n_set = Numeric_types.Int64.Set.t
+
+module Head_of_kind_naked_nativeint :
+  Head_of_kind_naked_number_intf
+    with type t = head_of_kind_naked_nativeint
+    with type n = Targetint_32_64.t
+    with type n_set = Targetint_32_64.Set.t
 
 val recover_some_aliases : t -> t

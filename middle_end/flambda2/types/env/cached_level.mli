@@ -47,6 +47,8 @@ val clean_for_export : t -> reachable_names:Name_occurrences.t -> t
 
 val apply_renaming : t -> Renaming.t -> t
 
+include Contains_ids.S with type t := t
+
 val merge : t -> t -> t
 
 val remove_unused_value_slots_and_shortcut_aliases :

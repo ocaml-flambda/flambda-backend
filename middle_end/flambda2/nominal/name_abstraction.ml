@@ -67,12 +67,12 @@ let free_names (type bindable)
     ~free_names_of_term =
   Name_occurrences.diff (free_names_of_term term) (Bindable.free_names bindable)
 
-let all_ids_for_export (type bindable)
+let ids_for_export (type bindable)
     (module Bindable : Bindable.S with type t = bindable) (bindable, term)
-    ~all_ids_for_export_of_term =
+    ~ids_for_export_of_term =
   Ids_for_export.union
-    (Bindable.all_ids_for_export bindable)
-    (all_ids_for_export_of_term term)
+    (Bindable.ids_for_export bindable)
+    (ids_for_export_of_term term)
 
 module Make (Bindable : Bindable.S) (Term : Term) = struct
   type nonrec t = (Bindable.t, Term.t) t
@@ -104,9 +104,9 @@ module Make (Bindable : Bindable.S) (Term : Term) = struct
   let[@inline always] ( let<> ) t f =
     pattern_match t ~f:(fun bindable term -> f (bindable, term))
 
-  let all_ids_for_export t =
-    all_ids_for_export
+  let ids_for_export t =
+    ids_for_export
       (module Bindable)
-      t ~all_ids_for_export_of_term:Term.all_ids_for_export
+      t ~ids_for_export_of_term:Term.ids_for_export
 end
 [@@inline always]

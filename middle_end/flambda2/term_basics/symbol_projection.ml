@@ -103,5 +103,5 @@ let free_names { symbol; projection } =
          Name_mode.normal)
       project_from Name_mode.normal
 
-let all_ids_for_export { symbol; projection = _ } =
+let ids_for_export { symbol; projection = _ } =
   Ids_for_export.singleton_symbol symbol

@@ -92,7 +92,7 @@ module Pattern = struct
       |> List.map Code_id_or_symbol.create_symbol
     | Block_like symbol -> [Code_id_or_symbol.create_symbol symbol]
 
-  let all_ids_for_export t =
+  let ids_for_export t =
     match t with
     | Code code_id -> Ids_for_export.singleton_code_id code_id
     | Set_of_closures closure_symbols ->
@@ -164,8 +164,8 @@ let apply_renaming t renaming =
 
 let free_names t = List.map Pattern.free_names t |> Name_occurrences.union_list
 
-let all_ids_for_export t =
-  List.map Pattern.all_ids_for_export t |> Ids_for_export.union_list
+let ids_for_export t =
+  List.map Pattern.ids_for_export t |> Ids_for_export.union_list
 
 let concat t1 t2 = t1 @ t2
 

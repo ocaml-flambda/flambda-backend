@@ -61,7 +61,7 @@ let apply_renaming ({ in_order; _ } as t) renaming =
   in
   if in_order == in_order' then t else create in_order'
 
-let all_ids_for_export { funs; _ } =
+let ids_for_export { funs; _ } =
   Function_slot.Map.fold
     (fun _function_slot code_id ids -> Ids_for_export.add_code_id ids code_id)
     funs Ids_for_export.empty

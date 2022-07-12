@@ -45,11 +45,11 @@ module Bound = struct
     then t
     else { params = params'; results = results'; other_vars = other_vars' }
 
-  let all_ids_for_export { params; results; other_vars } =
+  let ids_for_export { params; results; other_vars } =
     let ids =
       Ids_for_export.union
-        (Bound_parameters.all_ids_for_export params)
-        (Bound_parameters.all_ids_for_export results)
+        (Bound_parameters.ids_for_export params)
+        (Bound_parameters.ids_for_export results)
     in
     List.fold_left
       (fun ids var -> Ids_for_export.add_variable ids var)
@@ -165,7 +165,7 @@ let free_names t =
 
 let apply_renaming = A.apply_renaming
 
-let all_ids_for_export = A.all_ids_for_export
+let ids_for_export = A.ids_for_export
 
 let map_result_types t ~f =
   A.pattern_match t

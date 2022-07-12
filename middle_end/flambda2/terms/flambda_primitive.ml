@@ -287,7 +287,6 @@ let writing_to_an_array = writing_to_a_block
 
 let writing_to_bytes_or_bigstring = writing_to_a_block
 
-(* CR mshinwell: Improve naming *)
 let bigarray_kind = K.value
 
 let bigstring_kind = K.value
@@ -861,7 +860,7 @@ let effects_and_coeffects_of_unary_primitive p =
       ( Effects.Only_generative_effects destination_mutability,
         Coeffects.No_coeffects )
     | Immutable_unique ->
-      (* XCR vlaviron: this should never occur, but it's hard to express it
+      (* CR vlaviron: this should never occur, but it's hard to express it
          without duplicating the mutability type
 
          mshinwell: Adding a second mutability type seems like a good thing to
@@ -880,10 +879,7 @@ let effects_and_coeffects_of_unary_primitive p =
   | Get_tag ->
     (* [Obj.truncate] has now been removed. *)
     Effects.No_effects, Coeffects.No_coeffects
-  | String_length _ ->
-    (* CR mshinwell: check this is right. (Even with safe-string off, I don't
-       think changing the length of a string is possible.) *)
-    Effects.No_effects, Coeffects.No_coeffects
+  | String_length _ -> Effects.No_effects, Coeffects.No_coeffects
   | Int_as_pointer -> Effects.No_effects, Coeffects.No_coeffects
   | Opaque_identity -> Effects.Arbitrary_effects, Coeffects.Has_coeffects
   | Int_arith (_, (Neg | Swap_byte_endianness))
@@ -1503,7 +1499,7 @@ let apply_renaming t renaming =
     let xs' = Simple.List.apply_renaming xs renaming in
     if xs' == xs then t else Variadic (prim, xs')
 
-let all_ids_for_export t =
+let ids_for_export t =
   match t with
   | Nullary _ -> Ids_for_export.empty
   | Unary (_prim, x0) -> Ids_for_export.from_simple x0

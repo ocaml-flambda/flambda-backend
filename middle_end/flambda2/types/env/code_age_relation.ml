@@ -51,10 +51,6 @@ let rec all_ids_up_to_root t ~resolver id =
 let num_ids_up_to_root t ~resolver id =
   Code_id.Set.cardinal (all_ids_up_to_root t ~resolver id)
 
-(* CR mshinwell: There are no doubt better implementations than the below. *)
-
-(* CR mshinwell: We need a fatal error now if a code ID isn't in [t]. *)
-
 let meet t ~resolver id1 id2 : _ Or_bottom.t =
   (* Whichever of [id1] and [id2] is newer (or the same as the other one), in
      the case where they are comparable; otherwise bottom. *)

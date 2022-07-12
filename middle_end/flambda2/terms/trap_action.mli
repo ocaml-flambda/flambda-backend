@@ -52,13 +52,13 @@ module Option : sig
 
   val print : Format.formatter -> t -> unit
 
-  val all_ids_for_export : t -> Ids_for_export.t
+  val ids_for_export : t -> Ids_for_export.t
 
   val apply_renaming : t -> Renaming.t -> t
 end
 
 val compare : t -> t -> int
 
-val all_ids_for_export : t -> Ids_for_export.t
+val ids_for_export : t -> Ids_for_export.t
 
 val apply_renaming : t -> Renaming.t -> t

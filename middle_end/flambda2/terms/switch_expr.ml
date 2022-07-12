@@ -106,9 +106,9 @@ let apply_renaming ({ condition_dbg; scrutinee; arms } as t) renaming =
   then t
   else { condition_dbg; scrutinee = scrutinee'; arms = arms' }
 
-let all_ids_for_export { condition_dbg = _; scrutinee; arms } =
+let ids_for_export { condition_dbg = _; scrutinee; arms } =
   let scrutinee_ids = Ids_for_export.from_simple scrutinee in
   Targetint_31_63.Map.fold
     (fun _discr action ids ->
-      Ids_for_export.union ids (Apply_cont_expr.all_ids_for_export action))
+      Ids_for_export.union ids (Apply_cont_expr.ids_for_export action))
     arms scrutinee_ids

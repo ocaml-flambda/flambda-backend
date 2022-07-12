@@ -14,9 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-module Float = Numeric_types.Float_by_bit_pattern
-module Int32 = Numeric_types.Int32
-module Int64 = Numeric_types.Int64
 module K = Flambda_kind
 module MTC = More_type_creators
 module TE = Typing_env
@@ -305,15 +302,17 @@ let expand_head_of_alias_type env kind
       match Reg_width_const.descr const with
       | Naked_immediate i ->
         ET.create_naked_immediate
-          (TG.Head_of_kind_naked_immediate.create_naked_immediates
-             (Targetint_31_63.Set.singleton i))
+          (TG.Head_of_kind_naked_immediate.create_naked_immediate i)
       | Tagged_immediate i ->
         ET.create_value (TG.Head_of_kind_value.create_tagged_immediate i)
-      | Naked_float f -> ET.create_naked_float (Float.Set.singleton f)
-      | Naked_int32 i -> ET.create_naked_int32 (Int32.Set.singleton i)
-      | Naked_int64 i -> ET.create_naked_int64 (Int64.Set.singleton i)
+      | Naked_float f ->
+        ET.create_naked_float (TG.Head_of_kind_naked_float.create f)
+      | Naked_int32 i ->
+        ET.create_naked_int32 (TG.Head_of_kind_naked_int32.create i)
+      | Naked_int64 i ->
+        ET.create_naked_int64 (TG.Head_of_kind_naked_int64.create i)
       | Naked_nativeint i ->
-        ET.create_naked_nativeint (Targetint_32_64.Set.singleton i))
+        ET.create_naked_nativeint (TG.Head_of_kind_naked_nativeint.create i))
     ~name
 
 let expand_head0 env ty ~known_canonical_simple_at_in_types_mode =

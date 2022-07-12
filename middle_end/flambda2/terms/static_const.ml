@@ -243,14 +243,13 @@ let apply_renaming t renaming =
       if fields' == fields then t else Immutable_float_array fields'
     | Empty_array -> Empty_array
 
-let all_ids_for_export t =
+let ids_for_export t =
   match t with
-  | Set_of_closures set -> Set_of_closures.all_ids_for_export set
+  | Set_of_closures set -> Set_of_closures.ids_for_export set
   | Block (_tag, _mut, fields) ->
     List.fold_left
       (fun ids field ->
-        Ids_for_export.union ids
-          (Field_of_static_block.all_ids_for_export field))
+        Ids_for_export.union ids (Field_of_static_block.ids_for_export field))
       Ids_for_export.empty fields
   | Boxed_float (Var (var, _dbg))
   | Boxed_int32 (Var (var, _dbg))

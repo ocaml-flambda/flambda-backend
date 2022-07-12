@@ -286,8 +286,8 @@ let[@inline always] apply_coercion ~apply_coercion_head coercion t :
     let<+ head = apply_coercion_head head coercion in
     create head
 
-let all_ids_for_export ~all_ids_for_export_head (t : _ t) =
+let ids_for_export ~ids_for_export_head (t : _ t) =
   match descr t with
   | Unknown | Bottom -> Ids_for_export.empty
-  | Ok (No_alias head) -> all_ids_for_export_head head
+  | Ok (No_alias head) -> ids_for_export_head head
   | Ok (Equals simple) -> Ids_for_export.from_simple simple

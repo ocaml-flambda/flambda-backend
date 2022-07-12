@@ -120,7 +120,7 @@ module Expr : sig
 
   include Expr_std.S_no_free_names with type t := t
 
-  val all_ids_for_export : t -> Ids_for_export.t
+  val ids_for_export : t -> Ids_for_export.t
 
   (** Extract the description of an expression. *)
   val descr : t -> expr_descr

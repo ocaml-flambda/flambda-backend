@@ -80,8 +80,8 @@ val free_names :
   free_names_of_term:('term -> Name_occurrences.t) ->
   Name_occurrences.t
 
-val all_ids_for_export :
+val ids_for_export :
   (module Bindable.S with type t = 'bindable) ->
   ('bindable, 'term) t ->
-  all_ids_for_export_of_term:('term -> Ids_for_export.t) ->
+  ids_for_export_of_term:('term -> Ids_for_export.t) ->
   Ids_for_export.t

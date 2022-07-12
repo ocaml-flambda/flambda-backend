@@ -37,8 +37,6 @@ let print_name_modes ~restrict_to ~min_binding_time ppf t =
        (fun name _ -> Name.Set.mem name restrict_to)
        t.names_to_types)
 
-(* CR mshinwell: add [invariant] function *)
-
 let empty =
   { names_to_types = Name.Map.empty;
     aliases = Aliases.empty;
@@ -50,10 +48,6 @@ let names_to_types t = t.names_to_types
 let aliases t = t.aliases
 
 let symbol_projections t = t.symbol_projections
-
-(* CR mshinwell: At least before the following two functions were split (used to
-   be add-or-replace), the [names_to_types] map addition was a major source of
-   allocation. *)
 
 let add_or_replace_binding t (name : Name.t) ty binding_time name_mode =
   let binding_time_and_mode =
@@ -193,3 +187,16 @@ let free_function_slots_and_value_slots
         (Name_occurrences.restrict_to_value_slots_and_function_slots
            free_names_of_ty))
     names_to_types from_projections
+
+let ids_for_export t =
+  if not (Aliases.is_empty t.aliases)
+  then
+    Misc.fatal_error
+      "Aliases structure must be empty for export; did you forget to call \
+       [clean_for_export]?";
+  Name.Map.fold
+    (fun name (typ, _binding_time_and_mode) ids ->
+      Ids_for_export.add_name
+        (Ids_for_export.union ids (Type_grammar.ids_for_export typ))
+        name)
+    (names_to_types t) Ids_for_export.empty

@@ -45,7 +45,7 @@ module Serializable : sig
 
   val name_domain : t -> Name.Set.t
 
-  val all_ids_for_export : t -> Ids_for_export.t
+  val ids_for_export : t -> Ids_for_export.t
 
   val apply_renaming : t -> Renaming.t -> t
 
@@ -86,7 +86,7 @@ module Join_env : sig
 
   val right_join_env : t -> typing_env
 
-  type now_joining_result =
+  type now_joining_result = private
     | Continue of t
     | Stop
 
@@ -100,8 +100,6 @@ type meet_type =
   Type_grammar.t ->
   Type_grammar.t ->
   (Type_grammar.t * Typing_env_extension.t) Or_bottom.t
-
-val invariant : t -> unit
 
 val print : Format.formatter -> t -> unit
 
@@ -159,7 +157,6 @@ val mem : ?min_name_mode:Name_mode.t -> t -> Name.t -> bool
 
 val mem_simple : ?min_name_mode:Name_mode.t -> t -> Simple.t -> bool
 
-(* CR mshinwell: clarify that this does not meet *)
 (* CR vlaviron: If the underlying level in the extension defines several
    variables, then there is no guarantee that the binding order in the result
    will match the binding order used to create the level. If they don't match,
@@ -203,6 +200,6 @@ val code_age_relation : t -> Code_age_relation.t
 
 val with_code_age_relation : t -> Code_age_relation.t -> t
 
-val cut : t -> unknown_if_defined_at_or_later_than:Scope.t -> Typing_env_level.t
+val cut : t -> cut_after:Scope.t -> Typing_env_level.t
 
 val free_names_transitive : t -> Type_grammar.t -> Name_occurrences.t

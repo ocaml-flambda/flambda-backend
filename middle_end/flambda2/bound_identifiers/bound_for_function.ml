@@ -94,15 +94,13 @@ let apply_renaming
   let my_depth = Renaming.apply_variable renaming my_depth in
   { return_continuation; exn_continuation; params; my_closure; my_depth }
 
-let all_ids_for_export
+let ids_for_export
     { return_continuation; exn_continuation; params; my_closure; my_depth } =
   let ids =
     Ids_for_export.add_continuation Ids_for_export.empty return_continuation
   in
   let ids = Ids_for_export.add_continuation ids exn_continuation in
-  let ids =
-    Ids_for_export.union ids (Bound_parameters.all_ids_for_export params)
-  in
+  let ids = Ids_for_export.union ids (Bound_parameters.ids_for_export params) in
   let ids = Ids_for_export.add_variable ids my_closure in
   Ids_for_export.add_variable ids my_depth
 

@@ -643,8 +643,8 @@ let rec print ppf t =
 and print_head_of_kind_value ppf head =
   match head with
   | Variant { blocks; immediates; is_unique; alloc_mode } ->
-    (* CR mshinwell: Improve so that we elide blocks and/or immediates when
-       they're empty. *)
+    (* CR-someday mshinwell: Improve so that we elide blocks and/or immediates
+       when they're empty. *)
     Format.fprintf ppf
       "@[<hov 1>(Variant%s@ @[<hov 1>(blocks@ %a)@]@ @[<hov 1>(tagged_imms@ \
        %a)@])@]"
@@ -729,7 +729,6 @@ and print_row_like :
   in
   if row_like_is_bottom ~known ~other ~is_empty_map_known
   then
-    (* CR mshinwell: factor out (and elsewhere) *)
     let colour = Flambda_colours.top_or_bottom_type () in
     if Flambda_features.unicode ()
     then
@@ -813,73 +812,68 @@ and print_env_extension ppf { equations } =
   Format.fprintf ppf "@[<hov 1>(equations@ @[<v 1>%a@])@]" print_equations
     equations
 
-let rec all_ids_for_export t =
+let rec ids_for_export t =
   match t with
   | Value ty ->
-    TD.all_ids_for_export
-      ~all_ids_for_export_head:all_ids_for_export_head_of_kind_value ty
+    TD.ids_for_export ~ids_for_export_head:ids_for_export_head_of_kind_value ty
   | Naked_immediate ty ->
-    TD.all_ids_for_export
-      ~all_ids_for_export_head:all_ids_for_export_head_of_kind_naked_immediate
-      ty
+    TD.ids_for_export
+      ~ids_for_export_head:ids_for_export_head_of_kind_naked_immediate ty
   | Naked_float ty ->
-    TD.all_ids_for_export
-      ~all_ids_for_export_head:all_ids_for_export_head_of_kind_naked_float ty
+    TD.ids_for_export
+      ~ids_for_export_head:ids_for_export_head_of_kind_naked_float ty
   | Naked_int32 ty ->
-    TD.all_ids_for_export
-      ~all_ids_for_export_head:all_ids_for_export_head_of_kind_naked_int32 ty
+    TD.ids_for_export
+      ~ids_for_export_head:ids_for_export_head_of_kind_naked_int32 ty
   | Naked_int64 ty ->
-    TD.all_ids_for_export
-      ~all_ids_for_export_head:all_ids_for_export_head_of_kind_naked_int64 ty
+    TD.ids_for_export
+      ~ids_for_export_head:ids_for_export_head_of_kind_naked_int64 ty
   | Naked_nativeint ty ->
-    TD.all_ids_for_export
-      ~all_ids_for_export_head:all_ids_for_export_head_of_kind_naked_nativeint
-      ty
+    TD.ids_for_export
+      ~ids_for_export_head:ids_for_export_head_of_kind_naked_nativeint ty
   | Rec_info ty ->
-    TD.all_ids_for_export
-      ~all_ids_for_export_head:all_ids_for_export_head_of_kind_rec_info ty
+    TD.ids_for_export ~ids_for_export_head:ids_for_export_head_of_kind_rec_info
+      ty
   | Region ty ->
-    TD.all_ids_for_export
-      ~all_ids_for_export_head:all_ids_for_export_head_of_kind_region ty
+    TD.ids_for_export ~ids_for_export_head:ids_for_export_head_of_kind_region ty
 
-and all_ids_for_export_head_of_kind_value head =
+and ids_for_export_head_of_kind_value head =
   match head with
   | Variant { blocks; immediates; is_unique = _; alloc_mode = _ } ->
     Ids_for_export.union
-      (Or_unknown.all_ids_for_export all_ids_for_export_row_like_for_blocks
-         blocks)
-      (Or_unknown.all_ids_for_export all_ids_for_export immediates)
+      (Or_unknown.ids_for_export ids_for_export_row_like_for_blocks blocks)
+      (Or_unknown.ids_for_export ids_for_export immediates)
   | Mutable_block { alloc_mode = _ } -> Ids_for_export.empty
-  | Boxed_float (t, _alloc_mode) -> all_ids_for_export t
-  | Boxed_int32 (t, _alloc_mode) -> all_ids_for_export t
-  | Boxed_int64 (t, _alloc_mode) -> all_ids_for_export t
-  | Boxed_nativeint (t, _alloc_mode) -> all_ids_for_export t
+  | Boxed_float (t, _alloc_mode) -> ids_for_export t
+  | Boxed_int32 (t, _alloc_mode) -> ids_for_export t
+  | Boxed_int64 (t, _alloc_mode) -> ids_for_export t
+  | Boxed_nativeint (t, _alloc_mode) -> ids_for_export t
   | Closures { by_function_slot; alloc_mode = _ } ->
-    all_ids_for_export_row_like_for_closures by_function_slot
+    ids_for_export_row_like_for_closures by_function_slot
   | String _ -> Ids_for_export.empty
-  | Array { element_kind = _; length } -> all_ids_for_export length
+  | Array { element_kind = _; length } -> ids_for_export length
 
-and all_ids_for_export_head_of_kind_naked_immediate head =
+and ids_for_export_head_of_kind_naked_immediate head =
   match head with
   | Naked_immediates _ -> Ids_for_export.empty
-  | Is_int t | Get_tag t -> all_ids_for_export t
+  | Is_int t | Get_tag t -> ids_for_export t
 
-and all_ids_for_export_head_of_kind_naked_float _ = Ids_for_export.empty
+and ids_for_export_head_of_kind_naked_float _ = Ids_for_export.empty
 
-and all_ids_for_export_head_of_kind_naked_int32 _ = Ids_for_export.empty
+and ids_for_export_head_of_kind_naked_int32 _ = Ids_for_export.empty
 
-and all_ids_for_export_head_of_kind_naked_int64 _ = Ids_for_export.empty
+and ids_for_export_head_of_kind_naked_int64 _ = Ids_for_export.empty
 
-and all_ids_for_export_head_of_kind_naked_nativeint _ = Ids_for_export.empty
+and ids_for_export_head_of_kind_naked_nativeint _ = Ids_for_export.empty
 
-and all_ids_for_export_head_of_kind_rec_info head =
-  Rec_info_expr.all_ids_for_export head
+and ids_for_export_head_of_kind_rec_info head =
+  Rec_info_expr.ids_for_export head
 
-and all_ids_for_export_head_of_kind_region () = Ids_for_export.empty
+and ids_for_export_head_of_kind_region () = Ids_for_export.empty
 
-and all_ids_for_export_row_like :
+and ids_for_export_row_like :
       'row_tag 'index 'maps_to 'known.
-      all_ids_for_export_maps_to:('maps_to -> Ids_for_export.t) ->
+      ids_for_export_maps_to:('maps_to -> Ids_for_export.t) ->
       known:'known ->
       other:('index, 'maps_to) row_like_case Or_bottom.t ->
       fold_known:
@@ -888,37 +882,35 @@ and all_ids_for_export_row_like :
         'acc ->
         'acc) ->
       Ids_for_export.t =
- fun ~all_ids_for_export_maps_to ~known ~other ~fold_known ->
+ fun ~ids_for_export_maps_to ~known ~other ~fold_known ->
   let from_known =
     fold_known
       (fun _tag { maps_to; env_extension; index = _ } ids ->
         Ids_for_export.union ids
           (Ids_for_export.union
-             (all_ids_for_export_maps_to maps_to)
-             (all_ids_for_export_env_extension env_extension)))
+             (ids_for_export_maps_to maps_to)
+             (ids_for_export_env_extension env_extension)))
       known Ids_for_export.empty
   in
   match other with
   | Bottom -> from_known
   | Ok { maps_to; env_extension; index = _ } ->
     Ids_for_export.union
-      (all_ids_for_export_maps_to maps_to)
+      (ids_for_export_maps_to maps_to)
       (Ids_for_export.union from_known
-         (all_ids_for_export_env_extension env_extension))
+         (ids_for_export_env_extension env_extension))
 
-and all_ids_for_export_row_like_for_blocks { known_tags; other_tags } =
-  all_ids_for_export_row_like
-    ~all_ids_for_export_maps_to:all_ids_for_export_int_indexed_product
-    ~known:known_tags ~other:other_tags ~fold_known:Tag.Map.fold
+and ids_for_export_row_like_for_blocks { known_tags; other_tags } =
+  ids_for_export_row_like
+    ~ids_for_export_maps_to:ids_for_export_int_indexed_product ~known:known_tags
+    ~other:other_tags ~fold_known:Tag.Map.fold
 
-and all_ids_for_export_row_like_for_closures { known_closures; other_closures }
-    =
-  all_ids_for_export_row_like
-    ~all_ids_for_export_maps_to:all_ids_for_export_closures_entry
+and ids_for_export_row_like_for_closures { known_closures; other_closures } =
+  ids_for_export_row_like ~ids_for_export_maps_to:ids_for_export_closures_entry
     ~known:known_closures ~other:other_closures
     ~fold_known:Function_slot.Map.fold
 
-and all_ids_for_export_closures_entry
+and ids_for_export_closures_entry
     { function_types; closure_types; value_slot_types } =
   let function_types_ids =
     Function_slot.Map.fold
@@ -926,43 +918,40 @@ and all_ids_for_export_closures_entry
         match function_type with
         | Unknown | Bottom -> ids
         | Ok function_type ->
-          Ids_for_export.union ids
-            (all_ids_for_export_function_type function_type))
+          Ids_for_export.union ids (ids_for_export_function_type function_type))
       function_types Ids_for_export.empty
   in
   Ids_for_export.union function_types_ids
     (Ids_for_export.union
-       (all_ids_for_export_function_slot_indexed_product closure_types)
-       (all_ids_for_export_value_slot_indexed_product value_slot_types))
+       (ids_for_export_function_slot_indexed_product closure_types)
+       (ids_for_export_value_slot_indexed_product value_slot_types))
 
-and all_ids_for_export_function_slot_indexed_product
+and ids_for_export_function_slot_indexed_product
     { function_slot_components_by_index } =
   Function_slot.Map.fold
-    (fun _ t ids -> Ids_for_export.union ids (all_ids_for_export t))
+    (fun _ t ids -> Ids_for_export.union ids (ids_for_export t))
     function_slot_components_by_index Ids_for_export.empty
 
-and all_ids_for_export_value_slot_indexed_product
-    { value_slot_components_by_index } =
+and ids_for_export_value_slot_indexed_product { value_slot_components_by_index }
+    =
   Value_slot.Map.fold
-    (fun _ t ids -> Ids_for_export.union ids (all_ids_for_export t))
+    (fun _ t ids -> Ids_for_export.union ids (ids_for_export t))
     value_slot_components_by_index Ids_for_export.empty
 
-and all_ids_for_export_int_indexed_product { fields; kind = _ } =
+and ids_for_export_int_indexed_product { fields; kind = _ } =
   Array.fold_left
-    (fun ids field -> Ids_for_export.union ids (all_ids_for_export field))
+    (fun ids field -> Ids_for_export.union ids (ids_for_export field))
     Ids_for_export.empty fields
 
-and all_ids_for_export_function_type { code_id; rec_info } =
+and ids_for_export_function_type { code_id; rec_info } =
   Ids_for_export.union
     (Ids_for_export.singleton_code_id code_id)
-    (all_ids_for_export rec_info)
+    (ids_for_export rec_info)
 
-and all_ids_for_export_env_extension { equations } =
+and ids_for_export_env_extension { equations } =
   Name.Map.fold
     (fun name t ids ->
-      Ids_for_export.add_name
-        (Ids_for_export.union ids (all_ids_for_export t))
-        name)
+      Ids_for_export.add_name (Ids_for_export.union ids (ids_for_export t)) name)
     equations Ids_for_export.empty
 
 (* We need to be very careful here. A non-trivial coercion expects to be dealing
@@ -1174,13 +1163,11 @@ and apply_coercion_closures_entry row_tag
   let function_types =
     (* Somewhat hackily apply the same coercion to everything in the set of
        closures. After all, we're only adjusting recursion depth, and all
-       closures in the same set have the same depth.
-
-       CR lmaurer: Check that this is consistent with the simplifier's behavior.
+       closures in the same set have the same depth. *)
+    (* CR lmaurer: Check that this is consistent with the simplifier's behavior.
        In particular, [project_function_slot] should return a closure at the
-       same depth as the original closure.
-
-       Exhaustingly, this is _entirely orthogonal_ to the issue with closures
+       same depth as the original closure. *)
+    (* Exhaustingly, this is _entirely orthogonal_ to the issue with closures
        having row-like types. *)
     Function_slot.Map.map_sharing
       (fun function_type ->
@@ -2053,7 +2040,18 @@ module Product = struct
     type t = function_slot_indexed_product
 
     let create function_slot_components_by_index =
-      (* CR mshinwell: Check that the types are all of kind [Value] *)
+      if Flambda_features.check_invariants ()
+      then
+        Function_slot.Map.iter
+          (fun _ ty ->
+            if not (K.equal (kind ty) K.value)
+            then
+              Misc.fatal_errorf
+                "Function-slot-indexed products can only hold types of kind \
+                 [Value]:@ %a"
+                (Function_slot.Map.print print)
+                function_slot_components_by_index)
+          function_slot_components_by_index;
       { function_slot_components_by_index }
 
     let top = { function_slot_components_by_index = Function_slot.Map.empty }
@@ -2061,16 +2059,24 @@ module Product = struct
     let width t =
       Targetint_31_63.of_int
         (Function_slot.Map.cardinal t.function_slot_components_by_index)
-
-    let components t =
-      Function_slot.Map.data t.function_slot_components_by_index
   end
 
   module Value_slot_indexed = struct
     type t = value_slot_indexed_product
 
     let create value_slot_components_by_index =
-      (* CR mshinwell: Check that the types are all of kind [Value] *)
+      if Flambda_features.check_invariants ()
+      then
+        Value_slot.Map.iter
+          (fun _ ty ->
+            if not (K.equal (kind ty) K.value)
+            then
+              Misc.fatal_errorf
+                "Value-slot-indexed products can only hold types of kind \
+                 [Value]:@ %a"
+                (Value_slot.Map.print print)
+                value_slot_components_by_index)
+          value_slot_components_by_index;
       { value_slot_components_by_index }
 
     let top = { value_slot_components_by_index = Value_slot.Map.empty }
@@ -2078,8 +2084,6 @@ module Product = struct
     let width t =
       Targetint_31_63.of_int
         (Value_slot.Map.cardinal t.value_slot_components_by_index)
-
-    let components t = Value_slot.Map.data t.value_slot_components_by_index
   end
 
   module Int_indexed = struct
@@ -2160,23 +2164,26 @@ module Row_like_for_blocks = struct
           }
     }
 
-  let create ~(field_kind : Flambda_kind.t) ~field_tys
-      (open_or_closed : open_or_closed) =
+  let check_field_tys ~field_kind ~field_tys =
     let field_kind' =
       List.map kind field_tys |> Flambda_kind.Set.of_list
       |> Flambda_kind.Set.get_singleton
     in
-    (* CR pchambart: move to invariant check *)
-    (match field_kind' with
-    | None ->
-      if List.length field_tys <> 0
-      then Misc.fatal_error "[field_tys] must all be of the same kind"
-    | Some field_kind' ->
-      if not (Flambda_kind.equal field_kind field_kind')
-      then
-        Misc.fatal_errorf "Declared field kind %a doesn't match [field_tys]"
-          Flambda_kind.print field_kind);
+    if Flambda_features.check_invariants ()
+    then
+      match field_kind' with
+      | None ->
+        if List.length field_tys <> 0
+        then Misc.fatal_error "[field_tys] must all be of the same kind"
+      | Some field_kind' ->
+        if not (Flambda_kind.equal field_kind field_kind')
+        then
+          Misc.fatal_errorf "Declared field kind %a doesn't match [field_tys]"
+            Flambda_kind.print field_kind
 
+  let create ~(field_kind : Flambda_kind.t) ~field_tys
+      (open_or_closed : open_or_closed) =
+    check_field_tys ~field_kind ~field_tys;
     let tag : _ Or_unknown.t =
       let tag : _ Or_unknown.t =
         match open_or_closed with
@@ -2245,12 +2252,12 @@ module Row_like_for_blocks = struct
     let known_tags =
       Tag.Map.map
         (fun field_tys ->
-          (* CR mshinwell: Validate [field_tys] like [create] does, above *)
           let field_kind =
             match field_tys with
             | [] -> Flambda_kind.value
             | field_ty :: _ -> kind field_ty
           in
+          check_field_tys ~field_kind ~field_tys;
           let maps_to =
             { kind = field_kind; fields = Array.of_list field_tys }
           in
@@ -2264,7 +2271,7 @@ module Row_like_for_blocks = struct
     { known_tags; other_tags = Bottom }
 
   let create_raw ~known_tags ~other_tags =
-    (* CR mshinwell: add invariant check? *)
+    (* CR-someday mshinwell: add invariant check? *)
     { known_tags; other_tags }
 
   let all_tags_and_indexes { known_tags; other_tags } : _ Or_unknown.t =
@@ -2364,7 +2371,7 @@ module Row_like_for_closures = struct
     { known_closures; other_closures = Bottom }
 
   let create_raw ~known_closures ~other_closures =
-    (* CR mshinwell: add invariant check? *)
+    (* CR-someday mshinwell: add invariant check? *)
     { known_closures; other_closures }
 
   let get_singleton { known_closures; other_closures } =
@@ -2432,7 +2439,7 @@ module Env_extension = struct
 
   let create ~equations = { equations }
 
-  let all_ids_for_export = all_ids_for_export_env_extension
+  let ids_for_export = ids_for_export_env_extension
 
   let apply_renaming = apply_renaming_env_extension
 
@@ -2534,41 +2541,41 @@ let this_naked_int64 i : t =
 let this_naked_nativeint i : t =
   Naked_nativeint (TD.create_equals (Simple.const (RWC.naked_nativeint i)))
 
-let these_naked_immediates ~no_alias is =
+let these_naked_immediates is =
   match Targetint_31_63.Set.get_singleton is with
-  | Some i when not no_alias -> this_naked_immediate i
+  | Some i -> this_naked_immediate i
   | _ ->
     if Targetint_31_63.Set.is_empty is
     then bottom_naked_immediate
     else Naked_immediate (TD.create (Naked_immediates is))
 
-let these_naked_floats ~no_alias fs =
+let these_naked_floats fs =
   match Float.Set.get_singleton fs with
-  | Some f when not no_alias -> this_naked_float f
+  | Some f -> this_naked_float f
   | _ ->
     if Float.Set.is_empty fs
     then bottom_naked_float
     else Naked_float (TD.create fs)
 
-let these_naked_int32s ~no_alias is =
+let these_naked_int32s is =
   match Int32.Set.get_singleton is with
-  | Some i when not no_alias -> this_naked_int32 i
+  | Some i -> this_naked_int32 i
   | _ ->
     if Int32.Set.is_empty is
     then bottom_naked_int32
     else Naked_int32 (TD.create is)
 
-let these_naked_int64s ~no_alias is =
+let these_naked_int64s is =
   match Int64.Set.get_singleton is with
-  | Some i when not no_alias -> this_naked_int64 i
+  | Some i -> this_naked_int64 i
   | _ ->
     if Int64.Set.is_empty is
     then bottom_naked_int64
     else Naked_int64 (TD.create is)
 
-let these_naked_nativeints ~no_alias is =
+let these_naked_nativeints is =
   match Targetint_32_64.Set.get_singleton is with
-  | Some i when not no_alias -> this_naked_nativeint i
+  | Some i -> this_naked_nativeint i
   | _ ->
     if Targetint_32_64.Set.is_empty is
     then bottom_naked_nativeint
@@ -2644,7 +2651,6 @@ let boxed_nativeint_alias_to ~naked_nativeint =
     (Naked_nativeint (TD.create_equals (Simple.var naked_nativeint)))
 
 let this_immutable_string str =
-  (* CR mshinwell: Use "length" not "size" for strings *)
   let size = Targetint_31_63.of_int (String.length str) in
   let string_info =
     String_info.Set.singleton
@@ -2741,16 +2747,62 @@ module Head_of_kind_value = struct
   let create_array ~element_kind ~length = Array { element_kind; length }
 end
 
+module type Head_of_kind_naked_number_intf = sig
+  type t
+
+  type n
+
+  type n_set
+
+  val create : n -> t
+
+  val create_set : n_set -> t Or_bottom.t
+
+  val union : t -> t -> t
+
+  val inter : t -> t -> t Or_bottom.t
+end
+
 module Head_of_kind_naked_immediate = struct
   type t = head_of_kind_naked_immediate
 
-  (* CR mshinwell: maybe this should return [Or_bottom.t]? *)
-  let create_naked_immediates imms = Naked_immediates imms
+  let create_naked_immediate imm =
+    Naked_immediates (Targetint_31_63.Set.singleton imm)
+
+  let create_naked_immediates imms : _ Or_bottom.t =
+    if Targetint_31_63.Set.is_empty imms
+    then Bottom
+    else Ok (Naked_immediates imms)
 
   let create_is_int ty = Is_int ty
 
   let create_get_tag ty = Get_tag ty
 end
+
+module Make_head_of_kind_naked_number (N : Container_types.S) = struct
+  type t = N.Set.t
+
+  type n = N.t
+
+  type n_set = N.Set.t
+
+  let create i = N.Set.singleton i
+
+  let create_set is : _ Or_bottom.t =
+    if N.Set.is_empty is then Bottom else Ok is
+
+  let union = N.Set.union
+
+  let inter t1 t2 : _ Or_bottom.t =
+    let t = N.Set.inter t1 t2 in
+    if N.Set.is_empty t then Bottom else Ok t
+end
+
+module Head_of_kind_naked_float = Make_head_of_kind_naked_number (Float)
+module Head_of_kind_naked_int32 = Make_head_of_kind_naked_number (Int32)
+module Head_of_kind_naked_int64 = Make_head_of_kind_naked_number (Int64)
+module Head_of_kind_naked_nativeint =
+  Make_head_of_kind_naked_number (Targetint_32_64)
 
 let rec recover_some_aliases t =
   match t with
@@ -2803,35 +2855,33 @@ let rec recover_some_aliases t =
     | Ok (No_alias (Naked_immediates is)) -> (
       match Targetint_31_63.Set.get_singleton is with
       | Some i -> this_naked_immediate i
-      | None ->
-        if Targetint_31_63.Set.is_empty is then bottom_naked_immediate else t))
+      | None -> t))
   | Naked_float ty -> (
     match TD.descr ty with
     | Unknown | Bottom | Ok (Equals _) -> t
     | Ok (No_alias fs) -> (
       match Float.Set.get_singleton fs with
       | Some f -> this_naked_float f
-      | None -> if Float.Set.is_empty fs then bottom_naked_float else t))
+      | None -> t))
   | Naked_int32 ty -> (
     match TD.descr ty with
     | Unknown | Bottom | Ok (Equals _) -> t
     | Ok (No_alias is) -> (
       match Int32.Set.get_singleton is with
       | Some f -> this_naked_int32 f
-      | None -> if Int32.Set.is_empty is then bottom_naked_int32 else t))
+      | None -> t))
   | Naked_int64 ty -> (
     match TD.descr ty with
     | Unknown | Bottom | Ok (Equals _) -> t
     | Ok (No_alias is) -> (
       match Int64.Set.get_singleton is with
       | Some f -> this_naked_int64 f
-      | None -> if Int64.Set.is_empty is then bottom_naked_int64 else t))
+      | None -> t))
   | Naked_nativeint ty -> (
     match TD.descr ty with
     | Unknown | Bottom | Ok (Equals _) -> t
     | Ok (No_alias is) -> (
       match Targetint_32_64.Set.get_singleton is with
       | Some f -> this_naked_nativeint f
-      | None ->
-        if Targetint_32_64.Set.is_empty is then bottom_naked_nativeint else t))
+      | None -> t))
   | Rec_info _ | Region _ -> t
