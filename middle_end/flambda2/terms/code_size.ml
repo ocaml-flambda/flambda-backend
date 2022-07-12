@@ -398,7 +398,8 @@ let simple simple =
 let static_consts _ = 0
 
 let apply apply =
-  List.length Apply_expr.args +
+  List.length Apply_expr.args
+  +
   match Apply_expr.call_kind apply with
   | Function { function_call = Direct _; _ } -> direct_call_size
   (* CR mshinwell: Check / fix these numbers *)
@@ -425,60 +426,57 @@ let invalid = 0
 
 (* Note about switch sizes:
 
-   - the Switch.Make functor used in the backend is able to share
-     common arms, and significantly reduce the size. For now, we
-     cannot correctly estimate how much this can optimize switch
-     compilation.
+   - the Switch.Make functor used in the backend is able to share common arms,
+   and significantly reduce the size. For now, we cannot correctly estimate how
+   much this can optimize switch compilation.
 
-   - in the case
-
-*)
-(* CR gbury: Consider instantiating the Switch.Make functor to get
-   a correct estimation of the number of instructions needed to compile
-   a switch (including branch sharing, etc...). *)
+   - in the case *)
+(* CR gbury: Consider instantiating the Switch.Make functor to get a correct
+   estimation of the number of instructions needed to compile a switch
+   (including branch sharing, etc...). *)
 let switch switch =
-  if Switch_expr.num_arms switch = 2 then 2 (* cmp + jump *)
-  else begin
+  if Switch_expr.num_arms switch = 2
+  then 2 (* cmp + jump *)
+  else
     let size, all_return_const_ints =
-      Targetint_31_63.Map.fold (fun _ arm (size, all_return_const_ints) ->
+      Targetint_31_63.Map.fold
+        (fun _ arm (size, all_return_const_ints) ->
           let all_return_const_ints =
-            all_return_const_ints &&
+            all_return_const_ints
+            &&
             match Apply_cont_expr.trap_action arm with
             | Some _ -> false
-            | None ->
+            | None -> (
               let k = Apply_cont_expr.continuation arm in
-              begin match Continuation.sort k with
-              | Normal_or_exn | Define_root_symbol | Toplevel_return ->
-                false
-              | Return ->
-                begin match Apply_cont_expr.args arm with
-                  | [ret] ->
-                    Simple.pattern_match ret
-                      ~name:(fun _ ~coercion:_ -> false)
-                      ~const:(fun const ->
-                          match Reg_width_const.descr const with
-                          | Tagged_immediate _ -> true
-                          | _ ->
-                            (* these other cases could be optimized, but
-                              since they are not ocaml values, they cannot be returned
-                                    by a function *)
-                            false)
-                  | _ -> false
-                end
-              end
+              match Continuation.sort k with
+              | Normal_or_exn | Define_root_symbol | Toplevel_return -> false
+              | Return -> (
+                match Apply_cont_expr.args arm with
+                | [ret] ->
+                  Simple.pattern_match ret
+                    ~name:(fun _ ~coercion:_ -> false)
+                    ~const:(fun const ->
+                      match Reg_width_const.descr const with
+                      | Tagged_immediate _ -> true
+                      | _ ->
+                        (* these other cases could be optimized, but since they
+                           are not ocaml values, they cannot be returned by a
+                           function *)
+                        false)
+                | _ -> false))
           in
           let arm_size = 1 (* cmp *) + apply_cont arm (* jump *) in
-          size + arm_size, all_return_const_ints
-        ) (Switch_expr.arms switch) (5, true)
+          size + arm_size, all_return_const_ints)
+        (Switch_expr.arms switch) (5, true)
     in
-    if all_return_const_ints then
-      (* the backend will either generate a load into a const table,
-         or the application of an affine function on the scrutinee. *)
-      3 (* scrutinee shift + addressing into const table + load
-           OR shift/multiplication + addition *)
-    else
-      size
-  end
+    if all_return_const_ints
+    then
+      (* the backend will either generate a load into a const table, or the
+         application of an affine function on the scrutinee. *)
+      3
+      (* scrutinee shift + addressing into const table + load OR
+         shift/multiplication + addition *)
+    else size
 
 let [@ocamlformat "disable"] print ppf t = Format.fprintf ppf "%d" t
 
