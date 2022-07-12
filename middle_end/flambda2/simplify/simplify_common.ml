@@ -309,17 +309,15 @@ let specialise_array_kind dacc (array_kind : P.Array_kind.t) ~array_ty :
   let typing_env = DA.typing_env dacc in
   match array_kind with
   | Naked_floats -> (
-    match T.prove_is_flat_float_array typing_env array_ty with
-    | Proved true | Unknown -> Ok array_kind
-    | Proved false -> Bottom
-    | Wrong_kind -> Ok array_kind)
+    match T.meet_is_flat_float_array typing_env array_ty with
+    | Known_result true | Need_meet -> Ok array_kind
+    | Known_result false | Invalid -> Bottom)
   | Immediates -> (
     (* The only thing worth checking is for float arrays, as that would allow us
        to remove the branch *)
-    match T.prove_is_flat_float_array typing_env array_ty with
-    | Proved false | Unknown -> Ok array_kind
-    | Proved true -> Bottom
-    | Wrong_kind -> Ok array_kind)
+    match T.meet_is_flat_float_array typing_env array_ty with
+    | Known_result false | Need_meet -> Ok array_kind
+    | Known_result true | Invalid -> Bottom)
   | Values -> (
     (* Try to specialise to immediates *)
     match T.prove_is_immediates_array typing_env array_ty with
@@ -328,10 +326,9 @@ let specialise_array_kind dacc (array_kind : P.Array_kind.t) ~array_ty :
       Ok P.Array_kind.Immediates
     | Unknown | Wrong_kind -> (
       (* Check for float arrays *)
-      match T.prove_is_flat_float_array typing_env array_ty with
-      | Proved false | Unknown -> Ok array_kind
-      | Proved true -> Bottom
-      | Wrong_kind -> Ok array_kind))
+      match T.meet_is_flat_float_array typing_env array_ty with
+      | Known_result false | Need_meet -> Ok array_kind
+      | Known_result true | Invalid -> Bottom))
 
 let add_symbol_projection dacc ~projected_from projection ~projection_bound_to =
   if DE.at_unit_toplevel (DA.denv dacc)

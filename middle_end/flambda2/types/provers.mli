@@ -114,13 +114,8 @@ val prove_unique_fully_constructed_immutable_heap_block :
   Type_grammar.t ->
   (Tag_and_size.t * Simple.t list) proof_of_property
 
-type array_kind_compatibility =
-  | Exact
-  | Compatible
-  | Incompatible
-
-val prove_is_flat_float_array :
-  Typing_env.t -> Type_grammar.t -> bool proof_of_property
+val meet_is_flat_float_array :
+  Typing_env.t -> Type_grammar.t -> bool meet_shortcut
 
 val prove_is_immediates_array :
   Typing_env.t -> Type_grammar.t -> unit proof_of_property
@@ -190,14 +185,6 @@ val meet_block_field_simple :
   Type_grammar.t ->
   Targetint_31_63.t ->
   Simple.t meet_shortcut
-
-(* val meet_variant_field_simple :
- *   Typing_env.t ->
- *   min_name_mode:Name_mode.t ->
- *   Type_grammar.t ->
- *   Tag.t ->
- *   Targetint_31_63.t ->
- *   Simple.t meet_shortcut *)
 
 val meet_project_value_slot_simple :
   Typing_env.t ->

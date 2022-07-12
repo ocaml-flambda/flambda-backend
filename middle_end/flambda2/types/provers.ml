@@ -496,19 +496,15 @@ let prove_unique_fully_constructed_immutable_heap_block env t :
     | Unknown -> Unknown
     | Proved simples -> Proved (tag_and_size, List.rev simples))
 
-type array_kind_compatibility =
-  | Exact
-  | Compatible
-  | Incompatible
-
-let prove_is_flat_float_array env t : bool proof_of_property =
+let meet_is_flat_float_array env t : bool meet_shortcut =
   match expand_head env t with
-  | Value (Unknown | Bottom) -> Unknown
-  | Value (Ok (Array { element_kind = Unknown; _ })) -> Unknown
+  | Value Unknown -> Need_meet
+  | Value Bottom -> Invalid
+  | Value (Ok (Array { element_kind = Unknown; _ })) -> Need_meet
   | Value (Ok (Array { element_kind = Known element_kind; _ })) -> (
     match K.With_subkind.kind element_kind with
-    | Value -> Proved false
-    | Naked_number Naked_float -> Proved true
+    | Value -> Known_result false
+    | Naked_number Naked_float -> Known_result true
     | Naked_number
         (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint)
     | Region | Rec_info ->
@@ -516,13 +512,15 @@ let prove_is_flat_float_array env t : bool proof_of_property =
         element_kind)
   | Value
       (Ok
-        ( Variant _ | Mutable_block _ | Boxed_float _ | Boxed_int32 _
-        | Boxed_int64 _ | Boxed_nativeint _ | Closures _ | String _ )) ->
-    Unknown
+        ( Boxed_float _ | Boxed_int32 _ | Boxed_int64 _ | Boxed_nativeint _
+        | Closures _ | String _ )) ->
+    Invalid
+  | Value (Ok (Variant _ | Mutable_block _)) ->
+    (* In case of untyped code using array primitives on regular blocks *)
+    Need_meet
   | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
   | Naked_nativeint _ | Rec_info _ | Region _ ->
-    Wrong_kind
-(* Misc.fatal_errorf "Kind error: expected [Value]:@ %a" TG.print t *)
+    Misc.fatal_errorf "Kind error: expected [Value]:@ %a" TG.print t
 
 let prove_is_immediates_array env t : unit proof_of_property =
   match expand_head env t with
