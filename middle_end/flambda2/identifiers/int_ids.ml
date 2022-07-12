@@ -748,7 +748,8 @@ module Code_id = struct
 
   let create ~name compilation_unit =
     let name_stamp =
-      (* CR mshinwell: check for overflow on 32 bit *)
+      if !previous_name_stamp = max_int
+      then Misc.fatal_error "Have run out of name stamps";
       incr previous_name_stamp;
       !previous_name_stamp
     in

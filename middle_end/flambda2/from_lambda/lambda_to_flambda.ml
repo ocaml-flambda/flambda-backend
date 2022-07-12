@@ -458,8 +458,6 @@ let compile_staticfail acc env ccenv ~(continuation : Continuation.t) ~args :
     acc ccenv
 
 let switch_for_if_then_else ~cond ~ifso ~ifnot ~kind =
-  (* CR mshinwell: We need to make sure that [cond] is {0, 1}-valued. The
-     frontend should have been fixed on this branch for this. *)
   let switch : Lambda.lambda_switch =
     { sw_numconsts = 2;
       sw_consts = [0, ifnot; 1, ifso];
@@ -809,9 +807,6 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer | Popaque
   | Pprobe_is_enabled _ ->
     false
-
-(* CR mshinwell: Make sure that [Apply] terms in tail position jump directly to
-   the return continuation rather than relying on a wrapper to be removed. *)
 
 let rec cps_non_tail acc env ccenv (lam : L.lambda)
     (* CR pchambart: The Ident.t argument of k could probably be something
@@ -1310,7 +1305,6 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
   | Lprim (prim, args, loc) -> (
     match transform_primitive env prim args loc with
     | Primitive (prim, args, loc) ->
-      (* CR mshinwell: Arrange for "args" to be named. *)
       let name = Printlambda.name_of_primitive prim in
       let result_var = Ident.create_local name in
       let exn_continuation : IR.exn_continuation option =

@@ -66,8 +66,6 @@ let is_empty { function_decls; value_slots; alloc_mode = _ } =
   && Value_slot.Map.is_empty value_slots
 
 let create ~value_slots alloc_mode function_decls =
-  (* CR mshinwell: Make sure invariant checks are applied here, e.g. that the
-     set of closures is indeed closed. *)
   { function_decls; value_slots; alloc_mode }
 
 let function_decls t = t.function_decls

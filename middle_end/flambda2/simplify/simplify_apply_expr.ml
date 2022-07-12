@@ -128,8 +128,6 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
     ~params_arity ~result_arity ~result_types ~down_to_up ~coming_from_indirect
     ~callee's_code_metadata =
   let inlined =
-    (* CR mshinwell for poechsel: Make sure no other warnings or inlining report
-       decisions get emitted when not rebuilding terms. *)
     let decision =
       Call_site_inlining_decision.make_decision dacc ~simplify_expr ~apply
         ~function_type ~return_arity:result_arity
@@ -566,10 +564,6 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
   in
   simplify_expr dacc expr ~down_to_up
 
-(* CR mshinwell: Should it be an error to encounter a non-direct application of
-   a symbol after [Simplify]? This shouldn't usually happen, but I'm not 100%
-   sure it cannot in every case. *)
-
 let simplify_direct_over_application ~simplify_expr dacc apply ~param_arity
     ~result_arity ~down_to_up ~coming_from_indirect ~apply_alloc_mode
     ~contains_no_escaping_local_allocs =
@@ -882,9 +876,6 @@ let simplify_apply_shared dacc apply =
       (DE.get_inlining_state (DA.denv dacc))
       (Apply.inlining_state apply)
   in
-  (* CR mshinwell: Should this resolve continuation aliases? It seems like it
-     should. We should also check the other places where continuations may
-     occur. *)
   let apply =
     Apply.create ~callee:simplified_callee
       ~continuation:(Apply.continuation apply)

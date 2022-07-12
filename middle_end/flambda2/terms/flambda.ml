@@ -631,8 +631,6 @@ and print_let_cont_expr ppf t =
     (List.rev let_conts);
   fprintf ppf ")@]"
 
-(* CR mshinwell: Remove [second_or_later_binding_within_one_set] if it doesn't
-   become used soon. *)
 and flatten_for_printing0 bound_static defining_exprs =
   match_against_bound_static__static_const_group defining_exprs bound_static
     ~init:([], false)
@@ -729,9 +727,6 @@ and print_flattened ppf
     fprintf ppf "@<0>%sand @<0>%s"
       (Flambda_colours.expr_keyword ())
       (Flambda_colours.normal ());
-  (* else let shape = "\u{25b7}" (* unfilled triangle *) in fprintf ppf
-     "@<0>%s@<1>%s @<0>%s" (shape_colour descr) shape (Flambda_colours.normal
-     ())); *)
   fprintf ppf "%a@<0>%s =@<0>%s@ %a@]" print_flattened_descr_lhs descr
     (Flambda_colours.elide ())
     (Flambda_colours.normal ())
@@ -755,8 +750,8 @@ and flatten_let_symbol t : _ * expr =
   | None -> assert false
 (* see below *)
 
-(* CR mshinwell: Merge the "let symbol" and "normal let" cases to use the same
-   flattened type? *)
+(* CR-someday mshinwell: Merge the "let symbol" and "normal let" cases to use
+   the same flattened type? *)
 and print_let_static ppf t =
   let rec print_more flattened =
     match flattened with
@@ -1534,11 +1529,8 @@ module Let_cont_expr = struct
   let apply_renaming = apply_renaming_let_cont_expr
 end
 
-(* CR mshinwell: Consider counting numbers of names in Name_occurrences *)
 (* CR mshinwell: Check that apply_cont is well-formed when there is a trap
    installation or removal. *)
-(* CR-someday pchambart: for sum types, we should probably add an exhaustive
-   pattern in ignores functions to be reminded if a type change *)
 (* CR-someday mshinwell: We should make "direct applications should not have
    overapplication" be an invariant throughout. At the moment I think this is
    only true after [Simplify] has split overapplications. *)

@@ -47,9 +47,7 @@ let join t1 t2 =
   | (Immutable | Immutable_unique), Mutable ->
     Mutable
 
-(* CR mshinwell: This function should be renamed, or else produce
-   Lambda.mutable_flag *)
-let to_lambda t : Asttypes.mutable_flag =
+let to_asttypes t : Asttypes.mutable_flag =
   match t with
   | Mutable -> Mutable
   | Immutable -> Immutable
