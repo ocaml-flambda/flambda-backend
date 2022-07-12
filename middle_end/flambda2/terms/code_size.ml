@@ -398,6 +398,7 @@ let simple simple =
 let static_consts _ = 0
 
 let apply apply =
+  List.length Apply_expr.args +
   match Apply_expr.call_kind apply with
   | Function { function_call = Direct _; _ } -> direct_call_size
   (* CR mshinwell: Check / fix these numbers *)
