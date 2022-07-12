@@ -183,13 +183,13 @@ val meet_block_field_simple :
   Targetint_31_63.t ->
   Simple.t meet_shortcut
 
-val meet_variant_field_simple :
-  Typing_env.t ->
-  min_name_mode:Name_mode.t ->
-  Type_grammar.t ->
-  Tag.t ->
-  Targetint_31_63.t ->
-  Simple.t meet_shortcut
+(* val meet_variant_field_simple :
+ *   Typing_env.t ->
+ *   min_name_mode:Name_mode.t ->
+ *   Type_grammar.t ->
+ *   Tag.t ->
+ *   Targetint_31_63.t ->
+ *   Simple.t meet_shortcut *)
 
 val meet_project_value_slot_simple :
   Typing_env.t ->
