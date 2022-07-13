@@ -1090,6 +1090,13 @@ let foo x =
 val foo : string -> unit = <fun>
 |}]
 
+let foo x =
+  let local_ f () = 42 in
+  f () [@nontail]
+[%%expect{|
+val foo : 'a -> int = <fun>
+|}]
+
 (* Cannot call local values in tail calls *)
 
 let foo x =
