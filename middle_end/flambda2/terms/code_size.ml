@@ -430,7 +430,11 @@ let invalid = 0
    and significantly reduce the size. For now, we cannot correctly estimate how
    much this can optimize switch compilation.
 
-   - in the case *)
+   - if the switch is an affine computation, it is optimized in cmm_helpers into
+   a much simpler code whose size does not depend on the number of cases.
+
+   This will overestimate the size for switch triggering those kind of
+   optimisation.*)
 (* CR gbury: Consider instantiating the Switch.Make functor to get a correct
    estimation of the number of instructions needed to compile a switch
    (including branch sharing, etc...). *)
@@ -438,44 +442,42 @@ let switch switch =
   if Switch_expr.num_arms switch = 2
   then 2 (* cmp + jump *)
   else
-    let size, all_return_const_ints =
+    let size =
       Targetint_31_63.Map.fold
-        (fun _ arm (size, all_return_const_ints) ->
-          let all_return_const_ints =
-            all_return_const_ints
-            &&
-            match Apply_cont_expr.trap_action arm with
-            | Some _ -> false
-            | None -> (
-              let k = Apply_cont_expr.continuation arm in
-              match Continuation.sort k with
-              | Normal_or_exn | Define_root_symbol | Toplevel_return -> false
-              | Return -> (
-                match Apply_cont_expr.args arm with
-                | [ret] ->
-                  Simple.pattern_match ret
-                    ~name:(fun _ ~coercion:_ -> false)
-                    ~const:(fun const ->
-                      match Reg_width_const.descr const with
-                      | Tagged_immediate _ -> true
-                      | _ ->
-                        (* these other cases could be optimized, but since they
-                           are not ocaml values, they cannot be returned by a
-                           function *)
-                        false)
-                | _ -> false))
-          in
+        (fun _ arm size ->
           let arm_size = 1 (* cmp *) + apply_cont arm (* jump *) in
-          size + arm_size, all_return_const_ints)
-        (Switch_expr.arms switch) (5, true)
+          (* in a switch an argument usually needs a mov *)
+          let movs = List.length (Apply_cont_expr.args arm) in
+          size + arm_size + movs)
+        (Switch_expr.arms switch) 0
     in
-    if all_return_const_ints
+    let all_branches_return_a_value =
+      let arms = Switch_expr.arms switch in
+      let _, arm = Targetint_31_63.Map.choose arms in
+      let some_continuation = Apply_cont_expr.continuation arm in
+      Targetint_31_63.Map.for_all
+        (fun _ arm ->
+          match Apply_cont_expr.trap_action arm with
+          | Some _ -> false
+          | None -> (
+            (* All branches need to return to the same continuation for the
+               switch to load transformation to happen *)
+            Continuation.equal
+              (Apply_cont_expr.continuation arm)
+              some_continuation
+            &&
+            match Apply_cont_expr.args arm with
+            | [ret] -> Simple.is_const ret
+            | _ -> false))
+        arms
+    in
+    if all_branches_return_a_value
     then
       (* the backend will either generate a load into a const table, or the
          application of an affine function on the scrutinee. *)
-      3
-      (* scrutinee shift + addressing into const table + load OR
-         shift/multiplication + addition *)
+      3 + (1 * Switch_expr.num_arms switch)
+      (* scrutinee shift + addressing into const table + load + one quad per
+         branch OR shift/multiplication + addition *)
     else size
 
 let [@ocamlformat "disable"] print ppf t = Format.fprintf ppf "%d" t
