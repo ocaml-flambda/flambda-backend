@@ -115,12 +115,15 @@ and row_like_for_closures =
   { known_closures :
       (Set_of_closures_contents.t, closures_entry) row_like_case
       Function_slot.Map.t;
+    (* CR pchambart: this field is always Bottom, we should remove it *)
     other_closures :
       (Set_of_closures_contents.t, closures_entry) row_like_case Or_bottom.t
   }
 
 and closures_entry =
-  { function_types : function_type Or_unknown_or_bottom.t Function_slot.Map.t;
+  { (* CR pchambart: Forbid the Bottom case in function types (propagate to the
+       whole environment *)
+    function_types : function_type Or_unknown_or_bottom.t Function_slot.Map.t;
     closure_types : function_slot_indexed_product;
     value_slot_types : value_slot_indexed_product
   }
@@ -2324,23 +2327,6 @@ module Row_like_for_blocks = struct
         with
         | Unknown -> Unknown
         | Known res -> Ok res)
-
-  let get_variant_field t variant_tag index : _ Or_unknown_or_bottom.t =
-    let aux { index = size; maps_to; env_extension = _ } :
-        _ Or_unknown_or_bottom.t =
-      match size with
-      | Known i when i <= index -> Bottom
-      | Known _ | At_least _ -> (
-        match
-          project_int_indexed_product maps_to (Targetint_31_63.to_int index)
-        with
-        | Unknown -> Unknown
-        | Known res -> Ok res)
-    in
-    match Tag.Map.find variant_tag t.known_tags with
-    | case -> aux case
-    | exception Not_found -> (
-      match t.other_tags with Bottom -> Bottom | Ok case -> aux case)
 end
 
 module Row_like_for_closures = struct

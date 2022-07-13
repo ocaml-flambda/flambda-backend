@@ -387,17 +387,16 @@ module Row_like_for_blocks : sig
 
       This will return Unknown if:
 
-      - There is no nth field (the read is invalid, and will produce bottom)
-
       - The block type represents a disjunction (several possible tags)
 
       - The tag or size is not exactly known
 
       - The nth field exists, is unique, but has Unknown type
 
-      The handling of those cases could be improved:
+      This will return Bottom if there is no nth field (the read is invalid, and
+      will produce bottom)
 
-      - When there is no valid field, Bottom could be returned instead
+      The handling of those cases could be improved:
 
       - In the case of disjunctions, if all possible nth fields point to the
       same type, this type could be returned directly.
@@ -409,9 +408,6 @@ module Row_like_for_blocks : sig
       expect that doing the actual meet could give us a better result) and the
       last case where we already know what the result of the meet will be. *)
   val get_field : t -> Targetint_31_63.t -> flambda_type Or_unknown_or_bottom.t
-
-  val get_variant_field :
-    t -> Tag.t -> Targetint_31_63.t -> flambda_type Or_unknown_or_bottom.t
 
   val is_bottom : t -> bool
 

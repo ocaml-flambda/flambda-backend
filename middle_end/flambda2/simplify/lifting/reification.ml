@@ -21,11 +21,29 @@ let create_static_const dacc dbg (to_lift : T.to_lift) : RSC.t =
   match to_lift with
   | Immutable_block { tag; is_unique; fields } ->
     let fields =
-      ListLabels.map fields ~f:(fun field : Field_of_static_block.t ->
-          match (field : T.var_or_symbol_or_tagged_immediate) with
-          | Var var -> Dynamically_computed (var, dbg)
-          | Symbol sym -> Symbol sym
-          | Tagged_immediate imm -> Tagged_immediate imm)
+      ListLabels.map fields ~f:(fun field ->
+          let module F = Field_of_static_block in
+          Simple.pattern_match' field
+            ~var:(fun var ~coercion ->
+              if not (Coercion.is_id coercion)
+              then
+                Misc.fatal_errorf "Expected identity coercion on variable:@ %a"
+                  Simple.print field;
+              F.Dynamically_computed (var, dbg))
+            ~symbol:(fun sym ~coercion ->
+              if not (Coercion.is_id coercion)
+              then
+                Misc.fatal_errorf "Expected identity coercion on symbol:@ %a"
+                  Simple.print field;
+              F.Symbol sym)
+            ~const:(fun const ->
+              match Reg_width_const.descr const with
+              | Tagged_immediate imm -> F.Tagged_immediate imm
+              | Naked_immediate _ | Naked_float _ | Naked_int32 _
+              | Naked_int64 _ | Naked_nativeint _ ->
+                Misc.fatal_errorf
+                  "Expected a constant of kind [Value] but got %a (dbg %a)"
+                  Reg_width_const.print const Debuginfo.print_compact dbg))
     in
     let mut : Mutability.t =
       if is_unique then Immutable_unique else Immutable
@@ -134,7 +152,5 @@ let try_to_reify dacc dbg (term : Simplified_named.t) ~bound_to
       DA.with_denv dacc denv
     in
     Ok (Simplified_named.create (Named.create_simple simple)), dacc
-  | Lift_set_of_closures _ (* already dealt with in [Simplify_named] *)
-  | Cannot_reify ->
-    Ok term, dacc
+  | Cannot_reify -> Ok term, dacc
   | Invalid -> Invalid, dacc

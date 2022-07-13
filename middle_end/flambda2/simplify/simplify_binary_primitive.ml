@@ -45,9 +45,9 @@ module type Binary_arith_like_sig = sig
 
   val term : Result.t -> Named.t
 
-  val prover_lhs : T.Typing_env.t -> T.t -> Lhs.Set.t T.proof
+  val prover_lhs : T.Typing_env.t -> T.t -> Lhs.Set.t T.meet_shortcut
 
-  val prover_rhs : T.Typing_env.t -> T.t -> Rhs.Set.t T.proof
+  val prover_rhs : T.Typing_env.t -> T.t -> Rhs.Set.t T.meet_shortcut
 
   type op
 
@@ -212,7 +212,7 @@ end = struct
       | None -> result_unknown ()
     in
     match proof1, proof2 with
-    | Proved nums1, Proved nums2 when N.ok_to_evaluate denv ->
+    | Known_result nums1, Known_result nums2 when N.ok_to_evaluate denv ->
       assert (not (N.Lhs.Set.is_empty nums1));
       assert (not (N.Rhs.Set.is_empty nums2));
       if N.Lhs.Set.cardinal nums1 > max_num_possible_results
@@ -229,17 +229,18 @@ end = struct
             all_pairs PR.Set.empty
         in
         check_possible_results ~possible_results
-    | Proved nums1, Unknown when N.ok_to_evaluate denv ->
+    | Known_result nums1, Need_meet when N.ok_to_evaluate denv ->
       assert (not (N.Lhs.Set.is_empty nums1));
       only_one_side_known
         (fun i -> N.op_rhs_unknown op ~lhs:i)
         nums1 ~folder:N.Lhs.Set.fold ~other_side:arg2
-    | Unknown, Proved nums2 when N.ok_to_evaluate denv ->
+    | Need_meet, Known_result nums2 when N.ok_to_evaluate denv ->
       assert (not (N.Rhs.Set.is_empty nums2));
       only_one_side_known
         (fun i -> N.op_lhs_unknown op ~rhs:i)
         nums2 ~folder:N.Rhs.Set.fold ~other_side:arg1
-    | (Proved _ | Unknown), (Proved _ | Unknown) -> result_unknown ()
+    | (Known_result _ | Need_meet), (Known_result _ | Need_meet) ->
+      result_unknown ()
     | Invalid, _ | _, Invalid -> result_invalid ()
 end
 [@@inline always]
@@ -418,7 +419,7 @@ end = struct
 
   let prover_lhs = I.unboxed_prover
 
-  let prover_rhs = T.prove_naked_immediates
+  let prover_rhs = T.meet_naked_immediates
 
   let unknown _ =
     match arg_kind with
@@ -621,9 +622,9 @@ end = struct
 
   let ok_to_evaluate denv = DE.propagating_float_consts denv
 
-  let prover_lhs = T.prove_naked_floats
+  let prover_lhs = T.meet_naked_floats
 
-  let prover_rhs = T.prove_naked_floats
+  let prover_rhs = T.meet_naked_floats
 
   let unknown _ = T.any_naked_float
 
@@ -714,9 +715,9 @@ end = struct
 
   let ok_to_evaluate denv = DE.propagating_float_consts denv
 
-  let prover_lhs = T.prove_naked_floats
+  let prover_lhs = T.meet_naked_floats
 
-  let prover_rhs = T.prove_naked_floats
+  let prover_rhs = T.meet_naked_floats
 
   let unknown (op : op) =
     match op with
@@ -862,10 +863,7 @@ let simplify_phys_equal (op : P.equality_comparison) dacc ~original_term dbg
     | Proved _, Proved _ ->
       Binary_int_eq_comp_tagged_immediate.simplify op dacc ~original_term dbg
         ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var
-    | Proved _, (Unknown | Invalid)
-    | (Unknown | Invalid), Proved _
-    | Unknown, (Unknown | Invalid)
-    | Invalid, (Unknown | Invalid) ->
+    | Unknown, Unknown | Proved _, Unknown | Unknown, Proved _ ->
       let dacc =
         DA.add_variable dacc result_var
           (T.these_naked_immediates Targetint_31_63.all_bools)
@@ -882,20 +880,20 @@ let[@inline always] simplify_immutable_block_load0
   in
   let result_var' = Bound_var.var result_var in
   let typing_env = DA.typing_env dacc in
-  match T.prove_equals_single_tagged_immediate typing_env index_ty with
+  match T.meet_equals_single_tagged_immediate typing_env index_ty with
   | Invalid -> SPR.create_invalid dacc
-  | Unknown -> SPR.create_unknown dacc ~result_var result_kind ~original_term
-  | Proved index -> (
+  | Need_meet -> SPR.create_unknown dacc ~result_var result_kind ~original_term
+  | Known_result index -> (
     match
-      T.prove_block_field_simple typing_env ~min_name_mode block_ty index
+      T.meet_block_field_simple typing_env ~min_name_mode block_ty index
     with
     | Invalid -> SPR.create_invalid dacc
-    | Proved simple ->
+    | Known_result simple ->
       let dacc =
         DA.add_variable dacc result_var (T.alias_type_of result_kind simple)
       in
       SPR.create (Named.create_simple simple) ~try_reify:false dacc
-    | Unknown -> (
+    | Need_meet -> (
       let n = Targetint_31_63.add index Targetint_31_63.one in
       (* CR-someday mshinwell: We should be able to use the size in the
          [access_kind] to constrain the type of the block *)
@@ -934,7 +932,6 @@ let[@inline always] simplify_immutable_block_load0
           T.prove_unique_fully_constructed_immutable_heap_block
             (DA.typing_env dacc) block_ty
         with
-        | Invalid -> SPR.create_invalid dacc
         | Unknown -> result
         | Proved (tag_and_size, field_simples) -> (
           match Tag_and_size.tag tag_and_size |> Tag.Scannable.of_tag with
