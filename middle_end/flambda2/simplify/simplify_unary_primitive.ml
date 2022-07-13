@@ -484,18 +484,15 @@ let simplify_duplicate_array ~kind:_ ~(source_mutability : Mutability.t)
   (* This simplification should eliminate bounds checks on array literals. *)
   match source_mutability, destination_mutability with
   | Immutable, Mutable -> (
-    match T.meet_is_array (DA.typing_env dacc) arg_ty with
+    match T.meet_is_immutable_array (DA.typing_env dacc) arg_ty with
     | Invalid -> SPR.create_invalid dacc
     | Need_meet ->
       let dacc = DA.add_variable dacc result_var T.any_value in
       SPR.create original_term ~try_reify:false dacc
-    | Known_result (element_kind, length, array_contents, alloc_mode) -> (
-      match array_contents with
-      | Known Mutable -> SPR.create_invalid dacc
-      | Unknown | Known (Immutable _) ->
-        let ty = T.array_of_length ~element_kind ~length alloc_mode in
-        let dacc = DA.add_variable dacc result_var ty in
-        SPR.create original_term ~try_reify:false dacc))
+    | Known_result (element_kind, length, alloc_mode) ->
+      let ty = T.mutable_array ~element_kind ~length alloc_mode in
+      let dacc = DA.add_variable dacc result_var ty in
+      SPR.create original_term ~try_reify:false dacc)
   | ( (Immutable | Immutable_unique | Mutable),
       (Immutable | Immutable_unique | Mutable) ) ->
     Misc.fatal_errorf

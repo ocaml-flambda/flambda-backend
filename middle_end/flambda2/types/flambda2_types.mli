@@ -622,17 +622,10 @@ val meet_is_flat_float_array : Typing_env.t -> t -> bool meet_shortcut
 
 val prove_is_immediates_array : Typing_env.t -> t -> unit proof_of_property
 
-type array_contents = private
-  | Immutable of { fields : t list }
-  | Mutable
-
-val meet_is_array :
+val meet_is_immutable_array :
   Typing_env.t ->
   t ->
-  (Flambda_kind.With_subkind.t Or_unknown.t
-  * t
-  * array_contents Or_unknown.t
-  * Alloc_mode.t Or_unknown.t)
+  (Flambda_kind.With_subkind.t Or_unknown.t * t * Alloc_mode.t Or_unknown.t)
   meet_shortcut
 
 val meet_single_closures_entry :
