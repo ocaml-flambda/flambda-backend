@@ -857,16 +857,13 @@ let simplify_phys_equal (op : P.equality_comparison) dacc ~original_term dbg
     match op with Eq -> const true | Neq -> const false
   else
     let typing_env = DA.typing_env dacc in
-    let proof1 = T.meet_equals_tagged_immediates typing_env arg1_ty in
-    let proof2 = T.meet_equals_tagged_immediates typing_env arg2_ty in
+    let proof1 = T.prove_equals_tagged_immediates typing_env arg1_ty in
+    let proof2 = T.prove_equals_tagged_immediates typing_env arg2_ty in
     match proof1, proof2 with
-    | Known_result _, Known_result _ ->
+    | Proved _, Proved _ ->
       Binary_int_eq_comp_tagged_immediate.simplify op dacc ~original_term dbg
         ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var
-    | Known_result _, (Need_meet | Invalid)
-    | (Need_meet | Invalid), Known_result _
-    | Need_meet, (Need_meet | Invalid)
-    | Invalid, (Need_meet | Invalid) ->
+    | Unknown, Unknown | Proved _, Unknown | Unknown, Proved _ ->
       let dacc =
         DA.add_variable dacc result_var
           (T.these_naked_immediates Targetint_31_63.all_bools)
