@@ -3500,12 +3500,13 @@ and type_expect_
       { exp with exp_loc = loc }
   | Pexp_apply(sfunct, sargs) ->
       assert (sargs <> []);
+      let position = apply_position env expected_mode sexp in
       let funct_mode, funct_expected_mode =
-        match expected_mode.position with
+        match position with
         | Tail ->
           let mode = Value_mode.local_to_regional (Value_mode.newvar ()) in
           mode, mode_tailcall_function mode
-        | Nontail ->
+        | Nontail | Default ->
           let mode = Value_mode.newvar () in
           mode, mode_nontail mode
       in
@@ -3554,7 +3555,6 @@ and type_expect_
         | _ ->
             funct, sargs
       in
-      let position = apply_position env expected_mode sexp in
       begin_def ();
       let (args, ty_res, position) =
         type_application env loc expected_mode position funct funct_mode sargs
