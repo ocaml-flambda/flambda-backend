@@ -1982,6 +1982,8 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode)
     match Acc.declared_symbols acc with
     | _ :: _ -> acc
     | [] ->
+      (* CR vlaviron/mshinwell: Maybe this could use an empty array.
+         Furthermore, can this hack be removed? *)
       let acc, (_sym : Symbol.t) =
         register_const0 acc
           (Static_const.block Tag.Scannable.zero Immutable [])
