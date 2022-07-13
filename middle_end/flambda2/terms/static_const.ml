@@ -32,6 +32,32 @@ type t =
   | Mutable_string of { initial_value : string }
   | Immutable_string of string
 
+let set_of_closures set = Set_of_closures set
+
+let block tag mutability fields = Block (tag, mutability, fields)
+
+let boxed_float or_var = Boxed_float or_var
+
+let boxed_int32 or_var = Boxed_int32 or_var
+
+let boxed_int64 or_var = Boxed_int64 or_var
+
+let boxed_nativeint or_var = Boxed_nativeint or_var
+
+let immutable_float_block fields = Immutable_float_block fields
+
+let immutable_float_array fields =
+  match fields with [] -> Empty_array | _ :: _ -> Immutable_float_array fields
+
+let immutable_value_array fields =
+  match fields with [] -> Empty_array | _ :: _ -> Immutable_value_array fields
+
+let empty_array = Empty_array
+
+let mutable_string ~initial_value = Mutable_string { initial_value }
+
+let immutable_string str = Immutable_string str
+
 let [@ocamlformat "disable"] print ppf t =
   match t with
   | Set_of_closures set ->

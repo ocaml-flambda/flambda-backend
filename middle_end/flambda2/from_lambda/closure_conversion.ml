@@ -87,10 +87,11 @@ let register_const acc constant name : Acc.t * Field_of_static_block.t * string
   acc, Symbol symbol, name
 
 let register_const_string acc str =
-  register_const0 acc (Static_const.Immutable_string str) "string"
+  register_const0 acc (Static_const.immutable_string str) "string"
 
 let rec declare_const acc (const : Lambda.structured_constant) :
     Acc.t * Field_of_static_block.t * string =
+  let module SC = Static_const in
   match const with
   | Const_base (Const_int c) ->
     acc, Tagged_immediate (Targetint_31_63.of_int c), "int"
@@ -99,25 +100,25 @@ let rec declare_const acc (const : Lambda.structured_constant) :
   | Const_base (Const_string (s, _, _)) ->
     let const, name =
       if Flambda_features.safe_string ()
-      then Static_const.Immutable_string s, "immstring"
-      else Static_const.Mutable_string { initial_value = s }, "string"
+      then SC.immutable_string s, "immstring"
+      else SC.mutable_string ~initial_value:s, "string"
     in
     register_const acc const name
   | Const_base (Const_float c) ->
     let c = Numeric_types.Float_by_bit_pattern.create (float_of_string c) in
-    register_const acc (Boxed_float (Const c)) "float"
+    register_const acc (SC.boxed_float (Const c)) "float"
   | Const_base (Const_int32 c) ->
-    register_const acc (Boxed_int32 (Const c)) "int32"
+    register_const acc (SC.boxed_int32 (Const c)) "int32"
   | Const_base (Const_int64 c) ->
-    register_const acc (Boxed_int64 (Const c)) "int64"
+    register_const acc (SC.boxed_int64 (Const c)) "int64"
   | Const_base (Const_nativeint c) ->
     (* CR pchambart: this should be pushed further to lambda *)
     let c = Targetint_32_64.of_int64 (Int64.of_nativeint c) in
-    register_const acc (Boxed_nativeint (Const c)) "nativeint"
-  | Const_immstring c -> register_const acc (Immutable_string c) "immstring"
+    register_const acc (SC.boxed_nativeint (Const c)) "nativeint"
+  | Const_immstring c -> register_const acc (SC.immutable_string c) "immstring"
   | Const_float_block c ->
     register_const acc
-      (Immutable_float_block
+      (SC.immutable_float_block
          (List.map
             (fun s ->
               let f =
@@ -128,7 +129,7 @@ let rec declare_const acc (const : Lambda.structured_constant) :
       "float_block"
   | Const_float_array c ->
     register_const acc
-      (Immutable_float_array
+      (SC.immutable_float_array
          (List.map
             (fun s ->
               let f =
@@ -145,8 +146,8 @@ let rec declare_const acc (const : Lambda.structured_constant) :
           acc, f)
         acc consts
     in
-    let const : Static_const.t =
-      Block (Tag.Scannable.create_exn tag, Immutable, field_of_blocks)
+    let const : SC.t =
+      SC.block (Tag.Scannable.create_exn tag) Immutable field_of_blocks
     in
     register_const acc const "const_block"
 
@@ -617,12 +618,12 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
             "Non-zero tag on empty block allocation in [Closure_conversion]"
         else
           register_const0 acc
-            (Static_const.Block (Tag.Scannable.zero, Immutable, []))
+            (Static_const.block Tag.Scannable.zero Immutable [])
             "empty_block"
       | Pmakefloatblock _ ->
         Misc.fatal_error "Unexpected empty float block in [Closure_conversion]"
       | Pmakearray (_, _, _mode) ->
-        register_const0 acc Static_const.Empty_array "empty_array"
+        register_const0 acc Static_const.empty_array "empty_array"
       | Pidentity | Pbytes_to_string | Pbytes_of_string | Pignore | Prevapply _
       | Pdirapply _ | Pgetglobal _ | Psetglobal _ | Pfield _ | Pfield_computed _
       | Psetfield _ | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _
@@ -1814,7 +1815,7 @@ let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
         let bound = Bound_static.Pattern.set_of_closures symbols in
         let const =
           Static_const_or_code.create_static_const
-            (Set_of_closures set_of_closures)
+            (Static_const.set_of_closures set_of_closures)
         in
         ( GroupMap.add id (bound, const) g2c,
           Function_slot.Lmap.fold
@@ -1903,7 +1904,7 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode)
               Dynamically_computed (var, Debuginfo.none))
             field_vars
         in
-        Block (module_block_tag, Immutable, field_vars)
+        Static_const.block module_block_tag Immutable field_vars
       in
       let acc, arg = use_of_symbol_as_simple acc module_symbol in
       let acc, apply_cont =
@@ -1983,7 +1984,7 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode)
     | [] ->
       let acc, (_sym : Symbol.t) =
         register_const0 acc
-          (Static_const.Block (Tag.Scannable.zero, Immutable, []))
+          (Static_const.block Tag.Scannable.zero Immutable [])
           "first_const"
       in
       acc

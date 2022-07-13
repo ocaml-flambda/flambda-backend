@@ -644,31 +644,37 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
       let static_const const =
         Flambda.Static_const_or_code.create_static_const const
       in
+      let module SC = Static_const in
       match b with
       | Data { symbol = _; defining_expr = def } -> (
         match def with
         | Block { tag; mutability; elements = args } ->
           let tag = Tag.Scannable.create_exn tag in
           static_const
-            (Block (tag, mutability, List.map (field_of_block env) args))
-        | Boxed_float f -> static_const (Boxed_float (or_variable float env f))
-        | Boxed_int32 i -> static_const (Boxed_int32 (or_variable Fun.id env i))
-        | Boxed_int64 i -> static_const (Boxed_int64 (or_variable Fun.id env i))
+            (SC.block tag mutability (List.map (field_of_block env) args))
+        | Boxed_float f ->
+          static_const (SC.boxed_float (or_variable float env f))
+        | Boxed_int32 i ->
+          static_const (SC.boxed_int32 (or_variable Fun.id env i))
+        | Boxed_int64 i ->
+          static_const (SC.boxed_int64 (or_variable Fun.id env i))
         | Boxed_nativeint i ->
-          static_const (Boxed_nativeint (or_variable targetint env i))
+          static_const (SC.boxed_nativeint (or_variable targetint env i))
         | Immutable_float_block elements ->
           static_const
-            (Immutable_float_block (List.map (or_variable float env) elements))
+            (SC.immutable_float_block
+               (List.map (or_variable float env) elements))
         | Immutable_float_array elements ->
           static_const
-            (Immutable_float_array (List.map (or_variable float env) elements))
+            (SC.immutable_float_array
+               (List.map (or_variable float env) elements))
         | Immutable_value_array elements ->
           static_const
-            (Immutable_value_array (List.map (field_of_block env) elements))
-        | Empty_array -> static_const Empty_array
+            (SC.immutable_value_array (List.map (field_of_block env) elements))
+        | Empty_array -> static_const SC.empty_array
         | Mutable_string { initial_value = s } ->
-          static_const (Mutable_string { initial_value = s })
-        | Immutable_string s -> static_const (Immutable_string s))
+          static_const (SC.mutable_string ~initial_value:s)
+        | Immutable_string s -> static_const (SC.immutable_string s))
       | Set_of_closures { bindings; elements } ->
         let fun_decls =
           List.map
@@ -676,7 +682,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             bindings
         in
         let set = set_of_closures env fun_decls elements in
-        static_const (Set_of_closures set)
+        static_const (SC.set_of_closures set)
       | Closure _ -> assert false (* should have been filtered out above *)
       | Deleted_code _ -> Flambda.Static_const_or_code.deleted_code
       | Code
