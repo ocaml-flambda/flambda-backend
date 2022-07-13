@@ -66,7 +66,9 @@ and head_of_kind_value =
   | String of String_info.Set.t
   | Array of
       { element_kind : Flambda_kind.With_subkind.t Or_unknown.t;
-        length : t
+        length : t;
+        contents : array_contents Or_unknown.t;
+        alloc_mode : Alloc_mode.t Or_unknown.t
       }
 
 and head_of_kind_naked_immediate =
@@ -151,6 +153,10 @@ and function_type =
            : bool Or_unknown.t *)
   }
 
+and array_contents =
+  | Immutable of { fields : t list }
+  | Mutable
+
 and env_extension = { equations : t Name.Map.t } [@@unboxed]
 
 type flambda_type = t
@@ -207,7 +213,23 @@ and free_names_head_of_kind_value0 ~follow_value_slots head =
   | Closures { by_function_slot; alloc_mode = _ } ->
     free_names_row_like_for_closures ~follow_value_slots by_function_slot
   | String _ -> Name_occurrences.empty
-  | Array { element_kind = _; length } -> free_names0 ~follow_value_slots length
+  | Array
+      { element_kind = _;
+        length;
+        contents = Unknown | Known Mutable;
+        alloc_mode = _
+      } ->
+    free_names0 ~follow_value_slots length
+  | Array
+      { element_kind = _;
+        length;
+        contents = Known (Immutable { fields });
+        alloc_mode = _
+      } ->
+    Name_occurrences.union
+      (free_names0 ~follow_value_slots length)
+      (List.map (free_names0 ~follow_value_slots) fields
+      |> Name_occurrences.union_list)
 
 and free_names_head_of_kind_naked_immediate0 ~follow_value_slots head =
   match head with
@@ -454,9 +476,40 @@ and apply_renaming_head_of_kind_value head renaming =
     then head
     else Closures { by_function_slot = by_function_slot'; alloc_mode }
   | String _ -> head
-  | Array { element_kind; length } ->
+  | Array { element_kind; length; contents = Unknown; alloc_mode } ->
     let length' = apply_renaming length renaming in
-    if length == length' then head else Array { element_kind; length = length' }
+    if length == length'
+    then head
+    else
+      Array { element_kind; length = length'; contents = Unknown; alloc_mode }
+  | Array { element_kind; length; contents = Known Mutable; alloc_mode } ->
+    let length' = apply_renaming length renaming in
+    if length == length'
+    then head
+    else
+      Array
+        { element_kind; length = length'; contents = Known Mutable; alloc_mode }
+  | Array
+      { element_kind;
+        length;
+        contents = Known (Immutable { fields });
+        alloc_mode
+      } ->
+    let length' = apply_renaming length renaming in
+    let fields' =
+      Misc.Stdlib.List.map_sharing
+        (fun field -> apply_renaming field renaming)
+        fields
+    in
+    if length == length' && fields == fields'
+    then head
+    else
+      Array
+        { element_kind;
+          length = length';
+          contents = Known (Immutable { fields = fields' });
+          alloc_mode
+        }
 
 and apply_renaming_head_of_kind_naked_immediate head renaming =
   match head with
@@ -679,10 +732,36 @@ and print_head_of_kind_value ppf head =
   | String str_infos ->
     Format.fprintf ppf "@[<hov 1>(Strings@ (%a))@]" String_info.Set.print
       str_infos
-  | Array { element_kind; length } ->
-    Format.fprintf ppf "@[<hov 1>(Array@ (element_kind@ %a)@ (length@ %a))@]"
+  | Array { element_kind; length; contents = Unknown; alloc_mode } ->
+    Format.fprintf ppf
+      "@[<hov 1>(Array@ (element_kind@ %a)@ (length@ %a)@ (alloc_mode@ %a))@]"
       (Or_unknown.print Flambda_kind.With_subkind.print)
       element_kind print length
+      (Or_unknown.print Alloc_mode.print)
+      alloc_mode
+  | Array { element_kind; length; contents = Known Mutable; alloc_mode } ->
+    Format.fprintf ppf
+      "@[<hov 1>(Mutable_array@ (element_kind@ %a)@ (length@ %a)@ (alloc_mode@ \
+       %a))@]"
+      (Or_unknown.print Flambda_kind.With_subkind.print)
+      element_kind print length
+      (Or_unknown.print Alloc_mode.print)
+      alloc_mode
+  | Array
+      { element_kind;
+        length;
+        contents = Known (Immutable { fields });
+        alloc_mode
+      } ->
+    Format.fprintf ppf
+      "@[<hov 1>(Immutable_array@ (element_kind@ %a)@ (length@ %a)@ \
+       (alloc_mode@ %a)@ (fields@ (%a)))@]"
+      (Or_unknown.print Flambda_kind.With_subkind.print)
+      element_kind print length
+      (Or_unknown.print Alloc_mode.print)
+      alloc_mode
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space print)
+      fields
 
 and print_head_of_kind_naked_immediate ppf head =
   match head with
@@ -854,7 +933,21 @@ and ids_for_export_head_of_kind_value head =
   | Closures { by_function_slot; alloc_mode = _ } ->
     ids_for_export_row_like_for_closures by_function_slot
   | String _ -> Ids_for_export.empty
-  | Array { element_kind = _; length } -> ids_for_export length
+  | Array
+      { element_kind = _;
+        length;
+        contents = Unknown | Known Mutable;
+        alloc_mode = _
+      } ->
+    ids_for_export length
+  | Array
+      { element_kind = _;
+        length;
+        contents = Known (Immutable { fields });
+        alloc_mode = _
+      } ->
+    Ids_for_export.union (ids_for_export length)
+      (List.map ids_for_export fields |> Ids_for_export.union_list)
 
 and ids_for_export_head_of_kind_naked_immediate head =
   match head with
@@ -1054,9 +1147,22 @@ and apply_coercion_head_of_kind_value head coercion : _ Or_bottom.t =
   | Boxed_int32 _ | Boxed_int64 _ | Boxed_nativeint _ | String _ ->
     (* Similarly, we don't have lifted coercions for these. *)
     if Coercion.is_id coercion then Ok head else Bottom
-  | Array { element_kind = _; length = _ } ->
+  | Array
+      { element_kind = _;
+        length = _;
+        contents = Unknown | Known Mutable;
+        alloc_mode = _
+      } ->
     (* This one's a bit more obvious: we wouldn't want to accidentally treat a
        coercion on integers as a coercion on array lengths. *)
+    if Coercion.is_id coercion then Ok head else Bottom
+  | Array
+      { element_kind = _;
+        length = _;
+        contents = Known (Immutable { fields = _ });
+        alloc_mode = _
+      } ->
+    (* Same as the block case (in [Variant]) above. *)
     if Coercion.is_id coercion then Ok head else Bottom
 
 and apply_coercion_head_of_kind_naked_immediate head coercion : _ Or_bottom.t =
@@ -1391,12 +1497,50 @@ and remove_unused_value_slots_and_shortcut_aliases_head_of_kind_value head
     then head
     else Closures { by_function_slot = by_function_slot'; alloc_mode }
   | String _ -> head
-  | Array { element_kind; length } ->
+  | Array { element_kind; length; contents = Unknown; alloc_mode } ->
     let length' =
       remove_unused_value_slots_and_shortcut_aliases length ~used_value_slots
         ~canonicalise
     in
-    if length == length' then head else Array { element_kind; length = length' }
+    if length == length'
+    then head
+    else
+      Array { element_kind; length = length'; contents = Unknown; alloc_mode }
+  | Array { element_kind; length; contents = Known Mutable; alloc_mode } ->
+    let length' =
+      remove_unused_value_slots_and_shortcut_aliases length ~used_value_slots
+        ~canonicalise
+    in
+    if length == length'
+    then head
+    else
+      Array
+        { element_kind; length = length'; contents = Known Mutable; alloc_mode }
+  | Array
+      { element_kind;
+        length;
+        contents = Known (Immutable { fields });
+        alloc_mode
+      } ->
+    let length' =
+      remove_unused_value_slots_and_shortcut_aliases length ~used_value_slots
+        ~canonicalise
+    in
+    let fields' =
+      Misc.Stdlib.List.map_sharing
+        (remove_unused_value_slots_and_shortcut_aliases ~used_value_slots
+           ~canonicalise)
+        fields
+    in
+    if length == length' && fields == fields'
+    then head
+    else
+      Array
+        { element_kind;
+          length = length';
+          contents = Known (Immutable { fields = fields' });
+          alloc_mode
+        }
 
 and remove_unused_value_slots_and_shortcut_aliases_head_of_kind_naked_immediate
     head ~used_value_slots ~canonicalise =
@@ -1799,9 +1943,40 @@ and project_head_of_kind_value ~to_project ~expand head =
     then head
     else Closures { by_function_slot = by_function_slot'; alloc_mode }
   | String _ -> head
-  | Array { element_kind; length } ->
+  | Array { element_kind; length; contents = Unknown; alloc_mode } ->
     let length' = project_variables_out ~to_project ~expand length in
-    if length == length' then head else Array { element_kind; length = length' }
+    if length == length'
+    then head
+    else
+      Array { element_kind; length = length'; contents = Unknown; alloc_mode }
+  | Array { element_kind; length; contents = Known Mutable; alloc_mode } ->
+    let length' = project_variables_out ~to_project ~expand length in
+    if length == length'
+    then head
+    else
+      Array
+        { element_kind; length = length'; contents = Known Mutable; alloc_mode }
+  | Array
+      { element_kind;
+        length;
+        contents = Known (Immutable { fields });
+        alloc_mode
+      } ->
+    let length' = project_variables_out ~to_project ~expand length in
+    let fields' =
+      Misc.Stdlib.List.map_sharing
+        (project_variables_out ~to_project ~expand)
+        fields
+    in
+    if length == length' && fields == fields'
+    then head
+    else
+      Array
+        { element_kind;
+          length = length';
+          contents = Known (Immutable { fields = fields' });
+          alloc_mode
+        }
 
 and project_head_of_kind_naked_immediate ~to_project ~expand head =
   match head with
@@ -2652,8 +2827,26 @@ let mutable_string ~size =
   in
   Value (TD.create (String string_info))
 
-let array_of_length ~element_kind ~length =
-  Value (TD.create (Array { element_kind; length }))
+let array_of_length ~element_kind ~length alloc_mode =
+  Value
+    (TD.create (Array { element_kind; length; contents = Unknown; alloc_mode }))
+
+let mutable_array ~element_kind ~length alloc_mode =
+  Value
+    (TD.create
+       (Array { element_kind; length; contents = Known Mutable; alloc_mode }))
+
+let immutable_array ~element_kind ~fields alloc_mode =
+  Value
+    (TD.create
+       (Array
+          { element_kind;
+            length =
+              this_tagged_immediate
+                (Targetint_31_63.of_int (List.length fields));
+            contents = Known (Immutable { fields });
+            alloc_mode
+          }))
 
 let this_rec_info (rec_info_expr : Rec_info_expr.t) =
   match rec_info_expr with
@@ -2730,7 +2923,8 @@ module Head_of_kind_value = struct
 
   let create_string info = String info
 
-  let create_array ~element_kind ~length = Array { element_kind; length }
+  let create_array_with_contents ~element_kind ~length contents alloc_mode =
+    Array { element_kind; length; contents; alloc_mode }
 end
 
 module type Head_of_kind_naked_number_intf = sig

@@ -98,6 +98,33 @@ let[@inline always] join_unknown join_contents (env : Join_env.t)
   | _, Unknown | Unknown, _ -> Unknown
   | Known contents1, Known contents2 -> join_contents env contents1 contents2
 
+let meet_array_element_kinds (element_kind1 : _ Or_unknown.t)
+    (element_kind2 : _ Or_unknown.t) : _ Or_bottom.t =
+  match element_kind1, element_kind2 with
+  | Unknown, Unknown -> Ok Or_unknown.Unknown
+  | Unknown, Known kind | Known kind, Unknown -> Ok (Or_unknown.Known kind)
+  | Known element_kind1, Known element_kind2 ->
+    if Flambda_kind.With_subkind.compatible element_kind1
+         ~when_used_at:element_kind2
+    then Ok (Or_unknown.Known element_kind1)
+    else if Flambda_kind.With_subkind.compatible element_kind2
+              ~when_used_at:element_kind1
+    then Ok (Or_unknown.Known element_kind2)
+    else Bottom
+
+let join_array_element_kinds (element_kind1 : _ Or_unknown.t)
+    (element_kind2 : _ Or_unknown.t) : _ Or_unknown.t =
+  match element_kind1, element_kind2 with
+  | Unknown, Unknown | Unknown, Known _ | Known _, Unknown -> Unknown
+  | Known element_kind1, Known element_kind2 ->
+    if Flambda_kind.With_subkind.compatible element_kind1
+         ~when_used_at:element_kind2
+    then Known element_kind2
+    else if Flambda_kind.With_subkind.compatible element_kind2
+              ~when_used_at:element_kind1
+    then Known element_kind1
+    else Unknown
+
 let rec meet env (t1 : TG.t) (t2 : TG.t) : (TG.t * TEE.t) Or_bottom.t =
   let t, env_extension = meet0 env t1 t2 in
   if TG.is_obviously_bottom t then Bottom else Ok (t, env_extension)
@@ -354,29 +381,70 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
     if String_info.Set.is_empty strs
     then Bottom
     else Or_bottom.Ok (TG.Head_of_kind_value.create_string strs, TEE.empty)
-  | ( Array { element_kind = element_kind1; length = length1 },
-      Array { element_kind = element_kind2; length = length2 } ) ->
-    let<* element_kind =
-      match element_kind1, element_kind2 with
-      | Unknown, Unknown -> Ok Or_unknown.Unknown
-      | Unknown, Known kind | Known kind, Unknown -> Ok (Or_unknown.Known kind)
-      | Known element_kind1, Known element_kind2 ->
-        if Flambda_kind.With_subkind.compatible element_kind1
-             ~when_used_at:element_kind2
-        then Ok (Or_unknown.Known element_kind1)
-        else if Flambda_kind.With_subkind.compatible element_kind2
-                  ~when_used_at:element_kind1
-        then Ok (Or_unknown.Known element_kind2)
-        else Bottom
+  | ( Array
+        { element_kind = element_kind1;
+          length = length1;
+          contents = array_contents1;
+          alloc_mode = alloc_mode1
+        },
+      Array
+        { element_kind = element_kind2;
+          length = length2;
+          contents = array_contents2;
+          alloc_mode = alloc_mode2
+        } ) ->
+    let<* alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
+    let<* element_kind = meet_array_element_kinds element_kind1 element_kind2 in
+    let<* contents, env_extension =
+      meet_array_contents env array_contents1 array_contents2
     in
-    let<+ length, env_extension = meet env length1 length2 in
-    TG.Head_of_kind_value.create_array ~element_kind ~length, env_extension
+    let<* length, env_extension' = meet env length1 length2 in
+    let<+ env_extension = meet_env_extension env env_extension env_extension' in
+    ( TG.Head_of_kind_value.create_array_with_contents ~element_kind ~length
+        contents alloc_mode,
+      env_extension )
   | ( ( Variant _ | Mutable_block _ | Boxed_float _ | Boxed_int32 _
       | Boxed_int64 _ | Boxed_nativeint _ | Closures _ | String _ | Array _ ),
       _ ) ->
     (* This assumes that all the different constructors are incompatible. This
        could break very hard for dubious uses of Obj. *)
     Bottom
+
+and meet_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
+    (array_contents2 : TG.array_contents Or_unknown.t) =
+  meet_unknown
+    (fun env (array_contents1 : TG.array_contents)
+         (array_contents2 : TG.array_contents) :
+         (TG.array_contents * TEE.t) Or_bottom.t ->
+      match array_contents1, array_contents2 with
+      | Mutable, Mutable -> Ok (TG.Mutable, TEE.empty)
+      | Mutable, Immutable _ | Immutable _, Mutable -> Bottom
+      | Immutable { fields = fields1 }, Immutable { fields = fields2 } ->
+        if List.compare_lengths fields1 fields2 <> 0
+        then Bottom
+        else
+          let<+ fields_rev, env_extension =
+            List.fold_left2
+              (fun (fields_rev_and_env_extension : _ Or_bottom.t) field1 field2
+                   : _ Or_bottom.t ->
+                let<* fields_rev, env_extension' =
+                  fields_rev_and_env_extension
+                in
+                let<* field, env_extension = meet env field1 field2 in
+                let<+ env_extension =
+                  meet_env_extension env env_extension env_extension'
+                in
+                field :: fields_rev, env_extension)
+              (Or_bottom.Ok ([], TEE.empty))
+              fields1 fields2
+          in
+          let fields = List.rev fields_rev in
+          TG.Immutable { fields }, env_extension)
+    ~contents_is_bottom:(fun (array_contents : TG.array_contents) ->
+      match array_contents with
+      | Mutable -> false
+      | Immutable { fields } -> List.exists TG.is_obviously_bottom fields)
+    env array_contents1 array_contents2
 
 and meet_variant env ~(blocks1 : TG.Row_like_for_blocks.t Or_unknown.t)
     ~(imms1 : TG.t Or_unknown.t)
@@ -1085,26 +1153,52 @@ and join_head_of_kind_value env (head1 : TG.head_of_kind_value)
   | String strs1, String strs2 ->
     let strs = String_info.Set.union strs1 strs2 in
     Known (TG.Head_of_kind_value.create_string strs)
-  | ( Array { element_kind = element_kind1; length = length1 },
-      Array { element_kind = element_kind2; length = length2 } ) ->
-    let element_kind : _ Or_unknown.t =
-      match element_kind1, element_kind2 with
-      | Unknown, Unknown | Unknown, Known _ | Known _, Unknown -> Unknown
-      | Known element_kind1, Known element_kind2 ->
-        if Flambda_kind.With_subkind.compatible element_kind1
-             ~when_used_at:element_kind2
-        then Known element_kind2
-        else if Flambda_kind.With_subkind.compatible element_kind2
-                  ~when_used_at:element_kind1
-        then Known element_kind1
-        else Unknown
-    in
+  | ( Array
+        { element_kind = element_kind1;
+          length = length1;
+          contents = array_contents1;
+          alloc_mode = alloc_mode1
+        },
+      Array
+        { element_kind = element_kind2;
+          length = length2;
+          contents = array_contents2;
+          alloc_mode = alloc_mode2
+        } ) ->
+    let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
+    let element_kind = join_array_element_kinds element_kind1 element_kind2 in
+    let contents = join_array_contents env array_contents1 array_contents2 in
     let>+ length = join env length1 length2 in
-    TG.Head_of_kind_value.create_array ~element_kind ~length
+    TG.Head_of_kind_value.create_array_with_contents ~element_kind ~length
+      contents alloc_mode
   | ( ( Variant _ | Mutable_block _ | Boxed_float _ | Boxed_int32 _
       | Boxed_int64 _ | Boxed_nativeint _ | Closures _ | String _ | Array _ ),
       _ ) ->
     Unknown
+
+and join_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
+    (array_contents2 : TG.array_contents Or_unknown.t) =
+  join_unknown
+    (fun env (array_contents1 : TG.array_contents)
+         (array_contents2 : TG.array_contents) : TG.array_contents Or_unknown.t ->
+      match array_contents1, array_contents2 with
+      | Mutable, Mutable -> Known TG.Mutable
+      | Mutable, Immutable _ | Immutable _, Mutable -> Unknown
+      | Immutable { fields = fields1 }, Immutable { fields = fields2 } ->
+        if List.compare_lengths fields1 fields2 <> 0
+        then Unknown
+        else
+          let>+ fields_rev =
+            List.fold_left2
+              (fun (fields_rev : _ Or_unknown.t) field1 field2 : _ Or_unknown.t ->
+                let>* fields_rev = fields_rev in
+                let>+ field = join env field1 field2 in
+                field :: fields_rev)
+              (Or_unknown.Known []) fields1 fields2
+          in
+          let fields = List.rev fields_rev in
+          TG.Immutable { fields })
+    env array_contents1 array_contents2
 
 and join_variant env ~(blocks1 : TG.Row_like_for_blocks.t Or_unknown.t)
     ~(imms1 : TG.t Or_unknown.t)

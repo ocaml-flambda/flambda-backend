@@ -59,7 +59,9 @@ and head_of_kind_value = private
   | String of String_info.Set.t
   | Array of
       { element_kind : Flambda_kind.With_subkind.t Or_unknown.t;
-        length : t
+        length : t;
+        contents : array_contents Or_unknown.t;
+        alloc_mode : Alloc_mode.t Or_unknown.t
       }
 
 and head_of_kind_naked_immediate = private
@@ -127,6 +129,10 @@ and function_type = private
   { code_id : Code_id.t;
     rec_info : t
   }
+
+and array_contents =
+  | Immutable of { fields : t list }
+  | Mutable
 
 and env_extension = private { equations : t Name.Map.t } [@@unboxed]
 
@@ -263,7 +269,22 @@ val this_immutable_string : string -> t
 val mutable_string : size:int -> t
 
 val array_of_length :
-  element_kind:Flambda_kind.With_subkind.t Or_unknown.t -> length:t -> t
+  element_kind:Flambda_kind.With_subkind.t Or_unknown.t ->
+  length:t ->
+  Alloc_mode.t Or_unknown.t ->
+  t
+
+val mutable_array :
+  element_kind:Flambda_kind.With_subkind.t Or_unknown.t ->
+  length:t ->
+  Alloc_mode.t Or_unknown.t ->
+  t
+
+val immutable_array :
+  element_kind:Flambda_kind.With_subkind.t Or_unknown.t ->
+  fields:t list ->
+  Alloc_mode.t Or_unknown.t ->
+  t
 
 module Product : sig
   module Function_slot_indexed : sig
@@ -554,9 +575,11 @@ module Head_of_kind_value : sig
 
   val create_string : String_info.Set.t -> t
 
-  val create_array :
+  val create_array_with_contents :
     element_kind:Flambda_kind.With_subkind.t Or_unknown.t ->
     length:flambda_type ->
+    array_contents Or_unknown.t ->
+    Alloc_mode.t Or_unknown.t ->
     t
 end
 

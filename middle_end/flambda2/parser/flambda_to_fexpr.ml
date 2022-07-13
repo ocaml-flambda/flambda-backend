@@ -579,6 +579,8 @@ let static_const env (sc : Static_const.t) : Fexpr.static_data =
     Immutable_float_block (List.map (or_variable float env) elements)
   | Immutable_float_array elements ->
     Immutable_float_array (List.map (or_variable float env) elements)
+  | Immutable_value_array elements ->
+    Immutable_value_array (List.map (field_of_block env) elements)
   | Empty_array -> Empty_array
   | Mutable_string { initial_value } -> Mutable_string { initial_value }
   | Immutable_string s -> Immutable_string s

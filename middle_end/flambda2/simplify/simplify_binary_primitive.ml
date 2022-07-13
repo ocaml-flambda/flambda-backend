@@ -1006,6 +1006,9 @@ let simplify_array_load (array_kind : P.Array_kind.t) mutability dacc
     let dacc = DA.add_variable dacc result_var ty in
     SPR.create_invalid dacc
   | Ok array_kind ->
+    (* CR mshinwell: Add proper support for immutable arrays here (probably not
+       required at present since they only go into [Duplicate_array]
+       operations). *)
     let result_kind' =
       P.Array_kind.element_kind array_kind |> K.With_subkind.kind
     in

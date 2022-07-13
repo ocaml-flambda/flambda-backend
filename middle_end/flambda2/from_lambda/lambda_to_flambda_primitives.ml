@@ -601,9 +601,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
         If_then_else
           ( Unary (Is_boxed_float, elt),
             Variadic
-              ( Make_array (Naked_floats, Immutable, mode),
+              ( Make_array (Naked_floats, mutability, mode),
                 List.map unbox_float args ),
-            Variadic (Make_array (Values, Immutable, mode), args) )))
+            Variadic (Make_array (Values, mutability, mode), args) )))
   | Popaque, [arg] -> Unary (Opaque_identity, arg)
   | Pduprecord (repr, num_fields), [arg] ->
     let kind : P.Duplicate_block_kind.t =
