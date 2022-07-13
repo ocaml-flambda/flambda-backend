@@ -25,17 +25,25 @@ let create_static_const dacc dbg (to_lift : T.to_lift) : RSC.t =
           let module F = Field_of_static_block in
           Simple.pattern_match' field
             ~var:(fun var ~coercion ->
-              assert (Coercion.is_id coercion);
+              if not (Coercion.is_id coercion)
+              then
+                Misc.fatal_errorf "Expected identity coercion on variable:@ %a"
+                  Simple.print field;
               F.Dynamically_computed (var, dbg))
             ~symbol:(fun sym ~coercion ->
-              assert (Coercion.is_id coercion);
+              if not (Coercion.is_id coercion)
+              then
+                Misc.fatal_errorf "Expected identity coercion on symbol:@ %a"
+                  Simple.print field;
               F.Symbol sym)
             ~const:(fun const ->
               match Reg_width_const.descr const with
               | Tagged_immediate imm -> F.Tagged_immediate imm
               | Naked_immediate _ | Naked_float _ | Naked_int32 _
               | Naked_int64 _ | Naked_nativeint _ ->
-                assert false))
+                Misc.fatal_errorf
+                  "Did not expect this variety of constant (dbg %a):@ %a"
+                  Debuginfo.print_compact dbg Reg_width_const.print const))
     in
     let mut : Mutability.t =
       if is_unique then Immutable_unique else Immutable
