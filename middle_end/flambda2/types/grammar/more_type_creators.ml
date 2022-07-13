@@ -332,16 +332,17 @@ let rec unknown_with_subkind ?(alloc_mode = Or_unknown.Unknown)
       alloc_mode
   | Float_array ->
     TG.mutable_array ~element_kind:(Known Flambda_kind.With_subkind.naked_float)
-      ~length:any_tagged_immediate Unknown
+      ~length:any_tagged_immediate alloc_mode
   | Immediate_array ->
     TG.mutable_array
       ~element_kind:(Known Flambda_kind.With_subkind.tagged_immediate)
-      ~length:any_tagged_immediate Unknown
+      ~length:any_tagged_immediate alloc_mode
   | Value_array ->
     TG.mutable_array ~element_kind:(Known Flambda_kind.With_subkind.any_value)
-      ~length:any_tagged_immediate Unknown
+      ~length:any_tagged_immediate alloc_mode
   | Generic_array ->
-    TG.mutable_array ~element_kind:Unknown ~length:any_tagged_immediate Unknown
+    TG.mutable_array ~element_kind:Unknown ~length:any_tagged_immediate
+      alloc_mode
 
 let unknown_types_from_arity_with_subkinds arity =
   List.map
