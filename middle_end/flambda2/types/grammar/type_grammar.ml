@@ -1532,7 +1532,7 @@ and remove_unused_value_slots_and_shortcut_aliases_head_of_kind_value head
            ~canonicalise)
         fields
     in
-    if length == length && fields == fields'
+    if length == length' && fields == fields'
     then head
     else
       Array
