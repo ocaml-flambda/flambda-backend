@@ -42,8 +42,8 @@ let create_static_const dacc dbg (to_lift : T.to_lift) : RSC.t =
               | Naked_immediate _ | Naked_float _ | Naked_int32 _
               | Naked_int64 _ | Naked_nativeint _ ->
                 Misc.fatal_errorf
-                  "Did not expect this variety of constant (dbg %a):@ %a"
-                  Debuginfo.print_compact dbg Reg_width_const.print const))
+                  "Expected a constant of kind [Value] but got %a (dbg %a)"
+                  Reg_width_const.print const Debuginfo.print_compact dbg))
     in
     let mut : Mutability.t =
       if is_unique then Immutable_unique else Immutable
