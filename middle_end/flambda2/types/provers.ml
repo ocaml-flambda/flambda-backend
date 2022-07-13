@@ -61,7 +61,7 @@ let prove_equals_to_simple_of_kind_value env t : Simple.t proof_of_property =
   if not (K.equal original_kind K.value)
   then wrong_kind "Value" t
   else
-    (* CR: add TE.get_alias_opt *)
+    (* CR pchambart: add TE.get_alias_opt *)
     match TG.get_alias_exn t with
     | exception Not_found ->
       (* CR vlaviron: We could try to turn singleton types into constants here.
@@ -311,7 +311,8 @@ let prove_variant_like_generic env t : variant_like_proof generic_proof =
       | Unknown -> Unknown
       | Known non_const_ctors_with_sizes -> (
         let non_const_ctors_with_sizes =
-          (* CR: we could ignore non-scannable tags for the meet_ version *)
+          (* CR pchambart: we could ignore non-scannable tags for the meet_
+             version *)
           Tag.Map.fold
             (fun tag size (result : _ Or_unknown.t) : _ Or_unknown.t ->
               match result with
@@ -359,7 +360,7 @@ type boxed_or_tagged_number =
   | Boxed of Flambda_kind.Boxable_number.t
   | Tagged_immediate
 
-(* CR: Remove fragile matchs and reuse this function *)
+(* CR pchambart: Remove fragile matchs and reuse this function *)
 let prove_is_a_boxed_or_tagged_number env t :
     boxed_or_tagged_number proof_of_property =
   match expand_head env t with

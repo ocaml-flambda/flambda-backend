@@ -115,14 +115,14 @@ and row_like_for_closures =
   { known_closures :
       (Set_of_closures_contents.t, closures_entry) row_like_case
       Function_slot.Map.t;
-    (* CR: this field is always Bottom, we should remove it *)
+    (* CR pchambart: this field is always Bottom, we should remove it *)
     other_closures :
       (Set_of_closures_contents.t, closures_entry) row_like_case Or_bottom.t
   }
 
 and closures_entry =
-  { (* CR: Forbid the Bottom case in function types (propagate to the whole
-       environment *)
+  { (* CR pchambart: Forbid the Bottom case in function types (propagate to the
+       whole environment *)
     function_types : function_type Or_unknown_or_bottom.t Function_slot.Map.t;
     closure_types : function_slot_indexed_product;
     value_slot_types : value_slot_indexed_product
