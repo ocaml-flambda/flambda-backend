@@ -45,6 +45,9 @@ type section = {
     section table. *)
 val read_elf : Owee_buf.t -> header * section array
 
+(** [write_elf] writes a header and section table to a buffer *)
+val write_elf : Owee_buf.t -> header -> section array -> unit
+
 (** From a buffer pointing to an ELF image, [section_body elf section] returns
     a sub-buffer with the contents of the [section] of the ELF image. *)
 val section_body : Owee_buf.t -> section -> Owee_buf.t

@@ -18,6 +18,15 @@ let map_binary path =
   Unix.close fd;
   t
 
+let map_binary_write path size =
+  let fd = Unix.openfile path [Unix.O_RDWR] 0 in
+  let t =
+    Bigarray.array1_of_genarray
+      (Unix.map_file fd Bigarray.int8_unsigned
+         Bigarray.c_layout true [|size|]) in
+  Unix.close fd;
+  t
+
 exception Invalid_format of string
 let invalid_format msg = raise (Invalid_format msg)
 

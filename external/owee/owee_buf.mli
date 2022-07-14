@@ -4,6 +4,7 @@ type t =
   (int, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
 
 val map_binary : string -> t
+val map_binary_write : string -> int -> t
 
 (* Size of buffer remains int, because the size (aka dim) of
    Bigarray.Array1 is int, not int64. It should be enough in practice,

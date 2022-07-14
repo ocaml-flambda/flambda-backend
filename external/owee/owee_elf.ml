@@ -15,6 +15,15 @@ let read_magic t =
     invalid_format "No ELF magic number";
   advance t 4
 
+let write_magic t =
+  ensure t 4 "Magic number truncated";
+  let {buffer; position} = t in
+  buffer.{position + 0} <- 0x7f;
+  buffer.{position + 1} <- Char.code 'E';
+  buffer.{position + 2} <- Char.code 'L';
+  buffer.{position + 3} <- Char.code 'F';
+  advance t 4
+
 type identification = {
   elf_class      : u8;
   elf_data       : u8;
@@ -47,6 +56,24 @@ let read_identification t =
   end;
   { elf_class; elf_data; elf_version;
     elf_osabi; elf_abiversion }
+
+let write_identification t identification =
+  ensure t 12 "Identification truncated";
+  Write.u8 t identification.elf_class;
+  Write.u8 t identification.elf_data;
+  Write.u8 t identification.elf_version;
+  Write.u8 t identification.elf_osabi;
+  Write.u8 t identification.elf_abiversion;
+
+  (* Padding *)
+  Write.u8 t 0;
+  Write.u8 t 0;
+  Write.u8 t 0;
+  Write.u8 t 0;
+  Write.u8 t 0;
+  Write.u8 t 0;
+  Write.u8 t 0;
+  Write.u8 t 0
 
 type header = {
   e_ident     : identification;
@@ -86,6 +113,24 @@ let read_header t e_ident =
     e_phentsize; e_phnum; e_shentsize;
     e_shnum; e_shstrndx; e_ident }
 
+
+let write_header t header =
+  assert (t.position = 16);
+  ensure t 48 "Header truncated";
+  Write.u16 t header.e_type;
+  Write.u16 t header.e_machine;
+  Write.u32 t header.e_version;
+  Write.u64 t header.e_entry;
+  Write.u64 t header.e_phoff;
+  Write.u64 t header.e_shoff;
+  Write.u32 t header.e_flags;
+  Write.u16 t header.e_ehsize;
+  Write.u16 t header.e_phentsize;
+  Write.u16 t header.e_phnum;
+  Write.u16 t header.e_shentsize;
+  Write.u16 t header.e_shnum;
+  Write.u16 t header.e_shstrndx;
+
 (* Section header *)
 type section = {
   sh_name      : u32;
@@ -118,12 +163,31 @@ let read_section header t n =
     sh_offset; sh_size; sh_link; sh_info;
     sh_addralign; sh_entsize; sh_name_str = "" }
 
+let write_section header t n section =
+  seek t ((Int64.to_int header.e_shoff) + n * header.e_shentsize);
+  ensure t 64 "Shdr truncated";
+  Write.u32 t section.sh_name;
+  Write.u32 t section.sh_type;
+  Write.u64 t section.sh_flags;
+  Write.u64 t section.sh_addr;
+  Write.u64 t section.sh_offset;
+  Write.u64 t section.sh_size;
+  Write.u32 t section.sh_link;
+  Write.u32 t section.sh_info;
+  Write.u64 t section.sh_addralign;
+  Write.u64 t section.sh_entsize
+
 let read_section_name shstrndx t shdr =
   let n = shdr.sh_name in
   seek t ((Int64.to_int shstrndx.sh_offset) + n);
   match Read.zero_string t ~maxlen:((Int64.to_int shstrndx.sh_size) - n) () with
   | None -> invalid_format "Unterminated section name"
   | Some s -> s
+
+let write_section_name shstrndx t shdr name =
+  let n = shdr.sh_name in
+  seek t ((Int64.to_int shstrndx.sh_offset) + n);
+  Write.zero_string t ~maxlen:((Int64.to_int shstrndx.sh_size) - n) name
 
 let read_sections header t =
   let sections = Array.init header.e_shnum (read_section header t) in
@@ -132,12 +196,24 @@ let read_sections header t =
     (fun s -> {s with sh_name_str = read_section_name shstrndx t s})
     sections
 
+let write_sections header t sections =
+  let shstrndx = sections.(header.e_shstrndx) in
+  Array.iteri (write_section header t) sections;
+  Array.iter (fun section -> write_section_name shstrndx t section section.sh_name_str) sections
+
 let read_elf buffer =
   let elf = cursor buffer in
   read_magic elf;
   let e_ident = read_identification elf in
   let header = read_header elf e_ident in
   header, read_sections header elf
+
+let write_elf buffer header sections =
+  let elf = cursor buffer in
+  write_magic elf;
+  write_identification elf header.e_ident;
+  write_header elf header;
+  write_sections header elf sections
 
 let section_body buffer shdr =
   Bigarray.Array1.sub buffer
