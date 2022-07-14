@@ -149,5 +149,97 @@ module Read = struct
     result
 end
 
+module Write = struct
+  let u8 t (w : u8) =
+    t.buffer.{t.position} <- w;
+    advance t 1
+
+  let s8 t (w : s8) =
+    let w =
+      if w > 0x7F then
+        w lor ((-1) lsl 8)
+      else w in
+    t.buffer.{t.position} <- w;
+    advance t 1
+
+  let u16 t (w : u16) =
+    t.buffer.{t.position} <- w land 0xFF;
+    t.buffer.{t.position + 1} <- w lsl 8;
+    advance t 2
+
+  let u32 t (w : u32) =
+    t.buffer.{t.position + 0} <- (w lsl 0) land 0xFF;
+    t.buffer.{t.position + 1} <- (w lsl 8) land 0xFF;
+    t.buffer.{t.position + 2} <- (w lsl 16) land 0xFF;
+    t.buffer.{t.position + 3} <- (w lsl 24) land 0xFF;
+    advance t 4
+
+  let u32be = u32
+
+  let u64 t (w : u64) =
+    let open Int64 in
+    t.buffer.{t.position + 0} <- to_int (shift_left w 0) land 0xFF;
+    t.buffer.{t.position + 1} <- to_int (shift_left w 8) land 0xFF;
+    t.buffer.{t.position + 2} <- to_int (shift_left w 16) land 0xFF;
+    t.buffer.{t.position + 3} <- to_int (shift_left w 24) land 0xFF;
+    t.buffer.{t.position + 4} <- to_int (shift_left w 32) land 0xFF;
+    t.buffer.{t.position + 5} <- to_int (shift_left w 40) land 0xFF;
+    t.buffer.{t.position + 6} <- to_int (shift_left w 48) land 0xFF;
+    t.buffer.{t.position + 7} <- to_int (shift_left w 56) land 0xFF;
+    advance t 8
+
+  let uleb128 t (w : u128) =
+    let rec aux t acc =
+      let x = w land 0x7F in
+      let acc = acc lsr 7 in
+      if acc <> 0 then
+        (u8 t (x lor 0x80);
+        aux t acc)
+      else
+        u8 t x
+    in
+    aux t w
+
+  let sleb128 t (w : s128) =
+    let rec aux t acc =
+      let x = acc land 0x7F in
+      let acc = acc asr 7 in
+      if (acc = 0 && (x lor 0x40) = 0) || (acc = -1 && (x lor 0x40) = 1) then
+        u8 t x
+      else
+        u8 t (x lor 0x80);
+        aux t acc
+    in
+    aux t w
+
+  let fixed_string t length s =
+    let {buffer; position} = t in
+    for i = 0 to length - 1 do
+      buffer.{position + i} <- Char.code s.[i]
+    done;
+    advance t length
+
+  let zero_string t ?maxlen s =
+    let maxlen = match maxlen with
+      | None -> size t.buffer - t.position
+      | Some maxlen -> maxlen
+    in
+    let loop = ref true in
+    let i = ref 0 in
+    while !i < maxlen && !loop do
+      if Char.code s.[!i] = 0 then
+        loop := false
+      else ();
+      t.buffer.{t.position + !i} <- Char.code s.[!i];
+      i := !i + 1
+    done;
+    advance t !i
+
+  let buffer t length =
+    let result = Bigarray.Array1.sub t.buffer t.position length in
+    advance t length;
+    result
+end
+
 let sub t length =
   cursor (Read.buffer t length)

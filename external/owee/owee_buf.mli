@@ -62,3 +62,23 @@ module Read : sig
 
   val buffer : cursor -> int -> t
 end
+
+module Write : sig
+  val s8      : cursor -> s8 -> unit
+  val u8      : cursor -> u8 -> unit
+  val u16     : cursor -> u16 -> unit
+  val u32     : cursor -> u32 -> unit
+  val u32be   : cursor -> u32 -> unit
+  val u64     : cursor -> u64 -> unit
+  val uleb128 : cursor -> u128 -> unit
+  val sleb128 : cursor -> s128 -> unit
+
+  (** [fixed_string t len] writes a string of exactly [len] bytes to [t] *)
+  val fixed_string : cursor -> int -> string -> unit
+
+  (** [zero_string t ?maxlen] writes a zero-terminated string to [t],
+      stopping at the first zero or when [maxlen] is reached, if it was provided. *)
+  val zero_string : cursor -> ?maxlen:int -> string -> unit
+
+  val buffer : cursor -> int -> t
+end
