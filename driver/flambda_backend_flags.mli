@@ -34,6 +34,8 @@ val dump_inlining_paths : bool ref
 
 val opt_level : opt_level or_default ref
 
+val internal_assembler : bool ref
+
 module Flambda2 : sig
   module Default : sig
     val classic_mode : bool

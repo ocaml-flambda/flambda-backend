@@ -1,5 +1,6 @@
 cmm_helpers.ml
 cmm_helpers.mli
+x86_assembler.ml
 cfg/**/*.ml
 cfg/**/*.mli
 asm_targets/**/*.ml

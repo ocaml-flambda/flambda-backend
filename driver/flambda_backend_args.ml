@@ -55,6 +55,9 @@ let mk_heap_reduction_threshold f =
 let mk_dump_inlining_paths f =
   "-dump-inlining-paths", Arg.Unit f, " Dump inlining paths when dumping flambda2 terms"
 
+let mk_internal_assembler f =
+  "-internal-assembler", Arg.Unit f, " Enables the internal assembler, bypassing writing an assembly file to disk"
+
 module Flambda2 = Flambda_backend_flags.Flambda2
 
 let mk_flambda2_result_types_functors_only f =
@@ -416,6 +419,8 @@ module type Flambda_backend_options = sig
 
   val heap_reduction_threshold : int -> unit
 
+  val internal_assembler : unit -> unit
+
   val flambda2_join_points : unit -> unit
   val no_flambda2_join_points : unit -> unit
   val flambda2_result_types_functors_only : unit -> unit
@@ -483,6 +488,8 @@ struct
     mk_dno_asm_comments F.dno_asm_comments;
 
     mk_heap_reduction_threshold F.heap_reduction_threshold;
+
+    mk_internal_assembler F.internal_assembler;
 
     mk_flambda2_join_points F.flambda2_join_points;
     mk_no_flambda2_join_points F.no_flambda2_join_points;
@@ -586,6 +593,8 @@ module Flambda_backend_options_impl = struct
 
   let heap_reduction_threshold x =
     Flambda_backend_flags.heap_reduction_threshold := x
+
+  let internal_assembler = set' Flambda_backend_flags.internal_assembler
 
   let flambda2_join_points = set Flambda2.join_points
   let no_flambda2_join_points = clear Flambda2.join_points
