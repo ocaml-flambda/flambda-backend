@@ -200,12 +200,17 @@ let prove_equals_tagged_immediates env t : _ proof_of_property =
 
 let meet_equals_tagged_immediates env t : _ meet_shortcut =
   match expand_head env t with
-  | Value
-      (Ok (Variant { immediates; blocks = _; is_unique = _; alloc_mode = _ }))
+  | Value (Ok (Variant { immediates; blocks; is_unique = _; alloc_mode = _ }))
     -> (
-    match immediates with
+    match blocks with
     | Unknown -> Need_meet
-    | Known imms -> meet_naked_immediates env imms)
+    | Known blocks -> (
+      if not (TG.Row_like_for_blocks.is_bottom blocks)
+      then Need_meet
+      else
+        match immediates with
+        | Unknown -> Need_meet
+        | Known imms -> meet_naked_immediates env imms))
   | Value
       (Ok
         ( Mutable_block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
