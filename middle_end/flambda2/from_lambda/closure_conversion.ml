@@ -911,6 +911,7 @@ let close_exact_or_unknown_apply acc env
     match Inlining.inlinable env apply callee_approx with
     | Not_inlinable -> Expr_with_acc.create_apply acc apply
     | Inlinable func_desc ->
+      let acc = Acc.mark_continuation_as_untrackable continuation acc in
       Inlining.inline acc ~apply ~apply_depth:(Env.current_depth env) ~func_desc
   else Expr_with_acc.create_apply acc apply
 

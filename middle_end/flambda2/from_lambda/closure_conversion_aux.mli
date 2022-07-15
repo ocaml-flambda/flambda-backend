@@ -219,6 +219,8 @@ module Acc : sig
 
   val remove_continuation_from_free_names : Continuation.t -> t -> t
 
+  val mark_continuation_as_untrackable : Continuation.t -> t -> t
+
   val continuation_known_arguments :
     cont:Continuation.t -> t -> Env.value_approximation list option
 
