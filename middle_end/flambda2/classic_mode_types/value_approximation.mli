@@ -22,6 +22,8 @@ type 'code t =
   | Closure_approximation of Code_id.t * Function_slot.t * 'code
   | Block_approximation of 'code t array * Alloc_mode.t
 
+val print : Format.formatter -> 'a t -> unit
+
 val is_unknown : 'a t -> bool
 
 val free_names :

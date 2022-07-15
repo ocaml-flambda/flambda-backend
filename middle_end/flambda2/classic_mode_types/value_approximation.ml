@@ -22,6 +22,22 @@ type 'code t =
   | Closure_approximation of Code_id.t * Function_slot.t * 'code
   | Block_approximation of 'code t array * Alloc_mode.t
 
+let rec print fmt = function
+  | Value_unknown -> Format.fprintf fmt "?"
+  | Value_symbol sym -> Symbol.print fmt sym
+  | Closure_approximation (code_id, _, _) ->
+    Format.fprintf fmt "[%a]" Code_id.print code_id
+  | Block_approximation (fields, _) ->
+    let len = Array.length fields in
+    if len < 1
+    then Format.fprintf fmt "{}"
+    else (
+      Format.fprintf fmt "@[<hov 2>{%a" print fields.(0);
+      for i = 1 to len - 1 do
+        Format.fprintf fmt "@ %a" print fields.(i)
+      done;
+      Format.fprintf fmt "}@]")
+
 let is_unknown = function
   | Value_unknown -> true
   | Value_symbol _ | Closure_approximation _ | Block_approximation _ -> false
