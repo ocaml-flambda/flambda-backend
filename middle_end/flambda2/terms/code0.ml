@@ -134,25 +134,34 @@ let apply_renaming ~apply_renaming_function_params_and_body
   let params_and_body' =
     apply_renaming_function_params_and_body params_and_body renaming
   in
-  if params_and_body == params_and_body' && code_metadata == code_metadata'
+  let free_names_of_params_and_body' =
+    (* See note in [ids_for_export], below. *)
+    Name_occurrences.apply_renaming free_names_of_params_and_body renaming
+  in
+  if params_and_body == params_and_body'
+     && code_metadata == code_metadata'
+     && free_names_of_params_and_body == free_names_of_params_and_body'
   then t
   else
-    let free_names_of_params_and_body' =
-      Name_occurrences.apply_renaming free_names_of_params_and_body renaming
-    in
     { params_and_body = params_and_body';
       free_names_of_params_and_body = free_names_of_params_and_body';
       code_metadata = code_metadata'
     }
 
 let ids_for_export ~ids_for_export_function_params_and_body
-    { params_and_body; free_names_of_params_and_body = _; code_metadata } =
+    { params_and_body; free_names_of_params_and_body; code_metadata } =
   let params_and_body_ids =
     ids_for_export_function_params_and_body params_and_body
   in
-  Ids_for_export.union
-    (Code_metadata.ids_for_export code_metadata)
-    params_and_body_ids
+  let free_names_of_params_and_body_ids =
+    Name_occurrences.ids_for_export free_names_of_params_and_body
+  in
+  (* [free_names_of_params_and_body] is allowed to be an over-approximation, so
+     we must count it. *)
+  Ids_for_export.union_list
+    [ Code_metadata.ids_for_export code_metadata;
+      params_and_body_ids;
+      free_names_of_params_and_body_ids ]
 
 let map_result_types ({ code_metadata; _ } as t) ~f =
   { t with code_metadata = Code_metadata.map_result_types code_metadata ~f }

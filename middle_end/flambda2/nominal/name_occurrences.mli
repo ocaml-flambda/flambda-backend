@@ -35,6 +35,8 @@ val equal : t -> t -> bool
 
 val apply_renaming : t -> Renaming.t -> t
 
+include Contains_ids.S with type t := t
+
 (** True if and only if [not (equal (apply_renaming t renaming) t)] *)
 val affected_by_renaming : t -> Renaming.t -> bool
 
