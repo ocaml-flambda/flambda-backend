@@ -912,6 +912,11 @@ let close_exact_or_unknown_apply acc env
     | Not_inlinable -> Expr_with_acc.create_apply acc apply
     | Inlinable func_desc ->
       let acc = Acc.mark_continuation_as_untrackable continuation acc in
+      let acc =
+        Acc.mark_continuation_as_untrackable
+          (Exn_continuation.exn_handler apply_exn_continuation)
+          acc
+      in
       Inlining.inline acc ~apply ~apply_depth:(Env.current_depth env) ~func_desc
   else Expr_with_acc.create_apply acc apply
 
