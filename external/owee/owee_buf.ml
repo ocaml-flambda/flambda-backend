@@ -30,7 +30,6 @@ let map_binary_write path size =
 exception Invalid_format of string
 let invalid_format msg = raise (Invalid_format msg)
 
-
 let assert_format b msg =
   if not b then
     invalid_format msg
@@ -234,15 +233,12 @@ module Write = struct
       | None -> size t.buffer - t.position
       | Some maxlen -> maxlen
     in
-    let loop = ref true in
     let i = ref 0 in
-    while !i < maxlen && !loop do
-      if Char.code s.[!i] = 0 then
-        loop := false
-      else ();
+    while !i < maxlen && Char.code s.[!i] <> 0 do
       t.buffer.{t.position + !i} <- Char.code s.[!i];
       i := !i + 1
     done;
+    t.buffer.{t.position + !i} <- 0;
     advance t !i
 
   let buffer t length =

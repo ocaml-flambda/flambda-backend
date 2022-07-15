@@ -72,7 +72,6 @@ let write_identification t identification =
   Write.u8 t 0;
   Write.u8 t 0;
   Write.u8 t 0;
-  Write.u8 t 0;
   Write.u8 t 0
 
 type header = {
@@ -186,8 +185,10 @@ let read_section_name shstrndx t shdr =
 
 let write_section_name shstrndx t shdr name =
   let n = shdr.sh_name in
+  Printf.printf "test\n";
   seek t ((Int64.to_int shstrndx.sh_offset) + n);
-  Write.zero_string t ~maxlen:((Int64.to_int shstrndx.sh_size) - n) name
+  Printf.printf "test %d %d\n" (Int64.to_int shstrndx.sh_size) n;
+  Write.zero_string t ~maxlen:(min (String.length name) ((Int64.to_int shstrndx.sh_size) - n)) name
 
 let read_sections header t =
   let sections = Array.init header.e_shnum (read_section header t) in
@@ -197,9 +198,11 @@ let read_sections header t =
     sections
 
 let write_sections header t sections =
+  if Array.length sections = 10 then () else (
+  Printf.printf "%d\n" (Array.length sections);
   let shstrndx = sections.(header.e_shstrndx) in
   Array.iteri (write_section header t) sections;
-  Array.iter (fun section -> write_section_name shstrndx t section section.sh_name_str) sections
+  Array.iter (fun section -> write_section_name shstrndx t section section.sh_name_str) sections)
 
 let read_elf buffer =
   let elf = cursor buffer in
@@ -210,9 +213,13 @@ let read_elf buffer =
 
 let write_elf buffer header sections =
   let elf = cursor buffer in
+  Printf.printf "%d\n" elf.position;
   write_magic elf;
+  Printf.printf "%d\n" elf.position;
   write_identification elf header.e_ident;
+  Printf.printf "%d\n" elf.position;
   write_header elf header;
+  Printf.printf "%d\n" elf.position;
   write_sections header elf sections
 
 let section_body buffer shdr =
