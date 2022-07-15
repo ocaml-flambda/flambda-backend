@@ -326,21 +326,22 @@ end)
 module For_function_slots = For_one_variety_of_names (struct
   include Function_slot
 
-  (* We never bind [Function_slot]s using [Name_abstraction]. *)
+  (* We never bind [Function_slot]s using [Name_abstraction] and they do not
+     participate in [Ids_for_export]. *)
   let apply_renaming t _renaming = t
 end)
 
 module For_value_slots = For_one_variety_of_names (struct
   include Value_slot
 
-  (* We never bind [Value_slot]s using [Name_abstraction]. *)
+  (* We never bind [Value_slot]s using [Name_abstraction] and they do not
+     participate in [Ids_for_export]. *)
   let apply_renaming t _renaming = t
 end)
 
 module For_code_ids = For_one_variety_of_names (struct
   include Code_id
 
-  (* We never bind [Code_id]s using [Name_abstraction]. *)
   let apply_renaming t renaming = Renaming.apply_code_id renaming t
 end)
 
@@ -811,6 +812,8 @@ let all_value_slots t =
     (For_value_slots.keys t.value_slots_in_projections)
     (For_value_slots.keys t.value_slots_in_declarations)
 
+let variables t = For_names.keys t.names |> Name.set_to_var_set
+
 let symbols t = For_names.keys t.names |> Name.set_to_symbol_set
 
 let continuations t = For_continuations.keys t.continuations
@@ -1097,3 +1100,30 @@ let restrict_to_value_slots_and_function_slots
     function_slots_in_declarations;
     value_slots_in_declarations
   }
+
+let ids_for_export
+    ({ names = _;
+       continuations;
+       continuations_with_traps;
+       continuations_in_trap_actions;
+       function_slots_in_projections = _;
+       value_slots_in_projections = _;
+       function_slots_in_declarations = _;
+       value_slots_in_declarations = _;
+       code_ids;
+       newer_version_of_code_ids
+     } as t) =
+  let variables = variables t in
+  let symbols = symbols t in
+  let continuations =
+    Continuation.Set.union_list
+      [ For_continuations.keys continuations;
+        For_continuations.keys continuations_with_traps;
+        For_continuations.keys continuations_in_trap_actions ]
+  in
+  let code_ids =
+    Code_id.Set.union
+      (For_code_ids.keys code_ids)
+      (For_code_ids.keys newer_version_of_code_ids)
+  in
+  Ids_for_export.create ~variables ~symbols ~code_ids ~continuations ()

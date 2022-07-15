@@ -20,6 +20,9 @@ let is_var t = pattern_match t ~var:(fun _ -> true) ~symbol:(fun _ -> false)
 
 let is_symbol t = pattern_match t ~var:(fun _ -> false) ~symbol:(fun _ -> true)
 
+let to_var t =
+  pattern_match t ~var:(fun var -> Some var) ~symbol:(fun _ -> None)
+
 let to_symbol t =
   pattern_match t ~var:(fun _ -> None) ~symbol:(fun symbol -> Some symbol)
 
@@ -30,6 +33,14 @@ let set_of_symbol_set symbols =
   Symbol.Set.fold
     (fun sym t_set -> Set.add (symbol sym) t_set)
     symbols Set.empty
+
+let set_to_var_set t =
+  Set.fold
+    (fun name vars ->
+      match to_var name with
+      | None -> vars
+      | Some var -> Variable.Set.add var vars)
+    t Variable.Set.empty
 
 let set_to_symbol_set t =
   Set.fold
