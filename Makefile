@@ -57,7 +57,8 @@ boot-compiler: _build/_bootinstall
 	  boot_ocamlopt.exe \
 	  ocaml/main_native.exe \
 	  ocaml/tools/ocamlmklib_native.exe \
-	  ocaml/tools/ocamldep_native.exe
+	  ocaml/tools/ocamldep_native.exe \
+	  tools/ocamlobjinfo_native.exe
 
 boot-runtest: boot-compiler
 	$(dune) runtest $(ws_boot) $(coverage_dune_flags) --force
@@ -138,6 +139,7 @@ _build/_bootinstall: ocaml/Makefile.config duneconf/boot.ws duneconf/runtime_std
 	ln -sf ../../default/ocaml/main_native.exe _build/_bootinstall/bin/ocamlc.opt
 	ln -sf ../../default/ocaml/tools/ocamlmklib_native.exe _build/_bootinstall/bin/ocamlmklib.opt
 	ln -sf ../../default/ocaml/tools/ocamldep_native.exe _build/_bootinstall/bin/ocamldep.opt
+	ln -sf ../../default/tools/ocamlobjinfo_native.exe _build/_bootinstall/bin/ocamlobjinfo.opt
 	ln -sf "`which ocamllex`" _build/_bootinstall/bin/ocamllex.opt
 	for prog in ocamlopt ocamlc ocamllex ocamldep ocamlmklib; do \
 	  ln -sf "$$prog.opt" "_build/_bootinstall/bin/$$prog"; \
