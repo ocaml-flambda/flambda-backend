@@ -30,6 +30,7 @@ let map_binary_write path size =
 exception Invalid_format of string
 let invalid_format msg = raise (Invalid_format msg)
 
+
 let assert_format b msg =
   if not b then
     invalid_format msg
@@ -173,39 +174,39 @@ module Write = struct
 
   let u16 t (w : u16) =
     t.buffer.{t.position} <- w land 0xFF;
-    t.buffer.{t.position + 1} <- w lsl 8;
+    t.buffer.{t.position + 1} <- w lsr 8;
     advance t 2
 
   let u32 t (w : u32) =
-    t.buffer.{t.position + 0} <- (w lsl 0) land 0xFF;
-    t.buffer.{t.position + 1} <- (w lsl 8) land 0xFF;
-    t.buffer.{t.position + 2} <- (w lsl 16) land 0xFF;
-    t.buffer.{t.position + 3} <- (w lsl 24) land 0xFF;
+    t.buffer.{t.position + 0} <- (w lsr 0) land 0xFF;
+    t.buffer.{t.position + 1} <- (w lsr 8) land 0xFF;
+    t.buffer.{t.position + 2} <- (w lsr 16) land 0xFF;
+    t.buffer.{t.position + 3} <- (w lsr 24) land 0xFF;
     advance t 4
 
   let u32be = u32
 
   let u64 t (w : u64) =
     let open Int64 in
-    t.buffer.{t.position + 0} <- to_int (shift_left w 0) land 0xFF;
-    t.buffer.{t.position + 1} <- to_int (shift_left w 8) land 0xFF;
-    t.buffer.{t.position + 2} <- to_int (shift_left w 16) land 0xFF;
-    t.buffer.{t.position + 3} <- to_int (shift_left w 24) land 0xFF;
-    t.buffer.{t.position + 4} <- to_int (shift_left w 32) land 0xFF;
-    t.buffer.{t.position + 5} <- to_int (shift_left w 40) land 0xFF;
-    t.buffer.{t.position + 6} <- to_int (shift_left w 48) land 0xFF;
-    t.buffer.{t.position + 7} <- to_int (shift_left w 56) land 0xFF;
+    t.buffer.{t.position + 0} <- to_int (shift_right w 0) land 0xFF;
+    t.buffer.{t.position + 1} <- to_int (shift_right w 8) land 0xFF;
+    t.buffer.{t.position + 2} <- to_int (shift_right w 16) land 0xFF;
+    t.buffer.{t.position + 3} <- to_int (shift_right w 24) land 0xFF;
+    t.buffer.{t.position + 4} <- to_int (shift_right w 32) land 0xFF;
+    t.buffer.{t.position + 5} <- to_int (shift_right w 40) land 0xFF;
+    t.buffer.{t.position + 6} <- to_int (shift_right w 48) land 0xFF;
+    t.buffer.{t.position + 7} <- to_int (shift_right w 56) land 0xFF;
     advance t 8
 
   let uleb128 t (w : u128) =
     let rec aux t acc =
-      let x = w land 0x7F in
+      let x = acc land 0x7F in
       let acc = acc lsr 7 in
-      if acc <> 0 then
+      if acc = 0 then
+        u8 t x
+      else
         (u8 t (x lor 0x80);
         aux t acc)
-      else
-        u8 t x
     in
     aux t w
 
@@ -213,11 +214,11 @@ module Write = struct
     let rec aux t acc =
       let x = acc land 0x7F in
       let acc = acc asr 7 in
-      if (acc = 0 && (x lor 0x40) = 0) || (acc = -1 && (x lor 0x40) = 1) then
+      if (acc = 0 && (x land 0x40) = 0) || (acc = -1 && (x land 0x40) <> 0) then
         u8 t x
       else
-        u8 t (x lor 0x80);
-        aux t acc
+        (u8 t (x lor 0x80);
+        aux t acc)
     in
     aux t w
 

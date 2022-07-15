@@ -4,6 +4,5 @@
  ; (wrapped false)
  (foreign_stubs (language c) (names owee_stubs))
  ; This fails if uncommented
- ; (libraries unix bigarray)
- (synopsis "OCaml library to work with DWARF format"))
- 
+ (libraries unix bigarray)
+(synopsis "OCaml library to work with DWARF format"))
