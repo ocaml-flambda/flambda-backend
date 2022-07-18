@@ -5242,19 +5242,19 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
         end_def ();
         generalize_structure texp.exp_type
       end;
-      let rec make_args args ty_fun =
+      let rec make_args args rmode ty_fun =
         match (expand_head env ty_fun).desc with
-        | Tarrow ((l,marg,_mret),ty_arg,ty_fun,_) when is_optional l ->
+        | Tarrow ((l,marg,mret),ty_arg,ty_fun,_) when is_optional l ->
             let marg = Value_mode.of_alloc marg in
             let ty = option_none env (instance ty_arg) marg sarg.pexp_loc in
-            make_args ((l, Arg ty) :: args) ty_fun
+            make_args ((l, Arg ty) :: args) (Some mret) ty_fun
         | Tarrow ((l,_,_),_,ty_res',_) when l = Nolabel || !Clflags.classic ->
-            List.rev args, ty_fun, no_labels ty_res'
-        | Tvar _ ->  List.rev args, ty_fun, false
-        |  _ -> [], texp.exp_type, false
+            List.rev args, rmode, ty_fun, no_labels ty_res'
+        | Tvar _ ->  List.rev args, rmode, ty_fun, false
+        |  _ -> [], None, texp.exp_type, false
       in
       (* If make_args ends in Tvar, then simple_res is false, no_labels *)
-      let args, ty_fun', simple_res = make_args [] texp.exp_type in
+      let args, rmode, ty_fun', simple_res = make_args [] None texp.exp_type in
       let warn = !Clflags.principal &&
         (lv <> generic_level || (repr ty_fun').level <> generic_level)
       and texp = {texp with exp_type = instance texp.exp_type}
@@ -5264,7 +5264,10 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
         texp
       end else begin
       unify_exp env {texp with exp_type = ty_fun} ty_expected;
-      if args = [] then texp else
+      if args = [] then texp else begin
+      submode ~loc:sarg.pexp_loc ~env
+        (Value_mode.of_alloc (Option.get rmode))
+        mode;
       (* eta-expand to avoid side effects *)
       let var_pair ~mode name ty =
         let id = Ident.create_local name in
@@ -5316,6 +5319,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
                            vb_loc=Location.none;
                           }],
                          func let_var) }
+      end
       end
   | _ ->
       let texp = type_expect ?recarg env mode sarg
