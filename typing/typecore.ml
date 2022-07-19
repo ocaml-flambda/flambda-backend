@@ -5216,14 +5216,13 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
   let inferred = is_inferred sarg in
   let rec loosen_ret_modes ty' ty =
     match expand_head env ty', expand_head env ty with
-    | {desc = Tarrow((l', marg', mret'), ty_arg', ty_res', _); level = lv'},
-      {desc = Tarrow((l,  marg,  mret ), ty_arg,  ty_res,  _); level = lv }
+    | {desc = Tarrow((l, marg, mret), ty_arg', ty_res', _); level = lv'},
+      {desc = Tarrow(_, ty_arg,  ty_res,  _); level = lv }
       when lv' = generic_level || not !Clflags.principal ->
       let ty_res', ty_res = loosen_ret_modes ty_res' ty_res in
-      let mret', _ = Alloc_mode.newvar_below mret' in
-      let mret,  _ = Alloc_mode.newvar_below mret in
-      newty2 lv' (Tarrow((l', marg', mret'), ty_arg', ty_res', Cok)),
-      newty2 lv  (Tarrow((l,  marg,  mret),  ty_arg,  ty_res,  Cok))
+      let mret, _ = Alloc_mode.newvar_below mret in
+      newty2 lv' (Tarrow((l, marg, mret), ty_arg', ty_res', Cok)),
+      newty2 lv  (Tarrow((l, marg,  mret),  ty_arg,  ty_res,  Cok))
     | _ ->
       ty', ty
   in
