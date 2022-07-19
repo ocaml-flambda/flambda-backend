@@ -234,10 +234,11 @@ module Inlining = struct
               Not_inlinable )
           | Always_inlined | Hint_inlined ->
             Call_site_inlining_decision_type.Attribute_always, Inlinable code
-          | Default_inlined ->
+          | Default_inlined | Unroll _ ->
+            (* Closure ignores completely [@unrolled] attributes, so it seems
+               safe to do the same. *)
             ( Call_site_inlining_decision_type.Definition_says_inline,
               Inlinable code )
-          | Unroll _ -> assert false
         in
         Inlining_report.record_decision_at_call_site_for_known_function ~tracker
           ~apply ~pass:After_closure_conversion ~unrolling_depth:None
@@ -1226,7 +1227,10 @@ let close_one_function acc ~external_env ~by_function_slot decl
        are functions involving constant closures, which are not lifted during
        Closure (but will prevent inlining) but will likely have been lifted by
        our other check in [Inlining_cost] (thus preventing us seeing they were
-       originally there). *)
+       originally there). Note that while Closure never marks as inlinable
+       functions in a set a recursive definitions with more than one function,
+       we do not try to reproduce this particular property and can mark as
+       inlinable such functions. *)
     if contains_subfunctions
        && Flambda_features.Expert.fallback_inlining_heuristic ()
     then Never_inline
