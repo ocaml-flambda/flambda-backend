@@ -1,4 +1,4 @@
-module StringMap = Map.Make (String)
+module StringMap = X86_binary_emitter.StringMap
 
 let name s_l s_opt s_l' =
   let first = String.concat "," s_l in
@@ -56,6 +56,10 @@ let of_string_fast s =
   done;
   Bytes.to_string buf
 
+let isprefix s1 s2 =
+  String.length s1 <= String.length s2
+  && String.sub s2 0 (String.length s1) = s1
+
 type string_table =
   { mutable current_length : int;
     mutable strings : string list
@@ -63,13 +67,64 @@ type string_table =
 
 type sections =
   { mutable sections : Owee.Owee_elf.section list;
+    mutable section_bodies : (int * string) list;
     mutable current_offset : int64
+  }
+
+type symbol_entry =
+  { st_name : Owee.Owee_buf.u32;
+    st_info : Owee.Owee_buf.u8;
+    st_other : Owee.Owee_buf.u8;
+    st_shndx : Owee.Owee_buf.u16;
+    st_value : Owee.Owee_buf.u64;
+    st_size : Owee.Owee_buf.u64
   }
 
 let add_string string_table string =
   string_table.current_length
     <- string_table.current_length + String.length string + 1;
   string_table.strings <- string :: string_table.strings
+
+let create_symbol (symbol : X86_binary_emitter.symbol) sections string_table =
+  let value =
+    match symbol.sy_pos with None -> 0L | Some n -> Int64.of_int n
+  in
+  let st_info =
+    (* CR mcollins - modify types to avoid string comparisons *)
+    (match symbol.sy_type with
+    | Some "@function" -> 2
+    | Some "object" -> 1
+    | Some "tls_object" -> 6
+    | Some "common" -> 5
+    | Some "notype" -> 0
+    | Some s -> failwith ("Unknown symbol type" ^ s)
+    | None -> 0)
+    lor if symbol.sy_global then 1 lsl 4 else 0
+  in
+  let st_shndx =
+    Option.get
+      (List.find_map
+         (fun ((i, s) : int * Owee.Owee_elf.section) ->
+           if String.length s.sh_name_str > 0
+              && isprefix s.sh_name_str symbol.sy_sec.sec_name
+           then Some i
+           else None)
+         (List.mapi (fun i x -> i, x) (List.rev sections.sections)))
+  in
+  Printf.printf "%d\n" st_shndx;
+  let symbol_entry =
+    { st_name = string_table.current_length;
+      st_info;
+      st_other = 0;
+      (* st_shndx = symbol.sy_sec.sec_name; *)
+      st_shndx;
+      st_value = value;
+      st_size =
+        (match symbol.sy_size with None -> 0L | Some n -> Int64.of_int n)
+    }
+  in
+  add_string string_table symbol.sy_name;
+  symbol_entry
 
 let make_identification : Owee.Owee_elf.identification =
   { elf_class = 2;
@@ -96,44 +151,55 @@ let make_header identification shnum e_shoff : Owee.Owee_elf.header =
     e_shstrndx = shnum - 1
   }
 
-let create_section name ~sh_type ~size ~offset ?align ?entsize ?flags shstrtab =
-  let align = match align with Some i -> i | None -> 1L in
-  let entsize = match entsize with Some i -> i | None -> 0L in
-  let flags = match flags with Some i -> i | None -> 0L in
+let create_section name ~sh_type ~size ~offset ?align ?entsize ?flags ?sh_link
+    ?sh_info shstrtab =
+  let sh_addralign = match align with Some i -> i | None -> 1L in
+  let sh_entsize = match entsize with Some i -> i | None -> 0L in
+  let sh_flags = match flags with Some i -> i | None -> 0L in
+  let sh_link = match sh_link with Some i -> i | None -> 0 in
+  let sh_info = match sh_info with Some i -> i | None -> 0 in
   let section : Owee.Owee_elf.section =
     { sh_name = shstrtab.current_length;
       sh_type;
-      sh_flags = flags;
+      sh_flags;
       sh_addr = 0L;
       sh_offset = offset;
       sh_size = size;
-      sh_link = 0;
-      sh_info = 0;
-      sh_addralign = align;
-      sh_entsize = entsize;
+      sh_link;
+      sh_info;
+      sh_addralign;
+      sh_entsize;
       sh_name_str = name
     }
   in
   add_string shstrtab name;
   section
 
-let make_section sections name sh_type ~size ?align ?entsize ?flags shstrtab =
-  let section =
+let make_section sections name sh_type ~size ?align ?entsize ?flags ?sh_link
+    ?sh_info ?body shstrtab =
+  let section : Owee.Owee_elf.section =
     create_section name ~sh_type ~size ~offset:sections.current_offset ?align
-      ?entsize ?flags shstrtab
+      ?entsize ?flags ?sh_link ?sh_info shstrtab
   in
   sections.sections <- section :: sections.sections;
-  sections.current_offset <- Int64.add sections.current_offset size
+  sections.current_offset <- Int64.add sections.current_offset size;
+  match body with
+  | Some body ->
+    sections.section_bodies
+      <- (Int64.to_int section.sh_offset, body) :: sections.section_bodies
+  | _ -> ()
 
 let make_text sections raw_section align sh_string_table =
   make_section sections ".text" 1
     ~size:(Int64.of_int (X86_binary_emitter.size raw_section))
     ~flags:0x6L sh_string_table ~align
+    ~body:(X86_binary_emitter.contents raw_section)
 
 let make_data sections raw_section align sh_string_table =
   make_section sections ".data" 1
     ~size:(Int64.of_int (X86_binary_emitter.size raw_section))
     ~flags:0x3L sh_string_table ~align
+    ~body:(X86_binary_emitter.contents raw_section)
 
 let make_null sections sh_string_table =
   let section =
@@ -176,6 +242,7 @@ let make_custom_section sections (s_l, s_opt, s_l') raw_section sh_string_table
   make_section sections (String.concat "," s_l)
     ~size:(Int64.of_int (X86_binary_emitter.size raw_section))
     ~entsize sh_string_table ~flags
+    ~body:(X86_binary_emitter.contents raw_section)
 
 let assemble asm output_file =
   let sections = from_program asm in
@@ -200,26 +267,42 @@ let assemble asm output_file =
   in
   Printf.printf "%s\n" output_file;
 
+  let string_table = { current_length = 0; strings = [] } in
   let sh_string_table = { current_length = 0; strings = [] } in
-  let sections = { sections = []; current_offset = 64L } in
+  let sections = { sections = []; section_bodies = []; current_offset = 64L } in
 
   make_null sections sh_string_table;
 
   let _, align, raw_section = StringMap.find ".text" binary_sections in
   make_text sections raw_section (Int64.of_int align) sh_string_table;
-  let binary_sections = StringMap.remove ".text" binary_sections in
 
   let _, align, raw_section = StringMap.find ".data" binary_sections in
   make_data sections raw_section (Int64.of_int align) sh_string_table;
-  let binary_sections = StringMap.remove ".data" binary_sections in
 
-  List.iter
-    (fun (key, (section_info, align, raw_section)) ->
+  StringMap.iter
+    (fun key (section_info, align, raw_section) ->
       make_custom_section sections section_info raw_section 0 sh_string_table)
-    (StringMap.bindings binary_sections);
+    (StringMap.remove ".data" (StringMap.remove ".text" binary_sections));
 
-  make_section sections ".symtab" 2 ~entsize:24L ~size:0L sh_string_table;
-  make_section sections ".strtab" 3 ~size:0L sh_string_table;
+  let symbols =
+    List.concat_map
+      (fun (key, (section_info, align, raw_section)) ->
+        List.map
+          (fun (name, symbol) -> create_symbol symbol sections string_table)
+          (StringMap.bindings (X86_binary_emitter.labels raw_section)))
+      (StringMap.bindings binary_sections)
+  in
+  let symbols =
+    List.stable_sort (fun a b -> (a.st_info lsl 4) - (b.st_info lsl 4)) symbols
+  in
+
+  let strtabidx = 1 + List.length sections.sections in
+  make_section sections ".symtab" 2 ~entsize:24L
+    ~size:(Int64.of_int (24 * List.length symbols))
+    ~align:8L ~sh_link:strtabidx ~sh_info:strtabidx sh_string_table;
+  make_section sections ".strtab" 3
+    ~size:(Int64.of_int string_table.current_length)
+    sh_string_table;
   make_shstrtab sections sh_string_table;
 
   let identification = make_identification in
@@ -228,6 +311,9 @@ let assemble asm output_file =
       (List.length sections.sections)
       sections.current_offset
   in
+  Printf.printf "Total size: %d\n"
+    (Int64.to_int sections.current_offset
+    + (header.e_shnum * header.e_shentsize));
   let elf =
     Owee.Owee_buf.map_binary_write output_file
       (Int64.to_int sections.current_offset
@@ -235,4 +321,37 @@ let assemble asm output_file =
   in
   Owee.Owee_elf.write_elf elf header
     (Array.of_list (List.rev sections.sections));
+  List.iter
+    (fun (pos, body) ->
+      Printf.printf "body len: %d\n" pos;
+      Owee.Owee_buf.Write.fixed_string
+        (Owee.Owee_buf.cursor elf ~at:pos)
+        (String.length body) body)
+    sections.section_bodies;
+  let symtab =
+    List.find
+      (fun (section : Owee.Owee_elf.section) -> section.sh_name_str = ".symtab")
+      sections.sections
+  in
+  let strtab =
+    List.find
+      (fun (section : Owee.Owee_elf.section) -> section.sh_name_str = ".strtab")
+      sections.sections
+  in
+  List.iteri
+    (fun i symbol ->
+      let open Owee.Owee_buf in
+      let t = cursor elf ~at:((i * 24) + Int64.to_int symtab.sh_offset) in
+      Write.u32 t symbol.st_name;
+      Write.u8 t symbol.st_info;
+      Write.u8 t symbol.st_other;
+      Write.u16 t symbol.st_shndx;
+      Write.u64 t symbol.st_value;
+      Write.u64 t symbol.st_size)
+    symbols;
+  let t = Owee.Owee_buf.cursor elf ~at:(Int64.to_int strtab.sh_offset) in
+  List.iter
+    (fun string ->
+      Owee.Owee_buf.Write.zero_string t string ~maxlen:(String.length string))
+    (List.rev string_table.strings);
   ()

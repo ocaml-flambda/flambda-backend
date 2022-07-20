@@ -239,7 +239,7 @@ module Write = struct
       i := !i + 1
     done;
     t.buffer.{t.position + !i} <- 0;
-    advance t !i
+    advance t (!i + 1)
 
   let buffer t length =
     let result = Bigarray.Array1.sub t.buffer t.position length in
