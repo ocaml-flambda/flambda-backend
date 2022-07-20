@@ -824,3 +824,25 @@ let never_holds_locally_allocated_values env var kind : _ proof_of_property =
   | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
   | Naked_nativeint _ | Rec_info _ | Region _ ->
     Proved ()
+
+let prove_physically_not_equal _env t1 t2 =
+  let check_heads () : _ proof_of_property = Unknown in
+  match TG.get_alias_opt t1, TG.get_alias_opt t2 with
+  | Some s1, Some s2 ->
+    let const c1 =
+      Simple.pattern_match' s2
+        ~const:(fun c2 : _ proof_of_property ->
+          if Reg_width_const.equal c1 c2 then Unknown else Proved ())
+        ~symbol:(fun _ ~coercion:_ : _ proof_of_property -> Proved ())
+        ~var:(fun _ ~coercion:_ -> check_heads ())
+    in
+    let symbol sym1 ~coercion:_ =
+      Simple.pattern_match' s2
+        ~const:(fun _ : _ proof_of_property -> Proved ())
+        ~symbol:(fun sym2 ~coercion:_ : _ proof_of_property ->
+          if Symbol.equal sym1 sym2 then Unknown else Proved ())
+        ~var:(fun _ ~coercion:_ -> check_heads ())
+    in
+    let var _ ~coercion:_ = check_heads () in
+    Simple.pattern_match' s1 ~const ~symbol ~var
+  | None, Some _ | Some _, None | None, None -> check_heads ()

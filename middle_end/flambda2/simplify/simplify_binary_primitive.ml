@@ -843,32 +843,34 @@ module Binary_int_eq_comp_tagged_immediate =
 let simplify_phys_equal (op : P.equality_comparison) dacc ~original_term dbg
     ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var =
   (* This primitive is only used for arguments of kind [Value]. *)
-  if Simple.equal arg1 arg2
-  then
-    let const bool =
-      let dacc =
-        DA.add_variable dacc result_var
-          (T.this_naked_immediate (Targetint_31_63.bool bool))
-      in
-      SPR.create
-        (Named.create_simple (Simple.untagged_const_bool bool))
-        ~try_reify:false dacc
+  let const bool =
+    let dacc =
+      DA.add_variable dacc result_var
+        (T.this_naked_immediate (Targetint_31_63.bool bool))
     in
-    match op with Eq -> const true | Neq -> const false
+    SPR.create
+      (Named.create_simple (Simple.untagged_const_bool bool))
+      ~try_reify:false dacc
+  in
+  if Simple.equal arg1 arg2
+  then match op with Eq -> const true | Neq -> const false
   else
     let typing_env = DA.typing_env dacc in
-    let proof1 = T.prove_equals_tagged_immediates typing_env arg1_ty in
-    let proof2 = T.prove_equals_tagged_immediates typing_env arg2_ty in
-    match proof1, proof2 with
-    | Proved _, Proved _ ->
-      Binary_int_eq_comp_tagged_immediate.simplify op dacc ~original_term dbg
-        ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var
-    | Unknown, Unknown | Proved _, Unknown | Unknown, Proved _ ->
-      let dacc =
-        DA.add_variable dacc result_var
-          (T.these_naked_immediates Targetint_31_63.all_bools)
-      in
-      SPR.create original_term ~try_reify:false dacc
+    match T.prove_physically_not_equal typing_env arg1_ty arg2_ty with
+    | Proved () -> ( match op with Eq -> const false | Neq -> const true)
+    | Unknown -> (
+      let proof1 = T.prove_equals_tagged_immediates typing_env arg1_ty in
+      let proof2 = T.prove_equals_tagged_immediates typing_env arg2_ty in
+      match proof1, proof2 with
+      | Proved _, Proved _ ->
+        Binary_int_eq_comp_tagged_immediate.simplify op dacc ~original_term dbg
+          ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var
+      | Unknown, Unknown | Proved _, Unknown | Unknown, Proved _ ->
+        let dacc =
+          DA.add_variable dacc result_var
+            (T.these_naked_immediates Targetint_31_63.all_bools)
+        in
+        SPR.create original_term ~try_reify:false dacc)
 
 let[@inline always] simplify_immutable_block_load0
     (access_kind : P.Block_access_kind.t) ~min_name_mode dacc ~original_term
