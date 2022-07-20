@@ -825,8 +825,111 @@ let never_holds_locally_allocated_values env var kind : _ proof_of_property =
   | Naked_nativeint _ | Rec_info _ | Region _ ->
     Proved ()
 
-let prove_physically_not_equal _env t1 t2 =
-  let check_heads () : _ proof_of_property = Unknown in
+let prove_physically_not_equal env t1 t2 =
+  let check_heads () : _ proof_of_property =
+    (* CR vlaviron: Add a flag for this *)
+    if true
+    then Unknown
+    else
+      (* More expensive check *)
+      match expand_head env t1, expand_head env t2 with
+      | ( ( Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
+          | Naked_nativeint _ | Rec_info _ | Region _ ),
+          _ ) ->
+        wrong_kind "Value" t1
+      | ( _,
+          ( Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
+          | Naked_nativeint _ | Rec_info _ | Region _ ) ) ->
+        wrong_kind "Value" t2
+      | Value (Unknown | Bottom), _ | _, Value (Unknown | Bottom) -> Unknown
+      | Value (Ok head1), Value (Ok head2) -> (
+        match head1, head2 with
+        (* Basic cases: similar heads -> Unknown *)
+        | Boxed_float _, Boxed_float _ -> Unknown
+        | Boxed_int32 _, Boxed_int32 _ -> Unknown
+        | Boxed_int64 _, Boxed_int64 _ -> Unknown
+        | Boxed_nativeint _, Boxed_nativeint _ -> Unknown
+        | Closures _, Closures _ -> Unknown
+        | String _, String _ -> Unknown
+        (* Immediates and allocated values -> Proved *)
+        | ( Variant
+              { immediates = _;
+                blocks = Known blocks;
+                is_unique = _;
+                alloc_mode = _
+              },
+            ( Mutable_block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
+            | Boxed_nativeint _ | Closures _ | String _ | Array _ ) )
+        | ( ( Mutable_block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
+            | Boxed_nativeint _ | Closures _ | String _ | Array _ ),
+            Variant
+              { immediates = _;
+                blocks = Known blocks;
+                is_unique = _;
+                alloc_mode = _
+              } )
+          when TG.Row_like_for_blocks.is_bottom blocks ->
+          Proved ()
+        | ( Variant
+              { immediates = immediates1;
+                blocks = blocks1;
+                is_unique = _;
+                alloc_mode = _
+              },
+            Variant
+              { immediates = immediates2;
+                blocks = blocks2;
+                is_unique = _;
+                alloc_mode = _
+              } ) -> (
+          match immediates1, immediates2, blocks1, blocks2 with
+          | Known imms, _, _, Known blocks
+            when TG.is_obviously_bottom imms
+                 && TG.Row_like_for_blocks.is_bottom blocks ->
+            Proved ()
+          | _, Known imms, Known blocks, _
+            when TG.is_obviously_bottom imms
+                 && TG.Row_like_for_blocks.is_bottom blocks ->
+            Proved ()
+          | _, _, _, _ -> Unknown)
+        (* Boxed numbers with non-numbers or different kinds -> Proved *)
+        | ( Boxed_float _,
+            ( Variant _ | Mutable_block _ | Boxed_int32 _ | Boxed_int64 _
+            | Boxed_nativeint _ | Closures _ | String _ | Array _ ) )
+        | ( ( Variant _ | Mutable_block _ | Boxed_int32 _ | Boxed_int64 _
+            | Boxed_nativeint _ | Closures _ | String _ | Array _ ),
+            Boxed_float _ )
+        | ( Boxed_int32 _,
+            ( Variant _ | Mutable_block _ | Boxed_int64 _ | Boxed_nativeint _
+            | Closures _ | String _ | Array _ ) )
+        | ( ( Variant _ | Mutable_block _ | Boxed_int64 _ | Boxed_nativeint _
+            | Closures _ | String _ | Array _ ),
+            Boxed_int32 _ )
+        | ( Boxed_int64 _,
+            ( Variant _ | Mutable_block _ | Boxed_nativeint _ | Closures _
+            | String _ | Array _ ) )
+        | ( ( Variant _ | Mutable_block _ | Boxed_nativeint _ | Closures _
+            | String _ | Array _ ),
+            Boxed_int64 _ )
+        | ( Boxed_nativeint _,
+            (Variant _ | Mutable_block _ | Closures _ | String _ | Array _) )
+        | ( (Variant _ | Mutable_block _ | Closures _ | String _ | Array _),
+            Boxed_nativeint _ ) ->
+          Proved ()
+        (* Closures and non-closures -> Proved *)
+        | Closures _, (Variant _ | Mutable_block _ | String _ | Array _)
+        | (Variant _ | Mutable_block _ | String _ | Array _), Closures _ ->
+          Proved ()
+        (* Strings and non-strings -> Proved *)
+        | String _, (Variant _ | Mutable_block _ | Array _)
+        | (Variant _ | Mutable_block _ | Array _), String _ ->
+          Proved ()
+        (* Variants, mutable blocks and arrays are allowed to alias to each
+           other *)
+        | ( (Variant _ | Mutable_block _ | Array _),
+            (Variant _ | Mutable_block _ | Array _) ) ->
+          Unknown)
+  in
   match TG.get_alias_opt t1, TG.get_alias_opt t2 with
   | Some s1, Some s2 ->
     let const c1 =
