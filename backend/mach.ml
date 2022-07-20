@@ -209,7 +209,7 @@ let operation_can_raise op =
   match op with
   | Icall_ind | Icall_imm _ | Iextcall _
   | Iintop (Icheckbound) | Iintop_imm (Icheckbound, _)
-  | Iprobe _ | Ipoll _ -> true
+  | Iprobe _ -> true
   | Ispecific sop -> Arch.operation_can_raise sop
   | Iintop_imm((Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
                | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _), _)
@@ -222,7 +222,7 @@ let operation_can_raise op =
   | Istackoffset _ | Istore _  | Iload (_, _, _) | Iname_for_debugger _
   | Itailcall_imm _ | Itailcall_ind
   | Iopaque | Ibeginregion | Iendregion
-  | Iprobe_is_enabled _ | Ialloc _
+  | Iprobe_is_enabled _ | Ialloc _ | Ipoll _
     -> false
 
 let free_conts_for_handlers fundecl =
