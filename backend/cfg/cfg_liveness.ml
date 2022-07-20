@@ -46,7 +46,7 @@ struct
     }
 
   let basic :
-      domain -> exn:domain -> Cfg.basic Cfg.instruction -> domain
+      domain -> exn:domain -> Cfg.basic Cfg.instruction -> domain =
    fun { before; across = _ } ~exn instr ->
     match instr.desc with
     | Op _ | Call _ ->
