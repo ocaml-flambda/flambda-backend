@@ -46,12 +46,8 @@ struct
     }
 
   let basic :
-      domain ->
-      exn:domain ->
-      has_an_exceptional_successor:bool ->
-      Cfg.basic Cfg.instruction ->
-      domain =
-   fun { before; across = _ } ~exn ~has_an_exceptional_successor instr ->
+      domain -> exn:domain -> Cfg.basic Cfg.instruction -> domain
+   fun { before; across = _ } ~exn instr ->
     match instr.desc with
     | Op _ | Call _ ->
       if Cfg.is_pure_basic instr.desc
@@ -61,13 +57,8 @@ struct
       then { before; across = before }
       else
         let across = Reg.diff_set_array before instr.res in
-        let can_raise =
-          (* CR xclerc for xclerc: used to be `Cfg.can_raise_basic
-             instr.desc`. *)
-          has_an_exceptional_successor
-        in
         let across =
-          if can_raise && instr.stack_offset > 0
+          if Cfg.can_raise_basic instr.desc && instr.stack_offset > 0
           then Reg.Set.union across exn.before
           else across
         in
@@ -84,10 +75,9 @@ struct
   let terminator :
       domain ->
       exn:domain ->
-      has_an_exceptional_successor:bool ->
       Cfg.terminator Cfg.instruction ->
       domain =
-   fun { before; across = _ } ~exn ~has_an_exceptional_successor:_ instr ->
+   fun { before; across = _ } ~exn instr ->
     match instr.desc with
     | Never -> assert false
     | Always _ ->
