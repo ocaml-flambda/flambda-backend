@@ -190,6 +190,7 @@
   linscan
   liveness
   mach
+  polling
   printcmm
   printlinear
   printmach
@@ -707,6 +708,7 @@
   (linscan.mli as compiler-libs/linscan.mli)
   (liveness.mli as compiler-libs/liveness.mli)
   (mach.mli as compiler-libs/mach.mli)
+  (polling.mli as compiler-libs/polling.mli)
   (printcmm.mli as compiler-libs/printcmm.mli)
   (printlinear.mli as compiler-libs/printlinear.mli)
   (printmach.mli as compiler-libs/printmach.mli)
@@ -1012,6 +1014,10 @@
   (.ocamloptcomp.objs/byte/opterrors.cmo as compiler-libs/opterrors.cmo)
   (.ocamloptcomp.objs/byte/opterrors.cmt as compiler-libs/opterrors.cmt)
   (.ocamloptcomp.objs/byte/opterrors.cmti as compiler-libs/opterrors.cmti)
+  (.ocamloptcomp.objs/byte/polling.cmi as compiler-libs/polling.cmi)
+  (.ocamloptcomp.objs/byte/polling.cmo as compiler-libs/polling.cmo)
+  (.ocamloptcomp.objs/byte/polling.cmt as compiler-libs/polling.cmt)
+  (.ocamloptcomp.objs/byte/polling.cmti as compiler-libs/polling.cmti)
   (.ocamloptcomp.objs/byte/printcmm.cmi as compiler-libs/printcmm.cmi)
   (.ocamloptcomp.objs/byte/printcmm.cmo as compiler-libs/printcmm.cmo)
   (.ocamloptcomp.objs/byte/printcmm.cmt as compiler-libs/printcmm.cmt)
@@ -1480,6 +1486,7 @@
   (.ocamloptcomp.objs/native/optcompile.cmx as compiler-libs/optcompile.cmx)
   (.ocamloptcomp.objs/native/opterrors.cmx as compiler-libs/opterrors.cmx)
   (.ocamloptcomp.objs/native/printcmm.cmx as compiler-libs/printcmm.cmx)
+  (.ocamloptcomp.objs/native/polling.cmx as compiler-libs/polling.cmx)
   (.ocamloptcomp.objs/native/printlinear.cmx
    as
    compiler-libs/printlinear.cmx)

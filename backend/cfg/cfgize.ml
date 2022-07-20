@@ -131,8 +131,8 @@ type basic_or_terminator =
   | Terminator of Cfg.terminator
 
 let basic_or_terminator_of_operation :
-    State.t -> Mach.operation -> basic_or_terminator =
- fun state op ->
+    State.t -> Mach.operation -> next:Label.t -> basic_or_terminator =
+ fun state op ~next ->
   match op with
   | Imove -> Basic (Op Move)
   | Ispill -> Basic (Op Spill)
@@ -159,6 +159,9 @@ let basic_or_terminator_of_operation :
   | Istore (mem, mode, assignment) -> Basic (Op (Store (mem, mode, assignment)))
   | Ialloc { bytes; dbginfo; mode } ->
     Basic (Call (P (Alloc { bytes; dbginfo; mode })))
+  | Ipoll { return_label = None } -> Terminator (Poll_and_jump next)
+  | Ipoll { return_label = Some return_label } ->
+    Terminator (Poll_and_jump return_label)
   | Iintop Icheckbound -> Basic (Call (P (Checkbound { immediate = None })))
   | Iintop_imm (Icheckbound, i) ->
     Basic (Call (P (Checkbound { immediate = Some i })))
@@ -357,8 +360,9 @@ type block_info =
    encountered or the end of the block is reached (i.e. [Iend]). If the returned
    terminator is [None], it is guaranteed that the [last] instruction is not an
    [Iop] (as it would either be part of [instrs] or be a terminator). *)
-let extract_block_info : State.t -> Mach.instruction -> block_info =
- fun state first ->
+let extract_block_info :
+    State.t -> Mach.instruction -> next:Label.t -> block_info =
+ fun state first ~next ->
   let rec loop (instr : Mach.instruction) acc =
     let return terminator instrs =
       let instrs = List.rev instrs in
@@ -366,7 +370,7 @@ let extract_block_info : State.t -> Mach.instruction -> block_info =
     in
     match instr.desc with
     | Iop op -> (
-      match basic_or_terminator_of_operation state op with
+      match basic_or_terminator_of_operation state op ~next with
       | Basic desc ->
         let instr' = copy_instruction state instr ~desc in
         (* note: useless moves (See `Cfg.is_noop_move`) are no longer removed
@@ -403,7 +407,7 @@ let rec add_blocks :
     next:Label.t ->
     unit =
  fun instr state ~starts_with_pushtrap ~start ~next ->
-  let { instrs; last; terminator } = extract_block_info state instr in
+  let { instrs; last; terminator } = extract_block_info state instr ~next in
   let terminate_block ~trap_actions terminator =
     let body = instrs in
     let body =
@@ -430,7 +434,7 @@ let rec add_blocks :
         else body
       | Cfg.Never | Cfg.Always _ | Cfg.Parity_test _ | Cfg.Truth_test _
       | Cfg.Float_test _ | Cfg.Int_test _ | Cfg.Switch _ | Cfg.Raise _
-      | Cfg.Tailcall _ | Cfg.Call_no_return _ ->
+      | Cfg.Tailcall _ | Cfg.Call_no_return _ | Cfg.Poll_and_jump _ ->
         body
     in
     let can_raise =
@@ -441,7 +445,8 @@ let rec add_blocks :
         match (terminator.Cfg.desc : Cfg.terminator) with
         | Always _ -> true
         | Raise _ | Tailcall _ | Call_no_return _ | Never | Parity_test _
-        | Truth_test _ | Float_test _ | Int_test _ | Switch _ | Return ->
+        | Truth_test _ | Float_test _ | Int_test _ | Switch _ | Return
+        | Poll_and_jump _ ->
           false
       in
       let rec check = function
@@ -629,7 +634,7 @@ module Stack_offset_and_exn = struct
     | Never | Return
     | Tailcall (Func _)
     | Call_no_return _ | Raise _ | Always _ | Parity_test _ | Truth_test _
-    | Float_test _ | Int_test _ | Switch _ ->
+    | Float_test _ | Int_test _ | Switch _ | Poll_and_jump _ ->
       stack_offset, traps, term
 
   let rec process_basic :
