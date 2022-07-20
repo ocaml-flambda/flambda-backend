@@ -356,7 +356,11 @@ let compile_fundecl ?dwarf ~ppf_dump ~funcnames fd_cmm =
        (Selection.fundecl ~future_funcnames:funcnames)
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_sel
   ++ pass_dump_if ppf_dump dump_selection "After instruction selection"
-  ++ Profile.record ~accumulate:true "save_mach_as_cfg" (save_mach_as_cfg Compiler_pass.Selection)
+  ++ Profile.record ~accumulate:true "save_mach_as_cfg"
+       (save_mach_as_cfg Compiler_pass.Selection)
+  ++ Profile.record ~accumulate:true "polling"
+       (Polling.instrument_fundecl ~future_funcnames:funcnames)
+  ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_polling
   ++ Profile.record ~accumulate:true "comballoc" Comballoc.fundecl
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_combine
   ++ pass_dump_if ppf_dump dump_combine "After allocation combining"
