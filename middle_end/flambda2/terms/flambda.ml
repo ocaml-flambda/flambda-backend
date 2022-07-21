@@ -246,9 +246,19 @@ and apply_renaming_recursive_let_cont_handlers t renaming =
 and apply_renaming_continuation_handler_t0
     ({ handler; num_normal_occurrences_of_params } as t) renaming =
   let handler' = apply_renaming handler renaming in
-  if handler == handler'
+  let num_normal_occurrences_of_params', is_identity_num_occurrences =
+    Variable.Map.fold
+      (fun var num (all_occurrences, is_identity) ->
+        let var' = Renaming.apply_variable renaming var in
+        Variable.Map.add var' num all_occurrences, is_identity && var == var')
+      num_normal_occurrences_of_params (Variable.Map.empty, true)
+  in
+  if handler == handler' && is_identity_num_occurrences
   then t
-  else { handler = handler'; num_normal_occurrences_of_params }
+  else
+    { handler = handler';
+      num_normal_occurrences_of_params = num_normal_occurrences_of_params'
+    }
 
 and apply_renaming_continuation_handler
     ({ cont_handler_abst; is_exn_handler } as t) renaming =
