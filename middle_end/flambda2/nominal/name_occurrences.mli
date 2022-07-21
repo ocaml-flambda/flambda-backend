@@ -189,3 +189,5 @@ val fold_continuations_including_in_trap_actions :
   t -> init:'a -> f:('a -> Continuation.t -> 'a) -> 'a
 
 val fold_code_ids : t -> init:'a -> f:('a -> Code_id.t -> 'a) -> 'a
+
+val increase_counts : t -> t

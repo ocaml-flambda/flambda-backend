@@ -765,6 +765,10 @@ let rebuild_recursive_let_cont_handlers cont ~params ~original_cont_scope
       in
       uacc, Some handlers
   in
+  let name_occurrences =
+    Name_occurrences.increase_counts (UA.name_occurrences uacc)
+  in
+  let uacc = UA.with_name_occurrences uacc ~name_occurrences in
   after_rebuild handlers uacc
 
 let after_one_recursive_let_cont_handler_rebuilt cont ~original_cont_scope
