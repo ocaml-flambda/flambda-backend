@@ -735,6 +735,10 @@ let rebuild_recursive_let_cont_handlers cont ~params ~original_cont_scope
         UE.add_non_inlinable_continuation uenv cont original_cont_scope ~params
           ~handler:(Known handler))
   in
+  let name_occurrences =
+    Name_occurrences.increase_counts (UA.name_occurrences uacc)
+  in
+  let uacc = UA.with_name_occurrences uacc ~name_occurrences in
   let handlers = Continuation.Map.singleton cont cont_handler in
   after_rebuild handlers uacc
 

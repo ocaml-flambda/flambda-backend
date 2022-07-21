@@ -857,7 +857,8 @@ module Let_cont_with_acc = struct
     let body_free_names, acc, body = Acc.eval_branch_free_names acc ~f:body in
     let acc =
       Acc.with_free_names
-        (Name_occurrences.union body_free_names handlers_free_names)
+        (Name_occurrences.union body_free_names
+           (Name_occurrences.increase_counts handlers_free_names))
         acc
     in
     create_recursive acc handlers ~body ~cost_metrics_of_handlers
