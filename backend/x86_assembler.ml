@@ -1,3 +1,5 @@
+[@@@warning "-26"]
+
 module StringMap = X86_binary_emitter.StringMap
 
 let name s_l s_opt s_l' =
@@ -75,10 +77,10 @@ type symbol_entry =
   { st_name : Owee.Owee_buf.u32;
     st_info : Owee.Owee_buf.u8;
     st_other : Owee.Owee_buf.u8;
-    st_shndx : Owee.Owee_buf.u16;
     st_value : Owee.Owee_buf.u64;
     st_size : Owee.Owee_buf.u64;
-    st_name_str : string
+    st_name_str : string;
+    st_shname_str : string
   }
 
 type relocation_entry =
@@ -109,7 +111,7 @@ let add_string string_table string =
     <- string_table.current_length + String.length string + 1;
   string_table.strings <- string :: string_table.strings
 
-let create_symbol (symbol : X86_binary_emitter.symbol) sections string_table =
+let create_symbol (symbol : X86_binary_emitter.symbol) string_table =
   let value =
     match symbol.sy_pos with None -> 0L | Some n -> Int64.of_int n
   in
@@ -125,23 +127,11 @@ let create_symbol (symbol : X86_binary_emitter.symbol) sections string_table =
     | None -> 0)
     lor if symbol.sy_global then 1 lsl 4 else 0
   in
-  let st_shndx =
-    Option.get
-      (List.find_map
-         (fun ((i, s) : int * Owee.Owee_elf.section) ->
-           if String.length s.sh_name_str > 0
-              && isprefix s.sh_name_str symbol.sy_sec.sec_name
-           then Some i
-           else None)
-         (List.mapi (fun i x -> i, x) (List.rev sections.sections)))
-  in
-  Printf.printf "%d\n" st_shndx;
   let symbol_entry =
     { st_name = string_table.current_length;
       st_info;
       st_other = 0;
-      (* st_shndx = symbol.sy_sec.sec_name; *)
-      st_shndx;
+      st_shname_str = symbol.sy_sec.sec_name;
       st_value = value;
       st_size =
         (match symbol.sy_size with None -> 0L | Some n -> Int64.of_int n);
@@ -151,21 +141,64 @@ let create_symbol (symbol : X86_binary_emitter.symbol) sections string_table =
   add_string string_table symbol.sy_name;
   symbol_entry
 
+let create_got_symbol string_table =
+  let symbol_entry =
+    { st_name = string_table.current_length;
+      st_info = 1 lsl 4;
+      st_other = 0;
+      st_value = 0L;
+      st_size = 0L;
+      st_name_str = "_GLOBAL_OFFSET_TABLE_";
+      st_shname_str = ""
+    }
+  in
+  add_string string_table "_GLOBAL_OFFSET_TABLE_";
+  symbol_entry
+
+let create_undef_symbol name string_table =
+  let symbol_entry =
+    { st_name = string_table.current_length;
+      st_info = 1 lsl 4;
+      st_other = 0;
+      st_value = 0L;
+      st_size = 0L;
+      st_name_str = name;
+      st_shname_str = ""
+    }
+  in
+  add_string string_table name;
+  symbol_entry
+
+let get_or_create_symbol_idx name symbol_table string_table =
+  match
+    List.find_map
+      (fun (i, x) -> if x.st_name_str = name then Some i else None)
+      (List.mapi (fun i x -> i, x) !symbol_table)
+  with
+  | Some i -> i
+  | None ->
+    symbol_table := !symbol_table @ [create_undef_symbol name string_table];
+    List.length !symbol_table - 1
+
 let create_relocation (relocation : X86_binary_emitter.Relocation.t)
-    symbol_table =
-  let relocation_type, relocation_symbol =
+    symbol_table string_table =
+  let relocation_type, relocation_symbol, addend =
     match relocation.kind with
-    | DIR64 (name, _) -> (
-      ( 1,
-        match
-          List.find_map
-            (fun (i, x) -> if x.st_name_str = name then Some i else None)
-            (List.mapi (fun i x -> i, x) symbol_table)
-        with
-        | Some i -> i
-        | None -> failwith "cannot find symbol" ))
-    | DIR32 (_, _) -> -1, 0
-    | REL32 (_, _) -> -1, 0
+    | DIR64 (name, addend) ->
+      Printf.printf "dir64: %s\n" name;
+      1, get_or_create_symbol_idx name symbol_table string_table, addend
+    | DIR32 (_, _) -> failwith "cannot generate dir32"
+    | REL32 (name, addend) -> (
+      match String.split_on_char '@' name with
+      | [name; "GOTPCREL"] ->
+        ( 9,
+          get_or_create_symbol_idx name symbol_table string_table,
+          Int64.sub addend 4L )
+      | [name; "PLT"] ->
+        ( 4,
+          get_or_create_symbol_idx name symbol_table string_table,
+          Int64.sub addend 4L )
+      | _ -> failwith "invalid name")
   in
   let reloc =
     { r_offset = Int64.of_int relocation.offset_from_section_beginning;
@@ -173,7 +206,7 @@ let create_relocation (relocation : X86_binary_emitter.Relocation.t)
         Int64.logor
           (Int64.shift_left (Int64.of_int relocation_symbol) 32)
           (Int64.of_int relocation_type);
-      r_addend = 0L
+      r_addend = addend
     }
   in
   reloc
@@ -284,28 +317,39 @@ let make_custom_section sections (s_l, s_opt, s_l') raw_section sh_string_table
     sh_string_table
 
 let make_relocation_section sections sym_tbl_idx name size sh_string_table =
+  let open Owee.Owee_elf in
   let num_sections = List.length sections.sections in
   let i, section =
     List.find
-      (fun ((_, s) : int * Owee.Owee_elf.section) -> s.sh_name_str = name)
+      (fun (_, s) -> s.sh_name_str = name)
       (List.mapi (fun i x -> i, x) sections.sections)
   in
   let idx = num_sections - i - 1 in
-  let section : Owee.Owee_elf.section =
-    create_section (".rela" ^ name) ~sh_type:4 ~size
-      ~offset:(Int64.add section.sh_offset section.sh_size)
-      ~entsize:24L ~flags:0x40L ~sh_link:sym_tbl_idx sh_string_table
-      ~sh_info:idx
+  let section =
+    make_section sections (".rela" ^ name) 4 ~size ~entsize:24L ~flags:0x40L
+      ~sh_link:sym_tbl_idx sh_string_table ~align:8L ~sh_info:idx
   in
-  let rec insert (l : Owee.Owee_elf.section list) i e =
-    match i, l with
-    | 0, l -> e :: l
-    | i, hd :: tl ->
-      { hd with sh_offset = Int64.add hd.sh_offset size } :: insert tl (i - 1) e
-    | _ -> failwith "error list too short"
-  in
-  sections.sections <- insert sections.sections i section;
-  sections.current_offset <- Int64.add sections.current_offset size
+  section
+
+(* let rec insert l i e = *)
+(*   match i, l with *)
+(*   | 0, l -> e :: l *)
+(*   | i, hd :: tl -> *)
+(*     { hd with *)
+(*       sh_info = (if hd.sh_type = 4 then hd.sh_info + 1 else hd.sh_info); *)
+(*       sh_offset = Int64.add hd.sh_offset size *)
+(*     } *)
+(*     :: insert tl (i - 1) e *)
+(*   | _ -> failwith "error list too short" *)
+(* in *)
+
+(* sections.sections *)
+(*   <- List.map *)
+(*        (function *)
+(* | { sh_type = 4 } as x -> { x with sh_link = sym_tbl_idx } | x -> x) *)
+(*        sections.sections; *)
+(* sections.sections <- insert sections.sections i section; *)
+(* sections.current_offset <- Int64.add sections.current_offset size *)
 
 let assemble asm output_file =
   let sections = from_program asm in
@@ -334,6 +378,9 @@ let assemble asm output_file =
   let sh_string_table = { current_length = 0; strings = [] } in
   let sections = { sections = []; section_bodies = []; current_offset = 64L } in
 
+  (* An index of 0 in the string table is reserved for the null string *)
+  add_string string_table "";
+
   make_null sections sh_string_table;
 
   let _, align, raw_section = StringMap.find ".text" binary_sections in
@@ -351,37 +398,45 @@ let assemble asm output_file =
     List.concat_map
       (fun (key, (section_info, align, raw_section)) ->
         List.map
-          (fun (name, symbol) -> create_symbol symbol sections string_table)
+          (fun (name, symbol) -> create_symbol symbol string_table)
           (StringMap.bindings (X86_binary_emitter.labels raw_section)))
       (StringMap.bindings binary_sections)
   in
+  let symbols = create_got_symbol string_table :: symbols in
   let symbols =
     List.stable_sort (fun a b -> (a.st_info lsl 4) - (b.st_info lsl 4)) symbols
   in
-  let relocations =
-    List.map
+  let symbols = ref symbols in
+  let raw_relocations =
+    List.filter_map
       (fun (key, ((s_l, _, _), align, raw_section)) ->
-        let relocations =
+        match
           List.map
-            (fun relocation -> create_relocation relocation symbols)
+            (fun relocation ->
+              create_relocation relocation symbols string_table)
             (X86_binary_emitter.relocations raw_section)
-        in
-        let name = String.concat "," s_l in
-        if relocations <> []
-        then
-          make_relocation_section sections
-            (1 + List.length sections.sections)
-            name
-            (Int64.of_int (24 * List.length relocations))
-            sh_string_table
-        else ();
-        name, relocations)
+        with
+        | [] -> None
+        | l -> Some (String.concat "," s_l, l))
       (StringMap.bindings binary_sections)
+  in
+  let symtab_idx =
+    List.length sections.sections + List.length raw_relocations
+  in
+  List.iter
+    (fun (name, relocations) ->
+      make_relocation_section sections symtab_idx name
+        (Int64.of_int (24 * List.length relocations))
+        sh_string_table)
+    raw_relocations;
+  let symbols = !symbols in
+  let num_locals =
+    List.length (List.filter (fun x -> x.st_info lsr 4 = 0) symbols)
   in
   let strtabidx = 1 + List.length sections.sections in
   make_section sections ".symtab" 2 ~entsize:24L
     ~size:(Int64.of_int (24 * List.length symbols))
-    ~align:8L ~sh_link:strtabidx ~sh_info:strtabidx sh_string_table;
+    ~align:8L ~sh_link:strtabidx ~sh_info:num_locals sh_string_table;
   make_section sections ".strtab" 3
     ~size:(Int64.of_int string_table.current_length)
     sh_string_table;
@@ -401,6 +456,7 @@ let assemble asm output_file =
       (Int64.to_int sections.current_offset
       + (header.e_shnum * header.e_shentsize))
   in
+  Printf.printf "%s\n" (List.hd sections.sections).sh_name_str;
   Owee.Owee_elf.write_elf elf header
     (Array.of_list (List.rev sections.sections));
   List.iter
@@ -424,10 +480,27 @@ let assemble asm output_file =
     (fun i symbol ->
       let open Owee.Owee_buf in
       let t = cursor elf ~at:((i * 24) + Int64.to_int symtab.sh_offset) in
+      Printf.printf "%s\n" symbol.st_shname_str;
+      let st_shndx =
+        match
+          List.find_map
+            (fun ((i, s) : int * Owee.Owee_elf.section) ->
+              if String.length s.sh_name_str > 0
+                 && isprefix s.sh_name_str symbol.st_shname_str
+              then Some i
+              else None)
+            (List.mapi (fun i x -> i, x) (List.rev sections.sections))
+        with
+        | Some n -> n
+        | None ->
+          if symbol.st_shname_str = ""
+          then 0
+          else failwith "Can't find section for relocation"
+      in
       Write.u32 t symbol.st_name;
       Write.u8 t symbol.st_info;
       Write.u8 t symbol.st_other;
-      Write.u16 t symbol.st_shndx;
+      Write.u16 t st_shndx;
       Write.u64 t symbol.st_value;
       Write.u64 t symbol.st_size)
     symbols;
@@ -449,7 +522,7 @@ let assemble asm output_file =
             Write.u64 t relocation.r_addend)
           relocations
       | None -> ())
-    relocations;
+    raw_relocations;
   let t = Owee.Owee_buf.cursor elf ~at:(Int64.to_int strtab.sh_offset) in
   List.iter
     (fun string ->
