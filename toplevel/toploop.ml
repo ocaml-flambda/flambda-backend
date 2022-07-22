@@ -236,6 +236,7 @@ let pr_item =
 (* The current typing environment for the toplevel *)
 
 let toplevel_env = ref Env.empty
+let toplevel_sig = ref []
 
 (* Print an exception produced by an evaluation *)
 
@@ -272,8 +273,11 @@ let execute_phrase print_outcome ppf phr =
   match phr with
   | Ptop_def sstr ->
       let oldenv = !toplevel_env in
+      let oldsig = !toplevel_sig in
       Typecore.reset_delayed_checks ();
-      let (str, sg, sn, newenv) = Typemod.type_toplevel_phrase oldenv sstr in
+      let (str, sg, sn, newenv) =
+        Typemod.type_toplevel_phrase oldenv oldsig sstr
+      in
       if !Clflags.dump_typedtree then Printtyped.implementation ppf str;
       let sg' = Typemod.Signature_names.simplify newenv sn sg in
       ignore (Includemod.signatures ~mark:Mark_positive oldenv sg sg');
@@ -282,6 +286,7 @@ let execute_phrase print_outcome ppf phr =
       Warnings.check_fatal ();
       begin try
         toplevel_env := newenv;
+        toplevel_sig := List.rev_append sg' oldsig;
         let res = load_lambda ppf lam in
         let out_phr =
           match res with
@@ -309,6 +314,7 @@ let execute_phrase print_outcome ppf phr =
               else Ophr_signature []
           | Exception exn ->
               toplevel_env := oldenv;
+              toplevel_sig := oldsig;
               if exn = Out_of_memory then Gc.full_major();
               let outv =
                 outval_of_value !toplevel_env (Obj.repr exn) Predef.type_exn
@@ -330,7 +336,7 @@ let execute_phrase print_outcome ppf phr =
         | Ophr_exception _ -> false
         end
       with x ->
-        toplevel_env := oldenv; raise x
+        toplevel_env := oldenv; toplevel_sig := oldsig; raise x
       end
   | Ptop_dir {pdir_name = {Location.txt = dir_name}; pdir_arg } ->
       let d =
@@ -577,7 +583,8 @@ let set_paths () =
   Dll.add_path load_path
 
 let initialize_toplevel_env () =
-  toplevel_env := Compmisc.initial_env()
+  toplevel_env := Compmisc.initial_env();
+  toplevel_sig := []
 
 (* The interactive loop *)
 
@@ -635,7 +642,7 @@ let run_script ppf name args =
   Compmisc.init_path ~dir:(Filename.dirname name) ();
                    (* Note: would use [Filename.abspath] here, if we had it. *)
   begin
-    try toplevel_env := Compmisc.initial_env()
+    try initialize_toplevel_env ()
     with Env.Error _ | Typetexp.Error _ as exn ->
       Location.report_exception ppf exn; raise (Compenv.Exit_with_status 2)
   end;

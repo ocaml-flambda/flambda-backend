@@ -84,7 +84,7 @@ let value_descriptions ~loc env ~mark cxt subst id vd1 vd2 =
 
 (* Inclusion between type declarations *)
 
-let type_declarations ~loc env ~mark ?old_env:_ cxt subst id decl1 decl2 =
+let type_declarations ~loc env ~mark cxt subst id decl1 decl2 =
   let mark = mark_positive mark in
   if mark then
     Env.mark_type_used decl1.type_uid;
@@ -109,7 +109,7 @@ let extension_constructors ~loc env ~mark cxt subst id ext1 ext2 =
 
 (* Inclusion between class declarations *)
 
-let class_type_declarations ~loc ~old_env:_ env cxt subst id decl1 decl2 =
+let class_type_declarations ~loc env cxt subst id decl1 decl2 =
   let decl2 = Subst.cltype_declaration subst decl2 in
   match Includeclass.class_type_declarations ~loc env decl1 decl2 with
     []     -> ()
@@ -117,7 +117,7 @@ let class_type_declarations ~loc ~old_env:_ env cxt subst id decl1 decl2 =
       raise(Error[cxt, env,
                   Class_type_declarations(id, decl1, decl2, reason)])
 
-let class_declarations ~old_env:_ env cxt subst id decl1 decl2 =
+let class_declarations env cxt subst id decl1 decl2 =
   let decl2 = Subst.class_declaration subst decl2 in
   match Includeclass.class_declarations env decl1 decl2 with
     []     -> ()
@@ -255,6 +255,81 @@ let simplify_structure_coercion cc id_pos_list =
   then Tcoerce_none
   else Tcoerce_structure (cc, id_pos_list)
 
+(* Build a table of the components of a signature, along with their positions.
+   The table is indexed by kind and name of component *)
+let build_component_table pos_rep sg =
+  let rec build_table pos tbl = function
+      [] -> pos, tbl
+    | (Sig_value (_, _, Hidden)
+      |Sig_type (_, _, _, Hidden)
+      |Sig_typext (_, _, _, Hidden)
+      |Sig_module (_, _, _, _, Hidden)
+      |Sig_modtype (_, _, Hidden)
+      |Sig_class (_, _, _, Hidden)
+      |Sig_class_type (_, _, _, Hidden)
+      ) as item :: rem ->
+        let pos = if is_runtime_component item then pos + 1 else pos in
+        build_table pos tbl rem (* do not pair private items. *)
+    | item :: rem ->
+        let (id, _loc, name) = item_ident_name item in
+        let pos, nextpos =
+          if is_runtime_component item then pos, pos + 1
+          else -1, pos
+        in
+        build_table nextpos
+          (FieldMap.add name (id, item, pos_rep pos id) tbl) rem
+  in
+  build_table 0 FieldMap.empty sg
+
+
+(* Pair each component of sig2 with a component of sig1, identifying the names
+   along the way.
+   Return a list containing each pair and the position of the component in sig1.
+   Raises if any component of sig2 cannot be paired. *)
+let pair_components env cxt subst sig1_comps sig2 =
+  let rec pair subst paired unpaired = function
+      [] -> begin
+        match unpaired with
+        | [] -> paired, subst
+        | _ -> raise(Error unpaired)
+      end
+    | item2 :: rem ->
+        let (id2, loc, name2) = item_ident_name item2 in
+        let name2, report =
+          match item2, name2 with
+            Sig_type (_, {type_manifest=None}, _, _), Field_type s
+            when Btype.is_row_name s ->
+              (* Do not report in case of failure,
+                 as the main type will generate an error *)
+              Field_type (String.sub s 0 (String.length s - 4)), false
+          | _ -> name2, true
+        in
+        begin try
+          let (id1, item1, pos1) = FieldMap.find name2 sig1_comps in
+          let new_subst =
+            match item2 with
+              Sig_type _ ->
+                Subst.add_type id2 (Path.Pident id1) subst
+            | Sig_module _ ->
+                Subst.add_module id2 (Path.Pident id1) subst
+            | Sig_modtype _ ->
+                Subst.add_modtype id2 (Mty_ident (Path.Pident id1)) subst
+            | Sig_value _ | Sig_typext _
+            | Sig_class _ | Sig_class_type _ ->
+                subst
+          in
+          pair new_subst ((item1, item2, pos1) :: paired) unpaired rem
+        with Not_found ->
+          let unpaired =
+            if report then
+              (cxt, env, Missing_field (id2, loc, kind_of_field_desc name2)) ::
+              unpaired
+            else unpaired in
+          pair subst paired unpaired rem
+        end
+  in
+  pair subst [] [] sig2
+
 (* Inclusion between module types.
    Return the restriction that transforms a value of the smaller type
    into a value of the bigger type. *)
@@ -373,98 +448,27 @@ and signatures ~loc env ~mark cxt subst sig1 sig2 =
             ((id,pos,Tcoerce_none)::l , pos+1)
         | item -> (l, if is_runtime_component item then pos+1 else pos))
       ([], 0) sig1 in
-  (* Build a table of the components of sig1, along with their positions.
-     The table is indexed by kind and name of component *)
-  let rec build_component_table pos tbl = function
-      [] -> pos, tbl
-    | (Sig_value (_, _, Hidden)
-      |Sig_type (_, _, _, Hidden)
-      |Sig_typext (_, _, _, Hidden)
-      |Sig_module (_, _, _, _, Hidden)
-      |Sig_modtype (_, _, Hidden)
-      |Sig_class (_, _, _, Hidden)
-      |Sig_class_type (_, _, _, Hidden)
-      ) as item :: rem ->
-        let pos = if is_runtime_component item then pos + 1 else pos in
-        build_component_table pos tbl rem (* do not pair private items. *)
-    | item :: rem ->
-        let (id, _loc, name) = item_ident_name item in
-        let pos, nextpos =
-          if is_runtime_component item then pos, pos + 1
-          else -1, pos
-        in
-        build_component_table nextpos
-                              (FieldMap.add name (id, item, pos) tbl) rem in
-  let len1, comps1 =
-    build_component_table 0 FieldMap.empty sig1 in
+  let len1, comps1 = build_component_table (fun pos _name -> pos) sig1 in
   let len2 =
     List.fold_left
       (fun n i -> if is_runtime_component i then n + 1 else n)
       0
       sig2
   in
-  (* Pair each component of sig2 with a component of sig1,
-     identifying the names along the way.
-     Return a coercion list indicating, for all run-time components
-     of sig2, the position of the matching run-time components of sig1
-     and the coercion to be applied to it. *)
-  let rec pair_components subst paired unpaired = function
-      [] ->
-        begin match unpaired with
-            [] ->
-              let cc =
-                signature_components ~loc env ~mark new_env cxt subst
-                  (List.rev paired)
-              in
-              if len1 = len2 then (* see PR#5098 *)
-                simplify_structure_coercion cc id_pos_list
-              else
-                Tcoerce_structure (cc, id_pos_list)
-          | _  -> raise(Error unpaired)
-        end
-    | item2 :: rem ->
-        let (id2, loc, name2) = item_ident_name item2 in
-        let name2, report =
-          match item2, name2 with
-            Sig_type (_, {type_manifest=None}, _, _), Field_type s
-            when Btype.is_row_name s ->
-              (* Do not report in case of failure,
-                 as the main type will generate an error *)
-              Field_type (String.sub s 0 (String.length s - 4)), false
-          | _ -> name2, true
-        in
-        begin try
-          let (id1, item1, pos1) = FieldMap.find name2 comps1 in
-          let new_subst =
-            match item2 with
-              Sig_type _ ->
-                Subst.add_type id2 (Path.Pident id1) subst
-            | Sig_module _ ->
-                Subst.add_module id2 (Path.Pident id1) subst
-            | Sig_modtype _ ->
-                Subst.add_modtype id2 (Mty_ident (Path.Pident id1)) subst
-            | Sig_value _ | Sig_typext _
-            | Sig_class _ | Sig_class_type _ ->
-                subst
-          in
-          pair_components new_subst
-            ((item1, item2, pos1) :: paired) unpaired rem
-        with Not_found ->
-          let unpaired =
-            if report then
-              (cxt, env, Missing_field (id2, loc, kind_of_field_desc name2)) ::
-              unpaired
-            else unpaired in
-          pair_components subst paired unpaired rem
-        end in
   (* Do the pairing and checking, and return the final coercion *)
-  pair_components subst [] [] sig2
+  let paired, subst = pair_components new_env cxt subst comps1 sig2 in
+  let cc = signature_components ~loc ~mark new_env cxt subst (List.rev paired) in
+  if len1 = len2 then (* see PR#5098 *)
+    simplify_structure_coercion cc id_pos_list
+  else
+    Tcoerce_structure (cc, id_pos_list)
 
 (* Inclusion between signature components *)
-
-and signature_components ~loc old_env ~mark env cxt subst paired =
+and signature_components :
+  'a. loc:_ -> mark:_ -> _ -> _ -> _ -> (_ * _ * 'a) list -> ('a * _) list =
+  fun ~loc ~mark env cxt subst paired ->
   let comps_rec rem =
-    signature_components ~loc old_env ~mark env cxt subst rem
+    signature_components ~loc ~mark env cxt subst rem
   in
   match paired with
     [] -> []
@@ -478,7 +482,7 @@ and signature_components ~loc old_env ~mark env cxt subst paired =
       end
   | (Sig_type(id1, tydecl1, _, _), Sig_type(_id2, tydecl2, _, _), _pos) :: rem
     ->
-      type_declarations ~loc ~old_env env ~mark cxt subst id1 tydecl1 tydecl2;
+      type_declarations ~loc env ~mark cxt subst id1 tydecl1 tydecl2;
       comps_rec rem
   | (Sig_typext(id1, ext1, _, _), Sig_typext(_id2, ext2, _, _), pos)
     :: rem ->
@@ -499,11 +503,11 @@ and signature_components ~loc old_env ~mark env cxt subst paired =
       modtype_infos ~loc env ~mark cxt subst id1 info1 info2;
       comps_rec rem
   | (Sig_class(id1, decl1, _, _), Sig_class(_id2, decl2, _, _), pos) :: rem ->
-      class_declarations ~old_env env cxt subst id1 decl1 decl2;
+      class_declarations env cxt subst id1 decl1 decl2;
       (pos, Tcoerce_none) :: comps_rec rem
   | (Sig_class_type(id1, info1, _, _),
      Sig_class_type(_id2, info2, _, _), _pos) :: rem ->
-      class_type_declarations ~loc ~old_env env cxt subst id1 info1 info2;
+      class_type_declarations ~loc env cxt subst id1 info1 info2;
       comps_rec rem
   | _ ->
       assert false
@@ -554,7 +558,10 @@ and check_modtype_equiv ~loc env ~mark cxt mty1 mty2 =
         print_coercion _c1 print_coercion _c2; *)
       raise(Error [cxt, env, Modtype_permutation (mty1, c1)])
 
-(* Simplified inclusion check between module types (for Env) *)
+let include_functor_signatures ~loc env ~mark cxt subst sig1 sig2 =
+  let _, comps1 = build_component_table (fun _pos name -> name) sig1 in
+  let paired, subst = pair_components env cxt subst comps1 sig2 in
+  signature_components ~loc ~mark env cxt subst (List.rev paired)
 
 let can_alias env path =
   let rec no_apply = function
@@ -598,6 +605,8 @@ let modtypes ~loc env ~mark mty1 mty2 =
   modtypes ~loc env ~mark [] Subst.identity mty1 mty2
 let signatures env ~mark sig1 sig2 =
   signatures ~loc:Location.none env ~mark [] Subst.identity sig1 sig2
+let include_functor_signatures env ~mark:mark sig1 sig2 =
+  include_functor_signatures ~loc:Location.none env ~mark [] Subst.identity sig1 sig2
 let type_declarations ~loc env ~mark id decl1 decl2 =
   type_declarations ~loc env ~mark [] Subst.identity id decl1 decl2
 let strengthened_module_decl ~loc ~aliasable env ~mark
