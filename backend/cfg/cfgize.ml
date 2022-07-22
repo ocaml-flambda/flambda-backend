@@ -718,7 +718,8 @@ let fundecl :
     preserve_orig_labels:bool ->
     simplify_terminators:bool ->
     Cfg_with_layout.t =
- fun fundecl ~before_register_allocation ~preserve_orig_labels ~simplify_terminators ->
+ fun fundecl ~before_register_allocation ~preserve_orig_labels
+     ~simplify_terminators ->
   let { Mach.fun_name;
         fun_args;
         fun_body;
@@ -736,10 +737,9 @@ let fundecl :
      Cfgize is called; we (temporarily?) always add a prologue and remove it
      after register allocation if it is not required. *)
   let prologue_required =
-    if before_register_allocation then
-      true
-    else
-      Proc.prologue_required ~fun_contains_calls ~fun_num_stack_slots
+    if before_register_allocation
+    then true
+    else Proc.prologue_required ~fun_contains_calls ~fun_num_stack_slots
   in
   let cfg =
     Cfg.create ~fun_name ~fun_args ~fun_dbg ~fun_fast ~fun_contains_calls

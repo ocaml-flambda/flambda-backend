@@ -32,7 +32,7 @@ let build : State.t -> Cfg_with_layout.t -> liveness -> unit =
          && (not (Reg.is_stack instr.arg.(0)))
          && (not (Reg.is_stack instr.res.(0)))
          && same_reg_class instr.arg.(0) instr.res.(0)
-      then begin
+      then (
         State.add_move_list state instr.arg.(0) instr;
         if not (same_reg instr.arg.(0) instr.res.(0))
         then State.add_move_list state instr.res.(0) instr;
@@ -42,8 +42,7 @@ let build : State.t -> Cfg_with_layout.t -> liveness -> unit =
           then Reg.dummy
           else instr.arg.(0)
         in
-        add_edges_live instr.id ~def:instr.res ~move_src ~destroyed:[||]
-      end
+        add_edges_live instr.id ~def:instr.res ~move_src ~destroyed:[||])
       else
         add_edges_live instr.id ~def:instr.res ~move_src:Reg.dummy
           ~destroyed:(destroyed_at_basic instr.desc))
@@ -78,19 +77,16 @@ let make_work_list : State.t -> unit =
         log ~indent:2 "- %a has degree=%s (k=%d)" Printmach.reg reg
           (Degree.to_string deg) (k reg);
       if deg >= k reg
-      then begin
+      then (
         if irc_debug then log ~indent:3 "~> spill_work_list";
-        State.add_spill_work_list state reg
-      end
+        State.add_spill_work_list state reg)
       else if State.is_move_related state reg
-      then begin
+      then (
         if irc_debug then log ~indent:3 "~> freeze_work_list";
-        State.add_freeze_work_list state reg
-      end
-      else begin
+        State.add_freeze_work_list state reg)
+      else (
         if irc_debug then log ~indent:3 "~> simplify_work_list";
-        State.add_simplify_work_list state reg
-      end)
+        State.add_simplify_work_list state reg))
 
 let simplify : State.t -> unit =
  fun state ->
@@ -115,15 +111,13 @@ let conservative : State.t -> Reg.t -> Reg.t -> bool =
   let seen = Reg.Tbl.create 32 in
   let f (reg : Reg.t) : unit =
     if not (Reg.Tbl.mem seen reg)
-    then begin
+    then (
       Reg.Tbl.replace seen reg ();
       let k = k reg in
       if reg.Reg.degree >= k
-      then begin
+      then (
         incr i;
-        if !i >= k then raise_notrace False
-      end
-    end
+        if !i >= k then raise_notrace False))
   in
   try
     State.iter_adjacent state reg1 ~f;
@@ -148,20 +142,18 @@ let combine : State.t -> Reg.t -> Reg.t -> unit =
       State.add_edge state t u;
       State.decr_degree state t);
   if State.mem_freeze_work_list state u && u.Reg.degree >= k u
-  then begin
+  then (
     State.remove_freeze_work_list state u;
-    State.add_spill_work_list state u
-  end
+    State.add_spill_work_list state u)
 
 let add_work_list : State.t -> Reg.t -> unit =
  fun state reg ->
   (* note: the test that `reg` is not precolored is redundant since precolored
      registers have an infinite degree. *)
   if reg.Reg.degree < k reg && not (State.is_move_related state reg)
-  then begin
+  then (
     State.remove_freeze_work_list state reg;
-    State.add_simplify_work_list state reg
-  end
+    State.add_simplify_work_list state reg)
 
 let coalesce : State.t -> unit =
  fun state ->
@@ -176,31 +168,27 @@ let coalesce : State.t -> unit =
   let u, v = if State.is_precolored state y then y, x else x, y in
   if irc_debug then log ~indent:2 "u=%a v=%a" Printmach.reg u Printmach.reg v;
   if same_reg u v
-  then begin
+  then (
     if irc_debug then log ~indent:2 "case #1/4";
     State.add_coalesced_moves state m;
-    add_work_list state u
-  end
+    add_work_list state u)
   else if State.is_precolored state v || State.mem_adj_set state u v
-  then begin
+  then (
     if irc_debug then log ~indent:2 "case #2/4";
     State.add_constrained_moves state m;
     add_work_list state u;
-    add_work_list state v
-  end
+    add_work_list state v)
   else if match State.is_precolored state u with
           | true -> all_adjacent_are_ok state u v
           | false -> conservative state u v
-  then begin
+  then (
     if irc_debug then log ~indent:2 "case #3/4";
     State.add_coalesced_moves state m;
     combine state u v;
-    add_work_list state u
-  end
-  else begin
+    add_work_list state u)
+  else (
     if irc_debug then log ~indent:2 "case #4/4";
-    State.add_active_moves state m
-  end
+    State.add_active_moves state m)
 
 let freeze_moves : State.t -> Reg.t -> unit =
  fun state u ->
@@ -217,10 +205,9 @@ let freeze_moves : State.t -> Reg.t -> unit =
       State.remove_active_moves state m;
       State.add_frozen_moves state m;
       if v.Reg.degree < k v && State.is_empty_node_moves state v
-      then begin
+      then (
         State.remove_freeze_work_list state v;
-        State.add_simplify_work_list state v
-      end)
+        State.add_simplify_work_list state v))
 
 let freeze : State.t -> unit =
  fun state ->
@@ -241,11 +228,10 @@ let select_spilling_register_using_heuristics : State.t -> Reg.t =
       Reg.Set.choose_opt (Reg.Set.diff spill_work_list introduced_temporaries)
     with
     | Some reg -> reg
-    | None -> begin
+    | None -> (
       match Reg.Set.choose_opt spill_work_list with
       | Some reg -> reg
-      | None -> fatal "spill_work_list is empty"
-    end)
+      | None -> fatal "spill_work_list is empty"))
   | Flat_uses -> (
     (* note: this assumes that `Reg.spill_cost` has been updated as needed (only
        when `rewrite` is called); the value computed here can however not be
@@ -311,37 +297,33 @@ let assign_colors : State.t -> Cfg_with_layout.t -> unit =
         | hd :: tl ->
           let alias = State.find_alias state hd in
           if State.is_precolored_or_colored state alias
-          then begin
+          then (
             match alias.Reg.irc_color with
             | None -> assert false
             | Some color ->
               if irc_debug then log ~indent:3 "color %d is not available" color;
               if Array.unsafe_get ok_colors (color - reg_first_avail)
-              then begin
+              then (
                 Array.unsafe_set ok_colors (color - reg_first_avail) false;
                 decr counter;
                 if !counter > 0
                 then mark_adjacent_colors_and_get_first_available tl
-                else reg_num_avail
-              end
-              else mark_adjacent_colors_and_get_first_available tl
-          end
+                else reg_num_avail)
+              else mark_adjacent_colors_and_get_first_available tl)
           else mark_adjacent_colors_and_get_first_available tl
       in
       let first_avail =
         mark_adjacent_colors_and_get_first_available (State.adj_list state n)
       in
       if first_avail = reg_num_avail
-      then begin
+      then (
         if irc_debug then log ~indent:3 "spilling";
-        State.add_spilled_nodes state n
-      end
-      else begin
+        State.add_spilled_nodes state n)
+      else (
         State.add_colored_nodes state n;
         let c = first_avail + reg_first_avail in
         if irc_debug then log ~indent:3 "coloring with %d" c;
-        n.Reg.irc_color <- Some c
-      end);
+        n.Reg.irc_color <- Some c));
   List.iter (State.coalesced_nodes state) ~f:(fun n ->
       let alias = State.find_alias state n in
       n.Reg.irc_color <- alias.Reg.irc_color);
@@ -407,7 +389,7 @@ let rewrite : State.t -> Cfg_with_layout.t -> Reg.t list -> reset:bool -> unit =
     let res = ref acc in
     let f (reg : Reg.t) : Reg.t =
       if reg.Reg.irc_work_list = Reg.Spilled
-      then begin
+      then (
         let spilled =
           match Reg.Tbl.find_opt spilled_map reg with
           | None -> assert false
@@ -437,15 +419,12 @@ let rewrite : State.t -> Cfg_with_layout.t -> Reg.t list -> reset:bool -> unit =
               ~copy:instr ~from ~to_
           in
           res := new_instr :: !res);
-        temp
-      end
+        temp)
       else reg
     in
-    begin
-      match direction with
-      | `fetch -> instr.arg <- Array.map instr.arg ~f
-      | `store -> instr.res <- Array.map instr.res ~f
-    end;
+    (match direction with
+    | `fetch -> instr.arg <- Array.map instr.arg ~f
+    | `store -> instr.res <- Array.map instr.res ~f);
     !res
   in
   let rec rewrite_body (acc : Instruction.t list) (body : Instruction.t list)
@@ -474,27 +453,23 @@ let rewrite : State.t -> Cfg_with_layout.t -> Reg.t list -> reset:bool -> unit =
         || array_contains_spilled block.terminator.arg
       in
       if body_needs_rewrite
-      then begin
+      then (
         if irc_debug
-        then begin
+        then (
           log ~indent:2 "body of #%d, before:" label;
-          log_body_and_terminator ~indent:3 block.body block.terminator
-        end;
+          log_body_and_terminator ~indent:3 block.body block.terminator);
         block.body <- rewrite_body [] block.body block.terminator;
         if irc_debug
-        then begin
+        then (
           log ~indent:2 "and after:";
           log_body_and_terminator ~indent:3 block.body block.terminator;
-          log ~indent:2 "end"
-        end
-      end);
+          log ~indent:2 "end")));
   if reset
   then State.reset state ~new_temporaries:!new_temporaries
-  else begin
+  else (
     State.add_introduced_temporaries_list state !new_temporaries;
     State.clear_spilled_nodes state;
-    State.add_initial_list state !new_temporaries
-  end
+    State.add_initial_list state !new_temporaries)
 
 (* CR xclerc for xclerc: could probably be lower; the compiler distribution
    seems to be fine with 4 *)
@@ -524,13 +499,12 @@ let rec main : round:int -> State.t -> Cfg_with_layout.t -> liveness =
   let liveness = liveness_analysis cfg_with_layout in
   build state cfg_with_layout liveness;
   if irc_debug
-  then begin
+  then (
     let adj_set = State.adj_set state in
     log ~indent:1 "(%d pairs in adj_set)"
       (RegisterStamp.PairSet.cardinal adj_set);
     RegisterStamp.PairSet.iter adj_set ~f:(fun (x, y) ->
-        log ~indent:1 "(%d, %d) <- adj_set" x y)
-  end;
+        log ~indent:1 "(%d, %d) <- adj_set" x y));
   make_work_list state;
   State.invariant state;
   if irc_debug then log_work_list_desc "before loop";
@@ -545,14 +519,12 @@ let rec main : round:int -> State.t -> Cfg_with_layout.t -> liveness =
     else if not (State.is_empty_freeze_work_list state)
     then freeze state
     else if not (State.is_empty_spill_work_list state)
-    then begin
+    then (
       if not !spill_cost_is_up_to_date
-      then begin
+      then (
         update_spill_cost cfg_with_layout;
-        spill_cost_is_up_to_date := true
-      end;
-      select_spill state
-    end
+        spill_cost_is_up_to_date := true);
+      select_spill state)
     else continue := false;
     if irc_debug then log_work_list_desc "end of loop";
     State.invariant state
@@ -586,10 +558,9 @@ let run : Cfg_with_layout.t -> Cfg_with_layout.t =
   let before = cpu_time () in
   Reg.reinit ();
   if irc_debug && irc_invariants
-  then begin
+  then (
     log ~indent:0 "precondition";
-    precondition cfg_with_layout
-  end;
+    precondition cfg_with_layout);
   if irc_debug
   then
     Array.iteri all_precolored_regs ~f:(fun i reg ->
@@ -621,11 +592,9 @@ let run : Cfg_with_layout.t -> Cfg_with_layout.t =
   then
     List.iter spilling_because_split_or_unused ~f:(fun r ->
         log ~indent:0 "%a <- spilling_because_split_or_unused" Printmach.reg r);
-  begin
-    match spilling_because_split_or_unused with
-    | [] -> ()
-    | _ :: _ as spilling -> rewrite state cfg_with_layout spilling ~reset:false
-  end;
+  (match spilling_because_split_or_unused with
+  | [] -> ()
+  | _ :: _ as spilling -> rewrite state cfg_with_layout spilling ~reset:false);
   let after = cpu_time () in
   Cfg_regalloc_utils.Stats.update_cfg_with_layout cfg_with_layout
     Cfg_regalloc_utils.Stats.before_main (after -. before);
@@ -653,9 +622,8 @@ let run : Cfg_with_layout.t -> Cfg_with_layout.t =
   Cfg_regalloc_utils.Stats.update_cfg_with_layout cfg_with_layout
     Cfg_regalloc_utils.Stats.after_main (after -. before);
   if irc_debug && irc_invariants
-  then begin
+  then (
     log ~indent:0 "postcondition";
-    postcondition cfg_with_layout
-  end;
+    postcondition cfg_with_layout);
   Array.iter all_precolored_regs ~f:(fun reg -> reg.Reg.degree <- 0);
   cfg_with_layout

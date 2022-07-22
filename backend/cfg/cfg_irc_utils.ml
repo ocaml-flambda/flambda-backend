@@ -38,15 +38,14 @@ let log_body_and_terminator :
     unit =
  fun ~indent body term ->
   if irc_debug && irc_verbose
-  then begin
+  then (
     List.iter body ~f:(fun instr ->
         Format.eprintf "[irc] %s" (make_indent indent);
         Cfg.dump_basic Format.err_formatter instr.Cfg.desc;
         Format.eprintf "\n%!");
     Format.eprintf "[irc] %s" (make_indent indent);
     Cfg.dump_terminator ~sep:", " Format.err_formatter term.Cfg.desc;
-    Format.eprintf "\n%!"
-  end
+    Format.eprintf "\n%!")
 
 module Color = struct
   type t = int
@@ -107,7 +106,7 @@ end
 let is_move_basic : Cfg.basic -> bool =
  fun desc ->
   match desc with
-  | Op op -> begin
+  | Op op -> (
     match op with
     | Move -> true
     | Spill -> false
@@ -135,8 +134,7 @@ let is_move_basic : Cfg.basic -> bool =
     | Begin_region -> false
     | End_region -> false
     | Specific _ -> false
-    | Name_for_debugger _ -> false
-  end
+    | Name_for_debugger _ -> false)
   | Call _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> false
 
 let is_move_instruction : Cfg.basic Cfg.instruction -> bool =
@@ -178,21 +176,18 @@ module Split_mode = struct
         (all |> List.map ~f:to_string |> List.map ~f:(Printf.sprintf "%S"))
     in
     lazy
-      begin
-        match Sys.getenv_opt "IRC_SPLIT" with
-        | None ->
-          fatal
-            "the IRC_SPLIT environment variable is not set (possible values: \
-             %s)"
-            (available_modes ())
-        | Some id -> (
-          match String.lowercase_ascii id with
-          | "off" -> Off
-          | "naive" -> Naive
-          | _ ->
-            fatal "unknown split mode %S (possible values: %s)" id
-              (available_modes ()))
-      end
+      (match Sys.getenv_opt "IRC_SPLIT" with
+      | None ->
+        fatal
+          "the IRC_SPLIT environment variable is not set (possible values: %s)"
+          (available_modes ())
+      | Some id -> (
+        match String.lowercase_ascii id with
+        | "off" -> Off
+        | "naive" -> Naive
+        | _ ->
+          fatal "unknown split mode %S (possible values: %s)" id
+            (available_modes ())))
 end
 
 module Spilling_heuristics = struct
@@ -215,21 +210,19 @@ module Spilling_heuristics = struct
         (all |> List.map ~f:to_string |> List.map ~f:(Printf.sprintf "%S"))
     in
     lazy
-      begin
-        match Sys.getenv_opt "IRC_SPILLING_HEURISTICS" with
-        | None ->
-          fatal
-            "the IRC_SPILLING_HEURISTICS environment variable is not set \
-             (possible values: %s)"
-            (available_heuristics ())
-        | Some id -> (
-          match String.lowercase_ascii id with
-          | "set_choose" | "set-choose" -> Set_choose
-          | "flat_uses" | "flat-uses" -> Flat_uses
-          (* CR xclerc for xclerc: | "hierarchical_uses" | "hierarchical-uses"
-             -> Hierarchical_uses *)
-          | _ ->
-            fatal "unknown heuristics %S (possible values: %s)" id
-              (available_heuristics ()))
-      end
+      (match Sys.getenv_opt "IRC_SPILLING_HEURISTICS" with
+      | None ->
+        fatal
+          "the IRC_SPILLING_HEURISTICS environment variable is not set \
+           (possible values: %s)"
+          (available_heuristics ())
+      | Some id -> (
+        match String.lowercase_ascii id with
+        | "set_choose" | "set-choose" -> Set_choose
+        | "flat_uses" | "flat-uses" -> Flat_uses
+        (* CR xclerc for xclerc: | "hierarchical_uses" | "hierarchical-uses" ->
+           Hierarchical_uses *)
+        | _ ->
+          fatal "unknown heuristics %S (possible values: %s)" id
+            (available_heuristics ())))
 end

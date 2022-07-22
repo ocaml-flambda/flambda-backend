@@ -17,10 +17,9 @@ let naive_split_points : Cfg_with_layout.t -> Instruction.id list =
         | _ -> false
       in
       if split
-      then begin
+      then (
         if irc_debug then log ~indent:2 "should split at %d" instr.id;
-        instr.id :: acc
-      end
+        instr.id :: acc)
       else acc)
     ~terminator:(fun acc _term -> acc)
   |> List.rev
@@ -96,15 +95,14 @@ let rec naive_split_body :
   | _, [] -> { body = List.rev acc @ body; split_points = []; new_regs }
   | hd_body :: tl_body, hd_split_points :: tl_split_points ->
     if hd_body.Cfg.id = hd_split_points
-    then begin
+    then (
       let live = Cfg_dataflow.Instr.Tbl.find liveness hd_body.Cfg.id in
       if irc_debug
-      then begin
+      then (
         log ~indent:2 "splitting at %d" hd_split_points;
         Reg.Set.iter
           (fun reg -> log ~indent:3 "register %a is live" Printmach.reg reg)
-          live.across
-      end;
+          live.across);
       let acc, new_regs, instrs_after =
         Reg.Set.fold
           (fun reg (acc, new_regs, instrs_after) ->
@@ -117,8 +115,7 @@ let rec naive_split_body :
       apply_instr subst hd_body;
       naive_split_body state liveness subst
         (instrs_after @ (hd_body :: acc))
-        tl_body tl_split_points new_regs
-    end
+        tl_body tl_split_points new_regs)
     else
       naive_split_body state liveness subst (hd_body :: acc) tl_body
         split_points new_regs
@@ -141,14 +138,13 @@ let naive_split_cfg :
         | hd :: _ ->
           if irc_debug then log ~indent:2 "splitting in #%d" label;
           if List.exists block.body ~f:(fun instr -> instr.Cfg.id = hd)
-          then begin
+          then (
             let { body; split_points; new_regs } =
               naive_split_body state liveness subst [] block.body split_points
                 new_regs
             in
             block.body <- body;
-            split_points, new_regs
-          end
+            split_points, new_regs)
           else acc)
   in
   assert (split_points = []);

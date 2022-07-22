@@ -45,8 +45,7 @@ struct
       across : Reg.Set.t
     }
 
-  let basic :
-      domain -> exn:domain -> Cfg.basic Cfg.instruction -> domain =
+  let basic : domain -> exn:domain -> Cfg.basic Cfg.instruction -> domain =
    fun { before; across = _ } ~exn instr ->
     match instr.desc with
     | Op _ | Call _ ->
@@ -73,10 +72,7 @@ struct
     | Prologue -> { before; across = before }
 
   let terminator :
-      domain ->
-      exn:domain ->
-      Cfg.terminator Cfg.instruction ->
-      domain =
+      domain -> exn:domain -> Cfg.terminator Cfg.instruction -> domain =
    fun { before; across = _ } ~exn instr ->
     match instr.desc with
     | Never -> assert false

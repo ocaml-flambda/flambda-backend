@@ -330,42 +330,40 @@ let destroyed_at_basic : Cfg.basic -> Reg.t array =
   match basic with
   | Op op ->
     at_oper
-      begin
-        match op with
-        | Move -> Iop Imove
-        | Spill -> Iop Ispill
-        | Reload -> Iop Ireload
-        | Const_int x -> Iop (Iconst_int x)
-        | Const_float x -> Iop (Iconst_float x)
-        | Const_symbol x -> Iop (Iconst_symbol x)
-        | Stackoffset x -> Iop (Istackoffset x)
-        | Load (x, y, z) -> Iop (Iload (x, y, z))
-        | Store (x, y, z) -> Iop (Istore (x, y, z))
-        | Intop x -> Iop (Iintop x)
-        | Intop_imm (x, y) -> Iop (Iintop_imm (x, y))
-        | Negf -> Iop Inegf
-        | Absf -> Iop Iabsf
-        | Addf -> Iop Iaddf
-        | Subf -> Iop Isubf
-        | Mulf -> Iop Imulf
-        | Divf -> Iop Idivf
-        | Compf x -> Iop (Icompf x)
-        | Floatofint -> Iop Ifloatofint
-        | Intoffloat -> Iop Iintoffloat
-        | Probe { name; handler_code_sym } ->
-          Iop (Iprobe { name; handler_code_sym })
-        | Probe_is_enabled { name } -> Iop (Iprobe_is_enabled { name })
-        | Opaque -> Iop Iopaque
-        | Begin_region -> Iop Ibeginregion
-        | End_region -> Iop Iendregion
-        | Specific x -> Iop (Ispecific x)
-        | Name_for_debugger
-            { ident; which_parameter; provenance; is_assignment } ->
-          Iop
-            (Iname_for_debugger
-               { ident; which_parameter; provenance; is_assignment })
-      end
-  | Call c -> begin
+      (match op with
+      | Move -> Iop Imove
+      | Spill -> Iop Ispill
+      | Reload -> Iop Ireload
+      | Const_int x -> Iop (Iconst_int x)
+      | Const_float x -> Iop (Iconst_float x)
+      | Const_symbol x -> Iop (Iconst_symbol x)
+      | Stackoffset x -> Iop (Istackoffset x)
+      | Load (x, y, z) -> Iop (Iload (x, y, z))
+      | Store (x, y, z) -> Iop (Istore (x, y, z))
+      | Intop x -> Iop (Iintop x)
+      | Intop_imm (x, y) -> Iop (Iintop_imm (x, y))
+      | Negf -> Iop Inegf
+      | Absf -> Iop Iabsf
+      | Addf -> Iop Iaddf
+      | Subf -> Iop Isubf
+      | Mulf -> Iop Imulf
+      | Divf -> Iop Idivf
+      | Compf x -> Iop (Icompf x)
+      | Floatofint -> Iop Ifloatofint
+      | Intoffloat -> Iop Iintoffloat
+      | Probe { name; handler_code_sym } ->
+        Iop (Iprobe { name; handler_code_sym })
+      | Probe_is_enabled { name } -> Iop (Iprobe_is_enabled { name })
+      | Opaque -> Iop Iopaque
+      | Begin_region -> Iop Ibeginregion
+      | End_region -> Iop Iendregion
+      | Specific x -> Iop (Ispecific x)
+      | Name_for_debugger { ident; which_parameter; provenance; is_assignment }
+        ->
+        Iop
+          (Iname_for_debugger
+             { ident; which_parameter; provenance; is_assignment }))
+  | Call c -> (
     match c with
     | P (External { func_symbol; alloc; ty_res; ty_args }) ->
       let func = func_symbol in
@@ -373,16 +371,14 @@ let destroyed_at_basic : Cfg.basic -> Reg.t array =
       at_oper (Iop (Iextcall { func; ty_res; ty_args; alloc; returns }))
     | P (Alloc { bytes; dbginfo; mode }) ->
       at_oper (Iop (Ialloc { bytes; dbginfo; mode }))
-    | P (Checkbound { immediate }) -> begin
+    | P (Checkbound { immediate }) -> (
       match immediate with
       | None -> at_oper (Iop (Iintop Icheckbound))
-      | Some x -> at_oper (Iop (Iintop_imm (Icheckbound, x)))
-    end
+      | Some x -> at_oper (Iop (Iintop_imm (Icheckbound, x))))
     | F Indirect -> at_oper (Iop Icall_ind)
     | F (Direct { func_symbol }) ->
       let func = func_symbol in
-      at_oper (Iop (Icall_imm { func }))
-  end
+      at_oper (Iop (Icall_imm { func })))
   | Reloadretaddr -> Proc.destroyed_at_reloadretaddr
   | Pushtrap _ ->
     [| Proc.phys_reg 11 |] (* CR xclerc for xclerc: amd64-specific *)
@@ -403,7 +399,7 @@ let destroyed_at_terminator : Cfg.terminator -> Reg.t array =
   | Switch _ -> at_oper (Mach.Iswitch ([||], [||]))
   | Return -> at_oper (Mach.Ireturn [])
   | Raise x -> at_oper (Mach.Iraise x)
-  | Tailcall x -> begin
+  | Tailcall x -> (
     match x with
     | Self { destination } ->
       let func =
@@ -414,8 +410,7 @@ let destroyed_at_terminator : Cfg.terminator -> Reg.t array =
     | Func Indirect -> at_oper (Mach.Iop Itailcall_ind)
     | Func (Direct { func_symbol }) ->
       let func = func_symbol in
-      at_oper (Mach.Iop (Itailcall_imm { func }))
-  end
+      at_oper (Mach.Iop (Itailcall_imm { func })))
   | Call_no_return { func_symbol; alloc; ty_res; ty_args } ->
     let func = func_symbol in
     let returns = false in
@@ -575,7 +570,7 @@ let precondition : Cfg_with_layout.t -> unit =
   let desc_is_neither_spill_or_reload (id : Instruction.id) (desc : Cfg.basic) :
       unit =
     match desc with
-    | Op op -> begin
+    | Op op -> (
       match op with
       | Move -> ()
       | Spill -> fatal "instruction %d is a spill" id
@@ -603,8 +598,7 @@ let precondition : Cfg_with_layout.t -> unit =
       | Begin_region -> ()
       | End_region -> ()
       | Specific _ -> ()
-      | Name_for_debugger _ -> ()
-    end
+      | Name_for_debugger _ -> ())
     | Call _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> ()
   in
   let register_must_not_be_on_stack (id : Instruction.id) (reg : Reg.t) : unit =

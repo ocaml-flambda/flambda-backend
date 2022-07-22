@@ -36,13 +36,11 @@ let[@inline] make ~initial ~next_instruction_id () =
   Array.iter all_precolored_regs ~f:(fun reg ->
       reg.Reg.irc_work_list <- Reg.Precolored;
       reg.Reg.irc_color
-        <- begin
-             match reg.Reg.loc with
-             | Reg color -> Some color
-             | Unknown | Stack _ ->
-               fatal "precolored register %a is not an hardware register"
-                 Printmach.reg reg
-           end;
+        <- (match reg.Reg.loc with
+           | Reg color -> Some color
+           | Unknown | Stack _ ->
+             fatal "precolored register %a is not an hardware register"
+               Printmach.reg reg);
       reg.Reg.irc_alias <- None;
       reg.Reg.interf <- [];
       reg.Reg.degree <- Degree.infinite);
@@ -116,12 +114,10 @@ let[@inline] reset state ~new_temporaries =
       reg.Reg.degree <- 0);
   Array.iter all_precolored_regs ~f:(fun reg ->
       assert (reg.Reg.irc_work_list = Reg.Precolored);
-      begin
-        match reg.Reg.loc, reg.Reg.irc_color with
-        | Reg color, Some color' -> assert (color = color')
-        | Reg _, None -> assert false
-        | (Unknown | Stack _), _ -> assert false
-      end;
+      (match reg.Reg.loc, reg.Reg.irc_color with
+      | Reg color, Some color' -> assert (color = color')
+      | Reg _, None -> assert false
+      | (Unknown | Stack _), _ -> assert false);
       reg.Reg.irc_alias <- None;
       reg.Reg.interf <- [];
       assert (reg.Reg.degree = Degree.infinite));
@@ -325,7 +321,7 @@ let[@inline] add_edge state u v =
   if (not (same_reg u v))
      && is_interesting_reg u && is_interesting_reg v && same_reg_class u v
      && not (RegisterStamp.PairSet.mem state.adj_set u.Reg.stamp v.Reg.stamp)
-  then begin
+  then (
     RegisterStamp.PairSet.add state.adj_set u.Reg.stamp v.Reg.stamp;
     let add_adj_list x y = x.Reg.interf <- y :: x.Reg.interf in
     let incr_degree x =
@@ -335,16 +331,13 @@ let[@inline] add_edge state u v =
       x.Reg.degree <- succ deg
     in
     if not (is_precolored state u)
-    then begin
+    then (
       add_adj_list u v;
-      incr_degree u
-    end;
+      incr_degree u);
     if not (is_precolored state v)
-    then begin
+    then (
       add_adj_list v u;
-      incr_degree v
-    end
-  end
+      incr_degree v))
 
 let[@inline] iter_adjacent state reg ~f =
   List.iter (adj_list state reg) ~f:(fun reg ->
@@ -401,25 +394,21 @@ let[@inline] decr_degree state reg =
   let d = reg.Reg.degree in
   if d = Degree.infinite
   then ()
-  else begin
+  else (
     reg.Reg.degree <- pred d;
     if Int.equal d (k reg)
-    then begin
+    then (
       enable_moves_one state reg;
       iter_adjacent state reg ~f:(fun r -> enable_moves_one state r);
       reg.Reg.irc_work_list <- Reg.Unknown_list;
       state.spill_work_list <- remove_reg reg state.spill_work_list;
       if is_move_related state reg
-      then begin
+      then (
         reg.Reg.irc_work_list <- Reg.Freeze;
-        state.freeze_work_list <- reg :: state.freeze_work_list
-      end
-      else begin
+        state.freeze_work_list <- reg :: state.freeze_work_list)
+      else (
         reg.Reg.irc_work_list <- Reg.Simplify;
-        state.simplify_work_list <- reg :: state.simplify_work_list
-      end
-    end
-  end
+        state.simplify_work_list <- reg :: state.simplify_work_list)))
 
 let[@inline] find_move_list state reg =
   match Reg.Tbl.find_opt state.move_list reg with
@@ -524,7 +513,7 @@ let[@inline] check_inter_has_no_duplicates (reg : Reg.t) : unit =
 
 let[@inline] invariant state =
   if irc_debug && irc_invariants
-  then begin
+  then (
     (* interf (list) is morally a set *)
     List.iter (Reg.all_registers ()) ~f:check_inter_has_no_duplicates;
     Array.iter all_precolored_regs ~f:check_inter_has_no_duplicates;
@@ -593,7 +582,7 @@ let[@inline] invariant state =
             Reg.Set.cardinal (Reg.Set.inter adj_list work_lists_or_precolored)
           in
           if not (Int.equal degree cardinal)
-          then begin
+          then (
             List.iter u.Reg.interf ~f:(fun r ->
                 log ~indent:0 "%a <- interf[%a]" Printmach.reg r Printmach.reg u);
             Reg.Set.iter
@@ -611,7 +600,5 @@ let[@inline] invariant state =
               \ (#adj_list=%d, #work_lists_or_precolored=%d)" Printmach.reg u
               cardinal degree
               (Reg.Set.cardinal adj_list)
-              (Reg.Set.cardinal work_lists_or_precolored)
-          end)
-      work_lists
-  end
+              (Reg.Set.cardinal work_lists_or_precolored)))
+      work_lists)
