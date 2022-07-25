@@ -268,7 +268,7 @@ let assign_colors : State.t -> Cfg_with_layout.t -> unit =
   if irc_debug then log ~indent:1 "assign_colors";
   State.iter_and_clear_select_stack state ~f:(fun n ->
       if irc_debug then log ~indent:2 "%a" Printmach.reg n;
-      let reg_class = n.Reg.clas in
+      let reg_class = Proc.register_class n in
       let reg_num_avail =
         Array.unsafe_get Proc.num_available_registers reg_class
       in
@@ -550,7 +550,7 @@ let run : Cfg_with_layout.t -> Cfg_with_layout.t =
   then
     Array.iteri all_precolored_regs ~f:(fun i reg ->
         log ~indent:0 "precolored[%d] = %a (class %d)" i Printmach.reg reg
-          reg.Reg.clas);
+          (Proc.register_class reg));
   let { arg; res; max_instruction_id } = collect_cfg_infos cfg_with_layout in
   let all_temporaries = Reg.Set.union arg res in
   let state =

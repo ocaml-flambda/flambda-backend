@@ -39,7 +39,6 @@ type t =
   { mutable raw_name: Raw_name.t;         (* Name *)
     stamp: int;                           (* Unique stamp *)
     typ: Cmm.machtype_component;          (* Type of contents *)
-    clas: int;                            (* Register class *)
     mutable loc: location;                (* Actual location *)
     mutable irc_work_list: irc_work_list; (* Current work list (IRC only) *)
     mutable irc_color : int option;       (* Current color (IRC conly) *)

@@ -454,7 +454,7 @@ let[@inline] get_num_stack_slot state reg =
   match Reg.Tbl.find_opt state.stack_slots reg with
   | Some slot -> slot
   | None ->
-    let res = get_and_incr_num_stack_slots state reg.Reg.clas in
+    let res = get_and_incr_num_stack_slots state (Proc.register_class reg) in
     Reg.Tbl.add state.stack_slots reg res;
     res
 

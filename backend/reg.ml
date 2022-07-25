@@ -62,7 +62,6 @@ type t =
   { mutable raw_name: Raw_name.t;
     stamp: int;
     typ: Cmm.machtype_component;
-    clas: int;
     mutable loc: location;
     mutable irc_work_list: irc_work_list;
     mutable irc_color : int option;
@@ -88,13 +87,8 @@ and stack_location =
 
 type reg = t
 
-(* CR xclerc for xclerc: amd64 *)
-let clas_of_typ = function
-  | Val | Int | Addr -> 0
-  | Float -> 1
-
 let dummy =
-  { raw_name = Raw_name.Anon; stamp = 0; typ = Int; clas = clas_of_typ Int; loc = Unknown;
+  { raw_name = Raw_name.Anon; stamp = 0; typ = Int; loc = Unknown;
     irc_work_list = Unknown_list; irc_color = None; irc_alias = None;
     spill = false; interf = []; prefer = []; degree = 0; spill_cost = 0;
     visited = 0; part = None;
@@ -120,7 +114,7 @@ let clear_visited_marks () =
 
 
 let create ty =
-  let r = { raw_name = Raw_name.Anon; stamp = !currstamp; typ = ty; clas = clas_of_typ ty;
+  let r = { raw_name = Raw_name.Anon; stamp = !currstamp; typ = ty;
             loc = Unknown;
             irc_work_list = Unknown_list; irc_color = None; irc_alias = None;
             spill = false; interf = []; prefer = []; degree = 0;
@@ -147,7 +141,7 @@ let clone r =
   nr
 
 let at_location ty loc =
-  let r = { raw_name = Raw_name.R; stamp = !currstamp; typ = ty; clas = clas_of_typ ty; loc;
+  let r = { raw_name = Raw_name.R; stamp = !currstamp; typ = ty; loc;
             irc_work_list = Unknown_list; irc_color = None; irc_alias = None;
             spill = false; interf = []; prefer = []; degree = 0;
             spill_cost = 0; visited = unvisited; part = None; } in

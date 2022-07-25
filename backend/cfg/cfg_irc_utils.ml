@@ -142,7 +142,7 @@ let is_move_instruction : Cfg.basic Cfg.instruction -> bool =
 
 let all_precolored_regs : Reg.t array = Proc.all_phys_regs
 
-let k reg = Proc.num_available_registers.(reg.Reg.clas)
+let k reg = Proc.num_available_registers.(Proc.register_class reg)
 
 let update_register_locations : unit -> unit =
  fun () ->
