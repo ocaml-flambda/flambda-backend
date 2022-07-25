@@ -52,7 +52,7 @@ val liveness_analysis : Cfg_with_layout.t -> liveness
 module Move : sig
   type t =
     | Plain
-    | Fetch
+    | Load
     | Store
 
   val make_instr :

@@ -200,12 +200,12 @@ let liveness_analysis : Cfg_with_layout.t -> liveness =
 module Move = struct
   type t =
     | Plain
-    | Fetch
+    | Load
     | Store
 
   let op_of_move = function
     | Plain -> Cfg.Move
-    | Fetch -> Cfg.Reload
+    | Load -> Cfg.Reload
     | Store -> Cfg.Spill
 
   let make_instr :
@@ -230,7 +230,7 @@ module Move = struct
 
   let to_string = function
     | Plain -> "move"
-    | Fetch -> "fetch"
+    | Load -> "load"
     | Store -> "store"
 end
 

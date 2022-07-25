@@ -374,8 +374,8 @@ let rewrite : State.t -> Cfg_with_layout.t -> Reg.t list -> reset:bool -> unit =
     | hd :: tl ->
       instruction_contains_spilled hd || instruction_list_contains_spilled tl
   in
-  let rewrite_instruction ~(direction : [`fetch | `store])
-      ~(sharing : (Reg.t * [`fetch | `store]) Reg.Tbl.t)
+  let rewrite_instruction ~(direction : [`load | `store])
+      ~(sharing : (Reg.t * [`load | `store]) Reg.Tbl.t)
       (acc : Instruction.t list) (instr : _ Cfg.instruction) :
       Instruction.t list =
     let res = ref acc in
@@ -388,7 +388,7 @@ let rewrite : State.t -> Cfg_with_layout.t -> Reg.t list -> reset:bool -> unit =
           | Some r -> r
         in
         let move =
-          match direction with `fetch -> Move.Fetch | `store -> Move.Store
+          match direction with `load -> Move.Load | `store -> Move.Store
         in
         let add_instr, temp =
           match Reg.Tbl.find_opt sharing reg with
@@ -400,7 +400,7 @@ let rewrite : State.t -> Cfg_with_layout.t -> Reg.t list -> reset:bool -> unit =
         in
         let from, to_ =
           match direction with
-          | `fetch -> spilled, temp
+          | `load -> spilled, temp
           | `store -> temp, spilled
         in
         (if add_instr
@@ -415,7 +415,7 @@ let rewrite : State.t -> Cfg_with_layout.t -> Reg.t list -> reset:bool -> unit =
       else reg
     in
     (match direction with
-    | `fetch -> instr.arg <- Array.map instr.arg ~f
+    | `load -> instr.arg <- Array.map instr.arg ~f
     | `store -> instr.res <- Array.map instr.res ~f);
     !res
   in
@@ -424,13 +424,13 @@ let rewrite : State.t -> Cfg_with_layout.t -> Reg.t list -> reset:bool -> unit =
     match body with
     | [] ->
       let acc =
-        rewrite_instruction ~direction:`fetch ~sharing:(Reg.Tbl.create 8) acc
+        rewrite_instruction ~direction:`load ~sharing:(Reg.Tbl.create 8) acc
           terminator
       in
       List.rev acc
     | hd :: tl ->
       let sharing = Reg.Tbl.create 8 in
-      let acc = rewrite_instruction ~direction:`fetch ~sharing acc hd in
+      let acc = rewrite_instruction ~direction:`load ~sharing acc hd in
       let acc = hd :: acc in
       let acc = rewrite_instruction ~direction:`store ~sharing acc hd in
       rewrite_body acc tl terminator
