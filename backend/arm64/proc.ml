@@ -279,6 +279,8 @@ let destroyed_at_raise = all_phys_regs
 
 let destroyed_at_reloadretaddr = [| |]
 
+let destroyed_at_pushtrap = [| |]
+
 (* Maximal register pressure *)
 
 let safe_register_pressure = function
