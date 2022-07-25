@@ -123,31 +123,6 @@ let destroyed_at_terminator : Cfg.terminator -> Reg.t array =
     let returns = false in
     at_oper (Mach.Iop (Iextcall { func; ty_res; ty_args; alloc; returns }))
 
-let iter_instructions :
-    Cfg_with_layout.t ->
-    instruction:(Cfg.basic Cfg.instruction -> unit) ->
-    terminator:(Cfg.terminator Cfg.instruction -> unit) ->
-    unit =
- fun cfg_with_layout ~instruction ~terminator ->
-  let cfg = Cfg_with_layout.cfg cfg_with_layout in
-  Cfg.iter_blocks cfg ~f:(fun _label block ->
-      List.iter ~f:instruction block.body;
-      terminator block.terminator)
-
-let fold_instructions :
-    type a.
-    Cfg_with_layout.t ->
-    instruction:(a -> Cfg.basic Cfg.instruction -> a) ->
-    terminator:(a -> Cfg.terminator Cfg.instruction -> a) ->
-    init:a ->
-    a =
- fun cfg_with_layout ~instruction ~terminator ~init ->
-  let cfg = Cfg_with_layout.cfg cfg_with_layout in
-  Cfg.fold_blocks cfg ~init ~f:(fun _label block acc ->
-      let acc = List.fold_left ~init:acc ~f:instruction block.body in
-      let acc = terminator acc block.terminator in
-      acc)
-
 let[@inline] int_max (left : int) (right : int) = Stdlib.max left right
 
 type cfg_infos =
@@ -170,7 +145,7 @@ let collect_cfg_infos : Cfg_with_layout.t -> cfg_infos =
   let update_max_id (instr : _ Cfg.instruction) : unit =
     max_id := int_max !max_id instr.id
   in
-  iter_instructions cfg_with_layout (* CR xclerc for xclerc: use fold *)
+  Cfg_with_layout.iter_instructions cfg_with_layout (* CR xclerc for xclerc: use fold *)
     ~instruction:(fun instr ->
       (instr : Instruction.t).irc_work_list <- Cfg.Unknown_list;
       add_registers arg instr.arg;
@@ -339,7 +314,7 @@ let precondition : Cfg_with_layout.t -> unit =
       (regs : Reg.t array) : unit =
     ArrayLabels.iter regs ~f:(register_must_be_on_unknown_list id)
   in
-  iter_instructions cfg_with_layout
+  Cfg_with_layout.iter_instructions cfg_with_layout
     ~instruction:(fun instr ->
       let id = instr.id in
       desc_is_neither_spill_or_reload id instr.desc;
@@ -420,7 +395,7 @@ let postcondition : Cfg_with_layout.t -> unit =
       (regs : Reg.t array) : unit =
     ArrayLabels.iter regs ~f:(register_classes_must_be_consistent id)
   in
-  iter_instructions cfg_with_layout
+  Cfg_with_layout.iter_instructions cfg_with_layout
     ~instruction:(fun instr ->
       let id = instr.id in
       registers_must_not_be_unknown id instr.arg;
@@ -508,5 +483,5 @@ let update_spill_cost : Cfg_with_layout.t -> unit =
     update_array instr.arg;
     update_array instr.res
   in
-  iter_instructions cfg_with_layout ~instruction:update_instr
+  Cfg_with_layout.iter_instructions cfg_with_layout ~instruction:update_instr
     ~terminator:update_instr

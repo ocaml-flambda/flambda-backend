@@ -24,19 +24,6 @@ val destroyed_at_basic : Cfg.basic -> Reg.t array
 
 val destroyed_at_terminator : Cfg.terminator -> Reg.t array
 
-val iter_instructions :
-  Cfg_with_layout.t ->
-  instruction:(Cfg.basic Cfg.instruction -> unit) ->
-  terminator:(Cfg.terminator Cfg.instruction -> unit) ->
-  unit
-
-val fold_instructions :
-  Cfg_with_layout.t ->
-  instruction:('a -> Cfg.basic Cfg.instruction -> 'a) ->
-  terminator:('a -> Cfg.terminator Cfg.instruction -> 'a) ->
-  init:'a ->
-  'a
-
 type cfg_infos =
   { arg : Reg.Set.t;
     res : Reg.Set.t;

@@ -76,3 +76,16 @@ val dump : Format.formatter -> t -> msg:string -> unit
     Side-effects [random_state] by repeated calls to [Random.State.int] and
     [Random.State.bool]. *)
 val reorder_blocks_random : ?random_state:Random.State.t -> t -> unit
+
+val iter_instructions :
+  t ->
+  instruction:(Cfg.basic Cfg.instruction -> unit) ->
+  terminator:(Cfg.terminator Cfg.instruction -> unit) ->
+  unit
+
+val fold_instructions :
+  t ->
+  instruction:('a -> Cfg.basic Cfg.instruction -> 'a) ->
+  terminator:('a -> Cfg.terminator Cfg.instruction -> 'a) ->
+  init:'a ->
+  'a

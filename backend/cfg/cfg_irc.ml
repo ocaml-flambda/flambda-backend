@@ -25,7 +25,7 @@ let build : State.t -> Cfg_with_layout.t -> liveness -> unit =
           Array.iter destroyed ~f:(fun reg2 -> State.add_edge state reg1 reg2))
         live.across
   in
-  iter_instructions cfg_with_layout
+  Cfg_with_layout.iter_instructions cfg_with_layout
     ~instruction:(fun (instr : Instruction.t) ->
       if is_move_instruction instr
          && (not (Reg.is_stack instr.arg.(0)))

@@ -7,7 +7,7 @@ module State = Cfg_irc_state
 let naive_split_points : Cfg_with_layout.t -> Instruction.id list =
  fun cfg_with_layout ->
   if irc_debug then log ~indent:1 "naive_split_points";
-  fold_instructions cfg_with_layout ~init:[]
+  Cfg_with_layout.fold_instructions cfg_with_layout ~init:[]
     ~instruction:(fun acc (instr : Instruction.t) ->
       (* CR xclerc for xclerc: we may want to split [heuristically] in more
          situations. *)
