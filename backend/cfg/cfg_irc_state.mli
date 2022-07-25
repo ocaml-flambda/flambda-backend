@@ -105,8 +105,6 @@ val is_move_related : t -> Reg.t -> bool
 
 val enable_moves_one : t -> Reg.t -> unit
 
-val enable_moves_set : t -> Reg.Set.t -> unit
-
 val decr_degree : t -> Reg.t -> unit
 
 val find_move_list : t -> Reg.t -> Instruction.Set.t

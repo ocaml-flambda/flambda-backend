@@ -387,9 +387,6 @@ let[@inline] enable_moves_one state reg =
         state.work_list_moves <- m :: state.work_list_moves
       | _ -> ())
 
-let[@inline] enable_moves_set state regset =
-  Reg.Set.iter (fun n -> enable_moves_one state n) regset
-
 let[@inline] decr_degree state reg =
   let d = reg.Reg.degree in
   if d = Degree.infinite
