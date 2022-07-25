@@ -15,7 +15,7 @@ let build : State.t -> Cfg_with_layout.t -> liveness -> unit =
     then
       Reg.Set.iter
         (fun reg1 ->
-           if not (Reg.same reg1 move_src)
+          if not (Reg.same reg1 move_src)
           then Array.iter def ~f:(fun reg2 -> State.add_edge state reg1 reg2))
         live.before;
     if Array.length destroyed > 0

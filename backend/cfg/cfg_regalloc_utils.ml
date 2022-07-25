@@ -145,7 +145,8 @@ let collect_cfg_infos : Cfg_with_layout.t -> cfg_infos =
   let update_max_id (instr : _ Cfg.instruction) : unit =
     max_id := int_max !max_id instr.id
   in
-  Cfg_with_layout.iter_instructions cfg_with_layout (* CR xclerc for xclerc: use fold *)
+  Cfg_with_layout.iter_instructions
+    cfg_with_layout (* CR xclerc for xclerc: use fold *)
     ~instruction:(fun instr ->
       (instr : Instruction.t).irc_work_list <- Cfg.Unknown_list;
       add_registers arg instr.arg;
@@ -203,10 +204,7 @@ module Move = struct
       irc_work_list = Unknown_list
     }
 
-  let to_string = function
-    | Plain -> "move"
-    | Load -> "load"
-    | Store -> "store"
+  let to_string = function Plain -> "move" | Load -> "load" | Store -> "store"
 end
 
 let same_reg_class : Reg.t -> Reg.t -> bool =
