@@ -88,8 +88,7 @@ let destroyed_at_basic : Cfg.basic -> Reg.t array =
       let func = func_symbol in
       at_oper (Iop (Icall_imm { func })))
   | Reloadretaddr -> Proc.destroyed_at_reloadretaddr
-  | Pushtrap _ ->
-    [| Proc.phys_reg 11 |] (* CR xclerc for xclerc: amd64-specific *)
+  | Pushtrap _ -> Proc.destroyed_at_pushtrap
   | Poptrap -> default
   | Prologue -> default
 

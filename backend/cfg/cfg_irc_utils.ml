@@ -64,7 +64,7 @@ module RegisterStamp = struct
 
     let hash ((x, y) : t) =
       (* CR xclerc for xclerc: review *)
-      (x lsl 10) lor y
+      (x lsl 10) lxor y
   end)
 
   module PairSet = struct
