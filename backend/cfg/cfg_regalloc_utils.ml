@@ -3,16 +3,6 @@
 module Array = ArrayLabels
 module List = ListLabels
 
-let run_gc_for_benchmarks =
-  match Sys.getenv_opt "REGALLOC_STATS" with None -> false | Some _ -> true
-
-let gc_for_benchmarks () = if run_gc_for_benchmarks then Gc.full_major ()
-
-external time_include_children : bool -> float
-  = "caml_sys_time_include_children"
-
-let cpu_time () = time_include_children true
-
 let fatal_callback = ref (fun () -> ())
 
 let on_fatal ~f = fatal_callback := f
@@ -20,288 +10,6 @@ let on_fatal ~f = fatal_callback := f
 let fatal fmt =
   !fatal_callback ();
   Misc.fatal_errorf fmt
-
-module Stats = struct
-  type line =
-    { (* computed *)
-      mutable is_entry : bool;
-      (* from `Asmgen` *)
-      mutable allocator : string;
-      mutable total_time : float;
-      (* from IRC *)
-      mutable before_main : float;
-      mutable main : float;
-      mutable after_main : float;
-      mutable build : float;
-      mutable loop : float;
-      mutable simplify : float;
-      mutable coalesce : float;
-      mutable freeze : float;
-      mutable select_spill : float;
-      mutable assign : float;
-      mutable update_live : float;
-      mutable num_rounds : int;
-      mutable liveness : float;
-      mutable num_regs : int;
-      (* from `Emit` *)
-      mutable num_instrs : int;
-      mutable num_moves : int;
-      mutable num_spills : int;
-      mutable num_reloads : int
-    }
-
-  type 'a column =
-    { name : string;
-      default : 'a;
-      update : line -> 'a -> unit;
-      to_string : line -> string
-    }
-
-  let is_entry =
-    { name = "is_entry";
-      default = false;
-      update = (fun _ _ -> assert false);
-      to_string = (fun line -> if line.is_entry then "1" else "0")
-    }
-
-  let allocator =
-    { name = "allocator";
-      default = "";
-      update = (fun line value -> line.allocator <- value);
-      to_string = (fun line -> line.allocator)
-    }
-
-  let total_time =
-    { name = "total_time";
-      default = 0.;
-      update = (fun line value -> line.total_time <- value);
-      to_string = (fun line -> Float.to_string line.total_time)
-    }
-
-  let before_main =
-    { name = "before_main";
-      default = 0.;
-      update = (fun line value -> line.before_main <- value);
-      to_string = (fun line -> Float.to_string line.before_main)
-    }
-
-  let main =
-    { name = "main";
-      default = 0.;
-      update = (fun line value -> line.main <- value);
-      to_string = (fun line -> Float.to_string line.main)
-    }
-
-  let after_main =
-    { name = "after_main";
-      default = 0.;
-      update = (fun line value -> line.after_main <- value);
-      to_string = (fun line -> Float.to_string line.after_main)
-    }
-
-  let build =
-    { name = "build";
-      default = 0.;
-      update = (fun line value -> line.build <- line.build +. value);
-      to_string = (fun line -> Float.to_string line.build)
-    }
-
-  let loop =
-    { name = "loop";
-      default = 0.;
-      update = (fun line value -> line.loop <- line.loop +. value);
-      to_string = (fun line -> Float.to_string line.loop)
-    }
-
-  let simplify =
-    { name = "simplify";
-      default = 0.;
-      update = (fun line value -> line.simplify <- line.simplify +. value);
-      to_string = (fun line -> Float.to_string line.simplify)
-    }
-
-  let coalesce =
-    { name = "coalesce";
-      default = 0.;
-      update = (fun line value -> line.coalesce <- line.coalesce +. value);
-      to_string = (fun line -> Float.to_string line.coalesce)
-    }
-
-  let freeze =
-    { name = "freeze";
-      default = 0.;
-      update = (fun line value -> line.freeze <- line.freeze +. value);
-      to_string = (fun line -> Float.to_string line.freeze)
-    }
-
-  let select_spill =
-    { name = "select_spill";
-      default = 0.;
-      update =
-        (fun line value -> line.select_spill <- line.select_spill +. value);
-      to_string = (fun line -> Float.to_string line.select_spill)
-    }
-
-  let assign =
-    { name = "assign";
-      default = 0.;
-      update = (fun line value -> line.assign <- value);
-      to_string = (fun line -> Float.to_string line.assign)
-    }
-
-  let update_live =
-    { name = "update_live";
-      default = 0.;
-      update = (fun line value -> line.update_live <- value);
-      to_string = (fun line -> Float.to_string line.update_live)
-    }
-
-  let num_rounds =
-    { name = "num_rounds";
-      default = 0;
-      update = (fun line value -> line.num_rounds <- value);
-      to_string = (fun line -> Int.to_string line.num_rounds)
-    }
-
-  let liveness =
-    { name = "liveness";
-      default = 0.;
-      update = (fun line value -> line.liveness <- line.liveness +. value);
-      to_string = (fun line -> Float.to_string line.liveness)
-    }
-
-  let num_regs =
-    { name = "num_regs";
-      default = 0;
-      update = (fun line value -> line.num_regs <- value);
-      to_string = (fun line -> Int.to_string line.num_regs)
-    }
-
-  let num_instrs =
-    { name = "num_instrs";
-      default = 0;
-      update = (fun line value -> line.num_instrs <- value);
-      to_string = (fun line -> Int.to_string line.num_instrs)
-    }
-
-  let num_moves =
-    { name = "num_moves";
-      default = 0;
-      update = (fun line value -> line.num_moves <- value);
-      to_string = (fun line -> Int.to_string line.num_moves)
-    }
-
-  let num_spills =
-    { name = "num_spills";
-      default = 0;
-      update = (fun line value -> line.num_spills <- value);
-      to_string = (fun line -> Int.to_string line.num_spills)
-    }
-
-  let num_reloads =
-    { name = "num_reloads";
-      default = 0;
-      update = (fun line value -> line.num_reloads <- value);
-      to_string = (fun line -> Int.to_string line.num_reloads)
-    }
-
-  type any_column = Column : 'a column -> any_column
-
-  let columns =
-    [ Column is_entry;
-      Column allocator;
-      Column total_time;
-      Column before_main;
-      Column main;
-      Column after_main;
-      Column build;
-      Column loop;
-      Column simplify;
-      Column coalesce;
-      Column freeze;
-      Column select_spill;
-      Column assign;
-      Column update_live;
-      Column num_rounds;
-      Column liveness;
-      Column num_regs;
-      Column num_instrs;
-      Column num_moves;
-      Column num_spills;
-      Column num_reloads ]
-
-  let create name =
-    let len = String.length name in
-    let is_entry = len > 7 && String.sub name (len - 7) 7 = "__entry" in
-    { is_entry;
-      allocator = allocator.default;
-      total_time = total_time.default;
-      before_main = before_main.default;
-      main = main.default;
-      after_main = after_main.default;
-      build = build.default;
-      loop = loop.default;
-      simplify = simplify.default;
-      coalesce = coalesce.default;
-      freeze = freeze.default;
-      select_spill = select_spill.default;
-      assign = assign.default;
-      update_live = update_live.default;
-      num_rounds = num_rounds.default;
-      liveness = liveness.default;
-      num_regs = num_regs.default;
-      num_instrs = num_instrs.default;
-      num_moves = num_moves.default;
-      num_spills = num_spills.default;
-      num_reloads = num_reloads.default
-    }
-
-  let lines : (string, line) Hashtbl.t = Hashtbl.create 128
-
-  let find_or_create name =
-    match Hashtbl.find_opt lines name with
-    | Some line -> line
-    | None ->
-      let line = create name in
-      Hashtbl.replace lines name line;
-      line
-
-  let update_fun_name name column value =
-    let line = find_or_create name in
-    column.update line value
-
-  let update_cfg_with_layout cfg_with_layout column value =
-    let name = Cfg.fun_name (Cfg_with_layout.cfg cfg_with_layout) in
-    update_fun_name name column value
-
-  let () =
-    at_exit (fun () ->
-        match Sys.getenv_opt "REGALLOC_STATS" with
-        | None -> ()
-        | Some directory ->
-          let args = String.concat "|" (Array.to_list Sys.argv) in
-          let digest = Digest.string args in
-          let chan =
-            open_out (Filename.concat directory (Digest.to_hex digest))
-          in
-          output_string chan args;
-          output_string chan "\n";
-          let col_names =
-            List.map columns ~f:(function Column { name; _ } -> name)
-          in
-          output_string chan (String.concat "," ("function" :: col_names));
-          output_string chan "\n";
-          Hashtbl.iter
-            (fun name line ->
-              let values =
-                List.map columns ~f:(function Column { to_string; _ } ->
-                    to_string line)
-              in
-              output_string chan (String.concat "," (name :: values));
-              output_string chan "\n")
-            lines;
-          close_out_noerr chan)
-end
 
 module Instruction = struct
   type id = int
@@ -480,16 +188,12 @@ type liveness = Cfg_liveness.Liveness.domain Cfg_dataflow.Instr.Tbl.t
 
 let liveness_analysis : Cfg_with_layout.t -> liveness =
  fun cfg_with_layout ->
-  let before = cpu_time () in
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   let init = { Cfg_liveness.before = Reg.Set.empty; across = Reg.Set.empty } in
   match
     Cfg_liveness.Liveness.run cfg ~init ~map:Cfg_liveness.Liveness.Instr ()
   with
-  | Result.Ok liveness ->
-    let after = cpu_time () in
-    Stats.update_cfg_with_layout cfg_with_layout Stats.liveness (after -. before);
-    liveness
+  | Result.Ok liveness -> liveness
   | Result.Error _ ->
     fatal "Unable to compute liveness from CFG for function %s@."
       cfg.Cfg.fun_name
@@ -782,7 +486,6 @@ let update_live_fields : Cfg_with_layout.t -> liveness -> unit =
  fun cfg_with_layout liveness ->
   (* CR xclerc for xclerc: partial duplicate of
      `Asmgen.recompute_liveness_on_cfg` *)
-  let before = cpu_time () in
   let with_liveness (instr : _ Cfg.instruction) =
     match Cfg_dataflow.Instr.Tbl.find_opt liveness instr.id with
     | None -> fatal "Missing liveness information for instruction %d" instr.id
@@ -790,10 +493,7 @@ let update_live_fields : Cfg_with_layout.t -> liveness -> unit =
   in
   Cfg.iter_blocks (Cfg_with_layout.cfg cfg_with_layout) ~f:(fun _label block ->
       block.body <- ListLabels.map block.body ~f:with_liveness;
-      block.terminator <- with_liveness block.terminator);
-  let after = cpu_time () in
-  Stats.update_cfg_with_layout cfg_with_layout Stats.update_live
-    (after -. before)
+      block.terminator <- with_liveness block.terminator)
 
 let update_spill_cost : Cfg_with_layout.t -> unit =
  fun cfg_with_layout ->

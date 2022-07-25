@@ -8,7 +8,6 @@ module State = Cfg_irc_state
 let build : State.t -> Cfg_with_layout.t -> liveness -> unit =
  fun state cfg_with_layout liveness ->
   if irc_debug then log ~indent:1 "build";
-  let before = cpu_time () in
   let add_edges_live (id : Instruction.id) ~(def : Reg.t array)
       ~(move_src : Reg.t) ~(destroyed : Reg.t array) : unit =
     let live = Cfg_dataflow.Instr.Tbl.find liveness id in
@@ -61,10 +60,7 @@ let build : State.t -> Cfg_with_layout.t -> liveness -> unit =
           (fun reg1 ->
             Array.iter Proc.destroyed_at_raise ~f:(fun reg2 ->
                 State.add_edge state reg1 reg2))
-          live.across);
-  let after = cpu_time () in
-  Cfg_regalloc_utils.Stats.update_cfg_with_layout cfg_with_layout
-    Cfg_regalloc_utils.Stats.build (after -. before)
+          live.across)
 
 let make_work_list : State.t -> unit =
  fun state ->
@@ -268,9 +264,8 @@ let select_spill : State.t -> unit =
   freeze_moves state reg
 
 let assign_colors : State.t -> Cfg_with_layout.t -> unit =
- fun state cfg_with_layout ->
+ fun state _cfg_with_layout ->
   if irc_debug then log ~indent:1 "assign_colors";
-  let before = cpu_time () in
   State.iter_and_clear_select_stack state ~f:(fun n ->
       if irc_debug then log ~indent:2 "%a" Printmach.reg n;
       let reg_class = n.Reg.clas in
@@ -326,10 +321,7 @@ let assign_colors : State.t -> Cfg_with_layout.t -> unit =
         n.Reg.irc_color <- Some c));
   List.iter (State.coalesced_nodes state) ~f:(fun n ->
       let alias = State.find_alias state n in
-      n.Reg.irc_color <- alias.Reg.irc_color);
-  let after = cpu_time () in
-  Cfg_regalloc_utils.Stats.update_cfg_with_layout cfg_with_layout
-    Cfg_regalloc_utils.Stats.assign (after -. before)
+      n.Reg.irc_color <- alias.Reg.irc_color)
 
 let rewrite : State.t -> Cfg_with_layout.t -> Reg.t list -> reset:bool -> unit =
  fun state cfg_with_layout spilled_nodes ~reset ->
@@ -509,7 +501,6 @@ let rec main : round:int -> State.t -> Cfg_with_layout.t -> liveness =
   State.invariant state;
   if irc_debug then log_work_list_desc "before loop";
   let spill_cost_is_up_to_date = ref false in
-  let before = cpu_time () in
   let continue = ref true in
   while !continue do
     if not (State.is_empty_simplify_work_list state)
@@ -529,17 +520,12 @@ let rec main : round:int -> State.t -> Cfg_with_layout.t -> liveness =
     if irc_debug then log_work_list_desc "end of loop";
     State.invariant state
   done;
-  let after = cpu_time () in
-  Cfg_regalloc_utils.Stats.update_cfg_with_layout cfg_with_layout
-    Cfg_regalloc_utils.Stats.loop (after -. before);
   if irc_debug then log ~indent:1 "(after loop)";
   assign_colors state cfg_with_layout;
   State.invariant state;
   match State.spilled_nodes state with
   | [] ->
     if irc_debug then log ~indent:1 "(end of main)";
-    Cfg_regalloc_utils.Stats.update_cfg_with_layout cfg_with_layout
-      Cfg_regalloc_utils.Stats.num_rounds round;
     liveness
   | _ :: _ as spilled_nodes ->
     if irc_debug
@@ -555,7 +541,6 @@ let run : Cfg_with_layout.t -> Cfg_with_layout.t =
   on_fatal ~f:(fun () -> save_cfg "irc" cfg_with_layout);
   if irc_debug
   then log ~indent:0 "run (%S)" (Cfg_with_layout.cfg cfg_with_layout).fun_name;
-  let before = cpu_time () in
   Reg.reinit ();
   if irc_debug && irc_invariants
   then (
@@ -595,18 +580,7 @@ let run : Cfg_with_layout.t -> Cfg_with_layout.t =
   (match spilling_because_split_or_unused with
   | [] -> ()
   | _ :: _ as spilling -> rewrite state cfg_with_layout spilling ~reset:false);
-  let after = cpu_time () in
-  Cfg_regalloc_utils.Stats.update_cfg_with_layout cfg_with_layout
-    Cfg_regalloc_utils.Stats.before_main (after -. before);
-  Cfg_regalloc_utils.Stats.update_cfg_with_layout cfg_with_layout
-    Cfg_regalloc_utils.Stats.num_regs
-    (Reg.Set.cardinal all_temporaries);
-  let before = cpu_time () in
   let liveness = main ~round:1 state cfg_with_layout in
-  let after = cpu_time () in
-  Cfg_regalloc_utils.Stats.update_cfg_with_layout cfg_with_layout
-    Cfg_regalloc_utils.Stats.main (after -. before);
-  let before = cpu_time () in
   (* note: slots need to be updated before prologue removal *)
   if irc_debug
   then
@@ -618,9 +592,6 @@ let run : Cfg_with_layout.t -> Cfg_with_layout.t =
   remove_prologue_if_not_required cfg_with_layout;
   update_register_locations ();
   update_live_fields cfg_with_layout liveness;
-  let after = cpu_time () in
-  Cfg_regalloc_utils.Stats.update_cfg_with_layout cfg_with_layout
-    Cfg_regalloc_utils.Stats.after_main (after -. before);
   if irc_debug && irc_invariants
   then (
     log ~indent:0 "postcondition";

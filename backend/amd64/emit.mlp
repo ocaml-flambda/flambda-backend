@@ -30,17 +30,6 @@ open X86_dsl
 module String = Misc.Stdlib.String
 module Int = Numbers.Int
 
-let num_instrs = ref 0
-let num_moves = ref 0
-let num_spills = ref 0
-let num_reloads = ref 0
-let reset_stats () =
-  num_instrs := 0;
-  num_moves := 0;
-  num_spills := 0;
-  num_reloads := 0;
-  ()
-
 (* [Branch_relaxation] is not used in this file, but is required by
    emit.mlp files for certain other targets; the reference here ensures
    that when releases are being prepared the .depend files are correct
@@ -252,8 +241,7 @@ let emit_subreg tbl typ r =
   match r.loc with
   | Reg.Reg r when r < 13 -> tbl.(r)
   | Stack s -> mem64 typ (slot_offset s (register_class r)) RSP
-  | Reg _ -> assert false
-  | Unknown -> assert false
+  | _ -> assert false
 
 let arg8 i n = emit_subreg reg_low_8_name BYTE i.arg.(n)
 let arg16 i n = emit_subreg reg_low_16_name WORD i.arg.(n)
@@ -687,7 +675,6 @@ let emit_push_trap_label handler =
 (* Emit an instruction *)
 let emit_instr fallthrough i =
   emit_debug_info_linear i;
-  incr num_instrs;
   match i.desc with
   | Lend -> ()
   | Lprologue ->
@@ -705,14 +692,7 @@ let emit_instr fallthrough i =
         cfi_adjust_cfa_offset n;
       end;
     end
-  | Lop(Imove) ->
-      incr num_moves;
-      move i.arg.(0) i.res.(0)
-  | Lop(Ispill) ->
-      incr num_spills;
-      move i.arg.(0) i.res.(0)
-  | Lop(Ireload) ->
-      incr num_reloads;
+  | Lop(Imove | Ispill | Ireload) ->
       move i.arg.(0) i.res.(0)
   | Lop(Iconst_int n) ->
       if n = 0n then begin
@@ -1228,7 +1208,6 @@ let emit_function_type_and_size fun_name =
 (* Emission of a function declaration *)
 
 let fundecl fundecl =
-  reset_stats ();
   function_name := fundecl.fun_name;
   fastcode_flag := fundecl.fun_fast;
   tailrec_entry_point := fundecl.fun_tailrec_entry_point_label;
@@ -1269,23 +1248,7 @@ let fundecl fundecl =
   end;
   def_label fundecl.fun_end_label;
   cfi_endproc ();
-  emit_function_type_and_size fundecl.fun_name;
-  Cfg_regalloc_utils.Stats.update_fun_name
-    fundecl.fun_name
-    Cfg_regalloc_utils.Stats.num_instrs
-    !num_instrs;
-  Cfg_regalloc_utils.Stats.update_fun_name
-    fundecl.fun_name
-    Cfg_regalloc_utils.Stats.num_moves
-    !num_moves;
-  Cfg_regalloc_utils.Stats.update_fun_name
-    fundecl.fun_name
-    Cfg_regalloc_utils.Stats.num_spills
-    !num_spills;
-  Cfg_regalloc_utils.Stats.update_fun_name
-    fundecl.fun_name
-    Cfg_regalloc_utils.Stats.num_reloads
-    !num_reloads
+  emit_function_type_and_size fundecl.fun_name
 
 (* Emission of data *)
 

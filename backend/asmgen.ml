@@ -218,10 +218,6 @@ let rec regalloc ~ppf_dump round fd =
   end else begin
     (* Ensure the hooks are called only once. *)
     Compiler_hooks.execute Compiler_hooks.Mach_reload newfd;
-    Cfg_regalloc_utils.Stats.update_fun_name
-      fd.Mach.fun_name
-      Cfg_regalloc_utils.Stats.num_rounds
-      round;
     newfd
   end
 
@@ -363,30 +359,17 @@ let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
   ++ (fun (fd : Mach.fundecl) ->
       match register_allocator with
       | IRC ->
-        Cfg_regalloc_utils.gc_for_benchmarks ();
         let x =
           fd
           ++ Profile.record ~accumulate:true "cfgize" cfgize
         in
-        let before = Cfg_regalloc_utils.cpu_time () in
         let res =
           x
           ++ Profile.record ~accumulate:true "cfg_irc" Cfg_irc.run
         in
-        let after = Cfg_regalloc_utils.cpu_time () in
-        Cfg_regalloc_utils.Stats.update_fun_name
-          fd.fun_name
-          Cfg_regalloc_utils.Stats.allocator
-          "irc";
-        Cfg_regalloc_utils.Stats.update_fun_name
-          fd.fun_name
-          Cfg_regalloc_utils.Stats.total_time
-          (after -. before);
         (Cfg_regalloc_utils.simplify_cfg res)
         ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run
       | Upstream ->
-        Cfg_regalloc_utils.gc_for_benchmarks ();
-        let before = Cfg_regalloc_utils.cpu_time () in
         let res =
           fd
           ++ Profile.record ~accumulate:true "spill" Spill.fundecl
@@ -400,15 +383,6 @@ let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
           ++ Profile.record ~accumulate:true "regalloc" (regalloc ~ppf_dump 1)
           ++ Profile.record ~accumulate:true "available_regs" Available_regs.fundecl
         in
-        let after = Cfg_regalloc_utils.cpu_time () in
-        Cfg_regalloc_utils.Stats.update_fun_name
-          fd.fun_name
-          Cfg_regalloc_utils.Stats.allocator
-          "upstream";
-        Cfg_regalloc_utils.Stats.update_fun_name
-          fd.fun_name
-          Cfg_regalloc_utils.Stats.total_time
-          (after -. before);
         res
         ++ Profile.record ~accumulate:true "linearize" (fun (f : Mach.fundecl) ->
             let res = Linearize.fundecl f in

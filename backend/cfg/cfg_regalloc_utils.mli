@@ -4,60 +4,9 @@ module Array : module type of ArrayLabels
 
 module List : module type of ListLabels
 
-val gc_for_benchmarks : unit -> unit
-
-val cpu_time : unit -> float
-
 val on_fatal : f:(unit -> unit) -> unit
 
 val fatal : ('a, Format.formatter, unit, 'b) format4 -> 'a
-
-module Stats : sig
-  type 'a column
-
-  val allocator : string column
-
-  val total_time : float column
-
-  (* CR xclerc for xclerc: remove these fields *)
-  val before_main : float column
-
-  val main : float column
-
-  val after_main : float column
-
-  val build : float column
-
-  val loop : float column
-
-  val simplify : float column
-
-  val coalesce : float column
-
-  val freeze : float column
-
-  val select_spill : float column
-
-  val assign : float column
-
-  val update_live : float column
-
-  val num_rounds : int column
-
-  val num_regs : int column
-
-  val num_instrs : int column
-
-  val num_moves : int column
-
-  val num_spills : int column
-
-  val num_reloads : int column
-
-  val update_fun_name : string -> 'a column -> 'a -> unit
-
-  val update_cfg_with_layout : Cfg_with_layout.t -> 'a column -> 'a -> unit
-end
 
 module Instruction : sig
   type id = int
