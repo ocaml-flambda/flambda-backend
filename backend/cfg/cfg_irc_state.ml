@@ -171,7 +171,7 @@ let[@inline] remove_reg (reg : Reg.t) (l : Reg.t list) : Reg.t list =
   let rec filter reg acc = function
     | [] -> acc
     | hd :: tl ->
-      if same_reg reg hd then filter reg acc tl else filter reg (hd :: acc) tl
+      if Reg.same reg hd then filter reg acc tl else filter reg (hd :: acc) tl
   in
   filter reg [] l
 
@@ -318,7 +318,7 @@ let[@inline] add_edge state u v =
     | Unknown -> true
     | Stack (Local _ | Incoming _ | Outgoing _ | Domainstate _) -> false
   in
-  if (not (same_reg u v))
+  if (not (Reg.same u v))
      && is_interesting_reg u && is_interesting_reg v && same_reg_class u v
      && not (RegisterStamp.PairSet.mem state.adj_set u.Reg.stamp v.Reg.stamp)
   then (

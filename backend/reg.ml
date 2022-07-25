@@ -309,3 +309,6 @@ let equal_location left right =
 
 let same_loc left right =
   equal_location left.loc right.loc
+
+let same left right =
+  Int.equal left.stamp right.stamp

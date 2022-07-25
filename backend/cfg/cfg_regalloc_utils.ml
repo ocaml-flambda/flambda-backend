@@ -209,9 +209,6 @@ module Move = struct
     | Store -> "store"
 end
 
-let same_reg : Reg.t -> Reg.t -> bool =
- fun reg1 reg2 -> Int.equal reg1.stamp reg2.stamp
-
 let same_reg_class : Reg.t -> Reg.t -> bool =
  fun reg1 reg2 ->
   Int.equal (Proc.register_class reg1) (Proc.register_class reg2)

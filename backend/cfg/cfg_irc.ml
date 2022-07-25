@@ -15,7 +15,7 @@ let build : State.t -> Cfg_with_layout.t -> liveness -> unit =
     then
       Reg.Set.iter
         (fun reg1 ->
-          if not (same_reg reg1 move_src)
+           if not (Reg.same reg1 move_src)
           then Array.iter def ~f:(fun reg2 -> State.add_edge state reg1 reg2))
         live.before;
     if Array.length destroyed > 0
@@ -33,11 +33,11 @@ let build : State.t -> Cfg_with_layout.t -> liveness -> unit =
          && same_reg_class instr.arg.(0) instr.res.(0)
       then (
         State.add_move_list state instr.arg.(0) instr;
-        if not (same_reg instr.arg.(0) instr.res.(0))
+        if not (Reg.same instr.arg.(0) instr.res.(0))
         then State.add_move_list state instr.res.(0) instr;
         State.add_work_list_moves state instr;
         let move_src =
-          if same_reg instr.arg.(0) instr.res.(0)
+          if Reg.same instr.arg.(0) instr.res.(0)
           then Reg.dummy
           else instr.arg.(0)
         in
@@ -163,7 +163,7 @@ let coalesce : State.t -> unit =
   if irc_debug then log ~indent:2 "x=%a y=%a" Printmach.reg x Printmach.reg y;
   let u, v = if State.is_precolored state y then y, x else x, y in
   if irc_debug then log ~indent:2 "u=%a v=%a" Printmach.reg u Printmach.reg v;
-  if same_reg u v
+  if Reg.same u v
   then (
     if irc_debug then log ~indent:2 "case #1/4";
     State.add_coalesced_moves state m;
@@ -194,7 +194,7 @@ let freeze_moves : State.t -> Reg.t -> unit =
       let y = m.arg.(0) in
       let alias_y = State.find_alias state y in
       let v =
-        if same_reg alias_y (State.find_alias state u)
+        if Reg.same alias_y (State.find_alias state u)
         then State.find_alias state x
         else alias_y
       in

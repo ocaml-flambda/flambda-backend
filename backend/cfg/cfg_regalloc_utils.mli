@@ -53,8 +53,6 @@ module Move : sig
   val to_string : t -> string
 end
 
-val same_reg : Reg.t -> Reg.t -> bool
-
 val same_reg_class : Reg.t -> Reg.t -> bool
 
 val make_temporary :
