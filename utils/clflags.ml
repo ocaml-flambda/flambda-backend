@@ -379,7 +379,7 @@ module Extension = struct
   type t = Comprehensions | Local | Include_functor
 
   let all = [ Comprehensions; Local; Include_functor ]
-  let default_extensions = [ Local ]
+  let default_extensions = [ Local; Include_functor ]
 
   let extensions = ref ([] : t list)   (* -extension *)
   let equal (a : t) (b : t) = (a = b)

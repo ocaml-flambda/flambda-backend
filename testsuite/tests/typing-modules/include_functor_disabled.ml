@@ -1,4 +1,5 @@
 (* TEST
+  flags = "-disable-all-extensions"
    * expect
 *)
 
