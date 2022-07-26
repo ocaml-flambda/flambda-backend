@@ -487,6 +487,27 @@ Line 3, characters 63-64:
 Error: The value a is local, so cannot be used inside a closure that might escape
 |}]
 
+(* Regression test for bug with mishandled regional function modes *)
+let bug4 : local_ (string -> foo:string -> unit) -> (string -> unit) =
+  fun f -> f ~foo:"hello"
+[%%expect{|
+Line 2, characters 11-25:
+2 |   fun f -> f ~foo:"hello"
+               ^^^^^^^^^^^^^^
+Error: This value escapes its region
+|}]
+
+let bug4' () =
+  let local_ f arg ~foo = () in
+  let local_ perm ~foo = f ~foo in
+  perm ~foo:"foo" "Optional"
+[%%expect{|
+Line 3, characters 25-31:
+3 |   let local_ perm ~foo = f ~foo in
+                             ^^^^^^
+Error: This local value escapes its region
+  Hint: Cannot return local value without an explicit "local_" annotation
+|}]
 
 (*
  * Optional arguments
@@ -1088,6 +1109,13 @@ let foo x =
   print r [@nontail]
 [%%expect{|
 val foo : string -> unit = <fun>
+|}]
+
+let foo x =
+  let local_ f () = 42 in
+  f () [@nontail]
+[%%expect{|
+val foo : 'a -> int = <fun>
 |}]
 
 (* Cannot call local values in tail calls *)
@@ -1753,6 +1781,17 @@ Error: Signature mismatch:
        is not included in
          val add : local_ int32 -> local_ int32 -> int32
 |}]
+
+module Contravariant_instantiation : sig
+  external to_int_trunc : Int64.t -> int = "%int64_to_int"
+end = struct
+  external to_int_trunc : (Int64.t [@local_opt]) -> int = "%int64_to_int"
+end
+[%%expect{|
+module Contravariant_instantiation :
+  sig external to_int_trunc : Int64.t -> int = "%int64_to_int" end
+|}]
+
 (* Return modes *)
 let zx : int ref -> (int -> unit) = (:=)
 let zz : local_ (int ref) -> int -> unit = (:=)

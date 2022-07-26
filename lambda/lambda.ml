@@ -220,7 +220,10 @@ and float_comparison =
 
 and value_kind =
     Pgenval | Pfloatval | Pboxedintval of boxed_integer | Pintval
-  | Pblock of { tag : int; fields : value_kind list }
+  | Pvariant of {
+      consts : int list;
+      non_consts : (int * value_kind list) list;
+    }
   | Parrayval of array_kind
 
 and block_shape =
@@ -273,11 +276,20 @@ let rec equal_value_kind x y =
   | Pboxedintval bi1, Pboxedintval bi2 -> equal_boxed_integer bi1 bi2
   | Pintval, Pintval -> true
   | Parrayval elt_kind1, Parrayval elt_kind2 -> elt_kind1 = elt_kind2
-  | Pblock { tag = tag1; fields = fields1 },
-    Pblock { tag = tag2; fields = fields2 } ->
-    tag1 = tag2 && List.length fields1 = List.length fields2 &&
-    List.for_all2 equal_value_kind fields1 fields2
-  | (Pgenval | Pfloatval | Pboxedintval _ | Pintval | Pblock _
+  | Pvariant { consts = consts1; non_consts = non_consts1; },
+    Pvariant { consts = consts2; non_consts = non_consts2; } ->
+    let consts1 = List.sort Int.compare consts1 in
+    let consts2 = List.sort Int.compare consts2 in
+    let compare_by_tag (tag1, _) (tag2, _) = Int.compare tag1 tag2 in
+    let non_consts1 = List.sort compare_by_tag non_consts1 in
+    let non_consts2 = List.sort compare_by_tag non_consts2 in
+    List.equal Int.equal consts1 consts2
+      && List.equal (fun (tag1, fields1) (tag2, fields2) ->
+             Int.equal tag1 tag2
+             && List.length fields1 = List.length fields2
+             && List.for_all2 equal_value_kind fields1 fields2)
+           non_consts1 non_consts2
+  | (Pgenval | Pfloatval | Pboxedintval _ | Pintval | Pvariant _
       | Parrayval _), _ -> false
 
 

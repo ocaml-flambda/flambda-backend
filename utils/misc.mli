@@ -116,6 +116,10 @@ module Stdlib : sig
         the [n] first elements of [l] and [after] the remaining ones.
         If [l] has less than [n] elements, raises Invalid_argument. *)
 
+    val map_sharing : ('a -> 'a) -> 'a t -> 'a t
+    (** [map_sharing f l] is [map f l]. If for all elements of the list
+        [f e == e] then [map_sharing f l == l] *)
+
     val is_prefix
        : equal:('a -> 'a -> bool)
       -> 'a list
@@ -473,6 +477,14 @@ type crcs = (modname * Digest.t option) list
 
 type alerts = string Stdlib.String.Map.t
 
+module Bitmap : sig
+  type t
+  val make : int -> t
+  val set : t -> int -> unit
+  val clear : t -> int -> unit
+  val get : t -> int -> bool
+  val iter : (int -> unit) -> t -> unit
+end
 
 module EnvLazy: sig
   type ('a,'b) t

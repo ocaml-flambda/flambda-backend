@@ -24,23 +24,33 @@ let mutable_flag = function
   | Lambda.Mutable-> "[mut]"
   | Lambda.Immutable | Lambda.Immutable_unique -> ""
 
-let value_kind =
+let rec value_kind0 ppf kind =
   let open Lambda in
-  function
-  | Pgenval -> ""
-  | Pintval -> ":int"
-  | Pfloatval -> ":float"
-  | Parrayval Pgenarray -> ":genarray"
-  | Parrayval Pintarray -> ":intarray"
-  | Parrayval Pfloatarray -> ":floatarray"
-  | Parrayval Paddrarray -> ":addrarray"
-  | Pboxedintval Pnativeint -> ":nativeint"
-  | Pboxedintval Pint32 -> ":int32"
-  | Pboxedintval Pint64 -> ":int64"
-  | Pblock { tag; fields } ->
-    asprintf ":[%d: %a]" tag
-      (Format.pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",@ ")
-         Printlambda.value_kind') fields
+  match kind with
+  | Pgenval -> Format.pp_print_string ppf ""
+  | Pintval -> Format.pp_print_string ppf ":int"
+  | Pfloatval -> Format.pp_print_string ppf ":float"
+  | Parrayval Pgenarray -> Format.pp_print_string ppf ":genarray"
+  | Parrayval Pintarray -> Format.pp_print_string ppf ":intarray"
+  | Parrayval Pfloatarray -> Format.pp_print_string ppf ":floatarray"
+  | Parrayval Paddrarray -> Format.pp_print_string ppf ":addrarray"
+  | Pboxedintval Pnativeint -> Format.pp_print_string ppf ":nativeint"
+  | Pboxedintval Pint32 -> Format.pp_print_string ppf ":int32"
+  | Pboxedintval Pint64 -> Format.pp_print_string ppf ":int64"
+  | Pvariant { consts; non_consts } ->
+    Format.fprintf ppf "@[<hov 1>[(consts (%a))@ (non_consts (%a))]@]"
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space Format.pp_print_int)
+      consts
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space
+          (fun ppf (tag, fields) ->
+            fprintf ppf "@[<hov 1>[%d:@ %a]@]" tag
+              (Format.pp_print_list
+                ~pp_sep:(fun ppf () -> fprintf ppf ",@ ")
+                value_kind0)
+              fields))
+      non_consts
+
+let value_kind kind = Format.asprintf "%a" value_kind0 kind
 
 let rec structured_constant ppf = function
   | Uconst_float x -> fprintf ppf "%F" x
