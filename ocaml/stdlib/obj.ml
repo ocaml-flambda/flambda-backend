@@ -28,7 +28,7 @@ external repr : 'a -> t = "%identity"
 external obj : t -> 'a = "%identity"
 external magic : 'a -> 'b = "%identity"
 external obj_is_int : t -> bool = "%obj_is_int"
-let is_int t = obj_is_int (Sys.opaque_identity t)
+let [@inline always] is_int t = obj_is_int (Sys.opaque_identity t)
 let [@inline always] is_block a = not (is_int a)
 external tag : t -> int = "caml_obj_tag" [@@noalloc]
 (* For Flambda 2 there is a strict distinction between arrays and other
