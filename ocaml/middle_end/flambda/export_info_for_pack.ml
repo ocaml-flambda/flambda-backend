@@ -26,13 +26,15 @@ let imported_function_declarations_table =
 
 (* Rename export identifiers' compilation units to denote that they now
    live within a pack. *)
-let import_eid_for_pack units pack id =
+let import_eid_for_pack units prefix id =
   try Export_id.Tbl.find rename_id_state id
   with Not_found ->
     let unit_id = Export_id.get_compilation_unit id in
     let id' =
       if Compilation_unit.Set.mem unit_id units
-      then Export_id.create ?name:(Export_id.name id) pack
+      then
+        let pack = Compilation_unit.with_for_pack_prefix unit_id prefix in
+        Export_id.create ?name:(Export_id.name id) pack
       else id
     in
     Export_id.Tbl.add rename_id_state id id';
@@ -42,7 +44,7 @@ let import_eid_for_pack units pack id =
 let import_symbol_for_pack units pack symbol =
   let compilation_unit = Symbol.compilation_unit symbol in
   if Compilation_unit.Set.mem compilation_unit units
-  then Symbol.import_for_pack ~pack symbol
+  then Symbol.Flambda.import_for_pack ~pack symbol
   else symbol
 
 let import_approx_for_pack units pack (approx : Export_info.approx)
@@ -52,13 +54,14 @@ let import_approx_for_pack units pack (approx : Export_info.approx)
   | Value_id eid -> Value_id (import_eid_for_pack units pack eid)
   | Value_unknown -> Value_unknown
 
-let import_set_of_closures_id_for_pack units pack
+let import_set_of_closures_id_for_pack units prefix
     (set_of_closures_id : Set_of_closures_id.t)
       : Set_of_closures_id.t =
   let compilation_unit =
     Set_of_closures_id.get_compilation_unit set_of_closures_id
   in
   if Compilation_unit.Set.mem compilation_unit units then
+    let pack = Compilation_unit.with_for_pack_prefix compilation_unit prefix in
     Set_of_closures_id.Tbl.memoize
       rename_set_of_closures_id_state
       (fun _ ->

@@ -57,7 +57,7 @@ module Env : sig
       export descriptions with the given global environment. *)
   val empty_of_global : symbols_being_defined:Symbol.Set.t -> Global.t -> t
 end = struct
-  let fresh_id () = Export_id.create (Compilenv.current_unit ())
+  let fresh_id () = Export_id.create (Compilation_unit.get_current_exn ())
 
   module Global = struct
     type t =
@@ -114,7 +114,7 @@ end = struct
     with Not_found -> None
 
   let extern_symbol_descr sym =
-    if Compilenv.is_predefined_exception sym
+    if Symbol.is_predef_exn sym
     then None
     else
       match
@@ -531,11 +531,10 @@ let describe_program (env : Env.Global.t) (program : Flambda.program) =
   loop env program.program_body
 
 
-let build_transient ~(backend : (module Backend_intf.S))
-      (program : Flambda.program) : Export_info.transient =
+let build_transient (program : Flambda.program) : Export_info.transient =
   if !Clflags.opaque then
-    let compilation_unit = Compilenv.current_unit () in
-    let root_symbol = Compilenv.current_unit_symbol () in
+    let compilation_unit = Compilation_unit.get_current_exn () in
+    let root_symbol = Symbol.for_current_unit () in
     Export_info.opaque_transient ~root_symbol ~compilation_unit
   else
     (* CR-soon pchambart: Should probably use that instead of the ident of
@@ -553,8 +552,7 @@ let build_transient ~(backend : (module Backend_intf.S))
       let set_of_closures_approx { Flambda. function_decls; _ } =
         let recursive =
           lazy
-            (Find_recursive_functions.in_function_declarations
-               function_decls ~backend)
+            (Find_recursive_functions.in_function_declarations function_decls)
         in
         let keep_body =
           Inline_and_simplify_aux.keep_body_check
@@ -575,8 +573,7 @@ let build_transient ~(backend : (module Backend_intf.S))
              if function_decls.is_classic_mode then begin
                Variable.Map.empty
              end else begin
-               Invariant_params.invariant_params_in_recursion
-                 ~backend function_decls
+               Invariant_params.invariant_params_in_recursion function_decls
              end)
           (Flambda_utils.all_sets_of_closures_map program)
       in
@@ -616,8 +613,7 @@ let build_transient ~(backend : (module Backend_intf.S))
              if function_decls.is_classic_mode then begin
                Variable.Set.empty
              end else begin
-               Find_recursive_functions.in_function_declarations
-                 ~backend function_decls
+               Find_recursive_functions.in_function_declarations function_decls
              end)
           (Flambda_utils.all_sets_of_closures_map program)
       in
@@ -681,9 +677,10 @@ let build_transient ~(backend : (module Backend_intf.S))
         ~sets_of_closures_map
         ~closure_id_to_set_of_closures_id
         ~function_declarations_map
-        ~values:(Compilation_unit.Map.find (Compilenv.current_unit ()) values)
+        ~values:(Compilation_unit.Map.find
+          (Compilation_unit.get_current_exn ()) values)
         ~symbol_id
-        ~root_symbol:(Compilenv.current_unit_symbol ())
+        ~root_symbol:(Symbol.for_current_unit ())
     in
     let sets_of_closures =
       function_declarations_map |> Set_of_closures_id.Map.filter_map

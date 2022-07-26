@@ -20,7 +20,7 @@ open Misc
 val link : filepath list -> filepath -> unit
 val reset : unit -> unit
 
-val check_consistency: filepath -> Cmo_format.compilation_unit -> unit
+val check_consistency: filepath -> Cmo_format.compilation_unit_descr -> unit
 
 val extract_crc_interfaces: unit -> crcs
 

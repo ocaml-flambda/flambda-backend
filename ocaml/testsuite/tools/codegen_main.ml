@@ -21,7 +21,10 @@ let compile_file filename =
     let out_name = Filename.chop_extension filename ^ ".s" in
     Emitaux.output_channel := open_out out_name
   end; (* otherwise, stdout *)
-  Compilenv.reset "test";
+  let comp_unit =
+    Compilation_unit.create (Compilation_unit.Name.of_string "Test")
+  in
+  Compilenv.reset comp_unit;
   Clflags.cmm_invariants := true;
   Emit.begin_assembly();
   let ic = open_in filename in

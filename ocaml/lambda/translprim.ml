@@ -95,7 +95,7 @@ let add_used_primitive loc env path =
     Some (Path.Pdot _ as path) ->
       let path = Env.normalize_path_prefix (Some loc) env path in
       let unit = Path.head path in
-      if Ident.global unit && not (Hashtbl.mem used_primitives path)
+      if Ident.is_global_or_predef unit && not (Hashtbl.mem used_primitives path)
       then Hashtbl.add used_primitives path loc
   | _ -> ()
 

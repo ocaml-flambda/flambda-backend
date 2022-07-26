@@ -31,7 +31,8 @@ UTILS=utils/config.cmo utils/build_path_prefix_map.cmo utils/misc.cmo \
 	utils/terminfo.cmo utils/ccomp.cmo utils/warnings.cmo \
 	utils/consistbl.cmo utils/strongly_connected_components.cmo \
 	utils/targetint.cmo utils/int_replace_polymorphic_compare.cmo \
-	utils/domainstate.cmo utils/binutils.cmo utils/target_system.cmo
+	utils/domainstate.cmo utils/binutils.cmo utils/target_system.cmo \
+  utils/compilation_unit.cmo
 UTILS_CMI=
 
 PARSING=parsing/location.cmo parsing/longident.cmo \
@@ -218,8 +219,6 @@ MIDDLE_END_FLAMBDA_CMI=\
 
 MIDDLE_END=\
   middle_end/internal_variable_names.cmo \
-  middle_end/linkage_name.cmo \
-  middle_end/compilation_unit.cmo \
   middle_end/variable.cmo \
   middle_end/flambda/base_types/closure_element.cmo \
   middle_end/flambda/base_types/closure_id.cmo \

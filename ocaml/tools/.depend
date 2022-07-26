@@ -89,11 +89,10 @@ objinfo.cmo : \
     ../middle_end/symbol.cmi \
     ../middle_end/printclambda.cmi \
     ../utils/misc.cmi \
-    ../middle_end/linkage_name.cmi \
     ../lambda/lambda.cmi \
     ../typing/ident.cmi \
     ../middle_end/flambda/export_info.cmi \
-    ../middle_end/compilation_unit.cmi \
+    ../utils/compilation_unit.cmi \
     ../file_formats/cmxs_format.cmi \
     ../file_formats/cmx_format.cmi \
     ../file_formats/cmt_format.cmi \
@@ -106,11 +105,10 @@ objinfo.cmx : \
     ../middle_end/symbol.cmx \
     ../middle_end/printclambda.cmx \
     ../utils/misc.cmx \
-    ../middle_end/linkage_name.cmx \
     ../lambda/lambda.cmx \
     ../typing/ident.cmx \
     ../middle_end/flambda/export_info.cmx \
-    ../middle_end/compilation_unit.cmx \
+    ../utils/compilation_unit.cmx \
     ../file_formats/cmxs_format.cmi \
     ../file_formats/cmx_format.cmi \
     ../file_formats/cmt_format.cmx \

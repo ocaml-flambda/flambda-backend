@@ -222,7 +222,7 @@ let rec print_descr ppf = function
 
 and print ppf { descr; var; symbol; } =
   let print ppf = function
-    | None -> Symbol.print_opt ppf None
+    | None -> Misc.Stdlib.Option.print Symbol.print ppf None
     | Some (sym, None) -> Symbol.print ppf sym
     | Some (sym, Some field) ->
         Format.fprintf ppf "%a.(%i)" Symbol.print sym field

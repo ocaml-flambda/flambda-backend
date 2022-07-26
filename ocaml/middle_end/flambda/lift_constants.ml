@@ -25,15 +25,10 @@ let rec tail_variable : Flambda.t -> Variable.t option = function
   | Let { body = e; _ } -> tail_variable e
   | _ -> None
 
-let closure_symbol ~(backend : (module Backend_intf.S)) closure_id =
-  let module Backend = (val backend) in
-  Backend.closure_symbol closure_id
-
 (** Traverse the given expression assigning symbols to [let]- and [let rec]-
     bound constant variables.  At the same time collect the definitions of
     such variables. *)
 let assign_symbols_and_collect_constant_definitions
-    ~(backend : (module Backend_intf.S))
     ~(program : Flambda.program)
     ~(inconstants : Inconstant_idents.result) =
   let var_to_symbol_tbl = Variable.Tbl.create 42 in
@@ -42,7 +37,7 @@ let assign_symbols_and_collect_constant_definitions
   let assign_symbol var (named : Flambda.named) =
     if not (Inconstant_idents.variable var inconstants) then begin
       let assign_symbol () =
-        let symbol = Symbol.of_variable (Variable.rename var) in
+        let symbol = Symbol.Flambda.for_variable (Variable.rename var) in
         Variable.Tbl.add var_to_symbol_tbl var symbol
       in
       let assign_existing_symbol = Variable.Tbl.add var_to_symbol_tbl var in
@@ -73,7 +68,7 @@ let assign_symbols_and_collect_constant_definitions
         record_definition (AA.Set_of_closures set);
         Variable.Map.iter (fun fun_var _ ->
             let closure_id = Closure_id.wrap fun_var in
-            let closure_symbol = closure_symbol ~backend closure_id in
+            let closure_symbol = Symbol.Flambda.for_closure closure_id in
             Variable.Tbl.add var_to_symbol_tbl fun_var closure_symbol;
             let project_closure =
               Alias_analysis.Project_closure
@@ -84,10 +79,10 @@ let assign_symbols_and_collect_constant_definitions
           funs
       | Move_within_set_of_closures ({ closure = _; start_from = _; move_to; }
           as move) ->
-        assign_existing_symbol (closure_symbol ~backend  move_to);
+        assign_existing_symbol (Symbol.Flambda.for_closure move_to);
         record_definition (AA.Move_within_set_of_closures move)
       | Project_closure ({ closure_id } as project_closure) ->
-        assign_existing_symbol (closure_symbol ~backend  closure_id);
+        assign_existing_symbol (Symbol.Flambda.for_closure closure_id);
         record_definition (AA.Project_closure project_closure)
       | Prim (Pfield index, [block], _) ->
         record_definition (AA.Field (block, index))
@@ -156,7 +151,7 @@ let assign_symbols_and_collect_constant_definitions
       if constant then begin
         Variable.Map.iter (fun fun_var _ ->
             let closure_id = Closure_id.wrap fun_var in
-            let closure_symbol = closure_symbol ~backend closure_id in
+            let closure_symbol = Symbol.Flambda.for_closure closure_id in
             Variable.Tbl.add var_to_definition_tbl fun_var
               (AA.Symbol closure_symbol);
             Variable.Tbl.add var_to_symbol_tbl fun_var closure_symbol)
@@ -748,10 +743,10 @@ let var_to_block_field
     var_to_definition_tbl;
   var_to_block_field_tbl
 
-let program_symbols ~backend (program : Flambda.program) =
+let program_symbols (program : Flambda.program) =
   let new_fake_symbol () =
     let var = Variable.create Internal_variable_names.fake_effect_symbol in
-    Symbol.of_variable var
+    Symbol.Flambda.for_variable var
   in
   let initialize_symbol_tbl = Symbol.Tbl.create 42 in
   let effect_tbl = Symbol.Tbl.create 42 in
@@ -762,7 +757,7 @@ let program_symbols ~backend (program : Flambda.program) =
     | Set_of_closures { function_decls = { funs } } ->
         Variable.Map.iter (fun fun_var _ ->
             let closure_id = Closure_id.wrap fun_var in
-            let closure_symbol = closure_symbol ~backend closure_id in
+            let closure_symbol = Symbol.Flambda.for_closure closure_id in
             let project_closure =
               Flambda.Project_closure (def_symbol, closure_id)
             in
@@ -865,7 +860,7 @@ let project_closure_map symbol_definition_map =
 let lift_constants (program : Flambda.program) ~backend =
   let the_dead_constant =
     let var = Variable.create Internal_variable_names.the_dead_constant in
-    Symbol.of_variable var
+    Symbol.Flambda.for_variable var
   in
   let program_body : Flambda.program_body =
     Let_symbol (the_dead_constant, Allocated_const (Nativeint 0n),
@@ -879,12 +874,11 @@ let lift_constants (program : Flambda.program) ~backend =
       ~compilation_unit:(Compilation_unit.get_current_exn ())
   in
   let initialize_symbol_tbl, symbol_definition_tbl, effect_tbl =
-    program_symbols ~backend program
+    program_symbols program
   in
   let var_to_symbol_tbl, var_to_definition_tbl, let_symbol_to_definition_tbl,
       initialize_symbol_to_definition_tbl =
-    assign_symbols_and_collect_constant_definitions ~backend ~program
-      ~inconstants
+    assign_symbols_and_collect_constant_definitions ~program ~inconstants
   in
   let aliases =
     Alias_analysis.run var_to_definition_tbl

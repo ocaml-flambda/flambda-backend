@@ -26,7 +26,7 @@ type dynunit = {
   dynu_crc: Digest.t;
   dynu_imports_cmi: crcs;
   dynu_imports_cmx: crcs;
-  dynu_defines: string list;
+  dynu_defines: Compilation_unit.t list;
 }
 
 type dynheader = {

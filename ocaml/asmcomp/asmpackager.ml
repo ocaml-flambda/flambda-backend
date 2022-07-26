@@ -19,6 +19,8 @@
 open Misc
 open Cmx_format
 
+module CU = Compilation_unit
+
 type error =
     Illegal_renaming of string * string * string
   | Forward_reference of string * string
@@ -36,7 +38,7 @@ type pack_member_kind = PM_intf | PM_impl of unit_infos
 
 type pack_member =
   { pm_file: string;
-    pm_name: string;
+    pm_name: string; (* CR mshinwell: -> CU.Name.t *)
     pm_kind: pack_member_kind }
 
 let read_member_info pack_path file = (
@@ -47,10 +49,11 @@ let read_member_info pack_path file = (
       PM_intf
     else begin
       let (info, crc) = Compilenv.read_unit_info file in
-      if info.ui_name <> name
-      then raise(Error(Illegal_renaming(name, file, info.ui_name)));
-      if info.ui_symbol <>
-         (Compilenv.current_unit_infos()).ui_symbol ^ "__" ^ info.ui_name
+      if not (CU.Name.equal (CU.name info.ui_name) (CU.Name.of_string name))
+      then raise(Error(Illegal_renaming(name, file,
+         CU.Name.to_string (CU.name info.ui_name))));
+      if not (CU.Prefix.equal (CU.for_pack_prefix info.ui_name)
+               (CU.Prefix.parse_for_pack (Some pack_path)))
       then raise(Error(Wrong_for_pack(file, pack_path)));
       Asmlink.check_consistency file info crc;
       Compilenv.cache_unit_info info;
@@ -89,7 +92,11 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
         (* Put the full name of the module in the temporary file name
            to avoid collisions with MSVC's link /lib in case of successive
            packs *)
-        Filename.temp_file (Compilenv.make_symbol (Some "")) Config.ext_obj in
+        let name =
+          Symbol.for_current_unit ()
+          |> Symbol.linkage_name
+        in
+        Filename.temp_file name Config.ext_obj in
     let components =
       List.map
         (fun m ->
@@ -166,6 +173,7 @@ let build_package_cmx members cmxfile =
   let unit_names =
     List.map (fun m -> m.pm_name) members in
   let filter lst =
+    (* XXX polymorphic compare *)
     List.filter (fun (name, _crc) -> not (List.mem name unit_names)) lst in
   let union lst =
     List.fold_left
@@ -178,12 +186,26 @@ let build_package_cmx members cmxfile =
         match m.pm_kind with PM_intf -> accu | PM_impl info -> info :: accu)
       members [] in
   let pack_units =
-    List.fold_left
-      (fun set info ->
-         let unit_id = Compilenv.unit_id_from_name info.ui_name in
-         Compilation_unit.Set.add
-           (Compilenv.unit_for_global unit_id) set)
-      Compilation_unit.Set.empty units in
+    List.map (fun info -> info.ui_name) units
+    |> Compilation_unit.Set.of_list
+  in
+  let ui = Compilenv.current_unit_infos() in
+  (* XXX What happens if we have -for-pack Foo.Bar? *)
+  (* XXX Should we assert something about ui.ui_name -- e.g. no prefix? *)
+  let pack =
+    (*
+    Format.eprintf "ui.ui_name for packaging is %a\n%!"
+      Compilation_unit.print ui.ui_name;
+    *)
+    Compilation_unit.Prefix.parse_for_pack
+      (Some (Compilation_unit.Name.to_string
+        (Compilation_unit.name ui.ui_name)))
+  in
+  (*
+  Format.eprintf "asmpackager: current CU is %a, pack is %a\n%!"
+    Compilation_unit.print (Compilation_unit.get_current_exn ())
+    Compilation_unit.Prefix.print pack;
+    *)
   let units =
     if Config.flambda then
       List.map (fun info ->
@@ -191,21 +213,22 @@ let build_package_cmx members cmxfile =
             ui_export_info =
               Flambda
                 (Export_info_for_pack.import_for_pack ~pack_units
-                   ~pack:(Compilenv.current_unit ())
-                   (get_export_info info)) })
+                  ~pack
+                  (get_export_info info));
+          })
         units
     else
       units
   in
-  let ui = Compilenv.current_unit_infos() in
   let ui_export_info =
     if Config.flambda then
       let ui_export_info =
         List.fold_left (fun acc info ->
-            Export_info.merge acc (get_export_info info))
-          (Export_info_for_pack.import_for_pack ~pack_units
-             ~pack:(Compilenv.current_unit ())
-             (get_export_info ui))
+            Export_info.merge acc
+              (Export_info_for_pack.import_for_pack ~pack_units
+                ~pack
+                (get_export_info info)))
+          (get_export_info ui)
           units
       in
       Flambda ui_export_info
@@ -213,14 +236,14 @@ let build_package_cmx members cmxfile =
       Clambda (get_approx ui)
   in
   Export_info_for_pack.clear_import_state ();
+  let ui_name_as_string = CU.Name.to_string (CU.name ui.ui_name) in
   let pkg_infos =
     { ui_name = ui.ui_name;
-      ui_symbol = ui.ui_symbol;
       ui_defines =
           List.flatten (List.map (fun info -> info.ui_defines) units) @
-          [ui.ui_symbol];
+          [ui.ui_name];
       ui_imports_cmi =
-          (ui.ui_name, Some (Env.crc_of_unit ui.ui_name)) ::
+          (ui_name_as_string, Some (Env.crc_of_unit ui_name_as_string)) ::
           filter(Asmlink.extract_crc_interfaces());
       ui_imports_cmx =
           filter(Asmlink.extract_crc_implementations());
@@ -246,6 +269,18 @@ let package_object_files ~ppf_dump files targetcmx
     | Some p -> p ^ "." ^ targetname in
   let members = map_left_right (read_member_info pack_path) files in
   check_units members;
+  (*
+  let ui = Compilenv.current_unit_infos() in
+  let pack =
+    Format.eprintf "ui.ui_name for packaging is %a\n%!"
+      Compilation_unit.print ui.ui_name;
+    Compilation_unit.Prefix.parse_for_pack
+      (Some (Compilation_unit.Name.to_string
+        (Compilation_unit.name ui.ui_name)))
+  in
+  Format.eprintf "asmpackager: current CU is %a, pack is %a\n%!"
+    Compilation_unit.print (Compilation_unit.get_current_exn ())
+    Compilation_unit.Prefix.print pack;*)
   make_package_object ~ppf_dump members targetobj targetname coercion ~backend;
   build_package_cmx members targetcmx
 
@@ -265,7 +300,11 @@ let package_files ~ppf_dump initial_env files targetcmx ~backend =
   (* Set the name of the current "input" *)
   Location.input_name := targetcmx;
   (* Set the name of the current compunit *)
-  Compilenv.reset ?packname:!Clflags.for_package targetname;
+  let comp_unit =
+    let for_pack_prefix = CU.Prefix.parse_for_pack !Clflags.for_package in
+    CU.create ~for_pack_prefix (CU.Name.of_string targetname)
+  in
+  Compilenv.reset comp_unit;
   Misc.try_finally (fun () ->
       let coercion =
         Typemod.package_units initial_env files targetcmi targetname in

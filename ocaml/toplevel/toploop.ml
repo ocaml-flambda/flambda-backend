@@ -58,7 +58,7 @@ let setvalue name v =
 
 let rec eval_address = function
   | Env.Aident id ->
-      if Ident.persistent id || Ident.global id then
+      if Ident.is_global_or_predef id then
         Symtable.get_global_value id
       else begin
         let name = Translmod.toplevel_name id in
