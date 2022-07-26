@@ -196,8 +196,7 @@ let apply_mutable_variable t mut_var =
    | Not_found -> mut_var
 
 let rewrite_recursive_calls_with_symbols t
-      (function_declarations : Flambda.function_declarations)
-      ~make_closure_symbol =
+      (function_declarations : Flambda.function_declarations) =
   match t with
   | Inactive -> function_declarations
   | Active _ ->
@@ -212,7 +211,7 @@ let rewrite_recursive_calls_with_symbols t
     let closure_symbols =
       Variable.Map.fold (fun var _ map ->
         let closure_id = Closure_id.wrap var in
-        let sym = make_closure_symbol closure_id in
+        let sym = Symbol.Flambda.for_closure closure_id in
         if Symbol.Set.mem sym all_free_symbols then begin
           closure_symbols_used := true;
           Symbol.Map.add sym var map

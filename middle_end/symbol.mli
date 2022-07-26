@@ -6,7 +6,7 @@
 (*           Mark Shinwell and Leo White, Jane Street Europe              *)
 (*                                                                        *)
 (*   Copyright 2013--2016 OCamlPro SAS                                    *)
-(*   Copyright 2014--2016 Jane Street Group LLC                           *)
+(*   Copyright 2014--2021 Jane Street Group LLC                           *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -14,31 +14,41 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-9-30-40-41-42"]
+[@@@ocaml.warning "+a-30-40-41-42"]
 
-(** A symbol identifies a constant provided by either:
-    - another compilation unit; or
-    - a top-level module.
+(** Symbols that identify statically-allocated code or data. *)
 
-    * [sym_unit] is the compilation unit containing the value.
-    * [sym_label] is the linkage name of the variable.
+type t
 
-    The label must be globally unique: two compilation units linked in the
-    same program must not share labels. *)
+val for_predef_ident : Ident.t -> t
 
-include Identifiable.S
+(* CR mshinwell: Insist on -for-pack for .mli files; then this function
+   will not need to take a pack prefix. *)
+val for_global_or_predef_ident : Compilation_unit.Prefix.t -> Ident.t -> t
 
-val of_variable : Variable.t -> t
+(** It is assumed that the provided [Ident.t] is in the current unit. *)
+val for_local_ident : Ident.t -> t
 
-(* Create the symbol without prefixing with the compilation unit.
-   Used for global symbols like predefined exceptions *)
-val of_global_linkage : Compilation_unit.t -> Linkage_name.t -> t
+val for_name : Compilation_unit.t -> string -> t
+val for_compilation_unit : Compilation_unit.t -> t
+val for_current_unit : unit -> t
+val for_new_const_in_current_unit : unit -> t
 
-val import_for_pack : pack:Compilation_unit.t -> t -> t
+module Flambda : sig
+  val for_variable : Variable.t -> t
+  val for_closure : Closure_id.t -> t
+  val for_code_of_closure : Closure_id.t -> t
+
+  val import_for_pack : t -> pack:Compilation_unit.Prefix.t -> t
+end
 
 val compilation_unit : t -> Compilation_unit.t
-val label : t -> Linkage_name.t
 
-val print_opt : Format.formatter -> t option -> unit
+val linkage_name : t -> string
 
-val compare_lists : t list -> t list -> int
+(** Linkage names displayed in ocamlobjinfo are formatted differently. *)
+val linkage_name_for_ocamlobjinfo : t -> string
+
+include Identifiable.S with type t := t
+
+val is_predef_exn : t -> bool

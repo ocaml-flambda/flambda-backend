@@ -6,7 +6,7 @@
 (*           Mark Shinwell and Leo White, Jane Street Europe              *)
 (*                                                                        *)
 (*   Copyright 2013--2016 OCamlPro SAS                                    *)
-(*   Copyright 2014--2016 Jane Street Group LLC                           *)
+(*   Copyright 2014--2021 Jane Street Group LLC                           *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -14,92 +14,165 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-9-30-40-41-42-66"]
-open! Int_replace_polymorphic_compare
+[@@@ocaml.warning "+a-9-30-40-41-42"]
 
+module CU = Compilation_unit
 
-type t =
-  | Linkage of
-      { compilation_unit : Compilation_unit.t;
-        label : Linkage_name.t;
-        hash : int; }
-  | Variable of
-      { compilation_unit : Compilation_unit.t;
-        variable : Variable.t; }
-
-let label t =
-  match t with
-  | Linkage { label; _ } -> label
-  | Variable { variable; _ } ->
-      (* Use the variable's compilation unit for the label, since the
-         symbol's compilation unit might be a pack *)
-      let compilation_unit = Variable.get_compilation_unit variable in
-      let unit_linkage_name =
-        Linkage_name.to_string
-          (Compilation_unit.get_linkage_name compilation_unit)
-      in
-      let label = unit_linkage_name ^ "__" ^ Variable.unique_name variable in
-      Linkage_name.create label
+type t = {
+  compilation_unit : Compilation_unit.t;
+  linkage_name : string;
+  hash : int;
+}
 
 include Identifiable.Make (struct
-
   type nonrec t = t
 
   let compare t1 t2 =
     if t1 == t2 then 0
-    else begin
-      match t1, t2 with
-      | Linkage _, Variable _ -> 1
-      | Variable _, Linkage _ -> -1
-      | Linkage l1, Linkage l2 ->
-        let c = compare l1.hash l2.hash in
-        if c <> 0 then c else begin
-          (* Linkage names are unique across a whole project, so just comparing
-             those is sufficient. *)
-          Linkage_name.compare l1.label l2.label
-        end
-      | Variable v1, Variable v2 ->
-        Variable.compare v1.variable v2.variable
-    end
+    else
+      let c = compare t1.hash t2.hash in
+      if c <> 0 then c
+      else
+        (* Linkage names are unique across a whole project, so just comparing
+           those is sufficient. *)
+        String.compare t1.linkage_name t2.linkage_name
 
-  let equal x y =
-    if x == y then true
-    else compare x y = 0
+  let equal t1 t2 = compare t1 t2 = 0
+  let output chan t = output_string chan t.linkage_name
+  let hash { hash; } = hash
 
-  let output chan t =
-    Linkage_name.output chan (label t)
-
-  let hash t =
-    match t with
-    | Linkage { hash; _ } -> hash
-    | Variable { variable } -> Variable.hash variable
-
-  let print ppf t =
-    Linkage_name.print ppf (label t)
-
+  (* CR mshinwell: maybe print all fields *)
+  let print ppf t = Format.pp_print_string ppf t.linkage_name
 end)
 
-let of_global_linkage compilation_unit label =
-  let hash = Linkage_name.hash label in
-  Linkage { compilation_unit; hash; label }
+let caml_symbol_prefix = "caml"
+let separator = "__"
 
-let of_variable variable =
-  let compilation_unit = Variable.get_compilation_unit variable in
-  Variable { variable; compilation_unit }
+let linkage_name t = t.linkage_name
 
-let import_for_pack ~pack:compilation_unit symbol =
-  match symbol with
-  | Linkage l -> Linkage { l with compilation_unit }
-  | Variable v -> Variable { v with compilation_unit }
+let linkage_name_for_ocamlobjinfo t =
+  (* For legacy compatibility, even though displaying "Foo.Bar" is nicer
+     than "Foo__Bar" *)
+  let linkage_name = linkage_name t in
+  assert (Misc.Stdlib.String.begins_with linkage_name
+            ~prefix:caml_symbol_prefix);
+  let prefix_len = String.length caml_symbol_prefix in
+  String.sub linkage_name prefix_len (String.length linkage_name - prefix_len)
 
-let compilation_unit t =
-  match t with
-  | Linkage { compilation_unit; _ } -> compilation_unit
-  | Variable { compilation_unit; _ } -> compilation_unit
+let compilation_unit t = t.compilation_unit
 
-let print_opt ppf = function
-  | None -> Format.fprintf ppf "<no symbol>"
-  | Some t -> print ppf t
+let linkage_name_for_compilation_unit comp_unit =
+  let name = CU.Name.to_string (CU.name comp_unit) in
+  let for_pack_prefix = CU.for_pack_prefix comp_unit in
+  let suffix =
+    if CU.Prefix.is_empty for_pack_prefix then name
+    else
+      let pack_names =
+        CU.Prefix.to_list for_pack_prefix |> List.map CU.Name.to_string
+      in
+      String.concat separator (pack_names @ [name])
+  in
+  caml_symbol_prefix ^ suffix
 
-let compare_lists l1 l2 =
-  Misc.Stdlib.List.compare compare l1 l2
+let linkage_name_for_current_unit () =
+  linkage_name_for_compilation_unit (CU.get_current_exn ())
+
+let for_global_or_predef_ident pack_prefix id =
+  assert (Ident.is_global_or_predef id);
+  let linkage_name, compilation_unit =
+    if Ident.is_predef id then
+      "caml_exn_" ^ Ident.name id, CU.predef_exn
+    else
+      let compilation_unit =
+        (* CR mshinwell: decide on "pack_prefix" or "for_pack_prefix" *)
+        Compilation_unit.create ~for_pack_prefix:pack_prefix
+          (Ident.name id |> Compilation_unit.Name.of_string)
+      in
+      linkage_name_for_compilation_unit compilation_unit, compilation_unit
+  in
+  { compilation_unit;
+    linkage_name;
+    hash = Hashtbl.hash linkage_name;
+  }
+
+let for_predef_ident id =
+  for_global_or_predef_ident Compilation_unit.Prefix.empty id
+
+let for_name compilation_unit name =
+  let linkage_name =
+    linkage_name_for_compilation_unit compilation_unit
+    ^ separator ^ name
+  in
+  { compilation_unit;
+    linkage_name;
+    hash = Hashtbl.hash linkage_name; }
+
+let for_local_ident id =
+  assert (not (Ident.is_global_or_predef id));
+  let compilation_unit = CU.get_current_exn () in
+  for_name compilation_unit (Ident.unique_name id)
+
+let for_compilation_unit compilation_unit =
+  let linkage_name = linkage_name_for_compilation_unit compilation_unit in
+  { compilation_unit;
+    linkage_name;
+    hash = Hashtbl.hash linkage_name;
+  }
+
+let for_current_unit () =
+  for_compilation_unit (CU.get_current_exn ())
+
+module Flambda = struct
+  let for_variable var =
+    let compilation_unit = Variable.get_compilation_unit var in
+    let linkage_name =
+      (linkage_name_for_compilation_unit compilation_unit)
+        ^ separator ^ Variable.unique_name var
+    in
+    { compilation_unit;
+      linkage_name;
+      hash = Hashtbl.hash linkage_name;
+    }
+
+  let for_closure closure_id =
+    let compilation_unit = Closure_id.get_compilation_unit closure_id in
+    let linkage_name =
+      (linkage_name_for_compilation_unit compilation_unit)
+        ^ separator ^ Closure_id.unique_name closure_id ^ "_closure"
+    in
+    { compilation_unit;
+      linkage_name;
+      hash = Hashtbl.hash linkage_name;
+    }
+
+  let for_code_of_closure closure_id =
+    let compilation_unit = Closure_id.get_compilation_unit closure_id in
+    let linkage_name =
+      (linkage_name_for_compilation_unit compilation_unit)
+        ^ separator ^ Closure_id.unique_name closure_id
+    in
+    { compilation_unit;
+      linkage_name;
+      hash = Hashtbl.hash linkage_name;
+    }
+
+  let import_for_pack t ~pack =
+    (* XXX Why is this needed?  Haven't we got the prefix correctly set now? *)
+    let compilation_unit = CU.with_for_pack_prefix t.compilation_unit pack in
+    { t with compilation_unit; }
+end
+
+let const_label = ref 0
+
+let for_new_const_in_current_unit () =
+  incr const_label;
+  let linkage_name =
+    linkage_name_for_current_unit () ^ separator ^ (Int.to_string !const_label)
+  in
+  { compilation_unit = CU.get_current_exn ();
+    linkage_name;
+    hash = Hashtbl.hash linkage_name;
+  }
+
+let is_predef_exn t =
+  CU.equal t.compilation_unit CU.predef_exn

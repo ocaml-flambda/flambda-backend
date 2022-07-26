@@ -26,7 +26,7 @@ let import_set_of_closures =
     let sym_to_fun_var_map (clos : A.function_declarations) =
       Variable.Map.fold (fun fun_var _ acc ->
            let closure_id = Closure_id.wrap fun_var in
-           let sym = Compilenv.closure_symbol closure_id in
+           let sym = Symbol.Flambda.for_closure closure_id in
            Symbol.Map.add sym fun_var acc)
         clos.funs Symbol.Map.empty
     in
@@ -185,7 +185,7 @@ and import_approx (ap : Export_info.approx) =
   | Value_symbol sym -> A.value_symbol sym
 
 let import_symbol sym =
-  if Compilenv.is_predefined_exception sym then
+  if Symbol.is_predef_exn sym then
     A.value_unknown Other
   else begin
     let compilation_unit = Symbol.compilation_unit sym in
@@ -196,9 +196,10 @@ let import_symbol sym =
       | approx -> A.augment_with_symbol (import_ex approx) sym
       | exception Not_found ->
         Misc.fatal_errorf
-          "Compilation unit = %a Cannot find symbol %a"
+          "Compilation unit = %a Cannot find symbol %a, all known:@ %a"
           Compilation_unit.print compilation_unit
           Symbol.print sym
+          (Symbol.Map.print Export_id.print) export_info.symbol_id
   end
 
 (* Note for code reviewers: Observe that [really_import] iterates until

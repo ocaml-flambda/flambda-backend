@@ -55,6 +55,7 @@ _build
 /ocamlopt
 /ocamlopt.opt
 /ocamlnat
+/dirs-to-ignore.inc
 
 # specific files and patterns in sub-directories
 

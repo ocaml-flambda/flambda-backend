@@ -20,7 +20,7 @@ open Config
 open Cmx_format
 open Compilenv
 
-module String = Misc.Stdlib.String
+module CU = Compilation_unit
 
 type error =
   | File_not_found of filepath
@@ -55,7 +55,7 @@ let check_consistency file_name unit crc =
         match crco with
           None -> ()
         | Some crc ->
-            if name = unit.ui_name
+            if CU.Name.equal (CU.Name.of_string name) (CU.name unit.ui_name)
             then Cmi_consistbl.set crc_interfaces name crc file_name
             else Cmi_consistbl.check crc_interfaces name crc file_name)
       unit.ui_imports_cmi
@@ -84,17 +84,18 @@ let check_consistency file_name unit crc =
     } ->
     raise(Error(Inconsistent_implementation(name, user, auth)))
   end;
+  let ui_name = CU.Name.to_string (CU.name unit.ui_name) in
   begin try
-    let source = List.assoc unit.ui_name !implementations_defined in
-    raise (Error(Multiple_definition(unit.ui_name, file_name, source)))
+    let source = List.assoc ui_name !implementations_defined in
+    raise (Error(Multiple_definition(ui_name, file_name, source)))
   with Not_found -> ()
   end;
-  implementations := unit.ui_name :: !implementations;
-  Cmx_consistbl.set crc_implementations unit.ui_name crc file_name;
+  implementations := ui_name :: !implementations;
+  Cmx_consistbl.set crc_implementations ui_name crc file_name;
   implementations_defined :=
-    (unit.ui_name, file_name) :: !implementations_defined;
-  if unit.ui_symbol <> unit.ui_name then
-    cmx_required := unit.ui_name :: !cmx_required
+    (ui_name, file_name) :: !implementations_defined;
+  if CU.is_packed unit.ui_name then
+    cmx_required := ui_name :: !cmx_required
 
 let extract_crc_interfaces () =
   Cmi_consistbl.extract !interfaces crc_interfaces
@@ -184,10 +185,11 @@ let read_file obj_name =
   end
   else raise(Error(Not_an_object_file file_name))
 
-let scan_file file tolink = match file with
+let scan_file file tolink =
+  match file with
   | Unit (file_name,info,crc) ->
       (* This is a .cmx file. It must be linked in any case. *)
-      remove_required info.ui_name;
+      remove_required (CU.Name.to_string (CU.name info.ui_name));
       List.iter (add_required file_name) info.ui_imports_cmx;
       (info, file_name, crc) :: tolink
   | Library (file_name,infos) ->
@@ -196,13 +198,14 @@ let scan_file file tolink = match file with
       add_ccobjs (Filename.dirname file_name) infos;
       List.fold_right
         (fun (info, crc) reqd ->
+           let ui_name = CU.Name.to_string (CU.name info.ui_name) in
            if info.ui_force_link
            || !Clflags.link_everything
-           || is_required info.ui_name
+           || is_required ui_name
            then begin
-             remove_required info.ui_name;
+             remove_required ui_name;
              List.iter (add_required (Printf.sprintf "%s(%s)"
-                                        file_name info.ui_name))
+                                        file_name ui_name))
                info.ui_imports_cmx;
              (info, file_name, crc) :: reqd
            end else
@@ -216,23 +219,29 @@ let force_linking_of_startup ~ppf_dump =
     (Cmm.Cdata ([Cmm.Csymbol_address "caml_startup"]))
 
 let make_globals_map units_list ~crc_interfaces =
-  let crc_interfaces = String.Tbl.of_seq (List.to_seq crc_interfaces) in
+  let crc_interfaces =
+    crc_interfaces
+    |> List.map (fun (name, crc) -> CU.Name.of_string name, crc)
+    |> CU.Name.Tbl.of_list
+  in
   let defined =
     List.map (fun (unit, _, impl_crc) ->
-        let intf_crc = String.Tbl.find crc_interfaces unit.ui_name in
-        String.Tbl.remove crc_interfaces unit.ui_name;
-        (unit.ui_name, intf_crc, Some impl_crc, unit.ui_defines))
+        let name = CU.name unit.ui_name in
+        let intf_crc = CU.Name.Tbl.find crc_interfaces name in
+        CU.Name.Tbl.remove crc_interfaces name;
+        let syms = List.map Symbol.for_compilation_unit unit.ui_defines in
+        (name, intf_crc, Some impl_crc, syms))
       units_list
   in
-  String.Tbl.fold (fun name intf acc ->
+  CU.Name.Tbl.fold (fun name intf acc ->
       (name, intf, None, []) :: acc)
     crc_interfaces defined
 
 let make_startup_file ~ppf_dump units_list ~crc_interfaces =
   let compile_phrase p = Asmgen.compile_phrase ~ppf_dump p in
   Location.input_name := "caml_startup"; (* set name of "current" input *)
-  Compilenv.reset "_startup";
-  (* set the name of the "current" compunit *)
+  let startup_comp_unit = CU.create (CU.Name.of_string "_startup") in
+  Compilenv.reset startup_comp_unit;
   Emit.begin_assembly ();
   let name_list =
     List.flatten (List.map (fun (info,_,_) -> info.ui_defines) units_list) in
@@ -245,14 +254,22 @@ let make_startup_file ~ppf_dump units_list ~crc_interfaces =
   compile_phrase (Cmm_helpers.global_table name_list);
   let globals_map = make_globals_map units_list ~crc_interfaces in
   compile_phrase (Cmm_helpers.globals_map globals_map);
-  compile_phrase(Cmm_helpers.data_segment_table ("_startup" :: name_list));
-  if !Clflags.function_sections then
-    compile_phrase
-      (Cmm_helpers.code_segment_table("_hot" :: "_startup" :: name_list))
-  else
-    compile_phrase(Cmm_helpers.code_segment_table("_startup" :: name_list));
-  let all_names = "_startup" :: "_system" :: name_list in
-  compile_phrase (Cmm_helpers.frame_table all_names);
+  compile_phrase
+    (Cmm_helpers.data_segment_table (startup_comp_unit :: name_list));
+  (* CR mshinwell: We should have a separate notion of "backend compilation
+     unit" really, since the units here don't correspond to .ml source
+     files. *)
+  let hot_comp_unit = CU.create (CU.Name.of_string "_hot") in
+  let system_comp_unit = CU.create (CU.Name.of_string "_system") in
+  let code_comp_units =
+    if !Clflags.function_sections then
+      hot_comp_unit :: startup_comp_unit :: name_list
+    else
+      startup_comp_unit :: name_list
+  in
+  compile_phrase (Cmm_helpers.code_segment_table code_comp_units);
+  let all_comp_units = startup_comp_unit :: system_comp_unit :: name_list in
+  compile_phrase (Cmm_helpers.frame_table all_comp_units);
   if !Clflags.output_complete_object then
     force_linking_of_startup ~ppf_dump;
   Emit.end_assembly ()
@@ -260,14 +277,16 @@ let make_startup_file ~ppf_dump units_list ~crc_interfaces =
 let make_shared_startup_file ~ppf_dump units =
   let compile_phrase p = Asmgen.compile_phrase ~ppf_dump p in
   Location.input_name := "caml_startup";
-  Compilenv.reset "_shared_startup";
+  let shared_startup_comp_unit =
+    CU.create (CU.Name.of_string "_shared_startup")
+  in
+  Compilenv.reset shared_startup_comp_unit;
   Emit.begin_assembly ();
   List.iter compile_phrase
     (Cmm_helpers.generic_functions true (List.map fst units));
   compile_phrase (Cmm_helpers.plugin_header units);
   compile_phrase
-    (Cmm_helpers.global_table
-       (List.map (fun (ui,_) -> ui.ui_symbol) units));
+    (Cmm_helpers.global_table (List.map (fun (ui,_) -> ui.ui_name) units));
   if !Clflags.output_complete_object then
     force_linking_of_startup ~ppf_dump;
   (* this is to force a reference to all units, otherwise the linker

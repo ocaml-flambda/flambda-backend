@@ -99,7 +99,7 @@ let toplevel_value id =
 
 let rec eval_address = function
   | Env.Aident id ->
-      if Ident.persistent id || Ident.global id
+      if Ident.is_global_or_predef id
       then global_symbol id
       else toplevel_value id
   | Env.Adot(a, pos) ->
@@ -224,8 +224,7 @@ let phrase_name = ref "TOP"
 module Backend = struct
   (* See backend_intf.mli. *)
 
-  let symbol_for_global' = Compilenv.symbol_for_global'
-  let closure_symbol = Compilenv.closure_symbol
+  let pack_prefix_for_ident = Compilenv.pack_prefix_for_global_ident
 
   let really_import_approx = Import_approx.really_import_approx
   let import_symbol = Import_approx.import_symbol
@@ -315,7 +314,10 @@ let execute_phrase print_outcome ppf phr =
       let oldenv = !toplevel_env in
       incr phrase_seqid;
       phrase_name := Printf.sprintf "TOP%i" !phrase_seqid;
-      Compilenv.reset ?packname:None !phrase_name;
+      let phrase_comp_unit =
+        Compilation_unit.create (Compilation_unit.Name.of_string !phrase_name)
+      in
+      Compilenv.reset phrase_comp_unit;
       Typecore.reset_delayed_checks ();
       let sstr, rewritten =
         match sstr with

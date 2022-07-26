@@ -29,46 +29,19 @@ val imported_sets_of_closures_table
   : Simple_value_approx.function_declarations option Set_of_closures_id.Tbl.t
         (* flambda-only *)
 
-val reset: ?packname:string -> string -> unit
+val reset : Compilation_unit.t -> unit
         (* Reset the environment and record the name of the unit being
-           compiled (arg).  Optional argument is [-for-pack] prefix. *)
-
-val unit_id_from_name: string -> Ident.t
-        (* flambda-only *)
+           compiled (including any associated -for-pack prefix). *)
 
 val current_unit_infos: unit -> unit_infos
         (* Return the infos for the unit being compiled *)
 
-val current_unit_name: unit -> string
-        (* Return the name of the unit being compiled
-           clambda-only *)
+val pack_prefix_for_current_unit : unit -> Compilation_unit.Prefix.t
+        (* Return the pack prefix for the unit being compiled *)
 
-val current_unit_linkage_name: unit -> Linkage_name.t
-        (* Return the linkage_name of the unit being compiled.
-           flambda-only *)
-
-val current_unit: unit -> Compilation_unit.t
-        (* flambda-only *)
-
-val current_unit_symbol: unit -> Symbol.t
-        (* flambda-only *)
-
-val make_symbol: ?unitname:string -> string option -> string
-        (* [make_symbol ~unitname:u None] returns the asm symbol that
-           corresponds to the compilation unit [u] (default: the current unit).
-           [make_symbol ~unitname:u (Some id)] returns the asm symbol that
-           corresponds to symbol [id] in the compilation unit [u]
-           (or the current unit). *)
-
-val symbol_in_current_unit: string -> bool
-        (* Return true if the given asm symbol belongs to the
-           current compilation unit, false otherwise. *)
-
-val is_predefined_exception: Symbol.t -> bool
-        (* flambda-only *)
-
-val unit_for_global: Ident.t -> Compilation_unit.t
-        (* flambda-only *)
+val pack_prefix_for_global_ident : Ident.t -> Compilation_unit.Prefix.t
+        (* Find the pack prefix for an identifier by reading the .cmx file.
+           The identifier must be [Global]. *)
 
 val symbol_for_global: Ident.t -> string
         (* Return the asm symbol that refers to the given global identifier
@@ -102,13 +75,6 @@ val need_send_fun: int -> Lambda.alloc_mode -> unit
            message sending) function with the given arity *)
 
 val new_const_symbol : unit -> string
-val closure_symbol : Closure_id.t -> Symbol.t
-        (* Symbol of a function if the function is
-           closed (statically allocated)
-           flambda-only *)
-val function_label : Closure_id.t -> string
-        (* linkage name of the code of a function
-           flambda-only *)
 
 val new_structured_constant:
   Clambda.ustructured_constant ->

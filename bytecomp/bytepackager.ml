@@ -19,6 +19,8 @@
 open Misc
 open Instruct
 open Cmo_format
+
+module CU = Compilation_unit
 module String = Misc.Stdlib.String
 
 type error =
@@ -89,7 +91,7 @@ let relocate_debug base prefix subst ev =
 
 (* Read the unit information from a .cmo file. *)
 
-type pack_member_kind = PM_intf | PM_impl of compilation_unit
+type pack_member_kind = PM_intf | PM_impl of compilation_unit_descr
 
 type pack_member =
   { pm_file: string;
@@ -113,9 +115,10 @@ let read_member_info file = (
           raise(Error(Not_an_object_file file));
         let compunit_pos = input_binary_int ic in
         seek_in ic compunit_pos;
-        let compunit = (input_value ic : compilation_unit) in
-        if compunit.cu_name <> name
-        then raise(Error(Illegal_renaming(name, file, compunit.cu_name)));
+        let compunit = (input_value ic : compilation_unit_descr) in
+        if not (CU.Name.equal compunit.cu_name (CU.Name.of_string name))
+        then raise(Error(Illegal_renaming(name, file,
+          CU.Name.to_string compunit.cu_name)));
         close_in ic;
         PM_impl compunit
       with x ->
@@ -255,7 +258,7 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
         (fun (name, _crc) -> not (List.mem name unit_names))
         (Bytelink.extract_crc_interfaces()) in
     let compunit =
-      { cu_name = targetname;
+      { cu_name = CU.Name.of_string targetname;
         cu_pos = pos_code;
         cu_codesize = pos_debug - pos_code;
         cu_reloc = List.rev !relocs;

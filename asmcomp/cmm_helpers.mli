@@ -583,26 +583,29 @@ val placeholder_dbg : unit -> Debuginfo.t
 val placeholder_fun_dbg : human_name:string -> Debuginfo.t
 
 (** Entry point *)
-val entry_point : string list -> phrase
+val entry_point : Compilation_unit.t list -> phrase
 
 (** Generate the caml_globals table *)
-val global_table: string list -> phrase
+val global_table: Compilation_unit.t list -> phrase
 
 (** Add references to the given symbols *)
 val reference_symbols: string list -> phrase
 
-(** Generate the caml_globals_map structure, as a marshalled string constant *)
+(** Generate the caml_globals_map structure, as a marshalled string constant
+    The runtime representation of the type here must match that of
+    [type global_map] in the natdynlink code. *)
 val globals_map:
-  (string * Digest.t option * Digest.t option * string list) list -> phrase
+  (Compilation_unit.Name.t * Digest.t option * Digest.t option
+    * Symbol.t list) list -> phrase
 
 (** Generate the caml_frametable table, referencing the frametables
     from the given compilation units *)
-val frame_table: string list -> phrase
+val frame_table: Compilation_unit.t list -> phrase
 
 (** Generate the tables for data and code positions respectively of the given
     compilation units *)
-val data_segment_table: string list -> phrase
-val code_segment_table: string list -> phrase
+val data_segment_table: Compilation_unit.t list -> phrase
+val code_segment_table: Compilation_unit.t list -> phrase
 
 (** Generate data for a predefined exception *)
 val predef_exception: int -> string -> phrase
@@ -650,3 +653,5 @@ val emit_constant_closure :
 
 val emit_preallocated_blocks :
   Clambda.preallocated_block list -> phrase list -> phrase list
+
+val make_symbol : ?compilation_unit:Compilation_unit.t -> string -> string

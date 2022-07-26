@@ -58,7 +58,7 @@ let should_save_before_emit () =
   should_save_ir_after Compiler_pass.Scheduling && (not !start_from_emit)
 
 let linear_unit_info =
-  { Linear_format.unit_name = "";
+  { Linear_format.unit_name = Compilation_unit.dummy;
     items = [];
     for_pack = None;
   }
@@ -66,7 +66,7 @@ let linear_unit_info =
 let reset () =
   start_from_emit := false;
   if should_save_before_emit () then begin
-    linear_unit_info.unit_name <- Compilenv.current_unit_name ();
+    linear_unit_info.unit_name <- Compilation_unit.get_current_exn ();
     linear_unit_info.items <- [];
     linear_unit_info.for_pack <- !Clflags.for_package;
   end

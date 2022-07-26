@@ -42,7 +42,6 @@ val rename: t -> t
 val name: t -> string
 val unique_name: t -> string
 val unique_toplevel_name: t -> string
-val persistent: t -> bool
 val same: t -> t -> bool
         (** Compare identifiers by binding location.
             Two identifiers are the same either if they are both
@@ -52,7 +51,8 @@ val same: t -> t -> bool
 
 val compare: t -> t -> int
 
-val global: t -> bool
+val is_global: t -> bool
+val is_global_or_predef: t -> bool
 val is_predef: t -> bool
 
 val scope: t -> int

@@ -20,9 +20,61 @@ open Path
 open Types
 open Typedtree
 
+type position = Ctype.Unification_trace.position = First | Second
+
 (* Inclusion between value descriptions *)
 
 exception Dont_match
+
+type primitive_mismatch =
+  | Name
+  | Arity
+  | No_alloc of position
+  | Builtin
+  | Effects
+  | Coeffects
+  | Native_name
+  | Result_repr
+  | Argument_repr of int
+
+let native_repr_args nra1 nra2 =
+  let rec loop i nra1 nra2 =
+    match nra1, nra2 with
+    | [], [] -> None
+    | [], _ :: _ -> assert false
+    | _ :: _, [] -> assert false
+    | (_, nr1) :: nra1, (_, nr2) :: nra2 ->
+      if not (Primitive.equal_native_repr nr1 nr2) then Some (Argument_repr i)
+      else loop (i+1) nra1 nra2
+  in
+  loop 1 nra1 nra2
+
+let primitive_descriptions pd1 pd2 =
+  let open Primitive in
+  if not (String.equal pd1.prim_name pd2.prim_name) then
+    Some Name
+  else if not (Int.equal pd1.prim_arity pd2.prim_arity) then
+    Some Arity
+  else if (not pd1.prim_alloc) && pd2.prim_alloc then
+    Some (No_alloc First)
+  else if pd1.prim_alloc && (not pd2.prim_alloc) then
+    Some (No_alloc Second)
+  else if not (Bool.equal pd1.prim_c_builtin pd2.prim_c_builtin) then
+    Some Builtin
+  else if not (Primitive.equal_effects pd1.prim_effects pd2.prim_effects) then
+    Some Effects
+  else if not
+    (Primitive.equal_coeffects
+       pd1.prim_coeffects pd2.prim_coeffects) then
+    Some Coeffects
+  else if not (String.equal pd1.prim_native_name pd2.prim_native_name) then
+    Some Native_name
+  else if not
+    (Primitive.equal_native_repr
+       (snd pd1.prim_native_repr_res) (snd pd2.prim_native_repr_res)) then
+    Some Result_repr
+  else
+    native_repr_args pd1.prim_native_repr_args pd2.prim_native_repr_args
 
 let value_descriptions ~loc env name
     (vd1 : Types.value_description)
@@ -34,22 +86,31 @@ let value_descriptions ~loc env name
     vd1.val_attributes vd2.val_attributes
     name;
   match vd1.val_kind with
-  | Val_prim p1 ->
-     let ty1, mode1 = Ctype.instance_prim_mode p1 vd1.val_type in
-     begin match vd2.val_kind with
-     | Val_prim p2 ->
-        let ty2, _mode2 = Ctype.instance_prim_mode p2 vd2.val_type in
-        if not (Ctype.moregeneral env true ty1 ty2) then
-          raise Dont_match;
-        let mode1 : Primitive.mode =
-          match Btype.Alloc_mode.check_const mode1 with
-          | Some Global -> Prim_global
-          | Some Local -> Prim_local
-          | None -> Prim_poly
-        in
-        let p1 = Primitive.inst_mode mode1 p1 in
-        if p1 = p2 then Tcoerce_none else raise Dont_match
+  | Val_prim p1 -> begin
+     match vd2.val_kind with
+     | Val_prim p2 -> begin
+         let ty1_global, _ = Ctype.instance_prim_mode p1 vd1.val_type in
+         let ty2_global =
+           let ty2, mode2 = Ctype.instance_prim_mode p2 vd2.val_type in
+           Option.iter Btype.Alloc_mode.make_global_exn mode2;
+           ty2
+         in
+         if not (Ctype.moregeneral env true ty1_global ty2_global) then
+           raise Dont_match;
+         let ty1_local, _ = Ctype.instance_prim_mode p1 vd1.val_type in
+         let ty2_local =
+           let ty2, mode2 = Ctype.instance_prim_mode p2 vd2.val_type in
+           Option.iter Btype.Alloc_mode.make_local_exn mode2;
+           ty2
+         in
+         if not (Ctype.moregeneral env true ty1_local ty2_local) then
+           raise Dont_match;
+         match primitive_descriptions p1 p2 with
+         | None -> Tcoerce_none
+         | Some _ -> raise Dont_match
+       end
      | _ ->
+        let ty1, mode1 = Ctype.instance_prim_mode p1 vd1.val_type in
         if not (Ctype.moregeneral env true ty1 vd2.val_type) then
           raise Dont_match;
         let pc =
@@ -140,8 +201,6 @@ let type_manifest env ty1 params1 ty2 params2 priv2 =
       in check_super ty1
 
 (* Inclusion between type declarations *)
-
-type position = Ctype.Unification_trace.position = First | Second
 
 let choose ord first second =
   match ord with

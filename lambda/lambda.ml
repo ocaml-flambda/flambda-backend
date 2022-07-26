@@ -777,7 +777,7 @@ let rec patch_guarded patch = function
 
 let rec transl_address loc = function
   | Env.Aident id ->
-      if Ident.global id
+      if Ident.is_global_or_predef id
       then Lprim(Pgetglobal id, [], loc)
       else Lvar id
   | Env.Adot(addr, pos) ->
