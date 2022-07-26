@@ -4,23 +4,19 @@ open! Cfg_regalloc_utils
 
 let irc_debug = false
 
-let fatal_if_not_irc_debug () =
-  if not irc_debug
-  then fatal "IRC_VERBOSE is set but debugging mode is disabled"
+let fatal_if_not_irc_debug env_var =
+  if not irc_debug then fatal "%s is set but debugging mode is disabled" env_var
 
-let irc_verbose : bool =
-  match Sys.getenv_opt "IRC_VERBOSE" with
+let bool_of_env env_var =
+  match Sys.getenv_opt env_var with
   | Some "1" ->
-    fatal_if_not_irc_debug ();
+    fatal_if_not_irc_debug env_var;
     true
   | Some _ | None -> false
 
-let irc_invariants : bool =
-  match Sys.getenv_opt "IRC_INVARIANTS" with
-  | Some "1" ->
-    fatal_if_not_irc_debug ();
-    true
-  | Some _ | None -> false
+let irc_verbose : bool = bool_of_env "IRC_VERBOSE"
+
+let irc_invariants : bool = bool_of_env "IRC_INVARIANTS"
 
 let make_indent n = String.make (2 * n) ' '
 
@@ -31,6 +27,14 @@ let log : type a. indent:int -> (a, Format.formatter, unit) format -> a =
     Format.eprintf ("[irc] %s" ^^ fmt ^^ "\n%!") (make_indent indent)
   else fun ~indent:_ fmt -> Format.(ifprintf err_formatter) fmt
 
+let log_instruction_prefix ~indent (instr : _ Cfg.instruction) : unit =
+  Format.eprintf "[irc] %s #%04d " (make_indent indent) instr.id
+
+let log_instruction_suffix (instr : _ Cfg.instruction) : unit =
+  Format.eprintf " arg: %a res: %a live: %a" Printmach.regs instr.arg
+    Printmach.regs instr.res Printmach.regset instr.live;
+  Format.eprintf "\n%!"
+
 let log_body_and_terminator :
     indent:int ->
     Cfg.basic Cfg.instruction list ->
@@ -39,13 +43,13 @@ let log_body_and_terminator :
  fun ~indent body term ->
   if irc_debug && irc_verbose
   then (
-    List.iter body ~f:(fun instr ->
-        Format.eprintf "[irc] %s" (make_indent indent);
+    List.iter body ~f:(fun (instr : Cfg.basic Cfg.instruction) ->
+      log_instruction_prefix ~indent instr;
         Cfg.dump_basic Format.err_formatter instr.Cfg.desc;
-        Format.eprintf "\n%!");
-    Format.eprintf "[irc] %s" (make_indent indent);
+      log_instruction_suffix instr);
+    log_instruction_prefix ~indent term;
     Cfg.dump_terminator ~sep:", " Format.err_formatter term.Cfg.desc;
-    Format.eprintf "\n%!")
+    log_instruction_suffix term)
 
 module Color = struct
   type t = int
