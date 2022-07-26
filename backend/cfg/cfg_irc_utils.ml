@@ -44,9 +44,9 @@ let log_body_and_terminator :
   if irc_debug && irc_verbose
   then (
     List.iter body ~f:(fun (instr : Cfg.basic Cfg.instruction) ->
-      log_instruction_prefix ~indent instr;
+        log_instruction_prefix ~indent instr;
         Cfg.dump_basic Format.err_formatter instr.Cfg.desc;
-      log_instruction_suffix instr);
+        log_instruction_suffix instr);
     log_instruction_prefix ~indent term;
     Cfg.dump_terminator ~sep:", " Format.err_formatter term.Cfg.desc;
     log_instruction_suffix term)
