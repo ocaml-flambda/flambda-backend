@@ -781,8 +781,19 @@ and transl_structure ~scopes loc fields cc rootpath final_env = function
                 size
           in
           let body, size = rebind_idents 0 fields ids in
-          Llet(pure_module modl, Pgenval, mid,
-               transl_module ~scopes Tcoerce_none None modl, body),
+          let loc = of_location ~scopes incl.incl_loc in
+          let let_kind, modl =
+            match incl.incl_kind with
+            | Tincl_structure ->
+                pure_module modl, transl_module ~scopes Tcoerce_none None modl
+            | Tincl_functor ccs ->
+                Strict, transl_include_functor ~generative:false modl ccs
+                          scopes loc
+            | Tincl_gen_functor ccs ->
+                Strict, transl_include_functor ~generative:true modl ccs
+                          scopes loc
+          in
+          Llet(let_kind, Pgenval, mid, modl, body),
           size
 
       | Tstr_open od ->
@@ -818,6 +829,32 @@ and transl_structure ~scopes loc fields cc rootpath final_env = function
       | Tstr_class_type _
       | Tstr_attribute _ ->
           transl_structure ~scopes loc fields cc rootpath final_env rem
+
+(* construct functor application in "include functor" case *)
+and transl_include_functor ~generative modl params scopes loc =
+  let inlined_attribute, modl =
+    Translattribute.get_and_remove_inlined_attribute_on_module modl
+  in
+  let modl = transl_module ~scopes Tcoerce_none None modl in
+  let params = if generative then [params;[]] else [params] in
+  let params = List.map (fun coercion ->
+    Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
+          List.map (fun (name, cc) ->
+            apply_coercion loc Strict cc (Lvar name))
+            coercion,
+          loc))
+    params
+  in
+  Lapply {
+    ap_loc = loc;
+    ap_func = modl;
+    ap_args = params;
+    ap_region_close=Rc_normal;
+    ap_mode = alloc_heap;
+    ap_tailcall = Default_tailcall;
+    ap_inlined = inlined_attribute;
+    ap_specialised = Default_specialise;
+    ap_probe = None;}
 
 (* Update forward declaration in Translcore *)
 let _ =
@@ -1065,7 +1102,7 @@ let transl_store_structure ~scopes glob map prims aliases str =
             let lam =
               transl_let ~scopes ~in_structure:true rec_flag pat_expr_list
                  Pintval (* unit *)
-                (store_idents Loc_unknown ids)
+                 (store_idents Loc_unknown ids)
             in
             Lsequence(Lambda.subst no_env_update subst lam,
                       transl_store ~scopes rootpath
@@ -1276,24 +1313,30 @@ let transl_store_structure ~scopes glob map prims aliases str =
               | _ -> assert false
             in
             Lsequence(lam, loop ids0 map)
-
         | Tstr_include incl ->
             let ids = bound_value_identifiers incl.incl_type in
             let modl = incl.incl_mod in
             let mid = Ident.create_local "include" in
-            let loc = incl.incl_loc in
+            let loc = of_location ~scopes incl.incl_loc in
             let rec store_idents pos = function
               | [] -> transl_store
                         ~scopes rootpath (add_idents true ids subst) cont rem
               | id :: idl ->
                   Llet(Alias, Pgenval, id, Lprim(mod_field pos, [Lvar mid],
-                                                 of_location ~scopes loc),
-                       Lsequence(store_ident (of_location ~scopes loc) id,
+                                                 loc),
+                       Lsequence(store_ident loc id,
                                  store_idents (pos + 1) idl))
             in
+            let modl =
+              match incl.incl_kind with
+              | Tincl_structure -> transl_module ~scopes Tcoerce_none None modl
+              | Tincl_functor ccs ->
+                  transl_include_functor ~generative:false modl ccs scopes loc
+              | Tincl_gen_functor ccs ->
+                  transl_include_functor ~generative:true modl ccs scopes loc
+            in
             Llet(Strict, Pgenval, mid,
-                 Lambda.subst no_env_update subst
-                   (transl_module ~scopes Tcoerce_none None modl),
+                 Lambda.subst no_env_update subst modl,
                  store_idents 0 ids)
         | Tstr_open od ->
             begin match od.open_expr.mod_desc with
@@ -1620,7 +1663,17 @@ let transl_toplevel_item ~scopes item =
         Lletrec(class_bindings, body)
   | Tstr_include incl ->
       let ids = bound_value_identifiers incl.incl_type in
+      let loc = of_location ~scopes incl.incl_loc in
       let modl = incl.incl_mod in
+      let modl =
+        match incl.incl_kind with
+        | Tincl_structure ->
+            transl_module ~scopes Tcoerce_none None modl
+        | Tincl_functor ccs ->
+            transl_include_functor ~generative:false modl ccs scopes loc
+        | Tincl_gen_functor ccs ->
+            transl_include_functor ~generative:true modl ccs scopes loc
+      in
       let mid = Ident.create_local "include" in
       let rec set_idents pos = function
         [] ->
@@ -1629,8 +1682,7 @@ let transl_toplevel_item ~scopes item =
           Lsequence(toploop_setvalue id
                       (Lprim(mod_field pos, [Lvar mid], Loc_unknown)),
                     set_idents (pos + 1) ids) in
-      Llet(Strict, Pgenval, mid,
-           transl_module ~scopes Tcoerce_none None modl, set_idents 0 ids)
+      Llet(Strict, Pgenval, mid, modl, set_idents 0 ids)
   | Tstr_primitive descr ->
       record_primitive descr.val_val;
       lambda_unit
