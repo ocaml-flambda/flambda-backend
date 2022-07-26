@@ -435,3 +435,13 @@ let tailcall attr =
   | false, true -> Ok (Some `Nontail)
   | false, false -> Ok None
   | true, true -> Error `Conflict
+
+let has_include_functor attr =
+  if List.exists (check ["extension.include_functor"]) attr then
+    if not (Clflags.Extension.is_enabled Include_functor) then
+      Error ()
+    else
+      Ok true
+  else
+    Ok false
+
