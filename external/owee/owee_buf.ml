@@ -19,7 +19,7 @@ let map_binary path =
   t
 
 let map_binary_write path size =
-  let fd = Unix.openfile path [Unix.O_RDWR] 0 in
+  let fd = Unix.openfile path [Unix.O_CREAT; Unix.O_RDWR] 0o644 in
   let t =
     Bigarray.array1_of_genarray
       (Unix.map_file fd Bigarray.int8_unsigned

@@ -23,7 +23,10 @@ let from_program l =
     | [] -> add_current ()
     | Section (s_l, s_opt, s_l') :: tl ->
       let acc = add_current () in
-      let current_section_name = name s_l s_opt s_l' in
+      let current_section_name =
+        String.concat "," s_l
+        (*name s_l s_opt s_l'*)
+      in
       let current_instrs = [] in
       aux acc current_section_name (s_l, s_opt, s_l') current_instrs tl
     | (_ as instr) :: tl ->
@@ -32,31 +35,11 @@ let from_program l =
   match l with
   | [] -> StringMap.empty
   | Section (s_l, s_opt, s_l') :: tl ->
-    let current_section_name = name s_l s_opt s_l' in
+    let current_section_name = String.concat "," s_l (*name s_l s_opt s_l'*) in
     let current_instrs = [] in
     aux StringMap.empty current_section_name (s_l, s_opt, s_l') current_instrs
       tl
   | _line :: _ -> failwith "Invalid program, should start with section"
-
-let hexa = "0123456789abcdef"
-
-and hexa1 =
-  "0000000000000000111111111111111122222222222222223333333333333333444444444444444455555555555555556666666666666666777777777777777788888888888888889999999999999999aaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbccccccccccccccccddddddddddddddddeeeeeeeeeeeeeeeeffffffffffffffff"
-
-and hexa2 =
-  "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-
-let of_string_fast s =
-  let len = String.length s in
-  let buf = Bytes.create (len * 2) in
-  for i = 0 to len - 1 do
-    Bytes.unsafe_set buf (i * 2)
-      (String.unsafe_get hexa1 (Char.code (String.unsafe_get s i)));
-    Bytes.unsafe_set buf
-      (succ (i * 2))
-      (String.unsafe_get hexa2 (Char.code (String.unsafe_get s i)))
-  done;
-  Bytes.to_string buf
 
 let isprefix s1 s2 =
   String.length s1 <= String.length s2
@@ -100,11 +83,13 @@ let parse_flags flags =
         | 'x' -> 0x4L
         | 'M' -> 0x10L
         | 'S' -> 0x20L
-        | _ -> failwith "Unknown flag"
+        | '?' -> 0x0L
+        | 'G' -> 0x0L
+        | _ -> failwith (Printf.sprintf "Unknown flag %c in flags %s\n" c flags)
       in
       inner (Int64.logor acc flag) (tl ())
   in
-  inner 0L flags
+  inner 0L (String.to_seq flags ())
 
 let add_string string_table string =
   string_table.current_length
@@ -185,7 +170,6 @@ let create_relocation (relocation : X86_binary_emitter.Relocation.t)
   let relocation_type, relocation_symbol, addend =
     match relocation.kind with
     | DIR64 (name, addend) ->
-      Printf.printf "dir64: %s\n" name;
       1, get_or_create_symbol_idx name symbol_table string_table, addend
     | DIR32 (_, _) -> failwith "cannot generate dir32"
     | REL32 (name, addend) -> (
@@ -194,11 +178,11 @@ let create_relocation (relocation : X86_binary_emitter.Relocation.t)
         ( 9,
           get_or_create_symbol_idx name symbol_table string_table,
           Int64.sub addend 4L )
-      | [name; "PLT"] ->
+      | [name; "PLT"] | [name] ->
         ( 4,
           get_or_create_symbol_idx name symbol_table string_table,
           Int64.sub addend 4L )
-      | _ -> failwith "invalid name")
+      | _ -> failwith (Printf.sprintf "Invalid symbol %s\n" name))
   in
   let reloc =
     { r_offset = Int64.of_int relocation.offset_from_section_beginning;
@@ -274,14 +258,14 @@ let make_section sections name sh_type ~size ?align ?entsize ?flags ?sh_link
       <- (Int64.to_int section.sh_offset, body) :: sections.section_bodies
   | _ -> ()
 
-let make_text sections raw_section align sh_string_table =
-  make_section sections ".text" 1
+let make_text sections (s_l, s_opt, s_l') raw_section align sh_string_table =
+  make_section sections (String.concat "," s_l) 1
     ~size:(Int64.of_int (X86_binary_emitter.size raw_section))
     ~flags:0x6L sh_string_table ~align
     ~body:(X86_binary_emitter.contents raw_section)
 
-let make_data sections raw_section align sh_string_table =
-  make_section sections ".data" 1
+let make_data sections (s_l, s_opt, s_l') raw_section align sh_string_table =
+  make_section sections (String.concat "," s_l) 1
     ~size:(Int64.of_int (X86_binary_emitter.size raw_section))
     ~flags:0x3L sh_string_table ~align
     ~body:(X86_binary_emitter.contents raw_section)
@@ -301,18 +285,16 @@ let make_shstrtab sections sh_string_table =
 
 let make_custom_section sections (s_l, s_opt, s_l') raw_section sh_string_table
     =
-  let rec entsize = function
+  let rec align = function
     | [] -> 0L
     | [hd] -> ( match Int64.of_string_opt hd with Some i -> i | None -> 0L)
-    | hd :: tl -> entsize tl
+    | hd :: tl -> align tl
   in
-  let flags =
-    match s_opt with None -> 0L | Some f -> parse_flags (String.to_seq f ())
-  in
-  let entsize = entsize s_l' in
+  let flags = match s_opt with None -> 0L | Some f -> parse_flags f in
+  let align = align s_l' in
   make_section sections (String.concat "," s_l)
     ~size:(Int64.of_int (X86_binary_emitter.size raw_section))
-    ~entsize ~flags
+    ~align ~flags
     ~body:(X86_binary_emitter.contents raw_section)
     sh_string_table
 
@@ -364,6 +346,8 @@ let assemble asm output_file =
               | _ -> acc)
             0 instructions
         in
+        (* CR mcollins - the type of s should be changed, this will require
+           several changes *)
         ( s,
           align,
           X86_binary_emitter.assemble_section X64
@@ -372,7 +356,6 @@ let assemble asm output_file =
             } ))
       sections
   in
-  Printf.printf "%s\n" output_file;
 
   let string_table = { current_length = 0; strings = [] } in
   let sh_string_table = { current_length = 0; strings = [] } in
@@ -382,17 +365,28 @@ let assemble asm output_file =
   add_string string_table "";
 
   make_null sections sh_string_table;
+  let text_sections, other_sections =
+    StringMap.partition (fun name _ -> isprefix ".text" name) binary_sections
+  in
+  StringMap.iter
+    (fun _ (section_info, align, raw_section) ->
+      make_text sections section_info raw_section (Int64.of_int align)
+        sh_string_table)
+    text_sections;
 
-  let _, align, raw_section = StringMap.find ".text" binary_sections in
-  make_text sections raw_section (Int64.of_int align) sh_string_table;
-
-  let _, align, raw_section = StringMap.find ".data" binary_sections in
-  make_data sections raw_section (Int64.of_int align) sh_string_table;
+  let data_sections, other_sections =
+    StringMap.partition (fun name _ -> isprefix ".data" name) other_sections
+  in
+  StringMap.iter
+    (fun _ (section_info, align, raw_section) ->
+      make_data sections section_info raw_section (Int64.of_int align)
+        sh_string_table)
+    data_sections;
 
   StringMap.iter
     (fun key (section_info, align, raw_section) ->
       make_custom_section sections section_info raw_section 1 sh_string_table)
-    (StringMap.remove ".data" (StringMap.remove ".text" binary_sections));
+    other_sections;
 
   let symbols =
     List.concat_map
@@ -433,6 +427,7 @@ let assemble asm output_file =
   let num_locals =
     List.length (List.filter (fun x -> x.st_info lsr 4 = 0) symbols)
   in
+
   let strtabidx = 1 + List.length sections.sections in
   make_section sections ".symtab" 2 ~entsize:24L
     ~size:(Int64.of_int (24 * List.length symbols))
@@ -448,6 +443,7 @@ let assemble asm output_file =
       (List.length sections.sections)
       sections.current_offset
   in
+  Printf.printf "File: %s\n" output_file;
   Printf.printf "Total size: %d\n"
     (Int64.to_int sections.current_offset
     + (header.e_shnum * header.e_shentsize));
@@ -456,12 +452,10 @@ let assemble asm output_file =
       (Int64.to_int sections.current_offset
       + (header.e_shnum * header.e_shentsize))
   in
-  Printf.printf "%s\n" (List.hd sections.sections).sh_name_str;
   Owee.Owee_elf.write_elf elf header
     (Array.of_list (List.rev sections.sections));
   List.iter
     (fun (pos, body) ->
-      Printf.printf "body len: %d\n" pos;
       Owee.Owee_buf.Write.fixed_string
         (Owee.Owee_buf.cursor elf ~at:pos)
         (String.length body) body)
@@ -480,22 +474,21 @@ let assemble asm output_file =
     (fun i symbol ->
       let open Owee.Owee_buf in
       let t = cursor elf ~at:((i * 24) + Int64.to_int symtab.sh_offset) in
-      Printf.printf "%s\n" symbol.st_shname_str;
       let st_shndx =
         match
           List.find_map
             (fun ((i, s) : int * Owee.Owee_elf.section) ->
-              if String.length s.sh_name_str > 0
-                 && isprefix s.sh_name_str symbol.st_shname_str
-              then Some i
-              else None)
+              if s.sh_name_str = symbol.st_shname_str then Some i else None)
             (List.mapi (fun i x -> i, x) (List.rev sections.sections))
         with
         | Some n -> n
         | None ->
           if symbol.st_shname_str = ""
           then 0
-          else failwith "Can't find section for relocation"
+          else
+            failwith
+              (Printf.sprintf "Can't find section for symbol %s"
+                 symbol.st_shname_str)
       in
       Write.u32 t symbol.st_name;
       Write.u8 t symbol.st_info;

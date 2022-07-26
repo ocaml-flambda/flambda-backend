@@ -78,7 +78,7 @@ let mem64_rip typ ?(ofs = 0) s =
 
 module D = struct
   let section segment flags args = directive (Section (segment, flags, args))
-  let align n = directive (Align (false, n))
+  let align ~data n = directive (Align (data, n))
   let byte n = directive (Byte n)
   let bytes s = directive (Bytes s)
   let cfi_adjust_cfa_offset n = directive (Cfi_adjust_cfa_offset n)
