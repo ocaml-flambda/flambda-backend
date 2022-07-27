@@ -66,6 +66,12 @@ type symbol_entry =
     st_shname_str : string
   }
 
+type symbol_table =
+  { mutable symbols : symbol_entry list;
+    mutable virtual_symbols :
+      (X86_binary_emitter.symbol * symbol_entry) StringMap.t
+  }
+
 type relocation_entry =
   { r_offset : Owee.Owee_buf.u64;
     r_info : Owee.Owee_buf.u64;
@@ -96,7 +102,8 @@ let add_string string_table string =
     <- string_table.current_length + String.length string + 1;
   string_table.strings <- string :: string_table.strings
 
-let create_symbol (symbol : X86_binary_emitter.symbol) string_table =
+let create_symbol (symbol : X86_binary_emitter.symbol) symbol_table string_table
+    =
   let value =
     match symbol.sy_pos with None -> 0L | Some n -> Int64.of_int n
   in
@@ -124,7 +131,7 @@ let create_symbol (symbol : X86_binary_emitter.symbol) string_table =
     }
   in
   add_string string_table symbol.sy_name;
-  symbol_entry
+  symbol_table.symbols <- symbol_entry :: symbol_table.symbols
 
 let create_got_symbol string_table =
   let symbol_entry =
@@ -158,12 +165,13 @@ let get_or_create_symbol_idx name symbol_table string_table =
   match
     List.find_map
       (fun (i, x) -> if x.st_name_str = name then Some i else None)
-      (List.mapi (fun i x -> i, x) !symbol_table)
+      (List.mapi (fun i x -> i, x) symbol_table.symbols)
   with
   | Some i -> i
   | None ->
-    symbol_table := !symbol_table @ [create_undef_symbol name string_table];
-    List.length !symbol_table - 1
+    symbol_table.symbols
+      <- symbol_table.symbols @ [create_undef_symbol name string_table];
+    List.length symbol_table.symbols - 1
 
 let create_relocation (relocation : X86_binary_emitter.Relocation.t)
     symbol_table string_table =
@@ -388,26 +396,25 @@ let assemble asm output_file =
       make_custom_section sections section_info raw_section 1 sh_string_table)
     other_sections;
 
-  let symbols =
-    List.concat_map
-      (fun (key, (section_info, align, raw_section)) ->
-        List.map
-          (fun (name, symbol) -> create_symbol symbol string_table)
-          (StringMap.bindings (X86_binary_emitter.labels raw_section)))
-      (StringMap.bindings binary_sections)
-  in
-  let symbols = create_got_symbol string_table :: symbols in
-  let symbols =
-    List.stable_sort (fun a b -> (a.st_info lsl 4) - (b.st_info lsl 4)) symbols
-  in
-  let symbols = ref symbols in
+  let symbol_table = { symbols = []; virtual_symbols = StringMap.empty } in
+  StringMap.iter
+    (fun key (section_info, align, raw_section) ->
+      StringMap.iter
+        (fun name symbol -> create_symbol symbol symbol_table string_table)
+        (X86_binary_emitter.labels raw_section))
+    binary_sections;
+  symbol_table.symbols <- create_got_symbol string_table :: symbol_table.symbols;
+  symbol_table.symbols
+    <- List.stable_sort
+         (fun a b -> (a.st_info lsl 4) - (b.st_info lsl 4))
+         symbol_table.symbols;
   let raw_relocations =
     List.filter_map
       (fun (key, ((s_l, _, _), align, raw_section)) ->
         match
           List.map
             (fun relocation ->
-              create_relocation relocation symbols string_table)
+              create_relocation relocation symbol_table string_table)
             (X86_binary_emitter.relocations raw_section)
         with
         | [] -> None
@@ -423,14 +430,14 @@ let assemble asm output_file =
         (Int64.of_int (24 * List.length relocations))
         sh_string_table)
     raw_relocations;
-  let symbols = !symbols in
   let num_locals =
-    List.length (List.filter (fun x -> x.st_info lsr 4 = 0) symbols)
+    List.length
+      (List.filter (fun x -> x.st_info lsr 4 = 0) symbol_table.symbols)
   in
 
   let strtabidx = 1 + List.length sections.sections in
   make_section sections ".symtab" 2 ~entsize:24L
-    ~size:(Int64.of_int (24 * List.length symbols))
+    ~size:(Int64.of_int (24 * List.length symbol_table.symbols))
     ~align:8L ~sh_link:strtabidx ~sh_info:num_locals sh_string_table;
   make_section sections ".strtab" 3
     ~size:(Int64.of_int string_table.current_length)
@@ -496,7 +503,7 @@ let assemble asm output_file =
       Write.u16 t st_shndx;
       Write.u64 t symbol.st_value;
       Write.u64 t symbol.st_size)
-    symbols;
+    symbol_table.symbols;
   List.iter
     (fun (name, relocations) ->
       match
