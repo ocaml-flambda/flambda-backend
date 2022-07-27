@@ -861,23 +861,24 @@ let rec comp_expr env exp sz cont =
       comp_binary_test env cond ifso ifnot sz cont
   | Lsequence(exp1, exp2) ->
       comp_expr env exp1 sz (comp_expr env exp2 sz cont)
-  | Lwhile(cond, body) ->
+  | Lwhile {wh_cond; wh_body} ->
       let lbl_loop = new_label() in
       let lbl_test = new_label() in
       Kbranch lbl_test :: Klabel lbl_loop :: Kcheck_signals ::
-        comp_expr env body sz
+        comp_expr env wh_body sz
           (Klabel lbl_test ::
-            comp_expr env cond sz (Kbranchif lbl_loop :: add_const_unit cont))
-  | Lfor(param, start, stop, dir, body) ->
+            comp_expr env wh_cond sz
+              (Kbranchif lbl_loop :: add_const_unit cont))
+  | Lfor {for_id; for_from; for_to; for_dir; for_body} ->
       let lbl_loop = new_label() in
       let lbl_exit = new_label() in
-      let offset = match dir with Upto -> 1 | Downto -> -1 in
-      let comp = match dir with Upto -> Cgt | Downto -> Clt in
-      comp_expr env start sz
-        (Kpush :: comp_expr env stop (sz+1)
+      let offset = match for_dir with Upto -> 1 | Downto -> -1 in
+      let comp = match for_dir with Upto -> Cgt | Downto -> Clt in
+      comp_expr env for_from sz
+        (Kpush :: comp_expr env for_to (sz+1)
           (Kpush :: Kpush :: Kacc 2 :: Kintcomp comp :: Kbranchif lbl_exit ::
            Klabel lbl_loop :: Kcheck_signals ::
-           comp_expr (add_var param (sz+1) env) body (sz+2)
+           comp_expr (add_var for_id (sz+1) env) for_body (sz+2)
              (Kacc 1 :: Kpush :: Koffsetint offset :: Kassign 2 ::
               Kacc 1 :: Kintcomp Cne :: Kbranchif lbl_loop ::
               Klabel lbl_exit :: add_const_unit (add_pop 2 cont))))

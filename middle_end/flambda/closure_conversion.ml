@@ -551,15 +551,16 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
     let lam1 = Flambda.Expr (close t env lam1) in
     let lam2 = close t env lam2 in
     Flambda.create_let var lam1 lam2
-  | Lwhile (cond, body) -> While (close t env cond, close t env body)
-  | Lfor (id, lo, hi, direction, body) ->
-    let bound_var = Variable.create_with_same_name_as_ident id in
+  | Lwhile {wh_cond; wh_body} ->
+    While (close t env wh_cond, close t env wh_body)
+  | Lfor {for_id; for_from; for_to; for_dir; for_body} ->
+    let bound_var = Variable.create_with_same_name_as_ident for_id in
     let from_value = Variable.create Names.for_from in
     let to_value = Variable.create Names.for_to in
-    let body = close t (Env.add_var env id bound_var) body in
-    Flambda.create_let from_value (Expr (close t env lo))
-      (Flambda.create_let to_value (Expr (close t env hi))
-        (For { bound_var; from_value; to_value; direction; body; }))
+    let body = close t (Env.add_var env for_id bound_var) for_body in
+    Flambda.create_let from_value (Expr (close t env for_from))
+      (Flambda.create_let to_value (Expr (close t env for_to))
+        (For { bound_var; from_value; to_value; direction=for_dir; body; }))
   | Lassign (id, new_value) ->
     let being_assigned =
       match Env.find_mutable_var_exn env id with

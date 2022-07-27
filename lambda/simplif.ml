@@ -78,11 +78,13 @@ let rec eliminate_ref id = function
                   eliminate_ref id e3, kind)
   | Lsequence(e1, e2) ->
       Lsequence(eliminate_ref id e1, eliminate_ref id e2)
-  | Lwhile(e1, e2) ->
-      Lwhile(eliminate_ref id e1, eliminate_ref id e2)
-  | Lfor(v, e1, e2, dir, e3) ->
-      Lfor(v, eliminate_ref id e1, eliminate_ref id e2,
-           dir, eliminate_ref id e3)
+  | Lwhile lw ->
+      Lwhile {lw with wh_cond = eliminate_ref id lw.wh_cond;
+                      wh_body = eliminate_ref id lw.wh_body}
+  | Lfor lf ->
+      Lfor {lf with for_from = eliminate_ref id lf.for_from;
+                    for_to = eliminate_ref id lf.for_to;
+                    for_body = eliminate_ref id lf.for_body }
   | Lassign(v, e) ->
       Lassign(v, eliminate_ref id e)
   | Lsend(k, m, o, el, pos, mode, loc) ->
@@ -163,8 +165,8 @@ let simplify_exits lam =
   | Ltrywith(l1, _v, l2, _kind) -> incr try_depth; count l1; decr try_depth; count l2
   | Lifthenelse(l1, l2, l3, _kind) -> count l1; count l2; count l3
   | Lsequence(l1, l2) -> count l1; count l2
-  | Lwhile(l1, l2) -> count l1; count l2
-  | Lfor(_, l1, l2, _dir, l3) -> count l1; count l2; count l3
+  | Lwhile lw -> count lw.wh_cond; count lw.wh_body
+  | Lfor lf -> count lf.for_from; count lf.for_to; count lf.for_body
   | Lassign(_v, l) -> count l
   | Lsend(_k, m, o, ll, _, _, _) -> List.iter count (m::o::ll)
   | Levent(l, _) -> count l
@@ -331,9 +333,12 @@ let simplify_exits lam =
       Ltrywith(l1, v, simplif l2, kind)
   | Lifthenelse(l1, l2, l3, kind) -> Lifthenelse(simplif l1, simplif l2, simplif l3, kind)
   | Lsequence(l1, l2) -> Lsequence(simplif l1, simplif l2)
-  | Lwhile(l1, l2) -> Lwhile(simplif l1, simplif l2)
-  | Lfor(v, l1, l2, dir, l3) ->
-      Lfor(v, simplif l1, simplif l2, dir, simplif l3)
+  | Lwhile lw -> Lwhile {lw with wh_cond = simplif lw.wh_cond;
+                                 wh_body = simplif lw.wh_body}
+  | Lfor lf ->
+      Lfor {lf with for_from = simplif lf.for_from;
+                    for_to = simplif lf.for_to;
+                    for_body = simplif lf.for_body}
   | Lassign(v, l) -> Lassign(v, simplif l)
   | Lsend(k, m, o, ll, pos, mode, loc) ->
       Lsend(k, simplif m, simplif o, List.map simplif ll, pos, mode, loc)
@@ -471,9 +476,10 @@ let simplify_lets lam =
   | Ltrywith(l1, _v, l2, _kind) -> count bv l1; count bv l2
   | Lifthenelse(l1, l2, l3, _kind) -> count bv l1; count bv l2; count bv l3
   | Lsequence(l1, l2) -> count bv l1; count bv l2
-  | Lwhile(l1, l2) -> count Ident.Map.empty l1; count Ident.Map.empty l2
-  | Lfor(_, l1, l2, _dir, l3) ->
-      count bv l1; count bv l2; count Ident.Map.empty l3
+  | Lwhile {wh_cond; wh_body} ->
+      count Ident.Map.empty wh_cond; count Ident.Map.empty wh_body
+  | Lfor {for_from; for_to; for_body} ->
+      count bv for_from; count bv for_to; count Ident.Map.empty for_body
   | Lassign(_v, l) ->
       (* Lalias-bound variables are never assigned, so don't increase
          v's refcount *)
@@ -614,9 +620,11 @@ let simplify_lets lam =
       then Lsequence(simplif l1, simplif l2)
       else simplif l2
   | Lsequence(l1, l2) -> Lsequence(simplif l1, simplif l2)
-  | Lwhile(l1, l2) -> Lwhile(simplif l1, simplif l2)
-  | Lfor(v, l1, l2, dir, l3) ->
-      Lfor(v, simplif l1, simplif l2, dir, simplif l3)
+  | Lwhile lw -> Lwhile {lw with wh_cond = simplif lw.wh_cond;
+                                 wh_body = simplif lw.wh_body}
+  | Lfor lf -> Lfor {lf with for_from = simplif lf.for_from;
+                             for_to = simplif lf.for_to;
+                             for_body = simplif lf.for_body}
   | Lassign(v, l) -> Lassign(v, simplif l)
   | Lsend(k, m, o, ll, pos, mode, loc) ->
       Lsend(k, simplif m, simplif o, List.map simplif ll, pos, mode, loc)
@@ -697,13 +705,13 @@ let rec emit_tail_infos is_tail lambda =
   | Lsequence (lam1, lam2) ->
       emit_tail_infos false lam1;
       emit_tail_infos is_tail lam2
-  | Lwhile (cond, body) ->
-      emit_tail_infos false cond;
-      emit_tail_infos false body
-  | Lfor (_, low, high, _, body) ->
-      emit_tail_infos false low;
-      emit_tail_infos false high;
-      emit_tail_infos false body
+  | Lwhile lw ->
+      emit_tail_infos false lw.wh_cond;
+      emit_tail_infos false lw.wh_body
+  | Lfor {for_from; for_to; for_body} ->
+      emit_tail_infos false for_from;
+      emit_tail_infos false for_to;
+      emit_tail_infos false for_body
   | Lassign (_, lam) ->
       emit_tail_infos false lam
   | Lsend (_, meth, obj, args, _, _, _loc) ->

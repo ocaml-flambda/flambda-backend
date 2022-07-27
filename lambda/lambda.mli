@@ -336,8 +336,8 @@ type lambda =
    evaluates f if e evaluates to any other value *)
   | Lifthenelse of lambda * lambda * lambda * value_kind
   | Lsequence of lambda * lambda
-  | Lwhile of lambda * lambda
-  | Lfor of Ident.t * lambda * lambda * direction_flag * lambda
+  | Lwhile of lambda_while
+  | Lfor of lambda_for
   | Lassign of Ident.t * lambda
   | Lsend of meth_kind * lambda * lambda * lambda list
              * region_close * alloc_mode * scoped_location
@@ -355,6 +355,25 @@ and lfunction =
     mode : alloc_mode;     (* alloc mode of the closure itself *)
     region : bool;         (* false if this function may locally
                               allocate in the caller's region *)
+  }
+
+and lambda_while =
+  { wh_cond : lambda;
+    wh_cond_region : bool; (* false if the condition may locally allocate in
+                              the region containing the loop *)
+    wh_body : lambda;
+    wh_body_region : bool  (* false if the body may locally allocate in
+                              the region containing the loop *)
+  }
+
+and lambda_for =
+  { for_id : Ident.t;
+    for_from : lambda;
+    for_to : lambda;
+    for_dir : direction_flag;
+    for_body : lambda;
+    for_region : bool;     (* false if the body may locally allocate in the
+                              region containing the loop *)
   }
 
 and lambda_apply =

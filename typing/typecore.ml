@@ -3930,38 +3930,51 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_while(scond, sbody) ->
-      let cond =
-        type_expect (Env.add_region_lock env) (mode_var ()) scond
+      let cond_env,wh_cond_region =
+        if is_local_returning_expr scond then env, false
+        else Env.add_region_lock env, true
+      in
+      let wh_cond =
+        type_expect cond_env (mode_var ()) scond
           (mk_expected ~explanation:While_loop_conditional Predef.type_bool)
       in
-      let body =
-        type_statement ~explanation:While_loop_body (Env.add_region_lock env) sbody
+      let body_env,wh_body_region =
+        if is_local_returning_expr sbody then env, false
+        else Env.add_region_lock env, true
+      in
+      let wh_body =
+        type_statement ~explanation:While_loop_body body_env sbody
       in
       rue {
-        exp_desc = Texp_while(cond, body);
+        exp_desc =
+          Texp_while {wh_cond; wh_cond_region; wh_body; wh_body_region};
         exp_loc = loc; exp_extra = [];
         exp_type = instance Predef.type_unit;
         exp_mode = expected_mode.mode;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_for(param, slow, shigh, dir, sbody) ->
-      let low =
+      let for_from =
         type_expect env (mode_var ()) slow
           (mk_expected ~explanation:For_loop_start_index Predef.type_int)
       in
-      let high =
+      let for_to =
         type_expect env (mode_var ()) shigh
           (mk_expected ~explanation:For_loop_stop_index Predef.type_int)
       in
-      let id, new_env =
+      let for_id, new_env =
         type_for_loop_index ~loc ~env ~param Predef.type_int
       in
-      let body =
-        type_statement ~explanation:For_loop_body
-          (Env.add_region_lock new_env) sbody
+      let new_env, for_region =
+        if is_local_returning_expr sbody then new_env, false
+        else Env.add_region_lock new_env, true
+      in
+      let for_body =
+        type_statement ~explanation:For_loop_body new_env sbody
       in
       rue {
-        exp_desc = Texp_for(id, param, low, high, dir, body);
+        exp_desc = Texp_for {for_id; for_pat = param; for_from; for_to;
+                             for_dir = dir; for_body; for_region};
         exp_loc = loc; exp_extra = [];
         exp_type = instance Predef.type_unit;
         exp_mode = expected_mode.mode;

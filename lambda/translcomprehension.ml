@@ -43,13 +43,18 @@ let transl_arr_clause ~transl_exp ~scopes ~loc clause body =
           binding Alias Pintval len_var init
         in
         let index = Ident.create_local "index" in
-        let for_ =
-          Lfor(index, (int 0), Lprim(Psubint, [Lvar(len_var); int 1], loc) , Upto,
+        let for_ = Lfor {
+          for_id = index;
+          for_from = int 0;
+          for_to = Lprim(Psubint, [Lvar(len_var); int 1], loc);
+          for_dir = Upto;
+          for_body =
             Matching.for_let ~scopes pat.pat_loc
               (Lprim(Parrayrefu(in_kind),
-                     [Lvar(in_var); Lvar(index)], loc)) pat
-              (valuekind_of_arraykind in_kind)
-              body)
+                     [Lvar(in_var); Lvar(index)], loc))
+              pat (valuekind_of_arraykind in_kind) body;
+          for_region = true
+        }
         in
         [in_binding; len_binding], for_
     | From_to(id, _, e2, e3, dir) ->
@@ -72,7 +77,15 @@ let transl_arr_clause ~transl_exp ~scopes ~loc clause body =
           in
           binding Alias Pintval len_var init
         in
-        let for_ = Lfor(id, Lvar from_var, Lvar to_var, dir, body) in
+        let for_ = Lfor {
+          for_id = id;
+          for_from = Lvar from_var;
+          for_to = Lvar to_var;
+          for_dir = dir;
+          for_body = body;
+          for_region = true
+        }
+        in
         [from_binding; to_binding; len_binding], for_
   in
   bindings, len_var, for_
@@ -330,10 +343,14 @@ let concat_arrays ~loc arr kind shape global_count_var =
         let sub_arr =
           Lprim(Parrayrefu kind, [Lvar arr_var; Lvar index_var], loc)
         in
-        gen_bindings bindings
-          (Lfor(index_var, int 0, last_index, Upto,
-             Llet(Strict, Pgenval, sub_arr_var, sub_arr,
-               loop shape sub_arr_var None)))
+        gen_bindings bindings (Lfor {
+          for_id = index_var;
+          for_from = int 0;
+          for_to = last_index;
+          for_dir = Upto;
+          for_body = Llet(Strict, Pgenval, sub_arr_var, sub_arr,
+                          loop shape sub_arr_var None);
+          for_region = true })
     | Array_of_filtered_arrays shape ->
         let index_var = Ident.create_local "index" in
         let index_binding = make_counter index_var in
@@ -348,12 +365,17 @@ let concat_arrays ~loc arr kind shape global_count_var =
         in
         gen_bindings bindings
           (gen_binding index_binding
-            (Lwhile(Lprim(Pintcomp Clt, [Lvar index_var; Lvar len_var], loc),
-               Lsequence(
-                 Llet(Strict, Pgenval, sub_arr_var, sub_arr,
-                   Llet(Strict, Pintval, sub_arr_len_var, sub_arr_len,
-                     loop shape sub_arr_var (Some sub_arr_len_var))),
-                 increment_counter ~loc index_var (int 2)))))
+            (Lwhile
+               {wh_cond = Lprim(Pintcomp Clt, [Lvar index_var; Lvar len_var],
+                                loc);
+                wh_cond_region = true;
+                wh_body =
+                  Lsequence(
+                    Llet(Strict, Pgenval, sub_arr_var, sub_arr,
+                         Llet(Strict, Pintval, sub_arr_len_var, sub_arr_len,
+                              loop shape sub_arr_var (Some sub_arr_len_var))),
+                    increment_counter ~loc index_var (int 2));
+                wh_body_region = true}))
   in
   match arr with
   | Without_size { body } ->
