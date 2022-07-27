@@ -49,6 +49,9 @@ val check_modtype_inclusion :
 val signatures: Env.t -> mark:mark ->
   signature -> signature -> module_coercion
 
+val include_functor_signatures : Env.t -> mark:mark ->
+  signature -> signature -> (Ident.t * module_coercion) list
+
 val compunit:
       Env.t -> mark:mark -> string -> signature ->
       string -> signature -> module_coercion
