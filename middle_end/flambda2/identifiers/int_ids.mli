@@ -116,6 +116,8 @@ module Symbol : sig
 
   val create : Compilation_unit.t -> Linkage_name.t -> t
 
+  val of_symbol : Flambda2_identifiers_deps.Symbol.t -> t
+
   (** Create the symbol without prefixing with the compilation unit. Used for
       predefined exceptions *)
   val unsafe_create : Compilation_unit.t -> Linkage_name.t -> t
@@ -132,6 +134,8 @@ module Symbol : sig
 
   val map_compilation_unit :
     (Compilation_unit.t -> Compilation_unit.t) -> exported -> exported
+
+  val external_symbols_compilation_unit : unit -> Compilation_unit.t
 end
 
 module Name : sig

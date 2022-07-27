@@ -45,9 +45,13 @@ type generic_fns =
     send_fun: apply_fn list }
 
 type unit_infos =
-  { mutable ui_name: modname;             (* Name of unit implemented *)
-    mutable ui_symbol: string;            (* Prefix for symbols *)
-    mutable ui_defines: string list;      (* Unit and sub-units implemented *)
+  (* CR lmaurer: Consider renaming [ui_name], say to [ui_unit]. Code like
+     [Compilation_unit.name ui_name] makes me wonder what a name's name is. *)
+  { mutable ui_name: Compilation_unit.t;  (* Compilation unit implemented *)
+    mutable ui_defines: Compilation_unit.t list;
+                                          (* All compilation units in the
+                                             .cmx file (i.e. [ui_name] and
+                                             any produced via [Asmpackager]) *)
     mutable ui_imports_cmi: crcs;         (* Interfaces imported *)
     mutable ui_imports_cmx: crcs;         (* Infos imported *)
     mutable ui_generic_fns: generic_fns;  (* Generic functions needed *)
@@ -58,10 +62,9 @@ type unit_infos =
    infos on the library: *)
 
 type lib_unit_info =
-  { li_name: modname;
-    li_symbol: string;
+  { li_name: Compilation_unit.t;
     li_crc: Digest.t;
-    li_defines: string list;
+    li_defines: Compilation_unit.t list;
     li_force_link: bool;
     li_imports_cmi : Bitmap.t;  (* subset of lib_imports_cmi *)
     li_imports_cmx : Bitmap.t } (* subset of lib_imports_cmx *)

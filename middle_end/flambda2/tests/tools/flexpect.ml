@@ -46,7 +46,12 @@ let run_expect_test ~symbol_for_global ~get_global_info ~extension ~filename
     ({ before; after = expected } : Fexpr.expect_test_spec) : Test_outcome.t =
   let comp_unit = Parse_flambda.make_compilation_unit ~extension ~filename () in
   Compilation_unit.set_current comp_unit;
-  let module_ident = Compilation_unit.get_persistent_ident comp_unit in
+  let module_ident =
+    comp_unit
+    |> Unwrapped_symbol.for_compilation_unit
+    |> Unwrapped_symbol.linkage_name
+    |> Ident.create_persistent
+  in
   let before_fl =
     Fexpr_to_flambda.conv ~symbol_for_global ~module_ident before
   in

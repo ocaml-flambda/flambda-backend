@@ -48,7 +48,7 @@
    config build_path_prefix_map misc identifiable numbers arg_helper clflags
    profile terminfo ccomp warnings consistbl strongly_connected_components
    targetint load_path int_replace_polymorphic_compare domainstate binutils
-   local_store target_system
+   local_store target_system compilation_unit symbol
 
    ;; PARSING
    location longident docstrings syntaxerr ast_helper camlinternalMenhirLib
@@ -377,6 +377,8 @@
     (cmo_format.mli as compiler-libs/cmo_format.mli)
     (debug_event.mli as compiler-libs/debug_event.mli)
     (domainstate.mli as compiler-libs/domainstate.mli)
+    (compilation_unit.mli as compiler-libs/compilation_unit.mli)
+    (symbol.mli as compiler-libs/symbol.mli)
 
     (.ocamlcommon.objs/byte/annot.cmi as compiler-libs/annot.cmi)
     (.ocamlcommon.objs/byte/annot.cmti as compiler-libs/annot.cmti)
@@ -467,6 +469,10 @@
     (.ocamlcommon.objs/byte/compenv.cmo as compiler-libs/compenv.cmo)
     (.ocamlcommon.objs/byte/compenv.cmt as compiler-libs/compenv.cmt)
     (.ocamlcommon.objs/byte/compenv.cmti as compiler-libs/compenv.cmti)
+    (.ocamlcommon.objs/byte/compilation_unit.cmi as compiler-libs/compilation_unit.cmi)
+    (.ocamlcommon.objs/byte/compilation_unit.cmo as compiler-libs/compilation_unit.cmo)
+    (.ocamlcommon.objs/byte/compilation_unit.cmt as compiler-libs/compilation_unit.cmt)
+    (.ocamlcommon.objs/byte/compilation_unit.cmti as compiler-libs/compilation_unit.cmti)
     (.ocamlcommon.objs/byte/compile_common.cmi as compiler-libs/compile_common.cmi)
     (.ocamlcommon.objs/byte/compile_common.cmo as compiler-libs/compile_common.cmo)
     (.ocamlcommon.objs/byte/compile_common.cmt as compiler-libs/compile_common.cmt)
@@ -696,6 +702,10 @@
     (.ocamlcommon.objs/byte/switch.cmo as compiler-libs/switch.cmo)
     (.ocamlcommon.objs/byte/switch.cmt as compiler-libs/switch.cmt)
     (.ocamlcommon.objs/byte/switch.cmti as compiler-libs/switch.cmti)
+    (.ocamlcommon.objs/byte/symbol.cmi as compiler-libs/symbol.cmi)
+    (.ocamlcommon.objs/byte/symbol.cmo as compiler-libs/symbol.cmo)
+    (.ocamlcommon.objs/byte/symbol.cmt as compiler-libs/symbol.cmt)
+    (.ocamlcommon.objs/byte/symbol.cmti as compiler-libs/symbol.cmti)
     (.ocamlcommon.objs/byte/symtable.cmi as compiler-libs/symtable.cmi)
     (.ocamlcommon.objs/byte/symtable.cmo as compiler-libs/symtable.cmo)
     (.ocamlcommon.objs/byte/symtable.cmt as compiler-libs/symtable.cmt)
@@ -888,6 +898,7 @@
     (.ocamlcommon.objs/native/stypes.cmx as compiler-libs/stypes.cmx)
     (.ocamlcommon.objs/native/subst.cmx as compiler-libs/subst.cmx)
     (.ocamlcommon.objs/native/switch.cmx as compiler-libs/switch.cmx)
+    (.ocamlcommon.objs/native/symbol.cmx as compiler-libs/symbol.cmx)
     (.ocamlcommon.objs/native/symtable.cmx as compiler-libs/symtable.cmx)
     (.ocamlcommon.objs/native/syntaxerr.cmx as compiler-libs/syntaxerr.cmx)
     (.ocamlcommon.objs/native/targetint.cmx as compiler-libs/targetint.cmx)

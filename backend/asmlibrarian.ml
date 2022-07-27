@@ -80,7 +80,6 @@ let create_archive file_list lib_name =
          List.map (fun (unit, crc) ->
            Cmm_helpers.Generic_fns_tbl.add genfns unit.ui_generic_fns;
            { li_name = unit.ui_name;
-             li_symbol = unit.ui_symbol;
              li_crc = crc;
              li_defines = unit.ui_defines;
              li_force_link = unit.ui_force_link;

@@ -68,13 +68,13 @@ let should_save_cfg_before_emit () =
   should_save_ir_after Compiler_pass.Simplify_cfg && (not !start_from_emit)
 
 let linear_unit_info =
-  { Linear_format.unit_name = "";
+  { Linear_format.unit_name = Compilation_unit.dummy;
     items = [];
     for_pack = None;
   }
 
 let new_cfg_unit_info () =
-  { Cfg_format.unit_name = "";
+  { Cfg_format.unit_name = Compilation_unit.dummy;
     items = [];
     for_pack = None;
   }
@@ -91,18 +91,18 @@ let reset () =
   start_from_emit := false;
   Compiler_pass_map.iter (fun pass (cfg_unit_info : Cfg_format.cfg_unit_info) ->
     if should_save_ir_after pass then begin
-      cfg_unit_info.unit_name <- Compilenv.current_unit_name ();
+      cfg_unit_info.unit_name <- Compilation_unit.get_current_exn ();
       cfg_unit_info.items <- [];
       cfg_unit_info.for_pack <- !Clflags.for_package;
     end)
     pass_to_cfg;
   if should_save_before_emit () then begin
-    linear_unit_info.unit_name <- Compilenv.current_unit_name ();
+    linear_unit_info.unit_name <- Compilation_unit.get_current_exn ();
     linear_unit_info.items <- [];
     linear_unit_info.for_pack <- !Clflags.for_package;
   end;
   if should_save_cfg_before_emit () then begin
-    cfg_unit_info.unit_name <- Compilenv.current_unit_name ();
+    cfg_unit_info.unit_name <- Compilation_unit.get_current_exn ();
     cfg_unit_info.items <- [];
     cfg_unit_info.for_pack <- !Clflags.for_package;
   end
@@ -433,13 +433,16 @@ let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename ~may_reduc
 
 let build_dwarf ~asm_directives:(module Asm_directives : Asm_targets.Asm_directives_intf.S) sourcefile =
   let unit_name =
-    Compilation_unit.get_persistent_ident (Compilation_unit.get_current_exn ())
+    Compilation_unit.get_current_exn ()
+    |> Symbol.for_compilation_unit
+    |> Symbol.linkage_name
+    |> Ident.create_persistent
   in
   let code_begin =
-    Compilenv.make_symbol (Some "code_begin") |> Asm_targets.Asm_symbol.create
+    Cmm_helpers.make_symbol "code_begin" |> Asm_targets.Asm_symbol.create
   in
   let code_end =
-    Compilenv.make_symbol (Some "code_end") |> Asm_targets.Asm_symbol.create
+    Cmm_helpers.make_symbol "code_end" |> Asm_targets.Asm_symbol.create
   in
   Dwarf.create
     ~sourcefile

@@ -29,18 +29,16 @@ val for_global_or_predef_ident : Compilation_unit.Prefix.t -> Ident.t -> t
 (** It is assumed that the provided [Ident.t] is in the current unit. *)
 val for_local_ident : Ident.t -> t
 
+(** To be avoided if possible. Linkage names are intended to be generated
+    here. *)
+val with_linkage_name : Compilation_unit.t -> string -> t
+
 val for_name : Compilation_unit.t -> string -> t
 val for_compilation_unit : Compilation_unit.t -> t
 val for_current_unit : unit -> t
 val for_new_const_in_current_unit : unit -> t
 
-module Flambda : sig
-  val for_variable : Variable.t -> t
-  val for_closure : Closure_id.t -> t
-  val for_code_of_closure : Closure_id.t -> t
-
-  val import_for_pack : t -> pack:Compilation_unit.Prefix.t -> t
-end
+val import_for_pack : t -> pack:Compilation_unit.Prefix.t -> t
 
 val compilation_unit : t -> Compilation_unit.t
 

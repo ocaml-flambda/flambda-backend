@@ -191,10 +191,14 @@ module Env = struct
 
   let create ~symbol_for_global ~big_endian ~cmx_loader =
     let compilation_unit = Compilation_unit.get_current_exn () in
+    let current_unit_id =
+      Compilation_unit.name compilation_unit
+      |> Compilation_unit.Name.to_string |> Ident.create_persistent
+    in
     { variables = Ident.Map.empty;
       globals = Numeric_types.Int.Map.empty;
       simples_to_substitute = Ident.Map.empty;
-      current_unit_id = Compilation_unit.get_persistent_ident compilation_unit;
+      current_unit_id;
       current_depth = None;
       value_approximations = Name.Map.empty;
       approximation_for_external_symbol =

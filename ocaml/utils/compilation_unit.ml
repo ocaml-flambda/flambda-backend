@@ -27,7 +27,18 @@ type error =
 
 exception Error of error
 
-(* CR mshinwell: add sig here to hide "= string" *)
+(* CR-someday lmaurer: Move this to [Identifiable] and change /all/ definitions
+   of [output] that delegate to [print] to use it. Yes, they're all broken. *)
+let output_of_print print =
+  let output out_channel t =
+    let ppf = Format.formatter_of_out_channel out_channel in
+    print ppf t;
+    (* Must flush the formatter immediately because it has a buffer separate
+       from the output channel's buffer *)
+    Format.pp_print_flush ppf ()
+  in
+  output
+
 module Name : sig
   type t
   include Identifiable.S with type t := t
@@ -45,7 +56,7 @@ end = struct
     let equal = String.equal
     let hash = Hashtbl.hash
     let print = String.print
-    let output chan t = print (Format.formatter_of_out_channel chan) t
+    let output = output_of_print print
   end)
 
   let isupper chr =
@@ -62,9 +73,9 @@ end = struct
       || String.contains t '.'
     then raise (Error (Bad_compilation_unit_name t))
 
-  let dummy = ""
+  let dummy = "*dummy*"
 
-  let to_string t = t
+  let to_string t = assert (not (String.equal t "")); t
 end
 
 module Prefix : sig
@@ -92,7 +103,7 @@ end = struct
         ~pp_sep:(fun ppf () -> Format.pp_print_string ppf ".")
         Name.print ppf p
 
-    let output chan t = print (Format.formatter_of_out_channel chan) t
+    let output = output_of_print print
   end)
 
   let is_valid_character first_char c =
@@ -206,8 +217,7 @@ include Identifiable.Make (struct
         Prefix.print for_pack_prefix
         Name.print name
 
-  let output oc t =
-    print (Format.formatter_of_out_channel oc) t
+  let output = output_of_print print
 
   let hash t = t.hash
 end)
@@ -230,6 +240,8 @@ let current = ref None
 
 let set_current t =
   current := Some t
+
+let get_current () = !current
 
 let get_current_exn () =
   match !current with

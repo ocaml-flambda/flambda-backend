@@ -17,62 +17,32 @@
 (* Unlike the rest of Flambda 2, this file depends on ocamloptcomp, meaning it
    can call [Compilenv]. *)
 
-module Flambda1_compilation_unit = Compilation_unit
-module Flambda1_linkage_name = Linkage_name
-
-module Compilation_unit = struct
-  include Flambda2_identifiers.Compilation_unit
-
-  let of_flambda1_compilation_unit comp_unit =
-    let ident = Flambda1_compilation_unit.get_persistent_ident comp_unit in
-    let linkage_name =
-      comp_unit |> Flambda1_compilation_unit.get_linkage_name
-      |> Flambda1_linkage_name.to_string
-      |> Flambda2_identifiers.Linkage_name.create
-    in
-    create ~name:(Ident.name ident) linkage_name
-end
-
-module Linkage_name = Flambda2_identifiers.Linkage_name
-module Symbol = Flambda2_identifiers.Symbol
-
-let symbol_for_module_block id =
-  assert (Ident.global id);
-  assert (not (Ident.is_predef id));
-  let comp_unit =
-    Compilenv.unit_for_global id
-    |> Compilation_unit.of_flambda1_compilation_unit
-  in
-  Symbol.unsafe_create comp_unit
-    (Linkage_name.create (Compilenv.symbol_for_global id))
-
 let symbol_for_global ?comp_unit id =
-  if Ident.global id && not (Ident.is_predef id)
-  then symbol_for_module_block id
-  else
-    let comp_unit =
-      match comp_unit with
-      | Some comp_unit -> comp_unit
-      | None ->
-        if Ident.is_predef id
-        then Compilation_unit.predefined_exception ()
-        else Compilation_unit.get_current_exn ()
-    in
-    Symbol.unsafe_create comp_unit
-      (Linkage_name.create (Compilenv.symbol_for_global id))
+  (* CR lmaurer: FIXME *)
+  ignore (comp_unit : Compilation_unit.t option);
+  Compilenv.symbol_for_global' id
+  |> Flambda2_identifiers.Symbol.of_symbol
 
 let get_global_info comp_unit =
   (* Typing information for predefined exceptions should be populated directly
      by the callee. *)
-  if Compilation_unit.is_predefined_exception comp_unit
+  if Compilation_unit.equal comp_unit Compilation_unit.predef_exn
   then
     Misc.fatal_error
       "get_global_info is not for use with predefined exception compilation \
        units";
-  if Compilation_unit.is_external_symbols comp_unit
+  if Compilation_unit.equal comp_unit
+       (Flambda2_identifiers.Symbol.external_symbols_compilation_unit ())
   then None
   else
-    let id = Compilation_unit.get_persistent_ident comp_unit in
+    (* CR lmaurer: It feels like there should be a
+       [Compilenv.get_global_info_for_unit] here, but I'm not quite sure how to
+       implement it. *)
+    let id =
+      Compilation_unit.name comp_unit
+      |> Compilation_unit.Name.to_string
+      |> Ident.create_persistent
+    in
     match Compilenv.get_global_info' id with
     | None | Some (Flambda2 None) -> None
     | Some (Flambda2 (Some info)) -> Some info
@@ -208,10 +178,7 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
     | None ->
       () (* Either opaque was passed, or there is no need to export offsets *)
     | Some cmx -> Compilenv.flambda2_set_export_info cmx);
-    let cmm =
-      Flambda2_to_cmm.To_cmm.unit ~make_symbol:Compilenv.make_symbol flambda
-        ~all_code ~offsets
-    in
+    let cmm = Flambda2_to_cmm.To_cmm.unit flambda ~all_code ~offsets in
     if not keep_symbol_tables
     then (
       Compilenv.reset_info_tables ();

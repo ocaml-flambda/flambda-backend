@@ -70,14 +70,12 @@ let load_symbol_approx loader symbol : Code_or_metadata.t Value_approximation.t
 let all_predefined_exception_symbols ~symbol_for_global =
   Predef.all_predef_exns
   |> List.map (fun ident ->
-         symbol_for_global
-           ?comp_unit:(Some (Compilation_unit.predefined_exception ()))
-           ident)
+         symbol_for_global ?comp_unit:(Some Compilation_unit.predef_exn) ident)
   |> Symbol.Set.of_list
 
 let predefined_exception_typing_env ~symbol_for_global =
   let comp_unit = Compilation_unit.get_current_exn () in
-  Compilation_unit.set_current (Compilation_unit.predefined_exception ());
+  Compilation_unit.set_current Compilation_unit.predef_exn;
   let typing_env =
     TE.Serializable.predefined_exceptions
       (all_predefined_exception_symbols ~symbol_for_global)
@@ -97,8 +95,7 @@ let create_loader ~get_global_info ~symbol_for_global =
     predefined_exception_typing_env ~symbol_for_global
   in
   loader.imported_units
-    <- Compilation_unit.Map.singleton
-         (Compilation_unit.predefined_exception ())
+    <- Compilation_unit.Map.singleton Compilation_unit.predef_exn
          (Some predefined_exception_typing_env);
   loader.imported_names
     <- TE.Serializable.name_domain predefined_exception_typing_env;

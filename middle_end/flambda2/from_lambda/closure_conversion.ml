@@ -410,7 +410,7 @@ let close_c_call acc env ~loc ~let_bound_var
       if String.equal prim_native_name "" then prim_name else prim_native_name
     in
     Symbol.create
-      (Compilation_unit.external_symbols ())
+      (Symbol.external_symbols_compilation_unit ())
       (Linkage_name.create prim_name)
   in
   let call args acc =

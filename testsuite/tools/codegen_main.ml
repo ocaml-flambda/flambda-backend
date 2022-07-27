@@ -21,7 +21,11 @@ let compile_file filename =
     let out_name = Filename.chop_extension filename ^ ".s" in
     Emitaux.output_channel := open_out out_name
   end; (* otherwise, stdout *)
-  Compilenv.reset "test";
+  let compilation_unit =
+    Compilation_unit.create ~for_pack_prefix:Compilation_unit.Prefix.empty
+      ("test" |> Compilation_unit.Name.of_string)
+  in
+  Compilenv.reset compilation_unit;
   Emit.begin_assembly ~init_dwarf:(fun () -> ());
   let ic = open_in filename in
   let lb = Lexing.from_channel ic in

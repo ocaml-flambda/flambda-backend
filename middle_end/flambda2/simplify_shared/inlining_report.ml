@@ -373,7 +373,11 @@ module Uid = struct
     if Compilation_unit.equal compilation_unit cu_uid
     then Format.fprintf ppf "[[%s][here]]" t
     else
-      let external_reports = Compilation_unit.name cu_uid ^ ".0.inlining.org" in
+      (* CR lmaurer: Use [Compilation_unit.name_as_string] once I merge it in *)
+      let compilation_unit_name =
+        Compilation_unit.name cu_uid |> Compilation_unit.Name.to_string
+      in
+      let external_reports = compilation_unit_name ^ ".0.inlining.org" in
       try
         let file = Load_path.find_uncap external_reports in
         Format.fprintf ppf "[[file:%s::%s][in compilation unit %a]]" t file
@@ -616,9 +620,7 @@ module Inlining_tree = struct
       let defined_in = IHA.compilation_unit to_ in
       if Compilation_unit.equal defined_in compilation_unit
       then Format.fprintf ppf "this compilation unit"
-      else
-        Format.fprintf ppf "%s"
-          (Compilation_unit.string_for_printing defined_in)
+      else Format.fprintf ppf "%a" Compilation_unit.print_name defined_in
     in
     Format.fprintf ppf
       "@[<hov>The@ decision@ to@ inline@ this@ call@ was@ taken@ in@ %a@ at@ \

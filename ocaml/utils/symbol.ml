@@ -98,6 +98,11 @@ let for_global_or_predef_ident pack_prefix id =
 let for_predef_ident id =
   for_global_or_predef_ident Compilation_unit.Prefix.empty id
 
+let with_linkage_name compilation_unit linkage_name =
+  { compilation_unit;
+    linkage_name;
+    hash = Hashtbl.hash linkage_name; }
+
 let for_name compilation_unit name =
   let linkage_name =
     linkage_name_for_compilation_unit compilation_unit
@@ -122,45 +127,10 @@ let for_compilation_unit compilation_unit =
 let for_current_unit () =
   for_compilation_unit (CU.get_current_exn ())
 
-module Flambda = struct
-  let for_variable var =
-    let compilation_unit = Variable.get_compilation_unit var in
-    let linkage_name =
-      (linkage_name_for_compilation_unit compilation_unit)
-        ^ separator ^ Variable.unique_name var
-    in
-    { compilation_unit;
-      linkage_name;
-      hash = Hashtbl.hash linkage_name;
-    }
-
-  let for_closure closure_id =
-    let compilation_unit = Closure_id.get_compilation_unit closure_id in
-    let linkage_name =
-      (linkage_name_for_compilation_unit compilation_unit)
-        ^ separator ^ Closure_id.unique_name closure_id ^ "_closure"
-    in
-    { compilation_unit;
-      linkage_name;
-      hash = Hashtbl.hash linkage_name;
-    }
-
-  let for_code_of_closure closure_id =
-    let compilation_unit = Closure_id.get_compilation_unit closure_id in
-    let linkage_name =
-      (linkage_name_for_compilation_unit compilation_unit)
-        ^ separator ^ Closure_id.unique_name closure_id
-    in
-    { compilation_unit;
-      linkage_name;
-      hash = Hashtbl.hash linkage_name;
-    }
-
-  let import_for_pack t ~pack =
-    (* XXX Why is this needed?  Haven't we got the prefix correctly set now? *)
-    let compilation_unit = CU.with_for_pack_prefix t.compilation_unit pack in
-    { t with compilation_unit; }
-end
+let import_for_pack t ~pack =
+  (* XXX Why is this needed?  Haven't we got the prefix correctly set now? *)
+  let compilation_unit = CU.with_for_pack_prefix t.compilation_unit pack in
+  { t with compilation_unit; }
 
 let const_label = ref 0
 

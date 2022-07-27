@@ -21,6 +21,7 @@ open Cmx_format
 open Compilenv
 
 module String = Misc.Stdlib.String
+module CU = Compilation_unit
 
 type error =
   | File_not_found of filepath
@@ -36,9 +37,8 @@ type error =
 exception Error of error
 
 type unit_link_info = {
-  name: modname;
-  symbol: string;
-  defines: string list;
+  name: Compilation_unit.t;
+  defines: Compilation_unit.t list;
   file_name: string;
   crc: Digest.t;
   (* for shared libs *)
@@ -96,16 +96,17 @@ let check_cmx_consistency file_name cmxs =
 let check_consistency ~unit cmis cmxs =
   check_cmi_consistency unit.file_name cmis;
   check_cmx_consistency unit.file_name cmxs;
+  let ui_name = CU.Name.to_string (CU.name unit.name) in
   begin try
-    let source = String.Tbl.find implementations_defined unit.name in
-    raise (Error(Multiple_definition(unit.name, unit.file_name, source)))
+    let source = String.Tbl.find implementations_defined ui_name in
+    raise (Error(Multiple_definition(ui_name, unit.file_name, source)))
   with Not_found -> ()
   end;
-  implementations := unit.name :: !implementations;
-  Cmx_consistbl.check crc_implementations unit.name unit.crc unit.file_name;
-  String.Tbl.replace implementations_defined unit.name unit.file_name;
-  if unit.symbol <> unit.name then
-    cmx_required := unit.name :: !cmx_required
+  implementations := ui_name :: !implementations;
+  Cmx_consistbl.check crc_implementations ui_name unit.crc unit.file_name;
+  String.Tbl.replace implementations_defined ui_name unit.file_name;
+  if CU.is_packed unit.name then
+    cmx_required := ui_name :: !cmx_required
 
 let extract_crc_interfaces () =
   String.Tbl.fold (fun name () crcs ->
@@ -197,11 +198,13 @@ let scan_file ~shared genfns file (objfiles, tolink) =
   match read_file file with
   | Unit (file_name,info,crc) ->
       (* This is a .cmx file. It must be linked in any case. *)
-      remove_required info.ui_name;
+      let name = CU.Name.to_string (CU.name info.ui_name) in
+      assert (not (String.equal name ""));
+      remove_required name;
       List.iter (add_required (file_name, None)) info.ui_imports_cmx;
       let dynunit : Cmxs_format.dynunit option =
         if not shared then None else
-          Some { dynu_name = info.ui_name;
+          Some { dynu_name = name;
                  dynu_crc = crc;
                  dynu_defines = info.ui_defines;
                  dynu_imports_cmi = info.ui_imports_cmi;
@@ -209,7 +212,6 @@ let scan_file ~shared genfns file (objfiles, tolink) =
       in
       let unit =
         { name = info.ui_name;
-          symbol = info.ui_symbol;
           crc;
           defines = info.ui_defines;
           file_name;
@@ -244,12 +246,13 @@ let scan_file ~shared genfns file (objfiles, tolink) =
       objfiles,
       List.fold_right
         (fun info reqd ->
+           let li_name = CU.Name.to_string (CU.name info.li_name) in
            if info.li_force_link
            || !Clflags.link_everything
-           || is_required info.li_name
+           || is_required li_name
            then begin
-             remove_required info.li_name;
-             let req_by = (file_name, Some info.li_name) in
+             remove_required li_name;
+             let req_by = (file_name, Some li_name) in
              info.li_imports_cmx |> Misc.Bitmap.iter (fun i ->
                add_required req_by infos.lib_imports_cmx.(i));
              let imports_list tbl bits =
@@ -260,7 +263,7 @@ let scan_file ~shared genfns file (objfiles, tolink) =
              let dynunit : Cmxs_format.dynunit option =
                if not shared then None else
                  Some {
-                   dynu_name = info.li_name;
+                   dynu_name = li_name;
                    dynu_crc = info.li_crc;
                    dynu_defines = info.li_defines;
                    dynu_imports_cmi =
@@ -270,7 +273,6 @@ let scan_file ~shared genfns file (objfiles, tolink) =
              in
              let unit =
                { name = info.li_name;
-                 symbol = info.li_symbol;
                  crc = info.li_crc;
                  defines = info.li_defines;
                  file_name;
@@ -298,20 +300,23 @@ let make_globals_map units_list =
      compilation. *)
   let defined =
     List.map (fun unit ->
-        let intf_crc = Cmi_consistbl.find crc_interfaces unit.name in
-        String.Tbl.remove interfaces unit.name;
-        (unit.name, intf_crc, Some unit.crc, unit.defines))
+        let name = CU.Name.to_string (CU.name unit.name) in
+        let intf_crc = Cmi_consistbl.find crc_interfaces name in
+        String.Tbl.remove interfaces name;
+        let syms = List.map Symbol.for_compilation_unit unit.defines in
+        (CU.name unit.name, intf_crc, Some unit.crc, syms))
       units_list
   in
   String.Tbl.fold (fun name () globals_map ->
       let intf_crc = Cmi_consistbl.find crc_interfaces name in
-      (name, intf_crc, None, []) :: globals_map)
+      (CU.Name.of_string name, intf_crc, None, []) :: globals_map)
     interfaces
     defined
 
 let make_startup_file ~ppf_dump ~named_startup_file ~filename genfns units =
   Location.input_name := "caml_startup"; (* set name of "current" input *)
-  Compilenv.reset "_startup"; (* set the name of the "current" compunit *)
+  let startup_comp_unit = CU.create (CU.Name.of_string "_startup") in
+  Compilenv.reset startup_comp_unit;
   let dwarf =
     let filename =
       (* Ensure the name emitted into the DWARF is stable, for build
@@ -336,14 +341,22 @@ let make_startup_file ~ppf_dump ~named_startup_file ~filename genfns units =
   compile_phrase (Cmm_helpers.global_table name_list);
   let globals_map = make_globals_map units in
   compile_phrase (Cmm_helpers.globals_map globals_map);
-  compile_phrase(Cmm_helpers.data_segment_table ("_startup" :: name_list));
-  if !Clflags.function_sections then
-    compile_phrase
-      (Cmm_helpers.code_segment_table("_hot" :: "_startup" :: name_list))
-  else
-    compile_phrase(Cmm_helpers.code_segment_table("_startup" :: name_list));
-  let all_names = "_startup" :: "_system" :: name_list in
-  compile_phrase (Cmm_helpers.frame_table all_names);
+  compile_phrase
+    (Cmm_helpers.data_segment_table (startup_comp_unit :: name_list));
+  (* CR mshinwell: We should have a separate notion of "backend compilation
+     unit" really, since the units here don't correspond to .ml source
+     files. *)
+  let hot_comp_unit = CU.create (CU.Name.of_string "_hot") in
+  let system_comp_unit = CU.create (CU.Name.of_string "_system") in
+  let code_comp_units =
+    if !Clflags.function_sections then
+      hot_comp_unit :: startup_comp_unit :: name_list
+    else
+      startup_comp_unit :: name_list
+  in
+  compile_phrase (Cmm_helpers.code_segment_table code_comp_units);
+  let all_comp_units = startup_comp_unit :: system_comp_unit :: name_list in
+  compile_phrase (Cmm_helpers.frame_table all_comp_units);
   if !Clflags.output_complete_object then
     force_linking_of_startup ~ppf_dump;
   Emit.end_assembly dwarf
@@ -351,15 +364,17 @@ let make_startup_file ~ppf_dump ~named_startup_file ~filename genfns units =
 let make_shared_startup_file ~ppf_dump genfns units =
   let compile_phrase p = Asmgen.compile_phrase ~ppf_dump p in
   Location.input_name := "caml_startup";
-  Compilenv.reset "_shared_startup";
+  let shared_startup_comp_unit =
+    CU.create (CU.Name.of_string "_shared_startup")
+  in
+  Compilenv.reset shared_startup_comp_unit;
   Emit.begin_assembly ~init_dwarf:(fun () -> ());
   List.iter compile_phrase
     (Cmm_helpers.generic_functions true genfns);
   let dynunits = List.map (fun u -> Option.get u.dynunit) units in
   compile_phrase (Cmm_helpers.plugin_header dynunits);
   compile_phrase
-    (Cmm_helpers.global_table
-       (List.map (fun u -> u.symbol) units));
+    (Cmm_helpers.global_table (List.map (fun unit -> unit.name) units));
   if !Clflags.output_complete_object then
     force_linking_of_startup ~ppf_dump;
   (* this is to force a reference to all units, otherwise the linker
@@ -471,7 +486,6 @@ let check_consistency file_name u crc =
   let unit =
     { file_name;
       name = u.ui_name;
-      symbol = u.ui_symbol;
       defines = u.ui_defines;
       crc;
       dynunit = None }

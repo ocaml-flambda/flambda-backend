@@ -1,3 +1,4 @@
+module Unwrapped_symbol = Symbol
 include Flambda2_compare
 include Flambda2_identifiers
 include Flambda2_terms

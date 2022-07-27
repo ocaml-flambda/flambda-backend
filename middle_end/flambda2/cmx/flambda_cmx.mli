@@ -20,8 +20,7 @@
 type loader
 
 val create_loader :
-  get_global_info:
-    (Flambda2_identifiers.Compilation_unit.t -> Flambda_cmx_format.t option) ->
+  get_global_info:(Compilation_unit.t -> Flambda_cmx_format.t option) ->
   symbol_for_global:(?comp_unit:Compilation_unit.t -> Ident.t -> Symbol.t) ->
   loader
 
