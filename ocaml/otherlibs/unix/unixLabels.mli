@@ -39,7 +39,7 @@
 *)
 
 (** {1 Error report} *)
-
+(*
 
 type error = Unix.error =
     E2BIG               (** Argument list too long *)
@@ -1844,3 +1844,4 @@ val setsid : unit -> int
    its controlling terminal.
 
    On Windows: not implemented. *)
+*)
