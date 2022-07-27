@@ -795,7 +795,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
   | Pbytes_set_64 false (* safe *), [bytes; index; new_value] ->
     bytes_like_set_safe ~dbg ~size_int ~access_size:Sixty_four Bytes bytes index
       new_value
-  | Pisint, [arg] -> tag_int (Unary (Is_int, arg))
+  | Pisint { variant_only }, [arg] ->
+    tag_int (Unary (Is_int { variant_only }, arg))
   | Pisout, [arg1; arg2] ->
     tag_int
       (Binary
@@ -1087,7 +1088,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
       | Pnegfloat _ | Pabsfloat _ | Pstringlength | Pbyteslength | Pbintofint _
       | Pintofbint _ | Pnegbint _ | Popaque | Pduprecord _ | Parraylength _
       | Pduparray _ | Pfloatfield _ | Pcvtbint _ | Poffsetref _ | Pbswap16
-      | Pbbswap _ | Pisint | Pint_as_pointer | Pbigarraydim _ ),
+      | Pbbswap _ | Pisint _ | Pint_as_pointer | Pbigarraydim _ ),
       ([] | _ :: _ :: _) ) ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for unary primitive \

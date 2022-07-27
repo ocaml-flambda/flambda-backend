@@ -519,7 +519,7 @@ let unary_primitive env res dbg f arg =
       res,
       C.extcall ~dbg ~alloc:true ~returns:true ~is_c_builtin:false ~ty_args:[]
         "caml_obj_dup" Cmm.typ_val [arg] )
-  | Is_int -> None, res, C.and_int arg (C.int ~dbg 1) dbg
+  | Is_int _ -> None, res, C.and_int arg (C.int ~dbg 1) dbg
   | Get_tag -> None, res, C.get_tag arg dbg
   | Array_length -> None, res, array_length ~dbg arg
   | Bigarray_length { dimension } ->

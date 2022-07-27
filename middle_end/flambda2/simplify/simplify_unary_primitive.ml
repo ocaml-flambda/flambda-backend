@@ -180,10 +180,23 @@ let simplify_is_int_or_get_tag dacc ~original_term ~scrutinee ~scrutinee_ty:_
   let dacc = DA.add_variable dacc result_var (make_shape scrutinee) in
   SPR.create original_term ~try_reify:true dacc
 
-let simplify_is_int dacc ~original_term ~arg:scrutinee ~arg_ty:scrutinee_ty
-    ~result_var =
-  simplify_is_int_or_get_tag dacc ~original_term ~scrutinee ~scrutinee_ty
-    ~result_var ~make_shape:(fun scrutinee -> T.is_int_for_scrutinee ~scrutinee)
+let simplify_is_int ~variant_only dacc ~original_term ~arg:scrutinee
+    ~arg_ty:scrutinee_ty ~result_var =
+  if variant_only
+  then
+    simplify_is_int_or_get_tag dacc ~original_term ~scrutinee ~scrutinee_ty
+      ~result_var ~make_shape:(fun scrutinee ->
+        T.is_int_for_scrutinee ~scrutinee)
+  else
+    match T.prove_is_int (DA.typing_env dacc) scrutinee_ty with
+    | Proved b ->
+      let ty = T.this_naked_immediate (Targetint_31_63.bool b) in
+      let dacc = DA.add_variable dacc result_var ty in
+      SPR.create original_term ~try_reify:false dacc
+    | Unknown ->
+      let ty = T.unknown K.naked_immediate in
+      let dacc = DA.add_variable dacc result_var ty in
+      SPR.create original_term ~try_reify:false dacc
 
 let simplify_get_tag dacc ~original_term ~arg:scrutinee ~arg_ty:scrutinee_ty
     ~result_var =
@@ -523,7 +536,7 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
       simplify_box_number boxable_number_kind alloc_mode
     | Tag_immediate -> simplify_tag_immediate
     | Untag_immediate -> simplify_untag_immediate
-    | Is_int -> simplify_is_int
+    | Is_int { variant_only } -> simplify_is_int ~variant_only
     | Get_tag -> simplify_get_tag
     | Array_length -> simplify_array_length
     | String_length _ -> simplify_string_length
