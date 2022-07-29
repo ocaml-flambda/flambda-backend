@@ -5,7 +5,7 @@
 module StringTable : sig
   type t
 
-  val empty : t
+  val create : unit -> t
 
   val add_string : t -> string -> unit
 

@@ -23,11 +23,6 @@ let name s_l s_opt s_l' =
   let last = match s_l' with [] -> "" | l -> "," ^ String.concat "," l in
   first ^ mid ^ last
 
-let append key (s, l) t =
-  StringMap.update key
-    (function None -> Some (s, l) | Some (s, l') -> Some (s, l' @ l))
-    t
-
 let isprefix s1 s2 =
   String.length s1 <= String.length s2
   && String.equal (String.sub s2 0 (String.length s1)) s1
@@ -39,7 +34,7 @@ module StringTable = struct
     }
 
   (* An index of 0 in the string table is reserved for the null string *)
-  let empty = { current_length = 1; strings = [""] }
+  let create () = { current_length = 1; strings = [""] }
 
   let add_string t string =
     t.current_length <- t.current_length + String.length string + 1;
@@ -50,11 +45,94 @@ module StringTable = struct
   let get_strings t = List.rev t.strings
 end
 
-type sections =
-  { mutable sections : Owee.Owee_elf.section list;
-    mutable section_bodies : (int * string) list;
-    mutable current_offset : int64
-  }
+module SectionTable : sig
+  type t
+
+  val create : unit -> t
+
+  val add_section : t -> ?body:string -> Owee.Owee_elf.section -> unit
+
+  val current_offset : t -> int64
+
+  val num_sections : t -> int
+
+  val get_sec_idx : t -> string -> int
+
+  val get_section : t -> string -> Owee.Owee_elf.section
+
+  val get_section_opt : t -> string -> Owee.Owee_elf.section option
+
+  val get_sections : t -> Owee.Owee_elf.section array
+
+  val get_section_bodies : t -> (int * string) list
+end = struct
+  type t =
+    { mutable sections : Owee.Owee_elf.section list;
+      mutable num_sections : int;
+      section_tb : int StringTbl.t;
+      mutable section_bodies : (int * string) list;
+      mutable current_offset : int64
+    }
+
+  open Owee.Owee_elf
+
+  let create () =
+    { sections =
+        [ { sh_name = 0;
+            sh_type = 0;
+            sh_flags = 0L;
+            sh_addr = 0L;
+            sh_offset = 0L;
+            sh_size = 0L;
+            sh_link = 0;
+            sh_info = 0;
+            sh_addralign = 0L;
+            sh_entsize = 0L;
+            sh_name_str = ""
+          } ];
+      num_sections = 1;
+      section_tb = StringTbl.create 100;
+      section_bodies = [];
+      current_offset = 64L
+    }
+
+  let add_section t ?body section =
+    t.sections <- section :: t.sections;
+    StringTbl.add t.section_tb section.sh_name_str t.num_sections;
+    t.num_sections <- t.num_sections + 1;
+    t.current_offset <- Int64.add t.current_offset section.sh_size;
+    match body with
+    | Some body ->
+      t.section_bodies
+        <- (Int64.to_int section.sh_offset, body) :: t.section_bodies
+    | None -> ()
+
+  let current_offset t = t.current_offset
+
+  let num_sections t = t.num_sections
+
+  let get_sec_idx t name = StringTbl.find t.section_tb name
+
+  (* let rec pos name acc l = *)
+  (*   match l with *)
+  (*   | [] -> failwith "Not found" *)
+  (*   | { sh_name_str } :: tl when String.equal sh_name_str name -> acc + 1 *)
+  (*   | _ :: tl -> pos name (acc + 1) tl *)
+  (* in *)
+  (* num_sections t - pos name 0 t.sections *)
+
+  let get_section t name =
+    List.find (fun section -> String.equal section.sh_name_str name) t.sections
+
+  let get_section_opt t name =
+    List.find_opt
+      (fun section -> String.equal section.sh_name_str name)
+      t.sections
+
+  let get_sections t = Array.of_list (List.rev t.sections)
+
+  let get_section_bodies t = t.section_bodies
+end
 
 module SymbolEntry = struct
   type t =
@@ -96,13 +174,6 @@ module SymbolEntry = struct
 
   let create_symbol (symbol : X86_binary_emitter.symbol) symbol_table sections
       string_table =
-    let rec pos name acc (l : Owee.Owee_elf.section list) =
-      match l with
-      | [] -> failwith "Not found"
-      | { sh_name_str } :: tl when String.equal sh_name_str name -> acc + 1
-      | _ :: tl -> pos name (acc + 1) tl
-    in
-    let pos name list = List.length list - pos name 0 list in
     let value = Option.value ~default:0 symbol.sy_pos in
     let size = Option.value ~default:0 symbol.sy_size in
     let bind =
@@ -121,7 +192,7 @@ module SymbolEntry = struct
       { st_name = StringTable.current_length string_table;
         st_info = (global lsl 4) lor bind;
         st_other = 0;
-        st_shndx = pos symbol.sy_sec.sec_name sections.sections;
+        st_shndx = SectionTable.get_sec_idx sections symbol.sy_sec.sec_name;
         (* st_shname_str = symbol.sy_sec.sec_name; *)
         st_value = Int64.of_int value;
         st_size = Int64.of_int size;
@@ -255,11 +326,23 @@ let from_program l =
        sections_tbl)
     StringMap.empty
 
-type relocation_entry =
-  { r_offset : Owee.Owee_buf.u64;
-    r_info : Owee.Owee_buf.u64;
-    r_addend : Owee.Owee_buf.u64
-  }
+module RelocationEntry = struct
+  type t =
+    { r_offset : Owee.Owee_buf.u64;
+      r_info : Owee.Owee_buf.u64;
+      r_addend : Owee.Owee_buf.u64
+    }
+
+  let create_relocation ~offset ~info ~addend =
+    { r_offset = offset; r_info = info; r_addend = addend }
+
+  open Owee.Owee_buf
+
+  let write t cursor =
+    Write.u64 cursor t.r_offset;
+    Write.u64 cursor t.r_info;
+    Write.u64 cursor t.r_addend
+end
 
 let parse_flags flags =
   let rec inner acc = function
@@ -314,16 +397,13 @@ let create_relocation (relocation : X86_binary_emitter.Relocation.t)
         (get_reloc_info 4 (Int64.sub addend 4L) name symbol_table) string_table
       | _ -> failwith (Printf.sprintf "Invalid symbol %s\n" name))
   in
-  let reloc =
-    { r_offset = Int64.of_int relocation.offset_from_section_beginning;
-      r_info =
-        Int64.logor
-          (Int64.shift_left (Int64.of_int relocation_symbol) 32)
-          (Int64.of_int relocation_type);
-      r_addend = addend
-    }
-  in
-  reloc
+  RelocationEntry.create_relocation
+    ~offset:(Int64.of_int relocation.offset_from_section_beginning)
+    ~info:
+      (Int64.logor
+         (Int64.shift_left (Int64.of_int relocation_symbol) 32)
+         (Int64.of_int relocation_type))
+    ~addend
 
 let make_identification : Owee.Owee_elf.identification =
   { elf_class = 2;
@@ -377,16 +457,11 @@ let create_section name ~sh_type ~size ~offset ?align ?entsize ?flags ?sh_link
 let make_section sections name sh_type ~size ?align ?entsize ?flags ?sh_link
     ?sh_info ?body shstrtab =
   let section : Owee.Owee_elf.section =
-    create_section name ~sh_type ~size ~offset:sections.current_offset ?align
-      ?entsize ?flags ?sh_link ?sh_info shstrtab
+    create_section name ~sh_type ~size
+      ~offset:(SectionTable.current_offset sections)
+      ?align ?entsize ?flags ?sh_link ?sh_info shstrtab
   in
-  sections.sections <- section :: sections.sections;
-  sections.current_offset <- Int64.add sections.current_offset size;
-  match body with
-  | Some body ->
-    sections.section_bodies
-      <- (Int64.to_int section.sh_offset, body) :: sections.section_bodies
-  | _ -> ()
+  SectionTable.add_section sections ?body section
 
 let make_text sections (s_l, s_opt, s_l') raw_section align sh_string_table =
   make_section sections (String.concat "," s_l) 1
@@ -399,12 +474,6 @@ let make_data sections (s_l, s_opt, s_l') raw_section align sh_string_table =
     ~size:(Int64.of_int (X86_binary_emitter.size raw_section))
     ~flags:0x3L sh_string_table ~align
     ~body:(X86_binary_emitter.contents raw_section)
-
-let make_null sections sh_string_table =
-  let section =
-    create_section "" ~sh_type:0 ~size:0L ~offset:0L ~align:0L sh_string_table
-  in
-  sections.sections <- sections.sections @ [section]
 
 let make_shstrtab sections sh_string_table =
   let name = ".shstrtab" in
@@ -430,19 +499,9 @@ let make_custom_section sections (s_l, s_opt, s_l') raw_section sh_string_table
     sh_string_table
 
 let make_relocation_section sections sym_tbl_idx name size sh_string_table =
-  let open Owee.Owee_elf in
-  let num_sections = List.length sections.sections in
-  let i, section =
-    List.find
-      (fun (_, s) -> String.equal s.sh_name_str name)
-      (List.mapi (fun i x -> i, x) sections.sections)
-  in
-  let idx = num_sections - i - 1 in
-  let section =
-    make_section sections (".rela" ^ name) 4 ~size ~entsize:24L ~flags:0x40L
-      ~sh_link:sym_tbl_idx sh_string_table ~align:8L ~sh_info:idx
-  in
-  section
+  let idx = SectionTable.get_sec_idx sections name in
+  make_section sections (".rela" ^ name) 4 ~size ~entsize:24L ~flags:0x40L
+    ~sh_link:sym_tbl_idx sh_string_table ~align:8L ~sh_info:idx
 
 let get_sections asm =
   let sections =
@@ -482,7 +541,7 @@ let make_compiler_sections section_table compiler_sections symbol_table
         make_custom_section section_table section_info raw_section 1
           sh_string_table;
       SymbolTable.make_section_symbol symbol_table
-        (List.length section_table.sections - 1)
+        (SectionTable.num_sections section_table - 1)
         section_table)
     compiler_sections
 
@@ -511,13 +570,10 @@ let assemble asm output_file =
     Profile.record ~accumulate:true "X86_binary_emitter" get_sections asm
   in
 
-  let string_table = StringTable.empty in
-  let sh_string_table = StringTable.empty in
-  let sections = { sections = []; section_bodies = []; current_offset = 64L } in
+  let string_table = StringTable.create () in
+  let sh_string_table = StringTable.create () in
+  let sections = SectionTable.create () in
   let symbol_table = SymbolTable.create () in
-  StringTable.add_string string_table "";
-
-  make_null sections sh_string_table;
 
   let section_symbols =
     Profile.record ~accumulate:true "make_compiler_sections"
@@ -546,7 +602,7 @@ let assemble asm output_file =
       (StringMap.bindings binary_sections)
   in
   let symtab_idx =
-    List.length sections.sections + List.length raw_relocations
+    SectionTable.num_sections sections + List.length raw_relocations
   in
   List.iter
     (fun (name, relocations) ->
@@ -556,7 +612,7 @@ let assemble asm output_file =
     raw_relocations;
   let num_locals = SymbolTable.num_locals symbol_table in
 
-  let strtabidx = 1 + List.length sections.sections in
+  let strtabidx = 1 + SectionTable.num_sections sections in
   make_section sections ".symtab" 2 ~entsize:24L
     ~size:(Int64.of_int (24 * SymbolTable.num_symbols symbol_table))
     ~align:8L ~sh_link:strtabidx ~sh_info:num_locals sh_string_table;
@@ -568,38 +624,27 @@ let assemble asm output_file =
   let identification = make_identification in
   let header =
     make_header identification
-      (List.length sections.sections)
-      sections.current_offset
+      (SectionTable.num_sections sections)
+      (SectionTable.current_offset sections)
   in
   Printf.printf "File: %s\n" output_file;
   Printf.printf "Total size: %d\n"
-    (Int64.to_int sections.current_offset
+    (Int64.to_int (SectionTable.current_offset sections)
     + (header.e_shnum * header.e_shentsize));
   let elf =
     Owee.Owee_buf.map_binary_write output_file
-      (Int64.to_int sections.current_offset
+      (Int64.to_int (SectionTable.current_offset sections)
       + (header.e_shnum * header.e_shentsize))
   in
-  Owee.Owee_elf.write_elf elf header
-    (Array.of_list (List.rev sections.sections));
+  Owee.Owee_elf.write_elf elf header (SectionTable.get_sections sections);
   List.iter
     (fun (pos, body) ->
       Owee.Owee_buf.Write.fixed_string
         (Owee.Owee_buf.cursor elf ~at:pos)
         (String.length body) body)
-    sections.section_bodies;
-  let symtab =
-    List.find
-      (fun (section : Owee.Owee_elf.section) ->
-        String.equal section.sh_name_str ".symtab")
-      sections.sections
-  in
-  let strtab =
-    List.find
-      (fun (section : Owee.Owee_elf.section) ->
-        String.equal section.sh_name_str ".strtab")
-      sections.sections
-  in
+    (SectionTable.get_section_bodies sections);
+  let symtab = SectionTable.get_section sections ".symtab" in
+  let strtab = SectionTable.get_section sections ".strtab" in
   List.iteri
     (fun i symbol ->
       let idx = (i * 24) + Int64.to_int symtab.sh_offset in
@@ -607,20 +652,13 @@ let assemble asm output_file =
     (SymbolTable.get_symbols symbol_table);
   List.iter
     (fun (name, relocations) ->
-      match
-        List.find_opt
-          (fun (section : Owee.Owee_elf.section) ->
-            String.equal section.sh_name_str (".rela" ^ name))
-          sections.sections
-      with
+      match SectionTable.get_section_opt sections (".rela" ^ name) with
       | Some table ->
         List.iteri
           (fun i relocation ->
             let open Owee.Owee_buf in
-            let t = cursor elf ~at:((i * 24) + Int64.to_int table.sh_offset) in
-            Write.u64 t relocation.r_offset;
-            Write.u64 t relocation.r_info;
-            Write.u64 t relocation.r_addend)
+            let idx = (i * 24) + Int64.to_int table.sh_offset in
+            RelocationEntry.write relocation (cursor elf ~at:idx))
           relocations
       | None -> ())
     raw_relocations;
