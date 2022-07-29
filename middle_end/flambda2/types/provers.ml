@@ -76,6 +76,8 @@ let prove_equals_to_simple_of_kind_value env t : Simple.t proof_of_property =
       | exception Not_found -> Unknown
       | simple -> Proved simple)
 
+(* Note: this function is used for simplifying Obj.is_int, so should not assume
+   that the argument represents a variant *)
 let prove_is_int_generic env t : bool generic_proof =
   match expand_head env t with
   | Value (Ok (Variant blocks_imms)) -> (

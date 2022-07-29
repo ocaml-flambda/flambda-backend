@@ -311,7 +311,7 @@ let nullary_prim_size prim =
 let unary_prim_size prim =
   match (prim : Flambda_primitive.unary_primitive) with
   | Duplicate_array _ | Duplicate_block _ -> alloc_extcall_size + 1
-  | Is_int -> 1
+  | Is_int _ -> 1
   | Get_tag -> 2
   | Array_length -> array_length_size
   | Bigarray_length _ -> 2 (* cadda + load *)

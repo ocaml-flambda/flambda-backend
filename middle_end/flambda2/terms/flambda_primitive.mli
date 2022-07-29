@@ -226,7 +226,7 @@ type unary_primitive =
         source_mutability : Mutability.t;
         destination_mutability : Mutability.t
       }
-  | Is_int
+  | Is_int of { variant_only : bool }
   | Get_tag
   | Array_length
   | Bigarray_length of { dimension : int }
@@ -449,7 +449,7 @@ module Eligible_for_cse : sig
 
   val create_exn : primitive_application -> t
 
-  val create_is_int : immediate_or_block:Name.t -> t
+  val create_is_int : variant_only:bool -> immediate_or_block:Name.t -> t
 
   val create_get_tag : block:Name.t -> t
 

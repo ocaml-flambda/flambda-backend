@@ -604,7 +604,7 @@ type unary_primitive =
         source_mutability : Mutability.t;
         destination_mutability : Mutability.t
       }
-  | Is_int
+  | Is_int of { variant_only : bool }
   | Get_tag
   | Array_length
   | Bigarray_length of { dimension : int }
@@ -641,7 +641,7 @@ let unary_primitive_eligible_for_cse p ~arg =
   match p with
   | Duplicate_array _ -> false
   | Duplicate_block { kind = _ } -> false
-  | Is_int | Get_tag -> true
+  | Is_int _ | Get_tag -> true
   | Array_length -> true
   | Bigarray_length _ -> false
   | String_length _ -> true
@@ -671,7 +671,7 @@ let compare_unary_primitive p1 p2 =
     match p with
     | Duplicate_array _ -> 0
     | Duplicate_block _ -> 1
-    | Is_int -> 2
+    | Is_int _ -> 2
     | Get_tag -> 3
     | Array_length -> 4
     | Bigarray_length _ -> 5
@@ -714,7 +714,9 @@ let compare_unary_primitive p1 p2 =
       else Stdlib.compare destination_mutability1 destination_mutability2
   | Duplicate_block { kind = kind1 }, Duplicate_block { kind = kind2 } ->
     Duplicate_block_kind.compare kind1 kind2
-  | Is_int, Is_int -> 0
+  | ( Is_int { variant_only = variant_only1 },
+      Is_int { variant_only = variant_only2 } ) ->
+    Bool.compare variant_only1 variant_only2
   | Get_tag, Get_tag -> 0
   | String_length kind1, String_length kind2 -> Stdlib.compare kind1 kind2
   | Int_arith (kind1, op1), Int_arith (kind2, op2) ->
@@ -745,7 +747,7 @@ let compare_unary_primitive p1 p2 =
         { project_from = function_slot2; value_slot = value_slot2 } ) ->
     let c = Function_slot.compare function_slot1 function_slot2 in
     if c <> 0 then c else Value_slot.compare value_slot1 value_slot2
-  | ( ( Duplicate_array _ | Duplicate_block _ | Is_int | Get_tag
+  | ( ( Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag
       | String_length _ | Int_as_pointer | Opaque_identity | Int_arith _
       | Num_conv _ | Boolean_not | Reinterpret_int64_as_float | Float_arith _
       | Array_length | Bigarray_length _ | Unbox_number _ | Box_number _
@@ -767,7 +769,8 @@ let print_unary_primitive ppf p =
     fprintf ppf "@[<hov 1>(Duplicate_array %a (source %a) (dest %a))@]"
       Duplicate_array_kind.print kind Mutability.print source_mutability
       Mutability.print destination_mutability
-  | Is_int -> fprintf ppf "Is_int"
+  | Is_int { variant_only } ->
+    if variant_only then fprintf ppf "Is_int" else fprintf ppf "Is_int_generic"
   | Get_tag -> fprintf ppf "Get_tag"
   | String_length _ -> fprintf ppf "String_length"
   | Int_as_pointer -> fprintf ppf "Int_as_pointer"
@@ -806,7 +809,7 @@ let print_unary_primitive ppf p =
 let arg_kind_of_unary_primitive p =
   match p with
   | Duplicate_array _ | Duplicate_block _ -> K.value
-  | Is_int -> K.value
+  | Is_int _ -> K.value
   | Get_tag -> K.value
   | String_length _ -> K.value
   | Int_as_pointer -> K.value
@@ -828,7 +831,7 @@ let arg_kind_of_unary_primitive p =
 let result_kind_of_unary_primitive p : result_kind =
   match p with
   | Duplicate_array _ | Duplicate_block _ -> Singleton K.value
-  | Is_int | Get_tag -> Singleton K.naked_immediate
+  | Is_int _ | Get_tag -> Singleton K.naked_immediate
   | String_length _ -> Singleton K.naked_immediate
   | Int_as_pointer ->
     (* This primitive is *only* to be used when the resulting pointer points at
@@ -875,7 +878,7 @@ let effects_and_coeffects_of_unary_primitive p =
     (* We have to assume that the fields might be mutable. (This information
        isn't currently propagated from [Lambda].) *)
     Effects.Only_generative_effects Mutable, Coeffects.Has_coeffects
-  | Is_int -> Effects.No_effects, Coeffects.No_coeffects
+  | Is_int _ -> Effects.No_effects, Coeffects.No_coeffects
   | Get_tag ->
     (* [Obj.truncate] has now been removed. *)
     Effects.No_effects, Coeffects.No_coeffects
@@ -931,7 +934,7 @@ let unary_classify_for_printing p =
   match p with
   | Duplicate_array _ | Duplicate_block _ -> Constructive
   | String_length _ | Get_tag -> Destructive
-  | Is_int | Int_as_pointer | Opaque_identity | Int_arith _ | Num_conv _
+  | Is_int _ | Int_as_pointer | Opaque_identity | Int_arith _ | Num_conv _
   | Boolean_not | Reinterpret_int64_as_float | Float_arith _ ->
     Neither
   | Array_length | Bigarray_length _ | Unbox_number _ | Untag_immediate ->
@@ -1658,8 +1661,8 @@ module Eligible_for_cse = struct
     | Some t -> t
     | None -> Misc.fatal_errorf "Primitive %a not eligible for CSE" print prim
 
-  let create_is_int ~immediate_or_block =
-    Unary (Is_int, Simple.name immediate_or_block)
+  let create_is_int ~variant_only ~immediate_or_block =
+    Unary (Is_int { variant_only }, Simple.name immediate_or_block)
 
   let create_get_tag ~block = Unary (Get_tag, Simple.name block)
 
