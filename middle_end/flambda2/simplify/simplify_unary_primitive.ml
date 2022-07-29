@@ -194,9 +194,7 @@ let simplify_is_int ~variant_only dacc ~original_term ~arg:scrutinee
       let dacc = DA.add_variable dacc result_var ty in
       SPR.create original_term ~try_reify:false dacc
     | Unknown ->
-      let ty = T.unknown K.naked_immediate in
-      let dacc = DA.add_variable dacc result_var ty in
-      SPR.create original_term ~try_reify:false dacc
+      SPR.create_unknown dacc ~result_var K.naked_immediate ~original_term
 
 let simplify_get_tag dacc ~original_term ~arg:scrutinee ~arg_ty:scrutinee_ty
     ~result_var =
@@ -231,9 +229,7 @@ let simplify_string_length dacc ~original_term ~arg:_ ~arg_ty:str_ty ~result_var
       let dacc = DA.add_variable dacc result_var ty in
       SPR.create original_term ~try_reify:true dacc
   | Need_meet ->
-    let ty = T.unknown K.naked_immediate in
-    let dacc = DA.add_variable dacc result_var ty in
-    SPR.create original_term ~try_reify:false dacc
+    SPR.create_unknown dacc ~result_var K.naked_immediate ~original_term
   | Invalid -> SPR.create_invalid dacc
 
 module Unary_int_arith (I : A.Int_number_kind) = struct
@@ -252,12 +248,10 @@ module Unary_int_arith (I : A.Int_number_kind) = struct
       let dacc = DA.add_variable dacc result_var ty in
       SPR.create original_term ~try_reify:true dacc
     | Need_meet ->
-      let dacc =
-        DA.add_variable dacc result_var
-          (T.unknown
-             (K.Standard_int_or_float.to_kind I.standard_int_or_float_kind))
+      let result_kind =
+        K.Standard_int_or_float.to_kind I.standard_int_or_float_kind
       in
-      SPR.create original_term ~try_reify:false dacc
+      SPR.create_unknown dacc ~result_var result_kind ~original_term
     | Invalid -> SPR.create_invalid dacc
 end
 
@@ -356,9 +350,8 @@ module Make_simplify_int_conv (N : A.Number_kind) = struct
           end) in
           M.result)
       | Need_meet ->
-        let ty = T.unknown (K.Standard_int_or_float.to_kind dst) in
-        let dacc = DA.add_variable dacc result_var ty in
-        SPR.create original_term ~try_reify:false dacc
+        let result_kind = K.Standard_int_or_float.to_kind dst in
+        SPR.create_unknown dacc ~result_var result_kind ~original_term
       | Invalid -> SPR.create_invalid dacc
 end
 
@@ -437,9 +430,7 @@ let simplify_float_arith_op (op : P.unary_float_arith_op) dacc ~original_term
     let dacc = DA.add_variable dacc result_var ty in
     SPR.create original_term ~try_reify:true dacc
   | Known_result _ | Need_meet ->
-    let ty = T.unknown K.naked_float in
-    let dacc = DA.add_variable dacc result_var ty in
-    SPR.create original_term ~try_reify:false dacc
+    SPR.create_unknown dacc ~result_var K.naked_float ~original_term
   | Invalid -> SPR.create_invalid dacc
 
 let simplify_is_boxed_float dacc ~original_term ~arg:_ ~arg_ty ~result_var =
@@ -451,9 +442,7 @@ let simplify_is_boxed_float dacc ~original_term ~arg:_ ~arg_ty ~result_var =
     let dacc = DA.add_variable dacc result_var ty in
     SPR.create original_term ~try_reify:true dacc
   | Unknown ->
-    let ty = T.unknown K.naked_immediate in
-    let dacc = DA.add_variable dacc result_var ty in
-    SPR.create original_term ~try_reify:false dacc
+    SPR.create_unknown dacc ~result_var K.naked_immediate ~original_term
 
 let simplify_is_flat_float_array dacc ~original_term ~arg:_ ~arg_ty ~result_var
     =
@@ -471,9 +460,7 @@ let simplify_is_flat_float_array dacc ~original_term ~arg:_ ~arg_ty ~result_var
   | Invalid -> SPR.create_invalid dacc
 
 let simplify_opaque_identity dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
-  let ty = T.unknown K.value in
-  let dacc = DA.add_variable dacc result_var ty in
-  SPR.create original_term ~try_reify:false dacc
+  SPR.create_unknown dacc ~result_var K.value ~original_term
 
 let simplify_end_region dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
   let ty = T.this_tagged_immediate Targetint_31_63.zero in
@@ -481,15 +468,11 @@ let simplify_end_region dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
   SPR.create original_term ~try_reify:false dacc
 
 let simplify_int_as_pointer dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
-  let ty = T.unknown K.value in
-  let dacc = DA.add_variable dacc result_var ty in
-  SPR.create original_term ~try_reify:false dacc
+  SPR.create_unknown dacc ~result_var K.value ~original_term
 
 let simplify_bigarray_length ~dimension:_ dacc ~original_term ~arg:_ ~arg_ty:_
     ~result_var =
-  let ty = T.unknown K.naked_immediate in
-  let dacc = DA.add_variable dacc result_var ty in
-  SPR.create original_term ~try_reify:false dacc
+  SPR.create_unknown dacc ~result_var K.naked_immediate ~original_term
 
 let simplify_duplicate_array ~kind:_ ~(source_mutability : Mutability.t)
     ~(destination_mutability : Mutability.t) dacc ~original_term ~arg:_ ~arg_ty
