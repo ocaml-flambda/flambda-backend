@@ -28,7 +28,6 @@ val lambda_to_cmm :
   Cmm.phrase list
 
 val symbol_for_global :
-  ?comp_unit:Compilation_unit.t ->
   Ident.t ->
   Flambda2_identifiers.Symbol.t
 

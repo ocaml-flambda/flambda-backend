@@ -68,10 +68,7 @@ let load_symbol_approx loader symbol : Code_or_metadata.t Value_approximation.t
     T.Typing_env.Serializable.extract_symbol_approx typing_env symbol find_code
 
 let all_predefined_exception_symbols ~symbol_for_global =
-  Predef.all_predef_exns
-  |> List.map (fun ident ->
-         symbol_for_global ?comp_unit:(Some Compilation_unit.predef_exn) ident)
-  |> Symbol.Set.of_list
+  Predef.all_predef_exns |> List.map symbol_for_global |> Symbol.Set.of_list
 
 let predefined_exception_typing_env ~symbol_for_global =
   let comp_unit = Compilation_unit.get_current_exn () in

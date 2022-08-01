@@ -78,7 +78,7 @@ type 'a close_program_result = Flambda_unit.t * 'a close_program_metadata
 
 val close_program :
   mode:'mode Flambda_features.mode ->
-  symbol_for_global:(?comp_unit:Compilation_unit.t -> Ident.t -> Symbol.t) ->
+  symbol_for_global:(Ident.t -> Symbol.t) ->
   big_endian:bool ->
   cmx_loader:Flambda_cmx.loader ->
   module_ident:Ident.t ->

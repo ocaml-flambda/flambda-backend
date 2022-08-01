@@ -891,8 +891,7 @@ let bind_all_code_ids env (unit : Fexpr.flambda_unit) =
 let conv ~symbol_for_global ~module_ident (fexpr : Fexpr.flambda_unit) :
     Flambda_unit.t =
   let module_symbol =
-    symbol_for_global ?comp_unit:None
-      (Ident.create_persistent (Ident.name module_ident))
+    symbol_for_global (Ident.create_persistent (Ident.name module_ident))
   in
   let env = init_env () in
   let { done_continuation = return_continuation; error_continuation; _ } =

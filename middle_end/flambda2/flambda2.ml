@@ -17,9 +17,7 @@
 (* Unlike the rest of Flambda 2, this file depends on ocamloptcomp, meaning it
    can call [Compilenv]. *)
 
-let symbol_for_global ?comp_unit id =
-  (* CR lmaurer: FIXME *)
-  ignore (comp_unit : Compilation_unit.t option);
+let symbol_for_global id =
   Compilenv.symbol_for_global' id
   |> Flambda2_identifiers.Symbol.of_symbol
 
