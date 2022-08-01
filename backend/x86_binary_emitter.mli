@@ -41,6 +41,7 @@ module Relocation : sig
 end
 
 module StringMap : Map.S with type key = string
+module StringTbl : Hashtbl.S with type key = string
 
 type buffer
 
@@ -56,4 +57,4 @@ val contents : buffer -> string
 
 val add_patch : offset:int -> size:data_size -> data:int64 -> buffer -> unit
 
-val labels : buffer -> symbol StringMap.t
+val labels : buffer -> symbol StringTbl.t

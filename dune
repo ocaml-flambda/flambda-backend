@@ -24,6 +24,8 @@
 
 (copy_files# backend/debug/*.ml{,i})
 
+(copy_files# backend/internal_assembler/*.ml{,i})
+
 (copy_files# driver/optcompile.ml{,i})
 
 (copy_files# driver/flambda_backend_main.ml{,i})
@@ -192,6 +194,7 @@
   interf
   interval
   linear
+  internal_assembler
   linearize
   linscan
   liveness
@@ -203,14 +206,19 @@
   reg
   reload
   reloadgen
+  relocation_entry
+  relocation_table
   schedgen
   scheduling
+  section_table
   selectgen
   selection
   spill
   split
+  string_table
   strmatch
-  x86_assembler
+  symbol_entry
+  symbol_table
   x86_ast
   x86_binary_emitter
   x86_dsl
