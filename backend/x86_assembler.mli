@@ -36,7 +36,7 @@ module SymbolTable : sig
 
   val num_symbols : t -> int
 
-  val finalise : t -> unit
+  (* val finalise : t -> unit *)
 
   val num_locals : t -> int
 

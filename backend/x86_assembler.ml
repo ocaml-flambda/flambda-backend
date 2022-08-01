@@ -228,26 +228,48 @@ module SymbolTable = struct
   open X86_binary_emitter
 
   type t =
-    { mutable symbols : SymbolEntry.t list;
-      mutable num_symbols : int;
+    { mutable global_symbols : SymbolEntry.t list;
+      mutable global_num_symbols : int;
+      mutable local_symbols : SymbolEntry.t list;
+      mutable local_num_symbols : int;
+      global_symbols_tbl : int StringTbl.t;
+      local_symbols_tbl : int StringTbl.t;
       labels_tbl : (X86_binary_emitter.symbol * SymbolEntry.t) StringTbl.t;
-      symbols_tbl : int StringTbl.t;
       section_symbol_tbl : int IntTbl.t
     }
 
   let create () =
-    { symbols = [];
-      num_symbols = 0;
+    { global_symbols = [];
+      global_num_symbols = 0;
+      global_symbols_tbl = StringTbl.create 100;
+      local_symbols = [];
+      local_num_symbols = 0;
+      local_symbols_tbl = StringTbl.create 100;
       labels_tbl = StringTbl.create 100;
-      symbols_tbl = StringTbl.create 100;
       section_symbol_tbl = IntTbl.create 100
     }
 
   let add_symbol t symbol =
-    (* CR mcollins - properly handle case where symbols are added after finalise
-       has been called *)
-    t.num_symbols <- t.num_symbols + 1;
-    t.symbols <- symbol :: t.symbols
+    match SymbolEntry.get_bind symbol with
+    | 0 ->
+      (match SymbolEntry.get_type symbol with
+      | 3 ->
+        IntTbl.add t.section_symbol_tbl
+          (SymbolEntry.get_shndx symbol)
+          t.local_num_symbols
+      | _ ->
+        StringTbl.add t.local_symbols_tbl
+          (SymbolEntry.get_name_str symbol)
+          t.local_num_symbols);
+      t.local_num_symbols <- t.local_num_symbols + 1;
+      t.local_symbols <- symbol :: t.local_symbols
+    | 1 ->
+      StringTbl.add t.global_symbols_tbl
+        (SymbolEntry.get_name_str symbol)
+        t.global_num_symbols;
+      t.global_num_symbols <- t.global_num_symbols + 1;
+      t.global_symbols <- symbol :: t.global_symbols
+    | _ -> failwith "Unknown bind type"
 
   let add_label t label symbol =
     StringTbl.add t.labels_tbl label.sy_name (label, symbol)
@@ -259,26 +281,16 @@ module SymbolTable = struct
     let idx = IntTbl.find t.section_symbol_tbl symbol.st_shndx in
     label, idx
 
-  let get_symbol_idx_opt t name = StringTbl.find_opt t.symbols_tbl name
+  let get_symbol_idx_opt t name =
+    match StringTbl.find_opt t.global_symbols_tbl name with
+    | Some idx -> Some (t.local_num_symbols + idx)
+    | None -> StringTbl.find_opt t.local_symbols_tbl name
 
-  let num_symbols t = t.num_symbols
+  let num_symbols t = t.local_num_symbols + t.global_num_symbols
 
-  let finalise t =
-    t.symbols
-      <- List.stable_sort
-           (fun a b -> SymbolEntry.get_bind b - SymbolEntry.get_bind a)
-           t.symbols;
-    List.iteri
-      (fun i x ->
-        if SymbolEntry.get_type x = 3
-        then IntTbl.add t.section_symbol_tbl (SymbolEntry.get_shndx x) i
-        else StringTbl.add t.symbols_tbl (SymbolEntry.get_name_str x) i)
-      (List.rev t.symbols)
+  let num_locals t = t.local_num_symbols
 
-  let num_locals t =
-    List.length (List.filter (fun x -> SymbolEntry.get_bind x = 0) t.symbols)
-
-  let get_symbols t = List.rev t.symbols
+  let get_symbols t = List.rev t.local_symbols @ List.rev t.global_symbols
 
   let make_undef_symbol t name string_table =
     add_symbol t (SymbolEntry.create_undef_symbol name string_table)
@@ -586,8 +598,9 @@ let assemble asm output_file =
     string_table;
   SymbolTable.make_undef_symbol symbol_table "_GLOBAL_OFFSET_TABLE_"
     string_table;
-  Profile.record ~accumulate:true "finalise" SymbolTable.finalise symbol_table;
 
+  (* Profile.record ~accumulate:true "finalise" SymbolTable.finalise
+     symbol_table; *)
   let raw_relocations =
     Profile.record ~accumulate:true "relocation"
       (List.filter_map (fun (key, ((s_l, _, _), align, raw_section)) ->
