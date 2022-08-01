@@ -236,6 +236,7 @@
   simplify_terminator
   trap_stack
   cfg_equivalence
+  cfg_invariants
   ;; file_formats/
   linear_format
   cfg_format
@@ -655,6 +656,7 @@
   (simplify_terminator.mli as compiler-libs/simplify_terminator.mli)
   (trap_stack.mli as compiler-libs/trap_stack.mli)
   (cfg_equivalence.mli as compiler-libs/cfg_equivalence.mli)
+  (cfg_invariants.mli as compiler-libs/cfg_invariants.mli)
   (ocaml/extensions.mli as compiler-libs/extensions.mli)
   (ocaml/translcomprehension.mli as compiler-libs/translcomprehension.mli)
   (.ocamloptcomp.objs/byte/linear_format.cmi
@@ -1191,6 +1193,11 @@
   (.ocamloptcomp.objs/byte/cfg_equivalence.cmti
    as
    compiler-libs/cfg_equivalence.cmti)
+  (.ocamloptcomp.objs/native/cfg_invariants.cmx as compiler-libs/cfg_invariants.cmx)
+  (.ocamloptcomp.objs/byte/cfg_invariants.cmi as compiler-libs/cfg_invariants.cmi)
+  (.ocamloptcomp.objs/byte/cfg_invariants.cmo as compiler-libs/cfg_invariants.cmo)
+  (.ocamloptcomp.objs/byte/cfg_invariants.cmt as compiler-libs/cfg_invariants.cmt)
+  (.ocamloptcomp.objs/byte/cfg_invariants.cmti as compiler-libs/cfg_invariants.cmti)
   (.ocamloptcomp.objs/native/afl_instrument.cmx
    as
    compiler-libs/afl_instrument.cmx)

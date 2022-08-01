@@ -404,45 +404,25 @@ let rec add_blocks :
       | Cfg.Tailcall _ | Cfg.Call_no_return _ ->
         body
     in
-    let can_raise =
-      (* Recompute [can_raise] and check that instructions in the middle of the
-         block do not raise, i.e., only the terminator, or the last instruction
-         (when the terminator is just a goto) can raise. *)
-      let terminator_is_goto =
-        match (terminator.Cfg.desc : Cfg.terminator) with
-        | Always _ -> true
-        | Raise _ | Tailcall _ | Call_no_return _ | Never | Parity_test _
-        | Truth_test _ | Float_test _ | Int_test _ | Switch _ | Return ->
-          false
-      in
-      let rec check = function
-        | [] -> false
-        | [last] ->
-          let res = Cfg.can_raise_basic last.Cfg.desc in
-          assert ((not res) || terminator_is_goto);
-          res
-        | hd :: tail ->
-          assert (not (Cfg.can_raise_basic hd.Cfg.desc));
-          check tail
-      in
-      let body_can_raise = check body in
-      Cfg.can_raise_terminator terminator.Cfg.desc || body_can_raise
+    let block : Cfg.basic_block =
+      { start;
+        body;
+        terminator;
+        (* See [Cfg.register_predecessors_for_all_blocks] *)
+        predecessors = Label.Set.empty;
+        (* See [Stack_offset_and_exn.update_cfg] *)
+        stack_offset = invalid_stack_offset;
+        exn = None;
+        can_raise = false;
+        (* See [update_trap_handler_blocks] *)
+        is_trap_handler = false;
+        dead = false
+      }
     in
-    State.add_block state ~label:start
-      ~block:
-        { start;
-          body;
-          terminator;
-          (* See [Cfg.register_predecessors_for_all_blocks] *)
-          predecessors = Label.Set.empty;
-          (* See [Stack_offset_and_exn.update_cfg] *)
-          stack_offset = invalid_stack_offset;
-          exn = None;
-          can_raise;
-          (* See [update_trap_handler_blocks] *)
-          is_trap_handler = false;
-          dead = false
-        }
+    (match Cfg.can_raise_block block with
+    | exception Cfg.Malformed_cfg reason -> Misc.fatal_error reason
+    | b -> block.can_raise <- b);
+    State.add_block state ~label:start ~block
   in
   let prepare_next_block () =
     match last.next.desc with

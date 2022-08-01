@@ -42,6 +42,17 @@ let cmm_invariants ppf fd_cmm =
       print_fundecl fd_cmm;
   fd_cmm
 
+let cfg_invariants ppf cfg =
+  let print_fundecl ppf c =
+    if !Flambda_backend_flags.dump_cfg then
+      Cfg_with_layout.dump ppf c ~msg:"*** Cfg invariant failed"
+    else Format.fprintf ppf "%s" (Cfg_with_layout.cfg c).fun_name
+  in
+  if !Flambda_backend_flags.cfg_invariants && Cfg_invariants.run ppf cfg then
+    Misc.fatal_errorf "Cfg invariants failed on following fundecl:@.%a@."
+      print_fundecl cfg;
+  cfg
+
 let liveness phrase = Liveness.fundecl phrase; phrase
 
 let dump_if ppf flag message phrase =
@@ -270,7 +281,7 @@ let recompute_liveness_on_cfg (cfg_with_layout : Cfg_with_layout.t) : Cfg_with_l
   Simplify_terminator.run cfg;
   result
 
-let test_cfgize (f : Mach.fundecl) (res : Linear.fundecl) : unit =
+let test_cfgize ppf_dump (f : Mach.fundecl) (res : Linear.fundecl) : unit =
   if ocamlcfg_verbose then begin
     Format.eprintf "processing function %s...\n%!" f.Mach.fun_name;
   end;
@@ -286,8 +297,12 @@ let test_cfgize (f : Mach.fundecl) (res : Linear.fundecl) : unit =
       f
       ~preserve_orig_labels:false
       ~simplify_terminators:false
+    |> cfg_invariants ppf_dump
   in
-  let expected = Linear_to_cfg.run res ~preserve_orig_labels:false in
+  let expected =
+    Linear_to_cfg.run res ~preserve_orig_labels:false
+    |> cfg_invariants ppf_dump
+  in
   Eliminate_fallthrough_blocks.run expected;
   Merge_straightline_blocks.run expected;
   Eliminate_dead_code.run_dead_block expected;
@@ -347,7 +362,7 @@ let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
       let res = Linearize.fundecl f in
       (* CR xclerc for xclerc: temporary, for testing. *)
       if !Flambda_backend_flags.cfg_equivalence_check then begin
-        test_cfgize f res;
+        test_cfgize ppf_dump f res;
       end;
       res)
   ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code"
@@ -359,6 +374,7 @@ let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
            (Linear_to_cfg.run ~preserve_orig_labels:true)
       ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg
       ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg "After linear_to_cfg"
+      ++ Profile.record ~accumulate:true "cfg_invariants" (cfg_invariants ppf_dump)
       ++ save_cfg
       ++ reorder_blocks_random ppf_dump
       ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run

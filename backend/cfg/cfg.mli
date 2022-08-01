@@ -159,3 +159,14 @@ val is_noop_move : basic instruction -> bool
 val set_stack_offset : 'a instruction -> int -> 'a instruction
 
 val set_live : 'a instruction -> Reg.Set.t -> 'a instruction
+
+exception Malformed_cfg of string
+
+(** [can_raise_block b] returns whether the block can raise based on information
+    from body and terminator. It is used to compute the field [can_raise] field
+    and check invariants after block transformations.
+
+    Raise Malformed_cfg if an instruction can raise in the middle of a block. *)
+val can_raise_block : basic_block -> bool
+
+val terminator_is_goto : terminator -> bool

@@ -425,3 +425,39 @@ let set_stack_offset (instr : _ instruction) stack_offset =
 
 let set_live (instr : _ instruction) live =
   if Reg.Set.equal instr.live live then instr else { instr with live }
+
+let terminator_is_goto (desc : terminator) =
+  match desc with
+  | Always _ -> true
+  | Raise _ | Tailcall _ | Call_no_return _ | Never | Parity_test _
+  | Truth_test _ | Float_test _ | Int_test _ | Switch _ | Return ->
+    false
+
+exception Malformed_cfg of string
+
+let can_raise_block block =
+  (* Recompute [can_raise] and check that instructions in the middle of the
+     block do not raise, i.e., only the terminator, or the last instruction
+     (when the terminator is just a goto) can raise. *)
+  let rec check = function
+    | [] -> false
+    | [last] ->
+      let res = can_raise_basic last.desc in
+      if res && not (terminator_is_goto block.terminator.desc)
+      then
+        raise
+          (Malformed_cfg
+             (Printf.sprintf
+                "last basic instruction %d can raise, but  terminator %d is \
+                 not goto"
+                last.id block.terminator.id));
+      res
+    | hd :: tail ->
+      if can_raise_basic hd.desc
+      then
+        raise (Malformed_cfg (Printf.sprintf "instruction can raise %d" hd.id));
+      check tail
+  in
+  let body_can_raise = check block.body in
+
+  can_raise_terminator block.terminator.desc || body_can_raise
