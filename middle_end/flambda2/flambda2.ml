@@ -18,8 +18,7 @@
    can call [Compilenv]. *)
 
 let symbol_for_global id =
-  Compilenv.symbol_for_global' id
-  |> Flambda2_identifiers.Symbol.of_symbol
+  Compilenv.symbol_for_global' id |> Flambda2_identifiers.Symbol.of_symbol
 
 let get_global_info comp_unit =
   (* Typing information for predefined exceptions should be populated directly
@@ -38,8 +37,7 @@ let get_global_info comp_unit =
        implement it. *)
     let id =
       Compilation_unit.name comp_unit
-      |> Compilation_unit.Name.to_string
-      |> Ident.create_persistent
+      |> Compilation_unit.Name.to_string |> Ident.create_persistent
     in
     match Compilenv.get_global_info' id with
     | None | Some (Flambda2 None) -> None

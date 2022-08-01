@@ -27,10 +27,7 @@ val lambda_to_cmm :
   keep_symbol_tables:bool ->
   Cmm.phrase list
 
-val symbol_for_global :
-  Ident.t ->
-  Flambda2_identifiers.Symbol.t
+val symbol_for_global : Ident.t -> Flambda2_identifiers.Symbol.t
 
 val get_global_info :
-  Compilation_unit.t ->
-  Flambda2_cmx.Flambda_cmx_format.t option
+  Compilation_unit.t -> Flambda2_cmx.Flambda_cmx_format.t option
