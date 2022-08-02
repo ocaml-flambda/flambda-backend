@@ -68,7 +68,7 @@ let create_section name ~sh_type ~size ~offset ?align ?entsize ?flags ?sh_link
   String_table.add_string shstrtab sh_name_str;
   section
 
-let make_section sections name sh_type ~size ?align ?entsize ?flags ?sh_link
+let make_section sections name ~sh_type ~size ?align ?entsize ?flags ?sh_link
     ?sh_info ?body shstrtab =
   let section : Owee.Owee_elf.section =
     create_section name ~sh_type ~size
@@ -78,13 +78,13 @@ let make_section sections name sh_type ~size ?align ?entsize ?flags ?sh_link
   Section_table.add_section sections name ?body section
 
 let make_text sections name raw_section align sh_string_table =
-  make_section sections name 1
+  make_section sections name ~sh_type:1
     ~size:(Int64.of_int (X86_binary_emitter.size raw_section))
     ~flags:0x6L sh_string_table ~align
     ~body:(X86_binary_emitter.contents raw_section)
 
 let make_data sections name raw_section align sh_string_table =
-  make_section sections name 1
+  make_section sections name ~sh_type:1
     ~size:(Int64.of_int (X86_binary_emitter.size raw_section))
     ~flags:0x3L sh_string_table ~align
     ~body:(X86_binary_emitter.contents raw_section)
@@ -93,7 +93,7 @@ let make_shstrtab sections sh_string_table =
   let name = ".shstrtab" in
   make_section sections
     (SectionName.from_name name)
-    3
+    ~sh_type:3
     ~size:
       (Int64.of_int
          (String_table.current_length sh_string_table + 1 + String.length name))
@@ -118,8 +118,8 @@ let make_relocation_section sections sym_tbl_idx relocation_table
   let idx = Section_table.get_sec_idx sections name in
   make_section sections
     (SectionName.from_name (".rela" ^ SectionName.name name))
-    4 ~size ~entsize:24L ~flags:0x40L ~sh_link:sym_tbl_idx sh_string_table
-    ~align:8L ~sh_info:idx
+    ~sh_type:4 ~size ~entsize:24L ~flags:0x40L ~sh_link:sym_tbl_idx
+    sh_string_table ~align:8L ~sh_info:idx
 
 let get_sections sections =
   List.fold_left
@@ -152,7 +152,9 @@ let make_compiler_sections section_table compiler_sections symbol_table
       then
         make_data section_table name raw_section (Int64.of_int align)
           sh_string_table
-      else make_custom_section section_table name raw_section 1 sh_string_table;
+      else
+        make_custom_section section_table name raw_section ~sh_type:1
+          sh_string_table;
       SectionTbl.add section_symbols name
         (Symbol_table.make_section_symbol symbol_table
            (Section_table.num_sections section_table - 1)
@@ -237,12 +239,12 @@ let assemble asm output_file =
   let strtabidx = 1 + Section_table.num_sections sections in
   make_section sections
     (SectionName.from_name ".symtab")
-    2 ~entsize:24L
+    ~sh_type:2 ~entsize:24L
     ~size:(Int64.of_int (24 * Symbol_table.num_symbols symbol_table))
     ~align:8L ~sh_link:strtabidx ~sh_info:num_locals sh_string_table;
   make_section sections
     (SectionName.from_name ".strtab")
-    3
+    ~sh_type:3
     ~size:(Int64.of_int (String_table.current_length string_table))
     sh_string_table;
   make_shstrtab sections sh_string_table;
