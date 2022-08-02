@@ -173,8 +173,8 @@ let rec expr_size env = function
       | _ -> assert false)
   | Uregion exp ->
       expr_size env exp
-  | Utail _ ->
-      Misc.fatal_error "Utail in non-tail position"
+  | Utail exp ->
+      expr_size env exp
   | _ -> RHS_nonrec
 
 (* Translate structured constants to Cmm data items *)
