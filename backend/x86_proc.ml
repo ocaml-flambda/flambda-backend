@@ -15,6 +15,70 @@
 
 open X86_ast
 
+module StringTbl = Hashtbl.Make (struct
+    type t = string
+
+    let equal = String.equal
+
+    let hash = Hashtbl.hash
+  end)
+
+module SectionName = struct
+  type t =
+    { name: string list;
+      name_str: string;
+      flags : string option;
+      args: string list
+    }
+
+  let equal t1 t2 =
+    List.equal (String.equal) t1.name t2.name
+
+  let hash t = Hashtbl.hash t.name
+
+  let compare t1 t2 = List.compare (String.compare) t1.name t2.name
+
+  let make name flags args =
+    { name; name_str = String.concat "," name; flags; args; }
+
+  let from_name name = { name = [name]; name_str = name; flags = None; args = [] }
+
+  let name t = t.name_str
+
+  let flags t =
+    let parse_flags flags =
+      let rec inner acc = function
+        | Seq.Nil -> acc
+        | Seq.Cons (c, tl) ->
+          let flag =
+            match c with
+            (* CR mcollins - modify types to avoid string comparisons *)
+            | 'a' -> 0x2L
+            | 'w' -> 0x1L
+            | 'x' -> 0x4L
+            | 'M' -> 0x10L
+            | 'S' -> 0x20L
+            | '?' -> 0x0L
+            | 'G' -> 0x0L
+            | _ ->
+              failwith (Printf.sprintf "Unknown flag %c in flags %s\n" c flags)
+          in
+          inner (Int64.logor acc flag) (tl ())
+      in
+      inner 0L (String.to_seq flags ()) in
+    Option.fold ~none:0L ~some:parse_flags t.flags
+
+  let alignment t =
+    let rec align = function
+      | [] -> 0L
+      | [hd] -> Option.value ~default:0L (Int64.of_string_opt hd)
+      | hd :: tl -> align tl
+    in align t.args
+
+end
+
+module SectionTbl = Hashtbl.Make (SectionName)
+
 type system =
   (* 32 bits and 64 bits *)
   | S_macosx
@@ -285,19 +349,39 @@ let assemble_file infile outfile =
   | Some content -> content outfile; binary_content := None; 0
 
 let asm_code = ref []
+let asm_code_by_sec = ref (ref [])
+let asm_sections = SectionTbl.create 100
 
-let directive dir = asm_code := dir :: !asm_code
+let directive dir =
+  (if !Emitaux.create_asm_file then
+  asm_code := dir :: !asm_code);
+  match dir with
+  | Section (name, flags, args) -> (
+      let name = SectionName.make name flags args in
+      match SectionTbl.find_opt asm_sections name with
+      | Some x -> asm_code_by_sec := x
+      | None ->
+        asm_code_by_sec := ref [];
+        SectionTbl.add asm_sections name !asm_code_by_sec)
+  | dir -> !asm_code_by_sec := dir :: !(!asm_code_by_sec)
+
 let emit ins = directive (Ins ins)
 
-let reset_asm_code () = asm_code := []
+let reset_asm_code () =
+  asm_code := [];
+  asm_code_by_sec := ref [];
+  SectionTbl.clear asm_sections
 
 let generate_code asm =
-  let instrs = List.rev !asm_code in
   begin match asm with
-  | Some f -> f instrs
+  | Some f -> Profile.record ~accumulate:true "write_asm" f (List.rev !asm_code)
   | None -> ()
   end;
   begin match !internal_assembler with
-  | Some f -> binary_content := Some (f instrs)
+    | Some f ->
+      let instrs = SectionTbl.fold (fun name instrs acc ->
+          (name, List.rev !instrs) :: acc)
+          asm_sections [] in
+      binary_content := Some (f instrs)
   | None -> binary_content := None
   end

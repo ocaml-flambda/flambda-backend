@@ -88,7 +88,22 @@ val windows:bool
 (** Whether calls need to go via the PLT. *)
 val use_plt : bool
 
+module SectionName : sig
+  type t 
+  val equal : t -> t -> bool
+  val hash : t -> int
+  val compare : t -> t -> int
+  val make : string list -> string option -> string list -> t
+  val from_name : string -> t
+  val name : t -> string
+  val flags : t -> int64
+  val alignment : t -> int64
+end
+
 (** Support for plumbing a binary code emitter *)
 
-val internal_assembler : (asm_program -> string -> unit) option ref
-val register_internal_assembler: (asm_program -> string -> unit) -> unit
+val internal_assembler :
+  ((SectionName.t * X86_ast.asm_line list) list -> string -> unit) option ref
+
+val register_internal_assembler :
+  ((SectionName.t * X86_ast.asm_line list) list -> string -> unit) -> unit

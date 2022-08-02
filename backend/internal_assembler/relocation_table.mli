@@ -1,6 +1,6 @@
 type t
 
-val create : string -> t
+val create : X86_proc.SectionName.t -> t
 
 val make_relocation :
   t ->
@@ -9,8 +9,8 @@ val make_relocation :
   String_table.t ->
   unit
 
-val name : t -> string
-
 val num_relocations : t -> int
+
+val section_name : t -> X86_proc.SectionName.t
 
 val write : t -> Section_table.t -> Owee.Owee_buf.t -> unit

@@ -68,7 +68,9 @@ let create_symbol (symbol : X86_binary_emitter.symbol) symbol_table sections
     { st_name = String_table.current_length string_table;
       st_info = (global lsl 4) lor bind;
       st_other = 0;
-      st_shndx = Section_table.get_sec_idx sections symbol.sy_sec.sec_name;
+      st_shndx =
+        Section_table.get_sec_idx sections
+          (X86_proc.SectionName.from_name symbol.sy_sec.sec_name);
       (* st_shname_str = symbol.sy_sec.sec_name; *)
       st_value = Int64.of_int value;
       st_size = Int64.of_int size;
