@@ -1,15 +1,8 @@
-open Int_replace_polymorphic_compare
 module SectionName = X86_proc.SectionName
 module StringMap = X86_binary_emitter.StringMap
 module StringTbl = X86_binary_emitter.StringTbl
 module SectionMap = Map.Make (SectionName)
 module SectionTbl = Hashtbl.Make (SectionName)
-
-let name s_l s_opt s_l' =
-  let first = String.concat "," s_l in
-  let mid = Option.fold ~none:"" ~some:(Printf.sprintf ",%S") s_opt in
-  let last = match s_l' with [] -> "" | l -> "," ^ String.concat "," l in
-  first ^ mid ^ last
 
 let isprefix s1 s2 =
   String.length s1 <= String.length s2
