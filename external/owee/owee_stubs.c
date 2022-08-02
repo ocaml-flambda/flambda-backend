@@ -1,11 +1,13 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #define CAML_INTERNALS
 
 #include <caml/version.h>
 #include <caml/alloc.h>
 #include <caml/memory.h>
+#include <caml/bigarray.h>
 #include <caml/address_class.h>
 #if OCAML_VERSION >= 41200
 #include <caml/codefrag.h>
@@ -84,3 +86,27 @@ CAMLprim value ml_owee_code_pointer_symbol(value cp)
 
   return caml_copy_string(result);
 }
+
+static inline char * get_bstr(value v_bstr, value v_pos) 
+{ 
+  return (char *) Caml_ba_data_val(v_bstr) + Long_val(v_pos); 
+}
+
+CAMLprim value bigstring_blit_string_bigstring_stub(
+  value v_str, value v_src_pos, value v_bstr, value v_dst_pos, value v_len)
+{
+  const char *str = String_val(v_str) + Long_val(v_src_pos);
+  char *bstr = get_bstr(v_bstr, v_dst_pos);
+  memcpy(bstr, str, Long_val(v_len));
+  return Val_unit;
+}
+
+CAMLprim value bigstring_blit_bytes_bigstring_stub(
+  value v_str, value v_src_pos, value v_bstr, value v_dst_pos, value v_len)
+{
+  unsigned char *str = Bytes_val(v_str) + Long_val(v_src_pos);
+  char *bstr = get_bstr(v_bstr, v_dst_pos);
+  memcpy(bstr, str, Long_val(v_len));
+  return Val_unit;
+}
+

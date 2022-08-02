@@ -157,7 +157,31 @@ module Read = struct
     advance t length;
     result
 end
+external unsafe_blit_str
+  :  src:string
+  -> src_pos:int
+  -> dst:t
+  -> dst_pos:int
+  -> len:int
+  -> unit
+  = "bigstring_blit_string_bigstring_stub"
+[@@noalloc]
+external unsafe_blit
+  :  src:bytes
+  -> src_pos:int
+  -> dst:t
+  -> dst_pos:int
+  -> len:int
+  -> unit
+  = "bigstring_blit_bytes_bigstring_stub"
+[@@noalloc]
 
+external bigstring_set16_unsafe :
+  t -> byte_offset:int -> u16 -> unit = "%caml_bigstring_set16u"
+external bigstring_set32_unsafe :
+  t -> byte_offset:int -> int32 -> unit = "%caml_bigstring_set32u"
+external bigstring_set64_unsafe :
+  t -> byte_offset:int -> int64 -> unit = "%caml_bigstring_set64u"
 module Write = struct
   let u8 t (w : u8) =
     t.buffer.{t.position} <- w;
@@ -172,29 +196,18 @@ module Write = struct
     advance t 1
 
   let u16 t (w : u16) =
-    t.buffer.{t.position} <- w land 0xFF;
-    t.buffer.{t.position + 1} <- w lsr 8;
+    bigstring_set16_unsafe t.buffer ~byte_offset:t.position w;
     advance t 2
 
   let u32 t (w : u32) =
-    t.buffer.{t.position + 0} <- (w lsr 0) land 0xFF;
-    t.buffer.{t.position + 1} <- (w lsr 8) land 0xFF;
-    t.buffer.{t.position + 2} <- (w lsr 16) land 0xFF;
-    t.buffer.{t.position + 3} <- (w lsr 24) land 0xFF;
+    bigstring_set32_unsafe t.buffer ~byte_offset:t.position
+      (Int32.of_int w);
     advance t 4
 
   let u32be = u32
 
-  let u64 t (w : u64) =
-    let open Int64 in
-    t.buffer.{t.position + 0} <- to_int (shift_right w 0) land 0xFF;
-    t.buffer.{t.position + 1} <- to_int (shift_right w 8) land 0xFF;
-    t.buffer.{t.position + 2} <- to_int (shift_right w 16) land 0xFF;
-    t.buffer.{t.position + 3} <- to_int (shift_right w 24) land 0xFF;
-    t.buffer.{t.position + 4} <- to_int (shift_right w 32) land 0xFF;
-    t.buffer.{t.position + 5} <- to_int (shift_right w 40) land 0xFF;
-    t.buffer.{t.position + 6} <- to_int (shift_right w 48) land 0xFF;
-    t.buffer.{t.position + 7} <- to_int (shift_right w 56) land 0xFF;
+  let u64 t w =
+    bigstring_set64_unsafe t.buffer ~byte_offset:t.position w;
     advance t 8
 
   let uleb128 t (w : u128) =
@@ -213,7 +226,8 @@ module Write = struct
     let rec aux t acc =
       let x = acc land 0x7F in
       let acc = acc asr 7 in
-      if (acc = 0 && (x land 0x40) = 0) || (acc = -1 && (x land 0x40) <> 0) then
+      if (acc = 0 && (x land 0x40) = 0)
+          || (acc = -1 && (x land 0x40) <> 0) then
         u8 t x
       else
         (u8 t (x lor 0x80);
@@ -221,25 +235,24 @@ module Write = struct
     in
     aux t w
 
-  let fixed_string t length s =
+  let fixed_bytes t length s =
     let {buffer; position} = t in
-    for i = 0 to length - 1 do
-      buffer.{position + i} <- Char.code s.[i]
-    done;
+    unsafe_blit ~src:s ~src_pos:0 ~dst:buffer ~dst_pos:position ~len:length;
     advance t length
 
-  let zero_string t ?maxlen s =
-    let maxlen = match maxlen with
-      | None -> size t.buffer - t.position
-      | Some maxlen -> maxlen
-    in
-    let i = ref 0 in
-    while !i < maxlen && Char.code s.[!i] <> 0 do
-      t.buffer.{t.position + !i} <- Char.code s.[!i];
-      i := !i + 1
-    done;
-    t.buffer.{t.position + !i} <- 0;
-    advance t (!i + 1)
+  let zero_bytes t s =
+    fixed_bytes t (Bytes.length s) s;
+    u8 t 0
+    
+  let fixed_string t length s =
+    let {buffer; position} = t in
+    unsafe_blit_str
+      ~src:s ~src_pos:0 ~dst:buffer ~dst_pos:position ~len:length;
+    advance t length
+
+  let zero_string t s =
+    fixed_string t (String.length s) s;
+    u8 t 0
 
   let buffer t length =
     let result = Bigarray.Array1.sub t.buffer t.position length in

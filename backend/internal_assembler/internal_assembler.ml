@@ -74,13 +74,13 @@ let make_text sections name raw_section align sh_string_table =
   make_section sections name ~sh_type:1
     ~size:(Int64.of_int (X86_binary_emitter.size raw_section))
     ~flags:0x6L sh_string_table ~align
-    ~body:(X86_binary_emitter.contents raw_section)
+    ~body:(X86_binary_emitter.contents_mut raw_section)
 
 let make_data sections name raw_section align sh_string_table =
   make_section sections name ~sh_type:1
     ~size:(Int64.of_int (X86_binary_emitter.size raw_section))
     ~flags:0x3L sh_string_table ~align
-    ~body:(X86_binary_emitter.contents raw_section)
+    ~body:(X86_binary_emitter.contents_mut raw_section)
 
 let make_shstrtab sections sh_string_table =
   let name = ".shstrtab" in
@@ -98,7 +98,7 @@ let make_custom_section sections name raw_section sh_string_table =
   make_section sections name
     ~size:(Int64.of_int (X86_binary_emitter.size raw_section))
     ~align ~flags
-    ~body:(X86_binary_emitter.contents raw_section)
+    ~body:(X86_binary_emitter.contents_mut raw_section)
     sh_string_table
 
 let make_relocation_section sections sym_tbl_idx relocation_table

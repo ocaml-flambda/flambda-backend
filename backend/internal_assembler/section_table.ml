@@ -5,7 +5,7 @@ type t =
   { mutable sections : Owee.Owee_elf.section list;
     mutable num_sections : int;
     section_tb : int SectionTbl.t;
-    mutable section_bodies : (int * string) list;
+    mutable section_bodies : (int * bytes) list;
     mutable current_offset : int64
   }
 
@@ -67,7 +67,7 @@ let get_section_bodies t = t.section_bodies
 let write_bodies t buf =
   List.iter
     (fun (pos, body) ->
-      Owee.Owee_buf.Write.fixed_string
+      Owee.Owee_buf.Write.fixed_bytes
         (Owee.Owee_buf.cursor buf ~at:pos)
-        (String.length body) body)
+        (Bytes.length body) body)
     t.section_bodies

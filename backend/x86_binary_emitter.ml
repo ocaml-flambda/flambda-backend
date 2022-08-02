@@ -1753,7 +1753,7 @@ let size b = Buffer.length b.buf
 
 let add_patch ~offset ~size ~data t = add_patch t offset size data
 
-let contents b =
+let contents_mut b =
   let buf = Buffer.to_bytes b.buf in
   ListLabels.iter b.patches ~f:(fun (pos, nbits, v) ->
       (*    Printf.eprintf "Apply patch %s @%d\n%!" (string_of_data_size nbits) pos; *)
@@ -1762,7 +1762,10 @@ let contents b =
       | B32 -> str_int32L buf pos v
       | B16 -> str_int16L buf pos v
       | B8 -> str_int8L buf pos v);
-  Bytes.to_string buf
+  buf
+
+let contents b =
+  Bytes.to_string (contents_mut b)
 
 let relocations b = b.relocations
 

@@ -186,7 +186,7 @@ let read_section_name shstrndx t shdr =
 let write_section_name shstrndx t shdr name =
   let n = shdr.sh_name in
   seek t ((Int64.to_int shstrndx.sh_offset) + n);
-  Write.zero_string t ~maxlen:(min (String.length name) ((Int64.to_int shstrndx.sh_size) - n)) name
+  Write.zero_string t name
 
 let read_sections header t =
   let sections = Array.init header.e_shnum (read_section header t) in
@@ -198,7 +198,8 @@ let read_sections header t =
 let write_sections header t sections =
   let shstrndx = sections.(header.e_shstrndx) in
   Array.iteri (write_section header t) sections;
-  Array.iter (fun section -> write_section_name shstrndx t section section.sh_name_str) sections
+  Array.iter (fun section ->
+      write_section_name shstrndx t section section.sh_name_str) sections
 
 let read_elf buffer =
   let elf = cursor buffer in

@@ -74,12 +74,11 @@ module Write : sig
   val uleb128 : cursor -> u128 -> unit
   val sleb128 : cursor -> s128 -> unit
 
-  (** [fixed_string t len] writes a string of exactly [len] bytes to [t] *)
   val fixed_string : cursor -> int -> string -> unit
+  val zero_string : cursor -> string -> unit
 
-  (** [zero_string t ?maxlen] writes a zero-terminated string to [t],
-      stopping at the first zero or when [maxlen] is reached, if it was provided. *)
-  val zero_string : cursor -> ?maxlen:int -> string -> unit
+  val fixed_bytes : cursor -> int -> bytes -> unit
+  val zero_bytes : cursor -> bytes -> unit
 
   val buffer : cursor -> int -> t
 end
