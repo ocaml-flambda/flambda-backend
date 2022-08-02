@@ -116,7 +116,7 @@ let transl_apply_position position =
 
 let may_allocate_in_region lam =
   let rec loop = function
-    | Lvar _ | Lconst _ -> ()
+    | Lvar _ | Lmutvar _ | Lconst _ -> ()
 
     | Lfunction {mode=Alloc_heap} -> ()
     | Lfunction {mode=Alloc_local} -> raise Exit
@@ -138,7 +138,7 @@ let may_allocate_in_region lam =
     | Lwhile _ -> ()
     | Lfor {for_region=false} -> raise Exit
     | Lfor {for_from; for_to} -> loop for_from; loop for_to
-    | ( Lapply _ | Llet _ | Lletrec _ | Lswitch _ | Lstringswitch _
+    | ( Lapply _ | Llet _ | Lmutlet _ | Lletrec _ | Lswitch _ | Lstringswitch _
       | Lstaticraise _ | Lstaticcatch _ | Ltrywith _
       | Lifthenelse _ | Lsequence _ | Lassign _ | Lsend _
       | Levent _ | Lifused _) as lam ->
