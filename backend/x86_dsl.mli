@@ -68,6 +68,8 @@ val mem64_rip: data_type -> ?ofs:int -> string -> arg
 module D : sig
   (** Directives *)
 
+  (* If data is true then null bytes are used for padding,
+     otherwise nops are used *)
   val align: data:bool -> int -> unit
   val byte: constant -> unit
   val bytes: string -> unit

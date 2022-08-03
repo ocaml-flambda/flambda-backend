@@ -50,13 +50,13 @@ let get_sec_idx t name = SectionTbl.find t.section_tb name
 let get_section t name =
   List.find
     (fun section ->
-      String.equal section.sh_name_str (X86_proc.Section_name.name name))
+      String.equal section.sh_name_str (X86_proc.Section_name.to_string name))
     t.sections
 
 let get_section_opt t name =
   List.find_opt
     (fun section ->
-      String.equal section.sh_name_str (X86_proc.Section_name.name name))
+      String.equal section.sh_name_str (X86_proc.Section_name.to_string name))
     t.sections
 
 let get_sections t = Array.of_list (List.rev t.sections)

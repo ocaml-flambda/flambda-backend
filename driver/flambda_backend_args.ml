@@ -56,7 +56,7 @@ let mk_dump_inlining_paths f =
   "-dump-inlining-paths", Arg.Unit f, " Dump inlining paths when dumping flambda2 terms"
 
 let mk_internal_assembler f =
-  "-internal-assembler", Arg.Unit f, "Write object files directly instead of using the system assembler"
+  "-internal-assembler", Arg.Unit f, "Write object files directly instead of using the system assembler (x86-64 ELF only)"
 
 module Flambda2 = Flambda_backend_flags.Flambda2
 

@@ -160,7 +160,7 @@ let str_int64L s pos v =
 
 let local_relocs = ref []
 
-let local_labels = (String.Tbl.create 100)
+let local_labels = String.Tbl.create 100
 
 let forced_long_jumps = ref IntSet.empty
 
@@ -1102,7 +1102,7 @@ let emit_call b dst =
   match dst with
   | Sym symbol ->
       buf_int8 b 0xE8;
-      if String.Tbl.mem local_labels symbol  then
+      if String.Tbl.mem local_labels symbol then
         record_local_reloc b (RelocCall symbol)
       else
         (* external symbol, must reloc *)

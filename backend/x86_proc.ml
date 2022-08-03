@@ -24,41 +24,21 @@ module Section_name = struct
     }
 
   let equal t1 t2 =
-    List.equal (String.equal) t1.name t2.name
+    List.equal String.equal t1.name t2.name
 
   let hash t = Hashtbl.hash t.name
 
-  let compare t1 t2 = List.compare (String.compare) t1.name t2.name
+  let compare t1 t2 = List.compare String.compare t1.name t2.name
 
   let make name flags args =
     { name; name_str = String.concat "," name; flags; args; }
 
-  let from_name name = { name = [name]; name_str = name; flags = None; args = [] }
+  let of_string name = { name = [name]; name_str = name; flags = None; args = [] }
 
-  let name t = t.name_str
+  let to_string t = t.name_str
 
   let flags t =
-    let parse_flags flags =
-      let rec inner acc = function
-        | Seq.Nil -> acc
-        | Seq.Cons (c, tl) ->
-          let flag =
-            match c with
-            (* CR mcollins - modify types to avoid string comparisons *)
-            | 'a' -> 0x2L
-            | 'w' -> 0x1L
-            | 'x' -> 0x4L
-            | 'M' -> 0x10L
-            | 'S' -> 0x20L
-            | '?' -> 0x0L
-            | 'G' -> 0x0L
-            | _ ->
-              failwith (Printf.sprintf "Unknown flag %c in flags %s\n" c flags)
-          in
-          inner (Int64.logor acc flag) (tl ())
-      in
-      inner 0L (String.to_seq flags ()) in
-    Option.fold ~none:0L ~some:parse_flags t.flags
+    t.flags
 
   let alignment t =
     let rec align = function
@@ -341,28 +321,28 @@ let assemble_file infile outfile =
   | Some content -> content outfile; binary_content := None; 0
 
 let asm_code = ref []
-let asm_code_by_sec = ref (ref [])
-let asm_sections = SectionTbl.create 100
+let asm_code_current_section = ref (ref [])
+let asm_code_by_section = SectionTbl.create 100
 
 let directive dir =
   (if !Emitaux.create_asm_file then
-  asm_code := dir :: !asm_code);
+     asm_code := dir :: !asm_code);
   match dir with
   | Section (name, flags, args) -> (
       let name = Section_name.make name flags args in
-      match SectionTbl.find_opt asm_sections name with
-      | Some x -> asm_code_by_sec := x
+      match SectionTbl.find_opt asm_code_by_section name with
+      | Some x -> asm_code_current_section := x
       | None ->
-        asm_code_by_sec := ref [];
-        SectionTbl.add asm_sections name !asm_code_by_sec)
-  | dir -> !asm_code_by_sec := dir :: !(!asm_code_by_sec)
+        asm_code_current_section := ref [];
+        SectionTbl.add asm_code_by_section name !asm_code_current_section)
+  | dir -> !asm_code_current_section := dir :: !(!asm_code_current_section)
 
 let emit ins = directive (Ins ins)
 
 let reset_asm_code () =
   asm_code := [];
-  asm_code_by_sec := ref [];
-  SectionTbl.clear asm_sections
+  asm_code_current_section := ref [];
+  SectionTbl.clear asm_code_by_section
 
 let generate_code asm =
   begin match asm with
@@ -373,7 +353,8 @@ let generate_code asm =
     | Some f ->
       let instrs = SectionTbl.fold (fun name instrs acc ->
           (name, List.rev !instrs) :: acc)
-          asm_sections [] in
+          asm_code_by_section []
+      in
       binary_content := Some (f instrs)
   | None -> binary_content := None
   end

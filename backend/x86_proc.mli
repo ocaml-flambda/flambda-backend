@@ -94,16 +94,16 @@ module Section_name : sig
   val hash : t -> int
   val compare : t -> t -> int
   val make : string list -> string option -> string list -> t
-  val from_name : string -> t
-  val name : t -> string
-  val flags : t -> int64
+  val of_string : string -> t
+  val to_string : t -> string
+  val flags : t -> string option
   val alignment : t -> int64
 end
 
 (** Support for plumbing a binary code emitter *)
 
 val internal_assembler :
-  ((Section_name.t * X86_ast.asm_line list) list -> string -> unit) option ref
+  ((Section_name.t * X86_ast.asm_program) list -> string -> unit) option ref
 
 val register_internal_assembler :
-  ((Section_name.t * X86_ast.asm_line list) list -> string -> unit) -> unit
+  ((Section_name.t * X86_ast.asm_program) list -> string -> unit) -> unit

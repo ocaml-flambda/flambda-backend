@@ -43,7 +43,7 @@ let create_section name ~sh_type ~size ~offset ?align ?entsize ?flags ?sh_link
   let sh_flags = Option.value ~default:0L flags in
   let sh_link = Option.value ~default:0 sh_link in
   let sh_info = Option.value ~default:0 sh_info in
-  let sh_name_str = X86_proc.Section_name.name name in
+  let sh_name_str = X86_proc.Section_name.to_string name in
   let section : Owee.Owee_elf.section =
     { sh_name = String_table.current_length shstrtab;
       sh_type;
@@ -85,15 +85,38 @@ let make_data sections name raw_section align sh_string_table =
 let make_shstrtab sections sh_string_table =
   let name = ".shstrtab" in
   make_section sections
-    (Section_name.from_name name)
+    (Section_name.of_string name)
     ~sh_type:3
     ~size:
       (Int64.of_int
          (String_table.current_length sh_string_table + 1 + String.length name))
     sh_string_table
 
+let parse_flags flags =
+  let flags = Option.value ~default:"" flags in
+  let rec inner acc = function
+    | Seq.Nil -> acc
+    | Seq.Cons (c, tl) ->
+      let flag =
+        match c with
+        (* CR mcollins - modify types to avoid string comparisons *)
+        (* https://sourceware.org/binutils/docs/as/Section.html *)
+        | 'a' -> 0x2L
+        | 'w' -> 0x1L
+        | 'x' -> 0x4L
+        | 'M' -> 0x10L
+        | 'S' -> 0x20L
+        (* CR mcollins - do we need to worry about group flags? *)
+        | '?' -> 0x0L
+        | 'G' -> 0x0L
+        | _ -> failwith (Printf.sprintf "Unknown flag %c in flags %s\n" c flags)
+      in
+      inner (Int64.logor acc flag) (tl ())
+  in
+  inner 0L (String.to_seq flags ())
+
 let make_custom_section sections name raw_section sh_string_table =
-  let flags = X86_proc.Section_name.flags name in
+  let flags = parse_flags (X86_proc.Section_name.flags name) in
   let align = X86_proc.Section_name.alignment name in
   make_section sections name
     ~size:(Int64.of_int (X86_binary_emitter.size raw_section))
@@ -110,7 +133,7 @@ let make_relocation_section sections sym_tbl_idx relocation_table
   in
   let idx = Section_table.get_sec_idx sections name in
   make_section sections
-    (Section_name.from_name (".rela" ^ Section_name.name name))
+    (Section_name.of_string (".rela" ^ Section_name.to_string name))
     ~sh_type:4 ~size ~entsize:24L ~flags:0x40L ~sh_link:sym_tbl_idx
     sh_string_table ~align:8L ~sh_info:idx
 
@@ -126,7 +149,7 @@ let get_sections sections =
       SectionMap.add name
         ( align,
           X86_binary_emitter.assemble_section X64
-            { X86_binary_emitter.sec_name = X86_proc.Section_name.name name;
+            { X86_binary_emitter.sec_name = X86_proc.Section_name.to_string name;
               sec_instrs = Array.of_list instructions
             } )
         acc)
@@ -137,11 +160,11 @@ let make_compiler_sections section_table compiler_sections symbol_table
   let section_symbols = SectionTbl.create 100 in
   SectionMap.iter
     (fun name (align, raw_section) ->
-      if isprefix ".text" (X86_proc.Section_name.name name)
+      if isprefix ".text" (X86_proc.Section_name.to_string name)
       then
         make_text section_table name raw_section (Int64.of_int align)
           sh_string_table
-      else if isprefix ".data" (X86_proc.Section_name.name name)
+      else if isprefix ".data" (X86_proc.Section_name.to_string name)
       then
         make_data section_table name raw_section (Int64.of_int align)
           sh_string_table
@@ -231,12 +254,12 @@ let assemble asm output_file =
   let num_locals = Symbol_table.num_locals symbol_table in
   let strtabidx = 1 + Section_table.num_sections sections in
   make_section sections
-    (Section_name.from_name ".symtab")
+    (Section_name.of_string ".symtab")
     ~sh_type:2 ~entsize:24L
     ~size:(Int64.of_int (24 * Symbol_table.num_symbols symbol_table))
     ~align:8L ~sh_link:strtabidx ~sh_info:num_locals sh_string_table;
   make_section sections
-    (Section_name.from_name ".strtab")
+    (Section_name.of_string ".strtab")
     ~sh_type:3
     ~size:(Int64.of_int (String_table.current_length string_table))
     sh_string_table;

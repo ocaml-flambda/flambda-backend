@@ -21,8 +21,8 @@ let section_name t = t.section
 let write t section_table buf =
   match
     Section_table.get_section_opt section_table
-      (X86_proc.Section_name.from_name
-         (".rela" ^ X86_proc.Section_name.name t.section))
+      (X86_proc.Section_name.of_string
+         (".rela" ^ X86_proc.Section_name.to_string t.section))
   with
   | Some table ->
     List.iteri

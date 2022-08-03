@@ -70,7 +70,7 @@ let create_symbol (symbol : X86_binary_emitter.symbol) symbol_table sections
       st_other = 0;
       st_shndx =
         Section_table.get_sec_idx sections
-          (X86_proc.Section_name.from_name symbol.sy_sec.sec_name);
+          (X86_proc.Section_name.of_string symbol.sy_sec.sec_name);
       (* st_shname_str = symbol.sy_sec.sec_name; *)
       st_value = Int64.of_int value;
       st_size = Int64.of_int size;

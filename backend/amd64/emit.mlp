@@ -1133,7 +1133,7 @@ let emit_instr fallthrough i =
       | S_macosx | S_win64 -> () (* with LLVM/OS X and MASM, use the text segment *)
       | _ -> D.section [".rodata"] None []
       end;
-      D.align ~data:false 4;
+      D.align ~data:true 4;
       _label lbl;
       for i = 0 to Array.length jumptbl - 1 do
         D.long (ConstSub (ConstLabel(emit_label jumptbl.(i)),
