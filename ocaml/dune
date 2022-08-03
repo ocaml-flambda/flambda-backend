@@ -843,6 +843,7 @@
     (.ocamlcommon.objs/native/cmt2annot.cmx as compiler-libs/cmt2annot.cmx)
     (.ocamlcommon.objs/native/cmt_format.cmx as compiler-libs/cmt_format.cmx)
     (.ocamlcommon.objs/native/compenv.cmx as compiler-libs/compenv.cmx)
+    (.ocamlcommon.objs/native/compilation_unit.cmx as compiler-libs/compilation_unit.cmx)
     (.ocamlcommon.objs/native/compile_common.cmx as compiler-libs/compile_common.cmx)
     (.ocamlcommon.objs/native/compmisc.cmx as compiler-libs/compmisc.cmx)
     (.ocamlcommon.objs/native/config.cmx as compiler-libs/config.cmx)
