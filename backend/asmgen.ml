@@ -490,7 +490,8 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) = (
 let emit_begin_assembly_with_dwarf ~disable_dwarf ~emit_begin_assembly ~sourcefile () =
   if !Flambda_backend_flags.internal_assembler then
     (X86_proc.register_internal_assembler Internal_assembler.assemble;
-    Emitaux.binary_backend_available := true)
+    Emitaux.binary_backend_available := true;
+    Emitaux.create_asm_file := !Clflags.keep_asm_file)
   else ();
   let no_dwarf () =
     emit_begin_assembly ~init_dwarf:(fun () -> ());
