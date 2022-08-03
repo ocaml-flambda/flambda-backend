@@ -147,14 +147,15 @@ let make_relocation_section sections ~sym_tbl_idx relocation_table
     sh_string_table =
   let name = Relocation_table.section_name relocation_table in
   let size =
-    Int64.mul 24L
+    Int64.mul 24L (* relocation entry size *)
       (Int64.of_int (Relocation_table.num_relocations relocation_table))
   in
   let idx = Section_table.get_sec_idx sections name in
   make_section sections
     (Section_name.of_string (".rela" ^ Section_name.to_string name))
-    ~sh_type:4 ~size ~entsize:24L ~flags:0x40L ~sh_link:sym_tbl_idx
-    sh_string_table ~align:8L ~sh_info:idx
+    ~sh_type:4 (* SHT_RELA *) ~size ~entsize:24L
+    ~flags:0x40L (* SHF_INFO_LINK *) ~sh_link:sym_tbl_idx sh_string_table
+    ~align:8L ~sh_info:idx
 
 let get_sections sections =
   List.fold_left
@@ -189,7 +190,7 @@ let make_compiler_sections section_table compiler_sections symbol_table
           sh_string_table
       else
         make_custom_section section_table name raw_section ~sh_type:1
-          sh_string_table;
+          (* SHT_PROGBITS *) sh_string_table;
       Section_name.Tbl.add section_symbols name
         (Symbol_table.make_section_symbol symbol_table
            (Section_table.num_sections section_table - 1)
@@ -274,12 +275,12 @@ let assemble asm output_file =
   let strtabidx = 1 + Section_table.num_sections sections in
   make_section sections
     (Section_name.of_string ".symtab")
-    ~sh_type:2 ~entsize:24L
+    ~sh_type:2 (* SHT_PROGBITS *) ~entsize:24L (* symbol entry size *)
     ~size:(Int64.of_int (24 * Symbol_table.num_symbols symbol_table))
     ~align:8L ~sh_link:strtabidx ~sh_info:num_locals sh_string_table;
   make_section sections
     (Section_name.of_string ".strtab")
-    ~sh_type:3
+    ~sh_type:3 (* SHT_STRTAB *)
     ~size:(Int64.of_int (String_table.current_length string_table))
     sh_string_table;
   make_shstrtab sections sh_string_table;

@@ -54,17 +54,19 @@ let create_relocation (relocation : X86_binary_emitter.Relocation.t)
   let relocation_type, relocation_symbol, addend =
     match relocation.kind with
     | DIR64 (name, addend) ->
-      (get_reloc_info ~relocation_type:1 ~addend name symbol_table) string_table
+      (get_reloc_info ~relocation_type:1 (* R_X86_64_64 *) ~addend name
+         symbol_table)
+        string_table
     | DIR32 (_, _) -> failwith "cannot generate dir32"
     | REL32 (name, addend) -> (
       match String.split_on_char '@' name with
       | [name; "GOTPCREL"] ->
-        (get_reloc_info ~relocation_type:9 ~addend:(Int64.sub addend 4L) name
-           symbol_table)
+        (get_reloc_info ~relocation_type:9 (* R_X86_64_GOTPCREL *)
+           ~addend:(Int64.sub addend 4L) name symbol_table)
           string_table
       | [name; "PLT"] | [name] ->
-        (get_reloc_info ~relocation_type:4 ~addend:(Int64.sub addend 4L) name
-           symbol_table)
+        (get_reloc_info ~relocation_type:4 (* R_X86_64_PLT32 *)
+           ~addend:(Int64.sub addend 4L) name symbol_table)
           string_table
       | _ -> failwith (Printf.sprintf "Invalid symbol %s\n" name))
   in
