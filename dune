@@ -394,6 +394,7 @@
    %{dep:middle_end/flambda2/from_lambda/flambda2_from_lambda.a}
    %{dep:middle_end/flambda2/simplify/flambda2_simplify.a}
    %{dep:middle_end/flambda2/parser/flambda2_parser.a}
+   %{dep:external/owee/owee.a}
    %{dep:ocamloptcomp.a}
    %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.a}
    %{dep:middle_end/flambda2/flambda2.a})))
@@ -427,6 +428,7 @@
    %{dep:middle_end/flambda2/from_lambda/flambda2_from_lambda.cma}
    %{dep:middle_end/flambda2/simplify/flambda2_simplify.cma}
    %{dep:middle_end/flambda2/parser/flambda2_parser.cma}
+   %{dep:external/owee/owee.cma}
    %{dep:ocamloptcomp.cma}
    %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.cma}
    %{dep:middle_end/flambda2/flambda2.cma})))
@@ -460,6 +462,7 @@
    %{dep:middle_end/flambda2/from_lambda/flambda2_from_lambda.cmxa}
    %{dep:middle_end/flambda2/simplify/flambda2_simplify.cmxa}
    %{dep:middle_end/flambda2/parser/flambda2_parser.cmxa}
+   %{dep:external/owee/owee.cmxa}
    %{dep:ocamloptcomp.cmxa}
    %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.cmxa}
    %{dep:middle_end/flambda2/flambda2.cmxa})))
@@ -598,12 +601,12 @@
   (.ocamloptcomp.objs/byte/relocation_entry.cmo as compiler-libs/relocation_entry.cmo)
   (.ocamloptcomp.objs/byte/relocation_entry.cmt as compiler-libs/relocation_entry.cmt)
   (.ocamloptcomp.objs/byte/relocation_entry.cmti as compiler-libs/relocation_entry.cmti)
-  (sction_table.mli as compiler-libs/sction_table.mli)
-  (.ocamloptcomp.objs/native/sction_table.cmx as compiler-libs/sction_table.cmx)
-  (.ocamloptcomp.objs/byte/sction_table.cmi as compiler-libs/sction_table.cmi)
-  (.ocamloptcomp.objs/byte/sction_table.cmo as compiler-libs/sction_table.cmo)
-  (.ocamloptcomp.objs/byte/sction_table.cmt as compiler-libs/sction_table.cmt)
-  (.ocamloptcomp.objs/byte/sction_table.cmti as compiler-libs/sction_table.cmti)
+  (section_table.mli as compiler-libs/section_table.mli)
+  (.ocamloptcomp.objs/native/section_table.cmx as compiler-libs/section_table.cmx)
+  (.ocamloptcomp.objs/byte/section_table.cmi as compiler-libs/section_table.cmi)
+  (.ocamloptcomp.objs/byte/section_table.cmo as compiler-libs/section_table.cmo)
+  (.ocamloptcomp.objs/byte/section_table.cmt as compiler-libs/section_table.cmt)
+  (.ocamloptcomp.objs/byte/section_table.cmti as compiler-libs/section_table.cmti)
   (string_table.mli as compiler-libs/string_table.mli)
   (.ocamloptcomp.objs/native/string_table.cmx as compiler-libs/string_table.cmx)
   (.ocamloptcomp.objs/byte/string_table.cmi as compiler-libs/string_table.cmi)
