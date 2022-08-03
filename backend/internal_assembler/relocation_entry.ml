@@ -31,7 +31,8 @@ let create_relocation ~offset ~info ~addend =
 let is_label name =
   String.length name >= 2 && Char.equal name.[0] '.' && Char.equal name.[1] 'L'
 
-let get_reloc_info relocation_type addend name symbol_table string_table =
+let get_reloc_info ~relocation_type ~addend name symbol_table string_table =
+  (* Labels are turned into relocations that are relative to the section *)
   if is_label name
   then
     let label, idx = Symbol_table.get_label_idx symbol_table name in
@@ -53,14 +54,18 @@ let create_relocation (relocation : X86_binary_emitter.Relocation.t)
   let relocation_type, relocation_symbol, addend =
     match relocation.kind with
     | DIR64 (name, addend) ->
-      (get_reloc_info 1 addend name symbol_table) string_table
+      (get_reloc_info ~relocation_type:1 ~addend name symbol_table) string_table
     | DIR32 (_, _) -> failwith "cannot generate dir32"
     | REL32 (name, addend) -> (
       match String.split_on_char '@' name with
       | [name; "GOTPCREL"] ->
-        (get_reloc_info 9 (Int64.sub addend 4L) name symbol_table) string_table
+        (get_reloc_info ~relocation_type:9 ~addend:(Int64.sub addend 4L) name
+           symbol_table)
+          string_table
       | [name; "PLT"] | [name] ->
-        (get_reloc_info 4 (Int64.sub addend 4L) name symbol_table) string_table
+        (get_reloc_info ~relocation_type:4 ~addend:(Int64.sub addend 4L) name
+           symbol_table)
+          string_table
       | _ -> failwith (Printf.sprintf "Invalid symbol %s\n" name))
   in
   { r_offset = Int64.of_int relocation.offset_from_section_beginning;

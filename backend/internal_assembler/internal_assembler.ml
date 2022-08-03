@@ -22,8 +22,6 @@
 module String = Misc.Stdlib.String
 module Section_name = X86_proc.Section_name
 module StringMap = X86_binary_emitter.StringMap
-module SectionMap = Map.Make (Section_name)
-module SectionTbl = Hashtbl.Make (Section_name)
 
 let isprefix s1 s2 =
   String.length s1 <= String.length s2
@@ -91,13 +89,13 @@ let make_section sections name ~sh_type ~size ?align ?entsize ?flags ?sh_link
   in
   Section_table.add_section sections name ?body section
 
-let make_text sections name raw_section align sh_string_table =
+let make_text sections name raw_section ~align sh_string_table =
   make_section sections name ~sh_type:1
     ~size:(Int64.of_int (X86_binary_emitter.size raw_section))
     ~flags:0x6L sh_string_table ~align
     ~body:(X86_binary_emitter.contents_mut raw_section)
 
-let make_data sections name raw_section align sh_string_table =
+let make_data sections name raw_section ~align sh_string_table =
   make_section sections name ~sh_type:1
     ~size:(Int64.of_int (X86_binary_emitter.size raw_section))
     ~flags:0x3L sh_string_table ~align
@@ -145,7 +143,7 @@ let make_custom_section sections name raw_section sh_string_table =
     ~body:(X86_binary_emitter.contents_mut raw_section)
     sh_string_table
 
-let make_relocation_section sections sym_tbl_idx relocation_table
+let make_relocation_section sections ~sym_tbl_idx relocation_table
     sh_string_table =
   let name = Relocation_table.section_name relocation_table in
   let size =
@@ -167,32 +165,32 @@ let get_sections sections =
             match i with X86_ast.Align (data, n) when n > acc -> n | _ -> acc)
           0 instructions
       in
-      SectionMap.add name
+      Section_name.Map.add name
         ( align,
           X86_binary_emitter.assemble_section X64
             { X86_binary_emitter.sec_name = X86_proc.Section_name.to_string name;
               sec_instrs = Array.of_list instructions
             } )
         acc)
-    SectionMap.empty sections
+    Section_name.Map.empty sections
 
 let make_compiler_sections section_table compiler_sections symbol_table
     sh_string_table =
-  let section_symbols = SectionTbl.create 100 in
-  SectionMap.iter
+  let section_symbols = Section_name.Tbl.create 100 in
+  Section_name.Map.iter
     (fun name (align, raw_section) ->
       if isprefix ".text" (X86_proc.Section_name.to_string name)
       then
-        make_text section_table name raw_section (Int64.of_int align)
+        make_text section_table name raw_section ~align:(Int64.of_int align)
           sh_string_table
       else if isprefix ".data" (X86_proc.Section_name.to_string name)
       then
-        make_data section_table name raw_section (Int64.of_int align)
+        make_data section_table name raw_section ~align:(Int64.of_int align)
           sh_string_table
       else
         make_custom_section section_table name raw_section ~sh_type:1
           sh_string_table;
-      SectionTbl.add section_symbols name
+      Section_name.Tbl.add section_symbols name
         (Symbol_table.make_section_symbol symbol_table
            (Section_table.num_sections section_table - 1)
            section_table))
@@ -201,7 +199,7 @@ let make_compiler_sections section_table compiler_sections symbol_table
 
 let make_symbols section_tables compiler_sections symbol_table section_symbols
     string_table =
-  SectionMap.iter
+  Section_name.Map.iter
     (fun section (align, raw_section) ->
       let symbols = X86_binary_emitter.labels raw_section in
       String.Tbl.iter
@@ -209,7 +207,7 @@ let make_symbols section_tables compiler_sections symbol_table section_symbols
           match is_label name with
           | true ->
             Symbol_table.add_label symbol_table symbol
-              (SectionTbl.find section_symbols section)
+              (Section_name.Tbl.find section_symbols section)
           | false ->
             Symbol_table.make_symbol symbol_table symbol section_tables
               string_table)
@@ -228,7 +226,7 @@ let create_relocation_tables compiler_sections symbol_table string_table =
                symbol_table string_table)
            l;
          Some relocation_table))
-    (SectionMap.bindings compiler_sections)
+    (Section_name.Map.bindings compiler_sections)
 
 let write buf header section_table symbol_table relocation_tables string_table =
   Owee.Owee_elf.write_elf buf header (Section_table.get_sections section_table);
@@ -264,12 +262,12 @@ let assemble asm output_file =
   let relocation_tables =
     create_relocation_tables compiler_sections symbol_table string_table
   in
-  let symtab_idx =
+  let sym_tbl_idx =
     Section_table.num_sections sections + List.length relocation_tables
   in
   List.iter
     (fun relocation_table ->
-      make_relocation_section sections symtab_idx relocation_table
+      make_relocation_section sections ~sym_tbl_idx relocation_table
         sh_string_table)
     relocation_tables;
   let num_locals = Symbol_table.num_locals symbol_table in

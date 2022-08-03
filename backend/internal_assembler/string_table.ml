@@ -24,7 +24,7 @@ type t =
     mutable strings : string list
   }
 
-(* An index of 0 in the string table is reserved for the null string *)
+(* An index of 0 in the string table is reserved for the empty string *)
 let create () = { current_length = 1; strings = [""] }
 
 let add_string t string =

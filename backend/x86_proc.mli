@@ -98,6 +98,9 @@ module Section_name : sig
   val to_string : t -> string
   val flags : t -> string option
   val alignment : t -> int64
+
+  module Map : Map.S with type key = t
+  module Tbl : Hashtbl.S with type key = t
 end
 
 (** Support for plumbing a binary code emitter *)

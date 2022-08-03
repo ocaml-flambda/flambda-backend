@@ -19,13 +19,18 @@
    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
    SOFTWARE. *)
-module SectionTbl = Hashtbl.Make (X86_proc.Section_name)
+module Section_name = X86_proc.Section_name
+
+type section_body =
+  { offset : int;
+    body : bytes
+  }
 
 type t =
   { mutable sections : Owee.Owee_elf.section list;
     mutable num_sections : int;
-    section_tb : int SectionTbl.t;
-    mutable section_bodies : (int * bytes) list;
+    section_tb : int Section_name.Tbl.t;
+    mutable section_bodies : section_body list;
     mutable current_offset : int64
   }
 
@@ -46,27 +51,27 @@ let create () =
           sh_name_str = ""
         } ];
     num_sections = 1;
-    section_tb = SectionTbl.create 100;
+    section_tb = Section_name.Tbl.create 100;
     section_bodies = [];
     current_offset = 64L
   }
 
 let add_section t name ?body section =
   t.sections <- section :: t.sections;
-  SectionTbl.add t.section_tb name t.num_sections;
+  Section_name.Tbl.add t.section_tb name t.num_sections;
   t.num_sections <- t.num_sections + 1;
   t.current_offset <- Int64.add t.current_offset section.sh_size;
   match body with
   | Some body ->
     t.section_bodies
-      <- (Int64.to_int section.sh_offset, body) :: t.section_bodies
+      <- { offset = Int64.to_int section.sh_offset; body } :: t.section_bodies
   | None -> ()
 
 let current_offset t = t.current_offset
 
 let num_sections t = t.num_sections
 
-let get_sec_idx t name = SectionTbl.find t.section_tb name
+let get_sec_idx t name = Section_name.Tbl.find t.section_tb name
 
 let get_section t name =
   List.find
@@ -86,8 +91,9 @@ let get_section_bodies t = t.section_bodies
 
 let write_bodies t buf =
   List.iter
-    (fun (pos, body) ->
+    (fun sec_body ->
       Owee.Owee_buf.Write.fixed_bytes
-        (Owee.Owee_buf.cursor buf ~at:pos)
-        (Bytes.length body) body)
+        (Owee.Owee_buf.cursor buf ~at:sec_body.offset)
+        (Bytes.length sec_body.body)
+        sec_body.body)
     t.section_bodies

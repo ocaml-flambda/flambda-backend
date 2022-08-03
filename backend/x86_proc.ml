@@ -16,40 +16,43 @@
 open X86_ast
 
 module Section_name = struct
-  type t =
-    { name: string list;
-      name_str: string;
-      flags : string option;
-      args: string list
-    }
+  module S = struct
+    type t =
+      { name: string list;
+        name_str: string;
+        flags : string option;
+        args: string list
+      }
 
-  let equal t1 t2 =
-    List.equal String.equal t1.name t2.name
+    let equal t1 t2 =
+      List.equal String.equal t1.name t2.name
 
-  let hash t = Hashtbl.hash t.name
+    let hash t = Hashtbl.hash t.name
 
-  let compare t1 t2 = List.compare String.compare t1.name t2.name
+    let compare t1 t2 = List.compare String.compare t1.name t2.name
 
-  let make name flags args =
-    { name; name_str = String.concat "," name; flags; args; }
+    let make name flags args =
+      { name; name_str = String.concat "," name; flags; args; }
 
-  let of_string name = { name = [name]; name_str = name; flags = None; args = [] }
+    let of_string name =
+      { name = [name]; name_str = name; flags = None; args = [] }
 
-  let to_string t = t.name_str
+    let to_string t = t.name_str
 
-  let flags t =
-    t.flags
+    let flags t =
+      t.flags
 
-  let alignment t =
-    let rec align = function
-      | [] -> 0L
-      | [hd] -> Option.value ~default:0L (Int64.of_string_opt hd)
-      | hd :: tl -> align tl
-    in align t.args
-
+    let alignment t =
+      let rec align = function
+        | [] -> 0L
+        | [hd] -> Option.value ~default:0L (Int64.of_string_opt hd)
+        | hd :: tl -> align tl
+      in align t.args
+  end
+  include S
+  module Map = Map.Make (S)
+  module Tbl = Hashtbl.Make (S)
 end
-
-module SectionTbl = Hashtbl.Make (Section_name)
 
 type system =
   (* 32 bits and 64 bits *)
@@ -322,7 +325,7 @@ let assemble_file infile outfile =
 
 let asm_code = ref []
 let asm_code_current_section = ref (ref [])
-let asm_code_by_section = SectionTbl.create 100
+let asm_code_by_section = Section_name.Tbl.create 100
 
 let directive dir =
   (if !Emitaux.create_asm_file then
@@ -330,11 +333,11 @@ let directive dir =
   match dir with
   | Section (name, flags, args) -> (
       let name = Section_name.make name flags args in
-      match SectionTbl.find_opt asm_code_by_section name with
+      match Section_name.Tbl.find_opt asm_code_by_section name with
       | Some x -> asm_code_current_section := x
       | None ->
         asm_code_current_section := ref [];
-        SectionTbl.add asm_code_by_section name !asm_code_current_section)
+        Section_name.Tbl.add asm_code_by_section name !asm_code_current_section)
   | dir -> !asm_code_current_section := dir :: !(!asm_code_current_section)
 
 let emit ins = directive (Ins ins)
@@ -342,7 +345,7 @@ let emit ins = directive (Ins ins)
 let reset_asm_code () =
   asm_code := [];
   asm_code_current_section := ref [];
-  SectionTbl.clear asm_code_by_section
+  Section_name.Tbl.clear asm_code_by_section
 
 let generate_code asm =
   begin match asm with
@@ -351,7 +354,7 @@ let generate_code asm =
   end;
   begin match !internal_assembler with
     | Some f ->
-      let instrs = SectionTbl.fold (fun name instrs acc ->
+      let instrs = Section_name.Tbl.fold (fun name instrs acc ->
           (name, List.rev !instrs) :: acc)
           asm_code_by_section []
       in
