@@ -781,6 +781,7 @@ module Extra_params = struct
       Compenv.setter ppf (fun b -> b) name [ option ] v; false
     in
     match name with
+    | "internal-assembler" -> set' Flambda_backend_flags.internal_assembler
     | "ocamlcfg" -> set' Flambda_backend_flags.use_ocamlcfg
     | "cfg-invariants" -> set' Flambda_backend_flags.cfg_invariants
     | "cfg-equivalence-check" -> set' Flambda_backend_flags.cfg_equivalence_check
