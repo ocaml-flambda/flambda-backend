@@ -157,6 +157,7 @@ module Read = struct
     advance t length;
     result
 end
+
 external unsafe_blit_str
   :  src:string
   -> src_pos:int
@@ -164,8 +165,9 @@ external unsafe_blit_str
   -> dst_pos:int
   -> len:int
   -> unit
-  = "bigstring_blit_string_bigstring_stub"
+  = "owee_blit_string_bigstring_stub"
 [@@noalloc]
+
 external unsafe_blit
   :  src:bytes
   -> src_pos:int
@@ -173,33 +175,28 @@ external unsafe_blit
   -> dst_pos:int
   -> len:int
   -> unit
-  = "bigstring_blit_bytes_bigstring_stub"
+  = "owee_blit_bytes_bigstring_stub"
 [@@noalloc]
 
 external bigstring_set16_unsafe :
   t -> byte_offset:int -> u16 -> unit = "%caml_bigstring_set16u"
+
 external bigstring_set32_unsafe :
   t -> byte_offset:int -> int32 -> unit = "%caml_bigstring_set32u"
+
 external bigstring_set64_unsafe :
   t -> byte_offset:int -> int64 -> unit = "%caml_bigstring_set64u"
+  
 module Write = struct
-  let u8 t (w : u8) =
-    t.buffer.{t.position} <- w;
+  let u8 t w  =
+    Bigarray.Array1.unsafe_set t.buffer t.position w;
     advance t 1
 
-  let s8 t (w : s8) =
-    let w =
-      if w > 0x7F then
-        w lor ((-1) lsl 8)
-      else w in
-    t.buffer.{t.position} <- w;
-    advance t 1
-
-  let u16 t (w : u16) =
+  let u16 t w =
     bigstring_set16_unsafe t.buffer ~byte_offset:t.position w;
     advance t 2
 
-  let u32 t (w : u32) =
+  let u32 t w =
     bigstring_set32_unsafe t.buffer ~byte_offset:t.position
       (Int32.of_int w);
     advance t 4
@@ -210,37 +207,38 @@ module Write = struct
     bigstring_set64_unsafe t.buffer ~byte_offset:t.position w;
     advance t 8
 
-  let uleb128 t (w : u128) =
-    let rec aux t acc =
-      let x = acc land 0x7F in
-      let acc = acc lsr 7 in
-      if acc = 0 then
-        u8 t x
-      else
-        (u8 t (x lor 0x80);
-        aux t acc)
-    in
-    aux t w
+  (* Unused - review needed *)
+  (* let uleb128 t (w : u128) = *)
+  (*   let rec aux t acc = *)
+  (*     let x = acc land 0x7F in *)
+  (*     let acc = acc lsr 7 in *)
+  (*     if acc = 0 then *)
+  (*       u8 t x *)
+  (*     else *)
+  (*       (u8 t (x lor 0x80); *)
+  (*       aux t acc) *)
+  (*   in *)
+  (*   aux t w *)
 
-  let sleb128 t (w : s128) =
-    let rec aux t acc =
-      let x = acc land 0x7F in
-      let acc = acc asr 7 in
-      if (acc = 0 && (x land 0x40) = 0)
-          || (acc = -1 && (x land 0x40) <> 0) then
-        u8 t x
-      else
-        (u8 t (x lor 0x80);
-        aux t acc)
-    in
-    aux t w
+  (* let sleb128 t (w : s128) = *)
+  (*   let rec aux t acc = *)
+  (*     let x = acc land 0x7F in *)
+  (*     let acc = acc asr 7 in *)
+  (*     if (acc = 0 && (x land 0x40) = 0) *)
+  (*         || (acc = -1 && (x land 0x40) <> 0) then *)
+  (*       u8 t x *)
+  (*     else *)
+  (*       (u8 t (x lor 0x80); *)
+  (*       aux t acc) *)
+  (*   in *)
+  (*   aux t w *)
 
   let fixed_bytes t length s =
     let {buffer; position} = t in
     unsafe_blit ~src:s ~src_pos:0 ~dst:buffer ~dst_pos:position ~len:length;
     advance t length
 
-  let zero_bytes t s =
+  let zero_terminated_bytes t s =
     fixed_bytes t (Bytes.length s) s;
     u8 t 0
     
@@ -250,7 +248,7 @@ module Write = struct
       ~src:s ~src_pos:0 ~dst:buffer ~dst_pos:position ~len:length;
     advance t length
 
-  let zero_string t s =
+  let zero_terminated_string t s =
     fixed_string t (String.length s) s;
     u8 t 0
 

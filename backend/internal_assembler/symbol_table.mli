@@ -1,3 +1,5 @@
+module String = Misc.Stdlib.String
+
 type t
 
 val create : unit -> t
@@ -7,14 +9,11 @@ val add_symbol : t -> Symbol_entry.t -> unit
 val add_label : t -> X86_binary_emitter.symbol -> Symbol_entry.t -> unit
 
 val get_label :
-  t ->
-  X86_binary_emitter.StringTbl.key ->
-  X86_binary_emitter.symbol * Symbol_entry.t
+  t -> String.Tbl.key -> X86_binary_emitter.symbol * Symbol_entry.t
 
-val get_label_idx :
-  t -> X86_binary_emitter.StringTbl.key -> X86_binary_emitter.symbol * int
+val get_label_idx : t -> String.Tbl.key -> X86_binary_emitter.symbol * int
 
-val get_symbol_idx_opt : t -> X86_binary_emitter.StringTbl.key -> int option
+val get_symbol_idx_opt : t -> String.Tbl.key -> int option
 
 val num_symbols : t -> int
 

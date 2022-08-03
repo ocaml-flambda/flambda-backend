@@ -88,7 +88,7 @@ val windows:bool
 (** Whether calls need to go via the PLT. *)
 val use_plt : bool
 
-module SectionName : sig
+module Section_name : sig
   type t 
   val equal : t -> t -> bool
   val hash : t -> int
@@ -103,7 +103,7 @@ end
 (** Support for plumbing a binary code emitter *)
 
 val internal_assembler :
-  ((SectionName.t * X86_ast.asm_line list) list -> string -> unit) option ref
+  ((Section_name.t * X86_ast.asm_line list) list -> string -> unit) option ref
 
 val register_internal_assembler :
-  ((SectionName.t * X86_ast.asm_line list) list -> string -> unit) -> unit
+  ((Section_name.t * X86_ast.asm_line list) list -> string -> unit) -> unit

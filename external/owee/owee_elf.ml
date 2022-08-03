@@ -64,7 +64,6 @@ let write_identification t identification =
   Write.u8 t identification.elf_version;
   Write.u8 t identification.elf_osabi;
   Write.u8 t identification.elf_abiversion;
-
   (* Padding *)
   Write.u8 t 0;
   Write.u8 t 0;
@@ -186,7 +185,7 @@ let read_section_name shstrndx t shdr =
 let write_section_name shstrndx t shdr name =
   let n = shdr.sh_name in
   seek t ((Int64.to_int shstrndx.sh_offset) + n);
-  Write.zero_string t name
+  Write.zero_terminated_string t name
 
 let read_sections header t =
   let sections = Array.init header.e_shnum (read_section header t) in

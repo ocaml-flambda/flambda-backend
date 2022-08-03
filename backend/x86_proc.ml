@@ -15,15 +15,7 @@
 
 open X86_ast
 
-module StringTbl = Hashtbl.Make (struct
-    type t = string
-
-    let equal = String.equal
-
-    let hash = Hashtbl.hash
-  end)
-
-module SectionName = struct
+module Section_name = struct
   type t =
     { name: string list;
       name_str: string;
@@ -77,7 +69,7 @@ module SectionName = struct
 
 end
 
-module SectionTbl = Hashtbl.Make (SectionName)
+module SectionTbl = Hashtbl.Make (Section_name)
 
 type system =
   (* 32 bits and 64 bits *)
@@ -357,7 +349,7 @@ let directive dir =
   asm_code := dir :: !asm_code);
   match dir with
   | Section (name, flags, args) -> (
-      let name = SectionName.make name flags args in
+      let name = Section_name.make name flags args in
       match SectionTbl.find_opt asm_sections name with
       | Some x -> asm_code_by_sec := x
       | None ->

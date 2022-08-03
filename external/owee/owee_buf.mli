@@ -65,20 +65,21 @@ module Read : sig
 end
 
 module Write : sig
-  val s8      : cursor -> s8 -> unit
   val u8      : cursor -> u8 -> unit
   val u16     : cursor -> u16 -> unit
   val u32     : cursor -> u32 -> unit
   val u32be   : cursor -> u32 -> unit
   val u64     : cursor -> u64 -> unit
-  val uleb128 : cursor -> u128 -> unit
-  val sleb128 : cursor -> s128 -> unit
+
+  (* Need reviewing *)
+  (* val uleb128 : cursor -> u128 -> unit *)
+  (* val sleb128 : cursor -> s128 -> unit *)
 
   val fixed_string : cursor -> int -> string -> unit
-  val zero_string : cursor -> string -> unit
+  val zero_terminated_string : cursor -> string -> unit
 
   val fixed_bytes : cursor -> int -> bytes -> unit
-  val zero_bytes : cursor -> bytes -> unit
+  val zero_terminated_bytes : cursor -> bytes -> unit
 
   val buffer : cursor -> int -> t
 end

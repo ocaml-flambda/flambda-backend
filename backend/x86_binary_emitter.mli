@@ -13,6 +13,7 @@
 *)
 
 open X86_ast
+module String = Misc.Stdlib.String
 
 type section = { sec_name : string; mutable sec_instrs : asm_line array }
 
@@ -41,7 +42,6 @@ module Relocation : sig
 end
 
 module StringMap : Map.S with type key = string
-module StringTbl : Hashtbl.S with type key = string
 
 type buffer
 
@@ -59,4 +59,4 @@ val contents : buffer -> string
 
 val add_patch : offset:int -> size:data_size -> data:int64 -> buffer -> unit
 
-val labels : buffer -> symbol StringTbl.t
+val labels : buffer -> symbol String.Tbl.t

@@ -1,4 +1,5 @@
 open X86_binary_emitter
+module String = Misc.Stdlib.String
 
 module IntTbl = Hashtbl.Make (struct
   type t = int
@@ -13,20 +14,20 @@ type t =
     mutable global_num_symbols : int;
     mutable local_symbols : Symbol_entry.t list;
     mutable local_num_symbols : int;
-    global_symbols_tbl : int StringTbl.t;
-    local_symbols_tbl : int StringTbl.t;
-    labels_tbl : (X86_binary_emitter.symbol * Symbol_entry.t) StringTbl.t;
+    global_symbols_tbl : int String.Tbl.t;
+    local_symbols_tbl : int String.Tbl.t;
+    labels_tbl : (X86_binary_emitter.symbol * Symbol_entry.t) String.Tbl.t;
     section_symbol_tbl : int IntTbl.t
   }
 
 let create () =
   { global_symbols = [];
     global_num_symbols = 0;
-    global_symbols_tbl = StringTbl.create 100;
+    global_symbols_tbl = String.Tbl.create 100;
     local_symbols = [];
     local_num_symbols = 0;
-    local_symbols_tbl = StringTbl.create 100;
-    labels_tbl = StringTbl.create 100;
+    local_symbols_tbl = String.Tbl.create 100;
+    labels_tbl = String.Tbl.create 100;
     section_symbol_tbl = IntTbl.create 100
   }
 
@@ -39,22 +40,22 @@ let add_symbol t symbol =
         (Symbol_entry.get_shndx symbol)
         t.local_num_symbols
     | _ ->
-      StringTbl.add t.local_symbols_tbl
+      String.Tbl.add t.local_symbols_tbl
         (Symbol_entry.get_name_str symbol)
         t.local_num_symbols);
     t.local_num_symbols <- t.local_num_symbols + 1;
     t.local_symbols <- symbol :: t.local_symbols
   | Global ->
-    StringTbl.add t.global_symbols_tbl
+    String.Tbl.add t.global_symbols_tbl
       (Symbol_entry.get_name_str symbol)
       t.global_num_symbols;
     t.global_num_symbols <- t.global_num_symbols + 1;
     t.global_symbols <- symbol :: t.global_symbols
 
 let add_label t label symbol =
-  StringTbl.add t.labels_tbl label.sy_name (label, symbol)
+  String.Tbl.add t.labels_tbl label.sy_name (label, symbol)
 
-let get_label t name = StringTbl.find t.labels_tbl name
+let get_label t name = String.Tbl.find t.labels_tbl name
 
 let get_label_idx t name =
   let label, symbol = get_label t name in
@@ -62,9 +63,9 @@ let get_label_idx t name =
   label, idx
 
 let get_symbol_idx_opt t name =
-  match StringTbl.find_opt t.global_symbols_tbl name with
+  match String.Tbl.find_opt t.global_symbols_tbl name with
   | Some idx -> Some (t.local_num_symbols + idx)
-  | None -> StringTbl.find_opt t.local_symbols_tbl name
+  | None -> String.Tbl.find_opt t.local_symbols_tbl name
 
 let num_symbols t = t.local_num_symbols + t.global_num_symbols
 

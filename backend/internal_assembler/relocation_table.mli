@@ -1,6 +1,6 @@
 type t
 
-val create : X86_proc.SectionName.t -> t
+val create : X86_proc.Section_name.t -> t
 
 val make_relocation :
   t ->
@@ -11,6 +11,6 @@ val make_relocation :
 
 val num_relocations : t -> int
 
-val section_name : t -> X86_proc.SectionName.t
+val section_name : t -> X86_proc.Section_name.t
 
 val write : t -> Section_table.t -> Owee.Owee_buf.t -> unit
