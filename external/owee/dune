@@ -1,0 +1,17 @@
+(library
+ (name owee)
+ ; (public_name owee)
+ ; (wrapped false)
+ (foreign_stubs (language c) (names owee_stubs)
+   (flags ((:include %{project_root}/oc_cflags.sexp)
+   (:include %{project_root}/sharedlib_cflags.sexp)
+   (:include %{project_root}/oc_cppflags.sexp)))
+)
+ (libraries unix bigarray)
+ (synopsis "OCaml library to work with DWARF format"))
+
+(install
+ (files
+  (dllowee_stubs.so as stublibs/dllowee_stubs.so))
+  (section lib)
+  (package ocaml))

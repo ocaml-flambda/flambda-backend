@@ -68,7 +68,9 @@ val mem64_rip: data_type -> ?ofs:int -> string -> arg
 module D : sig
   (** Directives *)
 
-  val align: int -> unit
+  (* If data is true then null bytes are used for padding,
+     otherwise nops are used *)
+  val align: data:bool -> int -> unit
   val byte: constant -> unit
   val bytes: string -> unit
   val cfi_adjust_cfa_offset: int -> unit

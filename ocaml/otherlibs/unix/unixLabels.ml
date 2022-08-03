@@ -15,6 +15,4 @@
 
 (* Module [UnixLabels]: labelled Unix module *)
 
-[@@@ocaml.nolabels]
-
 include Unix
