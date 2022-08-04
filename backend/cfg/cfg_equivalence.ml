@@ -394,8 +394,17 @@ let check_basic_instruction :
     match expected.desc with Prologue -> false | _ -> true
     [@@ocaml.warning "-4"]
   in
-  check_instruction ~check_live:true ~check_dbg ~check_arg:true idx location
-    expected result
+  let check_live =
+    match result.desc with
+    | Op _ -> true
+    | Call _ -> true
+    | Reloadretaddr -> true
+    | Pushtrap _ -> false
+    | Poptrap -> false
+    | Prologue -> false
+  in
+  check_instruction ~check_live ~check_dbg ~check_arg:true idx location expected
+    result
 
 let rec check_basic_instruction_list :
     State.t ->

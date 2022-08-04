@@ -67,9 +67,9 @@ struct
       { before = Reg.diff_set_array before Proc.destroyed_at_reloadretaddr;
         across = Reg.Set.empty
       }
-    | Pushtrap _ -> { before; across = Reg.Set.empty }
-    | Poptrap -> { before; across = Reg.Set.empty }
-    | Prologue -> { before; across = Reg.Set.empty }
+    | Pushtrap _ -> { before; across = before }
+    | Poptrap -> { before; across = before }
+    | Prologue -> { before; across = before }
 
   let terminator :
       domain -> exn:domain -> Cfg.terminator Cfg.instruction -> domain =
