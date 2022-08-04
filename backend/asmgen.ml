@@ -359,12 +359,9 @@ let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
   ++ (fun (fd : Mach.fundecl) ->
       match register_allocator with
       | IRC ->
-        let x =
+        let res =
           fd
           ++ Profile.record ~accumulate:true "cfgize" cfgize
-        in
-        let res =
-          x
           ++ Profile.record ~accumulate:true "cfg_irc" Cfg_irc.run
         in
         (Cfg_regalloc_utils.simplify_cfg res)

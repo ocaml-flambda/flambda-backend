@@ -30,6 +30,10 @@ type cfg_infos =
     max_instruction_id : Instruction.id
   }
 
+(* CR xclerc for xclerc: this function currently reset the
+   worklist to "unknown", but that should be done elsewhere
+   as functions in this module are supposed to be independent
+   of IRC.*)
 val collect_cfg_infos : Cfg_with_layout.t -> cfg_infos
 
 type liveness = Cfg_liveness.Liveness.domain Cfg_dataflow.Instr.Tbl.t
@@ -72,4 +76,5 @@ val remove_prologue_if_not_required : Cfg_with_layout.t -> unit
 
 val update_live_fields : Cfg_with_layout.t -> liveness -> unit
 
+(* The spill cost is currently the number of occurrences of the register. *)
 val update_spill_cost : Cfg_with_layout.t -> unit

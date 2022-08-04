@@ -434,7 +434,7 @@ let[@inline] rec find_alias state reg =
   else reg
 
 let[@inline] add_alias _state v u =
-  if irc_debug && not (same_reg_class v u)
+  if not (same_reg_class v u)
   then
     fatal
       "trying to create an alias between %a and %a but they are in different \
