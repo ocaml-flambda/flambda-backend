@@ -218,7 +218,7 @@ let select_spilling_register_using_heuristics : State.t -> Reg.t =
   | Set_choose -> (
     (* This is the "heuristics" from the IRC paper: pick any candidate, just try
        to avoid any of the temporaries introduces for spilling. *)
-    let spill_work_list = Reg.Set.of_list (State.spill_work_list state) in
+    let spill_work_list = State.spill_work_list state in
     let introduced_temporaries = State.introduced_temporaries state in
     match
       Reg.Set.choose_opt (Reg.Set.diff spill_work_list introduced_temporaries)
@@ -240,13 +240,11 @@ let select_spilling_register_using_heuristics : State.t -> Reg.t =
          occurrences. *)
       +. if State.mem_introduced_temporaries state reg then 10_000. else 0.
     in
-    match State.spill_work_list state with
-    | [] -> fatal "spill_work_list is empty"
-    | [one] -> one
-    | hd :: tl ->
-      List.fold_left tl
-        ~init:(hd, weighted_cost hd)
-        ~f:(fun ((_curr_reg, curr_min_cost) as acc) reg ->
+    match State.is_empty_spill_work_list state with
+    | true -> fatal "spill_work_list is empty"
+    | false ->
+      State.fold_spill_work_list state ~init:(Reg.dummy, Float.max_float)
+        ~f:(fun reg ((_curr_reg, curr_min_cost) as acc) ->
           let reg_cost = weighted_cost reg in
           if reg_cost < curr_min_cost then reg, reg_cost else acc)
       |> fst)
@@ -319,7 +317,7 @@ let assign_colors : State.t -> Cfg_with_layout.t -> unit =
         let c = first_avail + reg_first_avail in
         if irc_debug then log ~indent:3 "coloring with %d" c;
         n.Reg.irc_color <- Some c));
-  List.iter (State.coalesced_nodes state) ~f:(fun n ->
+  State.iter_coalesced_nodes state ~f:(fun n ->
       let alias = State.find_alias state n in
       n.Reg.irc_color <- alias.Reg.irc_color)
 
@@ -495,8 +493,12 @@ let rec main : round:int -> State.t -> Cfg_with_layout.t -> liveness =
     let adj_set = State.adj_set state in
     log ~indent:1 "(%d pairs in adj_set)"
       (RegisterStamp.PairSet.cardinal adj_set);
-    RegisterStamp.PairSet.iter adj_set ~f:(fun (x, y) ->
-        log ~indent:1 "(%d, %d) <- adj_set" x y));
+    if false
+    then
+      (* may produce a *lot* of lines... *)
+      RegisterStamp.PairSet.iter adj_set ~f:(fun p ->
+          log ~indent:1 "(%d, %d) <- adj_set" (RegisterStamp.fst p)
+            (RegisterStamp.snd p)));
   make_work_list state;
   State.invariant state;
   if irc_debug then log_work_list_desc "before loop";
@@ -553,6 +555,8 @@ let run : Cfg_with_layout.t -> Cfg_with_layout.t =
           (Proc.register_class reg));
   let { arg; res; max_instruction_id } = collect_cfg_infos cfg_with_layout in
   let all_temporaries = Reg.Set.union arg res in
+  if irc_debug
+  then log ~indent:0 "#temporaries=%d" (Reg.Set.cardinal all_temporaries);
   let state =
     State.make
       ~initial:(Reg.Set.elements all_temporaries)

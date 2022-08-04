@@ -13,7 +13,9 @@ module Instruction : sig
 
   type t = Cfg.basic Cfg.instruction
 
-  module Set : MoreLabels.Set.S with type elt = t
+  val compare : t -> t -> int
+
+  module Set : Set.S with type elt = t
 
   module IdSet : MoreLabels.Set.S with type elt = id
 
