@@ -30,10 +30,9 @@ type cfg_infos =
     max_instruction_id : Instruction.id
   }
 
-(* CR xclerc for xclerc: this function currently reset the
-   worklist to "unknown", but that should be done elsewhere
-   as functions in this module are supposed to be independent
-   of IRC.*)
+(* CR xclerc for xclerc: this function currently reset the worklist to
+   "unknown", but that should be done elsewhere as functions in this module are
+   supposed to be independent of IRC.*)
 val collect_cfg_infos : Cfg_with_layout.t -> cfg_infos
 
 type liveness = Cfg_liveness.Liveness.domain Cfg_dataflow.Instr.Tbl.t
