@@ -335,6 +335,7 @@ let register_allocator : register_allocator =
   | Some id ->
     match String.lowercase_ascii id with
     | "irc" -> IRC
+    | "upstream" -> Upstream
     | _ -> Misc.fatal_errorf "unknown register allocator %S" id
 
 let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
