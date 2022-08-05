@@ -200,7 +200,7 @@ let rec regalloc ~ppf_dump round fd =
                 ": function too complex, cannot complete register allocation");
   dump_if ppf_dump dump_live "Liveness analysis" fd;
   let num_stack_slots =
-    if should_use_linscan then begin
+    if should_use_linscan fd then begin
       (* Linear Scan *)
       Interval.build_intervals fd;
       if !dump_interval then Printmach.intervals ppf_dump ();
