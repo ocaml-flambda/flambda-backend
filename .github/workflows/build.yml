@@ -45,7 +45,7 @@ jobs:
             os: macos-latest
 
           - name: irc
-            config: --enable-middle-end=closure
+            config: --enable-middle-end=flambda2
             os: ubuntu-latest
             ocamlparam: ''
             check_arch: true
