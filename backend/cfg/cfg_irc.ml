@@ -493,6 +493,8 @@ let rec main : round:int -> State.t -> Cfg_with_layout.t -> liveness =
     let adj_set = State.adj_set state in
     log ~indent:1 "(%d pairs in adj_set)"
       (RegisterStamp.PairSet.cardinal adj_set);
+    (* CR-someday xclerc for xclerc: remove (kept for the moment for debugging,
+       but does not deserve to be controlled by a vaiable) *)
     if false
     then
       (* may produce a *lot* of lines... *)
