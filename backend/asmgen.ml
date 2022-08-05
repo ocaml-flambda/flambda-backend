@@ -164,6 +164,10 @@ let write_ir prefix =
 let should_emit () =
   not (should_stop_after Compiler_pass.Scheduling)
 
+let should_use_linscan fd =
+  !use_linscan ||
+  List.mem Cmm.Use_linscan_regalloc fd.Mach.fun_codegen_options
+
 let if_emit_do f x = if should_emit () then f x else ()
 let emit_begin_assembly ~init_dwarf:init_dwarf =
   if_emit_do (fun init_dwarf -> Emit.begin_assembly ~init_dwarf) init_dwarf
@@ -196,8 +200,7 @@ let rec regalloc ~ppf_dump round fd =
                 ": function too complex, cannot complete register allocation");
   dump_if ppf_dump dump_live "Liveness analysis" fd;
   let num_stack_slots =
-    if !use_linscan ||
-       List.mem Cmm.Use_linscan_regalloc fd.Mach.fun_codegen_options then begin
+    if should_use_linscan fd then begin
       (* Linear Scan *)
       Interval.build_intervals fd;
       if !dump_interval then Printmach.intervals ppf_dump ();
@@ -357,8 +360,9 @@ let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_live
   ++ pass_dump_if ppf_dump dump_live "Liveness analysis"
   ++ (fun (fd : Mach.fundecl) ->
-      match register_allocator with
-      | IRC ->
+    let force_linscan = should_use_linscan fd in
+      match force_linscan, register_allocator with
+      | false, IRC ->
         let res =
           fd
           ++ Profile.record ~accumulate:true "cfgize" cfgize
@@ -366,7 +370,7 @@ let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
         in
         (Cfg_regalloc_utils.simplify_cfg res)
         ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run
-      | Upstream ->
+      | true, _ | false, Upstream ->
         let res =
           fd
           ++ Profile.record ~accumulate:true "spill" Spill.fundecl

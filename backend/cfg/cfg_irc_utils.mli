@@ -23,22 +23,28 @@ end
 module RegisterStamp : sig
   type t = int
 
-  module PairSet : sig
-    type stamp := t
+  type pair
 
+  val pair : t -> t -> pair
+
+  val fst : pair -> t
+
+  val snd : pair -> t
+
+  module PairSet : sig
     type t
 
-    val make : unit -> t
+    val make : num_registers:int -> t
 
     val clear : t -> unit
 
-    val mem : t -> stamp -> stamp -> bool
+    val mem : t -> pair -> bool
 
-    val add : t -> stamp -> stamp -> unit
+    val add : t -> pair -> unit
 
     val cardinal : t -> int
 
-    val iter : t -> f:(stamp * stamp -> unit) -> unit
+    val iter : t -> f:(pair -> unit) -> unit
   end
 end
 
@@ -83,4 +89,38 @@ module Spilling_heuristics : sig
   val to_string : t -> string
 
   val env : t Lazy.t
+end
+
+(* Actually work "sets", uses "lists" to follow the article/book. *)
+module WorkList : sig
+  module type S = sig
+    type e
+
+    type t
+
+    module Set : Set.S with type elt = e
+
+    val make : expected_max_size:int -> t
+
+    val empty : t -> t
+
+    val is_empty : t -> bool
+
+    val add : t -> e -> t
+
+    val remove : t -> e -> t
+
+    val choose_and_remove : t -> (e * t) option
+
+    val iter : t -> f:(e -> unit) -> unit
+
+    val fold : t -> f:(e -> 'a -> 'a) -> init:'a -> 'a
+
+    val to_list : t -> e list
+
+    val to_set : t -> Set.t
+  end
+
+  module Make (E : Set.OrderedType) (ES : Set.S with type elt = E.t) :
+    S with type e = E.t and module Set = ES
 end
