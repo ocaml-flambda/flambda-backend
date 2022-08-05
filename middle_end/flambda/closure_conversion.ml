@@ -741,9 +741,7 @@ let lambda_to_flambda ~backend ~module_ident ~size ~filename lam
     }
   in
   let module_symbol =
-    let pack_prefix =
-      Compilation_unit.Prefix.parse_for_pack !Clflags.for_package
-    in
+    let pack_prefix = Compilation_unit.Prefix.from_clflags () in
     Symbol.for_global_or_predef_ident pack_prefix module_ident
   in
   let block_symbol =

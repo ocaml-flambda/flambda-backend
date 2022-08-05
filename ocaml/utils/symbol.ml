@@ -89,7 +89,7 @@ let for_global_or_predef_ident pack_prefix id =
     else
       let compilation_unit =
         (* CR mshinwell: decide on "pack_prefix" or "for_pack_prefix" *)
-        Compilation_unit.create ~for_pack_prefix:pack_prefix
+        Compilation_unit.create pack_prefix
           (Ident.name id |> Compilation_unit.Name.of_string)
       in
       linkage_name_for_compilation_unit compilation_unit, compilation_unit

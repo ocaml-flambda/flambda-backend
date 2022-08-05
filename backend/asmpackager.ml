@@ -303,7 +303,7 @@ let package_object_files ~ppf_dump files targetcmx
   let pack_path =
     let for_pack_prefix = CU.Prefix.from_clflags () in
     let name = targetname |> CU.Name.of_string in
-    CU.create ~for_pack_prefix name
+    CU.create for_pack_prefix name
   in
   let members = map_left_right (read_member_info pack_path) files in
   check_units members;
@@ -328,8 +328,8 @@ let package_files ~ppf_dump initial_env files targetcmx ~backend ~flambda2 =
   Location.input_name := targetcmx;
   (* Set the name of the current compunit *)
   let comp_unit =
-    let for_pack_prefix = CU.Prefix.parse_for_pack !Clflags.for_package in
-    CU.create ~for_pack_prefix (CU.Name.of_string targetname)
+    let for_pack_prefix = CU.Prefix.from_clflags () in
+    CU.create for_pack_prefix (CU.Name.of_string targetname)
   in
   Compilenv.reset comp_unit;
   Misc.try_finally (fun () ->

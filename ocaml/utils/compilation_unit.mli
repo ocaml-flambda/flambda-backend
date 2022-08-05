@@ -87,7 +87,7 @@ val print_debug : Format.formatter -> t -> unit
 
 (** Create a compilation unit with the given [name] (which is not encoded or
     mangled in any way). *)
-val create : ?for_pack_prefix:Prefix.t -> Name.t -> t
+val create : Prefix.t -> Name.t -> t
 
 (** Create a compilation unit from the given [name]. The "-for-pack" of
     prefix is extracted if there is any. *)

@@ -146,7 +146,8 @@ let parse_markdown_doc filename =
 let make_compilation_unit ~extension ~filename ?(tag = "") () =
   let basename = Filename.chop_suffix filename extension |> Filename.basename in
   let name = String.capitalize_ascii basename ^ tag in
-  Compilation_unit.create (name |> Compilation_unit.Name.of_string)
+  Compilation_unit.create Compilation_unit.Prefix.empty
+    (name |> Compilation_unit.Name.of_string)
 
 let parse ~symbol_for_global filename =
   parse_fexpr filename

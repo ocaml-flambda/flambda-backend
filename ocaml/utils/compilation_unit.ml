@@ -164,7 +164,7 @@ type t = {
   hash : int;
 }
 
-let create ?(for_pack_prefix = Prefix.empty) name =
+let create for_pack_prefix name =
   if not (Prefix.is_empty for_pack_prefix) then begin
     Name.check_as_path_component name;
     ListLabels.iter ~f:Name.check_as_path_component
@@ -187,11 +187,11 @@ let of_string str =
         Prefix.parse_for_pack (Some (String.sub str 0 (pos+1))),
         Name.of_string (String.sub str (pos+1) (String.length str - pos - 1))
   in
-  create ~for_pack_prefix name
+  create for_pack_prefix name
 
-let dummy = create (Name.of_string "*none*")
+let dummy = create Prefix.empty (Name.of_string "*none*")
 
-let predef_exn = create (Name.of_string "*predef*")
+let predef_exn = create Prefix.empty (Name.of_string "*predef*")
 
 let name t = t.name
 

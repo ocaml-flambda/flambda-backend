@@ -337,7 +337,9 @@ let make_globals_map units_list =
 
 let make_startup_file ~ppf_dump ~named_startup_file ~filename genfns units =
   Location.input_name := "caml_startup"; (* set name of "current" input *)
-  let startup_comp_unit = CU.create (CU.Name.of_string "_startup") in
+  let startup_comp_unit =
+    CU.create CU.Prefix.empty (CU.Name.of_string "_startup")
+  in
   Compilenv.reset startup_comp_unit;
   let dwarf =
     let filename =
@@ -368,8 +370,9 @@ let make_startup_file ~ppf_dump ~named_startup_file ~filename genfns units =
   (* CR mshinwell: We should have a separate notion of "backend compilation
      unit" really, since the units here don't correspond to .ml source
      files. *)
-  let hot_comp_unit = CU.create (CU.Name.of_string "_hot") in
-  let system_comp_unit = CU.create (CU.Name.of_string "_system") in
+  let hot_comp_unit = CU.create CU.Prefix.empty (CU.Name.of_string "_hot") in
+  let system_comp_unit =
+    CU.create CU.Prefix.empty (CU.Name.of_string "_system") in
   let code_comp_units =
     if !Clflags.function_sections then
       hot_comp_unit :: startup_comp_unit :: name_list
@@ -387,7 +390,7 @@ let make_shared_startup_file ~ppf_dump genfns units =
   let compile_phrase p = Asmgen.compile_phrase ~ppf_dump p in
   Location.input_name := "caml_startup";
   let shared_startup_comp_unit =
-    CU.create (CU.Name.of_string "_shared_startup")
+    CU.create CU.Prefix.empty (CU.Name.of_string "_shared_startup")
   in
   Compilenv.reset shared_startup_comp_unit;
   Emit.begin_assembly ~init_dwarf:(fun () -> ());

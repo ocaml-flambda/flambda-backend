@@ -109,11 +109,8 @@ let clambda i backend typed =
        Compilenv.save_unit_info (cmx i))
 
 let reset_compilenv ~module_name =
-  let for_pack_prefix =
-    Compilation_unit.Prefix.parse_for_pack !Clflags.for_package
-  in
   let comp_unit =
-    Compilation_unit.create ~for_pack_prefix
+    Compilation_unit.create (Compilation_unit.Prefix.from_clflags ())
       (Compilation_unit.Name.of_string module_name)
   in
   Compilenv.reset comp_unit
