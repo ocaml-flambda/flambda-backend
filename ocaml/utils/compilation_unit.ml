@@ -67,7 +67,10 @@ end = struct
   let isupper chr =
     Char.equal (Char.uppercase_ascii chr) chr
 
-  let of_string str = str
+  let of_string str =
+    if String.equal str ""
+    then raise (Error (Bad_compilation_unit_name str))
+    else str
 
   (* This is so called (and separate from [of_string]) because we only want to
      check a name if it has a prefix. In particular, this allows single-module
@@ -80,7 +83,7 @@ end = struct
 
   let dummy = "*dummy*"
 
-  let to_string t = assert (not (String.equal t "")); t
+  let to_string t = t
 
   let persistent_ident t = Ident.create_persistent t
 end
@@ -176,6 +179,10 @@ let of_string str =
   let for_pack_prefix, name =
     match String.rindex_opt str '.' with
     | None -> Prefix.empty, Name.of_string str
+    | Some 0 ->
+        (* See [Name.check_as_path_component]; this allows ".cinaps" as a
+           compilation unit *)
+        Prefix.empty, Name.of_string str
     | Some pos ->
         Prefix.parse_for_pack (Some (String.sub str 0 (pos+1))),
         Name.of_string (String.sub str (pos+1) (String.length str - pos - 1))
