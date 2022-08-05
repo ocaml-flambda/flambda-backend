@@ -44,6 +44,14 @@ jobs:
             config: --enable-middle-end=flambda2
             os: macos-latest
 
+          - name: irc
+            config: --enable-middle-end=closure
+            os: ubuntu-latest
+            ocamlparam: ''
+            check_arch: true
+            env:
+              REGISTER_ALLOCATOR=irc
+
     env:
       J: "3"
       # On macOS, the testsuite is slow, so run only on push to main (#507)
