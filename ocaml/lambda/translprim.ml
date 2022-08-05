@@ -220,7 +220,7 @@ let lookup_primitive loc poly pos p =
     | "%floatarray_safe_set" -> Primitive ((Parraysets Pfloatarray), 3)
     | "%floatarray_unsafe_get" -> Primitive ((Parrayrefu Pfloatarray), 2)
     | "%floatarray_unsafe_set" -> Primitive ((Parraysetu Pfloatarray), 3)
-    | "%obj_is_int" -> Primitive (Pisint, 1)
+    | "%obj_is_int" -> Primitive (Pisint { variant_only = false }, 1)
     | "%lazy_force" -> Lazy_force pos
     | "%nativeint_of_int" -> Primitive ((Pbintofint (Pnativeint, mode)), 1)
     | "%nativeint_to_int" -> Primitive ((Pintofbint Pnativeint), 1)
@@ -821,7 +821,7 @@ let lambda_primitive_needs_event_after = function
   | Pcompare_ints | Pcompare_floats
   | Pfloatcomp _ | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu
   | Pbytessetu | Pmakearray ((Pintarray | Paddrarray | Pfloatarray), _, _)
-  | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint | Pisout
+  | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisout
   | Pprobe_is_enabled _
   | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer | Popaque -> false
 

@@ -26,6 +26,7 @@ val first_available_register: int array
 val register_name: int -> string
 val phys_reg: int -> Reg.t
 val rotate_registers: bool
+val all_phys_regs : Reg.t array
 
 (* Calling conventions *)
 val loc_arguments: Cmm.machtype -> Reg.t array * int
@@ -54,6 +55,7 @@ val max_register_pressure: Mach.operation -> int array
 val destroyed_at_oper: Mach.instruction_desc -> Reg.t array
 val destroyed_at_raise: Reg.t array
 val destroyed_at_reloadretaddr : Reg.t array
+val destroyed_at_pushtrap : Reg.t array
 
 (* Volatile registers: those that change value when read *)
 val regs_are_volatile: Reg.t array -> bool

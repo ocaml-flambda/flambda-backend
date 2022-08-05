@@ -783,10 +783,10 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _ | Pmulfloat _
   | Pdivfloat _ | Pfloatcomp _ | Pstringlength | Pstringrefu | Pbyteslength
   | Pbytesrefu | Pbytessetu | Pmakearray _ | Pduparray _ | Parraylength _
-  | Parrayrefu _ | Parraysetu _ | Pisint | Pisout | Pbintofint _ | Pintofbint _
-  | Pcvtbint _ | Pnegbint _ | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _
-  | Pmodbint _ | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _
-  | Pasrbint _ | Pbintcomp _ | Pbigarraydim _
+  | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisout | Pbintofint _
+  | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _ | Psubbint _
+  | Pmulbint _ | Pdivbint _ | Pmodbint _ | Pandbint _ | Porbint _ | Pxorbint _
+  | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp _ | Pbigarraydim _
   | Pbigarrayref (true, _, _, _)
   | Pbigarrayset (true, _, _, _)
   | Pstring_load_16 true
@@ -1764,7 +1764,7 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
             in
             CC.close_let acc ccenv is_scrutinee_int Not_user_visible
               (Prim
-                 { prim = Pisint;
+                 { prim = Pisint { variant_only = true };
                    args = [Var scrutinee];
                    loc = Loc_unknown;
                    exn_continuation = None

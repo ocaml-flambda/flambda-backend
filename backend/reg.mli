@@ -15,23 +15,41 @@
 
 (* Pseudo-registers *)
 
+(* CR xclerc for xclerc: double check all constructors are actually used. *)
+type irc_work_list =
+  | Unknown_list
+  | Precolored
+  | Initial
+  | Simplify
+  | Freeze
+  | Spill
+  | Spilled
+  | Coalesced
+  | Colored
+  | Select_stack
+val string_of_irc_work_list : irc_work_list -> string
+
 module Raw_name : sig
   type t
   val create_from_var : Backend_var.t -> t
+  val to_string : t -> string option
 end
 
 type t =
-  { mutable raw_name: Raw_name.t;       (* Name *)
-    stamp: int;                         (* Unique stamp *)
-    typ: Cmm.machtype_component;        (* Type of contents *)
-    mutable loc: location;              (* Actual location *)
-    mutable spill: bool;                (* "true" to force stack allocation  *)
-    mutable part: int option;           (* Zero-based index of part of value *)
-    mutable interf: t list;             (* Other regs live simultaneously *)
-    mutable prefer: (t * int) list;     (* Preferences for other regs *)
-    mutable degree: int;                (* Number of other regs live sim. *)
-    mutable spill_cost: int;            (* Estimate of spilling cost *)
-    mutable visited: int }              (* For graph walks *)
+  { mutable raw_name: Raw_name.t;         (* Name *)
+    stamp: int;                           (* Unique stamp *)
+    typ: Cmm.machtype_component;          (* Type of contents *)
+    mutable loc: location;                (* Actual location *)
+    mutable irc_work_list: irc_work_list; (* Current work list (IRC only) *)
+    mutable irc_color : int option;       (* Current color (IRC conly) *)
+    mutable irc_alias : t option;         (* Current alias (IRC only) *)
+    mutable spill: bool;                  (* "true" to force stack allocation  *)
+    mutable part: int option;             (* Zero-based index of part of value *)
+    mutable interf: t list;               (* Other regs live simultaneously *)
+    mutable prefer: (t * int) list;       (* Preferences for other regs *)
+    mutable degree: int;                  (* Number of other regs live sim. *)
+    mutable spill_cost: int;              (* Estimate of spilling cost *)
+    mutable visited: int }                (* For graph walks *)
 
 and location =
     Unknown
@@ -86,6 +104,7 @@ val size_of_contents_in_bytes : t -> int
 
 module Set: Set.S with type elt = t
 module Map: Map.S with type key = t
+module Tbl: Hashtbl.S with type key = t
 
 val add_set_array: Set.t -> t array -> Set.t
 val diff_set_array: Set.t -> t array -> Set.t
@@ -103,3 +122,4 @@ val is_visited : t -> bool
 val clear_visited_marks : unit -> unit
 
 val same_loc : t -> t -> bool
+val same : t -> t -> bool

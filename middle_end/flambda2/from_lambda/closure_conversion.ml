@@ -636,7 +636,7 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
       | Psubfloat _ | Pmulfloat _ | Pdivfloat _ | Pfloatcomp _ | Pstringlength
       | Pstringrefu | Pstringrefs | Pbyteslength | Pbytesrefu | Pbytessetu
       | Pbytesrefs | Pbytessets | Pduparray _ | Parraylength _ | Parrayrefu _
-      | Parraysetu _ | Parrayrefs _ | Parraysets _ | Pisint | Pisout
+      | Parraysetu _ | Parrayrefs _ | Parraysets _ | Pisint _ | Pisout
       | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _
       | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _ | Pandbint _
       | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _

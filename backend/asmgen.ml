@@ -131,7 +131,7 @@ let save_cfg f =
 let save_mach_as_cfg pass f =
   if should_save_ir_after pass && (not !start_from_emit) then begin
     let cfg =
-      Cfgize.fundecl f ~preserve_orig_labels:false ~simplify_terminators:true
+      Cfgize.fundecl f ~before_register_allocation:false ~preserve_orig_labels:false ~simplify_terminators:true
     in
     let cfg_unit_info = Compiler_pass_map.find pass pass_to_cfg in
     cfg_unit_info.items <- Cfg_format.(Cfg cfg) :: cfg_unit_info.items
@@ -158,6 +158,10 @@ let write_ir prefix =
 
 let should_emit () =
   not (should_stop_after Compiler_pass.Scheduling)
+
+let should_use_linscan fd =
+  !use_linscan ||
+  List.mem Cmm.Use_linscan_regalloc fd.Mach.fun_codegen_options
 
 let if_emit_do f x = if should_emit () then f x else ()
 let emit_begin_assembly ~init_dwarf:init_dwarf =
@@ -191,8 +195,7 @@ let rec regalloc ~ppf_dump round fd =
                 ": function too complex, cannot complete register allocation");
   dump_if ppf_dump dump_live "Liveness analysis" fd;
   let num_stack_slots =
-    if !use_linscan ||
-       List.mem Cmm.Use_linscan_regalloc fd.Mach.fun_codegen_options then begin
+    if should_use_linscan fd then begin
       (* Linear Scan *)
       Interval.build_intervals fd;
       if !dump_interval then Printmach.intervals ppf_dump ();
@@ -279,6 +282,7 @@ let test_cfgize (f : Mach.fundecl) (res : Linear.fundecl) : unit =
   let result =
     Cfgize.fundecl
       f
+      ~before_register_allocation:false
       ~preserve_orig_labels:false
       ~simplify_terminators:false
   in
@@ -309,6 +313,28 @@ let reorder_blocks_random ppf_dump cl =
      pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg
        "After reorder_blocks_random" cl
 
+let cfgize (f : Mach.fundecl) : Cfg_with_layout.t =
+  if ocamlcfg_verbose then begin
+    Format.eprintf "Asmgen.cfgize on function %s...\n%!" f.Mach.fun_name;
+  end;
+  Cfgize.fundecl
+    f
+    ~before_register_allocation:true
+    ~preserve_orig_labels:false
+    ~simplify_terminators:true
+
+type register_allocator =
+  | Upstream
+  | IRC
+
+let register_allocator : register_allocator =
+  match Sys.getenv_opt "REGISTER_ALLOCATOR" with
+  | None -> Upstream
+  | Some id ->
+    match String.lowercase_ascii id with
+    | "irc" -> IRC
+    | _ -> Misc.fatal_errorf "unknown register allocator %S" id
+
 let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
   Proc.init ();
   Reg.reset();
@@ -328,24 +354,39 @@ let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
   ++ Profile.record ~accumulate:true "deadcode" Deadcode.fundecl
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_live
   ++ pass_dump_if ppf_dump dump_live "Liveness analysis"
-  ++ Profile.record ~accumulate:true "spill" Spill.fundecl
-  ++ Profile.record ~accumulate:true "liveness" liveness
-  ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_spill
-  ++ pass_dump_if ppf_dump dump_spill "After spilling"
-  ++ Profile.record ~accumulate:true "split" Split.fundecl
-  ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_split
-  ++ pass_dump_if ppf_dump dump_split "After live range splitting"
-  ++ Profile.record ~accumulate:true "liveness" liveness
-  ++ Profile.record ~accumulate:true "regalloc" (regalloc ~ppf_dump 1)
-  ++ Profile.record ~accumulate:true "available_regs" Available_regs.fundecl
-  ++ Profile.record ~accumulate:true "linearize" (fun (f : Mach.fundecl) ->
-      let res = Linearize.fundecl f in
-      (* CR xclerc for xclerc: temporary, for testing. *)
-      if !Flambda_backend_flags.cfg_equivalence_check then begin
-        test_cfgize f res;
-      end;
-      res)
-  ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code"
+  ++ (fun (fd : Mach.fundecl) ->
+    let force_linscan = should_use_linscan fd in
+      match force_linscan, register_allocator with
+      | false, IRC ->
+        let res =
+          fd
+          ++ Profile.record ~accumulate:true "cfgize" cfgize
+          ++ Profile.record ~accumulate:true "cfg_irc" Cfg_irc.run
+        in
+        (Cfg_regalloc_utils.simplify_cfg res)
+        ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run
+      | true, _ | false, Upstream ->
+        let res =
+          fd
+          ++ Profile.record ~accumulate:true "spill" Spill.fundecl
+          ++ Profile.record ~accumulate:true "liveness" liveness
+          ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_spill
+          ++ pass_dump_if ppf_dump dump_spill "After spilling"
+          ++ Profile.record ~accumulate:true "split" Split.fundecl
+          ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_split
+          ++ pass_dump_if ppf_dump dump_split "After live range splitting"
+          ++ Profile.record ~accumulate:true "liveness" liveness
+          ++ Profile.record ~accumulate:true "regalloc" (regalloc ~ppf_dump 1)
+          ++ Profile.record ~accumulate:true "available_regs" Available_regs.fundecl
+        in
+        res
+        ++ Profile.record ~accumulate:true "linearize" (fun (f : Mach.fundecl) ->
+            let res = Linearize.fundecl f in
+            if !Flambda_backend_flags.cfg_equivalence_check then begin
+              test_cfgize f res;
+            end;
+            res)
+        ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code")
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Linear
   ++ (fun (fd : Linear.fundecl) ->
     if !Flambda_backend_flags.use_ocamlcfg then begin
@@ -487,6 +528,11 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) = (
   )
 
 let emit_begin_assembly_with_dwarf ~disable_dwarf ~emit_begin_assembly ~sourcefile () =
+  if !Flambda_backend_flags.internal_assembler then
+    (X86_proc.register_internal_assembler Internal_assembler.assemble;
+    Emitaux.binary_backend_available := true;
+    Emitaux.create_asm_file := !Clflags.keep_asm_file)
+  else ();
   let no_dwarf () =
     emit_begin_assembly ~init_dwarf:(fun () -> ());
     None

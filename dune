@@ -24,6 +24,8 @@
 
 (copy_files# backend/debug/*.ml{,i})
 
+(copy_files# backend/internal_assembler/*.ml{,i})
+
 (copy_files# driver/optcompile.ml{,i})
 
 (copy_files# driver/flambda_backend_main.ml{,i})
@@ -190,6 +192,7 @@
   interf
   interval
   linear
+  internal_assembler
   linearize
   linscan
   liveness
@@ -201,13 +204,19 @@
   reg
   reload
   reloadgen
+  relocation_entry
+  relocation_table
   schedgen
   scheduling
+  section_table
   selectgen
   selection
   spill
   split
+  string_table
   strmatch
+  symbol_entry
+  symbol_table
   x86_ast
   x86_binary_emitter
   x86_dsl
@@ -222,6 +231,11 @@
   cfg_with_layout
   cfg_dataflow
   cfg_liveness
+  cfg_regalloc_utils
+  cfg_irc
+  cfg_irc_state
+  cfg_irc_utils
+  cfg_irc_split
   eliminate_dead_code
   disconnect_block
   eliminate_dead_blocks
@@ -259,7 +273,8 @@
   flambda_backend_common
   flambda2_identifiers
   flambda2_cmx
-  dwarf_ocaml))
+  dwarf_ocaml
+  owee))
 
 (library
  (name flambda_backend_common)
@@ -382,6 +397,8 @@
    %{dep:middle_end/flambda2/from_lambda/flambda2_from_lambda.a}
    %{dep:middle_end/flambda2/simplify/flambda2_simplify.a}
    %{dep:middle_end/flambda2/parser/flambda2_parser.a}
+   %{dep:external/owee/libowee_stubs_native.a}
+   %{dep:external/owee/owee.a}
    %{dep:ocamloptcomp.a}
    %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.a}
    %{dep:middle_end/flambda2/flambda2.a})))
@@ -416,6 +433,7 @@
    %{dep:middle_end/flambda2/simplify/flambda2_simplify.cma}
    %{dep:middle_end/flambda2/parser/flambda2_parser.cma}
    %{dep:middle_end/flambda2/import/flambda2_import.cma}
+   %{dep:external/owee/owee.cma}
    %{dep:ocamloptcomp.cma}
    %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.cma}
    %{dep:middle_end/flambda2/flambda2.cma})))
@@ -450,6 +468,7 @@
    %{dep:middle_end/flambda2/simplify/flambda2_simplify.cmxa}
    %{dep:middle_end/flambda2/parser/flambda2_parser.cmxa}
    %{dep:middle_end/flambda2/import/flambda2_import.cmxa}
+   %{dep:external/owee/owee.cmxa}
    %{dep:ocamloptcomp.cmxa}
    %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.cmxa}
    %{dep:middle_end/flambda2/flambda2.cmxa})))
@@ -574,6 +593,35 @@
   (unbox_free_vars_of_closures.mli
    as
    compiler-libs/unbox_free_vars_of_closures.mli)
+  (.ocamloptcomp.objs/native/internal_assembler.cmx as compiler-libs/internal_assembler.cmx)
+  (.ocamloptcomp.objs/byte/internal_assembler.cmi as compiler-libs/internal_assembler.cmi)
+  (.ocamloptcomp.objs/byte/internal_assembler.cmo as compiler-libs/internal_assembler.cmo)
+  (.ocamloptcomp.objs/byte/internal_assembler.cmt as compiler-libs/internal_assembler.cmt)
+  (.ocamloptcomp.objs/byte/internal_assembler.cmti as compiler-libs/internal_assembler.cmti)
+  (relocation_entry.mli as compiler-libs/relocation_entry.mli)
+  (.ocamloptcomp.objs/native/relocation_entry.cmx as compiler-libs/relocation_entry.cmx)
+  (.ocamloptcomp.objs/byte/relocation_entry.cmi as compiler-libs/relocation_entry.cmi)
+  (.ocamloptcomp.objs/byte/relocation_entry.cmo as compiler-libs/relocation_entry.cmo)
+  (.ocamloptcomp.objs/byte/relocation_entry.cmt as compiler-libs/relocation_entry.cmt)
+  (.ocamloptcomp.objs/byte/relocation_entry.cmti as compiler-libs/relocation_entry.cmti)
+  (section_table.mli as compiler-libs/section_table.mli)
+  (.ocamloptcomp.objs/native/section_table.cmx as compiler-libs/section_table.cmx)
+  (.ocamloptcomp.objs/byte/section_table.cmi as compiler-libs/section_table.cmi)
+  (.ocamloptcomp.objs/byte/section_table.cmo as compiler-libs/section_table.cmo)
+  (.ocamloptcomp.objs/byte/section_table.cmt as compiler-libs/section_table.cmt)
+  (.ocamloptcomp.objs/byte/section_table.cmti as compiler-libs/section_table.cmti)
+  (string_table.mli as compiler-libs/string_table.mli)
+  (.ocamloptcomp.objs/native/string_table.cmx as compiler-libs/string_table.cmx)
+  (.ocamloptcomp.objs/byte/string_table.cmi as compiler-libs/string_table.cmi)
+  (.ocamloptcomp.objs/byte/string_table.cmo as compiler-libs/string_table.cmo)
+  (.ocamloptcomp.objs/byte/string_table.cmt as compiler-libs/string_table.cmt)
+  (.ocamloptcomp.objs/byte/string_table.cmti as compiler-libs/string_table.cmti)
+  (symbol_table.mli as compiler-libs/symbol_table.mli)
+  (.ocamloptcomp.objs/native/symbol_table.cmx as compiler-libs/symbol_table.cmx)
+  (.ocamloptcomp.objs/byte/symbol_table.cmi as compiler-libs/symbol_table.cmi)
+  (.ocamloptcomp.objs/byte/symbol_table.cmo as compiler-libs/symbol_table.cmo)
+  (.ocamloptcomp.objs/byte/symbol_table.cmt as compiler-libs/symbol_table.cmt)
+  (.ocamloptcomp.objs/byte/symbol_table.cmti as compiler-libs/symbol_table.cmti)
   (unbox_specialised_args.mli as compiler-libs/unbox_specialised_args.mli)
   (afl_instrument.mli as compiler-libs/afl_instrument.mli)
   (asmgen.mli as compiler-libs/asmgen.mli)
@@ -636,6 +684,11 @@
   (cfg_with_layout.mli as compiler-libs/cfg_with_layout.mli)
   (cfg_dataflow.mli as compiler-libs/cfg_dataflow.mli)
   (cfg_liveness.mli as compiler-libs/cfg_liveness.mli)
+  (cfg_regalloc_utils.mli as compiler-libs/cfg_regalloc_utils.mli)
+  (cfg_irc.mli as compiler-libs/cfg_irc.mli)
+  (cfg_irc_state.mli as compiler-libs/cfg_irc_state.mli)
+  (cfg_irc_utils.mli as compiler-libs/cfg_irc_utils.mli)
+  (cfg_irc_split.mli as compiler-libs/cfg_irc_split.mli)
   (eliminate_dead_code.mli as compiler-libs/eliminate_dead_code.mli)
   (disconnect_block.mli as compiler-libs/disconnect_block.mli)
   (eliminate_dead_blocks.mli as compiler-libs/eliminate_dead_blocks.mli)
@@ -1066,6 +1119,66 @@
   (.ocamloptcomp.objs/byte/cfg_liveness.cmti
    as
    compiler-libs/cfg_liveness.cmti)
+  (.ocamloptcomp.objs/byte/cfg_regalloc_utils.cmi
+   as
+   compiler-libs/cfg_regalloc_utils.cmi)
+  (.ocamloptcomp.objs/byte/cfg_regalloc_utils.cmo
+   as
+   compiler-libs/cfg_regalloc_utils.cmo)
+  (.ocamloptcomp.objs/byte/cfg_regalloc_utils.cmt
+   as
+   compiler-libs/cfg_regalloc_utils.cmt)
+  (.ocamloptcomp.objs/byte/cfg_regalloc_utils.cmti
+   as
+   compiler-libs/cfg_regalloc_utils.cmti)
+  (.ocamloptcomp.objs/byte/cfg_irc.cmi
+   as
+   compiler-libs/cfg_irc.cmi)
+  (.ocamloptcomp.objs/byte/cfg_irc.cmo
+   as
+   compiler-libs/cfg_irc.cmo)
+  (.ocamloptcomp.objs/byte/cfg_irc.cmt
+   as
+   compiler-libs/cfg_irc.cmt)
+  (.ocamloptcomp.objs/byte/cfg_irc.cmti
+   as
+   compiler-libs/cfg_irc.cmti)
+  (.ocamloptcomp.objs/byte/cfg_irc_utils.cmi
+   as
+   compiler-libs/cfg_irc_utils.cmi)
+  (.ocamloptcomp.objs/byte/cfg_irc_utils.cmo
+   as
+   compiler-libs/cfg_irc_utils.cmo)
+  (.ocamloptcomp.objs/byte/cfg_irc_utils.cmt
+   as
+   compiler-libs/cfg_irc_utils.cmt)
+  (.ocamloptcomp.objs/byte/cfg_irc_utils.cmti
+   as
+   compiler-libs/cfg_irc_utils.cmti)
+  (.ocamloptcomp.objs/byte/cfg_irc_split.cmi
+   as
+   compiler-libs/cfg_irc_split.cmi)
+  (.ocamloptcomp.objs/byte/cfg_irc_split.cmo
+   as
+   compiler-libs/cfg_irc_split.cmo)
+  (.ocamloptcomp.objs/byte/cfg_irc_split.cmt
+   as
+   compiler-libs/cfg_irc_split.cmt)
+  (.ocamloptcomp.objs/byte/cfg_irc_split.cmti
+   as
+   compiler-libs/cfg_irc_split.cmti)
+  (.ocamloptcomp.objs/byte/cfg_irc_state.cmi
+   as
+   compiler-libs/cfg_irc_state.cmi)
+  (.ocamloptcomp.objs/byte/cfg_irc_state.cmo
+   as
+   compiler-libs/cfg_irc_state.cmo)
+  (.ocamloptcomp.objs/byte/cfg_irc_state.cmt
+   as
+   compiler-libs/cfg_irc_state.cmt)
+  (.ocamloptcomp.objs/byte/cfg_irc_state.cmti
+   as
+   compiler-libs/cfg_irc_state.cmti)
   (.ocamloptcomp.objs/byte/eliminate_dead_code.cmi
    as
    compiler-libs/eliminate_dead_code.cmi)
@@ -1288,6 +1401,21 @@
   (.ocamloptcomp.objs/native/cfg_liveness.cmx
    as
    compiler-libs/cfg_liveness.cmx)
+  (.ocamloptcomp.objs/native/cfg_regalloc_utils.cmx
+   as
+   compiler-libs/cfg_regalloc_utils.cmx)
+  (.ocamloptcomp.objs/native/cfg_irc.cmx
+   as
+   compiler-libs/cfg_irc.cmx)
+  (.ocamloptcomp.objs/native/cfg_irc_utils.cmx
+   as
+   compiler-libs/cfg_irc_utils.cmx)
+  (.ocamloptcomp.objs/native/cfg_irc_split.cmx
+   as
+   compiler-libs/cfg_irc_split.cmx)
+  (.ocamloptcomp.objs/native/cfg_irc_state.cmx
+   as
+   compiler-libs/cfg_irc_state.cmx)
   (.ocamloptcomp.objs/native/eliminate_dead_code.cmx
    as
    compiler-libs/eliminate_dead_code.cmx)

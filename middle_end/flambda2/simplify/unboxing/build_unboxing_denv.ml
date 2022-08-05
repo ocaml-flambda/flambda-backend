@@ -89,7 +89,7 @@ let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
         (T.get_tag_for_block ~block:(Simple.var param_var))
     in
     let get_tag_prim =
-      P.Eligible_for_cse.create_exn (Unary (Get_tag, Simple.var param_var))
+      P.Eligible_for_cse.create_get_tag ~block:(Name.var param_var)
     in
     let denv = DE.add_cse denv get_tag_prim ~bound_to:(Simple.var tag.param) in
     (* Same thing for is_int *)
@@ -104,7 +104,8 @@ let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
             (T.is_int_for_scrutinee ~scrutinee:(Simple.var param_var))
         in
         let is_int_prim =
-          P.Eligible_for_cse.create_exn (Unary (Is_int, Simple.var param_var))
+          P.Eligible_for_cse.create_is_int ~variant_only:true
+            ~immediate_or_block:(Name.var param_var)
         in
         let denv =
           DE.add_cse denv is_int_prim ~bound_to:(Simple.var is_int.param)

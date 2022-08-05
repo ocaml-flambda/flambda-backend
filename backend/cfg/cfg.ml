@@ -157,6 +157,8 @@ let entry_label t = t.entry_label
 
 let iter_blocks t ~f = Label.Tbl.iter f t.blocks
 
+let fold_blocks t ~f ~init = Label.Tbl.fold f t.blocks init
+
 let register_predecessors_for_all_blocks (t : t) =
   Label.Tbl.iter
     (fun label block ->
@@ -425,3 +427,11 @@ let set_stack_offset (instr : _ instruction) stack_offset =
 
 let set_live (instr : _ instruction) live =
   if Reg.Set.equal instr.live live then instr else { instr with live }
+
+let string_of_irc_work_list = function
+  | Unknown_list -> "unknown_list"
+  | Coalesced -> "coalesced"
+  | Constrained -> "constrained"
+  | Frozen -> "frozen"
+  | Work_list -> "work_list"
+  | Active -> "active"

@@ -233,7 +233,8 @@ module Backward
       domain Label.Tbl.t * domain Instr.Tbl.t * WorkSet.t ref =
    fun cfg ~init ->
     let map_block = Label.Tbl.create (Label.Tbl.length cfg.Cfg.blocks) in
-    let map_instr = Instr.Tbl.create (Label.Tbl.length cfg.Cfg.blocks) in
+    (* CR-soon xclerc for xclerc: review the `16` constant. *)
+    let map_instr = Instr.Tbl.create (Label.Tbl.length cfg.Cfg.blocks * 16) in
     let set = ref WorkSet.empty in
     let value = init in
     Cfg.iter_blocks cfg ~f:(fun label _block ->

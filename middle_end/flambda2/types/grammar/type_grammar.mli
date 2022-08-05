@@ -66,8 +66,8 @@ and head_of_kind_value = private
 
 and head_of_kind_naked_immediate = private
   | Naked_immediates of Targetint_31_63.Set.t
-  | Is_int of t
-  | Get_tag of t
+  | Is_int of t  (** For variants only *)
+  | Get_tag of t  (** For variants only *)
 
 (** Invariant: the float/integer sets for naked float, int32, int64 and
     nativeint heads are non-empty. (Empty sets are represented as an overall

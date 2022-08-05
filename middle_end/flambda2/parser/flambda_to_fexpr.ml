@@ -432,7 +432,7 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   | Box_number (bk, _alloc_mode) -> Box_number bk
   | Tag_immediate -> Tag_immediate
   | Get_tag -> Get_tag
-  | Is_int -> Is_int
+  | Is_int _ -> Is_int (* CR vlaviron: discuss *)
   | Num_conv { src; dst } -> Num_conv { src; dst }
   | Opaque_identity -> Opaque_identity
   | Unbox_number bk -> Unbox_number bk

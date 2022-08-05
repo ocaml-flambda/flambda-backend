@@ -218,3 +218,26 @@ let reorder_blocks_random ?random_state t =
     :: Permute.list ?random_state (List.tl original_layout)
   in
   set_layout t new_layout
+
+let iter_instructions :
+    t ->
+    instruction:(Cfg.basic Cfg.instruction -> unit) ->
+    terminator:(Cfg.terminator Cfg.instruction -> unit) ->
+    unit =
+ fun cfg_with_layout ~instruction ~terminator ->
+  Cfg.iter_blocks cfg_with_layout.cfg ~f:(fun _label block ->
+      List.iter instruction block.body;
+      terminator block.terminator)
+
+let fold_instructions :
+    type a.
+    t ->
+    instruction:(a -> Cfg.basic Cfg.instruction -> a) ->
+    terminator:(a -> Cfg.terminator Cfg.instruction -> a) ->
+    init:a ->
+    a =
+ fun cfg_with_layout ~instruction ~terminator ~init ->
+  Cfg.fold_blocks cfg_with_layout.cfg ~init ~f:(fun _label block acc ->
+      let acc = List.fold_left instruction acc block.body in
+      let acc = terminator acc block.terminator in
+      acc)
