@@ -14,42 +14,35 @@ jobs:
             os: ubuntu-latest
             ocamlparam: ''
             check_arch: true
-            register_allocator: upstream
 
           - name: closure_cfg_local
             config: --enable-middle-end=closure --enable-stack-allocation
             os: ubuntu-latest
             ocamlparam: _,ocamlcfg=1
-            register_allocator: upstream
 
           - name: flambda1
             config: --enable-middle-end=flambda
             os: ubuntu-latest
             ocamlparam: ''
-            register_allocator: upstream
 
           - name: flambda1_cfg_local
             config: --enable-middle-end=flambda --enable-stack-allocation
             os: ubuntu-latest
             ocamlparam: _,ocamlcfg=1
-            register_allocator: upstream
 
           - name: flambda2
             config: --enable-middle-end=flambda2
             os: ubuntu-latest
             ocamlparam: ''
-            register_allocator: upstream
 
           - name: flambda2_cfg_local
             config: --enable-middle-end=flambda2 --enable-stack-allocation
             os: ubuntu-latest
             ocamlparam: _,ocamlcfg=1
-            register_allocator: upstream
 
           - name: flambda2_macos
             config: --enable-middle-end=flambda2
             os: macos-latest
-            register_allocator: upstream
 
           - name: irc
             config: --enable-middle-end=closure
