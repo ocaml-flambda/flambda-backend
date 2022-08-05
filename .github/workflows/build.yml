@@ -49,13 +49,13 @@ jobs:
             os: ubuntu-latest
             ocamlparam: ''
             check_arch: true
-            env:
-              REGISTER_ALLOCATOR=irc
+            register_allocator: irc
 
     env:
       J: "3"
       # On macOS, the testsuite is slow, so run only on push to main (#507)
       run_testsuite: "${{matrix.os != 'macos-latest' || (github.event_name == 'push' && github.event.ref == 'refs/heads/main')}}"
+      REGISTER_ALLOCATOR: "${{matrix.register_allocator}}"
 
     steps:
     - name: Checkout the Flambda backend repo
