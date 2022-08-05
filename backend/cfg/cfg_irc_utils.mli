@@ -91,6 +91,7 @@ module Spilling_heuristics : sig
   val env : t Lazy.t
 end
 
+(* Actually work "sets", uses "lists" to follow the article/book. *)
 module WorkList : sig
   module type S = sig
     type e

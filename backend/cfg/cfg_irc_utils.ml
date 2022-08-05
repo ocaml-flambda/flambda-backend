@@ -69,7 +69,7 @@ module RegisterStamp = struct
   (* CR xclerc for xclerc: consider using a bit matrix *)
 
   module PS = Hashtbl.Make (struct
-    type nonrec t = t * t
+    type t = pair
 
     let equal (left : t) (right : t) : bool =
       Int.equal (fst left) (fst right) && Int.equal (snd left) (snd right)
