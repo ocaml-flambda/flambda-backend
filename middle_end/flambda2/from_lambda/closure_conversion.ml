@@ -57,7 +57,7 @@ let declare_symbol_for_function_slot env ident function_slot : Env.t * Symbol.t
   let symbol =
     Symbol.create
       (Compilation_unit.get_current_exn ())
-      (Linkage_name.create (Function_slot.to_string function_slot))
+      (Linkage_name.of_string (Function_slot.to_string function_slot))
   in
   let env = Env.add_simple_to_substitute env ident (Simple.symbol symbol) in
   env, symbol
@@ -70,7 +70,7 @@ let register_const0 acc constant name =
     let symbol =
       Symbol.create
         (Compilation_unit.get_current_exn ())
-        (Linkage_name.create (Variable.unique_name (Variable.rename var)))
+        (Linkage_name.of_string (Variable.unique_name (Variable.rename var)))
     in
     let acc = Acc.add_declared_symbol ~symbol ~constant acc in
     let acc =
@@ -411,7 +411,7 @@ let close_c_call acc env ~loc ~let_bound_var
     in
     Symbol.create
       (Symbol.external_symbols_compilation_unit ())
-      (Linkage_name.create prim_name)
+      (Linkage_name.of_string prim_name)
   in
   let call args acc =
     (* Some C primitives have implementations within Flambda itself. *)

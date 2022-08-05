@@ -816,9 +816,9 @@ val global_table : Compilation_unit.t list -> phrase
 (** Add references to the given symbols *)
 val reference_symbols : string list -> phrase
 
-(** Generate the caml_globals_map structure, as a marshalled string constant The
-    runtime representation of the type here must match that of [type global_map]
-    in the natdynlink code. *)
+(** Generate the caml_globals_map structure, as a marshalled string constant.
+    The runtime representation of the type here must match that of [type
+    global_map] in the natdynlink code. *)
 val globals_map :
   (Compilation_unit.Name.t * Digest.t option * Digest.t option * Symbol.t list)
   list ->
@@ -1208,4 +1208,5 @@ val gc_root_table : string list -> phrase
    should be assumed to be potentially large. *)
 val cmm_arith_size : expression -> int option
 
+(* CR lmaurer: Return [Linkage_name.t] instead *)
 val make_symbol : ?compilation_unit:Compilation_unit.t -> string -> string

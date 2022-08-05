@@ -27,7 +27,7 @@ open Dwarf_ocaml
 
 type error =
   | Assembler_error of string
-  | Mismatched_for_pack of string option
+  | Mismatched_for_pack of Compilation_unit.Prefix.t
   | Asm_generation of string * Emitaux.error
 
 exception Error of error
@@ -68,15 +68,13 @@ let should_save_cfg_before_emit () =
   should_save_ir_after Compiler_pass.Simplify_cfg && (not !start_from_emit)
 
 let linear_unit_info =
-  { Linear_format.unit_name = Compilation_unit.dummy;
+  { Linear_format.unit = Compilation_unit.dummy;
     items = [];
-    for_pack = None;
   }
 
 let new_cfg_unit_info () =
-  { Cfg_format.unit_name = Compilation_unit.dummy;
+  { Cfg_format.unit = Compilation_unit.dummy;
     items = [];
-    for_pack = None;
   }
 
 let cfg_unit_info = new_cfg_unit_info ()
@@ -91,20 +89,17 @@ let reset () =
   start_from_emit := false;
   Compiler_pass_map.iter (fun pass (cfg_unit_info : Cfg_format.cfg_unit_info) ->
     if should_save_ir_after pass then begin
-      cfg_unit_info.unit_name <- Compilation_unit.get_current_exn ();
+      cfg_unit_info.unit <- Compilation_unit.get_current_exn ();
       cfg_unit_info.items <- [];
-      cfg_unit_info.for_pack <- !Clflags.for_package;
     end)
     pass_to_cfg;
   if should_save_before_emit () then begin
-    linear_unit_info.unit_name <- Compilation_unit.get_current_exn ();
+    linear_unit_info.unit <- Compilation_unit.get_current_exn ();
     linear_unit_info.items <- [];
-    linear_unit_info.for_pack <- !Clflags.for_package;
   end;
   if should_save_cfg_before_emit () then begin
-    cfg_unit_info.unit_name <- Compilation_unit.get_current_exn ();
+    cfg_unit_info.unit <- Compilation_unit.get_current_exn ();
     cfg_unit_info.items <- [];
-    cfg_unit_info.for_pack <- !Clflags.for_package;
   end
 
 let save_data dl =
@@ -433,9 +428,10 @@ let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename ~may_reduc
 
 let build_dwarf ~asm_directives:(module Asm_directives : Asm_targets.Asm_directives_intf.S) sourcefile =
   let unit_name =
-    Compilation_unit.get_current_exn ()
-    |> Symbol.for_compilation_unit
+    (* CR lmaurer: This doesn't actually need to be an [Ident.t] *)  
+    Symbol.for_current_unit ()
     |> Symbol.linkage_name
+    |> Linkage_name.to_string    
     |> Ident.create_persistent
   in
   let code_begin =
@@ -586,10 +582,12 @@ let compile_implementation_flambda2 ?toplevel ?(keep_symbol_tables=true)
 let linear_gen_implementation filename =
   let open Linear_format in
   let linear_unit_info, _ = restore filename in
-  (match !Clflags.for_package, linear_unit_info.for_pack with
-   | None, None -> ()
-   | Some expected, Some saved when String.equal expected saved -> ()
-   | _, saved -> raise(Error(Mismatched_for_pack saved)));
+  let current_package = Compilation_unit.Prefix.from_clflags () in
+  let saved_package =
+    Compilation_unit.for_pack_prefix linear_unit_info.unit
+  in
+  if not (Compilation_unit.Prefix.equal current_package saved_package)
+  then raise(Error(Mismatched_for_pack saved_package));
   let emit_item ~dwarf = function
     | Data dl -> emit_data dl
     | Func f -> emit_fundecl ~dwarf f
@@ -616,13 +614,15 @@ let report_error ppf = function
       fprintf ppf "Assembler error, input left in file %a"
         Location.print_filename file
   | Mismatched_for_pack saved ->
-    let msg = function
-       | None -> "without -for-pack"
-       | Some s -> "with -for-pack "^s
+    let msg prefix =
+      if Compilation_unit.Prefix.is_empty prefix
+      then "without -for-pack"
+      else "with -for-pack " ^ Compilation_unit.Prefix.to_string prefix
      in
      fprintf ppf
        "This input file cannot be compiled %s: it was generated %s."
-       (msg !Clflags.for_package) (msg saved)
+       (msg (Compilation_unit.Prefix.from_clflags ()))
+       (msg saved)
   | Asm_generation(fn, err) ->
      fprintf ppf
        "Error producing assembly code for function %s: %a"

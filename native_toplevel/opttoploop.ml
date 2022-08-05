@@ -58,7 +58,7 @@ let global_symbol id =
       | None -> default_lookup
       | Some {Jit.lookup_symbol; _} -> lookup_symbol
   in
-  match lookup sym with
+  match lookup (sym |> Linkage_name.to_string) with
   | None ->
     fatal_error ("Opttoploop.global_symbol " ^ (Ident.unique_name id))
   | Some obj -> obj
@@ -257,7 +257,7 @@ module Backend = struct
 
   let symbol_for_global' = Compilenv.symbol_for_global'
 
-  let pack_prefix_for_ident = Compilenv.pack_prefix_for_global_ident
+  let pack_prefix_for_global_ident = Compilenv.pack_prefix_for_global_ident
 
   let really_import_approx = Import_approx.really_import_approx
   let import_symbol = Import_approx.import_symbol

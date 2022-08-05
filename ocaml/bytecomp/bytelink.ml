@@ -109,12 +109,19 @@ let remove_required (rel, _pos) =
       missing_globals := Ident.Map.remove id !missing_globals
   | _ -> ()
 
+let scanning_noisily () =
+  match Sys.getenv "SCAN_NOISILY" with
+  | _ -> true
+  | exception _ -> false
+
 let scan_file obj_name tolink =
   let file_name =
     try
       Load_path.find obj_name
     with Not_found ->
       raise(Error(File_not_found obj_name)) in
+  if scanning_noisily () then
+    Format.eprintf "scan_file %s -> %s@." obj_name file_name;
   let ic = open_in_bin file_name in
   try
     let buffer = really_input_string ic (String.length cmo_magic_number) in

@@ -29,8 +29,9 @@ let for_fun_ident ~compilation_unit loc id =
     let unitname = CU.full_path_as_string compilation_unit in
     let linkage_name =
       Mangling.fun_symbol ~unitname ~loc ~id:(Ident.unique_name id)
+      |> Linkage_name.of_string
     in
-    Symbol.with_linkage_name compilation_unit linkage_name
+    Symbol.unsafe_create compilation_unit linkage_name
   else
     Symbol.for_local_ident id
 
@@ -51,5 +52,5 @@ module Flambda = struct
     let compilation_unit =
       CU.with_for_pack_prefix (Symbol.compilation_unit symbol) pack
     in
-    Symbol.with_linkage_name compilation_unit (Symbol.linkage_name symbol)
+    Symbol.with_compilation_unit symbol compilation_unit
 end

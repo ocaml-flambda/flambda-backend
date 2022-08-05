@@ -174,7 +174,7 @@ end = struct
           P.symbol_from_linkage_name ~dbg code_linkage_name
           :: P.int ~dbg closure_info
           :: P.symbol_from_linkage_name ~dbg
-               (Linkage_name.create (C.curry_function_sym arity))
+               (Linkage_name.of_string (C.curry_function_sym arity))
           :: acc
         in
         acc, slot_offset + size, env, Ece.pure, updates)
@@ -407,7 +407,7 @@ let lift_set_of_closures env res ~body ~bound_vars layout set ~translate_expr =
         let v = Bound_var.var v in
         (* Rename v to have different names for the symbol and variable *)
         let name = Variable.unique_name (Variable.rename v) in
-        cid, Symbol.create comp_unit (Linkage_name.create name))
+        cid, Symbol.create comp_unit (Linkage_name.of_string name))
       cids bound_vars
     |> Function_slot.Map.of_list
   in

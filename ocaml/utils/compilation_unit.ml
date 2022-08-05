@@ -45,8 +45,13 @@ module Name : sig
   val dummy : t
   val of_string : string -> t
   val to_string : t -> string
+  val persistent_ident : t -> Ident.t
   val check_as_path_component : t -> unit
 end = struct
+  (* Be VERY careful changing this. Anything not equivalent to [string] will
+     require bumping magic numbers due to changes in file formats, in addition
+     to breaking the (somewhat horrifying) invariant on
+     [Cmm_helpers.globals_map]. *)
   type t = string
 
   include Identifiable.Make (struct
@@ -76,17 +81,22 @@ end = struct
   let dummy = "*dummy*"
 
   let to_string t = assert (not (String.equal t "")); t
+
+  let persistent_ident t = Ident.create_persistent t
 end
 
 module Prefix : sig
   type t
   include Identifiable.S with type t := t
   val parse_for_pack : string option -> t
+  val from_clflags : unit -> t
   val to_list : t -> Name.t list
   val to_string : t -> string
   val empty : t
   val is_empty : t -> bool
 end = struct
+  (* As with [Name.t], changing this will change several file formats, requiring
+     bumps of magic numbers. *)
   type t = Name.t list
 
   include Identifiable.Make (struct
@@ -129,6 +139,8 @@ end = struct
     | None -> []
     | Some pack -> parse pack
 
+  let from_clflags () = parse_for_pack !Clflags.for_package
+
   let to_string p =
     Format.asprintf "%a" print p
 
@@ -142,6 +154,7 @@ end = struct
   let to_list t = t
 end
 
+(* As with [Name.t], changing this requires bumping magic numbers. *)
 type t = {
   name : Name.t;
   for_pack_prefix : Prefix.t;
@@ -181,9 +194,6 @@ let with_for_pack_prefix t for_pack_prefix = { t with for_pack_prefix; }
 
 let is_packed t = not (Prefix.is_empty t.for_pack_prefix)
 
-let full_path t =
-  (Prefix.to_list t.for_pack_prefix) @ [ t.name ]
-
 include Identifiable.Make (struct
   type nonrec t = t
 
@@ -205,36 +215,42 @@ include Identifiable.Make (struct
     if x == y then true
     else compare x y = 0
 
-  let print ppf { for_pack_prefix; hash = _; name } =
-    if Prefix.is_empty for_pack_prefix then
-      Format.fprintf ppf "@[<hov 1>(\
-          @[<hov 1>(id@ %a)@])@]"
-        Name.print name
+  let print fmt t =
+    if Prefix.is_empty t.for_pack_prefix then
+      Format.fprintf fmt "%a" Name.print t.name
     else
-      Format.fprintf ppf "@[<hov 1>(\
-          @[<hov 1>(for_pack_prefix@ %a)@]@;\
-          @[<hov 1>(name@ %a)@]"
-        Prefix.print for_pack_prefix
-        Name.print name
+      Format.fprintf fmt "%a.%a"
+        Prefix.print t.for_pack_prefix
+        Name.print t.name
 
   let output = output_of_print print
 
   let hash t = t.hash
 end)
 
+let full_path t =
+  (Prefix.to_list t.for_pack_prefix) @ [ t.name ]
+
+let is_parent t ~child =
+  List.equal Name.equal (full_path t) (Prefix.to_list child.for_pack_prefix)
+
 let print_name ppf t =
   Format.fprintf ppf "%a" Name.print t.name
 
-let print_full_path fmt t =
-  if Prefix.is_empty t.for_pack_prefix then
-    Format.fprintf fmt "%a" Name.print t.name
-  else
-    Format.fprintf fmt "%a.%a"
-      Prefix.print t.for_pack_prefix
-      Name.print t.name
-
 let full_path_as_string t =
-  Format.asprintf "%a" print_full_path t
+  Format.asprintf "%a" print t
+
+let print_debug ppf { for_pack_prefix; hash = _; name } =
+  if Prefix.is_empty for_pack_prefix then
+    Format.fprintf ppf "@[<hov 1>(\
+        @[<hov 1>(id@ %a)@])@]"
+      Name.print name
+  else
+    Format.fprintf ppf "@[<hov 1>(\
+        @[<hov 1>(for_pack_prefix@ %a)@]@;\
+        @[<hov 1>(name@ %a)@]"
+      Prefix.print for_pack_prefix
+      Name.print name
 
 let current = ref None
 

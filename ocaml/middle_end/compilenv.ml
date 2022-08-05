@@ -153,13 +153,6 @@ let get_global_info global_ident =
       let (infos, crc) =
         if Env.is_imported_opaque modname then (None, None)
         else begin
-          (*
-          Format.eprintf "get_global_info modname=%s[.cmx] had comp_unit name %a \
-            and current unit %a\n%!"
-            modname
-            CU.Name.print
-              (Ident.compilation_unit_name_of_global_ident global_ident)
-            CU.print current_unit.ui_name;*)
           try
             let filename =
               Load_path.find_uncap (modname ^ ".cmx") in
@@ -318,12 +311,6 @@ let approx_for_global comp_unit =
   let comp_unit_name = which_cmx_file comp_unit in
   let id = Ident.create_persistent (comp_unit_name |> CU.Name.to_string) in
   let modname = Ident.name id in
-  (*
-  Format.eprintf "CU %a gives ident/modname %s, backtrace:@ \n%s\n%!"
-    CU.print comp_unit
-    modname
-    (Printexc.raw_backtrace_to_string (Printexc.get_callstack 20));
-  *)
   match Hashtbl.find export_infos_table modname with
   | otherwise -> Some otherwise
   | exception Not_found ->

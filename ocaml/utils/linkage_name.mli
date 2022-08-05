@@ -14,16 +14,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type t = string
+[@@@ocaml.warning "+a-4-9-30-40-41-42"]
 
-include Container_types.Make (struct
-  include String
+include Identifiable.S
 
-  let hash = Hashtbl.hash
-
-  let print ppf t = Format.pp_print_string ppf t
-end)
-
-let create t = t
-
-let to_string t = t
+val of_string : string -> t
+val to_string : t -> string

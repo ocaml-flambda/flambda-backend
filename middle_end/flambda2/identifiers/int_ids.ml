@@ -156,7 +156,7 @@ module Variable_data = struct
         @[<hov 1>(name_stamp@ %d)@]@ \
         @[<hov 1>(user_visible@ %b)@]\
         )@]"
-      Compilation_unit.print compilation_unit
+      Compilation_unit.print_debug compilation_unit
       name
       name_stamp
       user_visible
@@ -211,33 +211,25 @@ module Variable_data = struct
            previous_compilation_units2
 end
 
-(* Hackily get at the [Symbol] module from ocaml-jst *)
-module Unwrapped_symbol = Flambda2_identifiers_deps.Symbol
+module Symbol0 = Flambda2_import.Symbol
 
 module Symbol_data = struct
-  type t = Unwrapped_symbol.t
+  include Symbol0
 
   let unsafe_create compilation_unit linkage_name =
-    Unwrapped_symbol.with_linkage_name compilation_unit
-      (linkage_name |> Linkage_name.to_string)
+    Symbol0.unsafe_create compilation_unit linkage_name
 
   let flags = symbol_flags
 
   let [@ocamlformat "disable"] print ppf symbol =
-    let compilation_unit = Unwrapped_symbol.compilation_unit symbol in
-    let linkage_name =
-      Unwrapped_symbol.linkage_name symbol |> Linkage_name.create
-    in
+    let compilation_unit = Symbol0.compilation_unit symbol in
+    let linkage_name = Symbol0.linkage_name symbol in
     Format.fprintf ppf "@[<hov 1>(\
         @[<hov 1>(compilation_unit@ %a)@]@ \
         @[<hov 1>(linkage_name@ %a)@]\
         )@]"
-      Compilation_unit.print compilation_unit
+      Compilation_unit.print_debug compilation_unit
       Linkage_name.print linkage_name
-
-  let hash = Unwrapped_symbol.hash
-
-  let equal = Unwrapped_symbol.equal
 end
 
 module Code_id_data = struct
@@ -255,7 +247,7 @@ module Code_id_data = struct
         @[<hov 1>(name@ %s)@]@ \
         @[<hov 1>(linkage_name@ %a)@]@ \
         )@]"
-      Compilation_unit.print compilation_unit
+      Compilation_unit.print_debug compilation_unit
       name
       Linkage_name.print linkage_name
 
@@ -453,31 +445,31 @@ module Symbol = struct
 
   let find_data t = Table.find !grand_table_of_symbols t
 
-  let of_symbol data = Table.add !grand_table_of_symbols data
+  let create_wrapped data = Table.add !grand_table_of_symbols data
 
   let unsafe_create compilation_unit linkage_name =
-    Symbol_data.unsafe_create compilation_unit linkage_name |> of_symbol
+    Symbol_data.unsafe_create compilation_unit linkage_name |> create_wrapped
 
   let extern_syms =
-    Compilation_unit.create ("*extern" |> Compilation_unit.Name.of_string)
+    Compilation_unit.create ("*extern*" |> Compilation_unit.Name.of_string)
 
   let external_symbols_compilation_unit () = extern_syms
 
   let create compilation_unit linkage_name =
-    let linkage_name = linkage_name |> Linkage_name.to_string in
     let data =
       if Compilation_unit.equal compilation_unit extern_syms
       then
         (* Use linkage name without prefixing the compilation unit *)
-        Unwrapped_symbol.with_linkage_name compilation_unit linkage_name
-      else Unwrapped_symbol.for_name compilation_unit linkage_name
+        Symbol0.unsafe_create compilation_unit linkage_name
+      else
+        Symbol0.for_name compilation_unit
+          (linkage_name |> Linkage_name.to_string)
     in
-    of_symbol data
+    create_wrapped data
 
-  let compilation_unit t = Unwrapped_symbol.compilation_unit (find_data t)
+  let compilation_unit t = Symbol0.compilation_unit (find_data t)
 
-  let linkage_name t =
-    Unwrapped_symbol.linkage_name (find_data t) |> Linkage_name.create
+  let linkage_name t = Symbol0.linkage_name (find_data t)
 
   let linkage_name_as_string t = Linkage_name.to_string (linkage_name t)
 
@@ -516,9 +508,7 @@ module Symbol = struct
   let import (data : exported) = Table.add !grand_table_of_symbols data
 
   let map_compilation_unit f (data : exported) : exported =
-    Unwrapped_symbol.with_linkage_name
-      (f (Unwrapped_symbol.compilation_unit data))
-      (Unwrapped_symbol.linkage_name data)
+    Symbol0.with_compilation_unit data (f (Symbol0.compilation_unit data))
 end
 
 module Name = struct
@@ -757,8 +747,7 @@ module Code_id = struct
     in
     let linkage_name =
       let name = Printf.sprintf "%s_%d_code" name name_stamp in
-      Unwrapped_symbol.for_name compilation_unit name
-      |> Unwrapped_symbol.linkage_name |> Linkage_name.create
+      Symbol0.for_name compilation_unit name |> Symbol0.linkage_name
     in
     let data : Code_id_data.t = { compilation_unit; name; linkage_name } in
     Table.add !grand_table_of_code_ids data

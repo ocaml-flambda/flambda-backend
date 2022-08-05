@@ -114,12 +114,13 @@ module Symbol : sig
 
   include Container_types.S with type t := t
 
+  (* CR lmaurer: This treats the [Linkage_name.t] as a string to be prefixed
+     rather than the actual linkage name. That's not really consistent with the
+     way linkage names are treated elsewhere. *)
   val create : Compilation_unit.t -> Linkage_name.t -> t
 
-  val of_symbol : Flambda2_identifiers_deps.Symbol.t -> t
+  val create_wrapped : Flambda2_import.Symbol.t -> t
 
-  (** Create the symbol without prefixing with the compilation unit. Used for
-      predefined exceptions *)
   val unsafe_create : Compilation_unit.t -> Linkage_name.t -> t
 
   val compilation_unit : t -> Compilation_unit.t

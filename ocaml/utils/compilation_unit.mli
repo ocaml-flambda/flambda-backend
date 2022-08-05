@@ -42,6 +42,8 @@ module Name : sig
   val of_string : string -> t
 
   val to_string : t -> string
+
+  val persistent_ident : t -> Ident.t
 end
 
 module Prefix : sig
@@ -57,6 +59,8 @@ module Prefix : sig
   (** [parse_for_pack p] returns the list of nested packed modules from a
       "-for-pack" argument. *)
   val parse_for_pack : string option -> t
+
+  val from_clflags : unit -> t
 
   (** Return the list of names comprising the prefix, outermost first. *)
   val to_list : t -> Name.t list
@@ -79,9 +83,7 @@ include Identifiable.S with type t := t
 (** Print only the name of the given compilation unit. *)
 val print_name : Format.formatter -> t -> unit
 
-(** Print the full path of the compilation unit, with a dot between each
-    pair of components. *)
-val print_full_path : Format.formatter -> t -> unit
+val print_debug : Format.formatter -> t -> unit
 
 (** Create a compilation unit with the given [name] (which is not encoded or
     mangled in any way). *)
@@ -92,6 +94,10 @@ val create : ?for_pack_prefix:Prefix.t -> Name.t -> t
 val of_string : string -> t
 (* CR mshinwell: It's kind of bad that [create name] and [of_string name]
    do different things w.r.t. the prefix. *)
+
+(** Find whether one compilation unit has another as a child. That is, whether
+    the other unit has this one as its path prefix. *)
+val is_parent : t -> child:t -> bool
 
 (** A distinguished compilation unit for initialisation of mutable state. *)
 val dummy : t

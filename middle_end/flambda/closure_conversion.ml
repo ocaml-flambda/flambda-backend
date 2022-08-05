@@ -33,9 +33,9 @@ type t = {
   mutable declared_symbols : (Symbol.t * Flambda.constant_defining_value) list;
 }
 
-let pack_prefix_for_ident t =
+let pack_prefix_for_global_ident t =
   let module B = (val t.backend : Backend_intf.S) in
-  B.pack_prefix_for_ident
+  B.pack_prefix_for_global_ident
 
 let add_default_argument_wrappers lam =
   let defs_are_all_functions (defs : (_ * Lambda.lambda) list) =
@@ -487,7 +487,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
   | Lprim (Pgetglobal id, [], _) ->
     assert (not (Ident.same id t.current_unit_id));
     let symbol =
-      Symbol.for_global_or_predef_ident ((pack_prefix_for_ident t) id) id
+      Symbol.for_global_or_predef_ident ((pack_prefix_for_global_ident t) id) id
     in
     t.imported_symbols <- Symbol.Set.add symbol t.imported_symbols;
     name_expr (Symbol symbol) ~name:Names.pgetglobal

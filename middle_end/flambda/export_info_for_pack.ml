@@ -33,8 +33,10 @@ let import_eid_for_pack units prefix id =
     let id' =
       if Compilation_unit.Set.mem unit_id units
       then
-        let pack = Compilation_unit.with_for_pack_prefix unit_id prefix in
-        Export_id.create ?name:(Export_id.name id) pack
+        let compilation_unit =
+          Compilation_unit.with_for_pack_prefix unit_id prefix
+        in
+        Export_id.create ?name:(Export_id.name id) compilation_unit
       else id
     in
     Export_id.Tbl.add rename_id_state id id';
@@ -61,13 +63,15 @@ let import_set_of_closures_id_for_pack units prefix
     Set_of_closures_id.get_compilation_unit set_of_closures_id
   in
   if Compilation_unit.Set.mem compilation_unit units then
-    let pack = Compilation_unit.with_for_pack_prefix compilation_unit prefix in
+    let compilation_unit =
+      Compilation_unit.with_for_pack_prefix compilation_unit prefix
+    in
     Set_of_closures_id.Tbl.memoize
       rename_set_of_closures_id_state
       (fun _ ->
          Set_of_closures_id.create
            ?name:(Set_of_closures_id.name set_of_closures_id)
-           pack)
+           compilation_unit)
       set_of_closures_id
   else set_of_closures_id
 

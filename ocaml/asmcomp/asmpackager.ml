@@ -193,19 +193,10 @@ let build_package_cmx members cmxfile =
   (* XXX What happens if we have -for-pack Foo.Bar? *)
   (* XXX Should we assert something about ui.ui_name -- e.g. no prefix? *)
   let pack =
-    (*
-    Format.eprintf "ui.ui_name for packaging is %a\n%!"
-      Compilation_unit.print ui.ui_name;
-    *)
     Compilation_unit.Prefix.parse_for_pack
       (Some (Compilation_unit.Name.to_string
         (Compilation_unit.name ui.ui_name)))
   in
-  (*
-  Format.eprintf "asmpackager: current CU is %a, pack is %a\n%!"
-    Compilation_unit.print (Compilation_unit.get_current_exn ())
-    Compilation_unit.Prefix.print pack;
-    *)
   let units =
     if Config.flambda then
       List.map (fun info ->

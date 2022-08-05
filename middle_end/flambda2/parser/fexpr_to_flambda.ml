@@ -174,7 +174,7 @@ let declare_symbol (env : env) ({ Fexpr.txt = cu, name; loc } as symbol) =
       | None -> Compilation_unit.get_current_exn ()
       | Some cu -> compilation_unit cu
     in
-    let symbol = Symbol.unsafe_create cunit (Linkage_name.create name) in
+    let symbol = Symbol.unsafe_create cunit (Linkage_name.of_string name) in
     symbol, { env with symbols = SM.add name symbol env.symbols }
 
 let find_with ~descr ~find map { Fexpr.txt = name; loc } =
@@ -187,7 +187,7 @@ let get_symbol (env : env) sym =
   match sym with
   | { Fexpr.txt = Some cunit, name; loc = _ } ->
     let cunit = compilation_unit cunit in
-    Symbol.unsafe_create cunit (name |> Linkage_name.create)
+    Symbol.unsafe_create cunit (name |> Linkage_name.of_string)
   | { Fexpr.txt = None, txt; loc } ->
     find_with ~descr:"symbol" ~find:SM.find_opt env.symbols { txt; loc }
 

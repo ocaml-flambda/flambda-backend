@@ -38,16 +38,18 @@ let lambda_to_clambda ~backend ~filename:_ ~prefixname:_ ~ppf_dump
     let current_unit_ident =
       Compilation_unit.get_current_exn ()
       |> Compilation_unit.name
-      |> Compilation_unit.Name.to_string
-      |> Ident.create_persistent
+      |> Compilation_unit.Name.persistent_ident
     in
     { original_idents = [];
+      (* CR-someday lmaurer: Properly construct a [Path.t] from the module name
+         with its pack prefix. *)
       module_path = Path.Pident current_unit_ident;
     }
   in
   let symbol =
     Symbol.for_current_unit ()
     |> Symbol.linkage_name
+    |> Linkage_name.to_string
   in
   let preallocated_block =
     Clambda.{

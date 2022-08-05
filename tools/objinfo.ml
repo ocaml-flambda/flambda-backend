@@ -152,7 +152,7 @@ let print_generic_fns gfns =
 
 
 let print_cmx_infos (ui, crc) =
-  print_general_infos Compilation_unit.output ui.ui_name crc ui.ui_defines
+  print_general_infos Compilation_unit.output ui.ui_unit crc ui.ui_defines
     (fun f -> List.iter f ui.ui_imports_cmi)
     (fun f -> List.iter f ui.ui_imports_cmx);
   begin match ui.ui_export_info with
@@ -168,7 +168,7 @@ let print_cmx_infos (ui, crc) =
     else
       printf "Flambda unit\n";
     if not !no_approx then begin
-      let cu = ui.ui_name in
+      let cu = ui.ui_unit in
       Compilation_unit.set_current cu;
       let root_symbols = List.map Symbol.for_compilation_unit ui.ui_defines in
       Format.printf "approximations@ %a@.@."
@@ -202,11 +202,10 @@ let print_cmxa_infos (lib : Cmx_format.library_infos) =
     printf "Force link: %s\n" (if u.li_force_link then "YES" else "no"))
 
 let print_cmxs_infos header =
-  let print_string ppf s = Printf.fprintf ppf "%s" s in
   List.iter
     (fun ui ->
        print_general_infos
-         print_string
+         Compilation_unit.Name.output
          ui.dynu_name
          ui.dynu_crc
          ui.dynu_defines

@@ -894,7 +894,7 @@ let simplify_and_lift_set_of_closures dacc ~closure_bound_vars_inverse
       (fun function_slot _func_decl ->
         let name =
           function_slot |> Function_slot.rename |> Function_slot.to_string
-          |> Linkage_name.create
+          |> Linkage_name.of_string
         in
         Symbol.create (Compilation_unit.get_current_exn ()) name)
       (Function_declarations.funs_in_order function_decls)

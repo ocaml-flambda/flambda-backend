@@ -48,7 +48,7 @@
    config build_path_prefix_map misc identifiable numbers arg_helper clflags
    profile terminfo ccomp warnings consistbl strongly_connected_components
    targetint load_path int_replace_polymorphic_compare domainstate binutils
-   local_store target_system compilation_unit symbol
+   local_store target_system compilation_unit linkage_name symbol
 
    ;; PARSING
    location longident docstrings syntaxerr ast_helper camlinternalMenhirLib
@@ -378,6 +378,7 @@
     (debug_event.mli as compiler-libs/debug_event.mli)
     (domainstate.mli as compiler-libs/domainstate.mli)
     (compilation_unit.mli as compiler-libs/compilation_unit.mli)
+    (linkage_name.mli as compiler-libs/linkage_name.mli)
     (symbol.mli as compiler-libs/symbol.mli)
 
     (.ocamlcommon.objs/byte/annot.cmi as compiler-libs/annot.cmi)
@@ -559,6 +560,10 @@
     (.ocamlcommon.objs/byte/lexer.cmo as compiler-libs/lexer.cmo)
     (.ocamlcommon.objs/byte/lexer.cmt as compiler-libs/lexer.cmt)
     (.ocamlcommon.objs/byte/lexer.cmti as compiler-libs/lexer.cmti)
+    (.ocamlcommon.objs/byte/linkage_name.cmi as compiler-libs/linkage_name.cmi)
+    (.ocamlcommon.objs/byte/linkage_name.cmo as compiler-libs/linkage_name.cmo)
+    (.ocamlcommon.objs/byte/linkage_name.cmt as compiler-libs/linkage_name.cmt)
+    (.ocamlcommon.objs/byte/linkage_name.cmti as compiler-libs/linkage_name.cmti)
     (.ocamlcommon.objs/byte/load_path.cmi as compiler-libs/load_path.cmi)
     (.ocamlcommon.objs/byte/load_path.cmo as compiler-libs/load_path.cmo)
     (.ocamlcommon.objs/byte/load_path.cmt as compiler-libs/load_path.cmt)
@@ -865,6 +870,7 @@
     (.ocamlcommon.objs/native/int_replace_polymorphic_compare.cmx as compiler-libs/int_replace_polymorphic_compare.cmx)
     (.ocamlcommon.objs/native/lambda.cmx as compiler-libs/lambda.cmx)
     (.ocamlcommon.objs/native/lexer.cmx as compiler-libs/lexer.cmx)
+    (.ocamlcommon.objs/native/linkage_name.cmx as compiler-libs/linkage_name.cmx)
     (.ocamlcommon.objs/native/load_path.cmx as compiler-libs/load_path.cmx)
     (.ocamlcommon.objs/native/location.cmx as compiler-libs/location.cmx)
     (.ocamlcommon.objs/native/longident.cmx as compiler-libs/longident.cmx)

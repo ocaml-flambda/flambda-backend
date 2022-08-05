@@ -45,7 +45,7 @@ val pack_prefix_for_global_ident : Ident.t -> Compilation_unit.Prefix.t
         (* Find the pack prefix for an identifier by reading the .cmx file.
            The identifier must be [Global]. *)
 
-val symbol_for_global: Ident.t -> string
+val symbol_for_global: Ident.t -> Linkage_name.t
         (* Return the asm symbol that refers to the given global identifier
            flambda-only *)
 val symbol_for_global': Ident.t -> Symbol.t
@@ -70,9 +70,11 @@ val approx_for_global: Compilation_unit.t -> Export_info.t option
         (* Loads the exported information declaring the compilation_unit
            flambda-only *)
 
-val get_global_info' : Ident.t -> Cmx_format.export_info option
+val get_global_export_info : Ident.t -> Cmx_format.export_info option
         (* Middle-end-agnostic means of getting the export info found in the
            .cmx file of the given unit. *)
+
+val get_unit_export_info : Compilation_unit.Name.t -> Cmx_format.export_info option
 
 val flambda2_set_export_info : Flambda2_cmx.Flambda_cmx_format.t -> unit
         (* Set the export information for the current unit (Flambda 2 only). *)
@@ -125,7 +127,8 @@ val read_library_info: string -> library_infos
 type error =
     Not_a_unit_info of string
   | Corrupted_unit_info of string
-  | Illegal_renaming of string * string * string
+  | Illegal_renaming of
+      Compilation_unit.Name.t * Compilation_unit.Name.t * string
 
 exception Error of error
 

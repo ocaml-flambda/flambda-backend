@@ -213,7 +213,7 @@ module Native = struct
   module Unit_header = struct
     type t = Cmxs_format.dynunit
 
-    let name (t : t) = t.dynu_name
+    let name (t : t) = t.dynu_name |> Compilation_unit.Name.to_string
     let crc (t : t) = Some t.dynu_crc
 
     let interface_imports (t : t) = t.dynu_imports_cmi
@@ -222,7 +222,8 @@ module Native = struct
     let defined_symbols (t : t) =
       List.map (fun comp_unit ->
           Symbol.for_compilation_unit comp_unit
-          |> Symbol.linkage_name)
+          |> Symbol.linkage_name
+          |> Linkage_name.to_string)
         t.dynu_defines
 
     let unsafe_module _t = false
@@ -239,7 +240,11 @@ module Native = struct
     let rank = ref 0 in
     List.fold_left (fun acc { name; crc_intf; crc_impl; syms; } ->
         let name = Compilation_unit.Name.to_string name in
-        let syms = List.map Symbol.linkage_name syms in
+        let syms =
+          List.map
+            (fun sym -> Symbol.linkage_name sym |> Linkage_name.to_string)
+            syms
+        in
         rank := !rank + List.length syms;
         let implementation =
           match crc_impl with

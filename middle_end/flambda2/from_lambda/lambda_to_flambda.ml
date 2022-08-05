@@ -1792,7 +1792,7 @@ let lambda_to_flambda ~mode ~symbol_for_global ~big_endian ~cmx_loader
     ~module_ident ~module_block_size_in_words (lam : Lambda.lambda) =
   let current_unit_id =
     Compilation_unit.name (Compilation_unit.get_current_exn ())
-    |> Compilation_unit.Name.to_string |> Ident.create_persistent
+    |> Compilation_unit.Name.persistent_ident
   in
   let return_continuation = Continuation.create ~sort:Define_root_symbol () in
   let exn_continuation = Continuation.create () in

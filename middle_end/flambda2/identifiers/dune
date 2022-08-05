@@ -21,16 +21,6 @@
   ocamlcommon
   flambda2_algorithms
   flambda2_kinds
+  flambda2_import
   flambda2_numbers
-  flambda2_ui
-  flambda2_identifiers_deps)
- (modules :standard \ flambda2_identifiers_deps))
-
-; Hacky workaround for having two modules called Symbol
-(library
- (name flambda2_identifiers_deps)
- (instrumentation (backend bisect_ppx))
- (ocamlopt_flags
-  (:standard -O3))
- (libraries ocamlcommon)
- (modules flambda2_identifiers_deps))
+  flambda2_ui))

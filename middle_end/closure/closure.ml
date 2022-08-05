@@ -63,7 +63,7 @@ let rec build_closure_env env_param pos = function
    contain the right names if the -for-pack option is active. *)
 
 let getglobal dbg id =
-  let symbol = Compilenv.symbol_for_global id in
+  let symbol = Compilenv.symbol_for_global id |> Linkage_name.to_string in
   Uprim (P.Pread_symbol symbol, [], dbg)
 
 let region ulam =
@@ -1399,6 +1399,7 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
             let label =
               Symbol_utils.for_fun_ident ~compilation_unit:None loc id
               |> Symbol.linkage_name
+              |> Linkage_name.to_string            
             in
             let arity = List.length params in
             let fundesc =
@@ -1650,6 +1651,7 @@ let intro ~backend ~size lam =
   let id =
     Symbol.for_current_unit ()
     |> Symbol.linkage_name
+    |> Linkage_name.to_string
   in
   global_approx := Array.init size (fun i -> Value_global_field (id, i));
   Compilenv.set_global_approx(Value_tuple (alloc_heap, !global_approx));
@@ -1661,7 +1663,8 @@ let intro ~backend ~size lam =
     !Clflags.opaque
     || Env.is_imported_opaque
          (Compilation_unit.get_current_exn ()
-          |> Compilation_unit.full_path_as_string)
+          |> Compilation_unit.name
+          |> Compilation_unit.Name.to_string)
   in
   if opaque
   then Compilenv.set_global_approx(Value_unknown)

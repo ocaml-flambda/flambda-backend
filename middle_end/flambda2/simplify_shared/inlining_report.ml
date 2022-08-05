@@ -373,11 +373,9 @@ module Uid = struct
     if Compilation_unit.equal compilation_unit cu_uid
     then Format.fprintf ppf "[[%s][here]]" t
     else
-      (* CR lmaurer: Use [Compilation_unit.name_as_string] once I merge it in *)
-      let compilation_unit_name =
-        Compilation_unit.name cu_uid |> Compilation_unit.Name.to_string
+      let external_reports =
+        Format.asprintf "%a.0.inlining.org" Compilation_unit.print_name cu_uid
       in
-      let external_reports = compilation_unit_name ^ ".0.inlining.org" in
       try
         let file = Load_path.find_uncap external_reports in
         Format.fprintf ppf "[[file:%s::%s][in compilation unit %a]]" t file

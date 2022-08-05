@@ -20,7 +20,7 @@ module CU = Compilation_unit
 
 type t = {
   compilation_unit : Compilation_unit.t;
-  linkage_name : string;
+  linkage_name : Linkage_name.t;
   hash : int;
 }
 
@@ -35,14 +35,14 @@ include Identifiable.Make (struct
       else
         (* Linkage names are unique across a whole project, so just comparing
            those is sufficient. *)
-        String.compare t1.linkage_name t2.linkage_name
+        Linkage_name.compare t1.linkage_name t2.linkage_name
 
   let equal t1 t2 = compare t1 t2 = 0
-  let output chan t = output_string chan t.linkage_name
+  let output chan t = Linkage_name.output chan t.linkage_name
   let hash { hash; } = hash
 
   (* CR mshinwell: maybe print all fields *)
-  let print ppf t = Format.pp_print_string ppf t.linkage_name
+  let print ppf t = Linkage_name.print ppf t.linkage_name
 end)
 
 let caml_symbol_prefix = "caml"
@@ -53,13 +53,19 @@ let linkage_name t = t.linkage_name
 let linkage_name_for_ocamlobjinfo t =
   (* For legacy compatibility, even though displaying "Foo.Bar" is nicer
      than "Foo__Bar" *)
-  let linkage_name = linkage_name t in
+  let linkage_name = linkage_name t |> Linkage_name.to_string in
   assert (Misc.Stdlib.String.begins_with linkage_name
             ~prefix:caml_symbol_prefix);
   let prefix_len = String.length caml_symbol_prefix in
   String.sub linkage_name prefix_len (String.length linkage_name - prefix_len)
 
 let compilation_unit t = t.compilation_unit
+
+let with_compilation_unit t compilation_unit = { t with compilation_unit }
+
+(* CR-someday lmaurer: Would be nicer to have some of this logic in
+   [Linkage_name]; among other things, we could then define
+   [Linkage_name.for_current_unit] *)
 
 let linkage_name_for_compilation_unit comp_unit =
   let name = CU.Name.to_string (CU.name comp_unit) in
@@ -73,15 +79,13 @@ let linkage_name_for_compilation_unit comp_unit =
       String.concat separator (pack_names @ [name])
   in
   caml_symbol_prefix ^ suffix
-
-let linkage_name_for_current_unit () =
-  linkage_name_for_compilation_unit (CU.get_current_exn ())
+  |> Linkage_name.of_string
 
 let for_global_or_predef_ident pack_prefix id =
   assert (Ident.is_global_or_predef id);
   let linkage_name, compilation_unit =
     if Ident.is_predef id then
-      "caml_exn_" ^ Ident.name id, CU.predef_exn
+      "caml_exn_" ^ Ident.name id |> Linkage_name.of_string, CU.predef_exn
     else
       let compilation_unit =
         (* CR mshinwell: decide on "pack_prefix" or "for_pack_prefix" *)
@@ -98,15 +102,17 @@ let for_global_or_predef_ident pack_prefix id =
 let for_predef_ident id =
   for_global_or_predef_ident Compilation_unit.Prefix.empty id
 
-let with_linkage_name compilation_unit linkage_name =
+let unsafe_create compilation_unit linkage_name =
   { compilation_unit;
     linkage_name;
     hash = Hashtbl.hash linkage_name; }
 
 let for_name compilation_unit name =
+  let prefix =
+    linkage_name_for_compilation_unit compilation_unit |> Linkage_name.to_string
+  in
   let linkage_name =
-    linkage_name_for_compilation_unit compilation_unit
-    ^ separator ^ name
+    prefix ^ separator ^ name |> Linkage_name.of_string
   in
   { compilation_unit;
     linkage_name;
@@ -136,13 +142,7 @@ let const_label = ref 0
 
 let for_new_const_in_current_unit () =
   incr const_label;
-  let linkage_name =
-    linkage_name_for_current_unit () ^ separator ^ (Int.to_string !const_label)
-  in
-  { compilation_unit = CU.get_current_exn ();
-    linkage_name;
-    hash = Hashtbl.hash linkage_name;
-  }
+  for_name (Compilation_unit.get_current_exn ()) (Int.to_string !const_label)
 
 let is_predef_exn t =
   CU.equal t.compilation_unit CU.predef_exn

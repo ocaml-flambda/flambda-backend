@@ -30,8 +30,8 @@ val for_global_or_predef_ident : Compilation_unit.Prefix.t -> Ident.t -> t
 val for_local_ident : Ident.t -> t
 
 (** To be avoided if possible. Linkage names are intended to be generated
-    here. *)
-val with_linkage_name : Compilation_unit.t -> string -> t
+    by this module. *)
+val unsafe_create : Compilation_unit.t -> Linkage_name.t -> t
 
 val for_name : Compilation_unit.t -> string -> t
 val for_compilation_unit : Compilation_unit.t -> t
@@ -42,7 +42,9 @@ val import_for_pack : t -> pack:Compilation_unit.Prefix.t -> t
 
 val compilation_unit : t -> Compilation_unit.t
 
-val linkage_name : t -> string
+val with_compilation_unit : t -> Compilation_unit.t -> t
+
+val linkage_name : t -> Linkage_name.t
 
 (** Linkage names displayed in ocamlobjinfo are formatted differently. *)
 val linkage_name_for_ocamlobjinfo : t -> string

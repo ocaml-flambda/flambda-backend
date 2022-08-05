@@ -22,9 +22,8 @@ type cfg_item_info =
 
 type cfg_unit_info =
   {
-    mutable unit_name : Compilation_unit.t;
+    mutable unit : Compilation_unit.t;
     mutable items : cfg_item_info list;
-    mutable for_pack : string option
   }
 
 type error =
