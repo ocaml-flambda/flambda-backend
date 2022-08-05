@@ -412,7 +412,7 @@ let execute_phrase print_outcome ppf phr =
       incr phrase_seqid;
       phrase_name := Printf.sprintf "TOP%i" !phrase_seqid;
       let compilation_unit =
-        Compilation_unit.create ~for_pack_prefix:Compilation_unit.Prefix.empty
+        Compilation_unit.create Compilation_unit.Prefix.empty
           (!phrase_name |> Compilation_unit.Name.of_string)
       in
       Compilenv.reset compilation_unit;

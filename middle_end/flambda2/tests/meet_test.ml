@@ -188,7 +188,7 @@ let test_meet_two_blocks () =
 
 let () =
   let comp_unit =
-    Compilation_unit.create ~for_pack_prefix:Compilation_unit.Prefix.empty
+    Compilation_unit.create Compilation_unit.Prefix.empty
       ("Meet_test" |> Compilation_unit.Name.of_string)
   in
   Compilation_unit.set_current comp_unit;
