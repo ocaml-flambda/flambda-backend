@@ -1245,6 +1245,19 @@ Line 1, characters 37-51:
 Error: This value escapes its region
 |}]
 
+(* Unboxed type constructors do not affect regionality *)
+type 'a unb1 = A of 'a [@@unboxed]
+type 'a unb2 = { foo : 'a } [@@unboxed]
+type 'a unb3 = B of { bar : 'a } [@@unboxed]
+let f (local_ x) = B { bar = { foo = A x } }
+[%%expect{|
+type 'a unb1 = A of 'a [@@unboxed]
+type 'a unb2 = { foo : 'a; } [@@unboxed]
+type 'a unb3 = B of { bar : 'a; } [@@unboxed]
+val f : local_ 'a -> local_ 'a unb1 unb2 unb3 = <fun>
+|}]
+
+
 (* Fields have the same mode unless they are nonlocal or mutable *)
 
 type 'a imm = { imm : 'a }
