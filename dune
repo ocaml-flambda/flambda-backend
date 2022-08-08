@@ -319,7 +319,8 @@
   flambda2_ui
   flambda2_to_cmm
   ocamloptcomp
-  ocamlcommon)
+  ocamlcommon
+  unix)
  (modules flambda_backend_main))
 
 (rule
@@ -341,7 +342,8 @@
   flambda2_ui
   flambda2_to_cmm
   ocamloptcomp
-  ocamlcommon)
+  ocamlcommon
+  unix)
  (modules flambda_backend_main_native))
 
 (rule
@@ -364,7 +366,8 @@
   flambda2_ui
   flambda2_to_cmm
   ocamloptcomp
-  ocamlcommon)
+  ocamlcommon
+  unix)
  (modules boot_ocamlopt))
 
 ; The input archives (.a, .cma and .cmxa) to the following three rules

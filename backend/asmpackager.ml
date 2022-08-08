@@ -79,7 +79,7 @@ let check_units members =
 
 (* Make the .o file for the package *)
 
-let make_package_object ~ppf_dump members targetobj targetname coercion
+let make_package_object unix ~ppf_dump members targetobj targetname coercion
       ~backend ~flambda2 =
   Profile.record_call (Printf.sprintf "pack(%s)" targetname) (fun () ->
     let objtemp =
@@ -105,7 +105,7 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
         Translmod.transl_package_flambda components coercion
       in
       let module_initializer = Simplif.simplify_lambda module_initializer in
-      Asmgen.compile_implementation_flambda2
+      Asmgen.compile_implementation_flambda2 unix
         ~filename:targetname
         ~prefixname
         ~size:main_module_block_size
@@ -148,7 +148,7 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
           in
           program, Closure_middle_end.lambda_to_clambda
       in
-      Asmgen.compile_implementation ~backend
+      Asmgen.compile_implementation ~backend unix
         ~filename:targetname
         ~prefixname
         ~middle_end
@@ -309,7 +309,7 @@ let build_package_cmx members cmxfile =
 
 (* Make the .cmx and the .o for the package *)
 
-let package_object_files ~ppf_dump files targetcmx
+let package_object_files unix ~ppf_dump files targetcmx
                          targetobj targetname coercion ~backend ~flambda2 =
   let pack_path =
     match !Clflags.for_package with
@@ -317,13 +317,14 @@ let package_object_files ~ppf_dump files targetcmx
     | Some p -> p ^ "." ^ targetname in
   let members = map_left_right (read_member_info pack_path) files in
   check_units members;
-  make_package_object ~ppf_dump members targetobj targetname coercion ~backend
-    ~flambda2;
+  make_package_object unix ~ppf_dump members targetobj targetname coercion
+    ~backend ~flambda2;
   build_package_cmx members targetcmx
 
 (* The entry point *)
 
-let package_files ~ppf_dump initial_env files targetcmx ~backend ~flambda2 =
+let package_files unix ~ppf_dump initial_env files targetcmx ~backend
+      ~flambda2 =
   let files =
     List.map
       (fun f ->
@@ -341,7 +342,7 @@ let package_files ~ppf_dump initial_env files targetcmx ~backend ~flambda2 =
   Misc.try_finally (fun () ->
       let coercion =
         Typemod.package_units initial_env files targetcmi targetname in
-      package_object_files ~ppf_dump files targetcmx targetobj targetname
+      package_object_files unix ~ppf_dump files targetcmx targetobj targetname
         coercion ~backend ~flambda2
     )
     ~exceptionally:(fun () -> remove_file targetcmx; remove_file targetobj)

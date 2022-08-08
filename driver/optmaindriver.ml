@@ -39,7 +39,7 @@ let usage = "Usage: ocamlopt <options> <files>\nOptions are:"
 module Options = Flambda_backend_args.Make_optcomp_options
         (Flambda_backend_args.Default.Optmain)
 
-let main argv ppf ~flambda2 =
+let main unix argv ppf ~flambda2 =
   native_code := true;
   let columns =
     match Sys.getenv "COLUMNS" with
@@ -74,7 +74,7 @@ let main argv ppf ~flambda2 =
     begin try
       Compenv.process_deferred_actions
         (ppf,
-         Optcompile.implementation ~backend ~flambda2,
+         Optcompile.implementation unix ~backend ~flambda2,
          Optcompile.interface,
          ".cmx",
          ".cmxa");
@@ -117,7 +117,8 @@ let main argv ppf ~flambda2 =
       Compmisc.init_path ();
       let target = Compenv.extract_output !output_name in
       Compmisc.with_ppf_dump ~file_prefix:target (fun ppf_dump ->
-        Asmpackager.package_files ~ppf_dump (Compmisc.initial_env ())
+        Asmpackager.package_files unix
+          ~ppf_dump (Compmisc.initial_env ())
           (Compenv.get_objfiles ~with_ocamlparam:false) target ~backend
           ~flambda2);
       Warnings.check_fatal ();
@@ -149,7 +150,8 @@ let main argv ppf ~flambda2 =
       Compmisc.init_path ();
       Compmisc.with_ppf_dump ~file_prefix:target (fun ppf_dump ->
           let objs = Compenv.get_objfiles ~with_ocamlparam:true in
-          Asmlink.link ~ppf_dump objs target);
+          Asmlink.link unix
+            ~ppf_dump objs target);
       Warnings.check_fatal ();
     end;
   with

@@ -18,7 +18,8 @@
 val interface: source_file:string -> output_prefix:string -> unit
 
 val implementation
-   : backend:(module Backend_intf.S)
+   : (module Owee.Unix_intf.S)
+  -> backend:(module Backend_intf.S)
   -> flambda2:(
     ppf_dump:Format.formatter ->
     prefixname:string ->
@@ -35,6 +36,7 @@ val implementation
 (** {2 Internal functions} **)
 
 val clambda :
+  (module Owee.Unix_intf.S) ->
   Compile_common.info ->
   (module Backend_intf.S) ->
   Typedtree.structure * Typedtree.module_coercion -> unit
@@ -43,6 +45,7 @@ val clambda :
 *)
 
 val flambda :
+  (module Owee.Unix_intf.S) ->
   Compile_common.info ->
   (module Backend_intf.S) ->
   Typedtree.structure * Typedtree.module_coercion -> unit

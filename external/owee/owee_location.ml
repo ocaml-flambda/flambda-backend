@@ -82,13 +82,13 @@ let extract_debug_info buffer =
     store_rows body debug_entries ~pointers_to_other_sections;
     debug_entries, (Owee_elf.find_section sections ".text")
 
-let memory_map = lazy begin try
+let memory_map unix = lazy begin try
     let slots = Hashtbl.create 7 in
     let find_slot pathname =
       try Hashtbl.find slots pathname
       with Not_found ->
         let slot = lazy (
-          try pathname |> Owee_buf.map_binary |> extract_debug_info
+          try pathname |> Owee_buf.map_binary unix |> extract_debug_info
           with exn ->
             prerr_endline ("Owee: fail to parse binary " ^ pathname ^ ": " ^
                            Printexc.to_string exn);
@@ -107,7 +107,7 @@ let memory_map = lazy begin try
         } :: acc
     in
     let entries =
-      Owee_linux_maps.scan_self ()
+      Owee_linux_maps.scan_self unix
       |> List.fold_left add_entry []
       |> Array.of_list
     in
@@ -138,11 +138,11 @@ let rec bsearch table i j address =
 let bsearch table address =
   bsearch table 0 (Array.length table) address
 
-let lookup t =
+let lookup unix t =
   if t = none then None
   else if Obj.is_int (Obj.repr t) then
     let t : int = Obj.magic t in
-    let lazy memory_map = memory_map in
+    let lazy memory_map = memory_map unix in
     match bsearch memory_map t with
     | exception Not_found -> None
     | { payload = (offset, lazy (entries,text_section)); _ } as map_entry ->
@@ -162,7 +162,7 @@ let lookup t =
     assert (Obj.size (Obj.field t 0) = 3);
     Obj.obj t
 
-let locate f = lookup (extract f)
+let locate unix f = lookup unix (extract f)
 
 external nearest_symbol : t -> string = "ml_owee_code_pointer_symbol"
 

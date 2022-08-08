@@ -309,7 +309,7 @@ let make_globals_map units_list =
     interfaces
     defined
 
-let make_startup_file ~ppf_dump ~named_startup_file ~filename genfns units =
+let make_startup_file unix ~ppf_dump ~named_startup_file ~filename genfns units =
   Location.input_name := "caml_startup"; (* set name of "current" input *)
   Compilenv.reset "_startup"; (* set the name of the "current" compunit *)
   let dwarf =
@@ -319,7 +319,7 @@ let make_startup_file ~ppf_dump ~named_startup_file ~filename genfns units =
       if named_startup_file then filename
       else ".startup"
     in
-    Asmgen.emit_begin_assembly_with_dwarf
+    Asmgen.emit_begin_assembly_with_dwarf unix
       ~disable_dwarf:(not !Dwarf_flags.dwarf_for_startup_file)
       ~emit_begin_assembly:Emit.begin_assembly
       ~sourcefile:filename
@@ -430,7 +430,7 @@ let reset () =
 
 (* Main entry point *)
 
-let link ~ppf_dump objfiles output_name =
+let link unix ~ppf_dump objfiles output_name =
   Profile.record_call output_name (fun () ->
     let stdlib = "stdlib.cmxa" in
     let stdexit = "std_exit.cmx" in
@@ -459,7 +459,8 @@ let link ~ppf_dump objfiles output_name =
       ~asm_filename:startup ~keep_asm:!Clflags.keep_startup_file
       ~obj_filename:startup_obj
       ~may_reduce_heap:true
-      (fun () -> make_startup_file ~ppf_dump ~named_startup_file ~filename:startup genfns units_tolink);
+      (fun () -> make_startup_file unix ~ppf_dump ~named_startup_file
+        ~filename:startup genfns units_tolink);
     Emitaux.reduce_heap_size ~reset:(fun () -> reset ());
     Misc.try_finally
       (fun () -> call_linker ml_objfiles startup_obj output_name)
