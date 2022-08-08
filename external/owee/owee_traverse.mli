@@ -4,7 +4,8 @@ type location = Owee_location.t
 
 type 'a trace = Trace of int * string * 'a list * 'a trace list lazy_t
 
-val dump_trace : location trace list -> unit
-val dump_graphviz : location trace list -> out_channel -> unit
+val dump_trace : (module Unix_intf.S) -> location trace list -> unit
+val dump_graphviz : (module Unix_intf.S) -> location trace list ->
+  out_channel -> unit
 
 val extract_trace : ?search_depth:int -> 'a -> location trace list

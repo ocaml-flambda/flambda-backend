@@ -13,9 +13,9 @@ let rec filter_map f = function
     | None -> filter_map f xs
     | Some x' -> x' :: filter_map f xs
 
-let rec cleanup_trace (Trace (uid, name,locs,lazy trace)) =
-  let trace = lazy (bind trace cleanup_trace) in
-  let process_loc loc = match Owee_location.lookup loc with
+let rec cleanup_trace unix (Trace (uid, name,locs,lazy trace)) =
+  let trace = lazy (bind trace (cleanup_trace unix)) in
+  let process_loc loc = match Owee_location.lookup unix loc with
     | Some (name,_,_) when ignore_module name -> None
     | Some (name,line,_) -> Some (name ^ ":" ^ string_of_int line)
     | None -> Some "<no location>"
@@ -40,7 +40,8 @@ let rec dump_trace indent linear (Trace (_uid, name, locations, lazy subnodes)) 
   | [node] -> dump_trace indent true node
   | nodes -> List.iter (dump_trace (indent ^ "| ") false) nodes
 
-let dump_trace trace = List.iter (dump_trace "" false) (bind trace cleanup_trace)
+let dump_trace unix trace =
+  List.iter (dump_trace "" false) (bind trace (cleanup_trace unix))
 
 let node_name =
   let counter = ref 0 in
@@ -50,14 +51,14 @@ let node_name =
     else
       ("node_" ^ string_of_int uid)
 
-let dump_graphviz trace oc =
+let dump_graphviz unix trace oc =
   let rec aux parent (Trace (uid, desc, locs, lazy traces)) =
     let name = node_name uid in
     Printf.fprintf oc "%s -> %s;\n" parent name;
     if desc <> "" || locs <> [] || traces <> [] then
       begin
         let locs = List.map
-            (fun loc -> match Owee_location.lookup loc with
+            (fun loc -> match Owee_location.lookup unix loc with
                | None -> "<unknown>"
                | Some (fname,line,_col) -> fname ^ ":" ^ string_of_int line)
             locs

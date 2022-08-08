@@ -8,7 +8,8 @@ type cursor = {
   mutable position: int;
 }
 
-let map_binary path =
+let map_binary unix path =
+  let module Unix = (val unix : Unix_intf.S) in
   let fd = Unix.openfile path [Unix.O_RDONLY] 0 in
   let len = Unix.lseek fd 0 Unix.SEEK_END in
   let t =
@@ -18,7 +19,8 @@ let map_binary path =
   Unix.close fd;
   t
 
-let map_binary_write path size =
+let map_binary_write unix path size =
+  let module Unix = (val unix : Unix_intf.S) in
   let fd = Unix.openfile path [Unix.O_CREAT; Unix.O_RDWR] 0o644 in
   let t =
     Bigarray.array1_of_genarray
@@ -186,7 +188,7 @@ external bigstring_set32_unsafe :
 
 external bigstring_set64_unsafe :
   t -> byte_offset:int -> int64 -> unit = "%caml_bigstring_set64u"
-  
+
 module Write = struct
   let u8 t w  =
     Bigarray.Array1.unsafe_set t.buffer t.position w;
@@ -241,7 +243,7 @@ module Write = struct
   let zero_terminated_bytes t s =
     fixed_bytes t (Bytes.length s) s;
     u8 t 0
-    
+
   let fixed_string t length s =
     let {buffer; position} = t in
     unsafe_blit_str
