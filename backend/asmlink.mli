@@ -18,7 +18,7 @@
 open Misc
 open Format
 
-val link: (module Owee.Unix_intf.S) -> ppf_dump:formatter ->
+val link: (module Compiler_owee.Unix_intf.S) -> ppf_dump:formatter ->
   string list -> string -> unit
 
 val link_shared: ppf_dump:formatter -> string list -> string -> unit

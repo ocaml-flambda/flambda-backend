@@ -20,9 +20,9 @@
    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
    SOFTWARE. *)
 type t =
-  { r_offset : Owee.Owee_buf.u64;
-    r_info : Owee.Owee_buf.u64;
-    r_addend : Owee.Owee_buf.u64
+  { r_offset : Compiler_owee.Owee_buf.u64;
+    r_info : Compiler_owee.Owee_buf.u64;
+    r_addend : Compiler_owee.Owee_buf.u64
   }
 
 let create_relocation ~offset ~info ~addend =
@@ -78,7 +78,7 @@ let create_relocation (relocation : X86_binary_emitter.Relocation.t)
     r_addend = addend
   }
 
-open Owee.Owee_buf
+open Compiler_owee.Owee_buf
 
 let write t cursor =
   Write.u64 cursor t.r_offset;

@@ -278,7 +278,7 @@ let default_load ppf (program : Lambda.program) =
   let filename = Filename.chop_extension dll in
   if Config.flambda2 then begin
     Asmgen.compile_implementation_flambda2
-      (module Unix : Owee.Unix_intf.S)
+      (module Unix : Compiler_owee.Unix_intf.S)
       () ~toplevel:need_symbol
       ~filename ~prefixname:filename
       ~flambda2:Flambda2.lambda_to_cmm ~ppf_dump:ppf
@@ -293,7 +293,7 @@ let default_load ppf (program : Lambda.program) =
       else Closure_middle_end.lambda_to_clambda
     in
     Asmgen.compile_implementation
-      (module Unix : Owee.Unix_intf.S)
+      (module Unix : Compiler_owee.Unix_intf.S)
       ~toplevel:need_symbol
       ~backend ~filename ~prefixname:filename
       ~middle_end ~ppf_dump:ppf program

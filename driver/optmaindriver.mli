@@ -19,7 +19,7 @@
    NB: Due to internal state in the compiler, calling [main] twice during
    the same process is unsupported. *)
 val main
-   : (module Owee.Unix_intf.S)
+   : (module Compiler_owee.Unix_intf.S)
   -> string array
   -> Format.formatter
   -> flambda2:(

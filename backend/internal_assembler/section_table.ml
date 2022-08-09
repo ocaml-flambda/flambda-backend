@@ -27,14 +27,14 @@ type section_body =
   }
 
 type t =
-  { mutable sections : Owee.Owee_elf.section list;
+  { mutable sections : Compiler_owee.Owee_elf.section list;
     mutable num_sections : int;
     section_tb : int Section_name.Tbl.t;
     mutable section_bodies : section_body list;
     mutable current_offset : int64
   }
 
-open Owee.Owee_elf
+open Compiler_owee.Owee_elf
 
 let create () =
   { sections =
@@ -92,8 +92,8 @@ let get_section_bodies t = t.section_bodies
 let write_bodies t buf =
   List.iter
     (fun sec_body ->
-      Owee.Owee_buf.Write.fixed_bytes
-        (Owee.Owee_buf.cursor buf ~at:sec_body.offset)
+      Compiler_owee.Owee_buf.Write.fixed_bytes
+        (Compiler_owee.Owee_buf.cursor buf ~at:sec_body.offset)
         (Bytes.length sec_body.body)
         sec_body.body)
     t.section_bodies
