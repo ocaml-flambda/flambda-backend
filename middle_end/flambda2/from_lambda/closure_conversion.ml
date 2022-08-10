@@ -357,12 +357,12 @@ let close_c_call acc env ~loc ~let_bound_var
        prim_native_repr_res
      } :
       Primitive.description) ~(args : Simple.t list) exn_continuation dbg
-    (k : Acc.t -> Named.t option -> Expr_with_acc.t) : Expr_with_acc.t =
+    (k : Acc.t -> Env.t -> Named.t option -> Expr_with_acc.t) : Expr_with_acc.t =
   (* We always replace the original let-binding with an Flambda expression, so
      we call [k] with [None], to get just the closure-converted body of that
      binding. *)
   let cost_metrics_of_body, free_names_of_body, acc, body =
-    Acc.measure_cost_metrics acc ~f:(fun acc -> k acc None)
+    Acc.measure_cost_metrics acc ~f:(fun acc -> k acc env None)
   in
   let box_return_value =
     match prim_native_repr_res with
@@ -553,7 +553,7 @@ let close_exn_continuation acc env (exn_continuation : IR.exn_continuation) =
 
 let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
     loc (exn_continuation : IR.exn_continuation option)
-    (k : Acc.t -> Named.t option -> Expr_with_acc.t) : Expr_with_acc.t =
+    (k : Acc.t -> Env.t -> Named.t option -> Expr_with_acc.t) : Expr_with_acc.t =
   let acc, exn_continuation =
     match exn_continuation with
     | None -> acc, None
@@ -581,7 +581,7 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
         id;
     let acc, simple = symbol_for_ident acc env id in
     let named = Named.create_simple simple in
-    k acc (Some named)
+    k acc env (Some named)
   | Praise raise_kind, [_] ->
     let exn_continuation =
       match exn_continuation with
@@ -650,9 +650,9 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
         (* Inconsistent with outer match *)
         assert false
     in
-    k acc (Some (Named.create_simple (Simple.symbol sym)))
+    k acc env (Some (Named.create_simple (Simple.symbol sym)))
   | prim, args ->
-    Lambda_to_flambda_primitives.convert_and_bind acc exn_continuation
+    Lambda_to_flambda_primitives.convert_and_bind acc env exn_continuation
       ~big_endian:(Env.big_endian env)
       ~register_const_string:(fun acc -> register_const_string acc)
       prim ~args dbg k
@@ -666,7 +666,7 @@ let close_trap_action_opt trap_action =
     trap_action
 
 let close_named acc env ~let_bound_var (named : IR.named)
-    (k : Acc.t -> Named.t option -> Expr_with_acc.t) : Expr_with_acc.t =
+    (k : Acc.t -> Env.t -> Named.t option -> Expr_with_acc.t) : Expr_with_acc.t =
   match named with
   | Simple (Var id) ->
     let acc, simple =
@@ -675,36 +675,36 @@ let close_named acc env ~let_bound_var (named : IR.named)
       else symbol_for_ident acc env id
     in
     let named = Named.create_simple simple in
-    k acc (Some named)
+    k acc env (Some named)
   | Simple (Const cst) ->
     let acc, named, _name = close_const acc cst in
-    k acc (Some named)
+    k acc env (Some named)
   | Get_tag var ->
     let named = find_simple_from_id env var in
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
       Unary (Tag_immediate, Prim (Unary (Get_tag, Simple named)))
     in
-    Lambda_to_flambda_primitives_helpers.bind_rec acc None
+    Lambda_to_flambda_primitives_helpers.bind_rec acc env None
       ~register_const_string:(fun acc -> register_const_string acc)
       prim Debuginfo.none
-      (fun acc named -> k acc (Some named))
+      (fun acc env named -> k acc env (Some named))
   | Begin_region ->
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
       Nullary Begin_region
     in
-    Lambda_to_flambda_primitives_helpers.bind_rec acc None
+    Lambda_to_flambda_primitives_helpers.bind_rec acc env None
       ~register_const_string:(fun acc -> register_const_string acc)
       prim Debuginfo.none
-      (fun acc named -> k acc (Some named))
+      (fun acc env named -> k acc env (Some named))
   | End_region id ->
     let named = find_simple_from_id env id in
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
       Unary (End_region, Simple named)
     in
-    Lambda_to_flambda_primitives_helpers.bind_rec acc None
+    Lambda_to_flambda_primitives_helpers.bind_rec acc env None
       ~register_const_string:(fun acc -> register_const_string acc)
       prim Debuginfo.none
-      (fun acc named -> k acc (Some named))
+      (fun acc env named -> k acc env (Some named))
   | Prim { prim; args; loc; exn_continuation } ->
     close_primitive acc env ~let_bound_var named prim ~args loc exn_continuation
       k
@@ -712,7 +712,7 @@ let close_named acc env ~let_bound_var (named : IR.named)
 let close_let acc env id user_visible defining_expr
     ~(body : Acc.t -> Env.t -> Expr_with_acc.t) : Expr_with_acc.t =
   let body_env, var = Env.add_var_like env id user_visible in
-  let cont acc (defining_expr : Named.t option) =
+  let cont acc env (defining_expr : Named.t option) =
     match defining_expr with
     | Some (Simple simple) ->
       let body_env = Env.add_simple_to_substitute env id simple in
