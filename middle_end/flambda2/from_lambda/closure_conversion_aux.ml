@@ -125,10 +125,15 @@ end
 module Env = struct
   type value_approximation = Code_or_metadata.t Value_approximation.t
 
+  type boxing =
+    | Boxed_from of Name.t
+    | Unboxed_from of Name.t
+
   type t =
     { variables : Variable.t Ident.Map.t;
       globals : Symbol.t Numeric_types.Int.Map.t;
       simples_to_substitute : Simple.t Ident.Map.t;
+      box_mapping : boxing Name.Map.t;
       current_unit_id : Ident.t;
       current_depth : Variable.t option;
       symbol_for_global : Ident.t -> Symbol.t;
@@ -194,6 +199,7 @@ module Env = struct
     { variables = Ident.Map.empty;
       globals = Numeric_types.Int.Map.empty;
       simples_to_substitute = Ident.Map.empty;
+      box_mapping = Name.Map.empty;
       current_unit_id = Compilation_unit.get_persistent_ident compilation_unit;
       current_depth = None;
       value_approximations = Name.Map.empty;
@@ -211,6 +217,7 @@ module Env = struct
       { variables = _;
         globals;
         simples_to_substitute;
+        box_mapping = _;
         current_unit_id;
         symbol_for_global;
         current_depth;
@@ -228,6 +235,7 @@ module Env = struct
     { variables = Ident.Map.empty;
       globals;
       simples_to_substitute;
+      box_mapping = Name.Map.empty;
       current_unit_id;
       current_depth;
       value_approximations;
@@ -311,6 +319,23 @@ module Env = struct
 
   let find_simple_to_substitute_exn t id =
     Ident.Map.find id t.simples_to_substitute
+
+  let add_boxing_pair t ~unboxed ~boxed =
+    let box_mapping =
+      Name.Map.add boxed (Boxed_from unboxed) t.box_mapping
+      |> Name.Map.add unboxed (Unboxed_from boxed)
+    in
+    { t with box_mapping }
+
+  let find_boxed_of t name =
+    match Name.Map.find name t.box_mapping with
+    | Unboxed_from n -> n
+    | Boxed_from _ -> name
+
+  let find_unboxed_of t name =
+    match Name.Map.find name t.box_mapping with
+    | Boxed_from n -> n
+    | Unboxed_from _ -> name
 
   let add_value_approximation t name approx =
     if Value_approximation.is_unknown approx

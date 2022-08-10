@@ -1137,10 +1137,13 @@ module Acc = Closure_conversion_aux.Acc
 module Env = Closure_conversion_aux.Env
 module Expr_with_acc = Closure_conversion_aux.Expr_with_acc
 
-let convert_and_bind acc env ~big_endian exn_cont ~register_const_string
-    (prim : L.primitive) ~(args : Simple.t list) (dbg : Debuginfo.t)
+let convert_and_bind acc env ~let_bound_var ~big_endian exn_cont
+    ~register_const_string (prim : L.primitive) ~(args : Simple.t list)
+    (dbg : Debuginfo.t)
     (cont : Acc.t -> Env.t -> Flambda.Named.t option -> Expr_with_acc.t) :
     Expr_with_acc.t =
   let expr = convert_lprim ~big_endian prim args dbg in
   H.bind_rec acc env exn_cont ~register_const_string expr dbg
-    (fun acc env named -> cont acc env (Some named))
+    (fun acc env named ->
+      let env, named = H.simplify_boxing env ~bound_var:let_bound_var named in
+      cont acc env (Some named))

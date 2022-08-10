@@ -357,7 +357,8 @@ let close_c_call acc env ~loc ~let_bound_var
        prim_native_repr_res
      } :
       Primitive.description) ~(args : Simple.t list) exn_continuation dbg
-    (k : Acc.t -> Env.t -> Named.t option -> Expr_with_acc.t) : Expr_with_acc.t =
+    (k : Acc.t -> Env.t -> Named.t option -> Expr_with_acc.t) : Expr_with_acc.t
+    =
   (* We always replace the original let-binding with an Flambda expression, so
      we call [k] with [None], to get just the closure-converted body of that
      binding. *)
@@ -553,7 +554,8 @@ let close_exn_continuation acc env (exn_continuation : IR.exn_continuation) =
 
 let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
     loc (exn_continuation : IR.exn_continuation option)
-    (k : Acc.t -> Env.t -> Named.t option -> Expr_with_acc.t) : Expr_with_acc.t =
+    (k : Acc.t -> Env.t -> Named.t option -> Expr_with_acc.t) : Expr_with_acc.t
+    =
   let acc, exn_continuation =
     match exn_continuation with
     | None -> acc, None
@@ -652,8 +654,8 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
     in
     k acc env (Some (Named.create_simple (Simple.symbol sym)))
   | prim, args ->
-    Lambda_to_flambda_primitives.convert_and_bind acc env exn_continuation
-      ~big_endian:(Env.big_endian env)
+    Lambda_to_flambda_primitives.convert_and_bind acc env ~let_bound_var
+      exn_continuation ~big_endian:(Env.big_endian env)
       ~register_const_string:(fun acc -> register_const_string acc)
       prim ~args dbg k
 
@@ -666,7 +668,8 @@ let close_trap_action_opt trap_action =
     trap_action
 
 let close_named acc env ~let_bound_var (named : IR.named)
-    (k : Acc.t -> Env.t -> Named.t option -> Expr_with_acc.t) : Expr_with_acc.t =
+    (k : Acc.t -> Env.t -> Named.t option -> Expr_with_acc.t) : Expr_with_acc.t
+    =
   match named with
   | Simple (Var id) ->
     let acc, simple =
@@ -711,13 +714,15 @@ let close_named acc env ~let_bound_var (named : IR.named)
 
 let close_let acc env id user_visible defining_expr
     ~(body : Acc.t -> Env.t -> Expr_with_acc.t) : Expr_with_acc.t =
-  let body_env, var = Env.add_var_like env id user_visible in
+  (* CR keryan : We can avoid having the bound variable in the environment of
+     the defining expression but it should not appear there anyway *)
+  let env, var = Env.add_var_like env id user_visible in
   let cont acc env (defining_expr : Named.t option) =
     match defining_expr with
     | Some (Simple simple) ->
       let body_env = Env.add_simple_to_substitute env id simple in
       body acc body_env
-    | None -> body acc body_env
+    | None -> body acc env
     | Some defining_expr -> (
       let body_env =
         match defining_expr with
@@ -726,17 +731,16 @@ let close_let acc env id user_visible defining_expr
             List.map
               (fun field ->
                 match Simple.must_be_symbol field with
-                | None -> Env.find_value_approximation body_env field
+                | None -> Env.find_value_approximation env field
                 | Some (sym, _) -> Value_approximation.Value_symbol sym)
               fields
             |> Array.of_list
           in
           Some
-            (Env.add_block_approximation body_env (Name.var var) approxs
-               alloc_mode)
+            (Env.add_block_approximation env (Name.var var) approxs alloc_mode)
         | Prim (Binary (Block_load _, block, field), _) -> (
-          match Env.find_value_approximation body_env block with
-          | Value_unknown -> Some body_env
+          match Env.find_value_approximation env block with
+          | Value_unknown -> Some env
           | Closure_approximation _ | Value_symbol _ ->
             (* Here we assume [block] has already been substituted as a known
                symbol if it exists, and rely on the invariant that the
@@ -774,10 +778,9 @@ let close_let acc env id user_visible defining_expr
                  cumbersome to detect, we have to remove the now useless
                  let-binding later. *)
               Some (Env.add_simple_to_substitute env id (Simple.symbol sym))
-            | _ ->
-              Some (Env.add_value_approximation body_env (Name.var var) approx))
+            | _ -> Some (Env.add_value_approximation env (Name.var var) approx))
           )
-        | _ -> Some body_env
+        | _ -> Some env
       in
       let var = VB.create var Name_mode.normal in
       let bound_pattern = Bound_pattern.singleton var in
