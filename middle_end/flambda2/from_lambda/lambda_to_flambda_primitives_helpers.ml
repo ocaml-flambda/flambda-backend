@@ -64,7 +64,7 @@ let rec print_expr_primitive ppf expr_primitive =
 let print_simple_or_prim ppf (simple_or_prim : simple_or_prim) =
   match simple_or_prim with
   | Simple simple -> Simple.print ppf simple
-  | Prim _ -> Format.pp_print_string ppf "<prim>"
+  | Prim p -> print_expr_primitive ppf p
 
 let print_list_of_simple_or_prim ppf simple_or_prim_list =
   Format.fprintf ppf "@[(%a)@]"
@@ -152,6 +152,45 @@ let expression_for_failure acc exn_cont ~register_const_string primitive dbg
     in
     raise_exn_for_failure acc ~dbg exn_cont (Simple.var exn_bucket)
       (Some extra_let_binding)
+
+let simplify_boxing env ~bound_var (named : Named.t) =
+  match named with
+  | Prim (Unary (prim, arg), _) -> (
+    let arg_name arg =
+      Simple.pattern_match
+        ~name:(fun n ~coercion:_ -> n)
+        ~const:(fun _ -> assert false)
+        arg
+    in
+    match prim with
+    | Unbox_number _ -> (
+      let arg = arg_name arg in
+      match Env.find_unboxed_of env arg with
+      | unboxed -> env, Named.create_simple (Simple.name unboxed)
+      | exception Not_found ->
+        let env =
+          Env.add_boxing_pair env ~boxed:arg ~unboxed:(Name.var bound_var)
+        in
+        env, named)
+    | Box_number _ -> (
+      let arg = arg_name arg in
+      match Env.find_boxed_of env arg with
+      | boxed -> env, Named.create_simple (Simple.name boxed)
+      | exception Not_found ->
+        let env =
+          Env.add_boxing_pair env ~unboxed:arg ~boxed:(Name.var bound_var)
+        in
+        env, named)
+    | Duplicate_block _ | Duplicate_array _ | Is_int _ | Get_tag | Array_length
+    | Bigarray_length _ | String_length _ | Int_as_pointer | Opaque_identity _
+    | Int_arith _ | Float_arith _ | Num_conv _ | Boolean_not
+    | Reinterpret_int64_as_float | Untag_immediate | Tag_immediate
+    | Project_function_slot _ | Project_value_slot _ | Is_boxed_float
+    | Is_flat_float_array | Begin_try_region | End_region | Obj_dup ->
+      env, named)
+  | Prim ((Nullary _ | Binary _ | Ternary _ | Variadic _), _)
+  | Simple _ | Set_of_closures _ | Static_consts _ | Rec_info _ ->
+    env, named
 
 let rec bind_rec acc env exn_cont ~register_const_string (prim : expr_primitive)
     (dbg : Debuginfo.t) (cont : Acc.t -> Env.t -> Named.t -> Expr_with_acc.t) :
@@ -330,10 +369,14 @@ and bind_rec_primitive acc env exn_cont ~register_const_string
   match prim with
   | Simple s -> cont acc env s
   | Prim p ->
-    let cont acc env (named : Named.t) =
-      let var = Variable.create "prim" in
-      let var' = VB.create var Name_mode.normal in
-      let acc, body = cont acc env (Simple.var var) in
-      Let_with_acc.create acc (Bound_pattern.singleton var') named ~body
+    let cont acc env named =
+      let bound_var = Variable.create "prim" in
+      let var' = VB.create bound_var Name_mode.normal in
+      let env, named = simplify_boxing env ~bound_var named in
+      match named with
+      | Simple s -> cont acc env s
+      | Prim _ | Set_of_closures _ | Static_consts _ | Rec_info _ ->
+        let acc, body = cont acc env (Simple.var bound_var) in
+        Let_with_acc.create acc (Bound_pattern.singleton var') named ~body
     in
     bind_rec acc env exn_cont ~register_const_string p dbg cont

@@ -54,6 +54,9 @@ val print_list_of_simple_or_prim :
 
 open Closure_conversion_aux
 
+val simplify_boxing :
+  Env.t -> bound_var:Variable.t -> Flambda.Named.t -> Env.t * Flambda.Named.t
+
 val bind_rec :
   Acc.t ->
   Env.t ->

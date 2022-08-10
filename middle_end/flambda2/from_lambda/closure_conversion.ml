@@ -673,8 +673,8 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
     in
     k acc env (Some (Named.create_simple (Simple.symbol sym)))
   | prim, args ->
-    Lambda_to_flambda_primitives.convert_and_bind acc env exn_continuation
-      ~big_endian:(Env.big_endian env)
+    Lambda_to_flambda_primitives.convert_and_bind acc env ~let_bound_var
+      exn_continuation ~big_endian:(Env.big_endian env)
       ~register_const_string:(fun acc -> register_const_string acc)
       prim ~args dbg ~current_region k
 
@@ -735,19 +735,21 @@ let close_named acc env ~let_bound_var (named : IR.named)
 
 let close_let acc env id user_visible kind defining_expr
     ~(body : Acc.t -> Env.t -> Expr_with_acc.t) : Expr_with_acc.t =
-  let body_env, var = Env.add_var_like env id user_visible kind in
+  (* CR keryan : We can avoid having the bound variable in the environment of
+     the defining expression but it should not appear there anyway *)
+  let env, var = Env.add_var_like env id user_visible kind in
   let cont acc env (defining_expr : Named.t option) =
     match defining_expr with
     | Some (Simple simple) ->
       let body_env = Env.add_simple_to_substitute env id simple kind in
       body acc body_env
-    | None -> body acc body_env
+    | None -> body acc env
     | Some (Prim ((Nullary Begin_region | Unary (End_region, _)), _))
       when not (Flambda_features.stack_allocation_enabled ()) ->
       (* We use [body_env] to ensure the region variables are still in the
          environment, to avoid lookup errors, even though the [Let] won't be
          generated. *)
-      body acc body_env
+      body acc env
     | Some defining_expr -> (
       let body_env =
         match defining_expr with
@@ -756,17 +758,17 @@ let close_let acc env id user_visible kind defining_expr
             List.map
               (fun field ->
                 match Simple.must_be_symbol field with
-                | None -> Env.find_value_approximation body_env field
+                | None -> Env.find_value_approximation env field
                 | Some (sym, _) -> Value_approximation.Value_symbol sym)
               fields
             |> Array.of_list
           in
           Some
-            (Env.add_block_approximation body_env (Name.var var) approxs
+            (Env.add_block_approximation env (Name.var var) approxs
                (Alloc_mode.For_allocations.as_type alloc_mode))
         | Prim (Binary (Block_load _, block, field), _) -> (
-          match Env.find_value_approximation body_env block with
-          | Value_unknown -> Some body_env
+          match Env.find_value_approximation env block with
+          | Value_unknown -> Some env
           | Closure_approximation _ | Value_symbol _ | Value_int _ ->
             (* Here we assume [block] has already been substituted as a known
                symbol if it exists, and rely on the invariant that the
@@ -805,10 +807,9 @@ let close_let acc env id user_visible kind defining_expr
                  let-binding later. *)
               Some
                 (Env.add_simple_to_substitute env id (Simple.symbol sym) kind)
-            | _ ->
-              Some (Env.add_value_approximation body_env (Name.var var) approx))
+            | _ -> Some (Env.add_value_approximation env (Name.var var) approx))
           )
-        | _ -> Some body_env
+        | _ -> Some env
       in
       let var = VB.create var Name_mode.normal in
       let bound_pattern = Bound_pattern.singleton var in
