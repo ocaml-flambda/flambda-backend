@@ -22,7 +22,7 @@
 
 (** Create .o file. **)
 val assemble :
-  (module Owee.Unix_intf.S) ->
+  (module Compiler_owee.Unix_intf.S) ->
   (X86_proc.Section_name.t * X86_ast.asm_line list) list ->
   string ->
   unit
