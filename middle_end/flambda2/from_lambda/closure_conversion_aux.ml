@@ -705,63 +705,6 @@ end
 
 open Flambda.Import
 
-module Expr_with_acc = struct
-  type t = Acc.t * Expr.t
-
-  let create_apply_cont acc apply_cont =
-    let acc =
-      Acc.increment_metrics
-        (Code_size.apply_cont apply_cont |> Cost_metrics.from_size)
-        acc
-    in
-    acc, Expr.create_apply_cont apply_cont
-
-  let create_apply acc apply =
-    let acc =
-      Acc.increment_metrics
-        (Code_size.apply apply |> Cost_metrics.from_size)
-        acc
-    in
-    let acc = Acc.add_free_names (Apply_expr.free_names apply) acc in
-    let acc =
-      match Apply_expr.continuation apply with
-      | Never_returns -> acc
-      | Return cont -> Acc.mark_continuation_as_untrackable cont acc
-    in
-    let acc =
-      Acc.mark_continuation_as_untrackable
-        (Exn_continuation.exn_handler (Apply_expr.exn_continuation apply))
-        acc
-    in
-    acc, Expr.create_apply apply
-
-  let create_switch acc switch =
-    let acc =
-      Acc.increment_metrics
-        (Code_size.switch switch |> Cost_metrics.from_size)
-        acc
-    in
-    let acc = Acc.add_simple_to_free_names acc (Switch_expr.scrutinee switch) in
-    acc, Expr.create_switch switch
-
-  let create_invalid acc reason =
-    let acc =
-      Acc.increment_metrics (Code_size.invalid |> Cost_metrics.from_size) acc
-    in
-    acc, Expr.create_invalid reason
-end
-
-module Apply_cont_with_acc = struct
-  let create acc ?trap_action ?args_approx cont ~args ~dbg =
-    let apply_cont = Apply_cont.create ?trap_action cont ~args ~dbg in
-    let acc = Acc.add_continuation_application ~cont args_approx acc in
-    let acc = Acc.add_free_names (Apply_cont.free_names apply_cont) acc in
-    acc, apply_cont
-
-  let goto acc cont =
-    create acc cont ~args:[] ?args_approx:None ~dbg:Debuginfo.none
-end
-
 module Let_with_acc = struct
   let create acc let_bound named ~body =
     let is_unused_singleton =
@@ -812,6 +755,17 @@ module Let_with_acc = struct
       let let_expr = Let.create let_bound named ~body ~free_names_of_body in
       let acc = Acc.add_free_names (Named.free_names named) acc in
       acc, Expr.create_let let_expr
+end
+
+module Apply_cont_with_acc = struct
+  let create acc ?trap_action ?args_approx cont ~args ~dbg =
+    let apply_cont = Apply_cont.create ?trap_action cont ~args ~dbg in
+    let acc = Acc.add_continuation_application ~cont args_approx acc in
+    let acc = Acc.add_free_names (Apply_cont.free_names apply_cont) acc in
+    acc, apply_cont
+
+  let goto acc cont =
+    create acc cont ~args:[] ?args_approx:None ~dbg:Debuginfo.none
 end
 
 module Continuation_handler_with_acc = struct
@@ -912,4 +866,50 @@ module Let_cont_with_acc = struct
           cont handler ~body ~free_names_of_body ~cost_metrics_of_handler
       in
       Acc.add_free_names handler_free_names acc, expr
+end
+
+module Expr_with_acc = struct
+  type t = Acc.t * Expr.t
+
+  let create_apply_cont acc apply_cont =
+    let acc =
+      Acc.increment_metrics
+        (Code_size.apply_cont apply_cont |> Cost_metrics.from_size)
+        acc
+    in
+    acc, Expr.create_apply_cont apply_cont
+
+  let create_apply acc apply =
+    let acc =
+      Acc.increment_metrics
+        (Code_size.apply apply |> Cost_metrics.from_size)
+        acc
+    in
+    let acc = Acc.add_free_names (Apply_expr.free_names apply) acc in
+    let acc =
+      match Apply_expr.continuation apply with
+      | Never_returns -> acc
+      | Return cont -> Acc.mark_continuation_as_untrackable cont acc
+    in
+    let acc =
+      Acc.mark_continuation_as_untrackable
+        (Exn_continuation.exn_handler (Apply_expr.exn_continuation apply))
+        acc
+    in
+    acc, Expr.create_apply apply
+
+  let create_switch acc switch =
+    let acc =
+      Acc.increment_metrics
+        (Code_size.switch switch |> Cost_metrics.from_size)
+        acc
+    in
+    let acc = Acc.add_simple_to_free_names acc (Switch_expr.scrutinee switch) in
+    acc, Expr.create_switch switch
+
+  let create_invalid acc reason =
+    let acc =
+      Acc.increment_metrics (Code_size.invalid |> Cost_metrics.from_size) acc
+    in
+    acc, Expr.create_invalid reason
 end

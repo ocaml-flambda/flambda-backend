@@ -341,18 +341,6 @@ end
 
 open! Flambda.Import
 
-module Expr_with_acc : sig
-  type t = Acc.t * Expr.t
-
-  val create_apply_cont : Acc.t -> Apply_cont.t -> t
-
-  val create_apply : Acc.t -> Apply.t -> t
-
-  val create_switch : Acc.t -> Switch.t -> t
-
-  val create_invalid : Acc.t -> Flambda.Invalid.t -> t
-end
-
 module Apply_cont_with_acc : sig
   val create :
     Acc.t ->
@@ -364,6 +352,18 @@ module Apply_cont_with_acc : sig
     Acc.t * Apply_cont.t
 
   val goto : Acc.t -> Continuation.t -> Acc.t * Apply_cont.t
+end
+
+module Expr_with_acc : sig
+  type t = Acc.t * Expr.t
+
+  val create_apply_cont : Acc.t -> Apply_cont.t -> t
+
+  val create_apply : Acc.t -> Apply.t -> t
+
+  val create_switch : Acc.t -> Switch.t -> t
+
+  val create_invalid : Acc.t -> Flambda.Invalid.t -> t
 end
 
 module Let_with_acc : sig
