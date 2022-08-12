@@ -227,6 +227,9 @@ module Acc : sig
 
   val mark_continuation_as_untrackable : Continuation.t -> t -> t
 
+  val set_unboxed_continuation_params :
+    Continuation.t -> Flambda_kind.With_subkind.t list -> t -> t
+
   val continuation_known_arguments :
     cont:Continuation.t -> t -> Env.value_approximation list option
 
@@ -342,26 +345,47 @@ end
 open! Flambda.Import
 
 module Apply_cont_with_acc : sig
+  type apply_cont_wrapping
+
   val create :
     Acc.t ->
+    ?env:Env.t ->
     ?trap_action:Trap_action.t ->
     ?args_approx:Env.value_approximation list ->
     Continuation.t ->
     args:Simple.t list ->
     dbg:Debuginfo.t ->
-    Acc.t * Apply_cont.t
+    Acc.t * apply_cont_wrapping
 
-  val goto : Acc.t -> Continuation.t -> Acc.t * Apply_cont.t
+  val goto : Acc.t -> Continuation.t -> Acc.t * apply_cont_wrapping
 end
 
 module Expr_with_acc : sig
   type t = Acc.t * Expr.t
 
-  val create_apply_cont : Acc.t -> Apply_cont.t -> t
+  val create_apply_cont : Acc.t -> Apply_cont_with_acc.apply_cont_wrapping -> t
+
+  val unbox_return_wrapper :
+    Acc.t ->
+    Apply.Result_continuation.t ->
+    Apply.Result_continuation.t * ((Acc.t -> t) -> Acc.t -> t)
 
   val create_apply : Acc.t -> Apply.t -> t
 
-  val create_switch : Acc.t -> Switch.t -> t
+  val create_switch :
+    Acc.t ->
+    condition_dbg:Debuginfo.t ->
+    scrutinee:Simple.t ->
+    arms:Apply_cont_with_acc.apply_cont_wrapping Targetint_31_63.Map.t ->
+    t
+
+  val create_if_then_else :
+    Acc.t ->
+    condition_dbg:Debuginfo.t ->
+    scrutinee:Simple.t ->
+    if_true:Apply_cont_with_acc.apply_cont_wrapping ->
+    if_false:Apply_cont_with_acc.apply_cont_wrapping ->
+    t
 
   val create_invalid : Acc.t -> Flambda.Invalid.t -> t
 end

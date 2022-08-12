@@ -270,12 +270,9 @@ let rec bind_rec acc env exn_cont ~register_const_string (prim : expr_primitive)
                   Apply_cont_with_acc.goto acc condition_passed_cont
                 in
                 let acc, failure = Apply_cont_with_acc.goto acc failure_cont in
-                Expr_with_acc.create_switch acc
-                  (Switch.create ~condition_dbg:dbg ~scrutinee:prim_result
-                     ~arms:
-                       (Targetint_31_63.Map.of_list
-                          [ Targetint_31_63.bool_true, condition_passed;
-                            Targetint_31_63.bool_false, failure ])))
+                Expr_with_acc.create_if_then_else acc ~condition_dbg:dbg
+                  ~scrutinee:prim_result ~if_true:condition_passed
+                  ~if_false:failure)
           in
           Let_cont_with_acc.build_non_recursive acc condition_passed_cont
             ~handler_params:Bound_parameters.empty
@@ -310,12 +307,9 @@ let rec bind_rec acc env exn_cont ~register_const_string (prim : expr_primitive)
       let acc, ifso_cont = Apply_cont_with_acc.goto acc ifso_cont in
       let acc, ifnot_cont = Apply_cont_with_acc.goto acc ifnot_cont in
       let acc, switch =
-        Expr_with_acc.create_switch acc
-          (Switch.create ~condition_dbg:dbg ~scrutinee:(Simple.var cond_result)
-             ~arms:
-               (Targetint_31_63.Map.of_list
-                  [ Targetint_31_63.bool_true, ifso_cont;
-                    Targetint_31_63.bool_false, ifnot_cont ]))
+        Expr_with_acc.create_if_then_else acc ~condition_dbg:dbg
+          ~scrutinee:(Simple.var cond_result) ~if_true:ifso_cont
+          ~if_false:ifnot_cont
       in
       Let_with_acc.create acc
         (Bound_pattern.singleton cond_result_pat)
@@ -328,7 +322,7 @@ let rec bind_rec acc env exn_cont ~register_const_string (prim : expr_primitive)
       bind_rec acc env exn_cont ~register_const_string ifso dbg
       @@ fun acc _env ifso ->
       let acc, apply_cont =
-        Apply_cont_with_acc.create acc join_point_cont
+        Apply_cont_with_acc.create acc ~env join_point_cont
           ~args:[Simple.var ifso_result] ~dbg
       in
       let acc, body = Expr_with_acc.create_apply_cont acc apply_cont in
@@ -340,7 +334,7 @@ let rec bind_rec acc env exn_cont ~register_const_string (prim : expr_primitive)
       bind_rec acc env exn_cont ~register_const_string ifnot dbg
       @@ fun acc _env ifnot ->
       let acc, apply_cont =
-        Apply_cont_with_acc.create acc join_point_cont
+        Apply_cont_with_acc.create acc ~env join_point_cont
           ~args:[Simple.var ifnot_result] ~dbg
       in
       let acc, body = Expr_with_acc.create_apply_cont acc apply_cont in

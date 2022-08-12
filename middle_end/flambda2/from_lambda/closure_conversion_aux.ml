@@ -391,6 +391,10 @@ module Acc = struct
     | Trackable_arguments of Env.value_approximation list
     | Untrackable
 
+  type continuation_signature =
+    | All_values (* Default behaviour *)
+    | Naked_numbers of Flambda_kind.With_subkind.t list
+
   type t =
     { declared_symbols : (Symbol.t * Static_const.t) list;
       lifted_sets_of_closures :
@@ -401,6 +405,7 @@ module Acc = struct
       code : Code.t Code_id.Map.t;
       free_names : Name_occurrences.t;
       continuation_applications : continuation_application Continuation.Map.t;
+      continuation_signatures : continuation_signature Continuation.Map.t;
       cost_metrics : Cost_metrics.t;
       seen_a_function : bool;
       symbol_for_global : Ident.t -> Symbol.t;
@@ -426,6 +431,7 @@ module Acc = struct
       code = Code_id.Map.empty;
       free_names = Name_occurrences.empty;
       continuation_applications = Continuation.Map.empty;
+      continuation_signatures = Continuation.Map.empty;
       cost_metrics = Cost_metrics.zero;
       seen_a_function = false;
       symbol_for_global;
@@ -510,6 +516,17 @@ module Acc = struct
       continuation_applications =
         Continuation.Map.add cont Untrackable t.continuation_applications
     }
+
+  let set_unboxed_continuation_params cont kind t =
+    { t with
+      continuation_signatures =
+        Continuation.Map.add cont (Naked_numbers kind) t.continuation_signatures
+    }
+
+  let continuation_signature cont t =
+    match Continuation.Map.find cont t.continuation_signatures with
+    | sign -> sign
+    | exception Not_found -> All_values
 
   let remove_continuation_from_free_names cont t =
     { t with
@@ -758,11 +775,65 @@ module Let_with_acc = struct
 end
 
 module Apply_cont_with_acc = struct
-  let create acc ?trap_action ?args_approx cont ~args ~dbg =
+  type apply_cont_wrapping =
+    | No_wrap of Apply_cont.t
+    | Wrapped of
+        Apply_cont.t * ((Acc.t -> Acc.t * Expr.t) -> Acc.t -> Acc.t * Expr.t)
+
+  let create0 acc ?trap_action ?args_approx cont ~args ~dbg =
     let apply_cont = Apply_cont.create ?trap_action cont ~args ~dbg in
     let acc = Acc.add_continuation_application ~cont args_approx acc in
     let acc = Acc.add_free_names (Apply_cont.free_names apply_cont) acc in
     acc, apply_cont
+
+  let create acc ?env ?trap_action ?args_approx cont ~args ~dbg =
+    let apply_cont acc args =
+      create0 acc ?trap_action ?args_approx cont ~args ~dbg
+    in
+    match Acc.continuation_signature cont acc, env with
+    | All_values, _ ->
+      let acc, apply_cont = apply_cont acc args in
+      acc, No_wrap apply_cont
+    | Naked_numbers _, None ->
+      Misc.fatal_errorf "Need environment infos for continuation %a application"
+        Continuation.print cont
+    | Naked_numbers kinds, Some env ->
+      let bindings, rev_args =
+        List.fold_left2
+          (fun (bindings, rev_args) kind arg ->
+            Simple.pattern_match
+              ~const:(fun _ -> bindings, arg :: rev_args)
+              ~name:(fun name ~coercion:_ ->
+                match Flambda_kind.With_subkind.kind kind with
+                | Value | Naked_number Naked_immediate | Region | Rec_info ->
+                  bindings, arg :: rev_args
+                | Naked_number
+                    (Naked_float | Naked_int32 | Naked_int64 | Naked_nativeint)
+                  as kind -> (
+                  match Env.find_unboxed_of env name with
+                  | unboxed -> bindings, Simple.name unboxed :: rev_args
+                  | exception Not_found ->
+                    let named, _ = Named.unbox_value name kind Debuginfo.none in
+                    let var = Variable.create "unboxed" in
+                    (var, named) :: bindings, Simple.var var :: rev_args))
+              arg)
+          ([], []) kinds args
+      in
+      let acc, apply_cont = apply_cont acc (List.rev rev_args) in
+      if bindings = []
+      then acc, No_wrap apply_cont
+      else
+        let wrapper k =
+          List.fold_left
+            (fun k (var, named) acc ->
+              let acc, body = k acc in
+              Let_with_acc.create acc
+                (Bound_pattern.singleton
+                   (Bound_var.create var Name_mode.normal))
+                named ~body)
+            k bindings
+        in
+        acc, Wrapped (apply_cont, wrapper)
 
   let goto acc cont =
     create acc cont ~args:[] ?args_approx:None ~dbg:Debuginfo.none
@@ -871,7 +942,7 @@ end
 module Expr_with_acc = struct
   type t = Acc.t * Expr.t
 
-  let create_apply_cont acc apply_cont =
+  let create_apply_cont0 (acc, apply_cont) =
     let acc =
       Acc.increment_metrics
         (Code_size.apply_cont apply_cont |> Cost_metrics.from_size)
@@ -879,7 +950,15 @@ module Expr_with_acc = struct
     in
     acc, Expr.create_apply_cont apply_cont
 
-  let create_apply acc apply =
+  let create_apply_cont acc wrapped_apply_cont =
+    match wrapped_apply_cont with
+    | Apply_cont_with_acc.No_wrap apply_cont ->
+      create_apply_cont0 (acc, apply_cont)
+    | Apply_cont_with_acc.Wrapped (apply_cont, wrap) ->
+      let apply_cont acc = create_apply_cont0 (acc, apply_cont) in
+      wrap apply_cont acc
+
+  let create_apply0 acc apply =
     let acc =
       Acc.increment_metrics
         (Code_size.apply apply |> Cost_metrics.from_size)
@@ -898,14 +977,129 @@ module Expr_with_acc = struct
     in
     acc, Expr.create_apply apply
 
-  let create_switch acc switch =
+  let unbox_return_wrapper acc
+      (apply_continuation : Apply.Result_continuation.t) =
+    let no_wrap = apply_continuation, fun k acc -> k acc in
+    match apply_continuation with
+    | Never_returns -> no_wrap
+    | Return cont -> (
+      match Acc.continuation_signature cont acc with
+      | All_values -> no_wrap
+      | Naked_numbers kinds ->
+        let bindings, params_and_args =
+          List.fold_left_map
+            (fun bindings kindws ->
+              let pvar = Variable.create "ret" in
+              let var = Variable.create "unboxed_ret" in
+              let kind = Flambda_kind.With_subkind.kind kindws in
+              match kind with
+              | Naked_number
+                  ((Naked_float | Naked_int32 | Naked_int64 | Naked_nativeint)
+                  as number_kind) ->
+                let out_kind =
+                  match number_kind with
+                  | Naked_immediate -> assert false
+                  | Naked_float -> Flambda_kind.With_subkind.boxed_float
+                  | Naked_int32 -> Flambda_kind.With_subkind.boxed_int32
+                  | Naked_int64 -> Flambda_kind.With_subkind.boxed_int64
+                  | Naked_nativeint -> Flambda_kind.With_subkind.boxed_nativeint
+                in
+                let named, _ =
+                  Named.unbox_value (Name.var pvar) kind Debuginfo.none
+                in
+                ( (var, named) :: bindings,
+                  (Bound_parameter.create pvar out_kind, Simple.var var) )
+              | Naked_number Naked_immediate | Value | Region | Rec_info ->
+                bindings, (Bound_parameter.create pvar kindws, Simple.var pvar))
+            [] kinds
+        in
+        if bindings = []
+        then no_wrap
+        else
+          let wrapper_cont = Continuation.create () in
+          let handler_params, args =
+            let hp, args = List.split params_and_args in
+            Bound_parameters.create hp, args
+          in
+          let wrapper_apply_continuation =
+            Apply.Result_continuation.Return wrapper_cont
+          in
+          let handler acc =
+            let acc, body =
+              let acc, apply_cont =
+                Apply_cont_with_acc.create0 acc cont ~dbg:Debuginfo.none ~args
+              in
+              create_apply_cont0 (acc, apply_cont)
+            in
+            List.fold_left
+              (fun (acc, body) (var, named) ->
+                Let_with_acc.create acc
+                  (Bound_pattern.singleton
+                     (Bound_var.create var Name_mode.normal))
+                  named ~body)
+              (acc, body) bindings
+          in
+          ( wrapper_apply_continuation,
+            fun body acc ->
+              Let_cont_with_acc.build_non_recursive acc wrapper_cont
+                ~is_exn_handler:false ~handler_params ~handler ~body ))
+
+  let create_apply acc apply =
+    let body k acc = create_apply0 acc (Apply.with_continuation apply k) in
+    let apply_continuation = Apply.continuation apply in
+    let apply_continuation, wrap =
+      unbox_return_wrapper acc apply_continuation
+    in
+    wrap (body apply_continuation) acc
+
+  let create_switch0 acc switch =
     let acc =
       Acc.increment_metrics
         (Code_size.switch switch |> Cost_metrics.from_size)
         acc
     in
-    let acc = Acc.add_simple_to_free_names acc (Switch_expr.scrutinee switch) in
+    let acc = Acc.add_simple_to_free_names acc (Switch.scrutinee switch) in
     acc, Expr.create_switch switch
+
+  let create_switch acc ~condition_dbg ~scrutinee ~arms =
+    (* CR keryan : Here we pile up wrappers for needed unboxed version of
+       values. We may duplicate the bindings as each arm is evaluated and
+       wrapped independantly but we can't do better without an environment *)
+    let wrap, arms =
+      Targetint_31_63.Map.fold
+        (fun key arm (wraps, arms) ->
+          match arm with
+          | Apply_cont_with_acc.No_wrap apply_cont ->
+            wraps, Targetint_31_63.Map.add key apply_cont arms
+          | Apply_cont_with_acc.Wrapped (apply_cont, wrap) ->
+            ( (fun k acc -> wraps (wrap k) acc),
+              Targetint_31_63.Map.add key apply_cont arms ))
+        arms
+        ((fun k acc -> k acc), Targetint_31_63.Map.empty)
+    in
+    let switch_expr acc =
+      create_switch0 acc (Switch.create ~condition_dbg ~scrutinee ~arms)
+    in
+    wrap switch_expr acc
+
+  let create_if_then_else acc ~condition_dbg ~scrutinee ~if_true ~if_false =
+    let wrap, if_true =
+      match if_true with
+      | Apply_cont_with_acc.No_wrap apply_cont ->
+        (fun k acc -> k acc), apply_cont
+      | Apply_cont_with_acc.Wrapped (apply_cont, wrap) -> wrap, apply_cont
+    in
+    let wrap, if_false =
+      match if_false with
+      | Apply_cont_with_acc.No_wrap apply_cont -> wrap, apply_cont
+      | Apply_cont_with_acc.Wrapped (apply_cont, w) ->
+        (fun k acc -> wrap (w k) acc), apply_cont
+    in
+    let switch_expr acc =
+      create_switch0 acc
+        (Switch.if_then_else ~condition_dbg ~scrutinee ~if_true ~if_false)
+    in
+    wrap switch_expr acc
 
   let create_invalid acc reason =
     let acc =

@@ -307,42 +307,49 @@ module Inlining = struct
     let apply_exn_continuation = Apply.exn_continuation apply in
     let params_and_body = Code.params_and_body code in
     let cost_metrics = Code.cost_metrics code in
-    Function_params_and_body.pattern_match params_and_body
-      ~f:(fun
-           ~return_continuation
-           ~exn_continuation
-           params
-           ~body
-           ~my_closure
-           ~is_my_closure_used:_
-           ~my_depth
-           ~free_names_of_body
-         ->
-        let free_names_of_body =
-          match free_names_of_body with
-          | Unknown ->
-            Misc.fatal_error
-              "Params_and_body needs free_names_of_body in [Closure_conversion]"
-          | Known free_names -> free_names
-        in
-        let make_inlined_body =
-          make_inlined_body ~callee
-            ~params:(Bound_parameters.vars params)
-            ~args ~my_closure ~my_depth ~body ~free_names_of_body
-            ~exn_continuation ~return_continuation ~apply_depth
-        in
-        let acc = Acc.with_free_names Name_occurrences.empty acc in
-        let acc = Acc.increment_metrics cost_metrics acc in
-        match Exn_continuation.extra_args apply_exn_continuation with
-        | [] ->
-          make_inlined_body acc
-            ~apply_exn_continuation:
-              (Exn_continuation.exn_handler apply_exn_continuation)
-            ~apply_return_continuation
-        | extra_args ->
-          wrap_inlined_body_for_exn_extra_args acc ~extra_args
-            ~apply_exn_continuation ~apply_return_continuation
-            ~result_arity:(Code.result_arity code) ~make_inlined_body)
+    let apply_return_continuation, unbox_return_wrapper =
+      Expr_with_acc.unbox_return_wrapper acc apply_return_continuation
+    in
+    let inlined acc =
+      Function_params_and_body.pattern_match params_and_body
+        ~f:(fun
+             ~return_continuation
+             ~exn_continuation
+             params
+             ~body
+             ~my_closure
+             ~is_my_closure_used:_
+             ~my_depth
+             ~free_names_of_body
+           ->
+          let free_names_of_body =
+            match free_names_of_body with
+            | Unknown ->
+              Misc.fatal_error
+                "Params_and_body needs free_names_of_body in \
+                 [Closure_conversion]"
+            | Known free_names -> free_names
+          in
+          let make_inlined_body =
+            make_inlined_body ~callee
+              ~params:(Bound_parameters.vars params)
+              ~args ~my_closure ~my_depth ~body ~free_names_of_body
+              ~exn_continuation ~return_continuation ~apply_depth
+          in
+          let acc = Acc.with_free_names Name_occurrences.empty acc in
+          let acc = Acc.increment_metrics cost_metrics acc in
+          match Exn_continuation.extra_args apply_exn_continuation with
+          | [] ->
+            make_inlined_body acc
+              ~apply_exn_continuation:
+                (Exn_continuation.exn_handler apply_exn_continuation)
+              ~apply_return_continuation
+          | extra_args ->
+            wrap_inlined_body_for_exn_extra_args acc ~extra_args
+              ~apply_exn_continuation ~apply_return_continuation
+              ~result_arity:(Code.result_arity code) ~make_inlined_body)
+    in
+    unbox_return_wrapper inlined acc
 end
 
 let close_c_call acc env ~loc ~let_bound_var
@@ -438,7 +445,7 @@ let close_c_call acc env ~loc ~let_bound_var
             let bindable = Bound_pattern.singleton result' in
             let prim = P.Unary (Reinterpret_int64_as_float, arg) in
             let acc, return_result =
-              Apply_cont_with_acc.create acc return_continuation
+              Apply_cont_with_acc.create acc ~env return_continuation
                 ~args:[Simple.var result] ~dbg
             in
             let acc, return_result_expr =
@@ -605,7 +612,7 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
     let raise_kind = Some (Trap_action.Raise_kind.from_lambda raise_kind) in
     let trap_action = Trap_action.Pop { exn_handler; raise_kind } in
     let acc, apply_cont =
-      Apply_cont_with_acc.create acc ~trap_action exn_handler ~args ~dbg
+      Apply_cont_with_acc.create acc ~env ~trap_action exn_handler ~args ~dbg
     in
     (* Since raising of an exception doesn't terminate, we don't call [k]. *)
     Expr_with_acc.create_apply_cont acc apply_cont
@@ -822,6 +829,71 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
       params params_with_kinds
     |> Bound_parameters.create
   in
+  let naked_params_wrapper params =
+    let params_and_binding =
+      List.map
+        (fun param ->
+          let kind = Bound_parameter.kind param in
+          let var = Bound_parameter.var param in
+          let pvar = Variable.rename ~append:"_unboxed" var in
+          let kindws =
+            match Flambda_kind.With_subkind.subkind kind with
+            | Boxed_float -> Flambda_kind.With_subkind.naked_float
+            | Boxed_int32 -> Flambda_kind.With_subkind.naked_int32
+            | Boxed_int64 -> Flambda_kind.With_subkind.naked_int64
+            | Boxed_nativeint -> Flambda_kind.With_subkind.naked_nativeint
+            | Anything | Tagged_immediate | Variant _ | Float_block _
+            | Float_array | Immediate_array | Value_array | Generic_array ->
+              kind
+          in
+          let kind = Flambda_kind.With_subkind.kind kindws in
+          if Flambda_kind.is_value kind
+          then Bound_parameter.with_kind param kindws, None
+          else
+            let named, _ =
+              Named.box_value (Name.var pvar) kind Debuginfo.none
+                Alloc_mode.Heap
+            in
+            Bound_parameter.create pvar kindws, Some (var, pvar, named))
+        (Bound_parameters.to_list params)
+    in
+    let params, bindings =
+      let ps, bs = List.split params_and_binding in
+      let bs = List.filter_map (fun o -> o) bs in
+      Bound_parameters.create ps, bs
+    in
+    let wrapper k =
+      List.fold_left
+        (fun k (var, pvar, named) acc env ->
+          let env =
+            Env.add_boxing_pair env ~boxed:(Name.var var)
+              ~unboxed:(Name.var pvar)
+          in
+          let acc, body = k acc env in
+          Let_with_acc.create acc
+            (Bound_pattern.singleton (Bound_var.create var Name_mode.normal))
+            named ~body)
+        k bindings
+    in
+    params, wrapper
+  in
+  let acc, handler_params, wrapper =
+    match recursive, Flambda_features.classic_mode () with
+    | Nonrecursive, true ->
+      let handler_params, wrapper = naked_params_wrapper handler_params in
+      let acc =
+        let arity = Bound_parameters.arity_with_subkinds handler_params in
+        if Flambda_arity.is_all_values
+             (Flambda_arity.With_subkinds.to_arity arity)
+        then acc
+        else
+          Acc.set_unboxed_continuation_params name
+            (Flambda_arity.With_subkinds.to_list arity)
+            acc
+      in
+      acc, handler_params, wrapper
+    | Recursive, _ | _, false -> acc, handler_params, fun k acc env -> k acc env
+  in
   let handler acc =
     let handler_env =
       match Acc.continuation_known_arguments ~cont:name acc with
@@ -832,7 +904,7 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
             Env.add_value_approximation env (Name.var param) arg_approx)
           handler_env args params
     in
-    handler acc handler_env
+    wrapper handler acc handler_env
   in
   let body acc = body acc env in
   match recursive with
@@ -929,7 +1001,8 @@ let close_apply_cont acc env ~dbg cont trap_action args : Expr_with_acc.t =
   let trap_action = close_trap_action_opt trap_action in
   let args_approx = List.map (Env.find_value_approximation env) args in
   let acc, apply_cont =
-    Apply_cont_with_acc.create acc ?trap_action ~args_approx cont ~args ~dbg
+    Apply_cont_with_acc.create acc ~env ?trap_action ~args_approx cont ~args
+      ~dbg
   in
   Expr_with_acc.create_apply_cont acc apply_cont
 
@@ -947,7 +1020,7 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
         let trap_action = close_trap_action_opt trap_action in
         let acc, args = find_simples acc env args in
         let acc, action =
-          Apply_cont_with_acc.create acc ?trap_action cont ~args
+          Apply_cont_with_acc.create acc ~env ?trap_action cont ~args
             ~dbg:condition_dbg
         in
         acc, (Targetint_31_63.of_int case, action))
@@ -973,14 +1046,13 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
     let acc, default_action =
       let acc, args = find_simples acc env default_args in
       let trap_action = close_trap_action_opt default_trap_action in
-      Apply_cont_with_acc.create acc ?trap_action default_action ~args
+      Apply_cont_with_acc.create acc ~env ?trap_action default_action ~args
         ~dbg:condition_dbg
     in
     let acc, switch =
       let scrutinee = Simple.var comparison_result in
-      Expr_with_acc.create_switch acc
-        (Switch.if_then_else ~condition_dbg ~scrutinee ~if_true:action
-           ~if_false:default_action)
+      Expr_with_acc.create_if_then_else acc ~condition_dbg ~scrutinee
+        ~if_true:action ~if_false:default_action
     in
     let acc, body =
       Let_with_acc.create acc
@@ -1004,7 +1076,7 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
               let acc, args = find_simples acc env args in
               let trap_action = close_trap_action_opt trap_action in
               let acc, default =
-                Apply_cont_with_acc.create acc ?trap_action default ~args
+                Apply_cont_with_acc.create ~env acc ?trap_action default ~args
                   ~dbg:condition_dbg
               in
               acc, Targetint_31_63.Map.add case default cases)
@@ -1020,8 +1092,7 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
         | Some (_discriminant, action) ->
           Expr_with_acc.create_apply_cont acc action
         | None ->
-          Expr_with_acc.create_switch acc
-            (Switch.create ~condition_dbg ~scrutinee ~arms)
+          Expr_with_acc.create_switch acc ~condition_dbg ~scrutinee ~arms
       in
       Let_with_acc.create acc
         (Bound_pattern.singleton untagged_scrutinee')
@@ -1602,7 +1673,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
   let body acc env =
     let arg = find_simple_from_id env wrapper_id in
     let acc, apply_cont =
-      Apply_cont_with_acc.create acc
+      Apply_cont_with_acc.create acc ~env
         ~args_approx:[Env.find_value_approximation env arg]
         apply_continuation ~args:[arg] ~dbg:Debuginfo.none
     in
@@ -1671,11 +1742,11 @@ let wrap_over_application acc env full_call (apply : IR.apply) over_args
       let handler acc =
         let acc, call_return_continuation =
           let acc, apply_cont_expr =
-            Apply_cont_with_acc.create acc apply.continuation
+            Apply_cont_with_acc.create acc ~env apply.continuation
               ~args:(List.map BP.simple over_application_results)
               ~dbg:apply_dbg
           in
-          acc, Expr.create_apply_cont apply_cont_expr
+          Expr_with_acc.create_apply_cont acc apply_cont_expr
         in
         Let_with_acc.create acc
           (Bound_pattern.singleton
@@ -1924,7 +1995,7 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode)
         (* Module initialisers return unit, but since that is taken care of
            during Cmm generation, we can instead "return" [module_symbol] here
            to ensure that its associated "let symbol" doesn't get deleted. *)
-        Apply_cont_with_acc.create acc return_cont ~args:[arg]
+        Apply_cont_with_acc.create acc ~env return_cont ~args:[arg]
           ~dbg:Debuginfo.none
       in
       let acc, return = Expr_with_acc.create_apply_cont acc apply_cont in
