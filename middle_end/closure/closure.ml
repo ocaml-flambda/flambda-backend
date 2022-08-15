@@ -953,6 +953,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
   match lam with
   | Lvar id ->
       close_approx_var env id
+  | Lmutvar id -> (Uvar id, Value_unknown)
   | Lconst cst ->
       let str ?(shared = true) cst =
         let name =
@@ -1132,16 +1133,12 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
        Value_unknown)
   | Llet(str, kind, id, lam, body) ->
       let (ulam, alam) = close_named env id lam in
-      begin match (str, alam) with
-        (Variable, _) ->
-          let env = {env with mutable_vars = V.Set.add id env.mutable_vars} in
-          let (ubody, abody) = close env body in
-          (Ulet(Mutable, kind, VP.create id, ulam, ubody), abody)
-      | (_, Value_const _)
+      begin match alam with
+      | Value_const _
         when str = Alias || is_pure ulam ->
           close { backend; fenv = (V.Map.add id alam fenv); cenv; mutable_vars }
             body
-      | (_, _) ->
+      | _ ->
           let (ubody, abody) =
             close
               { backend; fenv = (V.Map.add id alam fenv); cenv; mutable_vars }
@@ -1149,6 +1146,11 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
           in
           (Ulet(Immutable, kind, VP.create id, ulam, ubody), abody)
       end
+  | Lmutlet(kind, id, lam, body) ->
+     let (ulam, _) = close_named env id lam in
+     let env = {env with mutable_vars = V.Set.add id env.mutable_vars} in
+     let (ubody, abody) = close env body in
+     (Ulet(Mutable, kind, VP.create id, ulam, ubody), abody)
   | Lletrec(defs, body) ->
       if List.for_all
            (function (_id, Lfunction _) -> true | _ -> false)
@@ -1321,15 +1323,15 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
       let (ulam1, _) = close env lam1 in
       let (ulam2, approx) = close env lam2 in
       (Usequence(ulam1, ulam2), approx)
-  | Lwhile(cond, body) ->
-      let (ucond, _) = close env cond in
-      let (ubody, _) = close env body in
+  | Lwhile {wh_cond; wh_body} ->
+      let (ucond, _) = close env wh_cond in
+      let (ubody, _) = close env wh_body in
       (Uwhile(ucond, ubody), Value_unknown)
-  | Lfor(id, lo, hi, dir, body) ->
-      let (ulo, _) = close env lo in
-      let (uhi, _) = close env hi in
-      let (ubody, _) = close env body in
-      (Ufor(VP.create id, ulo, uhi, dir, ubody), Value_unknown)
+  | Lfor {for_id; for_from; for_to; for_dir; for_body} ->
+      let (ulo, _) = close env for_from in
+      let (uhi, _) = close env for_to in
+      let (ubody, _) = close env for_body in
+      (Ufor(VP.create for_id, ulo, uhi, for_dir, ubody), Value_unknown)
   | Lassign(id, lam) ->
       let (ulam, _) = close env lam in
       (Uassign(id, ulam), Value_unknown)

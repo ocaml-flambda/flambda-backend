@@ -469,8 +469,8 @@ let expression sub exp =
           Option.map (sub.expr sub) expo)
     | Texp_sequence (exp1, exp2) ->
         Pexp_sequence (sub.expr sub exp1, sub.expr sub exp2)
-    | Texp_while (exp1, exp2) ->
-        Pexp_while (sub.expr sub exp1, sub.expr sub exp2)
+    | Texp_while {wh_cond; wh_body} ->
+        Pexp_while (sub.expr sub wh_cond, sub.expr sub wh_body)
     | Texp_list_comprehension(exp1, type_comp) ->
       Pexp_extension
       (Extensions.payload_of_extension_expr ~loc
@@ -481,10 +481,10 @@ let expression sub exp =
         (Extensions.payload_of_extension_expr ~loc
           (Extensions.Eexp_arr_comprehension(
             sub.expr sub exp1, map_comprehension type_comp)))
-    | Texp_for (_id, name, exp1, exp2, dir, exp3) ->
-        Pexp_for (name,
-          sub.expr sub exp1, sub.expr sub exp2,
-          dir, sub.expr sub exp3)
+    | Texp_for {for_pat; for_from; for_to; for_dir; for_body} ->
+        Pexp_for (for_pat,
+          sub.expr sub for_from, sub.expr sub for_to,
+          for_dir, sub.expr sub for_body)
     | Texp_send (exp, meth, _, _) ->
         Pexp_send (sub.expr sub exp, match meth with
             Tmeth_name name -> mkloc name loc

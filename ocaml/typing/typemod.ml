@@ -2768,6 +2768,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
         type_structure initial_env ast in
       let simple_sg = Signature_names.simplify finalenv names sg in
       if !Clflags.print_types then begin
+        remove_mode_variables finalenv sg;
         Typecore.force_delayed_checks ();
         Typecore.optimise_allocations ();
         Printtyp.wrap_printing_env ~error:false initial_env

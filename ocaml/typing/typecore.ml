@@ -271,6 +271,17 @@ let mode_subcomponent expected_mode =
     mode = Value_mode.regional_to_global expected_mode.mode;
     tuple_modes = [] }
 
+let mode_nonlocal expected_mode =
+  let mode =
+    expected_mode.mode
+    |> Value_mode.regional_to_global
+    |> Value_mode.local_to_regional
+  in
+  { position = Nontail;
+    escaping_context = None;
+    mode;
+    tuple_modes = [] }
+
 let mode_tailcall_function mode =
   { position = Nontail;
     escaping_context = Some Tailcall_function;
@@ -3686,7 +3697,6 @@ and type_expect_
       end
   | Pexp_record(lid_sexp_list, opt_sexp) ->
       assert (lid_sexp_list <> []);
-      register_allocation expected_mode;
       let opt_exp =
         match opt_sexp with
           None -> None
@@ -3732,18 +3742,23 @@ and type_expect_
         | _ -> ty_expected, opath
       in
       let closed = (opt_sexp = None) in
-      let rmode = Value_mode.regional_to_global expected_mode.mode in
       let lbl_exp_list =
         wrap_disambiguate "This record expression is expected to have"
           (mk_expected ty_record)
           (type_label_a_list loc closed env
              (fun e k ->
-                k (type_label_exp true env rmode loc ty_record e))
+                k (type_label_exp true env expected_mode loc ty_record e))
              expected_type lid_sexp_list)
           (fun x -> x)
       in
       with_explanation (fun () ->
         unify_exp_types loc env (instance ty_record) (instance ty_expected));
+      if List.exists
+           (function
+            | _, { lbl_repres = Record_unboxed _; _ }, _ -> false
+            | _ -> true)
+           lbl_exp_list then
+        register_allocation expected_mode;
 
       (* type_label_a_list returns a list of labels sorted by lbl_pos *)
       (* note: check_duplicates would better be implemented in
@@ -3854,7 +3869,8 @@ and type_expect_
       let ty_record =
         if expected_type = None then newvar () else record.exp_type in
       let (label_loc, label, newval) =
-        type_label_exp false env rmode loc ty_record (lid, label, snewval) in
+        type_label_exp false env (mode_nontail rmode) loc
+          ty_record (lid, label, snewval) in
       unify_exp env record ty_record;
       if label.lbl_mut = Immutable then
         raise(Error(loc, env, Label_not_mutable lid.txt));
@@ -3892,7 +3908,7 @@ and type_expect_
       begin match sifnot with
         None ->
           let ifso =
-            type_expect env (mode_var ()) sifso
+            type_expect env expected_mode sifso
               (mk_expected ~explanation:If_no_else_branch Predef.type_unit) in
           rue {
             exp_desc = Texp_ifthenelse(cond, ifso, None);
@@ -3930,38 +3946,51 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_while(scond, sbody) ->
-      let cond =
-        type_expect (Env.add_region_lock env) (mode_var ()) scond
+      let cond_env,wh_cond_region =
+        if is_local_returning_expr scond then env, false
+        else Env.add_region_lock env, true
+      in
+      let wh_cond =
+        type_expect cond_env (mode_var ()) scond
           (mk_expected ~explanation:While_loop_conditional Predef.type_bool)
       in
-      let body =
-        type_statement ~explanation:While_loop_body (Env.add_region_lock env) sbody
+      let body_env,wh_body_region =
+        if is_local_returning_expr sbody then env, false
+        else Env.add_region_lock env, true
+      in
+      let wh_body =
+        type_statement ~explanation:While_loop_body body_env sbody
       in
       rue {
-        exp_desc = Texp_while(cond, body);
+        exp_desc =
+          Texp_while {wh_cond; wh_cond_region; wh_body; wh_body_region};
         exp_loc = loc; exp_extra = [];
         exp_type = instance Predef.type_unit;
         exp_mode = expected_mode.mode;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_for(param, slow, shigh, dir, sbody) ->
-      let low =
+      let for_from =
         type_expect env (mode_var ()) slow
           (mk_expected ~explanation:For_loop_start_index Predef.type_int)
       in
-      let high =
+      let for_to =
         type_expect env (mode_var ()) shigh
           (mk_expected ~explanation:For_loop_stop_index Predef.type_int)
       in
-      let id, new_env =
+      let for_id, new_env =
         type_for_loop_index ~loc ~env ~param Predef.type_int
       in
-      let body =
-        type_statement ~explanation:For_loop_body
-          (Env.add_region_lock new_env) sbody
+      let new_env, for_region =
+        if is_local_returning_expr sbody then new_env, false
+        else Env.add_region_lock new_env, true
+      in
+      let for_body =
+        type_statement ~explanation:For_loop_body new_env sbody
       in
       rue {
-        exp_desc = Texp_for(id, param, low, high, dir, body);
+        exp_desc = Texp_for {for_id; for_pat = param; for_from; for_to;
+                             for_dir = dir; for_body; for_region};
         exp_loc = loc; exp_extra = [];
         exp_type = instance Predef.type_unit;
         exp_mode = expected_mode.mode;
@@ -5138,7 +5167,7 @@ and type_format loc str env =
   with Failure msg ->
     raise (Error (loc, env, Invalid_format msg))
 
-and type_label_exp create env rmode loc ty_expected
+and type_label_exp create env (expected_mode : expected_mode) loc ty_expected
           (lid, label, sarg) =
   (* Here also ty_expected may be at generic_level *)
   begin_def ();
@@ -5170,14 +5199,22 @@ and type_label_exp create env rmode loc ty_expected
       raise (Error(lid.loc, env, Private_label(lid.txt, ty_expected)));
   let arg =
     let snap = if vars = [] then None else Some (Btype.snapshot ()) in
+    let rmode =
+      match label.lbl_repres with
+      | Record_unboxed _ -> expected_mode
+      | _ -> mode_subcomponent expected_mode
+    in
     let arg_mode =
       match label.lbl_global with
-      | Global -> Value_mode.global
-      | Nonlocal -> Value_mode.local_to_regional rmode
-      | Unrestricted -> rmode
+      | Global ->
+         mode_global
+      | Nonlocal ->
+         mode_nonlocal rmode
+      | Unrestricted ->
+         rmode
     in
     let arg =
-      type_argument env (mode_nontail arg_mode) sarg ty_arg (instance ty_arg)
+      type_argument env arg_mode sarg ty_arg (instance ty_arg)
     in
     end_def ();
     try
@@ -5192,7 +5229,7 @@ and type_label_exp create env rmode loc ty_expected
       (* Try to retype without propagating ty_arg, cf PR#4862 *)
       Option.iter Btype.backtrack snap;
       begin_def ();
-      let arg = type_exp env (mode_nontail arg_mode) sarg in
+      let arg = type_exp env arg_mode sarg in
       end_def ();
       lower_contravariant env arg.exp_type;
       begin_def ();
@@ -5416,9 +5453,6 @@ and type_application env app_loc expected_mode position funct funct_mode sargs =
 and type_construct env (expected_mode : expected_mode) loc lid sarg
       ty_expected_explained attrs =
   let { ty = ty_expected; explanation } = ty_expected_explained in
-  if sarg <> None then
-    register_allocation expected_mode;
-  let argument_mode = mode_subcomponent expected_mode in
   let expected_type =
     try
       let (p0, p,_) = extract_concrete_variant env ty_expected in
@@ -5486,6 +5520,16 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
       | _ ->
         raise (Error(loc, env, Inlined_record_expected))
       end
+  in
+  let argument_mode =
+    match constr.cstr_tag with
+    | Cstr_unboxed -> expected_mode
+    | Cstr_constant _ ->
+       assert (sargs = []);
+       expected_mode
+    | Cstr_block _ | Cstr_extension _ ->
+       register_allocation expected_mode;
+       mode_subcomponent expected_mode
   in
   let args =
     List.map2
