@@ -696,7 +696,7 @@ let restore_continuation_context acc env ccenv cont ~close_early body =
       if not (Continuation.equal cont continuation_after_closing_region)
       then
         Misc.fatal_errorf
-          "The continuation %a following the region closure shouldbe the \
+          "The continuation %a following the region closure should be the \
            current continuation %a"
           Continuation.print continuation_after_closing_region
           Continuation.print cont;
