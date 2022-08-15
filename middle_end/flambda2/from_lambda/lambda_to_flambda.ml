@@ -310,7 +310,7 @@ end = struct
         Misc.fatal_errorf "Unable to restore region stack for %a"
           Continuation.print continuation
       | initial_stack_top :: _, region :: regions ->
-        if Ident.equal initial_stack_top region
+        if Ident.same initial_stack_top region
         then to_pop
         else pop (Some region) regions
     in
