@@ -25,6 +25,11 @@ jobs:
             os: ubuntu-latest
             ocamlparam: ''
 
+          - name: flambda1_frame_pointers
+            config: --enable-middle-end=flambda --enable-frame-pointers
+            os: ubuntu-latest
+            ocamlparam: ''
+
           - name: flambda1_cfg_local
             config: --enable-middle-end=flambda --enable-stack-allocation
             os: ubuntu-latest
@@ -32,6 +37,11 @@ jobs:
 
           - name: flambda2
             config: --enable-middle-end=flambda2
+            os: ubuntu-latest
+            ocamlparam: ''
+
+          - name: flambda2_frame_pointers
+            config: --enable-middle-end=flambda2 --enable-frame-pointers
             os: ubuntu-latest
             ocamlparam: ''
 
