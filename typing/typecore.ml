@@ -3908,7 +3908,7 @@ and type_expect_
       begin match sifnot with
         None ->
           let ifso =
-            type_expect env (mode_var ()) sifso
+            type_expect env expected_mode sifso
               (mk_expected ~explanation:If_no_else_branch Predef.type_unit) in
           rue {
             exp_desc = Texp_ifthenelse(cond, ifso, None);

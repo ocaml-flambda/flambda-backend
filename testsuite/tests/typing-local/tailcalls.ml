@@ -71,6 +71,16 @@ let[@inline never][@specialise never][@local never] foo f =
 
 let () = foo bar
 
+let[@inline never][@specialise never][@local never] iftail c f =
+  let original = local_stack_offset () in
+  let r = allocate () in
+  let with_ref = local_stack_offset () in
+  assert (with_ref > original);
+  use r;
+  if c then f original
+
+let () = iftail true bar
+
 let[@inline never][@specialise never][@local never] bar original
      () () () () () () () () () ()
      () () () () () () () () () ()
