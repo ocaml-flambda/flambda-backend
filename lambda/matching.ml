@@ -3526,6 +3526,7 @@ let simple_for_let ~scopes value_kind loc param pat body =
 
 let rec map_return f = function
   | Llet (str, k, id, l1, l2) -> Llet (str, k, id, l1, map_return f l2)
+  | Lmutlet (k, id, l1, l2) -> Lmutlet (k, id, l1, map_return f l2)
   | Lletrec (l1, l2) -> Lletrec (l1, map_return f l2)
   | Lifthenelse (lcond, lthen, lelse, k) ->
       Lifthenelse (lcond, map_return f lthen, map_return f lelse, k)
@@ -3553,8 +3554,8 @@ let rec map_return f = function
           Option.map (map_return f) def,
           loc, k )
   | (Lstaticraise _ | Lprim (Praise _, _, _)) as l -> l
-  | ( Lvar _ | Lconst _ | Lapply _ | Lfunction _ | Lsend _ | Lprim _ | Lwhile _
-    | Lfor _ | Lassign _ | Lifused _ ) as l ->
+  | ( Lvar _ | Lmutvar _ | Lconst _ | Lapply _ | Lfunction _ | Lsend _ | Lprim _
+    | Lwhile _ | Lfor _ | Lassign _ | Lifused _ ) as l ->
       f l
   | Lregion l -> Lregion (map_return f l)
 

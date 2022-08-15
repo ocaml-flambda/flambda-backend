@@ -116,7 +116,7 @@ let transl_apply_position position =
 
 let may_allocate_in_region lam =
   let rec loop = function
-    | Lvar _ | Lconst _ -> ()
+    | Lvar _ | Lmutvar _ | Lconst _ -> ()
 
     | Lfunction {mode=Alloc_heap} -> ()
     | Lfunction {mode=Alloc_local} -> raise Exit
@@ -133,14 +133,12 @@ let may_allocate_in_region lam =
     | Lregion _body ->
        (* [_body] might do local allocations, but not in the current region *)
        ()
-    | Lwhile (cond, _body) ->
-       (* [_body] already has a region *)
-       loop cond
-    | Lfor (_var, l, u, _dir, _body) ->
-       (* [_body] already has a region *)
-       loop l; loop u
-
-    | ( Lapply _ | Llet _ | Lletrec _ | Lswitch _ | Lstringswitch _
+    | Lwhile {wh_cond_region=false} -> raise Exit
+    | Lwhile {wh_body_region=false} -> raise Exit
+    | Lwhile _ -> ()
+    | Lfor {for_region=false} -> raise Exit
+    | Lfor {for_from; for_to} -> loop for_from; loop for_to
+    | ( Lapply _ | Llet _ | Lmutlet _ | Lletrec _ | Lswitch _ | Lstringswitch _
       | Lstaticraise _ | Lstaticcatch _ | Ltrywith _
       | Lifthenelse _ | Lsequence _ | Lassign _ | Lsend _
       | Levent _ | Lifused _) as lam ->
@@ -589,9 +587,16 @@ and transl_exp0 ~in_new_scope ~scopes e =
   | Texp_sequence(expr1, expr2) ->
       Lsequence(transl_exp ~scopes expr1,
                 event_before ~scopes expr2 (transl_exp ~scopes expr2))
-  | Texp_while(cond, body) ->
-      Lwhile(maybe_region (transl_exp ~scopes cond),
-             event_before ~scopes body (maybe_region (transl_exp ~scopes body)))
+  | Texp_while {wh_body; wh_body_region; wh_cond; wh_cond_region} ->
+      let cond = transl_exp ~scopes wh_cond in
+      let body = transl_exp ~scopes wh_body in
+      Lwhile {
+        wh_cond = if wh_cond_region then maybe_region cond else cond;
+        wh_cond_region;
+        wh_body = event_before ~scopes wh_body
+                    (if wh_body_region then maybe_region body else body);
+        wh_body_region;
+      }
   | Texp_arr_comprehension (body, blocks) ->
     (*One block consists of comprehension statements connected by "and".*)
     let loc = of_location ~scopes e.exp_loc in
@@ -602,10 +607,18 @@ and transl_exp0 ~in_new_scope ~scopes e =
     let loc = of_location ~scopes e.exp_loc in
     Translcomprehension.transl_list_comprehension
       body blocks ~scopes ~loc ~transl_exp
-  | Texp_for(param, _, low, high, dir, body) ->
-      Lfor(param, transl_exp ~scopes low,
-           transl_exp ~scopes high, dir,
-           event_before ~scopes body (maybe_region (transl_exp ~scopes body)))
+  | Texp_for {for_id; for_from; for_to; for_dir; for_body; for_region} ->
+      let body = transl_exp ~scopes for_body in
+      Lfor {
+        for_id;
+        for_from = transl_exp ~scopes for_from;
+        for_to = transl_exp ~scopes for_to;
+        for_dir;
+        for_body = event_before ~scopes for_body
+                     (if for_region then maybe_region body else body);
+        for_region;
+      }
+
   | Texp_send(_, _, Some exp, _) -> transl_exp ~scopes exp
   | Texp_send(expr, met, None, pos) ->
       let obj = transl_exp ~scopes expr in

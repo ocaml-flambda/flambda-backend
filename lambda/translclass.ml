@@ -689,7 +689,8 @@ let free_methods l =
     | Lsend _ -> ()
     | Lfunction{params} ->
         List.iter (fun (param, _) -> fv := Ident.Set.remove param !fv) params
-    | Llet(_str, _k, id, _arg, _body) ->
+    | Llet(_, _k, id, _arg, _body)
+    | Lmutlet(_k, id, _arg, _body) ->
         fv := Ident.Set.remove id !fv
     | Lletrec(decl, _body) ->
         List.iter (fun (id, _exp) -> fv := Ident.Set.remove id !fv) decl
@@ -697,10 +698,10 @@ let free_methods l =
         List.iter (fun (id, _) -> fv := Ident.Set.remove id !fv) vars
     | Ltrywith(_e1, exn, _e2, _k) ->
         fv := Ident.Set.remove exn !fv
-    | Lfor(v, _e1, _e2, _dir, _e3) ->
-        fv := Ident.Set.remove v !fv
+    | Lfor {for_id} ->
+        fv := Ident.Set.remove for_id !fv
     | Lassign _
-    | Lvar _ | Lconst _ | Lapply _
+    | Lvar _ | Lmutvar _ | Lconst _ | Lapply _
     | Lprim _ | Lswitch _ | Lstringswitch _ | Lstaticraise _
     | Lifthenelse _ | Lsequence _ | Lwhile _
     | Levent _ | Lifused _ | Lregion _ -> ()
