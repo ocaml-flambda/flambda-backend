@@ -1122,7 +1122,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
         for_to = stop;
         for_dir = dir;
         for_body = body;
-        _
+        for_region = _;
       } ->
     let env, loop = rec_catch_for_for_loop env ident start stop dir body in
     cps_non_tail acc env ccenv loop k k_exn
@@ -1526,7 +1526,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
         for_to = stop;
         for_dir = dir;
         for_body = body;
-        _
+        for_region = _;
       } ->
     let env, loop = rec_catch_for_for_loop env ident start stop dir body in
     cps_tail acc env ccenv loop k k_exn
