@@ -830,7 +830,9 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
       (k : Acc.t -> Env.t -> CCenv.t -> Ident.t -> Expr_with_acc.t)
     (k_exn : Continuation.t) : Expr_with_acc.t =
   match lam with
-  | Lvar id -> k acc env ccenv id
+  | Lvar id ->
+    assert (not (Env.is_mutable env id));
+    k acc env ccenv id
   | Lmutvar id ->
     let return_id = Env.get_mutable_variable env id in
     k acc env ccenv return_id
@@ -1122,7 +1124,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
         for_to = stop;
         for_dir = dir;
         for_body = body;
-        for_region = _;
+        for_region = _
       } ->
     let env, loop = rec_catch_for_for_loop env ident start stop dir body in
     cps_non_tail acc env ccenv loop k k_exn
@@ -1179,13 +1181,14 @@ and cps_non_tail_simple acc env ccenv (lam : L.lambda)
     (k : Acc.t -> Env.t -> CCenv.t -> IR.simple -> Expr_with_acc.t)
     (k_exn : Continuation.t) : Expr_with_acc.t =
   match lam with
-  | Lvar id when not (Env.is_mutable env id) -> k acc env ccenv (IR.Var id)
+  | Lvar id ->
+    assert (not (Env.is_mutable env id));
+    k acc env ccenv (IR.Var id)
   | Lconst const -> k acc env ccenv (IR.Const const)
-  | Lvar _ | Lmutvar _ (* mutable read *)
-  | Lapply _ | Lfunction _ | Lmutlet _ | Llet _ | Lletrec _ | Lprim _
-  | Lswitch _ | Lstringswitch _ | Lstaticraise _ | Lstaticcatch _ | Ltrywith _
-  | Lifthenelse _ | Lsequence _ | Lwhile _ | Lfor _ | Lassign _ | Lsend _
-  | Levent _ | Lifused _ | Lregion _ ->
+  | Lmutvar _ | Lapply _ | Lfunction _ | Lmutlet _ | Llet _ | Lletrec _
+  | Lprim _ | Lswitch _ | Lstringswitch _ | Lstaticraise _ | Lstaticcatch _
+  | Ltrywith _ | Lifthenelse _ | Lsequence _ | Lwhile _ | Lfor _ | Lassign _
+  | Lsend _ | Levent _ | Lifused _ | Lregion _ ->
     cps_non_tail acc env ccenv lam
       (fun acc env ccenv id -> k acc env ccenv (IR.Var id))
       k_exn
@@ -1223,6 +1226,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
     (k_exn : Continuation.t) : Expr_with_acc.t =
   match lam with
   | Lvar id ->
+    assert (not (Env.is_mutable env id));
     let dbg = Debuginfo.none in
     apply_cont_with_extra_args acc env ccenv ~dbg k None [IR.Var id]
   | Lmutvar id ->
@@ -1526,7 +1530,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
         for_to = stop;
         for_dir = dir;
         for_body = body;
-        for_region = _;
+        for_region = _
       } ->
     let env, loop = rec_catch_for_for_loop env ident start stop dir body in
     cps_tail acc env ccenv loop k k_exn
@@ -1746,7 +1750,8 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
     List.fold_left
       (fun (consts_rev, wrappers) (arm, (action : L.lambda)) ->
         match action with
-        | Lvar var when not (Env.is_mutable env var) ->
+        | Lvar var ->
+          assert (not (Env.is_mutable env var));
           let extra_args =
             List.map
               (fun arg : IR.simple -> Var arg)
@@ -1766,11 +1771,10 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
             (arm, k, None, IR.Const cst :: extra_args) :: consts_rev
           in
           consts_rev, wrappers
-        | Lvar _ | Lmutvar _ (* mutable *)
-        | Lapply _ | Lfunction _ | Llet _ | Lmutlet _ | Lletrec _ | Lprim _
-        | Lswitch _ | Lstringswitch _ | Lstaticraise _ | Lstaticcatch _
-        | Ltrywith _ | Lifthenelse _ | Lsequence _ | Lwhile _ | Lfor _
-        | Lassign _ | Lsend _ | Levent _ | Lifused _ | Lregion _ ->
+        | Lmutvar _ | Lapply _ | Lfunction _ | Llet _ | Lmutlet _ | Lletrec _
+        | Lprim _ | Lswitch _ | Lstringswitch _ | Lstaticraise _
+        | Lstaticcatch _ | Ltrywith _ | Lifthenelse _ | Lsequence _ | Lwhile _
+        | Lfor _ | Lassign _ | Lsend _ | Levent _ | Lifused _ | Lregion _ ->
           (* The continuations created here (and for failactions) are local. The
              bodies of the let_conts will not modify mutable variables. Hence,
              it is safe to exclude them from passing along the extra arguments
