@@ -372,7 +372,7 @@ type local_attribute =
 
 type function_kind = Curried of {nlocal: int} | Tupled
 
-type let_kind = Strict | Alias | StrictOpt | Variable
+type let_kind = Strict | Alias | StrictOpt
 
 type meth_kind = Self | Public | Cached
 
@@ -397,10 +397,12 @@ type scoped_location = Debuginfo.Scoped_location.t
 
 type lambda =
     Lvar of Ident.t
+  | Lmutvar of Ident.t
   | Lconst of structured_constant
   | Lapply of lambda_apply
   | Lfunction of lfunction
   | Llet of let_kind * value_kind * Ident.t * lambda * lambda
+  | Lmutlet of value_kind * Ident.t * lambda * lambda
   | Lletrec of (Ident.t * lambda) list * lambda
   | Lprim of primitive * lambda list * scoped_location
   | Lswitch of lambda * lambda_switch * scoped_location * value_kind
@@ -411,8 +413,8 @@ type lambda =
   | Ltrywith of lambda * Ident.t * lambda * value_kind
   | Lifthenelse of lambda * lambda * lambda * value_kind
   | Lsequence of lambda * lambda
-  | Lwhile of lambda * lambda
-  | Lfor of Ident.t * lambda * lambda * direction_flag * lambda
+  | Lwhile of lambda_while
+  | Lfor of lambda_for
   | Lassign of Ident.t * lambda
   | Lsend of
       meth_kind * lambda * lambda * lambda list
@@ -430,6 +432,22 @@ and lfunction =
     loc: scoped_location;
     mode: alloc_mode;
     region: bool; }
+
+and lambda_while =
+  { wh_cond : lambda;
+    wh_cond_region : bool;
+    wh_body : lambda;
+    wh_body_region : bool
+  }
+
+and lambda_for =
+  { for_id : Ident.t;
+    for_from : lambda;
+    for_to : lambda;
+    for_dir : direction_flag;
+    for_body : lambda;
+    for_region : bool;
+  }
 
 and lambda_apply =
   { ap_func : lambda;
@@ -527,7 +545,8 @@ let make_key e =
     incr count ;
     if !count > max_raw then raise Not_simple ; (* Too big ! *)
     match e with
-    | Lvar id ->
+    | Lvar id
+    | Lmutvar id ->
       begin
         try Ident.find_same id env
         with Not_found -> e
@@ -550,6 +569,10 @@ let make_key e =
         let ex = tr_rec env ex in
         let y = make_key x in
         Llet (str,k,y,ex,tr_rec (Ident.add x (Lvar y) env) e)
+    | Lmutlet (k,x,ex,e) ->
+        let ex = tr_rec env ex in
+        let y = make_key x in
+        Lmutlet (k,y,ex,tr_rec (Ident.add x (Lmutvar y) env) e)
     | Lprim (p,es,_) ->
         Lprim (p,tr_recs env es, Loc_unknown)
     | Lswitch (e,sw,loc,kind) ->
@@ -625,12 +648,14 @@ let iter_opt f = function
 
 let shallow_iter ~tail ~non_tail:f = function
     Lvar _
+  | Lmutvar _
   | Lconst _ -> ()
   | Lapply{ap_func = fn; ap_args = args} ->
       f fn; List.iter f args
   | Lfunction{body} ->
       f body
-  | Llet(_str, _k, _id, arg, body) ->
+  | Llet(_, _k, _id, arg, body)
+  | Lmutlet(_k, _id, arg, body) ->
       f arg; tail body
   | Lletrec(decl, body) ->
       tail body;
@@ -662,10 +687,10 @@ let shallow_iter ~tail ~non_tail:f = function
       f e1; tail e2; tail e3
   | Lsequence(e1, e2) ->
       f e1; tail e2
-  | Lwhile(e1, e2) ->
-      f e1; f e2
-  | Lfor(_v, e1, e2, _dir, e3) ->
-      f e1; f e2; f e3
+  | Lwhile {wh_cond; wh_body} ->
+      f wh_cond; f wh_body
+  | Lfor {for_from; for_to; for_body} ->
+      f for_from; f for_to; f for_body
   | Lassign(_, e) ->
       f e
   | Lsend (_k, met, obj, args, _, _, _) ->
@@ -681,14 +706,16 @@ let iter_head_constructor f l =
   shallow_iter ~tail:f ~non_tail:f l
 
 let rec free_variables = function
-  | Lvar id -> Ident.Set.singleton id
+  | Lvar id
+  | Lmutvar id -> Ident.Set.singleton id
   | Lconst _ -> Ident.Set.empty
   | Lapply{ap_func = fn; ap_args = args} ->
       free_variables_list (free_variables fn) args
   | Lfunction{body; params} ->
       Ident.Set.diff (free_variables body)
         (Ident.Set.of_list (List.map fst params))
-  | Llet(_str, _k, id, arg, body) ->
+  | Llet(_, _k, id, arg, body)
+  | Lmutlet(_k, id, arg, body) ->
       Ident.Set.union
         (free_variables arg)
         (Ident.Set.remove id (free_variables body))
@@ -737,11 +764,12 @@ let rec free_variables = function
         (free_variables e3)
   | Lsequence(e1, e2) ->
       Ident.Set.union (free_variables e1) (free_variables e2)
-  | Lwhile(e1, e2) ->
-      Ident.Set.union (free_variables e1) (free_variables e2)
-  | Lfor(v, lo, hi, _dir, body) ->
-      let set = Ident.Set.union (free_variables lo) (free_variables hi) in
-      Ident.Set.union set (Ident.Set.remove v (free_variables body))
+  | Lwhile {wh_cond; wh_body} ->
+      Ident.Set.union (free_variables wh_cond) (free_variables wh_body)
+  | Lfor {for_id; for_from; for_to; for_body} ->
+      Ident.Set.union (free_variables for_from)
+        (Ident.Set.union (free_variables for_to)
+           (Ident.Set.remove for_id (free_variables for_body)))
   | Lassign(id, e) ->
       Ident.Set.add id (free_variables e)
   | Lsend (_k, met, obj, args, _, _, _) ->
@@ -865,6 +893,14 @@ let subst update_env ?(freshen_bound_variables = false) s input_lam =
                 to [l]; it is a free variable of the input term. *)
              begin try Ident.Map.find id s with Not_found -> lam end
         end
+    | Lmutvar id as lam ->
+       begin match Ident.Map.find id l with
+          | id' -> Lmutvar id'
+          | exception Not_found ->
+             (* Note: a mutable [id] should not appear in [s].
+                Keeping the behavior of Lvar case for now. *)
+             begin try Ident.Map.find id s with Not_found -> lam end
+        end
     | Lconst _ as l -> l
     | Lapply ap ->
         Lapply{ap with ap_func = subst s l ap.ap_func;
@@ -875,6 +911,9 @@ let subst update_env ?(freshen_bound_variables = false) s input_lam =
     | Llet(str, k, id, arg, body) ->
         let id, l' = bind id l in
         Llet(str, k, id, subst s l arg, subst s l' body)
+    | Lmutlet(k, id, arg, body) ->
+        let id, l' = bind id l in
+        Lmutlet(k, id, subst s l arg, subst s l' body)
     | Lletrec(decl, body) ->
         let decl, l' = bind_many decl l in
         Lletrec(List.map (subst_decl s l') decl, subst s l' body)
@@ -902,10 +941,14 @@ let subst update_env ?(freshen_bound_variables = false) s input_lam =
     | Lifthenelse(e1, e2, e3,kind) ->
         Lifthenelse(subst s l e1, subst s l e2, subst s l e3,kind)
     | Lsequence(e1, e2) -> Lsequence(subst s l e1, subst s l e2)
-    | Lwhile(e1, e2) -> Lwhile(subst s l e1, subst s l e2)
-    | Lfor(v, lo, hi, dir, body) ->
-        let v, l' = bind v l in
-        Lfor(v, subst s l lo, subst s l hi, dir, subst s l' body)
+    | Lwhile lw -> Lwhile {lw with wh_cond = subst s l lw.wh_cond;
+                                   wh_body = subst s l lw.wh_body}
+    | Lfor lf ->
+        let for_id, l' = bind lf.for_id l in
+        Lfor {lf with for_id;
+                      for_from = subst s l lf.for_from;
+                      for_to = subst s l lf.for_to;
+                      for_body = subst s l' lf.for_body}
     | Lassign(id, e) ->
         assert (not (Ident.Map.mem id s));
         let id = try Ident.Map.find id l with Not_found -> id in
@@ -971,6 +1014,7 @@ let duplicate lam =
 
 let shallow_map ~tail ~non_tail:f = function
   | Lvar _
+  | Lmutvar _
   | Lconst _ as lam -> lam
   | Lapply { ap_func; ap_args; ap_region_close; ap_mode; ap_loc; ap_tailcall;
              ap_inlined; ap_specialised; ap_probe } ->
@@ -990,6 +1034,8 @@ let shallow_map ~tail ~non_tail:f = function
                   mode; region }
   | Llet (str, k, v, e1, e2) ->
       Llet (str, k, v, f e1, tail e2)
+  | Lmutlet (k, v, e1, e2) ->
+      Lmutlet (k, v, f e1, tail e2)
   | Lletrec (idel, e2) ->
       Lletrec (List.map (fun (v, e) -> (v, f e)) idel, tail e2)
   | Lprim (Pidentity, [l], loc) ->
@@ -1024,10 +1070,13 @@ let shallow_map ~tail ~non_tail:f = function
       Lifthenelse (f e1, tail e2, tail e3, kind)
   | Lsequence (e1, e2) ->
       Lsequence (f e1, tail e2)
-  | Lwhile (e1, e2) ->
-      Lwhile (f e1, f e2)
-  | Lfor (v, e1, e2, dir, e3) ->
-      Lfor (v, f e1, f e2, dir, f e3)
+  | Lwhile lw ->
+      Lwhile { lw with wh_cond = f lw.wh_cond;
+                       wh_body = f lw.wh_body }
+  | Lfor lf ->
+      Lfor { lf with for_from = f lf.for_from;
+                     for_to = f lf.for_to;
+                     for_body = f lf.for_body }
   | Lassign (v, e) ->
       Lassign (v, f e)
   | Lsend (k, m, o, el, pos, mode, loc) ->

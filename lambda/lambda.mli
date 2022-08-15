@@ -288,7 +288,7 @@ type function_kind = Curried of {nlocal: int} | Tupled
    before the resulting closure must be locally allocated.
    See [check_lfunction] for details *)
 
-type let_kind = Strict | Alias | StrictOpt | Variable
+type let_kind = Strict | Alias | StrictOpt
 (* Meaning of kinds for let x = e in e':
     Strict: e may have side-effects; always evaluate e first
       (If e is a simple expression, e.g. a variable or constant,
@@ -297,7 +297,6 @@ type let_kind = Strict | Alias | StrictOpt | Variable
       in e'
     StrictOpt: e does not have side-effects, but depend on the store;
       we can discard e if x does not appear in e'
-    Variable: the variable x is assigned later in e'
  *)
 
 type meth_kind = Self | Public | Cached
@@ -318,10 +317,12 @@ type scoped_location = Debuginfo.Scoped_location.t
 
 type lambda =
     Lvar of Ident.t
+  | Lmutvar of Ident.t
   | Lconst of structured_constant
   | Lapply of lambda_apply
   | Lfunction of lfunction
   | Llet of let_kind * value_kind * Ident.t * lambda * lambda
+  | Lmutlet of value_kind * Ident.t * lambda * lambda
   | Lletrec of (Ident.t * lambda) list * lambda
   | Lprim of primitive * lambda list * scoped_location
   | Lswitch of lambda * lambda_switch * scoped_location * value_kind
@@ -336,8 +337,8 @@ type lambda =
    evaluates f if e evaluates to any other value *)
   | Lifthenelse of lambda * lambda * lambda * value_kind
   | Lsequence of lambda * lambda
-  | Lwhile of lambda * lambda
-  | Lfor of Ident.t * lambda * lambda * direction_flag * lambda
+  | Lwhile of lambda_while
+  | Lfor of lambda_for
   | Lassign of Ident.t * lambda
   | Lsend of meth_kind * lambda * lambda * lambda list
              * region_close * alloc_mode * scoped_location
@@ -355,6 +356,25 @@ and lfunction =
     mode : alloc_mode;     (* alloc mode of the closure itself *)
     region : bool;         (* false if this function may locally
                               allocate in the caller's region *)
+  }
+
+and lambda_while =
+  { wh_cond : lambda;
+    wh_cond_region : bool; (* false if the condition may locally allocate in
+                              the region containing the loop *)
+    wh_body : lambda;
+    wh_body_region : bool  (* false if the body may locally allocate in
+                              the region containing the loop *)
+  }
+
+and lambda_for =
+  { for_id : Ident.t;
+    for_from : lambda;
+    for_to : lambda;
+    for_dir : direction_flag;
+    for_body : lambda;
+    for_region : bool;     (* false if the body may locally allocate in the
+                              region containing the loop *)
   }
 
 and lambda_apply =
