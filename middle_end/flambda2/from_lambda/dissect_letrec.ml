@@ -455,7 +455,7 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
       let substitute_from =
         Ident.Map.fold
           (fun x y acc ->
-            if Ident.equal y cl.ident then Ident.Set.add x acc else acc)
+            if Ident.same y cl.ident then Ident.Set.add x acc else acc)
           letrec.substitution
           (Ident.Set.singleton cl.ident)
       in
