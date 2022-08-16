@@ -1100,14 +1100,13 @@ let type_value_slots_and_make_lifting_decision_for_one_set dacc
                 ~const:(fun _ -> true)
                 ~symbol:(fun _ ~coercion:_ -> true)
                 ~var:(fun var ~coercion:_ ->
-                  (* Variables, including ones bound to symbol projections
-                     (since such projections might be from inconstant symbols
-                     that were lifted [Local] allocations), in the definition of
-                     the set of closures will currently prevent lifting if the
-                     allocation mode is [Local] and we cannot show that such
-                     variables never hold locally-allocated blocks (pointers to
-                     which from statically-allocated blocks are forbidden). Also
-                     see comment in types/reify.ml.
+                  (* Variables (excluding ones bound to symbol projections; see
+                     below) in the definition of the set of closures will
+                     currently prevent lifting if the allocation mode is [Local]
+                     and we cannot show that such variables never hold
+                     locally-allocated blocks (pointers to which from
+                     statically-allocated blocks are forbidden). Also see
+                     comment in types/reify.ml.
 
                      If [var] is known to be a symbol projection, it doesn't
                      matter if it isn't in scope at the place where we will
