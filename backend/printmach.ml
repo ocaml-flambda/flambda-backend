@@ -23,6 +23,26 @@ open Interval
 
 module V = Backend_var
 
+let loc ?(wrap_out = fun ppf f -> f ppf) ~reg_class ~unknown ppf l = 
+  match l with 
+  | Unknown -> unknown ppf
+  | Reg r ->
+      wrap_out ppf (fun ppf -> fprintf ppf "%s" (Proc.register_name r))
+  | Stack(Local s) ->
+      wrap_out ppf (fun ppf ->
+        fprintf ppf "s%s%i"
+          (match reg_class with
+          | 0 -> ""
+          | 1 -> "f"
+          | c -> Printf.sprintf "Unknown(%d)" c)
+          s)
+  | Stack(Incoming s) ->
+      wrap_out ppf (fun ppf -> fprintf ppf "si%i" s)
+  | Stack(Outgoing s) ->
+      wrap_out ppf (fun ppf -> fprintf ppf "so%i" s)
+  | Stack(Domainstate s) ->
+      wrap_out ppf (fun ppf -> fprintf ppf "ds%i" s)
+
 let reg ppf r =
   if not (Reg.anonymous r) then
     fprintf ppf "%s" (Reg.name r)
@@ -30,26 +50,19 @@ let reg ppf r =
     fprintf ppf "%s"
       (match r.typ with Val -> "V" | Addr -> "A" | Int -> "I" | Float -> "F");
   fprintf ppf "/%i" r.stamp;
-  begin match r.loc with
-  | Unknown -> ()
-  | Reg r ->
-      fprintf ppf "[%s]" (Proc.register_name r)
-  | Stack(Local s) ->
-      fprintf ppf "[s%i]" s
-  | Stack(Incoming s) ->
-      fprintf ppf "[si%i]" s
-  | Stack(Outgoing s) ->
-      fprintf ppf "[so%i]" s
-  | Stack(Domainstate s) ->
-      fprintf ppf "[ds%i]" s
-  end
+  loc
+    ~wrap_out:(fun ppf f -> fprintf ppf "[%t]" f)
+    ~reg_class:(Proc.register_class r) ~unknown:(fun _ -> ()) ppf r.loc
 
-let regs ppf v =
+let regs' ?(print_reg = reg) ppf v =
+  let reg = print_reg in
   match Array.length v with
   | 0 -> ()
   | 1 -> reg ppf v.(0)
   | n -> reg ppf v.(0);
          for i = 1 to n-1 do fprintf ppf " %a" reg v.(i) done
+
+let regs ppf v = regs' ppf v
 
 let regset ppf s =
   let first = ref true in
@@ -59,7 +72,8 @@ let regset ppf s =
       else fprintf ppf "@ %a" reg r)
     s
 
-let regsetaddr ppf s =
+let regsetaddr' ?(print_reg = reg) ppf s =
+  let reg = print_reg in
   let first = ref true in
   Reg.Set.iter
     (fun r ->
@@ -70,6 +84,8 @@ let regsetaddr ppf s =
       | Addr -> fprintf ppf "!"
       | _ -> ())
     s
+
+let regsetaddr ppf s = regsetaddr' ppf s
 
 let intcomp = function
   | Isigned c -> Printf.sprintf " %ss " (Printcmm.integer_comparison c)
@@ -107,7 +123,8 @@ let intop = function
   | Icomp cmp -> intcomp cmp
   | Icheckbound -> Printf.sprintf "check > "
 
-let test tst ppf arg =
+let test' ?(print_reg = reg) tst ppf arg =
+  let reg = print_reg in
   match tst with
   | Itruetest -> reg ppf arg.(0)
   | Ifalsetest -> fprintf ppf "not %a" reg arg.(0)
@@ -119,7 +136,11 @@ let test tst ppf arg =
   | Ieventest -> fprintf ppf "%a & 1 == 0" reg arg.(0)
   | Ioddtest -> fprintf ppf "%a & 1 == 1" reg arg.(0)
 
-let operation op arg ppf res =
+let test tst ppf arg = test' tst ppf arg
+
+let operation' ?(print_reg = reg) op arg ppf res =
+  let reg = print_reg in
+  let regs = regs' ~print_reg in
   if Array.length res > 0 then fprintf ppf "%a := " regs res;
   match op with
   | Imove -> regs ppf arg
@@ -187,6 +208,8 @@ let operation op arg ppf res =
   | Iprobe {name;handler_code_sym} ->
     fprintf ppf "probe \"%s\" %s %a" name handler_code_sym regs arg
   | Iprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled \"%s\"" name
+
+let operation op arg ppf res = operation' op arg ppf res
 
 let rec instr ppf i =
   if !Clflags.dump_live then begin
