@@ -71,9 +71,9 @@ let try_to_reify_fields env ~var_allowed alloc_mode ~field_types =
 
 (* CR mshinwell: Think more to identify all the cases that should be in this
    function. *)
-let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
-    ?disallowed_free_vars ?(allow_unique = false) env ~min_name_mode t :
-    reification_result =
+let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
+    ~var_is_symbol_projection env t : reification_result =
+  let min_name_mode = Name_mode.normal in
   let var_allowed (alloc_mode : Alloc_mode.t Or_unknown.t) var =
     (* It is only safe to lift a [Local] allocation if it can be guaranteed that
        no locally-allocated value is reachable from it: therefore, any variables
@@ -85,31 +85,23 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
        created (e.g. during partial application wrapper expansion) will have
        been checked to ensure they do not break the invariants; and finally
        because the Flambda 2 type system accurately propagates the allocation
-       modes (and if it loses information there, we won't lift). *)
-    let allowed =
-      match allowed_if_free_vars_defined_in with
-      | None -> false
-      | Some allowed_if_free_vars_defined_in -> (
-        TE.mem ~min_name_mode allowed_if_free_vars_defined_in (Name.var var)
-        && (match additional_free_var_criterion with
-           | None -> true
-           | Some criterion -> criterion var)
-        &&
-        match disallowed_free_vars with
-        | None -> true
-        | Some disallowed_free_vars ->
-          not (Variable.Set.mem var disallowed_free_vars))
-    in
-    allowed
-    &&
-    match alloc_mode with
-    | Known Heap -> true
-    | Unknown | Known Local -> (
-      match
-        Provers.never_holds_locally_allocated_values env var Flambda_kind.value
-      with
-      | Proved () -> true
-      | Unknown -> false)
+       modes (and if it loses information there, we won't lift).
+
+       Also see comment in [Simplify_set_of_closures.
+       type_value_slots_and_make_lifting_decision_for_one_set]. *)
+    TE.mem ~min_name_mode allowed_if_free_vars_defined_in (Name.var var)
+    && (var_is_symbol_projection var
+       || var_is_defined_at_toplevel var
+          &&
+          match alloc_mode with
+          | Known Heap -> true
+          | Unknown | Known Local -> (
+            match
+              Provers.never_holds_locally_allocated_values env var
+                Flambda_kind.value
+            with
+            | Proved () -> true
+            | Unknown -> false))
   in
   let canonical_simple =
     match TE.get_alias_then_canonical_simple_exn env ~min_name_mode t with
@@ -132,46 +124,40 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
       Expand_head.expand_head env t |> Expand_head.Expanded_type.descr_oub
     with
     | Value (Ok (Variant { is_unique; blocks; immediates; alloc_mode })) -> (
-      if is_unique && not allow_unique
-      then try_canonical_simple ()
-      else
-        match blocks, immediates with
-        | Known blocks, Known imms ->
-          if Expand_head.is_bottom env imms
-          then
-            match TG.Row_like_for_blocks.get_singleton blocks with
+      match blocks, immediates with
+      | Known blocks, Known imms ->
+        if Expand_head.is_bottom env imms
+        then
+          match TG.Row_like_for_blocks.get_singleton blocks with
+          | None -> try_canonical_simple ()
+          | Some ((tag, size), field_types) -> (
+            assert (
+              Targetint_31_63.equal size
+                (TG.Product.Int_indexed.width field_types));
+            (* CR mshinwell: Could recognise other things, e.g. tagged
+               immediates and float arrays, supported by [Static_part]. *)
+            match Tag.Scannable.of_tag tag with
             | None -> try_canonical_simple ()
-            | Some ((tag, size), field_types) -> (
-              assert (
-                Targetint_31_63.equal size
-                  (TG.Product.Int_indexed.width field_types));
-              (* CR mshinwell: Could recognise other things, e.g. tagged
-                 immediates and float arrays, supported by [Static_part]. *)
-              match Tag.Scannable.of_tag tag with
-              | None -> try_canonical_simple ()
-              | Some tag -> (
-                let field_types =
-                  TG.Product.Int_indexed.components field_types
-                in
-                match
-                  try_to_reify_fields env ~var_allowed alloc_mode ~field_types
-                with
-                | Some fields ->
-                  Lift (Immutable_block { tag; is_unique; fields })
-                | None -> try_canonical_simple ()))
-          else if TG.Row_like_for_blocks.is_bottom blocks
-          then
-            match Provers.meet_naked_immediates env imms with
-            | Known_result imms -> (
-              match Targetint_31_63.Set.get_singleton imms with
-              | None -> try_canonical_simple ()
-              | Some imm ->
-                Simple (Simple.const (Reg_width_const.tagged_immediate imm)))
-            | Need_meet -> try_canonical_simple ()
-            | Invalid -> Invalid
-          else try_canonical_simple ()
-        | Known _, Unknown | Unknown, Known _ | Unknown, Unknown ->
-          try_canonical_simple ())
+            | Some tag -> (
+              let field_types = TG.Product.Int_indexed.components field_types in
+              match
+                try_to_reify_fields env ~var_allowed alloc_mode ~field_types
+              with
+              | Some fields -> Lift (Immutable_block { tag; is_unique; fields })
+              | None -> try_canonical_simple ()))
+        else if TG.Row_like_for_blocks.is_bottom blocks
+        then
+          match Provers.meet_naked_immediates env imms with
+          | Known_result imms -> (
+            match Targetint_31_63.Set.get_singleton imms with
+            | None -> try_canonical_simple ()
+            | Some imm ->
+              Simple (Simple.const (Reg_width_const.tagged_immediate imm)))
+          | Need_meet -> try_canonical_simple ()
+          | Invalid -> Invalid
+        else try_canonical_simple ()
+      | Known _, Unknown | Unknown, Known _ | Unknown, Unknown ->
+        try_canonical_simple ())
     | Value (Ok (Mutable_block _)) -> try_canonical_simple ()
     | Value (Ok (Closures { by_function_slot = _; alloc_mode = _ })) ->
       try_canonical_simple ()
