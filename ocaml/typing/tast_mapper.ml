@@ -322,11 +322,10 @@ let expr sub x =
           sub.expr sub exp1,
           sub.expr sub exp2
         )
-    | Texp_while (exp1, exp2) ->
-        Texp_while (
-          sub.expr sub exp1,
-          sub.expr sub exp2
-        )
+    | Texp_while wh ->
+        Texp_while { wh with wh_cond = sub.expr sub wh.wh_cond;
+                             wh_body = sub.expr sub wh.wh_body
+                   }
     | Texp_list_comprehension(e1, type_comp) ->
         Texp_list_comprehension(
           sub.expr sub e1,
@@ -337,15 +336,10 @@ let expr sub x =
         sub.expr sub e1,
         map_comprehension type_comp
       )
-    | Texp_for (id, p, exp1, exp2, dir, exp3) ->
-        Texp_for (
-          id,
-          p,
-          sub.expr sub exp1,
-          sub.expr sub exp2,
-          dir,
-          sub.expr sub exp3
-        )
+    | Texp_for tf ->
+        Texp_for {tf with for_from = sub.expr sub tf.for_from;
+                          for_to = sub.expr sub tf.for_to;
+                          for_body = sub.expr sub tf.for_body}
     | Texp_send (exp, meth, expo, pos) ->
         Texp_send
           (

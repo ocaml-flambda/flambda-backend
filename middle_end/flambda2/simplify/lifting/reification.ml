@@ -131,10 +131,11 @@ let try_to_reify dacc dbg (term : Simplified_named.t) ~bound_to
   let typing_env = DE.typing_env denv in
   let reify_result =
     T.reify ~allowed_if_free_vars_defined_in:typing_env
-      ~additional_free_var_criterion:(fun var ->
-        DE.is_defined_at_toplevel denv var
-        || Option.is_some (DE.find_symbol_projection denv var))
-      ~allow_unique:true typing_env ~min_name_mode:NM.normal ty
+      ~var_is_defined_at_toplevel:(fun var ->
+        DE.is_defined_at_toplevel denv var)
+      ~var_is_symbol_projection:(fun var ->
+        Option.is_some (DE.find_symbol_projection denv var))
+      typing_env ty
   in
   match reify_result with
   | Lift to_lift ->

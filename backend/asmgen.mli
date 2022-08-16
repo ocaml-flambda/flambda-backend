@@ -26,7 +26,8 @@ type middle_end =
 
 (** Compile an implementation from Lambda using the given middle end. *)
 val compile_implementation
-   : ?toplevel:(string -> bool)
+   : (module Compiler_owee.Unix_intf.S)
+  -> ?toplevel:(string -> bool)
   -> backend:(module Backend_intf.S)
   -> filename:string
   -> prefixname:string
@@ -39,7 +40,8 @@ val compile_implementation
     The Flambda 2 middle end neither uses the Clambda language nor the
     Cmmgen pass.  Instead it emits Cmm directly. *)
 val compile_implementation_flambda2
-   : ?toplevel:(string -> bool)
+   : (module Compiler_owee.Unix_intf.S)
+  -> ?toplevel:(string -> bool)
   -> ?keep_symbol_tables:bool
   -> filename:string
   -> prefixname:string
@@ -61,7 +63,7 @@ val compile_implementation_flambda2
   -> unit
 
 val compile_implementation_linear :
-    string -> progname:string -> unit
+    (module Compiler_owee.Unix_intf.S) -> string -> progname:string -> unit
 
 val compile_phrase
   : ?dwarf:Dwarf_ocaml.Dwarf.t
@@ -94,7 +96,8 @@ val compile_unit
   Might return an instance of [Dwarf_ocaml.Dwarf.t] that can be used to generate
   dwarf information for the target system. *)
 val emit_begin_assembly_with_dwarf
-   : disable_dwarf:bool
+   : (module Compiler_owee.Unix_intf.S)
+  -> disable_dwarf:bool
   -> emit_begin_assembly:(init_dwarf:(unit -> unit) -> unit)
   -> sourcefile:string
   -> unit

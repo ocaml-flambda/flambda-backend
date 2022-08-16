@@ -51,11 +51,12 @@ let flambda_and_flambda2 i typed ~compile_implementation =
              ~required_globals;
            Compilenv.save_unit_info (cmx i)))
 
-let flambda2_ i ~flambda2 ~keep_symbol_tables typed =
+let flambda2_ unix i ~flambda2 ~keep_symbol_tables typed =
   flambda_and_flambda2 i typed
     ~compile_implementation:(fun ~module_ident ~main_module_block_size ~code
           ~required_globals ->
       Asmgen.compile_implementation_flambda2
+        unix
         ~filename:i.source_file
         ~prefixname:i.output_prefix
         ~size:main_module_block_size
@@ -67,7 +68,7 @@ let flambda2_ i ~flambda2 ~keep_symbol_tables typed =
         ~keep_symbol_tables
         ())
 
-let flambda i backend typed =
+let flambda unix i backend typed =
   flambda_and_flambda2 i typed
     ~compile_implementation:(fun ~module_ident ~main_module_block_size ~code
           ~required_globals ->
@@ -80,6 +81,7 @@ let flambda i backend typed =
         }
       in
       Asmgen.compile_implementation
+        unix
         ~backend
         ~filename:i.source_file
         ~prefixname:i.output_prefix
@@ -87,7 +89,7 @@ let flambda i backend typed =
         ~ppf_dump:i.ppf_dump
         program)
 
-let clambda i backend typed =
+let clambda unix i backend typed =
   Clflags.set_oclassic ();
   typed
   |> Profile.(record transl)
@@ -101,6 +103,7 @@ let clambda i backend typed =
        |> print_if i.ppf_dump Clflags.dump_lambda Printlambda.program
        |> Compiler_hooks.execute_and_pipe Compiler_hooks.Lambda
        |> Asmgen.compile_implementation
+            unix
             ~backend
             ~filename:i.source_file
             ~prefixname:i.output_prefix
@@ -109,19 +112,20 @@ let clambda i backend typed =
        Compilenv.save_unit_info (cmx i))
 
 (* Emit assembly directly from Linear IR *)
-let emit i =
+let emit unix i =
   Compilenv.reset ?packname:!Clflags.for_package i.module_name;
-  Asmgen.compile_implementation_linear i.output_prefix ~progname:i.source_file
+  Asmgen.compile_implementation_linear unix
+    i.output_prefix ~progname:i.source_file
 
-let implementation ~backend ~flambda2 ~start_from ~source_file ~output_prefix
-    ~keep_symbol_tables =
+let implementation unix ~backend ~flambda2 ~start_from ~source_file
+    ~output_prefix ~keep_symbol_tables =
   let backend info typed =
     Compilenv.reset ?packname:!Clflags.for_package info.module_name;
     if Config.flambda
-    then flambda info backend typed
+    then flambda unix info backend typed
     else if Config.flambda2
-    then flambda2_ info ~flambda2 ~keep_symbol_tables typed
-    else clambda info backend typed
+    then flambda2_ unix info ~flambda2 ~keep_symbol_tables typed
+    else clambda unix info backend typed
   in
   with_info ~source_file ~output_prefix ~dump_ext:"cmx" @@ fun info ->
   match (start_from:Clflags.Compiler_pass.t) with
@@ -130,6 +134,6 @@ let implementation ~backend ~flambda2 ~start_from ~source_file ~output_prefix
       ~hook_parse_tree:(Compiler_hooks.execute Compiler_hooks.Parse_tree_impl)
       ~hook_typed_tree:(Compiler_hooks.execute Compiler_hooks.Typed_tree_impl)
       info ~backend
-  | Emit -> emit info
+  | Emit -> emit unix info
   | _ -> Misc.fatal_errorf "Cannot start from %s"
            (Clflags.Compiler_pass.to_string start_from)

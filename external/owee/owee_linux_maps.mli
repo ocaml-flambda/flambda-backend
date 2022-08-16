@@ -25,4 +25,4 @@ val scan_lines : Scanf.Scanning.in_channel -> entry list
 val scan_file : string -> entry list
 
 val scan_pid : int -> entry list
-val scan_self : unit -> entry list
+val scan_self : (module Unix_intf.S) -> entry list

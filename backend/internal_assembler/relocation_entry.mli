@@ -25,4 +25,4 @@ type t
 val create_relocation :
   X86_binary_emitter.Relocation.t -> Symbol_table.t -> String_table.t -> t
 
-val write : t -> Owee.Owee_buf.cursor -> unit
+val write : t -> Compiler_owee.Owee_buf.cursor -> unit

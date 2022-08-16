@@ -17,7 +17,8 @@
    original compilation units as sub-modules. *)
 
 val package_files
-   : ppf_dump:Format.formatter
+   : (module Compiler_owee.Unix_intf.S)
+  -> ppf_dump:Format.formatter
   -> Env.t
   -> string list
   -> string

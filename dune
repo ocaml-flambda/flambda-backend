@@ -277,7 +277,7 @@
   flambda2_identifiers
   flambda2_cmx
   dwarf_ocaml
-  owee))
+  compiler_owee))
 
 (library
  (name flambda_backend_common)
@@ -320,7 +320,8 @@
   flambda2_ui
   flambda2_to_cmm
   ocamloptcomp
-  ocamlcommon)
+  ocamlcommon
+  unix)
  (modules flambda_backend_main))
 
 (rule
@@ -342,7 +343,8 @@
   flambda2_ui
   flambda2_to_cmm
   ocamloptcomp
-  ocamlcommon)
+  ocamlcommon
+  unix)
  (modules flambda_backend_main_native))
 
 (rule
@@ -365,7 +367,8 @@
   flambda2_ui
   flambda2_to_cmm
   ocamloptcomp
-  ocamlcommon)
+  ocamlcommon
+  unix)
  (modules boot_ocamlopt))
 
 ; The input archives (.a, .cma and .cmxa) to the following three rules
@@ -400,7 +403,7 @@
    %{dep:middle_end/flambda2/from_lambda/flambda2_from_lambda.a}
    %{dep:middle_end/flambda2/simplify/flambda2_simplify.a}
    %{dep:middle_end/flambda2/parser/flambda2_parser.a}
-   %{dep:external/owee/owee.a}
+   %{dep:external/owee/compiler_owee.a}
    %{dep:ocamloptcomp.a}
    %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.a}
    %{dep:middle_end/flambda2/flambda2.a})))
@@ -434,7 +437,7 @@
    %{dep:middle_end/flambda2/from_lambda/flambda2_from_lambda.cma}
    %{dep:middle_end/flambda2/simplify/flambda2_simplify.cma}
    %{dep:middle_end/flambda2/parser/flambda2_parser.cma}
-   %{dep:external/owee/owee.cma}
+   %{dep:external/owee/compiler_owee.cma}
    %{dep:ocamloptcomp.cma}
    %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.cma}
    %{dep:middle_end/flambda2/flambda2.cma})))
@@ -468,7 +471,7 @@
    %{dep:middle_end/flambda2/from_lambda/flambda2_from_lambda.cmxa}
    %{dep:middle_end/flambda2/simplify/flambda2_simplify.cmxa}
    %{dep:middle_end/flambda2/parser/flambda2_parser.cmxa}
-   %{dep:external/owee/owee.cmxa}
+   %{dep:external/owee/compiler_owee.cmxa}
    %{dep:ocamloptcomp.cmxa}
    %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.cmxa}
    %{dep:middle_end/flambda2/flambda2.cmxa})))
@@ -482,9 +485,9 @@
 
 (install
  (files
-  (external/owee/libowee_stubs_native.a
+  (external/owee/libcompiler_owee_stubs_native.a
    as
-   compiler-libs/libowee_stubs_native.a)
+   compiler-libs/libcompiler_owee_stubs_native.a)
   (ocamloptcomp_with_flambda2.cma as compiler-libs/ocamloptcomp.cma)
   (ocamloptcomp_with_flambda2.cmxa as compiler-libs/ocamloptcomp.cmxa)
   (ocamloptcomp_with_flambda2.a as compiler-libs/ocamloptcomp.a))
@@ -3386,4 +3389,205 @@
    compiler-libs/dwarf_ocaml__Dwarf_compilation_unit.cmx)
   (backend/debug/dwarf/dwarf_ocaml/.dwarf_ocaml.objs/native/dwarf_ocaml__Dwarf_state.cmx
    as
-   compiler-libs/dwarf_ocaml__Dwarf_state.cmx)))
+   compiler-libs/dwarf_ocaml__Dwarf_state.cmx)
+  (external/owee/.compiler_owee.objs/native/compiler_owee__Owee_elf_notes.cmx
+   as
+   compiler_owee__Owee_elf_notes.cmx)
+  (external/owee/.compiler_owee.objs/native/compiler_owee__Owee_traverse.cmx
+   as
+   compiler_owee__Owee_traverse.cmx)
+  (external/owee/.compiler_owee.objs/native/compiler_owee__Owee_interval_map.cmx
+   as
+   compiler_owee__Owee_interval_map.cmx)
+  (external/owee/.compiler_owee.objs/native/compiler_owee__Unix_intf.cmx
+   as
+   compiler_owee__Unix_intf.cmx)
+  (external/owee/.compiler_owee.objs/native/compiler_owee__Owee_macho.cmx
+   as
+   compiler_owee__Owee_macho.cmx)
+  (external/owee/.compiler_owee.objs/native/compiler_owee__Owee_location.cmx
+   as
+   compiler_owee__Owee_location.cmx)
+  (external/owee/.compiler_owee.objs/native/compiler_owee.cmx
+   as
+   compiler_owee.cmx)
+  (external/owee/.compiler_owee.objs/native/compiler_owee__Owee_elf.cmx
+   as
+   compiler_owee__Owee_elf.cmx)
+  (external/owee/.compiler_owee.objs/native/compiler_owee__Owee_form.cmx
+   as
+   compiler_owee__Owee_form.cmx)
+  (external/owee/.compiler_owee.objs/native/compiler_owee__Owee_debug_line.cmx
+   as
+   compiler_owee__Owee_debug_line.cmx)
+  (external/owee/.compiler_owee.objs/native/compiler_owee__Owee_marker.cmx
+   as
+   compiler_owee__Owee_marker.cmx)
+  (external/owee/.compiler_owee.objs/native/compiler_owee__Owee_linux_maps.cmx
+   as
+   compiler_owee__Owee_linux_maps.cmx)
+  (external/owee/.compiler_owee.objs/native/compiler_owee__Owee_graph.cmx
+   as
+   compiler_owee__Owee_graph.cmx)
+  (external/owee/.compiler_owee.objs/native/compiler_owee__Owee_buf.cmx
+   as
+   compiler_owee__Owee_buf.cmx)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_elf.cmo
+   as
+   compiler_owee__Owee_elf.cmo)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_elf.cmt
+   as
+   compiler_owee__Owee_elf.cmt)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_macho.cmti
+   as
+   compiler_owee__Owee_macho.cmti)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_elf.cmi
+   as
+   compiler_owee__Owee_elf.cmi)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_marker.cmt
+   as
+   compiler_owee__Owee_marker.cmt)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_form.cmi
+   as
+   compiler_owee__Owee_form.cmi)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_linux_maps.cmt
+   as
+   compiler_owee__Owee_linux_maps.cmt)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_marker.cmo
+   as
+   compiler_owee__Owee_marker.cmo)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_debug_line.cmi
+   as
+   compiler_owee__Owee_debug_line.cmi)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_marker.cmti
+   as
+   compiler_owee__Owee_marker.cmti)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_elf_notes.cmti
+   as
+   compiler_owee__Owee_elf_notes.cmti)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_linux_maps.cmo
+   as
+   compiler_owee__Owee_linux_maps.cmo)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_form.cmo
+   as
+   compiler_owee__Owee_form.cmo)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_debug_line.cmt
+   as
+   compiler_owee__Owee_debug_line.cmt)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_buf.cmti
+   as
+   compiler_owee__Owee_buf.cmti)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_form.cmt
+   as
+   compiler_owee__Owee_form.cmt)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_linux_maps.cmi
+   as
+   compiler_owee__Owee_linux_maps.cmi)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_marker.cmi
+   as
+   compiler_owee__Owee_marker.cmi)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_debug_line.cmo
+   as
+   compiler_owee__Owee_debug_line.cmo)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_graph.cmo
+   as
+   compiler_owee__Owee_graph.cmo)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_graph.cmt
+   as
+   compiler_owee__Owee_graph.cmt)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_graph.cmi
+   as
+   compiler_owee__Owee_graph.cmi)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_buf.cmt
+   as
+   compiler_owee__Owee_buf.cmt)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_buf.cmo
+   as
+   compiler_owee__Owee_buf.cmo)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_interval_map.cmti
+   as
+   compiler_owee__Owee_interval_map.cmti)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_buf.cmi
+   as
+   compiler_owee__Owee_buf.cmi)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_location.cmti
+   as
+   compiler_owee__Owee_location.cmti)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_traverse.cmt
+   as
+   compiler_owee__Owee_traverse.cmt)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_interval_map.cmt
+   as
+   compiler_owee__Owee_interval_map.cmt)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_elf_notes.cmo
+   as
+   compiler_owee__Owee_elf_notes.cmo)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_traverse.cmo
+   as
+   compiler_owee__Owee_traverse.cmo)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_interval_map.cmo
+   as
+   compiler_owee__Owee_interval_map.cmo)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_elf_notes.cmt
+   as
+   compiler_owee__Owee_elf_notes.cmt)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_elf_notes.cmi
+   as
+   compiler_owee__Owee_elf_notes.cmi)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_interval_map.cmi
+   as
+   compiler_owee__Owee_interval_map.cmi)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_debug_line.cmti
+   as
+   compiler_owee__Owee_debug_line.cmti)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_traverse.cmi
+   as
+   compiler_owee__Owee_traverse.cmi)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_location.cmt
+   as
+   compiler_owee__Owee_location.cmt)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Unix_intf.cmi
+   as
+   compiler_owee__Unix_intf.cmi)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_location.cmo
+   as
+   compiler_owee__Owee_location.cmo)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_macho.cmi
+   as
+   compiler_owee__Owee_macho.cmi)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_macho.cmt
+   as
+   compiler_owee__Owee_macho.cmt)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Unix_intf.cmo
+   as
+   compiler_owee__Unix_intf.cmo)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_linux_maps.cmti
+   as
+   compiler_owee__Owee_linux_maps.cmti)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_location.cmi
+   as
+   compiler_owee__Owee_location.cmi)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Unix_intf.cmt
+   as
+   compiler_owee__Unix_intf.cmt)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_macho.cmo
+   as
+   compiler_owee__Owee_macho.cmo)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee.cmi
+   as
+   compiler_owee.cmi)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_elf.cmti
+   as
+   compiler_owee__Owee_elf.cmti)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee.cmo
+   as
+   compiler_owee.cmo)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_traverse.cmti
+   as
+   compiler_owee__Owee_traverse.cmti)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee__Owee_form.cmti
+   as
+   compiler_owee__Owee_form.cmti)
+  (external/owee/.compiler_owee.objs/byte/compiler_owee.cmt
+   as
+   compiler_owee.cmt)))

@@ -96,7 +96,7 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>@<0>%s(dbg@ %a)@<0>%s@]@ \
       @[<hov 1>(inline@ %a)@]@ \
       @[<hov 1>(inlining_state@ %a)@]@ \
-      %a\n\
+      %a\
       @[<hov 1>(probe_name@ %a)@]\
       @[<hov 1>(position@ %a)@]\
       )@]"

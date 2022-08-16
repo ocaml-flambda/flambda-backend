@@ -35,4 +35,4 @@ val num_relocations : t -> int
 
 val section_name : t -> X86_proc.Section_name.t
 
-val write : t -> Section_table.t -> Owee.Owee_buf.t -> unit
+val write : t -> Section_table.t -> Compiler_owee.Owee_buf.t -> unit

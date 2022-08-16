@@ -41,5 +41,6 @@ let scan_file fname =
 let scan_pid pid =
   Printf.ksprintf scan_file "/proc/%d/maps" pid
 
-let scan_self () =
+let scan_self unix =
+  let module Unix = (val unix : Unix_intf.S) in
   scan_pid (Unix.getpid ())

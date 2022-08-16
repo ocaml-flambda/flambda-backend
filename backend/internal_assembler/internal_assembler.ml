@@ -30,7 +30,7 @@ let isprefix s1 s2 =
 let is_label name =
   String.length name >= 2 && Char.equal name.[0] '.' && Char.equal name.[1] 'L'
 
-let make_identification : Owee.Owee_elf.identification =
+let make_identification : Compiler_owee.Owee_elf.identification =
   { elf_class = 2;
     elf_data = 1;
     elf_version = 1;
@@ -38,7 +38,7 @@ let make_identification : Owee.Owee_elf.identification =
     elf_abiversion = 0
   }
 
-let make_header identification shnum e_shoff : Owee.Owee_elf.header =
+let make_header identification shnum e_shoff : Compiler_owee.Owee_elf.header =
   { e_ident = identification;
     e_type = 1;
     e_machine = 0x3E;
@@ -63,7 +63,7 @@ let create_section name ~sh_type ~size ~offset ?align ?entsize ?flags ?sh_link
   let sh_link = Option.value ~default:0 sh_link in
   let sh_info = Option.value ~default:0 sh_info in
   let sh_name_str = X86_proc.Section_name.to_string name in
-  let section : Owee.Owee_elf.section =
+  let section : Compiler_owee.Owee_elf.section =
     { sh_name = String_table.current_length shstrtab;
       sh_type;
       sh_flags;
@@ -82,7 +82,7 @@ let create_section name ~sh_type ~size ~offset ?align ?entsize ?flags ?sh_link
 
 let make_section sections name ~sh_type ~size ?align ?entsize ?flags ?sh_link
     ?sh_info ?body shstrtab =
-  let section : Owee.Owee_elf.section =
+  let section : Compiler_owee.Owee_elf.section =
     create_section name ~sh_type ~size
       ~offset:(Section_table.current_offset sections)
       ?align ?entsize ?flags ?sh_link ?sh_info shstrtab
@@ -230,7 +230,7 @@ let create_relocation_tables compiler_sections symbol_table string_table =
     (Section_name.Map.bindings compiler_sections)
 
 let write buf header section_table symbol_table relocation_tables string_table =
-  Owee.Owee_elf.write_elf buf header (Section_table.get_sections section_table);
+  Compiler_owee.Owee_elf.write_elf buf header (Section_table.get_sections section_table);
   Section_table.write_bodies section_table buf;
   let symtab =
     Section_table.get_section section_table
@@ -246,7 +246,7 @@ let write buf header section_table symbol_table relocation_tables string_table =
     relocation_tables;
   String_table.write string_table strtab.sh_offset buf
 
-let assemble asm output_file =
+let assemble unix asm output_file =
   let compiler_sections = get_sections asm in
   let string_table = String_table.create () in
   let sh_string_table = String_table.create () in
@@ -291,7 +291,7 @@ let assemble asm output_file =
       (Section_table.current_offset sections)
   in
   let elf =
-    Owee.Owee_buf.map_binary_write output_file
+    Compiler_owee.Owee_buf.map_binary_write unix output_file
       (Int64.to_int (Section_table.current_offset sections)
       + (header.e_shnum * header.e_shentsize))
   in
