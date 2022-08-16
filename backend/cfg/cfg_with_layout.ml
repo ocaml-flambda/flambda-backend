@@ -114,23 +114,29 @@ let ( ++ ) (f1 : Format.formatter -> unit) (f2 : Format.formatter -> unit) ppf =
   f1 ppf;
   f2 ppf
 
-let escape s =
-  (* CR azewierzejew for azewierzejew: Make this not abhorrently inefficient. *)
-  let replace c t s = String.split_on_char c s |> String.concat t in
-  let s = replace '&' "&amp;" s in
-  let s = replace '<' "&lt;" s in
-  let s = replace '>' "&gt;" s in
-  let s = replace '\"' "&quot;" s in
-  let s = replace '\n' "<br/>" s in
-  s
+let print_escaped ppf s =
+  (* This prints characters one by one, but that's the best we can do without
+     allocations. *)
+  String.iter
+    (function
+      | '&' -> Format.pp_print_string ppf "&amp;"
+      | '<' -> Format.pp_print_string ppf "&lt;"
+      | '>' -> Format.pp_print_string ppf "&gt;"
+      | '\"' -> Format.pp_print_string ppf "&quot;"
+      | '\n' -> Format.pp_print_string ppf "<br/>"
+      | '\t' ->
+        (* Convert tabs to 4 spaces because tabs aren't rendered in html-like
+           labels. *)
+        Format.pp_print_string ppf "    "
+      | c -> Format.pp_print_char ppf c)
+    s
 
 let with_escape_ppf f ppf =
   let buffer = Buffer.create 0 in
   let buf_ppf = Format.formatter_of_buffer buffer in
   f buf_ppf;
   Format.pp_print_flush buf_ppf ();
-  Buffer.to_bytes buffer |> Bytes.to_string |> escape
-  |> Format.pp_print_text ppf;
+  Buffer.to_bytes buffer |> Bytes.to_string |> print_escaped ppf;
   ()
 
 let print_dot ?(show_instr = true) ?(show_exn = true)
