@@ -813,14 +813,11 @@ let never_holds_locally_allocated_values env var kind : _ proof_of_property =
   | Value (Ok (Boxed_nativeint (_, alloc_mode)))
   | Value (Ok (Variant { alloc_mode; _ }))
   | Value (Ok (Mutable_block { alloc_mode }))
-  | Value (Ok (Closures { alloc_mode; _ })) -> (
+  | Value (Ok (Closures { alloc_mode; _ }))
+  | Value (Ok (Array { alloc_mode; _ })) -> (
     match alloc_mode with
     | Known Heap -> Proved ()
     | Known Local | Unknown -> Unknown)
-  | Value (Ok (Array _)) ->
-    (* CR mshinwell: For this function it would now be useful to track the alloc
-       mode on arrays. *)
-    Unknown
   | Value (Ok (String _)) -> Proved ()
   | Value Unknown -> Unknown
   | Value Bottom -> Unknown
