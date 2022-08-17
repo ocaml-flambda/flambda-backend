@@ -30,18 +30,13 @@ let loc ?(wrap_out = fun ppf f -> f ppf) ~reg_class ~unknown ppf l =
       wrap_out ppf (fun ppf -> fprintf ppf "%s" (Proc.register_name r))
   | Stack(Local s) ->
       wrap_out ppf (fun ppf ->
-        fprintf ppf "s%s%i"
-          (match reg_class with
-          | 0 -> ""
-          | 1 -> "f"
-          | c -> Printf.sprintf "Unknown(%d)" c)
-          s)
+        fprintf ppf "s[%s:%i]" (Proc.register_class_tag reg_class) s)
   | Stack(Incoming s) ->
-      wrap_out ppf (fun ppf -> fprintf ppf "si%i" s)
+      wrap_out ppf (fun ppf -> fprintf ppf "si[%i]" s)
   | Stack(Outgoing s) ->
-      wrap_out ppf (fun ppf -> fprintf ppf "so%i" s)
+      wrap_out ppf (fun ppf -> fprintf ppf "so[%i]" s)
   | Stack(Domainstate s) ->
-      wrap_out ppf (fun ppf -> fprintf ppf "ds%i" s)
+      wrap_out ppf (fun ppf -> fprintf ppf "ds[%i]" s)
 
 let reg ppf r =
   if not (Reg.anonymous r) then
