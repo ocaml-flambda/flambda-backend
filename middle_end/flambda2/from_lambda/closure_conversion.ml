@@ -830,13 +830,13 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
     |> Bound_parameters.create
   in
   let naked_params_wrapper params =
-    let params_and_binding =
-      List.map
-        (fun param ->
+    let rev_params, rev_coupled_kinds, boxing_pairs =
+      List.fold_left
+        (fun (params, kinds, pairs) param ->
           let kind = Bound_parameter.kind param in
           let var = Bound_parameter.var param in
           let pvar = Variable.rename ~append:"_unboxed" var in
-          let kindws =
+          let ub_kindws =
             match Flambda_kind.With_subkind.subkind kind with
             | Boxed_float -> Flambda_kind.With_subkind.naked_float
             | Boxed_int32 -> Flambda_kind.With_subkind.naked_int32
@@ -846,50 +846,43 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
             | Float_array | Immediate_array | Value_array | Generic_array ->
               kind
           in
-          let kind = Flambda_kind.With_subkind.kind kindws in
-          if Flambda_kind.is_value kind
-          then Bound_parameter.with_kind param kindws, None
+          let ub_kind = Flambda_kind.With_subkind.kind ub_kindws in
+          if Flambda_kind.is_value ub_kind
+          then param :: params, Acc.No_box ub_kindws :: kinds, pairs
           else
-            let named, _ =
-              Named.box_value (Name.var pvar) kind Debuginfo.none
-                Alloc_mode.Heap
-            in
-            Bound_parameter.create pvar kindws, Some (var, pvar, named))
+            let unboxed_param = Bound_parameter.create pvar ub_kindws in
+            ( unboxed_param :: param :: params,
+              Acc.Box_couple { boxed = kind; unboxed = ub_kindws } :: kinds,
+              (var, pvar) :: pairs ))
+        ([], [], [])
         (Bound_parameters.to_list params)
     in
-    let params, bindings =
-      let ps, bs = List.split params_and_binding in
-      let bs = List.filter_map (fun o -> o) bs in
-      Bound_parameters.create ps, bs
-    in
+    let params = Bound_parameters.create (List.rev rev_params) in
+    let coupled_kinds = List.rev rev_coupled_kinds in
     let wrapper k =
       List.fold_left
-        (fun k (var, pvar, named) acc env ->
+        (fun k (var, pvar) acc env ->
           let env =
             Env.add_boxing_pair env ~boxed:(Name.var var)
               ~unboxed:(Name.var pvar)
           in
-          let acc, body = k acc env in
-          Let_with_acc.create acc
-            (Bound_pattern.singleton (Bound_var.create var Name_mode.normal))
-            named ~body)
-        k bindings
+          k acc env)
+        k boxing_pairs
     in
-    params, wrapper
+    params, wrapper, coupled_kinds
   in
   let acc, handler_params, wrapper =
     match recursive, Flambda_features.classic_mode () with
     | Nonrecursive, true ->
-      let handler_params, wrapper = naked_params_wrapper handler_params in
+      let handler_params, wrapper, coupled_kinds =
+        naked_params_wrapper handler_params
+      in
       let acc =
         let arity = Bound_parameters.arity_with_subkinds handler_params in
         if Flambda_arity.is_all_values
              (Flambda_arity.With_subkinds.to_arity arity)
         then acc
-        else
-          Acc.set_unboxed_continuation_params name
-            (Flambda_arity.With_subkinds.to_list arity)
-            acc
+        else Acc.set_unboxed_continuation_params name coupled_kinds acc
       in
       acc, handler_params, wrapper
     | Recursive, _ | _, false -> acc, handler_params, fun k acc env -> k acc env

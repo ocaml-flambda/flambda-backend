@@ -183,6 +183,17 @@ end
 
 (** Used to pipe some data through closure conversion *)
 module Acc : sig
+  type boxing_coupled_kind =
+    | No_box of Flambda_kind.With_subkind.t
+    | Box_couple of
+        { boxed : Flambda_kind.With_subkind.t;
+          unboxed : Flambda_kind.With_subkind.t
+        }
+
+  type continuation_signature =
+    | All_values (* Default behaviour *)
+    | Naked_numbers of boxing_coupled_kind list
+
   type t
 
   val create :
@@ -228,7 +239,7 @@ module Acc : sig
   val mark_continuation_as_untrackable : Continuation.t -> t -> t
 
   val set_unboxed_continuation_params :
-    Continuation.t -> Flambda_kind.With_subkind.t list -> t -> t
+    Continuation.t -> boxing_coupled_kind list -> t -> t
 
   val continuation_known_arguments :
     cont:Continuation.t -> t -> Env.value_approximation list option

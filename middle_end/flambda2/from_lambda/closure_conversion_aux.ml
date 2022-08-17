@@ -391,9 +391,16 @@ module Acc = struct
     | Trackable_arguments of Env.value_approximation list
     | Untrackable
 
+  type boxing_coupled_kind =
+    | No_box of Flambda_kind.With_subkind.t
+    | Box_couple of
+        { boxed : Flambda_kind.With_subkind.t;
+          unboxed : Flambda_kind.With_subkind.t
+        }
+
   type continuation_signature =
-    | All_values (* Default behaviour *)
-    | Naked_numbers of Flambda_kind.With_subkind.t list
+    | All_values
+    | Naked_numbers of boxing_coupled_kind list
 
   type t =
     { declared_symbols : (Symbol.t * Static_const.t) list;
@@ -804,18 +811,19 @@ module Apply_cont_with_acc = struct
             Simple.pattern_match
               ~const:(fun _ -> bindings, arg :: rev_args)
               ~name:(fun name ~coercion:_ ->
-                match Flambda_kind.With_subkind.kind kind with
-                | Value | Naked_number Naked_immediate | Region | Rec_info ->
-                  bindings, arg :: rev_args
-                | Naked_number
-                    (Naked_float | Naked_int32 | Naked_int64 | Naked_nativeint)
-                  as kind -> (
+                match kind with
+                | Acc.No_box _kind -> bindings, arg :: rev_args
+                | Acc.Box_couple { unboxed; boxed = _ } -> (
                   match Env.find_unboxed_of env name with
-                  | unboxed -> bindings, Simple.name unboxed :: rev_args
+                  | unboxed -> bindings, Simple.name unboxed :: arg :: rev_args
                   | exception Not_found ->
-                    let named, _ = Named.unbox_value name kind Debuginfo.none in
+                    let named, _ =
+                      Named.unbox_value name
+                        (Flambda_kind.With_subkind.kind unboxed)
+                        Debuginfo.none
+                    in
                     let var = Variable.create "unboxed" in
-                    (var, named) :: bindings, Simple.var var :: rev_args))
+                    (var, named) :: bindings, Simple.var var :: arg :: rev_args))
               arg)
           ([], []) kinds args
       in
@@ -986,41 +994,33 @@ module Expr_with_acc = struct
       match Acc.continuation_signature cont acc with
       | All_values -> no_wrap
       | Naked_numbers kinds ->
-        let bindings, params_and_args =
-          List.fold_left_map
-            (fun bindings kindws ->
+        let bindings, rev_params, rev_args =
+          List.fold_left
+            (fun (bindings, params, args) box_kind ->
               let pvar = Variable.create "ret" in
               let var = Variable.create "unboxed_ret" in
-              let kind = Flambda_kind.With_subkind.kind kindws in
-              match kind with
-              | Naked_number
-                  ((Naked_float | Naked_int32 | Naked_int64 | Naked_nativeint)
-                  as number_kind) ->
-                let out_kind =
-                  match number_kind with
-                  | Naked_immediate -> assert false
-                  | Naked_float -> Flambda_kind.With_subkind.boxed_float
-                  | Naked_int32 -> Flambda_kind.With_subkind.boxed_int32
-                  | Naked_int64 -> Flambda_kind.With_subkind.boxed_int64
-                  | Naked_nativeint -> Flambda_kind.With_subkind.boxed_nativeint
-                in
+              match box_kind with
+              | Acc.No_box kindws ->
+                ( bindings,
+                  Bound_parameter.create pvar kindws :: params,
+                  Simple.var pvar :: args )
+              | Acc.Box_couple { unboxed; boxed } ->
                 let named, _ =
-                  Named.unbox_value (Name.var pvar) kind Debuginfo.none
+                  Named.unbox_value (Name.var pvar)
+                    (Flambda_kind.With_subkind.kind unboxed)
+                    Debuginfo.none
                 in
                 ( (var, named) :: bindings,
-                  (Bound_parameter.create pvar out_kind, Simple.var var) )
-              | Naked_number Naked_immediate | Value | Region | Rec_info ->
-                bindings, (Bound_parameter.create pvar kindws, Simple.var pvar))
-            [] kinds
+                  Bound_parameter.create pvar boxed :: params,
+                  Simple.var var :: Simple.var pvar :: args ))
+            ([], [], []) kinds
         in
+        let handler_params = Bound_parameters.create (List.rev rev_params) in
+        let args = List.rev rev_args in
         if bindings = []
         then no_wrap
         else
           let wrapper_cont = Continuation.create () in
-          let handler_params, args =
-            let hp, args = List.split params_and_args in
-            Bound_parameters.create hp, args
-          in
           let wrapper_apply_continuation =
             Apply.Result_continuation.Return wrapper_cont
           in
