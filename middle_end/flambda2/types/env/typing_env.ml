@@ -976,12 +976,9 @@ let cut t ~cut_after =
           loop result levels
         else result
     in
-    let levels =
-      (* Owing to the check above it is certain that we want [t.current_level]
-         included in the result. *)
-      t.current_level :: t.prev_levels
-    in
-    loop TEL.empty levels
+    (* Owing to the check above it is certain that we want [t.current_level]
+       included in the result. *)
+    loop (One_level.level t.current_level) t.prev_levels
 
 let type_simple_in_term_exn t ?min_name_mode simple =
   (* If [simple] is a variable then it should not come from a missing .cmx file,
