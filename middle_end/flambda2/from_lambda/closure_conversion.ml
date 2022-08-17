@@ -872,8 +872,8 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
     params, wrapper, coupled_kinds
   in
   let acc, handler_params, wrapper =
-    match recursive, Flambda_features.classic_mode () with
-    | Nonrecursive, true ->
+    if Flambda_features.classic_mode ()
+    then
       let handler_params, wrapper, coupled_kinds =
         naked_params_wrapper handler_params
       in
@@ -885,7 +885,7 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
         else Acc.set_unboxed_continuation_params name coupled_kinds acc
       in
       acc, handler_params, wrapper
-    | Recursive, _ | _, false -> acc, handler_params, fun k acc env -> k acc env
+    else acc, handler_params, fun k acc env -> k acc env
   in
   let handler acc =
     let handler_env =
