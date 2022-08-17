@@ -32,9 +32,9 @@ let loc ?(wrap_out = fun ppf f -> f ppf) ~reg_class ~unknown ppf l =
       wrap_out ppf (fun ppf ->
         fprintf ppf "s[%s:%i]" (Proc.register_class_tag reg_class) s)
   | Stack(Incoming s) ->
-      wrap_out ppf (fun ppf -> fprintf ppf "si[%i]" s)
+      wrap_out ppf (fun ppf -> fprintf ppf "par[%i]" s)
   | Stack(Outgoing s) ->
-      wrap_out ppf (fun ppf -> fprintf ppf "so[%i]" s)
+      wrap_out ppf (fun ppf -> fprintf ppf "arg[%i]" s)
   | Stack(Domainstate s) ->
       wrap_out ppf (fun ppf -> fprintf ppf "ds[%i]" s)
 
