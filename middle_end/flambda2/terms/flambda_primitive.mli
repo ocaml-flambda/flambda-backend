@@ -444,8 +444,7 @@ module Eligible_for_cse : sig
 
   include Contains_names.S with type t := t
 
-  val create :
-    ?map_arg:(Simple.t -> Simple.t) -> primitive_application -> t option
+  val create : primitive_application -> t option
 
   val create_exn : primitive_application -> t
 
