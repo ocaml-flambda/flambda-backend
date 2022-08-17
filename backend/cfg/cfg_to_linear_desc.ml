@@ -1,4 +1,4 @@
-include Cfg_intf.S
+open Cfg_intf.S
 
 let from_basic (basic : basic) : Linear.instruction_desc =
   match basic with

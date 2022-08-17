@@ -1,5 +1,3 @@
-include module type of struct
-  include Cfg_intf.S
-end
+open Cfg_intf.S
 
 val from_basic : basic -> Linear.instruction_desc
