@@ -49,8 +49,6 @@ let log_body_and_terminator :
         log_instruction_suffix instr);
     log_instruction_prefix ~indent term;
     Cfg.dump_terminator ~sep:", " Format.err_formatter term.Cfg.desc;
-    (* This probably isn't needed. *)
-    Format.eprintf ", ";
     log_instruction_suffix term)
 
 module Color = struct
