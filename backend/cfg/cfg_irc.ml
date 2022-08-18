@@ -585,7 +585,10 @@ let run : Cfg_with_layout.t -> Cfg_with_layout.t =
         log ~indent:0 "%a <- spilling_because_split_or_unused" Printmach.reg r);
   (match spilling_because_split_or_unused with
   | [] -> ()
-  | _ :: _ as spilling -> rewrite state cfg_with_layout spilling ~reset:false);
+  | _ :: _ as spilling ->
+    List.iter spilling ~f:(fun reg -> reg.Reg.irc_work_list <- Spilled);
+    rewrite state cfg_with_layout spilling ~reset:false;
+    List.iter spilling ~f:(fun reg -> reg.Reg.irc_work_list <- Unknown_list));
   let liveness = main ~round:1 state cfg_with_layout in
   (* note: slots need to be updated before prologue removal *)
   if irc_debug
