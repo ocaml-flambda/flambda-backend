@@ -992,10 +992,8 @@ let close_exact_or_unknown_apply acc env
 let close_apply_cont acc env ~dbg cont trap_action args : Expr_with_acc.t =
   let acc, args = find_simples acc env args in
   let trap_action = close_trap_action_opt trap_action in
-  let args_approx = List.map (Env.find_value_approximation env) args in
   let acc, apply_cont =
-    Apply_cont_with_acc.create acc ~env ?trap_action ~args_approx cont ~args
-      ~dbg
+    Apply_cont_with_acc.create acc ~env ?trap_action cont ~args ~dbg
   in
   Expr_with_acc.create_apply_cont acc apply_cont
 
@@ -1666,9 +1664,8 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
   let body acc env =
     let arg = find_simple_from_id env wrapper_id in
     let acc, apply_cont =
-      Apply_cont_with_acc.create acc ~env
-        ~args_approx:[Env.find_value_approximation env arg]
-        apply_continuation ~args:[arg] ~dbg:Debuginfo.none
+      Apply_cont_with_acc.create acc ~env apply_continuation ~args:[arg]
+        ~dbg:Debuginfo.none
     in
     Expr_with_acc.create_apply_cont acc apply_cont
   in

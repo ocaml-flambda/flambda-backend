@@ -362,7 +362,6 @@ module Apply_cont_with_acc : sig
     Acc.t ->
     ?env:Env.t ->
     ?trap_action:Trap_action.t ->
-    ?args_approx:Env.value_approximation list ->
     Continuation.t ->
     args:Simple.t list ->
     dbg:Debuginfo.t ->

@@ -793,9 +793,14 @@ module Apply_cont_with_acc = struct
     let acc = Acc.add_free_names (Apply_cont.free_names apply_cont) acc in
     acc, apply_cont
 
-  let create acc ?env ?trap_action ?args_approx cont ~args ~dbg =
+  let create acc ?env ?trap_action cont ~args ~dbg =
+    let args_approxs args =
+      match env with
+      | None -> None
+      | Some env -> Some (List.map (Env.find_value_approximation env) args)
+    in
     let apply_cont acc args =
-      create0 acc ?trap_action ?args_approx cont ~args ~dbg
+      create0 acc ?trap_action ?args_approx:(args_approxs args) cont ~args ~dbg
     in
     match Acc.continuation_signature cont acc, env with
     | All_values, _ ->
@@ -843,8 +848,7 @@ module Apply_cont_with_acc = struct
         in
         acc, Wrapped (apply_cont, wrapper)
 
-  let goto acc cont =
-    create acc cont ~args:[] ?args_approx:None ~dbg:Debuginfo.none
+  let goto acc cont = create acc cont ~args:[] ~dbg:Debuginfo.none
 end
 
 module Continuation_handler_with_acc = struct
