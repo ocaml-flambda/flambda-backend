@@ -4,20 +4,24 @@ open! Cfg_regalloc_utils
 open! Cfg_irc_utils
 
 module RegWorkList = ArraySet.Make (struct
-    type t = Reg.t
-    let compare left right = Int.compare left.Reg.stamp right.Reg.stamp
-    let dummy = { Reg.dummy with stamp = -1; }
-  end)
+  type t = Reg.t
+
+  let compare left right = Int.compare left.Reg.stamp right.Reg.stamp
+
+  let dummy = { Reg.dummy with stamp = -1 }
+end)
 
 let reg_set_of_reg_work_list (rwl : RegWorkList.t) : Reg.Set.t =
   RegWorkList.fold rwl ~init:Reg.Set.empty ~f:(fun acc elem ->
-    Reg.Set.add elem acc)
+      Reg.Set.add elem acc)
 
 module InstructionWorkList = ArraySet.Make (struct
-    type t = Instruction.t
-    let compare = Instruction.compare
-    let dummy = {
-      Cfg.desc = Cfg.Prologue;
+  type t = Instruction.t
+
+  let compare = Instruction.compare
+
+  let dummy =
+    { Cfg.desc = Cfg.Prologue;
       arg = [||];
       res = [||];
       dbg = Debuginfo.none;
@@ -25,11 +29,12 @@ module InstructionWorkList = ArraySet.Make (struct
       live = Reg.Set.empty;
       stack_offset = -1;
       id = -1;
-      irc_work_list = Unknown_list;
+      irc_work_list = Unknown_list
     }
-  end)
+end)
 
-let instruction_set_of_instruction_work_list (iwl : InstructionWorkList.t) : Instruction.Set.t =
+let instruction_set_of_instruction_work_list (iwl : InstructionWorkList.t) :
+    Instruction.Set.t =
   InstructionWorkList.fold iwl ~init:Instruction.Set.empty ~f:(fun acc elem ->
       Instruction.Set.add elem acc)
 
@@ -247,7 +252,8 @@ let[@inline] remove_spill_work_list state reg =
 let[@inline] fold_spill_work_list state ~f ~init =
   RegWorkList.fold state.spill_work_list ~f ~init
 
-let[@inline] spill_work_list state = reg_set_of_reg_work_list state.spill_work_list
+let[@inline] spill_work_list state =
+  reg_set_of_reg_work_list state.spill_work_list
 
 let[@inline] is_empty_spilled_nodes state =
   RegWorkList.is_empty state.spilled_nodes
@@ -568,8 +574,12 @@ let[@inline] invariant state =
         ( "freeze_work_list",
           reg_set_of_reg_work_list state.freeze_work_list,
           Reg.Freeze );
-        "spill_work_list", reg_set_of_reg_work_list state.spill_work_list, Reg.Spill;
-        "spilled_nodes", reg_set_of_reg_work_list state.spilled_nodes, Reg.Spilled;
+        ( "spill_work_list",
+          reg_set_of_reg_work_list state.spill_work_list,
+          Reg.Spill );
+        ( "spilled_nodes",
+          reg_set_of_reg_work_list state.spilled_nodes,
+          Reg.Spilled );
         ( "coalesced_nodes",
           reg_set_of_reg_work_list state.coalesced_nodes,
           Reg.Coalesced );
@@ -577,11 +587,16 @@ let[@inline] invariant state =
         "select_stack", Reg.Set.of_list state.select_stack, Reg.Select_stack ];
     (* move sets are disjoint *)
     check_disjoint ~is_disjoint:Instruction.Set.disjoint
-      [ "coalesced_moves", instruction_set_of_instruction_work_list state.coalesced_moves;
-        "constrained_moves", instruction_set_of_instruction_work_list state.constrained_moves;
-        "frozen_moves", instruction_set_of_instruction_work_list state.frozen_moves;
-        "work_list_moves", instruction_set_of_instruction_work_list state.work_list_moves;
-        "active_moves", instruction_set_of_instruction_work_list state.active_moves ];
+      [ ( "coalesced_moves",
+          instruction_set_of_instruction_work_list state.coalesced_moves );
+        ( "constrained_moves",
+          instruction_set_of_instruction_work_list state.constrained_moves );
+        ( "frozen_moves",
+          instruction_set_of_instruction_work_list state.frozen_moves );
+        ( "work_list_moves",
+          instruction_set_of_instruction_work_list state.work_list_moves );
+        ( "active_moves",
+          instruction_set_of_instruction_work_list state.active_moves ) ];
     List.iter ~f:check_set_and_field_consistency_instr
       [ ( "coalesced_moves",
           instruction_set_of_instruction_work_list state.coalesced_moves,
