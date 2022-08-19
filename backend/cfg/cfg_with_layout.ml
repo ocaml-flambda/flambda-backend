@@ -176,7 +176,7 @@ let print_dot ?(show_instr = true) ?(show_exn = true)
     let show_index = Option.value index ~default:(-1) in
     Format.fprintf ppf
       "\n\
-       %s [shape=box label=<@,\
+       %s [shape=none width=0 height=0 margin=0 label=<@,\
        @[<v 0>@[<v 1><table border=\"0\" cellborder=\"1\" cellspacing=\"0\" \
        align=\"left\">%t"
       (name label)
