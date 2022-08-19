@@ -20,7 +20,7 @@
    -absname -w +a-4-9-41-42-44-45-48 -warn-error A -bin-annot
    -g -safe-string -strict-sequence -strict-formats
  ))
- (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp) -alloc-check -indirect-call-check)
+ (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
  (library_flags (:standard -linkall))
  ; UnixLabels is compiled separately as it needs the -nolabels flag.  We can't
  ; currently use an attribute in the .ml file to enable this behaviour as
