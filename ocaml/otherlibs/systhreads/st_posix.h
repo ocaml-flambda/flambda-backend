@@ -26,6 +26,9 @@
 #include <sys/time.h>
 #ifdef __linux__
 #include <unistd.h>
+#include <sys/syscall.h>
+#include <linux/futex.h>
+#include <limits.h>
 #endif
 
 typedef int st_retcode;
@@ -109,6 +112,45 @@ Caml_inline void st_thread_set_id(intnat id)
   return;
 }
 
+typedef struct {
+  volatile unsigned counter;
+} custom_condvar;
+
+static int custom_condvar_init(custom_condvar * cv)
+{
+  cv->counter = 0;
+  return 0;
+}
+
+static int custom_condvar_destroy(custom_condvar * cv)
+{
+  return 0;
+}
+
+static int custom_condvar_wait(custom_condvar * cv, pthread_mutex_t * mutex)
+{
+  unsigned old_count = cv->counter;
+  pthread_mutex_unlock(mutex);
+  syscall(SYS_futex, &cv->counter, FUTEX_WAIT_PRIVATE, old_count, NULL, NULL, 0);
+  pthread_mutex_lock(mutex);
+  return 0;
+}
+
+static int custom_condvar_signal(custom_condvar * cv)
+{
+  __sync_add_and_fetch(&cv->counter, 1);
+  syscall(SYS_futex, &cv->counter, FUTEX_WAKE_PRIVATE, 1, NULL, NULL, 0);
+  return 0;
+}
+
+static int custom_condvar_broadcast(custom_condvar * cv)
+{
+  __sync_add_and_fetch(&cv->counter, 1);
+  syscall(SYS_futex, &cv->counter, FUTEX_WAKE_PRIVATE, INT_MAX, NULL, NULL, 0);
+  return 0;
+}
+
+
 /* The master lock.  This is a mutex that is held most of the time,
    so we implement it in a slightly convoluted way to avoid
    all risks of busy-waiting.  Also, we count the number of waiting
@@ -118,13 +160,13 @@ typedef struct {
   pthread_mutex_t lock;         /* to protect contents  */
   int busy;                     /* 0 = free, 1 = taken */
   volatile int waiters;         /* number of threads waiting on master lock */
-  pthread_cond_t is_free;       /* signaled when free */
+  custom_condvar is_free;       /* signaled when free */
 } st_masterlock;
 
 static void st_masterlock_init(st_masterlock * m)
 {
   pthread_mutex_init(&m->lock, NULL);
-  pthread_cond_init(&m->is_free, NULL);
+  custom_condvar_init(&m->is_free);
   m->busy = 1;
   m->waiters = 0;
 }
@@ -134,7 +176,7 @@ static void st_masterlock_acquire(st_masterlock * m)
   pthread_mutex_lock(&m->lock);
   while (m->busy) {
     m->waiters ++;
-    pthread_cond_wait(&m->is_free, &m->lock);
+    custom_condvar_wait(&m->is_free, &m->lock);
     m->waiters --;
   }
   m->busy = 1;
@@ -146,7 +188,7 @@ static void st_masterlock_release(st_masterlock * m)
   pthread_mutex_lock(&m->lock);
   m->busy = 0;
   pthread_mutex_unlock(&m->lock);
-  pthread_cond_signal(&m->is_free);
+  custom_condvar_signal(&m->is_free);
 }
 
 CAMLno_tsan  /* This can be called for reading [waiters] without locking. */
@@ -179,14 +221,14 @@ Caml_inline void st_thread_yield(st_masterlock * m)
   }
 
   m->busy = 0;
-  pthread_cond_signal(&m->is_free);
+  custom_condvar_signal(&m->is_free);
   m->waiters++;
   do {
     /* Note: the POSIX spec prevents the above signal from pairing with this
        wait, which is good: we'll reliably continue waiting until the next
        yield() or enter_blocking_section() call (or we see a spurious condvar
        wakeup, which are rare at best.) */
-       pthread_cond_wait(&m->is_free, &m->lock);
+       custom_condvar_wait(&m->is_free, &m->lock);
   } while (m->busy);
   m->busy = 1;
   m->waiters--;
@@ -254,14 +296,14 @@ Caml_inline int st_mutex_unlock(st_mutex m)
 
 /* Condition variables */
 
-typedef pthread_cond_t * st_condvar;
+typedef custom_condvar * st_condvar;
 
 static int st_condvar_create(st_condvar * res)
 {
   int rc;
-  st_condvar c = caml_stat_alloc_noexc(sizeof(pthread_cond_t));
+  st_condvar c = caml_stat_alloc_noexc(sizeof(custom_condvar));
   if (c == NULL) return ENOMEM;
-  rc = pthread_cond_init(c, NULL);
+  rc = custom_condvar_init(c);
   if (rc != 0) { caml_stat_free(c); return rc; }
   *res = c;
   return 0;
@@ -270,24 +312,24 @@ static int st_condvar_create(st_condvar * res)
 static int st_condvar_destroy(st_condvar c)
 {
   int rc;
-  rc = pthread_cond_destroy(c);
+  rc = custom_condvar_destroy(c);
   caml_stat_free(c);
   return rc;
 }
 
 Caml_inline int st_condvar_signal(st_condvar c)
 {
-  return pthread_cond_signal(c);
+  return custom_condvar_signal(c);
 }
 
 Caml_inline int st_condvar_broadcast(st_condvar c)
 {
-  return pthread_cond_broadcast(c);
+  return custom_condvar_broadcast(c);
 }
 
 Caml_inline int st_condvar_wait(st_condvar c, st_mutex m)
 {
-  return pthread_cond_wait(c, m);
+  return custom_condvar_wait(c, m);
 }
 
 /* Triggered events */
@@ -295,7 +337,7 @@ Caml_inline int st_condvar_wait(st_condvar c, st_mutex m)
 typedef struct st_event_struct {
   pthread_mutex_t lock;         /* to protect contents */
   int status;                   /* 0 = not triggered, 1 = triggered */
-  pthread_cond_t triggered;     /* signaled when triggered */
+  custom_condvar triggered;     /* signaled when triggered */
 } * st_event;
 
 static int st_event_create(st_event * res)
@@ -305,7 +347,7 @@ static int st_event_create(st_event * res)
   if (e == NULL) return ENOMEM;
   rc = pthread_mutex_init(&e->lock, NULL);
   if (rc != 0) { caml_stat_free(e); return rc; }
-  rc = pthread_cond_init(&e->triggered, NULL);
+  rc = custom_condvar_init(&e->triggered);
   if (rc != 0)
   { pthread_mutex_destroy(&e->lock); caml_stat_free(e); return rc; }
   e->status = 0;
@@ -317,7 +359,7 @@ static int st_event_destroy(st_event e)
 {
   int rc1, rc2;
   rc1 = pthread_mutex_destroy(&e->lock);
-  rc2 = pthread_cond_destroy(&e->triggered);
+  rc2 = custom_condvar_destroy(&e->triggered);
   caml_stat_free(e);
   return rc1 != 0 ? rc1 : rc2;
 }
@@ -330,7 +372,7 @@ static int st_event_trigger(st_event e)
   e->status = 1;
   rc = pthread_mutex_unlock(&e->lock);
   if (rc != 0) return rc;
-  rc = pthread_cond_broadcast(&e->triggered);
+  rc = custom_condvar_broadcast(&e->triggered);
   return rc;
 }
 
@@ -340,7 +382,7 @@ static int st_event_wait(st_event e)
   rc = pthread_mutex_lock(&e->lock);
   if (rc != 0) return rc;
   while(e->status == 0) {
-    rc = pthread_cond_wait(&e->triggered, &e->lock);
+    rc = custom_condvar_wait(&e->triggered, &e->lock);
     if (rc != 0) return rc;
   }
   rc = pthread_mutex_unlock(&e->lock);
