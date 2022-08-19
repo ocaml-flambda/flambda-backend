@@ -159,7 +159,11 @@ let simplify_boxing env ~bound_var (named : Named.t) =
     let arg_name arg =
       Simple.pattern_match
         ~name:(fun n ~coercion:_ -> n)
-        ~const:(fun _ -> assert false)
+        ~const:(fun _ ->
+          (* CR keryan : This is not true with un/tag operations, which could
+             also benefit from this in the futur *)
+          Misc.fatal_error
+            "Constant found on un/boxing operation, should have been lifted.")
         arg
     in
     match prim with
