@@ -71,7 +71,7 @@ let register_class_tag c =
   match c with
   | 0 -> "i"
   | 1 -> "f"
-  | c -> Printf.sprintf "Unknown-Reg-Class(%d)" c
+  | c -> Misc.fatal_errorf "Unspecified register class %d" c
 
 let num_available_registers =
   [| 23; 32 |] (* first 23 int regs allocatable; all float regs allocatable *)
