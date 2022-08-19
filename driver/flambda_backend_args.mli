@@ -34,8 +34,6 @@ module type Flambda_backend_options = sig
 
   val heap_reduction_threshold : int -> unit
   val alloc_check : unit -> unit
-  val indirect_call_check : unit -> unit
-  val effect_check : unit -> unit
   val dcheckmach : unit -> unit
 
   val internal_assembler : unit -> unit

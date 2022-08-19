@@ -23,7 +23,7 @@
     semaphore
     thread)
   (flags -w +33..39 -warn-error A -g -bin-annot -safe-string)
-  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp) -alloc-check -indirect-call-check)
+  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp) -alloc-check)
   (libraries unix)
   (library_flags -linkall)
   (c_library_flags -lpthread)

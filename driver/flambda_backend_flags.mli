@@ -26,8 +26,6 @@ val dasm_comments : bool ref
 val default_heap_reduction_threshold : int
 val heap_reduction_threshold : int ref
 val alloc_check : bool ref
-val indirect_call_check : bool ref
-val effect_check : bool ref
 val dump_checkmach : bool ref
 
 type function_result_types = Never | Functors_only | All_functions

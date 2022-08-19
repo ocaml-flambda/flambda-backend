@@ -56,14 +56,6 @@ let mk_alloc_check f =
   "-alloc-check", Arg.Unit f, " Check that annoted functions do not allocate \
                                 and do not have indirect calls"
 
-let mk_indirect_call_check f =
-  "-indirect-call-check", Arg.Unit f, " Check that annoted functions \
-                                       do not have indirect calls"
-
-let mk_effect_check f =
-  "-effect-check", Arg.Unit f, " Check that annoted functions do not write to the heap, \
-                                 do not allocate, and do not have indirect calls"
-
 let mk_dcheckmach f =
   "-dcheckmach", Arg.Unit f, " (undocumented)"
 
@@ -434,8 +426,6 @@ module type Flambda_backend_options = sig
 
   val heap_reduction_threshold : int -> unit
   val alloc_check : unit -> unit
-  val indirect_call_check : unit -> unit
-  val effect_check : unit -> unit
   val dcheckmach : unit -> unit
 
   val internal_assembler : unit -> unit
@@ -508,8 +498,6 @@ struct
 
     mk_heap_reduction_threshold F.heap_reduction_threshold;
     mk_alloc_check F.alloc_check;
-    mk_indirect_call_check F.indirect_call_check;
-    mk_effect_check F.effect_check;
     mk_dcheckmach F.dcheckmach;
 
     mk_internal_assembler F.internal_assembler;
@@ -617,8 +605,6 @@ module Flambda_backend_options_impl = struct
   let heap_reduction_threshold x =
     Flambda_backend_flags.heap_reduction_threshold := x
   let alloc_check = set' Flambda_backend_flags.alloc_check
-  let indirect_call_check = set' Flambda_backend_flags.indirect_call_check
-  let effect_check = set' Flambda_backend_flags.effect_check
   let dcheckmach = set' Flambda_backend_flags.dump_checkmach
 
   let internal_assembler = set' Flambda_backend_flags.internal_assembler
@@ -817,8 +803,6 @@ module Extra_params = struct
        set_int_option' Flambda_backend_flags.reorder_blocks_random
     | "heap-reduction-threshold" -> set_int' Flambda_backend_flags.heap_reduction_threshold
     | "alloc-check" -> set' Flambda_backend_flags.alloc_check
-    | "indirect-call-check" -> set' Flambda_backend_flags.indirect_call_check
-    | "effect-check" -> set' Flambda_backend_flags.effect_check
     | "dump-checkmach" -> set' Flambda_backend_flags.dump_checkmach
     | "dasm-comments" -> set' Flambda_backend_flags.dasm_comments
     | "dno-asm-comments" -> clear' Flambda_backend_flags.dasm_comments

@@ -71,20 +71,12 @@ let is_caml_apply str =
   String.length str >= caml_apply_len
   && String.sub str 0 caml_apply_len = caml_apply_prefix
 
-(** Configure the check for effects, allocations, or indirect calls only. *)
-
 module type Spec = sig
   (** Which check is it? Used in error messages. *)
   val name : string
 
   (** Is the check enabled? *)
   val enabled : unit -> bool
-
-  val is_allocation_allowed : bool
-
-  val is_effect_allowed : bool
-
-  val ignore_path_to_raise : bool
 
   (** Record that the callee passed the check. *)
   val add_callee : string -> Cmx_format.checks -> unit
@@ -331,12 +323,11 @@ end = struct
     | Istackoffset _ | Iprobe_is_enabled _ | Iopaque | Ibeginregion | Iendregion
       ->
       ()
-    | Istore _ -> if not S.is_effect_allowed then report_fail t "store" dbg
+    | Istore _ -> ()
     | Iintop Icheckbound | Iintop_imm (Icheckbound, _) ->
       report_fail t "checkbound" dbg
     | Ialloc { mode = Alloc_local; _ } -> ()
-    | Ialloc { mode = Alloc_heap; _ } ->
-      if not S.is_allocation_allowed then report_fail t "allocation" dbg
+    | Ialloc { mode = Alloc_heap; _ } -> report_fail t "allocation" dbg
     | Iprobe { name; handler_code_sym } ->
       let desc = Printf.sprintf "probe %s handler %s" name handler_code_sym in
       check_call t handler_code_sym ~desc dbg
@@ -346,42 +337,12 @@ end = struct
       check_call t func ~desc:("direct call to " ^ func) dbg
     | Itailcall_imm { func } ->
       check_call t func ~desc:("direct tailcall to " ^ func) dbg
-    | Iextcall { alloc = false; effects = No_effects; _ } -> ()
-    | Iextcall { func; alloc = false; effects = Arbitrary_effects; _ } ->
-      if not S.is_effect_allowed
-      then report_fail t ("external call to " ^ func) dbg
+    | Iextcall { alloc = false; _ } -> ()
     | Iextcall { func; alloc = true; _ } ->
-      if not S.is_allocation_allowed
-      then report_fail t ("external call to " ^ func) dbg
+      report_fail t ("external call to " ^ func) dbg
     | Ispecific s ->
       if not (S.check_specific s)
       then report_fail t "Arch.specific_operation" dbg
-
-  (* let rec check_instr t (i : Mach.instruction) =
-   *   match (i.desc : Mach.instruction_desc) with
-   *   | Iend -> ()
-   *   | Iop op ->
-   *     check_operation t op i.dbg;
-   *     check_instr t i.next
-   *   | Iifthenelse (_c, ifso, ifnot) ->
-   *     check_instr t ifso;
-   *     check_instr t ifnot;
-   *     check_instr t i.next
-   *   | Iswitch (_index, cases) ->
-   *     Array.iter (check_instr t) cases;
-   *     check_instr t i.next
-   *   | Icatch (_rec, _ts, handlers, body) ->
-   *     check_instr t body;
-   *     List.iter (fun (_n, _ts, handler) -> check_instr t handler) handlers;
-   *     check_instr t i.next
-   *   | Itrywith (body, _kind, (_ts, handler)) ->
-   *     check_instr t body;
-   *     check_instr t handler;
-   *     check_instr t i.next
-   *   | Iraise (Raise_regular | Raise_reraise) -> report_fail t "raise" i.dbg
-   *   | Iraise Raise_notrace -> ()
-   *   | Ireturn _ -> ()
-   *   | Iexit _ -> () *)
 
   (** Returns [true] when [i] is post-dominated by a raise. If [i] is not, then
       checks [i] for the property in [S]. *)
@@ -414,13 +375,7 @@ end = struct
       let _ = check_instr_exn t body false in
       let _ = check_instr_exn t handler false in
       false
-    | Iraise (Raise_regular | Raise_reraise) ->
-      if S.ignore_path_to_raise
-      then true
-      else (
-        report_fail t "raise" i.dbg;
-        false)
-    | Iraise Raise_notrace -> false
+    | Iraise _ -> false
     | Ireturn _ -> false
     | Iexit _ -> false
 
@@ -460,15 +415,8 @@ module Spec_alloc : Spec = struct
 
   let enabled () = !Flambda_backend_flags.alloc_check
 
-  let is_allocation_allowed = false
-
-  let is_effect_allowed = true
-
-  let ignore_path_to_raise = false
-
   let check_callee s (checks : Cmx_format.checks) =
     StringSet.mem s checks.ui_noalloc_functions
-    || StringSet.mem s checks.ui_noeffects_functions
 
   let add_callee s (checks : Cmx_format.checks) =
     if not (check_callee s checks)
@@ -481,147 +429,26 @@ module Spec_alloc : Spec = struct
   let annotation = Cmm.Noalloc_check
 end
 
-module Spec_alloc_exn : Spec = struct
-  let name = "alloc_exn"
-
-  let enabled () = !Flambda_backend_flags.alloc_check
-
-  let is_allocation_allowed = false
-
-  let is_effect_allowed = true
-
-  let ignore_path_to_raise = true
-
-  let check_callee s (checks : Cmx_format.checks) =
-    StringSet.mem s checks.ui_noalloc_exn_functions
-    || StringSet.mem s checks.ui_noalloc_functions
-    || StringSet.mem s checks.ui_noeffects_functions
-
-  let add_callee s (checks : Cmx_format.checks) =
-    if not (check_callee s checks)
-    then
-      checks.ui_noalloc_exn_functions
-        <- StringSet.add s checks.ui_noalloc_exn_functions
-
-  (** conservative *)
-  let check_specific s = not (Arch.operation_can_raise s)
-
-  let annotation = Cmm.Noalloc_exn_check
-end
-
-module Spec_indirect_calls : Spec = struct
-  let name = "indirect"
-
-  let enabled () = !Flambda_backend_flags.indirect_call_check
-
-  let is_allocation_allowed = true
-
-  let is_effect_allowed = true
-
-  let ignore_path_to_raise = false
-
-  let check_callee s (checks : Cmx_format.checks) =
-    StringSet.mem s checks.ui_noindirect_functions
-    || StringSet.mem s checks.ui_noalloc_functions
-    || StringSet.mem s checks.ui_noeffects_functions
-
-  let add_callee s (checks : Cmx_format.checks) =
-    if not (check_callee s checks)
-    then
-      checks.ui_noindirect_functions
-        <- StringSet.add s checks.ui_noindirect_functions
-
-  (** conservative *)
-  let check_specific s = not (Arch.operation_can_raise s)
-
-  let annotation = Cmm.Noindirect_calls_check
-end
-
-module Spec_effects : Spec = struct
-  let name = "effects"
-
-  let enabled () = !Flambda_backend_flags.effect_check
-
-  let is_allocation_allowed = false
-
-  let is_effect_allowed = false
-
-  let ignore_path_to_raise = false
-
-  let check_callee s (checks : Cmx_format.checks) =
-    StringSet.mem s checks.ui_noeffects_functions
-
-  let add_callee s (checks : Cmx_format.checks) =
-    if not (check_callee s checks)
-    then
-      checks.ui_noeffects_functions
-        <- StringSet.add s checks.ui_noeffects_functions
-
-  (** conservative *)
-  let check_specific s =
-    Arch.operation_is_pure s && not (Arch.operation_can_raise s)
-
-  let annotation = Cmm.Noeffect_check
-end
-
 (***************************************************************************
  *   Statically checks that the input function satisfies the following
  *   - no allocations on the heap (local allocations are ignored)
  *   - no indirect calls (incl. no indirect tailcalls)
- *   - raise_notrace is allowed, but no other raise kinds
  *   - all direct calls (incl. tailcalls and probes) are to functions the
  *     satisfy the same conditions.
  *****************************************************************************)
 module Check_alloc = Analysis (Spec_alloc)
 
-(** Same as [Check_alloc] but raises are allowed and no restrictions on
-    instructions post-dominated by a raise with backtrace. *)
-module Check_alloc_exn = Analysis (Spec_alloc_exn)
-
-(** Same as [Check_alloc] except allocations are allowed. *)
-module Check_indirect_calls = Analysis (Spec_indirect_calls)
-
-(** Same as [Check_alloc] but effects (incl. writes to heap) are not allowed. *)
-module Check_effects = Analysis (Spec_effects)
-
-(* CR gyorsh: We can check both at the same time in one pass, or even as part of
-   another pass, such as dead code elimination. For simplicity, it's a separate
-   pass for each at the moment. It is possible the indirect check succeeds but
-   alloc check fails. *)
-
-(* If a function is "noalloc", then it also has no indirect calls, but not vice
-   versa. Similarly, fi a function is noeffects, then it is also noalloc but not
-   vice versa.
-
-   Don't store the function twice if both checks are enabled:
-   [noalloc_functions] is disjoint from [noindirect_functions], and their union
-   represents all functions statically shown to have no indirect calls. The set
-   [noindirect_functions] itself only contains function that have an allocation,
-   as determined by the static checks. Similarly for [noeffects_functions]. *)
-
 let fundecl ppf_dump fd =
-  Check_effects.fundecl ppf_dump fd;
   Check_alloc.fundecl ppf_dump fd;
-  Check_alloc_exn.fundecl ppf_dump fd;
-  Check_indirect_calls.fundecl ppf_dump fd;
   fd
 
 let reset_unit_info () =
-  Check_effects.reset_unit_info ();
   Check_alloc.reset_unit_info ();
-  Check_alloc_exn.reset_unit_info ();
-  Check_indirect_calls.reset_unit_info ();
   ()
 
 let record_unit_info ppf_dump =
-  (* Order is important here, if more than one check is enabled, noeffects =>
-     noalloc => noalloc_exn => noindirect_calls, and they are represented in
-     using disjoint sets. *)
   let checks = (Compilenv.current_unit_infos ()).ui_checks in
-  Check_effects.record_unit_info ppf_dump checks;
   Check_alloc.record_unit_info ppf_dump checks;
-  Check_alloc_exn.record_unit_info ppf_dump checks;
-  Check_indirect_calls.record_unit_info ppf_dump checks;
   Compilenv.cache_checks checks
 
 (* Error report *)

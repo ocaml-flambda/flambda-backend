@@ -25,8 +25,6 @@ let dasm_comments = ref false (* -dasm-comments *)
 let default_heap_reduction_threshold = 500_000_000 / (Sys.word_size / 8)
 let heap_reduction_threshold = ref default_heap_reduction_threshold (* -heap-reduction-threshold *)
 let alloc_check = ref false             (* -alloc-check *)
-let indirect_call_check = ref false     (* -indirect-call-check *)
-let effect_check = ref false            (* -effect-check *)
 let dump_checkmach = ref false          (* -dcheckmach *)
 
 type function_result_types = Never | Functors_only | All_functions

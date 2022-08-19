@@ -344,9 +344,6 @@ let print_codegen_option = function
   | No_CSE -> "no_cse"
   | Use_linscan_regalloc -> "linscan"
   | Noalloc_check -> "noalloc_check"
-  | Noalloc_exn_check -> "noalloc_exn_check"
-  | Noeffect_check -> "noeffect_check"
-  | Noindirect_calls_check -> "noindirect_calls_check"
 
 let print_codegen_options ppf l =
   List.iter (fun c -> fprintf ppf " %s" (print_codegen_option c)) l

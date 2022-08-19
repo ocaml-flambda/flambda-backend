@@ -47,19 +47,9 @@ type generic_fns =
 (* Symbols of function that pass certain checks for special properties. *)
 type checks =
   {
-    mutable ui_noeffects_functions: Misc.Stdlib.String.Set.t;
-    (* Functions without effects, allocations, raises with traces, and indirect calls *)
-
     mutable ui_noalloc_functions: Misc.Stdlib.String.Set.t;
-    (* Functions without allocations, raises with traces, and indirect calls *)
-
-     mutable ui_noalloc_exn_functions: Misc.Stdlib.String.Set.t;
-    (* Same as noalloc, but raises are allowed and no restrictions on instructions
-       post-dominated by a raise with trace. *)
-
-    mutable ui_noindirect_functions: Misc.Stdlib.String.Set.t;
-    (* Functions without indirect calls *)
-}
+    (* Functions without allocations and indirect calls *)
+  }
 
 type unit_infos =
   { mutable ui_name: modname;             (* Name of unit implemented *)

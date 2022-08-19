@@ -88,33 +88,18 @@ end = struct
   type t = Cmx_format.checks
 
   let create () =
-    { ui_noeffects_functions = S.empty;
+    {
       ui_noalloc_functions = S.empty;
-      ui_noalloc_exn_functions = S.empty;
-      ui_noindirect_functions = S.empty
     }
 
   let reset t =
-    t.ui_noeffects_functions <- S.empty;
-    t.ui_noalloc_functions <- S.empty;
-    t.ui_noalloc_exn_functions <- S.empty;
-    t.ui_noindirect_functions <- S.empty
+    t.ui_noalloc_functions <- S.empty
 
   let merge src ~into:dst =
-    if !Flambda_backend_flags.effect_check
-    then
-      dst.ui_noeffects_functions
-        <- S.union dst.ui_noeffects_functions src.ui_noeffects_functions;
     if !Flambda_backend_flags.alloc_check
     then (
       dst.ui_noalloc_functions
-        <- S.union dst.ui_noalloc_functions src.ui_noalloc_functions;
-      dst.ui_noalloc_exn_functions
-        <- S.union dst.ui_noalloc_exn_functions src.ui_noalloc_exn_functions);
-    if !Flambda_backend_flags.indirect_call_check
-    then
-      dst.ui_noindirect_functions
-        <- S.union dst.ui_noindirect_functions src.ui_noindirect_functions
+        <- S.union dst.ui_noalloc_functions src.ui_noalloc_functions)
 end
 
 let cached_checks : Cmx_format.checks = Checks.create ()
