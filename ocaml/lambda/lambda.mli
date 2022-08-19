@@ -283,15 +283,11 @@ type local_attribute =
   | Never_local (* [@local never] *)
   | Default_local (* [@local maybe] or no [@local] attribute *)
 
-type check_mode =
-  | Assert
-  | Assume
-
 type check_attribute =
   | Default_check
-  | Noeffects of check_mode
-  | Noalloc of check_mode
-  | Noalloc_exn of check_mode
+  | Noeffects_check
+  | Noalloc_check
+  | Noalloc_exn_check
 
 type function_kind = Curried of {nlocal: int} | Tupled
 (* [nlocal] determines how many arguments may be partially applied

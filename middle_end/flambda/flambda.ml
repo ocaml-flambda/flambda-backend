@@ -407,15 +407,11 @@ and print_function_declaration ppf var (f : function_declaration) =
     | Never_specialise -> " *never_specialise*"
     | Default_specialise -> ""
   in
-  let mode : Lambda.check_mode -> string = function
-    | Assert -> "assert"
-    | Assume -> "assume"
-  in
   let check =
     match f.check with
-    | Noalloc m -> Printf.sprintf " *noalloc_%s*" (mode m)
-    | Noalloc_exn m -> Printf.sprintf " *noalloc_exn_%s*" (mode m)
-    | Noeffects m -> Printf.sprintf " *noeffects_%s*" (mode m)
+    | Noalloc_check -> " *noalloc_check*"
+    | Noalloc_exn_check -> " *noalloc_exn_check*"
+    | Noeffects_check -> " *noeffects_check*"
     | Default_check -> ""
   in
   fprintf ppf "@[<2>(%a%s%s%s%s%s@ =@ fun@[<2>%a@] ->@ @[<2>%a@])@]@ "

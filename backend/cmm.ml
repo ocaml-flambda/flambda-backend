@@ -248,10 +248,10 @@ type codegen_option =
   | Reduce_code_size
   | No_CSE
   | Use_linscan_regalloc
-  | Noalloc of Lambda.check_mode
-  | Noalloc_exn of Lambda.check_mode
-  | Noeffect of Lambda.check_mode
-  | Noindirect_calls of Lambda.check_mode
+  | Noalloc_check
+  | Noalloc_exn_check
+  | Noeffect_check
+  | Noindirect_calls_check
 
 type fundecl =
   { fun_name: string;
