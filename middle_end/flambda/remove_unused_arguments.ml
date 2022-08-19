@@ -43,8 +43,7 @@ let remove_params unused (fun_decl: Flambda.function_declaration)
     ~params:used_params ~alloc_mode:fun_decl.alloc_mode ~region:fun_decl.region
     ~body
     ~stub:fun_decl.stub ~inline:fun_decl.inline
-    ~specialise:fun_decl.specialise ~check:fun_decl.check
-    ~is_a_functor:fun_decl.is_a_functor
+    ~specialise:fun_decl.specialise ~is_a_functor:fun_decl.is_a_functor
     ~closure_origin:(Closure_origin.create (Closure_id.wrap new_fun_var))
 
 let make_stub unused var (fun_decl : Flambda.function_declaration)
@@ -108,9 +107,7 @@ let make_stub unused var (fun_decl : Flambda.function_declaration)
       ~alloc_mode:fun_decl.alloc_mode ~region:fun_decl.region
       ~body
       ~stub:true ~inline:Default_inline
-      ~specialise:Default_specialise
-      ~check:Default_check
-      ~is_a_functor:fun_decl.is_a_functor
+      ~specialise:Default_specialise ~is_a_functor:fun_decl.is_a_functor
       ~closure_origin:fun_decl.closure_origin
   in
   function_decl, renamed, additional_specialised_args

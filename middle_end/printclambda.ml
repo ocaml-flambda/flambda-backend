@@ -52,12 +52,6 @@ let rec value_kind0 ppf kind =
 
 let value_kind kind = Format.asprintf "%a" value_kind0 kind
 
-let check : Lambda.check_attribute -> string = function
-  | Default_check -> ""
-  | Noalloc_check -> " noalloc_check"
-  | Noalloc_exn_check -> " noalloc_exn_check"
-  | Noeffects_check -> " noeffects_check"
-
 let rec structured_constant ppf = function
   | Uconst_float x -> fprintf ppf "%F" x
   | Uconst_int32 x -> fprintf ppf "%ldl" x
@@ -90,8 +84,8 @@ and one_fun ppf f =
            Printlambda.value_kind k
       )
   in
-  fprintf ppf "(fun@ %s%s%s@ %d@ @[<2>%a@]@ @[<2>%a@])"
-    f.label (value_kind f.return) (check f.attrib) (snd f.arity) idents f.params lam f.body
+  fprintf ppf "(fun@ %s%s@ %d@ @[<2>%a@]@ @[<2>%a@])"
+    f.label (value_kind f.return) (snd f.arity) idents f.params lam f.body
 
 and phantom_defining_expr ppf = function
   | Uphantom_const const -> uconstant ppf const

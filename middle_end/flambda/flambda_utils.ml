@@ -364,7 +364,7 @@ let make_closure_declaration
     Flambda.create_function_declaration
       ~params:(List.map subst_param params) ~alloc_mode  ~region
       ~body ~stub ~inline:Default_inline
-      ~specialise:Default_specialise ~check:Default_check ~is_a_functor:false
+      ~specialise:Default_specialise ~is_a_functor:false
       ~closure_origin:(Closure_origin.create (Closure_id.wrap id))
   in
   assert (Variable.Set.equal (Variable.Set.map subst free_variables)

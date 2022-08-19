@@ -615,7 +615,6 @@ and simplify_set_of_closures original_env r
         ~alloc_mode:function_decl.alloc_mode ~region:function_decl.region
         ~body ~stub:function_decl.stub
         ~inline:function_decl.inline ~specialise:function_decl.specialise
-        ~check:function_decl.check
         ~is_a_functor:function_decl.is_a_functor
         ~closure_origin:function_decl.closure_origin
     in
@@ -1501,7 +1500,6 @@ and duplicate_function ~env ~(set_of_closures : Flambda.set_of_closures)
       ~alloc_mode:function_decl.alloc_mode ~region:function_decl.region
       ~body ~stub:function_decl.stub
       ~inline:function_decl.inline ~specialise:function_decl.specialise
-      ~check:function_decl.check
       ~is_a_functor:function_decl.is_a_functor
       ~closure_origin:(Closure_origin.create (Closure_id.wrap new_fun_var))
   in

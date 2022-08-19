@@ -146,7 +146,6 @@ and import_function_declarations_for_pack_aux units pack
           ~stub:function_decl.stub
           ~inline:function_decl.inline
           ~specialise:function_decl.specialise
-          ~check:function_decl.check
           ~is_a_functor:function_decl.is_a_functor
           ~closure_origin:function_decl.closure_origin)
       function_decls.funs

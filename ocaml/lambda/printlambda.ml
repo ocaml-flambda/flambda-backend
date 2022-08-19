@@ -548,7 +548,7 @@ let name_of_primitive = function
   | Popaque -> "Popaque"
   | Pprobe_is_enabled _ -> "Pprobe_is_enabled"
 
-let function_attribute ppf { inline; specialise; check; local; is_a_functor; stub } =
+let function_attribute ppf { inline; specialise; local; is_a_functor; stub } =
   if is_a_functor then
     fprintf ppf "is_a_functor@ ";
   if stub then
@@ -569,12 +569,6 @@ let function_attribute ppf { inline; specialise; check; local; is_a_functor; stu
   | Default_local -> ()
   | Always_local -> fprintf ppf "always_local@ "
   | Never_local -> fprintf ppf "never_local@ "
-  end;
-  begin match check with
-  | Default_check -> ()
-  | Noalloc_check -> fprintf ppf "noalloc_check@ "
-  | Noalloc_exn_check -> fprintf ppf "noalloc_exn_check@ "
-  | Noeffects_check -> fprintf ppf "noeffects_check@ "
   end
 
 let apply_tailcall_attribute ppf = function

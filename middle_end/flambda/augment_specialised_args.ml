@@ -546,7 +546,6 @@ module Make (T : S) = struct
         ~stub:true
         ~inline:Default_inline
         ~specialise:Default_specialise
-        ~check:Default_check
         ~is_a_functor:false
         ~closure_origin:function_decl.closure_origin
     in
@@ -640,7 +639,6 @@ module Make (T : S) = struct
           ~stub:function_decl.stub
           ~inline:function_decl.inline
           ~specialise:function_decl.specialise
-          ~check:function_decl.check
           ~is_a_functor:function_decl.is_a_functor
           ~closure_origin
       in

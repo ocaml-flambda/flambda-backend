@@ -527,7 +527,6 @@ let default_function_attribute = {
   inline = Default_inline;
   specialise = Default_specialise;
   local = Default_local;
-  check = Default_check ;
   is_a_functor = false;
   stub = false;
 }
