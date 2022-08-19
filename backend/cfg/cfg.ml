@@ -321,7 +321,7 @@ let print_basic' ?print_reg ppf (instruction : basic instruction) =
   let desc = Cfg_to_linear_desc.from_basic instruction.desc in
   let instruction =
     { Linear.desc;
-      next = Linear_utils.labelled_insn_end.insn;
+      next = Linear.end_instr;
       arg = instruction.arg;
       res = instruction.res;
       dbg = [];
