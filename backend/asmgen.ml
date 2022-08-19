@@ -367,6 +367,7 @@ let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
   ++ pass_dump_if ppf_dump dump_cse "After CSE"
   ++ Profile.record ~accumulate:true "checkmach" (Checkmach.fundecl ppf_dump)
   ++ Profile.record ~accumulate:true "regalloc" (fun (fd : Mach.fundecl) ->
+  ++ (fun (fd : Mach.fundecl) ->
     let force_linscan = should_use_linscan fd in
     match force_linscan, register_allocator with
     | false, IRC ->
@@ -376,6 +377,7 @@ let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
           fd
           ++ Profile.record ~accumulate:true "cfgize" cfgize
           ++ Profile.record ~accumulate:true "cfg_deadcode" Cfg_deadcode.run
+          ++ Profile.record ~accumulate:true "cfg_irc" Cfg_irc.run
         in
         let cfg_description = Profile.record ~accumulate:true "cfg_create_description" Cfg_regalloc_validate.Description.create cfg in
         cfg
