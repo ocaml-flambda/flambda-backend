@@ -149,10 +149,8 @@ let basic_or_terminator_of_operation :
          (if String.equal (State.get_fun_name state) func
          then Self { destination = State.get_tailrec_label state }
          else Func (Direct { func_symbol = func })))
-  | Iextcall { func; ty_res; ty_args; alloc; effects; returns } ->
-    let external_call =
-      { Cfg.func_symbol = func; alloc; effects; ty_res; ty_args }
-    in
+  | Iextcall { func; ty_res; ty_args; alloc; returns } ->
+    let external_call = { Cfg.func_symbol = func; alloc; ty_res; ty_args } in
     if returns
     then Basic (Call (P (External external_call)))
     else Terminator (Call_no_return external_call)

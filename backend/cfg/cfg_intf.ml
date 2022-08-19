@@ -41,7 +41,6 @@ module S = struct
   type external_call_operation =
     { func_symbol : string;
       alloc : bool;
-      effects : Cmm.effects;
       ty_res : Cmm.machtype;
       ty_args : Cmm.exttype list
     }
