@@ -78,7 +78,8 @@ let destroyed_at_basic : Cfg.basic -> Reg.t array =
     | P (External { func_symbol; alloc; ty_res; ty_args; effects }) ->
       let func = func_symbol in
       let returns = true in
-      at_oper (Iop (Iextcall { func; ty_res; ty_args; alloc; returns; effects }))
+      at_oper
+        (Iop (Iextcall { func; ty_res; ty_args; alloc; returns; effects }))
     | P (Alloc { bytes; dbginfo; mode }) ->
       at_oper (Iop (Ialloc { bytes; dbginfo; mode }))
     | P (Checkbound { immediate }) -> (
@@ -123,7 +124,8 @@ let destroyed_at_terminator : Cfg.terminator -> Reg.t array =
   | Call_no_return { func_symbol; alloc; ty_res; ty_args; effects } ->
     let func = func_symbol in
     let returns = false in
-    at_oper (Mach.Iop (Iextcall { func; ty_res; ty_args; alloc; returns; effects }))
+    at_oper
+      (Mach.Iop (Iextcall { func; ty_res; ty_args; alloc; returns; effects }))
 
 let[@inline] int_max (left : int) (right : int) = Stdlib.max left right
 

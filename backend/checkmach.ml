@@ -305,11 +305,10 @@ end = struct
       | None | Some Unknown ->
         if Unit_info.is_fail unit_info t.fun_name
         then report t ~msg:"verbose" ~desc dbg
-        else begin
+        else (
           Unit_info.add_dep unit_info ~callee ~caller:t.fun_name;
           t.unresolved_dependencies <- true;
-          report t ~msg:"unknown" ~desc dbg
-        end
+          report t ~msg:"unknown" ~desc dbg)
       | Some Fail -> report_fail t desc dbg
 
   (** Returns [false] when the check fails (e.g., allocation or indirect call
@@ -443,23 +442,20 @@ end = struct
           let t = { ppf; fun_name; unresolved_dependencies = false } in
           Unit_info.in_current_unit unit_info fun_name;
           if List.mem (S.annotation Lambda.Assume) f.fun_codegen_options
-          then begin
+          then (
             report t ~msg:"assumed" ~desc:"" f.fun_dbg;
-            Unit_info.add_value t.ppf unit_info fun_name Pass
-          end
-          else begin
+            Unit_info.add_value t.ppf unit_info fun_name Pass)
+          else (
             (try
                let _ = check_instr_exn t f.fun_body false in
                if (not t.unresolved_dependencies)
                   && not (Unit_info.is_fail unit_info t.fun_name)
-               then begin
+               then (
                  report t ~msg:"passed" ~desc:"" f.fun_dbg;
-                 Unit_info.add_value t.ppf unit_info fun_name Pass
-               end
+                 Unit_info.add_value t.ppf unit_info fun_name Pass)
              with Bail -> debug t Fail);
             if List.mem (S.annotation Lambda.Assert) f.fun_codegen_options
-            then Unit_info.annotated unit_info fun_name
-          end)
+            then Unit_info.annotated unit_info fun_name))
 end
 
 module Spec_alloc : Spec = struct
