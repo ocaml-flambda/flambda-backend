@@ -30,7 +30,7 @@ let no_code = ref false
 let no_crc = ref false
 
 module Magic_number = Misc.Magic_number
-module S = Misc.Stdlib.String.Set
+module String = Misc.Stdlib.String
 
 let input_stringlist ic len =
   let get_string_list sect len =
