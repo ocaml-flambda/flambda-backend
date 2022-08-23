@@ -44,11 +44,11 @@ let build : State.t -> Cfg_with_layout.t -> liveness -> unit =
         add_edges_live instr.id ~def:instr.res ~move_src ~destroyed:[||])
       else
         add_edges_live instr.id ~def:instr.res ~move_src:Reg.dummy
-          ~destroyed:(destroyed_at_basic instr.desc))
+          ~destroyed:(Proc.destroyed_at_basic instr.desc))
     ~terminator:(fun term ->
       (* we assume that a terminator cannot be a move instruction *)
       add_edges_live term.id ~def:term.res ~move_src:Reg.dummy
-        ~destroyed:(destroyed_at_terminator term.desc));
+        ~destroyed:(Proc.destroyed_at_terminator term.desc));
   Cfg.iter_blocks (Cfg_with_layout.cfg cfg_with_layout) ~f:(fun _label block ->
       if block.is_trap_handler
       then

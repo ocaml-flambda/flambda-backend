@@ -22,10 +22,6 @@ module Instruction : sig
   module IdMap : MoreLabels.Map.S with type key = id
 end
 
-val destroyed_at_basic : Cfg.basic -> Reg.t array
-
-val destroyed_at_terminator : Cfg.terminator -> Reg.t array
-
 type cfg_infos =
   { arg : Reg.Set.t;
     res : Reg.Set.t;
