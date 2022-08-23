@@ -21,7 +21,7 @@ define dune_boot_context
 (context (default
   (name default)
   ; CR sdolan: profile dev might be faster, but the compiler currently fails to build in dev.
-  (profile release)))
+  (profile boot)))
 endef
 
 define dune_runtime_stdlib_context
