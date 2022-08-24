@@ -63,7 +63,7 @@ module Func_info = struct
 end
 
 (* Return true if [str] starts with "caml_apply". This is conservative. *)
-let is_caml_apply str =
+let begins_with_caml_apply str =
   (* CR-someday gyorsh: propagate information about caml_apply from cmm to mach
      instead of reverse-engineering it from the symbol name. *)
   let caml_apply_prefix = "caml_apply" in
@@ -287,7 +287,7 @@ end = struct
     if not !Flambda_backend_flags.dump_checkmach then raise_notrace Bail
 
   let check_call t callee ~desc dbg =
-    if is_caml_apply callee
+    if begins_with_caml_apply callee
        (* This check is only an optimization, to keep dependencies small. *)
     then report_fail t desc dbg
     else if not (S.check_callee callee Compilenv.cached_checks)
