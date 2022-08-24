@@ -24,11 +24,11 @@ let is_colour_enabled =
   let colour_enabled =
     lazy
       ((* This avoids having to alter misc.ml *)
-        let buf = Buffer.create 10 in
-        let ppf = Format.formatter_of_buffer buf in
-        Misc.Color.set_color_tag_handling ppf;
-        Format.fprintf ppf "@{<error>@}%!";
-        String.length (Buffer.contents buf) > 0)
+       let buf = Buffer.create 10 in
+       let ppf = Format.formatter_of_buffer buf in
+       Misc.Color.set_color_tag_handling ppf;
+       Format.fprintf ppf "@{<error>@}%!";
+       String.length (Buffer.contents buf) > 0)
   in
   fun () -> Lazy.force colour_enabled && not !disable_colours
 

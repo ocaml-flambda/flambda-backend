@@ -32,10 +32,10 @@ val map_denv : t -> f:(Downwards_env.t -> Downwards_env.t) -> t
 val with_denv : t -> Downwards_env.t -> t
 
 (** Extract the dataflow analysis accumulator *)
-val data_flow : t -> Data_flow.t
+val flow_acc : t -> Flow.Acc.t
 
 (** Map the dataflow analysis accumulator of the given dacc. *)
-val map_data_flow : t -> f:(Data_flow.t -> Data_flow.t) -> t
+val map_flow_acc : t -> f:(Flow.Acc.t -> Flow.Acc.t) -> t
 
 include Continuation_uses_env_intf.S with type t := t
 

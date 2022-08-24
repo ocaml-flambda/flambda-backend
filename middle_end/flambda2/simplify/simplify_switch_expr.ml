@@ -18,6 +18,8 @@ open! Simplify_import
 module TE = Flambda2_types.Typing_env
 module Alias_set = TE.Alias_set
 
+[@@@ocaml.warning "-37"]
+
 type mergeable_arms =
   | No_arms
   | Mergeable of
@@ -27,7 +29,37 @@ type mergeable_arms =
   | Not_mergeable
 
 let find_all_aliases env arg =
-  TE.aliases_of_simple env ~min_name_mode:NM.normal arg
+  let find_all_aliases () =
+    TE.aliases_of_simple env ~min_name_mode:NM.normal arg
+  in
+  Simple.pattern_match'
+    ~var:(fun _var ~coercion:_ ->
+      (* We use find alias to find a common simple to different
+         simples.
+
+         This simple is already guaranteed to be the cannonical alias.
+
+       * If there is a common alias between variables, the
+         cannonical alias must also be a common alias.
+
+       * For constants and symbols there can be a common alias that
+         is not cannonical: A variable can have different constant
+         values in different branches: this variable is not the
+         cannonical alias, the cannonical would be the constant or
+         the symbol. But the only common alias could be a variable
+         in that case.
+
+         hence there is no loss of generality in returning the
+         cannonical alias as the single alias if it is a variable.
+
+         Note that the main reason for this is to allow changing the
+         arguments of continuations to variables that where not in
+         scope during the downward traversal. In particular for the
+         alias rewriting provided by data_flow *)
+      TE.Alias_set.singleton arg)
+    ~symbol:(fun _sym ~coercion:_ -> find_all_aliases ())
+    ~const:(fun _cst -> find_all_aliases ())
+    arg
 
 let rebuild_arm uacc arm (action, use_id, arity, env_at_use)
     ( new_let_conts,
@@ -328,11 +360,11 @@ let simplify_arm ~typing_env_at_use ~scrutinee_ty arm action (arms, dacc) =
     let arity = List.map T.kind arg_types |> Flambda_arity.create in
     let action = Apply_cont.update_args action ~args in
     let dacc =
-      DA.map_data_flow dacc
+      DA.map_flow_acc dacc
         ~f:
-          (Data_flow.add_apply_cont_args
+          (Flow.Acc.add_apply_cont_args ~rewrite_id
              (Apply_cont.continuation action)
-             (List.map Simple.free_names args))
+             args)
     in
     let arms =
       Targetint_31_63.Map.add arm (action, rewrite_id, arity, env_at_use) arms
@@ -357,8 +389,8 @@ let simplify_switch0 dacc switch ~down_to_up =
     if Targetint_31_63.Map.cardinal arms <= 1
     then dacc
     else
-      DA.map_data_flow dacc
-        ~f:(Data_flow.add_used_in_current_handler (Simple.free_names scrutinee))
+      DA.map_flow_acc dacc
+        ~f:(Flow.Acc.add_used_in_current_handler (Simple.free_names scrutinee))
   in
   down_to_up dacc
     ~rebuild:
@@ -383,9 +415,9 @@ let simplify_switch ~simplify_let ~simplify_function_body dacc switch
       ~free_names_of_body:Unknown
   in
   let dacc =
-    DA.map_data_flow dacc
+    DA.map_flow_acc dacc
       ~f:
-        (Data_flow.add_used_in_current_handler
+        (Flow.Acc.add_used_in_current_handler
            (NO.singleton_variable tagged_scrutinee NM.normal))
   in
   simplify_let

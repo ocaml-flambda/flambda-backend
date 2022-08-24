@@ -148,12 +148,17 @@ let add_apply_cont_rewrite t cont rewrite =
   in
   { t with apply_cont_rewrites }
 
+let replace_apply_cont_rewrite t cont rewrite =
+  if not (Continuation.Map.mem cont t.apply_cont_rewrites)
+  then
+    Misc.fatal_errorf "Must redefine [Apply_cont_rewrite] for %a"
+      Continuation.print cont;
+  let apply_cont_rewrites =
+    Continuation.Map.add cont rewrite t.apply_cont_rewrites
+  in
+  { t with apply_cont_rewrites }
+
 let find_apply_cont_rewrite t cont =
   match Continuation.Map.find cont t.apply_cont_rewrites with
   | exception Not_found -> None
   | rewrite -> Some rewrite
-
-let delete_apply_cont_rewrite t cont =
-  { t with
-    apply_cont_rewrites = Continuation.Map.remove cont t.apply_cont_rewrites
-  }

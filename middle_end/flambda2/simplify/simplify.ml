@@ -45,7 +45,8 @@ let run ~cmx_loader ~round unit =
      remark for the cmx contents) *)
   let dacc = DA.create denv Continuation_uses_env.empty in
   let body, uacc =
-    Simplify_expr.simplify_toplevel dacc (FU.body unit) ~return_continuation
+    Simplify_expr.simplify_toplevel dacc (FU.body unit)
+      ~return_continuation
       ~return_arity:
         (Flambda_arity.With_subkinds.create [K.With_subkind.any_value])
       ~exn_continuation ~return_cont_scope ~exn_cont_scope

@@ -249,6 +249,12 @@ module Continuation_handler : sig
       information about such handler. *)
   type t
 
+  val print :
+    cont:Continuation.t ->
+    recursive:Recursive.t ->
+    Format.formatter ->
+    t -> unit
+
   val apply_renaming : t -> Renaming.t -> t
 
   (** Create the representation of a single continuation handler. *)

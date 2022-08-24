@@ -35,7 +35,7 @@ let keep_lifted_constant_only_if_used uacc acc lifted_constant =
   in
   if symbols_live || code_ids_live then LCS.add acc lifted_constant else acc
 
-let rebuild_let simplify_named_result removed_operations
+let rebuild_let simplify_named_result removed_operations ~rewrite_id
     ~lifted_constants_from_defining_expr ~at_unit_toplevel
     ~(closure_info : Closure_info.t) ~body uacc ~after_rebuild =
   let lifted_constants_from_defining_expr =
@@ -74,6 +74,32 @@ let rebuild_let simplify_named_result removed_operations
   let bindings =
     Simplify_named_result.bindings_to_place_in_any_order simplify_named_result
   in
+  let bindings =
+    let Flow_types.Mutable_unboxing_result.{ let_rewrites; _ } = UA.mutable_unboxing_result uacc in
+    match Named_rewrite_id.Map.find rewrite_id let_rewrites with
+    | exception Not_found -> bindings
+    | rewrite -> (
+      (* Format.printf "Rewrite %a@." Data_flow.print_rewrite rewrite; *)
+      match bindings with
+      | [] -> []
+      | _ :: _ :: _ -> assert false
+      | [binding] -> (
+        match rewrite with
+        | Prim_rewrite Remove_prim ->
+          (* TODO differently: doesnt account for benefit *)
+          []
+        | Prim_rewrite (Replace_by_binding { var; bound_to }) ->
+          let bv = Bound_pattern.must_be_singleton binding.let_bound in
+          let var' = Bound_var.var bv in
+          assert (Variable.equal var var');
+          let binding =
+            { binding with
+              simplified_defining_expr =
+                Simplified_named.create (Named.create_simple bound_to)
+            }
+          in
+          [binding]))
+  in
   (* Return as quickly as possible if there is nothing to do. In this case, all
      constants get floated up to an outer binding. *)
   if no_constants_to_place || not at_unit_toplevel
@@ -105,12 +131,12 @@ let rebuild_let simplify_named_result removed_operations
     after_rebuild body uacc
 
 let record_one_value_slot_for_data_flow symbol value_slot simple data_flow =
-  DF.record_value_slot (Name.symbol symbol) value_slot
+  Flow.Acc.record_value_slot (Name.symbol symbol) value_slot
     (Simple.free_names simple) data_flow
 
 let record_one_function_slot_for_data_flow ~free_names ~value_slots _
     (symbol, _) data_flow =
-  let data_flow = DF.record_symbol_binding symbol free_names data_flow in
+  let data_flow = Flow.Acc.record_symbol_binding symbol free_names data_flow in
   Value_slot.Map.fold
     (record_one_value_slot_for_data_flow symbol)
     value_slots data_flow
@@ -120,12 +146,12 @@ let record_lifted_constant_definition_for_data_flow ~being_defined data_flow
   let module D = LC.Definition in
   match D.descr definition with
   | Code code_id ->
-    DF.record_code_id_binding code_id
+    Flow.Acc.record_code_id_binding code_id
       (NO.union being_defined (D.free_names definition))
       data_flow
   | Block_like { symbol; _ } ->
     let free_names = NO.union being_defined (D.free_names definition) in
-    DF.record_symbol_binding symbol free_names data_flow
+    Flow.Acc.record_symbol_binding symbol free_names data_flow
   | Set_of_closures { closure_symbols_with_types; _ } -> (
     let expr = D.defining_expr definition in
     match Rebuilt_static_const.to_const expr with
@@ -144,7 +170,7 @@ let record_lifted_constant_definition_for_data_flow ~being_defined data_flow
       let free_names = NO.union being_defined (D.free_names definition) in
       Function_slot.Lmap.fold
         (fun _ (symbol, _) data_flow ->
-          DF.record_symbol_binding symbol free_names data_flow)
+          Flow.Acc.record_symbol_binding symbol free_names data_flow)
         closure_symbols_with_types data_flow)
 
 let record_lifted_constant_for_data_flow data_flow lifted_constant =
@@ -152,7 +178,7 @@ let record_lifted_constant_for_data_flow data_flow lifted_constant =
     (* Record all projections as potential dependencies. *)
     Variable.Map.fold
       (fun var proj data_flow ->
-        DF.record_symbol_projection var
+        Flow.Acc.record_symbol_projection var
           (Symbol_projection.free_names proj)
           data_flow)
       (LC.symbol_projections lifted_constant)
@@ -175,10 +201,25 @@ let record_lifted_constant_for_data_flow data_flow lifted_constant =
     ~init:data_flow
     ~f:(record_lifted_constant_definition_for_data_flow ~being_defined)
 
-let record_new_defining_expression_binding_for_data_flow dacc data_flow
-    (binding : Simplify_named_result.binding_to_place) =
+let record_new_defining_expression_binding_for_data_flow dacc ~rewrite_id
+    data_flow (binding : Simplify_named_result.binding_to_place) : Flow.Acc.t =
   match binding.simplified_defining_expr with
-  | { free_names; named; cost_metrics = _ } ->
+  | { free_names; named; cost_metrics = _ } -> (
+    let match_block_and_field ~block ~field ~free_names ~data_flow f =
+      Simple.pattern_match field
+        ~name:(fun _ ~coercion:_ -> data_flow, free_names)
+        ~const:(fun const ->
+          Simple.pattern_match' block
+            ~const:(fun _ -> data_flow, free_names)
+            ~symbol:(fun _ ~coercion:_ -> data_flow, free_names)
+            ~var:(fun var ~coercion:_ ->
+              let field =
+                match[@ocaml.warning "-4"] Const.descr const with
+                | Tagged_immediate i -> Targetint_31_63.to_int i
+                | _ -> assert false
+              in
+              f var field))
+    in
     let can_be_removed =
       match named with
       | Simple _ | Set_of_closures _ | Rec_info _ -> true
@@ -187,7 +228,33 @@ let record_new_defining_expression_binding_for_data_flow dacc data_flow
         || Option.is_some (P.is_end_region prim)
     in
     if not can_be_removed
-    then DF.add_used_in_current_handler free_names data_flow
+    then
+      let data_flow =
+        Bound_pattern.fold_all_bound_vars binding.let_bound ~init:data_flow
+          ~f:(fun data_flow v -> Flow.Acc.record_defined_var (VB.var v) data_flow)
+      in
+      let data_flow, free_names =
+        (* TODO cleaner version of that, should this pattern match be part of
+           data flow to produce a data_flow ref_prim ? *)
+        match[@ocaml.warning "-4"] named with
+        | Simple _ | Set_of_closures _ | Rec_info _ -> data_flow, free_names
+        | Prim (prim, _) -> (
+          match prim with
+          | Ternary (Block_set (access_kind, init_or_assign), block, field, c)
+            ->
+            match_block_and_field ~block ~field ~free_names ~data_flow
+              (fun block field ->
+                let bound_var =
+                  Bound_pattern.must_be_singleton binding.let_bound
+                in
+                let var = VB.var bound_var in
+                ( Flow.Acc.record_ref_named rewrite_id ~bound_to:var
+                    (Block_set (access_kind, init_or_assign, block, field, c))
+                    data_flow,
+                  Name_occurrences.empty ))
+          | _ -> data_flow, free_names)
+      in
+      Flow.Acc.add_used_in_current_handler free_names data_flow
     else
       let generate_phantom_lets = DE.generate_phantom_lets (DA.denv dacc) in
       let free_names =
@@ -201,13 +268,52 @@ let record_new_defining_expression_binding_for_data_flow dacc data_flow
             NO.empty
           else free_names
       in
-      Bound_pattern.fold_all_bound_vars binding.let_bound ~init:data_flow
-        ~f:(fun data_flow v ->
-          DF.record_var_binding (VB.var v) free_names ~generate_phantom_lets
-            data_flow)
+      let record_var_binding data_flow free_names =
+        Bound_pattern.fold_all_bound_vars binding.let_bound ~init:data_flow
+          ~f:(fun data_flow v ->
+            Flow.Acc.record_var_binding (VB.var v) free_names ~generate_phantom_lets
+              data_flow)
+      in
+      match named with
+      | Simple simple ->
+        let bound_var = Bound_pattern.must_be_singleton binding.let_bound in
+        let var = VB.var bound_var in
+        Flow.Acc.record_var_alias var simple data_flow
+      | Set_of_closures _ | Rec_info _ ->
+        record_var_binding data_flow free_names
+      | Prim (prim, _) ->
+        let data_flow, free_names =
+          match[@ocaml.warning "-4"] prim with
+          | Binary (Block_load (bak, mut), block, field) ->
+            match_block_and_field ~block ~field ~free_names ~data_flow
+              (fun block field ->
+                let bound_var =
+                  Bound_pattern.must_be_singleton binding.let_bound
+                in
+                let var = VB.var bound_var in
+                ( Flow.Acc.record_ref_named rewrite_id ~bound_to:var
+                    (Block_load { bak; mut; block; field})
+                    data_flow,
+                  Name_occurrences.empty ))
+          | Variadic (Make_block (kind, mutability, alloc_mode), args) ->
+            let bound_var = Bound_pattern.must_be_singleton binding.let_bound in
+            let var = VB.var bound_var in
+            ( Flow.Acc.record_ref_named rewrite_id ~bound_to:var
+                (Make_block (kind, mutability, alloc_mode, args))
+                data_flow,
+              Name_occurrences.empty )
+          | _ ->
+            (* Uses of region variables in [End_region] don't count as uses. *)
+            if Option.is_some (P.is_end_region prim)
+            then
+              (* Format.eprintf "ignoring free names for %a\n%!" P.print prim;*)
+              data_flow, Name_occurrences.empty
+            else data_flow, free_names
+        in
+        record_var_binding data_flow free_names)
 
 let update_data_flow dacc closure_info ~lifted_constants_from_defining_expr
-    simplify_named_result data_flow =
+    simplify_named_result ~rewrite_id data_flow =
   let data_flow =
     match Closure_info.in_or_out_of_closure closure_info with
     | In_a_closure ->
@@ -223,7 +329,7 @@ let update_data_flow dacc closure_info ~lifted_constants_from_defining_expr
   ListLabels.fold_left
     (Simplify_named_result.bindings_to_place_in_any_order simplify_named_result)
     ~init:data_flow
-    ~f:(record_new_defining_expression_binding_for_data_flow dacc)
+    ~f:(record_new_defining_expression_binding_for_data_flow dacc ~rewrite_id)
 
 let simplify_let0 ~simplify_expr ~simplify_function_body dacc let_expr
     ~down_to_up bound_pattern ~body =
@@ -279,10 +385,11 @@ let simplify_let0 ~simplify_expr ~simplify_function_body dacc let_expr
     let dacc =
       DA.add_to_lifted_constant_accumulator dacc prior_lifted_constants
     in
+    let rewrite_id = Named_rewrite_id.create () in
     let dacc =
-      DA.map_data_flow dacc
+      DA.map_flow_acc dacc
         ~f:
-          (update_data_flow dacc closure_info
+          (update_data_flow dacc closure_info ~rewrite_id
              ~lifted_constants_from_defining_expr simplify_named_result)
     in
     let at_unit_toplevel = DE.at_unit_toplevel (DA.denv dacc) in
@@ -294,7 +401,7 @@ let simplify_let0 ~simplify_expr ~simplify_function_body dacc let_expr
         let after_rebuild body uacc =
           rebuild_let simplify_named_result removed_operations
             ~lifted_constants_from_defining_expr ~at_unit_toplevel ~closure_info
-            ~body uacc ~after_rebuild
+            ~body uacc ~after_rebuild ~rewrite_id
         in
         rebuild_body uacc ~after_rebuild
       in

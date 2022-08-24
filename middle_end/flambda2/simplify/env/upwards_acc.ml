@@ -33,10 +33,14 @@ type t =
     cost_metrics : Cost_metrics.t;
     are_rebuilding_terms : ART.t;
     generate_phantom_lets : bool;
+    (* CR gbury: required_names and reachable_code_ids should be exposed in the
+       same field, as a Data_flow.dead_variable_result field. *)
     required_names : Name.Set.t;
-    reachable_code_ids : Data_flow.Reachable_code_ids.t Or_unknown.t;
+    reachable_code_ids : Flow_types.Reachable_code_ids.t Or_unknown.t;
+    mutable_unboxing_result : Flow_types.Mutable_unboxing_result.t;
     demoted_exn_handlers : Continuation.Set.t;
-    slot_offsets : Slot_offsets.t Or_unknown.t
+    slot_offsets : Slot_offsets.t Or_unknown.t;
+    continuation_param_aliases : Flow_types.Alias_result.t;
   }
 
 let [@ocamlformat "disable"] print ppf
@@ -44,7 +48,9 @@ let [@ocamlformat "disable"] print ppf
         name_occurrences; used_value_slots; all_code = _;
         shareable_constants; cost_metrics; are_rebuilding_terms;
         generate_phantom_lets; required_names; reachable_code_ids;
-        demoted_exn_handlers; slot_offsets; } =
+        demoted_exn_handlers; slot_offsets; continuation_param_aliases;
+        mutable_unboxing_result;
+      } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(uenv@ %a)@]@ \
       @[<hov 1>(code_age_relation@ %a)@]@ \
@@ -58,7 +64,9 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>(required_name@ %a)@]@ \
       @[<hov 1>(reachable_code_ids@ %a)@]@ \
       @[<hov 1>(demoted_exn_handlers@ %a)@]@ \
-      @[<hov 1>(slot_offsets@ %a@)@]\
+      @[<hov 1>(slot_offsets@ %a@)@]@ \
+      @[<hov 1>(continuation_param_aliases@ %a@)@]@ \
+      @[<hov 1>(mutable_unboxing_result@ %a@)@]\
       )@]"
     UE.print uenv
     Code_age_relation.print code_age_relation
@@ -70,11 +78,14 @@ let [@ocamlformat "disable"] print ppf
     ART.print are_rebuilding_terms
     generate_phantom_lets
     Name.Set.print required_names
-    (Or_unknown.print Data_flow.Reachable_code_ids.print) reachable_code_ids
+    (Or_unknown.print Flow_types.Reachable_code_ids.print) reachable_code_ids
     Continuation.Set.print demoted_exn_handlers
     (Or_unknown.print Slot_offsets.print) slot_offsets
+    Flow_types.Alias_result.print continuation_param_aliases
+    Flow_types.Mutable_unboxing_result.print mutable_unboxing_result
 
-let create ~required_names ~reachable_code_ids ~compute_slot_offsets uenv dacc =
+let create ~required_names ~reachable_code_ids ~compute_slot_offsets
+    ~continuation_param_aliases ~mutable_unboxing_result uenv dacc =
   let are_rebuilding_terms = DE.are_rebuilding_terms (DA.denv dacc) in
   let generate_phantom_lets = DE.generate_phantom_lets (DA.denv dacc) in
   let slot_offsets : _ Or_unknown.t =
@@ -103,7 +114,9 @@ let create ~required_names ~reachable_code_ids ~compute_slot_offsets uenv dacc =
     required_names;
     reachable_code_ids;
     demoted_exn_handlers = DA.demoted_exn_handlers dacc;
-    slot_offsets
+    slot_offsets;
+    continuation_param_aliases;
+    mutable_unboxing_result
   }
 
 let creation_dacc t = t.creation_dacc
@@ -198,3 +211,7 @@ let is_demoted_exn_handler t cont =
 let slot_offsets t = t.slot_offsets
 
 let with_slot_offsets t slot_offsets = { t with slot_offsets }
+
+let continuation_param_aliases t = t.continuation_param_aliases
+
+let mutable_unboxing_result t = t.mutable_unboxing_result
