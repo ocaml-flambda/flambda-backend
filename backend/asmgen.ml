@@ -376,8 +376,8 @@ let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
         let cfg =
           fd
           ++ Profile.record ~accumulate:true "cfgize" cfgize
+          ++ Cfg_with_liveness.make
           ++ Profile.record ~accumulate:true "cfg_deadcode" Cfg_deadcode.run
-          ++ Profile.record ~accumulate:true "cfg_irc" Cfg_irc.run
         in
         let cfg_description = Profile.record ~accumulate:true "cfg_create_description" Cfg_regalloc_validate.Description.create cfg in
         cfg

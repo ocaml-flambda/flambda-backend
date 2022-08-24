@@ -121,16 +121,13 @@ let rec naive_split_body :
         split_points new_regs
 
 let naive_split_cfg :
-    State.t ->
-    Cfg_with_layout.t ->
-    Instruction.id list ->
-    liveness ->
-    Reg.t list =
- fun state cfg_with_layout split_points liveness ->
+    State.t -> Cfg_with_liveness.t -> Instruction.id list -> Reg.t list =
+ fun state cfg_with_liveness split_points ->
   if irc_debug then log ~indent:1 "naive_split";
   let subst = Reg.Tbl.create 32 in
+  let liveness = Cfg_with_liveness.liveness cfg_with_liveness in
   let split_points, new_regs =
-    Cfg.fold_blocks (Cfg_with_layout.cfg cfg_with_layout)
+    Cfg.fold_blocks (Cfg_with_liveness.cfg cfg_with_liveness)
       ~init:(split_points, [])
       ~f:(fun label block ((split_points, new_regs) as acc) ->
         match split_points with
@@ -148,4 +145,5 @@ let naive_split_cfg :
           else acc)
   in
   assert (split_points = []);
+  Cfg_with_liveness.invalidate_liveness cfg_with_liveness;
   new_regs
