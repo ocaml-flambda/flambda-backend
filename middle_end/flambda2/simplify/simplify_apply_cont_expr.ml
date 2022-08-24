@@ -135,10 +135,7 @@ let simplify_apply_cont dacc apply_cont ~down_to_up =
   in
   let dacc =
     let record_args_for_data_flow data_flow =
-      Data_flow.add_apply_cont_args
-        (AC.continuation apply_cont)
-        (List.map Simple.free_names args)
-        data_flow
+      Data_flow.add_apply_cont_args (AC.continuation apply_cont) args data_flow
     in
     DA.map_data_flow dacc ~f:record_args_for_data_flow
   in

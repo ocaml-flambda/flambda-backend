@@ -330,10 +330,7 @@ let simplify_arm ~typing_env_at_use ~scrutinee_ty arm action (arms, dacc) =
     let action = Apply_cont.update_args action ~args in
     let dacc =
       DA.map_data_flow dacc
-        ~f:
-          (Data_flow.add_apply_cont_args
-             (Apply_cont.continuation action)
-             (List.map Simple.free_names args))
+        ~f:(Data_flow.add_apply_cont_args (Apply_cont.continuation action) args)
     in
     let arms =
       Targetint_31_63.Map.add arm (action, rewrite_id, arity, env_at_use) arms

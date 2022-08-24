@@ -76,7 +76,7 @@ val add_apply_result_cont : Continuation.t -> t -> t
 
 (** Add, for the current continuation handler, uses for an apply cont of the
     given continuation with given arguments occurrences. *)
-val add_apply_cont_args : Continuation.t -> Name_occurrences.t list -> t -> t
+val add_apply_cont_args : Continuation.t -> Simple.t list -> t -> t
 
 (** Add extra params and args to a continuation. *)
 val add_extra_params_and_args :

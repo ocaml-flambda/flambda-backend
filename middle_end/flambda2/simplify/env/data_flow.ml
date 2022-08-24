@@ -50,8 +50,7 @@ type elt =
     bindings : Name_occurrences.t Name.Map.t;
     code_ids : Name_occurrences.t Code_id.Map.t;
     value_slots : Name_occurrences.t Name.Map.t Value_slot.Map.t;
-    apply_cont_args :
-      Name_occurrences.t Numeric_types.Int.Map.t Continuation.Map.t
+    apply_cont_args : Simple.Set.t Numeric_types.Int.Map.t Continuation.Map.t
   }
 
 type t =
@@ -93,8 +92,7 @@ let print_elt ppf
     code_ids
     (Value_slot.Map.print (Name.Map.print Name_occurrences.print))
     value_slots
-    (Continuation.Map.print
-       (Numeric_types.Int.Map.print Name_occurrences.print))
+    (Continuation.Map.print (Numeric_types.Int.Map.print Simple.Set.print))
     apply_cont_args
 
 let print_stack ppf stack =
@@ -268,7 +266,7 @@ let add_apply_result_cont k t =
       let apply_result_conts = Continuation.Set.add k elt.apply_result_conts in
       { elt with apply_result_conts })
 
-let add_apply_cont_args cont arg_name_occurrences t =
+let add_apply_cont_args cont arg_name_simples t =
   update_top_of_stack ~t ~f:(fun elt ->
       let apply_cont_args =
         Continuation.Map.update cont
@@ -278,18 +276,16 @@ let add_apply_cont_args cont arg_name_occurrences t =
             in
             let map, _ =
               List.fold_left
-                (fun (map, i) name_occurrences ->
+                (fun (map, i) arg_simple ->
                   let map =
                     Numeric_types.Int.Map.update i
-                      (fun old_opt ->
-                        let old =
-                          Option.value ~default:Name_occurrences.empty old_opt
-                        in
-                        Some (Name_occurrences.union old name_occurrences))
+                      (function
+                        | None -> Some (Simple.Set.singleton arg_simple)
+                        | Some set -> Some (Simple.Set.add arg_simple set))
                       map
                   in
                   map, i + 1)
-                (map, 0) arg_name_occurrences
+                (map, 0) arg_name_simples
             in
             Some map)
           elt.apply_cont_args
@@ -516,6 +512,12 @@ module Dependency_graph = struct
 
   let add_var_used t v = add_name_used t (Name.var v)
 
+  let free_names_of_simple_set s =
+    Simple.Set.fold
+      (fun simple name_occurrences ->
+        Name_occurrences.union name_occurrences (Simple.free_names simple))
+      s Name_occurrences.empty
+
   let add_name_occurrences name_occurrences
       ({ unconditionally_used; code_id_unconditionally_used; _ } as t) =
     let unconditionally_used =
@@ -605,7 +607,8 @@ module Dependency_graph = struct
            || Continuation.equal exn_continuation k
         then
           Numeric_types.Int.Map.fold
-            (fun _ name_occurrences t ->
+            (fun _ simple_set t ->
+              let name_occurrences = free_names_of_simple_set simple_set in
               add_name_occurrences name_occurrences t)
             args t
         else
@@ -617,7 +620,7 @@ module Dependency_graph = struct
                 Continuation.print k
           in
           Numeric_types.Int.Map.fold
-            (fun i name_occurrence t ->
+            (fun i simple_set t ->
               (* Note on the direction of the edge:
 
                  We later do a reachability analysis to compute the transitive
@@ -630,7 +633,8 @@ module Dependency_graph = struct
                  used, then any argument provided for that param is also used.
                  The other way wouldn't make much sense. *)
               let src = Name.var params.(i) in
-              Name_occurrences.fold_names name_occurrence ~init:t
+              let name_occurrences = free_names_of_simple_set simple_set in
+              Name_occurrences.fold_names name_occurrences ~init:t
                 ~f:(fun t dst -> add_dependency ~src ~dst t))
             args t)
       apply_cont_args t
