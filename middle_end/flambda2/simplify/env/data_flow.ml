@@ -715,13 +715,143 @@ module Dependency_graph = struct
       Code_id.Set.empty name_queue unconditionally_used
 end
 
+(* Dominator graph *)
+(* *************** *)
+
+module Dominator_graph = struct
+  type t = { edges : Simple.Set.t Variable.Map.t }
+
+  let empty =
+    let edges = Variable.Map.empty in
+    { edges }
+
+  let add_edge ~src ~dst t =
+    let edges =
+      Variable.Map.update src
+        (function
+          | None -> Some (Simple.Set.singleton dst)
+          | Some s -> Some (Simple.Set.add dst s))
+        t.edges
+    in
+    { (* t with *) edges }
+
+  let add_continuation_info map _k elt t ~return_continuation ~exn_continuation
+      =
+    Continuation.Map.fold
+      (fun k args t ->
+        if Continuation.equal return_continuation k
+           || Continuation.equal exn_continuation k
+        then t
+        else
+          let params =
+            match Continuation.Map.find k map with
+            | elt -> Array.of_list elt.params
+            | exception Not_found ->
+              Misc.fatal_errorf "Continuation not found during Data_flow: %a@."
+                Continuation.print k
+          in
+          Numeric_types.Int.Map.fold
+            (fun i simple_set t ->
+              (* Note on the direction of the edge:
+
+                 We later do a dominator analysis on this graph. To do so, we
+                 consider that an edge from ~src to ~dst means: ~dst is used as
+                 argument (of an apply_cont), that maps to ~src (as param of a
+                 continuation). *)
+              let src = params.(i) in
+              Simple.Set.fold (fun dst t -> add_edge ~src ~dst t) simple_set t)
+            args t)
+      elt.apply_cont_args t
+
+  let create ~return_continuation ~exn_continuation map extra =
+    let t =
+      Continuation.Map.fold
+        (add_continuation_info ~return_continuation ~exn_continuation map)
+        map empty
+    in
+    let t =
+      Continuation.Map.fold
+        (fun _ (extra_params_and_args : Continuation_extra_params_and_args.t) t ->
+          Apply_cont_rewrite_id.Map.fold
+            (fun _ extra_args t ->
+              List.fold_left2
+                (fun t extra_param extra_arg ->
+                  let src = Bound_parameter.var extra_param in
+                  match
+                    (extra_arg : Continuation_extra_params_and_args.Extra_arg.t)
+                  with
+                  | Already_in_scope simple -> add_edge ~src ~dst:simple t
+                  | New_let_binding (tmp_var, _)
+                  | New_let_binding_with_named_args (tmp_var, _) ->
+                    (* In these cases, we mainly want to record that the
+                       `tmp_var` is a root value / self-dominator, i.e. ~src
+                       will not be dominated by another variable (and in
+                       particular it will not be dominated by a continaution
+                       parameter). *)
+                    add_edge ~src ~dst:(Simple.var tmp_var) t)
+                t
+                (Bound_parameters.to_list
+                   (EPA.extra_params extra_params_and_args))
+                extra_args)
+            (EPA.extra_args extra_params_and_args)
+            t)
+        extra t
+    in
+    t
+
+  module Dot = struct
+    let node_id ppf (simple : Simple.t) =
+      (* note: this is ... somewhat safe *)
+      Format.fprintf ppf "node_%d" (Obj.magic simple : int)
+
+    let node ppf simple =
+      Format.fprintf ppf "%a [label=\"%a\"];@\n" node_id simple Simple.print
+        simple
+
+    let nodes ppf simple_set = Simple.Set.iter (node ppf) simple_set
+
+    let edge ppf var simple =
+      Format.fprintf ppf "%a -> %a;@\n" node_id (Simple.var var) node_id simple
+
+    let edges ppf edge_map =
+      Variable.Map.iter
+        (fun var simple_set ->
+          Simple.Set.iter (fun simple -> edge ppf var simple) simple_set)
+        edge_map
+
+    let print ppf t =
+      let all_simples =
+        Variable.Map.fold
+          (fun v dsts acc ->
+            Simple.Set.add (Simple.var v) (Simple.Set.union dsts acc))
+          t.edges Simple.Set.empty
+      in
+      Format.fprintf ppf "digraph g {@\n%a@\n%a@\n}@." nodes all_simples edges
+        t.edges
+  end
+end
+
 (* Analysis *)
 (* ******** *)
+
+let r = ref ~-1
 
 let analyze ~return_continuation ~exn_continuation ~code_age_relation
     ~used_value_slots { stack; map; extra } =
   Profile.record_call ~accumulate:true "data_flow" (fun () ->
       assert (stack = []);
+      let dom_graph =
+        Dominator_graph.create map extra ~return_continuation ~exn_continuation
+      in
+      (match Sys.getenv_opt "DOM_GRAPH" with
+      | None -> ()
+      | Some filename ->
+        incr r;
+        let filename = Format.asprintf "%s_%i.dot" filename !r in
+        let ch = open_out filename in
+        let ppf = Format.formatter_of_out_channel ch in
+        Dominator_graph.Dot.print ppf dom_graph;
+        close_out ch);
       let deps =
         Dependency_graph.create map extra ~return_continuation ~exn_continuation
           ~code_age_relation ~used_value_slots
