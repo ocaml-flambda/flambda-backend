@@ -321,10 +321,12 @@ module Backward
                 := WorkSet.filter
                      (fun { WorkSetElement.label; value } ->
                        if Label.equal label predecessor_label
-                       then (
+                       then
                          if D.less_equal new_value value
-                         then already_in_workset := true;
-                         not (D.less_equal value new_value))
+                         then (
+                           already_in_workset := true;
+                           true)
+                         else false
                        else true)
                      !work_set;
               if not !already_in_workset
