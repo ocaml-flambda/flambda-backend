@@ -74,6 +74,8 @@ compiler: runtime-stdlib
 runtest: compiler
 	$(dune) runtest $(ws_main)
 
+runtest-backend: compiler
+	$(dune) runtest $(ws_main) tests/backend
 
 # This Makefile supports old versions that don't have $(file), so we're using
 # environment var trickery to get a multiline string into a file

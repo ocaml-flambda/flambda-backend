@@ -1,0 +1,19 @@
+(rule
+ (targets t.o t.cmx s.o s.cmx output.corrected t.cmx.output)
+ (deps s.ml t.ml)
+ (action
+  (with-stdout-to output.corrected
+    (progn
+     (run %{bin:ocamlopt.opt} %{deps} -c -alloc-check -O3)
+     (with-stdout-to t.cmx.output (run %{bin:ocamlobjinfo} t.cmx))
+
+     ; CR gyorsh: count the lines in the relevant section of the output of ocamlobjinfo,
+     ; instead of printing the function symbols whose names may differ
+     ; depending on configuration.
+     ; This is still flaky and temporary, until @assert annotations can be checked.
+     (with-stdin-from t.cmx.output
+      (bash "sed -n '/Functions with neither allocations nor indirect calls:/,$p' | grep -v camlT__entry | wc -l "))))))
+
+(rule
+ (alias   runtest)
+ (action (diff output output.corrected)))
