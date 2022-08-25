@@ -719,21 +719,37 @@ end
 (* *************** *)
 
 module Dominator_graph = struct
-  type t = { edges : Simple.Set.t Variable.Map.t }
+  module G = Strongly_connected_components.Make (Variable)
+
+  type t =
+    { graph : G.directed_graph;
+      dominator_roots : Variable.Set.t
+          (* variables that are dominated only by themselves, usually because a
+             constant or a symbol can flow to that variable, and thus that
+             variable cannot be dominated by another variable. *)
+    }
 
   let empty =
-    let edges = Variable.Map.empty in
-    { edges }
+    let graph = Variable.Map.empty in
+    let dominator_roots = Variable.Set.empty in
+    { graph; dominator_roots }
+
+  let add_root var t =
+    { t with dominator_roots = Variable.Set.add var t.dominator_roots }
 
   let add_edge ~src ~dst t =
-    let edges =
-      Variable.Map.update src
-        (function
-          | None -> Some (Simple.Set.singleton dst)
-          | Some s -> Some (Simple.Set.add dst s))
-        t.edges
-    in
-    { (* t with *) edges }
+    Simple.pattern_match' dst
+      ~const:(fun _ -> add_root src t)
+      ~symbol:(fun _ ~coercion:_ -> add_root src t)
+      ~var:(fun dst ~coercion:_ ->
+        let graph =
+          Variable.Map.update src
+            (function
+              | None -> Some (Variable.Set.singleton dst)
+              | Some s -> Some (Variable.Set.add dst s))
+            t.graph
+        in
+        { t with graph })
 
   let add_continuation_info map _k elt t ~return_continuation ~exn_continuation
       =
@@ -797,39 +813,169 @@ module Dominator_graph = struct
             t)
         extra t
     in
+    let all_variables =
+      Variable.Map.fold
+        (fun v dsts acc -> Variable.Set.add v (Variable.Set.union dsts acc))
+        t.graph t.dominator_roots
+    in
+    (* ensure that all variable are mapped: this is a requirement for the SCC
+       computation *)
+    let t =
+      Variable.Set.fold
+        (fun var t ->
+          let graph =
+            Variable.Map.update var
+              (function
+                | Some _ as res -> res | None -> Some Variable.Set.empty)
+              t.graph
+          in
+          { t with graph })
+        all_variables t
+    in
     t
 
+  let find_dom var doms =
+    (* there are tow cases where the variable is not in the "doms" maps:
+
+       - is not mapped in the graph, which means that it is a let-bound
+       variable, in which case it can only be dominated by itself.
+
+       - we are in th efirst iteration of a loop fixpoint, in which case we also
+       want to initialize the dominator to the variable itself. *)
+    try Variable.Map.find var doms with Not_found -> var
+
+  let update_doms_for_one_var { dominator_roots; graph } doms var =
+    let dom =
+      if Variable.Set.mem var dominator_roots
+      then var
+      else
+        match Variable.Map.find var graph with
+        | exception Not_found -> var
+        | predecessors ->
+          let s =
+            Variable.Set.map
+              (fun predecessor -> find_dom predecessor doms)
+              predecessors
+          in
+          if Variable.Set.cardinal s = 1 then Variable.Set.choose s else var
+    in
+    Variable.Map.add var dom doms
+
+  let initialize_doms_for_fixpoint { dominator_roots = _; graph } doms vars =
+    (* Note: since all vars are in a cycle, all_predecessors will include all
+       vars *)
+    let all_predecessors =
+      List.fold_left
+        (fun acc var ->
+          let predecessors =
+            try Variable.Map.find var graph with Not_found -> assert false
+          in
+          Variable.Set.union predecessors acc)
+        Variable.Set.empty vars
+    in
+    let init_doms =
+      Variable.Set.map (fun var -> find_dom var doms) all_predecessors
+    in
+    let outside_cycle =
+      Variable.Map.of_set
+        (fun var -> Variable.Set.singleton (find_dom var doms))
+        (Variable.Set.diff all_predecessors (Variable.Set.of_list vars))
+    in
+    List.fold_left
+      (fun doms var -> Variable.Map.add var init_doms doms)
+      outside_cycle vars
+
+  let rec dom_fixpoint ({ dominator_roots = _; graph } as t) acc vars =
+    let acc' =
+      List.fold_left
+        (fun acc var ->
+          let init_doms = Variable.Map.find var acc in
+          let predecessors =
+            try Variable.Map.find var graph with Not_found -> assert false
+          in
+          let new_doms =
+            Variable.Set.fold
+              (fun predecessor new_doms ->
+                Variable.Set.inter new_doms (Variable.Map.find predecessor acc))
+              predecessors init_doms
+          in
+          let new_doms = Variable.Set.add var new_doms in
+          Variable.Map.add var new_doms acc)
+        acc vars
+    in
+    if Variable.Map.equal Variable.Set.equal acc acc'
+    then acc
+    else dom_fixpoint t acc' vars
+
+  let extract_doms doms fixpoint_result vars =
+    let var_set = Variable.Set.of_list vars in
+    List.fold_left
+      (fun doms var ->
+        let fixpoint_doms = Variable.Map.find var fixpoint_result in
+        let var_doms = Variable.Set.diff fixpoint_doms var_set in
+        let cardinal = Variable.Set.cardinal var_doms in
+        assert (cardinal <= 1);
+        let dom = if cardinal = 1 then Variable.Set.choose var_doms else var in
+        Variable.Map.add var dom doms)
+      doms vars
+
+  let dominator_analysis ({ graph; dominator_roots = _ } as t) =
+    let components = G.connected_components_sorted_from_roots_to_leaf graph in
+    let dominators =
+      Array.fold_right
+        (fun component doms ->
+          match component with
+          | G.No_loop var -> update_doms_for_one_var t doms var
+          | G.Has_loop vars ->
+            let loop_doms = initialize_doms_for_fixpoint t doms vars in
+            let loop_result = dom_fixpoint t loop_doms vars in
+            let doms = extract_doms doms loop_result vars in
+            doms)
+        components Variable.Map.empty
+    in
+    dominators
+
   module Dot = struct
-    let node_id ~ctx ppf (simple : Simple.t) =
+    let node_id ~ctx ppf (variable : Variable.t) =
       (* note: this is ... somewhat safe *)
-      Format.fprintf ppf "node_%d_%d" ctx (Obj.magic simple : int)
+      Format.fprintf ppf "node_%d_%d" ctx (Obj.magic variable : int)
 
-    let node ~ctx ppf simple =
-      Format.fprintf ppf "%a [label=\"%a\"];@\n" (node_id ~ctx) simple
-        Simple.print simple
+    let node ~ctx ~root ppf var =
+      if root
+      then
+        Format.fprintf ppf "%a [shape=record label=\"%a\"];@\n" (node_id ~ctx)
+          var Variable.print var
+      else
+        Format.fprintf ppf "%a [label=\"%a\"];@\n" (node_id ~ctx) var
+          Variable.print var
 
-    let nodes ~ctx ppf simple_set = Simple.Set.iter (node ~ctx ppf) simple_set
-
-    let edge ~ctx ppf var simple =
-      Format.fprintf ppf "%a -> %a;@\n" (node_id ~ctx) (Simple.var var)
-        (node_id ~ctx) simple
-
-    let edges ~ctx ppf edge_map =
+    let nodes ~ctx ~roots ppf var_map =
       Variable.Map.iter
-        (fun var simple_set ->
-          Simple.Set.iter (fun simple -> edge ~ctx ppf var simple) simple_set)
+        (fun var _ ->
+          let root = Variable.Set.mem var roots in
+          node ~ctx ~root ppf var)
+        var_map
+
+    let edge ~ctx ~color ppf src dst =
+      Format.fprintf ppf "%a -> %a [color=\"%s\"];@\n" (node_id ~ctx) src
+        (node_id ~ctx) dst color
+
+    let edges ~ctx ~color ppf edge_map =
+      Variable.Map.iter
+        (fun src dst_set ->
+          Variable.Set.iter (fun dst -> edge ~ctx ~color ppf src dst) dst_set)
         edge_map
 
-    let print ~ctx ppf t =
-      let all_simples =
-        Variable.Map.fold
-          (fun v dsts acc ->
-            Simple.Set.add (Simple.var v) (Simple.Set.union dsts acc))
-          t.edges Simple.Set.empty
-      in
+    let edges' ~ctx ~color ppf edge_map =
+      Variable.Map.iter (fun src dst -> edge ~ctx ~color ppf src dst) edge_map
+
+    let print ~ctx ~doms ppf t =
       Flambda_colours.without_colours ~f:(fun () ->
-          Format.fprintf ppf "subgraph cluster_%d {@\n%a@\n%a@\n}@." ctx
-            (nodes ~ctx) all_simples (edges ~ctx) t.edges)
+          Format.fprintf ppf "subgraph cluster_%d {@\n%a@\n%a@\n%a@\n}@." ctx
+            (nodes ~ctx ~roots:t.dominator_roots)
+            t.graph
+            (edges ~ctx ~color:"black")
+            t.graph (edges' ~ctx ~color:"red") doms)
   end
 end
 
@@ -858,10 +1004,11 @@ let analyze ~return_continuation ~exn_continuation ~code_age_relation
       let dom_graph =
         Dominator_graph.create map extra ~return_continuation ~exn_continuation
       in
+      let doms = Dominator_graph.dominator_analysis dom_graph in
       Option.iter
         (fun ppf ->
           incr r;
-          Dominator_graph.Dot.print ~ctx:!r ppf dom_graph)
+          Dominator_graph.Dot.print ~ctx:!r ~doms ppf dom_graph)
         (Lazy.force graph_ppf);
       let deps =
         Dependency_graph.create map extra ~return_continuation ~exn_continuation
