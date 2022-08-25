@@ -25,6 +25,11 @@ jobs:
             os: ubuntu-latest
             ocamlparam: ''
 
+          - name: flambda1_frame_pointers
+            config: --enable-middle-end=flambda --enable-frame-pointers
+            os: ubuntu-latest
+            ocamlparam: ''
+
           - name: flambda1_cfg_local
             config: --enable-middle-end=flambda --enable-stack-allocation
             os: ubuntu-latest
@@ -32,6 +37,11 @@ jobs:
 
           - name: flambda2
             config: --enable-middle-end=flambda2
+            os: ubuntu-latest
+            ocamlparam: ''
+
+          - name: flambda2_frame_pointers
+            config: --enable-middle-end=flambda2 --enable-frame-pointers
             os: ubuntu-latest
             ocamlparam: ''
 
@@ -53,10 +63,15 @@ jobs:
             irc_split: off
             irc_spilling_heuristics: flat_uses
 
+          - name: build_upstream-32-bit
+            config: --enable-middle-end=closure CC="gcc -m32" AS="as --32" ASPP="gcc -m32 -c" -host i386-linux PARTIALLD="ld -r -melf_i386"
+            os: ubuntu-latest
+
     env:
       J: "3"
       # On macOS, the testsuite is slow, so run only on push to main (#507)
       run_testsuite: "${{matrix.os != 'macos-latest' || (github.event_name == 'push' && github.event.ref == 'refs/heads/main')}}"
+      build_upstream: "${{matrix.name == 'build_upstream-32-bit'}}"
       REGISTER_ALLOCATOR: "${{matrix.register_allocator}}"
       IRC_SPLIT: "${{matrix.irc_split}}"
       IRC_SPILLING_HEURISTICS: "${{matrix.irc_spilling_heuristics}}"
@@ -111,6 +126,10 @@ jobs:
       if: matrix.os == 'macos-latest'
       run: HOMEBREW_NO_INSTALL_CLEANUP=TRUE brew install parallel
 
+    - name: Install GCC 32-bit libraries
+      if: matrix.name == 'build_upstream-32-bit'
+      run: sudo apt-get install gcc-multilib
+
     - name: Configure Flambda backend
       working-directory: flambda_backend
       run: |
@@ -124,7 +143,8 @@ jobs:
       working-directory: flambda_backend
       run: |
         if [ $run_testsuite = true ]; then target=ci; else target=compiler; fi
-        PATH=$GITHUB_WORKSPACE/ocaml-412/_install/bin:$PATH make $target
+        export PATH=$GITHUB_WORKSPACE/ocaml-412/_install/bin:$PATH
+        if [ $build_upstream = true ]; then make -j$J build_upstream; else make $target; fi
       env:
         BUILD_OCAMLPARAM: ${{ matrix.ocamlparam }}
 

@@ -50,18 +50,33 @@ val remove_block : t -> Label.t -> unit
 val is_trap_handler : t -> Label.t -> bool
 
 val save_as_dot :
-  t ->
   ?show_instr:bool ->
   ?show_exn:bool ->
-  ?annotate_block:(Label.t -> string) ->
-  ?annotate_succ:(Label.t -> Label.t -> string) ->
+  ?annotate_instr:
+    (Format.formatter ->
+    [ `Basic of Cfg.basic Cfg.instruction
+    | `Terminator of Cfg.terminator Cfg.instruction ] ->
+    unit)
+    list ->
+  ?annotate_block:(int -> string) ->
+  ?annotate_block_end:(Format.formatter -> Cfg.basic_block -> unit) ->
+  ?annotate_succ:(int -> int -> string) ->
+  ?filename:string ->
+  t ->
   string ->
   unit
 
 val print_dot :
   ?show_instr:bool ->
   ?show_exn:bool ->
+  ?annotate_instr:
+    (Format.formatter ->
+    [ `Basic of Cfg.basic Cfg.instruction
+    | `Terminator of Cfg.terminator Cfg.instruction ] ->
+    unit)
+    list ->
   ?annotate_block:(Label.t -> string) ->
+  ?annotate_block_end:(Format.formatter -> Cfg.basic_block -> unit) ->
   ?annotate_succ:(Label.t -> Label.t -> string) ->
   Format.formatter ->
   t ->

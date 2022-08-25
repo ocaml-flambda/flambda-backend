@@ -1,0 +1,6 @@
+                local for: [0; 16; 16]
+            non-local for: [0; 16; 0]
+         local while body: [0; 16; 16]
+      nonlocal while body: [0; 16; 0]
+         local while cond: [0; 16; 16]
+      nonlocal while cond: [0; 16; 0]

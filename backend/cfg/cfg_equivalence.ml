@@ -265,7 +265,7 @@ let check_operation : location -> Cfg.operation -> Cfg.operation -> unit =
           provenance = right_provenance;
           is_assignment = right_is_assignment
         } )
-    when Ident.equal left_ident right_ident
+    when Ident.same left_ident right_ident
          && Option.equal Int.equal left_which_parameter right_which_parameter
          && Option.equal Unit.equal left_provenance right_provenance
          && Bool.equal left_is_assignment right_is_assignment ->

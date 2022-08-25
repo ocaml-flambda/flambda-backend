@@ -101,7 +101,9 @@ type t =
     get_imported_names : unit -> Name.Set.t;
     defined_symbols : Symbol.Set.t;
     code_age_relation : Code_age_relation.t;
-    prev_levels : One_level.t Scope.Map.t;
+    prev_levels : One_level.t list;
+    (* [prev_levels] is sorted with the greatest scope at the head of the
+       list *)
     current_level : One_level.t;
     next_binding_time : Binding_time.t;
     min_binding_time : Binding_time.t (* Earlier variables have mode In_types *)
@@ -117,7 +119,7 @@ type typing_env = t
 
 let is_empty t =
   One_level.is_empty t.current_level
-  && Scope.Map.is_empty t.prev_levels
+  && (match t.prev_levels with [] -> true | _ :: _ -> false)
   && Symbol.Set.is_empty t.defined_symbols
 
 let aliases t =
@@ -133,10 +135,10 @@ let [@ocamlformat "disable"] print ppf
     Format.pp_print_string ppf "Empty"
   else
     let levels =
-      Scope.Map.add (One_level.scope current_level) current_level prev_levels
+      current_level :: prev_levels
     in
     let levels =
-      Scope.Map.filter (fun _ level -> not (One_level.is_empty level))
+      List.filter (fun level -> not (One_level.is_empty level))
         levels
     in
     Format.fprintf ppf
@@ -148,7 +150,8 @@ let [@ocamlformat "disable"] print ppf
        )@]"
       Symbol.Set.print defined_symbols
       Code_age_relation.print code_age_relation
-      (Scope.Map.print (One_level.print ~min_binding_time))
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space
+         (One_level.print ~min_binding_time))
       levels
       Aliases.print (aliases t)
 
@@ -354,7 +357,7 @@ let create ~resolver ~get_imported_names =
   { resolver;
     binding_time_resolver = binding_time_resolver resolver;
     get_imported_names;
-    prev_levels = Scope.Map.empty;
+    prev_levels = [];
     (* Since [Scope.prev] may be used in the simplifier on this scope, in order
        to allow an efficient implementation of [cut] (see below), we always
        increment the scope by one here. *)
@@ -367,7 +370,7 @@ let create ~resolver ~get_imported_names =
 
 let increment_scope t =
   let current_scope = current_scope t in
-  let prev_levels = Scope.Map.add current_scope t.current_level t.prev_levels in
+  let prev_levels = t.current_level :: t.prev_levels in
   let current_level =
     One_level.create (Scope.next current_scope) TEL.empty
       ~just_after_level:(One_level.just_after_level t.current_level)
@@ -962,16 +965,20 @@ let cut t ~cut_after =
   if Scope.( >= ) cut_after current_scope
   then TEL.empty
   else
-    let _, _, levels = Scope.Map.split cut_after t.prev_levels in
-    let levels =
-      (* Owing to the check above it is certain that we want [t.current_level]
-         included in the result. *)
-      Scope.Map.add current_scope t.current_level levels
+    let rec loop result = function
+      | [] -> result
+      | one_level :: levels ->
+        if Scope.( > ) (One_level.scope one_level) cut_after
+        then
+          let result =
+            TEL.concat ~earlier:(One_level.level one_level) ~later:result
+          in
+          loop result levels
+        else result
     in
-    Scope.Map.fold
-      (fun _scope one_level result ->
-        TEL.concat result (One_level.level one_level))
-      levels TEL.empty
+    (* Owing to the check above it is certain that we want [t.current_level]
+       included in the result. *)
+    loop (One_level.level t.current_level) t.prev_levels
 
 let type_simple_in_term_exn t ?min_name_mode simple =
   (* If [simple] is a variable then it should not come from a missing .cmx file,

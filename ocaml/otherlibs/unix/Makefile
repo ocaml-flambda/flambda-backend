@@ -17,6 +17,8 @@
 
 LIBNAME=unix
 
+EXTRACAMLFLAGS=-nolabels
+
 unixLabels.cmi: \
   EXTRACAMLFLAGS += -pp "$(AWK) -f $(ROOTDIR)/stdlib/expand_module_aliases.awk"
 
