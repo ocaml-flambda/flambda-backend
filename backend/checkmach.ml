@@ -25,7 +25,7 @@
  **********************************************************************************)
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-module StringSet = Misc.Stdlib.String.Set
+module String = Misc.Stdlib.String
 
 type error =
   | Annotation of
@@ -61,15 +61,6 @@ module Func_info = struct
   let create name value =
     { name; value; callers = []; in_current_unit = false; annotated = false }
 end
-
-(* Return true if [str] starts with "caml_apply". This is conservative. *)
-let begins_with_caml_apply str =
-  (* CR-someday gyorsh: propagate information about caml_apply from cmm to mach
-     instead of reverse-engineering it from the symbol name. *)
-  let caml_apply_prefix = "caml_apply" in
-  let caml_apply_len = String.length caml_apply_prefix in
-  String.length str >= caml_apply_len
-  && String.sub str 0 caml_apply_len = caml_apply_prefix
 
 module type Spec = sig
   (** Which check is it? Used in error messages. *)
@@ -287,8 +278,12 @@ end = struct
     if not !Flambda_backend_flags.dump_checkmach then raise_notrace Bail
 
   let check_call t callee ~desc dbg =
-    if begins_with_caml_apply callee
-       (* This check is only an optimization, to keep dependencies small. *)
+    if String.begins_with ~prefix:"caml_apply" callee
+    (* This check is only an optimization, to keep dependencies small. *)
+    (* The prefix check is conservative (not everything that begins with
+       caml_apply is a compiler-generated symbol). *)
+    (* CR-someday gyorsh: propagate information about caml_apply from cmm to mach
+       instead of reverse-engineering it from the symbol name. *)
     then report_fail t desc dbg
     else if not (S.check_callee callee Compilenv.cached_checks)
     then
@@ -414,12 +409,12 @@ module Spec_alloc : Spec = struct
   let enabled () = !Flambda_backend_flags.alloc_check
 
   let check_callee s (checks : Cmx_format.checks) =
-    StringSet.mem s checks.ui_noalloc_functions
+    String.Set.mem s checks.ui_noalloc_functions
 
   let add_callee s (checks : Cmx_format.checks) =
     if not (check_callee s checks)
     then
-      checks.ui_noalloc_functions <- StringSet.add s checks.ui_noalloc_functions
+      checks.ui_noalloc_functions <- String.Set.add s checks.ui_noalloc_functions
 
   (** conservative *)
   let check_specific s = not (Arch.operation_can_raise s)
