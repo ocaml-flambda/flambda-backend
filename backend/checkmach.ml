@@ -279,11 +279,11 @@ end = struct
 
   let check_call t callee ~desc dbg =
     if String.begins_with ~prefix:"caml_apply" callee
-    (* This check is only an optimization, to keep dependencies small. *)
-    (* The prefix check is conservative (not everything that begins with
-       caml_apply is a compiler-generated symbol). *)
-    (* CR-someday gyorsh: propagate information about caml_apply from cmm to mach
-       instead of reverse-engineering it from the symbol name. *)
+       (* This check is only an optimization, to keep dependencies small. *)
+       (* The prefix check is conservative (not everything that begins with
+          caml_apply is a compiler-generated symbol). *)
+       (* CR-someday gyorsh: propagate information about caml_apply from cmm to
+          mach instead of reverse-engineering it from the symbol name. *)
     then report_fail t desc dbg
     else if not (S.check_callee callee Compilenv.cached_checks)
     then
@@ -414,7 +414,8 @@ module Spec_alloc : Spec = struct
   let add_callee s (checks : Cmx_format.checks) =
     if not (check_callee s checks)
     then
-      checks.ui_noalloc_functions <- String.Set.add s checks.ui_noalloc_functions
+      checks.ui_noalloc_functions
+        <- String.Set.add s checks.ui_noalloc_functions
 
   (** conservative *)
   let check_specific s = not (Arch.operation_can_raise s)
