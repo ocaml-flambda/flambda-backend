@@ -76,7 +76,16 @@ let module_declaration sub {md_type; _} =
   sub.module_type sub md_type
 let module_substitution _ _ = ()
 
-let include_infos f {incl_mod; _} = f incl_mod
+let include_kind sub = function
+  | Tincl_structure -> ()
+  | Tincl_functor ccs ->
+      List.iter (fun (_, cc) -> sub.module_coercion sub cc) ccs
+  | Tincl_gen_functor ccs ->
+      List.iter (fun (_, cc) -> sub.module_coercion sub cc) ccs
+
+let str_include_infos sub {incl_mod; incl_kind} =
+  sub.module_expr sub incl_mod;
+  include_kind sub incl_kind
 
 let class_type_declaration sub x =
   class_infos sub (sub.class_type sub) x
@@ -100,7 +109,7 @@ let structure_item sub {str_desc; str_env; _} =
       List.iter (fun (cls,_) -> sub.class_declaration sub cls) list
   | Tstr_class_type list ->
       List.iter (fun (_, _, cltd) -> sub.class_type_declaration sub cltd) list
-  | Tstr_include incl -> include_infos (sub.module_expr sub) incl
+  | Tstr_include incl -> str_include_infos sub incl
   | Tstr_open od -> sub.open_declaration sub od
   | Tstr_attribute _ -> ()
 
@@ -286,6 +295,10 @@ let signature sub {sig_items; sig_final_env; _} =
   sub.env sub sig_final_env;
   List.iter (sub.signature_item sub) sig_items
 
+let sig_include_infos sub {incl_mod; incl_kind} =
+  sub.module_type sub incl_mod;
+  include_kind sub incl_kind
+
 let signature_item sub {sig_desc; sig_env; _} =
   sub.env sub sig_env;
   match sig_desc with
@@ -298,7 +311,7 @@ let signature_item sub {sig_desc; sig_env; _} =
   | Tsig_modsubst x -> sub.module_substitution sub x
   | Tsig_recmodule list -> List.iter (sub.module_declaration sub) list
   | Tsig_modtype x -> sub.module_type_declaration sub x
-  | Tsig_include incl -> include_infos (sub.module_type sub) incl
+  | Tsig_include incl -> sig_include_infos sub incl
   | Tsig_class list -> List.iter (sub.class_description sub) list
   | Tsig_class_type list -> List.iter (sub.class_type_declaration sub) list
   | Tsig_open od -> sub.open_description sub od
