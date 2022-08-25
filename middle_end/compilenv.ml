@@ -54,7 +54,7 @@ module CstMap =
   end)
 
 module SymMap = Misc.Stdlib.String.Map
-module S = Misc.Stdlib.String.Set
+module String = Misc.Stdlib.String
 
 type structured_constants =
   {
@@ -89,17 +89,17 @@ end = struct
 
   let create () =
     {
-      ui_noalloc_functions = S.empty;
+      ui_noalloc_functions = String.Set.empty;
     }
 
   let reset t =
-    t.ui_noalloc_functions <- S.empty
+    t.ui_noalloc_functions <- String.Set.empty
 
   let merge src ~into:dst =
     if !Flambda_backend_flags.alloc_check
     then (
       dst.ui_noalloc_functions
-        <- S.union dst.ui_noalloc_functions src.ui_noalloc_functions)
+        <- String.Set.union dst.ui_noalloc_functions src.ui_noalloc_functions)
 end
 
 let cached_checks : Cmx_format.checks = Checks.create ()
