@@ -800,34 +800,36 @@ module Dominator_graph = struct
     t
 
   module Dot = struct
-    let node_id ppf (simple : Simple.t) =
+    let node_id ~ctx ppf (simple : Simple.t) =
       (* note: this is ... somewhat safe *)
-      Format.fprintf ppf "node_%d" (Obj.magic simple : int)
+      Format.fprintf ppf "node_%d_%d" ctx (Obj.magic simple : int)
 
-    let node ppf simple =
-      Format.fprintf ppf "%a [label=\"%a\"];@\n" node_id simple Simple.print
-        simple
+    let node ~ctx ppf simple =
+      Format.fprintf ppf "%a [label=\"%a\"];@\n" (node_id ~ctx) simple
+        Simple.print simple
 
-    let nodes ppf simple_set = Simple.Set.iter (node ppf) simple_set
+    let nodes ~ctx ppf simple_set = Simple.Set.iter (node ~ctx ppf) simple_set
 
-    let edge ppf var simple =
-      Format.fprintf ppf "%a -> %a;@\n" node_id (Simple.var var) node_id simple
+    let edge ~ctx ppf var simple =
+      Format.fprintf ppf "%a -> %a;@\n" (node_id ~ctx) (Simple.var var)
+        (node_id ~ctx) simple
 
-    let edges ppf edge_map =
+    let edges ~ctx ppf edge_map =
       Variable.Map.iter
         (fun var simple_set ->
-          Simple.Set.iter (fun simple -> edge ppf var simple) simple_set)
+          Simple.Set.iter (fun simple -> edge ~ctx ppf var simple) simple_set)
         edge_map
 
-    let print ppf t =
+    let print ~ctx ppf t =
       let all_simples =
         Variable.Map.fold
           (fun v dsts acc ->
             Simple.Set.add (Simple.var v) (Simple.Set.union dsts acc))
           t.edges Simple.Set.empty
       in
-      Format.fprintf ppf "digraph g {@\n%a@\n%a@\n}@." nodes all_simples edges
-        t.edges
+      Flambda_colours.without_colours ~f:(fun () ->
+          Format.fprintf ppf "subgraph cluster_%d {@\n%a@\n%a@\n}@." ctx
+            (nodes ~ctx) all_simples (edges ~ctx) t.edges)
   end
 end
 
@@ -836,6 +838,19 @@ end
 
 let r = ref ~-1
 
+let graph_ppf =
+  lazy
+    (match Sys.getenv_opt "DOM_GRAPH" with
+    | None -> None
+    | Some filename ->
+      let ch = open_out filename in
+      let ppf = Format.formatter_of_out_channel ch in
+      Format.fprintf ppf "digraph g {@\n";
+      at_exit (fun () ->
+          Format.fprintf ppf "@\n}@.";
+          close_out ch);
+      Some ppf)
+
 let analyze ~return_continuation ~exn_continuation ~code_age_relation
     ~used_value_slots { stack; map; extra } =
   Profile.record_call ~accumulate:true "data_flow" (fun () ->
@@ -843,15 +858,11 @@ let analyze ~return_continuation ~exn_continuation ~code_age_relation
       let dom_graph =
         Dominator_graph.create map extra ~return_continuation ~exn_continuation
       in
-      (match Sys.getenv_opt "DOM_GRAPH" with
-      | None -> ()
-      | Some filename ->
-        incr r;
-        let filename = Format.asprintf "%s_%i.dot" filename !r in
-        let ch = open_out filename in
-        let ppf = Format.formatter_of_out_channel ch in
-        Dominator_graph.Dot.print ppf dom_graph;
-        close_out ch);
+      Option.iter
+        (fun ppf ->
+          incr r;
+          Dominator_graph.Dot.print ~ctx:!r ppf dom_graph)
+        (Lazy.force graph_ppf);
       let deps =
         Dependency_graph.create map extra ~return_continuation ~exn_continuation
           ~code_age_relation ~used_value_slots
