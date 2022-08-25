@@ -385,14 +385,7 @@ fmt:
 
 .PHONY: check-fmt
 check-fmt:
-	@if [ "$$(git status --porcelain middle_end/flambda2)" != "" ] || \
-           [ "$$(git status --porcelain backend/cfg)" != "" ] || \
-           [ "$$(git status --porcelain middle_end/mangling.ml)" != "" ] || \
-           [ "$$(git status --porcelain middle_end/mangling.mli)" != "" ] || \
-           [ "$$(git status --porcelain backend/asm_targets)" != "" ] || \
-           [ "$$(git status --porcelain backend/debug)" != "" ] || \
-           [ "$$(git status --porcelain backend/cmm_helpers.ml{,i})" != "" ] || \
-           [ "$$(git status --porcelain tools/merge_archives.ml)" != "" ]; then \
+	@if [ "$$(git status --porcelain)" != "" ]; then \
 	  echo; \
 	  echo "Tree must be clean before running 'make check-fmt'"; \
 	  exit 1; \
