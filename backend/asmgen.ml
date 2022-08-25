@@ -356,10 +356,6 @@ let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
   ++ Profile.record ~accumulate:true "cse" CSE.fundecl
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_cse
   ++ pass_dump_if ppf_dump dump_cse "After CSE"
-  ++ Profile.record ~accumulate:true "liveness" liveness
-  ++ Profile.record ~accumulate:true "deadcode" Deadcode.fundecl
-  ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_live
-  ++ pass_dump_if ppf_dump dump_live "Liveness analysis"
   ++ (fun (fd : Mach.fundecl) ->
     let force_linscan = should_use_linscan fd in
       match force_linscan, register_allocator with
@@ -367,6 +363,7 @@ let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
         let res =
           fd
           ++ Profile.record ~accumulate:true "cfgize" cfgize
+          ++ Profile.record ~accumulate:true "cfg_deadcode" Cfg_deadcode.run
           ++ Profile.record ~accumulate:true "cfg_irc" Cfg_irc.run
         in
         (Cfg_regalloc_utils.simplify_cfg res)
@@ -374,6 +371,10 @@ let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
       | true, _ | false, Upstream ->
         let res =
           fd
+          ++ Profile.record ~accumulate:true "liveness" liveness
+          ++ Profile.record ~accumulate:true "deadcode" Deadcode.fundecl
+          ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_live
+          ++ pass_dump_if ppf_dump dump_live "Liveness analysis"
           ++ Profile.record ~accumulate:true "spill" Spill.fundecl
           ++ Profile.record ~accumulate:true "liveness" liveness
           ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_spill
