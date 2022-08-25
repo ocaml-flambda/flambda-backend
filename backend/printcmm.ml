@@ -339,14 +339,14 @@ and sequence ppf = function
 
 and expression ppf e = fprintf ppf "%a" expr e
 
-let print_codegen_option = function
+let codegen_option = function
   | Reduce_code_size -> "reduce_code_size"
   | No_CSE -> "no_cse"
   | Use_linscan_regalloc -> "linscan"
   | Noalloc_check -> "noalloc_check"
 
 let print_codegen_options ppf l =
-  List.iter (fun c -> fprintf ppf " %s" (print_codegen_option c)) l
+  List.iter (fun c -> fprintf ppf " %s" (codegen_option c)) l
 
 let fundecl ppf f =
   let print_cases ppf cases =
