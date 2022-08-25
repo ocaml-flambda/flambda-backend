@@ -47,6 +47,7 @@ type generic_fns =
 (* Symbols of function that pass certain checks for special properties. *)
 type checks =
   {
+    (* CR gyorsh: refactor to use lists. *)
     mutable ui_noalloc_functions: Misc.Stdlib.String.Set.t;
     (* Functions without allocations and indirect calls *)
   }
