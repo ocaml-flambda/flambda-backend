@@ -38,6 +38,8 @@ val report : Format.formatter -> t -> unit
 
 val must_be_inlined : t -> bool
 
+val has_attribute_inline : t -> bool
+
 val cannot_be_inlined : t -> bool
 
 val equal : t -> t -> bool

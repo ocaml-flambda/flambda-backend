@@ -19,7 +19,7 @@ type t =
     depth : int
   }
 
-let increment_depth t = { t with depth = t.depth + 1 }
+let increment_depth t ~by = { t with depth = t.depth + by }
 
 let default ~round = { arguments = Inlining_arguments.create ~round; depth = 0 }
 

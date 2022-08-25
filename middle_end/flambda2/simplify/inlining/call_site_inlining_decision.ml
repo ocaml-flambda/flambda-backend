@@ -59,7 +59,8 @@ let speculative_inlining dacc ~apply ~function_type ~simplify_expr ~return_arity
        inside of [speculative_inlining] we will always have [unroll_to] = None.
        We are not disabling unrolling when speculating, it just happens that no
        unrolling can happen while speculating right now. *)
-    Inlining_transforms.inline dacc ~apply ~unroll_to:None function_type
+    Inlining_transforms.inline dacc ~apply ~unroll_to:None
+      ~was_inline_always:false function_type
   in
   let scope = DE.get_continuation_scope (DA.denv dacc) in
   let dummy_toplevel_cont =
@@ -148,7 +149,11 @@ let might_inline dacc ~apply ~code_or_metadata ~function_type ~simplify_expr
     |> Code_metadata.inlining_decision
   in
   if Function_decl_inlining_decision_type.must_be_inlined decision
-  then Definition_says_inline
+  then
+    Definition_says_inline
+      { was_inline_always =
+          Function_decl_inlining_decision_type.has_attribute_inline decision
+      }
   else if Function_decl_inlining_decision_type.cannot_be_inlined decision
   then Definition_says_not_to_inline
   else if env_prohibits_inlining
