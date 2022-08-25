@@ -16,45 +16,154 @@
  (name unix)
  (wrapped false)
  (modes byte native)
- (flags (
-   -absname -w +a-4-9-41-42-44-45-48 -warn-error A -bin-annot
-   -g -safe-string -strict-sequence -strict-formats
- ))
- (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
- (library_flags (:standard -linkall))
+ (flags
+  (-absname
+   -w
+   +a-4-9-41-42-44-45-48
+   -warn-error
+   A
+   -bin-annot
+   -g
+   -safe-string
+   -strict-sequence
+   -strict-formats))
+ (ocamlopt_flags
+  (:include %{project_root}/ocamlopt_flags.sexp))
+ (library_flags
+  (:standard -linkall))
  ; UnixLabels is compiled separately as it needs the -nolabels flag.  We can't
  ; currently use an attribute in the .ml file to enable this behaviour as
  ; the system compiler used to build the boot compiler won't understand it.
- (modules (:standard \ unixLabels))
- (foreign_stubs (language c) (names
-   accept access addrofstr alarm bind channels chdir chmod chown chroot close
-   fsync closedir connect cst2constr cstringv dup dup2 envir errmsg execv execve
-   execvp exit fchmod fchown fcntl fork ftruncate getaddrinfo getcwd getegid
-   geteuid getgid getgr getgroups gethost gethostname getlogin getnameinfo
-   getpeername getpid getppid getproto getpw gettimeofday getserv getsockname
-   getuid gmtime initgroups isatty itimer kill link listen lockf lseek mkdir
-   mkfifo mmap mmap_ba nice open opendir pipe putenv read readdir readlink
-   rename rewinddir rmdir select sendrecv setgid setgroups setsid setuid
-   shutdown signals sleep socket socketaddr socketpair sockopt stat strofaddr
-   symlink termios time times truncate umask unixsupport unlink utimes wait
-   write spawn)
-   (flags ((:include %{project_root}/oc_cflags.sexp)
-           (:include %{project_root}/sharedlib_cflags.sexp)
-           (:include %{project_root}/oc_cppflags.sexp)))
- ))
+ (modules
+  (:standard \ unixLabels))
+ (foreign_stubs
+  (language c)
+  (names
+   accept
+   access
+   addrofstr
+   alarm
+   bind
+   channels
+   chdir
+   chmod
+   chown
+   chroot
+   close
+   fsync
+   closedir
+   connect
+   cst2constr
+   cstringv
+   dup
+   dup2
+   envir
+   errmsg
+   execv
+   execve
+   execvp
+   exit
+   fchmod
+   fchown
+   fcntl
+   fork
+   ftruncate
+   getaddrinfo
+   getcwd
+   getegid
+   geteuid
+   getgid
+   getgr
+   getgroups
+   gethost
+   gethostname
+   getlogin
+   getnameinfo
+   getpeername
+   getpid
+   getppid
+   getproto
+   getpw
+   gettimeofday
+   getserv
+   getsockname
+   getuid
+   gmtime
+   initgroups
+   isatty
+   itimer
+   kill
+   link
+   listen
+   lockf
+   lseek
+   mkdir
+   mkfifo
+   mmap
+   mmap_ba
+   nice
+   open
+   opendir
+   pipe
+   putenv
+   read
+   readdir
+   readlink
+   rename
+   rewinddir
+   rmdir
+   select
+   sendrecv
+   setgid
+   setgroups
+   setsid
+   setuid
+   shutdown
+   signals
+   sleep
+   socket
+   socketaddr
+   socketpair
+   sockopt
+   stat
+   strofaddr
+   symlink
+   termios
+   time
+   times
+   truncate
+   umask
+   unixsupport
+   unlink
+   utimes
+   wait
+   write
+   spawn)
+  (flags
+   ((:include %{project_root}/oc_cflags.sexp)
+    (:include %{project_root}/sharedlib_cflags.sexp)
+    (:include %{project_root}/oc_cppflags.sexp)))))
 
 (library
  (name unixlabels)
  (libraries unix)
  (wrapped false)
  (modes byte native)
- (flags (
-   -absname -w +a-4-9-41-42-44-45-48 -warn-error A -bin-annot
-   -g -safe-string -strict-sequence -strict-formats -nolabels
- ))
- (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
- (modules unixLabels)
-)
+ (flags
+  (-absname
+   -w
+   +a-4-9-41-42-44-45-48
+   -warn-error
+   A
+   -bin-annot
+   -g
+   -safe-string
+   -strict-sequence
+   -strict-formats
+   -nolabels))
+ (ocamlopt_flags
+  (:include %{project_root}/ocamlopt_flags.sexp))
+ (modules unixLabels))
 
 (rule
  (targets unix_merged.a)
@@ -84,25 +193,24 @@
    %{dep:unixlabels.cmxa})))
 
 (install
-  (files
-    .unix.objs/native/unix.cmx
-    .unixlabels.objs/native/unixLabels.cmx
-    (unix_merged.cmxa as unix.cmxa)
-    (unix_merged.a as unix.a)
-    (unix_merged.cma as unix.cma)
-    .unix.objs/byte/unix.cmi
-    .unix.objs/byte/unix.cmti
-    .unixlabels.objs/byte/unixLabels.cmi
-    .unixlabels.objs/byte/unixLabels.cmti
-    ; For the moment unix.cmxs does not include UnixLabels.
-    unix.cmxs
-    unix.mli
-    unixLabels.mli
-    libunix_stubs.a
-    libunix_stubs_native.a
-    (dllunix_stubs.so as stublibs/dllunix_stubs.so)
-    (socketaddr.h as caml/socketaddr.h)
-    (unixsupport.h as caml/unixsupport.h)
-  )
-  (section lib)
-  (package ocaml))
+ (files
+  .unix.objs/native/unix.cmx
+  .unixlabels.objs/native/unixLabels.cmx
+  (unix_merged.cmxa as unix.cmxa)
+  (unix_merged.a as unix.a)
+  (unix_merged.cma as unix.cma)
+  .unix.objs/byte/unix.cmi
+  .unix.objs/byte/unix.cmti
+  .unixlabels.objs/byte/unixLabels.cmi
+  .unixlabels.objs/byte/unixLabels.cmti
+  ; For the moment unix.cmxs does not include UnixLabels.
+  unix.cmxs
+  unix.mli
+  unixLabels.mli
+  libunix_stubs.a
+  libunix_stubs_native.a
+  (dllunix_stubs.so as stublibs/dllunix_stubs.so)
+  (socketaddr.h as caml/socketaddr.h)
+  (unixsupport.h as caml/unixsupport.h))
+ (section lib)
+ (package ocaml))
