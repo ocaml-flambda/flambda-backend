@@ -77,6 +77,9 @@ module Inlining : sig
     | Round of int
     | Default
 
+  val depth_scaling_factor : int
+
+  (** [max_depth] returns the user's value multipled by [depth_scaling_factor]. *)
   val max_depth : round_or_default -> int
 
   val max_rec_depth : round_or_default -> int

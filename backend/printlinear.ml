@@ -17,13 +17,17 @@
 
 open Format
 open Mach
-open Printmach
 open Linear
 
 let label ppf l =
   Format.fprintf ppf "L%i" l
 
-let instr ppf i =
+let instr' ?(print_reg = Printmach.reg) ppf i =
+  let reg = print_reg in
+  let regs = Printmach.regs' ~print_reg in
+  let regsetaddr = Printmach.regsetaddr' ~print_reg in
+  let test = Printmach.test' ~print_reg in
+  let operation = Printmach.operation' ~print_reg in
   begin match i.desc with
   | Lend -> ()
   | Lprologue ->
@@ -72,6 +76,8 @@ let instr ppf i =
   end;
   if not (Debuginfo.is_none i.dbg) && !Clflags.locations then
     fprintf ppf " %s" (Debuginfo.to_string i.dbg)
+
+let instr ppf i = instr' ppf i
 
 let rec all_instr ppf i =
   match i.desc with

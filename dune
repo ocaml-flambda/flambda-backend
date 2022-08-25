@@ -241,8 +241,10 @@
   cfg_to_linear
   cfg_with_layout
   cfg_dataflow
+  cfg_deadcode
   cfg_liveness
   cfg_regalloc_utils
+  cfg_to_linear_desc
   cfg_irc
   cfg_irc_state
   cfg_irc_utils
@@ -751,8 +753,10 @@
   (cfg_to_linear.mli as compiler-libs/cfg_to_linear.mli)
   (cfg_with_layout.mli as compiler-libs/cfg_with_layout.mli)
   (cfg_dataflow.mli as compiler-libs/cfg_dataflow.mli)
+  (cfg_deadcode.mli as compiler-libs/cfg_deadcode.mli)
   (cfg_liveness.mli as compiler-libs/cfg_liveness.mli)
   (cfg_regalloc_utils.mli as compiler-libs/cfg_regalloc_utils.mli)
+  (cfg_to_linear_desc.mli as compiler-libs/cfg_to_linear_desc.mli)
   (cfg_irc.mli as compiler-libs/cfg_irc.mli)
   (cfg_irc_state.mli as compiler-libs/cfg_irc_state.mli)
   (cfg_irc_utils.mli as compiler-libs/cfg_irc_utils.mli)
@@ -1180,6 +1184,18 @@
   (.ocamloptcomp.objs/byte/cfg_dataflow.cmti
    as
    compiler-libs/cfg_dataflow.cmti)
+  (.ocamloptcomp.objs/byte/cfg_deadcode.cmi
+   as
+   compiler-libs/cfg_deadcode.cmi)
+  (.ocamloptcomp.objs/byte/cfg_deadcode.cmo
+   as
+   compiler-libs/cfg_deadcode.cmo)
+  (.ocamloptcomp.objs/byte/cfg_deadcode.cmt
+   as
+   compiler-libs/cfg_deadcode.cmt)
+  (.ocamloptcomp.objs/byte/cfg_deadcode.cmti
+   as
+   compiler-libs/cfg_deadcode.cmti)
   (.ocamloptcomp.objs/byte/cfg_liveness.cmi
    as
    compiler-libs/cfg_liveness.cmi)
@@ -1204,6 +1220,18 @@
   (.ocamloptcomp.objs/byte/cfg_regalloc_utils.cmti
    as
    compiler-libs/cfg_regalloc_utils.cmti)
+  (.ocamloptcomp.objs/byte/cfg_to_linear_desc.cmi
+   as
+   compiler-libs/cfg_to_linear_desc.cmi)
+  (.ocamloptcomp.objs/byte/cfg_to_linear_desc.cmo
+   as
+   compiler-libs/cfg_to_linear_desc.cmo)
+  (.ocamloptcomp.objs/byte/cfg_to_linear_desc.cmt
+   as
+   compiler-libs/cfg_to_linear_desc.cmt)
+  (.ocamloptcomp.objs/byte/cfg_to_linear_desc.cmti
+   as
+   compiler-libs/cfg_to_linear_desc.cmti)
   (.ocamloptcomp.objs/byte/cfg_irc.cmi as compiler-libs/cfg_irc.cmi)
   (.ocamloptcomp.objs/byte/cfg_irc.cmo as compiler-libs/cfg_irc.cmo)
   (.ocamloptcomp.objs/byte/cfg_irc.cmt as compiler-libs/cfg_irc.cmt)
@@ -1463,12 +1491,18 @@
   (.ocamloptcomp.objs/native/cfg_dataflow.cmx
    as
    compiler-libs/cfg_dataflow.cmx)
+  (.ocamloptcomp.objs/native/cfg_deadcode.cmx
+   as
+   compiler-libs/cfg_deadcode.cmx)
   (.ocamloptcomp.objs/native/cfg_liveness.cmx
    as
    compiler-libs/cfg_liveness.cmx)
   (.ocamloptcomp.objs/native/cfg_regalloc_utils.cmx
    as
    compiler-libs/cfg_regalloc_utils.cmx)
+  (.ocamloptcomp.objs/native/cfg_to_linear_desc.cmx
+   as
+   compiler-libs/cfg_to_linear_desc.cmx)
   (.ocamloptcomp.objs/native/cfg_irc.cmx as compiler-libs/cfg_irc.cmx)
   (.ocamloptcomp.objs/native/cfg_irc_utils.cmx
    as

@@ -40,7 +40,7 @@ type t =
       }
   | Attribute_always
   | Attribute_unroll of int
-  | Definition_says_inline
+  | Definition_says_inline of { was_inline_always : bool }
   | Speculatively_inline of
       { cost_metrics : Cost_metrics.t;
         evaluated_to : float;
@@ -66,8 +66,12 @@ let [@ocamlformat "disable"] print ppf t =
     Format.fprintf ppf "Never_inlined_attribute"
   | Attribute_always ->
     Format.fprintf ppf "Attribute_unroll"
-  | Definition_says_inline ->
-    Format.fprintf ppf "Definition_says_inline"
+  | Definition_says_inline { was_inline_always } ->
+    Format.fprintf ppf
+      "@[<hov 1>(Definition_says_inline@ \
+        @[<hov 1>(was_inline_always@ %b)@])\
+        @]"
+      was_inline_always
   | Attribute_unroll unroll_to ->
     Format.fprintf ppf
       "@[<hov 1>(Attribute_unroll@ \
@@ -100,7 +104,10 @@ type can_inline =
       { warn_if_attribute_ignored : bool;
         because_of_definition : bool
       }
-  | Inline of { unroll_to : int option }
+  | Inline of
+      { unroll_to : int option;
+        was_inline_always : bool
+      }
 
 let can_inline (t : t) : can_inline =
   match t with
@@ -119,9 +126,13 @@ let can_inline (t : t) : can_inline =
        attribute when we stop unrolling, which is fine *)
     Do_not_inline
       { warn_if_attribute_ignored = false; because_of_definition = true }
-  | Attribute_unroll unroll_to -> Inline { unroll_to = Some unroll_to }
-  | Definition_says_inline | Speculatively_inline _ | Attribute_always ->
-    Inline { unroll_to = None }
+  | Attribute_unroll unroll_to ->
+    Inline { unroll_to = Some unroll_to; was_inline_always = false }
+  | Definition_says_inline { was_inline_always } ->
+    Inline { unroll_to = None; was_inline_always }
+  | Speculatively_inline _ ->
+    Inline { unroll_to = None; was_inline_always = false }
+  | Attribute_always -> Inline { unroll_to = None; was_inline_always = true }
 
 let report_reason fmt t =
   match (t : t) with
@@ -149,7 +160,7 @@ let report_reason fmt t =
     Format.fprintf fmt "the@ call@ has@ an@ [@@inline always]@ attribute"
   | Attribute_unroll n ->
     Format.fprintf fmt "the@ call@ has@ an@ [@@unroll %d]@ attribute" n
-  | Definition_says_inline ->
+  | Definition_says_inline { was_inline_always = _ } ->
     Format.fprintf fmt
       "this@ function@ was@ decided@ to@ be@ always@ inlined@ at@ its@ \
        definition@ site (annotated@ by@ [@inlined always]@ or@ determined@ to@ \
