@@ -360,8 +360,13 @@ _compare/config.status: ocaml/config.status
 promote:
 	$(dune) promote $(ws_main)
 
+.PHONY: fmt-dune-files
+fmt-dune-files:
+	find $(pwd) -path "./_build" -prune -o -name dune -exec scripts/format-dune-files.sh {} \;
+
+
 .PHONY: fmt
-fmt:
+fmt: fmt-dune-files
 	ocamlformat -i \
 	  $$(find middle_end/flambda2 \
 	    \( -name "*.ml" -or -name "*.mli" \) \
