@@ -53,7 +53,9 @@ let build : State.t -> Cfg_with_layout.t -> liveness -> unit =
       if block.is_trap_handler
       then
         let first_id =
-          match block.body with [] -> block.terminator.id | hd :: _ -> hd.id
+          match Cfg.BasicInstructionList.hd block.body with
+          | None -> block.terminator.id
+          | Some hd -> hd.id
         in
         let live = Cfg_dataflow.Instr.Tbl.find liveness first_id in
         Reg.Set.iter
@@ -321,6 +323,11 @@ let assign_colors : State.t -> Cfg_with_layout.t -> unit =
       let alias = State.find_alias state n in
       n.Reg.irc_color <- alias.Reg.irc_color)
 
+type direction =
+  | Load_before_cell of Cfg.BasicInstructionList.cell
+  | Store_after_cell of Cfg.BasicInstructionList.cell
+  | Load_after_list of Cfg.BasicInstructionList.t
+
 let rewrite : State.t -> Cfg_with_layout.t -> Reg.t list -> reset:bool -> unit =
  fun state cfg_with_layout spilled_nodes ~reset ->
   if irc_debug then log ~indent:1 "rewrite";
@@ -363,20 +370,9 @@ let rewrite : State.t -> Cfg_with_layout.t -> Reg.t list -> reset:bool -> unit =
     done;
     !i < len
   in
-  let[@inline] instruction_contains_spilled (instr : Instruction.t) : bool =
-    array_contains_spilled instr.arg || array_contains_spilled instr.res
-  in
-  let rec instruction_list_contains_spilled (l : Instruction.t list) : bool =
-    match l with
-    | [] -> false
-    | hd :: tl ->
-      instruction_contains_spilled hd || instruction_list_contains_spilled tl
-  in
-  let rewrite_instruction ~(direction : [`load | `store])
-      ~(sharing : (Reg.t * [`load | `store]) Reg.Tbl.t)
-      (acc : Instruction.t list) (instr : _ Cfg.instruction) :
-      Instruction.t list =
-    let res = ref acc in
+  let rewrite_instruction ~(direction: direction)
+        ~(sharing : (Reg.t * [`load | `store]) Reg.Tbl.t)
+        (instr : _ Cfg.instruction) : unit =
     let f (reg : Reg.t) : Reg.t =
       if reg.Reg.irc_work_list = Reg.Spilled
       then (
@@ -385,75 +381,71 @@ let rewrite : State.t -> Cfg_with_layout.t -> Reg.t list -> reset:bool -> unit =
           | None -> assert false
           | Some r -> r
         in
-        let move =
-          match direction with `load -> Move.Load | `store -> Move.Store
+        let move, move_dir =
+          match direction with
+          | Load_before_cell _ | Load_after_list _ ->
+            Move.Load, `load
+          | Store_after_cell _ -> Move.Store, `store
         in
         let add_instr, temp =
           match Reg.Tbl.find_opt sharing reg with
           | None ->
             let new_temp = make_new_temporary ~move reg in
-            Reg.Tbl.add sharing reg (new_temp, direction);
+            Reg.Tbl.add sharing reg (new_temp, move_dir);
             true, new_temp
-          | Some (r, dir) -> dir <> direction, r
-        in
-        let from, to_ =
-          match direction with
-          | `load -> spilled, temp
-          | `store -> temp, spilled
+          | Some (r, dir) -> dir <> move_dir, r
         in
         (if add_instr
         then
+          let from, to_ =
+            match move_dir with
+            | `load -> spilled, temp
+            | `store -> temp, spilled
+          in
           let new_instr =
             Move.make_instr move
               ~id:(State.get_and_incr_instruction_id state)
               ~copy:instr ~from ~to_
           in
-          res := new_instr :: !res);
+          match direction with
+          | Load_before_cell cell ->
+            Cfg.BasicInstructionList.insert_before cell new_instr
+          | Store_after_cell cell ->
+            Cfg.BasicInstructionList.insert_after cell new_instr
+          | Load_after_list list ->
+            Cfg.BasicInstructionList.add_end list new_instr);
         temp)
       else reg
     in
-    (match direction with
-    | `load -> instr.arg <- Array.map instr.arg ~f
-    | `store -> instr.res <- Array.map instr.res ~f);
-    !res
-  in
-  let rec rewrite_body (acc : Instruction.t list) (body : Instruction.t list)
-      (terminator : Cfg.terminator Cfg.instruction) : Instruction.t list =
-    match body with
-    | [] ->
-      let acc =
-        rewrite_instruction ~direction:`load ~sharing:(Reg.Tbl.create 8) acc
-          terminator
-      in
-      List.rev acc
-    | hd :: tl ->
-      let sharing = Reg.Tbl.create 8 in
-      let acc = rewrite_instruction ~direction:`load ~sharing acc hd in
-      let acc = hd :: acc in
-      let acc = rewrite_instruction ~direction:`store ~sharing acc hd in
-      rewrite_body acc tl terminator
+    match direction with
+    | Load_before_cell _ | Load_after_list _ ->
+      if array_contains_spilled instr.arg then
+        instr.arg <- Array.map instr.arg ~f
+    | Store_after_cell _ ->
+      if array_contains_spilled instr.res then
+        instr.res <- Array.map instr.res ~f
   in
   Cfg.iter_blocks (Cfg_with_layout.cfg cfg_with_layout) ~f:(fun label block ->
       (* CR xclerc for xclerc: we currently assume that a terminator does not
          "define" a register that may be spilled. Calls are reasonably fine
          since their result is in a precolored register. *)
-      assert (not (array_contains_spilled block.terminator.res));
-      let body_needs_rewrite =
-        instruction_list_contains_spilled block.body
-        || array_contains_spilled block.terminator.arg
-      in
-      if body_needs_rewrite
-      then (
-        if irc_debug
-        then (
-          log ~indent:2 "body of #%d, before:" label;
-          log_body_and_terminator ~indent:3 block.body block.terminator);
-        block.body <- rewrite_body [] block.body block.terminator;
-        if irc_debug
-        then (
-          log ~indent:2 "and after:";
-          log_body_and_terminator ~indent:3 block.body block.terminator;
-          log ~indent:2 "end")));
+    assert (not (array_contains_spilled block.terminator.res));
+    if irc_debug
+    then (
+      log ~indent:2 "body of #%d, before:" label;
+      log_body_and_terminator ~indent:3 block.body block.terminator);
+    Cfg.BasicInstructionList.iter_cell block.body ~f:(fun cell ->
+      let sharing = Reg.Tbl.create 8 in
+      let instr = Cfg.BasicInstructionList.instr cell in
+      rewrite_instruction ~direction:(Load_before_cell cell) ~sharing instr;
+      rewrite_instruction ~direction:(Store_after_cell cell) ~sharing instr
+    );
+    rewrite_instruction ~direction:(Load_after_list block.body) ~sharing:(Reg.Tbl.create 8) block.terminator;
+    if irc_debug
+    then (
+      log ~indent:2 "and after:";
+      log_body_and_terminator ~indent:3 block.body block.terminator;
+      log ~indent:2 "end"));
   if reset
   then State.reset state ~new_temporaries:!new_temporaries
   else (
@@ -567,12 +559,10 @@ let run : Cfg_with_layout.t -> Cfg_with_layout.t =
   let spilling_because_split =
     match Lazy.force Split_mode.env with
     | Off -> []
-    | Naive -> (
-      match naive_split_points cfg_with_layout with
-      | [] -> []
-      | _ :: _ as split_points ->
-        let liveness = liveness_analysis cfg_with_layout in
-        naive_split_cfg state cfg_with_layout split_points liveness)
+    | Naive ->
+      (* CR xclerc for xclerc: avoid recomputing the liveness later if no change *)
+      let liveness = liveness_analysis cfg_with_layout in
+      naive_split_cfg state cfg_with_layout liveness
   in
   let spilling_because_split_or_unused : Reg.t list =
     Reg.Set.fold

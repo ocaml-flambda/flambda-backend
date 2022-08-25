@@ -304,9 +304,9 @@ let run cfg_with_layout =
       | (Some _ | None), None -> ()
       | None, Some _ -> tailrec_label := terminator_tailrec_label
       | Some old_trl, Some new_trl -> assert (Label.equal old_trl new_trl));
-      List.fold_left
-        (fun next i -> basic_to_linear i ~next)
-        terminator (List.rev block.body)
+      Cfg.BasicInstructionList.fold_right
+        ~f:(fun i next -> basic_to_linear i ~next)
+        ~init:terminator block.body
     in
     let insn =
       if i = 0

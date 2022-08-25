@@ -37,13 +37,13 @@ let log_instruction_suffix (instr : _ Cfg.instruction) : unit =
 
 let log_body_and_terminator :
     indent:int ->
-    Cfg.basic Cfg.instruction list ->
+    Cfg.BasicInstructionList.t ->
     Cfg.terminator Cfg.instruction ->
     unit =
  fun ~indent body term ->
   if irc_debug && irc_verbose
   then (
-    List.iter body ~f:(fun (instr : Cfg.basic Cfg.instruction) ->
+    Cfg.BasicInstructionList.iter body ~f:(fun (instr : Cfg.basic Cfg.instruction) ->
         log_instruction_prefix ~indent instr;
         Cfg.dump_basic Format.err_formatter instr.Cfg.desc;
         log_instruction_suffix instr);

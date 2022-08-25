@@ -71,7 +71,7 @@ module Forward
     in
     let normal, exceptional =
       transfer T.terminator
-        (ListLabels.fold_left block.body ~init:(value, value)
+        (Cfg.BasicInstructionList.fold_left block.body ~init:(value, value)
            ~f:(transfer T.basic))
         block.terminator
     in
@@ -222,7 +222,7 @@ module Backward
       replace block.terminator (T.terminator value ~exn block.terminator)
     in
     let value =
-      ListLabels.fold_right block.body ~init:value ~f:(fun instr value ->
+      Cfg.BasicInstructionList.fold_right block.body ~init:value ~f:(fun instr value ->
           replace instr (T.basic value ~exn instr))
     in
     value

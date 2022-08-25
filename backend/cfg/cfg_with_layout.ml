@@ -75,7 +75,7 @@ let dump ppf t ~msg =
   let print_block label =
     let block = Label.Tbl.find t.cfg.blocks label in
     fprintf ppf "\n%d:\n" label;
-    List.iter (fprintf ppf "%a\n" Cfg.print_basic) block.body;
+    Cfg.BasicInstructionList.iter ~f:(fprintf ppf "%a\n" Cfg.print_basic) block.body;
     Cfg.print_terminator ppf block.terminator;
     fprintf ppf "\npredecessors:";
     Label.Set.iter (fprintf ppf " %d") block.predecessors;
@@ -183,7 +183,7 @@ let print_dot ?(show_instr = true) ?(show_exn = true)
       (print_row
          (print_cell ~col_span:col_count ~align:Center
             (Format.dprintf ".L%d:I%d:S%d%s%s%s" label show_index
-               (List.length block.body)
+               (Cfg.BasicInstructionList.length block.body)
                (if block.stack_offset > 0
                then ":T" ^ string_of_int block.stack_offset
                else "")
@@ -199,8 +199,8 @@ let print_dot ?(show_instr = true) ?(show_exn = true)
                   Format.pp_print_int)
                (Label.Set.to_seq block.predecessors))))
         ppf;
-      List.iter
-        (fun (i : _ Cfg.instruction) ->
+      Cfg.BasicInstructionList.iter
+        ~f:(fun (i : _ Cfg.instruction) ->
           (print_row
              (print_cell ~align:Right (Format.dprintf "%d" i.id)
              ++ annotate_instr (`Basic i)))
@@ -326,7 +326,7 @@ let iter_instructions :
     unit =
  fun cfg_with_layout ~instruction ~terminator ->
   Cfg.iter_blocks cfg_with_layout.cfg ~f:(fun _label block ->
-      List.iter instruction block.body;
+     Cfg.BasicInstructionList.iter ~f:instruction block.body;
       terminator block.terminator)
 
 let fold_instructions :
@@ -338,6 +338,6 @@ let fold_instructions :
     a =
  fun cfg_with_layout ~instruction ~terminator ~init ->
   Cfg.fold_blocks cfg_with_layout.cfg ~init ~f:(fun _label block acc ->
-      let acc = List.fold_left instruction acc block.body in
+     let acc = Cfg.BasicInstructionList.fold_left ~f:instruction ~init:acc block.body in
       let acc = terminator acc block.terminator in
       acc)

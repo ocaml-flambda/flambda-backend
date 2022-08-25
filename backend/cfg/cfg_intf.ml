@@ -136,10 +136,10 @@ module S = struct
     { desc : 'a;
       mutable arg : Reg.t array;
       mutable res : Reg.t array;
-      dbg : Debuginfo.t;
-      fdo : Fdo_info.t;
-      live : Reg.Set.t;
-      stack_offset : int;
+      mutable dbg : Debuginfo.t;
+      mutable fdo : Fdo_info.t;
+      mutable live : Reg.Set.t;
+      mutable stack_offset : int;
       id : int;
       mutable irc_work_list : irc_work_list
     }

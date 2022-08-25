@@ -29,9 +29,51 @@ let verbose = ref false
 
 include Cfg_intf.S
 
+
+module BasicInstructionList = struct
+  type instr = basic instruction
+  type cell = {
+    instr : instr;
+    mutable before_rev : instr list;
+    mutable after : instr list;
+  }
+  let insert_before cell instr =
+    cell.before_rev <- instr :: cell.before_rev
+  let insert_after cell instr =
+    cell.after <- instr :: cell.after
+  let instr cell = cell.instr
+  type t = instr list ref
+  let make_empty () = ref []
+  let make_single instr = ref [instr]
+  let hd t =
+    match !t with
+    | [] -> None
+    | hd :: _ -> Some hd
+  let add_begin t instr = t := instr :: !t
+  let add_end t instr = t := !t @ [instr]
+  let is_empty t =
+    match !t with
+    | [] -> true
+    | _ :: _ -> false
+  let length t = ListLabels.length !t
+  let filter t ~f = t := ListLabels.filter ~f !t
+  let iter t ~f = ListLabels.iter ~f !t
+  let iter_cell t ~f =
+    t := ListLabels.concat_map !t ~f:(fun instr ->
+      let cell = { instr; before_rev = []; after = []; } in
+      f cell;
+      (List.rev cell.before_rev) @ [instr] @ cell.after)
+  let iter2 t t' ~f = ListLabels.iter2 ~f !t !t'
+  let fold_left t ~f ~init = ListLabels.fold_left ~f ~init !t
+  let fold_right t ~f ~init = ListLabels.fold_right ~f !t ~init
+  let transfer ~to_:t ~from:t' () =
+    t := !t @ !t';
+    t' := []
+end
+
 type basic_block =
   { start : Label.t;
-    mutable body : basic instruction list;
+    body : BasicInstructionList.t;
     mutable terminator : terminator instruction;
     mutable predecessors : Label.Set.t;
     mutable stack_offset : int;
@@ -460,12 +502,10 @@ let set_stack_offset (instr : _ instruction) stack_offset =
   then
     Misc.fatal_errorf "Cfg.set_stack_offset: expected non-negative got %d"
       stack_offset;
-  if instr.stack_offset = stack_offset
-  then instr
-  else { instr with stack_offset }
+  instr.stack_offset <- stack_offset
 
 let set_live (instr : _ instruction) live =
-  if Reg.Set.equal instr.live live then instr else { instr with live }
+  instr.live <- live
 
 let string_of_irc_work_list = function
   | Unknown_list -> "unknown_list"
