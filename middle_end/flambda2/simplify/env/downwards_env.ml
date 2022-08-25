@@ -487,17 +487,29 @@ let set_inlining_arguments arguments t =
     inlining_state = Inlining_state.with_arguments arguments t.inlining_state
   }
 
-let enter_inlined_apply ~called_code ~apply t =
+let enter_inlined_apply ~called_code ~apply ~was_inline_always t =
   let arguments =
     Inlining_state.arguments t.inlining_state
     |> Inlining_arguments.meet (Code.inlining_arguments called_code)
     |> Inlining_arguments.meet (Apply.inlining_arguments apply)
   in
   let inlining_state =
+    (* The depth limit for [@inline always] and [@inlined always] is really to
+       make sure the compiler terminates if user code containing implicit
+       recursion turns into explicit recursion within Flambda. We want to honour
+       the user's requests for these attributes basically all the time. As such
+       inlining when these attributes are in effect affects the depth limit much
+       less than in other scenarios. *)
     Inlining_state.with_arguments arguments
       (if Code.stub called_code
       then t.inlining_state
-      else Inlining_state.increment_depth t.inlining_state)
+      else
+        let by =
+          if was_inline_always
+          then 1
+          else Flambda_features.Inlining.depth_scaling_factor
+        in
+        Inlining_state.increment_depth t.inlining_state ~by)
   in
   { t with
     inlined_debuginfo = Apply.dbg apply;

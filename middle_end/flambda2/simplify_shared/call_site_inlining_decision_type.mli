@@ -33,7 +33,7 @@ type t =
       }
   | Attribute_always
   | Attribute_unroll of int
-  | Definition_says_inline
+  | Definition_says_inline of { was_inline_always : bool }
   | Speculatively_inline of
       { cost_metrics : Cost_metrics.t;
         evaluated_to : float;
@@ -49,6 +49,9 @@ type can_inline = private
       { warn_if_attribute_ignored : bool;
         because_of_definition : bool
       }
-  | Inline of { unroll_to : int option }
+  | Inline of
+      { unroll_to : int option;
+        was_inline_always : bool
+      }
 
 val can_inline : t -> can_inline

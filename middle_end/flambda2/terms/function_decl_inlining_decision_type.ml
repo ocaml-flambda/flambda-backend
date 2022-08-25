@@ -135,6 +135,13 @@ let must_be_inlined t =
   | Must_be_inlined -> true
   | Cannot_be_inlined | Could_possibly_be_inlined -> false
 
+let has_attribute_inline t =
+  match t with
+  | Attribute_inline -> true
+  | Not_yet_decided | Never_inline_attribute | Function_body_too_large _ | Stub
+  | Small_function _ | Speculatively_inlinable _ | Functor _ | Recursive ->
+    false
+
 let cannot_be_inlined t =
   match behaviour t with
   | Cannot_be_inlined -> true
