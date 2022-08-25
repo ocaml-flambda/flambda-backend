@@ -25,6 +25,7 @@
 #include <time.h>
 #include <sys/time.h>
 #ifdef __linux__
+#include <features.h>
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <linux/futex.h>
@@ -112,6 +113,12 @@ Caml_inline void st_thread_set_id(intnat id)
   return;
 }
 
+/* If we're using glibc, use a custom condition variable implementation to
+   avoid this bug: https://sourceware.org/bugzilla/show_bug.cgi?id=25847
+   
+   For now we only have this on linux because it directly uses the linux futex
+   syscalls. */
+#if defined(__linux__) && defined(__GNU_LIBRARY__) && defined(__GLIBC__) && defined(__GLIBC_MINOR__)
 typedef struct {
   volatile unsigned counter;
 } custom_condvar;
@@ -149,7 +156,34 @@ static int custom_condvar_broadcast(custom_condvar * cv)
   syscall(SYS_futex, &cv->counter, FUTEX_WAKE_PRIVATE, INT_MAX, NULL, NULL, 0);
   return 0;
 }
+#else
+typedef pthread_cond_t custom_condvar;
 
+static int custom_condvar_init(custom_condvar * cv)
+{
+  return pthread_cond_init(cv, NULL);
+}
+
+static int custom_condvar_destroy(custom_condvar * cv)
+{
+  return pthread_cond_destroy(cv);
+}
+
+static int custom_condvar_wait(custom_condvar * cv, pthread_mutex_t * mutex)
+{
+  return pthread_cond_wait(cv, mutex);
+}
+
+static int custom_condvar_signal(custom_condvar * cv)
+{
+  return pthread_cond_signal(cv);
+}
+
+static int custom_condvar_broadcast(custom_condvar * cv)
+{
+  return pthread_cond_broadcast(cv);
+}
+#endif
 
 /* The master lock.  This is a mutex that is held most of the time,
    so we implement it in a slightly convoluted way to avoid
