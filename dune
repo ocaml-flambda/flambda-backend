@@ -15,11 +15,9 @@
   (flags
    (:standard -warn-error +A))
   (ocamlopt_flags
-   ;; CR gyorsh: it looks like ":standard" is derived from dev not
-   ;; release profile, so add -O3. What other flags do we need? How to
-   ;; find where ":standard" comes from?
-   ;; Keep the name "release" for the boot profile, because it fails with
-   ;; dev in runtest-upstream in at least testsuite/tests/lib-threads/beat/beat.ml
+   ;; CR gyorsh: it is not clear what the ":standard" flags are, and they
+   ;; may change depending on the version of dune.
+   ;; Consider hard-coded flags, such as -O3.
    (:standard -alloc-check)))
  (boot
   (flags
