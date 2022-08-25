@@ -1,7 +1,6 @@
-
 (library
- (name        test)
- (synopsis    "test")
- (preprocess (pps ppx_compare))
- (libraries  sexplib0))
-
+ (name test)
+ (synopsis "test")
+ (preprocess
+  (pps ppx_compare))
+ (libraries sexplib0))

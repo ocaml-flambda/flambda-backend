@@ -5,7 +5,8 @@
 (library
  (name flambda2_term_basics)
  (wrapped true)
- (instrumentation (backend bisect_ppx))
+ (instrumentation
+  (backend bisect_ppx))
  (flags
   (:standard
    -principal

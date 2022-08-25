@@ -2,4 +2,5 @@
 ;; the build, in a way that leads to less merge conflicts when
 ;; updating memtrace compared to deleting those directories in
 ;; the git subtree.
+
 (dirs src)
