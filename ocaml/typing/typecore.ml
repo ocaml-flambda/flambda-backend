@@ -2864,7 +2864,8 @@ let is_local_returning_expr e =
   let rec loop e =
     match e.pexp_desc with
     | Pexp_apply
-        ({ pexp_desc = Pexp_extension({txt = "extension.local"}, PStr []) },
+        ({ pexp_desc = Pexp_extension(
+           {txt = "extension.local"|"ocaml.local"|"local"}, PStr []) },
          [Nolabel, _]) ->
         true, e.pexp_loc
     | Pexp_ident _ | Pexp_constant _ | Pexp_apply _ | Pexp_tuple _
@@ -2993,7 +2994,8 @@ let rec type_approx env sexp =
       end;
       ty2
   | Pexp_apply
-      ({ pexp_desc = Pexp_extension({txt = "extension.local"}, PStr []) },
+      ({ pexp_desc = Pexp_extension(
+         {txt = "extension.local"|"ocaml.local"|"local"}, PStr []) },
        [Nolabel, e]) ->
     type_approx env e
   | Pexp_apply
@@ -5858,7 +5860,8 @@ and type_let
     | Pexp_constraint (e, _)
     | Pexp_newtype (_, e)
     | Pexp_apply
-      ({ pexp_desc = Pexp_extension({txt = "extension.local"}, PStr []) },
+      ({ pexp_desc = Pexp_extension(
+          {txt = "extension.local"|"ocaml.local"|"local"}, PStr []) },
        [Nolabel, e]) -> sexp_is_fun e
     | _ -> false
   in
