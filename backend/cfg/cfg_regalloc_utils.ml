@@ -231,7 +231,8 @@ let simplify_cfg : Cfg_with_layout.t -> Cfg_with_layout.t =
  fun cfg_with_layout ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   Cfg.iter_blocks cfg ~f:(fun _label block ->
-    Cfg.BasicInstructionList.filter block.body ~f:(fun instr -> not (Cfg.is_noop_move instr)));
+      Cfg.BasicInstructionList.filter block.body ~f:(fun instr ->
+          not (Cfg.is_noop_move instr)));
   Eliminate_fallthrough_blocks.run cfg_with_layout;
   Merge_straightline_blocks.run cfg_with_layout;
   Eliminate_dead_code.run_dead_block cfg_with_layout;
@@ -450,7 +451,7 @@ let remove_prologue_if_not_required : Cfg_with_layout.t -> unit =
     (* note: `Cfize` has put the prologue in the entry block *)
     let block = Cfg.get_block_exn cfg cfg.entry_label in
     Cfg.BasicInstructionList.filter block.body ~f:(fun instr ->
-      match instr.Cfg.desc with Cfg.Prologue -> false | _ -> true)
+        match instr.Cfg.desc with Cfg.Prologue -> false | _ -> true)
 
 let update_live_fields : Cfg_with_layout.t -> liveness -> unit =
  fun cfg_with_layout liveness ->

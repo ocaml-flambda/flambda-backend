@@ -412,20 +412,18 @@ let check_basic_instruction_list :
     Cfg.BasicInstructionList.t ->
     Cfg.BasicInstructionList.t ->
     unit =
-  fun state location expected result ->
-    let expected_len = Cfg.BasicInstructionList.length expected in
-    let result_len = Cfg.BasicInstructionList.length result in
-    if expected_len = result_len then begin
-      let i = ref 0 in
-      Cfg.BasicInstructionList.iter2 expected result ~f:(fun expected result ->
+ fun state location expected result ->
+  let expected_len = Cfg.BasicInstructionList.length expected in
+  let result_len = Cfg.BasicInstructionList.length result in
+  if expected_len = result_len
+  then
+    let i = ref 0 in
+    Cfg.BasicInstructionList.iter2 expected result ~f:(fun expected result ->
         check_basic_instruction state location !i expected result;
         incr i)
-    end else begin
-      if expected_len > result_len then
-        different location "bodies with different sizes (expected is longer)"
-      else
-        different location "bodies with different sizes (result is longer)"
-    end
+  else if expected_len > result_len
+  then different location "bodies with different sizes (expected is longer)"
+  else different location "bodies with different sizes (result is longer)"
 
 let check_terminator_instruction :
     State.t ->

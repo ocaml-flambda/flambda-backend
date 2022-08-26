@@ -222,8 +222,8 @@ module Backward
       replace block.terminator (T.terminator value ~exn block.terminator)
     in
     let value =
-      Cfg.BasicInstructionList.fold_right block.body ~init:value ~f:(fun instr value ->
-          replace instr (T.basic value ~exn instr))
+      Cfg.BasicInstructionList.fold_right block.body ~init:value
+        ~f:(fun instr value -> replace instr (T.basic value ~exn instr))
     in
     value
 

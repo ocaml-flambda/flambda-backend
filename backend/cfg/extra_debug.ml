@@ -57,7 +57,9 @@ let add cl =
   let layout = CL.layout cl in
   let update_block prev label =
     let block = Cfg.get_block_exn cfg label in
-    let prev = Cfg.BasicInstructionList.fold_left ~f:update_instr ~init:prev block.body in
+    let prev =
+      Cfg.BasicInstructionList.fold_left ~f:update_instr ~init:prev block.body
+    in
     let prev = update_instr prev block.terminator in
     prev
   in

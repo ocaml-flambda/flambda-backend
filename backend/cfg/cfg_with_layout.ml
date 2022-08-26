@@ -75,7 +75,9 @@ let dump ppf t ~msg =
   let print_block label =
     let block = Label.Tbl.find t.cfg.blocks label in
     fprintf ppf "\n%d:\n" label;
-    Cfg.BasicInstructionList.iter ~f:(fprintf ppf "%a\n" Cfg.print_basic) block.body;
+    Cfg.BasicInstructionList.iter
+      ~f:(fprintf ppf "%a\n" Cfg.print_basic)
+      block.body;
     Cfg.print_terminator ppf block.terminator;
     fprintf ppf "\npredecessors:";
     Label.Set.iter (fprintf ppf " %d") block.predecessors;
@@ -326,7 +328,7 @@ let iter_instructions :
     unit =
  fun cfg_with_layout ~instruction ~terminator ->
   Cfg.iter_blocks cfg_with_layout.cfg ~f:(fun _label block ->
-     Cfg.BasicInstructionList.iter ~f:instruction block.body;
+      Cfg.BasicInstructionList.iter ~f:instruction block.body;
       terminator block.terminator)
 
 let fold_instructions :
@@ -338,6 +340,8 @@ let fold_instructions :
     a =
  fun cfg_with_layout ~instruction ~terminator ~init ->
   Cfg.fold_blocks cfg_with_layout.cfg ~init ~f:(fun _label block acc ->
-     let acc = Cfg.BasicInstructionList.fold_left ~f:instruction ~init:acc block.body in
+      let acc =
+        Cfg.BasicInstructionList.fold_left ~f:instruction ~init:acc block.body
+      in
       let acc = terminator acc block.terminator in
       acc)

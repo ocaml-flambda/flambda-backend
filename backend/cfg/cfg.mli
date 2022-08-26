@@ -33,24 +33,43 @@ end
 
 module BasicInstructionList : sig
   type instr = basic instruction
+
   type cell
+
   val insert_before : cell -> instr -> unit
+
   val insert_after : cell -> instr -> unit
+
   val instr : cell -> instr
+
   type t
+
   val make_empty : unit -> t
+
   val make_single : instr -> t
+
   val hd : t -> instr option
+
   val add_begin : t -> instr -> unit
+
   val add_end : t -> instr -> unit
+
   val is_empty : t -> bool
+
   val length : t -> int
+
   val filter : t -> f:(instr -> bool) -> unit
+
   val iter : t -> f:(instr -> unit) -> unit
+
   val iter_cell : t -> f:(cell -> unit) -> unit
+
   val iter2 : t -> t -> f:(instr -> instr -> unit) -> unit
+
   val fold_left : t -> f:('a -> instr -> 'a) -> init:'a -> 'a
+
   val fold_right : t -> f:(instr -> 'a -> 'a) -> init:'a -> 'a
+
   val transfer : to_:t -> from:t -> unit -> unit
 end
 

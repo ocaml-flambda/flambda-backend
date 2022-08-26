@@ -532,13 +532,15 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
     t.trap_handlers <- Label.Set.add lbl_handler t.trap_handlers;
     record_traps t lbl_handler traps;
     let desc = C.Pushtrap { lbl_handler } in
-    C.BasicInstructionList.add_end block.body (create_instruction t desc ~stack_offset i);
+    C.BasicInstructionList.add_end block.body
+      (create_instruction t desc ~stack_offset i);
     let stack_offset = stack_offset + Proc.trap_size_in_bytes in
     let traps = T.push traps lbl_handler in
     create_blocks t i.next block ~stack_offset ~traps
   | Lpoptrap ->
     let desc = C.Poptrap in
-    C.BasicInstructionList.add_end block.body (create_instruction t desc ~stack_offset i);
+    C.BasicInstructionList.add_end block.body
+      (create_instruction t desc ~stack_offset i);
     let stack_offset = stack_offset - Proc.trap_size_in_bytes in
     if stack_offset < 0
     then Misc.fatal_error "Lpoptrap moves the stack offset below zero";
@@ -559,11 +561,13 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
     create_blocks t i.next block ~stack_offset ~traps
   | Lprologue ->
     let desc = C.Prologue in
-    C.BasicInstructionList.add_end block.body (create_instruction t desc i ~stack_offset);
+    C.BasicInstructionList.add_end block.body
+      (create_instruction t desc i ~stack_offset);
     create_blocks t i.next block ~stack_offset ~traps
   | Lreloadretaddr ->
     let desc = C.Reloadretaddr in
-    C.BasicInstructionList.add_end block.body (create_instruction t desc i ~stack_offset);
+    C.BasicInstructionList.add_end block.body
+      (create_instruction t desc i ~stack_offset);
     create_blocks t i.next block ~stack_offset ~traps
   | Lop mop -> (
     match mop with
@@ -590,7 +594,8 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
       create_blocks t i.next block ~stack_offset ~traps
     | Istackoffset bytes ->
       let desc = to_basic mop in
-      C.BasicInstructionList.add_end block.body (create_instruction t desc i ~stack_offset);
+      C.BasicInstructionList.add_end block.body
+        (create_instruction t desc i ~stack_offset);
       let stack_offset = stack_offset + bytes in
       create_blocks t i.next block ~stack_offset ~traps
     | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
@@ -603,7 +608,8 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
     | Iopaque | Iprobe _ | Iprobe_is_enabled _ | Ispecific _ | Ibeginregion
     | Iendregion | Iname_for_debugger _ ->
       let desc = to_basic mop in
-      C.BasicInstructionList.add_end block.body (create_instruction t desc i ~stack_offset);
+      C.BasicInstructionList.add_end block.body
+        (create_instruction t desc i ~stack_offset);
       if Mach.operation_can_raise mop
       then (
         (* Instruction that can raise is always at the end of a block. *)

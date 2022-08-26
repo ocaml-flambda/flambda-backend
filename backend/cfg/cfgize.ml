@@ -358,9 +358,7 @@ type block_info =
 let extract_block_info : State.t -> Mach.instruction -> block_info =
  fun state first ->
   let rec loop (instr : Mach.instruction) acc =
-    let return terminator instrs =
-      { instrs; last = instr; terminator }
-    in
+    let return terminator instrs = { instrs; last = instr; terminator } in
     match instr.desc with
     | Iop op -> (
       match basic_or_terminator_of_operation state op with
@@ -404,34 +402,32 @@ let rec add_blocks :
   let terminate_block ~trap_actions terminator =
     let body = instrs in
     (match starts_with_pushtrap with
-     | None -> ()
-     | Some lbl_handler ->
-       Cfg.BasicInstructionList.add_begin
-         body
-         (make_instruction state ~desc:(Cfg.Pushtrap { lbl_handler })));
+    | None -> ()
+    | Some lbl_handler ->
+      Cfg.BasicInstructionList.add_begin body
+        (make_instruction state ~desc:(Cfg.Pushtrap { lbl_handler })));
     List.iter
       (fun trap_action ->
-         let instr =
-           match trap_action with
-            | Cmm.Push handler_id ->
-              let lbl_handler = State.get_catch_handler state ~handler_id in
-              make_instruction state ~desc:(Cfg.Pushtrap { lbl_handler })
-            | Cmm.Pop -> make_instruction state ~desc:Cfg.Poptrap
-         in
-         Cfg.BasicInstructionList.add_end body instr)
+        let instr =
+          match trap_action with
+          | Cmm.Push handler_id ->
+            let lbl_handler = State.get_catch_handler state ~handler_id in
+            make_instruction state ~desc:(Cfg.Pushtrap { lbl_handler })
+          | Cmm.Pop -> make_instruction state ~desc:Cfg.Poptrap
+        in
+        Cfg.BasicInstructionList.add_end body instr)
       trap_actions;
     (match terminator.Cfg.desc with
-     | Cfg.Return ->
-       if State.get_contains_calls state then begin
-         Cfg.BasicInstructionList.add_end
-           body
-           (make_instruction state ~desc:Cfg.Reloadretaddr)
-       end else
-         ()
-     | Cfg.Never | Cfg.Always _ | Cfg.Parity_test _ | Cfg.Truth_test _
-     | Cfg.Float_test _ | Cfg.Int_test _ | Cfg.Switch _ | Cfg.Raise _
-     | Cfg.Tailcall _ | Cfg.Call_no_return _ ->
-       ());
+    | Cfg.Return ->
+      if State.get_contains_calls state
+      then
+        Cfg.BasicInstructionList.add_end body
+          (make_instruction state ~desc:Cfg.Reloadretaddr)
+      else ()
+    | Cfg.Never | Cfg.Always _ | Cfg.Parity_test _ | Cfg.Truth_test _
+    | Cfg.Float_test _ | Cfg.Int_test _ | Cfg.Switch _ | Cfg.Raise _
+    | Cfg.Tailcall _ | Cfg.Call_no_return _ ->
+      ());
     let can_raise =
       (* Recompute [can_raise] and check that instructions in the middle of the
          block do not raise, i.e., only the terminator, or the last instruction
@@ -444,17 +440,15 @@ let rec add_blocks :
           false
       in
 
-
       let body_num_can_raise =
         Cfg.BasicInstructionList.fold_left body ~init:0 ~f:(fun acc instr ->
-          if Cfg.can_raise_basic instr.Cfg.desc then
-            succ acc
-          else
-            acc)
+            if Cfg.can_raise_basic instr.Cfg.desc then succ acc else acc)
       in
       match body_num_can_raise with
       | 0 -> Cfg.can_raise_terminator terminator.Cfg.desc
-      | 1 -> assert terminator_is_goto; true
+      | 1 ->
+        assert terminator_is_goto;
+        true
       | _ -> assert false
     in
     State.add_block state ~label:start
@@ -604,10 +598,7 @@ module Stack_offset_and_exn = struct
     stack_offset + (Proc.trap_size_in_bytes * List.length traps)
 
   let check_and_set_stack_offset :
-      'a Cfg.instruction ->
-      stack_offset:int ->
-      traps:handler_stack ->
-      unit =
+      'a Cfg.instruction -> stack_offset:int -> traps:handler_stack -> unit =
    fun instr ~stack_offset ~traps ->
     assert (instr.stack_offset = invalid_stack_offset);
     Cfg.set_stack_offset instr (compute_stack_offset ~stack_offset ~traps)
@@ -617,8 +608,8 @@ module Stack_offset_and_exn = struct
       traps:handler_stack ->
       Cfg.terminator Cfg.instruction ->
       int * handler_stack =
-    fun ~stack_offset ~traps term ->
-      check_and_set_stack_offset term ~stack_offset ~traps;
+   fun ~stack_offset ~traps term ->
+    check_and_set_stack_offset term ~stack_offset ~traps;
     match term.desc with
     | Tailcall (Self _) when List.length traps <> 0 || stack_offset <> 0 ->
       Misc.fatal_error
@@ -638,7 +629,7 @@ module Stack_offset_and_exn = struct
       Cfg.basic Cfg.instruction ->
       int * handler_stack =
    fun cfg ~stack_offset ~traps instr ->
-     check_and_set_stack_offset instr ~stack_offset ~traps;
+    check_and_set_stack_offset instr ~stack_offset ~traps;
     match instr.desc with
     | Pushtrap { lbl_handler } ->
       update_block cfg lbl_handler ~stack_offset ~traps;
@@ -680,13 +671,12 @@ module Stack_offset_and_exn = struct
     then (
       block.stack_offset <- compute_stack_offset ~stack_offset ~traps;
 
-
       let stack_offset, traps =
         Cfg.BasicInstructionList.fold_left block.body ~init:(stack_offset, traps)
           ~f:(fun (stack_offset, traps) instr ->
             process_basic cfg ~stack_offset ~traps instr)
-
       in
+
       let stack_offset, traps =
         process_terminator ~stack_offset ~traps block.terminator
       in
@@ -753,7 +743,7 @@ let fundecl :
       { start = Cfg.entry_label cfg;
         body =
           (match prologue_required with
-           | false -> Cfg.BasicInstructionList.make_empty ()
+          | false -> Cfg.BasicInstructionList.make_empty ()
           | true ->
             (* Note: the prologue must come after all `Iname_for_debugger`
                instructions (this is currently not a concern because we do not
