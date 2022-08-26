@@ -119,16 +119,39 @@ type frame_descr =
   { fd_lbl: int;                        (* Return address *)
     fd_frame_size: int;                 (* Size of stack frame *)
     fd_live_offset: int list;           (* Offsets/regs of live addresses *)
-    fd_debuginfo: frame_debuginfo }     (* Location, if any *)
+    fd_debuginfo: frame_debuginfo;      (* Location, if any *)
+    fd_long: bool;                      (* Use 32 instead of 16 bit format. *)
+  }
 
 let frame_descriptors = ref([] : frame_descr list)
 
+let get_flags debuginfo =
+  match fd_debuginfo with
+  | Dbg_other d | Dbg_raise d ->
+    if Debuginfo.is_none d then 0 else 1
+  | Dbg_alloc dbgs ->
+    if !Clflags.debug &&
+       List.exists (fun d ->
+         not (Debuginfo.is_none d.Debuginfo.alloc_dbg)) dbgs
+    then 3 else 2
+
+let is_long n =
+    assert (n >= 0);
+    n < 0xFFFF
+
 let record_frame_descr ~label ~frame_size ~live_offset debuginfo =
-  frame_descriptors :=
-    { fd_lbl = label;
+  assert (fd.fd_frame_size land 3 = 0);
+  let fd_long =
+    is_long (frame_size + get_flags debuginfo) ||
+    is_long (List.length _live_offset) ||
+    (List.exists is_long live_offset)
+  in
+  frame_descriptors :=     { fd_lbl = label;
       fd_frame_size = frame_size;
       fd_live_offset = List.sort_uniq (-) live_offset;
-      fd_debuginfo = debuginfo } :: !frame_descriptors
+      fd_debuginfo = debuginfo;
+      fd_long;
+    } :: !frame_descriptors
 
 type emit_frame_actions =
   { efa_code_label: int -> unit;
@@ -183,28 +206,16 @@ let emit_frames a =
       Label_table.add debuginfos key lbl;
       lbl
   in
-  let efa_16_checked n =
-    assert (n >= 0);
-    if n < 0x1_0000
-    then a.efa_16 n
-    else raise (Error(Stack_frame_too_large n))
-  in
   let emit_frame fd =
-    assert (fd.fd_frame_size land 3 = 0);
-    let flags =
-      match fd.fd_debuginfo with
-      | Dbg_other d | Dbg_raise d ->
-        if Debuginfo.is_none d then 0 else 1
-      | Dbg_alloc dbgs ->
-        if !Clflags.debug &&
-           List.exists (fun d ->
-             not (Debuginfo.is_none d.Debuginfo.alloc_dbg)) dbgs
-        then 3 else 2
-    in
+    let flags = get_flags fd.debuginfo in
     a.efa_code_label fd.fd_lbl;
-    efa_16_checked (fd.fd_frame_size + flags);
-    efa_16_checked (List.length fd.fd_live_offset);
-    List.iter efa_16_checked fd.fd_live_offset;
+    (* For short format, the size is guaranteed
+       to be less than the constant below. *)
+    if fd.fd_long then a.efa_16 0xFFFF;
+    let emit_16_or_32 = if fd.fd_long then a.eta_32 else a.eta_16 in
+    emit_16_or_32 (fd.fd_frame_size + flags);
+    emit_16_or_32 (List.length fd.fd_live_offset);
+    List.iter emit_16_or_32 fd.fd_live_offset;
     begin match fd.fd_debuginfo with
     | _ when flags = 0 ->
       ()
