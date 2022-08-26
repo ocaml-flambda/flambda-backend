@@ -32,43 +32,207 @@ include Cfg_intf.S
 
 module BasicInstructionList = struct
   type instr = basic instruction
-  type cell = {
+
+  type node = {
     instr : instr;
-    mutable before_rev : instr list;
-    mutable after : instr list;
+    mutable prev : node;
+    mutable next : node;
   }
+
+  (* CR xclerc for xclerc: a dummy instruction value has probably
+     been introduced by another pull request. *)
+  let dummy_instruction : instr = {
+    desc = Prologue;
+    arg = [||];
+    res = [||];
+    dbg = Debuginfo.none;
+    fdo = Fdo_info.none;
+    live = Reg.Set.empty;
+    stack_offset = -1;
+    id = -1;
+    irc_work_list = Unknown_list;
+  }
+
+  let rec dummy_node = {
+    instr = dummy_instruction;
+    prev = dummy_node;
+    next = dummy_node;
+  }
+
+  let[@inline] unattached_node instr =
+    { instr; prev = dummy_node; next = dummy_node; }
+
+  type t = {
+    mutable length : int; (* CR xclerc for xclerc: is it really necessary? *)
+    mutable first : node;
+    mutable last : node;
+  }
+
+  type cell = {
+    node : node;
+    t : t;
+  }
+
   let insert_before cell instr =
-    cell.before_rev <- instr :: cell.before_rev
+    let new_node = unattached_node instr in
+    new_node.prev <- cell.node.prev;
+    new_node.next <- cell.node;
+    cell.node.prev <- new_node;
+    cell.t.length <- succ cell.t.length;
+    if new_node.prev == dummy_node then
+      cell.t.first <- new_node
+    else
+      new_node.prev.next <- new_node
+
   let insert_after cell instr =
-    cell.after <- instr :: cell.after
-  let instr cell = cell.instr
-  type t = instr list ref
-  let make_empty () = ref []
-  let make_single instr = ref [instr]
+    let new_node = unattached_node instr in
+    new_node.next <- cell.node.next;
+    new_node.prev <- cell.node;
+    cell.node.next <- new_node;
+    cell.t.length <- succ cell.t.length;
+    if new_node.next == dummy_node then
+      cell.t.last <- new_node
+    else
+      new_node.next.prev <- new_node
+
+  let instr cell =
+    cell.node.instr
+
+  let make_empty () =
+    { length = 0; first = dummy_node; last = dummy_node; }
+
+  let make_single instr =
+    let node = unattached_node instr in
+    { length = 1; first = node; last = node; }
+
   let hd t =
-    match !t with
-    | [] -> None
-    | hd :: _ -> Some hd
-  let add_begin t instr = t := instr :: !t
-  let add_end t instr = t := !t @ [instr]
+    let first = t.first in
+    if first == dummy_node then begin
+      None
+    end else begin
+      Some first.instr
+    end
+
+  let add_begin t instr =
+    let node = unattached_node instr in
+    let len = t.length in
+    if Int.equal len 0 then begin
+      t.first <- node;
+      t.last <- node;
+      t.length <- 1
+    end else begin
+      node.next <- t.first;
+      t.first.prev <- node;
+      t.first <- node;
+      t.length <- succ len
+    end
+
+  let add_end t instr =
+    let node = unattached_node instr in
+    let len = t.length in
+    if Int.equal len 0 then begin
+      t.first <- node;
+      t.last <- node;
+      t.length <- 1
+    end else begin
+      node.prev <- t.last;
+      t.last.next <- node;
+      t.last <- node;
+      t.length <- succ len
+    end
+
   let is_empty t =
-    match !t with
-    | [] -> true
-    | _ :: _ -> false
-  let length t = ListLabels.length !t
-  let filter t ~f = t := ListLabels.filter ~f !t
-  let iter t ~f = ListLabels.iter ~f !t
+    Int.equal t.length 0
+
+  let length t =
+    t.length
+
+  let filter t ~f =
+    let curr = ref t.first in
+    while !curr != dummy_node do
+      if not (f (!curr).instr) then begin
+        if (!curr).prev == dummy_node then begin
+          t.first <- (!curr).next;
+        end else begin
+          (!curr).prev.next <- (!curr).next;
+        end;
+        if (!curr).next == dummy_node then begin
+          t.last <- (!curr).prev;
+        end else begin
+          (!curr).next.prev <- (!curr).prev;
+        end;
+        t.length <- pred t.length
+      end;
+      curr := (!curr).next;
+    done
+
+  let iter t ~f =
+    let curr = ref t.first in
+    while !curr != dummy_node do
+      f (!curr).instr;
+      curr := (!curr).next;
+    done
+
   let iter_cell t ~f =
-    t := ListLabels.concat_map !t ~f:(fun instr ->
-      let cell = { instr; before_rev = []; after = []; } in
+    let curr = ref t.first in
+    while !curr != dummy_node do
+      let next = (!curr).next in
+      let cell = { node = !curr; t; } in
       f cell;
-      (List.rev cell.before_rev) @ [instr] @ cell.after)
-  let iter2 t t' ~f = ListLabels.iter2 ~f !t !t'
-  let fold_left t ~f ~init = ListLabels.fold_left ~f ~init !t
-  let fold_right t ~f ~init = ListLabels.fold_right ~f !t ~init
-  let transfer ~to_:t ~from:t' () =
-    t := !t @ !t';
-    t' := []
+      curr := next
+    done
+
+  let iter2 t t' ~f =
+    let curr = ref t.first in
+    let curr' = ref t'.first in
+    while (!curr != dummy_node) && (!curr' != dummy_node) do
+      f (!curr).instr (!curr').instr;
+      curr := (!curr).next;
+      curr' := (!curr').next;
+    done;
+    if not (Bool.equal (!curr != dummy_node) (!curr' != dummy_node)) then
+      invalid_arg "BasicInstructionList.iter2"
+
+  let fold_left t ~f ~init =
+    let res = ref init in
+    let curr = ref t.first in
+    while !curr != dummy_node do
+      res := f !res (!curr).instr;
+      curr := (!curr).next;
+    done;
+    !res
+
+  let fold_right t ~f ~init =
+    let res = ref init in
+    let curr = ref t.last in
+    while !curr != dummy_node do
+      res := f (!curr).instr !res;
+      curr := (!curr).prev;
+    done;
+    !res
+
+  let transfer ~to_ ~from () =
+    begin match to_.length, from.length with
+    | _, 0 ->
+      (* nothing to do *)
+      ()
+    | 0, _ ->
+      to_.first <- from.first;
+      to_.last <- from.last;
+      to_.length <- from.length;
+      from.first <- dummy_node;
+      from.last <- dummy_node;
+      from.length <- 0
+    | _ ->
+      to_.last.next <- from.first;
+      from.first.prev <- to_.last;
+      to_.last <- from.last;
+      to_.length <- to_.length + from.length;
+      from.first <- dummy_node;
+      from.last <- dummy_node;
+      from.length <- 0
+    end
+
 end
 
 type basic_block =
