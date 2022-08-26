@@ -39,7 +39,7 @@ let rec simplify_expr dacc expr ~down_to_up =
     down_to_up dacc ~rebuild:(fun uacc ~after_rebuild ->
         EB.rebuild_invalid uacc (Message message) ~after_rebuild)
 
-and simplify_toplevel dacc expr ~return_continuation ~return_arity
+and simplify_toplevel dacc expr ~params ~return_continuation ~return_arity
     ~exn_continuation ~return_cont_scope ~exn_cont_scope =
   (* The usage analysis needs a continuation whose handler holds the toplevel
      code of the function. Since such a continuation does not exist, we create a
@@ -48,7 +48,10 @@ and simplify_toplevel dacc expr ~return_continuation ~return_arity
     Continuation.create ~name:"dummy_toplevel_continuation" ()
   in
   let dacc =
-    DA.map_data_flow dacc ~f:(Data_flow.init_toplevel ~dummy_toplevel_cont [])
+    DA.map_data_flow dacc
+      ~f:
+        (Data_flow.init_toplevel ~dummy_toplevel_cont
+           (Bound_parameters.vars params))
   in
   let expr, uacc =
     simplify_expr dacc expr ~down_to_up:(fun dacc ~rebuild ->

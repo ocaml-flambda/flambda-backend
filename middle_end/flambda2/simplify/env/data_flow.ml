@@ -1058,11 +1058,21 @@ module Control_flow_graph = struct
       (* note: this is ... somewhat safe *)
       Format.fprintf ppf "node_%d_%d" ctx (cont :> int)
 
-    let node ?(info = "") ~ctx () ppf cont =
-      Format.fprintf ppf "%a [label=\"%a\" %s];@\n" (node_id ~ctx) cont
-        Continuation.print cont info
+    let node ?(info = "") ~df ~ctx () ppf cont =
+      let params =
+        match Continuation.Map.find cont df.map with
+        | exception Not_found -> "[ none ]"
+        | elt ->
+          Format.asprintf "[%a]"
+            (Format.pp_print_list
+               ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ")
+               Variable.print)
+            elt.params
+      in
+      Format.fprintf ppf "%a [label=\"%a %s\" %s];@\n" (node_id ~ctx) cont
+        Continuation.print cont params info
 
-    let nodes ~ctx ~return_continuation ~exn_continuation ppf cont_map =
+    let nodes ~df ~ctx ~return_continuation ~exn_continuation ppf cont_map =
       Continuation.Set.iter
         (fun cont ->
           let info =
@@ -1072,7 +1082,7 @@ module Control_flow_graph = struct
             then "color=red"
             else ""
           in
-          node ~ctx ~info () ppf cont)
+          node ~df ~ctx ~info () ppf cont)
         cont_map
 
     let edge ~ctx ~color ppf src dst =
@@ -1087,7 +1097,7 @@ module Control_flow_graph = struct
             dst_set)
         edge_map
 
-    let print ~ctx ~print_name ppf ~dummy_toplevel_cont ~return_continuation
+    let print ~ctx ~df ~print_name ppf ~dummy_toplevel_cont ~return_continuation
         ~exn_continuation (t : t) =
       let all_conts =
         Continuation.Map.fold
@@ -1100,8 +1110,8 @@ module Control_flow_graph = struct
       Flambda_colours.without_colours ~f:(fun () ->
           Format.fprintf ppf
             "subgraph cluster_%d { label=\"%s\";@\n%a%a@\n%a@\n}@." ctx
-            print_name (node ~ctx ()) dummy_toplevel_cont
-            (nodes ~return_continuation ~exn_continuation ~ctx)
+            print_name (node ~df ~ctx ()) dummy_toplevel_cont
+            (nodes ~df ~return_continuation ~exn_continuation ~ctx)
             all_conts
             (edges ~ctx ~color:"black")
             t.callers)
@@ -1165,7 +1175,7 @@ let analyze ?print_name ~return_continuation ~exn_continuation
         Option.iter
           (fun ppf ->
             incr r;
-            Control_flow_graph.Dot.print ~print_name ~ctx:!r ppf
+            Control_flow_graph.Dot.print ~df:t ~print_name ~ctx:!r ppf
               ~return_continuation ~exn_continuation ~dummy_toplevel_cont
               control)
           (Lazy.force control_flow_graph_ppf));

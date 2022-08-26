@@ -41,6 +41,7 @@ type 'a expr_simplifier =
 type simplify_toplevel =
   Downwards_acc.t ->
   Expr.t ->
+  params:Bound_parameters.t ->
   return_continuation:Continuation.t ->
   return_arity:Flambda_arity.With_subkinds.t ->
   exn_continuation:Continuation.t ->

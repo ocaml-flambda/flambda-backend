@@ -582,7 +582,7 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
             DA.print dacc;
         assert (not (DE.at_unit_toplevel (DA.denv dacc)));
         match
-          C.simplify_toplevel context dacc body ~return_continuation
+          C.simplify_toplevel context dacc body ~params ~return_continuation
             ~exn_continuation ~return_arity:(Code.result_arity code)
             ~return_cont_scope:Scope.initial
             ~exn_cont_scope:(Scope.next Scope.initial)
