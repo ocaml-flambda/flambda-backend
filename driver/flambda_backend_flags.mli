@@ -29,6 +29,7 @@ val alloc_check : bool ref
 val dump_checkmach : bool ref
 
 val disable_poll_insertion : bool ref
+val allow_long_frames : bool ref
 
 type function_result_types = Never | Functors_only | All_functions
 type opt_level = Oclassic | O2 | O3
