@@ -43,7 +43,8 @@ val init_toplevel : Continuation.t -> Variable.t list -> t -> t
 
 (** Add a new continuation on the stack. Used when entering a continuation
     handler. *)
-val enter_continuation : Continuation.t -> Variable.t list -> t -> t
+val enter_continuation :
+  Continuation.t -> recursive:bool -> Variable.t list -> t -> t
 
 (** Pop the current top of the stack. Used when exiting the current continuation
     handler. *)

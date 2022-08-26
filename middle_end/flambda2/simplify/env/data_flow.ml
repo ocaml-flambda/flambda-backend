@@ -44,6 +44,7 @@ end
    mshinwell: in practice I'm not sure this will make any difference *)
 type elt =
   { continuation : Continuation.t;
+    recursive : bool;
     params : Variable.t list;
     used_in_handler : Name_occurrences.t;
     apply_result_conts : Continuation.Set.t;
@@ -67,8 +68,9 @@ type result =
 (* Print *)
 (* ***** *)
 
-let print_elt ppf
+let [@ocamlformat "disable"] print_elt ppf
     { continuation;
+      recursive;
       params;
       used_in_handler;
       apply_result_conts;
@@ -77,12 +79,19 @@ let print_elt ppf
       value_slots;
       apply_cont_args
     } =
-  Format.fprintf ppf
-    "@[<hov 1>(@[<hov 1>(continuation %a)@]@ @[<hov 1>(params %a)@]@ @[<hov \
-     1>(used_in_handler %a)@]@ @[<hov 1>(apply_result_conts %a)@]@ @[<hov \
-     1>(bindings %a)@]@ @[<hov 1>(code_ids %a)@]@ @[<hov 1>(value_slots %a)@]@ \
-     @[<hov 1>(apply_cont_args %a)@])@]"
+  Format.fprintf ppf "@[<hov 1>(\
+      @[<hov 1>(continuation %a)@]@ \
+      %s\
+      @[<hov 1>(params %a)@]@ \
+      @[<hov 1>(used_in_handler %a)@]@ \
+      @[<hov 1>(apply_result_conts %a)@]@ \
+      @[<hov 1>(bindings %a)@]@ \
+      @[<hov 1>(code_ids %a)@]@ \
+      @[<hov 1>(value_slots %a)@]@ \
+      @[<hov 1>(apply_cont_args %a)@]\
+    )@]"
     Continuation.print continuation
+    (if recursive then "(recursive)" else "")
     (Format.pp_print_list ~pp_sep:Format.pp_print_space Variable.print)
     params Name_occurrences.print used_in_handler Continuation.Set.print
     apply_result_conts
@@ -141,9 +150,10 @@ let add_extra_params_and_args cont extra t =
   in
   { t with extra }
 
-let enter_continuation continuation params t =
+let enter_continuation continuation ~recursive params t =
   let elt =
     { continuation;
+      recursive;
       params;
       bindings = Name.Map.empty;
       code_ids = Code_id.Map.empty;
@@ -156,7 +166,7 @@ let enter_continuation continuation params t =
   { t with stack = elt :: t.stack }
 
 let init_toplevel continuation params _t =
-  enter_continuation continuation params empty
+  enter_continuation continuation ~recursive:false params empty
 
 let exit_continuation cont t =
   match t.stack with
@@ -541,6 +551,7 @@ module Dependency_graph = struct
         code_ids;
         value_slots;
         continuation = _;
+        recursive = _;
         params = _
       } t =
     (* Add the vars used in the handler *)
