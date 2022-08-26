@@ -46,6 +46,7 @@ type elt =
   { continuation : Continuation.t;
     recursive : bool;
     params : Variable.t list;
+    parent_continuation : Continuation.t option;
     used_in_handler : Name_occurrences.t;
     apply_result_conts : Continuation.Set.t;
     apply_exn_conts : Continuation.Set.t;
@@ -74,6 +75,7 @@ let [@ocamlformat "disable"] print_elt ppf
     { continuation;
       recursive;
       params;
+      parent_continuation;
       used_in_handler;
       apply_result_conts;
       apply_exn_conts;
@@ -86,6 +88,7 @@ let [@ocamlformat "disable"] print_elt ppf
       @[<hov 1>(continuation %a)@]@ \
       %s\
       @[<hov 1>(params %a)@]@ \
+      @[<hov 1>(parent_continuation %a)@]@ \
       @[<hov 1>(used_in_handler %a)@]@ \
       @[<hov 1>(apply_result_conts %a)@]@ \
       @[<hov 1>(apply_exn_conts %a)@]@ \
@@ -97,6 +100,8 @@ let [@ocamlformat "disable"] print_elt ppf
     Continuation.print continuation
     (if recursive then "(recursive)" else "")
     (Format.pp_print_list ~pp_sep:Format.pp_print_space Variable.print) params
+    (Format.pp_print_option ~none:(fun ppf () -> Format.fprintf ppf "root")
+       Continuation.print) parent_continuation
     Name_occurrences.print used_in_handler
     Continuation.Set.print apply_result_conts
     Continuation.Set.print apply_exn_conts
@@ -165,10 +170,14 @@ let add_extra_params_and_args cont extra t =
   { t with extra }
 
 let enter_continuation continuation ~recursive params t =
+  let parent_continuation =
+    match t.stack with [] -> None | parent :: _ -> Some parent.continuation
+  in
   let elt =
     { continuation;
       recursive;
       params;
+      parent_continuation;
       bindings = Name.Map.empty;
       code_ids = Code_id.Map.empty;
       value_slots = Value_slot.Map.empty;
@@ -580,6 +589,7 @@ module Dependency_graph = struct
         value_slots;
         continuation = _;
         recursive = _;
+        parent_continuation = _;
         params = _
       } t =
     (* Add the vars used in the handler *)
@@ -1018,7 +1028,10 @@ module Dominator_graph = struct
 end
 
 module Control_flow_graph = struct
-  type t = { callers : Continuation.Set.t Continuation.Map.t }
+  type t =
+    { callers : Continuation.Set.t Continuation.Map.t;
+      parents : Continuation.t Continuation.Map.t
+    }
 
   let add ~caller ~callee map =
     Continuation.Map.update callee
@@ -1028,6 +1041,11 @@ module Control_flow_graph = struct
       map
 
   let create { map; _ } =
+    let parents =
+      Continuation.Map.filter_map
+        (fun _ (elt : elt) -> elt.parent_continuation)
+        map
+    in
     let callers =
       Continuation.Map.fold
         (fun caller (elt : elt) acc ->
@@ -1051,7 +1069,7 @@ module Control_flow_graph = struct
             elt.apply_exn_conts acc)
         map Continuation.Map.empty
     in
-    { callers }
+    { callers; parents }
 
   module Dot = struct
     let node_id ~ctx ppf (cont : Continuation.t) =
@@ -1059,18 +1077,22 @@ module Control_flow_graph = struct
       Format.fprintf ppf "node_%d_%d" ctx (cont :> int)
 
     let node ?(info = "") ~df ~ctx () ppf cont =
-      let params =
+      let params, shape =
         match Continuation.Map.find cont df.map with
-        | exception Not_found -> "[ none ]"
+        | exception Not_found -> "[ none ]", ""
         | elt ->
-          Format.asprintf "[%a]"
-            (Format.pp_print_list
-               ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ")
-               Variable.print)
-            elt.params
+          let params =
+            Format.asprintf "[%a]"
+              (Format.pp_print_list
+                 ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ")
+                 Variable.print)
+              elt.params
+          in
+          let shape = if elt.recursive then "shape=record" else "" in
+          params, shape
       in
-      Format.fprintf ppf "%a [label=\"%a %s\" %s];@\n" (node_id ~ctx) cont
-        Continuation.print cont params info
+      Format.fprintf ppf "%a [label=\"%a %s\" %s %s];@\n" (node_id ~ctx) cont
+        Continuation.print cont params shape info
 
     let nodes ~df ~ctx ~return_continuation ~exn_continuation ppf cont_map =
       Continuation.Set.iter
@@ -1097,6 +1119,11 @@ module Control_flow_graph = struct
             dst_set)
         edge_map
 
+    let edges' ~ctx ~color ppf edge_map =
+      Continuation.Map.iter
+        (fun src dst -> edge ~ctx ~color ppf src dst)
+        edge_map
+
     let print ~ctx ~df ~print_name ppf ~dummy_toplevel_cont ~return_continuation
         ~exn_continuation (t : t) =
       let all_conts =
@@ -1107,12 +1134,19 @@ module Control_flow_graph = struct
           (Continuation.Set.of_list
              [dummy_toplevel_cont; return_continuation; exn_continuation])
       in
+      let all_conts =
+        Continuation.Map.fold
+          (fun cont _parent acc -> Continuation.Set.add cont acc)
+          t.parents all_conts
+      in
       Flambda_colours.without_colours ~f:(fun () ->
           Format.fprintf ppf
-            "subgraph cluster_%d { label=\"%s\";@\n%a%a@\n%a@\n}@." ctx
+            "subgraph cluster_%d { label=\"%s\";@\n%a%a@\n%a@\n%a@\n}@." ctx
             print_name (node ~df ~ctx ()) dummy_toplevel_cont
             (nodes ~df ~return_continuation ~exn_continuation ~ctx)
             all_conts
+            (edges' ~ctx ~color:"green")
+            t.parents
             (edges ~ctx ~color:"black")
             t.callers)
   end
