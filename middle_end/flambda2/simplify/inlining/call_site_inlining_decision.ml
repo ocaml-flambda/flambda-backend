@@ -68,7 +68,7 @@ let speculative_inlining dacc ~apply ~function_type ~simplify_expr ~return_arity
   in
   let dacc =
     DA.map_data_flow dacc ~f:(fun _ ->
-        Data_flow.init_toplevel dummy_toplevel_cont [] Data_flow.empty)
+        Data_flow.init_toplevel ~dummy_toplevel_cont [] (Data_flow.empty ()))
   in
   let _, uacc =
     simplify_expr dacc expr ~down_to_up:(fun dacc ~rebuild ->

@@ -63,7 +63,7 @@ let create denv continuation_uses_env =
     shareable_constants = Static_const.Map.empty;
     used_value_slots = Name_occurrences.empty;
     lifted_constants = LCS.empty;
-    data_flow = Data_flow.empty;
+    data_flow = Data_flow.empty ();
     demoted_exn_handlers = Continuation.Set.empty;
     code_ids_to_remember = Code_id.Set.empty
   }

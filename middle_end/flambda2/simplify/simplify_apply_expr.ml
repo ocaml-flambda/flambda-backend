@@ -40,9 +40,13 @@ let record_free_names_of_apply_as_used0 apply data_flow =
   let data_flow =
     Data_flow.add_used_in_current_handler (Apply.free_names apply) data_flow
   in
-  match Apply.continuation apply with
-  | Never_returns -> data_flow
-  | Return k -> Data_flow.add_apply_result_cont k data_flow
+  let exn_cont = Exn_continuation.exn_handler (Apply.exn_continuation apply) in
+  let result_cont =
+    match Apply.continuation apply with
+    | Never_returns -> None
+    | Return k -> Some k
+  in
+  Data_flow.add_apply_conts ~exn_cont ~result_cont data_flow
 
 let record_free_names_of_apply_as_used dacc apply =
   DA.map_data_flow dacc ~f:(record_free_names_of_apply_as_used0 apply)

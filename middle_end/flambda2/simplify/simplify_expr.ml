@@ -48,7 +48,7 @@ and simplify_toplevel dacc expr ~return_continuation ~return_arity
     Continuation.create ~name:"dummy_toplevel_continuation" ()
   in
   let dacc =
-    DA.map_data_flow dacc ~f:(Data_flow.init_toplevel dummy_toplevel_cont [])
+    DA.map_data_flow dacc ~f:(Data_flow.init_toplevel ~dummy_toplevel_cont [])
   in
   let expr, uacc =
     simplify_expr dacc expr ~down_to_up:(fun dacc ~rebuild ->
@@ -71,9 +71,16 @@ and simplify_toplevel dacc expr ~return_continuation ~return_arity
             ( DA.code_age_relation dacc,
               Or_unknown.Known (DA.used_value_slots dacc) )
         in
+        let print_name =
+          match closure_info with
+          | Not_in_a_closure -> "toplevel"
+          | In_a_set_of_closures_but_not_yet_in_a_specific_closure ->
+            assert false
+          | Closure { code_id; _ } -> Code_id.name code_id
+        in
         let ({ required_names; reachable_code_ids } : Data_flow.result) =
-          Data_flow.analyze data_flow ~code_age_relation ~used_value_slots
-            ~return_continuation ~exn_continuation
+          Data_flow.analyze data_flow ~print_name ~code_age_relation
+            ~used_value_slots ~return_continuation ~exn_continuation
         in
         (* The code_id part of the data_flow analysis is correct only at
            toplevel where all the code_ids are, so when in a closure, we state

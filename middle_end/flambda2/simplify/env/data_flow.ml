@@ -48,6 +48,7 @@ type elt =
     params : Variable.t list;
     used_in_handler : Name_occurrences.t;
     apply_result_conts : Continuation.Set.t;
+    apply_exn_conts : Continuation.Set.t;
     bindings : Name_occurrences.t Name.Map.t;
     code_ids : Name_occurrences.t Code_id.Map.t;
     value_slots : Name_occurrences.t Name.Map.t Value_slot.Map.t;
@@ -57,7 +58,8 @@ type elt =
 type t =
   { stack : elt list;
     map : elt Continuation.Map.t;
-    extra : Continuation_extra_params_and_args.t Continuation.Map.t
+    extra : Continuation_extra_params_and_args.t Continuation.Map.t;
+    dummy_toplevel_cont : Continuation.t
   }
 
 type result =
@@ -74,6 +76,7 @@ let [@ocamlformat "disable"] print_elt ppf
       params;
       used_in_handler;
       apply_result_conts;
+      apply_exn_conts;
       bindings;
       code_ids;
       value_slots;
@@ -85,6 +88,7 @@ let [@ocamlformat "disable"] print_elt ppf
       @[<hov 1>(params %a)@]@ \
       @[<hov 1>(used_in_handler %a)@]@ \
       @[<hov 1>(apply_result_conts %a)@]@ \
+      @[<hov 1>(apply_exn_conts %a)@]@ \
       @[<hov 1>(bindings %a)@]@ \
       @[<hov 1>(code_ids %a)@]@ \
       @[<hov 1>(value_slots %a)@]@ \
@@ -92,9 +96,10 @@ let [@ocamlformat "disable"] print_elt ppf
     )@]"
     Continuation.print continuation
     (if recursive then "(recursive)" else "")
-    (Format.pp_print_list ~pp_sep:Format.pp_print_space Variable.print)
-    params Name_occurrences.print used_in_handler Continuation.Set.print
-    apply_result_conts
+    (Format.pp_print_list ~pp_sep:Format.pp_print_space Variable.print) params
+    Name_occurrences.print used_in_handler
+    Continuation.Set.print apply_result_conts
+    Continuation.Set.print apply_exn_conts
     (Name.Map.print Name_occurrences.print)
     bindings
     (Code_id.Map.print Name_occurrences.print)
@@ -114,7 +119,7 @@ let print_map ppf map = Continuation.Map.print print_elt ppf map
 let print_extra ppf extra =
   Continuation.Map.print Continuation_extra_params_and_args.print ppf extra
 
-let [@ocamlformat "disable"] print ppf { stack; map; extra } =
+let [@ocamlformat "disable"] print ppf { stack; map; extra; dummy_toplevel_cont = _ } =
   Format.fprintf ppf
     "@[<hov 1>(\
       @[<hov 1>(stack %a)@]@ \
@@ -134,8 +139,17 @@ let _print_result ppf { required_names; reachable_code_ids } =
 (* Creation *)
 (* ******** *)
 
-let empty =
-  { stack = []; map = Continuation.Map.empty; extra = Continuation.Map.empty }
+let wrong_dummy_toplevel_cont_name = "wrong toplevel cont"
+
+let empty () =
+  let wrong_dummy_toplevel_cont =
+    Continuation.create ~name:wrong_dummy_toplevel_cont_name ()
+  in
+  { stack = [];
+    map = Continuation.Map.empty;
+    extra = Continuation.Map.empty;
+    dummy_toplevel_cont = wrong_dummy_toplevel_cont
+  }
 
 (* Updates *)
 (* ******* *)
@@ -160,13 +174,15 @@ let enter_continuation continuation ~recursive params t =
       value_slots = Value_slot.Map.empty;
       used_in_handler = Name_occurrences.empty;
       apply_cont_args = Continuation.Map.empty;
-      apply_result_conts = Continuation.Set.empty
+      apply_result_conts = Continuation.Set.empty;
+      apply_exn_conts = Continuation.Set.empty
     }
   in
   { t with stack = elt :: t.stack }
 
-let init_toplevel continuation params _t =
-  enter_continuation continuation ~recursive:false params empty
+let init_toplevel ~dummy_toplevel_cont params _t =
+  enter_continuation dummy_toplevel_cont ~recursive:false params
+    { (empty ()) with dummy_toplevel_cont }
 
 let exit_continuation cont t =
   match t.stack with
@@ -271,10 +287,18 @@ let add_used_in_current_handler name_occurrences t =
       in
       { elt with used_in_handler })
 
-let add_apply_result_cont k t =
+let add_apply_conts ~result_cont ~exn_cont t =
   update_top_of_stack ~t ~f:(fun elt ->
-      let apply_result_conts = Continuation.Set.add k elt.apply_result_conts in
-      { elt with apply_result_conts })
+      let apply_result_conts =
+        match result_cont with
+        | None -> elt.apply_result_conts
+        | Some result_cont ->
+          Continuation.Set.add result_cont elt.apply_result_conts
+      in
+      let apply_exn_conts =
+        Continuation.Set.add exn_cont elt.apply_result_conts
+      in
+      { elt with apply_result_conts; apply_exn_conts })
 
 let add_apply_cont_args cont arg_name_simples t =
   update_top_of_stack ~t ~f:(fun elt ->
@@ -546,6 +570,10 @@ module Dependency_graph = struct
       ~used_value_slots _
       { apply_cont_args;
         apply_result_conts;
+        apply_exn_conts = _;
+        (* CR pchambart: properly follow dependencies in exception extra args.
+           They are currently marked as always used, so it is correct, but not
+           optimal *)
         used_in_handler;
         bindings;
         code_ids;
@@ -989,12 +1017,103 @@ module Dominator_graph = struct
   end
 end
 
+module Control_flow_graph = struct
+  type t = { callers : Continuation.Set.t Continuation.Map.t }
+
+  let add ~caller ~callee map =
+    Continuation.Map.update callee
+      (function
+        | None -> Some (Continuation.Set.singleton caller)
+        | Some callers -> Some (Continuation.Set.add caller callers))
+      map
+
+  let create { map; _ } =
+    let callers =
+      Continuation.Map.fold
+        (fun caller (elt : elt) acc ->
+          let acc =
+            Continuation.Map.merge
+              (fun _callee acc args ->
+                match acc, args with
+                | None, None -> assert false
+                | Some set, None -> Some set
+                | None, Some _ -> Some (Continuation.Set.singleton caller)
+                | Some set, Some _ -> Some (Continuation.Set.add caller set))
+              acc elt.apply_cont_args
+          in
+          let acc =
+            Continuation.Set.fold
+              (fun callee acc -> add ~caller ~callee acc)
+              elt.apply_result_conts acc
+          in
+          Continuation.Set.fold
+            (fun callee acc -> add ~caller ~callee acc)
+            elt.apply_exn_conts acc)
+        map Continuation.Map.empty
+    in
+    { callers }
+
+  module Dot = struct
+    let node_id ~ctx ppf (cont : Continuation.t) =
+      (* note: this is ... somewhat safe *)
+      Format.fprintf ppf "node_%d_%d" ctx (cont :> int)
+
+    let node ?(info = "") ~ctx () ppf cont =
+      Format.fprintf ppf "%a [label=\"%a\" %s];@\n" (node_id ~ctx) cont
+        Continuation.print cont info
+
+    let nodes ~ctx ~return_continuation ~exn_continuation ppf cont_map =
+      Continuation.Set.iter
+        (fun cont ->
+          let info =
+            if Continuation.equal return_continuation cont
+            then "color=blue"
+            else if Continuation.equal exn_continuation cont
+            then "color=red"
+            else ""
+          in
+          node ~ctx ~info () ppf cont)
+        cont_map
+
+    let edge ~ctx ~color ppf src dst =
+      Format.fprintf ppf "%a -> %a [color=\"%s\"];@\n" (node_id ~ctx) src
+        (node_id ~ctx) dst color
+
+    let edges ~ctx ~color ppf edge_map =
+      Continuation.Map.iter
+        (fun src dst_set ->
+          Continuation.Set.iter
+            (fun dst -> edge ~ctx ~color ppf src dst)
+            dst_set)
+        edge_map
+
+    let print ~ctx ~print_name ppf ~dummy_toplevel_cont ~return_continuation
+        ~exn_continuation (t : t) =
+      let all_conts =
+        Continuation.Map.fold
+          (fun cont callers acc ->
+            Continuation.Set.add cont (Continuation.Set.union callers acc))
+          t.callers
+          (Continuation.Set.of_list
+             [dummy_toplevel_cont; return_continuation; exn_continuation])
+      in
+      Flambda_colours.without_colours ~f:(fun () ->
+          Format.fprintf ppf
+            "subgraph cluster_%d { label=\"%s\";@\n%a%a@\n%a@\n}@." ctx
+            print_name (node ~ctx ()) dummy_toplevel_cont
+            (nodes ~return_continuation ~exn_continuation ~ctx)
+            all_conts
+            (edges ~ctx ~color:"black")
+            t.callers)
+  end
+end
+
 (* Analysis *)
 (* ******** *)
 
 let r = ref ~-1
 
-let graph_ppf =
+let dominator_graph_ppf =
   lazy
     (match Sys.getenv_opt "DOM_GRAPH" with
     | None -> None
@@ -1007,19 +1126,50 @@ let graph_ppf =
           close_out ch);
       Some ppf)
 
-let analyze ~return_continuation ~exn_continuation ~code_age_relation
-    ~used_value_slots { stack; map; extra } =
+let control_flow_graph_ppf =
+  lazy
+    (match Sys.getenv_opt "FLOW_GRAPH" with
+    | None -> None
+    | Some filename ->
+      let ch = open_out filename in
+      let ppf = Format.formatter_of_out_channel ch in
+      Format.fprintf ppf "digraph g {@\n";
+      at_exit (fun () ->
+          Format.fprintf ppf "@\n}@.";
+          close_out ch);
+      Some ppf)
+
+let analyze ?print_name ~return_continuation ~exn_continuation
+    ~code_age_relation ~used_value_slots
+    ({ stack; map; extra; dummy_toplevel_cont } as t) =
   Profile.record_call ~accumulate:true "data_flow" (fun () ->
       assert (stack = []);
+      assert (
+        not
+          (Continuation.name dummy_toplevel_cont
+          = wrong_dummy_toplevel_cont_name));
       let dom_graph =
         Dominator_graph.create map extra ~return_continuation ~exn_continuation
       in
       let doms = Dominator_graph.dominator_analysis dom_graph in
-      Option.iter
-        (fun ppf ->
-          incr r;
-          Dominator_graph.Dot.print ~ctx:!r ~doms ppf dom_graph)
-        (Lazy.force graph_ppf);
+      let control = Control_flow_graph.create t in
+      (match print_name with
+      | None -> ()
+      | Some print_name ->
+        Option.iter
+          (fun ppf ->
+            incr r;
+            Dominator_graph.Dot.print ~ctx:!r ~doms ppf dom_graph)
+          (Lazy.force dominator_graph_ppf);
+
+        Option.iter
+          (fun ppf ->
+            incr r;
+            Control_flow_graph.Dot.print ~print_name ~ctx:!r ppf
+              ~return_continuation ~exn_continuation ~dummy_toplevel_cont
+              control)
+          (Lazy.force control_flow_graph_ppf));
+
       let deps =
         Dependency_graph.create map extra ~return_continuation ~exn_continuation
           ~code_age_relation ~used_value_slots
