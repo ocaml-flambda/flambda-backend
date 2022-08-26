@@ -948,8 +948,7 @@ module Dominator_graph = struct
 
   module Dot = struct
     let node_id ~ctx ppf (variable : Variable.t) =
-      (* note: this is ... somewhat safe *)
-      Format.fprintf ppf "node_%d_%d" ctx (Obj.magic variable : int)
+      Format.fprintf ppf "node_%d_%d" ctx (variable :> int)
 
     let node ~ctx ~root ppf var =
       if root
