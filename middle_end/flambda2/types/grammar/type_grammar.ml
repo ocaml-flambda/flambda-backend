@@ -2622,6 +2622,9 @@ let get_alias_exn t =
   | Rec_info ty -> TD.get_alias_exn ty
   | Region ty -> TD.get_alias_exn ty
 
+let get_alias_opt t =
+  match get_alias_exn t with s -> Some s | exception Not_found -> None
+
 let is_obviously_bottom t =
   match t with
   | Value ty -> TD.is_obviously_bottom ty
