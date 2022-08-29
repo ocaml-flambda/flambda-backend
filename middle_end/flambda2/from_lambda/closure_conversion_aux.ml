@@ -527,13 +527,6 @@ module Acc = struct
         set_of_closures
     in
     { t with slot_offsets }
-
-  let add_region_closed_early t region =
-    { t with
-      regions_closed_early = Ident.Set.add region t.regions_closed_early
-    }
-
-  let region_closed_early t region = Ident.Set.mem region t.regions_closed_early
 end
 
 module Function_decls = struct
