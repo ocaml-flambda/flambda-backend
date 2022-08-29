@@ -917,11 +917,20 @@ let prove_physical_equality env t1 t2 =
           Proved false
         | Known imms1, Known imms2, Known blocks1, Known blocks2 -> (
           let immediates_equality : _ generic_proof =
+            (* Note: the proof we're returning here has slightly unusual
+               semantics. [Invalid] is only returned if neither input can be an
+               immediate. [Proved false] means that the inputs cannot be both
+               immediates and equal. [Proved true] means that *if* both inputs
+               are immediates, then they are equal.
+
+               This is what allows us to combine correctly with the property on
+               blocks to return a precise enough result. *)
             match
               ( prove_naked_immediates_generic env imms1,
                 prove_naked_immediates_generic env imms2 )
             with
-            | Invalid, _ | _, Invalid -> Invalid
+            | Invalid, Invalid -> Invalid
+            | Invalid, _ | _, Invalid -> Proved false
             | Unknown, _ | _, Unknown -> Unknown
             | Proved imms1, Proved imms2 -> (
               let module S = Targetint_31_63.Set in
@@ -937,6 +946,7 @@ let prove_physical_equality env t1 t2 =
                   Proved true)
           in
           let blocks_equality : _ generic_proof =
+            (* Same semantics as in the immediates case *)
             let is_bottom1 = TG.Row_like_for_blocks.is_bottom blocks1 in
             let is_bottom2 = TG.Row_like_for_blocks.is_bottom blocks2 in
             if is_bottom1 && is_bottom2
@@ -963,7 +973,7 @@ let prove_physical_equality env t1 t2 =
                   Proved false
           in
           (* Note: the [Proved true, Proved true] case cannot be converted to
-             [Proved true] *)
+             [Proved true] (see comment above on semantics) *)
           match immediates_equality, blocks_equality with
           | Proved b, Invalid | Invalid, Proved b -> Proved b
           | Proved false, Proved false -> Proved false
@@ -1001,8 +1011,9 @@ let prove_physical_equality env t1 t2 =
       | String _, (Variant _ | Mutable_block _ | Array _)
       | (Variant _ | Mutable_block _ | Array _), String _ ->
         Proved false
-      (* Variants, mutable blocks and arrays are allowed to alias to each
-         other *)
+      (* Due to various hacks in existing code (including in the compiler), it
+         would be dangerous to assume that variants, mutable blocks and arrays
+         cannot alias to each other *)
       | ( (Variant _ | Mutable_block _ | Array _),
           (Variant _ | Mutable_block _ | Array _) ) ->
         Unknown)
