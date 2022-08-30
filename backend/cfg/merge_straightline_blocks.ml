@@ -64,7 +64,7 @@ let rec merge_blocks (modified : bool) (cfg_with_layout : Cfg_with_layout.t) :
           if (not (Label.equal b1_label cfg.entry_label))
              && (not (Label.equal b1_label b2_label))
              && List.compare_length_with b2_predecessors 1 = 0
-             && Cfg.can_be_removed_terminator b1_block.terminator.desc
+             && Cfg.is_pure_terminator b1_block.terminator.desc
              && not b1_block.can_raise
           then (
             assert (Label.equal b1_label (List.hd b2_predecessors));

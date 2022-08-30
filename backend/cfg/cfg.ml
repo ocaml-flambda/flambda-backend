@@ -395,7 +395,7 @@ let can_raise_basic : basic -> bool = function
 (* CR gyorsh: [is_pure_terminator] is not the same as [can_raise_terminator]
    because of [Tailcal Self] which is not pure but marked as cannot raise at the
    moment, which we might want to reconsider later. *)
-let can_be_removed_terminator desc =
+let is_pure_terminator desc =
   match (desc : terminator) with
   | Raise _ | Call_no_return _ | Tailcall _ | Return -> false
   | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
@@ -403,7 +403,7 @@ let can_be_removed_terminator desc =
     (* CR gyorsh: fix for memory operands *)
     true
 
-let can_be_removed_operation : operation -> bool = function
+let is_pure_operation : operation -> bool = function
   | Move -> true
   | Spill -> true
   | Reload -> true
@@ -432,8 +432,8 @@ let can_be_removed_operation : operation -> bool = function
   | Specific s -> Arch.operation_is_pure s
   | Name_for_debugger _ -> true
 
-let can_be_removed_basic : basic -> bool = function
-  | Op op -> can_be_removed_operation op
+let is_pure_basic : basic -> bool = function
+  | Op op -> is_pure_operation op
   | Call _ -> false
   | Reloadretaddr -> false
   | Pushtrap _ -> false

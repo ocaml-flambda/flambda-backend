@@ -16,7 +16,7 @@ let remove_deadcode (body : Instruction.t list) liveness used_after :
       let is_deadcode =
         match instr.desc with
         | Op _ as op ->
-          Cfg.can_be_removed_basic op
+          Cfg.is_pure_basic op
           && Reg.disjoint_set_array used_after instr.res
           && (not (Proc.regs_are_volatile instr.arg))
           && not (Proc.regs_are_volatile instr.res)
