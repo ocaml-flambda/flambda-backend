@@ -377,7 +377,7 @@ let can_raise_operation : operation -> bool = function
   | Floatofint -> false
   | Intoffloat -> false
   | Probe _ -> true
-  | Probe_is_enabled _ -> true
+  | Probe_is_enabled _ -> false
   | Specific op -> Arch.operation_can_raise op
   | Opaque -> false
   | Name_for_debugger _ -> false
@@ -436,9 +436,9 @@ let is_pure_basic : basic -> bool = function
   | Op op -> is_pure_operation op
   | Call _ -> false
   | Reloadretaddr -> true
-  | Pushtrap _ -> true
-  | Poptrap -> true
-  | Prologue -> true
+  | Pushtrap _ -> false
+  | Poptrap -> false
+  | Prologue -> false
 
 let is_noop_move instr =
   match instr.desc with
