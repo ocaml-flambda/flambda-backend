@@ -33,7 +33,7 @@ let is_fallthrough_block cfg_with_layout (block : C.basic_block) =
   if Label.equal cfg.entry_label block.start
      || block.is_trap_handler
      || List.length block.body > 0
-     || not (C.is_pure_terminator block.terminator.desc)
+     || not (C.can_be_removed_terminator block.terminator.desc)
   then None
   else
     let successors = C.successor_labels ~normal:true ~exn:false block in

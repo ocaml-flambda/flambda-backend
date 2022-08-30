@@ -49,7 +49,7 @@ struct
    fun { before; across = _ } ~exn instr ->
     match instr.desc with
     | Op _ | Call _ ->
-      if Cfg.is_pure_basic instr.desc
+      if Cfg.can_be_removed_basic instr.desc
          && Reg.disjoint_set_array before instr.res
          && (not (Proc.regs_are_volatile instr.arg))
          && not (Proc.regs_are_volatile instr.res)

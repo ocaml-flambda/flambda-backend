@@ -162,9 +162,9 @@ val can_raise_basic : basic -> bool
 
 val can_raise_operation : operation -> bool
 
-val is_pure_terminator : terminator -> bool
+val can_be_removed_terminator : terminator -> bool
 
-val is_pure_basic : basic -> bool
+val can_be_removed_basic : basic -> bool
 
 val is_noop_move : basic instruction -> bool
 
