@@ -80,21 +80,50 @@ static link* frametables_list_tail(link *list) {
   return tail;
 }
 
+/* Special marker instead of frame_size for frame_descr in long format */
+static uint32_t LONG_FRAME = 0x7FFF;
+
+uint32_t get_frame_size(frame_descr *d) {
+  /* CR gyorsh: where is the special frame size 0xFFFF emitted that marks the top of
+   an ML stack chunk? */
+  CAMLassert(d && d->frame_size != 0xFFFF);
+  if (d->frame_size == LONG_FRAME) {
+    /* Handle long frames */
+    frame_descr_long *dl = (frame_descr_long *)d;
+    return (dl->frame_size);
+  } else {
+    return (d->frame_size);
+  }
+}
+
+/* Skip to end of live_ofs */
+unsigned char * get_end_of_live_ofs (frame_descr *d) {
+  CAMLassert(d && d->frame_size != 0xFFFF);
+  if (d->frame_size == LONG_FRAME) {
+    /* Handle long frames */
+    frame_descr_long *dl = (frame_descr_long *)d;
+    return ((unsigned char*)&dl->live_ofs[dl->num_live]);
+  } else {
+    return ((unsigned char*)&d->live_ofs[d->num_live]);
+  }
+}
+
 static frame_descr * next_frame_descr(frame_descr * d) {
   unsigned char num_allocs = 0, *p;
+  uint32_t frame_size;
   CAMLassert(d->retaddr >= 4096);
-  /* Skip to end of live_ofs */
-  p = (unsigned char*)&d->live_ofs[d->num_live];
+  frame_size = get_frame_size(d);
+  p = get_end_of_live_ofs(d);
   /* Skip alloc_lengths if present */
-  if (d->frame_size & 2) {
+  if (frame_size & 2) {
     num_allocs = *p;
     p += num_allocs + 1;
   }
   /* Skip debug info if present */
-  if (d->frame_size & 1) {
+  if (frame_size & 1) {
     /* Align to 32 bits */
     p = Align_to(p, uint32_t);
-    p += sizeof(uint32_t) * (d->frame_size & 2 ? num_allocs : 1);
+    p += sizeof(uint32_t) * (frame_size & 2 ? num_allocs : 1);
   }
   /* Align to word size */
   p = Align_to(p, void*);
@@ -624,17 +653,33 @@ void caml_do_local_roots_nat(scanning_action maj, scanning_action min,
       }
       if (d->frame_size != 0xFFFF) {
         /* Scan the roots in this frame */
-        for (p = d->live_ofs, n = d->num_live; n > 0; n--, p++) {
-          ofs = *p;
-          if (ofs & 1) {
-            root = regs + (ofs >> 1);
-          } else {
-            root = (value *)(sp + ofs);
+        if (d->frame_size == LONG_FRAME) {
+          /* Handle long frames */
+          frame_descr_long *dl = (frame_descr_long *)d;
+          uint32_t * p;
+          uint32_t n;
+          for (p = dl->live_ofs, n = dl->num_live; n > 0; n--, p++) {
+            uint32_t ofs = *p;
+            if (ofs & 1) {
+              root = regs + (ofs >> 1);
+            } else {
+              root = (value *)(sp + ofs);
+            }
+            visit(maj, min, root);
           }
-          visit(maj, min, root);
+        } else {
+          for (p = d->live_ofs, n = d->num_live; n > 0; n--, p++) {
+            ofs = *p;
+            if (ofs & 1) {
+              root = regs + (ofs >> 1);
+            } else {
+              root = (value *)(sp + ofs);
+            }
+            visit(maj, min, root);
+          }
         }
         /* Move to next frame */
-        sp += (d->frame_size & 0xFFFC);
+        sp += (get_frame_size(d) & 0xFFFFFFFC);
         retaddr = Saved_return_address(sp);
 #ifdef Mask_already_scanned
         retaddr = Mask_already_scanned(retaddr);

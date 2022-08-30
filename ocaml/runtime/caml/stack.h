@@ -86,7 +86,6 @@ struct caml_context {
 };
 
 /* Structure of frame descriptors */
-
 typedef struct {
   uintnat retaddr;
   unsigned short frame_size;
@@ -103,6 +102,28 @@ typedef struct {
     Debug info is stored as relative offsets to debuginfo structures.
     num_debug is num_alloc if frame_size & 2, otherwise 1. */
 } frame_descr;
+
+typedef struct {
+  uintnat retaddr;
+  unsigned short marker;        /* frame_size_long */
+  uint32_t frame_size;
+  uint32_t num_live;
+  uint32_t live_ofs[1 /* num_live */];
+  /*
+    If frame_size & 2, then allocation info follows:
+  unsigned char num_allocs;
+  unsigned char alloc_lengths[num_alloc];
+
+    If frame_size & 1, then debug info follows:
+  uint32_t debug_info_offset[num_debug];
+
+    Debug info is stored as relative offsets to debuginfo structures.
+    num_debug is num_alloc if frame_size & 2, otherwise 1. */
+} frame_descr_long;
+
+/* Helpers for long frames */
+uint32_t get_frame_size(frame_descr *);
+unsigned char * get_end_of_live_ofs (frame_descr *d);
 
 /* Allocation lengths are encoded as 0-255, giving sizes 1-256 */
 #define Wosize_encoded_alloc_len(n) ((uintnat)(n) + 1)
