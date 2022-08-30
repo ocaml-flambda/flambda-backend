@@ -263,6 +263,8 @@ let operation_can_raise = function
   | Istore_int (_, _, _) | Ioffset_loc (_, _)
   | Iprefetch _ -> false
 
+let operation_allocates _ = false
+
 open X86_ast
 
 (* Certain float conditions aren't represented directly in the opcode for

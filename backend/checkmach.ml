@@ -417,8 +417,7 @@ module Spec_alloc : Spec = struct
       checks.ui_noalloc_functions
         <- String.Set.add s checks.ui_noalloc_functions
 
-  (** conservative *)
-  let check_specific s = not (Arch.operation_can_raise s)
+  let check_specific s = not (Arch.operation_allocates s)
 
   let annotation = Cmm.Noalloc_check
 end
