@@ -263,7 +263,13 @@ let operation_can_raise = function
   | Istore_int (_, _, _) | Ioffset_loc (_, _)
   | Iprefetch _ -> false
 
-let operation_allocates _ = false
+let operation_allocates = function
+  | Ilea _ | Ibswap _ | Isqrtf | Isextend32 | Izextend32
+  | Ifloatarithmem _ | Ifloatsqrtf _
+  | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max
+  | Icrc32q | Irdtsc | Irdpmc | Ipause
+  | Istore_int (_, _, _) | Ioffset_loc (_, _)
+  | Iprefetch _ -> false
 
 open X86_ast
 
