@@ -230,7 +230,8 @@ let create_relocation_tables compiler_sections symbol_table string_table =
     (Section_name.Map.bindings compiler_sections)
 
 let write buf header section_table symbol_table relocation_tables string_table =
-  Compiler_owee.Owee_elf.write_elf buf header (Section_table.get_sections section_table);
+  Compiler_owee.Owee_elf.write_elf buf header
+    (Section_table.get_sections section_table);
   Section_table.write_bodies section_table buf;
   let symtab =
     Section_table.get_section section_table

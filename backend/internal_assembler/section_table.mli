@@ -26,7 +26,11 @@ type t
 val create : unit -> t
 
 val add_section :
-  t -> X86_proc.Section_name.t -> ?body:bytes -> Compiler_owee.Owee_elf.section -> unit
+  t ->
+  X86_proc.Section_name.t ->
+  ?body:bytes ->
+  Compiler_owee.Owee_elf.section ->
+  unit
 
 val current_offset : t -> int64
 

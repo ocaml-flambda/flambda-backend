@@ -8,7 +8,8 @@
 (library
  (name flambda2)
  (wrapped false)
- (instrumentation (backend bisect_ppx))
+ (instrumentation
+  (backend bisect_ppx))
  (flags
   (:standard
    -principal
