@@ -15,6 +15,8 @@
   (flags
    (:standard -warn-error +A))))
 
+(vendored_dirs ocaml)
+
 ; Since upstream has the middle end code inside ocamloptcomp, we do the
 ; same for the moment.
 
