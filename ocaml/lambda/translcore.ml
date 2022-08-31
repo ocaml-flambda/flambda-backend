@@ -331,7 +331,6 @@ let rec transl_exp ~scopes e =
    scopes, as `let f a b = ...` is desugared to several Pexp_fun.
 *)
 and transl_exp1 ~scopes ~in_new_scope e =
-  List.iter (Translattribute.check_attribute e) e.exp_attributes;
   let eval_once =
     (* Whether classes for immediate objects must be cached *)
     match e.exp_desc with
@@ -380,15 +379,9 @@ and transl_exp0 ~in_new_scope ~scopes e =
       in
       if extra_args = [] then lam
       else begin
-        let tailcall, funct =
-          Translattribute.get_tailcall_attribute funct
-        in
-        let inlined, funct =
-          Translattribute.get_and_remove_inlined_attribute funct
-        in
-        let specialised, funct =
-          Translattribute.get_and_remove_specialised_attribute funct
-        in
+        let tailcall = Translattribute.get_tailcall_attribute funct in
+        let inlined = Translattribute.get_inlined_attribute funct in
+        let specialised = Translattribute.get_specialised_attribute funct in
         let e = { e with exp_desc = Texp_apply(funct, oargs, pos) } in
         let position = transl_apply_position pos in
         let mode = transl_exp_mode e in
@@ -397,15 +390,9 @@ and transl_exp0 ~in_new_scope ~scopes e =
              lam extra_args (of_location ~scopes e.exp_loc))
       end
   | Texp_apply(funct, oargs, position) ->
-      let tailcall, funct =
-        Translattribute.get_tailcall_attribute funct
-      in
-      let inlined, funct =
-        Translattribute.get_and_remove_inlined_attribute funct
-      in
-      let specialised, funct =
-        Translattribute.get_and_remove_specialised_attribute funct
-      in
+      let tailcall = Translattribute.get_tailcall_attribute funct in
+      let inlined = Translattribute.get_inlined_attribute funct in
+      let specialised = Translattribute.get_specialised_attribute funct in
       let e = { e with exp_desc = Texp_apply(funct, oargs, position) } in
       let position = transl_apply_position position in
       let mode = transl_exp_mode e in

@@ -23,14 +23,14 @@ configure_remote () {
     elif [ "$curr" != "$url" ]; then
         {
             echo "Error: remote $name should point to $url, not $curr"
-            echo "Try 'git remote rm $name'." 
+            echo "Try 'git remote rm $name'."
         } 1>&2
         exit 1
     fi
 }
 
-configure_remote origin 'git@github.com:ocaml-flambda/ocaml-jst'
-configure_remote flambda-backend 'git@github.com:ocaml-flambda/flambda-backend'
+configure_remote origin 'git@github.com:ccasin/ocaml-jst'
+configure_remote flambda-backend 'git@github.com:ccasin/flambda-backend'
 configure_remote ocaml 'git@github.com:ocaml/ocaml'
 
 git fetch -q origin
