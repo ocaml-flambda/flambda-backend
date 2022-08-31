@@ -158,84 +158,87 @@ let mkuplus ~oploc name arg =
       Pexp_apply(mkoperator ~loc:oploc ("~" ^ name), [Nolabel, arg])
 
 
-let local_ext_loc = mknoloc "extension.local"
+let local_ext_loc loc = mkloc "extension.local" loc
 
-let local_attr =
-  Attr.mk ~loc:Location.none local_ext_loc (PStr [])
+let local_attr loc =
+  Builtin_attributes.mk_internal ~loc (local_ext_loc loc) (PStr [])
 
 let local_extension =
-  Exp.mk ~loc:Location.none (Pexp_extension(local_ext_loc, PStr []))
+  Exp.mk ~loc:Location.none
+    (Pexp_extension(local_ext_loc Location.none, PStr []))
 
-let include_functor_ext_loc = mknoloc "extension.include_functor"
+let include_functor_ext_loc loc = mkloc "extension.include_functor" loc
 
-let include_functor_attr =
-  Attr.mk ~loc:Location.none include_functor_ext_loc (PStr [])
+let include_functor_attr loc =
+  Builtin_attributes.mk_internal ~loc:loc (include_functor_ext_loc loc)
+    (PStr [])
 
 let mkexp_stack ~loc exp =
   ghexp ~loc (Pexp_apply(local_extension, [Nolabel, exp]))
 
-let mkpat_stack pat =
-  {pat with ppat_attributes = local_attr :: pat.ppat_attributes}
+let mkpat_stack pat loc =
+  {pat with ppat_attributes = local_attr loc :: pat.ppat_attributes}
 
-let mktyp_stack typ =
-  {typ with ptyp_attributes = local_attr :: typ.ptyp_attributes}
+let mktyp_stack typ loc =
+  {typ with ptyp_attributes = local_attr loc :: typ.ptyp_attributes}
 
-let wrap_exp_stack exp =
-  {exp with pexp_attributes = local_attr :: exp.pexp_attributes}
+let wrap_exp_stack exp loc =
+  {exp with pexp_attributes = local_attr loc :: exp.pexp_attributes}
 
 let mkexp_local_if p ~loc exp =
   if p then mkexp_stack ~loc exp else exp
 
-let mkpat_local_if p pat =
-  if p then mkpat_stack pat else pat
+let mkpat_local_if p pat loc =
+  if p then mkpat_stack pat (make_loc loc) else pat
 
-let mktyp_local_if p typ =
-  if p then mktyp_stack typ else typ
+let mktyp_local_if p typ loc =
+  if p then mktyp_stack typ (make_loc loc) else typ
 
-let wrap_exp_local_if p exp =
-  if p then wrap_exp_stack exp else exp
+let wrap_exp_local_if p exp loc =
+  if p then wrap_exp_stack exp (make_loc loc) else exp
 
-let curry_attr =
-  Attr.mk ~loc:Location.none (mknoloc "extension.curry") (PStr [])
+let curry_attr loc =
+  Builtin_attributes.mk_internal ~loc:Location.none
+    (mkloc "extension.curry" loc) (PStr [])
 
 let is_curry_attr attr =
   attr.attr_name.txt = "extension.curry"
 
-let mktyp_curry typ =
-  {typ with ptyp_attributes = curry_attr :: typ.ptyp_attributes}
+let mktyp_curry typ loc =
+  {typ with ptyp_attributes = curry_attr loc :: typ.ptyp_attributes}
 
-let maybe_curry_typ typ =
+let maybe_curry_typ typ loc =
   match typ.ptyp_desc with
   | Ptyp_arrow _ ->
       if List.exists is_curry_attr typ.ptyp_attributes then typ
-      else mktyp_curry typ
+      else mktyp_curry typ (make_loc loc)
   | _ -> typ
 
-let global_loc = mknoloc "extension.global"
+let global_loc loc = mkloc "extension.global" loc
 
-let global_attr =
-  Attr.mk ~loc:Location.none global_loc (PStr [])
+let global_attr loc =
+  Builtin_attributes.mk_internal ~loc:loc (global_loc loc) (PStr [])
 
-let nonlocal_loc = mknoloc "extension.nonlocal"
+let nonlocal_loc loc = mkloc "extension.nonlocal" loc
 
-let nonlocal_attr =
-  Attr.mk ~loc:Location.none nonlocal_loc (PStr [])
+let nonlocal_attr loc =
+  Builtin_attributes.mk_internal ~loc:Location.none (nonlocal_loc loc) (PStr [])
 
-let mkld_global ld =
-  { ld with pld_attributes = global_attr :: ld.pld_attributes }
+let mkld_global ld loc =
+  { ld with pld_attributes = global_attr loc :: ld.pld_attributes }
 
-let mkld_nonlocal ld =
-  { ld with pld_attributes = nonlocal_attr :: ld.pld_attributes }
+let mkld_nonlocal ld loc =
+  { ld with pld_attributes = nonlocal_attr loc :: ld.pld_attributes }
 
 type global_flag =
   | Global
   | Nonlocal
   | Nothing
 
-let mkld_global_maybe gbl ld =
+let mkld_global_maybe gbl ld loc =
   match gbl with
-  | Global -> mkld_global ld
-  | Nonlocal -> mkld_nonlocal ld
+  | Global -> mkld_global ld loc
+  | Nonlocal -> mkld_nonlocal ld loc
   | Nothing -> ld
 
 (* TODO define an abstraction boundary between locations-as-pairs
@@ -1518,7 +1521,7 @@ include_and_functor_attr:
   | INCLUDE %prec below_FUNCTOR
       { [] }
   | INCLUDE FUNCTOR
-      { [include_functor_attr] }
+      { [include_functor_attr (make_loc $loc)] }
 ;
 
 (* An [include] statement can appear in a structure or in a signature,
@@ -2181,25 +2184,26 @@ seq_expr:
 ;
 labeled_simple_pattern:
     QUESTION LPAREN optional_local label_let_pattern opt_default RPAREN
-      { (Optional (fst $4), $5, mkpat_local_if $3 (snd $4)) }
+      { (Optional (fst $4), $5, mkpat_local_if $3 (snd $4) $loc($3)) }
   | QUESTION label_var
       { (Optional (fst $2), None, snd $2) }
   | OPTLABEL LPAREN optional_local let_pattern opt_default RPAREN
-      { (Optional $1, $5, mkpat_local_if $3 $4) }
+      { (Optional $1, $5, mkpat_local_if $3 $4 $loc($3)) }
   | OPTLABEL pattern_var
       { (Optional $1, None, $2) }
   | TILDE LPAREN optional_local label_let_pattern RPAREN
-      { (Labelled (fst $4), None, mkpat_local_if $3 (snd $4)) }
+      { (Labelled (fst $4), None,
+         mkpat_local_if $3 (snd $4) $loc($3)) }
   | TILDE label_var
       { (Labelled (fst $2), None, snd $2) }
   | LABEL simple_pattern
       { (Labelled $1, None, $2) }
   | LABEL LPAREN LOCAL pattern RPAREN
-      { (Labelled $1, None, mkpat_stack $4) }
+      { (Labelled $1, None, mkpat_stack $4 (make_loc $loc($3))) }
   | simple_pattern
       { (Nolabel, None, $1) }
   | LPAREN LOCAL let_pattern RPAREN
-      { (Nolabel, None, mkpat_stack $3) }
+      { (Nolabel, None, mkpat_stack $3 (make_loc $loc($2))) }
 ;
 
 pattern_var:
@@ -2564,14 +2568,17 @@ let_binding_body:
           | _ -> assert false
         in
         let loc = Location.(t.ptyp_loc.loc_start, t.ptyp_loc.loc_end) in
+        let local_loc = $loc($1) in
         let typ = ghtyp ~loc (Ptyp_poly([],t)) in
         let patloc = ($startpos($2), $endpos($3)) in
         let pat =
           mkpat_local_if $1 (ghpat ~loc:patloc (Ppat_constraint(v, typ)))
+            local_loc
         in
         let exp =
           mkexp_local_if $1 ~loc:$sloc
-            (wrap_exp_local_if $1 (mkexp_constraint ~loc:$sloc $5 $3))
+            (wrap_exp_local_if $1 (mkexp_constraint ~loc:$sloc $5 $3)
+               local_loc)
         in
         (pat, exp) }
   | optional_local let_ident COLON typevar_list DOT core_type EQUAL seq_expr
@@ -2584,6 +2591,7 @@ let_binding_body:
           mkpat_local_if $1
             (ghpat ~loc:patloc
                (Ppat_constraint($2, ghtyp ~loc:typloc (Ptyp_poly($4,$6)))))
+            $loc($1)
         in
         let exp = mkexp_local_if $1 ~loc:$sloc $8 in
         (pat, exp) }
@@ -2666,7 +2674,7 @@ local_fun_binding:
     local_strict_binding
       { $1 }
   | type_constraint EQUAL seq_expr
-      { wrap_exp_stack (mkexp_constraint ~loc:$sloc $3 $1) }
+      { wrap_exp_stack (mkexp_constraint ~loc:$sloc $3 $1) (make_loc $sloc) }
 ;
 local_strict_binding:
     EQUAL seq_expr
@@ -3221,7 +3229,8 @@ label_declaration:
       { let info = symbol_info $endpos in
         let mut, gbl = $1 in
         mkld_global_maybe gbl
-          (Type.field $2 $4 ~mut ~attrs:$5 ~loc:(make_loc $sloc) ~info) }
+          (Type.field $2 $4 ~mut ~attrs:$5 ~loc:(make_loc $sloc) ~info)
+          (make_loc $loc($1)) }
 ;
 label_declaration_semi:
     mutable_or_global_flag mkrhs(label) COLON poly_type_no_attr attributes
@@ -3233,7 +3242,8 @@ label_declaration_semi:
        in
        let mut, gbl = $1 in
        mkld_global_maybe gbl
-         (Type.field $2 $4 ~mut ~attrs:($5 @ $7) ~loc:(make_loc $sloc) ~info) }
+         (Type.field $2 $4 ~mut ~attrs:($5 @ $7) ~loc:(make_loc $sloc) ~info)
+         (make_loc $loc($1)) }
 ;
 
 /* Type Extensions */
@@ -3405,7 +3415,7 @@ strict_function_type:
       domain = extra_rhs(tuple_type)
       MINUSGREATER
       codomain = strict_function_type
-        { Ptyp_arrow(label, mktyp_local_if local domain, codomain) }
+        { Ptyp_arrow(label, mktyp_local_if local domain $loc(local), codomain) }
     )
     { $1 }
   | mktyp(
@@ -3417,8 +3427,9 @@ strict_function_type:
       codomain = tuple_type
       %prec MINUSGREATER
         { Ptyp_arrow(label,
-            mktyp_local_if arg_local domain,
-            mktyp_local_if ret_local (maybe_curry_typ codomain)) }
+            mktyp_local_if arg_local domain $loc(arg_local),
+            mktyp_local_if ret_local (maybe_curry_typ codomain $loc(codomain))
+              $loc(ret_local)) }
     )
     { $1 }
 ;
@@ -3925,16 +3936,16 @@ attr_id:
 ;
 attribute:
   LBRACKETAT attr_id payload RBRACKET
-    { Attr.mk ~loc:(make_loc $sloc) $2 $3 }
+    { Builtin_attributes.mk_internal ~loc:(make_loc $sloc) $2 $3 }
 ;
 post_item_attribute:
   LBRACKETATAT attr_id payload RBRACKET
-    { Attr.mk ~loc:(make_loc $sloc) $2 $3 }
+    { Builtin_attributes.mk_internal ~loc:(make_loc $sloc) $2 $3 }
 ;
 floating_attribute:
   LBRACKETATATAT attr_id payload RBRACKET
     { mark_symbol_docs $sloc;
-      Attr.mk ~loc:(make_loc $sloc) $2 $3 }
+      Builtin_attributes.mk_internal ~loc:(make_loc $sloc) $2 $3 }
 ;
 %inline post_item_attributes:
   post_item_attribute*

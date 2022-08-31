@@ -17,40 +17,38 @@ open Typedtree
 open Lambda
 open Location
 
-let is_inline_attribute = function
-  | {txt=("inline"|"ocaml.inline")} -> true
-  | _ -> false
 
-let is_inlined_attribute = function
-  | {txt=("inlined"|"ocaml.inlined")} -> true
-  | {txt=("unrolled"|"ocaml.unrolled")} when Config.flambda || Config.flambda2 -> true
-  | _ -> false
+let is_inline_attribute =
+  [ ["inline"; "ocaml.inline"],true ]
 
-let is_specialise_attribute = function
-  | {txt=("specialise"|"ocaml.specialise")} when Config.flambda -> true
-  | _ -> false
+let is_inlined_attribute =
+  [ ["inlined"; "ocaml.inlined"], true
+  ; ["unrolled"; "ocaml.unrolled"], (Config.flambda || Config.flambda2)
+  ]
 
-let is_specialised_attribute = function
-  | {txt=("specialised"|"ocaml.specialised")} when Config.flambda -> true
-  | _ -> false
+let is_specialise_attribute =
+  [ ["specialise"; "ocaml.specialise"], Config.flambda ]
 
-let is_local_attribute = function
-  | {txt=("local"|"ocaml.local")} -> true
-  | _ -> false
+let is_specialised_attribute =
+  [ ["specialised"; "ocaml.specialised"], Config.flambda ]
+
+let is_local_attribute =
+  [ ["local"; "ocaml.local"], true ]
+
+let is_tailcall_attribute =
+  [ ["tailcall"; "ocaml.tailcall"], true ]
 
 let find_attribute p attributes =
-  let inline_attribute, other_attributes =
-    List.partition (fun a -> p a.Parsetree.attr_name) attributes
-  in
+  let inline_attribute = Builtin_attributes.filter_attributes p attributes in
   let attr =
     match inline_attribute with
     | [] -> None
     | [attr] -> Some attr
-    | _ :: {Parsetree.attr_name = {txt;loc}; _} :: _ ->
+    | attr :: {Parsetree.attr_name = {txt;loc}; _} :: _ ->
       Location.prerr_warning loc (Warnings.Duplicated_attribute txt);
-      None
+      Some attr
   in
-  attr, other_attributes
+  attr
 
 let is_unrolled = function
   | {txt="unrolled"|"ocaml.unrolled"} -> true
@@ -198,15 +196,15 @@ let parse_local_attribute attr =
         payload
 
 let get_inline_attribute l =
-  let attr, _ = find_attribute is_inline_attribute l in
+  let attr = find_attribute is_inline_attribute l in
   parse_inline_attribute attr
 
 let get_specialise_attribute l =
-  let attr, _ = find_attribute is_specialise_attribute l in
+  let attr = find_attribute is_specialise_attribute l in
   parse_specialise_attribute attr
 
 let get_local_attribute l =
-  let attr, _ = find_attribute is_local_attribute l in
+  let attr = find_attribute is_local_attribute l in
   parse_local_attribute attr
 
 let check_local_inline loc attr =
@@ -218,27 +216,30 @@ let check_local_inline loc attr =
       ()
 
 let add_inline_attribute expr loc attributes =
-  match expr, get_inline_attribute attributes with
-  | expr, Default_inline -> expr
-  | Lfunction({ attr = { stub = false } as attr } as funct), inline ->
-      begin match attr.inline with
-      | Default_inline -> ()
-      | Always_inline | Available_inline | Never_inline | Unroll _ ->
-          Location.prerr_warning loc
-            (Warnings.Duplicated_attribute "inline")
-      end;
-      let attr = { attr with inline } in
-      check_local_inline loc attr;
-      Lfunction { funct with attr = attr }
-  | expr, (Always_inline | Available_inline | Never_inline | Unroll _) ->
-      Location.prerr_warning loc
-        (Warnings.Misplaced_attribute "inline");
-      expr
+  match expr with
+  | Lfunction({ attr = { stub = false } as attr } as funct) ->
+    begin match get_inline_attribute attributes with
+      | Default_inline -> expr
+      | (Always_inline | Available_inline | Never_inline | Unroll _)
+          as inline ->
+        begin match attr.inline with
+          | Default_inline -> ()
+          | Always_inline | Available_inline | Never_inline | Unroll _ ->
+            Location.prerr_warning loc
+              (Warnings.Duplicated_attribute "inline")
+        end;
+        let attr = { attr with inline } in
+        check_local_inline loc attr;
+        Lfunction { funct with attr = attr }
+    end
+  | _ -> expr
 
 let add_specialise_attribute expr loc attributes =
-  match expr, get_specialise_attribute attributes with
-  | expr, Default_specialise -> expr
-  | Lfunction({ attr = { stub = false } as attr } as funct), specialise ->
+  match expr with
+  | Lfunction({ attr = { stub = false } as attr } as funct) ->
+    begin match get_specialise_attribute attributes with
+    | Default_specialise -> expr
+    | (Always_specialise | Never_specialise) as specialise ->
       begin match attr.specialise with
       | Default_specialise -> ()
       | Always_specialise | Never_specialise ->
@@ -247,15 +248,15 @@ let add_specialise_attribute expr loc attributes =
       end;
       let attr = { attr with specialise } in
       Lfunction { funct with attr }
-  | expr, (Always_specialise | Never_specialise) ->
-      Location.prerr_warning loc
-        (Warnings.Misplaced_attribute "specialise");
-      expr
+    end
+  | _ -> expr
 
 let add_local_attribute expr loc attributes =
-  match expr, get_local_attribute attributes with
-  | expr, Default_local -> expr
-  | Lfunction({ attr = { stub = false } as attr } as funct), local ->
+  match expr with
+  | Lfunction({ attr = { stub = false } as attr } as funct) ->
+    begin match get_local_attribute attributes with
+    | Default_local -> expr
+    | (Always_local | Never_local) as local ->
       begin match attr.local with
       | Default_local -> ()
       | Always_local | Never_local ->
@@ -265,112 +266,48 @@ let add_local_attribute expr loc attributes =
       let attr = { attr with local } in
       check_local_inline loc attr;
       Lfunction { funct with attr }
-  | expr, (Always_local | Never_local) ->
-      Location.prerr_warning loc
-        (Warnings.Misplaced_attribute "local");
-      expr
+    end
+  | _ -> expr
 
-(* Get the [@inlined] attribute payload (or default if not present).
-   It also returns the expression without this attribute. This is
-   used to ensure that this attribute is not misplaced: If it
-   appears on any expression, it is an error, otherwise it would
-   have been removed by this function *)
-let get_and_remove_inlined_attribute e =
-  let attr, exp_attributes =
-    find_attribute is_inlined_attribute e.exp_attributes
-  in
-  let inlined = parse_inlined_attribute attr in
-  inlined, { e with exp_attributes }
+(* Get the [@inlined] attribute payload (or default if not present). *)
+let get_inlined_attribute e =
+  let attr = find_attribute is_inlined_attribute e.exp_attributes in
+  parse_inlined_attribute attr
 
-let get_and_remove_inlined_attribute_on_module e =
-  let rec get_and_remove mod_expr =
-    let attr, mod_attributes =
-      find_attribute is_inlined_attribute mod_expr.mod_attributes
-    in
+let get_inlined_attribute_on_module e =
+  let rec get mod_expr =
+    let attr = find_attribute is_inlined_attribute mod_expr.mod_attributes in
     let attr = parse_inlined_attribute attr in
-    let attr, mod_desc =
+    let attr =
       match mod_expr.Typedtree.mod_desc with
-      | Tmod_constraint (me, mt, mtc, mc) ->
-        let inner_attr, me = get_and_remove me in
-        let attr =
-          match attr with
-          | Always_inlined | Hint_inlined | Never_inlined | Unroll _ -> attr
-          | Default_inlined -> inner_attr
-        in
-        attr, Tmod_constraint (me, mt, mtc, mc)
-      | md -> attr, md
+      | Tmod_constraint (me, _, _, _) ->
+        let inner_attr = get me in
+        begin match attr with
+        | Always_inlined | Hint_inlined | Never_inlined | Unroll _ -> attr
+        | Default_inlined -> inner_attr
+        end
+      | _ -> attr
     in
-    attr, { mod_expr with mod_desc; mod_attributes }
+    attr
   in
-  get_and_remove e
+  get e
 
-let get_and_remove_specialised_attribute e =
-  let attr, exp_attributes =
-    find_attribute is_specialised_attribute e.exp_attributes
-  in
-  let specialised = parse_specialise_attribute attr in
-  specialised, { e with exp_attributes }
+let get_specialised_attribute e =
+  let attr = find_attribute is_specialised_attribute e.exp_attributes in
+  parse_specialise_attribute attr
 
-(* It also removes the attribute from the expression, like
-   get_inlined_attribute *)
 let get_tailcall_attribute e =
-  let is_tailcall_attribute = function
-    | {Parsetree.attr_name = {txt=("tailcall"|"ocaml.tailcall")}; _} -> true
-    | _ -> false
-  in
-  let tailcalls, other_attributes =
-    List.partition is_tailcall_attribute e.exp_attributes
-  in
-  let tailcall_attribute = match tailcalls with
-    | [] -> Default_tailcall
-    | {Parsetree.attr_name = {txt; loc}; attr_payload = payload} :: r ->
-        begin match r with
-        | [] -> ()
-        | {Parsetree.attr_name = {txt;loc}; _} :: _ ->
-            Location.prerr_warning loc (Warnings.Duplicated_attribute txt)
-        end;
-        match get_optional_payload get_bool_from_exp payload with
-        | Ok (None | Some true) -> Tailcall_expectation true
-        | Ok (Some false) -> Tailcall_expectation false
-        | Error () ->
-            let msg = "Only an optional boolean literal is supported." in
-            Location.prerr_warning loc (Warnings.Attribute_payload (txt, msg));
-            Default_tailcall
-      in
-      tailcall_attribute, { e with exp_attributes = other_attributes }
-
-let check_attribute e {Parsetree.attr_name = { txt; loc }; _} =
-  match txt with
-  | "inline" | "ocaml.inline"
-  | "specialise" | "ocaml.specialise" -> begin
-      match e.exp_desc with
-      | Texp_function _ -> ()
-      | _ ->
-          Location.prerr_warning loc
-            (Warnings.Misplaced_attribute txt)
-    end
-  | "inlined" | "ocaml.inlined"
-  | "specialised" | "ocaml.specialised"
-  | "tailcall" | "ocaml.tailcall" ->
-      (* Removed by the Texp_apply cases *)
-      Location.prerr_warning loc
-        (Warnings.Misplaced_attribute txt)
-  | _ -> ()
-
-let check_attribute_on_module e {Parsetree.attr_name = { txt; loc }; _} =
-  match txt with
-  | "inline" | "ocaml.inline" ->  begin
-      match e.mod_desc with
-      | Tmod_functor _ -> ()
-      | _ ->
-          Location.prerr_warning loc
-            (Warnings.Misplaced_attribute txt)
-    end
-  | "inlined" | "ocaml.inlined" ->
-      (* Removed by the Texp_apply cases *)
-      Location.prerr_warning loc
-        (Warnings.Misplaced_attribute txt)
-  | _ -> ()
+  let attr = find_attribute is_tailcall_attribute e.exp_attributes in
+  match attr with
+  | None -> Default_tailcall
+  | Some {Parsetree.attr_name = {txt; loc}; attr_payload = payload} ->
+    match get_optional_payload get_bool_from_exp payload with
+    | Ok (None | Some true) -> Tailcall_expectation true
+    | Ok (Some false) -> Tailcall_expectation false
+    | Error () ->
+        let msg = "Only an optional boolean literal is supported." in
+        Location.prerr_warning loc (Warnings.Attribute_payload (txt, msg));
+        Default_tailcall
 
 let add_function_attributes lam loc attr =
   let lam =
