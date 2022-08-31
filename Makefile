@@ -362,7 +362,7 @@ promote:
 
 .PHONY: fmt
 fmt:
-	$(dune) build @fmt --auto-promote
+	$(dune) build $(ws_main) @fmt --auto-promote
 
 .PHONY: check-fmt
 check-fmt:
