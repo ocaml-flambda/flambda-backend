@@ -1865,7 +1865,7 @@ let inline_lazy_force_switch arg pos loc =
       idarg,
       arg,
       Lifthenelse
-        ( Lprim (Pisint, [ varg ], loc),
+        ( Lprim (Pisint { variant_only = false }, [ varg ], loc),
           varg,
           Lswitch
             ( varg,
@@ -2803,7 +2803,7 @@ let combine_constructor value_kind loc arg pat_env cstr partial ctx def
                 match act0 with
                 | Some act ->
                     Lifthenelse
-                      ( Lprim (Pisint, [ arg ], loc),
+                      ( Lprim (Pisint { variant_only = true }, [ arg ], loc),
                         call_switcher value_kind loc fail_opt arg 0 (n - 1) consts,
                         act, value_kind )
                 | None ->
@@ -2858,7 +2858,8 @@ let combine_variant value_kind loc row arg partial ctx def
   else
     num_constr := max_int;
   let test_int_or_block arg if_int if_block =
-    Lifthenelse (Lprim (Pisint, [ arg ], loc), if_int, if_block, value_kind)
+    Lifthenelse (Lprim (Pisint { variant_only = true },
+                        [ arg ], loc), if_int, if_block, value_kind)
   in
   let sig_complete = List.length tag_lambda_list = !num_constr
   and one_action = same_actions tag_lambda_list in

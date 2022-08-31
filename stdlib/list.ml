@@ -103,11 +103,11 @@ let rec mapi i f = function
 let mapi f l = mapi 0 f l
 
 let rev_map f l =
-  let rec rmap_f accu = function
+  let rec rmap_f f accu = function
     | [] -> accu
-    | a::l -> rmap_f (f a :: accu) l
+    | a::l -> rmap_f f (f a :: accu) l
   in
-  rmap_f [] l
+  rmap_f f [] l
 
 
 let rec iter f = function
@@ -137,13 +137,13 @@ let rec map2 f l1 l2 =
   | (_, _) -> invalid_arg "List.map2"
 
 let rev_map2 f l1 l2 =
-  let rec rmap2_f accu l1 l2 =
+  let rec rmap2_f f accu l1 l2 =
     match (l1, l2) with
     | ([], []) -> accu
-    | (a1::l1, a2::l2) -> rmap2_f (f a1 a2 :: accu) l1 l2
+    | (a1::l1, a2::l2) -> rmap2_f f (f a1 a2 :: accu) l1 l2
     | (_, _) -> invalid_arg "List.rev_map2"
   in
-  rmap2_f [] l1 l2
+  rmap2_f f [] l1 l2
 
 
 let rec iter2 f l1 l2 =
@@ -242,29 +242,29 @@ let rec find_map f = function
      end
 
 let find_all p =
-  let rec find accu = function
+  let rec find p accu = function
   | [] -> rev accu
-  | x :: l -> if p x then find (x :: accu) l else find accu l in
-  find []
+  | x :: l -> if p x then find p (x :: accu) l else find p accu l in
+  find p []
 
 let filter = find_all
 
 let filteri p l =
-  let rec aux i acc = function
+  let rec aux p i acc = function
   | [] -> rev acc
-  | x::l -> aux (i + 1) (if p i x then x::acc else acc) l
+  | x::l -> aux p (i + 1) (if p i x then x::acc else acc) l
   in
-  aux 0 [] l
+  aux p 0 [] l
 
 let filter_map f =
-  let rec aux accu = function
+  let rec aux f accu = function
     | [] -> rev accu
     | x :: l ->
         match f x with
-        | None -> aux accu l
-        | Some v -> aux (v :: accu) l
+        | None -> aux f accu l
+        | Some v -> aux f (v :: accu) l
   in
-  aux []
+  aux f []
 
 let concat_map f l =
   let rec aux f acc = function
@@ -275,29 +275,29 @@ let concat_map f l =
   in aux f [] l
 
 let fold_left_map f accu l =
-  let rec aux accu l_accu = function
+  let rec aux f accu l_accu = function
     | [] -> accu, rev l_accu
     | x :: l ->
         let accu, x = f accu x in
-        aux accu (x :: l_accu) l in
-  aux accu [] l
+        aux f accu (x :: l_accu) l in
+  aux f accu [] l
 
 let partition p l =
-  let rec part yes no = function
+  let rec part p yes no = function
   | [] -> (rev yes, rev no)
-  | x :: l -> if p x then part (x :: yes) no l else part yes (x :: no) l in
-  part [] [] l
+  | x :: l -> if p x then part p (x :: yes) no l else part p yes (x :: no) l in
+  part p [] [] l
 
 let partition_map p l =
-  let rec part left right = function
+  let rec part p left right = function
   | [] -> (rev left, rev right)
   | x :: l ->
      begin match p x with
-       | Either.Left v -> part (v :: left) right l
-       | Either.Right v -> part left (v :: right) l
+       | Either.Left v -> part p (v :: left) right l
+       | Either.Right v -> part p left (v :: right) l
      end
   in
-  part [] [] l
+  part p [] [] l
 
 let rec split = function
     [] -> ([], [])
@@ -323,23 +323,23 @@ let rec merge cmp l1 l2 =
 
 
 let stable_sort cmp l =
-  let rec rev_merge l1 l2 accu =
+  let rec rev_merge cmp l1 l2 accu =
     match l1, l2 with
     | [], l2 -> rev_append l2 accu
     | l1, [] -> rev_append l1 accu
     | h1::t1, h2::t2 ->
         if cmp h1 h2 <= 0
-        then rev_merge t1 l2 (h1::accu)
-        else rev_merge l1 t2 (h2::accu)
+        then rev_merge cmp t1 l2 (h1::accu)
+        else rev_merge cmp l1 t2 (h2::accu)
   in
-  let rec rev_merge_rev l1 l2 accu =
+  let rec rev_merge_rev cmp l1 l2 accu =
     match l1, l2 with
     | [], l2 -> rev_append l2 accu
     | l1, [] -> rev_append l1 accu
     | h1::t1, h2::t2 ->
         if cmp h1 h2 > 0
-        then rev_merge_rev t1 l2 (h1::accu)
-        else rev_merge_rev l1 t2 (h2::accu)
+        then rev_merge_rev cmp t1 l2 (h1::accu)
+        else rev_merge_rev cmp l1 t2 (h2::accu)
   in
   let rec sort n l =
     match n, l with
@@ -362,7 +362,7 @@ let stable_sort cmp l =
         let n2 = n - n1 in
         let s1, l2 = rev_sort n1 l in
         let s2, tl = rev_sort n2 l2 in
-        (rev_merge_rev s1 s2 [], tl)
+        (rev_merge_rev cmp s1 s2 [], tl)
   and rev_sort n l =
     match n, l with
     | 2, x1 :: x2 :: tl ->
@@ -384,7 +384,7 @@ let stable_sort cmp l =
         let n2 = n - n1 in
         let s1, l2 = sort n1 l in
         let s2, tl = sort n2 l2 in
-        (rev_merge s1 s2 [], tl)
+        (rev_merge cmp s1 s2 [], tl)
   in
   let len = length l in
   if len < 2 then l else fst (sort len l)
@@ -429,27 +429,27 @@ let stable_sort cmp l =
 (** sorting + removing duplicates *)
 
 let sort_uniq cmp l =
-  let rec rev_merge l1 l2 accu =
+  let rec rev_merge cmp l1 l2 accu =
     match l1, l2 with
     | [], l2 -> rev_append l2 accu
     | l1, [] -> rev_append l1 accu
     | h1::t1, h2::t2 ->
         let c = cmp h1 h2 in
-        if c = 0 then rev_merge t1 t2 (h1::accu)
+        if c = 0 then rev_merge cmp t1 t2 (h1::accu)
         else if c < 0
-        then rev_merge t1 l2 (h1::accu)
-        else rev_merge l1 t2 (h2::accu)
+        then rev_merge cmp t1 l2 (h1::accu)
+        else rev_merge cmp l1 t2 (h2::accu)
   in
-  let rec rev_merge_rev l1 l2 accu =
+  let rec rev_merge_rev cmp l1 l2 accu =
     match l1, l2 with
     | [], l2 -> rev_append l2 accu
     | l1, [] -> rev_append l1 accu
     | h1::t1, h2::t2 ->
         let c = cmp h1 h2 in
-        if c = 0 then rev_merge_rev t1 t2 (h1::accu)
+        if c = 0 then rev_merge_rev cmp t1 t2 (h1::accu)
         else if c > 0
-        then rev_merge_rev t1 l2 (h1::accu)
-        else rev_merge_rev l1 t2 (h2::accu)
+        then rev_merge_rev cmp t1 l2 (h1::accu)
+        else rev_merge_rev cmp l1 t2 (h2::accu)
   in
   let rec sort n l =
     match n, l with
@@ -490,7 +490,7 @@ let sort_uniq cmp l =
         let n2 = n - n1 in
         let s1, l2 = rev_sort n1 l in
         let s2, tl = rev_sort n2 l2 in
-        (rev_merge_rev s1 s2 [], tl)
+        (rev_merge_rev cmp s1 s2 [], tl)
   and rev_sort n l =
     match n, l with
     | 2, x1 :: x2 :: tl ->
@@ -530,7 +530,7 @@ let sort_uniq cmp l =
         let n2 = n - n1 in
         let s1, l2 = sort n1 l in
         let s2, tl = sort n2 l2 in
-        (rev_merge s1 s2 [], tl)
+        (rev_merge cmp s1 s2 [], tl)
   in
   let len = length l in
   if len < 2 then l else fst (sort len l)
