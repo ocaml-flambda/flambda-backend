@@ -39,7 +39,7 @@ jobs:
         ./configure \
           --prefix=$GITHUB_WORKSPACE/_install \
           --enable-middle-end=closure \
-          --with-dune=/bin/false
+          --with-dune=$GITHUB_WORKSPACE/_opam/bin/dune
 
     - name: Check formatting of Flambda 2 and Cfg code
       working-directory: flambda_backend
