@@ -11,7 +11,10 @@
 ; set warning as error in release profile
 
 (env
- (release
+ (main
+  (flags
+   (:standard -warn-error +A)))
+ (boot
   (flags
    (:standard -warn-error +A))))
 

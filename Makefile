@@ -21,14 +21,14 @@ define dune_boot_context
 (context (default
   (name default)
   ; CR sdolan: profile dev might be faster, but the compiler currently fails to build in dev.
-  (profile release)))
+  (profile boot)))
 endef
 
 define dune_runtime_stdlib_context
 (lang dune 2.8)
 (context (default
   (name runtime_stdlib)
-  (profile release)
+  (profile main)
   (paths
     (PATH ("$(CURDIR)/_build/_bootinstall/bin" :standard))
     (OCAMLLIB ("$(CURDIR)/_build/_bootinstall/lib/ocaml")))
@@ -40,7 +40,7 @@ define dune_main_context
 (lang dune 2.8)
 (context (default
   (name main)
-  (profile release)
+  (profile main)
   (paths
     (PATH ("$(CURDIR)/_build/_bootinstall/bin" :standard))
     (OCAMLLIB ("$(CURDIR)/_build/install/runtime_stdlib/lib/ocaml_runtime_stdlib")))
