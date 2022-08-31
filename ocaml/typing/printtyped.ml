@@ -404,10 +404,12 @@ and expression i ppf x =
       line i ppf "Texp_sequence\n";
       expression i ppf e1;
       expression i ppf e2;
-  | Texp_while (e1, e2) ->
+  | Texp_while {wh_cond; wh_cond_region; wh_body; wh_body_region} ->
       line i ppf "Texp_while\n";
-      expression i ppf e1;
-      expression i ppf e2;
+      line i ppf "cond_region %b\n" wh_cond_region;
+      expression i ppf wh_cond;
+      line i ppf "body_region %b\n" wh_body_region;
+      expression i ppf wh_body;
   | Texp_list_comprehension(e1, type_comp) ->
     line i ppf "Texp_list_comprehension\n";
     expression i ppf e1;
@@ -416,11 +418,13 @@ and expression i ppf x =
     line i ppf "Texp_arr_comprehension\n";
     expression i ppf e1;
     comprehension i ppf type_comp
-  | Texp_for (s, _, e1, e2, df, e3) ->
-      line i ppf "Texp_for \"%a\" %a\n" fmt_ident s fmt_direction_flag df;
-      expression i ppf e1;
-      expression i ppf e2;
-      expression i ppf e3;
+  | Texp_for {for_id; for_from; for_to; for_dir; for_body; for_region} ->
+      line i ppf "Texp_for \"%a\" %a\n"
+        fmt_ident for_id fmt_direction_flag for_dir;
+      expression i ppf for_from;
+      expression i ppf for_to;
+      line i ppf "region %b\n" for_region;
+      expression i ppf for_body
   | Texp_send (e, Tmeth_name s, eo, _) ->
       line i ppf "Texp_send \"%s\"\n" s;
       expression i ppf e;

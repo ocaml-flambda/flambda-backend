@@ -110,5 +110,5 @@ let write t sh_offset buf =
   List.iteri
     (fun i symbol ->
       let idx = (i * 24) + Int64.to_int sh_offset in
-      Symbol_entry.write symbol (Owee.Owee_buf.cursor buf ~at:idx))
+      Symbol_entry.write symbol (Compiler_owee.Owee_buf.cursor buf ~at:idx))
     (List.rev t.local_symbols @ List.rev t.global_symbols)

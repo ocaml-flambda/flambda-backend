@@ -165,9 +165,10 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
             "[@inlined] attribute was not used on this function \
              application{Do_not_inline}";
       None
-    | Inline { unroll_to } ->
+    | Inline { unroll_to; was_inline_always } ->
       let dacc, inlined =
-        Inlining_transforms.inline dacc ~apply ~unroll_to function_type
+        Inlining_transforms.inline dacc ~apply ~unroll_to ~was_inline_always
+          function_type
       in
       Some (dacc, inlined)
   in

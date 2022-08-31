@@ -702,6 +702,8 @@ val meet_rec_info : Typing_env.t -> t -> Rec_info_expr.t meet_shortcut
 val prove_alloc_mode_of_boxed_number :
   Typing_env.t -> t -> Alloc_mode.t proof_of_property
 
+val prove_physical_equality : Typing_env.t -> t -> t -> bool proof_of_property
+
 type to_lift = private
   | Immutable_block of
       { tag : Tag.Scannable.t;
@@ -724,12 +726,10 @@ type reification_result = private
   | Invalid
 
 val reify :
-  ?allowed_if_free_vars_defined_in:Typing_env.t ->
-  ?additional_free_var_criterion:(Variable.t -> bool) ->
-  ?disallowed_free_vars:Variable.Set.t ->
-  ?allow_unique:bool ->
+  allowed_if_free_vars_defined_in:Typing_env.t ->
+  var_is_defined_at_toplevel:(Variable.t -> bool) ->
+  var_is_symbol_projection:(Variable.t -> bool) ->
   Typing_env.t ->
-  min_name_mode:Name_mode.t ->
   t ->
   reification_result
 

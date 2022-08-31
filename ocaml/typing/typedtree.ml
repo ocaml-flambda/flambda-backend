@@ -123,14 +123,25 @@ and expression_desc =
   | Texp_array of expression list
   | Texp_ifthenelse of expression * expression * expression option
   | Texp_sequence of expression * expression
-  | Texp_while of expression * expression
+  | Texp_while of {
+      wh_cond : expression;
+      wh_cond_region : bool;
+      wh_body : expression;
+      wh_body_region : bool
+    }
   | Texp_list_comprehension of
       expression * comprehension list
   | Texp_arr_comprehension of
       expression * comprehension list
-  | Texp_for of
-      Ident.t * Parsetree.pattern * expression * expression * direction_flag *
-        expression
+  | Texp_for of {
+      for_id  : Ident.t;
+      for_pat : Parsetree.pattern;
+      for_from : expression;
+      for_to   : expression;
+      for_dir  : direction_flag;
+      for_body : expression;
+      for_region : bool;
+    }
   | Texp_send of expression * meth * expression option * apply_position
   | Texp_new of
       Path.t * Longident.t loc * Types.class_declaration * apply_position

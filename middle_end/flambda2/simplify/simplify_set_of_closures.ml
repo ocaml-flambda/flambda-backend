@@ -1100,30 +1100,34 @@ let type_value_slots_and_make_lifting_decision_for_one_set dacc
                 ~const:(fun _ -> true)
                 ~symbol:(fun _ ~coercion:_ -> true)
                 ~var:(fun var ~coercion:_ ->
-                  (* Variables, including ones bound to symbol projections
-                     (since such projections might be from inconstant symbols
-                     that were lifted [Local] allocations), in the definition of
-                     the set of closures will currently prevent lifting if the
-                     allocation mode is [Local] and we cannot show that such
-                     variables never hold locally-allocated blocks (pointers to
-                     which from statically-allocated blocks are forbidden). Also
-                     see comment in types/reify.ml. *)
-                  (match Set_of_closures.alloc_mode set_of_closures with
-                  | Local -> (
-                    match
-                      T.never_holds_locally_allocated_values
-                        (DA.typing_env dacc) var K.value
-                    with
-                    | Proved () -> true
-                    | Unknown -> false)
-                  | Heap -> true)
-                  && (DE.is_defined_at_toplevel (DA.denv dacc) var
-                     (* If [var] is known to be a symbol projection, it doesn't
-                        matter if it isn't in scope at the place where we will
-                        eventually insert the "let symbol", as the binding to
-                        the projection from the relevant symbol can always be
-                        rematerialised. *)
-                     || Variable.Map.mem var symbol_projections)))
+                  (* Variables (excluding ones bound to symbol projections; see
+                     below) in the definition of the set of closures will
+                     currently prevent lifting if the allocation mode is [Local]
+                     and we cannot show that such variables never hold
+                     locally-allocated blocks (pointers to which from
+                     statically-allocated blocks are forbidden). Also see
+                     comment in types/reify.ml.
+
+                     If [var] is known to be a symbol projection, it doesn't
+                     matter if it isn't in scope at the place where we will
+                     eventually insert the "let symbol", as the binding to the
+                     projection from the relevant symbol can always be
+                     rematerialised. Likewise no
+                     [never_holds_locally_allocated_values] check is needed in
+                     the symbol projection case, since we are projecting from a
+                     value that has already been deemed eligible for lifting. *)
+                  Variable.Map.mem var symbol_projections
+                  || DE.is_defined_at_toplevel (DA.denv dacc) var
+                     &&
+                     match Set_of_closures.alloc_mode set_of_closures with
+                     | Local -> (
+                       match
+                         T.never_holds_locally_allocated_values
+                           (DA.typing_env dacc) var K.value
+                       with
+                       | Proved () -> true
+                       | Unknown -> false)
+                     | Heap -> true))
          value_slots
   in
   { can_lift; value_slots; value_slot_types; symbol_projections }

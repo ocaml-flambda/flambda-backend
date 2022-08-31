@@ -136,7 +136,7 @@ let add_or_replace_equation t name ty =
   then { t with equations = Name.Map.remove name t.equations }
   else { t with equations = Name.Map.add name ty t.equations }
 
-let concat (t1 : t) (t2 : t) =
+let concat ~earlier:(t1 : t) ~later:(t2 : t) =
   let defined_vars =
     Variable.Map.union
       (fun var _data1 _data2 ->
@@ -160,6 +160,7 @@ let concat (t1 : t) (t2 : t) =
       t1.binding_times t2.binding_times
   in
   let equations =
+    (* We rely on the fact that equations in later levels are more precise *)
     Name.Map.union (fun _ _ty1 ty2 -> Some ty2) t1.equations t2.equations
   in
   let symbol_projections =

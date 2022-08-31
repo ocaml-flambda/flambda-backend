@@ -1588,7 +1588,7 @@ let only_generative_effects t =
 module Eligible_for_cse = struct
   type t = primitive_application
 
-  let create ?map_arg t =
+  let create t =
     (* CR mshinwell: Possible way of handling commutativity: for eligible
        primitives, sort the arguments here *)
     let prim_eligible =
@@ -1617,44 +1617,24 @@ module Eligible_for_cse = struct
     if not eligible
     then None
     else
-      match map_arg with
-      | None -> Some t
-      | Some map_arg ->
-        let t =
-          match t with
-          | Nullary _ -> t
-          | Unary (prim, arg) ->
-            let arg' = map_arg arg in
-            if arg == arg' then t else Unary (prim, arg')
-          | Binary (prim, arg1, arg2) ->
-            let arg1' = map_arg arg1 in
-            let arg2' = map_arg arg2 in
-            if arg1 == arg1' && arg2 == arg2'
-            then t
-            else Binary (prim, arg1', arg2')
-          | Ternary (prim, arg1, arg2, arg3) ->
-            let arg1' = map_arg arg1 in
-            let arg2' = map_arg arg2 in
-            let arg3' = map_arg arg3 in
-            if arg1 == arg1' && arg2 == arg2' && arg3 == arg3'
-            then t
-            else Ternary (prim, arg1', arg2', arg3')
-          | Variadic (prim, args) ->
-            (* We can't recover subkind information from Flambda types, but
-               sometimes we want to add CSE equations for [Make_block] and
-               [Make_array] irrespective of the _sub_kinds. As such we ignore
-               the subkinds here by erasing them. *)
-            let prim =
-              match prim with
-              | Make_block (Values (tag, kinds), mutability, alloc_mode) ->
-                let kinds = List.map K.With_subkind.erase_subkind kinds in
-                Make_block (Values (tag, kinds), mutability, alloc_mode)
-              | Make_block (Naked_floats, _, _) | Make_array _ -> prim
-            in
-            let args' = List.map map_arg args in
-            if List.for_all2 ( == ) args args' then t else Variadic (prim, args')
-        in
-        Some t
+      let t =
+        match t with
+        | Nullary _ | Unary _ | Binary _ | Ternary _ -> t
+        | Variadic (prim, args) ->
+          (* We can't recover subkind information from Flambda types, but
+             sometimes we want to add CSE equations for [Make_block] and
+             [Make_array] irrespective of the _sub_kinds. As such we ignore the
+             subkinds here by erasing them. *)
+          let prim =
+            match prim with
+            | Make_block (Values (tag, kinds), mutability, alloc_mode) ->
+              let kinds = List.map K.With_subkind.erase_subkind kinds in
+              Make_block (Values (tag, kinds), mutability, alloc_mode)
+            | Make_block (Naked_floats, _, _) | Make_array _ -> prim
+          in
+          Variadic (prim, args)
+      in
+      Some t
 
   let create_exn prim =
     match create prim with

@@ -96,7 +96,18 @@ let module_declaration sub x =
 
 let module_substitution _ x = x
 
-let include_infos f x = {x with incl_mod = f x.incl_mod}
+let include_kind sub = function
+  | Tincl_structure -> Tincl_structure
+  | Tincl_functor ccs ->
+      Tincl_functor
+        (List.map (fun (nm, cc) -> (nm, sub.module_coercion sub cc)) ccs)
+  | Tincl_gen_functor ccs ->
+      Tincl_gen_functor
+        (List.map (fun (nm, cc) -> (nm, sub.module_coercion sub cc)) ccs)
+
+let str_include_infos sub x =
+  { x with incl_mod = sub.module_expr sub x.incl_mod;
+           incl_kind = include_kind sub x.incl_kind }
 
 let class_type_declaration sub x =
   class_infos sub (sub.class_type sub) x
@@ -129,7 +140,7 @@ let structure_item sub {str_desc; str_loc; str_env} =
         Tstr_class_type
           (List.map (tuple3 id id (sub.class_type_declaration sub)) list)
     | Tstr_include incl ->
-        Tstr_include (include_infos (sub.module_expr sub) incl)
+        Tstr_include (str_include_infos sub incl)
     | Tstr_open od -> Tstr_open (sub.open_declaration sub od)
     | Tstr_attribute _ as d -> d
   in
@@ -322,11 +333,10 @@ let expr sub x =
           sub.expr sub exp1,
           sub.expr sub exp2
         )
-    | Texp_while (exp1, exp2) ->
-        Texp_while (
-          sub.expr sub exp1,
-          sub.expr sub exp2
-        )
+    | Texp_while wh ->
+        Texp_while { wh with wh_cond = sub.expr sub wh.wh_cond;
+                             wh_body = sub.expr sub wh.wh_body
+                   }
     | Texp_list_comprehension(e1, type_comp) ->
         Texp_list_comprehension(
           sub.expr sub e1,
@@ -337,15 +347,10 @@ let expr sub x =
         sub.expr sub e1,
         map_comprehension type_comp
       )
-    | Texp_for (id, p, exp1, exp2, dir, exp3) ->
-        Texp_for (
-          id,
-          p,
-          sub.expr sub exp1,
-          sub.expr sub exp2,
-          dir,
-          sub.expr sub exp3
-        )
+    | Texp_for tf ->
+        Texp_for {tf with for_from = sub.expr sub tf.for_from;
+                          for_to = sub.expr sub tf.for_to;
+                          for_body = sub.expr sub tf.for_body}
     | Texp_send (exp, meth, expo, pos) ->
         Texp_send
           (
@@ -423,6 +428,10 @@ let signature sub x =
   let sig_items = List.map (sub.signature_item sub) x.sig_items in
   {x with sig_items; sig_final_env}
 
+let sig_include_infos sub x =
+  { x with incl_mod = sub.module_type sub x.incl_mod;
+           incl_kind = include_kind sub x.incl_kind }
+
 let signature_item sub x =
   let sig_env = sub.env sub x.sig_env in
   let sig_desc =
@@ -448,7 +457,7 @@ let signature_item sub x =
     | Tsig_modtype x ->
         Tsig_modtype (sub.module_type_declaration sub x)
     | Tsig_include incl ->
-        Tsig_include (include_infos (sub.module_type sub) incl)
+        Tsig_include (sig_include_infos sub incl)
     | Tsig_class list ->
         Tsig_class (List.map (sub.class_description sub) list)
     | Tsig_class_type list ->

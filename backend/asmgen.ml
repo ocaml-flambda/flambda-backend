@@ -166,7 +166,14 @@ let should_use_linscan fd =
 let if_emit_do f x = if should_emit () then f x else ()
 let emit_begin_assembly ~init_dwarf:init_dwarf =
   if_emit_do (fun init_dwarf -> Emit.begin_assembly ~init_dwarf) init_dwarf
-let emit_end_assembly = if_emit_do Emit.end_assembly
+let emit_end_assembly filename =
+  if_emit_do
+   (fun dwarf ->
+     try
+       Emit.end_assembly dwarf
+     with Emitaux.Error e ->
+       raise (Error (Asm_generation(filename, e))))
+
 let emit_data = if_emit_do Emit.data
 let emit_fundecl ~dwarf =
   if_emit_do
@@ -333,6 +340,7 @@ let register_allocator : register_allocator =
   | Some id ->
     match String.lowercase_ascii id with
     | "irc" -> IRC
+    | "" | "upstream" -> Upstream
     | _ -> Misc.fatal_errorf "unknown register allocator %S" id
 
 let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
@@ -350,10 +358,6 @@ let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
   ++ Profile.record ~accumulate:true "cse" CSE.fundecl
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_cse
   ++ pass_dump_if ppf_dump dump_cse "After CSE"
-  ++ Profile.record ~accumulate:true "liveness" liveness
-  ++ Profile.record ~accumulate:true "deadcode" Deadcode.fundecl
-  ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_live
-  ++ pass_dump_if ppf_dump dump_live "Liveness analysis"
   ++ (fun (fd : Mach.fundecl) ->
     let force_linscan = should_use_linscan fd in
       match force_linscan, register_allocator with
@@ -361,6 +365,7 @@ let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
         let res =
           fd
           ++ Profile.record ~accumulate:true "cfgize" cfgize
+          ++ Profile.record ~accumulate:true "cfg_deadcode" Cfg_deadcode.run
           ++ Profile.record ~accumulate:true "cfg_irc" Cfg_irc.run
         in
         (Cfg_regalloc_utils.simplify_cfg res)
@@ -368,6 +373,10 @@ let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
       | true, _ | false, Upstream ->
         let res =
           fd
+          ++ Profile.record ~accumulate:true "liveness" liveness
+          ++ Profile.record ~accumulate:true "deadcode" Deadcode.fundecl
+          ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_live
+          ++ pass_dump_if ppf_dump dump_live "Liveness analysis"
           ++ Profile.record ~accumulate:true "spill" Spill.fundecl
           ++ Profile.record ~accumulate:true "liveness" liveness
           ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_spill
@@ -527,9 +536,9 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) = (
     end)
   )
 
-let emit_begin_assembly_with_dwarf ~disable_dwarf ~emit_begin_assembly ~sourcefile () =
+let emit_begin_assembly_with_dwarf unix ~disable_dwarf ~emit_begin_assembly ~sourcefile () =
   if !Flambda_backend_flags.internal_assembler then
-    (X86_proc.register_internal_assembler Internal_assembler.assemble;
+    (X86_proc.register_internal_assembler (Internal_assembler.assemble unix);
     Emitaux.binary_backend_available := true;
     Emitaux.create_asm_file := !Clflags.keep_asm_file)
   else ();
@@ -556,9 +565,9 @@ let emit_begin_assembly_with_dwarf ~disable_dwarf ~emit_begin_assembly ~sourcefi
   | true, _, _ -> no_dwarf ()
   | false, _, _ -> no_dwarf ()
 
-let end_gen_implementation0 ?toplevel ~ppf_dump ~sourcefile make_cmm =
+let end_gen_implementation0 unix ?toplevel ~ppf_dump ~sourcefile make_cmm =
   let dwarf =
-    emit_begin_assembly_with_dwarf ~disable_dwarf:false ~emit_begin_assembly
+    emit_begin_assembly_with_dwarf unix ~disable_dwarf:false ~emit_begin_assembly
       ~sourcefile ()
   in
   make_cmm ()
@@ -577,10 +586,10 @@ let end_gen_implementation0 ?toplevel ~ppf_dump ~sourcefile make_cmm =
            if not (Primitive.native_name_is_external prim) then None
            else Some (Primitive.native_name prim))
           !Translmod.primitive_declarations));
-  emit_end_assembly dwarf
+  emit_end_assembly sourcefile dwarf
 
-let end_gen_implementation ?toplevel ~ppf_dump ~sourcefile clambda =
-  end_gen_implementation0 ?toplevel ~ppf_dump ~sourcefile (fun () ->
+let end_gen_implementation unix ?toplevel ~ppf_dump ~sourcefile clambda =
+  end_gen_implementation0 unix ?toplevel ~ppf_dump ~sourcefile (fun () ->
     Profile.record "cmm" Cmmgen.compunit clambda)
 
 type middle_end =
@@ -596,8 +605,8 @@ let asm_filename output_prefix =
     then output_prefix ^ ext_asm
     else Filename.temp_file "camlasm" ext_asm
 
-let compile_implementation ?toplevel ~backend ~filename ~prefixname ~middle_end
-      ~ppf_dump (program : Lambda.program) =
+let compile_implementation unix ?toplevel ~backend ~filename ~prefixname
+      ~middle_end ~ppf_dump (program : Lambda.program) =
   compile_unit ~output_prefix:prefixname
     ~asm_filename:(asm_filename prefixname) ~keep_asm:!keep_asm_file
     ~obj_filename:(prefixname ^ ext_obj)
@@ -607,9 +616,10 @@ let compile_implementation ?toplevel ~backend ~filename ~prefixname ~middle_end
       let clambda_with_constants =
         middle_end ~backend ~filename ~prefixname ~ppf_dump program
       in
-      end_gen_implementation ?toplevel ~ppf_dump ~sourcefile:filename clambda_with_constants)
+      end_gen_implementation unix ?toplevel ~ppf_dump ~sourcefile:filename
+        clambda_with_constants)
 
-let compile_implementation_flambda2 ?toplevel ?(keep_symbol_tables=true)
+let compile_implementation_flambda2 unix ?toplevel ?(keep_symbol_tables=true)
     ~filename ~prefixname ~size:module_block_size_in_words ~module_ident
     ~module_initializer ~flambda2 ~ppf_dump ~required_globals () =
   compile_unit ~output_prefix:prefixname
@@ -623,9 +633,10 @@ let compile_implementation_flambda2 ?toplevel ?(keep_symbol_tables=true)
           ~module_block_size_in_words ~module_initializer
           ~keep_symbol_tables
       in
-      end_gen_implementation0 ?toplevel ~ppf_dump ~sourcefile:filename (fun () -> cmm_phrases))
+      end_gen_implementation0 unix ?toplevel ~ppf_dump ~sourcefile:filename
+        (fun () -> cmm_phrases))
 
-let linear_gen_implementation filename =
+let linear_gen_implementation unix filename =
   let open Linear_format in
   let linear_unit_info, _ = restore filename in
   let current_package = Compilation_unit.Prefix.from_clflags () in
@@ -640,18 +651,18 @@ let linear_gen_implementation filename =
   in
   start_from_emit := true;
   let dwarf =
-    emit_begin_assembly_with_dwarf ~disable_dwarf:false ~emit_begin_assembly
-      ~sourcefile:filename ()
+    emit_begin_assembly_with_dwarf unix ~disable_dwarf:false
+      ~emit_begin_assembly ~sourcefile:filename ()
   in
   Profile.record "Emit" (List.iter (emit_item ~dwarf)) linear_unit_info.items;
-  emit_end_assembly dwarf
+  emit_end_assembly filename dwarf
 
-let compile_implementation_linear output_prefix ~progname =
+let compile_implementation_linear unix output_prefix ~progname =
   compile_unit ~may_reduce_heap:true ~output_prefix
     ~asm_filename:(asm_filename output_prefix) ~keep_asm:!keep_asm_file
     ~obj_filename:(output_prefix ^ ext_obj)
     (fun () ->
-      linear_gen_implementation progname)
+      linear_gen_implementation unix progname)
 
 (* Error report *)
 
@@ -671,7 +682,7 @@ let report_error ppf = function
        (msg saved)
   | Asm_generation(fn, err) ->
      fprintf ppf
-       "Error producing assembly code for function %s: %a"
+       "Error producing assembly code for %s: %a"
        fn Emitaux.report_error err
 
 let () =

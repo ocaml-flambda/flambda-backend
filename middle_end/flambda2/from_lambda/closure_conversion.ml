@@ -237,7 +237,8 @@ module Inlining = struct
           | Default_inlined | Unroll _ ->
             (* Closure ignores completely [@unrolled] attributes, so it seems
                safe to do the same. *)
-            ( Call_site_inlining_decision_type.Definition_says_inline,
+            ( Call_site_inlining_decision_type.Definition_says_inline
+                { was_inline_always = false },
               Inlinable code )
         in
         Inlining_report.record_decision_at_call_site_for_known_function ~tracker

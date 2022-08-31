@@ -23,7 +23,7 @@
  (libraries ocamlcommon ocamlbytecomp ocamloptcomp
    flambda_backend_common
    flambda2_ui
-   flambda2 dynlink_internal)
+   flambda2 dynlink_internal unix)
  (modules genprintval_native opttoploop opttopdirs opttopmain))
 
 (rule

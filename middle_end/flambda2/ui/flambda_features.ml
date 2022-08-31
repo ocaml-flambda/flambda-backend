@@ -113,10 +113,15 @@ module Inlining = struct
     | Round of int
     | Default
 
+  let depth_scaling_factor = 10 (* See [Downwards_env.enter_inlined_apply] *)
+
   let max_depth round_or_default =
-    match round_or_default with
-    | Round round -> IH.get ~key:round !I.max_depth
-    | Default -> D.max_depth
+    let depth =
+      match round_or_default with
+      | Round round -> IH.get ~key:round !I.max_depth
+      | Default -> D.max_depth
+    in
+    depth * depth_scaling_factor
 
   let max_rec_depth round_or_default =
     match round_or_default with
