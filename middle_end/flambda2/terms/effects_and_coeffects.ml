@@ -19,11 +19,10 @@ let [@ocamlformat "disable"] print fmt (eff, coeff, dup) =
 
 let compare (e1, c1, d1) (e2, c2, d2) =
   match Effects.compare e1 e2 with
-  | 0 -> begin
+  | 0 -> (
     match Coeffects.compare c1 c2 with
     | 0 -> Placement.compare d1 d2
-    | res -> res
-  end
+    | res -> res)
   | res -> res
 
 (* Some useful constants *)

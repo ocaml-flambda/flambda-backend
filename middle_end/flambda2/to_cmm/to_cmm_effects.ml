@@ -60,11 +60,10 @@ let classify_let_binding var
        the context. Currently this is very restricted, see comments in
        [To_cmm_primitive]. *)
     May_inline
-  | More_than_one -> begin
+  | More_than_one -> (
     match effects_and_coeffects_of_defining_expr with
     | _, _, Delay -> Duplicate
-    | _, _, Strict -> Regular
-  end
+    | _, _, Strict -> Regular)
 
 type continuation_handler_classification =
   | Regular
