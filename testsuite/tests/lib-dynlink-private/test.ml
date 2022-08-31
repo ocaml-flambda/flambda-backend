@@ -5,6 +5,7 @@ libraries = ""
 files = "sheep.mli sheep.ml pig.mli"
 set plugin1 = "${test_source_directory}/plugin1"
 set plugin2 = "${test_source_directory}/plugin2"
+set plugin2_build = "${test_build_directory}/plugin2"
 set plugin2b = "${test_source_directory}/plugin2b"
 set plugin2c = "${test_source_directory}/plugin2c"
 set plugin3 = "${test_source_directory}/plugin3"
@@ -89,7 +90,9 @@ module = "plugin6/partridge.ml"
 program = "${test_build_directory}/test.byte"
 libraries = "dynlink"
 all_modules = "sheep.cmo test.cmo"
-****** run
+****** script
+script = "cp ${plugin2_build}/cow.cmo ${plugin2_build}/cow_copy.cmo"
+******* run
 
 ** native-dynlink
 *** setup-ocamlopt.byte-build-env
@@ -177,7 +180,9 @@ all_modules = "plugin6/partridge.ml"
 program = "${test_build_directory}/test.exe"
 libraries = "dynlink"
 all_modules = "sheep.cmx test.cmx"
-******* run
+******* script
+script = "cp ${plugin2_build}/cow.cmxs ${plugin2_build}/cow_copy.cmxs"
+******** run
 *)
 
 let () = Sheep.baa Sheep.s (* Use Sheep module *)
@@ -196,12 +201,29 @@ let test_sheep () =
   | exception Dynlink.Error (
       Dynlink.Module_already_loaded "Sheep") -> ()
 
-(* Test repeated loading of a privately-loaded module. *)
+(* Test repeated loading of a privately-loaded module from the same .cmxs
+   file.  This is forbidden in native code. *)
 let test_cow_repeated () =
-  if Dynlink.is_native then
-    Dynlink.loadfile_private "plugin2/cow.cmxs"
-  else
-    Dynlink.loadfile_private "plugin2/cow.cmo"
+  if Dynlink.is_native then begin
+    let load () = Dynlink.loadfile_private "plugin2/cow.cmxs" in
+    begin try load () with _ -> assert false end;
+    match load () with
+    | () -> assert false
+    | exception Dynlink.Error (
+        Dynlink.Library_file_already_loaded_privately _) -> ()
+  end
+
+(* Test repeated loading of the same privately-loaded module from two
+   different .cmo / .cmxs files.  This is similar to the previous case, but is
+   ok, because we're not trying to load the same .cmxs file twice. *)
+let test_cow_repeated_different_cmxs () =
+  try
+    (* Note that [Cow] is already loaded from the previous test. *)
+    if Dynlink.is_native then
+      Dynlink.loadfile_private "plugin2/cow_copy.cmxs"
+    else
+      Dynlink.loadfile_private "plugin2/cow_copy.cmo"
+  with _ -> assert false
 
 (* Test that a privately loaded module can have the same name as a
    previous privately loaded module, in the case where the interfaces are
@@ -264,7 +286,7 @@ let test_pheasant () =
 let () =
   test_sheep ();
   test_cow_repeated ();
-  test_cow_repeated ();
+  test_cow_repeated_different_cmxs ();
   test_cow_same_name_same_mli ();
   test_cow_same_name_different_mli ();
   test_pig ();
