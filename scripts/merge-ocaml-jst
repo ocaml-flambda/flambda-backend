@@ -6,7 +6,7 @@ cd $(git rev-parse --show-toplevel)
 # First, pull in the flambda-patches branch of ocaml-jst
 # This has no effect on the repo, but avoids merge conflicts later by
 # ensuring that these commits appear in this repo's history
-git subtree -P ocaml -m 'Merge ocaml-jst' pull --squash git@github.com:ocaml-flambda/ocaml-jst flambda-patches
+git subtree -P ocaml -m 'Merge ocaml-jst' pull --squash git@github.com:ccasin/ocaml-jst flambda-patches
 
 # Second, actually import ocaml-jst
-git subtree -P ocaml -m 'Merge ocaml-jst' pull --squash git@github.com:ocaml-flambda/ocaml-jst main 
+git subtree -P ocaml -m 'Merge ocaml-jst' pull --squash git@github.com:ccasin/ocaml-jst unused-attributes-test-merge
