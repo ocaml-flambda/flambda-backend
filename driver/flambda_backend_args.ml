@@ -62,8 +62,11 @@ let mk_dcheckmach f =
 let mk_disable_poll_insertion f =
   "-disable-poll-insertion", Arg.Unit f, " Do not insert poll points"
 
-let mk_allow_long_frames f =
-  "-allow-long-frames", Arg.Unit f, " Allow stack frames longer than 2^16 bytes"
+let mk_long_frames f =
+  "-long-frames", Arg.Unit f, " Allow stack frames longer than 2^16 bytes"
+
+let mk_no_long_frames f =
+  "-no-long-frames", Arg.Unit f, " Do not allow stack frames longer than 2^16 bytes"
 
 let mk_dump_inlining_paths f =
   "-dump-inlining-paths", Arg.Unit f, " Dump inlining paths when dumping flambda2 terms"
@@ -440,7 +443,8 @@ module type Flambda_backend_options = sig
 
   val disable_poll_insertion : unit -> unit
 
-  val allow_long_frames : unit -> unit
+  val long_frames : unit -> unit
+  val no_long_frames : unit -> unit
 
   val internal_assembler : unit -> unit
 
@@ -515,7 +519,9 @@ struct
     mk_dcheckmach F.dcheckmach;
 
     mk_disable_poll_insertion F.disable_poll_insertion;
-    mk_allow_long_frames F.allow_long_frames;
+
+    mk_long_frames F.long_frames;
+    mk_no_long_frames F.no_long_frames;
 
     mk_internal_assembler F.internal_assembler;
 
@@ -625,8 +631,11 @@ module Flambda_backend_options_impl = struct
   let dcheckmach = set' Flambda_backend_flags.dump_checkmach
 
   let disable_poll_insertion = set' Flambda_backend_flags.disable_poll_insertion
-  let allow_long_frames =
-    set' Flambda_backend_flags.allow_long_frames
+
+  let long_frames = set' Flambda_backend_flags.allow_long_frames
+
+  let no_long_frames =
+    clear' Flambda_backend_flags.allow_long_frames
 
   let internal_assembler = set' Flambda_backend_flags.internal_assembler
 
@@ -826,7 +835,7 @@ module Extra_params = struct
     | "alloc-check" -> set' Flambda_backend_flags.alloc_check
     | "dump-checkmach" -> set' Flambda_backend_flags.dump_checkmach
     | "disable-poll-insertion" -> set' Flambda_backend_flags.disable_poll_insertion
-    | "allow-long-frames" -> set' Flambda_backend_flags.allow_long_frames
+    | "long-frames" -> set' Flambda_backend_flags.allow_long_frames
     | "dasm-comments" -> set' Flambda_backend_flags.dasm_comments
     | "dno-asm-comments" -> clear' Flambda_backend_flags.dasm_comments
     | "gupstream-dwarf" -> set' Debugging.restrict_to_upstream_dwarf

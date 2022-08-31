@@ -435,7 +435,7 @@ let reduce_heap_size ~reset =
 
 let report_error ppf = function
   | Stack_frame_too_large n ->
-      Format.fprintf ppf "stack frame too large (%d bytes). \
-                          Use -allow-long-frames compiler flag." n
+    Format.fprintf ppf "stack frame too large (%d bytes). \n\
+                        Use -long-frames compiler flag." n
   | Stack_frame_way_too_large n ->
-    Format.fprintf ppf "stack frame too large (%d bytes)" n
+    Format.fprintf ppf "stack frame too large (%d bytes)." n

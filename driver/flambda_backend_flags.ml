@@ -28,7 +28,7 @@ let alloc_check = ref false             (* -alloc-check *)
 let dump_checkmach = ref false          (* -dcheckmach *)
 
 let disable_poll_insertion = ref false  (* -disable-poll-insertion *)
-let allow_long_frames = ref false        (* -allow-long-frames *)
+let allow_long_frames = ref true        (* -no-long-frames *)
 
 type function_result_types = Never | Functors_only | All_functions
 type opt_level = Oclassic | O2 | O3
