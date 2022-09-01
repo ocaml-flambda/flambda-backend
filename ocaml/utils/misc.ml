@@ -964,7 +964,7 @@ module EnvLazy = struct
 
   and ('a,'b) eval =
     | Done of 'b
-    | Raise of exn
+    | Raise of exn * Printexc.raw_backtrace
     | Thunk of 'a
 
   type undo =
@@ -976,14 +976,15 @@ module EnvLazy = struct
   let force f x =
     match !x with
     | Done x -> x
-    | Raise e -> raise e
+    | Raise (e, bt) -> Printexc.raise_with_backtrace e bt
     | Thunk e ->
         match f e with
         | y ->
           x := Done y;
           y
         | exception e ->
-          x := Raise e;
+          let bt = Printexc.get_raw_backtrace () in
+          x := Raise (e, bt);
           raise e
 
   let get_arg x =
@@ -993,7 +994,7 @@ module EnvLazy = struct
     match !x with
     | Thunk a -> Either.Left a
     | Done b -> Either.Right b
-    | Raise e -> raise e
+    | Raise (e, bt) -> Printexc.raise_with_backtrace e bt
 
   let create x =
     ref (Thunk x)
@@ -1001,8 +1002,18 @@ module EnvLazy = struct
   let create_forced y =
     ref (Done y)
 
+  type does_not_return = |
+  exception I_just_want_a_backtrace
+
   let create_failed e =
-    ref (Raise e)
+    let bt =
+      (* We want to call [Printexc.get_raw_backtrace], but that's only valid in
+         an exception handler. So let's handle an exception. *)
+      match (raise I_just_want_a_backtrace : does_not_return) with
+      | exception _ -> Printexc.get_raw_backtrace ()
+      | _ -> .
+    in
+    ref (Raise (e, bt))
 
   let log () =
     ref Nil
@@ -1010,7 +1021,7 @@ module EnvLazy = struct
   let force_logged log f x =
     match !x with
     | Done x -> x
-    | Raise e -> raise e
+    | Raise (e, bt) -> Printexc.raise_with_backtrace e bt
     | Thunk e ->
       match f e with
       | (Error _ as err : _ result) ->
@@ -1021,7 +1032,8 @@ module EnvLazy = struct
           x := Done res;
           res
       | exception e ->
-          x := Raise e;
+          let bt = Printexc.get_raw_backtrace () in
+          x := Raise (e, bt);
           raise e
 
   let backtrack log =
