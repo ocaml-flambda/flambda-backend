@@ -19,9 +19,9 @@ let tick (delay, count) =
 
 let _ =
   let c1 = ref 0 and c2 = ref 0 in
-  ignore (Thread.create tick (0.0333333333, c1));
-  ignore (Thread.create tick (0.05, c2));
-  Thread.delay 0.3;
+  ignore (Thread.create tick (0.333333333, c1));
+  ignore (Thread.create tick (0.5, c2));
+  Thread.delay 3.0;
   let n1 = !c1 and n2 = !c2 in
   if n1 >= 8 && n1 <= 10 && n2 >= 5 && n2 <= 7
   then printf "passed\n"

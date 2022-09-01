@@ -165,6 +165,8 @@ val apply_coercion : t -> Coercion.t -> t
 
 val get_alias_exn : t -> Simple.t
 
+val get_alias_opt : t -> Simple.t option
+
 val is_obviously_bottom : t -> bool
 
 val is_obviously_unknown : t -> bool

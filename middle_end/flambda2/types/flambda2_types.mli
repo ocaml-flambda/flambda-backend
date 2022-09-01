@@ -702,6 +702,8 @@ val meet_rec_info : Typing_env.t -> t -> Rec_info_expr.t meet_shortcut
 val prove_alloc_mode_of_boxed_number :
   Typing_env.t -> t -> Alloc_mode.t proof_of_property
 
+val prove_physical_equality : Typing_env.t -> t -> t -> bool proof_of_property
+
 type to_lift = private
   | Immutable_block of
       { tag : Tag.Scannable.t;

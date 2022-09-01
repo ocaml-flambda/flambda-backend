@@ -172,7 +172,14 @@ let should_use_linscan fd =
 let if_emit_do f x = if should_emit () then f x else ()
 let emit_begin_assembly ~init_dwarf:init_dwarf =
   if_emit_do (fun init_dwarf -> Emit.begin_assembly ~init_dwarf) init_dwarf
-let emit_end_assembly = if_emit_do Emit.end_assembly
+let emit_end_assembly filename =
+  if_emit_do
+   (fun dwarf ->
+     try
+       Emit.end_assembly dwarf
+     with Emitaux.Error e ->
+       raise (Error (Asm_generation(filename, e))))
+
 let emit_data = if_emit_do Emit.data
 let emit_fundecl ~dwarf =
   if_emit_do
@@ -584,7 +591,7 @@ let end_gen_implementation0 unix ?toplevel ~ppf_dump ~sourcefile make_cmm =
            if not (Primitive.native_name_is_external prim) then None
            else Some (Primitive.native_name prim))
           !Translmod.primitive_declarations));
-  emit_end_assembly dwarf
+  emit_end_assembly sourcefile dwarf
 
 let end_gen_implementation unix ?toplevel ~ppf_dump ~sourcefile clambda =
   end_gen_implementation0 unix ?toplevel ~ppf_dump ~sourcefile (fun () ->
@@ -651,7 +658,7 @@ let linear_gen_implementation unix filename =
       ~emit_begin_assembly ~sourcefile:filename ()
   in
   Profile.record "Emit" (List.iter (emit_item ~dwarf)) linear_unit_info.items;
-  emit_end_assembly dwarf
+  emit_end_assembly filename dwarf
 
 let compile_implementation_linear unix output_prefix ~progname =
   compile_unit ~may_reduce_heap:true ~output_prefix
@@ -676,7 +683,7 @@ let report_error ppf = function
        (msg !Clflags.for_package) (msg saved)
   | Asm_generation(fn, err) ->
      fprintf ppf
-       "Error producing assembly code for function %s: %a"
+       "Error producing assembly code for %s: %a"
        fn Emitaux.report_error err
 
 let () =

@@ -377,7 +377,7 @@ let can_raise_operation : operation -> bool = function
   | Floatofint -> false
   | Intoffloat -> false
   | Probe _ -> true
-  | Probe_is_enabled _ -> true
+  | Probe_is_enabled _ -> false
   | Specific op -> Arch.operation_can_raise op
   | Opaque -> false
   | Name_for_debugger _ -> false
@@ -397,9 +397,9 @@ let can_raise_basic : basic -> bool = function
    moment, which we might want to reconsider later. *)
 let is_pure_terminator desc =
   match (desc : terminator) with
-  | Raise _ | Call_no_return _ | Tailcall _ -> false
+  | Raise _ | Call_no_return _ | Tailcall _ | Return -> false
   | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-  | Switch _ | Return ->
+  | Switch _ ->
     (* CR gyorsh: fix for memory operands *)
     true
 
@@ -435,10 +435,21 @@ let is_pure_operation : operation -> bool = function
 let is_pure_basic : basic -> bool = function
   | Op op -> is_pure_operation op
   | Call _ -> false
-  | Reloadretaddr -> true
-  | Pushtrap _ -> true
-  | Poptrap -> true
-  | Prologue -> true
+  | Reloadretaddr ->
+    (* This is a no-op on supported backends but on some others like "power" it
+       wouldn't be. Saying it's not pure doesn't decrease the generated code
+       quality and is future-proof.*)
+    false
+  | Pushtrap _ | Poptrap ->
+    (* Those instructions modify the trap stack which actually modifies the
+       stack pointer. *)
+    false
+  | Prologue ->
+    (* [Prologue] grows the stack when entering a function and therefore
+       modifies the stack pointer. [Prologue] can be considered pure if it's
+       ensured that it wouldn't modify the stack pointer (e.g. there are no used
+       local stack slots nor calls). *)
+    false
 
 let is_noop_move instr =
   match instr.desc with

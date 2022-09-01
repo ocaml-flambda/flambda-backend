@@ -824,3 +824,222 @@ let never_holds_locally_allocated_values env var kind : _ proof_of_property =
   | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
   | Naked_nativeint _ | Rec_info _ | Region _ ->
     Proved ()
+
+let prove_physical_equality env t1 t2 =
+  let incompatible_naked_numbers t1 t2 =
+    match expand_head env t1, expand_head env t2 with
+    | Naked_float (Ok s1), Naked_float (Ok s2) ->
+      let module FS = Numeric_types.Float_by_bit_pattern.Set in
+      FS.is_empty (FS.inter (s1 :> FS.t) (s2 :> FS.t))
+    | Naked_int32 (Ok s1), Naked_int32 (Ok s2) ->
+      let module IS = Numeric_types.Int32.Set in
+      IS.is_empty (IS.inter (s1 :> IS.t) (s2 :> IS.t))
+    | Naked_int64 (Ok s1), Naked_int64 (Ok s2) ->
+      let module IS = Numeric_types.Int64.Set in
+      IS.is_empty (IS.inter (s1 :> IS.t) (s2 :> IS.t))
+    | Naked_nativeint (Ok s1), Naked_nativeint (Ok s2) ->
+      let module IS = Targetint_32_64.Set in
+      IS.is_empty (IS.inter (s1 :> IS.t) (s2 :> IS.t))
+    | _, _ -> false
+  in
+  let check_heads () : _ proof_of_property =
+    match expand_head env t1, expand_head env t2 with
+    | ( ( Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
+        | Naked_nativeint _ | Rec_info _ | Region _ ),
+        _ ) ->
+      wrong_kind "Value" t1
+    | ( _,
+        ( Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
+        | Naked_nativeint _ | Rec_info _ | Region _ ) ) ->
+      wrong_kind "Value" t2
+    | Value (Unknown | Bottom), _ | _, Value (Unknown | Bottom) -> Unknown
+    | Value (Ok head1), Value (Ok head2) -> (
+      match head1, head2 with
+      (* Basic cases:
+       * similar heads -> Unknown
+       * incompatible contents -> Proved false
+       *)
+      | Boxed_float (t1, _), Boxed_float (t2, _) ->
+        if incompatible_naked_numbers t1 t2 then Proved false else Unknown
+      | Boxed_int32 (t1, _), Boxed_int32 (t2, _) ->
+        if incompatible_naked_numbers t1 t2 then Proved false else Unknown
+      | Boxed_int64 (t1, _), Boxed_int64 (t2, _) ->
+        if incompatible_naked_numbers t1 t2 then Proved false else Unknown
+      | Boxed_nativeint (t1, _), Boxed_nativeint (t2, _) ->
+        if incompatible_naked_numbers t1 t2 then Proved false else Unknown
+      | Closures _, Closures _ -> Unknown
+      | String s1, String s2 ->
+        let module SS = String_info.Set in
+        if SS.is_empty (SS.inter s1 s2) then Proved false else Unknown
+      (* Immediates and allocated values -> Proved false *)
+      | ( Variant
+            { immediates = _;
+              blocks = Known blocks;
+              is_unique = _;
+              alloc_mode = _
+            },
+          ( Mutable_block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
+          | Boxed_nativeint _ | Closures _ | String _ | Array _ ) )
+      | ( ( Mutable_block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
+          | Boxed_nativeint _ | Closures _ | String _ | Array _ ),
+          Variant
+            { immediates = _;
+              blocks = Known blocks;
+              is_unique = _;
+              alloc_mode = _
+            } )
+        when TG.Row_like_for_blocks.is_bottom blocks ->
+        Proved false
+      (* Variants:
+       * incompatible immediates and incompatible block tags -> Proved false
+       * same immediate on both sides, no blocks -> Proved true
+       *)
+      | ( Variant
+            { immediates = immediates1;
+              blocks = blocks1;
+              is_unique = _;
+              alloc_mode = _
+            },
+          Variant
+            { immediates = immediates2;
+              blocks = blocks2;
+              is_unique = _;
+              alloc_mode = _
+            } ) -> (
+        match immediates1, immediates2, blocks1, blocks2 with
+        | Known imms, _, _, Known blocks
+          when TG.is_obviously_bottom imms
+               && TG.Row_like_for_blocks.is_bottom blocks ->
+          Proved false
+        | _, Known imms, Known blocks, _
+          when TG.is_obviously_bottom imms
+               && TG.Row_like_for_blocks.is_bottom blocks ->
+          Proved false
+        | Known imms1, Known imms2, Known blocks1, Known blocks2 -> (
+          let immediates_equality : _ generic_proof =
+            (* Note: the proof we're returning here has slightly unusual
+               semantics. [Invalid] is only returned if neither input can be an
+               immediate. [Proved false] means that the inputs cannot be both
+               immediates and equal. [Proved true] means that *if* both inputs
+               are immediates, then they are equal.
+
+               This is what allows us to combine correctly with the property on
+               blocks to return a precise enough result. *)
+            match
+              ( prove_naked_immediates_generic env imms1,
+                prove_naked_immediates_generic env imms2 )
+            with
+            | Invalid, Invalid -> Invalid
+            | Invalid, _ | _, Invalid -> Proved false
+            | Unknown, _ | _, Unknown -> Unknown
+            | Proved imms1, Proved imms2 -> (
+              let module S = Targetint_31_63.Set in
+              if S.is_empty (S.inter imms1 imms2)
+              then Proved false
+              else
+                match S.get_singleton imms1, S.get_singleton imms2 with
+                | None, _ | _, None -> Unknown
+                | Some imm1, Some imm2 ->
+                  (* We've ruled out the empty intersection case, so the numbers
+                     have to be equal *)
+                  assert (Targetint_31_63.equal imm1 imm2);
+                  Proved true)
+          in
+          let blocks_equality : _ generic_proof =
+            (* Same semantics as in the immediates case *)
+            let is_bottom1 = TG.Row_like_for_blocks.is_bottom blocks1 in
+            let is_bottom2 = TG.Row_like_for_blocks.is_bottom blocks2 in
+            if is_bottom1 && is_bottom2
+            then Invalid
+            else if is_bottom1 || is_bottom2
+            then Proved false
+            else
+              match
+                ( TG.Row_like_for_blocks.get_singleton blocks1,
+                  TG.Row_like_for_blocks.get_singleton blocks2 )
+              with
+              | None, _ | _, None -> Unknown
+              | Some ((tag1, size1), _fields1), Some ((tag2, size2), _fields2)
+                ->
+                if Tag.equal tag1 tag2 && Targetint_31_63.equal size1 size2
+                then
+                  (* CR vlaviron and chambart: We could add a special case for
+                     extension constructors, to try to remove dead branches in
+                     try...with handlers *)
+                  Unknown
+                else
+                  (* Different tags or sizes: the blocks can't be physically
+                     equal. *)
+                  Proved false
+          in
+          (* Note: the [Proved true, Proved true] case cannot be converted to
+             [Proved true] (see comment above on semantics) *)
+          match immediates_equality, blocks_equality with
+          | Proved b, Invalid | Invalid, Proved b -> Proved b
+          | Proved false, Proved false -> Proved false
+          | _, _ -> Unknown)
+        | _, _, _, _ -> Unknown)
+      (* Boxed numbers with non-numbers or different kinds -> Proved *)
+      | ( Boxed_float _,
+          ( Variant _ | Mutable_block _ | Boxed_int32 _ | Boxed_int64 _
+          | Boxed_nativeint _ | Closures _ | String _ | Array _ ) )
+      | ( ( Variant _ | Mutable_block _ | Boxed_int32 _ | Boxed_int64 _
+          | Boxed_nativeint _ | Closures _ | String _ | Array _ ),
+          Boxed_float _ )
+      | ( Boxed_int32 _,
+          ( Variant _ | Mutable_block _ | Boxed_int64 _ | Boxed_nativeint _
+          | Closures _ | String _ | Array _ ) )
+      | ( ( Variant _ | Mutable_block _ | Boxed_int64 _ | Boxed_nativeint _
+          | Closures _ | String _ | Array _ ),
+          Boxed_int32 _ )
+      | ( Boxed_int64 _,
+          ( Variant _ | Mutable_block _ | Boxed_nativeint _ | Closures _
+          | String _ | Array _ ) )
+      | ( ( Variant _ | Mutable_block _ | Boxed_nativeint _ | Closures _
+          | String _ | Array _ ),
+          Boxed_int64 _ )
+      | ( Boxed_nativeint _,
+          (Variant _ | Mutable_block _ | Closures _ | String _ | Array _) )
+      | ( (Variant _ | Mutable_block _ | Closures _ | String _ | Array _),
+          Boxed_nativeint _ ) ->
+        Proved false
+      (* Closures and non-closures -> Proved *)
+      | Closures _, (Variant _ | Mutable_block _ | String _ | Array _)
+      | (Variant _ | Mutable_block _ | String _ | Array _), Closures _ ->
+        Proved false
+      (* Strings and non-strings -> Proved *)
+      | String _, (Variant _ | Mutable_block _ | Array _)
+      | (Variant _ | Mutable_block _ | Array _), String _ ->
+        Proved false
+      (* Due to various hacks in existing code (including in the compiler), it
+         would be dangerous to assume that variants, mutable blocks and arrays
+         cannot alias to each other *)
+      | ( (Variant _ | Mutable_block _ | Array _),
+          (Variant _ | Mutable_block _ | Array _) ) ->
+        Unknown)
+  in
+  match TG.get_alias_opt t1, TG.get_alias_opt t2 with
+  | Some s1, Some s2 ->
+    let const c1 =
+      Simple.pattern_match' s2
+        ~const:(fun c2 : _ proof_of_property ->
+          if Reg_width_const.equal c1 c2 then Proved true else Proved false)
+        ~symbol:(fun _ ~coercion:_ : _ proof_of_property -> Proved false)
+        ~var:(fun _ ~coercion:_ -> check_heads ())
+    in
+    let symbol sym1 ~coercion:_ =
+      Simple.pattern_match' s2
+        ~const:(fun _ : _ proof_of_property -> Proved false)
+        ~symbol:(fun sym2 ~coercion:_ : _ proof_of_property ->
+          if Symbol.equal sym1 sym2 then Proved true else Proved false)
+        ~var:(fun _ ~coercion:_ -> check_heads ())
+    in
+    let var var1 ~coercion:_ =
+      Simple.pattern_match' s2
+        ~const:(fun _ -> check_heads ())
+        ~symbol:(fun _ ~coercion:_ -> check_heads ())
+        ~var:(fun var2 ~coercion:_ : _ proof_of_property ->
+          if Variable.equal var1 var2 then Proved true else check_heads ())
+    in
+    Simple.pattern_match' s1 ~const ~symbol ~var
+  | None, Some _ | Some _, None | None, None -> check_heads ()

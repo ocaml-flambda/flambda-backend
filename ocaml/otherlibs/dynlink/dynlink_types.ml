@@ -44,6 +44,7 @@ type error =
   | Inconsistent_implementation of string
   | Module_already_loaded of string
   | Private_library_cannot_implement_interface of string
+  | Library_file_already_loaded_privately of { filename : string; }
 
 exception Error of error
 
@@ -80,6 +81,9 @@ let error_message = function
   | Private_library_cannot_implement_interface name ->
     "The interface `" ^ name ^ "' cannot be implemented by a \
       library loaded privately"
+  | Library_file_already_loaded_privately { filename } ->
+    "The dynamic library file `" ^ filename ^ "' has already been loaded \
+      privately (make a copy of the file to load it a second time)"
 
 let () =
   Printexc.register_printer (function
@@ -111,6 +115,8 @@ let () =
         Printf.sprintf "Module_already_loaded %S" name
       | Private_library_cannot_implement_interface name ->
         Printf.sprintf "Private_library_cannot_implement_interface %S" name
+      | Library_file_already_loaded_privately { filename } ->
+        Printf.sprintf "Library_file_already_loaded_privately %S" filename
       in
       Some (Printf.sprintf "Dynlink.Error (Dynlink.%s)" msg)
     | _ -> None)
