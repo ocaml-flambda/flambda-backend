@@ -361,7 +361,7 @@ promote:
 	$(dune) promote $(ws_main)
 
 .PHONY: fmt
-fmt:
+fmt: duneconf/main.ws
 	$(dune) build $(ws_main) @fmt --auto-promote
 
 .PHONY: check-fmt
