@@ -1400,7 +1400,9 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
                          as funct)) ->
             Lambda.check_lfunction funct;
             let label =
-              Symbol.for_local_ident id |> Symbol.linkage_name
+              Symbol.for_local_ident id
+              |> Symbol.linkage_name
+              |> Linkage_name.to_string
             in
             let arity = List.length params in
             let fundesc =
@@ -1652,6 +1654,7 @@ let intro ~backend ~size lam =
   let id =
     Symbol.for_current_unit ()
     |> Symbol.linkage_name
+    |> Linkage_name.to_string
   in
   global_approx := Array.init size (fun i -> Value_global_field (id, i));
   Compilenv.set_global_approx(Value_tuple (alloc_heap, !global_approx));

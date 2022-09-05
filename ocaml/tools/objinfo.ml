@@ -143,7 +143,8 @@ let print_cmx_infos (ui, crc) =
   (* ocamlobjinfo has historically printed the name of the unit without
      the pack prefix. *)
   let comp_unit_without_pack_prefix =
-    Compilation_unit.create (Compilation_unit.name ui.ui_name)
+    Compilation_unit.create Compilation_unit.Prefix.empty
+      (Compilation_unit.name ui.ui_name)
   in
   print_general_infos
     (linkage_name comp_unit_without_pack_prefix)
@@ -194,7 +195,7 @@ let print_cmxs_infos header =
   List.iter
     (fun ui ->
        print_general_infos
-         ui.dynu_name
+         (ui.dynu_name |> Compilation_unit.Name.to_string)
          ui.dynu_crc
          ui.dynu_defines
          ui.dynu_imports_cmi

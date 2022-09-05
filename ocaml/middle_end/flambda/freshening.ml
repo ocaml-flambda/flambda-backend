@@ -211,7 +211,7 @@ let rewrite_recursive_calls_with_symbols t
     let closure_symbols =
       Variable.Map.fold (fun var _ map ->
         let closure_id = Closure_id.wrap var in
-        let sym = Symbol.Flambda.for_closure closure_id in
+        let sym = Flambda_utils.symbol_for_closure closure_id in
         if Symbol.Set.mem sym all_free_symbols then begin
           closure_symbols_used := true;
           Symbol.Map.add sym var map

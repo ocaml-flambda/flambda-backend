@@ -86,7 +86,7 @@ make_opcodes.cmo :
 make_opcodes.cmx :
 objinfo.cmo : \
     ../bytecomp/symtable.cmi \
-    ../middle_end/symbol.cmi \
+    ../utils/symbol.cmi \
     ../middle_end/printclambda.cmi \
     ../utils/misc.cmi \
     ../lambda/lambda.cmi \
@@ -102,7 +102,7 @@ objinfo.cmo : \
     ../utils/binutils.cmi
 objinfo.cmx : \
     ../bytecomp/symtable.cmx \
-    ../middle_end/symbol.cmx \
+    ../utils/symbol.cmx \
     ../middle_end/printclambda.cmx \
     ../utils/misc.cmx \
     ../lambda/lambda.cmx \

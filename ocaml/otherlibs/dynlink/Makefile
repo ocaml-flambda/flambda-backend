@@ -83,7 +83,10 @@ COMPILERLIBS_SOURCES=\
   utils/local_store.ml \
   utils/load_path.ml \
   utils/int_replace_polymorphic_compare.ml \
+  typing/ident.ml \
   utils/compilation_unit.ml \
+  utils/linkage_name.ml \
+  utils/symbol.ml \
   parsing/location.ml \
   parsing/longident.ml \
   parsing/docstrings.ml \
@@ -92,7 +95,6 @@ COMPILERLIBS_SOURCES=\
   parsing/ast_mapper.ml \
   parsing/attr_helper.ml \
   parsing/builtin_attributes.ml \
-  typing/ident.ml \
   typing/path.ml \
   typing/primitive.ml \
   typing/type_immediacy.ml \
@@ -111,7 +113,6 @@ COMPILERLIBS_SOURCES=\
   middle_end/variable.ml \
   middle_end/flambda/base_types/closure_element.ml \
   middle_end/flambda/base_types/closure_id.ml \
-  middle_end/symbol.ml \
   bytecomp/instruct.ml \
   bytecomp/opcodes.ml \
   bytecomp/bytesections.ml \

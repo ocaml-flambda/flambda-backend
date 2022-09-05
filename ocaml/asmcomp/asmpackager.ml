@@ -95,6 +95,7 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
         let name =
           Symbol.for_current_unit ()
           |> Symbol.linkage_name
+          |> Linkage_name.to_string
         in
         Filename.temp_file name Config.ext_obj in
     let components =
@@ -292,8 +293,8 @@ let package_files ~ppf_dump initial_env files targetcmx ~backend =
   Location.input_name := targetcmx;
   (* Set the name of the current compunit *)
   let comp_unit =
-    let for_pack_prefix = CU.Prefix.parse_for_pack !Clflags.for_package in
-    CU.create ~for_pack_prefix (CU.Name.of_string targetname)
+    let for_pack_prefix = CU.Prefix.from_clflags () in
+    CU.create for_pack_prefix (CU.Name.of_string targetname)
   in
   Compilenv.reset comp_unit;
   Misc.try_finally (fun () ->

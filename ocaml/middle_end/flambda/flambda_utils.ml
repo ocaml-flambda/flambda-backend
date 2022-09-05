@@ -59,6 +59,19 @@ let variables_bound_by_the_closure cf
     (Variable.Set.diff func.free_variables params)
     functions
 
+let symbol_for_variable var =
+  let compilation_unit = Variable.get_compilation_unit var in
+  Symbol.for_name compilation_unit (Variable.unique_name var)
+
+let symbol_for_closure closure_id =
+  let compilation_unit = Closure_id.get_compilation_unit closure_id in
+  Symbol.for_name compilation_unit
+    (Closure_id.unique_name closure_id ^ "_closure")
+
+let symbol_for_code_of_closure closure_id =
+  let compilation_unit = Closure_id.get_compilation_unit closure_id in
+  Symbol.for_name compilation_unit (Closure_id.unique_name closure_id)
+
 let description_of_toplevel_node (expr : Flambda.t) =
   match expr with
   | Var id -> Format.asprintf "var %a" Variable.print id
@@ -832,7 +845,7 @@ let fun_vars_referenced_in_decls
   let symbols_to_fun_vars =
     Variable.Set.fold (fun fun_var symbols_to_fun_vars ->
         let closure_id = Closure_id.wrap fun_var in
-        let symbol = Symbol.Flambda.for_closure closure_id in
+        let symbol = symbol_for_closure closure_id in
         Symbol.Map.add symbol fun_var symbols_to_fun_vars)
       fun_vars
       Symbol.Map.empty

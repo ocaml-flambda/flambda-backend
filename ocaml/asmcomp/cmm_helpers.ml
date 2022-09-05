@@ -2731,7 +2731,9 @@ let make_symbol ?compilation_unit name =
     | None -> Compilation_unit.get_current_exn ()
     | Some compilation_unit -> compilation_unit
   in
-  Symbol.for_name compilation_unit name |> Symbol.linkage_name
+  Symbol.for_name compilation_unit name
+  |> Symbol.linkage_name
+  |> Linkage_name.to_string
 
 (* Generate the entry point *)
 
@@ -2839,7 +2841,7 @@ let predef_exception i name =
 let plugin_header units =
   let module CU = Compilation_unit in
   let mk ((ui : Cmx_format.unit_infos),crc) : Cmxs_format.dynunit =
-    { dynu_name = CU.Name.to_string (CU.name ui.ui_name);
+    { dynu_name = CU.name ui.ui_name;
       dynu_crc = crc;
       dynu_imports_cmi = ui.ui_imports_cmi;
       dynu_imports_cmx = ui.ui_imports_cmx;

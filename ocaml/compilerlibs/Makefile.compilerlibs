@@ -32,7 +32,8 @@ UTILS=utils/config.cmo utils/build_path_prefix_map.cmo utils/misc.cmo \
 	utils/consistbl.cmo utils/strongly_connected_components.cmo \
 	utils/targetint.cmo utils/int_replace_polymorphic_compare.cmo \
 	utils/domainstate.cmo utils/binutils.cmo utils/target_system.cmo \
-  utils/compilation_unit.cmo
+	typing/ident.cmo \
+	utils/compilation_unit.cmo utils/linkage_name.cmo utils/symbol.cmo
 UTILS_CMI=
 
 PARSING=parsing/location.cmo parsing/longident.cmo \
@@ -48,7 +49,7 @@ PARSING_CMI=\
   parsing/asttypes.cmi \
   parsing/parsetree.cmi
 
-TYPING=typing/ident.cmo typing/path.cmo \
+TYPING=typing/path.cmo \
   typing/primitive.cmo typing/type_immediacy.cmo typing/types.cmo \
   typing/btype.cmo typing/oprint.cmo \
   typing/subst.cmo typing/predef.cmo \
@@ -222,7 +223,6 @@ MIDDLE_END=\
   middle_end/variable.cmo \
   middle_end/flambda/base_types/closure_element.cmo \
   middle_end/flambda/base_types/closure_id.cmo \
-  middle_end/symbol.cmo \
   middle_end/backend_var.cmo \
   middle_end/clambda_primitives.cmo \
   middle_end/printclambda_primitives.cmo \

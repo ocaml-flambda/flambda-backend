@@ -177,11 +177,11 @@ let rebuild (used_variables:Variable.Set.t) (accumulated:accumulated) =
     List.map (fun decl ->
         match decl with
         | Block (var, _, _) | Expr (var, _) ->
-          Symbol.Flambda.for_variable (Variable.rename var), decl
+          Flambda_utils.symbol_for_variable (Variable.rename var), decl
         | Exprs _ ->
           let name = Internal_variable_names.lifted_let_rec_block in
           let var = Variable.create name in
-          Symbol.Flambda.for_variable var, decl)
+          Flambda_utils.symbol_for_variable var, decl)
       accumulated.extracted_lets
   in
   let extracted_definitions =

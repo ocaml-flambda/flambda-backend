@@ -24,7 +24,7 @@ let _dump_function_sizes flam =
       Variable.Map.iter (fun fun_var
             (function_decl : Flambda.function_declaration) ->
           let closure_id = Closure_id.wrap fun_var in
-          let symbol = Symbol.Flambda.for_closure closure_id in
+          let symbol = Flambda_utils.symbol_for_closure closure_id in
           match Inlining_cost.lambda_smaller' function_decl.body ~than with
           | Some size -> Format.eprintf "%a %d\n" Symbol.print symbol size
           | None -> assert false)
@@ -238,7 +238,7 @@ let lambda_to_clambda ~backend ~filename ~prefixname ~ppf_dump
   let constants =
     List.map (fun (symbol, definition) ->
         { Clambda.
-          symbol = Symbol.linkage_name symbol;
+          symbol = Symbol.linkage_name symbol |> Linkage_name.to_string;
           exported = true;
           definition;
           provenance = None;

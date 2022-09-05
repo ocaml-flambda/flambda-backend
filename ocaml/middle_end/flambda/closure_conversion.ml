@@ -116,7 +116,7 @@ let tupled_function_call_stub original_params unboxed_version ~closure_bound_var
 let register_const t (constant:Flambda.constant_defining_value) name
     : Flambda.constant_defining_value_block_field * Internal_variable_names.t =
   let var = Variable.create name in
-  let symbol = Symbol.Flambda.for_variable var in
+  let symbol = Flambda_utils.symbol_for_variable var in
   t.declared_symbols <- (symbol, constant) :: t.declared_symbols;
   Symbol symbol, name
 
@@ -744,7 +744,7 @@ let lambda_to_flambda ~backend ~module_ident ~size ~filename lam
   in
   let block_symbol =
     let var = Variable.create Internal_variable_names.module_as_block in
-    Symbol.Flambda.for_variable var
+    Flambda_utils.symbol_for_variable var
   in
   (* The global module block is built by accessing the fields of all the
      introduced symbols. *)

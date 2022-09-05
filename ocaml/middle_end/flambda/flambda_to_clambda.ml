@@ -86,7 +86,7 @@ let check_closure t ulam named : Clambda.ulambda =
     t.constants_for_instrumentation <-
       Symbol.Map.add sym (Clambda.Uconst_string str)
         t.constants_for_instrumentation;
-    let sym = Symbol.linkage_name sym in
+    let sym = Symbol.linkage_name sym |> Linkage_name.to_string in
     Uprim (Pccall desc,
            [ulam; Clambda.Uconst (Uconst_ref (sym, None))],
            Debuginfo.none)
@@ -115,7 +115,7 @@ let check_field t ulam pos named_opt : Clambda.ulambda =
     t.constants_for_instrumentation <-
       Symbol.Map.add sym (Clambda.Uconst_string str)
         t.constants_for_instrumentation;
-    let sym = Symbol.linkage_name sym in
+    let sym = Symbol.linkage_name sym |> Linkage_name.to_string in
     Uprim (Pccall desc, [ulam; Clambda.Uconst (Uconst_int pos);
         Clambda.Uconst (Uconst_ref (sym, None))],
       Debuginfo.none)
@@ -223,7 +223,7 @@ let to_uconst_symbol env symbol : Clambda.ustructured_constant option =
   | Some _ -> None
 
 let to_clambda_symbol' env sym : Clambda.uconstant =
-  let lbl = Symbol.linkage_name sym in
+  let lbl = Symbol.linkage_name sym |> Linkage_name.to_string in
   Uconst_ref (lbl, to_uconst_symbol env sym)
 
 let to_clambda_symbol env sym : Clambda.ulambda =
@@ -472,8 +472,9 @@ and to_clambda_direct_apply t func args direct_func probe dbg pos mode env
   : Clambda.ulambda =
   let closed = is_function_constant t direct_func in
   let label =
-    Symbol.Flambda.for_code_of_closure direct_func
+    Flambda_utils.symbol_for_code_of_closure direct_func
     |> Symbol.linkage_name
+    |> Linkage_name.to_string
   in
   let uargs =
     let uargs = subst_vars env args in
@@ -565,8 +566,9 @@ and to_clambda_set_of_closures t env
         function_decl.params (env, [])
     in
     let label =
-      Symbol.Flambda.for_code_of_closure closure_id
+      Flambda_utils.symbol_for_code_of_closure closure_id
       |> Symbol.linkage_name
+      |> Linkage_name.to_string
     in
     { label;
       arity = clambda_arity function_decl;
@@ -602,7 +604,7 @@ and to_clambda_closed_set_of_closures t env symbol
     let env =
       List.fold_left (fun env (var, _) ->
           let closure_id = Closure_id.wrap var in
-          let symbol = Symbol.Flambda.for_closure closure_id in
+          let symbol = Flambda_utils.symbol_for_closure closure_id in
           Env.add_subst env var (to_clambda_symbol env symbol))
         (Env.keep_only_symbols env)
         functions
@@ -618,8 +620,9 @@ and to_clambda_closed_set_of_closures t env symbol
         (to_clambda t env_body function_decl.body)
     in
     let label =
-      Symbol.Flambda.for_code_of_closure (Closure_id.wrap id)
+      Flambda_utils.symbol_for_code_of_closure (Closure_id.wrap id)
       |> Symbol.linkage_name
+      |> Linkage_name.to_string
     in
     { label;
       arity = clambda_arity function_decl;
@@ -632,7 +635,7 @@ and to_clambda_closed_set_of_closures t env symbol
     }
   in
   let ufunct = List.map to_clambda_function functions in
-  let closure_lbl = Symbol.linkage_name symbol in
+  let closure_lbl = Symbol.linkage_name symbol |> Linkage_name.to_string in
   Uconst_closure (ufunct, closure_lbl, [])
 
 let to_clambda_initialize_symbol t env symbol fields : Clambda.ulambda =
@@ -719,13 +722,13 @@ let to_clambda_program t env constants (program : Flambda.program) =
                 in
                 Some (Clambda.Uconst_field_int n)
             | Some (Flambda.Symbol sym) ->
-                let lbl = Symbol.linkage_name sym in
+                let lbl = Symbol.linkage_name sym |> Linkage_name.to_string in
                 Some (Clambda.Uconst_field_ref lbl))
           fields
       in
       let e1 = to_clambda_initialize_symbol t env symbol init_fields in
       let preallocated_block : Clambda.preallocated_block =
-        { symbol = Symbol.linkage_name symbol;
+        { symbol = Symbol.linkage_name symbol |> Linkage_name.to_string;
           exported = true;
           tag = Tag.to_int tag;
           fields = constant_fields;

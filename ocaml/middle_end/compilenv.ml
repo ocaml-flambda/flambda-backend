@@ -238,7 +238,7 @@ let symbol_for_global' id =
   Symbol.for_global_or_predef_ident pack_prefix id
 
 let symbol_for_global id =
-  symbol_for_global' id |> Symbol.linkage_name
+  symbol_for_global' id |> Symbol.linkage_name |> Linkage_name.to_string
 
 (* Register the approximation of the module being compiled *)
 
@@ -360,6 +360,7 @@ let backtrack s = structured_constants := s
 let new_const_symbol () =
   Symbol.for_new_const_in_current_unit ()
   |> Symbol.linkage_name
+  |> Linkage_name.to_string
 
 let new_structured_constant cst ~shared =
   let {strcst_shared; strcst_all} = !structured_constants in

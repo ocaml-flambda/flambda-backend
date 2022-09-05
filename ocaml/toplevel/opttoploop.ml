@@ -317,7 +317,8 @@ let execute_phrase print_outcome ppf phr =
       incr phrase_seqid;
       phrase_name := Printf.sprintf "TOP%i" !phrase_seqid;
       let phrase_comp_unit =
-        Compilation_unit.create (Compilation_unit.Name.of_string !phrase_name)
+        Compilation_unit.create Compilation_unit.Prefix.empty
+          (Compilation_unit.Name.of_string !phrase_name)
       in
       Compilenv.reset phrase_comp_unit;
       Typecore.reset_delayed_checks ();

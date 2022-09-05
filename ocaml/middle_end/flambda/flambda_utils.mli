@@ -218,3 +218,9 @@ val parameters_specialised_to_the_same_variable
    : function_decls:Flambda.function_declarations
   -> specialised_args:Flambda.specialised_to Variable.Map.t
   -> specialised_to_same_as list Variable.Map.t
+
+val symbol_for_variable : Variable.t -> Symbol.t
+
+val symbol_for_closure : Closure_id.t -> Symbol.t
+
+val symbol_for_code_of_closure : Closure_id.t -> Symbol.t
