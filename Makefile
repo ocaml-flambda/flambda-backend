@@ -1,4 +1,4 @@
-SHELL = /bin/bash
+SHELL = /usr/bin/env bash
 include Makefile.config
 include ocaml/Makefile.config
 export ARCH
@@ -99,7 +99,7 @@ _build/_bootinstall: ocaml/Makefile.config duneconf/boot.ws duneconf/runtime_std
 
 # natdynlinkops2:
 # We need to augment dune's substitutions so this part isn't so
-# difficult.  We use /bin/echo to avoid builtin variants of "echo"
+# difficult.  We use /usr/bin/env echo to avoid builtin variants of "echo"
 # which don't accept "-n".  Unfortunately if there are no
 # NATDYNLINKOPS, we need to provide a harmless option, otherwise dune
 # will provide '' on the command line to ocamlopt which causes an
@@ -111,7 +111,7 @@ _build/_bootinstall: ocaml/Makefile.config duneconf/boot.ws duneconf/runtime_std
 	  | grep '^NATDYNLINKOPTS=' \
 	  | sed 's/^[^=]*=\(.*\)/-ccopt\n"\1"/' \
 	  > ocaml/otherlibs/dynlink/natdynlinkops
-	/bin/echo -n $$(cat ocaml/Makefile.config \
+	/usr/bin/env echo -n $$(cat ocaml/Makefile.config \
 	  | sed 's/^NATDYNLINKOPTS=$$/NATDYNLINKOPTS=-bin-annot/' \
 	  | grep '^NATDYNLINKOPTS=' \
 	  | sed 's/^[^=]*=\(.*\)/\1/') \
@@ -119,9 +119,9 @@ _build/_bootinstall: ocaml/Makefile.config duneconf/boot.ws duneconf/runtime_std
 	if [ "$$(cat ocaml/otherlibs/dynlink/natdynlinkops2)" \
 	       != "-bin-annot" ]; \
 	then \
-	  /bin/echo -n "-ccopt" > ocaml/otherlibs/dynlink/natdynlinkops1; \
+	  /usr/bin/env echo -n "-ccopt" > ocaml/otherlibs/dynlink/natdynlinkops1; \
 	else \
-	  /bin/echo -n "-bin-annot" > ocaml/otherlibs/dynlink/natdynlinkops1; \
+	  /usr/bin/env echo -n "-bin-annot" > ocaml/otherlibs/dynlink/natdynlinkops1; \
 	fi
 
 # flags.sexp
