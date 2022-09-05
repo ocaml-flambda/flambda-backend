@@ -120,3 +120,8 @@ let find_uncap fn =
     SMap.find (String.uncapitalize_ascii fn) !files_uncap
   else
     Misc.find_in_path_uncap (get_paths ()) fn
+
+let dump_all () =
+  Format.eprintf "[@[<hov>%a@]]@."
+    (Format.pp_print_list ~pp_sep:Format.pp_print_space Format.pp_print_string)
+    (SMap.bindings !files_uncap |> List.map fst)

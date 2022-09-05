@@ -32,6 +32,7 @@ module Scoped_location : sig
   val empty_scopes : scopes
   val enter_anonymous_function : scopes:scopes -> scopes
   val enter_value_definition : scopes:scopes -> Ident.t -> scopes
+  val enter_compilation_unit : scopes:scopes -> Compilation_unit.t -> scopes
   val enter_module_definition : scopes:scopes -> Ident.t -> scopes
   val enter_class_definition : scopes:scopes -> Ident.t -> scopes
   val enter_method_definition : scopes:scopes -> Asttypes.label -> scopes

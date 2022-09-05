@@ -888,10 +888,10 @@ let bind_all_code_ids env (unit : Fexpr.flambda_unit) =
   in
   go env unit.body
 
-let conv ~symbol_for_global ~module_ident (fexpr : Fexpr.flambda_unit) :
-    Flambda_unit.t =
+let conv ~compilation_unit (fexpr : Fexpr.flambda_unit) : Flambda_unit.t =
   let module_symbol =
-    symbol_for_global (Ident.create_persistent (Ident.name module_ident))
+    Flambda2_import.Symbol.for_compilation_unit compilation_unit
+    |> Symbol.create_wrapped
   in
   let env = init_env () in
   let { done_continuation = return_continuation; error_continuation; _ } =

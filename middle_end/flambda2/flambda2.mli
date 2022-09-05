@@ -21,13 +21,11 @@ val lambda_to_cmm :
   ppf_dump:Format.formatter ->
   prefixname:string ->
   filename:string ->
-  module_ident:Ident.t ->
+  compilation_unit:Compilation_unit.t ->
   module_block_size_in_words:int ->
   module_initializer:Lambda.lambda ->
   keep_symbol_tables:bool ->
   Cmm.phrase list
-
-val symbol_for_global : Ident.t -> Flambda2_identifiers.Symbol.t
 
 val get_global_info :
   Compilation_unit.t -> Flambda2_cmx.Flambda_cmx_format.t option

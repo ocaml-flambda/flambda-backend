@@ -32,22 +32,23 @@ exception Error of error
    they are used to provide consistency across
    input_value and output_value usage. *)
 type signature = Types.signature_item list
+type crcs = (Compilation_unit.Name.t * Digest.t option) list
 type flags = pers_flags list
-type header = modname * signature
+type header = Compilation_unit.t * signature
 
 type cmi_infos = {
-    cmi_name : modname;
+    cmi_unit : Compilation_unit.t;
     cmi_sign : signature;
     cmi_crcs : crcs;
     cmi_flags : flags;
 }
 
 let input_cmi ic =
-  let (name, sign) = (input_value ic : header) in
+  let (unit, sign) = (input_value ic : header) in
   let crcs = (input_value ic : crcs) in
   let flags = (input_value ic : flags) in
   {
-      cmi_name = name;
+      cmi_unit = unit;
       cmi_sign = sign;
       cmi_crcs = crcs;
       cmi_flags = flags;
@@ -85,10 +86,12 @@ let read_cmi filename =
 let output_cmi filename oc cmi =
 (* beware: the provided signature must have been substituted for saving *)
   output_string oc Config.cmi_magic_number;
-  output_value oc ((cmi.cmi_name, cmi.cmi_sign) : header);
+  output_value oc ((cmi.cmi_unit, cmi.cmi_sign) : header);
   flush oc;
   let crc = Digest.file filename in
-  let crcs = (cmi.cmi_name, Some crc) :: cmi.cmi_crcs in
+  let crcs =
+    (Compilation_unit.name cmi.cmi_unit, Some crc) :: cmi.cmi_crcs
+  in
   output_value oc (crcs : crcs);
   output_value oc (cmi.cmi_flags : flags);
   crc

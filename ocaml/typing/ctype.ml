@@ -1334,7 +1334,7 @@ let new_declaration expansion_scope manifest =
     type_attributes = [];
     type_immediate = Unknown;
     type_unboxed = unboxed_false_default_false;
-    type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
+    type_uid = Uid.mk ~current_unit:(Compilation_unit.get_current ());
   }
 
 let existential_name cstr ty = match repr ty with

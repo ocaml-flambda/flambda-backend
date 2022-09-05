@@ -77,8 +77,9 @@ type primitive =
   | Prevapply of region_close
   | Pdirapply of region_close
     (* Globals *)
-  | Pgetglobal of Ident.t
-  | Psetglobal of Ident.t
+  | Pgetglobal of Compilation_unit.t
+  | Psetglobal of Compilation_unit.t
+  | Pgetpredef of Ident.t
   (* Operations on heap blocks *)
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakefloatblock of mutable_flag * alloc_mode
@@ -409,10 +410,11 @@ and lambda_event_kind =
   | Lev_module_definition of Ident.t
 
 type program =
-  { module_ident : Ident.t;
+  { compilation_unit : Compilation_unit.t;
     main_module_block_size : int;
-    required_globals : Ident.Set.t;    (* Modules whose initializer side effects
-                                          must occur before [code]. *)
+    required_globals : Compilation_unit.Set.t;
+                                        (* Modules whose initializer side effects
+                                           must occur before [code]. *)
     code : lambda }
 (* Lambda code for the middle-end.
    * In the closure case the code is a sequence of assignments to a

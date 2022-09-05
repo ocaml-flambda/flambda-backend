@@ -1,4 +1,4 @@
-(setglobal Module_coercion!
+(setglobal Module_coercion
   (let
     (M =
        (module-defn(M) Module_coercion module_coercion.ml(15):436-1135

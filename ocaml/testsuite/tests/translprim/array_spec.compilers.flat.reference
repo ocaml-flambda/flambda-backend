@@ -1,4 +1,4 @@
-(setglobal Array_spec!
+(setglobal Array_spec
   (let
     (int_a =[intarray] (makearray[int] 1 2 3)
      float_a =[floatarray] (makearray[float] 1. 2. 3.)

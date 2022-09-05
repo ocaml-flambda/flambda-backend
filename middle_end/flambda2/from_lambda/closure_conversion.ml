@@ -48,10 +48,6 @@ type close_functions_result =
    correctly compute the free names of [Code]. *)
 let use_of_symbol_as_simple acc symbol = acc, Simple.symbol symbol
 
-let symbol_for_ident acc env id =
-  let symbol = Env.symbol_for_global env id in
-  use_of_symbol_as_simple acc symbol
-
 let declare_symbol_for_function_slot env ident function_slot : Env.t * Symbol.t
     =
   let symbol =
@@ -574,13 +570,22 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
       | Some exn_continuation -> exn_continuation
     in
     close_c_call acc env ~loc ~let_bound_var prim ~args exn_continuation dbg k
-  | Pgetglobal id, [] ->
-    let is_predef_exn = Ident.is_predef id in
-    if not (is_predef_exn || not (Ident.same id (Env.current_unit_id env)))
+  | Pgetglobal cu, [] ->
+    if Compilation_unit.equal cu (Env.current_unit env)
     then
-      Misc.fatal_errorf "Non-predef Pgetglobal %a in the same unit" Ident.print
-        id;
-    let acc, simple = symbol_for_ident acc env id in
+      Misc.fatal_errorf "Pgetglobal %a in the same unit" Compilation_unit.print
+        cu;
+    let symbol =
+      Flambda2_import.Symbol.for_compilation_unit cu |> Symbol.create_wrapped
+    in
+    let acc, simple = use_of_symbol_as_simple acc symbol in
+    let named = Named.create_simple simple in
+    k acc (Some named)
+  | Pgetpredef id, [] ->
+    let symbol =
+      Flambda2_import.Symbol.for_predef_ident id |> Symbol.create_wrapped
+    in
+    let acc, simple = use_of_symbol_as_simple acc symbol in
     let named = Named.create_simple simple in
     k acc (Some named)
   | Praise raise_kind, [_] ->
@@ -626,28 +631,7 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
         Misc.fatal_error "Unexpected empty float block in [Closure_conversion]"
       | Pmakearray (_, _, _mode) ->
         register_const0 acc Static_const.empty_array "empty_array"
-      | Pidentity | Pbytes_to_string | Pbytes_of_string | Pignore | Prevapply _
-      | Pdirapply _ | Pgetglobal _ | Psetglobal _ | Pfield _ | Pfield_computed _
-      | Psetfield _ | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _
-      | Pduprecord _ | Pccall _ | Praise _ | Psequand | Psequor | Pnot | Pnegint
-      | Paddint | Psubint | Pmulint | Pdivint _ | Pmodint _ | Pandint | Porint
-      | Pxorint | Plslint | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints
-      | Pcompare_floats | Pcompare_bints _ | Poffsetint _ | Poffsetref _
-      | Pintoffloat | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _
-      | Psubfloat _ | Pmulfloat _ | Pdivfloat _ | Pfloatcomp _ | Pstringlength
-      | Pstringrefu | Pstringrefs | Pbyteslength | Pbytesrefu | Pbytessetu
-      | Pbytesrefs | Pbytessets | Pduparray _ | Parraylength _ | Parrayrefu _
-      | Parraysetu _ | Parrayrefs _ | Parraysets _ | Pisint _ | Pisout
-      | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _
-      | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _ | Pandbint _
-      | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
-      | Pbintcomp _ | Pbigarrayref _ | Pbigarrayset _ | Pbigarraydim _
-      | Pstring_load_16 _ | Pstring_load_32 _ | Pstring_load_64 _
-      | Pbytes_load_16 _ | Pbytes_load_32 _ | Pbytes_load_64 _ | Pbytes_set_16 _
-      | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbigstring_load_16 _
-      | Pbigstring_load_32 _ | Pbigstring_load_64 _ | Pbigstring_set_16 _
-      | Pbigstring_set_32 _ | Pbigstring_set_64 _ | Pctconst _ | Pbswap16
-      | Pbbswap _ | Pint_as_pointer | Popaque | Pprobe_is_enabled _ ->
+      | _ ->
         (* Inconsistent with outer match *)
         assert false
     in
@@ -670,11 +654,8 @@ let close_named acc env ~let_bound_var (named : IR.named)
     (k : Acc.t -> Named.t option -> Expr_with_acc.t) : Expr_with_acc.t =
   match named with
   | Simple (Var id) ->
-    let acc, simple =
-      if not (Ident.is_predef id)
-      then find_simple acc env (Var id)
-      else symbol_for_ident acc env id
-    in
+    assert (not (Ident.is_global_or_predef id));
+    let acc, simple = find_simple acc env (Var id) in
     let named = Named.create_simple simple in
     k acc (Some named)
   | Simple (Const cst) ->
@@ -1887,19 +1868,19 @@ let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
         defining_expr ~body)
     (acc, body) components
 
-let close_program (type mode) ~(mode : mode Flambda_features.mode)
-    ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
-    ~module_block_size_in_words ~program ~prog_return_cont ~exn_continuation :
-    mode close_program_result =
-  let env = Env.create ~symbol_for_global ~big_endian ~cmx_loader in
+let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
+    ~cmx_loader ~compilation_unit ~module_block_size_in_words ~program
+    ~prog_return_cont ~exn_continuation : mode close_program_result =
+  let env = Env.create ~big_endian ~cmx_loader in
   let module_symbol =
-    symbol_for_global (Ident.create_persistent (Ident.name module_ident))
+    Symbol.create_wrapped
+      (Flambda2_import.Symbol.for_compilation_unit compilation_unit)
   in
   let module_block_tag = Tag.Scannable.zero in
   let module_block_var = Variable.create "module_block" in
   let return_cont = Continuation.create ~sort:Toplevel_return () in
   let slot_offsets = Slot_offsets.empty in
-  let acc = Acc.create ~symbol_for_global ~slot_offsets in
+  let acc = Acc.create ~slot_offsets in
   let load_fields_body acc =
     let field_vars =
       List.init module_block_size_in_words (fun pos ->

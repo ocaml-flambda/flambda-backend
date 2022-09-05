@@ -65,21 +65,26 @@ let create_archive file_list lib_name =
          file_list descr_list;
        let cmis = Asmlink.extract_crc_interfaces () |> Array.of_list in
        let cmxs = Asmlink.extract_crc_implementations () |> Array.of_list in
-       let cmi_index = String.Tbl.create 42 in
-       Array.iteri (fun i (name, _crc) -> String.Tbl.add cmi_index name i) cmis;
-       let cmx_index = String.Tbl.create 42 in
-       Array.iteri (fun i (name, _crc) -> String.Tbl.add cmx_index name i) cmxs;
+       let cmi_index = Compilation_unit.Name.Tbl.create 42 in
+       Array.iteri
+         (fun i (name, _crc) -> Compilation_unit.Name.Tbl.add cmi_index name i)
+         cmis;
+       let cmx_index = Compilation_unit.Name.Tbl.create 42 in
+       Array.iteri
+         (fun i (name, _crc) -> Compilation_unit.Name.Tbl.add cmx_index name i)
+         cmxs;
        let genfns = Cmm_helpers.Generic_fns_tbl.make () in
        let mk_bitmap arr ix entries =
          let module B = Misc.Bitmap in
          let b = B.make (Array.length arr) in
-         entries |> List.iter (fun (name, _crc) -> B.set b (String.Tbl.find ix name));
+         entries |> List.iter (fun (name, _crc) ->
+           B.set b (Compilation_unit.Name.Tbl.find ix name));
          b
        in
        let units =
          List.map (fun (unit, crc) ->
            Cmm_helpers.Generic_fns_tbl.add genfns unit.ui_generic_fns;
-           { li_name = unit.ui_unit;
+           { li_unit = unit.ui_unit;
              li_crc = crc;
              li_defines = unit.ui_defines;
              li_force_link = unit.ui_force_link;

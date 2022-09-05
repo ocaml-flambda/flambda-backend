@@ -48,6 +48,8 @@ let read_cmxa filename =
   close_in chan;
   magic, cmxa
 
+module Nametbl = Compilation_unit.Name.Tbl
+
 let merge_cmxa0 ~archives =
   let magic_and_cmxa_list = List.map read_cmxa archives in
   let magics = List.map fst magic_and_cmxa_list in
@@ -59,28 +61,28 @@ let merge_cmxa0 ~archives =
     | [] -> assert false
   in
   let ncmxs = ref 0 and ncmis = ref 0 in
-  let cmi_table = Hashtbl.create 42 in
-  let cmx_table = Hashtbl.create 42 in
+  let cmi_table = Nametbl.create 42 in
+  let cmx_table = Nametbl.create 42 in
   cmxa_list
   |> List.iter (fun (lib : Cmx_format.library_infos) ->
          lib.lib_imports_cmi
          |> Array.iter (fun (name, crc) ->
-                if not (Hashtbl.mem cmi_table name)
+                if not (Nametbl.mem cmi_table name)
                 then begin
-                  Hashtbl.add cmi_table name (crc, !ncmis);
+                  Nametbl.add cmi_table name (crc, !ncmis);
                   incr ncmis
                 end);
          lib.lib_imports_cmx
          |> Array.iter (fun (name, crc) ->
-                if not (Hashtbl.mem cmx_table name)
+                if not (Nametbl.mem cmx_table name)
                 then begin
-                  Hashtbl.add cmx_table name (crc, !ncmxs);
+                  Nametbl.add cmx_table name (crc, !ncmxs);
                   incr ncmxs
                 end));
-  let cmis = Array.make !ncmis ("", None) in
-  Hashtbl.iter (fun name (crc, i) -> cmis.(i) <- name, crc) cmi_table;
-  let cmxs = Array.make !ncmxs ("", None) in
-  Hashtbl.iter (fun name (crc, i) -> cmxs.(i) <- name, crc) cmx_table;
+  let cmis = Array.make !ncmis (Compilation_unit.Name.dummy, None) in
+  Nametbl.iter (fun name (crc, i) -> cmis.(i) <- name, crc) cmi_table;
+  let cmxs = Array.make !ncmxs (Compilation_unit.Name.dummy, None) in
+  Nametbl.iter (fun name (crc, i) -> cmxs.(i) <- name, crc) cmx_table;
   let genfns = Cmm_helpers.Generic_fns_tbl.make () in
   let _, lib_units, lib_ccobjs, lib_ccopts =
     List.fold_left
@@ -88,7 +90,7 @@ let merge_cmxa0 ~archives =
            (cmxa : Cmx_format.library_infos) ->
         let new_lib_names =
           List.map
-            (fun (cmx : Cmx_format.lib_unit_info) -> cmx.li_name)
+            (fun (cmx : Cmx_format.lib_unit_info) -> cmx.li_unit)
             cmxa.lib_units
           |> Compilation_unit.Set.of_list
         in
@@ -103,7 +105,7 @@ let merge_cmxa0 ~archives =
           let module B = Misc.Bitmap in
           let b = B.make (Array.length newarr) in
           oldb
-          |> B.iter (fun i -> B.set b (snd (Hashtbl.find tbl (fst oldarr.(i)))));
+          |> B.iter (fun i -> B.set b (snd (Nametbl.find tbl (fst oldarr.(i)))));
           b
         in
         let new_units =

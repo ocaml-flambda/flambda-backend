@@ -36,7 +36,7 @@ let (|>>) (x, y) f = (x, f y)
 let flambda_and_flambda2 i typed ~compile_implementation =
   typed
   |> Profile.(record transl)
-    (Translmod.transl_implementation_flambda i.module_name)
+    (Translmod.transl_implementation_flambda i.compilation_unit)
   |> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.program
   |> Compiler_hooks.execute_and_pipe Compiler_hooks.Raw_lambda
   |> Profile.(record generate)
@@ -45,22 +45,22 @@ let flambda_and_flambda2 i typed ~compile_implementation =
       { program with Lambda.code }
       |> print_if i.ppf_dump Clflags.dump_lambda Printlambda.program
       |> Compiler_hooks.execute_and_pipe Compiler_hooks.Lambda
-      |> (fun ({ Lambda.module_ident; main_module_block_size;
+      |> (fun ({ Lambda.compilation_unit; main_module_block_size;
                  required_globals; code }) ->
-           compile_implementation ~module_ident ~main_module_block_size ~code
+           compile_implementation ~compilation_unit ~main_module_block_size ~code
              ~required_globals;
            Compilenv.save_unit_info (cmx i)))
 
 let flambda2_ unix i ~flambda2 ~keep_symbol_tables typed =
   flambda_and_flambda2 i typed
-    ~compile_implementation:(fun ~module_ident ~main_module_block_size ~code
+    ~compile_implementation:(fun ~compilation_unit ~main_module_block_size ~code
           ~required_globals ->
       Asmgen.compile_implementation_flambda2
         unix
         ~filename:i.source_file
         ~prefixname:i.output_prefix
         ~size:main_module_block_size
-        ~module_ident
+        ~compilation_unit
         ~module_initializer:code
         ~flambda2
         ~ppf_dump:i.ppf_dump
@@ -70,11 +70,11 @@ let flambda2_ unix i ~flambda2 ~keep_symbol_tables typed =
 
 let flambda unix i backend typed =
   flambda_and_flambda2 i typed
-    ~compile_implementation:(fun ~module_ident ~main_module_block_size ~code
-          ~required_globals ->
+    ~compile_implementation:(fun ~compilation_unit ~main_module_block_size ~code
+                              ~required_globals ->
       let program : Lambda.program =
         { Lambda.
-          module_ident;
+          compilation_unit;
           main_module_block_size;
           required_globals;
           code;
@@ -93,7 +93,7 @@ let clambda unix i backend typed =
   Clflags.set_oclassic ();
   typed
   |> Profile.(record transl)
-    (Translmod.transl_store_implementation i.module_name)
+    (Translmod.transl_store_implementation i.compilation_unit)
   |> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.program
   |> Compiler_hooks.execute_and_pipe Compiler_hooks.Raw_lambda
   |> Profile.(record generate)

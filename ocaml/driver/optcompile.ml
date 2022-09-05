@@ -37,7 +37,7 @@ let (|>>) (x, y) f = (x, f y)
 let flambda i backend typed =
   typed
   |> Profile.(record transl)
-      (Translmod.transl_implementation_flambda i.module_name)
+      (Translmod.transl_implementation_flambda i.compilation_unit)
   |> Profile.(record generate)
     (fun {Lambda.module_ident; main_module_block_size;
           required_globals; code } ->

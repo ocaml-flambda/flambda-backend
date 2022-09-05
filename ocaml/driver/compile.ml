@@ -33,7 +33,7 @@ let interface ~source_file ~output_prefix =
 let to_bytecode i (typedtree, coercion) =
   (typedtree, coercion)
   |> Profile.(record transl)
-    (Translmod.transl_implementation i.module_name)
+    (Translmod.transl_implementation i.compilation_unit)
   |> Profile.(record ~accumulate:true generate)
     (fun { Lambda.code = lambda; required_globals } ->
        lambda
@@ -54,7 +54,7 @@ let emit_bytecode i (bytecode, required_globals) =
     (fun () ->
        bytecode
        |> Profile.(record ~accumulate:true generate)
-         (Emitcode.to_file oc i.module_name cmofile ~required_globals);
+         (Emitcode.to_file oc i.compilation_unit cmofile ~required_globals);
     )
 
 let implementation ~start_from ~source_file ~output_prefix

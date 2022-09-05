@@ -116,7 +116,8 @@ module Make (H : Hashtbl.HashedType) : (S with type data = H.t) = struct
     mutable rover : int;               (* for internal bookkeeping *)
   }
 
-  let get_index t h = (h land max_int) mod (Array.length t.table)
+  let get_index t h =
+    (h land max_int) mod (Array.length t.table)
 
   let limit = 7
   let over_limit = 2

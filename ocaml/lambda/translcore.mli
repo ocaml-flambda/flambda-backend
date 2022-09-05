@@ -38,7 +38,7 @@ val transl_let: scopes:scopes -> ?in_structure:bool
                   -> rec_flag -> value_binding list -> value_kind -> lambda -> lambda
 
 val transl_extension_constructor: scopes:scopes ->
-  Env.t -> Path.t option ->
+  Env.t -> Longident.t option ->
   extension_constructor -> lambda
 
 val transl_scoped_exp : scopes:scopes -> expression -> lambda
@@ -57,7 +57,7 @@ val report_error: formatter -> error -> unit
 
 (* Forward declaration -- to be filled in by Translmod.transl_module *)
 val transl_module :
-      (scopes:scopes -> module_coercion -> Path.t option ->
+      (scopes:scopes -> module_coercion -> Longident.t option ->
        module_expr -> lambda) ref
 val transl_object :
       (scopes:scopes -> Ident.t -> string list ->

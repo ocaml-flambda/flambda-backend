@@ -146,3 +146,8 @@ let for_new_const_in_current_unit () =
 
 let is_predef_exn t =
   CU.equal t.compilation_unit CU.predef_exn
+
+let ident_of_compilation_unit cu =
+  linkage_name (for_compilation_unit cu)
+  |> Linkage_name.to_string
+  |> Ident.create_persistent

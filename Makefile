@@ -195,6 +195,8 @@ runtest-upstream: _install
 	rm -rf _runtest
 	mkdir _runtest
 	ln -s ../_install _runtest/_install
+# CR-soon lmaurer: The tests should be symlinked over so that promotion is less
+# clunky (though recursive diff/patch makes it bearable).
 	cp -a ocaml/testsuite _runtest/testsuite
 	 # replace backend-specific testsuite/tools with their new versions
 	rm _runtest/testsuite/tools/*

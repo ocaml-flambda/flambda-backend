@@ -43,7 +43,8 @@ module Name : sig
 
   val to_string : t -> string
 
-  val persistent_ident : t -> Ident.t
+  (** The name of the distinguished compilation unit for predefined exceptions. *)
+  val predef_exn : t
 end
 
 module Prefix : sig
@@ -89,6 +90,10 @@ val print_debug : Format.formatter -> t -> unit
     mangled in any way). *)
 val create : Prefix.t -> Name.t -> t
 
+(** Create a compilation unit contained by another. Effectively uses the
+    parent compilation unit as the prefix. *)
+val create_child : t -> Name.t -> t
+
 (** Create a compilation unit from the given [name]. The "-for-pack" of
     prefix is extracted if there is any. *)
 val of_string : string -> t
@@ -99,6 +104,11 @@ val of_string : string -> t
     the other unit has this one as its path prefix. *)
 val is_parent : t -> child:t -> bool
 
+(** Find whether a compilation unit can be accessed by its name. This should
+    not be possible if the current compilation unit has a different prefix
+    (up to sub-prefixes - that is, Foo.Bar.Baz can access Foo.Other). *)
+val can_access_by_name : t -> bool
+
 (** A distinguished compilation unit for initialisation of mutable state. *)
 val dummy : t
 
@@ -107,6 +117,10 @@ val predef_exn : t
 
 (** The name of the compilation unit, excluding any [for_pack_prefix]. *)
 val name : t -> Name.t
+
+(** The name of the compilation unit, excluding any [for_pack_prefix], as
+    as a string. *)
+val name_as_string : t -> string
 
 (** The "-for-pack" prefix associated with the given compilation unit. *)
 val for_pack_prefix : t -> Prefix.t
@@ -127,13 +141,17 @@ val full_path : t -> Name.t list
 val full_path_as_string : t -> string
 
 type error = private
-  | Invalid_character of char
+  | Invalid_character of char * string
   | Bad_compilation_unit_name of string
 
 (** The exception raised by conversion functions in this module. *)
 exception Error of error
 
+val report_error : Format.formatter -> error -> unit
+
 val set_current : t -> unit
+val clear_current : unit -> unit
 val get_current : unit -> t option
+val get_current_or_dummy : unit -> t
 val get_current_exn : unit -> t
 val is_current : t -> bool

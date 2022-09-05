@@ -195,7 +195,7 @@ let print_cmxs_infos header =
   List.iter
     (fun ui ->
        print_general_infos
-         (ui.dynu_name |> Compilation_unit.Name.to_string)
+         (ui.dynu_unit |> Compilation_unit.to_string)
          ui.dynu_crc
          ui.dynu_defines
          ui.dynu_imports_cmi

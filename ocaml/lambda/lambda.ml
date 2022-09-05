@@ -110,8 +110,9 @@ type primitive =
   | Prevapply of region_close
   | Pdirapply of region_close
     (* Globals *)
-  | Pgetglobal of Ident.t
-  | Psetglobal of Ident.t
+  | Pgetglobal of Compilation_unit.t
+  | Psetglobal of Compilation_unit.t
+  | Pgetpredef of Ident.t
   (* Operations on heap blocks *)
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakefloatblock of mutable_flag * alloc_mode
@@ -482,9 +483,9 @@ and lambda_event_kind =
   | Lev_module_definition of Ident.t
 
 type program =
-  { module_ident : Ident.t;
+  { compilation_unit : Compilation_unit.t;
     main_module_block_size : int;
-    required_globals : Ident.Set.t;
+    required_globals : Compilation_unit.Set.t;
     code : lambda }
 
 let const_int n = Const_base (Const_int n)
@@ -816,9 +817,10 @@ let rec patch_guarded patch = function
 (* Translate an access path *)
 
 let rec transl_address loc = function
-  | Env.Aident id ->
-      if Ident.is_global_or_predef id
-      then Lprim(Pgetglobal id, [], loc)
+  | Env.Aunit cu -> Lprim(Pgetglobal cu, [], loc)
+  | Env.Alocal id ->
+      if Ident.is_predef id
+      then Lprim (Pgetpredef id, [], loc)
       else Lvar id
   | Env.Adot(addr, pos) ->
       Lprim(Pfield (pos, Reads_agree), [transl_address loc addr], loc)
@@ -1172,7 +1174,7 @@ let mod_setfield pos =
 let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pidentity | Pbytes_to_string | Pbytes_of_string | Pignore -> None
   | Prevapply _ | Pdirapply _ -> Some alloc_local
-  | Pgetglobal _ | Psetglobal _ -> None
+  | Pgetglobal _ | Psetglobal _ | Pgetpredef _ -> None
   | Pmakeblock (_, _, _, m) -> Some m
   | Pmakefloatblock (_, m) -> Some m
   | Pfield _ | Pfield_computed _ | Psetfield _ | Psetfield_computed _ -> None

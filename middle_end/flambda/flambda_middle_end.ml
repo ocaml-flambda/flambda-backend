@@ -216,11 +216,14 @@ let flambda_raw_clambda_dump_if ppf
 
 let lambda_to_clambda ~backend ~filename ~prefixname ~ppf_dump
       (program : Lambda.program) =
+  let module_ident =
+    program.compilation_unit |> Symbol.ident_of_compilation_unit
+  in
   let program =
     lambda_to_flambda ~ppf_dump ~prefixname ~backend
       ~size:program.main_module_block_size
       ~filename
-      ~module_ident:program.module_ident
+      ~module_ident
       ~module_initializer:program.code
   in
   let export = Build_export_info.build_transient program in

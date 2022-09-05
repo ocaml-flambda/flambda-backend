@@ -26,19 +26,24 @@ val link_shared: ppf_dump:formatter -> string list -> string -> unit
 val call_linker_shared: string list -> string -> unit
 
 val reset : unit -> unit
+
 val check_consistency: filepath -> Cmx_format.unit_infos -> Digest.t -> unit
-val extract_crc_interfaces: unit -> crcs
-val extract_crc_implementations: unit -> crcs
+
+val extract_crc_interfaces: unit ->
+  (Compilation_unit.Name.t * Digest.t option) list
+
+val extract_crc_implementations: unit ->
+  (Compilation_unit.Name.t * Digest.t option) list
 
 type error =
   | File_not_found of filepath
   | Not_an_object_file of filepath
-  | Missing_implementations of (Linkage_name.t * string list) list
+  | Missing_implementations of (Compilation_unit.t * string list) list
   | Inconsistent_interface of Compilation_unit.Name.t * filepath * filepath
   | Inconsistent_implementation of Compilation_unit.Name.t * filepath * filepath
   | Assembler_error of filepath
   | Linking_error of int
-  | Multiple_definition of Compilation_unit.Name.t * filepath * filepath
+  | Multiple_definition of Compilation_unit.t * filepath * filepath
   | Missing_cmx of filepath * Compilation_unit.Name.t
 
 exception Error of error

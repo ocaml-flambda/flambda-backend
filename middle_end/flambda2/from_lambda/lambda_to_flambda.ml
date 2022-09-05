@@ -570,8 +570,10 @@ let transform_primitive env (prim : L.primitive) args loc =
       }
     in
     Transformed (L.Lapply apply)
-  | Pfield _, [L.Lprim (Pgetglobal id, [], _)]
-    when Ident.same id (Env.current_unit_id env) ->
+  | Pfield _, [L.Lprim (Pgetglobal cu, [], _)]
+    when Ident.same
+           (cu |> Flambda2_import.Symbol.ident_of_compilation_unit)
+           (Env.current_unit_id env) ->
     Misc.fatal_error
       "[Pfield (Pgetglobal ...)] for the current compilation unit is forbidden \
        upon entry to the middle end"
@@ -823,18 +825,18 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pbigarrayset (_, _, _, Pbigarray_unknown_layout) ->
     true
   | Pidentity | Pbytes_to_string | Pbytes_of_string | Pignore | Prevapply _
-  | Pdirapply _ | Pgetglobal _ | Psetglobal _ | Pmakeblock _ | Pmakefloatblock _
-  | Pfield _ | Pfield_computed _ | Psetfield _ | Psetfield_computed _
-  | Pfloatfield _ | Psetfloatfield _ | Pduprecord _ | Psequand | Psequor | Pnot
-  | Pnegint | Paddint | Psubint | Pmulint | Pandint | Porint | Pxorint | Plslint
-  | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats
-  | Pcompare_bints _ | Poffsetint _ | Poffsetref _ | Pintoffloat | Pfloatofint _
-  | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _ | Pmulfloat _
-  | Pdivfloat _ | Pfloatcomp _ | Pstringlength | Pstringrefu | Pbyteslength
-  | Pbytesrefu | Pbytessetu | Pmakearray _ | Pduparray _ | Parraylength _
-  | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisout | Pbintofint _
-  | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _ | Psubbint _
-  | Pmulbint _
+  | Pdirapply _ | Pgetglobal _ | Psetglobal _ | Pgetpredef _ | Pmakeblock _
+  | Pmakefloatblock _ | Pfield _ | Pfield_computed _ | Psetfield _
+  | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Pduprecord _
+  | Psequand | Psequor | Pnot | Pnegint | Paddint | Psubint | Pmulint | Pandint
+  | Porint | Pxorint | Plslint | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints
+  | Pcompare_floats | Pcompare_bints _ | Poffsetint _ | Poffsetref _
+  | Pintoffloat | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _
+  | Psubfloat _ | Pmulfloat _ | Pdivfloat _ | Pfloatcomp _ | Pstringlength
+  | Pstringrefu | Pbyteslength | Pbytesrefu | Pbytessetu | Pmakearray _
+  | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _
+  | Pisout | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _
+  | Psubbint _ | Pmulbint _
   | Pdivbint { is_safe = Unsafe; _ }
   | Pmodbint { is_safe = Unsafe; _ }
   | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
@@ -1944,11 +1946,10 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
 
 (* CR pchambart: define a record `target_config` to hold things like
    `big_endian` *)
-let lambda_to_flambda ~mode ~symbol_for_global ~big_endian ~cmx_loader
-    ~module_ident ~module_block_size_in_words (lam : Lambda.lambda) =
+let lambda_to_flambda ~mode ~big_endian ~cmx_loader ~compilation_unit
+    ~module_block_size_in_words (lam : Lambda.lambda) =
   let current_unit_id =
-    Compilation_unit.name (Compilation_unit.get_current_exn ())
-    |> Compilation_unit.Name.persistent_ident
+    compilation_unit |> Flambda2_import.Symbol.ident_of_compilation_unit
   in
   let return_continuation = Continuation.create ~sort:Define_root_symbol () in
   let exn_continuation = Continuation.create () in
@@ -1958,6 +1959,6 @@ let lambda_to_flambda ~mode ~symbol_for_global ~big_endian ~cmx_loader
   let toplevel acc ccenv =
     cps_tail acc env ccenv lam return_continuation exn_continuation
   in
-  CC.close_program ~mode ~symbol_for_global ~big_endian ~cmx_loader
-    ~module_ident ~module_block_size_in_words ~program:toplevel
+  CC.close_program ~mode ~big_endian ~cmx_loader ~compilation_unit
+    ~module_block_size_in_words ~program:toplevel
     ~prog_return_cont:return_continuation ~exn_continuation

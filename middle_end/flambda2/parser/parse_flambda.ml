@@ -149,18 +149,14 @@ let make_compilation_unit ~extension ~filename ?(tag = "") () =
   Compilation_unit.create Compilation_unit.Prefix.empty
     (name |> Compilation_unit.Name.of_string)
 
-let parse ~symbol_for_global filename =
+let parse filename =
   parse_fexpr filename
   |> Result.map (fun fexpr ->
          let comp_unit = make_compilation_unit ~extension:".fl" ~filename () in
          let old_comp_unit = Compilation_unit.get_current () in
          Compilation_unit.set_current comp_unit;
-         let module_ident =
-           Ident.create_persistent
-             (Compilation_unit.full_path_as_string comp_unit)
-         in
          let flambda =
-           Fexpr_to_flambda.conv ~symbol_for_global ~module_ident fexpr
+           Fexpr_to_flambda.conv ~compilation_unit:comp_unit fexpr
          in
          (match old_comp_unit with
          | Some old_comp_unit -> Compilation_unit.set_current old_comp_unit

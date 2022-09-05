@@ -11,6 +11,9 @@
 ; set warning as error in release profile
 
 (env
+ (_
+  (flags
+   (:standard -color always)))
  (release
   (flags
    (:standard -warn-error +A))))
@@ -122,7 +125,6 @@
   closure_offsets
   effect_analysis
   export_info
-  export_info_for_pack
   extract_projections
   find_recursive_functions
   flambda
@@ -538,7 +540,6 @@
   (closure_offsets.mli as compiler-libs/closure_offsets.mli)
   (effect_analysis.mli as compiler-libs/effect_analysis.mli)
   (export_info.mli as compiler-libs/export_info.mli)
-  (export_info_for_pack.mli as compiler-libs/export_info_for_pack.mli)
   (extract_projections.mli as compiler-libs/extract_projections.mli)
   (find_recursive_functions.mli
    as
@@ -1856,18 +1857,6 @@
   (.ocamloptcomp.objs/byte/export_info.cmti
    as
    compiler-libs/export_info.cmti)
-  (.ocamloptcomp.objs/byte/export_info_for_pack.cmi
-   as
-   compiler-libs/export_info_for_pack.cmi)
-  (.ocamloptcomp.objs/byte/export_info_for_pack.cmo
-   as
-   compiler-libs/export_info_for_pack.cmo)
-  (.ocamloptcomp.objs/byte/export_info_for_pack.cmt
-   as
-   compiler-libs/export_info_for_pack.cmt)
-  (.ocamloptcomp.objs/byte/export_info_for_pack.cmti
-   as
-   compiler-libs/export_info_for_pack.cmti)
   (.ocamloptcomp.objs/byte/extract_projections.cmi
    as
    compiler-libs/extract_projections.cmi)
@@ -2523,9 +2512,6 @@
   (.ocamloptcomp.objs/native/export_info.cmx
    as
    compiler-libs/export_info.cmx)
-  (.ocamloptcomp.objs/native/export_info_for_pack.cmx
-   as
-   compiler-libs/export_info_for_pack.cmx)
   (.ocamloptcomp.objs/native/extract_projections.cmx
    as
    compiler-libs/extract_projections.cmx)

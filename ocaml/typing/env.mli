@@ -47,7 +47,8 @@ type summary =
   | Env_module_unbound of summary * string * module_unbound_reason
 
 type address =
-  | Aident of Ident.t
+  | Aunit of Compilation_unit.t
+  | Alocal of Ident.t
   | Adot of address * int
 
 type t
@@ -68,7 +69,7 @@ val iter_types:
     t -> iter_cont
 val run_iter_cont: iter_cont list -> (Path.t * iter_cont) list
 val same_types: t -> t -> bool
-val used_persistent: unit -> Concr.t
+val used_persistent: unit -> Compilation_unit.Name.Set.t
 val find_shadowed_types: Path.t -> t -> Path.t list
 val without_cmis: ('a -> 'b) -> 'a -> 'b
 (* [without_cmis f arg] applies [f] to [arg], but does not
@@ -127,8 +128,8 @@ val normalize_modtype_path: t -> Path.t -> Path.t
 (* Normalize a module type path *)
 
 val reset_required_globals: unit -> unit
-val get_required_globals: unit -> Ident.t list
-val add_required_global: Ident.t -> unit
+val get_required_globals: unit -> Compilation_unit.t list
+val add_required_global: Compilation_unit.t -> unit
 
 val reset_probes: unit -> unit
 val add_probe: string -> unit
@@ -373,37 +374,37 @@ val reset_cache: preserve_persistent_env:bool -> unit
 (* To be called before each toplevel phrase. *)
 val reset_cache_toplevel: unit -> unit
 
-(* Remember the name of the current compilation unit. *)
-val set_unit_name: string -> unit
-val get_unit_name: unit -> string
-
 (* Read, save a signature to/from a file *)
-val read_signature: modname -> filepath -> signature
+val read_signature: Compilation_unit.t -> filepath -> signature
         (* Arguments: module name, file name. Results: signature. *)
 val save_signature:
-  alerts:alerts -> signature -> modname -> filepath
+  alerts:alerts -> signature -> Compilation_unit.t -> filepath
   -> Cmi_format.cmi_infos
         (* Arguments: signature, module name, file name. *)
 val save_signature_with_imports:
-  alerts:alerts -> signature -> modname -> filepath -> crcs
+  alerts:alerts -> signature -> Compilation_unit.t -> filepath
+  -> (Compilation_unit.Name.t * Digest.t option) list
   -> Cmi_format.cmi_infos
         (* Arguments: signature, module name, file name,
            imported units with their CRCs. *)
 
 (* Return the CRC of the interface of the given compilation unit *)
-val crc_of_unit: modname -> Digest.t
+val crc_of_unit: Compilation_unit.Name.t -> Digest.t
 
 (* Return the set of compilation units imported, with their CRC *)
-val imports: unit -> crcs
+val imports: unit -> (Compilation_unit.Name.t * Digest.t option) list
 
 (* may raise Persistent_env.Consistbl.Inconsistency *)
-val import_crcs: source:string -> crcs -> unit
+val import_crcs:
+  source:string -> (Compilation_unit.Name.t * Digest.t option) list -> unit
 
 (* [is_imported_opaque md] returns true if [md] is an opaque imported module *)
-val is_imported_opaque: modname -> bool
+val is_imported_opaque: Compilation_unit.Name.t -> bool
 
 (* [register_import_as_opaque md] registers [md] as an opaque imported module *)
-val register_import_as_opaque: modname -> unit
+val register_import_as_opaque: Compilation_unit.Name.t -> unit
+
+val find_compilation_unit : Compilation_unit.Name.t -> Compilation_unit.t
 
 (* Summaries -- compact representation of an environment, to be
    exported in debugging information. *)
@@ -498,3 +499,11 @@ val scrape_alias: t -> module_type -> module_type
 val check_value_name: string -> Location.t -> unit
 
 val print_address : Format.formatter -> address -> unit
+
+type address_head =
+  | AHunit of Compilation_unit.t
+  | AHlocal of Ident.t
+
+val address_head : address -> address_head
+
+val print : Format.formatter -> t -> unit

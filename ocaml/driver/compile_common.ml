@@ -18,6 +18,7 @@ open Misc
 type info = {
   source_file : string;
   module_name : string;
+  compilation_unit : Compilation_unit.t;
   output_prefix : string;
   env : Env.t;
   ppf_dump : Format.formatter;
@@ -33,12 +34,18 @@ let annot i = i.output_prefix ^ ".annot"
 let with_info ~native ~tool_name ~source_file ~output_prefix ~dump_ext k =
   Compmisc.init_path ();
   let module_name = Compenv.module_of_filename source_file output_prefix in
-  Env.set_unit_name module_name;
+  let for_pack_prefix = Compilation_unit.Prefix.from_clflags () in
+  let compilation_unit =
+    Compilation_unit.create for_pack_prefix
+      (module_name |> Compilation_unit.Name.of_string)
+  in
+  Compilation_unit.set_current compilation_unit;
   let env = Compmisc.initial_env() in
   let dump_file = String.concat "." [output_prefix; dump_ext] in
   Compmisc.with_ppf_dump ~file_prefix:dump_file @@ fun ppf_dump ->
   k {
     module_name;
+    compilation_unit;
     output_prefix;
     env;
     source_file;
@@ -76,9 +83,9 @@ let emit_signature info ast tsg =
   let sg =
     let alerts = Builtin_attributes.alerts_of_sig ast in
     Env.save_signature ~alerts tsg.Typedtree.sig_type
-      info.module_name (info.output_prefix ^ ".cmi")
+      info.compilation_unit (info.output_prefix ^ ".cmi")
   in
-  Typemod.save_signature info.module_name tsg
+  Typemod.save_signature info.compilation_unit tsg
     info.output_prefix info.source_file info.env sg
 
 let interface ~hook_parse_tree ~hook_typed_tree info =
@@ -105,7 +112,7 @@ let typecheck_impl i parsetree =
   parsetree
   |> Profile.(record typing)
     (Typemod.type_implementation
-       i.source_file i.output_prefix i.module_name i.env)
+       i.source_file i.output_prefix i.compilation_unit i.env)
   |> print_if i.ppf_dump Clflags.dump_typedtree
     Printtyped.implementation_with_coercion
 

@@ -1128,7 +1128,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
     Misc.fatal_errorf
       "[%a] should have been removed by [Lambda_to_flambda.transform_primitive]"
       Printlambda.primitive prim
-  | Pgetglobal _, _ ->
+  | Pgetglobal _, _ | Pgetpredef _, _ ->
     Misc.fatal_errorf
       "[%a] should have been handled by [Closure_conversion.close_primitive]"
       Printlambda.primitive prim

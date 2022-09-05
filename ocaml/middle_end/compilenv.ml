@@ -34,9 +34,9 @@ type error =
 exception Error of error
 
 let global_infos_table =
-  (Hashtbl.create 17 : (string, unit_infos option) Hashtbl.t)
+  (CU.Name.Tbl.create 17 : unit_infos option CU.Name.Tbl.t)
 let export_infos_table =
-  (Hashtbl.create 10 : (string, Export_info.t) Hashtbl.t)
+  (CU.Name.Tbl.create 10 : Export_info.t CU.Name.Tbl.t)
 
 let imported_sets_of_closures_table =
   (Set_of_closures_id.Tbl.create 10
@@ -79,7 +79,7 @@ let default_ui_export_info =
     Cmx_format.Clambda Value_unknown
 
 let current_unit =
-  { ui_name = CU.dummy;
+  { ui_unit = CU.dummy;
     ui_defines = [];
     ui_imports_cmi = [];
     ui_imports_cmx = [];
@@ -93,7 +93,7 @@ let reset compilation_unit =
   Hashtbl.clear global_infos_table;
   Set_of_closures_id.Tbl.clear imported_sets_of_closures_table;
   CU.set_current compilation_unit;
-  current_unit.ui_name <- compilation_unit;
+  current_unit.ui_unit <- compilation_unit;
   current_unit.ui_defines <- [compilation_unit];
   current_unit.ui_imports_cmi <- [];
   current_unit.ui_imports_cmx <- [];
@@ -138,17 +138,13 @@ let read_library_info filename =
 (* Read and cache info on global identifiers *)
 
 (* CR mshinwell: check all uses of this function *)
-let get_global_info global_ident =
-  assert (Ident.is_global global_ident);
-  if CU.Name.equal
-       (Ident.name global_ident |> CU.Name.of_string)
-       (CU.name current_unit.ui_name)
+let get_global_info comp_unit =
+  if CU.equal comp_unit current_unit.ui_unit
   then
     Some current_unit
   else begin
-    let modname = Ident.name global_ident in
     try
-      Hashtbl.find global_infos_table modname
+      CU.Name.Tbl.find global_infos_table modname
     with Not_found ->
       let (infos, crc) =
         if Env.is_imported_opaque modname then (None, None)

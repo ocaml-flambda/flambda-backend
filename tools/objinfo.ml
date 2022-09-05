@@ -55,7 +55,7 @@ let print_name_crc (name, crco) =
       None -> dummy_crc
     | Some crc -> string_of_crc crc
   in
-    printf "\t%s\t%s\n" crc name
+    printf "\t%s\t%a\n" crc Compilation_unit.Name.output name
 
 let print_line name =
   printf "\t%s\n" name
@@ -64,10 +64,10 @@ let print_name_line cu =
   printf "\t%a\n" Compilation_unit.Name.output (Compilation_unit.name cu)
 
 let print_required_global id =
-  printf "\t%s\n" (Ident.name id)
+  printf "\t%a\n" Compilation_unit.output id
 
 let print_cmo_infos cu =
-  printf "Unit name: %a\n" Compilation_unit.Name.output cu.cu_name;
+  printf "Unit name: %a\n" Compilation_unit.output cu.cu_name;
   print_string "Interfaces imported:\n";
   List.iter print_name_crc cu.cu_imports;
   print_string "Required globals:\n";
@@ -98,13 +98,13 @@ let print_cma_infos (lib : Cmo_format.library) =
   List.iter print_cmo_infos lib.lib_units
 
 let print_cmi_infos name crcs =
-  printf "Unit name: %s\n" name;
+  printf "Unit name: %a\n" Compilation_unit.output name;
   printf "Interfaces imported:\n";
   List.iter print_name_crc crcs
 
 let print_cmt_infos cmt =
   let open Cmt_format in
-  printf "Cmt unit name: %s\n" cmt.cmt_modname;
+  printf "Cmt unit name: %a\n" Compilation_unit.output cmt.cmt_unit;
   print_string "Cmt interfaces imported:\n";
   List.iter print_name_crc cmt.cmt_imports;
   printf "Source file: %s\n"
@@ -196,7 +196,7 @@ let print_cmxa_infos (lib : Cmx_format.library_infos) =
   print_generic_fns lib.lib_generic_fns;
   let module B = Misc.Bitmap in
   lib.lib_units |> List.iter (fun u ->
-    print_general_infos Compilation_unit.output u.li_name u.li_crc u.li_defines
+    print_general_infos Compilation_unit.output u.li_unit u.li_crc u.li_defines
       (fun f -> B.iter (fun i -> f lib.lib_imports_cmi.(i)) u.li_imports_cmi)
       (fun f -> B.iter (fun i -> f lib.lib_imports_cmx.(i)) u.li_imports_cmx);
     printf "Force link: %s\n" (if u.li_force_link then "YES" else "no"))
@@ -205,8 +205,8 @@ let print_cmxs_infos header =
   List.iter
     (fun ui ->
        print_general_infos
-         Compilation_unit.Name.output
-         ui.dynu_name
+         Compilation_unit.output
+         ui.dynu_unit
          ui.dynu_crc
          ui.dynu_defines
          (fun f -> List.iter f ui.dynu_imports_cmi)
@@ -239,7 +239,7 @@ let dump_byte ic =
            | "CRCS" ->
                p_section
                  "Imported units"
-                 (input_value ic : (string * Digest.t option) list)
+                 (input_value ic : (Compilation_unit.Name.t * Digest.t option) list)
            | "DLLS" ->
                p_list
                  "Used DLLs"
@@ -309,7 +309,7 @@ let dump_obj_by_kind filename ic obj_kind =
        begin match cmi with
          | None -> ()
          | Some cmi ->
-            print_cmi_infos cmi.Cmi_format.cmi_name cmi.Cmi_format.cmi_crcs
+            print_cmi_infos cmi.Cmi_format.cmi_unit cmi.Cmi_format.cmi_crcs
        end;
        begin match cmt with
          | None -> ()

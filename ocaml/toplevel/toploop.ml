@@ -57,8 +57,10 @@ let setvalue name v =
 (* Return the value referred to by a path *)
 
 let rec eval_address = function
-  | Env.Aident id ->
-      if Ident.is_global_or_predef id then
+  | Env.Aunit cu ->
+      Symtable.get_global_value (cu |> Symbol.ident_of_compilation_unit)
+  | Env.Alocal id ->
+      if Ident.is_predef id then
         Symtable.get_global_value id
       else begin
         let name = Translmod.toplevel_name id in

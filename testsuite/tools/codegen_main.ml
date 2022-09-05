@@ -21,10 +21,7 @@ let compile_file filename =
     let out_name = Filename.chop_extension filename ^ ".s" in
     Emitaux.output_channel := open_out out_name
   end; (* otherwise, stdout *)
-  let compilation_unit =
-    Compilation_unit.create Compilation_unit.Prefix.empty
-      ("test" |> Compilation_unit.Name.of_string)
-  in
+  let compilation_unit = "test" |> Compilation_unit.of_string in
   Compilenv.reset compilation_unit;
   Emit.begin_assembly ~init_dwarf:(fun () -> ());
   let ic = open_in filename in

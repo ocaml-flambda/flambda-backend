@@ -4,8 +4,6 @@ open Import
 (* CR lmaurer: Make this an argument. *)
 let exit_normally_on_failure = true
 
-let symbol_for_global = Flambda2.symbol_for_global
-
 let get_global_info = Flambda2.get_global_info
 
 let check_invariants program =
@@ -42,27 +40,19 @@ let dump_error (e : Parse_flambda.error) =
     Format.eprintf "%a:@.Lex error: %a@." Location.print_loc loc
       Flambda_lex.pp_error error
 
-let run_expect_test ~symbol_for_global ~get_global_info ~extension ~filename
+let run_expect_test ~get_global_info ~extension ~filename
     ({ before; after = expected } : Fexpr.expect_test_spec) : Test_outcome.t =
-  let comp_unit = Parse_flambda.make_compilation_unit ~extension ~filename () in
-  Compilation_unit.set_current comp_unit;
-  let module_ident =
-    comp_unit |> Symbol0.for_compilation_unit |> Symbol0.linkage_name
-    |> Linkage_name.to_string |> Ident.create_persistent
+  let compilation_unit =
+    Parse_flambda.make_compilation_unit ~extension ~filename ()
   in
-  let before_fl =
-    Fexpr_to_flambda.conv ~symbol_for_global ~module_ident before
-  in
+  Compilation_unit.set_current compilation_unit;
+  let before_fl = Fexpr_to_flambda.conv ~compilation_unit before in
   check_invariants before_fl;
-  let cmx_loader =
-    Flambda_cmx.create_loader ~symbol_for_global ~get_global_info
-  in
+  let cmx_loader = Flambda_cmx.create_loader ~get_global_info in
   let { Simplify.unit = actual_fl; _ } =
     Simplify.run ~cmx_loader ~round:0 before_fl
   in
-  let expected_fl =
-    Fexpr_to_flambda.conv ~symbol_for_global ~module_ident expected
-  in
+  let expected_fl = Fexpr_to_flambda.conv ~compilation_unit expected in
   match Compare.flambda_units actual_fl expected_fl with
   | Equivalent -> Pass
   | Different { approximant = actual' } ->
@@ -90,8 +80,7 @@ let run_flt_file filename : Outcome.t =
   match Parse_flambda.parse_expect_test_spec filename with
   | Ok test_spec -> (
     match
-      run_expect_test ~symbol_for_global ~get_global_info ~extension:".flt"
-        ~filename test_spec
+      run_expect_test ~get_global_info ~extension:".flt" ~filename test_spec
     with
     | Pass ->
       Format.eprintf "PASS@.";
@@ -116,8 +105,8 @@ let run_mdflx_file filename : Outcome.t =
           | Text _ -> node
           | Expect test_spec -> (
             match
-              run_expect_test test_spec ~symbol_for_global ~get_global_info
-                ~extension:".mdflx" ~filename
+              run_expect_test test_spec ~get_global_info ~extension:".mdflx"
+                ~filename
             with
             | Pass ->
               Format.eprintf "PASS@.";

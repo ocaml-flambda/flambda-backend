@@ -126,8 +126,8 @@ let check_consistency ppf filename cu =
       original_source = auth;
     } ->
     fprintf ppf "@[<hv 0>The files %s@ and %s@ \
-                 disagree over interface %s@]@."
-            user auth name;
+                 disagree over interface %a@]@."
+            user auth Compilation_unit.Name.print name;
     raise Load_failed
 
 let load_compunit ic filename ppf compunit =

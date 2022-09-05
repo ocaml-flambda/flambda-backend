@@ -89,19 +89,30 @@ type prim =
   | Send_self of Lambda.region_close
   | Send_cache of Lambda.region_close
 
-let used_primitives = Hashtbl.create 7
+let units_with_used_primitives = Compilation_unit.Tbl.create 7
 let add_used_primitive loc env path =
   match path with
-    Some (Path.Pdot _ as path) ->
-      let path = Env.normalize_path_prefix (Some loc) env path in
-      let unit = Path.head path in
-      if Ident.is_global_or_predef unit && not (Hashtbl.mem used_primitives path)
-      then Hashtbl.add used_primitives path loc
-  | _ -> ()
+    Some (Path.Pdot (path, _)) -> begin
+      try
+      let address = Env.find_module_address path env in
+      match Env.address_head address with
+      | AHunit cu ->
+          if not (Compilation_unit.Tbl.mem units_with_used_primitives cu)
+          then Compilation_unit.Tbl.add units_with_used_primitives cu loc
+      | AHlocal _ -> ()
+  with (Not_found as e) ->
+    let bt = Printexc.get_raw_backtrace () in
+    Format.eprintf "@[<hov1>add_used_primitive@ %a@ %a@ %a@]@.%!"
+      Location.print_loc loc
+      Env.print env
+      Path.print path;
+    Printexc.raise_with_backtrace e bt
+end
+| _ -> ()
 
-let clear_used_primitives () = Hashtbl.clear used_primitives
-let get_used_primitives () =
-  Hashtbl.fold (fun path _ acc -> path :: acc) used_primitives []
+let clear_used_primitives () = Compilation_unit.Tbl.clear units_with_used_primitives
+let get_units_with_used_primitives () =
+  Compilation_unit.Tbl.fold (fun path _ acc -> path :: acc) units_with_used_primitives []
 
 let gen_array_kind =
   if Config.flat_float_array then Pgenarray else Paddrarray
@@ -634,8 +645,13 @@ let lambda_of_loc kind sloc =
   | Loc_FILE -> Lconst (Const_immstring file)
   | Loc_MODULE ->
     let filename = Filename.basename file in
-    let name = Env.get_unit_name () in
-    let module_name = if name = "" then "//"^filename^"//" else name in
+    let comp_unit = Compilation_unit.get_current () in
+    let module_name =
+      match comp_unit with
+      | None -> "//"^filename^"//"
+      | Some comp_unit ->
+        Compilation_unit.name_as_string comp_unit
+    in
     Lconst (Const_immstring module_name)
   | Loc_LOC ->
     let loc = Printf.sprintf "File %S, line %d, characters %d-%d"
@@ -812,7 +828,7 @@ let lambda_primitive_needs_event_after = function
   | Pbbswap _ -> true
 
   | Pidentity | Pbytes_to_string | Pbytes_of_string | Pignore | Psetglobal _
-  | Pgetglobal _ | Pmakeblock _ | Pmakefloatblock _
+  | Pgetglobal _ | Pgetpredef _ | Pmakeblock _ | Pmakefloatblock _
   | Pfield _ | Pfield_computed _ | Psetfield _
   | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Praise _
   | Psequor | Psequand | Pnot | Pnegint | Paddint | Psubint | Pmulint

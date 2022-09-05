@@ -38,19 +38,7 @@ val reset_info_tables: unit -> unit
 val current_unit_infos: unit -> unit_infos
         (* Return the infos for the unit being compiled *)
 
-val pack_prefix_for_current_unit : unit -> Compilation_unit.Prefix.t
-        (* Return the pack prefix for the unit being compiled *)
-
-val pack_prefix_for_global_ident : Ident.t -> Compilation_unit.Prefix.t
-        (* Find the pack prefix for an identifier by reading the .cmx file.
-           The identifier must be [Global]. *)
-
-val symbol_for_global: Ident.t -> Linkage_name.t
-        (* Return the asm symbol that refers to the given global identifier
-           flambda-only *)
-val symbol_for_global': Ident.t -> Symbol.t
-        (* flambda-only *)
-val global_approx: Ident.t -> Clambda.value_approximation
+val global_approx: Compilation_unit.t -> Clambda.value_approximation
         (* Return the approximation for the given global identifier
            clambda-only *)
 val set_global_approx: Clambda.value_approximation -> unit
@@ -70,7 +58,7 @@ val approx_for_global: Compilation_unit.t -> Export_info.t option
         (* Loads the exported information declaring the compilation_unit
            flambda-only *)
 
-val get_global_export_info : Ident.t -> Cmx_format.export_info option
+val get_global_export_info : Compilation_unit.t -> Cmx_format.export_info option
         (* Middle-end-agnostic means of getting the export info found in the
            .cmx file of the given unit. *)
 
@@ -118,7 +106,7 @@ val cache_unit_info: unit_infos -> unit
            honored by [symbol_for_global] and [global_approx]
            without looking at the corresponding .cmx file. *)
 
-val require_global: Ident.t -> unit
+val require_global: Compilation_unit.t -> unit
         (* Enforce a link dependency of the current compilation
            unit to the required module *)
 
