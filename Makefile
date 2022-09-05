@@ -361,51 +361,18 @@ promote:
 	$(dune) promote $(ws_main)
 
 .PHONY: fmt
-fmt:
-	ocamlformat -i \
-	  $$(find middle_end/flambda2 \
-	    \( -name "*.ml" -or -name "*.mli" \) \
-	    -and \! \( -name "flambda_parser.*" -or -name "flambda_lex.*" \))
-	ocamlformat -i \
-	  $$(find backend/cfg \
-	    \( -name "*.ml" -or -name "*.mli" \))
-	ocamlformat -i middle_end/mangling.ml
-	ocamlformat -i middle_end/mangling.mli
-	ocamlformat -i \
-	  $$(find backend/asm_targets \
-	    \( -name "*.ml" -or -name "*.mli" \))
-	ocamlformat -i \
-	  $$(find backend/debug \
-	    \( -name "*.ml" -or -name "*.mli" \))
-	ocamlformat -i backend/cmm_helpers.ml{,i}
-	ocamlformat -i tools/merge_archives.ml
-	ocamlformat -i \
-	  $$(find backend/debug/dwarf \
-	    \( -name "*.ml" -or -name "*.mli" \))
+fmt: duneconf/main.ws
+	$(dune) build $(ws_main) @fmt --auto-promote
 
 .PHONY: check-fmt
 check-fmt:
-	@if [ "$$(git status --porcelain middle_end/flambda2)" != "" ] || \
-           [ "$$(git status --porcelain backend/cfg)" != "" ] || \
-           [ "$$(git status --porcelain middle_end/mangling.ml)" != "" ] || \
-           [ "$$(git status --porcelain middle_end/mangling.mli)" != "" ] || \
-           [ "$$(git status --porcelain backend/asm_targets)" != "" ] || \
-           [ "$$(git status --porcelain backend/debug)" != "" ] || \
-           [ "$$(git status --porcelain backend/cmm_helpers.ml{,i})" != "" ] || \
-           [ "$$(git status --porcelain tools/merge_archives.ml)" != "" ]; then \
+	@if [ "$$(git status --porcelain)" != "" ] ; then \
 	  echo; \
 	  echo "Tree must be clean before running 'make check-fmt'"; \
 	  exit 1; \
 	fi
 	$(MAKE) fmt
-	@if [ "$$(git diff middle_end/flambda2)" != "" ] || \
-           [ "$$(git diff backend/cfg)" != "" ] || \
-           [ "$$(git diff middle_end/mangling.ml)" != "" ] || \
-           [ "$$(git diff middle_end/mangling.mli)" != "" ] || \
-           [ "$$(git diff backend/asm_targets)" != "" ] || \
-           [ "$$(git diff backend/debug)" != "" ] || \
-           [ "$$(git diff backend/cmm_helpers.ml{,i})" != "" ] || \
-           [ "$$(git diff tools/merge_archives.ml)" != "" ]; then \
+	@if [ "$$(git diff)" != "" ]; then \
 	  echo; \
 	  echo "The following code was not formatted correctly:"; \
 	  echo "(the + side of the diff is how it should be formatted)"; \

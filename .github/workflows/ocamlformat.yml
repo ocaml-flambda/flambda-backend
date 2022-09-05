@@ -29,6 +29,18 @@ jobs:
     - name: Install ocamlformat 0.19.0
       run: opam pin -y ocamlformat 0.19.0
 
+    - name: Checkout dune github repo
+      uses: actions/checkout@master
+      with:
+        repository: 'ocaml-flambda/dune'
+        ref: 'special_dune'
+        path: 'dune'
+
+    - name: Build dune
+      working-directory: dune
+      run: |
+        opam exec -- make release
+
     - name: autoconf
       working-directory: flambda_backend
       run: autoconf
@@ -39,8 +51,8 @@ jobs:
         ./configure \
           --prefix=$GITHUB_WORKSPACE/_install \
           --enable-middle-end=closure \
-          --with-dune=/bin/false
+          --with-dune=$GITHUB_WORKSPACE/dune/dune.exe
 
-    - name: Check formatting of Flambda 2 and Cfg code
+    - name: Check formatting
       working-directory: flambda_backend
       run: opam exec -- make check-fmt

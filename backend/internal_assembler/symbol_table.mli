@@ -43,7 +43,8 @@ val num_locals : t -> int
 
 val make_undef_symbol : t -> string -> String_table.t -> unit
 
-val make_section_symbol : t -> Compiler_owee.Owee_buf.u16 -> 'a -> Symbol_entry.t
+val make_section_symbol :
+  t -> Compiler_owee.Owee_buf.u16 -> 'a -> Symbol_entry.t
 
 val make_symbol :
   t -> X86_binary_emitter.symbol -> Section_table.t -> String_table.t -> unit

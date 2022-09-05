@@ -66,17 +66,15 @@ let merge_cmxa0 ~archives =
          lib.lib_imports_cmi
          |> Array.iter (fun (name, crc) ->
                 if not (Hashtbl.mem cmi_table name)
-                then begin
+                then (
                   Hashtbl.add cmi_table name (crc, !ncmis);
-                  incr ncmis
-                end);
+                  incr ncmis));
          lib.lib_imports_cmx
          |> Array.iter (fun (name, crc) ->
                 if not (Hashtbl.mem cmx_table name)
-                then begin
+                then (
                   Hashtbl.add cmx_table name (crc, !ncmxs);
-                  incr ncmxs
-                end));
+                  incr ncmxs)));
   let cmis = Array.make !ncmis ("", None) in
   Hashtbl.iter (fun name (crc, i) -> cmis.(i) <- name, crc) cmi_table;
   let cmxs = Array.make !ncmxs ("", None) in
