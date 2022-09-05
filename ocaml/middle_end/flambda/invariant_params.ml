@@ -129,7 +129,7 @@ let function_variable_alias
   let symbols_to_fun_vars =
     Variable.Set.fold (fun fun_var symbols_to_fun_vars ->
         let closure_id = Closure_id.wrap fun_var in
-        let symbol = Flambda_utils.symbol_for_closure closure_id in
+        let symbol = Symbol_utils.Flambda.for_closure closure_id in
         Symbol.Map.add symbol fun_var symbols_to_fun_vars)
       fun_vars
       Symbol.Map.empty

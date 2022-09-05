@@ -223,6 +223,7 @@ MIDDLE_END=\
   middle_end/variable.cmo \
   middle_end/flambda/base_types/closure_element.cmo \
   middle_end/flambda/base_types/closure_id.cmo \
+  middle_end/symbol_utils.cmo \
   middle_end/backend_var.cmo \
   middle_end/clambda_primitives.cmo \
   middle_end/printclambda_primitives.cmo \

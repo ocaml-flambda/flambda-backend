@@ -16,25 +16,6 @@
 
 [@@@ocaml.warning "+a-9-30-40-41-42"]
 
-module CU = Compilation_unit
-
-let for_fun_ident ~compilation_unit loc id =
-  let compilation_unit =
-    match compilation_unit with
-    | None -> CU.get_current_exn ()
-    | Some cu -> cu
-  in
-  if Config.with_cpp_mangling then
-    (* CR lmaurer: Properly integrate [Compilation_unit.t] into [Mangling] *)
-    let unitname = CU.full_path_as_string compilation_unit in
-    let linkage_name =
-      Mangling.fun_symbol ~unitname ~loc ~id:(Ident.unique_name id)
-      |> Linkage_name.of_string
-    in
-    Symbol.unsafe_create compilation_unit linkage_name
-  else
-    Symbol.for_local_ident id
-
 module Flambda = struct
   let for_variable var =
     Symbol.for_name (Variable.get_compilation_unit var) (Variable.unique_name var)
@@ -51,7 +32,7 @@ module Flambda = struct
      with *)
   let import_for_pack symbol ~pack =
     let compilation_unit =
-      CU.with_for_pack_prefix (Symbol.compilation_unit symbol) pack
+      Compilation_unit.with_for_pack_prefix (Symbol.compilation_unit symbol) pack
     in
     Symbol.with_compilation_unit symbol compilation_unit
 end

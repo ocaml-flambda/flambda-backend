@@ -472,7 +472,7 @@ and to_clambda_direct_apply t func args direct_func probe dbg pos mode env
   : Clambda.ulambda =
   let closed = is_function_constant t direct_func in
   let label =
-    Flambda_utils.symbol_for_code_of_closure direct_func
+    Symbol_utils.Flambda.for_code_of_closure direct_func
     |> Symbol.linkage_name
     |> Linkage_name.to_string
   in
@@ -566,7 +566,7 @@ and to_clambda_set_of_closures t env
         function_decl.params (env, [])
     in
     let label =
-      Flambda_utils.symbol_for_code_of_closure closure_id
+      Symbol_utils.Flambda.for_code_of_closure closure_id
       |> Symbol.linkage_name
       |> Linkage_name.to_string
     in
@@ -604,7 +604,7 @@ and to_clambda_closed_set_of_closures t env symbol
     let env =
       List.fold_left (fun env (var, _) ->
           let closure_id = Closure_id.wrap var in
-          let symbol = Flambda_utils.symbol_for_closure closure_id in
+          let symbol = Symbol_utils.Flambda.for_closure closure_id in
           Env.add_subst env var (to_clambda_symbol env symbol))
         (Env.keep_only_symbols env)
         functions
@@ -620,7 +620,7 @@ and to_clambda_closed_set_of_closures t env symbol
         (to_clambda t env_body function_decl.body)
     in
     let label =
-      Flambda_utils.symbol_for_code_of_closure (Closure_id.wrap id)
+      Symbol_utils.Flambda.for_code_of_closure (Closure_id.wrap id)
       |> Symbol.linkage_name
       |> Linkage_name.to_string
     in
