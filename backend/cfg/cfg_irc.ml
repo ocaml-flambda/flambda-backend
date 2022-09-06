@@ -585,7 +585,11 @@ let run : Cfg_with_layout.t -> Cfg_with_layout.t =
         log ~indent:0 "%a <- spilling_because_split_or_unused" Printmach.reg r);
   (match spilling_because_split_or_unused with
   | [] -> ()
-  | _ :: _ as spilling -> rewrite state cfg_with_layout spilling ~reset:false);
+  | _ :: _ as spilling ->
+    List.iter spilling ~f:(fun reg -> State.add_spilled_nodes state reg);
+    (* note: rewrite will remove the `spilling` registers from the "spilled"
+       work list and set the field to unknown. *)
+    rewrite state cfg_with_layout spilling ~reset:false);
   let liveness = main ~round:1 state cfg_with_layout in
   (* note: slots need to be updated before prologue removal *)
   if irc_debug
