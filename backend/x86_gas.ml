@@ -225,6 +225,9 @@ let print_instr b = function
   | PUSH arg -> i1_s b "push" arg
   | RDTSC -> i0 b "rdtsc"
   | RDPMC -> i0 b "rdpmc"
+  | LFENCE -> i0 b "lfence"
+  | SFENCE -> i0 b "sfence"
+  | MFENCE -> i0 b "mfence"
   | RET ->  i0 b "ret"
   | ROUNDSD (r, arg1, arg2) -> i3 b "roundsd" (imm_of_rounding r) arg1 arg2
   | SAL (arg1, arg2) -> i2_s b "sal" arg1 arg2
@@ -355,3 +358,5 @@ let generate_asm oc lines =
        Buffer.output_buffer oc b;
     )
     lines
+
+    

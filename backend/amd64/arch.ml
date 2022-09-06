@@ -106,6 +106,9 @@ type specific_operation =
                                           extension *)
   | Irdtsc                             (* read timestamp *)
   | Irdpmc                             (* read performance counter *)
+  | Ilfence                            (* load fence *)
+  | Isfence                            (* store fence *)
+  | Imfence                            (* memory fence *)
   | Icrc32q                            (* compute crc *)
   | Ipause                             (* hint for spin-wait loops *)
   | Iprefetch of                       (* memory prefetching hint *)
@@ -219,13 +222,19 @@ let print_specific_operation printreg op ppf arg =
                    (print_addressing printreg addr)
                    (Array.sub arg 1 (Array.length arg - 1))
   | Ibswap { bitwidth } ->
-    fprintf ppf "bswap_%i %a" (int_of_bswap_bitwidth bitwidth) printreg arg.(0)
+      fprintf ppf "bswap_%i %a" (int_of_bswap_bitwidth bitwidth) printreg arg.(0)
   | Isextend32 ->
       fprintf ppf "sextend32 %a" printreg arg.(0)
   | Izextend32 ->
       fprintf ppf "zextend32 %a" printreg arg.(0)
   | Irdtsc ->
       fprintf ppf "rdtsc"
+  | Ilfence ->
+      fprintf ppf "lfence"
+  | Isfence ->
+      fprintf ppf "sfence"
+  | Imfence ->
+      fprintf ppf "mfence"
   | Irdpmc ->
       fprintf ppf "rdpmc %a" printreg arg.(0)
   | Icrc32q ->
@@ -250,7 +259,9 @@ let operation_is_pure = function
   | Ifloatarithmem _ | Ifloatsqrtf _ -> true
   | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max -> true
   | Icrc32q -> true
-  | Irdtsc | Irdpmc | Ipause | Istore_int (_, _, _) | Ioffset_loc (_, _)
+  | Irdtsc | Irdpmc | Ipause 
+  | Ilfence | Isfence | Imfence
+  | Istore_int (_, _, _) | Ioffset_loc (_, _) 
   | Iprefetch _ -> false
 
 (* Specific operations that can raise *)
@@ -260,6 +271,7 @@ let operation_can_raise = function
   | Ifloatarithmem _ | Ifloatsqrtf _
   | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max
   | Icrc32q | Irdtsc | Irdpmc | Ipause
+  | Ilfence | Isfence | Imfence
   | Istore_int (_, _, _) | Ioffset_loc (_, _)
   | Iprefetch _ -> false
 
@@ -345,6 +357,12 @@ let equal_specific_operation left right =
     true
   | Irdpmc, Irdpmc ->
     true
+  | Ilfence, Ilfence -> 
+    true
+  | Isfence, Isfence -> 
+    true
+  | Imfence, Imfence -> 
+    true
   | Icrc32q, Icrc32q ->
     true
   | Ifloat_iround, Ifloat_iround -> true
@@ -359,6 +377,6 @@ let equal_specific_operation left right =
     && equal_addressing_mode left_addr right_addr
   | (Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _
     | Isqrtf | Ifloatsqrtf _ | Isextend32 | Izextend32 | Irdtsc | Irdpmc
-    | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max | Ipause
-    | Icrc32q | Iprefetch _), _ ->
+    | Ilfence | Isfence | Imfence | Ifloat_iround | Ifloat_round _ | 
+    Ifloat_min | Ifloat_max | Ipause | Icrc32q | Iprefetch _), _ ->
     false

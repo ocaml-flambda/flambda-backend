@@ -202,6 +202,9 @@ module I : sig
   val push: arg -> unit
   val rdtsc: unit -> unit
   val rdpmc: unit -> unit
+  val lfence: unit -> unit
+  val sfence: unit -> unit
+  val mfence: unit -> unit
   val ret: unit -> unit
   val roundsd : rounding -> arg -> arg -> unit
   val sal: arg -> arg -> unit
