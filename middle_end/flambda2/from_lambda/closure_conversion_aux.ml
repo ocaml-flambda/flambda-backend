@@ -41,7 +41,8 @@ module IR = struct
         { prim : Lambda.primitive;
           args : simple list;
           loc : Lambda.scoped_location;
-          exn_continuation : exn_continuation option
+          exn_continuation : exn_continuation option;
+          region : Ident.t
         }
 
   type apply_kind =
@@ -61,7 +62,8 @@ module IR = struct
       region_close : Lambda.region_close;
       inlined : Lambda.inlined_attribute;
       probe : Lambda.probe;
-      mode : Lambda.alloc_mode
+      mode : Lambda.alloc_mode;
+      region : Ident.t
     }
 
   type switch =
@@ -542,6 +544,7 @@ module Function_decls = struct
         return : Lambda.value_kind;
         return_continuation : Continuation.t;
         exn_continuation : IR.exn_continuation;
+        my_region : Ident.t;
         body : Acc.t -> Env.t -> Acc.t * Flambda.Import.Expr.t;
         free_idents_of_body : Ident.Set.t;
         attr : Lambda.function_attribute;
@@ -554,7 +557,7 @@ module Function_decls = struct
       }
 
     let create ~let_rec_ident ~function_slot ~kind ~params ~return
-        ~return_continuation ~exn_continuation ~body ~attr ~loc
+        ~return_continuation ~exn_continuation ~my_region ~body ~attr ~loc
         ~free_idents_of_body ~stub recursive ~closure_alloc_mode
         ~num_trailing_local_params ~contains_no_escaping_local_allocs =
       let let_rec_ident =
@@ -569,6 +572,7 @@ module Function_decls = struct
         return;
         return_continuation;
         exn_continuation;
+        my_region;
         body;
         free_idents_of_body;
         attr;
@@ -593,6 +597,8 @@ module Function_decls = struct
     let return_continuation t = t.return_continuation
 
     let exn_continuation t = t.exn_continuation
+
+    let my_region t = t.my_region
 
     let body t = t.body
 

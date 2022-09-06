@@ -98,7 +98,7 @@ include Container_types.Make (struct
     | Region ->
       if Flambda_features.unicode ()
       then
-        Format.fprintf ppf "%t@<1>\u{1d53d}@<1>\u{1d558}%t" colour
+        Format.fprintf ppf "%t@<1>\u{211d}@<1>\u{1d558}%t" colour
           Flambda_colours.pop
       else Format.fprintf ppf "Region"
     | Rec_info ->
@@ -423,6 +423,8 @@ module With_subkind = struct
   let naked_int64 = create naked_int64 Anything
 
   let naked_nativeint = create naked_nativeint Anything
+
+  let region = create region Anything
 
   let boxed_float = create value Boxed_float
 

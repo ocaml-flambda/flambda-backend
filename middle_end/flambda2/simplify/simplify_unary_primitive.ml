@@ -150,7 +150,9 @@ let simplify_untag_immediate dacc ~original_term ~arg ~arg_ty:boxed_number_ty
 let simplify_box_number (boxable_number_kind : K.Boxable_number.t) alloc_mode
     dacc ~original_term ~arg:_ ~arg_ty:naked_number_ty ~result_var =
   let ty =
-    let alloc_mode = Or_unknown.Known alloc_mode in
+    let alloc_mode =
+      Or_unknown.Known (Alloc_mode.With_region.without_region alloc_mode)
+    in
     match boxable_number_kind with
     | Naked_float -> T.box_float naked_number_ty alloc_mode
     | Naked_int32 -> T.box_int32 naked_number_ty alloc_mode

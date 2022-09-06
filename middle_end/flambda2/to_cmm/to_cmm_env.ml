@@ -83,35 +83,9 @@ type t =
     stages : stage list (* Stages of let-bindings, most recent at the head. *)
   }
 
-let create offsets functions_info ~return_continuation ~exn_continuation =
-  { return_continuation;
-    exn_continuation;
-    offsets;
-    functions_info;
-    stages = [];
-    pures = Variable.Map.empty;
-    vars = Variable.Map.empty;
-    vars_extra = Variable.Map.empty;
-    conts = Continuation.Map.empty;
-    exn_handlers = Continuation.Set.singleton exn_continuation;
-    exn_conts_extra_args = Continuation.Map.empty
-  }
-
-let enter_function_body env ~return_continuation ~exn_continuation =
-  create env.offsets env.functions_info ~return_continuation ~exn_continuation
-
 let return_continuation env = env.return_continuation
 
 let exn_continuation env = env.exn_continuation
-
-(* Code and closures *)
-
-let get_code_metadata env code_id =
-  match Exported_code.find_exn env.functions_info code_id with
-  | code_or_metadata -> Code_or_metadata.code_metadata code_or_metadata
-  | exception Not_found ->
-    Misc.fatal_errorf "To_cmm_env.get_code_metadata: code ID %a not bound"
-      Code_id.print code_id
 
 let exported_offsets t = t.offsets
 
@@ -395,3 +369,39 @@ let flush_delayed_lets ?(entering_loop = false) env =
   in
   let flush e = flush pures_to_flush env.stages e in
   flush, { env with stages = []; pures = pures_to_keep }
+
+(* Creation *)
+
+let create offsets functions_info ~return_continuation ~exn_continuation
+    ~my_region =
+  let t =
+    { return_continuation;
+      exn_continuation;
+      offsets;
+      functions_info;
+      stages = [];
+      pures = Variable.Map.empty;
+      vars = Variable.Map.empty;
+      vars_extra = Variable.Map.empty;
+      conts = Continuation.Map.empty;
+      exn_handlers = Continuation.Set.singleton exn_continuation;
+      exn_conts_extra_args = Continuation.Map.empty
+    }
+  in
+  (* Dummy binding for [my_region] *)
+  bind_variable t my_region ~num_normal_occurrences_of_bound_vars:Unknown
+    ~effects_and_coeffects_of_defining_expr:Ece.pure
+    ~defining_expr:(C.int_const Debuginfo.none 0)
+
+(* Code and closures *)
+
+let get_code_metadata env code_id =
+  match Exported_code.find_exn env.functions_info code_id with
+  | code_or_metadata -> Code_or_metadata.code_metadata code_or_metadata
+  | exception Not_found ->
+    Misc.fatal_errorf "To_cmm_env.get_code_metadata: code ID %a not bound"
+      Code_id.print code_id
+
+let enter_function_body env ~return_continuation ~exn_continuation ~my_region =
+  create env.offsets env.functions_info ~return_continuation ~exn_continuation
+    ~my_region

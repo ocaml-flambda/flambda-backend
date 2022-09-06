@@ -24,6 +24,7 @@ val create :
   exn_continuation:Continuation.t ->
   params:Bound_parameters.t ->
   my_closure:Variable.t ->
+  my_region:Variable.t ->
   my_depth:Variable.t ->
   t
 
@@ -34,6 +35,8 @@ val exn_continuation : t -> Continuation.t
 val params : t -> Bound_parameters.t
 
 val my_closure : t -> Variable.t
+
+val my_region : t -> Variable.t
 
 val my_depth : t -> Variable.t
 

@@ -49,7 +49,7 @@ let record_free_names_of_apply_as_used dacc apply =
 
 let simplify_direct_tuple_application ~simplify_expr dacc apply
     ~params_arity:param_arity ~result_arity ~apply_alloc_mode
-    ~contains_no_escaping_local_allocs ~down_to_up =
+    ~contains_no_escaping_local_allocs ~current_region ~down_to_up =
   let dbg = Apply.dbg apply in
   let n = Flambda_arity.With_subkinds.cardinal param_arity in
   (* Split the tuple argument from other potential over application arguments *)
@@ -82,6 +82,7 @@ let simplify_direct_tuple_application ~simplify_expr dacc apply
          one on [apply] so there's nothing to do here. *)
       Simplify_common.split_direct_over_application apply ~param_arity
         ~result_arity ~apply_alloc_mode ~contains_no_escaping_local_allocs
+        ~current_region
   in
   (* Insert the projections and simplify the new expression, to allow field
      projections to be simplified, and over-application/full_application
@@ -265,8 +266,8 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
 let simplify_direct_partial_application ~simplify_expr dacc apply
     ~callee's_code_id ~callee's_code_metadata ~callee's_function_slot
     ~param_arity ~result_arity ~recursive ~down_to_up ~coming_from_indirect
-    ~(closure_alloc_mode : Alloc_mode.t Or_unknown.t) ~num_trailing_local_params
-    =
+    ~(closure_alloc_mode : Alloc_mode.With_region.t Or_unknown.t)
+    ~current_region ~num_trailing_local_params =
   (* Partial-applications are converted in full applications. Let's assume that
      [foo] takes 6 arguments. Then [foo a b c] gets transformed into:
 
@@ -328,17 +329,18 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
        be). *)
     let num_leading_heap_params = arity - num_trailing_local_params in
     if args_arity <= num_leading_heap_params
-    then Alloc_mode.Heap, num_trailing_local_params
+    then Alloc_mode.With_region.Heap, num_trailing_local_params
     else
       let num_supplied_local_args = args_arity - num_leading_heap_params in
-      Alloc_mode.Local, num_trailing_local_params - num_supplied_local_args
+      ( Alloc_mode.With_region.Local { region = current_region },
+        num_trailing_local_params - num_supplied_local_args )
   in
   (match closure_alloc_mode with
   | Unknown -> ()
   | Known Heap -> ()
-  | Known Local -> (
+  | Known (Local _) -> (
     match new_closure_alloc_mode with
-    | Local -> ()
+    | Local _ -> ()
     | Heap ->
       Misc.fatal_errorf
         "New closure alloc mode cannot be [Heap] when existing closure alloc \
@@ -403,6 +405,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
     let applied_args = List.map applied_value applied_args in
     let applied_values = applied_callee :: applied_args in
     let my_closure = Variable.create "my_closure" in
+    let my_region = Variable.create "my_region" in
     let my_depth = Variable.create "my_depth" in
     let exn_continuation =
       Apply.exn_continuation apply |> Exn_continuation.without_extra_args
@@ -424,7 +427,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
           exn_continuation ~args ~call_kind dbg ~inlined:Default_inlined
           ~inlining_state:(Apply.inlining_state apply)
           ~position:Normal ~probe_name:None
-          ~relative_history:Inlining_history.Relative.empty
+          ~relative_history:Inlining_history.Relative.empty ~region:my_region
       in
       let cost_metrics =
         Cost_metrics.from_size (Code_size.apply full_application)
@@ -470,7 +473,8 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
       (* Note that [exn_continuation] has no extra args -- see above. *)
       Function_params_and_body.create ~return_continuation
         ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
-        remaining_params ~body ~my_closure ~my_depth ~free_names_of_body:Unknown
+        remaining_params ~body ~my_closure ~my_region ~my_depth
+        ~free_names_of_body:Unknown
     in
     let name = Function_slot.to_string callee's_function_slot ^ "_partial" in
     let absolute_history, relative_history =
@@ -567,11 +571,12 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
 
 let simplify_direct_over_application ~simplify_expr dacc apply ~param_arity
     ~result_arity ~down_to_up ~coming_from_indirect ~apply_alloc_mode
-    ~contains_no_escaping_local_allocs =
+    ~contains_no_escaping_local_allocs ~current_region =
   fail_if_probe apply;
   let expr =
     Simplify_common.split_direct_over_application apply ~param_arity
       ~result_arity ~apply_alloc_mode ~contains_no_escaping_local_allocs
+      ~current_region
   in
   let down_to_up dacc ~rebuild =
     let rebuild uacc ~after_rebuild =
@@ -594,8 +599,8 @@ let simplify_direct_over_application ~simplify_expr dacc apply ~param_arity
 let simplify_direct_function_call ~simplify_expr dacc apply
     ~callee's_code_id_from_type ~callee's_code_id_from_call_kind
     ~callee's_function_slot ~result_arity ~result_types ~recursive ~arg_types:_
-    ~must_be_detupled ~closure_alloc_mode ~apply_alloc_mode function_decl
-    ~down_to_up =
+    ~must_be_detupled ~closure_alloc_mode ~apply_alloc_mode ~current_region
+    function_decl ~down_to_up =
   (match Apply.probe_name apply, Apply.inlined apply with
   | None, _ | Some _, Never_inlined -> ()
   | Some _, (Hint_inlined | Unroll _ | Default_inlined | Always_inlined) ->
@@ -659,7 +664,7 @@ let simplify_direct_function_call ~simplify_expr dacc apply
         ~contains_no_escaping_local_allocs:
           (Code_metadata.contains_no_escaping_local_allocs
              callee's_code_metadata)
-        ~down_to_up
+        ~current_region ~down_to_up
     else
       let args = Apply.args apply in
       let provided_num_args = List.length args in
@@ -677,12 +682,13 @@ let simplify_direct_function_call ~simplify_expr dacc apply
           ~contains_no_escaping_local_allocs:
             (Code_metadata.contains_no_escaping_local_allocs
                callee's_code_metadata)
+          ~current_region
       else if provided_num_args > 0 && provided_num_args < num_params
       then
         simplify_direct_partial_application ~simplify_expr dacc apply
           ~callee's_code_id ~callee's_code_metadata ~callee's_function_slot
           ~param_arity:params_arity ~result_arity ~recursive ~down_to_up
-          ~coming_from_indirect ~closure_alloc_mode
+          ~coming_from_indirect ~closure_alloc_mode ~current_region
           ~num_trailing_local_params:
             (Code_metadata.num_trailing_local_params callee's_code_metadata)
       else
@@ -848,14 +854,23 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
     let must_be_detupled =
       call_must_be_detupled (Code_metadata.is_tupled callee's_code_metadata)
     in
+    let current_region = Apply.region apply in
+    let closure_alloc_mode =
+      Or_unknown.map closure_alloc_mode
+        ~f:(fun (closure_alloc_mode : Alloc_mode.t) : Alloc_mode.With_region.t
+           ->
+          match closure_alloc_mode with
+          | Heap -> Heap
+          | Local -> Local { region = current_region })
+    in
     simplify_direct_function_call ~simplify_expr dacc apply
       ~callee's_code_id_from_type ~callee's_code_id_from_call_kind
       ~callee's_function_slot ~arg_types
       ~result_arity:(Code_metadata.result_arity callee's_code_metadata)
       ~result_types:(Code_metadata.result_types callee's_code_metadata)
       ~recursive:(Code_metadata.recursive callee's_code_metadata)
-      ~must_be_detupled ~closure_alloc_mode ~apply_alloc_mode func_decl_type
-      ~down_to_up
+      ~must_be_detupled ~closure_alloc_mode ~current_region ~apply_alloc_mode
+      func_decl_type ~down_to_up
   | Need_meet -> type_unavailable ()
   | Invalid ->
     let rebuild uacc ~after_rebuild =
@@ -889,6 +904,7 @@ let simplify_apply_shared dacc apply =
         (Inlining_history.Relative.concat
            ~earlier:(DE.relative_history (DA.denv dacc))
            ~later:(Apply.relative_history apply))
+      ~region:(Apply.region apply)
   in
   dacc, callee_ty, apply, arg_types
 

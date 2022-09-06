@@ -387,12 +387,13 @@ and subst_params_and_body env params_and_body =
          ~body
          ~my_closure
          ~is_my_closure_used:_
+         ~my_region
          ~my_depth
          ~free_names_of_body
        ->
       let body = subst_expr env body in
       Function_params_and_body.create ~return_continuation ~exn_continuation
-        params ~body ~my_closure ~free_names_of_body ~my_depth)
+        params ~body ~my_closure ~my_region ~free_names_of_body ~my_depth)
 
 and subst_let_cont env (let_cont_expr : Let_cont_expr.t) =
   match let_cont_expr with
@@ -1149,13 +1150,14 @@ and codes env (code1 : Code.t) (code2 : Code.t) =
            ~body1
            ~body2
            ~my_closure
+           ~my_region
            ~my_depth
          ->
         exprs env body1 body2
         |> Comparison.map ~f:(fun body1' ->
                Function_params_and_body.create ~return_continuation
-                 ~exn_continuation params ~body:body1' ~my_closure ~my_depth
-                 ~free_names_of_body:Unknown))
+                 ~exn_continuation params ~body:body1' ~my_closure ~my_region
+                 ~my_depth ~free_names_of_body:Unknown))
   in
   pairs ~f1:bodies
     ~f2:(options ~f:code_ids ~subst:subst_code_id)

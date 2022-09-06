@@ -250,7 +250,7 @@ end)
 (* Translation of the bodies of functions. *)
 
 let params_and_body0 env res code_id ~fun_dbg ~return_continuation
-    ~exn_continuation params ~body ~my_closure
+    ~exn_continuation ~my_region params ~body ~my_closure
     ~(is_my_closure_used : _ Or_unknown.t) ~translate_expr =
   let params =
     let is_my_closure_used =
@@ -271,6 +271,7 @@ let params_and_body0 env res code_id ~fun_dbg ~return_continuation
      trap action is attached to one of its calls *)
   let env =
     Env.enter_function_body env ~return_continuation ~exn_continuation
+      ~my_region
   in
   (* Translate the arg list and body *)
   let env, fun_args = C.bound_parameters env params in
@@ -290,13 +291,14 @@ let params_and_body env res code_id p ~fun_dbg ~translate_expr =
          ~body
          ~my_closure
          ~is_my_closure_used
+         ~my_region
          ~my_depth:_
          ~free_names_of_body:_
        ->
       try
         params_and_body0 env res code_id ~fun_dbg ~return_continuation
-          ~exn_continuation params ~body ~my_closure ~is_my_closure_used
-          ~translate_expr
+          ~exn_continuation ~my_region params ~body ~my_closure
+          ~is_my_closure_used ~translate_expr
       with Misc.Fatal_error as e ->
         Format.eprintf
           "\n\
@@ -438,7 +440,7 @@ let lift_set_of_closures env res ~body ~bound_vars layout set ~translate_expr =
 
 let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
     (layout : Slot_offsets.Layout.t) ~num_normal_occurrences_of_bound_vars
-    ~(closure_alloc_mode : Alloc_mode.t) ~translate_expr =
+    ~(closure_alloc_mode : Alloc_mode.With_region.t) ~translate_expr =
   let fun_decls = Set_of_closures.function_decls set in
   let decls = Function_declarations.funs_in_order fun_decls in
   let value_slots = Set_of_closures.value_slots set in
@@ -447,7 +449,7 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
     ( Only_generative_effects Immutable,
       match closure_alloc_mode with
       | Heap -> No_coeffects
-      | Local -> Has_coeffects )
+      | Local _ -> Has_coeffects )
   in
   let decl_map =
     decls |> Function_slot.Lmap.bindings |> Function_slot.Map.of_list
@@ -460,7 +462,9 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
   let csoc =
     assert (List.compare_length_with l 0 > 0);
     let tag = Tag.(to_int closure_tag) in
-    C.make_alloc ~mode:(Alloc_mode.to_lambda closure_alloc_mode) dbg tag l
+    C.make_alloc
+      ~mode:(Alloc_mode.With_region.to_lambda closure_alloc_mode)
+      dbg tag l
   in
   let soc_var = Variable.create "*set_of_closures*" in
   let env =

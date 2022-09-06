@@ -716,6 +716,7 @@ and static_let_expr env bound_static defining_expr body : Fexpr.expr =
                ~body
                ~my_closure
                ~is_my_closure_used:_
+               ~my_region
                ~my_depth
                ~free_names_of_body:_
                :
@@ -732,10 +733,18 @@ and static_let_expr env bound_static defining_expr body : Fexpr.expr =
                 (Bound_parameters.to_list params)
             in
             let closure_var, env = Env.bind_var env my_closure in
+            let region_var, env = Env.bind_var env my_region in
             let depth_var, env = Env.bind_var env my_depth in
             let body = expr env body in
             (* CR-someday lmaurer: Omit exn_cont, closure_var if not used *)
-            { params; ret_cont; exn_cont; closure_var; depth_var; body })
+            { params;
+              ret_cont;
+              exn_cont;
+              closure_var;
+              region_var;
+              depth_var;
+              body
+            })
       in
       let code_size =
         Code.cost_metrics code |> Cost_metrics.size |> Code_size.to_int
@@ -1048,6 +1057,7 @@ module Iter = struct
                ~body
                ~my_closure:_
                ~is_my_closure_used:_
+               ~my_region:_
                ~my_depth:_
                ~free_names_of_body:_
              -> expr f_c f_s body))

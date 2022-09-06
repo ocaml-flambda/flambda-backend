@@ -285,6 +285,7 @@ code:
   | header = code_header;
     params = kinded_args;
     closure_var = variable;
+    region_var = variable;
     depth_var = variable;
     MINUSGREATER; ret_cont = continuation_id;
     exn_cont = exn_continuation_id;
@@ -293,8 +294,8 @@ code:
     EQUAL; body = expr;
     { let recursive, inline, id, newer_version_of, code_size = header in
       { id; newer_version_of; param_arity = None; ret_arity; recursive; inline;
-        params_and_body = { params; closure_var; depth_var; ret_cont;
-                            exn_cont; body };
+        params_and_body = { params; closure_var; region_var; depth_var;
+                            ret_cont; exn_cont; body };
         code_size; is_tupled; } }
 ;
 

@@ -26,6 +26,7 @@ type simplify_result =
 let run ~cmx_loader ~round unit =
   let return_continuation = FU.return_continuation unit in
   let exn_continuation = FU.exn_continuation unit in
+  let toplevel_my_region = FU.toplevel_my_region unit in
   let module_symbol = FU.module_symbol unit in
   let resolver = Flambda_cmx.load_cmx_file_contents cmx_loader in
   let get_imported_names = Flambda_cmx.get_imported_names cmx_loader in
@@ -34,7 +35,7 @@ let run ~cmx_loader ~round unit =
     DE.create ~round ~resolver ~get_imported_names ~get_imported_code
       ~propagating_float_consts:(Flambda_features.float_const_prop ())
       ~unit_toplevel_return_continuation:return_continuation
-      ~unit_toplevel_exn_continuation:exn_continuation
+      ~unit_toplevel_exn_continuation:exn_continuation ~toplevel_my_region
   in
   let return_cont_scope = DE.get_continuation_scope denv in
   let denv = DE.increment_continuation_scope denv in
@@ -54,10 +55,12 @@ let run ~cmx_loader ~round unit =
   Name_occurrences.fold_names name_occurrences ~init:() ~f:(fun () name ->
       Name.pattern_match name
         ~var:(fun var ->
-          Misc.fatal_errorf
-            "Variable %a not expected to be free in whole-compilation-unit \
-             term:@ %a"
-            Variable.print var Expr.print body)
+          if not (Variable.equal var toplevel_my_region)
+          then
+            Misc.fatal_errorf
+              "Variable %a not expected to be free in whole-compilation-unit \
+               term:@ %a"
+              Variable.print var Expr.print body)
         ~symbol:(fun _symbol -> ()));
   if not (LCS.is_empty (UA.lifted_constants uacc))
   then
@@ -106,7 +109,7 @@ let run ~cmx_loader ~round unit =
       ~used_value_slots ~exported_offsets all_code
   in
   let unit =
-    FU.create ~return_continuation ~exn_continuation ~module_symbol ~body
-      ~used_value_slots:(Known used_value_slots)
+    FU.create ~return_continuation ~exn_continuation ~toplevel_my_region
+      ~module_symbol ~body ~used_value_slots:(Known used_value_slots)
   in
   { cmx; unit; all_code; exported_offsets }

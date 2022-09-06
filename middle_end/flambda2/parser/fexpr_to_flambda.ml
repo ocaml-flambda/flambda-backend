@@ -720,8 +720,14 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
               params_and_body,
               free_names_of_params_and_body,
               is_my_closure_used ) =
-          let { Fexpr.params; closure_var; depth_var; ret_cont; exn_cont; body }
-              =
+          let { Fexpr.params;
+                closure_var;
+                region_var;
+                depth_var;
+                ret_cont;
+                exn_cont;
+                body
+              } =
             params_and_body
           in
           let params, env =
@@ -735,6 +741,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
               env params
           in
           let my_closure, env = fresh_var env closure_var in
+          let my_region, env = fresh_var env region_var in
           let my_depth, env = fresh_var env depth_var in
           let return_continuation, env =
             fresh_cont env ret_cont ~sort:Return
@@ -750,7 +757,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             Flambda.Function_params_and_body.create ~return_continuation
               ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
               (Bound_parameters.create params)
-              ~body ~my_closure ~my_depth ~free_names_of_body:Unknown
+              ~body ~my_closure ~my_region ~my_depth ~free_names_of_body:Unknown
           in
           let free_names =
             (* CR mshinwell: This needs fixing XXX *)
@@ -865,6 +872,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         ~args:((List.map (simple env)) args)
         ~call_kind Debuginfo.none ~inlined ~inlining_state ~probe_name:None
         ~position:Normal ~relative_history:Inlining_history.Relative.empty
+        ~region:(Variable.create "xxx")
+      (* CR mshinwell: fix this *)
     in
     Flambda.Expr.create_apply apply
   | Invalid { message } -> Flambda.Expr.create_invalid (Message message)
@@ -901,5 +910,6 @@ let conv ~symbol_for_global ~module_ident (fexpr : Fexpr.flambda_unit) :
   let exn_continuation = Exn_continuation.exn_handler error_continuation in
   let env = bind_all_code_ids env fexpr in
   let body = expr env fexpr.body in
-  Flambda_unit.create ~return_continuation ~exn_continuation ~body
-    ~module_symbol ~used_value_slots:Unknown
+  Flambda_unit.create ~return_continuation ~exn_continuation
+    ~toplevel_my_region:(Variable.create "XXX") (* XXX *)
+    ~body ~module_symbol ~used_value_slots:Unknown

@@ -54,6 +54,7 @@ val create :
   probe_name:string option ->
   position:Position.t ->
   relative_history:Inlining_history.Relative.t ->
+  region:Variable.t ->
   t
 
 (* CR mshinwell: This doesn't really make sense for C calls; we should have a
@@ -104,7 +105,12 @@ val with_call_kind : t -> Call_kind.t -> t
 
 (** Change the continuation, callee and arguments of an application. *)
 val with_continuation_callee_and_args :
-  t -> Result_continuation.t -> callee:Simple.t -> args:Simple.t list -> t
+  t ->
+  Result_continuation.t ->
+  callee:Simple.t ->
+  args:Simple.t list ->
+  region:Variable.t ->
+  t
 
 val inlining_state : t -> Inlining_state.t
 
@@ -117,3 +123,6 @@ val relative_history : t -> Inlining_history.Relative.t
 (** Returns [true] if the application returns to the caller, [false] if it is
     non terminating. *)
 val returns : t -> bool
+
+(** The local allocation region for this application. *)
+val region : t -> Variable.t

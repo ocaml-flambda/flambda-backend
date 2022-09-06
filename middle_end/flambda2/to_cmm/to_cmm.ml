@@ -78,6 +78,7 @@ let unit0 ~offsets ~make_symbol flambda_unit ~all_code =
   let env =
     Env.create offsets all_code ~return_continuation:dummy_k
       ~exn_continuation:(Flambda_unit.exn_continuation flambda_unit)
+      ~my_region:(Flambda_unit.toplevel_my_region flambda_unit)
   in
   let _env, return_cont_params =
     (* The environment is dropped because the handler for the dummy continuation

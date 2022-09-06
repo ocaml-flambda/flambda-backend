@@ -16,9 +16,11 @@
 
 val make_inlined_body :
   callee:Simple.t ->
+  region_inlined_into:Simple.t ->
   params:'param list ->
   args:Simple.List.t ->
   my_closure:'param ->
+  my_region:'param ->
   my_depth:Variable.t ->
   rec_info:Rec_info_expr.t ->
   body:'expr_with_acc ->

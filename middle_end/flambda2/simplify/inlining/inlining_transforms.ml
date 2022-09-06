@@ -20,8 +20,8 @@ module DE = Downwards_env
 module FT = Flambda2_types.Function_type
 module VB = Bound_var
 
-let make_inlined_body ~callee ~unroll_to ~params ~args ~my_closure ~my_depth
-    ~rec_info ~body ~exn_continuation ~return_continuation
+let make_inlined_body ~callee ~unroll_to ~params ~args ~my_closure ~my_region
+    ~my_depth ~rec_info ~body ~exn_continuation ~return_continuation
     ~apply_exn_continuation ~apply_return_continuation =
   let callee, rec_info =
     match unroll_to with
@@ -38,6 +38,9 @@ let make_inlined_body ~callee ~unroll_to ~params ~args ~my_closure ~my_depth
   in
   let my_closure =
     Bound_parameter.create my_closure Flambda_kind.With_subkind.any_value
+  in
+  let my_region =
+    Bound_parameter.create my_region Flambda_kind.With_subkind.region
   in
   let bind_params ~params ~args ~body =
     if List.compare_lengths params args <> 0
@@ -61,8 +64,8 @@ let make_inlined_body ~callee ~unroll_to ~params ~args ~my_closure ~my_depth
       ~body ~free_names_of_body:Unknown
     |> Expr.create_let
   in
-  Inlining_helpers.make_inlined_body ~callee ~params ~args ~my_closure ~my_depth
-    ~rec_info ~body ~exn_continuation ~return_continuation
+  Inlining_helpers.make_inlined_body ~callee ~params ~args ~my_closure
+    ~my_region ~my_depth ~rec_info ~body ~exn_continuation ~return_continuation
     ~apply_exn_continuation ~apply_return_continuation ~bind_params ~bind_depth
     ~apply_renaming:Expr.apply_renaming
 
@@ -85,6 +88,7 @@ let wrap_inlined_body_for_exn_extra_args ~extra_args ~apply_exn_continuation
 
 let inline dacc ~apply ~unroll_to ~was_inline_always function_decl =
   let callee = Apply.callee apply in
+  let region_inlined_into = Simple.var (Apply.region apply) in
   let args = Apply.args apply in
   let apply_return_continuation = Apply.continuation apply in
   let apply_exn_continuation = Apply.exn_continuation apply in
@@ -115,14 +119,15 @@ let inline dacc ~apply ~unroll_to ~was_inline_always function_decl =
          ~body
          ~my_closure
          ~is_my_closure_used:_
+         ~my_region
          ~my_depth
          ~free_names_of_body:_
        ->
       let make_inlined_body () =
-        make_inlined_body ~callee ~unroll_to
+        make_inlined_body ~callee ~region_inlined_into ~unroll_to
           ~params:(Bound_parameters.to_list params)
-          ~args ~my_closure ~my_depth ~rec_info ~body ~exn_continuation
-          ~return_continuation
+          ~args ~my_closure ~my_region ~my_depth ~rec_info ~body
+          ~exn_continuation ~return_continuation
       in
       let expr =
         match Exn_continuation.extra_args apply_exn_continuation with
