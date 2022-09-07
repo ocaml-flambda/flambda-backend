@@ -122,10 +122,58 @@ let compute_used_params uacc params ~is_exn_handler ~is_single_inlinable_use
     in
     { params_used_as_normal; params_not_used_as_normal }
 
+let add_extra_params_for_continuation_param_aliases cont uacc rewrite_ids
+    extra_params_and_args =
+  let Data_flow.{ extra_args_for_aliases; _ } =
+    UA.continuation_param_aliases uacc
+  in
+  let required_extra_args = Continuation.Map.find cont extra_args_for_aliases in
+  Variable.Set.fold
+    (fun var epa ->
+      let extra_args =
+        Apply_cont_rewrite_id.Map.of_set
+          (fun _id -> EPA.Extra_arg.Already_in_scope (Simple.var var))
+          rewrite_ids
+      in
+      Format.printf "ADD ARG %a to %a@." Variable.print var Continuation.print
+        cont;
+      (* THIS IS WRONG, but we do not propagate the kind yet. TODO *)
+      let dummy_wrong_kind = Flambda_kind.With_subkind.any_value in
+      EPA.add
+        ~extra_param:(Bound_parameter.create var dummy_wrong_kind)
+        ~extra_args epa)
+    required_extra_args extra_params_and_args
+
 let rebuild_one_continuation_handler cont ~at_unit_toplevel
     (recursive : Recursive.t) ~params ~(extra_params_and_args : EPA.t)
     ~rewrite_ids ~is_single_inlinable_use ~is_exn_handler handler uacc
     ~after_rebuild =
+  let Data_flow.{ aliases; _ } = UA.continuation_param_aliases uacc in
+  let handler, uacc =
+    List.fold_left
+      (fun (handler, uacc) bp ->
+        let var = BP.var bp in
+        let alias =
+          match Variable.Map.find var aliases with
+          | exception Not_found -> None
+          | alias -> if Variable.equal alias var then None else Some alias
+        in
+        match alias with
+        | None -> handler, uacc
+        | Some alias ->
+          Format.printf "ADD ALIAS LET %a = %a@." Variable.print var
+            Variable.print alias;
+          let bound_pattern =
+            Bound_pattern.singleton (Bound_var.create var Name_mode.normal)
+          in
+          let named = Named.create_simple (Simple.var alias) in
+          Expr_builder.create_let_binding uacc bound_pattern named
+            ~free_names_of_defining_expr:
+              (Name_occurrences.singleton_variable alias Name_mode.normal)
+            ~cost_metrics_of_defining_expr:Cost_metrics.zero ~body:handler)
+      (handler, uacc)
+      (Bound_parameters.to_list params)
+  in
   let handler, uacc =
     (* We might need to place lifted constants now, as they could depend on
        continuation parameters. As such we must also compute the unused
@@ -181,6 +229,10 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
          time here calculating unused parameters, since the creation of
          [Let]-expressions around the continuation's handler will do that
          anyway. *)
+      let extra_params_and_args =
+        add_extra_params_for_continuation_param_aliases cont uacc rewrite_ids
+          extra_params_and_args
+      in
       let { extra_params_used_as_normal; extra_params_not_used_as_normal } =
         compute_used_extra_params uacc extra_params_and_args
           ~is_single_inlinable_use ~free_names ~handler
@@ -194,7 +246,6 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
           (fun param -> Name_occurrences.mem_var free_names (BP.var param))
           (params_not_used_as_normal @ extra_params_not_used_as_normal)
       in
-      ignore rewrite_ids;
       let rewrite =
         Apply_cont_rewrite.create ~original_params:params
           ~used_params:(BP.Set.of_list params_used_as_normal)
@@ -250,8 +301,8 @@ let simplify_one_continuation_handler ~simplify_expr dacc cont ~at_unit_toplevel
       assert (Name_occurrences.is_empty (UA.name_occurrences uacc));
       let after_rebuild handler uacc =
         rebuild_one_continuation_handler cont ~at_unit_toplevel recursive
-          ~params ~extra_params_and_args ~rewrite_ids
-          ~is_single_inlinable_use ~is_exn_handler handler uacc ~after_rebuild
+          ~params ~extra_params_and_args ~rewrite_ids ~is_single_inlinable_use
+          ~is_exn_handler handler uacc ~after_rebuild
       in
       rebuild uacc ~after_rebuild
     in
@@ -353,11 +404,11 @@ let simplify_non_recursive_let_cont_handler ~simplify_expr ~denv_before_body
     match CUE.get_continuation_uses cont_uses_env cont with
     | None -> None, Apply_cont_rewrite_id.Set.empty
     | Some uses ->
-      Some
-        (Join_points.compute_handler_env uses ~params
-           ~env_at_fork_plus_params:denv_before_body ~consts_lifted_during_body
-           ~code_age_relation_after_body),
-        Continuation_uses.get_use_ids uses
+      ( Some
+          (Join_points.compute_handler_env uses ~params
+             ~env_at_fork_plus_params:denv_before_body
+             ~consts_lifted_during_body ~code_age_relation_after_body),
+        Continuation_uses.get_use_ids uses )
   in
   let dacc =
     DA.add_to_lifted_constant_accumulator dacc_after_body prior_lifted_constants
@@ -387,7 +438,8 @@ let simplify_non_recursive_let_cont_handler ~simplify_expr ~denv_before_body
         ~free_names_of_handler:Name_occurrences.empty
         ~cost_metrics_of_handler:Cost_metrics.zero
         ~is_single_inlinable_use:false scope ~is_exn_handler EPA.empty
-        ~rewrite_ids:Apply_cont_rewrite_id.Set.empty cont_handler uacc ~after_rebuild
+        ~rewrite_ids:Apply_cont_rewrite_id.Set.empty cont_handler uacc
+        ~after_rebuild
     in
     down_to_up dacc ~continuation_has_zero_uses:true ~rebuild
   | Some
@@ -770,6 +822,10 @@ let prepare_to_rebuild_one_recursive_let_cont_handler cont params
       params
   in
   let used_params = Bound_parameters.to_set used_params_list in
+  let extra_params_and_args =
+    add_extra_params_for_continuation_param_aliases cont uacc rewrite_ids
+      extra_params_and_args
+  in
   let used_extra_params_list =
     Bound_parameters.filter
       (fun param -> Name.Set.mem (Name.var (BP.var param)) required_names)
