@@ -76,7 +76,6 @@ let rec disconnect_fallthrough_blocks cfg_with_layout =
 
 let run cfg_with_layout =
   let cfg = CL.cfg cfg_with_layout in
-
   (* Find and disconnect fallthrough blocks (i.e., blocks with empty body and a
      single successor) by rerouting their predecessors to point directly to
      their successors. It can create a new fallthrough block, for example: if we

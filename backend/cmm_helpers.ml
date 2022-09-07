@@ -2372,7 +2372,6 @@ let send_function (arity, mode) =
                           dbg () ) ],
                     dbg () ) ) ) )
   in
-
   let body = Clet (VP.create clos', clos, body) in
   let cache = cache in
   let fun_name = send_function_name arity mode in
