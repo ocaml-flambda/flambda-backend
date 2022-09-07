@@ -128,7 +128,7 @@ jobs:
 
     - name: Install GCC 32-bit libraries
       if: matrix.name == 'build_upstream-32-bit'
-      run: sudo apt-get install gcc-multilib
+      run: sudo apt-get install gcc-multilib gfortran-multilib
 
     - name: Configure Flambda backend
       working-directory: flambda_backend
