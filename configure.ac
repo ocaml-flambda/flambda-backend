@@ -54,7 +54,7 @@ AC_SUBST([coverage])
 AC_DISABLE_OPTION_CHECKING
 
 AX_SUBDIRS_CONFIGURE([ocaml],
-  [$middle_end_arg,-C,--disable-ocamldoc,--disable-stdlib-manpages],
+  [$middle_end_arg,-C,--disable-ocamldoc,--disable-stdlib-manpages,--enable-ocamltest],
   [],
   [],
   [])

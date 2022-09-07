@@ -437,6 +437,21 @@ install_upstream: build_upstream
 	(cd _build_upstream && $(MAKE) install)
 	cp ocaml/VERSION $(prefix)/lib/ocaml/
 
+.PHONY: build_and_test_upstream
+build_and_test_upstream: build_upstream
+	if $$(which gfortran > /dev/null 2>&1); then \
+	  export LIBRARY_PATH=$$(dirname $$(gfortran -print-file-name=libgfortran.a)); \
+	fi; \
+	cd _build_upstream/testsuite \
+	 && if $$(which parallel > /dev/null 2>&1); \
+            then \
+	      echo "Running testsuite in parallel (nproc=$$(nproc))"; \
+	      make --no-print-directory parallel; \
+            else \
+	      echo "Running testsuite sequentially"; \
+              make --no-print-directory all; \
+            fi
+
 .PHONY: coverage
 coverage: boot-runtest
 	rm -rf _coverage
