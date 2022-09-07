@@ -438,7 +438,7 @@ install_upstream: build_upstream
 	cp ocaml/VERSION $(prefix)/lib/ocaml/
 
 .PHONY: build_and_test_upstream
-build_and_test_upstream: build_and_test_upstream
+build_and_test_upstream: build_upstream
 	if $$(which gfortran > /dev/null 2>&1); then \
 	  export LIBRARY_PATH=$$(dirname $$(gfortran -print-file-name=libgfortran.a)); \
 	fi; \
