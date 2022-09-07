@@ -194,7 +194,12 @@ let record_new_defining_expression_binding_for_data_flow dacc data_flow
         || Option.is_some (P.is_end_region prim)
     in
     if not can_be_removed
-    then DF.add_used_in_current_handler free_names data_flow
+    then
+      let data_flow =
+        Bound_pattern.fold_all_bound_vars binding.let_bound ~init:data_flow
+          ~f:(fun data_flow v -> DF.record_defined_var (VB.var v) data_flow)
+      in
+      DF.add_used_in_current_handler free_names data_flow
     else
       let generate_phantom_lets = DE.generate_phantom_lets (DA.denv dacc) in
       let free_names =

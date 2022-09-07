@@ -51,6 +51,9 @@ val enter_continuation :
     handler. *)
 val exit_continuation : Continuation.t -> t -> t
 
+(** That variable is defined in the current handler *)
+val record_defined_var : Variable.t -> t -> t
+
 (** Add a variable binding from the current handler. *)
 val record_var_binding :
   Variable.t -> Name_occurrences.t -> generate_phantom_lets:bool -> t -> t

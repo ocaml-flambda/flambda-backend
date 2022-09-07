@@ -51,6 +51,7 @@ type elt =
     apply_result_conts : Continuation.Set.t;
     apply_exn_conts : Continuation.Set.t;
     bindings : Name_occurrences.t Name.Map.t;
+    defined : Variable.Set.t;
     code_ids : Name_occurrences.t Code_id.Map.t;
     value_slots : Name_occurrences.t Name.Map.t Value_slot.Map.t;
     apply_cont_args : Simple.Set.t Numeric_types.Int.Map.t Continuation.Map.t
@@ -83,6 +84,7 @@ let [@ocamlformat "disable"] print_elt ppf
       apply_result_conts;
       apply_exn_conts;
       bindings;
+      defined;
       code_ids;
       value_slots;
       apply_cont_args
@@ -96,6 +98,7 @@ let [@ocamlformat "disable"] print_elt ppf
       @[<hov 1>(apply_result_conts %a)@]@ \
       @[<hov 1>(apply_exn_conts %a)@]@ \
       @[<hov 1>(bindings %a)@]@ \
+      @[<hov 1>(defined %a)@]@ \
       @[<hov 1>(code_ids %a)@]@ \
       @[<hov 1>(value_slots %a)@]@ \
       @[<hov 1>(apply_cont_args %a)@]\
@@ -110,6 +113,8 @@ let [@ocamlformat "disable"] print_elt ppf
     Continuation.Set.print apply_exn_conts
     (Name.Map.print Name_occurrences.print)
     bindings
+    Variable.Set.print
+    defined
     (Code_id.Map.print Name_occurrences.print)
     code_ids
     (Value_slot.Map.print (Name.Map.print Name_occurrences.print))
@@ -124,8 +129,7 @@ let print_stack ppf stack =
 
 let print_map ppf map = Continuation.Map.print print_elt ppf map
 
-let print_extra ppf extra =
-  Continuation.Map.print EPA.print ppf extra
+let print_extra ppf extra = Continuation.Map.print EPA.print ppf extra
 
 let [@ocamlformat "disable"] print ppf { stack; map; extra; dummy_toplevel_cont = _ } =
   Format.fprintf ppf
@@ -182,6 +186,7 @@ let enter_continuation continuation ~recursive params t =
       params;
       parent_continuation;
       bindings = Name.Map.empty;
+      defined = Variable.Set.empty;
       code_ids = Code_id.Map.empty;
       value_slots = Value_slot.Map.empty;
       used_in_handler = Name_occurrences.empty;
@@ -209,6 +214,11 @@ let update_top_of_stack ~t ~f =
   | [] -> Misc.fatal_errorf "Empty stack of variable uses"
   | elt :: stack -> { t with stack = f elt :: stack }
 
+let record_defined_var var t =
+  update_top_of_stack ~t ~f:(fun elt ->
+      let defined = Variable.Set.add var elt.defined in
+      { elt with defined })
+
 let record_var_binding var name_occurrences ~generate_phantom_lets t =
   update_top_of_stack ~t ~f:(fun elt ->
       let bindings =
@@ -228,7 +238,8 @@ let record_var_binding var name_occurrences ~generate_phantom_lets t =
             Name_mode.phantom
         else elt.used_in_handler
       in
-      { elt with bindings; used_in_handler })
+      let defined = Variable.Set.add var elt.defined in
+      { elt with bindings; used_in_handler; defined })
 
 let record_symbol_projection var name_occurrences t =
   update_top_of_stack ~t ~f:(fun elt ->
@@ -588,6 +599,7 @@ module Dependency_graph = struct
            optimal *)
         used_in_handler;
         bindings;
+        defined = _;
         code_ids;
         value_slots;
         continuation = _;
@@ -710,9 +722,7 @@ module Dependency_graph = struct
               List.fold_left2
                 (fun t extra_param extra_arg ->
                   let src = Name.var (Bound_parameter.var extra_param) in
-                  match
-                    (extra_arg : EPA.Extra_arg.t)
-                  with
+                  match (extra_arg : EPA.Extra_arg.t) with
                   | Already_in_scope simple ->
                     Name_occurrences.fold_names (Simple.free_names simple)
                       ~init:t ~f:(fun t dst -> add_dependency ~src ~dst t)
@@ -787,10 +797,10 @@ module Dominator_graph = struct
     { graph; dominator_roots }
 
   let add_node t var =
-    let graph = Variable.Map.update var (function
-        | None -> Some Variable.Set.empty
-        | Some _ as res -> res
-      ) t.graph
+    let graph =
+      Variable.Map.update var
+        (function None -> Some Variable.Set.empty | Some _ as res -> res)
+        t.graph
     in
     { t with graph }
 
@@ -812,7 +822,7 @@ module Dominator_graph = struct
         { t with graph })
 
   let add_continuation_info map _k elt t ~return_continuation ~exn_continuation
-    =
+      =
     let t = List.fold_left add_node t elt.params in
     Continuation.Map.fold
       (fun k args t ->
@@ -1032,8 +1042,10 @@ module Dominator_graph = struct
 
     let print ~ctx ~print_name ~doms ppf t =
       Flambda_colours.without_colours ~f:(fun () ->
-          Format.fprintf ppf "subgraph cluster_%d { label=\"%s\"@\n%a@\n%a@\n%a@\n}@." ctx
-            print_name (nodes ~ctx ~roots:t.dominator_roots)
+          Format.fprintf ppf
+            "subgraph cluster_%d { label=\"%s\"@\n%a@\n%a@\n%a@\n}@." ctx
+            print_name
+            (nodes ~ctx ~roots:t.dominator_roots)
             t.graph
             (edges ~ctx ~color:"black")
             t.graph (edges' ~ctx ~color:"red") doms)
