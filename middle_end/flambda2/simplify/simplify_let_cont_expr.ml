@@ -149,9 +149,10 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
     ~rewrite_ids ~is_single_inlinable_use ~is_exn_handler handler uacc
     ~after_rebuild =
   let Data_flow.{ aliases; _ } = UA.continuation_param_aliases uacc in
-  let handler, uacc =
+  let rewritten_aliases = ref false in
+  let handler, rev_params, uacc =
     List.fold_left
-      (fun (handler, uacc) bp ->
+      (fun (handler, rev_params, uacc) bp ->
         let var = BP.var bp in
         let alias =
           match Variable.Map.find var aliases with
@@ -159,21 +160,26 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
           | alias -> if Variable.equal alias var then None else Some alias
         in
         match alias with
-        | None -> handler, uacc
+        | None -> handler, bp :: rev_params, uacc
         | Some alias ->
+          rewritten_aliases := true;
           Format.printf "ADD ALIAS LET %a = %a@." Variable.print var
             Variable.print alias;
           let bound_pattern =
             Bound_pattern.singleton (Bound_var.create var Name_mode.normal)
           in
           let named = Named.create_simple (Simple.var alias) in
-          Expr_builder.create_let_binding uacc bound_pattern named
-            ~free_names_of_defining_expr:
-              (Name_occurrences.singleton_variable alias Name_mode.normal)
-            ~cost_metrics_of_defining_expr:Cost_metrics.zero ~body:handler)
-      (handler, uacc)
+          let handler, uacc =
+            Expr_builder.create_let_binding uacc bound_pattern named
+              ~free_names_of_defining_expr:
+                (Name_occurrences.singleton_variable alias Name_mode.normal)
+              ~cost_metrics_of_defining_expr:Cost_metrics.zero ~body:handler
+          in
+          handler, rev_params, uacc)
+      (handler, [], uacc)
       (Bound_parameters.to_list params)
   in
+  let params = Bound_parameters.create (List.rev rev_params) in
   let handler, uacc =
     (* We might need to place lifted constants now, as they could depend on
        continuation parameters. As such we must also compute the unused
@@ -195,6 +201,7 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
   let uacc, params, new_phantom_params =
     match recursive with
     | Recursive -> (
+      if !rewritten_aliases then failwith "TODO introdule wrapper let cont";
       (* In the recursive case, we have already added an apply_cont_rewrite for
          the recursive continuation to eliminate unused parameters in its
          handler. *)
