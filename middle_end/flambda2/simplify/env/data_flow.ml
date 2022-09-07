@@ -67,16 +67,19 @@ type t =
 (* type alias useful for later *)
 type source_info = t
 
-type result =
-  { required_names : Name.Set.t;
-    reachable_code_ids : Reachable_code_ids.t;
-    aliases : Variable.t Variable.Map.t;
+type continuation_param_aliases =
+  { aliases : Variable.t Variable.Map.t;
     extra_args_for_aliases : Variable.Set.t Continuation.Map.t
   }
 
 type dead_variable_result =
   { required_names : Name.Set.t;
     reachable_code_ids : Reachable_code_ids.t
+  }
+
+type result =
+  { dead_variable_result : dead_variable_result;
+    continuation_param_aliases : continuation_param_aliases
   }
 
 (* Print *)
@@ -149,8 +152,19 @@ let [@ocamlformat "disable"] print ppf { stack; map; extra; dummy_toplevel_cont 
     print_map map
     print_extra extra
 
+let [@ocamlformat "disable"] print_continuation_param_aliases ppf
+    { aliases; extra_args_for_aliases } =
+  Format.fprintf ppf
+    "@[<hov 1>(\
+       @[<hov 1>(aliases@ %a)@]@ \
+       @[<hov 1>(extra_args_for_aliases@ %a)@]\
+     )@]"
+    (Variable.Map.print Variable.print) aliases
+    (Continuation.Map.print Variable.Set.print) extra_args_for_aliases
+
 let [@ocamlformat "disable"] _print_result ppf
-    { required_names; reachable_code_ids; aliases; extra_args_for_aliases } =
+    { dead_variable_result = { required_names; reachable_code_ids };
+      continuation_param_aliases = { aliases; extra_args_for_aliases } } =
   Format.fprintf ppf
     "@[<hov 1>(\
        @[<hov 1>(required_names@ %a)@]@ \
@@ -1442,11 +1456,11 @@ let analyze ?print_name ~return_continuation ~exn_continuation
           ~code_age_relation ~used_value_slots
       in
       (* Format.eprintf "/// graph@\n%a@\n@." Dependency_graph._print deps; *)
-      let { required_names; reachable_code_ids } =
-        Dependency_graph.required_names deps
-      in
+      let dead_variable_result = Dependency_graph.required_names deps in
       let result =
-        { required_names; reachable_code_ids; aliases; extra_args_for_aliases }
+        { dead_variable_result;
+          continuation_param_aliases = { aliases; extra_args_for_aliases }
+        }
       in
       (* Format.eprintf "/// result@\n%a@\n@." _print_result result; *)
       result)

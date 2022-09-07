@@ -33,10 +33,13 @@ type t =
     cost_metrics : Cost_metrics.t;
     are_rebuilding_terms : ART.t;
     generate_phantom_lets : bool;
+    (* CR gbury: required_names and reachable_code_ids should be exposed in the
+       same field *)
     required_names : Name.Set.t;
     reachable_code_ids : Data_flow.Reachable_code_ids.t Or_unknown.t;
     demoted_exn_handlers : Continuation.Set.t;
-    slot_offsets : Slot_offsets.t Or_unknown.t
+    slot_offsets : Slot_offsets.t Or_unknown.t;
+    continuation_param_aliases : Data_flow.continuation_param_aliases
   }
 
 let [@ocamlformat "disable"] print ppf
@@ -44,7 +47,7 @@ let [@ocamlformat "disable"] print ppf
         name_occurrences; used_value_slots; all_code = _;
         shareable_constants; cost_metrics; are_rebuilding_terms;
         generate_phantom_lets; required_names; reachable_code_ids;
-        demoted_exn_handlers; slot_offsets; } =
+        demoted_exn_handlers; slot_offsets; continuation_param_aliases; } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(uenv@ %a)@]@ \
       @[<hov 1>(code_age_relation@ %a)@]@ \
@@ -58,7 +61,8 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>(required_name@ %a)@]@ \
       @[<hov 1>(reachable_code_ids@ %a)@]@ \
       @[<hov 1>(demoted_exn_handlers@ %a)@]@ \
-      @[<hov 1>(slot_offsets@ %a@)@]\
+      @[<hov 1>(slot_offsets@ %a@)@]@ \
+      @[<hov 1>(continuation_param_aliases@ %a@)@]\
       )@]"
     UE.print uenv
     Code_age_relation.print code_age_relation
@@ -73,8 +77,10 @@ let [@ocamlformat "disable"] print ppf
     (Or_unknown.print Data_flow.Reachable_code_ids.print) reachable_code_ids
     Continuation.Set.print demoted_exn_handlers
     (Or_unknown.print Slot_offsets.print) slot_offsets
+    Data_flow.print_continuation_param_aliases continuation_param_aliases
 
-let create ~required_names ~reachable_code_ids ~compute_slot_offsets uenv dacc =
+let create ~required_names ~reachable_code_ids ~compute_slot_offsets
+    ~continuation_param_aliases uenv dacc =
   let are_rebuilding_terms = DE.are_rebuilding_terms (DA.denv dacc) in
   let generate_phantom_lets = DE.generate_phantom_lets (DA.denv dacc) in
   let slot_offsets : _ Or_unknown.t =
@@ -103,7 +109,8 @@ let create ~required_names ~reachable_code_ids ~compute_slot_offsets uenv dacc =
     required_names;
     reachable_code_ids;
     demoted_exn_handlers = DA.demoted_exn_handlers dacc;
-    slot_offsets
+    slot_offsets;
+    continuation_param_aliases
   }
 
 let creation_dacc t = t.creation_dacc

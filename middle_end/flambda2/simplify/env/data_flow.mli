@@ -101,14 +101,25 @@ module Reachable_code_ids : sig
   val print : Format.formatter -> t -> unit
 end
 
-(** The result of an analysis of the uses of variables in continuations. *)
-type result = private
+type dead_variable_result =
   { required_names : Name.Set.t;
         (** The set of all variables that are in fact used to compute the
             returned value of the function being analyzed. *)
-    reachable_code_ids : Reachable_code_ids.t;
-    aliases : Variable.t Variable.Map.t;
-    extra_args_for_aliases : Variable.Set.t Continuation.Map.t;
+    reachable_code_ids : Reachable_code_ids.t
+  }
+
+type continuation_param_aliases =
+  { aliases : Variable.t Variable.Map.t;
+    extra_args_for_aliases : Variable.Set.t Continuation.Map.t
+  }
+
+val print_continuation_param_aliases :
+  Format.formatter -> continuation_param_aliases -> unit
+
+(** The result of an analysis of the uses of variables in continuations. *)
+type result = private
+  { dead_variable_result : dead_variable_result;
+    continuation_param_aliases : continuation_param_aliases
   }
 
 (** Analyze the uses. *)

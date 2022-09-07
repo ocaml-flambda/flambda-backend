@@ -81,7 +81,10 @@ and simplify_toplevel dacc expr ~params ~return_continuation ~return_arity
             assert false
           | Closure { code_id; _ } -> Code_id.name code_id
         in
-        let ({ required_names; reachable_code_ids; _ } : Data_flow.result) =
+        let ({ dead_variable_result = { required_names; reachable_code_ids };
+               continuation_param_aliases
+             }
+              : Data_flow.result) =
           Data_flow.analyze data_flow ~print_name ~code_age_relation
             ~used_value_slots ~return_continuation ~exn_continuation
         in
@@ -106,7 +109,7 @@ and simplify_toplevel dacc expr ~params ~return_continuation ~return_arity
         in
         let uacc =
           UA.create ~required_names ~reachable_code_ids
-            ~compute_slot_offsets:true uenv dacc
+            ~compute_slot_offsets:true ~continuation_param_aliases uenv dacc
         in
         rebuild uacc ~after_rebuild:(fun expr uacc -> expr, uacc))
   in
