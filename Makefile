@@ -450,7 +450,7 @@ build_and_test_upstream: build_and_test_upstream
             else \
 	      echo "Running testsuite sequentially"; \
               make --no-print-directory all; \
-            fi)
+            fi
 
 .PHONY: coverage
 coverage: boot-runtest
