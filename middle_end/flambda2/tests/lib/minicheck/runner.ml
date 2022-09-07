@@ -141,7 +141,6 @@ let check :
   let run arbitrary_impl f =
     check0 ?n ?seed ?verbose t ~arbitrary_impl ~f ~name
   in
-
   match arbitrary_impls with
   | [] -> run Arbitrary.unit (fun () -> f)
   | [arb] -> run arb f

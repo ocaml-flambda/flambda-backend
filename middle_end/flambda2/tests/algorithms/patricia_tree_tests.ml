@@ -795,7 +795,6 @@ module Types = struct
           | [] -> false
           | _ :: _ -> true)
       in
-
       let k, v = Generator.one_of list r in
       list, k, v
     in
@@ -838,138 +837,73 @@ let () =
       Arbitrary.bind_generator (Generator.small_nat ~less_than:6)
         ~f:(fun length -> Arbitrary.list set ~length)
     in
-
     let c ?n ?seed name f arbitrary_impls =
       Runner.check runner ~name:("Set: " ^ name) ?n ?seed ~arbitrary_impls ~f
     in
-
     c "sets are valid" valid [set];
-
     c "mem vs. empty" mem_empty [elt];
-
     c "is_empty vs. equal" is_empty_vs_equal [set];
-
     c "add is valid" add_valid [elt; set];
-
     c "add then mem" add_mem [elt; set];
-
     c "add then subset" add_subset [elt; set];
-
     c "add then cardinal" add_cardinal [elt; set];
-
     c "add existing element" add_elt [set_and_element];
-
     c "singleton is valid" singleton_valid [elt];
-
     c "singleton vs. elements" singleton_vs_elements [elt];
-
     c "remove is valid" remove_valid [elt; set];
-
     c "remove element then mem" remove_elt_not_mem [set_and_element];
-
     c "remove element then subset" remove_elt_subset [set_and_element];
-
     c "remove element then cardinal" remove_elt_cardinal [set_and_element];
-
     c "remove non-element" remove_non_elt [elt; set];
-
     c "union is valid" union_valid [set; set];
-
     c "union is superset of arguments" union_subset [set; set];
-
     c "union has no extra elements" union_mem [set; set];
-
     c "union with self" union_with_self [set];
-
     c "inter is valid" inter_valid [set; set];
-
     c "inter" inter [set; set];
-
     c "inter with self" inter_with_self [set];
-
     c "disjoint" disjoint [set; set];
-
     c "diff is valid" diff_valid [set; set];
-
     c "diff" diff [set; set];
-
     c "diff with self" diff_with_self [set];
-
     c "compare vs. equal" compare_vs_equal [set; set];
-
     c "compare is reflexive" compare_refl [set];
-
     c "compare is antisymmetric" compare_antisym [set; set];
-
     c "compare is transitive" compare_trans [set; set; set];
-
     c "equal vs. List.equal" equal_vs_list [set; set];
-
     c "subset is reflexive" subset_refl [set];
-
     c "subset is antisymmetric" subset_antisym [set; set];
-
     c "subset is transitive" subset_trans [set; set; set];
-
     c "subset vs. mem" subset_vs_mem [set; set];
-
     c "iter vs. fold" iter_vs_fold [set];
-
     c "map is valid" map_valid [elt_to_elt; set];
-
     c "map vs. List.map" map_vs_list [elt_to_elt; set];
-
     c "for_all" for_all [elt_to_bool; set];
-
     c "exists" exists [elt_to_bool; set];
-
     c "filter is valid" filter_valid [elt_to_bool; set];
-
     c "filter vs. List.filter" filter_vs_list [elt_to_bool; set];
-
     c "filter_map vs. List.filter_map" filter_map_vs_list
       [elt_to_elt_option; set];
-
     c "partition is valid" partition_valid [elt_to_bool; set];
-
     c "partition" partition [elt_to_bool; set];
-
     c "cardinal vs. List.length" cardinal_vs_list_length [set];
-
     c "elements" elements [set];
-
     c "min_elt vs. min_elt_opt" min_elt_vs_opt [set];
-
     c "max_elt vs. max_elt_opt" max_elt_vs_opt [set];
-
     c "min_elt" min_elt [set];
-
     c "max_elt" max_elt [set];
-
     c "choose vs. choose_opt" choose_vs_opt [set];
-
     c "choose" choose [set];
-
     c "split is valid" split_valid [elt; set];
-
     c "split vs. filter" split_vs_filter [elt; set];
-
     c "split vs. mem" split_vs_mem [elt; set];
-
     c "find on element" find_elt [set];
-
     c "find on non-element" find_non_elt [elt; set];
-
     c "of_list is valid" of_list_valid [elt_list];
-
     c "of_list then elements" of_list_then_elements [elt_list];
-
     c "elements_then_of_list" elements_then_of_list [set];
-
     c "to_seq" to_seq [set];
-
     c "union_list" union_list [set_list];
-
     c "get_singleton" get_singleton [set]
   in
   let () =
@@ -996,171 +930,91 @@ let () =
     let merging_function = Arbitrary.fn3 (Arbitrary.option value) in
     let union_function = Arbitrary.fn3 (Arbitrary.option value) in
     let inter_function = Arbitrary.fn3 value in
-
     let c ?n ?seed name f arbitrary_impls =
       Runner.check runner ~name:("Map: " ^ name) ?n ?seed ~arbitrary_impls ~f
     in
-
     c "maps are valid" valid [map];
-
     c "find_opt vs. find" find_opt_vs_find [key; map];
-
     c "find_opt of empty" find_opt_empty [key];
-
     c "mem" mem [key; map];
-
     c "is_empty vs. equal" is_empty_vs_equal [map];
-
     c "add is valid" add_valid [key; value; map];
-
     c "add then find_opt" add_same [key; value; map];
-
     c "add then find_opt other" add_other [key; key; value; map];
-
     c "update is valid" update_valid [key; value_option_to_value_option; map];
-
     c "update then find_opt" update_same [key; value_option_to_value_option; map];
-
     c "update then find_opt other" update_other
       [key; key; value_option_to_value_option; map];
-
     c "singleton is valid" singleton_valid [key; value];
-
     c "singleton then find_opt" singleton_same [key; value];
-
     c "singleton then find_opt of other" singleton_other [key; key; value];
-
     c "remove is valid" remove_valid [key; map];
-
     c "remove then find_opt" remove_same [key; map];
-
     c "remove then find_opt of other" remove_other [key; key; map];
-
     c "merge is valid" merge_valid [merging_function; map; map];
-
     c "merge" merge [merging_function; map_and_binding; map_and_binding];
-
     c "union is valid" union_valid [union_function; map; map];
-
     c "union" union [union_function; map_and_binding; map_and_binding];
-
     c "union then mem" union_mem [union_function; map; map];
-
     c "compare vs. equal" compare_vs_equal [map; map];
-
     c "compare is reflexive" compare_refl [map];
-
     c "compare is antisymmetric" compare_antisym [map; map];
-
     c "compare is transitive" compare_trans [map; map; map];
-
     c "equal vs. List.equal" equal_vs_list [map; map];
-
     c "iter vs. fold" iter_vs_fold [map];
-
     c "for_all vs. List.for_all" for_all_vs_list [key_and_value_to_bool; map];
-
     c "exists vs. List.exists" exists_vs_list [key_and_value_to_bool; map];
-
     c "filter is valid" filter_valid [key_and_value_to_bool; map];
-
     c "filter returns subset" filter_subset [key_and_value_to_bool; map];
-
     c "filter then find_opt" filter_find_opt
       [key_and_value_to_bool; map_and_binding];
-
     c "filter_map is valid" filter_map_valid [key_and_value_to_value_option; map];
-
     c "filter_map_subset" filter_map_subset [key_and_value_to_value_option; map];
-
     c "filter_map" filter_map [key_and_value_to_value_option; map_and_binding];
-
     c "partition is valid" partition_valid [key_and_value_to_bool; map];
-
     c "partition" partition [key_and_value_to_bool; map];
-
     c "cardinal vs. List.length" cardinal_vs_list_length [map];
-
     c "find_opt of element vs. List.assoc_opt" find_opt_elt_vs_list_assoc_opt
       [map_and_binding];
-
     c "find_opt of non-element vs. List.assoc_opt"
       find_opt_other_vs_list_assoc_opt [key; map];
-
     c "min_binding vs. min_binding_opt" min_binding_vs_opt [map];
-
     c "max_binding vs. max_binding_opt" max_binding_vs_opt [map];
-
     c "min_binding_opt" min_binding_opt [map];
-
     c "max_binding_opt" max_binding_opt [map];
-
     c "choose vs. choose_opt" choose_vs_opt [map];
-
     c "choose_opt" choose_opt [map];
-
     c "split is valid" split_valid [key; map];
-
     c "split on element" split_elt [map_and_binding];
-
     c "split on non-element" split_other [key; map];
-
     c "split vs. filter" split_vs_filter [key; map];
-
     c "map is valid" map_valid [value_to_value; map];
-
     c "map" Map_specs.map [value_to_value; map];
-
     c "mapi is valid" mapi_valid [key_and_value_to_value; map];
-
     c "mapi" mapi [key_and_value_to_value; map];
-
     c "to_seq vs. bindings" to_seq_vs_bindings [map];
-
     c "of_list is valid" of_list_valid [bindings];
-
     c "of_list then bindings" of_list_then_bindings [bindings];
-
     c "bindings_then_of_list" bindings_then_of_list [map];
-
     c "map_keys is valid" map_keys_valid [key_to_key; map];
-
     c "map_keys" map_keys [key_to_key; map];
-
     c "keys vs. Set.of_list" keys_vs_of_list [map];
-
     c "data vs. bindings" data_vs_bindings [map];
-
     c "of_set vs. of_list" of_set_vs_of_list [key_to_value; set];
-
     c "diff_domains valid" diff_domains_valid [map; map];
-
     c "diff_domains" diff_domains [map_and_binding; map];
-
     c "diff_domains of self" diff_domains_self [map];
-
     c "inter is valid" inter_valid [inter_function; map; map];
-
     c "inter then find_opt" inter_then_find_opt [inter_function; map; map];
-
     c "inter vs. filter" inter_vs_filter [inter_function; map; map];
-
     c "inter_domain_is_non_empty" inter_domain_is_non_empty [map; map];
-
     c "get_singleton" get_singleton [map];
-
     c "replace is valid" replace_valid [key; value_to_value; map];
-
     c "replace of elt" replace_elt [value_to_value; map_and_binding];
-
     c "replace then find_opt" replace_same [key; value_to_value; map];
-
     c "replace then find_opt other" replace_other [key; key; value_to_value; map];
-
     c "map_sharing is valid" map_sharing_valid [value_to_value; map];
-
     c "map_sharing vs. map" map_sharing_vs_map [value_to_value; map];
-
     c "map_sharing of id" map_sharing_id [map];
     ()
   in
