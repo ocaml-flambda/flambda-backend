@@ -27,6 +27,8 @@ module Function_decl = Closure_conversion_aux.Function_decls.Function_decl
 module Env : sig
   type t
 
+  type region_stack_element
+
   val create :
     current_unit_id:Ident.t ->
     return_continuation:Continuation.t ->
@@ -137,9 +139,12 @@ module Env : sig
   val current_region : t -> Ident.t
 
   (** The innermost (newest) region is first in the list. *)
-  val region_stack : t -> Ident.t list
+  val region_stack : t -> region_stack_element list
 
-  val region_stack_in_cont_scope : t -> Continuation.t -> Ident.t list
+  val region_stack_in_cont_scope : t -> Continuation.t -> region_stack_element list
+
+  (** Hack for staticfail (which should eventually use [pop_regions_up_to_context]) *)
+  val pop_region : region_stack_element list -> (Ident.t * region_stack_element list) option
 
   val pop_regions_up_to_context : t -> Continuation.t -> Ident.t option
 
@@ -155,6 +160,10 @@ end = struct
       continuation_after_closing_region : Continuation.t
     }
 
+  type region_stack_element =
+    | Regular of Ident.t
+    | Try_with of Ident.t
+
   type t =
     { current_unit_id : Ident.t;
       current_values_of_mutables_in_scope :
@@ -165,8 +174,8 @@ end = struct
       static_exn_continuation : Continuation.t Numeric_types.Int.Map.t;
       recursive_static_catches : Numeric_types.Int.Set.t;
       my_region : Ident.t;
-      region_stack : Ident.t list;
-      region_stack_in_cont_scope : Ident.t list Continuation.Map.t;
+      region_stack : region_stack_element list;
+      region_stack_in_cont_scope : region_stack_element list Continuation.Map.t;
       region_closure_continuations : region_closure_continuation Ident.Map.t
     }
 
@@ -341,7 +350,7 @@ end = struct
   let entering_region t id ~continuation_closing_region
       ~continuation_after_closing_region =
     { t with
-      region_stack = id :: t.region_stack;
+      region_stack = Regular id :: t.region_stack;
       region_closure_continuations =
         Ident.Map.add id
           { continuation_closing_region; continuation_after_closing_region }
@@ -349,7 +358,7 @@ end = struct
     }
 
   let entering_try_region t region =
-    { t with region_stack = region :: t.region_stack }
+    { t with region_stack = Try_with region :: t.region_stack }
 
   let leaving_try_region t =
     match t.region_stack with
@@ -357,7 +366,7 @@ end = struct
     | _ :: region_stack -> { t with region_stack }
 
   let current_region t =
-    match t.region_stack with [] -> t.my_region | region :: _ -> region
+    match t.region_stack with [] -> t.my_region | (Regular region | Try_with region) :: _ -> region
 
   let region_stack t = t.region_stack
 
@@ -368,19 +377,28 @@ end = struct
         Continuation.print continuation
     | stack -> stack
 
+  let pop_region = function
+    | [] -> None
+    | (Try_with region | Regular region) :: rest -> Some (region, rest)
+
   let pop_regions_up_to_context t continuation =
     let initial_stack_context = region_stack_in_cont_scope t continuation in
     let rec pop to_pop region_stack =
       match initial_stack_context, region_stack with
       | [], [] -> to_pop
-      | [], region :: regions -> pop (Some region) regions
+      | ([] | Try_with _ :: _), Regular region :: regions -> pop (Some region) regions
+      | ([] | Regular _ :: _), Try_with _ :: regions -> pop to_pop regions
       | _initial_stack_top :: _, [] ->
         Misc.fatal_errorf "Unable to restore region stack for %a"
           Continuation.print continuation
-      | initial_stack_top :: _, region :: regions ->
+      | Regular initial_stack_top :: _, Regular region :: regions ->
         if Ident.same initial_stack_top region
         then to_pop
         else pop (Some region) regions
+      | Try_with initial_stack_top :: _, Try_with region :: regions ->
+        if Ident.same initial_stack_top region
+        then to_pop
+        else pop to_pop regions
     in
     pop None t.region_stack
 
@@ -484,10 +502,6 @@ let compile_staticfail acc env ccenv ~(continuation : Continuation.t) ~args :
       "Cannot jump to continuation %a: it would involve jumping into a local \
        allocation region"
       Continuation.print continuation;
-  assert (
-    Ident.Set.subset
-      (Ident.Set.of_list region_stack_at_handler)
-      (Ident.Set.of_list region_stack_now));
   let rec add_end_regions acc ~region_stack_now =
     (* CR pchambart: this probably can't be exercised right now, no lambda
        jumping through a region seems to be generated. *)
@@ -505,14 +519,14 @@ let compile_staticfail acc env ccenv ~(continuation : Continuation.t) ~args :
           Not_user_visible (End_region region) ~body
     in
     let no_end_region after_everything = after_everything in
-    match region_stack_now, region_stack_at_handler with
-    | [], [] -> no_end_region
-    | region1 :: region_stack_now, region2 :: _ ->
+    match Env.pop_region region_stack_now, Env.pop_region region_stack_at_handler with
+    | None, None -> no_end_region
+    | Some (region1, region_stack_now), Some (region2, _) ->
       if Ident.same region1 region2
       then no_end_region
       else add_end_region region1 ~region_stack_now
-    | region :: region_stack_now, [] -> add_end_region region ~region_stack_now
-    | [], _ :: _ -> assert false
+    | Some (region, region_stack_now), None -> add_end_region region ~region_stack_now
+    | None, Some _ -> assert false
     (* see above *)
   in
   add_pop_traps acc ~try_stack_now
@@ -1140,7 +1154,6 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
     let body_result = Ident.create_local "body_result" in
     let result_var = Ident.create_local "try_with_result" in
     let region = Ident.create_local "try_region" in
-    let env = Env.entering_try_region env region in
     (* As for all other constructs, the OCaml type checker and the Lambda
        generation pass ensures that there will be an enclosing region around the
        whole [Ltrywith] (possibly not immediately enclosing, but maybe further
@@ -1154,6 +1167,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
           ~is_exn_handler:false
           ~params:[result_var, Not_user_visible, kind]
           ~body:(fun acc env ccenv after_continuation ->
+            let env = Env.entering_try_region env region in
             let_cont_nonrecursive_with_extra_params acc env ccenv
               ~is_exn_handler:true
               ~params:[id, User_visible, Pgenval]
