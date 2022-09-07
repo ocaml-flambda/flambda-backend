@@ -81,7 +81,7 @@ and simplify_toplevel dacc expr ~params ~return_continuation ~return_arity
             assert false
           | Closure { code_id; _ } -> Code_id.name code_id
         in
-        let ({ required_names; reachable_code_ids } : Data_flow.result) =
+        let ({ required_names; reachable_code_ids; _ } : Data_flow.result) =
           Data_flow.analyze data_flow ~print_name ~code_age_relation
             ~used_value_slots ~return_continuation ~exn_continuation
         in

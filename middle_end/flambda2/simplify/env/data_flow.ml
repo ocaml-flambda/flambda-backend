@@ -69,6 +69,13 @@ type source_info = t
 
 type result =
   { required_names : Name.Set.t;
+    reachable_code_ids : Reachable_code_ids.t;
+    aliases : Variable.t Variable.Map.t;
+    extra_args_for_aliases : Variable.Set.t Continuation.Map.t
+  }
+
+type dead_variable_result =
+  { required_names : Name.Set.t;
     reachable_code_ids : Reachable_code_ids.t
   }
 
@@ -142,11 +149,19 @@ let [@ocamlformat "disable"] print ppf { stack; map; extra; dummy_toplevel_cont 
     print_map map
     print_extra extra
 
-let _print_result ppf { required_names; reachable_code_ids } =
+let [@ocamlformat "disable"] _print_result ppf
+    { required_names; reachable_code_ids; aliases; extra_args_for_aliases } =
   Format.fprintf ppf
-    "@[<hov 1>(@[<hov 1>(required_names@ %a)@]@ @[<hov 1>(reachable_code_ids@ \
-     %a)@])@]"
-    Name.Set.print required_names Reachable_code_ids.print reachable_code_ids
+    "@[<hov 1>(\
+       @[<hov 1>(required_names@ %a)@]@ \
+       @[<hov 1>(reachable_code_ids@ %a)@]@ \
+       @[<hov 1>(aliases@ %a)@]@ \
+       @[<hov 1>(extra_args_for_aliases@ %a)@]\
+     )@]"
+    Name.Set.print required_names
+    Reachable_code_ids.print reachable_code_ids
+    (Variable.Map.print Variable.print) aliases
+    (Continuation.Map.print Variable.Set.print) extra_args_for_aliases
 
 (* Creation *)
 (* ******** *)
@@ -1114,8 +1129,8 @@ module Control_flow_graph = struct
      not tail-rec in the number of nested continuations. *)
   let map_fold_on_children { children; dummy_toplevel_cont; _ } f acc =
     let rec aux k acc =
-      let acc = f k acc in
-      let map = Continuation.Map.singleton k acc in
+      let acc, to_add = f k acc in
+      let map = Continuation.Map.singleton k to_add in
       match Continuation.Map.find k children with
       | exception Not_found -> map
       | s ->
@@ -1138,13 +1153,27 @@ module Control_flow_graph = struct
             in
             Bound_parameters.var_set extra_params
         in
-        Variable.Set.union
-          (Variable.Set.union acc (Variable.Set.of_list elt.params))
-          extra_vars)
+        let acc =
+          Variable.Set.union
+            (Variable.Set.union acc (Variable.Set.of_list elt.params))
+            extra_vars
+        in
+        acc, acc)
       Variable.Set.empty
 
   let compute_transitive_parents t =
-    map_fold_on_children t Continuation.Set.add Continuation.Set.empty
+    map_fold_on_children t
+      (fun k acc ->
+        let acc = Continuation.Set.add k acc in
+        acc, acc)
+      Continuation.Set.empty
+
+  let compute_added_extra_args added_extra_args t =
+    map_fold_on_children t
+      (fun k available ->
+        ( Variable.Set.union (Continuation.Map.find k added_extra_args) available,
+          available ))
+      Variable.Set.empty
 
   let compute_continuation_extra_args_for_aliases ~(source_info : source_info)
       doms t =
@@ -1229,7 +1258,23 @@ module Control_flow_graph = struct
             push caller))
         callers
     done;
-    !res
+    let extra_args_for_toplevel_cont =
+      Continuation.Map.find t.dummy_toplevel_cont !res
+    in
+    if not (Variable.Set.is_empty extra_args_for_toplevel_cont)
+    then
+      Misc.fatal_errorf
+        "Toplevel continuation cannot have needed extra argument: %a"
+        Variable.Set.print extra_args_for_toplevel_cont;
+    let added_extra_args = !res in
+    let available_added_extra_args =
+      compute_added_extra_args added_extra_args t
+    in
+    Continuation.Map.mapi
+      (fun k aliases_needed ->
+        let available = Continuation.Map.find k available_added_extra_args in
+        Variable.Set.diff aliases_needed available)
+      added_extra_args
 
   module Dot = struct
     let node_id ~ctx ppf (cont : Continuation.t) =
@@ -1355,7 +1400,7 @@ let control_flow_graph_ppf =
 
 let analyze ?print_name ~return_continuation ~exn_continuation
     ~code_age_relation ~used_value_slots
-    ({ stack; map; extra; dummy_toplevel_cont } as t) =
+    ({ stack; map; extra; dummy_toplevel_cont } as t) : result =
   Profile.record_call ~accumulate:true "data_flow" (fun () ->
       assert (stack = []);
       assert (
@@ -1366,19 +1411,20 @@ let analyze ?print_name ~return_continuation ~exn_continuation
       let dom_graph =
         Dominator_graph.create map extra ~return_continuation ~exn_continuation
       in
-      let doms = Dominator_graph.dominator_analysis dom_graph in
+      let aliases = Dominator_graph.dominator_analysis dom_graph in
       (match print_name with
       | None -> ()
       | Some print_name ->
         Option.iter
           (fun ppf ->
             incr r;
-            Dominator_graph.Dot.print ~print_name ~ctx:!r ~doms ppf dom_graph)
+            Dominator_graph.Dot.print ~print_name ~ctx:!r ~doms:aliases ppf
+              dom_graph)
           (Lazy.force dominator_graph_ppf));
       let control = Control_flow_graph.create ~dummy_toplevel_cont t in
       let extra_args_for_aliases =
         Control_flow_graph.compute_continuation_extra_args_for_aliases
-          ~source_info:t doms control
+          ~source_info:t aliases control
       in
       (match print_name with
       | None -> ()
@@ -1396,6 +1442,11 @@ let analyze ?print_name ~return_continuation ~exn_continuation
           ~code_age_relation ~used_value_slots
       in
       (* Format.eprintf "/// graph@\n%a@\n@." Dependency_graph._print deps; *)
-      let result = Dependency_graph.required_names deps in
+      let { required_names; reachable_code_ids } =
+        Dependency_graph.required_names deps
+      in
+      let result =
+        { required_names; reachable_code_ids; aliases; extra_args_for_aliases }
+      in
       (* Format.eprintf "/// result@\n%a@\n@." _print_result result; *)
       result)

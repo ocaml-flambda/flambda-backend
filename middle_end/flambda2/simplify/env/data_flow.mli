@@ -106,7 +106,9 @@ type result = private
   { required_names : Name.Set.t;
         (** The set of all variables that are in fact used to compute the
             returned value of the function being analyzed. *)
-    reachable_code_ids : Reachable_code_ids.t
+    reachable_code_ids : Reachable_code_ids.t;
+    aliases : Variable.t Variable.Map.t;
+    extra_args_for_aliases : Variable.Set.t Continuation.Map.t;
   }
 
 (** Analyze the uses. *)
