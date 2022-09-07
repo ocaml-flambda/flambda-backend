@@ -433,8 +433,10 @@ and subst_apply env apply =
   let inlining_state = Apply_expr.inlining_state apply in
   let relative_history = Apply_expr.relative_history apply in
   let position = Apply_expr.position apply in
+  let region = Apply_expr.region apply in
   Apply_expr.create ~callee ~continuation exn_continuation ~args ~call_kind dbg
     ~inlined ~inlining_state ~probe_name:None ~position ~relative_history
+    ~region
   |> Expr.create_apply
 
 and subst_apply_cont env apply_cont =
@@ -989,6 +991,7 @@ let apply_exprs env apply1 apply2 : Expr.t Comparison.t =
             ~inlining_state:(Apply.inlining_state apply1)
             ~probe_name:None ~position:(Apply.position apply1)
             ~relative_history:(Apply_expr.relative_history apply1)
+            ~region:(Apply_expr.region apply1)
           |> Expr.create_apply
       }
 
@@ -1267,6 +1270,7 @@ and cont_handlers env handler1 handler2 =
 let flambda_units u1 u2 =
   let ret_cont = Continuation.create ~sort:Toplevel_return () in
   let exn_cont = Continuation.create () in
+  let toplevel_my_region = Variable.create "toplevel_my_region" in
   let mk_renaming u =
     let renaming = Renaming.empty in
     let renaming =
@@ -1279,6 +1283,11 @@ let flambda_units u1 u2 =
         (Flambda_unit.exn_continuation u)
         ~guaranteed_fresh:exn_cont
     in
+    let renaming =
+      Renaming.add_fresh_variable renaming
+        (Flambda_unit.toplevel_my_region u)
+        ~guaranteed_fresh:toplevel_my_region
+    in
     renaming
   in
   let env = Env.create () in
@@ -1289,4 +1298,4 @@ let flambda_units u1 u2 =
          let module_symbol = Flambda_unit.module_symbol u1 in
          Flambda_unit.create ~return_continuation:ret_cont
            ~exn_continuation:exn_cont ~body ~module_symbol
-           ~used_value_slots:Unknown)
+           ~used_value_slots:Unknown ~toplevel_my_region)
