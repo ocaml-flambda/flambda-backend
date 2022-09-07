@@ -56,7 +56,7 @@ let these_naked_nativeints is = TG.these_naked_nativeints is
 
 let any_tagged_immediate =
   TG.create_variant ~is_unique:false ~immediates:Unknown
-    ~blocks:(Known TG.Row_like_for_blocks.bottom) (Known Heap)
+    ~blocks:(Known TG.Row_like_for_blocks.bottom) (Known Alloc_mode.heap)
 
 let these_tagged_immediates0 imms =
   match Targetint_31_63.Set.get_singleton imms with
@@ -67,7 +67,7 @@ let these_tagged_immediates0 imms =
     else
       TG.create_variant ~is_unique:false
         ~immediates:(Known (these_naked_immediates imms))
-        ~blocks:(Known TG.Row_like_for_blocks.bottom) (Known Heap)
+        ~blocks:(Known TG.Row_like_for_blocks.bottom) (Known Alloc_mode.heap)
 
 let these_tagged_immediates imms = these_tagged_immediates0 imms
 

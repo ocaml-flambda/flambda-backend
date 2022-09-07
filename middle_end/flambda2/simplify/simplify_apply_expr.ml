@@ -350,7 +350,9 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
     Code_metadata.contains_no_escaping_local_allocs callee's_code_metadata
   in
   let apply_alloc_mode : Alloc_mode.t =
-    if contains_no_escaping_local_allocs then Heap else Local
+    if contains_no_escaping_local_allocs
+    then Alloc_mode.heap
+    else Alloc_mode.local ()
   in
   let wrapper_taking_remaining_args, dacc, code_id, code =
     let return_continuation = Continuation.create () in

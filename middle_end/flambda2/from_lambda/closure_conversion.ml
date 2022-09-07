@@ -726,6 +726,9 @@ let close_let acc env id user_visible defining_expr
       let body_env = Env.add_simple_to_substitute env id simple in
       body acc body_env
     | None -> body acc body_env
+    | Some (Prim ((Nullary Begin_region | Unary (End_region, _)), _))
+      when not (Flambda_features.stack_allocation_enabled ()) ->
+      body acc env
     | Some defining_expr -> (
       let body_env =
         match defining_expr with
@@ -1718,8 +1721,10 @@ let wrap_over_application acc env full_call (apply : IR.apply) over_args
       | Rc_normal | Rc_close_at_apply -> Apply.Position.Normal
       | Rc_nontail -> Apply.Position.Nontail
     in
-    let alloc_mode : Alloc_mode.t =
-      if contains_no_escaping_local_allocs then Heap else Local
+    let alloc_mode =
+      if contains_no_escaping_local_allocs
+      then Alloc_mode.heap
+      else Alloc_mode.local ()
     in
     let call_kind = Call_kind.indirect_function_call_unknown_arity alloc_mode in
     let continuation =

@@ -1336,7 +1336,7 @@ end = struct
                 let alloc_mode =
                   match alloc_mode with
                   | Known am -> am
-                  | Unknown -> Alloc_mode.Heap
+                  | Unknown -> Alloc_mode.heap
                 in
                 Block_approximation (Array.of_list fields, alloc_mode)
             else Value_unknown))

@@ -29,11 +29,22 @@ let compare t1 t2 =
   | Heap, Local -> -1
   | Local, Heap -> 1
 
+let heap = Heap
+
+let local () =
+  if Flambda_features.stack_allocation_enabled () then Local else Heap
+
 let from_lambda (mode : Lambda.alloc_mode) =
-  match mode with Alloc_heap -> Heap | Alloc_local -> Local
+  if not (Flambda_features.stack_allocation_enabled ())
+  then Heap
+  else match mode with Alloc_heap -> Heap | Alloc_local -> Local
 
 let to_lambda t =
-  match t with Heap -> Lambda.alloc_heap | Local -> Lambda.alloc_local
+  match t with
+  | Heap -> Lambda.alloc_heap
+  | Local ->
+    assert (Flambda_features.stack_allocation_enabled ());
+    Lambda.alloc_local
 
 module With_region = struct
   type t =
@@ -58,12 +69,19 @@ module With_region = struct
     match t with Heap -> Heap | Local _ -> Local
 
   let from_lambda (mode : Lambda.alloc_mode) ~current_region =
-    match mode with
-    | Alloc_heap -> Heap
-    | Alloc_local -> Local { region = current_region }
+    if not (Flambda_features.stack_allocation_enabled ())
+    then Heap
+    else
+      match mode with
+      | Alloc_heap -> Heap
+      | Alloc_local -> Local { region = current_region }
 
   let to_lambda t =
-    match t with Heap -> Lambda.alloc_heap | Local _ -> Lambda.alloc_local
+    match t with
+    | Heap -> Lambda.alloc_heap
+    | Local _ ->
+      assert (Flambda_features.stack_allocation_enabled ());
+      Lambda.alloc_local
 
   let free_names t =
     match t with

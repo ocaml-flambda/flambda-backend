@@ -369,9 +369,12 @@ end = struct
     | _ :: region_stack -> { t with region_stack }
 
   let current_region t =
-    match t.region_stack with
-    | [] -> t.my_region
-    | (Regular region | Try_with region) :: _ -> region
+    if not (Flambda_features.stack_allocation_enabled ())
+    then t.my_region
+    else
+      match t.region_stack with
+      | [] -> t.my_region
+      | (Regular region | Try_with region) :: _ -> region
 
   let region_stack t = t.region_stack
 
@@ -1258,6 +1261,8 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
        by completely removing it (replacing by unit). *)
     Misc.fatal_error
       "[Lifused] should have been removed by [Simplif.simplify_lets]"
+  | Lregion body when not (Flambda_features.stack_allocation_enabled ()) ->
+    cps_non_tail acc env ccenv body k k_exn
   | Lregion body ->
     (* Here we need to build the region closure continuation (see long comment
        above). Since we're not in tail position, we also need to have a new
@@ -1689,6 +1694,8 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
        by completely removing it (replacing by unit). *)
     Misc.fatal_error
       "[Lifused] should have been removed by [Simplif.simplify_lets]"
+  | Lregion body when not (Flambda_features.stack_allocation_enabled ()) ->
+    cps_tail acc env ccenv body k k_exn
   | Lregion body ->
     let region = Ident.create_local "region" in
     let dbg = Debuginfo.none in

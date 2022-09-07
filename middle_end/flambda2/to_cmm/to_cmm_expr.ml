@@ -301,6 +301,10 @@ and let_expr0 env res let_expr (bound_pattern : Bound_pattern.t)
       bind_var_to_simple ~dbg env v ~num_normal_occurrences_of_bound_vars s
     in
     expr env res body
+  | Singleton _, Prim (p, _)
+    when (not (Flambda_features.stack_allocation_enabled ()))
+         && Flambda_primitive.is_begin_or_end_region p ->
+    expr env res body
   | Singleton v, Prim (p, dbg) ->
     let v = Bound_var.var v in
     let defining_expr, extra, env, res, effs =

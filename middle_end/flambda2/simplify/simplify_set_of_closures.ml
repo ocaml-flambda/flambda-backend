@@ -401,7 +401,9 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
         let alloc_modes =
           List.mapi
             (fun index _ : Alloc_mode.t Or_unknown.t ->
-              if index < num_leading_heap_params then Known Heap else Unknown)
+              if index < num_leading_heap_params
+              then Known Alloc_mode.heap
+              else Unknown)
             (Bound_parameters.to_list params)
         in
         let denv =

@@ -114,7 +114,9 @@ let split_direct_over_application apply ~param_arity ~result_arity
   in
   let perform_over_application =
     let alloc_mode : Alloc_mode.t =
-      if contains_no_escaping_local_allocs then Heap else Local
+      if contains_no_escaping_local_allocs
+      then Alloc_mode.heap
+      else Alloc_mode.local ()
     in
     let continuation =
       (* If there is no need for a new region, then the second (over)
