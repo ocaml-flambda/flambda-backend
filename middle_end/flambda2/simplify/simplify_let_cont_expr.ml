@@ -124,7 +124,8 @@ let compute_used_params uacc params ~is_exn_handler ~is_single_inlinable_use
 
 let rebuild_one_continuation_handler cont ~at_unit_toplevel
     (recursive : Recursive.t) ~params ~(extra_params_and_args : EPA.t)
-    ~is_single_inlinable_use ~is_exn_handler handler uacc ~after_rebuild =
+    ~rewrite_ids ~is_single_inlinable_use ~is_exn_handler handler uacc
+    ~after_rebuild =
   let handler, uacc =
     (* We might need to place lifted constants now, as they could depend on
        continuation parameters. As such we must also compute the unused
@@ -193,6 +194,7 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
           (fun param -> Name_occurrences.mem_var free_names (BP.var param))
           (params_not_used_as_normal @ extra_params_not_used_as_normal)
       in
+      ignore rewrite_ids;
       let rewrite =
         Apply_cont_rewrite.create ~original_params:params
           ~used_params:(BP.Set.of_list params_used_as_normal)
@@ -238,8 +240,8 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
     ~cost_metrics_of_handler:cost_metrics uacc
 
 let simplify_one_continuation_handler ~simplify_expr dacc cont ~at_unit_toplevel
-    recursive ~params ~handler ~extra_params_and_args ~is_single_inlinable_use
-    ~is_exn_handler ~down_to_up =
+    recursive ~params ~handler ~extra_params_and_args ~rewrite_ids
+    ~is_single_inlinable_use ~is_exn_handler ~down_to_up =
   let down_to_up dacc ~rebuild =
     let rebuild uacc ~after_rebuild =
       (* The name occurrences component of this [uacc] is cleared (see further
@@ -248,8 +250,8 @@ let simplify_one_continuation_handler ~simplify_expr dacc cont ~at_unit_toplevel
       assert (Name_occurrences.is_empty (UA.name_occurrences uacc));
       let after_rebuild handler uacc =
         rebuild_one_continuation_handler cont ~at_unit_toplevel recursive
-          ~params ~extra_params_and_args ~is_single_inlinable_use
-          ~is_exn_handler handler uacc ~after_rebuild
+          ~params ~extra_params_and_args ~rewrite_ids
+          ~is_single_inlinable_use ~is_exn_handler handler uacc ~after_rebuild
       in
       rebuild uacc ~after_rebuild
     in
@@ -265,8 +267,8 @@ type behaviour =
 let rebuild_non_recursive_let_cont_handler cont
     (uses : Join_points.result option) ~params ~handler ~free_names_of_handler
     ~cost_metrics_of_handler ~is_single_inlinable_use scope ~is_exn_handler
-    (extra_params_and_args : EPA.t) (cont_handler : RE.Continuation_handler.t)
-    uacc ~after_rebuild =
+    (extra_params_and_args : EPA.t) ~rewrite_ids:_
+    (cont_handler : RE.Continuation_handler.t) uacc ~after_rebuild =
   let uenv = UA.uenv uacc in
   let uenv =
     (* CR mshinwell: Change types so that [free_names_of_handler] only needs to
@@ -347,14 +349,15 @@ let simplify_non_recursive_let_cont_handler ~simplify_expr ~denv_before_body
     TE.code_age_relation (DA.typing_env dacc_after_body)
   in
   let consts_lifted_during_body = DA.get_lifted_constants dacc_after_body in
-  let uses =
+  let uses, rewrite_ids =
     match CUE.get_continuation_uses cont_uses_env cont with
-    | None -> None
+    | None -> None, Apply_cont_rewrite_id.Set.empty
     | Some uses ->
       Some
         (Join_points.compute_handler_env uses ~params
            ~env_at_fork_plus_params:denv_before_body ~consts_lifted_during_body
-           ~code_age_relation_after_body)
+           ~code_age_relation_after_body),
+        Continuation_uses.get_use_ids uses
   in
   let dacc =
     DA.add_to_lifted_constant_accumulator dacc_after_body prior_lifted_constants
@@ -384,7 +387,7 @@ let simplify_non_recursive_let_cont_handler ~simplify_expr ~denv_before_body
         ~free_names_of_handler:Name_occurrences.empty
         ~cost_metrics_of_handler:Cost_metrics.zero
         ~is_single_inlinable_use:false scope ~is_exn_handler EPA.empty
-        cont_handler uacc ~after_rebuild
+        ~rewrite_ids:Apply_cont_rewrite_id.Set.empty cont_handler uacc ~after_rebuild
     in
     down_to_up dacc ~continuation_has_zero_uses:true ~rebuild
   | Some
@@ -486,14 +489,14 @@ let simplify_non_recursive_let_cont_handler ~simplify_expr ~denv_before_body
           rebuild_non_recursive_let_cont_handler cont uses ~params ~handler
             ~free_names_of_handler ~cost_metrics_of_handler
             ~is_single_inlinable_use scope ~is_exn_handler extra_params_and_args
-            cont_handler uacc ~after_rebuild
+            ~rewrite_ids cont_handler uacc ~after_rebuild
         in
         rebuild uacc ~after_rebuild
       in
       down_to_up dacc ~continuation_has_zero_uses:false ~rebuild
     in
     simplify_one_continuation_handler ~simplify_expr dacc cont ~at_unit_toplevel
-      Non_recursive ~params ~handler ~extra_params_and_args
+      Non_recursive ~params ~handler ~extra_params_and_args ~rewrite_ids
       ~is_single_inlinable_use ~is_exn_handler ~down_to_up
 
 let after_non_recursive_let_cont_body_rebuilt cont ~uenv_without_cont
@@ -758,8 +761,8 @@ let after_one_recursive_let_cont_handler_rebuilt cont ~original_cont_scope
     cont_handler ~handler uacc ~after_rebuild
 
 let prepare_to_rebuild_one_recursive_let_cont_handler cont params
-    (extra_params_and_args : EPA.t) ~original_cont_scope ~rebuild_handler uacc
-    ~after_rebuild =
+    (extra_params_and_args : EPA.t) ~rewrite_ids ~original_cont_scope
+    ~rebuild_handler uacc ~after_rebuild =
   let required_names = UA.required_names uacc in
   let used_params_list =
     Bound_parameters.filter
@@ -802,17 +805,19 @@ let after_downwards_traversal_of_one_recursive_let_cont_handler cont
     unboxing_decisions ~down_to_up params ~original_cont_scope dacc
     ~rebuild:rebuild_handler =
   let dacc = DA.map_data_flow dacc ~f:(Data_flow.exit_continuation cont) in
-  let arg_types_by_use_id =
+  let rewrite_ids, arg_types_by_use_id =
     (* At this point all uses (in both the body and the handler) of [cont] are
        in [dacc]. *)
     match CUE.get_continuation_uses (DA.continuation_uses_env dacc) cont with
     (* CR gbury: in this case, the continuation is neither recursive, nor
        reachable, and it could be removed. *)
     | None ->
-      ListLabels.map (Bound_parameters.to_list params) ~f:(fun _ ->
-          Apply_cont_rewrite_id.Map.empty)
+      ( Apply_cont_rewrite_id.Set.empty,
+        ListLabels.map (Bound_parameters.to_list params) ~f:(fun _ ->
+            Apply_cont_rewrite_id.Map.empty) )
     | Some continuation_uses ->
-      Continuation_uses.get_arg_types_by_use_id continuation_uses
+      ( Continuation_uses.get_use_ids continuation_uses,
+        Continuation_uses.get_arg_types_by_use_id continuation_uses )
   in
   let extra_params_and_args =
     Unbox_continuation_params.compute_extra_params_and_args unboxing_decisions
@@ -829,7 +834,8 @@ let after_downwards_traversal_of_one_recursive_let_cont_handler cont
   down_to_up dacc
     ~rebuild:
       (prepare_to_rebuild_one_recursive_let_cont_handler cont params
-         extra_params_and_args ~original_cont_scope ~rebuild_handler)
+         extra_params_and_args ~rewrite_ids ~original_cont_scope
+         ~rebuild_handler)
 
 (* This only takes one handler at present since we don't yet support
    simplification of multiple recursive handlers. *)
@@ -895,9 +901,10 @@ let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
      because there are no CSE parameters introduced. Therefore, we pass an empty
      one to {simplify_one_continuation_handler}. *)
   let extra_params_and_args = EPA.empty in
+  let rewrite_ids = Apply_cont_rewrite_id.Set.empty in
   simplify_one_continuation_handler ~simplify_expr dacc cont
     ~at_unit_toplevel:false Recursive ~params ~handler ~extra_params_and_args
-    ~is_single_inlinable_use:false ~is_exn_handler:false
+    ~rewrite_ids ~is_single_inlinable_use:false ~is_exn_handler:false
     ~down_to_up:
       (after_downwards_traversal_of_one_recursive_let_cont_handler cont
          unboxing_decisions params ~original_cont_scope ~down_to_up)

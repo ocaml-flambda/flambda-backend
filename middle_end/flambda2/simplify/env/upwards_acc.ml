@@ -203,3 +203,5 @@ let is_demoted_exn_handler t cont =
 let slot_offsets t = t.slot_offsets
 
 let with_slot_offsets t slot_offsets = { t with slot_offsets }
+
+let continuation_param_aliases t = t.continuation_param_aliases

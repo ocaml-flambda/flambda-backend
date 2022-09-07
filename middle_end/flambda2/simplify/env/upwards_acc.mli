@@ -103,3 +103,5 @@ val is_demoted_exn_handler : t -> Continuation.t -> bool
 val slot_offsets : t -> Slot_offsets.t Or_unknown.t
 
 val with_slot_offsets : t -> Slot_offsets.t Or_unknown.t -> t
+
+val continuation_param_aliases : t -> Data_flow.continuation_param_aliases
