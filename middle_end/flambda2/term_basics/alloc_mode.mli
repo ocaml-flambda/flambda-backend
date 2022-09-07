@@ -32,7 +32,7 @@ val from_lambda : Lambda.alloc_mode -> t
 val to_lambda : t -> Lambda.alloc_mode
 
 module With_region : sig
-  type t =
+  type t = private
     | Heap  (** Normal allocation on the OCaml heap. *)
     | Local of { region : Variable.t }
         (** Allocation on the local allocation stack in the given region. *)
@@ -40,6 +40,11 @@ module With_region : sig
   val print : Format.formatter -> t -> unit
 
   val compare : t -> t -> int
+
+  val heap : t
+
+  (** Returns [Heap] if stack allocation is disabled! *)
+  val local : region:Variable.t -> t
 
   val without_region : t -> without_region
 

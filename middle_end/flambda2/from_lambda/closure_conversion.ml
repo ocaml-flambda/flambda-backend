@@ -373,11 +373,14 @@ let close_c_call acc env ~loc ~let_bound_var
   let box_return_value =
     match prim_native_repr_res with
     | _, Same_as_ocaml_repr -> None
-    | _, Unboxed_float -> Some (P.Box_number (Naked_float, Heap))
+    | _, Unboxed_float ->
+      Some (P.Box_number (Naked_float, Alloc_mode.With_region.heap))
     | _, Unboxed_integer Pnativeint ->
-      Some (P.Box_number (Naked_nativeint, Heap))
-    | _, Unboxed_integer Pint32 -> Some (P.Box_number (Naked_int32, Heap))
-    | _, Unboxed_integer Pint64 -> Some (P.Box_number (Naked_int64, Heap))
+      Some (P.Box_number (Naked_nativeint, Alloc_mode.With_region.heap))
+    | _, Unboxed_integer Pint32 ->
+      Some (P.Box_number (Naked_int32, Alloc_mode.With_region.heap))
+    | _, Unboxed_integer Pint64 ->
+      Some (P.Box_number (Naked_int64, Alloc_mode.With_region.heap))
     | _, Untagged_int -> Some P.Tag_immediate
   in
   let return_continuation, needs_wrapper =

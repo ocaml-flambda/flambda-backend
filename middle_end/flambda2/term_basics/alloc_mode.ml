@@ -65,6 +65,13 @@ module With_region = struct
     | Heap, Local _ -> -1
     | Local _, Heap -> 1
 
+  let heap = Heap
+
+  let local ~region =
+    if Flambda_features.stack_allocation_enabled ()
+    then Local { region }
+    else Heap
+
   let without_region t : without_region =
     match t with Heap -> Heap | Local _ -> Local
 

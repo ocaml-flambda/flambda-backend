@@ -329,10 +329,10 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
        be). *)
     let num_leading_heap_params = arity - num_trailing_local_params in
     if args_arity <= num_leading_heap_params
-    then Alloc_mode.With_region.Heap, num_trailing_local_params
+    then Alloc_mode.With_region.heap, num_trailing_local_params
     else
       let num_supplied_local_args = args_arity - num_leading_heap_params in
-      ( Alloc_mode.With_region.Local { region = current_region },
+      ( Alloc_mode.With_region.local ~region:current_region,
         num_trailing_local_params - num_supplied_local_args )
   in
   (match closure_alloc_mode with
@@ -859,11 +859,10 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
     let current_region = Apply.region apply in
     let closure_alloc_mode =
       Or_unknown.map closure_alloc_mode
-        ~f:(fun (closure_alloc_mode : Alloc_mode.t) : Alloc_mode.With_region.t
-           ->
+        ~f:(fun (closure_alloc_mode : Alloc_mode.t) ->
           match closure_alloc_mode with
-          | Heap -> Heap
-          | Local -> Local { region = current_region })
+          | Heap -> Alloc_mode.With_region.heap
+          | Local -> Alloc_mode.With_region.local ~region:current_region)
     in
     simplify_direct_function_call ~simplify_expr dacc apply
       ~callee's_code_id_from_type ~callee's_code_id_from_call_kind

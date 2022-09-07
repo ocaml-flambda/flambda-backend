@@ -304,7 +304,7 @@ let or_variable f env (ov : _ Fexpr.or_variable) : _ Or_variable.t =
 let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   match unop with
   | Array_length -> Array_length
-  | Box_number bk -> Box_number (bk, Heap)
+  | Box_number bk -> Box_number (bk, Alloc_mode.With_region.heap)
   | Unbox_number bk -> Unbox_number bk
   | Tag_immediate -> Tag_immediate
   | Untag_immediate -> Untag_immediate
@@ -374,7 +374,7 @@ let varop (varop : Fexpr.varop) n : Flambda_primitive.variadic_primitive =
     let kind : Flambda_primitive.Block_kind.t =
       Values (Tag.Scannable.create_exn tag, shape)
     in
-    Make_block (kind, mutability, Heap)
+    Make_block (kind, mutability, Alloc_mode.With_region.heap)
 
 let prim env (p : Fexpr.prim) : Flambda_primitive.t =
   match p with
@@ -421,7 +421,7 @@ let set_of_closures env fun_decls value_slots =
     in
     List.map convert value_slots |> Value_slot.Map.of_list
   in
-  Set_of_closures.create ~value_slots Heap fun_decls
+  Set_of_closures.create ~value_slots Alloc_mode.With_region.heap fun_decls
 
 let apply_cont env ({ cont; args; trap_action } : Fexpr.apply_cont) =
   let trap_action : Trap_action.t option =

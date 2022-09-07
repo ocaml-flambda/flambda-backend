@@ -122,7 +122,7 @@ let simplify_unbox_number (boxable_number_kind : K.Boxable_number.t) dacc
           DE.add_cse denv
             (P.Eligible_for_cse.create_exn
                (Unary
-                  ( Box_number (boxable_number_kind, Heap),
+                  ( Box_number (boxable_number_kind, Alloc_mode.With_region.heap),
                     Simple.var result_var' )))
             ~bound_to:arg)
   in

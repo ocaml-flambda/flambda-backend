@@ -274,7 +274,7 @@ let subst_set_of_closures env set =
            subst_value_slot env var, subst_simple env simple)
     |> Value_slot.Map.of_list
   in
-  Set_of_closures.create Alloc_mode.heap ~value_slots decls
+  Set_of_closures.create Alloc_mode.With_region.heap ~value_slots decls
 
 let subst_rec_info_expr _env ri =
   (* Only depth variables can occur in [Rec_info_expr], and we only mess with

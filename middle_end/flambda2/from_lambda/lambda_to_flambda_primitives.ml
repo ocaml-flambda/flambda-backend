@@ -506,10 +506,16 @@ let array_set_unsafe ~array ~index ~new_value (array_kind : P.Array_kind.t)
     ~current_region : H.expr_primitive =
   match array_kind with
   | Immediates | Values ->
-    Ternary (Array_set (array_kind, Assignment Heap), array, index, new_value)
+    Ternary
+      ( Array_set (array_kind, Assignment Alloc_mode.With_region.heap),
+        array,
+        index,
+        new_value )
   | Naked_floats ->
     Ternary
-      ( Array_set (Naked_floats, Assignment (Local { region = current_region })),
+      ( Array_set
+          ( Naked_floats,
+            Assignment (Alloc_mode.With_region.local ~region:current_region) ),
         array,
         index,
         unbox_float new_value )
@@ -610,7 +616,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
       (* If this is an empty array we can just give it array kind [Values].
          (Even empty flat float arrays have tag zero.) *)
       match args with
-      | [] -> Variadic (Make_array (Values, Immutable, Heap), [])
+      | [] ->
+        Variadic
+          (Make_array (Values, Immutable, Alloc_mode.With_region.heap), [])
       | elt :: _ ->
         (* Test the first element to see if it's a boxed float: if it is, this
            array must be created as a flat float array. *)
@@ -986,7 +994,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
              old_ref_value ))
     in
     Ternary
-      ( Block_set (block_access, Assignment (Local { region = current_region })),
+      ( Block_set
+          ( block_access,
+            Assignment (Alloc_mode.With_region.local ~region:current_region) ),
         block,
         Simple Simple.const_zero,
         new_ref_value )
@@ -1030,7 +1040,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
           b, indexes
         | [] -> Misc.fatal_errorf "Pbigarrayref is missing its arguments"
       in
-      let box = bigarray_box_or_tag_raw_value_to_read kind Heap in
+      let box =
+        bigarray_box_or_tag_raw_value_to_read kind Alloc_mode.With_region.heap
+      in
       box (bigarray_load ~dbg ~unsafe kind layout b indexes)
     | None, _ ->
       Misc.fatal_errorf

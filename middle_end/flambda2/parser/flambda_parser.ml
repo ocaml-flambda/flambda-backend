@@ -4246,7 +4246,7 @@ module Tables = struct
         let _endpos = _endpos__1_ in
         let _v : 'tv_init_or_assign = 
 # 418 "flambda_parser.mly"
-              ( Assignment Heap )
+              ( Assignment Alloc_mode.With_region.heap )
 # 4251 "flambda_parser_in.ml"
          in
         {
