@@ -358,5 +358,3 @@ let generate_asm oc lines =
        Buffer.output_buffer oc b;
     )
     lines
-
-    

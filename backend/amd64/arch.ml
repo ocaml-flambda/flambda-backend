@@ -222,7 +222,7 @@ let print_specific_operation printreg op ppf arg =
                    (print_addressing printreg addr)
                    (Array.sub arg 1 (Array.length arg - 1))
   | Ibswap { bitwidth } ->
-      fprintf ppf "bswap_%i %a" (int_of_bswap_bitwidth bitwidth) printreg arg.(0)
+    fprintf ppf "bswap_%i %a" (int_of_bswap_bitwidth bitwidth) printreg arg.(0)
   | Isextend32 ->
       fprintf ppf "sextend32 %a" printreg arg.(0)
   | Izextend32 ->
