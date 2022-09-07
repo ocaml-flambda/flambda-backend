@@ -872,8 +872,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         ~args:((List.map (simple env)) args)
         ~call_kind Debuginfo.none ~inlined ~inlining_state ~probe_name:None
         ~position:Normal ~relative_history:Inlining_history.Relative.empty
-        ~region:(Variable.create "xxx")
-      (* CR mshinwell: fix this *)
+        ~region:(Variable.create "FIXME")
+      (* CR mshinwell: fix region support *)
     in
     Flambda.Expr.create_apply apply
   | Invalid { message } -> Flambda.Expr.create_invalid (Message message)
@@ -911,5 +911,5 @@ let conv ~symbol_for_global ~module_ident (fexpr : Fexpr.flambda_unit) :
   let env = bind_all_code_ids env fexpr in
   let body = expr env fexpr.body in
   Flambda_unit.create ~return_continuation ~exn_continuation
-    ~toplevel_my_region:(Variable.create "XXX") (* XXX *)
+    ~toplevel_my_region:(Variable.create "toplevel_my_region")
     ~body ~module_symbol ~used_value_slots:Unknown
