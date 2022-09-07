@@ -221,3 +221,5 @@ module Expert = struct
     !Flambda_backend_flags.Flambda2.Expert.can_inline_recursive_functions
     |> with_default ~f:(fun d -> d.can_inline_recursive_functions)
 end
+
+let stack_allocation_enabled () = Config.stack_allocation

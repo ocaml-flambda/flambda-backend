@@ -306,7 +306,8 @@ let nullary_prim_size prim =
   match (prim : Flambda_primitive.nullary_primitive) with
   | Optimised_out _ -> 0
   | Probe_is_enabled { name = _ } -> 4
-  | Begin_region -> 1
+  | Begin_region ->
+    if Flambda_features.stack_allocation_enabled () then 1 else 0
 
 let unary_prim_size prim =
   match (prim : Flambda_primitive.unary_primitive) with
@@ -331,7 +332,7 @@ let unary_prim_size prim =
   | Project_value_slot _ -> 1 (* load *)
   | Is_boxed_float -> 4 (* tag load + comparison *)
   | Is_flat_float_array -> 4 (* tag load + comparison *)
-  | End_region -> 1
+  | End_region -> if Flambda_features.stack_allocation_enabled () then 1 else 0
 
 let binary_prim_size prim =
   match (prim : Flambda_primitive.binary_primitive) with

@@ -1757,3 +1757,9 @@ module Without_args = struct
     | Ternary prim -> print_ternary_primitive ppf prim
     | Variadic prim -> print_variadic_primitive ppf prim
 end
+
+let is_begin_or_end_region t =
+  match t with
+  | Nullary Begin_region | Unary (End_region, _) -> true
+  | _ -> false
+  [@@ocaml.warning "-fragile-match"]
