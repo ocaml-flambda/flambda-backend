@@ -141,10 +141,13 @@ module Env : sig
   (** The innermost (newest) region is first in the list. *)
   val region_stack : t -> region_stack_element list
 
-  val region_stack_in_cont_scope : t -> Continuation.t -> region_stack_element list
+  val region_stack_in_cont_scope :
+    t -> Continuation.t -> region_stack_element list
 
-  (** Hack for staticfail (which should eventually use [pop_regions_up_to_context]) *)
-  val pop_region : region_stack_element list -> (Ident.t * region_stack_element list) option
+  (** Hack for staticfail (which should eventually use
+      [pop_regions_up_to_context]) *)
+  val pop_region :
+    region_stack_element list -> (Ident.t * region_stack_element list) option
 
   val pop_regions_up_to_context : t -> Continuation.t -> Ident.t option
 
@@ -366,7 +369,9 @@ end = struct
     | _ :: region_stack -> { t with region_stack }
 
   let current_region t =
-    match t.region_stack with [] -> t.my_region | (Regular region | Try_with region) :: _ -> region
+    match t.region_stack with
+    | [] -> t.my_region
+    | (Regular region | Try_with region) :: _ -> region
 
   let region_stack t = t.region_stack
 
@@ -386,7 +391,8 @@ end = struct
     let rec pop to_pop region_stack =
       match initial_stack_context, region_stack with
       | [], [] -> to_pop
-      | ([] | Try_with _ :: _), Regular region :: regions -> pop (Some region) regions
+      | ([] | Try_with _ :: _), Regular region :: regions ->
+        pop (Some region) regions
       | ([] | Regular _ :: _), Try_with _ :: regions -> pop to_pop regions
       | _initial_stack_top :: _, [] ->
         Misc.fatal_errorf "Unable to restore region stack for %a"
@@ -519,13 +525,16 @@ let compile_staticfail acc env ccenv ~(continuation : Continuation.t) ~args :
           Not_user_visible (End_region region) ~body
     in
     let no_end_region after_everything = after_everything in
-    match Env.pop_region region_stack_now, Env.pop_region region_stack_at_handler with
+    match
+      Env.pop_region region_stack_now, Env.pop_region region_stack_at_handler
+    with
     | None, None -> no_end_region
     | Some (region1, region_stack_now), Some (region2, _) ->
       if Ident.same region1 region2
       then no_end_region
       else add_end_region region1 ~region_stack_now
-    | Some (region, region_stack_now), None -> add_end_region region ~region_stack_now
+    | Some (region, region_stack_now), None ->
+      add_end_region region ~region_stack_now
     | None, Some _ -> assert false
     (* see above *)
   in
