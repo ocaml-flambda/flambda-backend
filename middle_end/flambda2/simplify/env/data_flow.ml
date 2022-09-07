@@ -903,7 +903,8 @@ module Dominator_graph = struct
           { t with graph })
         all_variables t
     in
-    (* Format.eprintf "GRAPH:@\n%a@." (Variable.Map.print Variable.Set.print) t.graph; *)
+    (* Format.eprintf "GRAPH:@\n%a@." (Variable.Map.print Variable.Set.print)
+       t.graph; *)
     t
 
   let find_dom var doms =
@@ -1057,7 +1058,7 @@ module Control_flow_graph = struct
     { dummy_toplevel_cont : Continuation.t;
       callers : Continuation.Set.t Continuation.Map.t;
       parents : Continuation.t Continuation.Map.t;
-      children : Continuation.Set.t Continuation.Map.t;
+      children : Continuation.Set.t Continuation.Map.t
     }
 
   let add ~caller ~callee map =
@@ -1074,12 +1075,14 @@ module Control_flow_graph = struct
         map
     in
     let children =
-      Continuation.Map.fold (fun k parent acc ->
-          Continuation.Map.update parent (function
+      Continuation.Map.fold
+        (fun k parent acc ->
+          Continuation.Map.update parent
+            (function
               | None -> Some (Continuation.Set.singleton k)
-              | Some set -> Some (Continuation.Set.add k set)
-            ) acc
-        ) parents Continuation.Map.empty
+              | Some set -> Some (Continuation.Set.add k set))
+            acc)
+        parents Continuation.Map.empty
     in
     let callers =
       Continuation.Map.fold
@@ -1102,85 +1105,94 @@ module Control_flow_graph = struct
           Continuation.Set.fold
             (fun callee acc -> add ~caller ~callee acc)
             elt.apply_exn_conts acc)
-        map (Continuation.Map.singleton dummy_toplevel_cont Continuation.Set.empty)
+        map
+        (Continuation.Map.singleton dummy_toplevel_cont Continuation.Set.empty)
     in
-    { dummy_toplevel_cont; callers; parents; children; }
+    { dummy_toplevel_cont; callers; parents; children }
 
-  (* This does not need to be tail-rec as other parts of flambda2 are already not
-     tail-rec in the number of nested continuations. *)
+  (* This does not need to be tail-rec as other parts of flambda2 are already
+     not tail-rec in the number of nested continuations. *)
   let map_fold_on_children { children; dummy_toplevel_cont; _ } f acc =
     let rec aux k acc =
       let acc = f k acc in
       let map = Continuation.Map.singleton k acc in
       match Continuation.Map.find k children with
       | exception Not_found -> map
-      | s -> Continuation.Set.fold (fun child map ->
-          Continuation.Map.disjoint_union map (aux child acc)
-        ) s map
+      | s ->
+        Continuation.Set.fold
+          (fun child map -> Continuation.Map.disjoint_union map (aux child acc))
+          s map
     in
     aux dummy_toplevel_cont acc
 
   let compute_available_variables ~(source_info : source_info) t =
-    map_fold_on_children t (fun k acc ->
+    map_fold_on_children t
+      (fun k acc ->
         let elt = Continuation.Map.find k source_info.map in
         let extra_vars =
           match Continuation.Map.find k source_info.extra with
           | exception Not_found -> Variable.Set.empty
           | epa ->
-            let extra_params = Continuation_extra_params_and_args.extra_params epa in
+            let extra_params =
+              Continuation_extra_params_and_args.extra_params epa
+            in
             Bound_parameters.var_set extra_params
         in
         Variable.Set.union
           (Variable.Set.union acc (Variable.Set.of_list elt.params))
-          extra_vars
-      ) Variable.Set.empty
+          extra_vars)
+      Variable.Set.empty
 
   let compute_transitive_parents t =
     map_fold_on_children t Continuation.Set.add Continuation.Set.empty
 
-  let compute_continuation_extra_args_for_aliases
-      ~(source_info : source_info) doms t =
+  let compute_continuation_extra_args_for_aliases ~(source_info : source_info)
+      doms t =
     let available_variables = compute_available_variables ~source_info t in
     let transitive_parents = compute_transitive_parents t in
     let remove_vars_in_scope_of k var_set =
       let elt : elt = Continuation.Map.find k source_info.map in
-      let res = Variable.Set.diff var_set (Continuation.Map.find k available_variables) in
-      Variable.Set.filter (fun var ->
-          not (Name.Map.mem (Name.var var) elt.bindings)
-        ) res
+      let res =
+        Variable.Set.diff var_set (Continuation.Map.find k available_variables)
+      in
+      Variable.Set.diff res elt.defined
     in
     let q_is_empty, pop, push =
       let q = Queue.create () in
       let q_s = ref Continuation.Set.empty in
-      (fun () -> Queue.is_empty q),
-      (fun () ->
-         let k = Queue.pop q in
-         q_s := Continuation.Set.remove k !q_s;
-         k),
-      (fun k ->
-         if not (Continuation.Set.mem k !q_s) then (
-           Queue.add k q;
-           q_s := Continuation.Set.add k !q_s
-         ))
+      ( (fun () -> Queue.is_empty q),
+        (fun () ->
+          let k = Queue.pop q in
+          q_s := Continuation.Set.remove k !q_s;
+          k),
+        fun k ->
+          if not (Continuation.Set.mem k !q_s)
+          then (
+            Queue.add k q;
+            q_s := Continuation.Set.add k !q_s) )
     in
     let init =
-      Continuation.Map.mapi (fun k elt ->
+      Continuation.Map.mapi
+        (fun k elt ->
           let s =
-            List.fold_left (fun acc param ->
+            List.fold_left
+              (fun acc param ->
                 let dom =
                   match Variable.Map.find param doms with
                   | exception Not_found ->
-                    Misc.fatal_errorf "Dom not found for: %a@." Variable.print param
+                    Misc.fatal_errorf "Dom not found for: %a@." Variable.print
+                      param
                   | dom -> dom
                 in
-                if Variable.equal param dom then acc
-                else Variable.Set.add dom acc
-              ) Variable.Set.empty elt.params
+                if Variable.equal param dom
+                then acc
+                else Variable.Set.add dom acc)
+              Variable.Set.empty elt.params
           in
           let s = remove_vars_in_scope_of k s in
           if not (Variable.Set.is_empty s) then push k;
-          s
-        ) source_info.map
+          s)
+        source_info.map
     in
     let res = ref init in
     while not (q_is_empty ()) do
@@ -1190,36 +1202,41 @@ module Control_flow_graph = struct
       let callers =
         match Continuation.Map.find k t.callers with
         | exception Not_found ->
-          Misc.fatal_errorf "Callers not found for: %a" Continuation.print k;
+          Misc.fatal_errorf "Callers not found for: %a" Continuation.print k
         | callers -> callers
       in
       let callers =
-        if not elt.recursive then callers
+        if not elt.recursive
+        then callers
         else
-          Continuation.Set.filter (fun caller ->
-              not (Continuation.Set.mem k (Continuation.Map.find caller transitive_parents))
-            ) callers
+          Continuation.Set.filter
+            (fun caller ->
+              not
+                (Continuation.Set.mem k
+                   (Continuation.Map.find caller transitive_parents)))
+            callers
       in
-      Continuation.Set.iter (fun caller ->
+      Continuation.Set.iter
+        (fun caller ->
           let old_aliases_needed = Continuation.Map.find caller !res in
           let new_aliases_needed =
             Variable.Set.union old_aliases_needed
               (remove_vars_in_scope_of caller aliases_needed)
           in
-          if not (Variable.Set.equal old_aliases_needed new_aliases_needed) then begin
+          if not (Variable.Set.equal old_aliases_needed new_aliases_needed)
+          then (
             res := Continuation.Map.add caller new_aliases_needed !res;
-            push caller
-          end
-        ) callers
+            push caller))
+        callers
     done;
     !res
-
 
   module Dot = struct
     let node_id ~ctx ppf (cont : Continuation.t) =
       Format.fprintf ppf "node_%d_%d" ctx (cont :> int)
 
-    let node ?(extra_args=Variable.Set.empty) ?(info = "") ~df ~ctx () ppf cont =
+    let node ?(extra_args = Variable.Set.empty) ?(info = "") ~df ~ctx () ppf
+        cont =
       let params, shape =
         match Continuation.Map.find cont df.map with
         | exception Not_found -> "[ none ]", ""
@@ -1235,17 +1252,19 @@ module Control_flow_graph = struct
           params, shape
       in
       Format.fprintf ppf "%a [label=\"%a %s %s\" %s %s];@\n" (node_id ~ctx) cont
-        Continuation.print cont
-        params
-        (String.map (function '{' -> '[' | '}' -> ']' | c -> c)
-             (Format.asprintf "%a" Variable.Set.print extra_args))
+        Continuation.print cont params
+        (String.map
+           (function '{' -> '[' | '}' -> ']' | c -> c)
+           (Format.asprintf "%a" Variable.Set.print extra_args))
         shape info
 
-    let nodes ~df ~ctx ~return_continuation ~exn_continuation ~extra_args_for_aliases
-        ppf cont_map =
+    let nodes ~df ~ctx ~return_continuation ~exn_continuation
+        ~extra_args_for_aliases ppf cont_map =
       Continuation.Set.iter
         (fun cont ->
-           let extra_args = Continuation.Map.find_opt cont extra_args_for_aliases in
+          let extra_args =
+            Continuation.Map.find_opt cont extra_args_for_aliases
+          in
           let info =
             if Continuation.equal return_continuation cont
             then "color=blue"
@@ -1273,11 +1292,8 @@ module Control_flow_graph = struct
         (fun src dst -> edge ~ctx ~color ppf src dst)
         edge_map
 
-    let print ~ctx ~df ~print_name ppf
-        ~return_continuation
-        ~exn_continuation
-        ~extra_args_for_aliases
-        (t : t) =
+    let print ~ctx ~df ~print_name ppf ~return_continuation ~exn_continuation
+        ~extra_args_for_aliases (t : t) =
       let dummy_toplevel_cont = t.dummy_toplevel_cont in
       let all_conts =
         Continuation.Map.fold
@@ -1296,7 +1312,8 @@ module Control_flow_graph = struct
           Format.fprintf ppf
             "subgraph cluster_%d { label=\"%s\";@\n%a%a@\n%a@\n%a@\n}@." ctx
             print_name (node ~df ~ctx ()) dummy_toplevel_cont
-            (nodes ~df ~return_continuation ~exn_continuation ~ctx ~extra_args_for_aliases)
+            (nodes ~df ~return_continuation ~exn_continuation ~ctx
+               ~extra_args_for_aliases)
             all_conts
             (edges' ~ctx ~color:"green")
             t.parents
@@ -1344,7 +1361,7 @@ let analyze ?print_name ~return_continuation ~exn_continuation
       assert (
         not
           (Continuation.name dummy_toplevel_cont
-           = wrong_dummy_toplevel_cont_name));
+          = wrong_dummy_toplevel_cont_name));
       Format.eprintf "SOURCE:@\n%a@\n@." print t;
       let dom_graph =
         Dominator_graph.create map extra ~return_continuation ~exn_continuation
