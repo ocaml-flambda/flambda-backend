@@ -185,7 +185,6 @@ let tuple (ts : ('a, 'reprs, 'r) Tuple.Of2(T).t) :
     | [] -> []
     | { impl; _ } :: ts -> impl :: impls ts
   in
-
   let rec get_values :
       type a reprs r.
       (a, reprs, r) Tuple.Of2(T).t -> (reprs, r) Tuple.t -> (a, r) Tuple.t =
@@ -196,7 +195,6 @@ let tuple (ts : ('a, 'reprs, 'r) Tuple.Of2(T).t) :
       get_value repr :: get_values ts reprs
     | _ :: _, [] | [], _ :: _ -> assert false
   in
-
   let impl = tuple_impl (impls ts) in
   let get_value = get_values ts in
   { impl; get_value }

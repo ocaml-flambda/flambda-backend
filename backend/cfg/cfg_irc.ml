@@ -60,7 +60,7 @@ let build : State.t -> Cfg_with_layout.t -> liveness -> unit =
           (fun reg1 ->
             Array.iter Proc.destroyed_at_raise ~f:(fun reg2 ->
                 State.add_edge state reg1 reg2))
-          live.across)
+          (Reg.Set.remove Proc.loc_exn_bucket live.before))
 
 let make_work_list : State.t -> unit =
  fun state ->

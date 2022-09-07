@@ -791,7 +791,6 @@ and print_let_expr ppf ({ let_abst = _; defining_expr } as t) : unit =
       | Simple _ | Prim _ | Set_of_closures _ | Static_consts _ ->
         Flambda_colours.variable ()
   in
-
   let rec let_body (expr : expr) =
     match descr expr with
     | Let ({ let_abst = _; defining_expr } as t) ->

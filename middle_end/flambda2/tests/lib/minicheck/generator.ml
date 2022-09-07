@@ -55,7 +55,6 @@ let log_int =
        isn't true for JavaScript *)
     Sys.word_size - 1
   in
-
   fun r ->
     (* Pick a random size for our int, then pick an integer uniformly but only
        keep that many bits. (This doesn't produce an actual log-uniform
