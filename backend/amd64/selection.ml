@@ -324,11 +324,11 @@ method! select_operation op args dbg =
          Ispecific Ifloat_max, args
       | "caml_pause_hint", ([|Val|] | [| |]) ->
          Ispecific Ipause, args
-      | "caml_lfence", ([|Val|] | [| |]) -> 
+      | "caml_load_fence", ([|Val|] | [| |]) -> 
          Ispecific Ilfence, args
-      | "caml_sfence", ([|Val|] | [| |]) -> 
+      | "caml_store_fence", ([|Val|] | [| |]) -> 
          Ispecific Isfence, args
-      | "caml_mfence", ([|Val|] | [| |]) -> 
+      | "caml_memory_fence", ([|Val|] | [| |]) -> 
          Ispecific Imfence, args
       | _ ->
         super#select_operation op args dbg
