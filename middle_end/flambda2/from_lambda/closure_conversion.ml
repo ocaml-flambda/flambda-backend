@@ -731,7 +731,10 @@ let close_let acc env id user_visible defining_expr
     | None -> body acc body_env
     | Some (Prim ((Nullary Begin_region | Unary (End_region, _)), _))
       when not (Flambda_features.stack_allocation_enabled ()) ->
-      body acc env
+      (* We use [body_env] to ensure the region variables are still in the
+         environment, to avoid lookup errors, even though the [Let] won't be
+         generated. *)
+      body acc body_env
     | Some defining_expr -> (
       let body_env =
         match defining_expr with
