@@ -478,10 +478,10 @@ let set_rebuild_terms t = { t with do_not_rebuild_terms = false }
 let are_rebuilding_terms t =
   Are_rebuilding_terms.of_bool (not t.do_not_rebuild_terms)
 
-let enter_closure code_id ~return_continuation ~exn_continuation t =
+let enter_closure code_id ~return_continuation ~exn_continuation ~my_closure t =
   { t with
     closure_info =
-      Closure_info.in_a_closure code_id ~return_continuation ~exn_continuation
+      Closure_info.in_a_closure code_id ~return_continuation ~exn_continuation ~my_closure
   }
 
 let closure_info t = t.closure_info

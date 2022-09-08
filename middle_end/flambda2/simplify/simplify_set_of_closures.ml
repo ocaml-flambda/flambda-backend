@@ -454,7 +454,7 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
             (DA.get_lifted_constants outer_dacc)
         in
         let denv =
-          DE.enter_closure code_id ~return_continuation ~exn_continuation denv
+          DE.enter_closure code_id ~return_continuation ~exn_continuation ~my_closure denv
         in
         let denv = DE.increment_continuation_scope denv in
         DE.add_parameters_with_unknown_types denv return_cont_params)
