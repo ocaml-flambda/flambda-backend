@@ -340,6 +340,7 @@ let destroyed_at_oper = function
   | Iexit (_, traps) when has_pushtrap traps -> destroyed_at_pushtrap
   | Ireturn traps when has_pushtrap traps -> assert false
   | Iop(Ispecific (Irdtsc | Irdpmc)) -> [| rax; rdx |]
+  | Iop(Ispecific(Ilfence | Isfence | Imfence)) -> [||]
   | Iop(Ispecific(Isqrtf | Isextend32 | Izextend32 | Icrc32q | Ilea _
                  | Istore_int (_, _, _) | Ioffset_loc (_, _)
                  | Ipause
@@ -424,6 +425,7 @@ let max_register_pressure =
   | Istackoffset _ | Iload (_, _, _)
   | Ispecific(Ilea _ | Isextend32 | Izextend32 | Iprefetch _ | Ipause
              | Irdtsc | Irdpmc | Icrc32q | Istore_int (_, _, _)
+             | Ilfence | Isfence | Imfence
              | Ifloat_round _
              | Ifloat_iround | Ifloat_min | Ifloat_max
              | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
