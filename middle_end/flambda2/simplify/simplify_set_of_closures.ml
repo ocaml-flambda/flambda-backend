@@ -85,6 +85,7 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
     LCS.add_to_denv ~maybe_already_defined:() denv
       (DA.get_lifted_constants outer_dacc)
     |> DE.enter_closure code_id ~return_continuation ~exn_continuation
+         ~my_closure
     |> DE.increment_continuation_scope
   in
   let denv = DE.add_parameters_with_unknown_types denv return_cont_params in
