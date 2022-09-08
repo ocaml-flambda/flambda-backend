@@ -149,10 +149,9 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
     ~rewrite_ids ~is_single_inlinable_use ~is_exn_handler handler uacc
     ~after_rebuild =
   let Data_flow.{ aliases; _ } = UA.continuation_param_aliases uacc in
-  let rewritten_aliases = ref false in
-  let handler, rev_params, uacc =
+  let handler, uacc =
     List.fold_left
-      (fun (handler, rev_params, uacc) bp ->
+      (fun (handler, uacc) bp ->
         let var = BP.var bp in
         let alias =
           match Variable.Map.find var aliases with
@@ -160,9 +159,8 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
           | alias -> if Variable.equal alias var then None else Some alias
         in
         match alias with
-        | None -> handler, bp :: rev_params, uacc
+        | None -> handler, uacc
         | Some alias ->
-          rewritten_aliases := true;
           Format.printf "ADD ALIAS LET %a = %a@." Variable.print var
             Variable.print alias;
           let bound_pattern =
@@ -175,11 +173,10 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
                 (Name_occurrences.singleton_variable alias Name_mode.normal)
               ~cost_metrics_of_defining_expr:Cost_metrics.zero ~body:handler
           in
-          handler, rev_params, uacc)
-      (handler, [], uacc)
+          handler, uacc)
+      (handler, uacc)
       (Bound_parameters.to_list params)
   in
-  let params = Bound_parameters.create (List.rev rev_params) in
   let handler, uacc =
     (* We might need to place lifted constants now, as they could depend on
        continuation parameters. As such we must also compute the unused
@@ -201,7 +198,6 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
   let uacc, params, new_phantom_params =
     match recursive with
     | Recursive -> (
-      if !rewritten_aliases then failwith "TODO introdule wrapper let cont";
       (* In the recursive case, we have already added an apply_cont_rewrite for
          the recursive continuation to eliminate unused parameters in its
          handler. *)
@@ -829,6 +825,14 @@ let prepare_to_rebuild_one_recursive_let_cont_handler cont params
       params
   in
   let used_params = Bound_parameters.to_set used_params_list in
+  (* TODO: remove this check once we properly wrap rec conts *)
+  let _temp_check =
+    let Data_flow.{ extra_args_for_aliases; _ } =
+      UA.continuation_param_aliases uacc
+    in
+    let required_extra_args = Continuation.Map.find cont extra_args_for_aliases in
+    assert (Variable.Set.is_empty required_extra_args)
+  in
   let extra_params_and_args =
     add_extra_params_for_continuation_param_aliases cont uacc rewrite_ids
       extra_params_and_args

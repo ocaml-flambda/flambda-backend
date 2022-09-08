@@ -34,7 +34,7 @@ type t =
     are_rebuilding_terms : ART.t;
     generate_phantom_lets : bool;
     (* CR gbury: required_names and reachable_code_ids should be exposed in the
-       same field *)
+       same field, as a Data_flow.dead_variable_result field. *)
     required_names : Name.Set.t;
     reachable_code_ids : Data_flow.Reachable_code_ids.t Or_unknown.t;
     demoted_exn_handlers : Continuation.Set.t;

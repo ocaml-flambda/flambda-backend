@@ -813,30 +813,36 @@ module Dominator_graph = struct
   module G = Strongly_connected_components.Make (Variable)
 
   type t =
-    { graph : G.directed_graph;
+    { required_names : Name.Set.t;
+      graph : G.directed_graph;
       dominator_roots : Variable.Set.t
           (* variables that are dominated only by themselves, usually because a
              constant or a symbol can flow to that variable, and thus that
              variable cannot be dominated by another variable. *)
     }
 
-  let empty =
+  let empty ~required_names =
     let graph = Variable.Map.empty in
     let dominator_roots = Variable.Set.empty in
-    { graph; dominator_roots }
+    { required_names; graph; dominator_roots }
 
   let add_node t var =
-    let graph =
-      Variable.Map.update var
-        (function None -> Some Variable.Set.empty | Some _ as res -> res)
-        t.graph
-    in
-    { t with graph }
+    if not (Name.Set.mem (Name.var var) t.required_names) then t
+    else
+      let graph =
+        Variable.Map.update var
+          (function None -> Some Variable.Set.empty | Some _ as res -> res)
+          t.graph
+      in
+      { t with graph }
 
   let add_root var t =
-    { t with dominator_roots = Variable.Set.add var t.dominator_roots }
+    if not (Name.Set.mem (Name.var var) t.required_names) then t
+    else { t with dominator_roots = Variable.Set.add var t.dominator_roots }
 
   let add_edge ~src ~dst t =
+    if not (Name.Set.mem (Name.var src) t.required_names) then t
+    else
     Simple.pattern_match' dst
       ~const:(fun _ -> add_root src t)
       ~symbol:(fun _ ~coercion:_ -> add_root src t)
@@ -879,12 +885,13 @@ module Dominator_graph = struct
             args t)
       elt.apply_cont_args t
 
-  let create ~return_continuation ~exn_continuation map extra =
-    let t =
-      Continuation.Map.fold
-        (add_continuation_info ~return_continuation ~exn_continuation map)
-        map empty
-    in
+    let create ~required_names ~return_continuation ~exn_continuation map extra =
+      let t = empty ~required_names in
+      let t =
+        Continuation.Map.fold
+          (add_continuation_info ~return_continuation ~exn_continuation map)
+          map t
+      in
     let t =
       Continuation.Map.fold
         (fun _ (extra_params_and_args : Continuation_extra_params_and_args.t) t ->
@@ -946,7 +953,7 @@ module Dominator_graph = struct
        want to initialize the dominator to the variable itself. *)
     try Variable.Map.find var doms with Not_found -> var
 
-  let update_doms_for_one_var { dominator_roots; graph } doms var =
+  let update_doms_for_one_var { dominator_roots; graph; _ } doms var =
     let dom =
       if Variable.Set.mem var dominator_roots
       then var
@@ -963,7 +970,7 @@ module Dominator_graph = struct
     in
     Variable.Map.add var dom doms
 
-  let initialize_doms_for_fixpoint { dominator_roots = _; graph } doms vars =
+  let initialize_doms_for_fixpoint { graph; _ } doms vars =
     (* Note: since all vars are in a cycle, all_predecessors will include all
        vars *)
     let all_predecessors =
@@ -987,7 +994,7 @@ module Dominator_graph = struct
       (fun doms var -> Variable.Map.add var init_doms doms)
       outside_cycle vars
 
-  let rec dom_fixpoint ({ dominator_roots = _; graph } as t) acc vars =
+  let rec dom_fixpoint ({ graph; _ } as t) acc vars =
     let acc' =
       List.fold_left
         (fun acc var ->
@@ -1021,7 +1028,7 @@ module Dominator_graph = struct
         Variable.Map.add var dom doms)
       doms vars
 
-  let dominator_analysis ({ graph; dominator_roots = _ } as t) =
+  let dominator_analysis ({ graph; _ } as t) =
     let components = G.connected_components_sorted_from_roots_to_leaf graph in
     let dominators =
       Array.fold_right
@@ -1189,7 +1196,7 @@ module Control_flow_graph = struct
           available ))
       Variable.Set.empty
 
-  let compute_continuation_extra_args_for_aliases ~(source_info : source_info)
+  let compute_continuation_extra_args_for_aliases ~required_names ~(source_info : source_info)
       doms t =
     let available_variables = compute_available_variables ~source_info t in
     let transitive_parents = compute_transitive_parents t in
@@ -1223,8 +1230,10 @@ module Control_flow_graph = struct
                 let dom =
                   match Variable.Map.find param doms with
                   | exception Not_found ->
-                    Misc.fatal_errorf "Dom not found for: %a@." Variable.print
-                      param
+                    if Name.Set.mem (Name.var param) required_names then
+                      Misc.fatal_errorf "Dom not found for: %a@." Variable.print
+                        param
+                    else param
                   | dom -> dom
                 in
                 if Variable.equal param dom
@@ -1277,8 +1286,8 @@ module Control_flow_graph = struct
     in
     if not (Variable.Set.is_empty extra_args_for_toplevel_cont)
     then
-      Misc.fatal_errorf
-        "Toplevel continuation cannot have needed extra argument: %a"
+      Format.eprintf
+        "ERROR:@\nToplevel continuation cannot have needed extra argument: %a@."
         Variable.Set.print extra_args_for_toplevel_cont;
     let added_extra_args = !res in
     let available_added_extra_args =
@@ -1422,8 +1431,19 @@ let analyze ?print_name ~return_continuation ~exn_continuation
           (Continuation.name dummy_toplevel_cont
           = wrong_dummy_toplevel_cont_name));
       Format.eprintf "SOURCE:@\n%a@\n@." print t;
+
+      (* Dead variable analysis *)
+      let deps =
+        Dependency_graph.create map extra ~return_continuation ~exn_continuation
+          ~code_age_relation ~used_value_slots
+      in
+      Format.eprintf "/// graph@\n%a@\n@." Dependency_graph._print deps;
+      let dead_variable_result = Dependency_graph.required_names deps in
+
+      (* Aliases analysis *)
       let dom_graph =
         Dominator_graph.create map extra ~return_continuation ~exn_continuation
+          ~required_names:dead_variable_result.required_names
       in
       let aliases = Dominator_graph.dominator_analysis dom_graph in
       (match print_name with
@@ -1438,7 +1458,7 @@ let analyze ?print_name ~return_continuation ~exn_continuation
       let control = Control_flow_graph.create ~dummy_toplevel_cont t in
       let extra_args_for_aliases =
         Control_flow_graph.compute_continuation_extra_args_for_aliases
-          ~source_info:t aliases control
+          ~source_info:t aliases control ~required_names:dead_variable_result.required_names
       in
       (match print_name with
       | None -> ()
@@ -1451,16 +1471,11 @@ let analyze ?print_name ~return_continuation ~exn_continuation
               control)
           (Lazy.force control_flow_graph_ppf));
 
-      let deps =
-        Dependency_graph.create map extra ~return_continuation ~exn_continuation
-          ~code_age_relation ~used_value_slots
-      in
-      (* Format.eprintf "/// graph@\n%a@\n@." Dependency_graph._print deps; *)
-      let dead_variable_result = Dependency_graph.required_names deps in
+      (* Return *)
       let result =
         { dead_variable_result;
           continuation_param_aliases = { aliases; extra_args_for_aliases }
         }
       in
-      (* Format.eprintf "/// result@\n%a@\n@." _print_result result; *)
+      Format.eprintf "/// result@\n%a@\n@." _print_result result;
       result)
