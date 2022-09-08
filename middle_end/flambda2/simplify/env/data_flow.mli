@@ -110,6 +110,7 @@ type dead_variable_result =
 
 type continuation_param_aliases =
   { aliases : Variable.t Variable.Map.t;
+    aliases_kind : Flambda_kind.t Variable.Map.t;
     extra_args_for_aliases : Variable.Set.t Continuation.Map.t
   }
 

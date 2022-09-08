@@ -69,6 +69,7 @@ type source_info = t
 
 type continuation_param_aliases =
   { aliases : Variable.t Variable.Map.t;
+    aliases_kind : Flambda_kind.t Variable.Map.t;
     extra_args_for_aliases : Variable.Set.t Continuation.Map.t
   }
 
@@ -153,28 +154,32 @@ let [@ocamlformat "disable"] print ppf { stack; map; extra; dummy_toplevel_cont 
     print_extra extra
 
 let [@ocamlformat "disable"] print_continuation_param_aliases ppf
-    { aliases; extra_args_for_aliases } =
+    { aliases; aliases_kind; extra_args_for_aliases } =
   Format.fprintf ppf
     "@[<hov 1>(\
        @[<hov 1>(aliases@ %a)@]@ \
+       @[<hov 1>(aliases_kind@ %a)@]@ \
        @[<hov 1>(extra_args_for_aliases@ %a)@]\
      )@]"
     (Variable.Map.print Variable.print) aliases
+    (Variable.Map.print Flambda_kind.print) aliases_kind
     (Continuation.Map.print Variable.Set.print) extra_args_for_aliases
 
 let [@ocamlformat "disable"] _print_result ppf
     { dead_variable_result = { required_names; reachable_code_ids };
-      continuation_param_aliases = { aliases; extra_args_for_aliases } } =
+      continuation_param_aliases = { aliases; aliases_kind; extra_args_for_aliases } } =
   Format.fprintf ppf
     "@[<hov 1>(\
        @[<hov 1>(required_names@ %a)@]@ \
        @[<hov 1>(reachable_code_ids@ %a)@]@ \
        @[<hov 1>(aliases@ %a)@]@ \
+       @[<hov 1>(aliases_kind@ %a)@]@ \
        @[<hov 1>(extra_args_for_aliases@ %a)@]\
      )@]"
     Name.Set.print required_names
     Reachable_code_ids.print reachable_code_ids
     (Variable.Map.print Variable.print) aliases
+    (Variable.Map.print Flambda_kind.print) aliases_kind
     (Continuation.Map.print Variable.Set.print) extra_args_for_aliases
 
 (* Creation *)
@@ -815,6 +820,7 @@ module Dominator_graph = struct
 
   type t =
     { required_names : Name.Set.t;
+      params_kind : Flambda_kind.With_subkind.t Variable.Map.t;
       graph : G.directed_graph;
       dominator_roots : Variable.Set.t
           (* variables that are dominated only by themselves, usually because a
@@ -825,7 +831,8 @@ module Dominator_graph = struct
   let empty ~required_names =
     let graph = Variable.Map.empty in
     let dominator_roots = Variable.Set.empty in
-    { required_names; graph; dominator_roots }
+    let params_kind = Variable.Map.empty in
+    { required_names; params_kind; graph; dominator_roots }
 
   let add_node t var =
     if not (Name.Set.mem (Name.var var) t.required_names)
@@ -862,7 +869,18 @@ module Dominator_graph = struct
 
   let add_continuation_info map _k elt t ~return_continuation ~exn_continuation
       =
-    let t = List.fold_left add_node t (Bound_parameters.vars elt.params) in
+    let t =
+      List.fold_left
+        (fun t bp ->
+          let var = Bound_parameter.var bp in
+          let t = add_node t var in
+          let params_kind =
+            Variable.Map.add var (Bound_parameter.kind bp) t.params_kind
+          in
+          { t with params_kind })
+        t
+        (Bound_parameters.to_list elt.params)
+    in
     Continuation.Map.fold
       (fun k args t ->
         if Continuation.equal return_continuation k
@@ -898,7 +916,19 @@ module Dominator_graph = struct
     in
     let t =
       Continuation.Map.fold
-        (fun _ (extra_params_and_args : Continuation_extra_params_and_args.t) t ->
+        (fun _ (extra_params_and_args : EPA.t) t ->
+          let t =
+            List.fold_left
+              (fun t bp ->
+                let params_kind =
+                  Variable.Map.add (Bound_parameter.var bp)
+                    (Bound_parameter.kind bp) t.params_kind
+                in
+                { t with params_kind })
+              t
+              (Bound_parameters.to_list
+                 (EPA.extra_params extra_params_and_args))
+          in
           Apply_cont_rewrite_id.Map.fold
             (fun _ extra_args t ->
               List.fold_left2
@@ -1051,6 +1081,25 @@ module Dominator_graph = struct
         components Variable.Map.empty
     in
     dominators
+
+  let aliases_kind { params_kind; required_names; _ } aliases =
+    Variable.Map.fold
+      (fun param kind acc ->
+        if not (Name.Set.mem (Name.var param) required_names)
+        then acc
+        else
+          let alias = Variable.Map.find param aliases in
+          (* CR: Not sure this is absolutely necessary, but it's simpler. The
+             alternative would be to do a join of all kinds with subkinds for
+             all the members of the alias class. *)
+          let kind = Flambda_kind.With_subkind.kind kind in
+          (match Variable.Map.find alias acc with
+          | exception Not_found -> ()
+          | alias_kind ->
+            if not (Flambda_kind.equal kind alias_kind)
+            then Misc.fatal_errorf "Incoherent kinds for aliases !");
+          Variable.Map.add alias kind acc)
+      params_kind Variable.Map.empty
 
   module Dot = struct
     let node_id ~ctx ppf (variable : Variable.t) =
@@ -1456,6 +1505,7 @@ let analyze ?print_name ~return_continuation ~exn_continuation
           ~required_names:dead_variable_result.required_names
       in
       let aliases = Dominator_graph.dominator_analysis dom_graph in
+      let aliases_kind = Dominator_graph.aliases_kind dom_graph aliases in
       (match print_name with
       | None -> ()
       | Some print_name ->
@@ -1485,7 +1535,8 @@ let analyze ?print_name ~return_continuation ~exn_continuation
       (* Return *)
       let result =
         { dead_variable_result;
-          continuation_param_aliases = { aliases; extra_args_for_aliases }
+          continuation_param_aliases =
+            { aliases; aliases_kind; extra_args_for_aliases }
         }
       in
       Format.eprintf "/// result@\n%a@\n@." _print_result result;

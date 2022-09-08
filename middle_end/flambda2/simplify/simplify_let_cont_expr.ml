@@ -124,7 +124,7 @@ let compute_used_params uacc params ~is_exn_handler ~is_single_inlinable_use
 
 let add_extra_params_for_continuation_param_aliases cont uacc rewrite_ids
     extra_params_and_args =
-  let Data_flow.{ extra_args_for_aliases; _ } =
+  let Data_flow.{ extra_args_for_aliases; aliases_kind; _ } =
     UA.continuation_param_aliases uacc
   in
   let required_extra_args = Continuation.Map.find cont extra_args_for_aliases in
@@ -137,11 +137,12 @@ let add_extra_params_for_continuation_param_aliases cont uacc rewrite_ids
       in
       Format.printf "ADD ARG %a to %a@." Variable.print var Continuation.print
         cont;
-      (* THIS IS WRONG, but we do not propagate the kind yet. TODO *)
-      let dummy_wrong_kind = Flambda_kind.With_subkind.any_value in
-      EPA.add
-        ~extra_param:(Bound_parameter.create var dummy_wrong_kind)
-        ~extra_args epa)
+      let var_kind =
+        Flambda_kind.With_subkind.create
+          (Variable.Map.find var aliases_kind)
+          Anything
+      in
+      EPA.add ~extra_param:(Bound_parameter.create var var_kind) ~extra_args epa)
     required_extra_args extra_params_and_args
 
 let rebuild_one_continuation_handler cont ~at_unit_toplevel
