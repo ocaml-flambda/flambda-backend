@@ -259,9 +259,9 @@ let operation_is_pure = function
   | Ifloatarithmem _ | Ifloatsqrtf _ -> true
   | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max -> true
   | Icrc32q -> true
-  | Irdtsc | Irdpmc | Ipause 
+  | Irdtsc | Irdpmc | Ipause
   | Ilfence | Isfence | Imfence
-  | Istore_int (_, _, _) | Ioffset_loc (_, _) 
+  | Istore_int (_, _, _) | Ioffset_loc (_, _)
   | Iprefetch _ -> false
 
 (* Specific operations that can raise *)
@@ -280,6 +280,7 @@ let operation_allocates = function
   | Ifloatarithmem _ | Ifloatsqrtf _
   | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max
   | Icrc32q | Irdtsc | Irdpmc | Ipause
+  | Ilfence | Isfence | Imfence
   | Istore_int (_, _, _) | Ioffset_loc (_, _)
   | Iprefetch _ -> false
 
@@ -365,11 +366,11 @@ let equal_specific_operation left right =
     true
   | Irdpmc, Irdpmc ->
     true
-  | Ilfence, Ilfence -> 
+  | Ilfence, Ilfence ->
     true
-  | Isfence, Isfence -> 
+  | Isfence, Isfence ->
     true
-  | Imfence, Imfence -> 
+  | Imfence, Imfence ->
     true
   | Icrc32q, Icrc32q ->
     true
@@ -385,6 +386,6 @@ let equal_specific_operation left right =
     && equal_addressing_mode left_addr right_addr
   | (Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _
     | Isqrtf | Ifloatsqrtf _ | Isextend32 | Izextend32 | Irdtsc | Irdpmc
-    | Ilfence | Isfence | Imfence | Ifloat_iround | Ifloat_round _ | 
+    | Ilfence | Isfence | Imfence | Ifloat_iround | Ifloat_round _ |
     Ifloat_min | Ifloat_max | Ipause | Icrc32q | Iprefetch _), _ ->
     false
