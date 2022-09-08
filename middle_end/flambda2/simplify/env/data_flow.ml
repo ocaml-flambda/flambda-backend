@@ -45,7 +45,7 @@ end
 type elt =
   { continuation : Continuation.t;
     recursive : bool;
-    params : Variable.t list;
+    params : Bound_parameters.t;
     parent_continuation : Continuation.t option;
     used_in_handler : Name_occurrences.t;
     apply_result_conts : Continuation.Set.t;
@@ -115,7 +115,7 @@ let [@ocamlformat "disable"] print_elt ppf
     )@]"
     Continuation.print continuation
     (if recursive then "(recursive)" else "")
-    (Format.pp_print_list ~pp_sep:Format.pp_print_space Variable.print) params
+    Bound_parameters.print params
     (Format.pp_print_option ~none:(fun ppf () -> Format.fprintf ppf "root")
        Continuation.print) parent_continuation
     Name_occurrences.print used_in_handler
@@ -665,7 +665,8 @@ module Dependency_graph = struct
       Continuation.Set.fold
         (fun k t ->
           match Continuation.Map.find k map with
-          | elt -> List.fold_left add_var_used t elt.params
+          | elt ->
+            List.fold_left add_var_used t (Bound_parameters.vars elt.params)
           | exception Not_found ->
             if Continuation.equal return_continuation k
                || Continuation.equal exn_continuation k
@@ -707,7 +708,7 @@ module Dependency_graph = struct
         else
           let params =
             match Continuation.Map.find k map with
-            | elt -> Array.of_list elt.params
+            | elt -> Array.of_list (Bound_parameters.vars elt.params)
             | exception Not_found ->
               Misc.fatal_errorf "Continuation not found during Data_flow: %a@."
                 Continuation.print k
@@ -827,7 +828,8 @@ module Dominator_graph = struct
     { required_names; graph; dominator_roots }
 
   let add_node t var =
-    if not (Name.Set.mem (Name.var var) t.required_names) then t
+    if not (Name.Set.mem (Name.var var) t.required_names)
+    then t
     else
       let graph =
         Variable.Map.update var
@@ -837,28 +839,30 @@ module Dominator_graph = struct
       { t with graph }
 
   let add_root var t =
-    if not (Name.Set.mem (Name.var var) t.required_names) then t
+    if not (Name.Set.mem (Name.var var) t.required_names)
+    then t
     else { t with dominator_roots = Variable.Set.add var t.dominator_roots }
 
   let add_edge ~src ~dst t =
-    if not (Name.Set.mem (Name.var src) t.required_names) then t
+    if not (Name.Set.mem (Name.var src) t.required_names)
+    then t
     else
-    Simple.pattern_match' dst
-      ~const:(fun _ -> add_root src t)
-      ~symbol:(fun _ ~coercion:_ -> add_root src t)
-      ~var:(fun dst ~coercion:_ ->
-        let graph =
-          Variable.Map.update src
-            (function
-              | None -> Some (Variable.Set.singleton dst)
-              | Some s -> Some (Variable.Set.add dst s))
-            t.graph
-        in
-        { t with graph })
+      Simple.pattern_match' dst
+        ~const:(fun _ -> add_root src t)
+        ~symbol:(fun _ ~coercion:_ -> add_root src t)
+        ~var:(fun dst ~coercion:_ ->
+          let graph =
+            Variable.Map.update src
+              (function
+                | None -> Some (Variable.Set.singleton dst)
+                | Some s -> Some (Variable.Set.add dst s))
+              t.graph
+          in
+          { t with graph })
 
   let add_continuation_info map _k elt t ~return_continuation ~exn_continuation
       =
-    let t = List.fold_left add_node t elt.params in
+    let t = List.fold_left add_node t (Bound_parameters.vars elt.params) in
     Continuation.Map.fold
       (fun k args t ->
         if Continuation.equal return_continuation k
@@ -867,7 +871,7 @@ module Dominator_graph = struct
         else
           let params =
             match Continuation.Map.find k map with
-            | elt -> Array.of_list elt.params
+            | elt -> Array.of_list (Bound_parameters.vars elt.params)
             | exception Not_found ->
               Misc.fatal_errorf "Continuation not found during Data_flow: %a@."
                 Continuation.print k
@@ -885,13 +889,13 @@ module Dominator_graph = struct
             args t)
       elt.apply_cont_args t
 
-    let create ~required_names ~return_continuation ~exn_continuation map extra =
-      let t = empty ~required_names in
-      let t =
-        Continuation.Map.fold
-          (add_continuation_info ~return_continuation ~exn_continuation map)
-          map t
-      in
+  let create ~required_names ~return_continuation ~exn_continuation map extra =
+    let t = empty ~required_names in
+    let t =
+      Continuation.Map.fold
+        (add_continuation_info ~return_continuation ~exn_continuation map)
+        map t
+    in
     let t =
       Continuation.Map.fold
         (fun _ (extra_params_and_args : Continuation_extra_params_and_args.t) t ->
@@ -1180,7 +1184,7 @@ module Control_flow_graph = struct
         in
         let acc =
           Variable.Set.union
-            (Variable.Set.union acc (Variable.Set.of_list elt.params))
+            (Variable.Set.union acc (Bound_parameters.var_set elt.params))
             extra_vars
         in
         acc, acc)
@@ -1200,8 +1204,8 @@ module Control_flow_graph = struct
           available ))
       Variable.Set.empty
 
-  let compute_continuation_extra_args_for_aliases ~required_names ~(source_info : source_info)
-      doms t =
+  let compute_continuation_extra_args_for_aliases ~required_names
+      ~(source_info : source_info) doms t =
     let available_variables = compute_available_variables ~source_info t in
     let transitive_parents = compute_transitive_parents t in
     let remove_vars_in_scope_of k var_set =
@@ -1234,7 +1238,8 @@ module Control_flow_graph = struct
                 let dom =
                   match Variable.Map.find param doms with
                   | exception Not_found ->
-                    if Name.Set.mem (Name.var param) required_names then
+                    if Name.Set.mem (Name.var param) required_names
+                    then
                       Misc.fatal_errorf "Dom not found for: %a@." Variable.print
                         param
                     else param
@@ -1243,7 +1248,8 @@ module Control_flow_graph = struct
                 if Variable.equal param dom
                 then acc
                 else Variable.Set.add dom acc)
-              Variable.Set.empty elt.params
+              Variable.Set.empty
+              (Bound_parameters.vars elt.params)
           in
           let s = remove_vars_in_scope_of k s in
           if not (Variable.Set.is_empty s) then push k;
@@ -1318,7 +1324,7 @@ module Control_flow_graph = struct
               (Format.pp_print_list
                  ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ")
                  Variable.print)
-              elt.params
+              (Bound_parameters.vars elt.params)
           in
           let shape = if elt.recursive then "shape=record" else "" in
           params, shape
@@ -1462,7 +1468,8 @@ let analyze ?print_name ~return_continuation ~exn_continuation
       let control = Control_flow_graph.create ~dummy_toplevel_cont t in
       let extra_args_for_aliases =
         Control_flow_graph.compute_continuation_extra_args_for_aliases
-          ~source_info:t aliases control ~required_names:dead_variable_result.required_names
+          ~source_info:t aliases control
+          ~required_names:dead_variable_result.required_names
       in
       (match print_name with
       | None -> ()

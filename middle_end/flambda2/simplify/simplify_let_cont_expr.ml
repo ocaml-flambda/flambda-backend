@@ -715,9 +715,7 @@ let after_downwards_traversal_of_non_recursive_let_cont_body ~simplify_expr
     params ~handler ~down_to_up dacc_after_body ~rebuild:rebuild_body =
   let dacc_after_body =
     DA.map_data_flow dacc_after_body
-      ~f:
-        (Data_flow.enter_continuation cont ~recursive:false
-           (Bound_parameters.vars params))
+      ~f:(Data_flow.enter_continuation cont ~recursive:false params)
   in
   (* Before the upwards traversal of the body, we do the downwards traversal of
      the handler. *)
@@ -830,7 +828,9 @@ let prepare_to_rebuild_one_recursive_let_cont_handler cont params
     let Data_flow.{ extra_args_for_aliases; _ } =
       UA.continuation_param_aliases uacc
     in
-    let required_extra_args = Continuation.Map.find cont extra_args_for_aliases in
+    let required_extra_args =
+      Continuation.Map.find cont extra_args_for_aliases
+    in
     assert (Variable.Set.is_empty required_extra_args)
   in
   let extra_params_and_args =
@@ -911,9 +911,7 @@ let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
     ~original_cont_scope ~down_to_up =
   let dacc_after_body =
     DA.map_data_flow dacc_after_body
-      ~f:
-        (Data_flow.enter_continuation cont ~recursive:true
-           (Bound_parameters.vars params))
+      ~f:(Data_flow.enter_continuation cont ~recursive:true params)
   in
   let denv =
     DE.add_parameters_with_unknown_types ~at_unit_toplevel:false

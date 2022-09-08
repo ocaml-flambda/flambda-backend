@@ -49,9 +49,7 @@ and simplify_toplevel dacc expr ~params ~return_continuation ~return_arity
   in
   let dacc =
     DA.map_data_flow dacc
-      ~f:
-        (Data_flow.init_toplevel ~dummy_toplevel_cont
-           (Bound_parameters.vars params))
+      ~f:(Data_flow.init_toplevel ~dummy_toplevel_cont params)
   in
   let expr, uacc =
     simplify_expr dacc expr ~down_to_up:(fun dacc ~rebuild ->
