@@ -257,6 +257,7 @@ type codegen_option =
   | Reduce_code_size
   | No_CSE
   | Use_linscan_regalloc
+  | Noalloc_check
 
 type fundecl =
   { fun_name: string;

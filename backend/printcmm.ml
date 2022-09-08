@@ -339,6 +339,15 @@ and sequence ppf = function
 
 and expression ppf e = fprintf ppf "%a" expr e
 
+let codegen_option = function
+  | Reduce_code_size -> "reduce_code_size"
+  | No_CSE -> "no_cse"
+  | Use_linscan_regalloc -> "linscan"
+  | Noalloc_check -> "noalloc_check"
+
+let print_codegen_options ppf l =
+  List.iter (fun c -> fprintf ppf " %s" (codegen_option c)) l
+
 let fundecl ppf f =
   let print_cases ppf cases =
     let first = ref true in
@@ -348,8 +357,8 @@ let fundecl ppf f =
        fprintf ppf "%a: %a" VP.print id machtype ty)
      cases in
   with_location_mapping ~label:"Function" ~dbg:f.fun_dbg ppf (fun () ->
-  fprintf ppf "@[<1>(function%s %s@;<1 4>@[<1>(%a)@]@ @[%a@])@]@."
-         (location f.fun_dbg) f.fun_name
+  fprintf ppf "@[<1>(function%s%a@ %s@;<1 4>@[<1>(%a)@]@ @[%a@])@]@."
+         (location f.fun_dbg) print_codegen_options f.fun_codegen_options f.fun_name
          print_cases f.fun_args sequence f.fun_body)
 
 let data_item ppf = function

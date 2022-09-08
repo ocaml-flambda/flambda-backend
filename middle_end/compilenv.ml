@@ -54,6 +54,7 @@ module CstMap =
   end)
 
 module SymMap = Misc.Stdlib.String.Map
+module String = Misc.Stdlib.String
 
 type structured_constants =
   {
@@ -74,6 +75,37 @@ let exported_constants = Hashtbl.create 17
 
 let merged_environment = ref Export_info.empty
 
+module Checks : sig
+  (* mutable state *)
+  type t = Cmx_format.checks
+
+  val create : unit -> t
+
+  val reset : t -> unit
+
+  val merge : t -> into:t -> unit
+end = struct
+  type t = Cmx_format.checks
+
+  let create () =
+    {
+      ui_noalloc_functions = String.Set.empty;
+    }
+
+  let reset t =
+    t.ui_noalloc_functions <- String.Set.empty
+
+  let merge src ~into:dst =
+    if !Flambda_backend_flags.alloc_check
+    then (
+      dst.ui_noalloc_functions
+        <- String.Set.union dst.ui_noalloc_functions src.ui_noalloc_functions)
+end
+
+let cached_checks : Cmx_format.checks = Checks.create ()
+
+let cache_checks c = Checks.merge c ~into:cached_checks
+
 let default_ui_export_info =
   if Config.flambda then
     Cmx_format.Flambda1 Export_info.empty
@@ -90,6 +122,7 @@ let current_unit =
     ui_imports_cmx = [];
     ui_generic_fns = { curry_fun = []; apply_fun = []; send_fun = [] };
     ui_force_link = false;
+    ui_checks = Checks.create ();
     ui_export_info = default_ui_export_info }
 
 let symbolname_for_pack pack name =
@@ -129,6 +162,7 @@ let current_unit_linkage_name () =
 let reset ?packname name =
   Hashtbl.clear global_infos_table;
   Set_of_closures_id.Tbl.clear imported_sets_of_closures_table;
+  Checks.reset cached_checks;
   let symbol = symbolname_for_pack packname name in
   current_unit.ui_name <- name;
   current_unit.ui_symbol <- symbol;
@@ -138,6 +172,7 @@ let reset ?packname name =
   current_unit.ui_generic_fns <-
     { curry_fun = []; apply_fun = []; send_fun = [] };
   current_unit.ui_force_link <- !Clflags.link_everything;
+  Checks.reset current_unit.ui_checks;
   Hashtbl.clear exported_constants;
   structured_constants := structured_constants_empty;
   current_unit.ui_export_info <- default_ui_export_info;
@@ -219,6 +254,7 @@ let get_global_info global_ident = (
             let (ui, crc) = read_unit_info filename in
             if ui.ui_name <> modname then
               raise(Error(Illegal_renaming(modname, ui.ui_name, filename)));
+            cache_checks ui.ui_checks;
             (Some ui, Some crc)
           with Not_found ->
             let warn = Warnings.No_cmx_file modname in
@@ -239,6 +275,7 @@ let get_global_info' id =
   | Some ui -> Some ui.ui_export_info
 
 let cache_unit_info ui =
+  cache_checks ui.ui_checks;
   Hashtbl.add global_infos_table ui.ui_name (Some ui)
 
 (* Return the approximation of a global identifier *)

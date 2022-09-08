@@ -52,6 +52,13 @@ let mk_heap_reduction_threshold f =
     Flambda_backend_flags.default_heap_reduction_threshold
 ;;
 
+let mk_alloc_check f =
+  "-alloc-check", Arg.Unit f, " Check that annoted functions do not allocate \
+                                and do not have indirect calls"
+
+let mk_dcheckmach f =
+  "-dcheckmach", Arg.Unit f, " (undocumented)"
+
 let mk_dump_inlining_paths f =
   "-dump-inlining-paths", Arg.Unit f, " Dump inlining paths when dumping flambda2 terms"
 
@@ -418,6 +425,8 @@ module type Flambda_backend_options = sig
   val dno_asm_comments : unit -> unit
 
   val heap_reduction_threshold : int -> unit
+  val alloc_check : unit -> unit
+  val dcheckmach : unit -> unit
 
   val internal_assembler : unit -> unit
 
@@ -488,6 +497,8 @@ struct
     mk_dno_asm_comments F.dno_asm_comments;
 
     mk_heap_reduction_threshold F.heap_reduction_threshold;
+    mk_alloc_check F.alloc_check;
+    mk_dcheckmach F.dcheckmach;
 
     mk_internal_assembler F.internal_assembler;
 
@@ -593,6 +604,8 @@ module Flambda_backend_options_impl = struct
 
   let heap_reduction_threshold x =
     Flambda_backend_flags.heap_reduction_threshold := x
+  let alloc_check = set' Flambda_backend_flags.alloc_check
+  let dcheckmach = set' Flambda_backend_flags.dump_checkmach
 
   let internal_assembler = set' Flambda_backend_flags.internal_assembler
 
@@ -789,6 +802,8 @@ module Extra_params = struct
     | "reorder-blocks-random" ->
        set_int_option' Flambda_backend_flags.reorder_blocks_random
     | "heap-reduction-threshold" -> set_int' Flambda_backend_flags.heap_reduction_threshold
+    | "alloc-check" -> set' Flambda_backend_flags.alloc_check
+    | "dump-checkmach" -> set' Flambda_backend_flags.dump_checkmach
     | "dasm-comments" -> set' Flambda_backend_flags.dasm_comments
     | "dno-asm-comments" -> clear' Flambda_backend_flags.dasm_comments
     | "gupstream-dwarf" -> set' Debugging.restrict_to_upstream_dwarf

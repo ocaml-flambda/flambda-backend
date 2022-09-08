@@ -74,7 +74,6 @@ compiler: runtime-stdlib
 runtest: compiler
 	$(dune) runtest $(ws_main)
 
-
 # This Makefile supports old versions that don't have $(file), so we're using
 # environment var trickery to get a multiline string into a file
 duneconf/boot.ws: export contents = $(dune_boot_context)
@@ -378,6 +377,7 @@ fmt:
 	  $$(find backend/debug \
 	    \( -name "*.ml" -or -name "*.mli" \))
 	ocamlformat -i backend/cmm_helpers.ml{,i}
+	ocamlformat -i backend/checkmach.ml{,i}
 	ocamlformat -i tools/merge_archives.ml
 	ocamlformat -i \
 	  $$(find backend/debug/dwarf \
@@ -392,6 +392,7 @@ check-fmt:
            [ "$$(git status --porcelain backend/asm_targets)" != "" ] || \
            [ "$$(git status --porcelain backend/debug)" != "" ] || \
            [ "$$(git status --porcelain backend/cmm_helpers.ml{,i})" != "" ] || \
+           [ "$$(git status --porcelain backend/checkmach.ml{,i})" != "" ] || \
            [ "$$(git status --porcelain tools/merge_archives.ml)" != "" ]; then \
 	  echo; \
 	  echo "Tree must be clean before running 'make check-fmt'"; \
@@ -405,6 +406,7 @@ check-fmt:
            [ "$$(git diff backend/asm_targets)" != "" ] || \
            [ "$$(git diff backend/debug)" != "" ] || \
            [ "$$(git diff backend/cmm_helpers.ml{,i})" != "" ] || \
+           [ "$$(git diff backend/checkmach.ml{,i})" != "" ] || \
            [ "$$(git diff tools/merge_archives.ml)" != "" ]; then \
 	  echo; \
 	  echo "The following code was not formatted correctly:"; \
