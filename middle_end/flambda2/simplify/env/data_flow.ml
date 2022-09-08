@@ -994,22 +994,26 @@ module Dominator_graph = struct
       (fun doms var -> Variable.Map.add var init_doms doms)
       outside_cycle vars
 
-  let rec dom_fixpoint ({ graph; _ } as t) acc vars =
+  let rec dom_fixpoint ({ graph; dominator_roots; _ } as t) acc vars =
     let acc' =
       List.fold_left
         (fun acc var ->
-          let init_doms = Variable.Map.find var acc in
-          let predecessors =
-            try Variable.Map.find var graph with Not_found -> assert false
-          in
-          let new_doms =
-            Variable.Set.fold
-              (fun predecessor new_doms ->
-                Variable.Set.inter new_doms (Variable.Map.find predecessor acc))
-              predecessors init_doms
-          in
-          let new_doms = Variable.Set.add var new_doms in
-          Variable.Map.add var new_doms acc)
+          if Variable.Set.mem var dominator_roots
+          then Variable.Map.add var (Variable.Set.singleton var) acc
+          else
+            let init_doms = Variable.Map.find var acc in
+            let predecessors =
+              try Variable.Map.find var graph with Not_found -> assert false
+            in
+            let new_doms =
+              Variable.Set.fold
+                (fun predecessor new_doms ->
+                  Variable.Set.inter new_doms
+                    (Variable.Map.find predecessor acc))
+                predecessors init_doms
+            in
+            let new_doms = Variable.Set.add var new_doms in
+            Variable.Map.add var new_doms acc)
         acc vars
     in
     if Variable.Map.equal Variable.Set.equal acc acc'
