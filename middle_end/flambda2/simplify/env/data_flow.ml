@@ -213,6 +213,60 @@ let empty () =
     dummy_toplevel_cont = wrong_dummy_toplevel_cont
   }
 
+let extend_args_with_extra_args t =
+  let map =
+    Continuation.Map.fold
+      (fun cont epa map ->
+        let elt = Continuation.Map.find cont map in
+        let elt =
+          let params =
+            Bound_parameters.append elt.params (EPA.extra_params epa)
+          in
+          let apply_cont_args =
+            Continuation.Map.mapi
+              (fun cont rewrite_ids ->
+                match Continuation.Map.find cont t.extra with
+                | exception Not_found -> rewrite_ids
+                | epa ->
+                  let extra_args = EPA.extra_args epa in
+                  Apply_cont_rewrite_id.Map.mapi
+                    (fun rewrite_id args ->
+                      let extra_args =
+                        Apply_cont_rewrite_id.Map.find rewrite_id extra_args
+                      in
+                      let max_arg, _ = Numeric_types.Int.Map.max_binding args in
+                      let extra_args =
+                        List.map
+                          (function
+                            | EPA.Extra_arg.Already_in_scope s ->
+                              Cont_arg.Simple s
+                            | EPA.Extra_arg.New_let_binding (v, prim) ->
+                              Cont_arg.New_let_binding
+                                (v, Flambda_primitive.free_names prim)
+                            | EPA.Extra_arg.New_let_binding_with_named_args
+                                (v, _) ->
+                              Cont_arg.New_let_binding
+                                (v, Name_occurrences.empty))
+                          extra_args
+                      in
+                      let _, args =
+                        List.fold_left
+                          (fun (i, args) extra_arg ->
+                            i + 1, Numeric_types.Int.Map.add i extra_arg args)
+                          (max_arg + 1, args)
+                          extra_args
+                      in
+                      args)
+                    rewrite_ids)
+              elt.apply_cont_args
+          in
+          { elt with params; apply_cont_args }
+        in
+        Continuation.Map.add cont elt map)
+      t.extra t.map
+  in
+  { t with map }
+
 (* Updates *)
 (* ******* *)
 
@@ -380,7 +434,42 @@ let add_apply_conts ~result_cont ~exn_cont t =
             | Some set -> Some (Apply_cont_rewrite_id.Set.add rewrite_id set))
           elt.apply_result_conts
       in
-      { elt with apply_result_conts; apply_exn_conts })
+      let add_func_result cont rewrite_id apply_cont_args =
+        Continuation.Map.update cont
+          (fun (rewrite_map_opt :
+                 Cont_arg.t Numeric_types.Int.Map.t Apply_cont_rewrite_id.Map.t
+                 option) ->
+            let rewrite_map =
+              Option.value ~default:Apply_cont_rewrite_id.Map.empty
+                rewrite_map_opt
+            in
+            let rewrite_map =
+              Apply_cont_rewrite_id.Map.update rewrite_id
+                (function
+                  | Some _ ->
+                    Misc.fatal_errorf "Introducing a rewrite id twice %a"
+                      Apply_cont_rewrite_id.print rewrite_id
+                  | None ->
+                    let map =
+                      Numeric_types.Int.Map.singleton 0 Cont_arg.Function_result
+                    in
+                    Some map)
+                rewrite_map
+            in
+            Some rewrite_map)
+          apply_cont_args
+      in
+      let apply_cont_args =
+        let rewrite_id, exn_cont = exn_cont in
+        add_func_result exn_cont rewrite_id elt.apply_cont_args
+      in
+      let apply_cont_args =
+        match result_cont with
+        | None -> apply_cont_args
+        | Some (rewrite_id, result_cont) ->
+          add_func_result result_cont rewrite_id apply_cont_args
+      in
+      { elt with apply_result_conts; apply_exn_conts; apply_cont_args })
 
 let add_apply_cont_args ~rewrite_id cont arg_name_simples t =
   update_top_of_stack ~t ~f:(fun elt ->
@@ -1540,9 +1629,11 @@ let control_flow_graph_ppf =
       Some ppf)
 
 let analyze ?print_name ~return_continuation ~exn_continuation
-    ~code_age_relation ~used_value_slots
-    ({ stack; map; extra; dummy_toplevel_cont } as t) : result =
+    ~code_age_relation ~used_value_slots t : result =
   Profile.record_call ~accumulate:true "data_flow" (fun () ->
+      let ({ stack; map; extra; dummy_toplevel_cont } as t) =
+        extend_args_with_extra_args t
+      in
       assert (stack = []);
       assert (
         not
