@@ -948,7 +948,7 @@ module Dominator_graph = struct
           Apply_cont_rewrite_id.Map.fold
             (fun _rewrite_id args t ->
               Numeric_types.Int.Map.fold
-                (fun i dst t ->
+                (fun i (dst : Cont_arg.t) t ->
                   (* Note on the direction of the edge:
 
                      We later do a dominator analysis on this graph. To do so,
@@ -956,7 +956,12 @@ module Dominator_graph = struct
                      used as argument (of an apply_cont), that maps to ~src (as
                      param of a continuation). *)
                   let src = params.(i) in
-                  add_edge ~src ~dst t)
+                  match dst with
+                  | Simple dst -> add_edge ~src ~dst t
+                  | Function_result -> add_root src t
+                  | New_let_binding (var, _) ->
+                    let t = add_root var t in
+                    add_edge ~src ~dst:(Simple.var var) t)
                 args t)
             rewrite_ids t)
       elt.apply_cont_args t
