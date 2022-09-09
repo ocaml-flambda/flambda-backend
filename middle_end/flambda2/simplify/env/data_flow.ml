@@ -42,6 +42,19 @@ end
    small while we need only the names
 
    mshinwell: in practice I'm not sure this will make any difference *)
+module Cont_arg = struct
+  type t =
+    | Function_result
+    | Simple of Simple.t
+    | New_let_binding of Variable.t * Name_occurrences.t
+
+  let print ppf = function
+    | Function_result -> Format.fprintf ppf "Function_result"
+    | Simple s -> Simple.print ppf s
+    | New_let_binding (v, _) ->
+      Format.fprintf ppf "New_let_binding %a" Variable.print v
+end
+
 type elt =
   { continuation : Continuation.t;
     recursive : bool;
@@ -55,7 +68,7 @@ type elt =
     code_ids : Name_occurrences.t Code_id.Map.t;
     value_slots : Name_occurrences.t Name.Map.t Value_slot.Map.t;
     apply_cont_args :
-      Simple.t Numeric_types.Int.Map.t Apply_cont_rewrite_id.Map.t
+      Cont_arg.t Numeric_types.Int.Map.t Apply_cont_rewrite_id.Map.t
       Continuation.Map.t
   }
 
@@ -133,7 +146,7 @@ let [@ocamlformat "disable"] print_elt ppf
     (Value_slot.Map.print (Name.Map.print Name_occurrences.print))
     value_slots
     (Continuation.Map.print (Apply_cont_rewrite_id.Map.print
-      (Numeric_types.Int.Map.print Simple.print)))
+      (Numeric_types.Int.Map.print Cont_arg.print)))
     apply_cont_args
 
 let print_stack ppf stack =
@@ -374,7 +387,7 @@ let add_apply_cont_args ~rewrite_id cont arg_name_simples t =
       let apply_cont_args =
         Continuation.Map.update cont
           (fun (rewrite_map_opt :
-                 Simple.t Numeric_types.Int.Map.t Apply_cont_rewrite_id.Map.t
+                 Cont_arg.t Numeric_types.Int.Map.t Apply_cont_rewrite_id.Map.t
                  option) ->
             let rewrite_map =
               Option.value ~default:Apply_cont_rewrite_id.Map.empty
@@ -391,7 +404,8 @@ let add_apply_cont_args ~rewrite_id cont arg_name_simples t =
                       List.fold_left
                         (fun (map, i) arg_simple ->
                           let map =
-                            Numeric_types.Int.Map.add i arg_simple map
+                            Numeric_types.Int.Map.add i
+                              (Cont_arg.Simple arg_simple) map
                           in
                           map, i + 1)
                         (Numeric_types.Int.Map.empty, 0)
@@ -724,8 +738,17 @@ module Dependency_graph = struct
           Apply_cont_rewrite_id.Map.fold
             (fun _rewrite_id args t ->
               Numeric_types.Int.Map.fold
-                (fun _ simple t ->
-                  add_name_occurrences (Simple.free_names simple) t)
+                (fun _ (cont_arg : Cont_arg.t) t ->
+                  match cont_arg with
+                  | Simple simple ->
+                    add_name_occurrences (Simple.free_names simple) t
+                  | New_let_binding (var, prim_free_names) ->
+                    add_name_occurrences
+                      (Name_occurrences.union prim_free_names
+                         (Name_occurrences.singleton_variable var
+                            Name_mode.normal))
+                      t
+                  | Function_result -> t)
                 args t)
             rewrite_ids t
         else
@@ -739,7 +762,7 @@ module Dependency_graph = struct
           Apply_cont_rewrite_id.Map.fold
             (fun _rewrite_id args t ->
               Numeric_types.Int.Map.fold
-                (fun i simple t ->
+                (fun i (cont_arg : Cont_arg.t) t ->
                   (* Note on the direction of the edge:
 
                      We later do a reachability analysis to compute the
@@ -752,9 +775,16 @@ module Dependency_graph = struct
                      is used, then any argument provided for that param is also
                      used. The other way wouldn't make much sense. *)
                   let src = Name.var params.(i) in
-                  let name_occurrences = Simple.free_names simple in
-                  Name_occurrences.fold_names name_occurrences ~init:t
-                    ~f:(fun t dst -> add_dependency ~src ~dst t))
+                  match cont_arg with
+                  | Simple simple ->
+                    Name_occurrences.fold_names (Simple.free_names simple)
+                      ~init:t ~f:(fun t dst -> add_dependency ~src ~dst t)
+                  | New_let_binding (var, prim_free_names) ->
+                    let t = add_dependency ~src ~dst:(Name.var var) t in
+                    Name_occurrences.fold_names prim_free_names ~init:t
+                      ~f:(fun t dst ->
+                        add_dependency ~src:(Name.var var) ~dst t)
+                  | Function_result -> t)
                 args t)
             rewrite_ids t)
       apply_cont_args t
