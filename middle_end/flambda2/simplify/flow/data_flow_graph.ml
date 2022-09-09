@@ -140,6 +140,7 @@ module Reachable = struct
               older_queue older_enqueued name_queue name_enqueued)
         else
           let older_enqueued = Code_id.Set.add dst older_enqueued in
+          Queue.push dst older_queue;
           reachable_older_code_ids t code_id_queue code_id_enqueued older_queue
             older_enqueued name_queue name_enqueued)
 end
