@@ -78,11 +78,19 @@ val add_used_in_current_handler : Name_occurrences.t -> t -> t
 (** Add the given continuation as being used as the return continuation for a
     function call. *)
 val add_apply_conts :
-  result_cont:Continuation.t option -> exn_cont:Continuation.t -> t -> t
+  result_cont:(Apply_cont_rewrite_id.t * Continuation.t) option ->
+  exn_cont:(Apply_cont_rewrite_id.t * Continuation.t) ->
+  t ->
+  t
 
 (** Add, for the current continuation handler, uses for an apply cont of the
     given continuation with given arguments occurrences. *)
-val add_apply_cont_args : Continuation.t -> Simple.t list -> t -> t
+val add_apply_cont_args :
+  rewrite_id:Apply_cont_rewrite_id.t ->
+  Continuation.t ->
+  Simple.t list ->
+  t ->
+  t
 
 (** Add extra params and args to a continuation. *)
 val add_extra_params_and_args :

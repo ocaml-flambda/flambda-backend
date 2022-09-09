@@ -48,13 +48,15 @@ type elt =
     params : Bound_parameters.t;
     parent_continuation : Continuation.t option;
     used_in_handler : Name_occurrences.t;
-    apply_result_conts : Continuation.Set.t;
-    apply_exn_conts : Continuation.Set.t;
+    apply_result_conts : Apply_cont_rewrite_id.Set.t Continuation.Map.t;
+    apply_exn_conts : Apply_cont_rewrite_id.Set.t Continuation.Map.t;
     bindings : Name_occurrences.t Name.Map.t;
     defined : Variable.Set.t;
     code_ids : Name_occurrences.t Code_id.Map.t;
     value_slots : Name_occurrences.t Name.Map.t Value_slot.Map.t;
-    apply_cont_args : Simple.Set.t Numeric_types.Int.Map.t Continuation.Map.t
+    apply_cont_args :
+      Simple.t Numeric_types.Int.Map.t Apply_cont_rewrite_id.Map.t
+      Continuation.Map.t
   }
 
 type t =
@@ -120,8 +122,8 @@ let [@ocamlformat "disable"] print_elt ppf
     (Format.pp_print_option ~none:(fun ppf () -> Format.fprintf ppf "root")
        Continuation.print) parent_continuation
     Name_occurrences.print used_in_handler
-    Continuation.Set.print apply_result_conts
-    Continuation.Set.print apply_exn_conts
+    (Continuation.Map.print Apply_cont_rewrite_id.Set.print) apply_result_conts
+    (Continuation.Map.print Apply_cont_rewrite_id.Set.print) apply_exn_conts
     (Name.Map.print Name_occurrences.print)
     bindings
     Variable.Set.print
@@ -130,7 +132,8 @@ let [@ocamlformat "disable"] print_elt ppf
     code_ids
     (Value_slot.Map.print (Name.Map.print Name_occurrences.print))
     value_slots
-    (Continuation.Map.print (Numeric_types.Int.Map.print Simple.Set.print))
+    (Continuation.Map.print (Apply_cont_rewrite_id.Map.print
+      (Numeric_types.Int.Map.print Simple.print)))
     apply_cont_args
 
 let print_stack ppf stack =
@@ -225,8 +228,8 @@ let enter_continuation continuation ~recursive params t =
       value_slots = Value_slot.Map.empty;
       used_in_handler = Name_occurrences.empty;
       apply_cont_args = Continuation.Map.empty;
-      apply_result_conts = Continuation.Set.empty;
-      apply_exn_conts = Continuation.Set.empty
+      apply_result_conts = Continuation.Map.empty;
+      apply_exn_conts = Continuation.Map.empty
     }
   in
   { t with stack = elt :: t.stack }
@@ -349,36 +352,55 @@ let add_apply_conts ~result_cont ~exn_cont t =
       let apply_result_conts =
         match result_cont with
         | None -> elt.apply_result_conts
-        | Some result_cont ->
-          Continuation.Set.add result_cont elt.apply_result_conts
+        | Some (rewrite_id, result_cont) ->
+          Continuation.Map.update result_cont
+            (function
+              | None -> Some (Apply_cont_rewrite_id.Set.singleton rewrite_id)
+              | Some set -> Some (Apply_cont_rewrite_id.Set.add rewrite_id set))
+            elt.apply_result_conts
       in
       let apply_exn_conts =
-        Continuation.Set.add exn_cont elt.apply_result_conts
+        let rewrite_id, exn_cont = exn_cont in
+        Continuation.Map.update exn_cont
+          (function
+            | None -> Some (Apply_cont_rewrite_id.Set.singleton rewrite_id)
+            | Some set -> Some (Apply_cont_rewrite_id.Set.add rewrite_id set))
+          elt.apply_result_conts
       in
       { elt with apply_result_conts; apply_exn_conts })
 
-let add_apply_cont_args cont arg_name_simples t =
+let add_apply_cont_args ~rewrite_id cont arg_name_simples t =
   update_top_of_stack ~t ~f:(fun elt ->
       let apply_cont_args =
         Continuation.Map.update cont
-          (fun map_opt ->
-            let map =
-              Option.value ~default:Numeric_types.Int.Map.empty map_opt
+          (fun (rewrite_map_opt :
+                 Simple.t Numeric_types.Int.Map.t Apply_cont_rewrite_id.Map.t
+                 option) ->
+            let rewrite_map =
+              Option.value ~default:Apply_cont_rewrite_id.Map.empty
+                rewrite_map_opt
             in
-            let map, _ =
-              List.fold_left
-                (fun (map, i) arg_simple ->
-                  let map =
-                    Numeric_types.Int.Map.update i
-                      (function
-                        | None -> Some (Simple.Set.singleton arg_simple)
-                        | Some set -> Some (Simple.Set.add arg_simple set))
-                      map
-                  in
-                  map, i + 1)
-                (map, 0) arg_name_simples
+            let rewrite_map =
+              Apply_cont_rewrite_id.Map.update rewrite_id
+                (function
+                  | Some _ ->
+                    Misc.fatal_errorf "Introducing a rewrite id twice %a"
+                      Apply_cont_rewrite_id.print rewrite_id
+                  | None ->
+                    let map, _ =
+                      List.fold_left
+                        (fun (map, i) arg_simple ->
+                          let map =
+                            Numeric_types.Int.Map.add i arg_simple map
+                          in
+                          map, i + 1)
+                        (Numeric_types.Int.Map.empty, 0)
+                        arg_name_simples
+                    in
+                    Some map)
+                rewrite_map
             in
-            Some map)
+            Some rewrite_map)
           elt.apply_cont_args
       in
       { elt with apply_cont_args })
@@ -603,12 +625,6 @@ module Dependency_graph = struct
 
   let add_var_used t v = add_name_used t (Name.var v)
 
-  let free_names_of_simple_set s =
-    Simple.Set.fold
-      (fun simple name_occurrences ->
-        Name_occurrences.union name_occurrences (Simple.free_names simple))
-      s Name_occurrences.empty
-
   let add_name_occurrences name_occurrences
       ({ unconditionally_used; code_id_unconditionally_used; _ } as t) =
     let unconditionally_used =
@@ -667,8 +683,8 @@ module Dependency_graph = struct
     in
     (* Add the vars of continuation used as function call return as used *)
     let t =
-      Continuation.Set.fold
-        (fun k t ->
+      Continuation.Map.fold
+        (fun k _ t ->
           match Continuation.Map.find k map with
           | elt ->
             List.fold_left add_var_used t (Bound_parameters.vars elt.params)
@@ -701,15 +717,17 @@ module Dependency_graph = struct
     (* Build the graph of dependencies between continuation parameters and
        arguments. *)
     Continuation.Map.fold
-      (fun k args t ->
+      (fun k rewrite_ids t ->
         if Continuation.equal return_continuation k
            || Continuation.equal exn_continuation k
         then
-          Numeric_types.Int.Map.fold
-            (fun _ simple_set t ->
-              let name_occurrences = free_names_of_simple_set simple_set in
-              add_name_occurrences name_occurrences t)
-            args t
+          Apply_cont_rewrite_id.Map.fold
+            (fun _rewrite_id args t ->
+              Numeric_types.Int.Map.fold
+                (fun _ simple t ->
+                  add_name_occurrences (Simple.free_names simple) t)
+                args t)
+            rewrite_ids t
         else
           let params =
             match Continuation.Map.find k map with
@@ -718,24 +736,27 @@ module Dependency_graph = struct
               Misc.fatal_errorf "Continuation not found during Data_flow: %a@."
                 Continuation.print k
           in
-          Numeric_types.Int.Map.fold
-            (fun i simple_set t ->
-              (* Note on the direction of the edge:
+          Apply_cont_rewrite_id.Map.fold
+            (fun _rewrite_id args t ->
+              Numeric_types.Int.Map.fold
+                (fun i simple t ->
+                  (* Note on the direction of the edge:
 
-                 We later do a reachability analysis to compute the transitive
-                 closure of the used variables.
+                     We later do a reachability analysis to compute the
+                     transitive closure of the used variables.
 
-                 Therefore an edge from src to dst means: if src is used, then
-                 dst is also used.
+                     Therefore an edge from src to dst means: if src is used,
+                     then dst is also used.
 
-                 Applied here, this means : if the param of a continuation is
-                 used, then any argument provided for that param is also used.
-                 The other way wouldn't make much sense. *)
-              let src = Name.var params.(i) in
-              let name_occurrences = free_names_of_simple_set simple_set in
-              Name_occurrences.fold_names name_occurrences ~init:t
-                ~f:(fun t dst -> add_dependency ~src ~dst t))
-            args t)
+                     Applied here, this means : if the param of a continuation
+                     is used, then any argument provided for that param is also
+                     used. The other way wouldn't make much sense. *)
+                  let src = Name.var params.(i) in
+                  let name_occurrences = Simple.free_names simple in
+                  Name_occurrences.fold_names name_occurrences ~init:t
+                    ~f:(fun t dst -> add_dependency ~src ~dst t))
+                args t)
+            rewrite_ids t)
       apply_cont_args t
 
   let create ~return_continuation ~exn_continuation ~code_age_relation
@@ -882,7 +903,7 @@ module Dominator_graph = struct
         (Bound_parameters.to_list elt.params)
     in
     Continuation.Map.fold
-      (fun k args t ->
+      (fun k rewrite_ids t ->
         if Continuation.equal return_continuation k
            || Continuation.equal exn_continuation k
         then t
@@ -894,17 +915,20 @@ module Dominator_graph = struct
               Misc.fatal_errorf "Continuation not found during Data_flow: %a@."
                 Continuation.print k
           in
-          Numeric_types.Int.Map.fold
-            (fun i simple_set t ->
-              (* Note on the direction of the edge:
+          Apply_cont_rewrite_id.Map.fold
+            (fun _rewrite_id args t ->
+              Numeric_types.Int.Map.fold
+                (fun i dst t ->
+                  (* Note on the direction of the edge:
 
-                 We later do a dominator analysis on this graph. To do so, we
-                 consider that an edge from ~src to ~dst means: ~dst is used as
-                 argument (of an apply_cont), that maps to ~src (as param of a
-                 continuation). *)
-              let src = params.(i) in
-              Simple.Set.fold (fun dst t -> add_edge ~src ~dst t) simple_set t)
-            args t)
+                     We later do a dominator analysis on this graph. To do so,
+                     we consider that an edge from ~src to ~dst means: ~dst is
+                     used as argument (of an apply_cont), that maps to ~src (as
+                     param of a continuation). *)
+                  let src = params.(i) in
+                  add_edge ~src ~dst t)
+                args t)
+            rewrite_ids t)
       elt.apply_cont_args t
 
   let create ~required_names ~return_continuation ~exn_continuation map extra =
@@ -1191,12 +1215,12 @@ module Control_flow_graph = struct
               acc elt.apply_cont_args
           in
           let acc =
-            Continuation.Set.fold
-              (fun callee acc -> add ~caller ~callee acc)
+            Continuation.Map.fold
+              (fun callee _rerite_id acc -> add ~caller ~callee acc)
               elt.apply_result_conts acc
           in
-          Continuation.Set.fold
-            (fun callee acc -> add ~caller ~callee acc)
+          Continuation.Map.fold
+            (fun callee _rerite_id acc -> add ~caller ~callee acc)
             elt.apply_exn_conts acc)
         map
         (Continuation.Map.singleton dummy_toplevel_cont Continuation.Set.empty)
