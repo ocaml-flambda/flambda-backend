@@ -150,53 +150,57 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
     ~rewrite_ids ~is_single_inlinable_use ~is_exn_handler handler uacc
     ~after_rebuild =
   let Data_flow.{ aliases; _ } = UA.continuation_param_aliases uacc in
-  let handler, uacc =
-    List.fold_left
-      (fun (handler, uacc) bp ->
-        let var = BP.var bp in
-        let alias =
-          match Variable.Map.find var aliases with
-          | exception Not_found -> None
-          | alias -> if Variable.equal alias var then None else Some alias
+  let add_lets_around_handler uacc ~extra_params handler =
+    Format.printf "EPA: %a@." EPA.print extra_params_and_args;
+    let handler, uacc =
+      List.fold_left
+        (fun (handler, uacc) bp ->
+          let var = BP.var bp in
+          let alias =
+            match Variable.Map.find var aliases with
+            | exception Not_found -> None
+            | alias -> if Variable.equal alias var then None else Some alias
+          in
+          match alias with
+          | None -> handler, uacc
+          | Some alias ->
+            Format.printf "ADD ALIAS LET %a = %a@." Variable.print var
+              Variable.print alias;
+            let bound_pattern =
+              Bound_pattern.singleton (Bound_var.create var Name_mode.normal)
+            in
+            let named = Named.create_simple (Simple.var alias) in
+            let handler, uacc =
+              Expr_builder.create_let_binding uacc bound_pattern named
+                ~free_names_of_defining_expr:
+                  (Name_occurrences.singleton_variable alias Name_mode.normal)
+                ~cost_metrics_of_defining_expr:Cost_metrics.zero ~body:handler
+            in
+            handler, uacc)
+        (handler, uacc)
+        (Bound_parameters.to_list params @ Bound_parameters.to_list extra_params)
+    in
+    let handler, uacc =
+      (* We might need to place lifted constants now, as they could depend on
+         continuation parameters. As such we must also compute the unused
+         parameters after placing any constants! *)
+      if not at_unit_toplevel
+      then handler, uacc
+      else
+        let uacc, lifted_constants_from_body =
+          UA.get_and_clear_lifted_constants uacc
         in
-        match alias with
-        | None -> handler, uacc
-        | Some alias ->
-          Format.printf "ADD ALIAS LET %a = %a@." Variable.print var
-            Variable.print alias;
-          let bound_pattern =
-            Bound_pattern.singleton (Bound_var.create var Name_mode.normal)
-          in
-          let named = Named.create_simple (Simple.var alias) in
-          let handler, uacc =
-            Expr_builder.create_let_binding uacc bound_pattern named
-              ~free_names_of_defining_expr:
-                (Name_occurrences.singleton_variable alias Name_mode.normal)
-              ~cost_metrics_of_defining_expr:Cost_metrics.zero ~body:handler
-          in
-          handler, uacc)
-      (handler, uacc)
-      (Bound_parameters.to_list params)
+        EB.place_lifted_constants uacc
+          ~lifted_constants_from_defining_expr:LCS.empty
+          ~lifted_constants_from_body
+          ~put_bindings_around_body:(fun uacc ~body -> body, uacc)
+          ~body:handler
+    in
+    let free_names = UA.name_occurrences uacc in
+    let cost_metrics = UA.cost_metrics uacc in
+    handler, uacc, free_names, cost_metrics
   in
-  let handler, uacc =
-    (* We might need to place lifted constants now, as they could depend on
-       continuation parameters. As such we must also compute the unused
-       parameters after placing any constants! *)
-    if not at_unit_toplevel
-    then handler, uacc
-    else
-      let uacc, lifted_constants_from_body =
-        UA.get_and_clear_lifted_constants uacc
-      in
-      EB.place_lifted_constants uacc
-        ~lifted_constants_from_defining_expr:LCS.empty
-        ~lifted_constants_from_body
-        ~put_bindings_around_body:(fun uacc ~body -> body, uacc)
-        ~body:handler
-  in
-  let free_names = UA.name_occurrences uacc in
-  let cost_metrics = UA.cost_metrics uacc in
-  let uacc, params, new_phantom_params =
+  let uacc, params, new_phantom_params, handler, free_names, cost_metrics =
     match recursive with
     | Recursive -> (
       (* In the recursive case, we have already added an apply_cont_rewrite for
@@ -209,6 +213,10 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
            have already been added"
           Continuation.print cont
       | Some rewrite ->
+        let handler, uacc, free_names, cost_metrics =
+          add_lets_around_handler uacc handler
+            ~extra_params:(Apply_cont_rewrite.used_extra_params rewrite)
+        in
         let used_params_set = Apply_cont_rewrite.used_params rewrite in
         let used_params, unused_params =
           List.partition
@@ -227,12 +235,19 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
         in
         ( uacc,
           Bound_parameters.create (used_params @ used_extra_params),
-          new_phantom_params ))
+          new_phantom_params,
+          handler,
+          free_names,
+          cost_metrics ))
     | Non_recursive ->
       (* If the continuation is going to be inlined out, we don't need to spend
          time here calculating unused parameters, since the creation of
          [Let]-expressions around the continuation's handler will do that
          anyway. *)
+      let handler, uacc, free_names, cost_metrics =
+        add_lets_around_handler uacc handler
+          ~extra_params:(EPA.extra_params extra_params_and_args)
+      in
       let extra_params_and_args =
         add_extra_params_for_continuation_param_aliases cont uacc rewrite_ids
           extra_params_and_args
@@ -264,7 +279,10 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
       ( uacc,
         Bound_parameters.create
           (params_used_as_normal @ extra_params_used_as_normal),
-        Bound_parameters.create new_phantom_params )
+        Bound_parameters.create new_phantom_params,
+        handler,
+        free_names,
+        cost_metrics )
   in
   let handler, uacc =
     let new_phantom_param_bindings_outermost_first =
