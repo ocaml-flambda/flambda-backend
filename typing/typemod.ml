@@ -144,6 +144,7 @@ let extract_sig_open env loc mty =
 (* Extract the signature of a functor's body, using the provided [sig_acc]
    signature to fill in names from its parameter *)
 let extract_sig_functor_open funct_body env loc mty sig_acc =
+  let sig_acc = List.rev sig_acc in
   match Env.scrape_alias env mty with
   | Mty_functor (Named (param, mty_param),mty_result) as mty_func ->
       let sg_param =
@@ -154,7 +155,7 @@ let extract_sig_functor_open funct_body env loc mty sig_acc =
       let coercion =
         try
           Includemod.include_functor_signatures ~mark:Mark_both env
-            (List.rev sig_acc) sg_param
+            sig_acc sg_param
         with Includemod.Error msg ->
           raise (Error(loc, env, Not_included_functor msg))
       in
