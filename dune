@@ -244,6 +244,7 @@
   cfg_deadcode
   cfg_liveness
   cfg_regalloc_utils
+  cfg_regalloc_validate
   cfg_to_linear_desc
   cfg_irc
   cfg_irc_state
@@ -756,6 +757,7 @@
   (cfg_deadcode.mli as compiler-libs/cfg_deadcode.mli)
   (cfg_liveness.mli as compiler-libs/cfg_liveness.mli)
   (cfg_regalloc_utils.mli as compiler-libs/cfg_regalloc_utils.mli)
+  (cfg_regalloc_validate.mli as compiler-libs/cfg_regalloc_validate.mli)
   (cfg_to_linear_desc.mli as compiler-libs/cfg_to_linear_desc.mli)
   (cfg_irc.mli as compiler-libs/cfg_irc.mli)
   (cfg_irc_state.mli as compiler-libs/cfg_irc_state.mli)
@@ -1220,6 +1222,18 @@
   (.ocamloptcomp.objs/byte/cfg_regalloc_utils.cmti
    as
    compiler-libs/cfg_regalloc_utils.cmti)
+  (.ocamloptcomp.objs/byte/cfg_regalloc_validate.cmi
+   as
+   compiler-libs/cfg_regalloc_validate.cmi)
+  (.ocamloptcomp.objs/byte/cfg_regalloc_validate.cmo
+   as
+   compiler-libs/cfg_regalloc_validate.cmo)
+  (.ocamloptcomp.objs/byte/cfg_regalloc_validate.cmt
+   as
+   compiler-libs/cfg_regalloc_validate.cmt)
+  (.ocamloptcomp.objs/byte/cfg_regalloc_validate.cmti
+   as
+   compiler-libs/cfg_regalloc_validate.cmti)
   (.ocamloptcomp.objs/byte/cfg_to_linear_desc.cmi
    as
    compiler-libs/cfg_to_linear_desc.cmi)
@@ -1500,6 +1514,9 @@
   (.ocamloptcomp.objs/native/cfg_regalloc_utils.cmx
    as
    compiler-libs/cfg_regalloc_utils.cmx)
+  (.ocamloptcomp.objs/native/cfg_regalloc_validate.cmx
+   as
+   compiler-libs/cfg_regalloc_validate.cmx)
   (.ocamloptcomp.objs/native/cfg_to_linear_desc.cmx
    as
    compiler-libs/cfg_to_linear_desc.cmx)

@@ -55,17 +55,25 @@ module Forward
   Forward_S with type domain = D.t
 
 module type Backward_domain = sig
+  (* The domain is a join-semilattice with a lowest element. To ensure
+     termination additionally all ascending chains have to be bounded. *)
   type t
 
+  (** Identity element of the [join] operation. From definition this is also the
+      lowest element in the domain. *)
   val bot : t
+
+  (** Join operator of the join-semilattice. This operation has be associative,
+      commutative and idempotent. *)
+  val join : t -> t -> t
+
+  (** Operator defined as ([less_equal x y] iff [equal (join x y) y]). Is
+      separate from [join] for efficiency. *)
+  val less_equal : t -> t -> bool
 
   val compare : t -> t -> int
   (* note: `compare` is an order that can be passed to e.g. `Map.Make` or
      `Set.Make`; it does not need to be compatible with `less_than`. *)
-
-  val join : t -> t -> t
-
-  val less_equal : t -> t -> bool
 
   val to_string : t -> string
 end
@@ -73,22 +81,38 @@ end
 module type Backward_transfer = sig
   type domain
 
-  val basic : domain -> exn:domain -> Cfg.basic Cfg.instruction -> domain
+  type error
+
+  val basic :
+    domain -> exn:domain -> Cfg.basic Cfg.instruction -> (domain, error) result
 
   val terminator :
-    domain -> exn:domain -> Cfg.terminator Cfg.instruction -> domain
+    domain ->
+    exn:domain ->
+    Cfg.terminator Cfg.instruction ->
+    (domain, error) result
 
-  val exception_ : domain -> domain
+  val exception_ : domain -> (domain, error) result
 end
 
 module Instr : Identifiable.S with type t = int
 
+module Dataflow_result : sig
+  type ('a, 'e) t =
+    | Ok of 'a
+    | Aborted of 'a * 'e
+    | Max_iterations_reached
+end
+
 module type Backward_S = sig
   type domain
+
+  type error
 
   type _ map =
     | Block : domain Label.Tbl.t map
     | Instr : domain Instr.Tbl.t map
+    | Both : (domain Instr.Tbl.t * domain Label.Tbl.t) map
 
   val run :
     Cfg.t ->
@@ -96,10 +120,10 @@ module type Backward_S = sig
     init:domain ->
     map:'a map ->
     unit ->
-    ('a, 'a) Result.t
+    ('a, error) Dataflow_result.t
 end
 
 module Backward
     (D : Backward_domain)
-    (_ : Backward_transfer with type domain = D.t) :
-  Backward_S with type domain = D.t
+    (T : Backward_transfer with type domain = D.t) :
+  Backward_S with type domain = D.t and type error = T.error

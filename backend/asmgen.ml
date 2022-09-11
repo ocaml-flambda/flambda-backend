@@ -243,7 +243,7 @@ let recompute_liveness_on_cfg (cfg_with_layout : Cfg_with_layout.t) : Cfg_with_l
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   let init = { Cfg_liveness.before = Reg.Set.empty; across = Reg.Set.empty; } in
   begin match Cfg_liveness.Liveness.run cfg ~init ~map:Cfg_liveness.Liveness.Instr () with
-    | Result.Ok (liveness : Cfg_liveness.Liveness.domain Cfg_dataflow.Instr.Tbl.t) ->
+    | Ok (liveness : Cfg_liveness.Liveness.domain Cfg_dataflow.Instr.Tbl.t) ->
       let with_liveness (instr : _ Cfg.instruction) =
         match Cfg_dataflow.Instr.Tbl.find_opt liveness instr.id with
         | None ->
@@ -257,7 +257,8 @@ let recompute_liveness_on_cfg (cfg_with_layout : Cfg_with_layout.t) : Cfg_with_l
           block.body <- ListLabels.map block.body ~f:with_liveness;
           block.terminator <- with_liveness block.terminator;
         );
-    | Result.Error _ ->
+    | Aborted _ -> .
+    | Max_iterations_reached ->
       Misc.fatal_errorf "Unable to compute liveness from CFG for function %s@."
         cfg.Cfg.fun_name;
   end;
@@ -357,27 +358,34 @@ let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
   ++ Profile.record ~accumulate:true "selection" Selection.fundecl
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_sel
   ++ pass_dump_if ppf_dump dump_selection "After instruction selection"
-  ++ save_mach_as_cfg Compiler_pass.Selection
+  ++ Profile.record ~accumulate:true "save_mach_as_cfg" (save_mach_as_cfg Compiler_pass.Selection)
   ++ Profile.record ~accumulate:true "comballoc" Comballoc.fundecl
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_combine
   ++ pass_dump_if ppf_dump dump_combine "After allocation combining"
   ++ Profile.record ~accumulate:true "cse" CSE.fundecl
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_cse
   ++ pass_dump_if ppf_dump dump_cse "After CSE"
-  ++ Checkmach.fundecl ppf_dump
-  ++ (fun (fd : Mach.fundecl) ->
+  ++ Profile.record ~accumulate:true "checkmach" (Checkmach.fundecl ppf_dump)
+  ++ Profile.record ~accumulate:true "regalloc" (fun (fd : Mach.fundecl) ->
     let force_linscan = should_use_linscan fd in
-      match force_linscan, register_allocator with
-      | false, IRC ->
-        let res =
+    match force_linscan, register_allocator with
+    | false, IRC ->
+      fd
+      ++ Profile.record ~accumulate:true "irc" (fun fd ->
+        let cfg =
           fd
           ++ Profile.record ~accumulate:true "cfgize" cfgize
           ++ Profile.record ~accumulate:true "cfg_deadcode" Cfg_deadcode.run
-          ++ Profile.record ~accumulate:true "cfg_irc" Cfg_irc.run
         in
-        (Cfg_regalloc_utils.simplify_cfg res)
-        ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run
-      | true, _ | false, Upstream ->
+        let cfg_description = Profile.record ~accumulate:true "cfg_create_description" Cfg_regalloc_validate.Description.create cfg in
+        cfg
+        ++ Profile.record ~accumulate:true "cfg_irc" Cfg_irc.run
+        ++ Profile.record ~accumulate:true "cfg_validate_description" (Cfg_regalloc_validate.run cfg_description)
+        ++ Profile.record ~accumulate:true "cfg_simplify" Cfg_regalloc_utils.simplify_cfg
+        ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run)
+    | true, _ | false, Upstream ->
+      fd
+      ++ Profile.record ~accumulate:true "default" (fun fd ->
         let res =
           fd
           ++ Profile.record ~accumulate:true "liveness" liveness
@@ -402,25 +410,25 @@ let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
               test_cfgize f res;
             end;
             res)
-        ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code")
+        ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code"))
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Linear
-  ++ (fun (fd : Linear.fundecl) ->
+  ++ Profile.record ~accumulate:true "reorder_blocks" (fun (fd : Linear.fundecl) ->
     if !Flambda_backend_flags.use_ocamlcfg then begin
       fd
       ++ Profile.record ~accumulate:true "linear_to_cfg"
            (Linear_to_cfg.run ~preserve_orig_labels:true)
       ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg
       ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg "After linear_to_cfg"
-      ++ save_cfg
-      ++ reorder_blocks_random ppf_dump
+      ++ Profile.record ~accumulate:true "save_cfg" save_cfg
+      ++ Profile.record ~accumulate:true "cfg_reorder_blocks" (reorder_blocks_random ppf_dump)
       ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run
       ++ pass_dump_linear_if ppf_dump dump_linear "After cfg_to_linear"
     end else
       fd)
   ++ Profile.record ~accumulate:true "scheduling" Scheduling.fundecl
   ++ pass_dump_linear_if ppf_dump dump_scheduling "After instruction scheduling"
-  ++ save_linear
-  ++ emit_fundecl ~dwarf
+  ++ Profile.record ~accumulate:true "save_linear" save_linear
+  ++ Profile.record ~accumulate:true "emit_fundecl" (emit_fundecl ~dwarf)
 
 let compile_data dl =
   dl

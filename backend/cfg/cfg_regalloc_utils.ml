@@ -3,6 +3,18 @@
 module Array = ArrayLabels
 module List = ListLabels
 
+let bool_of_env env_var =
+  match Sys.getenv_opt env_var |> Option.map String.lowercase_ascii with
+  | Some ("1" | "true" | "on") -> true
+  | Some ("0" | "false" | "off") | None -> false
+  | Some var ->
+    Misc.fatal_errorf
+      "the %s variable is \"%s\" but should be one of: \"0\", \"1\", \"true\", \
+       \"false\", \"on\", \"off\""
+      env_var var
+
+let validator_debug = bool_of_env "CFG_REGALLOC_VALIDATOR_DEBUG"
+
 let fatal_callback = ref (fun () -> ())
 
 let on_fatal ~f = fatal_callback := f
@@ -27,6 +39,11 @@ module Instruction = struct
   module IdSet = MoreLabels.Set.Make (Int)
   module IdMap = MoreLabels.Map.Make (Int)
 end
+
+let first_instruction_id (block : Cfg.basic_block) : int =
+  match block.body with
+  | [] -> block.terminator.id
+  | first_instr :: _ -> first_instr.id
 
 (* CR xclerc for xclerc: in destroyed_at_xyz, lift the constants? *)
 
@@ -170,8 +187,9 @@ let liveness_analysis : Cfg_with_layout.t -> liveness =
   match
     Cfg_liveness.Liveness.run cfg ~init ~map:Cfg_liveness.Liveness.Instr ()
   with
-  | Result.Ok liveness -> liveness
-  | Result.Error _ ->
+  | Ok liveness -> liveness
+  | Aborted _ -> .
+  | Max_iterations_reached ->
     fatal "Unable to compute liveness from CFG for function %s@."
       cfg.Cfg.fun_name
 

@@ -38,15 +38,27 @@ module Domain : Cfg_dataflow.Backward_domain with type t = domain = struct
     |> StringLabels.concat ~sep:", "
 end
 
-module Transfer : Cfg_dataflow.Backward_transfer with type domain = domain =
-struct
+type error = |
+
+module Transfer :
+  Cfg_dataflow.Backward_transfer
+    with type domain = domain
+     and type error = error = struct
   type nonrec domain = domain =
     { before : Reg.Set.t;
       across : Reg.Set.t
     }
 
-  let basic : domain -> exn:domain -> Cfg.basic Cfg.instruction -> domain =
+  type nonrec error = error
+
+  let basic :
+      domain ->
+      exn:domain ->
+      Cfg.basic Cfg.instruction ->
+      (domain, error) result =
    fun { before; across = _ } ~exn instr ->
+    Result.ok
+    @@
     match instr.desc with
     | Op _ | Call _ ->
       if Cfg.is_pure_basic instr.desc
@@ -72,8 +84,13 @@ struct
     | Prologue -> { before; across = before }
 
   let terminator :
-      domain -> exn:domain -> Cfg.terminator Cfg.instruction -> domain =
+      domain ->
+      exn:domain ->
+      Cfg.terminator Cfg.instruction ->
+      (domain, error) result =
    fun { before; across = _ } ~exn instr ->
+    Result.ok
+    @@
     match instr.desc with
     | Never -> assert false
     | Always _ ->
@@ -98,11 +115,12 @@ struct
     | Call_no_return _ ->
       { before = Reg.add_set_array exn.before instr.arg; across = exn.before }
 
-  let exception_ : domain -> domain =
+  let exception_ : domain -> (domain, error) result =
    fun { before; across = _ } ->
-    { before = Reg.Set.remove Proc.loc_exn_bucket before;
-      across = Reg.Set.empty
-    }
+    Result.ok
+    @@ { before = Reg.Set.remove Proc.loc_exn_bucket before;
+         across = Reg.Set.empty
+       }
 end
 
 module Liveness = Cfg_dataflow.Backward (Domain) (Transfer)

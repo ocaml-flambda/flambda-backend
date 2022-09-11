@@ -8,11 +8,11 @@ let fatal_if_not_irc_debug env_var =
   if not irc_debug then fatal "%s is set but debugging mode is disabled" env_var
 
 let bool_of_env env_var =
-  match Sys.getenv_opt env_var with
-  | Some "1" ->
+  if Cfg_regalloc_utils.bool_of_env env_var
+  then (
     fatal_if_not_irc_debug env_var;
-    true
-  | Some _ | None -> false
+    true)
+  else false
 
 let irc_verbose : bool = bool_of_env "IRC_VERBOSE"
 
