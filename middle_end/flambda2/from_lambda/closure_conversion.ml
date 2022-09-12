@@ -1341,6 +1341,7 @@ let close_one_function acc ~external_env ~by_function_slot decl
       ~contains_no_escaping_local_allocs:
         (Function_decl.contains_no_escaping_local_allocs decl)
       ~stub ~inline
+      ~check:(Function_decl.check_attribute decl)
       ~is_a_functor:(Function_decl.is_a_functor decl)
       ~recursive ~newer_version_of:None ~cost_metrics
       ~inlining_arguments:(Inlining_arguments.create ~round:0)

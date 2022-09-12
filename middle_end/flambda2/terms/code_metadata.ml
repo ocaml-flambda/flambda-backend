@@ -24,6 +24,7 @@ type t =
     contains_no_escaping_local_allocs : bool;
     stub : bool;
     inline : Inline_attribute.t;
+    check : Lambda.check_attribute;
     is_a_functor : bool;
     recursive : Recursive.t;
     cost_metrics : Cost_metrics.t;
@@ -72,6 +73,8 @@ module Code_metadata_accessors (X : Metadata_view_type) = struct
   let stub t = (metadata t).stub
 
   let inline t = (metadata t).inline
+
+  let check t = (metadata t).check
 
   let is_a_functor t = (metadata t).is_a_functor
 
@@ -139,7 +142,7 @@ type 'a create_type =
 
 let createk k code_id ~newer_version_of ~params_arity ~num_trailing_local_params
     ~result_arity ~result_types ~contains_no_escaping_local_allocs ~stub
-    ~(inline : Inline_attribute.t) ~is_a_functor ~recursive ~cost_metrics
+    ~(inline : Inline_attribute.t) ~check ~is_a_functor ~recursive ~cost_metrics
     ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used ~inlining_decision
     ~absolute_history ~relative_history =
   (match stub, inline with
@@ -167,6 +170,7 @@ let createk k code_id ~newer_version_of ~params_arity ~num_trailing_local_params
       contains_no_escaping_local_allocs;
       stub;
       inline;
+      check;
       is_a_functor;
       recursive;
       cost_metrics;
@@ -206,7 +210,7 @@ let [@ocamlformat "disable"] print_inlining_paths ppf
       Inlining_history.Absolute.print absolute_history
 
 let [@ocamlformat "disable"] print ppf
-      { code_id = _; newer_version_of; stub; inline; is_a_functor;
+       { code_id = _; newer_version_of; stub; inline; check; is_a_functor;
         params_arity; num_trailing_local_params; result_arity;
         result_types; contains_no_escaping_local_allocs;
         recursive; cost_metrics; inlining_arguments;
@@ -217,6 +221,7 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>%t(newer_version_of@ %a)%t@]@ \
       @[<hov 1>%t(stub@ %b)%t@]@ \
       @[<hov 1>%t(inline@ %a)%t@]@ \
+      @[<hov 1>%t(check@ %a)%t@]@ \
       @[<hov 1>%t(is_a_functor@ %b)%t@]@ \
       @[<hov 1>%t(params_arity@ %t%a%t)%t@]@ \
       @[<hov 1>(num_trailing_local_params@ %d)@]@ \
@@ -243,6 +248,10 @@ let [@ocamlformat "disable"] print ppf
     then Flambda_colours.elide
     else C.none)
     Inline_attribute.print inline
+    Flambda_colours.pop
+    (if Lambda.(equal_check_attribute Default_check check)
+     then Flambda_colours.elide else C.none)
+    Printlambda.check_attribute check
     Flambda_colours.pop
     (if not is_a_functor then Flambda_colours.elide else C.none)
     is_a_functor
@@ -297,6 +306,7 @@ let free_names
       contains_no_escaping_local_allocs = _;
       stub = _;
       inline = _;
+      check = _;
       is_a_functor = _;
       recursive = _;
       cost_metrics = _;
@@ -334,6 +344,7 @@ let apply_renaming
        contains_no_escaping_local_allocs = _;
        stub = _;
        inline = _;
+       check = _;
        is_a_functor = _;
        recursive = _;
        cost_metrics = _;
@@ -382,6 +393,7 @@ let ids_for_export
       contains_no_escaping_local_allocs = _;
       stub = _;
       inline = _;
+      check = _;
       is_a_functor = _;
       recursive = _;
       cost_metrics = _;
@@ -416,6 +428,7 @@ let approx_equal
       contains_no_escaping_local_allocs = contains_no_escaping_local_allocs1;
       stub = stub1;
       inline = inline1;
+      check = check1;
       is_a_functor = is_a_functor1;
       recursive = recursive1;
       cost_metrics = cost_metrics1;
@@ -436,6 +449,7 @@ let approx_equal
       contains_no_escaping_local_allocs = contains_no_escaping_local_allocs2;
       stub = stub2;
       inline = inline2;
+      check = check2;
       is_a_functor = is_a_functor2;
       recursive = recursive2;
       cost_metrics = cost_metrics2;
@@ -456,6 +470,7 @@ let approx_equal
        contains_no_escaping_local_allocs2
   && Bool.equal stub1 stub2
   && Inline_attribute.equal inline1 inline2
+  && Lambda.equal_check_attribute check1 check2
   && Bool.equal is_a_functor1 is_a_functor2
   && Recursive.equal recursive1 recursive2
   && Cost_metrics.equal cost_metrics1 cost_metrics2
