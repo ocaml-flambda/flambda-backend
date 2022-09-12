@@ -123,7 +123,7 @@ let binary_operation
         use_stack_operand map instr.res 0;
         May_still_have_spilled_registers
       | Result_cannot_be_on_stack ->
-        use_stack_operand map instr.arg 1;
+        use_stack_operand map instr.arg 0;
         May_still_have_spilled_registers
     end
   end
