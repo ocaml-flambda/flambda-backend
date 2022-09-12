@@ -1,0 +1,2 @@
+File "fail3.ml", line 1:
+Error: Annotation check for noalloc failed on function HIDE_NAME

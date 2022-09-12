@@ -409,7 +409,7 @@ end = struct
 end
 
 module Spec_alloc : Spec = struct
-  let name = "alloc"
+  let name = "noalloc"
 
   let enabled () = !Flambda_backend_flags.alloc_check
 
@@ -453,7 +453,7 @@ let record_unit_info ppf_dump =
 
 let report_error ppf = function
   | Annotation { fun_name; check } ->
-    Format.fprintf ppf "Annotation check for %s on function %s failed" check
+    Format.fprintf ppf "Annotation check for %s failed on function %s" check
       fun_name
 
 let () =
