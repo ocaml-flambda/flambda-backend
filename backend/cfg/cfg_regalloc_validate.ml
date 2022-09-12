@@ -861,8 +861,8 @@ module Transfer (Desc_val : Description_value) :
       Result.ok @@ rename_register t ~reg_instr:instr_before
     | _ ->
       transfer_generic Basic ~find_description:Description.find_basic
-        ~can_raise:Cfg.can_raise_basic
-        ~destroyed_at:Proc.destroyed_at_basic t ~exn instr
+        ~can_raise:Cfg.can_raise_basic ~destroyed_at:Proc.destroyed_at_basic t
+        ~exn instr
 
   let terminator t ~exn instr =
     (* CR-soon azewierzejew: This is kind of fragile for [Tailcall (Self _)]
