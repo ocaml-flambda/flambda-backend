@@ -213,7 +213,88 @@ let empty () =
     dummy_toplevel_cont = wrong_dummy_toplevel_cont
   }
 
+let add_extra_args_to_call ~extra_args rewrite_id original_args =
+  match Apply_cont_rewrite_id.Map.find rewrite_id extra_args with
+  | exception Not_found -> original_args
+  | extra_args ->
+    let args_acc =
+      if Numeric_types.Int.Map.is_empty original_args
+      then 0, Numeric_types.Int.Map.empty
+      else
+        let max_arg, _ = Numeric_types.Int.Map.max_binding original_args in
+        max_arg + 1, original_args
+    in
+    let extra_args =
+      List.map
+        (function
+          | EPA.Extra_arg.Already_in_scope s -> Cont_arg.Simple s
+          | EPA.Extra_arg.New_let_binding (v, prim) ->
+            Cont_arg.New_let_binding (v, Flambda_primitive.free_names prim)
+          | EPA.Extra_arg.New_let_binding_with_named_args (v, _) ->
+            Cont_arg.New_let_binding (v, Name_occurrences.empty))
+        extra_args
+    in
+    let _, args =
+      List.fold_left
+        (fun (i, args) extra_arg ->
+          i + 1, Numeric_types.Int.Map.add i extra_arg args)
+        args_acc extra_args
+    in
+    args
+
 let extend_args_with_extra_args t =
+  let map =
+    Continuation.Map.map
+      (fun elt ->
+        let apply_cont_args =
+          Continuation.Map.mapi
+            (fun cont rewrite_ids ->
+              match Continuation.Map.find cont t.extra with
+              | exception Not_found -> rewrite_ids
+              | epa ->
+                let extra_args = EPA.extra_args epa in
+                Apply_cont_rewrite_id.Map.mapi
+                  (add_extra_args_to_call ~extra_args)
+                  rewrite_ids)
+            elt.apply_cont_args
+        in
+        { elt with apply_cont_args })
+      t.map
+  in
+  let map =
+    Continuation.Map.map
+      (fun elt ->
+        let defined =
+          Continuation.Map.fold
+            (fun callee_cont rewrite_ids defined ->
+              match Continuation.Map.find callee_cont t.extra with
+              | exception Not_found -> defined
+              | epa ->
+                Apply_cont_rewrite_id.Map.fold
+                  (fun rewrite_id _args defined ->
+                    match
+                      Apply_cont_rewrite_id.Map.find rewrite_id
+                        (EPA.extra_args epa)
+                    with
+                    | exception Not_found -> defined
+                    | extra_args ->
+                      let defined =
+                        List.fold_left
+                          (fun defined -> function
+                            | EPA.Extra_arg.Already_in_scope _ -> defined
+                            | EPA.Extra_arg.New_let_binding (v, _)
+                            | EPA.Extra_arg.New_let_binding_with_named_args
+                                (v, _) ->
+                              Variable.Set.add v defined)
+                          defined extra_args
+                      in
+                      defined)
+                  rewrite_ids defined)
+            elt.apply_cont_args elt.defined
+        in
+        { elt with defined })
+      map
+  in
   let map =
     Continuation.Map.fold
       (fun cont epa map ->
@@ -222,81 +303,10 @@ let extend_args_with_extra_args t =
           let params =
             Bound_parameters.append elt.params (EPA.extra_params epa)
           in
-          let apply_cont_args =
-            Continuation.Map.mapi
-              (fun cont rewrite_ids ->
-                match Continuation.Map.find cont t.extra with
-                | exception Not_found -> rewrite_ids
-                | epa ->
-                  let extra_args = EPA.extra_args epa in
-                  Apply_cont_rewrite_id.Map.mapi
-                    (fun rewrite_id args ->
-                      match
-                        Apply_cont_rewrite_id.Map.find rewrite_id extra_args
-                      with
-                      | exception Not_found -> args
-                      | extra_args ->
-                        let max_arg, _ =
-                          Numeric_types.Int.Map.max_binding args
-                        in
-                        let extra_args =
-                          List.map
-                            (function
-                              | EPA.Extra_arg.Already_in_scope s ->
-                                Cont_arg.Simple s
-                              | EPA.Extra_arg.New_let_binding (v, prim) ->
-                                Cont_arg.New_let_binding
-                                  (v, Flambda_primitive.free_names prim)
-                              | EPA.Extra_arg.New_let_binding_with_named_args
-                                  (v, _) ->
-                                Cont_arg.New_let_binding
-                                  (v, Name_occurrences.empty))
-                            extra_args
-                        in
-                        let _, args =
-                          List.fold_left
-                            (fun (i, args) extra_arg ->
-                              i + 1, Numeric_types.Int.Map.add i extra_arg args)
-                            (max_arg + 1, args)
-                            extra_args
-                        in
-                        args)
-                    rewrite_ids)
-              elt.apply_cont_args
-          in
-          let defined =
-            Continuation.Map.fold
-              (fun cont rewrite_ids defined ->
-                match Continuation.Map.find cont t.extra with
-                | exception Not_found -> defined
-                | epa ->
-                  let extra_args = EPA.extra_args epa in
-                  Apply_cont_rewrite_id.Map.fold
-                    (fun rewrite_id _args defined ->
-                      match
-                        Apply_cont_rewrite_id.Map.find rewrite_id extra_args
-                      with
-                      | exception Not_found -> defined
-                      | extra_args ->
-                        let defined =
-                          List.fold_left
-                            (fun defined -> function
-                              | EPA.Extra_arg.Already_in_scope _ -> defined
-                              | EPA.Extra_arg.New_let_binding (v, _) ->
-                                Variable.Set.add v defined
-                              | EPA.Extra_arg.New_let_binding_with_named_args
-                                  (v, _) ->
-                                Variable.Set.add v defined)
-                            defined extra_args
-                        in
-                        defined)
-                    rewrite_ids defined)
-              elt.apply_cont_args elt.defined
-          in
-          { elt with params; apply_cont_args; defined }
+          { elt with params }
         in
         Continuation.Map.add cont elt map)
-      t.extra t.map
+      t.extra map
   in
   { t with map }
 
