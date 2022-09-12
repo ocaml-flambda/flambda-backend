@@ -432,7 +432,7 @@ let add_apply_conts ~result_cont ~exn_cont t =
           (function
             | None -> Some (Apply_cont_rewrite_id.Set.singleton rewrite_id)
             | Some set -> Some (Apply_cont_rewrite_id.Set.add rewrite_id set))
-          elt.apply_result_conts
+          elt.apply_exn_conts
       in
       let add_func_result cont rewrite_id apply_cont_args =
         Continuation.Map.update cont
