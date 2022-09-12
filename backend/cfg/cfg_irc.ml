@@ -415,21 +415,33 @@ let rewrite : State.t -> Cfg_with_layout.t -> Reg.t list -> reset:bool -> unit =
     | `store -> instr.res <- Array.map instr.res ~f);
     !res
   in
-  let rec rewrite_body (acc : Instruction.t list) (body : Instruction.t list)
-      (terminator : Cfg.terminator Cfg.instruction) : Instruction.t list =
+  let rec rewrite_body_and_terminator (acc : Instruction.t list)
+      (body : Instruction.t list) (terminator : Cfg.terminator Cfg.instruction)
+      : Instruction.t list =
+    (* CR xclerc for xclerc: we can discover by calling `Cfg_stack_operands.xyz`
+       that we actually did not need to reallocate the list; it is a bit
+       unfortunate, given the efforts made to try to avoid the reallocation. *)
     match body with
-    | [] ->
-      let acc =
-        rewrite_instruction ~direction:`load ~sharing:(Reg.Tbl.create 8) acc
-          terminator
-      in
-      List.rev acc
-    | hd :: tl ->
-      let sharing = Reg.Tbl.create 8 in
-      let acc = rewrite_instruction ~direction:`load ~sharing acc hd in
-      let acc = hd :: acc in
-      let acc = rewrite_instruction ~direction:`store ~sharing acc hd in
-      rewrite_body acc tl terminator
+    | [] -> (
+      match Cfg_stack_operands.terminator spilled_map terminator with
+      | All_spilled_registers_rewritten -> List.rev acc
+      | May_still_have_spilled_registers ->
+        let acc =
+          rewrite_instruction ~direction:`load ~sharing:(Reg.Tbl.create 8) acc
+            terminator
+        in
+        List.rev acc)
+    | hd :: tl -> (
+      match Cfg_stack_operands.basic spilled_map hd with
+      | All_spilled_registers_rewritten ->
+        let acc = hd :: acc in
+        rewrite_body_and_terminator acc tl terminator
+      | May_still_have_spilled_registers ->
+        let sharing = Reg.Tbl.create 8 in
+        let acc = rewrite_instruction ~direction:`load ~sharing acc hd in
+        let acc = hd :: acc in
+        let acc = rewrite_instruction ~direction:`store ~sharing acc hd in
+        rewrite_body_and_terminator acc tl terminator)
   in
   Cfg.iter_blocks (Cfg_with_layout.cfg cfg_with_layout) ~f:(fun label block ->
       (* CR xclerc for xclerc: we currently assume that a terminator does not
@@ -446,7 +458,7 @@ let rewrite : State.t -> Cfg_with_layout.t -> Reg.t list -> reset:bool -> unit =
         then (
           log ~indent:2 "body of #%d, before:" label;
           log_body_and_terminator ~indent:3 block.body block.terminator);
-        block.body <- rewrite_body [] block.body block.terminator;
+        block.body <- rewrite_body_and_terminator [] block.body block.terminator;
         if irc_debug
         then (
           log ~indent:2 "and after:";
@@ -603,6 +615,6 @@ let run : Cfg_with_layout.t -> Cfg_with_layout.t =
   if irc_debug && irc_invariants
   then (
     log ~indent:0 "postcondition";
-    postcondition cfg_with_layout);
+    postcondition cfg_with_layout ~allow_stack_operands:true);
   Array.iter all_precolored_regs ~f:(fun reg -> reg.Reg.degree <- 0);
   cfg_with_layout

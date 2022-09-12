@@ -246,6 +246,7 @@
   cfg_regalloc_utils
   cfg_regalloc_validate
   cfg_to_linear_desc
+  cfg_stack_operands
   cfg_irc
   cfg_irc_state
   cfg_irc_utils
@@ -759,6 +760,7 @@
   (cfg_regalloc_utils.mli as compiler-libs/cfg_regalloc_utils.mli)
   (cfg_regalloc_validate.mli as compiler-libs/cfg_regalloc_validate.mli)
   (cfg_to_linear_desc.mli as compiler-libs/cfg_to_linear_desc.mli)
+  (cfg_stack_operands.mli as compiler-libs/cfg_stack_operands.mli)
   (cfg_irc.mli as compiler-libs/cfg_irc.mli)
   (cfg_irc_state.mli as compiler-libs/cfg_irc_state.mli)
   (cfg_irc_utils.mli as compiler-libs/cfg_irc_utils.mli)
@@ -1222,6 +1224,7 @@
   (.ocamloptcomp.objs/byte/cfg_regalloc_utils.cmti
    as
    compiler-libs/cfg_regalloc_utils.cmti)
+
   (.ocamloptcomp.objs/byte/cfg_regalloc_validate.cmi
    as
    compiler-libs/cfg_regalloc_validate.cmi)
@@ -1229,11 +1232,23 @@
    as
    compiler-libs/cfg_regalloc_validate.cmo)
   (.ocamloptcomp.objs/byte/cfg_regalloc_validate.cmt
-   as
-   compiler-libs/cfg_regalloc_validate.cmt)
+    as
+    compiler-libs/cfg_regalloc_validate.cmt)
   (.ocamloptcomp.objs/byte/cfg_regalloc_validate.cmti
+    as
+    compiler-libs/cfg_regalloc_validate.cmti)
+  (.ocamloptcomp.objs/byte/cfg_stack_operands.cmi
    as
-   compiler-libs/cfg_regalloc_validate.cmti)
+   compiler-libs/cfg_stack_operands.cmi)
+  (.ocamloptcomp.objs/byte/cfg_stack_operands.cmo
+   as
+   compiler-libs/cfg_stack_operands.cmo)
+  (.ocamloptcomp.objs/byte/cfg_stack_operands.cmt
+   as
+   compiler-libs/cfg_stack_operands.cmt)
+  (.ocamloptcomp.objs/byte/cfg_stack_operands.cmti
+   as
+   compiler-libs/cfg_stack_operands.cmti)
   (.ocamloptcomp.objs/byte/cfg_to_linear_desc.cmi
    as
    compiler-libs/cfg_to_linear_desc.cmi)
@@ -1515,8 +1530,11 @@
    as
    compiler-libs/cfg_regalloc_utils.cmx)
   (.ocamloptcomp.objs/native/cfg_regalloc_validate.cmx
+    as
+    compiler-libs/cfg_regalloc_validate.cmx)
+  (.ocamloptcomp.objs/native/cfg_stack_operands.cmx
    as
-   compiler-libs/cfg_regalloc_validate.cmx)
+   compiler-libs/cfg_stack_operands.cmx)
   (.ocamloptcomp.objs/native/cfg_to_linear_desc.cmx
    as
    compiler-libs/cfg_to_linear_desc.cmx)
