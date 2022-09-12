@@ -206,7 +206,9 @@ module Inlining = struct
       Inlining_report.record_decision_at_call_site_for_unknown_function ~tracker
         ~apply ~pass:After_closure_conversion ();
       Not_inlinable
-    | Some (Value_symbol _) | Some (Block_approximation _) -> assert false
+    | Some (Value_symbol _) | Some (Value_int _) | Some (Block_approximation _)
+      ->
+      assert false
     | Some (Closure_approximation (_code_id, _, Metadata_only _)) ->
       Inlining_report.record_decision_at_call_site_for_known_function ~tracker
         ~apply ~pass:After_closure_conversion ~unrolling_depth:None
@@ -736,9 +738,9 @@ let close_let acc env id user_visible defining_expr
             (Env.add_block_approximation body_env (Name.var var) approxs
                alloc_mode)
         | Prim (Binary (Block_load _, block, field), _) -> (
-          match Env.find_value_approximation body_env block with
+          match Env.find_value_approximation env block with
           | Value_unknown -> Some body_env
-          | Closure_approximation _ | Value_symbol _ ->
+          | Closure_approximation _ | Value_symbol _ | Value_int _ ->
             (* Here we assume [block] has already been substituted as a known
                symbol if it exists, and rely on the invariant that the
                approximation of a symbol is never a symbol. *)
@@ -877,7 +879,9 @@ let close_exact_or_unknown_apply acc env
             Call_kind.indirect_function_call_unknown_arity mode
           else Call_kind.direct_function_call code_id ~return_arity mode
         | None -> Call_kind.indirect_function_call_unknown_arity mode
-        | Some (Value_unknown | Value_symbol _ | Block_approximation _) ->
+        | Some
+            ( Value_unknown | Value_symbol _ | Value_int _
+            | Block_approximation _ ) ->
           assert false
         (* See [close_apply] *) ))
     | Method { kind; obj } ->
@@ -1728,7 +1732,7 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
           Code_metadata.contains_no_escaping_local_allocs metadata,
           Code_metadata.result_arity metadata )
     | Value_unknown -> None
-    | Value_symbol _ | Block_approximation _ ->
+    | Value_symbol _ | Value_int _ | Block_approximation _ ->
       if Flambda_features.check_invariants ()
       then
         Misc.fatal_errorf

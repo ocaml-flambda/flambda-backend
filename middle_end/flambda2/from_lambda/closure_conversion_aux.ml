@@ -162,11 +162,12 @@ module Env = struct
               "Closure_conversion: approximation loader returned a Symbol \
                approximation (%a) for symbol %a"
               Symbol.print sym Symbol.print symbol
-          | Value_unknown | Closure_approximation _ | Block_approximation _ ->
+          | Value_unknown | Value_int _ | Closure_approximation _
+          | Block_approximation _ ->
             ());
         let rec filter_inlinable approx =
           match (approx : value_approximation) with
-          | Value_unknown | Value_symbol _
+          | Value_unknown | Value_symbol _ | Value_int _
           | Closure_approximation (_, _, Metadata_only _) ->
             approx
           | Block_approximation (approxs, alloc_mode) ->
@@ -339,8 +340,8 @@ module Env = struct
   let add_approximation_alias t name alias =
     match find_value_approximation t (Simple.name name) with
     | Value_unknown -> t
-    | (Value_symbol _ | Closure_approximation _ | Block_approximation _) as
-      approx ->
+    | ( Value_symbol _ | Value_int _ | Closure_approximation _
+      | Block_approximation _ ) as approx ->
       add_value_approximation t alias approx
 
   let set_path_to_root t path_to_root =

@@ -1183,6 +1183,7 @@ end = struct
     let rec type_from_approx approx =
       match (approx : _ Value_approximation.t) with
       | Value_unknown -> MTC.unknown Flambda_kind.value
+      | Value_int i -> TG.this_tagged_immediate i
       | Value_symbol symbol ->
         TG.alias_type_of Flambda_kind.value (Simple.symbol symbol)
       | Block_approximation (fields, alloc_mode) ->
@@ -1278,7 +1279,12 @@ end = struct
         | Unknown | Bottom -> Value_unknown
         | Ok (Equals simple) ->
           Simple.pattern_match' simple
-            ~const:(fun _ -> VA.Value_unknown)
+            ~const:(fun const ->
+              match Reg_width_const.descr const with
+              | Tagged_immediate i -> VA.Value_int i
+              | Naked_immediate _ | Naked_float _ | Naked_int32 _
+              | Naked_int64 _ | Naked_nativeint _ ->
+                VA.Value_unknown)
             ~var:(fun _ ~coercion:_ -> VA.Value_unknown)
             ~symbol:(fun symbol ~coercion:_ -> VA.Value_symbol symbol)
         | Ok (No_alias head) -> (
