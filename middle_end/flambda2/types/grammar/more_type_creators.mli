@@ -106,12 +106,6 @@ val variant :
   Alloc_mode.t Or_unknown.t ->
   Type_grammar.t
 
-val open_variant_from_const_ctors_type :
-  const_ctors:Type_grammar.t -> Type_grammar.t
-
-val open_variant_from_non_const_ctor_with_size_at_least :
-  n:Targetint_31_63.t -> field_n_minus_one:Variable.t -> Type_grammar.t
-
 val exactly_this_closure :
   Function_slot.t ->
   all_function_slots_in_set:
