@@ -139,11 +139,11 @@ module type Backward_domain = sig
 
   val bot : t
 
-  val compare : t -> t -> int
-
   val join : t -> t -> t
 
   val less_equal : t -> t -> bool
+
+  val compare : t -> t -> int
 
   val to_string : t -> string
 end
@@ -151,22 +151,38 @@ end
 module type Backward_transfer = sig
   type domain
 
-  val basic : domain -> exn:domain -> Cfg.basic Cfg.instruction -> domain
+  type error
+
+  val basic :
+    domain -> exn:domain -> Cfg.basic Cfg.instruction -> (domain, error) result
 
   val terminator :
-    domain -> exn:domain -> Cfg.terminator Cfg.instruction -> domain
+    domain ->
+    exn:domain ->
+    Cfg.terminator Cfg.instruction ->
+    (domain, error) result
 
-  val exception_ : domain -> domain
+  val exception_ : domain -> (domain, error) result
 end
 
 module Instr = Numbers.Int
 
+module Dataflow_result = struct
+  type ('a, 'e) t =
+    | Ok of 'a
+    | Aborted of 'a * 'e
+    | Max_iterations_reached
+end
+
 module type Backward_S = sig
   type domain
+
+  type error
 
   type _ map =
     | Block : domain Label.Tbl.t map
     | Instr : domain Instr.Tbl.t map
+    | Both : (domain Instr.Tbl.t * domain Label.Tbl.t) map
 
   val run :
     Cfg.t ->
@@ -174,20 +190,25 @@ module type Backward_S = sig
     init:domain ->
     map:'a map ->
     unit ->
-    ('a, 'a) Result.t
+    ('a, error) Dataflow_result.t
 end
 
 module Backward
     (D : Backward_domain)
     (T : Backward_transfer with type domain = D.t) :
-  Backward_S with type domain = D.t = struct
+  Backward_S with type domain = D.t and type error = T.error = struct
   (* CR xclerc for xclerc: see what can be shared with `Forward`. *)
 
   type domain = D.t
 
+  type error = T.error
+
+  exception Dataflow_aborted of error
+
   type _ map =
     | Block : domain Label.Tbl.t map
     | Instr : domain Instr.Tbl.t map
+    | Both : (domain Instr.Tbl.t * domain Label.Tbl.t) map
 
   module WorkSetElement = struct
     type t =
@@ -204,6 +225,11 @@ module Backward
 
   module WorkSet = Set.Make (WorkSetElement)
 
+  let unwrap_transfer_result value =
+    match value with
+    | Ok value -> value
+    | Error error -> raise (Dataflow_aborted error)
+
   let transfer_block :
       domain Instr.Tbl.t option ->
       domain ->
@@ -212,6 +238,7 @@ module Backward
       domain =
    fun tbl value ~exn block ->
     let replace (instr : _ Cfg.instruction) value =
+      let value = unwrap_transfer_result value in
       match tbl with
       | None -> value
       | Some tbl ->
@@ -256,7 +283,7 @@ module Backward
       init:domain ->
       map:a map ->
       unit ->
-      (a, a) Result.t =
+      (a, error) Dataflow_result.t =
    fun cfg ?(max_iteration = max_int) ~init ~map () ->
     let res_block, res_instr, work_set = create cfg ~init in
     let iteration = ref 0 in
@@ -265,80 +292,85 @@ module Backward
       Label.Tbl.create (Label.Tbl.length cfg.Cfg.blocks)
     in
     let instr_map : D.t Instr.Tbl.t option =
-      match map with Block -> None | Instr -> Some res_instr
+      match map with Block -> None | Both | Instr -> Some res_instr
     in
-    while (not (WorkSet.is_empty !work_set)) && !iteration < max_iteration do
-      incr iteration;
-      let element, block = remove_and_return cfg work_set in
-      let exn : domain =
-        Option.map
-          (fun exceptional_successor ->
-            Label.Tbl.find_opt handler_map exceptional_successor)
-          block.exn
-        |> Option.join
-        |> Option.value ~default:D.bot
-      in
-      let value = transfer_block instr_map element.value ~exn block in
-      if block.is_trap_handler
-      then (
-        let old_value =
-          Option.value
-            (Label.Tbl.find_opt handler_map block.start)
-            ~default:D.bot
+    let result : a =
+      match map with
+      | Block -> res_block
+      | Instr -> res_instr
+      | Both -> res_instr, res_block
+    in
+    try
+      while (not (WorkSet.is_empty !work_set)) && !iteration < max_iteration do
+        incr iteration;
+        let element, block = remove_and_return cfg work_set in
+        let exn : domain =
+          Option.map
+            (fun exceptional_successor ->
+              Label.Tbl.find_opt handler_map exceptional_successor)
+            block.exn
+          |> Option.join
+          |> Option.value ~default:D.bot
         in
-        let new_value = T.exception_ value in
-        if not (D.less_equal new_value old_value)
+        let value = transfer_block instr_map element.value ~exn block in
+        if block.is_trap_handler
         then (
-          Label.Tbl.replace handler_map block.start new_value;
+          let old_value =
+            Option.value
+              (Label.Tbl.find_opt handler_map block.start)
+              ~default:D.bot
+          in
+          let new_value = T.exception_ value |> unwrap_transfer_result in
+          if not (D.less_equal new_value old_value)
+          then (
+            Label.Tbl.replace handler_map block.start new_value;
+            List.iter
+              (fun predecessor_label ->
+                let current_value =
+                  Option.value
+                    (Label.Tbl.find_opt res_block predecessor_label)
+                    ~default:D.bot
+                in
+                work_set
+                  := WorkSet.add
+                       { WorkSetElement.label = predecessor_label;
+                         value = current_value
+                       }
+                       !work_set)
+              (Cfg.predecessor_labels block)))
+        else
           List.iter
             (fun predecessor_label ->
-              let current_value =
+              let old_value =
                 Option.value
                   (Label.Tbl.find_opt res_block predecessor_label)
                   ~default:D.bot
               in
-              work_set
-                := WorkSet.add
-                     { WorkSetElement.label = predecessor_label;
-                       value = current_value
-                     }
-                     !work_set)
-            (Cfg.predecessor_labels block)))
-      else
-        List.iter
-          (fun predecessor_label ->
-            let old_value =
-              Option.value
-                (Label.Tbl.find_opt res_block predecessor_label)
-                ~default:D.bot
-            in
-            let new_value = D.join old_value value in
-            if not (D.less_equal new_value old_value)
-            then (
-              Label.Tbl.replace res_block predecessor_label new_value;
-              let already_in_workset = ref false in
-              work_set
-                := WorkSet.filter
-                     (fun { WorkSetElement.label; value } ->
-                       if Label.equal label predecessor_label
-                       then (
-                         if D.less_equal new_value value
-                         then already_in_workset := true;
-                         not (D.less_equal value new_value))
-                       else true)
-                     !work_set;
-              if not !already_in_workset
-              then
+              let new_value = D.join old_value value in
+              if not (D.less_equal new_value old_value)
+              then (
+                Label.Tbl.replace res_block predecessor_label new_value;
+                let already_in_workset = ref false in
                 work_set
-                  := WorkSet.add
-                       { WorkSetElement.label = predecessor_label;
-                         value = new_value
-                       }
-                       !work_set))
-          (Cfg.predecessor_labels block)
-    done;
-    let return x =
-      if WorkSet.is_empty !work_set then Result.Ok x else Result.Error x
-    in
-    match map with Block -> return res_block | Instr -> return res_instr
+                  := WorkSet.filter
+                       (fun { WorkSetElement.label; value } ->
+                         if Label.equal label predecessor_label
+                         then (
+                           if D.less_equal new_value value
+                           then already_in_workset := true;
+                           not (D.less_equal value new_value))
+                         else true)
+                       !work_set;
+                if not !already_in_workset
+                then
+                  work_set
+                    := WorkSet.add
+                         { WorkSetElement.label = predecessor_label;
+                           value = new_value
+                         }
+                         !work_set))
+            (Cfg.predecessor_labels block)
+      done;
+      if WorkSet.is_empty !work_set then Ok result else Max_iterations_reached
+    with Dataflow_aborted error -> Aborted (result, error)
 end

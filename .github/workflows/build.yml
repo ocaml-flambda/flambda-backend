@@ -128,7 +128,7 @@ jobs:
 
     - name: Install GCC 32-bit libraries
       if: matrix.name == 'build_upstream-32-bit'
-      run: sudo apt-get install gcc-multilib
+      run: sudo apt-get install gcc-multilib gfortran-multilib
 
     - name: Configure Flambda backend
       working-directory: flambda_backend
@@ -144,7 +144,7 @@ jobs:
       run: |
         if [ $run_testsuite = true ]; then target=ci; else target=compiler; fi
         export PATH=$GITHUB_WORKSPACE/ocaml-412/_install/bin:$PATH
-        if [ $build_upstream = true ]; then make -j$J build_upstream; else make $target; fi
+        if [ $build_upstream = true ]; then make -j$J build_and_test_upstream; else make $target; fi
       env:
         BUILD_OCAMLPARAM: ${{ matrix.ocamlparam }}
 

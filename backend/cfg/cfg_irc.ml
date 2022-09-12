@@ -52,15 +52,13 @@ let build : State.t -> Cfg_with_layout.t -> liveness -> unit =
   Cfg.iter_blocks (Cfg_with_layout.cfg cfg_with_layout) ~f:(fun _label block ->
       if block.is_trap_handler
       then
-        let first_id =
-          match block.body with [] -> block.terminator.id | hd :: _ -> hd.id
-        in
+        let first_id = Cfg_regalloc_utils.first_instruction_id block in
         let live = Cfg_dataflow.Instr.Tbl.find liveness first_id in
         Reg.Set.iter
           (fun reg1 ->
             Array.iter Proc.destroyed_at_raise ~f:(fun reg2 ->
                 State.add_edge state reg1 reg2))
-          live.across)
+          (Reg.Set.remove Proc.loc_exn_bucket live.before))
 
 let make_work_list : State.t -> unit =
  fun state ->
@@ -417,21 +415,33 @@ let rewrite : State.t -> Cfg_with_layout.t -> Reg.t list -> reset:bool -> unit =
     | `store -> instr.res <- Array.map instr.res ~f);
     !res
   in
-  let rec rewrite_body (acc : Instruction.t list) (body : Instruction.t list)
-      (terminator : Cfg.terminator Cfg.instruction) : Instruction.t list =
+  let rec rewrite_body_and_terminator (acc : Instruction.t list)
+      (body : Instruction.t list) (terminator : Cfg.terminator Cfg.instruction)
+      : Instruction.t list =
+    (* CR xclerc for xclerc: we can discover by calling `Cfg_stack_operands.xyz`
+       that we actually did not need to reallocate the list; it is a bit
+       unfortunate, given the efforts made to try to avoid the reallocation. *)
     match body with
-    | [] ->
-      let acc =
-        rewrite_instruction ~direction:`load ~sharing:(Reg.Tbl.create 8) acc
-          terminator
-      in
-      List.rev acc
-    | hd :: tl ->
-      let sharing = Reg.Tbl.create 8 in
-      let acc = rewrite_instruction ~direction:`load ~sharing acc hd in
-      let acc = hd :: acc in
-      let acc = rewrite_instruction ~direction:`store ~sharing acc hd in
-      rewrite_body acc tl terminator
+    | [] -> (
+      match Cfg_stack_operands.terminator spilled_map terminator with
+      | All_spilled_registers_rewritten -> List.rev acc
+      | May_still_have_spilled_registers ->
+        let acc =
+          rewrite_instruction ~direction:`load ~sharing:(Reg.Tbl.create 8) acc
+            terminator
+        in
+        List.rev acc)
+    | hd :: tl -> (
+      match Cfg_stack_operands.basic spilled_map hd with
+      | All_spilled_registers_rewritten ->
+        let acc = hd :: acc in
+        rewrite_body_and_terminator acc tl terminator
+      | May_still_have_spilled_registers ->
+        let sharing = Reg.Tbl.create 8 in
+        let acc = rewrite_instruction ~direction:`load ~sharing acc hd in
+        let acc = hd :: acc in
+        let acc = rewrite_instruction ~direction:`store ~sharing acc hd in
+        rewrite_body_and_terminator acc tl terminator)
   in
   Cfg.iter_blocks (Cfg_with_layout.cfg cfg_with_layout) ~f:(fun label block ->
       (* CR xclerc for xclerc: we currently assume that a terminator does not
@@ -448,7 +458,7 @@ let rewrite : State.t -> Cfg_with_layout.t -> Reg.t list -> reset:bool -> unit =
         then (
           log ~indent:2 "body of #%d, before:" label;
           log_body_and_terminator ~indent:3 block.body block.terminator);
-        block.body <- rewrite_body [] block.body block.terminator;
+        block.body <- rewrite_body_and_terminator [] block.body block.terminator;
         if irc_debug
         then (
           log ~indent:2 "and after:";
@@ -585,7 +595,11 @@ let run : Cfg_with_layout.t -> Cfg_with_layout.t =
         log ~indent:0 "%a <- spilling_because_split_or_unused" Printmach.reg r);
   (match spilling_because_split_or_unused with
   | [] -> ()
-  | _ :: _ as spilling -> rewrite state cfg_with_layout spilling ~reset:false);
+  | _ :: _ as spilling ->
+    List.iter spilling ~f:(fun reg -> State.add_spilled_nodes state reg);
+    (* note: rewrite will remove the `spilling` registers from the "spilled"
+       work list and set the field to unknown. *)
+    rewrite state cfg_with_layout spilling ~reset:false);
   let liveness = main ~round:1 state cfg_with_layout in
   (* note: slots need to be updated before prologue removal *)
   if irc_debug
@@ -601,6 +615,6 @@ let run : Cfg_with_layout.t -> Cfg_with_layout.t =
   if irc_debug && irc_invariants
   then (
     log ~indent:0 "postcondition";
-    postcondition cfg_with_layout);
+    postcondition cfg_with_layout ~allow_stack_operands:true);
   Array.iter all_precolored_regs ~f:(fun reg -> reg.Reg.degree <- 0);
   cfg_with_layout

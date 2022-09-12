@@ -7,6 +7,12 @@ type domain =
 
 module Domain : Cfg_dataflow.Backward_domain with type t = domain
 
-module Transfer : Cfg_dataflow.Backward_transfer with type domain = domain
+type error = |
 
-module Liveness : Cfg_dataflow.Backward_S with type domain = domain
+module Transfer :
+  Cfg_dataflow.Backward_transfer
+    with type domain = domain
+     and type error = error
+
+module Liveness :
+  Cfg_dataflow.Backward_S with type domain = domain and type error = error

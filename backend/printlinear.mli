@@ -18,5 +18,6 @@
 open Format
 open Linear
 
+val instr': ?print_reg:(formatter -> Reg.t -> unit) -> formatter -> instruction -> unit
 val instr: formatter -> instruction -> unit
 val fundecl: formatter -> fundecl -> unit

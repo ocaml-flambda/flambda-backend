@@ -75,6 +75,53 @@ module Env : sig
 
   val get_mutable_variable : t -> Ident.t -> Ident.t
 
+  (** About local allocation regions:
+
+      In this pass, we have to transform [Lregion] expressions in Lambda to
+      primitives that mark the opening and closing of stack regions. We need to
+      ensure regions are always closed so as to not leak out of their scope.
+      They must also never be closed twice.
+
+      Several nested regions can be closed with one primitive as [End_region id]
+      which will close [id] and every other region opened in its scope. As such,
+      the transformation doesn't need to generate strict pairings of
+      [Begin_region] and [End_region] in every case. We may jump out of the
+      scope of several regions at once, in particular with exception raises from
+      [Lstaticraise].
+
+      Another case requiring attention is function calls in tail position for
+      which we may need to add an [End_region] before the jump.
+
+      This implementation works as follows.
+
+      For normal control flow, following the block structure of Lambda
+      expressions, we insert a new continuation (called the "region closure
+      continuation") upon encountering [Begin_region]; then at every leaf we
+      cause the control flow to jump via that continuation. The region closure
+      continuation closes the relevant region before jumping to what would have
+      been the "real" continuation of the leaf expressions in question. The
+      insertion of the continuation avoids duplication of the [End_region]
+      constructs. (We only need one [Begin_region] per region, but potentially
+      as many [End_region]s as there are leaves in the subsequent term.)
+
+      For exceptional control flow, the region closure continuation is not used;
+      instead, a region is opened before the beginning of a Trywith, so that we
+      can use this region to close every subsequent regions opened in its scope
+      at the beginning of the handler.
+
+      Likewise, when regions must be closed explicitly prior to tail calls to
+      avoid leaking memory on the local allocation stack, the closure
+      continuation is also not used in favour of explicit insertion of
+      [End_region] operations.
+
+      Region closure continuations are created alongside corresponding
+      [Begin_region]s in the [Lregion] cases of [cps_non_tail] and [cps_tail].
+      The decision as to calling a closure continuation or adding explicit
+      [End_region]s is done in [restore_continuation_context] and
+      [wrap_return_continuation]. Exceptional control flow cases are handled by
+      the [compile_staticfail] and [Ltrywith] cases of the main transformation
+      functions. *)
+
   val entering_region :
     t ->
     Ident.t ->
@@ -683,6 +730,9 @@ let restore_continuation_context acc env ccenv cont ~close_early body =
   match Env.pop_regions_up_to_context env cont with
   | None -> body acc ccenv cont
   | Some region ->
+    (* If we need to close regions early then do it now; otherwise redirect the
+       return continuation to the one closing such regions, if any exist. See
+       comment in [cps_non_tail] on the [Lregion] case. *)
     if close_early
     then
       CC.close_let acc ccenv (Ident.create_local "unit")
@@ -1151,6 +1201,9 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
     Misc.fatal_error
       "[Lifused] should have been removed by [Simplif.simplify_lets]"
   | Lregion body ->
+    (* Here we need to build the region closure continuation (see long comment
+       above). Since we're not in tail position, we also need to have a new
+       continuation for the code after the body. *)
     let region = Ident.create_local "region" in
     let dbg = Debuginfo.none in
     CC.close_let acc ccenv region Not_user_visible Begin_region
@@ -1165,6 +1218,26 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
               ~is_exn_handler:false
               ~params:[wrap_return, Not_user_visible, Pgenval]
               ~body:(fun acc env ccenv continuation_closing_region ->
+                (* We register this region to be closed by the newly-created
+                   region closure continuation. When we reach a point in [body]
+                   where we would normally jump to [return_continuation] (i.e.
+                   leaving the body), we will instead jump to
+                   [region_closure_continuation] to ensure the region is closed
+                   at the right time. Exception raises and tailcall cases will
+                   generate their own [End_region]s and use
+                   [return_continuation] directly. (See long comment above.)
+
+                   In the case where we jump out of the scope of several regions
+                   at once, we will jump directly to the region closure
+                   continuation for the outermost open region. For this to be
+                   correct we rely on the fact that the code structure here,
+                   which follows the block structure of the Lambda code, ensures
+                   this is equivalent to going through the sequence of nested
+                   [region_closure_continuation]s we generate.
+
+                   In the event the region closure continuation isn't used (e.g.
+                   the only exit is a tailcall), the [Let_cont] will be
+                   discarded by [Closure_conversion]. *)
                 let env =
                   Env.entering_region env region ~continuation_closing_region
                     ~continuation_after_closing_region:return_continuation
@@ -1173,6 +1246,10 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
               ~handler:(fun acc env ccenv ->
                 CC.close_let acc ccenv (Ident.create_local "unit")
                   Not_user_visible (End_region region) ~body:(fun acc ccenv ->
+                    (* Both body and handler will continue at
+                       [return_continuation] by default.
+                       [restore_region_context] will intercept the
+                       [Lstaticraise] jump to this handler if needed. *)
                     apply_cont_with_extra_args acc env ccenv ~dbg
                       return_continuation None [IR.Var wrap_return])))
           ~handler:(fun acc env ccenv -> k acc env ccenv return))
@@ -1552,6 +1629,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
           ~is_exn_handler:false
           ~params:[wrap_return, Not_user_visible, Pgenval]
           ~body:(fun acc env ccenv continuation_closing_region ->
+            (* See case in [cps_non_tail] *)
             let env =
               Env.entering_region env region ~continuation_closing_region
                 ~continuation_after_closing_region:k

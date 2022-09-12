@@ -139,6 +139,13 @@ type error = private
   | Inconsistent_implementation of string
   | Module_already_loaded of string
   | Private_library_cannot_implement_interface of string
+  | Library_file_already_loaded_privately of { filename : string; }
+    (** In native code, it is forbidden to dynamically load the same .cmxs
+        file more than once in private mode. *)
+
+(* CR-someday mshinwell: Consider implementing the check required for
+   [Library_file_already_loaded_privately] in bytecode mode.  It might be
+   worth using [RTLD_NOLOAD] to help with this. *)
 
 exception Error of error
 (** Errors in dynamic linking are reported by raising the [Error]

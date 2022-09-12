@@ -157,6 +157,11 @@ let anonymous t =
   | None -> true
   | Some _raw_name -> false
 
+let is_preassigned t =
+  match t.raw_name with
+  | R -> true
+  | Anon | Var _ -> false
+
 let name t =
   match Raw_name.to_string t.raw_name with
   | None -> ""
@@ -308,6 +313,9 @@ let equal_location left right =
     false
 
 let same_loc left right =
+  (* CR-soon azewierzejew: This should also compare [reg_class] for [Stack
+     (Local _)]. That's complicated because [reg_class] is definied in [Proc]
+     which relies on [Reg]. *)
   equal_location left.loc right.loc
 
 let same left right =

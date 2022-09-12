@@ -791,84 +791,29 @@ end
 
 module Binary_float_comp = Binary_arith_like (Float_ops_for_binary_comp)
 
-module Int_ops_for_binary_eq_comp (I : A.Int_number_kind) : sig
-  include Binary_arith_like_sig with type op = P.equality_comparison
-end = struct
-  module Lhs = I.Num
-  module Rhs = I.Num
-  module Result = Targetint_31_63
-
-  type op = P.equality_comparison
-
-  let arg_kind = I.standard_int_or_float_kind
-
-  let result_kind = K.naked_immediate
-
-  let ok_to_evaluate _env = true
-
-  let prover_lhs = I.unboxed_prover
-
-  let prover_rhs = I.unboxed_prover
-
-  let unknown _ = T.any_naked_immediate
-
-  let these = T.these_naked_immediates
-
-  let term imm : Named.t =
-    Named.create_simple (Simple.const (Reg_width_const.naked_immediate imm))
-
-  module Pair = I.Num.Pair
-
-  let cross_product = I.Num.cross_product
-
-  module Num = I.Num
-
-  let op (op : P.equality_comparison) n1 n2 =
-    let bool b = Targetint_31_63.bool b in
-    match op with
-    | Eq -> Some (bool (Num.compare n1 n2 = 0))
-    | Neq -> Some (bool (Num.compare n1 n2 <> 0))
-
-  let op_lhs_unknown _op ~rhs:_ = Cannot_simplify
-
-  let op_rhs_unknown _op ~lhs:_ = Cannot_simplify
-end
-[@@inline always]
-
-module Int_ops_for_binary_eq_comp_tagged_immediate =
-  Int_ops_for_binary_eq_comp (A.For_tagged_immediates)
-module Binary_int_eq_comp_tagged_immediate =
-  Binary_arith_like (Int_ops_for_binary_eq_comp_tagged_immediate)
-
-let simplify_phys_equal (op : P.equality_comparison) dacc ~original_term dbg
-    ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var =
+let simplify_phys_equal (op : P.equality_comparison) dacc ~original_term _dbg
+    ~arg1:_ ~arg1_ty ~arg2:_ ~arg2_ty ~result_var =
   (* This primitive is only used for arguments of kind [Value]. *)
-  if Simple.equal arg1 arg2
-  then
-    let const bool =
-      let dacc =
-        DA.add_variable dacc result_var
-          (T.this_naked_immediate (Targetint_31_63.bool bool))
-      in
-      SPR.create
-        (Named.create_simple (Simple.untagged_const_bool bool))
-        ~try_reify:false dacc
+  let typing_env = DA.typing_env dacc in
+  (* Note: We don't compare the arguments themselves for equality. Instead, we
+     know that [simplify_simple] always returns alias types, so we let the
+     prover do the matching. *)
+  match T.prove_physical_equality typing_env arg1_ty arg2_ty with
+  | Proved bool ->
+    let result = match op with Eq -> bool | Neq -> not bool in
+    let dacc =
+      DA.add_variable dacc result_var
+        (T.this_naked_immediate (Targetint_31_63.bool result))
     in
-    match op with Eq -> const true | Neq -> const false
-  else
-    let typing_env = DA.typing_env dacc in
-    let proof1 = T.prove_equals_tagged_immediates typing_env arg1_ty in
-    let proof2 = T.prove_equals_tagged_immediates typing_env arg2_ty in
-    match proof1, proof2 with
-    | Proved _, Proved _ ->
-      Binary_int_eq_comp_tagged_immediate.simplify op dacc ~original_term dbg
-        ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var
-    | Unknown, Unknown | Proved _, Unknown | Unknown, Proved _ ->
-      let dacc =
-        DA.add_variable dacc result_var
-          (T.these_naked_immediates Targetint_31_63.all_bools)
-      in
-      SPR.create original_term ~try_reify:false dacc
+    SPR.create
+      (Named.create_simple (Simple.untagged_const_bool result))
+      ~try_reify:false dacc
+  | Unknown ->
+    let dacc =
+      DA.add_variable dacc result_var
+        (T.these_naked_immediates Targetint_31_63.all_bools)
+    in
+    SPR.create original_term ~try_reify:false dacc
 
 let[@inline always] simplify_immutable_block_load0
     (access_kind : P.Block_access_kind.t) ~min_name_mode dacc ~original_term

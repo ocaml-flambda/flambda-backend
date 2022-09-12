@@ -28,6 +28,8 @@
 #include "caml/roots.h"
 #include "caml/memprof.h"
 #include "caml/eventlog.h"
+#include "caml/callback.h"
+#include "caml/fail.h"
 #include <string.h>
 #include <stdio.h>
 
@@ -234,7 +236,21 @@ intnat caml_globals_inited = 0;
 static intnat caml_globals_scanned = 0;
 static link * caml_dyn_globals = NULL;
 
+/* Registration of dynamic global GC roots for natdynlink. */
 void caml_register_dyn_global(void *v) {
+  link *link = caml_dyn_globals;
+  while (link) {
+    if (link->data == v) {
+      const value *exn = caml_named_value("Register_dyn_global_duplicate");
+      if (exn == NULL) {
+        fprintf(stderr,
+          "[ocaml] attempt to add duplicate in caml_dyn_globals: %p\n", v);
+        abort();
+      }
+      caml_raise(*exn);
+    }
+    link = link->next;
+  }
   caml_dyn_globals = cons((void*) v,caml_dyn_globals);
 }
 

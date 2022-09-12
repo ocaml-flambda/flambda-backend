@@ -3,6 +3,18 @@
 module Array = ArrayLabels
 module List = ListLabels
 
+let bool_of_env env_var =
+  match Sys.getenv_opt env_var |> Option.map String.lowercase_ascii with
+  | Some ("1" | "true" | "on") -> true
+  | Some ("0" | "false" | "off") | None -> false
+  | Some var ->
+    Misc.fatal_errorf
+      "the %s variable is \"%s\" but should be one of: \"0\", \"1\", \"true\", \
+       \"false\", \"on\", \"off\""
+      env_var var
+
+let validator_debug = bool_of_env "CFG_REGALLOC_VALIDATOR_DEBUG"
+
 let fatal_callback = ref (fun () -> ())
 
 let on_fatal ~f = fatal_callback := f
@@ -27,6 +39,11 @@ module Instruction = struct
   module IdSet = MoreLabels.Set.Make (Int)
   module IdMap = MoreLabels.Map.Make (Int)
 end
+
+let first_instruction_id (block : Cfg.basic_block) : int =
+  match block.body with
+  | [] -> block.terminator.id
+  | first_instr :: _ -> first_instr.id
 
 let[@inline] int_max (left : int) (right : int) = Stdlib.max left right
 
@@ -56,11 +73,15 @@ let collect_cfg_infos : Cfg_with_layout.t -> cfg_infos =
       (instr : Instruction.t).irc_work_list <- Cfg.Unknown_list;
       add_registers arg instr.arg;
       add_registers res instr.res;
+      instr.arg <- Array.copy instr.arg;
+      instr.res <- Array.copy instr.res;
       update_max_id instr)
     ~terminator:(fun term ->
       term.irc_work_list <- Cfg.Unknown_list;
       add_registers arg term.arg;
       add_registers res term.res;
+      term.arg <- Array.copy term.arg;
+      term.res <- Array.copy term.res;
       update_max_id term);
   { arg = !arg; res = !res; max_instruction_id = !max_id }
 
@@ -73,8 +94,9 @@ let liveness_analysis : Cfg_with_layout.t -> liveness =
   match
     Cfg_liveness.Liveness.run cfg ~init ~map:Cfg_liveness.Liveness.Instr ()
   with
-  | Result.Ok liveness -> liveness
-  | Result.Error _ ->
+  | Ok liveness -> liveness
+  | Aborted _ -> .
+  | Max_iterations_reached ->
     fatal "Unable to compute liveness from CFG for function %s@."
       cfg.Cfg.fun_name
 
@@ -235,8 +257,8 @@ let precondition : Cfg_with_layout.t -> unit =
       if num_slots <> 0
       then fatal "register class %d has %d slots(s)" reg_class num_slots)
 
-let postcondition : Cfg_with_layout.t -> unit =
- fun cfg_with_layout ->
+let postcondition : Cfg_with_layout.t -> allow_stack_operands:bool -> unit =
+ fun cfg_with_layout ~allow_stack_operands ->
   let max_stack_slots = Array.init Proc.num_register_classes ~f:(fun _ -> -1) in
   let register_must_not_be_unknown (id : Instruction.id) (reg : Reg.t) : unit =
     match reg.Reg.loc with
@@ -274,7 +296,7 @@ let postcondition : Cfg_with_layout.t -> unit =
           fatal "instruction %d is a move and refers to %d spilling slots" id
             num_locals
       | _ ->
-        if num_locals > 0
+        if (not allow_stack_operands) && num_locals > 0
         then
           fatal "instruction %d is not a move but refers to a spilling slot" id)
     | arch -> fatal "unsupported architecture %S" arch
@@ -385,3 +407,49 @@ let update_spill_cost : Cfg_with_layout.t -> unit =
   in
   Cfg_with_layout.iter_instructions cfg_with_layout ~instruction:update_instr
     ~terminator:update_instr
+
+let is_spilled reg = reg.Reg.irc_work_list = Reg.Spilled
+
+let check_length str arr expected =
+  let actual = Array.length arr in
+  if expected <> actual
+  then
+    fatal "the length of %s was expected to be %d but is actually %d" str
+      expected actual
+
+let check_lengths :
+    type a. of_arg:int -> of_res:int -> a Cfg.instruction -> unit =
+ fun ~of_arg ~of_res instr ->
+  check_length "arg" instr.arg of_arg;
+  check_length "res" instr.res of_res
+
+let check_same str1 reg1 str2 reg2 =
+  if not (Reg.same reg1 reg2)
+  then
+    fatal "%s and %s were expected to be the same but they differ (%a vs %a)"
+      str1 str2 Printmach.reg reg1 Printmach.reg reg2
+
+type stack_operands_rewrite =
+  | All_spilled_registers_rewritten
+  | May_still_have_spilled_registers
+
+type spilled_map = Reg.t Reg.Tbl.t
+
+let use_stack_operand (map : Reg.t Reg.Tbl.t) (regs : Reg.t array) (index : int)
+    : unit =
+  let reg = regs.(index) in
+  match Reg.Tbl.find_opt map reg with
+  | None -> fatal "register %a is missing from the map" Printmach.reg reg
+  | Some spilled_reg -> regs.(index) <- spilled_reg
+
+let may_use_stack_operands_array : Reg.t Reg.Tbl.t -> Reg.t array -> unit =
+ fun map regs ->
+  Array.iteri regs ~f:(fun i reg ->
+      if is_spilled reg then use_stack_operand map regs i)
+
+let may_use_stack_operands_everywhere :
+    type a. Reg.t Reg.Tbl.t -> a Cfg.instruction -> stack_operands_rewrite =
+ fun map instr ->
+  may_use_stack_operands_array map instr.arg;
+  may_use_stack_operands_array map instr.res;
+  All_spilled_registers_rewritten

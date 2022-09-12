@@ -21,6 +21,7 @@ val word_addressed: bool
 (* Registers available for register allocation *)
 val num_register_classes: int
 val register_class: Reg.t -> int
+val register_class_tag: int -> string
 val num_available_registers: int array
 val first_available_register: int array
 val register_name: int -> string

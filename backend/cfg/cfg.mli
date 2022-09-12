@@ -125,10 +125,20 @@ val register_predecessors_for_all_blocks : t -> unit
 
 (** Printing *)
 
-val print_terminator :
-  ?sep:string -> Format.formatter -> terminator instruction -> unit
+val print_terminator : Format.formatter -> terminator instruction -> unit
 
 val print_basic : Format.formatter -> basic instruction -> unit
+
+val print_instruction' :
+  ?print_reg:(Format.formatter -> Reg.t -> unit) ->
+  Format.formatter ->
+  [`Basic of basic instruction | `Terminator of terminator instruction] ->
+  unit
+
+val print_instruction :
+  Format.formatter ->
+  [`Basic of basic instruction | `Terminator of terminator instruction] ->
+  unit
 
 (* CR-someday gyorsh: Current version of cfg is a half-way house in terms of its
    exception handling. It has a lot of redundancy and the result of the

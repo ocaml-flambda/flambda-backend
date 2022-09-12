@@ -282,6 +282,8 @@ let build_package_cmx members cmxfile =
     else
       Clambda (get_approx ui)
   in
+  let ui_checks = Compilenv.Checks.create () in
+  List.iter (fun info -> Compilenv.Checks.merge info.ui_checks ~into:ui_checks) units;
   Export_info_for_pack.clear_import_state ();
   let pkg_infos =
     { ui_name = ui.ui_name;
@@ -304,6 +306,7 @@ let build_package_cmx members cmxfile =
       ui_force_link =
           List.exists (fun info -> info.ui_force_link) units;
       ui_export_info;
+      ui_checks;
     } in
   Compilenv.write_unit_info pkg_infos cmxfile
 

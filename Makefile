@@ -1,4 +1,4 @@
-SHELL = /bin/bash
+SHELL = /usr/bin/env bash
 include Makefile.config
 include ocaml/Makefile.config
 export ARCH
@@ -21,14 +21,14 @@ define dune_boot_context
 (context (default
   (name default)
   ; CR sdolan: profile dev might be faster, but the compiler currently fails to build in dev.
-  (profile release)))
+  (profile boot)))
 endef
 
 define dune_runtime_stdlib_context
 (lang dune 2.8)
 (context (default
   (name runtime_stdlib)
-  (profile release)
+  (profile main)
   (paths
     (PATH ("$(CURDIR)/_build/_bootinstall/bin" :standard))
     (OCAMLLIB ("$(CURDIR)/_build/_bootinstall/lib/ocaml")))
@@ -40,7 +40,7 @@ define dune_main_context
 (lang dune 2.8)
 (context (default
   (name main)
-  (profile release)
+  (profile main)
   (paths
     (PATH ("$(CURDIR)/_build/_bootinstall/bin" :standard))
     (OCAMLLIB ("$(CURDIR)/_build/install/runtime_stdlib/lib/ocaml_runtime_stdlib")))
@@ -74,7 +74,6 @@ compiler: runtime-stdlib
 runtest: compiler
 	$(dune) runtest $(ws_main)
 
-
 # This Makefile supports old versions that don't have $(file), so we're using
 # environment var trickery to get a multiline string into a file
 duneconf/boot.ws: export contents = $(dune_boot_context)
@@ -99,7 +98,7 @@ _build/_bootinstall: ocaml/Makefile.config duneconf/boot.ws duneconf/runtime_std
 
 # natdynlinkops2:
 # We need to augment dune's substitutions so this part isn't so
-# difficult.  We use /bin/echo to avoid builtin variants of "echo"
+# difficult.  We use /usr/bin/env echo to avoid builtin variants of "echo"
 # which don't accept "-n".  Unfortunately if there are no
 # NATDYNLINKOPS, we need to provide a harmless option, otherwise dune
 # will provide '' on the command line to ocamlopt which causes an
@@ -111,7 +110,7 @@ _build/_bootinstall: ocaml/Makefile.config duneconf/boot.ws duneconf/runtime_std
 	  | grep '^NATDYNLINKOPTS=' \
 	  | sed 's/^[^=]*=\(.*\)/-ccopt\n"\1"/' \
 	  > ocaml/otherlibs/dynlink/natdynlinkops
-	/bin/echo -n $$(cat ocaml/Makefile.config \
+	/usr/bin/env echo -n $$(cat ocaml/Makefile.config \
 	  | sed 's/^NATDYNLINKOPTS=$$/NATDYNLINKOPTS=-bin-annot/' \
 	  | grep '^NATDYNLINKOPTS=' \
 	  | sed 's/^[^=]*=\(.*\)/\1/') \
@@ -119,9 +118,9 @@ _build/_bootinstall: ocaml/Makefile.config duneconf/boot.ws duneconf/runtime_std
 	if [ "$$(cat ocaml/otherlibs/dynlink/natdynlinkops2)" \
 	       != "-bin-annot" ]; \
 	then \
-	  /bin/echo -n "-ccopt" > ocaml/otherlibs/dynlink/natdynlinkops1; \
+	  /usr/bin/env echo -n "-ccopt" > ocaml/otherlibs/dynlink/natdynlinkops1; \
 	else \
-	  /bin/echo -n "-bin-annot" > ocaml/otherlibs/dynlink/natdynlinkops1; \
+	  /usr/bin/env echo -n "-bin-annot" > ocaml/otherlibs/dynlink/natdynlinkops1; \
 	fi
 
 # flags.sexp
@@ -154,7 +153,7 @@ cpl=$(if $(filter linux,$(SYSTEM)),cp -l,cp -L)
 # We use a local directory rather than the final install path, since
 # the final install path may be on a different filesystem (and hence be
 # slow and/or unable to make hardlinks)
-.PHONY: _install
+.PHONY: _install install install_for_opam
 _install: compiler
 	rm -rf _install
 	mkdir -p _install/{bin,lib/ocaml}
@@ -177,6 +176,11 @@ _install: compiler
 
 # Copy _install to the final install directory (no-op if they are the same)
 install: _install
+	mkdir -p '$(prefix)'
+	rsync --chmod=u+rw,go+r -rl _install/ '$(prefix)'
+
+# Same as above, but relies on a successfull earlier _install
+install_for_opam:
 	mkdir -p '$(prefix)'
 	rsync --chmod=u+rw,go+r -rl _install/ '$(prefix)'
 
@@ -373,6 +377,7 @@ fmt:
 	  $$(find backend/debug \
 	    \( -name "*.ml" -or -name "*.mli" \))
 	ocamlformat -i backend/cmm_helpers.ml{,i}
+	ocamlformat -i backend/checkmach.ml{,i}
 	ocamlformat -i tools/merge_archives.ml
 	ocamlformat -i \
 	  $$(find backend/debug/dwarf \
@@ -387,6 +392,7 @@ check-fmt:
            [ "$$(git status --porcelain backend/asm_targets)" != "" ] || \
            [ "$$(git status --porcelain backend/debug)" != "" ] || \
            [ "$$(git status --porcelain backend/cmm_helpers.ml{,i})" != "" ] || \
+           [ "$$(git status --porcelain backend/checkmach.ml{,i})" != "" ] || \
            [ "$$(git status --porcelain tools/merge_archives.ml)" != "" ]; then \
 	  echo; \
 	  echo "Tree must be clean before running 'make check-fmt'"; \
@@ -400,6 +406,7 @@ check-fmt:
            [ "$$(git diff backend/asm_targets)" != "" ] || \
            [ "$$(git diff backend/debug)" != "" ] || \
            [ "$$(git diff backend/cmm_helpers.ml{,i})" != "" ] || \
+           [ "$$(git diff backend/checkmach.ml{,i})" != "" ] || \
            [ "$$(git diff tools/merge_archives.ml)" != "" ]; then \
 	  echo; \
 	  echo "The following code was not formatted correctly:"; \
@@ -431,6 +438,21 @@ build_upstream: ocaml/config.status
 install_upstream: build_upstream
 	(cd _build_upstream && $(MAKE) install)
 	cp ocaml/VERSION $(prefix)/lib/ocaml/
+
+.PHONY: build_and_test_upstream
+build_and_test_upstream: build_upstream
+	if $$(which gfortran > /dev/null 2>&1); then \
+	  export LIBRARY_PATH=$$(dirname $$(gfortran -print-file-name=libgfortran.a)); \
+	fi; \
+	cd _build_upstream/testsuite \
+	 && if $$(which parallel > /dev/null 2>&1); \
+            then \
+	      echo "Running testsuite in parallel (nproc=$$(nproc))"; \
+	      make --no-print-directory parallel; \
+            else \
+	      echo "Running testsuite sequentially"; \
+              make --no-print-directory all; \
+            fi
 
 .PHONY: coverage
 coverage: boot-runtest
