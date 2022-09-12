@@ -209,13 +209,13 @@ module Inlining = struct
     | Some (Value_symbol _) | Some (Value_int _) | Some (Block_approximation _)
       ->
       assert false
-    | Some (Closure_approximation (_code_id, _, Metadata_only _)) ->
+    | Some (Closure_approximation { code = Metadata_only _; _ }) ->
       Inlining_report.record_decision_at_call_site_for_known_function ~tracker
         ~apply ~pass:After_closure_conversion ~unrolling_depth:None
         ~callee:(Inlining_history.Absolute.empty compilation_unit)
         ~are_rebuilding_terms Definition_says_not_to_inline;
       Not_inlinable
-    | Some (Closure_approximation (_code_id, _, Code_present code)) ->
+    | Some (Closure_approximation { code = Code_present code; _ }) ->
       let fun_params_length =
         Code.params_arity code |> Flambda_arity.With_subkinds.to_arity
         |> Flambda_arity.length
@@ -828,9 +828,16 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
       | None -> handler_env
       | Some args ->
         List.fold_left2
-          (fun env arg_approx param ->
-            Env.add_value_approximation env (Name.var param) arg_approx)
-          handler_env args params
+          (fun env arg_approx (param, (param_id, _, _)) ->
+            let env =
+              Env.add_value_approximation env (Name.var param) arg_approx
+            in
+            match (arg_approx : Env.value_approximation) with
+            | Value_symbol s | Closure_approximation { symbol = Some s; _ } ->
+              Env.add_simple_to_substitute env param_id (Simple.symbol s)
+            | _ -> env)
+          handler_env args
+          (List.combine params params_with_kinds)
     in
     handler acc handler_env
   in
@@ -865,8 +872,7 @@ let close_exact_or_unknown_apply acc env
     | Function -> (
       ( acc,
         match (callee_approx : Env.value_approximation option) with
-        | Some (Closure_approximation (code_id, _function_slot, code_or_meta))
-          ->
+        | Some (Closure_approximation { code_id; code = code_or_meta; _ }) ->
           let return_arity, is_tupled =
             let meta = Code_or_metadata.code_metadata code_or_meta in
             Code_metadata.(result_arity meta, is_tupled meta)
@@ -1405,7 +1411,8 @@ let close_functions acc external_env function_declarations =
   let approximations =
     Function_slot.Map.mapi
       (fun function_slot (code_id, code) ->
-        Value_approximation.Closure_approximation (code_id, function_slot, code))
+        Value_approximation.Closure_approximation
+          { code_id; function_slot; code; symbol = None })
       approximations
   in
   let function_decls = Function_declarations.create funs in
@@ -1432,8 +1439,17 @@ let close_functions acc external_env function_declarations =
     let symbols =
       Function_slot.Lmap.mapi
         (fun function_slot _ ->
-          ( Function_slot.Map.find function_slot symbol_map,
-            Function_slot.Map.find function_slot approximations ))
+          let sym = Function_slot.Map.find function_slot symbol_map in
+          let approx =
+            match Function_slot.Map.find function_slot approximations with
+            | Value_approximation.Closure_approximation
+                { code_id; function_slot; code; symbol = _ } ->
+              Value_approximation.Closure_approximation
+                { code_id; function_slot; code; symbol = Some sym }
+            | _ -> assert false
+            (* see above *)
+          in
+          sym, approx)
         funs
     in
     let acc = Acc.add_lifted_set_of_closures ~symbols ~set_of_closures acc in
@@ -1727,14 +1743,14 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
   let approx = Env.find_value_approximation env callee in
   let code_info =
     match approx with
-    | Closure_approximation (_, _, Code_present code) ->
+    | Closure_approximation { code = Code_present code; _ } ->
       Some
         ( Code.params_arity code,
           Code.is_tupled code,
           Code.num_trailing_local_params code,
           Code.contains_no_escaping_local_allocs code,
           Code.result_arity code )
-    | Closure_approximation (_, _, Metadata_only metadata) ->
+    | Closure_approximation { code = Metadata_only metadata; _ } ->
       Some
         ( Code_metadata.params_arity metadata,
           Code_metadata.is_tupled metadata,

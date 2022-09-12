@@ -168,13 +168,13 @@ module Env = struct
         let rec filter_inlinable approx =
           match (approx : value_approximation) with
           | Value_unknown | Value_symbol _ | Value_int _
-          | Closure_approximation (_, _, Metadata_only _) ->
+          | Closure_approximation { code = Metadata_only _; _ } ->
             approx
           | Block_approximation (approxs, alloc_mode) ->
             let approxs = Array.map filter_inlinable approxs in
             Value_approximation.Block_approximation (approxs, alloc_mode)
-          | Closure_approximation (code_id, function_slot, Code_present code)
-            -> (
+          | Closure_approximation
+              { code_id; function_slot; code = Code_present code; _ } -> (
             match[@ocaml.warning "-fragile-match"]
               Inlining.definition_inlining_decision (Code.inline code)
                 (Code.cost_metrics code)
@@ -182,9 +182,11 @@ module Env = struct
             | Attribute_inline | Small_function _ -> approx
             | _ ->
               Value_approximation.Closure_approximation
-                ( code_id,
-                  function_slot,
-                  Code_or_metadata.(remember_only_metadata (create code)) ))
+                { code_id;
+                  function_slot;
+                  code = Code_or_metadata.(remember_only_metadata (create code));
+                  symbol = None
+                })
         in
         let approx = filter_inlinable approx in
         externals := Symbol.Map.add symbol approx !externals;

@@ -1190,7 +1190,8 @@ end = struct
         let fields = List.map type_from_approx (Array.to_list fields) in
         MTC.immutable_block ~is_unique:false Tag.zero
           ~field_kind:Flambda_kind.value ~fields (Or_unknown.Known alloc_mode)
-      | Closure_approximation (code_id, function_slot, _code_opt) ->
+      | Closure_approximation { code_id; function_slot; code = _; symbol = _ }
+        ->
         let fun_decl =
           TG.Function_type.create code_id
             ~rec_info:(MTC.unknown Flambda_kind.rec_info)
@@ -1304,7 +1305,9 @@ end = struct
               | Ok function_type ->
                 let code_id = TG.Function_type.code_id function_type in
                 let code_or_meta = find_code code_id in
-                Closure_approximation (code_id, function_slot, code_or_meta)))
+                Closure_approximation
+                  { code_id; function_slot; code = code_or_meta; symbol = None }
+              ))
           | Variant
               { immediates = Unknown;
                 blocks = _;
