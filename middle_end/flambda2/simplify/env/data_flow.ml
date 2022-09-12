@@ -231,32 +231,36 @@ let extend_args_with_extra_args t =
                   let extra_args = EPA.extra_args epa in
                   Apply_cont_rewrite_id.Map.mapi
                     (fun rewrite_id args ->
-                      let extra_args =
+                      match
                         Apply_cont_rewrite_id.Map.find rewrite_id extra_args
-                      in
-                      let max_arg, _ = Numeric_types.Int.Map.max_binding args in
-                      let extra_args =
-                        List.map
-                          (function
-                            | EPA.Extra_arg.Already_in_scope s ->
-                              Cont_arg.Simple s
-                            | EPA.Extra_arg.New_let_binding (v, prim) ->
-                              Cont_arg.New_let_binding
-                                (v, Flambda_primitive.free_names prim)
-                            | EPA.Extra_arg.New_let_binding_with_named_args
-                                (v, _) ->
-                              Cont_arg.New_let_binding
-                                (v, Name_occurrences.empty))
-                          extra_args
-                      in
-                      let _, args =
-                        List.fold_left
-                          (fun (i, args) extra_arg ->
-                            i + 1, Numeric_types.Int.Map.add i extra_arg args)
-                          (max_arg + 1, args)
-                          extra_args
-                      in
-                      args)
+                      with
+                      | exception Not_found -> args
+                      | extra_args ->
+                        let max_arg, _ =
+                          Numeric_types.Int.Map.max_binding args
+                        in
+                        let extra_args =
+                          List.map
+                            (function
+                              | EPA.Extra_arg.Already_in_scope s ->
+                                Cont_arg.Simple s
+                              | EPA.Extra_arg.New_let_binding (v, prim) ->
+                                Cont_arg.New_let_binding
+                                  (v, Flambda_primitive.free_names prim)
+                              | EPA.Extra_arg.New_let_binding_with_named_args
+                                  (v, _) ->
+                                Cont_arg.New_let_binding
+                                  (v, Name_occurrences.empty))
+                            extra_args
+                        in
+                        let _, args =
+                          List.fold_left
+                            (fun (i, args) extra_arg ->
+                              i + 1, Numeric_types.Int.Map.add i extra_arg args)
+                            (max_arg + 1, args)
+                            extra_args
+                        in
+                        args)
                     rewrite_ids)
               elt.apply_cont_args
           in
