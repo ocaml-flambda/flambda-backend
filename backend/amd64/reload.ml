@@ -160,7 +160,8 @@ method! reload_operation op arg res =
   | Istore (_, _, _)|Ialloc _|Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _
   | Iopaque
   | Ibeginregion | Iendregion
-    -> (* Other operations: all args and results in registers *)
+    -> (* Other operations: all args and results in registers,
+          except moves and probes. *)
       super#reload_operation op arg res
 
 method! reload_test tst arg =

@@ -442,7 +442,7 @@ end = struct
         "Register allocation added non-regalloc specific instruction no. %d" id
 
   let verify t cfg =
-    Cfg_regalloc_utils.postcondition cfg;
+    Cfg_regalloc_utils.postcondition cfg ~allow_stack_operands:true;
     verify_reg_array ~reg_arr:t.reg_fun_args ~context:"In function arguments"
       ~loc_arr:(Cfg_with_layout.cfg cfg).fun_args;
     let seen_ids =
