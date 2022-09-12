@@ -948,7 +948,7 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
       (fun acc (case, cont, trap_action, args) ->
         let trap_action = close_trap_action_opt trap_action in
         let acc, args = find_simples acc env args in
-        let acc, action =
+        let action acc =
           Apply_cont_with_acc.create acc ?trap_action cont ~args
             ~dbg:condition_dbg
         in
@@ -980,6 +980,7 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
     in
     let acc, switch =
       let scrutinee = Simple.var comparison_result in
+      let acc, action = action acc in
       Expr_with_acc.create_switch acc
         (Switch.if_then_else ~condition_dbg ~scrutinee ~if_true:action
            ~if_false:default_action)
@@ -1005,7 +1006,7 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
             else
               let acc, args = find_simples acc env args in
               let trap_action = close_trap_action_opt trap_action in
-              let acc, default =
+              let default acc =
                 Apply_cont_with_acc.create acc ?trap_action default ~args
                   ~dbg:condition_dbg
               in
@@ -1020,8 +1021,17 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
       let acc, body =
         match Targetint_31_63.Map.get_singleton arms with
         | Some (_discriminant, action) ->
+          let acc, action = action acc in
           Expr_with_acc.create_apply_cont acc action
         | None ->
+          let acc, arms =
+            Targetint_31_63.Map.fold
+              (fun case action (acc, arms) ->
+                let acc, arm = action acc in
+                acc, Targetint_31_63.Map.add case arm arms)
+              arms
+              (acc, Targetint_31_63.Map.empty)
+          in
           Expr_with_acc.create_switch acc
             (Switch.create ~condition_dbg ~scrutinee ~arms)
       in
