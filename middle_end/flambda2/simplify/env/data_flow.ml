@@ -264,7 +264,36 @@ let extend_args_with_extra_args t =
                     rewrite_ids)
               elt.apply_cont_args
           in
-          { elt with params; apply_cont_args }
+          let defined =
+            Continuation.Map.fold
+              (fun cont rewrite_ids defined ->
+                match Continuation.Map.find cont t.extra with
+                | exception Not_found -> defined
+                | epa ->
+                  let extra_args = EPA.extra_args epa in
+                  Apply_cont_rewrite_id.Map.fold
+                    (fun rewrite_id _args defined ->
+                      match
+                        Apply_cont_rewrite_id.Map.find rewrite_id extra_args
+                      with
+                      | exception Not_found -> defined
+                      | extra_args ->
+                        let defined =
+                          List.fold_left
+                            (fun defined -> function
+                              | EPA.Extra_arg.Already_in_scope _ -> defined
+                              | EPA.Extra_arg.New_let_binding (v, _) ->
+                                Variable.Set.add v defined
+                              | EPA.Extra_arg.New_let_binding_with_named_args
+                                  (v, _) ->
+                                Variable.Set.add v defined)
+                            defined extra_args
+                        in
+                        defined)
+                    rewrite_ids defined)
+              elt.apply_cont_args elt.defined
+          in
+          { elt with params; apply_cont_args; defined }
         in
         Continuation.Map.add cont elt map)
       t.extra t.map
