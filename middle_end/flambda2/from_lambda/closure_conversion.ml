@@ -946,6 +946,11 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
   let scrutinee = find_simple_from_id env scrutinee in
   let untagged_scrutinee = Variable.create "untagged" in
   let untagged_scrutinee' = VB.create untagged_scrutinee Name_mode.normal in
+  let known_const_scrutinee =
+    match Env.find_value_approximation env scrutinee with
+    | Value_approximation.Value_int i -> Some i
+    | _ -> None
+  in
   let untag =
     Named.create_prim (Unary (Untag_immediate, scrutinee)) condition_dbg
   in
@@ -954,8 +959,9 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
       (fun acc (case, cont, trap_action, args) ->
         let trap_action = close_trap_action_opt trap_action in
         let acc, args = find_simples acc env args in
+        let args_approx = List.map (Env.find_value_approximation env) args in
         let action acc =
-          Apply_cont_with_acc.create acc ?trap_action cont ~args
+          Apply_cont_with_acc.create acc ?trap_action ~args_approx cont ~args
             ~dbg:condition_dbg
         in
         acc, (Targetint_31_63.of_int case, action))
@@ -1029,17 +1035,22 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
         | Some (_discriminant, action) ->
           let acc, action = action acc in
           Expr_with_acc.create_apply_cont acc action
-        | None ->
-          let acc, arms =
-            Targetint_31_63.Map.fold
-              (fun case action (acc, arms) ->
-                let acc, arm = action acc in
-                acc, Targetint_31_63.Map.add case arm arms)
-              arms
-              (acc, Targetint_31_63.Map.empty)
-          in
-          Expr_with_acc.create_switch acc
-            (Switch.create ~condition_dbg ~scrutinee ~arms)
+        | None -> (
+          match known_const_scrutinee with
+          | None ->
+            let acc, arms =
+              Targetint_31_63.Map.fold
+                (fun case action (acc, arms) ->
+                  let acc, arm = action acc in
+                  acc, Targetint_31_63.Map.add case arm arms)
+                arms
+                (acc, Targetint_31_63.Map.empty)
+            in
+            Expr_with_acc.create_switch acc
+              (Switch.create ~condition_dbg ~scrutinee ~arms)
+          | Some case ->
+            let acc, action = Targetint_31_63.Map.find case arms acc in
+            Expr_with_acc.create_apply_cont acc action)
       in
       Let_with_acc.create acc
         (Bound_pattern.singleton untagged_scrutinee')
