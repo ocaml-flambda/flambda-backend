@@ -14,5 +14,5 @@
      ; This is still flaky and temporary, until @assert annotations can be checked.
      (with-stdout-to output.corrected
        (with-stdin-from t.cmx.output
-         (bash "sed -n '/Functions with neither allocations nor indirect calls:/,$p' | grep -v camlT__entry | wc -l ")))
+         (bash "sed -n '/Functions with neither allocations nor indirect calls:/,$p' | grep -v camlT__entry | wc -l | sed 's/^ *//g' ")))
      (diff output output.corrected))))
