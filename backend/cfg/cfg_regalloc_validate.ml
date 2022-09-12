@@ -861,15 +861,15 @@ module Transfer (Desc_val : Description_value) :
       Result.ok @@ rename_register t ~reg_instr:instr_before
     | _ ->
       transfer_generic Basic ~find_description:Description.find_basic
-        ~can_raise:Cfg.can_raise_basic
-        ~destroyed_at:Cfg_regalloc_utils.destroyed_at_basic t ~exn instr
+        ~can_raise:Cfg.can_raise_basic ~destroyed_at:Proc.destroyed_at_basic t
+        ~exn instr
 
   let terminator t ~exn instr =
     (* CR-soon azewierzejew: This is kind of fragile for [Tailcall (Self _)]
        because that instruction doesn't strictly adhere to generic semantics. *)
     transfer_generic Terminator ~find_description:Description.find_terminator
       ~can_raise:Cfg.can_raise_terminator
-      ~destroyed_at:Cfg_regalloc_utils.destroyed_at_terminator t ~exn instr
+      ~destroyed_at:Proc.destroyed_at_terminator t ~exn instr
 
   (* This should remove the equations for the exception value, but we do that in
      [Domain.append_equations] because there we have more information to give if
