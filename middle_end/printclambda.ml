@@ -84,8 +84,9 @@ and one_fun ppf f =
            Printlambda.value_kind k
       )
   in
-  fprintf ppf "(fun@ %s%s@ %d@ @[<2>%a@]@ @[<2>%a@])"
-    f.label (value_kind f.return) (snd f.arity) idents f.params lam f.body
+  fprintf ppf "(fun@ %s%s%a@ %d@ @[<2>%a@]@ @[<2>%a@])"
+    f.label (value_kind f.return) Printlambda.check_attribute f.attrib
+    (snd f.arity) idents f.params lam f.body
 
 and phantom_defining_expr ppf = function
   | Uphantom_const const -> uconstant ppf const

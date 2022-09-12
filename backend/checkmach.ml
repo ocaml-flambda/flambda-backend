@@ -80,10 +80,10 @@ module type Spec = sig
   (** returns true when the check passes. *)
   val check_specific : Arch.specific_operation -> bool
 
-  val annotation : Cmm.codegen_option
+  val annotation : Lambda.property
 end
-(* CR gyorsh: Annotations are not yet implemented. We may also want annotations
-   on call sites, not only on functions. *)
+(* CR-someday gyorsh: We may also want annotations on call sites, not only on
+   functions. *)
 
 (** Check one function. *)
 module Analysis (S : Spec) : sig
@@ -391,16 +391,21 @@ end = struct
           let fun_name = f.fun_name in
           let t = { ppf; fun_name; unresolved_dependencies = false } in
           Unit_info.in_current_unit unit_info fun_name;
-          (try
-             let _ = check_instr_exn t f.fun_body false in
-             if (not t.unresolved_dependencies)
-                && not (Unit_info.is_fail unit_info t.fun_name)
-             then (
-               report t ~msg:"passed" ~desc:"" f.fun_dbg;
-               Unit_info.add_value t.ppf unit_info fun_name Pass)
-           with Bail -> debug t Fail);
-          if List.mem S.annotation f.fun_codegen_options
-          then Unit_info.annotated unit_info fun_name)
+          if List.mem (Cmm.Assume S.annotation) f.fun_codegen_options
+          then (
+            report t ~msg:"assumed" ~desc:"" f.fun_dbg;
+            Unit_info.add_value t.ppf unit_info fun_name Pass)
+          else (
+            (try
+               let _ = check_instr_exn t f.fun_body false in
+               if (not t.unresolved_dependencies)
+                  && not (Unit_info.is_fail unit_info t.fun_name)
+               then (
+                 report t ~msg:"passed" ~desc:"" f.fun_dbg;
+                 Unit_info.add_value t.ppf unit_info fun_name Pass)
+             with Bail -> debug t Fail);
+            if List.mem (Cmm.Assert S.annotation) f.fun_codegen_options
+            then Unit_info.annotated unit_info fun_name))
 end
 
 module Spec_alloc : Spec = struct
@@ -419,7 +424,7 @@ module Spec_alloc : Spec = struct
 
   let check_specific s = not (Arch.operation_allocates s)
 
-  let annotation = Cmm.Noalloc_check
+  let annotation = Lambda.Noalloc
 end
 
 (***************************************************************************

@@ -248,7 +248,8 @@ type codegen_option =
   | Reduce_code_size
   | No_CSE
   | Use_linscan_regalloc
-  | Noalloc_check
+  | Assert of Lambda.property
+  | Assume of Lambda.property
 
 type fundecl =
   { fun_name: string;

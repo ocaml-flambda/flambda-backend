@@ -1206,3 +1206,5 @@ val gc_root_table :
    If [None] is returned, that means "no estimate available". The expression
    should be assumed to be potentially large. *)
 val cmm_arith_size : expression -> int option
+
+val transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list

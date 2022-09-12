@@ -372,6 +372,24 @@ type local_attribute =
   | Never_local (* [@local never] *)
   | Default_local (* [@local maybe] or no [@local] attribute *)
 
+type property =
+  | Noalloc
+
+type check_attribute =
+  | Default_check
+  | Assert of property
+  | Assume of property
+
+let equal_property x y =
+  match x, y with
+  | Noalloc, Noalloc -> true
+
+let equal_check_attribute x y =
+  match x, y with
+  | Default_check, Default_check -> true
+  | Assert p1, Assert p2 -> equal_property p1 p2
+  | (Default_check | Assert _ | Assume  _), _ -> false
+
 type function_kind = Curried of {nlocal: int} | Tupled
 
 type let_kind = Strict | Alias | StrictOpt
@@ -391,6 +409,7 @@ type function_attribute = {
   inline : inline_attribute;
   specialise : specialise_attribute;
   local: local_attribute;
+  check : check_attribute;
   is_a_functor: bool;
   stub: bool;
 }
@@ -522,6 +541,7 @@ let default_function_attribute = {
   inline = Default_inline;
   specialise = Default_specialise;
   local = Default_local;
+  check = Default_check ;
   is_a_functor = false;
   stub = false;
 }

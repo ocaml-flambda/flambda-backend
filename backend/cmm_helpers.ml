@@ -4169,3 +4169,8 @@ let cmm_arith_size (e : Cmm.expression) =
   | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ | Cregion _
   | Ctail _ ->
     None
+
+let transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list = function
+  | Default_check -> []
+  | Assert p -> [Assert p]
+  | Assume p -> [Assume p]
