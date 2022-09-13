@@ -98,6 +98,13 @@ module Continuation_handler = struct
     else
       Continuation_handler.create params ~handler
         ~free_names_of_handler:(Known free_names_of_handler) ~is_exn_handler
+
+  let create' are_rebuilding params ~handler ~is_exn_handler =
+    if ART.do_not_rebuild_terms are_rebuilding
+    then dummy
+    else
+      Continuation_handler.create params ~handler ~free_names_of_handler:Unknown
+        ~is_exn_handler
 end
 
 let create_non_recursive_let_cont are_rebuilding cont handler ~body
@@ -116,6 +123,12 @@ let create_non_recursive_let_cont' are_rebuilding cont handler ~body
     Let_cont.create_non_recursive' ~cont handler ~body
       ~num_free_occurrences_of_cont_in_body:
         (Known num_free_occurrences_of_cont_in_body) ~is_applied_with_traps
+
+let create_non_recursive_let_cont_without_free_names are_rebuilding cont handler ~body =
+  if ART.do_not_rebuild_terms are_rebuilding
+  then term_not_rebuilt
+  else
+    Let_cont.create_non_recursive cont handler ~body ~free_names_of_body:Unknown
 
 let create_recursive_let_cont are_rebuilding handlers ~body =
   if ART.do_not_rebuild_terms are_rebuilding
