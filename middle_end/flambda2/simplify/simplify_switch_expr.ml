@@ -18,6 +18,8 @@ open! Simplify_import
 module TE = Flambda2_types.Typing_env
 module Alias_set = TE.Alias_set
 
+[@@@ocaml.warning "-37"]
+
 type mergeable_arms =
   | No_arms
   | Mergeable of
@@ -88,39 +90,44 @@ let rebuild_arm uacc arm (action, use_id, arity, env_at_use)
       let maybe_mergeable ~mergeable_arms ~identity_arms ~not_arms =
         let arms = Targetint_31_63.Map.add arm action arms in
         (* Check to see if this arm may be merged with others. *)
-        if Option.is_some (Apply_cont.trap_action action)
-        then new_let_conts, arms, Not_mergeable, identity_arms, not_arms
-        else
-          match mergeable_arms with
-          | Not_mergeable ->
-            new_let_conts, arms, Not_mergeable, identity_arms, not_arms
-          | No_arms ->
-            let cont = Apply_cont.continuation action in
-            let args =
-              List.map
-                (fun arg -> find_all_aliases env_at_use arg)
-                (Apply_cont.args action)
-            in
-            ( new_let_conts,
-              arms,
-              Mergeable { cont; args },
-              identity_arms,
-              not_arms )
-          | Mergeable { cont; args } ->
-            if not (Continuation.equal cont (Apply_cont.continuation action))
-            then new_let_conts, arms, Not_mergeable, identity_arms, not_arms
-            else
-              let args =
-                List.map2
-                  (fun arg_set arg ->
-                    Alias_set.inter (find_all_aliases env_at_use arg) arg_set)
-                  args (Apply_cont.args action)
-              in
-              ( new_let_conts,
-                arms,
-                Mergeable { cont; args },
-                identity_arms,
-                not_arms )
+        ignore mergeable_arms;
+        ignore env_at_use;
+        ignore find_all_aliases;
+        new_let_conts, arms, Not_mergeable, identity_arms, not_arms
+
+        (* if Option.is_some (Apply_cont.trap_action action)
+         * then new_let_conts, arms, Not_mergeable, identity_arms, not_arms
+         * else
+         *   match mergeable_arms with
+         *   | Not_mergeable ->
+         *     new_let_conts, arms, Not_mergeable, identity_arms, not_arms
+         *   | No_arms ->
+         *     let cont = Apply_cont.continuation action in
+         *     let args =
+         *       List.map
+         *         (fun arg -> find_all_aliases env_at_use arg)
+         *         (Apply_cont.args action)
+         *     in
+         *     ( new_let_conts,
+         *       arms,
+         *       Mergeable { cont; args },
+         *       identity_arms,
+         *       not_arms )
+         *   | Mergeable { cont; args } ->
+         *     if not (Continuation.equal cont (Apply_cont.continuation action))
+         *     then new_let_conts, arms, Not_mergeable, identity_arms, not_arms
+         *     else
+         *       let args =
+         *         List.map2
+         *           (fun arg_set arg ->
+         *             Alias_set.inter (find_all_aliases env_at_use arg) arg_set)
+         *           args (Apply_cont.args action)
+         *       in
+         *       ( new_let_conts,
+         *         arms,
+         *         Mergeable { cont; args },
+         *         identity_arms,
+         *         not_arms ) *)
       in
       (* Check to see if the arm is of a form that might mean the whole [Switch]
          is a boolean NOT. *)
