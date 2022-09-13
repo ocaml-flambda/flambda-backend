@@ -7,7 +7,7 @@
 (rule
  (alias   runtest)
  (enabled_if (= %{context_name} "main"))
- (deps test_assume.ml)
+ (deps t5.ml test_assume.ml)
  (action (run %{bin:ocamlopt.opt} %{deps} -c -alloc-check -O3)))
 
 (rule
