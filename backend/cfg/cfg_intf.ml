@@ -151,7 +151,7 @@ module S = struct
         (** This instruction loads the return address from a predefined hidden
             address (e.g. bottom of the current frame) and stores it in a
             special hidden register. It can use standard registers for that
-            purpose. They are definied in [Proc.destroyed_at_reloadretaddr]. *)
+            purpose. They are defined in [Proc.destroyed_at_reloadretaddr]. *)
     | Pushtrap of { lbl_handler : Label.t }
     | Poptrap
     | Prologue
