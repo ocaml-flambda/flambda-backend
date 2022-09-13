@@ -1,2 +1,2 @@
-File "fail1.ml", line 1:
+File "fail1.ml", line 3, characters 21-65:
 Error: Annotation check for noalloc failed on function camlFail1__test15_HIDE_STAMP
