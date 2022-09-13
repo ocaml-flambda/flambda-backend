@@ -458,11 +458,6 @@ val variant :
   Alloc_mode.t Or_unknown.t ->
   t
 
-val open_variant_from_const_ctors_type : const_ctors:t -> t
-
-val open_variant_from_non_const_ctor_with_size_at_least :
-  n:Targetint_31_63.t -> field_n_minus_one:Variable.t -> t
-
 val this_immutable_string : string -> t
 
 val mutable_string : size:int -> t
