@@ -23,13 +23,13 @@
 (rule
  (enabled_if (= %{context_name} "main"))
  (targets fail1.output.corrected)
- (deps fail1.ml)
+ (deps (:ml fail1.ml) filter.sh)
  (action
    (with-outputs-to fail1.output.corrected
     (pipe-outputs
     (with-accepted-exit-codes 2
-     (run %{bin:ocamlopt.opt} %{deps} -color never -error-style short -c -alloc-check -O3))
-    (bash "sed 's/Error: Annotation check for noalloc failed on function .*$/Error: Annotation check for noalloc failed on function HIDE_NAME/'")
+     (run %{bin:ocamlopt.opt} %{ml} -color never -error-style short -c -alloc-check -O3))
+    (run "./filter.sh")
    ))))
 
 (rule
@@ -41,13 +41,13 @@
 (rule
  (enabled_if (= %{context_name} "main"))
  (targets fail2.output.corrected)
- (deps fail2.ml)
+ (deps (:ml fail2.ml) filter.sh)
  (action
    (with-outputs-to fail2.output.corrected
     (pipe-outputs
     (with-accepted-exit-codes 2
-     (run %{bin:ocamlopt.opt} %{deps} -color never -error-style short -c -alloc-check -O3))
-    (bash "sed 's/Error: Annotation check for noalloc failed on function .*$/Error: Annotation check for noalloc failed on function HIDE_NAME/'")
+     (run %{bin:ocamlopt.opt} %{ml} -color never -error-style short -c -alloc-check -O3))
+    (run "./filter.sh")
    ))))
 
 (rule
@@ -59,13 +59,13 @@
 (rule
  (enabled_if (= %{context_name} "main"))
  (targets fail3.output.corrected)
- (deps t3.ml fail3.ml)
+ (deps (:ml t3.ml fail3.ml) filter.sh)
   (action
    (with-outputs-to fail3.output.corrected
     (pipe-outputs
     (with-accepted-exit-codes 2
-     (run %{bin:ocamlopt.opt} %{deps} -color never -error-style short -c -alloc-check -O3))
-    (bash "sed 's/Error: Annotation check for noalloc failed on function .*$/Error: Annotation check for noalloc failed on function HIDE_NAME/'")
+     (run %{bin:ocamlopt.opt} %{ml} -color never -error-style short -c -alloc-check -O3))
+    (run "./filter.sh")
    ))))
 
 (rule
@@ -78,13 +78,13 @@
 (rule
  (enabled_if (= %{context_name} "main"))
  (targets fail4.output.corrected)
- (deps t4.ml fail4.ml)
+ (deps (:ml t4.ml fail4.ml) filter.sh)
   (action
    (with-outputs-to fail4.output.corrected
     (pipe-outputs
     (with-accepted-exit-codes 2
-     (run %{bin:ocamlopt.opt} %{deps} -color never -error-style short -c -alloc-check -O3))
-    (bash "sed 's/Error: Annotation check for noalloc failed on function .*$/Error: Annotation check for noalloc failed on function HIDE_NAME/'")
+     (run %{bin:ocamlopt.opt} %{ml} -color never -error-style short -c -alloc-check -O3))
+    (run "./filter.sh")
    ))))
 
 (rule

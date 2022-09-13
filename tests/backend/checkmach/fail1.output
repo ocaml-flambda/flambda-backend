@@ -1,2 +1,2 @@
 File "fail1.ml", line 1:
-Error: Annotation check for noalloc failed on function HIDE_NAME
+Error: Annotation check for noalloc failed on function camlFail1__test15_HIDE_NAME
