@@ -12,6 +12,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+[@@@ocaml.warning "+a-30-40-41-42"]
 
 (* Combine heap allocations occurring in the same basic block *)
 
@@ -84,7 +85,16 @@ let rec combine i allocstate =
           let newnext, s' = combine i.next allocstate in
           (instr_cons_debug i.desc i.arg i.res i.dbg newnext, s')
     end
-  | Iop _ ->
+  | Iop((Imove|Ispill|Ireload|Inegf|Iabsf|Iaddf|Isubf|Imulf|Idivf|Ifloatofint|
+         Iintoffloat|Iopaque|Iconst_int _|Iconst_float _|
+         Iconst_symbol _|Istackoffset _|Iload (_, _, _)|Istore (_, _, _)|Icompf _|
+         Ispecific _|Iname_for_debugger _|Iprobe_is_enabled _))
+  | Iop(Iintop(Iadd | Isub | Imul | Idiv | Imod | Iand | Ior | Ixor
+              | Ilsl | Ilsr | Iasr | Ipopcnt | Imulh _
+              | Iclz _ | Ictz _ | Icomp _))
+  | Iop(Iintop_imm((Iadd | Isub | Imul | Idiv | Imod | Iand | Ior | Ixor
+                   | Ilsl | Ilsr | Iasr | Ipopcnt | Imulh _
+                   | Iclz _ | Ictz _ | Icomp _),_))  ->
       let (newnext, s') = combine i.next allocstate in
       (instr_cons_debug i.desc i.arg i.res i.dbg newnext, s')
   | Iifthenelse(test, ifso, ifnot) ->
