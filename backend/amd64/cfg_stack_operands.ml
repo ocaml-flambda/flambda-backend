@@ -96,55 +96,55 @@ let binary_operation
   in
   if already_has_memory_operand then
     May_still_have_spilled_registers
-  else
-  begin match is_spilled instr.arg.(0), is_spilled instr.arg.(1) with
-  | false, false ->
-    begin match result with
-    | No_result | Result_can_be_on_stack ->
-      All_spilled_registers_rewritten
-    | Result_cannot_be_on_stack ->
-      May_still_have_spilled_registers
-    end
-  | false, true ->
-    use_stack_operand map instr.arg 1;
-    begin match result with
-    | No_result ->
-      All_spilled_registers_rewritten
-    | Result_can_be_on_stack | Result_cannot_be_on_stack ->
-      May_still_have_spilled_registers
-    end
-  | true, false ->
-    (* note: slightly different from the case above, because arg.(0) and res.(0) are the same. *)
-    begin match result with
-    | No_result ->
-      use_stack_operand map instr.arg 0;
-      All_spilled_registers_rewritten
-    | Result_can_be_on_stack ->
-      use_stack_operand map instr.res 0;
-      use_stack_operand map instr.arg 0;
-      All_spilled_registers_rewritten
-    | Result_cannot_be_on_stack ->
-      use_stack_operand map instr.arg 0;
-      May_still_have_spilled_registers
-    end;
-  | true, true ->
-    if Reg.same instr.arg.(0) instr.arg.(1) then
-      May_still_have_spilled_registers
-    else begin
-      match result with
+  else begin
+    match is_spilled instr.arg.(0), is_spilled instr.arg.(1) with
+    | false, false ->
+      begin match result with
+      | No_result | Result_can_be_on_stack ->
+        All_spilled_registers_rewritten
+      | Result_cannot_be_on_stack ->
+        May_still_have_spilled_registers
+      end
+    | false, true ->
+      use_stack_operand map instr.arg 1;
+      begin match result with
       | No_result ->
-        (* CR xclerc for xclerc: try and find for a criterion to choose between
-           the two. *)
-        use_stack_operand map instr.arg 0;
+        All_spilled_registers_rewritten
+      | Result_can_be_on_stack | Result_cannot_be_on_stack ->
         May_still_have_spilled_registers
+      end
+    | true, false ->
+      (* note: slightly different from the case above, because arg.(0) and res.(0) are the same. *)
+      begin match result with
+      | No_result ->
+        use_stack_operand map instr.arg 0;
+        All_spilled_registers_rewritten
       | Result_can_be_on_stack ->
-        use_stack_operand map instr.arg 0;
         use_stack_operand map instr.res 0;
-        May_still_have_spilled_registers
+        use_stack_operand map instr.arg 0;
+        All_spilled_registers_rewritten
       | Result_cannot_be_on_stack ->
         use_stack_operand map instr.arg 0;
         May_still_have_spilled_registers
-    end
+      end;
+    | true, true ->
+      if Reg.same instr.arg.(0) instr.arg.(1) then
+        May_still_have_spilled_registers
+      else begin
+        match result with
+        | No_result ->
+          (* CR xclerc for xclerc: try and find for a criterion to choose between
+             the two. *)
+          use_stack_operand map instr.arg 0;
+          May_still_have_spilled_registers
+        | Result_can_be_on_stack ->
+          use_stack_operand map instr.arg 0;
+          use_stack_operand map instr.res 0;
+          May_still_have_spilled_registers
+        | Result_cannot_be_on_stack ->
+          use_stack_operand map instr.arg 0;
+          May_still_have_spilled_registers
+      end
   end
 
 let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
