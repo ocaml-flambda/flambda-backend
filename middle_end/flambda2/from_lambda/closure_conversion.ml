@@ -738,7 +738,7 @@ let close_let acc env id user_visible defining_expr
             (Env.add_block_approximation body_env (Name.var var) approxs
                alloc_mode)
         | Prim (Binary (Block_load _, block, field), _) -> (
-          match Env.find_value_approximation env block with
+          match Env.find_value_approximation body_env block with
           | Value_unknown -> Some body_env
           | Closure_approximation _ | Value_symbol _ | Value_int _ ->
             (* Here we assume [block] has already been substituted as a known
