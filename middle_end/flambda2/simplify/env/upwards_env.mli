@@ -66,5 +66,3 @@ val add_apply_cont_rewrite : t -> Continuation.t -> Apply_cont_rewrite.t -> t
 val replace_apply_cont_rewrite : t -> Continuation.t -> Apply_cont_rewrite.t -> t
 
 val find_apply_cont_rewrite : t -> Continuation.t -> Apply_cont_rewrite.t option
-
-val delete_apply_cont_rewrite : t -> Continuation.t -> t

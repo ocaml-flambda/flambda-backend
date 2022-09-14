@@ -162,8 +162,3 @@ let find_apply_cont_rewrite t cont =
   match Continuation.Map.find cont t.apply_cont_rewrites with
   | exception Not_found -> None
   | rewrite -> Some rewrite
-
-let delete_apply_cont_rewrite t cont =
-  { t with
-    apply_cont_rewrites = Continuation.Map.remove cont t.apply_cont_rewrites
-  }
