@@ -92,7 +92,10 @@ let binary_operation
       | Result_cannot_be_on_stack ->
         assert (not (is_stack_operand instr.res.(0)));
         false
-      | Result_can_be_on_stack -> is_stack_operand instr.res.(0))
+      | Result_can_be_on_stack ->
+        (* note: actually unreachable since instr.res.(0) and
+           instr.arg.(0) are the same. *)
+        is_stack_operand instr.res.(0))
   in
   if already_has_memory_operand then
     May_still_have_spilled_registers
