@@ -315,10 +315,6 @@ hacking: _build/_bootinstall
 
 .PHONY: hacking-runtest
 hacking-runtest: _build/_bootinstall
-	$(dune) runtest $(ws_boot) $(coverage_dune_flags) -w
-
-.PHONY: hacking-with-runtest
-hacking-with-runtest: _build/_bootinstall
 	$(dune) build $(ws_boot) $(coverage_dune_flags) -w boot_ocamlopt.exe @runtest
 
 # Only needed for running the test tools by hand; runtest will take care of
