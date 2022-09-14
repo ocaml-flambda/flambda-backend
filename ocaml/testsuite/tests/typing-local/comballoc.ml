@@ -26,3 +26,22 @@ let () =
   print_endline "ok"
 
 
+external opaque_local : local_ 'a -> local_ 'a = "%opaque"
+
+let[@inline never] g (local_ a) =
+  let local_ z = (a, a) in
+  Gc.minor ();
+  let _ = opaque_local z in
+  ()
+
+let[@inline always] dead (local_ x) =
+  let _ = opaque_local (x, x, x, x, x, x, x, x) in
+  ()
+
+let[@inline never] f (local_ x) =
+  dead x;
+  let r = (x, x) in
+  g r;
+  ()
+
+let () = f 1
