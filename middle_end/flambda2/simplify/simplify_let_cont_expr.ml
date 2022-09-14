@@ -903,6 +903,16 @@ let rebuild_recursive_let_cont_handlers cont ~params ~original_cont_scope
   in
   let some_params = recursive_let_cont_handler_wrapper_params ~rewrite in
   let uacc =
+    (* If the arguments of the wrapper continuation and the recursive
+       continuation are different, we need to remove the arguments of the
+       wrapper from the free names of the handlers.
+
+       It is correct to do, even when no wrapper are going to be introduced: In
+       that case the rewrite inside the handler and the one for the body are the
+       same: the parameters computed by
+       [recursive_let_cont_handler_wrapper_params] are exactly the same as the
+       recursive continuation, which where already removed from uacc in
+       after_one_recursive_let_cont_handler_rebuilt *)
     let name_occurrences =
       List.fold_left
         (fun name_occurrences param ->
