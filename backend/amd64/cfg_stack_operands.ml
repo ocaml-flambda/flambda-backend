@@ -65,6 +65,12 @@ type result =
   | Result_can_be_on_stack
   | Result_cannot_be_on_stack
 
+let is_stack_operand : Reg.t -> bool =
+  fun reg ->
+    match reg.loc with
+    | Stack _ -> true
+    | Unknown | Reg _ -> false
+
 let binary_operation
   : type a . spilled_map -> a Cfg.instruction -> result -> stack_operands_rewrite
   = fun map instr result ->
@@ -78,6 +84,19 @@ let binary_operation
     | Result_cannot_be_on_stack ->
       check_lengths instr ~of_arg:2 ~of_res:1
   end;
+  let already_has_memory_operand =
+    is_stack_operand instr.arg.(0)
+    || is_stack_operand instr.arg.(1)
+    || (match result with
+      | No_result -> false
+      | Result_cannot_be_on_stack ->
+        assert (not (is_stack_operand instr.res.(0)));
+        false
+      | Result_can_be_on_stack -> is_stack_operand instr.res.(0))
+  in
+  if already_has_memory_operand then
+    May_still_have_spilled_registers
+  else
   begin match is_spilled instr.arg.(0), is_spilled instr.arg.(1) with
   | false, false ->
     begin match result with
