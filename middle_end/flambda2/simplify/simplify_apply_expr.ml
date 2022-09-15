@@ -39,9 +39,11 @@ let warn_not_inlined_if_needed apply reason =
 let record_free_names_of_apply_as_used0 apply ~use_id ~exn_cont_use_id data_flow
     =
   let data_flow =
+    (* TODO, free names contains extra args of exn continuation, this is too
+       much, we should get rid of that *)
     Data_flow.add_used_in_current_handler (Apply.free_names apply) data_flow
   in
-  let exn_cont = Exn_continuation.exn_handler (Apply.exn_continuation apply) in
+  let exn_cont = Apply.exn_continuation apply in
   let result_cont =
     match Apply.continuation apply, use_id with
     | Never_returns, None -> None

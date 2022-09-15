@@ -449,7 +449,7 @@ let add_used_in_current_handler name_occurrences t =
 
 let add_apply_conts ~result_cont ~exn_cont t =
   update_top_of_stack ~t ~f:(fun elt ->
-      let add_func_result cont rewrite_id apply_cont_args =
+      let add_func_result cont rewrite_id ~extra_args apply_cont_args =
         Continuation.Map.update cont
           (fun (rewrite_map_opt :
                  Cont_arg.t Numeric_types.Int.Map.t Apply_cont_rewrite_id.Map.t
@@ -468,6 +468,16 @@ let add_apply_conts ~result_cont ~exn_cont t =
                     let map =
                       Numeric_types.Int.Map.singleton 0 Cont_arg.Function_result
                     in
+                    let _, map =
+                      List.fold_left
+                        (fun (i, map) (extra_arg, _kind) ->
+                          let map =
+                            Numeric_types.Int.Map.add i
+                              (Cont_arg.Simple extra_arg) map
+                          in
+                          i + 1, map)
+                        (1, map) extra_args
+                    in
                     Some map)
                 rewrite_map
             in
@@ -476,13 +486,17 @@ let add_apply_conts ~result_cont ~exn_cont t =
       in
       let apply_cont_args =
         let rewrite_id, exn_cont = exn_cont in
-        add_func_result exn_cont rewrite_id elt.apply_cont_args
+        add_func_result
+          (Exn_continuation.exn_handler exn_cont)
+          rewrite_id
+          ~extra_args:(Exn_continuation.extra_args exn_cont)
+          elt.apply_cont_args
       in
       let apply_cont_args =
         match result_cont with
         | None -> apply_cont_args
         | Some (rewrite_id, result_cont) ->
-          add_func_result result_cont rewrite_id apply_cont_args
+          add_func_result result_cont rewrite_id ~extra_args:[] apply_cont_args
       in
       { elt with apply_cont_args })
 
@@ -840,7 +854,18 @@ module Dependency_graph = struct
                 Continuation.print k
           in
           Apply_cont_rewrite_id.Map.fold
-            (fun _rewrite_id args t ->
+            (fun rewrite_id args t ->
+              let correct_number_of_arguments =
+                match Numeric_types.Int.Map.max_binding args with
+                | exception Not_found -> Array.length params = 0
+                | max_arg, _ -> max_arg = Array.length params - 1
+              in
+              if not correct_number_of_arguments
+              then
+                Misc.fatal_errorf
+                  "Mismatched number of argument and params for %a at \
+                   rewrite_id %a"
+                  Continuation.print k Apply_cont_rewrite_id.print rewrite_id;
               Numeric_types.Int.Map.fold
                 (fun i (cont_arg : Cont_arg.t) t ->
                   (* Note on the direction of the edge:
