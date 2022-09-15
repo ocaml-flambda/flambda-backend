@@ -364,7 +364,8 @@ let destroyed_at_oper = function
        | Iname_for_debugger _ | Iprobe _| Iprobe_is_enabled _ | Iopaque)
   | Iend | Ireturn _ | Iifthenelse (_, _, _) | Icatch (_, _, _, _)
   | Iexit _ | Iraise _
-  | Iop(Ibeginregion | Iendregion) -> [||]
+  | Iop(Ibeginregion | Iendregion) ->
+    [||]
 
 
 let destroyed_at_raise = all_phys_regs
@@ -418,7 +419,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
        | Name_for_debugger _)
   | Call (P (Checkbound _))
   | Poptrap | Prologue ->
-    if fp then [| rbp |] else [||]
+    [||]
   | Call (P (External { func_symbol = _; alloc; ty_res = _; ty_args = _; })) ->
     if alloc then all_phys_regs else destroyed_at_c_call
   | Call (F (Indirect | Direct _)) ->
@@ -430,7 +431,7 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
   | Never -> assert false
   | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Return | Raise _ | Tailcall _ ->
-    if fp then [| rbp |] else [||]
+    [||]
   | Switch _ ->
     [| rax; rdx |]
   | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; } ->

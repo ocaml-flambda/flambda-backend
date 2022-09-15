@@ -103,7 +103,7 @@ let register_class r =
   | Val | Int | Addr -> 0
   | Float -> 1
 
-let num_available_registers = [| 13; 16 |]
+let num_available_registers = [| if fp then 12 else 13; 16 |]
 
 let first_available_register = [| 0; 100 |]
 
@@ -117,8 +117,8 @@ let rotate_registers = false
 (* Representation of hard registers by pseudo-registers *)
 
 let hard_int_reg =
-  let v = Array.make 13 Reg.dummy in
-  for i = 0 to 12 do v.(i) <- Reg.at_location Int (Reg i) done;
+  let v = Array.make (if fp then 12 else 13) Reg.dummy in
+  for i = 0 to (if fp then 11 else 12) do v.(i) <- Reg.at_location Int (Reg i) done;
   v
 
 let hard_float_reg =
@@ -136,7 +136,6 @@ let rax = phys_reg 0
 let rdx = phys_reg 4
 let r10 = phys_reg 10
 let r11 = phys_reg 11
-let rbp = phys_reg 12
 let rxmm15 = phys_reg 115
 
 let destroyed_by_plt_stub =
@@ -325,11 +324,7 @@ let destroyed_at_oper = function
   | Iswitch(_, _) -> [| rax; rdx |]
   | Itrywith _ -> [| r11 |]
   | _ ->
-    if fp then
-(* prevent any use of the frame pointer ! *)
-      [| rbp |]
-    else
-      [||]
+    [| |]
 
 
 let destroyed_at_raise = all_phys_regs
@@ -374,8 +369,4 @@ let prologue_required fd =
 let assemble_file infile outfile =
   X86_proc.assemble_file infile outfile
 
-let init () =
-  if fp then begin
-    num_available_registers.(0) <- 12
-  end else
-    num_available_registers.(0) <- 13
+let init () = ()
