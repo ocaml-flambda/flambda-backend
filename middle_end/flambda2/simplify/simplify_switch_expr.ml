@@ -29,7 +29,37 @@ type mergeable_arms =
   | Not_mergeable
 
 let find_all_aliases env arg =
-  TE.aliases_of_simple env ~min_name_mode:NM.normal arg
+  let find_all_aliases () =
+    TE.aliases_of_simple env ~min_name_mode:NM.normal arg
+  in
+  Simple.pattern_match'
+    ~var:(fun _var ~coercion:_ ->
+      (* We use find alias to find a common simple to different
+         simples.
+
+         This simple is already guaranteed to be the cannonical alias.
+
+       * If there is a common alias between variables, the
+         cannonical alias must also be a common alias.
+
+       * For constants and symbols there can be a common alias that
+         is not cannonical: A variable can have different constant
+         values in different branches: this variable is not the
+         cannonical alias, the cannonical would be the constant or
+         the symbol. But the only common alias could be a variable
+         in that case.
+
+         hence there is no loss of generality in returning the
+         cannonical alias as the single alias if it is a variable.
+
+         Note that the main reason for this is to allow changing the
+         arguments of continuations to variables that where not in
+         scope during the downward traversal. In particular for the
+         alias rewriting provided by data_flow *)
+      TE.Alias_set.singleton arg)
+    ~symbol:(fun _sym ~coercion:_ -> find_all_aliases ())
+    ~const:(fun _cst -> find_all_aliases ())
+    arg
 
 let rebuild_arm uacc arm (action, use_id, arity, env_at_use)
     ( new_let_conts,
