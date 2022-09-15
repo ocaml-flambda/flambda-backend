@@ -249,9 +249,10 @@ module Inlining = struct
           ~are_rebuilding_terms decision;
         res
 
-  let make_inlined_body acc ~callee ~params ~args ~my_closure ~my_depth ~body
-      ~free_names_of_body ~exn_continuation ~return_continuation
-      ~apply_exn_continuation ~apply_return_continuation ~apply_depth =
+  let make_inlined_body acc ~callee ~region_inlined_into ~params ~args
+      ~my_closure ~my_region ~my_depth ~body ~free_names_of_body
+      ~exn_continuation ~return_continuation ~apply_exn_continuation
+      ~apply_return_continuation ~apply_depth =
     let rec_info =
       match apply_depth with
       | None -> Rec_info_expr.initial
@@ -280,10 +281,10 @@ module Inlining = struct
       in
       acc, Expr.apply_renaming body renaming
     in
-    Inlining_helpers.make_inlined_body ~callee ~params ~args ~my_closure
-      ~my_depth ~rec_info ~body:(acc, body) ~exn_continuation
-      ~return_continuation ~apply_exn_continuation ~apply_return_continuation
-      ~bind_params ~bind_depth ~apply_renaming
+    Inlining_helpers.make_inlined_body ~callee ~region_inlined_into ~params
+      ~args ~my_closure ~my_region ~my_depth ~rec_info ~body:(acc, body)
+      ~exn_continuation ~return_continuation ~apply_exn_continuation
+      ~apply_return_continuation ~bind_params ~bind_depth ~apply_renaming
 
   let wrap_inlined_body_for_exn_extra_args acc ~extra_args
       ~apply_exn_continuation ~apply_return_continuation ~result_arity
