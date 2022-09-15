@@ -159,6 +159,7 @@ module Make_dataflow (D : Dataflow_direction_S) :
       if not (Label.equal v w) then pop_until v
     in
     let i = ref 0 in
+    let int_min (i1 : int) (i2 : int) : int = if i1 < i2 then i1 else i2 in
     let rec strong_connect v =
       assert (not (Label.Tbl.mem mapping v));
       incr i;
@@ -171,10 +172,10 @@ module Make_dataflow (D : Dataflow_direction_S) :
           match Label.Tbl.find_opt mapping w with
           | None ->
             let w_values = strong_connect w in
-            v_values.lowlink <- min v_values.lowlink w_values.lowlink
+            v_values.lowlink <- int_min v_values.lowlink w_values.lowlink
           | Some w_values ->
             if w_values.on_stack
-            then v_values.lowlink <- min v_values.lowlink w_values.index)
+            then v_values.lowlink <- int_min v_values.lowlink w_values.index)
         (D.edges_out block);
       if v_values.lowlink = v_values.index then pop_until v;
       v_values
@@ -242,9 +243,7 @@ module Make_dataflow (D : Dataflow_direction_S) :
         (fun successor ->
           let successor_block = Cfg.get_block_exn work_state.cfg successor in
           let successor_value =
-            match Label.Tbl.find work_state.map_block successor_block.start with
-            | value -> value
-            | exception Not_found -> Transfer_domain.bot
+            Label.Tbl.find work_state.map_block successor_block.start
           in
           let new_value =
             D.join_result ~old_value:successor_value ~transfer_result
