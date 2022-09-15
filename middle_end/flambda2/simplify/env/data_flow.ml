@@ -743,10 +743,6 @@ module Dependency_graph = struct
     in
     { t with name_to_name }
 
-  let add_name_used ({ unconditionally_used; _ } as t) v =
-    let unconditionally_used = Name.Set.add v unconditionally_used in
-    { t with unconditionally_used }
-
   let add_code_id_dependency ~src ~dst ({ code_id_to_name; _ } as t) =
     let code_id_to_name =
       Code_id.Map.update src
@@ -769,8 +765,6 @@ module Dependency_graph = struct
     in
     { t with code_id_to_code_id }
 
-  let add_var_used t v = add_name_used t (Name.var v)
-
   let add_name_occurrences name_occurrences
       ({ unconditionally_used; code_id_unconditionally_used; _ } as t) =
     let unconditionally_used =
@@ -788,7 +782,7 @@ module Dependency_graph = struct
   let add_continuation_info map ~return_continuation ~exn_continuation
       ~used_value_slots _
       { apply_cont_args;
-        apply_result_conts;
+        apply_result_conts = _;
         apply_exn_conts = _;
         (* CR pchambart: properly follow dependencies in exception extra args.
            They are currently marked as always used, so it is correct, but not
@@ -826,22 +820,6 @@ module Dependency_graph = struct
                   values_in_env ~init:t)
               map t)
         value_slots t
-    in
-    (* Add the vars of continuation used as function call return as used *)
-    let t =
-      Continuation.Map.fold
-        (fun k _ t ->
-          match Continuation.Map.find k map with
-          | elt ->
-            List.fold_left add_var_used t (Bound_parameters.vars elt.params)
-          | exception Not_found ->
-            if Continuation.equal return_continuation k
-               || Continuation.equal exn_continuation k
-            then t
-            else
-              Misc.fatal_errorf "Continuation not found during Data_flow: %a@."
-                Continuation.print k)
-        apply_result_conts t
     in
     (* Build the graph of dependencies between names *)
     let t =
