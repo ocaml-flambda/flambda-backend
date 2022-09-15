@@ -121,13 +121,70 @@ module Make_dataflow (D : Dataflow_direction_S) :
 
   type instr_domain = D.instr_domain
 
+  type priority_helper =
+    { label : Label.t;
+      mutable index : int;
+      mutable lowlink : int;
+      mutable on_stack : bool
+    }
+
   let compute_priorities (cfg : Cfg.t) =
+    (* This algorithm is based on Tarjan's strongly connected components
+       algorithm explained in "DEPTH-FIRST SEARCH AND LINEAR GRAPH ALGORITHMS*"
+       by Robert Tarjan, chapter 4.
+
+       We assign priorities to the nodes based on order they are popped from the
+       stack. With that, for two strongly connected components C1 and C2 with an
+       edge from C1 to C2 all nodes from C1 will have higher priorities than
+       nodes in C2. That is a good order for computing dataflow on the DAG of
+       strongly connected components.
+
+       Nodes in a single strongly connected component are added to the stack in
+       pre-order and when popping the order is be reversed. But we compute
+       dataflow in order of decreasing priority so it will go through them in
+       the original pre-order. That seems to be a good heuristic for strongly
+       connected components because for a simple cycle that is the best
+       ordering. *)
+    let stack = Stack.create () in
+    let mapping = Label.Tbl.create (Label.Tbl.length cfg.blocks) in
     let priorities = Label.Tbl.create (Label.Tbl.length cfg.blocks) in
+    let priority = ref 0 in
+    let rec pop_until v =
+      let w_values = Stack.pop stack in
+      w_values.on_stack <- false;
+      incr priority;
+      let w = w_values.label in
+      assert (not (Label.Tbl.mem priorities w));
+      Label.Tbl.add priorities w !priority;
+      if not (Label.equal v w) then pop_until v
+    in
+    let i = ref 0 in
+    let int_min (i1 : int) (i2 : int) : int = if i1 < i2 then i1 else i2 in
+    let rec strong_connect v =
+      assert (not (Label.Tbl.mem mapping v));
+      incr i;
+      let v_values = { label = v; index = !i; lowlink = !i; on_stack = true } in
+      Label.Tbl.add mapping v v_values;
+      Stack.push v_values stack;
+      let block = Cfg.get_block_exn cfg v in
+      Seq.iter
+        (fun w ->
+          match Label.Tbl.find_opt mapping w with
+          | None ->
+            let w_values = strong_connect w in
+            v_values.lowlink <- int_min v_values.lowlink w_values.lowlink
+          | Some w_values ->
+            if w_values.on_stack
+            then v_values.lowlink <- int_min v_values.lowlink w_values.index)
+        (D.edges_out block);
+      if v_values.lowlink = v_values.index then pop_until v;
+      v_values
+    in
     Cfg.iter_blocks cfg ~f:(fun label _block ->
-        (* Explicitly set each block priority to (-label). With that blocks will
-           be computed in order of increasing labels and that's the same as the
-           previous implicit order. *)
-        Label.Tbl.add priorities label (-label));
+        if not (Label.Tbl.mem mapping label)
+        then
+          let (_ : priority_helper) = strong_connect label in
+          assert (Stack.is_empty stack));
     assert (Label.Tbl.length priorities = Label.Tbl.length cfg.blocks);
     priorities
 
