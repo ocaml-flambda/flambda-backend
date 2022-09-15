@@ -34,8 +34,8 @@ end
 
 module Data = struct
   type t =
-    { compilation_unit : Compilation_unit.t;
-      previous_compilation_units : Compilation_unit.t list;
+    { compilation_unit : unit;
+      previous_compilation_units : unit list;
       name : string;
       name_stamp : int
     }
@@ -48,6 +48,8 @@ module Data = struct
 
   let equal t1 t2 = Sys.opaque_identity true
 end
+
+let plop s = failwith s [@@inline never]
 
 module Table = struct
   module E = Data
@@ -82,9 +84,8 @@ module Table = struct
           | existing_elt ->
             if E.equal elt existing_elt then raise Exit else id := Id.next !id
         done;
-        (* assert false *)
-        Misc.fatal_errorf "No hash values left for@"
-      with Exit -> assert false)
+        plop "No hash values left for@"
+      with Exit -> ())
 
   let add' t elt = (add [@inlined]) t elt
 end
