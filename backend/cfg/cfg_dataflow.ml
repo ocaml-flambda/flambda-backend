@@ -150,6 +150,7 @@ module Make_dataflow (D : Dataflow_direction_S) :
       if store_instr
       then
         let map_instr =
+          (* CR-soon xclerc for xclerc: review the `16` constant. *)
           Instr.Tbl.create (Label.Tbl.length cfg.Cfg.blocks * 16)
         in
         Some map_instr
@@ -254,6 +255,8 @@ module Forward (D : Domain_S) (T : Forward_transfer with type domain = D.t) :
 
     let edges_out : Cfg.basic_block -> Label.t Seq.t =
      fun block ->
+      (* CR-soon azewierzejew for xclerc: Add something to [Cfg] interface to
+         make this function (and the one in [Backward]) more efficient. *)
       Cfg.successor_labels ~normal:true ~exn:true block |> Label.Set.to_seq
 
     let join_result :
