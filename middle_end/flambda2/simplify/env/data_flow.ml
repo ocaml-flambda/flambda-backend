@@ -1572,8 +1572,8 @@ module Control_flow_graph = struct
         cont_map
 
     let edge ~ctx ~color ppf src dst =
-      Format.fprintf ppf "%a -> %a [color=\"%s\"];@\n" (node_id ~ctx) src
-        (node_id ~ctx) dst color
+      Format.fprintf ppf "%a -> %a [color=\"%s\"];@\n" (node_id ~ctx) dst
+        (node_id ~ctx) src color
 
     let edges ~ctx ~color ppf edge_map =
       Continuation.Map.iter
