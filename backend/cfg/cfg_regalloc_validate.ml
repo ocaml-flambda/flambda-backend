@@ -26,9 +26,11 @@ module Location : sig
 
   val print : Format.formatter -> t -> unit
 
-  val compare : t -> t -> int
-
   val equal : t -> t -> bool
+
+  module Set : Set.S with type elt = t
+
+  module Map : Map.S with type key = t
 end = struct
   module Stack = struct
     (** This type is based on [Reg.stack_location]. The first difference is that
@@ -141,6 +143,15 @@ end = struct
     Stdlib.compare t1 t2
 
   let equal (t1 : t) (t2 : t) : bool = compare t1 t2 = 0
+
+  module T = struct
+    type nonrec t = t
+
+    let compare = compare
+  end
+
+  module Set = Set.Make (T)
+  module Map = Map.Make (T)
 end
 
 module Reg_id : sig
@@ -194,11 +205,13 @@ module Register : sig
 
   val to_dummy_reg : t -> Reg.t
 
-  val compare : t -> t -> int
-
   val equal : t -> t -> bool
 
   val print : Format.formatter -> t -> unit
+
+  module Set : Set.S with type elt = t
+
+  module Map : Map.S with type key = t
 end = struct
   module For_print = struct
     type t =
@@ -241,6 +254,15 @@ end = struct
   let compare (t1 : t) (t2 : t) : int = Reg_id.compare t1.reg_id t2.reg_id
 
   let equal (t1 : t) (t2 : t) : bool = compare t1 t2 = 0
+
+  module T = struct
+    type nonrec t = t
+
+    let compare = compare
+  end
+
+  module Set = Set.Make (T)
+  module Map = Map.Make (T)
 end
 
 module Instruction = struct
@@ -540,17 +562,90 @@ end = struct
         preassigned location doesn't destroy a [Named] variable. *)
     type t = Register.t * Location.t
 
-    let compare (r1, l1) (r2, l2) =
-      let r_cmp = Register.compare r1 r2 in
-      if r_cmp <> 0 then r_cmp else Location.compare l1 l2
-
     let print ppf (r, l) =
       Format.fprintf ppf "%a=%a" Register.print r Location.print l
   end
 
   exception Verification_failed of string
 
-  include Set.Make (Equation)
+  type t =
+    { for_loc : Register.Set.t Location.Map.t;
+      for_reg : Location.Set.t Register.Map.t
+    }
+
+  let empty = { for_loc = Location.Map.empty; for_reg = Register.Map.empty }
+
+  let compare t1 t2 =
+    Location.Map.compare Register.Set.compare t1.for_loc t2.for_loc
+
+  let remove ((eq_reg, eq_loc) : Equation.t) t =
+    { for_loc =
+        Location.Map.update eq_loc
+          (function
+            | None -> None
+            | Some set ->
+              let set = Register.Set.remove eq_reg set in
+              if Register.Set.is_empty set then None else Some set)
+          t.for_loc;
+      for_reg =
+        Register.Map.update eq_reg
+          (function
+            | None -> None
+            | Some set ->
+              let set = Location.Set.remove eq_loc set in
+              if Location.Set.is_empty set then None else Some set)
+          t.for_reg
+    }
+
+  let add ((eq_reg, eq_loc) : Equation.t) t =
+    { for_loc =
+        Location.Map.update eq_loc
+          (fun set ->
+            match set with
+            | None -> Some (Register.Set.singleton eq_reg)
+            | Some set -> Some (Register.Set.add eq_reg set))
+          t.for_loc;
+      for_reg =
+        Register.Map.update eq_reg
+          (function
+            | None -> Some (Location.Set.singleton eq_loc)
+            | Some set -> Some (Location.Set.add eq_loc set))
+          t.for_reg
+    }
+
+  let is_empty t =
+    let loc_res = Location.Map.is_empty t.for_loc in
+    let reg_res = Register.Map.is_empty t.for_reg in
+    assert (loc_res = reg_res);
+    loc_res
+
+  let subset t1 t2 =
+    Location.Map.for_all
+      (fun loc regs1 ->
+        assert (not (Register.Set.is_empty regs1));
+        match Location.Map.find_opt loc t2.for_loc with
+        | None -> false
+        | Some regs2 -> Register.Set.subset regs1 regs2)
+      t1.for_loc
+
+  let union t1 t2 =
+    { for_loc =
+        Location.Map.merge
+          (fun _loc regs1 regs2 ->
+            match regs1, regs2 with
+            | None, None -> None
+            | Some r, None | None, Some r -> Some r
+            | Some r1, Some r2 -> Some (Register.Set.union r1 r2))
+          t1.for_loc t2.for_loc;
+      for_reg =
+        Register.Map.merge
+          (fun _reg locs1 locs2 ->
+            match locs1, locs2 with
+            | None, None -> None
+            | Some l, None | None, Some l -> Some l
+            | Some l1, Some l2 -> Some (Location.Set.union l1 l2))
+          t1.for_reg t2.for_reg
+    }
 
   let array_fold2 f acc arr1 arr2 =
     let acc = ref acc in
@@ -558,26 +653,39 @@ end = struct
     !acc
 
   let compatible_one ~reg ~loc t =
-    iter
-      (fun ((eq_reg, eq_loc) as eq) ->
-        (* This check corresponds to simplified check that "(x, l) is compatible
-           with E" from chapter 3.2 section "Unsatisfiability and Overlap" from
-           the paper [1], where "x" is [reg] and "l" is [loc]. Because we don't
-           consider overlap at all, the condition simplifies to [(x' = x && l' =
-           l) || (x' <> x && l' <> l)]. *)
-        let reg_eq = Register.equal eq_reg reg in
-        let loc_eq = Location.equal eq_loc loc in
-        if not (Bool.equal reg_eq loc_eq)
-        then (
-          Format.fprintf Format.str_formatter
-            "Unsatisfiable equations when removing result equations.\n\
-             Existing equation has to agree one 0 or 2 sides (cannot on \
-             exactly 1) with the removed equation.\n\
-             Existing equation %a.\n\
-             Removed equation: %a." Equation.print eq Equation.print (reg, loc);
-          let message = Format.flush_str_formatter () in
-          raise (Verification_failed message)))
-      t
+    let check_equation eq_reg eq_loc =
+      (* This check corresponds to simplified check that "(x, l) is compatible
+         with E" from chapter 3.2 section "Unsatisfiability and Overlap" from
+         the paper [1], where "x" is [reg] and "l" is [loc]. Because we don't
+         consider overlap at all, the condition simplifies to [(x' = x && l' =
+         l) || (x' <> x && l' <> l)]. *)
+      let reg_eq = Register.equal eq_reg reg in
+      let loc_eq = Location.equal eq_loc loc in
+      if not (Bool.equal reg_eq loc_eq)
+      then (
+        Format.fprintf Format.str_formatter
+          "Unsatisfiable equations when removing result equations.\n\
+           Existing equation has to agree one 0 or 2 sides (cannot on exactly \
+           1) with the removed equation.\n\
+           Existing equation %a.\n\
+           Removed equation: %a." Equation.print (eq_reg, eq_loc) Equation.print
+          (reg, loc);
+        let message = Format.flush_str_formatter () in
+        raise (Verification_failed message))
+    in
+    (* Check equations that have the location the same. *)
+    (match Location.Map.find_opt loc t.for_loc with
+    | None -> ()
+    | Some regs ->
+      let eq_loc = loc in
+      Register.Set.iter (fun eq_reg -> check_equation eq_reg eq_loc) regs);
+    (* Check equations that have the register the same. *)
+    (match Register.Map.find_opt reg t.for_reg with
+    | None -> ()
+    | Some locs ->
+      let eq_reg = reg in
+      Location.Set.iter (fun eq_loc -> check_equation eq_reg eq_loc) locs);
+    ()
 
   let remove_result ~reg_res ~loc_res t =
     try
@@ -594,17 +702,19 @@ end = struct
     try
       Array.iter
         (fun destroyed_loc ->
-          iter
-            (fun (live_reg, live_loc) ->
-              if destroyed_loc = live_loc
-              then (
-                Format.fprintf Format.str_formatter
-                  "Destroying a location %a in which a live register %a is \
-                   stored"
-                  Location.print live_loc Register.print live_reg;
-                let message = Format.flush_str_formatter () in
-                raise (Verification_failed message)))
-            t)
+          match Location.Map.find_opt destroyed_loc t.for_loc with
+          | None -> ()
+          | Some regs ->
+            assert (not (Register.Set.is_empty regs));
+            Format.fprintf Format.str_formatter
+              "Destroying a location %a in which a live registers %a is stored"
+              Location.print destroyed_loc
+              (Format.pp_print_seq
+                 ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ")
+                 Register.print)
+              (Register.Set.to_seq regs);
+            let message = Format.flush_str_formatter () in
+            raise (Verification_failed message))
         destroyed;
       Ok t
     with Verification_failed message -> Error message
@@ -613,24 +723,33 @@ end = struct
     array_fold2 (fun t reg loc -> add (reg, loc) t) t reg_arg loc_arg
 
   let rename_loc ~arg ~res t =
-    map
-      (fun ((stamp, loc) as eq) ->
-        if Location.equal loc res then stamp, arg else eq)
-      t
+    let regs =
+      Location.Map.find_opt res t.for_loc
+      |> Option.value ~default:Register.Set.empty
+    in
+    Register.Set.fold
+      (fun reg acc -> acc |> remove (reg, res) |> add (reg, arg))
+      regs t
 
   let rename_reg ~arg ~res t =
-    map
-      (fun ((eq_reg, loc) as eq) ->
-        if Register.equal eq_reg res then arg, loc else eq)
-      t
+    let locs =
+      Register.Map.find_opt res t.for_reg
+      |> Option.value ~default:Location.Set.empty
+    in
+    Location.Set.fold
+      (fun loc acc -> acc |> remove (res, loc) |> add (arg, loc))
+      locs t
 
   let print ppf t =
     let first = ref true in
-    iter
-      (fun eq ->
-        if !first then first := false else Format.fprintf ppf " ";
-        Format.fprintf ppf "%a" Equation.print eq)
-      t
+    let print_eq eq_reg eq_loc =
+      if !first then first := false else Format.fprintf ppf " ";
+      Format.fprintf ppf "%a" Equation.print (eq_reg, eq_loc)
+    in
+    Location.Map.iter
+      (fun eq_loc regs ->
+        Register.Set.iter (fun eq_reg -> print_eq eq_reg eq_loc) regs)
+      t.for_loc
 end
 
 module type Description_value = sig
