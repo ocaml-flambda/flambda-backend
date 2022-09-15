@@ -864,7 +864,15 @@ let make_rewrite uacc ~cont ~original_cont_scope ~original_params
   in
   uacc, rewrite
 
-let recursive_let_cont_handler_wrapper_params ~rewrite =
+let recursive_let_cont_handler_wrapper_params uacc ~rewrite =
+  let Data_flow.{ aliases; _ } = UA.continuation_param_aliases uacc in
+  let rename_param bp =
+    let var = BP.var bp in
+    let kind = BP.kind bp in
+    match Variable.Map.find var aliases with
+    | exception Not_found -> bp
+    | alias -> BP.create alias kind
+  in
   let original_params =
     Bound_parameters.to_list @@ Apply_cont_rewrite.original_params rewrite
   in
@@ -875,7 +883,8 @@ let recursive_let_cont_handler_wrapper_params ~rewrite =
   let used_extra_params =
     Bound_parameters.to_list @@ Apply_cont_rewrite.used_extra_params rewrite
   in
-  Bound_parameters.create (used_original_params @ used_extra_params)
+  Bound_parameters.create
+    (List.map rename_param (used_original_params @ used_extra_params))
 
 let rebuild_recursive_let_cont_handlers cont ~params ~original_cont_scope
     cont_handler ~handler uacc ~after_rebuild ~extra_params_and_args
@@ -901,7 +910,7 @@ let rebuild_recursive_let_cont_handlers cont ~params ~original_cont_scope
     make_rewrite uacc ~cont ~original_cont_scope ~original_params
       ~remove_aliases:false ~extra_params_and_args
   in
-  let some_params = recursive_let_cont_handler_wrapper_params ~rewrite in
+  let some_params = recursive_let_cont_handler_wrapper_params uacc ~rewrite in
   let uacc =
     (* If the arguments of the wrapper continuation and the recursive
        continuation are different, we need to remove the arguments of the
@@ -1190,7 +1199,7 @@ let rebuild_recursive_let_cont ~body handlers ~cost_metrics_of_handlers
           handlers ~body
       in
 
-      let params = recursive_let_cont_handler_wrapper_params ~rewrite in
+      let params = recursive_let_cont_handler_wrapper_params uacc ~rewrite in
       let handler =
         RE.Continuation_handler.create'
           (UA.are_rebuilding_terms uacc)
