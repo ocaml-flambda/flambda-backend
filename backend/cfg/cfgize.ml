@@ -129,6 +129,7 @@ end
 type basic_or_terminator =
   | Basic of Cfg.basic
   | Terminator of Cfg.terminator
+  | With_next_label of (Label.t -> Cfg.terminator)
 
 let basic_or_terminator_of_operation :
     State.t -> Mach.operation -> basic_or_terminator =
@@ -140,28 +141,42 @@ let basic_or_terminator_of_operation :
   | Iconst_int i -> Basic (Op (Const_int i))
   | Iconst_float f -> Basic (Op (Const_float f))
   | Iconst_symbol s -> Basic (Op (Const_symbol s))
-  | Icall_ind -> Basic (Call (F Indirect))
-  | Icall_imm { func } -> Basic (Call (F (Direct { func_symbol = func })))
-  | Itailcall_ind -> Terminator (Tailcall (Func Indirect))
+  | Icall_ind ->
+    With_next_label
+      (fun label_after -> RaisingOp { op = Call Indirect; label_after })
+  | Icall_imm { func } ->
+    With_next_label
+      (fun label_after ->
+        RaisingOp { op = Call (Direct { func_symbol = func }); label_after })
+  | Itailcall_ind -> Terminator (Tailcall_func Indirect)
   | Itailcall_imm { func } ->
     Terminator
-      (Tailcall
-         (if String.equal (State.get_fun_name state) func
-         then Self { destination = State.get_tailrec_label state }
-         else Func (Direct { func_symbol = func })))
+      (if String.equal (State.get_fun_name state) func
+      then Tailcall_self { destination = State.get_tailrec_label state }
+      else Tailcall_func (Direct { func_symbol = func }))
   | Iextcall { func; ty_res; ty_args; alloc; returns } ->
     let external_call = { Cfg.func_symbol = func; alloc; ty_res; ty_args } in
     if returns
-    then Basic (Call (P (External external_call)))
+    then
+      With_next_label
+        (fun label_after ->
+          RaisingOp { op = Prim (External external_call); label_after })
     else Terminator (Call_no_return external_call)
   | Istackoffset ofs -> Basic (Op (Stackoffset ofs))
   | Iload (mem, mode, mut) -> Basic (Op (Load (mem, mode, mut)))
   | Istore (mem, mode, assignment) -> Basic (Op (Store (mem, mode, assignment)))
   | Ialloc { bytes; dbginfo; mode } ->
-    Basic (Call (P (Alloc { bytes; dbginfo; mode })))
-  | Iintop Icheckbound -> Basic (Call (P (Checkbound { immediate = None })))
+    With_next_label
+      (fun label_after ->
+        RaisingOp { op = Prim (Alloc { bytes; dbginfo; mode }); label_after })
+  | Iintop Icheckbound ->
+    With_next_label
+      (fun label_after ->
+        RaisingOp { op = Prim (Checkbound { immediate = None }); label_after })
   | Iintop_imm (Icheckbound, i) ->
-    Basic (Call (P (Checkbound { immediate = Some i })))
+    With_next_label
+      (fun label_after ->
+        RaisingOp { op = Prim (Checkbound { immediate = Some i }); label_after })
   | Iintop
       (( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
        | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ ) as op) ->
@@ -180,14 +195,22 @@ let basic_or_terminator_of_operation :
   | Idivf -> Basic (Op Divf)
   | Ifloatofint -> Basic (Op Floatofint)
   | Iintoffloat -> Basic (Op Intoffloat)
-  | Ispecific op -> Basic (Op (Specific op))
+  | Ispecific op ->
+    if Arch.operation_can_raise op
+    then
+      With_next_label
+        (fun label_after ->
+          RaisingOp { op = Specific_can_raise op; label_after })
+    else Basic (Op (Specific op))
   | Iopaque -> Basic (Op Opaque)
   | Iname_for_debugger _ ->
     Misc.fatal_error
       "Cfgize.basic_or_terminator_of_operation: \"the Iname_for_debugger\" \
        instruction is currently not supported "
   | Iprobe { name; handler_code_sym } ->
-    Basic (Op (Probe { name; handler_code_sym }))
+    With_next_label
+      (fun label_after ->
+        RaisingOp { op = Prim (Probe { name; handler_code_sym }); label_after })
   | Iprobe_is_enabled { name } -> Basic (Op (Probe_is_enabled { name }))
   | Ibeginregion -> Basic (Op Begin_region)
   | Iendregion -> Basic (Op End_region)
@@ -344,10 +367,15 @@ let rec get_end : Mach.instruction -> Mach.instruction =
   | Itrywith _ | Iraise _ ->
     get_end instr.Mach.next
 
+type terminator_info =
+  | Terminator of Cfg.terminator Cfg.instruction
+  | With_next_label of (Label.t -> Cfg.terminator Cfg.instruction)
+  | Complex_terminator
+
 type block_info =
   { instrs : Cfg.basic Cfg.instruction list;
     last : Mach.instruction;
-    terminator : Cfg.terminator Cfg.instruction option
+    terminator : terminator_info
   }
 
 (* [extract_block_info state first] returns a [block_info] containing all the
@@ -372,15 +400,18 @@ let extract_block_info : State.t -> Mach.instruction -> block_info =
            (i) such moves are necessary to compute the live sets and (ii) they
            can only be identified as useless after register allocation. *)
         let acc = instr' :: acc in
-        if Cfg.can_raise_basic desc
-        then return None acc
-        else loop instr.next acc
+        loop instr.next acc
       | Terminator terminator ->
-        return (Some (copy_instruction state instr ~desc:terminator)) acc)
+        return (Terminator (copy_instruction state instr ~desc:terminator)) acc
+      | With_next_label terminator ->
+        return
+          (With_next_label
+             (fun label_after ->
+               copy_instruction state instr ~desc:(terminator label_after)))
+          acc)
     | Iend | Ireturn _ | Iifthenelse _ | Iswitch _ | Icatch _ | Iexit _
-    | Itrywith _ ->
-      return None acc
-    | Iraise _ -> return None acc
+    | Itrywith _ | Iraise _ ->
+      return Complex_terminator acc
   in
   loop first []
 
@@ -421,39 +452,34 @@ let rec add_blocks :
           trap_actions
     in
     let body =
-      match terminator.Cfg.desc with
-      | Cfg.Return ->
+      match (terminator.Cfg.desc : Cfg.terminator) with
+      | Return ->
         if State.get_contains_calls state
         then body @ [make_instruction state ~desc:Cfg.Reloadretaddr]
         else body
-      | Cfg.Never | Cfg.Always _ | Cfg.Parity_test _ | Cfg.Truth_test _
-      | Cfg.Float_test _ | Cfg.Int_test _ | Cfg.Switch _ | Cfg.Raise _
-      | Cfg.Tailcall _ | Cfg.Call_no_return _ ->
+      | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
+      | Int_test _ | Switch _ | Raise _ | Tailcall_self _ | Tailcall_func _
+      | Call_no_return _ | RaisingOp _ ->
         body
     in
     let can_raise =
       (* Recompute [can_raise] and check that instructions in the middle of the
-         block do not raise, i.e., only the terminator, or the last instruction
-         (when the terminator is just a goto) can raise. *)
-      let terminator_is_goto =
-        match (terminator.Cfg.desc : Cfg.terminator) with
-        | Always _ -> true
-        | Raise _ | Tailcall _ | Call_no_return _ | Never | Parity_test _
-        | Truth_test _ | Float_test _ | Int_test _ | Switch _ | Return ->
-          false
-      in
-      let rec check = function
-        | [] -> false
-        | [last] ->
-          let res = Cfg.can_raise_basic last.Cfg.desc in
-          assert ((not res) || terminator_is_goto);
-          res
-        | hd :: tail ->
-          assert (not (Cfg.can_raise_basic hd.Cfg.desc));
-          check tail
-      in
-      let body_can_raise = check body in
-      Cfg.can_raise_terminator terminator.Cfg.desc || body_can_raise
+         block do not raise, i.e., only the terminator can raise. *)
+      List.iter
+        (fun instr ->
+          match instr.Cfg.desc with
+          | Cfg.Op (Specific spec) ->
+            assert (not (Arch.operation_can_raise spec))
+          | Cfg.Op
+              ( Move | Spill | Reload | Const_int _ | Const_float _
+              | Const_symbol _ | Stackoffset _ | Load _ | Store _ | Intop _
+              | Intop_imm _ | Negf | Absf | Addf | Subf | Mulf | Divf | Compf _
+              | Floatofint | Intoffloat | Probe_is_enabled _ | Opaque
+              | Begin_region | End_region | Name_for_debugger _ )
+          | Cfg.Reloadretaddr | Cfg.Pushtrap _ | Cfg.Poptrap | Cfg.Prologue ->
+            ())
+        body;
+      Cfg.can_raise_terminator terminator.Cfg.desc
     in
     State.add_block state ~label:start
       ~block:
@@ -484,18 +510,16 @@ let rec add_blocks :
       start, add_next_block
   in
   match terminator with
-  | Some terminator -> terminate_block ~trap_actions:[] terminator
-  | None -> (
+  | Terminator terminator -> terminate_block ~trap_actions:[] terminator
+  | With_next_label f ->
+    let next, add_next_block = prepare_next_block () in
+    terminate_block ~trap_actions:[] (f next);
+    add_next_block ()
+  | Complex_terminator -> (
     match last.desc with
-    | Iop op ->
-      if not (Mach.operation_can_raise op)
-      then
-        Misc.fatal_error
-          "Cfgize.extract_block_info: unexpected Iop with no terminator";
-      let next, add_next_block = prepare_next_block () in
-      terminate_block ~trap_actions:[]
-        (copy_instruction_no_reg state last ~desc:(Cfg.Always next));
-      add_next_block ()
+    | Iop _ ->
+      Misc.fatal_error
+        "Cfgize.extract_block_info: unexpected Iop as Complex_terminator"
     | Iend ->
       if Label.equal next fallthrough_label
       then
@@ -619,15 +643,13 @@ module Stack_offset_and_exn = struct
     assert (term.stack_offset = invalid_stack_offset);
     let term = check_and_set_stack_offset term ~stack_offset ~traps in
     match term.desc with
-    | Tailcall (Self _) when List.length traps <> 0 || stack_offset <> 0 ->
+    | Tailcall_self _ when List.length traps <> 0 || stack_offset <> 0 ->
       Misc.fatal_error
         "Cfgize.Stack_offset_and_exn.process_terminator: unexpected handler on \
          self tailcall"
-    | Tailcall (Self _)
-    | Never | Return
-    | Tailcall (Func _)
-    | Call_no_return _ | Raise _ | Always _ | Parity_test _ | Truth_test _
-    | Float_test _ | Int_test _ | Switch _ ->
+    | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
+    | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
+    | Tailcall_func _ | Call_no_return _ | RaisingOp _ ->
       stack_offset, traps, term
 
   let rec process_basic :
@@ -653,10 +675,10 @@ module Stack_offset_and_exn = struct
     | Op
         ( Move | Spill | Reload | Const_int _ | Const_float _ | Const_symbol _
         | Load _ | Store _ | Intop _ | Intop_imm _ | Negf | Absf | Addf | Subf
-        | Mulf | Divf | Compf _ | Floatofint | Intoffloat | Probe _
-        | Probe_is_enabled _ | Opaque | Begin_region | End_region | Specific _
-        | Name_for_debugger _ )
-    | Call _ | Reloadretaddr | Prologue ->
+        | Mulf | Divf | Compf _ | Floatofint | Intoffloat | Probe_is_enabled _
+        | Opaque | Begin_region | End_region | Specific _ | Name_for_debugger _
+          )
+    | Reloadretaddr | Prologue ->
       stack_offset, traps, instr
 
   (* The argument [stack_offset] has a different meaning from the field

@@ -194,14 +194,13 @@ let precondition : Cfg_with_layout.t -> unit =
       | Compf _ -> ()
       | Floatofint -> ()
       | Intoffloat -> ()
-      | Probe _ -> ()
       | Probe_is_enabled _ -> ()
       | Opaque -> ()
       | Begin_region -> ()
       | End_region -> ()
       | Specific _ -> ()
       | Name_for_debugger _ -> ())
-    | Call _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> ()
+    | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> ()
   in
   let register_must_not_be_on_stack (id : Instruction.id) (reg : Reg.t) : unit =
     match reg.Reg.loc with

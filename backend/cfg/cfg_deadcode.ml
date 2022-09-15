@@ -20,7 +20,7 @@ let remove_deadcode (body : Instruction.t list) liveness used_after :
           && Reg.disjoint_set_array used_after instr.res
           && (not (Proc.regs_are_volatile instr.arg))
           && not (Proc.regs_are_volatile instr.res)
-        | Call _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> false
+        | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> false
       in
       let acc = if is_deadcode then acc else instr :: acc in
       acc, before)

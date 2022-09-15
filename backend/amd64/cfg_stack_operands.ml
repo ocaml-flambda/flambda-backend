@@ -152,10 +152,6 @@ let binary_operation
 
 let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   begin match instr.desc with
-  | Call (P (Checkbound { immediate = None; } )) ->
-    binary_operation map instr No_result
-  | Call (P (Checkbound { immediate = Some _; } )) ->
-    may_use_stack_operand_for_only_argument map instr ~has_result:false
   | Op (Addf | Subf | Mulf | Divf)
   | Op (Specific (Ifloat_min | Ifloat_max | Icrc32q)) ->
     may_use_stack_operand_for_second_argument map instr
@@ -185,8 +181,6 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
     may_use_stack_operand_for_result map instr ~num_args:2
   | Op(Intop_imm((Iadd | Isub | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr), _)) ->
     may_use_stack_operand_for_result map instr ~num_args:1
-  | Op (Probe _) ->
-    may_use_stack_operands_everywhere map instr
   | Op (Specific (Ilfence | Isfence | Imfence))
   | Op (Intop(Imulh _ | Imul | Idiv | Imod))
   | Op (Intop_imm ((Imulh _ | Imul | Idiv | Imod), _))
@@ -201,7 +195,6 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
                  | Ipause
                  | Iprefetch _
                  | Ibswap _| Ifloatsqrtf _))
-  | Call (P (External _ | Alloc _) | F (Indirect | Direct _))
   | Reloadretaddr
   | Pushtrap _
   | Poptrap
@@ -218,12 +211,13 @@ let terminator (map : spilled_map) (term : Cfg.terminator Cfg.instruction) =
   ignore map;
   match (term : Cfg.terminator Cfg.instruction).desc with
   | Never -> fatal "unexpected terminator"
-
-  | Int_test { lt = _; eq = _; gt =_; is_signed = _; imm = None; } ->
+  | Int_test { lt = _; eq = _; gt =_; is_signed = _; imm = None; }
+  | RaisingOp {op = Prim (Checkbound { immediate = None; } ); _} ->
     binary_operation map term No_result
   | Int_test { lt = _; eq = _; gt =_; is_signed = _; imm = Some _; }
   | Parity_test { ifso = _; ifnot = _; }
-  | Truth_test { ifso = _; ifnot = _; } ->
+  | Truth_test { ifso = _; ifnot = _; }
+  | RaisingOp {op = Prim (Checkbound { immediate = Some _; } ); _} ->
     may_use_stack_operand_for_only_argument ~has_result:false map term
   | Float_test _ ->
     (* CR-someday xclerc for xclerc: this could be optimized, but the representation
@@ -236,7 +230,13 @@ let terminator (map : spilled_map) (term : Cfg.terminator Cfg.instruction) =
   | Return
   | Raise _
   | Switch _
-  | Tailcall _
-  | Call_no_return _ ->
+  | Tailcall_self _
+  | Tailcall_func _
+  | Call_no_return _
+  | RaisingOp {op = Prim (External _ | Alloc _) | Call (Indirect | Direct _); _} ->
     (* no rewrite *)
     May_still_have_spilled_registers
+  | RaisingOp {op = Prim (Probe _); _} ->
+    may_use_stack_operands_everywhere map term
+  | RaisingOp {op = Specific_can_raise _; _} ->
+    fatal "no instructions specific for this architecture can raise"

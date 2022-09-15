@@ -136,14 +136,13 @@ let is_move_basic : Cfg.basic -> bool =
     | Compf _ -> false
     | Floatofint -> false
     | Intoffloat -> false
-    | Probe _ -> false
     | Probe_is_enabled _ -> false
     | Opaque -> false
     | Begin_region -> false
     | End_region -> false
     | Specific _ -> false
     | Name_for_debugger _ -> false)
-  | Call _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> false
+  | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> false
 
 let is_move_instruction : Cfg.basic Cfg.instruction -> bool =
  fun instr -> is_move_basic instr.desc

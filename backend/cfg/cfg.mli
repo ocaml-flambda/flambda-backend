@@ -111,6 +111,8 @@ val can_raise_interproc : basic_block -> bool
 
 val mem_block : t -> Label.t -> bool
 
+val add_block_exn : t -> basic_block -> unit
+
 val remove_block_exn : t -> Label.t -> unit
 
 val get_block : t -> Label.t -> basic_block option
@@ -157,10 +159,6 @@ val print_instruction :
    reordering. *)
 
 val can_raise_terminator : terminator -> bool
-
-val can_raise_basic : basic -> bool
-
-val can_raise_operation : operation -> bool
 
 val is_pure_terminator : terminator -> bool
 

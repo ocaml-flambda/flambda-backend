@@ -6,8 +6,6 @@ let debug = true
 
 let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   match instr.desc with
-  | Op (Probe _) ->
-    may_use_stack_operands_everywhere map instr
   | Op (Specific Imove32) ->
     if debug then check_lengths instr ~of_arg:1 ~of_res:1;
     begin match is_spilled instr.arg.(0), is_spilled instr.res.(0) with
@@ -31,6 +29,10 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
     (* no rewrite *)
     May_still_have_spilled_registers
 
-let terminator _ _ =
-  (* no rewrite *)
-  May_still_have_spilled_registers
+let terminator (map : spilled_map) (term : Cfg.terminator Cfg.instruction) =
+  match term.desc with
+  | RaisingOp {op = Prim (Probe _); _} ->
+    may_use_stack_operands_everywhere map term
+  | _ ->
+    (* no rewrite *)
+    May_still_have_spilled_registers

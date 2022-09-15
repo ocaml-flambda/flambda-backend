@@ -98,6 +98,8 @@ let block (block : C.basic_block) =
       let l = Label.Set.min_elt labels in
       block.terminator <- { block.terminator with desc = Always l }
   | Switch labels -> simplify_switch block labels
-  | Call_no_return _ | Tailcall (Self _ | Func _) | Raise _ | Return -> ()
+  | Raise _ | Return | Tailcall_self _ | Tailcall_func _ | Call_no_return _
+  | RaisingOp _ ->
+    ()
 
 let run cfg = C.iter_blocks cfg ~f:(fun _ b -> block b)

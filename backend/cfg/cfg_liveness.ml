@@ -44,16 +44,12 @@ module Transfer :
     let before = Reg.add_set_array across instr.arg in
     { before; across }
 
-  let basic :
-      domain ->
-      exn:domain ->
-      Cfg.basic Cfg.instruction ->
-      (domain, error) result =
-   fun ({ before; across = _ } as domain) ~exn instr ->
+  let basic : domain -> Cfg.basic Cfg.instruction -> (domain, error) result =
+   fun ({ before; across = _ } as domain) instr ->
     Result.ok
     @@
     match instr.desc with
-    | Op _ | Call _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
+    | Op _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
       if Cfg.is_pure_basic instr.desc
          && Reg.disjoint_set_array before instr.res
          && (not (Proc.regs_are_volatile instr.arg))
@@ -63,10 +59,7 @@ module Transfer :
            then don't mark the arguments as used because this instruction could
            be removed. *)
         { before; across = before }
-      else
-        instruction
-          ~can_raise:(Cfg.can_raise_basic instr.desc)
-          ~exn domain instr
+      else instruction ~can_raise:false ~exn:Domain.bot domain instr
 
   let terminator :
       domain ->
@@ -78,7 +71,7 @@ module Transfer :
     @@
     match instr.desc with
     | Never -> assert false
-    | Tailcall (Self _) ->
+    | Tailcall_self _ ->
       (* CR-someday azewierzejew: If the stamps for the tail call DomainState
          argument and parameter were the same and Tailcall (Self _) had
          [instr.arg = instr.res] (either by removing the args or adding results
@@ -90,9 +83,8 @@ module Transfer :
         ~can_raise:(Cfg.can_raise_terminator instr.desc)
         ~exn Domain.bot instr
     | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-    | Switch _ | Return | Raise _
-    | Tailcall (Func _)
-    | Call_no_return _ ->
+    | Switch _ | Return | Raise _ | Tailcall_func _ | Call_no_return _
+    | RaisingOp _ ->
       instruction
         ~can_raise:(Cfg.can_raise_terminator instr.desc)
         ~exn domain instr
