@@ -375,6 +375,13 @@ module Acc = struct
     | Trackable_arguments of Env.value_approximation list
     | Untrackable
 
+  type closure_info =
+    { return_continuation : Continuation.t;
+      exn_continuation : Exn_continuation.t;
+      my_closure : Variable.t;
+      is_purely_tailrec : bool
+    }
+
   type t =
     { declared_symbols : (Symbol.t * Static_const.t) list;
       lifted_sets_of_closures :
@@ -389,7 +396,8 @@ module Acc = struct
       seen_a_function : bool;
       symbol_for_global : Ident.t -> Symbol.t;
       slot_offsets : Slot_offsets.t;
-      regions_closed_early : Ident.Set.t
+      regions_closed_early : Ident.Set.t;
+      closure_infos : closure_info list
     }
 
   let cost_metrics t = t.cost_metrics
@@ -414,7 +422,8 @@ module Acc = struct
       seen_a_function = false;
       symbol_for_global;
       slot_offsets;
-      regions_closed_early = Ident.Set.empty
+      regions_closed_early = Ident.Set.empty;
+      closure_infos = []
     }
 
   let declared_symbols t = t.declared_symbols
@@ -451,15 +460,47 @@ module Acc = struct
   let add_free_names free_names t =
     { t with free_names = Name_occurrences.union free_names t.free_names }
 
-  let add_name_to_free_names ~name t =
+  let add_free_names_and_check_my_closure_use free_names t =
+    let t =
+      match t.closure_infos with
+      | [] -> t
+      | closure_info :: closure_infos ->
+        if closure_info.is_purely_tailrec
+           && Name_occurrences.mem_var free_names closure_info.my_closure
+        then
+          { t with
+            closure_infos =
+              { closure_info with is_purely_tailrec = false } :: closure_infos
+          }
+        else t
+    in
+    add_free_names free_names t
+
+  let add_name_to_free_names ~is_tail_call ~name t =
+    let closure_infos =
+      match is_tail_call, t.closure_infos with
+      | true, closure_infos -> closure_infos
+      | false, [] -> []
+      | false, closure_info :: closure_infos ->
+        if closure_info.is_purely_tailrec
+           && Name.equal (Name.var closure_info.my_closure) name
+        then { closure_info with is_purely_tailrec = false } :: closure_infos
+        else t.closure_infos
+    in
     { t with
+      closure_infos;
       free_names = Name_occurrences.add_name t.free_names name Name_mode.normal
     }
 
-  let add_simple_to_free_names acc simple =
+  let add_simple_to_free_names_maybe_tail_call ~is_tail_call acc simple =
     Simple.pattern_match simple
       ~const:(fun _ -> acc)
-      ~name:(fun name ~coercion:_ -> add_name_to_free_names ~name acc)
+      ~name:(fun name ~coercion ->
+        let acc = add_name_to_free_names ~is_tail_call ~name acc in
+        add_free_names (Coercion.free_names coercion) acc)
+
+  let add_simple_to_free_names acc simple =
+    add_simple_to_free_names_maybe_tail_call ~is_tail_call:false acc simple
 
   let remove_code_id_or_symbol_from_free_names code_id_or_symbol t =
     { t with
@@ -538,6 +579,36 @@ module Acc = struct
         set_of_closures
     in
     { t with slot_offsets }
+
+  let top_closure_info t =
+    match t.closure_infos with
+    | [] -> None
+    | closure_info :: _ -> Some closure_info
+
+  let push_closure_info t ~return_continuation ~exn_continuation ~my_closure
+      ~is_purely_tailrec =
+    { t with
+      closure_infos =
+        { return_continuation; exn_continuation; my_closure; is_purely_tailrec }
+        :: t.closure_infos
+    }
+
+  let pop_closure_info t =
+    let closure_info, closure_infos =
+      match t.closure_infos with
+      | [] -> Misc.fatal_error "pop_closure_info called on empty stack"
+      | closure_info :: closure_infos -> closure_info, closure_infos
+    in
+    let closure_infos =
+      match closure_infos with
+      | [] -> []
+      | closure_info2 :: closure_infos2 ->
+        if closure_info2.is_purely_tailrec
+           && Name_occurrences.mem_var t.free_names closure_info2.my_closure
+        then { closure_info2 with is_purely_tailrec = false } :: closure_infos2
+        else closure_infos
+    in
+    closure_info, { t with closure_infos }
 end
 
 module Function_decls = struct
@@ -711,7 +782,40 @@ module Expr_with_acc = struct
         (Code_size.apply apply |> Cost_metrics.from_size)
         acc
     in
-    let acc = Acc.add_free_names (Apply_expr.free_names apply) acc in
+    let is_tail_call =
+      match Acc.top_closure_info acc with
+      | None -> false
+      | Some { return_continuation; exn_continuation; _ } -> (
+        (match Apply_expr.continuation apply with
+        | Never_returns -> true
+        | Return cont -> Continuation.equal cont return_continuation)
+        && Exn_continuation.equal
+             (Apply_expr.exn_continuation apply)
+             exn_continuation
+        (* If the return and exn continuation match, the call is in tail
+           position, but could still be an under- or over-application. By
+           checking that it is a direct call, we are sure it has the correct
+           arity. *)
+        &&
+        match Apply.call_kind apply with
+        | Function { function_call = Direct _; _ } -> true
+        | Function
+            { function_call = Indirect_unknown_arity | Indirect_known_arity _;
+              _
+            } ->
+          false
+        | Method _ -> false
+        | C_call _ -> false)
+    in
+    let acc =
+      Acc.add_simple_to_free_names_maybe_tail_call ~is_tail_call acc
+        (Apply.callee apply)
+    in
+    let acc =
+      Acc.add_free_names_and_check_my_closure_use
+        (Apply_expr.free_names_except_callee apply)
+        acc
+    in
     let acc =
       match Apply_expr.continuation apply with
       | Never_returns -> acc
@@ -744,7 +848,11 @@ module Apply_cont_with_acc = struct
   let create acc ?trap_action ?args_approx cont ~args ~dbg =
     let apply_cont = Apply_cont.create ?trap_action cont ~args ~dbg in
     let acc = Acc.add_continuation_application ~cont args_approx acc in
-    let acc = Acc.add_free_names (Apply_cont.free_names apply_cont) acc in
+    let acc =
+      Acc.add_free_names_and_check_my_closure_use
+        (Apply_cont.free_names apply_cont)
+        acc
+    in
     acc, apply_cont
 
   let goto acc cont =
@@ -799,7 +907,18 @@ module Let_with_acc = struct
           ~code_id:(fun acc cid -> Acc.remove_code_id_from_free_names cid acc)
       in
       let let_expr = Let.create let_bound named ~body ~free_names_of_body in
-      let acc = Acc.add_free_names (Named.free_names named) acc in
+      let is_project_value_slot =
+        match[@ocaml.warning "-4"] (named : Named.t) with
+        | Prim (Unary (Project_value_slot _, _), _) -> true
+        | _ -> false
+      in
+      let acc =
+        if is_project_value_slot
+        then Acc.add_free_names (Named.free_names named) acc
+        else
+          Acc.add_free_names_and_check_my_closure_use (Named.free_names named)
+            acc
+      in
       acc, Expr.create_let let_expr
 end
 

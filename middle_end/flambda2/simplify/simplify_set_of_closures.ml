@@ -29,7 +29,7 @@ module C = Simplify_set_of_closures_context
 let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
     ~my_depth function_slot_opt ~closure_bound_names_inside_function
     ~inlining_arguments ~absolute_history code_id ~return_continuation
-    ~exn_continuation ~return_cont_params code_metadata =
+    ~exn_continuation ~return_cont_params ~loopify_state code_metadata =
   let dacc = C.dacc_inside_functions context in
   let num_leading_heap_params =
     Code_metadata.num_leading_heap_params code_metadata
@@ -86,6 +86,7 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
       (DA.get_lifted_constants outer_dacc)
     |> DE.enter_closure code_id ~return_continuation ~exn_continuation
          ~my_closure
+    |> DE.set_loopify_state loopify_state
     |> DE.increment_continuation_scope
   in
   let denv = DE.add_parameters_with_unknown_types denv return_cont_params in
@@ -144,6 +145,7 @@ type simplify_function_body_result =
     free_names_of_code : NO.t;
     return_cont_uses : Continuation_uses.t option;
     is_my_closure_used : bool;
+    recursive : Recursive.t;
     uacc_after_upwards_traversal : UA.t
   }
 
@@ -152,11 +154,17 @@ let simplify_function_body context ~outer_dacc function_slot_opt
     code_id ~return_cont_params code ~return_continuation ~exn_continuation
     params ~body ~my_closure ~is_my_closure_used:_ ~my_region ~my_depth
     ~free_names_of_body:_ =
+  let loopify_state =
+    if Loopify_attribute.should_loopify (Code.loopify code)
+    then Loopify_state.loopify (Continuation.create ~name:"self" ())
+    else Loopify_state.do_not_loopify
+  in
   let dacc_at_function_entry =
     dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
       ~my_depth function_slot_opt ~closure_bound_names_inside_function
       ~inlining_arguments ~absolute_history code_id ~return_continuation
-      ~exn_continuation ~return_cont_params (Code.code_metadata code)
+      ~exn_continuation ~return_cont_params ~loopify_state
+      (Code.code_metadata code)
   in
   let dacc = dacc_at_function_entry in
   if not (DA.no_lifted_constants dacc)
@@ -168,7 +176,7 @@ let simplify_function_body context ~outer_dacc function_slot_opt
     C.simplify_function_body context dacc body ~return_continuation
       ~exn_continuation ~return_arity:(Code.result_arity code)
       ~return_cont_scope:Scope.initial
-      ~exn_cont_scope:(Scope.next Scope.initial)
+      ~exn_cont_scope:(Scope.next Scope.initial) ~loopify_state ~params
   with
   | body, uacc ->
     let dacc_after_body = UA.creation_dacc uacc in
@@ -186,6 +194,11 @@ let simplify_function_body context ~outer_dacc function_slot_opt
     let is_my_closure_used = NO.mem_var free_names_of_body my_closure in
     let previously_free_depth_variables =
       NO.create_variables (C.previously_free_depth_variables context) NM.normal
+    in
+    let recursive : Recursive.t =
+      if Name_occurrences.mem_var free_names_of_body my_depth
+      then Recursive
+      else Non_recursive
     in
     let free_names_of_code =
       free_names_of_body
@@ -217,6 +230,7 @@ let simplify_function_body context ~outer_dacc function_slot_opt
       free_names_of_code;
       return_cont_uses;
       is_my_closure_used;
+      recursive;
       uacc_after_upwards_traversal = uacc
     }
   | exception Misc.Fatal_error ->
@@ -330,6 +344,7 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
         free_names_of_code;
         return_cont_uses;
         is_my_closure_used;
+        recursive;
         uacc_after_upwards_traversal
       } =
     Function_params_and_body.pattern_match
@@ -356,7 +371,7 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
     let decision =
       Function_decl_inlining_decision.make_decision ~inlining_arguments
         ~inline:(Code.inline code) ~stub:(Code.stub code) ~cost_metrics
-        ~is_a_functor:(Code.is_a_functor code) ~recursive:(Code.recursive code)
+        ~is_a_functor:(Code.is_a_functor code) ~recursive
     in
     Inlining_report.record_decision_at_function_definition ~absolute_history
       ~code_metadata:(Code.code_metadata code) ~pass:After_simplify
@@ -388,6 +403,19 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
       in
       DA.with_slot_offsets outer_dacc ~slot_offsets
   in
+  let loopify : Loopify_attribute.t =
+    match Code.loopify code with
+    | Always_loopify ->
+      (* CR ncourant: in this case, the function had a [@loop] attribute, so we
+         want to keep it in case we perform another pass. It might be better to
+         only keep it that way if it is still recursive, however, but this is
+         simpler. *)
+      Always_loopify
+    | Never_loopify -> Never_loopify
+    | Already_loopified -> Already_loopified
+    | Default_loopify_and_tailrec -> Already_loopified
+    | Default_loopify_and_not_tailrec -> Never_loopify
+  in
   let code =
     Rebuilt_static_const.create_code
       (DA.are_rebuilding_terms dacc_after_body)
@@ -401,7 +429,7 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
       ~poll_attribute:(Code.poll_attribute code) ~is_a_functor
       ~recursive:(Code.recursive code) ~cost_metrics ~inlining_arguments
       ~dbg:(Code.dbg code) ~is_tupled:(Code.is_tupled code) ~is_my_closure_used
-      ~inlining_decision ~absolute_history ~relative_history
+      ~inlining_decision ~absolute_history ~relative_history ~loopify
   in
   { code_id; code = Some code; outer_dacc }
 
