@@ -488,8 +488,6 @@ module Equation_set : sig
 
   val union : t -> t -> t
 
-  val compare : t -> t -> int
-
   val subset : t -> t -> bool
 
   (** This corresponds to case (10) in Fig. 1 of the paper [1]. *)
@@ -644,7 +642,7 @@ let print_reg_as_loc ppf reg =
     ~unknown:(fun ppf -> Format.fprintf ppf "<Unknown>")
     ppf reg.Reg.loc
 
-module Domain : sig
+module Domain : Cfg_dataflow.Domain_S with type t = Equation_set.t = struct
   (** This type corresponds to the set of equations in the dataflow from the
       paper [1]. The value corresponing to "Top" is not represented. The
       transfer function return [(domain, error) result] and the "Top" element
@@ -652,19 +650,14 @@ module Domain : sig
       without propagating the error value all the way to the entrypoint. A
       side-effect of this is that an erroreous but unreachable code will make
       the validation fail (where the algorithm in [1] will allow such code). *)
-  include Cfg_dataflow.Backward_domain with type t = Equation_set.t
-end = struct
+
   type t = Equation_set.t
 
   let bot = Equation_set.empty
 
-  let compare t1 t2 = Equation_set.compare t1 t2
-
   let join t1 t2 = Equation_set.union t1 t2
 
   let less_equal t1 t2 = Equation_set.subset t1 t2
-
-  let to_string _ = failwith "[to_string] unimplemented"
 end
 
 module Transfer_error : sig

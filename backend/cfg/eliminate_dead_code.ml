@@ -7,27 +7,23 @@ module Domain = struct
 
   let bot = Unreachable
 
-  let compare left right =
+  let less_equal left right =
     match left, right with
-    | Reachable, Reachable -> 0
-    | Reachable, Unreachable -> 1
-    | Unreachable, Reachable -> -1
-    | Unreachable, Unreachable -> 0
+    | Reachable, Reachable -> true
+    | Reachable, Unreachable -> false
+    | Unreachable, Reachable -> true
+    | Unreachable, Unreachable -> true
 
   let join left right =
     match left, right with
     | Reachable, (Reachable | Unreachable) | Unreachable, Reachable -> Reachable
     | Unreachable, Unreachable -> Unreachable
-
-  let to_string = function
-    | Reachable -> "reachable"
-    | Unreachable -> "unreachable"
 end
 
 module Transfer = struct
   type domain = Domain.t
 
-  type t =
+  type image =
     { normal : domain;
       exceptional : domain
     }
@@ -42,7 +38,7 @@ module Dataflow = Cfg_dataflow.Forward (Domain) (Transfer)
 let run_dead_block : Cfg_with_layout.t -> unit =
  fun cfg_with_layout ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
-  match Dataflow.run cfg () with
+  match Dataflow.run cfg ~init:Reachable () with
   | Result.Error _ ->
     Misc.fatal_error
       "Dataflow.run_dead_code: forward analysis did not reach a fix-point"
