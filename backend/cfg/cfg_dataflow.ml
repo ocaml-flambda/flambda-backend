@@ -157,11 +157,9 @@ module Make_dataflow (D : Dataflow_direction_S) :
     in
     let t = { cfg; queue; map_block; map_instr } in
     Cfg.iter_blocks cfg ~f:(fun label block ->
-        match init block with
-        | None -> ()
-        | Some value ->
-          Label.Tbl.replace map_block label value;
-          WorkSet.add t.queue label);
+        let value = init block |> Option.value ~default:D.Transfer_domain.bot in
+        Label.Tbl.replace map_block label value;
+        WorkSet.add t.queue label);
     t
 
   let get_res_block t = t.map_block
@@ -177,9 +175,7 @@ module Make_dataflow (D : Dataflow_direction_S) :
       let element = WorkSet.remove_and_return work_state.queue in
       let current_block = Cfg.get_block_exn work_state.cfg element in
       let current_value =
-        match Label.Tbl.find work_state.map_block current_block.start with
-        | value -> value
-        | exception Not_found -> Transfer_domain.bot
+        Label.Tbl.find work_state.map_block current_block.start
       in
       let transfer_result =
         D.transfer_block ~update_instr:(update_instr work_state) current_value
@@ -189,9 +185,7 @@ module Make_dataflow (D : Dataflow_direction_S) :
         (fun successor ->
           let successor_block = Cfg.get_block_exn work_state.cfg successor in
           let successor_value =
-            match Label.Tbl.find work_state.map_block successor_block.start with
-            | value -> value
-            | exception Not_found -> Transfer_domain.bot
+            Label.Tbl.find work_state.map_block successor_block.start
           in
           let new_value =
             D.join_result ~old_value:successor_value ~transfer_result
