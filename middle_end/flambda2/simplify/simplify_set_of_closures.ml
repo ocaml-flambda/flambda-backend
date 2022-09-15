@@ -454,8 +454,8 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
             (DA.get_lifted_constants outer_dacc)
         in
         let denv =
-          DE.enter_closure code_id ~return_continuation
-            ~exn_continuation ~self_continuation ~my_closure denv
+          DE.enter_closure code_id ~return_continuation ~exn_continuation
+            ~self_continuation ~my_closure denv
         in
         let denv = DE.increment_continuation_scope denv in
         DE.add_parameters_with_unknown_types denv return_cont_params)
@@ -472,7 +472,8 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
   |> DA.with_used_value_slots ~used_value_slots
   |> DA.with_shareable_constants ~shareable_constants
   |> DA.with_slot_offsets ~slot_offsets
-  |> DA.with_my_closure_only_used_for_tail_calls ~my_closure_only_used_for_tail_calls:true
+  |> DA.with_my_closure_only_used_for_tail_calls
+       ~my_closure_only_used_for_tail_calls:true
 
 let extract_accumulators_from_function outer_dacc ~dacc_after_body
     ~uacc_after_upwards_traversal =
@@ -588,8 +589,8 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
           C.simplify_function_body context dacc body ~return_continuation
             ~exn_continuation ~return_arity:(Code.result_arity code)
             ~return_cont_scope:Scope.initial
-            ~exn_cont_scope:(Scope.next Scope.initial)
-            ~self_continuation ~params
+            ~exn_cont_scope:(Scope.next Scope.initial) ~self_continuation
+            ~params
         with
         | body, uacc ->
           let dacc_after_body = UA.creation_dacc uacc in
@@ -673,13 +674,12 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
           Printexc.raise_with_backtrace Misc.Fatal_error bt)
   in
   let still_recursive =
-    (* If my_closure was somehow used for something else than
-       Project_value_slot despite the function being non-recursive,
-       we do not mark it as recursive *)
-    if DA.my_closure_only_used_for_tail_calls dacc_after_body then
-      Recursive.Non_recursive
-    else
-      Code.recursive code
+    (* If my_closure was somehow used for something else than Project_value_slot
+       despite the function being non-recursive, we do not mark it as
+       recursive *)
+    if DA.my_closure_only_used_for_tail_calls dacc_after_body
+    then Recursive.Non_recursive
+    else Code.recursive code
   in
   let outer_dacc, lifted_consts_this_function =
     extract_accumulators_from_function outer_dacc ~dacc_after_body
@@ -1242,8 +1242,9 @@ let simplify_lifted_sets_of_closures dacc ~all_sets_of_closures_and_symbols
   in
   let value_slot_types_all_sets = List.map snd value_slots_and_types_all_sets in
   let context =
-    C.create ~dacc_prior_to_sets:dacc ~simplify_function_body ~all_sets_of_closures
-      ~closure_bound_names_all_sets ~value_slot_types_all_sets
+    C.create ~dacc_prior_to_sets:dacc ~simplify_function_body
+      ~all_sets_of_closures ~closure_bound_names_all_sets
+      ~value_slot_types_all_sets
   in
   let closure_bound_names_inside_functions_all_sets =
     C.closure_bound_names_inside_functions_all_sets context

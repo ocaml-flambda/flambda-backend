@@ -39,9 +39,8 @@ let rec simplify_expr dacc expr ~down_to_up =
     down_to_up dacc ~rebuild:(fun uacc ~after_rebuild ->
         EB.rebuild_invalid uacc (Message message) ~after_rebuild)
 
-and simplify_toplevel_common dacc simplify ~is_in_closure
-    ~return_continuation ~return_arity ~exn_continuation
-    ~return_cont_scope ~exn_cont_scope =
+and simplify_toplevel_common dacc simplify ~is_in_closure ~return_continuation
+    ~return_arity ~exn_continuation ~return_cont_scope ~exn_cont_scope =
   (* The usage analysis needs a continuation whose handler holds the toplevel
      code of the function. Since such a continuation does not exist, we create a
      dummy one here. *)
@@ -65,11 +64,11 @@ and simplify_toplevel_common dacc simplify ~is_in_closure
            used_value_slots, and in return we do not use the reachable_code_id
            part of the data_flow analysis. *)
         let code_age_relation, used_value_slots =
-          if is_in_closure then
-            Code_age_relation.empty, Or_unknown.Unknown
+          if is_in_closure
+          then Code_age_relation.empty, Or_unknown.Unknown
           else
-            DA.code_age_relation dacc,
-            Or_unknown.Known (DA.used_value_slots dacc)
+            ( DA.code_age_relation dacc,
+              Or_unknown.Known (DA.used_value_slots dacc) )
         in
         let ({ required_names; reachable_code_ids } : Data_flow.result) =
           Data_flow.analyze data_flow ~code_age_relation ~used_value_slots
@@ -118,32 +117,38 @@ and simplify_toplevel_common dacc simplify ~is_in_closure
 
 and simplify_toplevel dacc expr ~return_continuation ~return_arity
     ~exn_continuation ~return_cont_scope ~exn_cont_scope =
-  simplify_toplevel_common dacc (fun dacc -> simplify_expr dacc expr)
-    ~is_in_closure:false
-    ~return_continuation ~return_arity ~exn_continuation
+  simplify_toplevel_common dacc
+    (fun dacc -> simplify_expr dacc expr)
+    ~is_in_closure:false ~return_continuation ~return_arity ~exn_continuation
     ~return_cont_scope ~exn_cont_scope
 
 and simplify_function_body dacc expr ~return_continuation ~return_arity
-    ~exn_continuation ~return_cont_scope ~exn_cont_scope ~self_continuation ~params =
+    ~exn_continuation ~return_cont_scope ~exn_cont_scope ~self_continuation
+    ~params =
   let args = Bound_parameters.simples params in
   (* CR ncourant Fix missing debug info *)
   let call_self_cont_expr =
-    Expr.create_apply_cont (Apply_cont_expr.create self_continuation ~args ~dbg:[])
+    Expr.create_apply_cont
+      (Apply_cont_expr.create self_continuation ~args ~dbg:[])
   in
   let fresh_params = Bound_parameters.rename params in
-  let renaming = Bound_parameters.renaming params ~guaranteed_fresh:fresh_params in
+  let renaming =
+    Bound_parameters.renaming params ~guaranteed_fresh:fresh_params
+  in
   let handlers =
     Continuation.Map.singleton self_continuation
-      (Continuation_handler.create fresh_params ~handler:(Expr.apply_renaming expr renaming)
+      (Continuation_handler.create fresh_params
+         ~handler:(Expr.apply_renaming expr renaming)
          ~free_names_of_handler:Unknown ~is_exn_handler:false)
   in
   simplify_toplevel_common dacc
-    (fun dacc -> Simplify_let_cont_expr.simplify_matched_recursive_let_cont
-        ~simplify_expr dacc (call_self_cont_expr, handlers))
-    ~is_in_closure:true
-    ~return_continuation ~return_arity ~exn_continuation
+    (fun dacc ->
+      Simplify_let_cont_expr.simplify_matched_recursive_let_cont ~simplify_expr
+        dacc
+        (call_self_cont_expr, handlers))
+    ~is_in_closure:true ~return_continuation ~return_arity ~exn_continuation
     ~return_cont_scope ~exn_cont_scope
 
 and[@inline always] simplify_let dacc let_expr ~down_to_up =
-  Simplify_let_expr.simplify_let ~simplify_expr ~simplify_function_body dacc let_expr
-    ~down_to_up
+  Simplify_let_expr.simplify_let ~simplify_expr ~simplify_function_body dacc
+    let_expr ~down_to_up

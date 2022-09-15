@@ -20,8 +20,8 @@ type t = private
       { code_id : Code_id.t;
         return_continuation : Continuation.t;
         exn_continuation : Continuation.t;
-        self_continuation: Continuation.t;
-        my_closure: Variable.t
+        self_continuation : Continuation.t;
+        my_closure : Variable.t
       }
 
 val print : Format.formatter -> t -> unit

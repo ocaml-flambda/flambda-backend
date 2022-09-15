@@ -74,7 +74,9 @@ let simplify_named0 dacc (bound_pattern : Bound_pattern.t) (named : Named.t)
     let min_name_mode = Bound_var.name_mode bound_var in
     let ty = S.simplify_simple dacc simple ~min_name_mode in
     let new_simple = T.get_alias_exn ty in
-    let dacc = Simplify_rec_to_cont.update_dacc_for_my_closure_use_simple dacc simple in
+    let dacc =
+      Simplify_rec_to_cont.update_dacc_for_my_closure_use_simple dacc simple
+    in
     let dacc = DA.add_variable dacc bound_var ty in
     let defining_expr =
       if simple == new_simple
@@ -85,7 +87,9 @@ let simplify_named0 dacc (bound_pattern : Bound_pattern.t) (named : Named.t)
       (Simplify_named_result.have_simplified_to_single_term dacc bound_pattern
          defining_expr ~original_defining_expr:named)
   | Prim (prim, dbg) -> (
-    let dacc = Simplify_rec_to_cont.update_dacc_for_my_closure_use_prim dacc prim in
+    let dacc =
+      Simplify_rec_to_cont.update_dacc_for_my_closure_use_prim dacc prim
+    in
     let bound_var = Bound_pattern.must_be_singleton bound_pattern in
     let { Simplify_primitive_result.simplified_named; try_reify; dacc } =
       Simplify_primitive.simplify_primitive dacc prim dbg ~result_var:bound_var

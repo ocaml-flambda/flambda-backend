@@ -198,9 +198,11 @@ let slot_offsets t = t.slot_offsets
 
 let with_slot_offsets t ~slot_offsets = { t with slot_offsets }
 
-let my_closure_only_used_for_tail_calls t = t.my_closure_only_used_for_tail_calls
+let my_closure_only_used_for_tail_calls t =
+  t.my_closure_only_used_for_tail_calls
 
-let with_my_closure_only_used_for_tail_calls t ~my_closure_only_used_for_tail_calls =
+let with_my_closure_only_used_for_tail_calls t
+    ~my_closure_only_used_for_tail_calls =
   { t with my_closure_only_used_for_tail_calls }
 
 let mark_my_closure_used t b =

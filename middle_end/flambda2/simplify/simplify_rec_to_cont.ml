@@ -19,12 +19,11 @@ let simple_is_my_closure dacc simple =
     ~const:(fun _ -> false)
     ~symbol:(fun _ ~coercion:_ -> false)
     ~var:(fun v ~coercion:_ ->
-        let closure_info = DE.closure_info (DA.denv dacc) in
-        match closure_info with
-        | Closure { my_closure ; _ } ->
-          Variable.equal v my_closure
-        | Not_in_a_closure -> false
-        | In_a_set_of_closures_but_not_yet_in_a_specific_closure -> false)
+      let closure_info = DE.closure_info (DA.denv dacc) in
+      match closure_info with
+      | Closure { my_closure; _ } -> Variable.equal v my_closure
+      | Not_in_a_closure -> false
+      | In_a_set_of_closures_but_not_yet_in_a_specific_closure -> false)
 
 let update_dacc_for_my_closure_use_simple dacc simple =
   let my_closure_used = simple_is_my_closure dacc simple in
@@ -34,11 +33,10 @@ let update_dacc_for_my_closure_use_list dacc l =
   List.fold_left update_dacc_for_my_closure_use_simple dacc l
 
 let update_dacc_for_my_closure_use_prim dacc (prim : P.t) =
-  match [@ocaml.warning "-4"] prim with
+  match[@ocaml.warning "-4"] prim with
   | Nullary _ -> dacc
   | Unary (Project_value_slot _, _) -> dacc
-  | Unary (_, arg) ->
-    update_dacc_for_my_closure_use_simple dacc arg
+  | Unary (_, arg) -> update_dacc_for_my_closure_use_simple dacc arg
   | Binary (_, arg1, arg2) ->
     let dacc = update_dacc_for_my_closure_use_simple dacc arg1 in
     update_dacc_for_my_closure_use_simple dacc arg2
@@ -46,5 +44,4 @@ let update_dacc_for_my_closure_use_prim dacc (prim : P.t) =
     let dacc = update_dacc_for_my_closure_use_simple dacc arg1 in
     let dacc = update_dacc_for_my_closure_use_simple dacc arg2 in
     update_dacc_for_my_closure_use_simple dacc arg3
-  | Variadic (_, args) ->
-    update_dacc_for_my_closure_use_list dacc args
+  | Variadic (_, args) -> update_dacc_for_my_closure_use_list dacc args

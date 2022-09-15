@@ -15,6 +15,9 @@
 open! Simplify_import
 
 val simple_is_my_closure : DA.t -> Simple.t -> bool
+
 val update_dacc_for_my_closure_use_simple : DA.t -> Simple.t -> DA.t
+
 val update_dacc_for_my_closure_use_list : DA.t -> Simple.t list -> DA.t
+
 val update_dacc_for_my_closure_use_prim : DA.t -> P.t -> DA.t

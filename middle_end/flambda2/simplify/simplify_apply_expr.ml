@@ -882,10 +882,12 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
 
 let simplify_apply_shared dacc apply =
   let dacc =
-    Simplify_rec_to_cont.update_dacc_for_my_closure_use_simple dacc (Apply.callee apply)
+    Simplify_rec_to_cont.update_dacc_for_my_closure_use_simple dacc
+      (Apply.callee apply)
   in
   let dacc =
-    Simplify_rec_to_cont.update_dacc_for_my_closure_use_list dacc (Apply.args apply)
+    Simplify_rec_to_cont.update_dacc_for_my_closure_use_list dacc
+      (Apply.args apply)
   in
   let callee_ty =
     S.simplify_simple dacc (Apply.callee apply) ~min_name_mode:NM.normal
@@ -1062,38 +1064,39 @@ let simplify_c_call ~simplify_expr dacc apply ~callee_ty ~param_arity
 let is_self_tail_call dacc apply =
   let closure_info = DE.closure_info (DA.denv dacc) in
   match closure_info with
-  | Not_in_a_closure | In_a_set_of_closures_but_not_yet_in_a_specific_closure -> None
+  | Not_in_a_closure | In_a_set_of_closures_but_not_yet_in_a_specific_closure ->
+    None
   | Closure { return_continuation; exn_continuation; self_continuation; _ } ->
-    if Simplify_rec_to_cont.simple_is_my_closure dacc (Apply.callee apply) &&
-       (match Apply.continuation apply with
-        | Never_returns -> true
-        | Return apply_return_continuation ->
-          Continuation.equal apply_return_continuation return_continuation
-       ) &&
-       Exn_continuation.equal (Apply.exn_continuation apply)
-         (Exn_continuation.create ~exn_handler:exn_continuation ~extra_args:[])
-    then
-      Some self_continuation
-    else
-      None
+    if Simplify_rec_to_cont.simple_is_my_closure dacc (Apply.callee apply)
+       && (match Apply.continuation apply with
+          | Never_returns -> true
+          | Return apply_return_continuation ->
+            Continuation.equal apply_return_continuation return_continuation)
+       && Exn_continuation.equal
+            (Apply.exn_continuation apply)
+            (Exn_continuation.create ~exn_handler:exn_continuation
+               ~extra_args:[])
+    then Some self_continuation
+    else None
 
 let simplify_self_tail_call dacc apply self_cont ~down_to_up =
-  Simplify_apply_cont_expr.simplify_apply_cont
-    dacc
-    (Apply_cont_expr.create self_cont ~args:(Apply.args apply) ~dbg:(Apply.dbg apply))
+  Simplify_apply_cont_expr.simplify_apply_cont dacc
+    (Apply_cont_expr.create self_cont ~args:(Apply.args apply)
+       ~dbg:(Apply.dbg apply))
     ~down_to_up
 
 let simplify_apply ~simplify_expr dacc apply ~down_to_up =
   match is_self_tail_call dacc apply with
   | Some self_cont -> simplify_self_tail_call dacc apply self_cont ~down_to_up
-  | None ->
+  | None -> (
     let dacc, callee_ty, apply, arg_types = simplify_apply_shared dacc apply in
     match Apply.call_kind apply with
     | Function { function_call; alloc_mode = apply_alloc_mode } ->
       simplify_function_call ~simplify_expr dacc apply ~callee_ty function_call
         ~apply_alloc_mode ~arg_types ~down_to_up
     | Method { kind; obj; alloc_mode = _ } ->
-      simplify_method_call dacc apply ~callee_ty ~kind ~obj ~arg_types ~down_to_up
+      simplify_method_call dacc apply ~callee_ty ~kind ~obj ~arg_types
+        ~down_to_up
     | C_call { alloc = _; param_arity; return_arity; is_c_builtin = _ } ->
       simplify_c_call ~simplify_expr dacc apply ~callee_ty ~param_arity
-        ~return_arity ~arg_types ~down_to_up
+        ~return_arity ~arg_types ~down_to_up)

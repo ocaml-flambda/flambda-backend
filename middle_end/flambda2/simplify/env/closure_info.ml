@@ -1,4 +1,3 @@
-
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -49,8 +48,15 @@ let not_in_a_closure = Not_in_a_closure
 let in_a_set_of_closures =
   In_a_set_of_closures_but_not_yet_in_a_specific_closure
 
-let in_a_closure code_id ~return_continuation ~exn_continuation ~self_continuation ~my_closure =
-  Closure { code_id; return_continuation; exn_continuation; self_continuation; my_closure }
+let in_a_closure code_id ~return_continuation ~exn_continuation
+    ~self_continuation ~my_closure =
+  Closure
+    { code_id;
+      return_continuation;
+      exn_continuation;
+      self_continuation;
+      my_closure
+    }
 
 type in_or_out_of_closure =
   | In_a_closure
