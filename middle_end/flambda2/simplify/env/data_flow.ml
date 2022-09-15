@@ -61,8 +61,6 @@ type elt =
     params : Bound_parameters.t;
     parent_continuation : Continuation.t option;
     used_in_handler : Name_occurrences.t;
-    apply_result_conts : Apply_cont_rewrite_id.Set.t Continuation.Map.t;
-    apply_exn_conts : Apply_cont_rewrite_id.Set.t Continuation.Map.t;
     bindings : Name_occurrences.t Name.Map.t;
     defined : Variable.Set.t;
     code_ids : Name_occurrences.t Code_id.Map.t;
@@ -107,8 +105,6 @@ let [@ocamlformat "disable"] print_elt ppf
       params;
       parent_continuation;
       used_in_handler;
-      apply_result_conts;
-      apply_exn_conts;
       bindings;
       defined;
       code_ids;
@@ -121,8 +117,6 @@ let [@ocamlformat "disable"] print_elt ppf
       @[<hov 1>(params %a)@]@ \
       @[<hov 1>(parent_continuation %a)@]@ \
       @[<hov 1>(used_in_handler %a)@]@ \
-      @[<hov 1>(apply_result_conts %a)@]@ \
-      @[<hov 1>(apply_exn_conts %a)@]@ \
       @[<hov 1>(bindings %a)@]@ \
       @[<hov 1>(defined %a)@]@ \
       @[<hov 1>(code_ids %a)@]@ \
@@ -135,8 +129,6 @@ let [@ocamlformat "disable"] print_elt ppf
     (Format.pp_print_option ~none:(fun ppf () -> Format.fprintf ppf "root")
        Continuation.print) parent_continuation
     Name_occurrences.print used_in_handler
-    (Continuation.Map.print Apply_cont_rewrite_id.Set.print) apply_result_conts
-    (Continuation.Map.print Apply_cont_rewrite_id.Set.print) apply_exn_conts
     (Name.Map.print Name_occurrences.print)
     bindings
     Variable.Set.print
@@ -337,9 +329,7 @@ let enter_continuation continuation ~recursive params t =
       code_ids = Code_id.Map.empty;
       value_slots = Value_slot.Map.empty;
       used_in_handler = Name_occurrences.empty;
-      apply_cont_args = Continuation.Map.empty;
-      apply_result_conts = Continuation.Map.empty;
-      apply_exn_conts = Continuation.Map.empty
+      apply_cont_args = Continuation.Map.empty
     }
   in
   { t with stack = elt :: t.stack }
@@ -459,24 +449,6 @@ let add_used_in_current_handler name_occurrences t =
 
 let add_apply_conts ~result_cont ~exn_cont t =
   update_top_of_stack ~t ~f:(fun elt ->
-      let apply_result_conts =
-        match result_cont with
-        | None -> elt.apply_result_conts
-        | Some (rewrite_id, result_cont) ->
-          Continuation.Map.update result_cont
-            (function
-              | None -> Some (Apply_cont_rewrite_id.Set.singleton rewrite_id)
-              | Some set -> Some (Apply_cont_rewrite_id.Set.add rewrite_id set))
-            elt.apply_result_conts
-      in
-      let apply_exn_conts =
-        let rewrite_id, exn_cont = exn_cont in
-        Continuation.Map.update exn_cont
-          (function
-            | None -> Some (Apply_cont_rewrite_id.Set.singleton rewrite_id)
-            | Some set -> Some (Apply_cont_rewrite_id.Set.add rewrite_id set))
-          elt.apply_exn_conts
-      in
       let add_func_result cont rewrite_id apply_cont_args =
         Continuation.Map.update cont
           (fun (rewrite_map_opt :
@@ -512,7 +484,7 @@ let add_apply_conts ~result_cont ~exn_cont t =
         | Some (rewrite_id, result_cont) ->
           add_func_result result_cont rewrite_id apply_cont_args
       in
-      { elt with apply_result_conts; apply_exn_conts; apply_cont_args })
+      { elt with apply_cont_args })
 
 let add_apply_cont_args ~rewrite_id cont arg_name_simples t =
   update_top_of_stack ~t ~f:(fun elt ->
@@ -782,8 +754,6 @@ module Dependency_graph = struct
   let add_continuation_info map ~return_continuation ~exn_continuation
       ~used_value_slots _
       { apply_cont_args;
-        apply_result_conts = _;
-        apply_exn_conts = _;
         (* CR pchambart: properly follow dependencies in exception extra args.
            They are currently marked as always used, so it is correct, but not
            optimal *)
@@ -909,49 +879,6 @@ module Dependency_graph = struct
            ~used_value_slots)
         map (empty code_age_relation)
     in
-    (* Take into account the extra params and args. *)
-    (* let t =
-     *   Continuation.Map.fold
-     *     (fun _ (extra_params_and_args : EPA.t) t ->
-     *       Apply_cont_rewrite_id.Map.fold
-     *         (fun _ extra_args t ->
-     *           List.fold_left2
-     *             (fun t extra_param extra_arg ->
-     *               let src = Name.var (Bound_parameter.var extra_param) in
-     *               match (extra_arg : EPA.Extra_arg.t) with
-     *               | Already_in_scope simple ->
-     *                 Name_occurrences.fold_names (Simple.free_names simple)
-     *                   ~init:t ~f:(fun t dst -> add_dependency ~src ~dst t)
-     *               | New_let_binding (src', prim) ->
-     *                 let src' = Name.var src' in
-     *                 Name_occurrences.fold_names
-     *                   (Flambda_primitive.free_names prim)
-     *                   ~f:(fun t dst -> add_dependency ~src:src' ~dst t)
-     *                   ~init:(add_dependency ~src ~dst:src' t)
-     *               | New_let_binding_with_named_args (_src', _prim_gen) ->
-     *                 (\* In this case, the free_vars present in the result of
-     *                    _prim_gen are fresh (and a subset of the simples given to
-     *                    _prim_gen) and generated when going up while creating a
-     *                    wrapper continuation for the return of a function
-     *                    application.
-     * 
-     *                    In that case, the fresh parameters created for the
-     *                    wrapper cannot introduce dependencies to other variables
-     *                    or parameters of continuations.
-     * 
-     *                    Therefore, in this case, the data_flow analysis is
-     *                    incomplete, and we instead rely on the free_names
-     *                    analysis to eliminate the extra_let binding if it is
-     *                    unneeded. *\)
-     *                 t)
-     *             t
-     *             (Bound_parameters.to_list
-     *                (EPA.extra_params extra_params_and_args))
-     *             extra_args)
-     *         (EPA.extra_args extra_params_and_args)
-     *         t)
-     *     extra t
-     * in *)
     t
 
   let required_names
@@ -1083,46 +1010,6 @@ module Dominator_graph = struct
         (add_continuation_info ~return_continuation ~exn_continuation map)
         map t
     in
-    (* let t =
-     *   Continuation.Map.fold
-     *     (fun _ (extra_params_and_args : EPA.t) t ->
-     *       let t =
-     *         List.fold_left
-     *           (fun t bp ->
-     *             let params_kind =
-     *               Variable.Map.add (Bound_parameter.var bp)
-     *                 (Bound_parameter.kind bp) t.params_kind
-     *             in
-     *             { t with params_kind })
-     *           t
-     *           (Bound_parameters.to_list
-     *              (EPA.extra_params extra_params_and_args))
-     *       in
-     *       Apply_cont_rewrite_id.Map.fold
-     *         (fun _ extra_args t ->
-     *           List.fold_left2
-     *             (fun t extra_param extra_arg ->
-     *               let src = Bound_parameter.var extra_param in
-     *               match
-     *                 (extra_arg : Continuation_extra_params_and_args.Extra_arg.t)
-     *               with
-     *               | Already_in_scope simple -> add_edge ~src ~dst:simple t
-     *               | New_let_binding (tmp_var, _)
-     *               | New_let_binding_with_named_args (tmp_var, _) ->
-     *                 (\* In these cases, we mainly want to record that the
-     *                    `tmp_var` is a root value / self-dominator, i.e. ~src
-     *                    will not be dominated by another variable (and in
-     *                    particular it will not be dominated by a continaution
-     *                    parameter). *\)
-     *                 add_edge ~src ~dst:(Simple.var tmp_var) t)
-     *             t
-     *             (Bound_parameters.to_list
-     *                (EPA.extra_params extra_params_and_args))
-     *             extra_args)
-     *         (EPA.extra_args extra_params_and_args)
-     *         t)
-     *     extra t
-     * in *)
     let all_variables =
       Variable.Map.fold
         (fun v dsts acc -> Variable.Set.add v (Variable.Set.union dsts acc))
@@ -1323,13 +1210,6 @@ module Control_flow_graph = struct
       children : Continuation.Set.t Continuation.Map.t
     }
 
-  let add ~caller ~callee map =
-    Continuation.Map.update callee
-      (function
-        | None -> Some (Continuation.Set.singleton caller)
-        | Some callers -> Some (Continuation.Set.add caller callers))
-      map
-
   let create ~dummy_toplevel_cont { map; _ } =
     let parents =
       Continuation.Map.filter_map
@@ -1359,14 +1239,7 @@ module Control_flow_graph = struct
                 | Some set, Some _ -> Some (Continuation.Set.add caller set))
               acc elt.apply_cont_args
           in
-          let acc =
-            Continuation.Map.fold
-              (fun callee _rerite_id acc -> add ~caller ~callee acc)
-              elt.apply_result_conts acc
-          in
-          Continuation.Map.fold
-            (fun callee _rerite_id acc -> add ~caller ~callee acc)
-            elt.apply_exn_conts acc)
+          acc)
         map
         (Continuation.Map.singleton dummy_toplevel_cont Continuation.Set.empty)
     in
