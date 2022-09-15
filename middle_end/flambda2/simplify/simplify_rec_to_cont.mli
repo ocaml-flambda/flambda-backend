@@ -2,11 +2,9 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*                       Pierre Chambart, OCamlPro                        *)
-(*           Mark Shinwell and Leo White, Jane Street Europe              *)
+(*                     Nathanaëlle Courant, OCamlPro                      *)
 (*                                                                        *)
-(*   Copyright 2013--2020 OCamlPro SAS                                    *)
-(*   Copyright 2014--2020 Jane Street Group LLC                           *)
+(*   Copyright 2022 OCamlPro SAS                                          *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -14,13 +12,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Simplification of statically-allocated constants bound to symbols. *)
+open! Simplify_import
 
-open! Flambda
-
-val simplify_static_consts :
-  Downwards_acc.t ->
-  Bound_static.t ->
-  Static_const_group.t ->
-  simplify_function_body:Simplify_common.simplify_function_body ->
-  Bound_static.t * Rebuilt_static_const.Group.t * Downwards_acc.t
+val simple_is_my_closure : DA.t -> Simple.t -> bool
+val update_dacc_for_my_closure_use_simple : DA.t -> Simple.t -> DA.t
+val update_dacc_for_my_closure_use_list : DA.t -> Simple.t list -> DA.t
+val update_dacc_for_my_closure_use_prim : DA.t -> P.t -> DA.t

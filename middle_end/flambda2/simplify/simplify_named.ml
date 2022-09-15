@@ -67,13 +67,14 @@ let create_lifted_constant (dacc, lifted_constants)
    for such sets. See comment in [Simplify_let_expr], function [rebuild_let]. *)
 
 let simplify_named0 dacc (bound_pattern : Bound_pattern.t) (named : Named.t)
-    ~simplify_toplevel : Simplify_named_result.t Or_invalid.t =
+    ~simplify_function_body : Simplify_named_result.t Or_invalid.t =
   match named with
   | Simple simple ->
     let bound_var = Bound_pattern.must_be_singleton bound_pattern in
     let min_name_mode = Bound_var.name_mode bound_var in
     let ty = S.simplify_simple dacc simple ~min_name_mode in
     let new_simple = T.get_alias_exn ty in
+    let dacc = Simplify_rec_to_cont.update_dacc_for_my_closure_use_simple dacc simple in
     let dacc = DA.add_variable dacc bound_var ty in
     let defining_expr =
       if simple == new_simple
@@ -84,6 +85,7 @@ let simplify_named0 dacc (bound_pattern : Bound_pattern.t) (named : Named.t)
       (Simplify_named_result.have_simplified_to_single_term dacc bound_pattern
          defining_expr ~original_defining_expr:named)
   | Prim (prim, dbg) -> (
+    let dacc = Simplify_rec_to_cont.update_dacc_for_my_closure_use_prim dacc prim in
     let bound_var = Bound_pattern.must_be_singleton bound_pattern in
     let { Simplify_primitive_result.simplified_named; try_reify; dacc } =
       Simplify_primitive.simplify_primitive dacc prim dbg ~result_var:bound_var
@@ -124,7 +126,7 @@ let simplify_named0 dacc (bound_pattern : Bound_pattern.t) (named : Named.t)
   | Set_of_closures set_of_closures ->
     Ok
       (Simplify_set_of_closures.simplify_non_lifted_set_of_closures dacc
-         bound_pattern set_of_closures ~simplify_toplevel)
+         bound_pattern set_of_closures ~simplify_function_body)
   | Static_consts static_consts ->
     let bound_static = Bound_pattern.must_be_static bound_pattern in
     let binds_symbols = Bound_static.binds_symbols bound_static in
@@ -137,7 +139,7 @@ let simplify_named0 dacc (bound_pattern : Bound_pattern.t) (named : Named.t)
     let bound_static, static_consts, dacc =
       try
         Simplify_static_const.simplify_static_consts dacc bound_static
-          static_consts ~simplify_toplevel
+          static_consts ~simplify_function_body
       with Misc.Fatal_error ->
         let bt = Printexc.get_raw_backtrace () in
         Format.eprintf
@@ -214,10 +216,10 @@ let removed_operations ~(original : Named.t) (result : _ Or_invalid.t) =
         Removed_operations.prim original_prim)
     | Rec_info _ -> zero)
 
-let simplify_named dacc bound_pattern named ~simplify_toplevel =
+let simplify_named dacc bound_pattern named ~simplify_function_body =
   try
     let simplified_named_or_invalid =
-      simplify_named0 ~simplify_toplevel dacc bound_pattern named
+      simplify_named0 ~simplify_function_body dacc bound_pattern named
     in
     ( simplified_named_or_invalid,
       removed_operations ~original:named simplified_named_or_invalid )

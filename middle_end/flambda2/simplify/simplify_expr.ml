@@ -31,7 +31,7 @@ let rec simplify_expr dacc expr ~down_to_up =
     Simplify_apply_cont_expr.simplify_apply_cont dacc apply_cont ~down_to_up
   | Switch switch ->
     Simplify_switch_expr.simplify_switch
-      ~simplify_let:Simplify_let_expr.simplify_let ~simplify_toplevel dacc
+      ~simplify_let:Simplify_let_expr.simplify_let ~simplify_function_body dacc
       switch ~down_to_up
   | Invalid { message } ->
     (* CR mshinwell: Make sure that a program can be simplified to just
@@ -39,8 +39,9 @@ let rec simplify_expr dacc expr ~down_to_up =
     down_to_up dacc ~rebuild:(fun uacc ~after_rebuild ->
         EB.rebuild_invalid uacc (Message message) ~after_rebuild)
 
-and simplify_toplevel dacc expr ~return_continuation ~return_arity
-    ~exn_continuation ~return_cont_scope ~exn_cont_scope =
+and simplify_toplevel_common dacc simplify ~is_in_closure
+    ~return_continuation ~return_arity ~exn_continuation
+    ~return_cont_scope ~exn_cont_scope =
   (* The usage analysis needs a continuation whose handler holds the toplevel
      code of the function. Since such a continuation does not exist, we create a
      dummy one here. *)
@@ -51,13 +52,12 @@ and simplify_toplevel dacc expr ~return_continuation ~return_arity
     DA.map_data_flow dacc ~f:(Data_flow.init_toplevel dummy_toplevel_cont [])
   in
   let expr, uacc =
-    simplify_expr dacc expr ~down_to_up:(fun dacc ~rebuild ->
+    simplify dacc ~down_to_up:(fun dacc ~rebuild ->
         let dacc =
           DA.map_data_flow dacc
             ~f:(Data_flow.exit_continuation dummy_toplevel_cont)
         in
         let data_flow = DA.data_flow dacc in
-        let closure_info = DE.closure_info (DA.denv dacc) in
         (* The code_age_relation and used value_slots are only correct at
            toplevel, and they are only necessary to compute the live code ids,
            which are only used when simplifying at the toplevel. So if we are in
@@ -65,11 +65,11 @@ and simplify_toplevel dacc expr ~return_continuation ~return_arity
            used_value_slots, and in return we do not use the reachable_code_id
            part of the data_flow analysis. *)
         let code_age_relation, used_value_slots =
-          match Closure_info.in_or_out_of_closure closure_info with
-          | In_a_closure -> Code_age_relation.empty, Or_unknown.Unknown
-          | Not_in_a_closure ->
-            ( DA.code_age_relation dacc,
-              Or_unknown.Known (DA.used_value_slots dacc) )
+          if is_in_closure then
+            Code_age_relation.empty, Or_unknown.Unknown
+          else
+            DA.code_age_relation dacc,
+            Or_unknown.Known (DA.used_value_slots dacc)
         in
         let ({ required_names; reachable_code_ids } : Data_flow.result) =
           Data_flow.analyze data_flow ~code_age_relation ~used_value_slots
@@ -80,9 +80,7 @@ and simplify_toplevel dacc expr ~return_continuation ~return_arity
            the the live code ids are unknown, which will prevent any from being
            mistakenly deleted. *)
         let reachable_code_ids : _ Or_unknown.t =
-          match Closure_info.in_or_out_of_closure closure_info with
-          | In_a_closure -> Unknown
-          | Not_in_a_closure -> Known reachable_code_ids
+          if is_in_closure then Unknown else Known reachable_code_ids
         in
         let uenv =
           UE.add_function_return_or_exn_continuation
@@ -118,6 +116,32 @@ and simplify_toplevel dacc expr ~return_continuation ~return_arity
           exn_continuation);
   expr, uacc
 
+and simplify_toplevel dacc expr ~return_continuation ~return_arity
+    ~exn_continuation ~return_cont_scope ~exn_cont_scope =
+  simplify_toplevel_common dacc (fun dacc -> simplify_expr dacc expr)
+    ~is_in_closure:false
+    ~return_continuation ~return_arity ~exn_continuation
+    ~return_cont_scope ~exn_cont_scope
+
+and simplify_function_body dacc expr ~return_continuation ~return_arity
+    ~exn_continuation ~return_cont_scope ~exn_cont_scope ~self_continuation ~params =
+  let args = Bound_parameters.simples params in
+  (* CR ncourant Fix missing debug info *)
+  let call_self_cont_expr =
+    Expr.create_apply_cont (Apply_cont_expr.create self_continuation ~args ~dbg:[])
+  in
+  let handlers =
+    Continuation.Map.singleton self_continuation
+      (Continuation_handler.create params ~handler:expr
+         ~free_names_of_handler:Unknown ~is_exn_handler:false)
+  in
+  simplify_toplevel_common dacc
+    (fun dacc -> Simplify_let_cont_expr.simplify_matched_recursive_let_cont
+        ~simplify_expr dacc (call_self_cont_expr, handlers))
+    ~is_in_closure:true
+    ~return_continuation ~return_arity ~exn_continuation
+    ~return_cont_scope ~exn_cont_scope
+
 and[@inline always] simplify_let dacc let_expr ~down_to_up =
-  Simplify_let_expr.simplify_let ~simplify_expr ~simplify_toplevel dacc let_expr
+  Simplify_let_expr.simplify_let ~simplify_expr ~simplify_function_body dacc let_expr
     ~down_to_up

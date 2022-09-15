@@ -223,7 +223,7 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
       SC.print static_const
 
 let simplify_static_consts dacc (bound_static : Bound_static.t) static_consts
-    ~simplify_toplevel =
+    ~simplify_function_body =
   let bound_static_list = Bound_static.to_list bound_static in
   let static_consts_list = Static_const_group.to_list static_consts in
   if List.compare_lengths bound_static_list static_consts_list <> 0
@@ -292,7 +292,7 @@ let simplify_static_consts dacc (bound_static : Bound_static.t) static_consts
             in
             let static_const, dacc_after_function =
               Simplify_set_of_closures.simplify_stub_function dacc code
-                ~all_code ~simplify_toplevel
+                ~all_code ~simplify_function_body
             in
             let dacc_after_function =
               DA.add_to_lifted_constant_accumulator dacc_after_function
@@ -356,7 +356,7 @@ let simplify_static_consts dacc (bound_static : Bound_static.t) static_consts
   let bound_static'', static_consts'', dacc =
     Simplify_set_of_closures.simplify_lifted_sets_of_closures dacc
       ~all_sets_of_closures_and_symbols ~closure_bound_names_all_sets
-      ~simplify_toplevel
+      ~simplify_function_body
   in
   (* The ordering of these lists doesn't matter as they will go through
      [Sort_lifted_constants] before the terms are constructed. *)

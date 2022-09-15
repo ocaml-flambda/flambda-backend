@@ -20,5 +20,5 @@ val simplify_named :
   Downwards_acc.t ->
   Bound_pattern.t ->
   Flambda.Named.t ->
-  simplify_toplevel:Simplify_common.simplify_toplevel ->
+  simplify_function_body:Simplify_common.simplify_function_body ->
   Simplify_named_result.t Or_invalid.t * Removed_operations.t

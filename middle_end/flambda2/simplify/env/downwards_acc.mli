@@ -96,3 +96,10 @@ val are_rebuilding_terms : t -> Are_rebuilding_terms.t
 val slot_offsets : t -> Slot_offsets.t Code_id.Map.t
 
 val with_slot_offsets : t -> slot_offsets:Slot_offsets.t Code_id.Map.t -> t
+
+val my_closure_only_used_for_tail_calls : t -> bool
+
+val with_my_closure_only_used_for_tail_calls :
+  t -> my_closure_only_used_for_tail_calls:bool -> t
+
+val mark_my_closure_used : t -> bool -> t
