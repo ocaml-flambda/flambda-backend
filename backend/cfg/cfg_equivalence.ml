@@ -455,7 +455,9 @@ let check_terminator_instruction :
   | Raise rk1, Raise rk2 when equal_raise_kind rk1 rk2 -> ()
   | ( Tailcall_self { destination = expected_destination },
       Tailcall_self { destination = result_destination } ) ->
-    State.add_to_explore state expected_destination result_destination
+    let location = location ^ " (terminator)" in
+    State.add_labels_to_check state location expected_destination
+      result_destination
   | Tailcall_func tc1, Tailcall_func tc2 ->
     let location = location ^ " (terminator)" in
     check_func_call_operation location tc1 tc2
