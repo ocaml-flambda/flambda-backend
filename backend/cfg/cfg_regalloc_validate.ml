@@ -575,9 +575,6 @@ end = struct
 
   let empty = { for_loc = Location.Map.empty; for_reg = Register.Map.empty }
 
-  let compare t1 t2 =
-    Location.Map.compare Register.Set.compare t1.for_loc t2.for_loc
-
   let remove ((eq_reg, eq_loc) : Equation.t) t =
     { for_loc =
         Location.Map.update eq_loc
