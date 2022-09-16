@@ -106,3 +106,10 @@ val may_use_stack_operands_array : spilled_map -> Reg.t array -> unit
 
 val may_use_stack_operands_everywhere :
   spilled_map -> 'a Cfg.instruction -> stack_operands_rewrite
+
+val insert_spill_block :
+  Cfg_with_layout.t ->
+  Instruction.t list ->
+  after:Cfg.basic_block ->
+  terminator_id:int ->
+  unit

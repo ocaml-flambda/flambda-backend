@@ -471,56 +471,11 @@ let rewrite : State.t -> Cfg_with_layout.t -> Reg.t list -> reset:bool -> unit =
           log_body_and_terminator ~indent:3 block.body block.terminator;
           log ~indent:2 "end"));
       if List.length !trailing_spills > 0
-      then (
-        let cfg = Cfg_with_layout.cfg cfg_with_layout in
-        let terminator = block.terminator in
-        (* Only terminators that are a raising operation can have spilled
-           results. *)
-        let next_label =
-          match terminator.desc with
-          | RaisingOp { op = _; label_after } -> label_after
-          | _ ->
-            Misc.fatal_errorf
-              "A terminator with spilled result that isn't a raising operation"
-        in
-        let next_block = Cfg.get_block_exn cfg next_label in
+      then
         let spills = !trailing_spills in
-        assert (List.length spills > 0);
-        (* Make new block for the spills. *)
-        let spill_label = Cmm.new_label () in
-        let spill_block : Cfg.basic_block =
-          { start = spill_label;
-            body = spills;
-            terminator =
-              { desc = Cfg.Always next_label;
-                arg = [||];
-                res = [||];
-                dbg = terminator.dbg;
-                fdo = terminator.fdo;
-                live = terminator.live;
-                stack_offset = next_block.stack_offset;
-                id = State.get_and_incr_instruction_id state;
-                irc_work_list = Unknown_list
-              };
-            (* The original block is the only predecessor. *)
-            predecessors = Label.Set.singleton block.start;
-            stack_offset = next_block.stack_offset;
-            exn = None;
-            can_raise = false;
-            is_trap_handler = false;
-            dead = block.dead
-          }
-        in
-        Cfg_with_layout.add_block cfg_with_layout spill_block ~after:block.start;
-        (* Change the labels for the terminator. *)
-        Cfg.replace_successor_labels cfg ~normal:true ~exn:false block
-          ~f:(fun old_label ->
-            assert (old_label = next_label);
-            spill_label);
-        (* Updated predecessors for the following block. *)
-        next_block.predecessors
-          <- Label.Set.remove block.start next_block.predecessors
-             |> Label.Set.add spill_label));
+        Cfg_regalloc_utils.insert_spill_block cfg_with_layout spills
+          ~after:block
+          ~terminator_id:(State.get_and_incr_instruction_id state));
   if reset
   then State.reset state ~new_temporaries:!new_temporaries
   else (
