@@ -252,8 +252,7 @@ let dump_basic ppf (basic : basic) =
   | Poptrap -> fprintf ppf "Poptrap"
   | Prologue -> fprintf ppf "Prologue"
 
-let dump_terminator' ?(print_reg = Printmach.reg) ?(print_res = fun _ -> ())
-    ?(args = [||])
+let dump_terminator' ?(print_reg = Printmach.reg) ?(res = [||]) ?(args = [||])
     ?(specific_can_raise = fun ppf _ -> Format.fprintf ppf "specific_can_raise")
     ?(sep = "\n") ppf (terminator : terminator) =
   let first_arg =
@@ -270,6 +269,10 @@ let dump_terminator' ?(print_reg = Printmach.reg) ?(print_res = fun _ -> ())
     if Array.length args = 0
     then ()
     else Format.fprintf ppf " %a" (Printmach.regs' ~print_reg) args
+  in
+  let print_res ppf =
+    if Array.length res > 0
+    then Format.fprintf ppf "%a := " (Printmach.regs' ~print_reg) res
   in
   let dump_mach_op ppf op = Printmach.operation' ~print_reg op args ppf [||] in
   let open Format in
@@ -356,13 +359,10 @@ let print_basic ppf i = print_basic' ppf i
 
 let print_terminator' ?print_reg ppf (ti : terminator instruction) =
   dump_terminator' ?print_reg
-    ~print_res:(fun ppf ->
-      if Array.length ti.res > 0
-      then Format.fprintf ppf "%a := " (Printmach.regs' ?print_reg) ti.res)
     ~specific_can_raise:(fun ppf op ->
-      (* Print as non-raigin specific instruction. *)
+      (* Print this as basic instruction. *)
       print_basic' ?print_reg ppf { ti with desc = Op (Specific op) })
-    ~args:ti.arg ~sep:"\n" ppf ti.desc
+    ~res:ti.res ~args:ti.arg ~sep:"\n" ppf ti.desc
 
 let print_terminator ppf ti = print_terminator' ppf ti
 
