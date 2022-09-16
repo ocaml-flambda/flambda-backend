@@ -92,7 +92,8 @@ module Cfg_desc = struct
     in
     List.iter
       (fun (block : Block.t) ->
-        Label.Tbl.add cfg.blocks block.start
+        assert (not (Label.Tbl.mem cfg.blocks block.start));
+        Label.Tbl.replace cfg.blocks block.start
           (Block.make ~remove_regalloc ~remove_locs block))
       blocks;
     Label.Tbl.iter
@@ -310,23 +311,6 @@ let base_templ () : Cfg_desc.t * (unit -> int) =
                 res = [||]
               }
           };
-          { start = move_tmp_res_label;
-            body =
-              make_moves tmp_result_locs tmp_results
-              @ make_moves tmp_results [| int_arg2 |]
-              @ [ { Instruction.id = make_id ();
-                    desc = Op Reload;
-                    arg = [| stack_loc |];
-                    res = [| int_arg1 |]
-                  } ];
-            exn = None;
-            terminator =
-              { id = make_id ();
-                desc = Always add_label;
-                arg = [||];
-                res = [||]
-              }
-          };
           { start = add_label;
             body =
               [ { Instruction.id = make_id ();
@@ -461,7 +445,7 @@ let () =
       cfg, cfg)
     ~exp_std:"fatal exception raised when creating description"
     ~exp_err:
-      ">> Fatal error: Duplicate instruction no. 17 while adding a terminator \
+      ">> Fatal error: Duplicate instruction no. 13 while adding a terminator \
        instruction to the description"
 
 let () =
@@ -471,7 +455,7 @@ let () =
       let cfg = Cfg_desc.make ~remove_regalloc:false ~remove_locs:true templ in
       cfg, cfg)
     ~exp_std:"fatal exception raised when creating description"
-    ~exp_err:">> Fatal error: instruction 23 is a spill"
+    ~exp_err:">> Fatal error: instruction 19 is a spill"
 
 let () =
   check "Terminator result count"
@@ -483,7 +467,7 @@ let () =
       cfg1, cfg2)
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
-      ">> Fatal error: In instruction's no 17 results: register array length \
+      ">> Fatal error: In instruction's no 13 results: register array length \
        has changed. Before: 1. Now: 0."
 
 let () =
@@ -559,7 +543,7 @@ let () =
       cfg, cfg)
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
-      ">> Fatal error: instruction 24 has a register with an unknown location"
+      ">> Fatal error: instruction 20 has a register with an unknown location"
 
 let () =
   check "Precoloring can't change"
@@ -571,7 +555,7 @@ let () =
       cfg1, cfg2)
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
-      ">> Fatal error: In instruction's no 21 results: changed preassigned \
+      ">> Fatal error: In instruction's no 17 results: changed preassigned \
        register's location from %rdi to %rbx"
 
 let () =
@@ -585,7 +569,7 @@ let () =
       cfg1, cfg2)
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
-      ">> Fatal error: Duplicate instruction no. 14 while checking a basic \
+      ">> Fatal error: Duplicate instruction no. 10 while checking a basic \
        instruction in the new CFG"
 
 let () =
@@ -598,7 +582,7 @@ let () =
       cfg1, cfg2)
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
-      ">> Fatal error: Register allocation changed existing instruction no. 27 \
+      ">> Fatal error: Register allocation changed existing instruction no. 23 \
        into a register allocation specific instruction"
 
 let () =
@@ -615,7 +599,7 @@ let () =
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
       ">> Fatal error: Register allocation added non-regalloc specific \
-       instruction no. 30"
+       instruction no. 26"
 
 let () =
   check "Regalloc added a 'goto' and a block"
@@ -673,7 +657,7 @@ let () =
     ~exp_err:
       ">> Fatal error: When checking equivalence of labels before and after \
        allocation got different successor id's. Successor (label, instr id) \
-       before: (6, 6). Successor (label, instr id) after: (8, 17)."
+       before: (6, 6). Successor (label, instr id) after: (8, 13)."
 
 let () =
   check "Regalloc added a not allowed terminator and a block"
@@ -698,7 +682,7 @@ let () =
       cfg1, cfg2)
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
-      ">> Fatal error: Register allocation added a terminator no. 30 but \
+      ">> Fatal error: Register allocation added a terminator no. 26 but \
        that's not allowed for this type of terminator: Return"
 
 let () =
@@ -731,9 +715,9 @@ let () =
       cfg1, cfg2)
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
-      ">> Fatal error: The instruction's no. 16 successor id has changed. \
-       Before allocation: 15. After allocation (ignoring instructions added by \
-       allocation): 13."
+      ">> Fatal error: The instruction's no. 12 successor id has changed. \
+       Before allocation: 11. After allocation (ignoring instructions added by \
+       allocation): 9."
 
 let () =
   check "Regalloc added a loop"
