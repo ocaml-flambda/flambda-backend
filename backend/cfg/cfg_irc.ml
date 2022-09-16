@@ -417,20 +417,23 @@ let rewrite : State.t -> Cfg_with_layout.t -> Reg.t list -> reset:bool -> unit =
   in
   let rec rewrite_body_and_terminator (acc : Instruction.t list)
       (body : Instruction.t list) (terminator : Cfg.terminator Cfg.instruction)
-      : Instruction.t list =
+      : Instruction.t list * Instruction.t list =
     (* CR xclerc for xclerc: we can discover by calling `Cfg_stack_operands.xyz`
        that we actually did not need to reallocate the list; it is a bit
        unfortunate, given the efforts made to try to avoid the reallocation. *)
     match body with
     | [] -> (
       match Cfg_stack_operands.terminator spilled_map terminator with
-      | All_spilled_registers_rewritten -> List.rev acc
+      | All_spilled_registers_rewritten -> List.rev acc, []
       | May_still_have_spilled_registers ->
+        let sharing = Reg.Tbl.create 8 in
         let acc =
-          rewrite_instruction ~direction:`load ~sharing:(Reg.Tbl.create 8) acc
-            terminator
+          rewrite_instruction ~direction:`load ~sharing acc terminator
         in
-        List.rev acc)
+        let trailing_spills =
+          rewrite_instruction ~direction:`store ~sharing [] terminator
+        in
+        List.rev acc, trailing_spills)
     | hd :: tl -> (
       match Cfg_stack_operands.basic spilled_map hd with
       | All_spilled_registers_rewritten ->
@@ -444,26 +447,35 @@ let rewrite : State.t -> Cfg_with_layout.t -> Reg.t list -> reset:bool -> unit =
         rewrite_body_and_terminator acc tl terminator)
   in
   Cfg.iter_blocks (Cfg_with_layout.cfg cfg_with_layout) ~f:(fun label block ->
-      (* CR xclerc for xclerc: we currently assume that a terminator does not
-         "define" a register that may be spilled. Calls are reasonably fine
-         since their result is in a precolored register. *)
-      assert (not (array_contains_spilled block.terminator.res));
       let body_needs_rewrite =
         instruction_list_contains_spilled block.body
         || array_contains_spilled block.terminator.arg
+        || array_contains_spilled block.terminator.res
       in
+      let trailing_spills = ref [] in
       if body_needs_rewrite
       then (
         if irc_debug
         then (
           log ~indent:2 "body of #%d, before:" label;
           log_body_and_terminator ~indent:3 block.body block.terminator);
-        block.body <- rewrite_body_and_terminator [] block.body block.terminator;
+        let new_body, spills =
+          rewrite_body_and_terminator [] block.body block.terminator
+        in
+        block.body <- new_body;
+        assert (List.length !trailing_spills = 0);
+        trailing_spills := spills;
         if irc_debug
         then (
           log ~indent:2 "and after:";
           log_body_and_terminator ~indent:3 block.body block.terminator;
-          log ~indent:2 "end")));
+          log ~indent:2 "end"));
+      if List.length !trailing_spills > 0
+      then
+        let spills = !trailing_spills in
+        Cfg_regalloc_utils.insert_spill_block cfg_with_layout spills
+          ~after:block
+          ~terminator_id:(State.get_and_incr_instruction_id state));
   if reset
   then State.reset state ~new_temporaries:!new_temporaries
   else (

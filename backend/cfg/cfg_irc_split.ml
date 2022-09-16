@@ -4,25 +4,36 @@ open! Cfg_regalloc_utils
 open! Cfg_irc_utils
 module State = Cfg_irc_state
 
-let naive_split_points : Cfg_with_layout.t -> Instruction.id list =
+(* CR-soon azewierzejew: With the terminator change all the naive split points
+   were changed to terminators but current implementation assumes that the split
+   points are only at [basic instruction]. This function is left with split
+   points on the new terminators for future reference and actual implementation
+   is below. *)
+let _naive_split_points : Cfg_with_layout.t -> Instruction.id list =
  fun cfg_with_layout ->
   if irc_debug then log ~indent:1 "naive_split_points";
   Cfg_with_layout.fold_instructions cfg_with_layout ~init:[]
-    ~instruction:(fun acc (instr : Instruction.t) ->
+    ~instruction:(fun acc _instr -> acc)
+    ~terminator:(fun acc term ->
       (* CR xclerc for xclerc: we may want to split [heuristically] in more
          situations. *)
       let split =
-        match instr.desc with
-        | Call (P (External _) | F (Direct _)) -> true
+        match term.desc with
+        | RaisingOp { op = Call (Direct _) | Prim (External _); _ } -> true
         | _ -> false
       in
       if split
       then (
-        if irc_debug then log ~indent:2 "should split at %d" instr.id;
-        instr.id :: acc)
+        if irc_debug then log ~indent:2 "should split at %d" term.id;
+        term.id :: acc)
       else acc)
-    ~terminator:(fun acc _term -> acc)
   |> List.rev
+
+let naive_split_points : Cfg_with_layout.t -> Instruction.id list =
+ fun _ ->
+  (* CR-soon azewierzejew: Because of the terminator rework currently there are
+     no naive split points for basic instructions.*)
+  []
 
 type naive_split_instr =
   { before : Instruction.t;

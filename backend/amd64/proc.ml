@@ -381,8 +381,6 @@ let destroyed_at_reloadretaddr = [| |]
 (* note: keep this function in sync with `destroyed_at_oper` above. *)
 let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   match basic with
-  | Call (P (Alloc _)) ->
-    destroyed_at_alloc
   | Reloadretaddr ->
     destroyed_at_reloadretaddr
   | Pushtrap _ ->
@@ -411,7 +409,6 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
        | Negf | Absf | Addf | Subf | Mulf | Divf
        | Compf _
        | Floatofint | Intoffloat
-       | Probe _
        | Probe_is_enabled _
        | Opaque
        | Begin_region
@@ -423,25 +420,29 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
                   | Isextend32 | Izextend32 | Icrc32q | Ipause
                   | Iprefetch _ | Ilfence | Isfence | Imfence)
        | Name_for_debugger _)
-  | Call (P (Checkbound _))
   | Poptrap | Prologue ->
     if fp then [| rbp |] else [||]
-  | Call (P (External { func_symbol = _; alloc; ty_res = _; ty_args = _; })) ->
-    if alloc then all_phys_regs else destroyed_at_c_call
-  | Call (F (Indirect | Direct _)) ->
-    all_phys_regs
 
 (* note: keep this function in sync with `destroyed_at_oper`. above *)
 let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
   match terminator with
   | Never -> assert false
+  | RaisingOp {op = Prim (Alloc _); _} ->
+    destroyed_at_alloc
   | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-  | Return | Raise _ | Tailcall _ ->
+  | Return | Raise _ | Tailcall_self  _ | Tailcall_func _
+  | RaisingOp {op = Prim (Checkbound _ | Probe _); _}
+  ->
     if fp then [| rbp |] else [||]
   | Switch _ ->
     [| rax; rdx |]
-  | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; } ->
+  | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; }
+  | RaisingOp {op = Prim (External { func_symbol = _; alloc; ty_res = _; ty_args = _; }); _} ->
     if alloc then all_phys_regs else destroyed_at_c_call
+  | RaisingOp {op = Call (Indirect | Direct _); _} ->
+    all_phys_regs
+  | RaisingOp {op = Specific_can_raise _; _} ->
+    Misc.fatal_error "no instructions specific for this architecture can raise"
 
 (* Maximal register pressure *)
 

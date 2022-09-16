@@ -237,12 +237,6 @@ let check_operation : location -> Cfg.operation -> Cfg.operation -> unit =
     ()
   | Floatofint, Floatofint -> ()
   | Intoffloat, Intoffloat -> ()
-  | ( Probe
-        { name = expected_name; handler_code_sym = expected_handler_code_sym },
-      Probe { name = result_name; handler_code_sym = result_handler_code_sym } )
-    when String.equal expected_name result_name
-         && String.equal expected_handler_code_sym result_handler_code_sym ->
-    ()
   | ( Probe_is_enabled { name = expected_name },
       Probe_is_enabled { name = result_name } )
     when String.equal expected_name result_name ->
@@ -295,6 +289,12 @@ let check_prim_call_operation :
       Checkbound { immediate = result_immediate } )
     when Option.equal Int.equal expected_immediate result_immediate ->
     ()
+  | ( Probe
+        { name = expected_name; handler_code_sym = expected_handler_code_sym },
+      Probe { name = result_name; handler_code_sym = result_handler_code_sym } )
+    when String.equal expected_name result_name
+         && String.equal expected_handler_code_sym result_handler_code_sym ->
+    ()
   | _ -> different location "primitive call operation"
  [@@ocaml.warning "-4"]
 
@@ -310,37 +310,10 @@ let check_func_call_operation :
   | _ -> different location "function call operation"
  [@@ocaml.warning "-4"]
 
-let check_tail_call_operation :
-    State.t ->
-    location ->
-    Cfg.tail_call_operation ->
-    Cfg.tail_call_operation ->
-    unit =
- fun state location expected result ->
-  match expected, result with
-  | ( Self { destination = expected_destination },
-      Self { destination = result_destination } ) ->
-    State.add_labels_to_check state location expected_destination
-      result_destination
-  | Func expected_func, Func result_func ->
-    check_func_call_operation location expected_func result_func
-  | _ -> different location "tail call operation"
- [@@ocaml.warning "-4"]
-
-let check_call_operation :
-    location -> Cfg.call_operation -> Cfg.call_operation -> unit =
- fun location expected result ->
-  match expected, result with
-  | P expected, P result -> check_prim_call_operation location expected result
-  | F expected, F result -> check_func_call_operation location expected result
-  | _ -> different location "call operation"
- [@@ocaml.warning "-4"]
-
 let check_basic : State.t -> location -> Cfg.basic -> Cfg.basic -> unit =
  fun state location expected result ->
   match expected, result with
   | Op expected, Op result -> check_operation location expected result
-  | Call expected, Call result -> check_call_operation location expected result
   | Reloadretaddr, Reloadretaddr -> ()
   | ( Pushtrap { lbl_handler = expected_lbl_handler },
       Pushtrap { lbl_handler = result_lbl_handler } ) ->
@@ -397,7 +370,6 @@ let check_basic_instruction :
   let check_live =
     match result.desc with
     | Op _ -> true
-    | Call _ -> true
     | Reloadretaddr -> true
     | Pushtrap _ -> false
     | Poptrap -> false
@@ -481,18 +453,34 @@ let check_terminator_instruction :
     Array.iter2 (fun l1 l2 -> State.add_to_explore state l1 l2) a1 a2
   | Return, Return -> ()
   | Raise rk1, Raise rk2 when equal_raise_kind rk1 rk2 -> ()
-  | Tailcall tc1, Tailcall tc2 ->
+  | ( Tailcall_self { destination = expected_destination },
+      Tailcall_self { destination = result_destination } ) ->
+    State.add_to_explore state expected_destination result_destination
+  | Tailcall_func tc1, Tailcall_func tc2 ->
     let location = location ^ " (terminator)" in
-    check_tail_call_operation state location tc1 tc2
+    check_func_call_operation location tc1 tc2
   | Call_no_return cn1, Call_no_return cn2 ->
     check_external_call_operation location cn1 cn2
+  | ( RaisingOp { op = Call cn1; label_after = lbl1 },
+      RaisingOp { op = Call cn2; label_after = lbl2 } ) ->
+    check_func_call_operation location cn1 cn2;
+    State.add_to_explore state lbl1 lbl2
+  | ( RaisingOp { op = Prim cn1; label_after = lbl1 },
+      RaisingOp { op = Prim cn2; label_after = lbl2 } ) ->
+    check_prim_call_operation location cn1 cn2;
+    State.add_to_explore state lbl1 lbl2
+  | ( RaisingOp { op = Specific_can_raise op1; label_after = lbl1 },
+      RaisingOp { op = Specific_can_raise op2; label_after = lbl2 } )
+    when Arch.equal_specific_operation op1 op2 ->
+    State.add_to_explore state lbl1 lbl2
   | _ -> different location "terminator");
   (* CR xclerc for xclerc: temporary, for testing *)
   let check_arg =
     match expected.desc with
     | Always _ -> false
     | Never | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-    | Switch _ | Return | Raise _ | Tailcall _ | Call_no_return _ ->
+    | Switch _ | Return | Raise _ | Tailcall_self _ | Tailcall_func _
+    | Call_no_return _ | RaisingOp _ ->
       true
   in
   check_instruction ~check_live:false ~check_dbg:false ~check_arg (-1) location

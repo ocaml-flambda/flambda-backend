@@ -291,12 +291,6 @@ let destroyed_at_pushtrap = [| |]
 (* note: keep this function in sync with `destroyed_at_oper` above. *)
 let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   match basic with
-  | Call (P (External { func_symbol = _; alloc; ty_res = _; ty_args = _; })) ->
-    if alloc then all_phys_regs else destroyed_at_c_call
-  | Call (F (Indirect | Direct _)) ->
-    all_phys_regs
-  | Call (P (Alloc _)) ->
-    [| reg_x8 |]
   | Reloadretaddr ->
     destroyed_at_reloadretaddr
   | Pushtrap _ ->
@@ -306,17 +300,24 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   | Op( Intoffloat | Floatofint
        | Load(Single, _, _) | Store(Single, _, _)) ->
     [| reg_d7 |]
-  | Op _  | Call (P (Checkbound _)) | Poptrap | Prologue ->
+  | Op _ | Poptrap | Prologue ->
     [||]
 
 (* note: keep this function in sync with `destroyed_at_oper` above. *)
 let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
   match terminator with
   | Never -> assert false
+  | RaisingOp {op = Call (Indirect | Direct _); _} ->
+    all_phys_regs
+  | RaisingOp {op = Prim (Alloc _); _} ->
+    [| reg_x8 |]
   | Always _ | Parity_test _ | Truth_test _ | Float_test _
-  | Int_test _ | Switch _ | Return | Raise _ | Tailcall _ ->
+  | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
+  | Tailcall_func _ | RaisingOp {op = Prim (Checkbound _ | Probe _); _}
+  | RaisingOp {op = Specific_can_raise _; _} ->
     [||]
-  | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; } ->
+  | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; }
+  | RaisingOp {op  = Prim (External { func_symbol = _; alloc; ty_res = _; ty_args = _; }); _} ->
     if alloc then all_phys_regs else destroyed_at_c_call
 
 (* Maximal register pressure *)

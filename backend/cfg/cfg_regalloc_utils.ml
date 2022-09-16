@@ -194,14 +194,13 @@ let precondition : Cfg_with_layout.t -> unit =
       | Compf _ -> ()
       | Floatofint -> ()
       | Intoffloat -> ()
-      | Probe _ -> ()
       | Probe_is_enabled _ -> ()
       | Opaque -> ()
       | Begin_region -> ()
       | End_region -> ()
       | Specific _ -> ()
       | Name_for_debugger _ -> ())
-    | Call _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> ()
+    | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> ()
   in
   let register_must_not_be_on_stack (id : Instruction.id) (reg : Reg.t) : unit =
     match reg.Reg.loc with
@@ -454,3 +453,68 @@ let may_use_stack_operands_everywhere :
   may_use_stack_operands_array map instr.arg;
   may_use_stack_operands_array map instr.res;
   All_spilled_registers_rewritten
+
+let insert_spill_block :
+    Cfg_with_layout.t ->
+    Instruction.t list ->
+    after:Cfg.basic_block ->
+    terminator_id:int ->
+    unit =
+ fun cfg_with_layout spills ~after:predecessor_block ~terminator_id ->
+  let cfg = Cfg_with_layout.cfg cfg_with_layout in
+  let successors =
+    Cfg.successor_labels ~normal:true ~exn:false predecessor_block
+  in
+  let successor_label =
+    match Label.Set.to_seq successors |> List.of_seq with
+    | [label] -> label
+    | [] ->
+      Misc.fatal_errorf
+        "Cannot insert a block after block %a: it has no successors" Label.print
+        predecessor_block.start
+    | _ :: _ :: _ ->
+      Misc.fatal_errorf
+        "Cannot insert a block after block %a: it has more than one successor"
+        Label.print predecessor_block.start
+  in
+  let successor_block = Cfg.get_block_exn cfg successor_label in
+  let last_spill = List.nth spills (List.length spills - 1) in
+  (* Make new block for the spills. *)
+  let spill_label = Cmm.new_label () in
+  let spill_block : Cfg.basic_block =
+    { start = spill_label;
+      body = spills;
+      terminator =
+        { (* The [successor_block] is the only successor. *)
+          desc = Cfg.Always successor_label;
+          arg = [||];
+          res = [||];
+          dbg = last_spill.dbg;
+          fdo = last_spill.fdo;
+          live = last_spill.live;
+          stack_offset = last_spill.stack_offset;
+          id = terminator_id;
+          irc_work_list = Unknown_list
+        };
+      (* The [predecessor_block] is the only predecessor. *)
+      predecessors = Label.Set.singleton predecessor_block.start;
+      stack_offset = predecessor_block.terminator.stack_offset;
+      exn = None;
+      can_raise = false;
+      is_trap_handler = false;
+      dead = predecessor_block.dead
+    }
+  in
+  Cfg_with_layout.add_block cfg_with_layout spill_block
+    ~after:predecessor_block.start;
+  (* Change the labels for the terminator in [predecessor_block]. *)
+  Cfg.replace_successor_labels cfg ~normal:true ~exn:false predecessor_block
+    ~f:(fun old_label ->
+      assert (old_label = successor_label);
+      spill_label);
+  (* Update predecessors for the [successor_block]. *)
+  successor_block.predecessors
+    <- successor_block.predecessors
+       |> Label.Set.remove predecessor_block.start
+       |> Label.Set.add spill_label;
+  ()

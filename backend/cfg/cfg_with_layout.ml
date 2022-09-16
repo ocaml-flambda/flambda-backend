@@ -64,6 +64,19 @@ let remove_block t label =
   t.layout <- List.filter (fun l -> not (Label.equal l label)) t.layout;
   t.new_labels <- Label.Set.remove label t.new_labels
 
+let add_block t (block : Cfg.basic_block) ~after =
+  t.new_labels <- Label.Set.add block.start t.new_labels;
+  let initial_len = List.length t.layout in
+  t.layout
+    <- List.fold_right
+         (fun label layout ->
+           if Label.equal label after
+           then label :: block.start :: layout
+           else label :: layout)
+         t.layout [];
+  assert (List.length t.layout = initial_len + 1);
+  Cfg.add_block_exn t.cfg block
+
 let is_trap_handler t label =
   let block = Cfg.get_block_exn t.cfg label in
   block.is_trap_handler
