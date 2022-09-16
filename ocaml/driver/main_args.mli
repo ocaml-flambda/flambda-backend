@@ -120,6 +120,7 @@ module type Compiler_options = sig
 
   val _match_context_rows : int -> unit
   val _dtimings : unit -> unit
+  val _dtimings_precision : int -> unit
   val _dprofile : unit -> unit
   val _dump_into_file : unit -> unit
 
