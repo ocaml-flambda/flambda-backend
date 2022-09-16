@@ -45,7 +45,8 @@ let first_instruction_id (block : Cfg.basic_block) : int =
   | [] -> block.terminator.id
   | first_instr :: _ -> first_instr.id
 
-let[@inline] int_max (left : int) (right : int) = Stdlib.max left right
+let[@inline] int_max (left : int) (right : int) =
+  if left >= right then left else right
 
 type cfg_infos =
   { arg : Reg.Set.t;

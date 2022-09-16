@@ -1183,13 +1183,16 @@ end = struct
     let rec type_from_approx approx =
       match (approx : _ Value_approximation.t) with
       | Value_unknown -> MTC.unknown Flambda_kind.value
+      | Value_int i -> TG.this_tagged_immediate i
       | Value_symbol symbol ->
         TG.alias_type_of Flambda_kind.value (Simple.symbol symbol)
       | Block_approximation (fields, alloc_mode) ->
         let fields = List.map type_from_approx (Array.to_list fields) in
         MTC.immutable_block ~is_unique:false Tag.zero
           ~field_kind:Flambda_kind.value ~fields (Or_unknown.Known alloc_mode)
-      | Closure_approximation (code_id, function_slot, _code_opt) ->
+      | Closure_approximation { code_id; function_slot; code = _; symbol = _ }
+        ->
+        (* CR keryan: we should use the associated symbol at some point *)
         let fun_decl =
           TG.Function_type.create code_id
             ~rec_info:(MTC.unknown Flambda_kind.rec_info)
@@ -1278,7 +1281,12 @@ end = struct
         | Unknown | Bottom -> Value_unknown
         | Ok (Equals simple) ->
           Simple.pattern_match' simple
-            ~const:(fun _ -> VA.Value_unknown)
+            ~const:(fun const ->
+              match Reg_width_const.descr const with
+              | Tagged_immediate i -> VA.Value_int i
+              | Naked_immediate _ | Naked_float _ | Naked_int32 _
+              | Naked_int64 _ | Naked_nativeint _ ->
+                VA.Value_unknown)
             ~var:(fun _ ~coercion:_ -> VA.Value_unknown)
             ~symbol:(fun symbol ~coercion:_ -> VA.Value_symbol symbol)
         | Ok (No_alias head) -> (
@@ -1298,7 +1306,9 @@ end = struct
               | Ok function_type ->
                 let code_id = TG.Function_type.code_id function_type in
                 let code_or_meta = find_code code_id in
-                Closure_approximation (code_id, function_slot, code_or_meta)))
+                Closure_approximation
+                  { code_id; function_slot; code = code_or_meta; symbol = None }
+              ))
           | Variant
               { immediates = Unknown;
                 blocks = _;

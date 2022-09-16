@@ -25,6 +25,8 @@
  **********************************************************************************)
 [@@@ocaml.warning "+a-30-40-41-42"]
 
+let debug = false
+
 type t =
   { cfg : Cfg.t;
     mutable layout : Label.t list;
@@ -44,15 +46,17 @@ let preserve_orig_labels t = t.preserve_orig_labels
 let new_labels t = t.new_labels
 
 let set_layout t layout =
-  let cur_layout = Label.Set.of_list t.layout in
-  let new_layout = Label.Set.of_list layout in
-  if not
-       (Label.Set.equal cur_layout new_layout
-       && Label.equal (List.hd layout) t.cfg.entry_label)
+  (if debug
   then
-    Misc.fatal_error
-      "Cfg set_layout: new layout is not a permutation of the current layout, \
-       or first label is not entry";
+    let cur_layout = Label.Set.of_list t.layout in
+    let new_layout = Label.Set.of_list layout in
+    if not
+         (Label.Set.equal cur_layout new_layout
+         && Label.equal (List.hd layout) t.cfg.entry_label)
+    then
+      Misc.fatal_error
+        "Cfg set_layout: new layout is not a permutation of the current \
+         layout, or first label is not entry");
   t.layout <- layout
 
 let remove_block t label =
