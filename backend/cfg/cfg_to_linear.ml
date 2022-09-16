@@ -289,7 +289,6 @@ let need_starting_label (cfg_with_layout : CL.t) (block : Cfg.basic_block)
         && not (Label.Set.mem block.start new_labels)
       | Return | Raise _ | Tailcall_func _ | Tailcall_self _ | Call_no_return _
         ->
-        (* CR azewierzejew: Is it correct [Tailcall_self]? *)
         assert false)
 
 let adjust_stack_offset body (block : Cfg.basic_block)
