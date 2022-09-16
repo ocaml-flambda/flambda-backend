@@ -1192,6 +1192,7 @@ end = struct
           ~field_kind:Flambda_kind.value ~fields (Or_unknown.Known alloc_mode)
       | Closure_approximation { code_id; function_slot; code = _; symbol = _ }
         ->
+        (* CR keryan: we should use the associated symbol at some point *)
         let fun_decl =
           TG.Function_type.create code_id
             ~rec_info:(MTC.unknown Flambda_kind.rec_info)
