@@ -307,17 +307,17 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
 let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
   match terminator with
   | Never -> assert false
-  | RaisingOp {op = Call (Indirect | Direct _); _} ->
+  | Call {op = Indirect | Direct _; _} ->
     all_phys_regs
-  | RaisingOp {op = Prim (Alloc _); _} ->
+  | Prim {op = Alloc _; _} ->
     [| reg_x8 |]
   | Always _ | Parity_test _ | Truth_test _ | Float_test _
   | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
-  | Tailcall_func _ | RaisingOp {op = Prim (Checkbound _ | Probe _); _}
-  | RaisingOp {op = Specific_can_raise _; _} ->
+  | Tailcall_func _ | Prim {op = Checkbound _ | Probe _; _}
+  | Specific_can_raise _ ->
     [||]
   | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; }
-  | RaisingOp {op  = Prim (External { func_symbol = _; alloc; ty_res = _; ty_args = _; }); _} ->
+  | Prim {op  = External { func_symbol = _; alloc; ty_res = _; ty_args = _; }; _} ->
     if alloc then all_phys_regs else destroyed_at_c_call
 
 (* Maximal register pressure *)

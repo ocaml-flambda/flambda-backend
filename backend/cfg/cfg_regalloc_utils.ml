@@ -198,7 +198,13 @@ let precondition : Cfg_with_layout.t -> unit =
       | Opaque -> ()
       | Begin_region -> ()
       | End_region -> ()
-      | Specific _ -> ()
+      | Specific op ->
+        if Arch.operation_can_raise op
+        then
+          fatal
+            "architecture specific instruction %d that can raise but isn't a \
+             terminator"
+            id
       | Name_for_debugger _ -> ())
     | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> ()
   in

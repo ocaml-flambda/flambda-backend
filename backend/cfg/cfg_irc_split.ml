@@ -19,7 +19,7 @@ let _naive_split_points : Cfg_with_layout.t -> Instruction.id list =
          situations. *)
       let split =
         match term.desc with
-        | RaisingOp { op = Call (Direct _) | Prim (External _); _ } -> true
+        | Call { op = Direct _; _ } | Prim { op = External _; _ } -> true
         | _ -> false
       in
       if split

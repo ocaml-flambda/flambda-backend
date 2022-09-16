@@ -461,16 +461,16 @@ let check_terminator_instruction :
     check_func_call_operation location tc1 tc2
   | Call_no_return cn1, Call_no_return cn2 ->
     check_external_call_operation location cn1 cn2
-  | ( RaisingOp { op = Call cn1; label_after = lbl1 },
-      RaisingOp { op = Call cn2; label_after = lbl2 } ) ->
+  | Call { op = cn1; label_after = lbl1 }, Call { op = cn2; label_after = lbl2 }
+    ->
     check_func_call_operation location cn1 cn2;
     State.add_to_explore state lbl1 lbl2
-  | ( RaisingOp { op = Prim cn1; label_after = lbl1 },
-      RaisingOp { op = Prim cn2; label_after = lbl2 } ) ->
+  | Prim { op = cn1; label_after = lbl1 }, Prim { op = cn2; label_after = lbl2 }
+    ->
     check_prim_call_operation location cn1 cn2;
     State.add_to_explore state lbl1 lbl2
-  | ( RaisingOp { op = Specific_can_raise op1; label_after = lbl1 },
-      RaisingOp { op = Specific_can_raise op2; label_after = lbl2 } )
+  | ( Specific_can_raise { op = op1; label_after = lbl1 },
+      Specific_can_raise { op = op2; label_after = lbl2 } )
     when Arch.equal_specific_operation op1 op2 ->
     State.add_to_explore state lbl1 lbl2
   | _ -> different location "terminator");
@@ -480,7 +480,7 @@ let check_terminator_instruction :
     | Always _ -> false
     | Never | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
     | Switch _ | Return | Raise _ | Tailcall_self _ | Tailcall_func _
-    | Call_no_return _ | RaisingOp _ ->
+    | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _ ->
       true
   in
   check_instruction ~check_live:false ~check_dbg:false ~check_arg (-1) location

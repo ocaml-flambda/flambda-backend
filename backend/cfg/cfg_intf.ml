@@ -148,10 +148,10 @@ module S = struct
     | Poptrap
     | Prologue
 
-  type raising_operation =
-    | Call of func_call_operation
-    | Prim of prim_call_operation
-    | Specific_can_raise of Arch.specific_operation
+  type 'a with_label_after =
+    { op : 'a;
+      label_after : Label.t
+    }
 
   (* Properties of the representation of successors:
    * - Tests of different types are not mixed. For example, a test that
@@ -178,10 +178,9 @@ module S = struct
     | Tailcall_self of { destination : Label.t }
     | Tailcall_func of func_call_operation
     | Call_no_return of external_call_operation
-    | RaisingOp of
-        { op : raising_operation;
-          label_after : Label.t
-        }
+    | Call of func_call_operation with_label_after
+    | Prim of prim_call_operation with_label_after
+    | Specific_can_raise of Arch.specific_operation with_label_after
 end
 
 (* CR-someday gyorsh: Switch can be translated to Branch. *)

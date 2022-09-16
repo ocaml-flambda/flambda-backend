@@ -427,21 +427,21 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
 let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
   match terminator with
   | Never -> assert false
-  | RaisingOp {op = Prim (Alloc _); _} ->
+  | Prim {op = Alloc _; _} ->
     destroyed_at_alloc
   | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Return | Raise _ | Tailcall_self  _ | Tailcall_func _
-  | RaisingOp {op = Prim (Checkbound _ | Probe _); _}
+  | Prim {op = Checkbound _ | Probe _; _}
   ->
     if fp then [| rbp |] else [||]
   | Switch _ ->
     [| rax; rdx |]
   | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; }
-  | RaisingOp {op = Prim (External { func_symbol = _; alloc; ty_res = _; ty_args = _; }); _} ->
+  | Prim {op = External { func_symbol = _; alloc; ty_res = _; ty_args = _; }; _} ->
     if alloc then all_phys_regs else destroyed_at_c_call
-  | RaisingOp {op = Call (Indirect | Direct _); _} ->
+  | Call {op = Indirect | Direct _; _} ->
     all_phys_regs
-  | RaisingOp {op = Specific_can_raise _; _} ->
+  | Specific_can_raise _ ->
     Misc.fatal_error "no instructions specific for this architecture can raise"
 
 (* Maximal register pressure *)

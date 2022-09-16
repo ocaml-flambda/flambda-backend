@@ -129,23 +129,27 @@ let linearize_terminator cfg (terminator : Cfg.terminator Cfg.instruction)
         (L.Lop
            (Iextcall
               { func = func_symbol; alloc; ty_args; ty_res; returns = false }))
-    | RaisingOp { op; label_after } ->
+    | Call { op; label_after } ->
       let op : Mach.operation =
         match op with
-        | Call Indirect -> Icall_ind
-        | Call (Direct { func_symbol }) -> Icall_imm { func = func_symbol }
-        | Prim (External { func_symbol; alloc; ty_args; ty_res }) ->
-          Iextcall
-            { func = func_symbol; alloc; ty_args; ty_res; returns = true }
-        | Prim (Checkbound { immediate = None }) -> Iintop Icheckbound
-        | Prim (Checkbound { immediate = Some i }) -> Iintop_imm (Icheckbound, i)
-        | Prim (Alloc { bytes; dbginfo; mode }) ->
-          Ialloc { bytes; dbginfo; mode }
-        | Prim (Probe { name; handler_code_sym }) ->
-          Iprobe { name; handler_code_sym }
-        | Specific_can_raise op -> Ispecific op
+        | Indirect -> Icall_ind
+        | Direct { func_symbol } -> Icall_imm { func = func_symbol }
       in
       branch_or_fallthrough [L.Lop op] label_after, None
+    | Prim { op; label_after } ->
+      let op : Mach.operation =
+        match op with
+        | External { func_symbol; alloc; ty_args; ty_res } ->
+          Iextcall
+            { func = func_symbol; alloc; ty_args; ty_res; returns = true }
+        | Checkbound { immediate = None } -> Iintop Icheckbound
+        | Checkbound { immediate = Some i } -> Iintop_imm (Icheckbound, i)
+        | Alloc { bytes; dbginfo; mode } -> Ialloc { bytes; dbginfo; mode }
+        | Probe { name; handler_code_sym } -> Iprobe { name; handler_code_sym }
+      in
+      branch_or_fallthrough [L.Lop op] label_after, None
+    | Specific_can_raise { op; label_after } ->
+      branch_or_fallthrough [L.Lop (Ispecific op)] label_after, None
     | Switch labels -> single (L.Lswitch labels)
     | Never -> Misc.fatal_error "Cannot linearize terminator: Never"
     | Always label -> branch_or_fallthrough [] label, None
@@ -280,7 +284,7 @@ let need_starting_label (cfg_with_layout : CL.t) (block : Cfg.basic_block)
       | Switch _ -> true
       | Never -> Misc.fatal_error "Cannot linearize terminator: Never"
       | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-      | RaisingOp _ ->
+      | Call _ | Prim _ | Specific_can_raise _ ->
         (* If the label came from the original [Linear] code, preserve it for
            checking that the conversion from [Linear] to [Cfg] and back is the
            identity; and for various assertions in reorder. *)

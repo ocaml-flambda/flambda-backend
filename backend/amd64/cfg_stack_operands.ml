@@ -212,12 +212,12 @@ let terminator (map : spilled_map) (term : Cfg.terminator Cfg.instruction) =
   match (term : Cfg.terminator Cfg.instruction).desc with
   | Never -> fatal "unexpected terminator"
   | Int_test { lt = _; eq = _; gt =_; is_signed = _; imm = None; }
-  | RaisingOp {op = Prim (Checkbound { immediate = None; } ); _} ->
+  | Prim  {op = Checkbound { immediate = None; }; _} ->
     binary_operation map term No_result
   | Int_test { lt = _; eq = _; gt =_; is_signed = _; imm = Some _; }
   | Parity_test { ifso = _; ifnot = _; }
   | Truth_test { ifso = _; ifnot = _; }
-  | RaisingOp {op = Prim (Checkbound { immediate = Some _; } ); _} ->
+  | Prim {op = Checkbound { immediate = Some _; }; _} ->
     may_use_stack_operand_for_only_argument ~has_result:false map term
   | Float_test _ ->
     (* CR-someday xclerc for xclerc: this could be optimized, but the representation
@@ -233,10 +233,10 @@ let terminator (map : spilled_map) (term : Cfg.terminator Cfg.instruction) =
   | Tailcall_self _
   | Tailcall_func _
   | Call_no_return _
-  | RaisingOp {op = Prim (External _ | Alloc _) | Call (Indirect | Direct _); _} ->
+  | Prim {op = External _ | Alloc _; _ } | Call {op = Indirect | Direct _; _} ->
     (* no rewrite *)
     May_still_have_spilled_registers
-  | RaisingOp {op = Prim (Probe _); _} ->
+  | Prim {op = Probe _; _} ->
     may_use_stack_operands_everywhere map term
-  | RaisingOp {op = Specific_can_raise _; _} ->
+  | Specific_can_raise _ ->
     fatal "no instructions specific for this architecture can raise"

@@ -99,7 +99,7 @@ let block (block : C.basic_block) =
       block.terminator <- { block.terminator with desc = Always l }
   | Switch labels -> simplify_switch block labels
   | Raise _ | Return | Tailcall_self _ | Tailcall_func _ | Call_no_return _
-  | RaisingOp _ ->
+  | Call _ | Prim _ | Specific_can_raise _ ->
     ()
 
 let run cfg = C.iter_blocks cfg ~f:(fun _ b -> block b)

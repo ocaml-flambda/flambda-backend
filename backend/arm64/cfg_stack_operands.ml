@@ -31,7 +31,7 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
 
 let terminator (map : spilled_map) (term : Cfg.terminator Cfg.instruction) =
   match term.desc with
-  | RaisingOp {op = Prim (Probe _); _} ->
+  | Prim {op = Probe _; _} ->
     may_use_stack_operands_everywhere map term
   | _ ->
     (* no rewrite *)

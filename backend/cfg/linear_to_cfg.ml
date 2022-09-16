@@ -390,7 +390,7 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
     (match desc with
     | Never -> Misc.fatal_error "Cannot add terminator: Never"
     | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-    | RaisingOp _ | Switch _ ->
+    | Call _ | Prim _ | Specific_can_raise _ | Switch _ ->
       ()
     | Return | Raise _ | Tailcall_self _ | Tailcall_func _ | Call_no_return _ ->
       if not (Linear_utils.defines_label i.next)
@@ -410,12 +410,10 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
     add_terminator desc ~next:fallthrough.insn
   in
   let terminator_call call =
-    terminator_fallthrough (fun label_after ->
-        RaisingOp { op = Call call; label_after })
+    terminator_fallthrough (fun label_after -> Call { op = call; label_after })
   in
   let terminator_prim prim =
-    terminator_fallthrough (fun label_after ->
-        RaisingOp { op = Prim prim; label_after })
+    terminator_fallthrough (fun label_after -> Prim { op = prim; label_after })
   in
   let basic desc =
     block.body <- create_instruction t desc i ~stack_offset :: block.body;
@@ -593,7 +591,7 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
       if Arch.operation_can_raise op
       then
         terminator_fallthrough (fun label_after ->
-            RaisingOp { op = Specific_can_raise op; label_after })
+            Specific_can_raise { op; label_after })
       else basic (Specific op))
 
 let run (f : Linear.fundecl) ~preserve_orig_labels =

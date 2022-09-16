@@ -142,12 +142,11 @@ let basic_or_terminator_of_operation :
   | Iconst_float f -> Basic (Op (Const_float f))
   | Iconst_symbol s -> Basic (Op (Const_symbol s))
   | Icall_ind ->
-    With_next_label
-      (fun label_after -> RaisingOp { op = Call Indirect; label_after })
+    With_next_label (fun label_after -> Call { op = Indirect; label_after })
   | Icall_imm { func } ->
     With_next_label
       (fun label_after ->
-        RaisingOp { op = Call (Direct { func_symbol = func }); label_after })
+        Call { op = Direct { func_symbol = func }; label_after })
   | Itailcall_ind -> Terminator (Tailcall_func Indirect)
   | Itailcall_imm { func } ->
     Terminator
@@ -159,8 +158,7 @@ let basic_or_terminator_of_operation :
     if returns
     then
       With_next_label
-        (fun label_after ->
-          RaisingOp { op = Prim (External external_call); label_after })
+        (fun label_after -> Prim { op = External external_call; label_after })
     else Terminator (Call_no_return external_call)
   | Istackoffset ofs -> Basic (Op (Stackoffset ofs))
   | Iload (mem, mode, mut) -> Basic (Op (Load (mem, mode, mut)))
@@ -168,15 +166,15 @@ let basic_or_terminator_of_operation :
   | Ialloc { bytes; dbginfo; mode } ->
     With_next_label
       (fun label_after ->
-        RaisingOp { op = Prim (Alloc { bytes; dbginfo; mode }); label_after })
+        Prim { op = Alloc { bytes; dbginfo; mode }; label_after })
   | Iintop Icheckbound ->
     With_next_label
       (fun label_after ->
-        RaisingOp { op = Prim (Checkbound { immediate = None }); label_after })
+        Prim { op = Checkbound { immediate = None }; label_after })
   | Iintop_imm (Icheckbound, i) ->
     With_next_label
       (fun label_after ->
-        RaisingOp { op = Prim (Checkbound { immediate = Some i }); label_after })
+        Prim { op = Checkbound { immediate = Some i }; label_after })
   | Iintop
       (( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
        | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ ) as op) ->
@@ -199,8 +197,7 @@ let basic_or_terminator_of_operation :
     if Arch.operation_can_raise op
     then
       With_next_label
-        (fun label_after ->
-          RaisingOp { op = Specific_can_raise op; label_after })
+        (fun label_after -> Specific_can_raise { op; label_after })
     else Basic (Op (Specific op))
   | Iopaque -> Basic (Op Opaque)
   | Iname_for_debugger _ ->
@@ -210,7 +207,7 @@ let basic_or_terminator_of_operation :
   | Iprobe { name; handler_code_sym } ->
     With_next_label
       (fun label_after ->
-        RaisingOp { op = Prim (Probe { name; handler_code_sym }); label_after })
+        Prim { op = Probe { name; handler_code_sym }; label_after })
   | Iprobe_is_enabled { name } -> Basic (Op (Probe_is_enabled { name }))
   | Ibeginregion -> Basic (Op Begin_region)
   | Iendregion -> Basic (Op End_region)
@@ -459,7 +456,7 @@ let rec add_blocks :
         else body
       | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
       | Int_test _ | Switch _ | Raise _ | Tailcall_self _ | Tailcall_func _
-      | Call_no_return _ | RaisingOp _ ->
+      | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _ ->
         body
     in
     let can_raise =
@@ -634,7 +631,8 @@ module Stack_offset_and_exn = struct
          self tailcall"
     | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
     | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
-    | Tailcall_func _ | Call_no_return _ | RaisingOp _ ->
+    | Tailcall_func _ | Call_no_return _ | Call _ | Prim _
+    | Specific_can_raise _ ->
       stack_offset, traps, term
 
   let rec process_basic :

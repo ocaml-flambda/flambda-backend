@@ -82,7 +82,10 @@ let successor_labels_normal ti =
     |> Label.Set.add uo
   | Int_test { lt; gt; eq; imm = _; is_signed = _ } ->
     Label.Set.singleton lt |> Label.Set.add gt |> Label.Set.add eq
-  | RaisingOp { op = _; label_after } -> Label.Set.singleton label_after
+  | Call { op = _; label_after }
+  | Prim { op = _; label_after }
+  | Specific_can_raise { op = _; label_after } ->
+    Label.Set.singleton label_after
 
 let successor_labels ~normal ~exn block =
   match normal, exn with
@@ -133,8 +136,10 @@ let replace_successor_labels t ~normal ~exn block ~f =
       | Tailcall_func (Direct _)
       | Return | Raise _ | Call_no_return _ ->
         block.terminator.desc
-      | RaisingOp { op; label_after } ->
-        RaisingOp { op; label_after = f label_after }
+      | Call { op; label_after } -> Call { op; label_after = f label_after }
+      | Prim { op; label_after } -> Prim { op; label_after = f label_after }
+      | Specific_can_raise { op; label_after } ->
+        Specific_can_raise { op; label_after = f label_after }
     in
     block.terminator <- { block.terminator with desc }
 
@@ -319,24 +324,25 @@ let dump_terminator' ?(print_reg = Printmach.reg) ?(res = [||]) ?(args = [||])
       (match call with
       | Indirect -> Mach.Itailcall_ind
       | Direct { func_symbol = func } -> Mach.Itailcall_imm { func })
-  | RaisingOp { op; label_after } ->
-    (match op with
-    | Call call ->
-      Format.fprintf ppf "%t%a" print_res dump_mach_op
-        (match call with
-        | Indirect -> Mach.Icall_ind
-        | Direct { func_symbol = func } -> Mach.Icall_imm { func })
-    | Prim prim ->
-      Format.fprintf ppf "%t%a" print_res dump_mach_op
-        (match prim with
-        | External { func_symbol = func; ty_res; ty_args; alloc } ->
-          Mach.Iextcall { func; ty_res; ty_args; returns = true; alloc }
-        | Alloc { bytes; dbginfo; mode } -> Mach.Ialloc { bytes; dbginfo; mode }
-        | Checkbound { immediate = Some x } -> Mach.Iintop_imm (Icheckbound, x)
-        | Checkbound { immediate = None } -> Mach.Iintop Icheckbound
-        | Probe { name; handler_code_sym } ->
-          Mach.Iprobe { name; handler_code_sym })
-    | Specific_can_raise op -> Format.fprintf ppf "%a" specific_can_raise op);
+  | Call { op = call; label_after } ->
+    Format.fprintf ppf "%t%a" print_res dump_mach_op
+      (match call with
+      | Indirect -> Mach.Icall_ind
+      | Direct { func_symbol = func } -> Mach.Icall_imm { func });
+    Format.fprintf ppf "%sgoto %d" sep label_after
+  | Prim { op = prim; label_after } ->
+    Format.fprintf ppf "%t%a" print_res dump_mach_op
+      (match prim with
+      | External { func_symbol = func; ty_res; ty_args; alloc } ->
+        Mach.Iextcall { func; ty_res; ty_args; returns = true; alloc }
+      | Alloc { bytes; dbginfo; mode } -> Mach.Ialloc { bytes; dbginfo; mode }
+      | Checkbound { immediate = Some x } -> Mach.Iintop_imm (Icheckbound, x)
+      | Checkbound { immediate = None } -> Mach.Iintop Icheckbound
+      | Probe { name; handler_code_sym } ->
+        Mach.Iprobe { name; handler_code_sym });
+    Format.fprintf ppf "%sgoto %d" sep label_after
+  | Specific_can_raise { op; label_after } ->
+    Format.fprintf ppf "%a" specific_can_raise op;
     Format.fprintf ppf "%sgoto %d" sep label_after
 
 let dump_terminator ?sep ppf terminator = dump_terminator' ?sep ppf terminator
@@ -375,7 +381,10 @@ let print_instruction ppf i = print_instruction' ppf i
 
 let can_raise_terminator (i : terminator) =
   match i with
-  | Raise _ | Tailcall_func _ | Call_no_return _ | RaisingOp _ -> true
+  | Raise _ | Tailcall_func _ | Call_no_return _ | Call _ | Prim _ -> true
+  | Specific_can_raise { op; _ } ->
+    assert (Arch.operation_can_raise op);
+    true
   | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Switch _ | Return | Tailcall_self _ ->
     false
@@ -386,7 +395,10 @@ let can_raise_terminator (i : terminator) =
 let is_pure_terminator desc =
   match (desc : terminator) with
   | Return | Raise _ | Call_no_return _ | Tailcall_func _ | Tailcall_self _
-  | RaisingOp _ ->
+  | Call _ | Prim _ ->
+    false
+  | Specific_can_raise { op; _ } ->
+    assert (Arch.operation_can_raise op);
     false
   | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Switch _ ->
@@ -418,7 +430,9 @@ let is_pure_operation : operation -> bool = function
   | Opaque -> false
   | Begin_region -> false
   | End_region -> false
-  | Specific s -> Arch.operation_is_pure s
+  | Specific s ->
+    assert (not (Arch.operation_can_raise s));
+    Arch.operation_is_pure s
   | Name_for_debugger _ -> true
 
 let is_pure_basic : basic -> bool = function

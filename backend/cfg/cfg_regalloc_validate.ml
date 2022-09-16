@@ -538,8 +538,18 @@ end = struct
     (* CR-someday azewierzejew: Avoid using polymorphic comparison. *)
       when Stdlib.compare call1 call2 = 0 ->
       ()
-    | ( RaisingOp { op = op1; label_after = l1 },
-        RaisingOp { op = op2; label_after = l2 } )
+    | ( Call { op = call1; label_after = l1 },
+        Call { op = call2; label_after = l2 } )
+    (* CR-someday azewierzejew: Avoid using polymorphic comparison. *)
+      when Stdlib.compare call1 call2 = 0 ->
+      compare_label l1 l2
+    | ( Prim { op = prim1; label_after = l1 },
+        Prim { op = prim2; label_after = l2 } )
+    (* CR-someday azewierzejew: Avoid using polymorphic comparison. *)
+      when Stdlib.compare prim1 prim2 = 0 ->
+      compare_label l1 l2
+    | ( Specific_can_raise { op = op1; label_after = l1 },
+        Specific_can_raise { op = op2; label_after = l2 } )
     (* CR-someday azewierzejew: Avoid using polymorphic comparison. *)
       when Stdlib.compare op1 op2 = 0 ->
       compare_label l1 l2
