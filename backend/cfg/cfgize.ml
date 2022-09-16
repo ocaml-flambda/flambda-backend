@@ -463,22 +463,7 @@ let rec add_blocks :
         body
     in
     let can_raise =
-      (* Recompute [can_raise] and check that instructions in the middle of the
-         block do not raise, i.e., only the terminator can raise. *)
-      List.iter
-        (fun instr ->
-          match instr.Cfg.desc with
-          | Cfg.Op (Specific spec) ->
-            assert (not (Arch.operation_can_raise spec))
-          | Cfg.Op
-              ( Move | Spill | Reload | Const_int _ | Const_float _
-              | Const_symbol _ | Stackoffset _ | Load _ | Store _ | Intop _
-              | Intop_imm _ | Negf | Absf | Addf | Subf | Mulf | Divf | Compf _
-              | Floatofint | Intoffloat | Probe_is_enabled _ | Opaque
-              | Begin_region | End_region | Name_for_debugger _ )
-          | Cfg.Reloadretaddr | Cfg.Pushtrap _ | Cfg.Poptrap | Cfg.Prologue ->
-            ())
-        body;
+      (* Recompute [can_raise]. Only terminator can actually raise. *)
       Cfg.can_raise_terminator terminator.Cfg.desc
     in
     State.add_block state ~label:start
