@@ -152,23 +152,23 @@ struct
     | Const { depth; unrolling } ->
       begin match unrolling with
       | Not_unrolling ->
-        Format.fprintf ppf "@<0>%s%a@<0>%s"
-          (Flambda_colours.rec_info ())
+        Format.fprintf ppf "%t%a%t"
+          Flambda_colours.rec_info
           (Or_infinity.print ~f:Format.pp_print_int) depth
-          (Flambda_colours.normal ())
+          Flambda_colours.pop
       | Unrolling _ | Do_not_unroll ->
         Format.fprintf ppf
-          "@<0>%s@[<hov 1>(%a@ %a)@]@<0>%s"
-        (Flambda_colours.rec_info ())
+          "%t@[<hov 1>(%a@ %a)@]%t"
+        Flambda_colours.rec_info
         (Or_infinity.print ~f:Format.pp_print_int) depth
         Unrolling_state.print unrolling
-        (Flambda_colours.normal ())
+        Flambda_colours.pop
       end
     | Var dv ->
-      Format.fprintf ppf "@<0>%s%a@<0>%s"
-        (Flambda_colours.depth_variable ())
+      Format.fprintf ppf "%t%a%t"
+        Flambda_colours.depth_variable
         Variable.print dv
-        (Flambda_colours.normal ())
+        Flambda_colours.pop
     | Succ t ->
       Format.fprintf ppf "@[<hov 1>(succ@ %a)@]" print t
     | Unroll_to (unroll_depth, t) ->

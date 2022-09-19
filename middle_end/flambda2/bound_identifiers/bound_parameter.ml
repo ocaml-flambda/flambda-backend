@@ -35,10 +35,10 @@ include Container_types.Make (struct
     Hashtbl.hash (Variable.hash param, Flambda_kind.With_subkind.hash kind)
 
   let [@ocamlformat "disable"] print ppf { param; kind; } =
-    Format.fprintf ppf "@[(@<0>%s%a@<0>%s @<1>\u{2237} %a)@]"
-      (Flambda_colours.parameter ())
+    Format.fprintf ppf "@[(%t%a%t @<1>\u{2237} %a)@]"
+      Flambda_colours.parameter
       Variable.print param
-      (Flambda_colours.normal ())
+      Flambda_colours.pop
       Flambda_kind.With_subkind.print kind
 end)
 

@@ -24,13 +24,13 @@ let [@ocamlformat "disable"] print ppf
       { function_decls;
         value_slots;alloc_mode;
       } =
-  Format.fprintf ppf "@[<hov 1>(%sset_of_closures%s@ \
+  Format.fprintf ppf "@[<hov 1>(%tset_of_closures%t@ \
       @[<hov 1>(function_decls@ %a)@]@ \
       @[<hov 1>(value_slots@ %a)@]@ \
       @[<hov 1>(alloc_mode@ %a)@]\
       )@]"
-    (Flambda_colours.prim_constructive ())
-    (Flambda_colours.normal ())
+    Flambda_colours.prim_constructive
+    Flambda_colours.pop
     (Function_declarations.print) function_decls
     (Value_slot.Map.print Simple.print) value_slots
     Alloc_mode.print alloc_mode
@@ -82,20 +82,20 @@ let [@ocamlformat "disable"] print ppf
         alloc_mode;
       } =
   if Value_slot.Map.is_empty value_slots then
-    Format.fprintf ppf "@[<hov 1>(%sset_of_closures%s@ %a@ \
+    Format.fprintf ppf "@[<hov 1>(%tset_of_closures%t@ %a@ \
         @[<hov 1>%a@]\
         )@]"
-      (Flambda_colours.prim_constructive ())
-      (Flambda_colours.normal ())
+      Flambda_colours.prim_constructive
+      Flambda_colours.pop
       Alloc_mode.print alloc_mode
       (Function_declarations.print) function_decls
   else
-    Format.fprintf ppf "@[<hov 1>(%sset_of_closures%s@ %a@ \
+    Format.fprintf ppf "@[<hov 1>(%tset_of_closures%t@ %a@ \
         @[<hov 1>%a@]@ \
         @[<hov 1>(env@ %a)@]\
         )@]"
-      (Flambda_colours.prim_constructive ())
-      (Flambda_colours.normal ())
+      Flambda_colours.prim_constructive
+      Flambda_colours.pop
       Alloc_mode.print alloc_mode
       Function_declarations.print function_decls
       (Value_slot.Map.print Simple.print) value_slots

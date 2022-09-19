@@ -67,49 +67,43 @@ include Container_types.Make (struct
   let hash = Hashtbl.hash
 
   let print ppf t =
-    let colour = Flambda_colours.kind () in
+    let colour = Flambda_colours.kind in
     match t with
     | Value ->
       if Flambda_features.unicode ()
-      then
-        Format.fprintf ppf "@<0>%s@<1>\u{1d54d}@<0>%s" colour
-          (Flambda_colours.normal ())
+      then Format.fprintf ppf "%t@<1>\u{1d54d}%t" colour Flambda_colours.pop
       else Format.fprintf ppf "Val"
     | Naked_number naked_number_kind ->
       if Flambda_features.unicode ()
       then
         match naked_number_kind with
         | Naked_immediate ->
-          Format.fprintf ppf "@<0>%s@<1>\u{2115}@<1>\u{1d55a}@<0>%s" colour
-            (Flambda_colours.normal ())
+          Format.fprintf ppf "%t@<1>\u{2115}@<1>\u{1d55a}%t" colour
+            Flambda_colours.pop
         | Naked_float ->
-          Format.fprintf ppf "@<0>%s@<1>\u{2115}@<1>\u{1d557}@<0>%s" colour
-            (Flambda_colours.normal ())
+          Format.fprintf ppf "%t@<1>\u{2115}@<1>\u{1d557}%t" colour
+            Flambda_colours.pop
         | Naked_int32 ->
-          Format.fprintf ppf
-            "@<0>%s@<1>\u{2115}@<1>\u{1d7db}@<1>\u{1d7da}@<0>%s" colour
-            (Flambda_colours.normal ())
+          Format.fprintf ppf "%t@<1>\u{2115}@<1>\u{1d7db}@<1>\u{1d7da}%t" colour
+            Flambda_colours.pop
         | Naked_int64 ->
-          Format.fprintf ppf
-            "@<0>%s@<1>\u{2115}@<1>\u{1d7de}@<1>\u{1d7dc}@<0>%s" colour
-            (Flambda_colours.normal ())
+          Format.fprintf ppf "%t@<1>\u{2115}@<1>\u{1d7de}@<1>\u{1d7dc}%t" colour
+            Flambda_colours.pop
         | Naked_nativeint ->
-          Format.fprintf ppf "@<0>%s@<1>\u{2115}@<1>\u{2115}@<0>%s" colour
-            (Flambda_colours.normal ())
+          Format.fprintf ppf "%t@<1>\u{2115}@<1>\u{2115}%t" colour
+            Flambda_colours.pop
       else
         Format.fprintf ppf "(Naked_number %a)" Naked_number_kind.print
           naked_number_kind
     | Region ->
       if Flambda_features.unicode ()
       then
-        Format.fprintf ppf "@<0>%s@<1>\u{1d53d}@<1>\u{1d558}@<0>%s" colour
-          (Flambda_colours.normal ())
+        Format.fprintf ppf "%t@<1>\u{1d53d}@<1>\u{1d558}%t" colour
+          Flambda_colours.pop
       else Format.fprintf ppf "Region"
     | Rec_info ->
       if Flambda_features.unicode ()
-      then
-        Format.fprintf ppf "@<0>%s@<1>\u{211d}@<0>%s" colour
-          (Flambda_colours.normal ())
+      then Format.fprintf ppf "%t@<1>\u{211d}%t" colour Flambda_colours.pop
       else Format.fprintf ppf "Rec"
 end)
 
@@ -348,54 +342,43 @@ module With_subkind = struct
       type nonrec t = t
 
       let rec print ppf t =
-        let colour = Flambda_colours.subkind () in
+        let colour = Flambda_colours.subkind in
         match t with
         | Anything -> Format.fprintf ppf "*"
         | Tagged_immediate ->
-          Format.fprintf ppf "@<0>%s=tagged_@<1>\u{2115}@<1>\u{1d55a}@<0>%s"
-            colour
-            (Flambda_colours.normal ())
+          Format.fprintf ppf "%t=tagged_@<1>\u{2115}@<1>\u{1d55a}%t" colour
+            Flambda_colours.pop
         | Boxed_float ->
-          Format.fprintf ppf "@<0>%s=boxed_@<1>\u{2115}@<1>\u{1d557}@<0>%s"
-            colour
-            (Flambda_colours.normal ())
+          Format.fprintf ppf "%t=boxed_@<1>\u{2115}@<1>\u{1d557}%t" colour
+            Flambda_colours.pop
         | Boxed_int32 ->
-          Format.fprintf ppf
-            "@<0>%s=boxed_@<1>\u{2115}@<1>\u{1d7db}@<1>\u{1d7da}@<0>%s" colour
-            (Flambda_colours.normal ())
+          Format.fprintf ppf "%t=boxed_@<1>\u{2115}@<1>\u{1d7db}@<1>\u{1d7da}%t"
+            colour Flambda_colours.pop
         | Boxed_int64 ->
-          Format.fprintf ppf
-            "@<0>%s=boxed_@<1>\u{2115}@<1>\u{1d7de}@<1>\u{1d7dc}@<0>%s" colour
-            (Flambda_colours.normal ())
+          Format.fprintf ppf "%t=boxed_@<1>\u{2115}@<1>\u{1d7de}@<1>\u{1d7dc}%t"
+            colour Flambda_colours.pop
         | Boxed_nativeint ->
-          Format.fprintf ppf "@<0>%s=boxed_@<1>\u{2115}@<1>\u{2115}@<0>%s"
-            colour
-            (Flambda_colours.normal ())
+          Format.fprintf ppf "%t=boxed_@<1>\u{2115}@<1>\u{2115}%t" colour
+            Flambda_colours.pop
         | Variant { consts; non_consts } ->
-          Format.fprintf ppf
-            "@<0>%s=Variant((consts (%a))@ (non_consts (%a)))@<0>%s" colour
-            Targetint_31_63.Set.print consts
+          Format.fprintf ppf "%t=Variant((consts (%a))@ (non_consts (%a)))%t"
+            colour Targetint_31_63.Set.print consts
             (Tag.Scannable.Map.print (fun ppf fields ->
                  Format.fprintf ppf "[%a]"
                    (Format.pp_print_list ~pp_sep:Format.pp_print_space print)
                    fields))
-            non_consts
-            (Flambda_colours.normal ())
+            non_consts Flambda_colours.pop
         | Float_block { num_fields } ->
-          Format.fprintf ppf "@<0>%s=Float_block(%d)@<0>%s" colour num_fields
-            (Flambda_colours.normal ())
+          Format.fprintf ppf "%t=Float_block(%d)%t" colour num_fields
+            Flambda_colours.pop
         | Float_array ->
-          Format.fprintf ppf "@<0>%s=Float_array@<0>%s" colour
-            (Flambda_colours.normal ())
+          Format.fprintf ppf "%t=Float_array%t" colour Flambda_colours.pop
         | Immediate_array ->
-          Format.fprintf ppf "@<0>%s=Immediate_array@<0>%s" colour
-            (Flambda_colours.normal ())
+          Format.fprintf ppf "%t=Immediate_array%t" colour Flambda_colours.pop
         | Value_array ->
-          Format.fprintf ppf "@<0>%s=Value_array@<0>%s" colour
-            (Flambda_colours.normal ())
+          Format.fprintf ppf "%t=Value_array%t" colour Flambda_colours.pop
         | Generic_array ->
-          Format.fprintf ppf "@<0>%s=Generic_array@<0>%s" colour
-            (Flambda_colours.normal ())
+          Format.fprintf ppf "%t=Generic_array%t" colour Flambda_colours.pop
 
       let compare = Stdlib.compare
 

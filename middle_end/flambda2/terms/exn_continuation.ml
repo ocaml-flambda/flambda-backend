@@ -32,20 +32,20 @@ include Container_types.Make (struct
     | _ ->
       Format.fprintf ppf "@[<hov 1>(\
           @[<hov 1>(exn_handler@ %a)@]@ \
-          @[<hov 1>@<0>%s(extra_args@ @<0>%s(%a)@<0>%s@<0>)@<0>%s@]\
+          @[<hov 1>%t(extra_args@ %t(%a)%t@<0>)%t@]\
           )@]"
         Continuation.print exn_handler
         (match extra_args with
-         | [] -> Flambda_colours.elide ()
-         | _ -> Flambda_colours.normal ())
-        (Flambda_colours.normal ())
+         | [] -> Flambda_colours.elide
+         | _ -> Flambda_colours.none)
+        Flambda_colours.pop
         (Format.pp_print_list
           ~pp_sep:Format.pp_print_space print_simple_and_kind)
         extra_args
         (match extra_args with
-         | [] -> Flambda_colours.elide ()
-         | _ -> Flambda_colours.normal ())
-        (Flambda_colours.normal ())
+         | [] -> Flambda_colours.elide
+         | _ -> Flambda_colours.none)
+        Flambda_colours.pop
 
   let compare_simple_and_kind (simple1, kind1) (simple2, kind2) =
     let c = Simple.compare simple1 simple2 in
