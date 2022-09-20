@@ -364,7 +364,8 @@ let meet_variant_like env t =
 let prove_variant_like env t = as_property (prove_variant_like_generic env t)
 
 type boxed_or_tagged_number =
-  | Boxed of Flambda_kind.Boxable_number.t
+  | Boxed of
+      Alloc_mode.t Or_unknown.t * Flambda_kind.Boxable_number.t * Type_grammar.t
   | Tagged_immediate
 
 (* CR pchambart: Remove fragile matchs and reuse this function *)
@@ -381,10 +382,14 @@ let prove_is_a_boxed_or_tagged_number env t :
       if TG.Row_like_for_blocks.is_bottom blocks
       then Proved Tagged_immediate
       else Unknown)
-  | Value (Ok (Boxed_float _)) -> Proved (Boxed Naked_float)
-  | Value (Ok (Boxed_int32 _)) -> Proved (Boxed Naked_int32)
-  | Value (Ok (Boxed_int64 _)) -> Proved (Boxed Naked_int64)
-  | Value (Ok (Boxed_nativeint _)) -> Proved (Boxed Naked_nativeint)
+  | Value (Ok (Boxed_float (contents_ty, alloc_mode))) ->
+    Proved (Boxed (alloc_mode, Naked_float, contents_ty))
+  | Value (Ok (Boxed_int32 (contents_ty, alloc_mode))) ->
+    Proved (Boxed (alloc_mode, Naked_int32, contents_ty))
+  | Value (Ok (Boxed_int64 (contents_ty, alloc_mode))) ->
+    Proved (Boxed (alloc_mode, Naked_int64, contents_ty))
+  | Value (Ok (Boxed_nativeint (contents_ty, alloc_mode))) ->
+    Proved (Boxed (alloc_mode, Naked_nativeint, contents_ty))
   | Value (Bottom | Ok (Mutable_block _ | Closures _ | String _ | Array _)) ->
     Unknown
   | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
@@ -596,6 +601,17 @@ let meet_strings env t : String_info.Set.t meet_shortcut =
   | Value (Ok _) -> Invalid
   | Value Unknown -> Need_meet
   | Value Bottom -> Invalid
+  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
+  | Naked_nativeint _ | Rec_info _ | Region _ ->
+    Misc.fatal_errorf "Kind error: expected [Value]:@ %a" TG.print t
+
+let prove_strings env t : _ proof_of_property =
+  match expand_head env t with
+  | Value (Ok (String strs)) ->
+    (* At present we only track statically-allocated strings (see
+       [Type_grammar]). *)
+    Proved (Or_unknown.Known Alloc_mode.heap, strs)
+  | Value (Ok _ | Unknown | Bottom) -> Unknown
   | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
   | Naked_nativeint _ | Rec_info _ | Region _ ->
     Misc.fatal_errorf "Kind error: expected [Value]:@ %a" TG.print t

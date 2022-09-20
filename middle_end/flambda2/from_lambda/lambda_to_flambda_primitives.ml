@@ -1138,6 +1138,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
            Prim (Unary (Unbox_number unboxing_kind, i2)) ))
   | Pprobe_is_enabled { name }, [] ->
     tag_int (Nullary (Probe_is_enabled { name }))
+  | Pobj_dup, [v] -> Unary (Obj_dup, v)
   | ( ( Pmodint Unsafe
       | Pdivbint { is_safe = Unsafe; size = _; mode = _ }
       | Pmodbint { is_safe = Unsafe; size = _; mode = _ }
@@ -1157,7 +1158,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
       | Pnegfloat _ | Pabsfloat _ | Pstringlength | Pbyteslength | Pbintofint _
       | Pintofbint _ | Pnegbint _ | Popaque | Pduprecord _ | Parraylength _
       | Pduparray _ | Pfloatfield _ | Pcvtbint _ | Poffsetref _ | Pbswap16
-      | Pbbswap _ | Pisint _ | Pint_as_pointer | Pbigarraydim _ ),
+      | Pbbswap _ | Pisint _ | Pint_as_pointer | Pbigarraydim _ | Pobj_dup ),
       ([] | _ :: _ :: _) ) ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for unary primitive \

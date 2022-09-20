@@ -505,6 +505,40 @@ let simplify_duplicate_block ~kind:_ dacc ~original_term ~arg:_ ~arg_ty
   let dacc = DA.add_variable dacc result_var ty in
   SPR.create original_term ~try_reify:false dacc
 
+let simplify_obj_dup dbg dacc ~original_term ~arg ~arg_ty ~result_var =
+  let typing_env = DA.typing_env dacc in
+  let[@inline] elide_primitive () =
+    let dacc = DA.add_variable dacc result_var arg_ty in
+    SPR.create (Named.create_simple arg) ~try_reify:true dacc
+  in
+  match T.prove_is_a_boxed_or_tagged_number typing_env arg_ty with
+  | Proved (Tagged_immediate | Boxed (Known Heap, _, _)) -> elide_primitive ()
+  | Proved (Boxed ((Unknown | Known Local), boxable_number, contents_ty)) -> (
+    let boxer =
+      match boxable_number with
+      | Naked_float -> T.box_float
+      | Naked_int32 -> T.box_int32
+      | Naked_int64 -> T.box_int64
+      | Naked_nativeint -> T.box_nativeint
+    in
+    let ty = boxer contents_ty (Known Alloc_mode.heap) in
+    let dacc = DA.add_variable dacc result_var ty in
+    match T.get_alias_exn contents_ty with
+    | exception Not_found -> SPR.create original_term ~try_reify:true dacc
+    | contents ->
+      SPR.create
+        (Named.create_prim
+           (Unary
+              ( Box_number (boxable_number, Alloc_mode.With_region.heap),
+                contents ))
+           dbg)
+        ~try_reify:true dacc)
+  | Unknown -> (
+    match T.prove_strings typing_env arg_ty with
+    | Proved (Known Heap, _) -> elide_primitive ()
+    | Proved ((Unknown | Known Local), _) | Unknown ->
+      SPR.create_unknown dacc ~result_var K.value ~original_term)
+
 let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     ~arg_ty dbg ~result_var =
   let min_name_mode = Bound_var.name_mode result_var in
@@ -552,5 +586,6 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     | Duplicate_block { kind } -> simplify_duplicate_block ~kind
     | Opaque_identity -> simplify_opaque_identity
     | End_region -> simplify_end_region
+    | Obj_dup -> simplify_obj_dup dbg
   in
   simplifier dacc ~original_term ~arg ~arg_ty ~result_var
