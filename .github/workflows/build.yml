@@ -122,6 +122,10 @@ jobs:
         PATH=$GITHUB_WORKSPACE/ocaml-412/_install/bin:$PATH make release
         cp dune.exe $GITHUB_WORKSPACE/ocaml-412/_install/bin/dune
 
+    - name: Install packages for the build and the testsuite
+      if: matrix.os == 'ubuntu-latest'
+      run: sudo apt-get install build-essential gfortran
+
     - name: Install GNU parallel
       if: matrix.os == 'macos-latest'
       run: HOMEBREW_NO_INSTALL_CLEANUP=TRUE brew install parallel
