@@ -162,6 +162,7 @@ module Env : sig
   val current_function_name_and_arity : t -> (Ident.t * int) option
 
   val return_continuation : t -> Continuation.t
+
   val exn_continuation : t -> Continuation.t
 end = struct
   type region_closure_continuation =
@@ -188,10 +189,11 @@ end = struct
       region_closure_continuations : region_closure_continuation Ident.Map.t;
       current_function_name_and_arity : (Ident.t * int) option;
       return_continuation : Continuation.t;
-      exn_continuation: Continuation.t
+      exn_continuation : Continuation.t
     }
 
-  let create ~current_unit_id ~return_continuation ~exn_continuation ~my_region ~current_function_name_and_arity =
+  let create ~current_unit_id ~return_continuation ~exn_continuation ~my_region
+      ~current_function_name_and_arity =
     let mutables_needed_by_continuations =
       Continuation.Map.of_list
         [return_continuation, Ident.Set.empty; exn_continuation, Ident.Set.empty]
@@ -435,6 +437,7 @@ end = struct
   let current_function_name_and_arity t = t.current_function_name_and_arity
 
   let return_continuation t = t.return_continuation
+
   let exn_continuation t = t.exn_continuation
 end
 
@@ -1009,9 +1012,12 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
     ->
     (* This case is here to get function names right. *)
     let bindings = cps_function_bindings env [fun_id, L.Lfunction func] in
-    let acc = List.fold_left (fun acc func ->
-        check_variable_uses env (Function_decl.free_idents func) acc)
-        acc bindings in
+    let acc =
+      List.fold_left
+        (fun acc func ->
+          check_variable_uses env (Function_decl.free_idents func) acc)
+        acc bindings
+    in
     let body acc ccenv = cps_non_tail acc env ccenv body k k_exn in
     let let_expr =
       List.fold_left
@@ -1079,9 +1085,12 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
     match Dissect_letrec.dissect_letrec ~bindings ~body with
     | Unchanged ->
       let function_declarations = cps_function_bindings env bindings in
-      let acc = List.fold_left (fun acc func ->
-          check_variable_uses env (Function_decl.free_idents func) acc)
-          acc function_declarations in
+      let acc =
+        List.fold_left
+          (fun acc func ->
+            check_variable_uses env (Function_decl.free_idents func) acc)
+          acc function_declarations
+      in
       let body acc ccenv = cps_non_tail acc env ccenv body k k_exn in
       CC.close_let_rec acc ccenv ~function_declarations ~body
         ~current_region:(Env.current_region env)
@@ -1371,7 +1380,7 @@ and cps_non_tail_simple acc env ccenv (lam : L.lambda)
       k_exn
 
 and cps_non_tail_ap_func acc env ccenv (ap_func : L.lambda) is_tail k k_exn =
-  match [@ocaml.warning "-4"] ap_func with
+  match[@ocaml.warning "-4"] ap_func with
   | Lvar id when is_tail ->
     assert (not (Env.is_mutable env id));
     k acc env ccenv id
@@ -1381,11 +1390,12 @@ and cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode ap_loc
     ap_inlined ap_probe (k : Continuation.t) (k_exn : Continuation.t) :
     Expr_with_acc.t =
   let is_tail =
-    Continuation.equal k (Env.return_continuation env) &&
-    Continuation.equal k_exn (Env.exn_continuation env) &&
-    (match Env.current_function_name_and_arity env with
-     | Some (_, arity) -> List.length ap_args = arity
-     | None -> false)
+    Continuation.equal k (Env.return_continuation env)
+    && Continuation.equal k_exn (Env.exn_continuation env)
+    &&
+    match Env.current_function_name_and_arity env with
+    | Some (_, arity) -> List.length ap_args = arity
+    | None -> false
   in
   cps_non_tail_list acc env ccenv ap_args
     (fun acc env ccenv args ->
@@ -1470,9 +1480,12 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
     ->
     (* This case is here to get function names right. *)
     let bindings = cps_function_bindings env [fun_id, L.Lfunction func] in
-    let acc = List.fold_left (fun acc func ->
-        check_variable_uses env (Function_decl.free_idents func) acc)
-        acc bindings in
+    let acc =
+      List.fold_left
+        (fun acc func ->
+          check_variable_uses env (Function_decl.free_idents func) acc)
+        acc bindings
+    in
     let body acc ccenv = cps_tail acc env ccenv body k k_exn in
     let let_expr =
       List.fold_left
@@ -1570,9 +1583,12 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
     match Dissect_letrec.dissect_letrec ~bindings ~body with
     | Unchanged ->
       let function_declarations = cps_function_bindings env bindings in
-      let acc = List.fold_left (fun acc func ->
-          check_variable_uses env (Function_decl.free_idents func) acc)
-          acc function_declarations in
+      let acc =
+        List.fold_left
+          (fun acc func ->
+            check_variable_uses env (Function_decl.free_idents func) acc)
+          acc function_declarations
+      in
       let body acc ccenv = cps_tail acc env ccenv body k k_exn in
       let current_region = Env.current_region env in
       CC.close_let_rec acc ccenv ~function_declarations ~body ~current_region

@@ -1089,8 +1089,8 @@ let close_one_function acc ~external_env ~by_function_slot decl
   let return = Function_decl.return decl in
   let return_continuation = Function_decl.return_continuation decl in
   let recursive = Function_decl.recursive decl in
-  (* Mark function for self tail calls to continuation
-     conversion only if is is recursive *)
+  (* Mark function for self tail calls to continuation conversion only if is is
+     recursive *)
   let old_is_purely_tailrec = Acc.is_purely_tailrec acc in
   let is_purely_tailrec_init =
     match recursive with

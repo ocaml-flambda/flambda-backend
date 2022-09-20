@@ -1059,11 +1059,17 @@ let is_self_tail_call dacc apply =
   match closure_info with
   | Not_in_a_closure | In_a_set_of_closures_but_not_yet_in_a_specific_closure ->
     None
-  | Closure { return_continuation; exn_continuation; self_continuation; my_closure; _ } ->
+  | Closure
+      { return_continuation;
+        exn_continuation;
+        self_continuation;
+        my_closure;
+        _
+      } ->
     if Simple.pattern_match' (Apply.callee apply)
-        ~const:(fun _ -> false)
-        ~symbol:(fun _ ~coercion:_ -> false)
-        ~var:(fun v ~coercion:_ -> Variable.equal v my_closure)
+         ~const:(fun _ -> false)
+         ~symbol:(fun _ ~coercion:_ -> false)
+         ~var:(fun v ~coercion:_ -> Variable.equal v my_closure)
        && (match Apply.continuation apply with
           | Never_returns -> true
           | Return apply_return_continuation ->

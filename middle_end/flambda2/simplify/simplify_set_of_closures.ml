@@ -570,10 +570,9 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
            ~free_names_of_body:_
          ->
         let self_continuation =
-          if Code.perform_tailrec_to_cont code then
-            Some (Continuation.create ~name:"self" ())
-          else
-            None
+          if Code.perform_tailrec_to_cont code
+          then Some (Continuation.create ~name:"self" ())
+          else None
         in
         let dacc_at_function_entry =
           dacc_inside_function context ~outer_dacc ~params ~my_closure
@@ -676,15 +675,6 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
             Variable.print my_closure Expr.print body DA.print dacc;
           Printexc.raise_with_backtrace Misc.Fatal_error bt)
   in
-  (*
-  let still_recursive =
-    (* If my_closure was somehow used for something else than Project_value_slot
-       despite the function being non-recursive, we do not mark it as
-       recursive *)
-    if DA.my_closure_only_used_for_tail_calls dacc_after_body
-    then Recursive.Non_recursive
-    else Code.recursive code
-  in *)
   let outer_dacc, lifted_consts_this_function =
     extract_accumulators_from_function outer_dacc ~dacc_after_body
       ~uacc_after_upwards_traversal
@@ -699,10 +689,9 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
     | exception Not_found -> old_code_id, None
   in
   let still_recursive =
-    if Code.perform_tailrec_to_cont code then
-      Recursive.Non_recursive
-    else
-      Code.recursive code
+    if Code.perform_tailrec_to_cont code
+    then Recursive.Non_recursive
+    else Code.recursive code
   in
   let inlining_decision =
     let decision =

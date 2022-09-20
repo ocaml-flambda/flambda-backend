@@ -150,9 +150,9 @@ and simplify_function_body dacc expr ~return_continuation ~return_arity
     in
     simplify_toplevel_common dacc
       (fun dacc ->
-         Simplify_let_cont_expr.simplify_matched_recursive_let_cont ~simplify_expr
-           dacc
-           (call_self_cont_expr, handlers))
+        Simplify_let_cont_expr.simplify_matched_recursive_let_cont
+          ~simplify_expr dacc
+          (call_self_cont_expr, handlers))
       ~is_in_closure:true ~return_continuation ~return_arity ~exn_continuation
       ~return_cont_scope ~exn_cont_scope
 
