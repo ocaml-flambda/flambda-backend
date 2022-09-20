@@ -768,8 +768,8 @@ let rebuild_recursive_let_cont_handlers cont ~params ~original_cont_scope
   in
   let handlers =
     if is_recursive
-    then [Recursive_handlers (Continuation.Map.singleton cont cont_handler)]
-    else [Non_recursive_handler (cont, cont_handler)]
+    then Recursive_handlers (Continuation.Map.singleton cont cont_handler)
+    else Non_recursive_handler (cont, cont_handler)
   in
   after_rebuild handlers uacc
 
@@ -941,7 +941,7 @@ let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
 
 let rebuild_recursive_let_cont_expr art body ~free_names_of_body handlers =
   match handlers with
-  | [Non_recursive_handler (cont, handler)] ->
+  | Non_recursive_handler (cont, handler) ->
     let is_used =
       Continuation.Set.mem cont
         (Name_occurrences.continuations_including_in_trap_actions
@@ -952,9 +952,8 @@ let rebuild_recursive_let_cont_expr art body ~free_names_of_body handlers =
       RE.create_non_recursive_let_cont art cont handler ~body
         ~free_names_of_body
     else body
-  | [Recursive_handlers rec_handlers] ->
+  | Recursive_handlers rec_handlers ->
     RE.create_recursive_let_cont art rec_handlers ~body
-  | [] | _ :: _ :: _ -> assert false
 
 let rebuild_recursive_let_cont ~body handlers ~cost_metrics_of_handlers
     ~free_names_of_body ~uenv_without_cont uacc ~after_rebuild =
