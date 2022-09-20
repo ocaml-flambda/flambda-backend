@@ -385,7 +385,8 @@ module Acc = struct
       seen_a_function : bool;
       symbol_for_global : Ident.t -> Symbol.t;
       slot_offsets : Slot_offsets.t;
-      regions_closed_early : Ident.Set.t
+      regions_closed_early : Ident.Set.t;
+      is_purely_tailrec : bool
     }
 
   let cost_metrics t = t.cost_metrics
@@ -410,7 +411,8 @@ module Acc = struct
       seen_a_function = false;
       symbol_for_global;
       slot_offsets;
-      regions_closed_early = Ident.Set.empty
+      regions_closed_early = Ident.Set.empty;
+      is_purely_tailrec = false
     }
 
   let declared_symbols t = t.declared_symbols
@@ -532,6 +534,10 @@ module Acc = struct
         set_of_closures
     in
     { t with slot_offsets }
+
+  let is_purely_tailrec t = t.is_purely_tailrec
+
+  let with_is_purely_tailrec t is_purely_tailrec = { t with is_purely_tailrec }
 end
 
 module Function_decls = struct

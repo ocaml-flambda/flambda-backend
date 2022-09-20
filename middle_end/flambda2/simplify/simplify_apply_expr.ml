@@ -506,6 +506,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
           ~is_my_closure_used:
             (Function_params_and_body.is_my_closure_used params_and_body)
           ~inlining_decision:Stub ~absolute_history ~relative_history
+          ~perform_tailrec_to_cont:false
       in
       Static_const_or_code.create_code code
     in
@@ -1076,7 +1077,7 @@ let is_self_tail_call dacc apply =
             (Apply.exn_continuation apply)
             (Exn_continuation.create ~exn_handler:exn_continuation
                ~extra_args:[])
-    then Some self_continuation
+    then self_continuation
     else None
 
 let simplify_self_tail_call dacc apply self_cont ~down_to_up =

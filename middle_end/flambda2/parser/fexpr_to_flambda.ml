@@ -778,6 +778,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         in
         let code =
           (* CR mshinwell: [inlining_decision] should maybe be set properly *)
+          (* CR ncourant: same for perform_tailrec_to_cont *)
           Code.create code_id ~params_and_body ~free_names_of_params_and_body
             ~newer_version_of ~params_arity ~num_trailing_local_params:0
             ~result_arity
@@ -795,6 +796,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
               (Inlining_history.Absolute.empty
                  (Compilation_unit.get_current_exn ()))
             ~relative_history:Inlining_history.Relative.empty
+            ~perform_tailrec_to_cont:false
         in
         Flambda.Static_const_or_code.create_code code
     in

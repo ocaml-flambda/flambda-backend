@@ -571,7 +571,12 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
            ~my_depth
            ~free_names_of_body:_
          ->
-        let self_continuation = Continuation.create ~name:"self" () in
+        let self_continuation =
+          if Code.perform_tailrec_to_cont code then
+            Some (Continuation.create ~name:"self" ())
+          else
+            None
+        in
         let dacc_at_function_entry =
           dacc_inside_function context ~outer_dacc ~params ~my_closure
             ~my_region ~my_depth function_slot_opt
@@ -673,6 +678,7 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
             Variable.print my_closure Expr.print body DA.print dacc;
           Printexc.raise_with_backtrace Misc.Fatal_error bt)
   in
+  (*
   let still_recursive =
     (* If my_closure was somehow used for something else than Project_value_slot
        despite the function being non-recursive, we do not mark it as
@@ -680,7 +686,7 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
     if DA.my_closure_only_used_for_tail_calls dacc_after_body
     then Recursive.Non_recursive
     else Code.recursive code
-  in
+  in *)
   let outer_dacc, lifted_consts_this_function =
     extract_accumulators_from_function outer_dacc ~dacc_after_body
       ~uacc_after_upwards_traversal
@@ -693,6 +699,12 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
     with
     | new_code_id -> new_code_id, Some old_code_id
     | exception Not_found -> old_code_id, None
+  in
+  let still_recursive =
+    if Code.perform_tailrec_to_cont code then
+      Recursive.Non_recursive
+    else
+      Code.recursive code
   in
   let inlining_decision =
     let decision =
@@ -787,7 +799,7 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
       ~is_a_functor:(Code.is_a_functor code) ~recursive:still_recursive
       ~cost_metrics ~inlining_arguments ~dbg:(Code.dbg code)
       ~is_tupled:(Code.is_tupled code) ~is_my_closure_used ~inlining_decision
-      ~absolute_history ~relative_history
+      ~absolute_history ~relative_history ~perform_tailrec_to_cont:false
   in
   { code_id; code = Some code; outer_dacc }
 

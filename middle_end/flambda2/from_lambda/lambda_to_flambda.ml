@@ -34,6 +34,7 @@ module Env : sig
     return_continuation:Continuation.t ->
     exn_continuation:Continuation.t ->
     my_region:Ident.t ->
+    current_function_name_and_arity:(Ident.t * int) option ->
     t
 
   val current_unit_id : t -> Ident.t
@@ -157,6 +158,11 @@ module Env : sig
     }
 
   val region_closure_continuation : t -> Ident.t -> region_closure_continuation
+
+  val current_function_name_and_arity : t -> (Ident.t * int) option
+
+  val return_continuation : t -> Continuation.t
+  val exn_continuation : t -> Continuation.t
 end = struct
   type region_closure_continuation =
     { continuation_closing_region : Continuation.t;
@@ -179,11 +185,13 @@ end = struct
       my_region : Ident.t;
       region_stack : region_stack_element list;
       region_stack_in_cont_scope : region_stack_element list Continuation.Map.t;
-      region_closure_continuations : region_closure_continuation Ident.Map.t
+      region_closure_continuations : region_closure_continuation Ident.Map.t;
+      current_function_name_and_arity : (Ident.t * int) option;
+      return_continuation : Continuation.t;
+      exn_continuation: Continuation.t
     }
 
-  let create ~current_unit_id ~return_continuation ~exn_continuation ~my_region
-      =
+  let create ~current_unit_id ~return_continuation ~exn_continuation ~my_region ~current_function_name_and_arity =
     let mutables_needed_by_continuations =
       Continuation.Map.of_list
         [return_continuation, Ident.Set.empty; exn_continuation, Ident.Set.empty]
@@ -199,7 +207,10 @@ end = struct
       region_stack = [];
       region_stack_in_cont_scope =
         Continuation.Map.singleton return_continuation [];
-      region_closure_continuations = Ident.Map.empty
+      region_closure_continuations = Ident.Map.empty;
+      current_function_name_and_arity;
+      return_continuation;
+      exn_continuation
     }
 
   let current_unit_id t = t.current_unit_id
@@ -420,6 +431,11 @@ end = struct
     with Not_found ->
       Misc.fatal_errorf "No region closure continuation found for %a"
         Ident.print id
+
+  let current_function_name_and_arity t = t.current_function_name_and_arity
+
+  let return_continuation t = t.return_continuation
+  let exn_continuation t = t.exn_continuation
 end
 
 module CCenv = Closure_conversion_aux.Env
@@ -925,6 +941,15 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pprobe_is_enabled _ ->
     false
 
+let check_variable_use env id acc =
+  match Env.current_function_name_and_arity env with
+  | None -> acc
+  | Some (fid, _) ->
+    if Ident.equal id fid then Acc.with_is_purely_tailrec acc false else acc
+
+let check_variable_uses env ids acc =
+  Ident.Set.fold (check_variable_use env) ids acc
+
 let rec cps_non_tail acc env ccenv (lam : L.lambda)
     (* CR pchambart: The Ident.t argument of k could probably be something
        similar to a simple *)
@@ -933,6 +958,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
   match lam with
   | Lvar id ->
     assert (not (Env.is_mutable env id));
+    let acc = check_variable_use env id acc in
     k acc env ccenv id
   | Lmutvar id ->
     let return_id = Env.get_mutable_variable env id in
@@ -965,6 +991,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
         ~recursive:(Non_recursive : Recursive.t)
         func
     in
+    let acc = check_variable_uses env (Function_decl.free_idents func) acc in
     let body acc ccenv = k acc env ccenv id in
     CC.close_let_rec acc ccenv ~function_declarations:[func] ~body
       ~current_region:(Env.current_region env)
@@ -982,6 +1009,9 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
     ->
     (* This case is here to get function names right. *)
     let bindings = cps_function_bindings env [fun_id, L.Lfunction func] in
+    let acc = List.fold_left (fun acc func ->
+        check_variable_uses env (Function_decl.free_idents func) acc)
+        acc bindings in
     let body acc ccenv = cps_non_tail acc env ccenv body k k_exn in
     let let_expr =
       List.fold_left
@@ -1049,6 +1079,9 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
     match Dissect_letrec.dissect_letrec ~bindings ~body with
     | Unchanged ->
       let function_declarations = cps_function_bindings env bindings in
+      let acc = List.fold_left (fun acc func ->
+          check_variable_uses env (Function_decl.free_idents func) acc)
+          acc function_declarations in
       let body acc ccenv = cps_non_tail acc env ccenv body k k_exn in
       CC.close_let_rec acc ccenv ~function_declarations ~body
         ~current_region:(Env.current_region env)
@@ -1337,12 +1370,26 @@ and cps_non_tail_simple acc env ccenv (lam : L.lambda)
       (fun acc env ccenv id -> k acc env ccenv (IR.Var id))
       k_exn
 
+and cps_non_tail_ap_func acc env ccenv (ap_func : L.lambda) is_tail k k_exn =
+  match [@ocaml.warning "-4"] ap_func with
+  | Lvar id when is_tail ->
+    assert (not (Env.is_mutable env id));
+    k acc env ccenv id
+  | _ -> cps_non_tail acc env ccenv ap_func k k_exn
+
 and cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode ap_loc
     ap_inlined ap_probe (k : Continuation.t) (k_exn : Continuation.t) :
     Expr_with_acc.t =
+  let is_tail =
+    Continuation.equal k (Env.return_continuation env) &&
+    Continuation.equal k_exn (Env.exn_continuation env) &&
+    (match Env.current_function_name_and_arity env with
+     | Some (_, arity) -> List.length ap_args = arity
+     | None -> false)
+  in
   cps_non_tail_list acc env ccenv ap_args
     (fun acc env ccenv args ->
-      cps_non_tail acc env ccenv ap_func
+      cps_non_tail_ap_func acc env ccenv ap_func is_tail
         (fun acc env ccenv func ->
           let exn_continuation : IR.exn_continuation =
             { exn_handler = k_exn;
@@ -1372,6 +1419,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
   match lam with
   | Lvar id ->
     assert (not (Env.is_mutable env id));
+    let acc = check_variable_use env id acc in
     let dbg = Debuginfo.none in
     apply_cont_with_extra_args acc env ccenv ~dbg k None [IR.Var id]
   | Lmutvar id ->
@@ -1402,6 +1450,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
         ~recursive:(Non_recursive : Recursive.t)
         func
     in
+    let acc = check_variable_uses env (Function_decl.free_idents func) acc in
     let body acc ccenv =
       apply_cont_with_extra_args acc env ccenv ~dbg k None [IR.Var id]
     in
@@ -1421,6 +1470,9 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
     ->
     (* This case is here to get function names right. *)
     let bindings = cps_function_bindings env [fun_id, L.Lfunction func] in
+    let acc = List.fold_left (fun acc func ->
+        check_variable_uses env (Function_decl.free_idents func) acc)
+        acc bindings in
     let body acc ccenv = cps_tail acc env ccenv body k k_exn in
     let let_expr =
       List.fold_left
@@ -1518,6 +1570,9 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
     match Dissect_letrec.dissect_letrec ~bindings ~body with
     | Unchanged ->
       let function_declarations = cps_function_bindings env bindings in
+      let acc = List.fold_left (fun acc func ->
+          check_variable_uses env (Function_decl.free_idents func) acc)
+          acc function_declarations in
       let body acc ccenv = cps_tail acc env ccenv body k k_exn in
       let current_region = Env.current_region env in
       CC.close_let_rec acc ccenv ~function_declarations ~body ~current_region
@@ -1862,6 +1917,7 @@ and cps_function env ~fid ~stub ~(recursive : Recursive.t)
   let new_env =
     Env.create ~current_unit_id:(Env.current_unit_id env)
       ~return_continuation:body_cont ~exn_continuation:body_exn_cont ~my_region
+      ~current_function_name_and_arity:(Some (fid, List.length params))
   in
   let exn_continuation : IR.exn_continuation =
     { exn_handler = body_exn_cont; extra_args = [] }
@@ -2038,7 +2094,7 @@ let lambda_to_flambda ~mode ~symbol_for_global ~big_endian ~cmx_loader
   let toplevel_my_region = Ident.create_local "toplevel_my_region" in
   let env =
     Env.create ~current_unit_id ~return_continuation ~exn_continuation
-      ~my_region:toplevel_my_region
+      ~my_region:toplevel_my_region ~current_function_name_and_arity:None
   in
   let toplevel acc ccenv =
     cps_tail acc env ccenv lam return_continuation exn_continuation

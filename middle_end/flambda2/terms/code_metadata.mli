@@ -66,6 +66,8 @@ module type Code_metadata_accessors_result_type = sig
   val absolute_history : 'a t -> Inlining_history.Absolute.t
 
   val relative_history : 'a t -> Inlining_history.Relative.t
+
+  val perform_tailrec_to_cont : 'a t -> bool
 end
 
 module Code_metadata_accessors : functor (X : Metadata_view_type) ->
@@ -93,6 +95,7 @@ type 'a create_type =
   inlining_decision:Function_decl_inlining_decision_type.t ->
   absolute_history:Inlining_history.Absolute.t ->
   relative_history:Inlining_history.Relative.t ->
+  perform_tailrec_to_cont:bool ->
   'a
 
 val createk : (t -> 'a) -> 'a create_type

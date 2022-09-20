@@ -252,6 +252,10 @@ module Acc : sig
 
   val add_set_of_closures_offsets :
     is_phantom:bool -> t -> Set_of_closures.t -> t
+
+  val is_purely_tailrec : t -> bool
+
+  val with_is_purely_tailrec : t -> bool -> t
 end
 
 (** Used to represent information about a set of function declarations during

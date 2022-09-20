@@ -1089,6 +1089,16 @@ let close_one_function acc ~external_env ~by_function_slot decl
   let return = Function_decl.return decl in
   let return_continuation = Function_decl.return_continuation decl in
   let recursive = Function_decl.recursive decl in
+  (* Mark function for self tail calls to continuation
+     conversion only if is is recursive *)
+  let old_is_purely_tailrec = Acc.is_purely_tailrec acc in
+  let is_purely_tailrec_init =
+    match recursive with
+    | Recursive ->
+      List.length (Function_decls.to_list function_declarations) = 1
+    | Non_recursive -> false
+  in
+  let acc = Acc.with_is_purely_tailrec acc is_purely_tailrec_init in
   let my_closure = Variable.create "my_closure" in
   let my_region = Function_decl.my_region decl in
   let function_slot = Function_decl.function_slot decl in
@@ -1301,6 +1311,8 @@ let close_one_function acc ~external_env ~by_function_slot decl
     then Never_inline
     else Inline_attribute.from_lambda (Function_decl.inline decl)
   in
+  let is_purely_tailrec = Acc.is_purely_tailrec acc in
+  let acc = Acc.with_is_purely_tailrec acc old_is_purely_tailrec in
   let params_and_body =
     Function_params_and_body.create ~return_continuation
       ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
@@ -1351,6 +1363,7 @@ let close_one_function acc ~external_env ~by_function_slot decl
       ~is_my_closure_used:
         (Function_params_and_body.is_my_closure_used params_and_body)
       ~inlining_decision ~absolute_history ~relative_history
+      ~perform_tailrec_to_cont:is_purely_tailrec
   in
   let approx =
     let code = Code_or_metadata.create code in

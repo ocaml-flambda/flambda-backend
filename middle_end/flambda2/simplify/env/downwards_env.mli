@@ -182,7 +182,7 @@ val enter_closure :
   Code_id.t ->
   return_continuation:Continuation.t ->
   exn_continuation:Continuation.t ->
-  self_continuation:Continuation.t ->
+  self_continuation:Continuation.t option ->
   my_closure:Variable.t ->
   t ->
   t

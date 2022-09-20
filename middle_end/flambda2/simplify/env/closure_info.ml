@@ -20,7 +20,7 @@ type t =
       { code_id : Code_id.t;
         return_continuation : Continuation.t;
         exn_continuation : Continuation.t;
-        self_continuation : Continuation.t;
+        self_continuation : Continuation.t option;
         my_closure : Variable.t
       }
 
@@ -40,7 +40,7 @@ let [@ocamlformat "disable"] print ppf = function
       Code_id.print code_id
       Continuation.print return_continuation
       Continuation.print exn_continuation
-      Continuation.print self_continuation
+      ((fun pp ff -> function None -> Format.fprintf ff "None" | Some x -> Format.fprintf ff "Some %a" pp x) Continuation.print) self_continuation
       Variable.print my_closure
 
 let not_in_a_closure = Not_in_a_closure
