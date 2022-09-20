@@ -882,14 +882,6 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
     down_to_up dacc ~rebuild
 
 let simplify_apply_shared dacc apply =
-  let dacc =
-    Simplify_rec_to_cont.update_dacc_for_my_closure_use_simple dacc
-      (Apply.callee apply)
-  in
-  let dacc =
-    Simplify_rec_to_cont.update_dacc_for_my_closure_use_list dacc
-      (Apply.args apply)
-  in
   let callee_ty =
     S.simplify_simple dacc (Apply.callee apply) ~min_name_mode:NM.normal
   in

@@ -28,14 +28,13 @@ type t =
     data_flow : Data_flow.t;
     demoted_exn_handlers : Continuation.Set.t;
     code_ids_to_remember : Code_id.Set.t;
-    slot_offsets : Slot_offsets.t Code_id.Map.t;
-    my_closure_only_used_for_tail_calls : bool
+    slot_offsets : Slot_offsets.t Code_id.Map.t
   }
 
 let [@ocamlformat "disable"] print ppf
       { denv; continuation_uses_env; shareable_constants; used_value_slots;
         lifted_constants; data_flow; demoted_exn_handlers; code_ids_to_remember;
-        slot_offsets; my_closure_only_used_for_tail_calls } =
+        slot_offsets } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(denv@ %a)@]@ \
       @[<hov 1>(continuation_uses_env@ %a)@]@ \
@@ -45,8 +44,7 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>(data_flow@ %a)@]@ \
       @[<hov 1>(demoted_exn_handlers@ %a)@]@ \
       @[<hov 1>(code_ids_to_remember@ %a)@]@ \
-      @[<hov 1>(slot_offsets@ %a)@]@ \
-      @[<hov 1>(my_closure_only_used_for_tail_calls@ %s)@]\
+      @[<hov 1>(slot_offsets@ %a)@]\
       )@]"
     DE.print denv
     CUE.print continuation_uses_env
@@ -57,7 +55,6 @@ let [@ocamlformat "disable"] print ppf
     Continuation.Set.print demoted_exn_handlers
     Code_id.Set.print code_ids_to_remember
     (Code_id.Map.print Slot_offsets.print) slot_offsets
-    (if my_closure_only_used_for_tail_calls then "true" else "false")
 
 let create denv continuation_uses_env =
   { denv;
@@ -68,8 +65,7 @@ let create denv continuation_uses_env =
     lifted_constants = LCS.empty;
     data_flow = Data_flow.empty;
     demoted_exn_handlers = Continuation.Set.empty;
-    code_ids_to_remember = Code_id.Set.empty;
-    my_closure_only_used_for_tail_calls = true
+    code_ids_to_remember = Code_id.Set.empty
   }
 
 let denv t = t.denv
@@ -197,16 +193,3 @@ let demoted_exn_handlers t = t.demoted_exn_handlers
 let slot_offsets t = t.slot_offsets
 
 let with_slot_offsets t ~slot_offsets = { t with slot_offsets }
-
-let my_closure_only_used_for_tail_calls t =
-  t.my_closure_only_used_for_tail_calls
-
-let with_my_closure_only_used_for_tail_calls t
-    ~my_closure_only_used_for_tail_calls =
-  { t with my_closure_only_used_for_tail_calls }
-
-let mark_my_closure_used t b =
-  { t with
-    my_closure_only_used_for_tail_calls =
-      t.my_closure_only_used_for_tail_calls && not b
-  }

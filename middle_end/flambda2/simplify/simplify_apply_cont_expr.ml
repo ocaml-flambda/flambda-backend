@@ -142,9 +142,6 @@ let simplify_apply_cont dacc apply_cont ~down_to_up =
     in
     DA.map_data_flow dacc ~f:record_args_for_data_flow
   in
-  let dacc =
-    Simplify_rec_to_cont.update_dacc_for_my_closure_use_list dacc args
-  in
   let use_kind =
     Simplify_common.apply_cont_use_kind ~context:Apply_cont_expr apply_cont
   in
