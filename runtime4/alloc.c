@@ -67,12 +67,42 @@ CAMLexport value caml_alloc (mlsize_t wosize, tag_t tag) {
   return caml_alloc_with_reserved (wosize, tag, 0);
 }
 
+/* This is used by the native compiler for large block allocations. */
+CAMLexport value caml_alloc_shr_reserved_check_gc (mlsize_t wosize, tag_t tag,
+                                                   reserved_t reserved)
+{
+  CAMLassert (tag < Num_tags);
+  CAMLassert (tag != Infix_tag);
+  caml_check_urgent_gc (Val_unit);
+  value result = caml_alloc_shr_reserved (wosize, tag, reserved);
+  if (tag < No_scan_tag) {
+    mlsize_t scannable_wosize = Scannable_wosize_val(result);
+    for (mlsize_t i = 0; i < scannable_wosize; i++) {
+      Field (result, i) = Val_unit;
+    }
+  }
+  return result;
+}
+
+CAMLexport value caml_alloc_shr_check_gc (mlsize_t wosize, tag_t tag)
+{
+  return caml_alloc_shr_reserved_check_gc(wosize, tag, 0);
+}
+
 #ifdef NATIVE_CODE
 CAMLexport value caml_alloc_mixed (mlsize_t wosize, tag_t tag,
                                    mlsize_t scannable_prefix) {
   reserved_t reserved =
     Reserved_mixed_block_scannable_wosize_native(scannable_prefix);
   return caml_alloc_with_reserved (wosize, tag, reserved);
+}
+
+CAMLexport value caml_alloc_mixed_shr_check_gc (mlsize_t wosize, tag_t tag,
+                                                mlsize_t scannable_prefix_len)
+{
+  reserved_t reserved =
+    Reserved_mixed_block_scannable_wosize_native(scannable_prefix_len);
+  return caml_alloc_shr_reserved_check_gc(wosize, tag, reserved);
 }
 #endif // NATIVE_CODE
 
