@@ -603,7 +603,7 @@ let run : Cfg_with_liveness.t -> Cfg_with_liveness.t =
     List.iter spilling ~f:(fun reg -> State.add_spilled_nodes state reg);
     (* note: rewrite will remove the `spilling` registers from the "spilled"
        work list and set the field to unknown. *)
-    rewrite state cfg_with_lliveness spilling ~reset:false);
+    rewrite state cfg_with_liveness spilling ~reset:false);
   main ~round:1 state cfg_with_liveness;
   (* note: slots need to be updated before prologue removal *)
   if irc_debug
