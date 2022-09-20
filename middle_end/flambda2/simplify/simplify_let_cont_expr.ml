@@ -939,7 +939,7 @@ let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
       (after_downwards_traversal_of_one_recursive_let_cont_handler cont
          unboxing_decisions params ~original_cont_scope ~down_to_up)
 
-let rebuild_recursive_let_cont_expr art body ~free_names_of_body handlers =
+let rebuild_recursive_let_cont_expr art ~body ~free_names_of_body ~handlers =
   match handlers with
   | Non_recursive_handler (cont, handler) ->
     let is_used =
@@ -961,7 +961,7 @@ let rebuild_recursive_let_cont ~body handlers ~cost_metrics_of_handlers
   let expr =
     rebuild_recursive_let_cont_expr
       (UA.are_rebuilding_terms uacc)
-      body handlers ~free_names_of_body
+      ~body ~handlers ~free_names_of_body
   in
   let uacc =
     UA.add_cost_metrics
