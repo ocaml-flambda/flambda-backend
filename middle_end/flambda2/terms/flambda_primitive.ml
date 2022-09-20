@@ -571,8 +571,8 @@ let equal_nullary_primitive p1 p2 = compare_nullary_primitive p1 p2 = 0
 let print_nullary_primitive ppf p =
   match p with
   | Optimised_out _ ->
-    Format.fprintf ppf "@<0>%sOptimised_out@<0>%s" (Flambda_colours.elide ())
-      (Flambda_colours.normal ())
+    Format.fprintf ppf "%tOptimised_out%t" Flambda_colours.elide
+      Flambda_colours.pop
   | Probe_is_enabled { name } ->
     Format.fprintf ppf "@[<hov 1>(Probe_is_enabled@ %s)@]" name
   | Begin_region -> Format.pp_print_string ppf "Begin_region"
@@ -795,13 +795,11 @@ let print_unary_primitive ppf p =
   | Box_number (k, Local) ->
     fprintf ppf "Box_%a[local]" K.Boxable_number.print_lowercase_short k
   | Project_function_slot { move_from; move_to } ->
-    Format.fprintf ppf "@[(Project_function_slot@ (%a \u{2192} %a@<0>%s))@]"
+    Format.fprintf ppf "@[(Project_function_slot@ (%a \u{2192} %a))@]"
       Function_slot.print move_from Function_slot.print move_to
-      (Flambda_colours.prim_destructive ())
   | Project_value_slot { project_from; value_slot } ->
-    Format.fprintf ppf "@[(Project_value_slot@ (%a@ %a@<0>%s))@]"
-      Function_slot.print project_from Value_slot.print value_slot
-      (Flambda_colours.prim_destructive ())
+    Format.fprintf ppf "@[(Project_value_slot@ (%a@ %a))@]" Function_slot.print
+      project_from Value_slot.print value_slot
   | Is_boxed_float -> fprintf ppf "Is_boxed_float"
   | Is_flat_float_array -> fprintf ppf "Is_flat_float_array"
   | End_region -> Format.pp_print_string ppf "End_region"
@@ -1417,42 +1415,42 @@ include Container_types.Make (struct
   let [@ocamlformat "disable"] print ppf t =
     let colour =
       match classify_for_printing t with
-      | Constructive -> Flambda_colours.prim_constructive ()
-      | Destructive -> Flambda_colours.prim_destructive ()
-      | Neither -> Flambda_colours.prim_neither ()
+      | Constructive -> Flambda_colours.prim_constructive
+      | Destructive -> Flambda_colours.prim_destructive
+      | Neither -> Flambda_colours.prim_neither
     in
     match t with
     | Nullary prim ->
-      Format.fprintf ppf "@[<hov 1>@<0>%s%a@<0>%s@]"
+      Format.fprintf ppf "@[<hov 1>%t%a%t@]"
         colour
         print_nullary_primitive prim
-        (Flambda_colours.normal ())
+        Flambda_colours.pop
     | Unary (prim, v0) ->
-      Format.fprintf ppf "@[<hov 1>(@<0>%s%a@<0>%s@ %a)@]"
+      Format.fprintf ppf "@[<hov 1>(%t%a%t@ %a)@]"
         colour
         print_unary_primitive prim
-        (Flambda_colours.normal ())
+        Flambda_colours.pop
         Simple.print v0
     | Binary (prim, v0, v1) ->
-      Format.fprintf ppf "@[<hov 1>(@<0>%s%a@<0>%s@ %a@ %a)@]"
+      Format.fprintf ppf "@[<hov 1>(%t%a%t@ %a@ %a)@]"
         colour
         print_binary_primitive prim
-        (Flambda_colours.normal ())
+        Flambda_colours.pop
         Simple.print v0
         Simple.print v1
     | Ternary (prim, v0, v1, v2) ->
-      Format.fprintf ppf "@[<hov 1>(@<0>%s%a@<0>%s@ %a@ %a@ %a)@]"
+      Format.fprintf ppf "@[<hov 1>(%t%a%t@ %a@ %a@ %a)@]"
         colour
         print_ternary_primitive prim
-        (Flambda_colours.normal ())
+        Flambda_colours.pop
         Simple.print v0
         Simple.print v1
         Simple.print v2
     | Variadic (prim, vs) ->
-      Format.fprintf ppf "@[<hov 1>(@<0>%s%a@<0>%s@ %a)@]"
+      Format.fprintf ppf "@[<hov 1>(%t%a%t@ %a)@]"
         colour
         print_variadic_primitive prim
-        (Flambda_colours.normal ())
+        Flambda_colours.pop
         (Format.pp_print_list ~pp_sep:Format.pp_print_space Simple.print) vs
 end)
 

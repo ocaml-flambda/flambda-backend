@@ -61,76 +61,76 @@ let immutable_string str = Immutable_string str
 let [@ocamlformat "disable"] print ppf t =
   match t with
   | Set_of_closures set ->
-    fprintf ppf "@[<hov 1>(@<0>%sSet_of_closures@<0>%s@ %a)@]"
-      (Flambda_colours.static_part ())
-      (Flambda_colours.normal ())
+    fprintf ppf "@[<hov 1>(%tSet_of_closures%t@ %a)@]"
+      Flambda_colours.static_part
+      Flambda_colours.pop
       Set_of_closures.print set
   | Block (tag, mut, fields) ->
-    fprintf ppf "@[<hov 1>(@<0>%s%sblock@<0>%s@ (tag %a)@ (%a))@]"
-      (Flambda_colours.static_part ())
+    fprintf ppf "@[<hov 1>(%t%sblock%t@ (tag %a)@ (%a))@]"
+      Flambda_colours.static_part
       (match mut with
         | Immutable -> "Immutable_"
         | Immutable_unique -> "Unique_"
         | Mutable -> "Mutable_")
-      (Flambda_colours.normal ())
+      Flambda_colours.pop
       Tag.Scannable.print tag
       (Format.pp_print_list ~pp_sep:Format.pp_print_space
         Field_of_static_block.print) fields
   | Boxed_float or_var ->
-    fprintf ppf "@[<hov 1>(@<0>%sBoxed_float@<0>%s@ %a)@]"
-      (Flambda_colours.static_part ())
-      (Flambda_colours.normal ())
+    fprintf ppf "@[<hov 1>(%tBoxed_float%t@ %a)@]"
+      Flambda_colours.static_part
+      Flambda_colours.pop
       (Or_variable.print Numeric_types.Float_by_bit_pattern.print) or_var
   | Boxed_int32 or_var ->
-    fprintf ppf "@[<hov 1>(@<0>%sBoxed_int32@<0>%s@ %a)@]"
-      (Flambda_colours.static_part ())
-      (Flambda_colours.normal ())
+    fprintf ppf "@[<hov 1>(%tBoxed_int32%t@ %a)@]"
+      Flambda_colours.static_part
+      Flambda_colours.pop
       (Or_variable.print Numeric_types.Int32.print) or_var
   | Boxed_int64 or_var ->
-    fprintf ppf "@[<hov 1>(@<0>%sBoxed_int64@<0>%s@ %a)@]"
-      (Flambda_colours.static_part ())
-      (Flambda_colours.normal ())
+    fprintf ppf "@[<hov 1>(%tBoxed_int64%t@ %a)@]"
+      Flambda_colours.static_part
+      Flambda_colours.pop
       (Or_variable.print Numeric_types.Int64.print) or_var
   | Boxed_nativeint or_var ->
-    fprintf ppf "@[<hov 1>(@<0>%sBoxed_nativeint@<0>%s@ %a)@]"
-      (Flambda_colours.static_part ())
-      (Flambda_colours.normal ())
+    fprintf ppf "@[<hov 1>(%tBoxed_nativeint%t@ %a)@]"
+      Flambda_colours.static_part
+      Flambda_colours.pop
       (Or_variable.print Targetint_32_64.print) or_var
   | Immutable_float_block fields ->
-    fprintf ppf "@[<hov 1>(@<0>%sImmutable_float_block@<0>%s@ @[[| %a |]@])@]"
-      (Flambda_colours.static_part ())
-      (Flambda_colours.normal ())
+    fprintf ppf "@[<hov 1>(%tImmutable_float_block%t@ @[[| %a |]@])@]"
+      Flambda_colours.static_part
+      Flambda_colours.pop
       (Format.pp_print_list
         ~pp_sep:(fun ppf () -> Format.pp_print_string ppf "@; ")
         (Or_variable.print Numeric_types.Float_by_bit_pattern.print))
       fields
   | Immutable_float_array fields ->
-    fprintf ppf "@[<hov 1>(@<0>%sImmutable_float_array@<0>%s@ @[[| %a |]@])@]"
-      (Flambda_colours.static_part ())
-      (Flambda_colours.normal ())
+    fprintf ppf "@[<hov 1>(%tImmutable_float_array%t@ @[[| %a |]@])@]"
+      Flambda_colours.static_part
+      Flambda_colours.pop
       (Format.pp_print_list
         ~pp_sep:(fun ppf () -> Format.pp_print_string ppf "@; ")
         (Or_variable.print Numeric_types.Float_by_bit_pattern.print))
       fields
   | Immutable_value_array fields ->
-    fprintf ppf "@[<hov 1>(@<0>%sImmutable_value_array@<0>%s@ (%a))@]"
-      (Flambda_colours.static_part ())
-      (Flambda_colours.normal ())
+    fprintf ppf "@[<hov 1>(%tImmutable_value_array%t@ (%a))@]"
+      Flambda_colours.static_part
+      Flambda_colours.pop
       (Format.pp_print_list ~pp_sep:Format.pp_print_space
         Field_of_static_block.print) fields
   | Empty_array ->
-    fprintf ppf "@<0>%sEmpty_array@<0>%s"
-      (Flambda_colours.static_part ())
-      (Flambda_colours.normal ())
+    fprintf ppf "%tEmpty_array%t"
+      Flambda_colours.static_part
+      Flambda_colours.pop
   | Mutable_string { initial_value = s; } ->
-    fprintf ppf "@[<hov 1>(@<0>%sMutable_string@<0>%s@ %S)@]"
-      (Flambda_colours.static_part ())
-      (Flambda_colours.normal ())
+    fprintf ppf "@[<hov 1>(%tMutable_string%t@ %S)@]"
+      Flambda_colours.static_part
+      Flambda_colours.pop
       s
   | Immutable_string s ->
-    fprintf ppf "@[<hov 1>(@<0>%sImmutable_string@<0>%s@ %S)@]"
-      (Flambda_colours.static_part ())
-      (Flambda_colours.normal ())
+    fprintf ppf "@[<hov 1>(%tImmutable_string%t@ %S)@]"
+      Flambda_colours.static_part
+      Flambda_colours.pop
       s
 
 include Container_types.Make (struct

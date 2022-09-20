@@ -93,7 +93,7 @@ let [@ocamlformat "disable"] print ppf
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(%a\u{3008}%a\u{3009}\u{300a}%a\u{300b}@ (%a))@]@ \
       @[<hov 1>(call_kind@ %a)@]@ \
-      @[<hov 1>@<0>%s(dbg@ %a)@<0>%s@]@ \
+      @[<hov 1>%t(dbg@ %a)%t@]@ \
       @[<hov 1>(inline@ %a)@]@ \
       @[<hov 1>(inlining_state@ %a)@]@ \
       %a\
@@ -105,9 +105,9 @@ let [@ocamlformat "disable"] print ppf
     Exn_continuation.print exn_continuation
     Simple.List.print args
     Call_kind.print call_kind
-    (Flambda_colours.debuginfo ())
+    Flambda_colours.debuginfo
     Debuginfo.print_compact dbg
-    (Flambda_colours.normal ())
+    Flambda_colours.pop
     Inlined_attribute.print inlined
     Inlining_state.print inlining_state
     print_inlining_paths relative_history

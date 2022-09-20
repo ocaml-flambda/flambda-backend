@@ -811,12 +811,10 @@ and print_row_like :
   in
   if row_like_is_bottom ~known ~other ~is_empty_map_known
   then
-    let colour = Flambda_colours.top_or_bottom_type () in
+    let colour = Flambda_colours.top_or_bottom_type in
     if Flambda_features.unicode ()
-    then
-      Format.fprintf ppf "@<0>%s@<1>\u{22a5}@<0>%s" colour
-        (Flambda_colours.normal ())
-    else Format.fprintf ppf "%s_|_%s" colour (Flambda_colours.normal ())
+    then Format.fprintf ppf "%t@<1>\u{22a5}%t" colour Flambda_colours.pop
+    else Format.fprintf ppf "%t_|_%t" colour Flambda_colours.pop
   else
     let pp_env_extension ppf env_extension =
       if not (Name.Map.is_empty env_extension.equations)

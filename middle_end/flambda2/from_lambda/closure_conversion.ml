@@ -1194,13 +1194,12 @@ let close_one_function acc ~external_env ~by_function_slot decl
       let bt = Printexc.get_raw_backtrace () in
       Format.eprintf
         "\n\
-         %sContext is:%s closure converting function@ with [our_let_rec_ident] \
+         %tContext is:%t closure converting function@ with [our_let_rec_ident] \
          %a (function slot %a)"
         (* @ \ *)
         (* and body:@ %a *)
-        (Flambda_colours.error ())
-        (Flambda_colours.normal ())
-        Ident.print our_let_rec_ident Function_slot.print function_slot;
+        Flambda_colours.error Flambda_colours.pop Ident.print our_let_rec_ident
+        Function_slot.print function_slot;
       (* print body *)
       Printexc.raise_with_backtrace Misc.Fatal_error bt
   in
