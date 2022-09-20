@@ -2,10 +2,9 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*                        Guillaume Bury, OCamlPro                        *)
+(*                     Nathanaëlle Courant, OCamlPro                      *)
 (*                                                                        *)
-(*   Copyright 2021--2021 OCamlPro SAS                                    *)
-(*   Copyright 2021--2021 Jane Street Group LLC                           *)
+(*   Copyright 2022 OCamlPro SAS                                          *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -14,30 +13,11 @@
 (**************************************************************************)
 
 type t = private
-  | Not_in_a_closure
-  | In_a_set_of_closures_but_not_yet_in_a_specific_closure
-  | Closure of
-      { code_id : Code_id.t;
-        return_continuation : Continuation.t;
-        exn_continuation : Continuation.t;
-        my_closure : Variable.t
-      }
+  | Do_not_rewrite_self_tail_calls
+  | Rewrite_self_tail_calls of Continuation.t
 
 val print : Format.formatter -> t -> unit
 
-val not_in_a_closure : t
+val do_not_rewrite_self_tail_calls : t
 
-val in_a_set_of_closures : t
-
-val in_a_closure :
-  Code_id.t ->
-  return_continuation:Continuation.t ->
-  exn_continuation:Continuation.t ->
-  my_closure:Variable.t ->
-  t
-
-type in_or_out_of_closure = private
-  | In_a_closure
-  | Not_in_a_closure
-
-val in_or_out_of_closure : t -> in_or_out_of_closure
+val rewrite_self_tail_calls : Continuation.t -> t

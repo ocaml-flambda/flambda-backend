@@ -44,7 +44,8 @@ type t =
     closure_info : Closure_info.t;
     get_imported_code : unit -> Exported_code.t;
     all_code : Code.t Code_id.Map.t;
-    inlining_history_tracker : Inlining_history.Tracker.t
+    inlining_history_tracker : Inlining_history.Tracker.t;
+    tailrec_to_cont : Tailrec_to_cont.t
   }
 
 let print_debuginfo ppf dbg =
@@ -60,6 +61,7 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
                 do_not_rebuild_terms; closure_info;
                 unit_toplevel_return_continuation; all_code;
                 get_imported_code = _; inlining_history_tracker = _;
+                tailrec_to_cont
               } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(round@ %d)@]@ \
@@ -75,7 +77,8 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
       @[<hov 1>(cse@ @[<hov 1>%a@])@]@ \
       @[<hov 1>(do_not_rebuild_terms@ %b)@]@ \
       @[<hov 1>(closure_info@ %a)@]@ \
-      @[<hov 1>(all_code@ %a)@]\
+      @[<hov 1>(all_code@ %a)@]@ \
+      @[<hov 1>(tailrec_to_cont@ %a)@]\
       )@]"
     round
     TE.print typing_env
@@ -91,6 +94,7 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
     do_not_rebuild_terms
     Closure_info.print closure_info
     (Code_id.Map.print Code.print) all_code
+    Tailrec_to_cont.print tailrec_to_cont
 
 let create ~round ~(resolver : resolver)
     ~(get_imported_names : get_imported_names)
@@ -119,7 +123,8 @@ let create ~round ~(resolver : resolver)
     all_code = Code_id.Map.empty;
     get_imported_code;
     inlining_history_tracker =
-      Inlining_history.Tracker.empty (Compilation_unit.get_current_exn ())
+      Inlining_history.Tracker.empty (Compilation_unit.get_current_exn ());
+    tailrec_to_cont = Tailrec_to_cont.do_not_rewrite_self_tail_calls
   }
 
 let all_code t = t.all_code
@@ -178,7 +183,8 @@ let enter_set_of_closures
       closure_info = _;
       get_imported_code;
       all_code;
-      inlining_history_tracker
+      inlining_history_tracker;
+      tailrec_to_cont = _
     } =
   { round;
     typing_env = TE.closure_env typing_env;
@@ -195,7 +201,8 @@ let enter_set_of_closures
     closure_info = Closure_info.in_a_set_of_closures;
     get_imported_code;
     all_code;
-    inlining_history_tracker
+    inlining_history_tracker;
+    tailrec_to_cont = Tailrec_to_cont.do_not_rewrite_self_tail_calls
   }
 
 let define_variable t var kind =
@@ -478,12 +485,11 @@ let set_rebuild_terms t = { t with do_not_rebuild_terms = false }
 let are_rebuilding_terms t =
   Are_rebuilding_terms.of_bool (not t.do_not_rebuild_terms)
 
-let enter_closure code_id ~return_continuation ~exn_continuation
-    ~self_continuation ~my_closure t =
+let enter_closure code_id ~return_continuation ~exn_continuation ~my_closure t =
   { t with
     closure_info =
       Closure_info.in_a_closure code_id ~return_continuation ~exn_continuation
-        ~self_continuation ~my_closure
+        ~my_closure
   }
 
 let closure_info t = t.closure_info
@@ -537,3 +543,7 @@ let generate_phantom_lets t =
   (* It would be a waste of time generating phantom lets when not rebuilding
      terms, since they have no effect on cost metrics. *)
   && Are_rebuilding_terms.are_rebuilding (are_rebuilding_terms t)
+
+let tailrec_to_cont t = t.tailrec_to_cont
+
+let set_tailrec_to_cont tailrec_to_cont t = { t with tailrec_to_cont }

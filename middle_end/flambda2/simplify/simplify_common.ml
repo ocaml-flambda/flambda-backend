@@ -56,7 +56,7 @@ type simplify_function_body =
   exn_continuation:Continuation.t ->
   return_cont_scope:Scope.t ->
   exn_cont_scope:Scope.t ->
-  self_continuation:Continuation.t option ->
+  tailrec_to_cont:Tailrec_to_cont.t ->
   params:Bound_parameters.t ->
   Rebuilt_expr.t * Upwards_acc.t
 

@@ -123,27 +123,26 @@ and simplify_toplevel dacc expr ~return_continuation ~return_arity
     ~return_cont_scope ~exn_cont_scope
 
 and simplify_function_body dacc expr ~return_continuation ~return_arity
-    ~exn_continuation ~return_cont_scope ~exn_cont_scope ~self_continuation
+    ~exn_continuation ~return_cont_scope ~exn_cont_scope ~tailrec_to_cont
     ~params =
-  match self_continuation with
-  | None ->
+  match tailrec_to_cont with
+  | Tailrec_to_cont.Do_not_rewrite_self_tail_calls ->
     simplify_toplevel_common dacc
       (fun dacc -> simplify_expr dacc expr)
       ~is_in_closure:true ~return_continuation ~return_arity ~exn_continuation
       ~return_cont_scope ~exn_cont_scope
-  | Some self_continuation ->
+  | Tailrec_to_cont.Rewrite_self_tail_calls cont ->
     let args = Bound_parameters.simples params in
     (* CR ncourant Fix missing debug info *)
     let call_self_cont_expr =
-      Expr.create_apply_cont
-        (Apply_cont_expr.create self_continuation ~args ~dbg:[])
+      Expr.create_apply_cont (Apply_cont_expr.create cont ~args ~dbg:[])
     in
     let fresh_params = Bound_parameters.rename params in
     let renaming =
       Bound_parameters.renaming params ~guaranteed_fresh:fresh_params
     in
     let handlers =
-      Continuation.Map.singleton self_continuation
+      Continuation.Map.singleton cont
         (Continuation_handler.create fresh_params
            ~handler:(Expr.apply_renaming expr renaming)
            ~free_names_of_handler:Unknown ~is_exn_handler:false)

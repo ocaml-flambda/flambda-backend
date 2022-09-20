@@ -1055,17 +1055,11 @@ let simplify_c_call ~simplify_expr dacc apply ~callee_ty ~param_arity
     down_to_up dacc ~rebuild
 
 let is_self_tail_call dacc apply =
-  let closure_info = DE.closure_info (DA.denv dacc) in
-  match closure_info with
+  let denv = DA.denv dacc in
+  match DE.closure_info denv with
   | Not_in_a_closure | In_a_set_of_closures_but_not_yet_in_a_specific_closure ->
-    None
-  | Closure
-      { return_continuation;
-        exn_continuation;
-        self_continuation;
-        my_closure;
-        _
-      } ->
+    Tailrec_to_cont.do_not_rewrite_self_tail_calls
+  | Closure { return_continuation; exn_continuation; my_closure; _ } ->
     if Simple.pattern_match' (Apply.callee apply)
          ~const:(fun _ -> false)
          ~symbol:(fun _ ~coercion:_ -> false)
@@ -1078,8 +1072,8 @@ let is_self_tail_call dacc apply =
             (Apply.exn_continuation apply)
             (Exn_continuation.create ~exn_handler:exn_continuation
                ~extra_args:[])
-    then self_continuation
-    else None
+    then DE.tailrec_to_cont denv
+    else Tailrec_to_cont.do_not_rewrite_self_tail_calls
 
 let simplify_self_tail_call dacc apply self_cont ~down_to_up =
   Simplify_apply_cont_expr.simplify_apply_cont dacc
@@ -1089,8 +1083,9 @@ let simplify_self_tail_call dacc apply self_cont ~down_to_up =
 
 let simplify_apply ~simplify_expr dacc apply ~down_to_up =
   match is_self_tail_call dacc apply with
-  | Some self_cont -> simplify_self_tail_call dacc apply self_cont ~down_to_up
-  | None -> (
+  | Rewrite_self_tail_calls self_cont ->
+    simplify_self_tail_call dacc apply self_cont ~down_to_up
+  | Do_not_rewrite_self_tail_calls -> (
     let dacc, callee_ty, apply, arg_types = simplify_apply_shared dacc apply in
     match Apply.call_kind apply with
     | Function { function_call; alloc_mode = apply_alloc_mode } ->

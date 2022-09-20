@@ -182,7 +182,6 @@ val enter_closure :
   Code_id.t ->
   return_continuation:Continuation.t ->
   exn_continuation:Continuation.t ->
-  self_continuation:Continuation.t option ->
   my_closure:Variable.t ->
   t ->
   t
@@ -203,3 +202,7 @@ val inlining_history_tracker : t -> Inlining_history.Tracker.t
 val set_inlining_history_tracker : Inlining_history.Tracker.t -> t -> t
 
 val relative_history : t -> Inlining_history.Relative.t
+
+val tailrec_to_cont : t -> Tailrec_to_cont.t
+
+val set_tailrec_to_cont : Tailrec_to_cont.t -> t -> t
