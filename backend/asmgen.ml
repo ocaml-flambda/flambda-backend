@@ -375,11 +375,16 @@ let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
         let cfg =
           fd
           ++ Profile.record ~accumulate:true "cfgize" cfgize
+          ++ Cfg_with_liveness.make
           ++ Profile.record ~accumulate:true "cfg_deadcode" Cfg_deadcode.run
         in
-        let cfg_description = Profile.record ~accumulate:true "cfg_create_description" Cfg_regalloc_validate.Description.create cfg in
+        let cfg_description =
+          Profile.record ~accumulate:true "cfg_create_description"
+            Cfg_regalloc_validate.Description.create (Cfg_with_liveness.cfg_with_layout cfg)
+        in
         cfg
         ++ Profile.record ~accumulate:true "cfg_irc" Cfg_irc.run
+        ++ Cfg_with_liveness.cfg_with_layout
         ++ Profile.record ~accumulate:true "cfg_validate_description" (Cfg_regalloc_validate.run cfg_description)
         ++ Profile.record ~accumulate:true "cfg_simplify" Cfg_regalloc_utils.simplify_cfg
         ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run)

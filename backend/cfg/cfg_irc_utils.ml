@@ -30,26 +30,33 @@ let log : type a. indent:int -> (a, Format.formatter, unit) format -> a =
 let log_instruction_prefix ~indent (instr : _ Cfg.instruction) : unit =
   Format.eprintf "[irc] %s #%04d " (make_indent indent) instr.id
 
-let log_instruction_suffix (instr : _ Cfg.instruction) : unit =
+let log_instruction_suffix (instr : _ Cfg.instruction) (liveness : liveness) :
+    unit =
+  let live =
+    match Cfg_dataflow.Instr.Tbl.find_opt liveness instr.id with
+    | None -> Reg.Set.empty
+    | Some { before = _; across } -> across
+  in
   Format.eprintf " arg: %a res: %a live: %a" Printmach.regs instr.arg
-    Printmach.regs instr.res Printmach.regset instr.live;
+    Printmach.regs instr.res Printmach.regset live;
   Format.eprintf "\n%!"
 
 let log_body_and_terminator :
     indent:int ->
     Cfg.basic Cfg.instruction list ->
     Cfg.terminator Cfg.instruction ->
+    liveness ->
     unit =
- fun ~indent body term ->
+ fun ~indent body term liveness ->
   if irc_debug && irc_verbose
   then (
     List.iter body ~f:(fun (instr : Cfg.basic Cfg.instruction) ->
         log_instruction_prefix ~indent instr;
         Cfg.dump_basic Format.err_formatter instr.Cfg.desc;
-        log_instruction_suffix instr);
+        log_instruction_suffix instr liveness);
     log_instruction_prefix ~indent term;
     Cfg.dump_terminator ~sep:", " Format.err_formatter term.Cfg.desc;
-    log_instruction_suffix term)
+    log_instruction_suffix term liveness)
 
 module Color = struct
   type t = int

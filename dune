@@ -240,6 +240,7 @@
   cfg_intf
   cfg_to_linear
   cfg_with_layout
+  cfg_with_liveness
   cfg_dataflow
   cfg_deadcode
   cfg_liveness
@@ -754,6 +755,7 @@
   (cfg.mli as compiler-libs/cfg.mli)
   (cfg_to_linear.mli as compiler-libs/cfg_to_linear.mli)
   (cfg_with_layout.mli as compiler-libs/cfg_with_layout.mli)
+  (cfg_with_liveness.mli as compiler-libs/cfg_with_liveness.mli)
   (cfg_dataflow.mli as compiler-libs/cfg_dataflow.mli)
   (cfg_deadcode.mli as compiler-libs/cfg_deadcode.mli)
   (cfg_liveness.mli as compiler-libs/cfg_liveness.mli)
@@ -1176,6 +1178,18 @@
   (.ocamloptcomp.objs/byte/cfg_with_layout.cmti
    as
    compiler-libs/cfg_with_layout.cmti)
+  (.ocamloptcomp.objs/byte/cfg_with_liveness.cmi
+   as
+   compiler-libs/cfg_with_liveness.cmi)
+  (.ocamloptcomp.objs/byte/cfg_with_liveness.cmo
+   as
+   compiler-libs/cfg_with_liveness.cmo)
+  (.ocamloptcomp.objs/byte/cfg_with_liveness.cmt
+   as
+   compiler-libs/cfg_with_liveness.cmt)
+  (.ocamloptcomp.objs/byte/cfg_with_liveness.cmti
+   as
+   compiler-libs/cfg_with_liveness.cmti)
   (.ocamloptcomp.objs/byte/cfg_dataflow.cmi
    as
    compiler-libs/cfg_dataflow.cmi)
@@ -1517,6 +1531,9 @@
   (.ocamloptcomp.objs/native/cfg_with_layout.cmx
    as
    compiler-libs/cfg_with_layout.cmx)
+  (.ocamloptcomp.objs/native/cfg_with_liveness.cmx
+   as
+   compiler-libs/cfg_with_liveness.cmx)
   (.ocamloptcomp.objs/native/cfg_dataflow.cmx
    as
    compiler-libs/cfg_dataflow.cmx)
