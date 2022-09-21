@@ -112,11 +112,11 @@ let [@ocamlformat "disable"] print ppf t =
       Alloc_mode.print alloc_mode
   | C_call { alloc; param_arity; return_arity; is_c_builtin; } ->
     fprintf ppf "@[(C@ @[(alloc %b)@]@ @[(is_c_builtin %b)@]@ \
-        @<0>%s@<1>\u{2237}@<0>%s %a @<1>\u{2192} %a)@]"
+        %t@<1>\u{2237}%t %a @<1>\u{2192} %a)@]"
       alloc
       is_c_builtin
-      (Flambda_colours.elide ())
-      (Flambda_colours.normal ())
+      Flambda_colours.elide
+      Flambda_colours.pop
       Flambda_arity.print param_arity
       Flambda_arity.print return_arity
 

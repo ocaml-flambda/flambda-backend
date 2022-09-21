@@ -297,8 +297,6 @@ let static_consts env r ~params_and_body bound_static static_consts =
       |> Expr.create_let
     in
     Format.eprintf
-      "\n@[<v 0>%sContext is:%s translating `let symbol' to Cmm:@ %a@."
-      (Flambda_colours.error ())
-      (Flambda_colours.normal ())
-      Expr.print tmp_let_symbol;
+      "\n@[<v 0>%tContext is:%t translating `let symbol' to Cmm:@ %a@."
+      Flambda_colours.error Flambda_colours.pop Expr.print tmp_let_symbol;
     raise e

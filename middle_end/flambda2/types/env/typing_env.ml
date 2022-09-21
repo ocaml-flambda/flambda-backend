@@ -1018,10 +1018,8 @@ let type_simple_in_term_exn t ?min_name_mode simple =
   with
   | exception Misc.Fatal_error ->
     let bt = Printexc.get_raw_backtrace () in
-    Format.eprintf "\n%sContext is:%s typing environment@ %a\n"
-      (Flambda_colours.error ())
-      (Flambda_colours.normal ())
-      print t;
+    Format.eprintf "\n%tContext is:%t typing environment@ %a\n"
+      Flambda_colours.error Flambda_colours.pop print t;
     Printexc.raise_with_backtrace Misc.Fatal_error bt
   | exception Binding_time_resolver_failure -> TG.alias_type_of kind simple
   | alias -> TG.alias_type_of kind alias
@@ -1048,10 +1046,8 @@ let get_canonical_simple_exn t ?min_name_mode ?name_mode_of_existing_simple
   with
   | exception Misc.Fatal_error ->
     let bt = Printexc.get_raw_backtrace () in
-    Format.eprintf "\n%sContext is:%s typing environment@ %a\n"
-      (Flambda_colours.error ())
-      (Flambda_colours.normal ())
-      print t;
+    Format.eprintf "\n%tContext is:%t typing environment@ %a\n"
+      Flambda_colours.error Flambda_colours.pop print t;
     Printexc.raise_with_backtrace Misc.Fatal_error bt
   | exception Binding_time_resolver_failure -> simple
   | alias -> alias
