@@ -125,14 +125,15 @@ let create_let uacc (bound_vars : Bound_pattern.t) (defining_expr : Named.t)
       | Prim (prim, _) -> P.is_end_region prim
       | Simple _ | Set_of_closures _ | Static_consts _ | Rec_info _ -> None
     in
-    let is_end_region_for_unused_region =
+    let is_end_region_for_unused_region, is_end_region_for_used_region =
       match is_end_region with
-      | None -> false
+      | None -> false, false
       | Some region ->
-        not (Name.Set.mem (Name.var region) (UA.required_names uacc))
+        let is_used = Name.Set.mem (Name.var region) (UA.required_names uacc) in
+        not is_used, is_used
     in
-    if Option.is_none is_end_region
-       && not (Named.at_most_generative_effects defining_expr)
+    if is_end_region_for_used_region
+       || not (Named.at_most_generative_effects defining_expr)
     then (
       if not (Name_mode.is_normal declared_name_mode)
       then
@@ -156,8 +157,6 @@ let create_let uacc (bound_vars : Bound_pattern.t) (defining_expr : Named.t)
       let will_delete_binding =
         if is_end_region_for_unused_region
         then true
-        else if Option.is_some is_end_region
-        then false
         else
           (* CR-someday mshinwell: This should detect whether there is any
              provenance info associated with the variable. If there isn't, the
@@ -169,12 +168,9 @@ let create_let uacc (bound_vars : Bound_pattern.t) (defining_expr : Named.t)
       then bound_vars, Delete_binding, Defining_expr_deleted_at_compile_time
       else
         let name_mode =
-          if Option.is_some is_end_region
-          then Name_mode.normal
-          else
-            match greatest_name_mode with
-            | Absent -> Name_mode.phantom
-            | Present name_mode -> name_mode
+          match greatest_name_mode with
+          | Absent -> Name_mode.phantom
+          | Present name_mode -> name_mode
         in
         assert (Name_mode.can_be_in_terms name_mode);
         let bound_vars = Bound_pattern.with_name_mode bound_vars name_mode in
