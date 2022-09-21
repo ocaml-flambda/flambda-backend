@@ -36,56 +36,108 @@ type t =
     relative_history : Inlining_history.Relative.t
   }
 
-let code_id { code_id; _ } = code_id
+type code_metadata = t
 
-let newer_version_of { newer_version_of; _ } = newer_version_of
+module type Metadata_view_type = sig
+  type 'a t
 
-let params_arity { params_arity; _ } = params_arity
+  val metadata : 'a t -> code_metadata
+end
 
-let num_leading_heap_params { params_arity; num_trailing_local_params; _ } =
-  let n =
-    Flambda_arity.With_subkinds.cardinal params_arity
-    - num_trailing_local_params
-  in
-  assert (n >= 0);
-  (* see [create] *)
-  n
+module Code_metadata_accessors (X : Metadata_view_type) = struct
+  open X
 
-let num_trailing_local_params { num_trailing_local_params; _ } =
-  num_trailing_local_params
+  let code_id t = (metadata t).code_id
 
-let result_arity { result_arity; _ } = result_arity
+  let newer_version_of t = (metadata t).newer_version_of
 
-let result_types { result_types; _ } = result_types
+  let params_arity t = (metadata t).params_arity
 
-let stub { stub; _ } = stub
+  let num_leading_heap_params t =
+    let { params_arity; num_trailing_local_params; _ } = metadata t in
+    let n =
+      Flambda_arity.With_subkinds.cardinal params_arity
+      - num_trailing_local_params
+    in
+    assert (n >= 0);
+    (* see [create] *)
+    n
 
-let inline { inline; _ } = inline
+  let num_trailing_local_params t = (metadata t).num_trailing_local_params
 
-let is_a_functor { is_a_functor; _ } = is_a_functor
+  let result_arity t = (metadata t).result_arity
 
-let recursive { recursive; _ } = recursive
+  let result_types t = (metadata t).result_types
 
-let cost_metrics { cost_metrics; _ } = cost_metrics
+  let stub t = (metadata t).stub
 
-let inlining_arguments { inlining_arguments; _ } = inlining_arguments
+  let inline t = (metadata t).inline
 
-let dbg { dbg; _ } = dbg
+  let is_a_functor t = (metadata t).is_a_functor
 
-let is_tupled { is_tupled; _ } = is_tupled
+  let recursive t = (metadata t).recursive
 
-let is_my_closure_used { is_my_closure_used; _ } = is_my_closure_used
+  let cost_metrics t = (metadata t).cost_metrics
 
-let inlining_decision { inlining_decision; _ } = inlining_decision
+  let inlining_arguments t = (metadata t).inlining_arguments
 
-let contains_no_escaping_local_allocs { contains_no_escaping_local_allocs; _ } =
-  contains_no_escaping_local_allocs
+  let dbg t = (metadata t).dbg
 
-let absolute_history { absolute_history; _ } = absolute_history
+  let is_tupled t = (metadata t).is_tupled
 
-let relative_history { relative_history; _ } = relative_history
+  let is_my_closure_used t = (metadata t).is_my_closure_used
 
-let create code_id ~newer_version_of ~params_arity ~num_trailing_local_params
+  let inlining_decision t = (metadata t).inlining_decision
+
+  let contains_no_escaping_local_allocs t =
+    (metadata t).contains_no_escaping_local_allocs
+
+  let absolute_history t = (metadata t).absolute_history
+
+  let relative_history t = (metadata t).relative_history
+end
+
+module type Code_metadata_accessors_result_type = sig
+  type 'a t
+
+  include module type of Code_metadata_accessors (struct
+    type nonrec 'a t = 'a t
+
+    let metadata = assert false
+  end)
+end
+
+module Metadata_view = struct
+  type nonrec 'a t = t
+
+  let metadata t = t
+end
+
+include Code_metadata_accessors [@inlined hint] (Metadata_view)
+
+type 'a create_type =
+  Code_id.t ->
+  newer_version_of:Code_id.t option ->
+  params_arity:Flambda_arity.With_subkinds.t ->
+  num_trailing_local_params:int ->
+  result_arity:Flambda_arity.With_subkinds.t ->
+  result_types:Result_types.t ->
+  contains_no_escaping_local_allocs:bool ->
+  stub:bool ->
+  inline:Inline_attribute.t ->
+  is_a_functor:bool ->
+  recursive:Recursive.t ->
+  cost_metrics:Cost_metrics.t ->
+  inlining_arguments:Inlining_arguments.t ->
+  dbg:Debuginfo.t ->
+  is_tupled:bool ->
+  is_my_closure_used:bool ->
+  inlining_decision:Function_decl_inlining_decision_type.t ->
+  absolute_history:Inlining_history.Absolute.t ->
+  relative_history:Inlining_history.Relative.t ->
+  'a
+
+let createk k code_id ~newer_version_of ~params_arity ~num_trailing_local_params
     ~result_arity ~result_types ~contains_no_escaping_local_allocs ~stub
     ~(inline : Inline_attribute.t) ~is_a_functor ~recursive ~cost_metrics
     ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used ~inlining_decision
@@ -105,26 +157,29 @@ let create code_id ~newer_version_of ~params_arity ~num_trailing_local_params
     Misc.fatal_errorf
       "Illegal num_trailing_local_params=%d for params arity: %a"
       num_trailing_local_params Flambda_arity.With_subkinds.print params_arity;
-  { code_id;
-    newer_version_of;
-    params_arity;
-    num_trailing_local_params;
-    result_arity;
-    result_types;
-    contains_no_escaping_local_allocs;
-    stub;
-    inline;
-    is_a_functor;
-    recursive;
-    cost_metrics;
-    inlining_arguments;
-    dbg;
-    is_tupled;
-    is_my_closure_used;
-    inlining_decision;
-    absolute_history;
-    relative_history
-  }
+  k
+    { code_id;
+      newer_version_of;
+      params_arity;
+      num_trailing_local_params;
+      result_arity;
+      result_types;
+      contains_no_escaping_local_allocs;
+      stub;
+      inline;
+      is_a_functor;
+      recursive;
+      cost_metrics;
+      inlining_arguments;
+      dbg;
+      is_tupled;
+      is_my_closure_used;
+      inlining_decision;
+      absolute_history;
+      relative_history
+    }
+
+let create = createk (fun t -> t)
 
 let with_code_id code_id t = { t with code_id }
 
