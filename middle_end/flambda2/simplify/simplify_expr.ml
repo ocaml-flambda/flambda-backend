@@ -39,8 +39,10 @@ let rec simplify_expr dacc expr ~down_to_up =
     down_to_up dacc ~rebuild:(fun uacc ~after_rebuild ->
         EB.rebuild_invalid uacc (Message message) ~after_rebuild)
 
-and simplify_toplevel_common dacc simplify ~is_in_closure ~return_continuation
-    ~return_arity ~exn_continuation ~return_cont_scope ~exn_cont_scope =
+and simplify_toplevel_common dacc simplify
+    ~(in_or_out_of_closure : Closure_info.in_or_out_of_closure)
+    ~return_continuation ~return_arity ~exn_continuation ~return_cont_scope
+    ~exn_cont_scope =
   (* The usage analysis needs a continuation whose handler holds the toplevel
      code of the function. Since such a continuation does not exist, we create a
      dummy one here. *)
@@ -64,9 +66,9 @@ and simplify_toplevel_common dacc simplify ~is_in_closure ~return_continuation
            used_value_slots, and in return we do not use the reachable_code_id
            part of the data_flow analysis. *)
         let code_age_relation, used_value_slots =
-          if is_in_closure
-          then Code_age_relation.empty, Or_unknown.Unknown
-          else
+          match in_or_out_of_closure with
+          | In_a_closure -> Code_age_relation.empty, Or_unknown.Unknown
+          | Not_in_a_closure ->
             ( DA.code_age_relation dacc,
               Or_unknown.Known (DA.used_value_slots dacc) )
         in
@@ -79,7 +81,9 @@ and simplify_toplevel_common dacc simplify ~is_in_closure ~return_continuation
            the the live code ids are unknown, which will prevent any from being
            mistakenly deleted. *)
         let reachable_code_ids : _ Or_unknown.t =
-          if is_in_closure then Unknown else Known reachable_code_ids
+          match in_or_out_of_closure with
+          | In_a_closure -> Unknown
+          | Not_in_a_closure -> Known reachable_code_ids
         in
         let uenv =
           UE.add_function_return_or_exn_continuation
@@ -119,8 +123,9 @@ and simplify_toplevel dacc expr ~return_continuation ~return_arity
     ~exn_continuation ~return_cont_scope ~exn_cont_scope =
   simplify_toplevel_common dacc
     (fun dacc -> simplify_expr dacc expr)
-    ~is_in_closure:false ~return_continuation ~return_arity ~exn_continuation
-    ~return_cont_scope ~exn_cont_scope
+    ~in_or_out_of_closure:(Not_in_a_closure : Closure_info.in_or_out_of_closure)
+    ~return_continuation ~return_arity ~exn_continuation ~return_cont_scope
+    ~exn_cont_scope
 
 and simplify_function_body dacc expr ~return_continuation ~return_arity
     ~exn_continuation ~return_cont_scope ~exn_cont_scope ~tailrec_to_cont
@@ -129,8 +134,9 @@ and simplify_function_body dacc expr ~return_continuation ~return_arity
   | Tailrec_to_cont.Do_not_rewrite_self_tail_calls ->
     simplify_toplevel_common dacc
       (fun dacc -> simplify_expr dacc expr)
-      ~is_in_closure:true ~return_continuation ~return_arity ~exn_continuation
-      ~return_cont_scope ~exn_cont_scope
+      ~in_or_out_of_closure:(In_a_closure : Closure_info.in_or_out_of_closure)
+      ~return_continuation ~return_arity ~exn_continuation ~return_cont_scope
+      ~exn_cont_scope
   | Tailrec_to_cont.Rewrite_self_tail_calls cont ->
     let args = Bound_parameters.simples params in
     (* CR ncourant Fix missing debug info *)
@@ -152,8 +158,9 @@ and simplify_function_body dacc expr ~return_continuation ~return_arity
         Simplify_let_cont_expr.simplify_matched_recursive_let_cont
           ~simplify_expr dacc
           (call_self_cont_expr, handlers))
-      ~is_in_closure:true ~return_continuation ~return_arity ~exn_continuation
-      ~return_cont_scope ~exn_cont_scope
+      ~in_or_out_of_closure:(In_a_closure : Closure_info.in_or_out_of_closure)
+      ~return_continuation ~return_arity ~exn_continuation ~return_cont_scope
+      ~exn_cont_scope
 
 and[@inline always] simplify_let dacc let_expr ~down_to_up =
   Simplify_let_expr.simplify_let ~simplify_expr ~simplify_function_body dacc
