@@ -83,7 +83,7 @@ let wrap_inlined_body_for_exn_extra_args ~extra_args ~apply_exn_continuation
     ~apply_exn_continuation ~apply_return_continuation ~result_arity
     ~make_inlined_body ~apply_cont_create ~let_cont_create
 
-let inline dacc ~apply ~unroll_to function_decl =
+let inline dacc ~apply ~unroll_to ~was_inline_always function_decl =
   let callee = Apply.callee apply in
   let args = Apply.args apply in
   let apply_return_continuation = Apply.continuation apply in
@@ -98,12 +98,14 @@ let inline dacc ~apply ~unroll_to function_decl =
         Code_metadata.print code_metadata
   in
   let rec_info =
-    match T.prove_rec_info (DE.typing_env denv) (FT.rec_info function_decl) with
-    | Proved rec_info -> rec_info
-    | Unknown -> Rec_info_expr.unknown
-    | Invalid -> Rec_info_expr.do_not_inline
+    match T.meet_rec_info (DE.typing_env denv) (FT.rec_info function_decl) with
+    | Known_result rec_info -> rec_info
+    | Need_meet -> Rec_info_expr.unknown
+    | Invalid -> (* CR vlaviron: ? *) Rec_info_expr.do_not_inline
   in
-  let denv = DE.enter_inlined_apply ~called_code:code ~apply denv in
+  let denv =
+    DE.enter_inlined_apply ~called_code:code ~apply ~was_inline_always denv
+  in
   let params_and_body = Code.params_and_body code in
   Function_params_and_body.pattern_match params_and_body
     ~f:(fun

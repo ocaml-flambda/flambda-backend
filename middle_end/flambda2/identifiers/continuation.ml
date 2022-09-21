@@ -165,11 +165,11 @@ module T0 = struct
   let hash t = Hashtbl.hash t
 
   let print ppf t =
-    Format.fprintf ppf "@<0>%s" (Flambda_colours.continuation ());
+    Format.fprintf ppf "%t" Flambda_colours.continuation;
     if String.equal (name t) "k"
     then Format.fprintf ppf "k%d" (name_stamp t)
     else Format.fprintf ppf "%s/%d" (name t) (name_stamp t);
-    Format.fprintf ppf "@<0>%s" (Flambda_colours.normal ())
+    Format.fprintf ppf "%t" Flambda_colours.pop
 end
 
 include T0

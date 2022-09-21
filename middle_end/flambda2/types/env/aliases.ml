@@ -53,11 +53,11 @@ module Map_to_canonical = struct
               coercion1 coercion2)
       map1 map2
 
-  let all_ids_for_export t =
+  let ids_for_export t =
     Name.Map.fold
       (fun name coercion ids ->
         Ids_for_export.union ids
-          (Ids_for_export.add_name (Coercion.all_ids_for_export coercion) name))
+          (Ids_for_export.add_name (Coercion.ids_for_export coercion) name))
       t Ids_for_export.empty
 
   let apply_renaming t renaming =
@@ -216,15 +216,15 @@ end = struct
     let all = f all in
     { aliases; all }
 
-  let all_ids_for_export { aliases; all } =
+  let ids_for_export { aliases; all } =
     let aliases =
       Name_mode.Map.fold
         (fun _mode map_to_canonical ids ->
           Ids_for_export.union ids
-            (Map_to_canonical.all_ids_for_export map_to_canonical))
+            (Map_to_canonical.ids_for_export map_to_canonical))
         aliases Ids_for_export.empty
     in
-    let all = Map_to_canonical.all_ids_for_export all in
+    let all = Map_to_canonical.ids_for_export all in
     Ids_for_export.union aliases all
 
   let apply_renaming { aliases; all } renaming =
@@ -289,7 +289,7 @@ module Alias_set = struct
 
   let [@ocamlformat "disable"] print ppf { const; names; } =
     let none ppf () =
-      Format.fprintf ppf "@<0>%s()" (Flambda_colours.elide ())
+      Format.fprintf ppf "%t()%t" Flambda_colours.elide Flambda_colours.pop
     in
     Format.fprintf ppf
       "@[<hov 1>(\
@@ -384,14 +384,14 @@ let [@ocamlformat "disable"] print ppf
   let print_element_and_coercion ppf (elt, coercion) =
     Format.fprintf ppf "@[<hov 1>(\
                         %a@ \
-                        @[<hov 1>@<0>%s(coercion@ %a)@<0>%s@]\
+                        @[<hov 1>%t(coercion@ %a)%t@]\
                         )@]"
       Simple.print elt
       (if Coercion.is_id coercion
-      then Flambda_colours.elide ()
-      else Flambda_colours.normal ())
+      then Flambda_colours.elide
+      else Flambda_colours.none)
       Coercion.print coercion
-      (Flambda_colours.normal ())
+      Flambda_colours.pop
   in
   Format.fprintf ppf
     "@[<hov 1>(\
@@ -532,6 +532,12 @@ let empty =
     aliases_of_canonical_names = Name.Map.empty;
     aliases_of_consts = Reg_width_const.Map.empty
   }
+
+let is_empty
+    { canonical_elements; aliases_of_canonical_names; aliases_of_consts } =
+  Name.Map.is_empty canonical_elements
+  && Name.Map.is_empty aliases_of_canonical_names
+  && Reg_width_const.Map.is_empty aliases_of_consts
 
 type canonical =
   | Is_canonical
@@ -716,7 +722,6 @@ let choose_canonical_element_to_be_demoted ~binding_time_resolver
   then Demote_canonical_element2
   else Demote_canonical_element1
 
-(* CR mshinwell: add submodule *)
 type add_result =
   { t : t;
     canonical_element : Simple.t;
@@ -827,10 +832,10 @@ let add ~binding_time_resolver ~binding_times_and_modes t
       ~original_t add_result;
   add_result
 
-(* CR mshinwell: For the moment we allow relations between canonical elements
-   that are actually incomparable under the name mode ordering, and check in
-   [get_canonical_element_exn] accordingly. However maybe we should never allow
-   these situations to arise. *)
+(* CR-someday mshinwell: For the moment we allow relations between canonical
+   elements that are actually incomparable under the name mode ordering, and
+   check in [get_canonical_element_exn] accordingly. However maybe we should
+   never allow these situations to arise. *)
 
 let find_earliest_alias t ~canonical_element ~binding_times_and_modes
     ~min_binding_time ~min_name_mode ~binding_time_resolver
@@ -976,34 +981,6 @@ let get_aliases t element =
           alias_names_with_coercions_to_canonical));
     Alias_set.create_aliases_of_element ~element ~canonical_element
       ~coercion_from_canonical_to_element ~alias_names_with_coercions_to_element
-
-let all_ids_for_export
-    { canonical_elements; aliases_of_canonical_names; aliases_of_consts } =
-  let ids =
-    Name.Map.fold
-      (fun elt (canonical, coercion) ids ->
-        let ids =
-          Ids_for_export.union ids (Coercion.all_ids_for_export coercion)
-        in
-        Ids_for_export.add_name (Ids_for_export.add_simple ids canonical) elt)
-      canonical_elements Ids_for_export.empty
-  in
-  let ids =
-    Name.Map.fold
-      (fun elt aliases_of ids ->
-        Ids_for_export.add_name
-          (Ids_for_export.union ids
-             (Aliases_of_canonical_element.all_ids_for_export aliases_of))
-          elt)
-      aliases_of_canonical_names ids
-  in
-  Reg_width_const.Map.fold
-    (fun const aliases_of ids ->
-      Ids_for_export.add_const
-        (Ids_for_export.union ids
-           (Aliases_of_canonical_element.all_ids_for_export aliases_of))
-        const)
-    aliases_of_consts ids
 
 let apply_renaming
     { canonical_elements; aliases_of_canonical_names; aliases_of_consts }

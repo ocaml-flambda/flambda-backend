@@ -265,7 +265,7 @@ let check_operation : location -> Cfg.operation -> Cfg.operation -> unit =
           provenance = right_provenance;
           is_assignment = right_is_assignment
         } )
-    when Ident.equal left_ident right_ident
+    when Ident.same left_ident right_ident
          && Option.equal Int.equal left_which_parameter right_which_parameter
          && Option.equal Unit.equal left_provenance right_provenance
          && Bool.equal left_is_assignment right_is_assignment ->
@@ -394,8 +394,17 @@ let check_basic_instruction :
     match expected.desc with Prologue -> false | _ -> true
     [@@ocaml.warning "-4"]
   in
-  check_instruction ~check_live:true ~check_dbg ~check_arg:true idx location
-    expected result
+  let check_live =
+    match result.desc with
+    | Op _ -> true
+    | Call _ -> true
+    | Reloadretaddr -> true
+    | Pushtrap _ -> false
+    | Poptrap -> false
+    | Prologue -> false
+  in
+  check_instruction ~check_live ~check_dbg ~check_arg:true idx location expected
+    result
 
 let rec check_basic_instruction_list :
     State.t ->

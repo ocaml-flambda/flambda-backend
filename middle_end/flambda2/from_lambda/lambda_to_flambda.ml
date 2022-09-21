@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "-fragile-match"]
-
 (* "Use CPS". -- A. Kennedy, "Compiling with Continuations Continued", ICFP
    2007. *)
 
@@ -76,6 +74,53 @@ module Env : sig
     t -> Continuation.t -> (Ident.t * Lambda.value_kind) list
 
   val get_mutable_variable : t -> Ident.t -> Ident.t
+
+  (** About local allocation regions:
+
+      In this pass, we have to transform [Lregion] expressions in Lambda to
+      primitives that mark the opening and closing of stack regions. We need to
+      ensure regions are always closed so as to not leak out of their scope.
+      They must also never be closed twice.
+
+      Several nested regions can be closed with one primitive as [End_region id]
+      which will close [id] and every other region opened in its scope. As such,
+      the transformation doesn't need to generate strict pairings of
+      [Begin_region] and [End_region] in every case. We may jump out of the
+      scope of several regions at once, in particular with exception raises from
+      [Lstaticraise].
+
+      Another case requiring attention is function calls in tail position for
+      which we may need to add an [End_region] before the jump.
+
+      This implementation works as follows.
+
+      For normal control flow, following the block structure of Lambda
+      expressions, we insert a new continuation (called the "region closure
+      continuation") upon encountering [Begin_region]; then at every leaf we
+      cause the control flow to jump via that continuation. The region closure
+      continuation closes the relevant region before jumping to what would have
+      been the "real" continuation of the leaf expressions in question. The
+      insertion of the continuation avoids duplication of the [End_region]
+      constructs. (We only need one [Begin_region] per region, but potentially
+      as many [End_region]s as there are leaves in the subsequent term.)
+
+      For exceptional control flow, the region closure continuation is not used;
+      instead, a region is opened before the beginning of a Trywith, so that we
+      can use this region to close every subsequent regions opened in its scope
+      at the beginning of the handler.
+
+      Likewise, when regions must be closed explicitly prior to tail calls to
+      avoid leaking memory on the local allocation stack, the closure
+      continuation is also not used in favour of explicit insertion of
+      [End_region] operations.
+
+      Region closure continuations are created alongside corresponding
+      [Begin_region]s in the [Lregion] cases of [cps_non_tail] and [cps_tail].
+      The decision as to calling a closure continuation or adding explicit
+      [End_region]s is done in [restore_continuation_context] and
+      [wrap_return_continuation]. Exceptional control flow cases are handled by
+      the [compile_staticfail] and [Ltrywith] cases of the main transformation
+      functions. *)
 
   val entering_region :
     t ->
@@ -312,7 +357,7 @@ end = struct
         Misc.fatal_errorf "Unable to restore region stack for %a"
           Continuation.print continuation
       | initial_stack_top :: _, region :: regions ->
-        if Ident.equal initial_stack_top region
+        if Ident.same initial_stack_top region
         then to_pop
         else pop (Some region) regions
     in
@@ -458,8 +503,6 @@ let compile_staticfail acc env ccenv ~(continuation : Continuation.t) ~args :
     acc ccenv
 
 let switch_for_if_then_else ~cond ~ifso ~ifnot ~kind =
-  (* CR mshinwell: We need to make sure that [cond] is {0, 1}-valued. The
-     frontend should have been fixed on this branch for this. *)
   let switch : Lambda.lambda_switch =
     { sw_numconsts = 2;
       sw_consts = [0, ifnot; 1, ifso];
@@ -588,6 +631,7 @@ let transform_primitive env (prim : L.primitive) args loc =
            layout and elements should only have dimensions between 1 and 3 \
            (see translprim).")
   | _, _ -> Primitive (prim, args, loc)
+  [@@ocaml.warning "-fragile-match"]
 
 let rec_catch_for_while_loop env cond body =
   let cont = L.next_raise_count () in
@@ -686,6 +730,9 @@ let restore_continuation_context acc env ccenv cont ~close_early body =
   match Env.pop_regions_up_to_context env cont with
   | None -> body acc ccenv cont
   | Some region ->
+    (* If we need to close regions early then do it now; otherwise redirect the
+       return continuation to the one closing such regions, if any exist. See
+       comment in [cps_non_tail] on the [Lregion] case. *)
     if close_early
     then
       CC.close_let acc ccenv (Ident.create_local "unit")
@@ -699,7 +746,7 @@ let restore_continuation_context acc env ccenv cont ~close_early body =
       if not (Continuation.equal cont continuation_after_closing_region)
       then
         Misc.fatal_errorf
-          "The continuation %a following the region closure shouldbe the \
+          "The continuation %a following the region closure should be the \
            current continuation %a"
           Continuation.print continuation_after_closing_region
           Continuation.print cont;
@@ -785,12 +832,29 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _ | Pmulfloat _
   | Pdivfloat _ | Pfloatcomp _ | Pstringlength | Pstringrefu | Pbyteslength
   | Pbytesrefu | Pbytessetu | Pmakearray _ | Pduparray _ | Parraylength _
-  | Parrayrefu _ | Parraysetu _ | Pisint | Pisout | Pbintofint _ | Pintofbint _
-  | Pcvtbint _ | Pnegbint _ | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _
-  | Pmodbint _ | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _
-  | Pasrbint _ | Pbintcomp _ | Pbigarraydim _
-  | Pbigarrayref (true, _, _, _)
-  | Pbigarrayset (true, _, _, _)
+  | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisout | Pbintofint _
+  | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _ | Psubbint _
+  | Pmulbint _
+  | Pdivbint { is_safe = Unsafe; _ }
+  | Pmodbint { is_safe = Unsafe; _ }
+  | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
+  | Pbintcomp _ | Pbigarraydim _
+  | Pbigarrayref
+      ( true,
+        _,
+        ( Pbigarray_float32 | Pbigarray_float64 | Pbigarray_sint8
+        | Pbigarray_uint8 | Pbigarray_sint16 | Pbigarray_uint16
+        | Pbigarray_int32 | Pbigarray_int64 | Pbigarray_caml_int
+        | Pbigarray_native_int | Pbigarray_complex32 | Pbigarray_complex64 ),
+        _ )
+  | Pbigarrayset
+      ( true,
+        _,
+        ( Pbigarray_float32 | Pbigarray_float64 | Pbigarray_sint8
+        | Pbigarray_uint8 | Pbigarray_sint16 | Pbigarray_uint16
+        | Pbigarray_int32 | Pbigarray_int64 | Pbigarray_caml_int
+        | Pbigarray_native_int | Pbigarray_complex32 | Pbigarray_complex64 ),
+        (Pbigarray_c_layout | Pbigarray_fortran_layout) )
   | Pstring_load_16 true
   | Pstring_load_32 (true, _)
   | Pstring_load_64 (true, _)
@@ -810,9 +874,6 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pprobe_is_enabled _ ->
     false
 
-(* CR mshinwell: Make sure that [Apply] terms in tail position jump directly to
-   the return continuation rather than relying on a wrapper to be removed. *)
-
 let rec cps_non_tail acc env ccenv (lam : L.lambda)
     (* CR pchambart: The Ident.t argument of k could probably be something
        similar to a simple *)
@@ -820,9 +881,10 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
     (k_exn : Continuation.t) : Expr_with_acc.t =
   match lam with
   | Lvar id ->
-    let return_id =
-      if Env.is_mutable env id then Env.get_mutable_variable env id else id
-    in
+    assert (not (Env.is_mutable env id));
+    k acc env ccenv id
+  | Lmutvar id ->
+    let return_id = Env.get_mutable_variable env id in
     k acc env ccenv return_id
   | Lconst const ->
     name_then_cps_non_tail acc env ccenv "const" (IR.Simple (Const const)) k
@@ -854,7 +916,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
     in
     let body acc ccenv = k acc env ccenv id in
     CC.close_let_rec acc ccenv ~function_declarations:[func] ~body
-  | Llet (Variable, value_kind, id, defining_expr, body) ->
+  | Lmutlet (value_kind, id, defining_expr, body) ->
     let temp_id = Ident.create_local "let_mutable" in
     let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler:false
       ~params:[temp_id, IR.Not_user_visible, value_kind]
@@ -876,11 +938,23 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
         body bindings
     in
     let_expr acc ccenv
-  | Llet (_let_kind, _value_kind, id, Lconst const, body) ->
+  | Llet
+      ( (Strict | Alias | StrictOpt),
+        ( Pgenval | Pfloatval | Pboxedintval _ | Pintval | Pvariant _
+        | Parrayval _ ),
+        id,
+        Lconst const,
+        body ) ->
     (* This case avoids extraneous continuations. *)
     let body acc ccenv = cps_non_tail acc env ccenv body k k_exn in
     CC.close_let acc ccenv id User_visible (Simple (Const const)) ~body
-  | Llet (let_kind, value_kind, id, Lprim (prim, args, loc), body) -> (
+  | Llet
+      ( ((Strict | Alias | StrictOpt) as let_kind),
+        (( Pgenval | Pfloatval | Pboxedintval _ | Pintval | Pvariant _
+         | Parrayval _ ) as value_kind),
+        id,
+        Lprim (prim, args, loc),
+        body ) -> (
     match transform_primitive env prim args loc with
     | Primitive (prim, args, loc) ->
       (* This case avoids extraneous continuations. *)
@@ -904,7 +978,13 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
       cps_non_tail acc env ccenv
         (L.Llet (let_kind, value_kind, id, lam, body))
         k k_exn)
-  | Llet (_let_kind, value_kind, id, defining_expr, body) ->
+  | Llet
+      ( (Strict | Alias | StrictOpt),
+        (( Pgenval | Pfloatval | Pboxedintval _ | Pintval | Pvariant _
+         | Parrayval _ ) as value_kind),
+        id,
+        defining_expr,
+        body ) ->
     (* CR pchambart: see similar case in cps_tail *)
     let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler:false
       ~params:[id, IR.User_visible, value_kind]
@@ -1082,10 +1162,20 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
     cps_non_tail acc env ccenv
       (L.Llet (Strict, Pgenval, ident, lam1, lam2))
       k k_exn
-  | Lwhile (cond, body) ->
+  | Lwhile
+      { wh_cond = cond; wh_body = body; wh_cond_region = _; wh_body_region = _ }
+    ->
+    (* CR-someday mshinwell: make use of wh_cond_region / wh_body_region? *)
     let env, loop = rec_catch_for_while_loop env cond body in
     cps_non_tail acc env ccenv loop k k_exn
-  | Lfor (ident, start, stop, dir, body) ->
+  | Lfor
+      { for_id = ident;
+        for_from = start;
+        for_to = stop;
+        for_dir = dir;
+        for_body = body;
+        for_region = _
+      } ->
     let env, loop = rec_catch_for_for_loop env ident start stop dir body in
     cps_non_tail acc env ccenv loop k k_exn
   | Lassign (being_assigned, new_value) ->
@@ -1111,6 +1201,9 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
     Misc.fatal_error
       "[Lifused] should have been removed by [Simplif.simplify_lets]"
   | Lregion body ->
+    (* Here we need to build the region closure continuation (see long comment
+       above). Since we're not in tail position, we also need to have a new
+       continuation for the code after the body. *)
     let region = Ident.create_local "region" in
     let dbg = Debuginfo.none in
     CC.close_let acc ccenv region Not_user_visible Begin_region
@@ -1125,6 +1218,26 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
               ~is_exn_handler:false
               ~params:[wrap_return, Not_user_visible, Pgenval]
               ~body:(fun acc env ccenv continuation_closing_region ->
+                (* We register this region to be closed by the newly-created
+                   region closure continuation. When we reach a point in [body]
+                   where we would normally jump to [return_continuation] (i.e.
+                   leaving the body), we will instead jump to
+                   [region_closure_continuation] to ensure the region is closed
+                   at the right time. Exception raises and tailcall cases will
+                   generate their own [End_region]s and use
+                   [return_continuation] directly. (See long comment above.)
+
+                   In the case where we jump out of the scope of several regions
+                   at once, we will jump directly to the region closure
+                   continuation for the outermost open region. For this to be
+                   correct we rely on the fact that the code structure here,
+                   which follows the block structure of the Lambda code, ensures
+                   this is equivalent to going through the sequence of nested
+                   [region_closure_continuation]s we generate.
+
+                   In the event the region closure continuation isn't used (e.g.
+                   the only exit is a tailcall), the [Let_cont] will be
+                   discarded by [Closure_conversion]. *)
                 let env =
                   Env.entering_region env region ~continuation_closing_region
                     ~continuation_after_closing_region:return_continuation
@@ -1133,6 +1246,10 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
               ~handler:(fun acc env ccenv ->
                 CC.close_let acc ccenv (Ident.create_local "unit")
                   Not_user_visible (End_region region) ~body:(fun acc ccenv ->
+                    (* Both body and handler will continue at
+                       [return_continuation] by default.
+                       [restore_region_context] will intercept the
+                       [Lstaticraise] jump to this handler if needed. *)
                     apply_cont_with_extra_args acc env ccenv ~dbg
                       return_continuation None [IR.Var wrap_return])))
           ~handler:(fun acc env ccenv -> k acc env ccenv return))
@@ -1141,13 +1258,14 @@ and cps_non_tail_simple acc env ccenv (lam : L.lambda)
     (k : Acc.t -> Env.t -> CCenv.t -> IR.simple -> Expr_with_acc.t)
     (k_exn : Continuation.t) : Expr_with_acc.t =
   match lam with
-  | Lvar id when not (Env.is_mutable env id) -> k acc env ccenv (IR.Var id)
+  | Lvar id ->
+    assert (not (Env.is_mutable env id));
+    k acc env ccenv (IR.Var id)
   | Lconst const -> k acc env ccenv (IR.Const const)
-  | Lvar _ (* mutable read *)
-  | Lapply _ | Lfunction _ | Llet _ | Lletrec _ | Lprim _ | Lswitch _
-  | Lstringswitch _ | Lstaticraise _ | Lstaticcatch _ | Ltrywith _
-  | Lifthenelse _ | Lsequence _ | Lwhile _ | Lfor _ | Lassign _ | Lsend _
-  | Levent _ | Lifused _ | Lregion _ ->
+  | Lmutvar _ | Lapply _ | Lfunction _ | Lmutlet _ | Llet _ | Lletrec _
+  | Lprim _ | Lswitch _ | Lstringswitch _ | Lstaticraise _ | Lstaticcatch _
+  | Ltrywith _ | Lifthenelse _ | Lsequence _ | Lwhile _ | Lfor _ | Lassign _
+  | Lsend _ | Levent _ | Lifused _ | Lregion _ ->
     cps_non_tail acc env ccenv lam
       (fun acc env ccenv id -> k acc env ccenv (IR.Var id))
       k_exn
@@ -1185,10 +1303,12 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
     (k_exn : Continuation.t) : Expr_with_acc.t =
   match lam with
   | Lvar id ->
+    assert (not (Env.is_mutable env id));
     let dbg = Debuginfo.none in
-    let var =
-      if Env.is_mutable env id then Env.get_mutable_variable env id else id
-    in
+    apply_cont_with_extra_args acc env ccenv ~dbg k None [IR.Var id]
+  | Lmutvar id ->
+    let dbg = Debuginfo.none in
+    let var = Env.get_mutable_variable env id in
     apply_cont_with_extra_args acc env ccenv ~dbg k None [IR.Var var]
   | Lconst const ->
     let dbg = Debuginfo.none in
@@ -1218,7 +1338,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
       apply_cont_with_extra_args acc env ccenv ~dbg k None [IR.Var id]
     in
     CC.close_let_rec acc ccenv ~function_declarations:[func] ~body
-  | Llet (Variable, value_kind, id, defining_expr, body) ->
+  | Lmutlet (value_kind, id, defining_expr, body) ->
     let temp_id = Ident.create_local "let_mutable" in
     let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler:false
       ~params:[temp_id, Not_user_visible, value_kind]
@@ -1240,11 +1360,23 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
         body bindings
     in
     let_expr acc ccenv
-  | Llet (_let_kind, _value_kind, id, Lconst const, body) ->
+  | Llet
+      ( (Strict | Alias | StrictOpt),
+        ( Pgenval | Pfloatval | Pboxedintval _ | Pintval | Pvariant _
+        | Parrayval _ ),
+        id,
+        Lconst const,
+        body ) ->
     (* This case avoids extraneous continuations. *)
     let body acc ccenv = cps_tail acc env ccenv body k k_exn in
     CC.close_let acc ccenv id User_visible (Simple (Const const)) ~body
-  | Llet (let_kind, value_kind, id, Lprim (prim, args, loc), body) -> (
+  | Llet
+      ( ((Strict | Alias | StrictOpt) as let_kind),
+        (( Pgenval | Pfloatval | Pboxedintval _ | Pintval | Pvariant _
+         | Parrayval _ ) as value_kind),
+        id,
+        Lprim (prim, args, loc),
+        body ) -> (
     match transform_primitive env prim args loc with
     | Primitive (prim, args, loc) ->
       (* This case avoids extraneous continuations. *)
@@ -1268,8 +1400,13 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
       cps_tail acc env ccenv
         (L.Llet (let_kind, value_kind, id, lam, body))
         k k_exn)
-  | Llet (_let_kind, _value_kind, id, Lassign (being_assigned, new_value), body)
-    ->
+  | Llet
+      ( (Strict | Alias | StrictOpt),
+        ( Pgenval | Pfloatval | Pboxedintval _ | Pintval | Pvariant _
+        | Parrayval _ ),
+        id,
+        Lassign (being_assigned, new_value),
+        body ) ->
     (* This case is also to avoid extraneous continuations in code that relies
        on the ref-conversion optimisation. *)
     if not (Env.is_mutable env being_assigned)
@@ -1286,7 +1423,13 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
         in
         CC.close_let acc ccenv new_id User_visible (Simple new_value) ~body)
       k_exn
-  | Llet (_let_kind, value_kind, id, defining_expr, body) ->
+  | Llet
+      ( (Strict | Alias | StrictOpt),
+        (( Pgenval | Pfloatval | Pboxedintval _ | Pintval | Pvariant _
+         | Parrayval _ ) as value_kind),
+        id,
+        defining_expr,
+        body ) ->
     let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler:false
       ~params:[id, User_visible, value_kind]
       ~body:(fun acc env ccenv after_defining_expr ->
@@ -1310,7 +1453,6 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
   | Lprim (prim, args, loc) -> (
     match transform_primitive env prim args loc with
     | Primitive (prim, args, loc) ->
-      (* CR mshinwell: Arrange for "args" to be named. *)
       let name = Printlambda.name_of_primitive prim in
       let result_var = Ident.create_local name in
       let exn_continuation : IR.exn_continuation option =
@@ -1456,10 +1598,17 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
   | Lsequence (lam1, lam2) ->
     let ident = Ident.create_local "sequence" in
     cps_tail acc env ccenv (L.Llet (Strict, Pgenval, ident, lam1, lam2)) k k_exn
-  | Lwhile (cond, body) ->
+  | Lwhile { wh_cond = cond; wh_body = body; _ } ->
     let env, loop = rec_catch_for_while_loop env cond body in
     cps_tail acc env ccenv loop k k_exn
-  | Lfor (ident, start, stop, dir, body) ->
+  | Lfor
+      { for_id = ident;
+        for_from = start;
+        for_to = stop;
+        for_dir = dir;
+        for_body = body;
+        for_region = _
+      } ->
     let env, loop = rec_catch_for_for_loop env ident start stop dir body in
     cps_tail acc env ccenv loop k k_exn
   | Levent (body, _event) -> cps_tail acc env ccenv body k k_exn
@@ -1480,6 +1629,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
           ~is_exn_handler:false
           ~params:[wrap_return, Not_user_visible, Pgenval]
           ~body:(fun acc env ccenv continuation_closing_region ->
+            (* See case in [cps_non_tail] *)
             let env =
               Env.entering_region env region ~continuation_closing_region
                 ~continuation_after_closing_region:k
@@ -1528,7 +1678,7 @@ and cps_non_tail_list_core acc env ccenv (lams : L.lambda list)
 and cps_function_bindings env (bindings : (Ident.t * L.lambda) list) =
   let bindings_with_wrappers =
     List.map
-      (fun (fun_id, binding) ->
+      (fun [@ocaml.warning "-fragile-match"] (fun_id, binding) ->
         match binding with
         | L.Lfunction
             { kind; params; body = fbody; attr; loc; mode; region; return; _ }
@@ -1678,7 +1828,8 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
     List.fold_left
       (fun (consts_rev, wrappers) (arm, (action : L.lambda)) ->
         match action with
-        | Lvar var when not (Env.is_mutable env var) ->
+        | Lvar var ->
+          assert (not (Env.is_mutable env var));
           let extra_args =
             List.map
               (fun arg : IR.simple -> Var arg)
@@ -1698,11 +1849,10 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
             (arm, k, None, IR.Const cst :: extra_args) :: consts_rev
           in
           consts_rev, wrappers
-        | Lvar _ (* mutable *)
-        | Lapply _ | Lfunction _ | Llet _ | Lletrec _ | Lprim _ | Lswitch _
-        | Lstringswitch _ | Lstaticraise _ | Lstaticcatch _ | Ltrywith _
-        | Lifthenelse _ | Lsequence _ | Lwhile _ | Lfor _ | Lassign _ | Lsend _
-        | Levent _ | Lifused _ | Lregion _ ->
+        | Lmutvar _ | Lapply _ | Lfunction _ | Llet _ | Lmutlet _ | Lletrec _
+        | Lprim _ | Lswitch _ | Lstringswitch _ | Lstaticraise _
+        | Lstaticcatch _ | Ltrywith _ | Lifthenelse _ | Lsequence _ | Lwhile _
+        | Lfor _ | Lassign _ | Lsend _ | Levent _ | Lifused _ | Lregion _ ->
           (* The continuations created here (and for failactions) are local. The
              bodies of the let_conts will not modify mutable variables. Hence,
              it is safe to exclude them from passing along the extra arguments
@@ -1770,7 +1920,7 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
             in
             CC.close_let acc ccenv is_scrutinee_int Not_user_visible
               (Prim
-                 { prim = Pisint;
+                 { prim = Pisint { variant_only = true };
                    args = [Var scrutinee];
                    loc = Loc_unknown;
                    exn_continuation = None

@@ -134,7 +134,7 @@ module Typing_env : sig
 
     val name_domain : t -> Name.Set.t
 
-    val all_ids_for_export : t -> Ids_for_export.t
+    val ids_for_export : t -> Ids_for_export.t
 
     val apply_renaming : t -> Renaming.t -> t
 
@@ -143,8 +143,6 @@ module Typing_env : sig
     val extract_symbol_approx :
       t -> Symbol.t -> (Code_id.t -> 'code) -> 'code Value_approximation.t
   end
-
-  val invariant : t -> unit
 
   val print : Format.formatter -> t -> unit
 
@@ -268,7 +266,7 @@ val cut_and_n_way_join :
   Typing_env.t ->
   (Typing_env.t * Apply_cont_rewrite_id.t * Continuation_use_kind.t) list ->
   params:Bound_parameters.t ->
-  unknown_if_defined_at_or_later_than:Scope.t ->
+  cut_after:Scope.t ->
   extra_lifted_consts_in_use_envs:Symbol.Set.t ->
   extra_allowed_names:Name_occurrences.t ->
   Typing_env.t
@@ -295,17 +293,10 @@ type to_erase =
   | Everything_not_in of Typing_env.t
   | All_variables_except of Variable.Set.t
 
-(* CR mshinwell: update comment *)
-
-(** This function takes a type [t] and an environment [env] that assigns types
-    to all the free names of [t]. It also takes an environment, called
-    [suitable_for], in which we would like to use [t]. The function identifies
-    which free names (if any) of [t] would be unbound in [suitable_for]. For
-    each such name a fresh variable is assigned and irrelevantly bound in
-    [suitable_for]; the returned type is like [t] except that the names that
-    would otherwise be unbound are replaced by these fresh variables. The fresh
-    variables are assigned types in the returned environment extension on a best
-    effort basis. *)
+(** Adjust a type so it can be used in a different environment. There are two
+    modes of operation: either a target environment can be specified, in which
+    the resulting type is to be valid; or a set of variables may be supplied
+    which are the only ones allowed to occur in the resulting type. *)
 val make_suitable_for_environment :
   Typing_env.t ->
   to_erase ->
@@ -467,11 +458,6 @@ val variant :
   Alloc_mode.t Or_unknown.t ->
   t
 
-val open_variant_from_const_ctors_type : const_ctors:t -> t
-
-val open_variant_from_non_const_ctor_with_size_at_least :
-  n:Targetint_31_63.t -> field_n_minus_one:Variable.t -> t
-
 val this_immutable_string : string -> t
 
 val mutable_string : size:int -> t
@@ -504,6 +490,19 @@ val closure_with_at_least_these_value_slots :
 val array_of_length :
   element_kind:Flambda_kind.With_subkind.t Or_unknown.t ->
   length:flambda_type ->
+  Alloc_mode.t Or_unknown.t ->
+  flambda_type
+
+val mutable_array :
+  element_kind:Flambda_kind.With_subkind.t Or_unknown.t ->
+  length:flambda_type ->
+  Alloc_mode.t Or_unknown.t ->
+  flambda_type
+
+val immutable_array :
+  element_kind:Flambda_kind.With_subkind.t Or_unknown.t ->
+  fields:flambda_type list ->
+  Alloc_mode.t Or_unknown.t ->
   flambda_type
 
 (** Construct a type equal to the type of the given name. (The name must be
@@ -534,42 +533,49 @@ val type_for_const : Reg_width_const.t -> t
 
 val kind_for_const : Reg_width_const.t -> Flambda_kind.t
 
-type 'a proof = private
-  | Proved of 'a
-  | Unknown
+type 'a meet_shortcut = private
+  | Known_result of 'a
+  | Need_meet
   | Invalid
 
-type 'a proof_allowing_kind_mismatch = private
+type 'a proof_of_property = private
   | Proved of 'a
   | Unknown
-  | Invalid
-  | Wrong_kind
 
 (* CR mshinwell: Should remove "_equals_" from these names *)
 val prove_equals_tagged_immediates :
-  Typing_env.t -> t -> Targetint_31_63.Set.t proof
+  Typing_env.t -> t -> Targetint_31_63.Set.t proof_of_property
 
-val prove_naked_immediates : Typing_env.t -> t -> Targetint_31_63.Set.t proof
+val meet_equals_tagged_immediates :
+  Typing_env.t -> t -> Targetint_31_63.Set.t meet_shortcut
 
-val prove_equals_single_tagged_immediate :
-  Typing_env.t -> t -> Targetint_31_63.t proof
+val meet_naked_immediates :
+  Typing_env.t -> t -> Targetint_31_63.Set.t meet_shortcut
 
-val prove_naked_floats :
-  Typing_env.t -> t -> Numeric_types.Float_by_bit_pattern.Set.t proof
+val meet_equals_single_tagged_immediate :
+  Typing_env.t -> t -> Targetint_31_63.t meet_shortcut
 
-val prove_naked_int32s : Typing_env.t -> t -> Numeric_types.Int32.Set.t proof
+val meet_naked_floats :
+  Typing_env.t -> t -> Numeric_types.Float_by_bit_pattern.Set.t meet_shortcut
 
-val prove_naked_int64s : Typing_env.t -> t -> Numeric_types.Int64.Set.t proof
+val meet_naked_int32s :
+  Typing_env.t -> t -> Numeric_types.Int32.Set.t meet_shortcut
 
-val prove_naked_nativeints : Typing_env.t -> t -> Targetint_32_64.Set.t proof
+val meet_naked_int64s :
+  Typing_env.t -> t -> Numeric_types.Int64.Set.t meet_shortcut
+
+val meet_naked_nativeints :
+  Typing_env.t -> t -> Targetint_32_64.Set.t meet_shortcut
 
 type variant_like_proof = private
   { const_ctors : Targetint_31_63.Set.t Or_unknown.t;
     non_const_ctors_with_sizes : Targetint_31_63.t Tag.Scannable.Map.t
   }
 
+val meet_variant_like : Typing_env.t -> t -> variant_like_proof meet_shortcut
+
 val prove_variant_like :
-  Typing_env.t -> t -> variant_like_proof proof_allowing_kind_mismatch
+  Typing_env.t -> t -> variant_like_proof proof_of_property
 
 (** If [ty] is known to represent a boxed number or a tagged integer,
     [prove_is_a_boxed_number env ty] is [Proved kind]. [kind] is the kind of the
@@ -584,60 +590,48 @@ type boxed_or_tagged_number = private
   | Tagged_immediate
 
 val prove_is_a_boxed_or_tagged_number :
-  Typing_env.t -> t -> boxed_or_tagged_number proof_allowing_kind_mismatch
+  Typing_env.t -> t -> boxed_or_tagged_number proof_of_property
 
-val prove_is_a_tagged_immediate :
-  Typing_env.t -> t -> unit proof_allowing_kind_mismatch
+val prove_is_a_tagged_immediate : Typing_env.t -> t -> unit proof_of_property
 
-val prove_is_a_boxed_float :
-  Typing_env.t -> t -> unit proof_allowing_kind_mismatch
+val prove_is_a_boxed_float : Typing_env.t -> t -> unit proof_of_property
 
-val prove_is_a_boxed_int32 :
-  Typing_env.t -> t -> unit proof_allowing_kind_mismatch
+val prove_is_a_boxed_int32 : Typing_env.t -> t -> unit proof_of_property
 
-val prove_is_a_boxed_int64 :
-  Typing_env.t -> t -> unit proof_allowing_kind_mismatch
+val prove_is_a_boxed_int64 : Typing_env.t -> t -> unit proof_of_property
 
-val prove_is_a_boxed_nativeint :
-  Typing_env.t -> t -> unit proof_allowing_kind_mismatch
+val prove_is_a_boxed_nativeint : Typing_env.t -> t -> unit proof_of_property
 
 val prove_is_or_is_not_a_boxed_float :
-  Typing_env.t -> t -> bool proof_allowing_kind_mismatch
-
-val prove_boxed_floats :
-  Typing_env.t -> t -> Numeric_types.Float_by_bit_pattern.Set.t proof
-
-val prove_boxed_int32s : Typing_env.t -> t -> Numeric_types.Int32.Set.t proof
-
-val prove_boxed_int64s : Typing_env.t -> t -> Numeric_types.Int64.Set.t proof
-
-val prove_boxed_nativeints : Typing_env.t -> t -> Targetint_32_64.Set.t proof
+  Typing_env.t -> t -> bool proof_of_property
 
 val prove_unique_tag_and_size :
-  Typing_env.t -> t -> (Tag.t * Targetint_31_63.t) proof_allowing_kind_mismatch
+  Typing_env.t -> t -> (Tag.t * Targetint_31_63.t) proof_of_property
 
 val prove_unique_fully_constructed_immutable_heap_block :
-  Typing_env.t -> t -> (Tag_and_size.t * Simple.t list) proof
+  Typing_env.t -> t -> (Tag_and_size.t * Simple.t list) proof_of_property
 
-val prove_is_int : Typing_env.t -> t -> bool proof
+val prove_is_int : Typing_env.t -> t -> bool proof_of_property
 
-type array_kind_compatibility =
-  | Exact
-  | Compatible
-  | Incompatible
+val meet_is_flat_float_array : Typing_env.t -> t -> bool meet_shortcut
 
-(** This function deems non-[Array] types of kind [Value] to be [Invalid]. *)
-val prove_is_array_with_element_kind :
+val prove_is_immediates_array : Typing_env.t -> t -> unit proof_of_property
+
+val meet_is_immutable_array :
   Typing_env.t ->
   t ->
-  element_kind:Flambda_kind.With_subkind.t ->
-  array_kind_compatibility proof
+  (Flambda_kind.With_subkind.t Or_unknown.t * t * Alloc_mode.t Or_unknown.t)
+  meet_shortcut
 
-(* CR mshinwell: Fix comment and/or function name *)
+val meet_single_closures_entry :
+  Typing_env.t ->
+  t ->
+  (Function_slot.t
+  * Alloc_mode.t Or_unknown.t
+  * Closures_entry.t
+  * Function_type.t)
+  meet_shortcut
 
-(** Prove that the given type, of kind [Value], is a closures type describing
-    exactly one set of closures. The function declaration type corresponding to
-    such closure is returned together with its function slot, if it is known. *)
 val prove_single_closures_entry :
   Typing_env.t ->
   t ->
@@ -645,18 +639,9 @@ val prove_single_closures_entry :
   * Alloc_mode.t Or_unknown.t
   * Closures_entry.t
   * Function_type.t)
-  proof
+  proof_of_property
 
-val prove_single_closures_entry' :
-  Typing_env.t ->
-  t ->
-  (Function_slot.t
-  * Alloc_mode.t Or_unknown.t
-  * Closures_entry.t
-  * Function_type.t)
-  proof_allowing_kind_mismatch
-
-val prove_strings : Typing_env.t -> t -> String_info.Set.t proof
+val meet_strings : Typing_env.t -> t -> String_info.Set.t meet_shortcut
 
 (** Attempt to show that the provided type describes the tagged version of a
     unique naked immediate [Simple].
@@ -664,103 +649,86 @@ val prove_strings : Typing_env.t -> t -> String_info.Set.t proof
     This function will return [Unknown] if values of the provided type might
     sometimes, but not always, be a tagged immediate (for example if it is a
     variant type involving blocks). *)
-val prove_is_always_tagging_of_simple :
-  Typing_env.t -> min_name_mode:Name_mode.t -> t -> Simple.t proof
+val prove_tagging_of_simple :
+  Typing_env.t -> min_name_mode:Name_mode.t -> t -> Simple.t proof_of_property
 
 (** Attempt to show that the provided type _can_ describe, but might not always
     describe, the tagged version of a unique naked immediate [Simple]. It is
     guaranteed that if a [Simple] is returned, the type does not describe any
     other tagged immediate. *)
-val prove_could_be_tagging_of_simple :
-  Typing_env.t -> min_name_mode:Name_mode.t -> t -> Simple.t proof
+val meet_tagging_of_simple :
+  Typing_env.t -> min_name_mode:Name_mode.t -> t -> Simple.t meet_shortcut
 
-val prove_boxed_float_containing_simple :
-  Typing_env.t -> min_name_mode:Name_mode.t -> t -> Simple.t proof
+val meet_boxed_float_containing_simple :
+  Typing_env.t -> min_name_mode:Name_mode.t -> t -> Simple.t meet_shortcut
 
-val prove_boxed_int32_containing_simple :
-  Typing_env.t -> min_name_mode:Name_mode.t -> t -> Simple.t proof
+val meet_boxed_int32_containing_simple :
+  Typing_env.t -> min_name_mode:Name_mode.t -> t -> Simple.t meet_shortcut
 
-val prove_boxed_int64_containing_simple :
-  Typing_env.t -> min_name_mode:Name_mode.t -> t -> Simple.t proof
+val meet_boxed_int64_containing_simple :
+  Typing_env.t -> min_name_mode:Name_mode.t -> t -> Simple.t meet_shortcut
 
-val prove_boxed_nativeint_containing_simple :
-  Typing_env.t -> min_name_mode:Name_mode.t -> t -> Simple.t proof
+val meet_boxed_nativeint_containing_simple :
+  Typing_env.t -> min_name_mode:Name_mode.t -> t -> Simple.t meet_shortcut
 
-val prove_block_field_simple :
+val meet_block_field_simple :
   Typing_env.t ->
   min_name_mode:Name_mode.t ->
   t ->
   Targetint_31_63.t ->
-  Simple.t proof
+  Simple.t meet_shortcut
 
-val prove_variant_field_simple :
-  Typing_env.t ->
-  min_name_mode:Name_mode.t ->
-  t ->
-  Tag.t ->
-  Targetint_31_63.t ->
-  Simple.t proof
-
-val prove_project_value_slot_simple :
+val meet_project_value_slot_simple :
   Typing_env.t ->
   min_name_mode:Name_mode.t ->
   t ->
   Value_slot.t ->
-  Simple.t proof
+  Simple.t meet_shortcut
 
-val prove_project_function_slot_simple :
+val meet_project_function_slot_simple :
   Typing_env.t ->
   min_name_mode:Name_mode.t ->
   t ->
   Function_slot.t ->
-  Simple.t proof
+  Simple.t meet_shortcut
 
-val prove_rec_info : Typing_env.t -> t -> Rec_info_expr.t proof
+val meet_rec_info : Typing_env.t -> t -> Rec_info_expr.t meet_shortcut
 
 val prove_alloc_mode_of_boxed_number :
-  Typing_env.t -> t -> Alloc_mode.t Or_unknown.t
+  Typing_env.t -> t -> Alloc_mode.t proof_of_property
 
-type var_or_symbol_or_tagged_immediate = private
-  | Var of Variable.t
-  | Symbol of Symbol.t
-  | Tagged_immediate of Targetint_31_63.t
+val prove_physical_equality : Typing_env.t -> t -> t -> bool proof_of_property
 
-type to_lift =
-  (* private *)
-  (* CR mshinwell: resurrect *)
+type to_lift = private
   | Immutable_block of
       { tag : Tag.Scannable.t;
         is_unique : bool;
-        fields : var_or_symbol_or_tagged_immediate list
+        fields : Simple.t list
       }
   | Boxed_float of Numeric_types.Float_by_bit_pattern.t
   | Boxed_int32 of Numeric_types.Int32.t
   | Boxed_int64 of Numeric_types.Int64.t
   | Boxed_nativeint of Targetint_32_64.t
+  | Immutable_float_array of
+      { fields : Numeric_types.Float_by_bit_pattern.t list }
+  | Immutable_value_array of { fields : Simple.t list }
   | Empty_array
 
 type reification_result = private
-  | Lift of to_lift (* CR mshinwell: rename? *)
-  | Lift_set_of_closures of
-      { function_slot : Function_slot.t;
-        function_types : Function_type.t Function_slot.Map.t;
-        value_slots : Simple.t Value_slot.Map.t
-      }
+  | Lift of to_lift
   | Simple of Simple.t
   | Cannot_reify
   | Invalid
 
 val reify :
-  ?allowed_if_free_vars_defined_in:Typing_env.t ->
-  ?additional_free_var_criterion:(Variable.t -> bool) ->
-  ?disallowed_free_vars:Variable.Set.t ->
-  ?allow_unique:bool ->
+  allowed_if_free_vars_defined_in:Typing_env.t ->
+  var_is_defined_at_toplevel:(Variable.t -> bool) ->
+  var_is_symbol_projection:(Variable.t -> bool) ->
   Typing_env.t ->
-  min_name_mode:Name_mode.t ->
   t ->
   reification_result
 
 val never_holds_locally_allocated_values :
-  Typing_env.t -> Variable.t -> Flambda_kind.t -> bool
+  Typing_env.t -> Variable.t -> Flambda_kind.t -> unit proof_of_property
 
 val remove_outermost_alias : Typing_env.t -> t -> t

@@ -2372,12 +2372,11 @@ let send_function (arity, mode) =
                           dbg () ) ],
                     dbg () ) ) ) )
   in
-
   let body = Clet (VP.create clos', clos, body) in
   let cache = cache in
   let fun_name = send_function_name arity mode in
   let fun_args =
-    [obj, typ_val; tag, typ_int; cache, typ_val]
+    [obj, typ_val; tag, typ_int; cache, typ_addr]
     @ List.map (fun id -> id, typ_val) (List.tl args)
   in
   let fun_dbg = placeholder_fun_dbg ~human_name:fun_name in

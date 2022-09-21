@@ -82,8 +82,8 @@ val with_cost_metrics : Cost_metrics.t -> t -> t
 
 val add_cost_metrics : Cost_metrics.t -> t -> t
 
-(*_ CR lmaurer: This is tragic. We can be rid of it once we have PDCE, if I
-  understand correctly. *)
+(* CR lmaurer: This is tragic. We can be rid of it once we have PDCE, if I
+   understand correctly. *)
 
 (** This function exists as an optimisation to reduce allocation. *)
 val add_cost_metrics_and_with_name_occurrences :

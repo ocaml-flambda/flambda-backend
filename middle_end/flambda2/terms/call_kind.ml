@@ -112,11 +112,11 @@ let [@ocamlformat "disable"] print ppf t =
       Alloc_mode.print alloc_mode
   | C_call { alloc; param_arity; return_arity; is_c_builtin; } ->
     fprintf ppf "@[(C@ @[(alloc %b)@]@ @[(is_c_builtin %b)@]@ \
-        @<0>%s@<1>\u{2237}@<0>%s %a @<1>\u{2192} %a)@]"
+        %t@<1>\u{2237}%t %a @<1>\u{2192} %a)@]"
       alloc
       is_c_builtin
-      (Flambda_colours.elide ())
-      (Flambda_colours.normal ())
+      Flambda_colours.elide
+      Flambda_colours.pop
       Flambda_arity.print param_arity
       Flambda_arity.print return_arity
 
@@ -191,7 +191,7 @@ let apply_renaming t renaming =
     let obj' = Simple.apply_renaming obj renaming in
     if obj == obj' then t else Method { kind; obj = obj'; alloc_mode }
 
-let all_ids_for_export t =
+let ids_for_export t =
   match t with
   | Function
       { function_call = Direct { code_id; return_arity = _ }; alloc_mode = _ }

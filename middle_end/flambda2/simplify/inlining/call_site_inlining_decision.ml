@@ -31,7 +31,10 @@ module UE = Upwards_env
    however contain at call sites if inlining is requested but cannot be done for
    this reason. I think this will probably all happen without any specific code
    once [Inlining_impossible] handling is implemented for the
-   non-fallback-inlining cases. *)
+   non-fallback-inlining cases.
+
+   mshinwell 2022-07-11: we should check this when we look at classic mode
+   again *)
 
 (* CR-someday mshinwell: Overhaul handling of the inlining depth tracking so
    that it takes into account the depth of closures (or code), as per
@@ -56,7 +59,8 @@ let speculative_inlining dacc ~apply ~function_type ~simplify_expr ~return_arity
        inside of [speculative_inlining] we will always have [unroll_to] = None.
        We are not disabling unrolling when speculating, it just happens that no
        unrolling can happen while speculating right now. *)
-    Inlining_transforms.inline dacc ~apply ~unroll_to:None function_type
+    Inlining_transforms.inline dacc ~apply ~unroll_to:None
+      ~was_inline_always:false function_type
   in
   let scope = DE.get_continuation_scope (DA.denv dacc) in
   let dummy_toplevel_cont =
@@ -145,7 +149,11 @@ let might_inline dacc ~apply ~code_or_metadata ~function_type ~simplify_expr
     |> Code_metadata.inlining_decision
   in
   if Function_decl_inlining_decision_type.must_be_inlined decision
-  then Definition_says_inline
+  then
+    Definition_says_inline
+      { was_inline_always =
+          Function_decl_inlining_decision_type.has_attribute_inline decision
+      }
   else if Function_decl_inlining_decision_type.cannot_be_inlined decision
   then Definition_says_not_to_inline
   else if env_prohibits_inlining
@@ -170,10 +178,10 @@ let might_inline dacc ~apply ~code_or_metadata ~function_type ~simplify_expr
 
 let get_rec_info dacc ~function_type =
   let rec_info = FT.rec_info function_type in
-  match Flambda2_types.prove_rec_info (DA.typing_env dacc) rec_info with
-  | Proved rec_info -> rec_info
-  | Unknown -> Rec_info_expr.unknown
-  | Invalid -> Rec_info_expr.do_not_inline
+  match Flambda2_types.meet_rec_info (DA.typing_env dacc) rec_info with
+  | Known_result rec_info -> rec_info
+  | Need_meet -> Rec_info_expr.unknown
+  | Invalid -> (* CR vlaviron: ? *) Rec_info_expr.do_not_inline
 
 let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity :
     Call_site_inlining_decision_type.t =

@@ -68,20 +68,20 @@ let [@ocamlformat "disable"] print ppf t =
   let fprintf = Format.fprintf in
   match t with
   | Push { exn_handler; } ->
-    fprintf ppf "%spush_trap%s %a %sthen%s "
-      (Flambda_colours.expr_keyword ())
-      (Flambda_colours.normal ())
+    fprintf ppf "%tpush_trap%t %a %tthen%t "
+      Flambda_colours.expr_keyword
+      Flambda_colours.pop
       Continuation.print exn_handler
-      (Flambda_colours.expr_keyword ())
-      (Flambda_colours.normal ())
+      Flambda_colours.expr_keyword
+      Flambda_colours.pop
   | Pop { exn_handler; raise_kind; } ->
-    fprintf ppf "%spop_trap%s%s %a %sthen%s "
-      (Flambda_colours.expr_keyword ())
-      (Flambda_colours.normal ())
+    fprintf ppf "%tpop_trap%t%s %a %tthen%t "
+      Flambda_colours.expr_keyword
+      Flambda_colours.pop
       (Raise_kind.option_to_string raise_kind)
       Continuation.print exn_handler
-      (Flambda_colours.expr_keyword ())
-      (Flambda_colours.normal ())
+      Flambda_colours.expr_keyword
+      Flambda_colours.pop
 
 (* Continuations used in trap actions are tracked separately, since sometimes,
    we don't want to count them as uses. However they must be tracked for lifting
@@ -106,7 +106,7 @@ let apply_renaming t renaming =
 let exn_handler t =
   match t with Push { exn_handler } | Pop { exn_handler; _ } -> exn_handler
 
-let all_ids_for_export t =
+let ids_for_export t =
   Ids_for_export.add_continuation Ids_for_export.empty (exn_handler t)
 
 module Option = struct
@@ -116,9 +116,9 @@ module Option = struct
     | None -> ()
     | Some t -> print ppf t
 
-  let all_ids_for_export = function
+  let ids_for_export = function
     | None -> Ids_for_export.empty
-    | Some trap_action -> all_ids_for_export trap_action
+    | Some trap_action -> ids_for_export trap_action
 
   let apply_renaming t renaming =
     match t with

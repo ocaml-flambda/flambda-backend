@@ -111,7 +111,8 @@ let create_instruction t desc ~stack_offset (i : Linear.instruction) :
     fdo = i.fdo;
     live = i.live;
     stack_offset;
-    id = get_new_linear_id t
+    id = get_new_linear_id t;
+    irc_work_list = Unknown_list
   }
 
 let record_traps t label traps =
@@ -161,7 +162,8 @@ let create_empty_block t start ~stack_offset ~traps =
       fdo = Fdo_info.none;
       live = Reg.Set.empty;
       stack_offset;
-      id = get_new_linear_id t
+      id = get_new_linear_id t;
+      irc_work_list = Unknown_list
     }
   in
   let block : C.basic_block =
@@ -281,7 +283,6 @@ let check_and_register_traps t =
           \                           with an Lentertrap instruction." label
           label)
     t.trap_handlers;
-
   (* propagate remaining trap stacks to handlers *)
   t.unresolved_traps_to_pop <- resolve_traps_to_pop t t.unresolved_traps_to_pop;
   if List.compare_length_with t.unresolved_traps_to_pop 0 > 0
@@ -291,13 +292,10 @@ let check_and_register_traps t =
       (* not a fatal error because of dead blocks *)
       Printf.printf "%d" (List.length t.unresolved_traps_to_pop);
     Misc.fatal_error "Unresolved traps at the end of cfg construction");
-
   (* check that trap stacks at the start of all blocks are resolved *)
   C.iter_blocks t.cfg ~f:(check_traps t);
-
   (* compute block.exns successors using t.exns. *)
   C.iter_blocks t.cfg ~f:(register_exns t);
-
   (* after all exn successors are computed, check that if a block can_raise,
      then it has a registered exn successor or interproc exn. *)
   let f _ (block : C.basic_block) =

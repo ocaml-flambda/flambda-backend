@@ -87,10 +87,11 @@ let register_const acc constant name : Acc.t * Field_of_static_block.t * string
   acc, Symbol symbol, name
 
 let register_const_string acc str =
-  register_const0 acc (Static_const.Immutable_string str) "string"
+  register_const0 acc (Static_const.immutable_string str) "string"
 
 let rec declare_const acc (const : Lambda.structured_constant) :
     Acc.t * Field_of_static_block.t * string =
+  let module SC = Static_const in
   match const with
   | Const_base (Const_int c) ->
     acc, Tagged_immediate (Targetint_31_63.of_int c), "int"
@@ -99,25 +100,25 @@ let rec declare_const acc (const : Lambda.structured_constant) :
   | Const_base (Const_string (s, _, _)) ->
     let const, name =
       if Flambda_features.safe_string ()
-      then Static_const.Immutable_string s, "immstring"
-      else Static_const.Mutable_string { initial_value = s }, "string"
+      then SC.immutable_string s, "immstring"
+      else SC.mutable_string ~initial_value:s, "string"
     in
     register_const acc const name
   | Const_base (Const_float c) ->
     let c = Numeric_types.Float_by_bit_pattern.create (float_of_string c) in
-    register_const acc (Boxed_float (Const c)) "float"
+    register_const acc (SC.boxed_float (Const c)) "float"
   | Const_base (Const_int32 c) ->
-    register_const acc (Boxed_int32 (Const c)) "int32"
+    register_const acc (SC.boxed_int32 (Const c)) "int32"
   | Const_base (Const_int64 c) ->
-    register_const acc (Boxed_int64 (Const c)) "int64"
+    register_const acc (SC.boxed_int64 (Const c)) "int64"
   | Const_base (Const_nativeint c) ->
     (* CR pchambart: this should be pushed further to lambda *)
     let c = Targetint_32_64.of_int64 (Int64.of_nativeint c) in
-    register_const acc (Boxed_nativeint (Const c)) "nativeint"
-  | Const_immstring c -> register_const acc (Immutable_string c) "immstring"
+    register_const acc (SC.boxed_nativeint (Const c)) "nativeint"
+  | Const_immstring c -> register_const acc (SC.immutable_string c) "immstring"
   | Const_float_block c ->
     register_const acc
-      (Immutable_float_block
+      (SC.immutable_float_block
          (List.map
             (fun s ->
               let f =
@@ -128,7 +129,7 @@ let rec declare_const acc (const : Lambda.structured_constant) :
       "float_block"
   | Const_float_array c ->
     register_const acc
-      (Immutable_float_array
+      (SC.immutable_float_array
          (List.map
             (fun s ->
               let f =
@@ -145,8 +146,8 @@ let rec declare_const acc (const : Lambda.structured_constant) :
           acc, f)
         acc consts
     in
-    let const : Static_const.t =
-      Block (Tag.Scannable.create_exn tag, Immutable, field_of_blocks)
+    let const : SC.t =
+      SC.block (Tag.Scannable.create_exn tag) Immutable field_of_blocks
     in
     register_const acc const "const_block"
 
@@ -205,14 +206,16 @@ module Inlining = struct
       Inlining_report.record_decision_at_call_site_for_unknown_function ~tracker
         ~apply ~pass:After_closure_conversion ();
       Not_inlinable
-    | Some (Value_symbol _) | Some (Block_approximation _) -> assert false
-    | Some (Closure_approximation (_code_id, _, Metadata_only _)) ->
+    | Some (Value_symbol _) | Some (Value_int _) | Some (Block_approximation _)
+      ->
+      assert false
+    | Some (Closure_approximation { code = Metadata_only _; _ }) ->
       Inlining_report.record_decision_at_call_site_for_known_function ~tracker
         ~apply ~pass:After_closure_conversion ~unrolling_depth:None
         ~callee:(Inlining_history.Absolute.empty compilation_unit)
         ~are_rebuilding_terms Definition_says_not_to_inline;
       Not_inlinable
-    | Some (Closure_approximation (_code_id, _, Code_present code)) ->
+    | Some (Closure_approximation { code = Code_present code; _ }) ->
       let fun_params_length =
         Code.params_arity code |> Flambda_arity.With_subkinds.to_arity
         |> Flambda_arity.length
@@ -233,10 +236,12 @@ module Inlining = struct
               Not_inlinable )
           | Always_inlined | Hint_inlined ->
             Call_site_inlining_decision_type.Attribute_always, Inlinable code
-          | Default_inlined ->
-            ( Call_site_inlining_decision_type.Definition_says_inline,
+          | Default_inlined | Unroll _ ->
+            (* Closure ignores completely [@unrolled] attributes, so it seems
+               safe to do the same. *)
+            ( Call_site_inlining_decision_type.Definition_says_inline
+                { was_inline_always = false },
               Inlinable code )
-          | Unroll _ -> assert false
         in
         Inlining_report.record_decision_at_call_site_for_known_function ~tracker
           ~apply ~pass:After_closure_conversion ~unrolling_depth:None
@@ -407,7 +412,6 @@ let close_c_call acc env ~loc ~let_bound_var
     let prim_name =
       if String.equal prim_native_name "" then prim_name else prim_native_name
     in
-    (* CR mshinwell: fix "extern" mess (see To_cmm) *)
     Symbol.create
       (Compilation_unit.external_symbols ())
       (Linkage_name.create prim_name)
@@ -618,12 +622,12 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
             "Non-zero tag on empty block allocation in [Closure_conversion]"
         else
           register_const0 acc
-            (Static_const.Block (Tag.Scannable.zero, Immutable, []))
+            (Static_const.block Tag.Scannable.zero Immutable [])
             "empty_block"
       | Pmakefloatblock _ ->
         Misc.fatal_error "Unexpected empty float block in [Closure_conversion]"
       | Pmakearray (_, _, _mode) ->
-        register_const0 acc Static_const.Empty_array "empty_array"
+        register_const0 acc Static_const.empty_array "empty_array"
       | Pidentity | Pbytes_to_string | Pbytes_of_string | Pignore | Prevapply _
       | Pdirapply _ | Pgetglobal _ | Psetglobal _ | Pfield _ | Pfield_computed _
       | Psetfield _ | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _
@@ -635,7 +639,7 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
       | Psubfloat _ | Pmulfloat _ | Pdivfloat _ | Pfloatcomp _ | Pstringlength
       | Pstringrefu | Pstringrefs | Pbyteslength | Pbytesrefu | Pbytessetu
       | Pbytesrefs | Pbytessets | Pduparray _ | Parraylength _ | Parrayrefu _
-      | Parraysetu _ | Parrayrefs _ | Parraysets _ | Pisint | Pisout
+      | Parraysetu _ | Parrayrefs _ | Parraysets _ | Pisint _ | Pisout
       | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _
       | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _ | Pandbint _
       | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
@@ -736,7 +740,7 @@ let close_let acc env id user_visible defining_expr
         | Prim (Binary (Block_load _, block, field), _) -> (
           match Env.find_value_approximation body_env block with
           | Value_unknown -> Some body_env
-          | Closure_approximation _ | Value_symbol _ ->
+          | Closure_approximation _ | Value_symbol _ | Value_int _ ->
             (* Here we assume [block] has already been substituted as a known
                symbol if it exists, and rely on the invariant that the
                approximation of a symbol is never a symbol. *)
@@ -824,9 +828,16 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
       | None -> handler_env
       | Some args ->
         List.fold_left2
-          (fun env arg_approx param ->
-            Env.add_value_approximation env (Name.var param) arg_approx)
-          handler_env args params
+          (fun env arg_approx (param, (param_id, _, _)) ->
+            let env =
+              Env.add_value_approximation env (Name.var param) arg_approx
+            in
+            match (arg_approx : Env.value_approximation) with
+            | Value_symbol s | Closure_approximation { symbol = Some s; _ } ->
+              Env.add_simple_to_substitute env param_id (Simple.symbol s)
+            | _ -> env)
+          handler_env args
+          (List.combine params params_with_kinds)
     in
     handler acc handler_env
   in
@@ -861,8 +872,7 @@ let close_exact_or_unknown_apply acc env
     | Function -> (
       ( acc,
         match (callee_approx : Env.value_approximation option) with
-        | Some (Closure_approximation (code_id, _function_slot, code_or_meta))
-          ->
+        | Some (Closure_approximation { code_id; code = code_or_meta; _ }) ->
           let return_arity, is_tupled =
             let meta = Code_or_metadata.code_metadata code_or_meta in
             Code_metadata.(result_arity meta, is_tupled meta)
@@ -875,7 +885,9 @@ let close_exact_or_unknown_apply acc env
             Call_kind.indirect_function_call_unknown_arity mode
           else Call_kind.direct_function_call code_id ~return_arity mode
         | None -> Call_kind.indirect_function_call_unknown_arity mode
-        | Some (Value_unknown | Value_symbol _ | Block_approximation _) ->
+        | Some
+            ( Value_unknown | Value_symbol _ | Value_int _
+            | Block_approximation _ ) ->
           assert false
         (* See [close_apply] *) ))
     | Method { kind; obj } ->
@@ -911,6 +923,12 @@ let close_exact_or_unknown_apply acc env
     match Inlining.inlinable env apply callee_approx with
     | Not_inlinable -> Expr_with_acc.create_apply acc apply
     | Inlinable func_desc ->
+      let acc = Acc.mark_continuation_as_untrackable continuation acc in
+      let acc =
+        Acc.mark_continuation_as_untrackable
+          (Exn_continuation.exn_handler apply_exn_continuation)
+          acc
+      in
       Inlining.inline acc ~apply ~apply_depth:(Env.current_depth env) ~func_desc
   else Expr_with_acc.create_apply acc apply
 
@@ -928,6 +946,11 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
   let scrutinee = find_simple_from_id env scrutinee in
   let untagged_scrutinee = Variable.create "untagged" in
   let untagged_scrutinee' = VB.create untagged_scrutinee Name_mode.normal in
+  let known_const_scrutinee =
+    match Env.find_value_approximation env scrutinee with
+    | Value_approximation.Value_int i -> Some i
+    | _ -> None
+  in
   let untag =
     Named.create_prim (Unary (Untag_immediate, scrutinee)) condition_dbg
   in
@@ -936,8 +959,9 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
       (fun acc (case, cont, trap_action, args) ->
         let trap_action = close_trap_action_opt trap_action in
         let acc, args = find_simples acc env args in
-        let acc, action =
-          Apply_cont_with_acc.create acc ?trap_action cont ~args
+        let args_approx = List.map (Env.find_value_approximation env) args in
+        let action acc =
+          Apply_cont_with_acc.create acc ?trap_action ~args_approx cont ~args
             ~dbg:condition_dbg
         in
         acc, (Targetint_31_63.of_int case, action))
@@ -968,6 +992,7 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
     in
     let acc, switch =
       let scrutinee = Simple.var comparison_result in
+      let acc, action = action acc in
       Expr_with_acc.create_switch acc
         (Switch.if_then_else ~condition_dbg ~scrutinee ~if_true:action
            ~if_false:default_action)
@@ -993,7 +1018,7 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
             else
               let acc, args = find_simples acc env args in
               let trap_action = close_trap_action_opt trap_action in
-              let acc, default =
+              let default acc =
                 Apply_cont_with_acc.create acc ?trap_action default ~args
                   ~dbg:condition_dbg
               in
@@ -1008,10 +1033,24 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
       let acc, body =
         match Targetint_31_63.Map.get_singleton arms with
         | Some (_discriminant, action) ->
+          let acc, action = action acc in
           Expr_with_acc.create_apply_cont acc action
-        | None ->
-          Expr_with_acc.create_switch acc
-            (Switch.create ~condition_dbg ~scrutinee ~arms)
+        | None -> (
+          match known_const_scrutinee with
+          | None ->
+            let acc, arms =
+              Targetint_31_63.Map.fold
+                (fun case action (acc, arms) ->
+                  let acc, arm = action acc in
+                  acc, Targetint_31_63.Map.add case arm arms)
+                arms
+                (acc, Targetint_31_63.Map.empty)
+            in
+            Expr_with_acc.create_switch acc
+              (Switch.create ~condition_dbg ~scrutinee ~arms)
+          | Some case ->
+            let acc, action = Targetint_31_63.Map.find case arms acc in
+            Expr_with_acc.create_apply_cont acc action)
       in
       Let_with_acc.create acc
         (Bound_pattern.singleton untagged_scrutinee')
@@ -1069,8 +1108,7 @@ let close_one_function acc ~external_env ~by_function_slot decl
       "Variables found in closure when trying to lift %a in \
        [Closure_conversion]."
       Ident.print our_let_rec_ident;
-  (* CR mshinwell: Remove "project_closure" names *)
-  let project_closure_to_bind, simples_for_project_closure =
+  let closure_vars_to_bind, simples_for_closure_vars =
     if has_lifted_closure
     then (* No projection needed *)
       Variable.Map.empty, Ident.Map.empty
@@ -1114,7 +1152,7 @@ let close_one_function acc ~external_env ~by_function_slot decl
                 (Name.var var)))
         value_slots_for_idents empty_env
     in
-    Env.add_simple_to_substitute_map env_with_vars simples_for_project_closure
+    Env.add_simple_to_substitute_map env_with_vars simples_for_closure_vars
   in
   let closure_env_without_history =
     List.fold_right
@@ -1156,13 +1194,12 @@ let close_one_function acc ~external_env ~by_function_slot decl
       let bt = Printexc.get_raw_backtrace () in
       Format.eprintf
         "\n\
-         %sContext is:%s closure converting function@ with [our_let_rec_ident] \
+         %tContext is:%t closure converting function@ with [our_let_rec_ident] \
          %a (function slot %a)"
         (* @ \ *)
         (* and body:@ %a *)
-        (Flambda_colours.error ())
-        (Flambda_colours.normal ())
-        Ident.print our_let_rec_ident Function_slot.print function_slot;
+        Flambda_colours.error Flambda_colours.pop Ident.print our_let_rec_ident
+        Function_slot.print function_slot;
       (* print body *)
       Printexc.raise_with_backtrace Misc.Fatal_error bt
   in
@@ -1183,7 +1220,7 @@ let close_one_function acc ~external_env ~by_function_slot decl
           Named.create_prim (Unary (move, my_closure')) Debuginfo.none
         in
         Let_with_acc.create acc (Bound_pattern.singleton var) named ~body)
-      project_closure_to_bind (acc, body)
+      closure_vars_to_bind (acc, body)
   in
   let acc, body =
     Variable.Map.fold
@@ -1221,7 +1258,10 @@ let close_one_function acc ~external_env ~by_function_slot decl
        are functions involving constant closures, which are not lifted during
        Closure (but will prevent inlining) but will likely have been lifted by
        our other check in [Inlining_cost] (thus preventing us seeing they were
-       originally there). *)
+       originally there). Note that while Closure never marks as inlinable
+       functions in a set a recursive definitions with more than one function,
+       we do not try to reproduce this particular property and can mark as
+       inlinable such functions. *)
     if contains_subfunctions
        && Flambda_features.Expert.fallback_inlining_heuristic ()
     then Never_inline
@@ -1381,7 +1421,8 @@ let close_functions acc external_env function_declarations =
   let approximations =
     Function_slot.Map.mapi
       (fun function_slot (code_id, code) ->
-        Value_approximation.Closure_approximation (code_id, function_slot, code))
+        Value_approximation.Closure_approximation
+          { code_id; function_slot; code; symbol = None })
       approximations
   in
   let function_decls = Function_declarations.create funs in
@@ -1408,8 +1449,17 @@ let close_functions acc external_env function_declarations =
     let symbols =
       Function_slot.Lmap.mapi
         (fun function_slot _ ->
-          ( Function_slot.Map.find function_slot symbol_map,
-            Function_slot.Map.find function_slot approximations ))
+          let sym = Function_slot.Map.find function_slot symbol_map in
+          let approx =
+            match Function_slot.Map.find function_slot approximations with
+            | Value_approximation.Closure_approximation
+                { code_id; function_slot; code; symbol = _ } ->
+              Value_approximation.Closure_approximation
+                { code_id; function_slot; code; symbol = Some sym }
+            | _ -> assert false
+            (* see above *)
+          in
+          sym, approx)
         funs
     in
     let acc = Acc.add_lifted_set_of_closures ~symbols ~set_of_closures acc in
@@ -1479,7 +1529,6 @@ let close_let_rec acc env ~function_declarations
     in
     body acc env
   | Dynamic (set_of_closures, approximations) ->
-    (* CR mshinwell: We should maybe have something more elegant here *)
     let generated_closures =
       Function_slot.Set.diff
         (Function_slot.Map.keys
@@ -1704,14 +1753,14 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
   let approx = Env.find_value_approximation env callee in
   let code_info =
     match approx with
-    | Closure_approximation (_, _, Code_present code) ->
+    | Closure_approximation { code = Code_present code; _ } ->
       Some
         ( Code.params_arity code,
           Code.is_tupled code,
           Code.num_trailing_local_params code,
           Code.contains_no_escaping_local_allocs code,
           Code.result_arity code )
-    | Closure_approximation (_, _, Metadata_only metadata) ->
+    | Closure_approximation { code = Metadata_only metadata; _ } ->
       Some
         ( Code_metadata.params_arity metadata,
           Code_metadata.is_tupled metadata,
@@ -1719,7 +1768,7 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
           Code_metadata.contains_no_escaping_local_allocs metadata,
           Code_metadata.result_arity metadata )
     | Value_unknown -> None
-    | Value_symbol _ | Block_approximation _ ->
+    | Value_symbol _ | Value_int _ | Block_approximation _ ->
       if Flambda_features.check_invariants ()
       then
         Misc.fatal_errorf
@@ -1817,7 +1866,7 @@ let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
         let bound = Bound_static.Pattern.set_of_closures symbols in
         let const =
           Static_const_or_code.create_static_const
-            (Set_of_closures set_of_closures)
+            (Static_const.set_of_closures set_of_closures)
         in
         ( GroupMap.add id (bound, const) g2c,
           Function_slot.Lmap.fold
@@ -1906,7 +1955,7 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode)
               Dynamically_computed (var, Debuginfo.none))
             field_vars
         in
-        Block (module_block_tag, Immutable, field_vars)
+        Static_const.block module_block_tag Immutable field_vars
       in
       let acc, arg = use_of_symbol_as_simple acc module_symbol in
       let acc, apply_cont =
@@ -1984,9 +2033,11 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode)
     match Acc.declared_symbols acc with
     | _ :: _ -> acc
     | [] ->
+      (* CR vlaviron/mshinwell: Maybe this could use an empty array.
+         Furthermore, can this hack be removed? *)
       let acc, (_sym : Symbol.t) =
         register_const0 acc
-          (Static_const.Block (Tag.Scannable.zero, Immutable, []))
+          (Static_const.block Tag.Scannable.zero Immutable [])
           "first_const"
       in
       acc

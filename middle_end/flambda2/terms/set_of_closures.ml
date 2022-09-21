@@ -24,13 +24,13 @@ let [@ocamlformat "disable"] print ppf
       { function_decls;
         value_slots;alloc_mode;
       } =
-  Format.fprintf ppf "@[<hov 1>(%sset_of_closures%s@ \
+  Format.fprintf ppf "@[<hov 1>(%tset_of_closures%t@ \
       @[<hov 1>(function_decls@ %a)@]@ \
       @[<hov 1>(value_slots@ %a)@]@ \
       @[<hov 1>(alloc_mode@ %a)@]\
       )@]"
-    (Flambda_colours.prim_constructive ())
-    (Flambda_colours.normal ())
+    Flambda_colours.prim_constructive
+    Flambda_colours.pop
     (Function_declarations.print) function_decls
     (Value_slot.Map.print Simple.print) value_slots
     Alloc_mode.print alloc_mode
@@ -66,8 +66,6 @@ let is_empty { function_decls; value_slots; alloc_mode = _ } =
   && Value_slot.Map.is_empty value_slots
 
 let create ~value_slots alloc_mode function_decls =
-  (* CR mshinwell: Make sure invariant checks are applied here, e.g. that the
-     set of closures is indeed closed. *)
   { function_decls; value_slots; alloc_mode }
 
 let function_decls t = t.function_decls
@@ -84,20 +82,20 @@ let [@ocamlformat "disable"] print ppf
         alloc_mode;
       } =
   if Value_slot.Map.is_empty value_slots then
-    Format.fprintf ppf "@[<hov 1>(%sset_of_closures%s@ %a@ \
+    Format.fprintf ppf "@[<hov 1>(%tset_of_closures%t@ %a@ \
         @[<hov 1>%a@]\
         )@]"
-      (Flambda_colours.prim_constructive ())
-      (Flambda_colours.normal ())
+      Flambda_colours.prim_constructive
+      Flambda_colours.pop
       Alloc_mode.print alloc_mode
       (Function_declarations.print) function_decls
   else
-    Format.fprintf ppf "@[<hov 1>(%sset_of_closures%s@ %a@ \
+    Format.fprintf ppf "@[<hov 1>(%tset_of_closures%t@ %a@ \
         @[<hov 1>%a@]@ \
         @[<hov 1>(env@ %a)@]\
         )@]"
-      (Flambda_colours.prim_constructive ())
-      (Flambda_colours.normal ())
+      Flambda_colours.prim_constructive
+      Flambda_colours.pop
       Alloc_mode.print alloc_mode
       Function_declarations.print function_decls
       (Value_slot.Map.print Simple.print) value_slots
@@ -137,9 +135,9 @@ let apply_renaming ({ function_decls; value_slots; alloc_mode } as t) renaming =
   else
     { function_decls = function_decls'; value_slots = value_slots'; alloc_mode }
 
-let all_ids_for_export { function_decls; value_slots; alloc_mode = _ } =
+let ids_for_export { function_decls; value_slots; alloc_mode = _ } =
   let function_decls_ids =
-    Function_declarations.all_ids_for_export function_decls
+    Function_declarations.ids_for_export function_decls
   in
   Value_slot.Map.fold
     (fun _value_slot simple ids -> Ids_for_export.add_simple ids simple)

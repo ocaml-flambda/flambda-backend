@@ -19,8 +19,16 @@
 type 'code t =
   | Value_unknown
   | Value_symbol of Symbol.t
-  | Closure_approximation of Code_id.t * Function_slot.t * 'code
+  | Value_int of Targetint_31_63.t
+  | Closure_approximation of
+      { code_id : Code_id.t;
+        function_slot : Function_slot.t;
+        code : 'code;
+        symbol : Symbol.t option
+      }
   | Block_approximation of 'code t array * Alloc_mode.t
+
+val print : Format.formatter -> 'a t -> unit
 
 val is_unknown : 'a t -> bool
 

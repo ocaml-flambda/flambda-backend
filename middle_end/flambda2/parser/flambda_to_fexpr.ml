@@ -432,7 +432,7 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   | Box_number (bk, _alloc_mode) -> Box_number bk
   | Tag_immediate -> Tag_immediate
   | Get_tag -> Get_tag
-  | Is_int -> Is_int
+  | Is_int _ -> Is_int (* CR vlaviron: discuss *)
   | Num_conv { src; dst } -> Num_conv { src; dst }
   | Opaque_identity -> Opaque_identity
   | Unbox_number bk -> Unbox_number bk
@@ -579,6 +579,8 @@ let static_const env (sc : Static_const.t) : Fexpr.static_data =
     Immutable_float_block (List.map (or_variable float env) elements)
   | Immutable_float_array elements ->
     Immutable_float_array (List.map (or_variable float env) elements)
+  | Immutable_value_array elements ->
+    Immutable_value_array (List.map (field_of_block env) elements)
   | Empty_array -> Empty_array
   | Mutable_string { initial_value } -> Mutable_string { initial_value }
   | Immutable_string s -> Immutable_string s

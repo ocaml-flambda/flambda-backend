@@ -19,29 +19,46 @@ module MTC = More_type_creators
 module TG = Type_grammar
 module TEL = Typing_env_level
 
-(* CR mshinwell: Add signatures to these submodules. *)
-module One_level = struct
+module One_level : sig
+  type t
+
+  val print : min_binding_time:Binding_time.t -> Format.formatter -> t -> unit
+
+  val create : Scope.t -> TEL.t -> just_after_level:Cached_level.t -> t
+
+  val create_empty : Scope.t -> t
+
+  val scope : t -> Scope.t
+
+  val level : t -> TEL.t
+
+  val just_after_level : t -> Cached_level.t
+
+  val with_aliases : t -> aliases:Aliases.t -> t
+
+  val is_empty : t -> bool
+
+  val clean_for_export : t -> reachable_names:Name_occurrences.t -> t
+
+  val remove_unused_value_slots_and_shortcut_aliases :
+    t -> used_value_slots:Value_slot.Set.t -> t
+
+  val canonicalise : t -> Simple.t -> Simple.t
+end = struct
   type t =
     { scope : Scope.t;
       level : TEL.t;
       just_after_level : Cached_level.t
     }
 
-  let [@ocamlformat "disable"] print ~min_binding_time ppf
-        { scope = _; level; just_after_level; } =
+  let print ~min_binding_time ppf { scope = _; level; just_after_level } =
     let restrict_to = TEL.defined_names level in
-    if Name.Set.is_empty restrict_to then
-      Format.fprintf ppf "@[<hov 0>\
-          %a\
-          @]"
-        TEL.print level
+    if Name.Set.is_empty restrict_to
+    then Format.fprintf ppf "@[<hov 0>%a@]" TEL.print level
     else
-      Format.fprintf ppf "@[<hov 0>\
-          @[<hov 1>(defined_vars@ %a)@]@ \
-          %a\
-          @]"
-        (Cached_level.print_name_modes ~restrict_to ~min_binding_time) just_after_level
-        TEL.print level
+      Format.fprintf ppf "@[<hov 0>@[<hov 1>(defined_vars@ %a)@]@ %a@]"
+        (Cached_level.print_name_modes ~restrict_to ~min_binding_time)
+        just_after_level TEL.print level
 
   let create scope level ~just_after_level = { scope; level; just_after_level }
 
@@ -61,9 +78,6 @@ module One_level = struct
     { t with just_after_level }
 
   let is_empty t = TEL.is_empty t.level
-
-  (* let defines_name_but_no_equations t name =
-     TEL.defines_name_but_no_equations t.level name *)
 
   let clean_for_export t ~reachable_names =
     { t with
@@ -87,7 +101,9 @@ type t =
     get_imported_names : unit -> Name.Set.t;
     defined_symbols : Symbol.Set.t;
     code_age_relation : Code_age_relation.t;
-    prev_levels : One_level.t Scope.Map.t;
+    prev_levels : One_level.t list;
+    (* [prev_levels] is sorted with the greatest scope at the head of the
+       list *)
     current_level : One_level.t;
     next_binding_time : Binding_time.t;
     min_binding_time : Binding_time.t (* Earlier variables have mode In_types *)
@@ -103,14 +119,13 @@ type typing_env = t
 
 let is_empty t =
   One_level.is_empty t.current_level
-  && Scope.Map.is_empty t.prev_levels
+  && (match t.prev_levels with [] -> true | _ :: _ -> false)
   && Symbol.Set.is_empty t.defined_symbols
 
 let aliases t =
   Cached_level.aliases (One_level.just_after_level t.current_level)
 
-(* CR mshinwell: Should print name occurrence kinds *)
-(* CR mshinwell: Add option to print [aliases] *)
+(* CR-someday mshinwell: Should print name occurrence kinds *)
 let [@ocamlformat "disable"] print ppf
       ({ resolver = _; binding_time_resolver = _;get_imported_names = _;
          prev_levels; current_level; next_binding_time = _;
@@ -120,22 +135,23 @@ let [@ocamlformat "disable"] print ppf
     Format.pp_print_string ppf "Empty"
   else
     let levels =
-      Scope.Map.add (One_level.scope current_level) current_level prev_levels
+      current_level :: prev_levels
     in
     let levels =
-      Scope.Map.filter (fun _ level -> not (One_level.is_empty level))
+      List.filter (fun level -> not (One_level.is_empty level))
         levels
     in
     Format.fprintf ppf
       "@[<hov 1>(\
-          @[<hov 1>(defined_symbols@ %a)@]@ \
-          @[<hov 1>(code_age_relation@ %a)@]@ \
-          @[<hov 1>(levels@ %a)@]@ \
-          @[<hov 1>(aliases@ %a)@]\
-          )@]"
+         @[<hov 1>(defined_symbols@ %a)@]@ \
+         @[<hov 1>(code_age_relation@ %a)@]@ \
+         @[<hov 1>(levels@ %a)@]@ \
+         @[<hov 1>(aliases@ %a)@]\
+       )@]"
       Symbol.Set.print defined_symbols
       Code_age_relation.print code_age_relation
-      (Scope.Map.print (One_level.print ~min_binding_time))
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space
+         (One_level.print ~min_binding_time))
       levels
       Aliases.print (aliases t)
 
@@ -154,81 +170,134 @@ let [@ocamlformat "disable"] print_serializable ppf
     (Cached_level.names_to_types just_after_level)
     Aliases.print (Cached_level.aliases just_after_level)
 
-module Meet_env = struct
+module Meet_or_join_env_base : sig
+  type t
+
+  val print : Format.formatter -> t -> unit
+
+  val create : typing_env -> t
+
+  val env : t -> typing_env
+
+  val now_meeting_or_joining : t -> Simple.t -> Simple.t -> t
+
+  val already_meeting_or_joining : t -> Simple.t -> Simple.t -> bool
+end = struct
   type t =
     { env : typing_env;
-      already_meeting : Name.Pair.Set.t
+      already_meeting_or_joining : Name.Pair.Set.t
     }
 
-  let [@ocamlformat "disable"] print ppf { env; already_meeting; } =
+  let [@ocamlformat "disable"] print ppf { env; already_meeting_or_joining; } =
     Format.fprintf ppf
       "@[<hov 1>(\
-        @[<hov 1>(env@ %a)@]@ \
-        @[<hov 1>(already_meeting@ %a)@])@]"
+         @[<hov 1>(env@ %a)@]@ \
+         @[<hov 1>(already_meeting_or_joining@ %a)@])\
+       @]"
       print env
-      Name.Pair.Set.print already_meeting
+      Name.Pair.Set.print already_meeting_or_joining
 
-  let create env = { env; already_meeting = Name.Pair.Set.empty }
+  let create env = { env; already_meeting_or_joining = Name.Pair.Set.empty }
 
   let env t = t.env
 
-  let already_meeting_names t name1 name2 =
-    Name.Pair.Set.mem (name1, name2) t.already_meeting
-    || Name.Pair.Set.mem (name2, name1) t.already_meeting
+  let already_meeting_or_joining_names t name1 name2 =
+    Name.Pair.Set.mem (name1, name2) t.already_meeting_or_joining
+    || Name.Pair.Set.mem (name2, name1) t.already_meeting_or_joining
 
-  let already_meeting t simple1 simple2 =
+  let already_meeting_or_joining t simple1 simple2 =
     let const _const = false in
     Simple.pattern_match simple1 ~const ~name:(fun name1 ~coercion:_ ->
         Simple.pattern_match simple2 ~const ~name:(fun name2 ~coercion:_ ->
-            already_meeting_names t name1 name2))
+            already_meeting_or_joining_names t name1 name2))
 
-  let now_meeting_names t name1 name2 =
-    if already_meeting_names t name1 name2
+  let now_meeting_or_joining_names t name1 name2 =
+    if already_meeting_or_joining_names t name1 name2
     then
-      Misc.fatal_errorf "Already meeting %a and %a:@ %a" Name.print name1
-        Name.print name2 print t;
-    let already_meeting = Name.Pair.Set.add (name1, name2) t.already_meeting in
-    { t with already_meeting }
+      Misc.fatal_errorf "Already meeting_or_joining %a and %a:@ %a" Name.print
+        name1 Name.print name2 print t;
+    let already_meeting_or_joining =
+      Name.Pair.Set.add (name1, name2) t.already_meeting_or_joining
+    in
+    { t with already_meeting_or_joining }
 
-  let now_meeting t simple1 simple2 =
+  let now_meeting_or_joining t simple1 simple2 =
     let const _const = t in
     Simple.pattern_match simple1 ~const ~name:(fun name1 ~coercion:_ ->
         Simple.pattern_match simple2 ~const ~name:(fun name2 ~coercion:_ ->
-            now_meeting_names t name1 name2))
+            now_meeting_or_joining_names t name1 name2))
+end
+
+module Meet_env : sig
+  type t
+
+  val print : Format.formatter -> t -> unit
+
+  val create : typing_env -> t
+
+  val env : t -> typing_env
+
+  val now_meeting : t -> Simple.t -> Simple.t -> t
+
+  val already_meeting : t -> Simple.t -> Simple.t -> bool
+end = struct
+  include Meet_or_join_env_base
+
+  let now_meeting = now_meeting_or_joining
+
+  let already_meeting = already_meeting_or_joining
 end
 
 type meet_type =
   Meet_env.t -> TG.t -> TG.t -> (TG.t * Typing_env_extension.t) Or_bottom.t
 
-module Join_env = struct
+module Join_env : sig
+  type t
+
+  val print : Format.formatter -> t -> unit
+
+  val create : typing_env -> left_env:typing_env -> right_env:typing_env -> t
+
+  val target_join_env : t -> typing_env
+
+  val left_join_env : t -> typing_env
+
+  val right_join_env : t -> typing_env
+
+  type now_joining_result =
+    | Continue of t
+    | Stop
+
+  val now_joining : t -> Simple.t -> Simple.t -> now_joining_result
+
+  val already_joining : t -> Simple.t -> Simple.t -> bool
+end = struct
   type t =
-    { central_env : Meet_env.t;
+    { central_env : Meet_or_join_env_base.t;
       left_join_env : typing_env;
       right_join_env : typing_env;
       depth : int
     }
 
-  let [@ocamlformat "disable"] print ppf
-      { central_env; left_join_env; right_join_env; depth } =
+  let print ppf { central_env; left_join_env; right_join_env; depth } =
     let join_env name ppf env =
       Format.fprintf ppf "@ @[<hov 1>(%s@ %a)@]@" name print env
     in
-    Format.fprintf ppf "@[<hov 1>(\
-        @[<hov 1>(central_env@ %a)@]\
-        %a%a@ (depth %d))@]"
-      Meet_env.print central_env
-      (join_env "left_join_env") left_join_env
-      (join_env "right_join_env") right_join_env
-      depth
+    Format.fprintf ppf
+      "@[<hov 1>(@[<hov 1>(central_env@ %a)@]%a%a@ (depth %d))@]"
+      Meet_or_join_env_base.print central_env (join_env "left_join_env")
+      left_join_env
+      (join_env "right_join_env")
+      right_join_env depth
 
   let create central_env ~left_env ~right_env =
-    { central_env = Meet_env.create central_env;
+    { central_env = Meet_or_join_env_base.create central_env;
       left_join_env = left_env;
       right_join_env = right_env;
       depth = 0
     }
 
-  let target_join_env t = Meet_env.env t.central_env
+  let target_join_env t = Meet_or_join_env_base.env t.central_env
 
   let left_join_env t = t.left_join_env
 
@@ -238,20 +307,20 @@ module Join_env = struct
     | Continue of t
     | Stop
 
-  (* CR mshinwell: fix naming, it's odd at the moment to be using
-     [already_meeting]... *)
   let now_joining t simple1 simple2 =
     if t.depth >= Flambda_features.join_depth ()
     then Stop
     else
       Continue
         { t with
-          central_env = Meet_env.now_meeting t.central_env simple1 simple2;
+          central_env =
+            Meet_or_join_env_base.now_meeting_or_joining t.central_env simple1
+              simple2;
           depth = t.depth + 1
         }
 
   let already_joining { central_env; _ } simple1 simple2 =
-    Meet_env.already_meeting central_env simple1 simple2
+    Meet_or_join_env_base.already_meeting_or_joining central_env simple1 simple2
 end
 
 let names_to_types t =
@@ -275,25 +344,6 @@ let binding_time_resolver resolver name =
         Name.print name print_serializable t
     | _, binding_time_and_mode -> binding_time_and_mode)
 
-let invariant0 ?force _t =
-  if Flambda_features.check_invariants ()
-     || Option.is_some (force : unit option)
-  then
-    ( (* CR mshinwell: Fix things so this check passes, or delete it. let
-         no_empty_prev_levels = Scope.Map.for_all (fun _scope level -> not
-         (One_level.is_empty level)) t.prev_levels in if not
-         no_empty_prev_levels then begin Misc.fatal_errorf "Typing environment
-         contains [prev_levels] that are \ empty:@ %a" print t end; let
-         current_scope = One_level.scope t.current_level in let max_prev_scope =
-         Scope.Map.fold (fun scope _level max_prev_scope -> Scope.max scope
-         max_prev_scope) t.prev_levels Scope.initial in if (not (is_empty t)) &&
-         Scope.(<=) current_scope max_prev_scope then begin Misc.fatal_errorf
-         "Typing environment contains a [current_level] with a \ scope (%a) that
-         is not strictly greater than all scopes in \ [prev_levels] (%a):@ %a"
-         Scope.print current_scope Scope.print max_prev_scope print t end *) )
-
-let invariant t : unit = invariant0 t
-
 let resolver t = t.resolver
 
 let code_age_relation_resolver t comp_unit =
@@ -307,8 +357,11 @@ let create ~resolver ~get_imported_names =
   { resolver;
     binding_time_resolver = binding_time_resolver resolver;
     get_imported_names;
-    prev_levels = Scope.Map.empty;
-    current_level = One_level.create_empty Scope.initial;
+    prev_levels = [];
+    (* Since [Scope.prev] may be used in the simplifier on this scope, in order
+       to allow an efficient implementation of [cut] (see below), we always
+       increment the scope by one here. *)
+    current_level = One_level.create_empty (Scope.next Scope.initial);
     next_binding_time = Binding_time.earliest_var;
     defined_symbols = Symbol.Set.empty;
     code_age_relation = Code_age_relation.empty;
@@ -317,7 +370,7 @@ let create ~resolver ~get_imported_names =
 
 let increment_scope t =
   let current_scope = current_scope t in
-  let prev_levels = Scope.Map.add current_scope t.current_level t.prev_levels in
+  let prev_levels = t.current_level :: t.prev_levels in
   let current_level =
     One_level.create (Scope.next current_scope) TEL.empty
       ~just_after_level:(One_level.just_after_level t.current_level)
@@ -360,7 +413,7 @@ let check_optional_kind_matches name ty kind_opt =
 
 exception Missing_cmx_and_kind
 
-(* CR mshinwell: [kind] could also take a [subkind] *)
+(* CR-someday mshinwell: [kind] could also take a [subkind] *)
 let find_with_binding_time_and_mode' t name kind =
   (* Note that [Pre_serializable] (below) assumes this function only looks up
      types of names in the cache for the current level. *)
@@ -530,16 +583,11 @@ let mem_simple ?min_name_mode t simple =
     ~name:(fun name ~coercion:_ -> mem ?min_name_mode t name)
     ~const:(fun _ -> true)
 
-let with_current_level t ~current_level =
-  let t = { t with current_level } in
-  invariant t;
-  t
+let with_current_level t ~current_level = { t with current_level }
 
 let with_current_level_and_next_binding_time t ~current_level next_binding_time
     =
-  let t = { t with current_level; next_binding_time } in
-  invariant t;
-  t
+  { t with current_level; next_binding_time }
 
 let with_aliases t ~aliases =
   let current_level = One_level.with_aliases t.current_level ~aliases in
@@ -581,7 +629,7 @@ let add_variable_definition t var kind name_mode =
     (Binding_time.succ t.next_binding_time)
 
 let add_symbol_definition t sym =
-  (* CR mshinwell: check for redefinition when invariants enabled? *)
+  (* CR-someday mshinwell: check for redefinition when invariants enabled? *)
   let comp_unit = Symbol.compilation_unit sym in
   let this_comp_unit = Compilation_unit.get_current_exn () in
   if not (Compilation_unit.equal comp_unit this_comp_unit)
@@ -642,21 +690,15 @@ let invariant_for_alias (t : t) name ty =
            @."
           Name.print name TG.print ty
 
-(* This is too costly to check, but it can be useful for debugging problems with
-   canonical aliases. let invariant_for_aliases (t:t) = Name.Map.iter (fun name
-   (ty, _, _) -> invariant_for_alias t name ty ) (names_to_types t) *)
-
 let invariant_for_new_equation (t : t) name ty =
   if Flambda_features.check_invariants ()
   then (
     invariant_for_alias t name ty;
-    (* CR mshinwell: This should check that precision is not decreasing. *)
     let defined_names =
       Name_occurrences.create_names
         (Name.Set.union (name_domain t) (t.get_imported_names ()))
         Name_mode.in_types
     in
-    (* CR mshinwell: It's a shame we can't check code IDs here. *)
     let free_names = Name_occurrences.without_code_ids (TG.free_names ty) in
     if not (Name_occurrences.subset_domain free_names defined_names)
     then
@@ -714,9 +756,7 @@ let rec add_equation0 (t : t) name ty =
   let current_level =
     One_level.create (current_scope t) level ~just_after_level
   in
-  let res = with_current_level t ~current_level in
-  (* invariant_for_aliases res; *)
-  res
+  with_current_level t ~current_level
 
 and add_equation1 t name ty ~(meet_type : meet_type) =
   (if Flambda_features.check_invariants ()
@@ -727,15 +767,7 @@ and add_equation1 t name ty ~(meet_type : meet_type) =
       Misc.fatal_errorf
         "Cannot add equation %a = %a@ given existing binding %a = %a@ whose \
          type is of a different kind:@ %a"
-        Name.print name TG.print ty Name.print name TG.print existing_ty print t
-    (* XXX Needs to be guarded let free_names = Type_free_names.free_names ty in
-       if not (Name_occurrences.subset_domain free_names (domain t)) then begin
-       let unbound_names = Name_occurrences.diff free_names (domain t) in
-       Misc.fatal_errorf "Cannot add equation, involving unbound names@ (%a),@
-       on \ name@ %a =@ %a@ (free names %a) in environment with domain %a:@ %a"
-       Name_occurrences.print unbound_names Name.print name TG.print ty
-       Name_occurrences.print free_names Name_occurrences.print (domain t) print
-       t end; *));
+        Name.print name TG.print ty Name.print name TG.print existing_ty print t);
   (if Flambda_features.check_invariants ()
   then
     match TG.get_alias_exn ty with
@@ -868,15 +900,6 @@ and add_env_extension_with_extra_variables t
     ~equation:(fun name ty t -> add_equation t name ty ~meet_type)
     env_extension t
 
-(* These version is outside the [let rec] and thus does not cause [caml_apply*]
-   to be used when calling from outside this module. *)
-let add_equation t name ty ~meet_type = add_equation t name ty ~meet_type
-
-let add_env_extension t env_extension = add_env_extension t env_extension
-
-let add_env_extension_with_extra_variables t env_extension =
-  add_env_extension_with_extra_variables t env_extension
-
 let add_env_extension_from_level t level ~meet_type : t =
   let t =
     TEL.fold_on_defined_vars
@@ -937,28 +960,25 @@ let code_age_relation t = t.code_age_relation
 
 let with_code_age_relation t code_age_relation = { t with code_age_relation }
 
-(* CR mshinwell: Change the name of the labelled argument *)
-let cut t ~unknown_if_defined_at_or_later_than:min_scope =
+let cut t ~cut_after =
   let current_scope = current_scope t in
-  if Scope.( > ) min_scope current_scope
+  if Scope.( >= ) cut_after current_scope
   then TEL.empty
   else
-    let _strictly_less, at_min_scope, strictly_greater =
-      Scope.Map.split min_scope t.prev_levels
+    let rec loop result = function
+      | [] -> result
+      | one_level :: levels ->
+        if Scope.( > ) (One_level.scope one_level) cut_after
+        then
+          let result =
+            TEL.concat ~earlier:(One_level.level one_level) ~later:result
+          in
+          loop result levels
+        else result
     in
-    let at_or_after_cut =
-      match at_min_scope with
-      | None -> strictly_greater
-      | Some typing_env_level ->
-        Scope.Map.add min_scope typing_env_level strictly_greater
-    in
-    let at_or_after_cut =
-      Scope.Map.add current_scope t.current_level at_or_after_cut
-    in
-    Scope.Map.fold
-      (fun _scope one_level result ->
-        TEL.concat result (One_level.level one_level))
-      at_or_after_cut TEL.empty
+    (* Owing to the check above it is certain that we want [t.current_level]
+       included in the result. *)
+    loop (One_level.level t.current_level) t.prev_levels
 
 let type_simple_in_term_exn t ?min_name_mode simple =
   (* If [simple] is a variable then it should not come from a missing .cmx file,
@@ -998,10 +1018,8 @@ let type_simple_in_term_exn t ?min_name_mode simple =
   with
   | exception Misc.Fatal_error ->
     let bt = Printexc.get_raw_backtrace () in
-    Format.eprintf "\n%sContext is:%s typing environment@ %a\n"
-      (Flambda_colours.error ())
-      (Flambda_colours.normal ())
-      print t;
+    Format.eprintf "\n%tContext is:%t typing environment@ %a\n"
+      Flambda_colours.error Flambda_colours.pop print t;
     Printexc.raise_with_backtrace Misc.Fatal_error bt
   | exception Binding_time_resolver_failure -> TG.alias_type_of kind simple
   | alias -> TG.alias_type_of kind alias
@@ -1028,10 +1046,8 @@ let get_canonical_simple_exn t ?min_name_mode ?name_mode_of_existing_simple
   with
   | exception Misc.Fatal_error ->
     let bt = Printexc.get_raw_backtrace () in
-    Format.eprintf "\n%sContext is:%s typing environment@ %a\n"
-      (Flambda_colours.error ())
-      (Flambda_colours.normal ())
-      print t;
+    Format.eprintf "\n%tContext is:%t typing environment@ %a\n"
+      Flambda_colours.error Flambda_colours.pop print t;
     Printexc.raise_with_backtrace Misc.Fatal_error bt
   | exception Binding_time_resolver_failure -> simple
   | alias -> alias
@@ -1116,7 +1132,7 @@ module Serializable : sig
 
   val name_domain : t -> Name.Set.t
 
-  val all_ids_for_export : t -> Ids_for_export.t
+  val ids_for_export : t -> Ids_for_export.t
 
   val apply_renaming : t -> Renaming.t -> t
 
@@ -1163,13 +1179,16 @@ end = struct
     let rec type_from_approx approx =
       match (approx : _ Value_approximation.t) with
       | Value_unknown -> MTC.unknown Flambda_kind.value
+      | Value_int i -> TG.this_tagged_immediate i
       | Value_symbol symbol ->
         TG.alias_type_of Flambda_kind.value (Simple.symbol symbol)
       | Block_approximation (fields, alloc_mode) ->
         let fields = List.map type_from_approx (Array.to_list fields) in
         MTC.immutable_block ~is_unique:false Tag.zero
           ~field_kind:Flambda_kind.value ~fields (Or_unknown.Known alloc_mode)
-      | Closure_approximation (code_id, function_slot, _code_opt) ->
+      | Closure_approximation { code_id; function_slot; code = _; symbol = _ }
+        ->
+        (* CR keryan: we should use the associated symbol at some point *)
         let fun_decl =
           TG.Function_type.create code_id
             ~rec_info:(MTC.unknown Flambda_kind.rec_info)
@@ -1206,40 +1225,19 @@ end = struct
       (Name.Map.keys (Cached_level.names_to_types t.just_after_level))
       t.defined_symbols_without_equations
 
-  (* CR mshinwell for vlaviron: Shouldn't some of this be in
-     [Cached_level.all_ids_for_export]? *)
-  let all_ids_for_export
+  let ids_for_export
       { defined_symbols_without_equations; code_age_relation; just_after_level }
       =
-    let symbols = Symbol.Set.of_list defined_symbols_without_equations in
-    let code_ids =
-      Code_age_relation.all_code_ids_for_export code_age_relation
-    in
-    let ids = Ids_for_export.create ~symbols ~code_ids () in
-    let ids =
-      Name.Map.fold
-        (fun name (typ, _binding_time_and_mode) ids ->
-          Ids_for_export.add_name
-            (Ids_for_export.union ids (TG.all_ids_for_export typ))
-            name)
-        (Cached_level.names_to_types just_after_level)
-        ids
-    in
-    let ids =
-      Ids_for_export.union ids
-        (Aliases.all_ids_for_export (Cached_level.aliases just_after_level))
-    in
-    let ids =
-      Variable.Map.fold
-        (fun var proj ids ->
-          let ids =
-            Ids_for_export.union ids (Symbol_projection.all_ids_for_export proj)
-          in
-          Ids_for_export.add_variable ids var)
-        (Cached_level.symbol_projections just_after_level)
-        ids
-    in
-    ids
+    Ids_for_export.create
+      ~symbols:(Symbol.Set.of_list defined_symbols_without_equations)
+      ~code_ids:(Code_age_relation.all_code_ids_for_export code_age_relation)
+      ()
+    |> Ids_for_export.union (Cached_level.ids_for_export just_after_level)
+    |> Variable.Map.fold
+         (fun var proj ids ->
+           Ids_for_export.add_variable ids var
+           |> Ids_for_export.union (Symbol_projection.ids_for_export proj))
+         (Cached_level.symbol_projections just_after_level)
 
   let apply_renaming
       { defined_symbols_without_equations; code_age_relation; just_after_level }
@@ -1279,7 +1277,12 @@ end = struct
         | Unknown | Bottom -> Value_unknown
         | Ok (Equals simple) ->
           Simple.pattern_match' simple
-            ~const:(fun _ -> VA.Value_unknown)
+            ~const:(fun const ->
+              match Reg_width_const.descr const with
+              | Tagged_immediate i -> VA.Value_int i
+              | Naked_immediate _ | Naked_float _ | Naked_int32 _
+              | Naked_int64 _ | Naked_nativeint _ ->
+                VA.Value_unknown)
             ~var:(fun _ ~coercion:_ -> VA.Value_unknown)
             ~symbol:(fun symbol ~coercion:_ -> VA.Value_symbol symbol)
         | Ok (No_alias head) -> (
@@ -1299,7 +1302,9 @@ end = struct
               | Ok function_type ->
                 let code_id = TG.Function_type.code_id function_type in
                 let code_or_meta = find_code code_id in
-                Closure_approximation (code_id, function_slot, code_or_meta)))
+                Closure_approximation
+                  { code_id; function_slot; code = code_or_meta; symbol = None }
+              ))
           | Variant
               { immediates = Unknown;
                 blocks = _;

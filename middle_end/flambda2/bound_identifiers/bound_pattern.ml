@@ -68,15 +68,15 @@ let apply_renaming t renaming =
     let bound_static' = Bound_static.apply_renaming bound_static renaming in
     if bound_static == bound_static' then t else Static bound_static'
 
-let all_ids_for_export t =
+let ids_for_export t =
   match t with
-  | Singleton bound_var -> Bound_var.all_ids_for_export bound_var
+  | Singleton bound_var -> Bound_var.ids_for_export bound_var
   | Set_of_closures bound_vars ->
     List.fold_left
       (fun ids bound_var ->
-        Ids_for_export.union ids (Bound_var.all_ids_for_export bound_var))
+        Ids_for_export.union ids (Bound_var.ids_for_export bound_var))
       Ids_for_export.empty bound_vars
-  | Static bound_static -> Bound_static.all_ids_for_export bound_static
+  | Static bound_static -> Bound_static.ids_for_export bound_static
 
 let rename t =
   match t with

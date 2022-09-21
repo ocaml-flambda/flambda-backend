@@ -19,14 +19,13 @@ type 'a t =
   | Unknown
 
 let print f ppf t =
-  let colour = Flambda_colours.top_or_bottom_type () in
+  let colour = Flambda_colours.top_or_bottom_type in
   match t with
   | Known contents -> Format.fprintf ppf "%a" f contents
   | Unknown ->
     if Flambda_features.unicode ()
-    then
-      Format.fprintf ppf "%s@<1>\u{22a4}%s" colour (Flambda_colours.normal ())
-    else Format.fprintf ppf "%sT%s" colour (Flambda_colours.normal ())
+    then Format.fprintf ppf "%t@<1>\u{22a4}%t" colour Flambda_colours.pop
+    else Format.fprintf ppf "%tT%t" colour Flambda_colours.pop
 
 let compare compare_contents t1 t2 =
   match t1, t2 with
@@ -58,9 +57,9 @@ let free_names free_names_contents t =
   | Known contents -> free_names_contents contents
   | Unknown -> Name_occurrences.empty
 
-let all_ids_for_export all_ids_for_export_contents t =
+let ids_for_export ids_for_export_contents t =
   match t with
-  | Known contents -> all_ids_for_export_contents contents
+  | Known contents -> ids_for_export_contents contents
   | Unknown -> Ids_for_export.empty
 
 let apply_renaming t renaming rename_contents =

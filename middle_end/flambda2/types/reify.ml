@@ -20,39 +20,60 @@ module Int64 = Numeric_types.Int64
 module TE = Typing_env
 module TG = Type_grammar
 
-type var_or_symbol_or_tagged_immediate =
-  | Var of Variable.t
-  | Symbol of Symbol.t
-  | Tagged_immediate of Targetint_31_63.t
-
 type to_lift =
   | Immutable_block of
       { tag : Tag.Scannable.t;
         is_unique : bool;
-        fields : var_or_symbol_or_tagged_immediate list
+        fields : Simple.t list
       }
   | Boxed_float of Float.t
   | Boxed_int32 of Int32.t
   | Boxed_int64 of Int64.t
   | Boxed_nativeint of Targetint_32_64.t
+  | Immutable_float_array of { fields : Float.t list }
+  | Immutable_value_array of { fields : Simple.t list }
   | Empty_array
 
 type reification_result =
   | Lift of to_lift
-  | Lift_set_of_closures of
-      { function_slot : Function_slot.t;
-        function_types : TG.Function_type.t Function_slot.Map.t;
-        value_slots : Simple.t Value_slot.Map.t
-      }
   | Simple of Simple.t
   | Cannot_reify
   | Invalid
 
+let try_to_reify_fields env ~var_allowed alloc_mode ~field_types =
+  let field_simples =
+    List.filter_map
+      (fun field_type : Simple.t option ->
+        match Provers.prove_equals_to_simple_of_kind_value env field_type with
+        | Proved simple when not (Coercion.is_id (Simple.coercion simple)) ->
+          (* CR-someday lmaurer: Support lifting things whose fields have
+             coercions. *)
+          None
+        | Proved simple ->
+          Simple.pattern_match' simple
+            ~var:(fun var ~coercion:_ ->
+              if var_allowed alloc_mode var then Some simple else None)
+            ~symbol:(fun _sym ~coercion:_ -> Some simple)
+            ~const:(fun const ->
+              match Reg_width_const.descr const with
+              | Tagged_immediate _imm -> Some simple
+              | Naked_immediate _ | Naked_float _ | Naked_int32 _
+              | Naked_int64 _ | Naked_nativeint _ ->
+                (* This should never happen, as we should have got a kind error
+                   instead *)
+                None)
+        | Unknown -> None)
+      field_types
+  in
+  if List.compare_lengths field_types field_simples = 0
+  then Some field_simples
+  else None
+
 (* CR mshinwell: Think more to identify all the cases that should be in this
    function. *)
-let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
-    ?disallowed_free_vars ?(allow_unique = false) env ~min_name_mode t :
-    reification_result =
+let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
+    ~var_is_symbol_projection env t : reification_result =
+  let min_name_mode = Name_mode.normal in
   let var_allowed (alloc_mode : Alloc_mode.t Or_unknown.t) var =
     (* It is only safe to lift a [Local] allocation if it can be guaranteed that
        no locally-allocated value is reachable from it: therefore, any variables
@@ -64,27 +85,23 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
        created (e.g. during partial application wrapper expansion) will have
        been checked to ensure they do not break the invariants; and finally
        because the Flambda 2 type system accurately propagates the allocation
-       modes (and if it loses information there, we won't lift). *)
-    let allowed =
-      match allowed_if_free_vars_defined_in with
-      | None -> false
-      | Some allowed_if_free_vars_defined_in -> (
-        TE.mem ~min_name_mode allowed_if_free_vars_defined_in (Name.var var)
-        && (match additional_free_var_criterion with
-           | None -> true
-           | Some criterion -> criterion var)
-        &&
-        match disallowed_free_vars with
-        | None -> true
-        | Some disallowed_free_vars ->
-          not (Variable.Set.mem var disallowed_free_vars))
-    in
-    allowed
-    &&
-    match alloc_mode with
-    | Known Heap -> true
-    | Unknown | Known Local ->
-      Provers.never_holds_locally_allocated_values env var Flambda_kind.value
+       modes (and if it loses information there, we won't lift).
+
+       Also see comment in [Simplify_set_of_closures.
+       type_value_slots_and_make_lifting_decision_for_one_set]. *)
+    TE.mem ~min_name_mode allowed_if_free_vars_defined_in (Name.var var)
+    && (var_is_symbol_projection var
+       || var_is_defined_at_toplevel var
+          &&
+          match alloc_mode with
+          | Known Heap -> true
+          | Unknown | Known Local -> (
+            match
+              Provers.never_holds_locally_allocated_values env var
+                Flambda_kind.value
+            with
+            | Proved () -> true
+            | Unknown -> false))
   in
   let canonical_simple =
     match TE.get_alias_then_canonical_simple_exn env ~min_name_mode t with
@@ -107,185 +124,173 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
       Expand_head.expand_head env t |> Expand_head.Expanded_type.descr_oub
     with
     | Value (Ok (Variant { is_unique; blocks; immediates; alloc_mode })) -> (
-      if is_unique && not allow_unique
-      then try_canonical_simple ()
-      else
-        match blocks, immediates with
-        | Known blocks, Known imms ->
-          if Expand_head.is_bottom env imms
-          then
-            match TG.Row_like_for_blocks.get_singleton blocks with
-            | None -> try_canonical_simple ()
-            | Some ((tag, size), field_types) -> (
-              assert (
-                Targetint_31_63.equal size
-                  (TG.Product.Int_indexed.width field_types));
-              (* CR mshinwell: Could recognise other things, e.g. tagged
-                 immediates and float arrays, supported by [Static_part]. *)
-              match Tag.Scannable.of_tag tag with
-              | None -> try_canonical_simple ()
-              | Some tag ->
-                let field_types =
-                  TG.Product.Int_indexed.components field_types
-                in
-                let vars_or_symbols_or_tagged_immediates =
-                  List.filter_map
-                    (fun field_type : var_or_symbol_or_tagged_immediate option ->
-                      match
-                        (* CR mshinwell: Change this to a function
-                           [prove_equals_to_simple]? *)
-                        Provers
-                        .prove_equals_to_var_or_symbol_or_tagged_immediate env
-                          field_type
-                      with
-                      | Proved (_, coercion) when not (Coercion.is_id coercion)
-                        ->
-                        (* CR-someday lmaurer: Support lifting things whose
-                           fields have coercions. *)
-                        None
-                      | Proved (Var var, _) ->
-                        if var_allowed alloc_mode var
-                        then Some (Var var)
-                        else None
-                      | Proved (Symbol sym, _) -> Some (Symbol sym)
-                      | Proved (Tagged_immediate imm, _) ->
-                        Some (Tagged_immediate imm)
-                      (* CR mshinwell: [Invalid] should propagate up *)
-                      | Unknown | Invalid -> None)
-                    field_types
-                in
-                if List.compare_lengths field_types
-                     vars_or_symbols_or_tagged_immediates
-                   = 0
-                then
-                  Lift
-                    (Immutable_block
-                       { tag;
-                         is_unique;
-                         fields = vars_or_symbols_or_tagged_immediates
-                       })
-                else try_canonical_simple ())
-          else if TG.Row_like_for_blocks.is_bottom blocks
-          then
-            match Provers.prove_naked_immediates env imms with
-            | Proved imms -> (
-              match Targetint_31_63.Set.get_singleton imms with
-              | None -> try_canonical_simple ()
-              | Some imm ->
-                Simple (Simple.const (Reg_width_const.tagged_immediate imm)))
-            | Unknown -> try_canonical_simple ()
-            | Invalid -> Invalid
-          else try_canonical_simple ()
-        | Known _, Unknown | Unknown, Known _ | Unknown, Unknown ->
-          try_canonical_simple ())
-    | Value (Ok (Mutable_block _)) -> try_canonical_simple ()
-    | Value (Ok (Closures { by_function_slot; alloc_mode })) -> (
-      (* CR mshinwell: Here and above, move to separate function. *)
-      match TG.Row_like_for_closures.get_singleton by_function_slot with
-      | None -> try_canonical_simple ()
-      | Some ((function_slot, contents), closures_entry) ->
-        (* CR mshinwell: What about if there were multiple entries in the
-           row-like structure for the same function slot? This is ruled out by
-           [get_singleton] at the moment. We should probably choose the best
-           entry from the [Row_like] structure. *)
-        let function_slots = Set_of_closures_contents.closures contents in
-        (* CR mshinwell: Should probably check
-           [Set_of_closures_contents.value_slots contents]? *)
-        if not (Function_slot.Set.mem function_slot function_slots)
+      match blocks, immediates with
+      | Known blocks, Known imms ->
+        if Expand_head.is_bottom env imms
         then
-          Misc.fatal_errorf
-            "Function slot %a expected in set-of-closures-contents in closure \
-             type@ %a"
-            Function_slot.print function_slot TG.print t;
-        let function_types_with_value_slots =
-          Function_slot.Set.fold
-            (fun function_slot function_types_with_value_slots ->
+          match TG.Row_like_for_blocks.get_singleton blocks with
+          | None -> try_canonical_simple ()
+          | Some ((tag, size), field_types) -> (
+            assert (
+              Targetint_31_63.equal size
+                (TG.Product.Int_indexed.width field_types));
+            (* CR mshinwell: Could recognise other things, e.g. tagged
+               immediates and float arrays, supported by [Static_part]. *)
+            match Tag.Scannable.of_tag tag with
+            | None -> try_canonical_simple ()
+            | Some tag -> (
+              let field_types = TG.Product.Int_indexed.components field_types in
               match
-                TG.Closures_entry.find_function_type closures_entry
-                  function_slot
+                try_to_reify_fields env ~var_allowed alloc_mode ~field_types
               with
-              | Bottom | Unknown -> function_types_with_value_slots
-              | Ok function_type ->
-                (* CR mshinwell: We're ignoring [coercion] *)
-                let value_slot_types =
-                  TG.Closures_entry.value_slot_types closures_entry
-                in
-                let value_slot_simples =
-                  Value_slot.Map.filter_map
-                    (fun _value_slot value_slot_type ->
-                      match
-                        Provers
-                        .prove_equals_to_var_or_symbol_or_tagged_immediate env
-                          value_slot_type
-                      with
-                      | Proved (Var var, coercion) ->
-                        if var_allowed alloc_mode var
-                        then
-                          Some (Simple.with_coercion (Simple.var var) coercion)
-                        else None
-                      | Proved (Symbol sym, coercion) ->
-                        Some (Simple.with_coercion (Simple.symbol sym) coercion)
-                      | Proved (Tagged_immediate imm, coercion) ->
-                        Some
-                          (Simple.with_coercion
-                             (Simple.const
-                                (Reg_width_const.tagged_immediate imm))
-                             coercion)
-                      | Unknown | Invalid -> None)
-                    value_slot_types
-                in
-                if Value_slot.Map.cardinal value_slot_types
-                   <> Value_slot.Map.cardinal value_slot_simples
-                then function_types_with_value_slots
-                else
-                  Function_slot.Map.add function_slot
-                    (function_type, value_slot_simples)
-                    function_types_with_value_slots)
-            function_slots Function_slot.Map.empty
-        in
-        if Function_slot.Set.cardinal function_slots
-           <> Function_slot.Map.cardinal function_types_with_value_slots
-        then try_canonical_simple ()
-        else
-          let function_types =
-            Function_slot.Map.map
-              (fun (function_decl, _) -> function_decl)
-              function_types_with_value_slots
-          in
-          let value_slots =
-            Function_slot.Map.fold
-              (fun _function_slot (_function_decl, value_slot_simples)
-                   all_value_slots ->
-                Value_slot.Map.fold
-                  (fun value_slot simple all_value_slots ->
-                    (match Value_slot.Map.find value_slot all_value_slots with
-                    | exception Not_found -> ()
-                    | existing_simple ->
-                      if not (Simple.equal simple existing_simple)
-                      then
-                        Misc.fatal_errorf
-                          "Disagreement on %a and %a (value slot %a)@ whilst \
-                           reifying set-of-closures from:@ %a"
-                          Simple.print simple Simple.print existing_simple
-                          Value_slot.print value_slot TG.print t);
-                    Value_slot.Map.add value_slot simple all_value_slots)
-                  value_slot_simples all_value_slots)
-              function_types_with_value_slots Value_slot.Map.empty
-          in
-          Lift_set_of_closures { function_slot; function_types; value_slots })
+              | Some fields -> Lift (Immutable_block { tag; is_unique; fields })
+              | None -> try_canonical_simple ()))
+        else if TG.Row_like_for_blocks.is_bottom blocks
+        then
+          match Provers.meet_naked_immediates env imms with
+          | Known_result imms -> (
+            match Targetint_31_63.Set.get_singleton imms with
+            | None -> try_canonical_simple ()
+            | Some imm ->
+              Simple (Simple.const (Reg_width_const.tagged_immediate imm)))
+          | Need_meet -> try_canonical_simple ()
+          | Invalid -> Invalid
+        else try_canonical_simple ()
+      | Known _, Unknown | Unknown, Known _ | Unknown, Unknown ->
+        try_canonical_simple ())
+    | Value (Ok (Mutable_block _)) -> try_canonical_simple ()
+    | Value (Ok (Closures { by_function_slot = _; alloc_mode = _ })) ->
+      try_canonical_simple ()
+      (* CR vlaviron: This rather complicated code could be useful, but since a
+         while ago Reification simply ignores List_set_of_closures results. So
+         I've commented out the code for now, and if we want to turn it on again
+         later we will need to think about issues like code duplication,
+         mutually recursive functions, and so on. *)
+      (* Example:
+       * include (struct
+       *   module type T = sig
+       *     val n : int
+       *   end
+       *
+       *   module F(T : T) = struct
+       *     let f x = x + T.n [@@inline never]
+       *   end [@@inline never]
+       *
+       *   module T = struct let n = 42 end
+       *
+       *   module A = F(T)
+       *
+       *   let toto = A.f
+       * end :
+       * sig
+       *   val toto : int -> int
+       * end) *)
+      (* (\* CR mshinwell: Here and above, move to separate function. *\)
+       * match TG.Row_like_for_closures.get_singleton by_function_slot with
+       * | None -> try_canonical_simple ()
+       * | Some ((function_slot, contents), closures_entry) ->
+       *   (\* CR mshinwell: What about if there were multiple entries in the
+       *      row-like structure for the same function slot? This is ruled out by
+       *      [get_singleton] at the moment. We should probably choose the best
+       *      entry from the [Row_like] structure. *\)
+       *   let function_slots = Set_of_closures_contents.closures contents in
+       *   (\* CR mshinwell: Should probably check
+       *      [Set_of_closures_contents.value_slots contents]? *\)
+       *   if not (Function_slot.Set.mem function_slot function_slots)
+       *   then
+       *     Misc.fatal_errorf
+       *       "Function slot %a expected in set-of-closures-contents in closure \
+       *        type@ %a"
+       *       Function_slot.print function_slot TG.print t;
+       *   let function_types_with_value_slots =
+       *     Function_slot.Set.fold
+       *       (fun function_slot function_types_with_value_slots ->
+       *         match
+       *           TG.Closures_entry.find_function_type closures_entry
+       *             function_slot
+       *         with
+       *         | Bottom | Unknown -> function_types_with_value_slots
+       *         | Ok function_type ->
+       *           (\* CR mshinwell: We're ignoring [coercion] *\)
+       *           let value_slot_types =
+       *             TG.Closures_entry.value_slot_types closures_entry
+       *           in
+       *           let value_slot_simples =
+       *             Value_slot.Map.filter_map
+       *               (fun _value_slot value_slot_type ->
+       *                 match
+       *                   Provers
+       *                   .prove_equals_to_var_or_symbol_or_tagged_immediate env
+       *                     value_slot_type
+       *                 with
+       *                 | Proved (Var var, coercion) ->
+       *                   if var_allowed alloc_mode var
+       *                   then
+       *                     Some (Simple.with_coercion (Simple.var var) coercion)
+       *                   else None
+       *                 | Proved (Symbol sym, coercion) ->
+       *                   Some (Simple.with_coercion (Simple.symbol sym) coercion)
+       *                 | Proved (Tagged_immediate imm, coercion) ->
+       *                   Some
+       *                     (Simple.with_coercion
+       *                        (Simple.const
+       *                           (Reg_width_const.tagged_immediate imm))
+       *                        coercion)
+       *                 | Unknown | Invalid -> None)
+       *               value_slot_types
+       *           in
+       *           if Value_slot.Map.cardinal value_slot_types
+       *              <> Value_slot.Map.cardinal value_slot_simples
+       *           then function_types_with_value_slots
+       *           else
+       *             Function_slot.Map.add function_slot
+       *               (function_type, value_slot_simples)
+       *               function_types_with_value_slots)
+       *       function_slots Function_slot.Map.empty
+       *   in
+       *   if Function_slot.Set.cardinal function_slots
+       *      <> Function_slot.Map.cardinal function_types_with_value_slots
+       *   then try_canonical_simple ()
+       *   else
+       *     let function_types =
+       *       Function_slot.Map.map
+       *         (fun (function_decl, _) -> function_decl)
+       *         function_types_with_value_slots
+       *     in
+       *     let value_slots =
+       *       Function_slot.Map.fold
+       *         (fun _function_slot (_function_decl, value_slot_simples)
+       *              all_value_slots ->
+       *           Value_slot.Map.fold
+       *             (fun value_slot simple all_value_slots ->
+       *               begin
+       *                 match Value_slot.Map.find value_slot all_value_slots with
+       *                 | exception Not_found -> ()
+       *                 | existing_simple ->
+       *                   if not (Simple.equal simple existing_simple)
+       *                   then
+       *                     Misc.fatal_errorf
+       *                       "Disagreement on %a and %a (value slot %a)@ whilst \
+       *                        reifying set-of-closures from:@ %a"
+       *                       Simple.print simple Simple.print existing_simple
+       *                       Value_slot.print value_slot TG.print t
+       *               end;
+       *               Value_slot.Map.add value_slot simple all_value_slots)
+       *             value_slot_simples all_value_slots)
+       *         function_types_with_value_slots Value_slot.Map.empty
+       *     in
+       *     Lift_set_of_closures { function_slot; function_types; value_slots } *)
     | Naked_immediate (Ok (Naked_immediates imms)) -> (
       match Targetint_31_63.Set.get_singleton imms with
       | None -> try_canonical_simple ()
       | Some i -> Simple (Simple.const (Reg_width_const.naked_immediate i)))
-    (* CR mshinwell: share code with [prove_equals_tagged_immediates], above *)
     | Naked_immediate (Ok (Is_int scrutinee_ty)) -> (
       match Provers.prove_is_int env scrutinee_ty with
       | Proved true -> Simple Simple.untagged_const_true
       | Proved false -> Simple Simple.untagged_const_false
-      | Unknown -> try_canonical_simple ()
-      | Invalid -> Invalid)
+      | Unknown -> try_canonical_simple ())
     | Naked_immediate (Ok (Get_tag block_ty)) -> (
-      match Provers.prove_tags_must_be_a_block env block_ty with
+      match Provers.prove_get_tag env block_ty with
       | Proved tags -> (
         let is =
           Tag.Set.fold
@@ -296,66 +301,128 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
         match Targetint_31_63.Set.get_singleton is with
         | None -> try_canonical_simple ()
         | Some i -> Simple (Simple.const (Reg_width_const.naked_immediate i)))
-      | Unknown -> try_canonical_simple ()
-      | Invalid -> Invalid)
+      | Unknown -> try_canonical_simple ())
     | Naked_float (Ok fs) -> (
-      match Float.Set.get_singleton fs with
+      match Float.Set.get_singleton (fs :> Float.Set.t) with
       | None -> try_canonical_simple ()
       | Some f -> Simple (Simple.const (Reg_width_const.naked_float f)))
     | Naked_int32 (Ok ns) -> (
-      match Int32.Set.get_singleton ns with
+      match Int32.Set.get_singleton (ns :> Int32.Set.t) with
       | None -> try_canonical_simple ()
       | Some n -> Simple (Simple.const (Reg_width_const.naked_int32 n)))
     | Naked_int64 (Ok ns) -> (
-      match Int64.Set.get_singleton ns with
+      match Int64.Set.get_singleton (ns :> Int64.Set.t) with
       | None -> try_canonical_simple ()
       | Some n -> Simple (Simple.const (Reg_width_const.naked_int64 n)))
     | Naked_nativeint (Ok ns) -> (
-      match Targetint_32_64.Set.get_singleton ns with
+      match Targetint_32_64.Set.get_singleton (ns :> Targetint_32_64.Set.t) with
       | None -> try_canonical_simple ()
       | Some n -> Simple (Simple.const (Reg_width_const.naked_nativeint n)))
     (* CR-someday mshinwell: These could lift at toplevel when [ty_naked_float]
        is an alias type. That would require checking the alloc mode. *)
     | Value (Ok (Boxed_float (ty_naked_float, _alloc_mode))) -> (
-      match Provers.prove_naked_floats env ty_naked_float with
-      | Unknown -> try_canonical_simple ()
+      match Provers.meet_naked_floats env ty_naked_float with
+      | Need_meet -> try_canonical_simple ()
       | Invalid -> Invalid
-      | Proved fs -> (
+      | Known_result fs -> (
+        (* CR mshinwell: This (and the other cases below including that for
+           immutable float arrays) seem not to be taking advantage of the fact
+           that [Static_const] permits variables in the arguments of e.g.
+           [Boxed_float]. *)
         match Float.Set.get_singleton fs with
         | None -> try_canonical_simple ()
         | Some f -> Lift (Boxed_float f)))
     | Value (Ok (Boxed_int32 (ty_naked_int32, _alloc_mode))) -> (
-      match Provers.prove_naked_int32s env ty_naked_int32 with
-      | Unknown -> try_canonical_simple ()
+      match Provers.meet_naked_int32s env ty_naked_int32 with
+      | Need_meet -> try_canonical_simple ()
       | Invalid -> Invalid
-      | Proved ns -> (
+      | Known_result ns -> (
         match Int32.Set.get_singleton ns with
         | None -> try_canonical_simple ()
         | Some n -> Lift (Boxed_int32 n)))
     | Value (Ok (Boxed_int64 (ty_naked_int64, _alloc_mode))) -> (
-      match Provers.prove_naked_int64s env ty_naked_int64 with
-      | Unknown -> try_canonical_simple ()
+      match Provers.meet_naked_int64s env ty_naked_int64 with
+      | Need_meet -> try_canonical_simple ()
       | Invalid -> Invalid
-      | Proved ns -> (
+      | Known_result ns -> (
         match Int64.Set.get_singleton ns with
         | None -> try_canonical_simple ()
         | Some n -> Lift (Boxed_int64 n)))
     | Value (Ok (Boxed_nativeint (ty_naked_nativeint, _alloc_mode))) -> (
-      match Provers.prove_naked_nativeints env ty_naked_nativeint with
-      | Unknown -> try_canonical_simple ()
+      match Provers.meet_naked_nativeints env ty_naked_nativeint with
+      | Need_meet -> try_canonical_simple ()
       | Invalid -> Invalid
-      | Proved ns -> (
+      | Known_result ns -> (
         match Targetint_32_64.Set.get_singleton ns with
         | None -> try_canonical_simple ()
         | Some n -> Lift (Boxed_nativeint n)))
-    | Value (Ok (Array { length; element_kind = _ })) -> (
-      match Provers.prove_equals_single_tagged_immediate env length with
-      | Proved length ->
+    | Value
+        (Ok
+          (Array
+            { contents = Unknown | Known Mutable;
+              length;
+              element_kind = _;
+              alloc_mode = _
+            })) -> (
+      match Provers.meet_equals_single_tagged_immediate env length with
+      | Known_result length ->
         if Targetint_31_63.equal length Targetint_31_63.zero
         then Lift Empty_array
         else try_canonical_simple ()
-      | Unknown -> try_canonical_simple ()
+      | Need_meet -> try_canonical_simple ()
       | Invalid -> Invalid)
+    | Value
+        (Ok
+          (Array
+            { contents = Known (Immutable { fields });
+              length = _;
+              alloc_mode;
+              element_kind
+            })) -> (
+      match fields with
+      | [] -> Lift Empty_array
+      | _ :: _ -> (
+        match element_kind with
+        | Unknown -> try_canonical_simple ()
+        | Known element_kind -> (
+          let kind = Flambda_kind.With_subkind.kind element_kind in
+          match kind with
+          | Value -> (
+            match
+              try_to_reify_fields env ~var_allowed alloc_mode
+                ~field_types:fields
+            with
+            | Some fields -> Lift (Immutable_value_array { fields })
+            | None -> try_canonical_simple ())
+          | Naked_number Naked_float -> (
+            let fields_rev =
+              List.fold_left
+                (fun (fields_rev : _ Or_unknown_or_bottom.t) field :
+                     _ Or_unknown_or_bottom.t ->
+                  match fields_rev with
+                  | Unknown | Bottom -> fields_rev
+                  | Ok fields_rev -> (
+                    match Provers.meet_naked_floats env field with
+                    | Need_meet -> Unknown
+                    | Invalid -> Bottom
+                    | Known_result fs -> (
+                      match Float.Set.get_singleton fs with
+                      | None -> Unknown
+                      | Some f -> Ok (f :: fields_rev))))
+                (Or_unknown_or_bottom.Ok []) fields
+            in
+            match fields_rev with
+            | Unknown -> try_canonical_simple ()
+            | Bottom -> Invalid
+            | Ok fields_rev ->
+              Lift (Immutable_float_array { fields = List.rev fields_rev }))
+          | Naked_number
+              (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint)
+          | Region | Rec_info ->
+            Misc.fatal_errorf
+              "Unexpected kind %a in immutable array case when reifying type:@ \
+               %a@ in env:@ %a"
+              Flambda_kind.print kind TG.print t TE.print env)))
     | Value Bottom
     | Naked_immediate Bottom
     | Naked_float Bottom

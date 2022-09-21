@@ -25,6 +25,8 @@ val dasm_comments : bool ref
 
 val default_heap_reduction_threshold : int
 val heap_reduction_threshold : int ref
+val alloc_check : bool ref
+val dump_checkmach : bool ref
 
 type function_result_types = Never | Functors_only | All_functions
 type opt_level = Oclassic | O2 | O3
@@ -33,6 +35,8 @@ type 'a or_default = Set of 'a | Default
 val dump_inlining_paths : bool ref
 
 val opt_level : opt_level or_default ref
+
+val internal_assembler : bool ref
 
 module Flambda2 : sig
   module Default : sig

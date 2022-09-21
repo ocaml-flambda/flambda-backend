@@ -14,11 +14,12 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* CR mshinwell: The name of this module is a bit misleading (some of these
-   lifted values may be inconstant). *)
+(** Description of a group of statically-allocated values discovered during
+    simplification.
 
-(** Description of a group of statically-allocated constants discovered during
-    simplification. *)
+    The name of this module is unfortunately slightly misleading: these
+    statically-allocated values may be inconstant in the sense that they may
+    require initialisation at runtime before they can be read from. *)
 
 module Definition : sig
   type descr = private

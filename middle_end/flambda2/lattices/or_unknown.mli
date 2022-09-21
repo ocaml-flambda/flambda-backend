@@ -32,7 +32,7 @@ val map_sharing : 'a t -> f:('a -> 'a) -> 'a t
 
 val free_names : ('a -> Name_occurrences.t) -> 'a t -> Name_occurrences.t
 
-val all_ids_for_export : ('a -> Ids_for_export.t) -> 'a t -> Ids_for_export.t
+val ids_for_export : ('a -> Ids_for_export.t) -> 'a t -> Ids_for_export.t
 
 val apply_renaming : 'a t -> Renaming.t -> ('a -> Renaming.t -> 'a) -> 'a t
 

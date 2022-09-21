@@ -16,6 +16,7 @@
 
 open X86_ast
 open X86_proc
+module String = Misc.Stdlib.String
 
 type section = {
   sec_name : string;
@@ -76,7 +77,7 @@ type symbol = {
 type buffer = {
   sec : section;
   buf : Buffer.t;
-  mutable labels : symbol StringMap.t;
+  labels : symbol String.Tbl.t;
   mutable patches : (int * data_size * int64) list;
   mutable relocations : Relocation.t list;
 }
@@ -102,7 +103,7 @@ let string_of_result = function
 *)
 
 let get_symbol b s =
-  try StringMap.find s b.labels
+  try String.Tbl.find b.labels s
   with Not_found ->
     let sy =
       {
@@ -115,7 +116,7 @@ let get_symbol b s =
         sy_sec = b.sec;
       }
     in
-    b.labels <- StringMap.add s sy b.labels;
+    String.Tbl.add b.labels s sy ;
     sy
 
 let buf_int8 b i = Buffer.add_char b.buf (char_of_int (i land 0xff))
@@ -159,7 +160,7 @@ let str_int64L s pos v =
 
 let local_relocs = ref []
 
-let local_labels = ref StringMap.empty
+let local_labels = String.Tbl.create 100
 
 let forced_long_jumps = ref IntSet.empty
 
@@ -169,13 +170,13 @@ let new_buffer sec =
   {
     sec;
     buf = Buffer.create 10000;
-    labels = StringMap.empty;
+    labels = String.Tbl.create 100;
     relocations = [];
     patches = [];
   }
 
 let label_pos b lbl =
-  match (StringMap.find lbl b.labels).sy_pos with
+  match (String.Tbl.find b.labels lbl).sy_pos with
   | None -> raise Not_found
   | Some pos -> pos
 
@@ -196,7 +197,7 @@ let eval_const b current_pos cst =
         | Rabs ("", n1), Rabs ("", n2) -> Rint (Int64.sub n1 n2)
         | Rabs ("", n1), Rabs (s2, n2) -> (
             try
-              let sy2 = StringMap.find s2 b.labels in
+              let sy2 = String.Tbl.find b.labels s2 in
               match sy2.sy_pos with
               | Some pos2 ->
                   let pos2 = Int64.of_int pos2 in
@@ -208,7 +209,7 @@ let eval_const b current_pos cst =
             with Not_found -> assert false)
         | Rabs (s, n1), Rabs ("", n2) -> (
             try
-              let sy = StringMap.find s b.labels in
+              let sy = String.Tbl.find b.labels s in
               match sy.sy_pos with
               | Some pos ->
                   let pos = Int64.of_int pos in
@@ -219,9 +220,9 @@ let eval_const b current_pos cst =
             with Not_found -> Rrel (s, Int64.sub n1 n2))
         | Rabs (s1, n1), Rabs (s2, n2) -> (
             try
-              let sy2 = StringMap.find s2 b.labels in
+              let sy2 = String.Tbl.find b.labels s2 in
               try
-                let sy1 = StringMap.find s1 b.labels in
+                let sy1 = String.Tbl.find b.labels s1 in
                 assert (sy1.sy_sec == sy2.sy_sec);
                 match (sy1.sy_pos, sy2.sy_pos) with
                 | Some pos1, Some pos2 ->
@@ -1026,9 +1027,9 @@ let record_local_reloc b local_reloc =
   local_relocs := (Buffer.length b.buf, local_reloc) :: !local_relocs
 
 let emit_reloc_jump near_opcodes far_opcodes b loc symbol =
-  if StringMap.mem symbol !local_labels then
+  if String.Tbl.mem local_labels symbol then
     (* local_reloc *)
-    let target_loc = StringMap.find symbol !local_labels in
+    let target_loc = String.Tbl.find local_labels symbol in
     if target_loc < loc then (
       (* backward *)
       (* The target position is known, and so is the actual offset.  We can
@@ -1101,7 +1102,7 @@ let emit_call b dst =
   match dst with
   | Sym symbol ->
       buf_int8 b 0xE8;
-      if StringMap.mem symbol !local_labels then
+      if String.Tbl.mem local_labels symbol then
         record_local_reloc b (RelocCall symbol)
       else
         (* external symbol, must reloc *)
@@ -1292,6 +1293,12 @@ let emit_pause b = buf_opcodes b [ 0xF3; 0x90 ]
 let emit_rdtsc b = buf_opcodes b [ 0x0F; 0x31 ]
 
 let emit_rdpmc b = buf_opcodes b [ 0x0F; 0x33 ]
+
+let emit_lfence b = buf_opcodes b [ 0x0F; 0xAE; 0xE8 ]
+
+let emit_sfence b = buf_opcodes b [ 0x0F; 0xAE; 0xF8 ]
+
+let emit_mfence b = buf_opcodes b [ 0x0F; 0xAE; 0xF0 ]
 
 let emit_leave b = buf_int8 b 0xC9
 
@@ -1553,6 +1560,9 @@ let assemble_instr b loc = function
   | PREFETCH (is_write, hint, rm) -> emit_prefetch b ~is_write ~hint rm
   | RDTSC -> emit_rdtsc b
   | RDPMC -> emit_rdpmc b
+  | LFENCE -> emit_lfence b
+  | SFENCE -> emit_sfence b
+  | MFENCE -> emit_mfence b
   | RET -> emit_ret b
   | ROUNDSD (rounding, src, dst) -> emit_roundsd b dst rounding src
   | SAL (src, dst) -> emit_SAL b dst src
@@ -1662,12 +1672,12 @@ let add_patch b pos size v = b.patches <- (pos, size, v) :: b.patches
 let assemble_section arch section =
   (match arch with X86 -> instr_size := 5 | X64 -> instr_size := 6);
   forced_long_jumps := IntSet.empty;
-  local_labels := StringMap.empty;
+  String.Tbl.clear local_labels;
 
   let icount = ref 0 in
   ArrayLabels.iter section.sec_instrs ~f:(function
     | NewLabel (lbl, _) ->
-        local_labels := StringMap.add lbl !icount !local_labels
+        String.Tbl.add local_labels lbl !icount 
     | Ins _ -> incr icount
     | _ -> ());
 
@@ -1745,7 +1755,7 @@ let size b = Buffer.length b.buf
 
 let add_patch ~offset ~size ~data t = add_patch t offset size data
 
-let contents b =
+let contents_mut b =
   let buf = Buffer.to_bytes b.buf in
   ListLabels.iter b.patches ~f:(fun (pos, nbits, v) ->
       (*    Printf.eprintf "Apply patch %s @%d\n%!" (string_of_data_size nbits) pos; *)
@@ -1754,7 +1764,10 @@ let contents b =
       | B32 -> str_int32L buf pos v
       | B16 -> str_int16L buf pos v
       | B8 -> str_int8L buf pos v);
-  Bytes.to_string buf
+  buf
+
+let contents b =
+  Bytes.to_string (contents_mut b)
 
 let relocations b = b.relocations
 

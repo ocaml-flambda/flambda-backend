@@ -88,12 +88,12 @@ let remove_unused_value_slots_from_result_types_and_shortcut_aliases
             result_ty ~used_value_slots ~canonicalise))
     t
 
-let all_ids_for_export t =
+let ids_for_export t =
   Code_id.Map.fold
     (fun code_id code_or_metadata all_ids ->
       Ids_for_export.union
         (Ids_for_export.add_code_id all_ids code_id)
-        (Code_or_metadata.all_ids_for_export code_or_metadata))
+        (Code_or_metadata.ids_for_export code_or_metadata))
     t Ids_for_export.empty
 
 let apply_renaming code_id_map renaming t =

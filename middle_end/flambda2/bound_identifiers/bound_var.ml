@@ -42,7 +42,7 @@ let apply_renaming t renaming =
 
 let free_names t = Name_occurrences.singleton_variable t.var t.name_mode
 
-let all_ids_for_export { var; name_mode = _ } =
+let ids_for_export { var; name_mode = _ } =
   Ids_for_export.add_variable Ids_for_export.empty var
 
 let renaming { var; name_mode = _ } ~guaranteed_fresh =

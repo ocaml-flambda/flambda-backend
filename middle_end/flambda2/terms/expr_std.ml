@@ -14,9 +14,6 @@
 
 (** Functionality supported by all expression-like modules. *)
 
-(* CR mshinwell: typing/ is using this now too; maybe the name should be
-   changed. *)
-
 module type S = sig
   type t
 

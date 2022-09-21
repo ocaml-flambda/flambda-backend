@@ -38,9 +38,9 @@ type t = t0 list
 
 let create ~final_typing_env ~all_code ~exported_offsets ~used_value_slots =
   let typing_env_exported_ids =
-    Flambda2_types.Typing_env.Serializable.all_ids_for_export final_typing_env
+    Flambda2_types.Typing_env.Serializable.ids_for_export final_typing_env
   in
-  let all_code_exported_ids = Exported_code.all_ids_for_export all_code in
+  let all_code_exported_ids = Exported_code.ids_for_export all_code in
   let exported_ids =
     Ids_for_export.union typing_env_exported_ids all_code_exported_ids
   in

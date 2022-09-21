@@ -78,7 +78,7 @@ let mem64_rip typ ?(ofs = 0) s =
 
 module D = struct
   let section segment flags args = directive (Section (segment, flags, args))
-  let align n = directive (Align (false, n))
+  let align ~data n = directive (Align (data, n))
   let byte n = directive (Byte n)
   let bytes s = directive (Bytes s)
   let cfi_adjust_cfa_offset n = directive (Cfi_adjust_cfa_offset n)
@@ -207,6 +207,9 @@ module I = struct
   let push x = emit (PUSH x)
   let rdtsc () = emit (RDTSC)
   let rdpmc () = emit (RDPMC)
+  let lfence () = emit LFENCE
+  let sfence () = emit SFENCE
+  let mfence () = emit MFENCE
   let ret () = emit RET
   let roundsd r x y = emit (ROUNDSD (r, x, y))
   let sal x y = emit (SAL (x, y))

@@ -357,10 +357,10 @@ and subst_static_const env (static_const : Static_const_or_code.t) :
   | Code code -> Static_const_or_code.create_code (subst_code env code)
   | Static_const (Block (tag, mut, fields)) ->
     let fields = List.map (subst_field env) fields in
-    Static_const_or_code.create_static_const (Block (tag, mut, fields))
+    Static_const_or_code.create_static_const (Static_const.block tag mut fields)
   | Static_const (Set_of_closures set_of_closures) ->
     Static_const_or_code.create_static_const
-      (Set_of_closures (subst_set_of_closures env set_of_closures))
+      (Static_const.set_of_closures (subst_set_of_closures env set_of_closures))
   | _ -> static_const
 
 and subst_code env (code : Code.t) : Code.t =
@@ -1127,11 +1127,12 @@ and static_consts env (const1 : Static_const_or_code.t)
     |> Comparison.map
          ~f:(fun (tag1', mut1', fields1') : Static_const_or_code.t ->
            Static_const_or_code.create_static_const
-             (Block (tag1', mut1', fields1')))
+             (Static_const.block tag1' mut1' fields1'))
   | Static_const (Set_of_closures set1), Static_const (Set_of_closures set2) ->
     sets_of_closures env set1 set2
     |> Comparison.map ~f:(fun set1' : Static_const_or_code.t ->
-           Static_const_or_code.create_static_const (Set_of_closures set1'))
+           Static_const_or_code.create_static_const
+             (Static_const.set_of_closures set1'))
   | _, _ ->
     if Static_const_or_code.equal const1 const2
     then Equivalent

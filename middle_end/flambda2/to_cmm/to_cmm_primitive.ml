@@ -90,7 +90,7 @@ let make_block ~dbg kind alloc_mode args =
 
 let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
     ~block ~index =
-  let mutability = Mutability.to_lambda mutability in
+  let mutability = Mutability.to_asttypes mutability in
   match kind with
   | Values { field_kind = Any_value; _ } ->
     C.get_field_computed Pointer mutability ~block ~index dbg
@@ -519,7 +519,7 @@ let unary_primitive env res dbg f arg =
       res,
       C.extcall ~dbg ~alloc:true ~returns:true ~is_c_builtin:false ~ty_args:[]
         "caml_obj_dup" Cmm.typ_val [arg] )
-  | Is_int -> None, res, C.and_int arg (C.int ~dbg 1) dbg
+  | Is_int _ -> None, res, C.and_int arg (C.int ~dbg 1) dbg
   | Get_tag -> None, res, C.get_tag arg dbg
   | Array_length -> None, res, array_length ~dbg arg
   | Bigarray_length { dimension } ->

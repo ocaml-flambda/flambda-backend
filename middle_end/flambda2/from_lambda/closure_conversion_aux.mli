@@ -219,6 +219,8 @@ module Acc : sig
 
   val remove_continuation_from_free_names : Continuation.t -> t -> t
 
+  val mark_continuation_as_untrackable : Continuation.t -> t -> t
+
   val continuation_known_arguments :
     cont:Continuation.t -> t -> Env.value_approximation list option
 
@@ -248,10 +250,6 @@ module Acc : sig
 
   val add_set_of_closures_offsets :
     is_phantom:bool -> t -> Set_of_closures.t -> t
-
-  val region_closed_early : t -> Ident.t -> bool
-
-  val add_region_closed_early : t -> Ident.t -> t
 end
 
 (** Used to represent information about a set of function declarations during

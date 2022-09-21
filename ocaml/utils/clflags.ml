@@ -131,6 +131,8 @@ let dump_linear = ref false             (* -dlinear *)
 let dump_interval = ref false           (* -dinterval *)
 let keep_startup_file = ref false       (* -dstartup *)
 let dump_combine = ref false            (* -dcombine *)
+let default_timings_precision  = 3
+let timings_precision = ref default_timings_precision (* -dtimings-precision *)
 let profile_columns : Profile.column list ref = ref [] (* -dprofile/-dtimings *)
 
 let debug_runavail = ref false          (* -drunavail *)
@@ -376,10 +378,10 @@ let set_dumped_pass s enabled =
   end
 
 module Extension = struct
-  type t = Comprehensions | Local
+  type t = Comprehensions | Local | Include_functor
 
-  let all = [ Comprehensions; Local ]
-  let default_extensions = [ Local ]
+  let all = [ Comprehensions; Local; Include_functor ]
+  let default_extensions = [ Local; Include_functor ]
 
   let extensions = ref ([] : t list)   (* -extension *)
   let equal (a : t) (b : t) = (a = b)
@@ -387,10 +389,12 @@ module Extension = struct
   let to_string = function
     | Comprehensions -> "comprehensions"
     | Local -> "local"
+    | Include_functor -> "include_functor"
 
   let of_string = function
     | "comprehensions" -> Comprehensions
     | "local" -> Local
+    | "include_functor" -> Include_functor
     | extn -> raise (Arg.Bad(Printf.sprintf "Extension %s is not known" extn))
 
   let disable_all_extensions = ref false             (* -disable-all-extensions *)

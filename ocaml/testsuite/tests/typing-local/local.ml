@@ -487,6 +487,27 @@ Line 3, characters 63-64:
 Error: The value a is local, so cannot be used inside a closure that might escape
 |}]
 
+(* Regression test for bug with mishandled regional function modes *)
+let bug4 : local_ (string -> foo:string -> unit) -> (string -> unit) =
+  fun f -> f ~foo:"hello"
+[%%expect{|
+Line 2, characters 11-25:
+2 |   fun f -> f ~foo:"hello"
+               ^^^^^^^^^^^^^^
+Error: This value escapes its region
+|}]
+
+let bug4' () =
+  let local_ f arg ~foo = () in
+  let local_ perm ~foo = f ~foo in
+  perm ~foo:"foo" "Optional"
+[%%expect{|
+Line 3, characters 25-31:
+3 |   let local_ perm ~foo = f ~foo in
+                             ^^^^^^
+Error: This local value escapes its region
+  Hint: Cannot return local value without an explicit "local_" annotation
+|}]
 
 (*
  * Optional arguments
@@ -1090,6 +1111,13 @@ let foo x =
 val foo : string -> unit = <fun>
 |}]
 
+let foo x =
+  let local_ f () = 42 in
+  f () [@nontail]
+[%%expect{|
+val foo : 'a -> int = <fun>
+|}]
+
 (* Cannot call local values in tail calls *)
 
 let foo x =
@@ -1216,6 +1244,19 @@ Line 1, characters 37-51:
                                          ^^^^^^^^^^^^^^
 Error: This value escapes its region
 |}]
+
+(* Unboxed type constructors do not affect regionality *)
+type 'a unb1 = A of 'a [@@unboxed]
+type 'a unb2 = { foo : 'a } [@@unboxed]
+type 'a unb3 = B of { bar : 'a } [@@unboxed]
+let f (local_ x) = B { bar = { foo = A x } }
+[%%expect{|
+type 'a unb1 = A of 'a [@@unboxed]
+type 'a unb2 = { foo : 'a; } [@@unboxed]
+type 'a unb3 = B of { bar : 'a; } [@@unboxed]
+val f : local_ 'a -> local_ 'a unb1 unb2 unb3 = <fun>
+|}]
+
 
 (* Fields have the same mode unless they are nonlocal or mutable *)
 

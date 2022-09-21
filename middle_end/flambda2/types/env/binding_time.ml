@@ -41,9 +41,9 @@ let earliest_var = 3
 let succ (t : t) =
   if t < earliest_var
   then Misc.fatal_error "Cannot increment binding time for symbols"
+  else if t = max_int
+  then Misc.fatal_error "Have run out of binding times"
   else t + 1
-
-(* CR mshinwell: enforce an upper limit on values of type [t] *)
 
 module With_name_mode = struct
   type t = int

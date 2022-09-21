@@ -45,7 +45,7 @@ let free_names t =
 let apply_renaming t renaming =
   List.map (Renaming.apply_continuation renaming) t
 
-let all_ids_for_export t =
+let ids_for_export t =
   List.fold_left Ids_for_export.add_continuation Ids_for_export.empty t
 
 let rename t = List.map Continuation.rename t

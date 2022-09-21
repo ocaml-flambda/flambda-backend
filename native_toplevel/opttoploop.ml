@@ -277,7 +277,9 @@ let default_load ppf (program : Lambda.program) =
   in
   let filename = Filename.chop_extension dll in
   if Config.flambda2 then begin
-    Asmgen.compile_implementation_flambda2 () ~toplevel:need_symbol
+    Asmgen.compile_implementation_flambda2
+      (module Unix : Compiler_owee.Unix_intf.S)
+      () ~toplevel:need_symbol
       ~filename ~prefixname:filename
       ~flambda2:Flambda2.lambda_to_cmm ~ppf_dump:ppf
       ~size:program.main_module_block_size
@@ -290,7 +292,9 @@ let default_load ppf (program : Lambda.program) =
       if Config.flambda then Flambda_middle_end.lambda_to_clambda
       else Closure_middle_end.lambda_to_clambda
     in
-    Asmgen.compile_implementation ~toplevel:need_symbol
+    Asmgen.compile_implementation
+      (module Unix : Compiler_owee.Unix_intf.S)
+      ~toplevel:need_symbol
       ~backend ~filename ~prefixname:filename
       ~middle_end ~ppf_dump:ppf program
   end;
@@ -336,6 +340,7 @@ let pr_item =
 (* The current typing environment for the toplevel *)
 
 let toplevel_env = ref Env.empty
+let toplevel_sig = ref []
 
 (* Print an exception produced by an evaluation *)
 
@@ -406,11 +411,14 @@ let execute_phrase print_outcome ppf phr =
   match phr with
   | Ptop_def sstr ->
       let oldenv = !toplevel_env in
+      let oldsig = !toplevel_sig in
       incr phrase_seqid;
       phrase_name := Printf.sprintf "TOP%i" !phrase_seqid;
       Compilenv.reset ?packname:None !phrase_name;
       Typecore.reset_delayed_checks ();
-      let (str, sg, names, newenv) = Typemod.type_toplevel_phrase oldenv sstr in
+      let (str, sg, names, newenv) =
+        Typemod.type_toplevel_phrase oldenv oldsig sstr
+      in
       if !Clflags.dump_typedtree then Printtyped.implementation ppf str;
       let sg' = Typemod.Signature_names.simplify newenv names sg in
       let coercion = Includemod.signatures oldenv ~mark:Mark_positive sg sg' in
@@ -446,6 +454,7 @@ let execute_phrase print_outcome ppf phr =
       Warnings.check_fatal ();
       begin try
         toplevel_env := newenv;
+        toplevel_sig := List.rev_append sg' oldsig;
         let res = load_lambda ppf ~required_globals ~module_ident res size in
         let out_phr =
           match res with
@@ -475,6 +484,7 @@ let execute_phrase print_outcome ppf phr =
               else Ophr_signature []
           | Exception exn ->
               toplevel_env := oldenv;
+              toplevel_sig := oldsig;
               if exn = Out_of_memory then Gc.full_major();
               let outv =
                 outval_of_value !toplevel_env (Obj.repr exn) Predef.type_exn
@@ -487,7 +497,7 @@ let execute_phrase print_outcome ppf phr =
         | Ophr_exception _ -> false
         end
       with x ->
-        toplevel_env := oldenv; raise x
+        toplevel_env := oldenv; toplevel_sig := oldsig; raise x
       end
   | Ptop_dir {pdir_name = {Location.txt = dir_name; _}; pdir_arg; _ } ->
       let d =
@@ -715,7 +725,8 @@ let set_paths () =
   Load_path.init load_path
 
 let initialize_toplevel_env () =
-  toplevel_env := Compmisc.initial_env()
+  toplevel_env := Compmisc.initial_env();
+  toplevel_sig := []
 
 (* The interactive loop *)
 
@@ -765,7 +776,7 @@ let run_script ppf name args =
   override_sys_argv args;
   Compmisc.init_path ~dir:(Filename.dirname name) ();
                    (* Note: would use [Filename.abspath] here, if we had it. *)
-  toplevel_env := Compmisc.initial_env();
+  initialize_toplevel_env ();
   Sys.interactive := false;
   run_hooks After_setup;
   let explicit_name =

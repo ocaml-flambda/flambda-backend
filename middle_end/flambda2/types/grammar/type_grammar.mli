@@ -46,6 +46,7 @@ and head_of_kind_value = private
         is_unique : bool;
         alloc_mode : Alloc_mode.t Or_unknown.t
       }
+  (* CR mshinwell: It would be better to track per-field mutability. *)
   | Mutable_block of { alloc_mode : Alloc_mode.t Or_unknown.t }
   | Boxed_float of t * Alloc_mode.t Or_unknown.t
   | Boxed_int32 of t * Alloc_mode.t Or_unknown.t
@@ -58,21 +59,27 @@ and head_of_kind_value = private
   | String of String_info.Set.t
   | Array of
       { element_kind : Flambda_kind.With_subkind.t Or_unknown.t;
-        length : t
+        length : t;
+        contents : array_contents Or_unknown.t;
+        alloc_mode : Alloc_mode.t Or_unknown.t
       }
 
 and head_of_kind_naked_immediate = private
   | Naked_immediates of Targetint_31_63.Set.t
-  | Is_int of t
-  | Get_tag of t
+  | Is_int of t  (** For variants only *)
+  | Get_tag of t  (** For variants only *)
 
-and head_of_kind_naked_float = Numeric_types.Float_by_bit_pattern.Set.t
+(** Invariant: the float/integer sets for naked float, int32, int64 and
+    nativeint heads are non-empty. (Empty sets are represented as an overall
+    bottom type.) *)
 
-and head_of_kind_naked_int32 = Numeric_types.Int32.Set.t
+and head_of_kind_naked_float = private Numeric_types.Float_by_bit_pattern.Set.t
 
-and head_of_kind_naked_int64 = Numeric_types.Int64.Set.t
+and head_of_kind_naked_int32 = private Numeric_types.Int32.Set.t
 
-and head_of_kind_naked_nativeint = Targetint_32_64.Set.t
+and head_of_kind_naked_int64 = private Numeric_types.Int64.Set.t
+
+and head_of_kind_naked_nativeint = private Targetint_32_64.Set.t
 
 and head_of_kind_rec_info = Rec_info_expr.t
 
@@ -123,6 +130,10 @@ and function_type = private
     rec_info : t
   }
 
+and array_contents =
+  | Immutable of { fields : t list }
+  | Mutable
+
 and env_extension = private { equations : t Name.Map.t } [@@unboxed]
 
 type flambda_type = t
@@ -153,6 +164,8 @@ val alias_type_of : Flambda_kind.t -> Simple.t -> t
 val apply_coercion : t -> Coercion.t -> t
 
 val get_alias_exn : t -> Simple.t
+
+val get_alias_opt : t -> Simple.t option
 
 val is_obviously_bottom : t -> bool
 
@@ -204,16 +217,15 @@ val this_naked_int64 : Numeric_types.Int64.t -> t
 
 val this_naked_nativeint : Targetint_32_64.t -> t
 
-val these_naked_immediates : no_alias:bool -> Targetint_31_63.Set.t -> t
+val these_naked_immediates : Targetint_31_63.Set.t -> t
 
-val these_naked_floats :
-  no_alias:bool -> Numeric_types.Float_by_bit_pattern.Set.t -> t
+val these_naked_floats : Numeric_types.Float_by_bit_pattern.Set.t -> t
 
-val these_naked_int32s : no_alias:bool -> Numeric_types.Int32.Set.t -> t
+val these_naked_int32s : Numeric_types.Int32.Set.t -> t
 
-val these_naked_int64s : no_alias:bool -> Numeric_types.Int64.Set.t -> t
+val these_naked_int64s : Numeric_types.Int64.Set.t -> t
 
-val these_naked_nativeints : no_alias:bool -> Targetint_32_64.Set.t -> t
+val these_naked_nativeints : Targetint_32_64.Set.t -> t
 
 val boxed_float_alias_to :
   naked_float:Variable.t -> Alloc_mode.t Or_unknown.t -> t
@@ -259,7 +271,22 @@ val this_immutable_string : string -> t
 val mutable_string : size:int -> t
 
 val array_of_length :
-  element_kind:Flambda_kind.With_subkind.t Or_unknown.t -> length:t -> t
+  element_kind:Flambda_kind.With_subkind.t Or_unknown.t ->
+  length:t ->
+  Alloc_mode.t Or_unknown.t ->
+  t
+
+val mutable_array :
+  element_kind:Flambda_kind.With_subkind.t Or_unknown.t ->
+  length:t ->
+  Alloc_mode.t Or_unknown.t ->
+  t
+
+val immutable_array :
+  element_kind:Flambda_kind.With_subkind.t Or_unknown.t ->
+  fields:t list ->
+  Alloc_mode.t Or_unknown.t ->
+  t
 
 module Product : sig
   module Function_slot_indexed : sig
@@ -270,9 +297,6 @@ module Product : sig
     val create : flambda_type Function_slot.Map.t -> t
 
     val width : t -> Targetint_31_63.t
-
-    (* CR mshinwell: check if this is used *)
-    val components : t -> flambda_type list
   end
 
   module Value_slot_indexed : sig
@@ -283,8 +307,6 @@ module Product : sig
     val create : flambda_type Value_slot.Map.t -> t
 
     val width : t -> Targetint_31_63.t
-
-    val components : t -> flambda_type list
   end
 
   module Int_indexed : sig
@@ -388,17 +410,16 @@ module Row_like_for_blocks : sig
 
       This will return Unknown if:
 
-      - There is no nth field (the read is invalid, and will produce bottom)
-
       - The block type represents a disjunction (several possible tags)
 
       - The tag or size is not exactly known
 
       - The nth field exists, is unique, but has Unknown type
 
-      The handling of those cases could be improved:
+      This will return Bottom if there is no nth field (the read is invalid, and
+      will produce bottom)
 
-      - When there is no valid field, Bottom could be returned instead
+      The handling of those cases could be improved:
 
       - In the case of disjunctions, if all possible nth fields point to the
       same type, this type could be returned directly.
@@ -410,9 +431,6 @@ module Row_like_for_blocks : sig
       expect that doing the actual meet could give us a better result) and the
       last case where we already know what the result of the meet will be. *)
   val get_field : t -> Targetint_31_63.t -> flambda_type Or_unknown_or_bottom.t
-
-  val get_variant_field :
-    t -> Tag.t -> Targetint_31_63.t -> flambda_type Or_unknown_or_bottom.t
 
   val is_bottom : t -> bool
 
@@ -542,7 +560,8 @@ module Head_of_kind_value : sig
 
   val create_mutable_block : Alloc_mode.t Or_unknown.t -> t
 
-  (* XXX these alloc mode params should probably be labelled *)
+  (* CR-someday mshinwell: these alloc mode params should probably be
+     labelled *)
   val create_boxed_float : flambda_type -> Alloc_mode.t Or_unknown.t -> t
 
   val create_boxed_int32 : flambda_type -> Alloc_mode.t Or_unknown.t -> t
@@ -558,20 +577,64 @@ module Head_of_kind_value : sig
 
   val create_string : String_info.Set.t -> t
 
-  val create_array :
+  val create_array_with_contents :
     element_kind:Flambda_kind.With_subkind.t Or_unknown.t ->
     length:flambda_type ->
+    array_contents Or_unknown.t ->
+    Alloc_mode.t Or_unknown.t ->
     t
 end
 
 module Head_of_kind_naked_immediate : sig
   type t = head_of_kind_naked_immediate
 
-  val create_naked_immediates : Targetint_31_63.Set.t -> t
+  val create_naked_immediate : Targetint_31_63.t -> t
+
+  val create_naked_immediates : Targetint_31_63.Set.t -> t Or_bottom.t
 
   val create_is_int : flambda_type -> t
 
   val create_get_tag : flambda_type -> t
 end
+
+module type Head_of_kind_naked_number_intf = sig
+  type t
+
+  type n
+
+  type n_set
+
+  val create : n -> t
+
+  val create_set : n_set -> t Or_bottom.t
+
+  val union : t -> t -> t
+
+  val inter : t -> t -> t Or_bottom.t
+end
+
+module Head_of_kind_naked_float :
+  Head_of_kind_naked_number_intf
+    with type t = head_of_kind_naked_float
+    with type n = Numeric_types.Float_by_bit_pattern.t
+    with type n_set = Numeric_types.Float_by_bit_pattern.Set.t
+
+module Head_of_kind_naked_int32 :
+  Head_of_kind_naked_number_intf
+    with type t = head_of_kind_naked_int32
+    with type n = Numeric_types.Int32.t
+    with type n_set = Numeric_types.Int32.Set.t
+
+module Head_of_kind_naked_int64 :
+  Head_of_kind_naked_number_intf
+    with type t = head_of_kind_naked_int64
+    with type n = Numeric_types.Int64.t
+    with type n_set = Numeric_types.Int64.Set.t
+
+module Head_of_kind_naked_nativeint :
+  Head_of_kind_naked_number_intf
+    with type t = head_of_kind_naked_nativeint
+    with type n = Targetint_32_64.t
+    with type n_set = Targetint_32_64.Set.t
 
 val recover_some_aliases : t -> t

@@ -246,9 +246,19 @@ and apply_renaming_recursive_let_cont_handlers t renaming =
 and apply_renaming_continuation_handler_t0
     ({ handler; num_normal_occurrences_of_params } as t) renaming =
   let handler' = apply_renaming handler renaming in
-  if handler == handler'
+  let num_normal_occurrences_of_params', is_identity_num_occurrences =
+    Variable.Map.fold
+      (fun var num (all_occurrences, is_identity) ->
+        let var' = Renaming.apply_variable renaming var in
+        Variable.Map.add var' num all_occurrences, is_identity && var == var')
+      num_normal_occurrences_of_params (Variable.Map.empty, true)
+  in
+  if handler == handler' && is_identity_num_occurrences
   then t
-  else { handler = handler'; num_normal_occurrences_of_params }
+  else
+    { handler = handler';
+      num_normal_occurrences_of_params = num_normal_occurrences_of_params'
+    }
 
 and apply_renaming_continuation_handler
     ({ cont_handler_abst; is_exn_handler } as t) renaming =
@@ -312,106 +322,100 @@ and apply_renaming_static_const_group t renaming =
       apply_renaming_static_const_or_code static_const renaming)
     t
 
-let rec all_ids_for_export_continuation_handler_t0
+let rec ids_for_export_continuation_handler_t0
     { handler; num_normal_occurrences_of_params = _ } =
-  all_ids_for_export handler
+  ids_for_export handler
 
-and all_ids_for_export_continuation_handler
+and ids_for_export_continuation_handler
     { cont_handler_abst; is_exn_handler = _ } =
-  Name_abstraction.all_ids_for_export
+  Name_abstraction.ids_for_export
     (module Bound_parameters)
     cont_handler_abst
-    ~all_ids_for_export_of_term:all_ids_for_export_continuation_handler_t0
+    ~ids_for_export_of_term:ids_for_export_continuation_handler_t0
 
-and all_ids_for_export_continuation_handlers t =
+and ids_for_export_continuation_handlers t =
   Continuation.Map.fold
     (fun k handler ids ->
       Ids_for_export.union ids
         (Ids_for_export.add_continuation
-           (all_ids_for_export_continuation_handler handler)
+           (ids_for_export_continuation_handler handler)
            k))
     t Ids_for_export.empty
 
-and all_ids_for_export t =
+and ids_for_export t =
   match descr t with
-  | Let let_expr -> all_ids_for_export_let_expr let_expr
-  | Let_cont let_cont -> all_ids_for_export_let_cont_expr let_cont
-  | Apply apply -> Apply.all_ids_for_export apply
-  | Apply_cont apply_cont -> Apply_cont.all_ids_for_export apply_cont
-  | Switch switch -> Switch.all_ids_for_export switch
+  | Let let_expr -> ids_for_export_let_expr let_expr
+  | Let_cont let_cont -> ids_for_export_let_cont_expr let_cont
+  | Apply apply -> Apply.ids_for_export apply
+  | Apply_cont apply_cont -> Apply_cont.ids_for_export apply_cont
+  | Switch switch -> Switch.ids_for_export switch
   | Invalid _ -> Ids_for_export.empty
 
-and all_ids_for_export_let_expr_t0
+and ids_for_export_let_expr_t0
     { body; num_normal_occurrences_of_bound_vars = _ } =
-  all_ids_for_export body
+  ids_for_export body
 
-and all_ids_for_export_let_expr { let_abst; defining_expr } =
-  let defining_expr_ids = all_ids_for_export_named defining_expr in
+and ids_for_export_let_expr { let_abst; defining_expr } =
+  let defining_expr_ids = ids_for_export_named defining_expr in
   let let_abst_ids =
-    Name_abstraction.all_ids_for_export
+    Name_abstraction.ids_for_export
       (module Bound_pattern)
-      let_abst ~all_ids_for_export_of_term:all_ids_for_export_let_expr_t0
+      let_abst ~ids_for_export_of_term:ids_for_export_let_expr_t0
   in
   Ids_for_export.union defining_expr_ids let_abst_ids
 
-and all_ids_for_export_named t =
+and ids_for_export_named t =
   match t with
   | Simple simple -> Ids_for_export.from_simple simple
-  | Prim (prim, _dbg) -> Flambda_primitive.all_ids_for_export prim
-  | Set_of_closures set -> Set_of_closures.all_ids_for_export set
-  | Static_consts consts -> all_ids_for_export_static_const_group consts
-  | Rec_info rec_info_expr -> Rec_info_expr.all_ids_for_export rec_info_expr
+  | Prim (prim, _dbg) -> Flambda_primitive.ids_for_export prim
+  | Set_of_closures set -> Set_of_closures.ids_for_export set
+  | Static_consts consts -> ids_for_export_static_const_group consts
+  | Rec_info rec_info_expr -> Rec_info_expr.ids_for_export rec_info_expr
 
-and all_ids_for_export_let_cont_expr t =
+and ids_for_export_let_cont_expr t =
   match t with
   | Non_recursive
       { handler; num_free_occurrences = _; is_applied_with_traps = _ } ->
-    all_ids_for_export_non_recursive_let_cont_handler handler
-  | Recursive handlers ->
-    all_ids_for_export_recursive_let_cont_handlers handlers
+    ids_for_export_non_recursive_let_cont_handler handler
+  | Recursive handlers -> ids_for_export_recursive_let_cont_handlers handlers
 
-and all_ids_for_export_non_recursive_let_cont_handler
+and ids_for_export_non_recursive_let_cont_handler
     { continuation_and_body; handler } =
-  let handler_ids = all_ids_for_export_continuation_handler handler in
+  let handler_ids = ids_for_export_continuation_handler handler in
   let continuation_and_body_ids =
-    Name_abstraction.all_ids_for_export
+    Name_abstraction.ids_for_export
       (module Bound_continuation)
-      continuation_and_body ~all_ids_for_export_of_term:all_ids_for_export
+      continuation_and_body ~ids_for_export_of_term:ids_for_export
   in
   Ids_for_export.union handler_ids continuation_and_body_ids
 
-and all_ids_for_export_recursive_let_cont_handlers_t0 { handlers; body } =
-  let body_ids = all_ids_for_export body in
-  let handlers_ids = all_ids_for_export_continuation_handlers handlers in
+and ids_for_export_recursive_let_cont_handlers_t0 { handlers; body } =
+  let body_ids = ids_for_export body in
+  let handlers_ids = ids_for_export_continuation_handlers handlers in
   Ids_for_export.union body_ids handlers_ids
 
-and all_ids_for_export_recursive_let_cont_handlers t =
-  Name_abstraction.all_ids_for_export
+and ids_for_export_recursive_let_cont_handlers t =
+  Name_abstraction.ids_for_export
     (module Bound_continuations)
-    t
-    ~all_ids_for_export_of_term:
-      all_ids_for_export_recursive_let_cont_handlers_t0
+    t ~ids_for_export_of_term:ids_for_export_recursive_let_cont_handlers_t0
 
-and all_ids_for_export_function_params_and_body_base { expr; free_names = _ } =
-  all_ids_for_export expr
+and ids_for_export_function_params_and_body_base { expr; free_names = _ } =
+  ids_for_export expr
 
-and all_ids_for_export_function_params_and_body { abst; is_my_closure_used = _ }
-    =
-  Name_abstraction.all_ids_for_export
+and ids_for_export_function_params_and_body { abst; is_my_closure_used = _ } =
+  Name_abstraction.ids_for_export
     (module Bound_for_function)
-    abst
-    ~all_ids_for_export_of_term:all_ids_for_export_function_params_and_body_base
+    abst ~ids_for_export_of_term:ids_for_export_function_params_and_body_base
 
-and all_ids_for_export_static_const_or_code t =
+and ids_for_export_static_const_or_code t =
   match t with
   | Code code ->
-    Code0.all_ids_for_export ~all_ids_for_export_function_params_and_body code
+    Code0.ids_for_export ~ids_for_export_function_params_and_body code
   | Deleted_code -> Ids_for_export.empty
-  | Static_const const -> Static_const.all_ids_for_export const
+  | Static_const const -> Static_const.ids_for_export const
 
-and all_ids_for_export_static_const_group t =
-  List.map all_ids_for_export_static_const_or_code t
-  |> Ids_for_export.union_list
+and ids_for_export_static_const_group t =
+  List.map ids_for_export_static_const_or_code t |> Ids_for_export.union_list
 
 type flattened_for_printing_descr =
   | Flat_code of Code_id.t * function_params_and_body Code0.t
@@ -427,8 +431,8 @@ type flattened_for_printing =
 
 let _shape_colour descr =
   match descr with
-  | Flat_code _ | Flat_deleted_code _ -> Flambda_colours.code_id ()
-  | Flat_set_of_closures _ | Flat_block_like _ -> Flambda_colours.symbol ()
+  | Flat_code _ | Flat_deleted_code _ -> Flambda_colours.code_id
+  | Flat_set_of_closures _ | Flat_block_like _ -> Flambda_colours.symbol
 
 let rec named_must_be_static_consts (named : named) =
   match named with
@@ -509,17 +513,13 @@ and print ppf (t : expr) =
   | Let let_expr -> print_let_expr ppf let_expr
   | Let_cont let_cont -> print_let_cont_expr ppf let_cont
   | Apply apply ->
-    Format.fprintf ppf "@[<hov 1>(@<0>%sapply@<0>%s@ %a)@]"
-      (Flambda_colours.expr_keyword ())
-      (Flambda_colours.normal ())
-      Apply.print apply
+    Format.fprintf ppf "@[<hov 1>(%tapply%t@ %a)@]" Flambda_colours.expr_keyword
+      Flambda_colours.pop Apply.print apply
   | Apply_cont apply_cont -> Apply_cont.print ppf apply_cont
   | Switch switch -> Switch.print ppf switch
   | Invalid { message } ->
-    fprintf ppf "@[(@<0>%sinvalid@<0>%s@ @[<hov 1>%s@])@]"
-      (Flambda_colours.invalid_keyword ())
-      (Flambda_colours.normal ())
-      message
+    fprintf ppf "@[(%tinvalid%t@ @[<hov 1>%s@])@]"
+      Flambda_colours.invalid_keyword Flambda_colours.pop message
 
 and print_continuation_handler (recursive : Recursive.t) ppf k
     ({ cont_handler_abst = _; is_exn_handler } as t) occurrences ~first =
@@ -529,21 +529,18 @@ and print_continuation_handler (recursive : Recursive.t) ppf k
     (match descr handler with
     | Apply_cont _ | Invalid _ -> fprintf ppf "@[<hov 0>"
     | Let _ | Let_cont _ | Apply _ | Switch _ -> fprintf ppf "@[<v 0>");
-    fprintf ppf "@[<hov 1>@<0>%s%a@<0>%s%s@<0>%s%s@<0>%s"
-      (Flambda_colours.continuation_definition ())
-      Continuation.print k
-      (Flambda_colours.expr_keyword ())
+    fprintf ppf "@[<hov 1>%t%a%t%t%s%t%t%s%t"
+      Flambda_colours.continuation_definition Continuation.print k
+      Flambda_colours.pop Flambda_colours.expr_keyword
       (match recursive with Non_recursive -> "" | Recursive -> " (rec)")
-      (Flambda_colours.continuation_annotation ())
+      Flambda_colours.pop Flambda_colours.continuation_annotation
       (if is_exn_handler then "[eh]" else "")
-      (Flambda_colours.normal ());
+      Flambda_colours.pop;
     if not (Bound_parameters.is_empty params)
     then fprintf ppf " %a" Bound_parameters.print params;
-    fprintf ppf "@<0>%s #%a:@<0>%s@]@ @[<hov 0>%a@]" (Flambda_colours.elide ())
+    fprintf ppf "%t #%a:%t@]@ @[<hov 0>%a@]" Flambda_colours.elide
       (Or_unknown.print Num_occurrences.print)
-      occurrences
-      (Flambda_colours.normal ())
-      print handler;
+      occurrences Flambda_colours.pop print handler;
     fprintf ppf "@]"
   in
   Name_abstraction.pattern_match_for_printing
@@ -560,17 +557,14 @@ and print_function_params_and_body ppf t =
       Bound_parameter.create my_closure (K.With_subkind.create K.value Anything)
     in
     fprintf ppf
-      "@[<hov 1>(@<0>%s@<1>\u{03bb}@<0>%s@[<hov \
-       1>@<1>\u{3008}%a@<1>\u{3009}@<1>\u{300a}%a@<1>\u{300b}%a %a @<0>%s%a \
-       @<0>%s.@<0>%s@]@ %a))@]"
-      (Flambda_colours.lambda ())
-      (Flambda_colours.normal ())
-      Continuation.print return_continuation Continuation.print exn_continuation
+      "@[<hov 1>(%t@<1>\u{03bb}%t@[<hov \
+       1>@<1>\u{3008}%a@<1>\u{3009}@<1>\u{300a}%a@<1>\u{300b}%a %a %t%a%t \
+       %t.%t@]@ %a))@]"
+      Flambda_colours.lambda Flambda_colours.pop Continuation.print
+      return_continuation Continuation.print exn_continuation
       Bound_parameters.print params Bound_parameter.print my_closure
-      (Flambda_colours.depth_variable ())
-      Variable.print my_depth (Flambda_colours.elide ())
-      (Flambda_colours.normal ())
-      print body
+      Flambda_colours.depth_variable Variable.print my_depth Flambda_colours.pop
+      Flambda_colours.elide Flambda_colours.pop print body
   in
   let module BFF = Bound_for_function in
   Name_abstraction.pattern_match_for_printing
@@ -637,8 +631,6 @@ and print_let_cont_expr ppf t =
     (List.rev let_conts);
   fprintf ppf ")@]"
 
-(* CR mshinwell: Remove [second_or_later_binding_within_one_set] if it doesn't
-   become used soon. *)
 and flatten_for_printing0 bound_static defining_exprs =
   match_against_bound_static__static_const_group defining_exprs bound_static
     ~init:([], false)
@@ -699,9 +691,8 @@ and flatten_for_printing t =
     ~f:(fun bound_pattern { body; _ } -> print bound_pattern ~body)
 
 and print_closure_binding ppf (function_slot, sym) =
-  Format.fprintf ppf "@[%a @<0>%s\u{21a4}@<0>%s@ %a@]" Symbol.print sym
-    (Flambda_colours.elide ()) (Flambda_colours.elide ()) Function_slot.print
-    function_slot
+  Format.fprintf ppf "@[%a %t\u{21a4}%t@ %a@]" Symbol.print sym
+    Flambda_colours.elide Flambda_colours.pop Function_slot.print function_slot
 
 and print_flattened_descr_lhs ppf descr =
   match descr with
@@ -711,8 +702,8 @@ and print_flattened_descr_lhs ppf descr =
     Format.fprintf ppf "@[<hov 0>%a@]"
       (Format.pp_print_list
          ~pp_sep:(fun ppf () ->
-           Format.fprintf ppf "@<0>%s,@ @<0>%s" (Flambda_colours.elide ())
-             (Flambda_colours.normal ()))
+           Format.fprintf ppf "%t,@ %t" Flambda_colours.elide
+             Flambda_colours.pop)
          print_closure_binding)
       (Function_slot.Lmap.bindings closure_symbols)
   | Flat_block_like (symbol, _) -> Symbol.print ppf symbol
@@ -731,17 +722,9 @@ and print_flattened ppf
     } =
   fprintf ppf "@[<hov 1>";
   if second_or_later_rec_binding
-  then
-    fprintf ppf "@<0>%sand @<0>%s"
-      (Flambda_colours.expr_keyword ())
-      (Flambda_colours.normal ());
-  (* else let shape = "\u{25b7}" (* unfilled triangle *) in fprintf ppf
-     "@<0>%s@<1>%s @<0>%s" (shape_colour descr) shape (Flambda_colours.normal
-     ())); *)
-  fprintf ppf "%a@<0>%s =@<0>%s@ %a@]" print_flattened_descr_lhs descr
-    (Flambda_colours.elide ())
-    (Flambda_colours.normal ())
-    print_flattened_descr_rhs descr
+  then fprintf ppf "%tand %t" Flambda_colours.expr_keyword Flambda_colours.pop;
+  fprintf ppf "%a%t =%t@ %a@]" print_flattened_descr_lhs descr
+    Flambda_colours.elide Flambda_colours.pop print_flattened_descr_rhs descr
 
 and flatten_let_symbol t : _ * expr =
   let rec flatten (expr : expr) : _ * expr =
@@ -761,8 +744,8 @@ and flatten_let_symbol t : _ * expr =
   | None -> assert false
 (* see below *)
 
-(* CR mshinwell: Merge the "let symbol" and "normal let" cases to use the same
-   flattened type? *)
+(* CR-someday mshinwell: Merge the "let symbol" and "normal let" cases to use
+   the same flattened type? *)
 and print_let_static ppf t =
   let rec print_more flattened =
     match flattened with
@@ -785,25 +768,23 @@ and print_let_expr ppf ({ let_abst = _; defining_expr } as t) : unit =
   let let_bound_var_colour bound_pattern defining_expr =
     let name_mode = Bound_pattern.name_mode bound_pattern in
     if Name_mode.is_phantom name_mode
-    then Flambda_colours.elide ()
+    then Flambda_colours.elide
     else
       match (defining_expr : named) with
-      | Rec_info _ -> Flambda_colours.depth_variable ()
+      | Rec_info _ -> Flambda_colours.depth_variable
       | Simple _ | Prim _ | Set_of_closures _ | Static_consts _ ->
-        Flambda_colours.variable ()
+        Flambda_colours.variable
   in
-
   let rec let_body (expr : expr) =
     match descr expr with
     | Let ({ let_abst = _; defining_expr } as t) ->
       let print (bound_pattern : Bound_pattern.t) ~body =
         match bound_pattern with
         | Singleton _ | Set_of_closures _ ->
-          fprintf ppf "@ @[<hov 1>@<0>%s%a@<0>%s =@<0>%s@ %a@]"
+          fprintf ppf "@ @[<hov 1>%t%a%t%t =%t@ %a@]"
             (let_bound_var_colour bound_pattern defining_expr)
-            Bound_pattern.print bound_pattern (Flambda_colours.elide ())
-            (Flambda_colours.normal ())
-            print_named defining_expr;
+            Bound_pattern.print bound_pattern Flambda_colours.pop
+            Flambda_colours.elide Flambda_colours.pop print_named defining_expr;
           let_body body
         | Static _ -> expr
       in
@@ -817,11 +798,10 @@ and print_let_expr ppf ({ let_abst = _; defining_expr } as t) : unit =
     match bound_pattern with
     | Static _ -> print_let_static ppf t
     | Singleton _ | Set_of_closures _ ->
-      fprintf ppf "@[<v 0>@[<v 0>@[<hov 1>@<0>%s%a@<0>%s =@<0>%s@ %a@]"
+      fprintf ppf "@[<v 0>@[<v 0>@[<hov 1>%t%a%t%t =%t@ %a@]"
         (let_bound_var_colour bound_pattern defining_expr)
-        Bound_pattern.print bound_pattern (Flambda_colours.elide ())
-        (Flambda_colours.normal ())
-        print_named defining_expr;
+        Bound_pattern.print bound_pattern Flambda_colours.pop
+        Flambda_colours.elide Flambda_colours.pop print_named defining_expr;
       let expr = let_body body in
       fprintf ppf "@]@ %a@]" print expr
   in
@@ -839,10 +819,8 @@ and print_named ppf (t : named) =
   match t with
   | Simple simple -> Simple.print ppf simple
   | Prim (prim, dbg) ->
-    fprintf ppf "@[<hov 1>(%a@<0>%s%a@<0>%s)@]" Flambda_primitive.print prim
-      (Flambda_colours.debuginfo ())
-      print_or_elide_debuginfo dbg
-      (Flambda_colours.normal ())
+    fprintf ppf "@[<hov 1>(%a%t%a%t)@]" Flambda_primitive.print prim
+      Flambda_colours.debuginfo print_or_elide_debuginfo dbg Flambda_colours.pop
   | Set_of_closures set_of_closures -> Set_of_closures.print ppf set_of_closures
   | Static_consts consts -> print_static_const_group ppf consts
   | Rec_info rec_info_expr -> Rec_info_expr.print ppf rec_info_expr
@@ -856,22 +834,20 @@ and print_static_const_group ppf static_const_group =
 and print_static_const_or_code ppf static_const_or_code =
   match static_const_or_code with
   | Code code ->
-    fprintf ppf "@[<hov 1>(@<0>%sCode@<0>%s@ %a)@]"
-      (Flambda_colours.static_part ())
-      (Flambda_colours.normal ())
+    fprintf ppf "@[<hov 1>(%tCode%t@ %a)@]" Flambda_colours.static_part
+      Flambda_colours.pop
       (Code0.print ~print_function_params_and_body)
       code
   | Deleted_code ->
-    fprintf ppf "@[<hov 1>(@<0>%sDeleted_code@<0>%s)@]"
-      (Flambda_colours.static_part ())
-      (Flambda_colours.normal ())
+    fprintf ppf "@[<hov 1>(%tDeleted_code%t)@]" Flambda_colours.static_part
+      Flambda_colours.pop
   | Static_const const -> Static_const.print ppf const
 
 module Continuation_handler = struct
   module T0 = struct
     type t = continuation_handler_t0
 
-    let all_ids_for_export = all_ids_for_export_continuation_handler_t0
+    let ids_for_export = ids_for_export_continuation_handler_t0
 
     let apply_renaming = apply_renaming_continuation_handler_t0
   end
@@ -957,7 +933,7 @@ module Function_params_and_body = struct
 
     let apply_renaming = apply_renaming_function_params_and_body_base
 
-    let all_ids_for_export = all_ids_for_export_function_params_and_body_base
+    let ids_for_export = ids_for_export_function_params_and_body_base
   end
 
   module A = Name_abstraction.Make (Bound_for_function) (Base)
@@ -1010,7 +986,7 @@ module Function_params_and_body = struct
 
   let apply_renaming = apply_renaming_function_params_and_body
 
-  let all_ids_for_export = all_ids_for_export_function_params_and_body
+  let ids_for_export = ids_for_export_function_params_and_body
 
   let is_my_closure_used t =
     match t.is_my_closure_used with
@@ -1024,7 +1000,7 @@ module Let_expr = struct
 
     let apply_renaming = apply_renaming_let_expr_t0
 
-    let all_ids_for_export = all_ids_for_export_let_expr_t0
+    let ids_for_export = ids_for_export_let_expr_t0
   end
 
   module A = Name_abstraction.Make (Bound_pattern) (T0)
@@ -1137,7 +1113,7 @@ module Non_recursive_let_cont_handler = struct
 
         let apply_renaming = apply_renaming
 
-        let all_ids_for_export = all_ids_for_export
+        let ids_for_export = ids_for_export
       end)
 
   type t = non_recursive_let_cont_handler
@@ -1170,7 +1146,7 @@ module Recursive_let_cont_handlers = struct
 
     let apply_renaming = apply_renaming_recursive_let_cont_handlers_t0
 
-    let all_ids_for_export = all_ids_for_export_recursive_let_cont_handlers_t0
+    let ids_for_export = ids_for_export_recursive_let_cont_handlers_t0
   end
 
   module A = Name_abstraction.Make (Bound_continuations) (T0)
@@ -1239,7 +1215,7 @@ module Static_const_or_code = struct
 
   let apply_renaming = apply_renaming_static_const_or_code
 
-  let all_ids_for_export = all_ids_for_export_static_const_or_code
+  let ids_for_export = ids_for_export_static_const_or_code
 
   let create_code code = Code code
 
@@ -1292,7 +1268,7 @@ module Static_const_group = struct
 
   let apply_renaming = apply_renaming_static_const_group
 
-  let all_ids_for_export = all_ids_for_export_static_const_group
+  let ids_for_export = ids_for_export_static_const_group
 
   let match_against_bound_static =
     match_against_bound_static__static_const_group
@@ -1425,7 +1401,8 @@ module Named = struct
                  ( Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
                  | Boxed_nativeint _ | Immutable_float_block _
                  | Immutable_float_array _ | Mutable_string _
-                 | Immutable_string _ | Empty_array ) ->
+                 | Immutable_string _ | Empty_array | Immutable_value_array _ )
+               ->
                acc)
            init
 end
@@ -1486,7 +1463,7 @@ module Expr = struct
 
   let apply_renaming = apply_renaming
 
-  let all_ids_for_export = all_ids_for_export
+  let ids_for_export = ids_for_export
 
   let print = print
 
@@ -1540,11 +1517,8 @@ module Let_cont_expr = struct
   let apply_renaming = apply_renaming_let_cont_expr
 end
 
-(* CR mshinwell: Consider counting numbers of names in Name_occurrences *)
 (* CR mshinwell: Check that apply_cont is well-formed when there is a trap
    installation or removal. *)
-(* CR-someday pchambart: for sum types, we should probably add an exhaustive
-   pattern in ignores functions to be reminded if a type change *)
 (* CR-someday mshinwell: We should make "direct applications should not have
    overapplication" be an invariant throughout. At the moment I think this is
    only true after [Simplify] has split overapplications. *)

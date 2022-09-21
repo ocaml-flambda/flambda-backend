@@ -47,9 +47,9 @@ val add_definition : t -> Variable.t -> Flambda_kind.t -> Binding_time.t -> t
 
 val add_or_replace_equation : t -> Name.t -> Type_grammar.t -> t
 
-val concat : t -> t -> t
+val concat : earlier:t -> later:t -> t
 
-val all_ids_for_export : t -> Ids_for_export.t
+val ids_for_export : t -> Ids_for_export.t
 
 val find_kind : t -> Variable.t -> Flambda_kind.t
 

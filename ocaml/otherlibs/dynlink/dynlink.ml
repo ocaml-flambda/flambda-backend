@@ -93,9 +93,9 @@ module Bytecode = struct
       init
       !default_crcs
 
-  let run_shared_startup _ = ()
+  let run_shared_startup _ ~filename:_ ~priv:_ = ()
 
-  let run (ic, file_name, file_digest) ~unit_header ~priv =
+  let run (ic, file_name, file_digest) ~filename:_ ~unit_header ~priv =
     let open Misc in
     let old_state = Symtable.current_state () in
     let compunit : Cmo_format.compilation_unit = unit_header in
@@ -241,16 +241,33 @@ module Native = struct
       init
       (ndl_getmap ())
 
-  let run_shared_startup handle =
-    ndl_run handle "_shared_startup"
+  exception Register_dyn_global_duplicate
+  let () =
+    Callback.register "Register_dyn_global_duplicate"
+      Register_dyn_global_duplicate
 
-  let run handle ~unit_header ~priv:_ =
-    List.iter (fun cu ->
-        try ndl_run handle cu
-        with exn ->
-          Printexc.raise_with_backtrace
-            (DT.Error (Library's_module_initializers_failed exn))
-            (Printexc.get_raw_backtrace ()))
+  let ndl_run handle cu ~filename ~priv =
+    try ndl_run handle cu
+    with
+    | Register_dyn_global_duplicate ->
+      if not priv then
+        failwith (Printf.sprintf "Attempt to register duplicate dynamic \
+          GC roots for non-privately-loaded library `%s'; this is a bug in \
+          [Dynlink]" filename)
+      else
+        Printexc.raise_with_backtrace
+          (DT.Error (Library_file_already_loaded_privately { filename }))
+          (Printexc.get_raw_backtrace ())
+    | exn ->
+      Printexc.raise_with_backtrace
+        (DT.Error (Library's_module_initializers_failed exn))
+        (Printexc.get_raw_backtrace ())
+
+  let run_shared_startup handle ~filename ~priv =
+    ndl_run handle "_shared_startup" ~filename ~priv
+
+  let run handle ~filename ~unit_header ~priv =
+    List.iter (fun cu -> ndl_run handle cu ~filename ~priv)
       (Unit_header.defined_symbols unit_header)
 
   let load ~filename ~priv =
@@ -290,6 +307,7 @@ type error = DT.error =
   | Inconsistent_implementation of string
   | Module_already_loaded of string
   | Private_library_cannot_implement_interface of string
+  | Library_file_already_loaded_privately of { filename : string; }
 
 exception Error = DT.Error
 let error_message = DT.error_message

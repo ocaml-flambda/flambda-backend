@@ -52,8 +52,18 @@ let mk_heap_reduction_threshold f =
     Flambda_backend_flags.default_heap_reduction_threshold
 ;;
 
+let mk_alloc_check f =
+  "-alloc-check", Arg.Unit f, " Check that annoted functions do not allocate \
+                                and do not have indirect calls"
+
+let mk_dcheckmach f =
+  "-dcheckmach", Arg.Unit f, " (undocumented)"
+
 let mk_dump_inlining_paths f =
   "-dump-inlining-paths", Arg.Unit f, " Dump inlining paths when dumping flambda2 terms"
+
+let mk_internal_assembler f =
+  "-internal-assembler", Arg.Unit f, "Write object files directly instead of using the system assembler (x86-64 ELF only)"
 
 module Flambda2 = Flambda_backend_flags.Flambda2
 
@@ -415,6 +425,10 @@ module type Flambda_backend_options = sig
   val dno_asm_comments : unit -> unit
 
   val heap_reduction_threshold : int -> unit
+  val alloc_check : unit -> unit
+  val dcheckmach : unit -> unit
+
+  val internal_assembler : unit -> unit
 
   val flambda2_join_points : unit -> unit
   val no_flambda2_join_points : unit -> unit
@@ -483,6 +497,10 @@ struct
     mk_dno_asm_comments F.dno_asm_comments;
 
     mk_heap_reduction_threshold F.heap_reduction_threshold;
+    mk_alloc_check F.alloc_check;
+    mk_dcheckmach F.dcheckmach;
+
+    mk_internal_assembler F.internal_assembler;
 
     mk_flambda2_join_points F.flambda2_join_points;
     mk_no_flambda2_join_points F.no_flambda2_join_points;
@@ -586,6 +604,10 @@ module Flambda_backend_options_impl = struct
 
   let heap_reduction_threshold x =
     Flambda_backend_flags.heap_reduction_threshold := x
+  let alloc_check = set' Flambda_backend_flags.alloc_check
+  let dcheckmach = set' Flambda_backend_flags.dump_checkmach
+
+  let internal_assembler = set' Flambda_backend_flags.internal_assembler
 
   let flambda2_join_points = set Flambda2.join_points
   let no_flambda2_join_points = clear Flambda2.join_points
@@ -772,6 +794,7 @@ module Extra_params = struct
       Compenv.setter ppf (fun b -> b) name [ option ] v; false
     in
     match name with
+    | "internal-assembler" -> set' Flambda_backend_flags.internal_assembler
     | "ocamlcfg" -> set' Flambda_backend_flags.use_ocamlcfg
     | "cfg-invariants" -> set' Flambda_backend_flags.cfg_invariants
     | "cfg-equivalence-check" -> set' Flambda_backend_flags.cfg_equivalence_check
@@ -779,6 +802,8 @@ module Extra_params = struct
     | "reorder-blocks-random" ->
        set_int_option' Flambda_backend_flags.reorder_blocks_random
     | "heap-reduction-threshold" -> set_int' Flambda_backend_flags.heap_reduction_threshold
+    | "alloc-check" -> set' Flambda_backend_flags.alloc_check
+    | "dump-checkmach" -> set' Flambda_backend_flags.dump_checkmach
     | "dasm-comments" -> set' Flambda_backend_flags.dasm_comments
     | "dno-asm-comments" -> clear' Flambda_backend_flags.dasm_comments
     | "gupstream-dwarf" -> set' Debugging.restrict_to_upstream_dwarf

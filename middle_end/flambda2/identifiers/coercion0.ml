@@ -88,17 +88,15 @@ module Make (Rec_info_expr : Rec_info_expr0.S) :
 
   let [@ocamlformat "disable"] print ppf = function
     | Id ->
-      Format.fprintf ppf "@<0>%sid@<0>%s"
-        (Flambda_colours.elide ())
-        (Flambda_colours.normal ())
+      Format.fprintf ppf "%tid%t"
+        Flambda_colours.elide
+        Flambda_colours.pop
     | Change_depth { from; to_; } ->
-      Format.fprintf ppf "@<0>%s@[<hov 1>(depth@ %a@<0>%s ->@ %a@<0>%s)@]@<0>%s"
-        (Flambda_colours.coercion ())
+      Format.fprintf ppf "%t@[<hov 1>(depth@ %a ->@ %a)@]%t"
+        Flambda_colours.coercion
         Rec_info_expr.print from
-        (Flambda_colours.coercion ())
         Rec_info_expr.print to_
-        (Flambda_colours.coercion ())
-        (Flambda_colours.normal ())
+        Flambda_colours.pop
 
   let equal t1 t2 =
     t1 == t2

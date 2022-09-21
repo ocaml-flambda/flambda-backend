@@ -88,6 +88,7 @@ let (pass_to_cfg : Cfg_format.cfg_unit_info Compiler_pass_map.t) =
   |> Compiler_pass_map.add Compiler_pass.Selection (new_cfg_unit_info ())
 
 let reset () =
+  Checkmach.reset_unit_info ();
   start_from_emit := false;
   Compiler_pass_map.iter (fun pass (cfg_unit_info : Cfg_format.cfg_unit_info) ->
     if should_save_ir_after pass then begin
@@ -136,7 +137,7 @@ let save_cfg f =
 let save_mach_as_cfg pass f =
   if should_save_ir_after pass && (not !start_from_emit) then begin
     let cfg =
-      Cfgize.fundecl f ~preserve_orig_labels:false ~simplify_terminators:true
+      Cfgize.fundecl f ~before_register_allocation:false ~preserve_orig_labels:false ~simplify_terminators:true
     in
     let cfg_unit_info = Compiler_pass_map.find pass pass_to_cfg in
     cfg_unit_info.items <- Cfg_format.(Cfg cfg) :: cfg_unit_info.items
@@ -164,10 +165,21 @@ let write_ir prefix =
 let should_emit () =
   not (should_stop_after Compiler_pass.Scheduling)
 
+let should_use_linscan fd =
+  !use_linscan ||
+  List.mem Cmm.Use_linscan_regalloc fd.Mach.fun_codegen_options
+
 let if_emit_do f x = if should_emit () then f x else ()
 let emit_begin_assembly ~init_dwarf:init_dwarf =
   if_emit_do (fun init_dwarf -> Emit.begin_assembly ~init_dwarf) init_dwarf
-let emit_end_assembly = if_emit_do Emit.end_assembly
+let emit_end_assembly filename =
+  if_emit_do
+   (fun dwarf ->
+     try
+       Emit.end_assembly dwarf
+     with Emitaux.Error e ->
+       raise (Error (Asm_generation(filename, e))))
+
 let emit_data = if_emit_do Emit.data
 let emit_fundecl ~dwarf =
   if_emit_do
@@ -196,8 +208,7 @@ let rec regalloc ~ppf_dump round fd =
                 ": function too complex, cannot complete register allocation");
   dump_if ppf_dump dump_live "Liveness analysis" fd;
   let num_stack_slots =
-    if !use_linscan ||
-       List.mem Cmm.Use_linscan_regalloc fd.Mach.fun_codegen_options then begin
+    if should_use_linscan fd then begin
       (* Linear Scan *)
       Interval.build_intervals fd;
       if !dump_interval then Printmach.intervals ppf_dump ();
@@ -232,7 +243,7 @@ let recompute_liveness_on_cfg (cfg_with_layout : Cfg_with_layout.t) : Cfg_with_l
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   let init = { Cfg_liveness.before = Reg.Set.empty; across = Reg.Set.empty; } in
   begin match Cfg_liveness.Liveness.run cfg ~init ~map:Cfg_liveness.Liveness.Instr () with
-    | Result.Ok (liveness : Cfg_liveness.Liveness.domain Cfg_dataflow.Instr.Tbl.t) ->
+    | Ok (liveness : Cfg_liveness.Liveness.domain Cfg_dataflow.Instr.Tbl.t) ->
       let with_liveness (instr : _ Cfg.instruction) =
         match Cfg_dataflow.Instr.Tbl.find_opt liveness instr.id with
         | None ->
@@ -246,7 +257,8 @@ let recompute_liveness_on_cfg (cfg_with_layout : Cfg_with_layout.t) : Cfg_with_l
           block.body <- ListLabels.map block.body ~f:with_liveness;
           block.terminator <- with_liveness block.terminator;
         );
-    | Result.Error _ ->
+    | Aborted _ -> .
+    | Max_iterations_reached ->
       Misc.fatal_errorf "Unable to compute liveness from CFG for function %s@."
         cfg.Cfg.fun_name;
   end;
@@ -284,6 +296,7 @@ let test_cfgize (f : Mach.fundecl) (res : Linear.fundecl) : unit =
   let result =
     Cfgize.fundecl
       f
+      ~before_register_allocation:false
       ~preserve_orig_labels:false
       ~simplify_terminators:false
   in
@@ -314,6 +327,29 @@ let reorder_blocks_random ppf_dump cl =
      pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg
        "After reorder_blocks_random" cl
 
+let cfgize (f : Mach.fundecl) : Cfg_with_layout.t =
+  if ocamlcfg_verbose then begin
+    Format.eprintf "Asmgen.cfgize on function %s...\n%!" f.Mach.fun_name;
+  end;
+  Cfgize.fundecl
+    f
+    ~before_register_allocation:true
+    ~preserve_orig_labels:false
+    ~simplify_terminators:true
+
+type register_allocator =
+  | Upstream
+  | IRC
+
+let register_allocator : register_allocator =
+  match Sys.getenv_opt "REGISTER_ALLOCATOR" with
+  | None -> Upstream
+  | Some id ->
+    match String.lowercase_ascii id with
+    | "irc" -> IRC
+    | "" | "upstream" -> Upstream
+    | _ -> Misc.fatal_errorf "unknown register allocator %S" id
+
 let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
   Proc.init ();
   Reg.reset();
@@ -322,53 +358,82 @@ let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
   ++ Profile.record ~accumulate:true "selection" Selection.fundecl
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_sel
   ++ pass_dump_if ppf_dump dump_selection "After instruction selection"
-  ++ save_mach_as_cfg Compiler_pass.Selection
+  ++ Profile.record ~accumulate:true "save_mach_as_cfg" (save_mach_as_cfg Compiler_pass.Selection)
   ++ Profile.record ~accumulate:true "comballoc" Comballoc.fundecl
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_combine
   ++ pass_dump_if ppf_dump dump_combine "After allocation combining"
   ++ Profile.record ~accumulate:true "cse" CSE.fundecl
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_cse
   ++ pass_dump_if ppf_dump dump_cse "After CSE"
-  ++ Profile.record ~accumulate:true "liveness" liveness
-  ++ Profile.record ~accumulate:true "deadcode" Deadcode.fundecl
-  ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_live
-  ++ pass_dump_if ppf_dump dump_live "Liveness analysis"
-  ++ Profile.record ~accumulate:true "spill" Spill.fundecl
-  ++ Profile.record ~accumulate:true "liveness" liveness
-  ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_spill
-  ++ pass_dump_if ppf_dump dump_spill "After spilling"
-  ++ Profile.record ~accumulate:true "split" Split.fundecl
-  ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_split
-  ++ pass_dump_if ppf_dump dump_split "After live range splitting"
-  ++ Profile.record ~accumulate:true "liveness" liveness
-  ++ Profile.record ~accumulate:true "regalloc" (regalloc ~ppf_dump 1)
-  ++ Profile.record ~accumulate:true "available_regs" Available_regs.fundecl
-  ++ Profile.record ~accumulate:true "linearize" (fun (f : Mach.fundecl) ->
-      let res = Linearize.fundecl f in
-      (* CR xclerc for xclerc: temporary, for testing. *)
-      if !Flambda_backend_flags.cfg_equivalence_check then begin
-        test_cfgize f res;
-      end;
-      res)
-  ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code"
+  ++ Profile.record ~accumulate:true "checkmach" (Checkmach.fundecl ppf_dump)
+  ++ Profile.record ~accumulate:true "regalloc" (fun (fd : Mach.fundecl) ->
+    let force_linscan = should_use_linscan fd in
+    match force_linscan, register_allocator with
+    | false, IRC ->
+      fd
+      ++ Profile.record ~accumulate:true "irc" (fun fd ->
+        let cfg =
+          fd
+          ++ Profile.record ~accumulate:true "cfgize" cfgize
+          ++ Cfg_with_liveness.make
+          ++ Profile.record ~accumulate:true "cfg_deadcode" Cfg_deadcode.run
+        in
+        let cfg_description =
+          Profile.record ~accumulate:true "cfg_create_description"
+            Cfg_regalloc_validate.Description.create (Cfg_with_liveness.cfg_with_layout cfg)
+        in
+        cfg
+        ++ Profile.record ~accumulate:true "cfg_irc" Cfg_irc.run
+        ++ Cfg_with_liveness.cfg_with_layout
+        ++ Profile.record ~accumulate:true "cfg_validate_description" (Cfg_regalloc_validate.run cfg_description)
+        ++ Profile.record ~accumulate:true "cfg_simplify" Cfg_regalloc_utils.simplify_cfg
+        ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run)
+    | true, _ | false, Upstream ->
+      fd
+      ++ Profile.record ~accumulate:true "default" (fun fd ->
+        let res =
+          fd
+          ++ Profile.record ~accumulate:true "liveness" liveness
+          ++ Profile.record ~accumulate:true "deadcode" Deadcode.fundecl
+          ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_live
+          ++ pass_dump_if ppf_dump dump_live "Liveness analysis"
+          ++ Profile.record ~accumulate:true "spill" Spill.fundecl
+          ++ Profile.record ~accumulate:true "liveness" liveness
+          ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_spill
+          ++ pass_dump_if ppf_dump dump_spill "After spilling"
+          ++ Profile.record ~accumulate:true "split" Split.fundecl
+          ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_split
+          ++ pass_dump_if ppf_dump dump_split "After live range splitting"
+          ++ Profile.record ~accumulate:true "liveness" liveness
+          ++ Profile.record ~accumulate:true "regalloc" (regalloc ~ppf_dump 1)
+          ++ Profile.record ~accumulate:true "available_regs" Available_regs.fundecl
+        in
+        res
+        ++ Profile.record ~accumulate:true "linearize" (fun (f : Mach.fundecl) ->
+            let res = Linearize.fundecl f in
+            if !Flambda_backend_flags.cfg_equivalence_check then begin
+              test_cfgize f res;
+            end;
+            res)
+        ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code"))
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Linear
-  ++ (fun (fd : Linear.fundecl) ->
+  ++ Profile.record ~accumulate:true "reorder_blocks" (fun (fd : Linear.fundecl) ->
     if !Flambda_backend_flags.use_ocamlcfg then begin
       fd
       ++ Profile.record ~accumulate:true "linear_to_cfg"
            (Linear_to_cfg.run ~preserve_orig_labels:true)
       ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg
       ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg "After linear_to_cfg"
-      ++ save_cfg
-      ++ reorder_blocks_random ppf_dump
+      ++ Profile.record ~accumulate:true "save_cfg" save_cfg
+      ++ Profile.record ~accumulate:true "cfg_reorder_blocks" (reorder_blocks_random ppf_dump)
       ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run
       ++ pass_dump_linear_if ppf_dump dump_linear "After cfg_to_linear"
     end else
       fd)
   ++ Profile.record ~accumulate:true "scheduling" Scheduling.fundecl
   ++ pass_dump_linear_if ppf_dump dump_scheduling "After instruction scheduling"
-  ++ save_linear
-  ++ emit_fundecl ~dwarf
+  ++ Profile.record ~accumulate:true "save_linear" save_linear
+  ++ Profile.record ~accumulate:true "emit_fundecl" (emit_fundecl ~dwarf)
 
 let compile_data dl =
   dl
@@ -394,7 +459,8 @@ let compile_genfuns ?dwarf ~ppf_dump f =
        (Cmm_helpers.Generic_fns_tbl.of_fns
           (Compilenv.current_unit_infos ()).ui_generic_fns))
 
-let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename ~may_reduce_heap gen =
+let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename ~may_reduce_heap
+        ~ppf_dump gen =
   reset ();
   let create_asm = should_emit () &&
                    (keep_asm || not !Emitaux.binary_backend_available) in
@@ -406,6 +472,7 @@ let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename ~may_reduc
        Misc.try_finally
          (fun () ->
             gen ();
+            Checkmach.record_unit_info ppf_dump;
             write_ir output_prefix)
          ~always:(fun () ->
              if create_asm then close_out !Emitaux.output_channel)
@@ -487,7 +554,12 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) = (
     end)
   )
 
-let emit_begin_assembly_with_dwarf ~disable_dwarf ~emit_begin_assembly ~sourcefile () =
+let emit_begin_assembly_with_dwarf unix ~disable_dwarf ~emit_begin_assembly ~sourcefile () =
+  if !Flambda_backend_flags.internal_assembler then
+    (X86_proc.register_internal_assembler (Internal_assembler.assemble unix);
+    Emitaux.binary_backend_available := true;
+    Emitaux.create_asm_file := !Clflags.keep_asm_file)
+  else ();
   let no_dwarf () =
     emit_begin_assembly ~init_dwarf:(fun () -> ());
     None
@@ -511,9 +583,9 @@ let emit_begin_assembly_with_dwarf ~disable_dwarf ~emit_begin_assembly ~sourcefi
   | true, _, _ -> no_dwarf ()
   | false, _, _ -> no_dwarf ()
 
-let end_gen_implementation0 ?toplevel ~ppf_dump ~sourcefile make_cmm =
+let end_gen_implementation0 unix ?toplevel ~ppf_dump ~sourcefile make_cmm =
   let dwarf =
-    emit_begin_assembly_with_dwarf ~disable_dwarf:false ~emit_begin_assembly
+    emit_begin_assembly_with_dwarf unix ~disable_dwarf:false ~emit_begin_assembly
       ~sourcefile ()
   in
   make_cmm ()
@@ -532,10 +604,10 @@ let end_gen_implementation0 ?toplevel ~ppf_dump ~sourcefile make_cmm =
            if not (Primitive.native_name_is_external prim) then None
            else Some (Primitive.native_name prim))
           !Translmod.primitive_declarations));
-  emit_end_assembly dwarf
+  emit_end_assembly sourcefile dwarf
 
-let end_gen_implementation ?toplevel ~ppf_dump ~sourcefile clambda =
-  end_gen_implementation0 ?toplevel ~ppf_dump ~sourcefile (fun () ->
+let end_gen_implementation unix ?toplevel ~ppf_dump ~sourcefile clambda =
+  end_gen_implementation0 unix ?toplevel ~ppf_dump ~sourcefile (fun () ->
     Profile.record "cmm" Cmmgen.compunit clambda)
 
 type middle_end =
@@ -551,9 +623,9 @@ let asm_filename output_prefix =
     then output_prefix ^ ext_asm
     else Filename.temp_file "camlasm" ext_asm
 
-let compile_implementation ?toplevel ~backend ~filename ~prefixname ~middle_end
-      ~ppf_dump (program : Lambda.program) =
-  compile_unit ~output_prefix:prefixname
+let compile_implementation unix ?toplevel ~backend ~filename ~prefixname
+      ~middle_end ~ppf_dump (program : Lambda.program) =
+  compile_unit ~ppf_dump ~output_prefix:prefixname
     ~asm_filename:(asm_filename prefixname) ~keep_asm:!keep_asm_file
     ~obj_filename:(prefixname ^ ext_obj)
     ~may_reduce_heap:(Option.is_none toplevel)
@@ -562,12 +634,13 @@ let compile_implementation ?toplevel ~backend ~filename ~prefixname ~middle_end
       let clambda_with_constants =
         middle_end ~backend ~filename ~prefixname ~ppf_dump program
       in
-      end_gen_implementation ?toplevel ~ppf_dump ~sourcefile:filename clambda_with_constants)
+      end_gen_implementation unix ?toplevel ~ppf_dump ~sourcefile:filename
+        clambda_with_constants)
 
-let compile_implementation_flambda2 ?toplevel ?(keep_symbol_tables=true)
+let compile_implementation_flambda2 unix ?toplevel ?(keep_symbol_tables=true)
     ~filename ~prefixname ~size:module_block_size_in_words ~module_ident
     ~module_initializer ~flambda2 ~ppf_dump ~required_globals () =
-  compile_unit ~output_prefix:prefixname
+  compile_unit ~ppf_dump ~output_prefix:prefixname
     ~asm_filename:(asm_filename prefixname) ~keep_asm:!keep_asm_file
     ~obj_filename:(prefixname ^ ext_obj)
     ~may_reduce_heap:(Option.is_none toplevel)
@@ -578,9 +651,10 @@ let compile_implementation_flambda2 ?toplevel ?(keep_symbol_tables=true)
           ~module_block_size_in_words ~module_initializer
           ~keep_symbol_tables
       in
-      end_gen_implementation0 ?toplevel ~ppf_dump ~sourcefile:filename (fun () -> cmm_phrases))
+      end_gen_implementation0 unix ?toplevel ~ppf_dump ~sourcefile:filename
+        (fun () -> cmm_phrases))
 
-let linear_gen_implementation filename =
+let linear_gen_implementation unix filename =
   let open Linear_format in
   let linear_unit_info, _ = restore filename in
   (match !Clflags.for_package, linear_unit_info.for_pack with
@@ -593,18 +667,18 @@ let linear_gen_implementation filename =
   in
   start_from_emit := true;
   let dwarf =
-    emit_begin_assembly_with_dwarf ~disable_dwarf:false ~emit_begin_assembly
-      ~sourcefile:filename ()
+    emit_begin_assembly_with_dwarf unix ~disable_dwarf:false
+      ~emit_begin_assembly ~sourcefile:filename ()
   in
   Profile.record "Emit" (List.iter (emit_item ~dwarf)) linear_unit_info.items;
-  emit_end_assembly dwarf
+  emit_end_assembly filename dwarf
 
-let compile_implementation_linear output_prefix ~progname =
+let compile_implementation_linear unix output_prefix ~progname =
   compile_unit ~may_reduce_heap:true ~output_prefix
     ~asm_filename:(asm_filename output_prefix) ~keep_asm:!keep_asm_file
     ~obj_filename:(output_prefix ^ ext_obj)
     (fun () ->
-      linear_gen_implementation progname)
+      linear_gen_implementation unix progname)
 
 (* Error report *)
 
@@ -622,7 +696,7 @@ let report_error ppf = function
        (msg !Clflags.for_package) (msg saved)
   | Asm_generation(fn, err) ->
      fprintf ppf
-       "Error producing assembly code for function %s: %a"
+       "Error producing assembly code for %s: %a"
        fn Emitaux.report_error err
 
 let () =

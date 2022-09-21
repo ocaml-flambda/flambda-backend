@@ -14,9 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-module Float = Numeric_types.Float_by_bit_pattern
-module Int32 = Numeric_types.Int32
-module Int64 = Numeric_types.Int64
 module Meet_env = Typing_env.Meet_env
 module Join_env = Typing_env.Join_env
 module ET = Expand_head.Expanded_type
@@ -100,6 +97,33 @@ let[@inline always] join_unknown join_contents (env : Join_env.t)
   match or_unknown1, or_unknown2 with
   | _, Unknown | Unknown, _ -> Unknown
   | Known contents1, Known contents2 -> join_contents env contents1 contents2
+
+let meet_array_element_kinds (element_kind1 : _ Or_unknown.t)
+    (element_kind2 : _ Or_unknown.t) : _ Or_bottom.t =
+  match element_kind1, element_kind2 with
+  | Unknown, Unknown -> Ok Or_unknown.Unknown
+  | Unknown, Known kind | Known kind, Unknown -> Ok (Or_unknown.Known kind)
+  | Known element_kind1, Known element_kind2 ->
+    if Flambda_kind.With_subkind.compatible element_kind1
+         ~when_used_at:element_kind2
+    then Ok (Or_unknown.Known element_kind1)
+    else if Flambda_kind.With_subkind.compatible element_kind2
+              ~when_used_at:element_kind1
+    then Ok (Or_unknown.Known element_kind2)
+    else Bottom
+
+let join_array_element_kinds (element_kind1 : _ Or_unknown.t)
+    (element_kind2 : _ Or_unknown.t) : _ Or_unknown.t =
+  match element_kind1, element_kind2 with
+  | Unknown, Unknown | Unknown, Known _ | Known _, Unknown -> Unknown
+  | Known element_kind1, Known element_kind2 ->
+    if Flambda_kind.With_subkind.compatible element_kind1
+         ~when_used_at:element_kind2
+    then Known element_kind2
+    else if Flambda_kind.With_subkind.compatible element_kind2
+              ~when_used_at:element_kind1
+    then Known element_kind1
+    else Unknown
 
 let rec meet env (t1 : TG.t) (t2 : TG.t) : (TG.t * TEE.t) Or_bottom.t =
   let t, env_extension = meet0 env t1 t2 in
@@ -325,7 +349,6 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
       Mutable_block { alloc_mode = alloc_mode2 } )
   | ( Mutable_block { alloc_mode = alloc_mode1 },
       Variant { alloc_mode = alloc_mode2; _ } ) ->
-    (* CR mshinwell: It would be better to track per-field mutability. *)
     let<+ alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
     TG.Head_of_kind_value.create_mutable_block alloc_mode, TEE.empty
   | Boxed_float (n1, alloc_mode1), Boxed_float (n2, alloc_mode2) ->
@@ -358,29 +381,70 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
     if String_info.Set.is_empty strs
     then Bottom
     else Or_bottom.Ok (TG.Head_of_kind_value.create_string strs, TEE.empty)
-  | ( Array { element_kind = element_kind1; length = length1 },
-      Array { element_kind = element_kind2; length = length2 } ) ->
-    let<* element_kind =
-      match element_kind1, element_kind2 with
-      | Unknown, Unknown -> Ok Or_unknown.Unknown
-      | Unknown, Known kind | Known kind, Unknown -> Ok (Or_unknown.Known kind)
-      | Known element_kind1, Known element_kind2 ->
-        if Flambda_kind.With_subkind.compatible element_kind1
-             ~when_used_at:element_kind2
-        then Ok (Or_unknown.Known element_kind1)
-        else if Flambda_kind.With_subkind.compatible element_kind2
-                  ~when_used_at:element_kind1
-        then Ok (Or_unknown.Known element_kind2)
-        else Bottom
+  | ( Array
+        { element_kind = element_kind1;
+          length = length1;
+          contents = array_contents1;
+          alloc_mode = alloc_mode1
+        },
+      Array
+        { element_kind = element_kind2;
+          length = length2;
+          contents = array_contents2;
+          alloc_mode = alloc_mode2
+        } ) ->
+    let<* alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
+    let<* element_kind = meet_array_element_kinds element_kind1 element_kind2 in
+    let<* contents, env_extension =
+      meet_array_contents env array_contents1 array_contents2
     in
-    let<+ length, env_extension = meet env length1 length2 in
-    TG.Head_of_kind_value.create_array ~element_kind ~length, env_extension
+    let<* length, env_extension' = meet env length1 length2 in
+    let<+ env_extension = meet_env_extension env env_extension env_extension' in
+    ( TG.Head_of_kind_value.create_array_with_contents ~element_kind ~length
+        contents alloc_mode,
+      env_extension )
   | ( ( Variant _ | Mutable_block _ | Boxed_float _ | Boxed_int32 _
       | Boxed_int64 _ | Boxed_nativeint _ | Closures _ | String _ | Array _ ),
       _ ) ->
     (* This assumes that all the different constructors are incompatible. This
        could break very hard for dubious uses of Obj. *)
     Bottom
+
+and meet_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
+    (array_contents2 : TG.array_contents Or_unknown.t) =
+  meet_unknown
+    (fun env (array_contents1 : TG.array_contents)
+         (array_contents2 : TG.array_contents) :
+         (TG.array_contents * TEE.t) Or_bottom.t ->
+      match array_contents1, array_contents2 with
+      | Mutable, Mutable -> Ok (TG.Mutable, TEE.empty)
+      | Mutable, Immutable _ | Immutable _, Mutable -> Bottom
+      | Immutable { fields = fields1 }, Immutable { fields = fields2 } ->
+        if List.compare_lengths fields1 fields2 <> 0
+        then Bottom
+        else
+          let<+ fields_rev, env_extension =
+            List.fold_left2
+              (fun (fields_rev_and_env_extension : _ Or_bottom.t) field1 field2
+                   : _ Or_bottom.t ->
+                let<* fields_rev, env_extension' =
+                  fields_rev_and_env_extension
+                in
+                let<* field, env_extension = meet env field1 field2 in
+                let<+ env_extension =
+                  meet_env_extension env env_extension env_extension'
+                in
+                field :: fields_rev, env_extension)
+              (Or_bottom.Ok ([], TEE.empty))
+              fields1 fields2
+          in
+          let fields = List.rev fields_rev in
+          TG.Immutable { fields }, env_extension)
+    ~contents_is_bottom:(fun (array_contents : TG.array_contents) ->
+      match array_contents with
+      | Mutable -> false
+      | Immutable { fields } -> List.exists TG.is_obviously_bottom fields)
+    env array_contents1 array_contents2
 
 and meet_variant env ~(blocks1 : TG.Row_like_for_blocks.t Or_unknown.t)
     ~(imms1 : TG.t Or_unknown.t)
@@ -436,10 +500,8 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
   match t1, t2 with
   | Naked_immediates is1, Naked_immediates is2 ->
     let is = I.Set.inter is1 is2 in
-    if I.Set.is_empty is
-    then Bottom
-    else
-      Ok (TG.Head_of_kind_naked_immediate.create_naked_immediates is, TEE.empty)
+    let<+ ty = TG.Head_of_kind_naked_immediate.create_naked_immediates is in
+    ty, TEE.empty
   | Is_int ty1, Is_int ty2 ->
     let<+ ty, env_extension = meet env ty1 ty2 in
     TG.Head_of_kind_naked_immediate.create_is_int ty, env_extension
@@ -489,20 +551,20 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
     Ok (t1, TEE.empty)
 
 and meet_head_of_kind_naked_float _env t1 t2 : _ Or_bottom.t =
-  let t = Float.Set.inter t1 t2 in
-  if Float.Set.is_empty t then Bottom else Ok (t, TEE.empty)
+  let<+ head = TG.Head_of_kind_naked_float.inter t1 t2 in
+  head, TEE.empty
 
 and meet_head_of_kind_naked_int32 _env t1 t2 : _ Or_bottom.t =
-  let t = Int32.Set.inter t1 t2 in
-  if Int32.Set.is_empty t then Bottom else Ok (t, TEE.empty)
+  let<+ head = TG.Head_of_kind_naked_int32.inter t1 t2 in
+  head, TEE.empty
 
 and meet_head_of_kind_naked_int64 _env t1 t2 : _ Or_bottom.t =
-  let t = Int64.Set.inter t1 t2 in
-  if Int64.Set.is_empty t then Bottom else Ok (t, TEE.empty)
+  let<+ head = TG.Head_of_kind_naked_int64.inter t1 t2 in
+  head, TEE.empty
 
 and meet_head_of_kind_naked_nativeint _env t1 t2 : _ Or_bottom.t =
-  let t = Targetint_32_64.Set.inter t1 t2 in
-  if Targetint_32_64.Set.is_empty t then Bottom else Ok (t, TEE.empty)
+  let<+ head = TG.Head_of_kind_naked_nativeint.inter t1 t2 in
+  head, TEE.empty
 
 and meet_head_of_kind_rec_info _env t1 _t2 : _ Or_bottom.t =
   (* CR-someday lmaurer: This could be doing things like discovering two depth
@@ -898,14 +960,12 @@ and meet_env_extension0 env (ext1 : TEE.t) (ext2 : TEE.t) extra_extensions :
 and meet_env_extension (env : Meet_env.t) t1 t2 : TEE.t Or_bottom.t =
   try Ok (meet_env_extension0 env t1 t2 []) with Bottom_meet -> Bottom
 
-(* CR mshinwell: Why does this never return [Unknown]? *)
 and join ?bound_name env (t1 : TG.t) (t2 : TG.t) : TG.t Or_unknown.t =
   if not (K.equal (TG.kind t1) (TG.kind t2))
   then
     Misc.fatal_errorf "Kind mismatch upon join:@ %a@ versus@ %a" TG.print t1
       TG.print t2;
   let kind = TG.kind t1 in
-  (* CR mshinwell: See if we can optimise out the [option] allocations below *)
   let canonical_simple1 =
     match
       TE.get_alias_then_canonical_simple_exn
@@ -934,7 +994,6 @@ and join ?bound_name env (t1 : TG.t) (t2 : TG.t) : TG.t Or_unknown.t =
       (Join_env.right_join_env env)
       t2 ~known_canonical_simple_at_in_types_mode:canonical_simple2
   in
-  (* CR mshinwell: Add shortcut when the canonical simples are equal *)
   let shared_aliases =
     let shared_aliases =
       match
@@ -986,8 +1045,6 @@ and join ?bound_name env (t1 : TG.t) (t2 : TG.t) : TG.t Or_unknown.t =
       unknown ()
     | Some _, Some _ | Some _, None | None, Some _ | None, None -> (
       let join_heads env : _ Or_unknown.t =
-        (* CR mshinwell: this should presumably check for Unknown (in the same
-           way as the meet case checks for Bottom) *)
         Known (ET.to_type (join_expanded_head env kind expanded1 expanded2))
       in
       match canonical_simple1, canonical_simple2 with
@@ -1096,26 +1153,52 @@ and join_head_of_kind_value env (head1 : TG.head_of_kind_value)
   | String strs1, String strs2 ->
     let strs = String_info.Set.union strs1 strs2 in
     Known (TG.Head_of_kind_value.create_string strs)
-  | ( Array { element_kind = element_kind1; length = length1 },
-      Array { element_kind = element_kind2; length = length2 } ) ->
-    let element_kind : _ Or_unknown.t =
-      match element_kind1, element_kind2 with
-      | Unknown, Unknown | Unknown, Known _ | Known _, Unknown -> Unknown
-      | Known element_kind1, Known element_kind2 ->
-        if Flambda_kind.With_subkind.compatible element_kind1
-             ~when_used_at:element_kind2
-        then Known element_kind2
-        else if Flambda_kind.With_subkind.compatible element_kind2
-                  ~when_used_at:element_kind1
-        then Known element_kind1
-        else Unknown
-    in
+  | ( Array
+        { element_kind = element_kind1;
+          length = length1;
+          contents = array_contents1;
+          alloc_mode = alloc_mode1
+        },
+      Array
+        { element_kind = element_kind2;
+          length = length2;
+          contents = array_contents2;
+          alloc_mode = alloc_mode2
+        } ) ->
+    let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
+    let element_kind = join_array_element_kinds element_kind1 element_kind2 in
+    let contents = join_array_contents env array_contents1 array_contents2 in
     let>+ length = join env length1 length2 in
-    TG.Head_of_kind_value.create_array ~element_kind ~length
+    TG.Head_of_kind_value.create_array_with_contents ~element_kind ~length
+      contents alloc_mode
   | ( ( Variant _ | Mutable_block _ | Boxed_float _ | Boxed_int32 _
       | Boxed_int64 _ | Boxed_nativeint _ | Closures _ | String _ | Array _ ),
       _ ) ->
     Unknown
+
+and join_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
+    (array_contents2 : TG.array_contents Or_unknown.t) =
+  join_unknown
+    (fun env (array_contents1 : TG.array_contents)
+         (array_contents2 : TG.array_contents) : TG.array_contents Or_unknown.t ->
+      match array_contents1, array_contents2 with
+      | Mutable, Mutable -> Known TG.Mutable
+      | Mutable, Immutable _ | Immutable _, Mutable -> Unknown
+      | Immutable { fields = fields1 }, Immutable { fields = fields2 } ->
+        if List.compare_lengths fields1 fields2 <> 0
+        then Unknown
+        else
+          let>+ fields_rev =
+            List.fold_left2
+              (fun (fields_rev : _ Or_unknown.t) field1 field2 : _ Or_unknown.t ->
+                let>* fields_rev = fields_rev in
+                let>+ field = join env field1 field2 in
+                field :: fields_rev)
+              (Or_unknown.Known []) fields1 fields2
+          in
+          let fields = List.rev fields_rev in
+          TG.Immutable { fields })
+    env array_contents1 array_contents2
 
 and join_variant env ~(blocks1 : TG.Row_like_for_blocks.t Or_unknown.t)
     ~(imms1 : TG.t Or_unknown.t)
@@ -1138,9 +1221,15 @@ and join_head_of_kind_naked_immediate env
     TG.Head_of_kind_naked_immediate.t Or_unknown.t =
   let module I = Targetint_31_63 in
   match head1, head2 with
-  | Naked_immediates is1, Naked_immediates is2 ->
+  | Naked_immediates is1, Naked_immediates is2 -> (
+    assert (not (Targetint_31_63.Set.is_empty is1));
+    assert (not (Targetint_31_63.Set.is_empty is2));
     let is = I.Set.union is1 is2 in
-    Known (TG.Head_of_kind_naked_immediate.create_naked_immediates is)
+    let head = TG.Head_of_kind_naked_immediate.create_naked_immediates is in
+    match head with
+    | Ok head -> Known head
+    | Bottom ->
+      Misc.fatal_error "Did not expect [Bottom] from [create_naked_immediates]")
   | Is_int ty1, Is_int ty2 ->
     let>+ ty = join env ty1 ty2 in
     TG.Head_of_kind_naked_immediate.create_is_int ty
@@ -1152,14 +1241,20 @@ and join_head_of_kind_naked_immediate env
      reduce the is_int and get_tag cases to naked_immediate sets, then joining
      those) but this looks unlikely to be useful and could end up begin quite
      expensive. *)
-  | Is_int ty, Naked_immediates is_int | Naked_immediates is_int, Is_int ty ->
+  | Is_int ty, Naked_immediates is_int | Naked_immediates is_int, Is_int ty -> (
     if I.Set.is_empty is_int
     then Known (TG.Head_of_kind_naked_immediate.create_is_int ty)
     else
       (* Slightly better than Unknown *)
-      Known
-        (TG.Head_of_kind_naked_immediate.create_naked_immediates
-           (I.Set.add I.zero (I.Set.add I.one is_int)))
+      let head =
+        TG.Head_of_kind_naked_immediate.create_naked_immediates
+          (I.Set.add I.zero (I.Set.add I.one is_int))
+      in
+      match head with
+      | Ok head -> Known head
+      | Bottom ->
+        Misc.fatal_error
+          "Did not expect [Bottom] from [create_naked_immediates]")
   | Get_tag ty, Naked_immediates tags | Naked_immediates tags, Get_tag ty ->
     if I.Set.is_empty tags
     then Known (TG.Head_of_kind_naked_immediate.create_get_tag ty)
@@ -1167,16 +1262,16 @@ and join_head_of_kind_naked_immediate env
   | (Is_int _ | Get_tag _), (Is_int _ | Get_tag _) -> Unknown
 
 and join_head_of_kind_naked_float _env t1 t2 : _ Or_unknown.t =
-  Known (Float.Set.union t1 t2)
+  Known (TG.Head_of_kind_naked_float.union t1 t2)
 
 and join_head_of_kind_naked_int32 _env t1 t2 : _ Or_unknown.t =
-  Known (Int32.Set.union t1 t2)
+  Known (TG.Head_of_kind_naked_int32.union t1 t2)
 
 and join_head_of_kind_naked_int64 _env t1 t2 : _ Or_unknown.t =
-  Known (Int64.Set.union t1 t2)
+  Known (TG.Head_of_kind_naked_int64.union t1 t2)
 
 and join_head_of_kind_naked_nativeint _env t1 t2 : _ Or_unknown.t =
-  Known (Targetint_32_64.Set.union t1 t2)
+  Known (TG.Head_of_kind_naked_nativeint.union t1 t2)
 
 and join_head_of_kind_rec_info _env t1 t2 : _ Or_unknown.t =
   if Rec_info_expr.equal t1 t2 then Known t1 else Unknown
@@ -1248,9 +1343,9 @@ and join_row_like :
     | None, None -> None
     | Some case1, None -> (
       let only_case1 () =
-        (* CF Type_descr.join_head_or_unknown_or_bottom, we need to join those
+        (* cf. Type_descr.join_head_or_unknown_or_bottom, we need to join these
            to ensure that free variables not present in the target env are
-           cleaned out of the types. Same bellow *)
+           cleaned out of the types. Same below *)
         (* CR pchambart: This seams terribly inefficient. *)
         let join_env =
           Join_env.create
@@ -1361,12 +1456,7 @@ and join_closures_entry env
     Function_slot.Map.merge
       (fun _function_slot func_type1 func_type2 ->
         match func_type1, func_type2 with
-        | None, None
-        (* CR mshinwell: Are these next two cases right? Don't we need to do the
-           equivalent of make_suitable_for_environment? *)
-        | Some _, None
-        | None, Some _ ->
-          None
+        | None, None | Some _, None | None, Some _ -> None
         | Some func_type1, Some func_type2 ->
           Some (join_function_type env func_type1 func_type2))
       function_types1 function_types2

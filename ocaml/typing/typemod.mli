@@ -35,7 +35,7 @@ val type_structure:
   Env.t -> Parsetree.structure ->
   Typedtree.structure * Types.signature * Signature_names.t * Env.t
 val type_toplevel_phrase:
-  Env.t -> Parsetree.structure ->
+  Env.t -> Types.signature -> Parsetree.structure ->
   Typedtree.structure * Types.signature * Signature_names.t * Env.t
 val type_implementation:
   string -> string -> string -> Env.t -> Parsetree.structure ->
@@ -102,12 +102,21 @@ type hiding_error =
       user_loc: Location.t;
     }
 
+type functor_dependency_error =
+    Functor_applied
+  | Functor_included
+
 type error =
     Cannot_apply of module_type
   | Not_included of Includemod.error list
-  | Cannot_eliminate_dependency of module_type
+  | Not_included_functor of Includemod.error list
+  | Cannot_eliminate_dependency of functor_dependency_error * module_type
   | Signature_expected
   | Structure_expected of module_type
+  | Functor_expected of module_type
+  | Signature_parameter_expected of module_type
+  | Signature_result_expected of module_type
+  | Recursive_include_functor
   | With_no_component of Longident.t
   | With_mismatch of Longident.t * Includemod.error list
   | With_makes_applicative_functor_ill_typed of
@@ -121,6 +130,7 @@ type error =
   | Implementation_is_required of string
   | Interface_not_compiled of string
   | Not_allowed_in_functor_body
+  | Not_includable_in_functor_body
   | Not_a_packed_module of type_expr
   | Incomplete_packed_module of type_expr
   | Scoping_pack of Longident.t * type_expr
@@ -131,6 +141,7 @@ type error =
   | Badly_formed_signature of string * Typedecl.error
   | Cannot_hide_id of hiding_error
   | Invalid_type_subst_rhs
+  | Unsupported_extension of Clflags.Extension.t
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error

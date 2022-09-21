@@ -88,5 +88,4 @@ val apply_const : t -> Reg_width_const.t -> Reg_width_const.t
 
 val apply_simple : t -> Simple.t -> Simple.t
 
-(* CR mshinwell: See CR in the implementation about this function. *)
 val value_slot_is_used : t -> Value_slot.t -> bool

@@ -17,16 +17,35 @@
 open! Simplify_import
 
 let create_static_const dacc dbg (to_lift : T.to_lift) : RSC.t =
+  let[@inline always] convert_fields fields =
+    ListLabels.map fields ~f:(fun field ->
+        let module F = Field_of_static_block in
+        Simple.pattern_match' field
+          ~var:(fun var ~coercion ->
+            if not (Coercion.is_id coercion)
+            then
+              Misc.fatal_errorf "Expected identity coercion on variable:@ %a"
+                Simple.print field;
+            F.Dynamically_computed (var, dbg))
+          ~symbol:(fun sym ~coercion ->
+            if not (Coercion.is_id coercion)
+            then
+              Misc.fatal_errorf "Expected identity coercion on symbol:@ %a"
+                Simple.print field;
+            F.Symbol sym)
+          ~const:(fun const ->
+            match Reg_width_const.descr const with
+            | Tagged_immediate imm -> F.Tagged_immediate imm
+            | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
+            | Naked_nativeint _ ->
+              Misc.fatal_errorf
+                "Expected a constant of kind [Value] but got %a (dbg %a)"
+                Reg_width_const.print const Debuginfo.print_compact dbg))
+  in
   let art = DA.are_rebuilding_terms dacc in
   match to_lift with
   | Immutable_block { tag; is_unique; fields } ->
-    let fields =
-      ListLabels.map fields ~f:(fun field : Field_of_static_block.t ->
-          match (field : T.var_or_symbol_or_tagged_immediate) with
-          | Var var -> Dynamically_computed (var, dbg)
-          | Symbol sym -> Symbol sym
-          | Tagged_immediate imm -> Tagged_immediate imm)
-    in
+    let fields = convert_fields fields in
     let mut : Mutability.t =
       if is_unique then Immutable_unique else Immutable
     in
@@ -35,6 +54,12 @@ let create_static_const dacc dbg (to_lift : T.to_lift) : RSC.t =
   | Boxed_int32 i -> RSC.create_boxed_int32 art (Const i)
   | Boxed_int64 i -> RSC.create_boxed_int64 art (Const i)
   | Boxed_nativeint i -> RSC.create_boxed_nativeint art (Const i)
+  | Immutable_float_array { fields } ->
+    let fields = List.map (fun f -> Or_variable.Const f) fields in
+    RSC.create_immutable_float_array art fields
+  | Immutable_value_array { fields } ->
+    let fields = convert_fields fields in
+    RSC.create_immutable_value_array art fields
   | Empty_array -> RSC.create_empty_array art
 
 let lift dacc ty ~bound_to static_const : _ Or_invalid.t * DA.t =
@@ -106,10 +131,11 @@ let try_to_reify dacc dbg (term : Simplified_named.t) ~bound_to
   let typing_env = DE.typing_env denv in
   let reify_result =
     T.reify ~allowed_if_free_vars_defined_in:typing_env
-      ~additional_free_var_criterion:(fun var ->
-        DE.is_defined_at_toplevel denv var
-        || Option.is_some (DE.find_symbol_projection denv var))
-      ~allow_unique:true typing_env ~min_name_mode:NM.normal ty
+      ~var_is_defined_at_toplevel:(fun var ->
+        DE.is_defined_at_toplevel denv var)
+      ~var_is_symbol_projection:(fun var ->
+        Option.is_some (DE.find_symbol_projection denv var))
+      typing_env ty
   in
   match reify_result with
   | Lift to_lift ->
@@ -134,7 +160,5 @@ let try_to_reify dacc dbg (term : Simplified_named.t) ~bound_to
       DA.with_denv dacc denv
     in
     Ok (Simplified_named.create (Named.create_simple simple)), dacc
-  | Lift_set_of_closures _ (* already dealt with in [Simplify_named] *)
-  | Cannot_reify ->
-    Ok term, dacc
+  | Cannot_reify -> Ok term, dacc
   | Invalid -> Invalid, dacc

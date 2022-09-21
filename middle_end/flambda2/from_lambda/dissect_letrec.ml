@@ -279,9 +279,8 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
     | Some current_let ->
       { letrec with consts = (current_let.ident, const) :: letrec.consts }
     | None -> dead_code lam letrec)
-  | Llet (Variable, k, id, def, body) ->
+  | Lmutlet (k, id, def, body) ->
     let letrec = prepare_letrec recursive_set current_let body letrec in
-
     (* Variable let comes from mutable values, and reading from it is considered
        as inspections by Typecore.check_recursive_expression.
 
@@ -295,9 +294,7 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
     let free_vars_def = Lambda.free_variables def in
     if Ident.Set.disjoint free_vars_def recursive_set
     then
-      let pre ~tail : Lambda.lambda =
-        Llet (Variable, k, id, def, letrec.pre ~tail)
-      in
+      let pre ~tail : Lambda.lambda = Lmutlet (k, id, def, letrec.pre ~tail) in
       { letrec with pre }
     else
       let free_vars_body = Lambda.free_variables body in
@@ -369,7 +366,6 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
         recursive_set
     in
     let outer_vars = Ident.Set.inter vars recursive_set in
-
     if Ident.Set.is_empty outer_vars
     then
       (* Non recursive relative to top-level letrec, we can avoid dissecting it
@@ -451,13 +447,13 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
       let pre ~tail = letrec.pre ~tail:(pre ~tail) in
       { letrec with pre }
   | Lvar id when Ident.Set.mem id letrec.letbound -> (
-    (* This cannot be a mutable variable: it is ok to copy it *)
+    (* This is not a mutable variable: it is ok to copy it *)
     match current_let with
     | Some cl ->
       let substitute_from =
         Ident.Map.fold
           (fun x y acc ->
-            if Ident.equal y cl.ident then Ident.Set.add x acc else acc)
+            if Ident.same y cl.ident then Ident.Set.add x acc else acc)
           letrec.substitution
           (Ident.Set.singleton cl.ident)
       in
@@ -470,7 +466,7 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
       { letrec with substitution; letbound }
     | None -> dead_code lam letrec)
   | Lifused (_v, lam) -> prepare_letrec recursive_set current_let lam letrec
-  | Lwhile (_, _) | Lfor (_, _, _, _, _) | Lassign (_, _) ->
+  | Lwhile _ | Lfor _ | Lassign (_, _) ->
     (* Effect expressions returning unit. The result can be pre-declared. *)
     let consts =
       match current_let with
@@ -485,7 +481,7 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
   | Lstaticcatch (_, _, _, _)
   | Ltrywith (_, _, _, _)
   | Lifthenelse (_, _, _, _)
-  | Lsend _ | Lvar _
+  | Lsend _ | Lvar _ | Lmutvar _
   | Lprim (_, _, _) ->
     (* This cannot be recursive, otherwise it should have been caught by the
        well formedness check. Hence it is ok to evaluate it before anything
@@ -499,7 +495,8 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
       | Lstringswitch (lam1, _, _, _, _)
       | Lifthenelse (lam1, _, _, _) ->
         Some lam1
-      | Lapply _ | Lstaticraise _ | Lsend _ | Lvar _ | Lprim _ -> Some lam
+      | Lapply _ | Lstaticraise _ | Lsend _ | Lvar _ | Lmutvar _ | Lprim _ ->
+        Some lam
       | _ -> assert false
     in
     Option.iter
@@ -527,7 +524,6 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
 
 let dissect_letrec ~bindings ~body =
   let letbound = Ident.Set.of_list (List.map fst bindings) in
-
   let letrec =
     List.fold_right
       (fun (id, def) letrec ->
@@ -544,7 +540,6 @@ let dissect_letrec ~bindings ~body =
         needs_region = false
       }
   in
-
   let preallocations =
     List.map
       (fun (id, { block_type; size }) ->
@@ -558,7 +553,6 @@ let dissect_letrec ~bindings ~body =
         id, Lprim (Pccall desc, [size], Loc_unknown))
       letrec.blocks
   in
-
   let real_body = body in
   let bound_ids_freshening =
     List.map (fun (bound_id, _) -> bound_id, Ident.rename bound_id) bindings
@@ -572,7 +566,6 @@ let dissect_letrec ~bindings ~body =
       let args = List.map (fun (bound_id, _) -> Lvar bound_id) bindings in
       Lstaticraise (cont, args)
   in
-
   let effects_then_body = lsequence (letrec.effects, body) in
   let functions =
     match letrec.functions with
@@ -595,7 +588,6 @@ let dissect_letrec ~bindings ~body =
       with_preallocations letrec.consts
   in
   let substituted = Lambda.rename letrec.substitution with_constants in
-
   if not letrec.needs_region
   then substituted
   else

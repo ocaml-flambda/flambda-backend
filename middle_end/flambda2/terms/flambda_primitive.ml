@@ -287,7 +287,6 @@ let writing_to_an_array = writing_to_a_block
 
 let writing_to_bytes_or_bigstring = writing_to_a_block
 
-(* CR mshinwell: Improve naming *)
 let bigarray_kind = K.value
 
 let bigstring_kind = K.value
@@ -572,8 +571,8 @@ let equal_nullary_primitive p1 p2 = compare_nullary_primitive p1 p2 = 0
 let print_nullary_primitive ppf p =
   match p with
   | Optimised_out _ ->
-    Format.fprintf ppf "@<0>%sOptimised_out@<0>%s" (Flambda_colours.elide ())
-      (Flambda_colours.normal ())
+    Format.fprintf ppf "%tOptimised_out%t" Flambda_colours.elide
+      Flambda_colours.pop
   | Probe_is_enabled { name } ->
     Format.fprintf ppf "@[<hov 1>(Probe_is_enabled@ %s)@]" name
   | Begin_region -> Format.pp_print_string ppf "Begin_region"
@@ -605,7 +604,7 @@ type unary_primitive =
         source_mutability : Mutability.t;
         destination_mutability : Mutability.t
       }
-  | Is_int
+  | Is_int of { variant_only : bool }
   | Get_tag
   | Array_length
   | Bigarray_length of { dimension : int }
@@ -642,7 +641,7 @@ let unary_primitive_eligible_for_cse p ~arg =
   match p with
   | Duplicate_array _ -> false
   | Duplicate_block { kind = _ } -> false
-  | Is_int | Get_tag -> true
+  | Is_int _ | Get_tag -> true
   | Array_length -> true
   | Bigarray_length _ -> false
   | String_length _ -> true
@@ -672,7 +671,7 @@ let compare_unary_primitive p1 p2 =
     match p with
     | Duplicate_array _ -> 0
     | Duplicate_block _ -> 1
-    | Is_int -> 2
+    | Is_int _ -> 2
     | Get_tag -> 3
     | Array_length -> 4
     | Bigarray_length _ -> 5
@@ -715,7 +714,9 @@ let compare_unary_primitive p1 p2 =
       else Stdlib.compare destination_mutability1 destination_mutability2
   | Duplicate_block { kind = kind1 }, Duplicate_block { kind = kind2 } ->
     Duplicate_block_kind.compare kind1 kind2
-  | Is_int, Is_int -> 0
+  | ( Is_int { variant_only = variant_only1 },
+      Is_int { variant_only = variant_only2 } ) ->
+    Bool.compare variant_only1 variant_only2
   | Get_tag, Get_tag -> 0
   | String_length kind1, String_length kind2 -> Stdlib.compare kind1 kind2
   | Int_arith (kind1, op1), Int_arith (kind2, op2) ->
@@ -746,7 +747,7 @@ let compare_unary_primitive p1 p2 =
         { project_from = function_slot2; value_slot = value_slot2 } ) ->
     let c = Function_slot.compare function_slot1 function_slot2 in
     if c <> 0 then c else Value_slot.compare value_slot1 value_slot2
-  | ( ( Duplicate_array _ | Duplicate_block _ | Is_int | Get_tag
+  | ( ( Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag
       | String_length _ | Int_as_pointer | Opaque_identity | Int_arith _
       | Num_conv _ | Boolean_not | Reinterpret_int64_as_float | Float_arith _
       | Array_length | Bigarray_length _ | Unbox_number _ | Box_number _
@@ -768,7 +769,8 @@ let print_unary_primitive ppf p =
     fprintf ppf "@[<hov 1>(Duplicate_array %a (source %a) (dest %a))@]"
       Duplicate_array_kind.print kind Mutability.print source_mutability
       Mutability.print destination_mutability
-  | Is_int -> fprintf ppf "Is_int"
+  | Is_int { variant_only } ->
+    if variant_only then fprintf ppf "Is_int" else fprintf ppf "Is_int_generic"
   | Get_tag -> fprintf ppf "Get_tag"
   | String_length _ -> fprintf ppf "String_length"
   | Int_as_pointer -> fprintf ppf "Int_as_pointer"
@@ -793,13 +795,11 @@ let print_unary_primitive ppf p =
   | Box_number (k, Local) ->
     fprintf ppf "Box_%a[local]" K.Boxable_number.print_lowercase_short k
   | Project_function_slot { move_from; move_to } ->
-    Format.fprintf ppf "@[(Project_function_slot@ (%a \u{2192} %a@<0>%s))@]"
+    Format.fprintf ppf "@[(Project_function_slot@ (%a \u{2192} %a))@]"
       Function_slot.print move_from Function_slot.print move_to
-      (Flambda_colours.prim_destructive ())
   | Project_value_slot { project_from; value_slot } ->
-    Format.fprintf ppf "@[(Project_value_slot@ (%a@ %a@<0>%s))@]"
-      Function_slot.print project_from Value_slot.print value_slot
-      (Flambda_colours.prim_destructive ())
+    Format.fprintf ppf "@[(Project_value_slot@ (%a@ %a))@]" Function_slot.print
+      project_from Value_slot.print value_slot
   | Is_boxed_float -> fprintf ppf "Is_boxed_float"
   | Is_flat_float_array -> fprintf ppf "Is_flat_float_array"
   | End_region -> Format.pp_print_string ppf "End_region"
@@ -807,7 +807,7 @@ let print_unary_primitive ppf p =
 let arg_kind_of_unary_primitive p =
   match p with
   | Duplicate_array _ | Duplicate_block _ -> K.value
-  | Is_int -> K.value
+  | Is_int _ -> K.value
   | Get_tag -> K.value
   | String_length _ -> K.value
   | Int_as_pointer -> K.value
@@ -829,7 +829,7 @@ let arg_kind_of_unary_primitive p =
 let result_kind_of_unary_primitive p : result_kind =
   match p with
   | Duplicate_array _ | Duplicate_block _ -> Singleton K.value
-  | Is_int | Get_tag -> Singleton K.naked_immediate
+  | Is_int _ | Get_tag -> Singleton K.naked_immediate
   | String_length _ -> Singleton K.naked_immediate
   | Int_as_pointer ->
     (* This primitive is *only* to be used when the resulting pointer points at
@@ -861,7 +861,7 @@ let effects_and_coeffects_of_unary_primitive p =
       ( Effects.Only_generative_effects destination_mutability,
         Coeffects.No_coeffects )
     | Immutable_unique ->
-      (* XCR vlaviron: this should never occur, but it's hard to express it
+      (* CR vlaviron: this should never occur, but it's hard to express it
          without duplicating the mutability type
 
          mshinwell: Adding a second mutability type seems like a good thing to
@@ -876,14 +876,11 @@ let effects_and_coeffects_of_unary_primitive p =
     (* We have to assume that the fields might be mutable. (This information
        isn't currently propagated from [Lambda].) *)
     Effects.Only_generative_effects Mutable, Coeffects.Has_coeffects
-  | Is_int -> Effects.No_effects, Coeffects.No_coeffects
+  | Is_int _ -> Effects.No_effects, Coeffects.No_coeffects
   | Get_tag ->
     (* [Obj.truncate] has now been removed. *)
     Effects.No_effects, Coeffects.No_coeffects
-  | String_length _ ->
-    (* CR mshinwell: check this is right. (Even with safe-string off, I don't
-       think changing the length of a string is possible.) *)
-    Effects.No_effects, Coeffects.No_coeffects
+  | String_length _ -> Effects.No_effects, Coeffects.No_coeffects
   | Int_as_pointer -> Effects.No_effects, Coeffects.No_coeffects
   | Opaque_identity -> Effects.Arbitrary_effects, Coeffects.Has_coeffects
   | Int_arith (_, (Neg | Swap_byte_endianness))
@@ -935,7 +932,7 @@ let unary_classify_for_printing p =
   match p with
   | Duplicate_array _ | Duplicate_block _ -> Constructive
   | String_length _ | Get_tag -> Destructive
-  | Is_int | Int_as_pointer | Opaque_identity | Int_arith _ | Num_conv _
+  | Is_int _ | Int_as_pointer | Opaque_identity | Int_arith _ | Num_conv _
   | Boolean_not | Reinterpret_int64_as_float | Float_arith _ ->
     Neither
   | Array_length | Bigarray_length _ | Unbox_number _ | Untag_immediate ->
@@ -1418,42 +1415,42 @@ include Container_types.Make (struct
   let [@ocamlformat "disable"] print ppf t =
     let colour =
       match classify_for_printing t with
-      | Constructive -> Flambda_colours.prim_constructive ()
-      | Destructive -> Flambda_colours.prim_destructive ()
-      | Neither -> Flambda_colours.prim_neither ()
+      | Constructive -> Flambda_colours.prim_constructive
+      | Destructive -> Flambda_colours.prim_destructive
+      | Neither -> Flambda_colours.prim_neither
     in
     match t with
     | Nullary prim ->
-      Format.fprintf ppf "@[<hov 1>@<0>%s%a@<0>%s@]"
+      Format.fprintf ppf "@[<hov 1>%t%a%t@]"
         colour
         print_nullary_primitive prim
-        (Flambda_colours.normal ())
+        Flambda_colours.pop
     | Unary (prim, v0) ->
-      Format.fprintf ppf "@[<hov 1>(@<0>%s%a@<0>%s@ %a)@]"
+      Format.fprintf ppf "@[<hov 1>(%t%a%t@ %a)@]"
         colour
         print_unary_primitive prim
-        (Flambda_colours.normal ())
+        Flambda_colours.pop
         Simple.print v0
     | Binary (prim, v0, v1) ->
-      Format.fprintf ppf "@[<hov 1>(@<0>%s%a@<0>%s@ %a@ %a)@]"
+      Format.fprintf ppf "@[<hov 1>(%t%a%t@ %a@ %a)@]"
         colour
         print_binary_primitive prim
-        (Flambda_colours.normal ())
+        Flambda_colours.pop
         Simple.print v0
         Simple.print v1
     | Ternary (prim, v0, v1, v2) ->
-      Format.fprintf ppf "@[<hov 1>(@<0>%s%a@<0>%s@ %a@ %a@ %a)@]"
+      Format.fprintf ppf "@[<hov 1>(%t%a%t@ %a@ %a@ %a)@]"
         colour
         print_ternary_primitive prim
-        (Flambda_colours.normal ())
+        Flambda_colours.pop
         Simple.print v0
         Simple.print v1
         Simple.print v2
     | Variadic (prim, vs) ->
-      Format.fprintf ppf "@[<hov 1>(@<0>%s%a@<0>%s@ %a)@]"
+      Format.fprintf ppf "@[<hov 1>(%t%a%t@ %a)@]"
         colour
         print_variadic_primitive prim
-        (Flambda_colours.normal ())
+        Flambda_colours.pop
         (Format.pp_print_list ~pp_sep:Format.pp_print_space Simple.print) vs
 end)
 
@@ -1503,7 +1500,7 @@ let apply_renaming t renaming =
     let xs' = Simple.List.apply_renaming xs renaming in
     if xs' == xs then t else Variadic (prim, xs')
 
-let all_ids_for_export t =
+let ids_for_export t =
   match t with
   | Nullary _ -> Ids_for_export.empty
   | Unary (_prim, x0) -> Ids_for_export.from_simple x0
@@ -1537,31 +1534,26 @@ let result_kind' t =
 
 let result_kind_of_nullary_primitive' t =
   match result_kind_of_nullary_primitive t with
-  (* CR mshinwell: factor out this mapping *)
   | Singleton kind -> kind
   | Unit -> K.value
 
 let result_kind_of_unary_primitive' t =
   match result_kind_of_unary_primitive t with
-  (* CR mshinwell: factor out this mapping *)
   | Singleton kind -> kind
   | Unit -> K.value
 
 let result_kind_of_binary_primitive' t =
   match result_kind_of_binary_primitive t with
-  (* CR mshinwell: factor out this mapping *)
   | Singleton kind -> kind
   | Unit -> K.value
 
 let result_kind_of_ternary_primitive' t =
   match result_kind_of_ternary_primitive t with
-  (* CR mshinwell: factor out this mapping *)
   | Singleton kind -> kind
   | Unit -> K.value
 
 let result_kind_of_variadic_primitive' t =
   match result_kind_of_variadic_primitive t with
-  (* CR mshinwell: factor out this mapping *)
   | Singleton kind -> kind
   | Unit -> K.value
 
@@ -1594,7 +1586,7 @@ let only_generative_effects t =
 module Eligible_for_cse = struct
   type t = primitive_application
 
-  let create ?map_arg t =
+  let create t =
     (* CR mshinwell: Possible way of handling commutativity: for eligible
        primitives, sort the arguments here *)
     let prim_eligible =
@@ -1623,52 +1615,32 @@ module Eligible_for_cse = struct
     if not eligible
     then None
     else
-      match map_arg with
-      | None -> Some t
-      | Some map_arg ->
-        let t =
-          match t with
-          | Nullary _ -> t
-          | Unary (prim, arg) ->
-            let arg' = map_arg arg in
-            if arg == arg' then t else Unary (prim, arg')
-          | Binary (prim, arg1, arg2) ->
-            let arg1' = map_arg arg1 in
-            let arg2' = map_arg arg2 in
-            if arg1 == arg1' && arg2 == arg2'
-            then t
-            else Binary (prim, arg1', arg2')
-          | Ternary (prim, arg1, arg2, arg3) ->
-            let arg1' = map_arg arg1 in
-            let arg2' = map_arg arg2 in
-            let arg3' = map_arg arg3 in
-            if arg1 == arg1' && arg2 == arg2' && arg3 == arg3'
-            then t
-            else Ternary (prim, arg1', arg2', arg3')
-          | Variadic (prim, args) ->
-            (* We can't recover subkind information from Flambda types, but
-               sometimes we want to add CSE equations for [Make_block] and
-               [Make_array] irrespective of the _sub_kinds. As such we ignore
-               the subkinds here by erasing them. *)
-            let prim =
-              match prim with
-              | Make_block (Values (tag, kinds), mutability, alloc_mode) ->
-                let kinds = List.map K.With_subkind.erase_subkind kinds in
-                Make_block (Values (tag, kinds), mutability, alloc_mode)
-              | Make_block (Naked_floats, _, _) | Make_array _ -> prim
-            in
-            let args' = List.map map_arg args in
-            if List.for_all2 ( == ) args args' then t else Variadic (prim, args')
-        in
-        Some t
+      let t =
+        match t with
+        | Nullary _ | Unary _ | Binary _ | Ternary _ -> t
+        | Variadic (prim, args) ->
+          (* We can't recover subkind information from Flambda types, but
+             sometimes we want to add CSE equations for [Make_block] and
+             [Make_array] irrespective of the _sub_kinds. As such we ignore the
+             subkinds here by erasing them. *)
+          let prim =
+            match prim with
+            | Make_block (Values (tag, kinds), mutability, alloc_mode) ->
+              let kinds = List.map K.With_subkind.erase_subkind kinds in
+              Make_block (Values (tag, kinds), mutability, alloc_mode)
+            | Make_block (Naked_floats, _, _) | Make_array _ -> prim
+          in
+          Variadic (prim, args)
+      in
+      Some t
 
   let create_exn prim =
     match create prim with
     | Some t -> t
     | None -> Misc.fatal_errorf "Primitive %a not eligible for CSE" print prim
 
-  let create_is_int ~immediate_or_block =
-    Unary (Is_int, Simple.name immediate_or_block)
+  let create_is_int ~variant_only ~immediate_or_block =
+    Unary (Is_int { variant_only }, Simple.name immediate_or_block)
 
   let create_get_tag ~block = Unary (Get_tag, Simple.name block)
 

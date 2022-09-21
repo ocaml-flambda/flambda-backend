@@ -119,14 +119,26 @@ val get_block_exn : t -> Label.t -> basic_block
 
 val iter_blocks : t -> f:(Label.t -> basic_block -> unit) -> unit
 
+val fold_blocks : t -> f:(Label.t -> basic_block -> 'a -> 'a) -> init:'a -> 'a
+
 val register_predecessors_for_all_blocks : t -> unit
 
 (** Printing *)
 
-val print_terminator :
-  ?sep:string -> Format.formatter -> terminator instruction -> unit
+val print_terminator : Format.formatter -> terminator instruction -> unit
 
 val print_basic : Format.formatter -> basic instruction -> unit
+
+val print_instruction' :
+  ?print_reg:(Format.formatter -> Reg.t -> unit) ->
+  Format.formatter ->
+  [`Basic of basic instruction | `Terminator of terminator instruction] ->
+  unit
+
+val print_instruction :
+  Format.formatter ->
+  [`Basic of basic instruction | `Terminator of terminator instruction] ->
+  unit
 
 (* CR-someday gyorsh: Current version of cfg is a half-way house in terms of its
    exception handling. It has a lot of redundancy and the result of the
@@ -159,3 +171,9 @@ val is_noop_move : basic instruction -> bool
 val set_stack_offset : 'a instruction -> int -> 'a instruction
 
 val set_live : 'a instruction -> Reg.Set.t -> 'a instruction
+
+val string_of_irc_work_list : irc_work_list -> string
+
+val dump_basic : Format.formatter -> basic -> unit
+
+val dump_terminator : ?sep:string -> Format.formatter -> terminator -> unit

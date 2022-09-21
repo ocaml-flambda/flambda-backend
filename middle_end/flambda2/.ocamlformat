@@ -6,6 +6,7 @@ doc-comments=before
 dock-collection-brackets=false
 if-then-else=keyword-first
 parens-tuple=multi-line-only
+sequence-blank-line=compact
 space-around-lists=false
 space-around-variants=false
 type-decl=sparse

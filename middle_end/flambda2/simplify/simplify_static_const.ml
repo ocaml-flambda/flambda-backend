@@ -162,9 +162,27 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
             field K.naked_float)
         fields
     in
-    let fields, _field_tys = List.split fields_with_tys in
-    let dacc = bind_result_sym T.any_value in
+    let fields, field_tys = List.split fields_with_tys in
+    let dacc =
+      bind_result_sym
+        (T.immutable_array ~element_kind:(Known K.With_subkind.naked_float)
+           ~fields:field_tys (Known Heap))
+    in
     ( Rebuilt_static_const.create_immutable_float_array
+        (DA.are_rebuilding_terms dacc)
+        fields,
+      dacc )
+  | Immutable_value_array fields ->
+    let fields_with_tys =
+      List.map (fun field -> simplify_field_of_block dacc field) fields
+    in
+    let fields, field_tys = List.split fields_with_tys in
+    let dacc =
+      bind_result_sym
+        (T.immutable_array ~element_kind:(Known K.With_subkind.any_value)
+           ~fields:field_tys (Known Heap))
+    in
+    ( Rebuilt_static_const.create_immutable_value_array
         (DA.are_rebuilding_terms dacc)
         fields,
       dacc )
@@ -181,7 +199,8 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
     let dacc =
       bind_result_sym
         (T.array_of_length ~element_kind:Unknown
-           ~length:(T.this_tagged_immediate Targetint_31_63.zero))
+           ~length:(T.this_tagged_immediate Targetint_31_63.zero)
+           (Known Heap))
     in
     Rebuilt_static_const.create_empty_array (DA.are_rebuilding_terms dacc), dacc
   | Mutable_string { initial_value } ->

@@ -300,12 +300,11 @@ let params_and_body env res code_id p ~fun_dbg ~translate_expr =
       with Misc.Fatal_error as e ->
         Format.eprintf
           "\n\
-           %sContext is:%s translating function %a to Cmm with return cont %a, \
+           %tContext is:%t translating function %a to Cmm with return cont %a, \
            exn cont %a and body:@ %a\n"
-          (Flambda_colours.error ())
-          (Flambda_colours.normal ())
-          Code_id.print code_id Continuation.print return_continuation
-          Continuation.print exn_continuation Expr.print body;
+          Flambda_colours.error Flambda_colours.pop Code_id.print code_id
+          Continuation.print return_continuation Continuation.print
+          exn_continuation Expr.print body;
         raise e)
 
 (* Translation of sets of closures. *)

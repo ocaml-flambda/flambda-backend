@@ -20,7 +20,7 @@ let free_names t = Name_occurrences.singleton_continuation t
 
 let apply_renaming t renaming = Renaming.apply_continuation renaming t
 
-let all_ids_for_export t = Ids_for_export.singleton_continuation t
+let ids_for_export t = Ids_for_export.singleton_continuation t
 
 let renaming t ~guaranteed_fresh =
   Renaming.add_fresh_continuation Renaming.empty t ~guaranteed_fresh

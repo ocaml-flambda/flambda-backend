@@ -49,9 +49,9 @@ module Args = struct
        && Int.equal large_function_size (I.large_function_size Default)
        && Float.equal threshold (I.threshold Default)
     then
-      Format.fprintf ppf "@<0>%s<default>@<0>%s"
-        (Flambda_colours.elide ())
-        (Flambda_colours.normal ())
+      Format.fprintf ppf "%t<default>%t"
+        Flambda_colours.elide
+        Flambda_colours.pop
     else
       Format.fprintf ppf
         "@[<hov 1>(\

@@ -32,6 +32,18 @@ module Int64 = Numeric_types.Int64
    immediates and rework that to operate on tagged values instead, or
    somesuch. *)
 
+(* Regarding int <-> float conversions, xclerc and mshinwell established with
+   reasonable certainty that the OCaml backend (at least on x86-64) emits the
+   same instructions as C compilers use for compiling the runtime float
+   conversion functions. This means that, even though the results of certain of
+   these conversions are undefined by the C standard (e.g. when NaN is
+   involved), the semantics of the Flambda 2 compile-time evaluation should
+   always match that of runtime evaluation by the processor. *)
+
+(* CR mshinwell: We should try to improve the testing story so properties such
+   as the int <-> float conversions mentioned above can be machine-checked for
+   greater certainty. *)
+
 module type Num_common = sig
   include Container_types.S
 
@@ -80,7 +92,7 @@ module type Number_kind_common = sig
   val unboxed_prover :
     Flambda2_types.Typing_env.t ->
     Flambda2_types.t ->
-    Num.Set.t Flambda2_types.proof
+    Num.Set.t Flambda2_types.meet_shortcut
 
   val this_unboxed : Num.t -> Flambda2_types.t
 
@@ -127,11 +139,6 @@ module type Boxable = sig
   module Num : Container_types.S
 
   val boxable_number_kind : K.Boxable_number.t
-
-  val boxed_prover :
-    Flambda2_types.Typing_env.t ->
-    Flambda2_types.t ->
-    Num.Set.t Flambda2_types.proof
 
   val this_boxed : Num.t -> Alloc_mode.t Or_unknown.t -> Flambda2_types.t
 
@@ -214,9 +221,6 @@ module For_tagged_immediates : Int_number_kind = struct
 
     let to_immediate t = t
 
-    (* It seems as if the various [float_of_int] functions never raise an
-       exception even in the case of NaN or infinity. *)
-    (* CR mshinwell: We should be sure this semantics is reasonable. *)
     let to_naked_float t =
       Float_by_bit_pattern.create (Targetint_31_63.to_float t)
 
@@ -231,7 +235,7 @@ module For_tagged_immediates : Int_number_kind = struct
 
   let standard_int_kind : K.Standard_int.t = Tagged_immediate
 
-  let unboxed_prover = T.prove_equals_tagged_immediates
+  let unboxed_prover = T.meet_equals_tagged_immediates
 
   let this_unboxed = T.this_tagged_immediate
 
@@ -282,9 +286,6 @@ module For_naked_immediates : Int_number_kind = struct
 
     let to_immediate t = t
 
-    (* It seems as if the various [float_of_int] functions never raise an
-       exception even in the case of NaN or infinity. *)
-    (* CR mshinwell: We should be sure this semantics is reasonable. *)
     let to_naked_float t =
       Float_by_bit_pattern.create (Targetint_31_63.to_float t)
 
@@ -299,7 +300,7 @@ module For_naked_immediates : Int_number_kind = struct
 
   let standard_int_kind : K.Standard_int.t = Naked_immediate
 
-  let unboxed_prover = T.prove_naked_immediates
+  let unboxed_prover = T.meet_naked_immediates
 
   let this_unboxed = T.this_naked_immediate
 
@@ -325,10 +326,6 @@ module For_floats : Boxable_number_kind = struct
 
     let to_const t = Reg_width_const.naked_float t
 
-    (* CR mshinwell: We need to validate that the backend compiles the
-       [Int_of_float] primitive in the same way as [Targetint_32_64.of_float].
-       Ditto for [Float_of_int]. (For the record, [Pervasives.int_of_float] and
-       [Nativeint.of_float] on [nan] produce wildly different results). *)
     let to_immediate t = Targetint_31_63.of_float (to_float t)
 
     let to_naked_float t = t
@@ -344,13 +341,11 @@ module For_floats : Boxable_number_kind = struct
 
   let boxable_number_kind = K.Boxable_number.Naked_float
 
-  let unboxed_prover = T.prove_naked_floats
+  let unboxed_prover = T.meet_naked_floats
 
   let this_unboxed = T.this_naked_float
 
   let these_unboxed = T.these_naked_floats
-
-  let boxed_prover = T.prove_boxed_floats
 
   let this_boxed = T.this_boxed_float
 
@@ -415,13 +410,11 @@ module For_int32s : Boxable_int_number_kind = struct
 
   let boxable_number_kind = K.Boxable_number.Naked_int32
 
-  let unboxed_prover = T.prove_naked_int32s
+  let unboxed_prover = T.meet_naked_int32s
 
   let this_unboxed = T.this_naked_int32
 
   let these_unboxed = T.these_naked_int32s
-
-  let boxed_prover = T.prove_boxed_int32s
 
   let this_boxed = T.this_boxed_int32
 
@@ -486,13 +479,11 @@ module For_int64s : Boxable_int_number_kind = struct
 
   let boxable_number_kind = K.Boxable_number.Naked_int64
 
-  let unboxed_prover = T.prove_naked_int64s
+  let unboxed_prover = T.meet_naked_int64s
 
   let this_unboxed = T.this_naked_int64
 
   let these_unboxed = T.these_naked_int64s
-
-  let boxed_prover = T.prove_boxed_int64s
 
   let this_boxed = T.this_boxed_int64
 
@@ -558,13 +549,11 @@ module For_nativeints : Boxable_int_number_kind = struct
 
   let boxable_number_kind = K.Boxable_number.Naked_nativeint
 
-  let unboxed_prover = T.prove_naked_nativeints
+  let unboxed_prover = T.meet_naked_nativeints
 
   let this_unboxed = T.this_naked_nativeint
 
   let these_unboxed = T.these_naked_nativeints
-
-  let boxed_prover = T.prove_boxed_nativeints
 
   let this_boxed = T.this_boxed_nativeint
 

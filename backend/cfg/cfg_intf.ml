@@ -124,21 +124,34 @@ module S = struct
       uo : Label.t  (** if at least one of x or y is NaN *)
     }
 
+  type irc_work_list =
+    | Unknown_list
+    | Coalesced
+    | Constrained
+    | Frozen
+    | Work_list
+    | Active
+
   type 'a instruction =
     { desc : 'a;
-      arg : Reg.t array;
-      res : Reg.t array;
+      mutable arg : Reg.t array;
+      mutable res : Reg.t array;
       dbg : Debuginfo.t;
       fdo : Fdo_info.t;
       live : Reg.Set.t;
       stack_offset : int;
-      id : int
+      id : int;
+      mutable irc_work_list : irc_work_list
     }
 
   type basic =
     | Op of operation
     | Call of call_operation
     | Reloadretaddr
+        (** This instruction loads the return address from a predefined hidden
+            address (e.g. bottom of the current frame) and stores it in a
+            special hidden register. It can use standard registers for that
+            purpose. They are defined in [Proc.destroyed_at_reloadretaddr]. *)
     | Pushtrap of { lbl_handler : Label.t }
     | Poptrap
     | Prologue

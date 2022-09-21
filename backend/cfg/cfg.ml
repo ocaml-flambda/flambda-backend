@@ -157,6 +157,8 @@ let entry_label t = t.entry_label
 
 let iter_blocks t ~f = Label.Tbl.iter f t.blocks
 
+let fold_blocks t ~f ~init = Label.Tbl.fold f t.blocks init
+
 let register_predecessors_for_all_blocks (t : t) =
   Label.Tbl.iter
     (fun label block ->
@@ -203,7 +205,8 @@ let intop (op : Mach.integer_operation) =
   | Icomp cmp -> intcomp cmp
   | Icheckbound -> assert false
 
-let dump_op ppf = function
+let dump_op ?(specific = fun ppf _ -> Format.fprintf ppf "specific") ppf =
+  function
   | Move -> Format.fprintf ppf "mov"
   | Spill -> Format.fprintf ppf "spill"
   | Reload -> Format.fprintf ppf "reload"
@@ -224,7 +227,7 @@ let dump_op ppf = function
   | Compf _ -> Format.fprintf ppf "compf"
   | Floatofint -> Format.fprintf ppf "floattoint"
   | Intoffloat -> Format.fprintf ppf "intoffloat"
-  | Specific _ -> Format.fprintf ppf "specific"
+  | Specific op -> specific ppf op
   | Probe { name; handler_code_sym } ->
     Format.fprintf ppf "probe %s %s" name handler_code_sym
   | Probe_is_enabled { name } -> Format.fprintf ppf "probe_is_enabled %s" name
@@ -246,15 +249,6 @@ let dump_call ppf = function
     | Direct { func_symbol : string; _ } ->
       Format.fprintf ppf "direct %s" func_symbol)
 
-let dump_instr ~sep ~(f : Format.formatter -> 'a -> unit) ppf
-    (i : 'a instruction) =
-  let open Format in
-  if i.stack_offset > 0 then fprintf ppf "[T%d] " i.stack_offset;
-  fprintf ppf "%d: " i.id;
-  if Array.length i.res > 0 then fprintf ppf "%a := " Printmach.regs i.res;
-  f ppf i.desc;
-  if Array.length i.arg > 0 then fprintf ppf " %a%s" Printmach.regs i.arg sep
-
 let dump_basic ppf (basic : basic) =
   let open Format in
   match basic with
@@ -265,46 +259,93 @@ let dump_basic ppf (basic : basic) =
   | Poptrap -> fprintf ppf "Poptrap"
   | Prologue -> fprintf ppf "Prologue"
 
-let dump_terminator ?(sep = "\n") ppf (terminator : terminator) =
+let dump_terminator' ?(print_reg = Printmach.reg) ?(args = [||]) ?(sep = "\n")
+    ppf (terminator : terminator) =
+  let first_arg =
+    if Array.length args >= 1
+    then Format.fprintf Format.str_formatter " %a" print_reg args.(0);
+    Format.flush_str_formatter ()
+  in
+  let second_arg =
+    if Array.length args >= 2
+    then Format.fprintf Format.str_formatter " %a" print_reg args.(1);
+    Format.flush_str_formatter ()
+  in
+  let print_args ppf args =
+    if Array.length args = 0
+    then ()
+    else Format.fprintf ppf " %a" (Printmach.regs' ~print_reg) args
+  in
   let open Format in
   match terminator with
-  | Never -> fprintf ppf "deadend%s" sep
-  | Always l -> fprintf ppf "goto %d%s" l sep
+  | Never -> fprintf ppf "deadend"
+  | Always l -> fprintf ppf "goto %d" l
   | Parity_test { ifso; ifnot } ->
-    fprintf ppf "if even goto %d%sif odd goto %d%s" ifso sep ifnot sep
+    fprintf ppf "if even%s goto %d%selse goto %d" first_arg ifso sep ifnot
   | Truth_test { ifso; ifnot } ->
-    fprintf ppf "if true goto %d%sif false goto %d%s" ifso sep ifnot sep
+    fprintf ppf "if true%s goto %d%selse goto %d" first_arg ifso sep ifnot
   | Float_test { lt; eq; gt; uo } ->
-    fprintf ppf "if < goto %d%s" lt sep;
-    fprintf ppf "if = goto %d%s" eq sep;
-    fprintf ppf "if > goto %d%s" gt sep;
-    fprintf ppf "if uo goto %d%s" uo sep
+    fprintf ppf "if%s <%s goto %d%s" first_arg second_arg lt sep;
+    fprintf ppf "if%s =%s goto %d%s" first_arg second_arg eq sep;
+    fprintf ppf "if%s >%s goto %d%s" first_arg second_arg gt sep;
+    fprintf ppf "else goto %d" uo
   | Int_test { lt; eq; gt; is_signed; imm } ->
     let cmp =
       Printf.sprintf " %s%s"
         (if is_signed then "s" else "u")
-        (match imm with None -> "" | Some i -> " " ^ Int.to_string i)
+        (match imm with None -> second_arg | Some i -> " " ^ Int.to_string i)
     in
-    fprintf ppf "if <%s goto %d%s" cmp lt sep;
-    fprintf ppf "if =%s goto %d%s" cmp eq sep;
-    fprintf ppf "if >%s goto %d%s" cmp gt sep
+    fprintf ppf "if%s <%s goto %d%s" first_arg cmp lt sep;
+    fprintf ppf "if%s =%s goto %d%s" first_arg cmp eq sep;
+    fprintf ppf "if%s >%s goto %d" first_arg cmp gt
   | Switch labels ->
-    fprintf ppf "switch%s" sep;
-    for i = 0 to Array.length labels - 1 do
-      fprintf ppf "case %d: goto %d%s" i labels.(i) sep
-    done
+    fprintf ppf "switch%s%s" first_arg sep;
+    let label_count = Array.length labels in
+    if label_count >= 1
+    then (
+      for i = 0 to label_count - 2 do
+        fprintf ppf "case %d: goto %d%s" i labels.(i) sep
+      done;
+      let i = label_count - 1 in
+      fprintf ppf "case %d: goto %d" i labels.(i))
   | Call_no_return { func_symbol : string; _ } ->
-    fprintf ppf "Call_no_return %s%s" func_symbol sep
-  | Return -> fprintf ppf "Return%s" sep
-  | Raise _ -> fprintf ppf "Raise%s" sep
-  | Tailcall (Self _) -> fprintf ppf "Tailcall self%s" sep
-  | Tailcall (Func _) -> fprintf ppf "Tailcall%s" sep
+    fprintf ppf "Call_no_return %s%a" func_symbol print_args args
+  | Return -> fprintf ppf "Return%a" print_args args
+  | Raise _ -> fprintf ppf "Raise%a" print_args args
+  | Tailcall (Self _) -> fprintf ppf "Tailcall self%a" print_args args
+  | Tailcall (Func _) -> fprintf ppf "Tailcall%a" print_args args
 
-let print_basic ppf (i : basic instruction) =
-  dump_instr ~sep:"" ~f:dump_basic ppf i
+let dump_terminator ?sep ppf terminator = dump_terminator' ?sep ppf terminator
 
-let print_terminator ?(sep = "\n") ppf (ti : terminator instruction) =
-  dump_instr ~sep ~f:(dump_terminator ~sep) ppf ti
+let print_basic' ?print_reg ppf (instruction : basic instruction) =
+  let desc = Cfg_to_linear_desc.from_basic instruction.desc in
+  let instruction =
+    { Linear.desc;
+      next = Linear.end_instr;
+      arg = instruction.arg;
+      res = instruction.res;
+      dbg = [];
+      fdo = None;
+      live = Reg.Set.empty
+    }
+  in
+  Printlinear.instr' ?print_reg ppf instruction
+
+let print_basic ppf i = print_basic' ppf i
+
+let print_terminator' ?print_reg ppf (ti : terminator instruction) =
+  if Array.length ti.res > 0
+  then Format.fprintf ppf "%a := " (Printmach.regs' ?print_reg) ti.res;
+  dump_terminator' ?print_reg ~args:ti.arg ~sep:"\n" ppf ti.desc
+
+let print_terminator ppf ti = print_terminator' ppf ti
+
+let print_instruction' ?print_reg ppf i =
+  match i with
+  | `Basic i -> print_basic' ?print_reg ppf i
+  | `Terminator i -> print_terminator' ?print_reg ppf i
+
+let print_instruction ppf i = print_instruction' ppf i
 
 let can_raise_terminator (i : terminator) =
   match i with
@@ -336,7 +377,7 @@ let can_raise_operation : operation -> bool = function
   | Floatofint -> false
   | Intoffloat -> false
   | Probe _ -> true
-  | Probe_is_enabled _ -> true
+  | Probe_is_enabled _ -> false
   | Specific op -> Arch.operation_can_raise op
   | Opaque -> false
   | Name_for_debugger _ -> false
@@ -356,9 +397,9 @@ let can_raise_basic : basic -> bool = function
    moment, which we might want to reconsider later. *)
 let is_pure_terminator desc =
   match (desc : terminator) with
-  | Raise _ | Call_no_return _ | Tailcall _ -> false
+  | Raise _ | Call_no_return _ | Tailcall _ | Return -> false
   | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-  | Switch _ | Return ->
+  | Switch _ ->
     (* CR gyorsh: fix for memory operands *)
     true
 
@@ -394,10 +435,21 @@ let is_pure_operation : operation -> bool = function
 let is_pure_basic : basic -> bool = function
   | Op op -> is_pure_operation op
   | Call _ -> false
-  | Reloadretaddr -> true
-  | Pushtrap _ -> true
-  | Poptrap -> true
-  | Prologue -> true
+  | Reloadretaddr ->
+    (* This is a no-op on supported backends but on some others like "power" it
+       wouldn't be. Saying it's not pure doesn't decrease the generated code
+       quality and is future-proof.*)
+    false
+  | Pushtrap _ | Poptrap ->
+    (* Those instructions modify the trap stack which actually modifies the
+       stack pointer. *)
+    false
+  | Prologue ->
+    (* [Prologue] grows the stack when entering a function and therefore
+       modifies the stack pointer. [Prologue] can be considered pure if it's
+       ensured that it wouldn't modify the stack pointer (e.g. there are no used
+       local stack slots nor calls). *)
+    false
 
 let is_noop_move instr =
   match instr.desc with
@@ -425,3 +477,11 @@ let set_stack_offset (instr : _ instruction) stack_offset =
 
 let set_live (instr : _ instruction) live =
   if Reg.Set.equal instr.live live then instr else { instr with live }
+
+let string_of_irc_work_list = function
+  | Unknown_list -> "unknown_list"
+  | Coalesced -> "coalesced"
+  | Constrained -> "constrained"
+  | Frozen -> "frozen"
+  | Work_list -> "work_list"
+  | Active -> "active"

@@ -136,6 +136,10 @@ module type Map = sig
   val merge :
     (key -> 'a option -> 'b option -> 'c option) -> 'a t -> 'b t -> 'c t
 
+  (* CR lmaurer: It's mentioned in [Stdlib.Map], but we really should be rid of
+     the option type here. Surely anything that doesn't always return [Some] is
+     niche enough that it can use [merge] (and we can generalize [merge] to
+     cover it efficiently). *)
   val union : (key -> 'a -> 'a -> 'a option) -> 'a t -> 'a t -> 'a t
 
   val compare : ('a -> 'a -> int) -> 'a t -> 'a t -> int

@@ -67,6 +67,12 @@ let register_class r =
   | Val | Int | Addr  -> 0
   | Float -> 1
 
+let register_class_tag c =
+  match c with
+  | 0 -> "i"
+  | 1 -> "f"
+  | c -> Misc.fatal_errorf "Unspecified register class %d" c
+
 let num_available_registers =
   [| 23; 32 |] (* first 23 int regs allocatable; all float regs allocatable *)
 
@@ -263,6 +269,7 @@ let destroyed_at_c_call =
      116;117;118;119;120;121;122;123;
      124;125;126;127;128;129;130;131])
 
+(* note: keep this function in sync with `destroyed_at_{basic,terminator}` below. *)
 let destroyed_at_oper = function
   | Iop(Icall_ind | Icall_imm _) | Iop(Iextcall { alloc = true; }) ->
       all_phys_regs
@@ -278,6 +285,39 @@ let destroyed_at_oper = function
 let destroyed_at_raise = all_phys_regs
 
 let destroyed_at_reloadretaddr = [| |]
+
+let destroyed_at_pushtrap = [| |]
+
+(* note: keep this function in sync with `destroyed_at_oper` above. *)
+let destroyed_at_basic (basic : Cfg_intf.S.basic) =
+  match basic with
+  | Call (P (External { func_symbol = _; alloc; ty_res = _; ty_args = _; })) ->
+    if alloc then all_phys_regs else destroyed_at_c_call
+  | Call (F (Indirect | Direct _)) ->
+    all_phys_regs
+  | Call (P (Alloc _)) ->
+    [| reg_x8 |]
+  | Reloadretaddr ->
+    destroyed_at_reloadretaddr
+  | Pushtrap _ ->
+    destroyed_at_pushtrap
+  | Op (Intop Icheckbound | Intop_imm (Icheckbound, _)) ->
+    assert false
+  | Op( Intoffloat | Floatofint
+       | Load(Single, _, _) | Store(Single, _, _)) ->
+    [| reg_d7 |]
+  | Op _  | Call (P (Checkbound _)) | Poptrap | Prologue ->
+    [||]
+
+(* note: keep this function in sync with `destroyed_at_oper` above. *)
+let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
+  match terminator with
+  | Never -> assert false
+  | Always _ | Parity_test _ | Truth_test _ | Float_test _
+  | Int_test _ | Switch _ | Return | Raise _ | Tailcall _ ->
+    [||]
+  | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; } ->
+    if alloc then all_phys_regs else destroyed_at_c_call
 
 (* Maximal register pressure *)
 

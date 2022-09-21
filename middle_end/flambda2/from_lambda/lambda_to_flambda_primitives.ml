@@ -601,9 +601,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
         If_then_else
           ( Unary (Is_boxed_float, elt),
             Variadic
-              ( Make_array (Naked_floats, Immutable, mode),
+              ( Make_array (Naked_floats, mutability, mode),
                 List.map unbox_float args ),
-            Variadic (Make_array (Values, Immutable, mode), args) )))
+            Variadic (Make_array (Values, mutability, mode), args) )))
   | Popaque, [arg] -> Unary (Opaque_identity, arg)
   | Pduprecord (repr, num_fields), [arg] ->
     let kind : P.Duplicate_block_kind.t =
@@ -795,7 +795,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
   | Pbytes_set_64 false (* safe *), [bytes; index; new_value] ->
     bytes_like_set_safe ~dbg ~size_int ~access_size:Sixty_four Bytes bytes index
       new_value
-  | Pisint, [arg] -> tag_int (Unary (Is_int, arg))
+  | Pisint { variant_only }, [arg] ->
+    tag_int (Unary (Is_int { variant_only }, arg))
   | Pisout, [arg1; arg2] ->
     tag_int
       (Binary
@@ -936,9 +937,6 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
         Simple Simple.const_zero,
         new_ref_value )
   | Pctconst const, _ -> (
-    (* CR mshinwell: This doesn't seem to be zero-arity like it should be *)
-    (* CR pchambart: It's not obvious when this one should be converted.
-       mshinwell: Have put an implementation here for now. *)
     match const with
     | Big_endian -> Simple (Simple.const_bool big_endian)
     | Word_size ->
@@ -946,12 +944,10 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
     | Int_size ->
       Simple (Simple.const_int (Targetint_31_63.of_int ((8 * size_int) - 1)))
     | Max_wosize ->
-      (* CR mshinwell: This depends on the number of bits in the header reserved
-         for profinfo, no? If this computation is wrong then the one in
-         [Closure] (and maybe Flambda 1) is wrong. *)
       Simple
         (Simple.const_int
-           (Targetint_31_63.of_int ((1 lsl ((8 * size_int) - 10)) - 1)))
+           (Targetint_31_63.of_int
+              ((1 lsl ((8 * size_int) - (10 + Config.profinfo_width))) - 1)))
     | Ostype_unix -> Simple (Simple.const_bool (Sys.os_type = "Unix"))
     | Ostype_win32 -> Simple (Simple.const_bool (Sys.os_type = "Win32"))
     | Ostype_cygwin -> Simple (Simple.const_bool (Sys.os_type = "Cygwin"))
@@ -1092,7 +1088,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
       | Pnegfloat _ | Pabsfloat _ | Pstringlength | Pbyteslength | Pbintofint _
       | Pintofbint _ | Pnegbint _ | Popaque | Pduprecord _ | Parraylength _
       | Pduparray _ | Pfloatfield _ | Pcvtbint _ | Poffsetref _ | Pbswap16
-      | Pbbswap _ | Pisint | Pint_as_pointer | Pbigarraydim _ ),
+      | Pbbswap _ | Pisint _ | Pint_as_pointer | Pbigarraydim _ ),
       ([] | _ :: _ :: _) ) ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for unary primitive \

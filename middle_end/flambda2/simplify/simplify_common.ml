@@ -309,29 +309,26 @@ let specialise_array_kind dacc (array_kind : P.Array_kind.t) ~array_ty :
   let typing_env = DA.typing_env dacc in
   match array_kind with
   | Naked_floats -> (
-    match
-      T.prove_is_array_with_element_kind typing_env array_ty
-        ~element_kind:K.With_subkind.naked_float
-    with
-    | Proved (Exact | Compatible) | Unknown -> Ok array_kind
-    | Proved Incompatible | Invalid -> Bottom)
+    match T.meet_is_flat_float_array typing_env array_ty with
+    | Known_result true | Need_meet -> Ok array_kind
+    | Known_result false | Invalid -> Bottom)
   | Immediates -> (
-    match
-      T.prove_is_array_with_element_kind typing_env array_ty
-        ~element_kind:K.With_subkind.tagged_immediate
-    with
-    | Proved (Exact | Compatible) | Unknown -> Ok array_kind
-    | Proved Incompatible | Invalid -> Bottom)
+    (* The only thing worth checking is for float arrays, as that would allow us
+       to remove the branch *)
+    match T.meet_is_flat_float_array typing_env array_ty with
+    | Known_result false | Need_meet -> Ok array_kind
+    | Known_result true | Invalid -> Bottom)
   | Values -> (
-    match
-      T.prove_is_array_with_element_kind typing_env array_ty
-        ~element_kind:K.With_subkind.tagged_immediate
-    with
-    | Proved Exact ->
+    (* Try to specialise to immediates *)
+    match T.prove_is_immediates_array typing_env array_ty with
+    | Proved () ->
       (* Specialise the array operation to [Immediates]. *)
       Ok P.Array_kind.Immediates
-    | Proved Compatible | Unknown -> Ok array_kind
-    | Proved Incompatible | Invalid -> Bottom)
+    | Unknown -> (
+      (* Check for float arrays *)
+      match T.meet_is_flat_float_array typing_env array_ty with
+      | Known_result false | Need_meet -> Ok array_kind
+      | Known_result true | Invalid -> Bottom))
 
 let add_symbol_projection dacc ~projected_from projection ~projection_bound_to =
   if DE.at_unit_toplevel (DA.denv dacc)

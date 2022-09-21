@@ -19,14 +19,15 @@ open! Simplify_import
 type number_decider =
   { param_name : string;
     kind : K.Naked_number_kind.t;
-    prove_is_a_boxed_number : TE.t -> T.t -> unit T.proof_allowing_kind_mismatch
+    prove_is_a_boxed_number : TE.t -> T.t -> unit T.proof_of_property
   }
 
 type unboxer =
   { var_name : string;
     invalid_const : Const.t;
     unboxing_prim : Simple.t -> P.t;
-    prove_simple : TE.t -> min_name_mode:Name_mode.t -> T.t -> Simple.t T.proof
+    prove_simple :
+      TE.t -> min_name_mode:Name_mode.t -> T.t -> Simple.t T.meet_shortcut
   }
 
 module type Number_S = sig
@@ -50,7 +51,7 @@ module Immediate = struct
     { var_name = "naked_immediate";
       invalid_const = Const.naked_immediate (Targetint_31_63.of_int 0xabcd);
       unboxing_prim;
-      prove_simple = T.prove_is_always_tagging_of_simple
+      prove_simple = T.meet_tagging_of_simple
     }
 end
 
@@ -67,7 +68,7 @@ module Float = struct
     { var_name = "unboxed_float";
       invalid_const = Const.naked_float Numeric_types.Float_by_bit_pattern.zero;
       unboxing_prim;
-      prove_simple = T.prove_boxed_float_containing_simple
+      prove_simple = T.meet_boxed_float_containing_simple
     }
 end
 
@@ -84,7 +85,7 @@ module Int32 = struct
     { var_name = "unboxed_int32";
       invalid_const = Const.naked_int32 Int32.(div 0xabcd0l 2l);
       unboxing_prim;
-      prove_simple = T.prove_boxed_int32_containing_simple
+      prove_simple = T.meet_boxed_int32_containing_simple
     }
 end
 
@@ -101,7 +102,7 @@ module Int64 = struct
     { var_name = "unboxed_int64";
       invalid_const = Const.naked_int64 Int64.(div 0xdcba0L 2L);
       unboxing_prim;
-      prove_simple = T.prove_boxed_int64_containing_simple
+      prove_simple = T.meet_boxed_int64_containing_simple
     }
 end
 
@@ -118,7 +119,7 @@ module Nativeint = struct
     { var_name = "unboxed_nativeint";
       invalid_const = Const.naked_nativeint Targetint_32_64.zero;
       unboxing_prim;
-      prove_simple = T.prove_boxed_nativeint_containing_simple
+      prove_simple = T.meet_boxed_nativeint_containing_simple
     }
 end
 
@@ -133,7 +134,7 @@ module Field = struct
       unboxing_prim = (fun block -> unboxing_prim bak ~block ~index);
       prove_simple =
         (fun tenv ~min_name_mode t ->
-          T.prove_block_field_simple tenv ~min_name_mode t index)
+          T.meet_block_field_simple tenv ~min_name_mode t index)
     }
 end
 
@@ -149,6 +150,6 @@ module Closure_field = struct
         (fun closure -> unboxing_prim function_slot ~closure value_slot);
       prove_simple =
         (fun tenv ~min_name_mode t ->
-          T.prove_project_value_slot_simple tenv ~min_name_mode t value_slot)
+          T.meet_project_value_slot_simple tenv ~min_name_mode t value_slot)
     }
 end

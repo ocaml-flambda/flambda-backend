@@ -17,11 +17,16 @@
 
 open Format
 
+val loc: ?wrap_out:(formatter -> (formatter -> unit) -> unit) -> reg_class:int -> unknown:(formatter -> unit) -> formatter -> Reg.location -> unit
 val reg: formatter -> Reg.t -> unit
+val regs': ?print_reg:(formatter -> Reg.t -> unit) -> formatter -> Reg.t array -> unit
 val regs: formatter -> Reg.t array -> unit
 val regset: formatter -> Reg.Set.t -> unit
+val regsetaddr': ?print_reg:(formatter -> Reg.t -> unit) -> formatter -> Reg.Set.t -> unit
 val regsetaddr: formatter -> Reg.Set.t -> unit
+val operation': ?print_reg:(formatter -> Reg.t -> unit) -> Mach.operation -> Reg.t array -> formatter -> Reg.t array -> unit
 val operation: Mach.operation -> Reg.t array -> formatter -> Reg.t array -> unit
+val test': ?print_reg:(formatter -> Reg.t -> unit) -> Mach.test -> formatter -> Reg.t array -> unit
 val test: Mach.test -> formatter -> Reg.t array -> unit
 val instr: formatter -> Mach.instruction -> unit
 val fundecl: formatter -> Mach.fundecl -> unit

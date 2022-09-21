@@ -19,7 +19,8 @@
    NB: Due to internal state in the compiler, calling [main] twice during
    the same process is unsupported. *)
 val main
-   : string array
+   : (module Compiler_owee.Unix_intf.S)
+  -> string array
   -> Format.formatter
   -> flambda2:(
     ppf_dump:Format.formatter ->

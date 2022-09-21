@@ -17,42 +17,31 @@
 (** Transformation of types into structures that can be used immediately to
     build terms. *)
 
-type var_or_symbol_or_tagged_immediate = private
-  | Var of Variable.t
-  | Symbol of Symbol.t
-  | Tagged_immediate of Targetint_31_63.t
-
-type to_lift =
-  (* private *)
-  (* CR mshinwell: resurrect *)
+type to_lift = private
   | Immutable_block of
       { tag : Tag.Scannable.t;
         is_unique : bool;
-        fields : var_or_symbol_or_tagged_immediate list
+        fields : Simple.t list
       }
   | Boxed_float of Numeric_types.Float_by_bit_pattern.t
   | Boxed_int32 of Numeric_types.Int32.t
   | Boxed_int64 of Numeric_types.Int64.t
   | Boxed_nativeint of Targetint_32_64.t
+  | Immutable_float_array of
+      { fields : Numeric_types.Float_by_bit_pattern.t list }
+  | Immutable_value_array of { fields : Simple.t list }
   | Empty_array
 
 type reification_result = private
-  | Lift of to_lift (* CR mshinwell: rename? *)
-  | Lift_set_of_closures of
-      { function_slot : Function_slot.t;
-        function_types : Type_grammar.Function_type.t Function_slot.Map.t;
-        value_slots : Simple.t Value_slot.Map.t
-      }
+  | Lift of to_lift
   | Simple of Simple.t
   | Cannot_reify
   | Invalid
 
 val reify :
-  ?allowed_if_free_vars_defined_in:Typing_env.t ->
-  ?additional_free_var_criterion:(Variable.t -> bool) ->
-  ?disallowed_free_vars:Variable.Set.t ->
-  ?allow_unique:bool ->
+  allowed_if_free_vars_defined_in:Typing_env.t ->
+  var_is_defined_at_toplevel:(Variable.t -> bool) ->
+  var_is_symbol_projection:(Variable.t -> bool) ->
   Typing_env.t ->
-  min_name_mode:Name_mode.t ->
   Type_grammar.t ->
   reification_result

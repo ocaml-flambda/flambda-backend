@@ -16,5 +16,5 @@ module type S = sig
   type t
 
   (** Gather all table identifiers to export them. *)
-  val all_ids_for_export : t -> Ids_for_export.t
+  val ids_for_export : t -> Ids_for_export.t
 end

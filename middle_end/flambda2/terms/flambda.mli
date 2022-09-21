@@ -120,7 +120,7 @@ module Expr : sig
 
   include Expr_std.S_no_free_names with type t := t
 
-  val all_ids_for_export : t -> Ids_for_export.t
+  val ids_for_export : t -> Ids_for_export.t
 
   (** Extract the description of an expression. *)
   val descr : t -> expr_descr
@@ -333,12 +333,19 @@ end
 
 module Let_cont_expr : sig
   (** Values of type [t] represent alpha-equivalence classes of the definitions
-      * of continuations: * let_cont [name] [args] = [handler] in [body] * or
-      using an alternative notation: * [body] * where [name] [args] = [handler]
-      * * - Continuations are second-class. * - Continuations do not capture
-      variables. * - Continuations may be (mutually-)recursive. *)
+      of continuations:
 
-  (* CR mshinwell: ensure the statement about [Flambda_to_cmm] still holds. *)
+      let_cont [name] [args] = [handler] in [body]
+
+      or using an alternative notation:
+
+      [body] where [name] [args] = [handler]
+
+      - Continuations are second-class.
+
+      - Continuations do not capture variables.
+
+      - Continuations may be (mutually-)recursive. *)
 
   (** It is an error to mark a continuation that might be recursive as
       non-recursive. The converse is safe.

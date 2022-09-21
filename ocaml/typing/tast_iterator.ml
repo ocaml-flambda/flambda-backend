@@ -76,7 +76,16 @@ let module_declaration sub {md_type; _} =
   sub.module_type sub md_type
 let module_substitution _ _ = ()
 
-let include_infos f {incl_mod; _} = f incl_mod
+let include_kind sub = function
+  | Tincl_structure -> ()
+  | Tincl_functor ccs ->
+      List.iter (fun (_, cc) -> sub.module_coercion sub cc) ccs
+  | Tincl_gen_functor ccs ->
+      List.iter (fun (_, cc) -> sub.module_coercion sub cc) ccs
+
+let str_include_infos sub {incl_mod; incl_kind} =
+  sub.module_expr sub incl_mod;
+  include_kind sub incl_kind
 
 let class_type_declaration sub x =
   class_infos sub (sub.class_type sub) x
@@ -100,7 +109,7 @@ let structure_item sub {str_desc; str_env; _} =
       List.iter (fun (cls,_) -> sub.class_declaration sub cls) list
   | Tstr_class_type list ->
       List.iter (fun (_, _, cltd) -> sub.class_type_declaration sub cltd) list
-  | Tstr_include incl -> include_infos (sub.module_expr sub) incl
+  | Tstr_include incl -> str_include_infos sub incl
   | Tstr_open od -> sub.open_declaration sub od
   | Tstr_attribute _ -> ()
 
@@ -228,9 +237,9 @@ let expr sub {exp_extra; exp_desc; exp_env; _} =
   | Texp_sequence (exp1, exp2) ->
       sub.expr sub exp1;
       sub.expr sub exp2
-  | Texp_while (exp1, exp2) ->
-      sub.expr sub exp1;
-      sub.expr sub exp2
+  | Texp_while { wh_cond; wh_body } ->
+      sub.expr sub wh_cond;
+      sub.expr sub wh_body
   | Texp_list_comprehension (exp1, type_comps)
   | Texp_arr_comprehension (exp1, type_comps) ->
     sub.expr sub exp1;
@@ -242,10 +251,10 @@ let expr sub {exp_extra; exp_desc; exp_env; _} =
           ) clauses;
         Option.iter (fun g -> sub.expr sub g) guard)
       type_comps
-  | Texp_for (_, _, exp1, exp2, _, exp3) ->
-      sub.expr sub exp1;
-      sub.expr sub exp2;
-      sub.expr sub exp3
+  | Texp_for {for_from; for_to; for_body} ->
+      sub.expr sub for_from;
+      sub.expr sub for_to;
+      sub.expr sub for_body
   | Texp_send (exp, _, expo, _) ->
       sub.expr sub exp;
       Option.iter (sub.expr sub) expo
@@ -286,6 +295,10 @@ let signature sub {sig_items; sig_final_env; _} =
   sub.env sub sig_final_env;
   List.iter (sub.signature_item sub) sig_items
 
+let sig_include_infos sub {incl_mod; incl_kind} =
+  sub.module_type sub incl_mod;
+  include_kind sub incl_kind
+
 let signature_item sub {sig_desc; sig_env; _} =
   sub.env sub sig_env;
   match sig_desc with
@@ -298,7 +311,7 @@ let signature_item sub {sig_desc; sig_env; _} =
   | Tsig_modsubst x -> sub.module_substitution sub x
   | Tsig_recmodule list -> List.iter (sub.module_declaration sub) list
   | Tsig_modtype x -> sub.module_type_declaration sub x
-  | Tsig_include incl -> include_infos (sub.module_type sub) incl
+  | Tsig_include incl -> sig_include_infos sub incl
   | Tsig_class list -> List.iter (sub.class_description sub) list
   | Tsig_class_type list -> List.iter (sub.class_type_declaration sub) list
   | Tsig_open od -> sub.open_description sub od

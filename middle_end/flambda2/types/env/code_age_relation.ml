@@ -48,12 +48,8 @@ let rec all_ids_up_to_root t ~resolver id =
         | older -> Code_id.Set.add id (all_ids_up_to_root t ~resolver older)))
   | older -> Code_id.Set.add id (all_ids_up_to_root t ~resolver older)
 
-let num_ids_up_to_root t ~resolver id =
+let _num_ids_up_to_root t ~resolver id =
   Code_id.Set.cardinal (all_ids_up_to_root t ~resolver id)
-
-(* CR mshinwell: There are no doubt better implementations than the below. *)
-
-(* CR mshinwell: We need a fatal error now if a code ID isn't in [t]. *)
 
 let meet t ~resolver id1 id2 : _ Or_bottom.t =
   (* Whichever of [id1] and [id2] is newer (or the same as the other one), in
@@ -69,33 +65,19 @@ let meet t ~resolver id1 id2 : _ Or_bottom.t =
     then Ok id1
     else Bottom
 
-let join ~target_t ~resolver t1 t2 id1 id2 : _ Or_unknown.t =
+let join ~target_t:_ ~resolver:_ _t1 _t2 id1 id2 : _ Or_unknown.t =
   (* Lowest ("newest") common ancestor, if such exists. *)
-  if Code_id.equal id1 id2
-  then Known id1
-  else
-    let id1_to_root = all_ids_up_to_root ~resolver t1 id1 in
-    let id2_to_root = all_ids_up_to_root ~resolver t2 id2 in
-    let shared_ids = Code_id.Set.inter id1_to_root id2_to_root in
-    let shared_ids_in_scope =
-      Code_id.Set.filter
-        (fun id ->
-          let is_imported =
-            not (Compilation_unit.is_current (Code_id.get_compilation_unit id))
-          in
-          is_imported || Code_id.Map.mem id target_t)
-        shared_ids
-    in
-    if Code_id.Set.is_empty shared_ids_in_scope
-    then Unknown
-    else
-      let newest_shared_id, _ =
-        shared_ids_in_scope |> Code_id.Set.elements
-        |> List.map (fun id -> id, num_ids_up_to_root target_t ~resolver id)
-        |> List.sort (fun (_, len1) (_, len2) -> -Int.compare len1 len2)
-        |> List.hd
-      in
-      Known newest_shared_id
+  if Code_id.equal id1 id2 then Known id1 else Unknown
+(* let id1_to_root = all_ids_up_to_root ~resolver t1 id1 in let id2_to_root =
+   all_ids_up_to_root ~resolver t2 id2 in let shared_ids = Code_id.Set.inter
+   id1_to_root id2_to_root in let shared_ids_in_scope = Code_id.Set.filter (fun
+   id -> let is_imported = not (Compilation_unit.is_current
+   (Code_id.get_compilation_unit id)) in is_imported || Code_id.Map.mem id
+   target_t) shared_ids in if Code_id.Set.is_empty shared_ids_in_scope then
+   Unknown else let newest_shared_id, _ = shared_ids_in_scope |>
+   Code_id.Set.elements |> List.map (fun id -> id, num_ids_up_to_root target_t
+   ~resolver id) |> List.sort (fun (_, len1) (_, len2) -> -Int.compare len1
+   len2) |> List.hd in Known newest_shared_id *)
 
 let union t1 t2 = Code_id.Map.disjoint_union ~eq:Code_id.equal t1 t2
 

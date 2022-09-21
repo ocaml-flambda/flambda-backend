@@ -84,10 +84,8 @@ val project_variables_out :
   'head t ->
   'head t
 
-val all_ids_for_export :
-  all_ids_for_export_head:('head -> Ids_for_export.t) ->
-  'head t ->
-  Ids_for_export.t
+val ids_for_export :
+  ids_for_export_head:('head -> Ids_for_export.t) -> 'head t -> Ids_for_export.t
 
 module Descr : sig
   type 'head t = private
