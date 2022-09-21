@@ -29,7 +29,7 @@ module CU = Compilation_unit
 type error =
     Not_a_unit_info of string
   | Corrupted_unit_info of string
-  | Illegal_renaming of string * string * string
+  | Illegal_renaming of CU.Name.t * CU.Name.t * string
 
 exception Error of error
 
@@ -90,9 +90,8 @@ let current_unit =
     ui_export_info = default_ui_export_info }
 
 let reset compilation_unit =
-  Hashtbl.clear global_infos_table;
+  CU.Name.Tbl.clear global_infos_table;
   Set_of_closures_id.Tbl.clear imported_sets_of_closures_table;
-  CU.set_current compilation_unit;
   current_unit.ui_unit <- compilation_unit;
   current_unit.ui_defines <- [compilation_unit];
   current_unit.ui_imports_cmi <- [];
@@ -105,7 +104,8 @@ let reset compilation_unit =
   structured_constants := structured_constants_empty;
   current_unit.ui_export_info <- default_ui_export_info;
   merged_environment := Export_info.empty;
-  Hashtbl.clear export_infos_table
+  CU.Name.Tbl.clear export_infos_table;
+  Compilation_unit.set_current compilation_unit
 
 let current_unit_infos () =
   current_unit
@@ -138,8 +138,8 @@ let read_library_info filename =
 (* Read and cache info on global identifiers *)
 
 (* CR mshinwell: check all uses of this function *)
-let get_global_info comp_unit =
-  if CU.equal comp_unit current_unit.ui_unit
+let get_unit_info modname =
+  if CU.Name.equal modname (CU.name current_unit.ui_unit)
   then
     Some current_unit
   else begin
@@ -151,33 +151,33 @@ let get_global_info comp_unit =
         else begin
           try
             let filename =
-              Load_path.find_uncap (modname ^ ".cmx") in
+              Load_path.find_uncap ((modname |> CU.Name.to_string) ^ ".cmx") in
             let (ui, crc) = read_unit_info filename in
-            if not (CU.Name.equal (CU.name ui.ui_name)
-                     (CU.Name.of_string modname))
+            if not (CU.Name.equal (CU.name ui.ui_unit) modname)
             then
-              raise(Error(Illegal_renaming(modname,
-                CU.Name.to_string (CU.name ui.ui_name), filename)));
+              raise(Error(Illegal_renaming(modname, CU.name ui.ui_unit, filename)));
             (Some ui, Some crc)
           with Not_found ->
             (*
             Format.eprintf "Backtrace for No_cmx_file:@ \n%s\n%!"
               (Printexc.raw_backtrace_to_string (Printexc.get_callstack 20));
             *)
-            let warn = Warnings.No_cmx_file modname in
+            let warn = Warnings.No_cmx_file (modname |> CU.Name.to_string) in
               Location.prerr_warning Location.none warn;
               (None, None)
           end
       in
       current_unit.ui_imports_cmx <-
         (modname, crc) :: current_unit.ui_imports_cmx;
-      Hashtbl.add global_infos_table modname infos;
+      CU.Name.Tbl.add global_infos_table modname infos;
       infos
   end
 
+let get_global_info comp_unit =
+  get_unit_info (CU.name comp_unit)
+
 let cache_unit_info ui =
-  Hashtbl.add global_infos_table (CU.Name.to_string (CU.name ui.ui_name))
-    (Some ui)
+  CU.Name.Tbl.add global_infos_table (CU.name ui.ui_unit) (Some ui)
 
 (* Return the approximation of a global identifier *)
 
@@ -187,54 +187,18 @@ let get_clambda_approx ui =
   | Flambda _ -> assert false
   | Clambda approx -> approx
 
-let toplevel_approx :
-  (string, Clambda.value_approximation) Hashtbl.t = Hashtbl.create 16
+let toplevel_approx : Clambda.value_approximation CU.Tbl.t = CU.Tbl.create 16
 
 let record_global_approx_toplevel () =
-  Hashtbl.add toplevel_approx
-    (CU.Name.to_string (CU.name current_unit.ui_name))
+  CU.Tbl.add toplevel_approx current_unit.ui_unit
     (get_clambda_approx current_unit)
 
-let global_approx id =
-  if Ident.is_predef id then Clambda.Value_unknown
-  else try Hashtbl.find toplevel_approx (Ident.name id)
+let global_approx comp_unit =
+  try CU.Tbl.find toplevel_approx comp_unit
   with Not_found ->
-    (* XXX Does this need anything to do with packs on it? *)
-    match get_global_info id with
+    match get_global_info comp_unit with
       | None -> Clambda.Value_unknown
       | Some ui -> get_clambda_approx ui
-
-(* Determination of pack prefixes for units and identifiers *)
-
-let pack_prefix_for_current_unit () =
-  CU.for_pack_prefix current_unit.ui_name
-
-let is_ident_in_current_unit id =
-  Hashtbl.mem toplevel_approx (Ident.name id)
-
-let pack_prefix_for_global_ident id =
-  if not (Ident.is_global id) then
-    Misc.fatal_errorf "Identifier %a is not global" Ident.print id
-  else if is_ident_in_current_unit id then
-    CU.for_pack_prefix (CU.get_current_exn ())
-  else
-    match get_global_info id with
-    | Some ui -> CU.for_pack_prefix ui.ui_name
-    | None ->
-      (* If the .cmx file is missing, the prefix is assumed to be empty. *)
-      (* CR mshinwell: or the same as the -for-pack prefix in effect now? *)
-      CU.Prefix.empty
-
-let symbol_for_global' id =
-  assert (Ident.is_global_or_predef id);
-  let pack_prefix =
-    if Ident.is_global id then pack_prefix_for_global_ident id
-    else CU.Prefix.empty
-  in
-  Symbol.for_global_or_predef_ident pack_prefix id
-
-let symbol_for_global id =
-  symbol_for_global' id |> Symbol.linkage_name |> Linkage_name.to_string
 
 (* Register the approximation of the module being compiled *)
 
@@ -305,16 +269,14 @@ let approx_for_global comp_unit =
   if CU.equal comp_unit CU.predef_exn
   then invalid_arg "approx_for_global with predef_exn compilation unit";
   let comp_unit_name = which_cmx_file comp_unit in
-  let id = Ident.create_persistent (comp_unit_name |> CU.Name.to_string) in
-  let modname = Ident.name id in
-  match Hashtbl.find export_infos_table modname with
+  match CU.Name.Tbl.find export_infos_table comp_unit_name with
   | otherwise -> Some otherwise
   | exception Not_found ->
-    match get_global_info id with
+    match get_unit_info comp_unit_name with
     | None -> None
     | Some ui ->
       let exported = get_flambda_export_info ui in
-      Hashtbl.add export_infos_table modname exported;
+      CU.Name.Tbl.add export_infos_table comp_unit_name exported;
       merged_environment := Export_info.merge !merged_environment exported;
       Some exported
 
@@ -407,9 +369,8 @@ let structured_constants () =
          provenance = Some provenance;
        })
 
-let require_global global_ident =
-  if not (Ident.is_predef global_ident) then
-    ignore (get_global_info global_ident : Cmx_format.unit_infos option)
+let require_global comp_unit =
+  ignore (get_global_info comp_unit : Cmx_format.unit_infos option)
 
 (* Error report *)
 
@@ -424,8 +385,10 @@ let report_error ppf = function
         Location.print_filename filename
   | Illegal_renaming(name, modname, filename) ->
       fprintf ppf "%a@ contains the description for unit\
-                   @ %s when %s was expected"
-        Location.print_filename filename name modname
+                   @ %a when %a was expected"
+        Location.print_filename filename
+        CU.Name.print name
+        CU.Name.print modname
 
 let () =
   Location.register_error_of_exn

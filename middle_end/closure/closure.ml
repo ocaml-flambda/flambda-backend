@@ -62,13 +62,15 @@ let rec build_closure_env env_param pos = function
    and no longer in Cmmgen so that approximations stored in .cmx files
    contain the right names if the -for-pack option is active. *)
 
-let getglobal dbg cu =
-  let symbol =
-    Symbol.for_compilation_unit cu
-    |> Symbol.linkage_name
-    |> Linkage_name.to_string
-  in
+let getsymbol dbg symbol =
+  let symbol = Symbol.linkage_name symbol |> Linkage_name.to_string in
   Uprim (P.Pread_symbol symbol, [], dbg)
+
+let getglobal dbg cu =
+  getsymbol dbg (Symbol.for_compilation_unit cu)
+
+let getpredef dbg id =
+  getsymbol dbg (Symbol.for_predef_ident id)
 
 let region ulam =
   let is_trivial =
@@ -1232,6 +1234,9 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
       let dbg = Debuginfo.from_location loc in
       check_constant_result (getglobal dbg cu)
                             (Compilenv.global_approx cu)
+  | Lprim(Pgetpredef id, [], loc) ->
+      let dbg = Debuginfo.from_location loc in
+      getpredef dbg id, Value_unknown
   | Lprim(Pfield (n, _), [lam], loc) ->
       let (ulam, approx) = close env lam in
       let dbg = Debuginfo.from_location loc in
@@ -1405,7 +1410,7 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
             let label =
               Symbol_utils.for_fun_ident ~compilation_unit:None loc id
               |> Symbol.linkage_name
-              |> Linkage_name.to_string            
+              |> Linkage_name.to_string
             in
             let arity = List.length params in
             let fundesc =

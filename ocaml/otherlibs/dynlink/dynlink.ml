@@ -104,7 +104,6 @@ module Bytecode = struct
         let defined =
           Symtable.is_defined_in_global_map !default_global_map id
         in
-        if false then Format.eprintf "initial unit: %a (defined: %b)@." Compilation_unit.Name.print modname defined;
         let implementation =
           if defined then Some (None, DT.Loaded)
           else None

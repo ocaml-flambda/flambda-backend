@@ -2839,7 +2839,6 @@ let predef_exception i name =
 (* Header for a plugin *)
 
 let plugin_header units =
-  let module CU = Compilation_unit in
   let mk ((ui : Cmx_format.unit_infos),crc) : Cmxs_format.dynunit =
     { dynu_unit = ui.ui_unit;
       dynu_crc = crc;

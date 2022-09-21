@@ -22,9 +22,9 @@ open Cmx_format
 module CU = Compilation_unit
 
 type error =
-    Illegal_renaming of string * string * string
-  | Forward_reference of string * string
-  | Wrong_for_pack of string * string
+    Illegal_renaming of CU.Name.t * string * CU.Name.t
+  | Forward_reference of string * CU.Name.t
+  | Wrong_for_pack of string * CU.Prefix.t
   | Linking_error
   | Assembler_error of string
   | File_not_found of string
@@ -38,23 +38,24 @@ type pack_member_kind = PM_intf | PM_impl of unit_infos
 
 type pack_member =
   { pm_file: string;
-    pm_name: string; (* CR mshinwell: -> CU.Name.t *)
+    pm_name: CU.Name.t;
     pm_kind: pack_member_kind }
 
 let read_member_info pack_path file = (
   let name =
-    String.capitalize_ascii(Filename.basename(chop_extensions file)) in
+    String.capitalize_ascii(Filename.basename(chop_extensions file))
+    |> CU.Name.of_string
+  in
   let kind =
     if Filename.check_suffix file ".cmi" then
       PM_intf
     else begin
       let (info, crc) = Compilenv.read_unit_info file in
-      if not (CU.Name.equal (CU.name info.ui_name) (CU.Name.of_string name))
-      then raise(Error(Illegal_renaming(name, file,
-         CU.Name.to_string (CU.name info.ui_name))));
-      if not (CU.Prefix.equal (CU.for_pack_prefix info.ui_name)
-               (CU.Prefix.parse_for_pack (Some pack_path)))
-      then raise(Error(Wrong_for_pack(file, pack_path)));
+      if not (CU.Name.equal (CU.name info.ui_unit) name)
+      then raise(Error(Illegal_renaming(name, file, CU.name info.ui_unit)));
+      let pack_prefix = CU.Prefix.parse_for_pack (Some pack_path) in
+      if not (CU.Prefix.equal (CU.for_pack_prefix info.ui_unit) pack_prefix)
+      then raise(Error(Wrong_for_pack(file, pack_prefix)));
       Asmlink.check_consistency file info crc;
       Compilenv.cache_unit_info info;
       PM_impl info
@@ -72,9 +73,9 @@ let check_units members =
       | PM_intf -> ()
       | PM_impl infos ->
           List.iter
-            (fun (unit, _) ->
-              if List.mem unit forbidden
-              then raise(Error(Forward_reference(mb.pm_file, unit))))
+            (fun (name, _) ->
+              if List.mem name forbidden
+              then raise(Error(Forward_reference(mb.pm_file, name))))
             infos.ui_imports_cmx
       end;
       check (list_remove mb.pm_name forbidden) tl in
@@ -103,11 +104,13 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
         (fun m ->
           match m.pm_kind with
           | PM_intf -> None
-          | PM_impl _ -> Some(Ident.create_persistent m.pm_name))
+          | PM_impl _ -> Some(CU.create_child (CU.get_current_exn ()) m.pm_name))
         members in
-    let module_ident = Ident.create_persistent targetname in
+    let for_pack_prefix = CU.Prefix.from_clflags () in
+    let modname = targetname |> CU.Name.of_string in
+    let compilation_unit = CU.create for_pack_prefix modname in
     let prefixname = Filename.remove_extension objtemp in
-    let required_globals = Ident.Set.empty in
+    let required_globals = CU.Set.empty in
     let program, middle_end =
       if Config.flambda then
         let main_module_block_size, code =
@@ -118,7 +121,7 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
           { Lambda.
             code;
             main_module_block_size;
-            module_ident;
+            compilation_unit;
             required_globals;
           }
         in
@@ -126,14 +129,14 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
       else
         let main_module_block_size, code =
           Translmod.transl_store_package components
-            (Ident.create_persistent targetname) coercion
+            compilation_unit coercion
         in
         let code = Simplif.simplify_lambda code in
         let program =
           { Lambda.
             code;
             main_module_block_size;
-            module_ident;
+            compilation_unit;
             required_globals;
           }
         in
@@ -186,40 +189,12 @@ let build_package_cmx members cmxfile =
       (fun m accu ->
         match m.pm_kind with PM_intf -> accu | PM_impl info -> info :: accu)
       members [] in
-  let pack_units =
-    List.map (fun info -> info.ui_name) units
-    |> Compilation_unit.Set.of_list
-  in
   let ui = Compilenv.current_unit_infos() in
-  (* XXX What happens if we have -for-pack Foo.Bar? *)
-  (* XXX Should we assert something about ui.ui_name -- e.g. no prefix? *)
-  let pack =
-    Compilation_unit.Prefix.parse_for_pack
-      (Some (Compilation_unit.Name.to_string
-        (Compilation_unit.name ui.ui_name)))
-  in
-  let units =
-    if Config.flambda then
-      List.map (fun info ->
-          { info with
-            ui_export_info =
-              Flambda
-                (Export_info_for_pack.import_for_pack ~pack_units
-                  ~pack
-                  (get_export_info info));
-          })
-        units
-    else
-      units
-  in
   let ui_export_info =
     if Config.flambda then
       let ui_export_info =
         List.fold_left (fun acc info ->
-            Export_info.merge acc
-              (Export_info_for_pack.import_for_pack ~pack_units
-                ~pack
-                (get_export_info info)))
+            Export_info.merge acc (get_export_info info))
           (get_export_info ui)
           units
       in
@@ -227,15 +202,14 @@ let build_package_cmx members cmxfile =
     else
       Clambda (get_approx ui)
   in
-  Export_info_for_pack.clear_import_state ();
-  let ui_name_as_string = CU.Name.to_string (CU.name ui.ui_name) in
+  let modname = Compilation_unit.name ui.ui_unit in
   let pkg_infos =
-    { ui_name = ui.ui_name;
+    { ui_unit = ui.ui_unit;
       ui_defines =
           List.flatten (List.map (fun info -> info.ui_defines) units) @
-          [ui.ui_name];
+          [ui.ui_unit];
       ui_imports_cmi =
-          (ui_name_as_string, Some (Env.crc_of_unit ui_name_as_string)) ::
+          (modname, Some (Env.crc_of_unit modname)) ::
           filter(Asmlink.extract_crc_interfaces());
       ui_imports_cmx =
           filter(Asmlink.extract_crc_implementations());
@@ -299,7 +273,7 @@ let package_files ~ppf_dump initial_env files targetcmx ~backend =
   Compilenv.reset comp_unit;
   Misc.try_finally (fun () ->
       let coercion =
-        Typemod.package_units initial_env files targetcmi targetname in
+        Typemod.package_units initial_env files targetcmi comp_unit in
       package_object_files ~ppf_dump files targetcmx targetobj targetname
         coercion ~backend
     )
@@ -312,14 +286,14 @@ open Format
 let report_error ppf = function
     Illegal_renaming(name, file, id) ->
       fprintf ppf "Wrong file naming: %a@ contains the code for\
-                   @ %s when %s was expected"
-        Location.print_filename file name id
+                   @ %a when %a was expected"
+        Location.print_filename file CU.Name.print name CU.Name.print id
   | Forward_reference(file, ident) ->
-      fprintf ppf "Forward reference to %s in file %a" ident
+      fprintf ppf "Forward reference to %a in file %a" CU.Name.print ident
         Location.print_filename file
   | Wrong_for_pack(file, path) ->
-      fprintf ppf "File %a@ was not compiled with the `-for-pack %s' option"
-              Location.print_filename file path
+      fprintf ppf "File %a@ was not compiled with the `-for-pack %a' option"
+              Location.print_filename file CU.Prefix.print path
   | File_not_found file ->
       fprintf ppf "File %s not found" file
   | Assembler_error file ->

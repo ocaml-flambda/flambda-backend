@@ -147,8 +147,6 @@ type error = private
 (** The exception raised by conversion functions in this module. *)
 exception Error of error
 
-val report_error : Format.formatter -> error -> unit
-
 val set_current : t -> unit
 val clear_current : unit -> unit
 val get_current : unit -> t option

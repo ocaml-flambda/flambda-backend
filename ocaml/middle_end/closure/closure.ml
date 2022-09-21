@@ -62,9 +62,15 @@ let rec build_closure_env env_param pos = function
    and no longer in Cmmgen so that approximations stored in .cmx files
    contain the right names if the -for-pack option is active. *)
 
-let getglobal dbg id =
-  let symbol = Compilenv.symbol_for_global id in
+let getsymbol dbg symbol =
+  let symbol = Symbol.linkage_name symbol |> Linkage_name.to_string in
   Uprim (P.Pread_symbol symbol, [], dbg)
+
+let getglobal dbg cu =
+  getsymbol dbg (Symbol.for_compilation_unit cu)
+
+let getpredef dbg id =
+  getsymbol dbg (Symbol.for_predef_ident id)
 
 let region ulam =
   let is_trivial =
@@ -1226,22 +1232,25 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
            ap_specialised=Default_specialise;
            ap_probe=None;
          })
-  | Lprim(Pgetglobal id, [], loc) ->
+  | Lprim(Pgetglobal cu, [], loc) ->
       let dbg = Debuginfo.from_location loc in
-      check_constant_result (getglobal dbg id)
-                            (Compilenv.global_approx id)
+      check_constant_result (getglobal dbg cu)
+                            (Compilenv.global_approx cu)
+  | Lprim(Pgetpredef id, [], loc) ->
+      let dbg = Debuginfo.from_location loc in
+      getpredef dbg id, Value_unknown
   | Lprim(Pfield (n, _), [lam], loc) ->
       let (ulam, approx) = close env lam in
       let dbg = Debuginfo.from_location loc in
       check_constant_result (Uprim(P.Pfield n, [ulam], dbg))
                             (field_approx n approx)
   | Lprim(Psetfield(n, is_ptr, init),
-          [Lprim(Pgetglobal id, [], _); lam], loc) ->
+          [Lprim(Pgetglobal cu, [], _); lam], loc) ->
       let (ulam, approx) = close env lam in
       if approx <> Value_unknown then
         (!global_approx).(n) <- approx;
       let dbg = Debuginfo.from_location loc in
-      (Uprim(P.Psetfield(n, is_ptr, init), [getglobal dbg id; ulam], dbg),
+      (Uprim(P.Psetfield(n, is_ptr, init), [getglobal dbg cu; ulam], dbg),
        Value_unknown)
   | Lprim(Praise k, [arg], loc) ->
       let (ulam, _approx) = close env arg in
@@ -1665,8 +1674,7 @@ let intro ~backend ~size lam =
   let opaque =
     !Clflags.opaque
     || Env.is_imported_opaque
-         (Compilation_unit.get_current_exn ()
-          |> Compilation_unit.full_path_as_string)
+         (Compilation_unit.name (Compilation_unit.get_current_exn ()))
   in
   if opaque
   then Compilenv.set_global_approx(Value_unknown)

@@ -31,7 +31,7 @@ type error =
   | Inconsistent_implementation of CU.Name.t * filepath * filepath
   | Assembler_error of filepath
   | Linking_error of int
-  | Multiple_definition of CU.t * filepath * filepath
+  | Multiple_definition of CU.Name.t * filepath * filepath
   | Missing_cmx of filepath * CU.Name.t
 
 exception Error of error
@@ -99,7 +99,7 @@ let check_consistency ~unit cmis cmxs =
   let modname = CU.name unit.name in
   begin try
     let source = CU.Name.Tbl.find implementations_defined modname in
-    raise (Error(Multiple_definition(unit.name, unit.file_name, source)))
+    raise (Error(Multiple_definition(modname, unit.file_name, source)))
   with Not_found -> ()
   end;
   implementations := CU.name unit.name :: !implementations;
@@ -551,7 +551,7 @@ let report_error ppf = function
         "@[<hov>Files %a@ and %a@ both define a module named %a@]"
         Location.print_filename file1
         Location.print_filename file2
-        CU.print modname
+        CU.Name.print modname
   | Missing_cmx(filename, name) ->
       fprintf ppf
         "@[<hov>File %a@ was compiled without access@ \

@@ -27,7 +27,15 @@ type error =
 
 exception Error of error
 
-
+let () =
+  Printexc.register_printer begin function
+  | Error e ->
+    begin match e with
+    | Invalid_character (c, s) -> Some (Format.sprintf "Invalid character '%c' in '%s'" c s)
+    | Bad_compilation_unit_name s -> Some ("Bad compilation unit name: " ^ s)
+    end
+  | _ -> None
+  end
 
 (* CR-someday lmaurer: Move this to [Identifiable] and change /all/ definitions
    of [output] that delegate to [print] to use it. Yes, they're all broken. *)
@@ -299,20 +307,3 @@ let is_current t =
   match !current with
   | None -> false
   | Some t' -> equal t t'
-
-let report_error ppf = function
-  | Invalid_character (c, s) ->
-      Format.fprintf ppf "Invalid character '%c' in module name \"%s\"" c s
-  | Bad_compilation_unit_name s ->
-      Format.fprintf ppf "Invalid compilation unit name \"%s\"" s
-
-let () =
-  if false then
-  Location.register_error_of_exn
-    (function
-      | Error err -> Some (Location.error_of_printer_file report_error err)
-      | _ -> None
-    );
-  Printexc.register_printer @@ function
-  | Error error -> Some (Format.asprintf "%a" report_error error)
-  | _ -> None

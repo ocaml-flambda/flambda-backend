@@ -171,10 +171,6 @@ module Make (P : Dynlink_platform_intf.S) = struct
   let check_implementation_imports ~allowed_units filename ui implems =
     List.iter (fun (name, crc) ->
       if not (String.Set.mem name allowed_units) then begin
-        Format.eprintf "Allowed units for %s:@." filename;
-        allowed_units |> String.Set.iter begin fun unit ->
-          Format.eprintf "  %s@." unit
-        end;
         raise (DT.Error (Unavailable_unit name))
       end;
       match String.Map.find name implems with

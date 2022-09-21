@@ -54,4 +54,8 @@ let () =
   with
   | Dynlink.Error (
       Dynlink.Linking_error (_,
-        Dynlink.Uninitialized_global "Test1_inited_second")) -> ()
+        (* CR lmaurer: This is an ugly match, but this shouldn't be a string to
+           begin with; more precise types would make it clearer what's
+           correct *)
+        Dynlink.Uninitialized_global
+          ("Test1_inited_second" | "camlTest1_inited_second"))) -> ()

@@ -181,6 +181,11 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
              ps_filename = filename;
              ps_flags = flags;
            } in
+  let unit_repr = Obj.repr unit in
+  if (Obj.tag unit_repr == Obj.string_tag) then begin
+    Misc.fatal_errorf "Signature in %s for %s written by wrong compiler"
+      filename (Obj.obj unit_repr)
+  end;
   let found_name = Compilation_unit.name unit in
   if not (Compilation_unit.Name.equal modname found_name) then
     error (Illegal_renaming(modname, found_name, filename));
@@ -228,13 +233,6 @@ let find_pers_struct penv val_of_pers_sig check name =
           | Some psig -> psig
           | None ->
             Compilation_unit.Name.Tbl.add persistent_structures name Missing;
-            if false then begin
-              Format.eprintf "Missing: %a@." Compilation_unit.Name.print name;
-              Load_path.get_paths () |> List.iter (fun p ->
-                  Format.eprintf " - %s@." p
-                );
-              Load_path.dump_all ()
-            end;
             raise Not_found
         in
         add_import penv name;

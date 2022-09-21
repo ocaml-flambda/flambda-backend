@@ -39,16 +39,16 @@ let flambda i backend typed =
   |> Profile.(record transl)
       (Translmod.transl_implementation_flambda i.compilation_unit)
   |> Profile.(record generate)
-    (fun {Lambda.module_ident; main_module_block_size;
+    (fun {Lambda.compilation_unit; main_module_block_size;
           required_globals; code } ->
-    ((module_ident, main_module_block_size), code)
+    ((compilation_unit, main_module_block_size), code)
     |>> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.lambda
     |>> Simplif.simplify_lambda
     |>> print_if i.ppf_dump Clflags.dump_lambda Printlambda.lambda
-    |> (fun ((module_ident, main_module_block_size), code) ->
+    |> (fun ((compilation_unit, main_module_block_size), code) ->
       let program : Lambda.program =
         { Lambda.
-          module_ident;
+          compilation_unit;
           main_module_block_size;
           required_globals;
           code;
@@ -67,7 +67,7 @@ let clambda i backend typed =
   Clflags.set_oclassic ();
   typed
   |> Profile.(record transl)
-    (Translmod.transl_store_implementation i.module_name)
+    (Translmod.transl_store_implementation i.compilation_unit)
   |> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.program
   |> Profile.(record generate)
     (fun program ->

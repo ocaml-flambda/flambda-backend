@@ -398,10 +398,6 @@ let link_bytecode ?final_name tolink exec_name standalone =
          outchan (Symtable.initial_global_table());
        Bytesections.record outchan "DATA";
        (* The map of global identifiers *)
-       if false then begin
-       Format.eprintf "--------@. IDENTS @.--------@.";
-       Symtable.iter_global_map (fun i _ -> Format.eprintf "%a@." Ident.print i) (Symtable.current_state ());
-       end;
        Symtable.output_global_map outchan;
        Bytesections.record outchan "SYMB";
        (* CRCs for modules *)

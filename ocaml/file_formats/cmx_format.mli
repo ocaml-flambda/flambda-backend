@@ -19,8 +19,6 @@
 
 (* Format of .cmx, .cmxa and .cmxs files *)
 
-open Misc
-
 (* Each .o file has a matching .cmx file that provides the following infos
    on the compilation unit:
      - list of other units imported, with MD5s of their .cmx files
