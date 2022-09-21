@@ -20,8 +20,9 @@ val code_metadata : _ t -> Code_metadata.t
 
 val params_and_body : 'function_params_and_body t -> 'function_params_and_body
 
-include Code_metadata.Code_metadata_accessors_result_type
-          with type 'function_params_and_body t := 'function_params_and_body t
+include
+  Code_metadata.Code_metadata_accessors_result_type
+    with type 'function_params_and_body t := 'function_params_and_body t
 
 val create_with_metadata :
   print_function_params_and_body:

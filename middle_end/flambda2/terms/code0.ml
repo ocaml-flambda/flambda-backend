@@ -24,9 +24,11 @@ let code_metadata t = t.code_metadata
 
 module Metadata_view = struct
   type nonrec 'function_params_and_body t = 'function_params_and_body t
+
   let metadata t = t.code_metadata
 end
-include (Code_metadata.Code_metadata_accessors[@inlined hint]) (Metadata_view)
+
+include Code_metadata.Code_metadata_accessors [@inlined hint] (Metadata_view)
 
 let params_and_body t = t.params_and_body
 
@@ -50,13 +52,9 @@ let create_with_metadata ~print_function_params_and_body ~params_and_body
 
 let create ~print_function_params_and_body ~params_and_body
     ~free_names_of_params_and_body =
-  Code_metadata.createk
-    (fun code_metadata ->
-       create_with_metadata
-       ~print_function_params_and_body
-       ~params_and_body
-       ~free_names_of_params_and_body
-       ~code_metadata)
+  Code_metadata.createk (fun code_metadata ->
+      create_with_metadata ~print_function_params_and_body ~params_and_body
+        ~free_names_of_params_and_body ~code_metadata)
 
 let with_code_id code_id t =
   { t with code_metadata = Code_metadata.with_code_id code_id t.code_metadata }

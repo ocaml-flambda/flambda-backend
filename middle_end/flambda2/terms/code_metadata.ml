@@ -40,10 +40,11 @@ type code_metadata = t
 
 module type Metadata_view_type = sig
   type 'a t
+
   val metadata : 'a t -> code_metadata
 end
 
-module Code_metadata_accessors(X : Metadata_view_type) = struct
+module Code_metadata_accessors (X : Metadata_view_type) = struct
   open X
 
   let code_id t = (metadata t).code_id
@@ -98,18 +99,21 @@ end
 
 module type Code_metadata_accessors_result_type = sig
   type 'a t
-  include module type of Code_metadata_accessors(struct
-      type nonrec 'a t = 'a t
-      let metadata = assert false
-    end)
+
+  include module type of Code_metadata_accessors (struct
+    type nonrec 'a t = 'a t
+
+    let metadata = assert false
+  end)
 end
 
 module Metadata_view = struct
   type nonrec 'a t = t
+
   let metadata t = t
 end
 
-include (Code_metadata_accessors [@inlined hint])(Metadata_view)
+include Code_metadata_accessors [@inlined hint] (Metadata_view)
 
 type 'a create_type =
   Code_id.t ->
@@ -153,26 +157,27 @@ let createk k code_id ~newer_version_of ~params_arity ~num_trailing_local_params
     Misc.fatal_errorf
       "Illegal num_trailing_local_params=%d for params arity: %a"
       num_trailing_local_params Flambda_arity.With_subkinds.print params_arity;
-  k { code_id;
-    newer_version_of;
-    params_arity;
-    num_trailing_local_params;
-    result_arity;
-    result_types;
-    contains_no_escaping_local_allocs;
-    stub;
-    inline;
-    is_a_functor;
-    recursive;
-    cost_metrics;
-    inlining_arguments;
-    dbg;
-    is_tupled;
-    is_my_closure_used;
-    inlining_decision;
-    absolute_history;
-    relative_history
-  }
+  k
+    { code_id;
+      newer_version_of;
+      params_arity;
+      num_trailing_local_params;
+      result_arity;
+      result_types;
+      contains_no_escaping_local_allocs;
+      stub;
+      inline;
+      is_a_functor;
+      recursive;
+      cost_metrics;
+      inlining_arguments;
+      dbg;
+      is_tupled;
+      is_my_closure_used;
+      inlining_decision;
+      absolute_history;
+      relative_history
+    }
 
 let create = createk (fun t -> t)
 

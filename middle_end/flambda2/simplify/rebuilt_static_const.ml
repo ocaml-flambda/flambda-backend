@@ -57,24 +57,23 @@ let create_code are_rebuilding ~params_and_body ~free_names_of_params_and_body =
   if ART.do_not_rebuild_terms are_rebuilding
   then
     Code_metadata.createk (fun code_metadata ->
-        Code_not_rebuilt (
-          Non_constructed_code.create_with_metadata
-            ~free_names_of_params_and_body ~code_metadata)
-      )
+        Code_not_rebuilt
+          (Non_constructed_code.create_with_metadata
+             ~free_names_of_params_and_body ~code_metadata))
   else
     let params_and_body =
       Rebuilt_expr.Function_params_and_body.to_function_params_and_body
         params_and_body are_rebuilding
     in
     Code_metadata.createk (fun code_metadata ->
-        let code = Code.create_with_metadata
-            ~params_and_body ~free_names_of_params_and_body ~code_metadata
+        let code =
+          Code.create_with_metadata ~params_and_body
+            ~free_names_of_params_and_body ~code_metadata
         in
         Normal
           { const = Static_const_or_code.create_code code;
             free_names = Code.free_names code
-          }
-      )
+          })
 
 let create_code' code =
   Normal
@@ -317,8 +316,7 @@ module Group = struct
             Lazy.force function_params_and_body_for_code_not_rebuilt
           in
           Some
-            (Code.create_with_metadata
-               ~params_and_body
+            (Code.create_with_metadata ~params_and_body
                ~free_names_of_params_and_body:Name_occurrences.empty
                ~code_metadata:(NCC.code_metadata code)))
     |> List.map (fun code -> Code.code_id code, code)

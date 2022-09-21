@@ -20,6 +20,7 @@ type code_metadata = t
 
 module type Metadata_view_type = sig
   type 'a t
+
   val metadata : 'a t -> code_metadata
 end
 
@@ -67,9 +68,8 @@ module type Code_metadata_accessors_result_type = sig
   val relative_history : 'a t -> Inlining_history.Relative.t
 end
 
-module Code_metadata_accessors :
-  functor (X : Metadata_view_type) ->
-    Code_metadata_accessors_result_type with type 'a t := 'a X.t
+module Code_metadata_accessors : functor (X : Metadata_view_type) ->
+  Code_metadata_accessors_result_type with type 'a t := 'a X.t
 
 include Code_metadata_accessors_result_type with type 'a t := t
 
@@ -96,6 +96,7 @@ type 'a create_type =
   'a
 
 val createk : (t -> 'a) -> 'a create_type
+
 val create : t create_type
 
 val with_code_id : Code_id.t -> t -> t
