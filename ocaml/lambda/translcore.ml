@@ -104,7 +104,6 @@ let transl_value_mode mode =
   transl_alloc_mode alloc_mode
 
 let transl_exp_mode e = transl_value_mode e.exp_mode
-let transl_pat_mode p = transl_value_mode p.pat_mode
 
 let transl_apply_position position =
   match position with
@@ -176,12 +175,13 @@ let rec push_defaults loc bindings cases partial warnings =
   match cases with
     [{c_lhs=pat; c_guard=None;
       c_rhs={exp_desc =
-               Texp_function { arg_label; param; cases; partial; region; warnings }}
+               Texp_function { arg_label; param; cases; partial;
+                               region; curry; warnings }}
         as exp}] ->
       let cases = push_defaults exp.exp_loc bindings cases partial warnings in
       [{c_lhs=pat; c_guard=None;
         c_rhs={exp with exp_desc = Texp_function { arg_label; param; cases;
-          partial; region; warnings }}}]
+          partial; region; curry; warnings }}}]
   | [{c_lhs=pat; c_guard=None;
       c_rhs={exp_attributes=[{Parsetree.attr_name = {txt="#default"};_}];
              exp_desc = Texp_let
@@ -352,12 +352,13 @@ and transl_exp0 ~in_new_scope ~scopes e =
       let body_kind = Typeopt.value_kind body.exp_env body.exp_type in
       transl_let ~scopes rec_flag pat_expr_list
         body_kind (event_before ~scopes body (transl_exp ~scopes body))
-  | Texp_function { arg_label = _; param; cases; partial; region; warnings } ->
+  | Texp_function { arg_label = _; param; cases; partial;
+                    region; curry; warnings } ->
       let scopes =
         if in_new_scope then scopes
         else enter_anonymous_function ~scopes
       in
-      transl_function ~scopes e param cases partial warnings region
+      transl_function ~scopes e param cases partial warnings region curry
   | Texp_apply({ exp_desc = Texp_ident(path, _, {val_kind = Val_prim p},
                                        Id_prim pmode);
                 exp_type = prim_type } as funct, oargs, pos)
@@ -1027,37 +1028,34 @@ and transl_apply ~scopes
 
 and transl_curried_function
       ~scopes loc return
-      repr ~mode ~region partial warnings (param:Ident.t) cases =
+      repr ~region ~curry partial warnings (param:Ident.t) cases =
   let max_arity = Lambda.max_arity () in
-  let rec loop ~scopes loc return ~arity ~mode ~region partial warnings
-            (param:Ident.t) cases =
-    match cases with
+  let rec loop ~scopes loc return ~arity ~region ~curry
+            partial warnings (param:Ident.t) cases =
+    match curry, cases with
+      More_args {partial_mode},
       [{c_lhs=pat; c_guard=None;
         c_rhs={exp_desc =
                  Texp_function
                    { arg_label = _; param = param'; cases = cases';
                      partial = partial'; region = region';
+                     curry = curry';
                      warnings = warnings' };
-               exp_env; exp_type; exp_loc; exp_mode}}]
+               exp_env; exp_type; exp_loc }}]
       when arity < max_arity ->
-      let arg_mode = transl_pat_mode pat in
-      let curry_mode = transl_value_mode exp_mode in
       (* Lfunctions must have local returns after the first local arg/ret *)
-      if not (sub_mode mode curry_mode && sub_mode arg_mode curry_mode) then
-        (* Cannot curry here *)
-        transl_tupled_function ~scopes ~arity ~mode ~region
-          loc return repr partial param cases
-      else if Parmatch.inactive ~partial pat
+      if Parmatch.inactive ~partial pat
       then
+        let partial_mode = transl_alloc_mode partial_mode in
         let kind = value_kind pat.pat_env pat.pat_type in
         let return_kind = function_return_value_kind exp_env exp_type in
         let ((fnkind, params, return, region), body) =
           loop ~scopes exp_loc return_kind
-            ~arity:(arity + 1) ~mode:curry_mode ~region:region'
+            ~arity:(arity + 1) ~region:region' ~curry:curry'
             partial' warnings' param' cases'
         in
         let fnkind =
-          match curry_mode, fnkind with
+          match partial_mode, fnkind with
           | _, Tupled ->
              (* arity > 1 prevents this *)
              assert false
@@ -1080,24 +1078,28 @@ and transl_curried_function
             Warnings.restore prev
         | Partial -> ()
         end;
-        transl_tupled_function ~scopes ~arity ~mode ~region
+        transl_tupled_function ~scopes ~arity ~region ~curry
           loc return repr partial param cases
       end
-    | cases ->
-      transl_tupled_function ~scopes ~arity ~mode ~region
+    | curry, cases ->
+      transl_tupled_function ~scopes ~arity ~region ~curry
         loc return repr partial param cases
   in
-  loop ~scopes loc return ~arity:1 ~mode ~region partial warnings param cases
+  loop ~scopes loc return ~arity:1 ~region ~curry
+    partial warnings param cases
 
 and transl_tupled_function
-      ~scopes ~arity ~mode ~region loc return
+      ~scopes ~arity ~region ~curry loc return
       repr partial (param:Ident.t) cases =
-  match cases with
-  | {c_lhs={pat_desc = Tpat_tuple pl; pat_mode }} :: _
+  let partial_mode =
+    match curry with
+    | More_args {partial_mode} | Final_arg {partial_mode} ->
+      transl_alloc_mode partial_mode
+  in
+  match partial_mode, cases with
+  | Alloc_heap, {c_lhs={pat_desc = Tpat_tuple pl }} :: _
     when !Clflags.native_code
       && arity = 1
-      && is_heap_mode mode
-      && is_heap_mode (transl_value_mode pat_mode)
       && List.length pl <= (Lambda.max_arity ()) ->
       begin try
         let size = List.length pl in
@@ -1134,27 +1136,24 @@ and transl_tupled_function
         let region = region || not (may_allocate_in_region body) in
         ((Tupled, tparams, return, region), body)
     with Matching.Cannot_flatten ->
-      transl_function0 ~scopes loc ~mode ~region
+      transl_function0 ~scopes loc ~region ~partial_mode
         return repr partial param cases
       end
-  | _ -> transl_function0 ~scopes loc ~mode ~region
+  | _ -> transl_function0 ~scopes loc ~region ~partial_mode
            return repr partial param cases
 
 and transl_function0
-      ~scopes loc ~mode ~region return
+      ~scopes loc ~region ~partial_mode return
       repr partial (param:Ident.t) cases =
-    let arg_mode, kind =
+    let kind =
       match cases with
       | [] ->
         (* With Camlp4, a pattern matching might be empty *)
-        alloc_heap, Pgenval
+        Pgenval
       | {c_lhs=pat} :: other_cases ->
         (* All the patterns might not share the same types. We must take the
            union of the patterns types *)
-        let arg_mode = transl_pat_mode pat in
-        arg_mode,
         List.fold_left (fun k {c_lhs=pat} ->
-          assert (transl_pat_mode pat = arg_mode);
           Typeopt.value_kind_union k
             (value_kind pat.pat_env pat.pat_type))
           (value_kind pat.pat_env pat.pat_type) other_cases
@@ -1166,13 +1165,13 @@ and transl_function0
     let region = region || not (may_allocate_in_region body) in
     let nlocal =
       if not region then 1
-      else match join_mode mode arg_mode with
+      else match partial_mode with
         | Alloc_local -> 1
         | Alloc_heap -> 0
     in
     ((Curried {nlocal}, [param, kind], return, region), body)
 
-and transl_function ~scopes e param cases partial warnings region =
+and transl_function ~scopes e param cases partial warnings region curry =
   let mode = transl_exp_mode e in
   let ((kind, params, return, region), body) =
     event_function ~scopes e
@@ -1180,7 +1179,7 @@ and transl_function ~scopes e param cases partial warnings region =
          let pl = push_defaults e.exp_loc [] cases partial warnings in
          let return_kind = function_return_value_kind e.exp_env e.exp_type in
          transl_curried_function ~scopes e.exp_loc return_kind
-           repr ~mode ~region partial warnings param pl)
+           repr ~region ~curry partial warnings param pl)
   in
   let attr = default_function_attribute in
   let loc = of_location ~scopes e.exp_loc in
@@ -1497,11 +1496,12 @@ and transl_letop ~scopes loc env let_ ands param case partial warnings =
   let exp = loop (transl_exp ~scopes let_.bop_exp) ands in
   let func =
     let return_kind = value_kind case.c_rhs.exp_env case.c_rhs.exp_type in
+    let curry = More_args { partial_mode = Btype.Alloc_mode.global } in
     let (kind, params, return, _region), body =
       event_function ~scopes case.c_rhs
         (function repr ->
            transl_curried_function ~scopes case.c_rhs.exp_loc return_kind
-             repr ~mode:alloc_heap ~region:true partial warnings param [case])
+             repr ~region:true ~curry partial warnings param [case])
     in
     let attr = default_function_attribute in
     let loc = of_location ~scopes case.c_rhs.exp_loc in

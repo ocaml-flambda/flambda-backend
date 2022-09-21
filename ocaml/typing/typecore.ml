@@ -2902,6 +2902,8 @@ let rec is_an_uncurried_function e =
   else begin
     match e.pexp_desc, e.pexp_attributes with
     | (Pexp_fun _ | Pexp_function _), _ -> true
+    | Pexp_poly (e, _), _
+    | Pexp_newtype (_, e), _
     | Pexp_constraint (e, _), _ -> is_an_uncurried_function e
     | Pexp_let (Nonrecursive, _, e),
       [{Parsetree.attr_name = {txt="#default"};_}] ->
@@ -4859,16 +4861,18 @@ and type_function ?in_function loc attrs env (expected_mode : expected_mode)
     if region_locked then Value_mode.local_to_regional arg_value_mode
     else arg_value_mode
   in
-  let cases_expected_mode =
+  let cases_expected_mode, curry =
     if uncurried_function then
-      mode_nontail (Value_mode.of_alloc ret_mode)
+      mode_nontail (Value_mode.of_alloc ret_mode),
+      More_args { partial_mode = ret_mode }
     else begin
       let ret_value_mode = Value_mode.of_alloc ret_mode in
       let ret_value_mode =
         if region_locked then Value_mode.local_to_regional ret_value_mode
         else ret_value_mode
       in
-      mode_return ret_value_mode
+      mode_return ret_value_mode,
+      Final_arg { partial_mode = Btype.Alloc_mode.join [arg_mode; alloc_mode] }
     end
   in
   let in_function =
@@ -4893,7 +4897,7 @@ and type_function ?in_function loc attrs env (expected_mode : expected_mode)
   re {
     exp_desc =
       Texp_function
-        { arg_label = l; param; cases; partial; region; warnings };
+        { arg_label = l; param; cases; partial; region; curry; warnings };
     exp_loc = loc; exp_extra = [];
     exp_type =
       instance (newgenty (Tarrow((l,arg_mode,ret_mode), ty_arg, ty_res, Cok)));
@@ -5335,9 +5339,10 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
         in
         let cases = [case eta_pat e] in
         let param = name_cases "param" cases in
+        let curry = Final_arg {partial_mode = mret} in
         { texp with exp_type = ty_fun; exp_mode = mode.mode;
             exp_desc = Texp_function { arg_label = Nolabel; param; cases;
-                                       partial = Total; region = false;
+                                       partial = Total; region = false; curry;
                                        warnings = Warnings.backup () } }
       in
       Location.prerr_warning texp.exp_loc
