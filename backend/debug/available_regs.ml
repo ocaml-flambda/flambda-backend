@@ -372,7 +372,6 @@ let fundecl (f : M.fundecl) =
   then (
     assert (Hashtbl.length avail_at_exit = 0);
     avail_at_raise := RAS.Unreachable;
-
     current_trap_stack := M.Uncaught;
     let fun_args = R.set_of_array f.fun_args in
     let avail_before = RAS.Ok (RD.Set.without_debug_info fun_args) in

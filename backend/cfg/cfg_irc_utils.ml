@@ -8,11 +8,11 @@ let fatal_if_not_irc_debug env_var =
   if not irc_debug then fatal "%s is set but debugging mode is disabled" env_var
 
 let bool_of_env env_var =
-  match Sys.getenv_opt env_var with
-  | Some "1" ->
+  if Cfg_regalloc_utils.bool_of_env env_var
+  then (
     fatal_if_not_irc_debug env_var;
-    true
-  | Some _ | None -> false
+    true)
+  else false
 
 let irc_verbose : bool = bool_of_env "IRC_VERBOSE"
 
@@ -30,26 +30,33 @@ let log : type a. indent:int -> (a, Format.formatter, unit) format -> a =
 let log_instruction_prefix ~indent (instr : _ Cfg.instruction) : unit =
   Format.eprintf "[irc] %s #%04d " (make_indent indent) instr.id
 
-let log_instruction_suffix (instr : _ Cfg.instruction) : unit =
+let log_instruction_suffix (instr : _ Cfg.instruction) (liveness : liveness) :
+    unit =
+  let live =
+    match Cfg_dataflow.Instr.Tbl.find_opt liveness instr.id with
+    | None -> Reg.Set.empty
+    | Some { before = _; across } -> across
+  in
   Format.eprintf " arg: %a res: %a live: %a" Printmach.regs instr.arg
-    Printmach.regs instr.res Printmach.regset instr.live;
+    Printmach.regs instr.res Printmach.regset live;
   Format.eprintf "\n%!"
 
 let log_body_and_terminator :
     indent:int ->
     Cfg.basic Cfg.instruction list ->
     Cfg.terminator Cfg.instruction ->
+    liveness ->
     unit =
- fun ~indent body term ->
+ fun ~indent body term liveness ->
   if irc_debug && irc_verbose
   then (
     List.iter body ~f:(fun (instr : Cfg.basic Cfg.instruction) ->
         log_instruction_prefix ~indent instr;
         Cfg.dump_basic Format.err_formatter instr.Cfg.desc;
-        log_instruction_suffix instr);
+        log_instruction_suffix instr liveness);
     log_instruction_prefix ~indent term;
     Cfg.dump_terminator ~sep:", " Format.err_formatter term.Cfg.desc;
-    log_instruction_suffix term)
+    log_instruction_suffix term liveness)
 
 module Color = struct
   type t = int

@@ -56,6 +56,7 @@ module CstMap =
   end)
 
 module SymMap = Misc.Stdlib.String.Map
+module String = Misc.Stdlib.String
 
 type structured_constants =
   {
@@ -76,6 +77,37 @@ let exported_constants = Hashtbl.create 17
 
 let merged_environment = ref Export_info.empty
 
+module Checks : sig
+  (* mutable state *)
+  type t = Cmx_format.checks
+
+  val create : unit -> t
+
+  val reset : t -> unit
+
+  val merge : t -> into:t -> unit
+end = struct
+  type t = Cmx_format.checks
+
+  let create () =
+    {
+      ui_noalloc_functions = String.Set.empty;
+    }
+
+  let reset t =
+    t.ui_noalloc_functions <- String.Set.empty
+
+  let merge src ~into:dst =
+    if !Flambda_backend_flags.alloc_check
+    then (
+      dst.ui_noalloc_functions
+        <- String.Set.union dst.ui_noalloc_functions src.ui_noalloc_functions)
+end
+
+let cached_checks : Cmx_format.checks = Checks.create ()
+
+let cache_checks c = Checks.merge c ~into:cached_checks
+
 let default_ui_export_info =
   if Config.flambda then
     Cmx_format.Flambda1 Export_info.empty
@@ -91,11 +123,13 @@ let current_unit =
     ui_imports_cmx = [];
     ui_generic_fns = { curry_fun = []; apply_fun = []; send_fun = [] };
     ui_force_link = false;
+    ui_checks = Checks.create ();
     ui_export_info = default_ui_export_info }
 
 let reset compilation_unit =
   CU.Name.Tbl.clear global_infos_table;
   Set_of_closures_id.Tbl.clear imported_sets_of_closures_table;
+  Checks.reset cached_checks;
   CU.set_current compilation_unit;
   current_unit.ui_unit <- compilation_unit;
   current_unit.ui_defines <- [compilation_unit];
@@ -104,6 +138,7 @@ let reset compilation_unit =
   current_unit.ui_generic_fns <-
     { curry_fun = []; apply_fun = []; send_fun = [] };
   current_unit.ui_force_link <- !Clflags.link_everything;
+  Checks.reset current_unit.ui_checks;
   Hashtbl.clear exported_constants;
   structured_constants := structured_constants_empty;
   current_unit.ui_export_info <- default_ui_export_info;
@@ -160,6 +195,7 @@ let get_unit_info modname =
             if not (CU.Name.equal (CU.name ui.ui_unit) modname)
             then
               raise(Error(Illegal_renaming(modname, CU.name ui.ui_unit, filename)));
+            cache_checks ui.ui_checks;
             (Some ui, Some crc)
           with Not_found ->
             let warn = Warnings.No_cmx_file (modname |> CU.Name.to_string) in
@@ -188,6 +224,7 @@ let get_global_export_info id =
   | Some ui -> Some ui.ui_export_info
 
 let cache_unit_info ui =
+  cache_checks ui.ui_checks;
   CU.Name.Tbl.add global_infos_table (CU.name ui.ui_unit) (Some ui)
 
 (* Return the approximation of a global identifier *)

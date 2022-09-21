@@ -1410,7 +1410,6 @@ let bprint_fmt buf fmt =
       fmtiter rest ign_flag
     | End_of_format -> ()
   in
-
   fmtiter fmt false
 
 (***)
@@ -3006,19 +3005,16 @@ let fmt_ebb_of_string ?legacy_behavior str =
        ' (if the number is positive, pad with a space) does not make sense, but
        the legacy (< 4.02) implementation was happy to just ignore the space. *)
   in
-
   (* Raise [Failure] with a friendly error message. *)
   let invalid_format_message str_ind msg =
     failwith_message "invalid format %S: at character number %d, %s" str str_ind
       msg
   in
-
   (* Used when the end of the format (or the current sub-format) was encountered
      unexpectedly. *)
   let unexpected_end_of_format end_ind =
     invalid_format_message end_ind "unexpected end of format"
   in
-
   (* Used for %0c: no other widths are implemented *)
   let invalid_nonnull_char_width str_ind =
     invalid_format_message str_ind
@@ -3031,7 +3027,6 @@ let fmt_ebb_of_string ?legacy_behavior str =
       "invalid format %S: at character number %d, '%c' without %s" str str_ind c
       s
   in
-
   (* Raise [Failure] with a friendly error message about an unexpected
      character. *)
   let expected_character str_ind expected read =
@@ -3039,7 +3034,6 @@ let fmt_ebb_of_string ?legacy_behavior str =
       "invalid format %S: at character number %d, %s expected, read %C" str
       str_ind expected read
   in
-
   (* Parse the string from beg_ind (included) to end_ind (excluded). *)
   let rec parse : type e f. int -> int -> (_, _, e, f) fmt_ebb =
    fun beg_ind end_ind -> parse_literal beg_ind beg_ind end_ind
@@ -3276,7 +3270,6 @@ let fmt_ebb_of_string ?legacy_behavior str =
     and ign_used = ref false
     and pad_used = ref false
     and prec_used = ref false in
-
     (* Access to options, update flags. *)
     let get_plus () =
       plus_used := true;
@@ -3300,7 +3293,6 @@ let fmt_ebb_of_string ?legacy_behavior str =
       pad_used := true;
       padprec
     in
-
     let get_int_pad () =
       (* %5.3d is accepted and meaningful: pad to length 5 with spaces, but
          first pad with zeros upto length 3 (0-padding is the interpretation of
@@ -3326,7 +3318,6 @@ let fmt_ebb_of_string ?legacy_behavior str =
       | (Lit_padding _ as pad), _ -> pad
       | (Arg_padding _ as pad), _ -> pad
     in
-
     (* Check that padty <> Zeros. *)
     let check_no_0 symb (type a b) (pad : (a, b) padding) =
       match pad with
@@ -3342,7 +3333,6 @@ let fmt_ebb_of_string ?legacy_behavior str =
         then Arg_padding Right
         else incompatible_flag pct_ind str_ind symb "0"
     in
-
     (* Get padding as a pad_option (see "%_", "%{", "%(" and "%["). (no need for
        legacy mode tweaking, those were rejected by the legacy parser as
        well) *)
@@ -3362,7 +3352,6 @@ let fmt_ebb_of_string ?legacy_behavior str =
     in
     let get_pad_opt c = opt_of_pad c (get_pad ()) in
     let get_padprec_opt c = opt_of_pad c (get_padprec ()) in
-
     (* Get precision as a prec_option (see "%_f"). (no need for legacy mode
        tweaking, those were rejected by the legacy parser as well) *)
     let get_prec_opt () =
@@ -3371,7 +3360,6 @@ let fmt_ebb_of_string ?legacy_behavior str =
       | Lit_precision ndec -> Some ndec
       | Arg_precision -> incompatible_flag pct_ind str_ind '_' "'*'"
     in
-
     let fmt_result =
       match symb with
       | ',' -> parse str_ind end_ind
@@ -3746,7 +3734,6 @@ let fmt_ebb_of_string ?legacy_behavior str =
   (* Parse and construct a char set. *)
   and parse_char_set str_ind end_ind =
     if str_ind = end_ind then unexpected_end_of_format end_ind;
-
     let char_set = create_char_set () in
     let add_char c = add_in_char_set char_set c in
     let add_range c c' =
@@ -3754,14 +3741,12 @@ let fmt_ebb_of_string ?legacy_behavior str =
         add_in_char_set char_set (char_of_int i)
       done
     in
-
     let fail_single_percent str_ind =
       failwith_message
         "invalid format %S: '%%' alone is not accepted in character sets, use \
          %%%% instead at position %d."
         str str_ind
     in
-
     (* Parse the first character of a char set. *)
     let rec parse_char_set_start str_ind end_ind =
       if str_ind = end_ind then unexpected_end_of_format end_ind;
@@ -3993,7 +3978,6 @@ let fmt_ebb_of_string ?legacy_behavior str =
        in sub-format %S"
       str pct_ind option symb subfmt
   in
-
   parse 0 (String.length str)
 
 (******************************************************************************)

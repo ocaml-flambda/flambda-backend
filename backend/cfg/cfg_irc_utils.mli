@@ -14,6 +14,7 @@ val log_body_and_terminator :
   indent:int ->
   Cfg.basic Cfg.instruction list ->
   Cfg.terminator Cfg.instruction ->
+  liveness ->
   unit
 
 module Color : sig

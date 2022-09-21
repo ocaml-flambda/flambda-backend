@@ -54,6 +54,9 @@ the OPAM commands [in the CI check](https://github.com/ocaml-flambda/flambda-bac
 be used for the Flambda backend build itself.)  All of the code can be
 formatted using `make fmt` and the check can be run using `make check-fmt`.
 
+Note in particular that a recent (>= 1.10.0) version of the `re` library is
+required due to a bug in the parsing of `.ocamlformat-enable` syntax.
+
 Changes to `.ocamlformat` should be made as pull requests that include
 reformatting files as needed.
 

@@ -30,6 +30,7 @@ let no_code = ref false
 let no_crc = ref false
 
 module Magic_number = Misc.Magic_number
+module String = Misc.Stdlib.String
 
 let input_stringlist ic len =
   let get_string_list sect len =
@@ -185,7 +186,9 @@ let print_cmx_infos (ui, crc) =
     Format.printf "%a\n%!" Flambda2_cmx.Flambda_cmx_format.print cmx
   end;
   print_generic_fns ui.ui_generic_fns;
-  printf "Force link: %s\n" (if ui.ui_force_link then "YES" else "no")
+  printf "Force link: %s\n" (if ui.ui_force_link then "YES" else "no");
+  printf "Functions with neither allocations nor indirect calls:\n";
+  String.Set.iter print_line ui.ui_checks.ui_noalloc_functions
 
 let print_cmxa_infos (lib : Cmx_format.library_infos) =
   printf "Extra C object files:";

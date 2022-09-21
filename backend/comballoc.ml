@@ -12,6 +12,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+[@@@ocaml.warning "+a-30-40-41-42"]
 
 (* Combine heap allocations occurring in the same basic block *)
 
@@ -75,7 +76,25 @@ let rec combine i allocstate =
       let newnext = combine_restart i.next in
       (instr_cons_debug i.desc i.arg i.res i.dbg newnext,
        allocstate)
-  | Iop _ ->
+  | Iop(Ibeginregion|Iendregion) -> begin
+      match allocstate with
+      | Pending_alloc { mode = Alloc_local; _ } ->
+          let newnext = combine_restart i.next in
+          (instr_cons_debug i.desc i.arg i.res i.dbg newnext, allocstate)
+      | No_alloc | Pending_alloc { mode = Alloc_heap; _ } ->
+          let newnext, s' = combine i.next allocstate in
+          (instr_cons_debug i.desc i.arg i.res i.dbg newnext, s')
+    end
+  | Iop((Imove|Ispill|Ireload|Inegf|Iabsf|Iaddf|Isubf|Imulf|Idivf|Ifloatofint|
+         Iintoffloat|Iopaque|Iconst_int _|Iconst_float _|
+         Iconst_symbol _|Istackoffset _|Iload (_, _, _)|Istore (_, _, _)|Icompf _|
+         Ispecific _|Iname_for_debugger _|Iprobe_is_enabled _))
+  | Iop(Iintop(Iadd | Isub | Imul | Idiv | Imod | Iand | Ior | Ixor
+              | Ilsl | Ilsr | Iasr | Ipopcnt | Imulh _
+              | Iclz _ | Ictz _ | Icomp _))
+  | Iop(Iintop_imm((Iadd | Isub | Imul | Idiv | Imod | Iand | Ior | Ixor
+                   | Ilsl | Ilsr | Iasr | Ipopcnt | Imulh _
+                   | Iclz _ | Ictz _ | Icomp _),_))  ->
       let (newnext, s') = combine i.next allocstate in
       (instr_cons_debug i.desc i.arg i.res i.dbg newnext, s')
   | Iifthenelse(test, ifso, ifnot) ->

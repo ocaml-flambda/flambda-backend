@@ -281,7 +281,6 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
     | None -> dead_code lam letrec)
   | Lmutlet (k, id, def, body) ->
     let letrec = prepare_letrec recursive_set current_let body letrec in
-
     (* Variable let comes from mutable values, and reading from it is considered
        as inspections by Typecore.check_recursive_expression.
 
@@ -367,7 +366,6 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
         recursive_set
     in
     let outer_vars = Ident.Set.inter vars recursive_set in
-
     if Ident.Set.is_empty outer_vars
     then
       (* Non recursive relative to top-level letrec, we can avoid dissecting it
@@ -526,7 +524,6 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
 
 let dissect_letrec ~bindings ~body =
   let letbound = Ident.Set.of_list (List.map fst bindings) in
-
   let letrec =
     List.fold_right
       (fun (id, def) letrec ->
@@ -543,7 +540,6 @@ let dissect_letrec ~bindings ~body =
         needs_region = false
       }
   in
-
   let preallocations =
     List.map
       (fun (id, { block_type; size }) ->
@@ -557,7 +553,6 @@ let dissect_letrec ~bindings ~body =
         id, Lprim (Pccall desc, [size], Loc_unknown))
       letrec.blocks
   in
-
   let real_body = body in
   let bound_ids_freshening =
     List.map (fun (bound_id, _) -> bound_id, Ident.rename bound_id) bindings
@@ -571,7 +566,6 @@ let dissect_letrec ~bindings ~body =
       let args = List.map (fun (bound_id, _) -> Lvar bound_id) bindings in
       Lstaticraise (cont, args)
   in
-
   let effects_then_body = lsequence (letrec.effects, body) in
   let functions =
     match letrec.functions with
@@ -594,7 +588,6 @@ let dissect_letrec ~bindings ~body =
       with_preallocations letrec.consts
   in
   let substituted = Lambda.rename letrec.substitution with_constants in
-
   if not letrec.needs_region
   then substituted
   else

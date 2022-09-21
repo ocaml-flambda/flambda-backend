@@ -325,6 +325,7 @@ let destroyed_at_pushtrap =
 let has_pushtrap traps =
   List.exists (function Cmm.Push _ -> true | Pop -> false) traps
 
+(* note: keep this function in sync with `destroyed_at_{basic,terminator}` below. *)
 let destroyed_at_oper = function
     Iop(Icall_ind | Icall_imm _ | Iextcall { alloc = true; }) ->
     all_phys_regs
@@ -340,6 +341,7 @@ let destroyed_at_oper = function
   | Iexit (_, traps) when has_pushtrap traps -> destroyed_at_pushtrap
   | Ireturn traps when has_pushtrap traps -> assert false
   | Iop(Ispecific (Irdtsc | Irdpmc)) -> [| rax; rdx |]
+  | Iop(Ispecific(Ilfence | Isfence | Imfence)) -> [||]
   | Iop(Ispecific(Isqrtf | Isextend32 | Izextend32 | Icrc32q | Ilea _
                  | Istore_int (_, _, _) | Ioffset_loc (_, _)
                  | Ipause
@@ -375,6 +377,71 @@ let destroyed_at_oper = function
 let destroyed_at_raise = all_phys_regs
 
 let destroyed_at_reloadretaddr = [| |]
+
+(* note: keep this function in sync with `destroyed_at_oper` above. *)
+let destroyed_at_basic (basic : Cfg_intf.S.basic) =
+  match basic with
+  | Call (P (Alloc _)) ->
+    destroyed_at_alloc
+  | Reloadretaddr ->
+    destroyed_at_reloadretaddr
+  | Pushtrap _ ->
+    destroyed_at_pushtrap
+  | Op (Intop (Idiv | Imod)) | Op (Intop_imm ((Idiv | Imod), _)) ->
+    [| rax; rdx |]
+  | Op(Store(Single, _, _)) ->
+    [| rxmm15 |]
+  | Op(Intop(Imulh _ | Icomp _) | Intop_imm((Icomp _), _)) ->
+    [| rax |]
+  | Op (Specific (Irdtsc | Irdpmc)) ->
+    [| rax; rdx |]
+  | Op (Intop Icheckbound | Intop_imm (Icheckbound, _)) ->
+    assert false
+  | Op (Move | Spill | Reload
+       | Const_int _ | Const_float _ | Const_symbol _
+       | Stackoffset _
+       | Load _ | Store ((Byte_unsigned | Byte_signed | Sixteen_unsigned
+                         | Sixteen_signed | Thirtytwo_unsigned
+                         | Thirtytwo_signed | Word_int | Word_val
+                         | Double ), _, _)
+       | Intop (Iadd | Isub | Imul | Iand | Ior | Ixor | Ilsl | Ilsr
+               | Iasr | Ipopcnt | Iclz _ | Ictz _)
+       | Intop_imm ((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor
+                    | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _),_)
+       | Negf | Absf | Addf | Subf | Mulf | Divf
+       | Compf _
+       | Floatofint | Intoffloat
+       | Probe _
+       | Probe_is_enabled _
+       | Opaque
+       | Begin_region
+       | End_region
+       | Specific (Ilea _ | Istore_int _ | Ioffset_loc _
+                  | Ifloatarithmem _ | Ibswap _ | Isqrtf
+                  | Ifloatsqrtf _ | Ifloat_iround
+                  | Ifloat_round _ | Ifloat_min | Ifloat_max
+                  | Isextend32 | Izextend32 | Icrc32q | Ipause
+                  | Iprefetch _ | Ilfence | Isfence | Imfence)
+       | Name_for_debugger _)
+  | Call (P (Checkbound _))
+  | Poptrap | Prologue ->
+    if fp then [| rbp |] else [||]
+  | Call (P (External { func_symbol = _; alloc; ty_res = _; ty_args = _; })) ->
+    if alloc then all_phys_regs else destroyed_at_c_call
+  | Call (F (Indirect | Direct _)) ->
+    all_phys_regs
+
+(* note: keep this function in sync with `destroyed_at_oper`. above *)
+let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
+  match terminator with
+  | Never -> assert false
+  | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
+  | Return | Raise _ | Tailcall _ ->
+    if fp then [| rbp |] else [||]
+  | Switch _ ->
+    [| rax; rdx |]
+  | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; } ->
+    if alloc then all_phys_regs else destroyed_at_c_call
 
 (* Maximal register pressure *)
 
@@ -424,6 +491,7 @@ let max_register_pressure =
   | Istackoffset _ | Iload (_, _, _)
   | Ispecific(Ilea _ | Isextend32 | Izextend32 | Iprefetch _ | Ipause
              | Irdtsc | Irdpmc | Icrc32q | Istore_int (_, _, _)
+             | Ilfence | Isfence | Imfence
              | Ifloat_round _
              | Ifloat_iround | Ifloat_min | Ifloat_max
              | Ioffset_loc (_, _) | Ifloatarithmem (_, _)

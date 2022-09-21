@@ -470,6 +470,9 @@ let read_one_param ppf position name v =
      let if_on = if name = "timings" then [ `Time ] else Profile.all_columns in
      profile_columns := if check_bool ppf name v then if_on else []
 
+  | "timings-precision" ->
+     int_setter ppf "timings-precision" timings_precision v
+
   | "stop-after" ->
     set_compiler_pass ppf v ~name Clflags.stop_after ~filter:(fun _ -> true)
 

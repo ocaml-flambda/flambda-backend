@@ -1294,6 +1294,12 @@ let emit_rdtsc b = buf_opcodes b [ 0x0F; 0x31 ]
 
 let emit_rdpmc b = buf_opcodes b [ 0x0F; 0x33 ]
 
+let emit_lfence b = buf_opcodes b [ 0x0F; 0xAE; 0xE8 ]
+
+let emit_sfence b = buf_opcodes b [ 0x0F; 0xAE; 0xF8 ]
+
+let emit_mfence b = buf_opcodes b [ 0x0F; 0xAE; 0xF0 ]
+
 let emit_leave b = buf_int8 b 0xC9
 
 let emit_maxsd b ~dst ~src =
@@ -1554,6 +1560,9 @@ let assemble_instr b loc = function
   | PREFETCH (is_write, hint, rm) -> emit_prefetch b ~is_write ~hint rm
   | RDTSC -> emit_rdtsc b
   | RDPMC -> emit_rdpmc b
+  | LFENCE -> emit_lfence b
+  | SFENCE -> emit_sfence b
+  | MFENCE -> emit_mfence b
   | RET -> emit_ret b
   | ROUNDSD (rounding, src, dst) -> emit_roundsd b dst rounding src
   | SAL (src, dst) -> emit_SAL b dst src

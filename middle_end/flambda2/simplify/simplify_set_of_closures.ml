@@ -640,11 +640,10 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
           let bt = Printexc.get_raw_backtrace () in
           Format.eprintf
             "\n\
-             %sContext is:%s simplifying function with function slot %a,@ \
+             %tContext is:%t simplifying function with function slot %a,@ \
              params %a,@ return continuation %a,@ exn continuation %a,@ \
              my_closure %a,@ body:@ %a@ with downwards accumulator:@ %a\n"
-            (Flambda_colours.error ())
-            (Flambda_colours.normal ())
+            Flambda_colours.error Flambda_colours.pop
             (Format.pp_print_option Function_slot.print)
             function_slot_opt Bound_parameters.print params Continuation.print
             return_continuation Continuation.print exn_continuation

@@ -196,6 +196,9 @@ type instruction =
   | PUSH of arg
   | RDTSC
   | RDPMC
+  | LFENCE 
+  | SFENCE 
+  | MFENCE
   | RET
   | ROUNDSD of rounding * arg * arg
   | SAL of arg * arg

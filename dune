@@ -11,7 +11,15 @@
 ; set warning as error in release profile
 
 (env
- (release
+ (main
+  (flags
+   (:standard -warn-error +A))
+  (ocamlopt_flags
+   ;; CR gyorsh: it is not clear what the ":standard" flags are, and they
+   ;; may change depending on the version of dune.
+   ;; Consider hard-coded flags, such as -O3.
+   (:standard -alloc-check)))
+ (boot
   (flags
    (:standard -warn-error +A))))
 
@@ -200,6 +208,7 @@
   printcmm
   printlinear
   printmach
+  checkmach
   proc
   reg
   reload
@@ -229,11 +238,14 @@
   cfg_intf
   cfg_to_linear
   cfg_with_layout
+  cfg_with_liveness
   cfg_dataflow
   cfg_deadcode
   cfg_liveness
   cfg_regalloc_utils
+  cfg_regalloc_validate
   cfg_to_linear_desc
+  cfg_stack_operands
   cfg_irc
   cfg_irc_state
   cfg_irc_utils
@@ -710,6 +722,7 @@
   (printcmm.mli as compiler-libs/printcmm.mli)
   (printlinear.mli as compiler-libs/printlinear.mli)
   (printmach.mli as compiler-libs/printmach.mli)
+  (checkmach.mli as compiler-libs/mach_checks.mli)
   (proc.mli as compiler-libs/proc.mli)
   (reg.mli as compiler-libs/reg.mli)
   (reload.mli as compiler-libs/reload.mli)
@@ -740,11 +753,14 @@
   (cfg.mli as compiler-libs/cfg.mli)
   (cfg_to_linear.mli as compiler-libs/cfg_to_linear.mli)
   (cfg_with_layout.mli as compiler-libs/cfg_with_layout.mli)
+  (cfg_with_liveness.mli as compiler-libs/cfg_with_liveness.mli)
   (cfg_dataflow.mli as compiler-libs/cfg_dataflow.mli)
   (cfg_deadcode.mli as compiler-libs/cfg_deadcode.mli)
   (cfg_liveness.mli as compiler-libs/cfg_liveness.mli)
   (cfg_regalloc_utils.mli as compiler-libs/cfg_regalloc_utils.mli)
+  (cfg_regalloc_validate.mli as compiler-libs/cfg_regalloc_validate.mli)
   (cfg_to_linear_desc.mli as compiler-libs/cfg_to_linear_desc.mli)
+  (cfg_stack_operands.mli as compiler-libs/cfg_stack_operands.mli)
   (cfg_irc.mli as compiler-libs/cfg_irc.mli)
   (cfg_irc_state.mli as compiler-libs/cfg_irc_state.mli)
   (cfg_irc_utils.mli as compiler-libs/cfg_irc_utils.mli)
@@ -1022,6 +1038,11 @@
   (.ocamloptcomp.objs/byte/printmach.cmo as compiler-libs/printmach.cmo)
   (.ocamloptcomp.objs/byte/printmach.cmt as compiler-libs/printmach.cmt)
   (.ocamloptcomp.objs/byte/printmach.cmti as compiler-libs/printmach.cmti)
+  (.ocamloptcomp.objs/native/checkmach.cmx as compiler-libs/checkmach.cmx)
+  (.ocamloptcomp.objs/byte/checkmach.cmi as compiler-libs/checkmach.cmi)
+  (.ocamloptcomp.objs/byte/checkmach.cmo as compiler-libs/checkmach.cmo)
+  (.ocamloptcomp.objs/byte/checkmach.cmt as compiler-libs/checkmach.cmt)
+  (.ocamloptcomp.objs/byte/checkmach.cmti as compiler-libs/checkmach.cmti)
   (.ocamloptcomp.objs/byte/proc.cmi as compiler-libs/proc.cmi)
   (.ocamloptcomp.objs/byte/proc.cmo as compiler-libs/proc.cmo)
   (.ocamloptcomp.objs/byte/proc.cmt as compiler-libs/proc.cmt)
@@ -1155,6 +1176,18 @@
   (.ocamloptcomp.objs/byte/cfg_with_layout.cmti
    as
    compiler-libs/cfg_with_layout.cmti)
+  (.ocamloptcomp.objs/byte/cfg_with_liveness.cmi
+   as
+   compiler-libs/cfg_with_liveness.cmi)
+  (.ocamloptcomp.objs/byte/cfg_with_liveness.cmo
+   as
+   compiler-libs/cfg_with_liveness.cmo)
+  (.ocamloptcomp.objs/byte/cfg_with_liveness.cmt
+   as
+   compiler-libs/cfg_with_liveness.cmt)
+  (.ocamloptcomp.objs/byte/cfg_with_liveness.cmti
+   as
+   compiler-libs/cfg_with_liveness.cmti)
   (.ocamloptcomp.objs/byte/cfg_dataflow.cmi
    as
    compiler-libs/cfg_dataflow.cmi)
@@ -1203,6 +1236,31 @@
   (.ocamloptcomp.objs/byte/cfg_regalloc_utils.cmti
    as
    compiler-libs/cfg_regalloc_utils.cmti)
+
+  (.ocamloptcomp.objs/byte/cfg_regalloc_validate.cmi
+   as
+   compiler-libs/cfg_regalloc_validate.cmi)
+  (.ocamloptcomp.objs/byte/cfg_regalloc_validate.cmo
+   as
+   compiler-libs/cfg_regalloc_validate.cmo)
+  (.ocamloptcomp.objs/byte/cfg_regalloc_validate.cmt
+    as
+    compiler-libs/cfg_regalloc_validate.cmt)
+  (.ocamloptcomp.objs/byte/cfg_regalloc_validate.cmti
+    as
+    compiler-libs/cfg_regalloc_validate.cmti)
+  (.ocamloptcomp.objs/byte/cfg_stack_operands.cmi
+   as
+   compiler-libs/cfg_stack_operands.cmi)
+  (.ocamloptcomp.objs/byte/cfg_stack_operands.cmo
+   as
+   compiler-libs/cfg_stack_operands.cmo)
+  (.ocamloptcomp.objs/byte/cfg_stack_operands.cmt
+   as
+   compiler-libs/cfg_stack_operands.cmt)
+  (.ocamloptcomp.objs/byte/cfg_stack_operands.cmti
+   as
+   compiler-libs/cfg_stack_operands.cmti)
   (.ocamloptcomp.objs/byte/cfg_to_linear_desc.cmi
    as
    compiler-libs/cfg_to_linear_desc.cmi)
@@ -1471,6 +1529,9 @@
   (.ocamloptcomp.objs/native/cfg_with_layout.cmx
    as
    compiler-libs/cfg_with_layout.cmx)
+  (.ocamloptcomp.objs/native/cfg_with_liveness.cmx
+   as
+   compiler-libs/cfg_with_liveness.cmx)
   (.ocamloptcomp.objs/native/cfg_dataflow.cmx
    as
    compiler-libs/cfg_dataflow.cmx)
@@ -1483,6 +1544,12 @@
   (.ocamloptcomp.objs/native/cfg_regalloc_utils.cmx
    as
    compiler-libs/cfg_regalloc_utils.cmx)
+  (.ocamloptcomp.objs/native/cfg_regalloc_validate.cmx
+    as
+    compiler-libs/cfg_regalloc_validate.cmx)
+  (.ocamloptcomp.objs/native/cfg_stack_operands.cmx
+   as
+   compiler-libs/cfg_stack_operands.cmx)
   (.ocamloptcomp.objs/native/cfg_to_linear_desc.cmx
    as
    compiler-libs/cfg_to_linear_desc.cmx)

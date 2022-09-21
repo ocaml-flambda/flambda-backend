@@ -159,75 +159,75 @@ let [@ocamlformat "disable"] print ppf
         absolute_history; relative_history} =
   let module C = Flambda_colours in
   Format.fprintf ppf "@[<hov 1>(\
-      @[<hov 1>@<0>%s(newer_version_of@ %a)@<0>%s@]@ \
-      @[<hov 1>@<0>%s(stub@ %b)@<0>%s@]@ \
-      @[<hov 1>@<0>%s(inline@ %a)@<0>%s@]@ \
-      @[<hov 1>@<0>%s(is_a_functor@ %b)@<0>%s@]@ \
-      @[<hov 1>@<0>%s(params_arity@ @<0>%s%a@<0>%s)@<0>%s@]@ \
+      @[<hov 1>%t(newer_version_of@ %a)%t@]@ \
+      @[<hov 1>%t(stub@ %b)%t@]@ \
+      @[<hov 1>%t(inline@ %a)%t@]@ \
+      @[<hov 1>%t(is_a_functor@ %b)%t@]@ \
+      @[<hov 1>%t(params_arity@ %t%a%t)%t@]@ \
       @[<hov 1>(num_trailing_local_params@ %d)@]@ \
-      @[<hov 1>@<0>%s(result_arity@ @<0>%s%a@<0>%s)@<0>%s@]@ \
+      @[<hov 1>%t(result_arity@ %t%a%t)%t@]@ \
       @[<hov 1>(result_types@ @[<hov 1>(%a)@])@]@ \
       @[<hov 1>(contains_no_escaping_local_allocs@ %b)@]@ \
-      @[<hov 1>@<0>%s(recursive@ %a)@<0>%s@]@ \
+      @[<hov 1>%t(recursive@ %a)%t@]@ \
       @[<hov 1>(cost_metrics@ %a)@]@ \
       @[<hov 1>(inlining_arguments@ %a)@]@ \
-      @[<hov 1>@<0>%s(dbg@ %a)@<0>%s@]@ \
-      @[<hov 1>@<0>%s(is_tupled@ %b)@<0>%s@]@ \
+      @[<hov 1>%t(dbg@ %a)%t@]@ \
+      @[<hov 1>%t(is_tupled@ %b)%t@]@ \
       @[<hov 1>(is_my_closure_used@ %b)@]@ \
       %a\
       @[<hov 1>(inlining_decision@ %a)@]\
       )@]"
-    (if Option.is_none newer_version_of then Flambda_colours.elide ()
-    else Flambda_colours.normal ())
+    (if Option.is_none newer_version_of then Flambda_colours.elide
+    else Flambda_colours.none)
     (Option.print_compact Code_id.print) newer_version_of
-    (Flambda_colours.normal ())
-    (if not stub then Flambda_colours.elide () else C.normal ())
+    Flambda_colours.pop
+    (if not stub then Flambda_colours.elide else C.none)
     stub
-    (Flambda_colours.normal ())
+    Flambda_colours.pop
     (if Inline_attribute.is_default inline
-    then Flambda_colours.elide ()
-    else C.normal ())
+    then Flambda_colours.elide
+    else C.none)
     Inline_attribute.print inline
-    (Flambda_colours.normal ())
-    (if not is_a_functor then Flambda_colours.elide () else C.normal ())
+    Flambda_colours.pop
+    (if not is_a_functor then Flambda_colours.elide else C.none)
     is_a_functor
-    (Flambda_colours.normal ())
+    Flambda_colours.pop
     (if Flambda_arity.With_subkinds.is_singleton_value params_arity
-    then Flambda_colours.elide ()
-    else Flambda_colours.normal ())
-    (Flambda_colours.normal ())
+    then Flambda_colours.elide
+    else Flambda_colours.none)
+    Flambda_colours.pop
     Flambda_arity.With_subkinds.print params_arity
     (if Flambda_arity.With_subkinds.is_singleton_value params_arity
-    then Flambda_colours.elide ()
-    else Flambda_colours.normal ())
-    (Flambda_colours.normal ())
+    then Flambda_colours.elide
+    else Flambda_colours.none)
+    Flambda_colours.pop
     num_trailing_local_params
     (if Flambda_arity.With_subkinds.is_singleton_value result_arity
-    then Flambda_colours.elide ()
-    else Flambda_colours.normal ())
-    (Flambda_colours.normal ())
+    then Flambda_colours.elide
+    else Flambda_colours.none)
+    Flambda_colours.pop
     Flambda_arity.With_subkinds.print result_arity
     (if Flambda_arity.With_subkinds.is_singleton_value result_arity
-    then Flambda_colours.elide ()
-    else Flambda_colours.normal ())
-    (Flambda_colours.normal ())
+    then Flambda_colours.elide
+    else Flambda_colours.none)
+    Flambda_colours.pop
     Result_types.print result_types
     contains_no_escaping_local_allocs
     (match recursive with
-    | Non_recursive -> Flambda_colours.elide ()
-    | Recursive -> Flambda_colours.normal ())
+    | Non_recursive -> Flambda_colours.elide
+    | Recursive -> Flambda_colours.none)
     Recursive.print recursive
-    (Flambda_colours.normal ())
+    Flambda_colours.pop
     Cost_metrics.print cost_metrics
     Inlining_arguments.print inlining_arguments
-    (Flambda_colours.debuginfo ())
+    Flambda_colours.debuginfo
     Debuginfo.print_compact dbg
-    (Flambda_colours.normal ())
+    Flambda_colours.pop
     (if is_tupled
-    then Flambda_colours.normal ()
-    else Flambda_colours.elide ())
+    then Flambda_colours.none
+    else Flambda_colours.elide)
     is_tupled
-    (Flambda_colours.normal ())
+    Flambda_colours.pop
     is_my_closure_used
     print_inlining_paths (relative_history, absolute_history)
     Function_decl_inlining_decision_type.print inlining_decision

@@ -206,14 +206,16 @@ module Inlining = struct
       Inlining_report.record_decision_at_call_site_for_unknown_function ~tracker
         ~apply ~pass:After_closure_conversion ();
       Not_inlinable
-    | Some (Value_symbol _) | Some (Block_approximation _) -> assert false
-    | Some (Closure_approximation (_code_id, _, Metadata_only _)) ->
+    | Some (Value_symbol _) | Some (Value_int _) | Some (Block_approximation _)
+      ->
+      assert false
+    | Some (Closure_approximation { code = Metadata_only _; _ }) ->
       Inlining_report.record_decision_at_call_site_for_known_function ~tracker
         ~apply ~pass:After_closure_conversion ~unrolling_depth:None
         ~callee:(Inlining_history.Absolute.empty compilation_unit)
         ~are_rebuilding_terms Definition_says_not_to_inline;
       Not_inlinable
-    | Some (Closure_approximation (_code_id, _, Code_present code)) ->
+    | Some (Closure_approximation { code = Code_present code; _ }) ->
       let fun_params_length =
         Code.params_arity code |> Flambda_arity.With_subkinds.to_arity
         |> Flambda_arity.length
@@ -738,7 +740,7 @@ let close_let acc env id user_visible defining_expr
         | Prim (Binary (Block_load _, block, field), _) -> (
           match Env.find_value_approximation body_env block with
           | Value_unknown -> Some body_env
-          | Closure_approximation _ | Value_symbol _ ->
+          | Closure_approximation _ | Value_symbol _ | Value_int _ ->
             (* Here we assume [block] has already been substituted as a known
                symbol if it exists, and rely on the invariant that the
                approximation of a symbol is never a symbol. *)
@@ -826,9 +828,16 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
       | None -> handler_env
       | Some args ->
         List.fold_left2
-          (fun env arg_approx param ->
-            Env.add_value_approximation env (Name.var param) arg_approx)
-          handler_env args params
+          (fun env arg_approx (param, (param_id, _, _)) ->
+            let env =
+              Env.add_value_approximation env (Name.var param) arg_approx
+            in
+            match (arg_approx : Env.value_approximation) with
+            | Value_symbol s | Closure_approximation { symbol = Some s; _ } ->
+              Env.add_simple_to_substitute env param_id (Simple.symbol s)
+            | _ -> env)
+          handler_env args
+          (List.combine params params_with_kinds)
     in
     handler acc handler_env
   in
@@ -863,8 +872,7 @@ let close_exact_or_unknown_apply acc env
     | Function -> (
       ( acc,
         match (callee_approx : Env.value_approximation option) with
-        | Some (Closure_approximation (code_id, _function_slot, code_or_meta))
-          ->
+        | Some (Closure_approximation { code_id; code = code_or_meta; _ }) ->
           let return_arity, is_tupled =
             let meta = Code_or_metadata.code_metadata code_or_meta in
             Code_metadata.(result_arity meta, is_tupled meta)
@@ -877,7 +885,9 @@ let close_exact_or_unknown_apply acc env
             Call_kind.indirect_function_call_unknown_arity mode
           else Call_kind.direct_function_call code_id ~return_arity mode
         | None -> Call_kind.indirect_function_call_unknown_arity mode
-        | Some (Value_unknown | Value_symbol _ | Block_approximation _) ->
+        | Some
+            ( Value_unknown | Value_symbol _ | Value_int _
+            | Block_approximation _ ) ->
           assert false
         (* See [close_apply] *) ))
     | Method { kind; obj } ->
@@ -936,6 +946,11 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
   let scrutinee = find_simple_from_id env scrutinee in
   let untagged_scrutinee = Variable.create "untagged" in
   let untagged_scrutinee' = VB.create untagged_scrutinee Name_mode.normal in
+  let known_const_scrutinee =
+    match Env.find_value_approximation env scrutinee with
+    | Value_approximation.Value_int i -> Some i
+    | _ -> None
+  in
   let untag =
     Named.create_prim (Unary (Untag_immediate, scrutinee)) condition_dbg
   in
@@ -944,8 +959,9 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
       (fun acc (case, cont, trap_action, args) ->
         let trap_action = close_trap_action_opt trap_action in
         let acc, args = find_simples acc env args in
-        let acc, action =
-          Apply_cont_with_acc.create acc ?trap_action cont ~args
+        let args_approx = List.map (Env.find_value_approximation env) args in
+        let action acc =
+          Apply_cont_with_acc.create acc ?trap_action ~args_approx cont ~args
             ~dbg:condition_dbg
         in
         acc, (Targetint_31_63.of_int case, action))
@@ -976,6 +992,7 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
     in
     let acc, switch =
       let scrutinee = Simple.var comparison_result in
+      let acc, action = action acc in
       Expr_with_acc.create_switch acc
         (Switch.if_then_else ~condition_dbg ~scrutinee ~if_true:action
            ~if_false:default_action)
@@ -1001,7 +1018,7 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
             else
               let acc, args = find_simples acc env args in
               let trap_action = close_trap_action_opt trap_action in
-              let acc, default =
+              let default acc =
                 Apply_cont_with_acc.create acc ?trap_action default ~args
                   ~dbg:condition_dbg
               in
@@ -1016,10 +1033,24 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
       let acc, body =
         match Targetint_31_63.Map.get_singleton arms with
         | Some (_discriminant, action) ->
+          let acc, action = action acc in
           Expr_with_acc.create_apply_cont acc action
-        | None ->
-          Expr_with_acc.create_switch acc
-            (Switch.create ~condition_dbg ~scrutinee ~arms)
+        | None -> (
+          match known_const_scrutinee with
+          | None ->
+            let acc, arms =
+              Targetint_31_63.Map.fold
+                (fun case action (acc, arms) ->
+                  let acc, arm = action acc in
+                  acc, Targetint_31_63.Map.add case arm arms)
+                arms
+                (acc, Targetint_31_63.Map.empty)
+            in
+            Expr_with_acc.create_switch acc
+              (Switch.create ~condition_dbg ~scrutinee ~arms)
+          | Some case ->
+            let acc, action = Targetint_31_63.Map.find case arms acc in
+            Expr_with_acc.create_apply_cont acc action)
       in
       Let_with_acc.create acc
         (Bound_pattern.singleton untagged_scrutinee')
@@ -1163,13 +1194,12 @@ let close_one_function acc ~external_env ~by_function_slot decl
       let bt = Printexc.get_raw_backtrace () in
       Format.eprintf
         "\n\
-         %sContext is:%s closure converting function@ with [our_let_rec_ident] \
+         %tContext is:%t closure converting function@ with [our_let_rec_ident] \
          %a (function slot %a)"
         (* @ \ *)
         (* and body:@ %a *)
-        (Flambda_colours.error ())
-        (Flambda_colours.normal ())
-        Ident.print our_let_rec_ident Function_slot.print function_slot;
+        Flambda_colours.error Flambda_colours.pop Ident.print our_let_rec_ident
+        Function_slot.print function_slot;
       (* print body *)
       Printexc.raise_with_backtrace Misc.Fatal_error bt
   in
@@ -1391,7 +1421,8 @@ let close_functions acc external_env function_declarations =
   let approximations =
     Function_slot.Map.mapi
       (fun function_slot (code_id, code) ->
-        Value_approximation.Closure_approximation (code_id, function_slot, code))
+        Value_approximation.Closure_approximation
+          { code_id; function_slot; code; symbol = None })
       approximations
   in
   let function_decls = Function_declarations.create funs in
@@ -1418,8 +1449,17 @@ let close_functions acc external_env function_declarations =
     let symbols =
       Function_slot.Lmap.mapi
         (fun function_slot _ ->
-          ( Function_slot.Map.find function_slot symbol_map,
-            Function_slot.Map.find function_slot approximations ))
+          let sym = Function_slot.Map.find function_slot symbol_map in
+          let approx =
+            match Function_slot.Map.find function_slot approximations with
+            | Value_approximation.Closure_approximation
+                { code_id; function_slot; code; symbol = _ } ->
+              Value_approximation.Closure_approximation
+                { code_id; function_slot; code; symbol = Some sym }
+            | _ -> assert false
+            (* see above *)
+          in
+          sym, approx)
         funs
     in
     let acc = Acc.add_lifted_set_of_closures ~symbols ~set_of_closures acc in
@@ -1713,14 +1753,14 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
   let approx = Env.find_value_approximation env callee in
   let code_info =
     match approx with
-    | Closure_approximation (_, _, Code_present code) ->
+    | Closure_approximation { code = Code_present code; _ } ->
       Some
         ( Code.params_arity code,
           Code.is_tupled code,
           Code.num_trailing_local_params code,
           Code.contains_no_escaping_local_allocs code,
           Code.result_arity code )
-    | Closure_approximation (_, _, Metadata_only metadata) ->
+    | Closure_approximation { code = Metadata_only metadata; _ } ->
       Some
         ( Code_metadata.params_arity metadata,
           Code_metadata.is_tupled metadata,
@@ -1728,7 +1768,7 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
           Code_metadata.contains_no_escaping_local_allocs metadata,
           Code_metadata.result_arity metadata )
     | Value_unknown -> None
-    | Value_symbol _ | Block_approximation _ ->
+    | Value_symbol _ | Value_int _ | Block_approximation _ ->
       if Flambda_features.check_invariants ()
       then
         Misc.fatal_errorf
