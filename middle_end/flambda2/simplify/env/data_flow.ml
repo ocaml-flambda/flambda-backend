@@ -80,10 +80,23 @@ type t =
 (* type alias useful for later *)
 type source_info = t
 
+type recursive_continuation_wrapper =
+  | No_wrapper
+  | Wrapper_needed
+
+type continuation_parameters =
+  { removed_aliased_params_and_extra_params : Variable.Set.t;
+    lets_to_introduce : Variable.t Variable.Map.t;
+    extra_args_for_aliases : Variable.Set.t;
+    recursive_continuation_wrapper : recursive_continuation_wrapper
+  }
+
 type continuation_param_aliases =
   { aliases : Variable.t Variable.Map.t;
+    (* TODO Verify if this is useful *)
     aliases_kind : Flambda_kind.t Variable.Map.t;
-    extra_args_for_aliases : Variable.Set.t Continuation.Map.t
+    (* TODO Verify if this is useful *)
+    continuation_parameters : continuation_parameters Continuation.Map.t
   }
 
 type dead_variable_result =
@@ -150,6 +163,26 @@ let print_map ppf map = Continuation.Map.print print_elt ppf map
 
 let print_extra ppf extra = Continuation.Map.print EPA.print ppf extra
 
+let [@ocamlformat "disable"] print_continuation_parameters ppf
+    { removed_aliased_params_and_extra_params; lets_to_introduce;
+      extra_args_for_aliases; recursive_continuation_wrapper } =
+  let pp_wrapper ppf = function
+    | No_wrapper -> ()
+    | Wrapper_needed ->
+      Format.fprintf ppf "@ @[<hov 1>(recursive_continuation_wrapper needed)@]"
+  in
+  Format.fprintf ppf
+    "@[<hov 1>(\
+      @[<hov 1>(removed_aliased_params_and_extra_params %a)@]@ \
+      @[<hov 1>(lets_to_introduce %a)@]\
+      @[<hov 1>(extra_args_for_aliases %a)@]\
+      %a\
+     )@]"
+    Variable.Set.print removed_aliased_params_and_extra_params
+    (Variable.Map.print Variable.print) lets_to_introduce
+    Variable.Set.print extra_args_for_aliases
+    pp_wrapper recursive_continuation_wrapper
+
 let [@ocamlformat "disable"] print ppf { stack; map; extra; dummy_toplevel_cont = _ } =
   Format.fprintf ppf
     "@[<hov 1>(\
@@ -162,33 +195,33 @@ let [@ocamlformat "disable"] print ppf { stack; map; extra; dummy_toplevel_cont 
     print_extra extra
 
 let [@ocamlformat "disable"] print_continuation_param_aliases ppf
-    { aliases; aliases_kind; extra_args_for_aliases } =
+    { aliases; aliases_kind; continuation_parameters } =
   Format.fprintf ppf
     "@[<hov 1>(\
        @[<hov 1>(aliases@ %a)@]@ \
        @[<hov 1>(aliases_kind@ %a)@]@ \
-       @[<hov 1>(extra_args_for_aliases@ %a)@]\
+       @[<hov 1>(continuation_parameters@ %a)@]\
      )@]"
     (Variable.Map.print Variable.print) aliases
     (Variable.Map.print Flambda_kind.print) aliases_kind
-    (Continuation.Map.print Variable.Set.print) extra_args_for_aliases
+    (Continuation.Map.print print_continuation_parameters) continuation_parameters
 
 let [@ocamlformat "disable"] _print_result ppf
     { dead_variable_result = { required_names; reachable_code_ids };
-      continuation_param_aliases = { aliases; aliases_kind; extra_args_for_aliases } } =
+      continuation_param_aliases = { aliases; aliases_kind; continuation_parameters } } =
   Format.fprintf ppf
     "@[<hov 1>(\
        @[<hov 1>(required_names@ %a)@]@ \
        @[<hov 1>(reachable_code_ids@ %a)@]@ \
        @[<hov 1>(aliases@ %a)@]@ \
        @[<hov 1>(aliases_kind@ %a)@]@ \
-       @[<hov 1>(extra_args_for_aliases@ %a)@]\
+       @[<hov 1>(continuation_parameters@ %a)@]\
      )@]"
     Name.Set.print required_names
     Reachable_code_ids.print reachable_code_ids
     (Variable.Map.print Variable.print) aliases
     (Variable.Map.print Flambda_kind.print) aliases_kind
-    (Continuation.Map.print Variable.Set.print) extra_args_for_aliases
+    (Continuation.Map.print print_continuation_parameters) continuation_parameters
 
 (* Creation *)
 (* ******** *)
@@ -1321,7 +1354,8 @@ module Control_flow_graph = struct
       Variable.Set.empty
 
   let compute_continuation_extra_args_for_aliases ~required_names
-      ~(source_info : source_info) doms t =
+      ~(source_info : source_info) doms t :
+      continuation_parameters Continuation.Map.t =
     let available_variables = compute_available_variables ~source_info t in
     let transitive_parents = compute_transitive_parents t in
     let remove_vars_in_scope_of k var_set =
@@ -1422,7 +1456,73 @@ module Control_flow_graph = struct
     Continuation.Map.mapi
       (fun k aliases_needed ->
         let available = Continuation.Map.find k available_added_extra_args in
-        Variable.Set.diff aliases_needed available)
+        let extra_args_for_aliases =
+          Variable.Set.diff aliases_needed available
+        in
+        let elt = Continuation.Map.find k source_info.map in
+        let exception_handler_first_param : Variable.t option = assert false in
+        (* For exception continuations the first parameter cannot be removed, so
+           instead of rewriting the parameter to its dominator, we instead
+           rewrite every alias to the exception parameter *)
+        let extra_args_for_aliases, exception_handler_first_param_aliased =
+          match exception_handler_first_param with
+          | None -> extra_args_for_aliases, None
+          | Some exception_param -> (
+            match Variable.Map.find exception_param doms with
+            | exception Not_found -> extra_args_for_aliases, None
+            | alias ->
+              if Variable.equal exception_param alias
+              then extra_args_for_aliases, None
+              else
+                ( Variable.Set.remove alias extra_args_for_aliases,
+                  Some (alias, exception_param) ))
+        in
+        let removed_aliased_params_and_extra_params, lets_to_introduce =
+          List.fold_left
+            (fun (removed, lets_to_introduce) param ->
+              match Variable.Map.find param doms with
+              | exception Not_found -> removed, lets_to_introduce
+              | alias -> (
+                if Variable.equal param alias
+                then removed, lets_to_introduce
+                else
+                  match exception_handler_first_param_aliased with
+                  | None ->
+                    let removed = Variable.Set.add param removed in
+                    let lets_to_introduce =
+                      Variable.Map.add param alias lets_to_introduce
+                    in
+                    removed, lets_to_introduce
+                  | Some (aliased_to, exception_param) ->
+                    let is_first_exception_param =
+                      Variable.equal exception_param param
+                    in
+                    if is_first_exception_param
+                    then removed, lets_to_introduce
+                    else
+                      let alias =
+                        if Variable.equal alias aliased_to
+                        then exception_param
+                        else alias
+                      in
+                      let removed = Variable.Set.add param removed in
+                      let lets_to_introduce =
+                        Variable.Map.add param alias lets_to_introduce
+                      in
+                      removed, lets_to_introduce))
+            (Variable.Set.empty, Variable.Map.empty)
+            (Bound_parameters.vars elt.params)
+        in
+        let recursive_continuation_wrapper =
+          if elt.recursive && not (Variable.Set.is_empty extra_args_for_aliases)
+          then Wrapper_needed
+          else No_wrapper
+        in
+        { extra_args_for_aliases;
+          removed_aliased_params_and_extra_params;
+          lets_to_introduce;
+          recursive_continuation_wrapper
+        })
       added_extra_args
 
   module Dot = struct
@@ -1453,11 +1553,14 @@ module Control_flow_graph = struct
         shape info
 
     let nodes ~df ~ctx ~return_continuation ~exn_continuation
-        ~extra_args_for_aliases ppf cont_map =
+        ~continuation_parameters ppf cont_map =
       Continuation.Set.iter
         (fun cont ->
           let extra_args =
-            Continuation.Map.find_opt cont extra_args_for_aliases
+            Option.map
+              (fun continuation_parameters ->
+                continuation_parameters.extra_args_for_aliases)
+              (Continuation.Map.find_opt cont continuation_parameters)
           in
           let info =
             if Continuation.equal return_continuation cont
@@ -1487,7 +1590,7 @@ module Control_flow_graph = struct
         edge_map
 
     let print ~ctx ~df ~print_name ppf ~return_continuation ~exn_continuation
-        ~extra_args_for_aliases (t : t) =
+        ~continuation_parameters (t : t) =
       let dummy_toplevel_cont = t.dummy_toplevel_cont in
       let all_conts =
         Continuation.Map.fold
@@ -1507,7 +1610,7 @@ module Control_flow_graph = struct
             "subgraph cluster_%d { label=\"%s\";@\n%a%a@\n%a@\n%a@\n}@." ctx
             print_name (node ~df ~ctx ()) dummy_toplevel_cont
             (nodes ~df ~return_continuation ~exn_continuation ~ctx
-               ~extra_args_for_aliases)
+               ~continuation_parameters)
             all_conts
             (edges' ~ctx ~color:"green")
             t.parents
@@ -1588,7 +1691,7 @@ let analyze ?print_name ~return_continuation ~exn_continuation
               dom_graph)
           (Lazy.force dominator_graph_ppf));
       let control = Control_flow_graph.create ~dummy_toplevel_cont t in
-      let extra_args_for_aliases =
+      let continuation_parameters =
         Control_flow_graph.compute_continuation_extra_args_for_aliases
           ~source_info:t aliases control
           ~required_names:dead_variable_result.required_names
@@ -1600,7 +1703,7 @@ let analyze ?print_name ~return_continuation ~exn_continuation
           (fun ppf ->
             incr r;
             Control_flow_graph.Dot.print ~df:t ~print_name ~ctx:!r ppf
-              ~return_continuation ~exn_continuation ~extra_args_for_aliases
+              ~return_continuation ~exn_continuation ~continuation_parameters
               control)
           (Lazy.force control_flow_graph_ppf));
 
@@ -1608,7 +1711,7 @@ let analyze ?print_name ~return_continuation ~exn_continuation
       let result =
         { dead_variable_result;
           continuation_param_aliases =
-            { aliases; aliases_kind; extra_args_for_aliases }
+            { aliases; aliases_kind; continuation_parameters }
         }
       in
       if debug then Format.eprintf "/// result@\n%a@\n@." _print_result result;

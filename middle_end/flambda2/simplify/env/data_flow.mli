@@ -79,7 +79,7 @@ val add_used_in_current_handler : Name_occurrences.t -> t -> t
     function call. *)
 val add_apply_conts :
   result_cont:(Apply_cont_rewrite_id.t * Continuation.t) option ->
-  exn_cont:(Apply_cont_rewrite_id.t * Exn_continuation.t) ->
+  exn_cont:Apply_cont_rewrite_id.t * Exn_continuation.t ->
   t ->
   t
 
@@ -116,10 +116,23 @@ type dead_variable_result =
     reachable_code_ids : Reachable_code_ids.t
   }
 
+type recursive_continuation_wrapper = private
+  | No_wrapper
+  | Wrapper_needed
+
+type continuation_parameters = private
+  { removed_aliased_params_and_extra_params : Variable.Set.t;
+    lets_to_introduce : Variable.t Variable.Map.t;
+    extra_args_for_aliases : Variable.Set.t;
+    recursive_continuation_wrapper : recursive_continuation_wrapper
+  }
+
 type continuation_param_aliases =
   { aliases : Variable.t Variable.Map.t;
+    (* TODO Verify if this is useful *)
     aliases_kind : Flambda_kind.t Variable.Map.t;
-    extra_args_for_aliases : Variable.Set.t Continuation.Map.t
+    (* TODO Verify if this is useful *)
+    continuation_parameters : continuation_parameters Continuation.Map.t
   }
 
 val print_continuation_param_aliases :
