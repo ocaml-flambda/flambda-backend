@@ -366,7 +366,11 @@ end = struct
   let leaving_try_region t =
     match t.region_stack with
     | [] -> Misc.fatal_error "Cannot pop try region, region stack is empty"
-    | _ :: region_stack -> { t with region_stack }
+    | Try_with _ :: region_stack -> { t with region_stack }
+    | Regular region :: _ ->
+      Misc.fatal_errorf
+        "Attempted to pop try region but found regular region %a" Ident.print
+        region
 
   let current_region t =
     if not (Flambda_features.stack_allocation_enabled ())

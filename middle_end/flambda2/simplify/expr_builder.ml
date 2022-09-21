@@ -125,7 +125,12 @@ let create_let uacc (bound_vars : Bound_pattern.t) (defining_expr : Named.t)
       | Prim (prim, _) -> P.is_end_region prim
       | Simple _ | Set_of_closures _ | Static_consts _ | Rec_info _ -> None
     in
-    (* XXX should clarify effects judgement somehow to generalise here *)
+    let is_end_region_for_unused_region =
+      match is_end_region with
+      | None -> false
+      | Some region ->
+        not (Name.Set.mem (Name.var region) (UA.required_names uacc))
+    in
     if Option.is_none is_end_region
        && not (Named.at_most_generative_effects defining_expr)
     then (
@@ -149,19 +154,8 @@ let create_let uacc (bound_vars : Bound_pattern.t) (defining_expr : Named.t)
                Variable.user_visible (VB.var bound_var))
       in
       let will_delete_binding =
-        let is_end_region_for_unused_region =
-          match is_end_region with
-          | None -> false
-          | Some region ->
-            not (Name.Set.mem (Name.var region) (UA.required_names uacc))
-        in
         if is_end_region_for_unused_region
-        then
-          (* Format.eprintf "deleting End_region %a\n%!"
-             (Misc.Stdlib.Option.print Variable.print) (match defining_expr with
-             | Prim (prim, _) -> P.is_end_region prim | Simple _ |
-             Set_of_closures _ | Static_consts _ | Rec_info _ -> None); *)
-          true
+        then true
         else if Option.is_some is_end_region
         then false
         else

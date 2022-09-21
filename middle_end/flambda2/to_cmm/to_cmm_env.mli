@@ -24,7 +24,6 @@ val create :
   Exported_code.t ->
   return_continuation:Continuation.t ->
   exn_continuation:Continuation.t ->
-  my_region:Variable.t ->
   t
 
 (** Given an existing environment providing the "global" information (such as
@@ -34,7 +33,6 @@ val enter_function_body :
   t ->
   return_continuation:Continuation.t ->
   exn_continuation:Continuation.t ->
-  my_region:Variable.t ->
   t
 
 (** {2 Continuations} *)

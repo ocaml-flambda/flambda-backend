@@ -306,7 +306,7 @@ module Inlining = struct
 
   let inline acc ~apply ~apply_depth ~func_desc:code =
     let callee = Apply.callee apply in
-    let region_inlined_into = Simple.var (Apply.region apply) in
+    let region_inlined_into = Apply.region apply in
     let args = Apply.args apply in
     let apply_return_continuation = Apply.continuation apply in
     let apply_exn_continuation = Apply.exn_continuation apply in
@@ -1708,7 +1708,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) over_args
       Some (over_app_region, Continuation.create ())
     | Heap, true | Local, _ -> None
   in
-  let current_region =
+  let apply_region =
     match needs_region with
     | None -> Env.find_var env apply.region
     | Some (region, _) -> region
@@ -1745,7 +1745,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) over_args
         ~inlining_state:(Inlining_state.default ~round:0)
         ~probe_name ~position
         ~relative_history:(Env.relative_history_from_scoped ~loc:apply.loc env)
-        ~region:current_region
+        ~region:apply_region
     in
     match needs_region with
     | None -> Expr_with_acc.create_apply acc over_application
@@ -1777,7 +1777,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) over_args
         ~body:(fun acc -> Expr_with_acc.create_apply acc over_application)
         ~is_exn_handler:false
   in
-  let body = full_call wrapper_cont ~region:current_region in
+  let body = full_call wrapper_cont ~region:apply_region in
   let acc, both_applications =
     Let_cont_with_acc.build_non_recursive acc wrapper_cont
       ~handler_params:

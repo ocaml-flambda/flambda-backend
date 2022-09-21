@@ -250,7 +250,7 @@ end)
 (* Translation of the bodies of functions. *)
 
 let params_and_body0 env res code_id ~fun_dbg ~return_continuation
-    ~exn_continuation ~my_region params ~body ~my_closure
+    ~exn_continuation params ~body ~my_closure
     ~(is_my_closure_used : _ Or_unknown.t) ~translate_expr =
   let params =
     let is_my_closure_used =
@@ -271,7 +271,6 @@ let params_and_body0 env res code_id ~fun_dbg ~return_continuation
      trap action is attached to one of its calls *)
   let env =
     Env.enter_function_body env ~return_continuation ~exn_continuation
-      ~my_region
   in
   (* Translate the arg list and body *)
   let env, fun_args = C.bound_parameters env params in
@@ -291,14 +290,14 @@ let params_and_body env res code_id p ~fun_dbg ~translate_expr =
          ~body
          ~my_closure
          ~is_my_closure_used
-         ~my_region
+         ~my_region:_
          ~my_depth:_
          ~free_names_of_body:_
        ->
       try
         params_and_body0 env res code_id ~fun_dbg ~return_continuation
-          ~exn_continuation ~my_region params ~body ~my_closure
-          ~is_my_closure_used ~translate_expr
+          ~exn_continuation params ~body ~my_closure ~is_my_closure_used
+          ~translate_expr
       with Misc.Fatal_error as e ->
         Format.eprintf
           "\n\

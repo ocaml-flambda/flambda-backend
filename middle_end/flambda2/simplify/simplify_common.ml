@@ -150,12 +150,13 @@ let split_direct_over_application apply ~param_arity ~result_arity
     match needs_region with
     | None -> Expr.create_apply perform_over_application
     | Some (region, after_over_application) ->
-      (* This wraps the second application (the over application itself) with
-         [Begin_region] ... [End_region]. This application might raise an
-         exception, but that doesn't need any special handling, since we're not
-         actually introducing any more local allocations here. (Missing the
-         [End_region] on the exceptional return path is fine, c.f. the usual
-         compilation of [try ... with] -- see [Closure_conversion].) *)
+      (* This wraps both applications (the full application and the second
+         application) with [Begin_region] ... [End_region]. The applications
+         might raise an exception, but that doesn't need any special handling,
+         since we're not actually introducing any more local allocations here.
+         (Missing the [End_region] on the exceptional return path is fine, c.f.
+         the usual compilation of [try ... with] -- see
+         [Closure_conversion].) *)
       let over_application_results =
         List.mapi
           (fun i kind ->
