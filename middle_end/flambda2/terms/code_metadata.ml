@@ -96,8 +96,12 @@ module Code_metadata_accessors(X : Metadata_view_type) = struct
   let relative_history t = (metadata t).relative_history
 end
 
-module Code_metadata_accessors_result_type(X : Metadata_view_type) = struct
-  module type S = module type of Code_metadata_accessors(X)
+module type Code_metadata_accessors_result_type = sig
+  type 'a t
+  include module type of Code_metadata_accessors(struct
+      type nonrec 'a t = 'a t
+      let metadata = assert false
+    end)
 end
 
 module Metadata_view = struct

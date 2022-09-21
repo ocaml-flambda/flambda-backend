@@ -23,62 +23,55 @@ module type Metadata_view_type = sig
   val metadata : 'a t -> code_metadata
 end
 
-module Code_metadata_accessors_result_type :
-  functor (X : Metadata_view_type) -> sig
-    open! X
-    module type S = sig
-      val code_id : 'a t -> Code_id.t
+module type Code_metadata_accessors_result_type = sig
+  type 'a t
 
-      val newer_version_of : 'a t -> Code_id.t option
+  val code_id : 'a t -> Code_id.t
 
-      val params_arity : 'a t -> Flambda_arity.With_subkinds.t
+  val newer_version_of : 'a t -> Code_id.t option
 
-      val num_leading_heap_params : 'a t -> int
+  val params_arity : 'a t -> Flambda_arity.With_subkinds.t
 
-      val num_trailing_local_params : 'a t -> int
+  val num_leading_heap_params : 'a t -> int
 
-      val result_arity : 'a t -> Flambda_arity.With_subkinds.t
+  val num_trailing_local_params : 'a t -> int
 
-      val result_types : 'a t -> Result_types.t
+  val result_arity : 'a t -> Flambda_arity.With_subkinds.t
 
-      val stub : 'a t -> bool
+  val result_types : 'a t -> Result_types.t
 
-      val inline : 'a t -> Inline_attribute.t
+  val stub : 'a t -> bool
 
-      val is_a_functor : 'a t -> bool
+  val inline : 'a t -> Inline_attribute.t
 
-      val recursive : 'a t -> Recursive.t
+  val is_a_functor : 'a t -> bool
 
-      val cost_metrics : 'a t -> Cost_metrics.t
+  val recursive : 'a t -> Recursive.t
 
-      val inlining_arguments : 'a t -> Inlining_arguments.t
+  val cost_metrics : 'a t -> Cost_metrics.t
 
-      val dbg : 'a t -> Debuginfo.t
+  val inlining_arguments : 'a t -> Inlining_arguments.t
 
-      val is_tupled : 'a t -> bool
+  val dbg : 'a t -> Debuginfo.t
 
-      val is_my_closure_used : 'a t -> bool
+  val is_tupled : 'a t -> bool
 
-      val inlining_decision : 'a t -> Function_decl_inlining_decision_type.t
+  val is_my_closure_used : 'a t -> bool
 
-      val contains_no_escaping_local_allocs : 'a t -> bool
+  val inlining_decision : 'a t -> Function_decl_inlining_decision_type.t
 
-      val absolute_history : 'a t -> Inlining_history.Absolute.t
+  val contains_no_escaping_local_allocs : 'a t -> bool
 
-      val relative_history : 'a t -> Inlining_history.Relative.t
-    end
-  end
+  val absolute_history : 'a t -> Inlining_history.Absolute.t
 
-module Code_metadata_accessors :
-  functor (X : sig type 'a t val metadata : 'a t -> code_metadata end) ->
-    Code_metadata_accessors_result_type(X).S
-
-module Metadata_view : sig
-  type nonrec 'a t = t
-  val metadata : 'a t -> code_metadata
+  val relative_history : 'a t -> Inlining_history.Relative.t
 end
 
-include Code_metadata_accessors_result_type(Metadata_view).S
+module Code_metadata_accessors :
+  functor (X : Metadata_view_type) ->
+    Code_metadata_accessors_result_type with type 'a t := 'a X.t
+
+include Code_metadata_accessors_result_type with type 'a t := t
 
 type 'a create_type =
   Code_id.t ->

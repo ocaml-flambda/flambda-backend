@@ -20,11 +20,8 @@ val code_metadata : _ t -> Code_metadata.t
 
 val params_and_body : 'function_params_and_body t -> 'function_params_and_body
 
-module Metadata_view : sig
-  type nonrec 'function_params_and_body t = 'function_params_and_body t
-  val metadata : 'function_params_and_body t -> Code_metadata.t
-end
-include Code_metadata.Code_metadata_accessors_result_type(Metadata_view).S
+include Code_metadata.Code_metadata_accessors_result_type
+          with type 'function_params_and_body t := 'function_params_and_body t
 
 val create_with_metadata :
   print_function_params_and_body:

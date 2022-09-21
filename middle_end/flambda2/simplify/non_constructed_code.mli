@@ -21,11 +21,7 @@ type t = unit Code0.t
 
 val code_metadata : t -> Code_metadata.t
 
-module Metadata_view : sig
-  type nonrec 'a t = t
-  val metadata : 'a t -> Code_metadata.t
-end
-include Code_metadata.Code_metadata_accessors_result_type(Metadata_view).S
+include Code_metadata.Code_metadata_accessors_result_type with type 'a t := t
 
 val create_with_metadata :
   free_names_of_params_and_body:Name_occurrences.t ->
