@@ -244,7 +244,7 @@ let select_spilling_register_using_heuristics : State.t -> Reg.t =
     | true -> fatal "spill_work_list is empty"
     | false ->
       State.fold_spill_work_list state ~init:(Reg.dummy, Float.max_float)
-        ~f:(fun reg ((_curr_reg, curr_min_cost) as acc) ->
+        ~f:(fun ((_curr_reg, curr_min_cost) as acc) reg ->
           let reg_cost = weighted_cost reg in
           if reg_cost < curr_min_cost then reg, reg_cost else acc)
       |> fst)
