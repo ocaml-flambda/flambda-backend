@@ -22,7 +22,7 @@ module Metadata_view = struct
   type nonrec 'a t = t
   let metadata = code_metadata
 end
-include (Code_metadata.Code_metadata_accessors) (Metadata_view)
+include (Code_metadata.Code_metadata_accessors [@inlined hint]) (Metadata_view)
 
 let create_with_metadata =
   Code0.create_with_metadata

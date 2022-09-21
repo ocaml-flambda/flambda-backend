@@ -26,7 +26,7 @@ module Metadata_view = struct
   type nonrec 'function_params_and_body t = 'function_params_and_body t
   let metadata t = t.code_metadata
 end
-include (Code_metadata.Code_metadata_accessors) (Metadata_view)
+include (Code_metadata.Code_metadata_accessors[@inlined hint]) (Metadata_view)
 
 let params_and_body t = t.params_and_body
 

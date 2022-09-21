@@ -109,7 +109,7 @@ module Metadata_view = struct
   let metadata t = t
 end
 
-include Code_metadata_accessors(Metadata_view)
+include (Code_metadata_accessors [@inlined hint])(Metadata_view)
 
 type 'a create_type =
   Code_id.t ->
