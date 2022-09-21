@@ -53,40 +53,28 @@ let create_normal_non_code const =
       free_names = Static_const.free_names const
     }
 
-let create_code are_rebuilding code_id ~params_and_body
-    ~free_names_of_params_and_body ~newer_version_of ~params_arity
-    ~num_trailing_local_params ~result_arity ~result_types
-    ~contains_no_escaping_local_allocs ~stub ~inline ~is_a_functor ~recursive
-    ~cost_metrics ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used
-    ~inlining_decision ~absolute_history ~relative_history =
+let create_code are_rebuilding ~params_and_body ~free_names_of_params_and_body =
   if ART.do_not_rebuild_terms are_rebuilding
   then
-    let non_constructed_code =
-      Non_constructed_code.create code_id ~free_names_of_params_and_body
-        ~newer_version_of ~params_arity ~num_trailing_local_params ~result_arity
-        ~result_types ~contains_no_escaping_local_allocs ~stub ~inline
-        ~is_a_functor ~recursive ~cost_metrics ~inlining_arguments ~dbg
-        ~is_tupled ~is_my_closure_used ~inlining_decision ~absolute_history
-        ~relative_history
-    in
-    Code_not_rebuilt non_constructed_code
+    Code_metadata.createk (fun code_metadata ->
+        Code_not_rebuilt (
+          Non_constructed_code.create_with_metadata
+            ~free_names_of_params_and_body ~code_metadata)
+      )
   else
     let params_and_body =
       Rebuilt_expr.Function_params_and_body.to_function_params_and_body
         params_and_body are_rebuilding
     in
-    let code =
-      Code.create code_id ~params_and_body ~free_names_of_params_and_body
-        ~newer_version_of ~params_arity ~num_trailing_local_params ~result_arity
-        ~result_types ~contains_no_escaping_local_allocs ~stub ~inline
-        ~is_a_functor ~recursive ~cost_metrics ~inlining_arguments ~dbg
-        ~is_tupled ~is_my_closure_used ~inlining_decision ~absolute_history
-        ~relative_history
-    in
-    Normal
-      { const = Static_const_or_code.create_code code;
-        free_names = Code.free_names code
-      }
+    Code_metadata.createk (fun code_metadata ->
+        let code = Code.create_with_metadata
+            ~params_and_body ~free_names_of_params_and_body ~code_metadata
+        in
+        Normal
+          { const = Static_const_or_code.create_code code;
+            free_names = Code.free_names code
+          }
+      )
 
 let create_code' code =
   Normal
@@ -329,25 +317,10 @@ module Group = struct
             Lazy.force function_params_and_body_for_code_not_rebuilt
           in
           Some
-            (Code.create (NCC.code_id code) ~params_and_body
+            (Code.create_with_metadata
+               ~params_and_body
                ~free_names_of_params_and_body:Name_occurrences.empty
-               ~newer_version_of:(NCC.newer_version_of code)
-               ~params_arity:(NCC.params_arity code)
-               ~num_trailing_local_params:(NCC.num_trailing_local_params code)
-               ~result_arity:(NCC.result_arity code)
-               ~result_types:(NCC.result_types code)
-               ~contains_no_escaping_local_allocs:
-                 (NCC.contains_no_escaping_local_allocs code)
-               ~stub:(NCC.stub code) ~inline:(NCC.inline code)
-               ~is_a_functor:(NCC.is_a_functor code)
-               ~recursive:(NCC.recursive code)
-               ~cost_metrics:(NCC.cost_metrics code)
-               ~inlining_arguments:(NCC.inlining_arguments code)
-               ~dbg:(NCC.dbg code) ~is_tupled:(NCC.is_tupled code)
-               ~is_my_closure_used:(NCC.is_my_closure_used code)
-               ~inlining_decision:(NCC.inlining_decision code)
-               ~absolute_history:(NCC.absolute_history code)
-               ~relative_history:(NCC.relative_history code)))
+               ~code_metadata:(NCC.code_metadata code)))
     |> List.map (fun code -> Code.code_id code, code)
     |> Code_id.Map.of_list
 

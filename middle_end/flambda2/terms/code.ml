@@ -18,60 +18,21 @@ type t = Flambda.Function_params_and_body.t Code0.t
 
 let code_metadata = Code0.code_metadata
 
-let code_id = Code0.code_id
-
 let params_and_body = Code0.params_and_body
 
-let newer_version_of = Code0.newer_version_of
+module Metadata_view = struct
+  type nonrec 'a t = t
+  let metadata = code_metadata
+end
+include (Code_metadata.Code_metadata_accessors) (Metadata_view)
 
-let params_arity = Code0.params_arity
+let create_with_metadata =
+  Code0.create_with_metadata
+    ~print_function_params_and_body:Flambda.Function_params_and_body.print
 
-let num_leading_heap_params = Code0.num_leading_heap_params
-
-let num_trailing_local_params = Code0.num_trailing_local_params
-
-let result_arity = Code0.result_arity
-
-let result_types = Code0.result_types
-
-let stub = Code0.stub
-
-let inline = Code0.inline
-
-let is_a_functor = Code0.is_a_functor
-
-let recursive = Code0.recursive
-
-let cost_metrics = Code0.cost_metrics
-
-let inlining_arguments = Code0.inlining_arguments
-
-let dbg = Code0.dbg
-
-let is_tupled = Code0.is_tupled
-
-let is_my_closure_used = Code0.is_my_closure_used
-
-let inlining_decision = Code0.inlining_decision
-
-let contains_no_escaping_local_allocs = Code0.contains_no_escaping_local_allocs
-
-let absolute_history = Code0.absolute_history
-
-let relative_history = Code0.relative_history
-
-let create code_id ~params_and_body ~free_names_of_params_and_body
-    ~newer_version_of ~params_arity ~num_trailing_local_params ~result_arity
-    ~result_types ~contains_no_escaping_local_allocs ~stub ~inline ~is_a_functor
-    ~recursive ~cost_metrics ~inlining_arguments ~dbg ~is_tupled
-    ~is_my_closure_used ~inlining_decision ~absolute_history ~relative_history =
+let create =
   Code0.create
     ~print_function_params_and_body:Flambda.Function_params_and_body.print
-    code_id ~params_and_body ~free_names_of_params_and_body ~newer_version_of
-    ~params_arity ~num_trailing_local_params ~result_arity ~result_types
-    ~contains_no_escaping_local_allocs ~stub ~inline ~is_a_functor ~recursive
-    ~cost_metrics ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used
-    ~inlining_decision ~absolute_history ~relative_history
 
 let with_code_id = Code0.with_code_id
 

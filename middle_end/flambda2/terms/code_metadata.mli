@@ -16,47 +16,71 @@
 
 type t
 
-val code_id : t -> Code_id.t
+type code_metadata = t
 
-val newer_version_of : t -> Code_id.t option
+module type Metadata_view_type = sig
+  type 'a t
+  val metadata : 'a t -> code_metadata
+end
 
-val params_arity : t -> Flambda_arity.With_subkinds.t
+module Code_metadata_accessors_result_type :
+  functor (X : Metadata_view_type) -> sig
+    open! X
+    module type S = sig
+      val code_id : 'a t -> Code_id.t
 
-val num_leading_heap_params : t -> int
+      val newer_version_of : 'a t -> Code_id.t option
 
-val num_trailing_local_params : t -> int
+      val params_arity : 'a t -> Flambda_arity.With_subkinds.t
 
-val result_arity : t -> Flambda_arity.With_subkinds.t
+      val num_leading_heap_params : 'a t -> int
 
-val result_types : t -> Result_types.t
+      val num_trailing_local_params : 'a t -> int
 
-val stub : t -> bool
+      val result_arity : 'a t -> Flambda_arity.With_subkinds.t
 
-val inline : t -> Inline_attribute.t
+      val result_types : 'a t -> Result_types.t
 
-val is_a_functor : t -> bool
+      val stub : 'a t -> bool
 
-val recursive : t -> Recursive.t
+      val inline : 'a t -> Inline_attribute.t
 
-val cost_metrics : t -> Cost_metrics.t
+      val is_a_functor : 'a t -> bool
 
-val inlining_arguments : t -> Inlining_arguments.t
+      val recursive : 'a t -> Recursive.t
 
-val dbg : t -> Debuginfo.t
+      val cost_metrics : 'a t -> Cost_metrics.t
 
-val is_tupled : t -> bool
+      val inlining_arguments : 'a t -> Inlining_arguments.t
 
-val is_my_closure_used : t -> bool
+      val dbg : 'a t -> Debuginfo.t
 
-val inlining_decision : t -> Function_decl_inlining_decision_type.t
+      val is_tupled : 'a t -> bool
 
-val contains_no_escaping_local_allocs : t -> bool
+      val is_my_closure_used : 'a t -> bool
 
-val absolute_history : t -> Inlining_history.Absolute.t
+      val inlining_decision : 'a t -> Function_decl_inlining_decision_type.t
 
-val relative_history : t -> Inlining_history.Relative.t
+      val contains_no_escaping_local_allocs : 'a t -> bool
 
-val create :
+      val absolute_history : 'a t -> Inlining_history.Absolute.t
+
+      val relative_history : 'a t -> Inlining_history.Relative.t
+    end
+  end
+
+module Code_metadata_accessors :
+  functor (X : sig type 'a t val metadata : 'a t -> code_metadata end) ->
+    Code_metadata_accessors_result_type(X).S
+
+module Metadata_view : sig
+  type nonrec 'a t = t
+  val metadata : 'a t -> code_metadata
+end
+
+include Code_metadata_accessors_result_type(Metadata_view).S
+
+type 'a create_type =
   Code_id.t ->
   newer_version_of:Code_id.t option ->
   params_arity:Flambda_arity.With_subkinds.t ->
@@ -76,7 +100,10 @@ val create :
   inlining_decision:Function_decl_inlining_decision_type.t ->
   absolute_history:Inlining_history.Absolute.t ->
   relative_history:Inlining_history.Relative.t ->
-  t
+  'a
+
+val createk : (t -> 'a) -> 'a create_type
+val create : t create_type
 
 val with_code_id : Code_id.t -> t -> t
 
