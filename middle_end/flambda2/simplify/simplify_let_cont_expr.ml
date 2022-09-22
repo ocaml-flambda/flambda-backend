@@ -829,33 +829,37 @@ let simplify_non_recursive_let_cont ~simplify_expr dacc non_rec ~down_to_up =
       (simplify_non_recursive_let_cont_stage0 ~simplify_expr dacc non_rec
          ~down_to_up)
 
-let make_rewrite uacc ~cont ~original_cont_scope ~original_params
-    ~remove_aliases ~extra_params_and_args =
-  (* Format.printf "make_rewrite %b %a@." remove_aliases Continuation.print
-     cont; *)
+type make_rewrite_context =
+  | In_handler
+  | In_body
+
+let make_rewrite_for_recursive_continuation uacc ~cont ~original_cont_scope
+    ~original_params ~context ~extra_params_and_args =
   (* Format.printf "PARAMS: %a@." Bound_parameters.print original_params; *)
   let required_names = UA.required_names uacc in
-  let variable_has_aliases var =
-    let Data_flow.{ aliases; _ } = UA.continuation_param_aliases uacc in
-    match Variable.Map.find var aliases with
-    | exception Not_found -> false
-    | alias -> if remove_aliases then not (Variable.equal alias var) else false
+  let Data_flow.{ continuation_parameters; _ } =
+    UA.continuation_param_aliases uacc
   in
-  let used_params_list =
-    Bound_parameters.filter
-      (fun param ->
-        (not (variable_has_aliases (BP.var param)))
-        && Name.Set.mem (Name.var (BP.var param)) required_names)
-      original_params
+  let ({ Data_flow.removed_aliased_params_and_extra_params; _ } as
+      continuation_parameters) =
+    Continuation.Map.find cont continuation_parameters
   in
+  Format.printf "make_rewrite %a@ params %a@ extra_params %a@ %a@."
+    Continuation.print cont Bound_parameters.print original_params
+    Bound_parameters.print
+    (EPA.extra_params extra_params_and_args)
+    Data_flow.print_continuation_parameters continuation_parameters;
+  let kept_param param =
+    let var = BP.var param in
+    (not (Variable.Set.mem var removed_aliased_params_and_extra_params))
+    && Name.Set.mem (Name.var var) required_names
+  in
+  let used_params_list = Bound_parameters.filter kept_param original_params in
+
   let used_params = Bound_parameters.to_set used_params_list in
   let extra_params = EPA.extra_params extra_params_and_args in
   let used_extra_params_list =
-    Bound_parameters.filter
-      (fun param ->
-        (not (variable_has_aliases (BP.var param)))
-        && Name.Set.mem (Name.var (BP.var param)) required_names)
-      extra_params
+    Bound_parameters.filter kept_param extra_params
   in
   let used_extra_params = Bound_parameters.to_set used_extra_params_list in
   let rewrite =
@@ -866,9 +870,9 @@ let make_rewrite uacc ~cont ~original_cont_scope ~original_params
   in
   let uacc =
     UA.map_uenv uacc ~f:(fun uenv ->
-        if remove_aliases
-        then UE.add_apply_cont_rewrite uenv cont rewrite
-        else UE.replace_apply_cont_rewrite uenv cont rewrite)
+        match context with
+        | In_handler -> UE.add_apply_cont_rewrite uenv cont rewrite
+        | In_body -> UE.replace_apply_cont_rewrite uenv cont rewrite)
   in
   let uacc =
     UA.map_uenv uacc ~f:(fun uenv ->
@@ -923,8 +927,8 @@ let rebuild_recursive_let_cont_handlers cont ~params ~original_cont_scope
       extra_params_and_args
   in
   let uacc, rewrite =
-    make_rewrite uacc ~cont ~original_cont_scope ~original_params
-      ~remove_aliases:false ~extra_params_and_args
+    make_rewrite_for_recursive_continuation uacc ~cont ~original_cont_scope
+      ~original_params ~context:In_body ~extra_params_and_args
   in
   let some_params = recursive_let_cont_handler_wrapper_params uacc ~rewrite in
   let uacc =
@@ -975,8 +979,8 @@ let prepare_to_rebuild_one_recursive_let_cont_handler cont params
     (extra_params_and_args : EPA.t) ~rewrite_ids ~original_cont_scope
     ~rebuild_handler uacc ~after_rebuild =
   let uacc, _rewrite =
-    make_rewrite uacc ~cont ~original_cont_scope ~original_params:params
-      ~remove_aliases:true ~extra_params_and_args
+    make_rewrite_for_recursive_continuation uacc ~cont ~original_cont_scope
+      ~original_params:params ~context:In_handler ~extra_params_and_args
   in
   let name_occurrences_subsequent_exprs = UA.name_occurrences uacc in
   assert (Name_occurrences.is_empty name_occurrences_subsequent_exprs);
@@ -1097,93 +1101,87 @@ let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
 
 let rebuild_recursive_let_cont ~body handlers ~cost_metrics_of_handlers
     ~uenv_without_cont uacc ~after_rebuild =
-  let require_wrapper =
-    let Data_flow.{ aliases; continuation_parameters; _ } =
-      UA.continuation_param_aliases uacc
-    in
-    let required_extra_args =
-      Continuation.Map.filter_map
-        (fun cont _handler ->
-          let rewrite = UE.find_apply_cont_rewrite (UA.uenv uacc) cont in
-          match rewrite with
-          | None ->
-            Format.eprintf "UENV:@.%a@." UE.print (UA.uenv uacc);
-            Misc.fatal_errorf "Recursive continuation must have a rewrite %a"
-              Continuation.print cont
-          | Some rewrite ->
-            let variable_has_aliases var =
-              match Variable.Map.find var aliases with
-              | exception Not_found -> false
-              | alias -> not (Variable.equal alias var)
-            in
-            let extra_args_for_aliases =
-              (Continuation.Map.find cont continuation_parameters)
-                .extra_args_for_aliases
-            in
-            let need_stuff =
-              let original_params =
-                Bound_parameters.to_list
-                @@ Apply_cont_rewrite.original_params rewrite
-              in
-              let used_params = Apply_cont_rewrite.used_params rewrite in
-              let used_original_params =
-                List.filter
-                  (fun param -> BP.Set.mem param used_params)
-                  original_params
-              in
-              let used_extra_params =
-                Bound_parameters.to_list
-                @@ Apply_cont_rewrite.used_extra_params rewrite
-              in
-              List.exists
-                (fun param ->
-                  Variable.Set.mem (BP.var param) extra_args_for_aliases
-                  || variable_has_aliases (BP.var param))
-                (used_original_params @ used_extra_params)
-            in
-            if need_stuff then Some () else None
-          (* let params = Apply_cont_rewrite.original_params rewrite in
-           * match Continuation.Map.find cont extra_args_for_aliases with
-           * (\* | exception Not_found -> None *\)
-           * | set ->
-           *   if Variable.Set.is_empty set then None else Some (params, set)) *))
-        handlers
-    in
-    match Continuation.Map.cardinal required_extra_args with
-    | 0 -> None
-    | 1 -> Some (Continuation.Map.min_binding required_extra_args)
-    | _ -> assert false
+  let Data_flow.{ continuation_parameters; _ } =
+    UA.continuation_param_aliases uacc
+  in
+  let cont, _handler = Continuation.Map.min_binding handlers in
+  let ({ removed_aliased_params_and_extra_params;
+         extra_args_for_aliases;
+         recursive_continuation_wrapper;
+         _
+       }
+        : Data_flow.continuation_parameters) =
+    Continuation.Map.find cont continuation_parameters
   in
 
+  (* let require_wrapper =
+   *   let required_extra_args =
+   *     Continuation.Map.filter_map
+   *       (fun cont _handler ->
+   *         let rewrite = UE.find_apply_cont_rewrite (UA.uenv uacc) cont in
+   *         match rewrite with
+   *         | None ->
+   *           Format.eprintf "UENV:@.%a@." UE.print (UA.uenv uacc);
+   *           Misc.fatal_errorf "Recursive continuation must have a rewrite %a"
+   *             Continuation.print cont
+   *         | Some rewrite ->
+   *           let variable_has_aliases var =
+   *             match Variable.Map.find var aliases with
+   *             | exception Not_found -> false
+   *             | alias -> not (Variable.equal alias var)
+   *           in
+   *           let extra_args_for_aliases =
+   *             (Continuation.Map.find cont continuation_parameters)
+   *               .extra_args_for_aliases
+   *           in
+   *           let need_stuff =
+   *             let original_params =
+   *               Bound_parameters.to_list
+   *               @@ Apply_cont_rewrite.original_params rewrite
+   *             in
+   *             let used_params = Apply_cont_rewrite.used_params rewrite in
+   *             let used_original_params =
+   *               List.filter
+   *                 (fun param -> BP.Set.mem param used_params)
+   *                 original_params
+   *             in
+   *             let used_extra_params =
+   *               Bound_parameters.to_list
+   *               @@ Apply_cont_rewrite.used_extra_params rewrite
+   *             in
+   *             List.exists
+   *               (fun param ->
+   *                 Variable.Set.mem (BP.var param) extra_args_for_aliases
+   *                 || variable_has_aliases (BP.var param))
+   *               (used_original_params @ used_extra_params)
+   *           in
+   *           if need_stuff then Some () else None
+   *         (\* let params = Apply_cont_rewrite.original_params rewrite in
+   *          * match Continuation.Map.find cont extra_args_for_aliases with
+   *          * (\\* | exception Not_found -> None *\\)
+   *          * | set ->
+   *          *   if Variable.Set.is_empty set then None else Some (params, set)) *\))
+   *       handlers
+   *   in
+   *   match Continuation.Map.cardinal required_extra_args with
+   *   | 0 -> None
+   *   | 1 -> Some (Continuation.Map.min_binding required_extra_args)
+   *   | _ -> assert false
+   * in *)
   let expr, uacc =
-    match require_wrapper with
-    | None ->
+    match recursive_continuation_wrapper with
+    | No_wrapper ->
       ( RE.create_recursive_let_cont
           (UA.are_rebuilding_terms uacc)
           handlers ~body,
         uacc )
-    | Some (cont, ()) ->
+    | Wrapper_needed ->
       Format.printf "Introduce wrapper %a@." Continuation.print cont;
-
-      let Data_flow.{ aliases; continuation_parameters; _ } =
-        UA.continuation_param_aliases uacc
-      in
-
-      let extra_args_for_aliases =
-        (Continuation.Map.find cont continuation_parameters)
-          .extra_args_for_aliases
-      in
 
       let rewrite =
         match UE.find_apply_cont_rewrite (UA.uenv uacc) cont with
         | None -> assert false
         | Some rewrite -> rewrite
-      in
-
-      let variable_has_aliases var =
-        match Variable.Map.find var aliases with
-        | exception Not_found -> false
-        | alias -> not (Variable.equal alias var)
       in
 
       let rec_params =
@@ -1203,7 +1201,9 @@ let rebuild_recursive_let_cont ~body handlers ~cost_metrics_of_handlers
         List.filter
           (fun param ->
             (not (Variable.Set.mem (BP.var param) extra_args_for_aliases))
-            && not (variable_has_aliases (BP.var param)))
+            && not
+                 (Variable.Set.mem (BP.var param)
+                    removed_aliased_params_and_extra_params))
           (used_original_params @ used_extra_params)
       in
 

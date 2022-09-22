@@ -132,6 +132,9 @@ type continuation_parameters = private
     recursive_continuation_wrapper : recursive_continuation_wrapper
   }
 
+val print_continuation_parameters :
+  Format.formatter -> continuation_parameters -> unit
+
 type continuation_param_aliases =
   { aliases : Variable.t Variable.Map.t;
     (* TODO Verify if this is useful *)
