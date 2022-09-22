@@ -267,7 +267,7 @@ let mk_flambda2_inline_max_depth f =
   Printf.sprintf "<int>|<round>=<int>[,...]\n\
       \     Maximum depth of search for inlining opportunities inside\n\
       \     inlined functions (default %d) (Flambda 2 only)"
-    Flambda_backend_flags.Flambda2.Inlining.Default.max_depth
+    Flambda_backend_flags.Flambda2.Inlining.Default.default_arguments.max_depth
 ;;
 
 let mk_flambda2_inline_max_rec_depth f =
@@ -275,7 +275,8 @@ let mk_flambda2_inline_max_rec_depth f =
   Printf.sprintf "<int>|<round>=<int>[,...]\n\
       \     Maximum depth of search for inlining opportunities inside\n\
       \     inlined recursive functions (default %d) (Flambda 2 only)"
-    Flambda_backend_flags.Flambda2.Inlining.Default.max_rec_depth
+    Flambda_backend_flags.Flambda2.Inlining.Default.default_arguments.
+      max_rec_depth
 ;;
 
 let mk_flambda2_inline_cost arg descr ~default f =
@@ -288,29 +289,32 @@ let mk_flambda2_inline_cost arg descr ~default f =
     default
 ;;
 
+module Flambda2_inlining_default =
+  Flambda_backend_flags.Flambda2.Inlining.Default
+
 let mk_flambda2_inline_call_cost =
   mk_flambda2_inline_cost "call" "a call"
-    ~default:Flambda_backend_flags.Flambda2.Inlining.Default.call_cost
+    ~default:Flambda2_inlining_default.default_arguments.call_cost
 
 let mk_flambda2_inline_alloc_cost =
   mk_flambda2_inline_cost "alloc" "an allocation"
-    ~default:Flambda_backend_flags.Flambda2.Inlining.Default.alloc_cost
+    ~default:Flambda2_inlining_default.default_arguments.alloc_cost
 
 let mk_flambda2_inline_prim_cost =
   mk_flambda2_inline_cost "prim" "a primitive"
-    ~default:Flambda_backend_flags.Flambda2.Inlining.Default.prim_cost
+    ~default:Flambda2_inlining_default.default_arguments.prim_cost
 
 let mk_flambda2_inline_branch_cost =
   mk_flambda2_inline_cost "branch" "a conditional"
-    ~default:Flambda_backend_flags.Flambda2.Inlining.Default.branch_cost
+    ~default:Flambda2_inlining_default.default_arguments.branch_cost
 
 let mk_flambda2_inline_indirect_call_cost =
   mk_flambda2_inline_cost "indirect" "an indirect call"
-    ~default:Flambda_backend_flags.Flambda2.Inlining.Default.indirect_call_cost
+    ~default:Flambda2_inlining_default.default_arguments.indirect_call_cost
 
 let mk_flambda2_inline_poly_compare_cost =
   mk_flambda2_inline_cost "poly-compare" "a polymorphic comparison"
-    ~default:Flambda_backend_flags.Flambda2.Inlining.Default.poly_compare_cost
+    ~default:Flambda2_inlining_default.default_arguments.poly_compare_cost
 
 (* CR-someday mshinwell: We should have a check that the parameters provided by
    the user are sensible, e.g. small_function_size <= large_function_size. *)
@@ -321,7 +325,7 @@ let mk_flambda2_inline_small_function_size f =
       \     Functions with a cost less than this will always be inlined\n\
       \     unless an attribute instructs otherwise (default %d)\n\
       \     (Flambda 2 only)"
-    Flambda_backend_flags.Flambda2.Inlining.Default.small_function_size
+    Flambda2_inlining_default.default_arguments.small_function_size
 ;;
 
 let mk_flambda2_inline_large_function_size f =
@@ -331,7 +335,7 @@ let mk_flambda2_inline_large_function_size f =
       \     unless an attribute instructs otherwise (default %d); speculative\n\
       \     inlining will be disabled if equal to the small function size\n\
       \     (Flambda 2 only)"
-    Flambda_backend_flags.Flambda2.Inlining.Default.large_function_size
+    Flambda2_inlining_default.default_arguments.large_function_size
 ;;
 
 let mk_flambda2_inline_threshold f =
@@ -339,7 +343,7 @@ let mk_flambda2_inline_threshold f =
     Printf.sprintf "<float>|<round>=<float>[,...]\n\
         \     Aggressiveness of inlining (default %.02f, higher numbers mean\n\
         \     more aggressive) (Flambda 2 only)"
-      Flambda_backend_flags.Flambda2.Inlining.Default.threshold
+      Flambda2_inlining_default.default_arguments.threshold
 
 let mk_flambda2_speculative_inlining_only_if_arguments_useful f =
   "-flambda2-speculative-inlining-only-if-arguments-useful", Arg.Unit f,

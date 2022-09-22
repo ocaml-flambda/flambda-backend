@@ -127,24 +127,28 @@ module Flambda2 : sig
   end
 
   module Inlining : sig
+    type inlining_arguments = private {
+      max_depth : int;
+      max_rec_depth : int;
+      call_cost : float;
+      alloc_cost : float;
+      prim_cost : float;
+      branch_cost : float;
+      indirect_call_cost : float;
+      poly_compare_cost : float;
+      small_function_size : int;
+      large_function_size : int;
+      threshold : float;
+    }
+
     module Default : sig
-      val max_depth : int
-      val max_rec_depth : int
-
-      val call_cost : float
-      val alloc_cost : float
-      val prim_cost : float
-      val branch_cost : float
-      val indirect_call_cost : float
-      val poly_compare_cost : float
-
-      val small_function_size : int
-      val large_function_size : int
-
-      val threshold : float
-
+      val default_arguments : inlining_arguments
       val speculative_inlining_only_if_arguments_useful : bool
     end
+
+    val oclassic_arguments : inlining_arguments
+    val o2_arguments : inlining_arguments
+    val o3_arguments : inlining_arguments
 
     val max_depth : Clflags.Int_arg_helper.parsed ref
     val max_rec_depth : Clflags.Int_arg_helper.parsed ref
