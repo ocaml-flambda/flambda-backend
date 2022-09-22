@@ -781,13 +781,12 @@ module Types = struct
   let get_unique_list_as_set arb l =
     l |> List.map (Arbitrary.value arb) |> Set.of_list
 
-  let set_repr =
+  let set =
     let generator = generate_unique_list key ~compare:Int.compare in
     let shrinker = shrink_unique_list key in
     let printer = print_list_as_set Key.print in
-    Arbitrary.define_simple ~generator ~shrinker ~printer ()
-
-  let set = Arbitrary.map ~f:(get_unique_list_as_set key) set_repr
+    let get_value = get_unique_list_as_set key in
+    Arbitrary.define ~generator ~shrinker ~printer ~get_value ()
 
   let collection_and_element ~(collection_arb : ('c, 'c_repr) Arbitrary.t)
       ~(generate_element : 'c -> repr:'c_repr -> 'e Generator.t)
