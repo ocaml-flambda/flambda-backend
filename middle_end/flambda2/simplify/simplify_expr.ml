@@ -155,7 +155,7 @@ and simplify_function_body dacc expr ~return_continuation ~return_arity
     in
     simplify_toplevel_common dacc
       (fun dacc ->
-        Simplify_let_cont_expr.simplify_matched_recursive_let_cont
+        Simplify_let_cont_expr.simplify_as_recursive_let_cont
           ~simplify_expr dacc
           (call_self_cont_expr, handlers))
       ~in_or_out_of_closure:(In_a_closure : Closure_info.in_or_out_of_closure)

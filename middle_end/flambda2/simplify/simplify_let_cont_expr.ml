@@ -1049,7 +1049,7 @@ let simplify_recursive_let_cont_stage0 ~simplify_expr dacc ~down_to_up ~body
       (simplify_recursive_let_cont_stage1 ~simplify_expr ~denv_before_body ~body
          cont ~original_cont_scope ~down_to_up dacc)
 
-let simplify_matched_recursive_let_cont ~simplify_expr dacc (body, handlers)
+let simplify_as_recursive_let_cont ~simplify_expr dacc (body, handlers)
     ~down_to_up =
   simplify_recursive_let_cont_stage0 ~simplify_expr dacc ~down_to_up ~body
     handlers

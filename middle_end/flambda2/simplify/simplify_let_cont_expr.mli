@@ -20,7 +20,7 @@ val simplify_let_cont :
   simplify_expr:Expr.t Simplify_common.expr_simplifier ->
   Let_cont.t Simplify_common.expr_simplifier
 
-val simplify_matched_recursive_let_cont :
+val simplify_as_recursive_let_cont :
   simplify_expr:Expr.t Simplify_common.expr_simplifier ->
   (Expr.t * Continuation_handler.t Continuation.Map.t)
   Simplify_common.expr_simplifier
