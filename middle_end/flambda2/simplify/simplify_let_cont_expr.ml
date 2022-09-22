@@ -173,11 +173,6 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
                 (Name_occurrences.singleton_variable bound_to Name_mode.normal)
               ~cost_metrics_of_defining_expr:Cost_metrics.zero ~body:handler
           in
-          (* let var_occur =
-           *   Name_occurrences.with_only_variables (UA.name_occurrences uacc)
-           * in
-           * Format.printf "ADD ALIAS LET %a = %a@.%a@." Variable.print var
-           *   Variable.print alias Name_occurrences.print var_occur; *)
           handler, uacc)
         continuation_parameters.lets_to_introduce (handler, uacc)
     in
@@ -204,9 +199,6 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
   let uacc, params, new_phantom_params, handler, free_names, cost_metrics =
     match recursive with
     | Recursive -> (
-      (* Format.printf "rebuild_one_continuation_handler %a@." Continuation.print
-       *   cont; *)
-
       (* In the recursive case, we have already added an apply_cont_rewrite for
          the recursive continuation to eliminate unused parameters in its
          handler. *)
