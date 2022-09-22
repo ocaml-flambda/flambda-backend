@@ -262,7 +262,7 @@ let init_or_assign ppf ia =
     match ia with
     | Initialization -> "="
     | Assignment Heap -> "<-"
-    | Assignment Local -> "<-local"
+    | Assignment (Local _) -> "<-local"
   in
   Format.fprintf ppf "%s" str
 
@@ -710,14 +710,14 @@ and code_binding ppf
     newer_version_of
     (fun ppf is_tupled -> if is_tupled then Format.fprintf ppf "tupled@ ")
     is_tupled code_id id;
-  let { params; closure_var; depth_var; ret_cont; exn_cont; body } =
+  let { params; closure_var; region_var; depth_var; ret_cont; exn_cont; body } =
     params_and_body
   in
   Format.fprintf ppf
-    "%a@]@ @[<hov 2>%a@ %a@]@ @[<hv 2>-> %a@ * %a@]%a@]@] =@ %a"
+    "%a@]@ @[<hov 2>%a@ %a@ %a@]@ @[<hv 2>-> %a@ * %a@]%a@]@] =@ %a"
     (kinded_parameters ~space:Before)
-    params variable closure_var variable depth_var continuation_id ret_cont
-    continuation_id exn_cont
+    params variable closure_var variable region_var variable depth_var
+    continuation_id ret_cont continuation_id exn_cont
     (pp_option ~space:Before (pp_like ": %a" arity))
     ret_arity (expr Outer) body
 

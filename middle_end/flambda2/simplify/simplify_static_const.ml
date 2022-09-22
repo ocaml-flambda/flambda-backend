@@ -83,10 +83,10 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
       match is_mutable with
       | Immutable ->
         T.immutable_block ~is_unique:false tag ~field_kind:K.value ~fields
-          (Known Heap)
+          (Known Alloc_mode.heap)
       | Immutable_unique ->
         T.immutable_block ~is_unique:true tag ~field_kind:K.value ~fields
-          (Known Heap)
+          (Known Alloc_mode.heap)
       | Mutable -> T.any_value
     in
     let dacc = bind_result_sym ty in
@@ -97,7 +97,7 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
   | Boxed_float or_var ->
     let or_var, ty =
       simplify_or_variable dacc
-        (fun f -> T.this_boxed_float f (Known Heap))
+        (fun f -> T.this_boxed_float f (Known Alloc_mode.heap))
         or_var K.value
     in
     let dacc = bind_result_sym ty in
@@ -108,7 +108,7 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
   | Boxed_int32 or_var ->
     let or_var, ty =
       simplify_or_variable dacc
-        (fun f -> T.this_boxed_int32 f (Known Heap))
+        (fun f -> T.this_boxed_int32 f (Known Alloc_mode.heap))
         or_var K.value
     in
     let dacc = bind_result_sym ty in
@@ -119,7 +119,7 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
   | Boxed_int64 or_var ->
     let or_var, ty =
       simplify_or_variable dacc
-        (fun f -> T.this_boxed_int64 f (Known Heap))
+        (fun f -> T.this_boxed_int64 f (Known Alloc_mode.heap))
         or_var K.value
     in
     let dacc = bind_result_sym ty in
@@ -130,7 +130,7 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
   | Boxed_nativeint or_var ->
     let or_var, ty =
       simplify_or_variable dacc
-        (fun f -> T.this_boxed_nativeint f (Known Heap))
+        (fun f -> T.this_boxed_nativeint f (Known Alloc_mode.heap))
         or_var K.value
     in
     let dacc = bind_result_sym ty in
@@ -166,7 +166,7 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
     let dacc =
       bind_result_sym
         (T.immutable_array ~element_kind:(Known K.With_subkind.naked_float)
-           ~fields:field_tys (Known Heap))
+           ~fields:field_tys (Known Alloc_mode.heap))
     in
     ( Rebuilt_static_const.create_immutable_float_array
         (DA.are_rebuilding_terms dacc)
@@ -180,7 +180,7 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
     let dacc =
       bind_result_sym
         (T.immutable_array ~element_kind:(Known K.With_subkind.any_value)
-           ~fields:field_tys (Known Heap))
+           ~fields:field_tys (Known Alloc_mode.heap))
     in
     ( Rebuilt_static_const.create_immutable_value_array
         (DA.are_rebuilding_terms dacc)
@@ -200,7 +200,7 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
       bind_result_sym
         (T.array_of_length ~element_kind:Unknown
            ~length:(T.this_tagged_immediate Targetint_31_63.zero)
-           (Known Heap))
+           (Known Alloc_mode.heap))
     in
     Rebuilt_static_const.create_empty_array (DA.are_rebuilding_terms dacc), dacc
   | Mutable_string { initial_value } ->

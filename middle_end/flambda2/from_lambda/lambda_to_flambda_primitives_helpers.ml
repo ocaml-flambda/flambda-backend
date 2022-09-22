@@ -142,7 +142,7 @@ let expression_for_failure acc exn_cont ~register_const_string primitive dbg
                      [ Flambda_kind.With_subkind.any_value;
                        Flambda_kind.With_subkind.any_value ] ),
                  Immutable,
-                 Heap ),
+                 Alloc_mode.With_region.heap ),
              contents_of_exn_bucket ))
         dbg
     in

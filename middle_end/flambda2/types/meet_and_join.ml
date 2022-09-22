@@ -60,8 +60,8 @@ let meet_alloc_mode (alloc_mode1 : Alloc_mode.t Or_unknown.t)
   | Unknown, Unknown -> Ok Unknown
   | Unknown, Known _ -> Ok alloc_mode2
   | Known _, Unknown -> Ok alloc_mode1
-  | Known Heap, Known Heap -> Ok (Known Heap)
-  | Known Local, Known Local -> Ok (Known Local)
+  | Known Heap, Known Heap -> Ok (Known Alloc_mode.heap)
+  | Known Local, Known Local -> Ok (Known (Alloc_mode.local ()))
   | Known Heap, Known Local | Known Local, Known Heap ->
     (* It is not safe to pick either [Heap] or [Local] and moreover we should
        never be in this situation by virtue of the OCaml type checker; it is
@@ -72,8 +72,8 @@ let join_alloc_mode (alloc_mode1 : Alloc_mode.t Or_unknown.t)
     (alloc_mode2 : Alloc_mode.t Or_unknown.t) : Alloc_mode.t Or_unknown.t =
   match alloc_mode1, alloc_mode2 with
   | Unknown, _ | _, Unknown -> Unknown
-  | Known Heap, Known Heap -> Known Heap
-  | Known Local, Known Local -> Known Local
+  | Known Heap, Known Heap -> Known Alloc_mode.heap
+  | Known Local, Known Local -> Known (Alloc_mode.local ())
   | Known Heap, Known Local | Known Local, Known Heap -> Unknown
 
 let[@inline always] meet_unknown meet_contents ~contents_is_bottom env

@@ -2783,7 +2783,7 @@ let tag_immediate t : t =
             { is_unique = false;
               immediates = Known t;
               blocks = Known Row_like_for_blocks.bottom;
-              alloc_mode = Known Heap
+              alloc_mode = Known Alloc_mode.heap
             }))
   | Value _ | Naked_float _ | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
   | Rec_info _ | Region _ ->
@@ -2916,7 +2916,7 @@ module Head_of_kind_value = struct
       { is_unique = false;
         immediates = Known (this_naked_immediate imm);
         blocks = Known Row_like_for_blocks.bottom;
-        alloc_mode = Known Heap
+        alloc_mode = Known Alloc_mode.heap
       }
 
   let create_closures by_function_slot alloc_mode =

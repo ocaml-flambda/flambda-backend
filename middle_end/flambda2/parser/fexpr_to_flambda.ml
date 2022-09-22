@@ -304,7 +304,7 @@ let or_variable f env (ov : _ Fexpr.or_variable) : _ Or_variable.t =
 let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   match unop with
   | Array_length -> Array_length
-  | Box_number bk -> Box_number (bk, Heap)
+  | Box_number bk -> Box_number (bk, Alloc_mode.With_region.heap)
   | Unbox_number bk -> Unbox_number bk
   | Tag_immediate -> Tag_immediate
   | Untag_immediate -> Untag_immediate
@@ -374,7 +374,7 @@ let varop (varop : Fexpr.varop) n : Flambda_primitive.variadic_primitive =
     let kind : Flambda_primitive.Block_kind.t =
       Values (Tag.Scannable.create_exn tag, shape)
     in
-    Make_block (kind, mutability, Heap)
+    Make_block (kind, mutability, Alloc_mode.With_region.heap)
 
 let prim env (p : Fexpr.prim) : Flambda_primitive.t =
   match p with
@@ -421,7 +421,7 @@ let set_of_closures env fun_decls value_slots =
     in
     List.map convert value_slots |> Value_slot.Map.of_list
   in
-  Set_of_closures.create ~value_slots Heap fun_decls
+  Set_of_closures.create ~value_slots Alloc_mode.With_region.heap fun_decls
 
 let apply_cont env ({ cont; args; trap_action } : Fexpr.apply_cont) =
   let trap_action : Trap_action.t option =
@@ -720,8 +720,14 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
               params_and_body,
               free_names_of_params_and_body,
               is_my_closure_used ) =
-          let { Fexpr.params; closure_var; depth_var; ret_cont; exn_cont; body }
-              =
+          let { Fexpr.params;
+                closure_var;
+                region_var;
+                depth_var;
+                ret_cont;
+                exn_cont;
+                body
+              } =
             params_and_body
           in
           let params, env =
@@ -735,6 +741,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
               env params
           in
           let my_closure, env = fresh_var env closure_var in
+          let my_region, env = fresh_var env region_var in
           let my_depth, env = fresh_var env depth_var in
           let return_continuation, env =
             fresh_cont env ret_cont ~sort:Return
@@ -750,7 +757,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             Flambda.Function_params_and_body.create ~return_continuation
               ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
               (Bound_parameters.create params)
-              ~body ~my_closure ~my_depth ~free_names_of_body:Unknown
+              ~body ~my_closure ~my_region ~my_depth ~free_names_of_body:Unknown
           in
           let free_names =
             (* CR mshinwell: This needs fixing XXX *)
@@ -822,16 +829,16 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
               [Flambda_kind.With_subkind.any_value]
           | Some { ret_arity; _ } -> arity ret_arity
         in
-        Call_kind.direct_function_call code_id ~return_arity Heap
+        Call_kind.direct_function_call code_id ~return_arity Alloc_mode.heap
       | Function Indirect -> (
         match arities with
         | Some { params_arity = Some params_arity; ret_arity } ->
           let param_arity = arity params_arity in
           let return_arity = arity ret_arity in
           Call_kind.indirect_function_call_known_arity ~param_arity
-            ~return_arity Heap
+            ~return_arity Alloc_mode.heap
         | None | Some { params_arity = None; ret_arity = _ } ->
-          Call_kind.indirect_function_call_unknown_arity Heap)
+          Call_kind.indirect_function_call_unknown_arity Alloc_mode.heap)
       | C_call { alloc } -> (
         match arities with
         | Some { params_arity = Some params_arity; ret_arity } ->
@@ -865,6 +872,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         ~args:((List.map (simple env)) args)
         ~call_kind Debuginfo.none ~inlined ~inlining_state ~probe_name:None
         ~position:Normal ~relative_history:Inlining_history.Relative.empty
+        ~region:(Variable.create "FIXME")
+      (* CR mshinwell: fix region support *)
     in
     Flambda.Expr.create_apply apply
   | Invalid { message } -> Flambda.Expr.create_invalid (Message message)
@@ -901,5 +910,6 @@ let conv ~symbol_for_global ~module_ident (fexpr : Fexpr.flambda_unit) :
   let exn_continuation = Exn_continuation.exn_handler error_continuation in
   let env = bind_all_code_ids env fexpr in
   let body = expr env fexpr.body in
-  Flambda_unit.create ~return_continuation ~exn_continuation ~body
-    ~module_symbol ~used_value_slots:Unknown
+  Flambda_unit.create ~return_continuation ~exn_continuation
+    ~toplevel_my_region:(Variable.create "toplevel_my_region")
+    ~body ~module_symbol ~used_value_slots:Unknown
