@@ -5,7 +5,8 @@
 (library
  (name flambda2_term_basics)
  (wrapped true)
- (instrumentation (backend bisect_ppx))
+ (instrumentation
+  (backend bisect_ppx))
  (flags
   (:standard
    -principal
@@ -20,7 +21,9 @@
    -open
    Flambda2_nominal
    -open
-   Flambda2_numbers))
+   Flambda2_numbers
+   -open
+   Flambda2_ui))
  (ocamlopt_flags
   (:standard -O3))
  (libraries
@@ -30,4 +33,5 @@
   flambda2_kinds
   flambda2_lattices
   flambda2_nominal
-  flambda2_numbers))
+  flambda2_numbers
+  flambda2_ui))

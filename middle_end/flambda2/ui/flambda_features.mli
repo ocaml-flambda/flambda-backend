@@ -124,3 +124,5 @@ module Expert : sig
 
   val can_inline_recursive_functions : unit -> bool
 end
+
+val stack_allocation_enabled : unit -> bool

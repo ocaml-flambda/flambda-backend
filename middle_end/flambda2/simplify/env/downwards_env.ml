@@ -95,9 +95,16 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
 let create ~round ~(resolver : resolver)
     ~(get_imported_names : get_imported_names)
     ~(get_imported_code : get_imported_code) ~propagating_float_consts
-    ~unit_toplevel_exn_continuation ~unit_toplevel_return_continuation =
+    ~unit_toplevel_exn_continuation ~unit_toplevel_return_continuation
+    ~toplevel_my_region =
+  let typing_env = TE.create ~resolver ~get_imported_names in
+  let typing_env =
+    TE.add_definition typing_env
+      (Bound_name.create (Name.var toplevel_my_region) Name_mode.normal)
+      K.region
+  in
   { round;
-    typing_env = TE.create ~resolver ~get_imported_names;
+    typing_env;
     inlined_debuginfo = Debuginfo.none;
     can_inline = true;
     inlining_state = Inlining_state.default ~round;

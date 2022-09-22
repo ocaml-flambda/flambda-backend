@@ -54,7 +54,7 @@ let unbox_number ~dbg kind arg =
     C.unbox_int dbg primitive_kind arg
 
 let box_number ~dbg kind alloc_mode arg =
-  let alloc_mode = Alloc_mode.to_lambda alloc_mode in
+  let alloc_mode = Alloc_mode.With_region.to_lambda alloc_mode in
   match (kind : K.Boxable_number.t) with
   | Naked_float -> C.box_float dbg alloc_mode arg
   | Naked_int32 | Naked_int64 | Naked_nativeint ->
@@ -82,7 +82,7 @@ let check_alloc_fields = function
 
 let make_block ~dbg kind alloc_mode args =
   check_alloc_fields args;
-  let mode = Alloc_mode.to_lambda alloc_mode in
+  let mode = Alloc_mode.With_region.to_lambda alloc_mode in
   match (kind : P.Block_kind.t) with
   | Values (tag, _) -> C.make_alloc ~mode dbg (Tag.Scannable.to_int tag) args
   | Naked_floats ->
@@ -116,7 +116,7 @@ let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
 
 let make_array ~dbg kind alloc_mode args =
   check_alloc_fields args;
-  let mode = Alloc_mode.to_lambda alloc_mode in
+  let mode = Alloc_mode.With_region.to_lambda alloc_mode in
   match (kind : P.Array_kind.t) with
   | Immediates | Values -> C.make_alloc ~mode dbg 0 args
   | Naked_floats ->
@@ -138,7 +138,7 @@ let array_load ~dbg (kind : P.Array_kind.t) ~arr ~index =
 let addr_array_store init ~arr ~index ~new_value dbg =
   match (init : P.Init_or_assign.t) with
   | Assignment Heap -> C.addr_array_set arr index new_value dbg
-  | Assignment Local -> C.addr_array_set_local arr index new_value dbg
+  | Assignment (Local _) -> C.addr_array_set_local arr index new_value dbg
   | Initialization -> C.addr_array_initialize arr index new_value dbg
 
 let array_set ~dbg (kind : P.Array_kind.t) (init : P.Init_or_assign.t) ~arr

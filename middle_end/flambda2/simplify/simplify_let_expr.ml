@@ -189,12 +189,25 @@ let record_new_defining_expression_binding_for_data_flow dacc data_flow
     let can_be_removed =
       match named with
       | Simple _ | Set_of_closures _ | Rec_info _ -> true
-      | Prim (prim, _) -> P.at_most_generative_effects prim
+      | Prim (prim, _) ->
+        P.at_most_generative_effects prim
+        || Option.is_some (P.is_end_region prim)
     in
     if not can_be_removed
     then DF.add_used_in_current_handler free_names data_flow
     else
       let generate_phantom_lets = DE.generate_phantom_lets (DA.denv dacc) in
+      let free_names =
+        match named with
+        | Simple _ | Set_of_closures _ | Rec_info _ -> free_names
+        | Prim (prim, _) ->
+          (* Uses of region variables in [End_region] don't count as uses. *)
+          if Option.is_some (P.is_end_region prim)
+          then
+            (* Format.eprintf "ignoring free names for %a\n%!" P.print prim;*)
+            Name_occurrences.empty
+          else free_names
+      in
       Bound_pattern.fold_all_bound_vars binding.let_bound ~init:data_flow
         ~f:(fun data_flow v ->
           DF.record_var_binding (VB.var v) free_names ~generate_phantom_lets

@@ -17,7 +17,7 @@
 type t =
   { function_decls : Function_declarations.t;
     value_slots : Simple.t Value_slot.Map.t;
-    alloc_mode : Alloc_mode.t
+    alloc_mode : Alloc_mode.With_region.t
   }
 
 let [@ocamlformat "disable"] print ppf
@@ -33,7 +33,7 @@ let [@ocamlformat "disable"] print ppf
     Flambda_colours.pop
     (Function_declarations.print) function_decls
     (Value_slot.Map.print Simple.print) value_slots
-    Alloc_mode.print alloc_mode
+    Alloc_mode.With_region.print alloc_mode
 
 include Container_types.Make (struct
   type nonrec t = t
@@ -56,7 +56,9 @@ include Container_types.Make (struct
     then c
     else
       let c = Value_slot.Map.compare Simple.compare value_slots1 value_slots2 in
-      if c <> 0 then c else Alloc_mode.compare alloc_mode1 alloc_mode2
+      if c <> 0
+      then c
+      else Alloc_mode.With_region.compare alloc_mode1 alloc_mode2
 
   let equal t1 t2 = compare t1 t2 = 0
 end)
@@ -87,7 +89,7 @@ let [@ocamlformat "disable"] print ppf
         )@]"
       Flambda_colours.prim_constructive
       Flambda_colours.pop
-      Alloc_mode.print alloc_mode
+      Alloc_mode.With_region.print alloc_mode
       (Function_declarations.print) function_decls
   else
     Format.fprintf ppf "@[<hov 1>(%tset_of_closures%t@ %a@ \
@@ -96,7 +98,7 @@ let [@ocamlformat "disable"] print ppf
         )@]"
       Flambda_colours.prim_constructive
       Flambda_colours.pop
-      Alloc_mode.print alloc_mode
+      Alloc_mode.With_region.print alloc_mode
       Function_declarations.print function_decls
       (Value_slot.Map.print Simple.print) value_slots
 

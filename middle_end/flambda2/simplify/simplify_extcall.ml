@@ -147,7 +147,7 @@ let simplify_caml_make_vect dacc ~len_ty ~init_value_ty : t =
        Also maybe we should allow static allocation of these arrays for
        reasonable sizes. *)
     let type_of_returned_array =
-      T.mutable_array ~element_kind ~length:len_ty (Known Heap)
+      T.mutable_array ~element_kind ~length:len_ty (Known Alloc_mode.heap)
     in
     Unchanged { return_types = Known [type_of_returned_array] }
 
