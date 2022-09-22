@@ -247,7 +247,6 @@ let global_approx id =
   if Ident.is_predef id then Clambda.Value_unknown
   else try Hashtbl.find toplevel_approx (Ident.name id)
   with Not_found ->
-    (* XXX Does this need anything to do with packs on it? *)
     match get_global_info id with
       | None -> Clambda.Value_unknown
       | Some ui -> get_clambda_approx ui
@@ -257,13 +256,10 @@ let global_approx id =
 let pack_prefix_for_current_unit () =
   CU.for_pack_prefix current_unit.ui_unit
 
-let is_ident_in_current_unit id =
-  Hashtbl.mem toplevel_approx (Ident.name id)
-
 let pack_prefix_for_global_ident id =
   if not (Ident.is_global id) then
     Misc.fatal_errorf "Identifier %a is not global" Ident.print id
-  else if is_ident_in_current_unit id then
+  else if Hashtbl.mem toplevel_approx (Ident.name id) then
     CU.for_pack_prefix (CU.get_current_exn ())
   else
     match get_global_info id with

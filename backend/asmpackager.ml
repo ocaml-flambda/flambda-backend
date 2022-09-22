@@ -53,10 +53,7 @@ let read_member_info pack_path file = (
       if not (CU.Name.equal (CU.name info.ui_unit) name)
       then raise(Error(Illegal_renaming(name, file, (CU.name info.ui_unit))));
       if not (CU.is_parent pack_path ~child:info.ui_unit)
-      then begin
-        Format.eprintf "pack_path: %a@.info.ui_unit: %a@." CU.print_debug pack_path CU.print_debug info.ui_unit;
-        raise(Error(Wrong_for_pack(file, pack_path)));
-      end;
+      then raise(Error(Wrong_for_pack(file, pack_path)));
       Asmlink.check_consistency file info crc;
       Compilenv.cache_unit_info info;
       PM_impl info
