@@ -831,11 +831,20 @@ let simplify_non_recursive_let_cont ~simplify_expr dacc non_rec ~down_to_up =
 
 type make_rewrite_context =
   | In_handler
-  | In_body
+  | In_body of { rewrite_ids : Apply_cont_rewrite_id.Set.t }
 
 let make_rewrite_for_recursive_continuation uacc ~cont ~original_cont_scope
     ~original_params ~context ~extra_params_and_args =
   (* Format.printf "PARAMS: %a@." Bound_parameters.print original_params; *)
+  let extra_params_and_args =
+    match context with
+    | In_handler -> extra_params_and_args
+    | In_body { rewrite_ids } ->
+      (* In the body, the rewrite will refer to the wrapper continuation, if
+         there is one, which might have additionnal arguments for the aliases *)
+      add_extra_params_for_continuation_param_aliases cont uacc rewrite_ids
+        extra_params_and_args
+  in
   let required_names = UA.required_names uacc in
   let Data_flow.{ continuation_parameters; _ } =
     UA.continuation_param_aliases uacc
@@ -844,9 +853,10 @@ let make_rewrite_for_recursive_continuation uacc ~cont ~original_cont_scope
       continuation_parameters) =
     Continuation.Map.find cont continuation_parameters
   in
-  Format.printf "make_rewrite %a@ params %a@ extra_params %a@ %a@."
-    Continuation.print cont Bound_parameters.print original_params
-    Bound_parameters.print
+  Format.printf "make_rewrite %a %s@ params %a@ extra_params %a@ %a@."
+    Continuation.print cont
+    (match context with In_handler -> "In_handler" | In_body _ -> "In_body")
+    Bound_parameters.print original_params Bound_parameters.print
     (EPA.extra_params extra_params_and_args)
     Data_flow.print_continuation_parameters continuation_parameters;
   let kept_param param =
@@ -872,7 +882,7 @@ let make_rewrite_for_recursive_continuation uacc ~cont ~original_cont_scope
     UA.map_uenv uacc ~f:(fun uenv ->
         match context with
         | In_handler -> UE.add_apply_cont_rewrite uenv cont rewrite
-        | In_body -> UE.replace_apply_cont_rewrite uenv cont rewrite)
+        | In_body _ -> UE.replace_apply_cont_rewrite uenv cont rewrite)
   in
   let uacc =
     UA.map_uenv uacc ~f:(fun uenv ->
@@ -922,13 +932,11 @@ let rebuild_recursive_let_cont_handlers cont ~params ~original_cont_scope
      relate to the same continuation, but to continuations with the same name:
      If the rewrites are different, this one will refer to a wrapper
      continuation with more arguments. *)
-  let extra_params_and_args =
-    add_extra_params_for_continuation_param_aliases cont uacc rewrite_ids
-      extra_params_and_args
-  in
   let uacc, rewrite =
     make_rewrite_for_recursive_continuation uacc ~cont ~original_cont_scope
-      ~original_params ~context:In_body ~extra_params_and_args
+      ~original_params
+      ~context:(In_body { rewrite_ids })
+      ~extra_params_and_args
   in
   let some_params = recursive_let_cont_handler_wrapper_params uacc ~rewrite in
   let uacc =
