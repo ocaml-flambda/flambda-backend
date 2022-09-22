@@ -137,8 +137,6 @@ let add_extra_params_for_continuation_param_aliases cont uacc rewrite_ids
           (fun _id -> EPA.Extra_arg.Already_in_scope (Simple.var var))
           rewrite_ids
       in
-      (* Format.printf "ADD ARG %a to %a@." Variable.print var Continuation.print
-       *   cont; *)
       let var_kind =
         Flambda_kind.With_subkind.create
           (Variable.Map.find var aliases_kind)
@@ -161,8 +159,8 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
     let handler, uacc =
       Variable.Map.fold
         (fun var bound_to (handler, uacc) ->
-          Format.printf "ADD ALIAS LET %a = %a@." Variable.print var
-            Variable.print bound_to;
+          (* Format.printf "ADD ALIAS LET %a = %a@." Variable.print var
+           *   Variable.print bound_to; *)
           let bound_pattern =
             Bound_pattern.singleton (Bound_var.create var Name_mode.normal)
           in
@@ -866,27 +864,47 @@ let make_rewrite_for_recursive_continuation uacc ~cont ~original_cont_scope
   in
   uacc, rewrite
 
-let recursive_let_cont_handler_wrapper_params uacc ~rewrite =
-  let Data_flow.{ aliases; _ } = UA.continuation_param_aliases uacc in
-  let rename_param bp =
-    let var = BP.var bp in
-    let kind = BP.kind bp in
-    match Variable.Map.find var aliases with
-    | exception Not_found -> bp
-    | alias -> BP.create alias kind
+let recursive_let_cont_handler_wrapper_params uacc ~cont ~rewrite =
+  let required_names = UA.required_names uacc in
+  let Data_flow.{ continuation_parameters; _ } =
+    UA.continuation_param_aliases uacc
+  in
+  let { Data_flow.removed_aliased_params_and_extra_params; _ } =
+    Continuation.Map.find cont continuation_parameters
+  in
+  let kept_param param =
+    let var = BP.var param in
+    (not (Variable.Set.mem var removed_aliased_params_and_extra_params))
+    && Name.Set.mem (Name.var var) required_names
   in
   let original_params =
     Bound_parameters.to_list @@ Apply_cont_rewrite.original_params rewrite
   in
-  let used_params = Apply_cont_rewrite.used_params rewrite in
-  let used_original_params =
-    List.filter (fun param -> BP.Set.mem param used_params) original_params
-  in
   let used_extra_params =
     Bound_parameters.to_list @@ Apply_cont_rewrite.used_extra_params rewrite
   in
-  Bound_parameters.create
-    (List.map rename_param (used_original_params @ used_extra_params))
+  let params = List.filter kept_param (original_params @ used_extra_params) in
+  Bound_parameters.create params
+
+(* let rename_param bp =
+ *   let var = BP.var bp in
+ *   let kind = BP.kind bp in
+ *   match Variable.Map.find var aliases with
+ *   | exception Not_found -> bp
+ *   | alias -> BP.create alias kind
+ * in *)
+(* let original_params =
+ *   Bound_parameters.to_list @@ Apply_cont_rewrite.original_params rewrite
+ * in
+ * let used_params = Apply_cont_rewrite.used_params rewrite in
+ * let used_original_params =
+ *   List.filter (fun param -> BP.Set.mem param used_params) original_params
+ * in
+ * let used_extra_params =
+ *   Bound_parameters.to_list @@ Apply_cont_rewrite.used_extra_params rewrite
+ * in
+ * Bound_parameters.create
+ *   (List.map rename_param (used_original_params @ used_extra_params)) *)
 
 let rebuild_recursive_let_cont_handlers cont ~params ~original_cont_scope
     cont_handler ~handler uacc ~after_rebuild ~extra_params_and_args
@@ -910,7 +928,9 @@ let rebuild_recursive_let_cont_handlers cont ~params ~original_cont_scope
       ~context:(In_body { rewrite_ids })
       ~extra_params_and_args
   in
-  let some_params = recursive_let_cont_handler_wrapper_params uacc ~rewrite in
+  let wrapper_params =
+    recursive_let_cont_handler_wrapper_params uacc ~cont ~rewrite
+  in
   let uacc =
     (* If the arguments of the wrapper continuation and the recursive
        continuation are different, we need to remove the arguments of the
@@ -927,7 +947,7 @@ let rebuild_recursive_let_cont_handlers cont ~params ~original_cont_scope
         (fun name_occurrences param ->
           Name_occurrences.remove_var name_occurrences (BP.var param))
         (UA.name_occurrences uacc)
-        (Bound_parameters.to_list some_params)
+        (Bound_parameters.to_list wrapper_params)
     in
     UA.with_name_occurrences uacc ~name_occurrences
   in
@@ -1130,6 +1150,7 @@ let rebuild_recursive_let_cont ~body handlers ~cost_metrics_of_handlers
                  (Variable.Set.mem (BP.var param)
                     removed_aliased_params_and_extra_params))
           (used_original_params @ used_extra_params)
+        (* TODO change -> already computed elsewhere *)
       in
 
       let rec_cont =
@@ -1144,7 +1165,9 @@ let rebuild_recursive_let_cont ~body handlers ~cost_metrics_of_handlers
           handlers ~body
       in
 
-      let params = recursive_let_cont_handler_wrapper_params uacc ~rewrite in
+      let params =
+        recursive_let_cont_handler_wrapper_params uacc ~cont ~rewrite
+      in
       let handler =
         RE.Continuation_handler.create'
           (UA.are_rebuilding_terms uacc)
