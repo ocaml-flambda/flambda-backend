@@ -45,7 +45,12 @@ val init_toplevel :
 (** Add a new continuation on the stack. Used when entering a continuation
     handler. *)
 val enter_continuation :
-  Continuation.t -> recursive:bool -> Bound_parameters.t -> t -> t
+  Continuation.t ->
+  recursive:bool ->
+  is_exn_handler:bool ->
+  Bound_parameters.t ->
+  t ->
+  t
 
 (** Pop the current top of the stack. Used when exiting the current continuation
     handler. *)

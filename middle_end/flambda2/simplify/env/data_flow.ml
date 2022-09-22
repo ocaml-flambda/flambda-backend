@@ -58,6 +58,7 @@ end
 type elt =
   { continuation : Continuation.t;
     recursive : bool;
+    is_exn_handler : bool;
     params : Bound_parameters.t;
     parent_continuation : Continuation.t option;
     used_in_handler : Name_occurrences.t;
@@ -115,6 +116,7 @@ type result =
 let [@ocamlformat "disable"] print_elt ppf
     { continuation;
       recursive;
+      is_exn_handler;
       params;
       parent_continuation;
       used_in_handler;
@@ -127,6 +129,7 @@ let [@ocamlformat "disable"] print_elt ppf
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(continuation %a)@]@ \
       %s\
+      %s\
       @[<hov 1>(params %a)@]@ \
       @[<hov 1>(parent_continuation %a)@]@ \
       @[<hov 1>(used_in_handler %a)@]@ \
@@ -137,7 +140,8 @@ let [@ocamlformat "disable"] print_elt ppf
       @[<hov 1>(apply_cont_args %a)@]\
     )@]"
     Continuation.print continuation
-    (if recursive then "(recursive)" else "")
+    (if recursive then "(recursive) " else "")
+    (if is_exn_handler then "(exn_handler) " else "")
     Bound_parameters.print params
     (Format.pp_print_option ~none:(fun ppf () -> Format.fprintf ppf "root")
        Continuation.print) parent_continuation
@@ -348,13 +352,14 @@ let add_extra_params_and_args cont extra t =
   in
   { t with extra }
 
-let enter_continuation continuation ~recursive params t =
+let enter_continuation continuation ~recursive ~is_exn_handler params t =
   let parent_continuation =
     match t.stack with [] -> None | parent :: _ -> Some parent.continuation
   in
   let elt =
     { continuation;
       recursive;
+      is_exn_handler;
       params;
       parent_continuation;
       bindings = Name.Map.empty;
@@ -368,7 +373,8 @@ let enter_continuation continuation ~recursive params t =
   { t with stack = elt :: t.stack }
 
 let init_toplevel ~dummy_toplevel_cont params _t =
-  enter_continuation dummy_toplevel_cont ~recursive:false params
+  enter_continuation dummy_toplevel_cont ~recursive:false ~is_exn_handler:false
+    params
     { (empty ()) with dummy_toplevel_cont }
 
 let exit_continuation cont t =
@@ -811,6 +817,7 @@ module Dependency_graph = struct
         value_slots;
         continuation = _;
         recursive = _;
+        is_exn_handler = _;
         parent_continuation = _;
         params = _
       } t =
@@ -1460,7 +1467,18 @@ module Control_flow_graph = struct
           Variable.Set.diff aliases_needed available
         in
         let elt = Continuation.Map.find k source_info.map in
-        let exception_handler_first_param : Variable.t option = assert false in
+        let exception_handler_first_param : Variable.t option =
+          if elt.is_exn_handler
+          then
+            match Bound_parameters.to_list elt.params with
+            | [] ->
+              Misc.fatal_errorf
+                "exception handler continuation %a must have at least one \
+                 parameter"
+                Continuation.print k
+            | first :: _ -> Some (Bound_parameter.var first)
+          else None
+        in
         (* For exception continuations the first parameter cannot be removed, so
            instead of rewriting the parameter to its dominator, we instead
            rewrite every alias to the exception parameter *)

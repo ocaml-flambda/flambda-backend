@@ -151,42 +151,56 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
     (recursive : Recursive.t) ~params ~(extra_params_and_args : EPA.t)
     ~rewrite_ids ~is_single_inlinable_use ~is_exn_handler handler uacc
     ~after_rebuild =
-  let Data_flow.{ aliases; _ } = UA.continuation_param_aliases uacc in
-  let add_lets_around_handler uacc ~extra_params handler =
-    (* Format.printf "EPA: %a@." EPA.print extra_params_and_args; *)
+  let Data_flow.{ continuation_parameters; _ } =
+    UA.continuation_param_aliases uacc
+  in
+  let continuation_parameters =
+    Continuation.Map.find cont continuation_parameters
+  in
+  let add_lets_around_handler uacc handler =
     let handler, uacc =
-      List.fold_left
-        (fun (handler, uacc) bp ->
-          let var = BP.var bp in
-          let alias =
-            match Variable.Map.find var aliases with
-            | exception Not_found -> None
-            | alias -> if Variable.equal alias var then None else Some alias
+      Variable.Map.fold
+        (fun var bound_to (handler, uacc) ->
+          Format.printf "ADD ALIAS LET %a = %a@." Variable.print var
+            Variable.print bound_to;
+          let bound_pattern =
+            Bound_pattern.singleton (Bound_var.create var Name_mode.normal)
           in
-          match alias with
-          | None -> handler, uacc
-          | Some alias ->
-            (* Format.printf "ADD ALIAS LET %a = %a@." Variable.print var
-             *   Variable.print alias; *)
-            let bound_pattern =
-              Bound_pattern.singleton (Bound_var.create var Name_mode.normal)
-            in
-            let named = Named.create_simple (Simple.var alias) in
-            let handler, uacc =
-              Expr_builder.create_let_binding uacc bound_pattern named
-                ~free_names_of_defining_expr:
-                  (Name_occurrences.singleton_variable alias Name_mode.normal)
-                ~cost_metrics_of_defining_expr:Cost_metrics.zero ~body:handler
-            in
-            (* let var_occur =
-             *   Name_occurrences.with_only_variables (UA.name_occurrences uacc)
-             * in
-             * Format.printf "ADD ALIAS LET %a = %a@.%a@." Variable.print var
-             *   Variable.print alias Name_occurrences.print var_occur; *)
-            handler, uacc)
-        (handler, uacc)
-        (Bound_parameters.to_list params @ Bound_parameters.to_list extra_params)
+          let named = Named.create_simple (Simple.var bound_to) in
+          let handler, uacc =
+            Expr_builder.create_let_binding uacc bound_pattern named
+              ~free_names_of_defining_expr:
+                (Name_occurrences.singleton_variable bound_to Name_mode.normal)
+              ~cost_metrics_of_defining_expr:Cost_metrics.zero ~body:handler
+          in
+          (* let var_occur =
+           *   Name_occurrences.with_only_variables (UA.name_occurrences uacc)
+           * in
+           * Format.printf "ADD ALIAS LET %a = %a@.%a@." Variable.print var
+           *   Variable.print alias Name_occurrences.print var_occur; *)
+          handler, uacc)
+        continuation_parameters.lets_to_introduce (handler, uacc)
     in
+    (* let add_lets_around_handler uacc ~extra_params handler = * (\*
+       Format.printf "EPA: %a@." EPA.print extra_params_and_args; *\) * let
+       handler, uacc = * List.fold_left * (fun (handler, uacc) bp -> * let var =
+       BP.var bp in * let alias = * match Variable.Map.find var aliases with * |
+       exception Not_found -> None * | alias -> if Variable.equal alias var then
+       None else Some alias * in * match alias with * | None -> handler, uacc *
+       | Some alias -> * (\* Format.printf "ADD ALIAS LET %a = %a@."
+       Variable.print var * * Variable.print alias; *\) * let bound_pattern = *
+       Bound_pattern.singleton (Bound_var.create var Name_mode.normal) * in *
+       let named = Named.create_simple (Simple.var alias) in * let handler, uacc
+       = * Expr_builder.create_let_binding uacc bound_pattern named *
+       ~free_names_of_defining_expr: * (Name_occurrences.singleton_variable
+       alias Name_mode.normal) *
+       ~cost_metrics_of_defining_expr:Cost_metrics.zero ~body:handler * in * (\*
+       let var_occur = * * Name_occurrences.with_only_variables
+       (UA.name_occurrences uacc) * * in * * Format.printf "ADD ALIAS LET %a =
+       %a@.%a@." Variable.print var * * Variable.print alias
+       Name_occurrences.print var_occur; *\) * handler, uacc) * (handler, uacc)
+       * (Bound_parameters.to_list params @ Bound_parameters.to_list
+       extra_params) * in *)
     let handler, uacc =
       (* We might need to place lifted constants now, as they could depend on
          continuation parameters. As such we must also compute the unused
@@ -225,7 +239,6 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
       | Some rewrite ->
         let handler, uacc, free_names, cost_metrics =
           add_lets_around_handler uacc handler
-            ~extra_params:(Apply_cont_rewrite.used_extra_params rewrite)
         in
         let used_params_set = Apply_cont_rewrite.used_params rewrite in
         let used_params, unused_params =
@@ -256,7 +269,6 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
          anyway. *)
       let handler, uacc, free_names, cost_metrics =
         add_lets_around_handler uacc handler
-          ~extra_params:(EPA.extra_params extra_params_and_args)
       in
       let extra_params_and_args =
         add_extra_params_for_continuation_param_aliases cont uacc rewrite_ids
@@ -744,7 +756,9 @@ let after_downwards_traversal_of_non_recursive_let_cont_body ~simplify_expr
     params ~handler ~down_to_up dacc_after_body ~rebuild:rebuild_body =
   let dacc_after_body =
     DA.map_data_flow dacc_after_body
-      ~f:(Data_flow.enter_continuation cont ~recursive:false params)
+      ~f:
+        (Data_flow.enter_continuation cont ~recursive:false ~is_exn_handler
+           params)
   in
   (* Before the upwards traversal of the body, we do the downwards traversal of
      the handler. *)
@@ -1016,7 +1030,9 @@ let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
     ~original_cont_scope ~down_to_up =
   let dacc_after_body =
     DA.map_data_flow dacc_after_body
-      ~f:(Data_flow.enter_continuation cont ~recursive:true params)
+      ~f:
+        (Data_flow.enter_continuation cont ~recursive:true ~is_exn_handler:false
+           params)
   in
   let denv =
     DE.add_parameters_with_unknown_types ~at_unit_toplevel:false
