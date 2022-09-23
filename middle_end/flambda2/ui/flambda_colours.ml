@@ -18,14 +18,26 @@ let debug_push_and_pop = false
 
 type directive = Format.formatter -> unit
 
-let colour_enabled =
-  lazy
-    ((* This avoids having to alter misc.ml *)
-     let buf = Buffer.create 10 in
-     let ppf = Format.formatter_of_buffer buf in
-     Misc.Color.set_color_tag_handling ppf;
-     Format.fprintf ppf "@{<error>@}%!";
-     String.length (Buffer.contents buf) > 0)
+let disable_colours = ref false
+
+let is_colour_enabled =
+  let colour_enabled =
+    lazy
+      ((* This avoids having to alter misc.ml *)
+        let buf = Buffer.create 10 in
+        let ppf = Format.formatter_of_buffer buf in
+        Misc.Color.set_color_tag_handling ppf;
+        Format.fprintf ppf "@{<error>@}%!";
+        String.length (Buffer.contents buf) > 0)
+  in
+  fun () -> Lazy.force colour_enabled && not !disable_colours
+
+let without_colours ~f =
+  let tmp = !disable_colours in
+  disable_colours := true;
+  let res = f () in
+  disable_colours := tmp;
+  res
 
 type state =
   { fg : int option;
@@ -40,7 +52,7 @@ let state_stack =
   ref [initial_state]
 
 let output ppf str =
-  if Lazy.force colour_enabled then Format.fprintf ppf "@<0>%s" str
+  if is_colour_enabled () then Format.fprintf ppf "@<0>%s" str
 
 let sequence command_code arg =
   Printf.sprintf "\x1b[%d;5;%d;1m" command_code arg
