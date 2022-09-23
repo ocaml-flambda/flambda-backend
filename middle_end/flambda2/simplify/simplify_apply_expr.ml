@@ -34,8 +34,6 @@ let warn_not_inlined_if_needed apply reason =
       (Debuginfo.to_location (Apply.dbg apply))
       (Warnings.Inlining_impossible reason)
 
-(* Note that this considers that the extra arguments of the exn_continuation are
-   always used. *)
 let record_free_names_of_apply_as_used0 apply ~use_id ~exn_cont_use_id data_flow
     =
   let free_names_of_function_and_args =
