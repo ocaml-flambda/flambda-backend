@@ -91,3 +91,5 @@ val error : directive
 val each_file : directive
 
 val lambda : directive
+
+val without_colours : f:(unit -> 'a) -> 'a
