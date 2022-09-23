@@ -805,7 +805,6 @@ type make_rewrite_context =
 
 let make_rewrite_for_recursive_continuation uacc ~cont ~original_cont_scope
     ~original_params ~context ~extra_params_and_args =
-  (* Format.printf "PARAMS: %a@." Bound_parameters.print original_params; *)
   let extra_params_and_args =
     match context with
     | In_handler -> extra_params_and_args
@@ -886,31 +885,9 @@ let recursive_let_cont_handler_wrapper_params uacc ~cont ~rewrite =
   let params = List.filter kept_param (original_params @ used_extra_params) in
   Bound_parameters.create params
 
-(* let rename_param bp =
- *   let var = BP.var bp in
- *   let kind = BP.kind bp in
- *   match Variable.Map.find var aliases with
- *   | exception Not_found -> bp
- *   | alias -> BP.create alias kind
- * in *)
-(* let original_params =
- *   Bound_parameters.to_list @@ Apply_cont_rewrite.original_params rewrite
- * in
- * let used_params = Apply_cont_rewrite.used_params rewrite in
- * let used_original_params =
- *   List.filter (fun param -> BP.Set.mem param used_params) original_params
- * in
- * let used_extra_params =
- *   Bound_parameters.to_list @@ Apply_cont_rewrite.used_extra_params rewrite
- * in
- * Bound_parameters.create
- *   (List.map rename_param (used_original_params @ used_extra_params)) *)
-
 let rebuild_recursive_let_cont_handlers cont ~params ~original_cont_scope
     cont_handler ~handler uacc ~after_rebuild ~extra_params_and_args
     ~original_params ~rewrite_ids =
-  (* Format.printf "rebuild_recursive_let_cont_handlers %a@." Continuation.print
-   *   cont; *)
   let uacc =
     UA.map_uenv uacc ~f:(fun uenv ->
         UE.add_non_inlinable_continuation uenv cont original_cont_scope ~params
