@@ -136,10 +136,7 @@ val print_continuation_parameters :
   Format.formatter -> continuation_parameters -> unit
 
 type continuation_param_aliases =
-  { aliases : Variable.t Variable.Map.t;
-    (* TODO Verify if this is useful *)
-    aliases_kind : Flambda_kind.t Variable.Map.t;
-    (* TODO Verify if this is useful *)
+  { aliases_kind : Flambda_kind.t Variable.Map.t;
     continuation_parameters : continuation_parameters Continuation.Map.t
   }
 

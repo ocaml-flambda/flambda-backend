@@ -93,10 +93,7 @@ type continuation_parameters =
   }
 
 type continuation_param_aliases =
-  { aliases : Variable.t Variable.Map.t;
-    (* TODO Verify if this is useful *)
-    aliases_kind : Flambda_kind.t Variable.Map.t;
-    (* TODO Verify if this is useful *)
+  { aliases_kind : Flambda_kind.t Variable.Map.t;
     continuation_parameters : continuation_parameters Continuation.Map.t
   }
 
@@ -199,31 +196,27 @@ let [@ocamlformat "disable"] print ppf { stack; map; extra; dummy_toplevel_cont 
     print_extra extra
 
 let [@ocamlformat "disable"] print_continuation_param_aliases ppf
-    { aliases; aliases_kind; continuation_parameters } =
+    { aliases_kind; continuation_parameters } =
   Format.fprintf ppf
     "@[<hov 1>(\
-       @[<hov 1>(aliases@ %a)@]@ \
        @[<hov 1>(aliases_kind@ %a)@]@ \
        @[<hov 1>(continuation_parameters@ %a)@]\
      )@]"
-    (Variable.Map.print Variable.print) aliases
     (Variable.Map.print Flambda_kind.print) aliases_kind
     (Continuation.Map.print print_continuation_parameters) continuation_parameters
 
 let [@ocamlformat "disable"] _print_result ppf
     { dead_variable_result = { required_names; reachable_code_ids };
-      continuation_param_aliases = { aliases; aliases_kind; continuation_parameters } } =
+      continuation_param_aliases = { aliases_kind; continuation_parameters } } =
   Format.fprintf ppf
     "@[<hov 1>(\
        @[<hov 1>(required_names@ %a)@]@ \
        @[<hov 1>(reachable_code_ids@ %a)@]@ \
-       @[<hov 1>(aliases@ %a)@]@ \
        @[<hov 1>(aliases_kind@ %a)@]@ \
        @[<hov 1>(continuation_parameters@ %a)@]\
      )@]"
     Name.Set.print required_names
     Reachable_code_ids.print reachable_code_ids
-    (Variable.Map.print Variable.print) aliases
     (Variable.Map.print Flambda_kind.print) aliases_kind
     (Continuation.Map.print print_continuation_parameters) continuation_parameters
 
@@ -1729,7 +1722,7 @@ let analyze ?print_name ~return_continuation ~exn_continuation
       let result =
         { dead_variable_result;
           continuation_param_aliases =
-            { aliases; aliases_kind; continuation_parameters }
+            { aliases_kind; continuation_parameters }
         }
       in
       if debug then Format.eprintf "/// result@\n%a@\n@." _print_result result;
