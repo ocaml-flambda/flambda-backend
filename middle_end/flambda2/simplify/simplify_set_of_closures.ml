@@ -554,6 +554,7 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
         dacc_after_body,
         free_names_of_code,
         return_cont_uses,
+        is_my_closure_used,
         uacc_after_upwards_traversal ) =
     Function_params_and_body.pattern_match (Code.params_and_body code)
       ~f:(fun
@@ -598,6 +599,9 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
             RE.Function_params_and_body.create ~free_names_of_body
               ~return_continuation ~exn_continuation params ~body ~my_closure
               ~my_region ~my_depth
+          in
+          let is_my_closure_used =
+            Name_occurrences.mem_var free_names_of_body my_closure
           in
           (* Free names of the code = free names of the body minus the return
              and exception continuations, the parameters and the [my_*]
@@ -648,6 +652,7 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
             dacc_after_body,
             free_names_of_code,
             return_cont_uses,
+            is_my_closure_used,
             uacc )
         | exception Misc.Fatal_error ->
           let bt = Printexc.get_raw_backtrace () in
@@ -768,9 +773,8 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
       ~stub:(Code.stub code) ~inline:(Code.inline code)
       ~is_a_functor:(Code.is_a_functor code) ~recursive:(Code.recursive code)
       ~cost_metrics ~inlining_arguments ~dbg:(Code.dbg code)
-      ~is_tupled:(Code.is_tupled code)
-      ~is_my_closure_used:(Code.is_my_closure_used code)
-      ~inlining_decision ~absolute_history ~relative_history
+      ~is_tupled:(Code.is_tupled code) ~is_my_closure_used ~inlining_decision
+      ~absolute_history ~relative_history
   in
   { code_id; code = Some code; outer_dacc }
 
