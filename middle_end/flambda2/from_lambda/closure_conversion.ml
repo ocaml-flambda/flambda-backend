@@ -1740,6 +1740,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
         specialise = Default_specialise;
         local = Default_local;
         check = Default_check;
+        loop = Default_loop;
         is_a_functor = false;
         stub = false;
         poll = Default_poll
