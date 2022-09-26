@@ -1369,6 +1369,7 @@ and cps_non_tail_simple acc env ccenv (lam : L.lambda)
   match lam with
   | Lvar id ->
     assert (not (Env.is_mutable env id));
+    let acc = check_variable_use env id acc in
     k acc env ccenv (IR.Var id)
   | Lconst const -> k acc env ccenv (IR.Const const)
   | Lmutvar _ | Lapply _ | Lfunction _ | Lmutlet _ | Llet _ | Lletrec _
@@ -1978,12 +1979,13 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
        blocks that are not treated like variants; [Lswitch] can only be used \
        for variant matching"
       switch.sw_numblocks;
-  let convert_arms_rev env cases wrappers =
+  let convert_arms_rev acc env cases wrappers =
     List.fold_left
-      (fun (consts_rev, wrappers) (arm, (action : L.lambda)) ->
+      (fun (acc, consts_rev, wrappers) (arm, (action : L.lambda)) ->
         match action with
         | Lvar var ->
           assert (not (Env.is_mutable env var));
+          let acc = check_variable_use env var acc in
           let extra_args =
             List.map
               (fun arg : IR.simple -> Var arg)
@@ -1992,7 +1994,7 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
           let consts_rev =
             (arm, k, None, IR.Var var :: extra_args) :: consts_rev
           in
-          consts_rev, wrappers
+          acc, consts_rev, wrappers
         | Lconst cst ->
           let extra_args =
             List.map
@@ -2002,7 +2004,7 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
           let consts_rev =
             (arm, k, None, IR.Const cst :: extra_args) :: consts_rev
           in
-          consts_rev, wrappers
+          acc, consts_rev, wrappers
         | Lmutvar _ | Lapply _ | Lfunction _ | Llet _ | Lmutlet _ | Lletrec _
         | Lprim _ | Lswitch _ | Lstringswitch _ | Lstaticraise _
         | Lstaticcatch _ | Ltrywith _ | Lifthenelse _ | Lsequence _ | Lwhile _
@@ -2015,14 +2017,16 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
           let action acc ccenv = cps_tail acc env ccenv action k k_exn in
           let consts_rev = (arm, cont, None, []) :: consts_rev in
           let wrappers = (cont, action) :: wrappers in
-          consts_rev, wrappers)
-      ([], wrappers) cases
+          acc, consts_rev, wrappers)
+      (acc, [], wrappers) cases
   in
   cps_non_tail acc env ccenv scrutinee
     (fun acc env ccenv scrutinee ->
-      let consts_rev, wrappers = convert_arms_rev env switch.sw_consts [] in
-      let blocks_rev, wrappers =
-        convert_arms_rev env (List.combine block_nums sw_blocks) wrappers
+      let acc, consts_rev, wrappers =
+        convert_arms_rev acc env switch.sw_consts []
+      in
+      let acc, blocks_rev, wrappers =
+        convert_arms_rev acc env (List.combine block_nums sw_blocks) wrappers
       in
       let consts = List.rev consts_rev in
       let blocks = List.rev blocks_rev in
