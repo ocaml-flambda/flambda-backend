@@ -506,6 +506,7 @@ let simplify_duplicate_block ~kind:_ dacc ~original_term ~arg:_ ~arg_ty
   SPR.create original_term ~try_reify:false dacc
 
 let simplify_obj_dup dbg dacc ~original_term ~arg ~arg_ty ~result_var =
+  (* This must respect the semantics of physical equality. *)
   let typing_env = DA.typing_env dacc in
   let[@inline] elide_primitive () =
     let dacc = DA.add_variable dacc result_var arg_ty in

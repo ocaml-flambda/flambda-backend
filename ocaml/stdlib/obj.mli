@@ -70,12 +70,8 @@ external set_raw_field : t -> int -> raw_data -> unit
 external new_block : int -> int -> t = "caml_obj_block"
 
 external dup : t -> t = "%obj_dup"
-(** [dup t] returns a value that behaves like a shallow copy of [t] with
-    respect to the semantics of physical equality.  In particular, if
-    it is not actually necessary to allocate a new value (for example if
-    [t] is immutable), then [t] may be returned unchanged.  Any allocation
-    performed by this function is on the GC heap and not on the local
-    allocation stack. *)
+(** [dup t] returns a shallow copy of [t].  However if [t] is immutable then
+    it might be returned unchanged. *)
 
 external add_offset : t -> Int32.t -> t = "caml_obj_add_offset"
          (* @since 3.12.0 *)
