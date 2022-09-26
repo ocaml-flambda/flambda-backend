@@ -557,6 +557,7 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
         free_names_of_code,
         return_cont_uses,
         is_my_closure_used,
+        recursive,
         uacc_after_upwards_traversal ) =
     Function_params_and_body.pattern_match (Code.params_and_body code)
       ~f:(fun
@@ -612,6 +613,11 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
           let is_my_closure_used =
             Name_occurrences.mem_var free_names_of_body my_closure
           in
+          let recursive : Recursive.t =
+            if Name_occurrences.mem_var free_names_of_body my_depth
+            then Recursive
+            else Non_recursive
+          in
           (* Free names of the code = free names of the body minus the return
              and exception continuations, the parameters and the [my_*]
              variables. *)
@@ -662,6 +668,7 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
             free_names_of_code,
             return_cont_uses,
             is_my_closure_used,
+            recursive,
             uacc )
         | exception Misc.Fatal_error ->
           let bt = Printexc.get_raw_backtrace () in
@@ -690,16 +697,11 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
     | new_code_id -> new_code_id, Some old_code_id
     | exception Not_found -> old_code_id, None
   in
-  let still_recursive =
-    if Code.perform_tailrec_to_cont code
-    then Recursive.Non_recursive
-    else Code.recursive code
-  in
   let inlining_decision =
     let decision =
       Function_decl_inlining_decision.make_decision ~inlining_arguments
         ~inline:(Code.inline code) ~stub:(Code.stub code) ~cost_metrics
-        ~is_a_functor:(Code.is_a_functor code) ~recursive:still_recursive
+        ~is_a_functor:(Code.is_a_functor code) ~recursive
     in
     Inlining_report.record_decision_at_function_definition ~absolute_history
       ~code_metadata:(Code.code_metadata code) ~pass:After_simplify
@@ -785,10 +787,10 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
       ~contains_no_escaping_local_allocs:
         (Code.contains_no_escaping_local_allocs code)
       ~stub:(Code.stub code) ~inline:(Code.inline code)
-      ~is_a_functor:(Code.is_a_functor code) ~recursive:still_recursive
-      ~cost_metrics ~inlining_arguments ~dbg:(Code.dbg code)
-      ~is_tupled:(Code.is_tupled code) ~is_my_closure_used ~inlining_decision
-      ~absolute_history ~relative_history ~perform_tailrec_to_cont:false
+      ~is_a_functor:(Code.is_a_functor code) ~recursive ~cost_metrics
+      ~inlining_arguments ~dbg:(Code.dbg code) ~is_tupled:(Code.is_tupled code)
+      ~is_my_closure_used ~inlining_decision ~absolute_history ~relative_history
+      ~perform_tailrec_to_cont:false
   in
   { code_id; code = Some code; outer_dacc }
 
