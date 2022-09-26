@@ -1060,10 +1060,11 @@ let is_self_tail_call dacc apply =
   | Not_in_a_closure | In_a_set_of_closures_but_not_yet_in_a_specific_closure ->
     Tailrec_to_cont.do_not_rewrite_self_tail_calls
   | Closure { return_continuation; exn_continuation; my_closure; _ } ->
-    if Simple.pattern_match' (Apply.callee apply)
-         ~const:(fun _ -> false)
-         ~symbol:(fun _ ~coercion:_ -> false)
-         ~var:(fun v ~coercion:_ -> Variable.equal v my_closure)
+    let tenv = DE.typing_env denv in
+    let[@inline always] canon simple =
+      Simple.without_coercion (TE.get_canonical_simple_exn tenv simple)
+    in
+    if Simple.equal (canon (Simple.var my_closure)) (canon (Apply.callee apply))
        && (match Apply.continuation apply with
           | Never_returns -> true
           | Return apply_return_continuation ->
