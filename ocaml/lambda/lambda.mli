@@ -283,6 +283,11 @@ type local_attribute =
   | Never_local (* [@local never] *)
   | Default_local (* [@local maybe] or no [@local] attribute *)
 
+type loop_attribute =
+  | Always_loop (* [@loop] or [@loop always] *)
+  | Never_loop (* [@loop never] *)
+  | Default_loop (* no [@loop] attribute *)
+
 type function_kind = Curried of {nlocal: int} | Tupled
 (* [nlocal] determines how many arguments may be partially applied
    before the resulting closure must be locally allocated.
@@ -309,6 +314,7 @@ type function_attribute = {
   inline : inline_attribute;
   specialise : specialise_attribute;
   local: local_attribute;
+  loop: loop_attribute;
   is_a_functor: bool;
   stub: bool;
 }

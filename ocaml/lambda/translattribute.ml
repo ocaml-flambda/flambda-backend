@@ -38,6 +38,10 @@ let is_local_attribute = function
   | {txt=("local"|"ocaml.local")} -> true
   | _ -> false
 
+let is_loop_attribute = function
+  | {txt=("loop"|"ocaml.loop")} -> true
+  | _ -> false
+
 let find_attribute p attributes =
   let inline_attribute, other_attributes =
     List.partition (fun a -> p a.Parsetree.attr_name) attributes
@@ -197,6 +201,19 @@ let parse_local_attribute attr =
         ]
         payload
 
+let parse_loop_attribute attr =
+  match attr with
+  | None -> Default_loop
+  | Some {Parsetree.attr_name = {txt; loc}; attr_payload = payload} ->
+      parse_id_payload txt loc
+        ~default:Default_loop
+        ~empty:Always_loop
+        [
+          "never", Never_loop;
+          "always", Always_loop;
+        ]
+        payload
+
 let get_inline_attribute l =
   let attr, _ = find_attribute is_inline_attribute l in
   parse_inline_attribute attr
@@ -208,6 +225,10 @@ let get_specialise_attribute l =
 let get_local_attribute l =
   let attr, _ = find_attribute is_local_attribute l in
   parse_local_attribute attr
+
+let get_loop_attribute l =
+  let attr, _ = find_attribute is_loop_attribute l in
+  parse_loop_attribute attr
 
 let check_local_inline loc attr =
   match attr.local, attr.inline with
@@ -268,6 +289,23 @@ let add_local_attribute expr loc attributes =
   | expr, (Always_local | Never_local) ->
       Location.prerr_warning loc
         (Warnings.Misplaced_attribute "local");
+      expr
+
+let add_loop_attribute expr loc attributes =
+  match expr, get_loop_attribute attributes with
+  | expr, Default_loop -> expr
+  | Lfunction({ attr = { stub = false } as attr } as funct), loop ->
+      begin match attr.loop with
+      | Default_loop -> ()
+      | Always_loop | Never_loop ->
+          Location.prerr_warning loc
+            (Warnings.Duplicated_attribute "loop")
+      end;
+      let attr = { attr with loop } in
+      Lfunction { funct with attr = attr }
+  | expr, (Always_loop | Never_loop) ->
+      Location.prerr_warning loc
+        (Warnings.Misplaced_attribute "loop");
       expr
 
 (* Get the [@inlined] attribute payload (or default if not present).
@@ -381,5 +419,8 @@ let add_function_attributes lam loc attr =
   in
   let lam =
     add_local_attribute lam loc attr
+  in
+  let lam =
+    add_loop_attribute lam loc attr
   in
   lam

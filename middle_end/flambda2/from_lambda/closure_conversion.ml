@@ -1342,6 +1342,12 @@ let close_one_function acc ~external_env ~by_function_slot decl
     then Function_decl_inlining_decision_type.Stub
     else Function_decl_inlining_decision_type.Not_yet_decided
   in
+  let perform_tailrec_to_cont =
+    match Function_decl.loop decl with
+    | Always_loop -> true
+    | Never_loop -> false
+    | Default_loop -> is_purely_tailrec
+  in
   let code =
     Code.create code_id ~params_and_body
       ~free_names_of_params_and_body:(Acc.free_names acc) ~params_arity
@@ -1363,7 +1369,7 @@ let close_one_function acc ~external_env ~by_function_slot decl
       ~is_my_closure_used:
         (Function_params_and_body.is_my_closure_used params_and_body)
       ~inlining_decision ~absolute_history ~relative_history
-      ~perform_tailrec_to_cont:is_purely_tailrec
+      ~perform_tailrec_to_cont
   in
   let approx =
     let code = Code_or_metadata.create code in
@@ -1658,6 +1664,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
       { inline = Default_inline;
         specialise = Default_specialise;
         local = Default_local;
+        loop = Default_loop;
         is_a_functor = false;
         stub = false
       }

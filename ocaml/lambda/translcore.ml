@@ -818,6 +818,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
         { inline = Never_inline;
           specialise = Always_specialise;
           local = Never_local;
+          loop = Never_loop;
           is_a_functor = false;
           stub = false;
         } in

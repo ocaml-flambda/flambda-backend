@@ -370,6 +370,11 @@ type local_attribute =
   | Never_local (* [@local never] *)
   | Default_local (* [@local maybe] or no [@local] attribute *)
 
+type loop_attribute =
+  | Always_loop (* [@loop] or [@loop always] *)
+  | Never_loop (* [@loop never] *)
+  | Default_loop (* no [@loop] attribute *)
+
 type function_kind = Curried of {nlocal: int} | Tupled
 
 type let_kind = Strict | Alias | StrictOpt
@@ -389,6 +394,7 @@ type function_attribute = {
   inline : inline_attribute;
   specialise : specialise_attribute;
   local: local_attribute;
+  loop: loop_attribute;
   is_a_functor: bool;
   stub: bool;
 }
@@ -520,6 +526,7 @@ let default_function_attribute = {
   inline = Default_inline;
   specialise = Default_specialise;
   local = Default_local;
+  loop = Default_loop;
   is_a_functor = false;
   stub = false;
 }

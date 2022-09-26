@@ -307,6 +307,8 @@ module Function_decls : sig
 
     val specialise : t -> Lambda.specialise_attribute
 
+    val loop : t -> Lambda.loop_attribute
+
     val is_a_functor : t -> bool
 
     val stub : t -> bool
