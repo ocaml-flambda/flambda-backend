@@ -2904,6 +2904,7 @@ let rec is_an_uncurried_function e =
     | (Pexp_fun _ | Pexp_function _), _ -> true
     | Pexp_poly (e, _), _
     | Pexp_newtype (_, e), _
+    | Pexp_coerce (e, _, _), _
     | Pexp_constraint (e, _), _ -> is_an_uncurried_function e
     | Pexp_let (Nonrecursive, _, e),
       [{Parsetree.attr_name = {txt="#default"};_}] ->
@@ -5339,7 +5340,10 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
         in
         let cases = [case eta_pat e] in
         let param = name_cases "param" cases in
-        let curry = Final_arg {partial_mode = mret} in
+        let partial_mode =
+          Alloc_mode.join [marg; Value_mode.regional_to_local_alloc mode.mode]
+        in
+        let curry = Final_arg {partial_mode} in
         { texp with exp_type = ty_fun; exp_mode = mode.mode;
             exp_desc = Texp_function { arg_label = Nolabel; param; cases;
                                        partial = Total; region = false; curry;
