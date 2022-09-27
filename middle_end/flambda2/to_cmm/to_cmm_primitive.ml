@@ -514,7 +514,7 @@ let nullary_primitive _env dbg prim : _ * Cmm.expression =
 
 let unary_primitive env res dbg f arg =
   match (f : P.unary_primitive) with
-  | Duplicate_array _ | Duplicate_block _ ->
+  | Duplicate_array _ | Duplicate_block _ | Obj_dup ->
     ( None,
       res,
       C.extcall ~dbg ~alloc:true ~returns:true ~is_c_builtin:false ~ty_args:[]
