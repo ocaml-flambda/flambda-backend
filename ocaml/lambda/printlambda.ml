@@ -439,7 +439,7 @@ let primitive ppf = function
   | Pint_as_pointer -> fprintf ppf "int_as_pointer"
   | Popaque -> fprintf ppf "opaque"
   | Pprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled[%s]" name
-  | Pobj_dup -> fprintf ppf "globalize"
+  | Pobj_dup -> fprintf ppf "obj_dup"
 
 let name_of_primitive = function
   | Pidentity -> "Pidentity"

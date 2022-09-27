@@ -181,7 +181,7 @@ type primitive =
   | Popaque
   (* Statically-defined probes *)
   | Pprobe_is_enabled of { name: string }
-  (* Local allocations *)
+  (* Primitives for [Obj] *)
   | Pobj_dup
 
 and integer_comparison =
