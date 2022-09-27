@@ -125,7 +125,7 @@ let rebuild_non_inlined_direct_full_application apply ~use_id ~exn_cont_use_id
   in
   after_rebuild expr uacc
 
-let simplify_direct_full_application ~simplify_expr dacc apply function_type
+let simplify_direct_full_application0 ~simplify_expr dacc apply function_type
     ~params_arity ~result_arity ~result_types ~down_to_up ~coming_from_indirect
     ~callee's_code_metadata =
   let inlined =
@@ -259,6 +259,45 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
       ~rebuild:
         (rebuild_non_inlined_direct_full_application apply ~use_id
            ~exn_cont_use_id ~result_arity ~coming_from_indirect)
+
+let is_self_tail_call dacc apply =
+  let denv = DA.denv dacc in
+  match DE.closure_info denv with
+  | Not_in_a_closure | In_a_set_of_closures_but_not_yet_in_a_specific_closure ->
+    Tailrec_to_cont.do_not_rewrite_self_tail_calls
+  | Closure { return_continuation; exn_continuation; my_closure; _ } ->
+    let tenv = DE.typing_env denv in
+    let[@inline always] canon simple =
+      Simple.without_coercion (TE.get_canonical_simple_exn tenv simple)
+    in
+    if Simple.equal (canon (Simple.var my_closure)) (canon (Apply.callee apply))
+       && (match Apply.continuation apply with
+          | Never_returns -> true
+          | Return apply_return_continuation ->
+            Continuation.equal apply_return_continuation return_continuation)
+       && Exn_continuation.equal
+            (Apply.exn_continuation apply)
+            (Exn_continuation.create ~exn_handler:exn_continuation
+               ~extra_args:[])
+    then DE.tailrec_to_cont denv
+    else Tailrec_to_cont.do_not_rewrite_self_tail_calls
+
+let simplify_self_tail_call dacc apply self_cont ~down_to_up =
+  Simplify_apply_cont_expr.simplify_apply_cont dacc
+    (Apply_cont_expr.create self_cont ~args:(Apply.args apply)
+       ~dbg:(Apply.dbg apply))
+    ~down_to_up
+
+let simplify_direct_full_application ~simplify_expr dacc apply function_type
+    ~params_arity ~result_arity ~result_types ~down_to_up ~coming_from_indirect
+    ~callee's_code_metadata =
+  match is_self_tail_call dacc apply with
+  | Rewrite_self_tail_calls self_cont ->
+    simplify_self_tail_call dacc apply self_cont ~down_to_up
+  | Do_not_rewrite_self_tail_calls ->
+    simplify_direct_full_application0 ~simplify_expr dacc apply function_type
+      ~params_arity ~result_arity ~result_types ~down_to_up
+      ~coming_from_indirect ~callee's_code_metadata
 
 (* CR mshinwell: need to work out what to do for local alloc transformations
    when there are zero args. *)
@@ -1054,47 +1093,14 @@ let simplify_c_call ~simplify_expr dacc apply ~callee_ty ~param_arity
     in
     down_to_up dacc ~rebuild
 
-let is_self_tail_call dacc apply =
-  let denv = DA.denv dacc in
-  match DE.closure_info denv with
-  | Not_in_a_closure | In_a_set_of_closures_but_not_yet_in_a_specific_closure ->
-    Tailrec_to_cont.do_not_rewrite_self_tail_calls
-  | Closure { return_continuation; exn_continuation; my_closure; _ } ->
-    let tenv = DE.typing_env denv in
-    let[@inline always] canon simple =
-      Simple.without_coercion (TE.get_canonical_simple_exn tenv simple)
-    in
-    if Simple.equal (canon (Simple.var my_closure)) (canon (Apply.callee apply))
-       && (match Apply.continuation apply with
-          | Never_returns -> true
-          | Return apply_return_continuation ->
-            Continuation.equal apply_return_continuation return_continuation)
-       && Exn_continuation.equal
-            (Apply.exn_continuation apply)
-            (Exn_continuation.create ~exn_handler:exn_continuation
-               ~extra_args:[])
-    then DE.tailrec_to_cont denv
-    else Tailrec_to_cont.do_not_rewrite_self_tail_calls
-
-let simplify_self_tail_call dacc apply self_cont ~down_to_up =
-  Simplify_apply_cont_expr.simplify_apply_cont dacc
-    (Apply_cont_expr.create self_cont ~args:(Apply.args apply)
-       ~dbg:(Apply.dbg apply))
-    ~down_to_up
-
 let simplify_apply ~simplify_expr dacc apply ~down_to_up =
-  match is_self_tail_call dacc apply with
-  | Rewrite_self_tail_calls self_cont ->
-    simplify_self_tail_call dacc apply self_cont ~down_to_up
-  | Do_not_rewrite_self_tail_calls -> (
-    let dacc, callee_ty, apply, arg_types = simplify_apply_shared dacc apply in
-    match Apply.call_kind apply with
-    | Function { function_call; alloc_mode = apply_alloc_mode } ->
-      simplify_function_call ~simplify_expr dacc apply ~callee_ty function_call
-        ~apply_alloc_mode ~arg_types ~down_to_up
-    | Method { kind; obj; alloc_mode = _ } ->
-      simplify_method_call dacc apply ~callee_ty ~kind ~obj ~arg_types
-        ~down_to_up
-    | C_call { alloc = _; param_arity; return_arity; is_c_builtin = _ } ->
-      simplify_c_call ~simplify_expr dacc apply ~callee_ty ~param_arity
-        ~return_arity ~arg_types ~down_to_up)
+  let dacc, callee_ty, apply, arg_types = simplify_apply_shared dacc apply in
+  match Apply.call_kind apply with
+  | Function { function_call; alloc_mode = apply_alloc_mode } ->
+    simplify_function_call ~simplify_expr dacc apply ~callee_ty function_call
+      ~apply_alloc_mode ~arg_types ~down_to_up
+  | Method { kind; obj; alloc_mode = _ } ->
+    simplify_method_call dacc apply ~callee_ty ~kind ~obj ~arg_types ~down_to_up
+  | C_call { alloc = _; param_arity; return_arity; is_c_builtin = _ } ->
+    simplify_c_call ~simplify_expr dacc apply ~callee_ty ~param_arity
+      ~return_arity ~arg_types ~down_to_up
