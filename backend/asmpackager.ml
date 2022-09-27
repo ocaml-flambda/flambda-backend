@@ -218,12 +218,11 @@ let build_package_cmx members cmxfile =
             |> Compilation_unit.Set.of_list)
   in
   let ui = Compilenv.current_unit_infos() in
-  (* XXX What happens if we have -for-pack Foo.Bar? *)
-  (* XXX Should we assert something about ui.ui_unit -- e.g. no prefix? *)
   let pack =
+    (* CR-soon lmaurer: This is horrific, but the whole [import_for_pack]
+       business is about to go away. *)
     Compilation_unit.Prefix.parse_for_pack
-      (Some (Compilation_unit.Name.to_string
-               (Compilation_unit.name ui.ui_unit)))
+      (Some (Compilation_unit.full_path_as_string ui.ui_unit))
   in
   let units : Cmx_format.unit_infos list =
     if Config.flambda then
