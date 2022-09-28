@@ -97,6 +97,11 @@ and exp_extra =
   | Texp_poly of core_type option
   | Texp_newtype of string
 
+
+and fun_curry_state =
+  | More_args of { partial_mode : Types.alloc_mode }
+  | Final_arg of { partial_mode : Types.alloc_mode }
+
 and expression_desc =
     Texp_ident of
       Path.t * Longident.t loc * Types.value_description * ident_kind
@@ -104,7 +109,8 @@ and expression_desc =
   | Texp_let of rec_flag * value_binding list * expression
   | Texp_function of { arg_label : arg_label; param : Ident.t;
       cases : value case list; partial : partial;
-      region : bool; warnings : Warnings.state; }
+      region : bool; curry : fun_curry_state;
+      warnings : Warnings.state; }
   | Texp_apply of expression * (arg_label * apply_arg) list * apply_position
   | Texp_match of expression * computation case list * partial
   | Texp_try of expression * value case list
