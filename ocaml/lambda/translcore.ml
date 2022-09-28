@@ -99,11 +99,9 @@ let transl_alloc_mode alloc_mode =
   | Global -> alloc_heap
   | Local -> alloc_local
 
-let transl_value_mode mode =
-  let alloc_mode = Btype.Value_mode.regional_to_global_alloc mode in
+let transl_exp_mode e =
+  let alloc_mode = Btype.Value_mode.regional_to_global_alloc e.exp_mode in
   transl_alloc_mode alloc_mode
-
-let transl_exp_mode e = transl_value_mode e.exp_mode
 
 let transl_apply_position position =
   match position with
