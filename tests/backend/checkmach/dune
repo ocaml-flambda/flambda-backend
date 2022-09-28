@@ -92,3 +92,21 @@
  (enabled_if (= %{context_name} "main"))
  (deps fail4.output fail4.output.corrected)
  (action (diff fail4.output fail4.output.corrected)))
+
+;; test for expected compilation errors
+
+(rule
+ (alias   runtest)
+ (targets test_attribute_error_duplicate.output.corrected)
+ (deps test_attribute_error_duplicate.ml)
+ (action    (with-outputs-to test_attribute_error_duplicate.output.corrected
+            (run %{bin:ocamlopt.opt} %{deps} -color never -error-style short -c -alloc-check -O3))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_attribute_error_duplicate.output
+       test_attribute_error_duplicate.output.corrected)
+ (action
+        (diff test_attribute_error_duplicate.output
+              test_attribute_error_duplicate.output.corrected)))
