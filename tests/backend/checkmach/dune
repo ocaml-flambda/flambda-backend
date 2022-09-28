@@ -97,6 +97,7 @@
 
 (rule
  (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
  (targets test_attribute_error_duplicate.output.corrected)
  (deps test_attribute_error_duplicate.ml)
  (action    (with-outputs-to test_attribute_error_duplicate.output.corrected
