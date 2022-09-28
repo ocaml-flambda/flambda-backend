@@ -1931,10 +1931,15 @@ and cps_function env ~fid ~stub ~(recursive : Recursive.t)
     | None -> Lambda.free_variables body
   in
   let my_region = Ident.create_local "my_region" in
+  let arity =
+    match kind with
+    | Curried _ -> List.length params
+    | Tupled -> 1
+  in
   let new_env =
     Env.create ~current_unit_id:(Env.current_unit_id env)
       ~return_continuation:body_cont ~exn_continuation:body_exn_cont ~my_region
-      ~current_function_name_and_arity:(Some (fid, List.length params))
+      ~current_function_name_and_arity:(Some (fid, arity))
   in
   let exn_continuation : IR.exn_continuation =
     { exn_handler = body_exn_cont; extra_args = [] }
