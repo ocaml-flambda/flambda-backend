@@ -266,7 +266,7 @@ let [@ocamlformat "disable"] print ppf
     then Flambda_colours.elide
     else Flambda_colours.none)
     Flambda_colours.pop
- (Or_unknown_or_bottom.print   Result_types.print) result_types
+    (Or_unknown_or_bottom.print Result_types.print) result_types
     contains_no_escaping_local_allocs
     (match recursive with
     | Non_recursive -> Flambda_colours.elide
