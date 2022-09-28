@@ -1,1 +1,1 @@
-let[@assert noalloc] test x = (x,x)
+let[@noalloc] test x = (x,x)
