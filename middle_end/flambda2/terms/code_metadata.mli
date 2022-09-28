@@ -39,7 +39,7 @@ module type Code_metadata_accessors_result_type = sig
 
   val result_arity : 'a t -> Flambda_arity.With_subkinds.t
 
-  val result_types : 'a t -> Result_types.t
+  val result_types : 'a t -> Result_types.t Or_unknown_or_bottom.t
 
   val stub : 'a t -> bool
 
@@ -79,7 +79,7 @@ type 'a create_type =
   params_arity:Flambda_arity.With_subkinds.t ->
   num_trailing_local_params:int ->
   result_arity:Flambda_arity.With_subkinds.t ->
-  result_types:Result_types.t ->
+  result_types:Result_types.t Or_unknown_or_bottom.t ->
   contains_no_escaping_local_allocs:bool ->
   stub:bool ->
   inline:Inline_attribute.t ->

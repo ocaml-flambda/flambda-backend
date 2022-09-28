@@ -20,7 +20,7 @@ type t =
     params_arity : Flambda_arity.With_subkinds.t;
     num_trailing_local_params : int;
     result_arity : Flambda_arity.With_subkinds.t;
-    result_types : Result_types.t;
+    result_types : Result_types.t Or_unknown_or_bottom.t;
     contains_no_escaping_local_allocs : bool;
     stub : bool;
     inline : Inline_attribute.t;
@@ -121,7 +121,7 @@ type 'a create_type =
   params_arity:Flambda_arity.With_subkinds.t ->
   num_trailing_local_params:int ->
   result_arity:Flambda_arity.With_subkinds.t ->
-  result_types:Result_types.t ->
+  result_types:Result_types.t Or_unknown_or_bottom.t ->
   contains_no_escaping_local_allocs:bool ->
   stub:bool ->
   inline:Inline_attribute.t ->
@@ -266,7 +266,7 @@ let [@ocamlformat "disable"] print ppf
     then Flambda_colours.elide
     else Flambda_colours.none)
     Flambda_colours.pop
-    Result_types.print result_types
+ (Or_unknown_or_bottom.print   Result_types.print) result_types
     contains_no_escaping_local_allocs
     (match recursive with
     | Non_recursive -> Flambda_colours.elide
@@ -319,7 +319,9 @@ let free_names
   in
   Name_occurrences.union free_names
     (Name_occurrences.downgrade_occurrences_at_strictly_greater_name_mode
-       (Result_types.free_names result_types)
+       (match result_types with
+       | Unknown | Bottom -> Name_occurrences.empty
+       | Ok result_types -> Result_types.free_names result_types)
        Name_mode.in_types)
 
 let apply_renaming
@@ -352,7 +354,13 @@ let apply_renaming
       if code_id == code_id' then newer_version_of else Some code_id'
   in
   let code_id' = Renaming.apply_code_id renaming code_id in
-  let result_types' = Result_types.apply_renaming result_types renaming in
+  let result_types' =
+    match result_types with
+    | Unknown | Bottom -> result_types
+    | Ok result_types ->
+      Or_unknown_or_bottom.Ok
+        (Result_types.apply_renaming result_types renaming)
+  in
   if code_id == code_id'
      && newer_version_of == newer_version_of'
      && result_types == result_types'
@@ -393,7 +401,10 @@ let ids_for_export
     in
     Ids_for_export.add_code_id newer_version_of_ids code_id
   in
-  Ids_for_export.union ids (Result_types.ids_for_export result_types)
+  Ids_for_export.union ids
+    (match result_types with
+    | Unknown | Bottom -> Ids_for_export.empty
+    | Ok result_types -> Result_types.ids_for_export result_types)
 
 let approx_equal
     { code_id = code_id1;
@@ -458,4 +469,8 @@ let approx_equal
   && Inlining_history.Relative.compare relative_history1 relative_history2 = 0
 
 let map_result_types ({ result_types; _ } as t) ~f =
-  { t with result_types = Result_types.map_result_types result_types ~f }
+  { t with
+    result_types =
+      Or_unknown_or_bottom.map result_types
+        ~f:(Result_types.map_result_types ~f)
+  }

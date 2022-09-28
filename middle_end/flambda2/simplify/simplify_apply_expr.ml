@@ -126,8 +126,8 @@ let rebuild_non_inlined_direct_full_application apply ~use_id ~exn_cont_use_id
   after_rebuild expr uacc
 
 let simplify_direct_full_application ~simplify_expr dacc apply function_type
-    ~params_arity ~result_arity ~result_types ~down_to_up ~coming_from_indirect
-    ~callee's_code_metadata =
+    ~params_arity ~result_arity ~(result_types : _ Or_unknown_or_bottom.t)
+    ~down_to_up ~coming_from_indirect ~callee's_code_metadata =
   let inlined =
     let decision =
       Call_site_inlining_decision.make_decision dacc ~simplify_expr ~apply
@@ -177,10 +177,20 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
   | Some (dacc, inlined) -> simplify_expr dacc inlined ~down_to_up
   | None ->
     let dacc = record_free_names_of_apply_as_used dacc apply in
-    let dacc, use_id =
-      match Apply.continuation apply with
-      | Never_returns -> dacc, None
-      | Return apply_return_continuation ->
+    let dacc, use_id, result_continuation =
+      let result_continuation = Apply.continuation apply in
+      match result_continuation, result_types with
+      | Never_returns, (Unknown | Bottom | Ok _) | Return _, Bottom ->
+        dacc, None, Apply.Result_continuation.Never_returns
+      | Return apply_return_continuation, Unknown ->
+        let dacc, use_id =
+          DA.record_continuation_use dacc apply_return_continuation
+            (Non_inlinable { escaping = true })
+            ~env_at_use:(DA.denv dacc)
+            ~arg_types:(T.unknown_types_from_arity_with_subkinds result_arity)
+        in
+        dacc, Some use_id, result_continuation
+      | Return apply_return_continuation, Ok result_types ->
         Result_types.pattern_match result_types
           ~f:(fun ~params ~results env_extension ->
             if Flambda_arity.With_subkinds.cardinal params_arity
@@ -244,7 +254,7 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
                 (Non_inlinable { escaping = true })
                 ~env_at_use:(DA.denv dacc) ~arg_types
             in
-            dacc, Some use_id)
+            dacc, Some use_id, result_continuation)
     in
     let dacc, exn_cont_use_id =
       DA.record_continuation_use dacc
@@ -255,6 +265,7 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
           (T.unknown_types_from_arity_with_subkinds
              (Exn_continuation.arity (Apply.exn_continuation apply)))
     in
+    let apply = Apply.with_continuation apply result_continuation in
     down_to_up dacc
       ~rebuild:
         (rebuild_non_inlined_direct_full_application apply ~use_id
@@ -490,15 +501,12 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
        that stubs are supposed to be inlined, and the inner full application
        will come with the expected result types, it's not going to be
        particularly useful. *)
-    let result_types =
-      Result_types.create_unknown ~params:remaining_params ~result_arity
-    in
     let code : Static_const_or_code.t =
       let code =
         Code.create code_id ~params_and_body
           ~free_names_of_params_and_body:free_names ~newer_version_of:None
           ~params_arity:(Bound_parameters.arity_with_subkinds remaining_params)
-          ~num_trailing_local_params ~result_arity ~result_types
+          ~num_trailing_local_params ~result_arity ~result_types:Unknown
           ~contains_no_escaping_local_allocs ~stub:true ~inline:Default_inline
           ~is_a_functor:false ~recursive ~cost_metrics:cost_metrics_of_body
           ~inlining_arguments:(DE.inlining_arguments (DA.denv dacc))

@@ -1337,11 +1337,7 @@ let close_one_function acc ~external_env ~by_function_slot decl
       ~num_trailing_local_params:(Function_decl.num_trailing_local_params decl)
       ~result_arity:
         (Flambda_arity.With_subkinds.create [K.With_subkind.from_lambda return])
-      ~result_types:
-        (Result_types.create_unknown ~params
-           ~result_arity:
-             (Flambda_arity.With_subkinds.create
-                [K.With_subkind.from_lambda return]))
+      ~result_types:Unknown
       ~contains_no_escaping_local_allocs:
         (Function_decl.contains_no_escaping_local_allocs decl)
       ~stub ~inline
