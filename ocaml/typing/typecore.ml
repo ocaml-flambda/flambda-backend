@@ -5307,7 +5307,10 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
         texp
       end else begin
       unify_exp env {texp with exp_type = ty_fun} ty_expected;
-      if args = [] then texp else
+      if args = [] then texp else begin
+      (* In this case, we're allocating a new closure, so [sarg] needs
+         to be valid at [mode_subcomponent mode], not just [mode] *)
+      submode ~loc:sarg.pexp_loc ~env mode.mode (mode_subcomponent mode);
       (* eta-expand to avoid side effects *)
       let var_pair ~mode name ty =
         let id = Ident.create_local name in
@@ -5341,7 +5344,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
         let cases = [case eta_pat e] in
         let param = name_cases "param" cases in
         let partial_mode =
-          Alloc_mode.join [marg; Value_mode.regional_to_local_alloc mode.mode]
+          Alloc_mode.join [marg; Value_mode.regional_to_global_alloc mode.mode]
         in
         let curry = Final_arg {partial_mode} in
         { texp with exp_type = ty_fun; exp_mode = mode.mode;
@@ -5363,6 +5366,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
                            vb_loc=Location.none;
                           }],
                          func let_var) }
+      end
       end
   | _ ->
       let texp = type_expect ?recarg env mode sarg
