@@ -128,6 +128,7 @@ type 'a create_type =
   contains_no_escaping_local_allocs:bool ->
   stub:bool ->
   inline:Inline_attribute.t ->
+  check:Lambda.check_attribute ->
   is_a_functor:bool ->
   recursive:Recursive.t ->
   cost_metrics:Cost_metrics.t ->
