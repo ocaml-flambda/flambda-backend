@@ -1,1 +1,1 @@
-let[@assume noalloc] test x = [x;x+1]
+let[@assume noalloc][@inline never] test x = [x;x+1]
