@@ -5280,7 +5280,8 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       (* apply optional arguments when expected type is "" *)
       (* we must be very careful about not breaking the semantics *)
       if !Clflags.principal then begin_def ();
-      let texp = type_exp env mode sarg in
+      let exp_mode = Value_mode.newvar_below mode.mode in
+      let texp = type_exp env {mode with mode = exp_mode} sarg in
       if !Clflags.principal then begin
         end_def ();
         generalize_structure texp.exp_type
@@ -5310,7 +5311,8 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       if args = [] then texp else begin
       (* In this case, we're allocating a new closure, so [sarg] needs
          to be valid at [mode_subcomponent mode], not just [mode] *)
-      submode ~loc:sarg.pexp_loc ~env mode.mode (mode_subcomponent mode);
+      register_allocation mode;
+      submode ~loc:sarg.pexp_loc ~env exp_mode (mode_subcomponent mode);
       (* eta-expand to avoid side effects *)
       let var_pair ~mode name ty =
         let id = Ident.create_local name in

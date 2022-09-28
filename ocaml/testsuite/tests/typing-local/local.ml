@@ -565,6 +565,13 @@ Line 1, characters 47-48:
 Error: This value escapes its region
 |}]
 
+let etajoin p (f : ?b:bool -> unit -> int) (local_ g : unit -> int) =
+  if p then (f : unit -> int) else g
+[%%expect{|
+val etajoin :
+  bool -> (?b:bool -> unit -> int) -> local_ (unit -> int) -> unit -> int =
+  <fun>
+|}]
 
 (* Default arguments *)
 
