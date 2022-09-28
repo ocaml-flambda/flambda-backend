@@ -716,7 +716,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
               [Flambda_kind.With_subkind.any_value]
           | Some ar -> arity ar
         in
-        let ( params,
+        let ( _params,
               params_and_body,
               free_names_of_params_and_body,
               is_my_closure_used ) =
@@ -780,11 +780,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           (* CR mshinwell: [inlining_decision] should maybe be set properly *)
           Code.create code_id ~params_and_body ~free_names_of_params_and_body
             ~newer_version_of ~params_arity ~num_trailing_local_params:0
-            ~result_arity
-            ~result_types:
-              (Result_types.create_unknown
-                 ~params:(Bound_parameters.create params)
-                 ~result_arity)
+            ~result_arity ~result_types:Unknown
             ~contains_no_escaping_local_allocs:false ~stub:false ~inline
             ~is_a_functor:false ~recursive
             ~cost_metrics (* CR poechsel: grab inlining arguments from fexpr. *)

@@ -694,12 +694,12 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
     decision
   in
   let is_a_functor = Code.is_a_functor code in
-  let result_types =
+  let result_types : _ Or_unknown_or_bottom.t =
     if not (Flambda_features.function_result_types ~is_a_functor)
-    then Result_types.create_unknown ~params ~result_arity
+    then Unknown
     else
       match return_cont_uses with
-      | None -> Result_types.create_bottom ~params ~result_arity
+      | None -> Bottom
       | Some uses ->
         let code_age_relation_after_function =
           TE.code_age_relation (DA.typing_env dacc_after_body)
@@ -741,7 +741,8 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
           T.make_suitable_for_environment typing_env
             (All_variables_except params_and_results) results_and_types
         in
-        Result_types.create ~params ~results:return_cont_params env_extension
+        Ok
+          (Result_types.create ~params ~results:return_cont_params env_extension)
   in
   let outer_dacc =
     (* This is the complicated part about slot offsets. We just traversed the
