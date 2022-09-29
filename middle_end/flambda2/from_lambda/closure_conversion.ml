@@ -1078,9 +1078,9 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
         (Bound_pattern.singleton untagged_scrutinee')
         untag ~body
 
-let close_one_function acc ~external_env ~by_function_slot decl
+let close_one_function acc ~code_id ~external_env ~by_function_slot decl
     ~has_lifted_closure ~value_slots_from_idents ~function_slots_from_idents
-    function_declarations =
+    ~approx_map function_declarations =
   let acc = Acc.with_free_names Name_occurrences.empty acc in
   let body = Function_decl.body decl in
   let loc = Function_decl.loc decl in
@@ -1088,29 +1088,33 @@ let close_one_function acc ~external_env ~by_function_slot decl
   let params = Function_decl.params decl in
   let return = Function_decl.return decl in
   let return_continuation = Function_decl.return_continuation decl in
+  let acc, exn_continuation =
+    close_exn_continuation acc external_env
+      (Function_decl.exn_continuation decl)
+  in
+  assert (
+    match Exn_continuation.extra_args exn_continuation with
+    | [] -> true
+    | _ :: _ -> false);
+  let my_closure = Variable.create "my_closure" in
   let recursive = Function_decl.recursive decl in
   (* Mark function for self tail calls to continuation conversion only if is is
      recursive *)
-  let old_is_purely_tailrec = Acc.is_purely_tailrec acc in
-  let is_purely_tailrec_init =
-    match recursive with
-    | Recursive ->
-      List.length (Function_decls.to_list function_declarations) = 1
-    | Non_recursive -> false
+  let is_purely_tailrec =
+    match recursive, Function_decls.to_list function_declarations with
+    | Recursive, [_] -> true
+    | Recursive, ([] | _ :: _ :: _) -> false
+    | Non_recursive, _ -> false
   in
-  let acc = Acc.with_is_purely_tailrec acc is_purely_tailrec_init in
-  let my_closure = Variable.create "my_closure" in
+  let acc =
+    Acc.push_closure_info acc ~return_continuation ~exn_continuation ~my_closure
+      ~is_purely_tailrec
+  in
   let my_region = Function_decl.my_region decl in
   let function_slot = Function_decl.function_slot decl in
   let my_depth = Variable.create "my_depth" in
   let next_depth = Variable.create "next_depth" in
   let our_let_rec_ident = Function_decl.let_rec_ident decl in
-  let compilation_unit = Compilation_unit.get_current_exn () in
-  let code_id =
-    Code_id.create
-      ~name:(Function_slot.to_string function_slot)
-      compilation_unit
-  in
   let is_curried =
     match Function_decl.kind decl with Curried _ -> true | Tupled -> false
   in
@@ -1148,22 +1152,22 @@ let close_one_function acc ~external_env ~by_function_slot decl
       "Variables found in closure when trying to lift %a in \
        [Closure_conversion]."
       Ident.print our_let_rec_ident;
-  let closure_vars_to_bind, simples_for_closure_vars =
+  let closure_vars_to_bind, simples_for_closure_vars, approximations_to_add =
     if has_lifted_closure
     then (* No projection needed *)
-      Variable.Map.empty, Ident.Map.empty
+      Variable.Map.empty, Ident.Map.empty, []
     else
       List.fold_left
-        (fun (to_bind, simples_for_idents) function_decl ->
+        (fun (to_bind, simples_for_idents, approxs) function_decl ->
           let let_rec_ident = Function_decl.let_rec_ident function_decl in
-          let to_bind, var =
+          let to_bind, var, function_slot =
             if Ident.same our_let_rec_ident let_rec_ident && is_curried
             then
               (* When the function being compiled is tupled, my_closure points
                  to the curried version but let_rec_ident is called with tuple
                  arguments, so the correct closure to bind is the one in the
                  function_slots_from_idents map. *)
-              to_bind, my_closure
+              to_bind, my_closure, Function_decl.function_slot decl
               (* my_closure is already bound *)
             else
               let variable =
@@ -1172,11 +1176,18 @@ let close_one_function acc ~external_env ~by_function_slot decl
               let function_slot =
                 Ident.Map.find let_rec_ident function_slots_from_idents
               in
-              Variable.Map.add variable function_slot to_bind, variable
+              ( Variable.Map.add variable function_slot to_bind,
+                variable,
+                function_slot )
           in
           let simple = Simple.with_coercion (Simple.var var) coerce_to_deeper in
-          to_bind, Ident.Map.add let_rec_ident simple simples_for_idents)
-        (Variable.Map.empty, Ident.Map.empty)
+          let approxs =
+            (var, Function_slot.Map.find function_slot approx_map) :: approxs
+          in
+          ( to_bind,
+            Ident.Map.add let_rec_ident simple simples_for_idents,
+            approxs ))
+        (Variable.Map.empty, Ident.Map.empty, [])
         (Function_decls.to_list function_declarations)
   in
   let closure_env_without_parameters =
@@ -1192,7 +1203,13 @@ let close_one_function acc ~external_env ~by_function_slot decl
                 (Name.var var)))
         value_slots_for_idents empty_env
     in
-    Env.add_simple_to_substitute_map env_with_vars simples_for_closure_vars
+    let env =
+      Env.add_simple_to_substitute_map env_with_vars simples_for_closure_vars
+    in
+    List.fold_left
+      (fun env (var, approx) ->
+        Env.add_value_approximation env (Name.var var) approx)
+      env approximations_to_add
   in
   let closure_env_without_history, my_region =
     let closure_env =
@@ -1288,14 +1305,6 @@ let close_one_function acc ~external_env ~by_function_slot decl
     Let_with_acc.create acc bound (Named.create_rec_info next_depth_expr) ~body
   in
   let cost_metrics = Acc.cost_metrics acc in
-  let acc, exn_continuation =
-    close_exn_continuation acc external_env
-      (Function_decl.exn_continuation decl)
-  in
-  assert (
-    match Exn_continuation.extra_args exn_continuation with
-    | [] -> true
-    | _ :: _ -> false);
   let inline : Inline_attribute.t =
     (* We make a decision based on [fallback_inlining_heuristic] here to try to
        mimic Closure's behaviour as closely as possible, particularly when there
@@ -1311,8 +1320,6 @@ let close_one_function acc ~external_env ~by_function_slot decl
     then Never_inline
     else Inline_attribute.from_lambda (Function_decl.inline decl)
   in
-  let is_purely_tailrec = Acc.is_purely_tailrec acc in
-  let acc = Acc.with_is_purely_tailrec acc old_is_purely_tailrec in
   let params_and_body =
     Function_params_and_body.create ~return_continuation
       ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
@@ -1331,6 +1338,7 @@ let close_one_function acc ~external_env ~by_function_slot decl
     |> Acc.remove_continuation_from_free_names
          (Exn_continuation.exn_handler exn_continuation)
   in
+  let closure_info, acc = Acc.pop_closure_info acc in
   let params_arity = Bound_parameters.arity_with_subkinds params in
   let is_tupled =
     match Function_decl.kind decl with Curried _ -> false | Tupled -> true
@@ -1346,7 +1354,7 @@ let close_one_function acc ~external_env ~by_function_slot decl
     match Function_decl.loop decl with
     | Always_loop -> true
     | Never_loop -> false
-    | Default_loop -> is_purely_tailrec
+    | Default_loop -> closure_info.is_purely_tailrec
   in
   let code =
     Code.create code_id ~params_and_body
@@ -1388,7 +1396,7 @@ let close_one_function acc ~external_env ~by_function_slot decl
   in
   let acc = Acc.add_code ~code_id ~code acc in
   let acc = Acc.with_seen_a_function acc true in
-  acc, Function_slot.Map.add function_slot (code_id, approx) by_function_slot
+  acc, Function_slot.Map.add function_slot approx by_function_slot
 
 let close_functions acc external_env ~current_region function_declarations =
   let compilation_unit = Compilation_unit.get_current_exn () in
@@ -1434,6 +1442,80 @@ let close_functions acc external_env ~current_region function_declarations =
         Ident.Map.add id function_slot map)
       Ident.Map.empty func_decl_list
   in
+  let function_code_ids =
+    List.fold_left
+      (fun map decl ->
+        let function_slot = Function_decl.function_slot decl in
+        let code_id =
+          Code_id.create
+            ~name:(Function_slot.to_string function_slot)
+            compilation_unit
+        in
+        Function_slot.Map.add function_slot code_id map)
+      Function_slot.Map.empty func_decl_list
+  in
+  let approx_map =
+    List.fold_left
+      (fun approx_map decl ->
+        (* The only fields of metadata which are used for this pass are
+           params_arity, is_tupled, num_trailing_local_params,
+           contains_no_escaping_local_allocs, and result_arity. We try to
+           populate the different fields as much as possible, but put dummy
+           values when they are not yet computed or simply to expensive to
+           compute for the other fields. *)
+        let dbg = Debuginfo.from_location (Function_decl.loc decl) in
+        let is_tupled =
+          match Function_decl.kind decl with
+          | Curried _ -> false
+          | Tupled -> true
+        in
+        let params = Function_decl.params decl in
+        let params_arity =
+          List.map
+            (fun (_, kind) -> Flambda_kind.With_subkind.from_lambda kind)
+            params
+          |> Flambda_arity.With_subkinds.create
+        in
+        let return = Function_decl.return decl in
+        let cost_metrics = Cost_metrics.zero in
+        let result_arity =
+          Flambda_arity.With_subkinds.create [K.With_subkind.from_lambda return]
+        in
+        (* result_types is unused for this pass, so we can put a dummy value
+           there for the parameters *)
+        let result_types =
+          Result_types.create_unknown
+            ~params:(Bound_parameters.create [])
+            ~result_arity
+        in
+        let function_slot = Function_decl.function_slot decl in
+        let code_id = Function_slot.Map.find function_slot function_code_ids in
+        let metadata =
+          Code_metadata.create code_id ~params_arity
+            ~num_trailing_local_params:
+              (Function_decl.num_trailing_local_params decl)
+            ~result_arity ~result_types
+            ~contains_no_escaping_local_allocs:
+              (Function_decl.contains_no_escaping_local_allocs decl)
+            ~stub:(Function_decl.stub decl) ~inline:Never_inline
+            ~is_a_functor:(Function_decl.is_a_functor decl)
+            ~recursive:(Function_decl.recursive decl)
+            ~newer_version_of:None ~cost_metrics
+            ~inlining_arguments:(Inlining_arguments.create ~round:0)
+            ~dbg ~is_tupled ~is_my_closure_used:true
+            ~inlining_decision:Recursive
+            ~absolute_history:(Inlining_history.Absolute.empty compilation_unit)
+            ~relative_history:Inlining_history.Relative.empty
+            ~perform_tailrec_to_cont:false
+        in
+        let code = Code_or_metadata.create_metadata metadata in
+        let approx =
+          Value_approximation.Closure_approximation
+            { code_id; function_slot; code; symbol = None }
+        in
+        Function_slot.Map.add function_slot approx approx_map)
+      Function_slot.Map.empty func_decl_list
+  in
   let external_env, symbol_map =
     if can_be_lifted
     then
@@ -1441,6 +1523,10 @@ let close_functions acc external_env ~current_region function_declarations =
         (fun ident function_slot (env, symbol_map) ->
           let env, symbol =
             declare_symbol_for_function_slot env ident function_slot
+          in
+          let env =
+            Env.add_value_approximation env (Name.symbol symbol)
+              (Function_slot.Map.find function_slot approx_map)
           in
           env, Function_slot.Map.add function_slot symbol symbol_map)
         function_slots_from_idents
@@ -1450,11 +1536,16 @@ let close_functions acc external_env ~current_region function_declarations =
   let acc, approximations =
     List.fold_left
       (fun (acc, by_function_slot) function_decl ->
+        let code_id =
+          Function_slot.Map.find
+            (Function_decl.function_slot function_decl)
+            function_code_ids
+        in
         let _, _, acc, expr =
           Acc.measure_cost_metrics acc ~f:(fun acc ->
-              close_one_function acc ~external_env ~by_function_slot
+              close_one_function acc ~code_id ~external_env ~by_function_slot
                 function_decl ~has_lifted_closure:can_be_lifted
-                ~value_slots_from_idents ~function_slots_from_idents
+                ~value_slots_from_idents ~function_slots_from_idents ~approx_map
                 function_declarations)
         in
         acc, expr)
@@ -1467,14 +1558,17 @@ let close_functions acc external_env ~current_region function_declarations =
   let funs =
     let funs =
       Function_slot.Map.fold
-        (fun cid (code_id, _) funs -> (cid, code_id) :: funs)
-        approximations []
+        (fun cid code_id funs -> (cid, code_id) :: funs)
+        function_code_ids []
     in
     Function_slot.Lmap.of_list (List.rev funs)
   in
   let approximations =
     Function_slot.Map.mapi
-      (fun function_slot (code_id, code) ->
+      (fun function_slot code ->
+        let code_id =
+          Code_metadata.code_id (Code_or_metadata.code_metadata code)
+        in
         Value_approximation.Closure_approximation
           { code_id; function_slot; code; symbol = None })
       approximations
@@ -1823,14 +1917,8 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
   let approx = Env.find_value_approximation env callee in
   let code_info =
     match approx with
-    | Closure_approximation { code = Code_present code; _ } ->
-      Some
-        ( Code.params_arity code,
-          Code.is_tupled code,
-          Code.num_trailing_local_params code,
-          Code.contains_no_escaping_local_allocs code,
-          Code.result_arity code )
-    | Closure_approximation { code = Metadata_only metadata; _ } ->
+    | Closure_approximation { code; _ } ->
+      let metadata = Code_or_metadata.code_metadata code in
       Some
         ( Code_metadata.params_arity metadata,
           Code_metadata.is_tupled metadata,

@@ -23,6 +23,8 @@ val merge : Code_id.t -> t -> t -> t option
 
 val create : Code.t -> t
 
+val create_metadata : Code_metadata.t -> t
+
 val remember_only_metadata : t -> t
 
 val iter_code : t -> f:(Code.t -> unit) -> unit

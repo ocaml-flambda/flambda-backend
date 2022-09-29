@@ -28,6 +28,8 @@ let print ppf t =
 
 let create code = Code_present code
 
+let create_metadata code_metadata = Metadata_only code_metadata
+
 let merge code_id t1 t2 =
   match t1, t2 with
   | Metadata_only cm1, Metadata_only cm2 ->

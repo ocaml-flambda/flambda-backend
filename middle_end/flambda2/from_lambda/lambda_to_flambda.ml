@@ -944,11 +944,11 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pprobe_is_enabled _ ->
     false
 
-let check_variable_use env id acc =
-  match Env.current_function_name_and_arity env with
-  | None -> acc
-  | Some (fid, _) ->
-    if Ident.equal id fid then Acc.with_is_purely_tailrec acc false else acc
+let check_variable_use _env _id acc =
+  (* match Env.current_function_name_and_arity env with | None -> acc | Some
+     (fid, _) -> if Ident.equal id fid then Acc.with_is_purely_tailrec acc false
+     else acc *)
+  acc
 
 let check_variable_uses env ids acc =
   Ident.Set.fold (check_variable_use env) ids acc
@@ -1931,11 +1931,7 @@ and cps_function env ~fid ~stub ~(recursive : Recursive.t)
     | None -> Lambda.free_variables body
   in
   let my_region = Ident.create_local "my_region" in
-  let arity =
-    match kind with
-    | Curried _ -> List.length params
-    | Tupled -> 1
-  in
+  let arity = match kind with Curried _ -> List.length params | Tupled -> 1 in
   let new_env =
     Env.create ~current_unit_id:(Env.current_unit_id env)
       ~return_continuation:body_cont ~exn_continuation:body_exn_cont ~my_region

@@ -179,6 +179,13 @@ end
 
 (** Used to pipe some data through closure conversion *)
 module Acc : sig
+  type closure_info = private
+    { return_continuation : Continuation.t;
+      exn_continuation : Exn_continuation.t;
+      my_closure : Variable.t;
+      is_purely_tailrec : bool
+    }
+
   type t
 
   val create :
@@ -253,9 +260,17 @@ module Acc : sig
   val add_set_of_closures_offsets :
     is_phantom:bool -> t -> Set_of_closures.t -> t
 
-  val is_purely_tailrec : t -> bool
+  val top_closure_info : t -> closure_info option
 
-  val with_is_purely_tailrec : t -> bool -> t
+  val push_closure_info :
+    t ->
+    return_continuation:Continuation.t ->
+    exn_continuation:Exn_continuation.t ->
+    my_closure:Variable.t ->
+    is_purely_tailrec:bool ->
+    t
+
+  val pop_closure_info : t -> closure_info * t
 end
 
 (** Used to represent information about a set of function declarations during
