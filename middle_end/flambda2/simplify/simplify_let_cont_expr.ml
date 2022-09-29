@@ -734,7 +734,7 @@ type recursive_let_cont_handlers_element =
 
 let rebuild_recursive_let_cont_handlers cont ~params ~original_cont_scope
     cont_handler ~handler ~free_names_of_handler ~cost_metrics_of_handler
-    ~cont_uses_env uacc ~after_rebuild =
+    ~cont_uses_env_after_body uacc ~after_rebuild =
   let is_recursive =
     Continuation.Set.mem cont
       (Name_occurrences.continuations_including_in_trap_actions
@@ -744,11 +744,10 @@ let rebuild_recursive_let_cont_handlers cont ~params ~original_cont_scope
     if is_recursive
     then false
     else
-      match CUE.get_continuation_uses cont_uses_env cont with
+      match CUE.get_continuation_uses cont_uses_env_after_body cont with
       | None -> false
       | Some uses -> (
-        let uses_list = Continuation_uses.get_uses uses in
-        match uses_list with
+        match Continuation_uses.get_uses uses with
         | [use] -> (
           match One_continuation_use.use_kind use with
           | Inlinable -> true
@@ -775,8 +774,8 @@ let rebuild_recursive_let_cont_handlers cont ~params ~original_cont_scope
 
 let after_one_recursive_let_cont_handler_rebuilt cont ~original_cont_scope
     ~name_occurrences_subsequent_exprs ~after_rebuild cont_handler ~params
-    ~cont_uses_env ~handler ~free_names_of_handler ~cost_metrics_of_handler uacc
-    =
+    ~cont_uses_env_after_body ~handler ~free_names_of_handler
+    ~cost_metrics_of_handler uacc =
   assert (
     Name_occurrences.equal free_names_of_handler (UA.name_occurrences uacc));
   let uacc = UA.add_free_names uacc name_occurrences_subsequent_exprs in
@@ -792,11 +791,11 @@ let after_one_recursive_let_cont_handler_rebuilt cont ~original_cont_scope
   in
   rebuild_recursive_let_cont_handlers cont ~params ~original_cont_scope
     cont_handler ~handler ~free_names_of_handler ~cost_metrics_of_handler
-    ~cont_uses_env uacc ~after_rebuild
+    ~cont_uses_env_after_body uacc ~after_rebuild
 
 let prepare_to_rebuild_one_recursive_let_cont_handler cont params
     (extra_params_and_args : EPA.t) ~original_cont_scope ~rebuild_handler
-    ~cont_uses_env uacc ~after_rebuild =
+    ~cont_uses_env_after_body uacc ~after_rebuild =
   let required_names = UA.required_names uacc in
   let used_params_list =
     Bound_parameters.filter
@@ -833,7 +832,8 @@ let prepare_to_rebuild_one_recursive_let_cont_handler cont params
   rebuild_handler uacc
     ~after_rebuild:
       (after_one_recursive_let_cont_handler_rebuilt cont ~original_cont_scope
-         ~name_occurrences_subsequent_exprs ~after_rebuild ~cont_uses_env)
+         ~name_occurrences_subsequent_exprs ~after_rebuild
+         ~cont_uses_env_after_body)
 
 let after_downwards_traversal_of_one_recursive_let_cont_handler cont
     unboxing_decisions ~down_to_up params ~original_cont_scope dacc
@@ -868,7 +868,7 @@ let after_downwards_traversal_of_one_recursive_let_cont_handler cont
     ~rebuild:
       (prepare_to_rebuild_one_recursive_let_cont_handler cont params
          extra_params_and_args ~original_cont_scope ~rebuild_handler
-         ~cont_uses_env:cont_uses_env_after_body)
+         ~cont_uses_env_after_body)
 
 (* This only takes one handler at present since we don't yet support
    simplification of multiple recursive handlers. *)

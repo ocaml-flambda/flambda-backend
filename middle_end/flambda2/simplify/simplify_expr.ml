@@ -138,16 +138,15 @@ and simplify_function_body dacc expr ~return_continuation ~return_arity
       ~return_continuation ~return_arity ~exn_continuation ~return_cont_scope
       ~exn_cont_scope
   | Tailrec_to_cont.Rewrite_self_tail_calls cont ->
-    let args = Bound_parameters.simples params in
-    (* CR ncourant Fix missing debug info *)
     let call_self_cont_expr =
+      let args = Bound_parameters.simples params in
       Expr.create_apply_cont (Apply_cont_expr.create cont ~args ~dbg:[])
     in
-    let fresh_params = Bound_parameters.rename params in
-    let renaming =
-      Bound_parameters.renaming params ~guaranteed_fresh:fresh_params
-    in
     let handlers =
+      let fresh_params = Bound_parameters.rename params in
+      let renaming =
+        Bound_parameters.renaming params ~guaranteed_fresh:fresh_params
+      in
       Continuation.Map.singleton cont
         (Continuation_handler.create fresh_params
            ~handler:(Expr.apply_renaming expr renaming)
