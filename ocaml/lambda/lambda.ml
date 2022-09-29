@@ -380,17 +380,6 @@ type check_attribute =
   | Assert of property
   | Assume of property
 
-let equal_property x y =
-  match x, y with
-  | Noalloc, Noalloc -> true
-
-let equal_check_attribute x y =
-  match x, y with
-  | Default_check, Default_check -> true
-  | Assert p1, Assert p2
-  | Assume p1, Assume p2 -> equal_property p1 p2
-  | (Default_check | Assert _ | Assume  _), _ -> false
-
 type function_kind = Curried of {nlocal: int} | Tupled
 
 type let_kind = Strict | Alias | StrictOpt

@@ -4170,7 +4170,10 @@ let cmm_arith_size (e : Cmm.expression) =
   | Ctail _ ->
     None
 
+let transl_property : Lambda.property -> Cmm.property = function
+  | Noalloc -> Noalloc
+
 let transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list = function
   | Default_check -> []
-  | Assert p -> [Assert p]
-  | Assume p -> [Assume p]
+  | Assert p -> [Assert (transl_property p)]
+  | Assume p -> [Assume (transl_property p)]

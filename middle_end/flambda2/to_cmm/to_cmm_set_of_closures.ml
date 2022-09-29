@@ -247,6 +247,16 @@ module Static = Make_layout_filler (struct
   let define_global_symbol sym = C.define_symbol ~global:true sym
 end)
 
+(* Translation of "check" attributes on functions. *)
+
+let transl_property : Check_attribute.Property.t -> Cmm.property = function
+  | Noalloc -> Noalloc
+
+let transl_check_attrib : Check_attribute.t -> Cmm.codegen_option list = function
+  | Default_check -> []
+  | Assert p -> [Assert (transl_property p)]
+  | Assume p -> [Assume (transl_property p)]
+
 (* Translation of the bodies of functions. *)
 
 let params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
@@ -276,7 +286,7 @@ let params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
   let env, fun_args = C.bound_parameters env params in
   let fun_body, res = translate_expr env res body in
   let fun_flags =
-    C.transl_attrib check
+    transl_check_attrib check
     @
     if Flambda_features.optimize_for_speed () then [] else [Cmm.Reduce_code_size]
   in

@@ -24,7 +24,7 @@ type t =
     contains_no_escaping_local_allocs : bool;
     stub : bool;
     inline : Inline_attribute.t;
-    check : Lambda.check_attribute;
+    check : Check_attribute.t;
     is_a_functor : bool;
     recursive : Recursive.t;
     cost_metrics : Cost_metrics.t;
@@ -128,7 +128,7 @@ type 'a create_type =
   contains_no_escaping_local_allocs:bool ->
   stub:bool ->
   inline:Inline_attribute.t ->
-  check:Lambda.check_attribute ->
+  check:Check_attribute.t ->
   is_a_functor:bool ->
   recursive:Recursive.t ->
   cost_metrics:Cost_metrics.t ->
@@ -250,9 +250,9 @@ let [@ocamlformat "disable"] print ppf
     else C.none)
     Inline_attribute.print inline
     Flambda_colours.pop
-    (if Lambda.(equal_check_attribute Default_check check)
+    (if Check_attribute.is_default check
      then Flambda_colours.elide else C.none)
-    Printlambda.check_attribute check
+    Check_attribute.print check
     Flambda_colours.pop
     (if not is_a_functor then Flambda_colours.elide else C.none)
     is_a_functor
@@ -471,7 +471,7 @@ let approx_equal
        contains_no_escaping_local_allocs2
   && Bool.equal stub1 stub2
   && Inline_attribute.equal inline1 inline2
-  && Lambda.equal_check_attribute check1 check2
+  && Check_attribute.equal check1 check2
   && Bool.equal is_a_functor1 is_a_functor2
   && Recursive.equal recursive1 recursive2
   && Cost_metrics.equal cost_metrics1 cost_metrics2

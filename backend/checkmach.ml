@@ -80,7 +80,7 @@ module type Spec = sig
   (** returns true when the check passes. *)
   val check_specific : Arch.specific_operation -> bool
 
-  val annotation : Lambda.property
+  val annotation : Cmm.property
 end
 (* CR-someday gyorsh: We may also want annotations on call sites, not only on
    functions. *)
@@ -424,7 +424,7 @@ module Spec_alloc : Spec = struct
 
   let check_specific s = not (Arch.operation_allocates s)
 
-  let annotation = Lambda.Noalloc
+  let annotation = Cmm.Noalloc
 end
 
 (***************************************************************************

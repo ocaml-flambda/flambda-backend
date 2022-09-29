@@ -293,8 +293,6 @@ type check_attribute =
   | Assert of property
   | Assume of property
 
-val equal_check_attribute : check_attribute -> check_attribute -> bool
-
 type function_kind = Curried of {nlocal: int} | Tupled
 (* [nlocal] determines how many arguments may be partially applied
    before the resulting closure must be locally allocated.

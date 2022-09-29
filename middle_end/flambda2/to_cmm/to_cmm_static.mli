@@ -25,7 +25,7 @@ val static_consts :
     Code_id.t ->
     Function_params_and_body.t ->
     fun_dbg:Debuginfo.t ->
-    check:Lambda.check_attribute ->
+    check:Check_attribute.t ->
     Cmm.fundecl * To_cmm_result.t) ->
   Bound_static.t ->
   Static_const_group.t ->

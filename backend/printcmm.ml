@@ -339,7 +339,7 @@ and sequence ppf = function
 
 and expression ppf e = fprintf ppf "%a" expr e
 
-let property : Lambda.property -> string = function
+let property : Cmm.property -> string = function
     | Noalloc -> "noalloc"
 
 let codegen_option = function
