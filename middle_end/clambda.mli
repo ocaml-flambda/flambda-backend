@@ -111,7 +111,7 @@ and ufunction = {
   dbg    : Debuginfo.t;
   env    : Backend_var.t option;
   mode   : Lambda.alloc_mode;
-  attrib : Lambda.check_attribute;
+  check  : Lambda.check_attribute;
 }
 
 and ulambda_switch =

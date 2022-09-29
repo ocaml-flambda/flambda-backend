@@ -1432,7 +1432,7 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
      does not use its environment parameter is invalidated. *)
   let useless_env = ref initially_closed in
   (* Translate each function definition *)
-  let clos_fundef (id, params, return, body, mode, attrib, fundesc, dbg) env_pos =
+  let clos_fundef (id, params, return, body, mode, check, fundesc, dbg) env_pos =
     let env_param = V.create_local "env" in
     let cenv_fv =
       build_closure_env env_param (fv_pos - env_pos) fv in
@@ -1460,7 +1460,7 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
         dbg;
         env = Some env_param;
         mode;
-        attrib;
+        check;
       }
     in
     (* give more chance of function with default parameters (i.e.

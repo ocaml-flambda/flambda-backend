@@ -85,7 +85,7 @@ and one_fun ppf f =
       )
   in
   fprintf ppf "(fun@ %s%s%a@ %d@ @[<2>%a@]@ @[<2>%a@])"
-    f.label (value_kind f.return) Printlambda.check_attribute f.attrib
+    f.label (value_kind f.return) Printlambda.check_attribute f.check
     (snd f.arity) idents f.params lam f.body
 
 and phantom_defining_expr ppf = function

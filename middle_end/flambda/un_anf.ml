@@ -148,7 +148,7 @@ let make_var_info (clam : Clambda.ulambda) : var_info =
       List.iter (loop ~depth) captured_variables;
       List.iter (fun (
         { Clambda. label; arity=_; params; return; body; dbg; env; mode=_;
-            attrib=_} as clos) ->
+            check=_} as clos) ->
           (match closure_environment_var clos with
            | None -> ()
            | Some env_var ->
@@ -325,7 +325,7 @@ let let_bound_vars_that_can_be_moved var_info (clam : Clambda.ulambda) =
       ignore_ulambda_list captured_variables;
       (* Start a new let stack for speed. *)
       List.iter (fun {Clambda. label; arity=_; params; return; body; dbg; env; mode=_;
-                      attrib=_} ->
+                      check=_} ->
           ignore_function_label label;
           ignore_params_with_value_kind params;
           ignore_value_kind return;
