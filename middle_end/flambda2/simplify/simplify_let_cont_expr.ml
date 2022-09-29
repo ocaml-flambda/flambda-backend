@@ -940,20 +940,21 @@ let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
          unboxing_decisions params ~original_cont_scope ~down_to_up)
 
 let rebuild_recursive_let_cont_expr art ~body ~free_names_of_body ~handlers =
+  let free_conts_of_body =
+    Name_occurrences.continuations_including_in_trap_actions free_names_of_body
+  in
+  let is_cont_used cont = Continuation.Set.mem cont free_conts_of_body in
   match handlers with
   | Non_recursive_handler (cont, handler) ->
-    let is_used =
-      Continuation.Set.mem cont
-        (Name_occurrences.continuations_including_in_trap_actions
-           free_names_of_body)
-    in
-    if is_used
+    if is_cont_used cont
     then
       RE.create_non_recursive_let_cont art cont handler ~body
         ~free_names_of_body
     else body
   | Recursive_handlers rec_handlers ->
-    RE.create_recursive_let_cont art rec_handlers ~body
+    if Continuation.Map.exists (fun cont _ -> is_cont_used cont) rec_handlers
+    then RE.create_recursive_let_cont art rec_handlers ~body
+    else body
 
 let rebuild_recursive_let_cont ~body handlers ~cost_metrics_of_handlers
     ~free_names_of_body ~uenv_without_cont uacc ~after_rebuild =
