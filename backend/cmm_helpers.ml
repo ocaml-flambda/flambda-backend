@@ -2676,6 +2676,9 @@ let floatfield n ptr dbg =
       dbg )
 
 let int_as_pointer arg dbg = Cop (Caddi, [arg; Cconst_int (-1, dbg)], dbg)
+
+let ptr_identity arg dbg = Cop (Cxor, [arg; Cconst_int (0, dbg)], dbg)
+
 (* always a pointer outside the heap *)
 
 let raise_prim raise_kind arg dbg =
@@ -3357,6 +3360,9 @@ let transl_builtin name args dbg =
   (* Native_pointer: handled as unboxed nativeint *)
   | "caml_ext_pointer_as_native_pointer" ->
     Some (int_as_pointer (one_arg name args) dbg)
+  | "caml_native_pointer_of_value"
+  | "caml_native_pointer_to_value" ->
+    Some (ptr_identity (one_arg name args) dbg)
   | "caml_native_pointer_load_immediate"
   | "caml_native_pointer_load_unboxed_nativeint" ->
     Some (Cop (Cload (Word_int, Mutable), args, dbg))
