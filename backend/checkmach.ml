@@ -50,7 +50,7 @@ end
 module Func_info = struct
   type t =
     { name : string;  (** function name *)
-      mutable dbg : Debuginfo.t option;
+      mutable loc : Location.t option;
           (** Source location for error messages. *)
       mutable value : Value.t;  (** the result of the check *)
       mutable callers : string list;
@@ -62,7 +62,7 @@ module Func_info = struct
 
   let create name value =
     { name;
-      dbg = None;
+      loc = None;
       value;
       callers = [];
       in_current_unit = false;
@@ -150,8 +150,8 @@ end = struct
         | Some func_info -> func_info
       in
       func_info.in_current_unit <- true;
-      match func_info.dbg with
-      | None -> func_info.dbg <- Some dbg
+      match func_info.loc with
+      | None -> func_info.loc <- Some (Debuginfo.to_location dbg)
       | Some _ -> Misc.fatal_errorf "Duplicate symbol name %s" name
 
     let record t name value =
@@ -240,7 +240,7 @@ end = struct
                 then
                   raise
                     (Error
-                       ( Debuginfo.to_location (Option.get func_info.dbg),
+                       ( Option.get func_info.loc,
                          Annotation
                            { fun_name = func_info.name; check = S.name } )))
           t
