@@ -3360,8 +3360,7 @@ let transl_builtin name args dbg =
   (* Native_pointer: handled as unboxed nativeint *)
   | "caml_ext_pointer_as_native_pointer" ->
     Some (int_as_pointer (one_arg name args) dbg)
-  | "caml_native_pointer_of_value"
-  | "caml_native_pointer_to_value" ->
+  | "caml_native_pointer_of_value" | "caml_native_pointer_to_value" ->
     Some (ptr_identity (one_arg name args) dbg)
   | "caml_native_pointer_load_immediate"
   | "caml_native_pointer_load_unboxed_nativeint" ->
