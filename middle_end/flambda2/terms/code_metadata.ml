@@ -235,7 +235,7 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>%t(is_tupled@ %b)%t@]@ \
       @[<hov 1>(is_my_closure_used@ %b)@]@ \
       %a\
-      @[<hov 1>(inlining_decision@ %a)@] \
+      @[<hov 1>(inlining_decision@ %a)@]@ \
       @[<hov 1>(perform_tailrec_to_cont@ %b)@]\
       )@]"
     (if Option.is_none newer_version_of then Flambda_colours.elide

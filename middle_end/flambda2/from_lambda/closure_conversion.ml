@@ -2225,6 +2225,9 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode)
           defining_expr ~body)
       (acc, body) (Acc.declared_symbols acc)
   in
+  if Option.is_some (Acc.top_closure_info acc)
+  then
+    Misc.fatal_error "Information on nested closures should be empty at the end";
   let get_code_metadata code_id =
     Code_id.Map.find code_id (Acc.code acc) |> Code.code_metadata
   in
