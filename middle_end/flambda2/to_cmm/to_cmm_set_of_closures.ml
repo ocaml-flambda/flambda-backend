@@ -252,7 +252,8 @@ end)
 let transl_property : Check_attribute.Property.t -> Cmm.property = function
   | Noalloc -> Noalloc
 
-let transl_check_attrib : Check_attribute.t -> Cmm.codegen_option list = function
+let transl_check_attrib : Check_attribute.t -> Cmm.codegen_option list =
+  function
   | Default_check -> []
   | Assert p -> [Assert (transl_property p)]
   | Assume p -> [Assume (transl_property p)]

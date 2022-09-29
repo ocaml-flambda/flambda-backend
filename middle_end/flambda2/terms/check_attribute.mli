@@ -1,7 +1,6 @@
 (** Annotations on function declaration (not call sites) *)
 module Property : sig
-  type t =
-    | Noalloc
+  type t = Noalloc
 end
 
 type t =

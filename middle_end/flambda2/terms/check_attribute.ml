@@ -1,16 +1,11 @@
 module Property = struct
-  type t =
-    | Noalloc
+  type t = Noalloc
 
-  let to_string  = function
-    | Noalloc -> "noalloc"
+  let to_string = function Noalloc -> "noalloc"
 
-  let equal x y =
-    match x, y with
-    | Noalloc, Noalloc -> true
+  let equal x y = match x, y with Noalloc, Noalloc -> true
 
-  let from_lambda : Lambda.property -> t  = function
-    | Noalloc -> Noalloc
+  let from_lambda : Lambda.property -> t = function Noalloc -> Noalloc
 end
 
 type t =
@@ -32,9 +27,8 @@ let from_lambda : Lambda.check_attribute -> t = function
 let equal x y =
   match x, y with
   | Default_check, Default_check -> true
-  | Assert p1, Assert p2
-  | Assume p1, Assume p2 -> Property.equal p1 p2
-  | (Default_check | Assert _ | Assume  _), _ -> false
+  | Assert p1, Assert p2 | Assume p1, Assume p2 -> Property.equal p1 p2
+  | (Default_check | Assert _ | Assume _), _ -> false
 
 let is_default : t -> bool = function
   | Default_check -> true
