@@ -1201,26 +1201,26 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
               (Name.var var)))
       value_slots_for_idents closure_env
   in
-  let closure_env_without_history, my_region =
-    let closure_env =
-      List.fold_right
-        (fun (id, _) env ->
-          let env, _var = Env.add_var_like env id User_visible in
-          env)
-        params closure_env
-    in
+  let closure_env =
+    List.fold_right
+      (fun (id, _) env ->
+        let env, _var = Env.add_var_like env id User_visible in
+        env)
+      params closure_env
+  in
+  let closure_env, my_region =
     Env.add_var_like closure_env my_region Not_user_visible
   in
-  let closure_env = Env.with_depth closure_env_without_history my_depth in
+  let closure_env = Env.with_depth closure_env my_depth in
   let closure_env, absolute_history, relative_history =
-    let tracker = Env.inlining_history_tracker closure_env_without_history in
+    let tracker = Env.inlining_history_tracker closure_env in
     let absolute, relative =
       Inlining_history.Tracker.fundecl_of_scoped_location
         ~name:(Function_slot.name function_slot)
         ~path_to_root:(Env.path_to_root closure_env)
         loc tracker
     in
-    ( Env.use_inlining_history_tracker closure_env_without_history
+    ( Env.use_inlining_history_tracker closure_env
         (Inlining_history.Tracker.inside_function absolute),
       absolute,
       relative )
