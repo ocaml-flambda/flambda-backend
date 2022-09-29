@@ -1152,13 +1152,15 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
       "Variables found in closure when trying to lift %a in \
        [Closure_conversion]."
       Ident.print our_let_rec_ident;
-  let closure_vars_to_bind, simples_for_closure_vars, approximations_to_add =
+  let closure_env = Env.clear_local_bindings external_env in
+  (* Add the variables for function projections *)
+  let closure_vars_to_bind, closure_env =
     if has_lifted_closure
     then (* No projection needed *)
-      Variable.Map.empty, Ident.Map.empty, []
+      Variable.Map.empty, closure_env
     else
       List.fold_left
-        (fun (to_bind, simples_for_idents, approxs) function_decl ->
+        (fun (to_bind, env) function_decl ->
           let let_rec_ident = Function_decl.let_rec_ident function_decl in
           let to_bind, var, function_slot =
             if Ident.same our_let_rec_ident let_rec_ident && is_curried
@@ -1181,35 +1183,23 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
                 function_slot )
           in
           let simple = Simple.with_coercion (Simple.var var) coerce_to_deeper in
-          let approxs =
-            (var, Function_slot.Map.find function_slot approx_map) :: approxs
-          in
-          ( to_bind,
-            Ident.Map.add let_rec_ident simple simples_for_idents,
-            approxs ))
-        (Variable.Map.empty, Ident.Map.empty, [])
+          let approx = Function_slot.Map.find function_slot approx_map in
+          let env = Env.add_simple_to_substitute env let_rec_ident simple in
+          let env = Env.add_value_approximation env (Name.var var) approx in
+          to_bind, env)
+        (Variable.Map.empty, closure_env)
         (Function_decls.to_list function_declarations)
   in
-  let closure_env_without_parameters =
-    let empty_env = Env.clear_local_bindings external_env in
-    let env_with_vars =
-      Ident.Map.fold
-        (fun id var env ->
-          Simple.pattern_match
-            (find_simple_from_id external_env id)
-            ~const:(fun _ -> assert false)
-            ~name:(fun name ~coercion:_ ->
-              Env.add_approximation_alias (Env.add_var env id var) name
-                (Name.var var)))
-        value_slots_for_idents empty_env
-    in
-    let env =
-      Env.add_simple_to_substitute_map env_with_vars simples_for_closure_vars
-    in
-    List.fold_left
-      (fun env (var, approx) ->
-        Env.add_value_approximation env (Name.var var) approx)
-      env approximations_to_add
+  let closure_env =
+    Ident.Map.fold
+      (fun id var env ->
+        Simple.pattern_match
+          (find_simple_from_id external_env id)
+          ~const:(fun _ -> assert false)
+          ~name:(fun name ~coercion:_ ->
+            Env.add_approximation_alias (Env.add_var env id var) name
+              (Name.var var)))
+      value_slots_for_idents closure_env
   in
   let closure_env_without_history, my_region =
     let closure_env =
@@ -1217,7 +1207,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
         (fun (id, _) env ->
           let env, _var = Env.add_var_like env id User_visible in
           env)
-        params closure_env_without_parameters
+        params closure_env
     in
     Env.add_var_like closure_env my_region Not_user_visible
   in
