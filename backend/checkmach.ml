@@ -397,17 +397,37 @@ end = struct
           "Checkmach %s: Wrong result for %s, expected %s, found %s" S.name
           t.fun_name (Value.to_string expected) (Value.to_string v)
 
+  let find_annotation (f : Mach.fundecl) =
+    let a =
+      List.filter_map (fun (c : Cmm.codegen_option)  ->
+        match c with
+        | Assume (p, dbg) when S.annotation = p ->
+          Some (dbg, true)
+        | Assert (p, dbg) when S.annotation = p ->
+          Some (dbg, false)
+        | Assume _ | Assert _
+        | Reduce_code_size
+        | No_CSE
+        | Use_linscan_regalloc -> None)
+        f.fun_codegen_options
+    in
+    match a with
+    | [] -> f.fun_dbg, false, false
+    | [(dbg, is_assume)] -> dbg, not is_assume, is_assume
+    | _::_ -> Misc.fatal_error "Unexpected duplicate annotation Assert/Assume"
+
   let fundecl ppf (f : Mach.fundecl) =
     if S.enabled ()
     then
       Profile.record_call ~accumulate:true ("check " ^ S.name) (fun () ->
           let fun_name = f.fun_name in
           let t = { ppf; fun_name; unresolved_dependencies = false } in
-          Unit_info.in_current_unit unit_info fun_name f.fun_dbg;
-          if List.mem (Cmm.Assume S.annotation) f.fun_codegen_options
-          then (
-            report t ~msg:"assumed" ~desc:"fundecl" f.fun_dbg;
-            Unit_info.add_value t.ppf unit_info fun_name Pass)
+          let dbg, is_assert, is_assume = find_annotation f in
+          Unit_info.in_current_unit unit_info fun_name dbg;
+          if is_assume then (
+              report t ~msg:"assumed" ~desc:"fundecl" dbg;
+              Unit_info.add_value t.ppf unit_info fun_name Pass
+          )
           else (
             (try
                let _ = check_instr_exn t f.fun_body false in
@@ -416,9 +436,8 @@ end = struct
                then (
                  report t ~msg:"passed" ~desc:"fundecl" f.fun_dbg;
                  Unit_info.add_value t.ppf unit_info fun_name Pass)
-             with Bail -> debug t Fail);
-            if List.mem (Cmm.Assert S.annotation) f.fun_codegen_options
-            then Unit_info.annotated unit_info fun_name))
+            with Bail -> debug t Fail);
+            if is_assert then Unit_info.annotated unit_info fun_name))
 end
 
 module Spec_alloc : Spec = struct

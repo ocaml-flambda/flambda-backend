@@ -255,8 +255,8 @@ let transl_property : Check_attribute.Property.t -> Cmm.property = function
 let transl_check_attrib : Check_attribute.t -> Cmm.codegen_option list =
   function
   | Default_check -> []
-  | Assert p -> [Assert (transl_property p)]
-  | Assume p -> [Assume (transl_property p)]
+  | Assert (p,dbg) -> [Assert (transl_property p, dbg)]
+  | Assume (p,dbg) -> [Assume (transl_property p, dbg)]
 
 (* Translation of the bodies of functions. *)
 

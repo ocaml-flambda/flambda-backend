@@ -202,15 +202,18 @@ let parse_local_attribute attr =
         ]
         payload
 
+let scope loc =
+  Debuginfo.Scoped_location.(Loc_known { loc; scopes = empty_scopes })
+
 let parse_property_attribute attr p =
   match attr with
   | None -> Default_check
   | Some {Parsetree.attr_name = {txt; loc}; attr_payload = payload}->
       parse_id_payload txt loc
         ~default:Default_check
-        ~empty:(Assert p)
+        ~empty:(Assert (p,(scope loc)))
         [
-          "assume", Assume p;
+          "assume", Assume (p,(scope loc));
         ]
         payload
 
@@ -303,8 +306,8 @@ let add_check_attribute expr loc attributes =
     | Noalloc -> "noalloc"
   in
   let to_string = function
-    | Assert p -> to_string p
-    | Assume p -> Printf.sprintf "%s assume" (to_string p)
+    | Assert (p,_) -> to_string p
+    | Assume (p,_) -> Printf.sprintf "%s assume" (to_string p)
     | Default_check -> assert false
   in
   match expr, get_check_attribute attributes with
@@ -312,7 +315,7 @@ let add_check_attribute expr loc attributes =
   | Lfunction({ attr = { stub = false } as attr } as funct), [check] ->
       begin match attr.check with
       | Default_check -> ()
-      | Assert Noalloc | Assume Noalloc ->
+      | Assert (Noalloc,_) | Assume (Noalloc,_) ->
           Location.prerr_warning loc
             (Warnings.Duplicated_attribute (to_string check))
       end;

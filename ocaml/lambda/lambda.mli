@@ -285,6 +285,8 @@ type local_attribute =
   | Never_local (* [@local never] *)
   | Default_local (* [@local maybe] or no [@local] attribute *)
 
+type scoped_location = Debuginfo.Scoped_location.t
+
 type property =
   | Noalloc
 
@@ -323,8 +325,6 @@ type function_attribute = {
   is_a_functor: bool;
   stub: bool;
 }
-
-type scoped_location = Debuginfo.Scoped_location.t
 
 type lambda =
     Lvar of Ident.t

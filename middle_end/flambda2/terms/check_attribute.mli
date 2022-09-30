@@ -16,8 +16,8 @@ end
 
 type t =
   | Default_check
-  | Assert of Property.t
-  | Assume of Property.t
+  | Assert of Property.t * Debuginfo.t
+  | Assume of Property.t * Debuginfo.t
 
 val print : Format.formatter -> t -> unit
 

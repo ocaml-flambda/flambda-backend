@@ -556,8 +556,8 @@ let check_attribute ppf check =
   in
   match check with
   | Default_check -> ()
-  | Assert p -> fprintf ppf "assert %s@ " (check_property p)
-  | Assume p -> fprintf ppf "assume %s@ " (check_property p)
+  | Assert (p,_) -> fprintf ppf "assert %s@ " (check_property p)
+  | Assume (p,_) -> fprintf ppf "assume %s@ " (check_property p)
 
 let function_attribute ppf { inline; specialise; check; local; is_a_functor; stub } =
   if is_a_functor then
