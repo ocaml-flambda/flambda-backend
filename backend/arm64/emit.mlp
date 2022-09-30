@@ -525,7 +525,7 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Iintop_imm _) -> 1
     | Lop (Ifloatofint | Iintoffloat | Iabsf | Inegf | Ispecific Isqrtf) -> 1
     | Lop (Iaddf | Isubf | Imulf | Idivf | Ispecific Inegmulf) -> 1
-    | Lop (Iopaque | Ivaluetoint | Iinttovalue) -> 0
+    | Lop (Iopaque | Ivalueofint | Iintofvalue) -> 0
     | Lop (Ispecific (Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf)) -> 1
     | Lop (Ispecific (Ishiftarith _)) -> 1
     | Lop (Ispecific (Imuladd | Imulsub)) -> 1
