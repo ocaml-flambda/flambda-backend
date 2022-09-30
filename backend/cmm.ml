@@ -200,6 +200,7 @@ and operation =
   | Cnegf | Cabsf
   | Caddf | Csubf | Cmulf | Cdivf
   | Cfloatofint | Cintoffloat
+  | Cvalueofint | Cintofvalue
   | Ccmpf of float_comparison
   | Craise of Lambda.raise_kind
   | Ccheckbound

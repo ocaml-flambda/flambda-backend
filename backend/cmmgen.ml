@@ -618,7 +618,8 @@ let rec transl env e =
         ->
           fatal_error "Cmmgen.transl:prim, wrong arity"
       | ((Pfield_computed|Psequand
-         | Psequor | Pnot | Pnegint | Paddint | Psubint
+         | Psequor | Pnot | Pintofvalue | Pvalueofint
+         | Pnegint | Paddint | Psubint
          | Pmulint | Pandint | Porint | Pxorint | Plslint
          | Plsrint | Pasrint | Pintoffloat | Pfloatofint _
          | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _
@@ -895,6 +896,10 @@ and transl_prim_1 env p arg dbg =
   | Praise rkind ->
       raise_prim rkind (transl env arg) dbg
   (* Integer operations *)
+  | Pintofvalue ->
+      int_of_value (transl env arg) dbg
+  | Pvalueofint ->
+      value_of_int (transl env arg) dbg
   | Pnegint ->
       negint (transl env arg) dbg
   | Poffsetint n ->
@@ -1125,7 +1130,8 @@ and transl_prim_2 env p arg1 arg2 dbg =
       tag_int (Cop(Ccmpi cmp,
                      [transl_unbox_int dbg env bi arg1;
                       transl_unbox_int dbg env bi arg2], dbg)) dbg
-  | Pnot | Pnegint | Pintoffloat | Pfloatofint _ | Pnegfloat _
+  | Pnot | Pnegint | Pintofvalue | Pvalueofint
+  | Pintoffloat | Pfloatofint _ | Pnegfloat _
   | Pabsfloat _ | Pstringlength | Pbyteslength | Pbytessetu | Pbytessets
   | Pisint | Pbswap16 | Pint_as_pointer | Popaque | Pread_symbol _
   | Pmakeblock (_, _, _, _) | Pfield _ | Psetfield_computed (_, _)
@@ -1178,7 +1184,8 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
       bigstring_set size unsafe (transl env arg1) (transl env arg2)
         (transl_unbox_sized size dbg env arg3) dbg
 
-  | Pfield_computed | Psequand | Psequor | Pnot | Pnegint | Paddint
+  | Pfield_computed | Psequand | Psequor | Pnot
+  | Pintofvalue | Pvalueofint | Pnegint | Paddint
   | Psubint | Pmulint | Pandint | Porint | Pxorint | Plslint | Plsrint | Pasrint
   | Pintoffloat | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _
   | Pmulfloat _ | Pdivfloat _ | Pstringlength | Pstringrefu | Pstringrefs

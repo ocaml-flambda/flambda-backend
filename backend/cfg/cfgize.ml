@@ -180,6 +180,8 @@ let basic_or_terminator_of_operation :
   | Idivf -> Basic (Op Divf)
   | Ifloatofint -> Basic (Op Floatofint)
   | Iintoffloat -> Basic (Op Intoffloat)
+  | Ivalueofint -> Basic (Op Valueofint)
+  | Iintofvalue -> Basic (Op Intofvalue)
   | Ispecific op -> Basic (Op (Specific op))
   | Iopaque -> Basic (Op Opaque)
   | Iname_for_debugger _ ->
@@ -653,9 +655,9 @@ module Stack_offset_and_exn = struct
     | Op
         ( Move | Spill | Reload | Const_int _ | Const_float _ | Const_symbol _
         | Load _ | Store _ | Intop _ | Intop_imm _ | Negf | Absf | Addf | Subf
-        | Mulf | Divf | Compf _ | Floatofint | Intoffloat | Probe _
-        | Probe_is_enabled _ | Opaque | Begin_region | End_region | Specific _
-        | Name_for_debugger _ )
+        | Mulf | Divf | Compf _ | Floatofint | Intoffloat | Valueofint
+        | Intofvalue | Probe _ | Probe_is_enabled _ | Opaque | Begin_region
+        | End_region | Specific _ | Name_for_debugger _ )
     | Call _ | Reloadretaddr | Prologue ->
       stack_offset, traps, instr
 

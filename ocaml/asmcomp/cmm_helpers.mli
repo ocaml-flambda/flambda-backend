@@ -416,6 +416,12 @@ val floatfield : int -> unary_primitive
 (** Int_as_pointer primitive *)
 val int_as_pointer : unary_primitive
 
+(** Int to value primitive *)
+val value_of_int : unary_primitive
+
+(** Value to int primitive *)
+val int_of_value : unary_primitive
+
 (** Raise primitive *)
 val raise_prim : Lambda.raise_kind -> unary_primitive
 

@@ -57,6 +57,8 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   | Pprobe_is_enabled _ -> No_effects, Has_coeffects
   | Praise _ -> Arbitrary_effects, No_coeffects
   | Pnot
+  | Pintofvalue
+  | Pvalueofint
   | Pnegint
   | Paddint
   | Psubint
@@ -193,6 +195,8 @@ let may_locally_allocate (prim:Clambda_primitives.primitive) : bool =
      true
   | Praise _ -> false
   | Pnot
+  | Pintofvalue
+  | Pvalueofint
   | Pnegint
   | Paddint
   | Psubint

@@ -70,6 +70,7 @@ type operation =
   | Icompf of float_comparison
   | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Ifloatofint | Iintoffloat
+  | Ivalueofint | Iintofvalue
   | Iopaque
   | Ispecific of Arch.specific_operation
   | Iname_for_debugger of { ident : Backend_var.t; which_parameter : int option;
@@ -175,7 +176,7 @@ let rec instr_iter f i =
             | Iintop _ | Iintop_imm _
             | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
             | Icompf _
-            | Ifloatofint | Iintoffloat
+            | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue
             | Ispecific _ | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _
             | Iopaque
             | Ibeginregion | Iendregion) ->
@@ -195,7 +196,8 @@ let operation_is_pure = function
           | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _)
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icompf _
-  | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Iconst_symbol _
+  | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue
+  | Iconst_int _ | Iconst_float _ | Iconst_symbol _
   | Iload (_, _, _) | Iname_for_debugger _
     -> true
 
@@ -213,7 +215,8 @@ let operation_can_raise op =
           | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _)
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icompf _
-  | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Iconst_symbol _
+  | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue
+  | Iconst_int _ | Iconst_float _ | Iconst_symbol _
   | Istackoffset _ | Istore _  | Iload (_, _, _) | Iname_for_debugger _
   | Itailcall_imm _ | Itailcall_ind
   | Iopaque | Ibeginregion | Iendregion
