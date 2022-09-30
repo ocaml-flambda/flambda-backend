@@ -377,8 +377,8 @@ type property =
 
 type check_attribute =
   | Default_check
-  | Assert of property
-  | Assume of property
+  | Assert of property * scoped_location
+  | Assume of property * scoped_location
 
 type function_kind = Curried of {nlocal: int} | Tupled
 
