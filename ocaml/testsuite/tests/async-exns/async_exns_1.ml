@@ -120,18 +120,16 @@ let () =
   with
   | _ -> assert false
 
-external test_caml_callback_reraises_async_exns_as_async_exns
+external invoke_caml_callback
   : (unit -> unit) -> unit
-  = "test_caml_callback_reraises_async_exns_as_async_exns"
+  = "invoke_caml_callback"
 
 (* Ensure that [caml_callback] reraises an async exn arising from the
    callback, and that such reraise is done as an async raise. *)
 let () =
   try
     Sys.with_async_exns (fun () ->
-      try
-        test_caml_callback_reraises_async_exns_as_async_exns
-          raise_break_from_finaliser
+      try invoke_caml_callback raise_break_from_finaliser
       with exn -> Printf.printf "4a. wrong handler\n%!"; assert false
     )
   with
@@ -140,16 +138,14 @@ let () =
 
 (* Same but for a 2-parameter callback *)
 
-external test_caml_callback2_reraises_async_exns_as_async_exns
+external invoke_caml_callback2
   : (unit -> unit -> unit) -> unit
-  = "test_caml_callback2_reraises_async_exns_as_async_exns"
+  = "invoke_caml_callback2"
 
 let () =
   try
     Sys.with_async_exns (fun () ->
-      try
-        test_caml_callback2_reraises_async_exns_as_async_exns
-          raise_break_from_finaliser2
+      try invoke_caml_callback2 raise_break_from_finaliser2
       with exn -> Printf.printf "4b. wrong handler\n%!"; assert false
     )
   with
@@ -158,16 +154,14 @@ let () =
 
 (* Same but for a 3-parameter callback *)
 
-external test_caml_callback3_reraises_async_exns_as_async_exns
+external invoke_caml_callback3
   : (unit -> unit -> unit -> unit) -> unit
-  = "test_caml_callback3_reraises_async_exns_as_async_exns"
+  = "invoke_caml_callback3"
 
 let () =
   try
     Sys.with_async_exns (fun () ->
-      try
-        test_caml_callback3_reraises_async_exns_as_async_exns
-          raise_break_from_finaliser3
+      try invoke_caml_callback3 raise_break_from_finaliser3
       with exn -> Printf.printf "4c. wrong handler\n%!"; assert false
     )
   with
@@ -176,18 +170,66 @@ let () =
 
 (* Same but for a 4-parameter callback *)
 
-external test_caml_callbackN_reraises_async_exns_as_async_exns
+external invoke_caml_callbackN
   : (unit -> unit -> unit -> unit -> unit) -> unit
-  = "test_caml_callbackN_reraises_async_exns_as_async_exns"
+  = "invoke_caml_callbackN"
 
 let () =
   try
     Sys.with_async_exns (fun () ->
-      try
-        test_caml_callbackN_reraises_async_exns_as_async_exns
-          raise_break_from_finaliser4
+      try invoke_caml_callbackN raise_break_from_finaliser4
       with exn -> Printf.printf "4d. wrong handler\n%!"; assert false
     )
   with
   | Sys.Break -> Printf.printf "4d. OK\n%!"
+  | _ -> assert false
+
+(* Ensure that [caml_callback] raises [Sys.Break] that did not arise in
+   an async exn context as a normal exception. *)
+
+let raise_break () = raise Sys.Break
+let raise_break2 () () = raise Sys.Break
+let raise_break3 () () () = raise Sys.Break
+let raise_break4 () () () () = raise Sys.Break
+
+let () =
+  try
+    Sys.with_async_exns (fun () ->
+      try invoke_caml_callback raise_break
+      with exn -> Printf.printf "5a. OK\n%!"
+    )
+  with
+  | _ -> assert false
+
+(* Same but for a 2-parameter callback *)
+
+let () =
+  try
+    Sys.with_async_exns (fun () ->
+      try invoke_caml_callback2 raise_break2
+      with exn -> Printf.printf "5b. OK\n%!"
+    )
+  with
+  | _ -> assert false
+
+(* Same but for a 3-parameter callback *)
+
+let () =
+  try
+    Sys.with_async_exns (fun () ->
+      try invoke_caml_callback3 raise_break3
+      with exn -> Printf.printf "5c. OK\n%!"
+    )
+  with
+  | _ -> assert false
+
+(* Same but for a 4-parameter callback *)
+
+let () =
+  try
+    Sys.with_async_exns (fun () ->
+      try invoke_caml_callbackN raise_break4
+      with exn -> Printf.printf "5d. OK\n%!"
+    )
+  with
   | _ -> assert false

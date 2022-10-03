@@ -46,26 +46,22 @@ value test_caml_callbackN_exn_collects_async_exns(value raise_break_async)
   return Val_unit;
 }
 
-value test_caml_callback_reraises_async_exns_as_async_exns(
-  value raise_break_async)
+value invoke_caml_callback(value raise_break_async)
 {
   return caml_callback(raise_break_async, Val_unit);
 }
 
-value test_caml_callback2_reraises_async_exns_as_async_exns(
-  value raise_break_async)
+value invoke_caml_callback2(value raise_break_async)
 {
   return caml_callback2(raise_break_async, Val_unit, Val_unit);
 }
 
-value test_caml_callback3_reraises_async_exns_as_async_exns(
-  value raise_break_async)
+value invoke_caml_callback3(value raise_break_async)
 {
   return caml_callback3(raise_break_async, Val_unit, Val_unit, Val_unit);
 }
 
-value test_caml_callbackN_reraises_async_exns_as_async_exns(
-  value raise_break_async)
+value invoke_caml_callbackN(value raise_break_async)
 {
   value args[] = { Val_unit, Val_unit, Val_unit, Val_unit };
   return caml_callbackN(raise_break_async, 4, args);
