@@ -56,9 +56,9 @@ boot-compiler: _build/_bootinstall
 	$(dune) build $(ws_boot) $(coverage_dune_flags) \
 	  boot_ocamlopt.exe \
 	  ocaml/main_native.exe \
-	  ocaml/tools/ocamlmklib_native.exe \
-	  ocaml/tools/ocamldep_native.exe \
-	  tools/ocamlobjinfo_native.exe
+	  ocaml/tools/ocamlmklib.exe \
+	  ocaml/tools/ocamldep.exe \
+	  tools/flambda_backend_objinfo.exe
 
 boot-runtest: boot-compiler
 	$(dune) runtest $(ws_boot) $(coverage_dune_flags) --force
@@ -136,9 +136,9 @@ _build/_bootinstall: ocaml/Makefile.config duneconf/boot.ws duneconf/runtime_std
 	cp $^ _build/_bootinstall/lib/ocaml
 	ln -sf ../../default/boot_ocamlopt.exe _build/_bootinstall/bin/ocamlopt.opt
 	ln -sf ../../default/ocaml/main_native.exe _build/_bootinstall/bin/ocamlc.opt
-	ln -sf ../../default/ocaml/tools/ocamlmklib_native.exe _build/_bootinstall/bin/ocamlmklib.opt
-	ln -sf ../../default/ocaml/tools/ocamldep_native.exe _build/_bootinstall/bin/ocamldep.opt
-	ln -sf ../../default/tools/ocamlobjinfo_native.exe _build/_bootinstall/bin/ocamlobjinfo.opt
+	ln -sf ../../default/ocaml/tools/ocamlmklib.exe _build/_bootinstall/bin/ocamlmklib.opt
+	ln -sf ../../default/ocaml/tools/ocamldep.exe _build/_bootinstall/bin/ocamldep.opt
+	ln -sf ../../default/tools/flambda_backend_objinfo.exe _build/_bootinstall/bin/ocamlobjinfo.opt
 	ln -sf "`which ocamllex`" _build/_bootinstall/bin/ocamllex.opt
 	for prog in ocamlopt ocamlc ocamllex ocamldep ocamlmklib; do \
 	  ln -sf "$$prog.opt" "_build/_bootinstall/bin/$$prog"; \
@@ -262,8 +262,8 @@ runtest-upstream: _install
 	touch _runtest/VERSION
 	# tools
 	mkdir _runtest/tools
-	cp $(main_build)/ocaml/tools/ocamlmklib_byte.bc _runtest/tools/ocamlmklib
-	cp $(main_build)/tools/ocamlobjinfo_byte.bc _runtest/tools/ocamlobjinfo
+	ln -s ../_install/bin/ocamlmklib.byte _runtest/tools/ocamlmklib
+	ln -s ../_install/bin/ocamlobjinfo.byte _runtest/tools/ocamlobjinfo
 	# ocamltest itself
 	mkdir _runtest/ocamltest
 	cp $(main_build)/ocaml/ocamltest/ocamltest.byte _runtest/ocamltest/ocamltest
