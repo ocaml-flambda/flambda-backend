@@ -1251,6 +1251,15 @@ module Value_mode = struct
     Alloc_mode.submode_exn r_as_g r_as_l;
     { r_as_l; r_as_g }
 
+  let newvar_below = function
+    | { r_as_l = Amode Global;
+        r_as_g = Amode Global } ->
+       global
+    | m ->
+       let v = newvar () in
+       submode_exn v m;
+       v
+
   let check_const t =
     match Alloc_mode.check_const t.r_as_l with
     | None -> None

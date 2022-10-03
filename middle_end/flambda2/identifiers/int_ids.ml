@@ -57,35 +57,35 @@ module Const_data = struct
     let [@ocamlformat "disable"] print ppf (t : t) =
       match t with
       | Naked_immediate i ->
-        Format.fprintf ppf "@<0>%s#%a@<0>%s"
-          (Flambda_colours.naked_number ())
+        Format.fprintf ppf "%t#%a%t"
+          Flambda_colours.naked_number
           Targetint_31_63.print i
-          (Flambda_colours.normal ())
+          Flambda_colours.pop
       | Tagged_immediate i ->
-        Format.fprintf ppf "@<0>%s%a@<0>%s"
-          (Flambda_colours.tagged_immediate ())
+        Format.fprintf ppf "%t%a%t"
+          Flambda_colours.tagged_immediate
           Targetint_31_63.print i
-          (Flambda_colours.normal ())
+          Flambda_colours.pop
       | Naked_float f ->
-        Format.fprintf ppf "@<0>%s#%a@<0>%s"
-          (Flambda_colours.naked_number ())
+        Format.fprintf ppf "%t#%a%t"
+          Flambda_colours.naked_number
           Numeric_types.Float_by_bit_pattern.print f
-          (Flambda_colours.normal ())
+          Flambda_colours.pop
       | Naked_int32 n ->
-        Format.fprintf ppf "@<0>%s#%ldl@<0>%s"
-          (Flambda_colours.naked_number ())
+        Format.fprintf ppf "%t#%ldl%t"
+          Flambda_colours.naked_number
           n
-          (Flambda_colours.normal ())
+          Flambda_colours.pop
       | Naked_int64 n ->
-        Format.fprintf ppf "@<0>%s#%LdL@<0>%s"
-          (Flambda_colours.naked_number ())
+        Format.fprintf ppf "%t#%LdL%t"
+          Flambda_colours.naked_number
           n
-          (Flambda_colours.normal ())
+          Flambda_colours.pop
       | Naked_nativeint n ->
-        Format.fprintf ppf "@<0>%s#%an@<0>%s"
-          (Flambda_colours.naked_number ())
+        Format.fprintf ppf "%t#%an%t"
+          Flambda_colours.naked_number
           Targetint_32_64.print n
-          (Flambda_colours.normal ())
+          Flambda_colours.pop
 
     let compare t1 t2 =
       match t1, t2 with
@@ -480,11 +480,11 @@ module Symbol = struct
     let hash = Id.hash
 
     let print ppf t =
-      Format.fprintf ppf "@<0>%s" (Flambda_colours.symbol ());
+      Format.fprintf ppf "%t" Flambda_colours.symbol;
       Compilation_unit.print ppf (compilation_unit t);
       Format.pp_print_string ppf ".";
       Linkage_name.print ppf (linkage_name t);
-      Format.fprintf ppf "@<0>%s" (Flambda_colours.normal ())
+      Format.fprintf ppf "%t" Flambda_colours.pop
   end
 
   include T0
@@ -533,11 +533,11 @@ module Name = struct
     let hash = Id.hash
 
     let print ppf t =
-      Format.fprintf ppf "@<0>%s" (Flambda_colours.name ());
+      Format.fprintf ppf "%t" Flambda_colours.name;
       pattern_match t
         ~var:(fun var -> Variable.print ppf var)
         ~symbol:(fun symbol -> Symbol.print ppf symbol);
-      Format.fprintf ppf "@<0>%s" (Flambda_colours.normal ())
+      Format.fprintf ppf "%t" Flambda_colours.pop
   end
 
   include T0
@@ -766,10 +766,8 @@ module Code_id = struct
     let hash = Id.hash
 
     let print ppf t =
-      Format.fprintf ppf "@<0>%s%a@<0>%s"
-        (Flambda_colours.code_id ())
-        Linkage_name.print (linkage_name t)
-        (Flambda_colours.normal ())
+      Format.fprintf ppf "%t%a%t" Flambda_colours.code_id Linkage_name.print
+        (linkage_name t) Flambda_colours.pop
   end
 
   include T0

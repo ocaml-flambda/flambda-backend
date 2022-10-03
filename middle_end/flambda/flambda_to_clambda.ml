@@ -475,7 +475,7 @@ and to_clambda_direct_apply t func args direct_func probe dbg pos mode env
   let label =
     Symbol_utils.Flambda.for_code_of_closure direct_func
     |> Symbol.linkage_name
-    |> Linkage_name.to_string  
+    |> Linkage_name.to_string
   in
   let uargs =
     let uargs = subst_vars env args in

@@ -235,18 +235,6 @@ let package_object_files ~ppf_dump files targetcmx
     | Some p -> p ^ "." ^ targetname in
   let members = map_left_right (read_member_info pack_path) files in
   check_units members;
-  (*
-  let ui = Compilenv.current_unit_infos() in
-  let pack =
-    Format.eprintf "ui.ui_name for packaging is %a\n%!"
-      Compilation_unit.print ui.ui_name;
-    Compilation_unit.Prefix.parse_for_pack
-      (Some (Compilation_unit.Name.to_string
-        (Compilation_unit.name ui.ui_name)))
-  in
-  Format.eprintf "asmpackager: current CU is %a, pack is %a\n%!"
-    Compilation_unit.print (Compilation_unit.get_current_exn ())
-    Compilation_unit.Prefix.print pack;*)
   make_package_object ~ppf_dump members targetobj targetname coercion ~backend;
   build_package_cmx members targetcmx
 

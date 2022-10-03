@@ -68,21 +68,21 @@ include Container_types.Make (struct
       | Toplevel_return, Some trap_action, _::_ ->
         "module_init_end", Some trap_action
     in
-    Format.fprintf ppf "@[<hov 1>%a@<0>%s%s@<0>%s %a"
+    Format.fprintf ppf "@[<hov 1>%a%t%s%t %a"
       Trap_action.Option.print trap_action
-      (Flambda_colours.expr_keyword ())
+      Flambda_colours.expr_keyword
       name
-      (Flambda_colours.normal ())
+      Flambda_colours.pop
       Continuation.print k;
     begin match args with
     | [] -> ()
     | args ->
       Format.fprintf ppf " %a" Simple.List.print args
     end;
-    Format.fprintf ppf "@<0>%s%a@<0>%s@]"
-      (Flambda_colours.elide ())
+    Format.fprintf ppf "%t%a%t@]"
+      Flambda_colours.elide
       print_or_elide_debuginfo dbg
-      (Flambda_colours.normal ())
+      Flambda_colours.pop
 
   let hash _ = Misc.fatal_error "Not yet implemented"
 

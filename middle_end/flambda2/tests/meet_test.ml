@@ -22,7 +22,7 @@ let test_meet_chains_two_vars () =
   let env =
     TE.add_equation env (Name.var var1)
       (T.immutable_block ~is_unique:false Tag.zero ~field_kind:K.value
-         (Known Heap) ~fields:[T.any_tagged_immediate])
+         (Known Alloc_mode.heap) ~fields:[T.any_tagged_immediate])
   in
   let var2 = Variable.create "var2" in
   let var2' = Bound_var.create var2 Name_mode.normal in
@@ -55,7 +55,7 @@ let test_meet_chains_three_vars () =
   let env =
     TE.add_equation env (Name.var var1)
       (T.immutable_block ~is_unique:false Tag.zero ~field_kind:K.value
-         (Known Heap) ~fields:[T.any_tagged_immediate])
+         (Known Alloc_mode.heap) ~fields:[T.any_tagged_immediate])
   in
   let var2 = Variable.create "var2" in
   let var2' = Bound_var.create var2 Name_mode.normal in
@@ -98,7 +98,6 @@ let meet_variants_don't_lose_aliases () =
   let vb = Variable.create "b" in
   let v_variant = Variable.create "variant" in
   let env = defines env [vx; vy; va; vb; v_variant] in
-
   let const_ctors = T.bottom K.naked_immediate in
   let ty1 =
     let non_const_ctors =
@@ -107,7 +106,7 @@ let meet_variants_don't_lose_aliases () =
           Tag.Scannable.create_exn 1, [T.alias_type_of K.value (Simple.var vy)]
         ]
     in
-    T.variant ~const_ctors ~non_const_ctors (Known Heap)
+    T.variant ~const_ctors ~non_const_ctors (Known Alloc_mode.heap)
   in
   let ty2 =
     let non_const_ctors =
@@ -116,7 +115,7 @@ let meet_variants_don't_lose_aliases () =
           Tag.Scannable.create_exn 1, [T.alias_type_of K.value (Simple.var vb)]
         ]
     in
-    T.variant ~const_ctors ~non_const_ctors (Known Heap)
+    T.variant ~const_ctors ~non_const_ctors (Known Alloc_mode.heap)
   in
   match T.meet env ty1 ty2 with
   | Bottom -> assert false
@@ -147,20 +146,18 @@ let test_meet_two_blocks () =
   let block2 = Variable.create "block2" in
   let field2 = Variable.create "field2" in
   let env = defines env [block1; block2; field1; field2] in
-
   let env =
     TE.add_equation env (Name.var block1)
       (T.immutable_block ~is_unique:false Tag.zero ~field_kind:K.value
-         (Known Heap)
+         (Known Alloc_mode.heap)
          ~fields:[T.alias_type_of K.value (Simple.var field1)])
   in
   let env =
     TE.add_equation env (Name.var block2)
       (T.immutable_block ~is_unique:false Tag.zero ~field_kind:K.value
-         (Known Heap)
+         (Known Alloc_mode.heap)
          ~fields:[T.alias_type_of K.value (Simple.var field2)])
   in
-
   (* let test b1 b2 env =
    *   let eq_block2 = T.alias_type_of K.value (Simple.var b2) in
    *   let env =

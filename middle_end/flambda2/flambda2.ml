@@ -48,33 +48,23 @@ let get_global_info comp_unit =
 let print_rawflambda ppf unit =
   if Flambda_features.dump_rawflambda ()
   then
-    Format.fprintf ppf "\n%sAfter CPS conversion:%s@ %a@."
-      (Flambda_colours.each_file ())
-      (Flambda_colours.normal ())
-      Flambda_unit.print unit;
+    Format.fprintf ppf "\n%tAfter CPS conversion:%t@ %a@."
+      Flambda_colours.each_file Flambda_colours.pop Flambda_unit.print unit;
   if Flambda_features.dump_rawfexpr ()
   then
-    Format.fprintf ppf "\n%sAfter CPS conversion:%s@ %a@."
-      (Flambda_colours.each_file ())
-      (Flambda_colours.normal ())
-      Print_fexpr.flambda_unit
+    Format.fprintf ppf "\n%tAfter CPS conversion:%t@ %a@."
+      Flambda_colours.each_file Flambda_colours.pop Print_fexpr.flambda_unit
       (unit |> Flambda_to_fexpr.conv)
 
 let print_flambda name ppf unit =
   if Flambda_features.dump_flambda ()
   then
-    Format.fprintf ppf "\n%sAfter %s:%s@ %a@."
-      (Flambda_colours.each_file ())
-      name
-      (Flambda_colours.normal ())
-      Flambda_unit.print unit;
+    Format.fprintf ppf "\n%tAfter %s:%t@ %a@." Flambda_colours.each_file name
+      Flambda_colours.pop Flambda_unit.print unit;
   if Flambda_features.dump_fexpr ()
   then
-    Format.fprintf ppf "\n%sAfter %s:%s@ %a@."
-      (Flambda_colours.each_file ())
-      name
-      (Flambda_colours.normal ())
-      Print_fexpr.flambda_unit
+    Format.fprintf ppf "\n%tAfter %s:%t@ %a@." Flambda_colours.each_file name
+      Flambda_colours.pop Print_fexpr.flambda_unit
       (unit |> Flambda_to_fexpr.conv)
 
 let output_flexpect ~ml_filename ~raw_flambda:old_unit new_unit =

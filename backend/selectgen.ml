@@ -1045,8 +1045,15 @@ method emit_expr (env:environment) exp =
   | Ctrywith(e1, kind, v, e2, _dbg, _value_kind) ->
       (* This region is used only to clean up local allocations in the
          exceptional path. It need not be ended in the non-exception case. *)
-      let reg = self#regs_for typ_int in
-      self#insert env (Iop Ibeginregion) [| |] reg;
+      let end_region =
+        if Config.stack_allocation then begin
+          let reg = self#regs_for typ_int in
+          self#insert env (Iop Ibeginregion) [| |] reg;
+          fun handler_instruction -> instr_cons (Iop Iendregion) reg [| |] handler_instruction
+        end
+        else
+          fun handler_instruction -> handler_instruction
+      in
       let env_body = env_enter_trywith env kind in
       let (r1, s1) = self#emit_sequence env_body e1 in
       let rv = self#regs_for typ_val in
@@ -1057,7 +1064,7 @@ method emit_expr (env:environment) exp =
           (Itrywith(s1#extract, kind,
                     (env_handler.trap_stack,
                      instr_cons (Iop Imove) [|Proc.loc_exn_bucket|] rv
-                       (instr_cons (Iop Iendregion) reg [| |] s2#extract))))
+                       (end_region s2#extract))))
           [||] [||];
         r
       in
@@ -1452,8 +1459,15 @@ method emit_tail (env:environment) exp =
   | Ctrywith(e1, kind, v, e2, _dbg, _value_kind) ->
       (* This region is used only to clean up local allocations in the
          exceptional path. It need not be ended in the non-exception case. *)
-      let reg = self#regs_for typ_int in
-      self#insert env (Iop Ibeginregion) [| |] reg;
+      let end_region =
+        if Config.stack_allocation then begin
+          let reg = self#regs_for typ_int in
+          self#insert env (Iop Ibeginregion) [| |] reg;
+          fun handler_instruction -> instr_cons (Iop Iendregion) reg [| |] handler_instruction
+        end
+        else
+          fun handler_instruction -> handler_instruction
+      in
       let env_body = env_enter_trywith env kind in
       let s1 = self#emit_tail_sequence env_body e1 in
       let rv = self#regs_for typ_val in
@@ -1463,7 +1477,7 @@ method emit_tail (env:environment) exp =
           (Itrywith(s1, kind,
                     (env_handler.trap_stack,
                      instr_cons (Iop Imove) [|Proc.loc_exn_bucket|] rv
-                       (instr_cons (Iop Iendregion) reg [| |] s2))))
+                       (end_region s2))))
           [||] [||]
       in
       let env = env_add v rv env in

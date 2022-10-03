@@ -14,6 +14,7 @@ val log_body_and_terminator :
   indent:int ->
   Cfg.basic Cfg.instruction list ->
   Cfg.terminator Cfg.instruction ->
+  liveness ->
   unit
 
 module Color : sig
@@ -91,36 +92,36 @@ module Spilling_heuristics : sig
   val env : t Lazy.t
 end
 
-(* Actually work "sets", uses "lists" to follow the article/book. *)
-module WorkList : sig
+module ArraySet : sig
   module type S = sig
     type e
 
     type t
 
-    module Set : Set.S with type elt = e
+    val make : original_capacity:int -> t
 
-    val make : expected_max_size:int -> t
-
-    val empty : t -> t
+    val clear : t -> unit
 
     val is_empty : t -> bool
 
-    val add : t -> e -> t
+    val choose_and_remove : t -> e option
 
-    val remove : t -> e -> t
+    val add : t -> e -> unit
 
-    val choose_and_remove : t -> (e * t) option
+    val remove : t -> e -> unit
 
     val iter : t -> f:(e -> unit) -> unit
 
-    val fold : t -> f:(e -> 'a -> 'a) -> init:'a -> 'a
+    val fold : t -> f:('a -> e -> 'a) -> init:'a -> 'a
 
     val to_list : t -> e list
-
-    val to_set : t -> Set.t
   end
 
-  module Make (E : Set.OrderedType) (ES : Set.S with type elt = E.t) :
-    S with type e = E.t and module Set = ES
+  module type OrderedTypeWithDummy = sig
+    include Set.OrderedType
+
+    val dummy : t (* note: does not 0-compare to any "interesting" value *)
+  end
+
+  module Make (T : OrderedTypeWithDummy) : S with type e = T.t
 end

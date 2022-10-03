@@ -91,7 +91,8 @@ let project_tuple ~dbg ~size ~field tuple =
   Named.create_prim prim dbg
 
 let split_direct_over_application apply ~param_arity ~result_arity
-    ~(apply_alloc_mode : Alloc_mode.t) ~contains_no_escaping_local_allocs =
+    ~(apply_alloc_mode : Alloc_mode.t) ~contains_no_escaping_local_allocs
+    ~current_region =
   let arity = Flambda_arity.With_subkinds.cardinal param_arity in
   let args = Apply.args apply in
   assert (arity < List.length args);
@@ -113,7 +114,9 @@ let split_direct_over_application apply ~param_arity ~result_arity
   in
   let perform_over_application =
     let alloc_mode : Alloc_mode.t =
-      if contains_no_escaping_local_allocs then Heap else Local
+      if contains_no_escaping_local_allocs
+      then Alloc_mode.heap
+      else Alloc_mode.local ()
     in
     let continuation =
       (* If there is no need for a new region, then the second (over)
@@ -125,6 +128,11 @@ let split_direct_over_application apply ~param_arity ~result_arity
       | None -> Apply.continuation apply
       | Some (_, cont) -> Apply.Result_continuation.Return cont
     in
+    let current_region =
+      match needs_region with
+      | None -> current_region
+      | Some (region, _) -> region
+    in
     Apply.create ~callee:(Simple.var func_var) ~continuation
       (Apply.exn_continuation apply)
       ~args:remaining_args
@@ -133,6 +141,7 @@ let split_direct_over_application apply ~param_arity ~result_arity
       ~inlining_state:(Apply.inlining_state apply)
       ~probe_name:(Apply.probe_name apply) ~position:(Apply.position apply)
       ~relative_history:(Apply.relative_history apply)
+      ~region:current_region
   in
   let perform_over_application_free_names =
     Apply.free_names perform_over_application
@@ -141,12 +150,13 @@ let split_direct_over_application apply ~param_arity ~result_arity
     match needs_region with
     | None -> Expr.create_apply perform_over_application
     | Some (region, after_over_application) ->
-      (* This wraps the second application (the over application itself) with
-         [Begin_region] ... [End_region]. This application might raise an
-         exception, but that doesn't need any special handling, since we're not
-         actually introducing any more local allocations here. (Missing the
-         [End_region] on the exceptional return path is fine, c.f. the usual
-         compilation of [try ... with] -- see [Closure_conversion].) *)
+      (* This wraps both applications (the full application and the second
+         application) with [Begin_region] ... [End_region]. The applications
+         might raise an exception, but that doesn't need any special handling,
+         since we're not actually introducing any more local allocations here.
+         (Missing the [End_region] on the exceptional return path is fine, c.f.
+         the usual compilation of [try ... with] -- see
+         [Closure_conversion].) *)
       let over_application_results =
         List.mapi
           (fun i kind ->
@@ -206,7 +216,7 @@ let split_direct_over_application apply ~param_arity ~result_arity
   let full_apply =
     Apply.with_continuation_callee_and_args apply
       (Return after_full_application) ~callee:(Apply.callee apply)
-      ~args:first_args
+      ~args:first_args ~region:current_region
   in
   let both_applications =
     Let_cont.create_non_recursive after_full_application

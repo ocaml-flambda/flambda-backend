@@ -68,7 +68,11 @@ external set_raw_field : t -> int -> raw_data -> unit
   (* @since 4.12 *)
 
 external new_block : int -> int -> t = "caml_obj_block"
-external dup : t -> t = "caml_obj_dup"
+
+external dup : t -> t = "%obj_dup"
+(** [dup t] returns a shallow copy of [t].  However if [t] is immutable then
+    it might be returned unchanged. *)
+
 external add_offset : t -> Int32.t -> t = "caml_obj_add_offset"
          (* @since 3.12.0 *)
 external with_tag : int -> t -> t = "caml_obj_with_tag"

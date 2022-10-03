@@ -25,6 +25,8 @@
  **********************************************************************************)
 [@@@ocaml.warning "+a-30-40-41-42"]
 
+let debug = false
+
 type t =
   { cfg : Cfg.t;
     mutable layout : Label.t list;
@@ -44,15 +46,17 @@ let preserve_orig_labels t = t.preserve_orig_labels
 let new_labels t = t.new_labels
 
 let set_layout t layout =
-  let cur_layout = Label.Set.of_list t.layout in
-  let new_layout = Label.Set.of_list layout in
-  if not
-       (Label.Set.equal cur_layout new_layout
-       && Label.equal (List.hd layout) t.cfg.entry_label)
+  (if debug
   then
-    Misc.fatal_error
-      "Cfg set_layout: new layout is not a permutation of the current layout, \
-       or first label is not entry";
+    let cur_layout = Label.Set.of_list t.layout in
+    let new_layout = Label.Set.of_list layout in
+    if not
+         (Label.Set.equal cur_layout new_layout
+         && Label.equal (List.hd layout) t.cfg.entry_label)
+    then
+      Misc.fatal_error
+        "Cfg set_layout: new layout is not a permutation of the current \
+         layout, or first label is not entry");
   t.layout <- layout
 
 let remove_block t label =
@@ -221,21 +225,29 @@ let print_dot ?(show_instr = true) ?(show_exn = true)
                   annotate_block_end ppf block)))
           ppf);
     Format.fprintf ppf "@]@,</table>@]\n>]\n";
+    let print_arrow ?style ?label ppf from to_ =
+      let port_head, port_tail =
+        if String.equal from to_ then ":s", ":n" else "", ""
+      in
+      Format.fprintf ppf "%s%s->%s%s [%a%a]\n" from port_head to_ port_tail
+        (Format.pp_print_option (fun ppf -> Format.fprintf ppf "style=\"%s\""))
+        style
+        (Format.pp_print_option Format.pp_print_string)
+        label
+    in
     Label.Set.iter
       (fun l ->
-        Format.fprintf ppf "%s->%s[%s]\n" (name label) (name l)
-          (annotate_succ label l))
+        print_arrow ppf (name label) (name l) ~label:(annotate_succ label l))
       (Cfg.successor_labels ~normal:true ~exn:false block);
     if show_exn
     then (
       Label.Set.iter
         (fun l ->
-          Format.fprintf ppf "%s->%s [style=dashed %s]\n" (name label) (name l)
-            (annotate_succ label l))
+          print_arrow ppf (name label) (name l) ~style:"dashed"
+            ~label:(annotate_succ label l))
         (Cfg.successor_labels ~normal:false ~exn:true block);
       if Cfg.can_raise_interproc block
-      then
-        Format.fprintf ppf "%s->%s [style=dashed]\n" (name label) "placeholder")
+      then print_arrow ppf (name label) "placeholder" ~style:"dashed")
   in
   (* print all the blocks, even if they don't appear in the layout *)
   List.iteri

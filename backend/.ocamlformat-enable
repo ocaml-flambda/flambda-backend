@@ -2,6 +2,8 @@ cmm_helpers.ml
 cmm_helpers.mli
 internal_assembler/*.ml
 internal_assembler/*.mli
+checkmach.ml
+checkmach.mli
 cfg/**/*.ml
 cfg/**/*.mli
 asm_targets/**/*.ml

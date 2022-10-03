@@ -26,7 +26,7 @@ val is_empty : t -> bool
     variables. *)
 val create :
   value_slots:Simple.t Value_slot.Map.t ->
-  Alloc_mode.t ->
+  Alloc_mode.With_region.t ->
   Function_declarations.t ->
   t
 
@@ -39,7 +39,7 @@ val value_slots : t -> Simple.t Value_slot.Map.t
 (** Returns true iff the given set of closures has no value slots. *)
 val is_closed : t -> bool
 
-val alloc_mode : t -> Alloc_mode.t
+val alloc_mode : t -> Alloc_mode.With_region.t
 
 val filter_function_declarations :
   t -> f:(Function_slot.t -> Code_id.t -> bool) -> t

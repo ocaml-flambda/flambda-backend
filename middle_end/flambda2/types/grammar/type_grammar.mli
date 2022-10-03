@@ -266,6 +266,7 @@ val mutable_block : Alloc_mode.t Or_unknown.t -> t
 
 val create_closures : Alloc_mode.t Or_unknown.t -> row_like_for_closures -> t
 
+(** Note this assumes the allocation mode is [Heap] *)
 val this_immutable_string : string -> t
 
 val mutable_string : size:int -> t

@@ -43,7 +43,7 @@ val add_spill_work_list : t -> Reg.t -> unit
 
 val remove_spill_work_list : t -> Reg.t -> unit
 
-val fold_spill_work_list : t -> f:(Reg.t -> 'a -> 'a) -> init:'a -> 'a
+val fold_spill_work_list : t -> f:('a -> Reg.t -> 'a) -> init:'a -> 'a
 
 val spill_work_list : t -> Reg.Set.t
 

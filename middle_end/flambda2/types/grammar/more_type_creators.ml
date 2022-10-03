@@ -56,7 +56,7 @@ let these_naked_nativeints is = TG.these_naked_nativeints is
 
 let any_tagged_immediate =
   TG.create_variant ~is_unique:false ~immediates:Unknown
-    ~blocks:(Known TG.Row_like_for_blocks.bottom) (Known Heap)
+    ~blocks:(Known TG.Row_like_for_blocks.bottom) (Known Alloc_mode.heap)
 
 let these_tagged_immediates0 imms =
   match Targetint_31_63.Set.get_singleton imms with
@@ -67,7 +67,7 @@ let these_tagged_immediates0 imms =
     else
       TG.create_variant ~is_unique:false
         ~immediates:(Known (these_naked_immediates imms))
-        ~blocks:(Known TG.Row_like_for_blocks.bottom) (Known Heap)
+        ~blocks:(Known TG.Row_like_for_blocks.bottom) (Known Alloc_mode.heap)
 
 let these_tagged_immediates imms = these_tagged_immediates0 imms
 
@@ -163,25 +163,6 @@ let variant ~const_ctors ~non_const_ctors alloc_mode =
   in
   TG.create_variant ~is_unique:false ~immediates:(Known const_ctors)
     ~blocks:(Known blocks) alloc_mode
-
-let open_variant_from_const_ctors_type ~const_ctors =
-  TG.create_variant ~is_unique:false ~immediates:(Known const_ctors)
-    ~blocks:Unknown Unknown
-
-let open_variant_from_non_const_ctor_with_size_at_least ~n ~field_n_minus_one =
-  let n = Targetint_31_63.to_int n in
-  let field_tys =
-    List.init n (fun index ->
-        if index < n - 1
-        then TG.any_value
-        else TG.alias_type_of K.value (Simple.var field_n_minus_one))
-  in
-  TG.create_variant ~is_unique:false ~immediates:Unknown
-    ~blocks:
-      (Known
-         (TG.Row_like_for_blocks.create ~field_kind:K.value ~field_tys
-            (Open Unknown)))
-    Unknown
 
 let exactly_this_closure function_slot ~all_function_slots_in_set:function_types
     ~all_closure_types_in_set:closure_types

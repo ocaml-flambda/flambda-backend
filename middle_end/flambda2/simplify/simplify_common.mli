@@ -110,6 +110,7 @@ val split_direct_over_application :
   result_arity:Flambda_arity.With_subkinds.t ->
   apply_alloc_mode:Alloc_mode.t ->
   contains_no_escaping_local_allocs:bool ->
+  current_region:Variable.t ->
   Expr.t
 
 type apply_cont_context =

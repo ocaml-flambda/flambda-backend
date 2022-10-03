@@ -342,3 +342,22 @@ let operation_can_raise = function
   | Ishiftarith (_, _)
   | Isignext _
   | Ibswap _ -> false
+
+let operation_allocates = function
+  | Ifar_alloc _ -> true
+  | Ifar_intop_checkbound
+  | Ifar_intop_imm_checkbound _
+  | Ishiftcheckbound _
+  | Ifar_shiftcheckbound _
+  | Imuladd
+  | Imulsub
+  | Inegmulf
+  | Imuladdf
+  | Inegmuladdf
+  | Imulsubf
+  | Inegmulsubf
+  | Isqrtf
+  | Imove32
+  | Ishiftarith (_, _)
+  | Isignext _
+  | Ibswap _ -> false

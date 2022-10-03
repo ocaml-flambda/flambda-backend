@@ -78,5 +78,5 @@ let main() =
 
 let () =
   main ();
-  Profile.print Format.std_formatter !Clflags.profile_columns;
+  Profile.print Format.std_formatter !Clflags.profile_columns ~timings_precision:!Clflags.timings_precision;
   exit 0

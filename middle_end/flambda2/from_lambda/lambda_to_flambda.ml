@@ -27,10 +27,13 @@ module Function_decl = Closure_conversion_aux.Function_decls.Function_decl
 module Env : sig
   type t
 
+  type region_stack_element
+
   val create :
     current_unit_id:Ident.t ->
     return_continuation:Continuation.t ->
     exn_continuation:Continuation.t ->
+    my_region:Ident.t ->
     t
 
   val current_unit_id : t -> Ident.t
@@ -129,10 +132,22 @@ module Env : sig
     continuation_after_closing_region:Continuation.t ->
     t
 
-  (** The innermost (newest) region is first in the list. *)
-  val region_stack : t -> Ident.t list
+  val entering_try_region : t -> Ident.t -> t
 
-  val region_stack_in_cont_scope : t -> Continuation.t -> Ident.t list
+  val leaving_try_region : t -> t
+
+  val current_region : t -> Ident.t
+
+  (** The innermost (newest) region is first in the list. *)
+  val region_stack : t -> region_stack_element list
+
+  val region_stack_in_cont_scope :
+    t -> Continuation.t -> region_stack_element list
+
+  (** Hack for staticfail (which should eventually use
+      [pop_regions_up_to_context]) *)
+  val pop_region :
+    region_stack_element list -> (Ident.t * region_stack_element list) option
 
   val pop_regions_up_to_context : t -> Continuation.t -> Ident.t option
 
@@ -148,6 +163,10 @@ end = struct
       continuation_after_closing_region : Continuation.t
     }
 
+  type region_stack_element =
+    | Regular of Ident.t
+    | Try_with of Ident.t
+
   type t =
     { current_unit_id : Ident.t;
       current_values_of_mutables_in_scope :
@@ -157,12 +176,14 @@ end = struct
       try_stack_at_handler : Continuation.t list Continuation.Map.t;
       static_exn_continuation : Continuation.t Numeric_types.Int.Map.t;
       recursive_static_catches : Numeric_types.Int.Set.t;
-      region_stack : Ident.t list;
-      region_stack_in_cont_scope : Ident.t list Continuation.Map.t;
+      my_region : Ident.t;
+      region_stack : region_stack_element list;
+      region_stack_in_cont_scope : region_stack_element list Continuation.Map.t;
       region_closure_continuations : region_closure_continuation Ident.Map.t
     }
 
-  let create ~current_unit_id ~return_continuation ~exn_continuation =
+  let create ~current_unit_id ~return_continuation ~exn_continuation ~my_region
+      =
     let mutables_needed_by_continuations =
       Continuation.Map.of_list
         [return_continuation, Ident.Set.empty; exn_continuation, Ident.Set.empty]
@@ -174,6 +195,7 @@ end = struct
       try_stack_at_handler = Continuation.Map.empty;
       static_exn_continuation = Numeric_types.Int.Map.empty;
       recursive_static_catches = Numeric_types.Int.Set.empty;
+      my_region;
       region_stack = [];
       region_stack_in_cont_scope =
         Continuation.Map.singleton return_continuation [];
@@ -331,12 +353,32 @@ end = struct
   let entering_region t id ~continuation_closing_region
       ~continuation_after_closing_region =
     { t with
-      region_stack = id :: t.region_stack;
+      region_stack = Regular id :: t.region_stack;
       region_closure_continuations =
         Ident.Map.add id
           { continuation_closing_region; continuation_after_closing_region }
           t.region_closure_continuations
     }
+
+  let entering_try_region t region =
+    { t with region_stack = Try_with region :: t.region_stack }
+
+  let leaving_try_region t =
+    match t.region_stack with
+    | [] -> Misc.fatal_error "Cannot pop try region, region stack is empty"
+    | Try_with _ :: region_stack -> { t with region_stack }
+    | Regular region :: _ ->
+      Misc.fatal_errorf
+        "Attempted to pop try region but found regular region %a" Ident.print
+        region
+
+  let current_region t =
+    if not (Flambda_features.stack_allocation_enabled ())
+    then t.my_region
+    else
+      match t.region_stack with
+      | [] -> t.my_region
+      | (Regular region | Try_with region) :: _ -> region
 
   let region_stack t = t.region_stack
 
@@ -347,19 +389,29 @@ end = struct
         Continuation.print continuation
     | stack -> stack
 
+  let pop_region = function
+    | [] -> None
+    | (Try_with region | Regular region) :: rest -> Some (region, rest)
+
   let pop_regions_up_to_context t continuation =
     let initial_stack_context = region_stack_in_cont_scope t continuation in
     let rec pop to_pop region_stack =
       match initial_stack_context, region_stack with
       | [], [] -> to_pop
-      | [], region :: regions -> pop (Some region) regions
+      | ([] | Try_with _ :: _), Regular region :: regions ->
+        pop (Some region) regions
+      | ([] | Regular _ :: _), Try_with _ :: regions -> pop to_pop regions
       | _initial_stack_top :: _, [] ->
         Misc.fatal_errorf "Unable to restore region stack for %a"
           Continuation.print continuation
-      | initial_stack_top :: _, region :: regions ->
+      | Regular initial_stack_top :: _, Regular region :: regions ->
         if Ident.same initial_stack_top region
         then to_pop
         else pop (Some region) regions
+      | Try_with initial_stack_top :: _, Try_with region :: regions ->
+        if Ident.same initial_stack_top region
+        then to_pop
+        else pop to_pop regions
     in
     pop None t.region_stack
 
@@ -463,10 +515,6 @@ let compile_staticfail acc env ccenv ~(continuation : Continuation.t) ~args :
       "Cannot jump to continuation %a: it would involve jumping into a local \
        allocation region"
       Continuation.print continuation;
-  assert (
-    Ident.Set.subset
-      (Ident.Set.of_list region_stack_at_handler)
-      (Ident.Set.of_list region_stack_now));
   let rec add_end_regions acc ~region_stack_now =
     (* CR pchambart: this probably can't be exercised right now, no lambda
        jumping through a region seems to be generated. *)
@@ -484,14 +532,17 @@ let compile_staticfail acc env ccenv ~(continuation : Continuation.t) ~args :
           Not_user_visible (End_region region) ~body
     in
     let no_end_region after_everything = after_everything in
-    match region_stack_now, region_stack_at_handler with
-    | [], [] -> no_end_region
-    | region1 :: region_stack_now, region2 :: _ ->
+    match
+      Env.pop_region region_stack_now, Env.pop_region region_stack_at_handler
+    with
+    | None, None -> no_end_region
+    | Some (region1, region_stack_now), Some (region2, _) ->
       if Ident.same region1 region2
       then no_end_region
       else add_end_region region1 ~region_stack_now
-    | region :: region_stack_now, [] -> add_end_region region ~region_stack_now
-    | [], _ :: _ -> assert false
+    | Some (region, region_stack_now), None ->
+      add_end_region region ~region_stack_now
+    | None, Some _ -> assert false
     (* see above *)
   in
   add_pop_traps acc ~try_stack_now
@@ -873,7 +924,7 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pbigstring_set_32 true
   | Pbigstring_set_64 true
   | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer | Popaque
-  | Pprobe_is_enabled _ ->
+  | Pprobe_is_enabled _ | Pobj_dup ->
     false
 
 let rec cps_non_tail acc env ccenv (lam : L.lambda)
@@ -918,6 +969,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
     in
     let body acc ccenv = k acc env ccenv id in
     CC.close_let_rec acc ccenv ~function_declarations:[func] ~body
+      ~current_region:(Env.current_region env)
   | Lmutlet (value_kind, id, defining_expr, body) ->
     let temp_id = Ident.create_local "let_mutable" in
     let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler:false
@@ -936,7 +988,8 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
     let let_expr =
       List.fold_left
         (fun body func acc ccenv ->
-          CC.close_let_rec acc ccenv ~function_declarations:[func] ~body)
+          CC.close_let_rec acc ccenv ~function_declarations:[func] ~body
+            ~current_region:(Env.current_region env))
         body bindings
     in
     let_expr acc ccenv
@@ -972,8 +1025,9 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
       cps_non_tail_list acc env ccenv args
         (fun acc env ccenv args ->
           let body acc ccenv = cps_non_tail acc env ccenv body k k_exn in
+          let region = Env.current_region env in
           CC.close_let acc ccenv id User_visible
-            (Prim { prim; args; loc; exn_continuation })
+            (Prim { prim; args; loc; exn_continuation; region })
             ~body)
         k_exn
     | Transformed lam ->
@@ -999,6 +1053,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
       let function_declarations = cps_function_bindings env bindings in
       let body acc ccenv = cps_non_tail acc env ccenv body k k_exn in
       CC.close_let_rec acc ccenv ~function_declarations ~body
+        ~current_region:(Env.current_region env)
     | Dissected lam -> cps_non_tail acc env ccenv lam k k_exn)
   | Lprim (prim, args, loc) -> (
     match transform_primitive env prim args loc with
@@ -1014,11 +1069,12 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
             }
         else None
       in
+      let current_region = Env.current_region env in
       cps_non_tail_list acc env ccenv args
         (fun acc env ccenv args ->
           let body acc ccenv = k acc env ccenv result_var in
           CC.close_let acc ccenv result_var Not_user_visible
-            (Prim { prim; args; loc; exn_continuation })
+            (Prim { prim; args; loc; exn_continuation; region = current_region })
             ~body)
         k_exn
     | Transformed lam -> cps_non_tail acc env ccenv lam k k_exn)
@@ -1102,7 +1158,8 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
                         region_close = pos;
                         inlined = Default_inlined;
                         probe = None;
-                        mode
+                        mode;
+                        region = Env.current_region env
                       }
                     in
                     wrap_return_continuation acc env ccenv apply)
@@ -1119,15 +1176,18 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
        generation pass ensures that there will be an enclosing region around the
        whole [Ltrywith] (possibly not immediately enclosing, but maybe further
        out). The only reason we need a [Begin_region] here is to be able to
-       unwind the local allocation stack if the exception handler is invoked.
-       (This also explains why there is no [End_region] at the end of the "try"
-       body.) *)
+       unwind the local allocation stack if the exception handler is invoked. We
+       need an [End_region] too so that, on the non-exceptional path at the end
+       of the [try] block, the local allocation stack is correctly unwound in
+       the case where the region around the whole [Ltrywith] is unused. (See
+       [uses_local_try] in regions.ml in the testsuite.) *)
     CC.close_let acc ccenv region Not_user_visible Begin_region
       ~body:(fun acc ccenv ->
         let_cont_nonrecursive_with_extra_params acc env ccenv
           ~is_exn_handler:false
           ~params:[result_var, Not_user_visible, kind]
           ~body:(fun acc env ccenv after_continuation ->
+            let env = Env.entering_try_region env region in
             let_cont_nonrecursive_with_extra_params acc env ccenv
               ~is_exn_handler:true
               ~params:[id, User_visible, Pgenval]
@@ -1147,13 +1207,18 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
                         cps_tail acc env ccenv body poptrap_continuation
                           handler_continuation))
                   ~handler:(fun acc env ccenv ->
-                    apply_cont_with_extra_args acc env ccenv ~dbg
-                      after_continuation
-                      (Some (IR.Pop { exn_handler = handler_continuation }))
-                      [IR.Var body_result]))
+                    CC.close_let acc ccenv (Ident.create_local "unit")
+                      Not_user_visible (End_region region)
+                      ~body:(fun acc ccenv ->
+                        let env = Env.leaving_try_region env in
+                        apply_cont_with_extra_args acc env ccenv ~dbg
+                          after_continuation
+                          (Some (IR.Pop { exn_handler = handler_continuation }))
+                          [IR.Var body_result])))
               ~handler:(fun acc env ccenv ->
                 CC.close_let acc ccenv (Ident.create_local "unit")
                   Not_user_visible (End_region region) ~body:(fun acc ccenv ->
+                    let env = Env.leaving_try_region env in
                     cps_tail acc env ccenv handler after_continuation k_exn)))
           ~handler:(fun acc env ccenv -> k acc env ccenv result_var))
   | Lifthenelse (cond, ifso, ifnot, kind) ->
@@ -1202,6 +1267,8 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
        by completely removing it (replacing by unit). *)
     Misc.fatal_error
       "[Lifused] should have been removed by [Simplif.simplify_lets]"
+  | Lregion body when not (Flambda_features.stack_allocation_enabled ()) ->
+    cps_non_tail acc env ccenv body k k_exn
   | Lregion body ->
     (* Here we need to build the region closure continuation (see long comment
        above). Since we're not in tail position, we also need to have a new
@@ -1294,7 +1361,8 @@ and cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode ap_loc
               region_close = ap_region_close;
               inlined = ap_inlined;
               probe = ap_probe;
-              mode = ap_mode
+              mode = ap_mode;
+              region = Env.current_region env
             }
           in
           wrap_return_continuation acc env ccenv apply)
@@ -1340,6 +1408,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
       apply_cont_with_extra_args acc env ccenv ~dbg k None [IR.Var id]
     in
     CC.close_let_rec acc ccenv ~function_declarations:[func] ~body
+      ~current_region:(Env.current_region env)
   | Lmutlet (value_kind, id, defining_expr, body) ->
     let temp_id = Ident.create_local "let_mutable" in
     let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler:false
@@ -1358,7 +1427,8 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
     let let_expr =
       List.fold_left
         (fun body func acc ccenv ->
-          CC.close_let_rec acc ccenv ~function_declarations:[func] ~body)
+          CC.close_let_rec acc ccenv ~function_declarations:[func] ~body
+            ~current_region:(Env.current_region env))
         body bindings
     in
     let_expr acc ccenv
@@ -1394,8 +1464,9 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
       cps_non_tail_list acc env ccenv args
         (fun acc env ccenv args ->
           let body acc ccenv = cps_tail acc env ccenv body k k_exn in
+          let current_region = Env.current_region env in
           CC.close_let acc ccenv id User_visible
-            (Prim { prim; args; loc; exn_continuation })
+            (Prim { prim; args; loc; exn_continuation; region = current_region })
             ~body)
         k_exn
     | Transformed lam ->
@@ -1450,7 +1521,8 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
     | Unchanged ->
       let function_declarations = cps_function_bindings env bindings in
       let body acc ccenv = cps_tail acc env ccenv body k k_exn in
-      CC.close_let_rec acc ccenv ~function_declarations ~body
+      let current_region = Env.current_region env in
+      CC.close_let_rec acc ccenv ~function_declarations ~body ~current_region
     | Dissected lam -> cps_tail acc env ccenv lam k k_exn)
   | Lprim (prim, args, loc) -> (
     match transform_primitive env prim args loc with
@@ -1473,8 +1545,9 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
             apply_cont_with_extra_args acc env ccenv ~dbg k None
               [IR.Var result_var]
           in
+          let current_region = Env.current_region env in
           CC.close_let acc ccenv result_var Not_user_visible
-            (Prim { prim; args; loc; exn_continuation })
+            (Prim { prim; args; loc; exn_continuation; region = current_region })
             ~body)
         k_exn
     | Transformed lam -> cps_tail acc env ccenv lam k k_exn)
@@ -1540,7 +1613,8 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
                     region_close = pos;
                     inlined = Default_inlined;
                     probe = None;
-                    mode
+                    mode;
+                    region = Env.current_region env
                   }
                 in
                 wrap_return_continuation acc env ccenv apply)
@@ -1565,6 +1639,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
   | Ltrywith (body, id, handler, kind) ->
     let body_result = Ident.create_local "body_result" in
     let region = Ident.create_local "try_region" in
+    let env = Env.entering_try_region env region in
     let dbg = Debuginfo.none (* CR mshinwell: Fix [Lambda] *) in
     CC.close_let acc ccenv region Not_user_visible Begin_region
       ~body:(fun acc ccenv ->
@@ -1587,12 +1662,16 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
                     cps_tail acc env ccenv body poptrap_continuation
                       handler_continuation))
               ~handler:(fun acc env ccenv ->
-                apply_cont_with_extra_args acc env ccenv ~dbg k
-                  (Some (IR.Pop { exn_handler = handler_continuation }))
-                  [IR.Var body_result]))
+                CC.close_let acc ccenv (Ident.create_local "unit")
+                  Not_user_visible (End_region region) ~body:(fun acc ccenv ->
+                    let env = Env.leaving_try_region env in
+                    apply_cont_with_extra_args acc env ccenv ~dbg k
+                      (Some (IR.Pop { exn_handler = handler_continuation }))
+                      [IR.Var body_result])))
           ~handler:(fun acc env ccenv ->
             CC.close_let acc ccenv (Ident.create_local "unit")
               Not_user_visible (End_region region) ~body:(fun acc ccenv ->
+                let env = Env.leaving_try_region env in
                 cps_tail acc env ccenv handler k k_exn)))
   | Lifthenelse (cond, ifso, ifnot, kind) ->
     let lam = switch_for_if_then_else ~cond ~ifso ~ifnot ~kind in
@@ -1621,6 +1700,8 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
        by completely removing it (replacing by unit). *)
     Misc.fatal_error
       "[Lifused] should have been removed by [Simplif.simplify_lets]"
+  | Lregion body when not (Flambda_features.stack_allocation_enabled ()) ->
+    cps_tail acc env ccenv body k k_exn
   | Lregion body ->
     let region = Ident.create_local "region" in
     let dbg = Debuginfo.none in
@@ -1779,9 +1860,10 @@ and cps_function env ~fid ~stub ~(recursive : Recursive.t)
     | Some ids -> ids
     | None -> Lambda.free_variables body
   in
+  let my_region = Ident.create_local "my_region" in
   let new_env =
     Env.create ~current_unit_id:(Env.current_unit_id env)
-      ~return_continuation:body_cont ~exn_continuation:body_exn_cont
+      ~return_continuation:body_cont ~exn_continuation:body_exn_cont ~my_region
   in
   let exn_continuation : IR.exn_continuation =
     { exn_handler = body_exn_cont; extra_args = [] }
@@ -1796,8 +1878,8 @@ and cps_function env ~fid ~stub ~(recursive : Recursive.t)
     cps_tail acc new_env ccenv body body_cont body_exn_cont
   in
   Function_decl.create ~let_rec_ident:(Some fid) ~function_slot ~kind ~params
-    ~return ~return_continuation:body_cont ~exn_continuation ~body ~attr ~loc
-    ~free_idents_of_body ~stub recursive ~closure_alloc_mode:mode
+    ~return ~return_continuation:body_cont ~exn_continuation ~my_region ~body
+    ~attr ~loc ~free_idents_of_body ~stub recursive ~closure_alloc_mode:mode
     ~num_trailing_local_params ~contains_no_escaping_local_allocs:region
 
 and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
@@ -1920,12 +2002,14 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
               CC.close_switch acc ccenv ~condition_dbg is_scrutinee_int
                 isint_switch
             in
+            let region = Env.current_region env in
             CC.close_let acc ccenv is_scrutinee_int Not_user_visible
               (Prim
                  { prim = Pisint { variant_only = true };
                    args = [Var scrutinee];
                    loc = Loc_unknown;
-                   exn_continuation = None
+                   exn_continuation = None;
+                   region
                  })
               ~body
           in
@@ -1953,12 +2037,14 @@ let lambda_to_flambda ~mode ~big_endian ~cmx_loader ~compilation_unit
   in
   let return_continuation = Continuation.create ~sort:Define_root_symbol () in
   let exn_continuation = Continuation.create () in
+  let toplevel_my_region = Ident.create_local "toplevel_my_region" in
   let env =
     Env.create ~current_unit_id ~return_continuation ~exn_continuation
+      ~my_region:toplevel_my_region
   in
   let toplevel acc ccenv =
     cps_tail acc env ccenv lam return_continuation exn_continuation
   in
   CC.close_program ~mode ~big_endian ~cmx_loader ~compilation_unit
     ~module_block_size_in_words ~program:toplevel
-    ~prog_return_cont:return_continuation ~exn_continuation
+    ~prog_return_cont:return_continuation ~exn_continuation ~toplevel_my_region

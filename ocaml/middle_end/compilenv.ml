@@ -158,10 +158,6 @@ let get_unit_info modname =
               raise(Error(Illegal_renaming(modname, CU.name ui.ui_unit, filename)));
             (Some ui, Some crc)
           with Not_found ->
-            (*
-            Format.eprintf "Backtrace for No_cmx_file:@ \n%s\n%!"
-              (Printexc.raw_backtrace_to_string (Printexc.get_callstack 20));
-            *)
             let warn = Warnings.No_cmx_file (modname |> CU.Name.to_string) in
               Location.prerr_warning Location.none warn;
               (None, None)

@@ -391,6 +391,7 @@ let lookup_primitive loc poly pos p =
     | "%greaterequal" -> Comparison(Greater_equal, Compare_generic)
     | "%greaterthan" -> Comparison(Greater_than, Compare_generic)
     | "%compare" -> Comparison(Compare, Compare_generic)
+    | "%obj_dup" -> Primitive(Pobj_dup, 1)
     | s when String.length s > 0 && s.[0] = '%' ->
        raise(Error(loc, Unknown_builtin_primitive s))
     | _ -> External p
@@ -825,7 +826,7 @@ let lambda_primitive_needs_event_after = function
   | Pbytes_load_64 _ | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _
   | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
   | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
-  | Pbbswap _ -> true
+  | Pbbswap _ | Pobj_dup -> true
 
   | Pidentity | Pbytes_to_string | Pbytes_of_string | Pignore | Psetglobal _
   | Pgetglobal _ | Pgetpredef _ | Pmakeblock _ | Pmakefloatblock _

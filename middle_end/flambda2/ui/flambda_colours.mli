@@ -12,70 +12,82 @@
 (*                                                                        *)
 (**************************************************************************)
 
-val normal : unit -> string
+(** A colour directive. Can be passed as an argument to [Format.printf] and
+    frients using the "%t" specifier. Each directive (besides [pop]) acts by
+    pushing a new state onto a stack, allowing the previous state to be restored
+    using [pop]. *)
+type directive = Format.formatter -> unit
 
-val prim_constructive : unit -> string
+(** Undo the most recent colour directive, restoring the previous state. Raises
+    a fatal error if the stack is empty. *)
+val pop : directive
 
-val prim_destructive : unit -> string
+(** Push a copy of the current state onto the stack. Useful when setting a
+    colour conditionally so that a following [pop] will always be matched. *)
+val none : directive
 
-val prim_neither : unit -> string
+val prim_constructive : directive
 
-val naked_number : unit -> string
+val prim_destructive : directive
 
-val tagged_immediate : unit -> string
+val prim_neither : directive
 
-val constructor : unit -> string
+val naked_number : directive
 
-val kind : unit -> string
+val tagged_immediate : directive
 
-val subkind : unit -> string
+val constructor : directive
 
-val top_or_bottom_type : unit -> string
+val kind : directive
 
-val debuginfo : unit -> string
+val subkind : directive
 
-val discriminant : unit -> string
+val top_or_bottom_type : directive
 
-val name : unit -> string
+val debuginfo : directive
 
-val parameter : unit -> string
+val discriminant : directive
 
-val symbol : unit -> string
+val name : directive
 
-val variable : unit -> string
+val parameter : directive
 
-val function_slot : unit -> string
+val symbol : directive
 
-val value_slot : unit -> string
+val variable : directive
 
-val code_id : unit -> string
+val function_slot : directive
 
-val expr_keyword : unit -> string
+val value_slot : directive
 
-val invalid_keyword : unit -> string
+val code_id : directive
 
-val static_keyword : unit -> string
+val expr_keyword : directive
 
-val static_part : unit -> string
+val invalid_keyword : directive
 
-val continuation : unit -> string
+val static_keyword : directive
 
-val continuation_definition : unit -> string
+val static_part : directive
 
-val continuation_annotation : unit -> string
+val continuation : directive
 
-val name_abstraction : unit -> string
+val continuation_definition : directive
 
-val rec_info : unit -> string
+val continuation_annotation : directive
 
-val coercion : unit -> string
+val name_abstraction : directive
 
-val depth_variable : unit -> string
+val rec_info : directive
 
-val elide : unit -> string
+val coercion : directive
 
-val error : unit -> string
+val depth_variable : directive
 
-val each_file : unit -> string
+val elide : directive
 
-val lambda : unit -> string
+val error : directive
+
+val each_file : directive
+
+val lambda : directive

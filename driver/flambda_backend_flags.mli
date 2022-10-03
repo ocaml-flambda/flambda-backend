@@ -25,6 +25,8 @@ val dasm_comments : bool ref
 
 val default_heap_reduction_threshold : int
 val heap_reduction_threshold : int ref
+val alloc_check : bool ref
+val dump_checkmach : bool ref
 
 type function_result_types = Never | Functors_only | All_functions
 type opt_level = Oclassic | O2 | O3
@@ -125,24 +127,28 @@ module Flambda2 : sig
   end
 
   module Inlining : sig
+    type inlining_arguments = private {
+      max_depth : int;
+      max_rec_depth : int;
+      call_cost : float;
+      alloc_cost : float;
+      prim_cost : float;
+      branch_cost : float;
+      indirect_call_cost : float;
+      poly_compare_cost : float;
+      small_function_size : int;
+      large_function_size : int;
+      threshold : float;
+    }
+
     module Default : sig
-      val max_depth : int
-      val max_rec_depth : int
-
-      val call_cost : float
-      val alloc_cost : float
-      val prim_cost : float
-      val branch_cost : float
-      val indirect_call_cost : float
-      val poly_compare_cost : float
-
-      val small_function_size : int
-      val large_function_size : int
-
-      val threshold : float
-
+      val default_arguments : inlining_arguments
       val speculative_inlining_only_if_arguments_useful : bool
     end
+
+    val oclassic_arguments : inlining_arguments
+    val o2_arguments : inlining_arguments
+    val o3_arguments : inlining_arguments
 
     val max_depth : Clflags.Int_arg_helper.parsed ref
     val max_rec_depth : Clflags.Int_arg_helper.parsed ref

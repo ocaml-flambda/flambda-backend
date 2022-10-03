@@ -168,7 +168,7 @@ module Named : sig
     Name.t ->
     Flambda_kind.t ->
     Debuginfo.t ->
-    Alloc_mode.t ->
+    Alloc_mode.With_region.t ->
     named * Flambda_kind.t
 
   (** Build an expression unboxing the name. The returned kind is the one of the
@@ -430,9 +430,9 @@ end
 
 module Function_params_and_body : sig
   (** A name abstraction that comprises a function's parameters (together with
-      any relations between them), the code of the function, and the
-      [my_closure] variable. It also includes the return and exception
-      continuations.
+      any relations between them), the code of the function, and the [my_*]
+      variables giving access to the closure, current region, etc. It also
+      includes the return and exception continuations.
 
       These values are bound using [Define_symbol] constructs (see
       [Flambda_static]).
@@ -456,6 +456,7 @@ module Function_params_and_body : sig
     body:expr ->
     free_names_of_body:Name_occurrences.t Or_unknown.t ->
     my_closure:Variable.t ->
+    my_region:Variable.t ->
     my_depth:Variable.t ->
     t
 
@@ -477,6 +478,7 @@ module Function_params_and_body : sig
       body:expr ->
       my_closure:Variable.t ->
       is_my_closure_used:bool Or_unknown.t ->
+      my_region:Variable.t ->
       my_depth:Variable.t ->
       free_names_of_body:Name_occurrences.t Or_unknown.t ->
       'a) ->
@@ -501,6 +503,7 @@ module Function_params_and_body : sig
       body1:expr ->
       body2:expr ->
       my_closure:Variable.t ->
+      my_region:Variable.t ->
       my_depth:Variable.t ->
       'a) ->
     'a

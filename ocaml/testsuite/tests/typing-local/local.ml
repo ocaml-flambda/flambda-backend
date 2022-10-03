@@ -551,6 +551,28 @@ Error: This local value escapes its region
   Hint: Cannot return local value without an explicit "local_" annotation
 |}]
 
+(* Optional argument elimination eta-expands and therefore allocates *)
+let no_eta (local_ f : unit -> int) = (f : unit -> int)
+[%%expect{|
+val no_eta : local_ (unit -> int) -> unit -> int = <fun>
+|}]
+
+let eta (local_ f : ?a:bool -> unit -> int) = (f : unit -> int)
+[%%expect{|
+Line 1, characters 47-48:
+1 | let eta (local_ f : ?a:bool -> unit -> int) = (f : unit -> int)
+                                                   ^
+Error: This value escapes its region
+|}]
+
+let etajoin p (f : ?b:bool -> unit -> int) (local_ g : unit -> int) =
+  if p then (f : unit -> int) else g
+[%%expect{|
+val etajoin :
+  bool -> (?b:bool -> unit -> int) -> local_ (unit -> int) -> unit -> int =
+  <fun>
+|}]
+
 (* Default arguments *)
 
 let foo ?(local_ x) () = x;;

@@ -158,5 +158,5 @@ let main unix argv ppf ~flambda2 =
     Location.report_exception ppf x;
     2
   | () ->
-    Profile.print Format.std_formatter !Clflags.profile_columns;
+    Profile.print Format.std_formatter !Clflags.profile_columns ~timings_precision:!Clflags.timings_precision;
     0

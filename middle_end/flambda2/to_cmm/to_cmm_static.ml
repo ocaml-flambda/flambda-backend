@@ -61,7 +61,8 @@ let rec static_float_array_updates symb env acc i = function
       in
       static_float_array_updates symb env acc (i + 1) r)
 
-let static_boxed_number kind env symbol default emit transl v r updates =
+let static_boxed_number ~kind ~env ~symbol ~default ~emit ~transl ~structured v
+    r updates =
   let aux x cont =
     emit
       (Symbol.linkage_name_as_string symbol, Cmmgen_state.Global)
@@ -69,7 +70,14 @@ let static_boxed_number kind env symbol default emit transl v r updates =
   in
   let updates =
     match (v : _ Or_variable.t) with
-    | Const _ -> env, None
+    | Const c ->
+      (* Add the const to the cmmgen_state structured constants table so that
+         functions in cmm_helpers can short-circuit Unboxing of boxed constant
+         symbols, particularly in Classic mode. *)
+      let symbol_name = Symbol.linkage_name_as_string symbol in
+      let structured_constant = structured (transl c) in
+      Cmmgen_state.add_structured_constant symbol_name structured_constant;
+      env, None
     | Var (v, dbg) ->
       C.make_update env dbg kind ~symbol:(C.symbol ~dbg symbol) v ~index:0
         ~prev_updates:updates
@@ -122,32 +130,36 @@ let static_const0 env r ~updates (bound_static : Bound_static.Pattern.t)
         set_of_closures
     in
     env, r, updates
-  | Block_like s, Boxed_float v ->
+  | Block_like symbol, Boxed_float v ->
     let default = Numeric_types.Float_by_bit_pattern.zero in
     let transl = Numeric_types.Float_by_bit_pattern.to_float in
+    let structured f = Clambda.Uconst_float f in
     let r, (env, updates) =
-      static_boxed_number Double env s default C.emit_float_constant transl v r
-        updates
+      static_boxed_number ~kind:Double ~env ~symbol ~default
+        ~emit:C.emit_float_constant ~transl ~structured v r updates
     in
     env, r, updates
-  | Block_like s, Boxed_int32 v ->
+  | Block_like symbol, Boxed_int32 v ->
+    let structured i = Clambda.Uconst_int32 i in
     let r, (env, updates) =
-      static_boxed_number Word_int env s 0l C.emit_int32_constant Fun.id v r
-        updates
+      static_boxed_number ~kind:Word_int ~env ~symbol ~default:0l
+        ~emit:C.emit_int32_constant ~transl:Fun.id ~structured v r updates
     in
     env, r, updates
-  | Block_like s, Boxed_int64 v ->
+  | Block_like symbol, Boxed_int64 v ->
+    let structured i = Clambda.Uconst_int64 i in
     let r, (env, updates) =
-      static_boxed_number Word_int env s 0L C.emit_int64_constant Fun.id v r
-        updates
+      static_boxed_number ~kind:Word_int ~env ~symbol ~default:0L
+        ~emit:C.emit_int64_constant ~transl:Fun.id ~structured v r updates
     in
     env, r, updates
-  | Block_like s, Boxed_nativeint v ->
+  | Block_like symbol, Boxed_nativeint v ->
     let default = Targetint_32_64.zero in
     let transl = C.nativeint_of_targetint in
+    let structured i = Clambda.Uconst_nativeint i in
     let r, (env, updates) =
-      static_boxed_number Word_int env s default C.emit_nativeint_constant
-        transl v r updates
+      static_boxed_number ~kind:Word_int ~env ~symbol ~default
+        ~emit:C.emit_nativeint_constant ~transl ~structured v r updates
     in
     env, r, updates
   | Block_like s, (Immutable_float_block fields | Immutable_float_array fields)
@@ -285,8 +297,6 @@ let static_consts env r ~params_and_body bound_static static_consts =
       |> Expr.create_let
     in
     Format.eprintf
-      "\n@[<v 0>%sContext is:%s translating `let symbol' to Cmm:@ %a@."
-      (Flambda_colours.error ())
-      (Flambda_colours.normal ())
-      Expr.print tmp_let_symbol;
+      "\n@[<v 0>%tContext is:%t translating `let symbol' to Cmm:@ %a@."
+      Flambda_colours.error Flambda_colours.pop Expr.print tmp_let_symbol;
     raise e

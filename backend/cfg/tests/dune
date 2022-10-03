@@ -1,0 +1,3 @@
+(tests
+ (names check_regalloc_validation)
+ (libraries ocamloptcomp))

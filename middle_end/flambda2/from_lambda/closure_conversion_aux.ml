@@ -41,7 +41,8 @@ module IR = struct
         { prim : Lambda.primitive;
           args : simple list;
           loc : Lambda.scoped_location;
-          exn_continuation : exn_continuation option
+          exn_continuation : exn_continuation option;
+          region : Ident.t
         }
 
   type apply_kind =
@@ -61,7 +62,8 @@ module IR = struct
       region_close : Lambda.region_close;
       inlined : Lambda.inlined_attribute;
       probe : Lambda.probe;
-      mode : Lambda.alloc_mode
+      mode : Lambda.alloc_mode;
+      region : Ident.t
     }
 
   type switch =
@@ -159,18 +161,19 @@ module Env = struct
               "Closure_conversion: approximation loader returned a Symbol \
                approximation (%a) for symbol %a"
               Symbol.print sym Symbol.print symbol
-          | Value_unknown | Closure_approximation _ | Block_approximation _ ->
+          | Value_unknown | Value_int _ | Closure_approximation _
+          | Block_approximation _ ->
             ());
         let rec filter_inlinable approx =
           match (approx : value_approximation) with
-          | Value_unknown | Value_symbol _
-          | Closure_approximation (_, _, Metadata_only _) ->
+          | Value_unknown | Value_symbol _ | Value_int _
+          | Closure_approximation { code = Metadata_only _; _ } ->
             approx
           | Block_approximation (approxs, alloc_mode) ->
             let approxs = Array.map filter_inlinable approxs in
             Value_approximation.Block_approximation (approxs, alloc_mode)
-          | Closure_approximation (code_id, function_slot, Code_present code)
-            -> (
+          | Closure_approximation
+              { code_id; function_slot; code = Code_present code; _ } -> (
             match[@ocaml.warning "-fragile-match"]
               Inlining.definition_inlining_decision (Code.inline code)
                 (Code.cost_metrics code)
@@ -178,9 +181,11 @@ module Env = struct
             | Attribute_inline | Small_function _ -> approx
             | _ ->
               Value_approximation.Closure_approximation
-                ( code_id,
-                  function_slot,
-                  Code_or_metadata.(remember_only_metadata (create code)) ))
+                { code_id;
+                  function_slot;
+                  code = Code_or_metadata.(remember_only_metadata (create code));
+                  symbol = None
+                })
         in
         let approx = filter_inlinable approx in
         externals := Symbol.Map.add symbol approx !externals;
@@ -333,8 +338,8 @@ module Env = struct
   let add_approximation_alias t name alias =
     match find_value_approximation t (Simple.name name) with
     | Value_unknown -> t
-    | (Value_symbol _ | Closure_approximation _ | Block_approximation _) as
-      approx ->
+    | ( Value_symbol _ | Value_int _ | Closure_approximation _
+      | Block_approximation _ ) as approx ->
       add_value_approximation t alias approx
 
   let set_path_to_root t path_to_root =
@@ -529,6 +534,7 @@ module Function_decls = struct
         return : Lambda.value_kind;
         return_continuation : Continuation.t;
         exn_continuation : IR.exn_continuation;
+        my_region : Ident.t;
         body : Acc.t -> Env.t -> Acc.t * Flambda.Import.Expr.t;
         free_idents_of_body : Ident.Set.t;
         attr : Lambda.function_attribute;
@@ -541,7 +547,7 @@ module Function_decls = struct
       }
 
     let create ~let_rec_ident ~function_slot ~kind ~params ~return
-        ~return_continuation ~exn_continuation ~body ~attr ~loc
+        ~return_continuation ~exn_continuation ~my_region ~body ~attr ~loc
         ~free_idents_of_body ~stub recursive ~closure_alloc_mode
         ~num_trailing_local_params ~contains_no_escaping_local_allocs =
       let let_rec_ident =
@@ -556,6 +562,7 @@ module Function_decls = struct
         return;
         return_continuation;
         exn_continuation;
+        my_region;
         body;
         free_idents_of_body;
         attr;
@@ -580,6 +587,8 @@ module Function_decls = struct
     let return_continuation t = t.return_continuation
 
     let exn_continuation t = t.exn_continuation
+
+    let my_region t = t.my_region
 
     let body t = t.body
 

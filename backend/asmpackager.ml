@@ -53,10 +53,7 @@ let read_member_info pack_path file = (
       if not (CU.Name.equal (CU.name info.ui_unit) name)
       then raise(Error(Illegal_renaming(name, file, (CU.name info.ui_unit))));
       if not (CU.is_parent pack_path ~child:info.ui_unit)
-      then begin
-        Format.eprintf "pack_path: %a@.info.ui_unit: %a@." CU.print_debug pack_path CU.print_debug info.ui_unit;
-        raise(Error(Wrong_for_pack(file, pack_path)));
-      end;
+      then raise(Error(Wrong_for_pack(file, pack_path)));
       Asmlink.check_consistency file info crc;
       Compilenv.cache_unit_info info;
       PM_impl info
@@ -242,6 +239,8 @@ let build_package_cmx members cmxfile =
     else
       Clambda (get_approx ui)
   in
+  let ui_checks = Compilenv.Checks.create () in
+  List.iter (fun info -> Compilenv.Checks.merge info.ui_checks ~into:ui_checks) units;
   let modname = Compilation_unit.name ui.ui_unit in
   let pkg_infos =
     { ui_unit = ui.ui_unit;
@@ -263,6 +262,7 @@ let build_package_cmx members cmxfile =
       ui_force_link =
           List.exists (fun info -> info.ui_force_link) units;
       ui_export_info;
+      ui_checks;
     } in
   Compilenv.write_unit_info pkg_infos cmxfile
 

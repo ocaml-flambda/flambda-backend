@@ -290,6 +290,7 @@ let params_and_body env res code_id p ~fun_dbg ~translate_expr =
          ~body
          ~my_closure
          ~is_my_closure_used
+         ~my_region:_
          ~my_depth:_
          ~free_names_of_body:_
        ->
@@ -300,12 +301,11 @@ let params_and_body env res code_id p ~fun_dbg ~translate_expr =
       with Misc.Fatal_error as e ->
         Format.eprintf
           "\n\
-           %sContext is:%s translating function %a to Cmm with return cont %a, \
+           %tContext is:%t translating function %a to Cmm with return cont %a, \
            exn cont %a and body:@ %a\n"
-          (Flambda_colours.error ())
-          (Flambda_colours.normal ())
-          Code_id.print code_id Continuation.print return_continuation
-          Continuation.print exn_continuation Expr.print body;
+          Flambda_colours.error Flambda_colours.pop Code_id.print code_id
+          Continuation.print return_continuation Continuation.print
+          exn_continuation Expr.print body;
         raise e)
 
 (* Translation of sets of closures. *)
@@ -439,7 +439,7 @@ let lift_set_of_closures env res ~body ~bound_vars layout set ~translate_expr =
 
 let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
     (layout : Slot_offsets.Layout.t) ~num_normal_occurrences_of_bound_vars
-    ~(closure_alloc_mode : Alloc_mode.t) ~translate_expr =
+    ~(closure_alloc_mode : Alloc_mode.With_region.t) ~translate_expr =
   let fun_decls = Set_of_closures.function_decls set in
   let decls = Function_declarations.funs_in_order fun_decls in
   let value_slots = Set_of_closures.value_slots set in
@@ -448,7 +448,7 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
     ( Only_generative_effects Immutable,
       match closure_alloc_mode with
       | Heap -> No_coeffects
-      | Local -> Has_coeffects )
+      | Local _ -> Has_coeffects )
   in
   let decl_map =
     decls |> Function_slot.Lmap.bindings |> Function_slot.Map.of_list
@@ -461,7 +461,9 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
   let csoc =
     assert (List.compare_length_with l 0 > 0);
     let tag = Tag.(to_int closure_tag) in
-    C.make_alloc ~mode:(Alloc_mode.to_lambda closure_alloc_mode) dbg tag l
+    C.make_alloc
+      ~mode:(Alloc_mode.With_region.to_lambda closure_alloc_mode)
+      dbg tag l
   in
   let soc_var = Variable.create "*set_of_closures*" in
   let env =

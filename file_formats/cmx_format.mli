@@ -46,6 +46,14 @@ type generic_fns =
 
 type crcs = (Compilation_unit.t * Digest.t option) list
 
+(* Symbols of function that pass certain checks for special properties. *)
+type checks =
+  {
+    (* CR gyorsh: refactor to use lists. *)
+    mutable ui_noalloc_functions: Misc.Stdlib.String.Set.t;
+    (* Functions without allocations and indirect calls *)
+  }
+
 type unit_infos =
   { mutable ui_unit: Compilation_unit.t;  (* Compilation unit implemented *)
     mutable ui_defines: Compilation_unit.t list;
@@ -59,6 +67,7 @@ type unit_infos =
 
     mutable ui_generic_fns: generic_fns;  (* Generic functions needed *)
     mutable ui_export_info: export_info;
+    mutable ui_checks: checks;
     mutable ui_force_link: bool }         (* Always linked *)
 
 (* Each .a library has a matching .cmxa file that provides the following

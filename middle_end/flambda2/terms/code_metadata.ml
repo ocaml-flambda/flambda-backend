@@ -20,7 +20,7 @@ type t =
     params_arity : Flambda_arity.With_subkinds.t;
     num_trailing_local_params : int;
     result_arity : Flambda_arity.With_subkinds.t;
-    result_types : Result_types.t;
+    result_types : Result_types.t Or_unknown_or_bottom.t;
     contains_no_escaping_local_allocs : bool;
     stub : bool;
     inline : Inline_attribute.t;
@@ -36,56 +36,108 @@ type t =
     relative_history : Inlining_history.Relative.t
   }
 
-let code_id { code_id; _ } = code_id
+type code_metadata = t
 
-let newer_version_of { newer_version_of; _ } = newer_version_of
+module type Metadata_view_type = sig
+  type 'a t
 
-let params_arity { params_arity; _ } = params_arity
+  val metadata : 'a t -> code_metadata
+end
 
-let num_leading_heap_params { params_arity; num_trailing_local_params; _ } =
-  let n =
-    Flambda_arity.With_subkinds.cardinal params_arity
-    - num_trailing_local_params
-  in
-  assert (n >= 0);
-  (* see [create] *)
-  n
+module Code_metadata_accessors (X : Metadata_view_type) = struct
+  open X
 
-let num_trailing_local_params { num_trailing_local_params; _ } =
-  num_trailing_local_params
+  let code_id t = (metadata t).code_id
 
-let result_arity { result_arity; _ } = result_arity
+  let newer_version_of t = (metadata t).newer_version_of
 
-let result_types { result_types; _ } = result_types
+  let params_arity t = (metadata t).params_arity
 
-let stub { stub; _ } = stub
+  let num_leading_heap_params t =
+    let { params_arity; num_trailing_local_params; _ } = metadata t in
+    let n =
+      Flambda_arity.With_subkinds.cardinal params_arity
+      - num_trailing_local_params
+    in
+    assert (n >= 0);
+    (* see [create] *)
+    n
 
-let inline { inline; _ } = inline
+  let num_trailing_local_params t = (metadata t).num_trailing_local_params
 
-let is_a_functor { is_a_functor; _ } = is_a_functor
+  let result_arity t = (metadata t).result_arity
 
-let recursive { recursive; _ } = recursive
+  let result_types t = (metadata t).result_types
 
-let cost_metrics { cost_metrics; _ } = cost_metrics
+  let stub t = (metadata t).stub
 
-let inlining_arguments { inlining_arguments; _ } = inlining_arguments
+  let inline t = (metadata t).inline
 
-let dbg { dbg; _ } = dbg
+  let is_a_functor t = (metadata t).is_a_functor
 
-let is_tupled { is_tupled; _ } = is_tupled
+  let recursive t = (metadata t).recursive
 
-let is_my_closure_used { is_my_closure_used; _ } = is_my_closure_used
+  let cost_metrics t = (metadata t).cost_metrics
 
-let inlining_decision { inlining_decision; _ } = inlining_decision
+  let inlining_arguments t = (metadata t).inlining_arguments
 
-let contains_no_escaping_local_allocs { contains_no_escaping_local_allocs; _ } =
-  contains_no_escaping_local_allocs
+  let dbg t = (metadata t).dbg
 
-let absolute_history { absolute_history; _ } = absolute_history
+  let is_tupled t = (metadata t).is_tupled
 
-let relative_history { relative_history; _ } = relative_history
+  let is_my_closure_used t = (metadata t).is_my_closure_used
 
-let create code_id ~newer_version_of ~params_arity ~num_trailing_local_params
+  let inlining_decision t = (metadata t).inlining_decision
+
+  let contains_no_escaping_local_allocs t =
+    (metadata t).contains_no_escaping_local_allocs
+
+  let absolute_history t = (metadata t).absolute_history
+
+  let relative_history t = (metadata t).relative_history
+end
+
+module type Code_metadata_accessors_result_type = sig
+  type 'a t
+
+  include module type of Code_metadata_accessors (struct
+    type nonrec 'a t = 'a t
+
+    let metadata = assert false
+  end)
+end
+
+module Metadata_view = struct
+  type nonrec 'a t = t
+
+  let metadata t = t
+end
+
+include Code_metadata_accessors [@inlined hint] (Metadata_view)
+
+type 'a create_type =
+  Code_id.t ->
+  newer_version_of:Code_id.t option ->
+  params_arity:Flambda_arity.With_subkinds.t ->
+  num_trailing_local_params:int ->
+  result_arity:Flambda_arity.With_subkinds.t ->
+  result_types:Result_types.t Or_unknown_or_bottom.t ->
+  contains_no_escaping_local_allocs:bool ->
+  stub:bool ->
+  inline:Inline_attribute.t ->
+  is_a_functor:bool ->
+  recursive:Recursive.t ->
+  cost_metrics:Cost_metrics.t ->
+  inlining_arguments:Inlining_arguments.t ->
+  dbg:Debuginfo.t ->
+  is_tupled:bool ->
+  is_my_closure_used:bool ->
+  inlining_decision:Function_decl_inlining_decision_type.t ->
+  absolute_history:Inlining_history.Absolute.t ->
+  relative_history:Inlining_history.Relative.t ->
+  'a
+
+let createk k code_id ~newer_version_of ~params_arity ~num_trailing_local_params
     ~result_arity ~result_types ~contains_no_escaping_local_allocs ~stub
     ~(inline : Inline_attribute.t) ~is_a_functor ~recursive ~cost_metrics
     ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used ~inlining_decision
@@ -105,26 +157,29 @@ let create code_id ~newer_version_of ~params_arity ~num_trailing_local_params
     Misc.fatal_errorf
       "Illegal num_trailing_local_params=%d for params arity: %a"
       num_trailing_local_params Flambda_arity.With_subkinds.print params_arity;
-  { code_id;
-    newer_version_of;
-    params_arity;
-    num_trailing_local_params;
-    result_arity;
-    result_types;
-    contains_no_escaping_local_allocs;
-    stub;
-    inline;
-    is_a_functor;
-    recursive;
-    cost_metrics;
-    inlining_arguments;
-    dbg;
-    is_tupled;
-    is_my_closure_used;
-    inlining_decision;
-    absolute_history;
-    relative_history
-  }
+  k
+    { code_id;
+      newer_version_of;
+      params_arity;
+      num_trailing_local_params;
+      result_arity;
+      result_types;
+      contains_no_escaping_local_allocs;
+      stub;
+      inline;
+      is_a_functor;
+      recursive;
+      cost_metrics;
+      inlining_arguments;
+      dbg;
+      is_tupled;
+      is_my_closure_used;
+      inlining_decision;
+      absolute_history;
+      relative_history
+    }
+
+let create = createk (fun t -> t)
 
 let with_code_id code_id t = { t with code_id }
 
@@ -159,75 +214,75 @@ let [@ocamlformat "disable"] print ppf
         absolute_history; relative_history} =
   let module C = Flambda_colours in
   Format.fprintf ppf "@[<hov 1>(\
-      @[<hov 1>@<0>%s(newer_version_of@ %a)@<0>%s@]@ \
-      @[<hov 1>@<0>%s(stub@ %b)@<0>%s@]@ \
-      @[<hov 1>@<0>%s(inline@ %a)@<0>%s@]@ \
-      @[<hov 1>@<0>%s(is_a_functor@ %b)@<0>%s@]@ \
-      @[<hov 1>@<0>%s(params_arity@ @<0>%s%a@<0>%s)@<0>%s@]@ \
+      @[<hov 1>%t(newer_version_of@ %a)%t@]@ \
+      @[<hov 1>%t(stub@ %b)%t@]@ \
+      @[<hov 1>%t(inline@ %a)%t@]@ \
+      @[<hov 1>%t(is_a_functor@ %b)%t@]@ \
+      @[<hov 1>%t(params_arity@ %t%a%t)%t@]@ \
       @[<hov 1>(num_trailing_local_params@ %d)@]@ \
-      @[<hov 1>@<0>%s(result_arity@ @<0>%s%a@<0>%s)@<0>%s@]@ \
+      @[<hov 1>%t(result_arity@ %t%a%t)%t@]@ \
       @[<hov 1>(result_types@ @[<hov 1>(%a)@])@]@ \
       @[<hov 1>(contains_no_escaping_local_allocs@ %b)@]@ \
-      @[<hov 1>@<0>%s(recursive@ %a)@<0>%s@]@ \
+      @[<hov 1>%t(recursive@ %a)%t@]@ \
       @[<hov 1>(cost_metrics@ %a)@]@ \
       @[<hov 1>(inlining_arguments@ %a)@]@ \
-      @[<hov 1>@<0>%s(dbg@ %a)@<0>%s@]@ \
-      @[<hov 1>@<0>%s(is_tupled@ %b)@<0>%s@]@ \
+      @[<hov 1>%t(dbg@ %a)%t@]@ \
+      @[<hov 1>%t(is_tupled@ %b)%t@]@ \
       @[<hov 1>(is_my_closure_used@ %b)@]@ \
       %a\
       @[<hov 1>(inlining_decision@ %a)@]\
       )@]"
-    (if Option.is_none newer_version_of then Flambda_colours.elide ()
-    else Flambda_colours.normal ())
+    (if Option.is_none newer_version_of then Flambda_colours.elide
+    else Flambda_colours.none)
     (Option.print_compact Code_id.print) newer_version_of
-    (Flambda_colours.normal ())
-    (if not stub then Flambda_colours.elide () else C.normal ())
+    Flambda_colours.pop
+    (if not stub then Flambda_colours.elide else C.none)
     stub
-    (Flambda_colours.normal ())
+    Flambda_colours.pop
     (if Inline_attribute.is_default inline
-    then Flambda_colours.elide ()
-    else C.normal ())
+    then Flambda_colours.elide
+    else C.none)
     Inline_attribute.print inline
-    (Flambda_colours.normal ())
-    (if not is_a_functor then Flambda_colours.elide () else C.normal ())
+    Flambda_colours.pop
+    (if not is_a_functor then Flambda_colours.elide else C.none)
     is_a_functor
-    (Flambda_colours.normal ())
+    Flambda_colours.pop
     (if Flambda_arity.With_subkinds.is_singleton_value params_arity
-    then Flambda_colours.elide ()
-    else Flambda_colours.normal ())
-    (Flambda_colours.normal ())
+    then Flambda_colours.elide
+    else Flambda_colours.none)
+    Flambda_colours.pop
     Flambda_arity.With_subkinds.print params_arity
     (if Flambda_arity.With_subkinds.is_singleton_value params_arity
-    then Flambda_colours.elide ()
-    else Flambda_colours.normal ())
-    (Flambda_colours.normal ())
+    then Flambda_colours.elide
+    else Flambda_colours.none)
+    Flambda_colours.pop
     num_trailing_local_params
     (if Flambda_arity.With_subkinds.is_singleton_value result_arity
-    then Flambda_colours.elide ()
-    else Flambda_colours.normal ())
-    (Flambda_colours.normal ())
+    then Flambda_colours.elide
+    else Flambda_colours.none)
+    Flambda_colours.pop
     Flambda_arity.With_subkinds.print result_arity
     (if Flambda_arity.With_subkinds.is_singleton_value result_arity
-    then Flambda_colours.elide ()
-    else Flambda_colours.normal ())
-    (Flambda_colours.normal ())
-    Result_types.print result_types
+    then Flambda_colours.elide
+    else Flambda_colours.none)
+    Flambda_colours.pop
+    (Or_unknown_or_bottom.print Result_types.print) result_types
     contains_no_escaping_local_allocs
     (match recursive with
-    | Non_recursive -> Flambda_colours.elide ()
-    | Recursive -> Flambda_colours.normal ())
+    | Non_recursive -> Flambda_colours.elide
+    | Recursive -> Flambda_colours.none)
     Recursive.print recursive
-    (Flambda_colours.normal ())
+    Flambda_colours.pop
     Cost_metrics.print cost_metrics
     Inlining_arguments.print inlining_arguments
-    (Flambda_colours.debuginfo ())
+    Flambda_colours.debuginfo
     Debuginfo.print_compact dbg
-    (Flambda_colours.normal ())
+    Flambda_colours.pop
     (if is_tupled
-    then Flambda_colours.normal ()
-    else Flambda_colours.elide ())
+    then Flambda_colours.none
+    else Flambda_colours.elide)
     is_tupled
-    (Flambda_colours.normal ())
+    Flambda_colours.pop
     is_my_closure_used
     print_inlining_paths (relative_history, absolute_history)
     Function_decl_inlining_decision_type.print inlining_decision
@@ -264,7 +319,9 @@ let free_names
   in
   Name_occurrences.union free_names
     (Name_occurrences.downgrade_occurrences_at_strictly_greater_name_mode
-       (Result_types.free_names result_types)
+       (match result_types with
+       | Unknown | Bottom -> Name_occurrences.empty
+       | Ok result_types -> Result_types.free_names result_types)
        Name_mode.in_types)
 
 let apply_renaming
@@ -297,7 +354,13 @@ let apply_renaming
       if code_id == code_id' then newer_version_of else Some code_id'
   in
   let code_id' = Renaming.apply_code_id renaming code_id in
-  let result_types' = Result_types.apply_renaming result_types renaming in
+  let result_types' =
+    match result_types with
+    | Unknown | Bottom -> result_types
+    | Ok result_types ->
+      Or_unknown_or_bottom.Ok
+        (Result_types.apply_renaming result_types renaming)
+  in
   if code_id == code_id'
      && newer_version_of == newer_version_of'
      && result_types == result_types'
@@ -338,7 +401,10 @@ let ids_for_export
     in
     Ids_for_export.add_code_id newer_version_of_ids code_id
   in
-  Ids_for_export.union ids (Result_types.ids_for_export result_types)
+  Ids_for_export.union ids
+    (match result_types with
+    | Unknown | Bottom -> Ids_for_export.empty
+    | Ok result_types -> Result_types.ids_for_export result_types)
 
 let approx_equal
     { code_id = code_id1;
@@ -403,4 +469,8 @@ let approx_equal
   && Inlining_history.Relative.compare relative_history1 relative_history2 = 0
 
 let map_result_types ({ result_types; _ } as t) ~f =
-  { t with result_types = Result_types.map_result_types result_types ~f }
+  { t with
+    result_types =
+      Or_unknown_or_bottom.map result_types
+        ~f:(Result_types.map_result_types ~f)
+  }
