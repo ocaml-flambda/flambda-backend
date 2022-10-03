@@ -46,7 +46,8 @@ type error =
   | Method_mismatch of string * type_expr * type_expr
   | Opened_object of Path.t option
   | Not_an_object of type_expr
-  | Local_not_enabled
+  | Unsupported_extension of Clflags.Extension.t
+  | Polymorphic_optional_param
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -161,7 +162,7 @@ let get_alloc_mode styp =
   | Ok true -> Alloc_mode.Local
   | Ok false -> Alloc_mode.Global
   | Error () ->
-     raise (Error(styp.ptyp_loc, Env.empty, Local_not_enabled))
+     raise (Error(styp.ptyp_loc, Env.empty, Unsupported_extension Local))
 
 let rec extract_params styp =
   let final styp =
@@ -205,6 +206,14 @@ let instance_poly_univars env loc vars =
     | _ -> assert false);
   vs
 
+let check_arg_type styp =
+  if not (Clflags.Extension.is_enabled Polymorphic_parameters) then begin
+    match styp.ptyp_desc with
+    | Ptyp_poly _ ->
+        raise (Error (styp.ptyp_loc, Env.empty,
+                      Unsupported_extension Polymorphic_parameters))
+    | _ -> ()
+  end
 
 type policy = Fixed | Extensible | Univars
 
@@ -249,6 +258,7 @@ and transl_type_aux env policy mode styp =
       let rec loop acc_mode args =
         match args with
         | (l, arg_mode, arg) :: rest ->
+          check_arg_type arg;
           let arg_cty = transl_type env policy arg_mode arg in
           let acc_mode = Alloc_mode.join_const acc_mode arg_mode in
           let ret_mode =
@@ -259,15 +269,22 @@ and transl_type_aux env policy mode styp =
           let ret_cty = loop acc_mode rest in
           let arg_ty = arg_cty.ctyp_type in
           let arg_ty =
-            if Btype.is_optional l
-            then newty (Tconstr(Predef.path_option,[arg_ty], ref Mnil))
-            else arg_ty
+            if Btype.is_Tpoly arg_ty then arg_ty else newmono arg_ty
+          in
+          let arg_ty =
+            if not (Btype.is_optional l) then arg_ty
+            else begin
+              if not (Btype.tpoly_is_mono arg_ty) then
+                raise (Error (arg.ptyp_loc, env, Polymorphic_optional_param));
+              newmono
+                (newconstr Predef.path_option [Btype.tpoly_get_mono arg_ty])
+            end
           in
           let arg_mode = Alloc_mode.of_const arg_mode in
           let ret_mode = Alloc_mode.of_const ret_mode in
+          let arrow_desc = (l, arg_mode, ret_mode) in
           let ty =
-            newty
-              (Tarrow((l,arg_mode,ret_mode), arg_ty, ret_cty.ctyp_type, commu_ok))
+            newty (Tarrow(arrow_desc, arg_ty, ret_cty.ctyp_type, commu_ok))
           in
           ctyp (Ttyp_arrow (l, arg_cty, ret_cty)) ty
         | [] -> transl_type env policy ret_mode ret
@@ -845,9 +862,12 @@ let report_error env ppf = function
   | Not_an_object ty ->
       fprintf ppf "@[The type %a@ is not an object type@]"
         Printtyp.type_expr ty
-  | Local_not_enabled ->
-      fprintf ppf "@[The local extension is disabled@ \
-                     To enable it, pass the '-extension local' flag@]"
+  | Unsupported_extension ext ->
+      let ext = Clflags.Extension.to_string ext in
+      fprintf ppf "@[The %s extension is disabled@ \
+                   To enable it, pass the '-extension %s' flag@]" ext ext
+  | Polymorphic_optional_param ->
+      fprintf ppf "@[Optional parameters cannot be polymorphic@]"
 
 let () =
   Location.register_error_of_exn

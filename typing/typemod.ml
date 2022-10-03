@@ -84,7 +84,6 @@ type error =
   | Invalid_type_subst_rhs
   | Unpackable_local_modtype_subst of Path.t
   | With_cannot_remove_packed_modtype of Path.t * module_type
-  | Unsupported_extension of Clflags.Extension.t
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -181,8 +180,8 @@ let extract_sig_functor_open funct_body env loc mty sig_acc =
 let has_include_functor env loc attrs =
   match Builtin_attributes.has_include_functor attrs with
   | Error () ->
-      raise(Error (loc, env,
-                   Unsupported_extension Clflags.Extension.Include_functor))
+      raise(Typetexp.Error (loc, env,
+        Unsupported_extension Include_functor))
   | Ok b -> b
 
 (* Compute the environment after opening a module *)
@@ -3509,12 +3508,6 @@ let report_error ~loc _env = function
         "The module type@ %s@ is not a valid type for a packed module:@ \
          it is defined as a local substitution for a non-path module type."
         (Path.name p)
-  | Unsupported_extension ext ->
-      let ext = Clflags.Extension.to_string ext in
-      Location.errorf ~loc
-        "@[The %s extension is disabled@ \
-         To enable it, pass the '-extension %s' flag@]" ext ext
-
 
 let report_error env ~loc err =
   Printtyp.wrap_printing_env ~error:true env
