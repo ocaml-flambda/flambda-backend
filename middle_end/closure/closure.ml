@@ -1401,7 +1401,7 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
             let label =
               Symbol_utils.for_fun_ident ~compilation_unit:None loc id
               |> Symbol.linkage_name
-              |> Linkage_name.to_string            
+              |> Linkage_name.to_string
             in
             let arity = List.length params in
             let fundesc =

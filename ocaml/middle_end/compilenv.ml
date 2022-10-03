@@ -164,10 +164,6 @@ let get_global_info global_ident =
                 CU.Name.to_string (CU.name ui.ui_name), filename)));
             (Some ui, Some crc)
           with Not_found ->
-            (*
-            Format.eprintf "Backtrace for No_cmx_file:@ \n%s\n%!"
-              (Printexc.raw_backtrace_to_string (Printexc.get_callstack 20));
-            *)
             let warn = Warnings.No_cmx_file modname in
               Location.prerr_warning Location.none warn;
               (None, None)

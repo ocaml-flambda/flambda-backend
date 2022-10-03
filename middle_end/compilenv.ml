@@ -174,6 +174,7 @@ let read_library_info filename =
   close_in ic;
   infos
 
+
 (* Read and cache info on global identifiers *)
 
 (* CR mshinwell: check all uses of this function *)

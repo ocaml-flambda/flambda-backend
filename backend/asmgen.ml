@@ -495,10 +495,10 @@ let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename ~may_reduc
 
 let build_dwarf ~asm_directives:(module Asm_directives : Asm_targets.Asm_directives_intf.S) sourcefile =
   let unit_name =
-    (* CR lmaurer: This doesn't actually need to be an [Ident.t] *)  
+    (* CR lmaurer: This doesn't actually need to be an [Ident.t] *)
     Symbol.for_current_unit ()
     |> Symbol.linkage_name
-    |> Linkage_name.to_string    
+    |> Linkage_name.to_string
     |> Ident.create_persistent
   in
   let code_begin =
