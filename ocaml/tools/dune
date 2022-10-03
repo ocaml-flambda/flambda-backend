@@ -72,8 +72,8 @@
 (rule
   (targets ocamlmklibconfig.ml)
   (deps
-    %{project_root}/ocaml/Makefile.config
-    %{project_root}/ocaml/Makefile
+    ../Makefile.config
+    ../Makefile
     Makefile
     .depend)
   (action (run make -s %{targets})))

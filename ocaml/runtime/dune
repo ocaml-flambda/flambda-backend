@@ -73,7 +73,7 @@
 
 (rule
   (targets ld.conf)
-  (deps %{project_root}/ocaml/Makefile.config)
+  (deps ../Makefile.config)
   (action (run make -s %{targets})))
 
 ;(rule
