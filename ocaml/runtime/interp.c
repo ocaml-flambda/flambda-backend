@@ -211,7 +211,7 @@ static intnat caml_bcodcount;
 
 /* The interpreter itself */
 
-value caml_interprete(code_t prog, asize_t prog_size)
+value caml_interprete(code_t prog, asize_t prog_size, int *returning_async_exn)
 {
 #ifdef PC_REG
   register code_t pc PC_REG;
@@ -249,6 +249,8 @@ value caml_interprete(code_t prog, asize_t prog_size)
 #    include "caml/jumptbl.h"
   };
 #endif
+
+  if (returning_async_exn != NULL) *returning_async_exn = 0;
 
   if (prog == NULL) {           /* Interpreter is initializing */
 #ifdef THREADED_CODE
@@ -305,6 +307,8 @@ value caml_interprete(code_t prog, asize_t prog_size)
        recent prior trap. */
     Caml_state->trapsp = (value *) ((char *) Caml_state->stack_high
                                       - initial_trapsp_offset);
+
+    if (returning_async_exn != NULL) *returning_async_exn = 1;
 
     goto raise_notrace;
   }

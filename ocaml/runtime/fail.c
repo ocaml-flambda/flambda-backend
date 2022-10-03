@@ -54,6 +54,13 @@ CAMLexport value caml_prepare_for_raise(value v, int *turned_into_async_exn)
   return v;
 }
 
+CAMLexport value caml_raise_async_if_exception(value result)
+{
+  if (Is_exception_result(result)) caml_raise_async(Extract_exception(result));
+
+  return result;
+}
+
 CAMLexport value caml_check_async_exn0(value res, const char *msg,
                                        value stack_overflow_exn)
 {

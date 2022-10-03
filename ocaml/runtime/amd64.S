@@ -727,6 +727,8 @@ CFI_STARTPROC
         movq    C_ARG_2, %rbx      /* closure */
         movq    0(C_ARG_3), %rax   /* argument */
         movq    0(%rbx), %r12      /* code pointer */
+        cmp     $1, C_ARG_4
+        je      LBL(caml_start_program_async_exn)
         jmp     LBL(caml_start_program)
 CFI_ENDPROC
 ENDFUNCTION(G(caml_callback_asm))
@@ -741,6 +743,8 @@ CFI_STARTPROC
         movq    0(C_ARG_3), %rax   /* first argument */
         movq    8(C_ARG_3), %rbx   /* second argument */
         LEA_VAR(caml_apply2, %r12) /* code pointer */
+        cmp     $1, C_ARG_4
+        je      LBL(caml_start_program_async_exn)
         jmp     LBL(caml_start_program)
 CFI_ENDPROC
 ENDFUNCTION(G(caml_callback2_asm))
@@ -756,23 +760,11 @@ CFI_STARTPROC
         movq    C_ARG_2, %rsi      /* closure */
         movq    16(C_ARG_3), %rdi  /* third argument */
         LEA_VAR(caml_apply3, %r12) /* code pointer */
+        cmp     $1, C_ARG_4
+        je      LBL(caml_start_program_async_exn)
         jmp     LBL(caml_start_program)
 CFI_ENDPROC
 ENDFUNCTION(G(caml_callback3_asm))
-
-/* Variant of caml_callback_asm that installs an async exn trap frame. */
-FUNCTION(G(caml_callback_asm_async_exn))
-CFI_STARTPROC
-    /* Save callee-save registers */
-        PUSH_CALLEE_SAVE_REGS
-    /* Initial loading of arguments */
-        movq    C_ARG_1, %r14      /* Caml_state */
-        movq    C_ARG_2, %rbx      /* closure */
-        movq    0(C_ARG_3), %rax   /* argument */
-        movq    0(%rbx), %r12      /* code pointer */
-        jmp     LBL(caml_start_program_async_exn)
-CFI_ENDPROC
-ENDFUNCTION(G(caml_callback_asm_async_exn))
 
 FUNCTION(G(caml_ml_array_bound_error))
 CFI_STARTPROC

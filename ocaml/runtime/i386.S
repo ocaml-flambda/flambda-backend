@@ -409,6 +409,9 @@ FUNCTION(caml_callback_asm)
         movl    28(%esp), %edi   /* arguments array */
         movl    0(%edi), %eax    /* arg1: argument */
         movl    0(%ebx), %esi    /* code pointer */
+        movl    32(%esp), %ebp
+        cmp     $1, %ebp
+        je      LBL(106a)
         jmp     LBL(106)
         CFI_ENDPROC
 ENDFUNCTION(caml_callback_asm)
@@ -426,6 +429,9 @@ FUNCTION(caml_callback2_asm)
         movl    0(%edi), %eax    /* arg1: first argument */
         movl    4(%edi), %ebx    /* arg2: second argument */
         movl    $ G(caml_apply2), %esi   /* code pointer */
+        movl    32(%esp), %ebp
+        cmp     $1, %ebp
+        je      LBL(106a)
         jmp     LBL(106)
         CFI_ENDPROC
 ENDFUNCTION(caml_callback2_asm)
@@ -444,26 +450,12 @@ FUNCTION(caml_callback3_asm)
         movl    4(%edi), %ebx    /* arg2: second argument */
         movl    8(%edi), %ecx    /* arg3: third argument */
         movl    $ G(caml_apply3), %esi   /* code pointer */
+        movl    32(%esp), %ebp
+        cmp     $1, %ebp
+        je      LBL(106a)
         jmp     LBL(106)
         CFI_ENDPROC
 ENDFUNCTION(caml_callback3_asm)
-
-/* Variant of caml_callback_asm that installs an async exn trap frame. */
-FUNCTION(caml_callback_asm_async_exn)
-        CFI_STARTPROC
-    /* Save callee-save registers */
-        pushl   %ebx; CFI_ADJUST(4)
-        pushl   %esi; CFI_ADJUST(4)
-        pushl   %edi; CFI_ADJUST(4)
-        pushl   %ebp; CFI_ADJUST(4)
-    /* Initial loading of arguments */
-        movl    24(%esp), %ebx   /* arg2: closure */
-        movl    28(%esp), %edi   /* arguments array */
-        movl    0(%edi), %eax    /* arg1: argument */
-        movl    0(%ebx), %esi    /* code pointer */
-        jmp     LBL(106a)
-        CFI_ENDPROC
-ENDFUNCTION(caml_callback_asm_async_exn)
 
 FUNCTION(caml_ml_array_bound_error)
         CFI_STARTPROC

@@ -24,7 +24,8 @@
 #include "mlvalues.h"
 
 /* interpret a bytecode */
-value caml_interprete (code_t prog, asize_t prog_size);
+value caml_interprete (code_t prog, asize_t prog_size,
+  int *returning_async_exn);
 
 #endif /* CAML_INTERNALS */
 

@@ -122,9 +122,9 @@ static void default_fatal_uncaught_exception(value exn, const char *msg2)
   saved_backtrace_pos = Caml_state->backtrace_pos;
   Caml_state->backtrace_active = 0;
   at_exit = caml_named_value("Pervasives.do_at_exit");
-  /* We use [caml_callback_async_exn] to ensure that, in the event of an
-     asynchronous exception occurring, it still gets caught here. */
-  if (at_exit != NULL) caml_callback_async_exn(*at_exit, Val_unit);
+  /* In the event of an asynchronous exception occurring, it will still get
+     caught here, because of the semantics of [caml_callback_exn]. */
+  if (at_exit != NULL) caml_callback_exn(*at_exit, Val_unit);
   Caml_state->backtrace_active = saved_backtrace_active;
   Caml_state->backtrace_pos = saved_backtrace_pos;
   /* Display the uncaught exception */

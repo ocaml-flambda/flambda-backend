@@ -425,7 +425,7 @@ CAMLexport void caml_main(char_os **argv)
   caml_init_atom_table();
   caml_init_backtrace();
   /* Initialize the interpreter */
-  caml_interprete(NULL, 0);
+  caml_interprete(NULL, 0, NULL);
   /* Initialize the debugger, if needed */
   caml_debugger_init();
   /* Load the code */
@@ -466,7 +466,7 @@ CAMLexport void caml_main(char_os **argv)
 #endif
   /* Execute the program */
   caml_debugger(PROGRAM_START, Val_unit);
-  res = caml_interprete(caml_start_code, caml_code_size);
+  res = caml_interprete(caml_start_code, caml_code_size, NULL);
   if (Is_exception_result(res)) {
     Caml_state->exn_bucket = Extract_exception(res);
     if (caml_debugger_in_use) {
@@ -527,7 +527,7 @@ CAMLexport value caml_startup_code_exn(
   caml_init_atom_table();
   caml_init_backtrace();
   /* Initialize the interpreter */
-  caml_interprete(NULL, 0);
+  caml_interprete(NULL, 0, NULL);
   /* Initialize the debugger, if needed */
   caml_debugger_init();
   /* Load the code */
@@ -557,7 +557,7 @@ CAMLexport value caml_startup_code_exn(
   caml_load_main_debug_info();
   /* Execute the program */
   caml_debugger(PROGRAM_START, Val_unit);
-  return caml_interprete(caml_start_code, caml_code_size);
+  return caml_interprete(caml_start_code, caml_code_size, NULL);
 }
 
 CAMLexport void caml_startup_code(

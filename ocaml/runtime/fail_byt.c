@@ -227,19 +227,6 @@ CAMLexport void caml_raise_sys_blocked_io(void)
   caml_raise_constant(Field(caml_global_data, SYS_BLOCKED_IO));
 }
 
-CAMLexport value caml_raise_if_exception(value res)
-{
-  if (Is_exception_result(res)) caml_raise(Extract_exception(res));
-  return res;
-}
-
-CAMLexport value caml_raise_async_if_exception(value result)
-{
-  if (Is_exception_result(result)) caml_raise_async(Extract_exception(result));
-
-  return result;
-}
-
 int caml_is_special_exception(value exn) {
   /* this function is only used in caml_format_exception to produce
      a more readable textual representation of some exceptions. It is
@@ -261,7 +248,7 @@ CAMLexport value caml_check_async_exn(value res, const char *msg)
 CAMLprim value caml_with_async_exns(value body_callback)
 {
   value exn;
-  value result = caml_callback_async_exn(body_callback, Val_unit);
+  value result = caml_callback_exn(body_callback, Val_unit);
 
   if (!Is_exception_result(result))
     return result;
