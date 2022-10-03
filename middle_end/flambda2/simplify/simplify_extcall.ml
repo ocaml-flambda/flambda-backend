@@ -92,23 +92,26 @@ let simplify_comparison ~dbg ~dacc ~cont ~tagged_prim ~float_prim
   | Proved Tagged_immediate, Proved Tagged_immediate ->
     simplify_comparison_of_tagged_immediates ~dbg dacc cont a b
       ~cmp_prim:tagged_prim
-  | Proved (Boxed Naked_float), Proved (Boxed Naked_float) ->
+  | Proved (Boxed (_, Naked_float, _)), Proved (Boxed (_, Naked_float, _)) ->
     simplify_comparison_of_boxed_numbers ~dbg dacc cont a b ~kind:Naked_float
       ~cmp_prim:float_prim
-  | Proved (Boxed Naked_int32), Proved (Boxed Naked_int32) ->
+  | Proved (Boxed (_, Naked_int32, _)), Proved (Boxed (_, Naked_int32, _)) ->
     simplify_comparison_of_boxed_numbers ~dbg dacc cont a b ~kind:Naked_int32
       ~cmp_prim:(boxed_int_prim K.Standard_int.Naked_int32)
-  | Proved (Boxed Naked_int64), Proved (Boxed Naked_int64) ->
+  | Proved (Boxed (_, Naked_int64, _)), Proved (Boxed (_, Naked_int64, _)) ->
     simplify_comparison_of_boxed_numbers ~dbg dacc cont a b ~kind:Naked_int64
       ~cmp_prim:(boxed_int_prim K.Standard_int.Naked_int64)
-  | Proved (Boxed Naked_nativeint), Proved (Boxed Naked_nativeint) ->
+  | ( Proved (Boxed (_, Naked_nativeint, _)),
+      Proved (Boxed (_, Naked_nativeint, _)) ) ->
     simplify_comparison_of_boxed_numbers ~dbg dacc cont a b
       ~kind:Naked_nativeint
       ~cmp_prim:(boxed_int_prim K.Standard_int.Naked_nativeint)
   (* Mismatches between varieties of numbers *)
   | Proved Tagged_immediate, Proved (Boxed _)
   | Proved (Boxed _), Proved Tagged_immediate
-  | ( Proved (Boxed (Naked_float | Naked_int32 | Naked_int64 | Naked_nativeint)),
+  | ( Proved
+        (Boxed
+          (_, (Naked_float | Naked_int32 | Naked_int64 | Naked_nativeint), _)),
       Proved (Boxed _) )
   (* One or two of the arguments is not known *)
   | Unknown, Unknown

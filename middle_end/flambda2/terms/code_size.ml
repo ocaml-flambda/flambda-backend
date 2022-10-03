@@ -332,6 +332,7 @@ let unary_prim_size prim =
   | Is_boxed_float -> 4 (* tag load + comparison *)
   | Is_flat_float_array -> 4 (* tag load + comparison *)
   | End_region -> 1
+  | Obj_dup -> alloc_extcall_size + 1
 
 let binary_prim_size prim =
   match (prim : Flambda_primitive.binary_primitive) with

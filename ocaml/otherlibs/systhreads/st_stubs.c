@@ -111,6 +111,9 @@ static st_masterlock caml_master_lock;
 /* Whether the "tick" thread is already running */
 static int caml_tick_thread_running = 0;
 
+/* Whether the "tick" thread is enabled */
+static int caml_tick_thread_enabled = 1;
+
 /* The thread identifier of the "tick" thread */
 static st_thread_id caml_tick_thread_id;
 
@@ -473,18 +476,48 @@ CAMLprim value caml_thread_initialize(value unit)   /* ML */
   return Val_unit;
 }
 
+/* Start tick thread, if not already running */
+static st_retcode start_tick_thread()
+{
+  st_retcode err;
+  if (caml_tick_thread_running) return 0;
+  err = st_thread_create(&caml_tick_thread_id, caml_thread_tick, NULL);
+  if (err == 0) caml_tick_thread_running = 1;
+  return err;
+}
+
+/* Stop tick thread, if currently running */
+static void stop_tick_thread()
+{
+  if (!caml_tick_thread_running) return;
+  caml_tick_thread_stop = 1;
+  st_thread_join(caml_tick_thread_id);
+  caml_tick_thread_stop = 0;
+  caml_tick_thread_running = 0;
+}
+
+CAMLprim value caml_enable_tick_thread(value v_enable)
+{
+  int enable = Long_val(v_enable) ? 1 : 0;
+
+  if (enable) {
+    st_retcode err = start_tick_thread();
+    st_check_error(err, "caml_enable_tick_thread");
+  } else {
+    stop_tick_thread();
+  }
+
+  caml_tick_thread_enabled = enable;
+  return Val_unit;
+}
+
 /* Cleanup the thread machinery when the runtime is shut down. Joining the tick
    thread take 25ms on average / 50ms in the worst case, so we don't do it on
    program exit. */
 
 CAMLprim value caml_thread_cleanup(value unit)   /* ML */
 {
-  if (caml_tick_thread_running){
-    caml_tick_thread_stop = 1;
-    st_thread_join(caml_tick_thread_id);
-    caml_tick_thread_stop = 0;
-    caml_tick_thread_running = 0;
-  }
+  stop_tick_thread();
   return Val_unit;
 }
 
@@ -573,10 +606,9 @@ CAMLprim value caml_thread_new(value clos)          /* ML */
   /* Create the tick thread if not already done.
      Because of PR#4666, we start the tick thread late, only when we create
      the first additional thread in the current process*/
-  if (! caml_tick_thread_running) {
-    err = st_thread_create(&caml_tick_thread_id, caml_thread_tick, NULL);
+  if (caml_tick_thread_enabled) {
+    err = start_tick_thread();
     st_check_error(err, "Thread.create");
-    caml_tick_thread_running = 1;
   }
   return th->descr;
 }
@@ -618,10 +650,7 @@ CAMLexport int caml_c_thread_register(void)
   th->descr = caml_thread_new_descriptor(Val_unit);  /* no closure */
   st_thread_set_id(Ident(th->descr));
   /* Create the tick thread if not already done.  */
-  if (! caml_tick_thread_running) {
-    err = st_thread_create(&caml_tick_thread_id, caml_thread_tick, NULL);
-    if (err == 0) caml_tick_thread_running = 1;
-  }
+  if (caml_tick_thread_enabled) start_tick_thread();
   /* Exit the run-time system */
   caml_enter_blocking_section();
   return 1;
