@@ -137,7 +137,6 @@ let read_library_info filename =
 
 (* Read and cache info on global identifiers *)
 
-(* CR mshinwell: check all uses of this function *)
 let get_global_info global_ident =
   assert (Ident.is_global global_ident);
   if CU.Name.equal
@@ -199,7 +198,6 @@ let global_approx id =
   if Ident.is_predef id then Clambda.Value_unknown
   else try Hashtbl.find toplevel_approx (Ident.name id)
   with Not_found ->
-    (* XXX Does this need anything to do with packs on it? *)
     match get_global_info id with
       | None -> Clambda.Value_unknown
       | Some ui -> get_clambda_approx ui
@@ -222,7 +220,6 @@ let pack_prefix_for_global_ident id =
     | Some ui -> CU.for_pack_prefix ui.ui_name
     | None ->
       (* If the .cmx file is missing, the prefix is assumed to be empty. *)
-      (* CR mshinwell: or the same as the -for-pack prefix in effect now? *)
       CU.Prefix.empty
 
 let symbol_for_global' id =

@@ -174,7 +174,6 @@ let build_package_cmx members cmxfile =
   let unit_names =
     List.map (fun m -> m.pm_name) members in
   let filter lst =
-    (* XXX polymorphic compare *)
     List.filter (fun (name, _crc) -> not (List.mem name unit_names)) lst in
   let union lst =
     List.fold_left

@@ -88,7 +88,6 @@ let for_global_or_predef_ident pack_prefix id =
       "caml_exn_" ^ Ident.name id |> Linkage_name.of_string, CU.predef_exn
     else
       let compilation_unit =
-        (* CR mshinwell: decide on "pack_prefix" or "for_pack_prefix" *)
         Compilation_unit.create pack_prefix
           (Ident.name id |> Compilation_unit.Name.of_string)
       in
@@ -134,7 +133,6 @@ let for_current_unit () =
   for_compilation_unit (CU.get_current_exn ())
 
 let import_for_pack t ~pack =
-  (* XXX Why is this needed?  Haven't we got the prefix correctly set now? *)
   let compilation_unit = CU.with_for_pack_prefix t.compilation_unit pack in
   { t with compilation_unit; }
 

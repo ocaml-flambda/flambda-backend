@@ -177,7 +177,6 @@ let read_library_info filename =
 
 (* Read and cache info on global identifiers *)
 
-(* CR mshinwell: check all uses of this function *)
 let get_unit_info modname =
   if CU.Name.equal modname (CU.name current_unit.ui_unit)
   then
@@ -187,15 +186,16 @@ let get_unit_info modname =
       CU.Name.Tbl.find global_infos_table modname
     with Not_found ->
       let (infos, crc) =
-        if Env.is_imported_opaque (modname |> CU.Name.to_string) then (None, None)
+        if Env.is_imported_opaque (modname |> CU.Name.to_string)
+        then (None, None)
         else begin
           try
             let filename =
               Load_path.find_uncap ((modname |> CU.Name.to_string) ^ ".cmx") in
             let (ui, crc) = read_unit_info filename in
-            if not (CU.Name.equal (CU.name ui.ui_unit) modname)
-            then
-              raise(Error(Illegal_renaming(modname, CU.name ui.ui_unit, filename)));
+            if not (CU.Name.equal (CU.name ui.ui_unit) modname) then
+              raise(Error(Illegal_renaming(modname, CU.name ui.ui_unit,
+                filename)));
             cache_checks ui.ui_checks;
             (Some ui, Some crc)
           with Not_found ->

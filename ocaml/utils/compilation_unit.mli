@@ -92,8 +92,6 @@ val create : Prefix.t -> Name.t -> t
 (** Create a compilation unit from the given [name]. The "-for-pack" of
     prefix is extracted if there is any. *)
 val of_string : string -> t
-(* CR mshinwell: It's kind of bad that [create name] and [of_string name]
-   do different things w.r.t. the prefix. *)
 
 (** Find whether one compilation unit has another as a child. That is, whether
     the other unit has this one as its path prefix. *)
