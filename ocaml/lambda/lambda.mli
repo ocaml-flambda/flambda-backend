@@ -183,6 +183,7 @@ type primitive =
   | Pprobe_is_enabled of { name: string }
   (* Primitives for [Obj] *)
   | Pobj_dup
+  | Pobj_magic
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge

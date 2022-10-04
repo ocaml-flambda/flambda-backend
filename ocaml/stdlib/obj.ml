@@ -26,6 +26,7 @@ type raw_data = nativeint
 
 external repr : 'a -> t = "%identity"
 external obj : t -> 'a = "%identity"
+(*external magic : 'a -> 'b = "%obj_magic"*)
 external magic : 'a -> 'b = "%identity"
 external is_int : t -> bool = "%obj_is_int"
 let [@inline always] is_block a = not (is_int a)
