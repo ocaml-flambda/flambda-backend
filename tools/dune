@@ -13,35 +13,15 @@
 ;**************************************************************************
 
 (executable
-  (name ocamlobjinfo_byte)
-  (modes byte)
-  (modules ocamlobjinfo_byte)
-  ; See note in the toplevel dune file about this.
-  (flags (:standard -cclib "-L ocaml/runtime" -cclib -lcamlrun))
-  ; For the moment, here and below, we use ocamloptcomp instead of
-  ; ocamlmiddleend, since we're always building the native compiler.
-  ; Fixing this will require having some way of modules being present in
-  ; more than one library.
+  (name flambda_backend_objinfo)
+  (modes byte native)
+  (modules flambda_backend_objinfo)
   (libraries ocamlcommon ocamlbytecomp ocamloptcomp))
-
-(rule
-  (targets ocamlobjinfo_byte.ml)
-  (action (copy objinfo.ml %{targets})))
-
-(executable
-  (name ocamlobjinfo_native)
-  (modes native)
-  (modules ocamlobjinfo_native)
-  (libraries ocamlcommon ocamlbytecomp ocamloptcomp))
-
-(rule
-  (targets ocamlobjinfo_native.ml)
-  (action (copy objinfo.ml %{targets})))
 
 (install
   (files
-    (ocamlobjinfo_byte.bc as ocamlobjinfo.byte)
-    (ocamlobjinfo_native.exe as ocamlobjinfo.opt)
+    (flambda_backend_objinfo.bc as ocamlobjinfo.byte)
+    (flambda_backend_objinfo.exe as ocamlobjinfo.opt)
   )
   (section bin)
   (package ocaml))
