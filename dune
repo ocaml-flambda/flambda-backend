@@ -2526,30 +2526,6 @@
   (.ocamloptcomp.objs/byte/variable.cmo as compiler-libs/variable.cmo)
   (.ocamloptcomp.objs/byte/variable.cmt as compiler-libs/variable.cmt)
   (.ocamloptcomp.objs/byte/variable.cmti as compiler-libs/variable.cmti)
-  (ocaml/.ocamlcommon.objs/byte/extensions.cmi
-   as
-   compiler-libs/extensions.cmi)
-  (ocaml/.ocamlcommon.objs/byte/extensions.cmo
-   as
-   compiler-libs/extensions.cmo)
-  (ocaml/.ocamlcommon.objs/byte/extensions.cmt
-   as
-   compiler-libs/extensions.cmt)
-  (ocaml/.ocamlcommon.objs/byte/extensions.cmti
-   as
-   compiler-libs/extensions.cmti)
-  (ocaml/.ocamlcommon.objs/byte/translcomprehension.cmi
-   as
-   compiler-libs/translcomprehension.cmi)
-  (ocaml/.ocamlcommon.objs/byte/translcomprehension.cmo
-   as
-   compiler-libs/translcomprehension.cmo)
-  (ocaml/.ocamlcommon.objs/byte/translcomprehension.cmt
-   as
-   compiler-libs/translcomprehension.cmt)
-  (ocaml/.ocamlcommon.objs/byte/translcomprehension.cmti
-   as
-   compiler-libs/translcomprehension.cmti)
   (.ocamloptcomp.objs/native/alias_analysis.cmx
    as
    compiler-libs/alias_analysis.cmx)
@@ -2758,13 +2734,7 @@
   (backend/asm_targets/.asm_targets.objs/native/asm_targets.cmx
    as
    compiler-libs/asm_targets.cmx)
-  (.ocamloptcomp.objs/native/cfg_format.cmx as compiler-libs/cfg_format.cmx)
-  (ocaml/.ocamlcommon.objs/native/extensions.cmx
-   as
-   compiler-libs/extensions.cmx)
-  (ocaml/.ocamlcommon.objs/native/translcomprehension.cmx
-   as
-   compiler-libs/translcomprehension.cmx)))
+  (.ocamloptcomp.objs/native/cfg_format.cmx as compiler-libs/cfg_format.cmx)))
 
 (install
  (section lib)
