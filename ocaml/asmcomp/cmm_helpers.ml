@@ -1381,12 +1381,6 @@ let check_bound safety access_size dbg length a2 k =
 let opaque e dbg =
   Cop(Copaque, [e], dbg)
 
-let int_of_value e dbg =
-  Cop(Cintofvalue, [e], dbg)
-
-let value_of_int e dbg =
-  Cop(Cvalueofint, [e], dbg)
-
 let unaligned_set size ptr idx newval dbg =
   match (size : Clambda_primitives.memory_access_size) with
   | Sixteen -> unaligned_set_16 ptr idx newval dbg

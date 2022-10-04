@@ -50,7 +50,6 @@ type primitive =
   (* Boolean operations *)
   | Psequand | Psequor | Pnot
   (* Integer operations *)
-  | Pintofvalue | Pvalueofint
   | Pnegint | Paddint | Psubint | Pmulint
   | Pdivint of is_safe | Pmodint of is_safe
   | Pandint | Porint | Pxorint

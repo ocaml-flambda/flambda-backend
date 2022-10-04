@@ -120,8 +120,6 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   | Psequand -> fprintf ppf "&&"
   | Psequor -> fprintf ppf "||"
   | Pnot -> fprintf ppf "not"
-  | Pintofvalue -> fprintf ppf "int_of_value"
-  | Pvalueofint -> fprintf ppf "value_of_int"
   | Pnegint -> fprintf ppf "~"
   | Paddint -> fprintf ppf "+"
   | Psubint -> fprintf ppf "-"
