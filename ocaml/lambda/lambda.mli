@@ -287,6 +287,7 @@ type local_attribute =
 
 type property =
   | Noalloc
+  | Noalloc_exn
 
 type check_attribute =
   | Default_check

@@ -50,6 +50,10 @@ type checks =
     (* CR gyorsh: refactor to use lists. *)
     mutable ui_noalloc_functions: Misc.Stdlib.String.Set.t;
     (* Functions without allocations and indirect calls *)
+
+    mutable ui_noalloc_exn_functions: Misc.Stdlib.String.Set.t;
+    (* Same as noalloc, except no restrictions on instructions
+       (allocations and indirect calls) post-dominated by a raise. *)
   }
 
 type unit_infos =

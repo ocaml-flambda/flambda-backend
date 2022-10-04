@@ -255,6 +255,7 @@ type expression =
 
 type property =
   | Noalloc
+  | Noalloc_exn
 
 type codegen_option =
   | Reduce_code_size

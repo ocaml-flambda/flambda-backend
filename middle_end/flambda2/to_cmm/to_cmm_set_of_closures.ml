@@ -251,6 +251,7 @@ end)
 
 let transl_property : Check_attribute.Property.t -> Cmm.property = function
   | Noalloc -> Noalloc
+  | Noalloc_exn -> Noalloc_exn
 
 let transl_check_attrib : Check_attribute.t -> Cmm.codegen_option list =
   function

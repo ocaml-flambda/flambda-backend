@@ -89,6 +89,8 @@ module type Spec = sig
   val check_specific : Arch.specific_operation -> bool
 
   val annotation : Cmm.property
+
+  val ignore_postdominated_by_raise : bool
 end
 (* CR-someday gyorsh: We may also want annotations on call sites, not only on
    functions. *)
@@ -382,7 +384,7 @@ end = struct
       let _ = check_instr_exn t body false in
       let _ = check_instr_exn t handler false in
       false
-    | Iraise _ -> false
+    | Iraise _ -> S.ignore_postdominated_by_raise
     | Ireturn _ -> false
     | Iexit _ -> false
 
@@ -422,7 +424,7 @@ end = struct
 end
 
 module Spec_alloc : Spec = struct
-  let name = "noalloc"
+  let name = "noalloc_strict"
 
   let enabled () = !Flambda_backend_flags.alloc_check
 
@@ -438,6 +440,30 @@ module Spec_alloc : Spec = struct
   let check_specific s = not (Arch.operation_allocates s)
 
   let annotation = Cmm.Noalloc
+
+  let ignore_postdominated_by_raise = false
+end
+
+module Spec_alloc_exn : Spec = struct
+  let name = "noalloc"
+
+  let enabled () = !Flambda_backend_flags.alloc_check
+
+  let check_callee s (checks : Cmx_format.checks) =
+    String.Set.mem s checks.ui_noalloc_exn_functions
+    || String.Set.mem s checks.ui_noalloc_functions
+
+  let add_callee s (checks : Cmx_format.checks) =
+    if not (check_callee s checks)
+    then
+      checks.ui_noalloc_exn_functions
+        <- String.Set.add s checks.ui_noalloc_exn_functions
+
+  let check_specific s = not (Arch.operation_allocates s)
+
+  let annotation = Cmm.Noalloc_exn
+
+  let ignore_postdominated_by_raise = true
 end
 
 (***************************************************************************
@@ -449,17 +475,32 @@ end
  *****************************************************************************)
 module Check_alloc = Analysis (Spec_alloc)
 
+(* Same as [Check_alloc] except no restrictions on instructions post-dominated
+   by a raise. *)
+module Check_alloc_exn = Analysis (Spec_alloc_exn)
+
 let fundecl ppf_dump fd =
+  (* We can check both properties at the same time in one pass, or even as part
+     of another pass, such as dead code elimination. For simplicity, it's a
+     separate pass for each at the moment. *)
   Check_alloc.fundecl ppf_dump fd;
+  Check_alloc_exn.fundecl ppf_dump fd;
   fd
 
 let reset_unit_info () =
   Check_alloc.reset_unit_info ();
+  Check_alloc_exn.reset_unit_info ();
   ()
 
+(* If a function is noalloc, then it is also noalloc_exn but not vice versa: it
+   is possible the noalloc_exn check succeeds, but noalloc check fails.
+
+   We use this fact to represent the result of the check using disjoint sets. *)
 let record_unit_info ppf_dump =
   let checks = (Compilenv.current_unit_infos ()).ui_checks in
+  (* Order is important here. *)
   Check_alloc.record_unit_info ppf_dump checks;
+  Check_alloc_exn.record_unit_info ppf_dump checks;
   Compilenv.cache_checks checks
 
 (* Error report *)

@@ -340,7 +340,8 @@ and sequence ppf = function
 and expression ppf e = fprintf ppf "%a" expr e
 
 let property : Cmm.property -> string = function
-    | Noalloc -> "noalloc"
+  | Noalloc -> "noalloc"
+  | Noalloc_exn -> "noalloc_exn"
 
 let codegen_option = function
   | Reduce_code_size -> "reduce_code_size"

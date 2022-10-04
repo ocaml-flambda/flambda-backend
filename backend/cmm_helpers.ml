@@ -4172,6 +4172,7 @@ let cmm_arith_size (e : Cmm.expression) =
 
 let transl_property : Lambda.property -> Cmm.property = function
   | Noalloc -> Noalloc
+  | Noalloc_exn -> Noalloc_exn
 
 let transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list = function
   | Default_check -> []

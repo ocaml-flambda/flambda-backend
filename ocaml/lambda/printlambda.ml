@@ -553,6 +553,7 @@ let name_of_primitive = function
 let check_attribute ppf check =
   let check_property = function
     | Noalloc -> "noalloc"
+    | Noalloc_exn -> "noalloc"
   in
   match check with
   | Default_check -> ()

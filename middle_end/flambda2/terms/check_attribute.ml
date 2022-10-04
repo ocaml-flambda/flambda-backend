@@ -11,13 +11,21 @@
 (**************************************************************************)
 
 module Property = struct
-  type t = Noalloc
+  type t =
+    | Noalloc
+    | Noalloc_exn
 
-  let to_string = function Noalloc -> "noalloc"
+  let to_string = function Noalloc -> "noalloc" | Noalloc_exn -> "noalloc_exn"
 
-  let equal x y = match x, y with Noalloc, Noalloc -> true
+  let equal x y =
+    match x, y with
+    | Noalloc, Noalloc -> true
+    | Noalloc_exn, Noalloc_exn -> true
+    | (Noalloc | Noalloc_exn), _ -> false
 
-  let from_lambda : Lambda.property -> t = function Noalloc -> Noalloc
+  let from_lambda : Lambda.property -> t = function
+    | Noalloc -> Noalloc
+    | Noalloc_exn -> Noalloc_exn
 end
 
 type t =

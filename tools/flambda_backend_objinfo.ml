@@ -192,7 +192,11 @@ let print_cmx_infos (ui, crc) =
   print_generic_fns ui.ui_generic_fns;
   printf "Force link: %s\n" (if ui.ui_force_link then "YES" else "no");
   printf "Functions with neither allocations nor indirect calls:\n";
-  String.Set.iter print_line ui.ui_checks.ui_noalloc_functions
+  String.Set.iter print_line ui.ui_checks.ui_noalloc_functions;
+  printf
+    "Functions without allocations and indirect calls, \
+     except when post-dominated by a raise:\n";
+  String.Set.iter print_line ui.ui_checks.ui_noalloc_exn_functions
 
 let print_cmxa_infos (lib : Cmx_format.library_infos) =
   printf "Extra C object files:";

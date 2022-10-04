@@ -41,6 +41,7 @@ let is_local_attribute = function
 let is_property_attribute p a =
   match p, a with
   | Noalloc, {txt=("noalloc_strict"|"ocaml.noalloc_strict")} -> true
+  | Noalloc_exn, {txt=("noalloc"|"ocaml.noalloc")} -> true
   | _ -> false
 
 let find_attribute p attributes =
@@ -235,7 +236,7 @@ let get_check_attribute l =
     match get_property_attribute l p with
     | Default_check -> None
     | a -> Some a)
-    [Noalloc]
+    [Noalloc; Noalloc_exn]
 
 let check_local_inline loc attr =
   match attr.local, attr.inline with
@@ -301,6 +302,7 @@ let add_local_attribute expr loc attributes =
 let add_check_attribute expr loc attributes =
   let to_string = function
     | Noalloc -> "noalloc_strict"
+    | Noalloc_exn -> "noalloc"
   in
   let to_string = function
     | Assert p -> to_string p
@@ -312,7 +314,8 @@ let add_check_attribute expr loc attributes =
   | Lfunction({ attr = { stub = false } as attr } as funct), [check] ->
       begin match attr.check with
       | Default_check -> ()
-      | Assert Noalloc | Assume Noalloc ->
+      | Assert (Noalloc | Noalloc_exn)
+      | Assume (Noalloc | Noalloc_exn) ->
           Location.prerr_warning loc
             (Warnings.Duplicated_attribute (to_string check))
       end;
