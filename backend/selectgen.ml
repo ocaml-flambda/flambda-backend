@@ -894,9 +894,6 @@ method emit_expr (env:environment) exp =
               let rd = self#insert_op_debug env new_op dbg r1 rd in
               set_traps_for_raise env;
               Some rd
-          | Iintofvalue | Ivalueofint ->
-              let rs = self#emit_tuple env simple_args in
-              Some (self#insert_op_debug env new_op dbg rs rs)
           | op ->
               let r1 = self#emit_tuple env new_args in
               let rd = self#regs_for ty in
