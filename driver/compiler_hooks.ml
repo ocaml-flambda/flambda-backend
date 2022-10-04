@@ -128,7 +128,10 @@ let register : type a. a pass -> (a -> unit) -> unit =
   | Cfg -> hooks.cfg <- f :: hooks.cfg
   | Cmm -> hooks.cmm <- f :: hooks.cmm
   | Inlining_tree -> hooks.inlining_tree <- f :: hooks.inlining_tree
-  | Check_allocations -> hooks.check_allocations <- f :: hooks.check_allocations
+  | Check_allocations ->
+    Flambda_backend_flags.alloc_check := true;
+    Checkmach.keep_all_details := true;
+    hooks.check_allocations <- f :: hooks.check_allocations
 
 let execute : type a. a pass -> a -> unit =
   fun representation arg ->
