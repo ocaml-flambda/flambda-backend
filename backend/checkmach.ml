@@ -33,7 +33,7 @@ type error =
         check : string
       }
 
-exception Error of error
+exception Error of Location.t * error
 
 module Value = struct
   type t =
@@ -50,6 +50,8 @@ end
 module Func_info = struct
   type t =
     { name : string;  (** function name *)
+      mutable loc : Location.t option;
+          (** Source location for error messages. *)
       mutable value : Value.t;  (** the result of the check *)
       mutable callers : string list;
           (** unresolved dependencies. if not empty then value is Unknown. *)
@@ -59,7 +61,13 @@ module Func_info = struct
     }
 
   let create name value =
-    { name; value; callers = []; in_current_unit = false; annotated = false }
+    { name;
+      loc = None;
+      value;
+      callers = [];
+      in_current_unit = false;
+      annotated = false
+    }
 end
 
 module type Spec = sig
@@ -115,7 +123,7 @@ end = struct
 
     val add_dep : t -> callee:string -> caller:string -> unit
 
-    val in_current_unit : t -> string -> unit
+    val in_current_unit : t -> string -> Debuginfo.t -> unit
 
     val annotated : t -> string -> unit
   end = struct
@@ -132,7 +140,7 @@ end = struct
       | Some (func_info : Func_info.t) -> (
         match func_info.value with Fail -> true | Pass | Unknown -> false)
 
-    let in_current_unit t name =
+    let in_current_unit t name dbg =
       let func_info : Func_info.t =
         match Hashtbl.find_opt t name with
         | None ->
@@ -141,7 +149,10 @@ end = struct
           func_info
         | Some func_info -> func_info
       in
-      func_info.in_current_unit <- true
+      func_info.in_current_unit <- true;
+      match func_info.loc with
+      | None -> func_info.loc <- Some (Debuginfo.to_location dbg)
+      | Some _ -> Misc.fatal_errorf "Duplicate symbol name %s" name
 
     let record t name value =
       match Hashtbl.find_opt t name with
@@ -229,7 +240,9 @@ end = struct
                 then
                   raise
                     (Error
-                       (Annotation { fun_name = func_info.name; check = S.name })))
+                       ( Option.get func_info.loc,
+                         Annotation
+                           { fun_name = func_info.name; check = S.name } )))
           t
 
     let add_dep t ~callee ~caller =
@@ -390,7 +403,7 @@ end = struct
       Profile.record_call ~accumulate:true ("check " ^ S.name) (fun () ->
           let fun_name = f.fun_name in
           let t = { ppf; fun_name; unresolved_dependencies = false } in
-          Unit_info.in_current_unit unit_info fun_name;
+          Unit_info.in_current_unit unit_info fun_name f.fun_dbg;
           if List.mem (Cmm.Assume S.annotation) f.fun_codegen_options
           then (
             report t ~msg:"assumed" ~desc:"fundecl" f.fun_dbg;
@@ -458,5 +471,5 @@ let report_error ppf = function
 
 let () =
   Location.register_error_of_exn (function
-    | Error err -> Some (Location.error_of_printer_file report_error err)
+    | Error (loc, err) -> Some (Location.error_of_printer ~loc report_error err)
     | _ -> None)
