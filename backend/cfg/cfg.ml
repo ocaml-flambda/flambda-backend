@@ -428,7 +428,8 @@ let is_pure_operation : operation -> bool = function
   | Compf _ -> true
   | Floatofint -> true
   | Intoffloat -> true
-  (* Conservative to ensure valueofint/intofvalue are not eliminated before emit. *)
+  (* Conservative to ensure valueofint/intofvalue are not eliminated before
+     emit. *)
   | Valueofint -> false
   | Intofvalue -> false
   | Probe _ -> false
