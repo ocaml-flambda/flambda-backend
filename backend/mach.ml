@@ -185,7 +185,8 @@ let rec instr_iter f i =
 let operation_is_pure = function
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Iextcall _ | Istackoffset _ | Istore _ | Ialloc _
-  | Iintop(Icheckbound) | Iintop_imm(Icheckbound, _) | Iopaque -> false
+  | Iintop(Icheckbound) | Iintop_imm(Icheckbound, _) | Iopaque
+  | Ivalueofint | Iintofvalue -> false
   | Ibeginregion | Iendregion -> false
   | Iprobe _ -> false
   | Iprobe_is_enabled _-> true
@@ -196,7 +197,7 @@ let operation_is_pure = function
           | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _)
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icompf _
-  | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue
+  | Ifloatofint | Iintoffloat
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _
   | Iload (_, _, _) | Iname_for_debugger _
     -> true

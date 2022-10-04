@@ -428,8 +428,8 @@ let is_pure_operation : operation -> bool = function
   | Compf _ -> true
   | Floatofint -> true
   | Intoffloat -> true
-  | Valueofint -> true
-  | Intofvalue -> true
+  | Valueofint -> false
+  | Intofvalue -> false
   | Probe _ -> false
   | Probe_is_enabled _ -> true
   | Opaque -> false
