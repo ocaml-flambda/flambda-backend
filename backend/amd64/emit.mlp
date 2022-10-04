@@ -909,7 +909,7 @@ let emit_instr fallthrough i =
   | Lop(Iintoffloat) ->
       I.cvttsd2si (arg i 0) (res i 0)
   | Lop(Iintofvalue | Ivalueofint) ->
-      I.mov (arg i 0) (res i 0)
+      move i.arg.(0) i.res.(0)
   | Lop(Iopaque) ->
       assert (i.arg.(0).loc = i.res.(0).loc)
   | Lop(Ispecific(Ilea addr)) ->

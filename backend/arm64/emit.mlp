@@ -866,6 +866,7 @@ let emit_instr i =
         `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
     | Lop(Ivalueofint | Iintofvalue) ->
         let src = i.arg.(0) and dst = i.res.(0) in
+        if src.loc <> dst.loc then
         `	mov	{emit_reg dst}, {emit_reg src}\n`
     | Lop(Iaddf | Isubf | Imulf | Idivf | Ispecific Inegmulf as op) ->
         let instr = (match op with
