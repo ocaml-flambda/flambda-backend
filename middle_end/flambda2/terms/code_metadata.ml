@@ -222,7 +222,7 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>%t(newer_version_of@ %a)%t@]@ \
       @[<hov 1>%t(stub@ %b)%t@]@ \
       @[<hov 1>%t(inline@ %a)%t@]@ \
-      @[<hov 1>%t(check@ %a)%t@]@ \
+      @[<hov 1>%t(%a)%t@]@ \
       @[<hov 1>%t(is_a_functor@ %b)%t@]@ \
       @[<hov 1>%t(params_arity@ %t%a%t)%t@]@ \
       @[<hov 1>(num_trailing_local_params@ %d)@]@ \

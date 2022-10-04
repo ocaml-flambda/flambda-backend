@@ -28,8 +28,8 @@ type t =
 let print ppf t =
   match t with
   | Default_check -> ()
-  | Assert p -> Format.fprintf ppf "assert %s@ " (Property.to_string p)
-  | Assume p -> Format.fprintf ppf "assume %s@ " (Property.to_string p)
+  | Assert p -> Format.fprintf ppf "@[assert %s@]" (Property.to_string p)
+  | Assume p -> Format.fprintf ppf "@[assume %s@]" (Property.to_string p)
 
 let from_lambda : Lambda.check_attribute -> t = function
   | Default_check -> Default_check
