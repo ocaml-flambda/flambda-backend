@@ -12,9 +12,23 @@
 ;*                                                                        *
 ;**************************************************************************
 
+
+; set warning as error in release profile
 (env
  (dev     (flags (:standard -w +a-4-9-40-41-42-44-45-48)))
- (release (flags (:standard -w +a-4-9-40-41-42-44-45-48))))
+ (release (flags (:standard -w +a-4-9-40-41-42-44-45-48)))
+
+ (main
+  (flags
+   (:standard -warn-error +A))
+  (ocamlopt_flags
+   ;; CR gyorsh: it is not clear what the ":standard" flags are, and they
+   ;; may change depending on the version of dune.
+   ;; Consider hard-coded flags, such as -O3.
+   (:standard -alloc-check)))
+ (boot
+  (flags
+   (:standard -warn-error +A))))
 
 (copy_files# utils/*.ml{,i})
 (copy_files# parsing/*.ml{,i})
@@ -123,7 +137,7 @@
 
 ; Disabled since there can be only one (data_only_dirs) declaration
 ;(data_only_dirs yacc)
-(include dirs-to-ignore.inc)
+(include duneconf/dirs-to-ignore.inc)
 
 (rule
  (deps (source_tree yacc))
