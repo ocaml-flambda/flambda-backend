@@ -524,8 +524,9 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Iintop _) -> 1
     | Lop (Iintop_imm _) -> 1
     | Lop (Ifloatofint | Iintoffloat | Iabsf | Inegf | Ispecific Isqrtf) -> 1
+    | Lop (Ivalueofint | Iintofvalue) -> 1
     | Lop (Iaddf | Isubf | Imulf | Idivf | Ispecific Inegmulf) -> 1
-    | Lop (Iopaque | Ivalueofint | Iintofvalue) -> 0
+    | Lop (Iopaque) -> 0
     | Lop (Ispecific (Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf)) -> 1
     | Lop (Ispecific (Ishiftarith _)) -> 1
     | Lop (Ispecific (Imuladd | Imulsub)) -> 1
@@ -863,6 +864,9 @@ let emit_instr i =
                      | Ispecific Isqrtf -> "fsqrt"
                      | _                -> assert false) in
         `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
+    | Lop(Ivalueofint | Iintofvalue) ->
+        let src = i.arg.(0) and dst = i.res.(0) in
+        `	mov	{emit_reg dst}, {emit_reg src}\n`
     | Lop(Iaddf | Isubf | Imulf | Idivf | Ispecific Inegmulf as op) ->
         let instr = (match op with
                      | Iaddf              -> "fadd"
@@ -880,7 +884,7 @@ let emit_instr i =
                      | Inegmulsubf -> "fnmsub"
                      | _ -> assert false) in
         `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, {emit_reg i.arg.(0)}\n`
-    | Lop(Iopaque | Ivalueofint | Iintofvalue) ->
+    | Lop(Iopaque) ->
         assert (i.arg.(0).loc = i.res.(0).loc)
     | Lop(Ispecific(Ishiftarith(op, shift))) ->
         let instr = (match op with
