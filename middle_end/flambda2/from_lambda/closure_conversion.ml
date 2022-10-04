@@ -1341,6 +1341,7 @@ let close_one_function acc ~external_env ~by_function_slot decl
       ~contains_no_escaping_local_allocs:
         (Function_decl.contains_no_escaping_local_allocs decl)
       ~stub ~inline
+      ~check:(Check_attribute.from_lambda (Function_decl.check_attribute decl))
       ~is_a_functor:(Function_decl.is_a_functor decl)
       ~recursive ~newer_version_of:None ~cost_metrics
       ~inlining_arguments:(Inlining_arguments.create ~round:0)
@@ -1642,6 +1643,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
       { inline = Default_inline;
         specialise = Default_specialise;
         local = Default_local;
+        check = Default_check;
         is_a_functor = false;
         stub = false
       }

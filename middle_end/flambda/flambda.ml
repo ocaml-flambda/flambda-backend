@@ -137,6 +137,7 @@ and function_declaration = {
   dbg : Debuginfo.t;
   inline : Lambda.inline_attribute;
   specialise : Lambda.specialise_attribute;
+  check : Lambda.check_attribute;
   is_a_functor : bool;
 }
 
@@ -406,8 +407,9 @@ and print_function_declaration ppf var (f : function_declaration) =
     | Never_specialise -> " *never_specialise*"
     | Default_specialise -> ""
   in
-  fprintf ppf "@[<2>(%a%s%s%s%s@ =@ fun@[<2>%a@] ->@ @[<2>%a@])@]@ "
+  fprintf ppf "@[<2>(%a%s%s%s%s%a@ =@ fun@[<2>%a@] ->@ @[<2>%a@])@]@ "
     Variable.print var stub is_a_functor inline specialise
+    Printlambda.check_attribute f.check
     params f.params lam f.body
 
 and print_set_of_closures ppf (set_of_closures : set_of_closures) =
@@ -1042,6 +1044,7 @@ let update_body_of_function_declaration (func_decl: function_declaration)
     stub = func_decl.stub;
     dbg = func_decl.dbg;
     inline = func_decl.inline;
+    check = func_decl.check;
     specialise = func_decl.specialise;
     is_a_functor = func_decl.is_a_functor;
   }
@@ -1056,7 +1059,9 @@ let rec check_param_modes mode = function
 
 let create_function_declaration ~params ~alloc_mode ~region ~body ~stub
       ~(inline : Lambda.inline_attribute)
-      ~(specialise : Lambda.specialise_attribute) ~is_a_functor
+      ~(specialise : Lambda.specialise_attribute)
+      ~(check : Lambda.check_attribute)
+      ~is_a_functor
       ~closure_origin
       : function_declaration =
   begin match stub, inline with
@@ -1090,6 +1095,7 @@ let create_function_declaration ~params ~alloc_mode ~region ~body ~stub
     dbg = dbg_origin;
     inline;
     specialise;
+    check;
     is_a_functor;
   }
 

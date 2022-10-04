@@ -1394,9 +1394,10 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
   let uncurried_defs =
     List.map
       (function
-          (id, Lfunction({kind; params; return; body; loc; mode; region}
+          (id, Lfunction({kind; params; return; body; attr; loc; mode; region}
                          as funct)) ->
             Lambda.check_lfunction funct;
+            let attrib = attr.check in
             let label = Compilenv.make_fun_symbol loc (V.unique_name id) in
             let arity = List.length params in
             let fundesc =
@@ -1407,20 +1408,20 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
                fun_float_const_prop = !Clflags.float_const_prop;
                fun_region = region} in
             let dbg = Debuginfo.from_location loc in
-            (id, params, return, body, mode, fundesc, dbg)
+            (id, params, return, body, mode, attrib, fundesc, dbg)
         | (_, _) -> fatal_error "Closure.close_functions")
       fun_defs in
   (* Build an approximate fenv for compiling the functions *)
   let fenv_rec =
     List.fold_right
-      (fun (id, _params, _return, _body, mode, fundesc, _dbg) fenv ->
+      (fun (id, _params, _return, _body, mode, _attrib, fundesc, _dbg) fenv ->
         V.Map.add id (Value_closure(mode, fundesc, Value_unknown)) fenv)
       uncurried_defs fenv in
   (* Determine the offsets of each function's closure in the shared block *)
   let env_pos = ref (-1) in
   let clos_offsets =
     List.map
-      (fun (_id, _params, _return, _body, _mode, fundesc, _dbg) ->
+      (fun (_id, _params, _return, _body, _mode, _attrib, fundesc, _dbg) ->
         let pos = !env_pos + 1 in
         env_pos := !env_pos + 1 +
           (match fundesc.fun_arity with (Curried _, (0|1)) -> 2 | _ -> 3);
@@ -1431,13 +1432,13 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
      does not use its environment parameter is invalidated. *)
   let useless_env = ref initially_closed in
   (* Translate each function definition *)
-  let clos_fundef (id, params, return, body, mode, fundesc, dbg) env_pos =
+  let clos_fundef (id, params, return, body, mode, check, fundesc, dbg) env_pos =
     let env_param = V.create_local "env" in
     let cenv_fv =
       build_closure_env env_param (fv_pos - env_pos) fv in
     let cenv_body =
       List.fold_right2
-        (fun (id, _params, _return, _body, _mode, _fundesc, _dbg) pos env ->
+        (fun (id, _params, _return, _body, _mode, _attrib, _fundesc, _dbg) pos env ->
           V.Map.add id (Uoffset(Uvar env_param, pos - env_pos)) env)
         uncurried_defs clos_offsets cenv_fv in
     let (ubody, approx) =
@@ -1459,6 +1460,7 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
         dbg;
         env = Some env_param;
         mode;
+        check;
       }
     in
     (* give more chance of function with default parameters (i.e.
@@ -1497,7 +1499,7 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
          recompile *)
         Compilenv.backtrack snap; (* PR#6337 *)
         List.iter
-          (fun (_id, _params, _return, _body, _mode, fundesc, _dbg) ->
+          (fun (_id, _params, _return, _body, _mode, _attrib, fundesc, _dbg) ->
              fundesc.fun_closed <- false;
              fundesc.fun_inline <- None;
           )

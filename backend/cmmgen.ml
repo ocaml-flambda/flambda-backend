@@ -1471,6 +1471,7 @@ let transl_function f =
     else
       transl env body in
   let fun_codegen_options =
+    transl_attrib f.check @
     if !Clflags.optimize_for_speed then
       []
     else

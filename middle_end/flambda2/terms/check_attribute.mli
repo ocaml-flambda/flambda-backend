@@ -2,31 +2,27 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*                        Guillaume Bury, OCamlPro                        *)
-(*                                                                        *)
-(*   Copyright 2019--2019 OCamlPro SAS                                    *)
+(*   Copyright 2022 Jane Street Group LLC                                 *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+(** Annotations on function declaration (not call sites) *)
+module Property : sig
+  type t = Noalloc
+end
 
-(** Translation of statically-allocated constants to Cmm. *)
+type t =
+  | Default_check
+  | Assert of Property.t
+  | Assume of Property.t
 
-open! Flambda.Import
+val print : Format.formatter -> t -> unit
 
-val static_consts :
-  To_cmm_env.t ->
-  To_cmm_result.t ->
-  params_and_body:
-    (To_cmm_env.t ->
-    To_cmm_result.t ->
-    Code_id.t ->
-    Function_params_and_body.t ->
-    fun_dbg:Debuginfo.t ->
-    check:Check_attribute.t ->
-    Cmm.fundecl * To_cmm_result.t) ->
-  Bound_static.t ->
-  Static_const_group.t ->
-  To_cmm_env.t * To_cmm_result.t * Cmm.expression option
+val equal : t -> t -> bool
+
+val is_default : t -> bool
+
+val from_lambda : Lambda.check_attribute -> t

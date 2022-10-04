@@ -771,7 +771,7 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
       ~result_arity ~result_types
       ~contains_no_escaping_local_allocs:
         (Code.contains_no_escaping_local_allocs code)
-      ~stub:(Code.stub code) ~inline:(Code.inline code)
+      ~stub:(Code.stub code) ~inline:(Code.inline code) ~check:(Code.check code)
       ~is_a_functor:(Code.is_a_functor code) ~recursive:(Code.recursive code)
       ~cost_metrics ~inlining_arguments ~dbg:(Code.dbg code)
       ~is_tupled:(Code.is_tupled code) ~is_my_closure_used ~inlining_decision
