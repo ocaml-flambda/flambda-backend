@@ -430,17 +430,34 @@ let check_attribute_on_module e {Parsetree.attr_name = { txt; loc }; _} =
         (Warnings.Misplaced_attribute txt)
   | _ -> ()
 
-let add_function_attributes lam loc attr =
-  let lam =
-    add_inline_attribute lam loc attr
+let rec add_function_attributes lam loc attr =
+  let is_function = function
+    | Lfunction _ | Levent (Lfunction _, _) -> true
+    | _ -> false
   in
-  let lam =
-    add_specialise_attribute lam loc attr
-  in
-  let lam =
-    add_local_attribute lam loc attr
-  in
-  let lam =
-    add_check_attribute lam loc attr
-  in
-  lam
+  match lam with
+  | Lfunction({ params; body } as funct)
+    when List.length params = Lambda.max_arity () && is_function body ->
+    let body =
+      match body with
+      | Lfunction _ ->
+        add_function_attributes body loc attr
+      | Levent ((Lfunction _ as f), lev) ->
+        Levent (add_function_attributes f loc attr, lev)
+      | _ -> assert false
+    in
+    Lfunction { funct with body; attr = default_stub_attribute }
+  | _ ->
+    let lam =
+      add_inline_attribute lam loc attr
+    in
+    let lam =
+      add_specialise_attribute lam loc attr
+    in
+    let lam =
+      add_local_attribute lam loc attr
+    in
+    let lam =
+      add_check_attribute lam loc attr
+    in
+    lam
