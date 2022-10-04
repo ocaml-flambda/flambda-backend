@@ -68,9 +68,7 @@ type boo =
   | A
   | B of int
 
-(* CR gyorsh: analysis for noalloc_exn is not yet implemented.
-   It ignores allocations post-dominated by a raise. *)
-let(* [@noalloc_exn] *)[@inline never] test18 n boo =
+let[@noalloc][@inline never] test18 n boo =
   if n > 0 then n + n
   else begin
     let k = 45 in
@@ -90,7 +88,7 @@ let[@inline never] test19 n =
   in
   create n
 
-let(* [@noalloc_exn] *) rec foo n =
+let[@noalloc] rec foo n =
   bar (n-1)
-and(* [@noalloc_exn] *) bar n =
+and[@noalloc] bar n =
   foo (n-1)

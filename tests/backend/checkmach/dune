@@ -1,3 +1,6 @@
+;; CR-someday gyorsh: refactor this file using something like cinaps to
+;; avoid copy-paste of the rules for different files.
+
 (rule
  (alias   runtest)
  (enabled_if (= %{context_name} "main"))
@@ -92,6 +95,25 @@
  (enabled_if (= %{context_name} "main"))
  (deps fail4.output fail4.output.corrected)
  (action (diff fail4.output fail4.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets fail5.output.corrected)
+ (deps (:ml fail5.ml) filter.sh)
+ (action
+   (with-outputs-to fail5.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -color never -error-style short -c -alloc-check -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps fail5.output fail5.output.corrected)
+ (action (diff fail5.output fail5.output.corrected)))
+
 
 ;; test for expected compilation errors
 
