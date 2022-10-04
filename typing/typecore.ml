@@ -2864,7 +2864,8 @@ let is_local_returning_expr e =
   let rec loop e =
     match e.pexp_desc with
     | Pexp_apply
-        ({ pexp_desc = Pexp_extension({txt = "extension.local"}, PStr []) },
+        ({ pexp_desc = Pexp_extension(
+           {txt = "extension.local"|"ocaml.local"|"local"}, PStr []) },
          [Nolabel, _]) ->
         true, e.pexp_loc
     | Pexp_ident _ | Pexp_constant _ | Pexp_apply _ | Pexp_tuple _
@@ -2901,6 +2902,9 @@ let rec is_an_uncurried_function e =
   else begin
     match e.pexp_desc, e.pexp_attributes with
     | (Pexp_fun _ | Pexp_function _), _ -> true
+    | Pexp_poly (e, _), _
+    | Pexp_newtype (_, e), _
+    | Pexp_coerce (e, _, _), _
     | Pexp_constraint (e, _), _ -> is_an_uncurried_function e
     | Pexp_let (Nonrecursive, _, e),
       [{Parsetree.attr_name = {txt="#default"};_}] ->
@@ -2993,7 +2997,8 @@ let rec type_approx env sexp =
       end;
       ty2
   | Pexp_apply
-      ({ pexp_desc = Pexp_extension({txt = "extension.local"}, PStr []) },
+      ({ pexp_desc = Pexp_extension(
+         {txt = "extension.local"|"ocaml.local"|"local"}, PStr []) },
        [Nolabel, e]) ->
     type_approx env e
   | Pexp_apply
@@ -4857,16 +4862,18 @@ and type_function ?in_function loc attrs env (expected_mode : expected_mode)
     if region_locked then Value_mode.local_to_regional arg_value_mode
     else arg_value_mode
   in
-  let cases_expected_mode =
+  let cases_expected_mode, curry =
     if uncurried_function then
-      mode_nontail (Value_mode.of_alloc ret_mode)
+      mode_nontail (Value_mode.of_alloc ret_mode),
+      More_args { partial_mode = ret_mode }
     else begin
       let ret_value_mode = Value_mode.of_alloc ret_mode in
       let ret_value_mode =
         if region_locked then Value_mode.local_to_regional ret_value_mode
         else ret_value_mode
       in
-      mode_return ret_value_mode
+      mode_return ret_value_mode,
+      Final_arg { partial_mode = Btype.Alloc_mode.join [arg_mode; alloc_mode] }
     end
   in
   let in_function =
@@ -4891,7 +4898,7 @@ and type_function ?in_function loc attrs env (expected_mode : expected_mode)
   re {
     exp_desc =
       Texp_function
-        { arg_label = l; param; cases; partial; region; warnings };
+        { arg_label = l; param; cases; partial; region; curry; warnings };
     exp_loc = loc; exp_extra = [];
     exp_type =
       instance (newgenty (Tarrow((l,arg_mode,ret_mode), ty_arg, ty_res, Cok)));
@@ -5273,7 +5280,8 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       (* apply optional arguments when expected type is "" *)
       (* we must be very careful about not breaking the semantics *)
       if !Clflags.principal then begin_def ();
-      let texp = type_exp env mode sarg in
+      let exp_mode = Value_mode.newvar_below mode.mode in
+      let texp = type_exp env {mode with mode = exp_mode} sarg in
       if !Clflags.principal then begin
         end_def ();
         generalize_structure texp.exp_type
@@ -5300,7 +5308,11 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
         texp
       end else begin
       unify_exp env {texp with exp_type = ty_fun} ty_expected;
-      if args = [] then texp else
+      if args = [] then texp else begin
+      (* In this case, we're allocating a new closure, so [sarg] needs
+         to be valid at [mode_subcomponent mode], not just [mode] *)
+      register_allocation mode;
+      submode ~loc:sarg.pexp_loc ~env exp_mode (mode_subcomponent mode);
       (* eta-expand to avoid side effects *)
       let var_pair ~mode name ty =
         let id = Ident.create_local name in
@@ -5333,9 +5345,13 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
         in
         let cases = [case eta_pat e] in
         let param = name_cases "param" cases in
+        let partial_mode =
+          Alloc_mode.join [marg; Value_mode.regional_to_global_alloc mode.mode]
+        in
+        let curry = Final_arg {partial_mode} in
         { texp with exp_type = ty_fun; exp_mode = mode.mode;
             exp_desc = Texp_function { arg_label = Nolabel; param; cases;
-                                       partial = Total; region = false;
+                                       partial = Total; region = false; curry;
                                        warnings = Warnings.backup () } }
       in
       Location.prerr_warning texp.exp_loc
@@ -5352,6 +5368,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
                            vb_loc=Location.none;
                           }],
                          func let_var) }
+      end
       end
   | _ ->
       let texp = type_expect ?recarg env mode sarg
@@ -5858,7 +5875,8 @@ and type_let
     | Pexp_constraint (e, _)
     | Pexp_newtype (_, e)
     | Pexp_apply
-      ({ pexp_desc = Pexp_extension({txt = "extension.local"}, PStr []) },
+      ({ pexp_desc = Pexp_extension(
+          {txt = "extension.local"|"ocaml.local"|"local"}, PStr []) },
        [Nolabel, e]) -> sexp_is_fun e
     | _ -> false
   in

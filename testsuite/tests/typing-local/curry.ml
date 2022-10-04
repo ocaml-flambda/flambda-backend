@@ -106,3 +106,8 @@ let[@inline never] prim () =
     (loc a) (loc b) (loc c) (loc d)
 
 let () = prim ()
+
+let curried (local_ x) = { g = fun () -> 42 }
+let () =
+  let _ = (Sys.opaque_identity curried) (local_ ref 42) in
+  Gc.minor ()

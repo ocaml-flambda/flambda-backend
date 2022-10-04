@@ -123,7 +123,7 @@ let preserve_tailcall_for_prim = function
   | Pcompare_ints | Pcompare_floats | Pcompare_bints _
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
   | Pmakearray _ | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _
-  | Parrayrefs _ | Parraysets _ | Pisint | Pisout | Pbintofint _ | Pintofbint _
+  | Parrayrefs _ | Parraysets _ | Pisint _ | Pisout | Pbintofint _ | Pintofbint _
   | Pcvtbint _ | Pnegbint _ | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _
   | Pmodbint _ | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _
   | Pasrbint _ | Pbintcomp _ | Pbigarrayref _ | Pbigarrayset _ | Pbigarraydim _
@@ -131,7 +131,7 @@ let preserve_tailcall_for_prim = function
   | Pbytes_load_32 _ | Pbytes_load_64 _ | Pbytes_set_16 _ | Pbytes_set_32 _
   | Pbytes_set_64 _ | Pbigstring_load_16 _ | Pbigstring_load_32 _
   | Pbigstring_load_64 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _
-  | Pprobe_is_enabled _
+  | Pprobe_is_enabled _ | Pobj_dup
   | Pbigstring_set_64 _ | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer ->
       false
 
@@ -466,7 +466,7 @@ let comp_primitive p args =
        | Ostype_cygwin -> "ostype_cygwin"
        | Backend_type -> "backend_type" in
      Kccall(Printf.sprintf "caml_sys_const_%s" const_name, 1)
-  | Pisint -> Kisint
+  | Pisint _ -> Kisint
   | Pisout -> Kisout
   | Pbintofint (bi,_) -> comp_bint_primitive bi "of_int" args
   | Pintofbint bi -> comp_bint_primitive bi "to_int" args
@@ -508,6 +508,7 @@ let comp_primitive p args =
   | Pint_as_pointer -> Kccall("caml_int_as_pointer", 1)
   | Pbytes_to_string -> Kccall("caml_string_of_bytes", 1)
   | Pbytes_of_string -> Kccall("caml_bytes_of_string", 1)
+  | Pobj_dup -> Kccall("caml_obj_dup", 1)
   | _ -> fatal_error "Bytegen.comp_primitive"
 
 let is_immed n = immed_min <= n && n <= immed_max

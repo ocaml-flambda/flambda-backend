@@ -126,7 +126,7 @@ type primitive =
   | Parrayrefs of array_kind
   | Parraysets of array_kind
   (* Test if the argument is a block or an immediate integer *)
-  | Pisint
+  | Pisint of { variant_only : bool }
   (* Test if the (integer) argument is outside an interval *)
   | Pisout
   (* Operations on boxed integers (Nativeint.t, Int32.t, Int64.t) *)
@@ -181,6 +181,8 @@ type primitive =
   | Popaque
   (* Statically-defined probes *)
   | Pprobe_is_enabled of { name: string }
+  (* Primitives for [Obj] *)
+  | Pobj_dup
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge

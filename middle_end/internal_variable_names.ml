@@ -126,6 +126,7 @@ let pintcomp = "Pintcomp"
 let pcompare_ints = "Pcompare_ints"
 let pcompare_floats = "Pcompare_floats"
 let pcompare_bints = "Pcompare_bints"
+let pobj_dup = "Pobj_dup"
 let pintofbint = "Pintofbint"
 let pintoffloat = "Pintoffloat"
 let pisint = "Pisint"
@@ -223,6 +224,7 @@ let pfloatcomp_arg = "Pfloatcomp_arg"
 let pfloatfield_arg = "Pfloatfield_arg"
 let pfloatofint_arg = "Pfloatofint_arg"
 let pgetglobal_arg = "Pgetglobal_arg"
+let pobj_dup_arg = "Pobj_dup_arg"
 let pidentity_arg = "Pidentity_arg"
 let pignore_arg = "Pignore_arg"
 let pint_as_pointer_arg = "Pint_as_pointer_arg"
@@ -380,7 +382,7 @@ let of_primitive : Lambda.primitive -> string = function
   | Parrayrefs _ -> parrayrefs
   | Parraysets _ -> parraysets
   | Pctconst _ -> pctconst
-  | Pisint -> pisint
+  | Pisint _ -> pisint
   | Pisout -> pisout
   | Pbintofint _ -> pbintofint
   | Pintofbint _ -> pintofbint
@@ -421,6 +423,7 @@ let of_primitive : Lambda.primitive -> string = function
   | Pint_as_pointer -> pint_as_pointer
   | Popaque -> popaque
   | Pprobe_is_enabled _ -> pprobe_is_enabled
+  | Pobj_dup -> pobj_dup
 
 let of_primitive_arg : Lambda.primitive -> string = function
   | Pidentity -> pidentity_arg
@@ -488,7 +491,7 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Parrayrefs _ -> parrayrefs_arg
   | Parraysets _ -> parraysets_arg
   | Pctconst _ -> pctconst_arg
-  | Pisint -> pisint_arg
+  | Pisint _ -> pisint_arg
   | Pisout -> pisout_arg
   | Pbintofint _ -> pbintofint_arg
   | Pintofbint _ -> pintofbint_arg
@@ -529,3 +532,4 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pint_as_pointer -> pint_as_pointer_arg
   | Popaque -> popaque_arg
   | Pprobe_is_enabled _ -> pprobe_is_enabled_arg
+  | Pobj_dup -> pobj_dup_arg

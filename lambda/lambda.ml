@@ -156,7 +156,7 @@ type primitive =
   | Parrayrefs of array_kind
   | Parraysets of array_kind
   (* Test if the argument is a block or an immediate integer *)
-  | Pisint
+  | Pisint of { variant_only : bool }
   (* Test if the (integer) argument is outside an interval *)
   | Pisout
   (* Operations on boxed integers (Nativeint.t, Int32.t, Int64.t) *)
@@ -211,6 +211,8 @@ type primitive =
   | Popaque
   (* Statically-defined probes *)
   | Pprobe_is_enabled of { name: string }
+  (* Primitives for [Obj] *)
+  | Pobj_dup
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -1213,7 +1215,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Parrayrefs (Pgenarray|Pfloatarray) ->
      (* The float box from flat floatarray access is always Alloc_heap *)
      Some alloc_heap
-  | Pisint | Pisout -> None
+  | Pisint _ | Pisout -> None
   | Pintofbint _ -> None
   | Pbintofint (_,m)
   | Pcvtbint (_,_,m)
@@ -1247,3 +1249,4 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pint_as_pointer -> None
   | Popaque -> None
   | Pprobe_is_enabled _ -> None
+  | Pobj_dup -> Some alloc_heap
