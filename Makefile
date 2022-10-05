@@ -11,6 +11,9 @@ boot_ocamlobjinfo = tools/flambda_backend_objinfo.exe
 ocamldir = ocaml
 toplevels_installed = top opttop
 
+$(ocamldir)/duneconf/jst-extra.inc:
+	echo > $@
+
 include ocaml/Makefile.common-jst
 
 .PHONY: ci
