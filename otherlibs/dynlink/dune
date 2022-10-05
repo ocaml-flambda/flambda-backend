@@ -65,9 +65,14 @@
     bytesections
     dll
     meta
-    symtable)
+    symtable
+    asttypes
+    parsetree
+    outcometree
+    cmo_format
+    cmxs_format
+    debug_event)
   (modules_without_implementation
-    ; Bug in Dune: copy_files rules don't trigger for these
     asttypes
     parsetree
     outcometree
