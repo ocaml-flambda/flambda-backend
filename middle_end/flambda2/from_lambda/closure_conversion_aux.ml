@@ -454,19 +454,23 @@ module Acc = struct
     { t with code = Code_id.Map.add code_id code t.code }
 
   let add_free_names free_names t =
-    let closure_infos =
+    { t with free_names = Name_occurrences.union free_names t.free_names }
+
+  let add_free_names_and_check_my_closure_use free_names t =
+    let t =
       match t.closure_infos with
-      | [] -> []
+      | [] -> t
       | closure_info :: closure_infos ->
         if closure_info.is_purely_tailrec
            && Name_occurrences.mem_var free_names closure_info.my_closure
-        then { closure_info with is_purely_tailrec = false } :: closure_infos
-        else t.closure_infos
+        then
+          { t with
+            closure_infos =
+              { closure_info with is_purely_tailrec = false } :: closure_infos
+          }
+        else t
     in
-    { t with
-      closure_infos;
-      free_names = Name_occurrences.union free_names t.free_names
-    }
+    add_free_names free_names t
 
   let add_name_to_free_names ~is_tail_call ~name t =
     let closure_infos =
@@ -798,7 +802,9 @@ module Expr_with_acc = struct
         (Apply.callee apply)
     in
     let acc =
-      Acc.add_free_names (Apply_expr.free_names_except_callee apply) acc
+      Acc.add_free_names_and_check_my_closure_use
+        (Apply_expr.free_names_except_callee apply)
+        acc
     in
     let acc =
       match Apply_expr.continuation apply with
@@ -832,7 +838,11 @@ module Apply_cont_with_acc = struct
   let create acc ?trap_action ?args_approx cont ~args ~dbg =
     let apply_cont = Apply_cont.create ?trap_action cont ~args ~dbg in
     let acc = Acc.add_continuation_application ~cont args_approx acc in
-    let acc = Acc.add_free_names (Apply_cont.free_names apply_cont) acc in
+    let acc =
+      Acc.add_free_names_and_check_my_closure_use
+        (Apply_cont.free_names apply_cont)
+        acc
+    in
     acc, apply_cont
 
   let goto acc cont =
@@ -887,7 +897,18 @@ module Let_with_acc = struct
           ~code_id:(fun acc cid -> Acc.remove_code_id_from_free_names cid acc)
       in
       let let_expr = Let.create let_bound named ~body ~free_names_of_body in
-      let acc = Acc.add_free_names (Named.free_names named) acc in
+      let is_project_value_slot =
+        match[@ocaml.warning "-4"] (named : Named.t) with
+        | Prim (Unary (Project_value_slot _, _), _) -> true
+        | _ -> false
+      in
+      let acc =
+        if is_project_value_slot
+        then Acc.add_free_names (Named.free_names named) acc
+        else
+          Acc.add_free_names_and_check_my_closure_use (Named.free_names named)
+            acc
+      in
       acc, Expr.create_let let_expr
 end
 
