@@ -483,9 +483,12 @@
 
 (install
  (files
-  (external/owee/libcompiler_owee_stubs_native.a
+  (external/owee/libcompiler_owee_stubs.a
    as
-   compiler-libs/libcompiler_owee_stubs_native.a)
+   compiler-libs/libcompiler_owee_stubs.a)
+  (external/owee/libcompiler_owee_stubs.a
+   as
+   compiler-libs/libcompiler_owee_stubs_native.a) ; for special_dune compat
   (ocamloptcomp_with_flambda2.cma as compiler-libs/ocamloptcomp.cma)
   (ocamloptcomp_with_flambda2.cmxa as compiler-libs/ocamloptcomp.cmxa)
   (ocamloptcomp_with_flambda2.a as compiler-libs/ocamloptcomp.a))

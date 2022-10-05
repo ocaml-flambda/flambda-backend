@@ -94,7 +94,7 @@
    ;; some of COMP
    pparse main_args compenv compmisc makedepend compile_common
    ; manual update: mli only files
-   cmo_format
+   annot asttypes cmo_format outcometree parsetree debug_event
  ))
 
 (library
