@@ -237,7 +237,7 @@ runtest-upstream: _install
 	# various things.
 	mkdir _runtest/utils
 	cp _install/lib/ocaml/compiler-libs/*.{cmi,cmx} _runtest/utils
-	cp $(main_prefix)/lib/ocaml/compiler-libs/*.cmo _runtest/utils
+	cp $(main_build)/$(ocamldir)/.ocamlcommon.objs/byte/*.cmo _runtest/utils
 	rm -f _runtest/utils/{topdirs,opttopdirs}.cmi
 	cp _install/lib/ocaml/*.{cmi,cma,a,cmxa} _runtest/utils
 	cp $(main_build)/$(ocamldir)/.ocamlcommon.objs/native/config.o _runtest/utils
