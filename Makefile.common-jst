@@ -94,34 +94,11 @@ $(ocamldir)/duneconf/dirs-to-ignore.inc:
 	echo "(data_only_dirs yacc $(ocaml_subdirs_to_ignore))" > $@
 
 _build/_bootinstall: Makefile.config duneconf/boot.ws duneconf/runtime_stdlib.ws duneconf/main.ws \
-	$(ocamldir)/duneconf/dirs-to-ignore.inc
+	$(ocamldir)/duneconf/dirs-to-ignore.inc \
+	$(ocamldir)/duneconf/jst-extra.inc \
+	dune-project
 
-# natdynlinkops2:
-# We need to augment dune's substitutions so this part isn't so
-# difficult.  We use /usr/bin/env echo to avoid builtin variants of "echo"
-# which don't accept "-n".  Unfortunately if there are no
-# NATDYNLINKOPS, we need to provide a harmless option, otherwise dune
-# will provide '' on the command line to ocamlopt which causes an
-# error.
-# CR mshinwell: This should be moved into the upstream dune build system.
-#
-	cat $(ocamldir)/Makefile.config \
-	  | sed 's/^NATDYNLINKOPTS=$$/NATDYNLINKOPTS=-g/' \
-	  | grep '^NATDYNLINKOPTS=' \
-	  | sed 's/^[^=]*=\(.*\)/-ccopt\n"\1"/' \
-	  > $(ocamldir)/otherlibs/dynlink/natdynlinkops
-	/usr/bin/env echo -n $$(cat $(ocamldir)/Makefile.config \
-	  | sed 's/^NATDYNLINKOPTS=$$/NATDYNLINKOPTS=-bin-annot/' \
-	  | grep '^NATDYNLINKOPTS=' \
-	  | sed 's/^[^=]*=\(.*\)/\1/') \
-	  > $(ocamldir)/otherlibs/dynlink/natdynlinkops2
-	if [ "$$(cat $(ocamldir)/otherlibs/dynlink/natdynlinkops2)" \
-	       != "-bin-annot" ]; \
-	then \
-	  /usr/bin/env echo -n "-ccopt" > $(ocamldir)/otherlibs/dynlink/natdynlinkops1; \
-	else \
-	  /usr/bin/env echo -n "-bin-annot" > $(ocamldir)/otherlibs/dynlink/natdynlinkops1; \
-	fi
+	echo -n '$(NATDYNLINKOPTS)' > $(ocamldir)/otherlibs/dynlink/natdynlinkops
 
 # flags.sexp
 	echo '(:standard $(if $(filter true,$(FUNCTION_SECTIONS)),-function-sections,))' > ocamlopt_flags.sexp
@@ -237,7 +214,7 @@ runtest-upstream: _install
 	# various things.
 	mkdir _runtest/utils
 	cp _install/lib/ocaml/compiler-libs/*.{cmi,cmx} _runtest/utils
-	cp $(main_prefix)/lib/ocaml/compiler-libs/*.cmo _runtest/utils
+	cp $(main_build)/$(ocamldir)/.ocamlcommon.objs/byte/*.cmo _runtest/utils
 	rm -f _runtest/utils/{topdirs,opttopdirs}.cmi
 	cp _install/lib/ocaml/*.{cmi,cma,a,cmxa} _runtest/utils
 	cp $(main_build)/$(ocamldir)/.ocamlcommon.objs/native/config.o _runtest/utils

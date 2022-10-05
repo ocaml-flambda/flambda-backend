@@ -65,9 +65,14 @@
     bytesections
     dll
     meta
-    symtable)
+    symtable
+    asttypes
+    parsetree
+    outcometree
+    cmo_format
+    cmxs_format
+    debug_event)
   (modules_without_implementation
-    ; Bug in Dune: copy_files rules don't trigger for these
     asttypes
     parsetree
     outcometree
@@ -212,8 +217,7 @@
   (action
     (run %{ocamlc}
       -g -a
-      %{read:natdynlinkops1}
-      %{read:natdynlinkops2}
+      -ccopt %{read:natdynlinkops}
       -o dynlink.cma
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Binutils.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Local_store.cmo
@@ -273,8 +277,7 @@
   (action
     (run %{ocamlopt}
       -g -a
-      %{read:natdynlinkops1}
-      %{read:natdynlinkops2}
+      -ccopt %{read:natdynlinkops}
       -o dynlink.cmxa
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Binutils.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Local_store.cmx
