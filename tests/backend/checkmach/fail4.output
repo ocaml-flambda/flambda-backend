@@ -1,2 +1,2 @@
 File "fail4.ml", line 2, characters 26-40:
-Error: Annotation check for noalloc_strict failed on function camlFail4__test_51
+Error: Annotation check for noalloc_strict failed on function camlFail4__test_HIDE_STAMP
