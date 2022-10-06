@@ -585,7 +585,7 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     | Duplicate_array { kind; source_mutability; destination_mutability } ->
       simplify_duplicate_array ~kind ~source_mutability ~destination_mutability
     | Duplicate_block { kind } -> simplify_duplicate_block ~kind
-    | Opaque_identity -> simplify_opaque_identity
+    | Opaque_identity { middle_end_only = _ } -> simplify_opaque_identity
     | End_region -> simplify_end_region
     | Obj_dup -> simplify_obj_dup dbg
   in
