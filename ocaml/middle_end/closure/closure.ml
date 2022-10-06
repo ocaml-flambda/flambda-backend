@@ -63,7 +63,7 @@ let rec build_closure_env env_param pos = function
    contain the right names if the -for-pack option is active. *)
 
 let getglobal dbg id =
-  let symbol = Compilenv.symbol_for_global id in
+  let symbol = Compilenv.symbol_for_global id |> Linkage_name.to_string in
   Uprim (P.Pread_symbol symbol, [], dbg)
 
 let region ulam =

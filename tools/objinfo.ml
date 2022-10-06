@@ -169,8 +169,7 @@ let print_cmx_infos (ui, crc) =
     else
       printf "Flambda unit\n";
     if not !no_approx then begin
-      let cu = ui.ui_unit in
-      Compilation_unit.set_current cu;
+      Compilation_unit.set_current ui.ui_unit;
       let root_symbols = List.map Symbol.for_compilation_unit ui.ui_defines in
       Format.printf "approximations@ %a@.@."
         Export_info.print_approx (export, root_symbols)

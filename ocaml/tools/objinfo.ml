@@ -60,11 +60,14 @@ let print_name_crc (name, crco) =
 let print_line name =
   printf "\t%s\n" name
 
+let print_name_line cu =
+  printf "\t%a\n" Compilation_unit.Name.output (Compilation_unit.name cu)
+
 let print_required_global id =
   printf "\t%s\n" (Ident.name id)
 
 let print_cmo_infos cu =
-  printf "Unit name: %s\n" (Compilation_unit.Name.to_string cu.cu_name);
+  printf "Unit name: %a\n" Compilation_unit.Name.output cu.cu_name;
   print_string "Interfaces imported:\n";
   List.iter print_name_crc cu.cu_imports;
   print_string "Required globals:\n";
@@ -144,7 +147,7 @@ let print_cmx_infos (ui, crc) =
      the pack prefix. *)
   let comp_unit_without_pack_prefix =
     Compilation_unit.create Compilation_unit.Prefix.empty
-      (Compilation_unit.name ui.ui_name)
+      (Compilation_unit.name ui.ui_unit)
   in
   print_general_infos
     (linkage_name comp_unit_without_pack_prefix)
@@ -162,7 +165,7 @@ let print_cmx_infos (ui, crc) =
     else
       printf "Flambda unit\n";
     if not !no_approx then begin
-      Compilation_unit.set_current ui.ui_name;
+      Compilation_unit.set_current ui.ui_unit;
       let root_symbols = List.map Symbol.for_compilation_unit ui.ui_defines in
       Format.printf "approximations@ %a@.@."
         Export_info.print_approx (export, root_symbols)

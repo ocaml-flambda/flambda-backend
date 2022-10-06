@@ -25,9 +25,9 @@ val package_files
   -> unit
 
 type error =
-    Illegal_renaming of string * string * string
+    Illegal_renaming of Compilation_unit.Name.t * string * Compilation_unit.Name.t
   | Forward_reference of string * string
-  | Wrong_for_pack of string * string
+  | Wrong_for_pack of string * Compilation_unit.t
   | Linking_error
   | Assembler_error of string
   | File_not_found of string

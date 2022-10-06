@@ -39,7 +39,7 @@ type apply_fn := int * Lambda.alloc_mode
 type unit_infos =
   (* CR lmaurer: Consider renaming [ui_name], say to [ui_unit]. Code like
      [Compilation_unit.name ui_name] makes me wonder what a name's name is. *)
-  { mutable ui_name: Compilation_unit.t;  (* Compilation unit implemented *)
+  { mutable ui_unit: Compilation_unit.t;  (* Compilation unit implemented *)
     mutable ui_defines: Compilation_unit.t list;
                                           (* All compilation units in the
                                              .cmx file (i.e. [ui_name] and

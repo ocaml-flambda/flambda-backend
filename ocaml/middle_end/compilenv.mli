@@ -43,7 +43,7 @@ val pack_prefix_for_global_ident : Ident.t -> Compilation_unit.Prefix.t
         (* Find the pack prefix for an identifier by reading the .cmx file.
            The identifier must be [Global]. *)
 
-val symbol_for_global: Ident.t -> string
+val symbol_for_global: Ident.t -> Linkage_name.t
         (* Return the asm symbol that refers to the given global identifier
            flambda-only *)
 val symbol_for_global': Ident.t -> Symbol.t
@@ -116,7 +116,8 @@ val read_library_info: string -> library_infos
 type error =
     Not_a_unit_info of string
   | Corrupted_unit_info of string
-  | Illegal_renaming of string * string * string
+  | Illegal_renaming of
+      Compilation_unit.Name.t * Compilation_unit.Name.t * string
 
 exception Error of error
 

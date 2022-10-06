@@ -143,8 +143,7 @@ let reset compilation_unit =
   structured_constants := structured_constants_empty;
   current_unit.ui_export_info <- default_ui_export_info;
   merged_environment := Export_info.empty;
-  CU.Name.Tbl.clear export_infos_table;
-  Compilation_unit.set_current compilation_unit
+  CU.Name.Tbl.clear export_infos_table
 
 let current_unit_infos () =
   current_unit
@@ -267,6 +266,7 @@ let pack_prefix_for_global_ident id =
     | Some ui -> CU.for_pack_prefix ui.ui_unit
     | None ->
       (* If the .cmx file is missing, the prefix is assumed to be empty. *)
+      (* CR mshinwell: or the same as the -for-pack prefix in effect now? *)
       CU.Prefix.empty
 
 let symbol_for_global' id =
