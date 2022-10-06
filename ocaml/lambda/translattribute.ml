@@ -40,7 +40,7 @@ let is_local_attribute = function
 
 let is_property_attribute p a =
   match p, a with
-  | Noalloc, {txt=("noalloc"|"ocaml.noalloc")} -> true
+  | Noalloc, {txt=("noalloc_strict"|"ocaml.noalloc_strict")} -> true
   | _ -> false
 
 let find_attribute p attributes =
@@ -300,7 +300,7 @@ let add_local_attribute expr loc attributes =
 
 let add_check_attribute expr loc attributes =
   let to_string = function
-    | Noalloc -> "noalloc"
+    | Noalloc -> "noalloc_strict"
   in
   let to_string = function
     | Assert p -> to_string p
