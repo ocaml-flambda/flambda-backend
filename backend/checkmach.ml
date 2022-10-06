@@ -282,7 +282,18 @@ end = struct
   type t =
     { ppf : Format.formatter;
       fun_name : string;
-      mutable unresolved_dependencies : bool
+      mutable unresolved_dependencies : bool;
+      mutable raise_after_handlers : int list
+          (** all Iexit indexes for which the corresponding Icatch handler leads
+              to a [raise] with backtrace. Conservative: recursive catch
+              handlers are never added. *)
+    }
+
+  let create ppf fun_name =
+    { ppf;
+      fun_name;
+      unresolved_dependencies = false;
+      raise_after_handlers = []
     }
 
   let report t ~msg ~desc dbg =
@@ -376,7 +387,22 @@ end = struct
     | Iswitch (_index, cases) ->
       let raise_after = check_instr_exn t i.next raise_after in
       Array.for_all (fun case -> check_instr_exn t case raise_after) cases
-    | Icatch (_rec, _ts, handlers, body) ->
+    | Icatch (Nonrecursive, _ts, handlers, body) ->
+      let raise_after = check_instr_exn t i.next raise_after in
+      (* order is important: first analyze the handlers to get accurate
+         information for Iexit that may appear in the body. *)
+      let raise_after_all_handlers =
+        List.for_all
+          (fun (n, _ts, handler) ->
+            let res = check_instr_exn t handler raise_after in
+            (* no duplicates in this list because handler indexes are unique *)
+            if res then t.raise_after_handlers <- n :: t.raise_after_handlers;
+            res)
+          handlers
+      in
+      let raise_after_body = check_instr_exn t body raise_after in
+      raise_after_body && raise_after_all_handlers
+    | Icatch (Recursive, _ts, handlers, body) ->
       (* conservative *)
       let raise_after = check_instr_exn t i.next raise_after in
       let _ = check_instr_exn t body raise_after in
@@ -397,7 +423,9 @@ end = struct
       false
     | Iraise (Raise_reraise | Raise_regular) -> S.ignore_postdominated_by_raise
     | Ireturn _ -> false
-    | Iexit _ -> false
+    | Iexit (n, _) ->
+      (* conservative *)
+      List.exists (Int.equal n) t.raise_after_handlers
 
   let debug t expected =
     match Unit_info.get_value unit_info t.fun_name with
@@ -415,7 +443,7 @@ end = struct
     then
       Profile.record_call ~accumulate:true ("check " ^ S.name) (fun () ->
           let fun_name = f.fun_name in
-          let t = { ppf; fun_name; unresolved_dependencies = false } in
+          let t = create ppf fun_name in
           Unit_info.in_current_unit unit_info fun_name f.fun_dbg;
           if List.mem (Cmm.Assume S.annotation) f.fun_codegen_options
           then (
