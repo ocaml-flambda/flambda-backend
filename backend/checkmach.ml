@@ -90,12 +90,12 @@ module type Spec = sig
 
   val annotation : Cmm.property
 
-  (** [ignore_postdominated_by_raise = true]
-      Do not perform checks on paths that must lead to a raise, as indicated by a [raise]
-      with a backtrace, i.e., paths postdominated by [raise_notrace] are not ignored.
+  (** [ignore_postdominated_by_raise = true] Do not perform checks on paths that
+      must lead to a raise, as indicated by a [raise] with a backtrace, i.e.,
+      paths postdominated by [raise_notrace] are not ignored.
 
-      In other words, when a function returns normally, it is guaranteed to pass the
-      check, but not upon exceptional return.  *)
+      In other words, when a function returns normally, it is guaranteed to pass
+      the check, but not upon exceptional return. *)
   val ignore_postdominated_by_raise : bool
 end
 (* CR-someday gyorsh: We may also want annotations on call sites, not only on
