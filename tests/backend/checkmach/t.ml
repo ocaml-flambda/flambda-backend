@@ -11,11 +11,11 @@ let[@inline never] test1 n =
 
 let[@inline never] test2 n  = List.length(test1 n)
 
-let[@noalloc][@inline never] test3 l  = List.length l
+let[@noalloc_strict][@inline never] test3 l  = List.length l
 
-let[@noalloc][@inline never] test6 n = n + 37
+let[@noalloc_strict][@inline never] test6 n = n + 37
 
-let[@noalloc][@inline never] test7 n m = (test6 n) * (test6 m)
+let[@noalloc_strict][@inline never] test7 n m = (test6 n) * (test6 m)
 
 exception Exn_string of string
 exception Exn_int of int
@@ -33,16 +33,16 @@ let[@inline never] test9 n =
   try test8 n
   with _ -> 0
 
-let[@noalloc][@inline never] test10 n =
+let[@noalloc_strict][@inline never] test10 n =
   match n with
   | 1 -> raise_notrace Exn
   | _ -> 10
 
-let[@noalloc][@inline never] test11 n =
+let[@noalloc_strict][@inline never] test11 n =
   try test10 n
   with Exn -> 10
 
-let[@noalloc][@inline never] test12 n =
+let[@noalloc_strict][@inline never] test12 n =
   let test n =
     match n with
     | 1 -> raise Exn
@@ -57,10 +57,10 @@ let[@inline never] test13 n =
 
 let test14 n = Float.of_int n
 
-let[@noalloc][@inline never] test15 n = Int64.to_int (Int64.of_float (test14 n))
+let[@noalloc_strict][@inline never] test15 n = Int64.to_int (Int64.of_float (test14 n))
 
-let[@noalloc] test16 n m = S.foo n m
-let[@noalloc] test17 n m = S.foo (S.foo n n) m
+let[@noalloc_strict] test16 n m = S.foo n m
+let[@noalloc_strict] test17 n m = S.foo (S.foo n n) m
 let test18 n m = S.foo n m
 
 exception Exn3 of (int * int)

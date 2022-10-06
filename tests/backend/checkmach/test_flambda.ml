@@ -2,6 +2,6 @@
    separate file for them. *)
 let[@inline always] test4 n = (n+1,n)
 
-let[@noalloc][@inline never] test5 n =
+let[@noalloc_strict][@inline never] test5 n =
   let first,_ = (test4 (n + 1)) in
   first
