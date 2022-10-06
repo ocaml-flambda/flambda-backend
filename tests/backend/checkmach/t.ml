@@ -92,3 +92,31 @@ let[@noalloc] rec foo n =
   bar (n-1)
 and[@noalloc] bar n =
   foo (n-1)
+
+let[@noalloc] always_allocate_and_raise n = raise (Exn3 (4,n))
+
+let[@inline never] f n = (n,n)
+
+(* compiles to a recursive catch that the check can handle *)
+let[@inline never] test20 n = Sys.opaque_identity n
+let[@noalloc] test21 n =
+  let i = ref 0 in
+  let j = ref 0 in
+  while !j < n do
+    while !i < n do
+      i := test20 !i
+    done;
+    if n > 0 then raise (Exn_int !i);
+  done;
+
+
+(*
+The check is too conservative about recursive catch to handle the following:
+
+let[@noalloc] test22 n =
+  let e = (Exn_int n) in
+  for i = 0 to n do
+    ();
+  done;
+  raise e
+*)
