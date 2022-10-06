@@ -90,6 +90,12 @@ module type Spec = sig
 
   val annotation : Cmm.property
 
+  (** [ignore_postdominated_by_raise = true]
+      Do not perform checks on paths that must lead to a raise, as indicated by a [raise]
+      with a backtrace, i.e., paths postdominated by [raise_notrace] are not ignored.
+
+      In other words, when a function returns normally, it is guaranteed to pass the
+      check, but not upon exceptional return.  *)
   val ignore_postdominated_by_raise : bool
 end
 (* CR-someday gyorsh: We may also want annotations on call sites, not only on
@@ -384,7 +390,12 @@ end = struct
       let _ = check_instr_exn t body false in
       let _ = check_instr_exn t handler false in
       false
-    | Iraise _ -> S.ignore_postdominated_by_raise
+    | Iraise Raise_notrace ->
+      (* The intended use of [S.ignore_postdominated_by_raise] is to ignore
+         allocation on error paths, whereas [raise_notrace] is typically used
+         for control flow, not for indicating an error. *)
+      false
+    | Iraise (Raise_reraise | Raise_regular) -> S.ignore_postdominated_by_raise
     | Ireturn _ -> false
     | Iexit _ -> false
 
