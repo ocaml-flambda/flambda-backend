@@ -24,7 +24,7 @@ module CU = Compilation_unit
 type error =
     Illegal_renaming of CU.Name.t * string * CU.Name.t
   | Forward_reference of string * CU.Name.t
-  | Wrong_for_pack of string * CU.Prefix.t
+  | Wrong_for_pack of string * CU.t
   | Linking_error
   | Assembler_error of string
   | File_not_found of string
@@ -176,7 +176,7 @@ let build_package_cmx members cmxfile =
     List.map (fun m -> m.pm_name) members in
   let filter lst =
     List.filter (fun (name, _crc) ->
-      not (List.mem (name |> CU.Name.of_string) unit_names)) lst in
+      not (List.mem name unit_names)) lst in
   let union lst =
     List.fold_left
       (List.fold_left

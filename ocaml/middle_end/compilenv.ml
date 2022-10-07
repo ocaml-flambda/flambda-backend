@@ -146,7 +146,7 @@ let get_unit_info modname =
       CU.Name.Tbl.find global_infos_table modname
     with Not_found ->
       let (infos, crc) =
-        if Env.is_imported_opaque (modname |> CU.Name.to_string) then (None, None)
+        if Env.is_imported_opaque modname then (None, None)
         else begin
           try
             let filename =

@@ -130,6 +130,7 @@ let reset compilation_unit =
   CU.Name.Tbl.clear global_infos_table;
   Set_of_closures_id.Tbl.clear imported_sets_of_closures_table;
   Checks.reset cached_checks;
+  CU.set_current compilation_unit;
   current_unit.ui_unit <- compilation_unit;
   current_unit.ui_defines <- [compilation_unit];
   current_unit.ui_imports_cmi <- [];
