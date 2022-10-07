@@ -866,8 +866,17 @@ let emit_instr i =
         `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
     | Lop(Ivalueofint | Iintofvalue) ->
         let src = i.arg.(0) and dst = i.res.(0) in
-        if src.loc <> dst.loc then
-        `	mov	{emit_reg dst}, {emit_reg src}\n`
+        if src.loc <> dst.loc then begin
+          match (src, dst) with
+          | {loc = Reg _}, {loc = Reg _} ->
+              `	mov	{emit_reg dst}, {emit_reg src}\n`
+          | {loc = Reg _}, {loc = Stack _} ->
+              `	str	{emit_reg src}, {emit_stack dst}\n`
+          | {loc = Stack _}, {loc = Reg _} ->
+              `	ldr	{emit_reg dst}, {emit_stack src}\n`
+          | _ ->
+              assert false
+        end
     | Lop(Iaddf | Isubf | Imulf | Idivf | Ispecific Inegmulf as op) ->
         let instr = (match op with
                      | Iaddf              -> "fadd"
