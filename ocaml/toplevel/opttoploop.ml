@@ -33,7 +33,7 @@ external ndl_run_toplevel: string -> string -> res
   = "caml_natdynlink_run_toplevel"
 
 let global_symbol id =
-  let sym = Compilenv.symbol_for_global id in
+  let sym = Compilenv.symbol_for_global id |> Linkage_name.to_string in
   match Dynlink.unsafe_get_global_value ~bytecode_or_asm_symbol:sym with
   | None ->
     fatal_error ("Opttoploop.global_symbol " ^ (Ident.unique_name id))
