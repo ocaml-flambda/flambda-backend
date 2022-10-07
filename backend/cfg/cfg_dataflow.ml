@@ -482,6 +482,11 @@ module Backward (D : Domain_S) (T : Backward_transfer with type domain = D.t) :
         ListLabels.fold_right block.body ~init:value ~f:(fun instr value ->
             transfer instr (T.basic value ~exn instr))
       in
+      let value =
+        if block.is_trap_handler
+        then value |> T.exception_ |> unwrap_transfer_result
+        else value
+      in
       value
   end
 
