@@ -16,29 +16,7 @@
 
 [@@@ocaml.warning "+a-4-9-30-40-41-42"]
 
-(** A symbol identifies a constant provided by either:
-    - another compilation unit; or
-    - a top-level module.
-
-    * [sym_unit] is the compilation unit containing the value.
-    * [sym_label] is the linkage name of the variable.
-
-    The label must be globally unique: two compilation units linked in the
-    same program must not share labels. *)
-
 include Identifiable.S
 
-val of_variable : Variable.t -> t
-
-(* Create the symbol without prefixing with the compilation unit.
-   Used for global symbols like predefined exceptions *)
-val of_global_linkage : Compilation_unit.t -> Linkage_name.t -> t
-
-val import_for_pack : pack:Compilation_unit.t -> t -> t
-
-val compilation_unit : t -> Compilation_unit.t
-val label : t -> Linkage_name.t
-
-val print_opt : Format.formatter -> t option -> unit
-
-val compare_lists : t list -> t list -> int
+val of_string : string -> t
+val to_string : t -> string

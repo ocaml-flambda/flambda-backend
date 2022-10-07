@@ -62,7 +62,7 @@
    config build_path_prefix_map misc identifiable numbers arg_helper clflags
    profile terminfo ccomp warnings consistbl strongly_connected_components
    targetint load_path int_replace_polymorphic_compare domainstate binutils
-   local_store target_system
+   local_store target_system compilation_unit linkage_name symbol
 
    ;; PARSING
    location longident docstrings syntaxerr ast_helper camlinternalMenhirLib
@@ -85,7 +85,7 @@
 
    ;; lambda/
    debuginfo lambda matching printlambda runtimedef simplif switch
-   translattribute translclass translcomprehension translcore translmod 
+   translattribute translclass translcomprehension translcore translmod
    translobj translprim
 
    ;; bytecomp/
@@ -332,5 +332,8 @@
     (cmo_format.mli as compiler-libs/cmo_format.mli)
     (debug_event.mli as compiler-libs/debug_event.mli)
     (domainstate.mli as compiler-libs/domainstate.mli)
+    (compilation_unit.mli as compiler-libs/compilation_unit.mli)
+    (linkage_name.mli as compiler-libs/linkage_name.mli)
+    (symbol.mli as compiler-libs/symbol.mli)
 
   ))

@@ -644,30 +644,30 @@ let begin_assembly() =
   `	.file \"\"\n`; (* PR#7073 *)
   reset_debug_info ();
   (* Emit the beginning of the segments *)
-  let lbl_begin = Compilenv.make_symbol (Some "data_begin") in
+  let lbl_begin = Cmm_helpers.make_symbol "data_begin" in
   `	{emit_string data_space}\n`;
   declare_global_data lbl_begin;
   `{emit_symbol lbl_begin}:\n`;
-  let lbl_begin = Compilenv.make_symbol (Some "code_begin") in
+  let lbl_begin = Cmm_helpers.make_symbol "code_begin" in
   `	{emit_string code_space}\n`;
   declare_global_data lbl_begin;
   `{emit_symbol lbl_begin}:\n`
 
 let end_assembly() =
   `	{emit_string code_space}\n`;
-  let lbl_end = Compilenv.make_symbol (Some "code_end") in
+  let lbl_end = Cmm_helpers.make_symbol "code_end" in
   declare_global_data lbl_end;
   `{emit_symbol lbl_end}:\n`;
   `	.long	0\n`;
   `	{emit_string data_space}\n`;
-  let lbl_end = Compilenv.make_symbol (Some "data_end") in
+  let lbl_end = Cmm_helpers.make_symbol "data_end" in
   declare_global_data lbl_end;
   `	.quad	0\n`; (* PR#6329 *)
   `{emit_symbol lbl_end}:\n`;
   `	.quad	0\n`;
   (* Emit the frame descriptors *)
   `	{emit_string rodata_space}\n`;
-  let lbl = Compilenv.make_symbol (Some "frametable") in
+  let lbl = Cmm_helpers.make_symbol "frametable" in
   declare_global_data lbl;
   `{emit_symbol lbl}:\n`;
   emit_frames

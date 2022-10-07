@@ -73,7 +73,7 @@ let loadfile ppf name =
 
 let rec eval_address = function
   | Env.Aident id ->
-    assert (Ident.persistent id);
+    assert (Ident.is_global id);
     let bytecode_or_asm_symbol = Ident.name id in
     begin match Dynlink.unsafe_get_global_value ~bytecode_or_asm_symbol with
     | None ->
