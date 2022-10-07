@@ -32,7 +32,7 @@ let test_meet_chains_two_vars () =
   let symbol =
     Symbol.create
       (Compilation_unit.get_current_exn ())
-      (Linkage_name.create "my_symbol")
+      (Linkage_name.of_string "my_symbol")
   in
   let env = TE.add_definition env (Bound_name.create_symbol symbol) K.value in
   Format.eprintf "Initial situation:@ %a\n%!" TE.print env;
@@ -70,7 +70,7 @@ let test_meet_chains_three_vars () =
   let symbol =
     Symbol.create
       (Compilation_unit.get_current_exn ())
-      (Linkage_name.create "my_symbol")
+      (Linkage_name.of_string "my_symbol")
   in
   let env = TE.add_definition env (Bound_name.create_symbol symbol) K.value in
   Format.eprintf "Initial situation:@ %a\n%!" TE.print env;
@@ -185,7 +185,8 @@ let test_meet_two_blocks () =
 
 let () =
   let comp_unit =
-    Compilation_unit.create ~name:"Meet_test" (Linkage_name.create "meet_test")
+    Compilation_unit.create Compilation_unit.Prefix.empty
+      ("Meet_test" |> Compilation_unit.Name.of_string)
   in
   Compilation_unit.set_current comp_unit;
   Format.eprintf "MEET CHAINS WITH TWO VARS@\n@.";

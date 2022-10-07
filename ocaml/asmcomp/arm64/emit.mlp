@@ -1082,28 +1082,28 @@ let data l =
 let begin_assembly() =
   reset_debug_info();
   `	.file	\"\"\n`;  (* PR#7037 *)
-  let lbl_begin = Compilenv.make_symbol (Some "data_begin") in
+  let lbl_begin = Cmm_helpers.make_symbol "data_begin" in
   `	.data\n`;
   `	.globl	{emit_symbol lbl_begin}\n`;
   `{emit_symbol lbl_begin}:\n`;
-  let lbl_begin = Compilenv.make_symbol (Some "code_begin") in
+  let lbl_begin = Cmm_helpers.make_symbol "code_begin" in
   emit_named_text_section lbl_begin;
   `	.globl	{emit_symbol lbl_begin}\n`;
   `{emit_symbol lbl_begin}:\n`
 
 let end_assembly () =
-  let lbl_end = Compilenv.make_symbol (Some "code_end") in
+  let lbl_end = Cmm_helpers.make_symbol "code_end" in
   emit_named_text_section lbl_end;
   `	.globl	{emit_symbol lbl_end}\n`;
   `{emit_symbol lbl_end}:\n`;
-  let lbl_end = Compilenv.make_symbol (Some "data_end") in
+  let lbl_end = Cmm_helpers.make_symbol "data_end" in
   `	.data\n`;
   `	.quad	0\n`;  (* PR#6329 *)
   `	.globl	{emit_symbol lbl_end}\n`;
   `{emit_symbol lbl_end}:\n`;
   `	.quad	0\n`;
   `	.align	3\n`;  (* #7887 *)
-  let lbl = Compilenv.make_symbol (Some "frametable") in
+  let lbl = Cmm_helpers.make_symbol "frametable" in
   `	.globl	{emit_symbol lbl}\n`;
   `{emit_symbol lbl}:\n`;
   emit_frames

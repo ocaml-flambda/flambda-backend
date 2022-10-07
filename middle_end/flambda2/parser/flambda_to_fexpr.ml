@@ -307,10 +307,10 @@ end = struct
     then (None, Symbol_name_map.find_exn t.symbols s) |> nowhere
     else
       let cunit =
-        let ident = Compilation_unit.name cunit in
-        let linkage_name =
-          Compilation_unit.get_linkage_name cunit |> Linkage_name.to_string
+        let ident =
+          Compilation_unit.name cunit |> Compilation_unit.Name.to_string
         in
+        let linkage_name = Compilation_unit.full_path_as_string cunit in
         let linkage_name =
           if String.equal ident linkage_name then None else Some linkage_name
         in

@@ -21,5 +21,6 @@
   ocamlcommon
   flambda2_algorithms
   flambda2_kinds
+  flambda2_import
   flambda2_numbers
   flambda2_ui))

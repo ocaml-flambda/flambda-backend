@@ -27,8 +27,8 @@ type reloc_info =
 
 (* Descriptor for compilation units *)
 
-type compilation_unit =
-  { cu_name: modname;                   (* Name of compilation unit *)
+type compilation_unit_descr =
+  { cu_name: Compilation_unit.Name.t;   (* Name of compilation unit *)
     mutable cu_pos: int;                (* Absolute position in file *)
     cu_codesize: int;                   (* Size of code block *)
     cu_reloc: (reloc_info * int) list;  (* Relocation information *)
@@ -51,7 +51,7 @@ type compilation_unit =
 (* Descriptor for libraries *)
 
 type library =
-  { lib_units: compilation_unit list;   (* List of compilation units *)
+  { lib_units: compilation_unit_descr list; (* List of compilation units *)
     lib_custom: bool;                   (* Requires custom mode linking? *)
     (* In the following fields the lists are reversed with respect to
        how they end up being used on the command line. *)

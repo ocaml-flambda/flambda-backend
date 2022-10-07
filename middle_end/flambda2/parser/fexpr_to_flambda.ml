@@ -153,6 +153,12 @@ let print_scoped_location ppf loc =
   | Loc_unknown -> Format.pp_print_string ppf "Unknown"
   | Loc_known { loc; _ } -> Location.print_loc ppf loc
 
+let compilation_unit { Fexpr.ident; linkage_name } =
+  (* CR lmaurer: This ignores the ident when the linkage name is given; is that
+     what we want? Why did we have the ability to specify both? *)
+  let linkage_name = linkage_name |> Option.value ~default:ident in
+  Compilation_unit.of_string linkage_name
+
 let declare_symbol (env : env) ({ Fexpr.txt = cu, name; loc } as symbol) =
   if Option.is_some cu
   then
@@ -166,11 +172,9 @@ let declare_symbol (env : env) ({ Fexpr.txt = cu, name; loc } as symbol) =
     let cunit =
       match cu with
       | None -> Compilation_unit.get_current_exn ()
-      | Some { Fexpr.ident; linkage_name } ->
-        let linkage_name = linkage_name |> Option.value ~default:ident in
-        Compilation_unit.create ~name:ident (Linkage_name.create linkage_name)
+      | Some cu -> compilation_unit cu
     in
-    let symbol = Symbol.unsafe_create cunit (Linkage_name.create name) in
+    let symbol = Symbol.unsafe_create cunit (Linkage_name.of_string name) in
     symbol, { env with symbols = SM.add name symbol env.symbols }
 
 let find_with ~descr ~find map { Fexpr.txt = name; loc } =
@@ -182,12 +186,8 @@ let find_with ~descr ~find map { Fexpr.txt = name; loc } =
 let get_symbol (env : env) sym =
   match sym with
   | { Fexpr.txt = Some cunit, name; loc = _ } ->
-    let cunit =
-      let { Fexpr.ident; linkage_name } = cunit in
-      Compilation_unit.create ~name:ident
-        (Linkage_name.create (linkage_name |> Option.value ~default:ident))
-    in
-    Symbol.unsafe_create cunit (name |> Linkage_name.create)
+    let cunit = compilation_unit cunit in
+    Symbol.unsafe_create cunit (name |> Linkage_name.of_string)
   | { Fexpr.txt = None, txt; loc } ->
     find_with ~descr:"symbol" ~find:SM.find_opt env.symbols { txt; loc }
 
@@ -898,8 +898,7 @@ let bind_all_code_ids env (unit : Fexpr.flambda_unit) =
 let conv ~symbol_for_global ~module_ident (fexpr : Fexpr.flambda_unit) :
     Flambda_unit.t =
   let module_symbol =
-    symbol_for_global ?comp_unit:None
-      (Ident.create_persistent (Ident.name module_ident))
+    symbol_for_global (Ident.create_persistent (Ident.name module_ident))
   in
   let env = init_env () in
   let { done_continuation = return_continuation; error_continuation; _ } =

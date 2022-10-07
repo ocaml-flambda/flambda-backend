@@ -1910,7 +1910,7 @@ module Default = struct
     let _dtimings () = profile_columns := [`Time]
     let _dtimings_precision n = timings_precision := n
     let _dump_into_file = set dump_into_file
-    let _for_pack s = for_package := (Some s)
+    let _for_pack s = for_package := (Some (String.capitalize_ascii s))
     let _g = set debug
     let _i = set print_types
     let _impl = Compenv.impl

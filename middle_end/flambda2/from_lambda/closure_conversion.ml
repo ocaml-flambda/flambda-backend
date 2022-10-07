@@ -57,7 +57,7 @@ let declare_symbol_for_function_slot env ident function_slot : Env.t * Symbol.t
   let symbol =
     Symbol.create
       (Compilation_unit.get_current_exn ())
-      (Linkage_name.create (Function_slot.to_string function_slot))
+      (Linkage_name.of_string (Function_slot.to_string function_slot))
   in
   let env = Env.add_simple_to_substitute env ident (Simple.symbol symbol) in
   env, symbol
@@ -70,7 +70,7 @@ let register_const0 acc constant name =
     let symbol =
       Symbol.create
         (Compilation_unit.get_current_exn ())
-        (Linkage_name.create (Variable.unique_name (Variable.rename var)))
+        (Linkage_name.of_string (Variable.unique_name (Variable.rename var)))
     in
     let acc = Acc.add_declared_symbol ~symbol ~constant acc in
     let acc =
@@ -420,8 +420,8 @@ let close_c_call acc env ~loc ~let_bound_var
       if String.equal prim_native_name "" then prim_name else prim_native_name
     in
     Symbol.create
-      (Compilation_unit.external_symbols ())
-      (Linkage_name.create prim_name)
+      (Symbol.external_symbols_compilation_unit ())
+      (Linkage_name.of_string prim_name)
   in
   let call args acc =
     (* Some C primitives have implementations within Flambda itself. *)
@@ -1980,7 +1980,6 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode)
     ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
     ~module_block_size_in_words ~program ~prog_return_cont ~exn_continuation
     ~toplevel_my_region : mode close_program_result =
-  let symbol_for_global ident = symbol_for_global ?comp_unit:None ident in
   let env = Env.create ~symbol_for_global ~big_endian ~cmx_loader in
   let module_symbol =
     symbol_for_global (Ident.create_persistent (Ident.name module_ident))

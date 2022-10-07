@@ -575,14 +575,12 @@ and simplify_set_of_closures original_env r
       (set_of_closures : Flambda.set_of_closures)
       : Flambda.set_of_closures * R.t * Freshening.Project_var.t =
   let function_decls =
-    let module Backend = (val (E.backend original_env) : Backend_intf.S) in
     (* CR-soon mshinwell: Does this affect
        [reference_recursive_function_directly]?
        mshinwell: This should be thought about as part of the wider issue of
        references to functions via symbols or variables. *)
     Freshening.rewrite_recursive_calls_with_symbols (E.freshening original_env)
       set_of_closures.function_decls
-      ~make_closure_symbol:Backend.closure_symbol
   in
   let env = E.increase_closure_depth original_env in
   let free_vars, specialised_args, function_decls, parameter_approximations,
@@ -631,12 +629,10 @@ and simplify_set_of_closures original_env r
     Flambda.update_function_declarations function_decls ~funs
   in
   let invariant_params =
-    lazy (Invariant_params.invariant_params_in_recursion function_decls
-      ~backend:(E.backend env))
+    lazy (Invariant_params.invariant_params_in_recursion function_decls)
   in
   let recursive =
-    lazy (Find_recursive_functions.in_function_declarations function_decls
-      ~backend:(E.backend env))
+    lazy (Find_recursive_functions.in_function_declarations function_decls)
   in
   let keep_body =
     Inline_and_simplify_aux.keep_body_check
@@ -948,7 +944,6 @@ and simplify_named env r (tree : Flambda.named) : Flambda.named * R.t =
       simplify_named_using_approx_and_env env r tree approx
     end
   | Set_of_closures set_of_closures -> begin
-    let backend = E.backend env in
     let r =
       match set_of_closures.alloc_mode with
       | Alloc_local -> R.set_region_use r true
@@ -1025,7 +1020,7 @@ and simplify_named env r (tree : Flambda.named) : Flambda.named * R.t =
           match
             Remove_unused_arguments.
                 separate_unused_arguments_in_set_of_closures
-              set_of_closures ~backend
+              set_of_closures
           with
           | Some set_of_closures ->
             let expr =
@@ -1534,12 +1529,10 @@ let constant_defining_value_approx
     assert(Variable.Map.is_empty free_vars);
     assert(Variable.Map.is_empty specialised_args);
     let invariant_params =
-      lazy (Invariant_params.invariant_params_in_recursion function_decls
-        ~backend:(E.backend env))
+      lazy (Invariant_params.invariant_params_in_recursion function_decls)
     in
     let recursive =
-      lazy (Find_recursive_functions.in_function_declarations function_decls
-        ~backend:(E.backend env))
+      lazy (Find_recursive_functions.in_function_declarations function_decls)
     in
     let value_set_of_closures =
       let keep_body =
@@ -1735,11 +1728,10 @@ let simplify_program env r (program : Flambda.program) =
   let program = { program with program_body; } in
   program, r
 
-let add_predef_exns_to_environment ~env ~backend =
-  let module Backend = (val backend : Backend_intf.S) in
+let add_predef_exns_to_environment ~env =
   List.fold_left (fun env predef_exn ->
       assert (Ident.is_predef predef_exn);
-      let symbol = Backend.symbol_for_global' predef_exn in
+      let symbol = Symbol.for_predef_ident predef_exn in
       let name = Ident.name predef_exn in
       let approx =
         A.value_block Tag.object_tag
@@ -1758,7 +1750,6 @@ let run ~never_inline ~backend ~prefixname ~round ~ppf_dump program =
   let initial_env =
     add_predef_exns_to_environment
       ~env:(E.create ~never_inline ~backend ~round ~ppf_dump)
-      ~backend
   in
   let result, r = simplify_program initial_env r program in
   let result = Flambda_utils.introduce_needed_import_symbols result in

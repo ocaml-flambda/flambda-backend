@@ -808,27 +808,31 @@ val placeholder_dbg : unit -> Debuginfo.t
 val placeholder_fun_dbg : human_name:string -> Debuginfo.t
 
 (** Entry point *)
-val entry_point : string list -> phrase
+val entry_point : Compilation_unit.t list -> phrase
 
 (** Generate the caml_globals table *)
-val global_table : string list -> phrase
+val global_table : Compilation_unit.t list -> phrase
 
 (** Add references to the given symbols *)
 val reference_symbols : string list -> phrase
 
-(** Generate the caml_globals_map structure, as a marshalled string constant *)
+(** Generate the caml_globals_map structure, as a marshalled string constant.
+    The runtime representation of the type here must match that of [type
+    global_map] in the natdynlink code. *)
 val globals_map :
-  (string * Digest.t option * Digest.t option * string list) list -> phrase
+  (Compilation_unit.Name.t * Digest.t option * Digest.t option * Symbol.t list)
+  list ->
+  phrase
 
 (** Generate the caml_frametable table, referencing the frametables from the
     given compilation units *)
-val frame_table : string list -> phrase
+val frame_table : Compilation_unit.t list -> phrase
 
 (** Generate the tables for data and code positions respectively of the given
     compilation units *)
-val data_segment_table : string list -> phrase
+val data_segment_table : Compilation_unit.t list -> phrase
 
-val code_segment_table : string list -> phrase
+val code_segment_table : Compilation_unit.t list -> phrase
 
 (** Generate data for a predefined exception *)
 val predef_exception : int -> string -> phrase
@@ -1193,10 +1197,7 @@ val cfunction : fundecl -> phrase
 val cdata : data_item list -> phrase
 
 (** Create the gc root table from a list of root symbols. *)
-val gc_root_table :
-  make_symbol:(?unitname:string -> string option -> string) ->
-  string list ->
-  phrase
+val gc_root_table : string list -> phrase
 
 (* An estimate of the number of arithmetic instructions in a Cmm expression.
    This is currently used in Flambda 2 to determine whether untagging an
@@ -1208,3 +1209,6 @@ val gc_root_table :
 val cmm_arith_size : expression -> int option
 
 val transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list
+
+(* CR lmaurer: Return [Linkage_name.t] instead *)
+val make_symbol : ?compilation_unit:Compilation_unit.t -> string -> string
