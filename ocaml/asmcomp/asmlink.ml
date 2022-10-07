@@ -51,6 +51,7 @@ let check_consistency file_name unit crc =
   begin try
     List.iter
       (fun (name, crco) ->
+        let name = CU.Name.of_string name in
         interfaces := name :: !interfaces;
         match crco with
           None -> ()
@@ -69,6 +70,7 @@ let check_consistency file_name unit crc =
   begin try
     List.iter
       (fun (name, crco) ->
+        let name = name |> CU.Name.of_string in
         implementations := name :: !implementations;
         match crco with
             None ->
@@ -97,10 +99,14 @@ let check_consistency file_name unit crc =
   if CU.is_packed unit.ui_unit then
     cmx_required := modname :: !cmx_required
 
-let extract_crc_interfaces () =
+let extract_crc_interfaces0 () =
   Cmi_consistbl.extract !interfaces crc_interfaces
+let extract_crc_interfaces () =
+  extract_crc_interfaces0 ()
+  |> List.map (fun (name, crc) -> (name |> CU.Name.to_string, crc))
 let extract_crc_implementations () =
   Cmx_consistbl.extract !implementations crc_implementations
+  |> List.map (fun (name, crc) -> (name |> CU.Name.to_string, crc))
 
 (* Add C objects and options and "custom" info from a library descriptor.
    See bytecomp/bytelink.ml for comments on the order of C objects. *)
@@ -229,7 +235,10 @@ let force_linking_of_startup ~ppf_dump =
     (Cmm.Cdata ([Cmm.Csymbol_address "caml_startup"]))
 
 let make_globals_map units_list ~crc_interfaces =
-  let crc_interfaces = crc_interfaces |> CU.Name.Tbl.of_list in
+  let crc_interfaces =
+    crc_interfaces
+    |> CU.Name.Tbl.of_list
+  in
   let defined =
     List.map (fun (unit, _, impl_crc) ->
         let name = CU.name unit.ui_unit in
@@ -374,7 +383,7 @@ let link ~ppf_dump objfiles output_name =
     List.iter
       (fun (info, file_name, crc) -> check_consistency file_name info crc)
       units_tolink;
-    let crc_interfaces = extract_crc_interfaces () in
+    let crc_interfaces = extract_crc_interfaces0 () in
     Clflags.ccobjs := !Clflags.ccobjs @ !lib_ccobjs;
     Clflags.all_ccopts := !lib_ccopts @ !Clflags.all_ccopts;
                                                  (* put user's opts first *)
@@ -425,14 +434,14 @@ let report_error ppf = function
               over interface %a@]"
        Location.print_filename file1
        Location.print_filename file2
-       Compilation_unit.Name.print intf
+       CU.Name.print intf
   | Inconsistent_implementation(intf, file1, file2) ->
       fprintf ppf
        "@[<hov>Files %a@ and %a@ make inconsistent assumptions \
               over implementation %a@]"
        Location.print_filename file1
        Location.print_filename file2
-       Compilation_unit.Name.print intf
+       CU.Name.print intf
   | Assembler_error file ->
       fprintf ppf "Error while assembling %a" Location.print_filename file
   | Linking_error exitcode ->
@@ -442,7 +451,7 @@ let report_error ppf = function
         "@[<hov>Files %a@ and %a@ both define a module named %a@]"
         Location.print_filename file1
         Location.print_filename file2
-        Compilation_unit.Name.print modname
+        CU.Name.print modname
   | Missing_cmx(filename, name) ->
       fprintf ppf
         "@[<hov>File %a@ was compiled without access@ \
@@ -450,8 +459,10 @@ let report_error ppf = function
          which was produced by `ocamlopt -for-pack'.@ \
          Please recompile %a@ with the correct `-I' option@ \
          so that %a.cmx@ is found.@]"
-        Location.print_filename filename CU.Name.print name
-        Location.print_filename filename CU.Name.print name
+        Location.print_filename filename
+        CU.Name.print name
+        Location.print_filename  filename
+        CU.Name.print name
 
 let () =
   Location.register_error_of_exn

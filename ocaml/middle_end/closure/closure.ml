@@ -1216,7 +1216,8 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
   | Lprim(Pignore, [arg], _loc) ->
       let expr, approx = make_const_int 0 in
       Usequence(fst (close env arg), expr), approx
-  | Lprim((Pidentity | Pbytes_to_string | Pbytes_of_string), [arg], _loc) ->
+  | Lprim((Pidentity | Pbytes_to_string | Pbytes_of_string | Pobj_magic),
+          [arg], _loc) ->
       close env arg
   | Lprim(Pdirapply pos,[funct;arg], loc)
   | Lprim(Prevapply pos,[arg;funct], loc) ->

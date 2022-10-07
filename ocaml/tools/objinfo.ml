@@ -60,6 +60,9 @@ let print_name_crc (name, crco) =
 let print_line name =
   printf "\t%s\n" name
 
+let print_name_line cu =
+  printf "\t%a\n" Compilation_unit.Name.output (Compilation_unit.name cu)
+
 let print_required_global id =
   printf "\t%a\n" Compilation_unit.output id
 

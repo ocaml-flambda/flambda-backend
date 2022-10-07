@@ -339,11 +339,15 @@ and sequence ppf = function
 
 and expression ppf e = fprintf ppf "%a" expr e
 
+let property : Cmm.property -> string = function
+    | Noalloc -> "noalloc"
+
 let codegen_option = function
   | Reduce_code_size -> "reduce_code_size"
   | No_CSE -> "no_cse"
   | Use_linscan_regalloc -> "linscan"
-  | Noalloc_check -> "noalloc_check"
+  | Assert p -> "assert "^(property p)
+  | Assume p -> "assume "^(property p)
 
 let print_codegen_options ppf l =
   List.iter (fun c -> fprintf ppf " %s" (codegen_option c)) l

@@ -16,6 +16,8 @@
 
 [@@@ocaml.warning "+a-9-30-40-41-42"]
 
+module CU = Compilation_unit
+
 module Flambda = struct
   let for_variable var =
     Symbol.for_name (Variable.get_compilation_unit var) (Variable.unique_name var)
@@ -32,7 +34,7 @@ module Flambda = struct
      with *)
   let import_for_pack symbol ~pack =
     let compilation_unit =
-      Compilation_unit.with_for_pack_prefix (Symbol.compilation_unit symbol) pack
+      CU.with_for_pack_prefix (Symbol.compilation_unit symbol) pack
     in
     Symbol.with_compilation_unit symbol compilation_unit
 end

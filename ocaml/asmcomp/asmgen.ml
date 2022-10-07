@@ -261,10 +261,10 @@ let compile_implementation ?toplevel ~backend ~filename ~prefixname ~middle_end
 let linear_gen_implementation filename =
   let open Linear_format in
   let linear_unit_info, _ = restore filename in
-  let current_package = Compilation_unit.Prefix.from_clflags () in
-  let saved_package = Compilation_unit.for_pack_prefix linear_unit_info.unit in
-  if not (Compilation_unit.Prefix.equal current_package saved_package)
-  then raise (Error(Mismatched_for_pack saved_package));
+  let expected_prefix = Compilation_unit.Prefix.from_clflags () in
+  let saved_prefix = Compilation_unit.for_pack_prefix linear_unit_info.unit in
+  if not (Compilation_unit.Prefix.equal expected_prefix saved_prefix) then
+    raise(Error(Mismatched_for_pack saved_prefix));
   let emit_item = function
     | Data dl -> emit_data dl
     | Func f -> emit_fundecl f
@@ -291,12 +291,12 @@ let report_error ppf = function
     let msg prefix =
       if Compilation_unit.Prefix.is_empty prefix
       then "without -for-pack"
-      else "with -for-pack " ^ Compilation_unit.Prefix.to_string prefix
+      else
+        Format.asprintf "with -for-pack %a" Compilation_unit.Prefix.print prefix
      in
      fprintf ppf
        "This input file cannot be compiled %s: it was generated %s."
-       (msg (Compilation_unit.Prefix.from_clflags ()))
-       (msg saved)
+       (msg (Compilation_unit.Prefix.from_clflags ())) (msg saved)
   | Asm_generation(fn, err) ->
      fprintf ppf
        "Error producing assembly code for function %s: %a"

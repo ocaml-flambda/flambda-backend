@@ -434,7 +434,7 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   | Get_tag -> Get_tag
   | Is_int _ -> Is_int (* CR vlaviron: discuss *)
   | Num_conv { src; dst } -> Num_conv { src; dst }
-  | Opaque_identity -> Opaque_identity
+  | Opaque_identity _ -> Opaque_identity
   | Unbox_number bk -> Unbox_number bk
   | Untag_immediate -> Untag_immediate
   | Project_value_slot { project_from; value_slot } ->

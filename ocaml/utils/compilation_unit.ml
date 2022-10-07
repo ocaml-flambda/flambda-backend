@@ -61,7 +61,8 @@ end = struct
   (* Be VERY careful changing this. Anything not equivalent to [string] will
      require bumping magic numbers due to changes in file formats, in addition
      to breaking the (somewhat horrifying) invariant on
-     [Cmm_helpers.globals_map]. *)
+     [Cmm_helpers.globals_map].  Furthermore there are uses of polymorphic
+     compare hidden in [List.mem], [List.assoc] etc. *)
   type t = string
 
   include Identifiable.Make (struct

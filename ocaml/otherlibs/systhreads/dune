@@ -12,56 +12,20 @@
 ;*                                                                        *
 ;**************************************************************************
 
-(library
-  (name threads)
-  (modes byte native)
-  (wrapped false)
-  (modules
-    condition
-    event
-    mutex
-    semaphore
-    thread)
-  (flags -w +33..39 -warn-error A -g -bin-annot -safe-string)
-  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
-  (libraries unix)
-  (library_flags -linkall)
-  (c_library_flags -lpthread)
-  (foreign_stubs
-    (language c)
-    (names st_stubs_byte)
-    (mode byte)
-    (flags ((:include %{project_root}/oc_cflags.sexp)
-            (:include %{project_root}/sharedlib_cflags.sexp)
-            (:include %{project_root}/oc_cppflags.sexp))))
-  (foreign_stubs
-    (language c)
-    (names st_stubs_native)
-    (mode native)
-    (flags ((-DNATIVE_CODE)
-            (:include %{project_root}/oc_cflags.sexp)
-            (:include %{project_root}/sharedlib_cflags.sexp)
-            (:include %{project_root}/oc_cppflags.sexp)))))
-
-(rule
-  (targets st_stubs_byte.c)
-  (action (copy st_stubs.c %{targets})))
-
-(rule
-  (targets st_stubs_native.c)
-  (action (copy st_stubs.c %{targets})))
 
 ; For some reason the C header files aren't being found if this library
 ; is given a public name, so we do the installation manually.
 (install
   (files
-    (threads.cma as threads/threads.cma)
-    (threads.cmxa as threads/threads.cmxa)
-    (threads.a as threads/threads.a)
+    (byte/threads.cma as threads/threads.cma)
+    (native/threadsnat.cmxa as threads/threads.cmxa)
+    (native/threadsnat.a as threads/threads.a)
 
-    libthreads_stubs.a
-    libthreads_stubs_native.a
-    (dllthreads_stubs.so as stublibs/dllthreads_stubs.so)
+    (byte/libthreads_stubs.a as libthreads_stubs.a)
+    (byte/dllthreads_stubs.so as stublibs/dllthreads_stubs.so)
+    (native/libthreadsnat_stubs.a as libthreadsnat_stubs.a)
+    (native/libthreadsnat_stubs.a as libthreadsnat_stubs_native.a) ; for special_dune compat
+
 
     (thread.mli as threads/thread.mli)
     (condition.mli as threads/condition.mli)
@@ -71,23 +35,24 @@
 
     (threads.h as caml/threads.h)
 
-    (.threads.objs/native/condition.cmx as threads/condition.cmx)
-    (.threads.objs/native/event.cmx as threads/event.cmx)
-    (.threads.objs/native/mutex.cmx as threads/mutex.cmx)
-    (.threads.objs/native/semaphore.cmx as threads/semaphore.cmx)
-    (.threads.objs/native/thread.cmx as threads/thread.cmx)
+    (native/.threadsnat.objs/native/condition.cmx as threads/condition.cmx)
+    (native/.threadsnat.objs/native/event.cmx as threads/event.cmx)
+    (native/.threadsnat.objs/native/mutex.cmx as threads/mutex.cmx)
+    (native/.threadsnat.objs/native/semaphore.cmx as threads/semaphore.cmx)
+    (native/.threadsnat.objs/native/thread.cmx as threads/thread.cmx)
 
-    (.threads.objs/byte/condition.cmi as threads/condition.cmi)
-    (.threads.objs/byte/condition.cmti as threads/condition.cmti)
-    (.threads.objs/byte/event.cmi as threads/event.cmi)
-    (.threads.objs/byte/event.cmti as threads/event.cmti)
-    (.threads.objs/byte/mutex.cmi as threads/mutex.cmi)
-    (.threads.objs/byte/mutex.cmti as threads/mutex.cmti)
-    (.threads.objs/byte/semaphore.cmi as threads/semaphore.cmi)
-    (.threads.objs/byte/semaphore.cmti as threads/semaphore.cmti)
-    (.threads.objs/byte/thread.cmi as threads/thread.cmi)
-    (.threads.objs/byte/thread.cmti as threads/thread.cmti)
+    (byte/.threads.objs/byte/condition.cmi as threads/condition.cmi)
+    (byte/.threads.objs/byte/condition.cmti as threads/condition.cmti)
+    (byte/.threads.objs/byte/event.cmi as threads/event.cmi)
+    (byte/.threads.objs/byte/event.cmti as threads/event.cmti)
+    (byte/.threads.objs/byte/mutex.cmi as threads/mutex.cmi)
+    (byte/.threads.objs/byte/mutex.cmti as threads/mutex.cmti)
+    (byte/.threads.objs/byte/semaphore.cmi as threads/semaphore.cmi)
+    (byte/.threads.objs/byte/semaphore.cmti as threads/semaphore.cmti)
+    (byte/.threads.objs/byte/thread.cmi as threads/thread.cmi)
+    (byte/.threads.objs/byte/thread.cmti as threads/thread.cmti)
   )
   (section lib)
   (package ocaml))
+
 

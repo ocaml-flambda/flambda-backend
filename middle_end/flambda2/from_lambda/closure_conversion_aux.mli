@@ -296,6 +296,8 @@ module Function_decls : sig
 
     val is_a_functor : t -> bool
 
+    val check_attribute : t -> Lambda.check_attribute
+
     val stub : t -> bool
 
     val loc : t -> Lambda.scoped_location

@@ -44,18 +44,16 @@ type pack_member =
 let read_member_info pack_path file = (
   let name =
     String.capitalize_ascii(Filename.basename(chop_extensions file))
-    |> CU.Name.of_string
-  in
+    |> CU.Name.of_string in
   let kind =
     if Filename.check_suffix file ".cmi" then
       PM_intf
     else begin
       let (info, crc) = Compilenv.read_unit_info file in
       if not (CU.Name.equal (CU.name info.ui_unit) name)
-      then raise(Error(Illegal_renaming(name, file, CU.name info.ui_unit)));
-      let pack_prefix = CU.Prefix.parse_for_pack (Some pack_path) in
-      if not (CU.Prefix.equal (CU.for_pack_prefix info.ui_unit) pack_prefix)
-      then raise(Error(Wrong_for_pack(file, pack_prefix)));
+      then raise(Error(Illegal_renaming(name, file, (CU.name info.ui_unit))));
+      if not (CU.is_parent pack_path ~child:info.ui_unit)
+      then raise(Error(Wrong_for_pack(file, pack_path)));
       Asmlink.check_consistency file info crc;
       Compilenv.cache_unit_info info;
       PM_impl info
@@ -177,8 +175,8 @@ let build_package_cmx members cmxfile =
   let unit_names =
     List.map (fun m -> m.pm_name) members in
   let filter lst =
-    (* XXX polymorphic compare *)
-    List.filter (fun (name, _crc) -> not (List.mem name unit_names)) lst in
+    List.filter (fun (name, _crc) ->
+      not (List.mem (name |> CU.Name.of_string) unit_names)) lst in
   let union lst =
     List.fold_left
       (List.fold_left
@@ -230,9 +228,10 @@ let build_package_cmx members cmxfile =
 let package_object_files ~ppf_dump files targetcmx
                          targetobj targetname coercion ~backend =
   let pack_path =
-    match !Clflags.for_package with
-    | None -> targetname
-    | Some p -> p ^ "." ^ targetname in
+    let for_pack_prefix = CU.Prefix.from_clflags () in
+    let name = targetname |> CU.Name.of_string in
+    CU.create for_pack_prefix name
+  in
   let members = map_left_right (read_member_info pack_path) files in
   check_units members;
   make_package_object ~ppf_dump members targetobj targetname coercion ~backend;
@@ -281,7 +280,7 @@ let report_error ppf = function
         Location.print_filename file
   | Wrong_for_pack(file, path) ->
       fprintf ppf "File %a@ was not compiled with the `-for-pack %a' option"
-              Location.print_filename file CU.Prefix.print path
+        Location.print_filename file Compilation_unit.print path
   | File_not_found file ->
       fprintf ppf "File %s not found" file
   | Assembler_error file ->

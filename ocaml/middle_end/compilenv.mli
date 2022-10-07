@@ -104,7 +104,8 @@ val read_library_info: string -> library_infos
 type error =
     Not_a_unit_info of string
   | Corrupted_unit_info of string
-  | Illegal_renaming of Compilation_unit.Name.t * Compilation_unit.Name.t * string
+  | Illegal_renaming of
+      Compilation_unit.Name.t * Compilation_unit.Name.t * string
 
 exception Error of error
 

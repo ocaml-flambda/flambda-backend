@@ -20,10 +20,7 @@ One-time setup:
 ```
 $ opam switch 4.12.0  # or "opam switch create 4.12.0" if you haven't got that switch already
 $ eval $(opam env)
-$ git clone https://github.com/ocaml-flambda/dune
-$ cd dune  # We'll refer to this "dune" directory below as $DUNE_DIR
-$ git checkout origin/special_dune
-$ make release
+$ opam install dune
 ```
 
 You probably then want to fork the `ocaml-flambda/flambda-backend` repo to your own Github org.

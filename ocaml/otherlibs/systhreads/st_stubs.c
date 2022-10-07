@@ -618,7 +618,9 @@ CAMLprim value caml_thread_new(value clos)          /* ML */
 CAMLexport int caml_c_thread_register(void)
 {
   caml_thread_t th;
+#ifdef NATIVE_CODE
   st_retcode err;
+#endif
 
   /* Already registered? */
   if (st_tls_get(thread_descriptor_key) != NULL) return 0;

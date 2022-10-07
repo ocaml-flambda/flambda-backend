@@ -92,6 +92,7 @@ let current_unit =
 let reset compilation_unit =
   CU.Name.Tbl.clear global_infos_table;
   Set_of_closures_id.Tbl.clear imported_sets_of_closures_table;
+  CU.set_current compilation_unit;
   current_unit.ui_unit <- compilation_unit;
   current_unit.ui_defines <- [compilation_unit];
   current_unit.ui_imports_cmi <- [];
@@ -104,8 +105,7 @@ let reset compilation_unit =
   structured_constants := structured_constants_empty;
   current_unit.ui_export_info <- default_ui_export_info;
   merged_environment := Export_info.empty;
-  CU.Name.Tbl.clear export_infos_table;
-  Compilation_unit.set_current compilation_unit
+  CU.Name.Tbl.clear export_infos_table
 
 let current_unit_infos () =
   current_unit
@@ -137,7 +137,6 @@ let read_library_info filename =
 
 (* Read and cache info on global identifiers *)
 
-(* CR mshinwell: check all uses of this function *)
 let get_unit_info modname =
   if CU.Name.equal modname (CU.name current_unit.ui_unit)
   then
@@ -147,7 +146,7 @@ let get_unit_info modname =
       CU.Name.Tbl.find global_infos_table modname
     with Not_found ->
       let (infos, crc) =
-        if Env.is_imported_opaque modname then (None, None)
+        if Env.is_imported_opaque (modname |> CU.Name.to_string) then (None, None)
         else begin
           try
             let filename =
@@ -351,6 +350,8 @@ let structured_constants () =
   let provenance : Clambda.usymbol_provenance =
     { original_idents = [];
       module_path =
+        (* CR-someday lmaurer: Properly construct a [Path.t] from the module name
+           with its pack prefix. *)
         Path.Pident (Ident.create_persistent (Compilation_unit.Name.to_string (
           Compilation_unit.name (Compilation_unit.get_current_exn ()))));
     }

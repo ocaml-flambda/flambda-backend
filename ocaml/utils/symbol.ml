@@ -121,7 +121,6 @@ let for_current_unit () =
   for_compilation_unit (CU.get_current_exn ())
 
 let import_for_pack t ~pack =
-  (* XXX Why is this needed?  Haven't we got the prefix correctly set now? *)
   let compilation_unit = CU.with_for_pack_prefix t.compilation_unit pack in
   { t with compilation_unit; }
 

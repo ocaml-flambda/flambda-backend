@@ -2537,7 +2537,8 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs =
               let ty_arg = newvar () in
               let ty_res = newvar () in
               if ty_fun.level >= ty_arg.level &&
-                 not (is_prim ~name:"%identity" funct)
+                 not (is_prim ~name:"%identity" funct) &&
+                 not (is_prim ~name:"%obj_magic" funct)
               then
                 Location.prerr_warning sarg.pexp_loc
                   Warnings.Ignored_extra_argument;

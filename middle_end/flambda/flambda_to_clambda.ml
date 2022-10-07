@@ -582,6 +582,7 @@ and to_clambda_set_of_closures t env
       dbg = function_decl.dbg;
       env = Some env_var;
       mode = set_of_closures.alloc_mode;
+      check = function_decl.check;
     }
   in
   let funs = List.map to_clambda_function all_functions in
@@ -636,6 +637,7 @@ and to_clambda_closed_set_of_closures t env symbol
       dbg = function_decl.dbg;
       env = None;
       mode = Lambda.alloc_heap;
+      check = function_decl.check;
     }
   in
   let ufunct = List.map to_clambda_function functions in

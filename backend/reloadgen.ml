@@ -65,8 +65,14 @@ method reload_operation op arg res =
   match op with
     Imove | Ireload | Ispill ->
       begin match arg.(0), res.(0) with
-        {loc = Stack s1}, {loc = Stack s2} when s1 <> s2 ->
-          ([| self#makereg arg.(0) |], res)
+        {loc = Stack s1}, {loc = Stack s2} ->
+          if s1 = s2
+          && Proc.register_class arg.(0) = Proc.register_class res.(0) then
+            (* nothing will be emitted later,
+               not necessary to apply constraints *)
+            (arg, res)
+          else
+            ([| self#makereg arg.(0) |], res)
       | _ ->
           (arg, res)
       end

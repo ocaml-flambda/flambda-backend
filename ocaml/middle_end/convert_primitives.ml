@@ -154,7 +154,7 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
       ~native_name:"caml_obj_dup"
       ~native_repr_args:[P.Prim_global, P.Same_as_ocaml_repr]
       ~native_repr_res:(P.Prim_global, P.Same_as_ocaml_repr))
-
+  | Pobj_magic
   | Pbytes_to_string
   | Pbytes_of_string
   | Pctconst _

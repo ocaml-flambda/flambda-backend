@@ -53,14 +53,14 @@
 
 (rule
  (targets empty.ml)
- (deps (source_tree %{project_root}/ocaml/runtime/caml))
+ (deps (source_tree ../runtime/caml))
  (action (write-file %{targets} "(* hack *)")))
 
 (executable
  (name main)
  (modes byte)
  (flags (:standard -principal
-   -cclib "-I%{project_root}/ocaml/runtime"))
+   -cclib "-I../runtime"))
  (modules options main)
  (libraries ocamltest_core_and_plugin))
 
