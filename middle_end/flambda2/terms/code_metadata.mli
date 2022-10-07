@@ -45,6 +45,8 @@ module type Code_metadata_accessors_result_type = sig
 
   val inline : 'a t -> Inline_attribute.t
 
+  val check : 'a t -> Check_attribute.t
+
   val is_a_functor : 'a t -> bool
 
   val recursive : 'a t -> Recursive.t
@@ -83,6 +85,7 @@ type 'a create_type =
   contains_no_escaping_local_allocs:bool ->
   stub:bool ->
   inline:Inline_attribute.t ->
+  check:Check_attribute.t ->
   is_a_functor:bool ->
   recursive:Recursive.t ->
   cost_metrics:Cost_metrics.t ->

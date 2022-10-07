@@ -922,7 +922,7 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pbigstring_set_32 true
   | Pbigstring_set_64 true
   | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer | Popaque
-  | Pprobe_is_enabled _ | Pobj_dup ->
+  | Pprobe_is_enabled _ | Pobj_dup | Pobj_magic ->
     false
 
 let rec cps_non_tail acc env ccenv (lam : L.lambda)

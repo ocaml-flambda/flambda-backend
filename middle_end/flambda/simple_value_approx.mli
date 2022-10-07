@@ -156,6 +156,7 @@ and function_body = private {
   dbg : Debuginfo.t;
   inline : Lambda.inline_attribute;
   specialise : Lambda.specialise_attribute;
+  check : Lambda.check_attribute;
   is_a_functor : bool;
   body : Flambda.t;
 }

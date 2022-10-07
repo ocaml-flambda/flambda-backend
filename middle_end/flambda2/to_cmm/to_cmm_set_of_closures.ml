@@ -247,9 +247,20 @@ module Static = Make_layout_filler (struct
   let define_global_symbol sym = C.define_symbol ~global:true sym
 end)
 
+(* Translation of "check" attributes on functions. *)
+
+let transl_property : Check_attribute.Property.t -> Cmm.property = function
+  | Noalloc -> Noalloc
+
+let transl_check_attrib : Check_attribute.t -> Cmm.codegen_option list =
+  function
+  | Default_check -> []
+  | Assert p -> [Assert (transl_property p)]
+  | Assume p -> [Assume (transl_property p)]
+
 (* Translation of the bodies of functions. *)
 
-let params_and_body0 env res code_id ~fun_dbg ~return_continuation
+let params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
     ~exn_continuation params ~body ~my_closure
     ~(is_my_closure_used : _ Or_unknown.t) ~translate_expr =
   let params =
@@ -276,12 +287,14 @@ let params_and_body0 env res code_id ~fun_dbg ~return_continuation
   let env, fun_args = C.bound_parameters env params in
   let fun_body, res = translate_expr env res body in
   let fun_flags =
+    transl_check_attrib check
+    @
     if Flambda_features.optimize_for_speed () then [] else [Cmm.Reduce_code_size]
   in
   let linkage_name = Linkage_name.to_string (Code_id.linkage_name code_id) in
   C.fundecl linkage_name fun_args fun_body fun_flags fun_dbg, res
 
-let params_and_body env res code_id p ~fun_dbg ~translate_expr =
+let params_and_body env res code_id p ~fun_dbg ~check ~translate_expr =
   Function_params_and_body.pattern_match p
     ~f:(fun
          ~return_continuation
@@ -295,7 +308,7 @@ let params_and_body env res code_id p ~fun_dbg ~translate_expr =
          ~free_names_of_body:_
        ->
       try
-        params_and_body0 env res code_id ~fun_dbg ~return_continuation
+        params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
           ~exn_continuation params ~body ~my_closure ~is_my_closure_used
           ~translate_expr
       with Misc.Fatal_error as e ->

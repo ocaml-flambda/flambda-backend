@@ -629,7 +629,7 @@ type unary_primitive =
   | Bigarray_length of { dimension : int }
   | String_length of string_or_bytes
   | Int_as_pointer
-  | Opaque_identity
+  | Opaque_identity of { middle_end_only : bool }
   | Int_arith of Flambda_kind.Standard_int.t * unary_int_arith_op
   | Float_arith of unary_float_arith_op
   | Num_conv of
@@ -666,7 +666,7 @@ let unary_primitive_eligible_for_cse p ~arg =
   | Bigarray_length _ -> false
   | String_length _ -> true
   | Int_as_pointer -> true
-  | Opaque_identity -> false
+  | Opaque_identity _ -> false
   | Int_arith _ -> true
   | Float_arith _ ->
     (* See comment in effects_and_coeffects *)
@@ -697,7 +697,7 @@ let compare_unary_primitive p1 p2 =
     | Bigarray_length _ -> 5
     | String_length _ -> 6
     | Int_as_pointer -> 7
-    | Opaque_identity -> 8
+    | Opaque_identity _ -> 8
     | Int_arith _ -> 9
     | Float_arith _ -> 10
     | Num_conv _ -> 11
@@ -768,8 +768,11 @@ let compare_unary_primitive p1 p2 =
         { project_from = function_slot2; value_slot = value_slot2 } ) ->
     let c = Function_slot.compare function_slot1 function_slot2 in
     if c <> 0 then c else Value_slot.compare value_slot1 value_slot2
+  | ( Opaque_identity { middle_end_only = middle_end_only1 },
+      Opaque_identity { middle_end_only = middle_end_only2 } ) ->
+    Bool.compare middle_end_only1 middle_end_only2
   | ( ( Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag
-      | String_length _ | Int_as_pointer | Opaque_identity | Int_arith _
+      | String_length _ | Int_as_pointer | Opaque_identity _ | Int_arith _
       | Num_conv _ | Boolean_not | Reinterpret_int64_as_float | Float_arith _
       | Array_length | Bigarray_length _ | Unbox_number _ | Box_number _
       | Untag_immediate | Tag_immediate | Project_function_slot _
@@ -795,7 +798,8 @@ let print_unary_primitive ppf p =
   | Get_tag -> fprintf ppf "Get_tag"
   | String_length _ -> fprintf ppf "String_length"
   | Int_as_pointer -> fprintf ppf "Int_as_pointer"
-  | Opaque_identity -> fprintf ppf "Opaque_identity"
+  | Opaque_identity { middle_end_only } ->
+    fprintf ppf "@[(Opaque_identity@ (middle_end_only %b))@]" middle_end_only
   | Int_arith (_k, o) -> print_unary_int_arith_op ppf o
   | Num_conv { src; dst } ->
     fprintf ppf "Num_conv_%a_to_%a"
@@ -832,7 +836,7 @@ let arg_kind_of_unary_primitive p =
   | Get_tag -> K.value
   | String_length _ -> K.value
   | Int_as_pointer -> K.value
-  | Opaque_identity -> K.value
+  | Opaque_identity _ -> K.value
   | Int_arith (kind, _) -> K.Standard_int.to_kind kind
   | Num_conv { src; dst = _ } -> K.Standard_int_or_float.to_kind src
   | Boolean_not -> K.value
@@ -857,7 +861,7 @@ let result_kind_of_unary_primitive p : result_kind =
     (* This primitive is *only* to be used when the resulting pointer points at
        something which is a valid OCaml value (even if outside of the heap). *)
     Singleton K.value
-  | Opaque_identity -> Singleton K.value
+  | Opaque_identity _ -> Singleton K.value
   | Int_arith (kind, _) -> Singleton (K.Standard_int.to_kind kind)
   | Num_conv { src = _; dst } -> Singleton (K.Standard_int_or_float.to_kind dst)
   | Boolean_not -> Singleton K.value
@@ -905,7 +909,7 @@ let effects_and_coeffects_of_unary_primitive p =
     Effects.No_effects, Coeffects.No_coeffects
   | String_length _ -> Effects.No_effects, Coeffects.No_coeffects
   | Int_as_pointer -> Effects.No_effects, Coeffects.No_coeffects
-  | Opaque_identity -> Effects.Arbitrary_effects, Coeffects.Has_coeffects
+  | Opaque_identity _ -> Effects.Arbitrary_effects, Coeffects.Has_coeffects
   | Int_arith (_, (Neg | Swap_byte_endianness))
   | Num_conv _ | Boolean_not | Reinterpret_int64_as_float ->
     Effects.No_effects, Coeffects.No_coeffects
@@ -961,7 +965,7 @@ let unary_classify_for_printing p =
   match p with
   | Duplicate_array _ | Duplicate_block _ | Obj_dup -> Constructive
   | String_length _ | Get_tag -> Destructive
-  | Is_int _ | Int_as_pointer | Opaque_identity | Int_arith _ | Num_conv _
+  | Is_int _ | Int_as_pointer | Opaque_identity _ | Int_arith _ | Num_conv _
   | Boolean_not | Reinterpret_int64_as_float | Float_arith _ ->
     Neither
   | Array_length | Bigarray_length _ | Unbox_number _ | Untag_immediate ->
@@ -986,7 +990,7 @@ let free_names_unary_primitive p =
          value_slot Name_mode.normal)
       project_from Name_mode.normal
   | Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag | String_length _
-  | Int_as_pointer | Opaque_identity | Int_arith _ | Num_conv _ | Boolean_not
+  | Int_as_pointer | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
   | Reinterpret_int64_as_float | Float_arith _ | Array_length
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | End_region | Obj_dup ->
@@ -1000,7 +1004,7 @@ let apply_renaming_unary_primitive p renaming =
     in
     if alloc_mode == alloc_mode' then p else Box_number (kind, alloc_mode')
   | Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag | String_length _
-  | Int_as_pointer | Opaque_identity | Int_arith _ | Num_conv _ | Boolean_not
+  | Int_as_pointer | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
   | Reinterpret_int64_as_float | Float_arith _ | Array_length
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | End_region | Project_function_slot _
@@ -1012,7 +1016,7 @@ let ids_for_export_unary_primitive p =
   | Box_number (_kind, alloc_mode) ->
     Alloc_mode.With_region.ids_for_export alloc_mode
   | Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag | String_length _
-  | Int_as_pointer | Opaque_identity | Int_arith _ | Num_conv _ | Boolean_not
+  | Int_as_pointer | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
   | Reinterpret_int64_as_float | Float_arith _ | Array_length
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | End_region | Project_function_slot _

@@ -110,7 +110,7 @@ let tupled_function_call_stub original_params unboxed_version ~closure_bound_var
   let tuple_param = Parameter.wrap tuple_param_var alloc_mode in
   Flambda.create_function_declaration ~params:[tuple_param] ~alloc_mode ~region
     ~body ~stub:true ~inline:Default_inline
-    ~specialise:Default_specialise ~is_a_functor:false
+    ~specialise:Default_specialise ~check:Default_check ~is_a_functor:false
     ~closure_origin:(Closure_origin.create (Closure_id.wrap closure_bound_var))
 
 let register_const t (constant:Flambda.constant_defining_value) name
@@ -425,7 +425,8 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
         (If_then_else (cond, arg2, Var const_false, Pintval)))
   | Lprim ((Psequand | Psequor), _, _) ->
     Misc.fatal_error "Psequand / Psequor must have exactly two arguments"
-  | Lprim ((Pidentity | Pbytes_to_string | Pbytes_of_string), [arg], _) ->
+  | Lprim ((Pidentity | Pbytes_to_string | Pbytes_of_string | Pobj_magic),
+           [arg], _) ->
     close t env arg
   | Lprim (Pignore, [arg], _) ->
     let var = Variable.create Names.ignore in
@@ -653,6 +654,7 @@ and close_functions t external_env function_declarations : Flambda.named =
         ~body ~stub
         ~inline:(Function_decl.inline decl)
         ~specialise:(Function_decl.specialise decl)
+        ~check:(Function_decl.check decl)
         ~is_a_functor:(Function_decl.is_a_functor decl)
         ~closure_origin
     in

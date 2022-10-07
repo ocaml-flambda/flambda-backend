@@ -325,6 +325,7 @@ module Project_var = struct
             ~body
             ~stub:func_decl.stub
             ~inline:func_decl.inline ~specialise:func_decl.specialise
+            ~check:func_decl.check
             ~is_a_functor:func_decl.is_a_functor
             ~closure_origin:func_decl.closure_origin
         in

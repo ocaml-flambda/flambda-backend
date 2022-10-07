@@ -440,6 +440,7 @@ let primitive ppf = function
   | Popaque -> fprintf ppf "opaque"
   | Pprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled[%s]" name
   | Pobj_dup -> fprintf ppf "obj_dup"
+  | Pobj_magic -> fprintf ppf "obj_magic"
 
 let name_of_primitive = function
   | Pidentity -> "Pidentity"
@@ -549,8 +550,18 @@ let name_of_primitive = function
   | Popaque -> "Popaque"
   | Pprobe_is_enabled _ -> "Pprobe_is_enabled"
   | Pobj_dup -> "Pobj_dup"
+  | Pobj_magic -> "Pobj_magic"
 
-let function_attribute ppf { inline; specialise; local; is_a_functor; stub } =
+let check_attribute ppf check =
+  let check_property = function
+    | Noalloc -> "noalloc"
+  in
+  match check with
+  | Default_check -> ()
+  | Assert p -> fprintf ppf "assert %s@ " (check_property p)
+  | Assume p -> fprintf ppf "assume %s@ " (check_property p)
+
+let function_attribute ppf { inline; specialise; check; local; is_a_functor; stub } =
   if is_a_functor then
     fprintf ppf "is_a_functor@ ";
   if stub then
@@ -571,7 +582,8 @@ let function_attribute ppf { inline; specialise; local; is_a_functor; stub } =
   | Default_local -> ()
   | Always_local -> fprintf ppf "always_local@ "
   | Never_local -> fprintf ppf "never_local@ "
-  end
+  end;
+  check_attribute ppf check
 
 let apply_tailcall_attribute ppf = function
   | Default_tailcall -> ()

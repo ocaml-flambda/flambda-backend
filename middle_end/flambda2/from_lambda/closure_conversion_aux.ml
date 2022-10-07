@@ -614,6 +614,8 @@ module Function_decls = struct
 
     let is_a_functor t = t.attr.is_a_functor
 
+    let check_attribute t = t.attr.check
+
     let stub t = t.attr.stub
 
     let loc t = t.loc

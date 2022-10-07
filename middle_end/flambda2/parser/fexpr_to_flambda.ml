@@ -311,7 +311,7 @@ let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   | Get_tag -> Get_tag
   | Is_int -> Is_int { variant_only = true } (* CR vlaviron: discuss *)
   | Num_conv { src; dst } -> Num_conv { src; dst }
-  | Opaque_identity -> Opaque_identity
+  | Opaque_identity -> Opaque_identity { middle_end_only = false }
   | Project_value_slot { project_from; value_slot } ->
     let value_slot = fresh_or_existing_value_slot env value_slot in
     let project_from = fresh_or_existing_function_slot env project_from in
@@ -782,6 +782,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             ~newer_version_of ~params_arity ~num_trailing_local_params:0
             ~result_arity ~result_types:Unknown
             ~contains_no_escaping_local_allocs:false ~stub:false ~inline
+            ~check:
+              Default_check (* CR gyorsh: should [check] be set properly? *)
             ~is_a_functor:false ~recursive
             ~cost_metrics (* CR poechsel: grab inlining arguments from fexpr. *)
             ~inlining_arguments:(Inlining_arguments.create ~round:0)
