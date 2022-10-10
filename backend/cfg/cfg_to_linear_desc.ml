@@ -39,6 +39,8 @@ let from_basic (basic : basic) : Linear.instruction_desc =
       | Compf c -> Icompf c
       | Floatofint -> Ifloatofint
       | Intoffloat -> Iintoffloat
+      | Valueofint -> Ivalueofint
+      | Intofvalue -> Iintofvalue
       | Probe { name; handler_code_sym } -> Iprobe { name; handler_code_sym }
       | Probe_is_enabled { name } -> Iprobe_is_enabled { name }
       | Opaque -> Iopaque

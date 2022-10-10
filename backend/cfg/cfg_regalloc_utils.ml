@@ -194,6 +194,8 @@ let precondition : Cfg_with_layout.t -> unit =
       | Compf _ -> ()
       | Floatofint -> ()
       | Intoffloat -> ()
+      | Valueofint -> ()
+      | Intofvalue -> ()
       | Probe _ -> ()
       | Probe_is_enabled _ -> ()
       | Opaque -> ()

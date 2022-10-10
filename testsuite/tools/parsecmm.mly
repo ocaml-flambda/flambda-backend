@@ -106,6 +106,7 @@ let access_array base numelt size =
 %token INT32
 %token <int> INTCONST
 %token INTOFFLOAT
+%token INTOFVALUE
 %token KSTRING
 %token LBRACKET
 %token LEA
@@ -150,6 +151,7 @@ let access_array base numelt size =
 %token UNIT
 %token UNSIGNED
 %token VAL
+%token VALUEOFINT
 %token WHILE
 %token WITH
 %token XOR
@@ -337,6 +339,8 @@ unaryop:
     LOAD chunk                  { Cload ($2, Asttypes.Mutable) }
   | FLOATOFINT                  { Cfloatofint }
   | INTOFFLOAT                  { Cintoffloat }
+  | VALUEOFINT                  { Cvalueofint }
+  | INTOFVALUE                  { Cintofvalue }
   | RAISE                       { Craise $1 }
   | ABSF                        { Cabsf }
 ;

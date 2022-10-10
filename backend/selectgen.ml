@@ -184,6 +184,8 @@ let oper_result_type = function
   | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf -> typ_float
   | Cfloatofint -> typ_float
   | Cintoffloat -> typ_int
+  | Cvalueofint -> typ_val
+  | Cintofvalue -> typ_int
   | Craise _ -> typ_void
   | Ccheckbound -> typ_void
   | Cprobe _ -> typ_void
@@ -457,6 +459,7 @@ method is_simple_expr = function
       | Cclz _ | Cctz _ | Cpopcnt
       | Cbswap _
       | Cabsf | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat
+      | Cvalueofint | Cintofvalue
       | Ccmpf _ -> List.for_all self#is_simple_expr args
       end
   | Cassign _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _
@@ -507,7 +510,8 @@ method effects_of exp =
       | Cbswap _
       | Cclz _ | Cctz _ | Cpopcnt
       | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf | Cabsf
-      | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat | Ccmpf _ ->
+      | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat
+      | Cvalueofint | Cintofvalue | Ccmpf _ ->
         EC.none
     in
     EC.join from_op (EC.join_list_map args self#effects_of)
@@ -630,6 +634,8 @@ method select_operation op args _dbg =
   | (Cdivf, _) -> (Idivf, args)
   | (Cfloatofint, _) -> (Ifloatofint, args)
   | (Cintoffloat, _) -> (Iintoffloat, args)
+  | (Cvalueofint, _) -> (Ivalueofint, args)
+  | (Cintofvalue, _) -> (Iintofvalue, args)
   | (Ccheckbound, _) ->
     self#select_arith Icheckbound args
   | (Cprobe { name; handler_code_sym; }, _) ->

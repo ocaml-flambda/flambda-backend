@@ -403,6 +403,8 @@ let to_basic (mop : Mach.operation) : C.basic =
   | Icompf c -> Op (Compf c)
   | Ifloatofint -> Op Floatofint
   | Iintoffloat -> Op Intoffloat
+  | Ivalueofint -> Op Valueofint
+  | Iintofvalue -> Op Intofvalue
   | Iopaque -> Op Opaque
   | Ibeginregion -> Op Begin_region
   | Iendregion -> Op End_region
@@ -592,8 +594,9 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
       let stack_offset = stack_offset + bytes in
       create_blocks t i.next block ~stack_offset ~traps
     | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
-    | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Icompf _
-    | Iconst_symbol _ | Icall_ind | Icall_imm _ | Iextcall _
+    | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue | Iconst_int _
+    | Iconst_float _ | Icompf _ | Iconst_symbol _ | Icall_ind | Icall_imm _
+    | Iextcall _
     | Iload (_, _, _)
     | Istore (_, _, _)
     | Ialloc _ | Iintop _
