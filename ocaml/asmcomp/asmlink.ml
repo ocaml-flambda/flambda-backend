@@ -239,11 +239,11 @@ let make_globals_map units_list ~crc_interfaces =
         let intf_crc = CU.Name.Tbl.find crc_interfaces name in
         CU.Name.Tbl.remove crc_interfaces name;
         let syms = List.map Symbol.for_compilation_unit unit.ui_defines in
-        (name, intf_crc, Some impl_crc, syms))
+        (unit.ui_unit, intf_crc, Some impl_crc, syms))
       units_list
   in
   CU.Name.Tbl.fold (fun name intf acc ->
-      (name, intf, None, []) :: acc)
+      (assume_no_prefix name, intf, None, []) :: acc)
     crc_interfaces defined
 
 let make_startup_file ~ppf_dump units_list ~crc_interfaces =

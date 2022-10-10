@@ -311,7 +311,7 @@ let make_globals_map units_list =
         let intf_crc = Cmi_consistbl.find crc_interfaces name in
         CU.Name.Tbl.remove interfaces name;
         let syms = List.map Symbol.for_compilation_unit unit.defines in
-        (assume_no_prefix name, intf_crc, Some unit.crc, syms))
+        (unit.name, intf_crc, Some unit.crc, syms))
       units_list
   in
   CU.Name.Tbl.fold (fun name () globals_map ->

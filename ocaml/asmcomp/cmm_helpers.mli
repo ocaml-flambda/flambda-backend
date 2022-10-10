@@ -595,7 +595,7 @@ val reference_symbols: string list -> phrase
     The runtime representation of the type here must match that of [type
     global_map] in the natdynlink code. *)
 val globals_map:
-  (Compilation_unit.Name.t * Digest.t option * Digest.t option * Symbol.t list)
+  (Compilation_unit.t * Digest.t option * Digest.t option * Symbol.t list)
   list ->
   phrase
 
