@@ -62,7 +62,7 @@ and offset = Offset of lambda
 let offset_code (Offset t) = t
 
 let add_dst_params ({var; offset} : Ident.t destination) params =
-  (var, Pgenval) :: (offset, Pintval) :: params
+  (var, Pgenval, alloc_heap) :: (offset, Pintval, alloc_heap) :: params
 
 let add_dst_args ({var; offset} : offset destination) args =
   Lvar var :: offset_code offset :: args

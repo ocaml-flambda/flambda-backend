@@ -787,12 +787,14 @@ let transl_primitive loc p env ty ~poly_mode path =
     | None -> prim
     | Some prim -> prim
   in
-  let rec make_params n =
-    if n <= 0 then []
-    else (Ident.create_local "prim", Pgenval) :: make_params (n-1)
+  let to_alloc_mode m = to_alloc_mode ~poly:poly_mode m in
+  let arg_modes = List.map to_alloc_mode p.prim_native_repr_args in
+  let params =
+    assert (List.compare_length_with arg_modes p.prim_arity = 0);
+    List.map (fun arg_mode -> Ident.create_local "prim", Pgenval, arg_mode)
+      arg_modes
   in
-  let params = make_params p.prim_arity in
-  let args = List.map (fun (id, _) -> Lvar id) params in
+  let args = List.map (fun (id, _, _) -> Lvar id) params in
   match params with
   | [] -> lambda_of_prim p.prim_name prim loc args None
   | _ ->
@@ -802,8 +804,6 @@ let transl_primitive loc p env ty ~poly_mode path =
          loc
      in
      let body = lambda_of_prim p.prim_name prim loc args None in
-     let to_alloc_mode m = to_alloc_mode ~poly:poly_mode m in
-     let arg_modes = List.map to_alloc_mode p.prim_native_repr_args in
      let region =
        match to_alloc_mode p.prim_native_repr_res with
        | Alloc_heap -> true

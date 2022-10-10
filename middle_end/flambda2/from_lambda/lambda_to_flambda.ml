@@ -1513,7 +1513,7 @@ and cps_function env ~fid ~stub ~(recursive : Recursive.t)
     ({ kind; params; return; body; attr; loc; mode; region } : L.lfunction) :
     Function_decl.t =
   let attr = { attr with stub = attr.stub || stub } in
-  let num_trailing_local_params =
+  let num_trailing_local_closures =
     match kind with Curried { nlocal } -> nlocal | Tupled -> 0
   in
   let body_cont = Continuation.create ~sort:Return () in
@@ -1543,7 +1543,7 @@ and cps_function env ~fid ~stub ~(recursive : Recursive.t)
   Function_decl.create ~let_rec_ident:(Some fid) ~function_slot ~kind ~params
     ~return ~return_continuation:body_cont ~exn_continuation ~my_region ~body
     ~attr ~loc ~free_idents_of_body recursive ~closure_alloc_mode:mode
-    ~num_trailing_local_params ~contains_no_escaping_local_allocs:region
+    ~num_trailing_local_closures ~contains_no_escaping_local_allocs:region
 
 and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
     ~scrutinee (k : Continuation.t) (k_exn : Continuation.t) : Expr_with_acc.t =

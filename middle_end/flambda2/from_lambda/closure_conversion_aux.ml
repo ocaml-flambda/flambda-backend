@@ -617,7 +617,7 @@ module Function_decls = struct
       { let_rec_ident : Ident.t;
         function_slot : Function_slot.t;
         kind : Lambda.function_kind;
-        params : (Ident.t * Lambda.value_kind) list;
+        params : (Ident.t * Lambda.value_kind * Lambda.alloc_mode) list;
         return : Lambda.value_kind;
         return_continuation : Continuation.t;
         exn_continuation : IR.exn_continuation;
@@ -628,14 +628,14 @@ module Function_decls = struct
         loc : Lambda.scoped_location;
         recursive : Recursive.t;
         closure_alloc_mode : Lambda.alloc_mode;
-        num_trailing_local_params : int;
+        num_trailing_local_closures : int;
         contains_no_escaping_local_allocs : bool
       }
 
     let create ~let_rec_ident ~function_slot ~kind ~params ~return
         ~return_continuation ~exn_continuation ~my_region ~body
         ~(attr : Lambda.function_attribute) ~loc ~free_idents_of_body recursive
-        ~closure_alloc_mode ~num_trailing_local_params
+        ~closure_alloc_mode ~num_trailing_local_closures
         ~contains_no_escaping_local_allocs =
       let let_rec_ident =
         match let_rec_ident with
@@ -656,7 +656,7 @@ module Function_decls = struct
         loc;
         recursive;
         closure_alloc_mode;
-        num_trailing_local_params;
+        num_trailing_local_closures;
         contains_no_escaping_local_allocs
       }
 
@@ -700,7 +700,7 @@ module Function_decls = struct
 
     let closure_alloc_mode t = t.closure_alloc_mode
 
-    let num_trailing_local_params t = t.num_trailing_local_params
+    let num_trailing_local_closures t = t.num_trailing_local_closures
 
     let contains_no_escaping_local_allocs t =
       t.contains_no_escaping_local_allocs
@@ -748,7 +748,7 @@ module Function_decls = struct
     set_diff
       (set_diff
          (all_free_idents function_decls)
-         (List.map fst (all_params function_decls)))
+         (List.map Misc.fst3 (all_params function_decls)))
       (let_rec_idents function_decls)
 
   let create function_decls alloc_mode =

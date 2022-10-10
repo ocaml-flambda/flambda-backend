@@ -107,7 +107,8 @@ let rec apply_coercion loc strict restr arg =
   | Tcoerce_functor(cc_arg, cc_res) ->
       let param = Ident.create_local "funarg" in
       let carg = apply_coercion loc Alias cc_arg (Lvar param) in
-      apply_coercion_result loc strict arg [param, Pgenval] [carg] cc_res
+      apply_coercion_result loc strict arg [param, Pgenval, alloc_heap]
+        [carg] cc_res
   | Tcoerce_primitive { pc_desc; pc_env; pc_type; pc_poly_mode } ->
       let poly_mode = Option.map Translcore.transl_alloc_mode pc_poly_mode in
       Translprim.transl_primitive loc pc_desc pc_env pc_type ~poly_mode None
@@ -125,7 +126,7 @@ and apply_coercion_result loc strict funct params args cc_res =
     let param = Ident.create_local "funarg" in
     let arg = apply_coercion loc Alias cc_arg (Lvar param) in
     apply_coercion_result loc strict funct
-      ((param, Pgenval) :: params) (arg :: args) cc_res
+      ((param, Pgenval, alloc_heap) :: params) (arg :: args) cc_res
   | _ ->
       name_lambda strict funct
         (fun id ->
@@ -531,7 +532,7 @@ let rec compile_functor ~scopes mexp coercion root_path loc =
     List.fold_left (fun (params, body) (param, loc, arg_coercion) ->
         let param' = Ident.rename param in
         let arg = apply_coercion loc Alias arg_coercion (Lvar param') in
-        let params = (param', Pgenval) :: params in
+        let params = (param', Pgenval, alloc_heap) :: params in
         let body = Llet (Alias, Pgenval, param, arg, body) in
         params, body)
       ([], transl_module ~scopes res_coercion body_path body)

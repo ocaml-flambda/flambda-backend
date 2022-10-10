@@ -41,7 +41,7 @@ let get_func_decl_params_arity t code_id =
     if Code_metadata.is_tupled info
     then Lambda.Tupled
     else
-      Lambda.Curried { nlocal = Code_metadata.num_trailing_local_params info }
+      Lambda.Curried { nlocal = Code_metadata.num_trailing_local_closures info }
   in
   let closure_code_pointers =
     match kind, num_params with

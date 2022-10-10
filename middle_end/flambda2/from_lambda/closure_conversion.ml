@@ -1090,7 +1090,13 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
   let body = Function_decl.body decl in
   let loc = Function_decl.loc decl in
   let dbg = Debuginfo.from_location loc in
-  let params = Function_decl.params decl in
+  let raw_params = Function_decl.params decl in
+  let params = List.map (fun (param, kind, _) -> param, kind) raw_params in
+  let param_modes =
+    List.map
+      (fun (_, _, mode) -> Alloc_mode.For_types.from_lambda mode)
+      raw_params
+  in
   let return = Function_decl.return decl in
   let return_continuation = Function_decl.return_continuation decl in
   let acc, exn_continuation =
@@ -1357,7 +1363,9 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
   let code =
     Code.create code_id ~params_and_body
       ~free_names_of_params_and_body:(Acc.free_names acc) ~params_arity
-      ~num_trailing_local_params:(Function_decl.num_trailing_local_params decl)
+      ~param_modes
+      ~num_trailing_local_closures:
+        (Function_decl.num_trailing_local_closures decl)
       ~result_arity:
         (Flambda_arity.With_subkinds.create [K.With_subkind.from_lambda return])
       ~result_types:Unknown
@@ -1454,7 +1462,7 @@ let close_functions acc external_env ~current_region function_declarations =
     List.fold_left
       (fun approx_map decl ->
         (* The only fields of metadata which are used for this pass are
-           params_arity, is_tupled, num_trailing_local_params,
+           params_arity, param_modes, is_tupled, num_trailing_local_closures,
            contains_no_escaping_local_allocs, and result_arity. We try to
            populate the different fields as much as possible, but put dummy
            values when they are not yet computed or simply too expensive to
@@ -1464,9 +1472,14 @@ let close_functions acc external_env ~current_region function_declarations =
         let params = Function_decl.params decl in
         let params_arity =
           List.map
-            (fun (_, kind) -> Flambda_kind.With_subkind.from_lambda kind)
+            (fun (_, kind, _) -> Flambda_kind.With_subkind.from_lambda kind)
             params
           |> Flambda_arity.With_subkinds.create
+        in
+        let param_modes =
+          List.map
+            (fun (_, _, mode) -> Alloc_mode.For_types.from_lambda mode)
+            params
         in
         let return = Function_decl.return decl in
         let result_arity =
@@ -1487,9 +1500,9 @@ let close_functions acc external_env ~current_region function_declarations =
         in
         let metadata =
           Code_metadata.create code_id ~params_arity
-            ~num_trailing_local_params:
-              (Function_decl.num_trailing_local_params decl)
-            ~result_arity ~result_types:Unknown
+            ~num_trailing_local_closures:
+              (Function_decl.num_trailing_local_closures decl)
+            ~param_modes ~result_arity ~result_types:Unknown
             ~contains_no_escaping_local_allocs:
               (Function_decl.contains_no_escaping_local_allocs decl)
             ~stub:(Function_decl.stub decl) ~inline:Never_inline ~check
@@ -1723,7 +1736,7 @@ let close_let_rec acc env ~function_declarations
       named ~body
 
 let wrap_partial_application acc env apply_continuation (apply : IR.apply)
-    approx args missing_args ~arity ~num_trailing_local_params
+    approx args missing_args ~arity ~num_trailing_local_closures
     ~contains_no_escaping_local_allocs =
   (* In case of partial application, creates a wrapping function from scratch to
      allow inlining and lifting *)
@@ -1734,19 +1747,30 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
       ~name:(Ident.name wrapper_id)
   in
   let args_arity = List.length args in
+  let closure_alloc_mode, num_trailing_local_closures =
+    let num_leading_heap_closures =
+      Flambda_arity.With_subkinds.cardinal arity - num_trailing_local_closures
+    in
+    if args_arity <= num_leading_heap_closures
+    then Lambda.alloc_heap, num_trailing_local_closures
+    else
+      let num_supplied_local_args = args_arity - num_leading_heap_closures in
+      Lambda.alloc_local, num_trailing_local_closures - num_supplied_local_args
+  in
   let params =
     (* CR keryan: We should use the arity to produce better kinds *)
     List.mapi
       (fun n _kind_with_subkind ->
         ( Ident.create_local ("param" ^ string_of_int (args_arity + n)),
-          Lambda.Pgenval ))
+          Lambda.Pgenval,
+          closure_alloc_mode ))
       (Flambda_arity.With_subkinds.to_list missing_args)
   in
   let return_continuation = Continuation.create ~sort:Return () in
   let exn_continuation =
     IR.{ exn_handler = Continuation.create (); extra_args = [] }
   in
-  let all_args = args @ List.map (fun (a, _) -> IR.Var a) params in
+  let all_args = args @ List.map (fun (a, _, _) -> IR.Var a) params in
   let fbody acc env =
     close_exact_or_unknown_apply acc env
       { apply with
@@ -1778,23 +1802,13 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
       (Ident.Set.singleton apply.func)
       all_args
   in
-  let closure_alloc_mode, num_trailing_local_params =
-    let num_leading_heap_params =
-      Flambda_arity.With_subkinds.cardinal arity - num_trailing_local_params
-    in
-    if args_arity <= num_leading_heap_params
-    then Lambda.alloc_heap, num_trailing_local_params
-    else
-      let num_supplied_local_args = args_arity - num_leading_heap_params in
-      Lambda.alloc_local, num_trailing_local_params - num_supplied_local_args
-  in
   let function_declarations =
     (* CR keryan: Same as above, better kind for return type *)
     [ Function_decl.create ~let_rec_ident:(Some wrapper_id) ~function_slot
-        ~kind:(Lambda.Curried { nlocal = num_trailing_local_params })
+        ~kind:(Lambda.Curried { nlocal = num_trailing_local_closures })
         ~params ~return:Lambda.Pgenval ~return_continuation ~exn_continuation
         ~my_region:apply.region ~body:fbody ~attr ~loc:apply.loc
-        ~free_idents_of_body ~closure_alloc_mode ~num_trailing_local_params
+        ~free_idents_of_body ~closure_alloc_mode ~num_trailing_local_closures
         ~contains_no_escaping_local_allocs Recursive.Non_recursive ]
   in
   let body acc env =
@@ -1925,7 +1939,7 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
       Some
         ( Code_metadata.params_arity metadata,
           Code_metadata.is_tupled metadata,
-          Code_metadata.num_trailing_local_params metadata,
+          Code_metadata.num_trailing_local_closures metadata,
           Code_metadata.contains_no_escaping_local_allocs metadata,
           Code_metadata.result_arity metadata )
     | Value_unknown -> None
@@ -1943,7 +1957,7 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
   | Some
       ( arity,
         is_tupled,
-        num_trailing_local_params,
+        num_trailing_local_closures,
         contains_no_escaping_local_allocs,
         result_arity ) -> (
     let split_args =
@@ -1985,7 +1999,7 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
         (Some approx) ~replace_region:None
     | Partial_app (args, missing_args) ->
       wrap_partial_application acc env apply.continuation apply approx args
-        missing_args ~arity ~num_trailing_local_params
+        missing_args ~arity ~num_trailing_local_closures
         ~contains_no_escaping_local_allocs
     | Over_app (args, remaining_args) ->
       let full_args_call apply_continuation ~region acc =

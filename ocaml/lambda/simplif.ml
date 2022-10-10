@@ -346,8 +346,9 @@ let exact_application {kind; params; _} args =
   Lambda.find_exact_application kind ~arity args
 
 let beta_reduce params body args =
-  List.fold_left2 (fun l (param, kind) arg -> Llet(Strict, kind, param, arg, l))
-                  body params args
+  List.fold_left2 (fun l (param, kind, _param_mode) arg ->
+      Llet(Strict, kind, param, arg, l))
+    body params args
 
 (* Simplification of lets *)
 
@@ -741,7 +742,8 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
            (Lifthenelse(Lprim (Pisint _, [Lvar optparam], _), _, _, _) as def),
            rest) when
         (not (Clflags.is_flambda2 ()))
-          && Ident.name optparam = "*opt*" && List.mem_assoc optparam params
+          && Ident.name optparam = "*opt*"
+          && List.exists (fun (param, _, _) -> Ident.same param optparam) params
           && not (List.mem_assoc optparam map)
       ->
         let wrapper_body, inner = aux ((optparam, id) :: map) add_region rest in
@@ -755,7 +757,8 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
             sw_failaction = None}, _dbg, _)
          as def), rest) when
         Clflags.is_flambda2 ()
-          && Ident.name optparam = "*opt*" && List.mem_assoc optparam params
+          && Ident.name optparam = "*opt*"
+          && List.exists (fun (param, _, _) -> Ident.same param optparam) params
           && not (List.mem_assoc optparam map)
       ->
         let wrapper_body, inner = aux ((optparam, id) :: map) add_region rest in
@@ -770,7 +773,7 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
 
         let inner_id = Ident.create_local (Ident.name fun_id ^ "_inner") in
         let map_param p = try List.assoc p map with Not_found -> p in
-        let args = List.map (fun (p, _) -> Lvar (map_param p)) params in
+        let args = List.map (fun (p, _, _) -> Lvar (map_param p)) params in
         let wrapper_body =
           Lapply {
             ap_func = Lvar inner_id;
@@ -784,7 +787,7 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
             ap_probe=None;
           }
         in
-        let inner_params = List.map map_param (List.map fst params) in
+        let inner_params = List.map map_param (List.map Misc.fst3 params) in
         let new_ids = List.map Ident.rename inner_params in
         let subst =
           List.fold_left2 (fun s id new_id ->
@@ -795,7 +798,7 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
         let body = if add_region then Lregion body else body in
         let inner_fun =
           lfunction ~kind:(Curried {nlocal=0})
-            ~params:(List.map (fun id -> id, Pgenval) new_ids)
+            ~params:(List.map (fun id -> id, Pgenval, alloc_heap) new_ids)
             ~return ~body ~attr ~loc ~mode ~region:true
         in
         (wrapper_body, (inner_id, inner_fun))
@@ -961,7 +964,11 @@ let simplify_local_functions lam =
     in
     List.fold_right
       (fun (st, lf) lam ->
-         Lstaticcatch (lam, (st, lf.params), rewrite lf.body, lf.return)
+         let params =
+           List.map (fun (param, kind, _param_alloc_mode) -> param, kind)
+             lf.params
+         in
+         Lstaticcatch (lam, (st, params), rewrite lf.body, lf.return)
       )
       (LamTbl.find_all static lam0)
       lam

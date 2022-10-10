@@ -284,7 +284,7 @@ module Function_decls : sig
       let_rec_ident:Ident.t option ->
       function_slot:Function_slot.t ->
       kind:Lambda.function_kind ->
-      params:(Ident.t * Lambda.value_kind) list ->
+      params:(Ident.t * Lambda.value_kind * Lambda.alloc_mode) list ->
       return:Lambda.value_kind ->
       return_continuation:Continuation.t ->
       exn_continuation:IR.exn_continuation ->
@@ -295,7 +295,7 @@ module Function_decls : sig
       free_idents_of_body:Ident.Set.t ->
       Recursive.t ->
       closure_alloc_mode:Lambda.alloc_mode ->
-      num_trailing_local_params:int ->
+      num_trailing_local_closures:int ->
       contains_no_escaping_local_allocs:bool ->
       t
 
@@ -305,7 +305,7 @@ module Function_decls : sig
 
     val kind : t -> Lambda.function_kind
 
-    val params : t -> (Ident.t * Lambda.value_kind) list
+    val params : t -> (Ident.t * Lambda.value_kind * Lambda.alloc_mode) list
 
     val return : t -> Lambda.value_kind
 
@@ -337,7 +337,7 @@ module Function_decls : sig
 
     val closure_alloc_mode : t -> Lambda.alloc_mode
 
-    val num_trailing_local_params : t -> int
+    val num_trailing_local_closures : t -> int
 
     val contains_no_escaping_local_allocs : t -> bool
 

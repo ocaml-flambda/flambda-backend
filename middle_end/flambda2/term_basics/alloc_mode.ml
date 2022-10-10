@@ -32,6 +32,8 @@ module For_types = struct
     | Local, Heap_or_local -> -1
     | Heap_or_local, Local -> 1
 
+  let equal t1 t2 = compare t1 t2 = 0
+
   let heap = Heap
 
   let local () =

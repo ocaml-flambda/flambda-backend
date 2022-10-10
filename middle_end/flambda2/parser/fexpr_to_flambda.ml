@@ -776,12 +776,17 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         let cost_metrics =
           Cost_metrics.from_size (Code_size.of_int code_size)
         in
+        let param_modes =
+          List.map
+            (fun _ -> Alloc_mode.For_types.heap)
+            (Flambda_arity.With_subkinds.to_list params_arity)
+        in
         let code =
           (* CR mshinwell: [inlining_decision] should maybe be set properly *)
           (* CR ncourant: same for loopify *)
           Code.create code_id ~params_and_body ~free_names_of_params_and_body
-            ~newer_version_of ~params_arity ~num_trailing_local_params:0
-            ~result_arity ~result_types:Unknown
+            ~newer_version_of ~params_arity ~param_modes
+            ~num_trailing_local_closures:0 ~result_arity ~result_types:Unknown
             ~contains_no_escaping_local_allocs:false ~stub:false ~inline
             ~check:
               Default_check (* CR gyorsh: should [check] be set properly? *)
