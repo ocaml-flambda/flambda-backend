@@ -84,8 +84,6 @@ static link* frametables_list_tail(link *list) {
 static uint32_t LONG_FRAME = 0x7FFF;
 
 uint32_t get_frame_size(frame_descr *d) {
-  /* CR gyorsh: where is the special frame size 0xFFFF emitted that marks the top of
-   an ML stack chunk? */
   CAMLassert(d && d->frame_size != 0xFFFF);
   if (d->frame_size == LONG_FRAME) {
     /* Handle long frames */

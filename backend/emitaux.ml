@@ -137,7 +137,6 @@ let get_flags debuginfo =
     then 3 else 2
 
 (* Keep in sync with ocaml/runtime/stack.h *)
-(* CR gyorsh: if didn't care care about 32-bit, it could be FFFF. *)
 let frame_size_long = 0x7FFF
 
 let is_long n =
