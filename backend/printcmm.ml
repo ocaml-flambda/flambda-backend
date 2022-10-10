@@ -195,6 +195,8 @@ let operation d = function
   | Cdivf -> "/f"
   | Cfloatofint -> "floatofint"
   | Cintoffloat -> "intoffloat"
+  | Cvalueofint -> "valueofint"
+  | Cintofvalue -> "intofvalue"
   | Ccmpf c -> Printf.sprintf "%sf" (float_comparison c)
   | Craise k -> Lambda.raise_kind k ^ location d
   | Ccheckbound -> "checkbound" ^ location d

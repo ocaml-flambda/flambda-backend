@@ -237,6 +237,8 @@ let check_operation : location -> Cfg.operation -> Cfg.operation -> unit =
     ()
   | Floatofint, Floatofint -> ()
   | Intoffloat, Intoffloat -> ()
+  | Valueofint, Valueofint -> ()
+  | Intofvalue, Intofvalue -> ()
   | ( Probe
         { name = expected_name; handler_code_sym = expected_handler_code_sym },
       Probe { name = result_name; handler_code_sym = result_handler_code_sym } )

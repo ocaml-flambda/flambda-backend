@@ -2802,9 +2802,9 @@ let frame_table namelist =
 
 let segment_table namelist symbol begname endname =
   let addsyms name lst =
-    Csymbol_address (make_symbol ~compilation_unit:name begname) ::
-    Csymbol_address (make_symbol ~compilation_unit:name endname) ::
-    lst
+    Csymbol_address (make_symbol ~compilation_unit:name begname)
+    :: Csymbol_address (make_symbol ~compilation_unit:name endname)
+    :: lst
   in
   Cdata(Cglobal_symbol symbol ::
         Cdefine_symbol symbol ::

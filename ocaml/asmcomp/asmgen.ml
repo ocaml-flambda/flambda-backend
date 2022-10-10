@@ -261,10 +261,11 @@ let compile_implementation ?toplevel ~backend ~filename ~prefixname ~middle_end
 let linear_gen_implementation filename =
   let open Linear_format in
   let linear_unit_info, _ = restore filename in
-  let expected_prefix = Compilation_unit.Prefix.from_clflags () in
-  let saved_prefix = Compilation_unit.for_pack_prefix linear_unit_info.unit in
-  if not (Compilation_unit.Prefix.equal expected_prefix saved_prefix) then
-    raise(Error(Mismatched_for_pack saved_prefix));
+  let current_package = Compilation_unit.Prefix.from_clflags () in
+  let saved_package =
+    Compilation_unit.for_pack_prefix linear_unit_info.unit in
+  if not (Compilation_unit.Prefix.equal current_package saved_package)
+  then raise(Error(Mismatched_for_pack saved_package));
   let emit_item = function
     | Data dl -> emit_data dl
     | Func f -> emit_fundecl f

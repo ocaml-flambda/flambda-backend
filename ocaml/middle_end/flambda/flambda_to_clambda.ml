@@ -115,9 +115,9 @@ let check_field t ulam pos named_opt : Clambda.ulambda =
     t.constants_for_instrumentation <-
       Symbol.Map.add sym (Clambda.Uconst_string str)
         t.constants_for_instrumentation;
-    let sym = Symbol.linkage_name sym |> Linkage_name.to_string in
+    let sym = Symbol.linkage_name sym in
     Uprim (Pccall desc, [ulam; Clambda.Uconst (Uconst_int pos);
-        Clambda.Uconst (Uconst_ref (sym, None))],
+        Clambda.Uconst (Uconst_ref (sym |> Linkage_name.to_string, None))],
       Debuginfo.none)
 
 module Env : sig
