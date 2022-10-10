@@ -22,6 +22,8 @@ val print : Format.formatter -> t -> unit
 
 val compare : t -> t -> int
 
+val equal : t -> t -> bool
+
 val heap : t
 
 (** Returns [Heap] if stack allocation is disabled! *)

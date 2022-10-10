@@ -189,7 +189,7 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
        let build params rem =
          let param = name_pattern "param" pat in
          Lfunction {kind = Curried {nlocal=0};
-                    params = (param, Pgenval)::params;
+                    params = (param, Pgenval, alloc_heap)::params;
                     return = Pgenval;
                     attr = default_function_attribute;
                     loc = of_location ~scopes pat.pat_loc;
@@ -233,8 +233,11 @@ let rec build_object_init_0
       let ((_,inh_init), obj_init) =
         build_object_init ~scopes cl_table obj params (envs,[]) copy_env cl in
       let obj_init =
-        if ids = [] then obj_init else lfunction [self, Pgenval] obj_init in
-      (inh_init, lfunction [env, Pgenval] (subst_env env inh_init obj_init))
+        if ids = [] then obj_init
+        else lfunction [self, Pgenval, alloc_heap] obj_init
+      in
+      (inh_init, lfunction [env, Pgenval, alloc_heap]
+        (subst_env env inh_init obj_init))
 
 
 let bind_method tbl lab id cl_init =
@@ -459,7 +462,7 @@ let rec transl_class_rebind ~scopes obj_init cl vf =
       let build params rem =
         let param = name_pattern "param" pat in
         Lfunction {kind = Curried {nlocal=0};
-                   params = (param, Pgenval)::params;
+                   params = (param, Pgenval, alloc_heap)::params;
                    return = Pgenval;
                    attr = default_function_attribute;
                    loc = of_location ~scopes pat.pat_loc;
@@ -506,7 +509,7 @@ let rec transl_class_rebind_0 ~scopes (self:Ident.t) obj_init cl vf =
   | _ ->
       let path, path_lam, obj_init =
         transl_class_rebind ~scopes obj_init cl vf in
-      (path, path_lam, lfunction [self, Pgenval] obj_init)
+      (path, path_lam, lfunction [self, Pgenval, alloc_heap] obj_init)
 
 let transl_class_rebind ~scopes cl vf =
   try
@@ -527,7 +530,7 @@ let transl_class_rebind ~scopes cl vf =
     in
     let _, path_lam, obj_init' =
       transl_class_rebind_0 ~scopes self obj_init0 cl vf in
-    let id = (obj_init' = lfunction [self, Pgenval] obj_init0) in
+    let id = (obj_init' = lfunction [self, Pgenval, alloc_heap] obj_init0) in
     if id then path_lam else
 
     let cla = Ident.create_local "class"
@@ -536,15 +539,16 @@ let transl_class_rebind ~scopes cl vf =
     and table = Ident.create_local "table"
     and envs = Ident.create_local "envs" in
     Llet(
-    Strict, Pgenval, new_init, lfunction [obj_init, Pgenval] obj_init',
+    Strict, Pgenval, new_init,
+      lfunction [obj_init, Pgenval, alloc_heap] obj_init',
     Llet(
     Alias, Pgenval, cla, path_lam,
     Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
           [mkappl(Lvar new_init, [lfield cla 0]);
-           lfunction [table, Pgenval]
+           lfunction [table, Pgenval, alloc_heap]
              (Llet(Strict, Pgenval, env_init,
                    mkappl(lfield cla 1, [Lvar table]),
-                   lfunction [envs, Pgenval]
+                   lfunction [envs, Pgenval, alloc_heap]
                      (mkappl(Lvar new_init,
                              [mkappl(Lvar env_init, [Lvar envs])]))));
            lfield cla 2;
@@ -605,7 +609,7 @@ let rec builtin_meths self env env2 body =
   | Lsend(Cached, met, arg, [_;_], _, _, _) ->
       let s, args = conv arg in
       ("send_"^s, met :: args)
-  | Lfunction {kind = Curried _; params = [x, _]; body} ->
+  | Lfunction {kind = Curried _; params = [x, _, _]; body} ->
       let rec enter self = function
         | Lprim(Parraysetu _, [Lvar s; Lvar n; Lvar x'], _)
           when Ident.same x x' && List.mem s self ->
@@ -688,7 +692,7 @@ let free_methods l =
         fv := Ident.Set.add meth !fv
     | Lsend _ -> ()
     | Lfunction{params} ->
-        List.iter (fun (param, _) -> fv := Ident.Set.remove param !fv) params
+        List.iter (fun (param, _, _) -> fv := Ident.Set.remove param !fv) params
     | Llet(_, _k, id, _arg, _body)
     | Lmutlet(_k, id, _arg, _body) ->
         fv := Ident.Set.remove id !fv
@@ -747,7 +751,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
   let no_env_update _ _ env = env in
   let msubst arr = function
       Lfunction {kind = Curried _ as kind; region;
-                 params = (self, Pgenval) :: args; body} ->
+                 params = (self, Pgenval, alloc_heap) :: args; body} ->
         let env = Ident.create_local "env" in
         let body' =
           if new_ids = [] then body else
@@ -758,7 +762,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
           if not arr || !Clflags.debug then raise Not_found;
           builtin_meths [self] env env2 (lfunction args body')
         with Not_found ->
-          [lfunction ~kind ~region ((self, Pgenval) :: args)
+          [lfunction ~kind ~region ((self, Pgenval, alloc_heap) :: args)
              (if not (Ident.Set.mem env (free_variables body')) then body' else
               Llet(Alias, Pgenval, env,
                    Lprim(Pfield_computed Reads_vary,
@@ -828,7 +832,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                                    return = Pgenval;
                                    mode = alloc_heap;
                                    region = true;
-                                   params = [cla, Pgenval]; body = cl_init}) in
+                                   params = [cla, Pgenval, alloc_heap]; body = cl_init}) in
     Llet(Strict, Pgenval, class_init, cl_init, lam (free_variables cl_init))
   and lbody fv =
     if List.for_all (fun id -> not (Ident.Set.mem id fv)) ids then
@@ -852,7 +856,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                                   return = Pgenval;
                                   mode = alloc_heap;
                                   region = true;
-                                  params = [cla, Pgenval]; body = cl_init};
+                                  params = [cla, Pgenval, alloc_heap]; body = cl_init};
            lambda_unit; lenvs],
          Loc_unknown)
   in
@@ -905,7 +909,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
   in
   let lclass lam =
     Llet(Strict, Pgenval, class_init,
-         Lfunction{kind = Curried {nlocal=0}; params = [cla, Pgenval];
+         Lfunction{kind = Curried {nlocal=0}; params = [cla, Pgenval, alloc_heap];
                    return = Pgenval;
                    attr = default_function_attribute;
                    loc = Loc_unknown;
@@ -938,7 +942,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
            mode = alloc_heap;
            region = true;
            return = Pgenval;
-           params = [cla, Pgenval];
+           params = [cla, Pgenval, alloc_heap];
            body = def_ids cla cl_init;
          }
       )

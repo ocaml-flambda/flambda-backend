@@ -272,10 +272,10 @@ let expr sub x =
         let (rec_flag, list) = sub.value_bindings sub (rec_flag, list) in
         Texp_let (rec_flag, list, sub.expr sub exp)
     | Texp_function { arg_label; param; cases;
-                      partial; region; curry; warnings } ->
+                      partial; region; param_alloc_mode; curry; warnings } ->
         let cases = List.map (sub.case sub) cases in
         Texp_function { arg_label; param; cases;
-                        partial; region; curry; warnings }
+                        partial; region; curry; param_alloc_mode; warnings }
     | Texp_apply (exp, list, pos) ->
         Texp_apply (
           sub.expr sub exp,

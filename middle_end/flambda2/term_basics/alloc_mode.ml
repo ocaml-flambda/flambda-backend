@@ -29,6 +29,8 @@ let compare t1 t2 =
   | Heap, Local -> -1
   | Local, Heap -> 1
 
+let equal t1 t2 = compare t1 t2 = 0
+
 let heap = Heap
 
 let local () =

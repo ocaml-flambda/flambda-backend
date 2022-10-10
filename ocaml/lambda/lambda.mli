@@ -360,7 +360,7 @@ type lambda =
 
 and lfunction =
   { kind: function_kind;
-    params: (Ident.t * value_kind) list;
+    params: (Ident.t * value_kind * alloc_mode) list;
     return: value_kind;
     body: lambda;
     attr: function_attribute; (* specified with [@inline] attribute *)

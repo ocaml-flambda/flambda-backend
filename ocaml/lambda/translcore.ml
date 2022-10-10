@@ -174,12 +174,12 @@ let rec push_defaults loc bindings cases partial warnings =
     [{c_lhs=pat; c_guard=None;
       c_rhs={exp_desc =
                Texp_function { arg_label; param; cases; partial;
-                               region; curry; warnings }}
+                               region; curry; param_alloc_mode; warnings }}
         as exp}] ->
       let cases = push_defaults exp.exp_loc bindings cases partial warnings in
       [{c_lhs=pat; c_guard=None;
         c_rhs={exp with exp_desc = Texp_function { arg_label; param; cases;
-          partial; region; curry; warnings }}}]
+          partial; region; curry; param_alloc_mode; warnings }}}]
   | [{c_lhs=pat; c_guard=None;
       c_rhs={exp_attributes=[{Parsetree.attr_name = {txt="#default"};_}];
              exp_desc = Texp_let
@@ -351,12 +351,13 @@ and transl_exp0 ~in_new_scope ~scopes e =
       transl_let ~scopes rec_flag pat_expr_list
         body_kind (event_before ~scopes body (transl_exp ~scopes body))
   | Texp_function { arg_label = _; param; cases; partial;
-                    region; curry; warnings } ->
+                    region; curry; param_alloc_mode; warnings } ->
       let scopes =
         if in_new_scope then scopes
         else enter_anonymous_function ~scopes
       in
       transl_function ~scopes e param cases partial warnings region curry
+        ~param_alloc_mode
   | Texp_apply({ exp_desc = Texp_ident(path, _, {val_kind = Val_prim p},
                                        Id_prim pmode);
                 exp_type = prim_type } as funct, oargs, pos)
@@ -754,7 +755,8 @@ and transl_exp0 ~in_new_scope ~scopes e =
          (* other cases compile to a lazy block holding a function *)
          let scopes = enter_lazy ~scopes in
          let fn = Lfunction {kind = Curried {nlocal=0};
-                             params= [Ident.create_local "param", Pgenval];
+                             params= [Ident.create_local "param", Pgenval,
+                                      alloc_heap];
                              return = Pgenval;
                              attr = default_function_attribute;
                              loc = of_location ~scopes e.exp_loc;
@@ -825,7 +827,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
       let handler =
         let scopes = enter_value_definition ~scopes funcid in
         { kind = Curried {nlocal=0};
-          params = List.map (fun v -> v, Pgenval) param_idents;
+          params = List.map (fun v -> v, Pgenval, alloc_heap) param_idents;
           return = Pgenval;
           body;
           loc = of_location ~scopes exp.exp_loc;
@@ -1005,7 +1007,8 @@ and transl_apply ~scopes
             | Alloc_local -> false
             | Alloc_heap -> true
           in
-          Lfunction{kind = Curried {nlocal}; params = [id_arg, Pgenval];
+          Lfunction{kind = Curried {nlocal};
+                    params = [id_arg, Pgenval, arg_mode];
                     return = Pgenval; body; mode; region;
                     attr = default_stub_attribute; loc = loc}
         in
@@ -1027,9 +1030,10 @@ and transl_apply ~scopes
 
 and transl_curried_function
       ~scopes loc return
-      repr ~region ~curry partial warnings (param:Ident.t) cases =
+      repr ~region ~curry ~param_alloc_mode
+      partial warnings (param:Ident.t) cases =
   let max_arity = Lambda.max_arity () in
-  let rec loop ~scopes loc return ~arity ~region ~curry
+  let rec loop ~scopes loc return ~arity ~region ~curry ~param_alloc_mode
             partial warnings (param:Ident.t) cases =
     match curry, cases with
       More_args {partial_mode},
@@ -1038,7 +1042,7 @@ and transl_curried_function
                  Texp_function
                    { arg_label = _; param = param'; cases = cases';
                      partial = partial'; region = region';
-                     curry = curry';
+                     curry = curry'; param_alloc_mode = param_alloc_mode';
                      warnings = warnings' };
                exp_env; exp_type; exp_loc }}]
       when arity < max_arity ->
@@ -1051,6 +1055,7 @@ and transl_curried_function
         let ((fnkind, params, return, region), body) =
           loop ~scopes exp_loc return_kind
             ~arity:(arity + 1) ~region:region' ~curry:curry'
+            ~param_alloc_mode:param_alloc_mode'
             partial' warnings' param' cases'
         in
         let fnkind =
@@ -1064,7 +1069,8 @@ and transl_curried_function
              assert (nlocal = List.length params);
              Curried {nlocal = nlocal + 1}
         in
-        ((fnkind, (param, kind) :: params, return, region),
+        let param_alloc_mode = transl_alloc_mode param_alloc_mode in
+        ((fnkind, (param, kind, param_alloc_mode) :: params, return, region),
          Matching.for_function ~scopes return_kind loc None (Lvar param)
            [pat, body] partial)
       else begin
@@ -1077,18 +1083,18 @@ and transl_curried_function
             Warnings.restore prev
         | Partial -> ()
         end;
-        transl_tupled_function ~scopes ~arity ~region ~curry
+        transl_tupled_function ~scopes ~arity ~region ~curry ~param_alloc_mode
           loc return repr partial param cases
       end
     | curry, cases ->
-      transl_tupled_function ~scopes ~arity ~region ~curry
+      transl_tupled_function ~scopes ~arity ~region ~curry ~param_alloc_mode
         loc return repr partial param cases
   in
-  loop ~scopes loc return ~arity:1 ~region ~curry
+  loop ~scopes loc return ~arity:1 ~region ~curry ~param_alloc_mode
     partial warnings param cases
 
 and transl_tupled_function
-      ~scopes ~arity ~region ~curry loc return
+      ~scopes ~arity ~region ~curry ~param_alloc_mode loc return
       repr partial (param:Ident.t) cases =
   let partial_mode =
     match curry with
@@ -1125,9 +1131,10 @@ and transl_tupled_function
                 first_case_kinds cases
         in
         let tparams =
-          List.map (fun kind -> Ident.create_local "param", kind) kinds
+          List.map (fun kind -> Ident.create_local "param", kind, alloc_heap)
+            kinds
         in
-        let params = List.map fst tparams in
+        let params = List.map fst3 tparams in
         let body =
           Matching.for_tupled_function ~scopes loc return params
             (transl_tupled_cases ~scopes pats_expr_list) partial
@@ -1135,14 +1142,14 @@ and transl_tupled_function
         let region = region || not (may_allocate_in_region body) in
         ((Tupled, tparams, return, region), body)
     with Matching.Cannot_flatten ->
-      transl_function0 ~scopes loc ~region ~partial_mode
+      transl_function0 ~scopes loc ~region ~param_alloc_mode ~partial_mode
         return repr partial param cases
       end
-  | _ -> transl_function0 ~scopes loc ~region ~partial_mode
+  | _ -> transl_function0 ~scopes loc ~region ~param_alloc_mode ~partial_mode
            return repr partial param cases
 
 and transl_function0
-      ~scopes loc ~region ~partial_mode return
+      ~scopes loc ~region ~param_alloc_mode ~partial_mode return
       repr partial (param:Ident.t) cases =
     let kind =
       match cases with
@@ -1168,9 +1175,11 @@ and transl_function0
         | Alloc_local -> 1
         | Alloc_heap -> 0
     in
-    ((Curried {nlocal}, [param, kind], return, region), body)
+    let param_alloc_mode = transl_alloc_mode param_alloc_mode in
+    ((Curried {nlocal}, [param, kind, param_alloc_mode], return, region), body)
 
-and transl_function ~scopes e param cases partial warnings region curry =
+and transl_function ~scopes e param cases partial warnings region curry
+      ~param_alloc_mode =
   let mode = transl_exp_mode e in
   let ((kind, params, return, region), body) =
     event_function ~scopes e
@@ -1178,7 +1187,7 @@ and transl_function ~scopes e param cases partial warnings region curry =
          let pl = push_defaults e.exp_loc [] cases partial warnings in
          let return_kind = function_return_value_kind e.exp_env e.exp_type in
          transl_curried_function ~scopes e.exp_loc return_kind
-           repr ~region ~curry partial warnings param pl)
+           repr ~region ~curry ~param_alloc_mode partial warnings param pl)
   in
   let attr = default_function_attribute in
   let loc = of_location ~scopes e.exp_loc in
@@ -1500,7 +1509,8 @@ and transl_letop ~scopes loc env let_ ands param case partial warnings =
       event_function ~scopes case.c_rhs
         (function repr ->
            transl_curried_function ~scopes case.c_rhs.exp_loc return_kind
-             repr ~region:true ~curry partial warnings param [case])
+             repr ~region:true ~curry ~param_alloc_mode:(Amode Global) partial
+             warnings param [case])
     in
     let attr = default_function_attribute in
     let loc = of_location ~scopes case.c_rhs.exp_loc in

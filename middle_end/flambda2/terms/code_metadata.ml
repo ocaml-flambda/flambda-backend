@@ -18,7 +18,10 @@ type t =
   { code_id : Code_id.t;
     newer_version_of : Code_id.t option;
     params_arity : Flambda_arity.With_subkinds.t;
-    num_trailing_local_params : int;
+    param_modes : Alloc_mode.t list;
+    num_trailing_local_closures : int;
+    (* CR mshinwell: compute [num_trailing_local_closures] from
+       [param_modes]? *)
     result_arity : Flambda_arity.With_subkinds.t;
     result_types : Result_types.t Or_unknown_or_bottom.t;
     contains_no_escaping_local_allocs : bool;
@@ -54,17 +57,19 @@ module Code_metadata_accessors (X : Metadata_view_type) = struct
 
   let params_arity t = (metadata t).params_arity
 
-  let num_leading_heap_params t =
-    let { params_arity; num_trailing_local_params; _ } = metadata t in
+  let param_modes t = (metadata t).param_modes
+
+  let num_leading_heap_closures t =
+    let { params_arity; num_trailing_local_closures; _ } = metadata t in
     let n =
       Flambda_arity.With_subkinds.cardinal params_arity
-      - num_trailing_local_params
+      - num_trailing_local_closures
     in
     assert (n >= 0);
     (* see [create] *)
     n
 
-  let num_trailing_local_params t = (metadata t).num_trailing_local_params
+  let num_trailing_local_closures t = (metadata t).num_trailing_local_closures
 
   let result_arity t = (metadata t).result_arity
 
@@ -122,7 +127,8 @@ type 'a create_type =
   Code_id.t ->
   newer_version_of:Code_id.t option ->
   params_arity:Flambda_arity.With_subkinds.t ->
-  num_trailing_local_params:int ->
+  param_modes:Alloc_mode.t list ->
+  num_trailing_local_closures:int ->
   result_arity:Flambda_arity.With_subkinds.t ->
   result_types:Result_types.t Or_unknown_or_bottom.t ->
   contains_no_escaping_local_allocs:bool ->
@@ -141,11 +147,12 @@ type 'a create_type =
   relative_history:Inlining_history.Relative.t ->
   'a
 
-let createk k code_id ~newer_version_of ~params_arity ~num_trailing_local_params
-    ~result_arity ~result_types ~contains_no_escaping_local_allocs ~stub
-    ~(inline : Inline_attribute.t) ~check ~is_a_functor ~recursive ~cost_metrics
-    ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used ~inlining_decision
-    ~absolute_history ~relative_history =
+let createk k code_id ~newer_version_of ~params_arity ~param_modes
+    ~num_trailing_local_closures ~result_arity ~result_types
+    ~contains_no_escaping_local_allocs ~stub ~(inline : Inline_attribute.t)
+    ~check ~is_a_functor ~recursive ~cost_metrics ~inlining_arguments ~dbg
+    ~is_tupled ~is_my_closure_used ~inlining_decision ~absolute_history
+    ~relative_history =
   (match stub, inline with
   | true, (Available_inline | Never_inline | Default_inline)
   | ( false,
@@ -154,18 +161,27 @@ let createk k code_id ~newer_version_of ~params_arity ~num_trailing_local_params
     ()
   | true, (Always_inline | Unroll _) ->
     Misc.fatal_error "Stubs may not be annotated as [Always_inline] or [Unroll]");
-  if num_trailing_local_params < 0
-     || num_trailing_local_params
+  if num_trailing_local_closures < 0
+     || num_trailing_local_closures
         > Flambda_arity.With_subkinds.cardinal params_arity
   then
     Misc.fatal_errorf
-      "Illegal num_trailing_local_params=%d for params arity: %a"
-      num_trailing_local_params Flambda_arity.With_subkinds.print params_arity;
+      "Illegal num_trailing_local_closures=%d for params arity: %a"
+      num_trailing_local_closures Flambda_arity.With_subkinds.print params_arity;
+  if List.compare_length_with param_modes
+       (Flambda_arity.With_subkinds.cardinal params_arity)
+     <> 0
+  then
+    Misc.fatal_errorf "Parameter modes do not match arity: %a and (%a)"
+      Flambda_arity.With_subkinds.print params_arity
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space Alloc_mode.print)
+      param_modes;
   k
     { code_id;
       newer_version_of;
       params_arity;
-      num_trailing_local_params;
+      param_modes;
+      num_trailing_local_closures;
       result_arity;
       result_types;
       contains_no_escaping_local_allocs;
@@ -212,7 +228,7 @@ let [@ocamlformat "disable"] print_inlining_paths ppf
 
 let [@ocamlformat "disable"] print ppf
        { code_id = _; newer_version_of; stub; inline; check; is_a_functor;
-        params_arity; num_trailing_local_params; result_arity;
+        params_arity; param_modes; num_trailing_local_closures; result_arity;
         result_types; contains_no_escaping_local_allocs;
         recursive; cost_metrics; inlining_arguments;
         dbg; is_tupled; is_my_closure_used; inlining_decision;
@@ -225,7 +241,8 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>%t(%a)%t@]@ \
       @[<hov 1>%t(is_a_functor@ %b)%t@]@ \
       @[<hov 1>%t(params_arity@ %t%a%t)%t@]@ \
-      @[<hov 1>(num_trailing_local_params@ %d)@]@ \
+      @[<hov 1>%t(param_modes@ %t(%a)%t)%t@]@ \
+      @[<hov 1>(num_trailing_local_closures@ %d)@]@ \
       @[<hov 1>%t(result_arity@ %t%a%t)%t@]@ \
       @[<hov 1>(result_types@ @[<hov 1>(%a)@])@]@ \
       @[<hov 1>(contains_no_escaping_local_allocs@ %b)@]@ \
@@ -266,7 +283,19 @@ let [@ocamlformat "disable"] print ppf
     then Flambda_colours.elide
     else Flambda_colours.none)
     Flambda_colours.pop
-    num_trailing_local_params
+    (if List.for_all (fun mode -> Alloc_mode.equal mode Alloc_mode.heap)
+          param_modes
+    then Flambda_colours.elide
+    else Flambda_colours.none)
+    Flambda_colours.pop
+    (Format.pp_print_list ~pp_sep:Format.pp_print_space Alloc_mode.print)
+    param_modes
+    (if List.for_all (fun mode -> Alloc_mode.equal mode Alloc_mode.heap)
+          param_modes
+    then Flambda_colours.elide
+    else Flambda_colours.none)
+    Flambda_colours.pop
+    num_trailing_local_closures
     (if Flambda_arity.With_subkinds.is_singleton_value result_arity
     then Flambda_colours.elide
     else Flambda_colours.none)
@@ -301,7 +330,8 @@ let free_names
     { code_id = _;
       newer_version_of;
       params_arity = _;
-      num_trailing_local_params = _;
+      param_modes = _;
+      num_trailing_local_closures = _;
       result_arity = _;
       result_types;
       contains_no_escaping_local_allocs = _;
@@ -339,7 +369,8 @@ let apply_renaming
     ({ code_id;
        newer_version_of;
        params_arity = _;
-       num_trailing_local_params = _;
+       param_modes = _;
+       num_trailing_local_closures = _;
        result_arity = _;
        result_types;
        contains_no_escaping_local_allocs = _;
@@ -388,7 +419,8 @@ let ids_for_export
     { code_id;
       newer_version_of;
       params_arity = _;
-      num_trailing_local_params = _;
+      param_modes = _;
+      num_trailing_local_closures = _;
       result_arity = _;
       result_types;
       contains_no_escaping_local_allocs = _;
@@ -423,7 +455,8 @@ let approx_equal
     { code_id = code_id1;
       newer_version_of = newer_version_of1;
       params_arity = params_arity1;
-      num_trailing_local_params = num_trailing_local_params1;
+      param_modes = param_modes1;
+      num_trailing_local_closures = num_trailing_local_closures1;
       result_arity = result_arity1;
       result_types = _;
       contains_no_escaping_local_allocs = contains_no_escaping_local_allocs1;
@@ -444,7 +477,8 @@ let approx_equal
     { code_id = code_id2;
       newer_version_of = newer_version_of2;
       params_arity = params_arity2;
-      num_trailing_local_params = num_trailing_local_params2;
+      param_modes = param_modes2;
+      num_trailing_local_closures = num_trailing_local_closures2;
       result_arity = result_arity2;
       result_types = _;
       contains_no_escaping_local_allocs = contains_no_escaping_local_allocs2;
@@ -465,7 +499,8 @@ let approx_equal
   Code_id.equal code_id1 code_id2
   && (Option.equal Code_id.equal) newer_version_of1 newer_version_of2
   && Flambda_arity.With_subkinds.equal params_arity1 params_arity2
-  && Int.equal num_trailing_local_params1 num_trailing_local_params2
+  && List.equal Alloc_mode.equal param_modes1 param_modes2
+  && Int.equal num_trailing_local_closures1 num_trailing_local_closures2
   && Flambda_arity.With_subkinds.equal result_arity1 result_arity2
   && Bool.equal contains_no_escaping_local_allocs1
        contains_no_escaping_local_allocs2

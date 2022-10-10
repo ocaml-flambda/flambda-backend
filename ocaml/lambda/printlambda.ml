@@ -638,15 +638,17 @@ let rec lam ppf = function
       let pr_params ppf params =
         match kind with
         | Curried _ ->
-            List.iter (fun (param, k) ->
-                fprintf ppf "@ %a%a" Ident.print param value_kind k) params
+            List.iter (fun (param, k, param_mode) ->
+                fprintf ppf "@ %a%s%a" Ident.print param
+                  (alloc_kind param_mode) value_kind k) params
         | Tupled ->
             fprintf ppf " (";
             let first = ref true in
             List.iter
-              (fun (param, k) ->
+              (fun (param, k, param_mode) ->
                 if !first then first := false else fprintf ppf ",@ ";
                 Ident.print ppf param;
+                Format.fprintf ppf "%s" (alloc_kind param_mode);
                 value_kind ppf k)
               params;
             fprintf ppf ")" in

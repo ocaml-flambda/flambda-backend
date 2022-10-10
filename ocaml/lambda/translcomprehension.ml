@@ -491,7 +491,7 @@ let transl_list_comp type_comp body acc_var mats ~transl_exp ~scopes ~loc =
   in
   let fn =
     Lfunction {kind = Curried {nlocal=0};
-              params= [param, pval; acc_var, Pgenval];
+              params= [param, pval, alloc_heap; acc_var, Pgenval, alloc_heap];
               return = Pgenval;
               attr = default_function_attribute;
               loc = loc;

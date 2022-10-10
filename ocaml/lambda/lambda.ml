@@ -437,7 +437,7 @@ type lambda =
 
 and lfunction =
   { kind: function_kind;
-    params: (Ident.t * value_kind) list;
+    params: (Ident.t * value_kind * alloc_mode) list;
     return: value_kind;
     body: lambda;
     attr: function_attribute; (* specified with [@inline] attribute *)
@@ -726,7 +726,7 @@ let rec free_variables = function
       free_variables_list (free_variables fn) args
   | Lfunction{body; params} ->
       Ident.Set.diff (free_variables body)
-        (Ident.Set.of_list (List.map fst params))
+        (Ident.Set.of_list (List.map fst3 params))
   | Llet(_, _k, id, arg, body)
   | Lmutlet(_k, id, arg, body) ->
       Ident.Set.union
@@ -895,6 +895,12 @@ let subst update_env ?(freshen_bound_variables = false) s input_lam =
         ((id', rhs) :: ids' , l)
       ) ids ([], l)
   in
+  let bind_many3 ids l =
+    List.fold_right (fun (id, rhs1, rhs2) (ids', l) ->
+        let id', l = bind id l in
+        ((id', rhs1, rhs2) :: ids' , l)
+      ) ids ([], l)
+  in
   let rec subst s l lam =
     match lam with
     | Lvar id as lam ->
@@ -919,7 +925,7 @@ let subst update_env ?(freshen_bound_variables = false) s input_lam =
         Lapply{ap with ap_func = subst s l ap.ap_func;
                       ap_args = subst_list s l ap.ap_args}
     | Lfunction lf ->
-        let params, l' = bind_many lf.params l in
+        let params, l' = bind_many3 lf.params l in
         Lfunction {lf with params; body = subst s l' lf.body}
     | Llet(str, k, id, arg, body) ->
         let id, l' = bind id l in

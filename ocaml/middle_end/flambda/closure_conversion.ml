@@ -229,7 +229,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
     let set_of_closures =
       let decl =
         Function_decl.create ~let_rec_ident:None ~closure_bound_var ~kind ~mode
-          ~region ~params:(List.map fst params) ~body ~attr ~loc
+          ~region ~params:(List.map Misc.fst3 params) ~body ~attr ~loc
       in
       close_functions t env (Function_decls.create [decl])
     in
@@ -279,7 +279,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
             let function_declaration =
               Function_decl.create ~let_rec_ident:(Some let_rec_ident)
                 ~closure_bound_var ~kind ~mode ~region
-                ~params:(List.map fst params) ~body ~attr ~loc
+                ~params:(List.map Misc.fst3 params) ~body ~attr ~loc
             in
             Some function_declaration
           | _ -> None)
@@ -704,7 +704,7 @@ and close_let_bound_expression t ?let_rec_ident let_bound_var env
     let closure_bound_var = Variable.rename let_bound_var in
     let decl =
       Function_decl.create ~let_rec_ident ~closure_bound_var ~kind ~mode ~region
-        ~params:(List.map fst params) ~body ~attr ~loc
+        ~params:(List.map Misc.fst3 params) ~body ~attr ~loc
     in
     let set_of_closures_var = Variable.rename let_bound_var in
     let set_of_closures =

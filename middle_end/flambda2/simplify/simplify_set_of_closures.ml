@@ -395,19 +395,10 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
     ~exn_continuation ~return_cont_params code_metadata =
   let dacc =
     DA.map_denv (C.dacc_inside_functions context) ~f:(fun denv ->
-        let num_leading_heap_params =
-          Code_metadata.num_leading_heap_params code_metadata
-        in
-        let alloc_modes =
-          List.mapi
-            (fun index _ : Alloc_mode.t Or_unknown.t ->
-              if index < num_leading_heap_params
-              then Known Alloc_mode.heap
-              else Unknown)
-            (Bound_parameters.to_list params)
-        in
         let denv =
-          DE.add_parameters_with_unknown_types ~alloc_modes denv params
+          DE.add_parameters_with_unknown_types
+            ~alloc_modes:(Code_metadata.param_modes code_metadata)
+            denv params
         in
         let denv = DE.set_inlining_arguments inlining_arguments denv in
         let denv =
@@ -767,7 +758,8 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
       (DA.are_rebuilding_terms dacc_after_body)
       code_id ~params_and_body ~free_names_of_params_and_body:free_names_of_code
       ~newer_version_of ~params_arity:(Code.params_arity code)
-      ~num_trailing_local_params:(Code.num_trailing_local_params code)
+      ~param_modes:(Code.param_modes code)
+      ~num_trailing_local_closures:(Code.num_trailing_local_closures code)
       ~result_arity ~result_types
       ~contains_no_escaping_local_allocs:
         (Code.contains_no_escaping_local_allocs code)

@@ -4899,7 +4899,8 @@ and type_function ?in_function loc attrs env (expected_mode : expected_mode)
   re {
     exp_desc =
       Texp_function
-        { arg_label = l; param; cases; partial; region; curry; warnings };
+        { arg_label = l; param; cases; partial; region; curry;
+          param_alloc_mode = arg_mode; warnings };
     exp_loc = loc; exp_extra = [];
     exp_type =
       instance (newgenty (Tarrow((l,arg_mode,ret_mode), ty_arg, ty_res, Cok)));
@@ -5353,6 +5354,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
         { texp with exp_type = ty_fun; exp_mode = mode.mode;
             exp_desc = Texp_function { arg_label = Nolabel; param; cases;
                                        partial = Total; region = false; curry;
+                                       param_alloc_mode = marg;
                                        warnings = Warnings.backup () } }
       in
       Location.prerr_warning texp.exp_loc

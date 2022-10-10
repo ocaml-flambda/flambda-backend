@@ -343,7 +343,7 @@ let add_parameters_with_unknown_types ?alloc_modes ?name_mode ?at_unit_toplevel
       then
         Misc.fatal_errorf "Params and alloc modes do not match up:@ %a"
           Bound_parameters.print params';
-      alloc_modes
+      List.map Or_unknown.known alloc_modes
     | None -> List.map (fun _ -> Or_unknown.Unknown) params
   in
   let param_types =
