@@ -1340,11 +1340,14 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
     then Function_decl_inlining_decision_type.Stub
     else Function_decl_inlining_decision_type.Not_yet_decided
   in
-  let perform_tailrec_to_cont =
+  let loopify : Loopify_attribute.t =
     match Function_decl.loop decl with
-    | Always_loop -> true
-    | Never_loop -> false
-    | Default_loop -> closure_info.is_purely_tailrec
+    | Always_loop -> Always_loopify
+    | Never_loop -> Never_loopify
+    | Default_loop ->
+      if closure_info.is_purely_tailrec
+      then Default_loopify_and_tailrec
+      else Default_loopify_and_not_tailrec
   in
   let code =
     Code.create code_id ~params_and_body
@@ -1366,8 +1369,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
       ~dbg ~is_tupled
       ~is_my_closure_used:
         (Function_params_and_body.is_my_closure_used params_and_body)
-      ~inlining_decision ~absolute_history ~relative_history
-      ~perform_tailrec_to_cont
+      ~inlining_decision ~absolute_history ~relative_history ~loopify
   in
   let approx =
     let code = Code_or_metadata.create code in
@@ -1496,7 +1498,7 @@ let close_functions acc external_env ~current_region function_declarations =
             ~inlining_decision:Recursive
             ~absolute_history:(Inlining_history.Absolute.empty compilation_unit)
             ~relative_history:Inlining_history.Relative.empty
-            ~perform_tailrec_to_cont:false
+            ~loopify:Never_loopify
         in
         let code = Code_or_metadata.create_metadata metadata in
         let approx =

@@ -260,11 +260,11 @@ let simplify_direct_full_application0 ~simplify_expr dacc apply function_type
         (rebuild_non_inlined_direct_full_application apply ~use_id
            ~exn_cont_use_id ~result_arity ~coming_from_indirect)
 
-let is_self_tail_call dacc apply =
+let loopify_state_for_call dacc apply =
   let denv = DA.denv dacc in
   match DE.closure_info denv with
   | Not_in_a_closure | In_a_set_of_closures_but_not_yet_in_a_specific_closure ->
-    Tailrec_to_cont.do_not_rewrite_self_tail_calls
+    Loopify_state.do_not_loopify
   | Closure { return_continuation; exn_continuation; my_closure; _ } ->
     let tenv = DE.typing_env denv in
     let[@inline always] canon simple =
@@ -279,8 +279,8 @@ let is_self_tail_call dacc apply =
             (Apply.exn_continuation apply)
             (Exn_continuation.create ~exn_handler:exn_continuation
                ~extra_args:[])
-    then DE.tailrec_to_cont denv
-    else Tailrec_to_cont.do_not_rewrite_self_tail_calls
+    then DE.loopify_state denv
+    else Loopify_state.do_not_loopify
 
 let simplify_self_tail_call dacc apply self_cont ~down_to_up =
   Simplify_apply_cont_expr.simplify_apply_cont dacc
@@ -291,10 +291,10 @@ let simplify_self_tail_call dacc apply self_cont ~down_to_up =
 let simplify_direct_full_application ~simplify_expr dacc apply function_type
     ~params_arity ~result_arity ~result_types ~down_to_up ~coming_from_indirect
     ~callee's_code_metadata =
-  match is_self_tail_call dacc apply with
-  | Rewrite_self_tail_calls self_cont ->
+  match loopify_state_for_call dacc apply with
+  | Loopify self_cont ->
     simplify_self_tail_call dacc apply self_cont ~down_to_up
-  | Do_not_rewrite_self_tail_calls ->
+  | Do_not_loopify ->
     simplify_direct_full_application0 ~simplify_expr dacc apply function_type
       ~params_arity ~result_arity ~result_types ~down_to_up
       ~coming_from_indirect ~callee's_code_metadata
@@ -545,7 +545,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
           ~is_my_closure_used:
             (Function_params_and_body.is_my_closure_used params_and_body)
           ~inlining_decision:Stub ~absolute_history ~relative_history
-          ~perform_tailrec_to_cont:false
+          ~loopify:Never_loopify
       in
       Static_const_or_code.create_code code
     in

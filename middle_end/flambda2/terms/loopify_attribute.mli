@@ -12,12 +12,17 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type t = private
-  | Do_not_rewrite_self_tail_calls
-  | Rewrite_self_tail_calls of Continuation.t
+type t =
+  | Always_loopify
+  | Never_loopify
+  | Already_loopified
+  | Default_loopify_and_tailrec
+  | Default_loopify_and_not_tailrec
 
 val print : Format.formatter -> t -> unit
 
-val do_not_rewrite_self_tail_calls : t
+val should_loopify : t -> bool
 
-val rewrite_self_tail_calls : Continuation.t -> t
+val was_loopified : t -> bool
+
+val equal : t -> t -> bool

@@ -203,6 +203,6 @@ val set_inlining_history_tracker : Inlining_history.Tracker.t -> t -> t
 
 val relative_history : t -> Inlining_history.Relative.t
 
-val tailrec_to_cont : t -> Tailrec_to_cont.t
+val loopify_state : t -> Loopify_state.t
 
-val set_tailrec_to_cont : Tailrec_to_cont.t -> t -> t
+val set_loopify_state : Loopify_state.t -> t -> t

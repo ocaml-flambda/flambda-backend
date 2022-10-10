@@ -12,17 +12,12 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type t =
-  | Do_not_rewrite_self_tail_calls
-  | Rewrite_self_tail_calls of Continuation.t
+type t = private
+  | Do_not_loopify
+  | Loopify of Continuation.t
 
-let print ppf = function
-  | Do_not_rewrite_self_tail_calls ->
-    Format.fprintf ppf "do_not_rewrite_self_tail_calls"
-  | Rewrite_self_tail_calls cont ->
-    Format.fprintf ppf "@[<hov 1>(rewrite_self_tail_calls@ %a)@]"
-      Continuation.print cont
+val print : Format.formatter -> t -> unit
 
-let do_not_rewrite_self_tail_calls = Do_not_rewrite_self_tail_calls
+val do_not_loopify : t
 
-let rewrite_self_tail_calls cont = Rewrite_self_tail_calls cont
+val loopify : Continuation.t -> t

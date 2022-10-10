@@ -392,7 +392,7 @@ module C = Context_for_multiple_sets_of_closures
 let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
     ~my_depth function_slot_opt ~closure_bound_names_inside_function
     ~inlining_arguments ~absolute_history code_id ~return_continuation
-    ~exn_continuation ~tailrec_to_cont ~return_cont_params code_metadata =
+    ~exn_continuation ~loopify_state ~return_cont_params code_metadata =
   let dacc =
     DA.map_denv (C.dacc_inside_functions context) ~f:(fun denv ->
         let num_leading_heap_params =
@@ -457,7 +457,7 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
           DE.enter_closure code_id ~return_continuation ~exn_continuation
             ~my_closure denv
         in
-        let denv = DE.set_tailrec_to_cont tailrec_to_cont denv in
+        let denv = DE.set_loopify_state loopify_state denv in
         let denv = DE.increment_continuation_scope denv in
         DE.add_parameters_with_unknown_types denv return_cont_params)
   in
@@ -571,19 +571,17 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
            ~my_depth
            ~free_names_of_body:_
          ->
-        let tailrec_to_cont =
-          if Code.perform_tailrec_to_cont code
-          then
-            Tailrec_to_cont.rewrite_self_tail_calls
-              (Continuation.create ~name:"self" ())
-          else Tailrec_to_cont.do_not_rewrite_self_tail_calls
+        let loopify_state =
+          if Loopify_attribute.should_loopify (Code.loopify code)
+          then Loopify_state.loopify (Continuation.create ~name:"self" ())
+          else Loopify_state.do_not_loopify
         in
         let dacc_at_function_entry =
           dacc_inside_function context ~outer_dacc ~params ~my_closure
             ~my_region ~my_depth function_slot_opt
             ~closure_bound_names_inside_function ~inlining_arguments
             ~absolute_history code_id ~return_continuation ~exn_continuation
-            ~tailrec_to_cont ~return_cont_params (Code.code_metadata code)
+            ~loopify_state ~return_cont_params (Code.code_metadata code)
         in
         let dacc = dacc_at_function_entry in
         if not (DA.no_lifted_constants dacc)
@@ -595,7 +593,7 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
           C.simplify_function_body context dacc body ~return_continuation
             ~exn_continuation ~return_arity:(Code.result_arity code)
             ~return_cont_scope:Scope.initial
-            ~exn_cont_scope:(Scope.next Scope.initial) ~tailrec_to_cont ~params
+            ~exn_cont_scope:(Scope.next Scope.initial) ~loopify_state ~params
         with
         | body, uacc ->
           let dacc_after_body = UA.creation_dacc uacc in
@@ -777,6 +775,14 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
       in
       DA.with_slot_offsets outer_dacc ~slot_offsets
   in
+  let loopify : Loopify_attribute.t =
+    match Code.loopify code with
+    | Always_loopify -> Always_loopify
+    | Never_loopify -> Never_loopify
+    | Already_loopified -> Already_loopified
+    | Default_loopify_and_tailrec -> Already_loopified
+    | Default_loopify_and_not_tailrec -> Never_loopify
+  in
   let code =
     Rebuilt_static_const.create_code
       (DA.are_rebuilding_terms dacc_after_body)
@@ -790,7 +796,7 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
       ~is_a_functor:(Code.is_a_functor code) ~recursive ~cost_metrics
       ~inlining_arguments ~dbg:(Code.dbg code) ~is_tupled:(Code.is_tupled code)
       ~is_my_closure_used ~inlining_decision ~absolute_history ~relative_history
-      ~perform_tailrec_to_cont:false
+      ~loopify
   in
   { code_id; code = Some code; outer_dacc }
 

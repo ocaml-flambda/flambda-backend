@@ -45,7 +45,7 @@ type t =
     get_imported_code : unit -> Exported_code.t;
     all_code : Code.t Code_id.Map.t;
     inlining_history_tracker : Inlining_history.Tracker.t;
-    tailrec_to_cont : Tailrec_to_cont.t
+    loopify_state : Loopify_state.t
   }
 
 let print_debuginfo ppf dbg =
@@ -61,7 +61,7 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
                 do_not_rebuild_terms; closure_info;
                 unit_toplevel_return_continuation; all_code;
                 get_imported_code = _; inlining_history_tracker = _;
-                tailrec_to_cont
+                loopify_state
               } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(round@ %d)@]@ \
@@ -78,7 +78,7 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
       @[<hov 1>(do_not_rebuild_terms@ %b)@]@ \
       @[<hov 1>(closure_info@ %a)@]@ \
       @[<hov 1>(all_code@ %a)@]@ \
-      @[<hov 1>(tailrec_to_cont@ %a)@]\
+      @[<hov 1>(loopify_state@ %a)@]\
       )@]"
     round
     TE.print typing_env
@@ -94,7 +94,7 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
     do_not_rebuild_terms
     Closure_info.print closure_info
     (Code_id.Map.print Code.print) all_code
-    Tailrec_to_cont.print tailrec_to_cont
+    Loopify_state.print loopify_state
 
 let create ~round ~(resolver : resolver)
     ~(get_imported_names : get_imported_names)
@@ -124,7 +124,7 @@ let create ~round ~(resolver : resolver)
     get_imported_code;
     inlining_history_tracker =
       Inlining_history.Tracker.empty (Compilation_unit.get_current_exn ());
-    tailrec_to_cont = Tailrec_to_cont.do_not_rewrite_self_tail_calls
+    loopify_state = Loopify_state.do_not_loopify
   }
 
 let all_code t = t.all_code
@@ -184,7 +184,7 @@ let enter_set_of_closures
       get_imported_code;
       all_code;
       inlining_history_tracker;
-      tailrec_to_cont = _
+      loopify_state = _
     } =
   { round;
     typing_env = TE.closure_env typing_env;
@@ -202,7 +202,7 @@ let enter_set_of_closures
     get_imported_code;
     all_code;
     inlining_history_tracker;
-    tailrec_to_cont = Tailrec_to_cont.do_not_rewrite_self_tail_calls
+    loopify_state = Loopify_state.do_not_loopify
   }
 
 let define_variable t var kind =
@@ -544,6 +544,6 @@ let generate_phantom_lets t =
      terms, since they have no effect on cost metrics. *)
   && Are_rebuilding_terms.are_rebuilding (are_rebuilding_terms t)
 
-let tailrec_to_cont t = t.tailrec_to_cont
+let loopify_state t = t.loopify_state
 
-let set_tailrec_to_cont tailrec_to_cont t = { t with tailrec_to_cont }
+let set_loopify_state loopify_state t = { t with loopify_state }

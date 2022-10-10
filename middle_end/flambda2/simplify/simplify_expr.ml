@@ -128,16 +128,16 @@ and simplify_toplevel dacc expr ~return_continuation ~return_arity
     ~exn_cont_scope
 
 and simplify_function_body dacc expr ~return_continuation ~return_arity
-    ~exn_continuation ~return_cont_scope ~exn_cont_scope ~tailrec_to_cont
-    ~params =
-  match tailrec_to_cont with
-  | Tailrec_to_cont.Do_not_rewrite_self_tail_calls ->
+    ~exn_continuation ~return_cont_scope ~exn_cont_scope ~loopify_state ~params
+    =
+  match (loopify_state : Loopify_state.t) with
+  | Do_not_loopify ->
     simplify_toplevel_common dacc
       (fun dacc -> simplify_expr dacc expr)
       ~in_or_out_of_closure:(In_a_closure : Closure_info.in_or_out_of_closure)
       ~return_continuation ~return_arity ~exn_continuation ~return_cont_scope
       ~exn_cont_scope
-  | Tailrec_to_cont.Rewrite_self_tail_calls cont ->
+  | Loopify cont ->
     let call_self_cont_expr =
       let args = Bound_parameters.simples params in
       Expr.create_apply_cont (Apply_cont_expr.create cont ~args ~dbg:[])

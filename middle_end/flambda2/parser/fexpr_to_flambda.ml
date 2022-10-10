@@ -796,7 +796,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
               (Inlining_history.Absolute.empty
                  (Compilation_unit.get_current_exn ()))
             ~relative_history:Inlining_history.Relative.empty
-            ~perform_tailrec_to_cont:false
+            ~loopify:Never_loopify
         in
         Flambda.Static_const_or_code.create_code code
     in
