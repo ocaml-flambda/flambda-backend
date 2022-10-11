@@ -367,7 +367,8 @@ let simplify_switch0 dacc switch ~down_to_up =
          ~condition_dbg:(Switch.condition_dbg switch)
          ~scrutinee ~scrutinee_ty ~dacc_before_switch)
 
-let simplify_switch ~simplify_let ~simplify_toplevel dacc switch ~down_to_up =
+let simplify_switch ~simplify_let ~simplify_function_body dacc switch
+    ~down_to_up =
   let tagged_scrutinee = Variable.create "tagged_scrutinee" in
   let tagging_prim =
     Named.create_prim
@@ -391,4 +392,4 @@ let simplify_switch ~simplify_let ~simplify_toplevel dacc switch ~down_to_up =
   simplify_let
     ~simplify_expr:(fun dacc _body ~down_to_up ->
       simplify_switch0 dacc switch ~down_to_up)
-    ~simplify_toplevel dacc let_expr ~down_to_up
+    ~simplify_function_body dacc let_expr ~down_to_up
