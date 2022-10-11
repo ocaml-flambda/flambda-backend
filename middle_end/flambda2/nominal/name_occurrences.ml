@@ -309,7 +309,7 @@ end = struct
 
   let filter t ~f = N.Map.filter (fun name _ -> f name) t
 end
-[@@inlined always]
+[@@inline always]
 
 module For_names = For_one_variety_of_names (struct
   include Name
