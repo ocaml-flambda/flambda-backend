@@ -841,8 +841,6 @@ let after_downwards_traversal_of_one_recursive_let_cont_handler cont
     (* At this point all uses (in both the body and the handler) of [cont] are
        in [dacc]. *)
     match cont_uses_in_body with
-    (* CR gbury: in this case, the continuation is neither recursive, nor
-       reachable, and it could be removed. *)
     | None ->
       ListLabels.map (Bound_parameters.to_list params) ~f:(fun _ ->
           Apply_cont_rewrite_id.Map.empty)
