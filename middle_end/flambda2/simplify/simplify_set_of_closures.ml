@@ -512,6 +512,142 @@ type simplify_function_result =
     outer_dacc : DA.t
   }
 
+let simplify_function_body context ~outer_dacc function_slot_opt
+    ~closure_bound_names_inside_function ~inlining_arguments ~absolute_history
+    code_id ~return_cont_params code ~return_continuation ~exn_continuation
+    params ~body ~my_closure ~is_my_closure_used:_ ~my_region ~my_depth
+    ~free_names_of_body:_ =
+  let dacc_at_function_entry =
+    dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
+      ~my_depth function_slot_opt ~closure_bound_names_inside_function
+      ~inlining_arguments ~absolute_history code_id ~return_continuation
+      ~exn_continuation ~return_cont_params (Code.code_metadata code)
+  in
+  let dacc = dacc_at_function_entry in
+  if not (DA.no_lifted_constants dacc)
+  then
+    Misc.fatal_errorf "Did not expect lifted constants in [dacc]:@ %a" DA.print
+      dacc;
+  assert (not (DE.at_unit_toplevel (DA.denv dacc)));
+  match
+    C.simplify_function_body context dacc body ~return_continuation
+      ~exn_continuation ~return_arity:(Code.result_arity code)
+      ~return_cont_scope:Scope.initial
+      ~exn_cont_scope:(Scope.next Scope.initial)
+  with
+  | body, uacc ->
+    let dacc_after_body = UA.creation_dacc uacc in
+    let return_cont_uses =
+      CUE.get_continuation_uses
+        (DA.continuation_uses_env dacc_after_body)
+        return_continuation
+    in
+    let free_names_of_body = UA.name_occurrences uacc in
+    let params_and_body =
+      RE.Function_params_and_body.create ~free_names_of_body
+        ~return_continuation ~exn_continuation params ~body ~my_closure
+        ~my_region ~my_depth
+    in
+    let is_my_closure_used = NO.mem_var free_names_of_body my_closure in
+    let previously_free_depth_variables =
+      NO.create_variables (C.previously_free_depth_variables context) NM.normal
+    in
+    let free_names_of_code =
+      free_names_of_body
+      |> NO.remove_continuation ~continuation:return_continuation
+      |> NO.remove_continuation ~continuation:exn_continuation
+      |> NO.remove_var ~var:my_closure
+      |> NO.remove_var ~var:my_region
+      |> NO.remove_var ~var:my_depth
+      |> NO.diff ~without:(Bound_parameters.free_names params)
+      |> NO.diff ~without:previously_free_depth_variables
+    in
+    if not
+         (NO.no_variables free_names_of_code
+         && NO.no_continuations free_names_of_code)
+    then
+      Misc.fatal_errorf
+        "Unexpected free name(s):@ %a@ in:@ \n\
+         %a@ \n\
+         Simplified version:@ fun %a %a %a %a ->@ \n\
+        \  %a" NO.print free_names_of_code Code_id.print code_id
+        Bound_parameters.print params Variable.print my_closure Variable.print
+        my_region Variable.print my_depth
+        (RE.print (UA.are_rebuilding_terms uacc))
+        body;
+    ( params,
+      params_and_body,
+      dacc_at_function_entry,
+      dacc_after_body,
+      free_names_of_code,
+      return_cont_uses,
+      is_my_closure_used,
+      uacc )
+  | exception Misc.Fatal_error ->
+    let bt = Printexc.get_raw_backtrace () in
+    Format.eprintf
+      "\n\
+       %tContext is:%t simplifying function with function slot %a,@ params \
+       %a,@ return continuation %a,@ exn continuation %a,@ my_closure %a,@ \
+       body:@ %a@ with downwards accumulator:@ %a\n"
+      Flambda_colours.error Flambda_colours.pop
+      (Format.pp_print_option Function_slot.print)
+      function_slot_opt Bound_parameters.print params Continuation.print
+      return_continuation Continuation.print exn_continuation Variable.print
+      my_closure Expr.print body DA.print dacc;
+    Printexc.raise_with_backtrace Misc.Fatal_error bt
+
+let compute_result_types ~is_a_functor ~return_cont_uses ~dacc_after_body
+    ~dacc_at_function_entry ~return_cont_params ~lifted_consts_this_function
+    ~params : _ Or_unknown_or_bottom.t =
+  if not (Flambda_features.function_result_types ~is_a_functor)
+  then Unknown
+  else
+    match return_cont_uses with
+    | None -> Bottom
+    | Some uses ->
+      let code_age_relation_after_function =
+        TE.code_age_relation (DA.typing_env dacc_after_body)
+      in
+      let env_at_fork_plus_params =
+        (* We use [C.dacc_inside_functions] not [C.dacc_prior_to_sets] to ensure
+           that the environment contains bindings for any symbols being defined
+           by the set of closures. *)
+        DE.add_parameters_with_unknown_types
+          (DA.denv dacc_at_function_entry)
+          return_cont_params
+      in
+      let join =
+        Join_points.compute_handler_env
+          ~cut_after:
+            (Scope.prev (DE.get_continuation_scope env_at_fork_plus_params))
+          uses ~params:return_cont_params ~env_at_fork_plus_params
+          ~consts_lifted_during_body:lifted_consts_this_function
+          ~code_age_relation_after_body:code_age_relation_after_function
+      in
+      let params_and_results =
+        Bound_parameters.var_set
+          (Bound_parameters.append params return_cont_params)
+      in
+      let typing_env = DE.typing_env join.handler_env in
+      let results_and_types =
+        List.map
+          (fun result ->
+            let ty =
+              TE.find typing_env (BP.name result)
+                (Some (K.With_subkind.kind (BP.kind result)))
+            in
+            BP.name result, ty)
+          (Bound_parameters.to_list return_cont_params)
+      in
+      let env_extension =
+        (* This call is important for compilation time performance, to cut down
+           the size of the return types. *)
+        T.make_suitable_for_environment typing_env
+          (All_variables_except params_and_results) results_and_types
+      in
+      Ok (Result_types.create ~params ~results:return_cont_params env_extension)
+
 let simplify_function0 context ~outer_dacc function_slot_opt code_id code
     ~closure_bound_names_inside_function =
   let denv_prior_to_sets = C.dacc_prior_to_sets context |> DA.denv in
@@ -556,100 +692,12 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
         return_cont_uses,
         is_my_closure_used,
         uacc_after_upwards_traversal ) =
-    Function_params_and_body.pattern_match (Code.params_and_body code)
-      ~f:(fun
-           ~return_continuation
-           ~exn_continuation
-           params
-           ~body
-           ~my_closure
-           ~is_my_closure_used:_
-           ~my_region
-           ~my_depth
-           ~free_names_of_body:_
-         ->
-        let dacc_at_function_entry =
-          dacc_inside_function context ~outer_dacc ~params ~my_closure
-            ~my_region ~my_depth function_slot_opt
-            ~closure_bound_names_inside_function ~inlining_arguments
-            ~absolute_history code_id ~return_continuation ~exn_continuation
-            ~return_cont_params (Code.code_metadata code)
-        in
-        let dacc = dacc_at_function_entry in
-        if not (DA.no_lifted_constants dacc)
-        then
-          Misc.fatal_errorf "Did not expect lifted constants in [dacc]:@ %a"
-            DA.print dacc;
-        assert (not (DE.at_unit_toplevel (DA.denv dacc)));
-        match
-          C.simplify_function_body context dacc body ~return_continuation
-            ~exn_continuation ~return_arity:(Code.result_arity code)
-            ~return_cont_scope:Scope.initial
-            ~exn_cont_scope:(Scope.next Scope.initial)
-        with
-        | body, uacc ->
-          let dacc_after_body = UA.creation_dacc uacc in
-          let return_cont_uses =
-            CUE.get_continuation_uses
-              (DA.continuation_uses_env dacc_after_body)
-              return_continuation
-          in
-          let free_names_of_body = UA.name_occurrences uacc in
-          let params_and_body =
-            RE.Function_params_and_body.create ~free_names_of_body
-              ~return_continuation ~exn_continuation params ~body ~my_closure
-              ~my_region ~my_depth
-          in
-          let is_my_closure_used = NO.mem_var free_names_of_body my_closure in
-          let previously_free_depth_variables =
-            NO.create_variables
-              (C.previously_free_depth_variables context)
-              NM.normal
-          in
-          let free_names_of_code =
-            free_names_of_body
-            |> NO.remove_continuation ~continuation:return_continuation
-            |> NO.remove_continuation ~continuation:exn_continuation
-            |> NO.remove_var ~var:my_closure
-            |> NO.remove_var ~var:my_region
-            |> NO.remove_var ~var:my_depth
-            |> NO.diff ~without:(Bound_parameters.free_names params)
-            |> NO.diff ~without:previously_free_depth_variables
-          in
-          if not
-               (NO.no_variables free_names_of_code
-               && NO.no_continuations free_names_of_code)
-          then
-            Misc.fatal_errorf
-              "Unexpected free name(s):@ %a@ in:@ \n\
-               %a@ \n\
-               Simplified version:@ fun %a %a %a %a ->@ \n\
-              \  %a" NO.print free_names_of_code Code_id.print code_id
-              Bound_parameters.print params Variable.print my_closure
-              Variable.print my_region Variable.print my_depth
-              (RE.print (UA.are_rebuilding_terms uacc))
-              body;
-          ( params,
-            params_and_body,
-            dacc_at_function_entry,
-            dacc_after_body,
-            free_names_of_code,
-            return_cont_uses,
-            is_my_closure_used,
-            uacc )
-        | exception Misc.Fatal_error ->
-          let bt = Printexc.get_raw_backtrace () in
-          Format.eprintf
-            "\n\
-             %tContext is:%t simplifying function with function slot %a,@ \
-             params %a,@ return continuation %a,@ exn continuation %a,@ \
-             my_closure %a,@ body:@ %a@ with downwards accumulator:@ %a\n"
-            Flambda_colours.error Flambda_colours.pop
-            (Format.pp_print_option Function_slot.print)
-            function_slot_opt Bound_parameters.print params Continuation.print
-            return_continuation Continuation.print exn_continuation
-            Variable.print my_closure Expr.print body DA.print dacc;
-          Printexc.raise_with_backtrace Misc.Fatal_error bt)
+    Function_params_and_body.pattern_match
+      (Code.params_and_body code)
+      ~f:
+        (simplify_function_body context ~outer_dacc function_slot_opt
+           ~closure_bound_names_inside_function ~inlining_arguments
+           ~absolute_history code_id ~return_cont_params code)
   in
   let outer_dacc, lifted_consts_this_function =
     extract_accumulators_from_function outer_dacc ~dacc_after_body
@@ -677,55 +725,10 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
     decision
   in
   let is_a_functor = Code.is_a_functor code in
-  let result_types : _ Or_unknown_or_bottom.t =
-    if not (Flambda_features.function_result_types ~is_a_functor)
-    then Unknown
-    else
-      match return_cont_uses with
-      | None -> Bottom
-      | Some uses ->
-        let code_age_relation_after_function =
-          TE.code_age_relation (DA.typing_env dacc_after_body)
-        in
-        let env_at_fork_plus_params =
-          (* We use [C.dacc_inside_functions] not [C.dacc_prior_to_sets] to
-             ensure that the environment contains bindings for any symbols being
-             defined by the set of closures. *)
-          DE.add_parameters_with_unknown_types
-            (DA.denv dacc_at_function_entry)
-            return_cont_params
-        in
-        let join =
-          Join_points.compute_handler_env
-            ~cut_after:
-              (Scope.prev (DE.get_continuation_scope env_at_fork_plus_params))
-            uses ~params:return_cont_params ~env_at_fork_plus_params
-            ~consts_lifted_during_body:lifted_consts_this_function
-            ~code_age_relation_after_body:code_age_relation_after_function
-        in
-        let params_and_results =
-          Bound_parameters.var_set
-            (Bound_parameters.append params return_cont_params)
-        in
-        let typing_env = DE.typing_env join.handler_env in
-        let results_and_types =
-          List.map
-            (fun result ->
-              let ty =
-                TE.find typing_env (BP.name result)
-                  (Some (K.With_subkind.kind (BP.kind result)))
-              in
-              BP.name result, ty)
-            (Bound_parameters.to_list return_cont_params)
-        in
-        let env_extension =
-          (* This call is important for compilation time performance, to cut
-             down the size of the return types. *)
-          T.make_suitable_for_environment typing_env
-            (All_variables_except params_and_results) results_and_types
-        in
-        Ok
-          (Result_types.create ~params ~results:return_cont_params env_extension)
+  let result_types =
+    compute_result_types ~is_a_functor ~return_cont_uses ~dacc_after_body
+      ~dacc_at_function_entry ~return_cont_params ~lifted_consts_this_function
+      ~params
   in
   let outer_dacc =
     (* This is the complicated part about slot offsets. We just traversed the
@@ -755,10 +758,9 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
       ~contains_no_escaping_local_allocs:
         (Code.contains_no_escaping_local_allocs code)
       ~stub:(Code.stub code) ~inline:(Code.inline code) ~check:(Code.check code)
-      ~is_a_functor:(Code.is_a_functor code) ~recursive:(Code.recursive code)
-      ~cost_metrics ~inlining_arguments ~dbg:(Code.dbg code)
-      ~is_tupled:(Code.is_tupled code) ~is_my_closure_used ~inlining_decision
-      ~absolute_history ~relative_history
+      ~is_a_functor ~recursive:(Code.recursive code) ~cost_metrics
+      ~inlining_arguments ~dbg:(Code.dbg code) ~is_tupled:(Code.is_tupled code)
+      ~is_my_closure_used ~inlining_decision ~absolute_history ~relative_history
   in
   { code_id; code = Some code; outer_dacc }
 
