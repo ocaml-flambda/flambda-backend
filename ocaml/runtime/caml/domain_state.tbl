@@ -64,6 +64,9 @@ DOMAIN_STATE(uintnat, last_return_address)
 DOMAIN_STATE(value*, gc_regs)
 /* See roots_nat.c */
 
+DOMAIN_STATE(intnat, raising_async_exn)
+/* Set when an async exn is raised, cleared when caught */
+
 DOMAIN_STATE(intnat, backtrace_active)
 DOMAIN_STATE(intnat, backtrace_pos)
 DOMAIN_STATE(backtrace_slot*, backtrace_buffer)

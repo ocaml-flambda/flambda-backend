@@ -272,25 +272,11 @@ FUNCTION(caml_start_program)
         pushl   %ebp; CFI_ADJUST(4)
     /* Initial entry point is caml_program */
         movl    $ G(caml_program), %esi
-LBL(106a):
-    /* Register the same exception handler as below for async exceptions */
-        movl    G(Caml_state), %edi
-        pushl   CAML_STATE(async_exception_pointer, %edi); CFI_ADJUST(4)
-        subl    $40, %esp
-        movl    %esp, CAML_STATE(async_exception_pointer, %edi)
-        addl    $40, %esp
-        ALIGN_STACK(12) /* must match below */
-        jmp     LBL(106b)
-    /* Common code for caml_start_program and caml_callback*.
-       If you update the stack pushes / stack pointer changes below, update
-       the number 24 above. */
+    /* Common code for caml_start_program and caml_callback* */
 LBL(106):
-    /* Save the current async exception pointer without disturbing the
-       alignment of the stack (see note below). */
         movl    G(Caml_state), %edi
-        pushl   CAML_STATE(async_exception_pointer, %edi); CFI_ADJUST(4)
         ALIGN_STACK(12)
-LBL(106b):
+        pushl   CAML_STATE(async_exception_pointer, %edi); CFI_ADJUST(4)
     /* Build a callback link */
         pushl   CAML_STATE(gc_regs, %edi); CFI_ADJUST(4)
         pushl   CAML_STATE(last_return_address, %edi); CFI_ADJUST(4)
@@ -301,6 +287,7 @@ LBL(106b):
         ALIGN_STACK(8)
         pushl   CAML_STATE(exception_pointer, %edi); CFI_ADJUST(4)
         movl    %esp, CAML_STATE(exception_pointer, %edi)
+        movl    %esp, CAML_STATE(async_exception_pointer, %edi)
     /* Call the OCaml code */
         call    *%esi
 LBL(107):
@@ -314,10 +301,8 @@ LBL(109):
         popl    CAML_STATE(bottom_of_stack, %edi); CFI_ADJUST(-4)
         popl    CAML_STATE(last_return_address, %edi); CFI_ADJUST(-4)
         popl    CAML_STATE(gc_regs, %edi); CFI_ADJUST(-4)
-    /* Restore the asynchronous exception pointer (this will be a no-op
-       if this function was not invoked via [L106a]). */
-        UNDO_ALIGN_STACK(12)
         popl    CAML_STATE(async_exception_pointer, %edi); CFI_ADJUST(-4)
+        UNDO_ALIGN_STACK(12)
     /* Restore callee-save registers. */
         popl    %ebp; CFI_ADJUST(-4)
         popl    %edi; CFI_ADJUST(-4)
@@ -409,9 +394,6 @@ FUNCTION(caml_callback_asm)
         movl    28(%esp), %edi   /* arguments array */
         movl    0(%edi), %eax    /* arg1: argument */
         movl    0(%ebx), %esi    /* code pointer */
-        movl    32(%esp), %ebp
-        cmp     $1, %ebp
-        je      LBL(106a)
         jmp     LBL(106)
         CFI_ENDPROC
 ENDFUNCTION(caml_callback_asm)
@@ -429,9 +411,6 @@ FUNCTION(caml_callback2_asm)
         movl    0(%edi), %eax    /* arg1: first argument */
         movl    4(%edi), %ebx    /* arg2: second argument */
         movl    $ G(caml_apply2), %esi   /* code pointer */
-        movl    32(%esp), %ebp
-        cmp     $1, %ebp
-        je      LBL(106a)
         jmp     LBL(106)
         CFI_ENDPROC
 ENDFUNCTION(caml_callback2_asm)
@@ -450,9 +429,6 @@ FUNCTION(caml_callback3_asm)
         movl    4(%edi), %ebx    /* arg2: second argument */
         movl    8(%edi), %ecx    /* arg3: third argument */
         movl    $ G(caml_apply3), %esi   /* code pointer */
-        movl    32(%esp), %ebp
-        cmp     $1, %ebp
-        je      LBL(106a)
         jmp     LBL(106)
         CFI_ENDPROC
 ENDFUNCTION(caml_callback3_asm)

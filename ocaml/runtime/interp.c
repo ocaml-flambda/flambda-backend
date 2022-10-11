@@ -211,7 +211,7 @@ static intnat caml_bcodcount;
 
 /* The interpreter itself */
 
-value caml_interprete(code_t prog, asize_t prog_size, int *returning_async_exn)
+value caml_interprete(code_t prog, asize_t prog_size)
 {
 #ifdef PC_REG
   register code_t pc PC_REG;
@@ -250,8 +250,6 @@ value caml_interprete(code_t prog, asize_t prog_size, int *returning_async_exn)
   };
 #endif
 
-  if (returning_async_exn != NULL) *returning_async_exn = 0;
-
   if (prog == NULL) {           /* Interpreter is initializing */
 #ifdef THREADED_CODE
     caml_instr_table = (char **) jumptable;
@@ -273,7 +271,7 @@ value caml_interprete(code_t prog, asize_t prog_size, int *returning_async_exn)
 
   caml_callback_depth++;
 
-  if (sigsetjmp(raise_buf.buf, 1)) {
+  if (sigsetjmp(raise_buf.buf, 0)) {
     Caml_state->local_roots = initial_local_roots;
     sp = Caml_state->extern_sp;
     accu = Caml_state->exn_bucket;
@@ -289,7 +287,7 @@ value caml_interprete(code_t prog, asize_t prog_size, int *returning_async_exn)
   }
   Caml_state->external_raise = &raise_buf;
 
-  if (sigsetjmp(raise_async_buf.buf, 1)) {
+  if (sigsetjmp(raise_async_buf.buf, 0)) {
     Caml_state->local_roots = initial_local_roots;
     sp = Caml_state->extern_sp;
     accu = Caml_state->exn_bucket;
@@ -307,8 +305,6 @@ value caml_interprete(code_t prog, asize_t prog_size, int *returning_async_exn)
        recent prior trap. */
     Caml_state->trapsp = (value *) ((char *) Caml_state->stack_high
                                       - initial_trapsp_offset);
-
-    if (returning_async_exn != NULL) *returning_async_exn = 1;
 
     goto raise_notrace;
   }

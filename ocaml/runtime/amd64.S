@@ -573,22 +573,11 @@ FUNCTION(G(caml_start_program))
         movq    C_ARG_1, %r14
     /* Initial entry point is G(caml_program) */
         LEA_VAR(caml_program, %r12)
-LBL(caml_start_program_async_exn):
-    /* Register the same exception handler as below for async exceptions */
-        pushq   Caml_state(async_exception_pointer); CFI_ADJUST (8)
-        movq    %rsp, %r13
-        subq    $40, %r13
-        movq    %r13, Caml_state(async_exception_pointer)
-        jmp     LBL(107a)
-    /* Common code for caml_start_program and caml_callback*.
-       If you update the number of stack pushes, update the number 40
-       above. */
+    /* Common code for caml_start_program and caml_callback* */
 LBL(caml_start_program):
-    /* Save the current async exception pointer */
-        pushq   Caml_state(async_exception_pointer); CFI_ADJUST (8)
-LBL(107a):
-    /* Stack is 16-aligned at this point */
     /* Build a callback link */
+        pushq   Caml_state(async_exception_pointer); CFI_ADJUST (8)
+        /* Stack is 16-aligned at this point */
         pushq   Caml_state(gc_regs); CFI_ADJUST(8)
         pushq   Caml_state(last_return_address); CFI_ADJUST(8)
         pushq   Caml_state(bottom_of_stack); CFI_ADJUST(8)
@@ -599,6 +588,7 @@ LBL(107a):
         pushq   %r13; CFI_ADJUST(8)
         pushq   Caml_state(exception_pointer); CFI_ADJUST(8)
         movq    %rsp, Caml_state(exception_pointer)
+        movq    %rsp, Caml_state(async_exception_pointer)
     /* Call the OCaml code */
         call    *%r12
 LBL(107):
@@ -612,8 +602,6 @@ LBL(109):
         popq    Caml_state(bottom_of_stack); CFI_ADJUST(-8)
         popq    Caml_state(last_return_address); CFI_ADJUST(-8)
         popq    Caml_state(gc_regs); CFI_ADJUST(-8)
-    /* Restore the asynchronous exception pointer (this will be a no-op
-       if this function was not invoked via [caml_start_program_async_exn]). */
         popq    Caml_state(async_exception_pointer); CFI_ADJUST(-8)
     /* Restore callee-save registers. */
         POP_CALLEE_SAVE_REGS
@@ -727,8 +715,6 @@ CFI_STARTPROC
         movq    C_ARG_2, %rbx      /* closure */
         movq    0(C_ARG_3), %rax   /* argument */
         movq    0(%rbx), %r12      /* code pointer */
-        cmp     $1, C_ARG_4
-        je      LBL(caml_start_program_async_exn)
         jmp     LBL(caml_start_program)
 CFI_ENDPROC
 ENDFUNCTION(G(caml_callback_asm))
@@ -743,8 +729,6 @@ CFI_STARTPROC
         movq    0(C_ARG_3), %rax   /* first argument */
         movq    8(C_ARG_3), %rbx   /* second argument */
         LEA_VAR(caml_apply2, %r12) /* code pointer */
-        cmp     $1, C_ARG_4
-        je      LBL(caml_start_program_async_exn)
         jmp     LBL(caml_start_program)
 CFI_ENDPROC
 ENDFUNCTION(G(caml_callback2_asm))
@@ -760,8 +744,6 @@ CFI_STARTPROC
         movq    C_ARG_2, %rsi      /* closure */
         movq    16(C_ARG_3), %rdi  /* third argument */
         LEA_VAR(caml_apply3, %r12) /* code pointer */
-        cmp     $1, C_ARG_4
-        je      LBL(caml_start_program_async_exn)
         jmp     LBL(caml_start_program)
 CFI_ENDPROC
 ENDFUNCTION(G(caml_callback3_asm))

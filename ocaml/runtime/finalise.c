@@ -183,8 +183,7 @@ value caml_final_do_calls_exn (void)
       -- to_do_hd->size;
       f = to_do_hd->item[to_do_hd->size];
       running_finalisation_function = 1;
-      res = caml_check_async_exn(caml_callback_exn (f.fun, f.val + f.offset),
-        "finaliser");
+      res = caml_callback_exn (f.fun, f.val + f.offset);
       running_finalisation_function = 0;
       if (Is_exception_result (res)) return res;
     }
