@@ -56,7 +56,7 @@ let these_naked_nativeints is = TG.these_naked_nativeints is
 
 let any_tagged_immediate =
   TG.create_variant ~is_unique:false ~immediates:Unknown
-    ~blocks:(Known TG.Row_like_for_blocks.bottom) (Known Alloc_mode.heap)
+    ~blocks:(Known TG.Row_like_for_blocks.bottom)
 
 let these_tagged_immediates0 imms =
   match Targetint_31_63.Set.get_singleton imms with
@@ -67,7 +67,7 @@ let these_tagged_immediates0 imms =
     else
       TG.create_variant ~is_unique:false
         ~immediates:(Known (these_naked_immediates imms))
-        ~blocks:(Known TG.Row_like_for_blocks.bottom) (Known Alloc_mode.heap)
+        ~blocks:(Known TG.Row_like_for_blocks.bottom)
 
 let these_tagged_immediates imms = these_tagged_immediates0 imms
 
@@ -109,20 +109,19 @@ let any_boxed_nativeint = TG.box_nativeint TG.any_naked_nativeint Unknown
 
 let any_block =
   TG.create_variant ~is_unique:false
-    ~immediates:(Known TG.bottom_naked_immediate) ~blocks:Unknown Unknown
+    ~immediates:(Known TG.bottom_naked_immediate) ~blocks:Unknown
 
-let blocks_with_these_tags tags : _ Or_unknown.t =
+let blocks_with_these_tags tags alloc_mode : _ Or_unknown.t =
   if not (Tag.Set.for_all Tag.is_structured_block tags)
   then Unknown
   else
     let blocks =
       TG.Row_like_for_blocks.create_blocks_with_these_tags ~field_kind:K.value
-        tags
+        tags alloc_mode
     in
     Known
       (TG.create_variant ~is_unique:false
-         ~immediates:(Known TG.bottom_naked_immediate) ~blocks:(Known blocks)
-         Unknown)
+         ~immediates:(Known TG.bottom_naked_immediate) ~blocks:(Known blocks))
 
 let immutable_block ~is_unique tag ~field_kind alloc_mode ~fields =
   match Targetint_31_63.of_int_option (List.length fields) with
@@ -134,8 +133,7 @@ let immutable_block ~is_unique tag ~field_kind alloc_mode ~fields =
       ~blocks:
         (Known
            (TG.Row_like_for_blocks.create ~field_kind ~field_tys:fields
-              (Closed tag)))
-      alloc_mode
+              (Closed tag) alloc_mode))
 
 let immutable_block_with_size_at_least ~tag ~n ~field_kind ~field_n_minus_one =
   let n = Targetint_31_63.to_int n in
@@ -148,8 +146,7 @@ let immutable_block_with_size_at_least ~tag ~n ~field_kind ~field_n_minus_one =
   TG.create_variant ~is_unique:false
     ~immediates:(Known (bottom K.naked_immediate))
     ~blocks:
-      (Known (TG.Row_like_for_blocks.create ~field_kind ~field_tys (Open tag)))
-    Unknown
+      (Known (TG.Row_like_for_blocks.create ~field_kind ~field_tys (Open tag) Unknown))
 
 let variant ~const_ctors ~non_const_ctors alloc_mode =
   let blocks =
@@ -159,10 +156,10 @@ let variant ~const_ctors ~non_const_ctors alloc_mode =
           Tag.Map.add (Tag.Scannable.to_tag tag) ty non_const_ctors)
         non_const_ctors Tag.Map.empty
     in
-    TG.Row_like_for_blocks.create_exactly_multiple ~field_tys_by_tag
+    TG.Row_like_for_blocks.create_exactly_multiple ~field_tys_by_tag alloc_mode
   in
   TG.create_variant ~is_unique:false ~immediates:(Known const_ctors)
-    ~blocks:(Known blocks) alloc_mode
+    ~blocks:(Known blocks)
 
 let exactly_this_closure function_slot ~all_function_slots_in_set:function_types
     ~all_closure_types_in_set:closure_types

@@ -51,8 +51,7 @@ and head_of_kind_value =
   | Variant of
       { immediates : t Or_unknown.t;
         blocks : row_like_for_blocks Or_unknown.t;
-        is_unique : bool;
-        alloc_mode : Alloc_mode.t Or_unknown.t
+        is_unique : bool
       }
   | Mutable_block of { alloc_mode : Alloc_mode.t Or_unknown.t }
   | Boxed_float of t * Alloc_mode.t Or_unknown.t
@@ -110,7 +109,8 @@ and ('index, 'maps_to) row_like_case =
 
 and row_like_for_blocks =
   { known_tags : (Block_size.t, int_indexed_product) row_like_case Tag.Map.t;
-    other_tags : (Block_size.t, int_indexed_product) row_like_case Or_bottom.t
+    other_tags : (Block_size.t, int_indexed_product) row_like_case Or_bottom.t;
+    alloc_mode : Alloc_mode.t Or_unknown.t
   }
 
 and row_like_for_closures =
@@ -199,7 +199,7 @@ let rec free_names0 ~follow_value_slots t =
 
 and free_names_head_of_kind_value0 ~follow_value_slots head =
   match head with
-  | Variant { blocks; immediates; is_unique = _; alloc_mode = _ } ->
+  | Variant { blocks; immediates; is_unique = _ } ->
     Name_occurrences.union
       (Or_unknown.free_names
          (free_names_row_like_for_blocks ~follow_value_slots)
@@ -288,7 +288,7 @@ and free_names_row_like :
          (free_names_env_extension ~follow_value_slots env_extension))
 
 and free_names_row_like_for_blocks ~follow_value_slots
-    { known_tags; other_tags } =
+    { known_tags; other_tags; alloc_mode = _ } =
   free_names_row_like
     ~free_names_index:(fun _block_size -> Name_occurrences.empty)
     ~free_names_maps_to:free_names_int_indexed_product ~follow_value_slots
@@ -441,7 +441,7 @@ let rec apply_renaming t renaming =
 
 and apply_renaming_head_of_kind_value head renaming =
   match head with
-  | Variant { blocks; immediates; is_unique; alloc_mode } ->
+  | Variant { blocks; immediates; is_unique } ->
     let immediates' =
       let>+$ immediates = immediates in
       apply_renaming immediates renaming
@@ -454,7 +454,7 @@ and apply_renaming_head_of_kind_value head renaming =
     then head
     else
       Variant
-        { is_unique; blocks = blocks'; immediates = immediates'; alloc_mode }
+        { is_unique; blocks = blocks'; immediates = immediates' }
   | Mutable_block { alloc_mode = _ } -> head
   | Boxed_float (ty, alloc_mode) ->
     let ty' = apply_renaming ty renaming in
@@ -574,7 +574,7 @@ and apply_renaming_row_like :
   if known == known' && other == other' then None else Some (known', other')
 
 and apply_renaming_row_like_for_blocks
-    ({ known_tags; other_tags } as row_like_for_tags) renaming =
+    ({ known_tags; other_tags; alloc_mode } as row_like_for_tags) renaming =
   match
     apply_renaming_row_like
       ~apply_renaming_index:(fun block_size _ -> block_size)
@@ -583,7 +583,7 @@ and apply_renaming_row_like_for_blocks
       renaming
   with
   | None -> row_like_for_tags
-  | Some (known_tags, other_tags) -> { known_tags; other_tags }
+  | Some (known_tags, other_tags) -> { known_tags; other_tags; alloc_mode }
 
 and apply_renaming_row_like_for_closures
     ({ known_closures; other_closures } as row_like_for_closures) renaming =
@@ -698,14 +698,14 @@ let rec print ppf t =
 
 and print_head_of_kind_value ppf head =
   match head with
-  | Variant { blocks; immediates; is_unique; alloc_mode } ->
+  | Variant { blocks; immediates; is_unique } ->
     (* CR-someday mshinwell: Improve so that we elide blocks and/or immediates
        when they're empty. *)
     Format.fprintf ppf
       "@[<hov 1>(Variant%s@ @[<hov 1>(blocks@ %a)@]@ @[<hov 1>(tagged_imms@ \
        %a)@])@]"
       (if is_unique then " unique" else "")
-      (Or_unknown.print (print_row_like_for_blocks alloc_mode))
+      (Or_unknown.print print_row_like_for_blocks)
       blocks (Or_unknown.print print) immediates
   | Mutable_block { alloc_mode } ->
     Format.fprintf ppf "@[<hov 1>(Mutable_block@ %a)@]"
@@ -830,7 +830,7 @@ and print_row_like :
       (Or_unknown.print Alloc_mode.print)
       alloc_mode (print_known_map print) known (Or_bottom.print print) other
 
-and print_row_like_for_blocks alloc_mode ppf { known_tags; other_tags } =
+and print_row_like_for_blocks ppf { known_tags; other_tags; alloc_mode } =
   print_row_like ~print_index:Block_size.print
     ~print_maps_to:print_int_indexed_product ~print_known_map:Tag.Map.print
     ~is_empty_map_known:Tag.Map.is_empty ~known:known_tags ~other:other_tags
@@ -919,7 +919,7 @@ let rec ids_for_export t =
 
 and ids_for_export_head_of_kind_value head =
   match head with
-  | Variant { blocks; immediates; is_unique = _; alloc_mode = _ } ->
+  | Variant { blocks; immediates; is_unique = _ } ->
     Ids_for_export.union
       (Or_unknown.ids_for_export ids_for_export_row_like_for_blocks blocks)
       (Or_unknown.ids_for_export ids_for_export immediates)
@@ -994,7 +994,7 @@ and ids_for_export_row_like :
       (Ids_for_export.union from_known
          (ids_for_export_env_extension env_extension))
 
-and ids_for_export_row_like_for_blocks { known_tags; other_tags } =
+and ids_for_export_row_like_for_blocks { known_tags; other_tags; alloc_mode = _ } =
   ids_for_export_row_like
     ~ids_for_export_maps_to:ids_for_export_int_indexed_product ~known:known_tags
     ~other:other_tags ~fold_known:Tag.Map.fold
@@ -1445,7 +1445,7 @@ let rec remove_unused_value_slots_and_shortcut_aliases t ~used_value_slots
 and remove_unused_value_slots_and_shortcut_aliases_head_of_kind_value head
     ~used_value_slots ~canonicalise =
   match head with
-  | Variant { blocks; immediates; is_unique; alloc_mode } ->
+  | Variant { blocks; immediates; is_unique } ->
     let immediates' =
       let>+$ immediates = immediates in
       remove_unused_value_slots_and_shortcut_aliases immediates
@@ -1460,7 +1460,7 @@ and remove_unused_value_slots_and_shortcut_aliases_head_of_kind_value head
     then head
     else
       Variant
-        { is_unique; blocks = blocks'; immediates = immediates'; alloc_mode }
+        { is_unique; blocks = blocks'; immediates = immediates' }
   | Mutable_block { alloc_mode = _ } -> head
   | Boxed_float (ty, alloc_mode) ->
     let ty' =
@@ -1647,7 +1647,7 @@ and remove_unused_value_slots_and_shortcut_aliases_row_like :
   if known == known' && other == other' then None else Some (known', other')
 
 and remove_unused_value_slots_and_shortcut_aliases_row_like_for_blocks
-    ({ known_tags; other_tags } as row_like_for_tags) ~used_value_slots
+    ({ known_tags; other_tags; alloc_mode } as row_like_for_tags) ~used_value_slots
     ~canonicalise =
   match
     remove_unused_value_slots_and_shortcut_aliases_row_like
@@ -1659,7 +1659,7 @@ and remove_unused_value_slots_and_shortcut_aliases_row_like_for_blocks
       ~used_value_slots ~canonicalise
   with
   | None -> row_like_for_tags
-  | Some (known_tags, other_tags) -> { known_tags; other_tags }
+  | Some (known_tags, other_tags) -> { known_tags; other_tags; alloc_mode }
 
 and remove_unused_value_slots_and_shortcut_aliases_row_like_for_closures
     ({ known_closures; other_closures } as row_like_for_closures)
@@ -1906,7 +1906,7 @@ let rec project_variables_out ~to_project ~expand t =
 
 and project_head_of_kind_value ~to_project ~expand head =
   match head with
-  | Variant { blocks; immediates; is_unique; alloc_mode } ->
+  | Variant { blocks; immediates; is_unique } ->
     let immediates' =
       let>+$ immediates = immediates in
       project_variables_out ~to_project ~expand immediates
@@ -1919,7 +1919,7 @@ and project_head_of_kind_value ~to_project ~expand head =
     then head
     else
       Variant
-        { is_unique; blocks = blocks'; immediates = immediates'; alloc_mode }
+        { is_unique; blocks = blocks'; immediates = immediates' }
   | Mutable_block _ -> head
   | Boxed_float (ty, alloc_mode) ->
     let ty' = project_variables_out ~to_project ~expand ty in
@@ -2005,7 +2005,7 @@ and project_head_of_kind_rec_info ~to_project ~expand:_ head =
 and project_head_of_kind_region ~to_project:_ ~expand:_ () = ()
 
 and project_row_like_for_blocks ~to_project ~expand
-    ({ known_tags; other_tags } as blocks) =
+    ({ known_tags; other_tags; alloc_mode } as blocks) =
   let known_tags' =
     Tag.Map.map_sharing
       (fun ({ index; maps_to; env_extension } as case) ->
@@ -2034,7 +2034,7 @@ and project_row_like_for_blocks ~to_project ~expand
   in
   if known_tags == known_tags' && other_tags == other_tags'
   then blocks
-  else { known_tags = known_tags'; other_tags = other_tags' }
+  else { known_tags = known_tags'; other_tags = other_tags'; alloc_mode }
 
 and project_row_like_for_closures ~to_project ~expand
     ({ known_closures; other_closures } as closures) =
@@ -2168,7 +2168,7 @@ let kind t =
   | Rec_info _ -> K.rec_info
   | Region _ -> K.region
 
-let create_variant ~is_unique ~(immediates : _ Or_unknown.t) ~blocks alloc_mode
+let create_variant ~is_unique ~(immediates : _ Or_unknown.t) ~blocks
     =
   (match immediates with
   | Unknown -> ()
@@ -2179,7 +2179,7 @@ let create_variant ~is_unique ~(immediates : _ Or_unknown.t) ~blocks alloc_mode
         "Cannot create [immediates] with type that is not of kind \
          [Naked_immediate]:@ %a"
         print immediates);
-  Value (TD.create (Variant { immediates; blocks; is_unique; alloc_mode }))
+  Value (TD.create (Variant { immediates; blocks; is_unique }))
 
 let mutable_block alloc_mode = Value (TD.create (Mutable_block { alloc_mode }))
 
@@ -2300,44 +2300,47 @@ module Row_like_for_blocks = struct
     | Open of Tag.t Or_unknown.t
     | Closed of Tag.t
 
-  let bottom = { known_tags = Tag.Map.empty; other_tags = Bottom }
+  let bottom = { known_tags = Tag.Map.empty; other_tags = Bottom; alloc_mode = Unknown }
 
-  let is_bottom { known_tags; other_tags } =
+  let is_bottom { known_tags; other_tags; alloc_mode = _ } =
     Tag.Map.is_empty known_tags && other_tags = Or_bottom.Bottom
 
-  let all_tags { known_tags; other_tags } : Tag.Set.t Or_unknown.t =
+  let all_tags { known_tags; other_tags; alloc_mode = _ } : Tag.Set.t Or_unknown.t =
     match other_tags with
     | Ok _ -> Unknown
     | Bottom -> Known (Tag.Map.keys known_tags)
 
-  let create_exactly tag index maps_to =
+  let create_exactly tag index maps_to alloc_mode =
     { known_tags =
         Tag.Map.singleton tag
           { maps_to;
             index = Known index;
             env_extension = { equations = Name.Map.empty }
           };
-      other_tags = Bottom
+      other_tags = Bottom;
+      alloc_mode
     }
 
-  let create_at_least tag index maps_to =
+  let create_at_least tag index maps_to alloc_mode =
     { known_tags =
         Tag.Map.singleton tag
           { maps_to;
             index = At_least index;
             env_extension = { equations = Name.Map.empty }
           };
-      other_tags = Bottom
+      other_tags = Bottom;
+      alloc_mode
     }
 
-  let create_at_least_unknown_tag index maps_to =
+  let create_at_least_unknown_tag index maps_to alloc_mode =
     { known_tags = Tag.Map.empty;
       other_tags =
         Ok
           { maps_to;
             index = At_least index;
             env_extension = { equations = Name.Map.empty }
-          }
+          };
+      alloc_mode
     }
 
   let check_field_tys ~field_kind ~field_tys =
@@ -2358,7 +2361,7 @@ module Row_like_for_blocks = struct
             Flambda_kind.print field_kind
 
   let create ~(field_kind : Flambda_kind.t) ~field_tys
-      (open_or_closed : open_or_closed) =
+      (open_or_closed : open_or_closed) alloc_mode =
     check_field_tys ~field_kind ~field_tys;
     let tag : _ Or_unknown.t =
       let tag : _ Or_unknown.t =
@@ -2406,15 +2409,15 @@ module Row_like_for_blocks = struct
     match open_or_closed with
     | Open _ -> (
       match tag with
-      | Known tag -> create_at_least tag size product
-      | Unknown -> create_at_least_unknown_tag size product)
+      | Known tag -> create_at_least tag size product alloc_mode
+      | Unknown -> create_at_least_unknown_tag size product alloc_mode)
     | Closed _ -> (
       match tag with
-      | Known tag -> create_exactly tag size product
+      | Known tag -> create_exactly tag size product alloc_mode
       | Unknown -> assert false)
   (* see above *)
 
-  let create_blocks_with_these_tags ~field_kind tags =
+  let create_blocks_with_these_tags ~field_kind tags alloc_mode =
     let maps_to = Product.Int_indexed.create_top field_kind in
     let case =
       { maps_to;
@@ -2422,9 +2425,9 @@ module Row_like_for_blocks = struct
         env_extension = { equations = Name.Map.empty }
       }
     in
-    { known_tags = Tag.Map.of_set (fun _ -> case) tags; other_tags = Bottom }
+    { known_tags = Tag.Map.of_set (fun _ -> case) tags; other_tags = Bottom; alloc_mode }
 
-  let create_exactly_multiple ~field_tys_by_tag =
+  let create_exactly_multiple ~field_tys_by_tag alloc_mode =
     let known_tags =
       Tag.Map.map
         (fun field_tys ->
@@ -2444,13 +2447,13 @@ module Row_like_for_blocks = struct
           })
         field_tys_by_tag
     in
-    { known_tags; other_tags = Bottom }
+    { known_tags; other_tags = Bottom; alloc_mode }
 
-  let create_raw ~known_tags ~other_tags =
+  let create_raw ~known_tags ~other_tags ~alloc_mode =
     (* CR-someday mshinwell: add invariant check? *)
-    { known_tags; other_tags }
+    { known_tags; other_tags; alloc_mode }
 
-  let all_tags_and_indexes { known_tags; other_tags } : _ Or_unknown.t =
+  let all_tags_and_indexes { known_tags; other_tags; alloc_mode = _ } : _ Or_unknown.t =
     match other_tags with
     | Ok _ -> Unknown
     | Bottom -> Known (Tag.Map.map (fun case -> case.index) known_tags)
@@ -2472,7 +2475,7 @@ module Row_like_for_blocks = struct
       in
       if !any_unknown then Unknown else Known by_tag
 
-  let get_singleton { known_tags; other_tags } =
+  let get_singleton { known_tags; other_tags; alloc_mode } =
     match other_tags with
     | Ok _ -> None
     | Bottom -> (
@@ -2483,7 +2486,7 @@ module Row_like_for_blocks = struct
            already part of the environment *)
         match index with
         | At_least _ -> None
-        | Known index -> Some ((tag, index), maps_to)))
+        | Known index -> Some ((tag, index), maps_to, alloc_mode)))
 
   let project_int_indexed_product { fields; kind = _ } index : _ Or_unknown.t =
     if Array.length fields <= index then Unknown else Known fields.(index)
@@ -2491,7 +2494,7 @@ module Row_like_for_blocks = struct
   let get_field t index : _ Or_unknown_or_bottom.t =
     match get_singleton t with
     | None -> Unknown
-    | Some ((_tag, size), maps_to) -> (
+    | Some ((_tag, size), maps_to, _alloc_mode) -> (
       if Targetint_31_63.( <= ) size index
       then Bottom
       else
@@ -2782,8 +2785,7 @@ let tag_immediate t : t =
          (Variant
             { is_unique = false;
               immediates = Known t;
-              blocks = Known Row_like_for_blocks.bottom;
-              alloc_mode = Known Alloc_mode.heap
+              blocks = Known Row_like_for_blocks.bottom
             }))
   | Value _ | Naked_float _ | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
   | Rec_info _ | Region _ ->
@@ -2898,8 +2900,8 @@ let create_from_head_region head = Region (TD.create head)
 module Head_of_kind_value = struct
   type t = head_of_kind_value
 
-  let create_variant ~is_unique ~blocks ~immediates alloc_mode =
-    Variant { is_unique; blocks; immediates; alloc_mode }
+  let create_variant ~is_unique ~blocks ~immediates =
+    Variant { is_unique; blocks; immediates }
 
   let create_mutable_block alloc_mode = Mutable_block { alloc_mode }
 
@@ -2915,8 +2917,7 @@ module Head_of_kind_value = struct
     Variant
       { is_unique = false;
         immediates = Known (this_naked_immediate imm);
-        blocks = Known Row_like_for_blocks.bottom;
-        alloc_mode = Known Alloc_mode.heap
+        blocks = Known Row_like_for_blocks.bottom
       }
 
   let create_closures by_function_slot alloc_mode =
@@ -2998,7 +2999,7 @@ let rec recover_some_aliases t =
       t
     | Ok
         (No_alias
-          (Variant { immediates; blocks; is_unique = _; alloc_mode = _ })) -> (
+          (Variant { immediates; blocks; is_unique = _ })) -> (
       match blocks with
       | Unknown -> t
       | Known blocks -> (

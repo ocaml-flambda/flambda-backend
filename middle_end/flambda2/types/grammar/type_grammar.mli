@@ -43,8 +43,7 @@ and head_of_kind_value = private
   | Variant of
       { immediates : t Or_unknown.t;
         blocks : row_like_for_blocks Or_unknown.t;
-        is_unique : bool;
-        alloc_mode : Alloc_mode.t Or_unknown.t
+        is_unique : bool
       }
   (* CR mshinwell: It would be better to track per-field mutability. *)
   | Mutable_block of { alloc_mode : Alloc_mode.t Or_unknown.t }
@@ -97,7 +96,8 @@ and ('index, 'maps_to) row_like_case = private
 
 and row_like_for_blocks = private
   { known_tags : (Block_size.t, int_indexed_product) row_like_case Tag.Map.t;
-    other_tags : (Block_size.t, int_indexed_product) row_like_case Or_bottom.t
+    other_tags : (Block_size.t, int_indexed_product) row_like_case Or_bottom.t;
+    alloc_mode : Alloc_mode.t Or_unknown.t
   }
 
 and row_like_for_closures = private
@@ -259,7 +259,6 @@ val create_variant :
   is_unique:bool ->
   immediates:t Or_unknown.t ->
   blocks:row_like_for_blocks Or_unknown.t ->
-  Alloc_mode.t Or_unknown.t ->
   t
 
 val mutable_block : Alloc_mode.t Or_unknown.t -> t
@@ -383,24 +382,26 @@ module Row_like_for_blocks : sig
     field_kind:Flambda_kind.t ->
     field_tys:flambda_type list ->
     open_or_closed ->
+    Alloc_mode.t Or_unknown.t ->
     t
 
   val create_blocks_with_these_tags :
-    field_kind:Flambda_kind.t -> Tag.Set.t -> t
+    field_kind:Flambda_kind.t -> Tag.Set.t -> Alloc_mode.t Or_unknown.t -> t
 
   val create_exactly_multiple :
-    field_tys_by_tag:flambda_type list Tag.Map.t -> t
+    field_tys_by_tag:flambda_type list Tag.Map.t -> Alloc_mode.t Or_unknown.t -> t
 
   val create_raw :
     known_tags:(Block_size.t, int_indexed_product) row_like_case Tag.Map.t ->
     other_tags:(Block_size.t, int_indexed_product) row_like_case Or_bottom.t ->
+    alloc_mode:Alloc_mode.t Or_unknown.t ->
     t
 
   val all_tags : t -> Tag.Set.t Or_unknown.t
 
   val all_tags_and_sizes : t -> Targetint_31_63.t Tag.Map.t Or_unknown.t
 
-  val get_singleton : t -> (Tag_and_size.t * Product.Int_indexed.t) option
+  val get_singleton : t -> (Tag_and_size.t * Product.Int_indexed.t * Alloc_mode.t Or_unknown.t) option
 
   (** Get the nth field of the block if it is unambiguous.
 
@@ -556,7 +557,6 @@ module Head_of_kind_value : sig
     is_unique:bool ->
     blocks:Row_like_for_blocks.t Or_unknown.t ->
     immediates:flambda_type Or_unknown.t ->
-    Alloc_mode.t Or_unknown.t ->
     t
 
   val create_mutable_block : Alloc_mode.t Or_unknown.t -> t
