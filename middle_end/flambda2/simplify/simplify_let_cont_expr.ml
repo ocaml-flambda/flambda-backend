@@ -731,7 +731,7 @@ let rebuild_recursive_let_cont_handlers cont ~params ~original_cont_scope
       (Name_occurrences.continuations_including_in_trap_actions
          free_names_of_handler)
   in
-  let is_inlinable =
+  let will_be_inlined =
     if is_actually_recursive
     then false
     else
@@ -745,28 +745,35 @@ let rebuild_recursive_let_cont_handlers cont ~params ~original_cont_scope
           | Non_inlinable _ -> false)
         | _ -> false)
   in
-  let uacc =
-    UA.map_uenv uacc ~f:(fun uenv ->
-        if is_inlinable
-        then
-          UE.add_linearly_used_inlinable_continuation uenv cont
-            original_cont_scope ~params ~handler ~free_names_of_handler
-            ~cost_metrics_of_handler
-        else
-          UE.add_non_inlinable_continuation uenv cont original_cont_scope
-            ~params ~handler:(Known handler))
+  let uacc, handlers =
+    if will_be_inlined
+    then
+      let uacc =
+        UA.map_uenv uacc ~f:(fun uenv ->
+            UE.add_linearly_used_inlinable_continuation uenv cont
+              original_cont_scope ~params ~handler ~free_names_of_handler
+              ~cost_metrics_of_handler)
+      in
+      uacc, None
+    else
+      let uacc =
+        UA.map_uenv uacc ~f:(fun uenv ->
+            UE.add_non_inlinable_continuation uenv cont original_cont_scope
+              ~params ~handler:(Known handler))
+      in
+      let handlers =
+        if is_actually_recursive
+        then Recursive_handlers (Continuation.Map.singleton cont cont_handler)
+        else Non_recursive_handler (cont, cont_handler)
+      in
+      uacc, Some handlers
   in
-  let handlers =
-    if is_actually_recursive
-    then Recursive_handlers (Continuation.Map.singleton cont cont_handler)
-    else Non_recursive_handler (cont, cont_handler)
-  in
-  after_rebuild (Some handlers) uacc
+  after_rebuild handlers uacc
 
 let after_one_recursive_let_cont_handler_rebuilt cont ~original_cont_scope
     ~name_occurrences_subsequent_exprs ~after_rebuild cont_handler ~params
-    ~cont_uses_in_body ~handler ~free_names_of_handler
-    ~cost_metrics_of_handler uacc =
+    ~cont_uses_in_body ~handler ~free_names_of_handler ~cost_metrics_of_handler
+    uacc =
   let uacc = UA.add_free_names uacc name_occurrences_subsequent_exprs in
   (* The parameters are removed from the free name information as they are no
      longer in scope. *)
@@ -821,8 +828,7 @@ let prepare_to_rebuild_one_recursive_let_cont_handler cont params
   rebuild_handler uacc
     ~after_rebuild:
       (after_one_recursive_let_cont_handler_rebuilt cont ~original_cont_scope
-         ~name_occurrences_subsequent_exprs ~after_rebuild
-         ~cont_uses_in_body)
+         ~name_occurrences_subsequent_exprs ~after_rebuild ~cont_uses_in_body)
 
 let after_downwards_traversal_of_one_recursive_let_cont_handler cont
     unboxing_decisions ~down_to_up params ~original_cont_scope dacc
@@ -892,18 +898,17 @@ let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
   let uses = CUE.get_continuation_uses (DA.continuation_uses_env dacc) cont in
   match uses with
   | None ->
-    let rebuild uacc ~after_rebuild =
-      after_rebuild None uacc
-    in
+    let rebuild uacc ~after_rebuild = after_rebuild None uacc in
     down_to_up dacc ~rebuild
   | Some continuation_uses ->
     let arg_types_by_use_id_in_body =
       Continuation_uses.get_arg_types_by_use_id continuation_uses
     in
     (* Compute unboxing decisions. This works only from the subkind information
-       since no other types are available: there are no types on the continuation
-       parameters in the terms, and a join cannot be performed (unlike in the
-       non-recursive case) as not all of the uses have been seen yet. *)
+       since no other types are available: there are no types on the
+       continuation parameters in the terms, and a join cannot be performed
+       (unlike in the non-recursive case) as not all of the uses have been seen
+       yet. *)
     let param_types =
       ListLabels.map (Bound_parameters.to_list params) ~f:(fun param ->
           Flambda2_types.unknown_with_subkind (BP.kind param))
@@ -916,13 +921,13 @@ let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
     let dacc = DA.with_denv dacc denv in
     (* {simplify_one_continuation_handler} requires an [extra_params_and_args]
        argument, but we can't provide a meaningful one at this point: we need to
-       finish the downwards traversal of the handler to compute the extra args for
-       unboxing.
+       finish the downwards traversal of the handler to compute the extra args
+       for unboxing.
 
-       Thankfully, for recursive continuations, this argument is not used (see the
-       use of [extra_params_and_args] in {rebuild_one_continuation_handler})
-       because there are no CSE parameters introduced. Therefore, we pass an empty
-       one to {simplify_one_continuation_handler}. *)
+       Thankfully, for recursive continuations, this argument is not used (see
+       the use of [extra_params_and_args] in {rebuild_one_continuation_handler})
+       because there are no CSE parameters introduced. Therefore, we pass an
+       empty one to {simplify_one_continuation_handler}. *)
     let extra_params_and_args = EPA.empty in
     simplify_one_continuation_handler ~simplify_expr dacc cont
       ~at_unit_toplevel:false Recursive ~params ~handler ~extra_params_and_args
@@ -931,7 +936,8 @@ let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
         (after_downwards_traversal_of_one_recursive_let_cont_handler cont
            unboxing_decisions params ~original_cont_scope ~down_to_up)
 
-let rebuild_recursive_let_cont_expr are_rebuilding_terms ~body ~free_names_of_body ~handlers =
+let rebuild_recursive_let_cont_expr are_rebuilding_terms ~body
+    ~free_names_of_body ~handlers =
   match handlers with
   | None -> body
   | Some (Non_recursive_handler (cont, handler)) ->
