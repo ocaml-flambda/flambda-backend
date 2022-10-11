@@ -1,0 +1,119 @@
+(copy_files# asmcomp/*.ml{,i})
+(copy_files# asmcomp/debug/*.ml{,i})
+(copy_files# middle_end/*.ml{,i})
+(copy_files# middle_end/closure/*.ml{,i})
+(copy_files# middle_end/flambda/*.ml{,i})
+(copy_files# middle_end/flambda/base_types/*.ml{,i})
+; 
+; (library
+;  (name ocamlmiddleend)
+;  (wrapped false)
+;  (flags (:standard -principal))
+;  (libraries ocamlcommon)
+;  (modules_without_implementation
+;    cmx_format cmxs_format backend_intf inlining_decision_intf
+;    simplify_boxed_integer_ops_intf)
+;  (modules
+;  )
+; )
+; 
+(library
+ (name ocamloptcomp)
+ (wrapped false)
+ (flags (:standard -principal))
+ (libraries ocamlcommon)
+ (modules_without_implementation x86_ast
+   cmx_format cmxs_format backend_intf inlining_decision_intf
+   simplify_boxed_integer_ops_intf)
+ (modules
+   ;; asmcomp/
+   afl_instrument arch asmgen asmlibrarian asmlink asmpackager branch_relaxation
+   branch_relaxation_intf cmm_helpers cmm_invariants cmm cmmgen cmmgen_state coloring comballoc
+   CSE CSEgen
+   deadcode emit emitaux interf interval linear linearize linscan
+   liveness mach printcmm printlinear printmach proc reg reload reloadgen
+   schedgen scheduling selectgen selection spill split
+   strmatch x86_ast x86_dsl x86_gas x86_masm x86_proc
+
+   ;; asmcomp/debug/
+   reg_availability_set compute_ranges_intf available_regs reg_with_debug_info
+   compute_ranges
+
+   ;; driver/
+   optcompile opterrors optmaindriver
+
+   ;; file_formats/
+   linear_format
+
+   ;; from ocamlmiddleend
+
+   ;; file_formats/
+   cmx_format cmxs_format
+
+   ;; middle_end/
+   backend_intf backend_var clambda clambda_primitives
+   compilation_unit compilenv convert_primitives internal_variable_names
+   linkage_name printclambda printclambda_primitives semantics_of_primitives
+   symbol variable
+
+   ;; middle_end/closure/
+   closure closure_middle_end
+
+   ;; middle_end/flambda/base_types/
+   closure_element closure_id closure_origin export_id id_types mutable_variable
+   set_of_closures_id set_of_closures_origin static_exception tag
+   var_within_closure
+
+   ;; middle_end/flambda/
+   alias_analysis allocated_const augment_specialised_args build_export_info
+   closure_conversion closure_conversion_aux closure_offsets effect_analysis
+   export_info export_info_for_pack extract_projections find_recursive_functions
+   flambda flambda_invariants flambda_iterators flambda_middle_end
+   flambda_to_clambda flambda_utils freshening import_approx inconstant_idents
+   initialize_symbol_to_let_symbol inline_and_simplify inline_and_simplify_aux
+   inlining_cost inlining_decision inlining_decision_intf inlining_stats
+   inlining_stats_types inlining_transforms invariant_params lift_code
+   lift_constants lift_let_to_initialize_symbol parameter pass_wrapper
+   projection ref_to_variables remove_free_vars_equal_to_args
+   remove_unused_arguments remove_unused_closure_vars
+   remove_unused_program_constructs share_constants simple_value_approx
+   simplify_boxed_integer_ops simplify_boxed_integer_ops_intf simplify_common
+   simplify_primitives traverse_for_exported_symbols un_anf unbox_closures
+   unbox_free_vars_of_closures unbox_specialised_args
+
+ )
+)
+
+
+(executable
+ (name optmain_native)
+ (modes byte native)
+ (flags (
+   -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66
+   -warn-error A -bin-annot -safe-string -strict-formats
+ ))
+ (libraries ocamloptcomp ocamlcommon)
+ (modules optmain_native))
+
+(install
+ (files
+  (optmain_native.bc as ocamlopt.byte)
+  (optmain_native.exe as ocamlopt.opt))
+ (section bin)
+ (package ocaml))
+
+(install
+ (files
+   (ocamloptcomp.a as compiler-libs/ocamloptcomp.a)
+   (ocamloptcomp.cmxa as compiler-libs/ocamloptcomp.cmxa)
+   (ocamloptcomp.cma as compiler-libs/ocamloptcomp.cma))
+ (section lib)
+ (package ocaml))
+
+(install
+  (files
+    (tools/objinfo.bc as ocamlobjinfo.byte)
+    (tools/objinfo.exe as ocamlobjinfo.opt)
+  )
+  (section bin)
+  (package ocaml))
