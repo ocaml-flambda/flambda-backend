@@ -133,7 +133,8 @@ let create_let uacc (bound_vars : Bound_pattern.t) (defining_expr : Named.t)
         not is_used, is_used
     in
     if is_end_region_for_used_region
-       || not (Named.at_most_generative_effects defining_expr)
+       || (not is_end_region_for_unused_region)
+          && not (Named.at_most_generative_effects defining_expr)
     then (
       if not (Name_mode.is_normal declared_name_mode)
       then
