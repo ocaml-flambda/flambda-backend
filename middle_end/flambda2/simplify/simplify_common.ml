@@ -48,6 +48,16 @@ type simplify_toplevel =
   exn_cont_scope:Scope.t ->
   Rebuilt_expr.t * Upwards_acc.t
 
+type simplify_function_body =
+  Downwards_acc.t ->
+  Expr.t ->
+  return_continuation:Continuation.t ->
+  return_arity:Flambda_arity.With_subkinds.t ->
+  exn_continuation:Continuation.t ->
+  return_cont_scope:Scope.t ->
+  exn_cont_scope:Scope.t ->
+  Rebuilt_expr.t * Upwards_acc.t
+
 let simplify_projection dacc ~original_term ~deconstructing ~shape ~result_var
     ~result_kind =
   let env = DA.typing_env dacc in

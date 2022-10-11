@@ -232,8 +232,8 @@ let update_data_flow dacc closure_info ~lifted_constants_from_defining_expr
     ~init:data_flow
     ~f:(record_new_defining_expression_binding_for_data_flow dacc)
 
-let simplify_let0 ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up
-    bound_pattern ~body =
+let simplify_let0 ~simplify_expr ~simplify_function_body dacc let_expr
+    ~down_to_up bound_pattern ~body =
   let module L = Flambda.Let in
   let original_dacc = dacc in
   (* Remember then clear the lifted constants memory in [DA] so we can easily
@@ -244,7 +244,7 @@ let simplify_let0 ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up
   let defining_expr = L.defining_expr let_expr in
   let simplify_named_result, removed_operations =
     Simplify_named.simplify_named dacc bound_pattern defining_expr
-      ~simplify_toplevel
+      ~simplify_function_body
   in
   (* We must make sure that if [Invalid] is going to be produced, [uacc] doesn't
      contain any extraneous data for e.g. lifted constants that will never be
@@ -309,8 +309,10 @@ let simplify_let0 ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up
     in
     simplify_expr dacc body ~down_to_up
 
-let simplify_let ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up =
+let simplify_let ~simplify_expr ~simplify_function_body dacc let_expr
+    ~down_to_up =
   let module L = Flambda.Let in
   L.pattern_match let_expr
     ~f:
-      (simplify_let0 ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up)
+      (simplify_let0 ~simplify_expr ~simplify_function_body dacc let_expr
+         ~down_to_up)
