@@ -14,16 +14,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open! Flambda
-module DA = Downwards_acc
-module DE = Downwards_env
-module K = Flambda_kind
-module BP = Bound_parameter
-module P = Flambda_primitive
-module T = Flambda2_types
-module UA = Upwards_acc
-module UE = Upwards_env
-module AC = Apply_cont_expr
+open Simplify_import
 
 type 'a after_rebuild = Rebuilt_expr.t -> Upwards_acc.t -> 'a
 
@@ -185,8 +176,7 @@ let split_direct_over_application apply ~param_arity ~result_arity
         | Never_returns ->
           (* The whole overapplication never returns, so this point is
              unreachable. *)
-          ( Expr.create_invalid (Over_application_never_returns apply),
-            Name_occurrences.empty )
+          Expr.create_invalid (Over_application_never_returns apply), NO.empty
       in
       let handler_expr =
         Let.create
@@ -200,7 +190,7 @@ let split_direct_over_application apply ~param_arity ~result_arity
         |> Expr.create_let
       in
       let handler_expr_free_names =
-        Name_occurrences.add_variable call_return_continuation_free_names region
+        NO.add_variable call_return_continuation_free_names region
           Name_mode.normal
       in
       let handler =
@@ -243,7 +233,7 @@ let split_direct_over_application apply ~param_arity ~result_arity
       ~body:both_applications
       ~free_names_of_body:
         (Known
-           (Name_occurrences.union
+           (NO.union
               (Apply.free_names full_apply)
               perform_over_application_free_names))
     |> Expr.create_let

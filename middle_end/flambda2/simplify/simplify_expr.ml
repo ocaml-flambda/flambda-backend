@@ -82,8 +82,8 @@ let simplify_toplevel_common dacc simplify
      required depends on whether we're dealing with a lambda or the whole
      compilation unit. Instead these checks are in [Simplify] or
      [Simplify_set_of_closures]. *)
-  Name_occurrences.fold_continuations_including_in_trap_actions
-    (UA.name_occurrences uacc) ~init:() ~f:(fun () cont ->
+  NO.fold_continuations_including_in_trap_actions (UA.name_occurrences uacc)
+    ~init:() ~f:(fun () cont ->
       if (not (Continuation.equal cont return_continuation))
          && not (Continuation.equal cont exn_continuation)
       then
