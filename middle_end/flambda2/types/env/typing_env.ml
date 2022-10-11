@@ -1305,21 +1305,12 @@ end = struct
                 Closure_approximation
                   { code_id; function_slot; code = code_or_meta; symbol = None }
               ))
-          | Variant
-              { immediates = Unknown;
-                blocks = _;
-                is_unique = _
-              }
-          | Variant
-              { immediates = _;
-                blocks = Unknown;
-                is_unique = _
-              } ->
+          | Variant { immediates = Unknown; blocks = _; is_unique = _ }
+          | Variant { immediates = _; blocks = Unknown; is_unique = _ } ->
             Value_unknown
           | Variant
-              { immediates = Known imms;
-                blocks = Known blocks;
-                is_unique = _              } ->
+              { immediates = Known imms; blocks = Known blocks; is_unique = _ }
+            ->
             if TG.is_obviously_bottom imms
             then
               match TG.Row_like_for_blocks.get_singleton blocks with

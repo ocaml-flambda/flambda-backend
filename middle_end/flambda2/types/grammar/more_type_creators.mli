@@ -83,7 +83,8 @@ val any_boxed_nativeint : Type_grammar.t
 val any_block : Type_grammar.t
 
 (* Note this is only for blocks (variants, tuples, etc), not arrays! *)
-val blocks_with_these_tags : Tag.Set.t -> Alloc_mode.t Or_unknown.t -> Type_grammar.t Or_unknown.t
+val blocks_with_these_tags :
+  Tag.Set.t -> Alloc_mode.t Or_unknown.t -> Type_grammar.t Or_unknown.t
 
 val immutable_block :
   is_unique:bool ->

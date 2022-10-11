@@ -452,9 +452,7 @@ and apply_renaming_head_of_kind_value head renaming =
     in
     if immediates == immediates' && blocks == blocks'
     then head
-    else
-      Variant
-        { is_unique; blocks = blocks'; immediates = immediates' }
+    else Variant { is_unique; blocks = blocks'; immediates = immediates' }
   | Mutable_block { alloc_mode = _ } -> head
   | Boxed_float (ty, alloc_mode) ->
     let ty' = apply_renaming ty renaming in
@@ -994,7 +992,8 @@ and ids_for_export_row_like :
       (Ids_for_export.union from_known
          (ids_for_export_env_extension env_extension))
 
-and ids_for_export_row_like_for_blocks { known_tags; other_tags; alloc_mode = _ } =
+and ids_for_export_row_like_for_blocks
+    { known_tags; other_tags; alloc_mode = _ } =
   ids_for_export_row_like
     ~ids_for_export_maps_to:ids_for_export_int_indexed_product ~known:known_tags
     ~other:other_tags ~fold_known:Tag.Map.fold
@@ -1458,9 +1457,7 @@ and remove_unused_value_slots_and_shortcut_aliases_head_of_kind_value head
     in
     if immediates == immediates' && blocks == blocks'
     then head
-    else
-      Variant
-        { is_unique; blocks = blocks'; immediates = immediates' }
+    else Variant { is_unique; blocks = blocks'; immediates = immediates' }
   | Mutable_block { alloc_mode = _ } -> head
   | Boxed_float (ty, alloc_mode) ->
     let ty' =
@@ -1647,8 +1644,8 @@ and remove_unused_value_slots_and_shortcut_aliases_row_like :
   if known == known' && other == other' then None else Some (known', other')
 
 and remove_unused_value_slots_and_shortcut_aliases_row_like_for_blocks
-    ({ known_tags; other_tags; alloc_mode } as row_like_for_tags) ~used_value_slots
-    ~canonicalise =
+    ({ known_tags; other_tags; alloc_mode } as row_like_for_tags)
+    ~used_value_slots ~canonicalise =
   match
     remove_unused_value_slots_and_shortcut_aliases_row_like
       ~remove_unused_value_slots_and_shortcut_aliases_index:
@@ -1917,9 +1914,7 @@ and project_head_of_kind_value ~to_project ~expand head =
     in
     if immediates == immediates' && blocks == blocks'
     then head
-    else
-      Variant
-        { is_unique; blocks = blocks'; immediates = immediates' }
+    else Variant { is_unique; blocks = blocks'; immediates = immediates' }
   | Mutable_block _ -> head
   | Boxed_float (ty, alloc_mode) ->
     let ty' = project_variables_out ~to_project ~expand ty in
@@ -2168,8 +2163,7 @@ let kind t =
   | Rec_info _ -> K.rec_info
   | Region _ -> K.region
 
-let create_variant ~is_unique ~(immediates : _ Or_unknown.t) ~blocks
-    =
+let create_variant ~is_unique ~(immediates : _ Or_unknown.t) ~blocks =
   (match immediates with
   | Unknown -> ()
   | Known immediates ->
@@ -2300,12 +2294,14 @@ module Row_like_for_blocks = struct
     | Open of Tag.t Or_unknown.t
     | Closed of Tag.t
 
-  let bottom = { known_tags = Tag.Map.empty; other_tags = Bottom; alloc_mode = Unknown }
+  let bottom =
+    { known_tags = Tag.Map.empty; other_tags = Bottom; alloc_mode = Unknown }
 
   let is_bottom { known_tags; other_tags; alloc_mode = _ } =
     Tag.Map.is_empty known_tags && other_tags = Or_bottom.Bottom
 
-  let all_tags { known_tags; other_tags; alloc_mode = _ } : Tag.Set.t Or_unknown.t =
+  let all_tags { known_tags; other_tags; alloc_mode = _ } :
+      Tag.Set.t Or_unknown.t =
     match other_tags with
     | Ok _ -> Unknown
     | Bottom -> Known (Tag.Map.keys known_tags)
@@ -2425,7 +2421,10 @@ module Row_like_for_blocks = struct
         env_extension = { equations = Name.Map.empty }
       }
     in
-    { known_tags = Tag.Map.of_set (fun _ -> case) tags; other_tags = Bottom; alloc_mode }
+    { known_tags = Tag.Map.of_set (fun _ -> case) tags;
+      other_tags = Bottom;
+      alloc_mode
+    }
 
   let create_exactly_multiple ~field_tys_by_tag alloc_mode =
     let known_tags =
@@ -2453,7 +2452,8 @@ module Row_like_for_blocks = struct
     (* CR-someday mshinwell: add invariant check? *)
     { known_tags; other_tags; alloc_mode }
 
-  let all_tags_and_indexes { known_tags; other_tags; alloc_mode = _ } : _ Or_unknown.t =
+  let all_tags_and_indexes { known_tags; other_tags; alloc_mode = _ } :
+      _ Or_unknown.t =
     match other_tags with
     | Ok _ -> Unknown
     | Bottom -> Known (Tag.Map.map (fun case -> case.index) known_tags)
@@ -2997,9 +2997,7 @@ let rec recover_some_aliases t =
           ( Mutable_block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
           | Boxed_nativeint _ | String _ | Closures _ | Array _ )) ->
       t
-    | Ok
-        (No_alias
-          (Variant { immediates; blocks; is_unique = _ })) -> (
+    | Ok (No_alias (Variant { immediates; blocks; is_unique = _ })) -> (
       match blocks with
       | Unknown -> t
       | Known blocks -> (

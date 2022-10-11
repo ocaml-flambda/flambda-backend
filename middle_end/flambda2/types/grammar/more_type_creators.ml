@@ -146,7 +146,9 @@ let immutable_block_with_size_at_least ~tag ~n ~field_kind ~field_n_minus_one =
   TG.create_variant ~is_unique:false
     ~immediates:(Known (bottom K.naked_immediate))
     ~blocks:
-      (Known (TG.Row_like_for_blocks.create ~field_kind ~field_tys (Open tag) Unknown))
+      (Known
+         (TG.Row_like_for_blocks.create ~field_kind ~field_tys (Open tag)
+            Unknown))
 
 let variant ~const_ctors ~non_const_ctors alloc_mode =
   let blocks =

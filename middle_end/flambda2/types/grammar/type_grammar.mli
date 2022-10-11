@@ -389,7 +389,9 @@ module Row_like_for_blocks : sig
     field_kind:Flambda_kind.t -> Tag.Set.t -> Alloc_mode.t Or_unknown.t -> t
 
   val create_exactly_multiple :
-    field_tys_by_tag:flambda_type list Tag.Map.t -> Alloc_mode.t Or_unknown.t -> t
+    field_tys_by_tag:flambda_type list Tag.Map.t ->
+    Alloc_mode.t Or_unknown.t ->
+    t
 
   val create_raw :
     known_tags:(Block_size.t, int_indexed_product) row_like_case Tag.Map.t ->
@@ -401,7 +403,9 @@ module Row_like_for_blocks : sig
 
   val all_tags_and_sizes : t -> Targetint_31_63.t Tag.Map.t Or_unknown.t
 
-  val get_singleton : t -> (Tag_and_size.t * Product.Int_indexed.t * Alloc_mode.t Or_unknown.t) option
+  val get_singleton :
+    t ->
+    (Tag_and_size.t * Product.Int_indexed.t * Alloc_mode.t Or_unknown.t) option
 
   (** Get the nth field of the block if it is unambiguous.
 
