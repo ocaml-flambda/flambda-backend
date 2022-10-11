@@ -506,10 +506,15 @@ let extract_accumulators_from_function outer_dacc ~dacc_after_body
     |> DA.with_code_age_relation ~code_age_relation,
     lifted_consts_this_function )
 
-type simplify_function_result =
-  { code_id : Code_id.t;
-    code : Rebuilt_static_const.t option;
-    outer_dacc : DA.t
+type simplify_function_body_result =
+  { params : Bound_parameters.t;
+    params_and_body : Rebuilt_expr.Function_params_and_body.t;
+    dacc_at_function_entry : DA.t;
+    dacc_after_body : DA.t;
+    free_names_of_code : NO.t;
+    return_cont_uses : Continuation_uses.t option;
+    is_my_closure_used : bool;
+    uacc_after_upwards_traversal : UA.t
   }
 
 let simplify_function_body context ~outer_dacc function_slot_opt
@@ -575,14 +580,15 @@ let simplify_function_body context ~outer_dacc function_slot_opt
         my_region Variable.print my_depth
         (RE.print (UA.are_rebuilding_terms uacc))
         body;
-    ( params,
-      params_and_body,
-      dacc_at_function_entry,
-      dacc_after_body,
-      free_names_of_code,
-      return_cont_uses,
-      is_my_closure_used,
-      uacc )
+    { params;
+      params_and_body;
+      dacc_at_function_entry;
+      dacc_after_body;
+      free_names_of_code;
+      return_cont_uses;
+      is_my_closure_used;
+      uacc_after_upwards_traversal = uacc
+    }
   | exception Misc.Fatal_error ->
     let bt = Printexc.get_raw_backtrace () in
     Format.eprintf
@@ -648,6 +654,12 @@ let compute_result_types ~is_a_functor ~return_cont_uses ~dacc_after_body
       in
       Ok (Result_types.create ~params ~results:return_cont_params env_extension)
 
+type simplify_function_result =
+  { code_id : Code_id.t;
+    code : Rebuilt_static_const.t option;
+    outer_dacc : DA.t
+  }
+
 let simplify_function0 context ~outer_dacc function_slot_opt code_id code
     ~closure_bound_names_inside_function =
   let denv_prior_to_sets = C.dacc_prior_to_sets context |> DA.denv in
@@ -684,14 +696,15 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
       (Flambda_arity.With_subkinds.to_list result_arity)
     |> Bound_parameters.create
   in
-  let ( params,
-        params_and_body,
-        dacc_at_function_entry,
-        dacc_after_body,
-        free_names_of_code,
-        return_cont_uses,
-        is_my_closure_used,
-        uacc_after_upwards_traversal ) =
+  let { params;
+        params_and_body;
+        dacc_at_function_entry;
+        dacc_after_body;
+        free_names_of_code;
+        return_cont_uses;
+        is_my_closure_used;
+        uacc_after_upwards_traversal
+      } =
     Function_params_and_body.pattern_match
       (Code.params_and_body code)
       ~f:
