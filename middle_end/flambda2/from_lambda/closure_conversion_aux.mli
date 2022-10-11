@@ -277,7 +277,6 @@ module Function_decls : sig
       stub:bool ->
       Recursive.t ->
       closure_alloc_mode:Lambda.alloc_mode ->
-      num_trailing_local_closures:int ->
       contains_no_escaping_local_allocs:bool ->
       t
 
@@ -314,8 +313,6 @@ module Function_decls : sig
     val recursive : t -> Recursive.t
 
     val closure_alloc_mode : t -> Lambda.alloc_mode
-
-    val num_trailing_local_closures : t -> int
 
     val contains_no_escaping_local_allocs : t -> bool
 

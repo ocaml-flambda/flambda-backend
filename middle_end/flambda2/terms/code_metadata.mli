@@ -35,9 +35,10 @@ module type Code_metadata_accessors_result_type = sig
 
   val param_modes : 'a t -> Alloc_mode.t list
 
-  val num_leading_heap_closures : 'a t -> int
+  val num_trailing_local_closures :
+    'a t -> closure_alloc_mode:Alloc_mode.t -> int
 
-  val num_trailing_local_closures : 'a t -> int
+  val num_leading_heap_closures : 'a t -> closure_alloc_mode:Alloc_mode.t -> int
 
   val result_arity : 'a t -> Flambda_arity.With_subkinds.t
 
@@ -82,7 +83,6 @@ type 'a create_type =
   newer_version_of:Code_id.t option ->
   params_arity:Flambda_arity.With_subkinds.t ->
   param_modes:Alloc_mode.t list ->
-  num_trailing_local_closures:int ->
   result_arity:Flambda_arity.With_subkinds.t ->
   result_types:Result_types.t Or_unknown_or_bottom.t ->
   contains_no_escaping_local_allocs:bool ->

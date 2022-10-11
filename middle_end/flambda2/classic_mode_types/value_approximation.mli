@@ -24,7 +24,8 @@ type 'code t =
       { code_id : Code_id.t;
         function_slot : Function_slot.t;
         code : 'code;
-        symbol : Symbol.t option
+        symbol : Symbol.t option;
+        alloc_mode : Alloc_mode.t
       }
   | Block_approximation of 'code t array * Alloc_mode.t
 

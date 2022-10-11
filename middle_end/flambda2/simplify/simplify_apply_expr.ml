@@ -334,17 +334,14 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
   let wrapper_function_slot =
     Function_slot.create compilation_unit ~name:"partial_app_closure"
   in
-  let new_closure_alloc_mode, num_trailing_local_closures =
+  let new_closure_alloc_mode =
     (* If the closure has a local suffix, and we've supplied enough args to hit
        it, then the closure must be local (because the args or closure might
        be). *)
     let num_leading_heap_closures = arity - num_trailing_local_closures in
     if args_arity <= num_leading_heap_closures
-    then Alloc_mode.With_region.heap, num_trailing_local_closures
-    else
-      let num_supplied_local_args = args_arity - num_leading_heap_closures in
-      ( Alloc_mode.With_region.local ~region:current_region,
-        num_trailing_local_closures - num_supplied_local_args )
+    then Alloc_mode.With_region.heap
+    else Alloc_mode.With_region.local ~region:current_region
   in
   (match closure_alloc_mode with
   | Unknown -> ()
@@ -511,9 +508,9 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         Code.create code_id ~params_and_body
           ~free_names_of_params_and_body:free_names ~newer_version_of:None
           ~params_arity:(Bound_parameters.arity_with_subkinds remaining_params)
-          ~param_modes:remaining_params_alloc_modes ~num_trailing_local_closures
-          ~result_arity ~result_types:Unknown ~contains_no_escaping_local_allocs
-          ~stub:true ~inline:Default_inline ~check:Check_attribute.Default_check
+          ~param_modes:remaining_params_alloc_modes ~result_arity
+          ~result_types:Unknown ~contains_no_escaping_local_allocs ~stub:true
+          ~inline:Default_inline ~check:Check_attribute.Default_check
           ~is_a_functor:false ~recursive ~cost_metrics:cost_metrics_of_body
           ~inlining_arguments:(DE.inlining_arguments (DA.denv dacc))
           ~dbg ~is_tupled:false
@@ -615,8 +612,8 @@ let simplify_direct_over_application ~simplify_expr dacc apply ~param_arity
 let simplify_direct_function_call ~simplify_expr dacc apply
     ~callee's_code_id_from_type ~callee's_code_id_from_call_kind
     ~callee's_function_slot ~result_arity ~result_types ~recursive ~arg_types:_
-    ~must_be_detupled ~closure_alloc_mode ~apply_alloc_mode ~current_region
-    function_decl ~down_to_up =
+    ~must_be_detupled ~(closure_alloc_mode : _ Or_unknown.t) ~apply_alloc_mode
+    ~current_region ~type_unavailable function_decl ~down_to_up =
   (match Apply.probe_name apply, Apply.inlined apply with
   | None, _ | Some _, Never_inlined -> ()
   | Some _, (Hint_inlined | Unroll _ | Default_inlined | Always_inlined) ->
@@ -701,12 +698,17 @@ let simplify_direct_function_call ~simplify_expr dacc apply
           ~current_region
       else if provided_num_args > 0 && provided_num_args < num_params
       then
-        simplify_direct_partial_application ~simplify_expr dacc apply
-          ~callee's_code_id ~callee's_code_metadata ~callee's_function_slot
-          ~param_arity:params_arity ~result_arity ~recursive ~down_to_up
-          ~coming_from_indirect ~closure_alloc_mode ~current_region
-          ~num_trailing_local_closures:
-            (Code_metadata.num_trailing_local_closures callee's_code_metadata)
+        match closure_alloc_mode with
+        | Unknown -> type_unavailable ()
+        | Known closure_alloc_mode' ->
+          simplify_direct_partial_application ~simplify_expr dacc apply
+            ~callee's_code_id ~callee's_code_metadata ~callee's_function_slot
+            ~param_arity:params_arity ~result_arity ~recursive ~down_to_up
+            ~coming_from_indirect ~closure_alloc_mode ~current_region
+            ~num_trailing_local_closures:
+              (Code_metadata.num_trailing_local_closures callee's_code_metadata
+                 ~closure_alloc_mode:
+                   (Alloc_mode.With_region.without_region closure_alloc_mode'))
       else
         Misc.fatal_errorf
           "Function with %d params when simplifying direct OCaml function call \
@@ -885,7 +887,7 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
       ~result_types:(Code_metadata.result_types callee's_code_metadata)
       ~recursive:(Code_metadata.recursive callee's_code_metadata)
       ~must_be_detupled ~closure_alloc_mode ~current_region ~apply_alloc_mode
-      func_decl_type ~down_to_up
+      ~type_unavailable func_decl_type ~down_to_up
   | Need_meet -> type_unavailable ()
   | Invalid ->
     let rebuild uacc ~after_rebuild =

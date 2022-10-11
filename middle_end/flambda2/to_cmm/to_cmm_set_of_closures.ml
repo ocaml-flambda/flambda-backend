@@ -32,7 +32,7 @@ type closure_code_pointers =
   | Full_application_only
   | Full_and_partial_application
 
-let get_func_decl_params_arity t code_id =
+let get_func_decl_params_arity t code_id ~closure_alloc_mode =
   let info = Env.get_code_metadata t code_id in
   let num_params =
     Flambda_arity.With_subkinds.cardinal (Code_metadata.params_arity info)
@@ -41,7 +41,10 @@ let get_func_decl_params_arity t code_id =
     if Code_metadata.is_tupled info
     then Lambda.Tupled
     else
-      Lambda.Curried { nlocal = Code_metadata.num_trailing_local_closures info }
+      Lambda.Curried
+        { nlocal =
+            Code_metadata.num_trailing_local_closures info ~closure_alloc_mode
+        }
   in
   let closure_code_pointers =
     match kind, num_params with
@@ -85,6 +88,7 @@ end) : sig
     for_static_sets option ->
     Code_id.t Function_slot.Map.t ->
     Debuginfo.t ->
+    closure_alloc_mode:Alloc_mode.t ->
     startenv:int ->
     Simple.t Value_slot.Map.t ->
     Env.t ->
@@ -94,8 +98,8 @@ end) : sig
     P.cmm_term list * int * Env.t * Ece.t * Cmm.expression option
 end = struct
   (* The [offset]s here are measured in units of words. *)
-  let fill_slot for_static_sets decls dbg ~startenv value_slots env acc
-      ~slot_offset updates slot =
+  let fill_slot for_static_sets decls dbg ~closure_alloc_mode ~startenv
+      value_slots env acc ~slot_offset updates slot =
     match (slot : Slot_offsets.Layout.slot) with
     | Infix_header ->
       let field = P.infix_header ~function_slot_offset:(slot_offset + 1) ~dbg in
@@ -129,7 +133,7 @@ end = struct
       let code_id = Function_slot.Map.find function_slot decls in
       let code_linkage_name = Code_id.linkage_name code_id in
       let arity, closure_code_pointers, dbg =
-        get_func_decl_params_arity env code_id
+        get_func_decl_params_arity env code_id ~closure_alloc_mode
       in
       let closure_info =
         C.closure_info ~arity ~startenv:(startenv - slot_offset)
@@ -179,8 +183,8 @@ end = struct
         in
         acc, slot_offset + size, env, Ece.pure, updates)
 
-  let rec fill_layout0 for_static_sets decls dbg ~startenv value_slots env effs
-      acc updates ~starting_offset slots =
+  let rec fill_layout0 for_static_sets decls dbg ~closure_alloc_mode ~startenv
+      value_slots env effs acc updates ~starting_offset slots =
     match slots with
     | [] -> List.rev acc, starting_offset, env, effs, updates
     | (slot_offset, slot) :: slots ->
@@ -196,17 +200,17 @@ end = struct
           @ acc
       in
       let acc, next_offset, env, eff, updates =
-        fill_slot for_static_sets decls dbg ~startenv value_slots env acc
-          ~slot_offset updates slot
+        fill_slot for_static_sets decls dbg ~closure_alloc_mode ~startenv
+          value_slots env acc ~slot_offset updates slot
       in
       let effs = Ece.join eff effs in
-      fill_layout0 for_static_sets decls dbg ~startenv value_slots env effs acc
-        updates ~starting_offset:next_offset slots
+      fill_layout0 for_static_sets decls dbg ~closure_alloc_mode ~startenv
+        value_slots env effs acc updates ~starting_offset:next_offset slots
 
-  let fill_layout for_static_sets decls dbg ~startenv value_slots env effs
-      ~prev_updates slots =
-    fill_layout0 for_static_sets decls dbg ~startenv value_slots env effs []
-      prev_updates ~starting_offset:0 slots
+  let fill_layout for_static_sets decls dbg ~closure_alloc_mode ~startenv
+      value_slots env effs ~prev_updates slots =
+    fill_layout0 for_static_sets decls dbg ~closure_alloc_mode ~startenv
+      value_slots env effs [] prev_updates ~starting_offset:0 slots
 end
 
 (* Filling-up of dynamically-allocated sets of closures. *)
@@ -376,6 +380,8 @@ let let_static_set_of_closures0 env closure_symbols
   in
   let l, length, env, _effs, updates =
     Static.fill_layout (Some for_static_sets) decls dbg
+      ~closure_alloc_mode:
+        (Set_of_closures.alloc_mode set |> Alloc_mode.With_region.without_region)
       ~startenv:layout.startenv value_slots env Ece.pure ~prev_updates
       layout.slots
   in
@@ -467,8 +473,11 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
     decls |> Function_slot.Lmap.bindings |> Function_slot.Map.of_list
   in
   let l, _offset, env, effs, updates =
-    Dynamic.fill_layout None decl_map dbg ~startenv:layout.startenv value_slots
-      env effs ~prev_updates:None layout.slots
+    Dynamic.fill_layout None decl_map dbg
+      ~closure_alloc_mode:
+        (Set_of_closures.alloc_mode set |> Alloc_mode.With_region.without_region)
+      ~startenv:layout.startenv value_slots env effs ~prev_updates:None
+      layout.slots
   in
   assert (Option.is_none updates);
   let csoc =

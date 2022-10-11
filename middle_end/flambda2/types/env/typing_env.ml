@@ -1186,8 +1186,8 @@ end = struct
         let fields = List.map type_from_approx (Array.to_list fields) in
         MTC.immutable_block ~is_unique:false Tag.zero
           ~field_kind:Flambda_kind.value ~fields (Or_unknown.Known alloc_mode)
-      | Closure_approximation { code_id; function_slot; code = _; symbol = _ }
-        ->
+      | Closure_approximation
+          { code_id; function_slot; code = _; symbol = _; alloc_mode } ->
         (* CR keryan: we should use the associated symbol at some point *)
         let fun_decl =
           TG.Function_type.create code_id
@@ -1203,7 +1203,7 @@ end = struct
         in
         let all_value_slots_in_set = Value_slot.Map.empty in
         MTC.exactly_this_closure function_slot ~all_function_slots_in_set
-          ~all_closure_types_in_set ~all_value_slots_in_set Or_unknown.Unknown
+          ~all_closure_types_in_set ~all_value_slots_in_set (Known alloc_mode)
     in
     let just_after_level =
       Symbol.Map.fold
@@ -1290,7 +1290,7 @@ end = struct
           | Mutable_block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
           | Boxed_nativeint _ | String _ | Array _ ->
             Value_unknown
-          | Closures { by_function_slot; alloc_mode = _ } -> (
+          | Closures { by_function_slot; alloc_mode } -> (
             match TG.Row_like_for_closures.get_singleton by_function_slot with
             | None -> Value_unknown
             | Some ((function_slot, _contents), closures_entry) -> (
@@ -1299,12 +1299,19 @@ end = struct
                   function_slot
               with
               | Bottom | Unknown -> Value_unknown
-              | Ok function_type ->
+              | Ok function_type -> (
                 let code_id = TG.Function_type.code_id function_type in
                 let code_or_meta = find_code code_id in
-                Closure_approximation
-                  { code_id; function_slot; code = code_or_meta; symbol = None }
-              ))
+                match alloc_mode with
+                | Unknown -> Value_unknown
+                | Known alloc_mode ->
+                  Closure_approximation
+                    { code_id;
+                      function_slot;
+                      code = code_or_meta;
+                      symbol = None;
+                      alloc_mode
+                    })))
           | Variant
               { immediates = Unknown;
                 blocks = _;

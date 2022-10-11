@@ -24,7 +24,8 @@ type 'code t =
       { code_id : Code_id.t;
         function_slot : Function_slot.t;
         code : 'code;
-        symbol : Symbol.t option
+        symbol : Symbol.t option;
+        alloc_mode : Alloc_mode.t
       }
   | Block_approximation of 'code t array * Alloc_mode.t
 
@@ -60,7 +61,8 @@ let rec free_names ~code_free_names approx =
       (fun names approx ->
         Name_occurrences.union names (free_names ~code_free_names approx))
       Name_occurrences.empty approxs
-  | Closure_approximation { code_id; function_slot; code; symbol } ->
+  | Closure_approximation
+      { code_id; function_slot; code; symbol; alloc_mode = _ } ->
     let free_names = code_free_names code in
     let free_names =
       match symbol with

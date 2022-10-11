@@ -758,9 +758,7 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
       (DA.are_rebuilding_terms dacc_after_body)
       code_id ~params_and_body ~free_names_of_params_and_body:free_names_of_code
       ~newer_version_of ~params_arity:(Code.params_arity code)
-      ~param_modes:(Code.param_modes code)
-      ~num_trailing_local_closures:(Code.num_trailing_local_closures code)
-      ~result_arity ~result_types
+      ~param_modes:(Code.param_modes code) ~result_arity ~result_types
       ~contains_no_escaping_local_allocs:
         (Code.contains_no_escaping_local_allocs code)
       ~stub:(Code.stub code) ~inline:(Code.inline code) ~check:(Code.check code)

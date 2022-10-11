@@ -784,9 +784,9 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         let code =
           (* CR mshinwell: [inlining_decision] should maybe be set properly *)
           Code.create code_id ~params_and_body ~free_names_of_params_and_body
-            ~newer_version_of ~params_arity ~param_modes
-            ~num_trailing_local_closures:0 ~result_arity ~result_types:Unknown
-            ~contains_no_escaping_local_allocs:false ~stub:false ~inline
+            ~newer_version_of ~params_arity ~param_modes ~result_arity
+            ~result_types:Unknown ~contains_no_escaping_local_allocs:false
+            ~stub:false ~inline
             ~check:
               Default_check (* CR gyorsh: should [check] be set properly? *)
             ~is_a_functor:false ~recursive

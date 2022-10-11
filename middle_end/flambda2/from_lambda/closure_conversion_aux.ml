@@ -176,7 +176,12 @@ module Env = struct
             let approxs = Array.map filter_inlinable approxs in
             Value_approximation.Block_approximation (approxs, alloc_mode)
           | Closure_approximation
-              { code_id; function_slot; code = Code_present code; _ } -> (
+              { code_id;
+                function_slot;
+                code = Code_present code;
+                alloc_mode;
+                _
+              } -> (
             match[@ocaml.warning "-fragile-match"]
               Inlining.definition_inlining_decision (Code.inline code)
                 (Code.cost_metrics code)
@@ -187,7 +192,8 @@ module Env = struct
                 { code_id;
                   function_slot;
                   code = Code_or_metadata.(remember_only_metadata (create code));
-                  symbol = None
+                  symbol = None;
+                  alloc_mode
                 })
         in
         let approx = filter_inlinable approx in
@@ -556,14 +562,13 @@ module Function_decls = struct
         stub : bool;
         recursive : Recursive.t;
         closure_alloc_mode : Lambda.alloc_mode;
-        num_trailing_local_closures : int;
         contains_no_escaping_local_allocs : bool
       }
 
     let create ~let_rec_ident ~function_slot ~kind ~params ~return
         ~return_continuation ~exn_continuation ~my_region ~body ~attr ~loc
         ~free_idents_of_body ~stub recursive ~closure_alloc_mode
-        ~num_trailing_local_closures ~contains_no_escaping_local_allocs =
+        ~contains_no_escaping_local_allocs =
       let let_rec_ident =
         match let_rec_ident with
         | None -> Ident.create_local "unnamed_function"
@@ -584,7 +589,6 @@ module Function_decls = struct
         stub;
         recursive;
         closure_alloc_mode;
-        num_trailing_local_closures;
         contains_no_escaping_local_allocs
       }
 
@@ -623,8 +627,6 @@ module Function_decls = struct
     let recursive t = t.recursive
 
     let closure_alloc_mode t = t.closure_alloc_mode
-
-    let num_trailing_local_closures t = t.num_trailing_local_closures
 
     let contains_no_escaping_local_allocs t =
       t.contains_no_escaping_local_allocs

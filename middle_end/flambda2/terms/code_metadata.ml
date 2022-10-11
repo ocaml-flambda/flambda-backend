@@ -19,9 +19,6 @@ type t =
     newer_version_of : Code_id.t option;
     params_arity : Flambda_arity.With_subkinds.t;
     param_modes : Alloc_mode.t list;
-    num_trailing_local_closures : int;
-    (* CR mshinwell: compute [num_trailing_local_closures] from
-       [param_modes]? *)
     result_arity : Flambda_arity.With_subkinds.t;
     result_types : Result_types.t Or_unknown_or_bottom.t;
     contains_no_escaping_local_allocs : bool;
@@ -59,17 +56,29 @@ module Code_metadata_accessors (X : Metadata_view_type) = struct
 
   let param_modes t = (metadata t).param_modes
 
-  let num_leading_heap_closures t =
-    let { params_arity; num_trailing_local_closures; _ } = metadata t in
+  let num_trailing_local_closures t ~(closure_alloc_mode : Alloc_mode.t) =
+    match closure_alloc_mode with
+    | Local -> Flambda_arity.With_subkinds.cardinal (params_arity t)
+    | Heap ->
+      List.fold_left
+        (fun (rev_index, num_trailing_local_closures)
+             (param_mode : Alloc_mode.t) ->
+          match param_mode with
+          | Local -> rev_index + 1, rev_index
+          | Heap -> rev_index + 1, num_trailing_local_closures)
+        (1, 0)
+        (List.rev (param_modes t))
+      |> snd
+
+  let num_leading_heap_closures t ~closure_alloc_mode =
+    let { params_arity; _ } = metadata t in
     let n =
       Flambda_arity.With_subkinds.cardinal params_arity
-      - num_trailing_local_closures
+      - num_trailing_local_closures t ~closure_alloc_mode
     in
     assert (n >= 0);
     (* see [create] *)
     n
-
-  let num_trailing_local_closures t = (metadata t).num_trailing_local_closures
 
   let result_arity t = (metadata t).result_arity
 
@@ -128,7 +137,6 @@ type 'a create_type =
   newer_version_of:Code_id.t option ->
   params_arity:Flambda_arity.With_subkinds.t ->
   param_modes:Alloc_mode.t list ->
-  num_trailing_local_closures:int ->
   result_arity:Flambda_arity.With_subkinds.t ->
   result_types:Result_types.t Or_unknown_or_bottom.t ->
   contains_no_escaping_local_allocs:bool ->
@@ -147,12 +155,11 @@ type 'a create_type =
   relative_history:Inlining_history.Relative.t ->
   'a
 
-let createk k code_id ~newer_version_of ~params_arity ~param_modes
-    ~num_trailing_local_closures ~result_arity ~result_types
-    ~contains_no_escaping_local_allocs ~stub ~(inline : Inline_attribute.t)
-    ~check ~is_a_functor ~recursive ~cost_metrics ~inlining_arguments ~dbg
-    ~is_tupled ~is_my_closure_used ~inlining_decision ~absolute_history
-    ~relative_history =
+let createk k code_id ~newer_version_of ~params_arity ~param_modes ~result_arity
+    ~result_types ~contains_no_escaping_local_allocs ~stub
+    ~(inline : Inline_attribute.t) ~check ~is_a_functor ~recursive ~cost_metrics
+    ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used ~inlining_decision
+    ~absolute_history ~relative_history =
   (match stub, inline with
   | true, (Available_inline | Never_inline | Default_inline)
   | ( false,
@@ -161,13 +168,6 @@ let createk k code_id ~newer_version_of ~params_arity ~param_modes
     ()
   | true, (Always_inline | Unroll _) ->
     Misc.fatal_error "Stubs may not be annotated as [Always_inline] or [Unroll]");
-  if num_trailing_local_closures < 0
-     || num_trailing_local_closures
-        > Flambda_arity.With_subkinds.cardinal params_arity
-  then
-    Misc.fatal_errorf
-      "Illegal num_trailing_local_closures=%d for params arity: %a"
-      num_trailing_local_closures Flambda_arity.With_subkinds.print params_arity;
   if List.compare_length_with param_modes
        (Flambda_arity.With_subkinds.cardinal params_arity)
      <> 0
@@ -181,7 +181,6 @@ let createk k code_id ~newer_version_of ~params_arity ~param_modes
       newer_version_of;
       params_arity;
       param_modes;
-      num_trailing_local_closures;
       result_arity;
       result_types;
       contains_no_escaping_local_allocs;
@@ -228,7 +227,7 @@ let [@ocamlformat "disable"] print_inlining_paths ppf
 
 let [@ocamlformat "disable"] print ppf
        { code_id = _; newer_version_of; stub; inline; check; is_a_functor;
-        params_arity; param_modes; num_trailing_local_closures; result_arity;
+        params_arity; param_modes; result_arity;
         result_types; contains_no_escaping_local_allocs;
         recursive; cost_metrics; inlining_arguments;
         dbg; is_tupled; is_my_closure_used; inlining_decision;
@@ -242,7 +241,6 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>%t(is_a_functor@ %b)%t@]@ \
       @[<hov 1>%t(params_arity@ %t%a%t)%t@]@ \
       @[<hov 1>%t(param_modes@ %t(%a)%t)%t@]@ \
-      @[<hov 1>(num_trailing_local_closures@ %d)@]@ \
       @[<hov 1>%t(result_arity@ %t%a%t)%t@]@ \
       @[<hov 1>(result_types@ @[<hov 1>(%a)@])@]@ \
       @[<hov 1>(contains_no_escaping_local_allocs@ %b)@]@ \
@@ -295,7 +293,6 @@ let [@ocamlformat "disable"] print ppf
     then Flambda_colours.elide
     else Flambda_colours.none)
     Flambda_colours.pop
-    num_trailing_local_closures
     (if Flambda_arity.With_subkinds.is_singleton_value result_arity
     then Flambda_colours.elide
     else Flambda_colours.none)
@@ -331,7 +328,6 @@ let free_names
       newer_version_of;
       params_arity = _;
       param_modes = _;
-      num_trailing_local_closures = _;
       result_arity = _;
       result_types;
       contains_no_escaping_local_allocs = _;
@@ -370,7 +366,6 @@ let apply_renaming
        newer_version_of;
        params_arity = _;
        param_modes = _;
-       num_trailing_local_closures = _;
        result_arity = _;
        result_types;
        contains_no_escaping_local_allocs = _;
@@ -420,7 +415,6 @@ let ids_for_export
       newer_version_of;
       params_arity = _;
       param_modes = _;
-      num_trailing_local_closures = _;
       result_arity = _;
       result_types;
       contains_no_escaping_local_allocs = _;
@@ -456,7 +450,6 @@ let approx_equal
       newer_version_of = newer_version_of1;
       params_arity = params_arity1;
       param_modes = param_modes1;
-      num_trailing_local_closures = num_trailing_local_closures1;
       result_arity = result_arity1;
       result_types = _;
       contains_no_escaping_local_allocs = contains_no_escaping_local_allocs1;
@@ -478,7 +471,6 @@ let approx_equal
       newer_version_of = newer_version_of2;
       params_arity = params_arity2;
       param_modes = param_modes2;
-      num_trailing_local_closures = num_trailing_local_closures2;
       result_arity = result_arity2;
       result_types = _;
       contains_no_escaping_local_allocs = contains_no_escaping_local_allocs2;
@@ -500,7 +492,6 @@ let approx_equal
   && (Option.equal Code_id.equal) newer_version_of1 newer_version_of2
   && Flambda_arity.With_subkinds.equal params_arity1 params_arity2
   && List.equal Alloc_mode.equal param_modes1 param_modes2
-  && Int.equal num_trailing_local_closures1 num_trailing_local_closures2
   && Flambda_arity.With_subkinds.equal result_arity1 result_arity2
   && Bool.equal contains_no_escaping_local_allocs1
        contains_no_escaping_local_allocs2

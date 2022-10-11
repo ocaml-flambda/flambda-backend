@@ -1339,8 +1339,6 @@ let close_one_function acc ~external_env ~by_function_slot decl
     Code.create code_id ~params_and_body
       ~free_names_of_params_and_body:(Acc.free_names acc) ~params_arity
       ~param_modes
-      ~num_trailing_local_closures:
-        (Function_decl.num_trailing_local_closures decl)
       ~result_arity:
         (Flambda_arity.With_subkinds.create [K.With_subkind.from_lambda return])
       ~result_types:Unknown
@@ -1375,7 +1373,8 @@ let close_one_function acc ~external_env ~by_function_slot decl
   let acc = Acc.with_seen_a_function acc true in
   acc, Function_slot.Map.add function_slot (code_id, approx) by_function_slot
 
-let close_functions acc external_env ~current_region function_declarations =
+let close_functions acc external_env ~current_region ~closure_alloc_mode
+    function_declarations =
   let compilation_unit = Compilation_unit.get_current_exn () in
   let value_slots_from_idents =
     Ident.Set.fold
@@ -1461,7 +1460,12 @@ let close_functions acc external_env ~current_region function_declarations =
     Function_slot.Map.mapi
       (fun function_slot (code_id, code) ->
         Value_approximation.Closure_approximation
-          { code_id; function_slot; code; symbol = None })
+          { code_id;
+            function_slot;
+            code;
+            symbol = None;
+            alloc_mode = closure_alloc_mode
+          })
       approximations
   in
   let function_decls = Function_declarations.create funs in
@@ -1494,9 +1498,14 @@ let close_functions acc external_env ~current_region function_declarations =
           let approx =
             match Function_slot.Map.find function_slot approximations with
             | Value_approximation.Closure_approximation
-                { code_id; function_slot; code; symbol = _ } ->
+                { code_id; function_slot; code; symbol = _; alloc_mode = _ } ->
               Value_approximation.Closure_approximation
-                { code_id; function_slot; code; symbol = Some sym }
+                { code_id;
+                  function_slot;
+                  code;
+                  symbol = Some sym;
+                  alloc_mode = Alloc_mode.heap
+                }
             | _ -> assert false
             (* see above *)
           in
@@ -1557,6 +1566,7 @@ let close_let_rec acc env ~function_declarations
     close_functions acc env
       (Function_decls.create function_declarations alloc_mode)
       ~current_region
+      ~closure_alloc_mode:(Alloc_mode.from_lambda alloc_mode)
   in
   match closed_functions with
   | Lifted symbols ->
@@ -1680,8 +1690,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
         ~params ~return:Lambda.Pgenval ~return_continuation ~exn_continuation
         ~my_region:apply.region ~body:fbody ~attr ~loc:apply.loc
         ~free_idents_of_body ~stub:true ~closure_alloc_mode
-        ~num_trailing_local_closures ~contains_no_escaping_local_allocs
-        Recursive.Non_recursive ]
+        ~contains_no_escaping_local_allocs Recursive.Non_recursive ]
   in
   let body acc env =
     let arg = find_simple_from_id env wrapper_id in
@@ -1809,18 +1818,20 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
   let approx = Env.find_value_approximation env callee in
   let code_info =
     match approx with
-    | Closure_approximation { code = Code_present code; _ } ->
+    | Closure_approximation
+        { code = Code_present code; alloc_mode = closure_alloc_mode; _ } ->
       Some
         ( Code.params_arity code,
           Code.is_tupled code,
-          Code.num_trailing_local_closures code,
+          Code.num_trailing_local_closures code ~closure_alloc_mode,
           Code.contains_no_escaping_local_allocs code,
           Code.result_arity code )
-    | Closure_approximation { code = Metadata_only metadata; _ } ->
+    | Closure_approximation
+        { code = Metadata_only metadata; alloc_mode = closure_alloc_mode; _ } ->
       Some
         ( Code_metadata.params_arity metadata,
           Code_metadata.is_tupled metadata,
-          Code_metadata.num_trailing_local_closures metadata,
+          Code_metadata.num_trailing_local_closures metadata ~closure_alloc_mode,
           Code_metadata.contains_no_escaping_local_allocs metadata,
           Code_metadata.result_arity metadata )
     | Value_unknown -> None
