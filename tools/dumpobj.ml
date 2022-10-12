@@ -500,7 +500,7 @@ let dump_obj ic =
   end;
   let cu_pos = input_binary_int ic in
   seek_in ic cu_pos;
-  let cu = (input_value ic : compilation_unit) in
+  let cu = (input_value ic : compilation_unit_descr) in
   reloc := cu.cu_reloc;
   if !print_reloc_info then
     List.iter print_reloc cu.cu_reloc;

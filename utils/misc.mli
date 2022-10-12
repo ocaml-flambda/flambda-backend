@@ -472,6 +472,9 @@ val print_if :
 
 
 type filepath = string
+
+(* CR-someday lmaurer: Retire [modname] in favor of [Compilation_unit.Name.t]
+   and alter [crcs] accordingly (move it into [Compilation_unit] somewhere?). *)
 type modname = string
 type crcs = (modname * Digest.t option) list
 

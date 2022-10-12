@@ -275,6 +275,8 @@ FUNCTION(caml_start_program)
     /* Common code for caml_start_program and caml_callback* */
 LBL(106):
         movl    G(Caml_state), %edi
+        ALIGN_STACK(12)
+        pushl   CAML_STATE(async_exception_pointer, %edi); CFI_ADJUST(4)
     /* Build a callback link */
         pushl   CAML_STATE(gc_regs, %edi); CFI_ADJUST(4)
         pushl   CAML_STATE(last_return_address, %edi); CFI_ADJUST(4)
@@ -285,6 +287,7 @@ LBL(106):
         ALIGN_STACK(8)
         pushl   CAML_STATE(exception_pointer, %edi); CFI_ADJUST(4)
         movl    %esp, CAML_STATE(exception_pointer, %edi)
+        movl    %esp, CAML_STATE(async_exception_pointer, %edi)
     /* Call the OCaml code */
         call    *%esi
 LBL(107):
@@ -298,6 +301,8 @@ LBL(109):
         popl    CAML_STATE(bottom_of_stack, %edi); CFI_ADJUST(-4)
         popl    CAML_STATE(last_return_address, %edi); CFI_ADJUST(-4)
         popl    CAML_STATE(gc_regs, %edi); CFI_ADJUST(-4)
+        popl    CAML_STATE(async_exception_pointer, %edi); CFI_ADJUST(-4)
+        UNDO_ALIGN_STACK(12)
     /* Restore callee-save registers. */
         popl    %ebp; CFI_ADJUST(-4)
         popl    %edi; CFI_ADJUST(-4)

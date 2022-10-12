@@ -43,7 +43,7 @@ let scan_obj filename =
   if buffer = cmo_magic_number then begin
     let cu_pos = input_binary_int ic in
     seek_in ic cu_pos;
-    let cu = (input_value ic : compilation_unit) in
+    let cu = (input_value ic : compilation_unit_descr) in
     close_in ic;
     scan_info cu
   end else

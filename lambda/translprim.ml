@@ -95,7 +95,8 @@ let add_used_primitive loc env path =
     Some (Path.Pdot _ as path) ->
       let path = Env.normalize_path_prefix (Some loc) env path in
       let unit = Path.head path in
-      if Ident.global unit && not (Hashtbl.mem used_primitives path)
+      if Ident.is_global_or_predef unit
+         && not (Hashtbl.mem used_primitives path)
       then Hashtbl.add used_primitives path loc
   | _ -> ()
 
@@ -381,6 +382,7 @@ let lookup_primitive loc poly pos p =
     | "%greaterthan" -> Comparison(Greater_than, Compare_generic)
     | "%compare" -> Comparison(Compare, Compare_generic)
     | "%obj_dup" -> Primitive(Pobj_dup, 1)
+    | "%obj_magic" -> Primitive(Pobj_magic, 1)
     | s when String.length s > 0 && s.[0] = '%' ->
        raise(Error(loc, Unknown_builtin_primitive s))
     | _ -> External p
@@ -824,7 +826,8 @@ let lambda_primitive_needs_event_after = function
   | Pbytessetu | Pmakearray ((Pintarray | Paddrarray | Pfloatarray), _, _)
   | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisout
   | Pprobe_is_enabled _
-  | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer | Popaque -> false
+  | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer | Popaque
+  | Pobj_magic -> false
 
 (* Determine if a primitive should be surrounded by an "after" debug event *)
 let primitive_needs_event_after = function

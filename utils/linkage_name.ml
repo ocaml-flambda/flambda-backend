@@ -14,21 +14,17 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-9-30-40-41-42"]
+[@@@ocaml.warning "+a-4-9-30-40-41-42-66"]
+open! Int_replace_polymorphic_compare
 
-include Identifiable.S
+type t = string
 
-(* The [Ident.t] must be persistent.  This function raises an exception
-   if that is not the case. *)
-val create : Ident.t -> Linkage_name.t -> t
+include Identifiable.Make (struct
+  include String
+  let hash = Hashtbl.hash
+  let print ppf t = Format.pp_print_string ppf t
+  let output chan t = output_string chan t
+end)
 
-val get_persistent_ident : t -> Ident.t
-val get_linkage_name : t -> Linkage_name.t
-
-val is_current : t -> bool
-val set_current : t -> unit
-val get_current : unit -> t option
-val get_current_exn : unit -> t
-val get_current_id_exn : unit -> Ident.t
-
-val string_for_printing : t -> string
+let of_string t = t
+let to_string t = t

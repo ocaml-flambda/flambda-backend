@@ -28,6 +28,8 @@ extern "C" {
 CAMLextern char * caml_format_exception (value);
 #ifdef CAML_INTERNALS
 CAMLnoreturn_start void caml_fatal_uncaught_exception (value) CAMLnoreturn_end;
+CAMLnoreturn_start void caml_fatal_uncaught_exception_with_message
+  (value, const char *) CAMLnoreturn_end;
 #endif /* CAML_INTERNALS */
 
 #ifdef __cplusplus

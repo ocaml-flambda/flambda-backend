@@ -440,6 +440,7 @@ let primitive ppf = function
   | Popaque -> fprintf ppf "opaque"
   | Pprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled[%s]" name
   | Pobj_dup -> fprintf ppf "obj_dup"
+  | Pobj_magic -> fprintf ppf "obj_magic"
 
 let name_of_primitive = function
   | Pidentity -> "Pidentity"
@@ -549,6 +550,7 @@ let name_of_primitive = function
   | Popaque -> "Popaque"
   | Pprobe_is_enabled _ -> "Pprobe_is_enabled"
   | Pobj_dup -> "Pobj_dup"
+  | Pobj_magic -> "Pobj_magic"
 
 let check_attribute ppf check =
   let check_property = function

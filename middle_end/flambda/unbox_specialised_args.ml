@@ -45,7 +45,6 @@ module Transform = struct
          as well as the "_in_recursion" map *)
       let invariant_params_flow =
         Invariant_params.invariant_param_sources set_of_closures.function_decls
-          ~backend:(Inline_and_simplify_aux.Env.backend env)
       in
       Variable.Map.fold (fun fun_var extractions what_to_specialise ->
           Projection.Set.fold (fun (projection : Projection.t)

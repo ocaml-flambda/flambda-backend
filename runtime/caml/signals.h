@@ -25,6 +25,7 @@
 #endif
 #include "misc.h"
 #include "mlvalues.h"
+#include "fail.h"
 
 #ifdef __cplusplus
 extern "C" {
