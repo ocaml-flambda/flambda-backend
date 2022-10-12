@@ -49,7 +49,7 @@ let let_prim ~dbg v prim (free_names, body) =
   let named = Named.create_prim prim dbg in
   let free_names_of_body = Or_unknown.Known free_names in
   let let_expr = Let.create bindable named ~body ~free_names_of_body in
-  let free_names = Name_occurrences.remove_var free_names v in
+  let free_names = NO.remove_var free_names ~var:v in
   let expr = Expr.create_let let_expr in
   free_names, expr
 

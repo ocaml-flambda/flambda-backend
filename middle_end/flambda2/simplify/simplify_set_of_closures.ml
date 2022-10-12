@@ -303,7 +303,7 @@ end = struct
           Value_slot.Map.mapi
             (fun value_slot ty ->
               let vars = TE.free_names_transitive (DE.typing_env denv) ty in
-              Name_occurrences.fold_variables vars ~init:Variable.Set.empty
+              NO.fold_variables vars ~init:Variable.Set.empty
                 ~f:(fun free_depth_variables var ->
                   let ty_opt =
                     TE.find_or_missing
@@ -600,49 +600,32 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
               ~return_continuation ~exn_continuation params ~body ~my_closure
               ~my_region ~my_depth
           in
-          let is_my_closure_used =
-            Name_occurrences.mem_var free_names_of_body my_closure
-          in
-          (* Free names of the code = free names of the body minus the return
-             and exception continuations, the parameters and the [my_*]
-             variables. *)
-          let free_names_of_code =
-            Name_occurrences.remove_continuation free_names_of_body
-              return_continuation
+          let is_my_closure_used = NO.mem_var free_names_of_body my_closure in
+          let previously_free_depth_variables =
+            NO.create_variables
+              (C.previously_free_depth_variables context)
+              NM.normal
           in
           let free_names_of_code =
-            Name_occurrences.remove_continuation free_names_of_code
-              exn_continuation
-          in
-          let free_names_of_code =
-            Name_occurrences.remove_var free_names_of_code my_closure
-          in
-          let free_names_of_code =
-            Name_occurrences.remove_var free_names_of_code my_region
-          in
-          let free_names_of_code =
-            Name_occurrences.remove_var free_names_of_code my_depth
-          in
-          let free_names_of_code =
-            Name_occurrences.diff free_names_of_code
-              (Bound_parameters.free_names params)
-          in
-          let free_names_of_code =
-            Name_occurrences.diff free_names_of_code
-              (Name_occurrences.create_variables
-                 (C.previously_free_depth_variables context)
-                 NM.normal)
+            free_names_of_body
+            |> NO.remove_continuation ~continuation:return_continuation
+            |> NO.remove_continuation ~continuation:exn_continuation
+            |> NO.remove_var ~var:my_closure
+            |> NO.remove_var ~var:my_region
+            |> NO.remove_var ~var:my_depth
+            |> NO.diff ~without:(Bound_parameters.free_names params)
+            |> NO.diff ~without:previously_free_depth_variables
           in
           if not
-               (Name_occurrences.no_variables free_names_of_code
-               && Name_occurrences.no_continuations free_names_of_code)
+               (NO.no_variables free_names_of_code
+               && NO.no_continuations free_names_of_code)
           then
             Misc.fatal_errorf
               "Unexpected free name(s):@ %a@ in:@ \n\
                %a@ \n\
                Simplified version:@ fun %a %a %a %a ->@ \n\
-              \  %a" Name_occurrences.print free_names_of_code Code_id.print
-              code_id Bound_parameters.print params Variable.print my_closure
+              \  %a" NO.print free_names_of_code Code_id.print code_id
+              Bound_parameters.print params Variable.print my_closure
               Variable.print my_region Variable.print my_depth
               (RE.print (UA.are_rebuilding_terms uacc))
               body;
@@ -1103,7 +1086,7 @@ let type_value_slots_and_make_lifting_decision_for_one_set dacc
       (Value_slot.Map.empty, Value_slot.Map.empty, Variable.Map.empty)
   in
   let can_lift_coercion coercion =
-    Name_occurrences.no_variables (Coercion.free_names coercion)
+    NO.no_variables (Coercion.free_names coercion)
   in
   (* Note that [closure_bound_vars_inverse] doesn't need to include variables
      binding closures in other mutually-recursive sets, since if we get here in

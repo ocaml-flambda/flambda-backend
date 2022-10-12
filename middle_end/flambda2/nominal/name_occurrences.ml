@@ -683,17 +683,18 @@ let diff
       code_ids = code_ids1;
       newer_version_of_code_ids = newer_version_of_code_ids1
     }
-    { names = names2;
-      continuations = continuations2;
-      continuations_with_traps = continuations_with_traps2;
-      continuations_in_trap_actions = continuations_in_trap_actions2;
-      function_slots_in_projections = function_slots_in_projections2;
-      value_slots_in_projections = value_slots_in_projections2;
-      function_slots_in_declarations = function_slots_in_declarations2;
-      value_slots_in_declarations = value_slots_in_declarations2;
-      code_ids = code_ids2;
-      newer_version_of_code_ids = newer_version_of_code_ids2
-    } =
+    ~without:
+      { names = names2;
+        continuations = continuations2;
+        continuations_with_traps = continuations_with_traps2;
+        continuations_in_trap_actions = continuations_in_trap_actions2;
+        function_slots_in_projections = function_slots_in_projections2;
+        value_slots_in_projections = value_slots_in_projections2;
+        function_slots_in_declarations = function_slots_in_declarations2;
+        value_slots_in_declarations = value_slots_in_declarations2;
+        code_ids = code_ids2;
+        newer_version_of_code_ids = newer_version_of_code_ids2
+      } =
   let names = For_names.diff names1 names2 in
   let continuations = For_continuations.diff continuations1 continuations2 in
   let continuations_with_traps =
@@ -845,21 +846,21 @@ let value_slot_is_used_or_imported t value_slot =
   Value_slot.is_imported value_slot
   || For_value_slots.mem t.value_slots_in_projections value_slot
 
-let remove_var t var =
+let remove_var t ~var =
   if For_names.is_empty t.names
   then t
   else
     let names = For_names.remove t.names (Name.var var) in
     { t with names }
 
-let remove_symbol t symbol =
+let remove_symbol t ~symbol =
   if For_names.is_empty t.names
   then t
   else
     let names = For_names.remove t.names (Name.symbol symbol) in
     { t with names }
 
-let remove_code_id t code_id =
+let remove_code_id t ~code_id =
   if For_code_ids.is_empty t.code_ids
      && For_code_ids.is_empty t.newer_version_of_code_ids
   then t
@@ -870,22 +871,22 @@ let remove_code_id t code_id =
     in
     { t with code_ids; newer_version_of_code_ids }
 
-let remove_code_id_or_symbol t (cis : Code_id_or_symbol.t) =
-  Code_id_or_symbol.pattern_match cis
-    ~code_id:(fun code_id -> remove_code_id t code_id)
-    ~symbol:(fun symbol -> remove_symbol t symbol)
+let remove_code_id_or_symbol t ~(code_id_or_symbol : Code_id_or_symbol.t) =
+  Code_id_or_symbol.pattern_match code_id_or_symbol
+    ~code_id:(fun code_id -> remove_code_id t ~code_id)
+    ~symbol:(fun symbol -> remove_symbol t ~symbol)
 
-let remove_continuation t k =
+let remove_continuation t ~continuation =
   if For_continuations.is_empty t.continuations
      && For_continuations.is_empty t.continuations_in_trap_actions
   then t
   else
-    let continuations = For_continuations.remove t.continuations k in
+    let continuations = For_continuations.remove t.continuations continuation in
     let continuations_with_traps =
-      For_continuations.remove t.continuations_with_traps k
+      For_continuations.remove t.continuations_with_traps continuation
     in
     let continuations_in_trap_actions =
-      For_continuations.remove t.continuations_in_trap_actions k
+      For_continuations.remove t.continuations_in_trap_actions continuation
     in
     { t with
       continuations;

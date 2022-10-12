@@ -164,7 +164,9 @@ let used_value_slots t = t.used_value_slots
 let shareable_constants t = t.shareable_constants
 
 let remove_all_occurrences_of_free_names t to_remove =
-  let name_occurrences = Name_occurrences.diff t.name_occurrences to_remove in
+  let name_occurrences =
+    Name_occurrences.diff t.name_occurrences ~without:to_remove
+  in
   { t with name_occurrences }
 
 let clear_cost_metrics t = { t with cost_metrics = Cost_metrics.zero }

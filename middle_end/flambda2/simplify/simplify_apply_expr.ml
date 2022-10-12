@@ -461,8 +461,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
               Cost_metrics.from_size (Code_size.prim prim)
             in
             let free_names =
-              Name_occurrences.add_value_slot_in_projection free_names
-                value_slot NM.normal
+              NO.add_value_slot_in_projection free_names value_slot NM.normal
             in
             let expr =
               Let.create
@@ -478,8 +477,8 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
               free_names ))
         ( Expr.create_apply full_application,
           cost_metrics,
-          Apply.free_names full_application
-          |> Name_occurrences.without_names_or_continuations )
+          Apply.free_names full_application |> NO.without_names_or_continuations
+        )
         (List.rev applied_values)
     in
     let params_and_body =
