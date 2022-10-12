@@ -8,7 +8,7 @@ let code size(122) pr2162_3_as_int64_3
                      (z : imm tagged,
                       x : imm tagged,
                       y : int64 boxed,
-                      y' : int32 boxed) my_closure my_depth -> k * k1 : 
+                      y' : int32 boxed) my_closure my_region my_depth -> k * k1 : 
                      block =
   let next_depth = rec_info (succ my_depth) in
   (let untagged = %untag_imm z in
@@ -58,7 +58,7 @@ let code size(122) pr2162_3_as_int64_3
 in
 let code size(51) pr2162_2_first_0
                     (z : imm tagged, x : imm tagged, y : float boxed)
-                    my_closure my_depth -> k * k1 : float boxed =
+                    my_closure my_region my_depth -> k * k1 : float boxed =
   let next_depth = rec_info (succ my_depth) in
   (let untagged = %untag_imm z in
    switch untagged
@@ -88,7 +88,7 @@ let code size(51) pr2162_2_first_0
 in
 let code size(51) pr2162_2_1
                     (z : imm tagged, x : imm tagged, y : float boxed)
-                    my_closure my_depth -> k * k1 : float boxed =
+                    my_closure my_region my_depth -> k * k1 : float boxed =
   let next_depth = rec_info (succ my_depth) in
   (let untagged = %untag_imm z in
    switch untagged
@@ -118,7 +118,7 @@ let code size(51) pr2162_2_1
 in
 let code size(67) pr2162_3_2
                     (z : imm tagged, x : imm tagged, y : float boxed)
-                    my_closure my_depth -> k * k1 : float boxed =
+                    my_closure my_region my_depth -> k * k1 : float boxed =
   let next_depth = rec_info (succ my_depth) in
   (let untagged = %untag_imm z in
    switch untagged
@@ -183,7 +183,7 @@ let code size(32) newer_version_of(pr2162_2_first_0) pr2162_2_first_0_1
                                                        (z : imm tagged,
                                                         x : imm tagged,
                                                         y : float boxed)
-                                                       my_closure my_depth
+                                                       my_closure my_region my_depth
                                                        -> k * k1
                                                        : float boxed =
   (let untagged = %untag_imm z in
@@ -265,7 +265,7 @@ let code size(48) newer_version_of(pr2162_3_as_int64_3) pr2162_3_as_int64_3_1
                                                            x : imm tagged,
                                                            y : int64 boxed,
                                                            y' : int32 boxed)
-                                                          my_closure my_depth
+                                                          my_closure my_region my_depth
                                                           -> k * k1 : 
                                                           block =
   (let untagged = %untag_imm z in

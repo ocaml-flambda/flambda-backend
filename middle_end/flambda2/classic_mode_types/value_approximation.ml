@@ -19,13 +19,20 @@
 type 'code t =
   | Value_unknown
   | Value_symbol of Symbol.t
-  | Closure_approximation of Code_id.t * Function_slot.t * 'code
+  | Value_int of Targetint_31_63.t
+  | Closure_approximation of
+      { code_id : Code_id.t;
+        function_slot : Function_slot.t;
+        code : 'code;
+        symbol : Symbol.t option
+      }
   | Block_approximation of 'code t array * Alloc_mode.t
 
 let rec print fmt = function
   | Value_unknown -> Format.fprintf fmt "?"
   | Value_symbol sym -> Symbol.print fmt sym
-  | Closure_approximation (code_id, _, _) ->
+  | Value_int i -> Targetint_31_63.print fmt i
+  | Closure_approximation { code_id; _ } ->
     Format.fprintf fmt "[%a]" Code_id.print code_id
   | Block_approximation (fields, _) ->
     let len = Array.length fields in
@@ -40,19 +47,26 @@ let rec print fmt = function
 
 let is_unknown = function
   | Value_unknown -> true
-  | Value_symbol _ | Closure_approximation _ | Block_approximation _ -> false
+  | Value_symbol _ | Value_int _ | Closure_approximation _
+  | Block_approximation _ ->
+    false
 
 let rec free_names ~code_free_names approx =
   match approx with
-  | Value_unknown -> Name_occurrences.empty
+  | Value_unknown | Value_int _ -> Name_occurrences.empty
   | Value_symbol sym -> Name_occurrences.singleton_symbol sym Name_mode.normal
   | Block_approximation (approxs, _) ->
     Array.fold_left
       (fun names approx ->
         Name_occurrences.union names (free_names ~code_free_names approx))
       Name_occurrences.empty approxs
-  | Closure_approximation (code_id, function_slot, code) ->
+  | Closure_approximation { code_id; function_slot; code; symbol } ->
+    let free_names = code_free_names code in
+    let free_names =
+      match symbol with
+      | None -> free_names
+      | Some sym -> Name_occurrences.add_symbol free_names sym Name_mode.normal
+    in
     Name_occurrences.add_code_id
-      (Name_occurrences.add_function_slot_in_types (code_free_names code)
-         function_slot)
+      (Name_occurrences.add_function_slot_in_types free_names function_slot)
       code_id Name_mode.normal

@@ -74,7 +74,8 @@ val prove_variant_like :
   Typing_env.t -> Type_grammar.t -> variant_like_proof proof_of_property
 
 type boxed_or_tagged_number = private
-  | Boxed of Flambda_kind.Boxable_number.t
+  | Boxed of
+      Alloc_mode.t Or_unknown.t * Flambda_kind.Boxable_number.t * Type_grammar.t
   | Tagged_immediate
 
 val prove_is_a_boxed_or_tagged_number :
@@ -149,6 +150,11 @@ val prove_single_closures_entry :
 
 val meet_strings :
   Typing_env.t -> Type_grammar.t -> String_info.Set.t meet_shortcut
+
+val prove_strings :
+  Typing_env.t ->
+  Type_grammar.t ->
+  (Alloc_mode.t Or_unknown.t * String_info.Set.t) proof_of_property
 
 val prove_tagging_of_simple :
   Typing_env.t ->

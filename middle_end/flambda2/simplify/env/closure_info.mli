@@ -34,7 +34,7 @@ val in_a_closure :
   exn_continuation:Continuation.t ->
   t
 
-type in_or_out_of_closure = private
+type in_or_out_of_closure =
   | In_a_closure
   | Not_in_a_closure
 

@@ -2725,6 +2725,16 @@ let emit_float_array_constant symb fields cont =
   emit_block symb (floatarray_header (List.length fields))
     (Misc.map_end (fun f -> Cdouble f) fields cont)
 
+let make_symbol ?compilation_unit name =
+  let compilation_unit =
+    match compilation_unit with
+    | None -> Compilation_unit.get_current_exn ()
+    | Some compilation_unit -> compilation_unit
+  in
+  Symbol.for_name compilation_unit name
+  |> Symbol.linkage_name
+  |> Linkage_name.to_string
+
 (* Generate the entry point *)
 
 let entry_point namelist =
@@ -2740,7 +2750,7 @@ let entry_point namelist =
   let body =
     List.fold_right
       (fun name next ->
-        let entry_sym = Compilenv.make_symbol ~unitname:name (Some "entry") in
+        let entry_sym = make_symbol ~compilation_unit:name "entry" in
         Csequence(Cop(Capply(typ_void, Rc_normal),
                          [cconst_symbol entry_sym], dbg ()),
                   Csequence(incr_global_inited (), next)))
@@ -2760,7 +2770,7 @@ let cint_zero = Cint 0n
 
 let global_table namelist =
   let mksym name =
-    Csymbol_address (Compilenv.make_symbol ~unitname:name (Some "gc_roots"))
+    Csymbol_address (make_symbol ~compilation_unit:name "gc_roots")
   in
   Cdata(Cglobal_symbol "caml_globals" ::
         Cdefine_symbol "caml_globals" ::
@@ -2781,7 +2791,7 @@ let globals_map v = global_data "caml_globals_map" v
 
 let frame_table namelist =
   let mksym name =
-    Csymbol_address (Compilenv.make_symbol ~unitname:name (Some "frametable"))
+    Csymbol_address (make_symbol ~compilation_unit:name "frametable")
   in
   Cdata(Cglobal_symbol "caml_frametable" ::
         Cdefine_symbol "caml_frametable" ::
@@ -2792,9 +2802,9 @@ let frame_table namelist =
 
 let segment_table namelist symbol begname endname =
   let addsyms name lst =
-    Csymbol_address (Compilenv.make_symbol ~unitname:name (Some begname)) ::
-    Csymbol_address (Compilenv.make_symbol ~unitname:name (Some endname)) ::
-    lst
+    Csymbol_address (make_symbol ~compilation_unit:name begname)
+    :: Csymbol_address (make_symbol ~compilation_unit:name endname)
+    :: lst
   in
   Cdata(Cglobal_symbol symbol ::
         Cdefine_symbol symbol ::
@@ -2829,8 +2839,9 @@ let predef_exception i name =
 (* Header for a plugin *)
 
 let plugin_header units =
+  let module CU = Compilation_unit in
   let mk ((ui : Cmx_format.unit_infos),crc) : Cmxs_format.dynunit =
-    { dynu_name = ui.ui_name;
+    { dynu_name = CU.name ui.ui_unit;
       dynu_crc = crc;
       dynu_imports_cmi = ui.ui_imports_cmi;
       dynu_imports_cmx = ui.ui_imports_cmx;
@@ -2914,7 +2925,7 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
 (* Build the NULL terminated array of gc roots *)
 
 let emit_gc_roots_table ~symbols cont =
-  let table_symbol = Compilenv.make_symbol (Some "gc_roots") in
+  let table_symbol = make_symbol "gc_roots" in
   Cdata(Cglobal_symbol table_symbol ::
         Cdefine_symbol table_symbol ::
         List.map (fun s -> Csymbol_address s) symbols @

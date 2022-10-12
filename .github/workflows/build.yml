@@ -87,7 +87,7 @@ jobs:
       id: cache
       with:
         path: ${{ github.workspace }}/ocaml-412/_install
-        key: ${{ matrix.os }}-cache-ocaml-412-dune-2.7.0-275-gf01752f7
+        key: ${{ matrix.os }}-cache-ocaml-412-dune-341
 
     - name: Checkout OCaml 4.12
       uses: actions/checkout@master
@@ -111,8 +111,8 @@ jobs:
       uses: actions/checkout@master
       if: steps.cache.outputs.cache-hit != 'true'
       with:
-        repository: 'ocaml-flambda/dune'
-        ref: 'special_dune'
+        repository: 'ocaml/dune'
+        ref: '3.4.1'
         path: 'dune'
 
     - name: Build dune

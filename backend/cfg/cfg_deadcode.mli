@@ -2,4 +2,4 @@
 
 (* Dead code elimination: remove pure instructions whose results are not
    used. *)
-val run : Cfg_with_layout.t -> Cfg_with_layout.t
+val run : Cfg_with_liveness.t -> Cfg_with_liveness.t

@@ -2,29 +2,27 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*                       Pierre Chambart, OCamlPro                        *)
-(*           Mark Shinwell and Leo White, Jane Street Europe              *)
-(*                                                                        *)
-(*   Copyright 2013--2016 OCamlPro SAS                                    *)
-(*   Copyright 2014--2016 Jane Street Group LLC                           *)
+(*   Copyright 2022 Jane Street Group LLC                                 *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+(** Annotations on function declaration (not call sites) *)
+module Property : sig
+  type t = Noalloc
+end
 
-[@@@ocaml.warning "+a-4-9-30-40-41-42-66"]
-open! Int_replace_polymorphic_compare
+type t =
+  | Default_check
+  | Assert of Property.t
+  | Assume of Property.t
 
-type t = string
+val print : Format.formatter -> t -> unit
 
-include Identifiable.Make (struct
-  include String
-  let hash = Hashtbl.hash
-  let print ppf t = Format.pp_print_string ppf t
-  let output chan t = output_string chan t
-end)
+val equal : t -> t -> bool
 
-let create t = t
-let to_string t = t
+val is_default : t -> bool
+
+val from_lambda : Lambda.check_attribute -> t

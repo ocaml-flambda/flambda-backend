@@ -84,14 +84,14 @@ let static_boxed_number ~kind ~env ~symbol ~default ~emit ~transl ~structured v
   in
   R.update_data r (or_variable aux default v), updates
 
-let add_function env r ~params_and_body code_id p ~fun_dbg =
-  let fundecl, r = params_and_body env r code_id p ~fun_dbg in
+let add_function env r ~params_and_body code_id p ~fun_dbg ~check =
+  let fundecl, r = params_and_body env r code_id p ~fun_dbg ~check in
   R.add_function r fundecl
 
 let add_functions env ~params_and_body r (code : Code.t) =
   add_function env r ~params_and_body (Code.code_id code)
     (Code.params_and_body code)
-    ~fun_dbg:(Code.dbg code)
+    ~fun_dbg:(Code.dbg code) ~check:(Code.check code)
 
 let preallocate_set_of_closures (r, updates, env) ~closure_symbols
     set_of_closures =
@@ -297,8 +297,6 @@ let static_consts env r ~params_and_body bound_static static_consts =
       |> Expr.create_let
     in
     Format.eprintf
-      "\n@[<v 0>%sContext is:%s translating `let symbol' to Cmm:@ %a@."
-      (Flambda_colours.error ())
-      (Flambda_colours.normal ())
-      Expr.print tmp_let_symbol;
+      "\n@[<v 0>%tContext is:%t translating `let symbol' to Cmm:@ %a@."
+      Flambda_colours.error Flambda_colours.pop Expr.print tmp_let_symbol;
     raise e

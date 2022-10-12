@@ -60,8 +60,8 @@ let meet_alloc_mode (alloc_mode1 : Alloc_mode.t Or_unknown.t)
   | Unknown, Unknown -> Ok Unknown
   | Unknown, Known _ -> Ok alloc_mode2
   | Known _, Unknown -> Ok alloc_mode1
-  | Known Heap, Known Heap -> Ok (Known Heap)
-  | Known Local, Known Local -> Ok (Known Local)
+  | Known Heap, Known Heap -> Ok (Known Alloc_mode.heap)
+  | Known Local, Known Local -> Ok (Known (Alloc_mode.local ()))
   | Known Heap, Known Local | Known Local, Known Heap ->
     (* It is not safe to pick either [Heap] or [Local] and moreover we should
        never be in this situation by virtue of the OCaml type checker; it is
@@ -72,8 +72,8 @@ let join_alloc_mode (alloc_mode1 : Alloc_mode.t Or_unknown.t)
     (alloc_mode2 : Alloc_mode.t Or_unknown.t) : Alloc_mode.t Or_unknown.t =
   match alloc_mode1, alloc_mode2 with
   | Unknown, _ | _, Unknown -> Unknown
-  | Known Heap, Known Heap -> Known Heap
-  | Known Local, Known Local -> Known Local
+  | Known Heap, Known Heap -> Known Alloc_mode.heap
+  | Known Local, Known Local -> Known (Alloc_mode.local ())
   | Known Heap, Known Local | Known Local, Known Heap -> Unknown
 
 let[@inline always] meet_unknown meet_contents ~contents_is_bottom env
@@ -319,38 +319,30 @@ and meet_expanded_head0 env (descr1 : ET.descr) (descr2 : ET.descr) :
 and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
     (head2 : TG.head_of_kind_value) : _ Or_bottom.t =
   match head1, head2 with
-  | ( Variant
-        { blocks = blocks1;
-          immediates = imms1;
-          is_unique = is_unique1;
-          alloc_mode = alloc_mode1
-        },
-      Variant
-        { blocks = blocks2;
-          immediates = imms2;
-          is_unique = is_unique2;
-          alloc_mode = alloc_mode2
-        } ) ->
-    let<* blocks, immediates, env_extension =
+  | ( Variant { blocks = blocks1; immediates = imms1; is_unique = is_unique1 },
+      Variant { blocks = blocks2; immediates = imms2; is_unique = is_unique2 } )
+    ->
+    let<+ blocks, immediates, env_extension =
       meet_variant env ~blocks1 ~imms1 ~blocks2 ~imms2
     in
     (* Uniqueness tracks whether duplication/lifting is allowed. It must always
        be propagated, both for meet and join. *)
     let is_unique = is_unique1 || is_unique2 in
-    let<+ alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
-    ( TG.Head_of_kind_value.create_variant ~is_unique alloc_mode ~blocks
-        ~immediates,
+    ( TG.Head_of_kind_value.create_variant ~is_unique ~blocks ~immediates,
       env_extension )
   | ( Mutable_block { alloc_mode = alloc_mode1 },
       Mutable_block { alloc_mode = alloc_mode2 } ) ->
     let<+ alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
     TG.Head_of_kind_value.create_mutable_block alloc_mode, TEE.empty
-  | ( Variant { alloc_mode = alloc_mode1; _ },
-      Mutable_block { alloc_mode = alloc_mode2 } )
-  | ( Mutable_block { alloc_mode = alloc_mode1 },
-      Variant { alloc_mode = alloc_mode2; _ } ) ->
-    let<+ alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
-    TG.Head_of_kind_value.create_mutable_block alloc_mode, TEE.empty
+  | ( Variant { blocks; _ },
+      (Mutable_block { alloc_mode = alloc_mode_mut } as mut_block) )
+  | ( (Mutable_block { alloc_mode = alloc_mode_mut } as mut_block),
+      Variant { blocks; _ } ) -> (
+    match blocks with
+    | Unknown -> Ok (mut_block, TEE.empty)
+    | Known { alloc_mode = alloc_mode_immut; _ } ->
+      let<+ alloc_mode = meet_alloc_mode alloc_mode_mut alloc_mode_immut in
+      TG.Head_of_kind_value.create_mutable_block alloc_mode, TEE.empty)
   | Boxed_float (n1, alloc_mode1), Boxed_float (n2, alloc_mode2) ->
     let<* n, env_extension = meet env n1 n2 in
     let<+ alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
@@ -538,7 +530,7 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
           (* No blocks exist with this tag *))
         tags Tag.Set.empty
     in
-    match MTC.blocks_with_these_tags tags with
+    match MTC.blocks_with_these_tags tags Unknown with
     | Known shape ->
       let<+ ty, env_extension = meet env ty shape in
       TG.Head_of_kind_naked_immediate.create_get_tag ty, env_extension
@@ -715,17 +707,21 @@ and meet_row_like :
     Ok (known, other, env_extension)
 
 and meet_row_like_for_blocks env
-    ({ known_tags = known1; other_tags = other1 } : TG.Row_like_for_blocks.t)
-    ({ known_tags = known2; other_tags = other2 } : TG.Row_like_for_blocks.t) :
-    (TG.Row_like_for_blocks.t * TEE.t) Or_bottom.t =
-  let<+ known_tags, other_tags, env_extension =
+    ({ known_tags = known1; other_tags = other1; alloc_mode = alloc_mode1 } :
+      TG.Row_like_for_blocks.t)
+    ({ known_tags = known2; other_tags = other2; alloc_mode = alloc_mode2 } :
+      TG.Row_like_for_blocks.t) : (TG.Row_like_for_blocks.t * TEE.t) Or_bottom.t
+    =
+  let<* known_tags, other_tags, env_extension =
     meet_row_like ~meet_maps_to:meet_int_indexed_product
       ~equal_index:TG.Block_size.equal ~subset_index:TG.Block_size.subset
       ~union_index:TG.Block_size.union ~is_empty_map_known:Tag.Map.is_empty
       ~get_singleton_map_known:Tag.Map.get_singleton
       ~merge_map_known:Tag.Map.merge env ~known1 ~known2 ~other1 ~other2
   in
-  TG.Row_like_for_blocks.create_raw ~known_tags ~other_tags, env_extension
+  let<+ alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
+  ( TG.Row_like_for_blocks.create_raw ~known_tags ~other_tags ~alloc_mode,
+    env_extension )
 
 and meet_row_like_for_closures env
     ({ known_closures = known1; other_closures = other1 } :
@@ -1101,27 +1097,16 @@ and join_expanded_head env kind (expanded1 : ET.t) (expanded2 : ET.t) : ET.t =
 and join_head_of_kind_value env (head1 : TG.head_of_kind_value)
     (head2 : TG.head_of_kind_value) : TG.head_of_kind_value Or_unknown.t =
   match head1, head2 with
-  | ( Variant
-        { blocks = blocks1;
-          immediates = imms1;
-          is_unique = is_unique1;
-          alloc_mode = alloc_mode1
-        },
-      Variant
-        { blocks = blocks2;
-          immediates = imms2;
-          is_unique = is_unique2;
-          alloc_mode = alloc_mode2
-        } ) ->
+  | ( Variant { blocks = blocks1; immediates = imms1; is_unique = is_unique1 },
+      Variant { blocks = blocks2; immediates = imms2; is_unique = is_unique2 } )
+    ->
     let>+ blocks, immediates =
       join_variant env ~blocks1 ~imms1 ~blocks2 ~imms2
     in
     (* Uniqueness tracks whether duplication/lifting is allowed. It must always
        be propagated, both for meet and join. *)
     let is_unique = is_unique1 || is_unique2 in
-    let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
-    TG.Head_of_kind_value.create_variant ~is_unique alloc_mode ~blocks
-      ~immediates
+    TG.Head_of_kind_value.create_variant ~is_unique ~blocks ~immediates
   | ( Mutable_block { alloc_mode = alloc_mode1 },
       Mutable_block { alloc_mode = alloc_mode2 } ) ->
     let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
@@ -1416,15 +1401,18 @@ and join_row_like :
   known, other
 
 and join_row_like_for_blocks env
-    ({ known_tags = known1; other_tags = other1 } : TG.Row_like_for_blocks.t)
-    ({ known_tags = known2; other_tags = other2 } : TG.Row_like_for_blocks.t) =
+    ({ known_tags = known1; other_tags = other1; alloc_mode = alloc_mode1 } :
+      TG.Row_like_for_blocks.t)
+    ({ known_tags = known2; other_tags = other2; alloc_mode = alloc_mode2 } :
+      TG.Row_like_for_blocks.t) =
   let known_tags, other_tags =
     join_row_like ~join_maps_to:join_int_indexed_product
       ~maps_to_field_kind:TG.Product.Int_indexed.field_kind
       ~equal_index:TG.Block_size.equal ~inter_index:TG.Block_size.inter
       ~merge_map_known:Tag.Map.merge env ~known1 ~known2 ~other1 ~other2
   in
-  TG.Row_like_for_blocks.create_raw ~known_tags ~other_tags
+  let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
+  TG.Row_like_for_blocks.create_raw ~known_tags ~other_tags ~alloc_mode
 
 and join_row_like_for_closures env
     ({ known_closures = known1; other_closures = other1 } :

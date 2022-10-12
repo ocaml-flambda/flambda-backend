@@ -109,7 +109,8 @@ let rec is_tailcall = function
    from the tail call optimization? *)
 
 let preserve_tailcall_for_prim = function
-    Pidentity | Popaque | Pdirapply _ | Prevapply _ | Psequor | Psequand ->
+    Pidentity | Popaque | Pdirapply _ | Prevapply _ | Psequor | Psequand
+  | Pobj_magic ->
       true
   | Pbytes_to_string | Pbytes_of_string | Pignore | Pgetglobal _ | Psetglobal _
   | Pmakeblock _ | Pmakefloatblock _
@@ -131,7 +132,7 @@ let preserve_tailcall_for_prim = function
   | Pbytes_load_32 _ | Pbytes_load_64 _ | Pbytes_set_16 _ | Pbytes_set_32 _
   | Pbytes_set_64 _ | Pbigstring_load_16 _ | Pbigstring_load_32 _
   | Pbigstring_load_64 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _
-  | Pprobe_is_enabled _
+  | Pprobe_is_enabled _ | Pobj_dup
   | Pbigstring_set_64 _ | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer ->
       false
 
@@ -508,6 +509,7 @@ let comp_primitive p args =
   | Pint_as_pointer -> Kccall("caml_int_as_pointer", 1)
   | Pbytes_to_string -> Kccall("caml_string_of_bytes", 1)
   | Pbytes_of_string -> Kccall("caml_bytes_of_string", 1)
+  | Pobj_dup -> Kccall("caml_obj_dup", 1)
   | _ -> fatal_error "Bytegen.comp_primitive"
 
 let is_immed n = immed_min <= n && n <= immed_max
@@ -680,7 +682,7 @@ let rec comp_expr env exp sz cont =
         in
         comp_init env sz decl_size
       end
-  | Lprim((Pidentity | Popaque), [arg], _) ->
+  | Lprim((Pidentity | Popaque | Pobj_magic), [arg], _) ->
       comp_expr env arg sz cont
   | Lprim(Pignore, [arg], _) ->
       comp_expr env arg sz (add_const_unit cont)

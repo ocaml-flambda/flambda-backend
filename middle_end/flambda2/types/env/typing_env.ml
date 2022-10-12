@@ -702,7 +702,9 @@ let invariant_for_new_equation (t : t) name ty =
     let free_names = Name_occurrences.without_code_ids (TG.free_names ty) in
     if not (Name_occurrences.subset_domain free_names defined_names)
     then
-      let unbound_names = Name_occurrences.diff free_names defined_names in
+      let unbound_names =
+        Name_occurrences.diff free_names ~without:defined_names
+      in
       Misc.fatal_errorf "New equation@ %a@ =@ %a@ has unbound names@ (%a):@ %a"
         Name.print name TG.print ty Name_occurrences.print unbound_names print t)
 
@@ -1018,10 +1020,8 @@ let type_simple_in_term_exn t ?min_name_mode simple =
   with
   | exception Misc.Fatal_error ->
     let bt = Printexc.get_raw_backtrace () in
-    Format.eprintf "\n%sContext is:%s typing environment@ %a\n"
-      (Flambda_colours.error ())
-      (Flambda_colours.normal ())
-      print t;
+    Format.eprintf "\n%tContext is:%t typing environment@ %a\n"
+      Flambda_colours.error Flambda_colours.pop print t;
     Printexc.raise_with_backtrace Misc.Fatal_error bt
   | exception Binding_time_resolver_failure -> TG.alias_type_of kind simple
   | alias -> TG.alias_type_of kind alias
@@ -1048,10 +1048,8 @@ let get_canonical_simple_exn t ?min_name_mode ?name_mode_of_existing_simple
   with
   | exception Misc.Fatal_error ->
     let bt = Printexc.get_raw_backtrace () in
-    Format.eprintf "\n%sContext is:%s typing environment@ %a\n"
-      (Flambda_colours.error ())
-      (Flambda_colours.normal ())
-      print t;
+    Format.eprintf "\n%tContext is:%t typing environment@ %a\n"
+      Flambda_colours.error Flambda_colours.pop print t;
     Printexc.raise_with_backtrace Misc.Fatal_error bt
   | exception Binding_time_resolver_failure -> simple
   | alias -> alias
@@ -1088,7 +1086,7 @@ let rec free_names_transitive_of_type_of_name t name ~result =
 
 and free_names_transitive0 t typ ~result =
   let free_names = TG.free_names typ in
-  let to_traverse = Name_occurrences.diff free_names result in
+  let to_traverse = Name_occurrences.diff free_names ~without:result in
   if Name_occurrences.is_empty to_traverse
   then result
   else
@@ -1183,13 +1181,16 @@ end = struct
     let rec type_from_approx approx =
       match (approx : _ Value_approximation.t) with
       | Value_unknown -> MTC.unknown Flambda_kind.value
+      | Value_int i -> TG.this_tagged_immediate i
       | Value_symbol symbol ->
         TG.alias_type_of Flambda_kind.value (Simple.symbol symbol)
       | Block_approximation (fields, alloc_mode) ->
         let fields = List.map type_from_approx (Array.to_list fields) in
         MTC.immutable_block ~is_unique:false Tag.zero
           ~field_kind:Flambda_kind.value ~fields (Or_unknown.Known alloc_mode)
-      | Closure_approximation (code_id, function_slot, _code_opt) ->
+      | Closure_approximation { code_id; function_slot; code = _; symbol = _ }
+        ->
+        (* CR keryan: we should use the associated symbol at some point *)
         let fun_decl =
           TG.Function_type.create code_id
             ~rec_info:(MTC.unknown Flambda_kind.rec_info)
@@ -1278,7 +1279,12 @@ end = struct
         | Unknown | Bottom -> Value_unknown
         | Ok (Equals simple) ->
           Simple.pattern_match' simple
-            ~const:(fun _ -> VA.Value_unknown)
+            ~const:(fun const ->
+              match Reg_width_const.descr const with
+              | Tagged_immediate i -> VA.Value_int i
+              | Naked_immediate _ | Naked_float _ | Naked_int32 _
+              | Naked_int64 _ | Naked_nativeint _ ->
+                VA.Value_unknown)
             ~var:(fun _ ~coercion:_ -> VA.Value_unknown)
             ~symbol:(fun symbol ~coercion:_ -> VA.Value_symbol symbol)
         | Ok (No_alias head) -> (
@@ -1298,31 +1304,20 @@ end = struct
               | Ok function_type ->
                 let code_id = TG.Function_type.code_id function_type in
                 let code_or_meta = find_code code_id in
-                Closure_approximation (code_id, function_slot, code_or_meta)))
-          | Variant
-              { immediates = Unknown;
-                blocks = _;
-                is_unique = _;
-                alloc_mode = _
-              }
-          | Variant
-              { immediates = _;
-                blocks = Unknown;
-                is_unique = _;
-                alloc_mode = _
-              } ->
+                Closure_approximation
+                  { code_id; function_slot; code = code_or_meta; symbol = None }
+              ))
+          | Variant { immediates = Unknown; blocks = _; is_unique = _ }
+          | Variant { immediates = _; blocks = Unknown; is_unique = _ } ->
             Value_unknown
           | Variant
-              { immediates = Known imms;
-                blocks = Known blocks;
-                is_unique = _;
-                alloc_mode
-              } ->
+              { immediates = Known imms; blocks = Known blocks; is_unique = _ }
+            ->
             if TG.is_obviously_bottom imms
             then
               match TG.Row_like_for_blocks.get_singleton blocks with
               | None -> Value_unknown
-              | Some ((_tag, _size), fields) ->
+              | Some ((_tag, _size), fields, alloc_mode) ->
                 let fields =
                   List.map type_to_approx
                     (TG.Product.Int_indexed.components fields)
@@ -1330,7 +1325,7 @@ end = struct
                 let alloc_mode =
                   match alloc_mode with
                   | Known am -> am
-                  | Unknown -> Alloc_mode.Heap
+                  | Unknown -> Alloc_mode.heap
                 in
                 Block_approximation (Array.of_list fields, alloc_mode)
             else Value_unknown))

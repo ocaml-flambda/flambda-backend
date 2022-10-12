@@ -63,7 +63,8 @@ let rec build_closure_env env_param pos = function
    contain the right names if the -for-pack option is active. *)
 
 let getglobal dbg id =
-  Uprim(P.Pread_symbol (Compilenv.symbol_for_global id), [], dbg)
+  let symbol = Compilenv.symbol_for_global id |> Linkage_name.to_string in
+  Uprim (P.Pread_symbol symbol, [], dbg)
 
 let region ulam =
   let is_trivial =
@@ -1209,7 +1210,8 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
   | Lprim(Pignore, [arg], _loc) ->
       let expr, approx = make_const_int 0 in
       Usequence(fst (close env arg), expr), approx
-  | Lprim((Pidentity | Pbytes_to_string | Pbytes_of_string), [arg], _loc) ->
+  | Lprim((Pidentity | Pbytes_to_string | Pbytes_of_string | Pobj_magic),
+          [arg], _loc) ->
       close env arg
   | Lprim(Pdirapply pos,[funct;arg], loc)
   | Lprim(Prevapply pos,[arg;funct], loc) ->
@@ -1398,7 +1400,11 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
           (id, Lfunction({kind; params; return; body; loc; mode; region}
                          as funct)) ->
             Lambda.check_lfunction funct;
-            let label = Compilenv.make_symbol (Some (V.unique_name id)) in
+            let label =
+              Symbol.for_local_ident id
+              |> Symbol.linkage_name
+              |> Linkage_name.to_string
+            in
             let arity = List.length params in
             let fundesc =
               {fun_label = label;
@@ -1646,7 +1652,11 @@ let reset () =
 
 let intro ~backend ~size lam =
   reset ();
-  let id = Compilenv.make_symbol None in
+  let id =
+    Symbol.for_current_unit ()
+    |> Symbol.linkage_name
+    |> Linkage_name.to_string
+  in
   global_approx := Array.init size (fun i -> Value_global_field (id, i));
   Compilenv.set_global_approx(Value_tuple (alloc_heap, !global_approx));
   let (ulam, _approx) =
@@ -1655,7 +1665,9 @@ let intro ~backend ~size lam =
   in
   let opaque =
     !Clflags.opaque
-    || Env.is_imported_opaque (Compilenv.current_unit_name ())
+    || Env.is_imported_opaque
+         (Compilation_unit.get_current_exn ()
+          |> Compilation_unit.full_path_as_string)
   in
   if opaque
   then Compilenv.set_global_approx(Value_unknown)

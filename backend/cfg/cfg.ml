@@ -227,6 +227,8 @@ let dump_op ?(specific = fun ppf _ -> Format.fprintf ppf "specific") ppf =
   | Compf _ -> Format.fprintf ppf "compf"
   | Floatofint -> Format.fprintf ppf "floattoint"
   | Intoffloat -> Format.fprintf ppf "intoffloat"
+  | Valueofint -> Format.fprintf ppf "valueofint"
+  | Intofvalue -> Format.fprintf ppf "intofvalue"
   | Specific op -> specific ppf op
   | Probe { name; handler_code_sym } ->
     Format.fprintf ppf "probe %s %s" name handler_code_sym
@@ -376,6 +378,8 @@ let can_raise_operation : operation -> bool = function
   | Compf _ -> false
   | Floatofint -> false
   | Intoffloat -> false
+  | Valueofint -> false
+  | Intofvalue -> false
   | Probe _ -> true
   | Probe_is_enabled _ -> false
   | Specific op -> Arch.operation_can_raise op
@@ -386,7 +390,8 @@ let can_raise_operation : operation -> bool = function
 
 let can_raise_basic : basic -> bool = function
   | Op op -> can_raise_operation op
-  | Call _ -> true
+  | Call (P (Alloc _)) -> false
+  | Call (P (External _ | Checkbound _)) | Call (F _) -> true
   | Reloadretaddr -> false
   | Pushtrap _ -> false
   | Poptrap -> false
@@ -424,6 +429,10 @@ let is_pure_operation : operation -> bool = function
   | Compf _ -> true
   | Floatofint -> true
   | Intoffloat -> true
+  (* Conservative to ensure valueofint/intofvalue are not eliminated before
+     emit. *)
+  | Valueofint -> false
+  | Intofvalue -> false
   | Probe _ -> false
   | Probe_is_enabled _ -> true
   | Opaque -> false
@@ -453,16 +462,17 @@ let is_pure_basic : basic -> bool = function
 
 let is_noop_move instr =
   match instr.desc with
-  | Op (Move | Spill | Reload) -> (
-    match instr.arg.(0).loc with
+  | Op (Move | Spill | Reload) ->
+    (match instr.arg.(0).loc with
     | Unknown -> false
     | Reg _ | Stack _ -> Reg.same_loc instr.arg.(0) instr.res.(0))
+    && Proc.register_class instr.arg.(0) = Proc.register_class instr.res.(0)
   | Op
       ( Const_int _ | Const_float _ | Const_symbol _ | Stackoffset _ | Load _
       | Store _ | Intop _ | Intop_imm _ | Negf | Absf | Addf | Subf | Mulf
-      | Divf | Compf _ | Floatofint | Intoffloat | Probe _ | Opaque
-      | Probe_is_enabled _ | Specific _ | Name_for_debugger _ | Begin_region
-      | End_region )
+      | Divf | Compf _ | Floatofint | Intoffloat | Intofvalue | Valueofint
+      | Probe _ | Opaque | Probe_is_enabled _ | Specific _ | Name_for_debugger _
+      | Begin_region | End_region )
   | Call _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
     false
 

@@ -26,7 +26,7 @@
     [pack] instead. *)
 val import_for_pack
    : pack_units:Compilation_unit.Set.t
-  -> pack:Compilation_unit.t
+  -> pack:Compilation_unit.Prefix.t
   -> Export_info.t
   -> Export_info.t
 

@@ -25,5 +25,6 @@ val convert_and_bind :
   Lambda.primitive ->
   args:Simple.t list ->
   Debuginfo.t ->
+  current_region:Variable.t ->
   (Acc.t -> Flambda.Named.t option -> Expr_with_acc.t) ->
   Expr_with_acc.t

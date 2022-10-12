@@ -56,6 +56,7 @@ let keyword_table =
     "int", INT;
     "int32", INT32;
     "intoffloat", INTOFFLOAT;
+    "intofvalue", INTOFVALUE;
     "string", KSTRING;
     "let", LET;
     "letmut", LETMUT;
@@ -76,6 +77,7 @@ let keyword_table =
     "unit", UNIT;
     "unsigned", UNSIGNED;
     "val", VAL;
+    "valueofint", VALUEOFINT;
     "while", WHILE;
     "with", WITH;
     "xor", XOR;

@@ -17,4 +17,4 @@
 include Int_ids.Symbol
 
 let is_predefined_exception t =
-  Compilation_unit.is_predefined_exception (compilation_unit t)
+  Compilation_unit.equal (compilation_unit t) Compilation_unit.predef_exn

@@ -46,6 +46,7 @@ module BP = Bound_parameter
 module LC = Lifted_constant
 module LCS = Lifted_constant_state
 module NM = Name_mode
+module NO = Name_occurrences
 module P = Flambda_primitive
 module RE = Rebuilt_expr
 module RSC = Rebuilt_static_const

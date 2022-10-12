@@ -79,10 +79,6 @@ let unique_toplevel_name = function
   | Global name
   | Predef { name; _ } -> name
 
-let persistent = function
-  | Global _ -> true
-  | _ -> false
-
 let equal i1 i2 =
   match i1, i2 with
   | Local { name = name1; _ }, Local { name = name2; _ }
@@ -123,7 +119,11 @@ let reinit () =
   then reinit_level := !currentstamp
   else currentstamp := !reinit_level
 
-let global = function
+let is_global = function
+  | Global _ -> true
+  | _ -> false
+
+let is_global_or_predef = function
   | Local _
   | Scoped _ -> false
   | Global _

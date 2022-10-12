@@ -2676,6 +2676,11 @@ let floatfield n ptr dbg =
       dbg )
 
 let int_as_pointer arg dbg = Cop (Caddi, [arg; Cconst_int (-1, dbg)], dbg)
+
+let int_of_value arg dbg = Cop (Cintofvalue, [arg], dbg)
+
+let value_of_int arg dbg = Cop (Cvalueofint, [arg], dbg)
+
 (* always a pointer outside the heap *)
 
 let raise_prim raise_kind arg dbg =
@@ -3357,6 +3362,10 @@ let transl_builtin name args dbg =
   (* Native_pointer: handled as unboxed nativeint *)
   | "caml_ext_pointer_as_native_pointer" ->
     Some (int_as_pointer (one_arg name args) dbg)
+  | "caml_native_pointer_of_value" ->
+    Some (int_of_value (one_arg name args) dbg)
+  | "caml_native_pointer_to_value" ->
+    Some (value_of_int (one_arg name args) dbg)
   | "caml_native_pointer_load_immediate"
   | "caml_native_pointer_load_unboxed_nativeint" ->
     Some (Cop (Cload (Word_int, Mutable), args, dbg))
@@ -3585,6 +3594,15 @@ let emit_float_array_constant symb fields cont =
     (floatarray_header (List.length fields))
     (Misc.map_end (fun f -> Cdouble f) fields cont)
 
+let make_symbol ?compilation_unit name =
+  let compilation_unit =
+    match compilation_unit with
+    | None -> Compilation_unit.get_current_exn ()
+    | Some compilation_unit -> compilation_unit
+  in
+  Symbol.for_name compilation_unit name
+  |> Symbol.linkage_name |> Linkage_name.to_string
+
 (* Generate the entry point *)
 
 let entry_point namelist =
@@ -3608,7 +3626,7 @@ let entry_point namelist =
   let body =
     List.fold_right
       (fun name next ->
-        let entry_sym = Compilenv.make_symbol ~unitname:name (Some "entry") in
+        let entry_sym = make_symbol ~compilation_unit:name "entry" in
         Csequence
           ( Cop (Capply (typ_void, Rc_normal), [cconst_symbol entry_sym], dbg ()),
             Csequence (incr_global_inited (), next) ))
@@ -3630,7 +3648,7 @@ let cint_zero = Cint 0n
 
 let global_table namelist =
   let mksym name =
-    Csymbol_address (Compilenv.make_symbol ~unitname:name (Some "gc_roots"))
+    Csymbol_address (make_symbol ~compilation_unit:name "gc_roots")
   in
   Cdata
     (Cglobal_symbol "caml_globals" :: Cdefine_symbol "caml_globals"
@@ -3650,7 +3668,7 @@ let globals_map v = global_data "caml_globals_map" v
 
 let frame_table namelist =
   let mksym name =
-    Csymbol_address (Compilenv.make_symbol ~unitname:name (Some "frametable"))
+    Csymbol_address (make_symbol ~compilation_unit:name "frametable")
   in
   Cdata
     (Cglobal_symbol "caml_frametable" :: Cdefine_symbol "caml_frametable"
@@ -3661,8 +3679,8 @@ let frame_table namelist =
 
 let segment_table namelist symbol begname endname =
   let addsyms name lst =
-    Csymbol_address (Compilenv.make_symbol ~unitname:name (Some begname))
-    :: Csymbol_address (Compilenv.make_symbol ~unitname:name (Some endname))
+    Csymbol_address (make_symbol ~compilation_unit:name begname)
+    :: Csymbol_address (make_symbol ~compilation_unit:name endname)
     :: lst
   in
   Cdata
@@ -3769,7 +3787,7 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
 (* Build the NULL terminated array of gc roots *)
 
 let emit_gc_roots_table ~symbols cont =
-  let table_symbol = Compilenv.make_symbol (Some "gc_roots") in
+  let table_symbol = make_symbol "gc_roots" in
   Cdata
     (Cglobal_symbol table_symbol :: Cdefine_symbol table_symbol
      :: List.map (fun s -> Csymbol_address s) symbols
@@ -4142,8 +4160,8 @@ let fundecl fun_name fun_args fun_body fun_codegen_options fun_dbg =
 
 (* Gc root table *)
 
-let gc_root_table ~make_symbol syms =
-  let table_symbol = make_symbol ?unitname:None (Some "gc_roots") in
+let gc_root_table syms =
+  let table_symbol = make_symbol ?compilation_unit:None "gc_roots" in
   cdata
     (define_symbol ~global:true table_symbol
     @ List.map symbol_address syms
@@ -4169,3 +4187,11 @@ let cmm_arith_size (e : Cmm.expression) =
   | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ | Cregion _
   | Ctail _ ->
     None
+
+let transl_property : Lambda.property -> Cmm.property = function
+  | Noalloc -> Noalloc
+
+let transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list = function
+  | Default_check -> []
+  | Assert p -> [Assert (transl_property p)]
+  | Assume p -> [Assume (transl_property p)]

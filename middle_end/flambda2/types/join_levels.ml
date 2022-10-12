@@ -265,7 +265,7 @@ let join ~env_at_fork envs_with_levels ~params ~extra_lifted_consts_in_use_envs
        typing environment. *)
     let rec free_names_transitive0 typ ~result =
       let free_names = TG.free_names typ in
-      let to_traverse = Name_occurrences.diff free_names result in
+      let to_traverse = Name_occurrences.diff free_names ~without:result in
       Name_occurrences.fold_names to_traverse ~init:result
         ~f:(fun result name ->
           let result =

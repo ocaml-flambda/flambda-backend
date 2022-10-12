@@ -33,7 +33,7 @@ type error =
         check : string
       }
 
-exception Error of error
+exception Error of Location.t * error
 
 module Value = struct
   type t =
@@ -50,6 +50,8 @@ end
 module Func_info = struct
   type t =
     { name : string;  (** function name *)
+      mutable loc : Location.t option;
+          (** Source location for error messages. *)
       mutable value : Value.t;  (** the result of the check *)
       mutable callers : string list;
           (** unresolved dependencies. if not empty then value is Unknown. *)
@@ -59,7 +61,13 @@ module Func_info = struct
     }
 
   let create name value =
-    { name; value; callers = []; in_current_unit = false; annotated = false }
+    { name;
+      loc = None;
+      value;
+      callers = [];
+      in_current_unit = false;
+      annotated = false
+    }
 end
 
 module type Spec = sig
@@ -80,10 +88,10 @@ module type Spec = sig
   (** returns true when the check passes. *)
   val check_specific : Arch.specific_operation -> bool
 
-  val annotation : Cmm.codegen_option
+  val annotation : Cmm.property
 end
-(* CR gyorsh: Annotations are not yet implemented. We may also want annotations
-   on call sites, not only on functions. *)
+(* CR-someday gyorsh: We may also want annotations on call sites, not only on
+   functions. *)
 
 (** Check one function. *)
 module Analysis (S : Spec) : sig
@@ -115,7 +123,7 @@ end = struct
 
     val add_dep : t -> callee:string -> caller:string -> unit
 
-    val in_current_unit : t -> string -> unit
+    val in_current_unit : t -> string -> Debuginfo.t -> unit
 
     val annotated : t -> string -> unit
   end = struct
@@ -132,7 +140,7 @@ end = struct
       | Some (func_info : Func_info.t) -> (
         match func_info.value with Fail -> true | Pass | Unknown -> false)
 
-    let in_current_unit t name =
+    let in_current_unit t name dbg =
       let func_info : Func_info.t =
         match Hashtbl.find_opt t name with
         | None ->
@@ -141,7 +149,10 @@ end = struct
           func_info
         | Some func_info -> func_info
       in
-      func_info.in_current_unit <- true
+      func_info.in_current_unit <- true;
+      match func_info.loc with
+      | None -> func_info.loc <- Some (Debuginfo.to_location dbg)
+      | Some _ -> Misc.fatal_errorf "Duplicate symbol name %s" name
 
     let record t name value =
       match Hashtbl.find_opt t name with
@@ -229,7 +240,9 @@ end = struct
                 then
                   raise
                     (Error
-                       (Annotation { fun_name = func_info.name; check = S.name })))
+                       ( Option.get func_info.loc,
+                         Annotation
+                           { fun_name = func_info.name; check = S.name } )))
           t
 
     let add_dep t ~callee ~caller =
@@ -267,7 +280,7 @@ end = struct
   let report t ~msg ~desc dbg =
     if !Flambda_backend_flags.dump_checkmach
     then
-      Format.fprintf t.ppf "*** check %s %s in %s: %s at %a\n" S.name msg
+      Format.fprintf t.ppf "*** check %s %s in %s: %s %a\n" S.name msg
         t.fun_name desc Debuginfo.print_compact dbg
 
   exception Bail
@@ -304,7 +317,7 @@ end = struct
     match op with
     | Imove | Ispill | Ireload | Iconst_int _ | Iconst_float _ | Iconst_symbol _
     | Iload _ | Icompf _ | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
-    | Ifloatofint | Iintoffloat
+    | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue
     | Iintop_imm
         ( ( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
           | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _ | Icomp _ ),
@@ -390,21 +403,26 @@ end = struct
       Profile.record_call ~accumulate:true ("check " ^ S.name) (fun () ->
           let fun_name = f.fun_name in
           let t = { ppf; fun_name; unresolved_dependencies = false } in
-          Unit_info.in_current_unit unit_info fun_name;
-          (try
-             let _ = check_instr_exn t f.fun_body false in
-             if (not t.unresolved_dependencies)
-                && not (Unit_info.is_fail unit_info t.fun_name)
-             then (
-               report t ~msg:"passed" ~desc:"" f.fun_dbg;
-               Unit_info.add_value t.ppf unit_info fun_name Pass)
-           with Bail -> debug t Fail);
-          if List.mem S.annotation f.fun_codegen_options
-          then Unit_info.annotated unit_info fun_name)
+          Unit_info.in_current_unit unit_info fun_name f.fun_dbg;
+          if List.mem (Cmm.Assume S.annotation) f.fun_codegen_options
+          then (
+            report t ~msg:"assumed" ~desc:"fundecl" f.fun_dbg;
+            Unit_info.add_value t.ppf unit_info fun_name Pass)
+          else (
+            (try
+               let _ = check_instr_exn t f.fun_body false in
+               if (not t.unresolved_dependencies)
+                  && not (Unit_info.is_fail unit_info t.fun_name)
+               then (
+                 report t ~msg:"passed" ~desc:"fundecl" f.fun_dbg;
+                 Unit_info.add_value t.ppf unit_info fun_name Pass)
+             with Bail -> debug t Fail);
+            if List.mem (Cmm.Assert S.annotation) f.fun_codegen_options
+            then Unit_info.annotated unit_info fun_name))
 end
 
 module Spec_alloc : Spec = struct
-  let name = "alloc"
+  let name = "noalloc"
 
   let enabled () = !Flambda_backend_flags.alloc_check
 
@@ -419,7 +437,7 @@ module Spec_alloc : Spec = struct
 
   let check_specific s = not (Arch.operation_allocates s)
 
-  let annotation = Cmm.Noalloc_check
+  let annotation = Cmm.Noalloc
 end
 
 (***************************************************************************
@@ -448,10 +466,10 @@ let record_unit_info ppf_dump =
 
 let report_error ppf = function
   | Annotation { fun_name; check } ->
-    Format.fprintf ppf "Annotation check for %s on function %s failed" check
+    Format.fprintf ppf "Annotation check for %s failed on function %s" check
       fun_name
 
 let () =
   Location.register_error_of_exn (function
-    | Error err -> Some (Location.error_of_printer_file report_error err)
+    | Error (loc, err) -> Some (Location.error_of_printer ~loc report_error err)
     | _ -> None)

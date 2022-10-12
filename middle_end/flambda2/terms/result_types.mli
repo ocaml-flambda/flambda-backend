@@ -20,12 +20,6 @@ val create :
   Flambda2_types.Typing_env_extension.With_extra_variables.t ->
   t
 
-val create_unknown :
-  params:Bound_parameters.t -> result_arity:Flambda_arity.With_subkinds.t -> t
-
-val create_bottom :
-  params:Bound_parameters.t -> result_arity:Flambda_arity.With_subkinds.t -> t
-
 val pattern_match :
   t ->
   f:

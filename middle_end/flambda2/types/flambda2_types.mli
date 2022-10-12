@@ -578,15 +578,15 @@ val prove_variant_like :
   Typing_env.t -> t -> variant_like_proof proof_of_property
 
 (** If [ty] is known to represent a boxed number or a tagged integer,
-    [prove_is_a_boxed_number env ty] is [Proved kind]. [kind] is the kind of the
-    unboxed number.
+    [prove_is_a_boxed_number env ty] is [Proved (alloc_mode,kind,contents_ty)].
+    [kind] is the kind of the unboxed number.
 
     If [ty] is known to represent something of kind value that is not a number
     [prove_is_a_boxed_number env ty] is [Invalid].
 
     Otherwise it is [Unknown] or [Wrong_kind] when [ty] is not of kind value. *)
 type boxed_or_tagged_number = private
-  | Boxed of Flambda_kind.Boxable_number.t
+  | Boxed of Alloc_mode.t Or_unknown.t * Flambda_kind.Boxable_number.t * t
   | Tagged_immediate
 
 val prove_is_a_boxed_or_tagged_number :
@@ -642,6 +642,11 @@ val prove_single_closures_entry :
   proof_of_property
 
 val meet_strings : Typing_env.t -> t -> String_info.Set.t meet_shortcut
+
+val prove_strings :
+  Typing_env.t ->
+  t ->
+  (Alloc_mode.t Or_unknown.t * String_info.Set.t) proof_of_property
 
 (** Attempt to show that the provided type describes the tagged version of a
     unique naked immediate [Simple].

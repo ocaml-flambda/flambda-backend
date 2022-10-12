@@ -35,7 +35,7 @@ module type S = sig
 end
 
 module Make (P : sig
-  val colour : unit -> string
+  val colour : Format.formatter -> unit
 end) : S = struct
   type t =
     { compilation_unit : Compilation_unit.t;
@@ -62,14 +62,14 @@ end) : S = struct
       Hashtbl.hash (t.name_stamp, Compilation_unit.hash t.compilation_unit)
 
     let print ppf t =
-      Format.fprintf ppf "@<0>%s" (P.colour ());
+      Format.fprintf ppf "%t" P.colour;
       if Compilation_unit.equal t.compilation_unit
            (Compilation_unit.get_current_exn ())
       then Format.fprintf ppf "%s/%d" t.name t.name_stamp
       else
         Format.fprintf ppf "%a.%s/%d" Compilation_unit.print t.compilation_unit
           t.name t.name_stamp;
-      Format.fprintf ppf "@<0>%s" (Flambda_colours.normal ())
+      Format.fprintf ppf "%t" Flambda_colours.pop
   end)
 
   include Self

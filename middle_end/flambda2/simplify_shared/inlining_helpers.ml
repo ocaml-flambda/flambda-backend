@@ -17,9 +17,10 @@
 open! Flambda.Import
 module RC = Apply.Result_continuation
 
-let make_inlined_body ~callee ~params ~args ~my_closure ~my_depth ~rec_info
-    ~body ~exn_continuation ~return_continuation ~apply_exn_continuation
-    ~apply_return_continuation ~bind_params ~bind_depth ~apply_renaming =
+let make_inlined_body ~callee ~region_inlined_into ~params ~args ~my_closure
+    ~my_region ~my_depth ~rec_info ~body ~exn_continuation ~return_continuation
+    ~apply_exn_continuation ~apply_return_continuation ~bind_params ~bind_depth
+    ~apply_renaming =
   let renaming = Renaming.empty in
   let renaming =
     match (apply_return_continuation : RC.t) with
@@ -28,6 +29,12 @@ let make_inlined_body ~callee ~params ~args ~my_closure ~my_depth ~rec_info
   in
   let renaming =
     Renaming.add_continuation renaming exn_continuation apply_exn_continuation
+  in
+  let renaming =
+    (* Unlike for parameters, we know that the argument for the [my_region]
+       parameter is fresh for [body], so we can use a permutation without fear
+       of swapping out existing occurrences of such argument within [body]. *)
+    Renaming.add_variable renaming my_region region_inlined_into
   in
   let body =
     bind_params ~params:(my_closure :: params) ~args:(callee :: args) ~body

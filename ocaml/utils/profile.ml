@@ -104,10 +104,10 @@ type display = {
   worth_displaying : max:float -> bool;
 }
 
-let time_display v : display =
+let time_display precision v : display =
   (* Because indentation is meaningful, and because the durations are
      the first element of each row, we can't pad them with spaces. *)
-  let to_string_without_unit v ~width = Printf.sprintf "%0*.03f" width v in
+  let to_string_without_unit v ~width = Printf.sprintf "%0*.*f" width precision v in
   let to_string ~max:_ ~width =
     to_string_without_unit v ~width:(width - 1) ^ "s" in
   let worth_displaying ~max:_ =
@@ -212,7 +212,7 @@ and rows_of_hierarchy_list ~nesting make_row hierarchy total env =
     a
   ) list
 
-let rows_of_hierarchy hierarchy measure_diff initial_measure columns =
+let rows_of_hierarchy hierarchy measure_diff initial_measure columns timings_precision =
   (* Computing top heap size is a bit complicated: if the compiler applies a
      list of passes n times (rather than applying pass1 n times, then pass2 n
      times etc), we only show one row for that pass but what does "top heap
@@ -238,7 +238,7 @@ let rows_of_hierarchy hierarchy measure_diff initial_measure columns =
       let make value ~f = value, f value in
       List.map (function
         | `Time ->
-          make p.duration ~f:time_display
+          make p.duration ~f:(time_display timings_precision)
         | `Alloc ->
           make p.allocated_words ~f:memory_word_display
         | `Top_heap ->
@@ -300,7 +300,7 @@ let display_rows ppf rows =
   in
   List.iter (loop ~indentation:"") rows
 
-let print ppf columns =
+let print ppf columns ~timings_precision =
   match columns with
   | [] -> ()
   | _ :: _ ->
@@ -311,7 +311,7 @@ let print ppf columns =
      in
      let total = Measure_diff.of_diff Measure.zero (Measure.create ()) in
      display_rows ppf
-       (rows_of_hierarchy !hierarchy total initial_measure columns)
+       (rows_of_hierarchy !hierarchy total initial_measure columns timings_precision)
 
 let column_mapping = [
   "time", `Time;

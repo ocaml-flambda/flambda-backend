@@ -193,7 +193,7 @@ type string_or_bytes = Flambda_primitive.string_or_bytes =
 
 type init_or_assign = Flambda_primitive.Init_or_assign.t =
   | Initialization
-  | Assignment of Alloc_mode.t
+  | Assignment of Alloc_mode.With_region.t
 
 type 'signed_or_unsigned comparison =
       'signed_or_unsigned Flambda_primitive.comparison =
@@ -438,6 +438,7 @@ and code_size = int
 and params_and_body =
   { params : kinded_parameter list;
     closure_var : variable;
+    region_var : variable;
     depth_var : variable;
     ret_cont : continuation_id;
     exn_cont : continuation_id;

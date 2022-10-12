@@ -75,6 +75,8 @@ module S = struct
     | Compf of Mach.float_comparison (* CR gyorsh: can merge with float_test? *)
     | Floatofint
     | Intoffloat
+    | Valueofint
+    | Intofvalue
     | Probe of
         { name : string;
           handler_code_sym : string
@@ -148,6 +150,10 @@ module S = struct
     | Op of operation
     | Call of call_operation
     | Reloadretaddr
+        (** This instruction loads the return address from a predefined hidden
+            address (e.g. bottom of the current frame) and stores it in a
+            special hidden register. It can use standard registers for that
+            purpose. They are defined in [Proc.destroyed_at_reloadretaddr]. *)
     | Pushtrap of { lbl_handler : Label.t }
     | Poptrap
     | Prologue

@@ -27,7 +27,7 @@ open Dwarf_ocaml
 
 type error =
   | Assembler_error of string
-  | Mismatched_for_pack of string option
+  | Mismatched_for_pack of Compilation_unit.Prefix.t
   | Asm_generation of string * Emitaux.error
 
 exception Error of error
@@ -68,15 +68,13 @@ let should_save_cfg_before_emit () =
   should_save_ir_after Compiler_pass.Simplify_cfg && (not !start_from_emit)
 
 let linear_unit_info =
-  { Linear_format.unit_name = "";
+  { Linear_format.unit = Compilation_unit.dummy;
     items = [];
-    for_pack = None;
   }
 
 let new_cfg_unit_info () =
-  { Cfg_format.unit_name = "";
+  { Cfg_format.unit = Compilation_unit.dummy;
     items = [];
-    for_pack = None;
   }
 
 let cfg_unit_info = new_cfg_unit_info ()
@@ -92,20 +90,17 @@ let reset () =
   start_from_emit := false;
   Compiler_pass_map.iter (fun pass (cfg_unit_info : Cfg_format.cfg_unit_info) ->
     if should_save_ir_after pass then begin
-      cfg_unit_info.unit_name <- Compilenv.current_unit_name ();
+      cfg_unit_info.unit <- Compilation_unit.get_current_exn ();
       cfg_unit_info.items <- [];
-      cfg_unit_info.for_pack <- !Clflags.for_package;
     end)
     pass_to_cfg;
   if should_save_before_emit () then begin
-    linear_unit_info.unit_name <- Compilenv.current_unit_name ();
+    linear_unit_info.unit <- Compilation_unit.get_current_exn ();
     linear_unit_info.items <- [];
-    linear_unit_info.for_pack <- !Clflags.for_package;
   end;
   if should_save_cfg_before_emit () then begin
-    cfg_unit_info.unit_name <- Compilenv.current_unit_name ();
+    cfg_unit_info.unit <- Compilation_unit.get_current_exn ();
     cfg_unit_info.items <- [];
-    cfg_unit_info.for_pack <- !Clflags.for_package;
   end
 
 let save_data dl =
@@ -375,11 +370,16 @@ let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
         let cfg =
           fd
           ++ Profile.record ~accumulate:true "cfgize" cfgize
+          ++ Cfg_with_liveness.make
           ++ Profile.record ~accumulate:true "cfg_deadcode" Cfg_deadcode.run
         in
-        let cfg_description = Profile.record ~accumulate:true "cfg_create_description" Cfg_regalloc_validate.Description.create cfg in
+        let cfg_description =
+          Profile.record ~accumulate:true "cfg_create_description"
+            Cfg_regalloc_validate.Description.create (Cfg_with_liveness.cfg_with_layout cfg)
+        in
         cfg
         ++ Profile.record ~accumulate:true "cfg_irc" Cfg_irc.run
+        ++ Cfg_with_liveness.cfg_with_layout
         ++ Profile.record ~accumulate:true "cfg_validate_description" (Cfg_regalloc_validate.run cfg_description)
         ++ Profile.record ~accumulate:true "cfg_simplify" Cfg_regalloc_utils.simplify_cfg
         ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run)
@@ -495,13 +495,17 @@ let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename ~may_reduc
 
 let build_dwarf ~asm_directives:(module Asm_directives : Asm_targets.Asm_directives_intf.S) sourcefile =
   let unit_name =
-    Compilation_unit.get_persistent_ident (Compilation_unit.get_current_exn ())
+    (* CR lmaurer: This doesn't actually need to be an [Ident.t] *)
+    Symbol.for_current_unit ()
+    |> Symbol.linkage_name
+    |> Linkage_name.to_string
+    |> Ident.create_persistent
   in
   let code_begin =
-    Compilenv.make_symbol (Some "code_begin") |> Asm_targets.Asm_symbol.create
+    Cmm_helpers.make_symbol "code_begin" |> Asm_targets.Asm_symbol.create
   in
   let code_end =
-    Compilenv.make_symbol (Some "code_end") |> Asm_targets.Asm_symbol.create
+    Cmm_helpers.make_symbol "code_end" |> Asm_targets.Asm_symbol.create
   in
   Dwarf.create
     ~sourcefile
@@ -652,10 +656,12 @@ let compile_implementation_flambda2 unix ?toplevel ?(keep_symbol_tables=true)
 let linear_gen_implementation unix filename =
   let open Linear_format in
   let linear_unit_info, _ = restore filename in
-  (match !Clflags.for_package, linear_unit_info.for_pack with
-   | None, None -> ()
-   | Some expected, Some saved when String.equal expected saved -> ()
-   | _, saved -> raise(Error(Mismatched_for_pack saved)));
+  let current_package = Compilation_unit.Prefix.from_clflags () in
+  let saved_package =
+    Compilation_unit.for_pack_prefix linear_unit_info.unit
+  in
+  if not (Compilation_unit.Prefix.equal current_package saved_package)
+  then raise(Error(Mismatched_for_pack saved_package));
   let emit_item ~dwarf = function
     | Data dl -> emit_data dl
     | Func f -> emit_fundecl ~dwarf f
@@ -682,13 +688,15 @@ let report_error ppf = function
       fprintf ppf "Assembler error, input left in file %a"
         Location.print_filename file
   | Mismatched_for_pack saved ->
-    let msg = function
-       | None -> "without -for-pack"
-       | Some s -> "with -for-pack "^s
+    let msg prefix =
+      if Compilation_unit.Prefix.is_empty prefix
+      then "without -for-pack"
+      else "with -for-pack " ^ Compilation_unit.Prefix.to_string prefix
      in
      fprintf ppf
        "This input file cannot be compiled %s: it was generated %s."
-       (msg !Clflags.for_package) (msg saved)
+       (msg (Compilation_unit.Prefix.from_clflags ()))
+       (msg saved)
   | Asm_generation(fn, err) ->
      fprintf ppf
        "Error producing assembly code for %s: %a"

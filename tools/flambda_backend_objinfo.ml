@@ -61,11 +61,14 @@ let print_name_crc (name, crco) =
 let print_line name =
   printf "\t%s\n" name
 
+let print_name_line cu =
+  printf "\t%a\n" Compilation_unit.Name.output (Compilation_unit.name cu)
+
 let print_required_global id =
   printf "\t%s\n" (Ident.name id)
 
 let print_cmo_infos cu =
-  printf "Unit name: %s\n" cu.cu_name;
+  printf "Unit name: %a\n" Compilation_unit.Name.output cu.cu_name;
   print_string "Interfaces imported:\n";
   List.iter print_name_crc cu.cu_imports;
   print_string "Required globals:\n";
@@ -117,11 +120,11 @@ let print_cmt_infos cmt =
      | None -> ""
      | Some crc -> string_of_crc crc)
 
-let print_general_infos name crc defines iter_cmi iter_cmx =
-  printf "Name: %s\n" name;
+let print_general_infos print_name name crc defines iter_cmi iter_cmx =
+  printf "Name: %a\n" print_name name;
   printf "CRC of implementation: %s\n" (string_of_crc crc);
   printf "Globals defined:\n";
-  List.iter print_line defines;
+  List.iter print_name_line defines;
   printf "Interfaces imported:\n";
   iter_cmi print_name_crc;
   printf "Implementations imported:\n";
@@ -150,7 +153,7 @@ let print_generic_fns gfns =
 
 
 let print_cmx_infos (ui, crc) =
-  print_general_infos ui.ui_name crc ui.ui_defines
+  print_general_infos Compilation_unit.output ui.ui_unit crc ui.ui_defines
     (fun f -> List.iter f ui.ui_imports_cmi)
     (fun f -> List.iter f ui.ui_imports_cmx);
   begin match ui.ui_export_info with
@@ -166,16 +169,8 @@ let print_cmx_infos (ui, crc) =
     else
       printf "Flambda unit\n";
     if not !no_approx then begin
-      let cu =
-        Compilation_unit.create (Ident.create_persistent ui.ui_name)
-          (Linkage_name.create "__dummy__")
-      in
-      Compilation_unit.set_current cu;
-      let root_symbols =
-        List.map (fun s ->
-            Symbol.of_global_linkage cu (Linkage_name.create ("caml"^s)))
-          ui.ui_defines
-      in
+      Compilation_unit.set_current ui.ui_unit;
+      let root_symbols = List.map Symbol.for_compilation_unit ui.ui_defines in
       Format.printf "approximations@ %a@.@."
         Export_info.print_approx (export, root_symbols)
     end;
@@ -203,7 +198,7 @@ let print_cmxa_infos (lib : Cmx_format.library_infos) =
   print_generic_fns lib.lib_generic_fns;
   let module B = Misc.Bitmap in
   lib.lib_units |> List.iter (fun u ->
-    print_general_infos u.li_name u.li_crc u.li_defines
+    print_general_infos Compilation_unit.output u.li_name u.li_crc u.li_defines
       (fun f -> B.iter (fun i -> f lib.lib_imports_cmi.(i)) u.li_imports_cmi)
       (fun f -> B.iter (fun i -> f lib.lib_imports_cmx.(i)) u.li_imports_cmx);
     printf "Force link: %s\n" (if u.li_force_link then "YES" else "no"))
@@ -212,6 +207,7 @@ let print_cmxs_infos header =
   List.iter
     (fun ui ->
        print_general_infos
+         Compilation_unit.Name.output
          ui.dynu_name
          ui.dynu_crc
          ui.dynu_defines
@@ -300,7 +296,7 @@ let dump_obj_by_kind filename ic obj_kind =
     | Cmo ->
        let cu_pos = input_binary_int ic in
        seek_in ic cu_pos;
-       let cu = (input_value ic : compilation_unit) in
+       let cu = input_value ic in
        close_in ic;
        print_cmo_infos cu
     | Cma ->

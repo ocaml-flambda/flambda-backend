@@ -57,35 +57,35 @@ module Const_data = struct
     let [@ocamlformat "disable"] print ppf (t : t) =
       match t with
       | Naked_immediate i ->
-        Format.fprintf ppf "@<0>%s#%a@<0>%s"
-          (Flambda_colours.naked_number ())
+        Format.fprintf ppf "%t#%a%t"
+          Flambda_colours.naked_number
           Targetint_31_63.print i
-          (Flambda_colours.normal ())
+          Flambda_colours.pop
       | Tagged_immediate i ->
-        Format.fprintf ppf "@<0>%s%a@<0>%s"
-          (Flambda_colours.tagged_immediate ())
+        Format.fprintf ppf "%t%a%t"
+          Flambda_colours.tagged_immediate
           Targetint_31_63.print i
-          (Flambda_colours.normal ())
+          Flambda_colours.pop
       | Naked_float f ->
-        Format.fprintf ppf "@<0>%s#%a@<0>%s"
-          (Flambda_colours.naked_number ())
+        Format.fprintf ppf "%t#%a%t"
+          Flambda_colours.naked_number
           Numeric_types.Float_by_bit_pattern.print f
-          (Flambda_colours.normal ())
+          Flambda_colours.pop
       | Naked_int32 n ->
-        Format.fprintf ppf "@<0>%s#%ldl@<0>%s"
-          (Flambda_colours.naked_number ())
+        Format.fprintf ppf "%t#%ldl%t"
+          Flambda_colours.naked_number
           n
-          (Flambda_colours.normal ())
+          Flambda_colours.pop
       | Naked_int64 n ->
-        Format.fprintf ppf "@<0>%s#%LdL@<0>%s"
-          (Flambda_colours.naked_number ())
+        Format.fprintf ppf "%t#%LdL%t"
+          Flambda_colours.naked_number
           n
-          (Flambda_colours.normal ())
+          Flambda_colours.pop
       | Naked_nativeint n ->
-        Format.fprintf ppf "@<0>%s#%an@<0>%s"
-          (Flambda_colours.naked_number ())
+        Format.fprintf ppf "%t#%an%t"
+          Flambda_colours.naked_number
           Targetint_32_64.print n
-          (Flambda_colours.normal ())
+          Flambda_colours.pop
 
     let compare t1 t2 =
       match t1, t2 with
@@ -156,7 +156,7 @@ module Variable_data = struct
         @[<hov 1>(name_stamp@ %d)@]@ \
         @[<hov 1>(user_visible@ %b)@]\
         )@]"
-      Compilation_unit.print compilation_unit
+      Compilation_unit.print_debug compilation_unit
       name
       name_stamp
       user_visible
@@ -211,36 +211,25 @@ module Variable_data = struct
            previous_compilation_units2
 end
 
+module Symbol0 = Flambda2_import.Symbol
+
 module Symbol_data = struct
-  type t =
-    { compilation_unit : Compilation_unit.t;
-      linkage_name : Linkage_name.t
-    }
+  include Symbol0
+
+  let unsafe_create compilation_unit linkage_name =
+    Symbol0.unsafe_create compilation_unit linkage_name
 
   let flags = symbol_flags
 
-  let [@ocamlformat "disable"] print ppf { compilation_unit; linkage_name; } =
+  let [@ocamlformat "disable"] print ppf symbol =
+    let compilation_unit = Symbol0.compilation_unit symbol in
+    let linkage_name = Symbol0.linkage_name symbol in
     Format.fprintf ppf "@[<hov 1>(\
         @[<hov 1>(compilation_unit@ %a)@]@ \
         @[<hov 1>(linkage_name@ %a)@]\
         )@]"
-      Compilation_unit.print compilation_unit
+      Compilation_unit.print_debug compilation_unit
       Linkage_name.print linkage_name
-
-  let hash { compilation_unit = _; linkage_name } =
-    (* Linkage names are unique across a whole project, so there's no need to
-       hash the compilation unit. *)
-    Linkage_name.hash linkage_name
-
-  let equal t1 t2 =
-    if t1 == t2
-    then true
-    else
-      let { compilation_unit = _; linkage_name = linkage_name1 } = t1 in
-      let { compilation_unit = _; linkage_name = linkage_name2 } = t2 in
-      (* Linkage names are unique across a whole project, so there's no need to
-         check the compilation units. *)
-      Linkage_name.equal linkage_name1 linkage_name2
 end
 
 module Code_id_data = struct
@@ -258,7 +247,7 @@ module Code_id_data = struct
         @[<hov 1>(name@ %s)@]@ \
         @[<hov 1>(linkage_name@ %a)@]@ \
         )@]"
-      Compilation_unit.print compilation_unit
+      Compilation_unit.print_debug compilation_unit
       name
       Linkage_name.print linkage_name
 
@@ -456,28 +445,32 @@ module Symbol = struct
 
   let find_data t = Table.find !grand_table_of_symbols t
 
+  let create_wrapped data = Table.add !grand_table_of_symbols data
+
   let unsafe_create compilation_unit linkage_name =
-    let data : Symbol_data.t = { compilation_unit; linkage_name } in
-    Table.add !grand_table_of_symbols data
+    Symbol_data.unsafe_create compilation_unit linkage_name |> create_wrapped
+
+  let extern_syms =
+    Compilation_unit.create Compilation_unit.Prefix.empty
+      ("*extern*" |> Compilation_unit.Name.of_string)
+
+  let external_symbols_compilation_unit () = extern_syms
 
   let create compilation_unit linkage_name =
-    let unit_linkage_name =
-      Linkage_name.to_string
-        (Compilation_unit.get_linkage_name compilation_unit)
-    in
-    let linkage_name =
-      if Compilation_unit.equal compilation_unit
-           (Compilation_unit.external_symbols ())
-      then linkage_name
+    let data =
+      if Compilation_unit.equal compilation_unit extern_syms
+      then
+        (* Use linkage name without prefixing the compilation unit *)
+        Symbol0.unsafe_create compilation_unit linkage_name
       else
-        Linkage_name.create
-          (unit_linkage_name ^ "__" ^ Linkage_name.to_string linkage_name)
+        Symbol0.for_name compilation_unit
+          (linkage_name |> Linkage_name.to_string)
     in
-    unsafe_create compilation_unit linkage_name
+    create_wrapped data
 
-  let compilation_unit t = (find_data t).compilation_unit
+  let compilation_unit t = Symbol0.compilation_unit (find_data t)
 
-  let linkage_name t = (find_data t).linkage_name
+  let linkage_name t = Symbol0.linkage_name (find_data t)
 
   let linkage_name_as_string t = Linkage_name.to_string (linkage_name t)
 
@@ -489,11 +482,11 @@ module Symbol = struct
     let hash = Id.hash
 
     let print ppf t =
-      Format.fprintf ppf "@<0>%s" (Flambda_colours.symbol ());
+      Format.fprintf ppf "%t" Flambda_colours.symbol;
       Compilation_unit.print ppf (compilation_unit t);
       Format.pp_print_string ppf ".";
       Linkage_name.print ppf (linkage_name t);
-      Format.fprintf ppf "@<0>%s" (Flambda_colours.normal ())
+      Format.fprintf ppf "%t" Flambda_colours.pop
   end
 
   include T0
@@ -516,7 +509,7 @@ module Symbol = struct
   let import (data : exported) = Table.add !grand_table_of_symbols data
 
   let map_compilation_unit f (data : exported) : exported =
-    { data with compilation_unit = f data.compilation_unit }
+    Symbol0.with_compilation_unit data (f (Symbol0.compilation_unit data))
 end
 
 module Name = struct
@@ -542,11 +535,11 @@ module Name = struct
     let hash = Id.hash
 
     let print ppf t =
-      Format.fprintf ppf "@<0>%s" (Flambda_colours.name ());
+      Format.fprintf ppf "%t" Flambda_colours.name;
       pattern_match t
         ~var:(fun var -> Variable.print ppf var)
         ~symbol:(fun symbol -> Symbol.print ppf symbol);
-      Format.fprintf ppf "@<0>%s" (Flambda_colours.normal ())
+      Format.fprintf ppf "%t" Flambda_colours.pop
   end
 
   include T0
@@ -754,12 +747,8 @@ module Code_id = struct
       !previous_name_stamp
     in
     let linkage_name =
-      let unique_name = Printf.sprintf "%s_%d" name name_stamp in
-      let unit_linkage_name =
-        Linkage_name.to_string
-          (Compilation_unit.get_linkage_name compilation_unit)
-      in
-      Linkage_name.create (unit_linkage_name ^ "__" ^ unique_name ^ "_code")
+      let name = Printf.sprintf "%s_%d_code" name name_stamp in
+      Symbol0.for_name compilation_unit name |> Symbol0.linkage_name
     in
     let data : Code_id_data.t = { compilation_unit; name; linkage_name } in
     Table.add !grand_table_of_code_ids data
@@ -779,10 +768,8 @@ module Code_id = struct
     let hash = Id.hash
 
     let print ppf t =
-      Format.fprintf ppf "@<0>%s%a@<0>%s"
-        (Flambda_colours.code_id ())
-        Linkage_name.print (linkage_name t)
-        (Flambda_colours.normal ())
+      Format.fprintf ppf "%t%a%t" Flambda_colours.code_id Linkage_name.print
+        (linkage_name t) Flambda_colours.pop
   end
 
   include T0

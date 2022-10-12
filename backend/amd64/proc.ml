@@ -359,6 +359,7 @@ let destroyed_at_oper = function
   | Iop(Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
        | Icompf _
        | Ifloatofint | Iintoffloat
+       | Ivalueofint | Iintofvalue
        | Iconst_int _ | Iconst_float _ | Iconst_symbol _
        | Itailcall_ind | Itailcall_imm _ | Istackoffset _ | Iload (_, _, _)
        | Iname_for_debugger _ | Iprobe _| Iprobe_is_enabled _ | Iopaque)
@@ -405,6 +406,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
        | Negf | Absf | Addf | Subf | Mulf | Divf
        | Compf _
        | Floatofint | Intoffloat
+       | Valueofint | Intofvalue
        | Probe _
        | Probe_is_enabled _
        | Opaque
@@ -443,7 +445,8 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
 let safe_register_pressure = function
     Iextcall _ -> if win64 then if fp then 7 else 8 else 0
   | Ialloc _ | Imove | Ispill | Ireload
-  | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf | Ifloatofint | Iintoffloat
+  | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue
   | Icompf _
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
@@ -480,7 +483,8 @@ let max_register_pressure =
             | Double ),
             _, _)
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
-  | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Iconst_symbol _
+  | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue
+  | Iconst_int _ | Iconst_float _ | Iconst_symbol _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Istackoffset _ | Iload (_, _, _)
   | Ispecific(Ilea _ | Isextend32 | Izextend32 | Iprefetch _ | Ipause
@@ -520,7 +524,9 @@ let operation_supported = function
   | Cclz _ | Cctz _
   | Ccmpi _ | Caddv | Cadda | Ccmpa _
   | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf
-  | Cfloatofint | Cintoffloat | Ccmpf _
+  | Cfloatofint | Cintoffloat
+  | Cvalueofint | Cintofvalue
+  | Ccmpf _
   | Craise _
   | Ccheckbound
   | Cprobe _ | Cprobe_is_enabled _ | Copaque | Cbeginregion | Cendregion

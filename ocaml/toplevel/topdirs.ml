@@ -179,7 +179,7 @@ and really_load_file recursive ppf name filename ic =
     if buffer = Config.cmo_magic_number then begin
       let compunit_pos = input_binary_int ic in  (* Go to descriptor *)
       seek_in ic compunit_pos;
-      let cu : compilation_unit = input_value ic in
+      let cu : compilation_unit_descr = input_value ic in
       if recursive then
         List.iter
           (function

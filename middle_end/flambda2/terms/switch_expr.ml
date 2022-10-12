@@ -54,20 +54,18 @@ let print_arms ppf arms =
     (fun (action, discrs) ->
       if !spc then fprintf ppf "@ " else spc := true;
       let discrs = Targetint_31_63.Set.elements discrs in
-      fprintf ppf "@[<hov 2>@[<hov 0>| %a @<0>%s\u{21a6}@<0>%s@ @]%a@]"
+      fprintf ppf "@[<hov 2>@[<hov 0>| %a %t\u{21a6}%t@ @]%a@]"
         (Format.pp_print_list
            ~pp_sep:(fun ppf () -> Format.fprintf ppf "@ | ")
            Targetint_31_63.print)
-        discrs (Flambda_colours.elide ())
-        (Flambda_colours.normal ())
-        Apply_cont_expr.print action)
+        discrs Flambda_colours.elide Flambda_colours.pop Apply_cont_expr.print
+        action)
     arms
 
 let print ppf { condition_dbg = _; scrutinee; arms } =
-  fprintf ppf "@[<v 0>(@<0>%sswitch@<0>%s %a@ @[<v 0>%a@])@]"
-    (Flambda_colours.expr_keyword ())
-    (Flambda_colours.normal ())
-    Simple.print scrutinee print_arms arms
+  fprintf ppf "@[<v 0>(%tswitch%t %a@ @[<v 0>%a@])@]"
+    Flambda_colours.expr_keyword Flambda_colours.pop Simple.print scrutinee
+    print_arms arms
 
 let create ~condition_dbg ~scrutinee ~arms = { condition_dbg; scrutinee; arms }
 

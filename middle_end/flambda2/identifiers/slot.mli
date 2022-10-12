@@ -35,5 +35,5 @@ module type S = sig
 end
 
 module Make (_ : sig
-  val colour : unit -> string
+  val colour : Format.formatter -> unit
 end) : S

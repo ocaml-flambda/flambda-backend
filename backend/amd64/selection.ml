@@ -153,7 +153,8 @@ let pseudoregs_for_operation op arg res =
               |Ifloat_iround|Ifloat_round _
               |Ipause|Ilfence|Isfence|Imfence
               |Ioffset_loc (_, _)|Ifloatsqrtf _|Irdtsc|Iprefetch _)
-  | Imove|Ispill|Ireload|Ifloatofint|Iintoffloat|Iconst_int _|Iconst_float _
+  | Imove|Ispill|Ireload|Ifloatofint|Iintoffloat|Ivalueofint|Iintofvalue
+  | Iconst_int _|Iconst_float _
   | Iconst_symbol _|Icall_ind|Icall_imm _|Itailcall_ind|Itailcall_imm _
   | Iextcall _|Istackoffset _|Iload (_, _, _) | Istore (_, _, _)|Ialloc _
   | Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _ | Iopaque
@@ -324,11 +325,11 @@ method! select_operation op args dbg =
          Ispecific Ifloat_max, args
       | "caml_pause_hint", ([|Val|] | [| |]) ->
          Ispecific Ipause, args
-      | "caml_load_fence", ([|Val|] | [| |]) -> 
+      | "caml_load_fence", ([|Val|] | [| |]) ->
          Ispecific Ilfence, args
-      | "caml_store_fence", ([|Val|] | [| |]) -> 
+      | "caml_store_fence", ([|Val|] | [| |]) ->
          Ispecific Isfence, args
-      | "caml_memory_fence", ([|Val|] | [| |]) -> 
+      | "caml_memory_fence", ([|Val|] | [| |]) ->
          Ispecific Imfence, args
       | _ ->
         super#select_operation op args dbg
