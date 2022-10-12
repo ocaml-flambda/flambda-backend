@@ -92,8 +92,8 @@ let project_tuple ~dbg ~size ~field tuple =
   Named.create_prim prim dbg
 
 let split_direct_over_application apply ~param_arity ~result_arity
-    ~(apply_alloc_mode : Alloc_mode.For_allocations.t) ~contains_no_escaping_local_allocs
-    ~current_region =
+    ~(apply_alloc_mode : Alloc_mode.For_allocations.t)
+    ~contains_no_escaping_local_allocs ~current_region =
   let arity = Flambda_arity.With_subkinds.cardinal param_arity in
   let args = Apply.args apply in
   assert (arity < List.length args);

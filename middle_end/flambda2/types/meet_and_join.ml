@@ -54,8 +54,8 @@ type meet_expanded_head_result =
 exception Bottom_meet
 
 let meet_alloc_mode (alloc_mode1 : Alloc_mode.For_types.t)
-    (alloc_mode2 : Alloc_mode.For_types.t) :
-    Alloc_mode.For_types.t Or_bottom.t =
+    (alloc_mode2 : Alloc_mode.For_types.t) : Alloc_mode.For_types.t Or_bottom.t
+    =
   match alloc_mode1, alloc_mode2 with
   | Heap_or_local, Heap_or_local -> Ok Alloc_mode.For_types.unknown
   | Heap_or_local, _ -> Ok alloc_mode2

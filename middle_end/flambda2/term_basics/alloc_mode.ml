@@ -65,8 +65,7 @@ module For_allocations = struct
     then Local { region }
     else Heap
 
-  let as_type t : For_types.t =
-    match t with Heap -> Heap | Local _ -> Local
+  let as_type t : For_types.t = match t with Heap -> Heap | Local _ -> Local
 
   let from_lambda (mode : Lambda.alloc_mode) ~current_region =
     if not (Flambda_features.stack_allocation_enabled ())

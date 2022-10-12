@@ -791,12 +791,14 @@ let meet_rec_info env t : Rec_info_expr.t meet_shortcut =
   | Naked_nativeint _ | Region _ ->
     wrong_kind "Rec_info" t
 
-let prove_alloc_mode_of_boxed_number env t : Alloc_mode.For_types.t proof_of_property =
+let prove_alloc_mode_of_boxed_number env t :
+    Alloc_mode.For_types.t proof_of_property =
   match expand_head env t with
   | Value (Ok (Boxed_float (_, alloc_mode)))
   | Value (Ok (Boxed_int32 (_, alloc_mode)))
   | Value (Ok (Boxed_int64 (_, alloc_mode)))
-  | Value (Ok (Boxed_nativeint (_, alloc_mode))) -> Proved alloc_mode
+  | Value (Ok (Boxed_nativeint (_, alloc_mode))) ->
+    Proved alloc_mode
   | Value (Ok (Variant _ | Mutable_block _ | String _ | Array _ | Closures _))
   | Value (Unknown | Bottom) ->
     Unknown
@@ -824,9 +826,7 @@ let never_holds_locally_allocated_values env var kind : _ proof_of_property =
   | Value (Ok (Mutable_block { alloc_mode }))
   | Value (Ok (Closures { alloc_mode; _ }))
   | Value (Ok (Array { alloc_mode; _ })) -> (
-    match alloc_mode with
-    | Heap -> Proved ()
-    | Local | Heap_or_local -> Unknown)
+    match alloc_mode with Heap -> Proved () | Local | Heap_or_local -> Unknown)
   | Value (Ok (String _)) -> Proved ()
   | Value Unknown -> Unknown
   | Value Bottom -> Unknown

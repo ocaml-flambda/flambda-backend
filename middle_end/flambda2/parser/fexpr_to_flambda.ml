@@ -827,7 +827,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
               [Flambda_kind.With_subkind.any_value]
           | Some { ret_arity; _ } -> arity ret_arity
         in
-        Call_kind.direct_function_call code_id ~return_arity Alloc_mode.For_allocations.heap
+        Call_kind.direct_function_call code_id ~return_arity
+          Alloc_mode.For_allocations.heap
       | Function Indirect -> (
         match arities with
         | Some { params_arity = Some params_arity; ret_arity } ->
@@ -836,7 +837,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           Call_kind.indirect_function_call_known_arity ~param_arity
             ~return_arity Alloc_mode.For_allocations.heap
         | None | Some { params_arity = None; ret_arity = _ } ->
-          Call_kind.indirect_function_call_unknown_arity Alloc_mode.For_allocations.heap)
+          Call_kind.indirect_function_call_unknown_arity
+            Alloc_mode.For_allocations.heap)
       | C_call { alloc } -> (
         match arities with
         | Some { params_arity = Some params_arity; ret_arity } ->

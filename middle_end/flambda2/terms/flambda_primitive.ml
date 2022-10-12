@@ -262,7 +262,8 @@ module Init_or_assign = struct
   let ids_for_export t =
     match t with
     | Initialization -> Ids_for_export.empty
-    | Assignment alloc_mode -> Alloc_mode.For_allocations.ids_for_export alloc_mode
+    | Assignment alloc_mode ->
+      Alloc_mode.For_allocations.ids_for_export alloc_mode
 end
 
 type array_like_operation =
@@ -755,7 +756,9 @@ let compare_unary_primitive p1 p2 =
     K.Boxable_number.compare kind1 kind2
   | Box_number (kind1, alloc_mode1), Box_number (kind2, alloc_mode2) ->
     let c = K.Boxable_number.compare kind1 kind2 in
-    if c <> 0 then c else Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2
+    if c <> 0
+    then c
+    else Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2
   | Untag_immediate, Untag_immediate -> 0
   | Tag_immediate, Tag_immediate -> 0
   | ( Project_function_slot { move_from = move_from1; move_to = move_to1 },

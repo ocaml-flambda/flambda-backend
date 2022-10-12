@@ -401,14 +401,11 @@ val these_naked_int64s : Numeric_types.Int64.Set.t -> t
 
 val these_naked_nativeints : Targetint_32_64.Set.t -> t
 
-val boxed_float_alias_to :
-  naked_float:Variable.t -> Alloc_mode.For_types.t -> t
+val boxed_float_alias_to : naked_float:Variable.t -> Alloc_mode.For_types.t -> t
 
-val boxed_int32_alias_to :
-  naked_int32:Variable.t -> Alloc_mode.For_types.t -> t
+val boxed_int32_alias_to : naked_int32:Variable.t -> Alloc_mode.For_types.t -> t
 
-val boxed_int64_alias_to :
-  naked_int64:Variable.t -> Alloc_mode.For_types.t -> t
+val boxed_int64_alias_to : naked_int64:Variable.t -> Alloc_mode.For_types.t -> t
 
 val boxed_nativeint_alias_to :
   naked_nativeint:Variable.t -> Alloc_mode.For_types.t -> t

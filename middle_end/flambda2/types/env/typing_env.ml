@@ -1205,7 +1205,8 @@ end = struct
         in
         let all_value_slots_in_set = Value_slot.Map.empty in
         MTC.exactly_this_closure function_slot ~all_function_slots_in_set
-          ~all_closure_types_in_set ~all_value_slots_in_set Alloc_mode.For_types.unknown
+          ~all_closure_types_in_set ~all_value_slots_in_set
+          Alloc_mode.For_types.unknown
     in
     let just_after_level =
       Symbol.Map.fold

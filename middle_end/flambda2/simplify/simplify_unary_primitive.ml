@@ -94,13 +94,20 @@ let simplify_unbox_number (boxable_number_kind : K.Boxable_number.t) dacc
   let shape, result_kind =
     match boxable_number_kind with
     | Naked_float ->
-      T.boxed_float_alias_to ~naked_float:result_var' Alloc_mode.For_types.unknown, K.naked_float
+      ( T.boxed_float_alias_to ~naked_float:result_var'
+          Alloc_mode.For_types.unknown,
+        K.naked_float )
     | Naked_int32 ->
-      T.boxed_int32_alias_to ~naked_int32:result_var' Alloc_mode.For_types.unknown, K.naked_int32
+      ( T.boxed_int32_alias_to ~naked_int32:result_var'
+          Alloc_mode.For_types.unknown,
+        K.naked_int32 )
     | Naked_int64 ->
-      T.boxed_int64_alias_to ~naked_int64:result_var' Alloc_mode.For_types.unknown, K.naked_int64
+      ( T.boxed_int64_alias_to ~naked_int64:result_var'
+          Alloc_mode.For_types.unknown,
+        K.naked_int64 )
     | Naked_nativeint ->
-      ( T.boxed_nativeint_alias_to ~naked_nativeint:result_var' Alloc_mode.For_types.unknown,
+      ( T.boxed_nativeint_alias_to ~naked_nativeint:result_var'
+          Alloc_mode.For_types.unknown,
         K.naked_nativeint )
   in
   let alloc_mode =
@@ -122,7 +129,8 @@ let simplify_unbox_number (boxable_number_kind : K.Boxable_number.t) dacc
           DE.add_cse denv
             (P.Eligible_for_cse.create_exn
                (Unary
-                  ( Box_number (boxable_number_kind, Alloc_mode.For_allocations.heap),
+                  ( Box_number
+                      (boxable_number_kind, Alloc_mode.For_allocations.heap),
                     Simple.var result_var' )))
             ~bound_to:arg)
   in
@@ -150,9 +158,7 @@ let simplify_untag_immediate dacc ~original_term ~arg ~arg_ty:boxed_number_ty
 let simplify_box_number (boxable_number_kind : K.Boxable_number.t) alloc_mode
     dacc ~original_term ~arg:_ ~arg_ty:naked_number_ty ~result_var =
   let ty =
-    let alloc_mode =
-      Alloc_mode.For_allocations.as_type alloc_mode
-    in
+    let alloc_mode = Alloc_mode.For_allocations.as_type alloc_mode in
     match boxable_number_kind with
     | Naked_float -> T.box_float naked_number_ty alloc_mode
     | Naked_int32 -> T.box_int32 naked_number_ty alloc_mode

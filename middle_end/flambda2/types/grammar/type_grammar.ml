@@ -707,24 +707,19 @@ and print_head_of_kind_value ppf head =
       blocks (Or_unknown.print print) immediates
   | Mutable_block { alloc_mode } ->
     Format.fprintf ppf "@[<hov 1>(Mutable_block@ %a)@]"
-      Alloc_mode.For_types.print
-      alloc_mode
+      Alloc_mode.For_types.print alloc_mode
   | Boxed_float (ty, alloc_mode) ->
     Format.fprintf ppf "@[<hov 1>(Boxed_float@ %a@ %a)@]"
-      Alloc_mode.For_types.print
-      alloc_mode print ty
+      Alloc_mode.For_types.print alloc_mode print ty
   | Boxed_int32 (ty, alloc_mode) ->
     Format.fprintf ppf "@[<hov 1>(Boxed_int32@ %a@ %a)@]"
-      Alloc_mode.For_types.print
-      alloc_mode print ty
+      Alloc_mode.For_types.print alloc_mode print ty
   | Boxed_int64 (ty, alloc_mode) ->
     Format.fprintf ppf "@[<hov 1>(Boxed_int64@ %a@ %a)@]"
-      Alloc_mode.For_types.print
-      alloc_mode print ty
+      Alloc_mode.For_types.print alloc_mode print ty
   | Boxed_nativeint (ty, alloc_mode) ->
     Format.fprintf ppf "@[<hov 1>(Boxed_nativeint@ %a@ %a)@]"
-      Alloc_mode.For_types.print
-      alloc_mode print ty
+      Alloc_mode.For_types.print alloc_mode print ty
   | Closures { by_function_slot; alloc_mode } ->
     print_row_like_for_closures alloc_mode ppf by_function_slot
   | String str_infos ->
@@ -734,17 +729,13 @@ and print_head_of_kind_value ppf head =
     Format.fprintf ppf
       "@[<hov 1>(Array@ (element_kind@ %a)@ (length@ %a)@ (alloc_mode@ %a))@]"
       (Or_unknown.print Flambda_kind.With_subkind.print)
-      element_kind print length
-      Alloc_mode.For_types.print
-      alloc_mode
+      element_kind print length Alloc_mode.For_types.print alloc_mode
   | Array { element_kind; length; contents = Known Mutable; alloc_mode } ->
     Format.fprintf ppf
       "@[<hov 1>(Mutable_array@ (element_kind@ %a)@ (length@ %a)@ (alloc_mode@ \
        %a))@]"
       (Or_unknown.print Flambda_kind.With_subkind.print)
-      element_kind print length
-      Alloc_mode.For_types.print
-      alloc_mode
+      element_kind print length Alloc_mode.For_types.print alloc_mode
   | Array
       { element_kind;
         length;
@@ -755,9 +746,7 @@ and print_head_of_kind_value ppf head =
       "@[<hov 1>(Immutable_array@ (element_kind@ %a)@ (length@ %a)@ \
        (alloc_mode@ %a)@ (fields@ (%a)))@]"
       (Or_unknown.print Flambda_kind.With_subkind.print)
-      element_kind print length
-      Alloc_mode.For_types.print
-      alloc_mode
+      element_kind print length Alloc_mode.For_types.print alloc_mode
       (Format.pp_print_list ~pp_sep:Format.pp_print_space print)
       fields
 
@@ -825,8 +814,8 @@ and print_row_like :
     Format.fprintf ppf
       "@[<hov 1>(@[<hov 1>(alloc_mode@ %a)@ (known@ %a)@]@ @[<hov 1>(other@ \
        %a)@])@]"
-      Alloc_mode.For_types.print
-      alloc_mode (print_known_map print) known (Or_bottom.print print) other
+      Alloc_mode.For_types.print alloc_mode (print_known_map print) known
+      (Or_bottom.print print) other
 
 and print_row_like_for_blocks ppf { known_tags; other_tags; alloc_mode } =
   print_row_like ~print_index:Block_size.print
@@ -2295,7 +2284,10 @@ module Row_like_for_blocks = struct
     | Closed of Tag.t
 
   let bottom =
-    { known_tags = Tag.Map.empty; other_tags = Bottom; alloc_mode = Alloc_mode.For_types.unknown }
+    { known_tags = Tag.Map.empty;
+      other_tags = Bottom;
+      alloc_mode = Alloc_mode.For_types.unknown
+    }
 
   let is_bottom { known_tags; other_tags; alloc_mode = _ } =
     Tag.Map.is_empty known_tags && other_tags = Or_bottom.Bottom

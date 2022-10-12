@@ -277,8 +277,8 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
 let simplify_direct_partial_application ~simplify_expr dacc apply
     ~callee's_code_id ~callee's_code_metadata ~callee's_function_slot
     ~param_arity ~result_arity ~recursive ~down_to_up ~coming_from_indirect
-    ~(closure_alloc_mode_from_type : Alloc_mode.For_types.t)
-    ~current_region ~num_trailing_local_params =
+    ~(closure_alloc_mode_from_type : Alloc_mode.For_types.t) ~current_region
+    ~num_trailing_local_params =
   (* Partial-applications are converted in full applications. Let's assume that
      [foo] takes 6 arguments. Then [foo a b c] gets transformed into:
 
@@ -360,7 +360,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
   let contains_no_escaping_local_allocs =
     Code_metadata.contains_no_escaping_local_allocs callee's_code_metadata
   in
-  let apply_alloc_mode  =
+  let apply_alloc_mode =
     if contains_no_escaping_local_allocs
     then Alloc_mode.For_allocations.heap
     else Alloc_mode.For_allocations.local ~region:current_region
@@ -609,8 +609,8 @@ let simplify_direct_over_application ~simplify_expr dacc apply ~param_arity
 let simplify_direct_function_call ~simplify_expr dacc apply
     ~callee's_code_id_from_type ~callee's_code_id_from_call_kind
     ~callee's_function_slot ~result_arity ~result_types ~recursive ~arg_types:_
-    ~must_be_detupled ~closure_alloc_mode_from_type ~apply_alloc_mode ~current_region
-    function_decl ~down_to_up =
+    ~must_be_detupled ~closure_alloc_mode_from_type ~apply_alloc_mode
+    ~current_region function_decl ~down_to_up =
   (match Apply.probe_name apply, Apply.inlined apply with
   | None, _ | Some _, Never_inlined -> ()
   | Some _, (Hint_inlined | Unroll _ | Default_inlined | Always_inlined) ->
@@ -871,8 +871,8 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
       ~result_arity:(Code_metadata.result_arity callee's_code_metadata)
       ~result_types:(Code_metadata.result_types callee's_code_metadata)
       ~recursive:(Code_metadata.recursive callee's_code_metadata)
-      ~must_be_detupled ~closure_alloc_mode_from_type ~current_region ~apply_alloc_mode
-      func_decl_type ~down_to_up
+      ~must_be_detupled ~closure_alloc_mode_from_type ~current_region
+      ~apply_alloc_mode func_decl_type ~down_to_up
   | Need_meet -> type_unavailable ()
   | Invalid ->
     let rebuild uacc ~after_rebuild =

@@ -132,8 +132,7 @@ val meet_single_closures_entry :
   Typing_env.t ->
   Type_grammar.t ->
   (Function_slot.t
-  * Alloc_mode.For_types.t
-  (* CR vlaviron: remove the Closures_entry.t field *)
+  * Alloc_mode.For_types.t (* CR vlaviron: remove the Closures_entry.t field *)
   * Type_grammar.Closures_entry.t
   * Type_grammar.Function_type.t)
   meet_shortcut
@@ -142,8 +141,7 @@ val prove_single_closures_entry :
   Typing_env.t ->
   Type_grammar.t ->
   (Function_slot.t
-  * Alloc_mode.For_types.t
-  (* CR vlaviron: remove the Closures_entry.t field *)
+  * Alloc_mode.For_types.t (* CR vlaviron: remove the Closures_entry.t field *)
   * Type_grammar.Closures_entry.t
   * Type_grammar.Function_type.t)
   proof_of_property

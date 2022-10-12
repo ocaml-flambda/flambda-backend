@@ -515,7 +515,8 @@ let array_set_unsafe ~array ~index ~new_value (array_kind : P.Array_kind.t)
     Ternary
       ( Array_set
           ( Naked_floats,
-            Assignment (Alloc_mode.For_allocations.local ~region:current_region) ),
+            Assignment (Alloc_mode.For_allocations.local ~region:current_region)
+          ),
         array,
         index,
         unbox_float new_value )
@@ -997,7 +998,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
     Ternary
       ( Block_set
           ( block_access,
-            Assignment (Alloc_mode.For_allocations.local ~region:current_region) ),
+            Assignment (Alloc_mode.For_allocations.local ~region:current_region)
+          ),
         block,
         Simple Simple.const_zero,
         new_ref_value )
@@ -1042,7 +1044,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
         | [] -> Misc.fatal_errorf "Pbigarrayref is missing its arguments"
       in
       let box =
-        bigarray_box_or_tag_raw_value_to_read kind Alloc_mode.For_allocations.heap
+        bigarray_box_or_tag_raw_value_to_read kind
+          Alloc_mode.For_allocations.heap
       in
       box (bigarray_load ~dbg ~unsafe kind layout b indexes)
     | None, _ ->

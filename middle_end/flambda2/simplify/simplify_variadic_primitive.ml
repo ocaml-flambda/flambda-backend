@@ -62,9 +62,7 @@ let simplify_make_block ~original_prim ~field_kind tag ~shape
             T.alias_type_of (K.With_subkind.kind kind_with_subkind) arg)
           args shape
       in
-      let alloc_mode =
-        Alloc_mode.For_allocations.as_type alloc_mode
-      in
+      let alloc_mode = Alloc_mode.For_allocations.as_type alloc_mode in
       match mutable_or_immutable with
       | Immutable ->
         T.immutable_block ~is_unique:false tag ~field_kind alloc_mode ~fields
@@ -128,8 +126,7 @@ let simplify_make_array (array_kind : P.Array_kind.t)
       let alloc_mode = Alloc_mode.For_allocations.as_type alloc_mode in
       match mutable_or_immutable with
       | Mutable ->
-        T.mutable_array ~element_kind:(Known element_kind) ~length
-          alloc_mode
+        T.mutable_array ~element_kind:(Known element_kind) ~length alloc_mode
       | Immutable ->
         T.immutable_array ~element_kind:(Known element_kind) ~fields:tys
           alloc_mode

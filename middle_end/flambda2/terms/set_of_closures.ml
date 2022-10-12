@@ -115,7 +115,9 @@ let free_names { function_decls; value_slots; alloc_mode = _ } =
     [Function_declarations.free_names function_decls; free_names_of_value_slots]
 
 let apply_renaming ({ function_decls; value_slots; alloc_mode } as t) renaming =
-  let alloc_mode' = Alloc_mode.For_allocations.apply_renaming alloc_mode renaming in
+  let alloc_mode' =
+    Alloc_mode.For_allocations.apply_renaming alloc_mode renaming
+  in
   let function_decls' =
     Function_declarations.apply_renaming function_decls renaming
   in

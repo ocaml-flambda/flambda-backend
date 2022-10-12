@@ -99,13 +99,17 @@ let these_boxed_int64s is alloc_mode =
 let these_boxed_nativeints is alloc_mode =
   TG.box_nativeint (these_naked_nativeints is) alloc_mode
 
-let any_boxed_float = TG.box_float TG.any_naked_float Alloc_mode.For_types.unknown
+let any_boxed_float =
+  TG.box_float TG.any_naked_float Alloc_mode.For_types.unknown
 
-let any_boxed_int32 = TG.box_int32 TG.any_naked_int32 Alloc_mode.For_types.unknown
+let any_boxed_int32 =
+  TG.box_int32 TG.any_naked_int32 Alloc_mode.For_types.unknown
 
-let any_boxed_int64 = TG.box_int64 TG.any_naked_int64 Alloc_mode.For_types.unknown
+let any_boxed_int64 =
+  TG.box_int64 TG.any_naked_int64 Alloc_mode.For_types.unknown
 
-let any_boxed_nativeint = TG.box_nativeint TG.any_naked_nativeint Alloc_mode.For_types.unknown
+let any_boxed_nativeint =
+  TG.box_nativeint TG.any_naked_nativeint Alloc_mode.For_types.unknown
 
 let any_block =
   TG.create_variant ~is_unique:false
