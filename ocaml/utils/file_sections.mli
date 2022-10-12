@@ -14,10 +14,11 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** cmx file sections cache *)
+(** file sections cache *)
 
 val add_unit :
-  Cmx_format.unit_infos -> in_channel -> first_section_offset:int -> unit
+  Compilation_unit.t -> int array -> in_channel -> first_section_offset:int -> unit
 
 val read_section_from_cmx_file : unit:Compilation_unit.t -> index:int -> Obj.t
+
 val close_all : unit -> unit

@@ -14,12 +14,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open Config
-open Cmx_format
-
 type section =
   | Loaded of Obj.t
-  | Pending of { byte_offset_in_cmx : int }
+  | Pending of { byte_offset_in_file : int }
 
 type t =
   { channel : in_channel;
@@ -28,16 +25,16 @@ type t =
 
 let section_cache : (Compilation_unit.t, t) Hashtbl.t = Hashtbl.create 10
 
-let add_unit unit channel ~first_section_offset =
+let add_unit unit section_toc channel ~first_section_offset =
   let sections =
     Array.map
       (fun offset ->
-        Pending { byte_offset_in_cmx = offset + first_section_offset })
-      unit.ui_section_toc
+        Pending { byte_offset_in_file = offset + first_section_offset })
+      section_toc
   in
-  if Hashtbl.mem section_cache unit.ui_unit
-  then Misc.fatal_errorf "Unit loaded multiple time %a" Compilation_unit.print unit.ui_unit;
-  Hashtbl.add section_cache unit.ui_unit { channel; sections }
+  if Hashtbl.mem section_cache unit
+  then Misc.fatal_errorf "Unit loaded multiple time %a" Compilation_unit.print unit;
+  Hashtbl.add section_cache unit { channel; sections }
 
 let read_section_from_cmx_file ~unit ~index =
   match Hashtbl.find_opt section_cache unit with
@@ -54,9 +51,9 @@ let read_section_from_cmx_file ~unit ~index =
     else
       match sections.(index) with
       | Loaded section_contents -> section_contents
-      | Pending { byte_offset_in_cmx } ->
+      | Pending { byte_offset_in_file } ->
         (* Printf.eprintf "--> seeking to %d\n%!" byte_offset_in_cmx; *)
-        seek_in channel byte_offset_in_cmx;
+        seek_in channel byte_offset_in_file;
         let section_contents : Obj.t = input_value channel in
         sections.(index) <- Loaded section_contents;
         section_contents)

@@ -146,7 +146,7 @@ let reset compilation_unit =
   current_unit.ui_export_info <- default_ui_export_info;
   merged_environment := Export_info.empty;
   CU.Name.Tbl.clear export_infos_table;
-  Cmx_sections.close_all ();
+  File_sections.close_all ();
   Compilation_unit.set_current compilation_unit
 
 let current_unit_infos () =
@@ -162,7 +162,7 @@ let read_unit_info filename =
     end;
     let ui = (input_value ic : unit_infos) in
     let first_section_offset = pos_in ic in
-    Cmx_sections.add_unit ui ic ~first_section_offset;
+    File_sections.add_unit ui.ui_unit ui.ui_section_toc ic ~first_section_offset;
     seek_in ic (first_section_offset + ui.ui_sections_length);
     let crc = Digest.input ic in
     if Array.length ui.ui_section_toc = 0 then

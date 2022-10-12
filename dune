@@ -81,7 +81,6 @@
   backend_var
   clambda
   clambda_primitives
-  cmx_sections
   compilenv
   mangling
   convert_primitives
