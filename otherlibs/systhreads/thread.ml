@@ -37,15 +37,59 @@ external exit_stub : unit -> unit = "caml_thread_exit"
 
 let[@inline never] check_memprof_cb () = ref ()
 
+<<<<<<< HEAD
+||||||| 24dbb0976a
+=======
+let default_uncaught_exception_handler = thread_uncaught_exception
+
+let uncaught_exception_handler = ref default_uncaught_exception_handler
+
+let set_uncaught_exception_handler fn = uncaught_exception_handler := fn
+
+exception Exit
+
+>>>>>>> ocaml/4.14
 let create fn arg =
   thread_new
     (fun () ->
       try
         fn arg;
         ignore (Sys.opaque_identity (check_memprof_cb ()))
+<<<<<<< HEAD
       with exn ->
              flush stdout; flush stderr;
              thread_uncaught_exception exn)
+||||||| 24dbb0976a
+        fn arg; ()
+      with exn ->
+             flush stdout; flush stderr;
+             thread_uncaught_exception exn)
+=======
+      with
+      | Exit ->
+        ignore (Sys.opaque_identity (check_memprof_cb ()))
+      | exn ->
+        let raw_backtrace = Printexc.get_raw_backtrace () in
+        flush stdout; flush stderr;
+        try
+          !uncaught_exception_handler exn
+        with
+        | Exit -> ()
+        | exn' ->
+          Printf.eprintf
+            "Thread %d killed on uncaught exception %s\n"
+            (id (self ())) (Printexc.to_string exn);
+          Printexc.print_raw_backtrace stderr raw_backtrace;
+          Printf.eprintf
+            "Thread %d uncaught exception handler raised %s\n"
+            (id (self ())) (Printexc.to_string exn');
+          Printexc.print_backtrace stdout;
+          flush stderr)
+
+let exit () =
+  ignore (Sys.opaque_identity (check_memprof_cb ()));
+  exit_stub ()
+>>>>>>> ocaml/4.14
 
 let exit () =
   ignore (Sys.opaque_identity (check_memprof_cb ()));

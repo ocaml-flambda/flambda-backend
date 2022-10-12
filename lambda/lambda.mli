@@ -70,12 +70,17 @@ type region_close =
   | Rc_close_at_apply (* close region and tail call *)
 
 type primitive =
-  | Pidentity
   | Pbytes_to_string
   | Pbytes_of_string
   | Pignore
+<<<<<<< HEAD
   | Prevapply of region_close
   | Pdirapply of region_close
+||||||| 24dbb0976a
+  | Prevapply
+  | Pdirapply
+=======
+>>>>>>> ocaml/4.14
     (* Globals *)
   | Pgetglobal of Ident.t
   | Psetglobal of Ident.t
@@ -101,7 +106,7 @@ type primitive =
   | Pandint | Porint | Pxorint
   | Plslint | Plsrint | Pasrint
   | Pintcomp of integer_comparison
-  (* Comparions that return int (not bool like above) for ordering *)
+  (* Comparisons that return int (not bool like above) for ordering *)
   | Pcompare_ints | Pcompare_floats | Pcompare_bints of boxed_integer
   | Poffsetint of int
   | Poffsetref of int
@@ -286,9 +291,20 @@ type local_attribute =
   | Never_local (* [@local never] *)
   | Default_local (* [@local maybe] or no [@local] attribute *)
 
+<<<<<<< HEAD
 type property =
   | Noalloc
+||||||| 24dbb0976a
+type function_kind = Curried | Tupled
+=======
+type poll_attribute =
+  | Error_poll (* [@poll error] *)
+  | Default_poll (* no [@poll] attribute *)
 
+type function_kind = Curried | Tupled
+>>>>>>> ocaml/4.14
+
+<<<<<<< HEAD
 type check_attribute =
   | Default_check
   | Assert of property
@@ -299,6 +315,10 @@ type function_kind = Curried of {nlocal: int} | Tupled
    before the resulting closure must be locally allocated.
    See [check_lfunction] for details *)
 
+||||||| 24dbb0976a
+type let_kind = Strict | Alias | StrictOpt | Variable
+=======
+>>>>>>> ocaml/4.14
 type let_kind = Strict | Alias | StrictOpt
 (* Meaning of kinds for let x = e in e':
     Strict: e may have side-effects; always evaluate e first
@@ -320,9 +340,15 @@ type function_attribute = {
   inline : inline_attribute;
   specialise : specialise_attribute;
   local: local_attribute;
+<<<<<<< HEAD
   check : check_attribute;
+||||||| 24dbb0976a
+=======
+  poll: poll_attribute;
+>>>>>>> ocaml/4.14
   is_a_functor: bool;
   stub: bool;
+  tmc_candidate: bool;
 }
 
 type scoped_location = Debuginfo.Scoped_location.t
@@ -358,7 +384,7 @@ type lambda =
   | Lifused of Ident.t * lambda
   | Lregion of lambda
 
-and lfunction =
+and lfunction = private
   { kind: function_kind;
     params: (Ident.t * value_kind) list;
     return: value_kind;
@@ -407,6 +433,7 @@ and lambda_switch =
     sw_numblocks: int;                  (* Number of tag block cases *)
     sw_blocks: (int * lambda) list;     (* Tag block cases *)
     sw_failaction : lambda option}      (* Action to take if failure *)
+
 and lambda_event =
   { lev_loc: scoped_location;
     lev_kind: lambda_event_kind;
@@ -447,6 +474,16 @@ val lambda_unit: lambda
 val check_lfunction : lfunction -> unit
 val name_lambda: let_kind -> lambda -> (Ident.t -> lambda) -> lambda
 val name_lambda_list: lambda list -> (lambda list -> lambda) -> lambda
+
+val lfunction :
+  kind:function_kind ->
+  params:(Ident.t * value_kind) list ->
+  return:value_kind ->
+  body:lambda ->
+  attr:function_attribute -> (* specified with [@inline] attribute *)
+  loc:scoped_location ->
+  lambda
+
 
 val iter_head_constructor: (lambda -> unit) -> lambda -> unit
 (** [iter_head_constructor f lam] apply [f] to only the first level of
@@ -525,6 +562,16 @@ val swap_float_comparison : float_comparison -> float_comparison
 val default_function_attribute : function_attribute
 val default_stub_attribute : function_attribute
 
+<<<<<<< HEAD
+||||||| 24dbb0976a
+val function_is_curried : lfunction -> bool
+
+=======
+val function_is_curried : lfunction -> bool
+val find_exact_application :
+  function_kind -> arity:int -> lambda list -> lambda list option
+
+>>>>>>> ocaml/4.14
 val max_arity : unit -> int
   (** Maximal number of parameters for a function, or in other words,
       maximal length of the [params] list of a [lfunction] record.

@@ -121,7 +121,7 @@ let rec longest_path critical_outputs node =
         node.length <-
           List.fold_left
             (fun len (son, delay) ->
-              max len (longest_path critical_outputs son + delay))
+              Int.max len (longest_path critical_outputs son + delay))
             0 sons
   end;
   node.length
@@ -154,8 +154,14 @@ method oper_in_basic_block = function
   | Itailcall_imm _ -> false
   | Iextcall _ -> false
   | Istackoffset _ -> false
+<<<<<<< HEAD
   | Ialloc _ -> false
   | Iprobe _ -> false
+||||||| 24dbb0976a
+  | Ialloc _ -> false
+=======
+  | Ialloc _ | Ipoll _ -> false
+>>>>>>> ocaml/4.14
   | _ -> true
 
 (* Determine whether an instruction ends a basic block or not *)

@@ -770,7 +770,13 @@ let int_array_set arr ofs newval dbg =
   Cop(Cstore (Word_int, Assignment),
     [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
 let float_array_set arr ofs newval dbg =
+<<<<<<< HEAD
   Cop(Cstore (Double, Assignment),
+||||||| 24dbb0976a
+  Cop(Cstore (Double_u, Lambda.Assignment),
+=======
+  Cop(Cstore (Double, Lambda.Assignment),
+>>>>>>> ocaml/4.14
     [array_indexing log2_size_float arr ofs dbg; newval], dbg)
 
 let addr_array_set_local arr ofs newval dbg =
@@ -1559,9 +1565,15 @@ struct
   let geint = Ccmpi Cge
   let gtint = Ccmpi Cgt
 
-  type act = expression
   type loc = Debuginfo.t
+<<<<<<< HEAD
   type value_kind = unit
+||||||| 24dbb0976a
+=======
+  type arg = expression
+  type test = expression
+  type act = expression
+>>>>>>> ocaml/4.14
 
   (* CR mshinwell: GPR#2294 will fix the Debuginfo here *)
 
@@ -1570,7 +1582,15 @@ struct
   let make_offset arg n = add_const arg n Debuginfo.none
   let make_isout h arg = Cop (Ccmpa Clt, [h ; arg], Debuginfo.none)
   let make_isin h arg = Cop (Ccmpa Cge, [h ; arg], Debuginfo.none)
+<<<<<<< HEAD
   let make_if () cond ifso ifnot =
+||||||| 24dbb0976a
+  let make_if cond ifso ifnot =
+=======
+  let make_is_nonzero arg = arg
+  let arg_as_test arg = arg
+  let make_if cond ifso ifnot =
+>>>>>>> ocaml/4.14
     Cifthenelse (cond, Debuginfo.none, ifso, Debuginfo.none, ifnot,
       Debuginfo.none)
   let make_switch dbg () arg cases actions =
@@ -2010,6 +2030,7 @@ let send_function (arity, mode) =
     fun_args = List.map (fun (arg, ty) -> VP.create arg, ty) fun_args;
     fun_body = body;
     fun_codegen_options = [];
+    fun_poll = Default_poll;
     fun_dbg;
    }
 
@@ -2023,6 +2044,7 @@ let apply_function arity =
     fun_args = List.map (fun arg -> (VP.create arg, typ_val)) all_args;
     fun_body = body;
     fun_codegen_options = [];
+    fun_poll = Default_poll;
     fun_dbg;
    }
 
@@ -2051,6 +2073,7 @@ let tuplify_function arity =
           :: access_components 0 @ [Cvar clos],
           (dbg ()));
     fun_codegen_options = [];
+    fun_poll = Default_poll;
     fun_dbg;
    }
 
@@ -2122,6 +2145,7 @@ let final_curry_function ~nlocal ~arity =
     fun_args = [VP.create last_arg, typ_val; VP.create last_clos, typ_val];
     fun_body = curry_fun [] last_clos (arity-1);
     fun_codegen_options = [];
+    fun_poll = Default_poll;
     fun_dbg;
    }
 
@@ -2161,6 +2185,7 @@ let rec intermediate_curry_functions ~nlocal ~arity num =
                  Cvar arg; Cvar clos],
                 dbg ());
       fun_codegen_options = [];
+      fun_poll = Default_poll;
       fun_dbg;
      }
     ::
@@ -2200,6 +2225,7 @@ let rec intermediate_curry_functions ~nlocal ~arity num =
                fun_body = iter (num+1)
                   (List.map (fun (arg,_) -> Cvar arg) direct_args) clos;
                fun_codegen_options = [];
+               fun_poll = Default_poll;
                fun_dbg;
               }
           in
@@ -2439,16 +2465,37 @@ let stringref_safe arg1 arg2 dbg =
           Cop(Cload (Byte_unsigned, Mutable),
             [add_int str idx dbg], dbg))))) dbg
 
+<<<<<<< HEAD
 let string_load size unsafe mode arg1 arg2 dbg =
   box_sized size mode dbg
+||||||| 24dbb0976a
+let string_load size unsafe arg1 arg2 dbg =
+  box_sized size dbg
+    (bind "str" arg1 (fun str ->
+     bind "index" (untag_int arg2 dbg) (fun idx ->
+=======
+let string_load size unsafe arg1 arg2 dbg =
+  box_sized size dbg
+>>>>>>> ocaml/4.14
     (bind "index" (untag_int arg2 dbg) (fun idx ->
      bind "str" arg1 (fun str ->
        check_bound unsafe size dbg
           (string_length str dbg)
           idx (unaligned_load size str idx dbg))))
 
+<<<<<<< HEAD
 let bigstring_load size unsafe mode arg1 arg2 dbg =
   box_sized size mode dbg
+||||||| 24dbb0976a
+let bigstring_load size unsafe arg1 arg2 dbg =
+  box_sized size dbg
+   (bind "ba" arg1 (fun ba ->
+    bind "index" (untag_int arg2 dbg) (fun idx ->
+    bind "ba_data"
+=======
+let bigstring_load size unsafe arg1 arg2 dbg =
+  box_sized size dbg
+>>>>>>> ocaml/4.14
     (bind "index" (untag_int arg2 dbg) (fun idx ->
      bind "ba" arg1 (fun ba ->
      bind "ba_data"
@@ -2550,14 +2597,28 @@ let bytesset_unsafe arg1 arg2 arg3 dbg =
 
 let bytesset_safe arg1 arg2 arg3 dbg =
   return_unit dbg
+<<<<<<< HEAD
     (bind "newval" (untag_int arg3 dbg) (fun newval ->
+||||||| 24dbb0976a
+    (bind "str" arg1 (fun str ->
+=======
+    (bind "newval" (ignore_high_bit_int (untag_int arg3 dbg)) (fun newval ->
+>>>>>>> ocaml/4.14
       bind "index" (untag_int arg2 dbg) (fun idx ->
        bind "str" arg1 (fun str ->
         Csequence(
           make_checkbound dbg [string_length str dbg; idx],
           Cop(Cstore (Byte_unsigned, Assignment),
+<<<<<<< HEAD
               [add_int str idx dbg;
                ignore_high_bit_int newval],
+||||||| 24dbb0976a
+              [add_int str idx dbg;
+               ignore_high_bit_int (untag_int arg3 dbg)],
+              dbg)))))
+=======
+              [add_int str idx dbg; newval],
+>>>>>>> ocaml/4.14
               dbg))))))
 
 let arrayset_unsafe kind arg1 arg2 arg3 dbg =
@@ -2761,6 +2822,7 @@ let entry_point namelist =
              fun_args = [];
              fun_body = body;
              fun_codegen_options = [Reduce_code_size];
+             fun_poll = Default_poll;
              fun_dbg;
             }
 

@@ -224,11 +224,17 @@ method class_of_operation op =
   | Imove | Ispill | Ireload -> assert false   (* treated specially *)
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _ -> Op_pure
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
+<<<<<<< HEAD
   | Iextcall _ | Iprobe _ | Iopaque -> assert false       (* treated specially *)
+||||||| 24dbb0976a
+  | Iextcall _ -> assert false                 (* treated specially *)
+=======
+  | Iextcall _ | Iopaque -> assert false       (* treated specially *)
+>>>>>>> ocaml/4.14
   | Istackoffset _ -> Op_other
   | Iload(_,_,mut) -> Op_load mut
   | Istore(_,_,asg) -> Op_store asg
-  | Ialloc _ -> assert false                   (* treated specially *)
+  | Ialloc _ | Ipoll _ -> assert false     (* treated specially *)
   | Iintop(Icheckbound) -> Op_checkbound
   | Iintop _ -> Op_pure
   | Iintop_imm(Icheckbound, _) -> Op_checkbound
@@ -236,9 +242,14 @@ method class_of_operation op =
   | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Ifloatofint | Iintoffloat -> Op_pure
   | Ispecific _ -> Op_other
+<<<<<<< HEAD
   | Iname_for_debugger _ -> Op_pure
   | Iprobe_is_enabled _ -> Op_other
   | Ibeginregion | Iendregion -> Op_other
+||||||| 24dbb0976a
+  | Iname_for_debugger _ -> Op_pure
+=======
+>>>>>>> ocaml/4.14
 
 (* Operations that are so cheap that it isn't worth factoring them. *)
 
@@ -283,14 +294,20 @@ method private cse n i =
   | Iop Iopaque ->
       (* Assume arbitrary side effects from Iopaque *)
       {i with next = self#cse empty_numbering i.next}
+<<<<<<< HEAD
   | Iop (Ialloc _) ->
+||||||| 24dbb0976a
+  | Iop (Ialloc _) ->
+=======
+  | Iop (Ialloc _) | Iop (Ipoll _) ->
+>>>>>>> ocaml/4.14
       (* For allocations, we must avoid extending the live range of a
          pseudoregister across the allocation if this pseudoreg
          is a derived heap pointer (a pointer into the heap that does
          not point to the beginning of a Caml block).  PR#6484 is an
          example of this situation.  Such pseudoregs have type [Addr].
          Pseudoregs with types other than [Addr] can be kept.
-         Moreover, allocation can trigger the asynchronous execution
+         Moreover, allocations and polls can trigger the asynchronous execution
          of arbitrary Caml code (finalizer, signal handler, context
          switch), which can contain non-initializing stores.
          Hence, all equations over mutable loads must be removed. *)

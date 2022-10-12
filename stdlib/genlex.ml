@@ -14,9 +14,14 @@
 (*                                                                        *)
 (**************************************************************************)
 
+<<<<<<< HEAD
 open! Stdlib
 
 [@@@ocaml.flambda_o3]
+||||||| 24dbb0976a
+=======
+[@@@ocaml.warning "-3"] (* ignore deprecation warning about module Stream *)
+>>>>>>> ocaml/4.14
 
 type token =
     Kwd of string

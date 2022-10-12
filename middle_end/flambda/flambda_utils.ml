@@ -338,7 +338,13 @@ let toplevel_substitution_named sb named =
   | _ -> assert false
 
 let make_closure_declaration
+<<<<<<< HEAD
       ~is_classic_mode ~id ~alloc_mode ~region ~body ~params ~stub : Flambda.t =
+||||||| 24dbb0976a
+      ~is_classic_mode ~id ~body ~params ~stub : Flambda.t =
+=======
+      ~is_classic_mode ~id ~body ~params : Flambda.t =
+>>>>>>> ocaml/4.14
   let free_variables = Flambda.free_variables body in
   let param_set = Parameter.Set.vars params in
   if not (Variable.Set.subset param_set free_variables) then begin
@@ -356,14 +362,25 @@ let make_closure_declaration
   let subst id = Variable.Map.find id sb in
   let subst_param param = Parameter.map_var subst param in
   let function_declaration =
+<<<<<<< HEAD
     Flambda.create_function_declaration
       ~params:(List.map subst_param params) ~alloc_mode  ~region
       ~body ~stub ~dbg:Debuginfo.none ~inline:Default_inline
+||||||| 24dbb0976a
+    Flambda.create_function_declaration ~params:(List.map subst_param params)
+      ~body ~stub ~dbg:Debuginfo.none ~inline:Default_inline
+=======
+    Flambda.create_function_declaration ~params:(List.map subst_param params)
+      ~body ~stub:true ~dbg:Debuginfo.none ~inline:Default_inline
+>>>>>>> ocaml/4.14
       ~specialise:Default_specialise ~is_a_functor:false
       ~closure_origin:(Closure_origin.create (Closure_id.wrap id))
+      ~poll:Default_poll
   in
-  assert (Variable.Set.equal (Variable.Set.map subst free_variables)
+  begin
+    assert (Variable.Set.equal (Variable.Set.map subst free_variables)
     function_declaration.free_variables);
+  end;
   let free_vars =
     Variable.Map.fold (fun id id' fv' ->
         let spec_to : Flambda.specialised_to =

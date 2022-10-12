@@ -199,8 +199,8 @@ let type_exception sub x =
 let extension_constructor sub x =
   let ext_kind =
     match x.ext_kind with
-      Text_decl(ctl, cto) ->
-        Text_decl(constructor_args sub ctl, Option.map (sub.typ sub) cto)
+      Text_decl(v, ctl, cto) ->
+        Text_decl(v, constructor_args sub ctl, Option.map (sub.typ sub) cto)
     | Text_rebind _ as d -> d
   in
   {x with ext_kind}
@@ -222,8 +222,9 @@ let pat
     | Tpat_var _
     | Tpat_constant _ -> x.pat_desc
     | Tpat_tuple l -> Tpat_tuple (List.map (sub.pat sub) l)
-    | Tpat_construct (loc, cd, l) ->
-        Tpat_construct (loc, cd, List.map (sub.pat sub) l)
+    | Tpat_construct (loc, cd, l, vto) ->
+        let vto = Option.map (fun (vl,cty) -> vl, sub.typ sub cty) vto in
+        Tpat_construct (loc, cd, List.map (sub.pat sub) l, vto)
     | Tpat_variant (l, po, rd) ->
         Tpat_variant (l, Option.map (sub.pat sub) po, rd)
     | Tpat_record (l, closed) ->
@@ -344,6 +345,7 @@ let expr sub x =
           sub.expr sub e1,
           map_comprehension type_comp
         )
+<<<<<<< HEAD
     | Texp_arr_comprehension(e1, type_comp) ->
       Texp_arr_comprehension(
         sub.expr sub e1,
@@ -354,12 +356,42 @@ let expr sub x =
                           for_to = sub.expr sub tf.for_to;
                           for_body = sub.expr sub tf.for_body}
     | Texp_send (exp, meth, expo, pos) ->
+||||||| 24dbb0976a
+    | Texp_for (id, p, exp1, exp2, dir, exp3) ->
+        Texp_for (
+          id,
+          p,
+          sub.expr sub exp1,
+          sub.expr sub exp2,
+          dir,
+          sub.expr sub exp3
+        )
+    | Texp_send (exp, meth, expo) ->
+=======
+    | Texp_for (id, p, exp1, exp2, dir, exp3) ->
+        Texp_for (
+          id,
+          p,
+          sub.expr sub exp1,
+          sub.expr sub exp2,
+          dir,
+          sub.expr sub exp3
+        )
+    | Texp_send (exp, meth) ->
+>>>>>>> ocaml/4.14
         Texp_send
           (
             sub.expr sub exp,
+<<<<<<< HEAD
             meth,
             Option.map (sub.expr sub) expo,
             pos
+||||||| 24dbb0976a
+            meth,
+            Option.map (sub.expr sub) expo
+=======
+            meth
+>>>>>>> ocaml/4.14
           )
     | Texp_new _
     | Texp_instvar _ as d -> d
@@ -458,8 +490,18 @@ let signature_item sub x =
         Tsig_recmodule (List.map (sub.module_declaration sub) list)
     | Tsig_modtype x ->
         Tsig_modtype (sub.module_type_declaration sub x)
+<<<<<<< HEAD
     | Tsig_include incl ->
         Tsig_include (sig_include_infos sub incl)
+||||||| 24dbb0976a
+    | Tsig_include incl ->
+        Tsig_include (include_infos (sub.module_type sub) incl)
+=======
+   | Tsig_modtypesubst x ->
+        Tsig_modtypesubst (sub.module_type_declaration sub x)
+   | Tsig_include incl ->
+        Tsig_include (include_infos (sub.module_type sub) incl)
+>>>>>>> ocaml/4.14
     | Tsig_class list ->
         Tsig_class (List.map (sub.class_description sub) list)
     | Tsig_class_type list ->
@@ -499,6 +541,8 @@ let module_type sub x =
 let with_constraint sub = function
   | Twith_type decl -> Twith_type (sub.type_declaration sub decl)
   | Twith_typesubst decl -> Twith_typesubst (sub.type_declaration sub decl)
+  | Twith_modtype mty -> Twith_modtype (sub.module_type sub mty)
+  | Twith_modtypesubst mty -> Twith_modtypesubst (sub.module_type sub mty)
   | Twith_module _
   | Twith_modsubst _ as d -> d
 

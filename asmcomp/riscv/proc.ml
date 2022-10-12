@@ -166,7 +166,13 @@ let max_arguments_for_tailcalls = 16 (* in regs *) + 64 (* in domain state *)
 (* OCaml calling convention:
      first integer args in a0 .. a7, s2 .. s9
      first float args in fa0 .. fa7, fs2 .. fs9
+<<<<<<< HEAD
      remaining args in domain area, then on stack.
+||||||| 24dbb0976a
+     remaining args on stack.
+=======
+     remaining args in domain state area, then on stack.
+>>>>>>> ocaml/4.14
    Return values in a0 .. a7, s2 .. s9 or fa0 .. fa7, fs2 .. fs9. *)
 
 let loc_arguments arg =
@@ -241,9 +247,16 @@ let regs_are_volatile _ = false
 (* Registers destroyed by operations *)
 
 let destroyed_at_c_call =
-  (* s0-s11 and fs0-fs11 are callee-save *)
+  (* s0-s11 and fs0-fs11 are callee-save.  However s2 needs to be in this
+     list since it is clobbered by caml_c_call itself. *)
   Array.of_list(List.map phys_reg
+<<<<<<< HEAD
     [0; 1; 2; 3; 4; 5; 6; 7; 16; 17; 18; 19; 20; 22;
+||||||| 24dbb0976a
+    [0; 1; 2; 3; 4; 5; 6; 7; 16; 17; 18; 19; 20; 21;
+=======
+    [0; 1; 2; 3; 4; 5; 6; 7; 8; 16; 17; 18; 19; 20; 22;
+>>>>>>> ocaml/4.14
      100; 101; 102; 103; 104; 105; 106; 107; 110; 111; 112; 113; 114; 115; 116;
      117; 128; 129; 130; 131])
 
@@ -255,7 +268,7 @@ let destroyed_at_alloc =
 let destroyed_at_oper = function
   | Iop(Icall_ind | Icall_imm _ | Iextcall{alloc = true; _}) -> all_phys_regs
   | Iop(Iextcall{alloc = false; _}) -> destroyed_at_c_call
-  | Iop(Ialloc _) -> destroyed_at_alloc
+  | Iop(Ialloc _) | Iop(Ipoll _) -> destroyed_at_alloc
   | Iop(Istore(Single, _, _)) -> [| phys_reg 100 |]
   | Iswitch _ -> [| phys_reg 22 |]  (* t0 *)
   | _ -> [||]

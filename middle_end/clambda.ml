@@ -90,7 +90,12 @@ and ufunction = {
   body   : ulambda;
   dbg    : Debuginfo.t;
   env    : Backend_var.t option;
+<<<<<<< HEAD
   mode   : Lambda.alloc_mode;
+||||||| 24dbb0976a
+=======
+  poll   : poll_attribute;
+>>>>>>> ocaml/4.14
 }
 
 and ulambda_switch =
@@ -107,8 +112,14 @@ type function_description =
     mutable fun_closed: bool;           (* True if environment not used *)
     mutable fun_inline: (Backend_var.With_provenance.t list * ulambda) option;
     mutable fun_float_const_prop: bool; (* Can propagate FP consts *)
+<<<<<<< HEAD
     fun_region: bool;                   (* If false, may locally allocate
                                            in caller's region *)
+||||||| 24dbb0976a
+    mutable fun_float_const_prop: bool  (* Can propagate FP consts *)
+=======
+    fun_poll: poll_attribute;               (* Error on poll/alloc/call *)
+>>>>>>> ocaml/4.14
   }
 
 (* Approximation of values *)

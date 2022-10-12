@@ -89,8 +89,12 @@ val byte_name: description -> string
 
 val equal_boxed_integer : boxed_integer -> boxed_integer -> bool
 val equal_native_repr : native_repr -> native_repr -> bool
+<<<<<<< HEAD
 val equal_effects : effects -> effects -> bool
 val equal_coeffects : coeffects -> coeffects -> bool
+||||||| 24dbb0976a
+=======
+>>>>>>> ocaml/4.14
 
 (** [native_name_is_externa] returns [true] iff the [native_name] for the
     given primitive identifies that the primitive is not implemented in the

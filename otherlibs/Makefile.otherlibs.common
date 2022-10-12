@@ -19,8 +19,6 @@ ROOTDIR=../..
 include $(ROOTDIR)/Makefile.common
 include $(ROOTDIR)/Makefile.best_binaries
 
-CAMLRUN ?= $(ROOTDIR)/boot/ocamlrun
-
 CAMLC := $(BEST_OCAMLC) -nostdlib -I $(ROOTDIR)/stdlib
 CAMLOPT := $(BEST_OCAMLOPT) -nostdlib -I $(ROOTDIR)/stdlib
 
@@ -32,9 +30,18 @@ OC_CFLAGS += $(SHAREDLIB_CFLAGS) $(EXTRACFLAGS)
 OC_CPPFLAGS += -I$(ROOTDIR)/runtime $(EXTRACPPFLAGS)
 
 # Compilation options
-COMPFLAGS=-absname -w +a-4-9-41-42-44-45-48 -warn-error A -bin-annot -g \
+COMPFLAGS=-absname -w +a-4-9-41-42-44-45-48 -warn-error +A -bin-annot -g \
           -safe-string -strict-sequence -strict-formats $(EXTRACAMLFLAGS)
+<<<<<<< HEAD
 MKLIB=$(CAMLRUN) $(ROOTDIR)/tools/ocamlmklib
+||||||| 24dbb0976a
+MKLIB=$(CAMLRUN) $(ROOTDIR)/tools/ocamlmklib$(EXE)
+=======
+ifeq "$(FLAMBDA)" "true"
+OPTCOMPFLAGS += -O3
+endif
+MKLIB=$(OCAMLRUN) $(ROOTDIR)/tools/ocamlmklib
+>>>>>>> ocaml/4.14
 
 # Variables that must be defined by individual libraries:
 # LIBNAME
@@ -94,7 +101,6 @@ install::
 	fi
 ifneq "$(STUBSLIB)" ""
 	$(INSTALL_DATA) $(STUBSLIB) "$(INSTALL_LIBDIR)/"
-	cd "$(INSTALL_LIBDIR)"; $(RANLIB) lib$(CLIBNAME).$(A)
 endif
 
 	$(INSTALL_DATA) \
@@ -114,7 +120,6 @@ installopt:
 	$(INSTALL_DATA) \
 	   $(CAMLOBJS_NAT) $(LIBNAME).cmxa $(LIBNAME).$(A) \
 	   "$(INSTALL_LIBDIR)/"
-	cd "$(INSTALL_LIBDIR)"; $(RANLIB) $(LIBNAME).a
 	if test -f $(LIBNAME).cmxs; then \
 	  $(INSTALL_PROG) $(LIBNAME).cmxs "$(INSTALL_LIBDIR)"; \
 	fi
@@ -126,15 +131,13 @@ clean:: partialclean
 	rm -f *.dll *.so *.a *.lib *.o *.obj
 	rm -rf $(DEPDIR)
 
-.SUFFIXES: .ml .mli .cmi .cmo .cmx
-
-.mli.cmi:
+%.cmi: %.mli
 	$(CAMLC) -c $(COMPFLAGS) $<
 
-.ml.cmo:
+%.cmo: %.ml
 	$(CAMLC) -c $(COMPFLAGS) $<
 
-.ml.cmx:
+%.cmx: %.ml
 	$(CAMLOPT) -c $(COMPFLAGS) $(OPTCOMPFLAGS) $<
 
 ifeq "$(COMPUTE_DEPS)" "true"

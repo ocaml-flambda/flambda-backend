@@ -32,6 +32,7 @@
 #include "caml/stack.h"
 #include "caml/roots.h"
 #include "caml/callback.h"
+#include "caml/signals.h"
 
 /* The globals holding predefined exceptions */
 
@@ -71,12 +72,25 @@ void caml_raise(value v)
   Unlock_exn();
 
   CAMLassert(!Is_exception_result(v));
+<<<<<<< HEAD
 
   /* Run callbacks here, so that a signal handler that arrived during
      a blocking call has a chance to interrupt the raising of EINTR */
   v = caml_process_pending_actions_with_root(v);
+||||||| 24dbb0976a
+  v = caml_process_pending_actions_with_root(v);
+=======
+>>>>>>> ocaml/4.14
 
-  if (Caml_state->exception_pointer == NULL) caml_fatal_uncaught_exception(v);
+  // avoid calling caml_raise recursively
+  v = caml_process_pending_actions_with_root_exn(v);
+  if (Is_exception_result(v))
+    v = Extract_exception(v);
+
+  if (Caml_state->exception_pointer == NULL) {
+    caml_terminate_signals();
+    caml_fatal_uncaught_exception(v);
+  }
 
   unwind_local_roots(Caml_state->exception_pointer);
   caml_raise_exception(Caml_state, v);

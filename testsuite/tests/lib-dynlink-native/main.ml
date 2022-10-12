@@ -1,198 +1,461 @@
 (* TEST
 
-files = "a.ml api.ml b.ml bug.ml c.ml factorial.c pack_client.ml \
+readonly_files = "a.ml api.ml b.ml bug.ml c.ml factorial.c pack_client.ml \
          packed1_client.ml packed1.ml plugin2.ml plugin4.ml plugin_ext.ml \
          plugin_high_arity.ml plugin.ml plugin.mli plugin_ref.ml \
          plugin_simple.ml plugin_thread.ml"
+subdirectories = "sub"
 
 * hassysthreads
 include systhreads
 include dynlink
 
-set subdir = "${test_source_directory}/sub"
-
 ** native-dynlink
 libraries = "" (* We will add them manually where appropriated *)
 *** setup-ocamlopt.opt-build-env
 ocamlopt_default_flags = "" (* Removes the -ccopt -no-pie on ised on OpenBSD *)
+<<<<<<< HEAD
 **** script
 script = "mkdir sub"
 ***** script
 script = "cp ${subdir}/api.mli ${subdir}/api.ml ${subdir}/plugin3.ml \
              ${subdir}/plugin.ml sub"
 ****** ocamlopt.opt
+||||||| 24dbb0976a
+**** script
+script = "mkdir sub"
+***** script
+script = "cp ${subdir}/api.mli ${subdir}/api.ml ${subdir}/plugin3.ml \
+             ${subdir}/plugin.ml sub"
+****** ocamlopt.byte
+=======
+
+**** ocamlopt.byte
+>>>>>>> ocaml/4.14
 module = "api.ml"
+<<<<<<< HEAD
 ******* ocamlopt.opt
+||||||| 24dbb0976a
+******* ocamlopt.byte
+=======
+***** ocamlopt.byte
+>>>>>>> ocaml/4.14
 flags = "-opaque"
 module = "plugin.mli"
+<<<<<<< HEAD
 ******** ocamlopt.opt
+||||||| 24dbb0976a
+******** ocamlopt.byte
+=======
+****** ocamlopt.byte
+>>>>>>> ocaml/4.14
 flags = ""
 module = "plugin.ml"
+<<<<<<< HEAD
 ********* ocamlopt.opt
+||||||| 24dbb0976a
+********* ocamlopt.byte
+=======
+******* ocamlopt.byte
+>>>>>>> ocaml/4.14
 module= ""
 flags = "-shared"
 program = "plugin.so"
 all_modules = "plugin.cmx"
-********** script
+******** script
 script = "mv plugin.cmx plugin.cmx.bak"
+<<<<<<< HEAD
 *********** ocamlopt.opt
+||||||| 24dbb0976a
+*********** ocamlopt.byte
+=======
+********* ocamlopt.byte
+>>>>>>> ocaml/4.14
 flags = ""
 module = "plugin2.ml"
-************ script
+********** script
 script = "mv plugin.cmx.bak plugin.cmx"
+<<<<<<< HEAD
 ************* ocamlopt.opt
+||||||| 24dbb0976a
+************* ocamlopt.byte
+=======
+*********** ocamlopt.byte
+>>>>>>> ocaml/4.14
 module= ""
 flags = "-shared"
 program = "plugin2.so"
 all_modules = "plugin2.cmx"
+<<<<<<< HEAD
 ************** ocamlopt.opt
+||||||| 24dbb0976a
+************** ocamlopt.byte
+=======
+************ ocamlopt.byte
+>>>>>>> ocaml/4.14
 flags = ""
 module = "sub/plugin.ml"
+<<<<<<< HEAD
 *************** ocamlopt.opt
+||||||| 24dbb0976a
+*************** ocamlopt.byte
+=======
+************* ocamlopt.byte
+>>>>>>> ocaml/4.14
 module = ""
 flags = "-shared"
 program = "sub/plugin.so"
 all_modules = "sub/plugin.cmx"
-**************** cd
+************** cd
 cwd = "sub"
+<<<<<<< HEAD
 ***************** ocamlopt.opt
+||||||| 24dbb0976a
+***************** ocamlopt.byte
+=======
+*************** ocamlopt.byte
+>>>>>>> ocaml/4.14
 module = "api.mli"
 flags = "-opaque"
+<<<<<<< HEAD
 ****************** ocamlopt.opt
+||||||| 24dbb0976a
+****************** ocamlopt.byte
+=======
+**************** ocamlopt.byte
+>>>>>>> ocaml/4.14
 flags = ""
 module = "api.ml"
-******************* script
+***************** script
 script = "mv api.cmx api.cmx.bak"
+<<<<<<< HEAD
 ******************** ocamlopt.opt
+||||||| 24dbb0976a
+******************** ocamlopt.byte
+=======
+****************** ocamlopt.byte
+>>>>>>> ocaml/4.14
 module = "plugin3.ml"
-********************* script
+******************* script
 script = "mv api.cmx.bak api.cmx"
-********************** cd
+******************** cd
 cwd = ".."
+<<<<<<< HEAD
 *********************** ocamlopt.opt
+||||||| 24dbb0976a
+*********************** ocamlopt.byte
+=======
+********************* ocamlopt.byte
+>>>>>>> ocaml/4.14
 module = ""
 flags = "-shared"
 program = "sub/plugin3.so"
 all_modules = "sub/plugin3.cmx"
+<<<<<<< HEAD
 ************************ ocamlopt.opt
+||||||| 24dbb0976a
+************************ ocamlopt.byte
+=======
+********************** ocamlopt.byte
+>>>>>>> ocaml/4.14
 flags = ""
 module = "plugin4.ml"
+<<<<<<< HEAD
 ************************* ocamlopt.opt
+||||||| 24dbb0976a
+************************* ocamlopt.byte
+=======
+*********************** ocamlopt.byte
+>>>>>>> ocaml/4.14
 module = ""
 flags = "-shared"
 program = "plugin4.so"
 all_modules = "plugin4.cmx"
+<<<<<<< HEAD
 ************************** ocamlopt.opt
+||||||| 24dbb0976a
+************************** ocamlopt.byte
+=======
+************************ ocamlopt.byte
+>>>>>>> ocaml/4.14
 module = "packed1.ml"
 flags = "-for-pack Mypack"
+<<<<<<< HEAD
 *************************** ocamlopt.opt
+||||||| 24dbb0976a
+*************************** ocamlopt.byte
+=======
+************************* ocamlopt.byte
+>>>>>>> ocaml/4.14
 flags = "-S -pack"
 module = ""
 program = "mypack.cmx"
 all_modules = "packed1.cmx"
+<<<<<<< HEAD
 **************************** ocamlopt.opt
+||||||| 24dbb0976a
+**************************** ocamlopt.byte
+=======
+************************** ocamlopt.byte
+>>>>>>> ocaml/4.14
 program = "mypack.so"
 flags = "-shared"
 all_modules = "mypack.cmx"
+<<<<<<< HEAD
 ***************************** ocamlopt.opt
+||||||| 24dbb0976a
+***************************** ocamlopt.byte
+=======
+*************************** ocamlopt.byte
+>>>>>>> ocaml/4.14
 program = "packed1.so"
 flags = "-shared"
 all_modules = "packed1.cmx"
+<<<<<<< HEAD
 ****************************** ocamlopt.opt
+||||||| 24dbb0976a
+****************************** ocamlopt.byte
+=======
+**************************** ocamlopt.byte
+>>>>>>> ocaml/4.14
 flags = ""
 module = "packed1_client.ml"
+<<<<<<< HEAD
 ******************************* ocamlopt.opt
+||||||| 24dbb0976a
+******************************* ocamlopt.byte
+=======
+***************************** ocamlopt.byte
+>>>>>>> ocaml/4.14
 module = ""
 program = "packed1_client.so"
 flags = "-shared"
 all_modules = "packed1_client.cmx"
+<<<<<<< HEAD
 ******************************** ocamlopt.opt
+||||||| 24dbb0976a
+******************************** ocamlopt.byte
+=======
+****************************** ocamlopt.byte
+>>>>>>> ocaml/4.14
 flags = ""
 module = "pack_client.ml"
+<<<<<<< HEAD
 ********************************* ocamlopt.opt
+||||||| 24dbb0976a
+********************************* ocamlopt.byte
+=======
+******************************* ocamlopt.byte
+>>>>>>> ocaml/4.14
 module = ""
 program = "pack_client.so"
 flags = "-shared"
 all_modules = "pack_client.cmx"
+<<<<<<< HEAD
 ********************************** ocamlopt.opt
+||||||| 24dbb0976a
+********************************** ocamlopt.byte
+=======
+******************************** ocamlopt.byte
+>>>>>>> ocaml/4.14
 flags = ""
 module = "plugin_ref.ml"
+<<<<<<< HEAD
 *********************************** ocamlopt.opt
+||||||| 24dbb0976a
+*********************************** ocamlopt.byte
+=======
+********************************* ocamlopt.byte
+>>>>>>> ocaml/4.14
 module = ""
 program = "plugin_ref.so"
 flags = "-shared"
 all_modules = "plugin_ref.cmx"
+<<<<<<< HEAD
 ************************************ ocamlopt.opt
+||||||| 24dbb0976a
+************************************ ocamlopt.byte
+=======
+********************************** ocamlopt.byte
+>>>>>>> ocaml/4.14
 flags = ""
 module = "plugin_high_arity.ml"
+<<<<<<< HEAD
 ************************************* ocamlopt.opt
+||||||| 24dbb0976a
+************************************* ocamlopt.byte
+=======
+*********************************** ocamlopt.byte
+>>>>>>> ocaml/4.14
 module = ""
 program = "plugin_high_arity.so"
 flags = "-shared"
 all_modules = "plugin_high_arity.cmx"
+<<<<<<< HEAD
 ************************************** ocamlopt.opt
+||||||| 24dbb0976a
+************************************** ocamlopt.byte
+=======
+************************************ ocamlopt.byte
+>>>>>>> ocaml/4.14
 flags = "-ccopt ${shared_library_cflags}"
 module = "factorial.c"
+<<<<<<< HEAD
 *************************************** ocamlopt.opt
+||||||| 24dbb0976a
+*************************************** ocamlopt.byte
+=======
+************************************* ocamlopt.byte
+>>>>>>> ocaml/4.14
 flags = ""
 module = "plugin_ext.ml"
+<<<<<<< HEAD
 **************************************** ocamlopt.opt
+||||||| 24dbb0976a
+**************************************** ocamlopt.byte
+=======
+************************************** ocamlopt.byte
+>>>>>>> ocaml/4.14
 module = ""
 program = "plugin_ext.so"
 flags = "-shared"
 all_modules = "factorial.${objext} plugin_ext.cmx"
+<<<<<<< HEAD
 ***************************************** ocamlopt.opt
+||||||| 24dbb0976a
+***************************************** ocamlopt.byte
+=======
+*************************************** ocamlopt.byte
+>>>>>>> ocaml/4.14
 module = "plugin_simple.ml"
 flags = ""
+<<<<<<< HEAD
 ****************************************** ocamlopt.opt
+||||||| 24dbb0976a
+****************************************** ocamlopt.byte
+=======
+**************************************** ocamlopt.byte
+>>>>>>> ocaml/4.14
 module = ""
 program = "plugin_simple.so"
 flags = "-shared"
 all_modules = "plugin_simple.cmx"
+<<<<<<< HEAD
 ****************************************** ocamlopt.opt
+||||||| 24dbb0976a
+****************************************** ocamlopt.byte
+=======
+**************************************** ocamlopt.byte
+>>>>>>> ocaml/4.14
 module = "bug.ml"
 flags = ""
+<<<<<<< HEAD
 ******************************************* ocamlopt.opt
+||||||| 24dbb0976a
+******************************************* ocamlopt.byte
+=======
+***************************************** ocamlopt.byte
+>>>>>>> ocaml/4.14
 module = ""
 program = "bug.so"
 flags = "-shared"
 all_modules = "bug.cmx"
+<<<<<<< HEAD
 ******************************************* ocamlopt.opt
+||||||| 24dbb0976a
+******************************************* ocamlopt.byte
+=======
+***************************************** ocamlopt.byte
+>>>>>>> ocaml/4.14
 module = "plugin_thread.ml"
 flags = ""
+<<<<<<< HEAD
 ******************************************** ocamlopt.opt
+||||||| 24dbb0976a
+******************************************** ocamlopt.byte
+=======
+****************************************** ocamlopt.byte
+>>>>>>> ocaml/4.14
 module = ""
 program = "plugin_thread.so"
 flags = "-shared"
 all_modules = "plugin_thread.cmx"
+<<<<<<< HEAD
 ********************************************* ocamlopt.opt
+||||||| 24dbb0976a
+********************************************* ocamlopt.byte
+=======
+******************************************* ocamlopt.byte
+>>>>>>> ocaml/4.14
 program = "plugin4_unix.so"
 all_modules = "unix.cmxa plugin4.cmx"
+<<<<<<< HEAD
 ********************************************** ocamlopt.opt
+||||||| 24dbb0976a
+********************************************** ocamlopt.byte
+=======
+******************************************** ocamlopt.byte
+>>>>>>> ocaml/4.14
 flags = ""
 compile_only = "true"
 all_modules = "a.ml b.ml c.ml main.ml"
+<<<<<<< HEAD
 *********************************************** ocamlopt.opt
+||||||| 24dbb0976a
+*********************************************** ocamlopt.byte
+=======
+********************************************* ocamlopt.byte
+>>>>>>> ocaml/4.14
 module = ""
 compile_only = "false"
 flags = "-shared"
 program = "a.so"
 all_modules = "a.cmx"
+<<<<<<< HEAD
 ************************************************ ocamlopt.opt
+||||||| 24dbb0976a
+************************************************ ocamlopt.byte
+=======
+********************************************** ocamlopt.byte
+>>>>>>> ocaml/4.14
 program = "b.so"
 all_modules = "b.cmx"
+<<<<<<< HEAD
 ************************************************* ocamlopt.opt
+||||||| 24dbb0976a
+************************************************* ocamlopt.byte
+=======
+*********************************************** ocamlopt.byte
+>>>>>>> ocaml/4.14
 program = "c.so"
 all_modules = "c.cmx"
+<<<<<<< HEAD
 ************************************************** ocamlopt.opt
+||||||| 24dbb0976a
+************************************************** ocamlopt.byte
+=======
+************************************************ ocamlopt.byte
+>>>>>>> ocaml/4.14
 program = "mylib.cmxa"
 flags = "-a"
 all_modules = "plugin.cmx plugin2.cmx"
+<<<<<<< HEAD
 *************************************************** ocamlopt.opt
+||||||| 24dbb0976a
+*************************************************** ocamlopt.byte
+=======
+************************************************* ocamlopt.byte
+>>>>>>> ocaml/4.14
 program = "mylib.so"
 flags = "-shared -linkall"
 all_modules = "mylib.cmxa"
+<<<<<<< HEAD
 **************************************************** ocamlopt.opt
+||||||| 24dbb0976a
+**************************************************** ocamlopt.byte
+=======
+************************************************** ocamlopt.byte
+>>>>>>> ocaml/4.14
 program = "${test_build_directory}/main.exe"
 libraries = "unix threads dynlink"
 flags = "-linkall"
@@ -207,9 +470,9 @@ We thus do not check compiler output. This was not done either before the
 test was ported to ocamltest.
 *)
 
-***************************************************** run
+*************************************************** run
 arguments = "plugin.so plugin2.so plugin_thread.so"
-****************************************************** check-program-output
+**************************************************** check-program-output
 *)
 
 let () =

@@ -172,7 +172,7 @@ Line 3, characters 22-26:
                           ^^^^
 Error: This variant expression is expected to have type unit
          because it is in the result of a conditional with no else branch
-       The constructor :: does not belong to type unit
+       There is no constructor :: within type unit
 |}];;
 
 (function
@@ -196,5 +196,10 @@ Line 1, characters 35-39:
                                        ^^^^
 Error: This variant expression is expected to have type unit
          because it is in the result of a conditional with no else branch
+<<<<<<< HEAD
        The constructor true does not belong to type unit
+||||||| 24dbb0976a
+=======
+       There is no constructor true within type unit
+>>>>>>> ocaml/4.14
 |}]

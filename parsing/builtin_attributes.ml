@@ -280,8 +280,18 @@ let warning_attribute ?(ppwarning = true) =
     mark_used name;
     match string_of_payload payload with
     | Some s ->
+<<<<<<< HEAD
         begin try Warnings.parse_options errflag s
         with Arg.Bad msg -> warn_payload loc name.txt msg
+||||||| 24dbb0976a
+        begin try Warnings.parse_options errflag s
+        with Arg.Bad msg -> warn_payload loc txt msg
+=======
+        begin try
+          Option.iter (Location.prerr_alert loc)
+            (Warnings.parse_options errflag s)
+        with Arg.Bad msg -> warn_payload loc txt msg
+>>>>>>> ocaml/4.14
         end
     | None ->
         warn_payload loc name.txt "A single string literal is expected"

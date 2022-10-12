@@ -152,7 +152,14 @@ let loc_int_pair last_int make_stack int ofs =
   end
 
 let calling_conventions first_int last_int first_float last_float
+<<<<<<< HEAD
     make_stack first_stack arg =
+||||||| 24dbb0976a
+let calling_conventions first_int last_int first_float last_float make_stack
+      arg =
+=======
+      make_stack first_stack arg =
+>>>>>>> ocaml/4.14
   let loc = Array.make (Array.length arg) Reg.dummy in
   let int = ref first_int in
   let float = ref first_float in

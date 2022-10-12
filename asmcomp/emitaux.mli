@@ -84,3 +84,9 @@ type error =
 
 exception Error of error
 val report_error: Format.formatter -> error -> unit
+<<<<<<< HEAD
+||||||| 24dbb0976a
+=======
+
+val mk_env : Linear.fundecl -> Emitenv.per_function_env
+>>>>>>> ocaml/4.14

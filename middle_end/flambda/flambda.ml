@@ -137,6 +137,7 @@ and function_declaration = {
   inline : Lambda.inline_attribute;
   specialise : Lambda.specialise_attribute;
   is_a_functor : bool;
+  poll: Lambda.poll_attribute;
 }
 
 and switch = {
@@ -1042,8 +1043,10 @@ let update_body_of_function_declaration (func_decl: function_declaration)
     inline = func_decl.inline;
     specialise = func_decl.specialise;
     is_a_functor = func_decl.is_a_functor;
+    poll = func_decl.poll;
   }
 
+<<<<<<< HEAD
 let rec check_param_modes mode = function
   | [] -> ()
   | p :: params ->
@@ -1051,11 +1054,41 @@ let rec check_param_modes mode = function
      if not (Lambda.sub_mode mode m) then
        Misc.fatal_errorf "Nonmonotonic partial modes";
      check_param_modes m params
+||||||| 24dbb0976a
+let update_function_decl's_params_and_body
+      (func_decl : function_declaration) ~params ~body =
+  { closure_origin = func_decl.closure_origin;
+    params;
+    body;
+    free_variables = free_variables body;
+    free_symbols = free_symbols body;
+    stub = func_decl.stub;
+    dbg = func_decl.dbg;
+    inline = func_decl.inline;
+    specialise = func_decl.specialise;
+    is_a_functor = func_decl.is_a_functor;
+  }
+=======
+let update_function_decl's_params_and_body
+      (func_decl : function_declaration) ~params ~body =
+  { closure_origin = func_decl.closure_origin;
+    params;
+    body;
+    free_variables = free_variables body;
+    free_symbols = free_symbols body;
+    stub = func_decl.stub;
+    dbg = func_decl.dbg;
+    inline = func_decl.inline;
+    specialise = func_decl.specialise;
+    is_a_functor = func_decl.is_a_functor;
+    poll = func_decl.poll;
+  }
+>>>>>>> ocaml/4.14
 
 let create_function_declaration ~params ~alloc_mode ~region ~body ~stub ~dbg
       ~(inline : Lambda.inline_attribute)
       ~(specialise : Lambda.specialise_attribute) ~is_a_functor
-      ~closure_origin
+      ~closure_origin ~poll
       : function_declaration =
   begin match stub, inline with
   | true, (Never_inline | Default_inline)
@@ -1088,6 +1121,7 @@ let create_function_declaration ~params ~alloc_mode ~region ~body ~stub ~dbg
     inline;
     specialise;
     is_a_functor;
+    poll;
   }
 
 let update_function_declaration_body fun_decl ~body =

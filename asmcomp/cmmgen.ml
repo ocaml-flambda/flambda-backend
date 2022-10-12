@@ -633,8 +633,16 @@ let rec transl env e =
       let ifso_dbg = Debuginfo.none in
       let ifnot_dbg = Debuginfo.none in
       let dbg = Debuginfo.none in
-      transl_if env Unknown dbg cond
-        ifso_dbg (transl env ifso) ifnot_dbg (transl env ifnot)
+      let ifso = transl env ifso in
+      let ifnot = transl env ifnot in
+      let approx =
+        match ifso, ifnot with
+        | Cconst_int (1, _), Cconst_int (3, _) -> Then_false_else_true
+        | Cconst_int (3, _), Cconst_int (1, _) -> Then_true_else_false
+        | _, _ -> Unknown
+      in
+      transl_if env approx dbg cond
+        ifso_dbg ifso ifnot_dbg ifnot
   | Usequence(exp1, exp2) ->
       Csequence(remove_unit(transl env exp1), transl env exp2)
   | Uwhile(cond, body) ->
@@ -1194,7 +1202,15 @@ and transl_let env str kind id exp transl_body =
       (* N.B. [body] must still be traversed even if [exp] will never return:
          there may be constant closures inside that need lifting out. *)
       begin match str, kind with
+<<<<<<< HEAD
       | (Immutable | Immutable_unique), _ -> Clet(id, cexp, transl_body env)
+||||||| 24dbb0976a
+      | Immutable, _ -> Clet(id, cexp, transl env body)
+      | Mutable, Pintval -> Clet_mut(id, typ_int, cexp, transl env body)
+      | Mutable, _ -> Clet_mut(id, typ_val, cexp, transl env body)
+=======
+      | Immutable, _ -> Clet(id, cexp, transl_body env)
+>>>>>>> ocaml/4.14
       | Mutable, Pintval -> Clet_mut(id, typ_int, cexp, transl_body env)
       | Mutable, _ -> Clet_mut(id, typ_val, cexp, transl_body env)
       end
@@ -1418,6 +1434,7 @@ let transl_function f =
              fun_args = List.map (fun (id, _) -> (id, typ_val)) f.params;
              fun_body = cmm_body;
              fun_codegen_options;
+             fun_poll = f.poll;
              fun_dbg  = f.dbg}
 
 (* Translate all function definitions *)
@@ -1519,6 +1536,7 @@ let compunit (ulam, preallocated_blocks, constants) =
                            No_CSE;
                          ]
                          else [ Reduce_code_size ];
+                       fun_poll = Default_poll;
                        fun_dbg  = Debuginfo.none }] in
   let c2 = transl_clambda_constants constants c1 in
   let c3 = transl_all_functions c2 in

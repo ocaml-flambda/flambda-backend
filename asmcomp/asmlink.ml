@@ -193,6 +193,7 @@ let read_file obj_name =
   end
   else raise(Error(Not_an_object_file file_name))
 
+<<<<<<< HEAD
 let linkage_name_of_modname modname =
   (* We're the linker, so we assume that everything's already been packed, so
      no module needs its prefix considered. *)
@@ -200,8 +201,14 @@ let linkage_name_of_modname modname =
 
 let scan_file file tolink =
   match file with
+||||||| 24dbb0976a
+let scan_file obj_name (tolink, objfiles) = match read_file obj_name with
+=======
+let scan_file file tolink = match file with
+>>>>>>> ocaml/4.14
   | Unit (file_name,info,crc) ->
       (* This is a .cmx file. It must be linked in any case. *)
+<<<<<<< HEAD
       let linkage_name =
         info.ui_unit
         |> Compilation_unit.name
@@ -213,6 +220,14 @@ let scan_file file tolink =
           let name = name |> linkage_name_of_modname in
           add_required file_name (name, crc))
         info.ui_imports_cmx;
+||||||| 24dbb0976a
+      remove_required info.ui_name;
+      List.iter (add_required file_name) info.ui_imports_cmx;
+      ((info, file_name, crc) :: tolink, obj_name :: objfiles)
+=======
+      remove_required info.ui_name;
+      List.iter (add_required file_name) info.ui_imports_cmx;
+>>>>>>> ocaml/4.14
       (info, file_name, crc) :: tolink
   | Library (file_name,infos) ->
       (* This is an archive file. Each unit contained in it will be linked
@@ -220,6 +235,7 @@ let scan_file file tolink =
       add_ccobjs (Filename.dirname file_name) infos;
       List.fold_right
         (fun (info, crc) reqd ->
+<<<<<<< HEAD
            let ui_name = CU.name info.ui_unit in
            let linkage_name =
              ui_name |> CU.Name.to_string |> linkage_name_of_modname
@@ -235,6 +251,43 @@ let scan_file file tolink =
              info.ui_imports_cmx |> List.iter (fun (modname, digest) ->
                let linkage_name = modname |> Linkage_name.of_string in
                add_required req_by (linkage_name, digest));
+||||||| 24dbb0976a
+      let tolink =
+        List.fold_right
+          (fun (info, crc) reqd ->
+             if info.ui_force_link
+               || !Clflags.link_everything
+               || is_required info.ui_name
+             then begin
+               remove_required info.ui_name;
+               List.iter (add_required (Printf.sprintf "%s(%s)"
+                                          file_name info.ui_name))
+                 info.ui_imports_cmx;
+               (info, file_name, crc) :: reqd
+             end else
+               reqd)
+          infos.lib_units tolink
+      and objfiles =
+        if infos.lib_units = []
+        && not (Sys.file_exists (object_file_name obj_name)) then
+          (* MSVC doesn't support empty .lib files, and macOS struggles to make
+             them (#6550), so there shouldn't be one if the .cmxa contains no
+             units. The file_exists check is added to be ultra-defensive for the
+             case where a user has manually added things to the .a/.lib file *)
+          objfiles
+        else
+          obj_name :: objfiles
+      in (tolink, objfiles)
+=======
+           if info.ui_force_link
+           || !Clflags.link_everything
+           || is_required info.ui_name
+           then begin
+             remove_required info.ui_name;
+             List.iter (add_required (Printf.sprintf "%s(%s)"
+                                        file_name info.ui_name))
+               info.ui_imports_cmx;
+>>>>>>> ocaml/4.14
              (info, file_name, crc) :: reqd
            end else
            reqd)
@@ -390,8 +443,17 @@ let link ~ppf_dump objfiles output_name =
       else stdlib :: (objfiles @ [stdexit]) in
     let obj_infos = List.map read_file objfiles in
     let units_tolink = List.fold_right scan_file obj_infos [] in
+<<<<<<< HEAD
     Array.iter (fun name -> remove_required (name |> Linkage_name.of_string))
       Runtimedef.builtin_exceptions;
+||||||| 24dbb0976a
+    let units_tolink, objfiles =
+      List.fold_right scan_file objfiles ([], [])
+    in
+    Array.iter remove_required Runtimedef.builtin_exceptions;
+=======
+    Array.iter remove_required Runtimedef.builtin_exceptions;
+>>>>>>> ocaml/4.14
     begin match extract_missing_globals() with
       [] -> ()
     | mg -> raise(Error(Missing_implementations mg))

@@ -169,22 +169,59 @@ type binding =
   | Bind_value of value_binding list
   | Bind_module of Ident.t * string option loc * module_presence * module_expr
 
+<<<<<<< HEAD
 let rec push_defaults loc bindings cases partial warnings =
+||||||| 24dbb0976a
+let rec push_defaults loc bindings cases partial =
+=======
+let wrap_bindings bindings exp =
+  List.fold_left
+    (fun exp binds ->
+      {exp with exp_desc =
+       match binds with
+       | Bind_value binds -> Texp_let(Nonrecursive, binds, exp)
+       | Bind_module (id, name, pres, mexpr) ->
+           Texp_letmodule (Some id, name, pres, mexpr, exp)})
+    exp bindings
+
+let rec trivial_pat pat =
+  match pat.pat_desc with
+    Tpat_var _
+  | Tpat_any -> true
+  | Tpat_construct (_, cd, [], _) ->
+      not cd.cstr_generalized && cd.cstr_consts = 1 && cd.cstr_nonconsts = 0
+  | Tpat_tuple patl ->
+      List.for_all trivial_pat patl
+  | _ -> false
+
+let rec push_defaults loc bindings use_lhs cases partial =
+>>>>>>> ocaml/4.14
   match cases with
     [{c_lhs=pat; c_guard=None;
+<<<<<<< HEAD
       c_rhs={exp_desc =
                Texp_function { arg_label; param; cases; partial;
                                region; curry; warnings }}
         as exp}] ->
       let cases = push_defaults exp.exp_loc bindings cases partial warnings in
+||||||| 24dbb0976a
+      c_rhs={exp_desc = Texp_function { arg_label; param; cases; partial; } }
+        as exp}] ->
+      let cases = push_defaults exp.exp_loc bindings cases partial in
+=======
+      c_rhs={exp_desc = Texp_function { arg_label; param; cases; partial; } }
+        as exp}] when bindings = [] || trivial_pat pat ->
+      let cases = push_defaults exp.exp_loc bindings false cases partial in
+>>>>>>> ocaml/4.14
       [{c_lhs=pat; c_guard=None;
         c_rhs={exp with exp_desc = Texp_function { arg_label; param; cases;
           partial; region; curry; warnings }}}]
   | [{c_lhs=pat; c_guard=None;
       c_rhs={exp_attributes=[{Parsetree.attr_name = {txt="#default"};_}];
              exp_desc = Texp_let
-               (Nonrecursive, binds, ({exp_desc = Texp_function _} as e2))}}] ->
-      push_defaults loc (Bind_value binds :: bindings)
+               (Nonrecursive, binds,
+                ({exp_desc = Texp_function _} as e2))}}] ->
+      push_defaults loc (Bind_value binds :: bindings) true
                    [{c_lhs=pat;c_guard=None;c_rhs=e2}]
                    partial warnings
   | [{c_lhs=pat; c_guard=None;
@@ -192,8 +229,9 @@ let rec push_defaults loc bindings cases partial warnings =
              exp_desc = Texp_letmodule
                (Some id, name, pres, mexpr,
                 ({exp_desc = Texp_function _} as e2))}}] ->
-      push_defaults loc (Bind_module (id, name, pres, mexpr) :: bindings)
+      push_defaults loc (Bind_module (id, name, pres, mexpr) :: bindings) true
                    [{c_lhs=pat;c_guard=None;c_rhs=e2}]
+<<<<<<< HEAD
                    partial warnings
   | [case] ->
       let exp =
@@ -207,6 +245,26 @@ let rec push_defaults loc bindings cases partial warnings =
           case.c_rhs bindings
       in
       [{case with c_rhs=exp}]
+||||||| 24dbb0976a
+                   partial
+  | [case] ->
+      let exp =
+        List.fold_left
+          (fun exp binds ->
+            {exp with exp_desc =
+             match binds with
+             | Bind_value binds -> Texp_let(Nonrecursive, binds, exp)
+             | Bind_module (id, name, pres, mexpr) ->
+                 Texp_letmodule (Some id, name, pres, mexpr, exp)})
+          case.c_rhs bindings
+      in
+      [{case with c_rhs=exp}]
+=======
+                   partial
+  | [{c_lhs=pat; c_guard=None; c_rhs=exp} as case]
+    when use_lhs || trivial_pat pat && exp.exp_desc <> Texp_unreachable ->
+      [{case with c_rhs = wrap_bindings bindings exp}]
+>>>>>>> ocaml/4.14
   | {c_lhs=pat; c_rhs=exp; c_guard=_} :: _ when bindings <> [] ->
       let param = Typecore.name_cases "param" cases in
       let desc =
@@ -229,12 +287,24 @@ let rec push_defaults loc bindings cases partial warnings =
                  desc, Id_value)},
              cases, partial) }
       in
+<<<<<<< HEAD
       push_defaults loc bindings
         [{c_lhs={pat with pat_desc = Tpat_var (param, mknoloc name)};
           c_guard=None; c_rhs=exp}]
         Total warnings
+||||||| 24dbb0976a
+      push_defaults loc bindings
+        [{c_lhs={pat with pat_desc = Tpat_var (param, mknoloc name)};
+          c_guard=None; c_rhs=exp}]
+        Total
+=======
+      [{c_lhs = {pat with pat_desc = Tpat_var (param, mknoloc name)};
+        c_guard = None; c_rhs= wrap_bindings bindings exp}]
+>>>>>>> ocaml/4.14
   | _ ->
       cases
+
+let push_defaults loc = push_defaults loc [] false
 
 (* Insertion of debugging events *)
 
@@ -329,6 +399,12 @@ let rec transl_exp ~scopes e =
    scopes, as `let f a b = ...` is desugared to several Pexp_fun.
 *)
 and transl_exp1 ~scopes ~in_new_scope e =
+<<<<<<< HEAD
+||||||| 24dbb0976a
+  List.iter (Translattribute.check_attribute e) e.exp_attributes;
+=======
+  List.iter (Translattribute.check_attribute e) e.exp_attributes;
+>>>>>>> ocaml/4.14
   let eval_once =
     (* Whether classes for immediate objects must be cached *)
     match e.exp_desc with
@@ -348,6 +424,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
   | Texp_let(rec_flag, pat_expr_list, body) ->
       let body_kind = Typeopt.value_kind body.exp_env body.exp_type in
       transl_let ~scopes rec_flag pat_expr_list
+<<<<<<< HEAD
         body_kind (event_before ~scopes body (transl_exp ~scopes body))
   | Texp_function { arg_label = _; param; cases; partial;
                     region; curry; warnings } ->
@@ -360,6 +437,28 @@ and transl_exp0 ~in_new_scope ~scopes e =
                                        Id_prim pmode);
                 exp_type = prim_type } as funct, oargs, pos)
     when can_apply_primitive p pmode pos oargs ->
+||||||| 24dbb0976a
+        (event_before ~scopes body (transl_exp ~scopes body))
+  | Texp_function { arg_label = _; param; cases; partial; } ->
+      let scopes = enter_anonymous_function ~scopes in
+      transl_function ~scopes e param cases partial
+  | Texp_apply({ exp_desc = Texp_ident(path, _, {val_kind = Val_prim p});
+                exp_type = prim_type } as funct, oargs)
+    when List.length oargs >= p.prim_arity
+    && List.for_all (fun (_, arg) -> arg <> None) oargs ->
+=======
+        (event_before ~scopes body (transl_exp ~scopes body))
+  | Texp_function { arg_label = _; param; cases; partial; } ->
+      let scopes =
+        if in_new_scope then scopes
+        else enter_anonymous_function ~scopes
+      in
+      transl_function ~scopes e param cases partial
+  | Texp_apply({ exp_desc = Texp_ident(path, _, {val_kind = Val_prim p});
+                exp_type = prim_type } as funct, oargs)
+    when List.length oargs >= p.prim_arity
+    && List.for_all (fun (_, arg) -> arg <> None) oargs ->
+>>>>>>> ocaml/4.14
       let argl, extra_args = cut p.prim_arity oargs in
       let arg_exps =
          List.map (function _, Arg x -> x | _ -> assert false) argl
@@ -573,6 +672,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
   | Texp_sequence(expr1, expr2) ->
       Lsequence(transl_exp ~scopes expr1,
                 event_before ~scopes expr2 (transl_exp ~scopes expr2))
+<<<<<<< HEAD
   | Texp_while {wh_body; wh_body_region; wh_cond; wh_cond_region} ->
       let cond = transl_exp ~scopes wh_cond in
       let body = transl_exp ~scopes wh_body in
@@ -611,13 +711,57 @@ and transl_exp0 ~in_new_scope ~scopes e =
       let loc = of_location ~scopes e.exp_loc in
       let pos = transl_apply_position pos in
       let mode = transl_exp_mode e in
+||||||| 24dbb0976a
+  | Texp_while(cond, body) ->
+      Lwhile(transl_exp ~scopes cond,
+             event_before ~scopes body (transl_exp ~scopes body))
+  | Texp_for(param, _, low, high, dir, body) ->
+      Lfor(param, transl_exp ~scopes low, transl_exp ~scopes high, dir,
+           event_before ~scopes body (transl_exp ~scopes body))
+  | Texp_send(_, _, Some exp) -> transl_exp ~scopes exp
+  | Texp_send(expr, met, None) ->
+      let obj = transl_exp ~scopes expr in
+      let loc = of_location ~scopes e.exp_loc in
+=======
+  | Texp_while(cond, body) ->
+      Lwhile(transl_exp ~scopes cond,
+             event_before ~scopes body (transl_exp ~scopes body))
+  | Texp_for(param, _, low, high, dir, body) ->
+      Lfor(param, transl_exp ~scopes low, transl_exp ~scopes high, dir,
+           event_before ~scopes body (transl_exp ~scopes body))
+  | Texp_send(expr, met) ->
+>>>>>>> ocaml/4.14
       let lam =
+        let loc = of_location ~scopes e.exp_loc in
         match met with
+<<<<<<< HEAD
           Tmeth_val id -> Lsend (Self, Lvar id, obj, [], pos, mode, loc)
+||||||| 24dbb0976a
+          Tmeth_val id -> Lsend (Self, Lvar id, obj, [], loc)
+=======
+        | Tmeth_val id ->
+            let obj = transl_exp ~scopes expr in
+            Lsend (Self, Lvar id, obj, [], loc)
+>>>>>>> ocaml/4.14
         | Tmeth_name nm ->
+            let obj = transl_exp ~scopes expr in
             let (tag, cache) = Translobj.meth obj nm in
             let kind = if cache = [] then Public else Cached in
+<<<<<<< HEAD
             Lsend (kind, tag, obj, cache, pos, mode, loc)
+||||||| 24dbb0976a
+            Lsend (kind, tag, obj, cache, loc)
+=======
+            Lsend (kind, tag, obj, cache, loc)
+        | Tmeth_ancestor(meth, path_self) ->
+            let self = transl_value_path loc e.exp_env path_self in
+            Lapply {ap_loc = loc;
+                    ap_func = Lvar meth;
+                    ap_args = [self];
+                    ap_tailcall = Default_tailcall;
+                    ap_inlined = Default_inline;
+                    ap_specialised = Default_specialise}
+>>>>>>> ocaml/4.14
       in
       event_after ~scopes e lam
   | Texp_new (cl, {Location.loc=loc}, _, pos) ->
@@ -663,10 +807,9 @@ and transl_exp0 ~in_new_scope ~scopes e =
              ap_probe=None;
            },
            List.fold_right
-             (fun (path, _, expr) rem ->
-               let var = transl_value_path loc e.exp_env path in
+             (fun (id, _, expr) rem ->
                 Lsequence(transl_setinstvar ~scopes Loc_unknown
-                            (Lvar cpy) var expr, rem))
+                            (Lvar cpy) (Lvar id) expr, rem))
              modifs
              (Lvar cpy))
   | Texp_letmodule(None, loc, Mp_present, modl, body) ->
@@ -739,6 +882,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
          transl_exp ~scopes e
       | `Other ->
          (* other cases compile to a lazy block holding a function *)
+<<<<<<< HEAD
          let scopes = enter_lazy ~scopes in
          let fn = Lfunction {kind = Curried {nlocal=0};
                              params= [Ident.create_local "param", Pgenval];
@@ -750,6 +894,23 @@ and transl_exp0 ~in_new_scope ~scopes e =
                              body = maybe_region (transl_exp ~scopes e)} in
           Lprim(Pmakeblock(Config.lazy_tag, Mutable, None,
                            alloc_heap), [fn],
+||||||| 24dbb0976a
+         let fn = Lfunction {kind = Curried;
+                             params= [Ident.create_local "param", Pgenval];
+                             return = Pgenval;
+                             attr = default_function_attribute;
+                             loc = of_location ~scopes e.exp_loc;
+                             body = transl_exp ~scopes e} in
+          Lprim(Pmakeblock(Config.lazy_tag, Mutable, None), [fn],
+=======
+         let fn = lfunction ~kind:Curried
+                            ~params:[Ident.create_local "param", Pgenval]
+                            ~return:Pgenval
+                            ~attr:default_function_attribute
+                            ~loc:(of_location ~scopes e.exp_loc)
+                            ~body:(transl_exp ~scopes e) in
+          Lprim(Pmakeblock(Config.lazy_tag, Mutable, None), [fn],
+>>>>>>> ocaml/4.14
                 of_location ~scopes e.exp_loc)
       end
   | Texp_object (cs, meths) ->
@@ -977,6 +1138,7 @@ and transl_apply ~scopes
         in
         let id_arg = Ident.create_local "param" in
         let body =
+<<<<<<< HEAD
           let loc = map_scopes enter_partial_or_eta_wrapper loc in
           let mode = transl_alloc_mode mode_closure in
           let arg_mode = transl_alloc_mode mode_arg in
@@ -995,6 +1157,40 @@ and transl_apply ~scopes
           Lfunction{kind = Curried {nlocal}; params = [id_arg, Pgenval];
                     return = Pgenval; body; mode; region;
                     attr = default_stub_attribute; loc = loc}
+||||||| 24dbb0976a
+          match build_apply handle ((Lvar id_arg, optional)::args') l with
+            Lfunction{kind = Curried; params = ids; return;
+                      body = lam; attr; loc} ->
+              Lfunction{kind = Curried;
+                        params = (id_arg, Pgenval)::ids;
+                        return;
+                        body = lam; attr;
+                        loc}
+          | Levent(Lfunction{kind = Curried; params = ids; return;
+                             body = lam; attr; loc}, _) ->
+              Lfunction{kind = Curried; params = (id_arg, Pgenval)::ids;
+                        return;
+                        body = lam; attr;
+                        loc}
+          | lam ->
+              Lfunction{kind = Curried; params = [id_arg, Pgenval];
+                        return = Pgenval; body = lam;
+                        attr = default_stub_attribute; loc = loc}
+=======
+          match build_apply handle ((Lvar id_arg, optional)::args') l with
+            Lfunction{kind = Curried; params = ids; return;
+                      body = lam; attr; loc}
+               when List.length ids < Lambda.max_arity () ->
+              lfunction ~kind:Curried
+                        ~params:((id_arg, Pgenval)::ids)
+                        ~return
+                        ~body:lam ~attr
+                        ~loc
+          | lam ->
+              lfunction ~kind:Curried ~params:[id_arg, Pgenval]
+                        ~return:Pgenval ~body:lam
+                        ~attr:default_stub_attribute ~loc
+>>>>>>> ocaml/4.14
         in
         List.fold_right
           (fun (id, lam) body -> Llet(Strict, Pgenval, id, lam, body))
@@ -1162,17 +1358,29 @@ and transl_function ~scopes e param cases partial warnings region curry =
   let ((kind, params, return, region), body) =
     event_function ~scopes e
       (function repr ->
+<<<<<<< HEAD
          let pl = push_defaults e.exp_loc [] cases partial warnings in
+||||||| 24dbb0976a
+         let pl = push_defaults e.exp_loc [] cases partial in
+=======
+         let pl = push_defaults e.exp_loc cases partial in
+>>>>>>> ocaml/4.14
          let return_kind = function_return_value_kind e.exp_env e.exp_type in
          transl_curried_function ~scopes e.exp_loc return_kind
            repr ~region ~curry partial warnings param pl)
   in
   let attr = default_function_attribute in
   let loc = of_location ~scopes e.exp_loc in
+<<<<<<< HEAD
   let body = if region then maybe_region body else body in
   let lfunc = {kind; params; return; body; attr; loc; mode; region} in
   Lambda.check_lfunction lfunc;
   let lam = Lfunction lfunc in
+||||||| 24dbb0976a
+  let lam = Lfunction{kind; params; return; body; attr; loc} in
+=======
+  let lam = lfunction ~kind ~params ~return ~body ~attr ~loc in
+>>>>>>> ocaml/4.14
   Translattribute.add_function_attributes lam e.exp_loc e.exp_attributes
 
 (* Like transl_exp, but used when a new scope was just introduced. *)
@@ -1401,13 +1609,38 @@ and transl_match ~scopes e arg pat_expr_list partial =
     let x, y, z = List.fold_left rewrite_case ([], [], []) pat_expr_list in
     List.rev x, List.rev y, List.rev z
   in
-  let static_catch body val_ids handler =
+  (* In presence of exception patterns, the code we generate for
+
+       match <scrutinees> with
+       | <val-patterns> -> <val-actions>
+       | <exn-patterns> -> <exn-actions>
+
+     looks like
+
+       staticcatch
+         (try (exit <val-exit> <scrutinees>)
+          with <exn-patterns> -> <exn-actions>)
+       with <val-exit> <val-ids> ->
+          match <val-ids> with <val-patterns> -> <val-actions>
+
+     In particular, the 'exit' in the value case ensures that the
+     value actions run outside the try..with exception handler.
+  *)
+  let static_catch scrutinees val_ids handler =
     let id = Typecore.name_pattern "exn" (List.map fst exn_cases) in
     let static_exception_id = next_raise_count () in
     Lstaticcatch
+<<<<<<< HEAD
       (Ltrywith (Lstaticraise (static_exception_id, body), id,
                  Matching.for_trywith ~scopes kind e.exp_loc (Lvar id) exn_cases,
                  kind),
+||||||| 24dbb0976a
+      (Ltrywith (Lstaticraise (static_exception_id, body), id,
+                 Matching.for_trywith ~scopes e.exp_loc (Lvar id) exn_cases),
+=======
+      (Ltrywith (Lstaticraise (static_exception_id, scrutinees), id,
+                 Matching.for_trywith ~scopes e.exp_loc (Lvar id) exn_cases),
+>>>>>>> ocaml/4.14
        (static_exception_id, val_ids),
        handler,
       kind)
@@ -1491,9 +1724,15 @@ and transl_letop ~scopes loc env let_ ands param case partial warnings =
     in
     let attr = default_function_attribute in
     let loc = of_location ~scopes case.c_rhs.exp_loc in
+<<<<<<< HEAD
     let body = maybe_region body in
     Lfunction{kind; params; return; body; attr; loc;
               mode=alloc_heap; region=true}
+||||||| 24dbb0976a
+    Lfunction{kind; params; return; body; attr; loc}
+=======
+    lfunction ~kind ~params ~return ~body ~attr ~loc
+>>>>>>> ocaml/4.14
   in
   Lapply{
     ap_loc = of_location ~scopes loc;

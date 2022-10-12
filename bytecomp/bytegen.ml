@@ -109,8 +109,14 @@ let rec is_tailcall = function
    from the tail call optimization? *)
 
 let preserve_tailcall_for_prim = function
+<<<<<<< HEAD
     Pidentity | Popaque | Pdirapply _ | Prevapply _ | Psequor | Psequand
   | Pobj_magic ->
+||||||| 24dbb0976a
+    Pidentity | Popaque | Pdirapply | Prevapply | Psequor | Psequand ->
+=======
+  | Popaque | Psequor | Psequand ->
+>>>>>>> ocaml/4.14
       true
   | Pbytes_to_string | Pbytes_of_string | Pignore | Pgetglobal _ | Psetglobal _
   | Pmakeblock _ | Pmakefloatblock _
@@ -471,6 +477,7 @@ let comp_primitive p args =
   | Pisout -> Kisout
   | Pbintofint (bi,_) -> comp_bint_primitive bi "of_int" args
   | Pintofbint bi -> comp_bint_primitive bi "to_int" args
+<<<<<<< HEAD
   | Pcvtbint(Pint32, Pnativeint, _) -> Kccall("caml_nativeint_of_int32", 1)
   | Pcvtbint(Pnativeint, Pint32, _) -> Kccall("caml_nativeint_to_int32", 1)
   | Pcvtbint(Pint32, Pint64, _) -> Kccall("caml_int64_of_int32", 1)
@@ -481,6 +488,34 @@ let comp_primitive p args =
   | Paddbint(bi,_) -> comp_bint_primitive bi "add" args
   | Psubbint(bi,_) -> comp_bint_primitive bi "sub" args
   | Pmulbint(bi,_) -> comp_bint_primitive bi "mul" args
+||||||| 24dbb0976a
+  | Pcvtbint(Pint32, Pnativeint) -> Kccall("caml_nativeint_of_int32", 1)
+  | Pcvtbint(Pnativeint, Pint32) -> Kccall("caml_nativeint_to_int32", 1)
+  | Pcvtbint(Pint32, Pint64) -> Kccall("caml_int64_of_int32", 1)
+  | Pcvtbint(Pint64, Pint32) -> Kccall("caml_int64_to_int32", 1)
+  | Pcvtbint(Pnativeint, Pint64) -> Kccall("caml_int64_of_nativeint", 1)
+  | Pcvtbint(Pint64, Pnativeint) -> Kccall("caml_int64_to_nativeint", 1)
+  | Pnegbint bi -> comp_bint_primitive bi "neg" args
+  | Paddbint bi -> comp_bint_primitive bi "add" args
+  | Psubbint bi -> comp_bint_primitive bi "sub" args
+  | Pmulbint bi -> comp_bint_primitive bi "mul" args
+=======
+  | Pcvtbint(src, dst) ->
+      begin match (src, dst) with
+      | (Pint32, Pnativeint) -> Kccall("caml_nativeint_of_int32", 1)
+      | (Pnativeint, Pint32) -> Kccall("caml_nativeint_to_int32", 1)
+      | (Pint32, Pint64) -> Kccall("caml_int64_of_int32", 1)
+      | (Pint64, Pint32) -> Kccall("caml_int64_to_int32", 1)
+      | (Pnativeint, Pint64) -> Kccall("caml_int64_of_nativeint", 1)
+      | (Pint64, Pnativeint) -> Kccall("caml_int64_to_nativeint", 1)
+      | ((Pint32 | Pint64 | Pnativeint), _) ->
+          fatal_error "Bytegen.comp_primitive: invalid Pcvtbint cast"
+      end
+  | Pnegbint bi -> comp_bint_primitive bi "neg" args
+  | Paddbint bi -> comp_bint_primitive bi "add" args
+  | Psubbint bi -> comp_bint_primitive bi "sub" args
+  | Pmulbint bi -> comp_bint_primitive bi "mul" args
+>>>>>>> ocaml/4.14
   | Pdivbint { size = bi } -> comp_bint_primitive bi "div" args
   | Pmodbint { size = bi } -> comp_bint_primitive bi "mod" args
   | Pandbint(bi,_) -> comp_bint_primitive bi "and" args
@@ -509,8 +544,25 @@ let comp_primitive p args =
   | Pint_as_pointer -> Kccall("caml_int_as_pointer", 1)
   | Pbytes_to_string -> Kccall("caml_string_of_bytes", 1)
   | Pbytes_of_string -> Kccall("caml_bytes_of_string", 1)
+<<<<<<< HEAD
   | Pobj_dup -> Kccall("caml_obj_dup", 1)
   | _ -> fatal_error "Bytegen.comp_primitive"
+||||||| 24dbb0976a
+  | _ -> fatal_error "Bytegen.comp_primitive"
+=======
+  (* The cases below are handled in [comp_expr] before the [comp_primitive] call
+     (in the order in which they appear below),
+     so they should never be reached in this function. *)
+  | Pignore | Popaque
+  | Pnot | Psequand | Psequor
+  | Praise _
+  | Pmakearray _ | Pduparray _
+  | Pfloatcomp _
+  | Pmakeblock _
+  | Pfloatfield _
+    ->
+      fatal_error "Bytegen.comp_primitive"
+>>>>>>> ocaml/4.14
 
 let is_immed n = immed_min <= n && n <= immed_max
 
@@ -570,8 +622,16 @@ let rec comp_expr env exp sz cont =
                       (Kapply nargs :: cont1))
         end
       end
+<<<<<<< HEAD
   | Lsend(kind, met, obj, args, rc, _, _) ->
       let args = if kind = Cached then List.tl args else args in
+||||||| 24dbb0976a
+  | Lsend(kind, met, obj, args, _) ->
+      let args = if kind = Cached then List.tl args else args in
+=======
+  | Lsend(kind, met, obj, args, _) ->
+      assert (kind <> Cached);
+>>>>>>> ocaml/4.14
       let nargs = List.length args + 1 in
       let getmethod, args' =
         if kind = Self then (Kgetmethod, met::obj::args) else
@@ -682,10 +742,17 @@ let rec comp_expr env exp sz cont =
         in
         comp_init env sz decl_size
       end
+<<<<<<< HEAD
   | Lprim((Pidentity | Popaque | Pobj_magic), [arg], _) ->
+||||||| 24dbb0976a
+  | Lprim((Pidentity | Popaque), [arg], _) ->
+=======
+  | Lprim(Popaque, [arg], _) ->
+>>>>>>> ocaml/4.14
       comp_expr env arg sz cont
   | Lprim(Pignore, [arg], _) ->
       comp_expr env arg sz (add_const_unit cont)
+<<<<<<< HEAD
   | Lprim(Pdirapply pos, [func;arg], loc)
   | Lprim(Prevapply pos, [arg;func], loc) ->
       let exp = Lapply{
@@ -700,6 +767,20 @@ let rec comp_expr env exp sz cont =
         ap_probe=None;
       } in
       comp_expr env exp sz cont
+||||||| 24dbb0976a
+  | Lprim(Pdirapply, [func;arg], loc)
+  | Lprim(Prevapply, [arg;func], loc) ->
+      let exp = Lapply{
+        ap_loc=loc;
+        ap_func=func;
+        ap_args=[arg];
+        ap_tailcall=Default_tailcall;
+        ap_inlined=Default_inline;
+        ap_specialised=Default_specialise;
+      } in
+      comp_expr env exp sz cont
+=======
+>>>>>>> ocaml/4.14
   | Lprim(Pnot, [arg], _) ->
       let newcont =
         match cont with

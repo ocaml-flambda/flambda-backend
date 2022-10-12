@@ -71,19 +71,26 @@ val interface :
 val parse_impl : info -> Parsetree.structure
 (** [parse_impl info] parses an implementation (usually an [.ml] file). *)
 
-val typecheck_impl :
-  info -> Parsetree.structure -> Typedtree.structure * Typedtree.module_coercion
+val typecheck_impl : info -> Parsetree.structure -> Typedtree.implementation
 (** [typecheck_impl info parsetree] typechecks an implementation and returns
-    the typedtree of the associated module, along with a coercion against
-    its public interface.
+    the typedtree of the associated module, its public interface, and a
+    coercion against that public interface.
 *)
 
 val implementation :
+<<<<<<< HEAD
   hook_parse_tree:(Parsetree.structure -> unit)
   -> hook_typed_tree:(Typedtree.structure * Typedtree.module_coercion -> unit)
   -> info ->
   backend:(info -> Typedtree.structure * Typedtree.module_coercion -> unit) ->
   unit
+||||||| 24dbb0976a
+  info ->
+  backend:(info -> Typedtree.structure * Typedtree.module_coercion -> unit) ->
+  unit
+=======
+  info -> backend:(info -> Typedtree.implementation -> unit) -> unit
+>>>>>>> ocaml/4.14
 (** The complete compilation pipeline for implementations. *)
 
 (** {2 Build artifacts} *)

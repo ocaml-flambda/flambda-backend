@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 module Scoped_location : sig
+<<<<<<< HEAD
   type scope_item = private
     | Sc_anonymous_function
     | Sc_value_definition
@@ -27,6 +28,19 @@ module Scoped_location : sig
     | Empty
     | Cons of {item: scope_item; str: string; str_fun: string; name : string; prev: scopes}
 
+||||||| 24dbb0976a
+  type scope_item =
+    | Sc_anonymous_function
+    | Sc_value_definition of string
+    | Sc_module_definition of string
+    | Sc_class_definition of string
+    | Sc_method_definition of string
+
+  type scopes = scope_item list
+  val string_of_scope_item : scope_item -> string
+=======
+  type scopes
+>>>>>>> ocaml/4.14
   val string_of_scopes : scopes -> string
 
   val empty_scopes : scopes

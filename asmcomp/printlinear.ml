@@ -30,7 +30,13 @@ let instr ppf i =
       fprintf ppf "prologue"
   | Lop op ->
       begin match op with
+<<<<<<< HEAD
       | Ialloc _ | Icall_ind | Icall_imm _ | Iextcall _ | Iprobe _ ->
+||||||| 24dbb0976a
+      | Ialloc _ | Icall_ind | Icall_imm _ | Iextcall _ ->
+=======
+      | Ialloc _ | Ipoll _ | Icall_ind | Icall_imm _ | Iextcall _ ->
+>>>>>>> ocaml/4.14
           fprintf ppf "@[<1>{%a}@]@," regsetaddr i.live
       | _ -> ()
       end;

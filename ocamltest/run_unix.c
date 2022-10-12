@@ -115,11 +115,11 @@ static int paths_same_file(
   char realpath1[PATH_MAX], realpath2[PATH_MAX];
   if (realpath(path1, realpath1) == NULL)
     realpath_error(path1);
-    if (realpath(path2, realpath2) == NULL)
-    {
-      if (errno == ENOENT) return 0;
-      else realpath_error(path2);
-    }
+  if (realpath(path2, realpath2) == NULL)
+  {
+    if (errno == ENOENT) return 0;
+    else realpath_error(path2);
+  }
 #endif /* __GLIBC__ */
   if (strcmp(realpath1, realpath2) == 0)
     same_file = 1;
@@ -149,6 +149,8 @@ static void update_environment(array local_env)
       setenv(name, value, 1); /* 1 means overwrite */
       free(name);
       free(value);
+    } else {
+      unsetenv(*envp);
     }
   }
 }
@@ -314,7 +316,7 @@ static int run_command_parent(const command_settings *settings, pid_t child_pid)
           if ((settings->timeout > 0) && (timeout_expired))
           {
             timeout_expired = 0;
-            fprintf(stderr, "Timeout expired, killing all child processes");
+            fprintf(stderr, "Timeout expired, killing all child processes\n");
             if (kill(-child_pid, SIGKILL) == -1) myperror("kill");
           };
           break;

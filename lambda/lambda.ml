@@ -103,12 +103,17 @@ type region_close =
   | Rc_close_at_apply
 
 type primitive =
-  | Pidentity
   | Pbytes_to_string
   | Pbytes_of_string
   | Pignore
+<<<<<<< HEAD
   | Prevapply of region_close
   | Pdirapply of region_close
+||||||| 24dbb0976a
+  | Prevapply
+  | Pdirapply
+=======
+>>>>>>> ocaml/4.14
     (* Globals *)
   | Pgetglobal of Ident.t
   | Psetglobal of Ident.t
@@ -257,14 +262,7 @@ and raise_kind =
   | Raise_reraise
   | Raise_notrace
 
-let equal_boxed_integer x y =
-  match x, y with
-  | Pnativeint, Pnativeint
-  | Pint32, Pint32
-  | Pint64, Pint64 ->
-    true
-  | (Pnativeint | Pint32 | Pint64), _ ->
-    false
+let equal_boxed_integer = Primitive.equal_boxed_integer
 
 let equal_primitive =
   (* Should be implemented like [equal_value_kind] of [equal_boxed_integer],
@@ -373,9 +371,20 @@ type local_attribute =
   | Never_local (* [@local never] *)
   | Default_local (* [@local maybe] or no [@local] attribute *)
 
+<<<<<<< HEAD
 type property =
   | Noalloc
+||||||| 24dbb0976a
+type function_kind = Curried | Tupled
+=======
+type poll_attribute =
+  | Error_poll (* [@poll error] *)
+  | Default_poll (* no [@poll] attribute *)
 
+type function_kind = Curried | Tupled
+>>>>>>> ocaml/4.14
+
+<<<<<<< HEAD
 type check_attribute =
   | Default_check
   | Assert of property
@@ -383,6 +392,10 @@ type check_attribute =
 
 type function_kind = Curried of {nlocal: int} | Tupled
 
+||||||| 24dbb0976a
+type let_kind = Strict | Alias | StrictOpt | Variable
+=======
+>>>>>>> ocaml/4.14
 type let_kind = Strict | Alias | StrictOpt
 
 type meth_kind = Self | Public | Cached
@@ -400,9 +413,15 @@ type function_attribute = {
   inline : inline_attribute;
   specialise : specialise_attribute;
   local: local_attribute;
+<<<<<<< HEAD
   check : check_attribute;
+||||||| 24dbb0976a
+=======
+  poll: poll_attribute;
+>>>>>>> ocaml/4.14
   is_a_functor: bool;
   stub: bool;
+  tmc_candidate: bool;
 }
 
 type scoped_location = Debuginfo.Scoped_location.t
@@ -503,6 +522,15 @@ let const_int n = Const_base (Const_int n)
 
 let const_unit = const_int 0
 
+let max_arity () =
+  if !Clflags.native_code then 126 else max_int
+  (* 126 = 127 (the maximal number of parameters supported in C--)
+           - 1 (the hidden parameter containing the environment) *)
+
+let lfunction ~kind ~params ~return ~body ~attr ~loc =
+  assert (List.length params <= max_arity ());
+  Lfunction { kind; params; return; body; attr; loc }
+
 let lambda_unit = Lconst const_unit
 
 let check_lfunction fn =
@@ -532,9 +560,15 @@ let default_function_attribute = {
   inline = Default_inline;
   specialise = Default_specialise;
   local = Default_local;
+<<<<<<< HEAD
   check = Default_check ;
+||||||| 24dbb0976a
+=======
+  poll = Default_poll;
+>>>>>>> ocaml/4.14
   is_a_functor = false;
   stub = false;
+  tmc_candidate = false;
 }
 
 let default_stub_attribute =
@@ -546,11 +580,10 @@ let default_stub_attribute =
    For that reason, they should not include cycles.
 *)
 
-exception Not_simple
-
 let max_raw = 32
 
 let make_key e =
+  let exception Not_simple in
   let count = ref 0   (* Used for controlling size *)
   and make_key = Ident.make_key_generator () in
   (* make_key is used for normalizing let-bound variables *)
@@ -673,8 +706,6 @@ let shallow_iter ~tail ~non_tail:f = function
   | Lletrec(decl, body) ->
       tail body;
       List.iter (fun (_id, exp) -> f exp) decl
-  | Lprim (Pidentity, [l], _) ->
-      tail l
   | Lprim (Psequand, [l1; l2], _)
   | Lprim (Psequor, [l1; l2], _) ->
       f l1;
@@ -1046,9 +1077,17 @@ let shallow_map ~tail ~non_tail:f = function
       Lfunction { kind; params; return; body = f body; attr; loc;
                   mode; region }
   | Llet (str, k, v, e1, e2) ->
+<<<<<<< HEAD
       Llet (str, k, v, f e1, tail e2)
   | Lmutlet (k, v, e1, e2) ->
       Lmutlet (k, v, f e1, tail e2)
+||||||| 24dbb0976a
+      Llet (str, k, v, f e1, f e2)
+=======
+      Llet (str, k, v, f e1, f e2)
+  | Lmutlet (k, v, e1, e2) ->
+      Lmutlet (k, v, f e1, f e2)
+>>>>>>> ocaml/4.14
   | Lletrec (idel, e2) ->
       Lletrec (List.map (fun (v, e) -> (v, f e)) idel, tail e2)
   | Lprim (Pidentity, [l], loc) ->
@@ -1168,10 +1207,46 @@ let merge_inline_attributes attr1 attr2 =
     if attr1 = attr2 then Some attr1
     else None
 
+<<<<<<< HEAD
 let max_arity () =
   if !Clflags.native_code then 126 else max_int
   (* 126 = 127 (the maximal number of parameters supported in C--)
            - 1 (the hidden parameter containing the environment) *)
+||||||| 24dbb0976a
+let function_is_curried func =
+  match func.kind with
+  | Curried -> true
+  | Tupled -> false
+
+let max_arity () =
+  if !Clflags.native_code then 126 else max_int
+  (* 126 = 127 (the maximal number of parameters supported in C--)
+           - 1 (the hidden parameter containing the environment) *)
+=======
+let function_is_curried func =
+  match func.kind with
+  | Curried -> true
+  | Tupled -> false
+
+let find_exact_application kind ~arity args =
+  match kind with
+  | Curried ->
+      if arity <> List.length args
+      then None
+      else Some args
+  | Tupled ->
+      begin match args with
+      | [Lprim(Pmakeblock _, tupled_args, _)] ->
+          if arity <> List.length tupled_args
+          then None
+          else Some tupled_args
+      | [Lconst(Const_block (_, const_args))] ->
+          if arity <> List.length const_args
+          then None
+          else Some (List.map (fun cst -> Lconst cst) const_args)
+      | _ -> None
+      end
+>>>>>>> ocaml/4.14
 
 let reset () =
   raise_count := 0

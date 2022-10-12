@@ -159,9 +159,16 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pbytes_of_string
   | Pctconst _
   | Pignore
+<<<<<<< HEAD
   | Prevapply _
   | Pdirapply _
   | Pidentity
+||||||| 24dbb0976a
+  | Prevapply
+  | Pdirapply
+  | Pidentity
+=======
+>>>>>>> ocaml/4.14
   | Pgetglobal _
   | Psetglobal _
     ->
