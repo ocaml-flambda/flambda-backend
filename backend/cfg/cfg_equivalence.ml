@@ -488,6 +488,9 @@ let check_terminator_instruction :
     check_tail_call_operation state location tc1 tc2
   | Call_no_return cn1, Call_no_return cn2 ->
     check_external_call_operation location cn1 cn2
+  | Poll_and_jump return_label1, Poll_and_jump return_label2
+    when Label.equal return_label1 return_label2 ->
+    ()
   | _ -> different location "terminator");
   (* CR xclerc for xclerc: temporary, for testing *)
   let check_arg =
