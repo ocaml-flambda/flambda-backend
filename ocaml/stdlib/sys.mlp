@@ -115,6 +115,12 @@ let sigxcpu = -27
 let sigxfsz = -28
 
 exception Break
+(* We don't use [Callback] or [Obj] because of circular dependencies.
+   The string "Sys.Break" must match runtime/fail.c. *)
+external register_named_value : string -> 'a -> unit
+                              = "caml_register_named_value"
+(* Various places in the runtime rely on the "Sys.Break" name. *)
+let () = register_named_value "Sys.Break" Break
 
 let catch_break on =
   if on then
@@ -122,6 +128,7 @@ let catch_break on =
   else
     set_signal sigint Signal_default
 
+external with_async_exns : (unit -> 'a) -> 'a = "caml_with_async_exns"
 
 external enable_runtime_warnings: bool -> unit =
   "caml_ml_enable_runtime_warnings"

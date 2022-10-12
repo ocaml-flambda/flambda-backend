@@ -232,11 +232,14 @@ value caml_interprete(code_t prog, asize_t prog_size)
   value env;
   intnat extra_args;
   struct longjmp_buffer * initial_external_raise;
+  struct longjmp_buffer * initial_external_raise_async;
   intnat initial_sp_offset;
-  /* volatile ensures that initial_local_roots
-     will keep correct value across longjmp */
+  intnat initial_trapsp_offset;
+  /* volatile ensures that initial_local_roots will keep correct values across
+     longjmp.  The other "initial_..." variables don't need "volatile"
+     because they aren't changed between the setjmp and any longjmp. */
   struct caml__roots_block * volatile initial_local_roots;
-  struct longjmp_buffer raise_buf;
+  struct longjmp_buffer raise_buf, raise_async_buf;
 #ifndef THREADED_CODE
   opcode_t curr_instr;
 #endif
@@ -262,6 +265,10 @@ value caml_interprete(code_t prog, asize_t prog_size)
   initial_sp_offset =
     (char *) Caml_state->stack_high - (char *) Caml_state->extern_sp;
   initial_external_raise = Caml_state->external_raise;
+  initial_external_raise_async = Caml_state->external_raise_async;
+  initial_trapsp_offset =
+    (char *) Caml_state->stack_high - (char *) Caml_state->trapsp;
+
   caml_callback_depth++;
 
   if (sigsetjmp(raise_buf.buf, 0)) {
@@ -279,6 +286,29 @@ value caml_interprete(code_t prog, asize_t prog_size)
     goto raise_notrace;
   }
   Caml_state->external_raise = &raise_buf;
+
+  if (sigsetjmp(raise_async_buf.buf, 0)) {
+    Caml_state->local_roots = initial_local_roots;
+    sp = Caml_state->extern_sp;
+    accu = Caml_state->exn_bucket;
+
+    Check_trap_barrier;
+    if (Caml_state->backtrace_active) {
+      caml_stash_backtrace(accu, sp, 0);
+    }
+
+    /* Skip any exception handlers installed by this invocation of
+       [caml_interprete].  This will cause the [raise_notrace] code below to
+       return asynchronous exceptions to the caller, typically in
+       [caml_callbackN_exn0].  When that function reraises such an exception
+       then [Caml_state->trapsp] will correctly be pointing at the most
+       recent prior trap. */
+    Caml_state->trapsp = (value *) ((char *) Caml_state->stack_high
+                                      - initial_trapsp_offset);
+
+    goto raise_notrace;
+  }
+  Caml_state->external_raise_async = &raise_async_buf;
 
   sp = Caml_state->extern_sp;
   pc = prog;
@@ -889,6 +919,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
       if ((char *) Caml_state->trapsp
           >= (char *) Caml_state->stack_high - initial_sp_offset) {
         Caml_state->external_raise = initial_external_raise;
+        Caml_state->external_raise_async = initial_external_raise_async;
         Caml_state->extern_sp = (value *) ((char *) Caml_state->stack_high
                                     - initial_sp_offset);
         caml_callback_depth--;
@@ -1147,6 +1178,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
 
     Instruct(STOP):
       Caml_state->external_raise = initial_external_raise;
+      Caml_state->external_raise_async = initial_external_raise_async;
       Caml_state->extern_sp = sp;
       caml_callback_depth--;
       return accu;
