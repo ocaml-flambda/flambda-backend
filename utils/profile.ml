@@ -20,6 +20,8 @@ type file = string
 external time_include_children: bool -> float = "caml_sys_time_include_children"
 let cpu_time () = time_include_children true
 
+module Int = Misc.Stdlib.Int
+
 module Measure = struct
   type t = {
     time : float;

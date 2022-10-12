@@ -276,10 +276,37 @@ module Stdlib = struct
       let n = String.length str in
       let ridx = String.rindex str split_on in
       String.sub str 0 ridx, String.sub str (ridx + 1) (n - ridx - 1)
+
+    let starts_with ~prefix s =
+      let len_s = length s
+      and len_pre = length prefix in
+      let rec aux i =
+        if i = len_pre then true
+        else if unsafe_get s i <> unsafe_get prefix i then false
+        else aux (i + 1)
+      in len_s >= len_pre && aux 0
+
+    let ends_with ~suffix s =
+      let len_s = length s
+      and len_suf = length suffix in
+      let diff = len_s - len_suf in
+      let rec aux i =
+        if i = len_suf then true
+        else if unsafe_get s (diff + i) <> unsafe_get suffix i then false
+        else aux (i + 1)
+      in diff >= 0 && aux 0
+  end
+
+  module Int = struct
+    include Int
+    let min (a : int) (b : int) = min a b
+    let max (a : int) (b : int) = max a b
   end
 
   external compare : 'a -> 'a -> int = "%compare"
 end
+
+module Int = Stdlib.Int
 
 (* File functions *)
 
@@ -922,7 +949,6 @@ type crcs = (modname * Digest.t option) list
 
 type alerts = string Stdlib.String.Map.t
 
-<<<<<<< HEAD
 module Bitmap = struct
   type t = {
     length: int;
@@ -971,158 +997,6 @@ module Bitmap = struct
     done
 end
 
-module EnvLazy = struct
-  type ('a,'b) t = ('a,'b) eval ref
-
-  and ('a,'b) eval =
-    | Done of 'b
-    | Raise of exn
-    | Thunk of 'a
-
-  type undo =
-    | Nil
-    | Cons : ('a, 'b) t * 'a * undo -> undo
-
-  type log = undo ref
-
-  let force f x =
-    match !x with
-    | Done x -> x
-    | Raise e -> raise e
-    | Thunk e ->
-        match f e with
-        | y ->
-          x := Done y;
-          y
-        | exception e ->
-          x := Raise e;
-          raise e
-
-  let get_arg x =
-    match !x with Thunk a -> Some a | _ -> None
-
-  let get_contents x =
-    match !x with
-    | Thunk a -> Either.Left a
-    | Done b -> Either.Right b
-    | Raise e -> raise e
-
-  let create x =
-    ref (Thunk x)
-
-  let create_forced y =
-    ref (Done y)
-
-  let create_failed e =
-    ref (Raise e)
-
-  let log () =
-    ref Nil
-
-  let force_logged log f x =
-    match !x with
-    | Done x -> x
-    | Raise e -> raise e
-    | Thunk e ->
-      match f e with
-      | (Error _ as err : _ result) ->
-          x := Done err;
-          log := Cons(x, e, !log);
-          err
-      | Ok _ as res ->
-          x := Done res;
-          res
-      | exception e ->
-          x := Raise e;
-          raise e
-
-  let backtrack log =
-    let rec loop = function
-      | Nil -> ()
-      | Cons(x, e, rest) ->
-          x := Thunk e;
-          loop rest
-    in
-    loop !log
-
-end
-
-
-||||||| 24dbb0976a
-
-module EnvLazy = struct
-  type ('a,'b) t = ('a,'b) eval ref
-
-  and ('a,'b) eval =
-    | Done of 'b
-    | Raise of exn
-    | Thunk of 'a
-
-  type undo =
-    | Nil
-    | Cons : ('a, 'b) t * 'a * undo -> undo
-
-  type log = undo ref
-
-  let force f x =
-    match !x with
-    | Done x -> x
-    | Raise e -> raise e
-    | Thunk e ->
-        match f e with
-        | y ->
-          x := Done y;
-          y
-        | exception e ->
-          x := Raise e;
-          raise e
-
-  let get_arg x =
-    match !x with Thunk a -> Some a | _ -> None
-
-  let create x =
-    ref (Thunk x)
-
-  let create_forced y =
-    ref (Done y)
-
-  let create_failed e =
-    ref (Raise e)
-
-  let log () =
-    ref Nil
-
-  let force_logged log f x =
-    match !x with
-    | Done x -> x
-    | Raise e -> raise e
-    | Thunk e ->
-      match f e with
-      | (Error _ as err : _ result) ->
-          x := Done err;
-          log := Cons(x, e, !log);
-          err
-      | Ok _ as res ->
-          x := Done res;
-          res
-      | exception e ->
-          x := Raise e;
-          raise e
-
-  let backtrack log =
-    let rec loop = function
-      | Nil -> ()
-      | Cons(x, e, rest) ->
-          x := Thunk e;
-          loop rest
-    in
-    loop !log
-
-end
-
-
-=======
->>>>>>> ocaml/4.14
 module Magic_number = struct
   type native_obj_config = {
     flambda : bool;

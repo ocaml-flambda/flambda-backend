@@ -230,19 +230,9 @@ module Make (Id : Id) = struct
         match nodes with
         | [] -> assert false
         | [node] ->
-<<<<<<< HEAD
           (if int_list_mem node integer_graph.(node)
-           then Has_loop [numbering.forth.(node)]
-           else No_loop numbering.forth.(node)),
-||||||| 24dbb0976a
-          (if List.mem node integer_graph.(node)
-           then Has_loop [numbering.forth.(node)]
-           else No_loop numbering.forth.(node)),
-=======
-          (if List.mem node integer_graph.(node)
            then Has_loop [forth.(node)]
            else No_loop forth.(node)),
->>>>>>> ocaml/4.14
             component_edges.(component)
         | _::_ ->
           (Has_loop (List.map (fun node -> forth.(node)) nodes)),

@@ -145,7 +145,7 @@ let create_archive archive file_list =
 
 let expand_libname cclibs =
   cclibs |> List.map (fun cclib ->
-    if String.starts_with ~prefix:"-l" cclib then
+    if Misc.Stdlib.String.starts_with ~prefix:"-l" cclib then
       let libname =
         "lib" ^ String.sub cclib 2 (String.length cclib - 2) ^ Config.ext_lib in
       try

@@ -113,10 +113,10 @@ reconfigure:
 	ac_read_git_config=true ./configure $(CONFIGURE_ARGS)
 
 utils/domainstate.ml: utils/domainstate.ml.c runtime/caml/domain_state.tbl
-	$(CPP) -I runtime/caml $< > $@
+	$(MAKE) -C utils domainstate.ml
 
 utils/domainstate.mli: utils/domainstate.mli.c runtime/caml/domain_state.tbl
-	$(CPP) -I runtime/caml $< > $@
+	$(MAKE) -C utils domainstate.mli
 
 configure: configure.ac aclocal.m4 build-aux/ocaml_version.m4 tools/autogen
 	tools/autogen

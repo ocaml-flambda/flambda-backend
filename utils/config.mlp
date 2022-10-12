@@ -80,15 +80,8 @@ let mkdll, mkexe, mkmaindll =
 let flambda = %%FLAMBDA%%
 let flambda2 = %%FLAMBDA2%%
 let with_flambda_invariants = %%WITH_FLAMBDA_INVARIANTS%%
-<<<<<<< HEAD
-
 let with_cmm_invariants = %%WITH_CMM_INVARIANTS%%
 let flambda_backend = true
-
-||||||| 24dbb0976a
-=======
-let with_cmm_invariants = %%WITH_CMM_INVARIANTS%%
->>>>>>> ocaml/4.14
 let safe_string = %%FORCE_SAFE_STRING%%
 let default_safe_string = %%DEFAULT_SAFE_STRING%%
 let windows_unicode = %%WINDOWS_UNICODE%% != 0
@@ -100,86 +93,32 @@ let function_sections = %%FUNCTION_SECTIONS%%
 let probes = %%PROBES%%
 let afl_instrument = %%AFL_INSTRUMENT%%
 
-<<<<<<< HEAD
 let stack_allocation = %%STACK_ALLOCATION%%
 
 (* When artifacts are incompatible with upstream OCaml, ocaml-jst uses
    magic numbers ending in 5xx. (The AST and bytecode executables remain
    compatible, so use upstream numbers) *)
-let exec_magic_number = "Caml1999X029"
-||||||| 24dbb0976a
-let exec_magic_number = "Caml1999X029"
-=======
 let exec_magic_number = "Caml1999X031"
->>>>>>> ocaml/4.14
     (* exec_magic_number is duplicated in runtime/caml/exec.h *)
-<<<<<<< HEAD
 and cmi_magic_number = "Caml1999I500"
 and cmo_magic_number = "Caml1999O500"
 and cma_magic_number = "Caml1999A500"
-||||||| 24dbb0976a
-and cmi_magic_number = "Caml1999I029"
-and cmo_magic_number = "Caml1999O029"
-and cma_magic_number = "Caml1999A029"
-=======
-and cmi_magic_number = "Caml1999I031"
-and cmo_magic_number = "Caml1999O031"
-and cma_magic_number = "Caml1999A031"
->>>>>>> ocaml/4.14
 and cmx_magic_number =
-<<<<<<< HEAD
   if flambda || flambda2 then
     "Caml2021y502"
-||||||| 24dbb0976a
-  if flambda then
-    "Caml1999y029"
-=======
-  if flambda then
-    "Caml1999y031"
->>>>>>> ocaml/4.14
   else
-<<<<<<< HEAD
     "Caml2021Y502"
-||||||| 24dbb0976a
-    "Caml1999Y029"
-=======
-    "Caml1999Y031"
->>>>>>> ocaml/4.14
 and cmxa_magic_number =
-<<<<<<< HEAD
   if flambda || flambda2 then
     "Caml2021z502"
-||||||| 24dbb0976a
-  if flambda then
-    "Caml1999z029"
-=======
-  if flambda then
-    "Caml1999z031"
->>>>>>> ocaml/4.14
   else
-<<<<<<< HEAD
     "Caml2021Z502"
-and ast_impl_magic_number = "Caml1999M029"
-and ast_intf_magic_number = "Caml1999N029"
+and ast_impl_magic_number = "Caml1999M031"
+and ast_intf_magic_number = "Caml1999N031"
 and cmxs_magic_number = "Caml1999D501"
 and cmt_magic_number = "Caml1999T500"
 and linear_magic_number = "Caml1999L500"
 and cfg_magic_number = "Caml2021G500"
-||||||| 24dbb0976a
-    "Caml1999Z029"
-and ast_impl_magic_number = "Caml1999M029"
-and ast_intf_magic_number = "Caml1999N029"
-and cmxs_magic_number = "Caml1999D029"
-and cmt_magic_number = "Caml1999T029"
-and linear_magic_number = "Caml1999L029"
-=======
-    "Caml1999Z031"
-and ast_impl_magic_number = "Caml1999M031"
-and ast_intf_magic_number = "Caml1999N031"
-and cmxs_magic_number = "Caml1999D031"
-and cmt_magic_number = "Caml1999T031"
-and linear_magic_number = "Caml1999L031"
->>>>>>> ocaml/4.14
 
 let interface_suffix = ref ".mli"
 

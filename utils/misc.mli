@@ -184,6 +184,16 @@ module Stdlib : sig
 
     (** Splits on the last occurrence of the given character. *)
     val split_last_exn : string -> split_on:char -> string * string
+
+    val starts_with : prefix:string -> string -> bool
+    val ends_with : suffix:string -> string -> bool
+  end
+
+  module Int : sig
+    include module type of Int
+
+    val min : t -> t -> t
+    val max : t -> t -> t
   end
 
   external compare : 'a -> 'a -> int = "%compare"
@@ -495,57 +505,6 @@ module Bitmap : sig
   val iter : (int -> unit) -> t -> unit
 end
 
-<<<<<<< HEAD
-module EnvLazy: sig
-  type ('a,'b) t
-
-  type log
-
-  val force : ('a -> 'b) -> ('a,'b) t -> 'b
-  val create : 'a -> ('a,'b) t
-  val get_arg : ('a,'b) t -> 'a option
-  val get_contents : ('a,'b) t -> ('a,'b) Either.t
-  val create_forced : 'b -> ('a, 'b) t
-  val create_failed : exn -> ('a, 'b) t
-
-  (* [force_logged log f t] is equivalent to [force f t] but if [f]
-     returns [Error _] then [t] is recorded in [log]. [backtrack log]
-     will then reset all the recorded [t]s back to their original
-     state. *)
-  val log : unit -> log
-  val force_logged :
-    log -> ('a -> ('b, 'c) result) -> ('a,('b, 'c) result) t -> ('b, 'c) result
-  val backtrack : log -> unit
-
-end
-
-
-||||||| 24dbb0976a
-module EnvLazy: sig
-  type ('a,'b) t
-
-  type log
-
-  val force : ('a -> 'b) -> ('a,'b) t -> 'b
-  val create : 'a -> ('a,'b) t
-  val get_arg : ('a,'b) t -> 'a option
-  val create_forced : 'b -> ('a, 'b) t
-  val create_failed : exn -> ('a, 'b) t
-
-  (* [force_logged log f t] is equivalent to [force f t] but if [f]
-     returns [Error _] then [t] is recorded in [log]. [backtrack log]
-     will then reset all the recorded [t]s back to their original
-     state. *)
-  val log : unit -> log
-  val force_logged :
-    log -> ('a -> ('b, 'c) result) -> ('a,('b, 'c) result) t -> ('b, 'c) result
-  val backtrack : log -> unit
-
-end
-
-
-=======
->>>>>>> ocaml/4.14
 module Magic_number : sig
   (** a typical magic number is "Caml1999I011"; it is formed of an
       alphanumeric prefix, here Caml1990I, followed by a version,
