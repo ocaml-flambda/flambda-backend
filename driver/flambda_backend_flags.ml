@@ -29,6 +29,10 @@ let dump_checkmach = ref false          (* -dcheckmach *)
 
 let disable_poll_insertion = ref false  (* -disable-poll-insertion *)
 let allow_long_frames = ref true        (* -no-long-frames *)
+(* Keep the value of [max_long_frames_threshold] in sync with LONG_FRAME_MARKER
+   in ocaml/runtime/roots_nat.c *)
+let max_long_frames_threshold = 0x7FFF
+let long_frames_threshold = ref max_long_frames_threshold (* -long-frames-debug-threshold n *)
 
 type function_result_types = Never | Functors_only | All_functions
 type opt_level = Oclassic | O2 | O3

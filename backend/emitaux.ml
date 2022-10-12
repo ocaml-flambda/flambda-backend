@@ -136,16 +136,13 @@ let get_flags debuginfo =
          not (Debuginfo.is_none d.Debuginfo.alloc_dbg)) dbgs
     then 3 else 2
 
-(* Keep in sync with ocaml/runtime/stack.h *)
-let frame_size_long = 0x7FFF
-
 let is_long n =
   assert (n >= 0);
   (* Long frames must fit in 32-bit integer and
      not truncated upon conversion from int on any target. *)
   if n > 0x3FFF_FFFF then
     raise (Error(Stack_frame_way_too_large n));
-  n >= frame_size_long
+  n >= !Flambda_backend_flags.long_frames_threshold
 
 let record_frame_descr ~label ~frame_size ~live_offset debuginfo =
   assert (frame_size land 3 = 0);
@@ -225,7 +222,7 @@ let emit_frames a =
     a.efa_code_label fd.fd_lbl;
     (* For short format, the size is guaranteed
        to be less than the constant below. *)
-    if fd.fd_long then a.efa_16 frame_size_long;
+    if fd.fd_long then a.efa_16 Flambda_backend_flags.max_long_frames_threshold;
     let emit_16_or_32 =
       if fd.fd_long then emit_32 else a.efa_16
     in

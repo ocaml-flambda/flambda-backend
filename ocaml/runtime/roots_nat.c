@@ -81,11 +81,11 @@ static link* frametables_list_tail(link *list) {
 }
 
 /* Special marker instead of frame_size for frame_descr in long format */
-static uint32_t LONG_FRAME = 0x7FFF;
+static uint32_t LONG_FRAME_MARKER = 0x7FFF;
 
 uint32_t get_frame_size(frame_descr *d) {
   CAMLassert(d && d->frame_size != 0xFFFF);
-  if (d->frame_size == LONG_FRAME) {
+  if (d->frame_size == LONG_FRAME_MARKER) {
     /* Handle long frames */
     frame_descr_long *dl = (frame_descr_long *)d;
     return (dl->frame_size);
@@ -97,7 +97,7 @@ uint32_t get_frame_size(frame_descr *d) {
 /* Skip to end of live_ofs */
 unsigned char * get_end_of_live_ofs (frame_descr *d) {
   CAMLassert(d && d->frame_size != 0xFFFF);
-  if (d->frame_size == LONG_FRAME) {
+  if (d->frame_size == LONG_FRAME_MARKER) {
     /* Handle long frames */
     frame_descr_long *dl = (frame_descr_long *)d;
     return ((unsigned char*)&dl->live_ofs[dl->num_live]);
@@ -651,7 +651,7 @@ void caml_do_local_roots_nat(scanning_action maj, scanning_action min,
       }
       if (d->frame_size != 0xFFFF) {
         /* Scan the roots in this frame */
-        if (d->frame_size == LONG_FRAME) {
+        if (d->frame_size == LONG_FRAME_MARKER) {
           /* Handle long frames */
           frame_descr_long *dl = (frame_descr_long *)d;
           uint32_t * p;
