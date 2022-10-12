@@ -154,9 +154,9 @@ void caml_set_minor_heap_size (asize_t bsz)
   }
   CAMLassert (Caml_state->young_ptr == Caml_state->young_alloc_end);
   new_heap = caml_stat_alloc_aligned_noexc(bsz, 0, &new_heap_base);
-  if (new_heap == NULL) caml_raise_out_of_memory();
+  if (new_heap == NULL) caml_fatal_out_of_memory();
   if (caml_page_table_add(In_young, new_heap, new_heap + bsz) != 0)
-    caml_raise_out_of_memory();
+    caml_fatal_out_of_memory();
 
   if (Caml_state->young_start != NULL){
     caml_page_table_remove(In_young, Caml_state->young_start,
@@ -564,7 +564,7 @@ void caml_alloc_small_dispatch (intnat wosize, int flags,
     if (flags & CAML_FROM_CAML)
       /* In the case of allocations performed from OCaml, execute
          asynchronous callbacks. */
-      caml_raise_if_exception(caml_do_pending_actions_exn ());
+      caml_raise_async_if_exception(caml_do_pending_actions_exn (), "minor GC");
     else {
       caml_check_urgent_gc (Val_unit);
       /* In the case of long-running C code that regularly polls with

@@ -81,9 +81,10 @@ exception Not_found
    not be found. *)
 
 exception Out_of_memory
-(** Exception raised by the garbage collector when there is
-   insufficient memory to complete the computation. (Not reliable for
-   allocations on the minor heap.) *)
+(** Exception raised by functions such as those for array and bigarray
+    creation when there is insufficient memory.  Failure to allocate
+    memory during garbage collection causes a fatal error, unlike in
+    previous versions. *)
 
 exception Stack_overflow
 (** Exception raised by the bytecode interpreter when the evaluation

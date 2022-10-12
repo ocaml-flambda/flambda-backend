@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <signal.h>
 #include "caml/alloc.h"
+#include "caml/callback.h"
 #include "caml/domain.h"
 #include "caml/fail.h"
 #include "caml/io.h"
@@ -56,27 +57,49 @@ CAMLnoreturn_start
   extern void caml_raise_exception (caml_domain_state* state, value bucket)
 CAMLnoreturn_end;
 
-/* Used by the stack overflow handler -> deactivate ASAN (see
-   segv_handler in signals_nat.c). */
-CAMLno_asan
+static void unwind_local_roots(char *exception_pointer)
+{
+  while (Caml_state->local_roots != NULL &&
+         (char *)Caml_state->local_roots < exception_pointer)
+  {
+    Caml_state->local_roots = Caml_state->local_roots->next;
+  }
+}
+
 void caml_raise(value v)
 {
   Unlock_exn();
 
   CAMLassert(!Is_exception_result(v));
 
-  // avoid calling caml_raise recursively
-  v = caml_process_pending_actions_with_root_exn(v);
-  if (Is_exception_result(v))
-    v = Extract_exception(v);
+  /* Run callbacks here, so that a signal handler that arrived during
+     a blocking call has a chance to interrupt the raising of EINTR */
+  v = caml_process_pending_actions_with_root(v);
 
   if (Caml_state->exception_pointer == NULL) caml_fatal_uncaught_exception(v);
 
-  while (Caml_state->local_roots != NULL &&
-         (char *) Caml_state->local_roots < Caml_state->exception_pointer) {
-    Caml_state->local_roots = Caml_state->local_roots->next;
-  }
+  unwind_local_roots(Caml_state->exception_pointer);
+  caml_raise_exception(Caml_state, v);
+}
 
+
+/* Used by the stack overflow handler -> deactivate ASAN (see
+   segv_handler in signals_nat.c). */
+CAMLno_asan void caml_raise_async(value v)
+{
+  Unlock_exn();
+  CAMLassert(!Is_exception_result(v));
+
+  /* Do not run callbacks here: we are already raising an async exn,
+     so no need to check for another one, and avoiding polling here
+     removes the risk of recursion in caml_raise */
+
+  if (Caml_state->async_exception_pointer == NULL)
+    caml_fatal_uncaught_exception(v);
+
+  unwind_local_roots(Caml_state->async_exception_pointer);
+  Caml_state->exception_pointer = Caml_state->async_exception_pointer;
+  Caml_state->raising_async_exn = 1;
   caml_raise_exception(Caml_state, v);
 }
 
@@ -145,6 +168,7 @@ void caml_invalid_argument_value (value msg)
 
 void caml_raise_out_of_memory(void)
 {
+  /* Note that this is not an async exn. */
   caml_raise_constant((value) caml_exn_Out_of_memory);
 }
 
@@ -153,7 +177,7 @@ void caml_raise_out_of_memory(void)
 CAMLno_asan
 void caml_raise_stack_overflow(void)
 {
-  caml_raise_constant((value) caml_exn_Stack_overflow);
+  caml_raise_async((value) caml_exn_Stack_overflow);
 }
 
 void caml_raise_sys_error(value msg)
@@ -179,12 +203,6 @@ void caml_raise_not_found(void)
 void caml_raise_sys_blocked_io(void)
 {
   caml_raise_constant((value) caml_exn_Sys_blocked_io);
-}
-
-CAMLexport value caml_raise_if_exception(value res)
-{
-  if (Is_exception_result(res)) caml_raise(Extract_exception(res));
-  return res;
 }
 
 /* We use a pre-allocated exception because we can't
