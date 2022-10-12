@@ -383,7 +383,7 @@ let destroyed_at_reloadretaddr = [| |]
 let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   match basic with
   | Call (P (Alloc _)) ->
-    destroyed_at_alloc
+    destroyed_at_alloc_or_poll
   | Reloadretaddr ->
     destroyed_at_reloadretaddr
   | Pushtrap _ ->
@@ -438,7 +438,7 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
   match terminator with
   | Never -> assert false
   | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-  | Return | Raise _ | Tailcall _ ->
+  | Return | Raise _ | Tailcall _ | Poll_and_jump _ ->
     if fp then [| rbp |] else [||]
   | Switch _ ->
     [| rax; rdx |]
