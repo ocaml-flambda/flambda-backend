@@ -36,10 +36,10 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
   in
   let alloc_modes =
     List.mapi
-      (fun index _ : Alloc_mode.t Or_unknown.t ->
+      (fun index _ : Alloc_mode.For_types.t ->
         if index < num_leading_heap_params
-        then Known Alloc_mode.heap
-        else Unknown)
+        then Alloc_mode.For_types.heap
+        else Alloc_mode.For_types.unknown)
       (Bound_parameters.to_list params)
   in
   let denv =
@@ -497,9 +497,8 @@ let simplify_set_of_closures0 outer_dacc context set_of_closures
               ~all_function_slots_in_set:fun_types
               ~all_closure_types_in_set:closure_types_via_aliases
               ~all_value_slots_in_set:value_slot_types
-              (Known
-                 (Alloc_mode.With_region.without_region
-                    (Set_of_closures.alloc_mode set_of_closures)))
+              (Alloc_mode.For_allocations.as_type
+                 (Set_of_closures.alloc_mode set_of_closures))
           in
           (bound_name, closure_type) :: closure_types)
       fun_types []

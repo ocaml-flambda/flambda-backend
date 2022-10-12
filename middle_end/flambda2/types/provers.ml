@@ -357,7 +357,7 @@ let prove_variant_like env t = as_property (prove_variant_like_generic env t)
 
 type boxed_or_tagged_number =
   | Boxed of
-      Alloc_mode.t Or_unknown.t * Flambda_kind.Boxable_number.t * Type_grammar.t
+      Alloc_mode.For_types.t * Flambda_kind.Boxable_number.t * Type_grammar.t
   | Tagged_immediate
 
 (* CR pchambart: Remove fragile matchs and reuse this function *)
@@ -439,7 +439,7 @@ let prove_is_a_boxed_nativeint env t : _ proof_of_property =
     wrong_kind "Value" t
 
 let prove_unique_tag_and_size0 env t :
-    (Tag_and_size.t * TG.Product.Int_indexed.t * Alloc_mode.t Or_unknown.t)
+    (Tag_and_size.t * TG.Product.Int_indexed.t * Alloc_mode.For_types.t)
     proof_of_property =
   match expand_head env t with
   | Value (Ok (Variant blocks_imms)) -> (
@@ -472,8 +472,8 @@ let prove_unique_tag_and_size env t :
 let prove_unique_fully_constructed_immutable_heap_block env t :
     _ proof_of_property =
   match prove_unique_tag_and_size0 env t with
-  | Unknown | Proved (_, _, (Unknown | Known Local)) -> Unknown
-  | Proved (tag_and_size, product, Known Heap) -> (
+  | Unknown | Proved (_, _, (Heap_or_local | Local)) -> Unknown
+  | Proved (tag_and_size, product, Heap) -> (
     let result =
       List.fold_left
         (fun (result : _ proof_of_property) field_ty : _ proof_of_property ->
@@ -600,7 +600,7 @@ let prove_strings env t : _ proof_of_property =
   | Value (Ok (String strs)) ->
     (* At present we only track statically-allocated strings (see
        [Type_grammar]). *)
-    Proved (Or_unknown.Known Alloc_mode.heap, strs)
+    Proved (Alloc_mode.For_types.heap, strs)
   | Value (Ok _ | Unknown | Bottom) -> Unknown
   | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
   | Naked_nativeint _ | Rec_info _ | Region _ ->
@@ -791,15 +791,12 @@ let meet_rec_info env t : Rec_info_expr.t meet_shortcut =
   | Naked_nativeint _ | Region _ ->
     wrong_kind "Rec_info" t
 
-let prove_alloc_mode_of_boxed_number env t : Alloc_mode.t proof_of_property =
+let prove_alloc_mode_of_boxed_number env t : Alloc_mode.For_types.t proof_of_property =
   match expand_head env t with
   | Value (Ok (Boxed_float (_, alloc_mode)))
   | Value (Ok (Boxed_int32 (_, alloc_mode)))
   | Value (Ok (Boxed_int64 (_, alloc_mode)))
-  | Value (Ok (Boxed_nativeint (_, alloc_mode))) -> (
-    match alloc_mode with
-    | Unknown -> Unknown
-    | Known alloc_mode -> Proved alloc_mode)
+  | Value (Ok (Boxed_nativeint (_, alloc_mode))) -> Proved alloc_mode
   | Value (Ok (Variant _ | Mutable_block _ | String _ | Array _ | Closures _))
   | Value (Unknown | Bottom) ->
     Unknown
@@ -818,8 +815,8 @@ let never_holds_locally_allocated_values env var kind : _ proof_of_property =
       then Proved ()
       else
         match blocks.alloc_mode with
-        | Known Heap -> Proved ()
-        | Known Local | Unknown -> Unknown))
+        | Heap -> Proved ()
+        | Local | Heap_or_local -> Unknown))
   | Value (Ok (Boxed_float (_, alloc_mode)))
   | Value (Ok (Boxed_int32 (_, alloc_mode)))
   | Value (Ok (Boxed_int64 (_, alloc_mode)))
@@ -828,8 +825,8 @@ let never_holds_locally_allocated_values env var kind : _ proof_of_property =
   | Value (Ok (Closures { alloc_mode; _ }))
   | Value (Ok (Array { alloc_mode; _ })) -> (
     match alloc_mode with
-    | Known Heap -> Proved ()
-    | Known Local | Unknown -> Unknown)
+    | Heap -> Proved ()
+    | Local | Heap_or_local -> Unknown)
   | Value (Ok (String _)) -> Proved ()
   | Value Unknown -> Unknown
   | Value Bottom -> Unknown

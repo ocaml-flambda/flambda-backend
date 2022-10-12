@@ -105,7 +105,7 @@ let translate_apply0 env apply =
   | Function { function_call = Indirect_unknown_arity; alloc_mode } ->
     fail_if_probe apply;
     ( C.indirect_call ~dbg Cmm.typ_val pos
-        (Alloc_mode.to_lambda alloc_mode)
+        (Alloc_mode.For_allocations.to_lambda alloc_mode)
         callee args,
       env,
       Ece.all )
@@ -125,7 +125,7 @@ let translate_apply0 env apply =
         |> C.machtype_of_return_arity
       in
       ( C.indirect_full_call ~dbg ty pos
-          (Alloc_mode.to_lambda alloc_mode)
+          (Alloc_mode.For_allocations.to_lambda alloc_mode)
           callee args,
         env,
         Ece.all )
@@ -170,7 +170,7 @@ let translate_apply0 env apply =
     fail_if_probe apply;
     let obj, env, _ = C.simple ~dbg env obj in
     let kind = Call_kind.Method_kind.to_lambda kind in
-    let alloc_mode = Alloc_mode.to_lambda alloc_mode in
+    let alloc_mode = Alloc_mode.For_allocations.to_lambda alloc_mode in
     C.send kind callee obj args (pos, alloc_mode) dbg, env, Ece.all
 
 (* Function calls that have an exn continuation with extra arguments must be

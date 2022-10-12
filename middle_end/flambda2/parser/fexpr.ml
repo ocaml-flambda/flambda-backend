@@ -193,7 +193,7 @@ type string_or_bytes = Flambda_primitive.string_or_bytes =
 
 type init_or_assign = Flambda_primitive.Init_or_assign.t =
   | Initialization
-  | Assignment of Alloc_mode.With_region.t
+  | Assignment of Alloc_mode.For_allocations.t
 
 type 'signed_or_unsigned comparison =
       'signed_or_unsigned Flambda_primitive.comparison =

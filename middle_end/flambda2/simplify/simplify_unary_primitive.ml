@@ -94,13 +94,13 @@ let simplify_unbox_number (boxable_number_kind : K.Boxable_number.t) dacc
   let shape, result_kind =
     match boxable_number_kind with
     | Naked_float ->
-      T.boxed_float_alias_to ~naked_float:result_var' Unknown, K.naked_float
+      T.boxed_float_alias_to ~naked_float:result_var' Alloc_mode.For_types.unknown, K.naked_float
     | Naked_int32 ->
-      T.boxed_int32_alias_to ~naked_int32:result_var' Unknown, K.naked_int32
+      T.boxed_int32_alias_to ~naked_int32:result_var' Alloc_mode.For_types.unknown, K.naked_int32
     | Naked_int64 ->
-      T.boxed_int64_alias_to ~naked_int64:result_var' Unknown, K.naked_int64
+      T.boxed_int64_alias_to ~naked_int64:result_var' Alloc_mode.For_types.unknown, K.naked_int64
     | Naked_nativeint ->
-      ( T.boxed_nativeint_alias_to ~naked_nativeint:result_var' Unknown,
+      ( T.boxed_nativeint_alias_to ~naked_nativeint:result_var' Alloc_mode.For_types.unknown,
         K.naked_nativeint )
   in
   let alloc_mode =
@@ -116,13 +116,13 @@ let simplify_unbox_number (boxable_number_kind : K.Boxable_number.t) dacc
        certain and it is [Heap]. (As per [Flambda_primitive] we don't currently
        CSE local allocations.) *)
     match alloc_mode with
-    | Unknown | Proved Local -> dacc
+    | Unknown | Proved (Local | Heap_or_local) -> dacc
     | Proved Heap ->
       DA.map_denv dacc ~f:(fun denv ->
           DE.add_cse denv
             (P.Eligible_for_cse.create_exn
                (Unary
-                  ( Box_number (boxable_number_kind, Alloc_mode.With_region.heap),
+                  ( Box_number (boxable_number_kind, Alloc_mode.For_allocations.heap),
                     Simple.var result_var' )))
             ~bound_to:arg)
   in
@@ -151,7 +151,7 @@ let simplify_box_number (boxable_number_kind : K.Boxable_number.t) alloc_mode
     dacc ~original_term ~arg:_ ~arg_ty:naked_number_ty ~result_var =
   let ty =
     let alloc_mode =
-      Or_unknown.Known (Alloc_mode.With_region.without_region alloc_mode)
+      Alloc_mode.For_allocations.as_type alloc_mode
     in
     match boxable_number_kind with
     | Naked_float -> T.box_float naked_number_ty alloc_mode
@@ -211,7 +211,7 @@ let simplify_array_length dacc ~original_term ~arg:_ ~arg_ty:array_ty
     ~shape:
       (T.array_of_length ~element_kind:Unknown
          ~length:(T.alias_type_of K.value result)
-         Unknown)
+         Alloc_mode.For_types.unknown)
     ~result_var ~result_kind:K.value
 
 (* CR-someday mshinwell: Consider whether "string length" should be treated like
@@ -513,8 +513,8 @@ let simplify_obj_dup dbg dacc ~original_term ~arg ~arg_ty ~result_var =
     SPR.create (Named.create_simple arg) ~try_reify:true dacc
   in
   match T.prove_is_a_boxed_or_tagged_number typing_env arg_ty with
-  | Proved (Tagged_immediate | Boxed (Known Heap, _, _)) -> elide_primitive ()
-  | Proved (Boxed ((Unknown | Known Local), boxable_number, contents_ty)) -> (
+  | Proved (Tagged_immediate | Boxed (Heap, _, _)) -> elide_primitive ()
+  | Proved (Boxed ((Heap_or_local | Local), boxable_number, contents_ty)) -> (
     let boxer =
       match boxable_number with
       | Naked_float -> T.box_float
@@ -522,7 +522,7 @@ let simplify_obj_dup dbg dacc ~original_term ~arg ~arg_ty ~result_var =
       | Naked_int64 -> T.box_int64
       | Naked_nativeint -> T.box_nativeint
     in
-    let ty = boxer contents_ty (Known Alloc_mode.heap) in
+    let ty = boxer contents_ty Alloc_mode.For_types.heap in
     let dacc = DA.add_variable dacc result_var ty in
     match T.get_alias_exn contents_ty with
     | exception Not_found -> SPR.create original_term ~try_reify:true dacc
@@ -530,14 +530,14 @@ let simplify_obj_dup dbg dacc ~original_term ~arg ~arg_ty ~result_var =
       SPR.create
         (Named.create_prim
            (Unary
-              ( Box_number (boxable_number, Alloc_mode.With_region.heap),
+              ( Box_number (boxable_number, Alloc_mode.For_allocations.heap),
                 contents ))
            dbg)
         ~try_reify:true dacc)
   | Unknown -> (
     match T.prove_strings typing_env arg_ty with
-    | Proved (Known Heap, _) -> elide_primitive ()
-    | Proved ((Unknown | Known Local), _) | Unknown ->
+    | Proved (Heap, _) -> elide_primitive ()
+    | Proved ((Heap_or_local | Local), _) | Unknown ->
       SPR.create_unknown dacc ~result_var K.value ~original_term)
 
 let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg

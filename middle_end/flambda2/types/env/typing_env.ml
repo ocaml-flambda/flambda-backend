@@ -1187,7 +1187,7 @@ end = struct
       | Block_approximation (fields, alloc_mode) ->
         let fields = List.map type_from_approx (Array.to_list fields) in
         MTC.immutable_block ~is_unique:false Tag.zero
-          ~field_kind:Flambda_kind.value ~fields (Or_unknown.Known alloc_mode)
+          ~field_kind:Flambda_kind.value ~fields alloc_mode
       | Closure_approximation { code_id; function_slot; code = _; symbol = _ }
         ->
         (* CR keryan: we should use the associated symbol at some point *)
@@ -1205,7 +1205,7 @@ end = struct
         in
         let all_value_slots_in_set = Value_slot.Map.empty in
         MTC.exactly_this_closure function_slot ~all_function_slots_in_set
-          ~all_closure_types_in_set ~all_value_slots_in_set Or_unknown.Unknown
+          ~all_closure_types_in_set ~all_value_slots_in_set Alloc_mode.For_types.unknown
     in
     let just_after_level =
       Symbol.Map.fold
@@ -1321,11 +1321,6 @@ end = struct
                 let fields =
                   List.map type_to_approx
                     (TG.Product.Int_indexed.components fields)
-                in
-                let alloc_mode =
-                  match alloc_mode with
-                  | Known am -> am
-                  | Unknown -> Alloc_mode.heap
                 in
                 Block_approximation (Array.of_list fields, alloc_mode)
             else Value_unknown))

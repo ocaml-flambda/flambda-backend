@@ -12,26 +12,24 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type t = private
-  | Heap  (** Normal allocation on the OCaml heap. *)
-  | Local  (** Allocation on the local allocation stack. *)
+module For_types : sig
+  type t = private
+    | Heap  (** Normal allocation on the OCaml heap. *)
+    | Local  (** Allocation on the local allocation stack. *)
+    | Heap_or_local  (** Allocation with unknown location *)
 
-type without_region = t
+  val print : Format.formatter -> t -> unit
 
-val print : Format.formatter -> t -> unit
+  val compare : t -> t -> int
 
-val compare : t -> t -> int
+  val heap : t
 
-val heap : t
+  val local : t
 
-(** Returns [Heap] if stack allocation is disabled! *)
-val local : unit -> t
+  val unknown : t
+end
 
-val from_lambda : Lambda.alloc_mode -> t
-
-val to_lambda : t -> Lambda.alloc_mode
-
-module With_region : sig
+module For_allocations : sig
   type t = private
     | Heap  (** Normal allocation on the OCaml heap. *)
     | Local of { region : Variable.t }
@@ -46,7 +44,7 @@ module With_region : sig
   (** Returns [Heap] if stack allocation is disabled! *)
   val local : region:Variable.t -> t
 
-  val without_region : t -> without_region
+  val as_type : t -> For_types.t
 
   val from_lambda : Lambda.alloc_mode -> current_region:Variable.t -> t
 

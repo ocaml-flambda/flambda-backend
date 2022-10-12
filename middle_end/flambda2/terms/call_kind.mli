@@ -50,12 +50,12 @@ end
 type t = private
   | Function of
       { function_call : Function_call.t;
-        alloc_mode : Alloc_mode.t
+        alloc_mode : Alloc_mode.For_allocations.t
       }
   | Method of
       { kind : Method_kind.t;
         obj : Simple.t;
-        alloc_mode : Alloc_mode.t
+        alloc_mode : Alloc_mode.For_allocations.t
       }
   | C_call of
       { alloc : bool;
@@ -71,17 +71,17 @@ include Expr_std.S with type t := t
 include Contains_ids.S with type t := t
 
 val direct_function_call :
-  Code_id.t -> return_arity:Flambda_arity.With_subkinds.t -> Alloc_mode.t -> t
+  Code_id.t -> return_arity:Flambda_arity.With_subkinds.t -> Alloc_mode.For_allocations.t -> t
 
-val indirect_function_call_unknown_arity : Alloc_mode.t -> t
+val indirect_function_call_unknown_arity : Alloc_mode.For_allocations.t -> t
 
 val indirect_function_call_known_arity :
   param_arity:Flambda_arity.With_subkinds.t ->
   return_arity:Flambda_arity.With_subkinds.t ->
-  Alloc_mode.t ->
+  Alloc_mode.For_allocations.t ->
   t
 
-val method_call : Method_kind.t -> obj:Simple.t -> Alloc_mode.t -> t
+val method_call : Method_kind.t -> obj:Simple.t -> Alloc_mode.For_allocations.t -> t
 
 val c_call :
   alloc:bool ->

@@ -26,7 +26,7 @@ type 'code t =
         code : 'code;
         symbol : Symbol.t option
       }
-  | Block_approximation of 'code t array * Alloc_mode.t
+  | Block_approximation of 'code t array * Alloc_mode.For_types.t
 
 val print : Format.formatter -> 'a t -> unit
 
