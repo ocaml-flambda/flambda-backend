@@ -1305,30 +1305,17 @@ end = struct
                 Closure_approximation
                   { code_id; function_slot; code = code_or_meta; symbol = None }
               ))
-          | Variant
-              { immediates = Unknown;
-                blocks = _;
-                is_unique = _;
-                alloc_mode = _
-              }
-          | Variant
-              { immediates = _;
-                blocks = Unknown;
-                is_unique = _;
-                alloc_mode = _
-              } ->
+          | Variant { immediates = Unknown; blocks = _; is_unique = _ }
+          | Variant { immediates = _; blocks = Unknown; is_unique = _ } ->
             Value_unknown
           | Variant
-              { immediates = Known imms;
-                blocks = Known blocks;
-                is_unique = _;
-                alloc_mode
-              } ->
+              { immediates = Known imms; blocks = Known blocks; is_unique = _ }
+            ->
             if TG.is_obviously_bottom imms
             then
               match TG.Row_like_for_blocks.get_singleton blocks with
               | None -> Value_unknown
-              | Some ((_tag, _size), fields) ->
+              | Some ((_tag, _size), fields, alloc_mode) ->
                 let fields =
                   List.map type_to_approx
                     (TG.Product.Int_indexed.components fields)

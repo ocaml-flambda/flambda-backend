@@ -180,8 +180,7 @@ let meet_naked_immediates env t =
 
 let prove_equals_tagged_immediates env t : _ proof_of_property =
   match expand_head env t with
-  | Value (Ok (Variant { immediates; blocks; is_unique = _; alloc_mode = _ }))
-    -> (
+  | Value (Ok (Variant { immediates; blocks; is_unique = _ })) -> (
     match blocks with
     | Unknown -> Unknown
     | Known blocks ->
@@ -202,9 +201,7 @@ let prove_equals_tagged_immediates env t : _ proof_of_property =
 
 let meet_equals_tagged_immediates env t : _ meet_shortcut =
   match expand_head env t with
-  | Value
-      (Ok (Variant { immediates; blocks = _; is_unique = _; alloc_mode = _ }))
-    -> (
+  | Value (Ok (Variant { immediates; blocks = _; is_unique = _ })) -> (
     match immediates with
     | Unknown -> Need_meet
     | Known imms -> meet_naked_immediates env imms)
@@ -368,9 +365,7 @@ let prove_is_a_boxed_or_tagged_number env t :
     boxed_or_tagged_number proof_of_property =
   match expand_head env t with
   | Value Unknown -> Unknown
-  | Value
-      (Ok (Variant { blocks; immediates = _; is_unique = _; alloc_mode = _ }))
-    -> (
+  | Value (Ok (Variant { blocks; immediates = _; is_unique = _ })) -> (
     match blocks with
     | Unknown -> Unknown
     | Known blocks ->
@@ -458,8 +453,8 @@ let prove_unique_tag_and_size0 env t :
         | Known blocks -> (
           match TG.Row_like_for_blocks.get_singleton blocks with
           | None -> Unknown
-          | Some (tag_and_size, product) ->
-            Proved (tag_and_size, product, blocks_imms.alloc_mode))
+          | Some (tag_and_size, product, alloc_mode) ->
+            Proved (tag_and_size, product, alloc_mode))
       else Unknown)
   | Value (Ok (Mutable_block _)) | Value (Ok _) | Value Unknown | Value Bottom
     ->
@@ -618,8 +613,7 @@ type tagging_proof_kind =
 let[@inline always] inspect_tagging_of_simple proof_kind env ~min_name_mode t :
     Simple.t generic_proof =
   match expand_head env t with
-  | Value (Ok (Variant { immediates; blocks; is_unique = _; alloc_mode = _ }))
-    -> (
+  | Value (Ok (Variant { immediates; blocks; is_unique = _ })) -> (
     let inspect_immediates () =
       match immediates with
       | Unknown -> Unknown
@@ -718,9 +712,7 @@ let meet_boxed_nativeint_containing_simple =
 let meet_block_field_simple env ~min_name_mode t field_index :
     Simple.t meet_shortcut =
   match expand_head env t with
-  | Value
-      (Ok (Variant { immediates = _; blocks; is_unique = _; alloc_mode = _ }))
-    -> (
+  | Value (Ok (Variant { immediates = _; blocks; is_unique = _ })) -> (
     match blocks with
     | Unknown -> Need_meet
     | Known blocks -> (
@@ -818,11 +810,20 @@ let prove_alloc_mode_of_boxed_number env t : Alloc_mode.t proof_of_property =
 let never_holds_locally_allocated_values env var kind : _ proof_of_property =
   let t = TE.find env (Name.var var) (Some kind) in
   match expand_head env t with
+  | Value (Ok (Variant { blocks; _ })) -> (
+    match blocks with
+    | Unknown -> Unknown
+    | Known blocks -> (
+      if TG.Row_like_for_blocks.is_bottom blocks
+      then Proved ()
+      else
+        match blocks.alloc_mode with
+        | Known Heap -> Proved ()
+        | Known Local | Unknown -> Unknown))
   | Value (Ok (Boxed_float (_, alloc_mode)))
   | Value (Ok (Boxed_int32 (_, alloc_mode)))
   | Value (Ok (Boxed_int64 (_, alloc_mode)))
   | Value (Ok (Boxed_nativeint (_, alloc_mode)))
-  | Value (Ok (Variant { alloc_mode; _ }))
   | Value (Ok (Mutable_block { alloc_mode }))
   | Value (Ok (Closures { alloc_mode; _ }))
   | Value (Ok (Array { alloc_mode; _ })) -> (
@@ -883,40 +884,21 @@ let prove_physical_equality env t1 t2 =
         let module SS = String_info.Set in
         if SS.is_empty (SS.inter s1 s2) then Proved false else Unknown
       (* Immediates and allocated values -> Proved false *)
-      | ( Variant
-            { immediates = _;
-              blocks = Known blocks;
-              is_unique = _;
-              alloc_mode = _
-            },
+      | ( Variant { immediates = _; blocks = Known blocks; is_unique = _ },
           ( Mutable_block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
           | Boxed_nativeint _ | Closures _ | String _ | Array _ ) )
       | ( ( Mutable_block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
           | Boxed_nativeint _ | Closures _ | String _ | Array _ ),
-          Variant
-            { immediates = _;
-              blocks = Known blocks;
-              is_unique = _;
-              alloc_mode = _
-            } )
+          Variant { immediates = _; blocks = Known blocks; is_unique = _ } )
         when TG.Row_like_for_blocks.is_bottom blocks ->
         Proved false
       (* Variants:
        * incompatible immediates and incompatible block tags -> Proved false
        * same immediate on both sides, no blocks -> Proved true
        *)
-      | ( Variant
-            { immediates = immediates1;
-              blocks = blocks1;
-              is_unique = _;
-              alloc_mode = _
-            },
-          Variant
-            { immediates = immediates2;
-              blocks = blocks2;
-              is_unique = _;
-              alloc_mode = _
-            } ) -> (
+      | ( Variant { immediates = immediates1; blocks = blocks1; is_unique = _ },
+          Variant { immediates = immediates2; blocks = blocks2; is_unique = _ }
+        ) -> (
         match immediates1, immediates2, blocks1, blocks2 with
         | Known imms, _, _, Known blocks
           when TG.is_obviously_bottom imms
@@ -970,8 +952,8 @@ let prove_physical_equality env t1 t2 =
                   TG.Row_like_for_blocks.get_singleton blocks2 )
               with
               | None, _ | _, None -> Unknown
-              | Some ((tag1, size1), _fields1), Some ((tag2, size2), _fields2)
-                ->
+              | ( Some ((tag1, size1), _fields1, _alloc_mode1),
+                  Some ((tag2, size2), _fields2, _alloc_mode2) ) ->
                 if Tag.equal tag1 tag2 && Targetint_31_63.equal size1 size2
                 then
                   (* CR vlaviron and chambart: We could add a special case for

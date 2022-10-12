@@ -123,14 +123,14 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
     match
       Expand_head.expand_head env t |> Expand_head.Expanded_type.descr_oub
     with
-    | Value (Ok (Variant { is_unique; blocks; immediates; alloc_mode })) -> (
+    | Value (Ok (Variant { is_unique; blocks; immediates })) -> (
       match blocks, immediates with
       | Known blocks, Known imms ->
         if Expand_head.is_bottom env imms
         then
           match TG.Row_like_for_blocks.get_singleton blocks with
           | None -> try_canonical_simple ()
-          | Some ((tag, size), field_types) -> (
+          | Some ((tag, size), field_types, alloc_mode) -> (
             assert (
               Targetint_31_63.equal size
                 (TG.Product.Int_indexed.width field_types));
