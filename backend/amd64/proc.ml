@@ -438,12 +438,13 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
   match terminator with
   | Never -> assert false
   | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-  | Return | Raise _ | Tailcall _ | Poll_and_jump _ ->
+  | Return | Raise _ | Tailcall _ ->
     if fp then [| rbp |] else [||]
   | Switch _ ->
     [| rax; rdx |]
   | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; } ->
     if alloc then all_phys_regs else destroyed_at_c_call
+  | Poll_and_jump _ -> destroyed_at_alloc_or_poll
 
 (* Maximal register pressure *)
 

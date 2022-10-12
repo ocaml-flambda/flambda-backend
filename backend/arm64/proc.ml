@@ -288,6 +288,8 @@ let destroyed_at_reloadretaddr = [| |]
 
 let destroyed_at_pushtrap = [| |]
 
+let destroyed_at_alloc_or_poll = [| reg_x8 |]
+
 (* note: keep this function in sync with `destroyed_at_oper` above. *)
 let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   match basic with
@@ -296,7 +298,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   | Call (F (Indirect | Direct _)) ->
     all_phys_regs
   | Call (P (Alloc _)) ->
-    [| reg_x8 |]
+    destroyed_at_alloc_or_poll
   | Reloadretaddr ->
     destroyed_at_reloadretaddr
   | Pushtrap _ ->
@@ -318,6 +320,7 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
     [||]
   | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; } ->
     if alloc then all_phys_regs else destroyed_at_c_call
+  | Poll_and_jump _ -> destroyed_at_alloc_or_poll
 
 (* Maximal register pressure *)
 
