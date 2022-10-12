@@ -209,13 +209,16 @@ module Inlining = struct
     | Some (Value_symbol _) | Some (Value_int _) | Some (Block_approximation _)
       ->
       assert false
-    | Some (Closure_approximation { code = Metadata_only _; _ }) ->
+    | Some (Closure_approximation { code; _ }) ->
+      (* XXX should not load the code here either *)
+      match Code_or_metadata.view code with
+      | Metadata_only _ ->
       Inlining_report.record_decision_at_call_site_for_known_function ~tracker
         ~apply ~pass:After_closure_conversion ~unrolling_depth:None
         ~callee:(Inlining_history.Absolute.empty compilation_unit)
         ~are_rebuilding_terms Definition_says_not_to_inline;
       Not_inlinable
-    | Some (Closure_approximation { code = Code_present code; _ }) ->
+      | Code_present code ->
       let fun_params_length =
         Code.params_arity code |> Flambda_arity.With_subkinds.to_arity
         |> Flambda_arity.length

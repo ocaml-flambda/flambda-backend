@@ -115,7 +115,8 @@ let compute_closure_types_inside_functions ~denv ~all_sets_of_closures
                 (* The types of the functions involved should reference the
                    _new_ code IDs (where such exist), so that direct recursive
                    calls can be compiled straight to the new code. *)
-                match code_or_metadata with
+                match Code_or_metadata.view code_or_metadata with
+                (* XXX don't load code if not needed *)
                 | Code_present code when not (Code.stub code) ->
                   Code_id.Map.find old_code_id old_to_new_code_ids_all_sets
                 | Code_present _ | Metadata_only _ -> old_code_id
@@ -205,7 +206,8 @@ let compute_old_to_new_code_ids_all_sets denv ~all_sets_of_closures =
       let function_decls = Set_of_closures.function_decls set_of_closures in
       Function_slot.Map.fold
         (fun _ old_code_id old_to_new_code_ids ->
-          match DE.find_code_exn denv old_code_id with
+          match Code_or_metadata.view (DE.find_code_exn denv old_code_id) with
+          (* XXX here too *)
           | Code_present code when not (Code.stub code) ->
             let new_code_id = Code_id.rename old_code_id in
             Code_id.Map.add old_code_id new_code_id old_to_new_code_ids
@@ -219,7 +221,8 @@ let compute_old_to_new_code_ids_all_sets denv ~all_sets_of_closures =
 let bind_existing_code_to_new_code_ids denv ~old_to_new_code_ids_all_sets =
   Code_id.Map.fold
     (fun old_code_id new_code_id denv ->
-      match DE.find_code_exn denv old_code_id with
+      match Code_or_metadata.view (DE.find_code_exn denv old_code_id) with
+      (* XXX here too *)
       | Code_present code when not (Code.stub code) ->
         let code =
           code

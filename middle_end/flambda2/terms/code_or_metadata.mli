@@ -13,9 +13,13 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type t = private
+type t
+
+type view = private
   | Code_present of Code.t
   | Metadata_only of Code_metadata.t
+
+val view : t -> view
 
 val print : Format.formatter -> t -> unit
 

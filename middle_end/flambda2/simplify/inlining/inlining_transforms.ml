@@ -92,7 +92,7 @@ let inline dacc ~apply ~unroll_to ~was_inline_always function_decl =
   (* CR-someday mshinwell: Add meet constraint to the return continuation *)
   let denv = DA.denv dacc in
   let code =
-    match DE.find_code_exn denv (FT.code_id function_decl) with
+    match Code_or_metadata.view (DE.find_code_exn denv (FT.code_id function_decl)) with
     | Code_present code -> code
     | Metadata_only code_metadata ->
       Misc.fatal_errorf "Cannot inline using only code metadata:@ %a"

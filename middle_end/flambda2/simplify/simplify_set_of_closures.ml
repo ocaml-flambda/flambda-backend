@@ -435,7 +435,10 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
 
 let simplify_function context ~outer_dacc function_slot code_id
     ~closure_bound_names_inside_function =
-  match DE.find_code_exn (DA.denv (C.dacc_prior_to_sets context)) code_id with
+  match
+    Code_or_metadata.view
+      (DE.find_code_exn (DA.denv (C.dacc_prior_to_sets context)) code_id)
+  with
   | Code_present code when not (Code.stub code) ->
     simplify_function0 context ~outer_dacc (Some function_slot) code_id code
       ~closure_bound_names_inside_function

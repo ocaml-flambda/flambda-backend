@@ -13,9 +13,13 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type t =
+type view =
   | Code_present of Code.t
   | Metadata_only of Code_metadata.t
+
+type t = view
+
+let view t = t
 
 let print ppf t =
   match t with
