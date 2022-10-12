@@ -30,72 +30,65 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
     ~my_depth function_slot_opt ~closure_bound_names_inside_function
     ~inlining_arguments ~absolute_history code_id ~return_continuation
     ~exn_continuation ~return_cont_params code_metadata =
-  let dacc =
-    DA.map_denv (C.dacc_inside_functions context) ~f:(fun denv ->
-        let num_leading_heap_params =
-          Code_metadata.num_leading_heap_params code_metadata
-        in
-        let alloc_modes =
-          List.mapi
-            (fun index _ : Alloc_mode.t Or_unknown.t ->
-              if index < num_leading_heap_params
-              then Known Alloc_mode.heap
-              else Unknown)
-            (Bound_parameters.to_list params)
-        in
-        let denv =
-          DE.add_parameters_with_unknown_types ~alloc_modes denv params
-        in
-        let denv = DE.set_inlining_arguments inlining_arguments denv in
-        let denv =
-          DE.set_inlining_history_tracker
-            (Inlining_history.Tracker.inside_function absolute_history)
-            denv
-        in
-        let denv =
-          match function_slot_opt with
-          | None ->
-            (* This happens in the stub case, where we are only simplifying
-               code, not a set of closures. *)
-            DE.add_variable denv
-              (Bound_var.create my_closure NM.normal)
-              (T.unknown K.value)
-          | Some function_slot -> (
-            match
-              Function_slot.Map.find function_slot
-                closure_bound_names_inside_function
-            with
-            | exception Not_found ->
-              Misc.fatal_errorf
-                "No closure name for function slot %a.@ \
-                 closure_bound_names_inside_function = %a."
-                Function_slot.print function_slot
-                (Function_slot.Map.print Bound_name.print)
-                closure_bound_names_inside_function
-            | name ->
-              let name = Bound_name.name name in
-              DE.add_variable denv
-                (Bound_var.create my_closure NM.normal)
-                (T.alias_type_of K.value (Simple.name name)))
-        in
-        let denv =
-          let my_region = Bound_var.create my_region Name_mode.normal in
-          DE.add_variable denv my_region (T.unknown K.region)
-        in
-        let denv =
-          let my_depth = Bound_var.create my_depth Name_mode.normal in
-          DE.add_variable denv my_depth (T.unknown K.rec_info)
-        in
-        let denv =
-          LCS.add_to_denv ~maybe_already_defined:() denv
-            (DA.get_lifted_constants outer_dacc)
-        in
-        let denv =
-          DE.enter_closure code_id ~return_continuation ~exn_continuation denv
-        in
-        let denv = DE.increment_continuation_scope denv in
-        DE.add_parameters_with_unknown_types denv return_cont_params)
+  let dacc = C.dacc_inside_functions context in
+  let num_leading_heap_params =
+    Code_metadata.num_leading_heap_params code_metadata
   in
+  let alloc_modes =
+    List.mapi
+      (fun index _ : Alloc_mode.t Or_unknown.t ->
+        if index < num_leading_heap_params
+        then Known Alloc_mode.heap
+        else Unknown)
+      (Bound_parameters.to_list params)
+  in
+  let denv =
+    DE.add_parameters_with_unknown_types ~alloc_modes (DA.denv dacc) params
+    |> DE.set_inlining_arguments inlining_arguments
+    |> DE.set_inlining_history_tracker
+         (Inlining_history.Tracker.inside_function absolute_history)
+  in
+  let denv =
+    match function_slot_opt with
+    | None ->
+      (* This happens in the stub case, where we are only simplifying code, not
+         a set of closures. *)
+      DE.add_variable denv
+        (Bound_var.create my_closure NM.normal)
+        (T.unknown K.value)
+    | Some function_slot -> (
+      match
+        Function_slot.Map.find function_slot closure_bound_names_inside_function
+      with
+      | exception Not_found ->
+        Misc.fatal_errorf
+          "No closure name for function slot %a.@ \
+           closure_bound_names_inside_function = %a."
+          Function_slot.print function_slot
+          (Function_slot.Map.print Bound_name.print)
+          closure_bound_names_inside_function
+      | name ->
+        let name = Bound_name.name name in
+        DE.add_variable denv
+          (Bound_var.create my_closure NM.normal)
+          (T.alias_type_of K.value (Simple.name name)))
+  in
+  let denv =
+    let my_region = Bound_var.create my_region Name_mode.normal in
+    DE.add_variable denv my_region (T.unknown K.region)
+  in
+  let denv =
+    let my_depth = Bound_var.create my_depth Name_mode.normal in
+    DE.add_variable denv my_depth (T.unknown K.rec_info)
+  in
+  let denv =
+    LCS.add_to_denv ~maybe_already_defined:() denv
+      (DA.get_lifted_constants outer_dacc)
+    |> DE.enter_closure code_id ~return_continuation ~exn_continuation
+  in
+  let denv = DE.increment_continuation_scope denv in
+  let denv = DE.add_parameters_with_unknown_types denv return_cont_params in
+  let dacc = DA.with_denv dacc denv in
   let code_ids_to_remember = DA.code_ids_to_remember outer_dacc in
   let used_value_slots = DA.used_value_slots outer_dacc in
   let shareable_constants = DA.shareable_constants outer_dacc in
