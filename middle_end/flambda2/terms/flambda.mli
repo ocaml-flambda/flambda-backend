@@ -162,20 +162,6 @@ module Named : sig
       expression of a [Let]. *)
   val create_rec_info : Rec_info_expr.t -> t
 
-  (** Build an expression boxing the name. The returned kind is the one of the
-      unboxed version. *)
-  val box_value :
-    Name.t ->
-    Flambda_kind.t ->
-    Debuginfo.t ->
-    Alloc_mode.With_region.t ->
-    named * Flambda_kind.t
-
-  (** Build an expression unboxing the name. The returned kind is the one of the
-      unboxed version. *)
-  val unbox_value :
-    Name.t -> Flambda_kind.t -> Debuginfo.t -> named * Flambda_kind.t
-
   (** Return a defining expression for a [Let] which is kind-correct, but not
       necessarily type-correct, at the given kind. *)
   val dummy_value : Flambda_kind.t -> t
