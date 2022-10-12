@@ -84,7 +84,7 @@ exception Out_of_memory
 (** Exception raised by functions such as those for array and bigarray
     creation when there is insufficient memory.  Failure to allocate
     memory during garbage collection causes a fatal error, unlike in
-    previous versions. *)
+    previous versions, where it did not always do so. *)
 
 exception Stack_overflow
 (** Exception raised by the bytecode interpreter when the evaluation
