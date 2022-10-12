@@ -235,53 +235,53 @@ let simplify_function_body context ~outer_dacc function_slot_opt
 let compute_result_types ~is_a_functor ~return_cont_uses ~dacc_after_body
     ~dacc_at_function_entry ~return_cont_params ~lifted_consts_this_function
     ~params : _ Or_unknown_or_bottom.t =
-  if not (Flambda_features.function_result_types ~is_a_functor)
-  then Unknown
-  else
-    match return_cont_uses with
-    | None -> Bottom
-    | Some uses ->
-      let code_age_relation_after_function =
-        TE.code_age_relation (DA.typing_env dacc_after_body)
-      in
-      let env_at_fork_plus_params =
-        (* We use [C.dacc_inside_functions] not [C.dacc_prior_to_sets] to ensure
-           that the environment contains bindings for any symbols being defined
-           by the set of closures. *)
-        DE.add_parameters_with_unknown_types
-          (DA.denv dacc_at_function_entry)
-          return_cont_params
-      in
-      let join =
-        Join_points.compute_handler_env
-          ~cut_after:
-            (Scope.prev (DE.get_continuation_scope env_at_fork_plus_params))
-          uses ~params:return_cont_params ~env_at_fork_plus_params
-          ~consts_lifted_during_body:lifted_consts_this_function
-          ~code_age_relation_after_body:code_age_relation_after_function
-      in
-      let params_and_results =
-        Bound_parameters.var_set
-          (Bound_parameters.append params return_cont_params)
-      in
-      let typing_env = DE.typing_env join.handler_env in
-      let results_and_types =
-        List.map
-          (fun result ->
-            let ty =
-              TE.find typing_env (BP.name result)
-                (Some (K.With_subkind.kind (BP.kind result)))
-            in
-            BP.name result, ty)
-          (Bound_parameters.to_list return_cont_params)
-      in
-      let env_extension =
-        (* This call is important for compilation time performance, to cut down
-           the size of the return types. *)
-        T.make_suitable_for_environment typing_env
-          (All_variables_except params_and_results) results_and_types
-      in
-      Ok (Result_types.create ~params ~results:return_cont_params env_extension)
+  match
+    Flambda_features.function_result_types ~is_a_functor, return_cont_uses
+  with
+  | false, _ -> Unknown
+  | true, None -> Bottom
+  | true, Some uses ->
+    let code_age_relation_after_function =
+      TE.code_age_relation (DA.typing_env dacc_after_body)
+    in
+    let env_at_fork_plus_params =
+      (* We use [C.dacc_inside_functions] not [C.dacc_prior_to_sets] to ensure
+         that the environment contains bindings for any symbols being defined by
+         the set of closures. *)
+      DE.add_parameters_with_unknown_types
+        (DA.denv dacc_at_function_entry)
+        return_cont_params
+    in
+    let join =
+      Join_points.compute_handler_env
+        ~cut_after:
+          (Scope.prev (DE.get_continuation_scope env_at_fork_plus_params))
+        uses ~params:return_cont_params ~env_at_fork_plus_params
+        ~consts_lifted_during_body:lifted_consts_this_function
+        ~code_age_relation_after_body:code_age_relation_after_function
+    in
+    let params_and_results =
+      Bound_parameters.var_set
+        (Bound_parameters.append params return_cont_params)
+    in
+    let typing_env = DE.typing_env join.handler_env in
+    let results_and_types =
+      List.map
+        (fun result ->
+          let ty =
+            TE.find typing_env (BP.name result)
+              (Some (K.With_subkind.kind (BP.kind result)))
+          in
+          BP.name result, ty)
+        (Bound_parameters.to_list return_cont_params)
+    in
+    let env_extension =
+      (* This call is important for compilation time performance, to cut down
+         the size of the return types. *)
+      T.make_suitable_for_environment typing_env
+        (All_variables_except params_and_results) results_and_types
+    in
+    Ok (Result_types.create ~params ~results:return_cont_params env_extension)
 
 type simplify_function_result =
   { code_id : Code_id.t;
