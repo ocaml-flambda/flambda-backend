@@ -1078,24 +1078,16 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
       k_exn
   | Llet
       ( (Strict | Alias | StrictOpt),
-        (( Pgenval | Pfloatval | Pboxedintval _ | Pintval | Pvariant _
-         | Parrayval _ ) as value_kind),
+        ( Pgenval | Pfloatval | Pboxedintval _ | Pintval | Pvariant _
+        | Parrayval _ ),
         id,
         defining_expr,
         body ) ->
-    let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler:false
-      ~params:[id, IR.User_visible, value_kind]
-      ~body:(fun acc env ccenv after_defining_expr ->
-        cps_tail acc env ccenv defining_expr after_defining_expr k_exn)
-      ~handler:(fun acc env ccenv -> cps acc env ccenv body k k_exn)
-  (* CR pchambart: This version would avoid one let cont, but would miss the
-     value kind. It should be used when CC.close_let can propagate the
-     value_kind. *)
-  (* let k acc env ccenv value =
-   *   let body acc ccenv = cps acc env ccenv body k k_exn in
-   *   CC.close_let acc ccenv id User_visible (Simple value) ~body
-   * in
-   * cps_non_tail_simple acc env ccenv defining_expr k k_exn *)
+    let k acc env ccenv value =
+      let body acc ccenv = cps acc env ccenv body k k_exn in
+      CC.close_let acc ccenv id User_visible (Simple value) ~body
+    in
+    cps_non_tail_simple acc env ccenv defining_expr k k_exn
   | Lletrec (bindings, body) -> (
     match Dissect_letrec.dissect_letrec ~bindings ~body with
     | Unchanged ->
@@ -1149,9 +1141,8 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
         in
         compile_staticfail acc env ccenv ~continuation ~args:(args @ extra_args))
       k_exn
-  | Lstaticcatch (body, (static_exn, args), handler, _kind) ->
-    (* CR-someday poechsel: Use [kind] *)
-    maybe_insert_let_cont "staticcatch_result" Pgenval k acc env ccenv
+  | Lstaticcatch (body, (static_exn, args), handler, kind) ->
+    maybe_insert_let_cont "staticcatch_result" kind k acc env ccenv
       (fun acc env ccenv k ->
         let continuation = Continuation.create () in
         let { Env.body_env; handler_env; extra_params } =
