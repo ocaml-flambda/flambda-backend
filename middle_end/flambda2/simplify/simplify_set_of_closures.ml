@@ -241,9 +241,6 @@ let compute_result_types ~is_a_functor ~return_cont_uses ~dacc_after_body
   | false, _ -> Unknown
   | true, None -> Bottom
   | true, Some uses ->
-    let code_age_relation_after_function =
-      TE.code_age_relation (DA.typing_env dacc_after_body)
-    in
     let env_at_fork_plus_params =
       (* We use [C.dacc_inside_functions] not [C.dacc_prior_to_sets] to ensure
          that the environment contains bindings for any symbols being defined by
@@ -258,7 +255,8 @@ let compute_result_types ~is_a_functor ~return_cont_uses ~dacc_after_body
           (Scope.prev (DE.get_continuation_scope env_at_fork_plus_params))
         uses ~params:return_cont_params ~env_at_fork_plus_params
         ~consts_lifted_during_body:lifted_consts_this_function
-        ~code_age_relation_after_body:code_age_relation_after_function
+        ~code_age_relation_after_body:
+          (TE.code_age_relation (DA.typing_env dacc_after_body))
     in
     let params_and_results =
       Bound_parameters.var_set
@@ -268,11 +266,10 @@ let compute_result_types ~is_a_functor ~return_cont_uses ~dacc_after_body
     let results_and_types =
       List.map
         (fun result ->
-          let ty =
-            TE.find typing_env (BP.name result)
-              (Some (K.With_subkind.kind (BP.kind result)))
-          in
-          BP.name result, ty)
+          let name = BP.name result in
+          let kind = K.With_subkind.kind (BP.kind result) in
+          let ty = TE.find typing_env name (Some kind) in
+          name, ty)
         (Bound_parameters.to_list return_cont_params)
     in
     let env_extension =
