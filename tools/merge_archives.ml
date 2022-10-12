@@ -90,13 +90,15 @@ let merge_cmxa0 ~archives =
           List.map
             (fun (cmx : Cmx_format.lib_unit_info) -> cmx.li_name)
             cmxa.lib_units
-          |> String_set.of_list
+          |> Compilation_unit.Set.of_list
         in
-        let already_defined = String_set.inter new_lib_names lib_names in
-        if not (String_set.is_empty already_defined)
+        let already_defined =
+          Compilation_unit.Set.inter new_lib_names lib_names
+        in
+        if not (Compilation_unit.Set.is_empty already_defined)
         then failwith "Archives contain multiply-defined units";
         Cmm_helpers.Generic_fns_tbl.add genfns cmxa.lib_generic_fns;
-        let lib_names = String_set.union new_lib_names lib_names in
+        let lib_names = Compilation_unit.Set.union new_lib_names lib_names in
         let remap oldarr newarr tbl oldb =
           let module B = Misc.Bitmap in
           let b = B.make (Array.length newarr) in
@@ -120,7 +122,7 @@ let merge_cmxa0 ~archives =
         let lib_ccobjs = String_set.union cmxa_lib_ccobjs lib_ccobjs in
         let lib_ccopts = lib_ccopts @ cmxa.lib_ccopts in
         lib_names, lib_units, lib_ccobjs, lib_ccopts)
-      (String_set.empty, [], String_set.empty, [])
+      (Compilation_unit.Set.empty, [], String_set.empty, [])
       cmxa_list
   in
   let cmxa : Cmx_format.library_infos =

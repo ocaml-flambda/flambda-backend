@@ -211,6 +211,9 @@ type primitive =
   | Popaque
   (* Statically-defined probes *)
   | Pprobe_is_enabled of { name: string }
+  (* Primitives for [Obj] *)
+  | Pobj_dup
+  | Pobj_magic
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -370,6 +373,14 @@ type local_attribute =
   | Never_local (* [@local never] *)
   | Default_local (* [@local maybe] or no [@local] attribute *)
 
+type property =
+  | Noalloc
+
+type check_attribute =
+  | Default_check
+  | Assert of property
+  | Assume of property
+
 type function_kind = Curried of {nlocal: int} | Tupled
 
 type let_kind = Strict | Alias | StrictOpt
@@ -389,6 +400,7 @@ type function_attribute = {
   inline : inline_attribute;
   specialise : specialise_attribute;
   local: local_attribute;
+  check : check_attribute;
   is_a_functor: bool;
   stub: bool;
 }
@@ -520,6 +532,7 @@ let default_function_attribute = {
   inline = Default_inline;
   specialise = Default_specialise;
   local = Default_local;
+  check = Default_check ;
   is_a_functor = false;
   stub = false;
 }
@@ -817,7 +830,7 @@ let rec patch_guarded patch = function
 
 let rec transl_address loc = function
   | Env.Aident id ->
-      if Ident.global id
+      if Ident.is_global_or_predef id
       then Lprim(Pgetglobal id, [], loc)
       else Lvar id
   | Env.Adot(addr, pos) ->
@@ -1247,3 +1260,5 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pint_as_pointer -> None
   | Popaque -> None
   | Pprobe_is_enabled _ -> None
+  | Pobj_dup -> Some alloc_heap
+  | Pobj_magic -> None

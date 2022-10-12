@@ -69,10 +69,10 @@ module Function_params_and_body = struct
   type t = Function_params_and_body.t
 
   let create ~return_continuation ~exn_continuation params ~body
-      ~free_names_of_body ~my_closure ~my_depth =
+      ~free_names_of_body ~my_closure ~my_region ~my_depth =
     Function_params_and_body.create ~return_continuation ~exn_continuation
       params ~body ~free_names_of_body:(Known free_names_of_body) ~my_closure
-      ~my_depth
+      ~my_region ~my_depth
 
   let to_function_params_and_body t are_rebuilding =
     if ART.do_not_rebuild_terms are_rebuilding
@@ -145,7 +145,7 @@ let bind_no_simplification are_rebuilding ~bindings ~body ~cost_metrics_of_body
       let free_names =
         Name_occurrences.union
           (Named.free_names defining_expr)
-          (Name_occurrences.remove_var free_names (Bound_var.var var))
+          (Name_occurrences.remove_var free_names ~var:(Bound_var.var var))
       in
       let is_phantom = Name_mode.is_phantom (Bound_var.name_mode var) in
       let cost_metrics_of_defining_expr =

@@ -14,13 +14,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
-module DE = Downwards_env
-module BP = Bound_parameter
-module LCS = Lifted_constant_state
-module T = Flambda2_types
-module TE = Flambda2_types.Typing_env
+open Simplify_import
 module U = One_continuation_use
-module EPA = Continuation_extra_params_and_args
 
 type result =
   { handler_env : DE.t;
@@ -59,7 +54,7 @@ let join ?cut_after denv typing_env params ~env_at_fork_plus_params
   in
   let extra_allowed_names =
     match cse_join_result with
-    | None -> Name_occurrences.empty
+    | None -> NO.empty
     | Some cse_join_result -> cse_join_result.extra_allowed_names
   in
   let cut_after = Option.value cut_after ~default:definition_scope in

@@ -296,11 +296,10 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
               in
               let uacc =
                 UA.add_free_names uacc
-                  (Name_occurrences.union
+                  (NO.union
                      (Named.free_names do_tagging)
-                     (Name_occurrences.diff free_names_of_body
-                        (Name_occurrences.singleton_variable not_scrutinee
-                           NM.normal)))
+                     (NO.diff free_names_of_body
+                        ~without:(NO.singleton_variable not_scrutinee NM.normal)))
               in
               expr, uacc)
           | None -> normal_case uacc))
@@ -367,7 +366,8 @@ let simplify_switch0 dacc switch ~down_to_up =
          ~condition_dbg:(Switch.condition_dbg switch)
          ~scrutinee ~scrutinee_ty ~dacc_before_switch)
 
-let simplify_switch ~simplify_let ~simplify_toplevel dacc switch ~down_to_up =
+let simplify_switch ~simplify_let ~simplify_function_body dacc switch
+    ~down_to_up =
   let tagged_scrutinee = Variable.create "tagged_scrutinee" in
   let tagging_prim =
     Named.create_prim
@@ -386,9 +386,9 @@ let simplify_switch ~simplify_let ~simplify_toplevel dacc switch ~down_to_up =
     DA.map_data_flow dacc
       ~f:
         (Data_flow.add_used_in_current_handler
-           (Name_occurrences.singleton_variable tagged_scrutinee NM.normal))
+           (NO.singleton_variable tagged_scrutinee NM.normal))
   in
   simplify_let
     ~simplify_expr:(fun dacc _body ~down_to_up ->
       simplify_switch0 dacc switch ~down_to_up)
-    ~simplify_toplevel dacc let_expr ~down_to_up
+    ~simplify_function_body dacc let_expr ~down_to_up

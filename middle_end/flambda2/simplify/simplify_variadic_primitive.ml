@@ -62,7 +62,9 @@ let simplify_make_block ~original_prim ~field_kind tag ~shape
             T.alias_type_of (K.With_subkind.kind kind_with_subkind) arg)
           args shape
       in
-      let alloc_mode = Or_unknown.Known alloc_mode in
+      let alloc_mode =
+        Or_unknown.Known (Alloc_mode.With_region.without_region alloc_mode)
+      in
       match mutable_or_immutable with
       | Immutable ->
         T.immutable_block ~is_unique:false tag ~field_kind alloc_mode ~fields
@@ -123,6 +125,7 @@ let simplify_make_array (array_kind : P.Array_kind.t)
   | Bottom -> SPR.create_invalid dacc
   | Ok env_extension ->
     let ty =
+      let alloc_mode = Alloc_mode.With_region.without_region alloc_mode in
       match mutable_or_immutable with
       | Mutable ->
         T.mutable_array ~element_kind:(Known element_kind) ~length

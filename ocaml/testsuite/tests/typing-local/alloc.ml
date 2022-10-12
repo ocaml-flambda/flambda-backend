@@ -411,6 +411,14 @@ let optionalarg ((f : ?foo:local_ int -> unit -> unit), n) =
   let () = f ~foo:n () in
   ()
 
+let[@inline never] optarg ?(n = 0) () = n
+
+let[@inline never] optionaleta () =
+  let[@inline never] use_clos (f : unit -> int) = () in
+  use_clos (Sys.opaque_identity optarg);
+  use_clos (Sys.opaque_identity optarg);
+  ()
+
 let run name f x =
   let prebefore = Gc.allocated_bytes () in
   let before = Gc.allocated_bytes () in
@@ -462,7 +470,8 @@ let () =
   run "bigstringbint" readbigstringbint ();
   run "verylong" makeverylong 42;
   run "manylong" makemanylong 100;
-  run "optionalarg" optionalarg (fun_with_optional_arg, 10)
+  run "optionalarg" optionalarg (fun_with_optional_arg, 10);
+  run "optionaleta" optionaleta ()
 
 
 (* In debug mode, Gc.minor () checks for minor heap->local pointers *)

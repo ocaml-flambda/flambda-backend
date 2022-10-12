@@ -31,7 +31,7 @@ val simplify_non_lifted_set_of_closures :
   Downwards_acc.t ->
   Bound_pattern.t ->
   Set_of_closures.t ->
-  simplify_toplevel:Simplify_common.simplify_toplevel ->
+  simplify_function_body:Simplify_common.simplify_function_body ->
   Simplify_named_result.t
 
 (** Simplify a group of possibly-recursive sets of closures, as may occur on the
@@ -41,12 +41,12 @@ val simplify_lifted_sets_of_closures :
   all_sets_of_closures_and_symbols:
     (Symbol.t Function_slot.Lmap.t * Set_of_closures.t) list ->
   closure_bound_names_all_sets:Bound_name.t Function_slot.Map.t list ->
-  simplify_toplevel:Simplify_common.simplify_toplevel ->
+  simplify_function_body:Simplify_common.simplify_function_body ->
   Bound_static.t * Rebuilt_static_const.Group.t * Downwards_acc.t
 
 val simplify_stub_function :
   Downwards_acc.t ->
   Code.t ->
   all_code:Code.t Code_id.Map.t ->
-  simplify_toplevel:Simplify_common.simplify_toplevel ->
+  simplify_function_body:Simplify_common.simplify_function_body ->
   Rebuilt_static_const.t * Downwards_acc.t

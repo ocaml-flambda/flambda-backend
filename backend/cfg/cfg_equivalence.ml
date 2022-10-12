@@ -237,6 +237,8 @@ let check_operation : location -> Cfg.operation -> Cfg.operation -> unit =
     ()
   | Floatofint, Floatofint -> ()
   | Intoffloat, Intoffloat -> ()
+  | Valueofint, Valueofint -> ()
+  | Intofvalue, Intofvalue -> ()
   | ( Probe_is_enabled { name = expected_name },
       Probe_is_enabled { name = result_name } )
     when String.equal expected_name result_name ->

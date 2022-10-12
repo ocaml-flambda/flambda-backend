@@ -41,7 +41,8 @@ module IR = struct
         { prim : Lambda.primitive;
           args : simple list;
           loc : Lambda.scoped_location;
-          exn_continuation : exn_continuation option
+          exn_continuation : exn_continuation option;
+          region : Ident.t
         }
 
   type apply_kind =
@@ -61,7 +62,8 @@ module IR = struct
       region_close : Lambda.region_close;
       inlined : Lambda.inlined_attribute;
       probe : Lambda.probe;
-      mode : Lambda.alloc_mode
+      mode : Lambda.alloc_mode;
+      region : Ident.t
     }
 
   type switch =
@@ -194,10 +196,14 @@ module Env = struct
 
   let create ~symbol_for_global ~big_endian ~cmx_loader =
     let compilation_unit = Compilation_unit.get_current_exn () in
+    let current_unit_id =
+      Compilation_unit.name compilation_unit
+      |> Compilation_unit.Name.to_string |> Ident.create_persistent
+    in
     { variables = Ident.Map.empty;
       globals = Numeric_types.Int.Map.empty;
       simples_to_substitute = Ident.Map.empty;
-      current_unit_id = Compilation_unit.get_persistent_ident compilation_unit;
+      current_unit_id;
       current_depth = None;
       value_approximations = Name.Map.empty;
       approximation_for_external_symbol =
@@ -455,9 +461,11 @@ module Acc = struct
       ~const:(fun _ -> acc)
       ~name:(fun name ~coercion:_ -> add_name_to_free_names ~name acc)
 
-  let remove_code_id_or_symbol_from_free_names cis t =
+  let remove_code_id_or_symbol_from_free_names code_id_or_symbol t =
     { t with
-      free_names = Name_occurrences.remove_code_id_or_symbol t.free_names cis
+      free_names =
+        Name_occurrences.remove_code_id_or_symbol t.free_names
+          ~code_id_or_symbol
     }
 
   let remove_symbol_from_free_names symbol t =
@@ -466,7 +474,7 @@ module Acc = struct
       t
 
   let remove_var_from_free_names var t =
-    { t with free_names = Name_occurrences.remove_var t.free_names var }
+    { t with free_names = Name_occurrences.remove_var t.free_names ~var }
 
   let add_continuation_application ~cont args_approx t =
     let continuation_application =
@@ -489,10 +497,10 @@ module Acc = struct
         Continuation.Map.add cont Untrackable t.continuation_applications
     }
 
-  let remove_continuation_from_free_names cont t =
+  let remove_continuation_from_free_names continuation t =
     { t with
       free_names =
-        Name_occurrences.remove_continuation t.free_names cont
+        Name_occurrences.remove_continuation t.free_names ~continuation
         (* We don't remove the continuation from [t.continuation_applications]
            here because we need this information of the module block to escape
            its scope to build the .cmx in [Closure_conversion.close_program]. *)
@@ -542,6 +550,7 @@ module Function_decls = struct
         return : Lambda.value_kind;
         return_continuation : Continuation.t;
         exn_continuation : IR.exn_continuation;
+        my_region : Ident.t;
         body : Acc.t -> Env.t -> Acc.t * Flambda.Import.Expr.t;
         free_idents_of_body : Ident.Set.t;
         attr : Lambda.function_attribute;
@@ -554,7 +563,7 @@ module Function_decls = struct
       }
 
     let create ~let_rec_ident ~function_slot ~kind ~params ~return
-        ~return_continuation ~exn_continuation ~body ~attr ~loc
+        ~return_continuation ~exn_continuation ~my_region ~body ~attr ~loc
         ~free_idents_of_body ~stub recursive ~closure_alloc_mode
         ~num_trailing_local_params ~contains_no_escaping_local_allocs =
       let let_rec_ident =
@@ -569,6 +578,7 @@ module Function_decls = struct
         return;
         return_continuation;
         exn_continuation;
+        my_region;
         body;
         free_idents_of_body;
         attr;
@@ -594,6 +604,8 @@ module Function_decls = struct
 
     let exn_continuation t = t.exn_continuation
 
+    let my_region t = t.my_region
+
     let body t = t.body
 
     let free_idents t = t.free_idents_of_body
@@ -603,6 +615,8 @@ module Function_decls = struct
     let specialise t = t.attr.specialise
 
     let is_a_functor t = t.attr.is_a_functor
+
+    let check_attribute t = t.attr.check
 
     let stub t = t.attr.stub
 

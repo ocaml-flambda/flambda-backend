@@ -49,7 +49,7 @@ let let_prim ~dbg v prim (free_names, body) =
   let named = Named.create_prim prim dbg in
   let free_names_of_body = Or_unknown.Known free_names in
   let let_expr = Let.create bindable named ~body ~free_names_of_body in
-  let free_names = Name_occurrences.remove_var free_names v in
+  let free_names = NO.remove_var free_names ~var:v in
   let expr = Expr.create_let let_expr in
   free_names, expr
 
@@ -92,23 +92,26 @@ let simplify_comparison ~dbg ~dacc ~cont ~tagged_prim ~float_prim
   | Proved Tagged_immediate, Proved Tagged_immediate ->
     simplify_comparison_of_tagged_immediates ~dbg dacc cont a b
       ~cmp_prim:tagged_prim
-  | Proved (Boxed Naked_float), Proved (Boxed Naked_float) ->
+  | Proved (Boxed (_, Naked_float, _)), Proved (Boxed (_, Naked_float, _)) ->
     simplify_comparison_of_boxed_numbers ~dbg dacc cont a b ~kind:Naked_float
       ~cmp_prim:float_prim
-  | Proved (Boxed Naked_int32), Proved (Boxed Naked_int32) ->
+  | Proved (Boxed (_, Naked_int32, _)), Proved (Boxed (_, Naked_int32, _)) ->
     simplify_comparison_of_boxed_numbers ~dbg dacc cont a b ~kind:Naked_int32
       ~cmp_prim:(boxed_int_prim K.Standard_int.Naked_int32)
-  | Proved (Boxed Naked_int64), Proved (Boxed Naked_int64) ->
+  | Proved (Boxed (_, Naked_int64, _)), Proved (Boxed (_, Naked_int64, _)) ->
     simplify_comparison_of_boxed_numbers ~dbg dacc cont a b ~kind:Naked_int64
       ~cmp_prim:(boxed_int_prim K.Standard_int.Naked_int64)
-  | Proved (Boxed Naked_nativeint), Proved (Boxed Naked_nativeint) ->
+  | ( Proved (Boxed (_, Naked_nativeint, _)),
+      Proved (Boxed (_, Naked_nativeint, _)) ) ->
     simplify_comparison_of_boxed_numbers ~dbg dacc cont a b
       ~kind:Naked_nativeint
       ~cmp_prim:(boxed_int_prim K.Standard_int.Naked_nativeint)
   (* Mismatches between varieties of numbers *)
   | Proved Tagged_immediate, Proved (Boxed _)
   | Proved (Boxed _), Proved Tagged_immediate
-  | ( Proved (Boxed (Naked_float | Naked_int32 | Naked_int64 | Naked_nativeint)),
+  | ( Proved
+        (Boxed
+          (_, (Naked_float | Naked_int32 | Naked_int64 | Naked_nativeint), _)),
       Proved (Boxed _) )
   (* One or two of the arguments is not known *)
   | Unknown, Unknown
@@ -147,7 +150,7 @@ let simplify_caml_make_vect dacc ~len_ty ~init_value_ty : t =
        Also maybe we should allow static allocation of these arrays for
        reasonable sizes. *)
     let type_of_returned_array =
-      T.mutable_array ~element_kind ~length:len_ty (Known Heap)
+      T.mutable_array ~element_kind ~length:len_ty (Known Alloc_mode.heap)
     in
     Unchanged { return_types = Known [type_of_returned_array] }
 

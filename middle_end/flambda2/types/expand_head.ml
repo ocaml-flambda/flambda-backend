@@ -369,7 +369,9 @@ let free_variables_transitive ~free_names_of_type env free_vars_acc ty =
     if missing_kind env free_vars
     then raise Missing_cmx_file
     else
-      let to_traverse = Name_occurrences.diff free_vars free_vars_acc in
+      let to_traverse =
+        Name_occurrences.diff free_vars ~without:free_vars_acc
+      in
       let free_vars_acc = Name_occurrences.union free_vars_acc free_vars in
       Name_occurrences.fold_names to_traverse ~init:free_vars_acc
         ~f:(fun free_vars_acc name ->

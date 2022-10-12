@@ -80,6 +80,7 @@ and function_body = {
   dbg : Debuginfo.t;
   inline : Lambda.inline_attribute;
   specialise : Lambda.specialise_attribute;
+  check : Lambda.check_attribute;
   is_a_functor : bool;
   body : Flambda.t;
 }
@@ -222,7 +223,7 @@ let rec print_descr ppf = function
 
 and print ppf { descr; var; symbol; } =
   let print ppf = function
-    | None -> Symbol.print_opt ppf None
+    | None -> Misc.Stdlib.Option.print Symbol.print ppf None
     | Some (sym, None) -> Symbol.print ppf sym
     | Some (sym, Some field) ->
         Format.fprintf ppf "%a.(%i)" Symbol.print sym field
@@ -944,6 +945,7 @@ let function_declaration_approx ~keep_body fun_var
              inline = fun_decl.inline;
              dbg = fun_decl.dbg;
              specialise = fun_decl.specialise;
+             check = fun_decl.check;
              is_a_functor = fun_decl.is_a_functor;
              free_variables = fun_decl.free_variables;
              free_symbols = fun_decl.free_symbols; }

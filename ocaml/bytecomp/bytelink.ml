@@ -19,6 +19,8 @@ open Misc
 open Config
 open Cmo_format
 
+module CU = Compilation_unit
+
 type error =
   | File_not_found of filepath
   | Not_an_object_file of filepath
@@ -34,9 +36,9 @@ type error =
 exception Error of error
 
 type link_action =
-    Link_object of string * compilation_unit
+    Link_object of string * compilation_unit_descr
       (* Name of .cmo file and descriptor of the unit *)
-  | Link_archive of string * compilation_unit list
+  | Link_archive of string * compilation_unit_descr list
       (* Name of .cma file and descriptors of the units to be linked. *)
 
 (* Add C objects and options from a library descriptor *)
@@ -122,7 +124,7 @@ let scan_file obj_name tolink =
          requires. *)
       let compunit_pos = input_binary_int ic in  (* Go to descriptor *)
       seek_in ic compunit_pos;
-      let compunit = (input_value ic : compilation_unit) in
+      let compunit = (input_value ic : compilation_unit_descr) in
       close_in ic;
       add_required compunit;
       List.iter remove_required compunit.cu_reloc;
@@ -174,7 +176,7 @@ let check_consistency file_name cu =
         match crco with
           None -> ()
         | Some crc ->
-            if name = cu.cu_name
+            if CU.Name.equal (CU.Name.of_string name) cu.cu_name
             then Consistbl.set crc_interfaces name crc file_name
             else Consistbl.check crc_interfaces name crc file_name)
       cu.cu_imports
@@ -185,16 +187,17 @@ let check_consistency file_name cu =
     } ->
     raise(Error(Inconsistent_import(name, user, auth)))
   end;
+  let cu_name = CU.Name.to_string cu.cu_name in
   begin try
-    let source = List.assoc cu.cu_name !implementations_defined in
+    let source = List.assoc cu_name !implementations_defined in
     Location.prerr_warning (Location.in_file file_name)
-      (Warnings.Module_linked_twice(cu.cu_name,
+      (Warnings.Module_linked_twice(cu_name,
                                     Location.show_filename file_name,
                                     Location.show_filename source))
   with Not_found -> ()
   end;
   implementations_defined :=
-    (cu.cu_name, file_name) :: !implementations_defined
+    (cu_name, file_name) :: !implementations_defined
 
 let extract_crc_interfaces () =
   Consistbl.extract !interfaces crc_interfaces
@@ -249,7 +252,7 @@ let link_archive output_fun currpos_fun file_name units_required =
   try
     List.iter
       (fun cu ->
-         let name = file_name ^ "(" ^ cu.cu_name ^ ")" in
+         let name = file_name ^ "(" ^ (CU.Name.to_string cu.cu_name) ^ ")" in
          try
            link_compunit output_fun currpos_fun inchan name cu
          with Symtable.Error msg ->
@@ -627,6 +630,7 @@ let link objfiles output_name =
     match Ident.Map.bindings missing_modules with
     | [] -> ()
     | (id, cu_name) :: _ ->
+        let cu_name = CU.Name.to_string cu_name in
         raise (Error (Required_module_unavailable (Ident.name id, cu_name)))
   end;
   Clflags.ccobjs := !Clflags.ccobjs @ !lib_ccobjs; (* put user's libs last *)

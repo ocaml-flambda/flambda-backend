@@ -75,6 +75,8 @@ module S = struct
     | Compf of Mach.float_comparison (* CR gyorsh: can merge with float_test? *)
     | Floatofint
     | Intoffloat
+    | Valueofint
+    | Intofvalue
     | Probe_is_enabled of { name : string }
     | Opaque
     | Begin_region

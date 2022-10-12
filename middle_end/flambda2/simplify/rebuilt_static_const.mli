@@ -28,28 +28,9 @@ val print : Format.formatter -> t -> unit
 
 val create_code :
   Are_rebuilding_terms.t ->
-  Code_id.t ->
   params_and_body:Rebuilt_expr.Function_params_and_body.t ->
   free_names_of_params_and_body:Name_occurrences.t ->
-  newer_version_of:Code_id.t option ->
-  params_arity:Flambda_arity.With_subkinds.t ->
-  num_trailing_local_params:int ->
-  result_arity:Flambda_arity.With_subkinds.t ->
-  result_types:Result_types.t ->
-  contains_no_escaping_local_allocs:bool ->
-  stub:bool ->
-  inline:Inline_attribute.t ->
-  is_a_functor:bool ->
-  recursive:Recursive.t ->
-  cost_metrics:Cost_metrics.t ->
-  inlining_arguments:Inlining_arguments.t ->
-  dbg:Debuginfo.t ->
-  is_tupled:bool ->
-  is_my_closure_used:bool ->
-  inlining_decision:Function_decl_inlining_decision_type.t ->
-  absolute_history:Inlining_history.Absolute.t ->
-  relative_history:Inlining_history.Relative.t ->
-  t
+  t Code_metadata.create_type
 
 (* This function should be used when a [Code.t] is already in hand, e.g. from
    the input term to the simplifier, rather than when one needs to be

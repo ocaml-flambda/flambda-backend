@@ -65,7 +65,7 @@ let [@ocamlformat "disable"] print ppf t =
   | Never_inlined_attribute ->
     Format.fprintf ppf "Never_inlined_attribute"
   | Attribute_always ->
-    Format.fprintf ppf "Attribute_unroll"
+    Format.fprintf ppf "Attribute_always"
   | Definition_says_inline { was_inline_always } ->
     Format.fprintf ppf
       "@[<hov 1>(Definition_says_inline@ \

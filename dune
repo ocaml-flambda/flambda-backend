@@ -8,21 +8,6 @@
 ;*                                                                        *
 ;**************************************************************************
 
-; set warning as error in release profile
-
-(env
- (main
-  (flags
-   (:standard -warn-error +A))
-  (ocamlopt_flags
-   ;; CR gyorsh: it is not clear what the ":standard" flags are, and they
-   ;; may change depending on the version of dune.
-   ;; Consider hard-coded flags, such as -O3.
-   (:standard -alloc-check)))
- (boot
-  (flags
-   (:standard -warn-error +A))))
-
 ; Since upstream has the middle end code inside ocamloptcomp, we do the
 ; same for the moment.
 
@@ -96,16 +81,14 @@
   backend_var
   clambda
   clambda_primitives
-  compilation_unit
   compilenv
   mangling
   convert_primitives
   internal_variable_names
-  linkage_name
   printclambda
   printclambda_primitives
   semantics_of_primitives
-  symbol
+  symbol_utils
   variable
   ;; middle_end/closure/
   closure
@@ -399,6 +382,7 @@
    %{dep:backend/debug/dwarf/dwarf_high/dwarf_high.a}
    %{dep:backend/debug/dwarf/dwarf_ocaml/dwarf_ocaml.a}
    %{dep:flambda_backend_common.a}
+   %{dep:middle_end/flambda2/import/flambda2_import.a}
    %{dep:middle_end/flambda2/ui/flambda2_ui.a}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.a}
    %{dep:middle_end/flambda2/numbers/flambda2_numbers.a}
@@ -433,6 +417,7 @@
    %{dep:backend/debug/dwarf/dwarf_high/dwarf_high.cma}
    %{dep:backend/debug/dwarf/dwarf_ocaml/dwarf_ocaml.cma}
    %{dep:flambda_backend_common.cma}
+   %{dep:middle_end/flambda2/import/flambda2_import.cma}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cma}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cma}
    %{dep:middle_end/flambda2/numbers/flambda2_numbers.cma}
@@ -467,6 +452,7 @@
    %{dep:backend/debug/dwarf/dwarf_high/dwarf_high.cmxa}
    %{dep:backend/debug/dwarf/dwarf_ocaml/dwarf_ocaml.cmxa}
    %{dep:flambda_backend_common.cmxa}
+   %{dep:middle_end/flambda2/import/flambda2_import.cmxa}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cmxa}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cmxa}
    %{dep:middle_end/flambda2/numbers/flambda2_numbers.cmxa}
@@ -498,9 +484,12 @@
 
 (install
  (files
-  (external/owee/libcompiler_owee_stubs_native.a
+  (external/owee/libcompiler_owee_stubs.a
    as
-   compiler-libs/libcompiler_owee_stubs_native.a)
+   compiler-libs/libcompiler_owee_stubs.a)
+  (external/owee/libcompiler_owee_stubs.a
+   as
+   compiler-libs/libcompiler_owee_stubs_native.a) ; for special_dune compat
   (ocamloptcomp_with_flambda2.cma as compiler-libs/ocamloptcomp.cma)
   (ocamloptcomp_with_flambda2.cmxa as compiler-libs/ocamloptcomp.cmxa)
   (ocamloptcomp_with_flambda2.a as compiler-libs/ocamloptcomp.a))
@@ -517,16 +506,13 @@
   (backend_var.mli as compiler-libs/backend_var.mli)
   (clambda.mli as compiler-libs/clambda.mli)
   (clambda_primitives.mli as compiler-libs/clambda_primitives.mli)
-  (compilation_unit.mli as compiler-libs/compilation_unit.mli)
   (compilenv.mli as compiler-libs/compilenv.mli)
   (mangling.mli as compiler-libs/mangling.mli)
   (convert_primitives.mli as compiler-libs/convert_primitives.mli)
   (internal_variable_names.mli as compiler-libs/internal_variable_names.mli)
-  (linkage_name.mli as compiler-libs/linkage_name.mli)
   (printclambda.mli as compiler-libs/printclambda.mli)
   (printclambda_primitives.mli as compiler-libs/printclambda_primitives.mli)
   (semantics_of_primitives.mli as compiler-libs/semantics_of_primitives.mli)
-  (symbol.mli as compiler-libs/symbol.mli)
   (variable.mli as compiler-libs/variable.mli)
   (closure.mli as compiler-libs/closure.mli)
   (closure_middle_end.mli as compiler-libs/closure_middle_end.mli)
@@ -1883,18 +1869,6 @@
   (.ocamloptcomp.objs/byte/cmxs_format.cmti
    as
    compiler-libs/cmxs_format.cmti)
-  (.ocamloptcomp.objs/byte/compilation_unit.cmi
-   as
-   compiler-libs/compilation_unit.cmi)
-  (.ocamloptcomp.objs/byte/compilation_unit.cmo
-   as
-   compiler-libs/compilation_unit.cmo)
-  (.ocamloptcomp.objs/byte/compilation_unit.cmt
-   as
-   compiler-libs/compilation_unit.cmt)
-  (.ocamloptcomp.objs/byte/compilation_unit.cmti
-   as
-   compiler-libs/compilation_unit.cmti)
   (.ocamloptcomp.objs/byte/compilenv.cmi as compiler-libs/compilenv.cmi)
   (.ocamloptcomp.objs/byte/compilenv.cmo as compiler-libs/compilenv.cmo)
   (.ocamloptcomp.objs/byte/compilenv.cmt as compiler-libs/compilenv.cmt)
@@ -2223,18 +2197,6 @@
   (.ocamloptcomp.objs/byte/lift_let_to_initialize_symbol.cmti
    as
    compiler-libs/lift_let_to_initialize_symbol.cmti)
-  (.ocamloptcomp.objs/byte/linkage_name.cmi
-   as
-   compiler-libs/linkage_name.cmi)
-  (.ocamloptcomp.objs/byte/linkage_name.cmo
-   as
-   compiler-libs/linkage_name.cmo)
-  (.ocamloptcomp.objs/byte/linkage_name.cmt
-   as
-   compiler-libs/linkage_name.cmt)
-  (.ocamloptcomp.objs/byte/linkage_name.cmti
-   as
-   compiler-libs/linkage_name.cmti)
   (.ocamloptcomp.objs/byte/mutable_variable.cmi
    as
    compiler-libs/mutable_variable.cmi)
@@ -2465,10 +2427,10 @@
   (.ocamloptcomp.objs/byte/static_exception.cmti
    as
    compiler-libs/static_exception.cmti)
-  (.ocamloptcomp.objs/byte/symbol.cmi as compiler-libs/symbol.cmi)
-  (.ocamloptcomp.objs/byte/symbol.cmo as compiler-libs/symbol.cmo)
-  (.ocamloptcomp.objs/byte/symbol.cmt as compiler-libs/symbol.cmt)
-  (.ocamloptcomp.objs/byte/symbol.cmti as compiler-libs/symbol.cmti)
+  (.ocamloptcomp.objs/byte/symbol_utils.cmi as compiler-libs/symbol_utils.cmi)
+  (.ocamloptcomp.objs/byte/symbol_utils.cmo as compiler-libs/symbol_utils.cmo)
+  (.ocamloptcomp.objs/byte/symbol_utils.cmt as compiler-libs/symbol_utils.cmt)
+  (.ocamloptcomp.objs/byte/symbol_utils.cmti as compiler-libs/symbol_utils.cmti)
   (.ocamloptcomp.objs/byte/tag.cmi as compiler-libs/tag.cmi)
   (.ocamloptcomp.objs/byte/tag.cmo as compiler-libs/tag.cmo)
   (.ocamloptcomp.objs/byte/tag.cmt as compiler-libs/tag.cmt)
@@ -2541,30 +2503,6 @@
   (.ocamloptcomp.objs/byte/variable.cmo as compiler-libs/variable.cmo)
   (.ocamloptcomp.objs/byte/variable.cmt as compiler-libs/variable.cmt)
   (.ocamloptcomp.objs/byte/variable.cmti as compiler-libs/variable.cmti)
-  (ocaml/.ocamlcommon.objs/byte/extensions.cmi
-   as
-   compiler-libs/extensions.cmi)
-  (ocaml/.ocamlcommon.objs/byte/extensions.cmo
-   as
-   compiler-libs/extensions.cmo)
-  (ocaml/.ocamlcommon.objs/byte/extensions.cmt
-   as
-   compiler-libs/extensions.cmt)
-  (ocaml/.ocamlcommon.objs/byte/extensions.cmti
-   as
-   compiler-libs/extensions.cmti)
-  (ocaml/.ocamlcommon.objs/byte/translcomprehension.cmi
-   as
-   compiler-libs/translcomprehension.cmi)
-  (ocaml/.ocamlcommon.objs/byte/translcomprehension.cmo
-   as
-   compiler-libs/translcomprehension.cmo)
-  (ocaml/.ocamlcommon.objs/byte/translcomprehension.cmt
-   as
-   compiler-libs/translcomprehension.cmt)
-  (ocaml/.ocamlcommon.objs/byte/translcomprehension.cmti
-   as
-   compiler-libs/translcomprehension.cmti)
   (.ocamloptcomp.objs/native/alias_analysis.cmx
    as
    compiler-libs/alias_analysis.cmx)
@@ -2604,9 +2542,6 @@
   (.ocamloptcomp.objs/native/closure_origin.cmx
    as
    compiler-libs/closure_origin.cmx)
-  (.ocamloptcomp.objs/native/compilation_unit.cmx
-   as
-   compiler-libs/compilation_unit.cmx)
   (.ocamloptcomp.objs/native/compilenv.cmx as compiler-libs/compilenv.cmx)
   (.ocamloptcomp.objs/native/mangling.cmx as compiler-libs/mangling.cmx)
   (.ocamloptcomp.objs/native/convert_primitives.cmx
@@ -2689,9 +2624,6 @@
   (.ocamloptcomp.objs/native/lift_let_to_initialize_symbol.cmx
    as
    compiler-libs/lift_let_to_initialize_symbol.cmx)
-  (.ocamloptcomp.objs/native/linkage_name.cmx
-   as
-   compiler-libs/linkage_name.cmx)
   (.ocamloptcomp.objs/native/mutable_variable.cmx
    as
    compiler-libs/mutable_variable.cmx)
@@ -2748,7 +2680,7 @@
   (.ocamloptcomp.objs/native/static_exception.cmx
    as
    compiler-libs/static_exception.cmx)
-  (.ocamloptcomp.objs/native/symbol.cmx as compiler-libs/symbol.cmx)
+  (.ocamloptcomp.objs/native/symbol_utils.cmx as compiler-libs/symbol_utils.cmx)
   (.ocamloptcomp.objs/native/tag.cmx as compiler-libs/tag.cmx)
   (.ocamloptcomp.objs/native/traverse_for_exported_symbols.cmx
    as
@@ -2773,13 +2705,7 @@
   (backend/asm_targets/.asm_targets.objs/native/asm_targets.cmx
    as
    compiler-libs/asm_targets.cmx)
-  (.ocamloptcomp.objs/native/cfg_format.cmx as compiler-libs/cfg_format.cmx)
-  (ocaml/.ocamlcommon.objs/native/extensions.cmx
-   as
-   compiler-libs/extensions.cmx)
-  (ocaml/.ocamlcommon.objs/native/translcomprehension.cmx
-   as
-   compiler-libs/translcomprehension.cmx)))
+  (.ocamloptcomp.objs/native/cfg_format.cmx as compiler-libs/cfg_format.cmx)))
 
 (install
  (section lib)

@@ -45,7 +45,8 @@ module IR : sig
         { prim : Lambda.primitive;
           args : simple list;
           loc : Lambda.scoped_location;
-          exn_continuation : exn_continuation option
+          exn_continuation : exn_continuation option;
+          region : Ident.t
         }
 
   type apply_kind =
@@ -65,7 +66,8 @@ module IR : sig
       region_close : Lambda.region_close;
       inlined : Lambda.inlined_attribute;
       probe : Lambda.probe;
-      mode : Lambda.alloc_mode
+      mode : Lambda.alloc_mode;
+      region : Ident.t
     }
 
   type switch =
@@ -267,6 +269,7 @@ module Function_decls : sig
       return:Lambda.value_kind ->
       return_continuation:Continuation.t ->
       exn_continuation:IR.exn_continuation ->
+      my_region:Ident.t ->
       body:(Acc.t -> Env.t -> Acc.t * Flambda.Import.Expr.t) ->
       attr:Lambda.function_attribute ->
       loc:Lambda.scoped_location ->
@@ -292,6 +295,8 @@ module Function_decls : sig
 
     val exn_continuation : t -> IR.exn_continuation
 
+    val my_region : t -> Ident.t
+
     val body : t -> Acc.t -> Env.t -> Acc.t * Flambda.Import.Expr.t
 
     val inline : t -> Lambda.inline_attribute
@@ -299,6 +304,8 @@ module Function_decls : sig
     val specialise : t -> Lambda.specialise_attribute
 
     val is_a_functor : t -> bool
+
+    val check_attribute : t -> Lambda.check_attribute
 
     val stub : t -> bool
 

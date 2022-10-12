@@ -23,6 +23,7 @@ val print : Format.formatter -> t -> unit
 val create :
   return_continuation:Continuation.t ->
   exn_continuation:Continuation.t ->
+  toplevel_my_region:Variable.t ->
   body:Flambda.Expr.t ->
   module_symbol:Symbol.t ->
   used_value_slots:Value_slot.Set.t Or_unknown.t ->
@@ -31,6 +32,8 @@ val create :
 val return_continuation : t -> Continuation.t
 
 val exn_continuation : t -> Continuation.t
+
+val toplevel_my_region : t -> Variable.t
 
 val module_symbol : t -> Symbol.t
 

@@ -42,7 +42,7 @@ let abstract_type =
 
 let rec address path event = function
   | Env.Aident id ->
-      if Ident.global id then
+      if Ident.is_global_or_predef id then
         try
           Debugcom.Remote_value.global (Symtable.get_global_position id)
         with Symtable.Error _ -> raise(Error(Unbound_identifier id))

@@ -1,0 +1,8 @@
+(include_subdirs unqualified)
+
+(library
+ (name flambda2_import)
+ (instrumentation (backend bisect_ppx))
+ (ocamlopt_flags
+  (:standard -O3))
+ (libraries ocamlcommon))

@@ -17,7 +17,7 @@
 type t =
   { function_decls : Function_declarations.t;
     value_slots : Simple.t Value_slot.Map.t;
-    alloc_mode : Alloc_mode.t
+    alloc_mode : Alloc_mode.With_region.t
   }
 
 let [@ocamlformat "disable"] print ppf
@@ -33,7 +33,7 @@ let [@ocamlformat "disable"] print ppf
     Flambda_colours.pop
     (Function_declarations.print) function_decls
     (Value_slot.Map.print Simple.print) value_slots
-    Alloc_mode.print alloc_mode
+    Alloc_mode.With_region.print alloc_mode
 
 include Container_types.Make (struct
   type nonrec t = t
@@ -56,7 +56,9 @@ include Container_types.Make (struct
     then c
     else
       let c = Value_slot.Map.compare Simple.compare value_slots1 value_slots2 in
-      if c <> 0 then c else Alloc_mode.compare alloc_mode1 alloc_mode2
+      if c <> 0
+      then c
+      else Alloc_mode.With_region.compare alloc_mode1 alloc_mode2
 
   let equal t1 t2 = compare t1 t2 = 0
 end)
@@ -87,7 +89,7 @@ let [@ocamlformat "disable"] print ppf
         )@]"
       Flambda_colours.prim_constructive
       Flambda_colours.pop
-      Alloc_mode.print alloc_mode
+      Alloc_mode.With_region.print alloc_mode
       (Function_declarations.print) function_decls
   else
     Format.fprintf ppf "@[<hov 1>(%tset_of_closures%t@ %a@ \
@@ -96,7 +98,7 @@ let [@ocamlformat "disable"] print ppf
         )@]"
       Flambda_colours.prim_constructive
       Flambda_colours.pop
-      Alloc_mode.print alloc_mode
+      Alloc_mode.With_region.print alloc_mode
       Function_declarations.print function_decls
       (Value_slot.Map.print Simple.print) value_slots
 
@@ -113,6 +115,7 @@ let free_names { function_decls; value_slots; alloc_mode = _ } =
     [Function_declarations.free_names function_decls; free_names_of_value_slots]
 
 let apply_renaming ({ function_decls; value_slots; alloc_mode } as t) renaming =
+  let alloc_mode' = Alloc_mode.With_region.apply_renaming alloc_mode renaming in
   let function_decls' =
     Function_declarations.apply_renaming function_decls renaming
   in
@@ -130,18 +133,25 @@ let apply_renaming ({ function_decls; value_slots; alloc_mode } as t) renaming =
           None))
       value_slots
   in
-  if function_decls == function_decls' && not !changed
+  if alloc_mode == alloc_mode'
+     && function_decls == function_decls'
+     && not !changed
   then t
   else
-    { function_decls = function_decls'; value_slots = value_slots'; alloc_mode }
+    { function_decls = function_decls';
+      value_slots = value_slots';
+      alloc_mode = alloc_mode'
+    }
 
-let ids_for_export { function_decls; value_slots; alloc_mode = _ } =
+let ids_for_export { function_decls; value_slots; alloc_mode } =
   let function_decls_ids =
     Function_declarations.ids_for_export function_decls
   in
-  Value_slot.Map.fold
-    (fun _value_slot simple ids -> Ids_for_export.add_simple ids simple)
-    value_slots function_decls_ids
+  Ids_for_export.union
+    (Value_slot.Map.fold
+       (fun _value_slot simple ids -> Ids_for_export.add_simple ids simple)
+       value_slots function_decls_ids)
+    (Alloc_mode.With_region.ids_for_export alloc_mode)
 
 let filter_function_declarations t ~f =
   let function_decls = Function_declarations.filter t.function_decls ~f in

@@ -63,7 +63,8 @@ let rec build_closure_env env_param pos = function
    contain the right names if the -for-pack option is active. *)
 
 let getglobal dbg id =
-  Uprim(P.Pread_symbol (Compilenv.symbol_for_global id), [], dbg)
+  let symbol = Compilenv.symbol_for_global id |> Linkage_name.to_string in
+  Uprim (P.Pread_symbol symbol, [], dbg)
 
 let region ulam =
   let is_trivial =
@@ -1207,7 +1208,8 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
   | Lprim(Pignore, [arg], _loc) ->
       let expr, approx = make_const_int 0 in
       Usequence(fst (close env arg), expr), approx
-  | Lprim((Pidentity | Pbytes_to_string | Pbytes_of_string), [arg], _loc) ->
+  | Lprim((Pidentity | Pbytes_to_string | Pbytes_of_string | Pobj_magic),
+          [arg], _loc) ->
       close env arg
   | Lprim(Pdirapply pos,[funct;arg], loc)
   | Lprim(Prevapply pos,[arg;funct], loc) ->
@@ -1394,10 +1396,15 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
   let uncurried_defs =
     List.map
       (function
-          (id, Lfunction({kind; params; return; body; loc; mode; region}
+          (id, Lfunction({kind; params; return; body; attr; loc; mode; region}
                          as funct)) ->
             Lambda.check_lfunction funct;
-            let label = Compilenv.make_fun_symbol loc (V.unique_name id) in
+            let attrib = attr.check in
+            let label =
+              Symbol_utils.for_fun_ident ~compilation_unit:None loc id
+              |> Symbol.linkage_name
+              |> Linkage_name.to_string
+            in
             let arity = List.length params in
             let fundesc =
               {fun_label = label;
@@ -1407,20 +1414,20 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
                fun_float_const_prop = !Clflags.float_const_prop;
                fun_region = region} in
             let dbg = Debuginfo.from_location loc in
-            (id, params, return, body, mode, fundesc, dbg)
+            (id, params, return, body, mode, attrib, fundesc, dbg)
         | (_, _) -> fatal_error "Closure.close_functions")
       fun_defs in
   (* Build an approximate fenv for compiling the functions *)
   let fenv_rec =
     List.fold_right
-      (fun (id, _params, _return, _body, mode, fundesc, _dbg) fenv ->
+      (fun (id, _params, _return, _body, mode, _attrib, fundesc, _dbg) fenv ->
         V.Map.add id (Value_closure(mode, fundesc, Value_unknown)) fenv)
       uncurried_defs fenv in
   (* Determine the offsets of each function's closure in the shared block *)
   let env_pos = ref (-1) in
   let clos_offsets =
     List.map
-      (fun (_id, _params, _return, _body, _mode, fundesc, _dbg) ->
+      (fun (_id, _params, _return, _body, _mode, _attrib, fundesc, _dbg) ->
         let pos = !env_pos + 1 in
         env_pos := !env_pos + 1 +
           (match fundesc.fun_arity with (Curried _, (0|1)) -> 2 | _ -> 3);
@@ -1431,13 +1438,13 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
      does not use its environment parameter is invalidated. *)
   let useless_env = ref initially_closed in
   (* Translate each function definition *)
-  let clos_fundef (id, params, return, body, mode, fundesc, dbg) env_pos =
+  let clos_fundef (id, params, return, body, mode, check, fundesc, dbg) env_pos =
     let env_param = V.create_local "env" in
     let cenv_fv =
       build_closure_env env_param (fv_pos - env_pos) fv in
     let cenv_body =
       List.fold_right2
-        (fun (id, _params, _return, _body, _mode, _fundesc, _dbg) pos env ->
+        (fun (id, _params, _return, _body, _mode, _attrib, _fundesc, _dbg) pos env ->
           V.Map.add id (Uoffset(Uvar env_param, pos - env_pos)) env)
         uncurried_defs clos_offsets cenv_fv in
     let (ubody, approx) =
@@ -1459,6 +1466,7 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
         dbg;
         env = Some env_param;
         mode;
+        check;
       }
     in
     (* give more chance of function with default parameters (i.e.
@@ -1497,7 +1505,7 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
          recompile *)
         Compilenv.backtrack snap; (* PR#6337 *)
         List.iter
-          (fun (_id, _params, _return, _body, _mode, fundesc, _dbg) ->
+          (fun (_id, _params, _return, _body, _mode, _attrib, fundesc, _dbg) ->
              fundesc.fun_closed <- false;
              fundesc.fun_inline <- None;
           )
@@ -1645,7 +1653,11 @@ let reset () =
 
 let intro ~backend ~size lam =
   reset ();
-  let id = Compilenv.make_symbol None in
+  let id =
+    Symbol.for_current_unit ()
+    |> Symbol.linkage_name
+    |> Linkage_name.to_string
+  in
   global_approx := Array.init size (fun i -> Value_global_field (id, i));
   Compilenv.set_global_approx(Value_tuple (alloc_heap, !global_approx));
   let (ulam, _approx) =
@@ -1654,7 +1666,10 @@ let intro ~backend ~size lam =
   in
   let opaque =
     !Clflags.opaque
-    || Env.is_imported_opaque (Compilenv.current_unit_name ())
+    || Env.is_imported_opaque
+         (Compilation_unit.get_current_exn ()
+          |> Compilation_unit.name
+          |> Compilation_unit.Name.to_string)
   in
   if opaque
   then Compilenv.set_global_approx(Value_unknown)

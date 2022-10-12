@@ -202,6 +202,7 @@ and operation =
   | Cnegf | Cabsf
   | Caddf | Csubf | Cmulf | Cdivf
   | Cfloatofint | Cintoffloat
+  | Cvalueofint | Cintofvalue
   | Ccmpf of float_comparison
   | Craise of Lambda.raise_kind
   | Ccheckbound (* Takes two arguments : first the bound to check against,
@@ -253,11 +254,15 @@ type expression =
   | Cregion of expression
   | Ctail of expression
 
+type property =
+  | Noalloc
+
 type codegen_option =
   | Reduce_code_size
   | No_CSE
   | Use_linscan_regalloc
-  | Noalloc_check
+  | Assert of property
+  | Assume of property
 
 type fundecl =
   { fun_name: string;

@@ -241,6 +241,8 @@ let dump_op ppf = function
   | Compf _ -> Format.fprintf ppf "compf"
   | Floatofint -> Format.fprintf ppf "floattoint"
   | Intoffloat -> Format.fprintf ppf "intoffloat"
+  | Valueofint -> Format.fprintf ppf "valueofint"
+  | Intofvalue -> Format.fprintf ppf "intofvalue"
   | Specific _ -> Format.fprintf ppf "specific"
   | Probe_is_enabled { name } -> Format.fprintf ppf "probe_is_enabled %s" name
   | Opaque -> Format.fprintf ppf "opaque"
@@ -426,6 +428,10 @@ let is_pure_operation : operation -> bool = function
   | Compf _ -> true
   | Floatofint -> true
   | Intoffloat -> true
+  (* Conservative to ensure valueofint/intofvalue are not eliminated before
+     emit. *)
+  | Valueofint -> false
+  | Intofvalue -> false
   | Probe_is_enabled _ -> true
   | Opaque -> false
   | Begin_region -> false
@@ -455,15 +461,17 @@ let is_pure_basic : basic -> bool = function
 
 let is_noop_move instr =
   match instr.desc with
-  | Op (Move | Spill | Reload) -> (
-    match instr.arg.(0).loc with
+  | Op (Move | Spill | Reload) ->
+    (match instr.arg.(0).loc with
     | Unknown -> false
     | Reg _ | Stack _ -> Reg.same_loc instr.arg.(0) instr.res.(0))
+    && Proc.register_class instr.arg.(0) = Proc.register_class instr.res.(0)
   | Op
       ( Const_int _ | Const_float _ | Const_symbol _ | Stackoffset _ | Load _
       | Store _ | Intop _ | Intop_imm _ | Negf | Absf | Addf | Subf | Mulf
-      | Divf | Compf _ | Floatofint | Intoffloat | Opaque | Probe_is_enabled _
-      | Specific _ | Name_for_debugger _ | Begin_region | End_region )
+      | Divf | Compf _ | Floatofint | Intoffloat | Opaque | Valueofint
+      | Intofvalue | Probe_is_enabled _ | Specific _ | Name_for_debugger _
+      | Begin_region | End_region )
   | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
     false
 

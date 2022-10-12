@@ -96,14 +96,14 @@ val create_names : Name.Set.t -> Name_mode.t -> t
 
 (* val create_value_slots : Value_slot.Set.t -> t *)
 
-(** [diff t1 t2] removes from [t1] all those names that occur in [t2].
+(** [diff t1 ~without:t2] removes from [t1] all those names that occur in [t2].
 
     The number of occurrences of any names in the return value will be exactly
     the same as in [t1].
 
     Note that a code ID in [t2] will not only be removed from the code ID set in
     [t1] but also the newer-version-of code ID set in [t1]. *)
-val diff : t -> t -> t
+val diff : t -> without:t -> t
 
 val union : t -> t -> t
 
@@ -171,11 +171,11 @@ val mem_code_id : t -> Code_id.t -> bool
 
 val value_slot_is_used_or_imported : t -> Value_slot.t -> bool
 
-val remove_var : t -> Variable.t -> t
+val remove_var : t -> var:Variable.t -> t
 
-val remove_code_id_or_symbol : t -> Code_id_or_symbol.t -> t
+val remove_code_id_or_symbol : t -> code_id_or_symbol:Code_id_or_symbol.t -> t
 
-val remove_continuation : t -> Continuation.t -> t
+val remove_continuation : t -> continuation:Continuation.t -> t
 
 val greatest_name_mode_var : t -> Variable.t -> Name_mode.Or_absent.t
 

@@ -22,7 +22,7 @@ let test_meet_chains_two_vars () =
   let env =
     TE.add_equation env (Name.var var1)
       (T.immutable_block ~is_unique:false Tag.zero ~field_kind:K.value
-         (Known Heap) ~fields:[T.any_tagged_immediate])
+         (Known Alloc_mode.heap) ~fields:[T.any_tagged_immediate])
   in
   let var2 = Variable.create "var2" in
   let var2' = Bound_var.create var2 Name_mode.normal in
@@ -32,7 +32,7 @@ let test_meet_chains_two_vars () =
   let symbol =
     Symbol.create
       (Compilation_unit.get_current_exn ())
-      (Linkage_name.create "my_symbol")
+      (Linkage_name.of_string "my_symbol")
   in
   let env = TE.add_definition env (Bound_name.create_symbol symbol) K.value in
   Format.eprintf "Initial situation:@ %a\n%!" TE.print env;
@@ -55,7 +55,7 @@ let test_meet_chains_three_vars () =
   let env =
     TE.add_equation env (Name.var var1)
       (T.immutable_block ~is_unique:false Tag.zero ~field_kind:K.value
-         (Known Heap) ~fields:[T.any_tagged_immediate])
+         (Known Alloc_mode.heap) ~fields:[T.any_tagged_immediate])
   in
   let var2 = Variable.create "var2" in
   let var2' = Bound_var.create var2 Name_mode.normal in
@@ -70,7 +70,7 @@ let test_meet_chains_three_vars () =
   let symbol =
     Symbol.create
       (Compilation_unit.get_current_exn ())
-      (Linkage_name.create "my_symbol")
+      (Linkage_name.of_string "my_symbol")
   in
   let env = TE.add_definition env (Bound_name.create_symbol symbol) K.value in
   Format.eprintf "Initial situation:@ %a\n%!" TE.print env;
@@ -106,7 +106,7 @@ let meet_variants_don't_lose_aliases () =
           Tag.Scannable.create_exn 1, [T.alias_type_of K.value (Simple.var vy)]
         ]
     in
-    T.variant ~const_ctors ~non_const_ctors (Known Heap)
+    T.variant ~const_ctors ~non_const_ctors (Known Alloc_mode.heap)
   in
   let ty2 =
     let non_const_ctors =
@@ -115,7 +115,7 @@ let meet_variants_don't_lose_aliases () =
           Tag.Scannable.create_exn 1, [T.alias_type_of K.value (Simple.var vb)]
         ]
     in
-    T.variant ~const_ctors ~non_const_ctors (Known Heap)
+    T.variant ~const_ctors ~non_const_ctors (Known Alloc_mode.heap)
   in
   match T.meet env ty1 ty2 with
   | Bottom -> assert false
@@ -149,13 +149,13 @@ let test_meet_two_blocks () =
   let env =
     TE.add_equation env (Name.var block1)
       (T.immutable_block ~is_unique:false Tag.zero ~field_kind:K.value
-         (Known Heap)
+         (Known Alloc_mode.heap)
          ~fields:[T.alias_type_of K.value (Simple.var field1)])
   in
   let env =
     TE.add_equation env (Name.var block2)
       (T.immutable_block ~is_unique:false Tag.zero ~field_kind:K.value
-         (Known Heap)
+         (Known Alloc_mode.heap)
          ~fields:[T.alias_type_of K.value (Simple.var field2)])
   in
   (* let test b1 b2 env =
@@ -185,7 +185,8 @@ let test_meet_two_blocks () =
 
 let () =
   let comp_unit =
-    Compilation_unit.create ~name:"Meet_test" (Linkage_name.create "meet_test")
+    Compilation_unit.create Compilation_unit.Prefix.empty
+      ("Meet_test" |> Compilation_unit.Name.of_string)
   in
   Compilation_unit.set_current comp_unit;
   Format.eprintf "MEET CHAINS WITH TWO VARS@\n@.";

@@ -6,7 +6,7 @@
 (*           Mark Shinwell and Leo White, Jane Street Europe              *)
 (*                                                                        *)
 (*   Copyright 2013--2016 OCamlPro SAS                                    *)
-(*   Copyright 2014--2016 Jane Street Group LLC                           *)
+(*   Copyright 2014--2021 Jane Street Group LLC                           *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -14,30 +14,18 @@
 (*                                                                        *)
 (**************************************************************************)
 
-include Container_types.S
+[@@@ocaml.warning "+a-30-40-41-42"]
 
-val create : name:string -> Linkage_name.t -> t
+val for_fun_ident
+   : compilation_unit:Compilation_unit.t option
+  -> Debuginfo.Scoped_location.t
+  -> Ident.t
+  -> Symbol.t
 
-val name : t -> string
+module Flambda : sig
+  val for_variable : Variable.t -> Symbol.t
+  val for_closure : Closure_id.t -> Symbol.t
+  val for_code_of_closure : Closure_id.t -> Symbol.t
 
-val get_persistent_ident : t -> Ident.t
-
-val get_linkage_name : t -> Linkage_name.t
-
-val set_current : t -> unit
-
-val get_current : unit -> t option
-
-val get_current_exn : unit -> t
-
-val is_current : t -> bool
-
-val string_for_printing : t -> string
-
-val predefined_exception : unit -> t
-
-val external_symbols : unit -> t
-
-val is_predefined_exception : t -> bool
-
-val is_external_symbols : t -> bool
+  val import_for_pack : Symbol.t -> pack:Compilation_unit.Prefix.t -> Symbol.t
+end

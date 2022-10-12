@@ -23,8 +23,8 @@ open Interval
 
 module V = Backend_var
 
-let loc ?(wrap_out = fun ppf f -> f ppf) ~reg_class ~unknown ppf l = 
-  match l with 
+let loc ?(wrap_out = fun ppf f -> f ppf) ~reg_class ~unknown ppf l =
+  match l with
   | Unknown -> unknown ppf
   | Reg r ->
       wrap_out ppf (fun ppf -> fprintf ppf "%s" (Proc.register_name r))
@@ -188,6 +188,8 @@ let operation' ?(print_reg = reg) op arg ppf res =
   | Idivf -> fprintf ppf "%a /f %a" reg arg.(0) reg arg.(1)
   | Ifloatofint -> fprintf ppf "floatofint %a" reg arg.(0)
   | Iintoffloat -> fprintf ppf "intoffloat %a" reg arg.(0)
+  | Ivalueofint -> fprintf ppf "valueofint %a" reg arg.(0)
+  | Iintofvalue -> fprintf ppf "intofvalue %a" reg arg.(0)
   | Iopaque -> fprintf ppf "opaque %a" reg arg.(0)
   | Iname_for_debugger { ident; which_parameter; } ->
     fprintf ppf "name_for_debugger %a%s=%a"

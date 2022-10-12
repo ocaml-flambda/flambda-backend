@@ -894,7 +894,9 @@ let[@inline always] simplify_immutable_block_load0
             let prim =
               P.Eligible_for_cse.create
                 (Variadic
-                   (Make_block (block_kind, Immutable, Heap), field_simples))
+                   ( Make_block
+                       (block_kind, Immutable, Alloc_mode.With_region.heap),
+                     field_simples ))
             in
             match prim with
             | None -> result

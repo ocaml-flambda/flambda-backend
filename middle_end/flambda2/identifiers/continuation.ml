@@ -72,7 +72,7 @@ module Data = struct
         @[<hov 1>(name_stamp@ %d)@]@ \
         @[<hov 1>(sort@ %a)@]\
         )@]"
-      Compilation_unit.print compilation_unit
+      Compilation_unit.print_debug compilation_unit
       name
       name_stamp
       Sort.print sort

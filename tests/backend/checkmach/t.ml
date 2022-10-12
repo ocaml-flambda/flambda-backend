@@ -11,17 +11,11 @@ let[@inline never] test1 n =
 
 let[@inline never] test2 n  = List.length(test1 n)
 
-let[@assert noalloc][@inline never] test3 l  = List.length l
+let[@noalloc][@inline never] test3 l  = List.length l
 
-let[@assert noalloc][@inline always] test4 n = (n+1,n)
+let[@noalloc][@inline never] test6 n = n + 37
 
-let[@assert noalloc][@inline never] test5 n =
-  let first,_ = (test4 (n + 1)) in
-  first
-
-let[@assert noalloc][@inline never] test6 n = n + 37
-
-let[@assert noalloc][@inline never] test7 n m = (test6 n) * (test6 m)
+let[@noalloc][@inline never] test7 n m = (test6 n) * (test6 m)
 
 exception Exn_string of string
 exception Exn_int of int
@@ -39,16 +33,16 @@ let[@inline never] test9 n =
   try test8 n
   with _ -> 0
 
-let[@assert noalloc][@inline never] test10 n =
+let[@noalloc][@inline never] test10 n =
   match n with
   | 1 -> raise_notrace Exn
   | _ -> 10
 
-let[@assert noalloc][@inline never] test11 n =
+let[@noalloc][@inline never] test11 n =
   try test10 n
   with Exn -> 10
 
-let[@assert noalloc][@inline never] test12 n =
+let[@noalloc][@inline never] test12 n =
   let test n =
     match n with
     | 1 -> raise Exn
@@ -61,12 +55,12 @@ let[@inline never] test13 n =
   print_int n;
   print_newline ()
 
-let[@inline never] test14 n = Float.of_int n
+let test14 n = Float.of_int n
 
-let[@assert noalloc][@inline never] test15 n = Int64.to_int (Int64.of_float (test14 n))
+let[@noalloc][@inline never] test15 n = Int64.to_int (Int64.of_float (test14 n))
 
-let[@assert noalloc] test16 n m = S.foo n m
-let[@assert noalloc] test17 n m = S.foo (S.foo n n) m
+let[@noalloc] test16 n m = S.foo n m
+let[@noalloc] test17 n m = S.foo (S.foo n n) m
 let test18 n m = S.foo n m
 
 exception Exn3 of (int * int)
@@ -74,9 +68,9 @@ type boo =
   | A
   | B of int
 
-(* CR gyorsh: analysysi for noalloc_exn is not yet implemented.
+(* CR gyorsh: analysis for noalloc_exn is not yet implemented.
    It ignores allocations post-dominated by a raise. *)
-let[@assert noalloc_exn][@inline never] test18 n boo =
+let(* [@noalloc_exn] *)[@inline never] test18 n boo =
   if n > 0 then n + n
   else begin
     let k = 45 in
@@ -96,7 +90,7 @@ let[@inline never] test19 n =
   in
   create n
 
-let[@assert noalloc_exn] rec foo n =
+let(* [@noalloc_exn] *) rec foo n =
   bar (n-1)
-and[@assert noalloc_exn] bar n =
+and(* [@noalloc_exn] *) bar n =
   foo (n-1)
