@@ -497,14 +497,13 @@ let extract_accumulators_from_function outer_dacc ~dacc_after_body
   let outer_dacc =
     DA.add_to_lifted_constant_accumulator ~also_add_to_env:() outer_dacc
       lifted_consts_this_function
-  in
-  ( outer_dacc
     |> DA.with_code_ids_to_remember ~code_ids_to_remember
     |> DA.with_used_value_slots ~used_value_slots
     |> DA.with_shareable_constants ~shareable_constants
     |> DA.with_slot_offsets ~slot_offsets
-    |> DA.with_code_age_relation ~code_age_relation,
-    lifted_consts_this_function )
+    |> DA.with_code_age_relation ~code_age_relation
+  in
+  outer_dacc, lifted_consts_this_function
 
 type simplify_function_body_result =
   { params : Bound_parameters.t;
