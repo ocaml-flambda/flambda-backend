@@ -148,9 +148,8 @@ let compute_closure_types_inside_functions ~denv ~all_sets_of_closures
             T.exactly_this_closure function_slot ~all_function_slots_in_set
               ~all_closure_types_in_set:closure_types_via_aliases
               ~all_value_slots_in_set:value_slot_types_inside_function
-              (Known
-                 (Alloc_mode.With_region.without_region
-                    (Set_of_closures.alloc_mode set_of_closures))))
+              (Alloc_mode.For_allocations.as_type
+                 (Set_of_closures.alloc_mode set_of_closures)))
           all_function_slots_in_set)
       all_sets_of_closures
       (List.combine closure_types_via_aliases_all_sets

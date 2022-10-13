@@ -116,11 +116,11 @@ module type Boxable = sig
 
   val boxable_number_kind : Flambda_kind.Boxable_number.t
 
-  val this_boxed : Num.t -> Alloc_mode.t Or_unknown.t -> Flambda2_types.t
+  val this_boxed : Num.t -> Alloc_mode.For_types.t -> Flambda2_types.t
 
-  val these_boxed : Num.Set.t -> Alloc_mode.t Or_unknown.t -> Flambda2_types.t
+  val these_boxed : Num.Set.t -> Alloc_mode.For_types.t -> Flambda2_types.t
 
-  val box : Flambda2_types.t -> Alloc_mode.t Or_unknown.t -> Flambda2_types.t
+  val box : Flambda2_types.t -> Alloc_mode.For_types.t -> Flambda2_types.t
 end
 
 module type Boxable_number_kind = sig
