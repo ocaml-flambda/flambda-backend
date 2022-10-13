@@ -1487,9 +1487,17 @@ let close_functions acc external_env ~current_region function_declarations =
           let env, symbol =
             declare_symbol_for_function_slot env ident function_slot
           in
+          let approx =
+            match Function_slot.Map.find function_slot approx_map with
+            | Value_approximation.Closure_approximation
+                { code_id; function_slot; code; symbol = _ } ->
+              Value_approximation.Closure_approximation
+                { code_id; function_slot; code; symbol = Some symbol }
+            | _ -> assert false
+            (* see above *)
+          in
           let env =
-            Env.add_value_approximation env (Name.symbol symbol)
-              (Function_slot.Map.find function_slot approx_map)
+            Env.add_value_approximation env (Name.symbol symbol) approx
           in
           env, Function_slot.Map.add function_slot symbol symbol_map)
         function_slots_from_idents
