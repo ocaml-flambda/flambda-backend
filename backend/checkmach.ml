@@ -335,7 +335,11 @@ end = struct
       report_fail t "checkbound" dbg
     | Ialloc { mode = Alloc_local; _ } -> ()
     | Ialloc { mode = Alloc_heap; _ } -> report_fail t "allocation" dbg
-    | Ipoll _ -> report_fail t "polling point" dbg
+    | Ipoll _ ->
+      (* Polling points may trigger finalisers, signal handlers or memprof
+         callbacks, but any allocations done therein don't count towards the
+         calling function being "allocating". *)
+      ()
     | Iprobe { name; handler_code_sym } ->
       let desc = Printf.sprintf "probe %s handler %s" name handler_code_sym in
       check_call t handler_code_sym ~desc dbg
