@@ -67,6 +67,10 @@ let rebuild_apply_cont apply_cont ~args ~rewrite_id uacc ~after_rebuild =
   let uenv = UA.uenv uacc in
   let cont = AC.continuation apply_cont in
   let rewrite = UE.find_apply_cont_rewrite uenv cont in
+  (* CR : when rewriting aliases, we may lose some information that was in the kinds
+     of the continuation being rewritten (e.g. is the continuation bein rewritten
+     had more kind/sub-kind information on its parameters than its alias). We should
+     think of a way to preserve that information. *)
   let cont = UE.resolve_continuation_aliases uenv cont in
   let create_apply_cont ~apply_cont_to_expr =
     (* The function returned by this code accepts another function, which will
