@@ -328,17 +328,11 @@ let read_parse_and_extract parse_function extract_function def ast_kind
     end
   with x -> begin
     print_exception x;
-    if !strict then (
+    if !strict || not !allow_approximation then begin
       Error_occurred.set ();
       (String.Set.empty, def)
-    )
-    else (
-      if not !allow_approximation then begin
-        Error_occurred.set ();
-        (String.Set.empty, def)
-      end else
-        (read_and_approximate source_file, def)
-    )
+    end else
+      (read_and_approximate source_file, def)
   end
 
 let print_ml_dependencies source_file extracted_deps pp_deps =
