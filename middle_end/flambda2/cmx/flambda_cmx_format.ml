@@ -28,13 +28,25 @@ type table_data =
 type t0 =
   { original_compilation_unit : Compilation_unit.t;
     final_typing_env : Flambda2_types.Typing_env.Serializable.t;
-    all_code : Exported_code.t;
+    all_code : Exported_code.raw;
     exported_offsets : Exported_offsets.t;
     used_value_slots : Value_slot.Set.t;
     table_data : table_data
   }
 
 type t = t0 list
+
+type current_sections =
+  {
+    mutable sections_rev : Obj.t list;
+    mutable num_sections : int
+  }
+
+let add_section cs section =
+  let n = cs.num_sections in
+  cs.sections_rev <- (Obj.repr section) :: cs.sections_rev;
+  cs.num_sections <- n + 1;
+  n
 
 let create ~final_typing_env ~all_code ~exported_offsets ~used_value_slots =
   let typing_env_exported_ids =
@@ -79,13 +91,15 @@ let create ~final_typing_env ~all_code ~exported_offsets ~used_value_slots =
   let table_data =
     { symbols; variables; simples; consts; code_ids; continuations }
   in
+  let sections = { sections_rev = []; num_sections = 0 } in
+  let all_code = Exported_code.to_raw ~add_section:(add_section sections) all_code in
   [ { original_compilation_unit = Compilation_unit.get_current_exn ();
       final_typing_env;
       all_code;
       exported_offsets;
       used_value_slots;
       table_data
-    } ]
+    } ], Array.of_list (List.rev sections.sections_rev)
 
 module Make_importer (S : sig
   type t
@@ -134,7 +148,7 @@ module Const_importer = Make_importer (Reg_width_const)
 module Code_id_importer = Make_importer (Code_id)
 module Continuation_importer = Make_importer (Continuation)
 
-let import_typing_env_and_code0 t =
+let import_typing_env_and_code0 ~compilation_unit t =
   let symbols = Symbol_importer.import t.table_data.symbols in
   let variables = Variable_importer.import t.table_data.variables in
   let simples = Simple_importer.import t.table_data.simples in
@@ -151,23 +165,24 @@ let import_typing_env_and_code0 t =
     Flambda2_types.Typing_env.Serializable.apply_renaming t.final_typing_env
       renaming
   in
-  let all_code = Exported_code.apply_renaming code_ids renaming t.all_code in
+  let all_code = Exported_code.from_raw ~compilation_unit t.all_code in
+  let all_code = Exported_code.apply_renaming code_ids renaming all_code in
   typing_env, all_code
 
-let import_typing_env_and_code t =
+let import_typing_env_and_code ~compilation_unit t =
   match t with
   | [] -> Misc.fatal_error "Flambda cmx info should never be empty"
-  | [t0] -> import_typing_env_and_code0 t0
+  | [t0] -> import_typing_env_and_code0 ~compilation_unit t0
   | t0 :: rem ->
     List.fold_left
       (fun (typing_env, code) t0 ->
-        let typing_env0, code0 = import_typing_env_and_code0 t0 in
+        let typing_env0, code0 = import_typing_env_and_code0 ~compilation_unit t0 in
         let typing_env =
           Flambda2_types.Typing_env.Serializable.merge typing_env typing_env0
         in
         let code = Exported_code.merge code code0 in
         typing_env, code)
-      (import_typing_env_and_code0 t0)
+      (import_typing_env_and_code0 ~compilation_unit t0)
       rem
 
 let exported_offsets t =
@@ -175,10 +190,12 @@ let exported_offsets t =
     (fun offsets t0 -> Exported_offsets.merge offsets t0.exported_offsets)
     Exported_offsets.empty t
 
+(*
 let functions_info t =
   List.fold_left
     (fun code t0 -> Exported_code.merge code t0.all_code)
     Exported_code.empty t
+*)
 
 let with_exported_offsets t exported_offsets =
   match t with
@@ -229,13 +246,14 @@ let merge t1_opt t2_opt =
 let print0 ppf t =
   Format.fprintf ppf "@[<hov>Original unit:@ %a@]@;" Compilation_unit.print
     t.original_compilation_unit;
-  Compilation_unit.set_current t.original_compilation_unit;
+  Compilation_unit.set_current t.original_compilation_unit; (*
   let typing_env, code = import_typing_env_and_code0 t in
   Format.fprintf ppf "@[<hov>Typing env:@ %a@]@;"
     Flambda2_types.Typing_env.Serializable.print typing_env;
   Format.fprintf ppf "@[<hov>Code:@ %a@]@;" Exported_code.print code;
   Format.fprintf ppf "@[<hov>Offsets:@ %a@]@;" Exported_offsets.print
-    t.exported_offsets
+    t.exported_offsets *)
+  assert false (* XXX fix this *)
 
 let [@ocamlformat "disable"] print ppf t =
   let rec print_rest ppf = function

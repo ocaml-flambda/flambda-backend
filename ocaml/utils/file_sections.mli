@@ -19,6 +19,8 @@
 val add_unit :
   Compilation_unit.t -> int array -> in_channel -> first_section_offset:int -> unit
 
-val read_section_from_cmx_file : unit:Compilation_unit.t -> index:int -> Obj.t
+val read_section_from_file : unit:Compilation_unit.t -> index:int -> Obj.t
 
 val close_all : unit -> unit
+
+val serialize : Obj.t array -> string array * int array * int

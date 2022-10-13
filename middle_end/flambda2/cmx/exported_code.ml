@@ -15,6 +15,7 @@
 
 module C = Code
 
+type raw = Code_or_metadata.raw Code_id.Map.t
 type t = Code_or_metadata.t Code_id.Map.t
 
 let print ppf t = Code_id.Map.print Code_or_metadata.print ppf t
@@ -118,3 +119,9 @@ let iter_code t ~f =
     (fun _code_id code_or_metadata ->
       Code_or_metadata.iter_code code_or_metadata ~f)
     t
+
+let from_raw ~compilation_unit t =
+  Code_id.Map.map (Code_or_metadata.from_raw ~compilation_unit) t
+
+let to_raw ~add_section t =
+  Code_id.Map.map (Code_or_metadata.to_raw ~add_section) t

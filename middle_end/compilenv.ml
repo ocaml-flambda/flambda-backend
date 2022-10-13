@@ -128,6 +128,8 @@ let current_unit =
     ui_section_toc = [||];
     ui_sections_length = 0 }
 
+let current_sections = ref [||]
+
 let reset compilation_unit =
   CU.Name.Tbl.clear global_infos_table;
   Set_of_closures_id.Tbl.clear imported_sets_of_closures_table;
@@ -147,7 +149,7 @@ let reset compilation_unit =
   merged_environment := Export_info.empty;
   CU.Name.Tbl.clear export_infos_table;
   File_sections.close_all ();
-  Compilation_unit.set_current compilation_unit
+  current_sections := [||]
 
 let current_unit_infos () =
   current_unit
@@ -309,6 +311,8 @@ let flambda2_set_export_info export_info =
   assert(Config.flambda2);
   current_unit.ui_export_info <- Flambda2 (Some export_info)
 
+let set_sections sections = current_sections := sections
+
 (* Determine which .cmx file to load for a given compilation unit.
    This is tricky in the case of packs.  It can be done by lining up the
    desired compilation unit's full path (i.e. pack prefix then unit name)
@@ -398,10 +402,14 @@ let need_send_fun n mode =
 
 (* Write the description of the current unit *)
 
-let write_unit_info info filename =
+let write_unit_info info sections filename =
+  let serialized_sections, toc, total_length = File_sections.serialize sections in
+  info.ui_section_toc <- toc;
+  info.ui_sections_length <- total_length;
   let oc = open_out_bin filename in
   output_string oc cmx_magic_number;
   output_value oc info;
+  Array.iter (output_string oc) serialized_sections;
   flush oc;
   let crc = Digest.file filename in
   Digest.output oc crc;
@@ -409,7 +417,7 @@ let write_unit_info info filename =
 
 let save_unit_info filename =
   current_unit.ui_imports_cmi <- Env.imports();
-  write_unit_info current_unit filename
+  write_unit_info current_unit !current_sections filename
 
 let snapshot () = !structured_constants
 let backtrack s = structured_constants := s

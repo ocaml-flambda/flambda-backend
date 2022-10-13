@@ -14,12 +14,15 @@
 (**************************************************************************)
 
 type t
+type raw
 
-type view = private
+module View : sig
+type t = private
   | Code_present of Code.t
   | Metadata_only of Code_metadata.t
+end
 
-val view : t -> view
+val view : t -> View.t
 
 val print : Format.formatter -> t -> unit
 
@@ -28,6 +31,10 @@ val merge : Code_id.t -> t -> t -> t option
 val create : Code.t -> t
 
 val create_metadata_only : Code_metadata.t -> t
+
+val from_raw : compilation_unit:Compilation_unit.t -> raw -> t
+
+val to_raw : add_section:(Code.t -> int) -> t -> raw
 
 val remember_only_metadata : t -> t
 

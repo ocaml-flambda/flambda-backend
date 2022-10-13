@@ -26,6 +26,7 @@ type t =
 let section_cache : (Compilation_unit.t, t) Hashtbl.t = Hashtbl.create 10
 
 let add_unit unit section_toc channel ~first_section_offset =
+  (* Format.eprintf "Adding unit %a with %i sections.@." Compilation_unit.print unit (Array.length section_toc); *)
   let sections =
     Array.map
       (fun offset ->
@@ -36,7 +37,8 @@ let add_unit unit section_toc channel ~first_section_offset =
   then Misc.fatal_errorf "Unit loaded multiple time %a" Compilation_unit.print unit;
   Hashtbl.add section_cache unit { channel; sections }
 
-let read_section_from_cmx_file ~unit ~index =
+let read_section_from_file ~unit ~index =
+  (* Format.eprintf "Reading section %i from unit %a@." index Compilation_unit.print unit; *)
   match Hashtbl.find_opt section_cache unit with
   | None ->
     Misc.fatal_errorf "Read section %i from an unopened unit %a" index Compilation_unit.print unit
@@ -68,3 +70,19 @@ let close_all () =
         ())
     section_cache;
   Hashtbl.reset section_cache
+
+let compute_toc serialized_sections =
+  let toc = Array.make (Array.length serialized_sections) 0 in
+  let length = ref 0 in
+  for i = 0 to Array.length serialized_sections - 1 do
+    toc.(i) <- !length;
+    length := !length + String.length (serialized_sections.(i))
+  done;
+  toc, !length
+
+let serialize sections =
+  let serialized_sections = Array.map (fun section ->
+      Marshal.to_string section []
+    ) sections in
+  let toc, total_length = compute_toc serialized_sections in
+  serialized_sections, toc, total_length

@@ -17,7 +17,7 @@
 open! Simplify_import
 
 type simplify_result =
-  { cmx : Flambda_cmx_format.t option;
+  { cmx : Flambda_cmx_format.t option * Obj.t array;
     unit : Flambda_unit.t;
     all_code : Exported_code.t;
     exported_offsets : Exported_offsets.t

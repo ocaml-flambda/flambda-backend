@@ -23,14 +23,14 @@ val create :
   all_code:Exported_code.t ->
   exported_offsets:Exported_offsets.t ->
   used_value_slots:Value_slot.Set.t ->
-  t
+  t * Obj.t array
 
 val import_typing_env_and_code :
-  t -> Flambda2_types.Typing_env.Serializable.t * Exported_code.t
+  compilation_unit:Compilation_unit.t -> t -> Flambda2_types.Typing_env.Serializable.t * Exported_code.t
 
 val exported_offsets : t -> Exported_offsets.t
 
-val functions_info : t -> Exported_code.t
+(* val functions_info : t -> Exported_code.t *)
 
 val with_exported_offsets : t -> Exported_offsets.t -> t
 

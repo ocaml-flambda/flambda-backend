@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 type t
+type raw
 
 include Contains_ids.S with type t := t
 
@@ -49,3 +50,7 @@ val remove_unused_value_slots_from_result_types_and_shortcut_aliases :
   t
 
 val iter_code : t -> f:(Code.t -> unit) -> unit
+
+val from_raw : compilation_unit:Compilation_unit.t -> raw -> t
+
+val to_raw : add_section:(Code.t -> int) -> t -> raw

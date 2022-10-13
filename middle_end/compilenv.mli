@@ -63,6 +63,7 @@ val record_global_approx_toplevel: unit -> unit
 val set_export_info: Export_info.t -> unit
         (* Record the information of the unit being compiled
            flambda-only *)
+val set_sections: Obj.t array -> unit
 val approx_env: unit -> Export_info.t
         (* Returns all the information loaded from external compilation units
            flambda-only *)
@@ -128,7 +129,7 @@ val backtrack: structured_constants -> unit
 
 val read_unit_info: string -> unit_infos * Digest.t
         (* Read infos and MD5 from a [.cmx] file. *)
-val write_unit_info: unit_infos -> string -> unit
+val write_unit_info: unit_infos -> Obj.t array -> string -> unit
         (* Save the given infos in the given file *)
 val save_unit_info: string -> unit
         (* Save the infos for the current unit in the given file *)

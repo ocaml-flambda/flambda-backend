@@ -336,6 +336,7 @@
     (debug_event.mli as compiler-libs/debug_event.mli)
     (domainstate.mli as compiler-libs/domainstate.mli)
     (compilation_unit.mli as compiler-libs/compilation_unit.mli)
+    (file_sections.mli as compiler-libs/file_sections.mli)
     (linkage_name.mli as compiler-libs/linkage_name.mli)
     (symbol.mli as compiler-libs/symbol.mli)
 

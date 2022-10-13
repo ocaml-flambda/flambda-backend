@@ -38,7 +38,7 @@ let load_cmx_file_contents loader comp_unit =
       None
     | Some cmx ->
       let typing_env, all_code =
-        Flambda_cmx_format.import_typing_env_and_code cmx
+        Flambda_cmx_format.import_typing_env_and_code ~compilation_unit:comp_unit cmx
       in
       let newly_imported_names = TE.Serializable.name_domain typing_env in
       loader.imported_names
@@ -215,15 +215,17 @@ let prepare_cmx ~module_symbol create_typing_env ~free_names_of_name
     |> Exported_offsets.reexport_value_slots
          (Name_occurrences.all_value_slots slots_used_in_typing_env)
   in
-  Some
-    (Flambda_cmx_format.create ~final_typing_env ~all_code ~exported_offsets
-       ~used_value_slots)
+  let cmx, sections =
+    Flambda_cmx_format.create ~final_typing_env ~all_code ~exported_offsets
+       ~used_value_slots
+  in
+  Some cmx, sections
 
 let prepare_cmx_file_contents ~final_typing_env ~module_symbol ~used_value_slots
     ~exported_offsets all_code =
   match final_typing_env with
-  | None -> None
-  | Some _ when Flambda_features.opaque () -> None
+  | None -> None, [||]
+  | Some _ when Flambda_features.opaque () -> None, [||]
   | Some final_typing_env ->
     let typing_env, canonicalise =
       TE.Pre_serializable.create final_typing_env ~used_value_slots
@@ -241,7 +243,7 @@ let prepare_cmx_file_contents ~final_typing_env ~module_symbol ~used_value_slots
 let prepare_cmx_from_approx ~approxs ~module_symbol ~exported_offsets
     ~used_value_slots all_code =
   if Flambda_features.opaque ()
-  then None
+  then None, [||]
   else
     let create_typing_env reachable_names =
       let approxs =

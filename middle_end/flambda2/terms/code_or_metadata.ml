@@ -13,24 +13,80 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type view =
-  | Code_present of Code.t
+type code_status =
+  | Loaded of Code.t
+  | Not_loaded of {
+      compilation_unit : Compilation_unit.t ;
+      index : int ;
+      metadata : Code_metadata.t ;
+      delayed_renaming : Renaming.t ;
+    }
+
+type t =
+  | Code_present of { mutable code_status: code_status }
   | Metadata_only of Code_metadata.t
 
-type t = view
+type code_present =
+  | Present of { index: int }
+  | Absent
 
-let view t = t
+type raw = {
+  metadata : Code_metadata.t ;
+  code_present : code_present
+}
+
+module View = struct
+  type t =
+    | Code_present of Code.t
+    | Metadata_only of Code_metadata.t
+end
+
+let view t =
+  match t with
+  | Code_present { code_status = Loaded code } ->
+    View.Code_present code
+  | Code_present ({ code_status = Not_loaded not_loaded } as c) ->
+    let code = Obj.obj (File_sections.read_section_from_file ~unit:not_loaded.compilation_unit ~index:not_loaded.index) in
+    let code = Code.apply_renaming code not_loaded.delayed_renaming in
+    c.code_status <- Loaded code;
+    View.Code_present code
+  | Metadata_only metadata ->
+    View.Metadata_only metadata
 
 let print ppf t =
   match t with
-  | Code_present code ->
+  | Code_present { code_status = Loaded code } ->
     Format.fprintf ppf "@[<hov 1>(Code_present@ (@[<hov 1>(code@ %a)@]))@]"
       Code.print code
+  | Code_present { code_status = Not_loaded not_loaded } ->
+    Format.fprintf ppf
+      "@[<hov 1>(Present@ (\
+         @[<hov 1>(code@ Not_loaded)@]\
+         @[<hov 1>(metadata@ %a)@]\
+       ))@]"
+      Code_metadata.print not_loaded.metadata
   | Metadata_only code_metadata ->
     Format.fprintf ppf "@[<hov 1>(Metadata_only@ (code_metadata@ %a))@]"
       Code_metadata.print code_metadata
 
-let create code = Code_present code
+let code_status_metadata = function
+  | Loaded code -> Code.code_metadata code
+  | Not_loaded not_loaded -> not_loaded.metadata
+
+let create code = Code_present { code_status = Loaded code }
+
+let from_raw ~compilation_unit raw =
+  match raw.code_present with
+  | Absent -> Metadata_only raw.metadata
+  | Present { index } -> Code_present { code_status = Not_loaded { compilation_unit; index; metadata = raw.metadata; delayed_renaming = Renaming.empty }}
+
+let to_raw ~add_section t : raw =
+  match view t with
+  | Code_present code -> {
+      metadata = Code.code_metadata code ;
+      code_present = Present { index = add_section code }
+    }
+  | Metadata_only metadata -> { metadata; code_present = Absent }
 
 let create_metadata_only metadata = Metadata_only metadata
 
@@ -46,9 +102,9 @@ let merge code_id t1 t2 =
   | Code_present _, Code_present _ ->
     Misc.fatal_errorf "Cannot merge two definitions for code id %a"
       Code_id.print code_id
-  | Metadata_only cm_imported, (Code_present code_present as t)
-  | (Code_present code_present as t), Metadata_only cm_imported ->
-    let cm_present = Code.code_metadata code_present in
+  | Metadata_only cm_imported, (Code_present { code_status } as t)
+  | (Code_present { code_status } as t), Metadata_only cm_imported ->
+    let cm_present = code_status_metadata code_status in
     if Code_metadata.approx_equal cm_present cm_imported
     then Some t
     else
@@ -59,40 +115,58 @@ let merge code_id t1 t2 =
         cm_imported
 
 let free_names t =
-  match t with
+  match view t with
   | Code_present code -> Code.free_names code
   | Metadata_only code_metadata -> Code_metadata.free_names code_metadata
 
 let apply_renaming t renaming =
   match t with
-  | Code_present code ->
-    let code' = Code.apply_renaming code renaming in
-    if code == code' then t else Code_present code'
   | Metadata_only code_metadata ->
     let code_metadata' = Code_metadata.apply_renaming code_metadata renaming in
     if code_metadata == code_metadata' then t else Metadata_only code_metadata'
+  | Code_present { code_status = Loaded code } ->
+    let code' = Code.apply_renaming code renaming in
+    if code == code' then t else Code_present { code_status = Loaded code' }
+  | Code_present { code_status = Not_loaded not_loaded } ->
+    let delayed_renaming' = Renaming.compose ~second:renaming ~first:not_loaded.delayed_renaming in
+    if delayed_renaming' == not_loaded.delayed_renaming then t
+    else
+      Code_present { code_status = Not_loaded { not_loaded with delayed_renaming = delayed_renaming' }}
 
+(*
+  (* CR ncourant do we really need to load the code to apply the renaming instead of deferring it? *)
+  match view t with
+  | Code_present code ->
+    let code' = Code.apply_renaming code renaming in
+    if code == code' then t else Code_present { code_status = Loaded code' }
+  | Metadata_only code_metadata ->
+    let code_metadata' = Code_metadata.apply_renaming code_metadata renaming in
+    if code_metadata == code_metadata' then t else Metadata_only code_metadata'
+*)
+        
 let ids_for_export t =
-  match t with
+  match view t with
   | Code_present code -> Code.ids_for_export code
   | Metadata_only code_metadata -> Code_metadata.ids_for_export code_metadata
 
 let remember_only_metadata t =
   match t with
-  | Code_present code -> Metadata_only (Code.code_metadata code)
+  | Code_present { code_status } -> Metadata_only (code_status_metadata code_status)
   | Metadata_only _ -> t
 
 let code_metadata t =
   match t with
-  | Code_present code -> Code.code_metadata code
+  | Code_present { code_status } -> code_status_metadata code_status
   | Metadata_only code_metadata -> code_metadata
 
 let iter_code t ~f =
-  match t with Code_present code -> f code | Metadata_only _ -> ()
+  match view t with Code_present code -> f code | Metadata_only _ -> ()
 
 let map_result_types t ~f =
-  match t with
-  | Code_present code -> Code_present (Code.map_result_types code ~f)
+  (* CR ncourant: we could probably do this without loading the code if it is not needed, but it doesn't seem necessary as this function seems to only be called before output *)
+  match view t with
+  | Code_present code ->
+    Code_present { code_status = Loaded (Code.map_result_types code ~f) }
   | Metadata_only code_metadata ->
     Metadata_only (Code_metadata.map_result_types code_metadata ~f)
 

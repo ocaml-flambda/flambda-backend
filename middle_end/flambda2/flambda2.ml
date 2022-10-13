@@ -131,7 +131,7 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
     in
     Compiler_hooks.execute Raw_flambda2 raw_flambda;
     print_rawflambda ppf raw_flambda;
-    let flambda, offsets, cmx, all_code =
+    let flambda, offsets, (cmx, cmx_sections), all_code =
       match mode, close_program_metadata with
       | Classic, Classic (code, cmx, offsets) ->
         (if Flambda_features.inlining_report ()
@@ -164,6 +164,7 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
     | None ->
       () (* Either opaque was passed, or there is no need to export offsets *)
     | Some cmx -> Compilenv.flambda2_set_export_info cmx);
+    Compilenv.set_sections cmx_sections;
     let cmm = Flambda2_to_cmm.To_cmm.unit flambda ~all_code ~offsets in
     if not keep_symbol_tables
     then (
