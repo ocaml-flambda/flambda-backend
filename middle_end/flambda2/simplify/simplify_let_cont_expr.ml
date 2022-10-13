@@ -735,15 +735,12 @@ let rebuild_recursive_let_cont_handlers cont ~params ~original_cont_scope
     if is_actually_recursive
     then false
     else
-      match cont_uses_in_body with
-      | None -> false
-      | Some uses -> (
-        match Continuation_uses.get_uses uses with
-        | [use] -> (
-          match One_continuation_use.use_kind use with
-          | Inlinable -> true
-          | Non_inlinable _ -> false)
-        | _ -> false)
+      match Continuation_uses.get_uses cont_uses_in_body with
+      | [use] -> (
+        match One_continuation_use.use_kind use with
+        | Inlinable -> true
+        | Non_inlinable _ -> false)
+      | _ -> false
   in
   let uacc, handlers =
     if will_be_inlined
@@ -831,16 +828,13 @@ let prepare_to_rebuild_one_recursive_let_cont_handler cont params
          ~name_occurrences_subsequent_exprs ~after_rebuild ~cont_uses_in_body)
 
 let after_downwards_traversal_of_one_recursive_let_cont_handler cont
-    unboxing_decisions ~down_to_up params ~original_cont_scope dacc
-    ~rebuild:rebuild_handler =
+    unboxing_decisions ~down_to_up params ~original_cont_scope
+    ~cont_uses_in_body dacc ~rebuild:rebuild_handler =
   let dacc = DA.map_data_flow dacc ~f:(Data_flow.exit_continuation cont) in
-  let cont_uses_in_body =
-    CUE.get_continuation_uses (DA.continuation_uses_env dacc) cont
-  in
   let arg_types_by_use_id =
     (* At this point all uses (in both the body and the handler) of [cont] are
        in [dacc]. *)
-    match cont_uses_in_body with
+    match CUE.get_continuation_uses (DA.continuation_uses_env dacc) cont with
     | None ->
       ListLabels.map (Bound_parameters.to_list params) ~f:(fun _ ->
           Apply_cont_rewrite_id.Map.empty)
@@ -893,14 +887,16 @@ let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
   let dacc =
     DA.map_denv dacc ~f:(fun denv -> DE.set_at_unit_toplevel_state denv false)
   in
-  let uses = CUE.get_continuation_uses (DA.continuation_uses_env dacc) cont in
-  match uses with
+  let cont_uses_in_body =
+    CUE.get_continuation_uses (DA.continuation_uses_env dacc) cont
+  in
+  match cont_uses_in_body with
   | None ->
     let rebuild uacc ~after_rebuild = after_rebuild None uacc in
     down_to_up dacc ~rebuild
-  | Some continuation_uses ->
+  | Some cont_uses_in_body ->
     let arg_types_by_use_id_in_body =
-      Continuation_uses.get_arg_types_by_use_id continuation_uses
+      Continuation_uses.get_arg_types_by_use_id cont_uses_in_body
     in
     (* Compute unboxing decisions. This works only from the subkind information
        since no other types are available: there are no types on the
@@ -932,7 +928,8 @@ let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
       ~is_single_inlinable_use:false ~is_exn_handler:false
       ~down_to_up:
         (after_downwards_traversal_of_one_recursive_let_cont_handler cont
-           unboxing_decisions params ~original_cont_scope ~down_to_up)
+           unboxing_decisions params ~original_cont_scope ~down_to_up
+           ~cont_uses_in_body)
 
 let rebuild_recursive_let_cont_expr are_rebuilding_terms ~body
     ~free_names_of_body ~handlers =
@@ -960,26 +957,30 @@ let rebuild_recursive_let_cont ~body handlers ~cost_metrics_of_handlers
   after_rebuild expr uacc
 
 let after_recursive_let_cont_body_rebuilt continuation handlers
-    ~uenv_without_cont ~cost_metrics_of_handlers ~after_rebuild body uacc =
+    ~uenv_without_cont ~free_names_of_handlers ~cost_metrics_of_handlers
+    ~after_rebuild body uacc =
   (* We are passing back over a binder, so remove the bound continuation from
      the free name information. *)
   let free_names_of_body = UA.name_occurrences uacc in
   let uacc =
     UA.with_name_occurrences uacc
       ~name_occurrences:
-        (NO.remove_continuation (UA.name_occurrences uacc) ~continuation)
+        (NO.remove_continuation
+           (NO.union free_names_of_handlers (UA.name_occurrences uacc))
+           ~continuation)
   in
   rebuild_recursive_let_cont ~body handlers ~uenv_without_cont
     ~free_names_of_body uacc ~cost_metrics_of_handlers ~after_rebuild
 
 let after_recursive_let_cont_handlers_rebuilt cont ~rebuild_body
     ~uenv_without_cont ~after_rebuild handlers uacc =
+  let free_names_of_handlers = UA.name_occurrences uacc in
   let cost_metrics_of_handlers = UA.cost_metrics uacc in
-  let uacc = UA.clear_cost_metrics uacc in
+  let uacc = uacc |> UA.clear_name_occurrences |> UA.clear_cost_metrics in
   rebuild_body uacc
     ~after_rebuild:
       (after_recursive_let_cont_body_rebuilt cont handlers ~uenv_without_cont
-         ~cost_metrics_of_handlers ~after_rebuild)
+         ~free_names_of_handlers ~cost_metrics_of_handlers ~after_rebuild)
 
 let after_downwards_traversal_of_recursive_let_cont_handlers cont ~rebuild_body
     ~down_to_up dacc ~rebuild:rebuild_handlers =
