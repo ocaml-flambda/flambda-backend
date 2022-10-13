@@ -290,7 +290,8 @@ let subst_call_kind env (call_kind : Call_kind.t) : Call_kind.t =
   match call_kind with
   | Function { function_call = Direct { code_id; return_arity }; _ } ->
     let code_id = subst_code_id env code_id in
-    Call_kind.direct_function_call code_id ~return_arity Alloc_mode.heap
+    Call_kind.direct_function_call code_id ~return_arity
+      Alloc_mode.For_types.heap
   | _ -> call_kind
 
 let rec subst_expr env e =
@@ -901,7 +902,8 @@ let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
       ~subst2:(fun _ arity -> arity)
       env (code_id1, return_arity1) (code_id2, return_arity2)
     |> Comparison.map ~f:(fun (code_id, return_arity) ->
-           Call_kind.direct_function_call code_id ~return_arity Alloc_mode.heap)
+           Call_kind.direct_function_call code_id ~return_arity
+             Alloc_mode.For_types.heap)
   | ( Function
         { function_call =
             Indirect_known_arity
@@ -926,7 +928,7 @@ let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
     pairs ~f1:method_kinds ~f2:simple_exprs ~subst2:subst_simple env
       (kind1, obj1) (kind2, obj2)
     |> Comparison.map ~f:(fun (kind, obj) ->
-           Call_kind.method_call kind ~obj Alloc_mode.heap)
+           Call_kind.method_call kind ~obj Alloc_mode.For_types.heap)
   | ( C_call
         { alloc = alloc1;
           param_arity = param_arity1;
