@@ -165,6 +165,7 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
       () (* Either opaque was passed, or there is no need to export offsets *)
     | Some cmx -> Compilenv.flambda2_set_export_info cmx);
     Compilenv.set_sections cmx_sections;
+    File_sections.close_all ();
     let cmm = Flambda2_to_cmm.To_cmm.unit flambda ~all_code ~offsets in
     if not keep_symbol_tables
     then (
