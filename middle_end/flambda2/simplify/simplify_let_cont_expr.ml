@@ -960,13 +960,15 @@ let after_recursive_let_cont_body_rebuilt continuation handlers
     ~uenv_without_cont ~free_names_of_handlers ~cost_metrics_of_handlers
     ~after_rebuild body uacc =
   (* We are passing back over a binder, so remove the bound continuation from
-     the free name information. *)
+     the free name information. [uacc] contains only the free names of the body,
+     since the free names were cleared by
+     [after_recursive_let_cont_handlers_rebuilt] *)
   let free_names_of_body = UA.name_occurrences uacc in
   let uacc =
     UA.with_name_occurrences uacc
       ~name_occurrences:
         (NO.remove_continuation
-           (NO.union free_names_of_handlers (UA.name_occurrences uacc))
+           (NO.union free_names_of_handlers free_names_of_body)
            ~continuation)
   in
   rebuild_recursive_let_cont ~body handlers ~uenv_without_cont
