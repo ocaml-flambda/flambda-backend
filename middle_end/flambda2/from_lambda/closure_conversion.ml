@@ -1815,7 +1815,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) over_args
     let alloc_mode =
       if contains_no_escaping_local_allocs
       then Alloc_mode.For_types.heap
-      else Alloc_mode.For_types.unknown
+      else Alloc_mode.For_types.unknown ()
     in
     let call_kind = Call_kind.indirect_function_call_unknown_arity alloc_mode in
     let continuation =

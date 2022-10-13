@@ -2286,7 +2286,7 @@ module Row_like_for_blocks = struct
   let bottom =
     { known_tags = Tag.Map.empty;
       other_tags = Bottom;
-      alloc_mode = Alloc_mode.For_types.unknown
+      alloc_mode = Alloc_mode.For_types.unknown ()
     }
 
   let is_bottom { known_tags; other_tags; alloc_mode = _ } =

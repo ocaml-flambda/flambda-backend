@@ -100,16 +100,16 @@ let these_boxed_nativeints is alloc_mode =
   TG.box_nativeint (these_naked_nativeints is) alloc_mode
 
 let any_boxed_float =
-  TG.box_float TG.any_naked_float Alloc_mode.For_types.unknown
+  TG.box_float TG.any_naked_float (Alloc_mode.For_types.unknown ())
 
 let any_boxed_int32 =
-  TG.box_int32 TG.any_naked_int32 Alloc_mode.For_types.unknown
+  TG.box_int32 TG.any_naked_int32 (Alloc_mode.For_types.unknown ())
 
 let any_boxed_int64 =
-  TG.box_int64 TG.any_naked_int64 Alloc_mode.For_types.unknown
+  TG.box_int64 TG.any_naked_int64 (Alloc_mode.For_types.unknown ())
 
 let any_boxed_nativeint =
-  TG.box_nativeint TG.any_naked_nativeint Alloc_mode.For_types.unknown
+  TG.box_nativeint TG.any_naked_nativeint (Alloc_mode.For_types.unknown ())
 
 let any_block =
   TG.create_variant ~is_unique:false
@@ -152,7 +152,7 @@ let immutable_block_with_size_at_least ~tag ~n ~field_kind ~field_n_minus_one =
     ~blocks:
       (Known
          (TG.Row_like_for_blocks.create ~field_kind ~field_tys (Open tag)
-            Alloc_mode.For_types.unknown))
+            (Alloc_mode.For_types.unknown ())))
 
 let variant ~const_ctors ~non_const_ctors alloc_mode =
   let blocks =
@@ -216,7 +216,7 @@ let closure_with_at_least_these_function_slots ~this_function_slot
     TG.Row_like_for_closures.create_at_least this_function_slot
       set_of_closures_contents closures_entry
   in
-  TG.create_closures Alloc_mode.For_types.unknown by_function_slot
+  TG.create_closures (Alloc_mode.For_types.unknown ()) by_function_slot
 
 let closure_with_at_least_these_value_slots ~this_function_slot value_slots =
   let value_slot_types =
@@ -238,7 +238,7 @@ let closure_with_at_least_these_value_slots ~this_function_slot value_slots =
     TG.Row_like_for_closures.create_at_least this_function_slot
       set_of_closures_contents closures_entry
   in
-  TG.create_closures Alloc_mode.For_types.unknown by_function_slot
+  TG.create_closures (Alloc_mode.For_types.unknown ()) by_function_slot
 
 let closure_with_at_least_this_value_slot ~this_function_slot value_slot
     ~value_slot_var =
@@ -277,7 +277,7 @@ let arity_of_list ts = Flambda_arity.create (List.map TG.kind ts)
 let unknown_types_from_arity arity =
   List.map (fun kind -> unknown kind) (Flambda_arity.to_list arity)
 
-let rec unknown_with_subkind ?(alloc_mode = Alloc_mode.For_types.unknown)
+let rec unknown_with_subkind ?(alloc_mode = Alloc_mode.For_types.unknown ())
     (kind : Flambda_kind.With_subkind.t) =
   (* CR mshinwell: use [alloc_mode] more *)
   match Flambda_kind.With_subkind.subkind kind with

@@ -24,9 +24,9 @@ module For_types : sig
 
   val heap : t
 
-  val local : t
+  val local : unit -> t
 
-  val unknown : t
+  val unknown : unit -> t
 
   val from_lambda : Lambda.alloc_mode -> t
 

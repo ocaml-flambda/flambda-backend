@@ -57,11 +57,11 @@ let meet_alloc_mode (alloc_mode1 : Alloc_mode.For_types.t)
     (alloc_mode2 : Alloc_mode.For_types.t) : Alloc_mode.For_types.t Or_bottom.t
     =
   match alloc_mode1, alloc_mode2 with
-  | Heap_or_local, Heap_or_local -> Ok Alloc_mode.For_types.unknown
+  | Heap_or_local, Heap_or_local -> Ok (Alloc_mode.For_types.unknown ())
   | Heap_or_local, _ -> Ok alloc_mode2
   | _, Heap_or_local -> Ok alloc_mode1
   | Heap, Heap -> Ok Alloc_mode.For_types.heap
-  | Local, Local -> Ok Alloc_mode.For_types.local
+  | Local, Local -> Ok (Alloc_mode.For_types.local ())
   | Heap, Local | Local, Heap ->
     (* It is not safe to pick either [Heap] or [Local] and moreover we should
        never be in this situation by virtue of the OCaml type checker; it is
@@ -71,10 +71,10 @@ let meet_alloc_mode (alloc_mode1 : Alloc_mode.For_types.t)
 let join_alloc_mode (alloc_mode1 : Alloc_mode.For_types.t)
     (alloc_mode2 : Alloc_mode.For_types.t) : Alloc_mode.For_types.t =
   match alloc_mode1, alloc_mode2 with
-  | Heap_or_local, _ | _, Heap_or_local -> Alloc_mode.For_types.unknown
+  | Heap_or_local, _ | _, Heap_or_local -> Alloc_mode.For_types.unknown ()
   | Heap, Heap -> Alloc_mode.For_types.heap
-  | Local, Local -> Alloc_mode.For_types.local
-  | Heap, Local | Local, Heap -> Alloc_mode.For_types.unknown
+  | Local, Local -> Alloc_mode.For_types.local ()
+  | Heap, Local | Local, Heap -> Alloc_mode.For_types.unknown ()
 
 let[@inline always] meet_unknown meet_contents ~contents_is_bottom env
     (or_unknown1 : _ Or_unknown.t) (or_unknown2 : _ Or_unknown.t) :
@@ -530,7 +530,7 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
           (* No blocks exist with this tag *))
         tags Tag.Set.empty
     in
-    match MTC.blocks_with_these_tags tags Alloc_mode.For_types.unknown with
+    match MTC.blocks_with_these_tags tags (Alloc_mode.For_types.unknown ()) with
     | Known shape ->
       let<+ ty, env_extension = meet env ty shape in
       TG.Head_of_kind_naked_immediate.create_get_tag ty, env_extension

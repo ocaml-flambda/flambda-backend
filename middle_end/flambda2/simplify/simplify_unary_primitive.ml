@@ -95,19 +95,19 @@ let simplify_unbox_number (boxable_number_kind : K.Boxable_number.t) dacc
     match boxable_number_kind with
     | Naked_float ->
       ( T.boxed_float_alias_to ~naked_float:result_var'
-          Alloc_mode.For_types.unknown,
+          (Alloc_mode.For_types.unknown ()),
         K.naked_float )
     | Naked_int32 ->
       ( T.boxed_int32_alias_to ~naked_int32:result_var'
-          Alloc_mode.For_types.unknown,
+          (Alloc_mode.For_types.unknown ()),
         K.naked_int32 )
     | Naked_int64 ->
       ( T.boxed_int64_alias_to ~naked_int64:result_var'
-          Alloc_mode.For_types.unknown,
+          (Alloc_mode.For_types.unknown ()),
         K.naked_int64 )
     | Naked_nativeint ->
       ( T.boxed_nativeint_alias_to ~naked_nativeint:result_var'
-          Alloc_mode.For_types.unknown,
+          (Alloc_mode.For_types.unknown ()),
         K.naked_nativeint )
   in
   let alloc_mode =
@@ -217,7 +217,7 @@ let simplify_array_length dacc ~original_term ~arg:_ ~arg_ty:array_ty
     ~shape:
       (T.array_of_length ~element_kind:Unknown
          ~length:(T.alias_type_of K.value result)
-         Alloc_mode.For_types.unknown)
+         (Alloc_mode.For_types.unknown ()))
     ~result_var ~result_kind:K.value
 
 (* CR-someday mshinwell: Consider whether "string length" should be treated like

@@ -39,7 +39,7 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
       (fun index _ : Alloc_mode.For_types.t ->
         if index < num_leading_heap_params
         then Alloc_mode.For_types.heap
-        else Alloc_mode.For_types.unknown)
+        else Alloc_mode.For_types.unknown ())
       (Bound_parameters.to_list params)
   in
   let denv =
