@@ -222,7 +222,10 @@ let emit_frames a =
     a.efa_code_label fd.fd_lbl;
     (* For short format, the size is guaranteed
        to be less than the constant below. *)
-    if fd.fd_long then a.efa_16 Flambda_backend_flags.max_long_frames_threshold;
+    if fd.fd_long then begin
+      a.efa_16 Flambda_backend_flags.max_long_frames_threshold;
+      a.efa_align 4;
+    end;
     let emit_16_or_32 =
       if fd.fd_long then emit_32 else a.efa_16
     in
