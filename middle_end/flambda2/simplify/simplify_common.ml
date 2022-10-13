@@ -92,7 +92,7 @@ let project_tuple ~dbg ~size ~field tuple =
   Named.create_prim prim dbg
 
 let split_direct_over_application apply ~param_arity ~result_arity
-    ~(apply_alloc_mode : Alloc_mode.For_allocations.t)
+    ~(apply_alloc_mode : Alloc_mode.For_types.t)
     ~contains_no_escaping_local_allocs ~current_region =
   let arity = Flambda_arity.With_subkinds.cardinal param_arity in
   let args = Apply.args apply in
@@ -111,7 +111,7 @@ let split_direct_over_application apply ~param_arity ~result_arity
     match apply_alloc_mode, contains_no_escaping_local_allocs with
     | Heap, false ->
       Some (Variable.create "over_app_region", Continuation.create ())
-    | Heap, true | Local _, _ -> None
+    | Heap, true | (Local | Heap_or_local), _ -> None
   in
   let perform_over_application =
     let region =
@@ -121,8 +121,8 @@ let split_direct_over_application apply ~param_arity ~result_arity
     in
     let alloc_mode =
       if contains_no_escaping_local_allocs
-      then Alloc_mode.For_allocations.heap
-      else Alloc_mode.For_allocations.local ~region
+      then Alloc_mode.For_types.heap
+      else Alloc_mode.For_types.unknown
     in
     let continuation =
       (* If there is no need for a new region, then the second (over)

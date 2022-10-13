@@ -362,8 +362,8 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
   in
   let apply_alloc_mode =
     if contains_no_escaping_local_allocs
-    then Alloc_mode.For_allocations.heap
-    else Alloc_mode.For_allocations.local ~region:current_region
+    then Alloc_mode.For_types.heap
+    else Alloc_mode.For_types.unknown
   in
   let wrapper_taking_remaining_args, dacc, code_id, code =
     let return_continuation = Continuation.create () in

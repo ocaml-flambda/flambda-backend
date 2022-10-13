@@ -37,6 +37,18 @@ module For_types = struct
   let local = Local
 
   let unknown = Heap_or_local
+
+  let from_lambda (mode : Lambda.alloc_mode) =
+    if not (Flambda_features.stack_allocation_enabled ())
+    then Heap
+    else match mode with Alloc_heap -> Heap | Alloc_local -> Heap_or_local
+
+  let to_lambda t =
+    match t with
+    | Heap -> Lambda.alloc_heap
+    | Local | Heap_or_local ->
+      assert (Flambda_features.stack_allocation_enabled ());
+      Lambda.alloc_local
 end
 
 module For_allocations = struct

@@ -27,6 +27,10 @@ module For_types : sig
   val local : t
 
   val unknown : t
+
+  val from_lambda : Lambda.alloc_mode -> t
+
+  val to_lambda : t -> Lambda.alloc_mode
 end
 
 module For_allocations : sig
