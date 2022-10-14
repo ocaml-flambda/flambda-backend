@@ -319,7 +319,7 @@ let dump_terminator' ?(print_reg = Printmach.reg) ?(args = [||]) ?(sep = "\n")
   | Tailcall (Self _) -> fprintf ppf "Tailcall self%a" print_args args
   | Tailcall (Func _) -> fprintf ppf "Tailcall%a" print_args args
   | Poll_and_jump return_label ->
-    Format.fprintf ppf "@[(poll_and_jump %a)@]" Label.print return_label
+    Format.fprintf ppf "Poll_and_jump %a" Label.print return_label
 
 let dump_terminator ?sep ppf terminator = dump_terminator' ?sep ppf terminator
 
