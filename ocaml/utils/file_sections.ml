@@ -27,6 +27,7 @@ let section_cache : (Compilation_unit.t, t) Hashtbl.t = Hashtbl.create 10
 
 let add_unit unit section_toc channel ~first_section_offset =
   (* Format.eprintf "Adding unit %a with %i sections.@." Compilation_unit.print unit (Array.length section_toc); *)
+  if Array.length section_toc > 0 then begin
   let sections =
     Array.map
       (fun offset ->
@@ -36,6 +37,7 @@ let add_unit unit section_toc channel ~first_section_offset =
   if Hashtbl.mem section_cache unit
   then Misc.fatal_errorf "Unit loaded multiple time %a" Compilation_unit.print unit;
   Hashtbl.add section_cache unit { channel; sections }
+end
 
 let read_section sections channel index =
   match sections.(index) with
@@ -66,7 +68,8 @@ let read_section_from_file ~unit ~index =
 let read_all_sections ~unit =
   match Hashtbl.find_opt section_cache unit with
   | None ->
-      Misc.fatal_errorf "Read all sections from an unopened unit %a" Compilation_unit.print unit
+      (*      Misc.fatal_errorf "Read all sections from an unopened unit %a" Compilation_unit.print unit *)
+      [||]
   | Some { sections; channel } ->
       Array.init (Array.length sections) (read_section sections channel)
 
