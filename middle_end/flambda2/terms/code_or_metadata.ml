@@ -172,3 +172,9 @@ let map_result_types t ~f =
 
 let code_present t =
   match t with Code_present _ -> true | Metadata_only _ -> false
+
+let map_raw_index map_index t =
+  match t.code_present with
+  | Absent -> t
+  | Present { index } ->
+    { t with code_present = Present { index = map_index index }}

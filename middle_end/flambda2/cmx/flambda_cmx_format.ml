@@ -228,44 +228,47 @@ let update_for_pack0 ~pack_units ~pack t =
   in
   { t with table_data }
 
-let update_for_pack ~pack_units ~pack t_opt =
+let update_for_pack ~pack_units ~pack (t_opt, sections) =
   match t_opt with
-  | None -> None
-  | Some t -> Some (List.map (update_for_pack0 ~pack_units ~pack) t)
+  | None -> None, sections
+  | Some t -> Some (List.map (update_for_pack0 ~pack_units ~pack) t), sections
 
-let merge t1_opt t2_opt =
+let merge (t1_opt, sections1) (t2_opt, sections2) =
   match t1_opt, t2_opt with
-  | None, None -> None
+  | None, None -> None, [||]
   | Some _, None | None, Some _ ->
     (* CR vlaviron: turn this into a proper user error *)
     Misc.fatal_error
       "Some pack units do not have their export info set.\n\
        Flambda doesn't support packing opaque and normal units together."
-  | Some t1, Some t2 -> Some (t1 @ t2)
+  | Some t1, Some t2 ->
+    let t2 = List.map (fun t0 -> {
+      t0 with all_code = Exported_code.map_raw_index (fun x -> x + Array.length sections1) t0.all_code
+    }) t2 in
+    Some (t1 @ t2), Array.append sections1 sections2
 
-let print0 ppf t =
+let print0 ~compilation_unit ppf t =
   Format.fprintf ppf "@[<hov>Original unit:@ %a@]@;" Compilation_unit.print
     t.original_compilation_unit;
-  Compilation_unit.set_current t.original_compilation_unit; (*
-  let typing_env, code = import_typing_env_and_code0 t in
+  Compilation_unit.set_current t.original_compilation_unit;
+  let typing_env, code = import_typing_env_and_code0 ~compilation_unit t in
   Format.fprintf ppf "@[<hov>Typing env:@ %a@]@;"
     Flambda2_types.Typing_env.Serializable.print typing_env;
   Format.fprintf ppf "@[<hov>Code:@ %a@]@;" Exported_code.print code;
   Format.fprintf ppf "@[<hov>Offsets:@ %a@]@;" Exported_offsets.print
-    t.exported_offsets *)
-  assert false (* XXX fix this *)
+    t.exported_offsets
 
-let [@ocamlformat "disable"] print ppf t =
+let [@ocamlformat "disable"] print ~compilation_unit ppf t =
   let rec print_rest ppf = function
     | [] -> ()
     | t0 :: t ->
       Format.fprintf ppf "@ (%a)"
-        print0 t0;
+        (print0 ~compilation_unit) t0;
       print_rest ppf t
   in
   match t with
   | [] -> assert false
-  | [ t0 ] -> print0 ppf t0
+  | [ t0 ] -> print0 ~compilation_unit ppf t0
   | t0 :: t ->
     Format.fprintf ppf "Packed units:@ @[<v>(%a)%a@]"
-      print0 t0 print_rest t
+      (print0 ~compilation_unit) t0 print_rest t

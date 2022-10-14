@@ -182,7 +182,7 @@ let print_cmx_infos (ui, crc) =
   | Flambda2 (Some cmx) ->
     printf "Flambda 2 export information:\n";
     flush stdout;
-    Format.printf "%a\n%!" Flambda2_cmx.Flambda_cmx_format.print cmx
+    Format.printf "%a\n%!" (Flambda2_cmx.Flambda_cmx_format.print ~compilation_unit:ui.ui_unit) cmx
   end;
   print_generic_fns ui.ui_generic_fns;
   printf "Force link: %s\n" (if ui.ui_force_link then "YES" else "no");

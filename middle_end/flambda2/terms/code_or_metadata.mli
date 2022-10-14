@@ -46,6 +46,8 @@ val code_metadata : t -> Code_metadata.t
 
 val code_present : t -> bool
 
+val map_raw_index : (int -> int) -> raw -> raw
+
 (** As for [Code_metadata], the free names of a value of type [t] do not include
     the code ID, which is only kept for convenience. *)
 include Contains_names.S with type t := t

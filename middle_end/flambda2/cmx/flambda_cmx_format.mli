@@ -39,11 +39,11 @@ val with_exported_offsets : t -> Exported_offsets.t -> t
 val update_for_pack :
   pack_units:Compilation_unit.Set.t ->
   pack:Compilation_unit.t ->
-  t option ->
-  t option
+  t option * Obj.t array ->
+  t option * Obj.t array
 
 (** Aggregate several cmx into one for packs *)
-val merge : t option -> t option -> t option
+val merge : (t option * Obj.t array) -> (t option * Obj.t array) -> (t option * Obj.t array)
 
 (** For ocamlobjinfo *)
-val print : Format.formatter -> t -> unit
+val print : compilation_unit:Compilation_unit.t -> Format.formatter -> t -> unit

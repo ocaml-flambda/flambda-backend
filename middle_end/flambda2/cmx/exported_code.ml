@@ -125,3 +125,6 @@ let from_raw ~compilation_unit t =
 
 let to_raw ~add_section t =
   Code_id.Map.map (Code_or_metadata.to_raw ~add_section) t
+
+let map_raw_index map_index t =
+  Code_id.Map.map (Code_or_metadata.map_raw_index map_index) t

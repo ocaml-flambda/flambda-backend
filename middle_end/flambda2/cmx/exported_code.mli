@@ -54,3 +54,5 @@ val iter_code : t -> f:(Code.t -> unit) -> unit
 val from_raw : compilation_unit:Compilation_unit.t -> raw -> t
 
 val to_raw : add_section:(Code.t -> int) -> t -> raw
+
+val map_raw_index : (int -> int) -> raw -> raw

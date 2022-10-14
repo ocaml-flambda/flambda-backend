@@ -37,12 +37,22 @@ let add_unit unit section_toc channel ~first_section_offset =
   then Misc.fatal_errorf "Unit loaded multiple time %a" Compilation_unit.print unit;
   Hashtbl.add section_cache unit { channel; sections }
 
+let read_section sections channel index =
+  match sections.(index) with
+  | Loaded section_contents -> section_contents
+  | Pending { byte_offset_in_file } ->
+      (* Printf.eprintf "--> seeking to %d\n%!" byte_offset_in_cmx; *)
+      seek_in channel byte_offset_in_file;
+      let section_contents : Obj.t = input_value channel in
+      sections.(index) <- Loaded section_contents;
+      section_contents
+
 let read_section_from_file ~unit ~index =
   (* Format.eprintf "Reading section %i from unit %a@." index Compilation_unit.print unit; *)
   match Hashtbl.find_opt section_cache unit with
   | None ->
     Misc.fatal_errorf "Read section %i from an unopened unit %a" index Compilation_unit.print unit
-  | Some { sections; channel } -> (
+  | Some { sections; channel } ->
     let num_sections = Array.length sections in
     if index < 0 || index >= num_sections
     then
@@ -51,14 +61,14 @@ let read_section_from_file ~unit ~index =
          %d was requested"
         Compilation_unit.print unit num_sections index
     else
-      match sections.(index) with
-      | Loaded section_contents -> section_contents
-      | Pending { byte_offset_in_file } ->
-        (* Printf.eprintf "--> seeking to %d\n%!" byte_offset_in_cmx; *)
-        seek_in channel byte_offset_in_file;
-        let section_contents : Obj.t = input_value channel in
-        sections.(index) <- Loaded section_contents;
-        section_contents)
+      read_section sections channel index
+
+let read_all_sections ~unit =
+  match Hashtbl.find_opt section_cache unit with
+  | None ->
+      Misc.fatal_errorf "Read all sections from an unopened unit %a" Compilation_unit.print unit
+  | Some { sections; channel } ->
+      Array.init (Array.length sections) (read_section sections channel)
 
 let close_all () =
   Hashtbl.iter

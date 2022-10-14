@@ -34,7 +34,7 @@ exception Error of error
 
 (* Read the unit information from a .cmx file. *)
 
-type pack_member_kind = PM_intf | PM_impl of unit_infos
+type pack_member_kind = PM_intf | PM_impl of unit_infos * Obj.t array
 
 type pack_member =
   { pm_file: string;
@@ -56,7 +56,7 @@ let read_member_info pack_path file = (
       then raise(Error(Wrong_for_pack(file, pack_path)));
       Asmlink.check_consistency file info crc;
       Compilenv.cache_unit_info info;
-      PM_impl info
+      PM_impl (info, File_sections.read_all_sections ~unit:info.ui_unit)
     end in
   { pm_file = file; pm_name = name; pm_kind = kind }
 )
@@ -69,7 +69,7 @@ let check_units members =
   | mb :: tl ->
       begin match mb.pm_kind with
       | PM_intf -> ()
-      | PM_impl infos ->
+      | PM_impl (infos, _) ->
           List.iter
             (fun (unit, _) ->
               if List.mem (unit |> Compilation_unit.Name.of_string) forbidden
@@ -210,10 +210,10 @@ let build_package_cmx members cmxfile =
   let units =
     List.fold_right
       (fun m accu ->
-        match m.pm_kind with PM_intf -> accu | PM_impl info -> info :: accu)
+        match m.pm_kind with PM_intf -> accu | PM_impl (info, sections) -> (info, sections) :: accu)
       members [] in
   let pack_units : Compilation_unit.Set.t lazy_t =
-    lazy (List.map (fun info -> info.ui_unit) units
+    lazy (List.map (fun (info, _) -> info.ui_unit) units
             |> Compilation_unit.Set.of_list)
   in
   let ui = Compilenv.current_unit_infos() in
@@ -223,23 +223,23 @@ let build_package_cmx members cmxfile =
     Compilation_unit.Prefix.parse_for_pack
       (Some (Compilation_unit.full_path_as_string ui.ui_unit))
   in
-  let units : Cmx_format.unit_infos list =
+  let units : (Cmx_format.unit_infos * Obj.t array) list =
     if Config.flambda then
-      List.map (fun info ->
+      List.map (fun (info, sections) ->
           { info with
             ui_export_info =
               Flambda1
                 (Export_info_for_pack.import_for_pack ~pack_units:(Lazy.force pack_units)
                    ~pack
-                   (get_export_info_flambda1 info)) })
+                   (get_export_info_flambda1 info)) }, sections)
         units
     else
       units
   in
-  let ui_export_info =
+  let ui_export_info, sections =
     if Config.flambda then
       let ui_export_info =
-        List.fold_left (fun acc info ->
+        List.fold_left (fun acc (info, _) ->
             Export_info.merge acc
               (get_export_info_flambda1 info))
           (Export_info_for_pack.import_for_pack ~pack_units:(Lazy.force pack_units)
@@ -247,33 +247,33 @@ let build_package_cmx members cmxfile =
              (get_export_info_flambda1 ui))
           units
       in
-      Flambda1 ui_export_info
+      Flambda1 ui_export_info, [||]
     else if Config.flambda2 then
       let pack = Compilation_unit.get_current_exn () in
-      let flambda_export_info =
-        List.fold_left (fun acc info ->
+      let flambda_export_info, sections =
+        List.fold_left (fun acc (info, sections) ->
             Flambda2_cmx.Flambda_cmx_format.merge
               (Flambda2_cmx.Flambda_cmx_format.update_for_pack
                  ~pack_units:(Lazy.force pack_units) ~pack
-                 (get_export_info_flambda2 info))
+                 (get_export_info_flambda2 info, sections))
               acc)
           (Flambda2_cmx.Flambda_cmx_format.update_for_pack
              ~pack_units:(Lazy.force pack_units) ~pack
-             (get_export_info_flambda2 ui))
+             (get_export_info_flambda2 ui, [||]))
           units
       in
-      Flambda2 flambda_export_info
+      Flambda2 flambda_export_info, sections
     else
-      Clambda (get_approx ui)
+      Clambda (get_approx ui), [||]
   in
   let ui_checks = Compilenv.Checks.create () in
-  List.iter (fun info -> Compilenv.Checks.merge info.ui_checks ~into:ui_checks) units;
+  List.iter (fun (info, _) -> Compilenv.Checks.merge info.ui_checks ~into:ui_checks) units;
   Export_info_for_pack.clear_import_state ();
   let ui_unit_as_string = CU.Name.to_string (CU.name ui.ui_unit) in
   let pkg_infos =
     { ui_unit = ui.ui_unit;
       ui_defines =
-          List.flatten (List.map (fun info -> info.ui_defines) units) @
+          List.flatten (List.map (fun (info, _) -> info.ui_defines) units) @
           [ui.ui_unit];
       ui_imports_cmi =
           (ui_unit_as_string, Some (Env.crc_of_unit ui_unit_as_string)) ::
@@ -282,19 +282,19 @@ let build_package_cmx members cmxfile =
           filter(Asmlink.extract_crc_implementations());
       ui_generic_fns =
         { curry_fun =
-            union(List.map (fun info -> info.ui_generic_fns.curry_fun) units);
+            union(List.map (fun (info, _) -> info.ui_generic_fns.curry_fun) units);
           apply_fun =
-            union(List.map (fun info -> info.ui_generic_fns.apply_fun) units);
+            union(List.map (fun (info, _) -> info.ui_generic_fns.apply_fun) units);
           send_fun =
-            union(List.map (fun info -> info.ui_generic_fns.send_fun) units) };
+            union(List.map (fun (info, _) -> info.ui_generic_fns.send_fun) units) };
       ui_force_link =
-          List.exists (fun info -> info.ui_force_link) units;
+          List.exists (fun (info, _) -> info.ui_force_link) units;
       ui_export_info;
       ui_checks;
       ui_section_toc = [||];
       ui_sections_length = 0;
     } in
-  Compilenv.write_unit_info pkg_infos (failwith "TODO") cmxfile
+  Compilenv.write_unit_info pkg_infos sections cmxfile
 
 (* Make the .cmx and the .o for the package *)
 
