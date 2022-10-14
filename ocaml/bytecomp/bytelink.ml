@@ -101,7 +101,7 @@ let add_required compunit =
     missing_globals := Ident.Map.add id compunit.cu_name !missing_globals
   in
   let add_unit unit =
-    add (unit |> Symbol.ident_of_compilation_unit)
+    add (unit |> Compilation_unit.to_global_ident_for_bytecode)
   in
   List.iter add (Symtable.required_globals compunit.cu_reloc);
   List.iter add_unit compunit.cu_required_globals
@@ -632,14 +632,7 @@ let link objfiles output_name =
     match Ident.Map.bindings missing_modules with
     | [] -> ()
     | (id, cu_name) :: _ ->
-        let strip_caml_prefix name =
-          (* Hackily chop off any "caml" prefix for output to user *)
-          if String.length name > 4 && String.equal (String.sub name 0 4) "caml"
-          then String.sub name 4 (String.length name - 4)
-          else name
-        in
-        let name = Ident.name id |> strip_caml_prefix in
-        raise (Error (Required_module_unavailable (name, cu_name)))
+        raise (Error (Required_module_unavailable (Ident.name id, cu_name)))
   end;
   Clflags.ccobjs := !Clflags.ccobjs @ !lib_ccobjs; (* put user's libs last *)
   Clflags.all_ccopts := !lib_ccopts @ !Clflags.all_ccopts;

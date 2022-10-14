@@ -79,7 +79,7 @@ end = struct
     Char.equal (Char.uppercase_ascii chr) chr
 
   let of_string str =
-    if String.equal str "" || String.begins_with str ~prefix:"caml"
+    if String.equal str ""
     then raise (Error (Bad_compilation_unit_name str))
     else str
 
@@ -102,7 +102,7 @@ end
 module Prefix : sig
   type t
   include Identifiable.S with type t := t
-  val parse_for_pack : string option -> t
+  val parse_for_pack : string -> t
   val from_clflags : unit -> t
   val of_list : Name.t list -> t
   val to_list : t -> Name.t list
@@ -141,7 +141,7 @@ end = struct
       || code >= 65 && code <= 90 (* [A-Z] *)
       || code >= 97 && code <= 122 (* [a-z] *)
 
-  let parse pack =
+  let parse_for_pack pack =
     let prefix = String.split_on_char '.' pack in
     ListLabels.iter prefix ~f:(fun module_name ->
       String.iteri (fun i c ->
@@ -150,11 +150,10 @@ end = struct
         module_name);
     ListLabels.map prefix ~f:Name.of_string
 
-  let parse_for_pack = function
+  let from_clflags () =
+    match !Clflags.for_package with
     | None -> []
-    | Some pack -> parse pack
-
-  let from_clflags () = parse_for_pack !Clflags.for_package
+    | Some pack -> parse_for_pack pack
 
   let to_string p =
     Format.asprintf "%a" print p
@@ -204,9 +203,8 @@ let of_string str =
         (* See [Name.check_as_path_component]; this allows ".cinaps" as a
            compilation unit *)
         Prefix.empty, Name.of_string str
-    | Some pos ->
-        Prefix.parse_for_pack (Some (String.sub str 0 (pos+1))),
-        Name.of_string (String.sub str (pos+1) (String.length str - pos - 1))
+    | Some _ ->
+        Misc.fatal_errorf "[of_string] does not parse qualified names"
   in
   create for_pack_prefix name
 
@@ -274,6 +272,9 @@ let print_name ppf t =
 
 let full_path_as_string t =
   Format.asprintf "%a" print t
+
+let to_global_ident_for_bytecode t =
+  Ident.create_persistent (full_path_as_string t)
 
 let print_debug ppf { for_pack_prefix; hash = _; name } =
   if Prefix.is_empty for_pack_prefix then

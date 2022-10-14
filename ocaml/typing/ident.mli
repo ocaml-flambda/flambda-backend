@@ -31,7 +31,6 @@ val print_with_scope : Format.formatter -> t -> unit
 
 val create_scoped: scope:int -> string -> t
 val create_local: string -> t
-(* CR lmaurer: Should [create_persistent] take a [Linkage_name.t]? *)
 val create_persistent: string -> t
 val create_predef: string -> t
 

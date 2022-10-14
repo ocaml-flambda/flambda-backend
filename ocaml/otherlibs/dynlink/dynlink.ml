@@ -23,16 +23,15 @@ open! Dynlink_compilerlibs
 module DC = Dynlink_common
 module DT = Dynlink_types
 
-let compilation_unit_name_of_ident id =
-  (* Hackily recover the name of a compilation unit from an ident.
-     Remains sadly necessary until we can convert the whole of [bytecomp/] to
-     use [Compilation_unit.t] in place of global [Ident.t]s. *)
-  let name = Ident.name id in
-  assert (String.length name > 4 && String.equal (String.sub name 0 4) "caml");
-  String.sub name 4 (String.length name - 4)
-
 module Bytecode = struct
   type filename = string
+
+  let compilation_unit_name_of_ident id =
+    (* Hackily recover the name of a compilation unit from an ident.
+      This isn't something we want to do in general, but in this case we
+      get away with it because the name is exactly the identifier's name
+      and we know there's no prefix because this is a top-level value. *)
+    Ident.name id
 
   module Unit_header = struct
     type t = Cmo_format.compilation_unit_descr
@@ -100,7 +99,9 @@ module Bytecode = struct
 
   let fold_initial_units ~init ~f =
     List.fold_left (fun acc (modname, interface) ->
-        let id = Symbol.ident_of_compilation_unit (assume_no_prefix modname) in
+        let id =
+          Compilation_unit.to_global_ident_for_bytecode (assume_no_prefix modname)
+        in
         let defined =
           Symtable.is_defined_in_global_map !default_global_map id
         in

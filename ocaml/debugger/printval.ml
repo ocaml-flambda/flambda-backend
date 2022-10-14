@@ -57,7 +57,7 @@ module EvalPath =
         raise Error
 
     let rec eval_address = function
-    | Env.Aunit cu -> eval_id (Symbol.ident_of_compilation_unit cu)
+    | Env.Aunit cu -> eval_id (cu |> Compilation_unit.to_global_ident_for_bytecode)
     | Env.Alocal id -> eval_id id
     | Env.Adot(root, pos) ->
         let v = eval_address root in

@@ -57,10 +57,12 @@ module Prefix : sig
 
   val empty : t
 
-  (** [parse_for_pack p] returns the list of nested packed modules from a
-      "-for-pack" argument. *)
-  val parse_for_pack : string option -> t
+  (** [parse_for_pack p] returns the list of nested packed modules, as expressed
+      in the syntax of the "-for-pack" argument. *)
+  val parse_for_pack : string -> t
 
+  (** Return the prefix specified to "-for-pack". Returns the empty prefix if
+      no "-for-pack" was passed. *)
   val from_clflags : unit -> t
 
   (** Return the list of names comprising the prefix, outermost first. *)
@@ -94,9 +96,16 @@ val create : Prefix.t -> Name.t -> t
     parent compilation unit as the prefix. *)
 val create_child : t -> Name.t -> t
 
-(** Create a compilation unit from the given [name]. The "-for-pack" of
-    prefix is extracted if there is any. *)
+(** Create a compilation unit from the given [name]. No prefix is allowed;
+    throws a fatal error if there is a "." in the name. (As a special case,
+    a "." is allowed as the first character, to handle compilation units
+    which take their names from hidden files.) *)
 val of_string : string -> t
+
+(** Create a global [Ident.t] representing this compilation unit. Only intended
+    for use in bytecode; most uses of [Ident.t]s that are known to be global
+    should simply use [t] instead. *)
+val to_global_ident_for_bytecode : t -> Ident.t
 
 (** Find whether one compilation unit has another as a child. That is, whether
     the other unit has this one as its path prefix. *)

@@ -30,13 +30,10 @@ module Env : sig
   type region_stack_element
 
   val create :
-    current_unit_id:Ident.t ->
     return_continuation:Continuation.t ->
     exn_continuation:Continuation.t ->
     my_region:Ident.t ->
     t
-
-  val current_unit_id : t -> Ident.t
 
   val is_mutable : t -> Ident.t -> bool
 
@@ -168,8 +165,7 @@ end = struct
     | Try_with of Ident.t
 
   type t =
-    { current_unit_id : Ident.t;
-      current_values_of_mutables_in_scope :
+    { current_values_of_mutables_in_scope :
         (Ident.t * Lambda.value_kind) Ident.Map.t;
       mutables_needed_by_continuations : Ident.Set.t Continuation.Map.t;
       try_stack : Continuation.t list;
@@ -182,14 +178,12 @@ end = struct
       region_closure_continuations : region_closure_continuation Ident.Map.t
     }
 
-  let create ~current_unit_id ~return_continuation ~exn_continuation ~my_region
-      =
+  let create ~return_continuation ~exn_continuation ~my_region =
     let mutables_needed_by_continuations =
       Continuation.Map.of_list
         [return_continuation, Ident.Set.empty; exn_continuation, Ident.Set.empty]
     in
-    { current_unit_id;
-      current_values_of_mutables_in_scope = Ident.Map.empty;
+    { current_values_of_mutables_in_scope = Ident.Map.empty;
       mutables_needed_by_continuations;
       try_stack = [];
       try_stack_at_handler = Continuation.Map.empty;
@@ -201,8 +195,6 @@ end = struct
         Continuation.Map.singleton return_continuation [];
       region_closure_continuations = Ident.Map.empty
     }
-
-  let current_unit_id t = t.current_unit_id
 
   let is_mutable t id = Ident.Map.mem id t.current_values_of_mutables_in_scope
 
@@ -564,7 +556,7 @@ let switch_for_if_then_else ~cond ~ifso ~ifnot ~kind =
   in
   L.Lswitch (cond, switch, Loc_unknown, kind)
 
-let transform_primitive env (prim : L.primitive) args loc =
+let transform_primitive _env (prim : L.primitive) args loc =
   match prim, args with
   | Psequor, [arg1; arg2] ->
     let const_true = Ident.create_local "const_true" in
@@ -622,9 +614,7 @@ let transform_primitive env (prim : L.primitive) args loc =
     in
     Transformed (L.Lapply apply)
   | Pfield _, [L.Lprim (Pgetglobal cu, [], _)]
-    when Ident.same
-           (cu |> Flambda2_import.Symbol.ident_of_compilation_unit)
-           (Env.current_unit_id env) ->
+    when Compilation_unit.equal cu (Compilation_unit.get_current_exn ()) ->
     Misc.fatal_error
       "[Pfield (Pgetglobal ...)] for the current compilation unit is forbidden \
        upon entry to the middle end"
@@ -1846,7 +1836,7 @@ and cps_function_bindings env (bindings : (Ident.t * L.lambda) list) =
       (* checked above *))
     [] bindings_with_wrappers
 
-and cps_function env ~fid ~stub ~(recursive : Recursive.t)
+and cps_function _env ~fid ~stub ~(recursive : Recursive.t)
     ?precomputed_free_idents
     ({ kind; params; return; body; attr; loc; mode; region } : L.lfunction) :
     Function_decl.t =
@@ -1862,8 +1852,8 @@ and cps_function env ~fid ~stub ~(recursive : Recursive.t)
   in
   let my_region = Ident.create_local "my_region" in
   let new_env =
-    Env.create ~current_unit_id:(Env.current_unit_id env)
-      ~return_continuation:body_cont ~exn_continuation:body_exn_cont ~my_region
+    Env.create ~return_continuation:body_cont ~exn_continuation:body_exn_cont
+      ~my_region
   in
   let exn_continuation : IR.exn_continuation =
     { exn_handler = body_exn_cont; extra_args = [] }
@@ -2032,14 +2022,11 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
    `big_endian` *)
 let lambda_to_flambda ~mode ~big_endian ~cmx_loader ~compilation_unit
     ~module_block_size_in_words (lam : Lambda.lambda) =
-  let current_unit_id =
-    compilation_unit |> Flambda2_import.Symbol.ident_of_compilation_unit
-  in
   let return_continuation = Continuation.create ~sort:Define_root_symbol () in
   let exn_continuation = Continuation.create () in
   let toplevel_my_region = Ident.create_local "toplevel_my_region" in
   let env =
-    Env.create ~current_unit_id ~return_continuation ~exn_continuation
+    Env.create ~return_continuation ~exn_continuation
       ~my_region:toplevel_my_region
   in
   let toplevel acc ccenv =

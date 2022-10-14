@@ -73,11 +73,9 @@ let loadfile ppf name =
 
 let rec eval_address = function
   | Env.Aunit cu ->
-      let bytecode_or_asm_symbol =
-        Symbol.for_compilation_unit cu
-        |> Symbol.linkage_name
-        |> Linkage_name.to_string
-      in
+    let bytecode_or_asm_symbol =
+      Ident.name (cu |> Compilation_unit.to_global_ident_for_bytecode)
+    in
     begin match Dynlink.unsafe_get_global_value ~bytecode_or_asm_symbol with
     | None ->
       raise (Symtable.Error (Symtable.Undefined_global bytecode_or_asm_symbol))

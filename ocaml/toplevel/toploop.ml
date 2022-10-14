@@ -58,7 +58,7 @@ let setvalue name v =
 
 let rec eval_address = function
   | Env.Aunit cu ->
-      Symtable.get_global_value (cu |> Symbol.ident_of_compilation_unit)
+      Symtable.get_global_value (cu |> Compilation_unit.to_global_ident_for_bytecode)
   | Env.Alocal id ->
       if Ident.is_predef id then
         Symtable.get_global_value id

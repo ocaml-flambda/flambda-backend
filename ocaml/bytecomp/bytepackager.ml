@@ -194,7 +194,7 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
             in
             let required_globals =
               let keep cu =
-                not (Ident.Set.mem (cu |> Symbol.ident_of_compilation_unit)
+                not (Ident.Set.mem (cu |> CU.to_global_ident_for_bytecode)
                        ids_to_remove)
               in
               Compilation_unit.Set.filter keep required_globals
