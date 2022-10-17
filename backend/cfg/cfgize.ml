@@ -131,8 +131,8 @@ type basic_or_terminator =
   | Terminator of Cfg.terminator
 
 let basic_or_terminator_of_operation :
-    State.t -> Mach.operation -> next:Label.t -> basic_or_terminator =
- fun state op ~next ->
+    State.t -> Mach.operation -> basic_or_terminator =
+ fun state op ->
   match op with
   | Imove -> Basic (Op Move)
   | Ispill -> Basic (Op Spill)
@@ -159,9 +159,7 @@ let basic_or_terminator_of_operation :
   | Istore (mem, mode, assignment) -> Basic (Op (Store (mem, mode, assignment)))
   | Ialloc { bytes; dbginfo; mode } ->
     Basic (Call (P (Alloc { bytes; dbginfo; mode })))
-  | Ipoll { return_label = None } -> Terminator (Poll_and_jump next)
-  | Ipoll { return_label = Some return_label } ->
-    Terminator (Poll_and_jump return_label)
+  | Ipoll _ -> assert false
   | Iintop Icheckbound -> Basic (Call (P (Checkbound { immediate = None })))
   | Iintop_imm (Icheckbound, i) ->
     Basic (Call (P (Checkbound { immediate = Some i })))
@@ -360,17 +358,28 @@ type block_info =
    encountered or the end of the block is reached (i.e. [Iend]). If the returned
    terminator is [None], it is guaranteed that the [last] instruction is not an
    [Iop] (as it would either be part of [instrs] or be a terminator). *)
-let extract_block_info :
-    State.t -> Mach.instruction -> next:Label.t -> block_info =
- fun state first ~next ->
+let extract_block_info : State.t -> Mach.instruction -> block_info =
+ fun state first ->
   let rec loop (instr : Mach.instruction) acc =
     let return terminator instrs =
       let instrs = List.rev instrs in
       { instrs; last = instr; terminator }
     in
     match instr.desc with
-    | Iop op -> (
-      match basic_or_terminator_of_operation state op ~next with
+    | Iop (Ipoll _) -> return None acc
+    | Iop
+        (( Imove | Ispill | Ireload | Icall_ind | Itailcall_ind | Inegf | Iabsf
+         | Iaddf | Isubf | Imulf | Idivf | Ifloatofint | Iintoffloat
+         | Ivalueofint | Iintofvalue | Iopaque | Ibeginregion | Iendregion
+         | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Icall_imm _
+         | Itailcall_imm _ | Iextcall _ | Istackoffset _
+         | Iload (_, _, _)
+         | Istore (_, _, _)
+         | Ialloc _ | Iintop _
+         | Iintop_imm (_, _)
+         | Icompf _ | Ispecific _ | Iname_for_debugger _ | Iprobe _
+         | Iprobe_is_enabled _ ) as op) -> (
+      match basic_or_terminator_of_operation state op with
       | Basic desc ->
         let instr' = copy_instruction state instr ~desc in
         (* note: useless moves (See `Cfg.is_noop_move`) are no longer removed
@@ -407,7 +416,7 @@ let rec add_blocks :
     next:Label.t ->
     unit =
  fun instr state ~starts_with_pushtrap ~start ~next ->
-  let { instrs; last; terminator } = extract_block_info state instr ~next in
+  let { instrs; last; terminator } = extract_block_info state instr in
   let terminate_block ~trap_actions terminator =
     let body = instrs in
     let body =
@@ -494,7 +503,26 @@ let rec add_blocks :
   | Some terminator -> terminate_block ~trap_actions:[] terminator
   | None -> (
     match last.desc with
-    | Iop op ->
+    | Iop (Ipoll { return_label = None }) ->
+      let next, add_next_block = prepare_next_block () in
+      terminate_block ~trap_actions:[]
+        (copy_instruction_no_reg state last ~desc:(Cfg.Poll_and_jump next));
+      add_next_block ()
+    | Iop (Ipoll { return_label = Some return_label }) ->
+      Misc.fatal_errorf "Cfgize.extract_block_info: unexpected Ipoll %d"
+        return_label
+    | Iop
+        (( Imove | Ispill | Ireload | Icall_ind | Itailcall_ind | Inegf | Iabsf
+         | Iaddf | Isubf | Imulf | Idivf | Ifloatofint | Iintoffloat
+         | Ivalueofint | Iintofvalue | Iopaque | Ibeginregion | Iendregion
+         | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Icall_imm _
+         | Itailcall_imm _ | Iextcall _ | Istackoffset _
+         | Iload (_, _, _)
+         | Istore (_, _, _)
+         | Ialloc _ | Iintop _
+         | Iintop_imm (_, _)
+         | Icompf _ | Ispecific _ | Iname_for_debugger _ | Iprobe _
+         | Iprobe_is_enabled _ ) as op) ->
       if not (Mach.operation_can_raise op)
       then
         Misc.fatal_error

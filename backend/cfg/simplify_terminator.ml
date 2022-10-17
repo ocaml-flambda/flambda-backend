@@ -101,13 +101,13 @@ let block (block : C.basic_block) =
   | Call_no_return _
   | Tailcall (Self _ | Func _)
   | Raise _ | Return | Poll_and_jump _ ->
-  (* CR xclerc: I wonder whether Merge_straightline_block should be updated
-to optimize a Poll_and_jump block where block is empty, and
-has a terminator such as Always block'.
+    (* CR xclerc: I wonder whether Merge_straightline_block should be updated to
+       optimize a Poll_and_jump block where block is empty, and has a terminator
+       such as Always block'.
 
-(Note that the blocks are currently and correctly not merged
-because Poll_and_jump block can raise. The optimization I
-suggest would be to rewrite it to Poll_and_jump block'.) *)
+       (Note that the blocks are currently and correctly not merged because
+       Poll_and_jump block can raise. The optimization I suggest would be to
+       rewrite it to Poll_and_jump block'.) *)
     ()
 
 let run cfg = C.iter_blocks cfg ~f:(fun _ b -> block b)
