@@ -875,6 +875,8 @@ let all env = function
       module_type_subst ~env id diff
   | In_Signature diff ->
       signature ~expansion_token:true ~before:[] ~env ~ctx:[] diff
+  | In_Include_functor_signature diff ->
+      signature ~expansion_token:true ~before:[] ~env ~ctx:[] diff
   | In_Expansion cmts ->
       match core_module_type_symptom cmts with
       | None -> assert false

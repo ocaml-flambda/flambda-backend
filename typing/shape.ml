@@ -47,7 +47,7 @@ module Uid = struct
       Item { comp_unit = current_unit; id = !id }
 
   let of_compilation_unit_id id =
-    if not (Ident.persistent id) then
+    if not (Ident.is_global id) then
       Misc.fatal_errorf "Types.Uid.of_compilation_unit_id %S" (Ident.name id);
     Compilation_unit (Ident.name id)
 

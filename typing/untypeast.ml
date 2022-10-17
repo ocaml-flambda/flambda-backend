@@ -481,7 +481,6 @@ let expression sub exp =
           Option.map (sub.expr sub) expo)
     | Texp_sequence (exp1, exp2) ->
         Pexp_sequence (sub.expr sub exp1, sub.expr sub exp2)
-<<<<<<< HEAD
     | Texp_while {wh_cond; wh_body} ->
         Pexp_while (sub.expr sub wh_cond, sub.expr sub wh_body)
     | Texp_list_comprehension(exp1, type_comp) ->
@@ -498,37 +497,12 @@ let expression sub exp =
         Pexp_for (for_pat,
           sub.expr sub for_from, sub.expr sub for_to,
           for_dir, sub.expr sub for_body)
-    | Texp_send (exp, meth, _, _) ->
-||||||| 24dbb0976a
-    | Texp_while (exp1, exp2) ->
-        Pexp_while (sub.expr sub exp1, sub.expr sub exp2)
-    | Texp_for (_id, name, exp1, exp2, dir, exp3) ->
-        Pexp_for (name,
-          sub.expr sub exp1, sub.expr sub exp2,
-          dir, sub.expr sub exp3)
     | Texp_send (exp, meth, _) ->
-=======
-    | Texp_while (exp1, exp2) ->
-        Pexp_while (sub.expr sub exp1, sub.expr sub exp2)
-    | Texp_for (_id, name, exp1, exp2, dir, exp3) ->
-        Pexp_for (name,
-          sub.expr sub exp1, sub.expr sub exp2,
-          dir, sub.expr sub exp3)
-    | Texp_send (exp, meth) ->
->>>>>>> ocaml/4.14
         Pexp_send (sub.expr sub exp, match meth with
             Tmeth_name name -> mkloc name loc
-<<<<<<< HEAD
-          | Tmeth_val id -> mkloc (Ident.name id) loc)
-    | Texp_new (_path, lid, _, _) -> Pexp_new (map_loc sub lid)
-||||||| 24dbb0976a
-          | Tmeth_val id -> mkloc (Ident.name id) loc)
-    | Texp_new (_path, lid, _) -> Pexp_new (map_loc sub lid)
-=======
           | Tmeth_val id -> mkloc (Ident.name id) loc
           | Tmeth_ancestor(id, _) -> mkloc (Ident.name id) loc)
-    | Texp_new (_path, lid, _) -> Pexp_new (map_loc sub lid)
->>>>>>> ocaml/4.14
+    | Texp_new (_path, lid, _, _) -> Pexp_new (map_loc sub lid)
     | Texp_instvar (_, path, name) ->
       Pexp_ident ({loc = sub.location sub name.loc ; txt = lident_of_path path})
     | Texp_setinstvar (_, _path, lid, exp) ->

@@ -18,23 +18,10 @@
 open Asttypes
 open Types
 
-<<<<<<< HEAD
-module TypePairs : sig
-  type t
-  val create: int -> t
-  val clear: t -> unit
-  val add: t -> type_expr * type_expr -> unit
-  val mem: t -> type_expr * type_expr -> bool
-  val iter: (type_expr * type_expr -> unit) -> t -> unit
-end
-||||||| 24dbb0976a
-module TypePairs : Hashtbl.S with type key = type_expr * type_expr
-=======
 exception Unify    of Errortrace.unification_error
 exception Equality of Errortrace.equality_error
 exception Moregen  of Errortrace.moregen_error
 exception Subtype  of Errortrace.Subtype.error
->>>>>>> ocaml/4.14
 
 exception Escape of type_expr Errortrace.escape
 
@@ -242,43 +229,20 @@ val unify: Env.t -> type_expr -> type_expr -> unit
         (* Unify the two types given. Raise [Unify] if not possible. *)
 val unify_gadt:
         equations_level:int -> allow_recursive:bool ->
-<<<<<<< HEAD
-        Env.t ref -> type_expr -> type_expr -> TypePairs.t
-||||||| 24dbb0976a
-        Env.t ref -> type_expr -> type_expr -> unit TypePairs.t
-=======
         Env.t ref -> type_expr -> type_expr -> Btype.TypePairs.t
->>>>>>> ocaml/4.14
         (* Unify the two types given and update the environment with the
            local constraints. Raise [Unify] if not possible.
            Returns the pairs of types that have been equated.  *)
 val unify_var: Env.t -> type_expr -> type_expr -> unit
         (* Same as [unify], but allow free univars when first type
            is a variable. *)
-<<<<<<< HEAD
-val unify_alloc_mode: alloc_mode -> alloc_mode -> unit
 val filter_arrow: Env.t -> type_expr -> arg_label ->
                   alloc_mode * type_expr * alloc_mode * type_expr
-        (* A special case of unification (with l:'a -> 'b). *)
-val filter_method: Env.t -> string -> private_flag -> type_expr -> type_expr
-        (* A special case of unification (with {m : 'a; 'b}). *)
-val check_filter_method: Env.t -> string -> private_flag -> type_expr -> unit
-        (* A special case of unification (with {m : 'a; 'b}), returning unit. *)
-||||||| 24dbb0976a
-val filter_arrow: Env.t -> type_expr -> arg_label -> type_expr * type_expr
-        (* A special case of unification (with l:'a -> 'b). *)
-val filter_method: Env.t -> string -> private_flag -> type_expr -> type_expr
-        (* A special case of unification (with {m : 'a; 'b}). *)
-val check_filter_method: Env.t -> string -> private_flag -> type_expr -> unit
-        (* A special case of unification (with {m : 'a; 'b}), returning unit. *)
-=======
-val filter_arrow: Env.t -> type_expr -> arg_label -> type_expr * type_expr
         (* A special case of unification with [l:'a -> 'b].  Raises
            [Filter_arrow_failed] instead of [Unify]. *)
 val filter_method: Env.t -> string -> type_expr -> type_expr
         (* A special case of unification (with {m : 'a; 'b}).  Raises
            [Filter_method_failed] instead of [Unify]. *)
->>>>>>> ocaml/4.14
 val occur_in: Env.t -> type_expr -> type_expr -> bool
 val deep_occur: type_expr -> type_expr -> bool
 val moregeneral: Env.t -> bool -> type_expr -> type_expr -> unit
@@ -428,14 +392,9 @@ val nondep_cltype_declaration:
 (*val correct_abbrev: Env.t -> Path.t -> type_expr list -> type_expr -> unit*)
 val is_contractive: Env.t -> Path.t -> bool
 val normalize_type: type_expr -> unit
-<<<<<<< HEAD
 
 val remove_mode_variables: type_expr -> unit
         (* Ensure mode variables are fully determined *)
-||||||| 24dbb0976a
-val normalize_type: Env.t -> type_expr -> unit
-=======
->>>>>>> ocaml/4.14
 
 val nongen_schema: Env.t -> type_expr -> bool
         (* Check whether the given type scheme contains no non-generic

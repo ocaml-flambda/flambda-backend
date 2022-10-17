@@ -336,24 +336,6 @@ and comprehension i ppf comp_types=
 and expression i ppf x =
   line i ppf "expression %a\n" fmt_location x.exp_loc;
   attributes i ppf x.exp_attributes;
-<<<<<<< HEAD
-  let i =
-    List.fold_left (fun i (extra,_,attrs) ->
-                      expression_extra i ppf extra attrs; i+1)
-      (i+1) x.exp_extra
-  in
-  (match Btype.Value_mode.check_const x.exp_mode with
-  | Some Global -> line i ppf "value_mode global\n"
-  | Some Regional -> line i ppf "value_mode regional\n"
-  | Some Local -> line i ppf "value_mode local\n"
-  | None -> line i ppf "value_mode <modevar>\n");
-||||||| 24dbb0976a
-  let i =
-    List.fold_left (fun i (extra,_,attrs) ->
-                      expression_extra i ppf extra attrs; i+1)
-      (i+1) x.exp_extra
-  in
-=======
   let i = i+1 in
   begin match x.exp_extra with
   | [] -> ()
@@ -361,7 +343,11 @@ and expression i ppf x =
     line i ppf "extra\n";
     List.iter (expression_extra (i+1) ppf) extra;
   end;
->>>>>>> ocaml/4.14
+  (match Types.Value_mode.check_const x.exp_mode with
+  | Some Global -> line i ppf "value_mode global\n"
+  | Some Regional -> line i ppf "value_mode regional\n"
+  | Some Local -> line i ppf "value_mode local\n"
+  | None -> line i ppf "value_mode <modevar>\n");
   match x.exp_desc with
   | Texp_ident (li,_,_,_) -> line i ppf "Texp_ident %a\n" fmt_path li;
   | Texp_instvar (_, li,_) -> line i ppf "Texp_instvar %a\n" fmt_path li;
@@ -433,7 +419,6 @@ and expression i ppf x =
       expression i ppf e2;
   | Texp_while {wh_cond; wh_cond_region; wh_body; wh_body_region} ->
       line i ppf "Texp_while\n";
-<<<<<<< HEAD
       line i ppf "cond_region %b\n" wh_cond_region;
       expression i ppf wh_cond;
       line i ppf "body_region %b\n" wh_body_region;
@@ -453,55 +438,16 @@ and expression i ppf x =
       expression i ppf for_to;
       line i ppf "region %b\n" for_region;
       expression i ppf for_body
-  | Texp_send (e, Tmeth_name s, eo, _) ->
-||||||| 24dbb0976a
-      expression i ppf e1;
-      expression i ppf e2;
-  | Texp_for (s, _, e1, e2, df, e3) ->
-      line i ppf "Texp_for \"%a\" %a\n" fmt_ident s fmt_direction_flag df;
-      expression i ppf e1;
-      expression i ppf e2;
-      expression i ppf e3;
-  | Texp_send (e, Tmeth_name s, eo) ->
-=======
-      expression i ppf e1;
-      expression i ppf e2;
-  | Texp_for (s, _, e1, e2, df, e3) ->
-      line i ppf "Texp_for \"%a\" %a\n" fmt_ident s fmt_direction_flag df;
-      expression i ppf e1;
-      expression i ppf e2;
-      expression i ppf e3;
-  | Texp_send (e, Tmeth_name s) ->
->>>>>>> ocaml/4.14
+  | Texp_send (e, Tmeth_name s, _) ->
       line i ppf "Texp_send \"%s\"\n" s;
-<<<<<<< HEAD
-      expression i ppf e;
-      option i expression ppf eo
-  | Texp_send (e, Tmeth_val s, eo, _) ->
-||||||| 24dbb0976a
-      expression i ppf e;
-      option i expression ppf eo
-  | Texp_send (e, Tmeth_val s, eo) ->
-=======
       expression i ppf e
-  | Texp_send (e, Tmeth_val s) ->
->>>>>>> ocaml/4.14
+  | Texp_send (e, Tmeth_val s, _) ->
       line i ppf "Texp_send \"%a\"\n" fmt_ident s;
-<<<<<<< HEAD
-      expression i ppf e;
-      option i expression ppf eo
+      expression i ppf e
+  | Texp_send (e, Tmeth_ancestor(s, _), _) ->
+      line i ppf "Texp_send \"%a\"\n" fmt_ident s;
+      expression i ppf e
   | Texp_new (li, _, _, _) -> line i ppf "Texp_new %a\n" fmt_path li;
-||||||| 24dbb0976a
-      expression i ppf e;
-      option i expression ppf eo
-  | Texp_new (li, _, _) -> line i ppf "Texp_new %a\n" fmt_path li;
-=======
-      expression i ppf e
-  | Texp_send (e, Tmeth_ancestor(s, _)) ->
-      line i ppf "Texp_send \"%a\"\n" fmt_ident s;
-      expression i ppf e
-  | Texp_new (li, _, _) -> line i ppf "Texp_new %a\n" fmt_path li;
->>>>>>> ocaml/4.14
   | Texp_setinstvar (_, s, _, e) ->
       line i ppf "Texp_setinstvar %a\n" fmt_path s;
       expression i ppf e;

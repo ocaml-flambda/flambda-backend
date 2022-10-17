@@ -130,7 +130,6 @@ and expression_desc =
   | Texp_array of expression list
   | Texp_ifthenelse of expression * expression * expression option
   | Texp_sequence of expression * expression
-<<<<<<< HEAD
   | Texp_while of {
       wh_cond : expression;
       wh_cond_region : bool;
@@ -150,24 +149,9 @@ and expression_desc =
       for_body : expression;
       for_region : bool;
     }
-  | Texp_send of expression * meth * expression option * apply_position
+  | Texp_send of expression * meth * apply_position
   | Texp_new of
       Path.t * Longident.t loc * Types.class_declaration * apply_position
-||||||| 24dbb0976a
-  | Texp_while of expression * expression
-  | Texp_for of
-      Ident.t * Parsetree.pattern * expression * expression * direction_flag *
-        expression
-  | Texp_send of expression * meth * expression option
-  | Texp_new of Path.t * Longident.t loc * Types.class_declaration
-=======
-  | Texp_while of expression * expression
-  | Texp_for of
-      Ident.t * Parsetree.pattern * expression * expression * direction_flag *
-        expression
-  | Texp_send of expression * meth
-  | Texp_new of Path.t * Longident.t loc * Types.class_declaration
->>>>>>> ocaml/4.14
   | Texp_instvar of Path.t * Path.t * string loc
   | Texp_setinstvar of Path.t * Path.t * string loc * expression
   | Texp_override of Path.t * (Ident.t * string loc * expression) list

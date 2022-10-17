@@ -17,7 +17,6 @@
 open Asttypes
 open Types
 open Typedtree
-module Value_mode = Btype.Value_mode
 
 (* useful pattern auxiliary functions *)
 

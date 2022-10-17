@@ -134,8 +134,9 @@ and ident_cons = ident_create "::"
 and ident_none = ident_create "None"
 and ident_some = ident_create "Some"
 
-let mk_add_type add_type type_ident
-      ?manifest ?(immediate=Type_immediacy.Unknown) ?(kind=Type_abstract) env =
+let mk_add_type add_type
+      ?manifest ?(immediate=Type_immediacy.Unknown) ?(kind=Type_abstract)
+      type_ident env =
   let decl =
     {type_params = [];
      type_arity = 0;
@@ -157,8 +158,8 @@ let mk_add_type add_type type_ident
 
 let common_initial_env add_type add_extension empty_env =
   let add_type = mk_add_type add_type
-  and add_type1 type_ident
-      ~variance ~separability ?(kind=fun _ -> Type_abstract) env =
+  and add_type1 ?(kind=fun _ -> Type_abstract) type_ident
+      ~variance ~separability env =
     let param = newgenvar () in
     let decl =
       {type_params = [param];

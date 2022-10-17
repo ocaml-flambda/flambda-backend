@@ -24,6 +24,9 @@ type primitive_mismatch =
   | Name
   | Arity
   | No_alloc of position
+  | Builtin
+  | Effects
+  | Coeffects
   | Native_name
   | Result_repr
   | Argument_repr of int

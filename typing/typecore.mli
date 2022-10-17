@@ -53,6 +53,7 @@ type type_expected = private {
 type pattern_variable =
   {
     pv_id: Ident.t;
+    pv_mode: Value_mode.t;
     pv_type: type_expr;
     pv_loc: Location.t;
     pv_as_var: bool;
@@ -223,21 +224,6 @@ type error =
   | Illegal_letrec_pat
   | Illegal_letrec_expr
   | Illegal_class_expr
-<<<<<<< HEAD
-  | Letop_type_clash of string * Ctype.Unification_trace.t
-  | Andop_type_clash of string * Ctype.Unification_trace.t
-  | Bindings_type_clash of Ctype.Unification_trace.t
-  | Local_value_escapes of Btype.Value_mode.error * Env.escaping_context option
-  | Param_mode_mismatch of type_expr
-  | Uncurried_function_escapes
-  | Local_return_annotation_mismatch of Location.t
-  | Bad_tail_annotation of [`Conflict|`Not_a_tailcall]
-
-||||||| 24dbb0976a
-  | Letop_type_clash of string * Ctype.Unification_trace.t
-  | Andop_type_clash of string * Ctype.Unification_trace.t
-  | Bindings_type_clash of Ctype.Unification_trace.t
-=======
   | Letop_type_clash of string * Errortrace.unification_error
   | Andop_type_clash of string * Errortrace.unification_error
   | Bindings_type_clash of Errortrace.unification_error
@@ -245,7 +231,11 @@ type error =
   | Missing_type_constraint
   | Wrong_expected_kind of wrong_kind_sort * wrong_kind_context * type_expr
   | Expr_not_a_record_type of type_expr
->>>>>>> ocaml/4.14
+  | Local_value_escapes of Value_mode.error * Env.escaping_context option
+  | Param_mode_mismatch of type_expr
+  | Uncurried_function_escapes
+  | Local_return_annotation_mismatch of Location.t
+  | Bad_tail_annotation of [`Conflict|`Not_a_tailcall]
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error

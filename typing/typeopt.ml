@@ -171,15 +171,17 @@ let bigarray_type_kind_and_layout env typ =
       (Pbigarray_unknown, Pbigarray_unknown_layout)
 
 let value_kind env ty =
-<<<<<<< HEAD
   let rec loop env ~visited ~depth ~num_nodes_visited ty
       : int * Lambda.value_kind =
     let[@inline] cannot_proceed () =
-      Numbers.Int.Set.mem ty.id visited
+      Numbers.Int.Set.mem (get_id ty) visited
         || depth >= 2
         || num_nodes_visited >= 30
     in
-    match scrape env ty with
+    let scty = scrape_ty env ty in
+    match get_desc scty with
+    | _ when is_immediate (Ctype.immediacy env scty) ->
+      num_nodes_visited, Pintval
     | Tconstr(p, _, _) when Path.same p Predef.path_int ->
       num_nodes_visited, Pintval
     | Tconstr(p, _, _) when Path.same p Predef.path_char ->
@@ -200,11 +202,11 @@ let value_kind env ty =
       if cannot_proceed () then
         num_nodes_visited, Pgenval
       else begin
-        let visited = Numbers.Int.Set.add ty.id visited in
+        let visited = Numbers.Int.Set.add (get_id ty) visited in
         match (Env.find_type p env).type_kind with
         | exception Not_found ->
           num_nodes_visited, Pgenval
-        | Type_variant constructors ->
+        | Type_variant (constructors, _rep) ->
           let is_constant (constructor : Types.constructor_declaration) =
             match constructor.cd_args with
             | Cstr_tuple [] -> true
@@ -325,7 +327,7 @@ let value_kind env ty =
       if cannot_proceed () then
         num_nodes_visited, Pgenval
       else begin
-        let visited = Numbers.Int.Set.add ty.id visited in
+        let visited = Numbers.Int.Set.add (get_id ty) visited in
         let depth = depth + 1 in
         let num_nodes_visited, fields =
           List.fold_left_map (fun num_nodes_visited field ->
@@ -345,39 +347,6 @@ let value_kind env ty =
       ~num_nodes_visited:0 ty
   in
   value_kind
-||||||| 24dbb0976a
-  match scrape env ty with
-  | Tconstr(p, _, _) when Path.same p Predef.path_int ->
-      Pintval
-  | Tconstr(p, _, _) when Path.same p Predef.path_char ->
-      Pintval
-  | Tconstr(p, _, _) when Path.same p Predef.path_float ->
-      Pfloatval
-  | Tconstr(p, _, _) when Path.same p Predef.path_int32 ->
-      Pboxedintval Pint32
-  | Tconstr(p, _, _) when Path.same p Predef.path_int64 ->
-      Pboxedintval Pint64
-  | Tconstr(p, _, _) when Path.same p Predef.path_nativeint ->
-      Pboxedintval Pnativeint
-  | _ ->
-      Pgenval
-=======
-  let ty = scrape_ty env ty in
-  if is_immediate (Ctype.immediacy env ty) then Pintval
-  else begin
-    match get_desc ty with
-    | Tconstr(p, _, _) when Path.same p Predef.path_float ->
-        Pfloatval
-    | Tconstr(p, _, _) when Path.same p Predef.path_int32 ->
-        Pboxedintval Pint32
-    | Tconstr(p, _, _) when Path.same p Predef.path_int64 ->
-        Pboxedintval Pint64
-    | Tconstr(p, _, _) when Path.same p Predef.path_nativeint ->
-        Pboxedintval Pnativeint
-    | _ ->
-        Pgenval
-  end
->>>>>>> ocaml/4.14
 
 let function_return_value_kind env ty =
   match is_function_type env ty with

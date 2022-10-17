@@ -26,6 +26,7 @@ open Btype
 open Outcometree
 
 module String = Misc.Stdlib.String
+module Int = Misc.Stdlib.Int
 
 (* Print a long identifier *)
 
@@ -498,23 +499,11 @@ let rec raw_type ppf ty =
 and raw_type_list tl = raw_list raw_type tl
 and raw_type_desc ppf = function
     Tvar name -> fprintf ppf "Tvar %a" print_name name
-<<<<<<< HEAD
   | Tarrow((l,arg,ret),t1,t2,c) ->
       fprintf ppf "@[<hov1>Tarrow((\"%s\",%a,%a),@,%a,@,%a,@,%s)@]"
         (string_of_label l) Alloc_mode.print arg Alloc_mode.print ret
         raw_type t1 raw_type t2
-        (safe_commu_repr [] c)
-||||||| 24dbb0976a
-  | Tarrow(l,t1,t2,c) ->
-      fprintf ppf "@[<hov1>Tarrow(\"%s\",@,%a,@,%a,@,%s)@]"
-        (string_of_label l) raw_type t1 raw_type t2
-        (safe_commu_repr [] c)
-=======
-  | Tarrow(l,t1,t2,c) ->
-      fprintf ppf "@[<hov1>Tarrow(\"%s\",@,%a,@,%a,@,%s)@]"
-        (string_of_label l) raw_type t1 raw_type t2
         (if is_commu_ok c then "Cok" else "Cunknown")
->>>>>>> ocaml/4.14
   | Ttuple tl ->
       fprintf ppf "@[<1>Ttuple@,%a@]" raw_type_list tl
   | Tconstr (p, tl, abbrev) ->
@@ -1054,12 +1043,6 @@ let rec mark_loops_rec visited ty =
         printer_iter_type_expr (mark_loops_rec visited) ty
 
 let mark_loops ty =
-<<<<<<< HEAD
-  normalize_type ty;
-||||||| 24dbb0976a
-  normalize_type Env.empty ty;
-=======
->>>>>>> ocaml/4.14
   mark_loops_rec [] ty;;
 
 let prepare_type ty =
@@ -1096,28 +1079,10 @@ let rec tree_of_typexp mode ty =
     let tty = Transient_expr.repr ty in
     match tty.desc with
     | Tvar _ ->
-<<<<<<< HEAD
-        (*let lev =
-          if is_non_gen sch ty then "/" ^ Int.to_string ty.level else "" in*)
-        let non_gen = is_non_gen sch ty in
-        let name_gen = if non_gen then new_weak_name ty else new_name in
-        Otyp_var (non_gen, name_of_type name_gen ty)
-    | Tarrow ((l, marg, mret), ty1, ty2, _) ->
-||||||| 24dbb0976a
-        (*let lev =
-          if is_non_gen sch ty then "/" ^ Int.to_string ty.level else "" in*)
-        let non_gen = is_non_gen sch ty in
-        let name_gen = if non_gen then new_weak_name ty else new_name in
-        Otyp_var (non_gen, name_of_type name_gen ty)
-    | Tarrow(l, ty1, ty2, _) ->
-=======
         let non_gen = is_non_gen mode ty in
-        let name_gen =
-          if non_gen then Names.new_weak_name ty else Names.new_name
-        in
+        let name_gen = if non_gen then Names.new_weak_name ty else Names.new_name in
         Otyp_var (non_gen, Names.name_of_type name_gen tty)
-    | Tarrow(l, ty1, ty2, _) ->
->>>>>>> ocaml/4.14
+    | Tarrow ((l, marg, mret), ty1, ty2, _) ->
         let lab =
           if !print_labels || is_optional l then string_of_label l else ""
         in
@@ -1128,15 +1093,14 @@ let rec tree_of_typexp mode ty =
               when Path.same path Predef.path_option ->
                 tree_of_typexp mode ty
             | _ -> Otyp_stuff "<hidden>"
-<<<<<<< HEAD
-          else tree_of_typexp sch ty1 in
+          else tree_of_typexp mode ty1 in
         let am =
           match Alloc_mode.check_const marg with
           | Some Global -> Oam_global
           | Some Local -> Oam_local
           | None -> Oam_unknown
         in
-        let t2 = tree_of_typexp sch ty2 in
+        let t2 = tree_of_typexp mode ty2 in
         let rm =
           match Alloc_mode.check_const mret with
           | Some Global -> Oam_global
@@ -1144,13 +1108,6 @@ let rec tree_of_typexp mode ty =
           | None -> Oam_unknown
         in
         Otyp_arrow (lab, am, t1, rm, t2)
-||||||| 24dbb0976a
-          else tree_of_typexp sch ty1 in
-        Otyp_arrow (lab, t1, tree_of_typexp sch ty2)
-=======
-          else tree_of_typexp mode ty1 in
-        Otyp_arrow (lab, t1, tree_of_typexp mode ty2)
->>>>>>> ocaml/4.14
     | Ttuple tyl ->
         Otyp_tuple (tree_of_typlist mode tyl)
     | Tconstr(p, tyl, _abbrev) ->
@@ -1515,7 +1472,6 @@ and tree_of_constructor cd =
         })
 
 and tree_of_label l =
-<<<<<<< HEAD
   let gom =
     match l.ld_mutable, l.ld_global with
     | Mutable, _ -> Ogom_mutable
@@ -1523,12 +1479,7 @@ and tree_of_label l =
     | Immutable, Nonlocal -> Ogom_nonlocal
     | Immutable, Unrestricted -> Ogom_immutable
   in
-  (Ident.name l.ld_id, gom, tree_of_typexp false l.ld_type)
-||||||| 24dbb0976a
-  (Ident.name l.ld_id, l.ld_mutable = Mutable, tree_of_typexp false l.ld_type)
-=======
-  (Ident.name l.ld_id, l.ld_mutable = Mutable, tree_of_typexp Type l.ld_type)
->>>>>>> ocaml/4.14
+  (Ident.name l.ld_id, gom, tree_of_typexp Type l.ld_type)
 
 let constructor ppf c =
   reset_except_context ();
@@ -1871,7 +1822,7 @@ let ident_sigitem = function
 let hide ids env =
   let hide_id id env =
     (* Global idents cannot be renamed *)
-    if id.hide && not (Ident.global id.ident) then
+    if id.hide && not (Ident.is_global_or_predef id.ident) then
       Env.add_type ~check:false (Ident.rename id.ident) dummy env
     else env
   in
@@ -2336,44 +2287,6 @@ let explain_object (type variety) : variety Errortrace.obj -> _ = function
   | Errortrace.Self_cannot_be_closed ->
       Some (dprintf "@,Self type cannot be unified with a closed object type")
 
-<<<<<<< HEAD
-
-let explanation intro prev env = function
-  | Trace.Diff { Trace.got = _, s; expected = _,t } -> explanation_diff env s t
-  | Trace.Escape {kind;context} -> explain_escape intro prev context kind
-  | Trace.Incompatible_fields { name; _ } ->
-        Some(dprintf "@,Types for method %s are incompatible" name)
-  | Trace.Variant v -> explain_variant v
-  | Trace.Obj o -> explain_object o
-  | Trace.Rec_occur(x,y) ->
-      reset_and_mark_loops y;
-      begin match x.desc with
-      | Tvar _ | Tunivar _  ->
-          Some(dprintf "@,@[<hov>The type variable %a occurs inside@ %a@]"
-                 marked_type_expr x marked_type_expr y)
-      | _ ->
-          (* We had a delayed unification of the type variable with
-             a non-variable after the occur check. *)
-          Some ignore
-           (* There is no need to search further for an explanation, but
-              we don't want to print a message of the form:
-                {[ The type int occurs inside int list -> 'a |}
-           *)
-      end
-||||||| 24dbb0976a
-
-let explanation intro prev env = function
-  | Trace.Diff { Trace.got = _, s; expected = _,t } -> explanation_diff env s t
-  | Trace.Escape {kind;context} -> explain_escape intro prev context kind
-  | Trace.Incompatible_fields { name; _ } ->
-        Some(dprintf "@,Types for method %s are incompatible" name)
-  | Trace.Variant v -> explain_variant v
-  | Trace.Obj o -> explain_object o
-  | Trace.Rec_occur(x,y) ->
-      reset_and_mark_loops y;
-      Some(dprintf "@,@[<hov>The type variable %a occurs inside@ %a@]"
-            marked_type_expr x marked_type_expr y)
-=======
 let explanation (type variety) intro prev env
   : (Errortrace.expanded_type, variety) Errortrace.elt -> _ = function
   | Errortrace.Diff {got; expected} ->
@@ -2422,7 +2335,6 @@ let explanation (type variety) intro prev env
              {[ The type int occurs inside int list -> 'a |}
         *)
     end
->>>>>>> ocaml/4.14
 
 let mismatch intro env trace =
   Errortrace.explain trace (fun ~prev h -> explanation intro prev env h)

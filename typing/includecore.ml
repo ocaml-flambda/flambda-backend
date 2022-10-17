@@ -20,60 +20,9 @@ open Path
 open Types
 open Typedtree
 
-<<<<<<< HEAD
-type position = Ctype.Unification_trace.position = First | Second
-||||||| 24dbb0976a
-=======
 type position = Errortrace.position = First | Second
->>>>>>> ocaml/4.14
 
 (* Inclusion between value descriptions *)
-
-type primitive_mismatch =
-  | Name
-  | Arity
-  | No_alloc of position
-  | Native_name
-  | Result_repr
-  | Argument_repr of int
-
-let native_repr_args nra1 nra2 =
-  let rec loop i nra1 nra2 =
-    match nra1, nra2 with
-    | [], [] -> None
-    | [], _ :: _ -> assert false
-    | _ :: _, [] -> assert false
-    | nr1 :: nra1, nr2 :: nra2 ->
-      if not (Primitive.equal_native_repr nr1 nr2) then Some (Argument_repr i)
-      else loop (i+1) nra1 nra2
-  in
-  loop 1 nra1 nra2
-
-let primitive_descriptions pd1 pd2 =
-  let open Primitive in
-  if not (String.equal pd1.prim_name pd2.prim_name) then
-    Some Name
-  else if not (Int.equal pd1.prim_arity pd2.prim_arity) then
-    Some Arity
-  else if (not pd1.prim_alloc) && pd2.prim_alloc then
-    Some (No_alloc First)
-  else if pd1.prim_alloc && (not pd2.prim_alloc) then
-    Some (No_alloc Second)
-  else if not (String.equal pd1.prim_native_name pd2.prim_native_name) then
-    Some Native_name
-  else if not
-    (Primitive.equal_native_repr
-       pd1.prim_native_repr_res pd2.prim_native_repr_res) then
-    Some Result_repr
-  else
-    native_repr_args pd1.prim_native_repr_args pd2.prim_native_repr_args
-
-type value_mismatch =
-  | Primitive_mismatch of primitive_mismatch
-  | Not_a_primitive
-  | Type of Errortrace.moregen_error
-
-exception Dont_match of value_mismatch
 
 type primitive_mismatch =
   | Name
@@ -85,6 +34,13 @@ type primitive_mismatch =
   | Native_name
   | Result_repr
   | Argument_repr of int
+
+type value_mismatch =
+  | Primitive_mismatch of primitive_mismatch
+  | Not_a_primitive
+  | Type of Errortrace.moregen_error
+
+exception Dont_match of value_mismatch
 
 let native_repr_args nra1 nra2 =
   let rec loop i nra1 nra2 =
@@ -134,7 +90,6 @@ let value_descriptions ~loc env name
     loc
     vd1.val_attributes vd2.val_attributes
     name;
-<<<<<<< HEAD
   match vd1.val_kind with
   | Val_prim p1 -> begin
      match vd2.val_kind with
@@ -142,90 +97,40 @@ let value_descriptions ~loc env name
          let ty1_global, _ = Ctype.instance_prim_mode p1 vd1.val_type in
          let ty2_global =
            let ty2, mode2 = Ctype.instance_prim_mode p2 vd2.val_type in
-           Option.iter Btype.Alloc_mode.make_global_exn mode2;
+           Option.iter Alloc_mode.make_global_exn mode2;
            ty2
          in
-         if not (Ctype.moregeneral env true ty1_global ty2_global) then
-           raise Dont_match;
+         (try Ctype.moregeneral env true ty1_global ty2_global
+          with Ctype.Moregen err -> raise (Dont_match (Type err)));
          let ty1_local, _ = Ctype.instance_prim_mode p1 vd1.val_type in
          let ty2_local =
            let ty2, mode2 = Ctype.instance_prim_mode p2 vd2.val_type in
-           Option.iter Btype.Alloc_mode.make_local_exn mode2;
+           Option.iter Alloc_mode.make_local_exn mode2;
            ty2
          in
-         if not (Ctype.moregeneral env true ty1_local ty2_local) then
-           raise Dont_match;
+         (try Ctype.moregeneral env true ty1_local ty2_local
+          with Ctype.Moregen err -> raise (Dont_match (Type err)));
          match primitive_descriptions p1 p2 with
          | None -> Tcoerce_none
-         | Some _ -> raise Dont_match
+         | Some err -> raise (Dont_match (Primitive_mismatch err))
        end
      | _ ->
         let ty1, mode1 = Ctype.instance_prim_mode p1 vd1.val_type in
-        if not (Ctype.moregeneral env true ty1 vd2.val_type) then
-          raise Dont_match;
+        (try Ctype.moregeneral env true ty1 vd2.val_type
+         with Ctype.Moregen err -> raise (Dont_match (Type err)));
         let pc =
           {pc_desc = p1; pc_type = vd2.Types.val_type; pc_poly_mode = mode1;
            pc_env = env; pc_loc = vd1.Types.val_loc; } in
         Tcoerce_primitive pc
      end
   | _ ->
-     if Ctype.moregeneral env true vd1.val_type vd2.val_type then begin
+     match Ctype.moregeneral env true vd1.val_type vd2.val_type with
+     | exception Ctype.Moregen err -> raise (Dont_match (Type err))
+     | () -> begin
        match vd2.val_kind with
-         | Val_prim _ -> raise Dont_match
+         | Val_prim _ -> raise (Dont_match Not_a_primitive)
          | _ -> Tcoerce_none
-     end else
-       raise Dont_match
-
-(* Inclusion between "private" annotations *)
-
-let private_flags decl1 decl2 =
-  match decl1.type_private, decl2.type_private with
-  | Private, Public ->
-      decl2.type_kind = Type_abstract &&
-      (decl2.type_manifest = None || decl1.type_kind <> Type_abstract)
-  | _, _ -> true
-||||||| 24dbb0976a
-  if Ctype.moregeneral env true vd1.val_type vd2.val_type then begin
-    match (vd1.val_kind, vd2.val_kind) with
-        (Val_prim p1, Val_prim p2) ->
-          if p1 = p2 then Tcoerce_none else raise Dont_match
-      | (Val_prim p, _) ->
-          let pc = {pc_desc = p; pc_type = vd2.Types.val_type;
-                  pc_env = env; pc_loc = vd1.Types.val_loc; } in
-          Tcoerce_primitive pc
-      | (_, Val_prim _) -> raise Dont_match
-      | (_, _) -> Tcoerce_none
-  end else
-    raise Dont_match
-
-(* Inclusion between "private" annotations *)
-
-let private_flags decl1 decl2 =
-  match decl1.type_private, decl2.type_private with
-  | Private, Public ->
-      decl2.type_kind = Type_abstract &&
-      (decl2.type_manifest = None || decl1.type_kind <> Type_abstract)
-  | _, _ -> true
-=======
-  match Ctype.moregeneral env true vd1.val_type vd2.val_type with
-  | exception Ctype.Moregen err -> raise (Dont_match (Type err))
-  | () -> begin
-      match (vd1.val_kind, vd2.val_kind) with
-      | (Val_prim p1, Val_prim p2) -> begin
-          match primitive_descriptions p1 p2 with
-          | None -> Tcoerce_none
-          | Some err -> raise (Dont_match (Primitive_mismatch err))
-        end
-      | (Val_prim p, _) ->
-          let pc =
-            { pc_desc = p; pc_type = vd2.Types.val_type;
-              pc_env = env; pc_loc = vd1.Types.val_loc; }
-          in
-          Tcoerce_primitive pc
-      | (_, Val_prim _) -> raise (Dont_match Not_a_primitive)
-      | (_, _) -> Tcoerce_none
-    end
->>>>>>> ocaml/4.14
+     end
 
 (* Inclusion between manifest types (particularly for private row types) *)
 
@@ -330,6 +235,12 @@ let report_primitive_mismatch first second ppf err =
       pr "%s primitive is [@@@@noalloc] but %s is not"
         (String.capitalize_ascii (choose ord first second))
         (choose_other ord first second)
+  | Builtin ->
+      pr "The two primitives differ in whether they are builtins"
+  | Effects ->
+      pr "The two primitives have different effect annotations"
+  | Coeffects ->
+      pr "The two primitives have different coeffect annotations"
   | Native_name ->
       pr "The native names of the primitives are not the same"
   | Result_repr ->
@@ -381,7 +292,7 @@ let report_label_mismatch first second env ppf err =
         if nonlocal then "nonlocal"
         else "global"
       in
-      pr "%s is %s and %s is not."
+      Format.fprintf ppf "%s is %s and %s is not."
         (String.capitalize_ascii  (choose ord first second))
         sort
         (choose_other ord first second)
@@ -563,50 +474,27 @@ module Record_diffing = struct
   let compare_labels env params1 params2
       (ld1 : Types.label_declaration)
       (ld2 : Types.label_declaration) =
-<<<<<<< HEAD
-      if ld1.ld_mutable <> ld2.ld_mutable
-      then
-        let ord = if ld1.ld_mutable = Asttypes.Mutable then First else Second in
-        Some (Mutability ord)
-      else begin
-        match ld1.ld_global, ld2.ld_global with
-        | Global, (Nonlocal | Unrestricted) ->
-          Some (Nonlocality(First, false))
-        | (Nonlocal | Unrestricted), Global ->
-          Some (Nonlocality(Second, false))
-        | Nonlocal, Unrestricted ->
-          Some (Nonlocality(First, true))
-        | Unrestricted, Nonlocal ->
-          Some (Nonlocality(Second, true))
-        | Global, Global
-        | Nonlocal, Nonlocal
-        | Unrestricted, Unrestricted ->
-          if Ctype.equal env true (ld1.ld_type::params1) (ld2.ld_type::params2)
-          then None
-          else Some (Type : label_mismatch)
-      end
-||||||| 24dbb0976a
-      if ld1.ld_mutable <> ld2.ld_mutable
-      then
-        let ord = if ld1.ld_mutable = Asttypes.Mutable then First else Second in
-        Some (Mutability  ord)
-      else
-        if Ctype.equal env true (ld1.ld_type::params1) (ld2.ld_type::params2)
-        then None
-        else Some (Type : label_mismatch)
-=======
     if ld1.ld_mutable <> ld2.ld_mutable
     then
       let ord = if ld1.ld_mutable = Asttypes.Mutable then First else Second in
-      Some (Mutability  ord)
-    else
-    let tl1 = params1 @ [ld1.ld_type] in
-    let tl2 = params2 @ [ld2.ld_type] in
-    match Ctype.equal env true tl1 tl2 with
-    | exception Ctype.Equality err ->
-        Some (Type err : label_mismatch)
-    | () -> None
->>>>>>> ocaml/4.14
+      Some (Mutability ord)
+    else begin
+      match ld1.ld_global, ld2.ld_global with
+      | Global, (Nonlocal | Unrestricted) ->
+        Some (Nonlocality(First, false))
+      | (Nonlocal | Unrestricted), Global ->
+        Some (Nonlocality(Second, false))
+      | Nonlocal, Unrestricted ->
+        Some (Nonlocality(First, true))
+      | Unrestricted, Nonlocal ->
+        Some (Nonlocality(Second, true))
+      | Global, Global
+      | Nonlocal, Nonlocal
+      | Unrestricted, Unrestricted ->
+        match Ctype.equal env true (ld1.ld_type::params1) (ld2.ld_type::params2) with
+        | exception Ctype.Equality err -> Some (Type err : label_mismatch)
+        | () -> None
+    end
 
   let rec equal ~loc env params1 params2
       (labels1 : Types.label_declaration list)

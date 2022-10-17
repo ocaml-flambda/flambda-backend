@@ -300,7 +300,6 @@ let equal_native_repr nr1 nr2 =
   | Untagged_int,
     (Same_as_ocaml_repr | Unboxed_float | Unboxed_integer _) -> false
 
-<<<<<<< HEAD
 let equal_effects ef1 ef2 =
   match ef1, ef2 with
   | No_effects, No_effects -> true
@@ -317,9 +316,6 @@ let equal_coeffects cf1 cf2 =
   | Has_coeffects, Has_coeffects -> true
   | Has_coeffects, No_coeffects -> false
 
-||||||| 24dbb0976a
-=======
->>>>>>> ocaml/4.14
 let native_name_is_external p =
   let nat_name = native_name p in
   nat_name <> "" && nat_name.[0] <> '%'

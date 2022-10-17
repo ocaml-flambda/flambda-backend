@@ -35,17 +35,9 @@ val type_structure:
   Typedtree.structure * Types.signature * Signature_names.t * Shape.t *
   Env.t
 val type_toplevel_phrase:
-<<<<<<< HEAD
   Env.t -> Types.signature -> Parsetree.structure ->
-  Typedtree.structure * Types.signature * Signature_names.t * Env.t
-||||||| 24dbb0976a
-  Env.t -> Parsetree.structure ->
-  Typedtree.structure * Types.signature * Signature_names.t * Env.t
-=======
-  Env.t -> Parsetree.structure ->
   Typedtree.structure * Types.signature * Signature_names.t * Shape.t *
   Env.t
->>>>>>> ocaml/4.14
 val type_implementation:
   string -> string -> string -> Env.t ->
   Parsetree.structure -> Typedtree.implementation
@@ -117,17 +109,9 @@ type functor_dependency_error =
 
 type error =
     Cannot_apply of module_type
-<<<<<<< HEAD
-  | Not_included of Includemod.error list
-  | Not_included_functor of Includemod.error list
-  | Cannot_eliminate_dependency of functor_dependency_error * module_type
-||||||| 24dbb0976a
-  | Not_included of Includemod.error list
-  | Cannot_eliminate_dependency of module_type
-=======
   | Not_included of Includemod.explanation
-  | Cannot_eliminate_dependency of module_type
->>>>>>> ocaml/4.14
+  | Not_included_functor of Includemod.explanation
+  | Cannot_eliminate_dependency of functor_dependency_error * module_type
   | Signature_expected
   | Structure_expected of module_type
   | Functor_expected of module_type
@@ -157,25 +141,15 @@ type error =
   | Badly_formed_signature of string * Typedecl.error
   | Cannot_hide_id of hiding_error
   | Invalid_type_subst_rhs
-<<<<<<< HEAD
-  | Unsupported_extension of Clflags.Extension.t
-||||||| 24dbb0976a
-=======
   | Unpackable_local_modtype_subst of Path.t
   | With_cannot_remove_packed_modtype of Path.t * module_type
->>>>>>> ocaml/4.14
+  | Unsupported_extension of Clflags.Extension.t
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
 
-<<<<<<< HEAD
-val report_error: Env.t -> formatter -> error -> unit
+val report_error: Env.t -> loc:Location.t -> error -> Location.error
 
 (** Clear several bits of global state that may retain large amounts of memory
     after typechecking is finished. *)
 val reset : preserve_persistent_env:bool -> unit
-||||||| 24dbb0976a
-val report_error: Env.t -> formatter -> error -> unit
-=======
-val report_error: Env.t -> loc:Location.t -> error -> Location.error
->>>>>>> ocaml/4.14

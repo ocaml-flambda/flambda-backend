@@ -720,13 +720,7 @@ let rec expression : Typedtree.expression -> term_judg =
         expression wh_cond << Dereference;
         expression wh_body << Guard;
       ]
-<<<<<<< HEAD
-    | Texp_send (e1, _, eo, _) ->
-||||||| 24dbb0976a
-    | Texp_send (e1, _, eo) ->
-=======
-    | Texp_send (e1, _) ->
->>>>>>> ocaml/4.14
+    | Texp_send (e1, _, _) ->
       (*
         G |- e: m[Dereference]
         ---------------------- (plus weird 'eo' option)

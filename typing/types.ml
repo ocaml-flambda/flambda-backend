@@ -106,109 +106,7 @@ end
 
 (* *)
 
-<<<<<<< HEAD
-module Uid = struct
-  type t =
-    | Compilation_unit of string
-    | Item of { comp_unit: string; id: int }
-    | Internal
-    | Predef of string
-
-  include Identifiable.Make(struct
-    type nonrec t = t
-
-    let equal (x : t) y = x = y
-    let compare (x : t) y = compare x y
-    let hash (x : t) = Hashtbl.hash x
-
-    let print fmt = function
-      | Internal -> Format.pp_print_string fmt "<internal>"
-      | Predef name -> Format.fprintf fmt "<predef:%s>" name
-      | Compilation_unit s -> Format.pp_print_string fmt s
-      | Item { comp_unit; id } -> Format.fprintf fmt "%s.%d" comp_unit id
-
-    let output oc t =
-      let fmt = Format.formatter_of_out_channel oc in
-      print fmt t
-  end)
-
-  let id = ref (-1)
-
-  let reinit () = id := (-1)
-
-  let mk  ~current_unit =
-      incr id;
-      Item { comp_unit = current_unit; id = !id }
-
-  let of_compilation_unit_id id =
-    if not (Ident.is_global id) then
-      Misc.fatal_errorf "Types.Uid.of_compilation_unit_id %S" (Ident.name id);
-    Compilation_unit (Ident.name id)
-
-  let of_predef_id id =
-    if not (Ident.is_predef id) then
-      Misc.fatal_errorf "Types.Uid.of_predef_id %S" (Ident.name id);
-    Predef (Ident.name id)
-
-  let internal_not_actually_unique = Internal
-
-  let for_actual_declaration = function
-    | Item _ -> true
-    | _ -> false
-end
-||||||| 24dbb0976a
-module Uid = struct
-  type t =
-    | Compilation_unit of string
-    | Item of { comp_unit: string; id: int }
-    | Internal
-    | Predef of string
-
-  include Identifiable.Make(struct
-    type nonrec t = t
-
-    let equal (x : t) y = x = y
-    let compare (x : t) y = compare x y
-    let hash (x : t) = Hashtbl.hash x
-
-    let print fmt = function
-      | Internal -> Format.pp_print_string fmt "<internal>"
-      | Predef name -> Format.fprintf fmt "<predef:%s>" name
-      | Compilation_unit s -> Format.pp_print_string fmt s
-      | Item { comp_unit; id } -> Format.fprintf fmt "%s.%d" comp_unit id
-
-    let output oc t =
-      let fmt = Format.formatter_of_out_channel oc in
-      print fmt t
-  end)
-
-  let id = ref (-1)
-
-  let reinit () = id := (-1)
-
-  let mk  ~current_unit =
-      incr id;
-      Item { comp_unit = current_unit; id = !id }
-
-  let of_compilation_unit_id id =
-    if not (Ident.persistent id) then
-      Misc.fatal_errorf "Types.Uid.of_compilation_unit_id %S" (Ident.name id);
-    Compilation_unit (Ident.name id)
-
-  let of_predef_id id =
-    if not (Ident.is_predef id) then
-      Misc.fatal_errorf "Types.Uid.of_predef_id %S" (Ident.name id);
-    Predef (Ident.name id)
-
-  let internal_not_actually_unique = Internal
-
-  let for_actual_declaration = function
-    | Item _ -> true
-    | _ -> false
-end
-=======
 module Uid = Shape.Uid
->>>>>>> ocaml/4.14
 
 (* Maps of methods and instance variables *)
 
@@ -347,17 +245,14 @@ and record_representation =
   | Record_inlined of int               (* Inlined record *)
   | Record_extension of Path.t          (* Inlined record under extension *)
 
-<<<<<<< HEAD
+and variant_representation =
+    Variant_regular          (* Constant or boxed constructors *)
+  | Variant_unboxed          (* One unboxed single-field constructor *)
+
 and global_flag =
   | Global
   | Nonlocal
   | Unrestricted
-||||||| 24dbb0976a
-=======
-and variant_representation =
-    Variant_regular          (* Constant or boxed constructors *)
-  | Variant_unboxed          (* One unboxed single-field constructor *)
->>>>>>> ocaml/4.14
 
 and label_declaration =
   {
@@ -531,12 +426,6 @@ let may_equal_constr c1 c2 =
          true
      | tag1, tag2 ->
          equal_tag tag1 tag2)
-<<<<<<< HEAD
-||||||| 24dbb0976a
-let may_equal_constr c1 c2 = match c1.cstr_tag,c2.cstr_tag with
-| Cstr_extension _,Cstr_extension _ -> c1.cstr_arity = c2.cstr_arity
-| tag1,tag2 -> equal_tag tag1 tag2
-=======
 
 let item_visibility = function
   | Sig_value (_, _, vis)
@@ -546,7 +435,6 @@ let item_visibility = function
   | Sig_modtype (_, _, vis)
   | Sig_class (_, _, _, vis)
   | Sig_class_type (_, _, _, vis) -> vis
->>>>>>> ocaml/4.14
 
 type label_description =
   { lbl_name: string;                   (* Short name *)
@@ -583,12 +471,10 @@ let signature_item_id = function
   | Sig_class_type (id, _, _, _)
     -> id
 
-<<<<<<< HEAD
 type value_mode =
   { r_as_l : alloc_mode;
     r_as_g : alloc_mode; }
-||||||| 24dbb0976a
-=======
+
 (**** Definitions for backtracking ****)
 
 type change =
@@ -602,6 +488,9 @@ type change =
   | Ckind of [`var] field_kind_gen
   | Ccommu of [`var] commutable_gen
   | Cuniv of type_expr option ref * type_expr option
+  | Cmode_upper of alloc_mode_var * alloc_mode_const
+  | Cmode_lower of alloc_mode_var * alloc_mode_const
+  | Cmode_vlower of alloc_mode_var * alloc_mode_var list
 
 type changes =
     Change of change * changes ref
@@ -614,6 +503,19 @@ let log_change ch =
   let r' = ref Unchanged in
   !trail := Change (ch, r');
   trail := r'
+
+let log_changes chead ctail =
+  if chead = Unchanged then (assert (!ctail = Unchanged))
+  else begin
+    !trail := chead;
+    trail := ctail
+  end
+
+let append_change ctail ch =
+  assert (!(!ctail) = Unchanged);
+  let r' = ref Unchanged in
+  (!ctail) := Change (ch, r');
+  ctail := r'
 
 (* constructor and accessors for [field_kind] *)
 
@@ -853,6 +755,9 @@ let undo_change = function
   | Ckind  (FKvar r) -> r.field_kind <- FKprivate
   | Ccommu (Cvar r)  -> r.commu <- Cunknown
   | Cuniv  (r, v)    -> r := v
+  | Cmode_upper (v, u) -> v.upper <- u
+  | Cmode_lower (v, l) -> v.lower <- l
+  | Cmode_vlower (v, vs) -> v.vlower <- vs
 
 type snapshot = changes ref * int
 let last_snapshot = Local_store.s_ref 0
@@ -1002,4 +907,447 @@ let undo_compress (changes, _old) =
             Transient_expr.set_desc ty desc; r := !next
         | _ -> ())
         log
->>>>>>> ocaml/4.14
+
+module Alloc_mode = struct
+  type nonrec const = alloc_mode_const = Global | Local
+  type t = alloc_mode =
+    | Amode of const
+    | Amodevar of alloc_mode_var
+
+  let global = Amode Global
+  let local = Amode Local
+  let of_const = function
+    | Global -> global
+    | Local -> local
+
+  let min_mode = global
+
+  let max_mode = local
+
+  let le_const a b =
+    match a, b with
+    | Global, _ | _, Local -> true
+    | Local, Global -> false
+
+  let join_const a b =
+    match a, b with
+    | Local, _ | _, Local -> Local
+    | Global, Global -> Global
+
+  let meet_const a b =
+    match a, b with
+    | Global, _ | _, Global -> Global
+    | Local, Local -> Local
+
+  exception NotSubmode
+(*
+  let pp_c ppf = function
+    | Global -> Printf.fprintf ppf "0"
+    | Local -> Printf.fprintf ppf "1"
+  let pp_v ppf v =
+    let i = v.mvid in
+    (if i < 26 then Printf.fprintf ppf "%c" (Char.chr (Char.code 'a' + i))
+    else Printf.fprintf ppf "v%d" i);
+    Printf.fprintf ppf "[%a%a]" pp_c v.lower pp_c v.upper
+*)
+
+  let set_lower ~log v lower =
+    append_change log (Cmode_lower (v, v.lower));
+    v.lower <- lower
+
+  let set_upper ~log v upper =
+    append_change log (Cmode_upper (v, v.upper));
+    v.upper <- upper
+
+  let set_vlower ~log v vlower =
+    append_change log (Cmode_vlower (v, v.vlower));
+    v.vlower <- vlower
+
+  let submode_cv ~log m v =
+    (* Printf.printf "  %a <= %a\n" pp_c m pp_v v; *)
+    if le_const m v.lower then ()
+    else if not (le_const m v.upper) then raise NotSubmode
+    else begin
+      let m = join_const v.lower m in
+      set_lower ~log v m;
+      if m = v.upper then set_vlower ~log v []
+    end
+
+  let rec submode_vc ~log v m =
+    (* Printf.printf "  %a <= %a\n" pp_v v pp_c m; *)
+    if le_const v.upper m then ()
+    else if not (le_const v.lower m) then raise NotSubmode
+    else begin
+      let m = meet_const v.upper m in
+      set_upper ~log v m;
+      v.vlower |> List.iter (fun a ->
+        (* a <= v <= m *)
+        submode_vc ~log a m;
+        set_lower ~log v (join_const v.lower a.lower);
+      );
+      if v.lower = m then set_vlower ~log v []
+    end
+
+  let submode_vv ~log a b =
+    (* Printf.printf "  %a <= %a\n" pp_v a pp_v b; *)
+    if le_const a.upper b.lower then ()
+    else if a == b || List.memq a b.vlower then ()
+    else begin
+      submode_vc ~log a b.upper;
+      set_vlower ~log b (a :: b.vlower);
+      submode_cv ~log a.lower b;
+    end
+
+  let submode a b =
+    let log_head = ref Unchanged in
+    let log = ref log_head in
+    match
+      match a, b with
+      | Amode a, Amode b ->
+         if not (le_const a b) then raise NotSubmode
+      | Amodevar v, Amode c ->
+         (* Printf.printf "%a <= %a\n" pp_v v pp_c c; *)
+         submode_vc ~log v c
+      | Amode c, Amodevar v ->
+         (* Printf.printf "%a <= %a\n" pp_c c pp_v v; *)
+         submode_cv ~log c v
+      | Amodevar a, Amodevar b ->
+         (* Printf.printf "%a <= %a\n" pp_v a pp_v b; *)
+         submode_vv ~log a b
+    with
+    | () ->
+       log_changes !log_head !log;
+       Ok ()
+    | exception NotSubmode ->
+       let backlog = rev_log [] !log_head in
+       List.iter undo_change backlog;
+       Error ()
+
+  let submode_exn t1 t2 =
+    match submode t1 t2 with
+    | Ok () -> ()
+    | Error () -> invalid_arg "submode_exn"
+
+  let equate a b =
+    match submode a b, submode b a with
+    | Ok (), Ok () -> Ok ()
+    | Error (), _ | _, Error () -> Error ()
+
+  let make_global_exn t =
+    submode_exn t global
+
+  let make_local_exn t =
+    submode_exn local t
+
+  let next_id = ref (-1)
+  let fresh () =
+    incr next_id;
+    { upper = Local;
+      lower = Global;
+      vlower = [];
+      mvid = !next_id;
+      mark = false }
+
+  let rec all_equal v = function
+    | [] -> true
+    | v' :: rest ->
+        if v == v' then all_equal v rest
+        else false
+
+  let joinvars vars =
+    match vars with
+    | [] -> global
+    | v :: rest ->
+      let v =
+        if all_equal v rest then v
+        else begin
+          let v = fresh () in
+          List.iter (fun v' -> submode_exn (Amodevar v') (Amodevar v)) vars;
+          v
+        end
+      in
+      Amodevar v
+
+  let join ms =
+    let rec aux vars = function
+      | [] -> joinvars vars
+      | Amode Global :: ms -> aux vars ms
+      | Amode Local :: _ -> local
+      | Amodevar v :: ms -> aux (v :: vars) ms
+    in aux [] ms
+
+  let constrain_upper = function
+    | Amode m -> m
+    | Amodevar v ->
+       submode_exn (Amode v.upper) (Amodevar v);
+       v.upper
+
+  exception Became_constant
+  let compress_vlower v =
+    let nmarked = ref 0 in
+    let mark v' =
+      assert (not v'.mark);
+      v'.mark <- true;
+      incr nmarked
+    in
+    let unmark v' =
+      assert v'.mark;
+      v'.mark <- false;
+      decr nmarked
+    in
+    let new_lower = ref v.lower in
+    let new_vlower = ref v.vlower in
+    (* Ensure that each transitive lower bound of v
+       is a direct lower bound of v *)
+    let rec trans v' =
+      if le_const v'.upper !new_lower then ()
+      else if v'.mark then ()
+      else begin
+        mark v';
+        new_vlower := v' :: !new_vlower;
+        trans_low v'
+      end
+    and trans_low v' =
+      assert (v != v');
+      if not (le_const v'.lower v.upper) then
+        Misc.fatal_error "compress_vlower: invalid bounds";
+      if not (le_const v'.lower !new_lower) then begin
+        new_lower := join_const !new_lower v'.lower;
+        if !new_lower = v.upper then
+          (* v is now a constant, no need to keep computing bounds *)
+          raise Became_constant
+      end;
+      List.iter trans v'.vlower
+    in
+    mark v;
+    List.iter mark v.vlower;
+    let became_constant =
+      match List.iter trans_low v.vlower with
+      | () -> false
+      | exception Became_constant -> true
+    in
+    List.iter unmark !new_vlower;
+    unmark v;
+    assert (!nmarked = 0);
+    if became_constant then new_vlower := [];
+    if !new_lower != v.lower || !new_vlower != v.vlower then begin
+      let log_head = ref Unchanged in
+      let log = ref log_head in
+      set_lower ~log v !new_lower;
+      set_vlower ~log v !new_vlower;
+      log_changes !log_head !log;
+    end
+
+  let constrain_lower = function
+    | Amode m -> m
+    | Amodevar v ->
+        compress_vlower v;
+        submode_exn (Amodevar v) (Amode v.lower);
+        v.lower
+
+  let newvar () = Amodevar (fresh ())
+
+  let newvar_below = function
+    | Amode Global -> Amode Global, false
+    | m ->
+       let v = newvar () in
+       submode_exn v m;
+       v, true
+
+  let newvar_above = function
+    | Amode Local -> Amode Local, false
+    | m ->
+       let v = newvar () in
+       submode_exn m v;
+       v, true
+
+  let check_const = function
+    | Amode m -> Some m
+    | Amodevar v ->
+       compress_vlower v;
+       if v.lower = v.upper then Some v.lower else None
+
+  let print_const ppf = function
+    | Global -> Format.fprintf ppf "Global"
+    | Local -> Format.fprintf ppf "Local"
+
+  let print_var_id ppf v =
+    Format.fprintf ppf "?%i" v.mvid
+
+  let print_var ppf v =
+    compress_vlower v;
+    if v.lower = v.upper then begin
+      print_const ppf v.lower
+    end else if v.vlower = [] then begin
+      print_var_id ppf v
+    end else begin
+      Format.fprintf ppf "%a[> %a]"
+        print_var_id v
+        (Format.pp_print_list print_var_id) v.vlower
+    end
+
+  let print ppf = function
+    | Amode m -> print_const ppf m
+    | Amodevar v -> print_var ppf v
+
+end
+
+module Value_mode = struct
+
+  type const =
+   | Global
+   | Regional
+   | Local
+
+  let r_as_l : const -> Alloc_mode.const = function
+    | Global -> Global
+    | Regional -> Local
+    | Local -> Local
+  [@@warning "-unused-value-declaration"]
+
+  let r_as_g : const -> Alloc_mode.const = function
+    | Global -> Global
+    | Regional -> Global
+    | Local -> Local
+  [@@warning "-unused-value-declaration"]
+
+  let of_alloc_consts
+        ~(r_as_l : Alloc_mode.const)
+        ~(r_as_g : Alloc_mode.const) =
+    match r_as_l, r_as_g with
+    | Global, Global -> Global
+    | Global, Local -> assert false
+    | Local, Global -> Regional
+    | Local, Local -> Local
+
+  type t = value_mode =
+    { r_as_l : Alloc_mode.t;
+      (* [r_as_l] is the image of the mode under the [r_as_l] function *)
+      r_as_g : Alloc_mode.t;
+      (* [r_as_g] is the image of the mode under the [r_as_g] function.
+         Always less than [r_as_l]. *) }
+
+  let global =
+    let r_as_l = Alloc_mode.global in
+    let r_as_g = Alloc_mode.global in
+    { r_as_l; r_as_g }
+
+  let regional =
+    let r_as_l = Alloc_mode.local in
+    let r_as_g = Alloc_mode.global in
+    { r_as_l; r_as_g }
+
+  let local =
+    let r_as_l = Alloc_mode.local in
+    let r_as_g = Alloc_mode.local in
+    { r_as_l; r_as_g }
+
+  let of_const = function
+    | Global -> global
+    | Regional -> regional
+    | Local -> local
+
+  let max_mode =
+    let r_as_l = Alloc_mode.max_mode in
+    let r_as_g = Alloc_mode.max_mode in
+    { r_as_l; r_as_g }
+
+  let min_mode =
+    let r_as_l = Alloc_mode.min_mode in
+    let r_as_g = Alloc_mode.min_mode in
+    { r_as_l; r_as_g }
+
+  let of_alloc mode =
+    let r_as_l = mode in
+    let r_as_g = mode in
+    { r_as_l; r_as_g }
+
+  let local_to_regional t = { t with r_as_g = Alloc_mode.global }
+
+  let regional_to_global t = { t with r_as_l = t.r_as_g }
+
+  let regional_to_local t = { t with r_as_g = t.r_as_l }
+
+  let global_to_regional t = { t with r_as_l = Alloc_mode.local }
+
+  let regional_to_global_alloc t = t.r_as_g
+
+  let regional_to_local_alloc t = t.r_as_l
+
+  type error = [`Regionality | `Locality]
+
+  let submode t1 t2 =
+    match Alloc_mode.submode t1.r_as_l t2.r_as_l with
+    | Error () -> Error `Regionality
+    | Ok () as ok -> begin
+        match Alloc_mode.submode t1.r_as_g t2.r_as_g with
+        | Ok () -> ok
+        | Error () -> Error `Locality
+      end
+
+  let submode_exn t1 t2 =
+    match submode t1 t2 with
+    | Ok () -> ()
+    | Error _ -> invalid_arg "submode_exn"
+
+  let rec submode_meet t = function
+    | [] -> Ok ()
+    | t' :: rest ->
+      match submode t t' with
+      | Ok () -> submode_meet t rest
+      | Error _ as err -> err
+
+  let join ts =
+    let r_as_l = Alloc_mode.join (List.map (fun t -> t.r_as_l) ts) in
+    let r_as_g = Alloc_mode.join (List.map (fun t -> t.r_as_g) ts) in
+    { r_as_l; r_as_g }
+
+  let constrain_upper t =
+    let r_as_l = Alloc_mode.constrain_upper t.r_as_l in
+    let r_as_g = Alloc_mode.constrain_upper t.r_as_g in
+    of_alloc_consts ~r_as_l ~r_as_g
+
+  let constrain_lower t =
+    let r_as_l = Alloc_mode.constrain_lower t.r_as_l in
+    let r_as_g = Alloc_mode.constrain_lower t.r_as_g in
+    of_alloc_consts ~r_as_l ~r_as_g
+
+  let newvar () =
+    let r_as_l = Alloc_mode.newvar () in
+    let r_as_g = Alloc_mode.newvar () in
+    Alloc_mode.submode_exn r_as_g r_as_l;
+    { r_as_l; r_as_g }
+
+  let newvar_below = function
+    | { r_as_l = Amode Global;
+        r_as_g = Amode Global } ->
+       global
+    | m ->
+       let v = newvar () in
+       submode_exn v m;
+       v
+
+  let check_const t =
+    match Alloc_mode.check_const t.r_as_l with
+    | None -> None
+    | Some r_as_l ->
+      match Alloc_mode.check_const t.r_as_g with
+      | None -> None
+      | Some r_as_g ->
+        Some (of_alloc_consts ~r_as_l ~r_as_g)
+
+  let print_const ppf = function
+    | Global -> Format.fprintf ppf "Global"
+    | Regional -> Format.fprintf ppf "Regional"
+    | Local -> Format.fprintf ppf "Local"
+
+  let print ppf t =
+    match check_const t with
+    | Some const -> print_const ppf const
+    | None ->
+        Format.fprintf ppf
+          "@[<2>r_as_l: %a@ r_as_g: %a@]"
+          Alloc_mode.print t.r_as_l
+          Alloc_mode.print t.r_as_g
+
+end

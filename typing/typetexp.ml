@@ -23,7 +23,6 @@ open Parsetree
 open Typedtree
 open Types
 open Ctype
-module Alloc_mode = Btype.Alloc_mode
 
 exception Already_bound
 
@@ -245,7 +244,6 @@ and transl_type_aux env policy mode styp =
       end
     in
     ctyp (Ttyp_var name) ty
-<<<<<<< HEAD
   | Ptyp_arrow _ ->
       let args, ret, ret_mode = extract_params styp in
       let rec loop acc_mode args =
@@ -269,35 +267,12 @@ and transl_type_aux env policy mode styp =
           let ret_mode = Alloc_mode.of_const ret_mode in
           let ty =
             newty
-              (Tarrow((l,arg_mode,ret_mode), arg_ty, ret_cty.ctyp_type, Cok))
+              (Tarrow((l,arg_mode,ret_mode), arg_ty, ret_cty.ctyp_type, commu_ok))
           in
           ctyp (Ttyp_arrow (l, arg_cty, ret_cty)) ty
         | [] -> transl_type env policy ret_mode ret
       in
       loop mode args
-||||||| 24dbb0976a
-  | Ptyp_arrow(l, st1, st2) ->
-    let cty1 = transl_type env policy st1 in
-    let cty2 = transl_type env policy st2 in
-    let ty1 = cty1.ctyp_type in
-    let ty1 =
-      if Btype.is_optional l
-      then newty (Tconstr(Predef.path_option,[ty1], ref Mnil))
-      else ty1 in
-    let ty = newty (Tarrow(l, ty1, cty2.ctyp_type, Cok)) in
-    ctyp (Ttyp_arrow (l, cty1, cty2)) ty
-=======
-  | Ptyp_arrow(l, st1, st2) ->
-    let cty1 = transl_type env policy st1 in
-    let cty2 = transl_type env policy st2 in
-    let ty1 = cty1.ctyp_type in
-    let ty1 =
-      if Btype.is_optional l
-      then newty (Tconstr(Predef.path_option,[ty1], ref Mnil))
-      else ty1 in
-    let ty = newty (Tarrow(l, ty1, cty2.ctyp_type, commu_ok)) in
-    ctyp (Ttyp_arrow (l, cty1, cty2)) ty
->>>>>>> ocaml/4.14
   | Ptyp_tuple stl ->
     assert (List.length stl >= 2);
     let ctys = List.map (transl_type env policy Alloc_mode.Global) stl in
@@ -415,22 +390,10 @@ and transl_type_aux env policy mode styp =
             with Not_found ->
               instance (fst(TyVarMap.find alias !used_variables))
           in
-<<<<<<< HEAD
           let ty = transl_type env policy mode st in
-          begin try unify_var env t ty.ctyp_type with Unify trace ->
-            let trace = Unification_trace.swap trace in
-            raise(Error(styp.ptyp_loc, env, Alias_type_mismatch trace))
-||||||| 24dbb0976a
-          let ty = transl_type env policy st in
-          begin try unify_var env t ty.ctyp_type with Unify trace ->
-            let trace = Unification_trace.swap trace in
-            raise(Error(styp.ptyp_loc, env, Alias_type_mismatch trace))
-=======
-          let ty = transl_type env policy st in
           begin try unify_var env t ty.ctyp_type with Unify err ->
             let err = Errortrace.swap_unification_error err in
             raise(Error(styp.ptyp_loc, env, Alias_type_mismatch err))
->>>>>>> ocaml/4.14
           end;
           ty
         with Not_found ->
@@ -438,22 +401,10 @@ and transl_type_aux env policy mode styp =
           let t = newvar () in
           used_variables :=
             TyVarMap.add alias (t, styp.ptyp_loc) !used_variables;
-<<<<<<< HEAD
           let ty = transl_type env policy mode st in
-          begin try unify_var env t ty.ctyp_type with Unify trace ->
-            let trace = Unification_trace.swap trace in
-            raise(Error(styp.ptyp_loc, env, Alias_type_mismatch trace))
-||||||| 24dbb0976a
-          let ty = transl_type env policy st in
-          begin try unify_var env t ty.ctyp_type with Unify trace ->
-            let trace = Unification_trace.swap trace in
-            raise(Error(styp.ptyp_loc, env, Alias_type_mismatch trace))
-=======
-          let ty = transl_type env policy st in
           begin try unify_var env t ty.ctyp_type with Unify err ->
              let err = Errortrace.swap_unification_error err in
             raise(Error(styp.ptyp_loc, env, Alias_type_mismatch err))
->>>>>>> ocaml/4.14
           end;
           if !Clflags.principal then begin
             end_def ();
@@ -602,16 +553,6 @@ and transl_type_aux env policy mode styp =
   | Ptyp_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
-<<<<<<< HEAD
-and transl_poly_type env policy mode t =
-  transl_type env policy mode (Ast_helper.Typ.force_poly t)
-
-||||||| 24dbb0976a
-and transl_poly_type env policy t =
-  transl_type env policy (Ast_helper.Typ.force_poly t)
-
-=======
->>>>>>> ocaml/4.14
 and transl_fields env policy o fields =
   let hfields = Hashtbl.create 17 in
   let add_typed_field loc l ty =
@@ -630,13 +571,7 @@ and transl_fields env policy o fields =
     | Otag (s, ty1) -> begin
         let ty1 =
           Builtin_attributes.warning_scope of_attributes
-<<<<<<< HEAD
-            (fun () -> transl_poly_type env policy Alloc_mode.Global ty1)
-||||||| 24dbb0976a
-            (fun () -> transl_poly_type env policy ty1)
-=======
-            (fun () -> transl_type env policy (Ast_helper.Typ.force_poly ty1))
->>>>>>> ocaml/4.14
+            (fun () -> transl_type env policy Alloc_mode.Global (Ast_helper.Typ.force_poly ty1))
         in
         let field = OTtag (s, ty1) in
         add_typed_field ty1.ctyp_loc s.txt ty1.ctyp_type;
@@ -737,19 +672,9 @@ let globalize_used_variables env fixed =
           raise (Error(loc, env, Type_mismatch err)))
       !r
 
-<<<<<<< HEAD
-let transl_simple_type env fixed mode styp =
-  univars := []; used_variables := TyVarMap.empty;
-  let typ = transl_type env (if fixed then Fixed else Extensible) mode styp in
-||||||| 24dbb0976a
-let transl_simple_type env fixed styp =
-  univars := []; used_variables := TyVarMap.empty;
-  let typ = transl_type env (if fixed then Fixed else Extensible) styp in
-=======
-let transl_simple_type env ?univars:(uvs=[]) fixed styp =
+let transl_simple_type env ?univars:(uvs=[]) fixed mode styp =
   univars := uvs; used_variables := TyVarMap.empty;
-  let typ = transl_type env (if fixed then Fixed else Extensible) styp in
->>>>>>> ocaml/4.14
+  let typ = transl_type env (if fixed then Fixed else Extensible) mode styp in
   globalize_used_variables env fixed ();
   make_fixed_univars typ.ctyp_type;
   typ
@@ -798,25 +723,12 @@ let transl_simple_type_delayed env mode styp =
 
 let transl_type_scheme env styp =
   reset_type_variables();
-<<<<<<< HEAD
-  begin_def();
-  let typ = transl_simple_type env false Alloc_mode.Global styp in
-  end_def();
-  generalize typ.ctyp_type;
-  typ
-||||||| 24dbb0976a
-  begin_def();
-  let typ = transl_simple_type env false styp in
-  end_def();
-  generalize typ.ctyp_type;
-  typ
-=======
   match styp.ptyp_desc with
   | Ptyp_poly (vars, st) ->
      begin_def();
      let vars = List.map (fun v -> v.txt) vars in
      let univars = make_poly_univars vars in
-     let typ = transl_simple_type env ~univars true st in
+     let typ = transl_simple_type env ~univars true Alloc_mode.Global st in
      end_def();
      generalize typ.ctyp_type;
      let _ = instance_poly_univars env styp.ptyp_loc univars in
@@ -827,11 +739,10 @@ let transl_type_scheme env styp =
        ctyp_attributes = styp.ptyp_attributes }
   | _ ->
      begin_def();
-     let typ = transl_simple_type env false styp in
+     let typ = transl_simple_type env false Alloc_mode.Global styp in
      end_def();
      generalize typ.ctyp_type;
      typ
->>>>>>> ocaml/4.14
 
 
 (* Error report *)

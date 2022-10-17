@@ -239,7 +239,6 @@ let expr sub {exp_extra; exp_desc; exp_env; _} =
   | Texp_sequence (exp1, exp2) ->
       sub.expr sub exp1;
       sub.expr sub exp2
-<<<<<<< HEAD
   | Texp_while { wh_cond; wh_body } ->
       sub.expr sub wh_cond;
       sub.expr sub wh_body
@@ -258,31 +257,8 @@ let expr sub {exp_extra; exp_desc; exp_env; _} =
       sub.expr sub for_from;
       sub.expr sub for_to;
       sub.expr sub for_body
-  | Texp_send (exp, _, expo, _) ->
-      sub.expr sub exp;
-      Option.iter (sub.expr sub) expo
-||||||| 24dbb0976a
-  | Texp_while (exp1, exp2) ->
-      sub.expr sub exp1;
-      sub.expr sub exp2
-  | Texp_for (_, _, exp1, exp2, _, exp3) ->
-      sub.expr sub exp1;
-      sub.expr sub exp2;
-      sub.expr sub exp3
-  | Texp_send (exp, _, expo) ->
-      sub.expr sub exp;
-      Option.iter (sub.expr sub) expo
-=======
-  | Texp_while (exp1, exp2) ->
-      sub.expr sub exp1;
-      sub.expr sub exp2
-  | Texp_for (_, _, exp1, exp2, _, exp3) ->
-      sub.expr sub exp1;
-      sub.expr sub exp2;
-      sub.expr sub exp3
-  | Texp_send (exp, _) ->
+  | Texp_send (exp, _, _) ->
       sub.expr sub exp
->>>>>>> ocaml/4.14
   | Texp_new _ -> ()
   | Texp_instvar _ -> ()
   | Texp_setinstvar (_, _, _, exp) ->sub.expr sub exp
@@ -336,14 +312,8 @@ let signature_item sub {sig_desc; sig_env; _} =
   | Tsig_modsubst x -> sub.module_substitution sub x
   | Tsig_recmodule list -> List.iter (sub.module_declaration sub) list
   | Tsig_modtype x -> sub.module_type_declaration sub x
-<<<<<<< HEAD
-  | Tsig_include incl -> sig_include_infos sub incl
-||||||| 24dbb0976a
-  | Tsig_include incl -> include_infos (sub.module_type sub) incl
-=======
   | Tsig_modtypesubst x -> sub.module_type_declaration sub x
-  | Tsig_include incl -> include_infos (sub.module_type sub) incl
->>>>>>> ocaml/4.14
+  | Tsig_include incl -> sig_include_infos sub incl
   | Tsig_class list -> List.iter (sub.class_description sub) list
   | Tsig_class_type list -> List.iter (sub.class_type_declaration sub) list
   | Tsig_open od -> sub.open_description sub od

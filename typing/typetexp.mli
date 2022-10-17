@@ -33,15 +33,8 @@ val instance_poly_univars :
      type scheme (i.e. variables become Tvar rather than Tunivar) *)
 
 val transl_simple_type:
-<<<<<<< HEAD
-        Env.t -> bool -> alloc_mode_const
+        Env.t -> ?univars:poly_univars -> bool -> alloc_mode_const
         -> Parsetree.core_type -> Typedtree.core_type
-||||||| 24dbb0976a
-        Env.t -> bool -> Parsetree.core_type -> Typedtree.core_type
-=======
-        Env.t -> ?univars:poly_univars -> bool -> Parsetree.core_type
-        -> Typedtree.core_type
->>>>>>> ocaml/4.14
 val transl_simple_type_univars:
         Env.t -> Parsetree.core_type -> Typedtree.core_type
 val transl_simple_type_delayed

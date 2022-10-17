@@ -220,13 +220,7 @@ let transl_labels env univars closed lbls =
     Builtin_attributes.warning_scope attrs
       (fun () ->
          let arg = Ast_helper.Typ.force_poly arg in
-<<<<<<< HEAD
-         let cty = transl_simple_type env closed Global arg in
-||||||| 24dbb0976a
-         let cty = transl_simple_type env closed arg in
-=======
-         let cty = transl_simple_type env ?univars closed arg in
->>>>>>> ocaml/4.14
+         let cty = transl_simple_type env ?univars closed Global arg in
          {ld_id = Ident.create_local name.txt;
           ld_name = name; ld_mutable = mut;
           ld_type = cty; ld_loc = loc; ld_attributes = attrs}
@@ -237,8 +231,7 @@ let transl_labels env univars closed lbls =
     List.map
       (fun ld ->
          let ty = ld.ld_type.ctyp_type in
-<<<<<<< HEAD
-         let ty = match ty.desc with Tpoly(t,[]) -> t | _ -> ty in
+         let ty = match get_desc ty with Tpoly(t,[]) -> t | _ -> ty in
          let gbl =
            match ld.ld_mutable with
            | Mutable -> Types.Global
@@ -250,11 +243,6 @@ let transl_labels env univars closed lbls =
                else
                  Types.Unrestricted
          in
-||||||| 24dbb0976a
-         let ty = match ty.desc with Tpoly(t,[]) -> t | _ -> ty in
-=======
-         let ty = match get_desc ty with Tpoly(t,[]) -> t | _ -> ty in
->>>>>>> ocaml/4.14
          {Types.ld_id = ld.ld_id;
           ld_mutable = ld.ld_mutable;
           ld_global = gbl;
@@ -269,13 +257,7 @@ let transl_labels env univars closed lbls =
 
 let transl_constructor_arguments env univars closed = function
   | Pcstr_tuple l ->
-<<<<<<< HEAD
-      let l = List.map (transl_simple_type env closed Global) l in
-||||||| 24dbb0976a
-      let l = List.map (transl_simple_type env closed) l in
-=======
-      let l = List.map (transl_simple_type env ?univars closed) l in
->>>>>>> ocaml/4.14
+      let l = List.map (transl_simple_type env ?univars closed Global) l in
       Types.Cstr_tuple (List.map (fun t -> t.ctyp_type) l),
       Cstr_tuple l
   | Pcstr_record l ->
@@ -302,16 +284,10 @@ let make_constructor env loc type_path type_params svars sargs sret_type =
            Ctype.begin_def();
            Some (make_poly_univars (List.map (fun v -> v.txt) vs)), true
       in
-<<<<<<< HEAD
-      let tret_type = transl_simple_type env false Global sret_type in
-||||||| 24dbb0976a
-      let tret_type = transl_simple_type env false sret_type in
-=======
       let args, targs =
         transl_constructor_arguments env univars closed sargs
       in
-      let tret_type = transl_simple_type env ?univars closed sret_type in
->>>>>>> ocaml/4.14
+      let tret_type = transl_simple_type env ?univars closed Global sret_type in
       let ret_type = tret_type.ctyp_type in
       (* TODO add back type_path as a parameter ? *)
       begin match get_desc ret_type with
@@ -760,13 +736,7 @@ let check_recursion ~orig_env env loc path decl to_check =
       match get_desc ty with
       | Tconstr(path', args', _) ->
           if Path.same path path' then begin
-<<<<<<< HEAD
-            if not (Ctype.equal orig_env false args args') then
-||||||| 24dbb0976a
-            if not (Ctype.equal env false args args') then
-=======
             if not (Ctype.is_equal orig_env false args args') then
->>>>>>> ocaml/4.14
               raise (Error(loc,
                      Non_regular {
                        definition=path;
@@ -789,19 +759,8 @@ let check_recursion ~orig_env env loc path decl to_check =
                 Ctype.instance_parameterized_type params0 body0 in
               begin
                 try List.iter2 (Ctype.unify orig_env) params args'
-<<<<<<< HEAD
-                with Ctype.Unify _ ->
-                  raise (Error(loc, Constraint_failed
-                                 (ty, Ctype.newconstr path' params0)));
-||||||| 24dbb0976a
-                try List.iter2 (Ctype.unify env) params args'
-                with Ctype.Unify _ ->
-                  raise (Error(loc, Constraint_failed
-                                 (ty, Ctype.newconstr path' params0)));
-=======
                 with Ctype.Unify err ->
                   raise (Error(loc, Constraint_failed (orig_env, err)));
->>>>>>> ocaml/4.14
               end;
               check_regular path' args
                 (path' :: prev_exp) ((ty,body) :: prev_expansions)
@@ -1374,22 +1333,14 @@ let make_native_repr env core_type ty ~global_repr =
     | Some repr -> repr
     end
 
-<<<<<<< HEAD
 let prim_const_mode m =
-  match Btype.Alloc_mode.check_const m with
+  match Types.Alloc_mode.check_const m with
   | Some Global -> Prim_global
   | Some Local -> Prim_local
   | None -> assert false
 
 let rec parse_native_repr_attributes env core_type ty rmode ~global_repr =
-  match core_type.ptyp_desc, (Ctype.repr ty).desc,
-||||||| 24dbb0976a
-let rec parse_native_repr_attributes env core_type ty ~global_repr =
-  match core_type.ptyp_desc, (Ctype.repr ty).desc,
-=======
-let rec parse_native_repr_attributes env core_type ty ~global_repr =
   match core_type.ptyp_desc, get_desc ty,
->>>>>>> ocaml/4.14
     get_native_repr_attribute core_type.ptyp_attributes ~global_repr:None
   with
   | Ptyp_arrow _, Tarrow _, Native_repr_attr_present kind  ->
@@ -1402,11 +1353,12 @@ let rec parse_native_repr_attributes env core_type ty ~global_repr =
       then Prim_poly
       else prim_const_mode marg
     in
-<<<<<<< HEAD
     let repr_args, repr_res =
       parse_native_repr_attributes env ct2 t2 (prim_const_mode mret) ~global_repr
     in
     ((mode,repr_arg) :: repr_args, repr_res)
+  | (Ptyp_poly (_, t) | Ptyp_alias (t, _)), _, _ ->
+     parse_native_repr_attributes env t ty rmode ~global_repr
   | _ ->
      let rmode =
        if Builtin_attributes.has_local_opt core_type.ptyp_attributes
@@ -1414,17 +1366,6 @@ let rec parse_native_repr_attributes env core_type ty ~global_repr =
        else rmode
      in
      ([], (rmode, make_native_repr env core_type ty ~global_repr))
-||||||| 24dbb0976a
-    (repr_arg :: repr_args, repr_res)
-  | Ptyp_arrow _, _, _ | _, Tarrow _, _ -> assert false
-  | _ -> ([], make_native_repr env core_type ty ~global_repr)
-=======
-    (repr_arg :: repr_args, repr_res)
-  | (Ptyp_poly (_, t) | Ptyp_alias (t, _)), _, _ ->
-     parse_native_repr_attributes env t ty ~global_repr
-  | Ptyp_arrow _, _, _ | _, Tarrow _, _ -> assert false
-  | _ -> ([], make_native_repr env core_type ty ~global_repr)
->>>>>>> ocaml/4.14
 
 
 let check_unboxable env loc ty =

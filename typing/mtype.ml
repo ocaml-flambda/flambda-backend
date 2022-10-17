@@ -62,22 +62,8 @@ and strengthen_lazy_sig' ~aliasable env sg p =
     [] -> []
   | (SigL_value(_, _, _) as sigelt) :: rem ->
       sigelt :: strengthen_lazy_sig' ~aliasable env rem p
-<<<<<<< HEAD
-  | SigL_type(id, {type_kind=Type_abstract}, _, _) ::
-    (SigL_type(id', {type_private=Private}, _, _) :: _ as rem)
-    when Ident.name id = Ident.name id' ^ "#row" ->
-||||||| 24dbb0976a
-  | (Sig_value(_, _, _) as sigelt) :: rem ->
-      sigelt :: strengthen_sig ~aliasable env rem p
-  | Sig_type(id, {type_kind=Type_abstract}, _, _) ::
-    (Sig_type(id', {type_private=Private}, _, _) :: _ as rem)
-    when Ident.name id = Ident.name id' ^ "#row" ->
-      strengthen_sig ~aliasable env rem p
-  | Sig_type(id, decl, rs, vis) :: rem ->
-=======
   | SigL_type(id, {type_kind=Type_abstract}, _, _) :: rem
     when Btype.is_row_name (Ident.name id) ->
->>>>>>> ocaml/4.14
       strengthen_lazy_sig' ~aliasable env rem p
   | SigL_type(id, decl, rs, vis) :: rem ->
       let newdecl =
@@ -147,7 +133,6 @@ let strengthen_decl ~aliasable env md p =
   let md = strengthen_lazy_decl ~aliasable env
              (Subst.Lazy.of_module_decl md) p in
   Subst.Lazy.force_module_decl md
-<<<<<<< HEAD
 
 let rec sig_make_manifest sg =
   match sg with
@@ -186,10 +171,6 @@ let rec sig_make_manifest sg =
                    | Some _ -> decl.mtd_type }
     in
     Sig_modtype(Ident.rename id, newdecl, vis) :: sig_make_manifest rem
-||||||| 24dbb0976a
-let () = Env.strengthen := strengthen
-=======
->>>>>>> ocaml/4.14
 
 let rec make_aliases_absent pres mty =
   match mty with

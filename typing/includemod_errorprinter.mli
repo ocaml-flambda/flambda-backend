@@ -13,11 +13,5 @@
 (*                                                                        *)
 (**************************************************************************)
 
-<<<<<<< HEAD:toplevel/opttopstart.ml
-let _ = Stdlib.exit (Opttopmain.main())
-||||||| 24dbb0976a:toplevel/opttopstart.ml
-let _ = exit (Opttopmain.main())
-=======
 val err_msgs: Includemod.explanation -> Format.formatter -> unit
 val register: unit -> unit
->>>>>>> ocaml/4.14:typing/includemod_errorprinter.mli

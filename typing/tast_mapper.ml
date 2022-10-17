@@ -345,7 +345,6 @@ let expr sub x =
           sub.expr sub e1,
           map_comprehension type_comp
         )
-<<<<<<< HEAD
     | Texp_arr_comprehension(e1, type_comp) ->
       Texp_arr_comprehension(
         sub.expr sub e1,
@@ -355,43 +354,12 @@ let expr sub x =
         Texp_for {tf with for_from = sub.expr sub tf.for_from;
                           for_to = sub.expr sub tf.for_to;
                           for_body = sub.expr sub tf.for_body}
-    | Texp_send (exp, meth, expo, pos) ->
-||||||| 24dbb0976a
-    | Texp_for (id, p, exp1, exp2, dir, exp3) ->
-        Texp_for (
-          id,
-          p,
-          sub.expr sub exp1,
-          sub.expr sub exp2,
-          dir,
-          sub.expr sub exp3
-        )
-    | Texp_send (exp, meth, expo) ->
-=======
-    | Texp_for (id, p, exp1, exp2, dir, exp3) ->
-        Texp_for (
-          id,
-          p,
-          sub.expr sub exp1,
-          sub.expr sub exp2,
-          dir,
-          sub.expr sub exp3
-        )
-    | Texp_send (exp, meth) ->
->>>>>>> ocaml/4.14
+    | Texp_send (exp, meth, ap) ->
         Texp_send
           (
             sub.expr sub exp,
-<<<<<<< HEAD
             meth,
-            Option.map (sub.expr sub) expo,
-            pos
-||||||| 24dbb0976a
-            meth,
-            Option.map (sub.expr sub) expo
-=======
-            meth
->>>>>>> ocaml/4.14
+            ap
           )
     | Texp_new _
     | Texp_instvar _ as d -> d
@@ -490,18 +458,10 @@ let signature_item sub x =
         Tsig_recmodule (List.map (sub.module_declaration sub) list)
     | Tsig_modtype x ->
         Tsig_modtype (sub.module_type_declaration sub x)
-<<<<<<< HEAD
+    | Tsig_modtypesubst x ->
+        Tsig_modtypesubst (sub.module_type_declaration sub x)
     | Tsig_include incl ->
         Tsig_include (sig_include_infos sub incl)
-||||||| 24dbb0976a
-    | Tsig_include incl ->
-        Tsig_include (include_infos (sub.module_type sub) incl)
-=======
-   | Tsig_modtypesubst x ->
-        Tsig_modtypesubst (sub.module_type_declaration sub x)
-   | Tsig_include incl ->
-        Tsig_include (include_infos (sub.module_type sub) incl)
->>>>>>> ocaml/4.14
     | Tsig_class list ->
         Tsig_class (List.map (sub.class_description sub) list)
     | Tsig_class_type list ->

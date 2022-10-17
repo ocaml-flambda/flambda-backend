@@ -19,7 +19,6 @@ open Misc
 open Asttypes
 open Types
 open Typedtree
-module Value_mode = Btype.Value_mode
 
 (*************************************)
 (* Utilities for building patterns   *)
@@ -509,16 +508,8 @@ let do_set_args ~erase_mutable q r = match q with
 | {pat_desc = Tpat_construct (lid, c, omegas, _)} ->
     let args,rest = read_args omegas r in
     make_pat
-<<<<<<< HEAD
-      (Tpat_construct (lid, c,args))
-      q.pat_type q.pat_mode q.pat_env::
-||||||| 24dbb0976a
-      (Tpat_construct (lid, c,args))
-      q.pat_type q.pat_env::
-=======
       (Tpat_construct (lid, c, args, None))
-      q.pat_type q.pat_env::
->>>>>>> ocaml/4.14
+      q.pat_type q.pat_mode q.pat_env::
     rest
 | {pat_desc = Tpat_variant (l, omega, row)} ->
     let arg, rest =
@@ -842,40 +833,16 @@ let pats_of_type ?(always=false) env ty mode =
       | exception Not_found -> [omega]
       | Type_variant (cstrs,_) when always || List.length cstrs <= 1 ||
         (* Only explode when all constructors are GADTs *)
-<<<<<<< HEAD
-        List.for_all (fun cd -> cd.Types.cd_res <> None) cl ->
-          let cstrs = fst (Env.find_type_descrs path env) in
-          List.map (pat_of_constr (make_pat Tpat_any ty mode env)) cstrs
-      | Type_record _ ->
-          let labels = snd (Env.find_type_descrs path env) in
-||||||| 24dbb0976a
-        List.for_all (fun cd -> cd.Types.cd_res <> None) cl ->
-          let cstrs = fst (Env.find_type_descrs path env) in
-          List.map (pat_of_constr (make_pat Tpat_any ty env)) cstrs
-      | Type_record _ ->
-          let labels = snd (Env.find_type_descrs path env) in
-=======
         List.for_all (fun cd -> cd.cstr_generalized) cstrs ->
-          List.map (pat_of_constr (make_pat Tpat_any ty env)) cstrs
+          List.map (pat_of_constr (make_pat Tpat_any ty mode env)) cstrs
       | Type_record (labels, _) ->
->>>>>>> ocaml/4.14
           let fields =
             List.map (fun ld ->
               mknoloc (Longident.Lident ld.lbl_name), ld, omega)
               labels
           in
-<<<<<<< HEAD
           [make_pat (Tpat_record (fields, Closed)) ty mode env]
-      | _ -> [omega]
-      with Not_found -> [omega]
-||||||| 24dbb0976a
-          [make_pat (Tpat_record (fields, Closed)) ty env]
-      | _ -> [omega]
-      with Not_found -> [omega]
-=======
-          [make_pat (Tpat_record (fields, Closed)) ty env]
       | Type_variant _ | Type_abstract | Type_open -> [omega]
->>>>>>> ocaml/4.14
       end
   | Ttuple tl ->
       [make_pat (Tpat_tuple (omegas (List.length tl))) ty mode env]
@@ -1776,28 +1743,12 @@ let rec lub p q = match p.pat_desc,q.pat_desc with
     make_pat (Tpat_tuple rs) p.pat_type p.pat_mode p.pat_env
 | Tpat_lazy p, Tpat_lazy q ->
     let r = lub p q in
-<<<<<<< HEAD
     make_pat (Tpat_lazy r) p.pat_type p.pat_mode p.pat_env
-| Tpat_construct (lid, c1,ps1), Tpat_construct (_,c2,ps2)
-||||||| 24dbb0976a
-    make_pat (Tpat_lazy r) p.pat_type p.pat_env
-| Tpat_construct (lid, c1,ps1), Tpat_construct (_,c2,ps2)
-=======
-    make_pat (Tpat_lazy r) p.pat_type p.pat_env
 | Tpat_construct (lid,c1,ps1,_), Tpat_construct (_,c2,ps2,_)
->>>>>>> ocaml/4.14
       when  Types.equal_tag c1.cstr_tag c2.cstr_tag  ->
         let rs = lubs ps1 ps2 in
-<<<<<<< HEAD
-        make_pat (Tpat_construct (lid, c1,rs))
-          p.pat_type p.pat_mode p.pat_env
-||||||| 24dbb0976a
-        make_pat (Tpat_construct (lid, c1,rs))
-          p.pat_type p.pat_env
-=======
         make_pat (Tpat_construct (lid, c1, rs, None))
-          p.pat_type p.pat_env
->>>>>>> ocaml/4.14
+          p.pat_type p.pat_mode p.pat_env
 | Tpat_variant(l1,Some p1,row), Tpat_variant(l2,Some p2,_)
           when  l1=l2 ->
             let r=lub p1 p2 in
