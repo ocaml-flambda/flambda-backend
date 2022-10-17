@@ -61,7 +61,7 @@ type directive_fun =
    | Directive_bool of (bool -> unit)
 
 
-let remembered = ref Ident.empty
+let remembered = ref (Ident.empty : (Ident.t * _) Ident.tbl)
 
 let rec remember phrase_name i = function
   | [] -> ()
@@ -77,13 +77,18 @@ let toplevel_value id =
   try Ident.find_same id !remembered
   with _ -> Misc.fatal_error @@ "Unknown ident: " ^ Ident.unique_name id
 
+let compilation_unit_of_toplevel_ident id =
+  Compilation_unit.create Compilation_unit.Prefix.empty
+    (Ident.name id |> Compilation_unit.Name.of_string)
+
 let close_phrase lam =
   let open Lambda in
   Ident.Set.fold (fun id l ->
     let glb, pos = toplevel_value id in
     let glob =
       Lprim (mod_field pos,
-             [Lprim (Pgetglobal glb, [], Loc_unknown)],
+             [Lprim (Pgetglobal (glb |> compilation_unit_of_toplevel_ident),
+                                 [], Loc_unknown)],
              Loc_unknown)
     in
     Llet(Strict, Pgenval, id, glob, l)

@@ -1,4 +1,4 @@
-(setglobal Comparison_table!
+(setglobal Comparison_table
   (let
     (gen_cmp = (function x y : int (caml_compare x y))
      int_cmp = (function x[int] y[int] : int (compare_ints x y))
@@ -206,7 +206,7 @@
                                                                     [0: *, *]))]]))]
                                                                     (apply
                                                                     (field 18
-                                                                    (global Stdlib__List!))
+                                                                    (global Stdlib__List))
                                                                     (apply
                                                                     uncurry
                                                                     f) l)))
@@ -393,8 +393,8 @@
                     [(consts (0))
                      (non_consts ([0: *,
                                    [(consts (0)) (non_consts ([0: *, *]))]]))]
-                    (apply (field 18 (global Stdlib__List!))
-                      (apply uncurry f) l)))
+                    (apply (field 18 (global Stdlib__List)) (apply uncurry f)
+                      l)))
                (makeblock 0 ([(consts ())
                               (non_consts ([0:
                                             [(consts (0))

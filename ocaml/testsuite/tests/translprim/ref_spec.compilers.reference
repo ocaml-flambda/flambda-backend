@@ -1,4 +1,4 @@
-(setglobal Ref_spec!
+(setglobal Ref_spec
   (let
     (int_ref = (makemutable 0 (int) 1)
      var_ref = (makemutable 0 65)
