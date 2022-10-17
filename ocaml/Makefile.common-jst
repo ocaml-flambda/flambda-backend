@@ -202,12 +202,13 @@ install_for_test: _install
 	 done; \
 	 ln -s . lex; ln -s . yacc; \
 	 ln -s _install/lib/ocaml/compiler-libs compilerlibs; \
-	 mkdir -p otherlibs/{unix,dynlink/native,str}; \
+	 mkdir -p otherlibs/{unix,dynlink/native,str,bigarray}; \
 	 ln -s ../stdlib/threads otherlibs/systhreads; \
-	 $(cpl) stdlib/{lib,}unix* otherlibs/unix; \
-	 $(cpl) stdlib/dynlink* otherlibs/dynlink; \
-	 $(cpl) stdlib/{lib,}str* otherlibs/str; \
-	 ln -s ../_build/main/$(ocamldir)/toplevel/byte/.ocamltoplevel.objs/byte toplevel; \
+         $(cpl) stdlib/{lib,}unix* otherlibs/unix; \
+         $(cpl) stdlib/dynlink* otherlibs/dynlink; \
+         $(cpl) stdlib/{lib,}str* otherlibs/str; \
+         ${cpl} stdlib/bigarray* otherlibs/bigarray; \
+	 ln -s ../_build/main/$(ocamldir)/toplevel/.ocamltoplevel.objs/byte toplevel; \
 	)
 
 	# Various directories are put on the -I paths by tools/Makefile;
@@ -218,6 +219,7 @@ install_for_test: _install
 	cp $(main_build)/$(ocamldir)/.ocamlcommon.objs/byte/*.cmo _runtest/utils
 	rm -f _runtest/utils/{topdirs,opttopdirs}.cmi
 	cp _install/lib/ocaml/*.{cmi,cma,a,cmxa} _runtest/utils
+	cp _install/lib/ocaml/{unix,str,dynlink,bigarray}/*.{cmi,cma,a,cmxa} _runtest/utils
 	cp $(main_build)/$(ocamldir)/.ocamlcommon.objs/native/config.o _runtest/utils
 	# Needed for tests/warnings
 	cp $(ocamldir)/utils/warnings.ml _runtest/utils
