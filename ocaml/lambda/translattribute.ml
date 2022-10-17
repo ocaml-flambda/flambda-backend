@@ -461,7 +461,7 @@ let check_attribute e {Parsetree.attr_name = { txt; loc }; _} =
   match txt with
   | "inline" | "ocaml.inline"
   | "specialise" | "ocaml.specialise"
-  | "poll" -> begin
+  | "poll" | "ocaml.poll" -> begin
       match e.exp_desc with
       | Texp_function _ -> ()
       | _ ->
