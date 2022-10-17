@@ -398,8 +398,6 @@ let compile_fundecl ?dwarf ~ppf_dump ~funcnames fd_cmm =
           ++ Profile.record ~accumulate:true "liveness" liveness
           ++ Profile.record ~accumulate:true "deadcode" Deadcode.fundecl
           ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_live
-          ++ Profile.record ~accumulate:true "polling"
-               (Polling.instrument_fundecl ~future_funcnames:funcnames)
           ++ pass_dump_if ppf_dump dump_live "Liveness analysis"
           ++ Profile.record ~accumulate:true "spill" Spill.fundecl
           ++ Profile.record ~accumulate:true "liveness" liveness
