@@ -354,10 +354,9 @@ let add_terminator t (block : C.basic_block) (i : L.instruction)
      fallthroughs in Linear. *)
   (match desc with
   | Never -> Misc.fatal_error "Cannot add terminator: Never"
-  | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
+  | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _ -> ()
+  | Switch _ | Return | Raise _ | Tailcall _ | Call_no_return _
   | Poll_and_jump _ ->
-    ()
-  | Switch _ | Return | Raise _ | Tailcall _ | Call_no_return _ ->
     if not (Linear_utils.defines_label i.next)
     then
       Misc.fatal_errorf "Linear instruction not followed by label:@ %a"
