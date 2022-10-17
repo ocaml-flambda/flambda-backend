@@ -549,6 +549,7 @@ module Make (T : S) = struct
         ~check:Default_check
         ~is_a_functor:false
         ~closure_origin:function_decl.closure_origin
+        ~poll:Default_poll (* don't propagate attribute to wrappers *)
     in
     new_fun_var, new_function_decl, rewritten_existing_specialised_args,
       benefit
@@ -643,6 +644,7 @@ module Make (T : S) = struct
           ~check:function_decl.check
           ~is_a_functor:function_decl.is_a_functor
           ~closure_origin
+          ~poll:function_decl.poll
       in
       let funs, direct_call_surrogates =
         if for_one_function.make_direct_call_surrogates then
