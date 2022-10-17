@@ -340,6 +340,8 @@ and function_declaration = private {
   (** Check function properties requirements from the source code  *)
   is_a_functor : bool;
   (** Whether the function is known definitively to be a functor. *)
+  poll: Lambda.poll_attribute;
+  (** Behaviour for polls *)
 }
 
 (** Equivalent to the similar type in [Lambda]. *)
@@ -572,6 +574,7 @@ val create_function_declaration
   -> check:Lambda.check_attribute
   -> is_a_functor:bool
   -> closure_origin:Closure_origin.t
+  -> poll:Lambda.poll_attribute
   -> function_declaration
 
 (** Create a function declaration based on another function declaration *)
