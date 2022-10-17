@@ -702,7 +702,9 @@ let invariant_for_new_equation (t : t) name ty =
     let free_names = Name_occurrences.without_code_ids (TG.free_names ty) in
     if not (Name_occurrences.subset_domain free_names defined_names)
     then
-      let unbound_names = Name_occurrences.diff free_names defined_names in
+      let unbound_names =
+        Name_occurrences.diff free_names ~without:defined_names
+      in
       Misc.fatal_errorf "New equation@ %a@ =@ %a@ has unbound names@ (%a):@ %a"
         Name.print name TG.print ty Name_occurrences.print unbound_names print t)
 
@@ -1084,7 +1086,7 @@ let rec free_names_transitive_of_type_of_name t name ~result =
 
 and free_names_transitive0 t typ ~result =
   let free_names = TG.free_names typ in
-  let to_traverse = Name_occurrences.diff free_names result in
+  let to_traverse = Name_occurrences.diff free_names ~without:result in
   if Name_occurrences.is_empty to_traverse
   then result
   else
@@ -1185,7 +1187,7 @@ end = struct
       | Block_approximation (fields, alloc_mode) ->
         let fields = List.map type_from_approx (Array.to_list fields) in
         MTC.immutable_block ~is_unique:false Tag.zero
-          ~field_kind:Flambda_kind.value ~fields (Or_unknown.Known alloc_mode)
+          ~field_kind:Flambda_kind.value ~fields alloc_mode
       | Closure_approximation { code_id; function_slot; code = _; symbol = _ }
         ->
         (* CR keryan: we should use the associated symbol at some point *)
@@ -1203,7 +1205,8 @@ end = struct
         in
         let all_value_slots_in_set = Value_slot.Map.empty in
         MTC.exactly_this_closure function_slot ~all_function_slots_in_set
-          ~all_closure_types_in_set ~all_value_slots_in_set Or_unknown.Unknown
+          ~all_closure_types_in_set ~all_value_slots_in_set
+          (Alloc_mode.For_types.unknown ())
     in
     let just_after_level =
       Symbol.Map.fold
@@ -1305,38 +1308,20 @@ end = struct
                 Closure_approximation
                   { code_id; function_slot; code = code_or_meta; symbol = None }
               ))
-          | Variant
-              { immediates = Unknown;
-                blocks = _;
-                is_unique = _;
-                alloc_mode = _
-              }
-          | Variant
-              { immediates = _;
-                blocks = Unknown;
-                is_unique = _;
-                alloc_mode = _
-              } ->
+          | Variant { immediates = Unknown; blocks = _; is_unique = _ }
+          | Variant { immediates = _; blocks = Unknown; is_unique = _ } ->
             Value_unknown
           | Variant
-              { immediates = Known imms;
-                blocks = Known blocks;
-                is_unique = _;
-                alloc_mode
-              } ->
+              { immediates = Known imms; blocks = Known blocks; is_unique = _ }
+            ->
             if TG.is_obviously_bottom imms
             then
               match TG.Row_like_for_blocks.get_singleton blocks with
               | None -> Value_unknown
-              | Some ((_tag, _size), fields) ->
+              | Some ((_tag, _size), fields, alloc_mode) ->
                 let fields =
                   List.map type_to_approx
                     (TG.Product.Int_indexed.components fields)
-                in
-                let alloc_mode =
-                  match alloc_mode with
-                  | Known am -> am
-                  | Unknown -> Alloc_mode.heap
                 in
                 Block_approximation (Array.of_list fields, alloc_mode)
             else Value_unknown))

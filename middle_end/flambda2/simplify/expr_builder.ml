@@ -133,7 +133,8 @@ let create_let uacc (bound_vars : Bound_pattern.t) (defining_expr : Named.t)
         not is_used, is_used
     in
     if is_end_region_for_used_region
-       || not (Named.at_most_generative_effects defining_expr)
+       || (not is_end_region_for_unused_region)
+          && not (Named.at_most_generative_effects defining_expr)
     then (
       if not (Name_mode.is_normal declared_name_mode)
       then
@@ -208,7 +209,7 @@ let create_let uacc (bound_vars : Bound_pattern.t) (defining_expr : Named.t)
       let without_bound_vars =
         Bound_pattern.fold_all_bound_vars bound_vars ~init:free_names_of_body
           ~f:(fun free_names bound_var ->
-            Name_occurrences.remove_var free_names (VB.var bound_var))
+            Name_occurrences.remove_var free_names ~var:(VB.var bound_var))
       in
       Name_occurrences.union without_bound_vars free_names_of_defining_expr
     in
@@ -350,8 +351,8 @@ let create_raw_let_symbol uacc bound_static static_consts ~body =
       Name_occurrences.union free_names_of_static_consts free_names_of_body
     in
     Code_id_or_symbol.Set.fold
-      (fun code_id_or_sym free_names ->
-        Name_occurrences.remove_code_id_or_symbol free_names code_id_or_sym)
+      (fun code_id_or_symbol free_names ->
+        Name_occurrences.remove_code_id_or_symbol free_names ~code_id_or_symbol)
       (Bound_static.everything_being_defined bound_static)
       name_occurrences
   in
@@ -625,7 +626,7 @@ let bind_let_cont (uacc : UA.t) (body : RE.t)
   let name_occurrences =
     Name_occurrences.remove_continuation
       (Name_occurrences.union free_names_of_body free_names_of_handler)
-      cont
+      ~continuation:cont
   in
   let uacc =
     UA.with_name_occurrences uacc ~name_occurrences
@@ -863,7 +864,8 @@ let rewrite_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id arity :
       let free_names_of_handler =
         ListLabels.fold_left (Bound_parameters.to_list params) ~init:free_names
           ~f:(fun free_names param ->
-            Name_occurrences.remove_var free_names (Bound_parameter.var param))
+            Name_occurrences.remove_var free_names
+              ~var:(Bound_parameter.var param))
       in
       New_wrapper
         { cont; handler; free_names_of_handler; cost_metrics_of_handler }

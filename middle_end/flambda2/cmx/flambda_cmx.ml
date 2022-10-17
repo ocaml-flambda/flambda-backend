@@ -129,7 +129,8 @@ let compute_reachable_names_and_code ~module_symbol ~free_names_of_name code =
                 free_names
             in
             let new_names =
-              Name_occurrences.diff names_to_consider names_already_added
+              Name_occurrences.diff names_to_consider
+                ~without:names_already_added
             in
             Name_occurrences.union new_names names_to_add
       in
@@ -150,7 +151,8 @@ let compute_reachable_names_and_code ~module_symbol ~free_names_of_name code =
               .with_only_names_and_code_ids_promoting_newer_version_of ty_names
             in
             let new_names =
-              Name_occurrences.diff names_to_consider names_already_added
+              Name_occurrences.diff names_to_consider
+                ~without:names_already_added
             in
             Name_occurrences.union new_names names_to_add
           | None ->

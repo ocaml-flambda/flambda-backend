@@ -14,16 +14,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open! Flambda
-module DA = Downwards_acc
-module DE = Downwards_env
-module K = Flambda_kind
-module BP = Bound_parameter
-module P = Flambda_primitive
-module T = Flambda2_types
-module UA = Upwards_acc
-module UE = Upwards_env
-module AC = Apply_cont_expr
+open Simplify_import
 
 type 'a after_rebuild = Rebuilt_expr.t -> Upwards_acc.t -> 'a
 
@@ -39,6 +30,16 @@ type 'a expr_simplifier =
   Rebuilt_expr.t * Upwards_acc.t
 
 type simplify_toplevel =
+  Downwards_acc.t ->
+  Expr.t ->
+  return_continuation:Continuation.t ->
+  return_arity:Flambda_arity.With_subkinds.t ->
+  exn_continuation:Continuation.t ->
+  return_cont_scope:Scope.t ->
+  exn_cont_scope:Scope.t ->
+  Rebuilt_expr.t * Upwards_acc.t
+
+type simplify_function_body =
   Downwards_acc.t ->
   Expr.t ->
   return_continuation:Continuation.t ->
@@ -91,8 +92,8 @@ let project_tuple ~dbg ~size ~field tuple =
   Named.create_prim prim dbg
 
 let split_direct_over_application apply ~param_arity ~result_arity
-    ~(apply_alloc_mode : Alloc_mode.t) ~contains_no_escaping_local_allocs
-    ~current_region =
+    ~(apply_alloc_mode : Alloc_mode.For_types.t)
+    ~contains_no_escaping_local_allocs ~current_region =
   let arity = Flambda_arity.With_subkinds.cardinal param_arity in
   let args = Apply.args apply in
   assert (arity < List.length args);
@@ -110,13 +111,18 @@ let split_direct_over_application apply ~param_arity ~result_arity
     match apply_alloc_mode, contains_no_escaping_local_allocs with
     | Heap, false ->
       Some (Variable.create "over_app_region", Continuation.create ())
-    | Heap, true | Local, _ -> None
+    | Heap, true | (Local | Heap_or_local), _ -> None
   in
   let perform_over_application =
-    let alloc_mode : Alloc_mode.t =
+    let region =
+      match needs_region with
+      | None -> current_region
+      | Some (region, _) -> region
+    in
+    let alloc_mode =
       if contains_no_escaping_local_allocs
-      then Alloc_mode.heap
-      else Alloc_mode.local ()
+      then Alloc_mode.For_types.heap
+      else Alloc_mode.For_types.unknown ()
     in
     let continuation =
       (* If there is no need for a new region, then the second (over)
@@ -128,11 +134,6 @@ let split_direct_over_application apply ~param_arity ~result_arity
       | None -> Apply.continuation apply
       | Some (_, cont) -> Apply.Result_continuation.Return cont
     in
-    let current_region =
-      match needs_region with
-      | None -> current_region
-      | Some (region, _) -> region
-    in
     Apply.create ~callee:(Simple.var func_var) ~continuation
       (Apply.exn_continuation apply)
       ~args:remaining_args
@@ -141,7 +142,7 @@ let split_direct_over_application apply ~param_arity ~result_arity
       ~inlining_state:(Apply.inlining_state apply)
       ~probe_name:(Apply.probe_name apply) ~position:(Apply.position apply)
       ~relative_history:(Apply.relative_history apply)
-      ~region:current_region
+      ~region
   in
   let perform_over_application_free_names =
     Apply.free_names perform_over_application
@@ -175,8 +176,7 @@ let split_direct_over_application apply ~param_arity ~result_arity
         | Never_returns ->
           (* The whole overapplication never returns, so this point is
              unreachable. *)
-          ( Expr.create_invalid (Over_application_never_returns apply),
-            Name_occurrences.empty )
+          Expr.create_invalid (Over_application_never_returns apply), NO.empty
       in
       let handler_expr =
         Let.create
@@ -190,7 +190,7 @@ let split_direct_over_application apply ~param_arity ~result_arity
         |> Expr.create_let
       in
       let handler_expr_free_names =
-        Name_occurrences.add_variable call_return_continuation_free_names region
+        NO.add_variable call_return_continuation_free_names region
           Name_mode.normal
       in
       let handler =
@@ -233,7 +233,7 @@ let split_direct_over_application apply ~param_arity ~result_arity
       ~body:both_applications
       ~free_names_of_body:
         (Known
-           (Name_occurrences.union
+           (NO.union
               (Apply.free_names full_apply)
               perform_over_application_free_names))
     |> Expr.create_let

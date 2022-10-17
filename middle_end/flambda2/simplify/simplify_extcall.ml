@@ -49,7 +49,7 @@ let let_prim ~dbg v prim (free_names, body) =
   let named = Named.create_prim prim dbg in
   let free_names_of_body = Or_unknown.Known free_names in
   let let_expr = Let.create bindable named ~body ~free_names_of_body in
-  let free_names = Name_occurrences.remove_var free_names v in
+  let free_names = NO.remove_var free_names ~var:v in
   let expr = Expr.create_let let_expr in
   free_names, expr
 
@@ -150,7 +150,7 @@ let simplify_caml_make_vect dacc ~len_ty ~init_value_ty : t =
        Also maybe we should allow static allocation of these arrays for
        reasonable sizes. *)
     let type_of_returned_array =
-      T.mutable_array ~element_kind ~length:len_ty (Known Alloc_mode.heap)
+      T.mutable_array ~element_kind ~length:len_ty Alloc_mode.For_types.heap
     in
     Unchanged { return_types = Known [type_of_returned_array] }
 

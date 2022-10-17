@@ -145,7 +145,7 @@ let bind_no_simplification are_rebuilding ~bindings ~body ~cost_metrics_of_body
       let free_names =
         Name_occurrences.union
           (Named.free_names defining_expr)
-          (Name_occurrences.remove_var free_names (Bound_var.var var))
+          (Name_occurrences.remove_var free_names ~var:(Bound_var.var var))
       in
       let is_phantom = Name_mode.is_phantom (Bound_var.name_mode var) in
       let cost_metrics_of_defining_expr =

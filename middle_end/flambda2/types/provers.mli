@@ -75,7 +75,7 @@ val prove_variant_like :
 
 type boxed_or_tagged_number = private
   | Boxed of
-      Alloc_mode.t Or_unknown.t * Flambda_kind.Boxable_number.t * Type_grammar.t
+      Alloc_mode.For_types.t * Flambda_kind.Boxable_number.t * Type_grammar.t
   | Tagged_immediate
 
 val prove_is_a_boxed_or_tagged_number :
@@ -122,7 +122,7 @@ val meet_is_immutable_array :
   Type_grammar.t ->
   (Flambda_kind.With_subkind.t Or_unknown.t
   * Type_grammar.t
-  * Alloc_mode.t Or_unknown.t)
+  * Alloc_mode.For_types.t)
   meet_shortcut
 
 val prove_is_immediates_array :
@@ -132,8 +132,7 @@ val meet_single_closures_entry :
   Typing_env.t ->
   Type_grammar.t ->
   (Function_slot.t
-  * Alloc_mode.t Or_unknown.t
-  (* CR vlaviron: remove the Closures_entry.t field *)
+  * Alloc_mode.For_types.t (* CR vlaviron: remove the Closures_entry.t field *)
   * Type_grammar.Closures_entry.t
   * Type_grammar.Function_type.t)
   meet_shortcut
@@ -142,8 +141,7 @@ val prove_single_closures_entry :
   Typing_env.t ->
   Type_grammar.t ->
   (Function_slot.t
-  * Alloc_mode.t Or_unknown.t
-  (* CR vlaviron: remove the Closures_entry.t field *)
+  * Alloc_mode.For_types.t (* CR vlaviron: remove the Closures_entry.t field *)
   * Type_grammar.Closures_entry.t
   * Type_grammar.Function_type.t)
   proof_of_property
@@ -154,7 +152,7 @@ val meet_strings :
 val prove_strings :
   Typing_env.t ->
   Type_grammar.t ->
-  (Alloc_mode.t Or_unknown.t * String_info.Set.t) proof_of_property
+  (Alloc_mode.For_types.t * String_info.Set.t) proof_of_property
 
 val prove_tagging_of_simple :
   Typing_env.t ->
@@ -217,7 +215,7 @@ val meet_rec_info :
   Typing_env.t -> Type_grammar.t -> Rec_info_expr.t meet_shortcut
 
 val prove_alloc_mode_of_boxed_number :
-  Typing_env.t -> Type_grammar.t -> Alloc_mode.t proof_of_property
+  Typing_env.t -> Type_grammar.t -> Alloc_mode.For_types.t proof_of_property
 
 val never_holds_locally_allocated_values :
   Typing_env.t -> Variable.t -> Flambda_kind.t -> unit proof_of_property

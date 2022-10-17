@@ -123,12 +123,10 @@ let record_lifted_constant_definition_for_data_flow ~being_defined data_flow
   match D.descr definition with
   | Code code_id ->
     DF.record_code_id_binding code_id
-      (Name_occurrences.union being_defined (D.free_names definition))
+      (NO.union being_defined (D.free_names definition))
       data_flow
   | Block_like { symbol; _ } ->
-    let free_names =
-      Name_occurrences.union being_defined (D.free_names definition)
-    in
+    let free_names = NO.union being_defined (D.free_names definition) in
     DF.record_symbol_binding symbol free_names data_flow
   | Set_of_closures { closure_symbols_with_types; _ } -> (
     let expr = D.defining_expr definition in
@@ -136,7 +134,7 @@ let record_lifted_constant_definition_for_data_flow ~being_defined data_flow
     | Some (Static_const const) ->
       let set_of_closures = Static_const.must_be_set_of_closures const in
       let free_names =
-        Name_occurrences.union being_defined
+        NO.union being_defined
           (Function_declarations.free_names
              (Set_of_closures.function_decls set_of_closures))
       in
@@ -145,9 +143,7 @@ let record_lifted_constant_definition_for_data_flow ~being_defined data_flow
         (record_one_function_slot_for_data_flow ~free_names ~value_slots)
         closure_symbols_with_types data_flow
     | None | Some (Code _ | Deleted_code) ->
-      let free_names =
-        Name_occurrences.union being_defined (D.free_names definition)
-      in
+      let free_names = NO.union being_defined (D.free_names definition) in
       Function_slot.Lmap.fold
         (fun _ (symbol, _) data_flow ->
           DF.record_symbol_binding symbol free_names data_flow)
@@ -171,10 +167,9 @@ let record_lifted_constant_for_data_flow data_flow lifted_constant =
        are only used in the newer_version_of field of another binding will be
        deleted as expected. *)
     let symbols = Bound_static.symbols_being_defined bound_static in
-    Name_occurrences.empty
+    NO.empty
     |> Symbol.Set.fold
-         (fun symbol acc ->
-           Name_occurrences.add_symbol acc symbol Name_mode.normal)
+         (fun symbol acc -> NO.add_symbol acc symbol Name_mode.normal)
          symbols
   in
   ListLabels.fold_left
@@ -205,7 +200,7 @@ let record_new_defining_expression_binding_for_data_flow dacc data_flow
           if Option.is_some (P.is_end_region prim)
           then
             (* Format.eprintf "ignoring free names for %a\n%!" P.print prim;*)
-            Name_occurrences.empty
+            NO.empty
           else free_names
       in
       Bound_pattern.fold_all_bound_vars binding.let_bound ~init:data_flow
@@ -232,8 +227,8 @@ let update_data_flow dacc closure_info ~lifted_constants_from_defining_expr
     ~init:data_flow
     ~f:(record_new_defining_expression_binding_for_data_flow dacc)
 
-let simplify_let0 ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up
-    bound_pattern ~body =
+let simplify_let0 ~simplify_expr ~simplify_function_body dacc let_expr
+    ~down_to_up bound_pattern ~body =
   let module L = Flambda.Let in
   let original_dacc = dacc in
   (* Remember then clear the lifted constants memory in [DA] so we can easily
@@ -244,7 +239,7 @@ let simplify_let0 ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up
   let defining_expr = L.defining_expr let_expr in
   let simplify_named_result, removed_operations =
     Simplify_named.simplify_named dacc bound_pattern defining_expr
-      ~simplify_toplevel
+      ~simplify_function_body
   in
   (* We must make sure that if [Invalid] is going to be produced, [uacc] doesn't
      contain any extraneous data for e.g. lifted constants that will never be
@@ -309,8 +304,10 @@ let simplify_let0 ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up
     in
     simplify_expr dacc body ~down_to_up
 
-let simplify_let ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up =
+let simplify_let ~simplify_expr ~simplify_function_body dacc let_expr
+    ~down_to_up =
   let module L = Flambda.Let in
   L.pattern_match let_expr
     ~f:
-      (simplify_let0 ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up)
+      (simplify_let0 ~simplify_expr ~simplify_function_body dacc let_expr
+         ~down_to_up)

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Compare the installation tree produced by the Flambda backend build
 # process against that from an upstream compiler built with make.

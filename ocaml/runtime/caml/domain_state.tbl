@@ -21,6 +21,9 @@ DOMAIN_STATE(value*, young_limit)
 DOMAIN_STATE(char*, exception_pointer)
 /* Exception pointer that points into the current stack */
 
+DOMAIN_STATE(char*, async_exception_pointer)
+/* Async exception pointer that points into the current stack */
+
 DOMAIN_STATE(void*, young_base)
 DOMAIN_STATE(value*, young_start)
 DOMAIN_STATE(value*, young_end)
@@ -51,6 +54,7 @@ DOMAIN_STATE(value*, extern_sp)
 DOMAIN_STATE(value*, trapsp)
 DOMAIN_STATE(value*, trap_barrier)
 DOMAIN_STATE(struct longjmp_buffer*, external_raise)
+DOMAIN_STATE(struct longjmp_buffer*, external_raise_async)
 DOMAIN_STATE(value, exn_bucket)
 /* See interp.c */
 
@@ -59,6 +63,9 @@ DOMAIN_STATE(char*, bottom_of_stack)
 DOMAIN_STATE(uintnat, last_return_address)
 DOMAIN_STATE(value*, gc_regs)
 /* See roots_nat.c */
+
+DOMAIN_STATE(intnat, raising_async_exn)
+/* Set when an async exn is raised, cleared when caught */
 
 DOMAIN_STATE(intnat, backtrace_active)
 DOMAIN_STATE(intnat, backtrace_pos)

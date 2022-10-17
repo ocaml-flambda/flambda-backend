@@ -138,7 +138,7 @@ module Env : sig
   val add_value_approximation : t -> Name.t -> value_approximation -> t
 
   val add_block_approximation :
-    t -> Name.t -> value_approximation array -> Alloc_mode.t -> t
+    t -> Name.t -> value_approximation array -> Alloc_mode.For_types.t -> t
 
   val add_approximation_alias : t -> Name.t -> Name.t -> t
 

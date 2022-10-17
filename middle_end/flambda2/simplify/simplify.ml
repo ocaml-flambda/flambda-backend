@@ -52,7 +52,7 @@ let run ~cmx_loader ~round unit =
   in
   let body = Rebuilt_expr.to_expr body (UA.are_rebuilding_terms uacc) in
   let name_occurrences = UA.name_occurrences uacc in
-  Name_occurrences.fold_names name_occurrences ~init:() ~f:(fun () name ->
+  NO.fold_names name_occurrences ~init:() ~f:(fun () name ->
       Name.pattern_match name
         ~var:(fun var ->
           if not (Variable.equal var toplevel_my_region)
@@ -77,15 +77,13 @@ let run ~cmx_loader ~round unit =
   in
   let name_occurrences = UA.name_occurrences uacc in
   let function_slots_in_normal_projections =
-    Name_occurrences.function_slots_in_normal_projections name_occurrences
+    NO.function_slots_in_normal_projections name_occurrences
   in
   let value_slots_in_normal_projections =
-    Name_occurrences.value_slots_in_normal_projections name_occurrences
+    NO.value_slots_in_normal_projections name_occurrences
   in
-  let all_function_slots =
-    Name_occurrences.all_function_slots name_occurrences
-  in
-  let all_value_slots = Name_occurrences.all_value_slots name_occurrences in
+  let all_function_slots = NO.all_function_slots name_occurrences in
+  let all_value_slots = NO.all_value_slots name_occurrences in
   let ({ used_value_slots; exported_offsets } : Slot_offsets.result) =
     match UA.slot_offsets uacc with
     | Unknown ->

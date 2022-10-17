@@ -91,7 +91,7 @@ let lift dacc ty ~bound_to static_const : _ Or_invalid.t * DA.t =
           bound_to;
       let symbol_projections =
         let free_names = RSC.free_names static_const in
-        Name_occurrences.fold_variables free_names ~init:Variable.Map.empty
+        NO.fold_variables free_names ~init:Variable.Map.empty
           ~f:(fun symbol_projections var ->
             match DE.find_symbol_projection (DA.denv dacc) var with
             | None -> symbol_projections

@@ -449,9 +449,11 @@ module Acc = struct
       ~const:(fun _ -> acc)
       ~name:(fun name ~coercion:_ -> add_name_to_free_names ~name acc)
 
-  let remove_code_id_or_symbol_from_free_names cis t =
+  let remove_code_id_or_symbol_from_free_names code_id_or_symbol t =
     { t with
-      free_names = Name_occurrences.remove_code_id_or_symbol t.free_names cis
+      free_names =
+        Name_occurrences.remove_code_id_or_symbol t.free_names
+          ~code_id_or_symbol
     }
 
   let remove_symbol_from_free_names symbol t =
@@ -460,7 +462,7 @@ module Acc = struct
       t
 
   let remove_var_from_free_names var t =
-    { t with free_names = Name_occurrences.remove_var t.free_names var }
+    { t with free_names = Name_occurrences.remove_var t.free_names ~var }
 
   let add_continuation_application ~cont args_approx t =
     let continuation_application =
@@ -483,10 +485,10 @@ module Acc = struct
         Continuation.Map.add cont Untrackable t.continuation_applications
     }
 
-  let remove_continuation_from_free_names cont t =
+  let remove_continuation_from_free_names continuation t =
     { t with
       free_names =
-        Name_occurrences.remove_continuation t.free_names cont
+        Name_occurrences.remove_continuation t.free_names ~continuation
         (* We don't remove the continuation from [t.continuation_applications]
            here because we need this information of the module block to escape
            its scope to build the .cmx in [Closure_conversion.close_program]. *)

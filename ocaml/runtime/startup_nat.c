@@ -107,6 +107,7 @@ value caml_startup_common(char_os **argv, int pooling)
 {
   char_os * exe_name, * proc_self_exe;
   char tos;
+  value res;
 
   /* Initialize the domain */
   caml_init_domain();
@@ -155,7 +156,11 @@ value caml_startup_common(char_os **argv, int pooling)
     if (caml_termination_hook != NULL) caml_termination_hook(NULL);
     return Val_unit;
   }
-  return caml_start_program(Caml_state);
+  res = caml_start_program(Caml_state);
+  /* ignore distinction between async and normal,
+     it's an uncaught exception either way */
+  Caml_state->raising_async_exn = 0;
+  return res;
 }
 
 value caml_startup_exn(char_os **argv)
