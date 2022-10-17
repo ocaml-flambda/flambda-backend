@@ -2386,7 +2386,7 @@ let send_function (arity, mode) =
       fun_body = body;
       fun_codegen_options = [];
       fun_dbg;
-      fun_poll = Default_poll;
+      fun_poll = Default_poll
     }
 
 let apply_function arity =
@@ -2400,7 +2400,7 @@ let apply_function arity =
       fun_body = body;
       fun_codegen_options = [];
       fun_dbg;
-      fun_poll = Default_poll;
+      fun_poll = Default_poll
     }
 
 (* Generate tuplifying functions:
@@ -2433,7 +2433,7 @@ let tuplify_function arity =
             dbg () );
       fun_codegen_options = [];
       fun_dbg;
-      fun_poll = Default_poll;
+      fun_poll = Default_poll
     }
 
 (* Generate currying functions:
@@ -2509,7 +2509,7 @@ let final_curry_function ~nlocal ~arity =
       fun_body = curry_fun [] last_clos (arity - 1);
       fun_codegen_options = [];
       fun_dbg;
-      fun_poll = Default_poll;
+      fun_poll = Default_poll
     }
 
 let rec intermediate_curry_functions ~nlocal ~arity num =
@@ -2557,7 +2557,7 @@ let rec intermediate_curry_functions ~nlocal ~arity num =
                 dbg () ));
         fun_codegen_options = [];
         fun_dbg;
-      fun_poll = Default_poll;
+        fun_poll = Default_poll
       }
     ::
     (if arity <= max_arity_optimized && arity - num > 2
@@ -2604,7 +2604,7 @@ let rec intermediate_curry_functions ~nlocal ~arity num =
                 clos;
             fun_codegen_options = [];
             fun_dbg;
-      fun_poll = Default_poll;
+            fun_poll = Default_poll
           }
       in
       cf :: intermediate_curry_functions ~nlocal ~arity (num + 1)
@@ -3646,7 +3646,7 @@ let entry_point namelist =
       fun_body = body;
       fun_codegen_options = [Reduce_code_size];
       fun_dbg;
-      fun_poll = Default_poll;
+      fun_poll = Default_poll
     }
 
 (* Generate the table of globals *)
