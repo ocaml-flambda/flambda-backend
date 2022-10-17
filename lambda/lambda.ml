@@ -373,6 +373,10 @@ type local_attribute =
   | Never_local (* [@local never] *)
   | Default_local (* [@local maybe] or no [@local] attribute *)
 
+type poll_attribute =
+  | Error_poll (* [@poll error] *)
+  | Default_poll (* no [@poll] attribute *)
+
 type property =
   | Noalloc
 
@@ -401,6 +405,7 @@ type function_attribute = {
   specialise : specialise_attribute;
   local: local_attribute;
   check : check_attribute;
+  poll: poll_attribute;
   is_a_functor: bool;
   stub: bool;
 }
@@ -533,6 +538,7 @@ let default_function_attribute = {
   specialise = Default_specialise;
   local = Default_local;
   check = Default_check ;
+  poll = Default_poll;
   is_a_functor = false;
   stub = false;
 }
