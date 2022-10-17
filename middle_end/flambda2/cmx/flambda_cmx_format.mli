@@ -26,7 +26,9 @@ val create :
   t * File_sections.t
 
 val import_typing_env_and_code :
-  sections:File_sections.t -> t -> Flambda2_types.Typing_env.Serializable.t * Exported_code.t
+  sections:File_sections.t ->
+  t ->
+  Flambda2_types.Typing_env.Serializable.t * Exported_code.t
 
 val exported_offsets : t -> Exported_offsets.t
 
@@ -43,7 +45,10 @@ val update_for_pack :
   t option * File_sections.t
 
 (** Aggregate several cmx into one for packs *)
-val merge : (t option * File_sections.t) -> (t option * File_sections.t) -> (t option * File_sections.t)
+val merge :
+  t option * File_sections.t ->
+  t option * File_sections.t ->
+  t option * File_sections.t
 
 (** For ocamlobjinfo *)
 val print : sections:File_sections.t -> Format.formatter -> t -> unit

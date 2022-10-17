@@ -14,12 +14,13 @@
 (**************************************************************************)
 
 type t
+
 type raw
 
 module View : sig
-type t = private
-  | Code_present of Code.t
-  | Metadata_only of Code_metadata.t
+  type t = private
+    | Code_present of Code.t
+    | Metadata_only of Code_metadata.t
 end
 
 val view : t -> View.t

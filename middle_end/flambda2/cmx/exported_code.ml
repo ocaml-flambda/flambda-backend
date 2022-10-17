@@ -16,6 +16,7 @@
 module C = Code
 
 type raw = Code_or_metadata.raw Code_id.Map.t
+
 type t = Code_or_metadata.t Code_id.Map.t
 
 let print ppf t = Code_id.Map.print Code_or_metadata.print ppf t

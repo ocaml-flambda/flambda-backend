@@ -15,25 +15,25 @@
 
 type code_status =
   | Loaded of Code.t
-  | Not_loaded of {
-      sections : File_sections.t ;
-      index : int ;
-      metadata : Code_metadata.t ;
-      delayed_renaming : Renaming.t ;
-    }
+  | Not_loaded of
+      { sections : File_sections.t;
+        index : int;
+        metadata : Code_metadata.t;
+        delayed_renaming : Renaming.t
+      }
 
 type t =
-  | Code_present of { mutable code_status: code_status }
+  | Code_present of { mutable code_status : code_status }
   | Metadata_only of Code_metadata.t
 
 type code_present =
-  | Present of { index: int }
+  | Present of { index : int }
   | Absent
 
-type raw = {
-  metadata : Code_metadata.t ;
-  code_present : code_present
-}
+type raw =
+  { metadata : Code_metadata.t;
+    code_present : code_present
+  }
 
 module View = struct
   type t =
@@ -43,21 +43,23 @@ end
 
 let view t =
   match t with
-  | Code_present { code_status = Loaded code } ->
-    View.Code_present code
+  | Code_present { code_status = Loaded code } -> View.Code_present code
   | Code_present ({ code_status = Not_loaded not_loaded } as c) ->
-    let code = Obj.obj (File_sections.get not_loaded.sections not_loaded.index) in
+    let code =
+      Obj.obj (File_sections.get not_loaded.sections not_loaded.index)
+    in
     let code = Code.apply_renaming code not_loaded.delayed_renaming in
     c.code_status <- Loaded code;
     View.Code_present code
-  | Metadata_only metadata ->
-    View.Metadata_only metadata
+  | Metadata_only metadata -> View.Metadata_only metadata
 
 let get_code t =
   match view t with
   | Code_present code -> code
   | Metadata_only metadata ->
-    Misc.fatal_errorf "Code_or_metadata.get_code called but only metadata is available:@ %a" Code_metadata.print metadata
+    Misc.fatal_errorf
+      "Code_or_metadata.get_code called but only metadata is available:@ %a"
+      Code_metadata.print metadata
 
 let print ppf t =
   match t with
@@ -66,10 +68,8 @@ let print ppf t =
       Code.print code
   | Code_present { code_status = Not_loaded not_loaded } ->
     Format.fprintf ppf
-      "@[<hov 1>(Present@ (\
-         @[<hov 1>(code@ Not_loaded)@]\
-         @[<hov 1>(metadata@ %a)@]\
-       ))@]"
+      "@[<hov 1>(Present@ (@[<hov 1>(code@ Not_loaded)@]@[<hov 1>(metadata@ \
+       %a)@]))@]"
       Code_metadata.print not_loaded.metadata
   | Metadata_only code_metadata ->
     Format.fprintf ppf "@[<hov 1>(Metadata_only@ (code_metadata@ %a))@]"
@@ -84,12 +84,21 @@ let create code = Code_present { code_status = Loaded code }
 let from_raw ~sections raw =
   match raw.code_present with
   | Absent -> Metadata_only raw.metadata
-  | Present { index } -> Code_present { code_status = Not_loaded { sections; index; metadata = raw.metadata; delayed_renaming = Renaming.empty }}
+  | Present { index } ->
+    Code_present
+      { code_status =
+          Not_loaded
+            { sections;
+              index;
+              metadata = raw.metadata;
+              delayed_renaming = Renaming.empty
+            }
+      }
 
 let to_raw ~add_section t : raw =
   match view t with
-  | Code_present code -> {
-      metadata = Code.code_metadata code ;
+  | Code_present code ->
+    { metadata = Code.code_metadata code;
       code_present = Present { index = add_section code }
     }
   | Metadata_only metadata -> { metadata; code_present = Absent }
@@ -134,22 +143,25 @@ let apply_renaming t renaming =
     let code' = Code.apply_renaming code renaming in
     if code == code' then t else Code_present { code_status = Loaded code' }
   | Code_present { code_status = Not_loaded not_loaded } ->
-    let delayed_renaming' = Renaming.compose ~second:renaming ~first:not_loaded.delayed_renaming in
-    if delayed_renaming' == not_loaded.delayed_renaming then t
+    let delayed_renaming' =
+      Renaming.compose ~second:renaming ~first:not_loaded.delayed_renaming
+    in
+    if delayed_renaming' == not_loaded.delayed_renaming
+    then t
     else
-      Code_present { code_status = Not_loaded { not_loaded with delayed_renaming = delayed_renaming' }}
+      Code_present
+        { code_status =
+            Not_loaded { not_loaded with delayed_renaming = delayed_renaming' }
+        }
 
-(*
-  (* CR ncourant do we really need to load the code to apply the renaming instead of deferring it? *)
-  match view t with
-  | Code_present code ->
-    let code' = Code.apply_renaming code renaming in
-    if code == code' then t else Code_present { code_status = Loaded code' }
-  | Metadata_only code_metadata ->
-    let code_metadata' = Code_metadata.apply_renaming code_metadata renaming in
-    if code_metadata == code_metadata' then t else Metadata_only code_metadata'
-*)
-        
+(* (* CR ncourant do we really need to load the code to apply the renaming
+   instead of deferring it? *) match view t with | Code_present code -> let
+   code' = Code.apply_renaming code renaming in if code == code' then t else
+   Code_present { code_status = Loaded code' } | Metadata_only code_metadata ->
+   let code_metadata' = Code_metadata.apply_renaming code_metadata renaming in
+   if code_metadata == code_metadata' then t else Metadata_only
+   code_metadata' *)
+
 let ids_for_export t =
   match view t with
   | Code_present code -> Code.ids_for_export code
@@ -157,7 +169,8 @@ let ids_for_export t =
 
 let remember_only_metadata t =
   match t with
-  | Code_present { code_status } -> Metadata_only (code_status_metadata code_status)
+  | Code_present { code_status } ->
+    Metadata_only (code_status_metadata code_status)
   | Metadata_only _ -> t
 
 let code_metadata t =
@@ -169,7 +182,9 @@ let iter_code t ~f =
   match view t with Code_present code -> f code | Metadata_only _ -> ()
 
 let map_result_types t ~f =
-  (* CR ncourant: we could probably do this without loading the code if it is not needed, but it doesn't seem necessary as this function seems to only be called before output *)
+  (* CR ncourant: we could probably do this without loading the code if it is
+     not needed, but it doesn't seem necessary as this function seems to only be
+     called before output *)
   match view t with
   | Code_present code ->
     Code_present { code_status = Loaded (Code.map_result_types code ~f) }
@@ -183,4 +198,4 @@ let map_raw_index map_index t =
   match t.code_present with
   | Absent -> t
   | Present { index } ->
-    { t with code_present = Present { index = map_index index }}
+    { t with code_present = Present { index = map_index index } }

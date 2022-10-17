@@ -35,7 +35,9 @@ module VB = Bound_var
 type 'a close_program_metadata =
   | Normal : [`Normal] close_program_metadata
   | Classic :
-      (Exported_code.t * (Flambda_cmx_format.t option * File_sections.t) * Exported_offsets.t)
+      (Exported_code.t
+      * (Flambda_cmx_format.t option * File_sections.t)
+      * Exported_offsets.t)
       -> [`Classic] close_program_metadata
 
 type 'a close_program_result = Flambda_unit.t * 'a close_program_metadata
@@ -212,17 +214,17 @@ module Inlining = struct
     | Some (Closure_approximation { code; _ }) ->
       let metadata = Code_or_metadata.code_metadata code in
       let fun_params_length =
-        Code_metadata.params_arity metadata |> Flambda_arity.With_subkinds.to_arity
-        |> Flambda_arity.length
+        Code_metadata.params_arity metadata
+        |> Flambda_arity.With_subkinds.to_arity |> Flambda_arity.length
       in
-      if not (Code_or_metadata.code_present code) || fun_params_length > List.length (Apply_expr.args apply) then
-        (
-          Inlining_report.record_decision_at_call_site_for_known_function ~tracker
-            ~apply ~pass:After_closure_conversion ~unrolling_depth:None
-            ~callee:(Inlining_history.Absolute.empty compilation_unit)
-            ~are_rebuilding_terms Definition_says_not_to_inline;
-          Not_inlinable
-        )
+      if (not (Code_or_metadata.code_present code))
+         || fun_params_length > List.length (Apply_expr.args apply)
+      then (
+        Inlining_report.record_decision_at_call_site_for_known_function ~tracker
+          ~apply ~pass:After_closure_conversion ~unrolling_depth:None
+          ~callee:(Inlining_history.Absolute.empty compilation_unit)
+          ~are_rebuilding_terms Definition_says_not_to_inline;
+        Not_inlinable)
       else
         let code = Code_or_metadata.get_code code in
         let inlined_call = Apply_expr.inlined apply in

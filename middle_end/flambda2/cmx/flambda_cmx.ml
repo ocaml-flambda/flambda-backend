@@ -19,7 +19,8 @@ module T = Flambda2_types
 module TE = Flambda2_types.Typing_env
 
 type loader =
-  { get_global_info : Compilation_unit.t -> Flambda_cmx_format.t option * File_sections.t;
+  { get_global_info :
+      Compilation_unit.t -> Flambda_cmx_format.t option * File_sections.t;
     mutable imported_names : Name.Set.t;
     mutable imported_code : Exported_code.t;
     mutable imported_units : TE.Serializable.t option Compilation_unit.Map.t
@@ -217,7 +218,7 @@ let prepare_cmx ~module_symbol create_typing_env ~free_names_of_name
   in
   let cmx, sections =
     Flambda_cmx_format.create ~final_typing_env ~all_code ~exported_offsets
-       ~used_value_slots
+      ~used_value_slots
   in
   Some cmx, sections
 

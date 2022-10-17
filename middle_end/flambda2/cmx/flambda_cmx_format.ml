@@ -37,14 +37,13 @@ type t0 =
 type t = t0 list
 
 type current_sections =
-  {
-    mutable sections_rev : Obj.t list;
+  { mutable sections_rev : Obj.t list;
     mutable num_sections : int
   }
 
 let add_section cs section =
   let n = cs.num_sections in
-  cs.sections_rev <- (Obj.repr section) :: cs.sections_rev;
+  cs.sections_rev <- Obj.repr section :: cs.sections_rev;
   cs.num_sections <- n + 1;
   n
 
@@ -92,14 +91,17 @@ let create ~final_typing_env ~all_code ~exported_offsets ~used_value_slots =
     { symbols; variables; simples; consts; code_ids; continuations }
   in
   let sections = { sections_rev = []; num_sections = 0 } in
-  let all_code = Exported_code.to_raw ~add_section:(add_section sections) all_code in
-  [ { original_compilation_unit = Compilation_unit.get_current_exn ();
-      final_typing_env;
-      all_code;
-      exported_offsets;
-      used_value_slots;
-      table_data
-    } ], File_sections.from_array (Array.of_list (List.rev sections.sections_rev))
+  let all_code =
+    Exported_code.to_raw ~add_section:(add_section sections) all_code
+  in
+  ( [ { original_compilation_unit = Compilation_unit.get_current_exn ();
+        final_typing_env;
+        all_code;
+        exported_offsets;
+        used_value_slots;
+        table_data
+      } ],
+    File_sections.from_array (Array.of_list (List.rev sections.sections_rev)) )
 
 module Make_importer (S : sig
   type t
@@ -190,12 +192,8 @@ let exported_offsets t =
     (fun offsets t0 -> Exported_offsets.merge offsets t0.exported_offsets)
     Exported_offsets.empty t
 
-(*
-let functions_info t =
-  List.fold_left
-    (fun code t0 -> Exported_code.merge code t0.all_code)
-    Exported_code.empty t
-*)
+(* let functions_info t = List.fold_left (fun code t0 -> Exported_code.merge
+   code t0.all_code) Exported_code.empty t *)
 
 let with_exported_offsets t exported_offsets =
   match t with
@@ -234,8 +232,8 @@ let update_for_pack ~pack_units ~pack (t_opt, sections) =
   | Some t -> Some (List.map (update_for_pack0 ~pack_units ~pack) t), sections
 
 let merge (t1_opt, sections1) (t2_opt, sections2) =
-  (* Put the sections of t2 before the sections of t1,
-     so that right-associative merge is linear *)
+  (* Put the sections of t2 before the sections of t1, so that right-associative
+     merge is linear *)
   let nsections = File_sections.concat sections2 sections1 in
   match t1_opt, t2_opt with
   | None, None -> None, nsections
@@ -246,9 +244,14 @@ let merge (t1_opt, sections1) (t2_opt, sections2) =
        Flambda doesn't support packing opaque and normal units together."
   | Some t1, Some t2 ->
     let n = File_sections.length sections2 in
-    let t1 = List.map (fun t0 -> {
-      t0 with all_code = Exported_code.map_raw_index (fun x -> x + n) t0.all_code
-    }) t1 in
+    let t1 =
+      List.map
+        (fun t0 ->
+          { t0 with
+            all_code = Exported_code.map_raw_index (fun x -> x + n) t0.all_code
+          })
+        t1
+    in
     Some (t1 @ t2), nsections
 
 let print0 ~sections ppf t =
