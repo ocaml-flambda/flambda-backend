@@ -16,13 +16,22 @@
 
 (** file sections cache *)
 
-val add_unit :
-  Compilation_unit.t -> int array -> in_channel -> first_section_offset:int -> unit
+type t
 
-val read_section_from_file : unit:Compilation_unit.t -> index:int -> Obj.t
+val create : int array -> in_channel -> first_section_offset:int -> t
 
-val read_all_sections : unit:Compilation_unit.t -> Obj.t array
+val empty : t
+
+val length : t -> int
+
+val get : t -> int -> Obj.t
+
+val to_array : t -> Obj.t array
 
 val close_all : unit -> unit
 
-val serialize : Obj.t array -> string array * int array * int
+val serialize : t -> string array * int array * int
+
+val from_array : Obj.t array -> t
+
+val concat : t -> t -> t

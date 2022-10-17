@@ -19,70 +19,77 @@ type section =
   | Pending of { byte_offset_in_file : int }
 
 type t =
-  { channel : in_channel;
-    sections : section array
-  }
+  | From_file of { channel : in_channel; sections : section array }
+  | In_memory of Obj.t array
+  | Cat of int * t * t (* For efficient concatenation *)
 
-let section_cache : (Compilation_unit.t, t) Hashtbl.t = Hashtbl.create 10
+let create section_toc channel ~first_section_offset =
+  if Array.length section_toc = 0 then
+    In_memory [||]
+  else
+    let sections =
+      Array.map
+        (fun offset ->
+           Pending { byte_offset_in_file = offset + first_section_offset })
+        section_toc
+    in
+    From_file { channel; sections }
 
-let add_unit unit section_toc channel ~first_section_offset =
-  (* Format.eprintf "Adding unit %a with %i sections.@." Compilation_unit.print unit (Array.length section_toc); *)
-  if Array.length section_toc > 0 then begin
-  let sections =
-    Array.map
-      (fun offset ->
-        Pending { byte_offset_in_file = offset + first_section_offset })
-      section_toc
-  in
-  if Hashtbl.mem section_cache unit
-  then Misc.fatal_errorf "Unit loaded multiple time %a" Compilation_unit.print unit;
-  Hashtbl.add section_cache unit { channel; sections }
-end
+let empty = In_memory [||]
+
+let length = function
+  | From_file { sections; _ } -> Array.length sections
+  | In_memory sections -> Array.length sections
+  | Cat (length, _, _) -> length
 
 let read_section sections channel index =
   match sections.(index) with
   | Loaded section_contents -> section_contents
   | Pending { byte_offset_in_file } ->
-      (* Printf.eprintf "--> seeking to %d\n%!" byte_offset_in_cmx; *)
       seek_in channel byte_offset_in_file;
       let section_contents : Obj.t = input_value channel in
       sections.(index) <- Loaded section_contents;
       section_contents
 
-let read_section_from_file ~unit ~index =
-  (* Format.eprintf "Reading section %i from unit %a@." index Compilation_unit.print unit; *)
-  match Hashtbl.find_opt section_cache unit with
-  | None ->
-    Misc.fatal_errorf "Read section %i from an unopened unit %a" index Compilation_unit.print unit
-  | Some { sections; channel } ->
-    let num_sections = Array.length sections in
-    if index < 0 || index >= num_sections
-    then
-      Misc.fatal_errorf
-        ".cmx file for unit %a only has %d sections, but the section at index \
-         %d was requested"
-        Compilation_unit.print unit num_sections index
-    else
+let rec unsafe_get t index =
+  match t with
+  | From_file { sections; channel } ->
       read_section sections channel index
+  | In_memory sections -> sections.(index)
+  | Cat (_, t1, t2) ->
+      let n = length t1 in
+      if index < n then unsafe_get t1 index else unsafe_get t2 (index - n)
 
-let read_all_sections ~unit =
-  match Hashtbl.find_opt section_cache unit with
-  | None ->
-      (*      Misc.fatal_errorf "Read all sections from an unopened unit %a" Compilation_unit.print unit *)
-      [||]
-  | Some { sections; channel } ->
-      Array.init (Array.length sections) (read_section sections channel)
+let get t index =
+  if index < 0 || index >= length t then
+    Misc.fatal_errorf "File_sections.get index out of bounds";
+  unsafe_get t index
+
+let rec unsafe_blit_to_array t dest start_index =
+  match t with
+  | From_file { sections; channel } ->
+      for i = 0 to Array.length sections - 1 do
+        dest.(start_index + i) <- read_section sections channel i
+      done
+  | In_memory sections ->
+      Array.blit sections 0 dest start_index (Array.length sections)
+  | Cat (_, t1, t2) ->
+      unsafe_blit_to_array t1 dest start_index;
+      unsafe_blit_to_array t2 dest (start_index + length t1)
+
+let to_array t =
+  let dest = Array.make (length t) (Obj.repr 0) in
+  unsafe_blit_to_array t dest 0;
+  dest
+
+let from_array t =
+  In_memory (Array.copy t)
+
+let concat t1 t2 =
+  Cat (length t1 + length t2, t1, t2)
 
 let close_all () =
-  Hashtbl.iter
-    (fun _ sections ->
-      try close_in sections.channel
-      with Sys_error _ ->
-        (* In cmxa files, the channel is shared, we might close it multiple
-           times *)
-        ())
-    section_cache;
-  Hashtbl.reset section_cache
+  () (* XXX TODO *)
 
 let compute_toc serialized_sections =
   let toc = Array.make (Array.length serialized_sections) 0 in
@@ -93,7 +100,8 @@ let compute_toc serialized_sections =
   done;
   toc, !length
 
-let serialize sections =
+let serialize t =
+  let sections = to_array t in
   let serialized_sections = Array.map (fun section ->
       Marshal.to_string section []
     ) sections in

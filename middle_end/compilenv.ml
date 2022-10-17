@@ -112,7 +112,7 @@ let default_ui_export_info =
   if Config.flambda then
     Cmx_format.Flambda1 Export_info.empty
   else if Config.flambda2 then
-    Cmx_format.Flambda2 None
+    Cmx_format.Flambda2 (None, File_sections.empty)
   else
     Cmx_format.Clambda Value_unknown
 
@@ -124,11 +124,8 @@ let current_unit =
     ui_generic_fns = { curry_fun = []; apply_fun = []; send_fun = [] };
     ui_force_link = false;
     ui_checks = Checks.create ();
-    ui_export_info = default_ui_export_info;
-    ui_section_toc = [||];
-    ui_sections_length = 0 }
-
-let current_sections = ref [||]
+    ui_export_info = default_ui_export_info
+  }
 
 let reset compilation_unit =
   CU.Name.Tbl.clear global_infos_table;
@@ -148,8 +145,7 @@ let reset compilation_unit =
   current_unit.ui_export_info <- default_ui_export_info;
   merged_environment := Export_info.empty;
   CU.Name.Tbl.clear export_infos_table;
-  File_sections.close_all ();
-  current_sections := [||]
+  File_sections.close_all ()
 
 let current_unit_infos () =
   current_unit
@@ -162,12 +158,29 @@ let read_unit_info filename =
       close_in ic;
       raise(Error(Not_a_unit_info filename))
     end;
-    let ui = (input_value ic : unit_infos) in
+    let uir = (input_value ic : unit_infos_raw) in
     let first_section_offset = pos_in ic in
-    File_sections.add_unit ui.ui_unit ui.ui_section_toc ic ~first_section_offset;
-    seek_in ic (first_section_offset + ui.ui_sections_length);
+    let sections = File_sections.create uir.uir_section_toc ic ~first_section_offset in
+    seek_in ic (first_section_offset + uir.uir_sections_length);
+    let export_info =
+      match uir.uir_export_info with
+      | Clambda_raw info -> Clambda info
+      | Flambda1_raw info -> Flambda1 info
+      | Flambda2_raw info -> Flambda2 (info, sections)
+    in
+    let ui = {
+      ui_unit = uir.uir_unit;
+      ui_defines = uir.uir_defines;
+      ui_imports_cmi = uir.uir_imports_cmi;
+      ui_imports_cmx = uir.uir_imports_cmx;
+      ui_generic_fns = uir.uir_generic_fns;
+      ui_export_info = export_info;
+      ui_checks = uir.uir_checks;
+      ui_force_link = uir.uir_force_link
+    }
+    in
     let crc = Digest.input ic in
-    if Array.length ui.ui_section_toc = 0 then
+    if Array.length uir.uir_section_toc = 0 then
       close_in ic;
     (ui, crc)
   with End_of_file | Failure _ ->
@@ -307,11 +320,9 @@ let set_export_info export_info =
   assert(Config.flambda);
   current_unit.ui_export_info <- Flambda1 export_info
 
-let flambda2_set_export_info export_info =
+let flambda2_set_export_info export_info sections =
   assert(Config.flambda2);
-  current_unit.ui_export_info <- Flambda2 (Some export_info)
-
-let set_sections sections = current_sections := sections
+  current_unit.ui_export_info <- Flambda2 (Some export_info, sections)
 
 (* Determine which .cmx file to load for a given compilation unit.
    This is tricky in the case of packs.  It can be done by lining up the
@@ -402,13 +413,29 @@ let need_send_fun n mode =
 
 (* Write the description of the current unit *)
 
-let write_unit_info info sections filename =
+let write_unit_info info filename =
+  let raw_export_info, sections =
+    match info.ui_export_info with
+    | Clambda info -> Clambda_raw info, File_sections.empty
+    | Flambda1 info -> Flambda1_raw info, File_sections.empty
+    | Flambda2 (info, sections) -> Flambda2_raw info, sections
+  in
   let serialized_sections, toc, total_length = File_sections.serialize sections in
-  info.ui_section_toc <- toc;
-  info.ui_sections_length <- total_length;
+  let raw_info = {
+    uir_unit = info.ui_unit;
+    uir_defines = info.ui_defines;
+    uir_imports_cmi = info.ui_imports_cmi;
+    uir_imports_cmx = info.ui_imports_cmx;
+    uir_generic_fns = info.ui_generic_fns;
+    uir_export_info = raw_export_info;
+    uir_checks = info.ui_checks;
+    uir_force_link = info.ui_force_link;
+    uir_section_toc = toc;
+    uir_sections_length = total_length;
+  } in
   let oc = open_out_bin filename in
   output_string oc cmx_magic_number;
-  output_value oc info;
+  output_value oc raw_info;
   Array.iter (output_string oc) serialized_sections;
   flush oc;
   let crc = Digest.file filename in
@@ -417,7 +444,7 @@ let write_unit_info info sections filename =
 
 let save_unit_info filename =
   current_unit.ui_imports_cmi <- Env.imports();
-  write_unit_info current_unit !current_sections filename
+  write_unit_info current_unit filename
 
 let snapshot () = !structured_constants
 let backtrack s = structured_constants := s

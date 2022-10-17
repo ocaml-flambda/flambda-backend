@@ -20,7 +20,7 @@
 type loader
 
 val create_loader :
-  get_global_info:(Compilation_unit.t -> Flambda_cmx_format.t option) ->
+  get_global_info:(Compilation_unit.t -> Flambda_cmx_format.t option * File_sections.t) ->
   symbol_for_global:(Ident.t -> Symbol.t) ->
   loader
 
@@ -42,7 +42,7 @@ val prepare_cmx_file_contents :
   used_value_slots:Value_slot.Set.t ->
   exported_offsets:Exported_offsets.t ->
   Exported_code.t ->
-  Flambda_cmx_format.t option * Obj.t array
+  Flambda_cmx_format.t option * File_sections.t
 
 val prepare_cmx_from_approx :
   approxs:Code_or_metadata.t Value_approximation.t Symbol.Map.t ->
@@ -50,4 +50,4 @@ val prepare_cmx_from_approx :
   exported_offsets:Exported_offsets.t ->
   used_value_slots:Value_slot.Set.t ->
   Exported_code.t ->
-  Flambda_cmx_format.t option * Obj.t array
+  Flambda_cmx_format.t option * File_sections.t

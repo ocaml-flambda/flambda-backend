@@ -120,8 +120,8 @@ let iter_code t ~f =
       Code_or_metadata.iter_code code_or_metadata ~f)
     t
 
-let from_raw ~compilation_unit t =
-  Code_id.Map.map (Code_or_metadata.from_raw ~compilation_unit) t
+let from_raw ~sections t =
+  Code_id.Map.map (Code_or_metadata.from_raw ~sections) t
 
 let to_raw ~add_section t =
   Code_id.Map.map (Code_or_metadata.to_raw ~add_section) t

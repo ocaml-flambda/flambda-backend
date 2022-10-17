@@ -30,7 +30,7 @@ let default_ui_export_info =
   if Config.flambda then
     Cmx_format.Flambda1 Export_info.empty
   else if Config.flambda2 then
-    Cmx_format.Flambda2 None
+    Cmx_format.Flambda2 (None, File_sections.empty)
   else
     Cmx_format.Clambda Clambda.Value_unknown
 

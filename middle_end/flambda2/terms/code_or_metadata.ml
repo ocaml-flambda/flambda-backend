@@ -16,7 +16,7 @@
 type code_status =
   | Loaded of Code.t
   | Not_loaded of {
-      compilation_unit : Compilation_unit.t ;
+      sections : File_sections.t ;
       index : int ;
       metadata : Code_metadata.t ;
       delayed_renaming : Renaming.t ;
@@ -46,7 +46,7 @@ let view t =
   | Code_present { code_status = Loaded code } ->
     View.Code_present code
   | Code_present ({ code_status = Not_loaded not_loaded } as c) ->
-    let code = Obj.obj (File_sections.read_section_from_file ~unit:not_loaded.compilation_unit ~index:not_loaded.index) in
+    let code = Obj.obj (File_sections.get not_loaded.sections not_loaded.index) in
     let code = Code.apply_renaming code not_loaded.delayed_renaming in
     c.code_status <- Loaded code;
     View.Code_present code
@@ -75,10 +75,10 @@ let code_status_metadata = function
 
 let create code = Code_present { code_status = Loaded code }
 
-let from_raw ~compilation_unit raw =
+let from_raw ~sections raw =
   match raw.code_present with
   | Absent -> Metadata_only raw.metadata
-  | Present { index } -> Code_present { code_status = Not_loaded { compilation_unit; index; metadata = raw.metadata; delayed_renaming = Renaming.empty }}
+  | Present { index } -> Code_present { code_status = Not_loaded { sections; index; metadata = raw.metadata; delayed_renaming = Renaming.empty }}
 
 let to_raw ~add_section t : raw =
   match view t with

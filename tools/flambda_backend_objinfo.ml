@@ -177,12 +177,12 @@ let print_cmx_infos (ui, crc) =
     if not !no_code then
       Format.printf "functions@ %a@.@."
         Export_info.print_functions export
-  | Flambda2 None ->
+  | Flambda2 (None, _) ->
     printf "Flambda 2 unit (with no export information)\n"
-  | Flambda2 (Some cmx) ->
+  | Flambda2 (Some cmx, sections) ->
     printf "Flambda 2 export information:\n";
     flush stdout;
-    Format.printf "%a\n%!" (Flambda2_cmx.Flambda_cmx_format.print ~compilation_unit:ui.ui_unit) cmx
+    Format.printf "%a\n%!" (Flambda2_cmx.Flambda_cmx_format.print ~sections) cmx
   end;
   print_generic_fns ui.ui_generic_fns;
   printf "Force link: %s\n" (if ui.ui_force_link then "YES" else "no");

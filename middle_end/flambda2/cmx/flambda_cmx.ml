@@ -19,7 +19,7 @@ module T = Flambda2_types
 module TE = Flambda2_types.Typing_env
 
 type loader =
-  { get_global_info : Compilation_unit.t -> Flambda_cmx_format.t option;
+  { get_global_info : Compilation_unit.t -> Flambda_cmx_format.t option * File_sections.t;
     mutable imported_names : Name.Set.t;
     mutable imported_code : Exported_code.t;
     mutable imported_units : TE.Serializable.t option Compilation_unit.Map.t
@@ -30,15 +30,15 @@ let load_cmx_file_contents loader comp_unit =
   | typing_env_or_none -> typing_env_or_none
   | exception Not_found -> (
     match loader.get_global_info comp_unit with
-    | None ->
+    | None, _ ->
       (* To make things easier to think about, we never retry after a .cmx load
          fails. *)
       loader.imported_units
         <- Compilation_unit.Map.add comp_unit None loader.imported_units;
       None
-    | Some cmx ->
+    | Some cmx, sections ->
       let typing_env, all_code =
-        Flambda_cmx_format.import_typing_env_and_code ~compilation_unit:comp_unit cmx
+        Flambda_cmx_format.import_typing_env_and_code ~sections cmx
       in
       let newly_imported_names = TE.Serializable.name_domain typing_env in
       loader.imported_names
@@ -224,8 +224,8 @@ let prepare_cmx ~module_symbol create_typing_env ~free_names_of_name
 let prepare_cmx_file_contents ~final_typing_env ~module_symbol ~used_value_slots
     ~exported_offsets all_code =
   match final_typing_env with
-  | None -> None, [||]
-  | Some _ when Flambda_features.opaque () -> None, [||]
+  | None -> None, File_sections.empty
+  | Some _ when Flambda_features.opaque () -> None, File_sections.empty
   | Some final_typing_env ->
     let typing_env, canonicalise =
       TE.Pre_serializable.create final_typing_env ~used_value_slots
@@ -243,7 +243,7 @@ let prepare_cmx_file_contents ~final_typing_env ~module_symbol ~used_value_slots
 let prepare_cmx_from_approx ~approxs ~module_symbol ~exported_offsets
     ~used_value_slots all_code =
   if Flambda_features.opaque ()
-  then None, [||]
+  then None, File_sections.empty
   else
     let create_typing_env reachable_names =
       let approxs =

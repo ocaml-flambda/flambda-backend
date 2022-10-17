@@ -32,7 +32,7 @@ val create : Code.t -> t
 
 val create_metadata_only : Code_metadata.t -> t
 
-val from_raw : compilation_unit:Compilation_unit.t -> raw -> t
+val from_raw : sections:File_sections.t -> raw -> t
 
 val to_raw : add_section:(Code.t -> int) -> t -> raw
 

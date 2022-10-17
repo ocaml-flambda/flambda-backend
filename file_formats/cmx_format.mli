@@ -34,7 +34,12 @@ open Misc
 type export_info =
   | Clambda of Clambda.value_approximation
   | Flambda1 of Export_info.t
-  | Flambda2 of Flambda2_cmx.Flambda_cmx_format.t option
+  | Flambda2 of (Flambda2_cmx.Flambda_cmx_format.t option * File_sections.t)
+
+type export_info_raw =
+  | Clambda_raw of Clambda.value_approximation
+  | Flambda1_raw of Export_info.t
+  | Flambda2_raw of Flambda2_cmx.Flambda_cmx_format.t option
 
 type apply_fn := int * Lambda.alloc_mode
 
@@ -64,10 +69,21 @@ type unit_infos =
     mutable ui_export_info: export_info;
     mutable ui_checks: checks;
     mutable ui_force_link: bool;          (* Always linked *)
-    mutable ui_section_toc: int array;    (* Byte offsets of sections in .cmx
-                                             relative to byte immediately after
-                                             this record *)
-    mutable ui_sections_length: int;      (* Byte length of all sections *)
+  }
+
+type unit_infos_raw =
+  { uir_unit: Compilation_unit.t;
+    uir_defines: Compilation_unit.t list;
+    uir_imports_cmi: crcs;
+    uir_imports_cmx: crcs;
+    uir_generic_fns: generic_fns;
+    uir_export_info: export_info_raw;
+    uir_checks: checks;
+    uir_force_link: bool;
+    uir_section_toc: int array;    (* Byte offsets of sections in .cmx
+                                      relative to byte immediately after
+                                      this record *)
+    uir_sections_length: int;      (* Byte length of all sections *)
   }
 
 (* Each .a library has a matching .cmxa file that provides the following

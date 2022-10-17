@@ -72,7 +72,7 @@ val close_switch :
 type 'a close_program_metadata =
   | Normal : [`Normal] close_program_metadata
   | Classic :
-      (Exported_code.t * (Flambda_cmx_format.t option * Obj.t array) * Exported_offsets.t)
+      (Exported_code.t * (Flambda_cmx_format.t option * File_sections.t) * Exported_offsets.t)
       -> [`Classic] close_program_metadata
 
 type 'a close_program_result = Flambda_unit.t * 'a close_program_metadata
