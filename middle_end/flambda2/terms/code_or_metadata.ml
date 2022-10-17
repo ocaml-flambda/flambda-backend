@@ -53,6 +53,12 @@ let view t =
   | Metadata_only metadata ->
     View.Metadata_only metadata
 
+let get_code t =
+  match view t with
+  | Code_present code -> code
+  | Metadata_only metadata ->
+    Misc.fatal_errorf "Code_or_metadata.get_code called but only metadata is available:@ %a" Code_metadata.print metadata
+
 let print ppf t =
   match t with
   | Code_present { code_status = Loaded code } ->

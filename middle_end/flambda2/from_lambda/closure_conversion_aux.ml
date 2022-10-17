@@ -175,22 +175,21 @@ module Env = struct
             Value_approximation.Block_approximation (approxs, alloc_mode)
           | Closure_approximation
               { code_id; function_slot; code; _ } -> (
-              (* CR ncourant it looks like this doesn't need the code, don't load it until it is known to be necessary *)
-              match Code_or_metadata.view code with
-              | Metadata_only _ -> approx
-              | Code_present code ->
+              let metadata = Code_or_metadata.code_metadata code in
+              if not (Code_or_metadata.code_present code) then approx else
             match[@ocaml.warning "-fragile-match"]
-              Inlining.definition_inlining_decision (Code.inline code)
-                (Code.cost_metrics code)
+              Inlining.definition_inlining_decision (Code_metadata.inline metadata)
+                (Code_metadata.cost_metrics metadata)
             with
             | Attribute_inline | Small_function _ -> approx
             | _ ->
               Value_approximation.Closure_approximation
                 { code_id;
                   function_slot;
-                  code = Code_or_metadata.(remember_only_metadata (create code));
+                  code = Code_or_metadata.create_metadata_only metadata;
                   symbol = None
-                })
+                }
+            )
         in
         let approx = filter_inlinable approx in
         externals := Symbol.Map.add symbol approx !externals;

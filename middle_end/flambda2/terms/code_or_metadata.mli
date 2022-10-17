@@ -24,6 +24,9 @@ end
 
 val view : t -> View.t
 
+(** Will return the code or cause a fatal error. *)
+val get_code : t -> Code.t
+
 val print : Format.formatter -> t -> unit
 
 val merge : Code_id.t -> t -> t -> t option

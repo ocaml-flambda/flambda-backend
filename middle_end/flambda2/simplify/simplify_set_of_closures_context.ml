@@ -115,11 +115,11 @@ let compute_closure_types_inside_functions ~denv ~all_sets_of_closures
                 (* The types of the functions involved should reference the
                    _new_ code IDs (where such exist), so that direct recursive
                    calls can be compiled straight to the new code. *)
-                match Code_or_metadata.view code_or_metadata with
-                (* XXX don't load code if not needed *)
-                | Code_present code when not (Code.stub code) ->
+                if Code_or_metadata.code_present code_or_metadata &&
+                   not (Code_metadata.stub (Code_or_metadata.code_metadata code_or_metadata)) then
                   Code_id.Map.find old_code_id old_to_new_code_ids_all_sets
-                | Code_present _ | Metadata_only _ -> old_code_id
+                else
+                  old_code_id
               in
               let rec_info =
                 (* From inside their own bodies, every function in the set
@@ -206,14 +206,18 @@ let compute_old_to_new_code_ids_all_sets denv ~all_sets_of_closures =
       let function_decls = Set_of_closures.function_decls set_of_closures in
       Function_slot.Map.fold
         (fun _ old_code_id old_to_new_code_ids ->
-          match Code_or_metadata.view (DE.find_code_exn denv old_code_id) with
-          (* XXX here too *)
-          | Code_present code when not (Code.stub code) ->
+           let code = try
+               DE.find_code_exn denv old_code_id
+             with Not_found ->
+               Misc.fatal_errorf "Missing code for %a" Code_id.print old_code_id
+           in
+           if Code_or_metadata.code_present code && not (Code_metadata.stub (Code_or_metadata.code_metadata code)) then
+
             let new_code_id = Code_id.rename old_code_id in
             Code_id.Map.add old_code_id new_code_id old_to_new_code_ids
-          | Code_present _ | Metadata_only _ -> old_to_new_code_ids
-          | exception Not_found ->
-            Misc.fatal_errorf "Missing code for %a" Code_id.print old_code_id)
+           else
+old_to_new_code_ids
+)
         (Function_declarations.funs function_decls)
         old_to_new_code_ids_all_sets)
     Code_id.Map.empty all_sets_of_closures
@@ -221,16 +225,16 @@ let compute_old_to_new_code_ids_all_sets denv ~all_sets_of_closures =
 let bind_existing_code_to_new_code_ids denv ~old_to_new_code_ids_all_sets =
   Code_id.Map.fold
     (fun old_code_id new_code_id denv ->
-      match Code_or_metadata.view (DE.find_code_exn denv old_code_id) with
-      (* XXX here too *)
-      | Code_present code when not (Code.stub code) ->
+       let code = DE.find_code_exn denv old_code_id in
+       if Code_or_metadata.code_present code && not (Code_metadata.stub (Code_or_metadata.code_metadata code)) then
         let code =
-          code
+          Code_or_metadata.get_code code
           |> Code.with_newer_version_of (Some old_code_id)
           |> Code.with_code_id new_code_id
         in
         DE.define_code denv ~code_id:new_code_id ~code
-      | Code_present _ | Metadata_only _ -> denv)
+       else
+         denv)
     old_to_new_code_ids_all_sets denv
 
 let create ~dacc_prior_to_sets ~simplify_function_body ~all_sets_of_closures
