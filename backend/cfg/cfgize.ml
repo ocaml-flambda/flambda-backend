@@ -159,6 +159,7 @@ let basic_or_terminator_of_operation :
   | Istore (mem, mode, assignment) -> Basic (Op (Store (mem, mode, assignment)))
   | Ialloc { bytes; dbginfo; mode } ->
     Basic (Call (P (Alloc { bytes; dbginfo; mode })))
+  | Ipoll _ -> assert false
   | Iintop Icheckbound -> Basic (Call (P (Checkbound { immediate = None })))
   | Iintop_imm (Icheckbound, i) ->
     Basic (Call (P (Checkbound { immediate = Some i })))
@@ -365,7 +366,19 @@ let extract_block_info : State.t -> Mach.instruction -> block_info =
       { instrs; last = instr; terminator }
     in
     match instr.desc with
-    | Iop op -> (
+    | Iop (Ipoll _) -> return None acc
+    | Iop
+        (( Imove | Ispill | Ireload | Icall_ind | Itailcall_ind | Inegf | Iabsf
+         | Iaddf | Isubf | Imulf | Idivf | Ifloatofint | Iintoffloat
+         | Ivalueofint | Iintofvalue | Iopaque | Ibeginregion | Iendregion
+         | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Icall_imm _
+         | Itailcall_imm _ | Iextcall _ | Istackoffset _
+         | Iload (_, _, _)
+         | Istore (_, _, _)
+         | Ialloc _ | Iintop _
+         | Iintop_imm (_, _)
+         | Icompf _ | Ispecific _ | Iname_for_debugger _ | Iprobe _
+         | Iprobe_is_enabled _ ) as op) -> (
       match basic_or_terminator_of_operation state op with
       | Basic desc ->
         let instr' = copy_instruction state instr ~desc in
@@ -430,7 +443,7 @@ let rec add_blocks :
         else body
       | Cfg.Never | Cfg.Always _ | Cfg.Parity_test _ | Cfg.Truth_test _
       | Cfg.Float_test _ | Cfg.Int_test _ | Cfg.Switch _ | Cfg.Raise _
-      | Cfg.Tailcall _ | Cfg.Call_no_return _ ->
+      | Cfg.Tailcall _ | Cfg.Call_no_return _ | Cfg.Poll_and_jump _ ->
         body
     in
     let can_raise =
@@ -441,7 +454,8 @@ let rec add_blocks :
         match (terminator.Cfg.desc : Cfg.terminator) with
         | Always _ -> true
         | Raise _ | Tailcall _ | Call_no_return _ | Never | Parity_test _
-        | Truth_test _ | Float_test _ | Int_test _ | Switch _ | Return ->
+        | Truth_test _ | Float_test _ | Int_test _ | Switch _ | Return
+        | Poll_and_jump _ ->
           false
       in
       let rec check = function
@@ -489,7 +503,26 @@ let rec add_blocks :
   | Some terminator -> terminate_block ~trap_actions:[] terminator
   | None -> (
     match last.desc with
-    | Iop op ->
+    | Iop (Ipoll { return_label = None }) ->
+      let next, add_next_block = prepare_next_block () in
+      terminate_block ~trap_actions:[]
+        (copy_instruction_no_reg state last ~desc:(Cfg.Poll_and_jump next));
+      add_next_block ()
+    | Iop (Ipoll { return_label = Some return_label }) ->
+      Misc.fatal_errorf "Cfgize.extract_block_info: unexpected Ipoll %d"
+        return_label
+    | Iop
+        (( Imove | Ispill | Ireload | Icall_ind | Itailcall_ind | Inegf | Iabsf
+         | Iaddf | Isubf | Imulf | Idivf | Ifloatofint | Iintoffloat
+         | Ivalueofint | Iintofvalue | Iopaque | Ibeginregion | Iendregion
+         | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Icall_imm _
+         | Itailcall_imm _ | Iextcall _ | Istackoffset _
+         | Iload (_, _, _)
+         | Istore (_, _, _)
+         | Ialloc _ | Iintop _
+         | Iintop_imm (_, _)
+         | Icompf _ | Ispecific _ | Iname_for_debugger _ | Iprobe _
+         | Iprobe_is_enabled _ ) as op) ->
       if not (Mach.operation_can_raise op)
       then
         Misc.fatal_error
@@ -629,7 +662,7 @@ module Stack_offset_and_exn = struct
     | Never | Return
     | Tailcall (Func _)
     | Call_no_return _ | Raise _ | Always _ | Parity_test _ | Truth_test _
-    | Float_test _ | Int_test _ | Switch _ ->
+    | Float_test _ | Int_test _ | Switch _ | Poll_and_jump _ ->
       stack_offset, traps, term
 
   let rec process_basic :
