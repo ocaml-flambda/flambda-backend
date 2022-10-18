@@ -34,7 +34,13 @@ type t0 =
     table_data : table_data
   }
 
-type t = t0 list
+type raw = t0 list
+
+type t = raw * File_sections.t
+
+let to_raw (t, sections) = t, sections
+
+let from_raw ~sections t = t, sections
 
 type current_sections =
   { mutable sections_rev : Obj.t list;
@@ -171,7 +177,7 @@ let import_typing_env_and_code0 ~sections t =
   let all_code = Exported_code.apply_renaming code_ids renaming all_code in
   typing_env, all_code
 
-let import_typing_env_and_code ~sections t =
+let import_typing_env_and_code (t, sections) =
   match t with
   | [] -> Misc.fatal_error "Flambda cmx info should never be empty"
   | [t0] -> import_typing_env_and_code0 ~sections t0
@@ -187,7 +193,7 @@ let import_typing_env_and_code ~sections t =
       (import_typing_env_and_code0 ~sections t0)
       rem
 
-let exported_offsets t =
+let exported_offsets (t, _) =
   List.fold_left
     (fun offsets t0 -> Exported_offsets.merge offsets t0.exported_offsets)
     Exported_offsets.empty t
@@ -195,9 +201,9 @@ let exported_offsets t =
 (* let functions_info t = List.fold_left (fun code t0 -> Exported_code.merge
    code t0.all_code) Exported_code.empty t *)
 
-let with_exported_offsets t exported_offsets =
+let with_exported_offsets (t, sections) exported_offsets =
   match t with
-  | [t0] -> [{ t0 with exported_offsets }]
+  | [t0] -> [{ t0 with exported_offsets }], sections
   | [] | _ :: _ :: _ ->
     Misc.fatal_error "Cannot set exported offsets on multiple units"
 
@@ -226,23 +232,24 @@ let update_for_pack0 ~pack_units ~pack t =
   in
   { t with table_data }
 
-let update_for_pack ~pack_units ~pack (t_opt, sections) =
-  match t_opt with
-  | None -> None, sections
-  | Some t -> Some (List.map (update_for_pack0 ~pack_units ~pack) t), sections
+let update_for_pack ~pack_units ~pack t =
+  match t with
+  | None -> None
+  | Some (t, sections) ->
+    Some (List.map (update_for_pack0 ~pack_units ~pack) t, sections)
 
-let merge (t1_opt, sections1) (t2_opt, sections2) =
-  (* Put the sections of t2 before the sections of t1, so that right-associative
-     merge is linear *)
-  let nsections = File_sections.concat sections2 sections1 in
+let merge t1_opt t2_opt =
   match t1_opt, t2_opt with
-  | None, None -> None, nsections
+  | None, None -> None
   | Some _, None | None, Some _ ->
     (* CR vlaviron: turn this into a proper user error *)
     Misc.fatal_error
       "Some pack units do not have their export info set.\n\
        Flambda doesn't support packing opaque and normal units together."
-  | Some t1, Some t2 ->
+  | Some (t1, sections1), Some (t2, sections2) ->
+    (* Put the sections of t2 before the sections of t1, so that
+       right-associative merge is linear *)
+    let nsections = File_sections.concat sections2 sections1 in
     let n = File_sections.length sections2 in
     let t1 =
       List.map
@@ -252,7 +259,7 @@ let merge (t1_opt, sections1) (t2_opt, sections2) =
           })
         t1
     in
-    Some (t1 @ t2), nsections
+    Some (t1 @ t2, nsections)
 
 let print0 ~sections ppf t =
   Format.fprintf ppf "@[<hov>Original unit:@ %a@]@;" Compilation_unit.print
@@ -265,7 +272,7 @@ let print0 ~sections ppf t =
   Format.fprintf ppf "@[<hov>Offsets:@ %a@]@;" Exported_offsets.print
     t.exported_offsets
 
-let [@ocamlformat "disable"] print ~sections ppf t =
+let [@ocamlformat "disable"] print ppf (t, sections) =
   let rec print_rest ppf = function
     | [] -> ()
     | t0 :: t ->

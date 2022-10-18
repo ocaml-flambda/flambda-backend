@@ -30,7 +30,7 @@ let get_global_info comp_unit =
        units";
   if Compilation_unit.equal comp_unit
        (Flambda2_identifiers.Symbol.external_symbols_compilation_unit ())
-  then None, File_sections.empty
+  then None
   else
     (* CR lmaurer: It feels like there should be a
        [Compilenv.get_global_info_for_unit] here, but I'm not quite sure how to
@@ -40,8 +40,8 @@ let get_global_info comp_unit =
       |> Compilation_unit.Name.to_string |> Ident.create_persistent
     in
     match Compilenv.get_global_export_info id with
-    | None | Some (Flambda2 (None, _)) -> None, File_sections.empty
-    | Some (Flambda2 (Some info, sections)) -> Some info, sections
+    | None | Some (Flambda2 None) -> None
+    | Some (Flambda2 (Some info)) -> Some info
     | Some (Clambda _) ->
       (* CR mshinwell: This should be a user error, not a fatal error. Same
          below. *)
@@ -131,7 +131,7 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
     in
     Compiler_hooks.execute Raw_flambda2 raw_flambda;
     print_rawflambda ppf raw_flambda;
-    let flambda, offsets, (cmx, cmx_sections), all_code =
+    let flambda, offsets, cmx, all_code =
       match mode, close_program_metadata with
       | Classic, Classic (code, cmx, offsets) ->
         (if Flambda_features.inlining_report ()
@@ -163,7 +163,7 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
     (match cmx with
     | None ->
       () (* Either opaque was passed, or there is no need to export offsets *)
-    | Some cmx -> Compilenv.flambda2_set_export_info cmx cmx_sections);
+    | Some cmx -> Compilenv.flambda2_set_export_info cmx);
     (* File_sections.close_all (); *)
     let cmm = Flambda2_to_cmm.To_cmm.unit flambda ~all_code ~offsets in
     if not keep_symbol_tables

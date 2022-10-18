@@ -175,12 +175,12 @@ let make_package_object unix ~ppf_dump members targetobj targetname coercion
 
 (* Make the .cmx file for the package *)
 
-let get_export_info_flambda2 ui : Flambda2_cmx.Flambda_cmx_format.t option * File_sections.t =
+let get_export_info_flambda2 ui : Flambda2_cmx.Flambda_cmx_format.t option =
   assert(Config.flambda2);
   match ui.ui_export_info with
   | Clambda _ -> assert false
   | Flambda1 _ -> assert false
-  | Flambda2 (info, sections) -> (info, sections)
+  | Flambda2 info -> info
 
 let get_export_info_flambda1 ui : Export_info.t =
   assert(Config.flambda);
@@ -250,7 +250,7 @@ let build_package_cmx members cmxfile =
       Flambda1 ui_export_info
     else if Config.flambda2 then
       let pack = Compilation_unit.get_current_exn () in
-      let flambda_export_info, sections =
+      let flambda_export_info =
         List.fold_left (fun acc info ->
             Flambda2_cmx.Flambda_cmx_format.merge
               (Flambda2_cmx.Flambda_cmx_format.update_for_pack
@@ -262,7 +262,7 @@ let build_package_cmx members cmxfile =
              (get_export_info_flambda2 ui))
           units
       in
-      Flambda2 (flambda_export_info, sections)
+      Flambda2 flambda_export_info
     else
       Clambda (get_approx ui)
   in

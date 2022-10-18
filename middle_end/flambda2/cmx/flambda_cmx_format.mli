@@ -18,17 +18,21 @@
 
 type t
 
+type raw
+
+val to_raw : t -> raw * File_sections.t
+
+val from_raw : sections:File_sections.t -> raw -> t
+
 val create :
   final_typing_env:Flambda2_types.Typing_env.Serializable.t ->
   all_code:Exported_code.t ->
   exported_offsets:Exported_offsets.t ->
   used_value_slots:Value_slot.Set.t ->
-  t * File_sections.t
+  t
 
 val import_typing_env_and_code :
-  sections:File_sections.t ->
-  t ->
-  Flambda2_types.Typing_env.Serializable.t * Exported_code.t
+  t -> Flambda2_types.Typing_env.Serializable.t * Exported_code.t
 
 val exported_offsets : t -> Exported_offsets.t
 
@@ -41,14 +45,11 @@ val with_exported_offsets : t -> Exported_offsets.t -> t
 val update_for_pack :
   pack_units:Compilation_unit.Set.t ->
   pack:Compilation_unit.t ->
-  t option * File_sections.t ->
-  t option * File_sections.t
+  t option ->
+  t option
 
 (** Aggregate several cmx into one for packs *)
-val merge :
-  t option * File_sections.t ->
-  t option * File_sections.t ->
-  t option * File_sections.t
+val merge : t option -> t option -> t option
 
 (** For ocamlobjinfo *)
-val print : sections:File_sections.t -> Format.formatter -> t -> unit
+val print : Format.formatter -> t -> unit

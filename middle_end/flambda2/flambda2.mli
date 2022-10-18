@@ -30,5 +30,4 @@ val lambda_to_cmm :
 val symbol_for_global : Ident.t -> Flambda2_identifiers.Symbol.t
 
 val get_global_info :
-  Compilation_unit.t ->
-  Flambda2_cmx.Flambda_cmx_format.t option * File_sections.t
+  Compilation_unit.t -> Flambda2_cmx.Flambda_cmx_format.t option

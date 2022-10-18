@@ -77,7 +77,7 @@ val get_global_export_info : Ident.t -> Cmx_format.export_info option
 
 val get_unit_export_info : Compilation_unit.Name.t -> Cmx_format.export_info option
 
-val flambda2_set_export_info : Flambda2_cmx.Flambda_cmx_format.t -> File_sections.t -> unit
+val flambda2_set_export_info : Flambda2_cmx.Flambda_cmx_format.t -> unit
         (* Set the export information for the current unit (Flambda 2 only). *)
 
 val need_curry_fun: Clambda.arity -> unit

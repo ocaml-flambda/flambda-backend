@@ -112,7 +112,7 @@ let default_ui_export_info =
   if Config.flambda then
     Cmx_format.Flambda1 Export_info.empty
   else if Config.flambda2 then
-    Cmx_format.Flambda2 (None, File_sections.empty)
+    Cmx_format.Flambda2 None
   else
     Cmx_format.Clambda Value_unknown
 
@@ -166,7 +166,9 @@ let read_unit_info filename =
       match uir.uir_export_info with
       | Clambda_raw info -> Clambda info
       | Flambda1_raw info -> Flambda1 info
-      | Flambda2_raw info -> Flambda2 (info, sections)
+      | Flambda2_raw None -> Flambda2 None
+      | Flambda2_raw (Some info) ->
+        Flambda2 (Some (Flambda2_cmx.Flambda_cmx_format.from_raw ~sections info))
     in
     let ui = {
       ui_unit = uir.uir_unit;
@@ -320,9 +322,9 @@ let set_export_info export_info =
   assert(Config.flambda);
   current_unit.ui_export_info <- Flambda1 export_info
 
-let flambda2_set_export_info export_info sections =
+let flambda2_set_export_info export_info =
   assert(Config.flambda2);
-  current_unit.ui_export_info <- Flambda2 (Some export_info, sections)
+  current_unit.ui_export_info <- Flambda2 (Some export_info)
 
 (* Determine which .cmx file to load for a given compilation unit.
    This is tricky in the case of packs.  It can be done by lining up the
@@ -418,7 +420,10 @@ let write_unit_info info filename =
     match info.ui_export_info with
     | Clambda info -> Clambda_raw info, File_sections.empty
     | Flambda1 info -> Flambda1_raw info, File_sections.empty
-    | Flambda2 (info, sections) -> Flambda2_raw info, sections
+    | Flambda2 None -> Flambda2_raw None, File_sections.empty
+    | Flambda2 (Some info) ->
+      let info, sections = Flambda2_cmx.Flambda_cmx_format.to_raw info in
+      Flambda2_raw (Some info), sections
   in
   let serialized_sections, toc, total_length = File_sections.serialize sections in
   let raw_info = {
