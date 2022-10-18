@@ -50,17 +50,17 @@ let add cl =
       then prev
       else i.dbg
     in
-    let fdo = Fdo_info.create ~discriminator:i.id ~dbg in
-    dbg, { i with fdo }
+    i.fdo <- Fdo_info.create ~discriminator:i.id ~dbg;
+    dbg
   in
   let cfg = CL.cfg cl in
   let layout = CL.layout cl in
   let update_block prev label =
     let block = Cfg.get_block_exn cfg label in
-    let prev, new_body = List.fold_left_map update_instr prev block.body in
-    block.body <- new_body;
-    let prev, new_terminator = update_instr prev block.terminator in
-    block.terminator <- new_terminator;
+    let prev =
+      Cfg.BasicInstructionList.fold_left ~f:update_instr ~init:prev block.body
+    in
+    let prev = update_instr prev block.terminator in
     prev
   in
   ignore (List.fold_left update_block cfg.fun_dbg layout : Debuginfo.t)

@@ -40,11 +40,6 @@ module Instruction = struct
   module IdMap = MoreLabels.Map.Make (Int)
 end
 
-let first_instruction_id (block : Cfg.basic_block) : int =
-  match block.body with
-  | [] -> block.terminator.id
-  | first_instr :: _ -> first_instr.id
-
 let[@inline] int_max (left : int) (right : int) =
   if left >= right then left else right
 
@@ -157,8 +152,8 @@ let simplify_cfg : Cfg_with_layout.t -> Cfg_with_layout.t =
  fun cfg_with_layout ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   Cfg.iter_blocks cfg ~f:(fun _label block ->
-      block.body
-        <- List.filter block.body ~f:(fun instr -> not (Cfg.is_noop_move instr)));
+      Cfg.BasicInstructionList.filter_left block.body ~f:(fun instr ->
+          not (Cfg.is_noop_move instr)));
   Eliminate_fallthrough_blocks.run cfg_with_layout;
   Merge_straightline_blocks.run cfg_with_layout;
   Eliminate_dead_code.run_dead_block cfg_with_layout;
@@ -378,22 +373,21 @@ let remove_prologue_if_not_required : Cfg_with_layout.t -> unit =
   then
     (* note: `Cfize` has put the prologue in the entry block *)
     let block = Cfg.get_block_exn cfg cfg.entry_label in
-    block.body
-      <- List.filter block.body ~f:(fun instr ->
-             match instr.Cfg.desc with Cfg.Prologue -> false | _ -> true)
+    Cfg.BasicInstructionList.filter_left block.body ~f:(fun instr ->
+        match instr.Cfg.desc with Cfg.Prologue -> false | _ -> true)
 
 let update_live_fields : Cfg_with_layout.t -> liveness -> unit =
  fun cfg_with_layout liveness ->
   (* CR xclerc for xclerc: partial duplicate of
      `Asmgen.recompute_liveness_on_cfg` *)
-  let with_liveness (instr : _ Cfg.instruction) =
+  let set_liveness (instr : _ Cfg.instruction) =
     match Cfg_dataflow.Instr.Tbl.find_opt liveness instr.id with
     | None -> fatal "Missing liveness information for instruction %d" instr.id
-    | Some { Cfg_liveness.before = _; across } -> Cfg.set_live instr across
+    | Some { Cfg_liveness.before = _; across } -> instr.live <- across
   in
   Cfg.iter_blocks (Cfg_with_layout.cfg cfg_with_layout) ~f:(fun _label block ->
-      block.body <- ListLabels.map block.body ~f:with_liveness;
-      block.terminator <- with_liveness block.terminator)
+      Cfg.BasicInstructionList.iter block.body ~f:set_liveness;
+      set_liveness block.terminator)
 
 let update_spill_cost : Cfg_with_layout.t -> unit =
  fun cfg_with_layout ->

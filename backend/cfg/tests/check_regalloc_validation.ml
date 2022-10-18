@@ -70,7 +70,7 @@ module Block = struct
       || Cfg.can_raise_terminator terminator.desc
     in
     { start;
-      body;
+      body = Cfg.BasicInstructionList.of_list body;
       terminator;
       predecessors = Label.Set.empty;
       stack_offset = 0;
@@ -173,7 +173,7 @@ let () =
   in
   Label.Tbl.add cfg.Cfg.blocks (Cfg.entry_label cfg)
     { start = Cfg.entry_label cfg;
-      body = [];
+      body = Cfg.BasicInstructionList.make_empty ();
       exn = None;
       can_raise = false;
       is_trap_handler = false;
