@@ -113,41 +113,12 @@ sig
   val ltint : primitive
   val geint : primitive
   val gtint : primitive
-<<<<<<< HEAD
-  type act
-  type loc
-  type value_kind
-||||||| 24dbb0976a
-  type act
-  type loc
-=======
->>>>>>> ocaml/4.14
 
-<<<<<<< HEAD
-  val bind : act -> (act -> act) -> act
-  val make_const : int -> act
-  val make_offset : act -> int -> act
-  val make_prim : primitive -> act list -> act
-  val make_isout : act -> act -> act
-  val make_isin : act -> act -> act
-  val make_if : value_kind -> act -> act -> act -> act
-  val make_switch : loc -> value_kind -> act -> int array -> act array -> act
-  val make_catch : value_kind -> act -> int * (act -> act)
-||||||| 24dbb0976a
-  val bind : act -> (act -> act) -> act
-  val make_const : int -> act
-  val make_offset : act -> int -> act
-  val make_prim : primitive -> act list -> act
-  val make_isout : act -> act -> act
-  val make_isin : act -> act -> act
-  val make_if : act -> act -> act -> act
-  val make_switch : loc -> act -> int array -> act array -> act
-  val make_catch : act -> int * (act -> act)
-=======
   type loc
   type arg
   type test
   type act
+  type value_kind
 
   val bind : arg -> (arg -> act) -> act
   val make_const : int -> arg
@@ -158,11 +129,10 @@ sig
   val make_is_nonzero : arg -> test
   val arg_as_test : arg -> test
 
-  val make_if : test -> act -> act -> act
-  val make_switch : loc -> arg -> int array -> act array -> act
+  val make_if : value_kind -> test -> act -> act -> act
+  val make_switch : loc -> value_kind -> arg -> int array -> act array -> act
 
-  val make_catch : act -> int * (act -> act)
->>>>>>> ocaml/4.14
+  val make_catch : value_kind -> act -> int * (act -> act)
   val make_exit : int -> act
 end
 
@@ -610,22 +580,14 @@ let rec pkey chan  = function
   and make_if_ne kind arg i ifso ifnot =
     make_if_test kind Arg.neint arg i ifso ifnot
 
-<<<<<<< HEAD
+  let make_if_nonzero kind arg ifso ifnot =
+    Arg.make_if kind (Arg.make_is_nonzero arg) ifso ifnot
+
+  let make_if_bool kind arg ifso ifnot =
+    Arg.make_if kind (Arg.arg_as_test arg) ifso ifnot
+
   let do_make_if_out kind h arg ifso ifno =
     Arg.make_if kind (Arg.make_isout h arg) ifso ifno
-||||||| 24dbb0976a
-  let do_make_if_out h arg ifso ifno =
-    Arg.make_if (Arg.make_isout h arg) ifso ifno
-=======
-  let make_if_nonzero arg ifso ifnot =
-    Arg.make_if (Arg.make_is_nonzero arg) ifso ifnot
-
-  let make_if_bool arg ifso ifnot =
-    Arg.make_if (Arg.arg_as_test arg) ifso ifnot
-
-  let do_make_if_out h arg ifso ifno =
-    Arg.make_if (Arg.make_isout h arg) ifso ifno
->>>>>>> ocaml/4.14
 
   let make_if_out kind ctx l d mk_ifso mk_ifno = match l with
     | 0 ->
@@ -718,29 +680,15 @@ let rec pkey chan  = function
 
           if i=1 && (lim+ctx.off)=1 && get_low cases 0+ctx.off=0 then
             if lcases = 2 && get_high cases 1+ctx.off = 1 then
-<<<<<<< HEAD
-              Arg.make_if
-                kind
-                ctx.arg
-                (c_test kind ctx right) (c_test kind ctx left)
-            else
-              make_if_ne
-                kind
-                ctx.arg 0
-                (c_test kind ctx right) (c_test kind ctx left)
-||||||| 24dbb0976a
-            Arg.make_if
-              ctx.arg
-              (c_test ctx right) (c_test ctx left)
-=======
               make_if_bool
+                kind
                 ctx.arg
-                (c_test ctx right) (c_test ctx left)
+                (c_test kind ctx right) (c_test kind ctx left)
             else
               make_if_nonzero
+                kind
                 ctx.arg
-                (c_test ctx right) (c_test ctx left)
->>>>>>> ocaml/4.14
+                (c_test kind ctx right) (c_test kind ctx left)
           else if less_tests cright cleft then
             make_if_lt
               kind

@@ -42,14 +42,7 @@ let rec eliminate_ref id = function
   | Lletrec(idel, e2) ->
       Lletrec(List.map (fun (v, e) -> (v, eliminate_ref id e)) idel,
               eliminate_ref id e2)
-<<<<<<< HEAD
   | Lprim(Pfield (0, _sem), [Lvar v], _) when Ident.same v id ->
-||||||| 24dbb0976a
-  | Lprim(Pfield 0, [Lvar v], _) when Ident.same v id ->
-      Lvar id
-=======
-  | Lprim(Pfield 0, [Lvar v], _) when Ident.same v id ->
->>>>>>> ocaml/4.14
       Lmutvar id
   | Lprim(Psetfield(0, _, _), [Lvar v; e], _) when Ident.same v id ->
       Lassign(id, eliminate_ref id e)
@@ -125,28 +118,12 @@ let simplify_exits lam =
     match Hashtbl.find_opt exits i with
     | Some r ->
         r.count <- r.count + nb;
-        r.max_depth <- Int.max r.max_depth d
+        r.max_depth <- Misc.Stdlib.Int.max r.max_depth d
     | None ->
         let r = {count = nb; max_depth = d} in
         Hashtbl.add exits i r
   in
 
-<<<<<<< HEAD
-  let rec count = function
-  | (Lvar _ | Lmutvar _ | Lconst _) -> ()
-  | Lapply ap -> count ap.ap_func; List.iter count ap.ap_args
-  | Lfunction {body} -> count body
-  | Llet(_, _kind, _v, l1, l2)
-  | Lmutlet(_kind, _v, l1, l2) ->
-      count l2; count l1
-||||||| 24dbb0976a
-  let rec count = function
-  | (Lvar _| Lconst _) -> ()
-  | Lapply ap -> count ap.ap_func; List.iter count ap.ap_args
-  | Lfunction {body} -> count body
-  | Llet(_str, _kind, _v, l1, l2) ->
-      count l2; count l1
-=======
   let rec count ~try_depth = function
   | (Lvar _| Lmutvar _ | Lconst _) -> ()
   | Lapply ap ->
@@ -156,45 +133,18 @@ let simplify_exits lam =
   | Llet(_, _kind, _v, l1, l2)
   | Lmutlet(_kind, _v, l1, l2) ->
       count ~try_depth l2; count ~try_depth l1
->>>>>>> ocaml/4.14
   | Lletrec(bindings, body) ->
-<<<<<<< HEAD
-      List.iter (fun (_v, l) -> count l) bindings;
-      count body
-  | Lprim(_p, ll, _) -> List.iter count ll
-  | Lswitch(l, sw, _loc, _kind) ->
-      count_default sw ;
-      count l;
-      List.iter (fun (_, l) -> count l) sw.sw_consts;
-      List.iter (fun (_, l) -> count l) sw.sw_blocks
-  | Lstringswitch(l, sw, d, _, _kind) ->
-      count l;
-      List.iter (fun (_, l) -> count l) sw;
-||||||| 24dbb0976a
-      List.iter (fun (_v, l) -> count l) bindings;
-      count body
-  | Lprim(_p, ll, _) -> List.iter count ll
-  | Lswitch(l, sw, _loc) ->
-      count_default sw ;
-      count l;
-      List.iter (fun (_, l) -> count l) sw.sw_consts;
-      List.iter (fun (_, l) -> count l) sw.sw_blocks
-  | Lstringswitch(l, sw, d, _) ->
-      count l;
-      List.iter (fun (_, l) -> count l) sw;
-=======
       List.iter (fun (_v, l) -> count ~try_depth l) bindings;
       count ~try_depth body
   | Lprim(_p, ll, _) -> List.iter (count ~try_depth) ll
-  | Lswitch(l, sw, _loc) ->
+  | Lswitch(l, sw, _loc, _kind) ->
       count_default ~try_depth sw ;
       count ~try_depth l;
       List.iter (fun (_, l) -> count ~try_depth l) sw.sw_consts;
       List.iter (fun (_, l) -> count ~try_depth l) sw.sw_blocks
-  | Lstringswitch(l, sw, d, _) ->
+  | Lstringswitch(l, sw, d, _, _kind) ->
       count ~try_depth l;
       List.iter (fun (_, l) -> count ~try_depth l) sw;
->>>>>>> ocaml/4.14
       begin match  d with
       | None -> ()
       | Some d -> match sw with
@@ -202,81 +152,39 @@ let simplify_exits lam =
         | _ -> (* default will get replicated *)
             count ~try_depth d; count ~try_depth d
       end
-<<<<<<< HEAD
-  | Lstaticraise (i,ls) -> incr_exit i 1 !try_depth; List.iter count ls
-  | Lstaticcatch (l1,(i,[]),Lstaticraise (j,[]), _) ->
-||||||| 24dbb0976a
-  | Lstaticraise (i,ls) -> incr_exit i 1 !try_depth; List.iter count ls
-  | Lstaticcatch (l1,(i,[]),Lstaticraise (j,[])) ->
-=======
   | Lstaticraise (i,ls) ->
       incr_exit i 1 try_depth;
       List.iter (count ~try_depth) ls
-  | Lstaticcatch (l1,(i,[]),Lstaticraise (j,[])) ->
->>>>>>> ocaml/4.14
+  | Lstaticcatch (l1,(i,[]),Lstaticraise (j,[]), _) ->
       (* i will be replaced by j in l1, so each occurrence of i in l1
          increases j's ref count *)
       count ~try_depth l1 ;
       let ic = get_exit i in
-<<<<<<< HEAD
-      incr_exit j ic.count (max !try_depth ic.max_depth)
+      incr_exit j ic.count (Misc.Stdlib.Int.max try_depth ic.max_depth)
   | Lstaticcatch(l1, (i,_), l2, _) ->
-      count l1;
-||||||| 24dbb0976a
-      incr_exit j ic.count (max !try_depth ic.max_depth)
-  | Lstaticcatch(l1, (i,_), l2) ->
-      count l1;
-=======
-      incr_exit j ic.count (Int.max try_depth ic.max_depth)
-  | Lstaticcatch(l1, (i,_), l2) ->
       count ~try_depth l1;
->>>>>>> ocaml/4.14
       (* If l1 does not contain (exit i),
          l2 will be removed, so don't count its exits *)
       if (get_exit i).count > 0 then
-<<<<<<< HEAD
-        count l2
-  | Ltrywith(l1, _v, l2, _kind) -> incr try_depth; count l1; decr try_depth; count l2
-  | Lifthenelse(l1, l2, l3, _kind) -> count l1; count l2; count l3
-  | Lsequence(l1, l2) -> count l1; count l2
-  | Lwhile lw -> count lw.wh_cond; count lw.wh_body
-  | Lfor lf -> count lf.for_from; count lf.for_to; count lf.for_body
-  | Lassign(_v, l) -> count l
-  | Lsend(_k, m, o, ll, _, _, _) -> List.iter count (m::o::ll)
-  | Levent(l, _) -> count l
-  | Lifused(_v, l) -> count l
-  | Lregion l -> count l
-||||||| 24dbb0976a
-        count l2
-  | Ltrywith(l1, _v, l2) -> incr try_depth; count l1; decr try_depth; count l2
-  | Lifthenelse(l1, l2, l3) -> count l1; count l2; count l3
-  | Lsequence(l1, l2) -> count l1; count l2
-  | Lwhile(l1, l2) -> count l1; count l2
-  | Lfor(_, l1, l2, _dir, l3) -> count l1; count l2; count l3
-  | Lassign(_v, l) -> count l
-  | Lsend(_k, m, o, ll, _) -> List.iter count (m::o::ll)
-  | Levent(l, _) -> count l
-  | Lifused(_v, l) -> count l
-=======
         count ~try_depth l2
-  | Ltrywith(l1, _v, l2) ->
+  | Ltrywith(l1, _v, l2, _kind) ->
       count ~try_depth:(try_depth+1) l1;
       count ~try_depth l2;
-  | Lifthenelse(l1, l2, l3) ->
+  | Lifthenelse(l1, l2, l3, _kind) ->
       count ~try_depth l1;
       count ~try_depth l2;
       count ~try_depth l3
   | Lsequence(l1, l2) -> count ~try_depth l1; count ~try_depth l2
-  | Lwhile(l1, l2) -> count ~try_depth l1; count ~try_depth l2
-  | Lfor(_, l1, l2, _dir, l3) ->
-      count ~try_depth l1;
-      count ~try_depth l2;
-      count ~try_depth l3
+  | Lwhile lw -> count ~try_depth lw.wh_cond; count ~try_depth lw.wh_body
+  | Lfor lf ->
+      count ~try_depth lf.for_from;
+      count ~try_depth lf.for_to;
+      count ~try_depth lf.for_body
   | Lassign(_v, l) -> count ~try_depth l
-  | Lsend(_k, m, o, ll, _) -> List.iter (count ~try_depth) (m::o::ll)
+  | Lsend(_k, m, o, ll, _, _, _) -> List.iter (count ~try_depth) (m::o::ll)
   | Levent(l, _) -> count ~try_depth l
   | Lifused(_v, l) -> count ~try_depth l
->>>>>>> ocaml/4.14
+  | Lregion l -> count ~try_depth l
 
   and count_default ~try_depth sw = match sw.sw_failaction with
   | None -> ()
@@ -312,120 +220,23 @@ let simplify_exits lam =
   *)
 
   let subst = Hashtbl.create 17 in
-<<<<<<< HEAD
-
-  let rec simplif = function
-  | (Lvar _ | Lmutvar _ | Lconst _) as l -> l
-||||||| 24dbb0976a
-
-  let rec simplif = function
-  | (Lvar _|Lconst _) as l -> l
-=======
   let rec simplif ~try_depth = function
   | (Lvar _| Lmutvar _ | Lconst _) as l -> l
->>>>>>> ocaml/4.14
   | Lapply ap ->
-<<<<<<< HEAD
-      Lapply{ap with ap_func = simplif ap.ap_func;
-                     ap_args = List.map simplif ap.ap_args}
-  | Lfunction{kind; params; return; body = l; attr; loc; mode; region} ->
-     Lfunction{kind; params; return; body=simplif l; attr; loc; mode; region}
-  | Llet(str, kind, v, l1, l2) -> Llet(str, kind, v, simplif l1, simplif l2)
-  | Lmutlet(kind, v, l1, l2) -> Lmutlet(kind, v, simplif l1, simplif l2)
-||||||| 24dbb0976a
-      Lapply{ap with ap_func = simplif ap.ap_func;
-                     ap_args = List.map simplif ap.ap_args}
-  | Lfunction{kind; params; return; body = l; attr; loc} ->
-     Lfunction{kind; params; return; body = simplif l; attr; loc}
-  | Llet(str, kind, v, l1, l2) -> Llet(str, kind, v, simplif l1, simplif l2)
-=======
       Lapply{ap with ap_func = simplif ~try_depth ap.ap_func;
                      ap_args = List.map (simplif ~try_depth) ap.ap_args}
-  | Lfunction{kind; params; return; body = l; attr; loc} ->
-     lfunction ~kind ~params ~return ~body:(simplif ~try_depth l) ~attr ~loc
+  | Lfunction{kind; params; return; mode; region; body = l; attr; loc} ->
+     lfunction ~kind ~params ~return ~mode ~region ~body:(simplif ~try_depth l) ~attr ~loc
   | Llet(str, kind, v, l1, l2) ->
       Llet(str, kind, v, simplif ~try_depth l1, simplif ~try_depth l2)
   | Lmutlet(kind, v, l1, l2) ->
       Lmutlet(kind, v, simplif ~try_depth l1, simplif ~try_depth l2)
->>>>>>> ocaml/4.14
   | Lletrec(bindings, body) ->
       Lletrec(List.map (fun (v, l) -> (v, simplif ~try_depth l)) bindings,
       simplif ~try_depth body)
   | Lprim(p, ll, loc) -> begin
     let ll = List.map (simplif ~try_depth) ll in
     match p, ll with
-<<<<<<< HEAD
-        (* Simplify %revapply, for n-ary functions with n > 1 *)
-      | Prevapply ((Rc_normal | Rc_nontail) as pos), [x; Lapply ap]
-      | Prevapply ((Rc_normal | Rc_nontail) as pos),
-        [x; Levent (Lapply ap,_)] ->
-          Lapply {ap with ap_args = ap.ap_args @ [x]; ap_loc = loc;
-                          ap_region_close = pos}
-      | Prevapply pos, [x; f] ->
-          Lapply {
-            ap_loc=loc;
-            ap_func=f;
-            ap_args=[x];
-            ap_region_close=pos;
-            ap_mode=alloc_heap;
-            ap_tailcall=Default_tailcall;
-            ap_inlined=Default_inlined;
-            ap_specialised=Default_specialise;
-            ap_probe=None;
-          }
-        (* Simplify %apply, for n-ary functions with n > 1 *)
-      | Pdirapply ((Rc_normal | Rc_nontail) as pos), [Lapply ap; x]
-      | Pdirapply ((Rc_normal | Rc_nontail) as pos),
-        [Levent (Lapply ap,_); x] ->
-          Lapply {ap with ap_args = ap.ap_args @ [x];
-                          ap_loc = loc; ap_region_close=pos}
-      | Pdirapply pos, [f; x] ->
-          Lapply {
-            ap_loc=loc;
-            ap_func=f;
-            ap_args=[x];
-            ap_region_close=pos;
-            ap_mode=alloc_heap;
-            ap_tailcall=Default_tailcall;
-            ap_inlined=Default_inlined;
-            ap_specialised=Default_specialise;
-            ap_probe=None;
-          }
-        (* Simplify %identity *)
-      | Pidentity, [e] -> e
-
-||||||| 24dbb0976a
-        (* Simplify %revapply, for n-ary functions with n > 1 *)
-      | Prevapply, [x; Lapply ap]
-      | Prevapply, [x; Levent (Lapply ap,_)] ->
-        Lapply {ap with ap_args = ap.ap_args @ [x]; ap_loc = loc}
-      | Prevapply, [x; f] ->
-          Lapply {
-            ap_loc=loc;
-            ap_func=f;
-            ap_args=[x];
-            ap_tailcall=Default_tailcall;
-            ap_inlined=Default_inline;
-            ap_specialised=Default_specialise;
-          }
-        (* Simplify %apply, for n-ary functions with n > 1 *)
-      | Pdirapply, [Lapply ap; x]
-      | Pdirapply, [Levent (Lapply ap,_); x] ->
-        Lapply {ap with ap_args = ap.ap_args @ [x]; ap_loc = loc}
-      | Pdirapply, [f; x] ->
-          Lapply {
-            ap_loc=loc;
-            ap_func=f;
-            ap_args=[x];
-            ap_tailcall=Default_tailcall;
-            ap_inlined=Default_inline;
-            ap_specialised=Default_specialise;
-          }
-        (* Simplify %identity *)
-      | Pidentity, [e] -> e
-
-=======
->>>>>>> ocaml/4.14
         (* Simplify Obj.with_tag *)
       | Pccall { Primitive.prim_name = "caml_obj_with_tag"; _ },
         [Lconst (Const_base (Const_int tag));
@@ -438,27 +249,13 @@ let simplify_exits lam =
 
       | _ -> Lprim(p, ll, loc)
      end
-<<<<<<< HEAD
   | Lswitch(l, sw, loc, kind) ->
-      let new_l = simplif l
-      and new_consts =  List.map (fun (n, e) -> (n, simplif e)) sw.sw_consts
-      and new_blocks =  List.map (fun (n, e) -> (n, simplif e)) sw.sw_blocks
-      and new_fail = Option.map simplif sw.sw_failaction in
-||||||| 24dbb0976a
-  | Lswitch(l, sw, loc) ->
-      let new_l = simplif l
-      and new_consts =  List.map (fun (n, e) -> (n, simplif e)) sw.sw_consts
-      and new_blocks =  List.map (fun (n, e) -> (n, simplif e)) sw.sw_blocks
-      and new_fail = Option.map simplif sw.sw_failaction in
-=======
-  | Lswitch(l, sw, loc) ->
       let new_l = simplif ~try_depth l
       and new_consts =
       List.map (fun (n, e) -> (n, simplif ~try_depth e)) sw.sw_consts
       and new_blocks =
       List.map (fun (n, e) -> (n, simplif ~try_depth e)) sw.sw_blocks
       and new_fail = Option.map (simplif ~try_depth) sw.sw_failaction in
->>>>>>> ocaml/4.14
       Lswitch
         (new_l,
          {sw with sw_consts = new_consts ; sw_blocks = new_blocks;
@@ -466,16 +263,8 @@ let simplify_exits lam =
          loc, kind)
   | Lstringswitch(l,sw,d,loc, kind) ->
       Lstringswitch
-<<<<<<< HEAD
-        (simplif l,List.map (fun (s,l) -> s,simplif l) sw,
-         Option.map simplif d,loc,kind)
-||||||| 24dbb0976a
-        (simplif l,List.map (fun (s,l) -> s,simplif l) sw,
-         Option.map simplif d,loc)
-=======
         (simplif ~try_depth l,List.map (fun (s,l) -> s,simplif ~try_depth l) sw,
-         Option.map (simplif ~try_depth) d,loc)
->>>>>>> ocaml/4.14
+         Option.map (simplif ~try_depth) d,loc,kind)
   | Lstaticraise (i,[]) as l ->
       begin try
         let _,handler =  Hashtbl.find subst i in
@@ -505,22 +294,10 @@ let simplify_exits lam =
       with
       | Not_found -> Lstaticraise (i,ls)
       end
-<<<<<<< HEAD
-  | Lstaticcatch (l1,(i,[]),(Lstaticraise (_j,[]) as l2), _) ->
-      Hashtbl.add subst i ([],simplif l2) ;
-      simplif l1
-  | Lstaticcatch (l1,(i,xs),l2, kind) ->
-||||||| 24dbb0976a
-  | Lstaticcatch (l1,(i,[]),(Lstaticraise (_j,[]) as l2)) ->
-      Hashtbl.add subst i ([],simplif l2) ;
-      simplif l1
-  | Lstaticcatch (l1,(i,xs),l2) ->
-=======
-  | Lstaticcatch (l1,(i,[]),(Lstaticraise (_j,[]) as l2)) ->
+  | Lstaticcatch (l1,(i,[]),(Lstaticraise (_j,[]) as l2),_) ->
       Hashtbl.add subst i ([],simplif ~try_depth l2) ;
       simplif ~try_depth l1
-  | Lstaticcatch (l1,(i,xs),l2) ->
->>>>>>> ocaml/4.14
+  | Lstaticcatch (l1,(i,xs),l2,kind) ->
       let {count; max_depth} = get_exit i in
       if count = 0 then
         (* Discard staticcatch: not matching exit *)
@@ -533,63 +310,26 @@ let simplify_exits lam =
         Hashtbl.add subst i (xs,simplif ~try_depth l2);
         simplif ~try_depth l1
       end else
-<<<<<<< HEAD
-        Lstaticcatch (simplif l1, (i,xs), simplif l2, kind)
+        Lstaticcatch (simplif ~try_depth l1, (i,xs), simplif ~try_depth l2, kind)
   | Ltrywith(l1, v, l2, kind) ->
-      incr try_depth;
-      let l1 = simplif l1 in
-      decr try_depth;
-      Ltrywith(l1, v, simplif l2, kind)
-  | Lifthenelse(l1, l2, l3, kind) -> Lifthenelse(simplif l1, simplif l2, simplif l3, kind)
-  | Lsequence(l1, l2) -> Lsequence(simplif l1, simplif l2)
-  | Lwhile lw -> Lwhile {lw with wh_cond = simplif lw.wh_cond;
-                                 wh_body = simplif lw.wh_body}
-  | Lfor lf ->
-      Lfor {lf with for_from = simplif lf.for_from;
-                    for_to = simplif lf.for_to;
-                    for_body = simplif lf.for_body}
-  | Lassign(v, l) -> Lassign(v, simplif l)
-  | Lsend(k, m, o, ll, pos, mode, loc) ->
-      Lsend(k, simplif m, simplif o, List.map simplif ll, pos, mode, loc)
-  | Levent(l, ev) -> Levent(simplif l, ev)
-  | Lifused(v, l) -> Lifused (v,simplif l)
-  | Lregion l -> Lregion (simplif l)
-||||||| 24dbb0976a
-        Lstaticcatch (simplif l1, (i,xs), simplif l2)
-  | Ltrywith(l1, v, l2) ->
-      incr try_depth;
-      let l1 = simplif l1 in
-      decr try_depth;
-      Ltrywith(l1, v, simplif l2)
-  | Lifthenelse(l1, l2, l3) -> Lifthenelse(simplif l1, simplif l2, simplif l3)
-  | Lsequence(l1, l2) -> Lsequence(simplif l1, simplif l2)
-  | Lwhile(l1, l2) -> Lwhile(simplif l1, simplif l2)
-  | Lfor(v, l1, l2, dir, l3) ->
-      Lfor(v, simplif l1, simplif l2, dir, simplif l3)
-  | Lassign(v, l) -> Lassign(v, simplif l)
-  | Lsend(k, m, o, ll, loc) ->
-      Lsend(k, simplif m, simplif o, List.map simplif ll, loc)
-  | Levent(l, ev) -> Levent(simplif l, ev)
-  | Lifused(v, l) -> Lifused (v,simplif l)
-=======
-        Lstaticcatch (simplif ~try_depth l1, (i,xs), simplif ~try_depth l2)
-  | Ltrywith(l1, v, l2) ->
       let l1 = simplif ~try_depth:(try_depth + 1) l1 in
-      Ltrywith(l1, v, simplif ~try_depth l2)
-  | Lifthenelse(l1, l2, l3) -> Lifthenelse(simplif ~try_depth l1,
-    simplif ~try_depth l2, simplif ~try_depth l3)
+      Ltrywith(l1, v, simplif ~try_depth l2, kind)
+  | Lifthenelse(l1, l2, l3, kind) -> Lifthenelse(simplif ~try_depth l1,
+    simplif ~try_depth l2, simplif ~try_depth l3, kind)
   | Lsequence(l1, l2) -> Lsequence(simplif ~try_depth l1, simplif ~try_depth l2)
-  | Lwhile(l1, l2) -> Lwhile(simplif ~try_depth l1, simplif ~try_depth l2)
-  | Lfor(v, l1, l2, dir, l3) ->
-      Lfor(v, simplif ~try_depth l1, simplif ~try_depth l2, dir,
-      simplif ~try_depth l3)
+  | Lwhile lw -> Lwhile {lw with wh_cond = simplif ~try_depth lw.wh_cond;
+                                 wh_body = simplif ~try_depth lw.wh_body}
+  | Lfor lf ->
+      Lfor {lf with for_from = simplif ~try_depth lf.for_from;
+                    for_to = simplif ~try_depth lf.for_to;
+                    for_body = simplif ~try_depth lf.for_body}
   | Lassign(v, l) -> Lassign(v, simplif ~try_depth l)
-  | Lsend(k, m, o, ll, loc) ->
+  | Lsend(k, m, o, ll, pos, mode, loc) ->
       Lsend(k, simplif ~try_depth m, simplif ~try_depth o,
-      List.map (simplif ~try_depth) ll, loc)
+      List.map (simplif ~try_depth) ll, pos, mode, loc)
   | Levent(l, ev) -> Levent(simplif ~try_depth l, ev)
   | Lifused(v, l) -> Lifused (v,simplif ~try_depth l)
->>>>>>> ocaml/4.14
+  | Lregion l -> Lregion (simplif ~try_depth l)
   in
   simplif ~try_depth:0 lam
 
@@ -602,46 +342,8 @@ let simplify_exits lam =
 *)
 
 let exact_application {kind; params; _} args =
-<<<<<<< HEAD
-  match kind with
-  | Curried _ ->
-      if List.length params <> List.length args
-      then None
-      else Some args
-  | Tupled ->
-      begin match args with
-      | [Lprim(Pmakeblock _, tupled_args, _)] ->
-          if List.length params <> List.length tupled_args
-          then None
-          else Some tupled_args
-      | [Lconst(Const_block (_, const_args))] ->
-          if List.length params <> List.length const_args
-          then None
-          else Some (List.map (fun cst -> Lconst cst) const_args)
-      | _ -> None
-      end
-||||||| 24dbb0976a
-  match kind with
-  | Curried ->
-      if List.length params <> List.length args
-      then None
-      else Some args
-  | Tupled ->
-      begin match args with
-      | [Lprim(Pmakeblock _, tupled_args, _)] ->
-          if List.length params <> List.length tupled_args
-          then None
-          else Some tupled_args
-      | [Lconst(Const_block (_, const_args))] ->
-          if List.length params <> List.length const_args
-          then None
-          else Some (List.map (fun cst -> Lconst cst) const_args)
-      | _ -> None
-      end
-=======
   let arity = List.length params in
   Lambda.find_exact_application kind ~arity args
->>>>>>> ocaml/4.14
 
 let beta_reduce params body args =
   List.fold_left2 (fun l (param, kind) arg -> Llet(Strict, kind, param, arg, l))
@@ -820,9 +522,11 @@ let simplify_lets lam =
           end
       | _ -> no_opt ()
       end
-  | Lfunction({kind=Curried {nlocal=0}; params; return=_return1; body = l;
-               attr=_; loc=_; mode; region=true} as fn) ->
-      begin match simplif l with
+  | Lfunction{kind=outer_kind; params; return=outer_return; body = l;
+              attr; loc; mode; region=outer_region} ->
+      begin match outer_kind, outer_region, simplif l with
+        Curried {nlocal=0},
+        true,
         Lfunction{kind=Curried _ as kind; params=params'; return=return2;
                   body; attr; loc; mode=inner_mode; region}
         when optimize &&
@@ -834,24 +538,10 @@ let simplify_lets lam =
              type of the merged function taking [params @ params'] as
              parameters is the type returned after applying [params']. *)
           let return = return2 in
-<<<<<<< HEAD
-          Lfunction{kind; params = params @ params'; return;
-                    body; attr; loc; mode; region}
-||||||| 24dbb0976a
-          Lfunction{kind; params = params @ params'; return; body; attr; loc}
-=======
-          lfunction ~kind ~params:(params @ params') ~return ~body ~attr ~loc
->>>>>>> ocaml/4.14
-      | body ->
-<<<<<<< HEAD
-          Lfunction{fn with body}
-||||||| 24dbb0976a
-          Lfunction{kind; params; return = return1; body; attr; loc}
-=======
-          lfunction ~kind ~params ~return:return1 ~body ~attr ~loc
->>>>>>> ocaml/4.14
+          lfunction ~kind ~params:(params @ params') ~return ~body ~attr ~loc ~mode ~region
+      | kind, region, body ->
+          lfunction ~kind ~params ~return:outer_return ~body ~attr ~loc ~mode ~region
       end
-  | Lfunction fn -> Lfunction {fn with body = simplif fn.body}
   | Llet(_str, _k, v, Lvar w, l2) when optimize ->
       Hashtbl.add subst v (simplif (Lvar w));
       simplif l2
@@ -1029,21 +719,9 @@ and list_emit_tail_infos is_tail =
    'Some' constructor, only to deconstruct it immediately in the
    function's body. *)
 
-<<<<<<< HEAD
 let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
       ~attr ~loc ~mode ~region:orig_region =
   let rec aux map add_region = function
-    | Llet(Strict, k, id, (Lifthenelse(Lvar optparam, _, _, _) as def), rest) when
-        (not (Clflags.is_flambda2 ()))
-          && Ident.name optparam = "*opt*" && List.mem_assoc optparam params
-||||||| 24dbb0976a
-let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body ~attr ~loc =
-  let rec aux map = function
-    | Llet(Strict, k, id, (Lifthenelse(Lvar optparam, _, _) as def), rest) when
-        Ident.name optparam = "*opt*" && List.mem_assoc optparam params
-=======
-let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body ~attr ~loc =
-  let rec aux map = function
     (* When compiling [fun ?(x=expr) -> body], this is first translated
        to:
        [fun *opt* ->
@@ -1060,10 +738,10 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body ~attr ~loc =
        the pattern-matching compiler for options.
     *)
     | Llet(Strict, k, id,
-           (Lifthenelse(Lprim (Pisint, [Lvar optparam], _), _, _) as def),
+           (Lifthenelse(Lprim (Pisint _, [Lvar optparam], _), _, _, _) as def),
            rest) when
-        Ident.name optparam = "*opt*" && List.mem_assoc optparam params
->>>>>>> ocaml/4.14
+        (not (Clflags.is_flambda2 ()))
+          && Ident.name optparam = "*opt*" && List.mem_assoc optparam params
           && not (List.mem_assoc optparam map)
       ->
         let wrapper_body, inner = aux ((optparam, id) :: map) add_region rest in
@@ -1116,19 +794,9 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body ~attr ~loc =
         let body = Lambda.rename subst body in
         let body = if add_region then Lregion body else body in
         let inner_fun =
-<<<<<<< HEAD
-          Lfunction { kind = Curried {nlocal=0};
-            params = List.map (fun id -> id, Pgenval) new_ids;
-            return; body; attr; loc; mode; region=true }
-||||||| 24dbb0976a
-          Lfunction { kind = Curried;
-            params = List.map (fun id -> id, Pgenval) new_ids;
-            return; body; attr; loc; }
-=======
-          lfunction ~kind:Curried
+          lfunction ~kind:(Curried {nlocal=0})
             ~params:(List.map (fun id -> id, Pgenval) new_ids)
-            ~return ~body ~attr ~loc
->>>>>>> ocaml/4.14
+            ~return ~body ~attr ~loc ~mode ~region:true
         in
         (wrapper_body, (inner_id, inner_fun))
   in
@@ -1141,24 +809,9 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body ~attr ~loc =
     end;
     let body, inner = aux [] false body in
     let attr = default_stub_attribute in
-<<<<<<< HEAD
-    [(fun_id, Lfunction{kind; params; return; body; attr; loc; mode;
-                        region=true});
-     inner]
-||||||| 24dbb0976a
-    [(fun_id, Lfunction{kind; params; return; body; attr; loc}); inner]
-=======
-    [(fun_id, lfunction ~kind ~params ~return ~body ~attr ~loc); inner]
->>>>>>> ocaml/4.14
+    [(fun_id, lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region:true); inner]
   with Exit ->
-<<<<<<< HEAD
-    [(fun_id, Lfunction{kind; params; return; body; attr; loc; mode;
-                        region=orig_region})]
-||||||| 24dbb0976a
-    [(fun_id, Lfunction{kind; params; return; body; attr; loc})]
-=======
-    [(fun_id, lfunction ~kind ~params ~return ~body ~attr ~loc)]
->>>>>>> ocaml/4.14
+    [(fun_id, lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region:orig_region)]
 
 (* Simplify local let-bound functions: if all occurrences are
    fully-applied function calls in the same "tail scope", replace the

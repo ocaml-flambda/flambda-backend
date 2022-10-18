@@ -106,14 +106,6 @@ type primitive =
   | Pbytes_to_string
   | Pbytes_of_string
   | Pignore
-<<<<<<< HEAD
-  | Prevapply of region_close
-  | Pdirapply of region_close
-||||||| 24dbb0976a
-  | Prevapply
-  | Pdirapply
-=======
->>>>>>> ocaml/4.14
     (* Globals *)
   | Pgetglobal of Ident.t
   | Psetglobal of Ident.t
@@ -371,20 +363,13 @@ type local_attribute =
   | Never_local (* [@local never] *)
   | Default_local (* [@local maybe] or no [@local] attribute *)
 
-<<<<<<< HEAD
 type property =
   | Noalloc
-||||||| 24dbb0976a
-type function_kind = Curried | Tupled
-=======
+
 type poll_attribute =
   | Error_poll (* [@poll error] *)
   | Default_poll (* no [@poll] attribute *)
 
-type function_kind = Curried | Tupled
->>>>>>> ocaml/4.14
-
-<<<<<<< HEAD
 type check_attribute =
   | Default_check
   | Assert of property
@@ -392,10 +377,6 @@ type check_attribute =
 
 type function_kind = Curried of {nlocal: int} | Tupled
 
-||||||| 24dbb0976a
-type let_kind = Strict | Alias | StrictOpt | Variable
-=======
->>>>>>> ocaml/4.14
 type let_kind = Strict | Alias | StrictOpt
 
 type meth_kind = Self | Public | Cached
@@ -413,12 +394,8 @@ type function_attribute = {
   inline : inline_attribute;
   specialise : specialise_attribute;
   local: local_attribute;
-<<<<<<< HEAD
   check : check_attribute;
-||||||| 24dbb0976a
-=======
   poll: poll_attribute;
->>>>>>> ocaml/4.14
   is_a_functor: bool;
   stub: bool;
   tmc_candidate: bool;
@@ -527,13 +504,8 @@ let max_arity () =
   (* 126 = 127 (the maximal number of parameters supported in C--)
            - 1 (the hidden parameter containing the environment) *)
 
-let lfunction ~kind ~params ~return ~body ~attr ~loc =
+let lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region =
   assert (List.length params <= max_arity ());
-  Lfunction { kind; params; return; body; attr; loc }
-
-let lambda_unit = Lconst const_unit
-
-let check_lfunction fn =
   (* A curried function type with n parameters has n arrows. Of these,
      the first [n-nlocal] have return mode Heap, while the remainder
      have return mode Local, except possibly the final one.
@@ -543,29 +515,28 @@ let check_lfunction fn =
 
      A curried function with no local parameters or returns has kind
      [Curried {nlocal=0}]. *)
-  let nparams = List.length fn.params in
-  begin match fn.mode, fn.kind with
+  begin match mode, kind with
   | Alloc_heap, Tupled -> ()
   | Alloc_local, Tupled ->
      (* Tupled optimisation does not apply to local functions *)
      assert false
   | mode, Curried {nlocal} ->
+     let nparams = List.length params in
      assert (0 <= nlocal);
      assert (nlocal <= nparams);
-     if not fn.region then assert (nlocal >= 1);
+     if not region then assert (nlocal >= 1);
      if is_local_mode mode then assert (nlocal = nparams)
-  end
+  end;
+  Lfunction { kind; params; return; body; attr; loc; mode; region }
+
+let lambda_unit = Lconst const_unit
 
 let default_function_attribute = {
   inline = Default_inline;
   specialise = Default_specialise;
   local = Default_local;
-<<<<<<< HEAD
   check = Default_check ;
-||||||| 24dbb0976a
-=======
   poll = Default_poll;
->>>>>>> ocaml/4.14
   is_a_functor = false;
   stub = false;
   tmc_candidate = false;
@@ -1077,21 +1048,11 @@ let shallow_map ~tail ~non_tail:f = function
       Lfunction { kind; params; return; body = f body; attr; loc;
                   mode; region }
   | Llet (str, k, v, e1, e2) ->
-<<<<<<< HEAD
       Llet (str, k, v, f e1, tail e2)
   | Lmutlet (k, v, e1, e2) ->
       Lmutlet (k, v, f e1, tail e2)
-||||||| 24dbb0976a
-      Llet (str, k, v, f e1, f e2)
-=======
-      Llet (str, k, v, f e1, f e2)
-  | Lmutlet (k, v, e1, e2) ->
-      Lmutlet (k, v, f e1, f e2)
->>>>>>> ocaml/4.14
   | Lletrec (idel, e2) ->
       Lletrec (List.map (fun (v, e) -> (v, f e)) idel, tail e2)
-  | Lprim (Pidentity, [l], loc) ->
-      Lprim(Pidentity, [tail l], loc)
   | Lprim (Psequand as p, [l1; l2], loc)
   | Lprim (Psequor as p, [l1; l2], loc) ->
       Lprim(p, [f l1; tail l2], loc)
@@ -1207,30 +1168,14 @@ let merge_inline_attributes attr1 attr2 =
     if attr1 = attr2 then Some attr1
     else None
 
-<<<<<<< HEAD
 let max_arity () =
   if !Clflags.native_code then 126 else max_int
   (* 126 = 127 (the maximal number of parameters supported in C--)
            - 1 (the hidden parameter containing the environment) *)
-||||||| 24dbb0976a
-let function_is_curried func =
-  match func.kind with
-  | Curried -> true
-  | Tupled -> false
-
-let max_arity () =
-  if !Clflags.native_code then 126 else max_int
-  (* 126 = 127 (the maximal number of parameters supported in C--)
-           - 1 (the hidden parameter containing the environment) *)
-=======
-let function_is_curried func =
-  match func.kind with
-  | Curried -> true
-  | Tupled -> false
 
 let find_exact_application kind ~arity args =
   match kind with
-  | Curried ->
+  | Curried _ ->
       if arity <> List.length args
       then None
       else Some args
@@ -1246,7 +1191,6 @@ let find_exact_application kind ~arity args =
           else Some (List.map (fun cst -> Lconst cst) const_args)
       | _ -> None
       end
->>>>>>> ocaml/4.14
 
 let reset () =
   raise_count := 0
@@ -1258,8 +1202,7 @@ let mod_setfield pos =
   Psetfield (pos, Pointer, Root_initialization)
 
 let primitive_may_allocate : primitive -> alloc_mode option = function
-  | Pidentity | Pbytes_to_string | Pbytes_of_string | Pignore -> None
-  | Prevapply _ | Pdirapply _ -> Some alloc_local
+  | Pbytes_to_string | Pbytes_of_string | Pignore -> None
   | Pgetglobal _ | Psetglobal _ -> None
   | Pmakeblock (_, _, _, m) -> Some m
   | Pmakefloatblock (_, m) -> Some m

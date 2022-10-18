@@ -117,43 +117,17 @@ and apply_coercion_result loc strict funct params args cc_res =
   | _ ->
       name_lambda strict funct
         (fun id ->
-<<<<<<< HEAD
-           Lfunction
-             {
-               kind = Curried {nlocal=0};
-               params = List.rev params;
-               return = Pgenval;
-               attr = { default_function_attribute with
-||||||| 24dbb0976a
-           Lfunction
-             {
-               kind = Curried;
-               params = List.rev params;
-               return = Pgenval;
-               attr = { default_function_attribute with
-=======
            lfunction
-             ~kind:Curried
+             ~kind:(Curried {nlocal=0})
              ~params:(List.rev params)
              ~return:Pgenval
              ~attr:{ default_function_attribute with
->>>>>>> ocaml/4.14
                         is_a_functor = true;
-<<<<<<< HEAD
-                        stub = true; };
-               loc = loc;
-               mode = alloc_heap;
-               region = true;
-               body = apply_coercion
-||||||| 24dbb0976a
-                        stub = true; };
-               loc = loc;
-               body = apply_coercion
-=======
                         stub = true; }
              ~loc
+             ~mode:alloc_heap
+             ~region:true
              ~body:(apply_coercion
->>>>>>> ocaml/4.14
                    loc Strict cc_res
                    (Lapply{
                       ap_loc=loc;
@@ -164,14 +138,8 @@ and apply_coercion_result loc strict funct params args cc_res =
                       ap_tailcall=Default_tailcall;
                       ap_inlined=Default_inlined;
                       ap_specialised=Default_specialise;
-<<<<<<< HEAD
                       ap_probe=None;
-                    })})
-||||||| 24dbb0976a
-                    })})
-=======
                     })))
->>>>>>> ocaml/4.14
 
 and wrap_id_pos_list loc id_pos_list get_field lam =
   let fv = free_variables lam in
@@ -557,54 +525,24 @@ let rec compile_functor ~scopes mexp coercion root_path loc =
       ([], transl_module ~scopes res_coercion body_path body)
       functor_params_rev
   in
-<<<<<<< HEAD
-  Lfunction {
-    kind = Curried {nlocal=0};
-    params;
-    return = Pgenval;
-    attr = {
-||||||| 24dbb0976a
-  Lfunction {
-    kind = Curried;
-    params;
-    return = Pgenval;
-    attr = {
-=======
   lfunction
-    ~kind:Curried
+    ~kind:(Curried {nlocal=0})
     ~params
     ~return:Pgenval
     ~attr:{
->>>>>>> ocaml/4.14
       inline = inline_attribute;
       specialise = Default_specialise;
       local = Default_local;
-<<<<<<< HEAD
       check = Default_check;
-||||||| 24dbb0976a
-=======
       poll = Default_poll;
->>>>>>> ocaml/4.14
       is_a_functor = true;
       stub = false;
-<<<<<<< HEAD
-    };
-    loc;
-    mode = alloc_heap;
-    region = true;
-    body;
-  }
-||||||| 24dbb0976a
-    };
-    loc;
-    body;
-  }
-=======
       tmc_candidate = false;
     }
     ~loc
+    ~mode:alloc_heap
+    ~region:true
     ~body
->>>>>>> ocaml/4.14
 
 (* Compile a module expression *)
 

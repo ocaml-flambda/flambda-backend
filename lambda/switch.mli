@@ -75,38 +75,17 @@ module type S =
 
     (* type of source locations *)
     type loc
-<<<<<<< HEAD
-    (* type of value kind *)
-    type value_kind
-||||||| 24dbb0976a
-=======
     (* type of switch scrutinees *)
     type arg
     (* type of tests on scrutinees *)
     type test
     (* type of actions *)
     type act
->>>>>>> ocaml/4.14
+    (* type of value kind *)
+    type value_kind
 
     (* Various constructors, for making a binder,
         adding one integer, etc. *)
-<<<<<<< HEAD
-    val bind : act -> (act -> act) -> act
-    val make_const : int -> act
-    val make_offset : act -> int -> act
-    val make_prim : primitive -> act list -> act
-    val make_isout : act -> act -> act
-    val make_isin : act -> act -> act
-    val make_if : value_kind -> act -> act -> act -> act
-||||||| 24dbb0976a
-    val bind : act -> (act -> act) -> act
-    val make_const : int -> act
-    val make_offset : act -> int -> act
-    val make_prim : primitive -> act list -> act
-    val make_isout : act -> act -> act
-    val make_isin : act -> act -> act
-    val make_if : act -> act -> act -> act
-=======
 
     (* [bind arg cont] should bind the expression arg to a variable,
        then call [cont] on that variable, and return the term made of
@@ -133,19 +112,12 @@ module type S =
        to a boolean test *)
     val arg_as_test : arg -> test
     (* [make_if cond ifso ifnot] generates a conditional branch *)
-    val make_if : test -> act -> act -> act
->>>>>>> ocaml/4.14
+    val make_if : value_kind -> test -> act -> act -> act
    (* construct an actual switch :
       make_switch arg cases acts
       NB:  cases is in the value form *)
-<<<<<<< HEAD
-    val make_switch : loc -> value_kind -> act -> int array -> act array -> act
-||||||| 24dbb0976a
-    val make_switch : loc -> act -> int array -> act array -> act
-=======
-    val make_switch : loc -> arg -> int array -> act array -> act
+    val make_switch : loc -> value_kind -> arg -> int array -> act array -> act
 
->>>>>>> ocaml/4.14
    (* Build last minute sharing of action stuff *)
    val make_catch : value_kind -> act -> int * (act -> act)
    val make_exit : int -> act
@@ -177,14 +149,8 @@ module Make :
 
 (* Output test sequence, sharing tracked *)
      val test_sequence :
-<<<<<<< HEAD
            Arg.value_kind ->
-           Arg.act ->
-||||||| 24dbb0976a
-           Arg.act ->
-=======
            Arg.arg ->
->>>>>>> ocaml/4.14
            (int * int * int) array ->
            (Arg.act, _) t_store ->
            Arg.act

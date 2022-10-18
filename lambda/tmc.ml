@@ -77,7 +77,7 @@ module Constr : sig
      a placeholder. *)
   type t = {
     tag : int;
-    flag: Asttypes.mutable_flag;
+    flag: Lambda.mutable_flag;
     shape : block_shape;
     before: lambda list;
     after: lambda list;
@@ -110,7 +110,7 @@ module Constr : sig
 end = struct
   type t = {
     tag : int;
-    flag: Asttypes.mutable_flag;
+    flag: Lambda.mutable_flag;
     shape : block_shape;
     before: lambda list;
     after: lambda list;
@@ -119,7 +119,7 @@ end = struct
 
   let apply constr t =
     let block_args = List.append constr.before @@ t :: constr.after in
-    Lprim (Pmakeblock (constr.tag, constr.flag, constr.shape),
+    Lprim (Pmakeblock (constr.tag, constr.flag, constr.shape, alloc_heap),
            block_args, constr.loc)
 
   let tmc_placeholder =
@@ -595,10 +595,10 @@ let rec choice ctx t =
         let l1 = traverse ctx l1 in
         let+ l2 = choice ctx ~tail l2 in
         Lsequence (l1, l2)
-    | Lifthenelse (l1, l2, l3) ->
+    | Lifthenelse (l1, l2, l3, kind) ->
         let l1 = traverse ctx l1 in
         let+ (l2, l3) = choice_pair ctx ~tail (l2, l3) in
-        Lifthenelse (l1, l2, l3)
+        Lifthenelse (l1, l2, l3, kind)
     | Lmutlet (vk, var, def, body) ->
         (* mutable bindings are not TMC-specialized *)
         let def = traverse ctx def in
@@ -612,7 +612,7 @@ let rec choice ctx t =
         let ctx, bindings = traverse_letrec ctx bindings in
         let+ body = choice ctx ~tail body in
         Lletrec(bindings, body)
-    | Lswitch (l1, sw, loc) ->
+    | Lswitch (l1, sw, loc, kind) ->
         (* decompose *)
         let consts_lhs, consts_rhs = List.split sw.sw_consts in
         let blocks_lhs, blocks_rhs = List.split sw.sw_blocks in
@@ -625,8 +625,8 @@ let rec choice ctx t =
         let sw_consts = List.combine consts_lhs consts_rhs in
         let sw_blocks = List.combine blocks_lhs blocks_rhs in
         let sw = { sw with sw_consts; sw_blocks; sw_failaction; } in
-        Lswitch (l1, sw, loc)
-    | Lstringswitch (l1, cases, fail, loc) ->
+        Lswitch (l1, sw, loc, kind)
+    | Lstringswitch (l1, cases, fail, loc, kind) ->
         (* decompose *)
         let cases_lhs, cases_rhs = List.split cases in
         (* transform *)
@@ -635,30 +635,33 @@ let rec choice ctx t =
         and+ fail = choice_option ctx ~tail fail in
         (* rebuild *)
         let cases = List.combine cases_lhs cases_rhs in
-        Lstringswitch (l1, cases, fail, loc)
+        Lstringswitch (l1, cases, fail, loc, kind)
     | Lstaticraise (id, ls) ->
         let ls = traverse_list ctx ls in
         Choice.lambda (Lstaticraise (id, ls))
-    | Ltrywith (l1, id, l2) ->
+    | Ltrywith (l1, id, l2, kind) ->
         (* in [try l1 with id -> l2], the term [l1] is
            not in tail-call position (after it returns
            we need to remove the exception handler),
            so it is not transformed here *)
         let l1 = traverse ctx l1 in
         let+ l2 = choice ctx ~tail l2 in
-        Ltrywith (l1, id, l2)
-    | Lstaticcatch (l1, ids, l2) ->
+        Ltrywith (l1, id, l2, kind)
+    | Lstaticcatch (l1, ids, l2, kind) ->
         (* In [static-catch l1 with ids -> l2],
            the term [l1] is in fact in tail-position *)
         let+ l1 = choice ctx ~tail l1
         and+ l2 = choice ctx ~tail l2 in
-        Lstaticcatch (l1, ids, l2)
+        Lstaticcatch (l1, ids, l2, kind)
     | Levent (lam, lev) ->
         let+ lam = choice ctx ~tail lam in
         Levent (lam, lev)
     | Lifused (x, lam) ->
         let+ lam = choice ctx ~tail lam in
         Lifused (x, lam)
+    | Lregion lam ->
+        let+ lam = choice ctx ~tail lam in
+        Lregion lam
 
   and choice_apply ctx ~tail apply =
     let exception No_tmc in
@@ -734,11 +737,11 @@ let rec choice ctx t =
         direct = (fun () -> Lapply apply_no_bailout);
       }
 
-  and choice_makeblock ctx ~tail:_ (tag, flag, shape) blockargs loc =
+  and choice_makeblock ctx ~tail:_ (tag, flag, shape, mode) blockargs loc =
     let choices = List.map (choice ctx ~tail:false) blockargs in
     match Choice.find_nonambiguous_tmc_call choices with
     | Choice.No_tmc_call args ->
-        Choice.lambda @@ Lprim (Pmakeblock (tag, flag, shape), args, loc)
+        Choice.lambda @@ Lprim (Pmakeblock (tag, flag, shape, mode), args, loc)
     | Choice.Ambiguous { explicit; subterms = ambiguous_subterms } ->
         (* An ambiguous term should not lead to an error if it not
            used in TMC position. Consider for example:
@@ -775,7 +778,7 @@ let rec choice ctx t =
         *)
         let term_choice =
           let+ args = Choice.list choices in
-          Lprim (Pmakeblock(tag, flag, shape), args, loc)
+          Lprim (Pmakeblock(tag, flag, shape, mode), args, loc)
         in
         { term_choice with
           Choice.dps = Dps.make (fun ~tail:_ ~dst:_ ->
@@ -826,8 +829,8 @@ let rec choice ctx t =
   and choice_prim ctx ~tail prim primargs loc =
     match prim with
     (* The important case is the construction case *)
-    | Pmakeblock (tag, flag, shape) ->
-        choice_makeblock ctx ~tail (tag, flag, shape) primargs loc
+    | Pmakeblock (tag, flag, shape, mode) ->
+        choice_makeblock ctx ~tail (tag, flag, shape, mode) primargs loc
 
     (* Some primitives have arguments in tail-position *)
     | Popaque ->
@@ -847,7 +850,7 @@ let rec choice ctx t =
     (* in common cases we just return *)
     | Pbytes_to_string | Pbytes_of_string
     | Pgetglobal _ | Psetglobal _
-    | Pfield _ | Pfield_computed
+    | Pfield _ | Pfield_computed _
     | Psetfield _ | Psetfield_computed _
     | Pfloatfield _ | Psetfloatfield _
     | Pccall _
@@ -858,14 +861,14 @@ let rec choice ctx t =
     | Plslint | Plsrint | Pasrint
     | Pintcomp _
     | Poffsetint _ | Poffsetref _
-    | Pintoffloat | Pfloatofint
-    | Pnegfloat | Pabsfloat
-    | Paddfloat | Psubfloat | Pmulfloat | Pdivfloat
+    | Pintoffloat | Pfloatofint _
+    | Pnegfloat _ | Pabsfloat _
+    | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
     | Pfloatcomp _
     | Pstringlength | Pstringrefu  | Pstringrefs
     | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
     | Parraylength _ | Parrayrefu _ | Parraysetu _ | Parrayrefs _ | Parraysets _
-    | Pisint | Pisout
+    | Pisint _ | Pisout
     | Pignore
     | Pcompare_ints | Pcompare_floats | Pcompare_bints _
 
@@ -874,6 +877,13 @@ let rec choice ctx t =
 
     (* we don't handle { foo with x = ...; y = recursive-call } *)
     | Pduprecord _
+
+    (* we don't handle all-float records *)
+    | Pmakefloatblock _
+
+    | Pobj_dup
+    | Pobj_magic
+    | Pprobe_is_enabled _
 
     (* operations returning boxed values could be considered
        constructions someday *)
@@ -918,7 +928,7 @@ and traverse ctx = function
       let ctx, bindings = traverse_letrec ctx bindings in
       Lletrec (bindings, traverse ctx body)
   | lam ->
-      shallow_map (traverse ctx) lam
+      shallow_map ~tail:(traverse ctx) ~non_tail:(traverse ctx) lam
 
 and traverse_let outer_ctx var def =
   let inner_ctx = declare_binding outer_ctx (var, def) in
@@ -941,9 +951,9 @@ and traverse_binding outer_ctx inner_ctx (var, def) =
       (Debuginfo.Scoped_location.to_location lfun.loc)
       Warnings.Unused_tmc_attribute;
   let direct =
-    let { kind; params; return; body = _; attr; loc } = lfun in
+    let { kind; params; return; body = _; attr; loc; mode; region } = lfun in
     let body = Choice.direct fun_choice in
-    lfunction ~kind ~params ~return ~body ~attr ~loc in
+    lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region in
   let dps =
     let dst_param = {
       var = Ident.create_local "dst";
@@ -951,15 +961,18 @@ and traverse_binding outer_ctx inner_ctx (var, def) =
       loc = lfun.loc;
     } in
     let dst = { dst_param with offset = Offset (Lvar dst_param.offset) } in
+    (* FIXME modes may be incorrect here *)
     Lambda.duplicate @@ lfunction
       ~kind:
         (* Support of Tupled function: see [choice_apply]. *)
-        Curried
+        (Curried {nlocal=0})
       ~params:(add_dst_params dst_param lfun.params)
       ~return:lfun.return
       ~body:(Choice.dps ~tail:true ~dst:dst fun_choice)
       ~attr:lfun.attr
       ~loc:lfun.loc
+      ~mode:alloc_heap
+      ~region:true
   in
   let dps_var = special.dps_id in
   [(var, direct); (dps_var, dps)]

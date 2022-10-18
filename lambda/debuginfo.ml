@@ -24,20 +24,11 @@ module Scoped_location = struct
     | Sc_module_definition
     | Sc_class_definition
     | Sc_method_definition
-<<<<<<< HEAD
     | Sc_partial_or_eta_wrapper
     | Sc_lazy
-||||||| 24dbb0976a
-    | Sc_value_definition of string
-    | Sc_module_definition of string
-    | Sc_class_definition of string
-    | Sc_method_definition of string
-=======
->>>>>>> ocaml/4.14
 
   type scopes =
     | Empty
-<<<<<<< HEAD
     | Cons of {item: scope_item; str: string; str_fun: string; name : string; prev: scopes}
 
   let str = function
@@ -50,18 +41,6 @@ module Scoped_location = struct
 
   let cons scopes item str name =
     Cons {item; str; str_fun = str ^ ".(fun)"; name; prev = scopes}
-||||||| 24dbb0976a
-  type scopes = scope_item list
-=======
-    | Cons of {item: scope_item; str: string; str_fun: string}
-
-  let str_fun = function
-    | Empty -> "(fun)"
-    | Cons r -> r.str_fun
-
-  let cons item str =
-    Cons {item; str; str_fun = str ^ ".(fun)"}
->>>>>>> ocaml/4.14
 
   let empty_scopes = Empty
 
@@ -72,78 +51,27 @@ module Scoped_location = struct
        | 'a'..'z' | 'A'..'Z' | '_' | '0'..'9' -> s
        | _ -> "(" ^ s ^ ")"
 
-<<<<<<< HEAD
   let dot ?(sep = ".") ?no_parens scopes s =
     let s =
       match no_parens with
       | None -> add_parens_if_symbolic s
       | Some () -> s
     in
-||||||| 24dbb0976a
-  let string_of_scope_item = function
-    | Sc_anonymous_function ->
-       "(fun)"
-    | Sc_value_definition name
-    | Sc_module_definition name
-    | Sc_class_definition name
-    | Sc_method_definition name ->
-       add_parens_if_symbolic name
-
-  let string_of_scopes scopes =
-    let dot acc =
-      match acc with
-      | [] -> []
-      | acc -> "." :: acc in
-    let rec to_strings acc = function
-      | [] -> acc
-        (* Collapse nested anonymous function scopes *)
-      | Sc_anonymous_function :: ((Sc_anonymous_function :: _) as rest) ->
-        to_strings acc rest
-        (* Use class#meth syntax for classes *)
-      | (Sc_method_definition _ as meth) ::
-        (Sc_class_definition _ as cls) :: rest ->
-        to_strings (string_of_scope_item cls :: "#" ::
-                      string_of_scope_item meth :: dot acc) rest
-      | s :: rest ->
-        to_strings (string_of_scope_item s :: dot acc) rest in
-=======
-  let dot ?(sep = ".") scopes s =
-    let s = add_parens_if_symbolic s in
->>>>>>> ocaml/4.14
     match scopes with
     | Empty -> s
     | Cons {str; _} -> str ^ sep ^ s
 
   let enter_anonymous_function ~scopes =
     let str = str_fun scopes in
-<<<<<<< HEAD
     Cons {item = Sc_anonymous_function; str; str_fun = str; name = ""; prev = scopes}
-||||||| 24dbb0976a
-    Sc_anonymous_function :: scopes
-=======
-    Cons {item = Sc_anonymous_function; str; str_fun = str}
->>>>>>> ocaml/4.14
 
   let enter_value_definition ~scopes id =
-<<<<<<< HEAD
     cons scopes Sc_value_definition (dot scopes (Ident.name id)) (Ident.name id)
-||||||| 24dbb0976a
-    Sc_value_definition (Ident.name id) :: scopes
-=======
-    cons Sc_value_definition (dot scopes (Ident.name id))
->>>>>>> ocaml/4.14
 
   let enter_module_definition ~scopes id =
-<<<<<<< HEAD
     cons scopes Sc_module_definition (dot scopes (Ident.name id)) (Ident.name id)
-||||||| 24dbb0976a
-    Sc_module_definition (Ident.name id) :: scopes
-=======
-    cons Sc_module_definition (dot scopes (Ident.name id))
->>>>>>> ocaml/4.14
 
   let enter_class_definition ~scopes id =
-<<<<<<< HEAD
     cons scopes Sc_class_definition (dot scopes (Ident.name id)) (Ident.name id)
 
   let enter_method_definition ~scopes (s : Asttypes.label) =
@@ -173,25 +101,6 @@ module Scoped_location = struct
       | None ->
         repr := StringSet.add res !repr;
         res
-||||||| 24dbb0976a
-    Sc_class_definition (Ident.name id) :: scopes
-  let enter_method_definition ~scopes (m : Asttypes.label) =
-    Sc_method_definition m :: scopes
-=======
-    cons Sc_class_definition (dot scopes (Ident.name id))
-
-  let enter_method_definition ~scopes (s : Asttypes.label) =
-    let str =
-      match scopes with
-      | Cons {item = Sc_class_definition; _} -> dot ~sep:"#" scopes s
-      | _ -> dot scopes s
-    in
-    cons Sc_method_definition str
-
-  let string_of_scopes = function
-    | Empty -> "<unknown>"
-    | Cons {str; _} -> str
->>>>>>> ocaml/4.14
 
   type t =
     | Loc_unknown

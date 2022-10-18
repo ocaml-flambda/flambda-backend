@@ -2392,11 +2392,6 @@ module SArg = struct
 
   let make_isin h arg = Lprim (Pnot, [ make_isout h arg ], Loc_unknown)
 
-<<<<<<< HEAD
-  let make_if kind cond ifso ifnot = Lifthenelse (cond, ifso, ifnot, kind)
-||||||| 24dbb0976a
-  let make_if cond ifso ifnot = Lifthenelse (cond, ifso, ifnot)
-=======
   let make_is_nonzero arg =
     if !Clflags.native_code then
       Lprim (Pintcomp Cne,
@@ -2407,8 +2402,7 @@ module SArg = struct
 
   let arg_as_test arg = arg
 
-  let make_if cond ifso ifnot = Lifthenelse (cond, ifso, ifnot)
->>>>>>> ocaml/4.14
+  let make_if kind cond ifso ifnot = Lifthenelse (cond, ifso, ifnot, kind)
 
   let make_switch loc kind arg cases acts =
     let l = ref [] in
@@ -2880,28 +2874,17 @@ let combine_constructor value_kind loc arg pat_env cstr partial ctx def
             match
               (cstr.cstr_consts, cstr.cstr_nonconsts, consts, nonconsts)
             with
-<<<<<<< HEAD
             | 1, 1, [ (0, act1) ], [ (0, act2) ]
               when not (Clflags.is_flambda2 ()) ->
-                (* Typically, match on lists, will avoid isint primitive in that
-                   case *)
-                Lifthenelse (arg, act2, act1, value_kind)
-||||||| 24dbb0976a
-            | 1, 1, [ (0, act1) ], [ (0, act2) ] ->
-                (* Typically, match on lists, will avoid isint primitive in that
-              case *)
-                Lifthenelse (arg, act2, act1)
-=======
-            | 1, 1, [ (0, act1) ], [ (0, act2) ] ->
                 if !Clflags.native_code then
-                  Lifthenelse(Lprim (Pisint, [ arg ], loc), act1, act2)
+                  Lifthenelse(Lprim (Pisint { variant_only = true }, [ arg ], loc),
+                              act1, act2, value_kind)
                 else
                   (* PR#10681: we use [arg] directly as the test here;
                      it generates better bytecode for this common case
                      (typically options and lists), but would prevent
                      some optimizations with the native compiler. *)
-                  Lifthenelse (arg, act2, act1)
->>>>>>> ocaml/4.14
+                  Lifthenelse (arg, act2, act1, value_kind)
             | n, 0, _, [] ->
                 (* The type defines constant constructors only *)
                 call_switcher value_kind loc fail_opt arg 0 (n - 1) consts
@@ -3292,16 +3275,8 @@ and compile_match_nonempty ~scopes value_kind repr partial ctx
       let cases = List.map (half_simplify_nonempty ~arg:newarg) m.cases in
       let m = { m with args; cases } in
       let first_match, rem =
-<<<<<<< HEAD
-        split_and_precompile_half_simplified ~arg_id:(Some v) m in
-      combine_handlers ~scopes value_kind repr partial ctx (v, str, arg) first_match rem
-||||||| 24dbb0976a
-        split_and_precompile_half_simplified ~arg_id:(Some v) m in
-      combine_handlers ~scopes repr partial ctx (v, str, arg) first_match rem
-=======
         split_and_precompile_half_simplified ~arg:newarg m in
-      combine_handlers ~scopes repr partial ctx (v, str, arg) first_match rem
->>>>>>> ocaml/4.14
+      combine_handlers ~scopes value_kind repr partial ctx (v, str, arg) first_match rem
   | _ -> assert false
 
 and compile_match_simplified ~scopes value_kind  repr partial ctx
@@ -3554,12 +3529,7 @@ let check_total ~scopes value_kind loc ~failer total lambda i =
     Lstaticcatch (lambda, (i, []),
                   failure_handler ~scopes loc ~failer (), value_kind)
 
-<<<<<<< HEAD
-let compile_matching ~scopes value_kind loc ~failer repr arg pat_act_list partial =
-||||||| 24dbb0976a
-let compile_matching ~scopes loc ~failer repr arg pat_act_list partial =
-=======
-let toplevel_handler ~scopes loc ~failer partial args cases compile_fun =
+let toplevel_handler ~scopes value_kind loc ~failer partial args cases compile_fun =
   match partial with
   | Total ->
       let default = Default_environment.empty in
@@ -3576,77 +3546,15 @@ let toplevel_handler ~scopes loc ~failer partial args cases compile_fun =
       begin match compile_fun Partial pm with
       | exception Unused -> assert false
       | (lam, total) ->
-          check_total ~scopes loc ~failer total lam raise_num
+          check_total ~scopes value_kind loc ~failer total lam raise_num
       end
 
-let compile_matching ~scopes loc ~failer repr arg pat_act_list partial =
->>>>>>> ocaml/4.14
+let compile_matching ~scopes value_kind loc ~failer repr arg pat_act_list partial =
   let partial = check_partial pat_act_list partial in
-<<<<<<< HEAD
-  match partial with
-  | Partial -> (
-      let raise_num = next_raise_count () in
-      let pm =
-        { cases = List.map (fun (pat, act) -> ([ pat ], act)) pat_act_list;
-          args = [ (arg, Strict) ];
-          default =
-            Default_environment.(cons [ [ Patterns.omega ] ] raise_num empty)
-        }
-      in
-      try
-        let lambda, total =
-          compile_match ~scopes value_kind repr partial (Context.start 1) pm
-        in
-        check_total ~scopes value_kind loc ~failer total lambda raise_num
-      with Unused -> assert false
-      (* ; handler_fun() *)
-    )
-  | Total ->
-      let pm =
-        { cases = List.map (fun (pat, act) -> ([ pat ], act)) pat_act_list;
-          args = [ (arg, Strict) ];
-          default = Default_environment.empty
-        }
-      in
-      let lambda, total =
-        compile_match ~scopes value_kind repr partial (Context.start 1) pm in
-      assert (Jumps.is_empty total);
-      lambda
-||||||| 24dbb0976a
-  match partial with
-  | Partial -> (
-      let raise_num = next_raise_count () in
-      let pm =
-        { cases = List.map (fun (pat, act) -> ([ pat ], act)) pat_act_list;
-          args = [ (arg, Strict) ];
-          default =
-            Default_environment.(cons [ [ Patterns.omega ] ] raise_num empty)
-        }
-      in
-      try
-        let lambda, total =
-          compile_match ~scopes repr partial (Context.start 1) pm in
-        check_total ~scopes loc ~failer total lambda raise_num
-      with Unused -> assert false
-      (* ; handler_fun() *)
-    )
-  | Total ->
-      let pm =
-        { cases = List.map (fun (pat, act) -> ([ pat ], act)) pat_act_list;
-          args = [ (arg, Strict) ];
-          default = Default_environment.empty
-        }
-      in
-      let lambda, total =
-        compile_match ~scopes repr partial (Context.start 1) pm in
-      assert (Jumps.is_empty total);
-      lambda
-=======
   let args = [ (arg, Strict) ] in
   let rows = map_on_rows (fun pat -> (pat, [])) pat_act_list in
-  toplevel_handler ~scopes loc ~failer partial args rows (fun partial pm ->
-    compile_match_nonempty ~scopes repr partial (Context.start 1) pm)
->>>>>>> ocaml/4.14
+  toplevel_handler ~scopes value_kind loc ~failer partial args rows (fun partial pm ->
+    compile_match_nonempty ~scopes value_kind repr partial (Context.start 1) pm)
 
 let for_function ~scopes kind loc repr param pat_act_list partial =
   compile_matching ~scopes kind loc ~failer:Raise_match_failure
@@ -3833,52 +3741,14 @@ let for_let ~scopes loc param pat body_kind body =
 (* Easy case since variables are available *)
 let for_tupled_function ~scopes loc kind paraml pats_act_list partial =
   let partial = check_partial_list pats_act_list partial in
-<<<<<<< HEAD
-  let raise_num = next_raise_count () in
-  let omega_params = [ Patterns.omega_list paraml ] in
-  let pm =
-    { cases = pats_act_list;
-      args = List.map (fun id -> (Lvar id, Strict)) paraml;
-      default = Default_environment.(cons omega_params raise_num empty)
-    }
-  in
-  try
-    let lambda, total =
-      compile_match ~scopes kind None partial
-        (Context.start (List.length paraml)) pm
-    in
-    check_total ~scopes kind loc ~failer:Raise_match_failure
-      total lambda raise_num
-  with Unused ->
-    failure_handler ~scopes loc ~failer:Raise_match_failure ()
-||||||| 24dbb0976a
-  let raise_num = next_raise_count () in
-  let omega_params = [ Patterns.omega_list paraml ] in
-  let pm =
-    { cases = pats_act_list;
-      args = List.map (fun id -> (Lvar id, Strict)) paraml;
-      default = Default_environment.(cons omega_params raise_num empty)
-    }
-  in
-  try
-    let lambda, total =
-      compile_match ~scopes None partial
-        (Context.start (List.length paraml)) pm
-    in
-    check_total ~scopes loc ~failer:Raise_match_failure
-      total lambda raise_num
-  with Unused ->
-    failure_handler ~scopes loc ~failer:Raise_match_failure ()
-=======
   let args = List.map (fun id -> (Lvar id, Strict)) paraml in
   let handler =
-    toplevel_handler ~scopes loc ~failer:Raise_match_failure
+    toplevel_handler ~scopes kind loc ~failer:Raise_match_failure
       partial args pats_act_list in
   handler (fun partial pm ->
-    compile_match ~scopes None partial
+    compile_match ~scopes kind None partial
       (Context.start (List.length paraml)) pm
   )
->>>>>>> ocaml/4.14
 
 let flatten_pattern size p =
   match p.pat_desc with
@@ -3962,116 +3832,16 @@ let do_for_multiple_match ~scopes value_kind loc paraml mode pat_act_list partia
   let repr = None in
   let arg =
     let sloc = Scoped_location.of_location ~scopes loc in
-    Lprim (Pmakeblock (0, Immutable, None), paraml, sloc) in
+    Lprim (Pmakeblock (0, Immutable, None, mode), paraml, sloc) in
   let handler =
     let partial = check_partial pat_act_list partial in
     let rows = map_on_rows (fun p -> (p, [])) pat_act_list in
-    toplevel_handler ~scopes loc ~failer:Raise_match_failure
+    toplevel_handler ~scopes value_kind loc ~failer:Raise_match_failure
       partial [ (arg, Strict) ] rows in
   handler (fun partial pm1 ->
     let pm1_half =
       { pm1 with cases = List.map (half_simplify_nonempty ~arg) pm1.cases }
     in
-<<<<<<< HEAD
-    let loc = Scoped_location.of_location ~scopes loc in
-    let arg = Lprim (Pmakeblock (0, Immutable, None, mode),
-                     paraml, loc) in
-    ( raise_num,
-      arg,
-      { cases = List.map (fun (pat, act) -> ([ pat ], act)) pat_act_list;
-        args = [ (arg, Strict) ];
-        default
-      } )
-  in
-  try
-    match split_and_precompile ~arg_id:None ~arg_lambda:arg pm1 with
-    | exception Cannot_flatten ->
-        (* One pattern binds the whole tuple, flattening is not possible.
-           We need to allocate the scrutinee. *)
-        let lambda, total =
-          compile_match ~scopes value_kind None partial (Context.start 1) pm1 in
-        begin match partial with
-        | Partial ->
-            check_total ~scopes value_kind loc ~failer:Raise_match_failure
-              total lambda raise_num
-        | Total ->
-            assert (Jumps.is_empty total);
-            lambda
-        end
-    | next, nexts ->
-        let size = List.length paraml
-        and idl = List.map (fun _ -> Ident.create_local "*match*") paraml in
-        let args = List.map (fun id -> (Lvar id, Alias)) idl in
-        let flat_next = flatten_precompiled size args next
-        and flat_nexts =
-          List.map (fun (e, pm) -> (e, flatten_precompiled size args pm)) nexts
-        in
-        let lam, total =
-          comp_match_handlers value_kind (compile_flattened ~scopes value_kind repr) partial
-            (Context.start size) flat_next flat_nexts
-        in
-        List.fold_right2 (bind Strict) idl paraml
-          ( match partial with
-          | Partial ->
-              check_total ~scopes value_kind loc ~failer:Raise_match_failure
-                total lam raise_num
-          | Total ->
-              assert (Jumps.is_empty total);
-              lam
-          )
-  with Unused -> assert false
-
-(* ; partial_function loc () *)
-||||||| 24dbb0976a
-    let loc = Scoped_location.of_location ~scopes loc in
-    let arg = Lprim (Pmakeblock (0, Immutable, None), paraml, loc) in
-    ( raise_num,
-      arg,
-      { cases = List.map (fun (pat, act) -> ([ pat ], act)) pat_act_list;
-        args = [ (arg, Strict) ];
-        default
-      } )
-  in
-  try
-    match split_and_precompile ~arg_id:None ~arg_lambda:arg pm1 with
-    | exception Cannot_flatten ->
-        (* One pattern binds the whole tuple, flattening is not possible.
-           We need to allocate the scrutinee. *)
-        let lambda, total =
-          compile_match ~scopes None partial (Context.start 1) pm1 in
-        begin match partial with
-        | Partial ->
-            check_total ~scopes loc ~failer:Raise_match_failure
-              total lambda raise_num
-        | Total ->
-            assert (Jumps.is_empty total);
-            lambda
-        end
-    | next, nexts ->
-        let size = List.length paraml
-        and idl = List.map (fun _ -> Ident.create_local "*match*") paraml in
-        let args = List.map (fun id -> (Lvar id, Alias)) idl in
-        let flat_next = flatten_precompiled size args next
-        and flat_nexts =
-          List.map (fun (e, pm) -> (e, flatten_precompiled size args pm)) nexts
-        in
-        let lam, total =
-          comp_match_handlers (compile_flattened ~scopes repr) partial
-            (Context.start size) flat_next flat_nexts
-        in
-        List.fold_right2 (bind Strict) idl paraml
-          ( match partial with
-          | Partial ->
-              check_total ~scopes loc ~failer:Raise_match_failure
-                total lam raise_num
-          | Total ->
-              assert (Jumps.is_empty total);
-              lam
-          )
-  with Unused -> assert false
-
-(* ; partial_function loc () *)
-=======
     let next, nexts = split_and_precompile_half_simplified ~arg pm1_half in
     let size = List.length paraml
     and idl = List.map (function
@@ -4083,12 +3853,11 @@ let do_for_multiple_match ~scopes value_kind loc paraml mode pat_act_list partia
       List.map (fun (e, pm) -> (e, flatten_precompiled size args pm)) nexts
     in
     let lam, total =
-      comp_match_handlers (compile_flattened ~scopes repr) partial
+      comp_match_handlers value_kind (compile_flattened ~scopes value_kind repr) partial
         (Context.start size) flat_next flat_nexts
     in
     List.fold_right2 (bind Strict) idl paraml lam, total
   )
->>>>>>> ocaml/4.14
 
 (* PR#4828: Believe it or not, the 'paraml' argument below
    may not be side effect free. *)

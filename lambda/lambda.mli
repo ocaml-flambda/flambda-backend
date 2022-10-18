@@ -73,14 +73,6 @@ type primitive =
   | Pbytes_to_string
   | Pbytes_of_string
   | Pignore
-<<<<<<< HEAD
-  | Prevapply of region_close
-  | Pdirapply of region_close
-||||||| 24dbb0976a
-  | Prevapply
-  | Pdirapply
-=======
->>>>>>> ocaml/4.14
     (* Globals *)
   | Pgetglobal of Ident.t
   | Psetglobal of Ident.t
@@ -291,20 +283,13 @@ type local_attribute =
   | Never_local (* [@local never] *)
   | Default_local (* [@local maybe] or no [@local] attribute *)
 
-<<<<<<< HEAD
 type property =
   | Noalloc
-||||||| 24dbb0976a
-type function_kind = Curried | Tupled
-=======
+
 type poll_attribute =
   | Error_poll (* [@poll error] *)
   | Default_poll (* no [@poll] attribute *)
 
-type function_kind = Curried | Tupled
->>>>>>> ocaml/4.14
-
-<<<<<<< HEAD
 type check_attribute =
   | Default_check
   | Assert of property
@@ -313,12 +298,8 @@ type check_attribute =
 type function_kind = Curried of {nlocal: int} | Tupled
 (* [nlocal] determines how many arguments may be partially applied
    before the resulting closure must be locally allocated.
-   See [check_lfunction] for details *)
+   See [lfunction] for details *)
 
-||||||| 24dbb0976a
-type let_kind = Strict | Alias | StrictOpt | Variable
-=======
->>>>>>> ocaml/4.14
 type let_kind = Strict | Alias | StrictOpt
 (* Meaning of kinds for let x = e in e':
     Strict: e may have side-effects; always evaluate e first
@@ -340,12 +321,8 @@ type function_attribute = {
   inline : inline_attribute;
   specialise : specialise_attribute;
   local: local_attribute;
-<<<<<<< HEAD
   check : check_attribute;
-||||||| 24dbb0976a
-=======
   poll: poll_attribute;
->>>>>>> ocaml/4.14
   is_a_functor: bool;
   stub: bool;
   tmc_candidate: bool;
@@ -471,7 +448,6 @@ val make_key: lambda -> lambda option
 val const_unit: structured_constant
 val const_int : int -> structured_constant
 val lambda_unit: lambda
-val check_lfunction : lfunction -> unit
 val name_lambda: let_kind -> lambda -> (Ident.t -> lambda) -> lambda
 val name_lambda_list: lambda list -> (lambda list -> lambda) -> lambda
 
@@ -482,6 +458,8 @@ val lfunction :
   body:lambda ->
   attr:function_attribute -> (* specified with [@inline] attribute *)
   loc:scoped_location ->
+  mode:alloc_mode ->
+  region:bool ->
   lambda
 
 
@@ -562,16 +540,9 @@ val swap_float_comparison : float_comparison -> float_comparison
 val default_function_attribute : function_attribute
 val default_stub_attribute : function_attribute
 
-<<<<<<< HEAD
-||||||| 24dbb0976a
-val function_is_curried : lfunction -> bool
-
-=======
-val function_is_curried : lfunction -> bool
 val find_exact_application :
   function_kind -> arity:int -> lambda list -> lambda list option
 
->>>>>>> ocaml/4.14
 val max_arity : unit -> int
   (** Maximal number of parameters for a function, or in other words,
       maximal length of the [params] list of a [lfunction] record.

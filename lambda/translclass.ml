@@ -34,40 +34,20 @@ let lfunction ?(kind=Curried {nlocal=0}) ?(region=true) params body =
     Lfunction {kind = Curried _ as kind; params = params';
                body = body'; attr; loc}
     when List.length params + List.length params' <= Lambda.max_arity() ->
-<<<<<<< HEAD
-      Lfunction {kind; params = params @ params';
-                 return = Pgenval;
-                 body = body'; attr;
-                 loc; mode = alloc_heap; region}
-||||||| 24dbb0976a
-      Lfunction {kind = Curried; params = params @ params';
-                 return = Pgenval;
-                 body = body'; attr;
-                 loc}
-=======
-      lfunction ~kind:Curried ~params:(params @ params')
+      lfunction ~kind ~params:(params @ params')
                 ~return:Pgenval
                 ~body:body'
                 ~attr
                 ~loc
->>>>>>> ocaml/4.14
+                ~mode:alloc_heap
+                ~region
   |  _ ->
-<<<<<<< HEAD
-      Lfunction {kind; params; return = Pgenval;
-                 body;
-                 attr = default_function_attribute;
-                 loc = Loc_unknown; mode = alloc_heap; region}
-||||||| 24dbb0976a
-      Lfunction {kind = Curried; params; return = Pgenval;
-                 body;
-                 attr = default_function_attribute;
-                 loc = Loc_unknown}
-=======
-      lfunction ~kind:Curried ~params ~return:Pgenval
+      lfunction ~kind ~params ~return:Pgenval
                 ~body
                 ~attr:default_function_attribute
                 ~loc:Loc_unknown
->>>>>>> ocaml/4.14
+                ~mode:alloc_heap
+                ~region
 
 let lapply ap =
   match ap.ap_func with
@@ -213,32 +193,15 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
       (inh_init,
        let build params rem =
          let param = name_pattern "param" pat in
-<<<<<<< HEAD
-         Lfunction {kind = Curried {nlocal=0};
-                    params = (param, Pgenval)::params;
-                    return = Pgenval;
-                    attr = default_function_attribute;
-                    loc = of_location ~scopes pat.pat_loc;
-                    body = Matching.for_function ~scopes Pgenval pat.pat_loc
-                             None (Lvar param) [pat, rem] partial;
-                    mode = alloc_heap;
-                    region = true }
-||||||| 24dbb0976a
-         Lfunction {kind = Curried; params = (param, Pgenval)::params;
-                    return = Pgenval;
-                    attr = default_function_attribute;
-                    loc = of_location ~scopes pat.pat_loc;
-                    body = Matching.for_function ~scopes pat.pat_loc
-                             None (Lvar param) [pat, rem] partial}
-=======
          Lambda.lfunction
-                   ~kind:Curried ~params:((param, Pgenval)::params)
+                   ~kind:(Curried {nlocal=0}) ~params:((param, Pgenval)::params)
                    ~return:Pgenval
                    ~attr:default_function_attribute
                    ~loc:(of_location ~scopes pat.pat_loc)
-                   ~body:(Matching.for_function ~scopes pat.pat_loc
+                   ~body:(Matching.for_function ~scopes Pgenval pat.pat_loc
                              None (Lvar param) [pat, rem] partial)
->>>>>>> ocaml/4.14
+                   ~mode:alloc_heap
+                   ~region:true
        in
        begin match obj_init with
          Lfunction {kind = Curried {nlocal=0}; params; body = rem} ->
@@ -500,32 +463,15 @@ let rec transl_class_rebind ~scopes obj_init cl vf =
         transl_class_rebind ~scopes obj_init cl vf in
       let build params rem =
         let param = name_pattern "param" pat in
-<<<<<<< HEAD
-        Lfunction {kind = Curried {nlocal=0};
-                   params = (param, Pgenval)::params;
-                   return = Pgenval;
-                   attr = default_function_attribute;
-                   loc = of_location ~scopes pat.pat_loc;
-                   body = Matching.for_function ~scopes Pgenval pat.pat_loc
-                            None (Lvar param) [pat, rem] partial;
-                   mode = alloc_heap;
-                   region = true }
-||||||| 24dbb0976a
-        Lfunction {kind = Curried; params = (param, Pgenval)::params;
-                   return = Pgenval;
-                   attr = default_function_attribute;
-                   loc = of_location ~scopes pat.pat_loc;
-                   body = Matching.for_function ~scopes pat.pat_loc
-                            None (Lvar param) [pat, rem] partial}
-=======
         Lambda.lfunction
-                  ~kind:Curried ~params:((param, Pgenval)::params)
+                  ~kind:(Curried {nlocal=0}) ~params:((param, Pgenval)::params)
                   ~return:Pgenval
                   ~attr:default_function_attribute
                   ~loc:(of_location ~scopes pat.pat_loc)
-                  ~body:(Matching.for_function ~scopes pat.pat_loc
+                  ~body:(Matching.for_function ~scopes Pgenval pat.pat_loc
                             None (Lvar param) [pat, rem] partial)
->>>>>>> ocaml/4.14
+                  ~mode:alloc_heap
+                  ~region:true
       in
       (path, path_lam,
        match obj_init with
@@ -874,28 +820,14 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
 
   let concrete = (vflag = Concrete)
   and lclass lam =
-<<<<<<< HEAD
-    let cl_init = llets (Lfunction{kind = Curried {nlocal=0};
-                                   attr = default_function_attribute;
-                                   loc = Loc_unknown;
-                                   return = Pgenval;
-                                   mode = alloc_heap;
-                                   region = true;
-                                   params = [cla, Pgenval]; body = cl_init}) in
-||||||| 24dbb0976a
-    let cl_init = llets (Lfunction{kind = Curried;
-                                   attr = default_function_attribute;
-                                   loc = Loc_unknown;
-                                   return = Pgenval;
-                                   params = [cla, Pgenval]; body = cl_init}) in
-=======
     let cl_init = llets (Lambda.lfunction
-                           ~kind:Curried
+                           ~kind:(Curried {nlocal=0})
                            ~attr:default_function_attribute
                            ~loc:Loc_unknown
                            ~return:Pgenval
+                           ~mode:alloc_heap
+                           ~region:true
                            ~params:[cla, Pgenval] ~body:cl_init) in
->>>>>>> ocaml/4.14
     Llet(Strict, Pgenval, class_init, cl_init, lam (free_variables cl_init))
   and lbody fv =
     if List.for_all (fun id -> not (Ident.Set.mem id fv)) ids then
@@ -912,31 +844,15 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
              Lvar class_init; Lvar env_init; lambda_unit],
             Loc_unknown))))
   and lbody_virt lenvs =
-<<<<<<< HEAD
     Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
-          [lambda_unit; Lfunction{kind = Curried {nlocal=0};
-                                  attr = default_function_attribute;
-                                  loc = Loc_unknown;
-                                  return = Pgenval;
-                                  mode = alloc_heap;
-                                  region = true;
-                                  params = [cla, Pgenval]; body = cl_init};
-||||||| 24dbb0976a
-    Lprim(Pmakeblock(0, Immutable, None),
-          [lambda_unit; Lfunction{kind = Curried;
-                                  attr = default_function_attribute;
-                                  loc = Loc_unknown;
-                                  return = Pgenval;
-                                  params = [cla, Pgenval]; body = cl_init};
-=======
-    Lprim(Pmakeblock(0, Immutable, None),
           [lambda_unit; Lambda.lfunction
-                          ~kind:Curried
+                          ~kind:(Curried {nlocal=0})
                           ~attr:default_function_attribute
                           ~loc:Loc_unknown
                           ~return:Pgenval
+                          ~mode:alloc_heap
+                          ~region:true
                           ~params:[cla, Pgenval] ~body:cl_init;
->>>>>>> ocaml/4.14
            lambda_unit; lenvs],
          Loc_unknown)
   in
@@ -989,28 +905,14 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
   in
   let lclass lam =
     Llet(Strict, Pgenval, class_init,
-<<<<<<< HEAD
-         Lfunction{kind = Curried {nlocal=0}; params = [cla, Pgenval];
-                   return = Pgenval;
-                   attr = default_function_attribute;
-                   loc = Loc_unknown;
-                   mode = alloc_heap;
-                   region = true;
-                   body = def_ids cla cl_init}, lam)
-||||||| 24dbb0976a
-         Lfunction{kind = Curried; params = [cla, Pgenval];
-                   return = Pgenval;
-                   attr = default_function_attribute;
-                   loc = Loc_unknown;
-                   body = def_ids cla cl_init}, lam)
-=======
          Lambda.lfunction
-                   ~kind:Curried ~params:[cla, Pgenval]
+                   ~kind:(Curried {nlocal=0}) ~params:[cla, Pgenval]
                    ~return:Pgenval
                    ~attr:default_function_attribute
                    ~loc:Loc_unknown
+                   ~mode:alloc_heap
+                   ~region:true
                    ~body:(def_ids cla cl_init), lam)
->>>>>>> ocaml/4.14
   and lcache lam =
     if inh_keys = [] then Llet(Alias, Pgenval, cached, Lvar tables, lam) else
     Llet(Strict, Pgenval, cached,
@@ -1029,39 +931,15 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                       lset cached 0 (Lvar env_init))))
   and lclass_virt () =
     lset cached 0
-<<<<<<< HEAD
-      (Lfunction
-         {
-           kind = Curried {nlocal=0};
-           attr = default_function_attribute;
-           loc = Loc_unknown;
-           mode = alloc_heap;
-           region = true;
-           return = Pgenval;
-           params = [cla, Pgenval];
-           body = def_ids cla cl_init;
-         }
-      )
-||||||| 24dbb0976a
-      (Lfunction
-         {
-           kind = Curried;
-           attr = default_function_attribute;
-           loc = Loc_unknown;
-           return = Pgenval;
-           params = [cla, Pgenval];
-           body = def_ids cla cl_init;
-         }
-      )
-=======
       (Lambda.lfunction
-         ~kind:Curried
+         ~kind:(Curried {nlocal=0})
          ~attr:default_function_attribute
          ~loc:Loc_unknown
+         ~mode:alloc_heap
+         ~region:true
          ~return:Pgenval
          ~params:[cla, Pgenval]
          ~body:(def_ids cla cl_init))
->>>>>>> ocaml/4.14
   in
   let lupdate_cache =
     if ids = [] then ldirect () else

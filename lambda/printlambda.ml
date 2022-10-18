@@ -217,14 +217,6 @@ let primitive ppf = function
   | Pbytes_to_string -> fprintf ppf "bytes_to_string"
   | Pbytes_of_string -> fprintf ppf "bytes_of_string"
   | Pignore -> fprintf ppf "ignore"
-<<<<<<< HEAD
-  | Prevapply _ -> fprintf ppf "revapply"
-  | Pdirapply _ -> fprintf ppf "dirapply"
-||||||| 24dbb0976a
-  | Prevapply -> fprintf ppf "revapply"
-  | Pdirapply -> fprintf ppf "dirapply"
-=======
->>>>>>> ocaml/4.14
   | Pgetglobal id -> fprintf ppf "global %a" Ident.print id
   | Psetglobal id -> fprintf ppf "setglobal %a" Ident.print id
   | Pmakeblock(tag, Immutable, shape, mode) ->
@@ -451,14 +443,6 @@ let name_of_primitive = function
   | Pbytes_of_string -> "Pbytes_of_string"
   | Pbytes_to_string -> "Pbytes_to_string"
   | Pignore -> "Pignore"
-<<<<<<< HEAD
-  | Prevapply _ -> "Prevapply"
-  | Pdirapply _ -> "Pdirapply"
-||||||| 24dbb0976a
-  | Prevapply -> "Prevapply"
-  | Pdirapply -> "Pdirapply"
-=======
->>>>>>> ocaml/4.14
   | Pgetglobal _ -> "Pgetglobal"
   | Psetglobal _ -> "Psetglobal"
   | Pmakeblock _ -> "Pmakeblock"
@@ -562,7 +546,6 @@ let name_of_primitive = function
   | Pobj_dup -> "Pobj_dup"
   | Pobj_magic -> "Pobj_magic"
 
-<<<<<<< HEAD
 let check_attribute ppf check =
   let check_property = function
     | Noalloc -> "noalloc"
@@ -572,15 +555,8 @@ let check_attribute ppf check =
   | Assert p -> fprintf ppf "assert %s@ " (check_property p)
   | Assume p -> fprintf ppf "assume %s@ " (check_property p)
 
-let function_attribute ppf { inline; specialise; check; local; is_a_functor; stub } =
-  if is_a_functor then
-||||||| 24dbb0976a
-let function_attribute ppf { inline; specialise; local; is_a_functor; stub } =
-  if is_a_functor then
-=======
 let function_attribute ppf t =
   if t.is_a_functor then
->>>>>>> ocaml/4.14
     fprintf ppf "is_a_functor@ ";
   if t.stub then
     fprintf ppf "stub@ ";
@@ -601,18 +577,13 @@ let function_attribute ppf t =
   | Always_local -> fprintf ppf "always_local@ "
   | Never_local -> fprintf ppf "never_local@ "
   end;
-<<<<<<< HEAD
-  check_attribute ppf check
-||||||| 24dbb0976a
-  end
-=======
+  check_attribute ppf t.check;
   if t.tmc_candidate then
     fprintf ppf "tail_mod_cons@ ";
   begin match t.poll with
   | Default_poll -> ()
   | Error_poll -> fprintf ppf "error_poll@ "
   end
->>>>>>> ocaml/4.14
 
 let apply_tailcall_attribute ppf = function
   | Default_tailcall -> ()
@@ -679,24 +650,11 @@ let rec lam ppf = function
                 value_kind ppf k)
               params;
             fprintf ppf ")" in
-<<<<<<< HEAD
       let rmode = if region then alloc_heap else alloc_local in
       fprintf ppf "@[<2>(function%s%a@ %a%a%a)@]"
         (alloc_kind mode) pr_params params
         function_attribute attr return_kind (rmode, return) lam body
-  | (Llet _ | Lmutlet _) as expr ->
-||||||| 24dbb0976a
-      fprintf ppf "@[<2>(function%a@ %a%a%a)@]" pr_params params
-        function_attribute attr return_kind return lam body
-  | Llet(str, k, id, arg, body) ->
-      let kind = function
-          Alias -> "a" | Strict -> "" | StrictOpt -> "o" | Variable -> "v"
-=======
-      fprintf ppf "@[<2>(function%a@ %a%a%a)@]" pr_params params
-        function_attribute attr return_kind return lam body
-  | Llet(_, k, id, arg, body)
-  | Lmutlet(k, id, arg, body) as l ->
->>>>>>> ocaml/4.14
+  | Llet _ | Lmutlet _ as expr ->
       let let_kind = begin function
         | Llet(str,_,_,_,_) ->
            begin match str with
@@ -706,7 +664,6 @@ let rec lam ppf = function
         | _ -> assert false
         end
       in
-<<<<<<< HEAD
       let rec letbody ~sp = function
         | Llet(_, k, id, arg, body)
         | Lmutlet(k, id, arg, body) as l ->
@@ -714,33 +671,9 @@ let rec lam ppf = function
            fprintf ppf "@[<2>%a =%s%a@ %a@]"
              Ident.print id (let_kind l) value_kind k lam arg;
            letbody ~sp:true body
-||||||| 24dbb0976a
-      let rec letbody = function
-        | Llet(str, k, id, arg, body) ->
-            fprintf ppf "@ @[<2>%a =%s%a@ %a@]"
-              Ident.print id (kind str) value_kind k lam arg;
-            letbody body
-=======
-      let rec letbody = function
-        | Llet(_, k, id, arg, body)
-        | Lmutlet(k, id, arg, body) as l ->
-           fprintf ppf "@ @[<2>%a =%s%a@ %a@]"
-             Ident.print id (let_kind l) value_kind k lam arg;
-           letbody body
->>>>>>> ocaml/4.14
         | expr -> expr in
-<<<<<<< HEAD
       fprintf ppf "@[<2>(let@ @[<hv 1>(";
       let expr = letbody ~sp:false expr in
-||||||| 24dbb0976a
-      fprintf ppf "@[<2>(let@ @[<hv 1>(@[<2>%a =%s%a@ %a@]"
-        Ident.print id (kind str) value_kind k lam arg;
-      let expr = letbody body in
-=======
-      fprintf ppf "@[<2>(let@ @[<hv 1>(@[<2>%a =%s%a@ %a@]"
-        Ident.print id (let_kind l) value_kind k lam arg;
-      let expr = letbody body in
->>>>>>> ocaml/4.14
       fprintf ppf ")@]@ %a)@]" lam expr
   | Lletrec(id_arg_list, body) ->
       let bindings ppf id_arg_list =
