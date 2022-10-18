@@ -196,6 +196,8 @@ let predef_exn = create Prefix.empty (Name.of_string "*predef*")
 
 let name t = t.name
 
+let name_as_string t = name t |> Name.to_string
+
 let for_pack_prefix t = t.for_pack_prefix
 
 let with_for_pack_prefix t for_pack_prefix = { t with for_pack_prefix; }
@@ -247,6 +249,9 @@ let print_name ppf t =
 
 let full_path_as_string t =
   Format.asprintf "%a" print t
+
+let to_global_ident_for_legacy_code t =
+  Ident.create_persistent (full_path_as_string t)
 
 let print_debug ppf { for_pack_prefix; hash = _; name } =
   if Prefix.is_empty for_pack_prefix then

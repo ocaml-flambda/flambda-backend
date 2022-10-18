@@ -77,8 +77,9 @@ type primitive =
   | Prevapply of region_close
   | Pdirapply of region_close
     (* Globals *)
-  | Pgetglobal of Ident.t
-  | Psetglobal of Ident.t
+  | Pgetglobal of Compilation_unit.t
+  | Psetglobal of Compilation_unit.t
+  | Pgetpredef of Ident.t
   (* Operations on heap blocks *)
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakefloatblock of mutable_flag * alloc_mode
@@ -294,6 +295,10 @@ type check_attribute =
   | Assert of property
   | Assume of property
 
+type poll_attribute =
+  | Error_poll (* [@poll error] *)
+  | Default_poll (* no [@poll] attribute *)
+
 type function_kind = Curried of {nlocal: int} | Tupled
 (* [nlocal] determines how many arguments may be partially applied
    before the resulting closure must be locally allocated.
@@ -321,6 +326,7 @@ type function_attribute = {
   specialise : specialise_attribute;
   local: local_attribute;
   check : check_attribute;
+  poll: poll_attribute;
   is_a_functor: bool;
   stub: bool;
 }
@@ -407,6 +413,7 @@ and lambda_switch =
     sw_numblocks: int;                  (* Number of tag block cases *)
     sw_blocks: (int * lambda) list;     (* Tag block cases *)
     sw_failaction : lambda option}      (* Action to take if failure *)
+
 and lambda_event =
   { lev_loc: scoped_location;
     lev_kind: lambda_event_kind;

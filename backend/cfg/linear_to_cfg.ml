@@ -354,7 +354,9 @@ let add_terminator t (block : C.basic_block) (i : L.instruction)
      fallthroughs in Linear. *)
   (match desc with
   | Never -> Misc.fatal_error "Cannot add terminator: Never"
-  | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _ -> ()
+  | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
+  | Poll_and_jump _ ->
+    ()
   | Switch _ | Return | Raise _ | Tailcall _ | Call_no_return _ ->
     if not (Linear_utils.defines_label i.next)
     then
@@ -411,7 +413,8 @@ let to_basic (mop : Mach.operation) : C.basic =
   | Ispecific op -> Op (Specific op)
   | Iname_for_debugger { ident; which_parameter; provenance; is_assignment } ->
     Op (Name_for_debugger { ident; which_parameter; provenance; is_assignment })
-  | Itailcall_ind | Itailcall_imm _ | Iextcall { returns = false; _ } ->
+  | Itailcall_ind | Itailcall_imm _ | Iextcall { returns = false; _ } | Ipoll _
+    ->
     assert false
 
 let rec adjust_traps (i : L.instruction) ~stack_offset ~traps =
@@ -592,6 +595,15 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
       let desc = to_basic mop in
       block.body <- create_instruction t desc i ~stack_offset :: block.body;
       let stack_offset = stack_offset + bytes in
+      create_blocks t i.next block ~stack_offset ~traps
+    | Ipoll { return_label = None } ->
+      let next = get_or_make_label t i.next in
+      let desc = C.Poll_and_jump next.label in
+      add_terminator t block i desc ~stack_offset ~traps;
+      create_blocks t next.insn block ~stack_offset ~traps
+    | Ipoll { return_label = Some return_label } ->
+      let desc = C.Poll_and_jump return_label in
+      add_terminator t block i desc ~stack_offset ~traps;
       create_blocks t i.next block ~stack_offset ~traps
     | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
     | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue | Iconst_int _

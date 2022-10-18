@@ -139,6 +139,7 @@ and function_declaration = {
   specialise : Lambda.specialise_attribute;
   check : Lambda.check_attribute;
   is_a_functor : bool;
+  poll: Lambda.poll_attribute;
 }
 
 and switch = {
@@ -1047,6 +1048,7 @@ let update_body_of_function_declaration (func_decl: function_declaration)
     check = func_decl.check;
     specialise = func_decl.specialise;
     is_a_functor = func_decl.is_a_functor;
+    poll = func_decl.poll;
   }
 
 let rec check_param_modes mode = function
@@ -1062,7 +1064,7 @@ let create_function_declaration ~params ~alloc_mode ~region ~body ~stub
       ~(specialise : Lambda.specialise_attribute)
       ~(check : Lambda.check_attribute)
       ~is_a_functor
-      ~closure_origin
+      ~closure_origin ~poll
       : function_declaration =
   begin match stub, inline with
   | true, (Never_inline | Default_inline)
@@ -1097,6 +1099,7 @@ let create_function_declaration ~params ~alloc_mode ~region ~body ~stub
     specialise;
     check;
     is_a_functor;
+    poll;
   }
 
 let update_function_declaration_body fun_decl ~body =

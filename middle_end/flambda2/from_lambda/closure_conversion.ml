@@ -375,13 +375,13 @@ let close_c_call acc env ~loc ~let_bound_var
     match prim_native_repr_res with
     | _, Same_as_ocaml_repr -> None
     | _, Unboxed_float ->
-      Some (P.Box_number (Naked_float, Alloc_mode.With_region.heap))
+      Some (P.Box_number (Naked_float, Alloc_mode.For_allocations.heap))
     | _, Unboxed_integer Pnativeint ->
-      Some (P.Box_number (Naked_nativeint, Alloc_mode.With_region.heap))
+      Some (P.Box_number (Naked_nativeint, Alloc_mode.For_allocations.heap))
     | _, Unboxed_integer Pint32 ->
-      Some (P.Box_number (Naked_int32, Alloc_mode.With_region.heap))
+      Some (P.Box_number (Naked_int32, Alloc_mode.For_allocations.heap))
     | _, Unboxed_integer Pint64 ->
-      Some (P.Box_number (Naked_int64, Alloc_mode.With_region.heap))
+      Some (P.Box_number (Naked_int64, Alloc_mode.For_allocations.heap))
     | _, Untagged_int -> Some P.Tag_immediate
   in
   let return_continuation, needs_wrapper =
@@ -585,12 +585,16 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
     in
     close_c_call acc env ~loc ~let_bound_var prim ~args exn_continuation dbg
       ~current_region k
-  | Pgetglobal id, [] ->
-    let is_predef_exn = Ident.is_predef id in
-    if not (is_predef_exn || not (Ident.same id (Env.current_unit_id env)))
+  | Pgetglobal cu, [] ->
+    let id = cu |> Compilation_unit.to_global_ident_for_legacy_code in
+    if Ident.same id (Env.current_unit_id env)
     then
-      Misc.fatal_errorf "Non-predef Pgetglobal %a in the same unit" Ident.print
-        id;
+      Misc.fatal_errorf "Pgetglobal %a in the same unit" Compilation_unit.print
+        cu;
+    let acc, simple = symbol_for_ident acc env id in
+    let named = Named.create_simple simple in
+    k acc (Some named)
+  | Pgetpredef id, [] ->
     let acc, simple = symbol_for_ident acc env id in
     let named = Named.create_simple simple in
     k acc (Some named)
@@ -638,28 +642,28 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
       | Pmakearray (_, _, _mode) ->
         register_const0 acc Static_const.empty_array "empty_array"
       | Pidentity | Pbytes_to_string | Pbytes_of_string | Pignore | Prevapply _
-      | Pdirapply _ | Pgetglobal _ | Psetglobal _ | Pfield _ | Pfield_computed _
-      | Psetfield _ | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _
-      | Pduprecord _ | Pccall _ | Praise _ | Psequand | Psequor | Pnot | Pnegint
-      | Paddint | Psubint | Pmulint | Pdivint _ | Pmodint _ | Pandint | Porint
-      | Pxorint | Plslint | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints
-      | Pcompare_floats | Pcompare_bints _ | Poffsetint _ | Poffsetref _
-      | Pintoffloat | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _
-      | Psubfloat _ | Pmulfloat _ | Pdivfloat _ | Pfloatcomp _ | Pstringlength
-      | Pstringrefu | Pstringrefs | Pbyteslength | Pbytesrefu | Pbytessetu
-      | Pbytesrefs | Pbytessets | Pduparray _ | Parraylength _ | Parrayrefu _
-      | Parraysetu _ | Parrayrefs _ | Parraysets _ | Pisint _ | Pisout
-      | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _
-      | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _ | Pandbint _
-      | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
-      | Pbintcomp _ | Pbigarrayref _ | Pbigarrayset _ | Pbigarraydim _
-      | Pstring_load_16 _ | Pstring_load_32 _ | Pstring_load_64 _
-      | Pbytes_load_16 _ | Pbytes_load_32 _ | Pbytes_load_64 _ | Pbytes_set_16 _
-      | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbigstring_load_16 _
-      | Pbigstring_load_32 _ | Pbigstring_load_64 _ | Pbigstring_set_16 _
-      | Pbigstring_set_32 _ | Pbigstring_set_64 _ | Pctconst _ | Pbswap16
-      | Pbbswap _ | Pint_as_pointer | Popaque | Pprobe_is_enabled _ | Pobj_dup
-      | Pobj_magic ->
+      | Pdirapply _ | Pgetglobal _ | Psetglobal _ | Pgetpredef _ | Pfield _
+      | Pfield_computed _ | Psetfield _ | Psetfield_computed _ | Pfloatfield _
+      | Psetfloatfield _ | Pduprecord _ | Pccall _ | Praise _ | Psequand
+      | Psequor | Pnot | Pnegint | Paddint | Psubint | Pmulint | Pdivint _
+      | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint | Pasrint
+      | Pintcomp _ | Pcompare_ints | Pcompare_floats | Pcompare_bints _
+      | Poffsetint _ | Poffsetref _ | Pintoffloat | Pfloatofint _ | Pnegfloat _
+      | Pabsfloat _ | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
+      | Pfloatcomp _ | Pstringlength | Pstringrefu | Pstringrefs | Pbyteslength
+      | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets | Pduparray _
+      | Parraylength _ | Parrayrefu _ | Parraysetu _ | Parrayrefs _
+      | Parraysets _ | Pisint _ | Pisout | Pbintofint _ | Pintofbint _
+      | Pcvtbint _ | Pnegbint _ | Paddbint _ | Psubbint _ | Pmulbint _
+      | Pdivbint _ | Pmodbint _ | Pandbint _ | Porbint _ | Pxorbint _
+      | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp _ | Pbigarrayref _
+      | Pbigarrayset _ | Pbigarraydim _ | Pstring_load_16 _ | Pstring_load_32 _
+      | Pstring_load_64 _ | Pbytes_load_16 _ | Pbytes_load_32 _
+      | Pbytes_load_64 _ | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _
+      | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
+      | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
+      | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer | Popaque
+      | Pprobe_is_enabled _ | Pobj_dup | Pobj_magic ->
         (* Inconsistent with outer match *)
         assert false
     in
@@ -752,7 +756,7 @@ let close_let acc env id user_visible defining_expr
           in
           Some
             (Env.add_block_approximation body_env (Name.var var) approxs
-               (Alloc_mode.With_region.without_region alloc_mode))
+               (Alloc_mode.For_allocations.as_type alloc_mode))
         | Prim (Binary (Block_load _, block, field), _) -> (
           match Env.find_value_approximation body_env block with
           | Value_unknown -> Some body_env
@@ -888,7 +892,7 @@ let close_exact_or_unknown_apply acc env
     | None -> Env.find_var env region
     | Some region -> region
   in
-  let mode = Alloc_mode.from_lambda mode in
+  let mode = Alloc_mode.For_types.from_lambda mode in
   let acc, call_kind =
     match kind with
     | Function -> (
@@ -1079,9 +1083,9 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
         (Bound_pattern.singleton untagged_scrutinee')
         untag ~body
 
-let close_one_function acc ~external_env ~by_function_slot decl
+let close_one_function acc ~code_id ~external_env ~by_function_slot decl
     ~has_lifted_closure ~value_slots_from_idents ~function_slots_from_idents
-    function_declarations =
+    ~approx_map function_declarations =
   let acc = Acc.with_free_names Name_occurrences.empty acc in
   let body = Function_decl.body decl in
   let loc = Function_decl.loc decl in
@@ -1096,12 +1100,6 @@ let close_one_function acc ~external_env ~by_function_slot decl
   let my_depth = Variable.create "my_depth" in
   let next_depth = Variable.create "next_depth" in
   let our_let_rec_ident = Function_decl.let_rec_ident decl in
-  let compilation_unit = Compilation_unit.get_current_exn () in
-  let code_id =
-    Code_id.create
-      ~name:(Function_slot.to_string function_slot)
-      compilation_unit
-  in
   let is_curried =
     match Function_decl.kind decl with Curried _ -> true | Tupled -> false
   in
@@ -1139,22 +1137,24 @@ let close_one_function acc ~external_env ~by_function_slot decl
       "Variables found in closure when trying to lift %a in \
        [Closure_conversion]."
       Ident.print our_let_rec_ident;
-  let closure_vars_to_bind, simples_for_closure_vars =
+  let closure_env = Env.clear_local_bindings external_env in
+  (* Add the variables for function projections *)
+  let closure_vars_to_bind, closure_env =
     if has_lifted_closure
     then (* No projection needed *)
-      Variable.Map.empty, Ident.Map.empty
+      Variable.Map.empty, closure_env
     else
       List.fold_left
-        (fun (to_bind, simples_for_idents) function_decl ->
+        (fun (to_bind, env) function_decl ->
           let let_rec_ident = Function_decl.let_rec_ident function_decl in
-          let to_bind, var =
+          let to_bind, var, function_slot =
             if Ident.same our_let_rec_ident let_rec_ident && is_curried
             then
               (* When the function being compiled is tupled, my_closure points
                  to the curried version but let_rec_ident is called with tuple
                  arguments, so the correct closure to bind is the one in the
                  function_slots_from_idents map. *)
-              to_bind, my_closure
+              to_bind, my_closure, Function_decl.function_slot decl
               (* my_closure is already bound *)
             else
               let variable =
@@ -1163,48 +1163,49 @@ let close_one_function acc ~external_env ~by_function_slot decl
               let function_slot =
                 Ident.Map.find let_rec_ident function_slots_from_idents
               in
-              Variable.Map.add variable function_slot to_bind, variable
+              ( Variable.Map.add variable function_slot to_bind,
+                variable,
+                function_slot )
           in
           let simple = Simple.with_coercion (Simple.var var) coerce_to_deeper in
-          to_bind, Ident.Map.add let_rec_ident simple simples_for_idents)
-        (Variable.Map.empty, Ident.Map.empty)
+          let approx = Function_slot.Map.find function_slot approx_map in
+          let env = Env.add_simple_to_substitute env let_rec_ident simple in
+          let env = Env.add_value_approximation env (Name.var var) approx in
+          to_bind, env)
+        (Variable.Map.empty, closure_env)
         (Function_decls.to_list function_declarations)
   in
-  let closure_env_without_parameters =
-    let empty_env = Env.clear_local_bindings external_env in
-    let env_with_vars =
-      Ident.Map.fold
-        (fun id var env ->
-          Simple.pattern_match
-            (find_simple_from_id external_env id)
-            ~const:(fun _ -> assert false)
-            ~name:(fun name ~coercion:_ ->
-              Env.add_approximation_alias (Env.add_var env id var) name
-                (Name.var var)))
-        value_slots_for_idents empty_env
-    in
-    Env.add_simple_to_substitute_map env_with_vars simples_for_closure_vars
+  let closure_env =
+    Ident.Map.fold
+      (fun id var env ->
+        Simple.pattern_match
+          (find_simple_from_id external_env id)
+          ~const:(fun _ -> assert false)
+          ~name:(fun name ~coercion:_ ->
+            Env.add_approximation_alias (Env.add_var env id var) name
+              (Name.var var)))
+      value_slots_for_idents closure_env
   in
-  let closure_env_without_history, my_region =
-    let closure_env =
-      List.fold_right
-        (fun (id, _) env ->
-          let env, _var = Env.add_var_like env id User_visible in
-          env)
-        params closure_env_without_parameters
-    in
+  let closure_env =
+    List.fold_right
+      (fun (id, _) env ->
+        let env, _var = Env.add_var_like env id User_visible in
+        env)
+      params closure_env
+  in
+  let closure_env, my_region =
     Env.add_var_like closure_env my_region Not_user_visible
   in
-  let closure_env = Env.with_depth closure_env_without_history my_depth in
+  let closure_env = Env.with_depth closure_env my_depth in
   let closure_env, absolute_history, relative_history =
-    let tracker = Env.inlining_history_tracker closure_env_without_history in
+    let tracker = Env.inlining_history_tracker closure_env in
     let absolute, relative =
       Inlining_history.Tracker.fundecl_of_scoped_location
         ~name:(Function_slot.name function_slot)
         ~path_to_root:(Env.path_to_root closure_env)
         loc tracker
     in
-    ( Env.use_inlining_history_tracker closure_env_without_history
+    ( Env.use_inlining_history_tracker closure_env
         (Inlining_history.Tracker.inside_function absolute),
       absolute,
       relative )
@@ -1341,6 +1342,8 @@ let close_one_function acc ~external_env ~by_function_slot decl
       ~contains_no_escaping_local_allocs:
         (Function_decl.contains_no_escaping_local_allocs decl)
       ~stub ~inline
+      ~poll_attribute:
+        (Poll_attribute.from_lambda (Function_decl.poll_attribute decl))
       ~check:(Check_attribute.from_lambda (Function_decl.check_attribute decl))
       ~is_a_functor:(Function_decl.is_a_functor decl)
       ~recursive ~newer_version_of:None ~cost_metrics
@@ -1367,7 +1370,7 @@ let close_one_function acc ~external_env ~by_function_slot decl
   in
   let acc = Acc.add_code ~code_id ~code acc in
   let acc = Acc.with_seen_a_function acc true in
-  acc, Function_slot.Map.add function_slot (code_id, approx) by_function_slot
+  acc, Function_slot.Map.add function_slot approx by_function_slot
 
 let close_functions acc external_env ~current_region function_declarations =
   let compilation_unit = Compilation_unit.get_current_exn () in
@@ -1413,6 +1416,79 @@ let close_functions acc external_env ~current_region function_declarations =
         Ident.Map.add id function_slot map)
       Ident.Map.empty func_decl_list
   in
+  let function_code_ids =
+    List.fold_left
+      (fun map decl ->
+        let function_slot = Function_decl.function_slot decl in
+        let code_id =
+          Code_id.create
+            ~name:(Function_slot.to_string function_slot)
+            compilation_unit
+        in
+        Function_slot.Map.add function_slot code_id map)
+      Function_slot.Map.empty func_decl_list
+  in
+  let approx_map =
+    List.fold_left
+      (fun approx_map decl ->
+        (* The only fields of metadata which are used for this pass are
+           params_arity, is_tupled, num_trailing_local_params,
+           contains_no_escaping_local_allocs, and result_arity. We try to
+           populate the different fields as much as possible, but put dummy
+           values when they are not yet computed or simply too expensive to
+           compute for the other fields. *)
+        let function_slot = Function_decl.function_slot decl in
+        let code_id = Function_slot.Map.find function_slot function_code_ids in
+        let params = Function_decl.params decl in
+        let params_arity =
+          List.map
+            (fun (_, kind) -> Flambda_kind.With_subkind.from_lambda kind)
+            params
+          |> Flambda_arity.With_subkinds.create
+        in
+        let return = Function_decl.return decl in
+        let result_arity =
+          Flambda_arity.With_subkinds.create [K.With_subkind.from_lambda return]
+        in
+        let poll_attribute =
+          Poll_attribute.from_lambda (Function_decl.poll_attribute decl)
+        in
+        let check =
+          Check_attribute.from_lambda (Function_decl.check_attribute decl)
+        in
+        let cost_metrics = Cost_metrics.zero in
+        let dbg = Debuginfo.from_location (Function_decl.loc decl) in
+        let is_tupled =
+          match Function_decl.kind decl with
+          | Curried _ -> false
+          | Tupled -> true
+        in
+        let metadata =
+          Code_metadata.create code_id ~params_arity
+            ~num_trailing_local_params:
+              (Function_decl.num_trailing_local_params decl)
+            ~result_arity ~result_types:Unknown
+            ~contains_no_escaping_local_allocs:
+              (Function_decl.contains_no_escaping_local_allocs decl)
+            ~stub:(Function_decl.stub decl) ~inline:Never_inline ~check
+            ~poll_attribute
+            ~is_a_functor:(Function_decl.is_a_functor decl)
+            ~recursive:(Function_decl.recursive decl)
+            ~newer_version_of:None ~cost_metrics
+            ~inlining_arguments:(Inlining_arguments.create ~round:0)
+            ~dbg ~is_tupled ~is_my_closure_used:true
+            ~inlining_decision:Recursive
+            ~absolute_history:(Inlining_history.Absolute.empty compilation_unit)
+            ~relative_history:Inlining_history.Relative.empty
+        in
+        let code = Code_or_metadata.create_metadata_only metadata in
+        let approx =
+          Value_approximation.Closure_approximation
+            { code_id; function_slot; code; symbol = None }
+        in
+        Function_slot.Map.add function_slot approx approx_map)
+      Function_slot.Map.empty func_decl_list
+  in
   let external_env, symbol_map =
     if can_be_lifted
     then
@@ -1420,6 +1496,18 @@ let close_functions acc external_env ~current_region function_declarations =
         (fun ident function_slot (env, symbol_map) ->
           let env, symbol =
             declare_symbol_for_function_slot env ident function_slot
+          in
+          let approx =
+            match Function_slot.Map.find function_slot approx_map with
+            | Value_approximation.Closure_approximation
+                { code_id; function_slot; code; symbol = _ } ->
+              Value_approximation.Closure_approximation
+                { code_id; function_slot; code; symbol = Some symbol }
+            | _ -> assert false
+            (* see above *)
+          in
+          let env =
+            Env.add_value_approximation env (Name.symbol symbol) approx
           in
           env, Function_slot.Map.add function_slot symbol symbol_map)
         function_slots_from_idents
@@ -1429,11 +1517,16 @@ let close_functions acc external_env ~current_region function_declarations =
   let acc, approximations =
     List.fold_left
       (fun (acc, by_function_slot) function_decl ->
+        let code_id =
+          Function_slot.Map.find
+            (Function_decl.function_slot function_decl)
+            function_code_ids
+        in
         let _, _, acc, expr =
           Acc.measure_cost_metrics acc ~f:(fun acc ->
-              close_one_function acc ~external_env ~by_function_slot
+              close_one_function acc ~code_id ~external_env ~by_function_slot
                 function_decl ~has_lifted_closure:can_be_lifted
-                ~value_slots_from_idents ~function_slots_from_idents
+                ~value_slots_from_idents ~function_slots_from_idents ~approx_map
                 function_declarations)
         in
         acc, expr)
@@ -1446,14 +1539,17 @@ let close_functions acc external_env ~current_region function_declarations =
   let funs =
     let funs =
       Function_slot.Map.fold
-        (fun cid (code_id, _) funs -> (cid, code_id) :: funs)
-        approximations []
+        (fun cid code_id funs -> (cid, code_id) :: funs)
+        function_code_ids []
     in
     Function_slot.Lmap.of_list (List.rev funs)
   in
   let approximations =
     Function_slot.Map.mapi
-      (fun function_slot (code_id, code) ->
+      (fun function_slot code ->
+        let code_id =
+          Code_metadata.code_id (Code_or_metadata.code_metadata code)
+        in
         Value_approximation.Closure_approximation
           { code_id; function_slot; code; symbol = None })
       approximations
@@ -1471,7 +1567,7 @@ let close_functions acc external_env ~current_region function_declarations =
   in
   let set_of_closures =
     Set_of_closures.create ~value_slots
-      (Alloc_mode.With_region.from_lambda
+      (Alloc_mode.For_allocations.from_lambda
          (Function_decls.alloc_mode function_declarations)
          ~current_region)
       function_decls
@@ -1645,7 +1741,8 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
         local = Default_local;
         check = Default_check;
         is_a_functor = false;
-        stub = false
+        stub = false;
+        poll = Default_poll
       }
   in
   let free_idents_of_body =
@@ -1694,18 +1791,17 @@ let wrap_over_application acc env full_call (apply : IR.apply) over_args
   let returned_func = Variable.create "func" in
   (* See comments in [Simplify_common.split_direct_over_application] about this
      code for handling local allocations. *)
-  let apply_alloc_mode = Alloc_mode.from_lambda apply.mode in
   let apply_return_continuation =
     Apply.Result_continuation.Return apply.continuation
   in
   let acc, args = find_simples acc env over_args in
   let apply_dbg = Debuginfo.from_location apply.loc in
   let needs_region =
-    match apply_alloc_mode, contains_no_escaping_local_allocs with
-    | Heap, false ->
+    match apply.mode, contains_no_escaping_local_allocs with
+    | Alloc_heap, false ->
       let over_app_region = Variable.create "over_app_region" in
       Some (over_app_region, Continuation.create ())
-    | Heap, true | Local, _ -> None
+    | Alloc_heap, true | Alloc_local, _ -> None
   in
   let apply_region =
     match needs_region with
@@ -1729,8 +1825,8 @@ let wrap_over_application acc env full_call (apply : IR.apply) over_args
     in
     let alloc_mode =
       if contains_no_escaping_local_allocs
-      then Alloc_mode.heap
-      else Alloc_mode.local ()
+      then Alloc_mode.For_types.heap
+      else Alloc_mode.For_types.unknown ()
     in
     let call_kind = Call_kind.indirect_function_call_unknown_arity alloc_mode in
     let continuation =
@@ -1802,14 +1898,8 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
   let approx = Env.find_value_approximation env callee in
   let code_info =
     match approx with
-    | Closure_approximation { code = Code_present code; _ } ->
-      Some
-        ( Code.params_arity code,
-          Code.is_tupled code,
-          Code.num_trailing_local_params code,
-          Code.contains_no_escaping_local_allocs code,
-          Code.result_arity code )
-    | Closure_approximation { code = Metadata_only metadata; _ } ->
+    | Closure_approximation { code; _ } ->
+      let metadata = Code_or_metadata.code_metadata code in
       Some
         ( Code_metadata.params_arity metadata,
           Code_metadata.is_tupled metadata,

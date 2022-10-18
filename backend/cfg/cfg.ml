@@ -82,6 +82,7 @@ let successor_labels_normal ti =
     |> Label.Set.add uo
   | Int_test { lt; gt; eq; imm = _; is_signed = _ } ->
     Label.Set.singleton lt |> Label.Set.add gt |> Label.Set.add eq
+  | Poll_and_jump return_label -> Label.Set.singleton return_label
 
 let successor_labels ~normal ~exn block =
   match normal, exn with
@@ -126,6 +127,7 @@ let replace_successor_labels t ~normal ~exn block ~f =
       | Float_test { lt; eq; gt; uo } ->
         Float_test { lt = f lt; eq = f eq; gt = f gt; uo = f uo }
       | Switch labels -> Switch (Array.map f labels)
+      | Poll_and_jump return_label -> Poll_and_jump (f return_label)
       | Tailcall (Self { destination }) ->
         Tailcall (Self { destination = f destination })
       | Tailcall (Func Indirect)
@@ -316,6 +318,8 @@ let dump_terminator' ?(print_reg = Printmach.reg) ?(args = [||]) ?(sep = "\n")
   | Raise _ -> fprintf ppf "Raise%a" print_args args
   | Tailcall (Self _) -> fprintf ppf "Tailcall self%a" print_args args
   | Tailcall (Func _) -> fprintf ppf "Tailcall%a" print_args args
+  | Poll_and_jump return_label ->
+    Format.fprintf ppf "Poll_and_jump %a" Label.print return_label
 
 let dump_terminator ?sep ppf terminator = dump_terminator' ?sep ppf terminator
 
@@ -351,7 +355,7 @@ let print_instruction ppf i = print_instruction' ppf i
 
 let can_raise_terminator (i : terminator) =
   match i with
-  | Raise _ | Tailcall (Func _) | Call_no_return _ -> true
+  | Raise _ | Tailcall (Func _) | Call_no_return _ | Poll_and_jump _ -> true
   | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Switch _ | Return
   | Tailcall (Self _) ->
@@ -402,7 +406,7 @@ let can_raise_basic : basic -> bool = function
    moment, which we might want to reconsider later. *)
 let is_pure_terminator desc =
   match (desc : terminator) with
-  | Raise _ | Call_no_return _ | Tailcall _ | Return -> false
+  | Raise _ | Call_no_return _ | Tailcall _ | Return | Poll_and_jump _ -> false
   | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Switch _ ->
     (* CR gyorsh: fix for memory operands *)

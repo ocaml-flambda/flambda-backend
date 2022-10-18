@@ -1227,7 +1227,12 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
            ap_specialised=Default_specialise;
            ap_probe=None;
          })
-  | Lprim(Pgetglobal id, [], loc) ->
+  | Lprim(Pgetglobal cu, [], loc) ->
+      let id = Compilation_unit.to_global_ident_for_legacy_code cu in
+      let dbg = Debuginfo.from_location loc in
+      check_constant_result (getglobal dbg id)
+                            (Compilenv.global_approx id)
+  | Lprim(Pgetpredef id, [], loc) ->
       let dbg = Debuginfo.from_location loc in
       check_constant_result (getglobal dbg id)
                             (Compilenv.global_approx id)
@@ -1237,11 +1242,12 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
       check_constant_result (Uprim(P.Pfield n, [ulam], dbg))
                             (field_approx n approx)
   | Lprim(Psetfield(n, is_ptr, init),
-          [Lprim(Pgetglobal id, [], _); lam], loc) ->
+          [Lprim(Pgetglobal cu, [], _); lam], loc) ->
       let (ulam, approx) = close env lam in
       if approx <> Value_unknown then
         (!global_approx).(n) <- approx;
       let dbg = Debuginfo.from_location loc in
+      let id = cu |> Compilation_unit.to_global_ident_for_legacy_code in
       (Uprim(P.Psetfield(n, is_ptr, init), [getglobal dbg id; ulam], dbg),
        Value_unknown)
   | Lprim(Praise k, [arg], loc) ->

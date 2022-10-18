@@ -92,7 +92,7 @@ module Transfer :
     | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
     | Switch _ | Return | Raise _
     | Tailcall (Func _)
-    | Call_no_return _ ->
+    | Call_no_return _ | Poll_and_jump _ ->
       instruction
         ~can_raise:(Cfg.can_raise_terminator instr.desc)
         ~exn domain instr
