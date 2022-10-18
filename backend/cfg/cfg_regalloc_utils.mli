@@ -26,8 +26,6 @@ module Instruction : sig
   module IdMap : MoreLabels.Map.S with type key = id
 end
 
-val first_instruction_id : Cfg.basic_block -> int
-
 type cfg_infos =
   { arg : Reg.Set.t;
     res : Reg.Set.t;

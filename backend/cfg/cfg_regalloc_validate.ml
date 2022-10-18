@@ -1180,7 +1180,7 @@ let test (desc : Description.t) (cfg : Cfg_with_layout.t) :
     let entrypoint_equations =
       let cfg = Cfg_with_layout.cfg cfg in
       let entry_block = Cfg.entry_label cfg |> Cfg.get_block_exn cfg in
-      let entry_id = Cfg_regalloc_utils.first_instruction_id entry_block in
+      let entry_id = Cfg.first_instruction_id entry_block in
       Cfg_dataflow.Instr.Tbl.find res_instr entry_id
     in
     verify_entrypoint entrypoint_equations desc cfg
