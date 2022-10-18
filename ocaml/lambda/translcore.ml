@@ -819,6 +819,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
           check = Default_check;
           is_a_functor = false;
           stub = false;
+          poll = Default_poll;
         } in
       let funcid = Ident.create_local ("probe_handler_" ^ name) in
       let handler =

@@ -581,6 +581,7 @@ and to_clambda_set_of_closures t env
       body = to_clambda t env_body function_decl.body;
       dbg = function_decl.dbg;
       env = Some env_var;
+      poll = function_decl.poll;
       mode = set_of_closures.alloc_mode;
       check = function_decl.check;
     }
@@ -636,6 +637,7 @@ and to_clambda_closed_set_of_closures t env symbol
       body;
       dbg = function_decl.dbg;
       env = None;
+      poll = function_decl.poll;
       mode = Lambda.alloc_heap;
       check = function_decl.check;
     }

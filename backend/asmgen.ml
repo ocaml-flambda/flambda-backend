@@ -25,6 +25,8 @@ open Cmm
 
 open Dwarf_ocaml
 
+module String = Misc.Stdlib.String
+
 type error =
   | Assembler_error of string
   | Mismatched_for_pack of Compilation_unit.Prefix.t
@@ -345,15 +347,20 @@ let register_allocator : register_allocator =
     | "" | "upstream" -> Upstream
     | _ -> Misc.fatal_errorf "unknown register allocator %S" id
 
-let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
+let compile_fundecl ?dwarf ~ppf_dump ~funcnames fd_cmm =
   Proc.init ();
   Reg.reset();
   fd_cmm
   ++ Profile.record ~accumulate:true "cmm_invariants" (cmm_invariants ppf_dump)
-  ++ Profile.record ~accumulate:true "selection" Selection.fundecl
+  ++ Profile.record ~accumulate:true "selection"
+       (Selection.fundecl ~future_funcnames:funcnames)
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_sel
   ++ pass_dump_if ppf_dump dump_selection "After instruction selection"
-  ++ Profile.record ~accumulate:true "save_mach_as_cfg" (save_mach_as_cfg Compiler_pass.Selection)
+  ++ Profile.record ~accumulate:true "save_mach_as_cfg"
+       (save_mach_as_cfg Compiler_pass.Selection)
+  ++ Profile.record ~accumulate:true "polling"
+       (Polling.instrument_fundecl ~future_funcnames:funcnames)
+  ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_polling
   ++ Profile.record ~accumulate:true "comballoc" Comballoc.fundecl
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_combine
   ++ pass_dump_if ppf_dump dump_combine "After allocation combining"
@@ -435,12 +442,31 @@ let compile_data dl =
   ++ save_data
   ++ emit_data
 
-let compile_phrase ?dwarf ~ppf_dump p =
-  if !dump_cmm then fprintf ppf_dump "%a@." Printcmm.phrase p;
-  match p with
-  | Cfunction fd -> compile_fundecl ?dwarf ~ppf_dump fd
-  | Cdata dl -> compile_data dl
+let compile_phrases ?dwarf ~ppf_dump ps =
+    let funcnames =
+      List.fold_left (fun s p ->
+          match p with
+          | Cfunction fd -> String.Set.add fd.fun_name s
+          | Cdata _ -> s)
+        String.Set.empty ps
+    in
+    let rec compile ~funcnames ps =
+      match ps with
+      | [] -> ()
+      | p :: ps ->
+          if !dump_cmm then fprintf ppf_dump "%a@." Printcmm.phrase p;
+          match p with
+          | Cfunction fd ->
+            compile_fundecl ?dwarf ~ppf_dump ~funcnames fd;
+            compile ~funcnames:(String.Set.remove fd.fun_name funcnames) ps
+          | Cdata dl ->
+            compile_data dl;
+            compile ~funcnames ps
+    in
+    compile ~funcnames ps
 
+let compile_phrase ?dwarf ~ppf_dump p =
+  compile_phrases ?dwarf ~ppf_dump [p]
 
 (* For the native toplevel: generates generic functions unless
    they are already available in the process *)
@@ -589,7 +615,7 @@ let end_gen_implementation0 unix ?toplevel ~ppf_dump ~sourcefile make_cmm =
   in
   make_cmm ()
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cmm
-  ++ Profile.record "compile_phrases" (List.iter (compile_phrase ?dwarf ~ppf_dump))
+  ++ Profile.record "compile_phrases" (compile_phrases ?dwarf ~ppf_dump)
   ++ (fun () -> ());
   (match toplevel with None -> () | Some f -> compile_genfuns ~ppf_dump f);
   (* We add explicit references to external primitive symbols.  This

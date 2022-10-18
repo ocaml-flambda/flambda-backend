@@ -787,8 +787,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             ~is_a_functor:false ~recursive
             ~cost_metrics (* CR poechsel: grab inlining arguments from fexpr. *)
             ~inlining_arguments:(Inlining_arguments.create ~round:0)
-            ~dbg:Debuginfo.none ~is_tupled ~is_my_closure_used
-            ~inlining_decision:Never_inline_attribute
+            ~poll_attribute:Default ~dbg:Debuginfo.none ~is_tupled
+            ~is_my_closure_used ~inlining_decision:Never_inline_attribute
             ~absolute_history:
               (Inlining_history.Absolute.empty
                  (Compilation_unit.get_current_exn ()))

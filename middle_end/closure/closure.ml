@@ -1421,6 +1421,7 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
                fun_closed = initially_closed;
                fun_inline = None;
                fun_float_const_prop = !Clflags.float_const_prop;
+               fun_poll = attr.poll;
                fun_region = region} in
             let dbg = Debuginfo.from_location loc in
             (id, params, return, body, mode, attrib, fundesc, dbg)
@@ -1474,6 +1475,7 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
         body   = ubody;
         dbg;
         env = Some env_param;
+        poll = fundesc.fun_poll;
         mode;
         check;
       }

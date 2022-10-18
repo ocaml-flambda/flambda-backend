@@ -292,7 +292,11 @@ let params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
     if Flambda_features.optimize_for_speed () then [] else [Cmm.Reduce_code_size]
   in
   let linkage_name = Linkage_name.to_string (Code_id.linkage_name code_id) in
-  C.fundecl linkage_name fun_args fun_body fun_flags fun_dbg, res
+  let fun_poll =
+    Env.get_code_metadata env code_id
+    |> Code_metadata.poll_attribute |> Poll_attribute.to_lambda
+  in
+  C.fundecl linkage_name fun_args fun_body fun_flags fun_dbg fun_poll, res
 
 let params_and_body env res code_id p ~fun_dbg ~check ~translate_expr =
   Function_params_and_body.pattern_match p

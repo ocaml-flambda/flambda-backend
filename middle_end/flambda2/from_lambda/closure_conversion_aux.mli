@@ -294,6 +294,8 @@ module Function_decls : sig
 
     val specialise : t -> Lambda.specialise_attribute
 
+    val poll_attribute : t -> Lambda.poll_attribute
+
     val is_a_functor : t -> bool
 
     val check_attribute : t -> Lambda.check_attribute

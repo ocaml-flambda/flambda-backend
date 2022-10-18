@@ -159,6 +159,7 @@ and function_body = private {
   check : Lambda.check_attribute;
   is_a_functor : bool;
   body : Flambda.t;
+  poll: Lambda.poll_attribute;
 }
 
 and function_declaration = private {

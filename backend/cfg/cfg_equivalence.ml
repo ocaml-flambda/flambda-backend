@@ -488,13 +488,17 @@ let check_terminator_instruction :
     check_tail_call_operation state location tc1 tc2
   | Call_no_return cn1, Call_no_return cn2 ->
     check_external_call_operation location cn1 cn2
+  | Poll_and_jump return_label1, Poll_and_jump return_label2
+    when Label.equal return_label1 return_label2 ->
+    ()
   | _ -> different location "terminator");
   (* CR xclerc for xclerc: temporary, for testing *)
   let check_arg =
     match expected.desc with
     | Always _ -> false
     | Never | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-    | Switch _ | Return | Raise _ | Tailcall _ | Call_no_return _ ->
+    | Switch _ | Return | Raise _ | Tailcall _ | Call_no_return _
+    | Poll_and_jump _ ->
       true
   in
   check_instruction ~check_live:false ~check_dbg:false ~check_arg (-1) location

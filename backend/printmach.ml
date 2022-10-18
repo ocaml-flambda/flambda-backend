@@ -202,6 +202,12 @@ let operation' ?(print_reg = reg) op arg ppf res =
   | Iendregion -> fprintf ppf "endregion %a" reg arg.(0)
   | Ispecific op ->
       Arch.print_specific_operation reg op ppf arg
+  | Ipoll { return_label } ->
+      fprintf ppf "poll call";
+      (match return_label with
+      | None -> ()
+      | Some return_label ->
+        fprintf ppf " returning to L%d" return_label)
   | Iprobe {name;handler_code_sym} ->
     fprintf ppf "probe \"%s\" %s %a" name handler_code_sym regs arg
   | Iprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled \"%s\"" name

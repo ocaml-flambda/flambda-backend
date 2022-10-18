@@ -27,6 +27,7 @@ type _ pass =
   | Raw_clambda : Clambda.ulambda pass
   | Clambda : Clambda.ulambda pass
 
+  | Mach_polling : Mach.fundecl pass
   | Mach_combine : Mach.fundecl pass
   | Mach_cse : Mach.fundecl pass
   | Mach_spill : Mach.fundecl pass
@@ -53,6 +54,7 @@ type t = {
   mutable flambda1 : (Flambda.program -> unit) list;
   mutable raw_clambda : (Clambda.ulambda -> unit) list;
   mutable clambda : (Clambda.ulambda -> unit) list;
+  mutable mach_polling : (Mach.fundecl -> unit) list;
   mutable mach_combine : (Mach.fundecl -> unit) list;
   mutable mach_cse : (Mach.fundecl -> unit) list;
   mutable mach_spill : (Mach.fundecl -> unit) list;
@@ -78,6 +80,7 @@ let hooks : t = {
   flambda1 = [];
   raw_clambda = [];
   clambda = [];
+  mach_polling = [];
   mach_combine = [];
   mach_cse = [];
   mach_spill = [];
@@ -111,6 +114,7 @@ let register : type a. a pass -> (a -> unit) -> unit =
   | Clambda -> hooks.clambda <- f :: hooks.clambda
 
   | Mach_combine -> hooks.mach_combine <- f :: hooks.mach_combine
+  | Mach_polling -> hooks.mach_polling <- f :: hooks.mach_polling
   | Mach_cse -> hooks.mach_cse <- f :: hooks.mach_cse
   | Mach_spill -> hooks.mach_spill <- f :: hooks.mach_spill
   | Mach_live -> hooks.mach_live <- f :: hooks.mach_live
@@ -137,6 +141,7 @@ let execute : type a. a pass -> a -> unit =
   | Flambda1 -> execute_hooks hooks.flambda1 arg
   | Raw_clambda -> execute_hooks hooks.raw_clambda arg
   | Clambda -> execute_hooks hooks.clambda arg
+  | Mach_polling -> execute_hooks hooks.mach_polling arg
   | Mach_combine -> execute_hooks hooks.mach_combine arg
   | Mach_cse -> execute_hooks hooks.mach_cse arg
   | Mach_spill -> execute_hooks hooks.mach_spill arg
@@ -165,6 +170,7 @@ let clear : type a. a pass -> unit =
   | Flambda1 -> hooks.flambda1 <- []
   | Raw_clambda -> hooks.raw_clambda <- []
   | Clambda -> hooks.clambda <- []
+  | Mach_polling -> hooks.mach_polling <- []
   | Mach_combine -> hooks.mach_combine <- []
   | Mach_cse -> hooks.mach_cse <- []
   | Mach_spill -> hooks.mach_spill <- []

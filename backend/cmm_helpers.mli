@@ -1190,6 +1190,7 @@ val fundecl :
   expression ->
   codegen_option list ->
   Debuginfo.t ->
+  Lambda.poll_attribute ->
   fundecl
 
 (** Create a cmm phrase for a function declaration. *)
