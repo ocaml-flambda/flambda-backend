@@ -1,4 +1,4 @@
-(setglobal Functors
+(setglobal Functors!
   (let
     (O =
        (module-defn(O) Functors functors.ml(12):184-279

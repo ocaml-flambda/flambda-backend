@@ -107,6 +107,12 @@ val of_string : string -> t
     should simply use [t] instead. *)
 val to_global_ident_for_bytecode : t -> Ident.t
 
+(** Create a global [Ident.t] representing this compilation unit. DO NOT USE
+    if you can possibly avoid it. Most uses of [Ident.t]s that are known to be
+    global should simply use [t] instead. *)
+(* CR mshinwell: Delete this as soon as the functor packs work is finished. *)
+val to_global_ident_for_legacy_code : t -> Ident.t
+
 (** Find whether one compilation unit has another as a child. That is, whether
     the other unit has this one as its path prefix. *)
 val is_parent : t -> child:t -> bool
@@ -127,6 +133,9 @@ val name : t -> Name.t
 
 (** The name of the compilation unit, excluding any [for_pack_prefix], as
     as a string. *)
+
+(* CR mshinwell: Try to delete this as soon as the functor packs work is
+   finished. *)
 val name_as_string : t -> string
 
 (** The "-for-pack" prefix associated with the given compilation unit. *)

@@ -276,6 +276,8 @@ let full_path_as_string t =
 let to_global_ident_for_bytecode t =
   Ident.create_persistent (full_path_as_string t)
 
+let to_global_ident_for_legacy_code = to_global_ident_for_bytecode
+
 let print_debug ppf { for_pack_prefix; hash = _; name } =
   if Prefix.is_empty for_pack_prefix then
     Format.fprintf ppf "@[<hov 1>(\
