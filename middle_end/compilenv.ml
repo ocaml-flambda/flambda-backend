@@ -160,7 +160,7 @@ let read_unit_info filename =
     end;
     let uir = (input_value ic : unit_infos_raw) in
     let first_section_offset = pos_in ic in
-    let sections = File_sections.create uir.uir_section_toc ic ~first_section_offset in
+    let sections = File_sections.create uir.uir_section_toc filename ic ~first_section_offset in
     seek_in ic (first_section_offset + uir.uir_sections_length);
     let export_info =
       match uir.uir_export_info with

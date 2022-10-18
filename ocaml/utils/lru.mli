@@ -2,11 +2,9 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*             Pierre Chambart, Nathanaëlle Courant, OCamlPro             *)
-(*                   Mark Shinwell, Jane Street Europe                    *)
+(*                     Nathanaëlle Courant, OCamlPro                      *)
 (*                                                                        *)
 (*   Copyright 2022 OCamlPro SAS                                          *)
-(*   Copyright 2022 Jane Street Group LLC                                 *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -14,24 +12,29 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** file sections cache *)
+module type LRUSlot =
+  sig
+    type uncached
+    type cached
 
-type t
+    val load : uncached -> cached
+    val unload : uncached -> cached -> unit
+  end
 
-val create : int array -> string -> in_channel -> first_section_offset:int -> t
+module type S =
+  sig
+    type t
+    type slot
+    type uncached
+    type cached
 
-val empty : t
+    val create : int -> t
 
-val length : t -> int
+    val add_slot : uncached -> cached -> t -> slot
 
-val get : t -> int -> Obj.t
+    val load_slot : slot -> t -> cached
 
-val to_array : t -> Obj.t array
+    val unload_all : t -> unit
+  end
 
-val close_all : unit -> unit
-
-val serialize : t -> string array * int array * int
-
-val from_array : Obj.t array -> t
-
-val concat : t -> t -> t
+module Make(Slot : LRUSlot) : S with type uncached = Slot.uncached and type cached = Slot.cached

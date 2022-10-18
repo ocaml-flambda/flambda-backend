@@ -2,7 +2,7 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*                       Pierre Chambart, OCamlPro                        *)
+(*             Pierre Chambart, Nathanaëlle Courant, OCamlPro             *)
 (*                   Mark Shinwell, Jane Street Europe                    *)
 (*                                                                        *)
 (*   Copyright 2022 OCamlPro SAS                                          *)
@@ -18,12 +18,23 @@ type section =
   | Loaded of Obj.t
   | Pending of { byte_offset_in_file : int }
 
+module FileLRUCache = Lru.Make (struct
+    type cached = in_channel
+    type uncached = string
+    let load = open_in_bin
+    let unload _ ic = close_in ic
+  end)
+
+let file_lru = FileLRUCache.create 128
+let () = at_exit (fun () -> FileLRUCache.unload_all file_lru)
+
 type t =
-  | From_file of { channel : in_channel; sections : section array }
+  | From_file of { channel : FileLRUCache.slot; sections : section array }
   | In_memory of Obj.t array
   | Cat of int * t * t (* For efficient concatenation *)
 
-let create section_toc channel ~first_section_offset =
+let create section_toc file channel ~first_section_offset =
+  let channel = FileLRUCache.add_slot file channel file_lru in
   if Array.length section_toc = 0 then
     In_memory [||]
   else
@@ -46,6 +57,7 @@ let read_section sections channel index =
   match sections.(index) with
   | Loaded section_contents -> section_contents
   | Pending { byte_offset_in_file } ->
+      let channel = FileLRUCache.load_slot channel file_lru in
       seek_in channel byte_offset_in_file;
       let section_contents : Obj.t = input_value channel in
       sections.(index) <- Loaded section_contents;

@@ -62,7 +62,7 @@
    config build_path_prefix_map misc identifiable numbers arg_helper clflags
    profile terminfo ccomp warnings consistbl strongly_connected_components
    targetint load_path int_replace_polymorphic_compare domainstate binutils
-   local_store target_system compilation_unit file_sections linkage_name symbol
+   local_store target_system compilation_unit lru file_sections linkage_name symbol
    lazy_backtrack diffing diffing_with_keys
 
    ;; PARSING
@@ -336,6 +336,7 @@
     (debug_event.mli as compiler-libs/debug_event.mli)
     (domainstate.mli as compiler-libs/domainstate.mli)
     (compilation_unit.mli as compiler-libs/compilation_unit.mli)
+    (lru.mli as compiler-libs/lru.mli)
     (file_sections.mli as compiler-libs/file_sections.mli)
     (linkage_name.mli as compiler-libs/linkage_name.mli)
     (symbol.mli as compiler-libs/symbol.mli)
