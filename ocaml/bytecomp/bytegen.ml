@@ -391,8 +391,10 @@ let comp_bint_primitive bi suff args =
 
 let comp_primitive p args =
   match p with
-    Pgetglobal cu -> Kgetglobal (cu |> Compilation_unit.to_global_ident_for_legacy_code)
-  | Psetglobal cu -> Ksetglobal (cu |> Compilation_unit.to_global_ident_for_legacy_code)
+    Pgetglobal cu ->
+      Kgetglobal (cu |> Compilation_unit.to_global_ident_for_legacy_code)
+  | Psetglobal cu ->
+      Ksetglobal (cu |> Compilation_unit.to_global_ident_for_legacy_code)
   | Pgetpredef id -> Kgetglobal id
   | Pintcomp cmp -> Kintcomp cmp
   | Pcompare_ints -> Kccall("caml_int_compare", 2)

@@ -89,7 +89,7 @@ type directive_info = {
   doc: string;
 }
 
-let remembered = ref (Ident.empty : (Ident.t * _) Ident.tbl)
+let remembered = ref Ident.empty
 
 let rec remember phrase_name i = function
   | [] -> ()

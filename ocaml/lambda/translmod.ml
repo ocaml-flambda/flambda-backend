@@ -1533,7 +1533,8 @@ let transl_store_gen ~scopes module_name ({ str_items = str }, restr) topl =
         assert (size = 0);
         Lambda.subst (fun _ _ env -> env) !transl_store_subst
           (transl_exp ~scopes expr)
-      | str -> transl_store_structure ~scopes compilation_unit map prims aliases str
+      | str ->
+        transl_store_structure ~scopes compilation_unit map prims aliases str
     in
     Translcore.declare_probe_handlers expr
   in

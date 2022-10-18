@@ -61,7 +61,7 @@ type directive_fun =
    | Directive_bool of (bool -> unit)
 
 
-let remembered = ref (Ident.empty : (Ident.t * _) Ident.tbl)
+let remembered = ref Ident.empty
 
 let rec remember phrase_name i = function
   | [] -> ()

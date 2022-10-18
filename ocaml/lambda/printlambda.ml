@@ -220,9 +220,9 @@ let primitive ppf = function
   | Pignore -> fprintf ppf "ignore"
   | Prevapply _ -> fprintf ppf "revapply"
   | Pdirapply _ -> fprintf ppf "dirapply"
-  | Pgetglobal cu -> fprintf ppf "global %a" Compilation_unit.print cu
-  | Psetglobal cu -> fprintf ppf "setglobal %a" Compilation_unit.print cu
-  | Pgetpredef id -> fprintf ppf "getpredef %a" Ident.print id
+  | Pgetglobal cu -> fprintf ppf "global %a!" Compilation_unit.print cu
+  | Psetglobal cu -> fprintf ppf "setglobal %a!" Compilation_unit.print cu
+  | Pgetpredef id -> fprintf ppf "getpredef %a!" Ident.print id
   | Pmakeblock(tag, Immutable, shape, mode) ->
       fprintf ppf "make%sblock %i%a"
         (alloc_mode mode) tag block_shape shape
