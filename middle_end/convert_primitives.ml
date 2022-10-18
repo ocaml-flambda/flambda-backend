@@ -164,7 +164,6 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pidentity
   | Pgetglobal _
   | Psetglobal _
-  | Pgetpredef _
     ->
       Misc.fatal_errorf "lambda primitive %a can't be converted to \
                          clambda primitive"

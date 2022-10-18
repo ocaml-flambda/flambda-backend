@@ -77,9 +77,8 @@ type primitive =
   | Prevapply of region_close
   | Pdirapply of region_close
     (* Globals *)
-  | Pgetglobal of Compilation_unit.t
-  | Psetglobal of Compilation_unit.t
-  | Pgetpredef of Ident.t
+  | Pgetglobal of Ident.t
+  | Psetglobal of Ident.t
   (* Operations on heap blocks *)
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakefloatblock of mutable_flag * alloc_mode
