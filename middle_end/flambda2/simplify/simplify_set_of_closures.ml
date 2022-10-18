@@ -397,9 +397,10 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
       ~contains_no_escaping_local_allocs:
         (Code.contains_no_escaping_local_allocs code)
       ~stub:(Code.stub code) ~inline:(Code.inline code) ~check:(Code.check code)
-      ~is_a_functor ~recursive:(Code.recursive code) ~cost_metrics
-      ~inlining_arguments ~dbg:(Code.dbg code) ~is_tupled:(Code.is_tupled code)
-      ~is_my_closure_used ~inlining_decision ~absolute_history ~relative_history
+      ~poll_attribute:(Code.poll_attribute code) ~is_a_functor
+      ~recursive:(Code.recursive code) ~cost_metrics ~inlining_arguments
+      ~dbg:(Code.dbg code) ~is_tupled:(Code.is_tupled code) ~is_my_closure_used
+      ~inlining_decision ~absolute_history ~relative_history
   in
   { code_id; code = Some code; outer_dacc }
 

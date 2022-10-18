@@ -237,6 +237,7 @@ let terminator (map : spilled_map) (term : Cfg.terminator Cfg.instruction) =
   | Raise _
   | Switch _
   | Tailcall _
-  | Call_no_return _ ->
+  | Call_no_return _
+  | Poll_and_jump _ ->
     (* no rewrite *)
     May_still_have_spilled_registers

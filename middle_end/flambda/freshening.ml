@@ -328,6 +328,7 @@ module Project_var = struct
             ~check:func_decl.check
             ~is_a_functor:func_decl.is_a_functor
             ~closure_origin:func_decl.closure_origin
+            ~poll:func_decl.poll
         in
         function_decl, subst
       in

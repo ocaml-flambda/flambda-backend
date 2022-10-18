@@ -1342,6 +1342,8 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
       ~contains_no_escaping_local_allocs:
         (Function_decl.contains_no_escaping_local_allocs decl)
       ~stub ~inline
+      ~poll_attribute:
+        (Poll_attribute.from_lambda (Function_decl.poll_attribute decl))
       ~check:(Check_attribute.from_lambda (Function_decl.check_attribute decl))
       ~is_a_functor:(Function_decl.is_a_functor decl)
       ~recursive ~newer_version_of:None ~cost_metrics
@@ -1448,6 +1450,9 @@ let close_functions acc external_env ~current_region function_declarations =
         let result_arity =
           Flambda_arity.With_subkinds.create [K.With_subkind.from_lambda return]
         in
+        let poll_attribute =
+          Poll_attribute.from_lambda (Function_decl.poll_attribute decl)
+        in
         let check =
           Check_attribute.from_lambda (Function_decl.check_attribute decl)
         in
@@ -1466,6 +1471,7 @@ let close_functions acc external_env ~current_region function_declarations =
             ~contains_no_escaping_local_allocs:
               (Function_decl.contains_no_escaping_local_allocs decl)
             ~stub:(Function_decl.stub decl) ~inline:Never_inline ~check
+            ~poll_attribute
             ~is_a_functor:(Function_decl.is_a_functor decl)
             ~recursive:(Function_decl.recursive decl)
             ~newer_version_of:None ~cost_metrics
@@ -1735,7 +1741,8 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
         local = Default_local;
         check = Default_check;
         is_a_functor = false;
-        stub = false
+        stub = false;
+        poll = Default_poll
       }
   in
   let free_idents_of_body =

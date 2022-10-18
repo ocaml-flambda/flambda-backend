@@ -616,6 +616,7 @@ and simplify_set_of_closures original_env r
         ~check:function_decl.check
         ~is_a_functor:function_decl.is_a_functor
         ~closure_origin:function_decl.closure_origin
+        ~poll:function_decl.poll
     in
     let used_params' = Flambda.used_params function_decl in
     Variable.Map.add fun_var function_decl funs,
@@ -864,7 +865,6 @@ and simplify_partial_application env r ~lhs_of_application
       ~alloc_mode:partial_mode
       ~region:function_decl.A.region
       ~params:remaining_args
-      ~stub:true
   in
   let with_known_args =
     Flambda_utils.bind
@@ -1499,6 +1499,7 @@ and duplicate_function ~env ~(set_of_closures : Flambda.set_of_closures)
       ~check:function_decl.check
       ~is_a_functor:function_decl.is_a_functor
       ~closure_origin:(Closure_origin.create (Closure_id.wrap new_fun_var))
+      ~poll:function_decl.poll
   in
   function_decl, specialised_args
 

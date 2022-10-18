@@ -240,6 +240,8 @@ let linearize_terminator cfg (terminator : Cfg.terminator Cfg.instruction)
               cond_successor_labels init,
             None )
       | _ -> assert false)
+    | Poll_and_jump return_label ->
+      [L.Lop (Ipoll { return_label = Some return_label })], None
   in
   ( List.fold_left
       (fun next desc -> to_linear_instr ~like:terminator desc ~next)
@@ -258,10 +260,11 @@ let need_starting_label (cfg_with_layout : CL.t) (block : Cfg.basic_block)
       (* This block has a single predecessor which appears in the layout
          immediately prior to this block. *)
       (* No need for the label, unless the predecessor's terminator is [Switch]
-         when the label is needed for the jump table. *)
+         when the label is needed for the jump table; or [Poll_and_jump], in
+         which case there will always be a jump to such label. *)
       (* CR-someday gyorsh: is this correct with label_after for calls? *)
       match prev_block.terminator.desc with
-      | Switch _ -> true
+      | Switch _ | Poll_and_jump _ -> true
       | Never -> Misc.fatal_error "Cannot linearize terminator: Never"
       | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _ ->
         (* If the label came from the original [Linear] code, preserve it for
