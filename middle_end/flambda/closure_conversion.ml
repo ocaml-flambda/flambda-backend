@@ -480,22 +480,27 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
       close t env
         (Lambda.Llet(Strict, Pgenval, Ident.create_local "dummy",
                      arg, Lconst const))
-  | Lprim (Pfield _, [Lprim (Pgetglobal id, [],_)], _)
-      when Ident.same id t.current_unit_id ->
+  | Lprim (Pfield _, [Lprim (Pgetglobal cu, [],_)], _)
+      when Ident.same (cu |> Compilation_unit.to_global_ident_for_legacy_code)
+             t.current_unit_id ->
     Misc.fatal_errorf "[Pfield (Pgetglobal ...)] for the current compilation \
         unit is forbidden upon entry to the middle end"
   | Lprim (Psetfield (_, _, _), [Lprim (Pgetglobal _, [], _); _], _) ->
     Misc.fatal_errorf "[Psetfield (Pgetglobal ...)] is \
         forbidden upon entry to the middle end"
-  | Lprim (Pgetglobal id, [], _) when Ident.is_predef id ->
+  | Lprim (Pgetpredef id, [], _) ->
+    assert (Ident.is_predef id);
     let symbol = Symbol.for_predef_ident id in
     t.imported_symbols <- Symbol.Set.add symbol t.imported_symbols;
     name_expr (Symbol symbol) ~name:Names.predef_exn
-  | Lprim (Pgetglobal id, [], _) ->
+  | Lprim (Pgetglobal cu, [], _) ->
+    let id = cu |> Compilation_unit.to_global_ident_for_legacy_code in
     assert (not (Ident.same id t.current_unit_id));
-    let symbol =
-      Symbol.for_global_or_predef_ident ((pack_prefix_for_global_ident t) id) id
+    let cu =
+      Compilation_unit.with_for_pack_prefix cu
+        (pack_prefix_for_global_ident t id)
     in
+    let symbol = Symbol.for_compilation_unit cu in
     t.imported_symbols <- Symbol.Set.add symbol t.imported_symbols;
     name_expr (Symbol symbol) ~name:Names.pgetglobal
   | Lprim (lambda_p, args, loc) ->
