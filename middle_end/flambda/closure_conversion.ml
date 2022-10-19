@@ -27,14 +27,6 @@ let name_expr_from_var = Flambda_utils.name_expr_from_var
 
 type t = {
   current_unit_id : Ident.t;
-<<<<<<< HEAD
-  filename : string;
-||||||| 24dbb0976a
-  symbol_for_global' : (Ident.t -> Symbol.t);
-  filename : string;
-=======
-  symbol_for_global' : (Ident.t -> Symbol.t);
->>>>>>> ocaml/4.14
   backend : (module Backend_intf.S);
   mutable imported_symbols : Symbol.Set.t;
   mutable declared_symbols : (Symbol.t * Flambda.constant_defining_value) list;
@@ -429,14 +421,8 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
         (If_then_else (cond, arg2, Var const_false)))
   | Lprim ((Psequand | Psequor), _, _) ->
     Misc.fatal_error "Psequand / Psequor must have exactly two arguments"
-<<<<<<< HEAD
-  | Lprim ((Pidentity | Pbytes_to_string | Pbytes_of_string | Pobj_magic),
+  | Lprim ((Pbytes_to_string | Pbytes_of_string | Pobj_magic),
            [arg], _) ->
-||||||| 24dbb0976a
-  | Lprim ((Pidentity | Pbytes_to_string | Pbytes_of_string), [arg], _) ->
-=======
-  | Lprim ((Pbytes_to_string | Pbytes_of_string), [arg], _) ->
->>>>>>> ocaml/4.14
     close t env arg
   | Lprim (Pignore, [arg], _) ->
     let var = Variable.create Names.ignore in
@@ -445,43 +431,6 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
     in
     Flambda.create_let var defining_expr
       (name_expr (Const (Int 0)) ~name:Names.unit)
-<<<<<<< HEAD
-  | Lprim (Pdirapply pos, [funct; arg], loc)
-  | Lprim (Prevapply pos, [arg; funct], loc) ->
-    let apply : Lambda.lambda_apply =
-      { ap_func = funct;
-        ap_args = [arg];
-        ap_region_close = pos;
-        ap_mode = Lambda.alloc_heap;
-        ap_loc = loc;
-        (* CR-someday lwhite: it would be nice to be able to give
-           application attributes to functions applied with the application
-           operators. *)
-        ap_tailcall = Default_tailcall;
-        ap_inlined = Default_inlined;
-        ap_specialised = Default_specialise;
-        ap_probe = None;
-      }
-    in
-    close t env (Lambda.Lapply apply)
-||||||| 24dbb0976a
-  | Lprim (Pdirapply, [funct; arg], loc)
-  | Lprim (Prevapply, [arg; funct], loc) ->
-    let apply : Lambda.lambda_apply =
-      { ap_func = funct;
-        ap_args = [arg];
-        ap_loc = loc;
-        (* CR-someday lwhite: it would be nice to be able to give
-           application attributes to functions applied with the application
-           operators. *)
-        ap_tailcall = Default_tailcall;
-        ap_inlined = Default_inline;
-        ap_specialised = Default_specialise;
-      }
-    in
-    close t env (Lambda.Lapply apply)
-=======
->>>>>>> ocaml/4.14
   | Lprim (Praise kind, [arg], loc) ->
     let arg_var = Variable.create Names.raise_arg in
     let dbg = Debuginfo.from_location loc in
@@ -764,17 +713,7 @@ let lambda_to_flambda ~backend ~module_ident ~size lam
     |> Ident.create_persistent
   in
   let t =
-<<<<<<< HEAD
     { current_unit_id;
-      filename;
-||||||| 24dbb0976a
-    { current_unit_id = Compilation_unit.get_persistent_ident compilation_unit;
-      symbol_for_global' = Backend.symbol_for_global';
-      filename;
-=======
-    { current_unit_id = Compilation_unit.get_persistent_ident compilation_unit;
-      symbol_for_global' = Backend.symbol_for_global';
->>>>>>> ocaml/4.14
       backend;
       imported_symbols = Symbol.Set.empty;
       declared_symbols = [];

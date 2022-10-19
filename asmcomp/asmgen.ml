@@ -25,13 +25,7 @@ open Cmm
 
 type error =
   | Assembler_error of string
-<<<<<<< HEAD
   | Mismatched_for_pack of Compilation_unit.Prefix.t
-||||||| 24dbb0976a
-  | Mismatched_for_pack of string option
-=======
-  | Mismatched_for_pack of string option
->>>>>>> ocaml/4.14
   | Asm_generation of string * Emitaux.error
 
 exception Error of error
@@ -142,16 +136,10 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   Reg.reset();
   fd_cmm
   ++ Profile.record ~accumulate:true "cmm_invariants" (cmm_invariants ppf_dump)
-<<<<<<< HEAD
-  ++ Profile.record ~accumulate:true "selection" Selection.fundecl
-||||||| 24dbb0976a
-  ++ Profile.record ~accumulate:true "selection" Selection.fundecl
-=======
   ++ Profile.record ~accumulate:true "selection"
                     (Selection.fundecl ~future_funcnames:funcnames)
   ++ Profile.record ~accumulate:true "polling"
                     (Polling.instrument_fundecl ~future_funcnames:funcnames)
->>>>>>> ocaml/4.14
   ++ pass_dump_if ppf_dump dump_selection "After instruction selection"
   ++ Profile.record ~accumulate:true "comballoc" Comballoc.fundecl
   ++ pass_dump_if ppf_dump dump_combine "After allocation combining"
@@ -329,13 +317,7 @@ let report_error ppf = function
      in
      fprintf ppf
        "This input file cannot be compiled %s: it was generated %s."
-<<<<<<< HEAD
        (msg (Compilation_unit.Prefix.from_clflags ())) (msg saved)
-||||||| 24dbb0976a
-       (msg !Clflags.for_package) (msg saved)
-=======
-       (msg !Clflags.for_package) (msg saved)
->>>>>>> ocaml/4.14
   | Asm_generation(fn, err) ->
      fprintf ppf
        "Error producing assembly code for function %s: %a"

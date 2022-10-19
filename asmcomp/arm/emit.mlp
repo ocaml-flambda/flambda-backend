@@ -74,33 +74,17 @@ let slot_offset env loc cl =
   | Outgoing n ->
       assert (n >= 0);
       n
-<<<<<<< HEAD
-  | Domainstate _ -> assert false (* not a stack slot *)
-||||||| 24dbb0976a
-=======
   | Domainstate _ -> assert false  (* not a stack slot *)
->>>>>>> ocaml/4.14
 
 (* Output a stack reference *)
 
 let emit_stack env r =
   match r.loc with
   | Stack (Domainstate n) ->
-<<<<<<< HEAD
-      let ofs =n + Domainstate.(idx_of_field Domain_extra_params) * 8 in
-||||||| 24dbb0976a
-=======
       let ofs = n + Domainstate.(idx_of_field Domain_extra_params) * 8 in
->>>>>>> ocaml/4.14
       `[domain_state_ptr, #{emit_int ofs}]`
   | Stack s ->
-<<<<<<< HEAD
-      let ofs = slot_offset s (register_class r) in
-||||||| 24dbb0976a
-      let ofs = slot_offset s (register_class r) in `[sp, #{emit_int ofs}]`
-=======
       let ofs = slot_offset env s (register_class r) in
->>>>>>> ocaml/4.14
       `[sp, #{emit_int ofs}]`
   | _ -> fatal_error "Emit_arm.emit_stack"
 
@@ -641,17 +625,13 @@ let emit_instr env i =
           `{emit_label lbl_frame}:	add	{emit_reg i.res.(0)}, alloc_ptr, #4\n`;
           1 + ninstr
         end
-<<<<<<< HEAD
     | Lop(Ialloc { mode = Alloc_local } | Ibeginregion | Iendregion) ->
        Misc.fatal_error "Local allocations not supported on this architecture"
-||||||| 24dbb0976a
-=======
     | Lop(Ipoll { return_label }) ->
         begin match return_label with
           None -> 0
         | Some lbl -> `     b    {emit_label lbl}\n`; 1
         end
->>>>>>> ocaml/4.14
     | Lop(Iintop(Icomp cmp)) ->
         `	cmp	{emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;
         1 + emit_set_condition cmp i.res.(0)
@@ -752,14 +732,8 @@ let emit_instr env i =
         | _ ->
             assert false
         end
-<<<<<<< HEAD
-    | Lop (Iname_for_debugger _) -> 0
     | Lop (Iprobe _ |Iprobe_is_enabled _) ->
       Misc.fatal_error ("Probes not supported.")
-||||||| 24dbb0976a
-    | Lop (Iname_for_debugger _) -> 0
-=======
->>>>>>> ocaml/4.14
     | Lreloadretaddr ->
         let n = frame_size env in
         `	ldr	lr, [sp, #{emit_int(n-4)}]\n`; 1

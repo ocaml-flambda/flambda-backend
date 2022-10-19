@@ -15,6 +15,8 @@
 
 (* Common functions for emitting assembly code *)
 
+module Int = Misc.Stdlib.Int
+
 type error =
   | Stack_frame_too_large of int
 
@@ -385,15 +387,13 @@ let create_asm_file = ref true
 let report_error ppf = function
   | Stack_frame_too_large n ->
       Format.fprintf ppf "stack frame too large (%d bytes)" n
-<<<<<<< HEAD
-||||||| 24dbb0976a
-=======
 
 let mk_env f : Emitenv.per_function_env =
   {
     f;
     stack_offset = 0;
     call_gc_sites = [];
+    local_realloc_sites = [];
     bound_error_sites = [];
     bound_error_call = None;
     call_gc_label = 0;
@@ -406,4 +406,3 @@ let mk_env f : Emitenv.per_function_env =
     symbol_literals = [];
     size_literals = 0;
   }
->>>>>>> ocaml/4.14

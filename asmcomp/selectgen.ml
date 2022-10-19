@@ -106,7 +106,6 @@ let oper_result_type = function
   | Cintoffloat -> typ_int
   | Craise _ -> typ_void
   | Ccheckbound -> typ_void
-<<<<<<< HEAD
   | Cprobe _ -> typ_void
   | Cprobe_is_enabled _ -> typ_int
   | Copaque -> typ_val
@@ -115,10 +114,6 @@ let oper_result_type = function
        naked pointer into the local allocation stack. *)
     typ_int
   | Cendregion -> typ_void
-||||||| 24dbb0976a
-=======
-  | Copaque -> typ_val
->>>>>>> ocaml/4.14
 
 (* Infer the size in bytes of the result of an expression whose evaluation
    may be deferred (cf. [emit_parts]). *)
@@ -356,16 +351,10 @@ method is_simple_expr = function
   | Cop(op, args, _) ->
       begin match op with
         (* The following may have side effects *)
-<<<<<<< HEAD
       | Capply _ | Cextcall _ | Calloc _ | Cstore _
       | Craise _ | Ccheckbound
       | Cprobe _ | Cprobe_is_enabled _ | Copaque -> false
       | Cbeginregion | Cendregion -> false (* avoid reordering *)
-||||||| 24dbb0976a
-      | Capply _ | Cextcall _ | Calloc | Cstore _ | Craise _ -> false
-=======
-      | Capply _ | Cextcall _ | Calloc | Cstore _ | Craise _ | Copaque -> false
->>>>>>> ocaml/4.14
         (* The remaining operations are simple if their args are *)
       | Cload _ | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi | Cand | Cor
       | Cxor | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf
@@ -404,17 +393,9 @@ method effects_of exp =
   | Cop (op, args, _) ->
     let from_op =
       match op with
-<<<<<<< HEAD
       | Capply _ | Cextcall _ | Cprobe _ | Copaque -> EC.arbitrary
       | Calloc Alloc_heap -> EC.none
       | Calloc Alloc_local -> EC.coeffect_only Coeffect.Arbitrary
-||||||| 24dbb0976a
-      | Capply _ | Cextcall _ -> EC.arbitrary
-      | Calloc -> EC.none
-=======
-      | Capply _ | Cextcall _ | Copaque -> EC.arbitrary
-      | Calloc -> EC.none
->>>>>>> ocaml/4.14
       | Cstore _ -> EC.effect_only Effect.Arbitrary
       | Cbeginregion | Cendregion -> EC.arbitrary
       | Craise _ | Ccheckbound -> EC.effect_only Effect.Raise
@@ -631,7 +612,7 @@ method insert_move env src dst =
     self#insert env (Iop Imove) [|src|] [|dst|]
 
 method insert_moves env src dst =
-  for i = 0 to Stdlib.Int.min (Array.length src) (Array.length dst) - 1 do
+  for i = 0 to Misc.Stdlib.Int.min (Array.length src) (Array.length dst) - 1 do
     self#insert_move env src.(i) dst.(i)
   done
 
@@ -740,18 +721,6 @@ method emit_expr (env:environment) exp =
           dbg, Cconst_int (0, dbg),
           dbg))
   | Cop(Copaque, args, dbg) ->
-<<<<<<< HEAD
-||||||| 24dbb0976a
-  | Cop(op, args, dbg) ->
-=======
-      begin match self#emit_parts_list env args with
-        None -> None
-      | Some (simple_args, env) ->
-         let rs = self#emit_tuple env simple_args in
-         Some (self#insert_op_debug env Iopaque dbg rs rs)
-      end
-  | Cop(op, args, dbg) ->
->>>>>>> ocaml/4.14
       begin match self#emit_parts_list env args with
         None -> None
       | Some (simple_args, env) ->

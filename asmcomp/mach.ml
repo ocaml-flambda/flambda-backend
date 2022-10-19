@@ -61,18 +61,10 @@ type operation =
   | Ifloatofint | Iintoffloat
   | Iopaque
   | Ispecific of Arch.specific_operation
-<<<<<<< HEAD
-  | Iname_for_debugger of { ident : Backend_var.t; which_parameter : int option;
-      provenance : unit option; is_assignment : bool; }
+  | Ipoll of { return_label: Cmm.label option }
   | Iprobe of { name: string; handler_code_sym: string; }
   | Iprobe_is_enabled of { name: string }
   | Ibeginregion | Iendregion
-||||||| 24dbb0976a
-  | Iname_for_debugger of { ident : Backend_var.t; which_parameter : int option;
-      provenance : unit option; is_assignment : bool; }
-=======
-  | Ipoll of { return_label: Cmm.label option }
->>>>>>> ocaml/4.14
 
 type instruction =
   { desc: instruction_desc;
@@ -159,17 +151,11 @@ let rec instr_iter f i =
 
 let operation_is_pure = function
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
-<<<<<<< HEAD
-  | Iextcall _ | Istackoffset _ | Istore _ | Ialloc _
+  | Iextcall _ | Istackoffset _ | Istore _ | Ialloc _ | Ipoll _
   | Iintop(Icheckbound) | Iintop_imm(Icheckbound, _) | Iopaque -> false
   | Ibeginregion | Iendregion -> false
   | Iprobe _ -> false
   | Iprobe_is_enabled _-> true
-||||||| 24dbb0976a
-=======
-  | Iextcall _ | Istackoffset _ | Istore _ | Ialloc _ | Ipoll _
-  | Iintop(Icheckbound) | Iintop_imm(Icheckbound, _) | Iopaque -> false
->>>>>>> ocaml/4.14
   | Ispecific sop -> Arch.operation_is_pure sop
   | _ -> true
 
@@ -177,13 +163,7 @@ let operation_can_raise op =
   match op with
   | Icall_ind | Icall_imm _ | Iextcall _
   | Iintop (Icheckbound) | Iintop_imm (Icheckbound, _)
-<<<<<<< HEAD
   | Iprobe _
-  | Ialloc _ -> true
-||||||| 24dbb0976a
-  | Ialloc _ -> true
-=======
   | Ialloc _ | Ipoll _ -> true
->>>>>>> ocaml/4.14
   | Ispecific sop -> Arch.operation_can_raise sop
   | _ -> false

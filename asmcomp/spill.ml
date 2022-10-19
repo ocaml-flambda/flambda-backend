@@ -18,6 +18,7 @@
 
 open Reg
 open Mach
+module Int = Misc.Stdlib.Int
 
 (* We say that a register is "destroyed" if it is live across a construct
    that potentially destroys all physical registers: function calls or

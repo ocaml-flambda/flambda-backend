@@ -70,14 +70,8 @@ let rec combine i allocstate =
           i.arg i.res i.dbg next, allocstate)
       end
   | Iop(Icall_ind | Icall_imm _ | Iextcall _ |
-<<<<<<< HEAD
-        Itailcall_ind | Itailcall_imm _ | Iprobe _ |
+        Itailcall_ind | Itailcall_imm _ | Iprobe _ | Ipoll _ |
         Iintop Icheckbound | Iintop_imm (Icheckbound, _)) ->
-||||||| 24dbb0976a
-        Itailcall_ind | Itailcall_imm _) ->
-=======
-        Itailcall_ind | Itailcall_imm _ | Ipoll _) ->
->>>>>>> ocaml/4.14
       let newnext = combine_restart i.next in
       (instr_cons_debug i.desc i.arg i.res i.dbg newnext,
        allocstate)

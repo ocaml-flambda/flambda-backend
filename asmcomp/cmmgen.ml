@@ -1202,15 +1202,7 @@ and transl_let env str kind id exp transl_body =
       (* N.B. [body] must still be traversed even if [exp] will never return:
          there may be constant closures inside that need lifting out. *)
       begin match str, kind with
-<<<<<<< HEAD
       | (Immutable | Immutable_unique), _ -> Clet(id, cexp, transl_body env)
-||||||| 24dbb0976a
-      | Immutable, _ -> Clet(id, cexp, transl env body)
-      | Mutable, Pintval -> Clet_mut(id, typ_int, cexp, transl env body)
-      | Mutable, _ -> Clet_mut(id, typ_val, cexp, transl env body)
-=======
-      | Immutable, _ -> Clet(id, cexp, transl_body env)
->>>>>>> ocaml/4.14
       | Mutable, Pintval -> Clet_mut(id, typ_int, cexp, transl_body env)
       | Mutable, _ -> Clet_mut(id, typ_val, cexp, transl_body env)
       end

@@ -150,41 +150,20 @@ let operation op arg ppf res =
   | Ifloatofint -> fprintf ppf "floatofint %a" reg arg.(0)
   | Iintoffloat -> fprintf ppf "intoffloat %a" reg arg.(0)
   | Iopaque -> fprintf ppf "opaque %a" reg arg.(0)
-<<<<<<< HEAD
-  | Iname_for_debugger { ident; which_parameter; } ->
-    fprintf ppf "name_for_debugger %a%s=%a"
-      V.print ident
-      (match which_parameter with
-        | None -> ""
-        | Some index -> sprintf "[P%d]" index)
-      reg arg.(0)
   | Ibeginregion -> fprintf ppf "beginregion"
   | Iendregion -> fprintf ppf "endregion %a" reg arg.(0)
-||||||| 24dbb0976a
-  | Iname_for_debugger { ident; which_parameter; } ->
-    fprintf ppf "name_for_debugger %a%s=%a"
-      V.print ident
-      (match which_parameter with
-        | None -> ""
-        | Some index -> sprintf "[P%d]" index)
-      reg arg.(0)
-=======
->>>>>>> ocaml/4.14
   | Ispecific op ->
       Arch.print_specific_operation reg op ppf arg
-<<<<<<< HEAD
-  | Iprobe {name;handler_code_sym} ->
-    fprintf ppf "probe \"%s\" %s %a" name handler_code_sym regs arg
-  | Iprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled \"%s\"" name
-||||||| 24dbb0976a
-=======
   | Ipoll { return_label } ->
       fprintf ppf "poll call";
-      match return_label with
+      begin match return_label with
       | None -> ()
       | Some return_label ->
         fprintf ppf " returning to L%d" return_label
->>>>>>> ocaml/4.14
+      end
+  | Iprobe {name;handler_code_sym} ->
+    fprintf ppf "probe \"%s\" %s %a" name handler_code_sym regs arg
+  | Iprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled \"%s\"" name
 
 let rec instr ppf i =
   if !Clflags.dump_live then begin

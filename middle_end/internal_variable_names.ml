@@ -221,14 +221,8 @@ let pfloatcomp_arg = "Pfloatcomp_arg"
 let pfloatfield_arg = "Pfloatfield_arg"
 let pfloatofint_arg = "Pfloatofint_arg"
 let pgetglobal_arg = "Pgetglobal_arg"
-<<<<<<< HEAD
 let pobj_dup_arg = "Pobj_dup_arg"
 let pobj_magic_arg = "Pobj_magic_arg"
-let pidentity_arg = "Pidentity_arg"
-||||||| 24dbb0976a
-let pidentity_arg = "Pidentity_arg"
-=======
->>>>>>> ocaml/4.14
 let pignore_arg = "Pignore_arg"
 let pint_as_pointer_arg = "Pint_as_pointer_arg"
 let pintcomp_arg = "Pintcomp_arg"
@@ -322,14 +316,6 @@ let of_primitive : Lambda.primitive -> string = function
   | Pbytes_of_string -> pbytes_of_string
   | Pbytes_to_string -> pbytes_to_string
   | Pignore -> pignore
-<<<<<<< HEAD
-  | Prevapply _ -> prevapply
-  | Pdirapply _ -> pdirapply
-||||||| 24dbb0976a
-  | Prevapply -> prevapply
-  | Pdirapply -> pdirapply
-=======
->>>>>>> ocaml/4.14
   | Pgetglobal _ -> pgetglobal
   | Psetglobal _ -> psetglobal
   | Pmakeblock _ -> pmakeblock
@@ -437,14 +423,6 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pbytes_of_string -> pbytes_of_string_arg
   | Pbytes_to_string -> pbytes_to_string_arg
   | Pignore -> pignore_arg
-<<<<<<< HEAD
-  | Prevapply _ -> prevapply_arg
-  | Pdirapply _ -> pdirapply_arg
-||||||| 24dbb0976a
-  | Prevapply -> prevapply_arg
-  | Pdirapply -> pdirapply_arg
-=======
->>>>>>> ocaml/4.14
   | Pgetglobal _ -> pgetglobal_arg
   | Psetglobal _ -> psetglobal_arg
   | Pmakeblock _ -> pmakeblock_arg

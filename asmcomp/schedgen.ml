@@ -18,6 +18,7 @@
 open Reg
 open Mach
 open Linear
+module Int = Misc.Stdlib.Int
 
 (* Representation of the code DAG. *)
 
@@ -154,14 +155,8 @@ method oper_in_basic_block = function
   | Itailcall_imm _ -> false
   | Iextcall _ -> false
   | Istackoffset _ -> false
-<<<<<<< HEAD
-  | Ialloc _ -> false
-  | Iprobe _ -> false
-||||||| 24dbb0976a
-  | Ialloc _ -> false
-=======
   | Ialloc _ | Ipoll _ -> false
->>>>>>> ocaml/4.14
+  | Iprobe _ -> false
   | _ -> true
 
 (* Determine whether an instruction ends a basic block or not *)

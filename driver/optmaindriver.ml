@@ -137,14 +137,6 @@ let main argv ppf =
     Location.report_exception ppf x;
     2
   | () ->
-<<<<<<< HEAD
-    Profile.print Format.std_formatter !Clflags.profile_columns ~timings_precision:!Clflags.timings_precision;
-    0
-||||||| 24dbb0976a
-    Profile.print Format.std_formatter !Clflags.profile_columns;
-    0
-=======
       Compmisc.with_ppf_dump ~file_prefix:"profile"
-        (fun ppf -> Profile.print ppf !Clflags.profile_columns);
+        (fun ppf -> Profile.print ppf !Clflags.profile_columns ~timings_precision:!Clflags.timings_precision);
       0
->>>>>>> ocaml/4.14

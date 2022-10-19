@@ -793,22 +793,13 @@ let bind_params { backend; mutable_vars; _ } loc fdesc params args funct body =
           let p1' = VP.rename p1 in
           let u1, u2 =
             match VP.name p1, a1 with
-<<<<<<< HEAD
-            | "*opt*", Uprim(P.Pmakeblock(0, Immutable, kind, mode),
-                             [a], dbg) ->
-                a, Uprim(P.Pmakeblock(0, Immutable, kind, mode),
-||||||| 24dbb0976a
-            | "*opt*", Uprim(P.Pmakeblock(0, Immutable, kind), [a], dbg) ->
-                a, Uprim(P.Pmakeblock(0, Immutable, kind),
-=======
-            | "*opt*", Uprim(P.Pmakeblock(0, Immutable, kind), [a], dbg) ->
+            | "*opt*", Uprim(P.Pmakeblock(0, Immutable, kind, mode), [a], dbg) ->
                 (* This parameter corresponds to an optional parameter,
                    and although it is used twice pushing the expression down
                    actually allows us to remove the allocation as it will
                    appear once under a Pisint primitive and once under a Pfield
                    primitive (see [simplif_prim_pure]) *)
-                a, Uprim(P.Pmakeblock(0, Immutable, kind),
->>>>>>> ocaml/4.14
+                a, Uprim(P.Pmakeblock(0, Immutable, kind, mode),
                          [Uvar (VP.var p1')], dbg)
             | _ ->
                 a1, Uvar (VP.var p1')
@@ -833,17 +824,6 @@ let bind_params { backend; mutable_vars; _ } loc fdesc params args funct body =
        params, args, (if is_pure funct then body else Usequence (funct, body))
   in
   aux V.Map.empty params args body
-<<<<<<< HEAD
-
-(* Check if a lambda term is ``pure'',
-   that is without side-effects *and* not containing function definitions *)
-||||||| 24dbb0976a
-  aux V.Map.empty (List.rev params) (List.rev args) body
-
-(* Check if a lambda term is ``pure'',
-   that is without side-effects *and* not containing function definitions *)
-=======
->>>>>>> ocaml/4.14
 
 let warning_if_forced_inlined ~loc ~attribute warning =
   if attribute = Always_inlined then
@@ -858,7 +838,6 @@ let fail_if_probe ~probe msg =
 
 (* Generate a direct application *)
 
-<<<<<<< HEAD
 let direct_apply env fundesc ufunct uargs pos mode ~probe ~loc ~attribute =
   match fundesc.fun_inline, attribute with
   | _, Never_inlined
@@ -910,64 +889,6 @@ let direct_apply env fundesc ufunct uargs pos mode ~probe ~loc ~attribute =
        | Rc_normal | Rc_nontail -> body
        | Rc_close_at_apply -> tail body
      in
-||||||| 24dbb0976a
-let direct_apply env fundesc ufunct uargs ~loc ~attribute =
-  let app_args =
-    if fundesc.fun_closed then uargs else uargs @ [ufunct] in
-  let app =
-    match fundesc.fun_inline, attribute with
-    | _, Never_inline | None, _ ->
-      let dbg = Debuginfo.from_location loc in
-        warning_if_forced_inline ~loc ~attribute
-          "Function information unavailable";
-        Udirect_apply(fundesc.fun_label, app_args, dbg)
-    | Some(params, body), _  ->
-        bind_params env loc fundesc.fun_float_const_prop params app_args
-          body
-  in
-  (* If ufunct can contain side-effects or function definitions,
-     we must make sure that it is evaluated exactly once.
-     If the function is not closed, we evaluate ufunct as part of the
-     arguments.
-     If the function is closed, we force the evaluation of ufunct first. *)
-  if not fundesc.fun_closed || is_pure ufunct
-  then app
-  else Usequence(ufunct, app)
-=======
-let direct_apply env fundesc ufunct uargs ~loc ~attribute =
-  match fundesc.fun_inline, attribute with
-  | _, Never_inline
-  | None, _ ->
-     let dbg = Debuginfo.from_location loc in
-     warning_if_forced_inline ~loc ~attribute
-       "Function information unavailable";
-     if fundesc.fun_closed && is_pure ufunct then
-       Udirect_apply(fundesc.fun_label, uargs, dbg)
-     else if not fundesc.fun_closed &&
-               is_substituable ~mutable_vars:env.mutable_vars ufunct then
-       Udirect_apply(fundesc.fun_label, uargs @ [ufunct], dbg)
-     else begin
-       let args = List.map (fun arg ->
-         if is_substituable ~mutable_vars:env.mutable_vars arg then
-           None, arg
-         else
-           let id = V.create_local "arg" in
-           Some (VP.create id, arg), Uvar id) uargs in
-       let app_args = List.map snd args in
-       List.fold_left (fun app (binding,_) ->
-           match binding with
-           | None -> app
-           | Some (v, e) -> Ulet(Immutable, Pgenval, v, e, app))
-         (if fundesc.fun_closed then
-            Usequence (ufunct, Udirect_apply (fundesc.fun_label, app_args, dbg))
-          else
-            let clos = V.create_local "clos" in
-            Ulet(Immutable, Pgenval, VP.create clos, ufunct,
-                 Udirect_apply(fundesc.fun_label, app_args @ [Uvar clos], dbg)))
-         args
-       end
-  | Some(params, body), _  ->
->>>>>>> ocaml/4.14
      bind_params env loc fundesc params uargs ufunct body
 
 (* Add [Value_integer] info to the approximation of an application *)
@@ -1143,57 +1064,25 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
           if fundesc.fun_region then alloc_heap else alloc_local
         in
         let (new_fun, approx) = close { backend; fenv; cenv; mutable_vars }
-<<<<<<< HEAD
-          (Lfunction{
-               kind;
-               return = Pgenval;
-               params = List.map (fun v -> v, Pgenval) final_args;
-               body = Lapply{
-                 ap_loc=loc;
-                 ap_func=(Lvar funct_var);
-                 ap_args=internal_args;
-                 ap_region_close=Rc_normal;
-                 ap_mode=ret_mode;
-                 ap_tailcall=Default_tailcall;
-                 ap_inlined=Default_inlined;
-                 ap_specialised=Default_specialise;
-                 ap_probe=None;
-               };
-               loc;
-               mode = new_clos_mode;
-               region = fundesc.fun_region;
-               attr = default_function_attribute})
-||||||| 24dbb0976a
-          (Lfunction{
-               kind = Curried;
-               return = Pgenval;
-               params = List.map (fun v -> v, Pgenval) final_args;
-               body = Lapply{
-                 ap_loc=loc;
-                 ap_func=(Lvar funct_var);
-                 ap_args=internal_args;
-                 ap_tailcall=Default_tailcall;
-                 ap_inlined=Default_inline;
-                 ap_specialised=Default_specialise;
-               };
-               loc;
-               attr = default_function_attribute})
-=======
           (lfunction
-             ~kind:Curried
+             ~kind
              ~return:Pgenval
              ~params:(List.map (fun v -> v, Pgenval) final_args)
              ~body:(Lapply{
                 ap_loc=loc;
                 ap_func=(Lvar funct_var);
                 ap_args=internal_args;
+                ap_region_close=Rc_normal;
+                ap_mode=ret_mode;
                 ap_tailcall=Default_tailcall;
-                ap_inlined=Default_inline;
+                ap_inlined=Default_inlined;
                 ap_specialised=Default_specialise;
+                ap_probe=None;
               })
              ~loc
+             ~mode:new_clos_mode
+             ~region:fundesc.fun_region
              ~attr:default_function_attribute)
->>>>>>> ocaml/4.14
         in
         let new_fun =
           iter first_args
@@ -1326,44 +1215,9 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
   | Lprim(Pignore, [arg], _loc) ->
       let expr, approx = make_const_int 0 in
       Usequence(fst (close env arg), expr), approx
-<<<<<<< HEAD
-  | Lprim((Pidentity | Pbytes_to_string | Pbytes_of_string | Pobj_magic),
+  | Lprim((Pbytes_to_string | Pbytes_of_string | Pobj_magic),
           [arg], _loc) ->
-||||||| 24dbb0976a
-  | Lprim((Pidentity | Pbytes_to_string | Pbytes_of_string), [arg], _loc) ->
-=======
-  | Lprim((Pbytes_to_string | Pbytes_of_string), [arg], _loc) ->
->>>>>>> ocaml/4.14
       close env arg
-<<<<<<< HEAD
-  | Lprim(Pdirapply pos,[funct;arg], loc)
-  | Lprim(Prevapply pos,[arg;funct], loc) ->
-      close env
-        (Lapply{
-           ap_loc=loc;
-           ap_func=funct;
-           ap_args=[arg];
-           ap_region_close=pos;
-           ap_mode=alloc_heap;
-           ap_tailcall=Default_tailcall;
-           ap_inlined=Default_inlined;
-           ap_specialised=Default_specialise;
-           ap_probe=None;
-         })
-||||||| 24dbb0976a
-  | Lprim(Pdirapply,[funct;arg], loc)
-  | Lprim(Prevapply,[arg;funct], loc) ->
-      close env
-        (Lapply{
-           ap_loc=loc;
-           ap_func=funct;
-           ap_args=[arg];
-           ap_tailcall=Default_tailcall;
-           ap_inlined=Default_inline;
-           ap_specialised=Default_specialise;
-         })
-=======
->>>>>>> ocaml/4.14
   | Lprim(Pgetglobal id, [], loc) ->
       let dbg = Debuginfo.from_location loc in
       check_constant_result (getglobal dbg id)
@@ -1534,22 +1388,12 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
   let uncurried_defs =
     List.map
       (function
-<<<<<<< HEAD
-          (id, Lfunction({kind; params; return; body; loc; mode; region}
-                         as funct)) ->
-            Lambda.check_lfunction funct;
+          (id, Lfunction {kind; params; return; body; loc; mode; region; attr}) ->
             let label =
               Symbol.for_local_ident id
               |> Symbol.linkage_name
               |> Linkage_name.to_string
             in
-||||||| 24dbb0976a
-          (id, Lfunction{kind; params; return; body; loc}) ->
-            let label = Compilenv.make_symbol (Some (V.unique_name id)) in
-=======
-          (id, Lfunction{kind; params; return; body; loc; attr}) ->
-            let label = Compilenv.make_symbol (Some (V.unique_name id)) in
->>>>>>> ocaml/4.14
             let arity = List.length params in
             let fundesc =
               {fun_label = label;
@@ -1557,13 +1401,8 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
                fun_closed = initially_closed;
                fun_inline = None;
                fun_float_const_prop = !Clflags.float_const_prop;
-<<<<<<< HEAD
-               fun_region = region} in
-||||||| 24dbb0976a
-               fun_float_const_prop = !Clflags.float_const_prop } in
-=======
+               fun_region = region;
                fun_poll = attr.poll } in
->>>>>>> ocaml/4.14
             let dbg = Debuginfo.from_location loc in
             (id, params, return, body, mode, fundesc, dbg)
         | (_, _) -> fatal_error "Closure.close_functions")
@@ -1616,12 +1455,8 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
         body   = ubody;
         dbg;
         env = Some env_param;
-<<<<<<< HEAD
         mode;
-||||||| 24dbb0976a
-=======
         poll = fundesc.fun_poll
->>>>>>> ocaml/4.14
       }
     in
     (* give more chance of function with default parameters (i.e.

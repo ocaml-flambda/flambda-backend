@@ -22,6 +22,11 @@ type gc_call =
     gc_frame_lbl: label;                (* Label of frame descriptor *)
   }
 
+(* Record calls to local stack reallocation *)
+type local_realloc_call =
+  { lr_lbl: label;
+    lr_return_lbl: label; }
+
 (* Record calls to caml_ml_array_bound_error.
    In -g mode, we maintain one call to caml_ml_array_bound_error
    per bound check site.  Without -g, we can share a single call. *)
@@ -71,6 +76,7 @@ type per_function_env = {
   mutable stack_offset : int;
   mutable call_gc_sites : gc_call list;  (* used in all targets except power *)
   mutable call_gc_label : label;                       (* used only in power *)
+  mutable local_realloc_sites : local_realloc_call list;
   mutable bound_error_sites : bound_error_call list;
                                          (* used in all targets except power *)
   mutable bound_error_call : label option;       (* used in amd64,i386,s390x *)

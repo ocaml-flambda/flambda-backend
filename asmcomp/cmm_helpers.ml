@@ -770,18 +770,17 @@ let int_array_set arr ofs newval dbg =
   Cop(Cstore (Word_int, Assignment),
     [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
 let float_array_set arr ofs newval dbg =
-<<<<<<< HEAD
   Cop(Cstore (Double, Assignment),
-||||||| 24dbb0976a
-  Cop(Cstore (Double_u, Lambda.Assignment),
-=======
-  Cop(Cstore (Double, Lambda.Assignment),
->>>>>>> ocaml/4.14
     [array_indexing log2_size_float arr ofs dbg; newval], dbg)
 
 let addr_array_set_local arr ofs newval dbg =
   Cop(Cextcall("caml_modify_local", typ_void, [], false),
       [arr; untag_int ofs dbg; newval], dbg)
+
+let addr_array_initialize arr ofs newval dbg =
+  Cop(Cextcall("caml_initialize", typ_void, [], false),
+      [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
+
 
 (* String length *)
 
@@ -1566,14 +1565,10 @@ struct
   let gtint = Ccmpi Cgt
 
   type loc = Debuginfo.t
-<<<<<<< HEAD
   type value_kind = unit
-||||||| 24dbb0976a
-=======
   type arg = expression
   type test = expression
   type act = expression
->>>>>>> ocaml/4.14
 
   (* CR mshinwell: GPR#2294 will fix the Debuginfo here *)
 
@@ -1582,15 +1577,9 @@ struct
   let make_offset arg n = add_const arg n Debuginfo.none
   let make_isout h arg = Cop (Ccmpa Clt, [h ; arg], Debuginfo.none)
   let make_isin h arg = Cop (Ccmpa Cge, [h ; arg], Debuginfo.none)
-<<<<<<< HEAD
-  let make_if () cond ifso ifnot =
-||||||| 24dbb0976a
-  let make_if cond ifso ifnot =
-=======
   let make_is_nonzero arg = arg
   let arg_as_test arg = arg
-  let make_if cond ifso ifnot =
->>>>>>> ocaml/4.14
+  let make_if () cond ifso ifnot =
     Cifthenelse (cond, Debuginfo.none, ifso, Debuginfo.none, ifnot,
       Debuginfo.none)
   let make_switch dbg () arg cases actions =
@@ -2347,6 +2336,7 @@ type binary_primitive = expression -> expression -> Debuginfo.t -> expression
 type assignment_kind =
     | Caml_modify
     | Caml_modify_local
+    | Caml_initialize (* never local *)
     | Simple of initialization_or_assignment
 
 let assignment_kind
@@ -2358,7 +2348,7 @@ let assignment_kind
     assert Config.stack_allocation;
     Caml_modify_local
   | Heap_initialization, _ ->
-     Misc.fatal_error "Cmm_helpers: Lambda.Heap_initialization unsupported"
+     Caml_initialize
   | (Assignment _), Immediate -> Simple Assignment
   | Root_initialization, (Immediate | Pointer) -> Simple Initialization
 
@@ -2373,6 +2363,11 @@ let setfield n ptr init arg1 arg2 dbg =
       return_unit dbg
         (Cop(Cextcall("caml_modify_local", typ_void, [], false),
              [arg1; Cconst_int (n,dbg); arg2],
+             dbg))
+  | Caml_initialize ->
+      return_unit dbg
+        (Cop(Cextcall("caml_initialize", typ_void, [], false),
+             [field_address arg1 n dbg; arg2],
              dbg))
   | Simple init ->
       return_unit dbg (set_field arg1 n arg2 init dbg)
@@ -2465,37 +2460,16 @@ let stringref_safe arg1 arg2 dbg =
           Cop(Cload (Byte_unsigned, Mutable),
             [add_int str idx dbg], dbg))))) dbg
 
-<<<<<<< HEAD
 let string_load size unsafe mode arg1 arg2 dbg =
   box_sized size mode dbg
-||||||| 24dbb0976a
-let string_load size unsafe arg1 arg2 dbg =
-  box_sized size dbg
-    (bind "str" arg1 (fun str ->
-     bind "index" (untag_int arg2 dbg) (fun idx ->
-=======
-let string_load size unsafe arg1 arg2 dbg =
-  box_sized size dbg
->>>>>>> ocaml/4.14
     (bind "index" (untag_int arg2 dbg) (fun idx ->
      bind "str" arg1 (fun str ->
        check_bound unsafe size dbg
           (string_length str dbg)
           idx (unaligned_load size str idx dbg))))
 
-<<<<<<< HEAD
 let bigstring_load size unsafe mode arg1 arg2 dbg =
   box_sized size mode dbg
-||||||| 24dbb0976a
-let bigstring_load size unsafe arg1 arg2 dbg =
-  box_sized size dbg
-   (bind "ba" arg1 (fun ba ->
-    bind "index" (untag_int arg2 dbg) (fun idx ->
-    bind "ba_data"
-=======
-let bigstring_load size unsafe arg1 arg2 dbg =
-  box_sized size dbg
->>>>>>> ocaml/4.14
     (bind "index" (untag_int arg2 dbg) (fun idx ->
      bind "ba" arg1 (fun ba ->
      bind "ba_data"
@@ -2587,6 +2561,8 @@ let setfield_computed ptr init arg1 arg2 arg3 dbg =
       return_unit dbg (addr_array_set arg1 arg2 arg3 dbg)
   | Caml_modify_local ->
       return_unit dbg (addr_array_set_local arg1 arg2 arg3 dbg)
+  | Caml_initialize ->
+      return_unit dbg (addr_array_initialize arg1 arg2 arg3 dbg)
   | Simple _ ->
       return_unit dbg (int_array_set arg1 arg2 arg3 dbg)
 
@@ -2597,28 +2573,13 @@ let bytesset_unsafe arg1 arg2 arg3 dbg =
 
 let bytesset_safe arg1 arg2 arg3 dbg =
   return_unit dbg
-<<<<<<< HEAD
-    (bind "newval" (untag_int arg3 dbg) (fun newval ->
-||||||| 24dbb0976a
-    (bind "str" arg1 (fun str ->
-=======
     (bind "newval" (ignore_high_bit_int (untag_int arg3 dbg)) (fun newval ->
->>>>>>> ocaml/4.14
       bind "index" (untag_int arg2 dbg) (fun idx ->
        bind "str" arg1 (fun str ->
         Csequence(
           make_checkbound dbg [string_length str dbg; idx],
           Cop(Cstore (Byte_unsigned, Assignment),
-<<<<<<< HEAD
-              [add_int str idx dbg;
-               ignore_high_bit_int newval],
-||||||| 24dbb0976a
-              [add_int str idx dbg;
-               ignore_high_bit_int (untag_int arg3 dbg)],
-              dbg)))))
-=======
               [add_int str idx dbg; newval],
->>>>>>> ocaml/4.14
               dbg))))))
 
 let arrayset_unsafe kind arg1 arg2 arg3 dbg =

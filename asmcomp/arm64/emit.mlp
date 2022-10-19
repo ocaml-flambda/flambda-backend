@@ -104,12 +104,7 @@ let slot_offset env loc cl =
   | Outgoing n ->
       assert (n >= 0);
       n
-<<<<<<< HEAD
-  | Domainstate _ -> assert false (* not a satck slot *)
-||||||| 24dbb0976a
-=======
   | Domainstate _ -> assert false  (* not a stack slot *)
->>>>>>> ocaml/4.14
 
 (* Output a stack reference *)
 
@@ -119,13 +114,7 @@ let emit_stack env r =
       let ofs = n + Domainstate.(idx_of_field Domain_extra_params) * 8 in
       `[{emit_reg reg_domain_state_ptr}, #{emit_int ofs}]`
   | Stack s ->
-<<<<<<< HEAD
-      let ofs = slot_offset s (register_class r) in
-||||||| 24dbb0976a
-      let ofs = slot_offset s (register_class r) in `[sp, #{emit_int ofs}]`
-=======
       let ofs = slot_offset env s (register_class r) in
->>>>>>> ocaml/4.14
       `[sp, #{emit_int ofs}]`
   | _ -> fatal_error "Emit.emit_stack"
 
@@ -477,20 +466,10 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Iload (size, addr, _)) | Lop (Istore (size, addr, _)) ->
       let based = match addr with Iindexed _ -> 0 | Ibased _ -> 1 in
       based + begin match size with Single -> 2 | _ -> 1 end
-<<<<<<< HEAD
-    | Lop (Ialloc _) when !fastcode_flag -> 5
-    | Lop (Ispecific (Ifar_alloc _)) when !fastcode_flag -> 6
-||||||| 24dbb0976a
-    | Lop (Ialloc {bytes = num_bytes}) when !fastcode_flag ->
-      if num_bytes <= 0xFFF then 4 else 5
-    | Lop (Ispecific (Ifar_alloc {bytes = num_bytes})) when !fastcode_flag ->
-      if num_bytes <= 0xFFF then 5 else 6
-=======
     | Lop (Ialloc _) when f.fun_fast -> 5
     | Lop (Ispecific (Ifar_alloc _)) when f.fun_fast -> 6
     | Lop (Ipoll _) -> 3
     | Lop (Ispecific (Ifar_poll _)) -> 4
->>>>>>> ocaml/4.14
     | Lop (Ialloc { bytes = num_bytes; _ })
     | Lop (Ispecific (Ifar_alloc { bytes = num_bytes; _ })) ->
       begin match num_bytes with
@@ -521,14 +500,8 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Ispecific (Ibswap _)) -> 1
     | Lop (Ispecific Imove32) -> 1
     | Lop (Ispecific (Isignext _)) -> 1
-<<<<<<< HEAD
-    | Lop (Iname_for_debugger _) -> 0
     | Lop (Iprobe _ |Iprobe_is_enabled _) ->
       Misc.fatal_error ("Probes not supported.")
-||||||| 24dbb0976a
-    | Lop (Iname_for_debugger _) -> 0
-=======
->>>>>>> ocaml/4.14
     | Lreloadretaddr -> 0
     | Lreturn -> epilogue_size f
     | Llabel _ -> 0
@@ -751,14 +724,7 @@ let emit_instr env i =
     | Lop(Istackoffset n) ->
         assert (n mod 16 = 0);
         emit_stack_adjustment (-n);
-<<<<<<< HEAD
-        stack_offset := !stack_offset + n
-||||||| 24dbb0976a
-        stack_offset := !stack_offset + n
-    | Lop(Iload(size, addr)) ->
-=======
         env.stack_offset <- env.stack_offset + n
->>>>>>> ocaml/4.14
     | Lop(Iload(size, addr, _mut)) ->
         let dst = i.res.(0) in
         let base =
@@ -809,30 +775,16 @@ let emit_instr env i =
         | Word_int | Word_val | Double ->
             `	str	{emit_reg src}, {emit_addressing addr base}\n`
         end
-<<<<<<< HEAD
-    | Lop(Ialloc { bytes = n; dbginfo; mode = Alloc_heap }) ->
-        assembly_code_for_allocation i ~n ~far:false ~dbginfo
-||||||| 24dbb0976a
-    | Lop(Ialloc { bytes = n; dbginfo }) ->
-        assembly_code_for_allocation i ~n ~far:false ~dbginfo
-=======
-    | Lop(Ialloc { bytes = n; dbginfo }) ->
+    | Lop(Ialloc { bytes = n; dbginfo; mode = Alloc_heap  }) ->
         assembly_code_for_allocation env i ~n ~far:false ~dbginfo
->>>>>>> ocaml/4.14
     | Lop(Ispecific (Ifar_alloc { bytes = n; dbginfo })) ->
-<<<<<<< HEAD
-        assembly_code_for_allocation i ~n ~far:true ~dbginfo
+        assembly_code_for_allocation env i ~n ~far:true ~dbginfo
     | Lop(Ialloc { mode = Alloc_local } | Ibeginregion | Iendregion) ->
        Misc.fatal_error "Local allocations not supported on this architecture"
-||||||| 24dbb0976a
-        assembly_code_for_allocation i ~n ~far:true ~dbginfo
-=======
-        assembly_code_for_allocation env i ~n ~far:true ~dbginfo
     | Lop(Ipoll { return_label }) ->
         assembly_code_for_poll env i ~far:false ~return_label
     | Lop(Ispecific (Ifar_poll { return_label })) ->
         assembly_code_for_poll env i ~far:true ~return_label
->>>>>>> ocaml/4.14
     | Lop(Iintop_imm(Iadd, n)) ->
         emit_addimm i.res.(0) i.arg.(0) n
     | Lop(Iintop_imm(Isub, n)) ->
@@ -944,14 +896,8 @@ let emit_instr env i =
         end
     | Lop(Ispecific(Isignext size)) ->
         `	sbfm	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, #0, #{emit_int (size - 1)}\n`
-<<<<<<< HEAD
-    | Lop (Iname_for_debugger _) -> ()
     | Lop (Iprobe _ |Iprobe_is_enabled _) ->
       Misc.fatal_error ("Probes not supported.")
-||||||| 24dbb0976a
-    | Lop (Iname_for_debugger _) -> ()
-=======
->>>>>>> ocaml/4.14
     | Lreloadretaddr ->
         ()
     | Lreturn ->

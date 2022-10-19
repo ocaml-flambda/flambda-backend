@@ -173,12 +173,8 @@ let rec check env (expr : Cmm.expression) =
        not reported as an error. *)
     check env body;
     check env handler
-<<<<<<< HEAD
   | Cregion e -> check env e
   | Ctail e -> check env e
-||||||| 24dbb0976a
-=======
->>>>>>> ocaml/4.14
 
 let run ppf (fundecl : Cmm.fundecl) =
   let env = Env.init () in

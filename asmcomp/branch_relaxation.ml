@@ -16,6 +16,7 @@
 
 open Mach
 open Linear
+module Int = Misc.Stdlib.Int
 
 module Make (T : Branch_relaxation_intf.S) = struct
   let label_map f =

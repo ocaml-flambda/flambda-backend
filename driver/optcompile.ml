@@ -34,28 +34,8 @@ let (|>>) (x, y) f = (x, f y)
 
 (** Native compilation backend for .ml files. *)
 
-<<<<<<< HEAD
-let flambda i backend typed =
-  typed
-||||||| 24dbb0976a
-let flambda i backend typed =
-  if !Clflags.classic_inlining then begin
-    Clflags.default_simplify_rounds := 1;
-    Clflags.use_inlining_arguments_set Clflags.classic_arguments;
-    Clflags.unbox_free_vars_of_closures := false;
-    Clflags.unbox_specialised_args := false
-  end;
-  typed
-=======
 let flambda i backend Typedtree.{structure; coercion; _} =
-  if !Clflags.classic_inlining then begin
-    Clflags.default_simplify_rounds := 1;
-    Clflags.use_inlining_arguments_set Clflags.classic_arguments;
-    Clflags.unbox_free_vars_of_closures := false;
-    Clflags.unbox_specialised_args := false
-  end;
   (structure, coercion)
->>>>>>> ocaml/4.14
   |> Profile.(record transl)
       (Translmod.transl_implementation_flambda i.module_name)
   |> Profile.(record generate)
@@ -82,19 +62,9 @@ let flambda i backend Typedtree.{structure; coercion; _} =
         program);
     Compilenv.save_unit_info (cmx i))
 
-<<<<<<< HEAD
-let clambda i backend typed =
-  Clflags.set_oclassic ();
-  typed
-||||||| 24dbb0976a
-let clambda i backend typed =
-  Clflags.use_inlining_arguments_set Clflags.classic_arguments;
-  typed
-=======
 let clambda i backend Typedtree.{structure; coercion; _} =
-  Clflags.use_inlining_arguments_set Clflags.classic_arguments;
+  Clflags.set_oclassic ();
   (structure, coercion)
->>>>>>> ocaml/4.14
   |> Profile.(record transl)
     (Translmod.transl_store_implementation i.module_name)
   |> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.program

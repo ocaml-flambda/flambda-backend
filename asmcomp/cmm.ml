@@ -168,15 +168,10 @@ and operation =
   | Ccmpf of float_comparison
   | Craise of Lambda.raise_kind
   | Ccheckbound
-<<<<<<< HEAD
   | Cprobe of { name: string; handler_code_sym: string; }
   | Cprobe_is_enabled of { name: string }
   | Copaque
   | Cbeginregion | Cendregion
-||||||| 24dbb0976a
-=======
-  | Copaque
->>>>>>> ocaml/4.14
 
 type expression =
     Cconst_int of int * Debuginfo.t

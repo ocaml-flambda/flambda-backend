@@ -18,6 +18,7 @@
 
 module V = Backend_var
 module VP = Backend_var.With_provenance
+module Int = Misc.Stdlib.Int
 
 type 'a for_one_or_more_units = {
   fun_offset_table : int Closure_id.Map.t;
@@ -578,12 +579,8 @@ and to_clambda_set_of_closures t env
       body = to_clambda t env_body function_decl.body;
       dbg = function_decl.dbg;
       env = Some env_var;
-<<<<<<< HEAD
       mode = set_of_closures.alloc_mode;
-||||||| 24dbb0976a
-=======
       poll = function_decl.poll;
->>>>>>> ocaml/4.14
     }
   in
   let funs = List.map to_clambda_function all_functions in
@@ -634,12 +631,8 @@ and to_clambda_closed_set_of_closures t env symbol
       body;
       dbg = function_decl.dbg;
       env = None;
-<<<<<<< HEAD
       mode = Lambda.alloc_heap;
-||||||| 24dbb0976a
-=======
       poll = function_decl.poll;
->>>>>>> ocaml/4.14
     }
   in
   let ufunct = List.map to_clambda_function functions in

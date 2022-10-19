@@ -264,8 +264,3 @@ let operation_can_raise = function
   | Ishiftcheckbound _
   | Ifar_shiftcheckbound _ -> true
   | _ -> false
-<<<<<<< HEAD
-
-||||||| 24dbb0976a
-=======
->>>>>>> ocaml/4.14

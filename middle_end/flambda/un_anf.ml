@@ -146,13 +146,7 @@ let make_var_info (clam : Clambda.ulambda) : var_info =
     | Uclosure (functions, captured_variables) ->
       List.iter (loop ~depth) captured_variables;
       List.iter (fun (
-<<<<<<< HEAD
-        { Clambda. label; arity=_; params; return; body; dbg; env; mode=_} as clos) ->
-||||||| 24dbb0976a
-        { Clambda. label; arity; params; return; body; dbg; env; } as clos) ->
-=======
-        { Clambda. label; arity; params; return; body; dbg; env; _ } as clos) ->
->>>>>>> ocaml/4.14
+        { Clambda. label; arity=_; params; return; body; dbg; env; mode=_; poll=_} as clos) ->
           (match closure_environment_var clos with
            | None -> ()
            | Some env_var ->
@@ -326,14 +320,7 @@ let let_bound_vars_that_can_be_moved var_info (clam : Clambda.ulambda) =
     | Uclosure (functions, captured_variables) ->
       ignore_ulambda_list captured_variables;
       (* Start a new let stack for speed. *)
-<<<<<<< HEAD
-      List.iter (fun {Clambda. label; arity=_; params; return; body; dbg; env; mode=_} ->
-||||||| 24dbb0976a
-      List.iter (fun {Clambda. label; arity; params; return; body; dbg; env} ->
-=======
-      List.iter
-        (fun {Clambda. label; arity; params; return; body; dbg; env; _} ->
->>>>>>> ocaml/4.14
+      List.iter (fun {Clambda. label; arity=_; params; return; body; dbg; env; mode=_; poll=_} ->
           ignore_function_label label;
           ignore_params_with_value_kind params;
           ignore_value_kind return;

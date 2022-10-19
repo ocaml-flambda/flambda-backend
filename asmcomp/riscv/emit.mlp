@@ -41,25 +41,11 @@ let slot_offset env loc cls =
   | Local n ->
       ("sp",
        if cls = 0
-<<<<<<< HEAD
-       then !stack_offset + num_stack_slots.(1) * size_float
-            + n * size_int
-       else !stack_offset + n * size_float)
-  | Incoming n ->
-      ("sp", frame_size() + n)
-||||||| 24dbb0976a
-      if cls = 0
-      then !stack_offset + num_stack_slots.(1) * size_float + n * size_int
-      else !stack_offset + n * size_float
-  | Incoming n -> frame_size() + n
-  | Outgoing n -> n
-=======
        then env.stack_offset + env.f.fun_num_stack_slots.(1) * size_float
             + n * size_int
        else env.stack_offset + n * size_float)
   | Incoming n ->
       ("sp", frame_size env + n)
->>>>>>> ocaml/4.14
   | Outgoing n ->
       ("sp", n)
   | Domainstate n ->
@@ -121,11 +107,6 @@ let emit_stack_adjustment = function
       `	li	{emit_reg reg_tmp}, {emit_int n}\n`;
       `	add	sp, sp, {emit_reg reg_tmp}\n`
 
-<<<<<<< HEAD
-let emit_mem_op ?(base="sp") op src ofs =
-||||||| 24dbb0976a
-let emit_mem_op op src ofs =
-=======
 (* Adjust stack_offset and emit corresponding CFI directive *)
 
 let adjust_stack_offset env delta =
@@ -133,7 +114,6 @@ let adjust_stack_offset env delta =
   cfi_adjust_cfa_offset delta
 
 let emit_mem_op ?(base = "sp") op src ofs =
->>>>>>> ocaml/4.14
   if is_immediate ofs then
     `	{emit_string op}	{emit_string src}, {emit_int ofs}({emit_string base})\n`
   else begin
@@ -170,13 +150,7 @@ let record_frame_label env live dbg =
         {typ = Val; loc = Reg r} ->
           live_offset := (r lsl 1) + 1 :: !live_offset
       | {typ = Val; loc = Stack s} as reg ->
-<<<<<<< HEAD
-          let (base, ofs) = slot_offset s (register_class reg) in
-||||||| 24dbb0976a
-          live_offset := slot_offset s (register_class reg) :: !live_offset
-=======
           let (base, ofs) = slot_offset env s (register_class reg) in
->>>>>>> ocaml/4.14
           assert (base = "sp");
           live_offset := ofs :: !live_offset
       | {typ = Addr} as r ->
@@ -286,44 +260,16 @@ let emit_instr env i =
         | {loc = Reg _; typ = Float}, {loc = Reg _; typ = (Val | Int | Addr)} ->
             `	fmv.x.d {emit_reg dst}, {emit_reg src}\n`
         | {loc = Reg _; typ = (Val | Int | Addr)}, {loc = Stack s} ->
-<<<<<<< HEAD
-            let (base, ofs) = slot_offset s (register_class dst) in
-||||||| 24dbb0976a
-            let ofs = slot_offset s (register_class dst) in
-            emit_store src ofs
-=======
             let (base, ofs) = slot_offset env s (register_class dst) in
->>>>>>> ocaml/4.14
             emit_store ~base src ofs
         | {loc = Reg _; typ = Float}, {loc = Stack s} ->
-<<<<<<< HEAD
-            let (base, ofs) = slot_offset s (register_class dst) in
-||||||| 24dbb0976a
-            let ofs = slot_offset s (register_class dst) in
-            emit_float_store src ofs
-=======
             let (base, ofs) = slot_offset env s (register_class dst) in
->>>>>>> ocaml/4.14
             emit_float_store ~base src ofs
         | {loc = Stack s; typ = (Val | Int | Addr)}, {loc = Reg _} ->
-<<<<<<< HEAD
-            let (base, ofs) = slot_offset s (register_class src) in
-||||||| 24dbb0976a
-            let ofs = slot_offset s (register_class src) in
-            emit_load dst ofs
-=======
             let (base, ofs) = slot_offset env s (register_class src) in
->>>>>>> ocaml/4.14
             emit_load ~base dst ofs
         | {loc = Stack s; typ = Float}, {loc = Reg _} ->
-<<<<<<< HEAD
-            let (base, ofs) = slot_offset s (register_class src) in
-||||||| 24dbb0976a
-            let ofs = slot_offset s (register_class src) in
-            emit_float_load dst ofs
-=======
             let (base, ofs) = slot_offset env s (register_class src) in
->>>>>>> ocaml/4.14
             emit_float_load ~base dst ofs
         | {loc = Stack _}, {loc = Stack _}
         | {loc = Unknown}, _ | _, {loc = Unknown} ->
@@ -366,14 +312,7 @@ let emit_instr env i =
   | Lop(Istackoffset n) ->
       assert (n mod 16 = 0);
       emit_stack_adjustment (-n);
-<<<<<<< HEAD
-      stack_offset := !stack_offset + n
-||||||| 24dbb0976a
-      stack_offset := !stack_offset + n
-  | Lop(Iload(Single, Iindexed ofs)) ->
-=======
       adjust_stack_offset env n
->>>>>>> ocaml/4.14
   | Lop(Iload(Single, Iindexed ofs, _mut)) ->
       `	flw	{emit_reg i.res.(0)}, {emit_int ofs}({emit_reg i.arg.(0)})\n`;
       `	fcvt.d.s	{emit_reg i.res.(0)}, {emit_reg i.res.(0)}\n`
@@ -406,16 +345,8 @@ let emit_instr env i =
         | Double -> "fsd"
       in
       `	{emit_string instr}	{emit_reg i.arg.(0)}, {emit_int ofs}({emit_reg i.arg.(1)})\n`
-<<<<<<< HEAD
   | Lop(Ialloc {bytes; dbginfo; mode = Alloc_heap}) ->
-      let lbl_frame_lbl = record_frame_label i.live (Dbg_alloc dbginfo) in
-||||||| 24dbb0976a
-  | Lop(Ialloc {bytes; dbginfo}) ->
-      let lbl_frame_lbl = record_frame_label i.live (Dbg_alloc dbginfo) in
-=======
-  | Lop(Ialloc {bytes; dbginfo}) ->
       let lbl_frame_lbl = record_frame_label env i.live (Dbg_alloc dbginfo) in
->>>>>>> ocaml/4.14
       let lbl_after_alloc = new_label () in
       let lbl_call_gc = new_label () in
       let n = -bytes in
@@ -433,14 +364,9 @@ let emit_instr env i =
       env.call_gc_sites <-
         { gc_lbl = lbl_call_gc;
           gc_return_lbl = lbl_after_alloc;
-<<<<<<< HEAD
-          gc_frame_lbl = lbl_frame_lbl } :: !call_gc_sites
+          gc_frame_lbl = lbl_frame_lbl } :: env.call_gc_sites
   | Lop(Ialloc { mode = Alloc_local } | Ibeginregion | Iendregion) ->
      Misc.fatal_error "Local allocations not supported on this architecture"
-||||||| 24dbb0976a
-          gc_frame_lbl = lbl_frame_lbl } :: !call_gc_sites
-=======
-          gc_frame_lbl = lbl_frame_lbl } :: env.call_gc_sites
   | Lop(Ipoll { return_label }) ->
       let lbl_frame_lbl = record_frame_label env i.live (Dbg_alloc []) in
       let lbl_after_poll = match return_label with
@@ -459,7 +385,6 @@ let emit_instr env i =
         { gc_lbl = lbl_call_gc;
           gc_return_lbl = lbl_after_poll;
           gc_frame_lbl = lbl_frame_lbl } :: env.call_gc_sites
->>>>>>> ocaml/4.14
   | Lop(Iintop(Icomp cmp)) ->
       begin match cmp with
       | Isigned Clt ->
@@ -515,16 +440,8 @@ let emit_instr env i =
   | Lop(Ispecific sop) ->
       let instr = name_for_specific sop in
       `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}\n`
-<<<<<<< HEAD
-  | Lop (Iname_for_debugger _) ->
-      ()
   | Lop (Iprobe _ |Iprobe_is_enabled _) ->
       Misc.fatal_error ("Probes not supported.")
-||||||| 24dbb0976a
-  | Lop (Iname_for_debugger _) ->
-      ()
-=======
->>>>>>> ocaml/4.14
   | Lreloadretaddr ->
       let n = frame_size env in
       reload_ra n
@@ -732,16 +649,8 @@ let end_assembly() =
   `{emit_symbol lbl_end}:\n`;
   `	.quad	0\n`;
   (* Emit the frame descriptors *)
-<<<<<<< HEAD
-  `	{emit_string rodata_space}\n`;
-  let lbl = Cmm_helpers.make_symbol "frametable" in
-||||||| 24dbb0976a
-  `	{emit_string rodata_space}\n`;
-  let lbl = Compilenv.make_symbol (Some "frametable") in
-=======
   `	{emit_string data_space}\n`; (* not rodata because relocations inside *)
   let lbl = Compilenv.make_symbol (Some "frametable") in
->>>>>>> ocaml/4.14
   declare_global_data lbl;
   `{emit_symbol lbl}:\n`;
   emit_frames

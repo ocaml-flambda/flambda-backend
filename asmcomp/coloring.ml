@@ -15,6 +15,8 @@
 
 (* Register allocation by coloring of the interference graph *)
 
+module Int = Misc.Stdlib.Int
+
 module OrderedRegSet =
   Set.Make(struct
     type t = Reg.t

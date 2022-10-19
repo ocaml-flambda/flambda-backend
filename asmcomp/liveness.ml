@@ -33,24 +33,10 @@ let transfer i ~next ~exn =
       i.live <- Reg.Set.empty; (* no regs are live across *)
       Reg.set_of_array i.arg
   | Iop op ->
-<<<<<<< HEAD
-      let after = live i.next finally in
-      if operation_is_pure op                  (* no side effects *)
-      && Reg.disjoint_set_array after i.res    (* results are not used after *)
-      && not (Proc.regs_are_volatile i.arg)    (* no stack-like hard reg *)
-      && not (Proc.regs_are_volatile i.res)    (*            is involved *)
-||||||| 24dbb0976a
-      let after = live i.next finally in
-      if Proc.op_is_pure op                    (* no side effects *)
-      && Reg.disjoint_set_array after i.res    (* results are not used after *)
-      && not (Proc.regs_are_volatile i.arg)    (* no stack-like hard reg *)
-      && not (Proc.regs_are_volatile i.res)    (*            is involved *)
-=======
       if operation_is_pure op                 (* no side effects *)
       && Reg.disjoint_set_array next i.res    (* results are not used after *)
       && not (Proc.regs_are_volatile i.arg)   (* no stack-like hard reg *)
       && not (Proc.regs_are_volatile i.res)   (*            is involved *)
->>>>>>> ocaml/4.14
       then begin
         (* This operation is dead code.  Ignore its arguments. *)
         i.live <- next;
@@ -64,26 +50,8 @@ let transfer i ~next ~exn =
              Hence, everything that must be live at the beginning of
              the exception handler must also be live across this instr. *)
           if operation_can_raise op
-<<<<<<< HEAD
-          then Reg.Set.union across_after !live_at_raise
-          else across_after in
-||||||| 24dbb0976a
-          match op with
-          | Icall_ind | Icall_imm _ | Iextcall _ | Ialloc _
-          | Iintop (Icheckbound) | Iintop_imm(Icheckbound, _) ->
-              (* The function call may raise an exception, branching to the
-                 nearest enclosing try ... with. Similarly for bounds checks
-                 and allocation (for the latter: finalizers may throw
-                 exceptions, as may signal handlers).
-                 Hence, everything that must be live at the beginning of
-                 the exception handler must also be live across this instr. *)
-               Reg.Set.union across_after !live_at_raise
-           | _ ->
-               across_after in
-=======
           then Reg.Set.union across1 exn
           else across1 in
->>>>>>> ocaml/4.14
         i.live <- across;
         Reg.add_set_array across i.arg
       end

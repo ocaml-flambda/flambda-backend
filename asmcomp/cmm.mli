@@ -166,15 +166,10 @@ and operation =
                    then the index.
                    It results in a bounds error if the index is greater than
                    or equal to the bound. *)
-<<<<<<< HEAD
   | Cprobe of { name: string; handler_code_sym: string; }
   | Cprobe_is_enabled of { name: string }
   | Copaque (* Sys.opaque_identity *)
   | Cbeginregion | Cendregion
-||||||| 24dbb0976a
-=======
-  | Copaque (* Sys.opaque_identity *)
->>>>>>> ocaml/4.14
 
 (** Every basic block should have a corresponding [Debuginfo.t] for its
     beginning. *)

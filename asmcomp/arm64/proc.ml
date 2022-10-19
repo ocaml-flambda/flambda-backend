@@ -167,13 +167,7 @@ let not_supported _ofs = fatal_error "Proc.loc_results: cannot call"
 (* OCaml calling convention:
      first integer args in r0...r15
      first float args in d0...d15
-<<<<<<< HEAD
-     remaining args in domain area, then on stack.
-||||||| 24dbb0976a
-     remaining args on stack.
-=======
      remaining args in domain state area, then on stack.
->>>>>>> ocaml/4.14
    Return values in r0...r15 or d0...d15. *)
 
 let max_arguments_for_tailcalls = 16 (* in regs *) + 64 (* in domain state *)
@@ -288,27 +282,12 @@ let destroyed_at_reloadretaddr = [| |]
 
 let safe_register_pressure = function
   | Iextcall _ -> 7
-<<<<<<< HEAD
-  | Ialloc _ -> 22
-||||||| 24dbb0976a
-  | Iextcall _ -> 8
-  | Ialloc _ -> 24
-  | _ -> 25
-=======
   | Ialloc _ | Ipoll _ -> 22
->>>>>>> ocaml/4.14
   | _ -> 23
 
 let max_register_pressure = function
   | Iextcall _ -> [| 7; 8 |]  (* 7 integer callee-saves, 8 FP callee-saves *)
-<<<<<<< HEAD
-  | Ialloc _ -> [| 22; 32 |]
-||||||| 24dbb0976a
-  | Iextcall _ -> [| 10; 8 |]
-  | Ialloc _ -> [| 24; 32 |]
-=======
   | Ialloc _ | Ipoll _ -> [| 22; 32 |]
->>>>>>> ocaml/4.14
   | Iintoffloat | Ifloatofint
   | Iload(Single, _, _) | Istore(Single, _, _) -> [| 23; 31 |]
   | _ -> [| 23; 32 |]

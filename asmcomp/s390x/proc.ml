@@ -123,15 +123,7 @@ let calling_conventions
           ofs := !ofs + size_float
         end
   done;
-<<<<<<< HEAD
-  (loc, Misc.align (max 0 !ofs) 16)
-  (* Keep stack 16-aligned. *)
-||||||| 24dbb0976a
-  (loc, Misc.align !ofs 16)
-  (* Keep stack 16-aligned. *)
-=======
   (loc, Misc.align (max 0 !ofs) 16) (* Keep stack 16-aligned. *)
->>>>>>> ocaml/4.14
 
 let incoming ofs =
   if ofs >= 0
@@ -143,31 +135,13 @@ let outgoing ofs =
   else Domainstate (ofs + size_domainstate_args)
 let not_supported _ofs = fatal_error "Proc.loc_results: cannot call"
 
-<<<<<<< HEAD
-let max_arguments_for_tailcalls = 5 (* in regs *) + 64 (* in domain state *)
-||||||| 24dbb0976a
-let max_arguments_for_tailcalls = 5
-=======
 let max_arguments_for_tailcalls = 8 (* in regs *) + 64 (* in domain state *)
->>>>>>> ocaml/4.14
 
 let loc_arguments arg =
-<<<<<<< HEAD
-  calling_conventions 0 4 100 103 outgoing (- size_domainstate_args) arg
-||||||| 24dbb0976a
-  calling_conventions 0 4 100 103 outgoing 0 arg
-=======
   calling_conventions 0 7 100 103 outgoing (- size_domainstate_args) arg
->>>>>>> ocaml/4.14
 let loc_parameters arg =
   let (loc, _ofs) =
-<<<<<<< HEAD
-    calling_conventions 0 4 100 103 incoming (- size_domainstate_args) arg
-||||||| 24dbb0976a
-  let (loc, _ofs) = calling_conventions 0 4 100 103 incoming 0 arg in loc
-=======
     calling_conventions 0 7 100 103 incoming (- size_domainstate_args) arg
->>>>>>> ocaml/4.14
   in loc
 let loc_results res =
   let (loc, _ofs) = calling_conventions 0 7 100 103 not_supported 0 res in loc

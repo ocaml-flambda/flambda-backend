@@ -201,26 +201,9 @@ let loc_arguments arg =
 let loc_parameters arg =
   let (loc, _ofs) =
     calling_conventions 0 9 100 109 incoming (- size_domainstate_args) arg
-<<<<<<< HEAD
-  in
-  loc
-
-||||||| 24dbb0976a
-    calling_conventions 0 9 100 109 incoming arg
-  in
-  loc
-=======
   in loc
->>>>>>> ocaml/4.14
 let loc_results res =
-<<<<<<< HEAD
-  let (loc, _ofs) =
-    calling_conventions 0 0 100 100 not_supported 0 res
-||||||| 24dbb0976a
-  let (loc, _ofs) = calling_conventions 0 0 100 100 not_supported res in loc
-=======
   let (loc, _ofs) = calling_conventions 0 0 100 100 not_supported 0 res
->>>>>>> ocaml/4.14
   in loc
 
 let max_arguments_for_tailcalls = 10 (* in regs *) + 64 (* in domain state *)

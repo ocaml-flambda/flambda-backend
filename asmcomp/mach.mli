@@ -62,30 +62,10 @@ type operation =
   | Ifloatofint | Iintoffloat
   | Iopaque
   | Ispecific of Arch.specific_operation
-<<<<<<< HEAD
-  | Iname_for_debugger of { ident : Backend_var.t; which_parameter : int option;
-      provenance : unit option; is_assignment : bool; }
-    (** [Iname_for_debugger] has the following semantics:
-        (a) The argument register(s) is/are deemed to contain the value of the
-            given identifier.
-        (b) If [is_assignment] is [true], any information about other [Reg.t]s
-            that have been previously deemed to hold the value of that
-            identifier is forgotten. *)
+  | Ipoll of { return_label: Cmm.label option }
   | Iprobe of { name: string; handler_code_sym: string; }
   | Iprobe_is_enabled of { name: string }
   | Ibeginregion | Iendregion
-||||||| 24dbb0976a
-  | Iname_for_debugger of { ident : Backend_var.t; which_parameter : int option;
-      provenance : unit option; is_assignment : bool; }
-    (** [Iname_for_debugger] has the following semantics:
-        (a) The argument register(s) is/are deemed to contain the value of the
-            given identifier.
-        (b) If [is_assignment] is [true], any information about other [Reg.t]s
-            that have been previously deemed to hold the value of that
-            identifier is forgotten. *)
-=======
-  | Ipoll of { return_label: Cmm.label option }
->>>>>>> ocaml/4.14
 
 type instruction =
   { desc: instruction_desc;

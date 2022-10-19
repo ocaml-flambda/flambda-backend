@@ -41,13 +41,7 @@ val compile_phrase :
 
 type error =
   | Assembler_error of string
-<<<<<<< HEAD
   | Mismatched_for_pack of Compilation_unit.Prefix.t
-||||||| 24dbb0976a
-  | Mismatched_for_pack of string option
-=======
-  | Mismatched_for_pack of string option
->>>>>>> ocaml/4.14
   | Asm_generation of string * Emitaux.error
 
 exception Error of error
