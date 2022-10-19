@@ -60,7 +60,7 @@ let mk_dcheckmach f =
   "-dcheckmach", Arg.Unit f, " (undocumented)"
 
 let mk_disable_poll_insertion f =
-  "-disable-poll-insertion", Arg.Unit f, " do not insert poll points"
+  "-disable-poll-insertion", Arg.Unit f, " Do not insert poll points"
 
 let mk_dump_inlining_paths f =
   "-dump-inlining-paths", Arg.Unit f, " Dump inlining paths when dumping flambda2 terms"
