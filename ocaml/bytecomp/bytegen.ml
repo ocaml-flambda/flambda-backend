@@ -1028,9 +1028,9 @@ and comp_args env argl sz cont =
 
 and comp_expr_list env exprl sz cont = match exprl with
     [] -> cont
-  | [exp] -> (comp_expr [@nontail]) env exp sz cont
+  | [exp] -> comp_expr env exp sz cont
   | exp :: rem ->
-      (comp_expr [@nontail]) env exp sz (Kpush :: comp_expr_list env rem (sz+1) cont)
+      comp_expr env exp sz (Kpush :: comp_expr_list env rem (sz+1) cont)
 
 and comp_exit_args  env argl sz pos cont =
    comp_expr_list_assign env (List.rev argl) sz pos cont

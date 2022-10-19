@@ -241,7 +241,7 @@ module Backend = struct
 end
 let backend = (module Backend : Backend_intf.S)
 
-let load_lambda ppf ~compilation_unit ~required_globals lam size =
+let load_lambda ppf ~module_ident ~required_globals lam size =
   if !Clflags.dump_rawlambda then fprintf ppf "%a@." Printlambda.lambda lam;
   let slam = Simplif.simplify_lambda lam in
   if !Clflags.dump_lambda then fprintf ppf "%a@." Printlambda.lambda slam;
@@ -255,7 +255,7 @@ let load_lambda ppf ~compilation_unit ~required_globals lam size =
     { Lambda.
       code = slam;
       main_module_block_size = size;
-      compilation_unit;
+      module_ident;
       required_globals;
     }
   in
@@ -323,11 +323,11 @@ let execute_phrase print_outcome ppf phr =
       let oldsig = !toplevel_sig in
       incr phrase_seqid;
       phrase_name := Printf.sprintf "TOP%i" !phrase_seqid;
-      let compilation_unit =
+      let phrase_comp_unit =
         Compilation_unit.create Compilation_unit.Prefix.empty
           (Compilation_unit.Name.of_string !phrase_name)
       in
-      Compilenv.reset compilation_unit;
+      Compilenv.reset phrase_comp_unit;
       Typecore.reset_delayed_checks ();
       let sstr, rewritten =
         match sstr with
@@ -351,31 +351,31 @@ let execute_phrase print_outcome ppf phr =
       let sg' = Typemod.Signature_names.simplify newenv names sg in
       ignore (Includemod.signatures oldenv ~mark:Mark_positive sg sg');
       Typecore.force_delayed_checks ();
-      let compilation_unit, res, required_globals, size =
+      let module_ident, res, required_globals, size =
         if Config.flambda then
-          let { Lambda.compilation_unit; main_module_block_size = size;
+          let { Lambda.module_ident; main_module_block_size = size;
                 required_globals; code = res } =
-            Translmod.transl_implementation_flambda compilation_unit
+            Translmod.transl_implementation_flambda phrase_comp_unit
               (str, Tcoerce_none)
           in
-          remember compilation_unit 0 sg';
-          compilation_unit, close_phrase res, required_globals, size
+          remember module_ident 0 sg';
+          module_ident, close_phrase res, required_globals, size
         else
-          let size, res = Translmod.transl_store_phrases compilation_unit str in
-          compilation_unit, res, Compilation_unit.Set.empty, size
+          let size, res = Translmod.transl_store_phrases phrase_comp_unit str in
+          phrase_comp_unit, res, Compilation_unit.Set.empty, size
       in
       Warnings.check_fatal ();
       begin try
         toplevel_env := newenv;
         toplevel_sig := List.rev_append sg' oldsig;
-        let res = load_lambda ppf ~required_globals ~compilation_unit res size in
+        let res = load_lambda ppf ~required_globals ~module_ident res size in
         let out_phr =
           match res with
           | Result _ ->
               if Config.flambda then
                 (* CR-someday trefis: *)
                 Env.register_import_as_opaque
-                  (Compilation_unit.name compilation_unit)
+                  (Compilation_unit.name module_ident)
               else
                 Compilenv.record_global_approx_toplevel ();
               if print_outcome then

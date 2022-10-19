@@ -18,8 +18,7 @@
 
 type info = {
   source_file : string;
-  module_name : string;
-  compilation_unit : Compilation_unit.t;
+  module_name : Compilation_unit.t;
   output_prefix : string;
   env : Env.t;
   ppf_dump : Format.formatter;

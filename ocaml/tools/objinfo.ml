@@ -104,7 +104,7 @@ let print_cmi_infos name crcs =
 
 let print_cmt_infos cmt =
   let open Cmt_format in
-  printf "Cmt unit name: %a\n" Compilation_unit.output cmt.cmt_unit;
+  printf "Cmt unit name: %a\n" Compilation_unit.output cmt.cmt_modname;
   print_string "Cmt interfaces imported:\n";
   List.iter print_name_crc cmt.cmt_imports;
   printf "Source file: %s\n"
@@ -198,7 +198,7 @@ let print_cmxs_infos header =
   List.iter
     (fun ui ->
        print_general_infos
-         (ui.dynu_unit |> Compilation_unit.full_path_as_string)
+         (ui.dynu_name |> Compilation_unit.full_path_as_string)
          ui.dynu_crc
          ui.dynu_defines
          ui.dynu_imports_cmi
@@ -301,7 +301,7 @@ let dump_obj_by_kind filename ic obj_kind =
        begin match cmi with
          | None -> ()
          | Some cmi ->
-            print_cmi_infos cmi.Cmi_format.cmi_unit cmi.Cmi_format.cmi_crcs
+            print_cmi_infos cmi.Cmi_format.cmi_name cmi.Cmi_format.cmi_crcs
        end;
        begin match cmt with
          | None -> ()

@@ -42,17 +42,15 @@ let dump_error (e : Parse_flambda.error) =
 
 let run_expect_test ~get_global_info ~extension ~filename
     ({ before; after = expected } : Fexpr.expect_test_spec) : Test_outcome.t =
-  let compilation_unit =
-    Parse_flambda.make_compilation_unit ~extension ~filename ()
-  in
-  Compilation_unit.set_current compilation_unit;
-  let before_fl = Fexpr_to_flambda.conv ~compilation_unit before in
+  let comp_unit = Parse_flambda.make_compilation_unit ~extension ~filename () in
+  Compilation_unit.set_current comp_unit;
+  let before_fl = Fexpr_to_flambda.conv ~module_ident:comp_unit before in
   check_invariants before_fl;
   let cmx_loader = Flambda_cmx.create_loader ~get_global_info in
   let { Simplify.unit = actual_fl; _ } =
     Simplify.run ~cmx_loader ~round:0 before_fl
   in
-  let expected_fl = Fexpr_to_flambda.conv ~compilation_unit expected in
+  let expected_fl = Fexpr_to_flambda.conv ~module_ident:comp_unit expected in
   match Compare.flambda_units actual_fl expected_fl with
   | Equivalent -> Pass
   | Different { approximant = actual' } ->

@@ -244,15 +244,14 @@ let asm_filename output_prefix =
     then output_prefix ^ ext_asm
     else Filename.temp_file "camlasm" ext_asm
 
-let require_global cu = Compilenv.require_global cu
-
 let compile_implementation ?toplevel ~backend ~filename ~prefixname ~middle_end
       ~ppf_dump (program : Lambda.program) =
   compile_unit ~output_prefix:prefixname
     ~asm_filename:(asm_filename prefixname) ~keep_asm:!keep_asm_file
     ~obj_filename:(prefixname ^ ext_obj)
     (fun () ->
-      Compilation_unit.Set.iter require_global program.required_globals;
+      Compilation_unit.Set.iter Compilenv.require_global
+        program.required_globals;
       let clambda_with_constants =
         middle_end ~backend ~filename ~prefixname ~ppf_dump program
       in

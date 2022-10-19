@@ -2850,8 +2850,8 @@ let type_implementation sourcefile outputprefix comp_unit initial_env ast =
         gen_annot outputprefix sourcefile annots
       )
 
-let save_signature comp_unit tsg outputprefix source_file initial_env cmi =
-  Cmt_format.save_cmt  (outputprefix ^ ".cmti") comp_unit
+let save_signature modname tsg outputprefix source_file initial_env cmi =
+  Cmt_format.save_cmt  (outputprefix ^ ".cmti") modname
     (Cmt_format.Interface tsg) (Some source_file) initial_env (Some cmi)
 
 let type_interface env ast =
@@ -2931,7 +2931,7 @@ let package_units initial_env objfiles cmifile comp_unit =
     let unit_names = List.map fst units in
     let imports =
       List.filter
-        (fun (modname, _crc) -> not (List.mem modname unit_names))
+        (fun (name, _crc) -> not (List.mem name unit_names))
         (Env.imports()) in
     (* Write packaged signature *)
     if not !Clflags.dont_write_files then begin

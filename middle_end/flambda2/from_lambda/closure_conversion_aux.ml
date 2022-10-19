@@ -131,7 +131,7 @@ module Env = struct
     { variables : Variable.t Ident.Map.t;
       globals : Symbol.t Numeric_types.Int.Map.t;
       simples_to_substitute : Simple.t Ident.Map.t;
-      current_unit : Compilation_unit.t;
+      current_unit_id : Compilation_unit.t;
       current_depth : Variable.t option;
       value_approximations : value_approximation Name.Map.t;
       approximation_for_external_symbol : Symbol.t -> value_approximation;
@@ -140,7 +140,7 @@ module Env = struct
       inlining_history_tracker : Inlining_history.Tracker.t
     }
 
-  let current_unit t = t.current_unit
+  let current_unit_id t = t.current_unit_id
 
   let big_endian t = t.big_endian
 
@@ -192,11 +192,11 @@ module Env = struct
         approx
 
   let create ~big_endian ~cmx_loader =
-    let current_unit = Compilation_unit.get_current_exn () in
+    let current_unit_id = Compilation_unit.get_current_exn () in
     { variables = Ident.Map.empty;
       globals = Numeric_types.Int.Map.empty;
       simples_to_substitute = Ident.Map.empty;
-      current_unit;
+      current_unit_id;
       current_depth = None;
       value_approximations = Name.Map.empty;
       approximation_for_external_symbol =
@@ -205,14 +205,14 @@ module Env = struct
         else fun _symbol -> Value_approximation.Value_unknown);
       big_endian;
       path_to_root = Debuginfo.Scoped_location.Loc_unknown;
-      inlining_history_tracker = Inlining_history.Tracker.empty current_unit
+      inlining_history_tracker = Inlining_history.Tracker.empty current_unit_id
     }
 
   let clear_local_bindings
       { variables = _;
         globals;
         simples_to_substitute;
-        current_unit;
+        current_unit_id;
         current_depth;
         value_approximations;
         approximation_for_external_symbol;
@@ -228,7 +228,7 @@ module Env = struct
     { variables = Ident.Map.empty;
       globals;
       simples_to_substitute;
-      current_unit;
+      current_unit_id;
       current_depth;
       value_approximations;
       approximation_for_external_symbol;

@@ -89,30 +89,22 @@ type prim =
   | Send_self of Lambda.region_close
   | Send_cache of Lambda.region_close
 
-let units_with_used_primitives = Compilation_unit.Tbl.create 7
+let units_with_used_primitives = Hashtbl.create 7
 let add_used_primitive loc env path =
   match path with
-    Some (Path.Pdot (path, _)) -> begin
-      try
+    Some (Path.Pdot (path, _)) ->
       let address = Env.find_module_address path env in
-      match Env.address_head address with
+      begin match Env.address_head address with
       | AHunit cu ->
-          if not (Compilation_unit.Tbl.mem units_with_used_primitives cu)
-          then Compilation_unit.Tbl.add units_with_used_primitives cu loc
+          if not (Hashtbl.mem units_with_used_primitives cu)
+          then Hashtbl.add units_with_used_primitives cu loc
       | AHlocal _ -> ()
-  with (Not_found as e) ->
-    let bt = Printexc.get_raw_backtrace () in
-    Format.eprintf "@[<hov1>add_used_primitive@ %a@ %a@ %a@]@.%!"
-      Location.print_loc loc
-      Env.print env
-      Path.print path;
-    Printexc.raise_with_backtrace e bt
-end
-| _ -> ()
+      end
+  | _ -> ()
 
-let clear_used_primitives () = Compilation_unit.Tbl.clear units_with_used_primitives
+let clear_used_primitives () = Hashtbl.clear units_with_used_primitives
 let get_units_with_used_primitives () =
-  Compilation_unit.Tbl.fold (fun path _ acc -> path :: acc) units_with_used_primitives []
+  Hashtbl.fold (fun path _ acc -> path :: acc) units_with_used_primitives []
 
 let gen_array_kind =
   if Config.flat_float_array then Pgenarray else Paddrarray
@@ -647,9 +639,9 @@ let lambda_of_loc kind sloc =
   | Loc_FILE -> Lconst (Const_immstring file)
   | Loc_MODULE ->
     let filename = Filename.basename file in
-    let comp_unit = Compilation_unit.get_current () in
+    let name = Compilation_unit.get_current () in
     let module_name =
-      match comp_unit with
+      match name with
       | None -> "//"^filename^"//"
       | Some comp_unit ->
         Compilation_unit.name_as_string comp_unit

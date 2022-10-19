@@ -84,18 +84,18 @@ let check_consistency file_name unit crc =
     } ->
     raise(Error(Inconsistent_implementation(name, user, auth)))
   end;
-  let modname = CU.name unit.ui_unit in
+  let ui_name = CU.name unit.ui_unit in
   begin try
-    let source = List.assoc modname !implementations_defined in
-    raise (Error(Multiple_definition(modname, file_name, source)))
+    let source = List.assoc ui_name !implementations_defined in
+    raise (Error(Multiple_definition(CU.name unit.ui_unit, file_name, source)))
   with Not_found -> ()
   end;
-  implementations := modname :: !implementations;
-  Cmx_consistbl.set crc_implementations modname crc file_name;
+  implementations := ui_name :: !implementations;
+  Cmx_consistbl.set crc_implementations ui_name crc file_name;
   implementations_defined :=
-    (modname, file_name) :: !implementations_defined;
+    (ui_name, file_name) :: !implementations_defined;
   if CU.is_packed unit.ui_unit then
-    cmx_required := modname :: !cmx_required
+    cmx_required := ui_name :: !cmx_required
 
 let extract_crc_interfaces () =
   Cmi_consistbl.extract !interfaces crc_interfaces
@@ -127,30 +127,32 @@ let runtime_lib () =
 
 (* First pass: determine which units are needed *)
 
-let missing_globals = (CU.Tbl.create 17 : string list ref CU.Tbl.t)
+let missing_globals =
+  (Hashtbl.create 17 :
+     (CU.t, string list ref) Hashtbl.t)
 
 let is_required name =
-  try ignore (CU.Tbl.find missing_globals name); true
+  try ignore (Hashtbl.find missing_globals name); true
   with Not_found -> false
 
 let add_required by (name, _crc) =
   try
-    let rq = CU.Tbl.find missing_globals name in
+    let rq = Hashtbl.find missing_globals name in
     rq := by :: !rq
   with Not_found ->
-    CU.Tbl.add missing_globals name (ref [by])
+    Hashtbl.add missing_globals name (ref [by])
 
 let remove_required name =
-  CU.Tbl.remove missing_globals name
+  Hashtbl.remove missing_globals name
 
 let extract_missing_globals () =
   let mg = ref [] in
-  CU.Tbl.iter (fun md rq -> mg := (md, !rq) :: !mg) missing_globals;
+  Hashtbl.iter (fun md rq -> mg := (md, !rq) :: !mg) missing_globals;
   !mg
 
 type file =
-  | Unit of Misc.filepath * unit_infos * Digest.t
-  | Library of Misc.filepath * library_infos
+  | Unit of string * unit_infos * Digest.t
+  | Library of string * library_infos
 
 let object_file_name_of_file = function
   | Unit (fname, _, _) -> Some (Filename.chop_suffix fname ".cmx" ^ ext_obj)
@@ -214,9 +216,8 @@ let scan_file file tolink =
              let req_by =
                Printf.sprintf "%s(%s)" file_name (ui_name |> CU.Name.to_string)
              in
-             List.iter (fun (modname, digest) ->
-                 add_required req_by (assume_no_prefix modname, digest))
-               info.ui_imports_cmx;
+             info.ui_imports_cmx |> List.iter (fun (modname, digest) ->
+               add_required req_by (assume_no_prefix modname, digest));
              (info, file_name, crc) :: reqd
            end else
            reqd)
@@ -417,8 +418,8 @@ let report_error ppf = function
         List.iter
          (fun (md, rq) ->
             fprintf ppf "@ @[<hov 2>%a referenced from %a@]"
-              Compilation_unit.print md
-              print_references rq) in
+            Compilation_unit.print md
+            print_references rq) in
       fprintf ppf
        "@[<v 2>No implementations provided for the following modules:%a@]"
        print_modules l

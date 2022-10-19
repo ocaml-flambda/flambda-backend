@@ -51,7 +51,7 @@ let print_info cmt =
     | Some filename -> open_out filename
   in
   let open Cmt_format in
-  Printf.fprintf oc "module name: %a\n" Compilation_unit.output cmt.cmt_unit;
+  Printf.fprintf oc "module name: %a\n" Compilation_unit.output cmt.cmt_modname;
   begin match cmt.cmt_annots with
     Packed (_, list) ->
       Printf.fprintf oc "pack: %s\n" (String.concat " " list)

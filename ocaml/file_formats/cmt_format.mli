@@ -49,7 +49,7 @@ and binary_part =
   | Partial_module_type of module_type
 
 type cmt_infos = {
-  cmt_unit : Compilation_unit.t;
+  cmt_modname : Compilation_unit.t;
   cmt_annots : binary_annots;
   cmt_value_dependencies :
     (Types.value_description * Types.value_description) list;

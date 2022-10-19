@@ -46,7 +46,7 @@
 *)
 val lambda_to_flambda
    : backend:(module Backend_intf.S)
-  -> compilation_unit:Compilation_unit.t
+  -> module_ident:Compilation_unit.t
   -> size:int
   -> filename:string
   -> Lambda.lambda

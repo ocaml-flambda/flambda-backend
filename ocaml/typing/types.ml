@@ -135,7 +135,7 @@ module Uid = struct
       incr id;
       Item { comp_unit = current_unit; id = !id }
 
-  let of_compilation_unit cu =
+  let of_compilation_unit_id cu =
     Compilation_unit cu
 
   let of_predef_id id =

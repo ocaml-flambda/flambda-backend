@@ -12,12 +12,12 @@ let check_invariants program =
 let parse_flambda filename =
   match Parse_flambda.parse_fexpr filename with
   | Ok unit ->
-    let compilation_unit =
+    let comp_unit =
       Parse_flambda.make_compilation_unit ~extension:".fl" ~filename ()
     in
-    Compilation_unit.set_current compilation_unit;
+    Compilation_unit.set_current comp_unit;
     Format.printf "%a@.@." Print_fexpr.flambda_unit unit;
-    let fl2 = Fexpr_to_flambda.conv ~compilation_unit unit in
+    let fl2 = Fexpr_to_flambda.conv ~module_ident:comp_unit unit in
     Format.printf "flambda:@.%a@.@." Flambda_unit.print fl2;
     check_invariants fl2;
     let cmx_loader = Flambda_cmx.create_loader ~get_global_info in

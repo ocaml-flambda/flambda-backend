@@ -747,8 +747,8 @@ let find_name_module ~mark name tbl =
     when not (Current_unit_name.is (name |> Compilation_unit.Name.of_string)) ->
       (* CR lmaurer: The use of [Ident.create_persistent] here is pretty gross in
          the current regime. It's not actually the [Ident.t] corresponding to a
-         compilation unit (which would include both the "caml" prefix and the
-         pack prefix). It's really just part of the API between this and
+         compilation unit (and only bytecode compilation guarantees there is
+         such a thing). It's really just part of the API between this and
          [Typemod.type_module_aux]. *)
       let path = Pident(Ident.create_persistent name) in
       path, Mod_persistent
@@ -798,10 +798,10 @@ let components_of_module ~alerts ~uid env ps path addr mty =
   }
 
 let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
-  let unit = cmi.cmi_unit in
+  let name = cmi.cmi_name in
   let sign = cmi.cmi_sign in
   let flags = cmi.cmi_flags in
-  let id = Ident.create_persistent (Compilation_unit.name_as_string unit) in
+  let id = Ident.create_persistent (Compilation_unit.name_as_string name) in
   let path = Pident id in
   let alerts =
     List.fold_left (fun acc -> function Alerts s -> s | _ -> acc)
@@ -812,10 +812,10 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
     { md_type =  Mty_signature sign;
       md_loc = Location.none;
       md_attributes = [];
-      md_uid = Uid.of_compilation_unit unit;
+      md_uid = Uid.of_compilation_unit_id name;
     }
   in
-  let mda_address = EnvLazy.create_forced (Aunit unit) in
+  let mda_address = EnvLazy.create_forced (Aunit name) in
   let mda_declaration =
     Subst.(Lazy.module_decl Make_local identity (Lazy.of_module_decl md))
   in
@@ -861,8 +861,8 @@ let find_pers_mod name =
 let check_pers_mod ~loc name =
   Persistent_env.check !persistent_env read_sign_of_cmi ~loc name
 
-let crc_of_unit modname =
-  Persistent_env.crc_of_unit !persistent_env read_sign_of_cmi modname
+let crc_of_unit name =
+  Persistent_env.crc_of_unit !persistent_env read_sign_of_cmi name
 
 let is_imported_opaque modname =
   Persistent_env.is_imported_opaque !persistent_env modname
@@ -1118,42 +1118,12 @@ let rec find_module_address path env =
 
 and force_address = function
   | Projection { parent; pos } -> Adot(get_address parent, pos)
-  | ModAlias { env; path } -> Fun.id (find_module_address path env)
+  | ModAlias { env; path } -> find_module_address path env
 
 and get_address a =
-  let ans =
-    EnvLazy.force force_address a
-  in
-  (); ans
-
-let print_fwd = ref (fun _ _ -> assert false)
+  EnvLazy.force force_address a
 
 let find_value_address path env =
-  begin fun f ->
-    let rec is_stdlib_path path =
-      match (path : Path.t) with
-      | Pdot (x, _) -> is_stdlib_path x
-      | Pident ident -> String.equal "Stdlib" (Ident.name ident)
-      | Papply _ -> false
-    in
-    let noisy = Sys.getenv_opt "MAKE_SOME_NOISE" |> Option.is_some in
-    if noisy && is_stdlib_path path then
-      Format.eprintf "@[<hov 1>find_value_address@ %a@ %a@]@.%!"
-        Path.print path
-        !print_fwd env;
-    try
-      let ans = f () in
-      if noisy && is_stdlib_path path then
-        Format.eprintf "@[<hov 1>find_value_address@ %a@ ...@ = %a@]@.%!"
-          Path.print path
-          print_address ans;
-      ans
-    with Not_found as e when false ->
-      Format.eprintf "@[<hov 1>find_value_address@ %a@ %a@ = DNE@]@.%!"
-        Path.print path
-        !print_fwd env;
-      raise e
-  end @@ fun () ->
   get_address (find_value_full path env).vda_address
 
 let find_class_address path env =
@@ -2232,8 +2202,8 @@ let open_signature
   else open_signature None root env
 
 (* Read a signature from a file *)
-let read_signature cu filename =
-  let mda = read_pers_mod (Compilation_unit.name cu) filename in
+let read_signature modname filename =
+  let mda = read_pers_mod (Compilation_unit.name modname) filename in
   let md = Subst.Lazy.force_module_decl mda.mda_declaration in
   match md.md_type with
   | Mty_signature sg -> sg
@@ -3397,9 +3367,3 @@ let () =
       | _ ->
           None
     )
-
-let print ppf t =
-  let values = extract_modules None t |> List.sort_uniq String.compare in
-  Format.fprintf ppf "[@[<hov 1>%a@]]" (Format.pp_print_list Format.pp_print_string ~pp_sep:(fun ppf () -> Format.fprintf ppf ",@ ")) values
-
-let () = print_fwd := print

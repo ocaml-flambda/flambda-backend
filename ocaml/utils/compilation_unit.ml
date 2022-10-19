@@ -27,16 +27,6 @@ type error =
 
 exception Error of error
 
-let () =
-  Printexc.register_printer begin function
-  | Error e ->
-    begin match e with
-    | Invalid_character (c, s) -> Some (Format.sprintf "Invalid character '%c' in '%s'" c s)
-    | Bad_compilation_unit_name s -> Some ("Bad compilation unit name: " ^ s)
-    end
-  | _ -> None
-  end
-
 (* CR-someday lmaurer: Move this to [Identifiable] and change /all/ definitions
    of [output] that delegate to [print] to use it. Yes, they're all broken. *)
 let output_of_print print =
@@ -275,8 +265,6 @@ let full_path_as_string t =
 
 let to_global_ident_for_bytecode t =
   Ident.create_persistent (full_path_as_string t)
-
-let to_global_ident_for_legacy_code = to_global_ident_for_bytecode
 
 let print_debug ppf { for_pack_prefix; hash = _; name } =
   if Prefix.is_empty for_pack_prefix then

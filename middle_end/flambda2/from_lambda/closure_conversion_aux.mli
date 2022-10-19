@@ -148,7 +148,7 @@ module Env : sig
 
   val with_depth : t -> Variable.t -> t
 
-  val current_unit : t -> Compilation_unit.t
+  val current_unit_id : t -> Compilation_unit.t
 
   val big_endian : t -> bool
 

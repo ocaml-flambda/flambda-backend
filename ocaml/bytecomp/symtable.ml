@@ -72,7 +72,6 @@ let slot_for_getglobal id =
   try
     GlobalMap.find !global_table id
   with Not_found ->
-    Ident.Set.iter (Format.eprintf "%a@." Ident.print) (Ident.Map.keys (!global_table).tbl);
     raise(Error(Undefined_global(Ident.name id)))
 
 let slot_for_setglobal id =

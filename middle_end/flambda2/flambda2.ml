@@ -83,7 +83,7 @@ let output_flexpect ~ml_filename ~raw_flambda:old_unit new_unit =
         Print_fexpr.expect_test_spec ppf test;
         Format.pp_print_flush ppf ())
 
-let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~compilation_unit
+let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
     ~module_block_size_in_words ~module_initializer ~keep_symbol_tables =
   (* Make sure -linscan is enabled in classic mode. Doing this here to be sure
      it happens exactly when -Oclassic is in effect, which we don't know at CLI
@@ -114,7 +114,7 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~compilation_unit
     let raw_flambda, close_program_metadata =
       Profile.record_call "lambda_to_flambda" (fun () ->
           Lambda_to_flambda.lambda_to_flambda ~mode ~big_endian:Arch.big_endian
-            ~cmx_loader ~compilation_unit ~module_block_size_in_words
+            ~cmx_loader ~module_ident ~module_block_size_in_words
             module_initializer)
     in
     Compiler_hooks.execute Raw_flambda2 raw_flambda;

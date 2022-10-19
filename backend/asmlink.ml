@@ -96,17 +96,17 @@ let check_cmx_consistency file_name cmxs =
 let check_consistency ~unit cmis cmxs =
   check_cmi_consistency unit.file_name cmis;
   check_cmx_consistency unit.file_name cmxs;
-  let modname = CU.name unit.name in
+  let ui_unit = CU.name unit.name in
   begin try
-    let source = CU.Name.Tbl.find implementations_defined modname in
-    raise (Error(Multiple_definition(modname, unit.file_name, source)))
+    let source = CU.Name.Tbl.find implementations_defined ui_unit in
+    raise (Error(Multiple_definition(ui_unit, unit.file_name, source)))
   with Not_found -> ()
   end;
-  implementations := CU.name unit.name :: !implementations;
-  Cmx_consistbl.check crc_implementations modname unit.crc unit.file_name;
-  CU.Name.Tbl.replace implementations_defined modname unit.file_name;
+  implementations := ui_unit :: !implementations;
+  Cmx_consistbl.check crc_implementations ui_unit unit.crc unit.file_name;
+  CU.Name.Tbl.replace implementations_defined ui_unit unit.file_name;
   if CU.is_packed unit.name then
-    cmx_required := modname :: !cmx_required
+    cmx_required := ui_unit :: !cmx_required
 
 let extract_crc_interfaces () =
   CU.Name.Tbl.fold (fun name () crcs ->
@@ -143,22 +143,22 @@ let runtime_lib () =
 (* First pass: determine which units are needed *)
 
 let missing_globals =
-  (CU.Tbl.create 17
-    : (Misc.filepath * CU.Name.t option) list ref CU.Tbl.t)
+  (Hashtbl.create 17 :
+     (CU.t, (string * CU.Name.t option) list ref) Hashtbl.t)
 
 let is_required name =
-  try ignore (CU.Tbl.find missing_globals name); true
+  try ignore (Hashtbl.find missing_globals name); true
   with Not_found -> false
 
 let add_required by (name, _crc) =
   try
-    let rq = CU.Tbl.find missing_globals name in
+    let rq = Hashtbl.find missing_globals name in
     rq := by :: !rq
   with Not_found ->
-    CU.Tbl.add missing_globals name (ref [by])
+    Hashtbl.add missing_globals name (ref [by])
 
 let remove_required name =
-  CU.Tbl.remove missing_globals name
+  Hashtbl.remove missing_globals name
 
 let extract_missing_globals () =
   let mg = ref [] in
@@ -166,12 +166,12 @@ let extract_missing_globals () =
     | file, None -> file
     | file, Some part -> Format.asprintf "%s(%a)" file CU.Name.print part
   in
-  CU.Tbl.iter (fun md rq -> mg := (md, List.map fmt !rq) :: !mg) missing_globals;
+  Hashtbl.iter (fun md rq -> mg := (md, List.map fmt !rq) :: !mg) missing_globals;
   !mg
 
 type file =
-  | Unit of Misc.filepath * unit_infos * Digest.t
-  | Library of Misc.filepath * library_infos
+  | Unit of string * unit_infos * Digest.t
+  | Library of string * library_infos
 
 let read_file obj_name =
   let file_name =
@@ -210,7 +210,7 @@ let scan_file ~shared genfns file (objfiles, tolink) =
         info.ui_imports_cmx;
       let dynunit : Cmxs_format.dynunit option =
         if not shared then None else
-          Some { dynu_unit = info.ui_unit;
+          Some { dynu_name = info.ui_unit;
                  dynu_crc = crc;
                  dynu_defines = info.ui_defines;
                  dynu_imports_cmi = info.ui_imports_cmi;
@@ -252,12 +252,12 @@ let scan_file ~shared genfns file (objfiles, tolink) =
       objfiles,
       List.fold_right
         (fun info reqd ->
-           let li_name = CU.name info.li_unit in
+           let li_name = CU.name info.li_name in
            if info.li_force_link
            || !Clflags.link_everything
-           || is_required info.li_unit
+           || is_required info.li_name
            then begin
-             remove_required info.li_unit;
+             remove_required info.li_name;
              let req_by = (file_name, Some li_name) in
              info.li_imports_cmx |> Misc.Bitmap.iter (fun i ->
                let modname, digest = infos.lib_imports_cmx.(i) in
@@ -270,7 +270,7 @@ let scan_file ~shared genfns file (objfiles, tolink) =
              let dynunit : Cmxs_format.dynunit option =
                if not shared then None else
                  Some {
-                   dynu_unit = info.li_unit;
+                   dynu_name = info.li_name;
                    dynu_crc = info.li_crc;
                    dynu_defines = info.li_defines;
                    dynu_imports_cmi =
@@ -279,7 +279,7 @@ let scan_file ~shared genfns file (objfiles, tolink) =
                      imports_list infos.lib_imports_cmx info.li_imports_cmx }
              in
              let unit =
-               { name = info.li_unit;
+               { name = info.li_name;
                  crc = info.li_crc;
                  defines = info.li_defines;
                  file_name;

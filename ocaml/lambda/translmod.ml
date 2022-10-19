@@ -58,8 +58,7 @@ let longident_of_comp_unit cu =
   in
   let names_rev =
     Compilation_unit.full_path cu
-    |> List.map Compilation_unit.Name.to_string
-    |> List.rev
+    |> List.rev_map Compilation_unit.Name.to_string
   in
   of_names names_rev
 
@@ -912,30 +911,30 @@ let required_globals ~flambda body =
 
 (* Compile an implementation *)
 
-let transl_implementation_flambda compilation_unit (str, cc) =
+let transl_implementation_flambda module_name (str, cc) =
   reset_labels ();
   primitive_declarations := [];
   Translprim.clear_used_primitives ();
   Translcore.clear_probe_handlers ();
-  let scopes = enter_compilation_unit ~scopes:empty_scopes compilation_unit in
+  let scopes = enter_compilation_unit ~scopes:empty_scopes module_name in
   let body, size =
     Translobj.transl_label_init (fun () ->
       let body, size =
         transl_struct ~scopes Loc_unknown [] cc
-          (global_path compilation_unit) str in
+          (global_path module_name) str in
       Translcore.declare_probe_handlers body, size)
   in
-  { compilation_unit;
+  { module_ident = module_name;
     main_module_block_size = size;
     required_globals = required_globals ~flambda:true body;
     code = body }
 
-let transl_implementation compilation_unit (str, cc) =
+let transl_implementation module_name (str, cc) =
   let implementation =
-    transl_implementation_flambda compilation_unit (str, cc)
+    transl_implementation_flambda module_name (str, cc)
   in
   let code =
-    Lprim (Psetglobal implementation.compilation_unit, [implementation.code],
+    Lprim (Psetglobal implementation.module_ident, [implementation.code],
            Loc_unknown)
   in
   { implementation with code }
@@ -1511,7 +1510,7 @@ let build_ident_map restr idlist more_ids =
 (* Compile an implementation using transl_store_structure
    (for the native-code compiler). *)
 
-let transl_store_gen ~scopes compilation_unit ({ str_items = str }, restr) topl =
+let transl_store_gen ~scopes module_name ({ str_items = str }, restr) topl =
   reset_labels ();
   primitive_declarations := [];
   Translcore.clear_probe_handlers ();
@@ -1526,30 +1525,30 @@ let transl_store_gen ~scopes compilation_unit ({ str_items = str }, restr) topl 
         Lambda.subst (fun _ _ env -> env) !transl_store_subst
           (transl_exp ~scopes expr)
       | str ->
-        transl_store_structure ~scopes compilation_unit map prims aliases str
+        transl_store_structure ~scopes module_name map prims aliases str
     in
     Translcore.declare_probe_handlers expr
   in
-  transl_store_label_init compilation_unit size f str
+  transl_store_label_init module_name size f str
   (*size, transl_label_init (transl_store_structure module_id map prims str)*)
 
-let transl_store_phrases compilation_unit str =
+let transl_store_phrases module_name str =
   let scopes =
-    enter_compilation_unit ~scopes:empty_scopes compilation_unit
+    enter_compilation_unit ~scopes:empty_scopes module_name
   in
-  transl_store_gen ~scopes compilation_unit (str,Tcoerce_none) true
+  transl_store_gen ~scopes module_name (str,Tcoerce_none) true
 
-let transl_store_implementation compilation_unit (str, restr) =
+let transl_store_implementation module_name (str, restr) =
   let s = !transl_store_subst in
   transl_store_subst := Ident.Map.empty;
-  let scopes = enter_compilation_unit ~scopes:empty_scopes compilation_unit in
-  let (i, code) = transl_store_gen ~scopes compilation_unit (str, restr) false in
+  let scopes = enter_compilation_unit ~scopes:empty_scopes module_name in
+  let (i, code) = transl_store_gen ~scopes module_name (str, restr) false in
   transl_store_subst := s;
   { Lambda.main_module_block_size = i;
     code;
     (* module_ident is not used by closure, but this allow to share
        the type with the flambda version *)
-    compilation_unit;
+    module_ident = module_name;
     required_globals = required_globals ~flambda:true code }
 
 (* Compile a toplevel phrase *)

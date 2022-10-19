@@ -20,7 +20,7 @@
    (as an externed record) *)
 
 type dynunit = {
-  dynu_unit: Compilation_unit.t;
+  dynu_name: Compilation_unit.t;
   dynu_crc: Digest.t;
   dynu_imports_cmi: (Compilation_unit.Name.t * Digest.t option) list;
   dynu_imports_cmx: (Compilation_unit.Name.t * Digest.t option) list;

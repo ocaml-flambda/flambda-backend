@@ -44,7 +44,7 @@ type generic_fns =
     apply_fun: apply_fn list;
     send_fun: apply_fn list }
 
-type crcs = (Compilation_unit.t * Digest.t option) list
+type crcs = (Compilation_unit.Name.t * Digest.t option) list
 
 (* Symbols of function that pass certain checks for special properties. *)
 type checks =
@@ -60,11 +60,8 @@ type unit_infos =
                                           (* All compilation units in the
                                              .cmx file (i.e. [ui_unit] and
                                              any produced via [Asmpackager]) *)
-    mutable ui_imports_cmi: (Compilation_unit.Name.t * Digest.t option) list;
-                                          (* Interfaces imported *)
-    mutable ui_imports_cmx: (Compilation_unit.Name.t * Digest.t option) list;
-                                          (* Infos imported *)
-
+    mutable ui_imports_cmi: crcs;         (* Interfaces imported *)
+    mutable ui_imports_cmx: crcs;         (* Infos imported *)
     mutable ui_generic_fns: generic_fns;  (* Generic functions needed *)
     mutable ui_export_info: export_info;
     mutable ui_checks: checks;
@@ -74,7 +71,7 @@ type unit_infos =
    infos on the library: *)
 
 type lib_unit_info =
-  { li_unit: Compilation_unit.t;
+  { li_name: Compilation_unit.t;
     li_crc: Digest.t;
     li_defines: Compilation_unit.t list;
     li_force_link: bool;
@@ -82,7 +79,6 @@ type lib_unit_info =
     li_imports_cmx : Bitmap.t } (* subset of lib_imports_cmx *)
 
 type library_infos =
-  (* CR lmaurer: Should document why this is an array rather than a list *)
   { lib_imports_cmi: (Compilation_unit.Name.t * Digest.t option) array;
     lib_imports_cmx: (Compilation_unit.Name.t * Digest.t option) array;
     lib_units: lib_unit_info list;

@@ -72,7 +72,7 @@ let no_docstring f x =
 let process_implementation_file sourcefile =
   init_path ();
   let prefixname = Filename.chop_extension sourcefile in
-  let modulename =String.capitalize_ascii(Filename.basename prefixname) in
+  let modulename = String.capitalize_ascii(Filename.basename prefixname) in
   let compilation_unit =
     Compilation_unit.create (Compilation_unit.Prefix.from_clflags ())
       (modulename |> Compilation_unit.Name.of_string)

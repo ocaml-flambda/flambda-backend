@@ -71,9 +71,9 @@ let check_units members =
       | PM_intf -> ()
       | PM_impl infos ->
           List.iter
-            (fun (name, _) ->
-              if List.mem name forbidden
-              then raise(Error(Forward_reference(mb.pm_file, name))))
+            (fun (unit, _) ->
+              if List.mem unit forbidden
+              then raise(Error(Forward_reference(mb.pm_file, unit))))
             infos.ui_imports_cmx
       end;
       check (list_remove mb.pm_name forbidden) tl in
@@ -106,7 +106,7 @@ let make_package_object unix ~ppf_dump members targetobj targetname coercion
         members in
     let for_pack_prefix = CU.Prefix.from_clflags () in
     let modname = targetname |> CU.Name.of_string in
-    let compilation_unit = CU.create for_pack_prefix modname in
+    let module_ident = CU.create for_pack_prefix modname in
     let prefixname = Filename.remove_extension objtemp in
     let required_globals = Compilation_unit.Set.empty in
     if Config.flambda2 then begin
@@ -118,7 +118,7 @@ let make_package_object unix ~ppf_dump members targetobj targetname coercion
         ~filename:targetname
         ~prefixname
         ~size:main_module_block_size
-        ~compilation_unit
+        ~module_ident
         ~module_initializer
         ~flambda2
         ~ppf_dump
@@ -132,28 +132,26 @@ let make_package_object unix ~ppf_dump members targetobj targetname coercion
             Translmod.transl_package_flambda components coercion
           in
           let code = Simplif.simplify_lambda code in
-          let compilation_unit = Compilation_unit.get_current_exn () in
           let program =
             { Lambda.
               code;
               main_module_block_size;
-              compilation_unit;
+              module_ident;
               required_globals;
             }
           in
           program, Flambda_middle_end.lambda_to_clambda
         else
-          let compilation_unit = Compilation_unit.get_current_exn () in
           let main_module_block_size, code =
             Translmod.transl_store_package components
-              compilation_unit coercion
+              module_ident coercion
           in
           let code = Simplif.simplify_lambda code in
           let program =
             { Lambda.
               code;
               main_module_block_size;
-              compilation_unit;
+              module_ident;
               required_globals;
             }
           in
@@ -204,8 +202,8 @@ let build_package_cmx members cmxfile =
   let unit_names =
     List.map (fun m -> m.pm_name) members in
   let filter lst =
-    List.filter (fun (modname, _crc) ->
-      not (List.mem modname unit_names)) lst in
+    List.filter (fun (name, _crc) ->
+      not (List.mem name unit_names)) lst in
   let union lst =
     List.fold_left
       (List.fold_left

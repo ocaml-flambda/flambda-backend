@@ -81,7 +81,7 @@ val close_program :
   mode:'mode Flambda_features.mode ->
   big_endian:bool ->
   cmx_loader:Flambda_cmx.loader ->
-  compilation_unit:Compilation_unit.t ->
+  module_ident:Compilation_unit.t ->
   module_block_size_in_words:int ->
   program:(Acc.t -> Env.t -> Expr_with_acc.t) ->
   prog_return_cont:Continuation.t ->

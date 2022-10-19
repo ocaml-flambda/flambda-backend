@@ -46,7 +46,7 @@ and binary_part =
 | Partial_module_type of module_type
 
 type cmt_infos = {
-  cmt_unit : Compilation_unit.t;
+  cmt_modname : Compilation_unit.t;
   cmt_annots : binary_annots;
   cmt_value_dependencies :
     (Types.value_description * Types.value_description) list;
@@ -162,7 +162,7 @@ let record_value_dependency vd1 vd2 =
   if vd1.Types.val_loc <> vd2.Types.val_loc then
     value_deps := (vd1, vd2) :: !value_deps
 
-let save_cmt filename comp_unit binary_annots sourcefile initial_env cmi =
+let save_cmt filename modname binary_annots sourcefile initial_env cmi =
   if !Clflags.binary_annotations && not !Clflags.print_types then begin
     Misc.output_to_file_via_temporary
        ~mode:[Open_binary] filename
@@ -177,7 +177,7 @@ let save_cmt filename comp_unit binary_annots sourcefile initial_env cmi =
            Compilation_unit.Name.compare modname1 modname2
          in
          let cmt = {
-           cmt_unit = comp_unit;
+           cmt_modname = modname;
            cmt_annots = clear_env binary_annots;
            cmt_value_dependencies = !value_deps;
            cmt_comments = Lexer.comments ();

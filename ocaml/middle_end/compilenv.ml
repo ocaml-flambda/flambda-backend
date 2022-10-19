@@ -168,8 +168,8 @@ let get_unit_info modname =
       infos
   end
 
-let get_global_info comp_unit =
-  get_unit_info (CU.name comp_unit)
+let get_global_info global_ident =
+  get_unit_info (CU.name global_ident)
 
 let cache_unit_info ui =
   CU.Name.Tbl.add global_infos_table (CU.name ui.ui_unit) (Some ui)
@@ -182,16 +182,17 @@ let get_clambda_approx ui =
   | Flambda _ -> assert false
   | Clambda approx -> approx
 
-let toplevel_approx : Clambda.value_approximation CU.Tbl.t = CU.Tbl.create 16
+let toplevel_approx :
+  (CU.t, Clambda.value_approximation) Hashtbl.t = Hashtbl.create 16
 
 let record_global_approx_toplevel () =
-  CU.Tbl.add toplevel_approx current_unit.ui_unit
+  Hashtbl.add toplevel_approx current_unit.ui_unit
     (get_clambda_approx current_unit)
 
-let global_approx comp_unit =
-  try CU.Tbl.find toplevel_approx comp_unit
+let global_approx id =
+  try Hashtbl.find toplevel_approx id
   with Not_found ->
-    match get_global_info comp_unit with
+    match get_global_info id with
       | None -> Clambda.Value_unknown
       | Some ui -> get_clambda_approx ui
 
@@ -366,8 +367,8 @@ let structured_constants () =
          provenance = Some provenance;
        })
 
-let require_global comp_unit =
-  ignore (get_global_info comp_unit : Cmx_format.unit_infos option)
+let require_global global_ident =
+  ignore (get_global_info global_ident : Cmx_format.unit_infos option)
 
 (* Error report *)
 

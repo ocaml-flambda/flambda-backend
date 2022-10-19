@@ -22,7 +22,7 @@ type pers_flags =
   | Unsafe_string
 
 type cmi_infos = {
-    cmi_unit : Compilation_unit.t;
+    cmi_name : Compilation_unit.t;
     cmi_sign : Types.signature_item list;
     cmi_crcs : (Compilation_unit.Name.t * Digest.t option) list;
     cmi_flags : pers_flags list;

@@ -221,8 +221,7 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
     let pos_final = pos_out oc in
     let imports =
       List.filter
-        (fun (name, _crc) ->
-           Option.is_none (List.find_opt (CU.Name.equal name) unit_names))
+        (fun (name, _crc) -> not (List.mem name unit_names))
         (Bytelink.extract_crc_interfaces()) in
     let for_pack_prefix = CU.Prefix.from_clflags () in
     let modname = targetname |> CU.Name.of_string in

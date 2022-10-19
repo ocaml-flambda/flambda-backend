@@ -87,7 +87,8 @@ let for_predef_ident id =
   let compilation_unit = CU.predef_exn in
   { compilation_unit;
     linkage_name;
-    hash = Hashtbl.hash linkage_name; }
+    hash = Hashtbl.hash linkage_name;
+  }
 
 let unsafe_create compilation_unit linkage_name =
   { compilation_unit;

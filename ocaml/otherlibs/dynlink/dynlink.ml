@@ -26,13 +26,6 @@ module DT = Dynlink_types
 module Bytecode = struct
   type filename = string
 
-  let compilation_unit_name_of_ident id =
-    (* Hackily recover the name of a compilation unit from an ident.
-      This isn't something we want to do in general, but in this case we
-      get away with it because the name is exactly the identifier's name
-      and we know there's no prefix because this is a top-level value. *)
-    Ident.name id
-
   module Unit_header = struct
     type t = Cmo_format.compilation_unit_descr
 
@@ -45,28 +38,23 @@ module Bytecode = struct
     let interface_imports (t : t) = t.cu_imports |> convert_imports
     let implementation_imports (t : t) =
       let required_from_unit =
-        List.filter (fun global -> not (Compilation_unit.is_packed global))
-          t.cu_required_globals
-        |> List.map Compilation_unit.name_as_string
+        t.cu_required_globals
+        |> List.map Compilation_unit.to_global_ident_for_bytecode
       in
-      let defined_in_relocs =
-        Symtable.defined_globals t.cu_reloc
-        |> Ident.Set.of_list
+      let required =
+        required_from_unit
+        @ Symtable.required_globals t.cu_reloc
       in
-      (* CR lmaurer: Previously this was checking whether the id is packed,
-         which we can no longer tell. I /believe/ it suffices to know that the
-         unit does not itself define the same reloc. Yes? *)
-      let required_from_relocs =
+      let required =
         List.filter
           (fun id ->
              not (Ident.is_predef id)
-             && not (Ident.Set.mem id defined_in_relocs))
-          (Symtable.required_globals t.cu_reloc)
-        |> List.map compilation_unit_name_of_ident
+             && not (String.contains (Ident.name id) '.'))
+          required
       in
       List.map
-        (fun name -> name, None)
-        (required_from_unit @ required_from_relocs)
+        (fun ident -> Ident.name ident, None)
+        required
 
     let defined_symbols (t : t) =
       List.map (fun ident -> Ident.name ident)
@@ -216,7 +204,7 @@ module B = DC.Make (Bytecode)
 (* This must match the runtime representation of the argument to
    [Cmm_helpers.globals_map]. *)
 type global_map = {
-  unit : Compilation_unit.t;
+  name : Compilation_unit.t;
   crc_intf : Digest.t option;
   crc_impl : Digest.t option;
   syms : Symbol.t list;
@@ -240,7 +228,7 @@ module Native = struct
   module Unit_header = struct
     type t = Cmxs_format.dynunit
 
-    let name (t : t) = t.dynu_unit |> Compilation_unit.full_path_as_string
+    let name (t : t) = t.dynu_name |> Compilation_unit.full_path_as_string
     let crc (t : t) = Some t.dynu_crc
 
     let convert_imports l =
@@ -268,8 +256,8 @@ module Native = struct
 
   let fold_initial_units ~init ~f =
     let rank = ref 0 in
-    List.fold_left (fun acc { unit; crc_intf; crc_impl; syms; } ->
-        let name = Compilation_unit.full_path_as_string unit in
+    List.fold_left (fun acc { name; crc_intf; crc_impl; syms; } ->
+        let name = Compilation_unit.full_path_as_string name in
         let syms =
           List.map
             (fun sym -> Symbol.linkage_name sym |> Linkage_name.to_string)

@@ -505,5 +505,3 @@ type address_head =
   | AHlocal of Ident.t
 
 val address_head : address -> address_head
-
-val print : Format.formatter -> t -> unit

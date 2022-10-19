@@ -71,9 +71,9 @@ let check_units members =
       | PM_intf -> ()
       | PM_impl infos ->
           List.iter
-            (fun (name, _) ->
-              if List.mem name forbidden
-              then raise(Error(Forward_reference(mb.pm_file, name))))
+            (fun (unit, _) ->
+              if List.mem unit forbidden
+              then raise(Error(Forward_reference(mb.pm_file, unit))))
             infos.ui_imports_cmx
       end;
       check (list_remove mb.pm_name forbidden) tl in
@@ -106,7 +106,7 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
         members in
     let for_pack_prefix = CU.Prefix.from_clflags () in
     let modname = targetname |> CU.Name.of_string in
-    let compilation_unit = CU.create for_pack_prefix modname in
+    let module_ident = CU.create for_pack_prefix modname in
     let prefixname = Filename.remove_extension objtemp in
     let required_globals = CU.Set.empty in
     let program, middle_end =
@@ -119,7 +119,7 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
           { Lambda.
             code;
             main_module_block_size;
-            compilation_unit;
+            module_ident;
             required_globals;
           }
         in
@@ -127,14 +127,14 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
       else
         let main_module_block_size, code =
           Translmod.transl_store_package components
-            compilation_unit coercion
+            module_ident coercion
         in
         let code = Simplif.simplify_lambda code in
         let program =
           { Lambda.
             code;
             main_module_block_size;
-            compilation_unit;
+            module_ident;
             required_globals;
           }
         in

@@ -58,15 +58,15 @@ let declare_probe_handlers lam =
 let prim_fresh_oo_id =
   Pccall (Primitive.simple ~name:"caml_fresh_oo_id" ~arity:1 ~alloc:false)
 
-let transl_extension_constructor ~scopes env lid ext =
-  let lid =
+let transl_extension_constructor ~scopes env path ext =
+  let path =
     Printtyp.wrap_printing_env env ~error:true (fun () ->
-      Option.map (Printtyp.rewrite_double_underscore_longidents env) lid)
+      Option.map (Printtyp.rewrite_double_underscore_longidents env) path)
   in
   let name =
-    match lid with
+    match path with
     | None -> Ident.name ext.ext_id
-    | Some lid -> Format.asprintf "%a" Pprintast.longident lid
+    | Some path -> Format.asprintf "%a" Pprintast.longident path
   in
   let loc = of_location ~scopes ext.ext_loc in
   match ext.ext_kind with

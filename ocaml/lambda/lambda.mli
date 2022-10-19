@@ -428,7 +428,7 @@ and lambda_event_kind =
   | Lev_module_definition of Ident.t
 
 type program =
-  { compilation_unit : Compilation_unit.t;
+  { module_ident : Compilation_unit.t;
     main_module_block_size : int;
     required_globals : Compilation_unit.Set.t;
                                         (* Modules whose initializer side effects

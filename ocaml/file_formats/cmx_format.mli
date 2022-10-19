@@ -19,6 +19,8 @@
 
 (* Format of .cmx, .cmxa and .cmxs files *)
 
+type crcs = (Compilation_unit.Name.t * Digest.t option) list
+
 (* Each .o file has a matching .cmx file that provides the following infos
    on the compilation unit:
      - list of other units imported, with MD5s of their .cmx files
@@ -40,10 +42,8 @@ type unit_infos =
                                           (* All compilation units in the
                                              .cmx file (i.e. [ui_name] and
                                              any produced via [Asmpackager]) *)
-    mutable ui_imports_cmi: (Compilation_unit.Name.t * Digest.t option) list;
-                                          (* Interfaces imported *)
-    mutable ui_imports_cmx: (Compilation_unit.Name.t * Digest.t option) list;
-                                          (* Infos imported *)
+    mutable ui_imports_cmi: crcs;         (* Interfaces imported *)
+    mutable ui_imports_cmx: crcs;         (* Infos imported *)
     mutable ui_curry_fun: Clambda.arity list; (* Currying functions needed *)
     mutable ui_apply_fun: apply_fn list;  (* Apply functions needed *)
     mutable ui_send_fun: apply_fn list;   (* Send functions needed *)

@@ -105,7 +105,7 @@ let print_cmi_infos name crcs =
 
 let print_cmt_infos cmt =
   let open Cmt_format in
-  printf "Cmt unit name: %a\n" Compilation_unit.output cmt.cmt_unit;
+  printf "Cmt unit name: %a\n" Compilation_unit.output cmt.cmt_modname;
   print_string "Cmt interfaces imported:\n";
   List.iter print_name_crc cmt.cmt_imports;
   printf "Source file: %s\n"
@@ -198,7 +198,7 @@ let print_cmxa_infos (lib : Cmx_format.library_infos) =
   print_generic_fns lib.lib_generic_fns;
   let module B = Misc.Bitmap in
   lib.lib_units |> List.iter (fun u ->
-    print_general_infos Compilation_unit.output u.li_unit u.li_crc u.li_defines
+    print_general_infos Compilation_unit.output u.li_name u.li_crc u.li_defines
       (fun f -> B.iter (fun i -> f lib.lib_imports_cmi.(i)) u.li_imports_cmi)
       (fun f -> B.iter (fun i -> f lib.lib_imports_cmx.(i)) u.li_imports_cmx);
     printf "Force link: %s\n" (if u.li_force_link then "YES" else "no"))
@@ -208,7 +208,7 @@ let print_cmxs_infos header =
     (fun ui ->
        print_general_infos
          Compilation_unit.output
-         ui.dynu_unit
+         ui.dynu_name
          ui.dynu_crc
          ui.dynu_defines
          (fun f -> List.iter f ui.dynu_imports_cmi)
@@ -311,7 +311,7 @@ let dump_obj_by_kind filename ic obj_kind =
        begin match cmi with
          | None -> ()
          | Some cmi ->
-            print_cmi_infos cmi.Cmi_format.cmi_unit cmi.Cmi_format.cmi_crcs
+            print_cmi_infos cmi.Cmi_format.cmi_name cmi.Cmi_format.cmi_crcs
        end;
        begin match cmt with
          | None -> ()
