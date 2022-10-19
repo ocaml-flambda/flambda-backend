@@ -125,7 +125,7 @@ let rebuild_non_inlined_direct_full_application apply ~use_id ~exn_cont_use_id
   in
   after_rebuild expr uacc
 
-let simplify_direct_full_application ~simplify_expr dacc apply function_type
+let simplify_direct_full_application0 ~simplify_expr dacc apply function_type
     ~params_arity ~result_arity ~(result_types : _ Or_unknown_or_bottom.t)
     ~down_to_up ~coming_from_indirect ~callee's_code_metadata =
   let inlined =
@@ -270,6 +270,47 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
       ~rebuild:
         (rebuild_non_inlined_direct_full_application apply ~use_id
            ~exn_cont_use_id ~result_arity ~coming_from_indirect)
+
+let loopify_decision_for_call dacc apply =
+  let denv = DA.denv dacc in
+  match DE.closure_info denv with
+  | Not_in_a_closure | In_a_set_of_closures_but_not_yet_in_a_specific_closure ->
+    Loopify_state.do_not_loopify
+  | Closure { return_continuation; exn_continuation; my_closure; _ } ->
+    let tenv = DE.typing_env denv in
+    let[@inline always] canon simple =
+      Simple.without_coercion (TE.get_canonical_simple_exn tenv simple)
+    in
+    if Simple.equal (canon (Simple.var my_closure)) (canon (Apply.callee apply))
+       && (match Apply.continuation apply with
+          | Never_returns ->
+            (* If we never return, then this call is a tail-call *)
+            true
+          | Return apply_return_continuation ->
+            Continuation.equal apply_return_continuation return_continuation)
+       && Exn_continuation.equal
+            (Apply.exn_continuation apply)
+            (Exn_continuation.create ~exn_handler:exn_continuation
+               ~extra_args:[])
+    then DE.loopify_state denv
+    else Loopify_state.do_not_loopify
+
+let simplify_self_tail_call dacc apply self_cont ~down_to_up =
+  Simplify_apply_cont_expr.simplify_apply_cont dacc
+    (Apply_cont_expr.create self_cont ~args:(Apply.args apply)
+       ~dbg:(Apply.dbg apply))
+    ~down_to_up
+
+let simplify_direct_full_application ~simplify_expr dacc apply function_type
+    ~params_arity ~result_arity ~result_types ~down_to_up ~coming_from_indirect
+    ~callee's_code_metadata =
+  match loopify_decision_for_call dacc apply with
+  | Loopify self_cont ->
+    simplify_self_tail_call dacc apply self_cont ~down_to_up
+  | Do_not_loopify ->
+    simplify_direct_full_application0 ~simplify_expr dacc apply function_type
+      ~params_arity ~result_arity ~result_types ~down_to_up
+      ~coming_from_indirect ~callee's_code_metadata
 
 (* CR mshinwell: need to work out what to do for local alloc transformations
    when there are zero args. *)
@@ -514,6 +555,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
           ~is_my_closure_used:
             (Function_params_and_body.is_my_closure_used params_and_body)
           ~inlining_decision:Stub ~absolute_history ~relative_history
+          ~loopify:Never_loopify
       in
       Static_const_or_code.create_code code
     in

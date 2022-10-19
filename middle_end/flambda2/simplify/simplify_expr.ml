@@ -120,11 +120,36 @@ let rec simplify_expr dacc expr ~down_to_up =
         EB.rebuild_invalid uacc (Message message) ~after_rebuild)
 
 and simplify_function_body dacc expr ~return_continuation ~return_arity
-    ~exn_continuation ~return_cont_scope ~exn_cont_scope =
-  simplify_toplevel_common dacc
-    (fun dacc -> simplify_expr dacc expr)
-    ~in_or_out_of_closure:In_a_closure ~return_continuation ~return_arity
     ~exn_continuation ~return_cont_scope ~exn_cont_scope
+    ~(loopify_state : Loopify_state.t) ~params =
+  match loopify_state with
+  | Do_not_loopify ->
+    simplify_toplevel_common dacc
+      (fun dacc -> simplify_expr dacc expr)
+      ~in_or_out_of_closure:In_a_closure ~return_continuation ~return_arity
+      ~exn_continuation ~return_cont_scope ~exn_cont_scope
+  | Loopify cont ->
+    let call_self_cont_expr =
+      let args = Bound_parameters.simples params in
+      Expr.create_apply_cont (Apply_cont_expr.create cont ~args ~dbg:[])
+    in
+    let handlers =
+      let fresh_params = Bound_parameters.rename params in
+      let renaming =
+        Bound_parameters.renaming params ~guaranteed_fresh:fresh_params
+      in
+      Continuation.Map.singleton cont
+        (Continuation_handler.create fresh_params
+           ~handler:(Expr.apply_renaming expr renaming)
+           ~free_names_of_handler:Unknown ~is_exn_handler:false)
+    in
+    simplify_toplevel_common dacc
+      (fun dacc ->
+        Simplify_let_cont_expr.simplify_as_recursive_let_cont ~simplify_expr
+          dacc
+          (call_self_cont_expr, handlers))
+      ~in_or_out_of_closure:In_a_closure ~return_continuation ~return_arity
+      ~exn_continuation ~return_cont_scope ~exn_cont_scope
 
 and[@inline always] simplify_let dacc let_expr ~down_to_up =
   Simplify_let_expr.simplify_let ~simplify_expr ~simplify_function_body dacc
