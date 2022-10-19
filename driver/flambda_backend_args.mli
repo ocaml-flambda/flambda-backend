@@ -36,6 +36,8 @@ module type Flambda_backend_options = sig
   val alloc_check : unit -> unit
   val dcheckmach : unit -> unit
 
+  val disable_poll_insertion : unit -> unit
+
   val internal_assembler : unit -> unit
 
   val flambda2_join_points : unit -> unit
