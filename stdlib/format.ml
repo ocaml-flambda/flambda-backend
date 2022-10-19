@@ -25,7 +25,7 @@ open! Stdlib
    The pretty-printing engine internal data structures.
 *)
 
-[@@@ocaml.warning "Ae"]
+[@@@ocaml.warning "+A-e"]
 
 let id x = x
 

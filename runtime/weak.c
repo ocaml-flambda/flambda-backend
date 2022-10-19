@@ -83,25 +83,7 @@ Caml_inline int Test_if_its_white(value x){
 Caml_inline int Is_Dead_during_clean(value x)
 {
   CAMLassert (caml_gc_phase == Phase_clean);
-<<<<<<< HEAD
-#ifdef NO_NAKED_POINTERS
-  if (!Is_block(x) || Is_young (x)) return 0;
-#else
-  if (!Is_block(x) || !Is_in_heap(x)) return 0;
-#endif
-  if (Tag_val(x) == Infix_tag) x -= Infix_offset_val(x);
-  return Is_white_val(x);
-||||||| 24dbb0976a
-  if (!Is_block(x)) return 0;
-  if (Tag_val(x) == Infix_tag) x -= Infix_offset_val(x);
-#ifdef NO_NAKED_POINTERS
-  return Is_white_val(x) && !Is_young (x);
-#else
-  return Is_white_val(x) && Is_in_heap (x);
-#endif
-=======
   return Test_if_its_white(x);
->>>>>>> ocaml/4.14
 }
 
 /** caml_ephe_none is considered as not white  */

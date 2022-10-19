@@ -14,52 +14,21 @@
 (*                                                                        *)
 (**************************************************************************)
 
-<<<<<<< HEAD
 open! Stdlib
-||||||| 24dbb0976a
-(* Module [Seq]: functional iterators *)
-=======
-(** Sequences.
->>>>>>> ocaml/4.14
 
-<<<<<<< HEAD
-(** Functional iterators.
-||||||| 24dbb0976a
-(** {1 Functional Iterators} *)
-=======
+(** Sequences.
+
    A sequence of type ['a Seq.t] can be thought of as a {b delayed list},
    that is, a list whose elements are computed only when they are demanded
    by a consumer. This allows sequences to be produced and transformed
    lazily (one element at a time) rather than eagerly (all elements at
    once). This also allows constructing conceptually infinite sequences.
->>>>>>> ocaml/4.14
 
-<<<<<<< HEAD
-    The type ['a Seq.t] is a {b delayed list}, i.e. a list where some
-    evaluation is needed to access the next element. This makes it possible
-    to build infinite sequences, to build sequences as we traverse them, and
-    to transform them in a lazy fashion rather than upfront.
-
-    @since 4.07
-*)
-||||||| 24dbb0976a
-(** The type ['a t] is a {b delayed list}, i.e. a list where some evaluation
-    is needed to access the next element. This makes it possible to build
-    infinite sequences, to build sequences as we traverse them, and to transform
-    them in a lazy fashion rather than upfront.
-*)
-=======
    The type ['a Seq.t] is defined as a synonym for [unit -> 'a Seq.node].
    This is a function type: therefore, it is opaque. The consumer can {b
    query} a sequence in order to request the next element (if there is
    one), but cannot otherwise inspect the sequence in any way.
->>>>>>> ocaml/4.14
 
-<<<<<<< HEAD
-||||||| 24dbb0976a
-(** @since 4.07 *)
-
-=======
    Because it is opaque, the type ['a Seq.t] does {i not} reveal whether
    a sequence is:
    - {b persistent},
@@ -121,7 +90,6 @@ open! Stdlib
 
     @since 4.07 *)
 
->>>>>>> ocaml/4.14
 type 'a t = unit -> 'a node
 (** A sequence [xs] of type ['a t] is a delayed list of elements of
     type ['a]. Such a sequence is queried by performing a function

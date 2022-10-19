@@ -467,46 +467,12 @@ Caml_inline value caml_alloc_shr_aux (mlsize_t wosize, tag_t tag, int track,
   header_t *hp;
   value *new_block;
 
-<<<<<<< HEAD
-  if (wosize > Max_wosize) {
-    if (raise_oom)
-      caml_fatal_out_of_memory ();
-    else
-      return 0;
-  }
-||||||| 24dbb0976a
-  if (wosize > Max_wosize) {
-    if (raise_oom)
-      caml_raise_out_of_memory ();
-    else
-      return 0;
-  }
-=======
   if (wosize > Max_wosize) return 0;
->>>>>>> ocaml/4.14
   CAML_EV_ALLOC(wosize);
   hp = caml_fl_allocate (wosize);
   if (hp == NULL){
     new_block = expand_heap (wosize);
-<<<<<<< HEAD
-    if (new_block == NULL) {
-      if (!raise_oom)
-        return 0;
-      else
-        caml_fatal_out_of_memory ();
-    }
-||||||| 24dbb0976a
-    if (new_block == NULL) {
-      if (!raise_oom)
-        return 0;
-      else if (Caml_state->in_minor_collection)
-        caml_fatal_error ("out of memory");
-      else
-        caml_raise_out_of_memory ();
-    }
-=======
     if (new_block == NULL) return 0;
->>>>>>> ocaml/4.14
     caml_fl_add_blocks ((value) new_block);
     hp = caml_fl_allocate (wosize);
   }
@@ -547,10 +513,7 @@ Caml_inline value caml_alloc_shr_aux (mlsize_t wosize, tag_t tag, int track,
 Caml_inline value check_oom(value v)
 {
   if (v == 0) {
-    if (Caml_state->in_minor_collection)
-      caml_fatal_error ("out of memory");
-    else
-      caml_raise_out_of_memory ();
+    caml_fatal_out_of_memory ();
   }
   return v;
 }

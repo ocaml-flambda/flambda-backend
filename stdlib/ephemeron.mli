@@ -14,21 +14,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
-<<<<<<< HEAD
 open! Stdlib
-||||||| 24dbb0976a
-(** Ephemerons and weak hash tables *)
-=======
-(** Ephemerons and weak hash tables.
->>>>>>> ocaml/4.14
-
-<<<<<<< HEAD
 (** Ephemerons and weak hash tables.
 
-||||||| 24dbb0976a
-(** Ephemerons and weak hash tables are useful when one wants to cache
-=======
->>>>>>> ocaml/4.14
     Ephemerons and weak hash tables are useful when one wants to cache
     or memorize the computation of a function, as long as the
     arguments and the function are used, without creating memory leaks
@@ -444,12 +432,7 @@ module K2 : sig
   end
 
 end
-<<<<<<< HEAD
-(** Emphemerons with two keys. *)
-||||||| 24dbb0976a
-=======
 (** Ephemerons with two keys. *)
->>>>>>> ocaml/4.14
 
 module Kn : sig
   type ('k,'d) t (** an ephemeron with an arbitrary number of keys
@@ -553,12 +536,7 @@ module Kn : sig
   end
 
 end
-<<<<<<< HEAD
-(** Emphemerons with arbitrary number of keys of the same type. *)
-||||||| 24dbb0976a
-=======
 (** Ephemerons with arbitrary number of keys of the same type. *)
->>>>>>> ocaml/4.14
 
 module GenHashTable: sig
   (** Define a hash table on generic containers which have a notion of

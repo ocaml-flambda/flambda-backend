@@ -106,7 +106,6 @@ extern void caml_install_invalid_parameter_handler();
 value caml_startup_common(char_os **argv, int pooling)
 {
   char_os * exe_name, * proc_self_exe;
-  value res;
   char tos;
   value res;
 
@@ -159,15 +158,10 @@ value caml_startup_common(char_os **argv, int pooling)
     return Val_unit;
   }
   res = caml_start_program(Caml_state);
-<<<<<<< HEAD
   /* ignore distinction between async and normal,
      it's an uncaught exception either way */
   Caml_state->raising_async_exn = 0;
-||||||| 24dbb0976a
-  return caml_start_program(Caml_state);
-=======
   caml_terminate_signals();
->>>>>>> ocaml/4.14
   return res;
 }
 

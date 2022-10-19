@@ -282,15 +282,8 @@ void caml_init_signals(void)
 #endif
 
 #ifdef HAS_STACK_OVERFLOW_DETECTION
-<<<<<<< HEAD
-  if (caml_setup_stack_overflow_detection() != -1) {
-||||||| 24dbb0976a
-  {
-    stack_t stk;
-=======
   caml_signal_stack = caml_setup_stack_overflow_detection();
   if (caml_signal_stack != NULL) {
->>>>>>> ocaml/4.14
     struct sigaction act;
     SET_SIGACT(act, segv_handler);
     act.sa_flags |= SA_ONSTACK | SA_NODEFER;
@@ -300,18 +293,6 @@ void caml_init_signals(void)
 #endif
 }
 
-<<<<<<< HEAD
-/* Allocate and select an alternate stack for handling signals,
-   especially SIGSEGV signals.
-   Each thread needs its own alternate stack.
-   The alternate stack used to be statically-allocated for the main thread,
-   but this is incompatible with Glibc 2.34 and newer, where SIGSTKSZ
-   may not be a compile-time constant (issue #10250). */
-
-CAMLexport int caml_setup_stack_overflow_detection(void)
-||||||| 24dbb0976a
-CAMLexport void caml_setup_stack_overflow_detection(void)
-=======
 /* Termination of signal stuff */
 
 #if defined(TARGET_power) || defined(TARGET_s390x) \
@@ -355,29 +336,13 @@ void caml_terminate_signals(void)
 */
 
 CAMLexport void * caml_setup_stack_overflow_detection(void)
->>>>>>> ocaml/4.14
 {
 #ifdef HAS_STACK_OVERFLOW_DETECTION
   stack_t stk;
-<<<<<<< HEAD
-  stk.ss_sp = malloc(SIGSTKSZ);
-  if (stk.ss_sp == NULL) return -1;
-||||||| 24dbb0976a
-  stk.ss_sp = malloc(SIGSTKSZ);
-=======
->>>>>>> ocaml/4.14
   stk.ss_size = SIGSTKSZ;
   stk.ss_sp = malloc(stk.ss_size);
   if (stk.ss_sp == NULL) return NULL;
   stk.ss_flags = 0;
-<<<<<<< HEAD
-  return sigaltstack(&stk, NULL);
-#else
-  return 0;
-||||||| 24dbb0976a
-  if (stk.ss_sp)
-    sigaltstack(&stk, NULL);
-=======
   if (sigaltstack(&stk, NULL) == -1) {
     free(stk.ss_sp);
     return NULL;
@@ -385,7 +350,6 @@ CAMLexport void * caml_setup_stack_overflow_detection(void)
   return stk.ss_sp;
 #else
   return NULL;
->>>>>>> ocaml/4.14
 #endif
 }
 

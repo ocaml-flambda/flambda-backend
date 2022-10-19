@@ -40,18 +40,7 @@ typedef struct {
 
 #define Chunk_head(c) (((heap_chunk_head *) (c)) - 1)
 #define Chunk_size(c) Chunk_head(c)->size
-<<<<<<< HEAD
-#define Chunk_alloc(c) Chunk_head(c)->alloc
-||||||| 24dbb0976a
-#define Chunk_size(c) (((heap_chunk_head *) (c)) [-1]).size
-#define Chunk_alloc(c) (((heap_chunk_head *) (c)) [-1]).alloc
-#define Chunk_next(c) (((heap_chunk_head *) (c)) [-1]).next
-#define Chunk_block(c) (((heap_chunk_head *) (c)) [-1]).block
-#define Chunk_redarken_start(c) (((heap_chunk_head *) (c)) [-1]).redarken_start
-#define Chunk_redarken_end(c) (((heap_chunk_head *) (c)) [-1]).redarken_end
-=======
 #define Chunk_alloc(c) Chunk_head(c)->allocated
->>>>>>> ocaml/4.14
 #define Chunk_next(c) Chunk_head(c)->next
 #define Chunk_block(c) Chunk_head(c)->block
 

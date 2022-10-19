@@ -14,16 +14,10 @@
 (*                                                                        *)
 (**************************************************************************)
 
-<<<<<<< HEAD
 open! Stdlib
 
 [@@@ocaml.flambda_o3]
 
-||||||| 24dbb0976a
-external make_forward : Obj.t -> Obj.t -> unit = "caml_obj_make_forward"
-
-=======
->>>>>>> ocaml/4.14
 type shape =
   | Function
   | Lazy
@@ -67,16 +61,7 @@ and init_mod_block loc comps =
   done;
   modu
 
-<<<<<<< HEAD
 let [@inline never] init_mod loc shape =
-||||||| 24dbb0976a
-let overwrite o n =
-  assert (Obj.size o >= Obj.size n);
-  for i = 0 to Obj.size n - 1 do
-    Obj.set_field o i (Obj.field n i)
-=======
-let init_mod loc shape =
->>>>>>> ocaml/4.14
   match shape with
   | Module comps ->
      Obj.repr (init_mod_block loc comps)
@@ -103,45 +88,7 @@ and update_mod_block comps o n =
     update_mod_field o i comps.(i) (Obj.field n i)
   done
 
-<<<<<<< HEAD
 let [@inline never] update_mod shape o n =
-||||||| 24dbb0976a
-let overwrite_closure o n =
-  (* We need to use the [raw_field] functions at least on the code
-     pointer, which is not a valid value in -no-naked-pointers
-     mode. *)
-  assert (Obj.tag n = Obj.closure_tag);
-  assert (Obj.size o >= Obj.size n);
-  let n_start_env = Obj.Closure.((info n).start_env) in
-  let o_start_env = Obj.Closure.((info o).start_env) in
-  (* if the environment of n starts before the one of o,
-     clear the raw fields in between. *)
-  for i = n_start_env to o_start_env - 1 do
-    Obj.set_raw_field o i Nativeint.one
-  done;
-  (* if the environment of o starts before the one of n,
-     clear the environment fields in between. *)
-  for i = o_start_env to n_start_env - 1 do
-    Obj.set_field o i (Obj.repr ())
-  done;
-  for i = 0 to n_start_env - 1 do
-    (* code pointers, closure info fields, infix headers *)
-    Obj.set_raw_field o i (Obj.raw_field n i)
-  done;
-  for i = n_start_env to Obj.size n - 1 do
-    (* environment fields *)
-    Obj.set_field o i (Obj.field n i)
-  done;
-  for i = Obj.size n to Obj.size o - 1 do
-    (* clear the leftover space *)
-    Obj.set_field o i (Obj.repr ())
-  done;
-  ()
-
-let rec init_mod loc shape =
-=======
-let update_mod shape o n =
->>>>>>> ocaml/4.14
   match shape with
   | Module comps ->
      update_mod_block comps o n

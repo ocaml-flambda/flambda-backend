@@ -191,6 +191,7 @@ runtest-upstream: _install
 #	by copying and symlinking in bits from the install/build directory
 	(cd _runtest; \
 	 for exe in _install/bin/*; do ln -s $$exe; done; \
+         ln -s . boot; \
 	 for exe in ocamlc ocamlopt ocamllex; do \
 	   rm -f $$exe; ln -s $$exe.byte $$exe; \
 	 done; \

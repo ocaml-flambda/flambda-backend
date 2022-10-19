@@ -20,14 +20,7 @@ open! Stdlib
 
    This module implements buffers that automatically expand
    as necessary.  It provides accumulative concatenation of strings
-<<<<<<< HEAD
-   in quasi-linear time (instead of quadratic time when strings are
-||||||| 24dbb0976a
-   in quasi-linear time (instead of quadratic time when strings are
-   concatenated pairwise).
-=======
    in linear time (instead of quadratic time when strings are
->>>>>>> ocaml/4.14
    concatenated pairwise). For example:
 
 {[

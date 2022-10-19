@@ -618,12 +618,7 @@ CAMLprim value caml_gc_major_slice (value v)
     caml_major_collection_slice (Long_val (v));
   }
   CAML_EV_END(EV_EXPLICIT_GC_MAJOR_SLICE);
-<<<<<<< HEAD
   caml_raise_async_if_exception(exn, "");
-||||||| 24dbb0976a
-=======
-  caml_raise_if_exception (exn);
->>>>>>> ocaml/4.14
   return Val_long (0);
 }
 

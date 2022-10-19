@@ -18,7 +18,7 @@ open! Stdlib
 
 [@@@ocaml.flambda_o3]
 
-[@@@ocaml.warning "Ae"]
+[@@@ocaml.warning "+A-e"]
 [@@@ocaml.inline "9"]
 
 open CamlinternalFormatBasics

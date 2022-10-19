@@ -18,7 +18,7 @@ open! Stdlib
 
 (** Formatted input functions. *)
 
-[@@@ocaml.warning "Ae"]
+[@@@ocaml.warning "+A-e"]
 
 (** {1 Introduction} *)
 

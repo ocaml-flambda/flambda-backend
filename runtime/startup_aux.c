@@ -110,20 +110,8 @@ void caml_parse_ocamlrunparam(void)
   if (opt != NULL){
     while (*opt != '\0'){
       switch (*opt++){
-<<<<<<< HEAD
-      case 'a': scanmult (opt, &p); caml_set_allocation_policy ((intnat) p);
-        break;
-      case 'b': scanmult (opt, &p); caml_record_backtrace(Val_int (p));
-        break;
-||||||| 24dbb0976a
-      case 'a': scanmult (opt, &p); caml_set_allocation_policy ((intnat) p);
-        break;
-      case 'b': scanmult (opt, &p); caml_record_backtrace(Val_bool (p));
-        break;
-=======
       case 'a': scanmult (opt, &caml_init_policy); break;
       case 'b': scanmult (opt, &p); caml_record_backtraces(p); break;
->>>>>>> ocaml/4.14
       case 'c': scanmult (opt, &p); caml_cleanup_on_exit = (p != 0); break;
       case 'h': scanmult (opt, &caml_init_heap_wsz); break;
       case 'H': scanmult (opt, &caml_use_huge_pages); break;

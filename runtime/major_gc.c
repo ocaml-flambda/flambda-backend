@@ -757,12 +757,7 @@ Caml_noinline static intnat do_some_marking
   CAMLassert(pb_enqueued == pb_dequeued);
   *Caml_state->mark_stack = stk;
   if (darkened_anything)
-<<<<<<< HEAD
-    ephe_list_pure = 0;
-||||||| 24dbb0976a
-=======
     caml_ephe_list_pure = 0;
->>>>>>> ocaml/4.14
 #ifdef CAML_INSTR
   *pslice_fields += slice_fields;
   *pslice_pointers += slice_pointers;

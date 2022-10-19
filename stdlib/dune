@@ -21,7 +21,7 @@
      camlinternalFormatBasics
      camlinternalAtomic))
  (flags (
-     -strict-sequence -absname -w +a-4-9-41-42-44-45-48-66
+     -strict-sequence -absname -w +a-4-9-41-42-44-45-48-66-67-70
      -g -warn-error A -bin-annot -nostdlib
      -safe-string -strict-formats
  ))
@@ -35,8 +35,8 @@
 
 (rule
   (targets camlheader camlheaderd camlheaderi camlheader_ur)
-  (deps Makefile StdlibModules .depend ../Makefile.common ../Makefile.config_if_required ../Makefile.build_config ../Makefile.config)
-  (action (run make -s %{targets})))
+  (deps Makefile StdlibModules .depend ../Makefile.common ../Makefile.config_if_required ../Makefile.build_config ../Makefile.config ../runtime/sak)
+  (action (run make -s COMPUTE_DEPS=false %{targets})))
 
 (copy_files ../Makefile.config)
 
@@ -114,6 +114,8 @@
     genlex.mli
     hashtbl.ml
     hashtbl.mli
+    in_channel.ml
+    in_channel.mli
     int.ml
     int.mli
     int32.ml
@@ -142,6 +144,8 @@
     oo.mli
     option.ml
     option.mli
+    out_channel.ml
+    out_channel.mli
     parsing.ml
     parsing.mli
     pervasives.ml
@@ -249,6 +253,9 @@
     .stdlib.objs/byte/stdlib__Hashtbl.cmi
     .stdlib.objs/byte/stdlib__Hashtbl.cmt
     .stdlib.objs/byte/stdlib__Hashtbl.cmti
+    .stdlib.objs/byte/stdlib__In_channel.cmi
+    .stdlib.objs/byte/stdlib__In_channel.cmt
+    .stdlib.objs/byte/stdlib__In_channel.cmti
     .stdlib.objs/byte/stdlib__Int.cmi
     .stdlib.objs/byte/stdlib__Int.cmt
     .stdlib.objs/byte/stdlib__Int.cmti
@@ -291,6 +298,9 @@
     .stdlib.objs/byte/stdlib__Option.cmi
     .stdlib.objs/byte/stdlib__Option.cmt
     .stdlib.objs/byte/stdlib__Option.cmti
+    .stdlib.objs/byte/stdlib__Out_channel.cmi
+    .stdlib.objs/byte/stdlib__Out_channel.cmt
+    .stdlib.objs/byte/stdlib__Out_channel.cmti
     .stdlib.objs/byte/stdlib__Parsing.cmi
     .stdlib.objs/byte/stdlib__Parsing.cmt
     .stdlib.objs/byte/stdlib__Parsing.cmti
@@ -443,6 +453,8 @@
     .stdlib.objs/native/stdlib__Digest.cmx
     .stdlib.objs/native/stdlib__Atomic.cmx
     .stdlib.objs/native/stdlib__Either.cmx
+    .stdlib.objs/native/stdlib__In_channel.cmx
+    .stdlib.objs/native/stdlib__Out_channel.cmx
   )
   (section lib)
   (package ocaml_runtime_stdlib))

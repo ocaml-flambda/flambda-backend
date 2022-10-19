@@ -87,19 +87,9 @@ FUNCTION(caml_call_gc)
             20 caller-save float regs) * 8 */
         /* + 1 for alignment */
         addi    sp, sp, -0x170
-<<<<<<< HEAD
-||||||| 24dbb0976a
-        addi    sp, sp, -0x160
-=======
         CFI_ADJUST(0x170)
->>>>>>> ocaml/4.14
         STORE   ra, 0x8(sp)
-<<<<<<< HEAD
-||||||| 24dbb0976a
-        STORE   s0, 0x0(sp)
-=======
         CFI_OFFSET(ra, -0x170+8)
->>>>>>> ocaml/4.14
         /* Save allocatable integer registers on the stack,
            in the order given in proc.ml */
         STORE   a0, 0x10(sp)
@@ -205,13 +195,7 @@ FUNCTION(caml_call_gc)
         /* Free stack space and return to caller */
         LOAD    ra, 0x8(sp)
         addi    sp, sp, 0x170
-<<<<<<< HEAD
-||||||| 24dbb0976a
-        LOAD    s0, 0x0(sp)
-        addi    sp, sp, 0x160
-=======
         CFI_ADJUST(-0x170)
->>>>>>> ocaml/4.14
         ret
 END_FUNCTION(caml_call_gc)
 

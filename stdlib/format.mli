@@ -44,7 +44,7 @@ open! Stdlib
 
 *)
 
-[@@@ocaml.warning "Ae"]
+[@@@ocaml.warning "+A-e"]
 
 (** {1 Introduction}
 
