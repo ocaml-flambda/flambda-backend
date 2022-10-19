@@ -37,4 +37,7 @@ let from_lambda (attr : Lambda.poll_attribute) =
   | Error_poll -> Error
 
 let to_lambda t : Lambda.poll_attribute =
-  match t with Default -> Default_poll | Error -> Error_poll | Disable -> Disable_poll
+  match t with
+  | Default -> Default_poll
+  | Error -> Error_poll
+  | Disable -> Disable_poll
