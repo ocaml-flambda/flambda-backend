@@ -49,7 +49,7 @@ type current_sections =
 
 let add_section cs section =
   let n = cs.num_sections in
-  cs.sections_rev <- Obj.repr section :: cs.sections_rev;
+  cs.sections_rev <- section :: cs.sections_rev;
   cs.num_sections <- n + 1;
   n
 

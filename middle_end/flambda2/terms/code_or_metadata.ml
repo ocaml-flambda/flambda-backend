@@ -114,8 +114,9 @@ let to_raw ~add_section t : raw =
         Present
           { index =
               add_section
-                ( Code.params_and_body code,
-                  Code.free_names_of_params_and_body code )
+                (Obj.repr
+                   ( Code.params_and_body code,
+                     Code.free_names_of_params_and_body code ))
           }
     }
   | Metadata_only metadata -> { metadata; code_present = Absent }
