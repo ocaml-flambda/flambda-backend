@@ -124,8 +124,7 @@ let current_unit =
     ui_generic_fns = { curry_fun = []; apply_fun = []; send_fun = [] };
     ui_force_link = false;
     ui_checks = Checks.create ();
-    ui_export_info = default_ui_export_info
-  }
+    ui_export_info = default_ui_export_info }
 
 let reset compilation_unit =
   CU.Name.Tbl.clear global_infos_table;
@@ -144,8 +143,7 @@ let reset compilation_unit =
   structured_constants := structured_constants_empty;
   current_unit.ui_export_info <- default_ui_export_info;
   merged_environment := Export_info.empty;
-  CU.Name.Tbl.clear export_infos_table;
-  File_sections.close_all ()
+  CU.Name.Tbl.clear export_infos_table
 
 let current_unit_infos () =
   current_unit

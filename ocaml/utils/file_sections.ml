@@ -100,9 +100,6 @@ let from_array t =
 let concat t1 t2 =
   Cat (length t1 + length t2, t1, t2)
 
-let close_all () =
-  () (* XXX TODO *)
-
 let compute_toc serialized_sections =
   let toc = Array.make (Array.length serialized_sections) 0 in
   let length = ref 0 in

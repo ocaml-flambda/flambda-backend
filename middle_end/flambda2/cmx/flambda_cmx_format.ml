@@ -232,8 +232,8 @@ let update_for_pack0 ~pack_units ~pack t =
   in
   { t with table_data }
 
-let update_for_pack ~pack_units ~pack t =
-  match t with
+let update_for_pack ~pack_units ~pack t_opt =
+  match t_opt with
   | None -> None
   | Some (t, sections) ->
     Some (List.map (update_for_pack0 ~pack_units ~pack) t, sections)

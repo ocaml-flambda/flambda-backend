@@ -63,7 +63,6 @@ val record_global_approx_toplevel: unit -> unit
 val set_export_info: Export_info.t -> unit
         (* Record the information of the unit being compiled
            flambda-only *)
-
 val approx_env: unit -> Export_info.t
         (* Returns all the information loaded from external compilation units
            flambda-only *)

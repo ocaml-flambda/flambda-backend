@@ -28,8 +28,6 @@ val get : t -> int -> Obj.t
 
 val to_array : t -> Obj.t array
 
-val close_all : unit -> unit
-
 val serialize : t -> string array * int array * int
 
 val from_array : Obj.t array -> t

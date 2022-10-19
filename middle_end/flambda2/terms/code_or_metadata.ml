@@ -154,14 +154,6 @@ let apply_renaming t renaming =
             Not_loaded { not_loaded with delayed_renaming = delayed_renaming' }
         }
 
-(* (* CR ncourant do we really need to load the code to apply the renaming
-   instead of deferring it? *) match view t with | Code_present code -> let
-   code' = Code.apply_renaming code renaming in if code == code' then t else
-   Code_present { code_status = Loaded code' } | Metadata_only code_metadata ->
-   let code_metadata' = Code_metadata.apply_renaming code_metadata renaming in
-   if code_metadata == code_metadata' then t else Metadata_only
-   code_metadata' *)
-
 let ids_for_export t =
   match view t with
   | Code_present code -> Code.ids_for_export code
