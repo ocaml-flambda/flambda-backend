@@ -1823,12 +1823,10 @@ let wrap_over_application acc env full_call (apply : IR.apply) over_args
       | Rc_normal | Rc_close_at_apply -> Apply.Position.Normal
       | Rc_nontail -> Apply.Position.Nontail
     in
-    let alloc_mode =
-      if contains_no_escaping_local_allocs
-      then Alloc_mode.For_types.heap
-      else Alloc_mode.For_types.unknown ()
+    let call_kind =
+      Call_kind.indirect_function_call_unknown_arity
+        (Alloc_mode.For_types.from_lambda apply.mode)
     in
-    let call_kind = Call_kind.indirect_function_call_unknown_arity alloc_mode in
     let continuation =
       match needs_region with
       | None -> apply_return_continuation
@@ -1967,8 +1965,13 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
         ~contains_no_escaping_local_allocs
     | Over_app (args, remaining_args) ->
       let full_args_call apply_continuation ~region acc =
+        let mode =
+          if contains_no_escaping_local_allocs
+          then Lambda.alloc_heap
+          else Lambda.alloc_local
+        in
         close_exact_or_unknown_apply acc env
-          { apply with args; continuation = apply_continuation }
+          { apply with args; continuation = apply_continuation; mode }
           (Some approx) ~replace_region:(Some region)
       in
       wrap_over_application acc env full_args_call apply remaining_args
