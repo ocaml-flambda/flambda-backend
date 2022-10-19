@@ -260,9 +260,12 @@ let find_poll_alloc_or_calls instr =
       instr;
   List.rev !matches
 
+let is_disabled fun_name =
+  !Flambda_backend_flags.disable_poll_insertion ||
+  function_is_assumed_to_never_poll fun_name
+
 let instrument_fundecl ~future_funcnames:_ (f : Mach.fundecl) : Mach.fundecl =
-  if !Flambda_backend_flags.disable_poll_insertion ||
-     function_is_assumed_to_never_poll f.fun_name then f
+  if is_disabled f.fun_name then f
   else begin
     let handler_needs_poll = polled_loops_analysis f.fun_body in
     contains_polls := false;
@@ -279,8 +282,7 @@ let instrument_fundecl ~future_funcnames:_ (f : Mach.fundecl) : Mach.fundecl =
   end
 
 let requires_prologue_poll ~future_funcnames ~fun_name i =
-  if !Flambda_backend_flags.disable_poll_insertion ||
-     function_is_assumed_to_never_poll fun_name then false
+  if is_disabled fun_name then false
   else
     match potentially_recursive_tailcall ~future_funcnames i with
     | Might_not_poll -> true
