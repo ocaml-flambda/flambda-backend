@@ -231,6 +231,7 @@ let parse_poll_attribute attr =
         ~empty:Default_poll
         [
           "error", Error_poll;
+          "disable", Disable_poll;
         ]
         payload
 
@@ -395,18 +396,18 @@ let add_poll_attribute expr loc attributes =
   | Lfunction({ attr = { stub = false } as attr } as funct), poll ->
       begin match attr.poll with
       | Default_poll -> ()
-      | Error_poll ->
+      | (Disable_poll | Error_poll) ->
           Location.prerr_warning loc
-            (Warnings.Duplicated_attribute "error_poll")
+            (Warnings.Duplicated_attribute "error_poll/disable_poll")
       end;
       let attr = { attr with poll } in
       check_poll_inline loc attr;
       check_poll_local loc attr;
       let attr = { attr with inline = Never_inline; local = Never_local } in
       Lfunction { funct with attr }
-  | expr, Error_poll ->
+  | expr, (Error_poll | Disable_poll) ->
       Location.prerr_warning loc
-        (Warnings.Misplaced_attribute "error_poll");
+        (Warnings.Misplaced_attribute "error_poll/disable_poll");
       expr
 
 let add_loop_attribute expr loc attributes =

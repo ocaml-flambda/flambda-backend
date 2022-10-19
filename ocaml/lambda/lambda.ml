@@ -376,6 +376,7 @@ type local_attribute =
 
 type poll_attribute =
   | Error_poll (* [@poll error] *)
+  | Disable_poll  (* [@poll disable] *)
   | Default_poll (* no [@poll] attribute *)
 
 type property =

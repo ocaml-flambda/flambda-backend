@@ -260,12 +260,15 @@ let find_poll_alloc_or_calls instr =
       instr;
   List.rev !matches
 
-let is_disabled fun_name =
+let is_disabled fun_name (fun_poll:Lambda.poll_attribute) =
   !Flambda_backend_flags.disable_poll_insertion ||
-  function_is_assumed_to_never_poll fun_name
+  function_is_assumed_to_never_poll fun_name ||
+  match fun_poll with
+  | Disable_poll -> true
+  | Error_poll | Default_poll -> false
 
 let instrument_fundecl ~future_funcnames:_ (f : Mach.fundecl) : Mach.fundecl =
-  if is_disabled f.fun_name then f
+  if is_disabled f.fun_name f.fun_poll then f
   else begin
     let handler_needs_poll = polled_loops_analysis f.fun_body in
     contains_polls := false;
@@ -276,13 +279,14 @@ let instrument_fundecl ~future_funcnames:_ (f : Mach.fundecl) : Mach.fundecl =
         | [] -> ()
         | poll_error_instrs -> raise (Error(Poll_error poll_error_instrs))
       end
+    | Disable_poll -> assert false
     | Default_poll -> () end;
     let new_contains_calls = f.fun_contains_calls || !contains_polls in
     { f with fun_body = new_body; fun_contains_calls = new_contains_calls }
   end
 
-let requires_prologue_poll ~future_funcnames ~fun_name i =
-  if is_disabled fun_name then false
+let requires_prologue_poll ~future_funcnames ~fun_name ~fun_poll i =
+  if is_disabled fun_name fun_poll then false
   else
     match potentially_recursive_tailcall ~future_funcnames i with
     | Might_not_poll -> true

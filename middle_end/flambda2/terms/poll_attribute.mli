@@ -15,6 +15,7 @@
 type t =
   | Default
   | Error
+  | Disable
 
 val print : Format.formatter -> t -> unit
 

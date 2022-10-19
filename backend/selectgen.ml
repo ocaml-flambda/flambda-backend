@@ -1554,9 +1554,11 @@ method emit_fundecl ~future_funcnames f =
   let body = self#extract in
   instr_seq <- dummy_instr;
   self#insert_moves env loc_arg rarg;
+  let fun_name = f.Cmm.fun_name in
+  let fun_poll = f.Cmm.fun_poll in
   let polled_body =
     if Polling.requires_prologue_poll ~future_funcnames
-         ~fun_name:f.Cmm.fun_name body
+         ~fun_name ~fun_poll body
       then
         instr_cons_debug
           (Iop(Ipoll { return_label = None })) [||] [||] f.Cmm.fun_dbg body
@@ -1565,12 +1567,12 @@ method emit_fundecl ~future_funcnames f =
     in
   let body_with_prologue = self#extract_onto polled_body in
   instr_iter (fun instr -> self#mark_instr instr.Mach.desc) body_with_prologue;
-  { fun_name = f.Cmm.fun_name;
+  { fun_name;
     fun_args = loc_arg;
     fun_body = body_with_prologue;
     fun_codegen_options = f.Cmm.fun_codegen_options;
     fun_dbg  = f.Cmm.fun_dbg;
-    fun_poll = f.Cmm.fun_poll;
+    fun_poll;
     fun_num_stack_slots = Array.make Proc.num_register_classes 0;
     fun_contains_calls = !contains_calls;
   }

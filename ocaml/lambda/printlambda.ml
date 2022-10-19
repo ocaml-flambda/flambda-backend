@@ -588,6 +588,7 @@ let function_attribute ppf
   end;
   begin match poll with
   | Default_poll -> ()
+  | Disable_poll -> fprintf ppf "disable_poll@ "
   | Error_poll -> fprintf ppf "error_poll@ "
   end;
   check_attribute ppf check;
