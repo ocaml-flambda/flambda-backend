@@ -45,10 +45,21 @@ let view t =
   match t with
   | Code_present { code_status = Loaded code } -> View.Code_present code
   | Code_present ({ code_status = Not_loaded not_loaded } as c) ->
-    let code =
+    let params_and_body, free_names_of_params_and_body =
       Obj.obj (File_sections.get not_loaded.sections not_loaded.index)
     in
-    let code = Code.apply_renaming code not_loaded.delayed_renaming in
+    let params_and_body =
+      Flambda.Function_params_and_body.apply_renaming params_and_body
+        not_loaded.delayed_renaming
+    in
+    let free_names_of_params_and_body =
+      Name_occurrences.apply_renaming free_names_of_params_and_body
+        not_loaded.delayed_renaming
+    in
+    let code =
+      Code.create_with_metadata ~params_and_body ~free_names_of_params_and_body
+        ~code_metadata:not_loaded.metadata
+    in
     c.code_status <- Loaded code;
     View.Code_present code
   | Metadata_only metadata -> View.Metadata_only metadata
@@ -99,7 +110,13 @@ let to_raw ~add_section t : raw =
   match view t with
   | Code_present code ->
     { metadata = Code.code_metadata code;
-      code_present = Present { index = add_section code }
+      code_present =
+        Present
+          { index =
+              add_section
+                ( Code.params_and_body code,
+                  Code.free_names_of_params_and_body code )
+          }
     }
   | Metadata_only metadata -> { metadata; code_present = Absent }
 

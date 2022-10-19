@@ -38,7 +38,10 @@ val create_metadata_only : Code_metadata.t -> t
 
 val from_raw : sections:File_sections.t -> raw -> t
 
-val to_raw : add_section:(Code.t -> int) -> t -> raw
+val to_raw :
+  add_section:(Flambda.Function_params_and_body.t * Name_occurrences.t -> int) ->
+  t ->
+  raw
 
 val remember_only_metadata : t -> t
 
