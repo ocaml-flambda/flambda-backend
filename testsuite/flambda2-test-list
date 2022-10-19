@@ -7,4 +7,4 @@
 #  tests/lib-threads                FAIL (FIXME)  beat.ml seems to fail under heavy load (macOS box on GitHub CI)
   tests/statmemprof                FAIL          Stack traces differ
   tests/warnings                   FAIL          'w55.ml' (@inline attribute), 'w59.ml' (missing warnings when using Obj functions)
-  tests/flambda                    FAIL          'specialize.ml' not implemented in flambda2
+#  tests/flambda                    FAIL          'specialize.ml' not implemented in flambda2

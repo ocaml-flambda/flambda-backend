@@ -408,8 +408,11 @@ let check_attribute e {Parsetree.attr_name = { txt; loc }; _} =
             (Warnings.Misplaced_attribute txt)
     end
   | "inlined" | "ocaml.inlined"
-  | "specialised" | "ocaml.specialised"
   | "tailcall" | "ocaml.tailcall" ->
+      (* Removed by the Texp_apply cases *)
+      Location.prerr_warning loc
+        (Warnings.Misplaced_attribute txt)
+  | "specialised" | "ocaml.specialised" when Config.flambda ->
       (* Removed by the Texp_apply cases *)
       Location.prerr_warning loc
         (Warnings.Misplaced_attribute txt)
