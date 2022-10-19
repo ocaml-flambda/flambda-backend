@@ -730,7 +730,6 @@ let mk_dump_into_file f =
   "-dump-into-file", Arg.Unit f, " dump output like -dlambda into <target>.dump"
 ;;
 
-<<<<<<< HEAD
 let mk_extension f =
   let available_extensions =
     Clflags.Extension.(List.map to_string all)
@@ -745,12 +744,11 @@ let mk_disable_all_extensions f =
   \    overrides the -extension flag (whether specified before or after this\n\
   \    flag), disables any extensions that are enabled by default, and\n\
   \    ignores any extensions requested in OCAMLPARAM."
-||||||| 24dbb0976a
-=======
+;;
+
 let mk_dump_dir f =
   "-dump-dir", Arg.String f,
   "<dir> dump output like -dlambda into <dir>/<target>.dump"
->>>>>>> ocaml/4.14
 ;;
 
 let mk_dparsetree f =
@@ -1935,14 +1933,8 @@ module Default = struct
     let _dtimings () = profile_columns := [`Time]
     let _dtimings_precision n = timings_precision := n
     let _dump_into_file = set dump_into_file
-<<<<<<< HEAD
-    let _for_pack s = for_package := (Some (String.capitalize_ascii s))
-||||||| 24dbb0976a
-    let _for_pack s = for_package := (Some s)
-=======
     let _dump_dir s = dump_dir := Some s
-    let _for_pack s = for_package := (Some s)
->>>>>>> ocaml/4.14
+    let _for_pack s = for_package := (Some (String.capitalize_ascii s))
     let _g = set debug
     let _i = set print_types
     let _impl = Compenv.impl

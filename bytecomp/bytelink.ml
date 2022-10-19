@@ -101,9 +101,11 @@ let is_required (rel, _pos) =
 
 let add_required compunit =
   let add id =
-    if Ident.Set.mem id !provided_globals then
+    if Ident.Set.mem id !provided_globals then begin
+      let cu_name = CU.Name.to_string compunit.cu_name in
       badly_ordered_dependencies :=
-        ((Ident.name id), compunit.cu_name) :: !badly_ordered_dependencies;
+        ((Ident.name id), cu_name) :: !badly_ordered_dependencies;
+    end;
     missing_globals := Ident.Map.add id compunit.cu_name !missing_globals
   in
   List.iter add (Symtable.required_globals compunit.cu_reloc);
@@ -635,18 +637,12 @@ let link objfiles output_name =
     match Ident.Map.bindings missing_modules with
     | [] -> ()
     | (id, cu_name) :: _ ->
-<<<<<<< HEAD
         let cu_name = CU.Name.to_string cu_name in
-        raise (Error (Required_module_unavailable (Ident.name id, cu_name)))
-||||||| 24dbb0976a
-        raise (Error (Required_module_unavailable (Ident.name id, cu_name)))
-=======
         match !badly_ordered_dependencies with
         | [] ->
             raise (Error (Required_module_unavailable (Ident.name id, cu_name)))
         | l ->
             raise (Error (Wrong_link_order l))
->>>>>>> ocaml/4.14
   end;
   Clflags.ccobjs := !Clflags.ccobjs @ !lib_ccobjs; (* put user's libs last *)
   Clflags.all_ccopts := !lib_ccopts @ !Clflags.all_ccopts;

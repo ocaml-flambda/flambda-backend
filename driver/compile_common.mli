@@ -78,19 +78,11 @@ val typecheck_impl : info -> Parsetree.structure -> Typedtree.implementation
 *)
 
 val implementation :
-<<<<<<< HEAD
   hook_parse_tree:(Parsetree.structure -> unit)
-  -> hook_typed_tree:(Typedtree.structure * Typedtree.module_coercion -> unit)
+  -> hook_typed_tree:(Typedtree.implementation -> unit)
   -> info ->
-  backend:(info -> Typedtree.structure * Typedtree.module_coercion -> unit) ->
+  backend:(info -> Typedtree.implementation -> unit) ->
   unit
-||||||| 24dbb0976a
-  info ->
-  backend:(info -> Typedtree.structure * Typedtree.module_coercion -> unit) ->
-  unit
-=======
-  info -> backend:(info -> Typedtree.implementation -> unit) -> unit
->>>>>>> ocaml/4.14
 (** The complete compilation pipeline for implementations. *)
 
 (** {2 Build artifacts} *)
