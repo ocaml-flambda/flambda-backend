@@ -68,8 +68,7 @@ type unit_infos =
     mutable ui_generic_fns: generic_fns;  (* Generic functions needed *)
     mutable ui_export_info: export_info;
     mutable ui_checks: checks;
-    mutable ui_force_link: bool;          (* Always linked *)
-  }
+    mutable ui_force_link: bool }         (* Always linked *)
 
 type unit_infos_raw =
   { uir_unit: Compilation_unit.t;
