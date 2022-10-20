@@ -222,6 +222,7 @@ let () = Gc.compact ()
 
 external local_stack_offset : unit -> int = "caml_local_stack_offset"
 external opaque_identity : ('a[@local_opt]) -> ('a[@local_opt]) = "%opaque"
+external is_local : local_ 'a -> bool = "caml_obj_is_local"
 
 let f2 p () = p
 
