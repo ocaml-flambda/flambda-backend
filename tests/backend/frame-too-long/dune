@@ -4,10 +4,15 @@
  (ocamlopt_flags (:standard -linscan -Oclassic -debug-long-frames-threshold 100)))
 
 (rule
+ (enabled_if (= %{context_name} "main"))
+ (target t.output)
+ (deps t.exe)
+ (action (with-outputs-to t.output (run ./t.exe))))
+
+(rule
  (alias   runtest)
  (enabled_if (= %{context_name} "main"))
- (deps t.exe)
- (action (run ./t.exe)))
+ (action (diff t.expected t.output)))
 
 ;; t.ml was created using cinaps
 ;; (cinaps
