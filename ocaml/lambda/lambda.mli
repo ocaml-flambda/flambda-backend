@@ -299,6 +299,11 @@ type poll_attribute =
   | Error_poll (* [@poll error] *)
   | Default_poll (* no [@poll] attribute *)
 
+type loop_attribute =
+  | Always_loop (* [@loop] or [@loop always] *)
+  | Never_loop (* [@loop never] *)
+  | Default_loop (* no [@loop] attribute *)
+
 type function_kind = Curried of {nlocal: int} | Tupled
 (* [nlocal] determines how many arguments may be partially applied
    before the resulting closure must be locally allocated.
@@ -327,6 +332,7 @@ type function_attribute = {
   local: local_attribute;
   check : check_attribute;
   poll: poll_attribute;
+  loop: loop_attribute;
   is_a_functor: bool;
   stub: bool;
 }

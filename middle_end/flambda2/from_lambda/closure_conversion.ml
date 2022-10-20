@@ -1093,8 +1093,28 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
   let params = Function_decl.params decl in
   let return = Function_decl.return decl in
   let return_continuation = Function_decl.return_continuation decl in
-  let recursive = Function_decl.recursive decl in
+  let acc, exn_continuation =
+    close_exn_continuation acc external_env
+      (Function_decl.exn_continuation decl)
+  in
+  assert (
+    match Exn_continuation.extra_args exn_continuation with
+    | [] -> true
+    | _ :: _ -> false);
   let my_closure = Variable.create "my_closure" in
+  let recursive = Function_decl.recursive decl in
+  (* Mark function available for loopify only if it is a single recursive
+     function *)
+  let is_single_recursive_function =
+    match recursive, Function_decls.to_list function_declarations with
+    | Recursive, [_] -> true
+    | Recursive, ([] | _ :: _ :: _) -> false
+    | Non_recursive, _ -> false
+  in
+  let acc =
+    Acc.push_closure_info acc ~return_continuation ~exn_continuation ~my_closure
+      ~is_purely_tailrec:is_single_recursive_function
+  in
   let my_region = Function_decl.my_region decl in
   let function_slot = Function_decl.function_slot decl in
   let my_depth = Variable.create "my_depth" in
@@ -1280,14 +1300,6 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
     Let_with_acc.create acc bound (Named.create_rec_info next_depth_expr) ~body
   in
   let cost_metrics = Acc.cost_metrics acc in
-  let acc, exn_continuation =
-    close_exn_continuation acc external_env
-      (Function_decl.exn_continuation decl)
-  in
-  assert (
-    match Exn_continuation.extra_args exn_continuation with
-    | [] -> true
-    | _ :: _ -> false);
   let inline : Inline_attribute.t =
     (* We make a decision based on [fallback_inlining_heuristic] here to try to
        mimic Closure's behaviour as closely as possible, particularly when there
@@ -1321,6 +1333,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
     |> Acc.remove_continuation_from_free_names
          (Exn_continuation.exn_handler exn_continuation)
   in
+  let closure_info, acc = Acc.pop_closure_info acc in
   let params_arity = Bound_parameters.arity_with_subkinds params in
   let is_tupled =
     match Function_decl.kind decl with Curried _ -> false | Tupled -> true
@@ -1331,6 +1344,15 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
     else if stub
     then Function_decl_inlining_decision_type.Stub
     else Function_decl_inlining_decision_type.Not_yet_decided
+  in
+  let loopify : Loopify_attribute.t =
+    match Function_decl.loop decl with
+    | Always_loop -> Always_loopify
+    | Never_loop -> Never_loopify
+    | Default_loop ->
+      if closure_info.is_purely_tailrec
+      then Default_loopify_and_tailrec
+      else Default_loopify_and_not_tailrec
   in
   let code =
     Code.create code_id ~params_and_body
@@ -1351,7 +1373,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
       ~dbg ~is_tupled
       ~is_my_closure_used:
         (Function_params_and_body.is_my_closure_used params_and_body)
-      ~inlining_decision ~absolute_history ~relative_history
+      ~inlining_decision ~absolute_history ~relative_history ~loopify
   in
   let approx =
     let code = Code_or_metadata.create code in
@@ -1480,6 +1502,7 @@ let close_functions acc external_env ~current_region function_declarations =
             ~inlining_decision:Recursive
             ~absolute_history:(Inlining_history.Absolute.empty compilation_unit)
             ~relative_history:Inlining_history.Relative.empty
+            ~loopify:Never_loopify
         in
         let code = Code_or_metadata.create_metadata_only metadata in
         let approx =
@@ -1740,6 +1763,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
         specialise = Default_specialise;
         local = Default_local;
         check = Default_check;
+        loop = Default_loop;
         is_a_functor = false;
         stub = false;
         poll = Default_poll
@@ -2218,6 +2242,9 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode)
           defining_expr ~body)
       (acc, body) (Acc.declared_symbols acc)
   in
+  if Option.is_some (Acc.top_closure_info acc)
+  then
+    Misc.fatal_error "Information on nested closures should be empty at the end";
   let get_code_metadata code_id =
     Code_id.Map.find code_id (Acc.code acc) |> Code.code_metadata
   in
