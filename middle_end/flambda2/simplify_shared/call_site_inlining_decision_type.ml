@@ -33,7 +33,6 @@ type t =
   | Max_inlining_depth_exceeded
   | Recursion_depth_exceeded
   | Never_inlined_attribute
-  | Unroll_attribute_used_with_loopified_function
   | Speculatively_not_inline of
       { cost_metrics : Cost_metrics.t;
         evaluated_to : float;
@@ -65,8 +64,6 @@ let [@ocamlformat "disable"] print ppf t =
     Format.fprintf ppf "Recursion_depth_exceeded"
   | Never_inlined_attribute ->
     Format.fprintf ppf "Never_inlined_attribute"
-  | Unroll_attribute_used_with_loopified_function ->
-    Format.fprintf ppf "Unroll_attribute_used_with_loopified_function"
   | Attribute_always ->
     Format.fprintf ppf "Attribute_always"
   | Definition_says_inline { was_inline_always } ->
@@ -129,10 +126,6 @@ let can_inline (t : t) : can_inline =
        attribute when we stop unrolling, which is fine *)
     Do_not_inline
       { warn_if_attribute_ignored = false; because_of_definition = true }
-  | Unroll_attribute_used_with_loopified_function ->
-    (* We have an [@unrolled] attribute, but can't unroll loopified functions *)
-    Do_not_inline
-      { warn_if_attribute_ignored = true; because_of_definition = true }
   | Attribute_unroll unroll_to ->
     Inline { unroll_to = Some unroll_to; was_inline_always = false }
   | Definition_says_inline { was_inline_always } ->
@@ -163,11 +156,6 @@ let report_reason fmt t =
     Format.fprintf fmt "the@ maximum@ recursion@ depth@ has@ been@ exceeded"
   | Never_inlined_attribute ->
     Format.fprintf fmt "the@ call@ has@ an@ attribute@ forbidding@ inlining"
-  | Unroll_attribute_used_with_loopified_function ->
-    Format.fprintf fmt
-      "the@ code@ of@ this@ function@ has@ been@ transformed@ to@ a@ loop,@ \
-       which@ cannot@ be@ unrolled@ yet@ (consider@ adding@ [@loop never]@ to@ \
-       the@ definition)"
   | Attribute_always ->
     Format.fprintf fmt "the@ call@ has@ an@ [@@inline always]@ attribute"
   | Attribute_unroll n ->

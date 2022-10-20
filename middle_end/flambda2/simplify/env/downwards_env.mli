@@ -182,7 +182,6 @@ val enter_closure :
   Code_id.t ->
   return_continuation:Continuation.t ->
   exn_continuation:Continuation.t ->
-  my_closure:Variable.t ->
   t ->
   t
 
@@ -202,7 +201,3 @@ val inlining_history_tracker : t -> Inlining_history.Tracker.t
 val set_inlining_history_tracker : Inlining_history.Tracker.t -> t -> t
 
 val relative_history : t -> Inlining_history.Relative.t
-
-val loopify_state : t -> Loopify_state.t
-
-val set_loopify_state : Loopify_state.t -> t -> t

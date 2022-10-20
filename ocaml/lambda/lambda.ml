@@ -386,11 +386,6 @@ type check_attribute =
   | Assert of property
   | Assume of property
 
-type loop_attribute =
-  | Always_loop (* [@loop] or [@loop always] *)
-  | Never_loop (* [@loop never] *)
-  | Default_loop (* no [@loop] attribute *)
-
 type function_kind = Curried of {nlocal: int} | Tupled
 
 type let_kind = Strict | Alias | StrictOpt
@@ -412,7 +407,6 @@ type function_attribute = {
   local: local_attribute;
   check : check_attribute;
   poll: poll_attribute;
-  loop: loop_attribute;
   is_a_functor: bool;
   stub: bool;
 }
@@ -546,7 +540,6 @@ let default_function_attribute = {
   local = Default_local;
   check = Default_check ;
   poll = Default_poll;
-  loop = Default_loop;
   is_a_functor = false;
   stub = false;
 }
