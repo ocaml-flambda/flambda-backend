@@ -2764,9 +2764,8 @@ let gen_annot outputprefix sourcefile annots =
   Cmt2annot.gen_annot (Some (outputprefix ^ ".annot"))
     ~sourcefile:(Some sourcefile) ~use_summaries:false annots
 
-let type_implementation sourcefile outputprefix comp_unit initial_env ast =
+let type_implementation sourcefile outputprefix modulename initial_env ast =
   Cmt_format.clear ();
-  let modulename = Compilation_unit.name_as_string comp_unit in
   Misc.try_finally (fun () ->
       Typecore.reset_delayed_checks ();
       Typecore.reset_allocations ();
@@ -2791,13 +2790,14 @@ let type_implementation sourcefile outputprefix comp_unit initial_env ast =
         let sourceintf =
           Filename.remove_extension sourcefile ^ !Config.interface_suffix in
         if Sys.file_exists sourceintf then begin
+          let basename = modulename |> Compilation_unit.name_as_string in
           let intf_file =
             try
-              Load_path.find_uncap (modulename ^ ".cmi")
+              Load_path.find_uncap (basename ^ ".cmi")
             with Not_found ->
               raise(Error(Location.in_file sourcefile, Env.empty,
                           Interface_not_compiled sourceintf)) in
-          let dclsig = Env.read_signature comp_unit intf_file in
+          let dclsig = Env.read_signature modulename intf_file in
           let coercion =
             Includemod.compunit initial_env ~mark:Mark_positive
               sourcefile sg intf_file dclsig
@@ -2808,7 +2808,7 @@ let type_implementation sourcefile outputprefix comp_unit initial_env ast =
              so that value declarations which are not used internally but
              exported are not reported as being unused. *)
           let annots = Cmt_format.Implementation str in
-          Cmt_format.save_cmt (outputprefix ^ ".cmt") comp_unit
+          Cmt_format.save_cmt (outputprefix ^ ".cmt") modulename
             annots (Some sourcefile) initial_env None;
           gen_annot outputprefix sourcefile annots;
           (str, coercion)
@@ -2829,10 +2829,10 @@ let type_implementation sourcefile outputprefix comp_unit initial_env ast =
             let alerts = Builtin_attributes.alerts_of_str ast in
             let cmi =
               Env.save_signature ~alerts
-                simple_sg comp_unit (outputprefix ^ ".cmi")
+                simple_sg modulename (outputprefix ^ ".cmi")
             in
             let annots = Cmt_format.Implementation str in
-            Cmt_format.save_cmt  (outputprefix ^ ".cmt") comp_unit
+            Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
               annots (Some sourcefile) initial_env (Some cmi);
             gen_annot outputprefix sourcefile annots
           end;
@@ -2845,7 +2845,7 @@ let type_implementation sourcefile outputprefix comp_unit initial_env ast =
           Cmt_format.Partial_implementation
             (Array.of_list (Cmt_format.get_saved_types ()))
         in
-        Cmt_format.save_cmt  (outputprefix ^ ".cmt") comp_unit
+        Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
           annots (Some sourcefile) initial_env None;
         gen_annot outputprefix sourcefile annots
       )
@@ -2891,7 +2891,7 @@ let package_signatures units =
       Sig_module(newid, Mp_present, md, Trec_not, Exported))
     units_with_ids
 
-let package_units initial_env objfiles cmifile comp_unit =
+let package_units initial_env objfiles cmifile modulename =
   (* Read the signatures of the units *)
   let units =
     List.map
@@ -2900,15 +2900,16 @@ let package_units initial_env objfiles cmifile comp_unit =
          let modname =
            String.capitalize_ascii(Filename.basename pref)
            |> Compilation_unit.Name.of_string
+           |> Compilation_unit.create_child modulename
          in
-         let child_comp_unit = Compilation_unit.create_child comp_unit modname in
-         let sg = Env.read_signature child_comp_unit (pref ^ ".cmi") in
+         let sg = Env.read_signature modname (pref ^ ".cmi") in
          if Filename.check_suffix f ".cmi" &&
             not(Mtype.no_code_needed_sig Env.initial_safe_string sg)
          then raise(Error(Location.none, Env.empty,
                           Implementation_is_required f));
          (* CR lmaurer: Why are we reading the signature twice? *)
-         (modname, Env.read_signature child_comp_unit (pref ^ ".cmi")))
+         Compilation_unit.name modname,
+         Env.read_signature modname (pref ^ ".cmi"))
       objfiles in
   (* Compute signature of packaged unit *)
   Ident.reinit();
@@ -2921,8 +2922,8 @@ let package_units initial_env objfiles cmifile comp_unit =
       raise(Error(Location.in_file mlifile, Env.empty,
                   Interface_not_compiled mlifile))
     end;
-    let dclsig = Env.read_signature comp_unit cmifile in
-    Cmt_format.save_cmt  (prefix ^ ".cmt") comp_unit
+    let dclsig = Env.read_signature modulename cmifile in
+    Cmt_format.save_cmt  (prefix ^ ".cmt") modulename
       (Cmt_format.Packed (sg, objfiles)) None initial_env  None ;
     Includemod.compunit initial_env ~mark:Mark_both
       "(obtained by packing)" sg mlifile dclsig
@@ -2937,10 +2938,10 @@ let package_units initial_env objfiles cmifile comp_unit =
     if not !Clflags.dont_write_files then begin
       let cmi =
         Env.save_signature_with_imports ~alerts:Misc.Stdlib.String.Map.empty
-          sg comp_unit
+          sg modulename
           (prefix ^ ".cmi") imports
       in
-      Cmt_format.save_cmt (prefix ^ ".cmt")  comp_unit
+      Cmt_format.save_cmt (prefix ^ ".cmt")  modulename
         (Cmt_format.Packed (cmi.Cmi_format.cmi_sign, objfiles)) None initial_env
         (Some cmi)
     end;

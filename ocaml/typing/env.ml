@@ -1040,7 +1040,7 @@ let find_class_full path env =
   | Pident id -> IdTbl.find_same id env.classes
   | Pdot(p, s) ->
       let sc = find_structure_components p env in
-      NameMap.find s sc.comp_classes |> Fun.id
+      NameMap.find s sc.comp_classes
   | Papply _ -> raise Not_found
 
 let find_cltype path env =
@@ -1190,9 +1190,9 @@ let has_probe name = String.Set.mem name !probes
 let required_globals = s_ref []
 let reset_required_globals () = required_globals := []
 let get_required_globals () = !required_globals
-let add_required_global comp_unit =
-  if not (List.exists (Compilation_unit.equal comp_unit) !required_globals)
-  then required_globals := comp_unit :: !required_globals
+let add_required_global id =
+  if not (List.exists (Compilation_unit.equal id) !required_globals)
+  then required_globals := id :: !required_globals
 
 let rec normalize_module_path lax env = function
   | Pident id as path when lax && Ident.is_global id ->
