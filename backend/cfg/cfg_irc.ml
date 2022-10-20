@@ -330,21 +330,23 @@ let rewrite : State.t -> Cfg_with_liveness.t -> Reg.t list -> reset:bool -> unit
     =
  fun state cfg_with_liveness spilled_nodes ~reset ->
   if irc_debug then log ~indent:1 "rewrite";
-  let spilled_map : Reg.t Reg.Tbl.t =
+  let make_spilled reg =
+    let spilled = Reg.create reg.Reg.typ in
+    spilled.spill <- true;
+    (* for printing *)
+    if not (Reg.anonymous reg) then spilled.Reg.raw_name <- reg.Reg.raw_name;
+    let slot = State.get_num_stack_slot state reg in
+    spilled.Reg.loc <- Reg.(Stack (Local slot));
+    if irc_debug
+    then
+      log ~indent:2 "spilling %a to %a" Printmach.reg reg Printmach.reg spilled;
+    spilled
+  in
+  let spilled_map : spilled_map =
     List.fold_left spilled_nodes ~init:(Reg.Tbl.create 17)
       ~f:(fun spilled_map reg ->
         if irc_debug then assert (reg.Reg.irc_work_list = Reg.Spilled);
-        let spilled = Reg.create reg.Reg.typ in
-        spilled.spill <- true;
-        (* for printing *)
-        if not (Reg.anonymous reg) then spilled.Reg.raw_name <- reg.Reg.raw_name;
-        let slot = State.get_num_stack_slot state reg in
-        spilled.Reg.loc <- Reg.(Stack (Local slot));
-        if irc_debug
-        then
-          log ~indent:2 "spilling %a to %a" Printmach.reg reg Printmach.reg
-            spilled;
-        Reg.Tbl.replace spilled_map reg spilled;
+        Reg.Tbl.replace spilled_map reg (lazy (make_spilled reg));
         spilled_map)
   in
   let new_temporaries : Reg.t list ref = ref [] in
@@ -378,7 +380,7 @@ let rewrite : State.t -> Cfg_with_liveness.t -> Reg.t list -> reset:bool -> unit
         let spilled =
           match Reg.Tbl.find_opt spilled_map reg with
           | None -> assert false
-          | Some r -> r
+          | Some r -> Lazy.force r
         in
         let move, move_dir =
           match direction with

@@ -430,22 +430,22 @@ type stack_operands_rewrite =
   | All_spilled_registers_rewritten
   | May_still_have_spilled_registers
 
-type spilled_map = Reg.t Reg.Tbl.t
+type spilled_map = Reg.t Lazy.t Reg.Tbl.t
 
-let use_stack_operand (map : Reg.t Reg.Tbl.t) (regs : Reg.t array) (index : int)
-    : unit =
+let use_stack_operand (map : spilled_map) (regs : Reg.t array) (index : int) :
+    unit =
   let reg = regs.(index) in
   match Reg.Tbl.find_opt map reg with
   | None -> fatal "register %a is missing from the map" Printmach.reg reg
-  | Some spilled_reg -> regs.(index) <- spilled_reg
+  | Some spilled_reg -> regs.(index) <- Lazy.force spilled_reg
 
-let may_use_stack_operands_array : Reg.t Reg.Tbl.t -> Reg.t array -> unit =
+let may_use_stack_operands_array : spilled_map -> Reg.t array -> unit =
  fun map regs ->
   Array.iteri regs ~f:(fun i reg ->
       if is_spilled reg then use_stack_operand map regs i)
 
 let may_use_stack_operands_everywhere :
-    type a. Reg.t Reg.Tbl.t -> a Cfg.instruction -> stack_operands_rewrite =
+    type a. spilled_map -> a Cfg.instruction -> stack_operands_rewrite =
  fun map instr ->
   may_use_stack_operands_array map instr.arg;
   may_use_stack_operands_array map instr.res;

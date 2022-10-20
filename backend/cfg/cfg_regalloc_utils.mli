@@ -96,7 +96,7 @@ type stack_operands_rewrite =
   | May_still_have_spilled_registers
 
 (* Substitution/map from registers to their spilled counterparts. *)
-type spilled_map = Reg.t Reg.Tbl.t
+type spilled_map = Reg.t Lazy.t Reg.Tbl.t
 
 val use_stack_operand : spilled_map -> Reg.t array -> int -> unit
 
