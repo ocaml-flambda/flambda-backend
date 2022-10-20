@@ -91,14 +91,20 @@ let project_tuple ~dbg ~size ~field tuple =
   let prim = P.Binary (Block_load (bak, mutability), tuple, index) in
   Named.create_prim prim dbg
 
-let split_direct_over_application apply ~param_arity ~result_arity
-    ~(apply_alloc_mode : Alloc_mode.For_types.t)
-    ~contains_no_escaping_local_allocs ~current_region =
-  let arity = Flambda_arity.With_subkinds.cardinal param_arity in
+let split_direct_over_application apply ~result_arity
+    ~(apply_alloc_mode : Alloc_mode.For_types.t) ~current_region
+    ~callee's_code_id ~callee's_code_metadata =
+  let arity =
+    Flambda_arity.With_subkinds.cardinal
+      (Code_metadata.params_arity callee's_code_metadata)
+  in
   let args = Apply.args apply in
   assert (arity < List.length args);
   let first_args, remaining_args = Misc.Stdlib.List.split_at arity args in
   let func_var = Variable.create "full_apply" in
+  let contains_no_escaping_local_allocs =
+    Code_metadata.contains_no_escaping_local_allocs callee's_code_metadata
+  in
   let needs_region =
     (* If the function being called might do a local allocation that escapes,
        then we need a region for such function's return value, unless the
@@ -119,11 +125,6 @@ let split_direct_over_application apply ~param_arity ~result_arity
       | None -> current_region
       | Some (region, _) -> region
     in
-    let alloc_mode =
-      if contains_no_escaping_local_allocs
-      then Alloc_mode.For_types.heap
-      else Alloc_mode.For_types.unknown ()
-    in
     let continuation =
       (* If there is no need for a new region, then the second (over)
          application jumps directly to the return continuation of the original
@@ -137,7 +138,8 @@ let split_direct_over_application apply ~param_arity ~result_arity
     Apply.create ~callee:(Simple.var func_var) ~continuation
       (Apply.exn_continuation apply)
       ~args:remaining_args
-      ~call_kind:(Call_kind.indirect_function_call_unknown_arity alloc_mode)
+      ~call_kind:
+        (Call_kind.indirect_function_call_unknown_arity apply_alloc_mode)
       (Apply.dbg apply) ~inlined:(Apply.inlined apply)
       ~inlining_state:(Apply.inlining_state apply)
       ~probe_name:(Apply.probe_name apply) ~position:(Apply.position apply)
@@ -214,9 +216,24 @@ let split_direct_over_application apply ~param_arity ~result_arity
       ~is_exn_handler:false
   in
   let full_apply =
-    Apply.with_continuation_callee_and_args apply
-      (Return after_full_application) ~callee:(Apply.callee apply)
-      ~args:first_args ~region:current_region
+    let alloc_mode =
+      if contains_no_escaping_local_allocs
+      then Alloc_mode.For_types.heap
+      else Alloc_mode.For_types.unknown ()
+    in
+    Apply.create ~callee:(Apply.callee apply)
+      ~continuation:(Return after_full_application)
+      (Apply.exn_continuation apply)
+      ~args:first_args
+      ~call_kind:
+        (Call_kind.direct_function_call callee's_code_id
+           ~return_arity:(Code_metadata.result_arity callee's_code_metadata)
+           alloc_mode)
+      (Apply.dbg apply) ~inlined:(Apply.inlined apply)
+      ~inlining_state:(Apply.inlining_state apply)
+      ~probe_name:(Apply.probe_name apply) ~position:(Apply.position apply)
+      ~relative_history:(Apply.relative_history apply)
+      ~region:current_region
   in
   let both_applications =
     Let_cont.create_non_recursive after_full_application

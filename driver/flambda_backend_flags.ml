@@ -27,6 +27,7 @@ let heap_reduction_threshold = ref default_heap_reduction_threshold (* -heap-red
 let alloc_check = ref false             (* -alloc-check *)
 let dump_checkmach = ref false          (* -dcheckmach *)
 
+let disable_poll_insertion = ref false  (* -disable-poll-insertion *)
 type function_result_types = Never | Functors_only | All_functions
 type opt_level = Oclassic | O2 | O3
 type 'a or_default = Set of 'a | Default

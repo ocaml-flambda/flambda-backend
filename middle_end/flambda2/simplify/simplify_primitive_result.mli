@@ -29,6 +29,12 @@ val create_simplified :
 
 val create_invalid : Downwards_acc.t -> t
 
+val create_unit :
+  Downwards_acc.t ->
+  result_var:Bound_var.t ->
+  original_term:Flambda.Named.t ->
+  t
+
 val create_unknown :
   Downwards_acc.t ->
   result_var:Bound_var.t ->

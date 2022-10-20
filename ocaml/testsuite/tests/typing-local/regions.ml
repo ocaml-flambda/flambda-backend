@@ -114,6 +114,13 @@ let () = check_empty "toplevel rec binding"
  ());;
 let () = check_empty "toplevel eval"
 
+let () =
+  let f x b g =
+    let local_ p = x, x in
+    if b then () else (g p; ())
+  in f 0 true (fun _ -> ())
+let () = check_empty "constant switch arm"
+
 module type T = sig val x : int end
 let _ =
   let module M : T =
