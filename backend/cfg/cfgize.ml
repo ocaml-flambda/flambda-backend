@@ -172,11 +172,10 @@ let basic_or_terminator_of_operation :
       (fun label_after ->
         Prim { op = Checkbound { immediate = None }; label_after })
   | Ipoll { return_label = None } ->
-    With_next_label
-      (fun label_after -> Poll_and_jump label_after)
+    With_next_label (fun label_after -> Poll_and_jump label_after)
   | Ipoll { return_label = Some return_label } ->
-      Misc.fatal_errorf "Cfgize.basic_or_terminator: unexpected Ipoll %d"
-        return_label
+    Misc.fatal_errorf "Cfgize.basic_or_terminator: unexpected Ipoll %d"
+      return_label
   | Iintop_imm (Icheckbound, i) ->
     With_next_label
       (fun label_after ->
@@ -438,34 +437,34 @@ let rec add_blocks :
   let terminate_block ~trap_actions terminator =
     let body = instrs in
     (match starts_with_pushtrap with
-     | None -> ()
-     | Some lbl_handler ->
-       Cfg.BasicInstructionList.add_begin body
-         (make_instruction state ~desc:(Cfg.Pushtrap { lbl_handler })));
+    | None -> ()
+    | Some lbl_handler ->
+      Cfg.BasicInstructionList.add_begin body
+        (make_instruction state ~desc:(Cfg.Pushtrap { lbl_handler })));
     List.iter
       (fun trap_action ->
-         let instr =
-           match trap_action with
-           | Cmm.Push handler_id ->
-             let lbl_handler = State.get_catch_handler state ~handler_id in
-             make_instruction state ~desc:(Cfg.Pushtrap { lbl_handler })
-           | Cmm.Pop -> make_instruction state ~desc:Cfg.Poptrap
-         in
-         Cfg.BasicInstructionList.add_end body instr)
+        let instr =
+          match trap_action with
+          | Cmm.Push handler_id ->
+            let lbl_handler = State.get_catch_handler state ~handler_id in
+            make_instruction state ~desc:(Cfg.Pushtrap { lbl_handler })
+          | Cmm.Pop -> make_instruction state ~desc:Cfg.Poptrap
+        in
+        Cfg.BasicInstructionList.add_end body instr)
       trap_actions;
     (match terminator.Cfg.desc with
-     | Cfg.Return ->
-       if State.get_contains_calls state
-       then
-         Cfg.BasicInstructionList.add_end body
-           (make_instruction state ~desc:Cfg.Reloadretaddr)
-       else ()
-     | Cfg.Never | Cfg.Always _ | Cfg.Parity_test _ | Cfg.Truth_test _
-     | Cfg.Float_test _ | Cfg.Int_test _ | Cfg.Switch _ | Cfg.Raise _
-     | Cfg.Call_no_return _ | Cfg.Poll_and_jump _
-     | Cfg.Tailcall_self _ | Cfg.Tailcall_func _| Cfg.Call _ | Cfg.Prim _| Cfg.Specific_can_raise _
-       ->
-       ());
+    | Cfg.Return ->
+      if State.get_contains_calls state
+      then
+        Cfg.BasicInstructionList.add_end body
+          (make_instruction state ~desc:Cfg.Reloadretaddr)
+      else ()
+    | Cfg.Never | Cfg.Always _ | Cfg.Parity_test _ | Cfg.Truth_test _
+    | Cfg.Float_test _ | Cfg.Int_test _ | Cfg.Switch _ | Cfg.Raise _
+    | Cfg.Call_no_return _ | Cfg.Poll_and_jump _ | Cfg.Tailcall_self _
+    | Cfg.Tailcall_func _ | Cfg.Call _ | Cfg.Prim _ | Cfg.Specific_can_raise _
+      ->
+      ());
     let can_raise =
       (* Recompute [can_raise]. Only terminator can actually raise. *)
       Cfg.can_raise_terminator terminator.Cfg.desc
@@ -634,8 +633,7 @@ module Stack_offset_and_exn = struct
          self tailcall"
     | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
     | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
-    | Tailcall_func _ | Call_no_return _ | Call _ | Prim _
-    | Poll_and_jump _
+    | Tailcall_func _ | Call_no_return _ | Call _ | Prim _ | Poll_and_jump _
     | Specific_can_raise _ ->
       stack_offset, traps
 

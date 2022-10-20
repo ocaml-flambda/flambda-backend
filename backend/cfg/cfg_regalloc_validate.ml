@@ -627,14 +627,14 @@ end = struct
         first_id
     (* Finds successor id in or after the given block. *)
     and get_first_non_regalloc_id t (block : Cfg.basic_block) =
-      let res : (Cfg.basic Cfg.instruction option)=
-        (Cfg.BasicInstructionList.fold_left
+      let res : Cfg.basic Cfg.instruction option =
+        Cfg.BasicInstructionList.fold_left
           ~f:(fun acc instr ->
-             match acc with
-             | Some _ -> acc
-             | None -> if Hashtbl.mem t.instructions instr.id then
-           Some instr else None )
-          block.body ~init:None)
+            match acc with
+            | Some _ -> acc
+            | None ->
+              if Hashtbl.mem t.instructions instr.id then Some instr else None)
+          block.body ~init:None
       in
       match res with
       | Some instr -> instr.id

@@ -57,8 +57,8 @@ module BasicInstructionList = struct
   let last t =
     let rec loop = function
       | [] -> None
-      | [last] -> Some (last)
-      | _::tl -> loop tl
+      | [last] -> Some last
+      | _ :: tl -> loop tl
     in
     loop !t
 

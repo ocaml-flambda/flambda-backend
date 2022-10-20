@@ -388,8 +388,7 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
     (match desc with
     | Never -> Misc.fatal_error "Cannot add terminator: Never"
     | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-    | Poll_and_jump _
-    | Call _ | Prim _ | Specific_can_raise _ | Switch _ ->
+    | Poll_and_jump _ | Call _ | Prim _ | Specific_can_raise _ | Switch _ ->
       ()
     | Return | Raise _ | Tailcall_self _ | Tailcall_func _ | Call_no_return _ ->
       if not (Linear_utils.defines_label i.next)
