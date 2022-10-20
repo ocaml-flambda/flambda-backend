@@ -134,13 +134,8 @@ and simplify_function_body dacc expr ~return_continuation ~return_arity
       Expr.create_apply_cont (Apply_cont_expr.create cont ~args ~dbg:[])
     in
     let handlers =
-      let fresh_params = Bound_parameters.rename params in
-      let renaming =
-        Bound_parameters.renaming params ~guaranteed_fresh:fresh_params
-      in
       Continuation.Map.singleton cont
-        (Continuation_handler.create fresh_params
-           ~handler:(Expr.apply_renaming expr renaming)
+        (Continuation_handler.create params ~handler:expr
            ~free_names_of_handler:Unknown ~is_exn_handler:false)
     in
     simplify_toplevel_common dacc
