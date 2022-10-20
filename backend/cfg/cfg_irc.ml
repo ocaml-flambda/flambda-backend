@@ -440,14 +440,15 @@ let rewrite : State.t -> Cfg_with_liveness.t -> Reg.t list -> reset:bool -> unit
           | All_spilled_registers_rewritten -> ()
           | May_still_have_spilled_registers ->
             let sharing = Reg.Tbl.create 8 in
-            rewrite_instruction ~direction:(Load_before_cell cell) ~sharing instr;
-            rewrite_instruction ~direction:(Store_after_cell cell) ~sharing instr);
-      begin match Cfg_stack_operands.terminator spilled_map block.terminator with
+            rewrite_instruction ~direction:(Load_before_cell cell) ~sharing
+              instr;
+            rewrite_instruction ~direction:(Store_after_cell cell) ~sharing
+              instr);
+      (match Cfg_stack_operands.terminator spilled_map block.terminator with
       | All_spilled_registers_rewritten -> ()
       | May_still_have_spilled_registers ->
         rewrite_instruction ~direction:(Load_after_list block.body)
-          ~sharing:(Reg.Tbl.create 8) block.terminator;
-      end;
+          ~sharing:(Reg.Tbl.create 8) block.terminator);
       if irc_debug
       then (
         log ~indent:2 "and after:";
