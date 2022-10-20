@@ -105,7 +105,8 @@ typedef struct {
 
 typedef struct {
   uintnat retaddr;
-  unsigned short marker;        /* frame_size_long */
+  unsigned short marker;        /* LONG_FRAME_MARKER */
+  unsigned short _pad;  /* Ensure frame_size is 4-byte aligned */
   uint32_t frame_size;
   uint32_t num_live;
   uint32_t live_ofs[1 /* num_live */];
