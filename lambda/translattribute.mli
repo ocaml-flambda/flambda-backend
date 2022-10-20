@@ -53,16 +53,6 @@ val get_local_attribute
    : Parsetree.attributes
   -> Lambda.local_attribute
 
-val add_loop_attribute
-  : Lambda.lambda
-  -> Location.t
-  -> Parsetree.attributes
-  -> Lambda.lambda
-
-val get_loop_attribute
-  : Parsetree.attributes
-  -> Lambda.loop_attribute
-
 val get_and_remove_inlined_attribute
    : Typedtree.expression
   -> Lambda.inlined_attribute * Typedtree.expression

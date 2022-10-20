@@ -548,7 +548,6 @@ let rec compile_functor ~scopes mexp coercion root_path loc =
       local = Default_local;
       poll = Default_poll;
       check = Default_check;
-      loop = Never_loop;
       is_a_functor = true;
       stub = false;
     };

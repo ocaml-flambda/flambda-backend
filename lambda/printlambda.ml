@@ -564,7 +564,7 @@ let check_attribute ppf check =
   | Assume p -> fprintf ppf "assume %s@ " (check_property p)
 
 let function_attribute ppf
-    { inline; specialise; check; local; is_a_functor; stub; poll; loop } =
+    { inline; specialise; check; local; is_a_functor; stub; poll } =
   if is_a_functor then
     fprintf ppf "is_a_functor@ ";
   if stub then
@@ -590,12 +590,7 @@ let function_attribute ppf
   | Default_poll -> ()
   | Error_poll -> fprintf ppf "error_poll@ "
   end;
-  check_attribute ppf check;
-  begin match loop with
-  | Default_loop -> ()
-  | Always_loop -> fprintf ppf "always_loop@ "
-  | Never_loop -> fprintf ppf "never_loop@ "
-  end
+  check_attribute ppf check
 
 let apply_tailcall_attribute ppf = function
   | Default_tailcall -> ()
