@@ -26,8 +26,6 @@ module Instruction : sig
   module IdMap : MoreLabels.Map.S with type key = id
 end
 
-val first_instruction_id : Cfg.basic_block -> int
-
 type cfg_infos =
   { arg : Reg.Set.t;
     res : Reg.Set.t;
@@ -107,9 +105,9 @@ val may_use_stack_operands_array : spilled_map -> Reg.t array -> unit
 val may_use_stack_operands_everywhere :
   spilled_map -> 'a Cfg.instruction -> stack_operands_rewrite
 
-val insert_spill_block :
+val insert_block :
   Cfg_with_layout.t ->
-  Instruction.t list ->
+  Cfg.BasicInstructionList.t ->
   after:Cfg.basic_block ->
-  terminator_id:int ->
+  next_instruction_id:(unit -> Instruction.id) ->
   unit

@@ -1,3 +1,5 @@
+# 2 "backend/amd64/cfg_stack_operands.ml"
+
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 open! Cfg_regalloc_utils
@@ -233,6 +235,7 @@ let terminator (map : spilled_map) (term : Cfg.terminator Cfg.instruction) =
   | Tailcall_self _
   | Tailcall_func _
   | Call_no_return _
+  | Poll_and_jump _
   | Prim {op = External _ | Alloc _; _ } | Call {op = Indirect | Direct _; _} ->
     (* no rewrite *)
     May_still_have_spilled_registers

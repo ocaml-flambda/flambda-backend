@@ -61,7 +61,10 @@
 (rule
   (targets ocamlmklibconfig.ml)
   (deps
+    ../Makefile.build_config
+    ../Makefile.common
     ../Makefile.config
+    ../Makefile.config_if_required
     ../Makefile
     Makefile
     .depend)

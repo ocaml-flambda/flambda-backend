@@ -99,6 +99,7 @@ and ufunction = {
   body   : ulambda;
   dbg    : Debuginfo.t;
   env    : Backend_var.t option;
+  poll   : poll_attribute;
   mode   : Lambda.alloc_mode;
   check  : Lambda.check_attribute;
 }
@@ -117,6 +118,7 @@ type function_description =
     mutable fun_closed: bool;           (* True if environment not used *)
     mutable fun_inline: (Backend_var.With_provenance.t list * ulambda) option;
     mutable fun_float_const_prop: bool; (* Can propagate FP consts *)
+    fun_poll: poll_attribute;           (* Error on poll/alloc/call *)
     fun_region: bool;                   (* If false, may locally allocate
                                            in caller's region *)
   }

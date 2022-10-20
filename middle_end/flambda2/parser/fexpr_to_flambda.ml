@@ -304,7 +304,7 @@ let or_variable f env (ov : _ Fexpr.or_variable) : _ Or_variable.t =
 let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   match unop with
   | Array_length -> Array_length
-  | Box_number bk -> Box_number (bk, Alloc_mode.With_region.heap)
+  | Box_number bk -> Box_number (bk, Alloc_mode.For_allocations.heap)
   | Unbox_number bk -> Unbox_number bk
   | Tag_immediate -> Tag_immediate
   | Untag_immediate -> Untag_immediate
@@ -374,7 +374,7 @@ let varop (varop : Fexpr.varop) n : Flambda_primitive.variadic_primitive =
     let kind : Flambda_primitive.Block_kind.t =
       Values (Tag.Scannable.create_exn tag, shape)
     in
-    Make_block (kind, mutability, Alloc_mode.With_region.heap)
+    Make_block (kind, mutability, Alloc_mode.For_allocations.heap)
 
 let prim env (p : Fexpr.prim) : Flambda_primitive.t =
   match p with
@@ -421,7 +421,7 @@ let set_of_closures env fun_decls value_slots =
     in
     List.map convert value_slots |> Value_slot.Map.of_list
   in
-  Set_of_closures.create ~value_slots Alloc_mode.With_region.heap fun_decls
+  Set_of_closures.create ~value_slots Alloc_mode.For_allocations.heap fun_decls
 
 let apply_cont env ({ cont; args; trap_action } : Fexpr.apply_cont) =
   let trap_action : Trap_action.t option =
@@ -787,8 +787,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             ~is_a_functor:false ~recursive
             ~cost_metrics (* CR poechsel: grab inlining arguments from fexpr. *)
             ~inlining_arguments:(Inlining_arguments.create ~round:0)
-            ~dbg:Debuginfo.none ~is_tupled ~is_my_closure_used
-            ~inlining_decision:Never_inline_attribute
+            ~poll_attribute:Default ~dbg:Debuginfo.none ~is_tupled
+            ~is_my_closure_used ~inlining_decision:Never_inline_attribute
             ~absolute_history:
               (Inlining_history.Absolute.empty
                  (Compilation_unit.get_current_exn ()))
@@ -827,16 +827,18 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
               [Flambda_kind.With_subkind.any_value]
           | Some { ret_arity; _ } -> arity ret_arity
         in
-        Call_kind.direct_function_call code_id ~return_arity Alloc_mode.heap
+        Call_kind.direct_function_call code_id ~return_arity
+          Alloc_mode.For_types.heap
       | Function Indirect -> (
         match arities with
         | Some { params_arity = Some params_arity; ret_arity } ->
           let param_arity = arity params_arity in
           let return_arity = arity ret_arity in
           Call_kind.indirect_function_call_known_arity ~param_arity
-            ~return_arity Alloc_mode.heap
+            ~return_arity Alloc_mode.For_types.heap
         | None | Some { params_arity = None; ret_arity = _ } ->
-          Call_kind.indirect_function_call_unknown_arity Alloc_mode.heap)
+          Call_kind.indirect_function_call_unknown_arity
+            Alloc_mode.For_types.heap)
       | C_call { alloc } -> (
         match arities with
         | Some { params_arity = Some params_arity; ret_arity } ->

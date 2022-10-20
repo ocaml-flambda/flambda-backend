@@ -158,7 +158,7 @@ let pseudoregs_for_operation op arg res =
   | Iconst_symbol _|Icall_ind|Icall_imm _|Itailcall_ind|Itailcall_imm _
   | Iextcall _|Istackoffset _|Iload (_, _, _) | Istore (_, _, _)|Ialloc _
   | Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _ | Iopaque
-  | Ibeginregion | Iendregion
+  | Ibeginregion | Iendregion | Ipoll _
     -> raise Use_default
 
 let select_locality (l : Cmm.prefetch_temporal_locality_hint)
@@ -418,4 +418,5 @@ method! insert_op_debug env op dbg rs rd =
 
 end
 
-let fundecl f = (new selector)#emit_fundecl f
+let fundecl ~future_funcnames f =
+  (new selector)#emit_fundecl ~future_funcnames f

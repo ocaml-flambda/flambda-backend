@@ -25,6 +25,7 @@ type t =
     stub : bool;
     inline : Inline_attribute.t;
     check : Check_attribute.t;
+    poll_attribute : Poll_attribute.t;
     is_a_functor : bool;
     recursive : Recursive.t;
     cost_metrics : Cost_metrics.t;
@@ -75,6 +76,8 @@ module Code_metadata_accessors (X : Metadata_view_type) = struct
   let inline t = (metadata t).inline
 
   let check t = (metadata t).check
+
+  let poll_attribute t = (metadata t).poll_attribute
 
   let is_a_functor t = (metadata t).is_a_functor
 
@@ -129,6 +132,7 @@ type 'a create_type =
   stub:bool ->
   inline:Inline_attribute.t ->
   check:Check_attribute.t ->
+  poll_attribute:Poll_attribute.t ->
   is_a_functor:bool ->
   recursive:Recursive.t ->
   cost_metrics:Cost_metrics.t ->
@@ -143,9 +147,9 @@ type 'a create_type =
 
 let createk k code_id ~newer_version_of ~params_arity ~num_trailing_local_params
     ~result_arity ~result_types ~contains_no_escaping_local_allocs ~stub
-    ~(inline : Inline_attribute.t) ~check ~is_a_functor ~recursive ~cost_metrics
-    ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used ~inlining_decision
-    ~absolute_history ~relative_history =
+    ~(inline : Inline_attribute.t) ~check ~poll_attribute ~is_a_functor
+    ~recursive ~cost_metrics ~inlining_arguments ~dbg ~is_tupled
+    ~is_my_closure_used ~inlining_decision ~absolute_history ~relative_history =
   (match stub, inline with
   | true, (Available_inline | Never_inline | Default_inline)
   | ( false,
@@ -172,6 +176,7 @@ let createk k code_id ~newer_version_of ~params_arity ~num_trailing_local_params
       stub;
       inline;
       check;
+      poll_attribute;
       is_a_functor;
       recursive;
       cost_metrics;
@@ -211,18 +216,19 @@ let [@ocamlformat "disable"] print_inlining_paths ppf
       Inlining_history.Absolute.print absolute_history
 
 let [@ocamlformat "disable"] print ppf
-       { code_id = _; newer_version_of; stub; inline; check; is_a_functor;
-        params_arity; num_trailing_local_params; result_arity;
-        result_types; contains_no_escaping_local_allocs;
-        recursive; cost_metrics; inlining_arguments;
-        dbg; is_tupled; is_my_closure_used; inlining_decision;
-        absolute_history; relative_history} =
+       { code_id = _; newer_version_of; stub; inline; check; poll_attribute;
+         is_a_functor; params_arity; num_trailing_local_params; result_arity;
+         result_types; contains_no_escaping_local_allocs;
+         recursive; cost_metrics; inlining_arguments;
+         dbg; is_tupled; is_my_closure_used; inlining_decision;
+         absolute_history; relative_history } =
   let module C = Flambda_colours in
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>%t(newer_version_of@ %a)%t@]@ \
       @[<hov 1>%t(stub@ %b)%t@]@ \
       @[<hov 1>%t(inline@ %a)%t@]@ \
       @[<hov 1>%t(%a)%t@]@ \
+      @[<hov 1>%t(poll_attribute@ %a)%t@]@ \
       @[<hov 1>%t(is_a_functor@ %b)%t@]@ \
       @[<hov 1>%t(params_arity@ %t%a%t)%t@]@ \
       @[<hov 1>(num_trailing_local_params@ %d)@]@ \
@@ -253,6 +259,10 @@ let [@ocamlformat "disable"] print ppf
     (if Check_attribute.is_default check
      then Flambda_colours.elide else C.none)
     Check_attribute.print check
+    Flambda_colours.pop
+    (if Poll_attribute.is_default poll_attribute
+     then Flambda_colours.elide else C.none)
+    Poll_attribute.print poll_attribute
     Flambda_colours.pop
     (if not is_a_functor then Flambda_colours.elide else C.none)
     is_a_functor
@@ -308,6 +318,7 @@ let free_names
       stub = _;
       inline = _;
       check = _;
+      poll_attribute = _;
       is_a_functor = _;
       recursive = _;
       cost_metrics = _;
@@ -346,6 +357,7 @@ let apply_renaming
        stub = _;
        inline = _;
        check = _;
+       poll_attribute = _;
        is_a_functor = _;
        recursive = _;
        cost_metrics = _;
@@ -395,6 +407,7 @@ let ids_for_export
       stub = _;
       inline = _;
       check = _;
+      poll_attribute = _;
       is_a_functor = _;
       recursive = _;
       cost_metrics = _;
@@ -430,6 +443,7 @@ let approx_equal
       stub = stub1;
       inline = inline1;
       check = check1;
+      poll_attribute = poll_attribute1;
       is_a_functor = is_a_functor1;
       recursive = recursive1;
       cost_metrics = cost_metrics1;
@@ -451,6 +465,7 @@ let approx_equal
       stub = stub2;
       inline = inline2;
       check = check2;
+      poll_attribute = poll_attribute2;
       is_a_functor = is_a_functor2;
       recursive = recursive2;
       cost_metrics = cost_metrics2;
@@ -472,6 +487,7 @@ let approx_equal
   && Bool.equal stub1 stub2
   && Inline_attribute.equal inline1 inline2
   && Check_attribute.equal check1 check2
+  && Poll_attribute.equal poll_attribute1 poll_attribute2
   && Bool.equal is_a_functor1 is_a_functor2
   && Recursive.equal recursive1 recursive2
   && Cost_metrics.equal cost_metrics1 cost_metrics2

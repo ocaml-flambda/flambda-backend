@@ -340,7 +340,7 @@ module Forward (D : Domain_S) (T : Forward_transfer with type domain = D.t) :
       in
       transfer T.terminator
         (fun { normal; exceptional = _ } -> normal)
-        (ListLabels.fold_left block.body ~init:value
+        (Cfg.BasicInstructionList.fold_left block.body ~init:value
            ~f:(transfer T.basic (fun d -> d)))
         block.terminator
   end
@@ -476,8 +476,8 @@ module Backward (D : Domain_S) (T : Backward_transfer with type domain = D.t) :
         transfer block.terminator (T.terminator normal ~exn block.terminator)
       in
       let value =
-        ListLabels.fold_right block.body ~init:value ~f:(fun instr value ->
-            transfer instr (T.basic value instr))
+        Cfg.BasicInstructionList.fold_right block.body ~init:value
+          ~f:(fun instr value -> transfer instr (T.basic value instr))
       in
       let value =
         if block.is_trap_handler

@@ -142,7 +142,7 @@ module Env : sig
   val add_value_approximation : t -> Name.t -> value_approximation -> t
 
   val add_block_approximation :
-    t -> Name.t -> value_approximation array -> Alloc_mode.t -> t
+    t -> Name.t -> value_approximation array -> Alloc_mode.For_types.t -> t
 
   val add_approximation_alias : t -> Name.t -> Name.t -> t
 
@@ -302,6 +302,8 @@ module Function_decls : sig
     val inline : t -> Lambda.inline_attribute
 
     val specialise : t -> Lambda.specialise_attribute
+
+    val poll_attribute : t -> Lambda.poll_attribute
 
     val is_a_functor : t -> bool
 

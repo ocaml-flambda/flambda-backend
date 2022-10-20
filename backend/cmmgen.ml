@@ -1481,6 +1481,7 @@ let transl_function f =
              fun_args = List.map (fun (id, _) -> (id, typ_val)) f.params;
              fun_body = cmm_body;
              fun_codegen_options;
+             fun_poll = f.poll;
              fun_dbg  = f.dbg}
 
 (* Translate all function definitions *)
@@ -1583,7 +1584,8 @@ let compunit (ulam, preallocated_blocks, constants) =
                            Use_linscan_regalloc;
                          ]
                          else [ Reduce_code_size; Use_linscan_regalloc ];
-                       fun_dbg  = Debuginfo.none }] in
+                       fun_dbg  = Debuginfo.none;
+                       fun_poll = Default_poll }] in
   let c2 = transl_clambda_constants constants c1 in
   let c3 = transl_all_functions c2 in
   Cmmgen_state.set_structured_constants [];
