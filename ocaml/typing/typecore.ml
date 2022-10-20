@@ -869,7 +869,7 @@ let type_for_loop_index ~loc ~env ~param ty =
           val_attributes = [];
           val_kind = Val_reg;
           val_loc = loc;
-          val_uid = Uid.mk ~current_unit:(Compilation_unit.get_current ());
+          val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
         } env
         ~check:(fun s -> Warnings.Unused_for_index s)
   | _ ->
@@ -2256,7 +2256,7 @@ let add_pattern_variables ?check ?check_as env pv =
        Env.add_value ?check ~mode:pv_mode pv_id
          {val_type = pv_type; val_kind = Val_reg; Types.val_loc = pv_loc;
           val_attributes = pv_attributes;
-          val_uid = Uid.mk ~current_unit:(Compilation_unit.get_current ());
+          val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
          } env
     )
     pv env
@@ -2285,7 +2285,7 @@ let type_pattern_list
   let pvs = get_ref pattern_variables in
   let unpacks =
     List.map (fun (name, loc) ->
-      name, loc, Uid.mk ~current_unit:(Compilation_unit.get_current ())
+      name, loc, Uid.mk ~current_unit:(Env.get_unit_name ())
     ) (get_ref module_variables)
   in
   let new_env = add_pattern_variables !new_env pvs in
@@ -2312,7 +2312,7 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
            if pv_as_var then Warnings.Unused_var s
            else Warnings.Unused_var_strict s in
          let id' = Ident.rename pv_id in
-         let val_uid = Uid.mk ~current_unit:(Compilation_unit.get_current ()) in
+         let val_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) in
          let val_env =
           Env.add_value pv_id
             { val_type = pv_type
@@ -2367,7 +2367,7 @@ let type_self_pattern cl_num privty val_env met_env par_env spat =
              val_kind = Val_self (meths, vars, cl_num, privty);
              val_attributes = pv_attributes;
              val_loc = pv_loc;
-             val_uid = Uid.mk ~current_unit:(Compilation_unit.get_current ());
+             val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
             }
             ~check:(fun s -> if pv_as_var then Warnings.Unused_var s
                              else Warnings.Unused_var_strict s)
@@ -4335,7 +4335,7 @@ and type_expect_
       let scope = create_scope () in
       let md =
         { md_type = modl.mod_type; md_attributes = []; md_loc = name.loc;
-          md_uid = Uid.mk ~current_unit:(Compilation_unit.get_current ()); }
+          md_uid = Uid.mk ~current_unit:(Env.get_unit_name ()); }
       in
       let (id, new_env) =
         match name.txt with
@@ -4487,7 +4487,7 @@ and type_expect_
         type_attributes = [];
         type_immediate = Unknown;
         type_unboxed = unboxed_false_default_false;
-        type_uid = Uid.mk ~current_unit:(Compilation_unit.get_current ());
+        type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
       }
       in
       let scope = create_scope () in
@@ -5321,7 +5321,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
           { val_type = ty; val_kind = Val_reg;
             val_attributes = [];
             val_loc = Location.none;
-            val_uid = Uid.mk ~current_unit:(Compilation_unit.get_current ());
+            val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
           }
         in
         let exp_env = Env.add_value ~mode id desc env in
@@ -5771,7 +5771,7 @@ and type_cases
         in
         let unpacks =
           List.map (fun (name, loc) ->
-            name, loc, Uid.mk ~current_unit:(Compilation_unit.get_current ())
+            name, loc, Uid.mk ~current_unit:(Env.get_unit_name ())
           ) unpacks
         in
         let ty_res' =
@@ -6281,7 +6281,7 @@ and type_andops env sarg sands expected_ty =
                 val_attributes = pv_attributes;
                 val_kind = Val_reg;
                 val_loc = pv_loc;
-                val_uid = Uid.mk ~current_unit:(Compilation_unit.get_current ());
+                val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
               } env
               (*Perhaps this should be Unused_var_strict if some of the pattern
                 is used.*)

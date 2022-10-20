@@ -154,9 +154,7 @@ let parse filename =
   |> Result.map (fun fexpr ->
          let comp_unit = make_compilation_unit ~extension:".fl" ~filename () in
          let old_comp_unit = Compilation_unit.get_current () in
-         Compilation_unit.set_current comp_unit;
+         Compilation_unit.set_current (Some comp_unit);
          let flambda = Fexpr_to_flambda.conv ~module_ident:comp_unit fexpr in
-         (match old_comp_unit with
-         | Some old_comp_unit -> Compilation_unit.set_current old_comp_unit
-         | None -> ());
+         Compilation_unit.set_current old_comp_unit;
          flambda)

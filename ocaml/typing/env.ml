@@ -715,23 +715,31 @@ let equal_address_head ah1 ah2 =
   | AHlocal id1, AHlocal id2 -> Ident.equal id1 id2
   | (AHunit _ | AHlocal _), _ -> false
 
-(* The name of the compilation unit currently compiled.
-   "" if outside a compilation unit. *)
+(* The name of the compilation unit currently compiled. *)
 module Current_unit_name : sig
+  val get : unit -> Compilation_unit.t option
+  val set : Compilation_unit.t option -> unit
   val is : Compilation_unit.Name.t -> bool
   val is_ident : Ident.t -> bool
   val is_path : Path.t -> bool
 end = struct
   let get () =
-    Option.map Compilation_unit.name (Compilation_unit.get_current ())
+    Compilation_unit.get_current ()
+  let set comp_unit =
+    Compilation_unit.set_current comp_unit
+  let get_name () =
+    Option.map Compilation_unit.name (get ())
   let is name =
-    Option.equal Compilation_unit.Name.equal (get ()) (Some name)
+    Option.equal Compilation_unit.Name.equal (get_name ()) (Some name)
   let is_ident id =
     Ident.is_global id && is (Ident.name id |> Compilation_unit.Name.of_string)
   let is_path = function
   | Pident id -> is_ident id
   | Pdot _ | Papply _ -> false
 end
+
+let set_unit_name = Current_unit_name.set
+let get_unit_name = Current_unit_name.get
 
 let find_same_module id tbl =
   match IdTbl.find_same id tbl with
@@ -878,7 +886,7 @@ let reset_declaration_caches () =
   ()
 
 let reset_cache ~preserve_persistent_env =
-  Compilation_unit.clear_current ();
+  Compilation_unit.set_current None;
   if not preserve_persistent_env then
     Persistent_env.clear !persistent_env;
   reset_declaration_caches ();
@@ -1629,8 +1637,7 @@ let rec components_of_module_maker
               (Subst.type_path sub (Path.Pident id));
             let constructors =
               List.map snd
-                (Datarepr.constructors_of_type
-                   ~current_unit:(Compilation_unit.get_current ())
+                (Datarepr.constructors_of_type ~current_unit:(get_unit_name ())
                    path final_decl)
             in
             let labels =
@@ -1655,8 +1662,7 @@ let rec components_of_module_maker
         | SigL_typext(id, ext, _, _) ->
             let ext' = Subst.extension_constructor sub ext in
             let descr =
-              Datarepr.extension_descr
-                ~current_unit:(Compilation_unit.get_current ()) path
+              Datarepr.extension_descr ~current_unit:(get_unit_name ()) path
                 ext'
             in
             let addr = next_address () in
@@ -1781,7 +1787,7 @@ and store_type ~check id info env =
   let path = Pident id in
   let constructors =
     Datarepr.constructors_of_type path info
-      ~current_unit:(Compilation_unit.get_current ())
+      ~current_unit:(get_unit_name ())
   in
   let labels = Datarepr.labels_of_type path info in
   let descrs = (List.map snd constructors, List.map snd labels) in
@@ -1838,8 +1844,7 @@ and store_type_infos id info env =
 and store_extension ~check ~rebind id addr ext env =
   let loc = ext.ext_loc in
   let cstr =
-    Datarepr.extension_descr ~current_unit:(Compilation_unit.get_current ())
-      (Pident id) ext
+    Datarepr.extension_descr ~current_unit:(get_unit_name ()) (Pident id) ext
   in
   let cda = { cda_description = cstr; cda_address = Some addr } in
   if check && not loc.Location.loc_ghost &&

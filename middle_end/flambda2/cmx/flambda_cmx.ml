@@ -74,8 +74,8 @@ let all_predefined_exception_symbols () =
   Predef.all_predef_exns |> List.map symbol_for_global |> Symbol.Set.of_list
 
 let predefined_exception_typing_env () =
-  let comp_unit = Compilation_unit.get_current_exn () in
-  Compilation_unit.set_current Compilation_unit.predef_exn;
+  let comp_unit = Compilation_unit.get_current () in
+  Compilation_unit.set_current (Some Compilation_unit.predef_exn);
   let typing_env =
     TE.Serializable.predefined_exceptions (all_predefined_exception_symbols ())
   in

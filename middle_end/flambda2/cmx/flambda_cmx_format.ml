@@ -180,7 +180,7 @@ let merge t1_opt t2_opt =
 let print0 ppf t =
   Format.fprintf ppf "@[<hov>Original unit:@ %a@]@;" Compilation_unit.print
     t.original_compilation_unit;
-  Compilation_unit.set_current t.original_compilation_unit;
+  Compilation_unit.set_current (Some t.original_compilation_unit);
   let typing_env, code = import_typing_env_and_code0 t in
   Format.fprintf ppf "@[<hov>Typing env:@ %a@]@;"
     Flambda2_types.Typing_env.Serializable.print typing_env;

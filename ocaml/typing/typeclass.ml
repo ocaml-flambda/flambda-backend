@@ -272,7 +272,7 @@ let enter_met_env ?check loc lab kind unbound_kind ty class_env =
     Env.enter_value ?check lab
       {val_type = ty; val_kind = kind;
        val_attributes = []; Types.val_loc = loc;
-       val_uid = Uid.mk ~current_unit:(Compilation_unit.get_current ()); } met_env
+       val_uid = Uid.mk ~current_unit:(Env.get_unit_name ()); } met_env
   in
   let class_env = {val_env; met_env; par_env} in
   (id,class_env )
@@ -1791,7 +1791,7 @@ let type_classes define_class approx kind env cls =
           Ident.create_scoped ~scope cl.pci_name.txt,
           Ident.create_scoped ~scope cl.pci_name.txt,
           Ident.create_scoped ~scope ("#" ^ cl.pci_name.txt),
-          Uid.mk ~current_unit:(Compilation_unit.get_current ())
+          Uid.mk ~current_unit:(Env.get_unit_name ())
          ))
       cls
   in

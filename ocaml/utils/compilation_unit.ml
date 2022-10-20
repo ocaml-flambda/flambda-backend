@@ -280,11 +280,8 @@ let print_debug ppf { for_pack_prefix; hash = _; name } =
 
 let current = ref None
 
-let set_current t =
-  current := Some t
-
-let clear_current () =
-  current := None
+let set_current t_opt =
+  current := t_opt
 
 let get_current () = !current
 

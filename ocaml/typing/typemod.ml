@@ -575,7 +575,7 @@ let merge_constraint initial_env remove_aliases loc sg constr =
             type_attributes = [];
             type_immediate = Unknown;
             type_unboxed = unboxed_false_default_false;
-            type_uid = Uid.mk ~current_unit:(Compilation_unit.get_current ());
+            type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
           }
         and id_row = Ident.create_local (s^"#row") in
         let initial_env =
@@ -1243,7 +1243,7 @@ and transl_modtype_aux env smty =
                   { md_type = arg.mty_type;
                     md_attributes = [];
                     md_loc = param.loc;
-                    md_uid = Uid.mk ~current_unit:(Compilation_unit.get_current ());
+                    md_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
                   }
                 in
                 Env.enter_module_declaration ~scope ~arg:true name Mp_present
@@ -1371,7 +1371,7 @@ and transl_signature env sg =
           md_type=tmty.mty_type;
           md_attributes=pmd.pmd_attributes;
           md_loc=pmd.pmd_loc;
-          md_uid = Uid.mk ~current_unit:(Compilation_unit.get_current ());
+          md_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
         }
         in
         let id, newenv =
@@ -1411,7 +1411,7 @@ and transl_signature env sg =
             { md_type = Mty_alias path;
               md_attributes = pms.pms_attributes;
               md_loc = pms.pms_loc;
-              md_uid = Uid.mk ~current_unit:(Compilation_unit.get_current ());
+              md_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
             }
         in
         let pres =
@@ -1590,7 +1590,7 @@ and transl_modtype_decl_aux names env
      Types.mtd_type=Option.map (fun t -> t.mty_type) tmty;
      mtd_attributes=pmtd_attributes;
      mtd_loc=pmtd_loc;
-     mtd_uid = Uid.mk ~current_unit:(Compilation_unit.get_current ());
+     mtd_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
     }
   in
   let scope = Ctype.create_scope () in
@@ -1651,7 +1651,7 @@ and transl_recmodule_modtypes env sdecls =
            { md_type = approx_modtype approx_env pmd.pmd_type;
              md_loc = pmd.pmd_loc;
              md_attributes = pmd.pmd_attributes;
-             md_uid = Uid.mk ~current_unit:(Compilation_unit.get_current ()) }
+             md_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) }
          in
         (id, pmd.pmd_name, md, ()))
       ids sdecls
@@ -2035,7 +2035,7 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
                 { md_type = mty.mty_type;
                   md_attributes = [];
                   md_loc = param.loc;
-                  md_uid = Uid.mk ~current_unit:(Compilation_unit.get_current ());
+                  md_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
                 }
               in
               let id, newenv =
@@ -2332,7 +2332,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
           | Mty_alias _ -> Mp_absent
           | _ -> Mp_present
         in
-        let md_uid = Uid.mk ~current_unit:(Compilation_unit.get_current ()) in
+        let md_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) in
         let md =
           { md_type = enrich_module_type anchor name.txt modl.mod_type env;
             md_attributes = attrs;
@@ -2885,7 +2885,7 @@ let package_signatures units =
         { md_type=Mty_signature sg;
           md_attributes=[];
           md_loc=Location.none;
-          md_uid = Uid.mk ~current_unit:(Compilation_unit.get_current ());
+          md_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
         }
       in
       Sig_module(newid, Mp_present, md, Trec_not, Exported))

@@ -243,7 +243,7 @@ let transl_labels env closed lbls =
           ld_type = ty;
           ld_loc = ld.ld_loc;
           ld_attributes = ld.ld_attributes;
-          ld_uid = Uid.mk ~current_unit:(Compilation_unit.get_current ());
+          ld_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
          }
       )
       lbls in
@@ -380,7 +380,7 @@ let transl_declaration env sdecl (id, uid) =
               cd_res = ret_type;
               cd_loc = scstr.pcd_loc;
               cd_attributes = scstr.pcd_attributes;
-              cd_uid = Uid.mk ~current_unit:(Compilation_unit.get_current ()) }
+              cd_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) }
           in
             tcstr, cstr
         in
@@ -848,7 +848,7 @@ let transl_type_decl env rec_flag sdecl_list =
   let ids_list =
     List.map (fun sdecl ->
       Ident.create_scoped ~scope sdecl.ptype_name.txt,
-      Uid.mk ~current_unit:(Compilation_unit.get_current ())
+      Uid.mk ~current_unit:(Env.get_unit_name ())
     ) sdecl_list
   in
   Ctype.begin_def();
@@ -1067,7 +1067,7 @@ let transl_extension_constructor ~scope env type_path type_params
       ext_private = priv;
       Types.ext_loc = sext.pext_loc;
       Types.ext_attributes = sext.pext_attributes;
-      ext_uid = Uid.mk ~current_unit:(Compilation_unit.get_current ());
+      ext_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
     }
   in
     { ext_id = id;
@@ -1363,7 +1363,7 @@ let transl_value_decl env loc valdecl =
     [] when Env.is_in_signature env ->
       { val_type = ty; val_kind = Val_reg; Types.val_loc = loc;
         val_attributes = valdecl.pval_attributes;
-        val_uid = Uid.mk ~current_unit:(Compilation_unit.get_current ());
+        val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
       }
   | [] ->
       raise (Error(valdecl.pval_loc, Val_in_structure))
@@ -1393,7 +1393,7 @@ let transl_value_decl env loc valdecl =
       check_unboxable env loc ty;
       { val_type = ty; val_kind = Val_prim prim; Types.val_loc = loc;
         val_attributes = valdecl.pval_attributes;
-        val_uid = Uid.mk ~current_unit:(Compilation_unit.get_current ());
+        val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
       }
   in
   let (id, newenv) =
@@ -1507,7 +1507,7 @@ let transl_with_constraint id row_path ~sig_env ~sig_decl ~outer_env sdecl =
       type_attributes = sdecl.ptype_attributes;
       type_immediate = Unknown;
       type_unboxed;
-      type_uid = Uid.mk ~current_unit:(Compilation_unit.get_current ());
+      type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
     }
   in
   begin match row_path with None -> ()
