@@ -217,7 +217,7 @@ let replace_successor_labels t ~normal ~exn block ~f =
 let add_block_exn t block =
   if Label.Tbl.mem t.blocks block.start
   then
-    Misc.fatal_errorf "Cfr.add_block_exn: block %d is already present"
+    Misc.fatal_errorf "Cfg.add_block_exn: block %d is already present"
       block.start;
   Label.Tbl.add t.blocks block.start block
 

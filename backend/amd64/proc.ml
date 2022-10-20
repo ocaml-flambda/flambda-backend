@@ -443,7 +443,13 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
     if alloc then all_phys_regs else destroyed_at_c_call
   | Call {op = Indirect | Direct _; _} ->
     all_phys_regs
-  | Specific_can_raise _ ->
+  | Specific_can_raise { op = (Ilea _ | Ibswap _ | Isqrtf | Isextend32 | Izextend32
+                       | Ifloatarithmem _ | Ifloatsqrtf _
+                       | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max
+                       | Icrc32q | Irdtsc | Irdpmc | Ipause
+                       | Ilfence | Isfence | Imfence
+                       | Istore_int (_, _, _) | Ioffset_loc (_, _)
+                              | Iprefetch _); _ } ->
     Misc.fatal_error "no instructions specific for this architecture can raise"
   | Poll_and_jump _ -> destroyed_at_alloc_or_poll
 
