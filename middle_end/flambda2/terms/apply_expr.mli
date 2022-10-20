@@ -19,6 +19,8 @@
 
 type t
 
+val free_names_except_callee : t -> Name_occurrences.t
+
 include Expr_std.S with type t := t
 
 include Contains_ids.S with type t := t
