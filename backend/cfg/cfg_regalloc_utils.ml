@@ -467,8 +467,6 @@ let insert_block :
   let successors =
     Cfg.successor_labels ~normal:true ~exn:false predecessor_block
   in
-  (* CR gyorsh: this function is currently only when |successors|>=1 and |body|
-     > 0*)
   if Label.Set.cardinal successors = 0
   then
     Misc.fatal_errorf
