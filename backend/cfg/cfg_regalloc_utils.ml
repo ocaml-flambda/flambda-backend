@@ -467,8 +467,8 @@ let insert_block :
   let successors =
     Cfg.successor_labels ~normal:true ~exn:false predecessor_block
   in
-  (* CR gyorsh: this function is currently only when |successors|=1 and |body| >
-     0*)
+  (* CR gyorsh: this function is currently only when |successors|>=1 and |body|
+     > 0*)
   if Label.Set.cardinal successors = 0
   then
     Misc.fatal_errorf
@@ -528,8 +528,7 @@ let insert_block :
       (* Change the labels for the terminator in [predecessor_block]. *)
       Cfg.replace_successor_labels cfg ~normal:true ~exn:false predecessor_block
         ~f:(fun old_label ->
-          assert (old_label = successor_label);
-          start);
+          if old_label == successor_label then start else old_label);
       (* Update predecessors for the [successor_block]. *)
       successor_block.predecessors
         <- successor_block.predecessors
