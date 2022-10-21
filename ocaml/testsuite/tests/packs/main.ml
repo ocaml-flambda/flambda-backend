@@ -43,8 +43,11 @@ exit_status = "0"
 ******* check-program-output
 *)
 
+let say_hello () =
+  Packed.Member.say_hello ()
+
 let () =
-  Packed.Member.say_hello ();
+  say_hello ();
 
   let ctor = Obj.Extension_constructor.of_val Packed.Member.A in
   print_endline (Obj.Extension_constructor.name ctor)

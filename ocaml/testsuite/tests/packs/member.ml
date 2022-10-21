@@ -2,4 +2,4 @@ type t = ..
 
 type t += A
 
-let say_hello () = print_endline "Hello!"
+let [@inline always] say_hello () = print_endline "Hello!"
