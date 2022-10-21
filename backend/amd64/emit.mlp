@@ -464,6 +464,32 @@ let emit_float_test cmp i ~(taken:X86_ast.condition -> unit) =
       I.comisd (arg i 1) (arg i 0);(* swap compare *)
       taken B                      (* taken if unordered or x<y i.e. !(x>=y) *)
 
+let emit_test i ~(taken:X86_ast.condition -> unit) = function
+  | Itruetest ->
+    output_test_zero i.arg.(0);
+    taken NE
+  | Ifalsetest ->
+    output_test_zero i.arg.(0);
+    taken E
+  | Iinttest cmp ->
+    I.cmp (arg i 1) (arg i 0);
+    taken (cond cmp)
+  | Iinttest_imm((Isigned Ceq | Isigned Cne |
+                  Iunsigned Ceq | Iunsigned Cne) as cmp, 0) ->
+    output_test_zero i.arg.(0);
+    taken (cond cmp)
+  | Iinttest_imm(cmp, n) ->
+    I.cmp (int n) (arg i 0);
+    taken (cond cmp)
+  | Ifloattest cmp ->
+    emit_float_test cmp i ~taken
+  | Ioddtest ->
+    I.test (int 1) (arg8 i 0);
+    taken NE
+  | Ieventest ->
+    I.test (int 1) (arg8 i 0);
+    taken E
+
 (* Deallocate the stack frame before a return or tail call *)
 
 let output_epilogue f =
@@ -1099,32 +1125,6 @@ let emit_instr fallthrough i =
       I.jmp (label lbl)
   | Lcondbranch(tst, lbl) ->
       let lbl = label lbl in
-      let emit_test i ~(taken:X86_ast.condition -> unit) = function
-      | Itruetest ->
-          output_test_zero i.arg.(0);
-          taken NE
-      | Ifalsetest ->
-          output_test_zero i.arg.(0);
-          taken E
-      | Iinttest cmp ->
-          I.cmp (arg i 1) (arg i 0);
-          taken (cond cmp)
-      | Iinttest_imm((Isigned Ceq | Isigned Cne |
-                      Iunsigned Ceq | Iunsigned Cne) as cmp, 0) ->
-          output_test_zero i.arg.(0);
-          taken (cond cmp)
-      | Iinttest_imm(cmp, n) ->
-          I.cmp (int n) (arg i 0);
-          taken (cond cmp)
-      | Ifloattest cmp ->
-          emit_float_test cmp i ~taken
-      | Ioddtest ->
-          I.test (int 1) (arg8 i 0);
-          taken NE
-      | Ieventest ->
-          I.test (int 1) (arg8 i 0);
-          taken E
-      in
       emit_test i tst ~taken:(fun c -> I.j c lbl)
   | Lcondbranch3(lbl0, lbl1, lbl2) ->
       I.cmp (int 1) (arg i 0);
