@@ -185,7 +185,7 @@ let test_meet_two_blocks () =
 
 let () =
   let comp_unit = "Meet_test" |> Compilation_unit.of_string in
-  Compilation_unit.set_current comp_unit;
+  Compilation_unit.set_current (Some comp_unit);
   Format.eprintf "MEET CHAINS WITH TWO VARS@\n@.";
   test_meet_chains_two_vars ();
   Format.eprintf "@.MEET CHAINS WITH THREE VARS@\n@.";
