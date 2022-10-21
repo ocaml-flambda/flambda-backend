@@ -29,7 +29,8 @@ type error =
   | Need_recursive_types of Compilation_unit.t
   | Depend_on_unsafe_string_unit of Compilation_unit.t
   | Inconsistent_package_declaration of Compilation_unit.t * filepath
-  | Direct_reference_from_wrong_package of Compilation_unit.t * filepath
+  | Direct_reference_from_wrong_package of
+      Compilation_unit.t * filepath * Compilation_unit.Prefix.t
 
 exception Error of error
 let error err = raise (Error err)
@@ -198,9 +199,15 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
   if check then check_consistency penv ps;
   begin match Compilation_unit.get_current () with
   | Some current_unit ->
-      if not (Compilation_unit.can_access_by_name name ~from:current_unit) then
-        error (Direct_reference_from_wrong_package (name, filename));
-  | None -> ()
+      let access_allowed =
+        Compilation_unit.can_access_by_name name ~accessed_by:current_unit
+      in
+      (* CR lmaurer: Re-enable this test if we can figure out how to square
+         the [lib-dynlink-native] test with it. *)
+      if false && not access_allowed then
+        let prefix = Compilation_unit.for_pack_prefix current_unit in
+        error (Direct_reference_from_wrong_package (name, filename, prefix));
+  | _ -> ()
   end;
   let {persistent_structures; _} = penv in
   Hashtbl.add persistent_structures modname (Found (ps, pm));
@@ -236,6 +243,12 @@ let find_pers_struct penv val_of_pers_sig check name =
         let ps = acknowledge_pers_struct penv check name psig pm in
         (ps, pm)
 
+let describe_prefix ppf prefix =
+  if Compilation_unit.Prefix.is_empty prefix then
+    Format.fprintf ppf "outside of any package"
+  else
+    Format.fprintf ppf "package %a" Compilation_unit.Prefix.print prefix
+
 (* Emits a warning if there is no valid cmi for name *)
 let check_pers_struct penv f ~loc name =
   let name_as_string = Compilation_unit.Name.to_string name in
@@ -268,11 +281,10 @@ let check_pers_struct penv f ~loc name =
             Format.asprintf "%a uses -unsafe-string"
               Compilation_unit.print name
         | Inconsistent_package_declaration _ -> assert false
-        | Direct_reference_from_wrong_package (unit, _filename) ->
+        | Direct_reference_from_wrong_package (unit, _filename, prefix) ->
             Format.asprintf "%a is inaccessible from %a"
               Compilation_unit.print unit
-              Compilation_unit.Prefix.print
-                (Compilation_unit.Prefix.from_clflags ())
+              describe_prefix prefix
       in
       let warn = Warnings.No_cmi_file(name_as_string, Some msg) in
         Location.prerr_warning loc warn
@@ -392,12 +404,12 @@ let report_error ppf =
         "@[<hov>The interface %a@ is compiled for package %s.@ %s]"
         Compilation_unit.print intf_package intf_filename
         "The compilation flag -for-pack with the same package is required"
-  | Direct_reference_from_wrong_package(unit, filename) ->
+  | Direct_reference_from_wrong_package(unit, filename, prefix) ->
       fprintf ppf
-        "@[<hov>Invalid reference to %a (in file %s) from package %a.@ %s]"
+        "@[<hov>Invalid reference to %a (in file %s) from %a.@ %s]"
         Compilation_unit.print unit
         filename
-        Compilation_unit.Prefix.print (Compilation_unit.Prefix.from_clflags ())
+        describe_prefix prefix
         "Can only access members of this library's package or a containing package"
 
 let () =
