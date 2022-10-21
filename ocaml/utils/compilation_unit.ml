@@ -252,10 +252,9 @@ let full_path t =
 let is_parent t ~child =
   List.equal Name.equal (full_path t) (Prefix.to_list child.for_pack_prefix)
 
-let can_access_by_name t =
+let can_access_by_name t ~from =
   let prefix = Prefix.to_list t.for_pack_prefix in
-  let current_prefix = Prefix.to_list (Prefix.from_clflags ()) in
-  List.is_prefix prefix ~of_:current_prefix ~equal:Name.equal
+  List.is_prefix prefix ~of_:(full_path from) ~equal:Name.equal
 
 let print_name ppf t =
   Format.fprintf ppf "%a" Name.print t.name

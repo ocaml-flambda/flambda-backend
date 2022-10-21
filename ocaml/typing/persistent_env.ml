@@ -196,11 +196,12 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
         | Opaque -> register_import_as_opaque penv modname)
     ps.ps_flags;
   if check then check_consistency penv ps;
-  (* CR lmaurer: Rethink where to put this or else parameterize it. Currently it
-     trips up the packager, which is the one thing that *is* allowed to look
-     inside *)
-  if false && not (Compilation_unit.can_access_by_name name) then
-    error (Direct_reference_from_wrong_package (name, filename));
+  begin match Compilation_unit.get_current () with
+  | Some current_unit ->
+      if not (Compilation_unit.can_access_by_name name ~from:current_unit) then
+        error (Direct_reference_from_wrong_package (name, filename));
+  | None -> ()
+  end;
   let {persistent_structures; _} = penv in
   Hashtbl.add persistent_structures modname (Found (ps, pm));
   ps

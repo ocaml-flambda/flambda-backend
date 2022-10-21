@@ -111,10 +111,24 @@ val to_global_ident_for_bytecode : t -> Ident.t
     the other unit has this one as its path prefix. *)
 val is_parent : t -> child:t -> bool
 
-(** Find whether a compilation unit can be accessed by its name. This should
-    not be possible if the current compilation unit has a different prefix
-    (up to sub-prefixes - that is, Foo.Bar.Baz can access Foo.Other). *)
-val can_access_by_name : t -> bool
+(** Find whether one compilation unit can access another. This is allowed if the
+    accessed unit is a member of either the accessing unit or one of the
+    accessing unit's ancestors. In other words, the accessed unit's prefix must
+    be equal to or a prefix of the accessing unit's full path. For example:
+
+    * [A.B.C] _can_ access [A.Q] because [A.Q] is a member of [A] and [A] is
+      an ancestor of [A.B.C]. In other words, [A.D] has prefix [A] and [A] is a
+      prefix of [A.B.C].
+    * [A.Q] _cannot_ access [A.B.C] because [A.B] is not a prefix of [A.Q].
+    * [A.Q] _can_ however access [A.B], because [A] _is_ a prefix of [A.Q].
+    * [A.Q] _can_ also access its own member, [A.Q.R], because [A.Q.R]'s prefix
+      is exactly [A.Q].
+    * [A.Q] _cannot_ access [A.Q.R.S], because [A.Q.R] is not a prefix of [A.Q].
+    * [A.Q] _cannot_ access [F.G].
+
+    All of this follows directly from which [.cmx] files are available while
+    compiling the accessing unit. *)
+val can_access_by_name : t -> from:t -> bool
 
 (** A distinguished compilation unit for initialisation of mutable state. *)
 val dummy : t
