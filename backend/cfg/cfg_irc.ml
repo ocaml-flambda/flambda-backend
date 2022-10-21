@@ -325,6 +325,7 @@ type direction =
   | Load_before_cell of Cfg.BasicInstructionList.cell
   | Store_after_cell of Cfg.BasicInstructionList.cell
   | Load_after_list of Cfg.BasicInstructionList.t
+  | Store_before_list of Cfg.BasicInstructionList.t
 
 let rewrite : State.t -> Cfg_with_liveness.t -> Reg.t list -> reset:bool -> unit
     =
@@ -383,7 +384,7 @@ let rewrite : State.t -> Cfg_with_liveness.t -> Reg.t list -> reset:bool -> unit
         let move, move_dir =
           match direction with
           | Load_before_cell _ | Load_after_list _ -> Move.Load, `load
-          | Store_after_cell _ -> Move.Store, `store
+          | Store_after_cell _ | Store_before_list _ -> Move.Store, `store
         in
         let add_instr, temp =
           match Reg.Tbl.find_opt sharing reg with
@@ -411,7 +412,9 @@ let rewrite : State.t -> Cfg_with_liveness.t -> Reg.t list -> reset:bool -> unit
           | Store_after_cell cell ->
             Cfg.BasicInstructionList.insert_after cell new_instr
           | Load_after_list list ->
-            Cfg.BasicInstructionList.add_end list new_instr);
+            Cfg.BasicInstructionList.add_end list new_instr
+          | Store_before_list list ->
+            Cfg.BasicInstructionList.add_begin list new_instr);
         temp)
       else reg
     in
@@ -419,17 +422,13 @@ let rewrite : State.t -> Cfg_with_liveness.t -> Reg.t list -> reset:bool -> unit
     | Load_before_cell _ | Load_after_list _ ->
       if array_contains_spilled instr.arg
       then instr.arg <- Array.map instr.arg ~f
-    | Store_after_cell _ ->
+    | Store_after_cell _ | Store_before_list _ ->
       if array_contains_spilled instr.res
       then instr.res <- Array.map instr.res ~f
   in
   let liveness = Cfg_with_liveness.liveness cfg_with_liveness in
   Cfg.iter_blocks (Cfg_with_liveness.cfg cfg_with_liveness)
     ~f:(fun label block ->
-      (* CR xclerc for xclerc: we currently assume that a terminator does not
-         "define" a register that may be spilled. Calls are reasonably fine
-         since their result is in a precolored register. *)
-      assert (not (array_contains_spilled block.terminator.res));
       if irc_debug
       then (
         log ~indent:2 "body of #%d, before:" label;
@@ -444,16 +443,27 @@ let rewrite : State.t -> Cfg_with_liveness.t -> Reg.t list -> reset:bool -> unit
               instr;
             rewrite_instruction ~direction:(Store_after_cell cell) ~sharing
               instr);
-      (match Cfg_stack_operands.terminator spilled_map block.terminator with
+      match Cfg_stack_operands.terminator spilled_map block.terminator with
       | All_spilled_registers_rewritten -> ()
       | May_still_have_spilled_registers ->
-        rewrite_instruction ~direction:(Load_after_list block.body)
-          ~sharing:(Reg.Tbl.create 8) block.terminator);
-      if irc_debug
-      then (
-        log ~indent:2 "and after:";
-        log_body_and_terminator ~indent:3 block.body block.terminator liveness;
-        log ~indent:2 "end"));
+        (let sharing = Reg.Tbl.create 8 in
+         rewrite_instruction ~direction:(Load_after_list block.body)
+           ~sharing:(Reg.Tbl.create 8) block.terminator;
+         let new_instrs = Cfg.BasicInstructionList.make_empty () in
+         rewrite_instruction ~direction:(Store_before_list new_instrs) ~sharing
+           block.terminator;
+         if not (Cfg.BasicInstructionList.is_empty new_instrs)
+         then
+           (* insert block *)
+           Cfg_regalloc_utils.insert_block
+             (Cfg_with_liveness.cfg_with_layout cfg_with_liveness)
+             new_instrs ~after:block ~next_instruction_id:(fun () ->
+               State.get_and_incr_instruction_id state));
+        if irc_debug
+        then (
+          log ~indent:2 "and after:";
+          log_body_and_terminator ~indent:3 block.body block.terminator liveness;
+          log ~indent:2 "end"));
   if reset
   then State.reset state ~new_temporaries:!new_temporaries
   else (

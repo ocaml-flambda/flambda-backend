@@ -104,3 +104,12 @@ val may_use_stack_operands_array : spilled_map -> Reg.t array -> unit
 
 val may_use_stack_operands_everywhere :
   spilled_map -> 'a Cfg.instruction -> stack_operands_rewrite
+
+(* Insert specified instructions along all outgoing edges from the block
+   [after]. *)
+val insert_block :
+  Cfg_with_layout.t ->
+  Cfg.BasicInstructionList.t ->
+  after:Cfg.basic_block ->
+  next_instruction_id:(unit -> Instruction.id) ->
+  unit

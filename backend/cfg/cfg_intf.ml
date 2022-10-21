@@ -34,10 +34,6 @@ module S = struct
     | Indirect
     | Direct of { func_symbol : string }
 
-  type tail_call_operation =
-    | Self of { destination : Label.t }
-    | Func of func_call_operation
-
   type external_call_operation =
     { func_symbol : string;
       alloc : bool;
@@ -53,6 +49,10 @@ module S = struct
           mode : Lambda.alloc_mode
         }
     | Checkbound of { immediate : int option }
+    | Probe of
+        { name : string;
+          handler_code_sym : string
+        }
 
   type operation =
     | Move
@@ -77,10 +77,6 @@ module S = struct
     | Intoffloat
     | Valueofint
     | Intofvalue
-    | Probe of
-        { name : string;
-          handler_code_sym : string
-        }
     | Probe_is_enabled of { name : string }
     | Opaque
     | Begin_region
@@ -92,10 +88,6 @@ module S = struct
           provenance : unit option;
           is_assignment : bool
         }
-
-  type call_operation =
-    | P of prim_call_operation
-    | F of func_call_operation
 
   type bool_test =
     { ifso : Label.t;  (** if test is true goto [ifso] label *)
@@ -146,9 +138,9 @@ module S = struct
       mutable irc_work_list : irc_work_list
     }
 
+  (* [basic] instruction cannot raise *)
   type basic =
     | Op of operation
-    | Call of call_operation
     | Reloadretaddr
         (** This instruction loads the return address from a predefined hidden
             address (e.g. bottom of the current frame) and stores it in a
@@ -157,6 +149,11 @@ module S = struct
     | Pushtrap of { lbl_handler : Label.t }
     | Poptrap
     | Prologue
+
+  type 'a with_label_after =
+    { op : 'a;
+      label_after : Label.t
+    }
 
   (* Properties of the representation of successors:
    * - Tests of different types are not mixed. For example, a test that
@@ -180,8 +177,12 @@ module S = struct
     | Switch of Label.t array
     | Return
     | Raise of Lambda.raise_kind
-    | Tailcall of tail_call_operation
+    | Tailcall_self of { destination : Label.t }
+    | Tailcall_func of func_call_operation
     | Call_no_return of external_call_operation
+    | Call of func_call_operation with_label_after
+    | Prim of prim_call_operation with_label_after
+    | Specific_can_raise of Arch.specific_operation with_label_after
     | Poll_and_jump of Label.t
 end
 

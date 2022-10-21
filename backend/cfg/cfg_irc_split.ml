@@ -4,13 +4,19 @@ open! Cfg_regalloc_utils
 open! Cfg_irc_utils
 module State = Cfg_irc_state
 
-let is_naive_split_point : Instruction.t -> bool =
- fun instr ->
-  (* CR xclerc for xclerc: we may want to split [heuristically] in more
-     situations. *)
-  match instr.desc with
-  | Call (P (External _) | F (Direct _)) -> true
-  | _ -> false
+(* CR-soon azewierzejew: With the terminator change all the naive split points
+   were changed to terminators but current implementation assumes that the split
+   points are only at [basic instruction]. This function is left with split
+   points on the new terminators for future reference and actual implementation
+   is below. *)
+(* let is_naive_split_point : Instruction.t -> bool = fun instr -> (* CR xclerc
+   for xclerc: we may want to split [heuristically] in more situations. *) match
+   instr.desc with | Call (P (External _) | F (Direct _)) -> true | _ ->
+   false *)
+
+(* CR-soon azewierzejew: Because of the terminator rework currently there are no
+   naive split points for basic instructions.*)
+let is_naive_split_point : Instruction.t -> bool = fun _ -> false
 
 let[@inline] apply_regs : Reg.t Reg.Tbl.t -> Reg.t array -> Reg.t array =
  fun subst arr ->

@@ -382,8 +382,6 @@ let destroyed_at_reloadretaddr = [| |]
 (* note: keep this function in sync with `destroyed_at_oper` above. *)
 let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   match basic with
-  | Call (P (Alloc _)) ->
-    destroyed_at_alloc_or_poll
   | Reloadretaddr ->
     destroyed_at_reloadretaddr
   | Pushtrap _ ->
@@ -413,7 +411,6 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
        | Compf _
        | Floatofint | Intoffloat
        | Valueofint | Intofvalue
-       | Probe _
        | Probe_is_enabled _
        | Opaque
        | Begin_region
@@ -425,25 +422,35 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
                   | Isextend32 | Izextend32 | Icrc32q | Ipause
                   | Iprefetch _ | Ilfence | Isfence | Imfence)
        | Name_for_debugger _)
-  | Call (P (Checkbound _))
   | Poptrap | Prologue ->
     if fp then [| rbp |] else [||]
-  | Call (P (External { func_symbol = _; alloc; ty_res = _; ty_args = _; })) ->
-    if alloc then all_phys_regs else destroyed_at_c_call
-  | Call (F (Indirect | Direct _)) ->
-    all_phys_regs
 
 (* note: keep this function in sync with `destroyed_at_oper`. above *)
 let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
   match terminator with
   | Never -> assert false
+  | Prim {op = Alloc _; _} ->
+    destroyed_at_alloc_or_poll
   | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-  | Return | Raise _ | Tailcall _ ->
+  | Return | Raise _ | Tailcall_self  _ | Tailcall_func _
+  | Prim {op = Checkbound _ | Probe _; _}
+  ->
     if fp then [| rbp |] else [||]
   | Switch _ ->
     [| rax; rdx |]
-  | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; } ->
+  | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; }
+  | Prim {op = External { func_symbol = _; alloc; ty_res = _; ty_args = _; }; _} ->
     if alloc then all_phys_regs else destroyed_at_c_call
+  | Call {op = Indirect | Direct _; _} ->
+    all_phys_regs
+  | Specific_can_raise { op = (Ilea _ | Ibswap _ | Isqrtf | Isextend32 | Izextend32
+                       | Ifloatarithmem _ | Ifloatsqrtf _
+                       | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max
+                       | Icrc32q | Irdtsc | Irdpmc | Ipause
+                       | Ilfence | Isfence | Imfence
+                       | Istore_int (_, _, _) | Ioffset_loc (_, _)
+                              | Iprefetch _); _ } ->
+    Misc.fatal_error "no instructions specific for this architecture can raise"
   | Poll_and_jump _ -> destroyed_at_alloc_or_poll
 
 (* Maximal register pressure *)
