@@ -128,7 +128,14 @@ val is_parent : t -> child:t -> bool
 
     All of this follows directly from which [.cmx] files are available while
     compiling the accessing unit. *)
-val can_access_by_name : t -> from:t -> bool
+val can_access_by_name : t -> accessed_by:t -> bool
+
+(** Determine which .cmx file to load for a given compilation unit.
+    This is tricky in the case of packs.  It can be done by lining up the
+    desired compilation unit's full path (i.e. pack prefix then unit name)
+    against the accessing unit's full path and observing when/if they
+    diverge. *)
+val which_cmx_file : t -> accessed_by:t -> Name.t
 
 (** A distinguished compilation unit for initialisation of mutable state. *)
 val dummy : t

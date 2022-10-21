@@ -4,7 +4,7 @@ open Import
 (* CR lmaurer: Make this an argument. *)
 let exit_normally_on_failure = true
 
-let get_global_info = Flambda2.get_global_info
+let get_module_info = Flambda2.get_module_info
 
 let check_invariants program =
   try () (* Flambda_unit.invariant program *)
@@ -40,13 +40,13 @@ let dump_error (e : Parse_flambda.error) =
     Format.eprintf "%a:@.Lex error: %a@." Location.print_loc loc
       Flambda_lex.pp_error error
 
-let run_expect_test ~get_global_info ~extension ~filename
+let run_expect_test ~get_module_info ~extension ~filename
     ({ before; after = expected } : Fexpr.expect_test_spec) : Test_outcome.t =
   let comp_unit = Parse_flambda.make_compilation_unit ~extension ~filename () in
   Compilation_unit.set_current (Some comp_unit);
   let before_fl = Fexpr_to_flambda.conv ~module_ident:comp_unit before in
   check_invariants before_fl;
-  let cmx_loader = Flambda_cmx.create_loader ~get_global_info in
+  let cmx_loader = Flambda_cmx.create_loader ~get_module_info in
   let { Simplify.unit = actual_fl; _ } =
     Simplify.run ~cmx_loader ~round:0 before_fl
   in
@@ -78,7 +78,7 @@ let run_flt_file filename : Outcome.t =
   match Parse_flambda.parse_expect_test_spec filename with
   | Ok test_spec -> (
     match
-      run_expect_test ~get_global_info ~extension:".flt" ~filename test_spec
+      run_expect_test ~get_module_info ~extension:".flt" ~filename test_spec
     with
     | Pass ->
       Format.eprintf "PASS@.";
@@ -103,7 +103,7 @@ let run_mdflx_file filename : Outcome.t =
           | Text _ -> node
           | Expect test_spec -> (
             match
-              run_expect_test test_spec ~get_global_info ~extension:".mdflx"
+              run_expect_test test_spec ~get_module_info ~extension:".mdflx"
                 ~filename
             with
             | Pass ->

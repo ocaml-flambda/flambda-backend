@@ -208,13 +208,16 @@ let get_unit_info modname =
       infos
   end
 
+let which_cmx_file desired_comp_unit =
+  CU.which_cmx_file desired_comp_unit ~accessed_by:(CU.get_current_exn ())
+
 let get_unit_export_info modname =
   match get_unit_info modname with
   | None -> None
   | Some ui -> Some ui.ui_export_info
 
 let get_global_info global_ident =
-  get_unit_info (CU.name global_ident)
+  get_unit_info (which_cmx_file global_ident)
 
 let get_global_export_info id =
   match get_global_info id with
@@ -223,7 +226,7 @@ let get_global_export_info id =
 
 let cache_unit_info ui =
   cache_checks ui.ui_checks;
-  CU.Name.Tbl.add global_infos_table (CU.name ui.ui_unit) (Some ui)
+  CU.Name.Tbl.add global_infos_table (which_cmx_file ui.ui_unit) (Some ui)
 
 (* Return the approximation of a global identifier *)
 
@@ -267,53 +270,6 @@ let set_export_info export_info =
 let flambda2_set_export_info export_info =
   assert(Config.flambda2);
   current_unit.ui_export_info <- Flambda2 (Some export_info)
-
-(* Determine which .cmx file to load for a given compilation unit.
-   This is tricky in the case of packs.  It can be done by lining up the
-   desired compilation unit's full path (i.e. pack prefix then unit name)
-   against the current unit's full path and observing when/if they diverge. *)
-let which_cmx_file desired_comp_unit =
-  let desired_prefix = CU.for_pack_prefix desired_comp_unit in
-  if CU.Prefix.is_empty desired_prefix then
-    (* If the unit we're looking for is not in a pack, then the correct .cmx
-       file is the one with the same name as the unit, irrespective of any
-       current pack. *)
-    CU.name desired_comp_unit
-  else
-    let current_comp_unit = Compilation_unit.get_current_exn () in
-    (* This lines up the full paths as described above. *)
-    let rec match_components ~current ~desired =
-      match current, desired with
-      | current_name::current, desired_name::desired ->
-        if CU.Name.equal current_name desired_name then
-          (* The full paths are equal up to the current point; keep going. *)
-          match_components ~current ~desired
-        else
-          (* The paths have diverged.  The next component of the desired
-             path is the .cmx file to load. *)
-          desired_name
-      | [], desired_name::_desired ->
-        (* The whole of the current unit's full path (including the name of
-           the unit itself) is now known to be a prefix of the desired unit's
-           pack *prefix*.  This means we must be making a pack.  The .cmx
-           file to load is named after the next component of the desired
-           unit's path (which may in turn be a pack). *)
-        desired_name
-      | [], [] ->
-        (* The paths were equal, so the desired compilation unit is just the
-           current one. *)
-        CU.name desired_comp_unit
-      | _::_, [] ->
-        (* The current path is longer than the desired unit's path, which
-           means we're attempting to go back up the pack hierarchy.  This is
-           an error. *)
-        Misc.fatal_errorf "Compilation unit@ %a@ is inaccessible when \
-            compiling compilation unit@ %a"
-          CU.print desired_comp_unit
-          CU.print current_comp_unit
-    in
-    match_components ~current:(CU.full_path current_comp_unit)
-      ~desired:(CU.full_path desired_comp_unit)
 
 let approx_for_global comp_unit =
   if CU.equal comp_unit CU.predef_exn

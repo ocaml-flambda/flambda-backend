@@ -27,5 +27,5 @@ val lambda_to_cmm :
   keep_symbol_tables:bool ->
   Cmm.phrase list
 
-val get_global_info :
-  Compilation_unit.t -> Flambda2_cmx.Flambda_cmx_format.t option
+val get_module_info :
+  Compilation_unit.Name.t -> Flambda2_cmx.Flambda_cmx_format.t option

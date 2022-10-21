@@ -252,9 +252,51 @@ let full_path t =
 let is_parent t ~child =
   List.equal Name.equal (full_path t) (Prefix.to_list child.for_pack_prefix)
 
-let can_access_by_name t ~from =
+let can_access_by_name t ~accessed_by =
   let prefix = Prefix.to_list t.for_pack_prefix in
-  List.is_prefix prefix ~of_:(full_path from) ~equal:Name.equal
+  List.is_prefix prefix ~of_:(full_path accessed_by) ~equal:Name.equal
+
+let which_cmx_file desired_comp_unit ~accessed_by : Name.t =
+  let desired_prefix = for_pack_prefix desired_comp_unit in
+  if Prefix.is_empty desired_prefix then
+    (* If the unit we're looking for is not in a pack, then the correct .cmx
+       file is the one with the same name as the unit, irrespective of any
+       current pack. *)
+    name desired_comp_unit
+  else
+    (* This lines up the full paths as described above. *)
+    let rec match_components ~current ~desired =
+      match current, desired with
+      | current_name::current, desired_name::desired ->
+        if Name.equal current_name desired_name then
+          (* The full paths are equal up to the current point; keep going. *)
+          match_components ~current ~desired
+        else
+          (* The paths have diverged.  The next component of the desired
+             path is the .cmx file to load. *)
+          desired_name
+      | [], desired_name::_desired ->
+        (* The whole of the current unit's full path (including the name of
+           the unit itself) is now known to be a prefix of the desired unit's
+           pack *prefix*.  This means we must be making a pack.  The .cmx
+           file to load is named after the next component of the desired
+           unit's path (which may in turn be a pack). *)
+        desired_name
+      | [], [] ->
+        (* The paths were equal, so the desired compilation unit is just the
+           current one. *)
+        name desired_comp_unit
+      | _::_, [] ->
+        (* The current path is longer than the desired unit's path, which
+           means we're attempting to go back up the pack hierarchy.  This is
+           an error. *)
+        Misc.fatal_errorf "Compilation unit@ %a@ is inaccessible when \
+            compiling compilation unit@ %a"
+          print desired_comp_unit
+          print accessed_by
+    in
+    match_components ~current:(full_path accessed_by)
+      ~desired:(full_path desired_comp_unit)
 
 let print_name ppf t =
   Format.fprintf ppf "%a" Name.print t.name
