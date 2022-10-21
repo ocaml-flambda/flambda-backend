@@ -94,6 +94,11 @@ let mk_internal ?(loc= !default_loc) name payload =
   Attr.mk ~loc name payload
 
 
+let ident_of_payload = function
+  | PStr[{pstr_desc=Pstr_eval({pexp_desc=Pexp_ident {txt=Lident id}},_)}] ->
+     Some id
+  | _ -> None
+
 let string_of_cst = function
   | Pconst_string(s, _, _) -> Some s
   | _ -> None
@@ -509,13 +514,22 @@ let has_local attr =
   check_local ["extension.local"] ["ocaml.local"; "local"] attr
 
 let tailcall attr =
-  let has_tail = has_attribute ["ocaml.tail"; "tail"] attr in
   let has_nontail = has_attribute ["ocaml.nontail"; "nontail"] attr in
-  match has_tail, has_nontail with
-  | true, false -> Ok (Some `Tail)
-  | false, true -> Ok (Some `Nontail)
-  | false, false -> Ok None
-  | true, true -> Error `Conflict
+  let tail_attrs = filter_attributes [["ocaml.tail";"tail"], true] attr in
+  match has_nontail, tail_attrs with
+  | true, (_ :: _) -> Error `Conflict
+  | _, (_ :: _ :: _) -> Error `Conflict
+  | false, [] -> Ok None
+  | true, [] -> Ok (Some `Nontail)
+  | false, [{attr_payload = PStr []}] -> Ok (Some `Tail)
+  | false, [t] ->
+     match ident_of_payload t.attr_payload with
+     | Some "hint" -> Ok (Some `Tail_if_possible)
+     | _ ->
+        Location.prerr_warning t.attr_loc
+          (Warnings.Attribute_payload
+             (t.attr_name.txt, "Only 'hint' is supported"));
+        Ok (Some `Tail_if_possible)
 
 let has_include_functor attr =
   if has_attribute ["extension.include_functor"] attr then

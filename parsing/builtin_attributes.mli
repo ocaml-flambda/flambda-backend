@@ -140,6 +140,7 @@ val has_nonlocal: Parsetree.attributes -> bool
 (* These functions report Error if the builtin extension.* attributes
    are present despite the extension being disabled *)
 val has_local: Parsetree.attributes -> (bool,unit) result
-val tailcall : Parsetree.attributes -> ([`Tail|`Nontail] option, [`Conflict]) result
+val tailcall : Parsetree.attributes ->
+    ([`Tail|`Nontail|`Tail_if_possible] option, [`Conflict]) result
 val has_include_functor : Parsetree.attributes -> (bool,unit) result
 
