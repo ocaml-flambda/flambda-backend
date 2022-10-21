@@ -2385,7 +2385,8 @@ let send_function (arity, mode) =
       fun_args = List.map (fun (arg, ty) -> VP.create arg, ty) fun_args;
       fun_body = body;
       fun_codegen_options = [];
-      fun_dbg
+      fun_dbg;
+      fun_poll = Default_poll
     }
 
 let apply_function arity =
@@ -2398,7 +2399,8 @@ let apply_function arity =
       fun_args = List.map (fun arg -> VP.create arg, typ_val) all_args;
       fun_body = body;
       fun_codegen_options = [];
-      fun_dbg
+      fun_dbg;
+      fun_poll = Default_poll
     }
 
 (* Generate tuplifying functions:
@@ -2430,7 +2432,8 @@ let tuplify_function arity =
             @ [Cvar clos],
             dbg () );
       fun_codegen_options = [];
-      fun_dbg
+      fun_dbg;
+      fun_poll = Default_poll
     }
 
 (* Generate currying functions:
@@ -2505,7 +2508,8 @@ let final_curry_function ~nlocal ~arity =
       fun_args = [VP.create last_arg, typ_val; VP.create last_clos, typ_val];
       fun_body = curry_fun [] last_clos (arity - 1);
       fun_codegen_options = [];
-      fun_dbg
+      fun_dbg;
+      fun_poll = Default_poll
     }
 
 let rec intermediate_curry_functions ~nlocal ~arity num =
@@ -2552,7 +2556,8 @@ let rec intermediate_curry_functions ~nlocal ~arity num =
                   Cvar clos ],
                 dbg () ));
         fun_codegen_options = [];
-        fun_dbg
+        fun_dbg;
+        fun_poll = Default_poll
       }
     ::
     (if arity <= max_arity_optimized && arity - num > 2
@@ -2598,7 +2603,8 @@ let rec intermediate_curry_functions ~nlocal ~arity num =
                 (List.map (fun (arg, _) -> Cvar arg) direct_args)
                 clos;
             fun_codegen_options = [];
-            fun_dbg
+            fun_dbg;
+            fun_poll = Default_poll
           }
       in
       cf :: intermediate_curry_functions ~nlocal ~arity (num + 1)
@@ -3639,7 +3645,8 @@ let entry_point namelist =
       fun_args = [];
       fun_body = body;
       fun_codegen_options = [Reduce_code_size];
-      fun_dbg
+      fun_dbg;
+      fun_poll = Default_poll
     }
 
 (* Generate the table of globals *)
@@ -4155,8 +4162,8 @@ let cfunction decl = Cmm.Cfunction decl
 
 let cdata d = Cmm.Cdata d
 
-let fundecl fun_name fun_args fun_body fun_codegen_options fun_dbg =
-  { Cmm.fun_name; fun_args; fun_body; fun_codegen_options; fun_dbg }
+let fundecl fun_name fun_args fun_body fun_codegen_options fun_dbg fun_poll =
+  { Cmm.fun_name; fun_args; fun_body; fun_codegen_options; fun_dbg; fun_poll }
 
 (* Gc root table *)
 

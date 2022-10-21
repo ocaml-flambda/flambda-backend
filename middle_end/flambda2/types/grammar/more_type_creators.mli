@@ -48,29 +48,29 @@ val any_naked_bool : Type_grammar.t
 
 val this_boxed_float :
   Numeric_types.Float_by_bit_pattern.t ->
-  Alloc_mode.t Or_unknown.t ->
+  Alloc_mode.For_types.t ->
   Type_grammar.t
 
-val this_boxed_int32 : int32 -> Alloc_mode.t Or_unknown.t -> Type_grammar.t
+val this_boxed_int32 : int32 -> Alloc_mode.For_types.t -> Type_grammar.t
 
-val this_boxed_int64 : int64 -> Alloc_mode.t Or_unknown.t -> Type_grammar.t
+val this_boxed_int64 : int64 -> Alloc_mode.For_types.t -> Type_grammar.t
 
 val this_boxed_nativeint :
-  Targetint_32_64.t -> Alloc_mode.t Or_unknown.t -> Type_grammar.t
+  Targetint_32_64.t -> Alloc_mode.For_types.t -> Type_grammar.t
 
 val these_boxed_floats :
   Numeric_types.Float_by_bit_pattern.Set.t ->
-  Alloc_mode.t Or_unknown.t ->
+  Alloc_mode.For_types.t ->
   Type_grammar.t
 
 val these_boxed_int32s :
-  Numeric_types.Int32.Set.t -> Alloc_mode.t Or_unknown.t -> Type_grammar.t
+  Numeric_types.Int32.Set.t -> Alloc_mode.For_types.t -> Type_grammar.t
 
 val these_boxed_int64s :
-  Numeric_types.Int64.Set.t -> Alloc_mode.t Or_unknown.t -> Type_grammar.t
+  Numeric_types.Int64.Set.t -> Alloc_mode.For_types.t -> Type_grammar.t
 
 val these_boxed_nativeints :
-  Targetint_32_64.Set.t -> Alloc_mode.t Or_unknown.t -> Type_grammar.t
+  Targetint_32_64.Set.t -> Alloc_mode.For_types.t -> Type_grammar.t
 
 val any_boxed_float : Type_grammar.t
 
@@ -84,13 +84,13 @@ val any_block : Type_grammar.t
 
 (* Note this is only for blocks (variants, tuples, etc), not arrays! *)
 val blocks_with_these_tags :
-  Tag.Set.t -> Alloc_mode.t Or_unknown.t -> Type_grammar.t Or_unknown.t
+  Tag.Set.t -> Alloc_mode.For_types.t -> Type_grammar.t Or_unknown.t
 
 val immutable_block :
   is_unique:bool ->
   Tag.t ->
   field_kind:Flambda_kind.t ->
-  Alloc_mode.t Or_unknown.t ->
+  Alloc_mode.For_types.t ->
   fields:Type_grammar.t list ->
   Type_grammar.t
 
@@ -104,7 +104,7 @@ val immutable_block_with_size_at_least :
 val variant :
   const_ctors:Type_grammar.t ->
   non_const_ctors:Type_grammar.t list Tag.Scannable.Map.t ->
-  Alloc_mode.t Or_unknown.t ->
+  Alloc_mode.For_types.t ->
   Type_grammar.t
 
 val exactly_this_closure :
@@ -113,7 +113,7 @@ val exactly_this_closure :
     Type_grammar.function_type Or_unknown_or_bottom.t Function_slot.Map.t ->
   all_closure_types_in_set:Type_grammar.t Function_slot.Map.t ->
   all_value_slots_in_set:Type_grammar.t Value_slot.Map.t ->
-  Alloc_mode.t Or_unknown.t ->
+  Alloc_mode.For_types.t ->
   Type_grammar.t
 
 val closure_with_at_least_these_function_slots :
@@ -143,7 +143,7 @@ val check_equation : Name.t -> Type_grammar.t -> unit
 val arity_of_list : Type_grammar.t list -> Flambda_arity.t
 
 val unknown_with_subkind :
-  ?alloc_mode:Alloc_mode.t Or_unknown.t ->
+  ?alloc_mode:Alloc_mode.For_types.t ->
   Flambda_kind.With_subkind.t ->
   Type_grammar.t
 

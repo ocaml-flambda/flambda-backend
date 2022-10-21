@@ -29,9 +29,78 @@ let verbose = ref false
 
 include Cfg_intf.S
 
+module BasicInstructionList = struct
+  type instr = basic instruction
+
+  type cell =
+    { instr : instr;
+      mutable before_rev : instr list;
+      mutable after : instr list
+    }
+
+  let insert_before cell instr = cell.before_rev <- instr :: cell.before_rev
+
+  let insert_after cell instr = cell.after <- instr :: cell.after
+
+  let instr cell = cell.instr
+
+  type t = instr list ref
+
+  let make_empty () = ref []
+
+  let make_single instr = ref [instr]
+
+  let of_list l = ref l
+
+  let hd t = match !t with [] -> None | hd :: _ -> Some hd
+
+  let last t =
+    let rec loop = function
+      | [] -> None
+      | [last] -> Some last
+      | _ :: tl -> loop tl
+    in
+    loop !t
+
+  let add_begin t instr = t := instr :: !t
+
+  let add_end t instr = t := !t @ [instr]
+
+  let is_empty t = match !t with [] -> true | _ :: _ -> false
+
+  let length t = ListLabels.length !t
+
+  let filter_left t ~f = t := ListLabels.filter ~f !t
+
+  let filter_right t ~f =
+    t
+      := ListLabels.fold_right
+           ~f:(fun elem acc -> if f elem then elem :: acc else acc)
+           !t ~init:[]
+
+  let iter t ~f = ListLabels.iter ~f !t
+
+  let iter_cell t ~f =
+    t
+      := ListLabels.concat_map !t ~f:(fun instr ->
+             let cell = { instr; before_rev = []; after = [] } in
+             f cell;
+             List.rev cell.before_rev @ [instr] @ cell.after)
+
+  let iter2 t t' ~f = ListLabels.iter2 ~f !t !t'
+
+  let fold_left t ~f ~init = ListLabels.fold_left ~f ~init !t
+
+  let fold_right t ~f ~init = ListLabels.fold_right ~f !t ~init
+
+  let transfer ~to_:t ~from:t' () =
+    t := !t @ !t';
+    t' := []
+end
+
 type basic_block =
   { start : Label.t;
-    mutable body : basic instruction list;
+    body : BasicInstructionList.t;
     mutable terminator : terminator instruction;
     mutable predecessors : Label.Set.t;
     mutable stack_offset : int;
@@ -86,6 +155,7 @@ let successor_labels_normal ti =
   | Prim { op = _; label_after }
   | Specific_can_raise { op = _; label_after } ->
     Label.Set.singleton label_after
+  | Poll_and_jump return_label -> Label.Set.singleton return_label
 
 let successor_labels ~normal ~exn block =
   match normal, exn with
@@ -136,6 +206,7 @@ let replace_successor_labels t ~normal ~exn block ~f =
       | Tailcall_func (Direct _)
       | Return | Raise _ | Call_no_return _ ->
         block.terminator.desc
+      | Poll_and_jump return_label -> Poll_and_jump (f return_label)
       | Call { op; label_after } -> Call { op; label_after = f label_after }
       | Prim { op; label_after } -> Prim { op; label_after = f label_after }
       | Specific_can_raise { op; label_after } ->
@@ -146,7 +217,7 @@ let replace_successor_labels t ~normal ~exn block ~f =
 let add_block_exn t block =
   if Label.Tbl.mem t.blocks block.start
   then
-    Misc.fatal_errorf "Cfr.add_block_exn: block %d is already present"
+    Misc.fatal_errorf "Cfg.add_block_exn: block %d is already present"
       block.start;
   Label.Tbl.add t.blocks block.start block
 
@@ -165,6 +236,11 @@ let get_block_exn t label =
   | block -> block
 
 let can_raise_interproc block = block.can_raise && Option.is_none block.exn
+
+let first_instruction_id (block : basic_block) : int =
+  match BasicInstructionList.hd block.body with
+  | None -> block.terminator.id
+  | Some first_instr -> first_instr.id
 
 let fun_name t = t.fun_name
 
@@ -346,6 +422,8 @@ let dump_terminator' ?(print_reg = Printmach.reg) ?(res = [||]) ?(args = [||])
   | Specific_can_raise { op; label_after } ->
     Format.fprintf ppf "%a" specific_can_raise op;
     Format.fprintf ppf "%sgoto %d" sep label_after
+  | Poll_and_jump return_label ->
+    Format.fprintf ppf "Poll_and_jump %a" Label.print return_label
 
 let dump_terminator ?sep ppf terminator = dump_terminator' ?sep ppf terminator
 
@@ -387,6 +465,7 @@ let can_raise_terminator (i : terminator) =
   | Specific_can_raise { op; _ } ->
     assert (Arch.operation_can_raise op);
     true
+  | Poll_and_jump _ -> true
   | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Switch _ | Return | Tailcall_self _ ->
     false
@@ -402,6 +481,7 @@ let is_pure_terminator desc =
   | Specific_can_raise { op; _ } ->
     assert (Arch.operation_can_raise op);
     false
+  | Poll_and_jump _ -> false
   | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Switch _ ->
     (* CR gyorsh: fix for memory operands *)
@@ -480,12 +560,7 @@ let set_stack_offset (instr : _ instruction) stack_offset =
   then
     Misc.fatal_errorf "Cfg.set_stack_offset: expected non-negative got %d"
       stack_offset;
-  if instr.stack_offset = stack_offset
-  then instr
-  else { instr with stack_offset }
-
-let set_live (instr : _ instruction) live =
-  if Reg.Set.equal instr.live live then instr else { instr with live }
+  instr.stack_offset <- stack_offset
 
 let string_of_irc_work_list = function
   | Unknown_list -> "unknown_list"

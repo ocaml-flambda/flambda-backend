@@ -69,7 +69,8 @@ let rec merge_blocks (modified : bool) (cfg_with_layout : Cfg_with_layout.t) :
           then (
             assert (Label.equal b1_label (List.hd b2_predecessors));
             (* modify b1 *)
-            b1_block.body <- b1_block.body @ b2_block.body;
+            Cfg.BasicInstructionList.transfer ~to_:b1_block.body
+              ~from:b2_block.body ();
             b1_block.terminator <- b2_block.terminator;
             b1_block.exn <- b2_block.exn;
             b1_block.can_raise <- b2_block.can_raise;

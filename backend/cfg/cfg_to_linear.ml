@@ -261,6 +261,8 @@ let linearize_terminator cfg (terminator : Cfg.terminator Cfg.instruction)
               cond_successor_labels init,
             None )
       | _ -> assert false)
+    | Poll_and_jump return_label ->
+      [L.Lop (Ipoll { return_label = Some return_label })], None
   in
   ( List.fold_left
       (fun next desc -> to_linear_instr ~like:terminator desc ~next)
@@ -279,9 +281,10 @@ let need_starting_label (cfg_with_layout : CL.t) (block : Cfg.basic_block)
       (* This block has a single predecessor which appears in the layout
          immediately prior to this block. *)
       (* No need for the label, unless the predecessor's terminator is [Switch]
-         when the label is needed for the jump table. *)
+         when the label is needed for the jump table; or [Poll_and_jump], in
+         which case there will always be a jump to such label. *)
       match prev_block.terminator.desc with
-      | Switch _ -> true
+      | Switch _ | Poll_and_jump _ -> true
       | Never -> Misc.fatal_error "Cannot linearize terminator: Never"
       | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
       | Call _ | Prim _ | Specific_can_raise _ ->
@@ -327,9 +330,9 @@ let run cfg_with_layout =
       | (Some _ | None), None -> ()
       | None, Some _ -> tailrec_label := terminator_tailrec_label
       | Some old_trl, Some new_trl -> assert (Label.equal old_trl new_trl));
-      List.fold_left
-        (fun next i -> basic_to_linear i ~next)
-        terminator (List.rev block.body)
+      Cfg.BasicInstructionList.fold_right
+        ~f:(fun i next -> basic_to_linear i ~next)
+        ~init:terminator block.body
     in
     let insn =
       if i = 0

@@ -380,23 +380,24 @@ let check_basic_instruction :
   check_instruction ~check_live ~check_dbg ~check_arg:true idx location expected
     result
 
-let rec check_basic_instruction_list :
+let check_basic_instruction_list :
     State.t ->
     location ->
-    int ->
-    Cfg.basic Cfg.instruction list ->
-    Cfg.basic Cfg.instruction list ->
+    Cfg.BasicInstructionList.t ->
+    Cfg.BasicInstructionList.t ->
     unit =
- fun state location idx expected result ->
-  match expected, result with
-  | [], [] -> ()
-  | _ :: _, [] ->
-    different location "bodies with different sizes (expected is longer)"
-  | [], _ :: _ ->
-    different location "bodies with different sizes (result is longer)"
-  | expected_hd :: expected_tl, result_hd :: result_tl ->
-    check_basic_instruction state location idx expected_hd result_hd;
-    check_basic_instruction_list state location (succ idx) expected_tl result_tl
+ fun state location expected result ->
+  let expected_len = Cfg.BasicInstructionList.length expected in
+  let result_len = Cfg.BasicInstructionList.length result in
+  if expected_len = result_len
+  then
+    let i = ref 0 in
+    Cfg.BasicInstructionList.iter2 expected result ~f:(fun expected result ->
+        check_basic_instruction state location !i expected result;
+        incr i)
+  else if expected_len > result_len
+  then different location "bodies with different sizes (expected is longer)"
+  else different location "bodies with different sizes (result is longer)"
 
 let check_terminator_instruction :
     State.t ->
@@ -477,6 +478,9 @@ let check_terminator_instruction :
       Specific_can_raise { op = op2; label_after = lbl2 } )
     when Arch.equal_specific_operation op1 op2 ->
     State.add_to_explore state lbl1 lbl2
+  | Poll_and_jump return_label1, Poll_and_jump return_label2
+    when Label.equal return_label1 return_label2 ->
+    ()
   | _ -> different location "terminator");
   (* CR xclerc for xclerc: temporary, for testing *)
   let check_arg =
@@ -484,7 +488,8 @@ let check_terminator_instruction :
     | Always _ -> false
     | Never | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
     | Switch _ | Return | Raise _ | Tailcall_self _ | Tailcall_func _
-    | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _ ->
+    | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _
+    | Poll_and_jump _ ->
       true
   in
   check_instruction ~check_live:false ~check_dbg:false ~check_arg (-1) location
@@ -498,7 +503,7 @@ let check_basic_block : State.t -> Cfg.basic_block -> Cfg.basic_block -> unit =
       (Label.to_string expected.start)
       (Label.to_string result.start)
   in
-  check_basic_instruction_list state location 0 expected.body result.body;
+  check_basic_instruction_list state location expected.body result.body;
   check_terminator_instruction state location expected.terminator
     result.terminator;
   (* State.add_label_sets_to_check state (location ^ " (predecessors)")

@@ -26,7 +26,7 @@ type 'code t =
         code : 'code;
         symbol : Symbol.t option
       }
-  | Block_approximation of 'code t array * Alloc_mode.t
+  | Block_approximation of 'code t array * Alloc_mode.For_types.t
 
 let rec print fmt = function
   | Value_unknown -> Format.fprintf fmt "?"

@@ -621,8 +621,10 @@ let transform_primitive env (prim : L.primitive) args loc =
       }
     in
     Transformed (L.Lapply apply)
-  | Pfield _, [L.Lprim (Pgetglobal id, [], _)]
-    when Ident.same id (Env.current_unit_id env) ->
+  | Pfield _, [L.Lprim (Pgetglobal cu, [], _)]
+    when Ident.same
+           (cu |> Compilation_unit.to_global_ident_for_legacy_code)
+           (Env.current_unit_id env) ->
     Misc.fatal_error
       "[Pfield (Pgetglobal ...)] for the current compilation unit is forbidden \
        upon entry to the middle end"
@@ -803,6 +805,23 @@ let restore_continuation_context acc env ccenv cont ~close_early body =
           Continuation.print cont;
       body acc ccenv continuation_closing_region
 
+let restore_continuation_context_for_switch_arm env cont =
+  match Env.pop_regions_up_to_context env cont with
+  | None -> cont
+  | Some region ->
+    let ({ continuation_closing_region; continuation_after_closing_region }
+          : Env.region_closure_continuation) =
+      Env.region_closure_continuation env region
+    in
+    if not (Continuation.equal cont continuation_after_closing_region)
+    then
+      Misc.fatal_errorf
+        "The continuation %a following the region closure should be the \
+         current continuation %a"
+        Continuation.print continuation_after_closing_region Continuation.print
+        cont;
+    continuation_closing_region
+
 let apply_cont_with_extra_args acc env ccenv ~dbg cont traps args =
   let extra_args =
     List.map
@@ -874,18 +893,18 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pbigarrayset (_, _, _, Pbigarray_unknown_layout) ->
     true
   | Pidentity | Pbytes_to_string | Pbytes_of_string | Pignore | Prevapply _
-  | Pdirapply _ | Pgetglobal _ | Psetglobal _ | Pmakeblock _ | Pmakefloatblock _
-  | Pfield _ | Pfield_computed _ | Psetfield _ | Psetfield_computed _
-  | Pfloatfield _ | Psetfloatfield _ | Pduprecord _ | Psequand | Psequor | Pnot
-  | Pnegint | Paddint | Psubint | Pmulint | Pandint | Porint | Pxorint | Plslint
-  | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats
-  | Pcompare_bints _ | Poffsetint _ | Poffsetref _ | Pintoffloat | Pfloatofint _
-  | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _ | Pmulfloat _
-  | Pdivfloat _ | Pfloatcomp _ | Pstringlength | Pstringrefu | Pbyteslength
-  | Pbytesrefu | Pbytessetu | Pmakearray _ | Pduparray _ | Parraylength _
-  | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisout | Pbintofint _
-  | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _ | Psubbint _
-  | Pmulbint _
+  | Pdirapply _ | Pgetglobal _ | Psetglobal _ | Pgetpredef _ | Pmakeblock _
+  | Pmakefloatblock _ | Pfield _ | Pfield_computed _ | Psetfield _
+  | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Pduprecord _
+  | Psequand | Psequor | Pnot | Pnegint | Paddint | Psubint | Pmulint | Pandint
+  | Porint | Pxorint | Plslint | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints
+  | Pcompare_floats | Pcompare_bints _ | Poffsetint _ | Poffsetref _
+  | Pintoffloat | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _
+  | Psubfloat _ | Pmulfloat _ | Pdivfloat _ | Pfloatcomp _ | Pstringlength
+  | Pstringrefu | Pbyteslength | Pbytesrefu | Pbytessetu | Pmakearray _
+  | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _
+  | Pisout | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _
+  | Psubbint _ | Pmulbint _
   | Pdivbint { is_safe = Unsafe; _ }
   | Pmodbint { is_safe = Unsafe; _ }
   | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
@@ -1574,6 +1593,7 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
               (fun arg : IR.simple -> Var arg)
               (Env.extra_args_for_continuation env k)
           in
+          let k = restore_continuation_context_for_switch_arm env k in
           let consts_rev =
             (arm, k, None, IR.Var var :: extra_args) :: consts_rev
           in
@@ -1584,6 +1604,7 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
               (fun arg : IR.simple -> Var arg)
               (Env.extra_args_for_continuation env k)
           in
+          let k = restore_continuation_context_for_switch_arm env k in
           let consts_rev =
             (arm, k, None, IR.Const cst :: extra_args) :: consts_rev
           in

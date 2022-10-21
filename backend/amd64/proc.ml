@@ -72,9 +72,9 @@ let win64 = Arch.win64
        3. C callee-saved registers.
      This translates to the set { r10, r11 }.  These registers hence cannot
      be used for OCaml parameter passing and must also be marked as
-     destroyed across [Ialloc] (otherwise a call to caml_call_gc@PLT might
-     clobber these two registers before the assembly stub saves them into
-     the GC regs block).
+     destroyed across [Ialloc] and [Ipoll] (otherwise a call to
+     caml_call_gc@PLT might clobber these two registers before the assembly
+     stub saves them into the GC regs block).
 *)
 
 let int_reg_name =
@@ -313,7 +313,7 @@ let destroyed_at_c_call =
        100;101;102;103;104;105;106;107;
        108;109;110;111;112;113;114;115])
 
-let destroyed_at_alloc =
+let destroyed_at_alloc_or_poll =
   if X86_proc.use_plt then
     destroyed_by_plt_stub
   else
@@ -333,7 +333,7 @@ let destroyed_at_oper = function
   | Iop(Iintop(Idiv | Imod)) | Iop(Iintop_imm((Idiv | Imod), _))
         -> [| rax; rdx |]
   | Iop(Istore(Single, _, _)) -> [| rxmm15 |]
-  | Iop(Ialloc _) -> destroyed_at_alloc
+  | Iop(Ialloc _ | Ipoll _) -> destroyed_at_alloc_or_poll
   | Iop(Iintop(Imulh _ | Icomp _) | Iintop_imm((Icomp _), _))
         -> [| rax |]
   | Iswitch(_, _) -> [| rax; rdx |]
@@ -430,7 +430,7 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
   match terminator with
   | Never -> assert false
   | Prim {op = Alloc _; _} ->
-    destroyed_at_alloc
+    destroyed_at_alloc_or_poll
   | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Return | Raise _ | Tailcall_self  _ | Tailcall_func _
   | Prim {op = Checkbound _ | Probe _; _}
@@ -443,15 +443,22 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
     if alloc then all_phys_regs else destroyed_at_c_call
   | Call {op = Indirect | Direct _; _} ->
     all_phys_regs
-  | Specific_can_raise _ ->
+  | Specific_can_raise { op = (Ilea _ | Ibswap _ | Isqrtf | Isextend32 | Izextend32
+                       | Ifloatarithmem _ | Ifloatsqrtf _
+                       | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max
+                       | Icrc32q | Irdtsc | Irdpmc | Ipause
+                       | Ilfence | Isfence | Imfence
+                       | Istore_int (_, _, _) | Ioffset_loc (_, _)
+                              | Iprefetch _); _ } ->
     Misc.fatal_error "no instructions specific for this architecture can raise"
+  | Poll_and_jump _ -> destroyed_at_alloc_or_poll
 
 (* Maximal register pressure *)
 
 
 let safe_register_pressure = function
     Iextcall _ -> if win64 then if fp then 7 else 8 else 0
-  | Ialloc _ | Imove | Ispill | Ireload
+  | Ialloc _ | Ipoll _ | Imove | Ispill | Ireload
   | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue
   | Icompf _
@@ -475,7 +482,7 @@ let max_register_pressure =
       else consumes ~int:9 ~float:16
   | Iintop(Idiv | Imod) | Iintop_imm((Idiv | Imod), _) ->
     consumes ~int:2 ~float:0
-  | Ialloc _ ->
+  | Ialloc _ | Ipoll _ ->
     consumes ~int:(1 + num_destroyed_by_plt_stub) ~float:0
   | Iintop(Icomp _) | Iintop_imm((Icomp _), _) ->
     consumes ~int:1 ~float:0

@@ -94,7 +94,7 @@ let convert_init_or_assign (i_or_a : L.initialization_or_assignment)
     ~current_region : P.Init_or_assign.t =
   match i_or_a with
   | Assignment mode ->
-    Assignment (Alloc_mode.With_region.from_lambda mode ~current_region)
+    Assignment (Alloc_mode.For_allocations.from_lambda mode ~current_region)
   | Heap_initialization -> Initialization
   | Root_initialization ->
     Misc.fatal_error "[Root_initialization] should not appear in Flambda input"
@@ -163,7 +163,7 @@ let box_float (mode : L.alloc_mode) (arg : H.expr_primitive) ~current_region :
   Unary
     ( Box_number
         ( Flambda_kind.Boxable_number.Naked_float,
-          Alloc_mode.With_region.from_lambda mode ~current_region ),
+          Alloc_mode.For_allocations.from_lambda mode ~current_region ),
       Prim arg )
 
 let unbox_float (arg : H.simple_or_prim) : H.simple_or_prim =
@@ -174,7 +174,7 @@ let box_bint bi mode (arg : H.expr_primitive) ~current_region : H.expr_primitive
   Unary
     ( Box_number
         ( boxable_number_of_boxed_integer bi,
-          Alloc_mode.With_region.from_lambda mode ~current_region ),
+          Alloc_mode.For_allocations.from_lambda mode ~current_region ),
       Prim arg )
 
 let unbox_bint bi (arg : H.simple_or_prim) : H.simple_or_prim =
@@ -507,7 +507,7 @@ let array_set_unsafe ~array ~index ~new_value (array_kind : P.Array_kind.t)
   match array_kind with
   | Immediates | Values ->
     Ternary
-      ( Array_set (array_kind, Assignment Alloc_mode.With_region.heap),
+      ( Array_set (array_kind, Assignment Alloc_mode.For_allocations.heap),
         array,
         index,
         new_value )
@@ -515,7 +515,8 @@ let array_set_unsafe ~array ~index ~new_value (array_kind : P.Array_kind.t)
     Ternary
       ( Array_set
           ( Naked_floats,
-            Assignment (Alloc_mode.With_region.local ~region:current_region) ),
+            Assignment (Alloc_mode.For_allocations.local ~region:current_region)
+          ),
         array,
         index,
         unbox_float new_value )
@@ -572,7 +573,7 @@ let checked_arith_op ~dbg (bi : Lambda.boxed_integer option) op mode arg1 arg2
     }
 
 let bbswap bi si mode arg ~current_region : H.expr_primitive =
-  let mode = Alloc_mode.With_region.from_lambda mode ~current_region in
+  let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
   Unary
     ( Box_number (bi, mode),
       Prim
@@ -590,18 +591,18 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
   in
   match prim, args with
   | Pmakeblock (tag, mutability, shape, mode), _ ->
-    let mode = Alloc_mode.With_region.from_lambda mode ~current_region in
+    let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
     let tag = Tag.Scannable.create_exn tag in
     let shape = convert_block_shape shape ~num_fields:(List.length args) in
     let mutability = Mutability.from_lambda mutability in
     Variadic (Make_block (Values (tag, shape), mutability, mode), args)
   | Pmakefloatblock (mutability, mode), _ ->
-    let mode = Alloc_mode.With_region.from_lambda mode ~current_region in
+    let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
     let mutability = Mutability.from_lambda mutability in
     Variadic
       (Make_block (Naked_floats, mutability, mode), List.map unbox_float args)
   | Pmakearray (array_kind, mutability, mode), _ -> (
-    let mode = Alloc_mode.With_region.from_lambda mode ~current_region in
+    let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
     let array_kind = convert_array_kind array_kind in
     let mutability = Mutability.from_lambda mutability in
     match array_kind with
@@ -618,7 +619,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
       match args with
       | [] ->
         Variadic
-          (Make_array (Values, Immutable, Alloc_mode.With_region.heap), [])
+          (Make_array (Values, Immutable, Alloc_mode.For_allocations.heap), [])
       | elt :: _ ->
         (* Test the first element to see if it's a boxed float: if it is, this
            array must be created as a flat float array. *)
@@ -997,7 +998,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
     Ternary
       ( Block_set
           ( block_access,
-            Assignment (Alloc_mode.With_region.local ~region:current_region) ),
+            Assignment (Alloc_mode.For_allocations.local ~region:current_region)
+          ),
         block,
         Simple Simple.const_zero,
         new_ref_value )
@@ -1042,7 +1044,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
         | [] -> Misc.fatal_errorf "Pbigarrayref is missing its arguments"
       in
       let box =
-        bigarray_box_or_tag_raw_value_to_read kind Alloc_mode.With_region.heap
+        bigarray_box_or_tag_raw_value_to_read kind
+          Alloc_mode.For_allocations.heap
       in
       box (bigarray_load ~dbg ~unsafe kind layout b indexes)
     | None, _ ->
@@ -1200,7 +1203,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
     Misc.fatal_errorf
       "[%a] should have been removed by [Lambda_to_flambda.transform_primitive]"
       Printlambda.primitive prim
-  | Pgetglobal _, _ ->
+  | Pgetglobal _, _ | Pgetpredef _, _ ->
     Misc.fatal_errorf
       "[%a] should have been handled by [Closure_conversion.close_primitive]"
       Printlambda.primitive prim

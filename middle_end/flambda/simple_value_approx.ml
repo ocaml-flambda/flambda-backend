@@ -83,6 +83,7 @@ and function_body = {
   check : Lambda.check_attribute;
   is_a_functor : bool;
   body : Flambda.t;
+  poll: Lambda.poll_attribute;
 }
 
 and function_declaration = {
@@ -948,7 +949,8 @@ let function_declaration_approx ~keep_body fun_var
              check = fun_decl.check;
              is_a_functor = fun_decl.is_a_functor;
              free_variables = fun_decl.free_variables;
-             free_symbols = fun_decl.free_symbols; }
+             free_symbols = fun_decl.free_symbols;
+             poll = fun_decl.poll }
     end
   in
   { function_body;

@@ -12,7 +12,7 @@ val log : indent:int -> ('a, Format.formatter, unit) format -> 'a
 
 val log_body_and_terminator :
   indent:int ->
-  Cfg.basic Cfg.instruction list ->
+  Cfg.BasicInstructionList.t ->
   Cfg.terminator Cfg.instruction ->
   liveness ->
   unit

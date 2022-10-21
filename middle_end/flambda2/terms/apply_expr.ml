@@ -315,11 +315,6 @@ let with_call_kind t call_kind =
 
 let with_args t args = { t with args }
 
-let with_continuation_callee_and_args t continuation ~callee ~args ~region =
-  let t = { t with continuation; callee; args; region } in
-  invariant t;
-  t
-
 let inlining_arguments t = inlining_state t |> Inlining_state.arguments
 
 let probe_name t = t.probe_name

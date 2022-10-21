@@ -428,11 +428,11 @@ end = struct
       (fun _ (block : Cfg.basic_block) ->
         add_terminator ~seen_ids t block.terminator;
         let first_instruction_id =
-          List.fold_right
-            (fun instr successor_id ->
+          Cfg.BasicInstructionList.fold_right
+            ~f:(fun instr successor_id ->
               add_basic ~seen_ids ~successor_id t instr;
               instr.id)
-            block.body block.terminator.id
+            block.body ~init:block.terminator.id
         in
         Label.Tbl.add t.first_instruction_in_block block.start
           first_instruction_id)
@@ -575,6 +575,7 @@ end = struct
     (* CR-someday azewierzejew: Avoid using polymorphic comparison. *)
       when Stdlib.compare op1 op2 = 0 ->
       compare_label l1 l2
+    | Poll_and_jump l1, Poll_and_jump l2 -> compare_label l1 l2
     | _ ->
       Cfg_regalloc_utils.fatal
         "The desc of terminator with id %d changed, before: %a, after: %a." id
@@ -626,11 +627,16 @@ end = struct
         first_id
     (* Finds successor id in or after the given block. *)
     and get_first_non_regalloc_id t (block : Cfg.basic_block) =
-      match
-        List.find_opt
-          (fun instr -> Hashtbl.mem t.instructions instr.id)
-          block.body
-      with
+      let res : Cfg.basic Cfg.instruction option =
+        Cfg.BasicInstructionList.fold_left
+          ~f:(fun acc instr ->
+            match acc with
+            | Some _ -> acc
+            | None ->
+              if Hashtbl.mem t.instructions instr.id then Some instr else None)
+          block.body ~init:None
+      in
+      match res with
       | Some instr -> instr.id
       | None -> (
         match
@@ -667,10 +673,10 @@ end = struct
           verify_terminator ~seen_ids ~successor_ids t block.terminator
         in
         let first_instruction_id =
-          List.fold_right
-            (fun instr successor_id ->
+          Cfg.BasicInstructionList.fold_right
+            ~f:(fun instr successor_id ->
               verify_basic ~seen_ids ~successor_id t instr)
-            block.body successor_id
+            block.body ~init:successor_id
         in
         ignore (first_instruction_id : int))
       (Cfg_with_layout.cfg cfg).Cfg.blocks;
@@ -1395,7 +1401,7 @@ let test (desc : Description.t) (cfg : Cfg_with_layout.t) :
     let entrypoint_equations =
       let cfg = Cfg_with_layout.cfg cfg in
       let entry_block = Cfg.entry_label cfg |> Cfg.get_block_exn cfg in
-      let entry_id = Cfg_regalloc_utils.first_instruction_id entry_block in
+      let entry_id = Cfg.first_instruction_id entry_block in
       Cfg_dataflow.Instr.Tbl.find res_instr entry_id
     in
     verify_entrypoint entrypoint_equations desc cfg

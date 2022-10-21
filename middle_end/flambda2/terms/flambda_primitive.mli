@@ -117,7 +117,7 @@ type string_or_bytes =
 module Init_or_assign : sig
   type t =
     | Initialization
-    | Assignment of Alloc_mode.With_region.t
+    | Assignment of Alloc_mode.For_allocations.t
 
   val to_lambda : t -> Lambda.initialization_or_assignment
 end
@@ -260,7 +260,7 @@ type unary_primitive =
      [Flambda_kind.Of_naked_number.t] arguments (one input, one output). *)
   | Reinterpret_int64_as_float
   | Unbox_number of Flambda_kind.Boxable_number.t
-  | Box_number of Flambda_kind.Boxable_number.t * Alloc_mode.With_region.t
+  | Box_number of Flambda_kind.Boxable_number.t * Alloc_mode.For_allocations.t
   | Untag_immediate
   | Tag_immediate
   | Project_function_slot of
@@ -340,8 +340,8 @@ type ternary_primitive =
 
 (** Primitives taking zero or more arguments. *)
 type variadic_primitive =
-  | Make_block of Block_kind.t * Mutability.t * Alloc_mode.With_region.t
-  | Make_array of Array_kind.t * Mutability.t * Alloc_mode.With_region.t
+  | Make_block of Block_kind.t * Mutability.t * Alloc_mode.For_allocations.t
+  | Make_array of Array_kind.t * Mutability.t * Alloc_mode.For_allocations.t
 (* CR mshinwell: Invariant checks -- e.g. that the number of arguments matches
    [num_dimensions] *)
 
