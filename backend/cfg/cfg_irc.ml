@@ -325,7 +325,7 @@ type direction =
   | Load_before_cell of Cfg.BasicInstructionList.cell
   | Store_after_cell of Cfg.BasicInstructionList.cell
   | Load_after_list of Cfg.BasicInstructionList.t
-  | Store_after_list of Cfg.BasicInstructionList.t
+  | Store_before_list of Cfg.BasicInstructionList.t
 
 let rewrite : State.t -> Cfg_with_liveness.t -> Reg.t list -> reset:bool -> unit
     =
@@ -384,7 +384,7 @@ let rewrite : State.t -> Cfg_with_liveness.t -> Reg.t list -> reset:bool -> unit
         let move, move_dir =
           match direction with
           | Load_before_cell _ | Load_after_list _ -> Move.Load, `load
-          | Store_after_cell _ | Store_after_list _ -> Move.Store, `store
+          | Store_after_cell _ | Store_before_list _ -> Move.Store, `store
         in
         let add_instr, temp =
           match Reg.Tbl.find_opt sharing reg with
@@ -413,8 +413,8 @@ let rewrite : State.t -> Cfg_with_liveness.t -> Reg.t list -> reset:bool -> unit
             Cfg.BasicInstructionList.insert_after cell new_instr
           | Load_after_list list ->
             Cfg.BasicInstructionList.add_end list new_instr
-          | Store_after_list list ->
-            Cfg.BasicInstructionList.add_end list new_instr);
+          | Store_before_list list ->
+            Cfg.BasicInstructionList.add_begin list new_instr);
         temp)
       else reg
     in
@@ -422,10 +422,7 @@ let rewrite : State.t -> Cfg_with_liveness.t -> Reg.t list -> reset:bool -> unit
     | Load_before_cell _ | Load_after_list _ ->
       if array_contains_spilled instr.arg
       then instr.arg <- Array.map instr.arg ~f
-    | Store_after_cell _ ->
-      if array_contains_spilled instr.res
-      then instr.res <- Array.map instr.res ~f
-    | Store_after_list _ ->
+    | Store_after_cell _ | Store_before_list _ ->
       if array_contains_spilled instr.res
       then instr.res <- Array.map instr.res ~f
   in
@@ -453,7 +450,7 @@ let rewrite : State.t -> Cfg_with_liveness.t -> Reg.t list -> reset:bool -> unit
          rewrite_instruction ~direction:(Load_after_list block.body)
            ~sharing:(Reg.Tbl.create 8) block.terminator;
          let new_instrs = Cfg.BasicInstructionList.make_empty () in
-         rewrite_instruction ~direction:(Store_after_list new_instrs) ~sharing
+         rewrite_instruction ~direction:(Store_before_list new_instrs) ~sharing
            block.terminator;
          if not (Cfg.BasicInstructionList.is_empty new_instrs)
          then
