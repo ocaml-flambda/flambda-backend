@@ -45,37 +45,43 @@ let rebuild_arm uacc arm (action, use_id, arity, env_at_use)
   with
   | Apply_cont action -> (
     let action =
+      let cont = Apply_cont.continuation action in
+      let cont_info_from_uenv = UE.find_continuation (UA.uenv uacc) cont in
       (* First try to absorb any [Apply_cont] expression that forms the entirety
          of the arm's action (via an intermediate zero-arity continuation
          without trap action) into the [Switch] expression itself. *)
-      if not (Apply_cont.is_goto action)
-      then Some action
-      else
-        let cont = Apply_cont.continuation action in
-        let check_handler ~handler ~action =
-          match RE.to_apply_cont handler with
-          | Some action -> Some action
-          | None -> Some action
-        in
-        match UE.find_continuation (UA.uenv uacc) cont with
-        | Linearly_used_and_inlinable
-            { handler;
-              free_names_of_handler = _;
-              params;
-              cost_metrics_of_handler = _
-            } ->
-          assert (Bound_parameters.is_empty params);
-          check_handler ~handler ~action
-        | Non_inlinable_zero_arity { handler = Known handler } ->
-          check_handler ~handler ~action
-        | Non_inlinable_zero_arity { handler = Unknown } -> Some action
-        | Invalid _ -> None
-        | Non_inlinable_non_zero_arity _
-        | Toplevel_or_function_return_or_exn_continuation _ ->
-          Misc.fatal_errorf
-            "Inconsistency for %a between [Apply_cont.is_goto] and \
-             continuation environment in [UA]:@ %a"
-            Continuation.print cont UA.print uacc
+      match cont_info_from_uenv with
+      | Invalid _ -> None
+      | Linearly_used_and_inlinable _ | Non_inlinable_zero_arity _
+      | Non_inlinable_non_zero_arity _
+      | Toplevel_or_function_return_or_exn_continuation _ -> (
+        if not (Apply_cont.is_goto action)
+        then Some action
+        else
+          let check_handler ~handler ~action =
+            match RE.to_apply_cont handler with
+            | Some action -> Some action
+            | None -> Some action
+          in
+          match cont_info_from_uenv with
+          | Linearly_used_and_inlinable
+              { handler;
+                free_names_of_handler = _;
+                params;
+                cost_metrics_of_handler = _
+              } ->
+            assert (Bound_parameters.is_empty params);
+            check_handler ~handler ~action
+          | Non_inlinable_zero_arity { handler = Known handler } ->
+            check_handler ~handler ~action
+          | Non_inlinable_zero_arity { handler = Unknown } -> Some action
+          | Invalid _ -> None
+          | Non_inlinable_non_zero_arity _
+          | Toplevel_or_function_return_or_exn_continuation _ ->
+            Misc.fatal_errorf
+              "Inconsistency for %a between [Apply_cont.is_goto] and \
+               continuation environment in [UA]:@ %a"
+              Continuation.print cont UA.print uacc)
     in
     match action with
     | None ->
