@@ -528,7 +528,7 @@ let insert_block :
       (* Change the labels for the terminator in [predecessor_block]. *)
       Cfg.replace_successor_labels cfg ~normal:true ~exn:false predecessor_block
         ~f:(fun old_label ->
-          if old_label == successor_label then start else old_label);
+          if Label.equal old_label successor_label then start else old_label);
       (* Update predecessors for the [successor_block]. *)
       successor_block.predecessors
         <- successor_block.predecessors
