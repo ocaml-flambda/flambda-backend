@@ -5493,16 +5493,30 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
     | Tarrow((l, marg, mret), ty_arg', ty_res', _),
       Tarrow(_, ty_arg,  ty_res,  _)
       when lv' = generic_level || not !Clflags.principal ->
-      let ty_res', ty_res = loosen_ret_modes ty_res' ty_res in
-      let mret, _ = Alloc_mode.newvar_below mret in
-      newty2 ~level:lv' (Tarrow((l, marg, mret), ty_arg', ty_res', commu_ok)),
-      newty2 ~level:lv  (Tarrow((l, marg,  mret),  ty_arg,  ty_res,  commu_ok))
+      let ty_res', ty_res, changed = loosen_ret_modes ty_res' ty_res in
+      let mret, changed' = Alloc_mode.newvar_below mret in
+      if changed || changed' then
+        newty2 ~level:lv' (Tarrow((l, marg, mret), ty_arg', ty_res', commu_ok)),
+        newty2 ~level:lv  (Tarrow((l, marg, mret), ty_arg,  ty_res,  commu_ok)),
+        true
+      else
+        ty', ty, false
     | _ ->
-      ty', ty
+      ty', ty, false
   in
   let ty_expected', ty_expected =
-    if inferred then loosen_ret_modes ty_expected' ty_expected
-    else ty_expected', ty_expected
+    if inferred then
+      (* Do not expand local constraints unnecessarily (PR#10277) *)
+      let snap =
+        if Env.has_local_constraints env
+        then Some (Btype.snapshot ())
+        else None
+      in
+      let t', t, changed = loosen_ret_modes ty_expected' ty_expected in
+      if not changed then Option.iter Btype.backtrack snap;
+      t', t
+    else
+      ty_expected', ty_expected
   in
   let may_coerce =
     if not inferred then None else
