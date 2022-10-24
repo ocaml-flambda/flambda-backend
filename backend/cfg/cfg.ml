@@ -548,6 +548,14 @@ let is_noop_move instr =
     | Unknown -> false
     | Reg _ | Stack _ -> Reg.same_loc instr.arg.(0) instr.res.(0))
     && Proc.register_class instr.arg.(0) = Proc.register_class instr.res.(0)
+  | Op (Csel _) -> (
+    match instr.res.(0).loc with
+    | Unknown -> false
+    | Reg _ | Stack _ ->
+      let len = Array.length instr.arg in
+      let ifso = instr.arg.(len - 2) in
+      let ifnot = instr.arg.(len - 1) in
+      Reg.same_loc instr.res.(0) ifso && Reg.same_loc instr.res.(0) ifnot)
   | Op
       ( Const_int _ | Const_float _ | Const_symbol _ | Stackoffset _ | Load _
       | Store _ | Intop _ | Intop_imm _ | Negf | Absf | Addf | Subf | Mulf
