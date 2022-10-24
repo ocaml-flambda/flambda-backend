@@ -46,8 +46,7 @@ let dll_run dll entry =
 module Backend = struct
   (* See backend_intf.mli. *)
 
-  let symbol_for_global' = Compilenv.symbol_for_global'
-  let closure_symbol = Compilenv.closure_symbol
+  let pack_prefix_for_global_ident = Compilenv.pack_prefix_for_global_ident
 
   let really_import_approx = Import_approx.really_import_approx
   let import_symbol = Import_approx.import_symbol
@@ -88,7 +87,12 @@ let load ppf phrase_name program =
             (* note: under windows, cannot remove a loaded dll
                (should remember the handles, close them in at_exit, and then
                remove files) *)
-      (fun () -> dll_run dll phrase_name)
+      (fun () ->
+         (* CR-someday lmaurer: The manual prefixing here feels wrong. Probably
+            [phrase_name] should be a [Compilation_unit.t] (from which we can extract
+            a linkage name like civilized folk). That will be easier to do once we have
+            better types in, say, the [Translmod] API. *)
+         dll_run dll ("caml" ^ phrase_name))
   with
   | res -> res
   | exception x ->

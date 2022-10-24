@@ -48,7 +48,7 @@
  (name ocamlcommon)
  (wrapped false)
  (flags (
-   -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66
+   -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66-70
    -warn-error A -bin-annot -safe-string -strict-formats
    -w -67
    ; remove -w -67 by adding the camlinternalMenhirLib hack like the Makefile
@@ -103,7 +103,7 @@
  (name ocamlbytecomp)
  (wrapped false)
  (flags (
-   -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66
+   -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66-70
    -warn-error A -bin-annot -safe-string -strict-formats
  ))
  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
@@ -121,7 +121,7 @@
  (name main)
  (modes byte)
  (flags (
-   -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66
+   -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66-70
    -warn-error A -bin-annot -safe-string -strict-formats
  ))
  (libraries ocamlbytecomp ocamlcommon)
@@ -131,7 +131,7 @@
  (name main_native)
  (modes native)
  (flags (
-   -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66
+   -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66-70
    -warn-error A -bin-annot -safe-string -strict-formats
  ))
  (libraries ocamlbytecomp ocamlcommon)

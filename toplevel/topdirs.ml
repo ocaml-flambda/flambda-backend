@@ -20,7 +20,6 @@ open Misc
 open Longident
 open Types
 open Toploop
-module Alloc_mode = Btype.Alloc_mode
 
 let error_fmt () =
   if !Sys.interactive then
@@ -136,133 +135,7 @@ let with_error_fmt f x = f (error_fmt ()) x
 let dir_load ppf name =
   action_on_suberror (Topeval.load_file false ppf name)
 
-<<<<<<< HEAD
-let rec load_file recursive ppf name =
-  let filename =
-    try Some (Load_path.find name) with Not_found -> None
-  in
-  match filename with
-  | None -> fprintf ppf "Cannot find file %s.@." name; false
-  | Some filename ->
-      let ic = open_in_bin filename in
-      Misc.try_finally
-        ~always:(fun () -> close_in ic)
-        (fun () -> really_load_file recursive ppf name filename ic)
-
-and really_load_file recursive ppf name filename ic =
-  let buffer = really_input_string ic (String.length Config.cmo_magic_number) in
-  try
-    if buffer = Config.cmo_magic_number then begin
-      let compunit_pos = input_binary_int ic in  (* Go to descriptor *)
-      seek_in ic compunit_pos;
-      let cu : compilation_unit_descr = input_value ic in
-      if recursive then
-        List.iter
-          (function
-            | (Reloc_getglobal id, _)
-              when not (Symtable.is_global_defined id) ->
-                let file = Ident.name id ^ ".cmo" in
-                begin match Load_path.find_uncap file with
-                | exception Not_found -> ()
-                | file ->
-                    if not (load_file recursive ppf file) then raise Load_failed
-                end
-            | _ -> ()
-          )
-          cu.cu_reloc;
-      load_compunit ic filename ppf cu;
-      true
-    end else
-      if buffer = Config.cma_magic_number then begin
-        let toc_pos = input_binary_int ic in  (* Go to table of contents *)
-        seek_in ic toc_pos;
-        let lib = (input_value ic : library) in
-        List.iter
-          (fun dllib ->
-            let name = Dll.extract_dll_name dllib in
-            try Dll.open_dlls Dll.For_execution [name]
-            with Failure reason ->
-              fprintf ppf
-                "Cannot load required shared library %s.@.Reason: %s.@."
-                name reason;
-              raise Load_failed)
-          lib.lib_dllibs;
-        List.iter (load_compunit ic filename ppf) lib.lib_units;
-        true
-      end else begin
-        fprintf ppf "File %s is not a bytecode object file.@." name;
-        false
-      end
-  with Load_failed -> false
-
-let dir_load ppf name = ignore (load_file false ppf name)
-
-let _ = add_directive "load" (Directive_string (dir_load std_out))
-||||||| 24dbb0976a
-let rec load_file recursive ppf name =
-  let filename =
-    try Some (Load_path.find name) with Not_found -> None
-  in
-  match filename with
-  | None -> fprintf ppf "Cannot find file %s.@." name; false
-  | Some filename ->
-      let ic = open_in_bin filename in
-      Misc.try_finally
-        ~always:(fun () -> close_in ic)
-        (fun () -> really_load_file recursive ppf name filename ic)
-
-and really_load_file recursive ppf name filename ic =
-  let buffer = really_input_string ic (String.length Config.cmo_magic_number) in
-  try
-    if buffer = Config.cmo_magic_number then begin
-      let compunit_pos = input_binary_int ic in  (* Go to descriptor *)
-      seek_in ic compunit_pos;
-      let cu : compilation_unit = input_value ic in
-      if recursive then
-        List.iter
-          (function
-            | (Reloc_getglobal id, _)
-              when not (Symtable.is_global_defined id) ->
-                let file = Ident.name id ^ ".cmo" in
-                begin match Load_path.find_uncap file with
-                | exception Not_found -> ()
-                | file ->
-                    if not (load_file recursive ppf file) then raise Load_failed
-                end
-            | _ -> ()
-          )
-          cu.cu_reloc;
-      load_compunit ic filename ppf cu;
-      true
-    end else
-      if buffer = Config.cma_magic_number then begin
-        let toc_pos = input_binary_int ic in  (* Go to table of contents *)
-        seek_in ic toc_pos;
-        let lib = (input_value ic : library) in
-        List.iter
-          (fun dllib ->
-            let name = Dll.extract_dll_name dllib in
-            try Dll.open_dlls Dll.For_execution [name]
-            with Failure reason ->
-              fprintf ppf
-                "Cannot load required shared library %s.@.Reason: %s.@."
-                name reason;
-              raise Load_failed)
-          lib.lib_dllibs;
-        List.iter (load_compunit ic filename ppf) lib.lib_units;
-        true
-      end else begin
-        fprintf ppf "File %s is not a bytecode object file.@." name;
-        false
-      end
-  with Load_failed -> false
-
-let dir_load ppf name = ignore (load_file false ppf name)
-
-let _ = add_directive "load" (Directive_string (dir_load std_out))
-=======
 let _ = add_directive "load" (Directive_string (with_error_fmt dir_load))
->>>>>>> ocaml/4.14
     {
       section = section_run;
       doc = "Load in memory a bytecode object, produced by ocamlc.";
@@ -315,16 +188,8 @@ exception Bad_printing_function
 
 let filter_arrow ty =
   let ty = Ctype.expand_head !toplevel_env ty in
-<<<<<<< HEAD
-  match ty.desc with
-  | Tarrow ((lbl,_,_), l, r, _) when not (Btype.is_optional lbl) -> Some (l, r)
-||||||| 24dbb0976a
-  match ty.desc with
-  | Tarrow (lbl, l, r, _) when not (Btype.is_optional lbl) -> Some (l, r)
-=======
   match get_desc ty with
-  | Tarrow (lbl, l, r, _) when not (Btype.is_optional lbl) -> Some (l, r)
->>>>>>> ocaml/4.14
+  | Tarrow ((lbl,_,_), l, r, _) when not (Btype.is_optional lbl) -> Some (l, r)
   | _ -> None
 
 let rec extract_last_arrow desc =
@@ -381,18 +246,10 @@ let match_generic_printer_type desc path args printer_type =
     List.map (fun ty_var -> Ctype.newconstr printer_type [ty_var]) args in
   let ty_expected =
     List.fold_right
-<<<<<<< HEAD
       (fun ty_arg ty -> Ctype.newty
          (Tarrow ((Asttypes.Nolabel,Alloc_mode.global,Alloc_mode.global),
                   ty_arg, ty,
-                  Cunknown)))
-||||||| 24dbb0976a
-      (fun ty_arg ty -> Ctype.newty (Tarrow (Asttypes.Nolabel, ty_arg, ty,
-                                             Cunknown)))
-=======
-      (fun ty_arg ty -> Ctype.newty (Tarrow (Asttypes.Nolabel, ty_arg, ty,
-                                             commu_var ())))
->>>>>>> ocaml/4.14
+                  commu_var ())))
       ty_args (Ctype.newconstr printer_type [ty_target]) in
   begin try
     Ctype.unify !toplevel_env

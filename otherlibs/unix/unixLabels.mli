@@ -25,15 +25,7 @@
    When a new function is added which is not implemented on Windows (or
    partially implemented), or the Windows-status of an existing function is
    changed, remember to update the summary table in
-<<<<<<< HEAD
-   manual/manual/library/libunix.etex
-||||||| 24dbb0976a
-   If this file is unix.mli, do not edit it directly -- edit
-   unixLabels.mli instead.
- *)
-=======
    manual/src/library/libunix.etex
->>>>>>> ocaml/4.14
 *)
 
 (** Interface to the Unix system.

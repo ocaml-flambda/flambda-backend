@@ -277,15 +277,8 @@ expr:
       { Cop(Cstore (Word_int, Assignment),
             [access_array $3 $4 Arch.size_int; $5], Debuginfo.none) }
   | LPAREN FLOATASET expr expr expr RPAREN
-<<<<<<< HEAD
-      { Cop(Cstore (Double, Assignment),
-||||||| 24dbb0976a
-      { let open Lambda in
-        Cop(Cstore (Double_u, Assignment),
-=======
       { let open Lambda in
         Cop(Cstore (Double, Assignment),
->>>>>>> ocaml/4.14
             [access_array $3 $4 Arch.size_float; $5], Debuginfo.none) }
 ;
 exprlist:

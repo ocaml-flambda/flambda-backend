@@ -26,7 +26,7 @@ open Topcommon
 let implementation_label = "native toplevel"
 
 let global_symbol id =
-  let sym = Compilenv.symbol_for_global id in
+  let sym = Compilenv.symbol_for_global id |> Linkage_name.to_string in
   match Tophooks.lookup sym with
   | None ->
     fatal_error ("Toploop.global_symbol " ^ (Ident.unique_name id))
@@ -53,7 +53,7 @@ let close_phrase lam =
   Ident.Set.fold (fun id l ->
     let glb, pos = toplevel_value id in
     let glob =
-      Lprim (Pfield pos,
+      Lprim (Pfield (pos, Reads_agree),
              [Lprim (Pgetglobal glb, [], Loc_unknown)],
              Loc_unknown)
     in
@@ -72,7 +72,7 @@ module EvalBase = struct
 
   let eval_ident id =
     try
-      if Ident.persistent id || Ident.global id
+      if Ident.is_global_or_predef id
       then global_symbol id
       else toplevel_value id
     with _ ->
@@ -132,6 +132,7 @@ let name_expression ~loc ~attrs exp =
        pat_extra = [];
        pat_type = exp.exp_type;
        pat_env = exp.exp_env;
+       pat_mode = Value_mode.global;
        pat_attributes = []; }
    in
    let vb =
@@ -157,12 +158,17 @@ let execute_phrase print_outcome ppf phr =
   match phr with
   | Ptop_def sstr ->
       let oldenv = !toplevel_env in
+      let oldsig = !toplevel_sig in
       incr phrase_seqid;
       let phrase_name = "TOP" ^ string_of_int !phrase_seqid in
-      Compilenv.reset ?packname:None phrase_name;
+      let phrase_comp_unit =
+        Compilation_unit.create Compilation_unit.Prefix.empty
+          (Compilation_unit.Name.of_string phrase_name)
+      in
+      Compilenv.reset phrase_comp_unit;
       Typecore.reset_delayed_checks ();
       let (str, sg, names, shape, newenv) =
-        Typemod.type_toplevel_phrase oldenv sstr
+        Typemod.type_toplevel_phrase oldenv oldsig sstr
       in
       if !Clflags.dump_typedtree then Printtyped.implementation ppf str;
       let sg' = Typemod.Signature_names.simplify newenv names sg in
@@ -206,6 +212,7 @@ let execute_phrase print_outcome ppf phr =
       Warnings.check_fatal ();
       begin try
         toplevel_env := newenv;
+        toplevel_sig := List.rev_append sg' oldsig;
         let res =
           load_lambda ppf ~required_globals ~module_ident phrase_name res size
         in
@@ -237,6 +244,7 @@ let execute_phrase print_outcome ppf phr =
               else Ophr_signature []
           | Exception exn ->
               toplevel_env := oldenv;
+              toplevel_sig := oldsig;
               if exn = Out_of_memory then Gc.full_major();
               let outv =
                 outval_of_value !toplevel_env (Obj.repr exn) Predef.type_exn
@@ -249,7 +257,7 @@ let execute_phrase print_outcome ppf phr =
         | Ophr_exception _ -> false
         end
       with x ->
-        toplevel_env := oldenv; raise x
+        toplevel_env := oldenv; toplevel_sig := oldsig; raise x
       end
   | Ptop_dir {pdir_name = {Location.txt = dir_name}; pdir_arg } ->
       try_run_directive ppf dir_name pdir_arg

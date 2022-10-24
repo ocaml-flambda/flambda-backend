@@ -49,8 +49,10 @@
     path
     primitive
     type_immediacy
+    shape
     types
     btype
+    lazy_backtrack
     subst
     predef
     datarepr
@@ -111,6 +113,7 @@
 (copy_files ../../utils/compilation_unit.ml)
 (copy_files ../../utils/symbol.ml)
 (copy_files ../../utils/linkage_name.ml)
+(copy_files ../../utils/lazy_backtrack.ml)
 (copy_files ../../parsing/location.ml)
 (copy_files ../../parsing/longident.ml)
 (copy_files ../../parsing/docstrings.ml)
@@ -123,6 +126,7 @@
 (copy_files ../../typing/path.ml)
 (copy_files ../../typing/primitive.ml)
 (copy_files ../../typing/type_immediacy.ml)
+(copy_files ../../typing/shape.ml)
 (copy_files ../../typing/types.ml)
 (copy_files ../../typing/btype.ml)
 (copy_files ../../typing/subst.ml)
@@ -160,6 +164,7 @@
 (copy_files ../../utils/compilation_unit.mli)
 (copy_files ../../utils/symbol.mli)
 (copy_files ../../utils/linkage_name.mli)
+(copy_files ../../utils/lazy_backtrack.mli)
 (copy_files ../../parsing/location.mli)
 (copy_files ../../parsing/longident.mli)
 (copy_files ../../parsing/docstrings.mli)
@@ -172,6 +177,7 @@
 (copy_files ../../typing/path.mli)
 (copy_files ../../typing/primitive.mli)
 (copy_files ../../typing/type_immediacy.mli)
+(copy_files ../../typing/shape.mli)
 (copy_files ../../typing/types.mli)
 (copy_files ../../typing/btype.mli)
 (copy_files ../../typing/subst.mli)
@@ -253,8 +259,10 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Debuginfo.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Btype.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Consistbl.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Shape.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Datarepr.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Load_path.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Lazy_backtrack.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Persistent_env.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Docstrings.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ast_helper.cmo
@@ -317,8 +325,10 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Debuginfo.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Btype.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Consistbl.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Shape.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Datarepr.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Load_path.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Lazy_backtrack.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Persistent_env.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Docstrings.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_helper.cmx

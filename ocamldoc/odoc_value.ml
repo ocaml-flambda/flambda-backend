@@ -72,16 +72,8 @@ let update_value_parameters_text v =
    [parameter_list_from_arrows t = [ a ; b ]] if t = a -> b -> c.*)
 let parameter_list_from_arrows typ =
   let rec iter t =
-<<<<<<< HEAD
-    match t.Types.desc with
-      Types.Tarrow ((l,_,_), t1, t2, _) ->
-||||||| 24dbb0976a
-    match t.Types.desc with
-      Types.Tarrow (l, t1, t2, _) ->
-=======
     match Types.get_desc t with
-      Types.Tarrow (l, t1, t2, _) ->
->>>>>>> ocaml/4.14
+      Types.Tarrow ((l,_,_), t1, t2, _) ->
         (l, t1) :: (iter t2)
     | Types.Tlink texp
     | Types.Tpoly (texp, _) -> iter texp

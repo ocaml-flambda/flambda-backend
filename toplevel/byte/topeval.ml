@@ -44,7 +44,7 @@ let implementation_label = ""
 module EvalBase = struct
 
   let eval_ident id =
-    if Ident.persistent id || Ident.global id then begin
+    if Ident.is_global_or_predef id then begin
       try
         Symtable.get_global_value id
       with Symtable.Error (Undefined_global name) ->
@@ -115,9 +115,10 @@ let execute_phrase print_outcome ppf phr =
   match phr with
   | Ptop_def sstr ->
       let oldenv = !toplevel_env in
+      let oldsig = !toplevel_sig in
       Typecore.reset_delayed_checks ();
       let (str, sg, sn, shape, newenv) =
-        Typemod.type_toplevel_phrase oldenv sstr
+        Typemod.type_toplevel_phrase oldenv oldsig sstr
       in
       if !Clflags.dump_typedtree then Printtyped.implementation ppf str;
       let sg' = Typemod.Signature_names.simplify newenv sn sg in
@@ -129,6 +130,7 @@ let execute_phrase print_outcome ppf phr =
       Warnings.check_fatal ();
       begin try
         toplevel_env := newenv;
+        toplevel_sig := List.rev_append sg' oldsig;
         let res = load_lambda ppf lam in
         let out_phr =
           match res with
@@ -147,6 +149,7 @@ let execute_phrase print_outcome ppf phr =
               else Ophr_signature []
           | Exception exn ->
               toplevel_env := oldenv;
+              toplevel_sig := oldsig;
               if exn = Out_of_memory then Gc.full_major();
               let outv =
                 outval_of_value !toplevel_env (Obj.repr exn) Predef.type_exn
@@ -168,7 +171,7 @@ let execute_phrase print_outcome ppf phr =
         | Ophr_exception _ -> false
         end
       with x ->
-        toplevel_env := oldenv; raise x
+        toplevel_env := oldenv; toplevel_sig := oldsig; raise x
       end
   | Ptop_dir {pdir_name = {Location.txt = dir_name}; pdir_arg } ->
       try_run_directive ppf dir_name pdir_arg
@@ -250,7 +253,7 @@ and really_load_file recursive ppf name filename ic =
     if buffer = Config.cmo_magic_number then begin
       let compunit_pos = input_binary_int ic in  (* Go to descriptor *)
       seek_in ic compunit_pos;
-      let cu : compilation_unit = input_value ic in
+      let cu : compilation_unit_descr = input_value ic in
       if recursive then
         List.iter
           (function

@@ -315,12 +315,7 @@ let _ =
     arch_power;
     function_sections;
     naked_pointers;
-<<<<<<< HEAD
-    probes;
-||||||| 24dbb0976a
-    naked_pointers
-=======
     file_exists;
     copy;
->>>>>>> ocaml/4.14
+    probes
   ]

@@ -113,7 +113,6 @@ Caml_inline void st_thread_set_id(intnat id)
   return;
 }
 
-<<<<<<< HEAD
 /* If we're using glibc, use a custom condition variable implementation to
    avoid this bug: https://sourceware.org/bugzilla/show_bug.cgi?id=25847
    
@@ -186,9 +185,6 @@ static int custom_condvar_broadcast(custom_condvar * cv)
 }
 #endif
 
-||||||| 24dbb0976a
-=======
->>>>>>> ocaml/4.14
 /* The master lock.  This is a mutex that is held most of the time,
    so we implement it in a slightly convoluted way to avoid
    all risks of busy-waiting.  Also, we count the number of waiting

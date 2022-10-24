@@ -85,15 +85,11 @@ COMPILERLIBS_SOURCES=\
   utils/local_store.ml \
   utils/load_path.ml \
   utils/int_replace_polymorphic_compare.ml \
-<<<<<<< HEAD
   typing/ident.ml \
   utils/compilation_unit.ml \
   utils/linkage_name.ml \
   utils/symbol.ml \
-||||||| 24dbb0976a
-=======
   utils/lazy_backtrack.ml \
->>>>>>> ocaml/4.14
   parsing/location.ml \
   parsing/longident.ml \
   parsing/docstrings.ml \
@@ -276,20 +272,10 @@ DEPEND_DUMMY_FILES=\
 
 depend: beforedepend
 	touch $(DEPEND_DUMMY_FILES)
-<<<<<<< HEAD
-	$(CAMLRUN) $(ROOTDIR)/boot/ocamlc -depend -slash \
-	  *.mli *.ml > .depend
-||||||| 24dbb0976a
-	$(CAMLRUN) $(ROOTDIR)/boot/ocamlc -depend -slash \
-	  -I byte -bytecode *.mli *.ml byte/dynlink.ml > .depend
-	$(CAMLRUN) $(ROOTDIR)/boot/ocamlc -depend -slash \
-	  -I native -native *.ml native/dynlink.ml >> .depend
-=======
 	$(OCAMLRUN) $(ROOTDIR)/boot/ocamlc -depend -slash \
 	  -I byte -bytecode *.mli *.ml byte/dynlink.ml > .depend
 	$(OCAMLRUN) $(ROOTDIR)/boot/ocamlc -depend -slash \
 	  -I native -native *.ml native/dynlink.ml >> .depend
->>>>>>> ocaml/4.14
 	rm -f $(DEPEND_DUMMY_FILES)
 
 include .depend

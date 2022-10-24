@@ -35,6 +35,7 @@ val set_paths : unit -> unit
 
 val toplevel_env : Env.t ref
         (* Typing environment for the toplevel *)
+val toplevel_sig : Types.signature ref
 val initialize_toplevel_env : unit -> unit
         (* Initialize the typing environment for the toplevel *)
 val preprocess_phrase :

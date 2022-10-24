@@ -207,7 +207,7 @@ runtest-upstream: _install
 	 $(cpl) stdlib/{lib,}unix* otherlibs/unix; \
 	 $(cpl) stdlib/dynlink* otherlibs/dynlink; \
 	 $(cpl) stdlib/{lib,}str* otherlibs/str; \
-	 ln -s ../_build/main/$(ocamldir)/toplevel/.ocamltoplevel.objs/byte toplevel; \
+	 ln -s ../_build/main/$(ocamldir)/toplevel/byte/.ocamltoplevel.objs/byte toplevel; \
 	)
 
 	# Various directories are put on the -I paths by tools/Makefile;

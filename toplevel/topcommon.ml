@@ -80,6 +80,7 @@ let find_eval_phrase str =
 (* The current typing environment for the toplevel *)
 
 let toplevel_env = ref Env.empty
+let toplevel_sig = ref []
 
 let backtrace = ref None
 
@@ -278,7 +279,8 @@ let set_paths () =
   Dll.add_path load_path
 
 let initialize_toplevel_env () =
-  toplevel_env := Compmisc.initial_env()
+  toplevel_env := Compmisc.initial_env();
+  toplevel_sig := []
 
 external caml_sys_modify_argv : string array -> unit =
   "caml_sys_modify_argv"
