@@ -2,11 +2,9 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*                       Pierre Chambart, OCamlPro                        *)
-(*           Mark Shinwell and Leo White, Jane Street Europe              *)
+(*                     Nathanaëlle Courant, OCamlPro                      *)
 (*                                                                        *)
-(*   Copyright 2013--2019 OCamlPro SAS                                    *)
-(*   Copyright 2014--2019 Jane Street Group LLC                           *)
+(*   Copyright 2022 OCamlPro SAS                                          *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -14,18 +12,12 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type t
+type t = private
+  | Do_not_loopify
+  | Loopify of Continuation.t
 
 val print : Format.formatter -> t -> unit
 
-val empty : t
+val do_not_loopify : t
 
-include Continuation_uses_env_intf.S with type t := t
-
-val get_continuation_uses : t -> Continuation.t -> Continuation_uses.t option
-
-val remove : t -> Continuation.t -> t
-
-val union : t -> t -> t
-
-val mark_non_inlinable : t -> t
+val loopify : Continuation.t -> t

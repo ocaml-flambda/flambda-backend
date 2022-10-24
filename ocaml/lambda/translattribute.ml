@@ -44,6 +44,10 @@ let is_property_attribute = function
 let is_poll_attribute =
   [ ["poll"; "ocaml.poll"], true ]
 
+let is_loop_attribute = function
+  | {txt=("loop"|"ocaml.loop")} -> true
+  | _ -> false
+
 let find_attribute p attributes =
   let inline_attribute = Builtin_attributes.filter_attributes p attributes in
   let attr =
@@ -225,6 +229,19 @@ let parse_poll_attribute attr =
         ]
         payload
 
+let parse_loop_attribute attr =
+  match attr with
+  | None -> Default_loop
+  | Some {Parsetree.attr_name = {txt; loc}; attr_payload = payload} ->
+      parse_id_payload txt loc
+        ~default:Default_loop
+        ~empty:Always_loop
+        [
+          "never", Never_loop;
+          "always", Always_loop;
+        ]
+        payload
+
 let get_inline_attribute l =
   let attr = find_attribute is_inline_attribute l in
   parse_inline_attribute attr
@@ -251,6 +268,10 @@ let get_check_attribute l =
 let get_poll_attribute l =
   let attr = find_attribute is_poll_attribute l in
   parse_poll_attribute attr
+
+let get_loop_attribute l =
+  let attr, _ = find_attribute is_loop_attribute l in
+  parse_loop_attribute attr
 
 let check_local_inline loc attr =
   match attr.local, attr.inline with
@@ -384,10 +405,34 @@ let add_poll_attribute expr loc attributes =
         (Warnings.Misplaced_attribute "error_poll");
       expr
 
-(* Get the [@inlined] attribute payload (or default if not present). *)
-let get_inlined_attribute e =
-  let attr = find_attribute is_inlined_attribute e.exp_attributes in
-  parse_inlined_attribute attr
+let add_loop_attribute expr loc attributes =
+  match expr, get_loop_attribute attributes with
+  | expr, Default_loop -> expr
+  | Lfunction({ attr = { stub = false } as attr } as funct), loop ->
+      begin match attr.loop with
+      | Default_loop -> ()
+      | Always_loop | Never_loop ->
+          Location.prerr_warning loc
+            (Warnings.Duplicated_attribute "loop")
+      end;
+      let attr = { attr with loop } in
+      Lfunction { funct with attr = attr }
+  | expr, (Always_loop | Never_loop) ->
+      Location.prerr_warning loc
+        (Warnings.Misplaced_attribute "loop");
+      expr
+
+(* Get the [@inlined] attribute payload (or default if not present).
+   It also returns the expression without this attribute. This is
+   used to ensure that this attribute is not misplaced: If it
+   appears on any expression, it is an error, otherwise it would
+   have been removed by this function *)
+let get_and_remove_inlined_attribute e =
+  let attr, exp_attributes =
+    find_attribute is_inlined_attribute e.exp_attributes
+  in
+  let inlined = parse_inlined_attribute attr in
+  inlined, { e with exp_attributes }
 
 let get_inlined_attribute_on_module e =
   let rec get mod_expr =
@@ -436,6 +481,9 @@ let add_function_attributes lam loc attr =
   in
   let lam =
     add_check_attribute lam loc attr
+  in
+  let lam =
+    add_loop_attribute lam loc attr
   in
   let lam =
     (* last because poll overrides inline and local *)

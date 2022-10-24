@@ -805,6 +805,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
           specialise = Always_specialise;
           local = Never_local;
           check = Default_check;
+          loop = Never_loop;
           is_a_functor = false;
           stub = false;
           poll = Default_poll;
