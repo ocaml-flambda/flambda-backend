@@ -491,8 +491,11 @@ module Record_diffing = struct
       | Global, Global
       | Nonlocal, Nonlocal
       | Unrestricted, Unrestricted ->
-        match Ctype.equal env true (ld1.ld_type::params1) (ld2.ld_type::params2) with
-        | exception Ctype.Equality err -> Some (Type err : label_mismatch)
+        let tl1 = params1 @ [ld1.ld_type] in
+        let tl2 = params2 @ [ld2.ld_type] in
+        match Ctype.equal env true tl1 tl2 with
+        | exception Ctype.Equality err ->
+            Some (Type err : label_mismatch)
         | () -> None
     end
 
