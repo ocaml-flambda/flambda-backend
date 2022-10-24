@@ -3371,17 +3371,13 @@ let transl_builtin name args dbg =
   | "caml_unsigned_int64_mulh_unboxed" -> mulhi ~signed:false Pint64 args dbg
   | "caml_int32_unsigned_to_int_trunc_unboxed_to_untagged" ->
     Some (zero_extend_32 dbg (one_arg name args))
-  | "caml_csel_value"
-  | "caml_csel_int_untagged"
-  | "caml_csel_int64_unboxed"
-  | "caml_csel_int32_unboxed"
-  | "caml_csel_nativeint_unboxed"
-  | "caml_csel_float_unboxed"
-    ->
+  | "caml_csel_value" | "caml_csel_int_untagged" | "caml_csel_int64_unboxed"
+  | "caml_csel_int32_unboxed" | "caml_csel_nativeint_unboxed"
+  | "caml_csel_float_unboxed" ->
     let op = Ccsel in
-    let cond,ifso,ifnot = three_args name args in
+    let cond, ifso, ifnot = three_args name args in
     if_operation_supported op ~f:(fun () ->
-      Cop (op, [test_bool dbg cond; ifso; ifnot], dbg))
+        Cop (op, [test_bool dbg cond; ifso; ifnot], dbg))
   (* Native_pointer: handled as unboxed nativeint *)
   | "caml_ext_pointer_as_native_pointer" ->
     Some (int_as_pointer (one_arg name args) dbg)
