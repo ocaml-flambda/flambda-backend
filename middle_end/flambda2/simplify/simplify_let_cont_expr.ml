@@ -1036,12 +1036,9 @@ let simplify_recursive_let_cont_stage1 ~simplify_expr ~denv_before_body ~body
          ~original_cont_scope ~down_to_up)
 
 let simplify_recursive_let_cont_stage0 ~simplify_expr dacc ~down_to_up ~body
-    rec_handlers =
-  let module CH = Continuation_handler in
-  assert (not (Continuation_handlers.contains_exn_handler rec_handlers));
+    handlers =
   let denv_before_body = DA.denv dacc in
   let original_cont_scope = DE.get_continuation_scope denv_before_body in
-  let handlers = Continuation_handlers.to_map rec_handlers in
   let cont, cont_handler =
     match Continuation.Map.bindings handlers with
     | [] | _ :: _ :: _ ->
@@ -1050,14 +1047,22 @@ let simplify_recursive_let_cont_stage0 ~simplify_expr dacc ~down_to_up ~body
          yet implemented"
     | [c] -> c
   in
-  CH.pattern_match cont_handler
+  Continuation_handler.pattern_match cont_handler
     ~f:
       (simplify_recursive_let_cont_stage1 ~simplify_expr ~denv_before_body ~body
          cont ~original_cont_scope ~down_to_up dacc)
 
+let simplify_as_recursive_let_cont ~simplify_expr dacc (body, handlers)
+    ~down_to_up =
+  simplify_recursive_let_cont_stage0 ~simplify_expr dacc ~down_to_up ~body
+    handlers
+
 let simplify_recursive_let_cont ~simplify_expr dacc recs ~down_to_up =
-  Recursive_let_cont_handlers.pattern_match recs
-    ~f:(simplify_recursive_let_cont_stage0 ~simplify_expr dacc ~down_to_up)
+  Recursive_let_cont_handlers.pattern_match recs ~f:(fun ~body rec_handlers ->
+      assert (not (Continuation_handlers.contains_exn_handler rec_handlers));
+      let handlers = Continuation_handlers.to_map rec_handlers in
+      simplify_recursive_let_cont_stage0 ~simplify_expr dacc ~down_to_up ~body
+        handlers)
 
 let simplify_let_cont ~simplify_expr dacc (let_cont : Let_cont.t) ~down_to_up =
   match let_cont with

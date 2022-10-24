@@ -2,11 +2,9 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*                       Pierre Chambart, OCamlPro                        *)
-(*           Mark Shinwell and Leo White, Jane Street Europe              *)
+(*                     Nathanaëlle Courant, OCamlPro                      *)
 (*                                                                        *)
-(*   Copyright 2013--2019 OCamlPro SAS                                    *)
-(*   Copyright 2014--2019 Jane Street Group LLC                           *)
+(*   Copyright 2022 OCamlPro SAS                                          *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -14,13 +12,15 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open! Flambda
+type t =
+  | Do_not_loopify
+  | Loopify of Continuation.t
 
-val simplify_let_cont :
-  simplify_expr:Expr.t Simplify_common.expr_simplifier ->
-  Let_cont.t Simplify_common.expr_simplifier
+let print ppf = function
+  | Do_not_loopify -> Format.fprintf ppf "do_not_loopify"
+  | Loopify cont ->
+    Format.fprintf ppf "@[<hov 1>(loopify@ %a)@]" Continuation.print cont
 
-val simplify_as_recursive_let_cont :
-  simplify_expr:Expr.t Simplify_common.expr_simplifier ->
-  (Expr.t * Continuation_handler.t Continuation.Map.t)
-  Simplify_common.expr_simplifier
+let do_not_loopify = Do_not_loopify
+
+let loopify cont = Loopify cont
