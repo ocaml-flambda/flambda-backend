@@ -6,6 +6,15 @@ open! Cfg_regalloc_utils
 
 let debug = true
 
+let join_stack_operands_rewrite a b =
+  match a,b with
+  | All_spilled_registers_rewritten, All_spilled_registers_rewritten ->
+    All_spilled_registers_rewritten
+  | All_spilled_registers_rewritten, May_still_have_spilled_registers
+  | May_still_have_spilled_registers, All_spilled_registers_rewritten
+  | May_still_have_spilled_registers, May_still_have_spilled_registers ->
+    May_still_have_spilled_registers
+
 let use_stack_operand_if_spilled map regs index =
   match is_spilled regs.(index) with
   | false -> ()
@@ -15,6 +24,41 @@ let need_rewrite reg =
   match is_spilled reg with
   | true -> May_still_have_spilled_registers
   | false -> All_spilled_registers_rewritten
+
+let may_use_stack_operand_for_first_and_second_arguments
+    : type a . spilled_map -> a Cfg.instruction -> stack_operands_rewrite
+  = fun map instr ->
+    if debug then check_lengths instr ~of_arg:3 ~of_res:1;
+    check_same "res(0)" instr.res.(0) "arg(2)" instr.arg.(2);
+    use_stack_operand_if_spilled map instr.arg 0;
+    use_stack_operand_if_spilled map instr.arg 1;
+    match is_spilled instr.res.(0) with
+    | true -> May_still_have_spilled_registers
+    | false -> All_spilled_registers_rewritten
+
+let may_use_stack_for_first_or_second_and_third_arguments
+  : type a . spilled_map -> a Cfg.instruction -> stack_operands_rewrite
+  = fun map instr ->
+    if debug then check_lengths instr ~of_arg:4 ~of_res:1;
+    check_same "res(0)" instr.res.(0) "arg(3)" instr.arg.(3);
+    let rewrite_first_or_second =
+      match is_spilled instr.arg.(0), is_spilled instr.arg.(1) with
+      | false, false ->
+        All_spilled_registers_rewritten
+      | true, false ->
+        use_stack_operand map instr.arg 0;
+        All_spilled_registers_rewritten
+      | false, true ->
+        use_stack_operand map instr.arg 1;
+        All_spilled_registers_rewritten
+      | true, true ->
+        use_stack_operand map instr.arg 0;
+        May_still_have_spilled_registers
+    in
+    use_stack_operand_if_spilled map instr.arg 2;
+    join_stack_operands_rewrite
+      (need_rewrite instr.res.(0))
+      rewrite_first_or_second
 
 let may_use_stack_operand_for_second_argument
   : type a . spilled_map -> a Cfg.instruction -> stack_operands_rewrite
@@ -76,6 +120,7 @@ let is_stack_operand : Reg.t -> bool =
     | Stack _ -> true
     | Unknown | Reg _ -> false
 
+(* CR gyorsh: [join_stack_operands_rewrite] can simplify binary_operation *)
 let binary_operation
   : type a . spilled_map -> a Cfg.instruction -> result -> stack_operands_rewrite
   = fun map instr result ->
@@ -186,6 +231,19 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
     may_use_stack_operand_for_result_two_args map instr
   | Op(Intop_imm((Iadd | Isub | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr), _)) ->
     may_use_stack_operand_for_result_one_arg map instr
+  | Op(Csel tst) ->
+    (match tst with
+     | Iinttest _ ->
+       may_use_stack_for_first_or_second_and_third_arguments map instr
+     | Ifloattest _ ->
+       (* CR gyorsh: this could be optimized *)
+       May_still_have_spilled_registers
+     | Iinttest_imm (_, _)
+     | Itruetest
+     | Ifalsetest
+     | Ioddtest
+     | Ieventest ->
+       may_use_stack_operand_for_first_and_second_arguments map instr)
   | Op (Specific (Ilfence | Isfence | Imfence))
   | Op (Intop(Imulh _ | Imul | Idiv | Imod))
   | Op (Intop_imm ((Imulh _ | Imul | Idiv | Imod), _))
