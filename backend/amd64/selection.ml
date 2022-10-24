@@ -145,6 +145,12 @@ let pseudoregs_for_operation op arg res =
   | Ispecific Icrc32q ->
     (* arg.(0) and res.(0) must be the same *)
     ([|res.(0); arg.(1)|], res)
+  | Icsel _ ->
+    (* last arg must be the same as res.(0) *)
+    let len = Array.length arg in
+    let arg = Array.copy arg in
+    arg.(len-1) <- res.(0);
+    (arg, res)
   (* Other instructions are regular *)
   | Iintop (Ipopcnt|Iclz _|Ictz _|Icomp _|Icheckbound)
   | Iintop_imm ((Imulh _|Idiv|Imod|Icomp _|Icheckbound

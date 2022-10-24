@@ -1031,6 +1031,15 @@ let emit_instr fallthrough i =
   | Lop(Iintop Ipopcnt) ->
       assert (!popcnt_support);
       I.popcnt (arg i 0) (res i 0)
+  | Lop(Icsel tst) ->
+    let len = Array.length i.arg in
+    let ifso = i.arg.(len - 2) in
+    let ifnot = i.arg.(len - 1) in
+    assert (Reg.same_loc ifnot i.res.(0));
+    let taken c =
+      I.cmov c (reg ifso) (res i 0)
+    in
+    emit_test i tst ~taken
   | Lop(Ispecific Irdtsc) ->
     I.rdtsc ();
     let rdx = Reg64 RDX in
