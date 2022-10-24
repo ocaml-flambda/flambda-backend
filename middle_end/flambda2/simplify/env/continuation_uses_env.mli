@@ -27,3 +27,5 @@ val get_continuation_uses : t -> Continuation.t -> Continuation_uses.t option
 val remove : t -> Continuation.t -> t
 
 val union : t -> t -> t
+
+val mark_non_inlinable : t -> t

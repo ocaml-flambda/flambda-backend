@@ -103,3 +103,6 @@ let get_typing_env_no_more_than_one_use t =
   | _ :: _ ->
     Misc.fatal_errorf "Only zero or one continuation use(s) expected:@ %a" print
       t
+
+let mark_non_inlinable t =
+  { t with uses = List.map U.mark_non_inlinable t.uses }

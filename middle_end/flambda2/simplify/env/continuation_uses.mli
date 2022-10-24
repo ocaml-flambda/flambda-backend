@@ -52,3 +52,5 @@ val get_typing_env_no_more_than_one_use :
   t -> Flambda2_types.Typing_env.t option
 
 val union : t -> t -> t
+
+val mark_non_inlinable : t -> t

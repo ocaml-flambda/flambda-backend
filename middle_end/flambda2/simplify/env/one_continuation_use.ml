@@ -40,3 +40,8 @@ let use_kind t = t.kind
 let arg_types t = t.arg_types
 
 let env_at_use t = t.env
+
+let mark_non_inlinable t =
+  match t.kind with
+  | Inlinable -> { t with kind = Non_inlinable { escaping = false } }
+  | Non_inlinable _ -> t
