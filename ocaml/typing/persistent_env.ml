@@ -202,9 +202,7 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
       let access_allowed =
         Compilation_unit.can_access_by_name name ~accessed_by:current_unit
       in
-      (* CR lmaurer: Re-enable this test if we can figure out how to square
-         the [lib-dynlink-native] test with it. *)
-      if false && not access_allowed then
+      if not access_allowed then
         let prefix = Compilation_unit.for_pack_prefix current_unit in
         error (Direct_reference_from_wrong_package (name, filename, prefix));
   | _ -> ()

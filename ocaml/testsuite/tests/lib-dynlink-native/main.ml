@@ -99,7 +99,7 @@ program = "packed1.so"
 flags = "-shared"
 all_modules = "packed1.cmx"
 ****************************** ocamlopt.opt
-flags = ""
+flags = "-for-pack Mypack"
 module = "packed1_client.ml"
 ******************************* ocamlopt.opt
 module = ""
