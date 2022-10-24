@@ -44,9 +44,8 @@ let is_property_attribute = function
 let is_poll_attribute =
   [ ["poll"; "ocaml.poll"], true ]
 
-let is_loop_attribute = function
-  | {txt=("loop"|"ocaml.loop")} -> true
-  | _ -> false
+let is_loop_attribute =
+  [ ["loop"; "ocaml.loop"], true ]
 
 let find_attribute p attributes =
   let inline_attribute = Builtin_attributes.filter_attributes p attributes in
@@ -270,7 +269,7 @@ let get_poll_attribute l =
   parse_poll_attribute attr
 
 let get_loop_attribute l =
-  let attr, _ = find_attribute is_loop_attribute l in
+  let attr = find_attribute is_loop_attribute l in
   parse_loop_attribute attr
 
 let check_local_inline loc attr =
@@ -422,17 +421,10 @@ let add_loop_attribute expr loc attributes =
         (Warnings.Misplaced_attribute "loop");
       expr
 
-(* Get the [@inlined] attribute payload (or default if not present).
-   It also returns the expression without this attribute. This is
-   used to ensure that this attribute is not misplaced: If it
-   appears on any expression, it is an error, otherwise it would
-   have been removed by this function *)
-let get_and_remove_inlined_attribute e =
-  let attr, exp_attributes =
-    find_attribute is_inlined_attribute e.exp_attributes
-  in
-  let inlined = parse_inlined_attribute attr in
-  inlined, { e with exp_attributes }
+(* Get the [@inlined] attribute payload (or default if not present). *)
+let get_inlined_attribute e =
+  let attr = find_attribute is_inlined_attribute e.exp_attributes in
+  parse_inlined_attribute attr
 
 let get_inlined_attribute_on_module e =
   let rec get mod_expr =
