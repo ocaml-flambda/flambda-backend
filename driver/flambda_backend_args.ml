@@ -434,7 +434,7 @@ let set_long_frames_threshold n =
     raise
       (Arg.Bad
          (Printf.sprintf "Long frames threshold too big: 0x%x, \
-                          must be less of equal to 0x%x" n
+                          must be less or equal to 0x%x" n
             Flambda_backend_flags.max_long_frames_threshold));
   Flambda_backend_flags.long_frames_threshold := n
 
