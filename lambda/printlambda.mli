@@ -34,3 +34,4 @@ val record_rep : formatter -> Types.record_representation -> unit
 val print_bigarray :
   string -> bool -> Lambda.bigarray_kind -> formatter ->
   Lambda.bigarray_layout -> unit
+val check_attribute : formatter -> check_attribute -> unit

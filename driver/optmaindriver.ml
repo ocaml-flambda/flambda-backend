@@ -18,8 +18,8 @@ open Clflags
 module Backend = struct
   (* See backend_intf.mli. *)
 
-  let symbol_for_global' = Compilenv.symbol_for_global'
-  let closure_symbol = Compilenv.closure_symbol
+  let pack_prefix_for_global_ident id =
+    Compilenv.pack_prefix_for_global_ident id
 
   let really_import_approx = Import_approx.really_import_approx
   let import_symbol = Import_approx.import_symbol
@@ -136,5 +136,5 @@ let main argv ppf =
     Location.report_exception ppf x;
     2
   | () ->
-    Profile.print Format.std_formatter !Clflags.profile_columns;
+    Profile.print Format.std_formatter !Clflags.profile_columns ~timings_precision:!Clflags.timings_precision;
     0

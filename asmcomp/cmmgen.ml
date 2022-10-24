@@ -173,8 +173,8 @@ let rec expr_size env = function
       | _ -> assert false)
   | Uregion exp ->
       expr_size env exp
-  | Utail _ ->
-      Misc.fatal_error "Utail in non-tail position"
+  | Utail exp ->
+      expr_size env exp
   | _ -> RHS_nonrec
 
 (* Translate structured constants to Cmm data items *)
@@ -1507,7 +1507,7 @@ let compunit (ulam, preallocated_blocks, constants) =
         (fun () -> dbg)
     else
       transl empty_env ulam in
-  let c1 = [Cfunction {fun_name = Compilenv.make_symbol (Some "entry");
+  let c1 = [Cfunction {fun_name = make_symbol "entry";
                        fun_args = [];
                        fun_body = init_code;
                        (* This function is often large and run only once.

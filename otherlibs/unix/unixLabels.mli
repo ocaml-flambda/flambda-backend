@@ -40,7 +40,6 @@
 
 (** {1 Error report} *)
 
-
 type error = Unix.error =
     E2BIG               (** Argument list too long *)
   | EACCES              (** Permission denied *)

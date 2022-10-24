@@ -12,8 +12,9 @@ let rec f n =
   else 1 + f (n-1)
 in
 try
-  ignore (f 3000000);
-  raise Not_found
+  with_async_exns (fun () ->
+    ignore (f 3000000);
+    raise Not_found)
 with Stack_overflow -> ()
 ;;
 

@@ -43,6 +43,7 @@ type error =
   | Inconsistent_implementation of string
   | Module_already_loaded of string
   | Private_library_cannot_implement_interface of string
+  | Library_file_already_loaded_privately of { filename : string; }
 
 exception Error of error
 

@@ -328,10 +328,22 @@ exception Break
 
 val catch_break : bool -> unit
 (** [catch_break] governs whether interactive interrupt (ctrl-C)
-   terminates the program or raises the [Break] exception.
-   Call [catch_break true] to enable raising [Break],
-   and [catch_break false] to let the system
-   terminate the program on user interrupt. *)
+    terminates the program or raises the [Break] exception.
+    Call [catch_break true] to enable raising [Break],
+    and [catch_break false] to let the system
+    terminate the program on user interrupt.
+
+    By default, having done [catch_break true], [Break] will be delivered to
+    the toplevel uncaught exception handler.  To deliver it elsewhere, use
+    [with_async_exns], below.
+*)
+
+val with_async_exns : (unit -> 'a) -> 'a
+(** [with_async_exns f] runs [f] and returns its result, in addition to
+    causing any asynchronous [Break] or [Stack_overflow] exceptions
+    (e.g. from finalisers, signal handlers or the GC) to be raised from the
+    call site of [with_async_exns].
+*)
 
 
 val ocaml_version : string

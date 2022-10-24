@@ -19,6 +19,7 @@
  (flags (
    -absname -w +a-4-9-41-42-44-45-48 -warn-error A -bin-annot
    -g -safe-string -strict-sequence -strict-formats
+   -nolabels   ; for UnixLabels
  ))
  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
  (library_flags (:standard -linkall))
@@ -54,7 +55,7 @@
     unix.mli
     unixLabels.mli
     libunix_stubs.a
-    libunix_stubs_native.a
+    (libunix_stubs.a as libunix_stubs_native.a) ; for special_dune compat
     (dllunix_stubs.so as stublibs/dllunix_stubs.so)
     (socketaddr.h as caml/socketaddr.h)
     (unixsupport.h as caml/unixsupport.h)

@@ -27,7 +27,7 @@ type raw_data = nativeint  (* @since 4.12 *)
 
 external repr : 'a -> t = "%identity"
 external obj : t -> 'a = "%identity"
-external magic : 'a -> 'b = "%identity"
+external magic : 'a -> 'b = "%obj_magic"
 val [@inline always] is_block : t -> bool
 external is_int : t -> bool = "%obj_is_int"
 external tag : t -> int = "caml_obj_tag" [@@noalloc]
@@ -68,7 +68,11 @@ external set_raw_field : t -> int -> raw_data -> unit
   (* @since 4.12 *)
 
 external new_block : int -> int -> t = "caml_obj_block"
-external dup : t -> t = "caml_obj_dup"
+
+external dup : t -> t = "%obj_dup"
+(** [dup t] returns a shallow copy of [t].  However if [t] is immutable then
+    it might be returned unchanged. *)
+
 external add_offset : t -> Int32.t -> t = "caml_obj_add_offset"
          (* @since 3.12.0 *)
 external with_tag : int -> t -> t = "caml_obj_with_tag"

@@ -43,7 +43,7 @@ static value Val_handle(void* handle) {
 }
 
 static void *getsym(void *handle, const char *module, const char *name){
-  char *fullname = caml_stat_strconcat(3, "caml", module, name);
+  char *fullname = caml_stat_strconcat(2, module, name);
   void *sym;
   sym = caml_dlsym (handle, fullname);
   /*  printf("%s => %lx\n", fullname, (uintnat) sym); */
@@ -105,11 +105,13 @@ CAMLprim value caml_natdynlink_run(value handle_v, value symbol) {
 
   unit = String_val(symbol);
 
+  sym = optsym("__gc_roots");
+  /* [caml_register_dyn_global] can raise, so do it prior to registering
+     frametables etc. */
+  if (NULL != sym) caml_register_dyn_global(sym);
+
   sym = optsym("__frametable");
   if (NULL != sym) caml_register_frametable(sym);
-
-  sym = optsym("__gc_roots");
-  if (NULL != sym) caml_register_dyn_global(sym);
 
   sym = optsym("__data_begin");
   sym2 = optsym("__data_end");

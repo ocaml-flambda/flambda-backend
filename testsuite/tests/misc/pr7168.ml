@@ -75,6 +75,6 @@ let _ =
        reliably detect stack overflow. *)
     Printf.printf "OK\n"
   end else begin
-    try f 1
+    try Sys.with_async_exns (fun () -> f 1)
     with Stack_overflow -> Printf.printf "OK\n"
   end

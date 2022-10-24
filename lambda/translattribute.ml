@@ -38,6 +38,11 @@ let is_local_attribute = function
   | {txt=("local"|"ocaml.local")} -> true
   | _ -> false
 
+let is_property_attribute p a =
+  match p, a with
+  | Noalloc, {txt=("noalloc"|"ocaml.noalloc")} -> true
+  | _ -> false
+
 let find_attribute p attributes =
   let inline_attribute, other_attributes =
     List.partition (fun a -> p a.Parsetree.attr_name) attributes
@@ -197,6 +202,18 @@ let parse_local_attribute attr =
         ]
         payload
 
+let parse_property_attribute attr p =
+  match attr with
+  | None -> Default_check
+  | Some {Parsetree.attr_name = {txt; loc}; attr_payload = payload}->
+      parse_id_payload txt loc
+        ~default:Default_check
+        ~empty:(Assert p)
+        [
+          "assume", Assume p;
+        ]
+        payload
+
 let get_inline_attribute l =
   let attr, _ = find_attribute is_inline_attribute l in
   parse_inline_attribute attr
@@ -208,6 +225,17 @@ let get_specialise_attribute l =
 let get_local_attribute l =
   let attr, _ = find_attribute is_local_attribute l in
   parse_local_attribute attr
+
+let get_property_attribute l p =
+  let attr, _ = find_attribute (is_property_attribute p) l in
+  parse_property_attribute attr p
+
+let get_check_attribute l =
+  List.filter_map (fun p ->
+    match get_property_attribute l p with
+    | Default_check -> None
+    | a -> Some a)
+    [Noalloc]
 
 let check_local_inline loc attr =
   match attr.local, attr.inline with
@@ -269,6 +297,36 @@ let add_local_attribute expr loc attributes =
       Location.prerr_warning loc
         (Warnings.Misplaced_attribute "local");
       expr
+
+let add_check_attribute expr loc attributes =
+  let to_string = function
+    | Noalloc -> "noalloc"
+  in
+  let to_string = function
+    | Assert p -> to_string p
+    | Assume p -> Printf.sprintf "%s assume" (to_string p)
+    | Default_check -> assert false
+  in
+  match expr, get_check_attribute attributes with
+  | expr, [] -> expr
+  | Lfunction({ attr = { stub = false } as attr } as funct), [check] ->
+      begin match attr.check with
+      | Default_check -> ()
+      | Assert Noalloc | Assume Noalloc ->
+          Location.prerr_warning loc
+            (Warnings.Duplicated_attribute (to_string check))
+      end;
+      let attr = { attr with check } in
+      Lfunction { funct with attr }
+  | expr, [check] ->
+      Location.prerr_warning loc
+        (Warnings.Misplaced_attribute (to_string check));
+      expr
+  | expr, a::b::_ ->
+    Location.prerr_warning loc
+      (Warnings.Duplicated_attribute
+         (Printf.sprintf "%s/%s"(to_string a) (to_string b)));
+    expr
 
 (* Get the [@inlined] attribute payload (or default if not present).
    It also returns the expression without this attribute. This is
@@ -381,5 +439,8 @@ let add_function_attributes lam loc attr =
   in
   let lam =
     add_local_attribute lam loc attr
+  in
+  let lam =
+    add_check_attribute lam loc attr
   in
   lam
