@@ -138,7 +138,8 @@ module Env = struct
       approximation_for_external_symbol : Symbol.t -> value_approximation;
       big_endian : bool;
       path_to_root : Debuginfo.Scoped_location.t;
-      inlining_history_tracker : Inlining_history.Tracker.t
+      inlining_history_tracker : Inlining_history.Tracker.t;
+      in_stub : bool
     }
 
   let current_unit_id t = t.current_unit_id
@@ -217,7 +218,8 @@ module Env = struct
       symbol_for_global;
       big_endian;
       path_to_root = Debuginfo.Scoped_location.Loc_unknown;
-      inlining_history_tracker = Inlining_history.Tracker.empty compilation_unit
+      inlining_history_tracker = Inlining_history.Tracker.empty compilation_unit;
+      in_stub = false
     }
 
   let clear_local_bindings
@@ -231,7 +233,8 @@ module Env = struct
         approximation_for_external_symbol;
         big_endian;
         path_to_root;
-        inlining_history_tracker
+        inlining_history_tracker;
+        in_stub
       } =
     let simples_to_substitute =
       Ident.Map.filter
@@ -248,7 +251,8 @@ module Env = struct
       symbol_for_global;
       big_endian;
       path_to_root;
-      inlining_history_tracker
+      inlining_history_tracker;
+      in_stub
     }
 
   let with_depth t depth_var = { t with current_depth = Some depth_var }
@@ -372,6 +376,10 @@ module Env = struct
   let relative_history_from_scoped ~loc { path_to_root; _ } =
     Inlining_history.Relative.between_scoped_locations ~parent:path_to_root
       ~child:loc
+
+  let entering_stub t = { t with in_stub = true }
+
+  let can_inline_non_stub t = not t.in_stub
 end
 
 module Acc = struct

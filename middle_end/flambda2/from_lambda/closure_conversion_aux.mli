@@ -175,6 +175,10 @@ module Env : sig
      its true location in the source file. *)
   val relative_history_from_scoped :
     loc:Debuginfo.Scoped_location.t -> t -> Inlining_history.Relative.t
+
+  val entering_stub : t -> t
+
+  val can_inline_non_stub : t -> bool
 end
 
 (** Used to pipe some data through closure conversion *)

@@ -227,18 +227,23 @@ module Inlining = struct
         let code = Code_or_metadata.get_code code in
         let inlined_call = Apply_expr.inlined apply in
         let decision, res =
-          match inlined_call with
-          | Never_inlined ->
-            ( Call_site_inlining_decision_type.Never_inlined_attribute,
+          if Code.stub code || Env.can_inline_non_stub env
+          then
+            match inlined_call with
+            | Never_inlined ->
+              ( Call_site_inlining_decision_type.Never_inlined_attribute,
+                Not_inlinable )
+            | Always_inlined | Hint_inlined ->
+              Call_site_inlining_decision_type.Attribute_always, Inlinable code
+            | Default_inlined | Unroll _ ->
+              (* Closure ignores completely [@unrolled] attributes, so it seems
+                 safe to do the same. *)
+              ( Call_site_inlining_decision_type.Definition_says_inline
+                  { was_inline_always = false },
+                Inlinable code )
+          else
+            ( Call_site_inlining_decision_type.Definition_says_not_to_inline,
               Not_inlinable )
-          | Always_inlined | Hint_inlined ->
-            Call_site_inlining_decision_type.Attribute_always, Inlinable code
-          | Default_inlined | Unroll _ ->
-            (* Closure ignores completely [@unrolled] attributes, so it seems
-               safe to do the same. *)
-            ( Call_site_inlining_decision_type.Definition_says_inline
-                { was_inline_always = false },
-              Inlinable code )
         in
         Inlining_report.record_decision_at_call_site_for_known_function ~tracker
           ~apply ~pass:After_closure_conversion ~unrolling_depth:None
@@ -1093,6 +1098,11 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
   let acc, exn_continuation =
     close_exn_continuation acc external_env
       (Function_decl.exn_continuation decl)
+  in
+  let external_env =
+    if Function_decl.stub decl
+    then Env.entering_stub external_env
+    else external_env
   in
   assert (
     match Exn_continuation.extra_args exn_continuation with
