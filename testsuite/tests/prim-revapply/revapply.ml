@@ -30,9 +30,6 @@ let _f x = x |> bump (* no warning 48 *)
 type t = A | B
 type s = A | B
 let _f (x : t) = x |> function A -> 0 | B -> 1
-<<<<<<< HEAD
-||||||| 24dbb0976a
-=======
 
 (* Abstract functions *)
 let _ =
@@ -50,4 +47,3 @@ let _ =
     external (|>): x -> f -> int = "%revapply"
   end in
   A.(zero |> succ)
->>>>>>> ocaml/4.14

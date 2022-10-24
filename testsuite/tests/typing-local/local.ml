@@ -108,7 +108,7 @@ Line 1, characters 37-67:
 1 | type distinct_sarg = unit constraint local_ int -> int = int -> int
                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The type constraints are not consistent.
-Type local_ int -> int is not compatible with type int -> int
+       Type local_ int -> int is not compatible with type int -> int
 |}]
 type distinct_sret = unit constraint int -> local_ int = int -> int
 [%%expect{|
@@ -116,7 +116,7 @@ Line 1, characters 37-67:
 1 | type distinct_sret = unit constraint int -> local_ int = int -> int
                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The type constraints are not consistent.
-Type int -> local_ int is not compatible with type int -> int
+       Type int -> local_ int is not compatible with type int -> int
 |}]
 type distinct_sarg_sret = unit constraint local_ int -> int = local_ int -> local_ int
 [%%expect{|
@@ -124,7 +124,8 @@ Line 1, characters 42-86:
 1 | type distinct_sarg_sret = unit constraint local_ int -> int = local_ int -> local_ int
                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The type constraints are not consistent.
-Type local_ int -> int is not compatible with type local_ int -> local_ int
+       Type local_ int -> int is not compatible with type
+         local_ int -> local_ int
 |}]
 
 type local_higher_order = unit constraint
@@ -140,9 +141,10 @@ Line 2, characters 2-66:
 2 |   (int -> int -> int) -> int = (int -> local_ (int -> int)) -> int
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The type constraints are not consistent.
-Type (int -> int -> int) -> int is not compatible with type
-  (int -> local_ (int -> int)) -> int
-Type int -> int -> int is not compatible with type int -> local_ (int -> int)
+       Type (int -> int -> int) -> int is not compatible with type
+         (int -> local_ (int -> int)) -> int
+       Type int -> int -> int is not compatible with type
+         int -> local_ (int -> int)
 |}]
 
 type local_higher_order = unit constraint
@@ -158,9 +160,10 @@ Line 2, characters 2-66:
 2 |   int -> (int -> int -> int) = int -> (int -> local_ (int -> int))
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The type constraints are not consistent.
-Type int -> int -> int -> int is not compatible with type
-  int -> int -> local_ (int -> int)
-Type int -> int -> int is not compatible with type int -> local_ (int -> int)
+       Type int -> int -> int -> int is not compatible with type
+         int -> int -> local_ (int -> int)
+       Type int -> int -> int is not compatible with type
+         int -> local_ (int -> int)
 |}]
 
 let foo () =
@@ -1473,7 +1476,7 @@ Error: Signature mismatch:
          type t = { nonlocal_ foo : string; }
        Fields do not match:
          foo : string;
-       is not compatible with:
+       is not the same as:
          nonlocal_ foo : string;
        The second is nonlocal and the first is not.
 |}]
@@ -1499,7 +1502,7 @@ Error: Signature mismatch:
          type t = { foo : string; }
        Fields do not match:
          nonlocal_ foo : string;
-       is not compatible with:
+       is not the same as:
          foo : string;
        The first is nonlocal and the second is not.
 |}]
@@ -1525,7 +1528,7 @@ Error: Signature mismatch:
          type t = { global_ foo : string; }
        Fields do not match:
          foo : string;
-       is not compatible with:
+       is not the same as:
          global_ foo : string;
        The second is global and the first is not.
 |}]
@@ -1551,7 +1554,7 @@ Error: Signature mismatch:
          type t = { foo : string; }
        Fields do not match:
          global_ foo : string;
-       is not compatible with:
+       is not the same as:
          foo : string;
        The first is global and the second is not.
 |}]
@@ -1786,6 +1789,10 @@ Error: Signature mismatch:
          val add : local_ int32 -> local_ int32 -> local_ int32
        is not included in
          val add : local_ int32 -> local_ int32 -> int32
+       The type local_ int32 -> local_ int32 -> local_ int32
+       is not compatible with the type local_ int32 -> local_ int32 -> int32
+       Type local_ int32 -> local_ int32 is not compatible with type
+         local_ int32 -> int32
 |}]
 module Opt32 : sig external add : (int32[@local_opt]) -> (int32[@local_opt]) -> (int32[@local_opt]) = "%int32_add" end = Int32
 module Bad32_2 : sig val add : local_ int32 -> local_ int32 -> int32 end =
@@ -1815,6 +1822,10 @@ Error: Signature mismatch:
            (int32 [@local_opt]) -> (int32 [@local_opt]) = "%int32_add"
        is not included in
          val add : local_ int32 -> local_ int32 -> int32
+       The type local_ int32 -> local_ int32 -> local_ int32
+       is not compatible with the type local_ int32 -> local_ int32 -> int32
+       Type local_ int32 -> local_ int32 is not compatible with type
+         local_ int32 -> int32
 |}]
 
 module Contravariant_instantiation : sig
@@ -2081,6 +2092,8 @@ Error: Signature mismatch:
          val foo : float -> string
        is not included in
          val foo : local_ float -> string
+       The type float -> string is not compatible with the type
+         local_ float -> string
 |}]
 
 module F (X : sig val foo : float -> local_ string end) : sig
@@ -2099,6 +2112,8 @@ Error: Signature mismatch:
          val foo : float -> local_ string
        is not included in
          val foo : float -> string
+       The type float -> local_ string is not compatible with the type
+         float -> string
 |}]
 
 module F (X : sig val foo : local_ float -> float -> string end) : sig
@@ -2117,6 +2132,8 @@ Error: Signature mismatch:
          val foo : local_ float -> float -> string
        is not included in
          val foo : float -> float -> string
+       The type local_ float -> float -> string
+       is not compatible with the type float -> float -> string
 |}]
 
 module F (X : sig val foo : local_ float -> float -> string end) : sig
@@ -2162,6 +2179,10 @@ Error: Signature mismatch:
          val foo : (float -> string) inv
        is not included in
          val foo : (float -> local_ string) inv
+       The type (float -> string) inv is not compatible with the type
+         (float -> local_ string) inv
+       Type float -> string is not compatible with type
+         float -> local_ string
 |}]
 
 module F (X : sig val foo : (float -> string) co end) : sig
@@ -2189,6 +2210,10 @@ Error: Signature mismatch:
          val foo : (float -> string) contra
        is not included in
          val foo : (float -> local_ string) contra
+       The type (float -> string) contra is not compatible with the type
+         (float -> local_ string) contra
+       Type float -> string is not compatible with type
+         float -> local_ string
 |}]
 
 module F (X : sig val foo : (float -> string) bi end) : sig
@@ -2216,6 +2241,10 @@ Error: Signature mismatch:
          val foo : (float -> local_ string) inv
        is not included in
          val foo : (float -> string) inv
+       The type (float -> local_ string) inv is not compatible with the type
+         (float -> string) inv
+       Type float -> local_ string is not compatible with type
+         float -> string
 |}]
 
 module F (X : sig val foo : (float -> local_ string) co end) : sig
@@ -2234,6 +2263,10 @@ Error: Signature mismatch:
          val foo : (float -> local_ string) co
        is not included in
          val foo : (float -> string) co
+       The type (float -> local_ string) co is not compatible with the type
+         (float -> string) co
+       Type float -> local_ string is not compatible with type
+         float -> string
 |}]
 
 module F (X : sig val foo : (float -> local_ string) contra end) : sig

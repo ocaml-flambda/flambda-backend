@@ -40,6 +40,7 @@ Line 5, characters 18-20:
                       ^^
 Error: Signature mismatch in included functor's parameter:
        Values do not match: val x : bool is not included in val x : t
+       The type bool is not compatible with the type t = int
 |}];;
 
 (* Test 3: Missing type in structure *)
@@ -114,6 +115,7 @@ Line 5, characters 18-20:
                       ^^
 Error: Signature mismatch in included functor's parameter:
        Values do not match: val x : bool is not included in val x : t
+       The type bool is not compatible with the type t
 |}];;
 
 (* Test 7: Missing type in signature *)

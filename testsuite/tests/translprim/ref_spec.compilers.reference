@@ -4,14 +4,7 @@
      var_ref = (makemutable 0 (int) 65)
      vargen_ref = (makemutable 0 65)
      cst_ref = (makemutable 0 (int) 0)
-<<<<<<< HEAD
      gen_ref = (makemutable 0 ([(consts (0)) (non_consts ([0: *]))]) 0)
-||||||| 24dbb0976a
-     cst_ref = (makemutable 0 0)
-     gen_ref = (makemutable 0 0)
-=======
-     gen_ref = (makemutable 0 0)
->>>>>>> ocaml/4.14
      flt_ref = (makemutable 0 (float) 0.))
     (seq (setfield_imm 0 int_ref 2) (setfield_imm 0 var_ref 66)
       (setfield_ptr 0 vargen_ref [0: 66 0]) (setfield_ptr 0 vargen_ref 67)
@@ -19,30 +12,13 @@
       (setfield_ptr 0 gen_ref 0) (setfield_ptr 0 flt_ref 1.)
       (let
         (int_rec = (makemutable 0 (int,int) 0 1)
-<<<<<<< HEAD
-         var_rec = (makemutable 0 (int,*) 0 65)
+         var_rec = (makemutable 0 (int,int) 0 65)
          vargen_rec = (makemutable 0 (int,*) 0 65)
          cst_rec = (makemutable 0 (int,int) 0 0)
          gen_rec =
            (makemutable 0 (int,[(consts (0)) (non_consts ([0: *]))]) 0 0)
          flt_rec = (makemutable 0 (int,float) 0 0.)
          flt_rec' = (makefloatblock Mutable 0. 0.))
-||||||| 24dbb0976a
-        (int_rec = (makemutable 0 (*,int) 0 1)
-         var_rec = (makemutable 0 0 65)
-         vargen_rec = (makemutable 0 0 65)
-         cst_rec = (makemutable 0 0 0)
-         gen_rec = (makemutable 0 0 0)
-         flt_rec = (makemutable 0 (*,float) 0 0.)
-         flt_rec' = (makearray[float] 0. 0.))
-=======
-         var_rec = (makemutable 0 (int,int) 0 65)
-         vargen_rec = (makemutable 0 (int,*) 0 65)
-         cst_rec = (makemutable 0 (int,int) 0 0)
-         gen_rec = (makemutable 0 (int,*) 0 0)
-         flt_rec = (makemutable 0 (int,float) 0 0.)
-         flt_rec' = (makearray[float] 0. 0.))
->>>>>>> ocaml/4.14
         (seq (setfield_imm 1 int_rec 2) (setfield_imm 1 var_rec 66)
           (setfield_ptr 1 vargen_rec [0: 66 0])
           (setfield_ptr 1 vargen_rec 67) (setfield_imm 1 cst_rec 1)
@@ -50,24 +26,9 @@
           (setfield_ptr 1 flt_rec 1.) (setfloatfield 1 flt_rec' 1.)
           (let
             (set_open_poly = (function r y : int (setfield_ptr 0 r y))
-<<<<<<< HEAD
-             set_open_poly = (function r y : int (setfield_imm 0 r y))
-             set_open_poly = (function r y : int (setfield_imm 0 r y))
-             set_open_poly = (function r y : int (setfield_imm 0 r y))
-||||||| 24dbb0976a
-            (set_open_poly = (function r y (setfield_ptr 0 r y))
-             set_open_poly = (function r y (setfield_imm 0 r y))
-             set_open_poly = (function r y (setfield_imm 0 r y))
-             set_open_poly = (function r y (setfield_imm 0 r y))
-             set_open_poly = (function r y (setfield_ptr 0 r y))
-             set_open_poly = (function r y (setfield_ptr 0 r y))
-             set_open_poly = (function r y (setfield_ptr 0 r y))
-             set_open_poly = (function r y (setfield_ptr 0 r y)))
-=======
              set_open_poly = (function r y[int] : int (setfield_imm 0 r y))
              set_open_poly = (function r y[int] : int (setfield_imm 0 r y))
              set_open_poly = (function r y[int] : int (setfield_imm 0 r y))
->>>>>>> ocaml/4.14
              set_open_poly = (function r y : int (setfield_ptr 0 r y))
              set_open_poly = (function r y : int (setfield_ptr 0 r y))
              set_open_poly = (function r y : int (setfield_ptr 0 r y))

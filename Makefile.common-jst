@@ -174,7 +174,7 @@ runtest-upstream: _install
 	rm -rf _runtest
 	mkdir _runtest
 	ln -s ../_install _runtest/_install
-	cp -a $(ocamldir)/testsuite _runtest/testsuite
+	$(cpl) -a $(ocamldir)/testsuite _runtest/testsuite
 	 # replace backend-specific testsuite/tools with their new versions
 	rm _runtest/testsuite/tools/*
 	cp -a testsuite/tools/* _runtest/testsuite/tools/
@@ -182,10 +182,7 @@ runtest-upstream: _install
 	rm _runtest/testsuite/tests/asmgen/*
 	cp -a testsuite/tests/asmgen/* _runtest/testsuite/tests/asmgen/
 
-	ln -s ../$(ocamldir)/Makefile.tools _runtest/Makefile.tools
-	ln -s ../$(ocamldir)/Makefile.build_config _runtest/Makefile.build_config
-	ln -s ../$(ocamldir)/Makefile.config_if_required _runtest/Makefile.config_if_required
-	ln -s ../$(ocamldir)/Makefile.config _runtest/Makefile.config
+	cp $(ocamldir)/Makefile.* _runtest/
 
 #	Create an OCaml directory laid out like the testsuite expects,
 #	by copying and symlinking in bits from the install/build directory
@@ -230,7 +227,7 @@ runtest-upstream: _install
 	# ocamldebug
 	mkdir _runtest/debugger
 	ln -s ../ocamldebug _runtest/debugger
-	cp $(main_build)/$(ocamldir)/debugger/.main.eobjs/byte/*.cm* \
+	cp $(main_build)/$(ocamldir)/debugger/.ocamldebug.objs/byte/*.cm* \
 	  _runtest/debugger
 	# The ast_invariants test needs VERSION to be present.  In fact ideally
 	# we should have all the source files in _runtest too for this test,

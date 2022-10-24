@@ -234,7 +234,7 @@ let eval_expect_file _fname ~file_contents =
         acc &&
         let snap = Btype.snapshot () in
         try
-          exec_phrase ppf phrase
+          Sys.with_async_exns (fun () -> exec_phrase ppf phrase)
         with exn ->
           let bt = Printexc.get_raw_backtrace () in
           begin try Location.report_exception ppf exn

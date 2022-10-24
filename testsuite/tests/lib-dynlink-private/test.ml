@@ -2,32 +2,9 @@
 
 include dynlink
 libraries = ""
-<<<<<<< HEAD
-files = "sheep.mli sheep.ml pig.mli"
-set plugin1 = "${test_source_directory}/plugin1"
-set plugin2 = "${test_source_directory}/plugin2"
-set plugin2_build = "${test_build_directory}/plugin2"
-set plugin2b = "${test_source_directory}/plugin2b"
-set plugin2c = "${test_source_directory}/plugin2c"
-set plugin3 = "${test_source_directory}/plugin3"
-set plugin4 = "${test_source_directory}/plugin4"
-set plugin5 = "${test_source_directory}/plugin5"
-set plugin6 = "${test_source_directory}/plugin6"
-||||||| 24dbb0976a
-files = "sheep.mli sheep.ml pig.mli"
-set plugin1 = "${test_source_directory}/plugin1"
-set plugin2 = "${test_source_directory}/plugin2"
-set plugin2b = "${test_source_directory}/plugin2b"
-set plugin2c = "${test_source_directory}/plugin2c"
-set plugin3 = "${test_source_directory}/plugin3"
-set plugin4 = "${test_source_directory}/plugin4"
-set plugin5 = "${test_source_directory}/plugin5"
-set plugin6 = "${test_source_directory}/plugin6"
-=======
 readonly_files = "sheep.mli sheep.ml pig.mli"
 subdirectories = "plugin1 plugin2 plugin2b plugin2c plugin3 plugin4 \
   plugin5 plugin6"
->>>>>>> ocaml/4.14
 
 * shared-libraries
 ** setup-ocamlc.byte-build-env
@@ -97,16 +74,10 @@ flags = ""
 program = "./test.byte.exe"
 libraries = "dynlink"
 all_modules = "sheep.cmo test.cmo"
-<<<<<<< HEAD
-****** script
-script = "cp ${plugin2_build}/cow.cmo ${plugin2_build}/cow_copy.cmo"
-******* run
-||||||| 24dbb0976a
-****** run
-=======
 module = ""
-************************** run
->>>>>>> ocaml/4.14
+************************** script
+script = "cp ${test_build_directory}/plugin2/cow.cmo ${test_build_directory}/plugin2/cow_copy.cmo"
+*************************** run
 
 ** native-dynlink
 *** setup-ocamlopt.byte-build-env
@@ -195,15 +166,9 @@ flags = ""
 program = "./test.opt.exe"
 libraries = "dynlink"
 all_modules = "sheep.cmx test.cmx"
-<<<<<<< HEAD
-******* script
-script = "cp ${plugin2_build}/cow.cmxs ${plugin2_build}/cow_copy.cmxs"
-******** run
-||||||| 24dbb0976a
-******* run
-=======
-*************************** run
->>>>>>> ocaml/4.14
+*************************** script
+script = "cp ${test_build_directory}/plugin2/cow.cmxs ${test_build_directory}/plugin2/cow_copy.cmxs"
+**************************** run
 *)
 
 let () = Sheep.baa Sheep.s (* Use Sheep module *)

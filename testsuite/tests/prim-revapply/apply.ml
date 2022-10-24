@@ -42,9 +42,6 @@ let _ =
 (* PR#10081 *)
 let bump ?(cap = 100) x = min cap (x + 1)
 let _f x = bump @@ x (* no warning 48 *)
-<<<<<<< HEAD
-||||||| 24dbb0976a
-=======
 
 (* Abstract functions *)
 let _ =
@@ -62,4 +59,3 @@ let _ =
     external (@@): f -> x -> int = "%apply"
   end in
   A.(succ @@ zero)
->>>>>>> ocaml/4.14

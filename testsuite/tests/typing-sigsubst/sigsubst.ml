@@ -24,29 +24,11 @@ end
 Line 3, characters 2-36:
 3 |   include Comparable with type t = t
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-<<<<<<< HEAD
-Error: Illegal shadowing of included type t/278 by t/282
-||||||| 24dbb0976a
-Error: Illegal shadowing of included type t/98 by t/102
-=======
 Error: Illegal shadowing of included type t/284 by t/289
->>>>>>> ocaml/4.14
        Line 2, characters 2-19:
-<<<<<<< HEAD
-         Type t/278 came from this include
-||||||| 24dbb0976a
-         Type t/98 came from this include
-=======
          Type t/284 came from this include
->>>>>>> ocaml/4.14
        Line 3, characters 2-23:
-<<<<<<< HEAD
-         The value print has no valid type if t/278 is shadowed
-||||||| 24dbb0976a
-         The value print has no valid type if t/98 is shadowed
-=======
          The value print has no valid type if t/284 is shadowed
->>>>>>> ocaml/4.14
 |}]
 
 module type Sunderscore = sig

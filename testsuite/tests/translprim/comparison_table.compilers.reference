@@ -171,7 +171,6 @@
                                    [(consts (0)) (non_consts ([0: *, *]))]]))]
        [0: [0: 1n 1n] [0: [0: 1n 2n] [0: [0: 2n 1n] 0]]]
      test_vec =
-<<<<<<< HEAD
        (function cmp eq ne lt gt le ge
          vec[(consts (0))
              (non_consts ([0: *, [(consts (0)) (non_consts ([0: *, *]))]]))]
@@ -357,45 +356,6 @@
                                                                     (makeblock 0
                                                                     gen_ge
                                                                     ge) 0)))))))))))
-||||||| 24dbb0976a
-       (function cmp eq ne lt gt le ge vec
-         (let
-           (uncurry =
-              (function f param (apply f (field 0 param) (field 1 param)))
-            map =
-              (function f l
-                (apply (field 18 (global Stdlib__list!)) (apply uncurry f) l)))
-           (makeblock 0
-             (makeblock 0 (apply map gen_cmp vec) (apply map cmp vec))
-             (apply map
-               (function gen spec
-                 (makeblock 0 (apply map gen vec) (apply map spec vec)))
-               (makeblock 0 (makeblock 0 gen_eq eq)
-                 (makeblock 0 (makeblock 0 gen_ne ne)
-                   (makeblock 0 (makeblock 0 gen_lt lt)
-                     (makeblock 0 (makeblock 0 gen_gt gt)
-                       (makeblock 0 (makeblock 0 gen_le le)
-                         (makeblock 0 (makeblock 0 gen_ge ge) 0)))))))))))
-=======
-       (function cmp eq ne lt gt le ge vec
-         (let
-           (uncurry =
-              (function f param (apply f (field 0 param) (field 1 param)))
-            map =
-              (function f l
-                (apply (field 18 (global Stdlib__List!)) (apply uncurry f) l)))
-           (makeblock 0
-             (makeblock 0 (apply map gen_cmp vec) (apply map cmp vec))
-             (apply map
-               (function gen spec
-                 (makeblock 0 (apply map gen vec) (apply map spec vec)))
-               (makeblock 0 (makeblock 0 gen_eq eq)
-                 (makeblock 0 (makeblock 0 gen_ne ne)
-                   (makeblock 0 (makeblock 0 gen_lt lt)
-                     (makeblock 0 (makeblock 0 gen_gt gt)
-                       (makeblock 0 (makeblock 0 gen_le le)
-                         (makeblock 0 (makeblock 0 gen_ge ge) 0)))))))))))
->>>>>>> ocaml/4.14
     (seq
       (apply test_vec int_cmp int_eq int_ne int_lt int_gt int_le int_ge
         int_vec)
@@ -426,7 +386,6 @@
                   (function f param[(consts ()) (non_consts ([0: *, *]))]
                     (apply f (field 0 param) (field 1 param)))
                 map =
-<<<<<<< HEAD
                   (function f
                     l[(consts (0))
                       (non_consts ([0: *,
@@ -434,12 +393,6 @@
                     [(consts (0))
                      (non_consts ([0: *,
                                    [(consts (0)) (non_consts ([0: *, *]))]]))]
-||||||| 24dbb0976a
-                  (function f l
-                    (apply (field 18 (global Stdlib__list!))
-=======
-                  (function f l
->>>>>>> ocaml/4.14
                     (apply (field 18 (global Stdlib__List!))
                       (apply uncurry f) l)))
                (makeblock 0 ([(consts ())

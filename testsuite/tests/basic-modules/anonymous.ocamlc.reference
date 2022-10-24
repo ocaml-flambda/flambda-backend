@@ -18,15 +18,8 @@
           (module-defn(A) Anonymous anonymous.ml(23):567-608 A))
         (apply (field 1 (global CamlinternalMod!)) [0: [0]] B
           (module-defn(B) Anonymous anonymous.ml(33):703-773
-<<<<<<< HEAD
             (let (x =[(consts ()) (non_consts ([0: *, *]))] [0: "foo" "bar"])
               (makeblock 0))))
-||||||| 24dbb0976a
-            (let (x = [0: "foo" "bar"]) (makeblock 0))))
-        (let (f = (function param 0) s = (makemutable 0 ""))
-=======
-            (let (x = [0: "foo" "bar"]) (makeblock 0))))
->>>>>>> ocaml/4.14
         (let (f = (function param : int 0) s = (makemutable 0 ""))
           (seq
             (ignore
@@ -34,11 +27,5 @@
                 (makeblock 0)))
             (let
               (drop = (function param : int 0)
-<<<<<<< HEAD
                *match* = (apply drop (field_mut 0 s)))
-||||||| 24dbb0976a
-              (drop = (function param 0) *match* = (apply drop (field 0 s)))
-=======
-               *match* = (apply drop (field 0 s)))
->>>>>>> ocaml/4.14
               (makeblock 0 A B f s drop))))))))

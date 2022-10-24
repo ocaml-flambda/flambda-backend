@@ -101,8 +101,7 @@ Error: This expression has type t1 but an expression was expected of type t2
 |}]
 
 (* #9739
-<<<<<<< HEAD
-   Recursive occurence checks are only done on type variables.
+   Recursive occurrence checks are only done on type variables.
    However, we are not guaranteed to still have a type variable when printing.
 *)
 
@@ -116,22 +115,6 @@ Line 4, characters 26-27:
                               ^
 Error: This expression has type int but an expression was expected of type
          'a -> 'b
-||||||| 24dbb0976a
-=======
-   Recursive occurrence checks are only done on type variables.
-   However, we are not guaranteed to still have a type variable when printing.
-*)
-
-let rec foo () = [42]
-and bar () =
-  let x = foo () in
-  x |> List.fold_left max 0 x
-[%%expect {|
-Line 4, characters 7-29:
-4 |   x |> List.fold_left max 0 x
-           ^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type int
-       This is not a function; it cannot be applied.
 |}]
 
 
@@ -154,5 +137,4 @@ module RecMod :
     module type s =
       sig module rec A : sig type t end and B : sig type t = A.t end end
   end
->>>>>>> ocaml/4.14
 |}]

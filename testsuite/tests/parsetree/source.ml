@@ -7415,13 +7415,11 @@ let test = function
 let test = function
   | (`A | `B) as x | `C -> ()
 
-<<<<<<< HEAD
 (* Punning of labelled function argument with type constraint *)
 let g y =
   let f ~y = y + 1 in
   f ~(y:int)
-||||||| 24dbb0976a
-=======
+
 (* Let-punning *)
 module M = struct
   let (let*) x f = f x
@@ -7450,4 +7448,3 @@ let g y =
   f ~(y:int)
 
 let goober a = match a with C (type a b) y -> y
->>>>>>> ocaml/4.14

@@ -79,28 +79,14 @@ let _ =
   print_int (tailcall32 1000000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
                                0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0);
   print_newline();
-  print_int (tailcall32 10000000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-                               0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0);
-  print_newline();
   print_int (indtailcall8 tailcall8 10 0 0 0 0 0 0 0); print_newline();
   print_int (indtailcall16 tailcall16 10 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0);
   print_newline();
-<<<<<<< HEAD
   print_int (tailcall16_value_closures 1000000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0);
   print_newline();
   print_int (muttailcall8 1000000 0 0 0 0 0 0 0); print_newline();
   print_int (muttailcall16 1000000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0);
   print_newline();
   print_int (muttailcall32 1000000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-||||||| 24dbb0976a
-  print_int (tailcall16_value_closures 10000000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0);
-=======
-  print_int (tailcall16_value_closures 10000000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0);
-  print_newline();
-  print_int (muttailcall8 10000000 0 0 0 0 0 0 0); print_newline();
-  print_int (muttailcall16 10000000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0);
-  print_newline();
-  print_int (muttailcall32 10000000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
->>>>>>> ocaml/4.14
                                   0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0);
   print_newline()

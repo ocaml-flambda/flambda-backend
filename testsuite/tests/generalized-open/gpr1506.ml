@@ -103,21 +103,9 @@ include struct open struct type t = T end let x = T end
 Line 1, characters 15-41:
 1 | include struct open struct type t = T end let x = T end
                    ^^^^^^^^^^^^^^^^^^^^^^^^^^
-<<<<<<< HEAD
-Error: The type t/330 introduced by this open appears in the signature
-||||||| 24dbb0976a
-Error: The type t/150 introduced by this open appears in the signature
-=======
 Error: The type t/337 introduced by this open appears in the signature
->>>>>>> ocaml/4.14
        Line 1, characters 46-47:
-<<<<<<< HEAD
-         The value x has no valid type if t/330 is hidden
-||||||| 24dbb0976a
-         The value x has no valid type if t/150 is hidden
-=======
          The value x has no valid type if t/337 is hidden
->>>>>>> ocaml/4.14
 |}];;
 
 module A = struct
@@ -135,21 +123,9 @@ Lines 3-6, characters 4-7:
 4 |       type t = T
 5 |       let x = T
 6 |     end
-<<<<<<< HEAD
-Error: The type t/335 introduced by this open appears in the signature
-||||||| 24dbb0976a
-Error: The type t/155 introduced by this open appears in the signature
-=======
 Error: The type t/342 introduced by this open appears in the signature
->>>>>>> ocaml/4.14
        Line 7, characters 8-9:
-<<<<<<< HEAD
-         The value y has no valid type if t/335 is hidden
-||||||| 24dbb0976a
-         The value y has no valid type if t/155 is hidden
-=======
          The value y has no valid type if t/342 is hidden
->>>>>>> ocaml/4.14
 |}];;
 
 module A = struct
@@ -166,21 +142,9 @@ Lines 3-5, characters 4-7:
 3 | ....open struct
 4 |       type t = T
 5 |     end
-<<<<<<< HEAD
-Error: The type t/340 introduced by this open appears in the signature
-||||||| 24dbb0976a
-Error: The type t/160 introduced by this open appears in the signature
-=======
 Error: The type t/347 introduced by this open appears in the signature
->>>>>>> ocaml/4.14
        Line 6, characters 8-9:
-<<<<<<< HEAD
-         The value y has no valid type if t/340 is hidden
-||||||| 24dbb0976a
-         The value y has no valid type if t/160 is hidden
-=======
          The value y has no valid type if t/347 is hidden
->>>>>>> ocaml/4.14
 |}]
 
 (* It was decided to not allow this anymore. *)

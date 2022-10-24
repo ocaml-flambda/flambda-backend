@@ -29,20 +29,9 @@ let[@inline never] dead_alloc a =
   ignore (Sys.opaque_identity (a, a));
   let mw3 = Gc.minor_words () in
   Printf.printf "dead: %.0f\n" ((mw3 -. mw2) -. (mw2 -. mw1))
-<<<<<<< HEAD
-  
-
-let () =
-  float_unboxing 50. (fun _ -> ());
-  lifetimes ();
-  dead_alloc 10
-          
-||||||| 24dbb0976a
-=======
 
 
 let () =
   float_unboxing 50. (fun _ -> ());
   lifetimes ();
   dead_alloc 10
->>>>>>> ocaml/4.14
