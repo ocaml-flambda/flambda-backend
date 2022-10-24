@@ -33,13 +33,17 @@ let to_apply_cont t =
   | Let _ | Let_cont _ | Apply _ | Switch _ | Invalid _ -> None
 
 let can_be_removed_as_invalid t are_rebuilding =
-  if ART.do_not_rebuild_terms are_rebuilding
-  then false
-  else
-    match Expr.descr t with
-    | Invalid _ ->
-      if Flambda_features.Debug.keep_invalid_handlers () then false else true
-    | Let _ | Let_cont _ | Apply _ | Apply_cont _ | Switch _ -> false
+  match Expr.descr t with
+  | Invalid invalid ->
+    if Flambda_features.Debug.keep_invalid_handlers ()
+    then false
+    else if ART.do_not_rebuild_terms are_rebuilding
+    then
+      match[@ocaml.warning "-4"] invalid with
+      | Code_not_rebuilt -> false
+      | _ -> true
+    else true
+  | Let _ | Let_cont _ | Apply _ | Apply_cont _ | Switch _ -> false
 
 let [@ocamlformat "disable"] print are_rebuilding ppf t =
   if ART.do_not_rebuild_terms are_rebuilding then
