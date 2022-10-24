@@ -298,7 +298,8 @@ let rec expr env res e =
   | Apply e' -> apply_expr env res e'
   | Apply_cont e' -> apply_cont env res e'
   | Switch e' -> switch env res e'
-  | Invalid { message } -> C.invalid res ~message
+  | Invalid invalid ->
+    C.invalid res ~message:(Flambda.Invalid.to_string invalid)
 
 and let_expr0 env res let_expr (bound_pattern : Bound_pattern.t)
     ~num_normal_occurrences_of_bound_vars ~body =
