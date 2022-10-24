@@ -514,6 +514,7 @@ module BR = Branch_relaxation.Make (struct
       | 16 | 24 | 32 -> 1
       | _ -> 1 + num_instructions_for_intconst (Nativeint.of_int num_bytes)
       end
+    | Lop (Icsel _) -> 4
     | Lop (Ibeginregion | Iendregion) ->
        Misc.fatal_error "Local allocations not supported on this architecture"
     | Lop (Iintop (Icomp _)) -> 2
@@ -972,6 +973,33 @@ let emit_instr i =
     | Lop (Iname_for_debugger _) -> ()
     | Lop (Iprobe _ | Iprobe_is_enabled _) ->
         fatal_error ("Probes not supported.")
+    | Lop (Icsel tst) ->
+        begin match tst with
+        | Itruetest ->
+          `	cmp	{emit_reg i.arg.(0)}, #0\n`;
+            `	csel	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, ne\n`
+        | Ifalsetest ->
+          `	cmp	{emit_reg i.arg.(0)}, #0\n`;
+            `	csel	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, eq\n`
+        | Iinttest cmp ->
+            let comp = name_for_comparison cmp in
+            `	cmp	{emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;
+            `	csel	{emit_reg i.res.(0)}, {emit_reg i.arg.(2)}, {emit_reg i.arg.(3)}, {emit_string comp}\n`
+        | Iinttest_imm(cmp, n) ->
+            let comp = name_for_comparison cmp in
+            emit_cmpimm i.arg.(0) n;
+            `	csel	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, {emit_string comp}\n`
+        | Ifloattest cmp ->
+            let comp = name_for_float_comparison cmp in
+            `	fcmp	{emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;
+            `	csel	{emit_reg i.res.(0)}, {emit_reg i.arg.(2)}, {emit_reg i.arg.(3)}, {emit_string comp}\n`
+        | Ioddtest ->
+          `	tst	{emit_reg i.arg.(0)}, #1\n`;
+            `	csel	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, ne\n`
+        | Ieventest ->
+          `	tst	{emit_reg i.arg.(0)}, #1\n`;
+            `	csel	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, eq\n`
+        end
     | Lreloadretaddr ->
         ()
     | Lreturn ->
