@@ -41,9 +41,8 @@ let is_tailcall_attribute =
 let is_property_attribute = function
   | Noalloc -> [ ["noalloc"; "ocaml.noalloc"], true ]
 
-let is_poll_attribute = function
-  | {txt=("poll")} -> true
-  | _ -> false
+let is_poll_attribute =
+  [ ["poll"; "ocaml.poll"], true ]
 
 let find_attribute p attributes =
   let inline_attribute = Builtin_attributes.filter_attributes p attributes in
@@ -250,7 +249,7 @@ let get_check_attribute l =
     [Noalloc]
 
 let get_poll_attribute l =
-  let attr, _ = find_attribute is_poll_attribute l in
+  let attr = find_attribute is_poll_attribute l in
   parse_poll_attribute attr
 
 let check_local_inline loc attr =
@@ -424,40 +423,6 @@ let get_tailcall_attribute e =
         let msg = "Only an optional boolean literal is supported." in
         Location.prerr_warning loc (Warnings.Attribute_payload (txt, msg));
         Default_tailcall
-
-let check_attribute e {Parsetree.attr_name = { txt; loc }; _} =
-  match txt with
-  | "inline" | "ocaml.inline"
-  | "specialise" | "ocaml.specialise" -> begin
-      match e.exp_desc with
-      | Texp_function _ -> ()
-      | _ ->
-          Location.prerr_warning loc
-            (Warnings.Misplaced_attribute txt)
-    end
-  | "poll" | "ocaml.poll"
-  | "inlined" | "ocaml.inlined"
-  | "specialised" | "ocaml.specialised"
-  | "tailcall" | "ocaml.tailcall" ->
-      (* Removed by the Texp_apply cases *)
-      Location.prerr_warning loc
-        (Warnings.Misplaced_attribute txt)
-  | _ -> ()
-
-let check_attribute_on_module e {Parsetree.attr_name = { txt; loc }; _} =
-  match txt with
-  | "inline" | "ocaml.inline" ->  begin
-      match e.mod_desc with
-      | Tmod_functor _ -> ()
-      | _ ->
-          Location.prerr_warning loc
-            (Warnings.Misplaced_attribute txt)
-    end
-  | "inlined" | "ocaml.inlined" ->
-      (* Removed by the Texp_apply cases *)
-      Location.prerr_warning loc
-        (Warnings.Misplaced_attribute txt)
-  | _ -> ()
 
 let add_function_attributes lam loc attr =
   let lam =
