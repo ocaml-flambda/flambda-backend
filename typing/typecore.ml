@@ -235,8 +235,8 @@ let apply_position env (expected_mode : expected_mode) sexp : apply_position =
     Builtin_attributes.tailcall sexp.pexp_attributes,
     expected_mode.position
   with
-  | Ok None, Nontail -> Default
-  | Ok (None | Some `Tail), Tail -> Tail
+  | Ok (None | Some `Tail_if_possible), Nontail -> Default
+  | Ok (None | Some `Tail | Some `Tail_if_possible), Tail -> Tail
   | Ok (Some `Nontail), _ -> Nontail
   | Ok (Some `Tail), Nontail -> fail `Not_a_tailcall
   | Error `Conflict, _ -> fail `Conflict

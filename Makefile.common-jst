@@ -241,6 +241,11 @@ runtest-upstream: _install
 	mkdir _runtest/tools
 	ln -s ../_install/bin/ocamlmklib.byte _runtest/tools/ocamlmklib
 	ln -s ../_install/bin/ocamlobjinfo.byte _runtest/tools/ocamlobjinfo
+        # ocamldoc
+	rm _runtest/ocamldoc
+	mkdir _runtest/ocamldoc
+	ln -s ../../_install/bin/ocamldoc.byte _runtest/ocamldoc/ocamldoc
+	cp $(main_build)/$(ocamldir)/ocamldoc/.odoc_lib.objs/byte/*.cm* _runtest/ocamldoc
 	# ocamltest itself
 	mkdir _runtest/ocamltest
 	cp $(main_build)/$(ocamldir)/ocamltest/ocamltest.byte _runtest/ocamltest/ocamltest
@@ -277,4 +282,4 @@ runtest-upstream: _install
 # This target is like a polling version of upstream "make ocamlopt"
 .PHONY: hacking
 hacking: _build/_bootinstall
-	$(dune) build $(ws_boot) -w boot_ocamlopt.exe
+	$(dune) build $(ws_boot) -w $(boot_ocamlopt)
