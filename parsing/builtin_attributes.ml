@@ -79,6 +79,7 @@ let builtin_attrs =
   ; "include_functor"; "ocaml.include_functor"; "extension.include_functor"
   ; "noalloc"; "ocaml.noalloc"
   ; "untagged"; "ocaml.untagged"
+  ; "poll"; "ocaml.poll"
   ]
 
 let builtin_attrs =
