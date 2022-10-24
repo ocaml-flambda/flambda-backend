@@ -315,6 +315,7 @@ let dump_op ppf = function
   | Mulf -> Format.fprintf ppf "mulf"
   | Divf -> Format.fprintf ppf "divf"
   | Compf _ -> Format.fprintf ppf "compf"
+  | Csel _ -> Format.fprintf ppf "csel"
   | Floatofint -> Format.fprintf ppf "floattoint"
   | Intoffloat -> Format.fprintf ppf "intoffloat"
   | Valueofint -> Format.fprintf ppf "valueofint"
@@ -506,6 +507,7 @@ let is_pure_operation : operation -> bool = function
   | Mulf -> true
   | Divf -> true
   | Compf _ -> true
+  | Csel _ -> true
   | Floatofint -> true
   | Intoffloat -> true
   (* Conservative to ensure valueofint/intofvalue are not eliminated before

@@ -325,7 +325,7 @@ end = struct
     | Iintop
         ( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
         | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _ | Icomp _ )
-    | Iname_for_debugger _ ->
+    | Icsel _ | Iname_for_debugger _ ->
       assert (Mach.operation_is_pure op)
     | Istackoffset _ | Iprobe_is_enabled _ | Iopaque | Ibeginregion | Iendregion
       ->

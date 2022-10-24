@@ -73,6 +73,7 @@ type operation =
   | Iintop_imm of integer_operation * int
   | Icompf of float_comparison
   | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Icsel of test
   | Ifloatofint | Iintoffloat
   | Ivalueofint | Iintofvalue
   | Iopaque
