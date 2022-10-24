@@ -4262,8 +4262,8 @@ and type_expect_
       let ty = cty.ctyp_type in
       end_def ();
       generalize_structure ty;
-      let arg = type_argument env expected_mode sarg ty (instance ty) in
       let ty' = instance ty in
+      let arg = type_argument env expected_mode sarg ty (instance ty) in
       rue {
         exp_desc = arg.exp_desc;
         exp_loc = arg.exp_loc;
