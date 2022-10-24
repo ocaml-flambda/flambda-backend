@@ -92,9 +92,9 @@ COMPILERLIBS_SOURCES=\
   parsing/docstrings.ml \
   parsing/syntaxerr.ml \
   parsing/ast_helper.ml \
+  parsing/builtin_attributes.ml \
   parsing/ast_mapper.ml \
   parsing/attr_helper.ml \
-  parsing/builtin_attributes.ml \
   typing/path.ml \
   typing/primitive.ml \
   typing/type_immediacy.ml \

@@ -1,0 +1,30 @@
+= Hacking on ocaml-jst
+
+ocaml-jst has a dune-based build system which is different from
+upstream OCaml. To get started, you'll need a working install of OCaml
+4.12 and dune, e.g. via OPAM:
+
+    $ opam switch create 4.12.0
+    $ eval $(opam env)
+    $ opam install dune
+
+You should also install merlin:
+
+    $ opam install merlin
+
+and follow its instructions for how to set up your editor.
+
+Once you have OCaml and dune, you can build and test ocaml-jst with:
+
+    $ ./configure --prefix=/where/to/install
+    $ make -f Makefile.jst runtest-upstream
+
+Other useful Makefile targets are:
+
+    $ make -f Makefile.jst compiler
+
+to build without running the testsuite, or:
+
+    $ make -f Makefile.jst hacking
+
+to start a continuously polling build of the compiler.

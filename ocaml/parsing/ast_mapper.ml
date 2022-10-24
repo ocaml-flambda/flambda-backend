@@ -755,7 +755,7 @@ let extension_of_error {kind; main; sub} =
         List.map (fun msg -> Str.extension (extension_of_sub msg)) sub)
 
 let attribute_of_warning loc s =
-  Attr.mk
+  Builtin_attributes.mk_internal
     {loc; txt = "ocaml.ppwarning" }
     (PStr ([Str.eval ~loc (Exp.constant (Pconst_string (s, loc, None)))]))
 
