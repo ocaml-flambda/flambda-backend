@@ -6,6 +6,16 @@ open! Cfg_regalloc_utils
 
 let debug = true
 
+let use_stack_operand_if_spilled map regs index =
+  match is_spilled regs.(index) with
+  | false -> ()
+  | true -> use_stack_operand map regs index
+
+let need_rewrite reg =
+  match is_spilled reg with
+  | true -> May_still_have_spilled_registers
+  | false -> All_spilled_registers_rewritten
+
 let may_use_stack_operand_for_second_argument
   : type a . spilled_map -> a Cfg.instruction -> stack_operands_rewrite
   = fun map instr ->
@@ -13,24 +23,16 @@ let may_use_stack_operand_for_second_argument
     check_lengths instr ~of_arg:2 ~of_res:1;
     check_same "res(0)" instr.res.(0) "arg(0)" instr.arg.(0);
   end;
-  begin match is_spilled instr.arg.(1) with
-  | false -> ()
-  | true ->
-    use_stack_operand map instr.arg 1;
-  end;
-  May_still_have_spilled_registers
+  use_stack_operand_if_spilled map instr.arg 1;
+  need_rewrite instr.res.(0)
 
 let may_use_stack_operand_for_only_argument
   : type a . has_result:bool -> spilled_map -> a Cfg.instruction -> stack_operands_rewrite
   = fun ~has_result map instr ->
   if debug then check_lengths instr ~of_arg:1 ~of_res:(if has_result then 1 else 0);
-  begin match is_spilled instr.arg.(0) with
-  | false -> ()
-  | true ->
-    use_stack_operand map instr.arg 0
-  end;
+  use_stack_operand_if_spilled map instr.arg 0;
   if has_result then
-    May_still_have_spilled_registers
+    need_rewrite instr.res.(0)
   else
     All_spilled_registers_rewritten
 
@@ -38,29 +40,30 @@ let may_use_stack_operand_for_only_result
   : type a . spilled_map -> a Cfg.instruction -> stack_operands_rewrite
   = fun map instr ->
   if debug then check_lengths instr ~of_arg:0 ~of_res:1;
-  begin match is_spilled instr.res.(0) with
-  | false ->
-    All_spilled_registers_rewritten
-  | true ->
-    use_stack_operand map instr.res 0;
-    All_spilled_registers_rewritten
-  end
+  use_stack_operand_if_spilled map instr.res 0;
+  All_spilled_registers_rewritten
 
-let may_use_stack_operand_for_result
-  : type a . num_args:int -> spilled_map -> a Cfg.instruction -> stack_operands_rewrite
-  = fun ~num_args map instr ->
+let may_use_stack_operand_for_result_one_arg
+  : type a . spilled_map -> a Cfg.instruction -> stack_operands_rewrite
+  = fun map instr ->
   if debug then begin
-    check_lengths instr ~of_arg:num_args ~of_res:1;
+    check_lengths instr ~of_arg:1 ~of_res:1;
   end;
-  begin match is_spilled instr.res.(0) with
-  | false -> ()
-  | true ->
-    if Reg.same instr.arg.(0) instr.res.(0) then begin
-      use_stack_operand map instr.arg 0;
-    end;
-    use_stack_operand map instr.res 0;
+  (* CR gyorsh: this condition is stronger than the one we had before,
+     but I think it always holds in the current version. *)
+  check_same "res(0)" instr.res.(0) "arg(0)" instr.arg.(0);
+  use_stack_operand_if_spilled map instr.res 0;
+  All_spilled_registers_rewritten
+
+let may_use_stack_operand_for_result_two_args
+  : type a . spilled_map -> a Cfg.instruction -> stack_operands_rewrite
+  = fun map instr ->
+  if debug then begin
+    check_lengths instr ~of_arg:1 ~of_res:1;
   end;
-  May_still_have_spilled_registers
+  check_same "res(0)" instr.res.(0) "arg(0)" instr.arg.(0);
+  use_stack_operand_if_spilled map instr.res 0;
+  need_rewrite instr.res.(0);
 
 type result =
   | No_result
@@ -180,10 +183,9 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   | Op (Intop_imm (Iadd, _)) when (Reg.same_loc instr.arg.(0) instr.res.(0)) ->
     May_still_have_spilled_registers
   | Op (Intop(Ilsl | Ilsr | Iasr)) ->
-    may_use_stack_operand_for_result map instr ~num_args:2
+    may_use_stack_operand_for_result_two_args map instr
   | Op(Intop_imm((Iadd | Isub | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr), _)) ->
-    may_use_stack_operand_for_result map instr ~num_args:1
-  | Op (Csel _) (* CR gyorsh: optimize *)
+    may_use_stack_operand_for_result_one_arg map instr
   | Op (Specific (Ilfence | Isfence | Imfence))
   | Op (Intop(Imulh _ | Imul | Idiv | Imod))
   | Op (Intop_imm ((Imulh _ | Imul | Idiv | Imod), _))
