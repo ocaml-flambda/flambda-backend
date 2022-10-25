@@ -15,6 +15,7 @@ jobs:
             ocamlparam: ''
             check_arch: true
             use_runtime: d
+            ocamlrunparam: "v=0,V=1"
 
           - name: closure_cfg_local
             config: --enable-middle-end=closure --enable-stack-allocation
@@ -41,6 +42,7 @@ jobs:
             os: ubuntu-latest
             ocamlparam: ''
             use_runtime: d
+            ocamlrunparam: "v=0,V=1"
 
           - name: flambda2_frame_pointers
             config: --enable-middle-end=flambda2 --enable-frame-pointers
@@ -149,6 +151,7 @@ jobs:
         if [ $build_upstream = true ]; then make -j$J build_and_test_upstream; else make $target; fi
       env:
         BUILD_OCAMLPARAM: ${{ matrix.ocamlparam }}
+        OCAMLRUNPARAM: ${{ matrix.ocamlrunparam }}
         USE_RUNTIME: ${{ matrix.use_runtime }}
 
     - name: Check other architectures
