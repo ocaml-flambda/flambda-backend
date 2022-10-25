@@ -173,6 +173,7 @@ AC_SUBST([naked_pointers])
 AC_SUBST([naked_pointers_checker])
 AC_SUBST([intel_jcc_bug_cflags])
 AC_SUBST([stack_allocation])
+AC_SUBST([dune])
 
 ## Generated files
 
@@ -213,6 +214,12 @@ AC_ARG_VAR([ASPP], [which assembler (with preprocessor) to use])
 AC_ARG_VAR([PARTIALLD], [how to build partial (relocatable) object files])
 
 # Command-line arguments to configure
+
+AC_PATH_PROG([dune], [dune], [])
+AC_ARG_WITH([dune],
+  [AS_HELP_STRING([--with-dune],
+    [Path to dune executable (otherwise PATH is searched)])],
+  [dune=$with_dune])
 
 AC_ARG_ENABLE([debug-runtime],
   [AS_HELP_STRING([--disable-debug-runtime],

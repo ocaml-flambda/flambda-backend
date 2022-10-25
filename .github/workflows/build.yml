@@ -1,0 +1,110 @@
+name: build
+on: [push, pull_request]
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: closure-nnp-local
+            config: --enable-stack-allocation
+            os: ubuntu-latest
+            ocamlparam: ''
+            check_arch: true
+
+          - name: flambda-local
+            config: --enable-flambda --enable-stack-allocation
+            os: ubuntu-latest
+
+          - name: i386
+            config: CC='cc32' AS='as --32' ASPP='gcc -m32 -c' -host i386-linux PARTIALLD='ld -r -melf_i386'
+            os: ubuntu-latest
+            ocamlparam: ''
+            boot_config: CC='cc32' AS='as --32' ASPP='gcc -m32 -c' -host i386-linux PARTIALLD='ld -r -melf_i386'
+            boot_cachekey: 32bit
+
+    env:
+      J: "3"
+
+    steps:
+    - name: Install GNU parallel
+      if: matrix.os == 'macos-latest'
+      run: HOMEBREW_NO_INSTALL_CLEANUP=TRUE brew install parallel
+
+    - name: Install GCC 32-bit libraries
+      if: matrix.name == 'i386'
+      run: |
+        sudo apt-get install gcc-multilib gfortran-multilib
+
+    - name: Checkout the ocaml-jst repo
+      uses: actions/checkout@master
+      with:
+        path: 'ocaml-jst'
+
+    - name: Cache OCaml 4.12 and dune
+      uses: actions/cache@v1
+      id: cache
+      with:
+        path: ${{ github.workspace }}/ocaml-412/_install
+        key: ${{ matrix.os }}-cache-ocaml-412-dune-341-bits-${{ matrix.boot_cachekey }}
+
+    - name: Checkout OCaml 4.12
+      uses: actions/checkout@master
+      if: steps.cache.outputs.cache-hit != 'true'
+      with:
+        repository: 'ocaml/ocaml'
+        path: 'ocaml-412'
+        ref: '4.12'
+
+    - name: Setup 32-bit C compiler
+      if: matrix.name == 'i386' && steps.cache.outputs.cache-hit != 'true'
+      run: |
+        mkdir -p ocaml-412/_install/bin
+        { echo '#!/bin/sh'; echo 'exec gcc -m32 "$@"'; } > ocaml-412/_install/bin/cc32
+        chmod +x ocaml-412/_install/bin/cc32
+
+    - name: Build OCaml 4.12
+      if: steps.cache.outputs.cache-hit != 'true'
+      working-directory: ocaml-412
+      run: |
+        export PATH=$GITHUB_WORKSPACE/ocaml-412/_install/bin:$PATH
+        ./configure --prefix=$GITHUB_WORKSPACE/ocaml-412/_install ${{ matrix.boot_config }}
+        make -j $J world.opt
+        make install
+        # Remove unneeded parts to shrink cache file
+        rm -rf $GITHUB_WORKSPACE/ocaml-412/_install/{lib/ocaml/compiler-libs,lib/ocaml/expunge,bin/*.byte}
+
+    - name: Checkout dune github repo
+      uses: actions/checkout@master
+      if: steps.cache.outputs.cache-hit != 'true'
+      with:
+        repository: 'ocaml/dune'
+        ref: '3.4.1'
+        path: 'dune'
+
+    - name: Build dune
+      working-directory: dune
+      if: steps.cache.outputs.cache-hit != 'true'
+      run: |
+        PATH=$GITHUB_WORKSPACE/ocaml-412/_install/bin:$PATH make release
+        cp dune.exe $GITHUB_WORKSPACE/ocaml-412/_install/bin/dune
+
+    - name: Configure OCaml
+      working-directory: ocaml-jst
+      run: |
+        export PATH=$GITHUB_WORKSPACE/ocaml-412/_install/bin:$PATH
+        autoconf
+        ./configure \
+          --prefix=$GITHUB_WORKSPACE/_install \
+          ${{ matrix.config }}
+
+    - name: Build, install and test ocaml-jst
+      working-directory: ocaml-jst
+      run: |
+        export PATH=$GITHUB_WORKSPACE/ocaml-412/_install/bin:$PATH
+        make -f Makefile.jst runtest-upstream
+      env:
+        BUILD_OCAMLPARAM: ${{ matrix.ocamlparam }}

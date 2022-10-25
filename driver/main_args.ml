@@ -554,7 +554,7 @@ let mk_dtimings f =
 ;;
 
 let mk_dtimings_precision f =
-  "-dtimings-precision", Arg.Int f, 
+  "-dtimings-precision", Arg.Int f,
     Printf.sprintf "<n>  Specify precision for timings information (default %d)"
       Clflags.default_timings_precision
 ;;
