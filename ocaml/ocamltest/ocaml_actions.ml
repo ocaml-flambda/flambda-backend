@@ -1126,13 +1126,15 @@ let no_flat_float_array = make
 
 let flambda = Actions.make
   "flambda"
-  (Actions_helpers.pass_or_skip Ocamltest_config.flambda
+  (Actions_helpers.pass_or_skip
+     (Ocamltest_config.flambda || Ocamltest_config.flambda2)
     "support for flambda enabled"
     "support for flambda disabled")
 
 let no_flambda = make
   "no-flambda"
-  (Actions_helpers.pass_or_skip (not Ocamltest_config.flambda)
+  (Actions_helpers.pass_or_skip
+     (not (Ocamltest_config.flambda || Ocamltest_config.flambda2))
     "support for flambda disabled"
     "support for flambda enabled")
 
