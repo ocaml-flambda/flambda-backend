@@ -25,7 +25,54 @@
  **********************************************************************************)
 [@@@ocaml.warning "+a-30-40-41-42"]
 
+let keep_all_details = ref false
+
 module String = Misc.Stdlib.String
+
+module Detail = struct
+  type context =
+    | In_raise
+    | In_catch
+    | Somewhere_else
+
+  type kind =
+    | Caml_alloc
+    | Indirect_call
+    | Indirect_tailcall
+    | Caml_apply
+    | Caml_checkbound
+    | Probe of
+        { name : string;
+          handler_code_sym : string
+        }
+    | Direct_call of string
+    | Direct_tailcall of string
+    | Direct_call_unknown of string
+    | Extcall of string
+    | Arch_specific
+
+  let string_of_kind = function
+    | Caml_alloc -> "allocation"
+    | Indirect_call -> "indirect call"
+    | Indirect_tailcall -> "indirect tailcall"
+    | Caml_apply -> "call to caml_apply"
+    | Caml_checkbound -> "checkbound"
+    | Probe { name; handler_code_sym } ->
+      Printf.sprintf "probe %s handler %s" name handler_code_sym
+    | Direct_call n -> Printf.sprintf "direct call to %s" n
+    | Direct_tailcall n -> Printf.sprintf "direct tailcall to %s" n
+    | Direct_call_unknown _ -> "unknown"
+    | Extcall n -> Printf.sprintf "external call to %s" n
+    | Arch_specific -> "Arch.specific_operation"
+
+  type t =
+    { dbg : Debuginfo.t;
+      kind : kind;
+      context : context
+    }
+end
+
+type details = (string, Detail.t list) Hashtbl.t
 
 type error =
   | Annotation of
@@ -57,16 +104,18 @@ module Func_info = struct
           (** unresolved dependencies. if not empty then value is Unknown. *)
       mutable in_current_unit : bool;
           (** is the function known to be defined in the current unit? *)
-      mutable annotated : bool  (** is the function annotated *)
+      mutable annotated : bool;  (** is the function annotated *)
+      mutable details : Detail.t list
     }
 
-  let create name value =
+  let create name value details =
     { name;
       loc = None;
       value;
       callers = [];
       in_current_unit = false;
-      annotated = false
+      annotated = false;
+      details
     }
 end
 
@@ -100,6 +149,8 @@ module Analysis (S : Spec) : sig
   val reset_unit_info : unit -> unit
 
   val record_unit_info : Format.formatter -> Cmx_format.checks -> unit
+
+  val details : unit -> details
 end = struct
   (** Information about functions that we have seen so far for the current
       compilation unit. *)
@@ -126,6 +177,10 @@ end = struct
     val in_current_unit : t -> string -> Debuginfo.t -> unit
 
     val annotated : t -> string -> unit
+
+    val record_detail : t -> string -> Detail.t -> unit
+
+    val details : t -> details
   end = struct
     (** map function name to the information about it *)
     type t = (string, Func_info.t) Hashtbl.t
@@ -144,7 +199,7 @@ end = struct
       let func_info : Func_info.t =
         match Hashtbl.find_opt t name with
         | None ->
-          let func_info = Func_info.create name Unknown in
+          let func_info = Func_info.create name Unknown [] in
           Hashtbl.replace t name func_info;
           func_info
         | Some func_info -> func_info
@@ -157,7 +212,7 @@ end = struct
     let record t name value =
       match Hashtbl.find_opt t name with
       | None ->
-        let func_info = Func_info.create name value in
+        let func_info = Func_info.create name value [] in
         Hashtbl.replace t name func_info
       | Some (old : Func_info.t) ->
         if old.value = value
@@ -169,6 +224,13 @@ end = struct
             "Checkmach %s record: can't set %s to %s, already set to %s" S.name
             name (Value.to_string value)
             (Value.to_string old.value)
+
+    let record_detail t name detail =
+      match Hashtbl.find_opt t name with
+      | None ->
+        let func_info = Func_info.create name Unknown [detail] in
+        Hashtbl.replace t name func_info
+      | Some (old : Func_info.t) -> old.details <- detail :: old.details
 
     (* Resolve everything that depends on [callee]. *)
     let rec resolve ppf t callee (value : Value.t) =
@@ -262,6 +324,13 @@ end = struct
     let annotated t name =
       let func_info : Func_info.t = Hashtbl.find t name in
       func_info.annotated <- true
+
+    let details t =
+      let out = Hashtbl.create 17 in
+      Hashtbl.iter
+        (fun key (value : Func_info.t) -> Hashtbl.replace out key value.details)
+        t;
+      out
   end
 
   let unit_info = Unit_info.create ()
@@ -283,33 +352,40 @@ end = struct
       Format.fprintf t.ppf "*** check %s %s in %s: %s %a\n" S.name msg
         t.fun_name desc Debuginfo.print_compact dbg
 
+  let report_might_keep_details t ~msg ~kind ~context dbg =
+    if !keep_all_details
+    then Unit_info.record_detail unit_info t.fun_name { kind; context; dbg };
+    report t ~msg ~desc:(Detail.string_of_kind kind) dbg
+
   exception Bail
 
-  let report_fail t desc dbg =
-    report t ~msg:"failed" ~desc dbg;
+  let report_fail ~context ~kind t dbg =
+    report_might_keep_details t ~msg:"failed" ~context ~kind dbg;
     Unit_info.add_value t.ppf unit_info t.fun_name Fail;
-    if not !Flambda_backend_flags.dump_checkmach then raise_notrace Bail
+    if not (!Flambda_backend_flags.dump_checkmach || !keep_all_details)
+    then raise_notrace Bail
 
-  let check_call t callee ~desc dbg =
+  let check_call t callee ~kind ~context dbg =
     if String.begins_with ~prefix:"caml_apply" callee
        (* This check is only an optimization, to keep dependencies small. *)
        (* The prefix check is conservative (not everything that begins with
           caml_apply is a compiler-generated symbol). *)
        (* CR-someday gyorsh: propagate information about caml_apply from cmm to
           mach instead of reverse-engineering it from the symbol name. *)
-    then report_fail t desc dbg
+    then report_fail t ~kind:Caml_apply ~context dbg
     else if not (S.check_callee callee Compilenv.cached_checks)
     then
       match Unit_info.get_value unit_info callee with
       | Some Pass -> ()
       | None | Some Unknown ->
         if Unit_info.is_fail unit_info t.fun_name
-        then report t ~msg:"verbose" ~desc dbg
+        then report_might_keep_details t ~msg:"verbose" ~kind ~context dbg
         else (
           Unit_info.add_dep unit_info ~callee ~caller:t.fun_name;
           t.unresolved_dependencies <- true;
-          report t ~msg:"unknown" ~desc dbg)
-      | Some Fail -> report_fail t desc dbg
+          report_might_keep_details t ~msg:"unknown"
+            ~kind:(Direct_call_unknown t.fun_name) ~context dbg)
+      | Some Fail -> report_fail t ~kind ~context dbg
 
   (** Returns [false] when the check fails (e.g., allocation or indirect call
       found). *)
@@ -332,29 +408,32 @@ end = struct
       ()
     | Istore _ -> ()
     | Iintop Icheckbound | Iintop_imm (Icheckbound, _) ->
-      report_fail t "checkbound" dbg
+      report_fail t ~kind:Caml_checkbound ~context:Somewhere_else dbg
     | Ialloc { mode = Alloc_local; _ } -> ()
-    | Ialloc { mode = Alloc_heap; _ } -> report_fail t "allocation" dbg
+    | Ialloc { mode = Alloc_heap; _ } ->
+      report_fail t ~kind:Caml_alloc ~context:Somewhere_else dbg
     | Ipoll _ ->
       (* Polling points may trigger finalisers, signal handlers or memprof
          callbacks, but any allocations done therein don't count towards the
          calling function being "allocating". *)
       ()
     | Iprobe { name; handler_code_sym } ->
-      let desc = Printf.sprintf "probe %s handler %s" name handler_code_sym in
-      check_call t handler_code_sym ~desc dbg
-    | Icall_ind -> report_fail t "indirect call" dbg
-    | Itailcall_ind -> report_fail t "indirect tailcall" dbg
+      check_call t handler_code_sym
+        ~kind:(Probe { name; handler_code_sym })
+        ~context:Somewhere_else dbg
+    | Icall_ind -> report_fail t ~kind:Indirect_call ~context:Somewhere_else dbg
+    | Itailcall_ind ->
+      report_fail t ~kind:Indirect_tailcall ~context:Somewhere_else dbg
     | Icall_imm { func } ->
-      check_call t func ~desc:("direct call to " ^ func) dbg
+      check_call t func ~kind:(Direct_call func) ~context:Somewhere_else dbg
     | Itailcall_imm { func } ->
-      check_call t func ~desc:("direct tailcall to " ^ func) dbg
+      check_call t func ~kind:(Direct_tailcall func) ~context:Somewhere_else dbg
     | Iextcall { alloc = false; _ } -> ()
     | Iextcall { func; alloc = true; _ } ->
-      report_fail t ("external call to " ^ func) dbg
+      report_fail t ~kind:(Extcall func) ~context:Somewhere_else dbg
     | Ispecific s ->
       if not (S.check_specific s)
-      then report_fail t "Arch.specific_operation" dbg
+      then report_fail t ~kind:Arch_specific ~context:Somewhere_else dbg
 
   (** Returns [true] when [i] is post-dominated by a raise. If [i] is not, then
       checks [i] for the property in [S]. *)
@@ -424,6 +503,8 @@ end = struct
              with Bail -> debug t Fail);
             if List.mem (Cmm.Assert S.annotation) f.fun_codegen_options
             then Unit_info.annotated unit_info fun_name))
+
+  let details () = Unit_info.details unit_info
 end
 
 module Spec_alloc : Spec = struct
@@ -466,6 +547,10 @@ let record_unit_info ppf_dump =
   let checks = (Compilenv.current_unit_infos ()).ui_checks in
   Check_alloc.record_unit_info ppf_dump checks;
   Compilenv.cache_checks checks
+
+let details () =
+  assert !keep_all_details;
+  Check_alloc.details ()
 
 (* Error report *)
 

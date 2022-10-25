@@ -46,3 +46,48 @@ type error =
 exception Error of Location.t * error
 
 val report_error : Format.formatter -> error -> unit
+
+module Value : sig
+  type t =
+    | Pass
+    | Fail
+    | Unknown
+end
+
+module Detail : sig
+  type context =
+    | In_raise (* The current allocation occured in a raise*)
+    | In_catch (* The current allocation occured in a catch block *)
+    | Somewhere_else
+  (* The current allocation occured somewhere else in the code *)
+
+  type kind =
+    | Caml_alloc
+    | Indirect_call
+    | Indirect_tailcall
+    | Caml_apply
+    | Caml_checkbound
+    | Probe of
+        { name : string;
+          handler_code_sym : string
+        }
+    | Direct_call of string
+    | Direct_tailcall of string
+    | Direct_call_unknown of string
+    | Extcall of string
+    | Arch_specific
+
+  type t =
+    { dbg : Debuginfo.t;
+      kind : kind;
+      context : context
+    }
+end
+
+val keep_all_details : bool ref
+
+type details = (string, Detail.t list) Hashtbl.t
+
+(* Assert that [keep_all_details] has been set to true and returns details about
+   all allocations in this compilation unit. *)
+val details : unit -> details
