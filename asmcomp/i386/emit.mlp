@@ -228,48 +228,12 @@ let emit_call_gc gc =
   def_label gc.gc_frame_lbl;
   I.jmp (label gc.gc_return_lbl)
 
-<<<<<<< HEAD
-(* Record calls to local stack reallocation *)
-
-type local_realloc_call =
-  { lr_lbl: label;
-    lr_return_lbl: label; }
-
-let local_realloc_sites = ref ([] : local_realloc_call list)
-
 let emit_local_realloc lr =
   def_label lr.lr_lbl;
   emit_call "caml_call_local_realloc";
   I.jmp (label lr.lr_return_lbl)
 
-(* Record calls to caml_ml_array_bound_error.
-   In -g mode, we maintain one call to caml_ml_array_bound_error
-   per bound check site.  Without -g, we can share a single call. *)
-
-type bound_error_call =
-  { bd_lbl: label;                      (* Entry label *)
-    bd_frame: label }                   (* Label of frame descriptor *)
-
-let bound_error_sites = ref ([] : bound_error_call list)
-let bound_error_call = ref 0
-
-let bound_error_label dbg =
-||||||| 24dbb0976a
-(* Record calls to caml_ml_array_bound_error.
-   In -g mode, we maintain one call to caml_ml_array_bound_error
-   per bound check site.  Without -g, we can share a single call. *)
-
-type bound_error_call =
-  { bd_lbl: label;                      (* Entry label *)
-    bd_frame: label }                   (* Label of frame descriptor *)
-
-let bound_error_sites = ref ([] : bound_error_call list)
-let bound_error_call = ref 0
-
-let bound_error_label dbg =
-=======
 let bound_error_label env dbg =
->>>>>>> ocaml/4.14
   if !Clflags.debug then begin
     let lbl_bound_error = new_label() in
     let lbl_frame = record_frame_label env Reg.Set.empty (Dbg_other dbg) in
@@ -589,14 +553,7 @@ let emit_instr env fallthrough i =
       then I.add (int (-n)) esp
       else I.sub (int n) esp;
       cfi_adjust_cfa_offset n;
-<<<<<<< HEAD
-      stack_offset := !stack_offset + n
-||||||| 24dbb0976a
-      stack_offset := !stack_offset + n
-  | Lop(Iload(chunk, addr)) ->
-=======
       env.stack_offset <- env.stack_offset + n
->>>>>>> ocaml/4.14
   | Lop(Iload(chunk, addr, _mut)) ->
       let dest = i.res.(0) in
       begin match chunk with
@@ -638,21 +595,13 @@ let emit_instr env fallthrough i =
             I.fstp (addressing addr REAL8 i 1)
           end
       end
-<<<<<<< HEAD
-  | Lop(Ialloc { bytes = n; dbginfo; mode = Alloc_heap }) ->
-      if !fastcode_flag then begin
-||||||| 24dbb0976a
-  | Lop(Ialloc { bytes = n; dbginfo }) ->
-      if !fastcode_flag then begin
-=======
   | Lop(Ipoll { return_label }) ->
     begin match return_label with
       None -> ()
     | Some lbl -> I.jmp (label lbl)
     end
-  | Lop(Ialloc { bytes = n; dbginfo }) ->
+  | Lop(Ialloc { bytes = n; dbginfo; mode = Alloc_heap }) ->
       if env.f.fun_fast then begin
->>>>>>> ocaml/4.14
         load_domain_state ebx;
         I.mov (domain_field Domain_young_ptr RBX) eax;
         I.sub (int n) eax;
@@ -694,9 +643,9 @@ let emit_instr env fallthrough i =
       def_label lbl_after_alloc;
       I.add (domain_field Domainstate.Domain_local_top RBX) eax;
       I.lea (mem32 NONE 4 RAX) (reg i.res.(0));
-      local_realloc_sites :=
+      env.local_realloc_sites <-
         { lr_lbl = lbl_call;
-          lr_return_lbl = lbl_after_alloc } :: !local_realloc_sites
+          lr_return_lbl = lbl_after_alloc } :: env.local_realloc_sites
   | Lop(Iintop(Icomp cmp)) ->
       I.cmp (reg i.arg.(1)) (reg i.arg.(0));
       I.set (cond cmp) al;
@@ -784,13 +733,7 @@ let emit_instr env fallthrough i =
       I.fldcw (mem32 NONE 4 RSP);
       I.add (int 8) esp;
       cfi_adjust_cfa_offset (-8);
-<<<<<<< HEAD
-      stack_offset := !stack_offset + 8
-||||||| 24dbb0976a
-      stack_offset := !stack_offset + 8
-=======
       env.stack_offset <- env.stack_offset + 8
->>>>>>> ocaml/4.14
   | Lop(Iopaque) ->
       assert (i.arg.(0).loc = i.res.(0).loc)
   | Lop(Ispecific(Ilea addr)) ->
@@ -861,7 +804,6 @@ let emit_instr env fallthrough i =
       if Array.length i.arg = 2 && is_tos i.arg.(1) then
         I.fxch st1;
       emit_floatspecial s
-<<<<<<< HEAD
   | Lop (Ibeginregion) ->
      load_domain_state ebx;
      I.mov (domain_field Domainstate.Domain_local_sp RBX) (reg i.res.(0))
@@ -869,12 +811,7 @@ let emit_instr env fallthrough i =
      I.mov (reg i.arg.(0)) eax;
      load_domain_state ebx;
      I.mov eax (domain_field Domainstate.Domain_local_sp RBX)
-  | Lop (Iname_for_debugger _) -> ()
   | Lop (Iprobe _ |Iprobe_is_enabled _) -> assert false
-||||||| 24dbb0976a
-  | Lop (Iname_for_debugger _) -> ()
-=======
->>>>>>> ocaml/4.14
   | Lreloadretaddr ->
       ()
   | Lreturn ->
@@ -992,57 +929,18 @@ let rec emit_all env fallthrough i =
 (* Emission of a function declaration *)
 
 let fundecl fundecl =
-<<<<<<< HEAD
-  function_name := fundecl.fun_name;
-  fastcode_flag := fundecl.fun_fast;
-  tailrec_entry_point := fundecl.fun_tailrec_entry_point_label;
-  stack_offset := 0;
-  call_gc_sites := [];
-  local_realloc_sites := [];
-  bound_error_sites := [];
-  bound_error_call := 0;
-  for i = 0 to Proc.num_register_classes - 1 do
-    num_stack_slots.(i) <- fundecl.fun_num_stack_slots.(i);
-  done;
-  prologue_required := fundecl.fun_prologue_required;
-  emit_named_text_section !function_name;
-||||||| 24dbb0976a
-  function_name := fundecl.fun_name;
-  fastcode_flag := fundecl.fun_fast;
-  tailrec_entry_point := fundecl.fun_tailrec_entry_point_label;
-  stack_offset := 0;
-  call_gc_sites := [];
-  bound_error_sites := [];
-  bound_error_call := 0;
-  for i = 0 to Proc.num_register_classes - 1 do
-    num_stack_slots.(i) <- fundecl.fun_num_stack_slots.(i);
-  done;
-  prologue_required := fundecl.fun_prologue_required;
-  emit_named_text_section !function_name;
-=======
   let env = mk_env fundecl in
   emit_named_text_section fundecl.fun_name;
->>>>>>> ocaml/4.14
   add_def_symbol fundecl.fun_name;
   D.align (if system = S_win32 then 4 else 16);
   D.global (emit_symbol fundecl.fun_name);
   D.label (emit_symbol fundecl.fun_name);
   emit_debug_info fundecl.fun_dbg;
   cfi_startproc ();
-<<<<<<< HEAD
-  emit_all true fundecl.fun_body;
-  List.iter emit_call_gc !call_gc_sites;
-  List.iter emit_local_realloc !local_realloc_sites;
-  emit_call_bound_errors ();
-||||||| 24dbb0976a
-  emit_all true fundecl.fun_body;
-  List.iter emit_call_gc !call_gc_sites;
-  emit_call_bound_errors ();
-=======
   emit_all env true fundecl.fun_body;
   List.iter emit_call_gc env.call_gc_sites;
+  List.iter emit_local_realloc env.local_realloc_sites;
   emit_call_bound_errors env;
->>>>>>> ocaml/4.14
   cfi_endproc ();
   begin match system with
   | S_linux_elf | S_bsd_elf | S_gnu ->
