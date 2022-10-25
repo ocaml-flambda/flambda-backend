@@ -110,22 +110,33 @@ static frame_descr * next_frame_descr(frame_descr * d) {
   unsigned char num_allocs = 0, *p;
   uint32_t frame_size;
   CAMLassert(d->retaddr >= 4096);
-  frame_size = get_frame_size(d);
-  p = get_end_of_live_ofs(d);
-  /* Skip alloc_lengths if present */
-  if (frame_size & 2) {
-    num_allocs = *p;
-    p += num_allocs + 1;
+  if (d->frame_size != 0xFFFF) {
+    frame_size = get_frame_size(d);
+    p = get_end_of_live_ofs(d);
+    /* Skip alloc_lengths if present */
+    if (frame_size & 2) {
+      num_allocs = *p;
+      p += num_allocs + 1;
+    }
+    /* Skip debug info if present */
+    if (frame_size & 1) {
+      /* Align to 32 bits */
+      p = Align_to(p, uint32_t);
+      p += sizeof(uint32_t) * (frame_size & 2 ? num_allocs : 1);
+    }
+    /* Align to word size */
+    p = Align_to(p, void*);
+    return ((frame_descr*) p);
+  } else {
+    /* This marks the top of an ML stack chunk. Skip over empty
+     * frame descriptor */
+    /* Skip to address of zero-sized live_ofs */
+    CAMLassert(d->num_live == 0);
+    p = (unsigned char*)&d->live_ofs[0];
+    /* Align to word size */
+    p = Align_to(p, void*);
+    return ((frame_descr*) p);
   }
-  /* Skip debug info if present */
-  if (frame_size & 1) {
-    /* Align to 32 bits */
-    p = Align_to(p, uint32_t);
-    p += sizeof(uint32_t) * (frame_size & 2 ? num_allocs : 1);
-  }
-  /* Align to word size */
-  p = Align_to(p, void*);
-  return ((frame_descr*) p);
 }
 
 static void fill_hashtable(link *frametables) {
