@@ -38,10 +38,34 @@
 
 *)
 
+
+(** Used by the compiler for attributes that may be compiler built-ins.  These
+    are tracked for misplaced attribute warnings.  This should be used rather
+    than Attr.mk for all built-in attributes. *)
+val mk_internal:
+  ?loc:Location.t -> string Location.loc -> Parsetree.payload ->
+  Parsetree.attribute
+
+(** Marks alert attributes used for the purposes of misplaced attribute
+    warnings.  Call this when moving things with alert attributes into the
+    environment. *)
+val mark_alerts_used : Parsetree.attributes -> unit
+
+(** Marks "warn_on_literal_pattern" attributes used for the purposes of
+    misplaced attribute warnings.  Call this when moving things with alert
+    attributes into the environment. *)
+val mark_warn_on_literal_pattern_used : Parsetree.attributes -> unit
+
+(** Issue misplaced attribute warnings for all attributes created with
+    [mk_internal] but not yet marked used. *)
+val warn_unused : unit -> unit
+
 val check_alerts: Location.t -> Parsetree.attributes -> string -> unit
 val check_alerts_inclusion:
   def:Location.t -> use:Location.t -> Location.t -> Parsetree.attributes ->
   Parsetree.attributes -> string -> unit
+
+(** Find alerts (and mark them used, wrt misplaced attribute warnings) *)
 val alerts_of_attrs: Parsetree.attributes -> Misc.alerts
 val alerts_of_sig: Parsetree.signature -> Misc.alerts
 val alerts_of_str: Parsetree.structure -> Misc.alerts
@@ -52,14 +76,12 @@ val check_deprecated_mutable_inclusion:
   def:Location.t -> use:Location.t -> Location.t -> Parsetree.attributes ->
   Parsetree.attributes -> string -> unit
 
-val check_no_alert: Parsetree.attributes -> unit
-
 val error_of_extension: Parsetree.extension -> Location.error
 
 val warning_attribute: ?ppwarning:bool -> Parsetree.attribute -> unit
   (** Apply warning settings from the specified attribute.
-      "ocaml.warning"/"ocaml.warnerror" (and variants without the prefix)
-      are processed and other attributes are ignored.
+      "ocaml.warning"/"ocaml.warnerror" (and variants without the prefix) are
+      processed and marked used for warning 53.  Other attributes are ignored.
 
       Also implement ocaml.ppwarning (unless ~ppwarning:false is
       passed).
@@ -77,6 +99,25 @@ val warning_scope:
       with [warning_attribute] in the fresh scope before the function
       is executed.
   *)
+
+(** [has_attribute names attrs] is true if an attribute named in [names] is
+    present in [attrs].  It marks that attribute used for the purposes of
+    misplaced attribute warnings. *)
+val has_attribute : string list -> Parsetree.attributes -> bool
+
+(** [filter_attributes nms_and_conds attrs] finds those attrs which
+    appear in one of the sublists of nms_and_conds with cond=true.
+
+    Each element [(nms, conds)] of the [nms_and_conds] list is a list of
+    attribute names along with a boolean indicating whether to include
+    attributes with those names in the output.  The boolean is used to
+    accomodate different compiler configurations (e.g., we may want to check for
+    "unrolled" only in the case where flambda or flambda2 is configured).  We
+    handle this by taking a bool, rather than simply passing fewer nms in those
+    cases, to support misplaced attribute warnings - the attribute should not
+    count as misplaced if the compiler could use it in some configuration. *)
+val filter_attributes :
+  (string list * bool) list -> Parsetree.attributes -> Parsetree.attributes
 
 val warn_on_literal_pattern: Parsetree.attributes -> bool
 val explicit_arity: Parsetree.attributes -> bool
@@ -99,6 +140,7 @@ val has_nonlocal: Parsetree.attributes -> bool
 (* These functions report Error if the builtin extension.* attributes
    are present despite the extension being disabled *)
 val has_local: Parsetree.attributes -> (bool,unit) result
-val tailcall : Parsetree.attributes -> ([`Tail|`Nontail] option, [`Conflict]) result
+val tailcall : Parsetree.attributes ->
+    ([`Tail|`Nontail|`Tail_if_possible] option, [`Conflict]) result
 val has_include_functor : Parsetree.attributes -> (bool,unit) result
 

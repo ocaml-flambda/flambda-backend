@@ -5,3 +5,5 @@ Warning 54 [duplicated-attribute]: the "noalloc" attribute is used more than onc
 File "test_attribute_error_duplicate.ml", line 3, characters 5-12:
 Warning 47 [attribute-payload]: illegal payload for attribute 'noalloc'.
 It must be either 'assume' or empty
+File "test_attribute_error_duplicate.ml", line 1, characters 30-37:
+Error: Annotation check for noalloc failed on function camlTest_attribute_error_duplicate__test1_HIDE_STAMP
