@@ -241,10 +241,10 @@ let build_package_cmx members cmxfile =
       let ui_export_info =
         List.fold_left (fun acc info ->
             Export_info.merge acc
-              (Export_info_for_pack.import_for_pack ~pack_units:(Lazy.force pack_units)
-                ~pack
-                (get_export_info_flambda1 info)))
-          (get_export_info_flambda1 ui)
+              (get_export_info_flambda1 info))
+          (Export_info_for_pack.import_for_pack ~pack_units:(Lazy.force pack_units)
+             ~pack
+             (get_export_info_flambda1 ui))
           units
       in
       Flambda1 ui_export_info
