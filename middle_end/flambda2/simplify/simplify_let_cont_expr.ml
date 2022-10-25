@@ -902,86 +902,112 @@ let recursive_let_cont_handler_wrapper_params uacc ~cont ~rewrite =
   let params = List.filter kept_param (original_params @ used_extra_params) in
   Bound_parameters.create params
 
+type decision =
+  | Inline
+  | Non_rec
+  | Rec
+[@@warning "-37"]
+
 type recursive_let_cont_handlers_element =
+  | Unused_rec_continuation of Continuation.t
+  | Inlined_handler of Continuation.t * RE.Continuation_handler.t
   | Non_recursive_handler of Continuation.t * RE.Continuation_handler.t
   | Recursive_handlers of RE.Continuation_handler.t Continuation.Map.t
+[@@warning "-37"]
 
 let rebuild_recursive_let_cont_handlers cont ~params ~original_cont_scope
-    cont_handler ~handler ~free_names_of_handler ~cost_metrics_of_handler
-    ~cont_uses_in_body ~extra_params_and_args ~original_params ~rewrite_ids
+    cont_handler ~handler ~free_names_of_handler ~cost_metrics_of_handler:_
+    ~cont_uses_in_body:_ ~extra_params_and_args ~original_params ~rewrite_ids
     uacc ~after_rebuild =
-  (* We are inserting a rewrite for cont a second time: the first one was int
-     the handler, this one for the body of the let cont. Those does not really
-     relate to the same continuation, but to continuations with the same name:
-     If the rewrites are different, this one will refer to a wrapper
-     continuation with more arguments. *)
-  let uacc, rewrite =
-    make_rewrite_for_recursive_continuation uacc ~cont ~original_cont_scope
-      ~original_params
-      ~context:(In_body { rewrite_ids })
-      ~extra_params_and_args
-  in
-  let wrapper_params =
-    recursive_let_cont_handler_wrapper_params uacc ~cont ~rewrite
-  in
-  let uacc =
-    (* If the arguments of the wrapper continuation and the recursive
-       continuation are different, we need to remove the arguments of the
-       wrapper from the free names of the handlers.
 
-       It is correct to do, even when no wrapper are going to be introduced: In
-       that case the rewrite inside the handler and the one for the body are the
-       same: the parameters computed by
-       [recursive_let_cont_handler_wrapper_params] are exactly the same as the
-       recursive continuation, which where already removed from uacc in
-       after_one_recursive_let_cont_handler_rebuilt *)
-    let name_occurrences =
-      List.fold_left
-        (fun name_occurrences param ->
-          NO.remove_var name_occurrences ~var:(BP.var param))
-        (UA.name_occurrences uacc)
-        (Bound_parameters.to_list wrapper_params)
-    in
-    UA.with_name_occurrences uacc ~name_occurrences
-  in
-  let is_actually_recursive =
+  (* Temporarily disable this optimisation until the refactor/re-writing of simplify_let_cont *)
+
+  let _is_actually_recursive =
     Continuation.Set.mem cont
       (Name_occurrences.continuations_including_in_trap_actions
          free_names_of_handler)
   in
-  let will_be_inlined =
-    if is_actually_recursive
-    then false
-    else
-      match Continuation_uses.get_uses cont_uses_in_body with
-      | [use] -> (
-        match One_continuation_use.use_kind use with
-        | Inlinable -> true
-        | Non_inlinable _ -> false)
-      | _ -> false
+  let decision = Rec
+    (*
+     * if is_actually_recursive
+     * then Rec
+     * else
+     *  match Continuation_uses.get_uses cont_uses_in_body with
+     *  | [use] -> (
+     *   match One_continuation_use.use_kind use with
+     *   | Inlinable -> (* Inline *) Non_rec
+     *   | Non_inlinable _ -> Non_rec)
+     * | _ -> Non_rec
+     *)
   in
+
   let uacc, handlers =
-    if will_be_inlined
-    then
-      let uacc =
-        UA.map_uenv uacc ~f:(fun uenv ->
-            UE.add_linearly_used_inlinable_continuation uenv cont
-              original_cont_scope ~params ~handler ~free_names_of_handler
-              ~cost_metrics_of_handler)
-      in
-      uacc, None
-    else
+    match decision with
+    | Inline ->
+      Misc.fatal_errorf "TODO"
+      (*
+       * let uacc =
+       * UA.map_uenv uacc ~f:(fun uenv ->
+       *     UE.add_linearly_used_inlinable_continuation uenv cont
+       *       original_cont_scope ~params ~handler ~free_names_of_handler
+       *       ~cost_metrics_of_handler)
+       * in
+       * uacc, Inlined_handler (cont, cont_handler)
+       *)
+    | Non_rec ->
+      Misc.fatal_errorf "TODO"
+      (*
+       * let uacc =
+       *  UA.map_uenv uacc ~f:(fun uenv ->
+       *     UE.add_non_inlinable_continuation uenv cont original_cont_scope
+       *       ~params ~handler:(Known handler))
+       * in
+       * let handlers = Non_recursive_handler (cont, cont_handler) in
+       * uacc, handlers
+       *)
+    | Rec ->
       let uacc =
         UA.map_uenv uacc ~f:(fun uenv ->
             UE.add_non_inlinable_continuation uenv cont original_cont_scope
               ~params ~handler:(Known handler))
       in
-      let handlers =
-        if is_actually_recursive
-        then Recursive_handlers (Continuation.Map.singleton cont cont_handler)
-        else Non_recursive_handler (cont, cont_handler)
+      let handlers = Recursive_handlers (Continuation.Map.singleton cont cont_handler) in
+
+      (* We are inserting a rewrite for cont a second time: the first one was int
+         the handler, this one for the body of the let cont. Those does not really
+         relate to the same continuation, but to continuations with the same name:
+         If the rewrites are different, this one will refer to a wrapper
+         continuation with more arguments. *)
+      let uacc, rewrite =
+        make_rewrite_for_recursive_continuation uacc ~cont ~original_cont_scope
+          ~original_params
+          ~context:(In_body { rewrite_ids })
+          ~extra_params_and_args
       in
-      uacc, Some handlers
+      let wrapper_params =
+        recursive_let_cont_handler_wrapper_params uacc ~cont ~rewrite
+      in
+      let uacc =
+        (* If the arguments of the wrapper continuation and the recursive
+           continuation are different, we need to remove the arguments of the
+           wrapper from the free names of the handlers.
+
+           It is correct to do, even when no wrapper are going to be introduced: In
+           that case the rewrite inside the handler and the one for the body are the
+           same: the parameters computed by
+           [recursive_let_cont_handler_wrapper_params] are exactly the same as the
+           recursive continuation, which where already removed from uacc in
+           after_one_recursive_let_cont_handler_rebuilt *)
+        let name_occurrences =
+          List.fold_left
+            (fun name_occurrences param ->
+               NO.remove_var name_occurrences ~var:(BP.var param))
+            (UA.name_occurrences uacc)
+            (Bound_parameters.to_list wrapper_params)
+        in
+        UA.with_name_occurrences uacc ~name_occurrences
+      in
+      uacc, handlers
   in
   let name_occurrences =
     Name_occurrences.increase_counts (UA.name_occurrences uacc)
@@ -1001,12 +1027,12 @@ let after_one_recursive_let_cont_handler_rebuilt cont ~original_cont_scope
     let name_occurrences =
       ListLabels.fold_left (Bound_parameters.to_list params)
         ~init:(UA.name_occurrences uacc) ~f:(fun name_occurrences param ->
-          NO.remove_var name_occurrences ~var:(BP.var param))
+            NO.remove_var name_occurrences ~var:(BP.var param))
     in
     UA.with_name_occurrences uacc ~name_occurrences
   in
   rebuild_recursive_let_cont_handlers cont ~params ~original_cont_scope
-  cont_handler ~handler ~original_params ~extra_params_and_args ~rewrite_ids
+    cont_handler ~handler ~original_params ~extra_params_and_args ~rewrite_ids
     ~free_names_of_handler ~cost_metrics_of_handler
     ~cont_uses_in_body uacc ~after_rebuild
 
@@ -1023,9 +1049,9 @@ let prepare_to_rebuild_one_recursive_let_cont_handler cont params
   rebuild_handler uacc
     ~after_rebuild:
       (after_one_recursive_let_cont_handler_rebuilt cont ~original_cont_scope
-        ~name_occurrences_subsequent_exprs ~after_rebuild ~cont_uses_in_body
-        ~extra_params_and_args ~rewrite_ids ~original_params:params
-  )
+         ~name_occurrences_subsequent_exprs ~after_rebuild ~cont_uses_in_body
+         ~extra_params_and_args ~rewrite_ids ~original_params:params
+      )
 
 let after_downwards_traversal_of_one_recursive_let_cont_handler cont
     unboxing_decisions ~down_to_up params ~original_cont_scope
@@ -1103,7 +1129,7 @@ let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
   in
   match cont_uses_in_body with
   | None ->
-    let rebuild uacc ~after_rebuild = after_rebuild None uacc in
+    let rebuild uacc ~after_rebuild = after_rebuild (Unused_rec_continuation cont) uacc in
     down_to_up dacc ~rebuild
   | Some cont_uses_in_body ->
     let dacc = DA.with_continuation_uses_env dacc ~cont_uses_env:CUE.empty in
@@ -1147,22 +1173,31 @@ let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
 let rebuild_recursive_let_cont ~body handlers ~cost_metrics_of_handlers
     ~free_names_of_body:_ ~uenv_without_cont uacc ~after_rebuild =
   match handlers with
-  | None ->
-    Misc.fatal_errorf "TODO: inlined rec continuation with invariant parameters"
-  (*
-  let uacc = UA.with_uenv uacc uenv_without_cont in
-  body -> after_rebuild
-  *)
-  | Some (Non_recursive_handler (cont, handler)) ->
-    Misc.fatal_errorf "TODO: non-rec rec continuation with invariant parameters:@\n%a"
+  | Unused_rec_continuation _cont ->
+    let uacc = UA.with_uenv uacc uenv_without_cont in
+    after_rebuild body uacc
+  | Inlined_handler (cont, handler) ->
+    Misc.fatal_errorf
+      "ERROR: inlined rec continuation with invariant parameters:@\n%a@\n@\nbody:@\n%a@\n@\n%a"
       (RE.Continuation_handler.print ~cont ~recursive:Non_recursive) handler
+      (RE.print (UA.are_rebuilding_terms uacc)) body UA.print uacc
+  (*
+   * let uacc = UA.with_uenv uacc uenv_without_cont in
+   * after_rebuild body uacc *)
+  | Non_recursive_handler (cont, handler) ->
+    Misc.fatal_errorf
+      "ERROR: non-rec rec continuation with invariant parameters:@\n%a@\n@\nbody:@\n%a@\n@\n%a"
+      (RE.Continuation_handler.print ~cont ~recursive:Non_recursive) handler
+      (RE.print (UA.are_rebuilding_terms uacc)) body UA.print uacc
     (*
-  let uacc = UA.with_uenv uacc uenv_without_cont in
-    RE.create_non_recursive_let_cont are_rebuilding_terms cont handler ~body
-      ~free_names_of_body
-       -> after_rebuild
-    *)
-  | Some (Recursive_handlers rec_handlers) ->
+     * let uacc = UA.with_uenv uacc uenv_without_cont in
+     * (* TODO: cost metrics *)
+     * let expr =
+     * RE.create_non_recursive_let_cont (UA.are_rebuilding_terms uacc) cont handler ~body
+     *   ~free_names_of_body
+     * in
+     * after_rebuild expr uacc *)
+  | Recursive_handlers rec_handlers ->
     let Flow_types.Alias_result.{ continuation_parameters; _ } =
       UA.continuation_param_aliases uacc
     in
