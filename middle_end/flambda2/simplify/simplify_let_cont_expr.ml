@@ -1218,7 +1218,7 @@ let rebuild_recursive_let_cont ~body handlers ~cost_metrics_of_handlers
             rec_handlers ~body,
           uacc )
       | Wrapper_needed ->
-        Format.printf "Introduce wrapper %a@." Continuation.print cont;
+        (* Format.printf "Introduce wrapper %a@." Continuation.print cont; *)
         let rewrite =
           match UE.find_apply_cont_rewrite (UA.uenv uacc) cont with
           | None -> assert false
@@ -1251,7 +1251,7 @@ let rebuild_recursive_let_cont ~body handlers ~cost_metrics_of_handlers
           let args =
             List.map (fun param -> Simple.var (BP.var param)) rec_params
           in
-          Format.printf "@[<hov 2>Apply cont args@ %a@]@." Simple.List.print args;
+          (* Format.printf "@[<hov 2>Apply cont args@ %a@]@." Simple.List.print args; *)
           let apply_cont = Apply_cont.create cont ~args ~dbg:Debuginfo.none in
           let body = RE.create_apply_cont apply_cont in
           RE.create_recursive_let_cont
