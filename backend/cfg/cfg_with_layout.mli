@@ -47,6 +47,8 @@ val set_layout : t -> Label.t list -> unit
 (** Add to cfg, layout, and other data-structures that track labels. *)
 val add_block : t -> Cfg.basic_block -> after:Label.t -> unit
 
+val assign_blocks_to_section : t -> Label.t list -> string -> unit
+
 (** Remove from cfg, layout, and other data-structures that track labels. *)
 val remove_block : t -> Label.t -> unit
 
