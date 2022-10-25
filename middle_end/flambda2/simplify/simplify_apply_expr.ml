@@ -36,14 +36,8 @@ let warn_not_inlined_if_needed apply reason =
 
 let record_free_names_of_apply_as_used0 apply ~use_id ~exn_cont_use_id data_flow
     =
-  let free_names_of_function_and_args =
-    let callee = Apply.callee apply in
-    let args = Apply.args apply in
-    Name_occurrences.union (Simple.free_names callee)
-      (Simple.List.free_names args)
-  in
   let data_flow =
-    Flow.Acc.add_used_in_current_handler free_names_of_function_and_args
+    Flow.Acc.add_used_in_current_handler (Apply.free_names_without_exn_continuation apply)
       data_flow
   in
   let exn_cont = Apply.exn_continuation apply in
