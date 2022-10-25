@@ -221,7 +221,7 @@ void caml_raise_async_if_exception(value res, const char* where)
 {
   if (Is_exception_result(res)) {
     check_async_exn(res, where);
-    caml_raise_async(res);
+    caml_raise_async(Extract_exception(res));
   }
 }
 
