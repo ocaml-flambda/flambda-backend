@@ -6,10 +6,6 @@ File "w53.ml", line 12, characters 4-5:
 12 | let h x = x [@inline] (* rejected *)
          ^
 Warning 32 [unused-value-declaration]: unused value h.
-File "w53.ml", line 334, characters 2-33:
-334 |   let x : int64 = 42L [@@noalloc] (* rejected *)
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Warning 53 [misplaced-attribute]: the "noalloc" attribute cannot appear in this context
 File "w53.ml", line 12, characters 14-20:
 12 | let h x = x [@inline] (* rejected *)
                    ^^^^^^
@@ -561,6 +557,10 @@ Warning 53 [misplaced-attribute]: the "noalloc" attribute cannot appear in this 
 File "w53.ml", line 333, characters 19-26:
 333 |   type s1 = Foo1 [@noalloc] (* rejected *)
                          ^^^^^^^
+Warning 53 [misplaced-attribute]: the "noalloc" attribute cannot appear in this context
+File "w53.ml", line 334, characters 25-32:
+334 |   let x : int64 = 42L [@@noalloc] (* rejected *)
+                               ^^^^^^^
 Warning 53 [misplaced-attribute]: the "noalloc" attribute cannot appear in this context
 File "w53.ml", line 336, characters 46-53:
 336 |   external y : (int64 [@noalloc]) -> (int64 [@noalloc]) = "x" (* rejected *)
