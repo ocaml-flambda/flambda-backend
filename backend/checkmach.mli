@@ -88,6 +88,6 @@ val keep_all_details : bool ref
 
 type details = (string, Detail.t list) Hashtbl.t
 
-(* Asserts that [keep_all_details] has been set to true and returns details about
-   all allocations in this compilation unit. *)
+(* Asserts that [keep_all_details] has been set to true and returns details
+   about all allocations in this compilation unit. *)
 val details : unit -> details
