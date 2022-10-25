@@ -253,7 +253,8 @@ module Continuation_handler : sig
     cont:Continuation.t ->
     recursive:Recursive.t ->
     Format.formatter ->
-    t -> unit
+    t ->
+    unit
 
   val apply_renaming : t -> Renaming.t -> t
 

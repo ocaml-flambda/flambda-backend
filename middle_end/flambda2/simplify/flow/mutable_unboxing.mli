@@ -20,10 +20,9 @@ val create :
   source_info:Flow_types.Acc.t ->
   callers:Continuation.Set.t Continuation.Map.t ->
   return_continuation:Continuation.t ->
-  exn_continuation:Continuation.t -> t
+  exn_continuation:Continuation.t ->
+  t
 
 val make_result : t -> Flow_types.Mutable_unboxing_result.t
 
 val pp_node : t -> Format.formatter -> Continuation.t -> unit
-
-

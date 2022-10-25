@@ -75,7 +75,9 @@ let rebuild_let simplify_named_result removed_operations ~rewrite_id
     Simplify_named_result.bindings_to_place_in_any_order simplify_named_result
   in
   let bindings =
-    let Flow_types.Mutable_unboxing_result.{ let_rewrites; _ } = UA.mutable_unboxing_result uacc in
+    let Flow_types.Mutable_unboxing_result.{ let_rewrites; _ } =
+      UA.mutable_unboxing_result uacc
+    in
     match Named_rewrite_id.Map.find rewrite_id let_rewrites with
     | exception Not_found -> bindings
     | rewrite -> (
@@ -231,7 +233,8 @@ let record_new_defining_expression_binding_for_data_flow dacc ~rewrite_id
     then
       let data_flow =
         Bound_pattern.fold_all_bound_vars binding.let_bound ~init:data_flow
-          ~f:(fun data_flow v -> Flow.Acc.record_defined_var (VB.var v) data_flow)
+          ~f:(fun data_flow v ->
+            Flow.Acc.record_defined_var (VB.var v) data_flow)
       in
       let data_flow, free_names =
         (* TODO cleaner version of that, should this pattern match be part of
@@ -271,8 +274,8 @@ let record_new_defining_expression_binding_for_data_flow dacc ~rewrite_id
       let record_var_binding data_flow free_names =
         Bound_pattern.fold_all_bound_vars binding.let_bound ~init:data_flow
           ~f:(fun data_flow v ->
-            Flow.Acc.record_var_binding (VB.var v) free_names ~generate_phantom_lets
-              data_flow)
+            Flow.Acc.record_var_binding (VB.var v) free_names
+              ~generate_phantom_lets data_flow)
       in
       match named with
       | Simple simple ->
@@ -292,7 +295,7 @@ let record_new_defining_expression_binding_for_data_flow dacc ~rewrite_id
                 in
                 let var = VB.var bound_var in
                 ( Flow.Acc.record_ref_named rewrite_id ~bound_to:var
-                    (Block_load { bak; mut; block; field})
+                    (Block_load { bak; mut; block; field })
                     data_flow,
                   Name_occurrences.empty ))
           | Variadic (Make_block (kind, mutability, alloc_mode), args) ->

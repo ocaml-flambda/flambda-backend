@@ -20,7 +20,6 @@
 
    mshinwell: in practice I'm not sure this will make any difference *)
 
-
 (* Continuation arguments at call sites of continuations *)
 (* ***************************************************** *)
 
@@ -37,14 +36,13 @@ end
 (* ************************************************** *)
 
 module Mutable_prim : sig
-
   type t =
-    | Block_load of {
-        bak : Flambda_primitive.Block_access_kind.t;
-        mut : Mutability.t;
-        block: Variable.t;
-        field: int;
-      }
+    | Block_load of
+        { bak : Flambda_primitive.Block_access_kind.t;
+          mut : Mutability.t;
+          block : Variable.t;
+          field : int
+        }
     | Block_set of
         Flambda_primitive.Block_access_kind.t
         * Flambda_primitive.Init_or_assign.t
@@ -64,29 +62,25 @@ end
 (* ************************************************************ *)
 
 module Mutable_let_prim : sig
-
-  type t = {
-    bound_var : Variable.t;
-    prim : Mutable_prim.t;
-    named_rewrite_id : Named_rewrite_id.t;
-  }
+  type t =
+    { bound_var : Variable.t;
+      prim : Mutable_prim.t;
+      named_rewrite_id : Named_rewrite_id.t
+    }
 
   val print : Format.formatter -> t -> unit
 
   module List : sig
-
     type nonrec t = t list
 
     val print_rev : Format.formatter -> t -> unit
   end
-
 end
 
 (* Accumulated flow information for a single continuation handler *)
 (* ************************************************************** *)
 
 module Continuation_info : sig
-
   type t =
     { continuation : Continuation.t;
       recursive : bool;
@@ -102,7 +96,7 @@ module Continuation_info : sig
       value_slots : Name_occurrences.t Name.Map.t Value_slot.Map.t;
       apply_cont_args :
         Cont_arg.t Numeric_types.Int.Map.t Apply_cont_rewrite_id.Map.t
-          Continuation.Map.t
+        Continuation.Map.t
     }
 
   val print : Format.formatter -> t -> unit
@@ -112,7 +106,6 @@ end
 (* **************** *)
 
 module Acc : sig
-
   type t =
     { stack : Continuation_info.t list;
       map : Continuation_info.t Continuation.Map.t;
@@ -127,12 +120,11 @@ end
 (* *********************************************** *)
 
 module Reachable_code_ids : sig
-
   type t =
-    { live_code_ids : Code_id.Set.t;
-      (** The set of code ids live/reachable. *)
+    { live_code_ids : Code_id.Set.t;  (** The set of code ids live/reachable. *)
       ancestors_of_live_code_ids : Code_id.Set.t
-      (** The set of code ids that are ancestors of at least one live code id. *)
+          (** The set of code ids that are ancestors of at least one live code
+              id. *)
     }
 
   val print : Format.formatter -> t -> unit
@@ -142,11 +134,10 @@ end
 (* *********************************************** *)
 
 module Data_flow_result : sig
-
   type t =
     { required_names : Name.Set.t;
-      (** The set of all variables that are in fact used to compute the
-          returned value of the function being analyzed. *)
+          (** The set of all variables that are in fact used to compute the
+              returned value of the function being analyzed. *)
       reachable_code_ids : Reachable_code_ids.t
     }
 
@@ -157,7 +148,6 @@ end
 (* **************************************************************** *)
 
 module Continuation_param_aliases : sig
-
   type recursive_continuation_wrapper =
     | No_wrapper
     | Wrapper_needed
@@ -176,11 +166,10 @@ end
 (* ************************************************** *)
 
 module Alias_result : sig
-
-  type t = {
-    aliases_kind : Flambda_kind.t Variable.Map.t;
-    continuation_parameters : Continuation_param_aliases.t Continuation.Map.t
-  }
+  type t =
+    { aliases_kind : Flambda_kind.t Variable.Map.t;
+      continuation_parameters : Continuation_param_aliases.t Continuation.Map.t
+    }
 
   val print : Format.formatter -> t -> unit
 end
@@ -189,26 +178,22 @@ end
 (* ********************************************* *)
 
 module Mutable_unboxing_result : sig
-
   type t =
     { additionnal_epa : Continuation_extra_params_and_args.t Continuation.Map.t;
       let_rewrites : Named_rewrite.t Named_rewrite_id.Map.t
     }
 
   val print : Format.formatter -> t -> unit
-
 end
-
 
 (* Result of the flow analysis *)
 (* *************************** *)
 
 module Flow_result : sig
-
   type t =
     { data_flow_result : Data_flow_result.t;
       aliases_result : Alias_result.t;
-      mutable_unboxing_result : Mutable_unboxing_result.t;
+      mutable_unboxing_result : Mutable_unboxing_result.t
     }
 
   val print : Format.formatter -> t -> unit

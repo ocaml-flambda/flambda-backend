@@ -57,12 +57,13 @@ module Reachable = struct
     | exception Queue.Empty ->
       if Queue.is_empty code_id_queue
       then
-        T.Data_flow_result.{ required_names = name_enqueued;
-          reachable_code_ids =
-            { live_code_ids = code_id_enqueued;
-              ancestors_of_live_code_ids = older_enqueued
-            }
-        }
+        T.Data_flow_result.
+          { required_names = name_enqueued;
+            reachable_code_ids =
+              { live_code_ids = code_id_enqueued;
+                ancestors_of_live_code_ids = older_enqueued
+              }
+          }
       else
         reachable_code_ids t code_id_queue code_id_enqueued (Queue.create ())
           older_enqueued name_queue name_enqueued
@@ -74,8 +75,8 @@ module Reachable = struct
         Name_Code_id_Edge.push ~src code_id_enqueued code_id_queue
           t.name_to_code_id
       in
-      reachable_names t code_id_queue code_id_enqueued older_enqueued
-        name_queue name_enqueued
+      reachable_names t code_id_queue code_id_enqueued older_enqueued name_queue
+        name_enqueued
 
   and reachable_code_ids t code_id_queue code_id_enqueued older_queue
       older_enqueued name_queue name_enqueued =
@@ -113,28 +114,26 @@ module Reachable = struct
       reachable_code_ids t code_id_queue code_id_enqueued older_queue
         older_enqueued name_queue name_enqueued
     | src -> (
-        match
-          Code_age_relation.get_older_version_of t.code_age_relation src
-        with
-        | None ->
-          reachable_older_code_ids t code_id_queue code_id_enqueued older_queue
-            older_enqueued name_queue name_enqueued
-        | Some dst ->
-          if Code_id.Set.mem dst older_enqueued
-          then (
-            if Code_id.Set.mem dst code_id_enqueued
-            then
-              reachable_older_code_ids t code_id_queue code_id_enqueued
-                older_queue older_enqueued name_queue name_enqueued
-            else
-              let code_id_enqueued = Code_id.Set.add dst code_id_enqueued in
-              Queue.push dst code_id_queue;
-              reachable_older_code_ids t code_id_queue code_id_enqueued
-                older_queue older_enqueued name_queue name_enqueued)
+      match Code_age_relation.get_older_version_of t.code_age_relation src with
+      | None ->
+        reachable_older_code_ids t code_id_queue code_id_enqueued older_queue
+          older_enqueued name_queue name_enqueued
+      | Some dst ->
+        if Code_id.Set.mem dst older_enqueued
+        then (
+          if Code_id.Set.mem dst code_id_enqueued
+          then
+            reachable_older_code_ids t code_id_queue code_id_enqueued
+              older_queue older_enqueued name_queue name_enqueued
           else
-            let older_enqueued = Code_id.Set.add dst older_enqueued in
+            let code_id_enqueued = Code_id.Set.add dst code_id_enqueued in
+            Queue.push dst code_id_queue;
             reachable_older_code_ids t code_id_queue code_id_enqueued
               older_queue older_enqueued name_queue name_enqueued)
+        else
+          let older_enqueued = Code_id.Set.add dst older_enqueued in
+          reachable_older_code_ids t code_id_queue code_id_enqueued older_queue
+            older_enqueued name_queue name_enqueued)
 end
 
 let empty code_age_relation =
@@ -179,8 +178,7 @@ let fold_name_occurrences name_occurrences ~init ~names ~code_ids =
     ~init:(code_ids init (Name_occurrences.code_ids name_occurrences))
 
 (* Some auxiliary functions *)
-let add_code_id_dep ~src ~(dst : Code_id.Set.t) ({ name_to_code_id; _ } as t)
-  =
+let add_code_id_dep ~src ~(dst : Code_id.Set.t) ({ name_to_code_id; _ } as t) =
   let name_to_code_id =
     Name.Map.update src
       (function
@@ -238,7 +236,8 @@ let add_name_occurrences name_occurrences
   in
   { t with unconditionally_used; code_id_unconditionally_used }
 
-let mutable_prim_free_names (mutable_prim : T.Mutable_prim.t) : Name_occurrences.t =
+let mutable_prim_free_names (mutable_prim : T.Mutable_prim.t) :
+    Name_occurrences.t =
   match mutable_prim with
   | Block_load { block; _ } ->
     Name_occurrences.singleton_variable block Name_mode.normal
@@ -248,23 +247,24 @@ let mutable_prim_free_names (mutable_prim : T.Mutable_prim.t) : Name_occurrences
 
 let add_continuation_info map ~return_continuation ~exn_continuation
     ~used_value_slots _
-    T.Continuation_info.{ apply_cont_args;
-      (* CR pchambart: properly follow dependencies in exception extra args.
-         They are currently marked as always used, so it is correct, but not
-         optimal *)
-      used_in_handler;
-      bindings;
-      direct_aliases;
-      mutable_let_prims_rev;
-      defined = _;
-      code_ids;
-      value_slots;
-      continuation = _;
-      recursive = _;
-      is_exn_handler = _;
-      parent_continuation = _;
-      params = _
-    } t =
+    T.Continuation_info.
+      { apply_cont_args;
+        (* CR pchambart: properly follow dependencies in exception extra args.
+           They are currently marked as always used, so it is correct, but not
+           optimal *)
+        used_in_handler;
+        bindings;
+        direct_aliases;
+        mutable_let_prims_rev;
+        defined = _;
+        code_ids;
+        value_slots;
+        continuation = _;
+        recursive = _;
+        is_exn_handler = _;
+        parent_continuation = _;
+        params = _
+      } t =
   (* Add the vars used in the handler *)
   let t = add_name_occurrences used_in_handler t in
   (* Add the dependencies created by closures vars in envs *)
@@ -277,133 +277,133 @@ let add_continuation_info map ~return_continuation ~exn_continuation
   let t =
     Value_slot.Map.fold
       (fun value_slot map t ->
-         if not (is_value_slot_used value_slot)
-         then t
-         else
-           Name.Map.fold
-             (fun closure_name values_in_env t ->
-                Name_occurrences.fold_names
-                  ~f:(fun t value_in_env ->
-                      add_dependency ~src:closure_name ~dst:value_in_env t)
-                  values_in_env ~init:t)
-             map t)
+        if not (is_value_slot_used value_slot)
+        then t
+        else
+          Name.Map.fold
+            (fun closure_name values_in_env t ->
+              Name_occurrences.fold_names
+                ~f:(fun t value_in_env ->
+                  add_dependency ~src:closure_name ~dst:value_in_env t)
+                values_in_env ~init:t)
+            map t)
       value_slots t
   in
   (* Build the graph of dependencies between names *)
   let t =
     Name.Map.fold
       (fun src name_occurrences graph ->
-         fold_name_occurrences name_occurrences ~init:graph
-           ~names:(fun t dst -> add_dependency ~src ~dst t)
-           ~code_ids:(fun t dst -> add_code_id_dep ~src ~dst t))
+        fold_name_occurrences name_occurrences ~init:graph
+          ~names:(fun t dst -> add_dependency ~src ~dst t)
+          ~code_ids:(fun t dst -> add_code_id_dep ~src ~dst t))
       bindings t
   in
   let t =
     Variable.Map.fold
       (fun src simple graph ->
-         let src = Name.var src in
-         let name_occurrences = Simple.free_names simple in
-         fold_name_occurrences name_occurrences ~init:graph
-           ~names:(fun t dst -> add_dependency ~src ~dst t)
-           ~code_ids:(fun t dst -> add_code_id_dep ~src ~dst t))
+        let src = Name.var src in
+        let name_occurrences = Simple.free_names simple in
+        fold_name_occurrences name_occurrences ~init:graph
+          ~names:(fun t dst -> add_dependency ~src ~dst t)
+          ~code_ids:(fun t dst -> add_code_id_dep ~src ~dst t))
       direct_aliases t
   in
   let t =
     List.fold_left
-      (fun t T.Mutable_let_prim.{ bound_var; prim; named_rewrite_id = _; } ->
-         let src = Name.var bound_var in
-         match prim with
-         | Make_block _ | Block_load _ ->
-           Name_occurrences.fold_names
-             ~f:(fun t dst -> add_dependency ~src ~dst t)
-             (mutable_prim_free_names prim) ~init:t
-         | Block_set _ -> add_name_occurrences (mutable_prim_free_names prim) t)
+      (fun t T.Mutable_let_prim.{ bound_var; prim; named_rewrite_id = _ } ->
+        let src = Name.var bound_var in
+        match prim with
+        | Make_block _ | Block_load _ ->
+          Name_occurrences.fold_names
+            ~f:(fun t dst -> add_dependency ~src ~dst t)
+            (mutable_prim_free_names prim)
+            ~init:t
+        | Block_set _ -> add_name_occurrences (mutable_prim_free_names prim) t)
       t mutable_let_prims_rev
   in
   let t =
     Code_id.Map.fold
       (fun src name_occurrences graph ->
-         fold_name_occurrences name_occurrences ~init:graph
-           ~names:(fun t dst -> add_code_id_dependency ~src ~dst t)
-           ~code_ids:(fun t dst -> add_code_id_to_code_id ~src ~dst t))
+        fold_name_occurrences name_occurrences ~init:graph
+          ~names:(fun t dst -> add_code_id_dependency ~src ~dst t)
+          ~code_ids:(fun t dst -> add_code_id_to_code_id ~src ~dst t))
       code_ids t
   in
   (* Build the graph of dependencies between continuation parameters and
      arguments. *)
   Continuation.Map.fold
     (fun k rewrite_ids t ->
-       if Continuation.equal return_continuation k
-       || Continuation.equal exn_continuation k
-       then
-         Apply_cont_rewrite_id.Map.fold
-           (fun _rewrite_id args t ->
-              Numeric_types.Int.Map.fold
-                (fun _ (cont_arg : T.Cont_arg.t) t ->
-                   match cont_arg with
-                   | Simple simple ->
-                     add_name_occurrences (Simple.free_names simple) t
-                   | New_let_binding (var, prim_free_names) ->
-                     add_name_occurrences
-                       (Name_occurrences.union prim_free_names
-                          (Name_occurrences.singleton_variable var
-                             Name_mode.normal))
-                       t
-                   | Function_result -> t)
-                args t)
-           rewrite_ids t
-       else
-         let params =
-           match Continuation.Map.find k map with
-           | elt -> Array.of_list (Bound_parameters.vars elt.T.Continuation_info.params)
-           | exception Not_found ->
-             Misc.fatal_errorf "Continuation not found during Data_flow: %a@."
-               Continuation.print k
-         in
-         Apply_cont_rewrite_id.Map.fold
-           (fun rewrite_id args t ->
-              let correct_number_of_arguments =
-                match Numeric_types.Int.Map.max_binding args with
-                | exception Not_found -> Array.length params = 0
-                | max_arg, _ -> max_arg = Array.length params - 1
-              in
-              if not correct_number_of_arguments
-              then
-                Misc.fatal_errorf
-                  "Mismatched number of argument and params for %a at \
-                   rewrite_id %a"
-                  Continuation.print k Apply_cont_rewrite_id.print rewrite_id;
-              Numeric_types.Int.Map.fold
-                (fun i (cont_arg : T.Cont_arg.t) t ->
-                   (* Note on the direction of the edge:
+      if Continuation.equal return_continuation k
+         || Continuation.equal exn_continuation k
+      then
+        Apply_cont_rewrite_id.Map.fold
+          (fun _rewrite_id args t ->
+            Numeric_types.Int.Map.fold
+              (fun _ (cont_arg : T.Cont_arg.t) t ->
+                match cont_arg with
+                | Simple simple ->
+                  add_name_occurrences (Simple.free_names simple) t
+                | New_let_binding (var, prim_free_names) ->
+                  add_name_occurrences
+                    (Name_occurrences.union prim_free_names
+                       (Name_occurrences.singleton_variable var Name_mode.normal))
+                    t
+                | Function_result -> t)
+              args t)
+          rewrite_ids t
+      else
+        let params =
+          match Continuation.Map.find k map with
+          | elt ->
+            Array.of_list (Bound_parameters.vars elt.T.Continuation_info.params)
+          | exception Not_found ->
+            Misc.fatal_errorf "Continuation not found during Data_flow: %a@."
+              Continuation.print k
+        in
+        Apply_cont_rewrite_id.Map.fold
+          (fun rewrite_id args t ->
+            let correct_number_of_arguments =
+              match Numeric_types.Int.Map.max_binding args with
+              | exception Not_found -> Array.length params = 0
+              | max_arg, _ -> max_arg = Array.length params - 1
+            in
+            if not correct_number_of_arguments
+            then
+              Misc.fatal_errorf
+                "Mismatched number of argument and params for %a at rewrite_id \
+                 %a"
+                Continuation.print k Apply_cont_rewrite_id.print rewrite_id;
+            Numeric_types.Int.Map.fold
+              (fun i (cont_arg : T.Cont_arg.t) t ->
+                (* Note on the direction of the edge:
 
-                      We later do a reachability analysis to compute the
-                      transitive closure of the used variables.
+                   We later do a reachability analysis to compute the transitive
+                   closure of the used variables.
 
-                      Therefore an edge from src to dst means: if src is used,
-                      then dst is also used.
+                   Therefore an edge from src to dst means: if src is used, then
+                   dst is also used.
 
-                      Applied here, this means : if the param of a continuation
-                      is used, then any argument provided for that param is also
-                      used. The other way wouldn't make much sense. *)
-                   let src = Name.var params.(i) in
-                   match cont_arg with
-                   | Simple simple ->
-                     Name_occurrences.fold_names (Simple.free_names simple)
-                       ~init:t ~f:(fun t dst -> add_dependency ~src ~dst t)
-                   | New_let_binding (var, prim_free_names) ->
-                     let t = add_dependency ~src ~dst:(Name.var var) t in
-                     Name_occurrences.fold_names prim_free_names ~init:t
-                       ~f:(fun t dst ->
-                           add_dependency ~src:(Name.var var) ~dst t)
-                   | Function_result -> t)
-                args t)
-           rewrite_ids t)
+                   Applied here, this means : if the param of a continuation is
+                   used, then any argument provided for that param is also used.
+                   The other way wouldn't make much sense. *)
+                let src = Name.var params.(i) in
+                match cont_arg with
+                | Simple simple ->
+                  Name_occurrences.fold_names (Simple.free_names simple) ~init:t
+                    ~f:(fun t dst -> add_dependency ~src ~dst t)
+                | New_let_binding (var, prim_free_names) ->
+                  let t = add_dependency ~src ~dst:(Name.var var) t in
+                  Name_occurrences.fold_names prim_free_names ~init:t
+                    ~f:(fun t dst -> add_dependency ~src:(Name.var var) ~dst t)
+                | Function_result -> t)
+              args t)
+          rewrite_ids t)
     apply_cont_args t
 
 let create ~return_continuation ~exn_continuation ~code_age_relation
     ~used_value_slots map =
-  (* Build the dependencies using the regular params and args of
-     continuations, and the let-bindings in continuations handlers. *)
+  (* Build the dependencies using the regular params and args of continuations,
+     and the let-bindings in continuations handlers. *)
   let t =
     Continuation.Map.fold
       (add_continuation_info map ~return_continuation ~exn_continuation

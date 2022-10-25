@@ -15,6 +15,7 @@
 module T = Flow_types
 
 let debug = Sys.getenv_opt "DF" <> None
+
 let ref_to_var_debug = Sys.getenv_opt "RTV" <> None
 
 let r = ref ~-1
@@ -45,8 +46,8 @@ let control_flow_graph_ppf =
           close_out ch);
       Some ppf)
 
-let analyze ?(speculative=false) ?print_name ~return_continuation ~exn_continuation
-    ~code_age_relation ~used_value_slots t : T.Flow_result.t =
+let analyze ?(speculative = false) ?print_name ~return_continuation
+    ~exn_continuation ~code_age_relation ~used_value_slots t : T.Flow_result.t =
   Profile.record_call ~accumulate:true "data_flow" (fun () ->
       if debug then Format.eprintf "PRESOURCE:@\n%a@\n@." T.Acc.print t;
       let ({ T.Acc.stack; map; extra = _; dummy_toplevel_cont } as t) =
@@ -103,35 +104,40 @@ let analyze ?(speculative=false) ?print_name ~return_continuation ~exn_continuat
               ~return_continuation ~exn_continuation ~continuation_parameters
               ~pp_node control)
           (Lazy.force control_flow_graph_ppf));
-      let reference_result =
-        Mutable_unboxing.make_result reference_analysis
-      in
+      let reference_result = Mutable_unboxing.make_result reference_analysis in
       let required_names_after_ref_reference_analysis =
         (* CR pchambart/gbury: this is an overapproximation of actually used new
            parameters. We might want to filter this using another round of
            dead_analysis *)
         Continuation.Map.fold
           (fun _cont epa required_names ->
-            let params = Bound_parameters.var_set (Continuation_extra_params_and_args.extra_params epa) in
+            let params =
+              Bound_parameters.var_set
+                (Continuation_extra_params_and_args.extra_params epa)
+            in
             Name.Set.union required_names (Name.set_of_var_set params))
-          reference_result.T.Mutable_unboxing_result.additionnal_epa dead_variable_result.required_names
+          reference_result.T.Mutable_unboxing_result.additionnal_epa
+          dead_variable_result.required_names
       in
       (* Return *)
       let result =
-        T.Flow_result.{ data_flow_result =
-            { dead_variable_result with
-              required_names = required_names_after_ref_reference_analysis
-            };
-          aliases_result = { aliases_kind; continuation_parameters };
-          mutable_unboxing_result = reference_result;
-        }
+        T.Flow_result.
+          { data_flow_result =
+              { dead_variable_result with
+                required_names = required_names_after_ref_reference_analysis
+              };
+            aliases_result = { aliases_kind; continuation_parameters };
+            mutable_unboxing_result = reference_result
+          }
       in
       if (not
-            (Named_rewrite_id.Map.is_empty result.mutable_unboxing_result.let_rewrites))
+            (Named_rewrite_id.Map.is_empty
+               result.mutable_unboxing_result.let_rewrites))
          && ref_to_var_debug
       then
         Format.printf "let_rewrites %a@."
           (Named_rewrite_id.Map.print Named_rewrite.print)
           result.mutable_unboxing_result.let_rewrites;
-      if debug then Format.eprintf "/// result@\n%a@\n@." T.Flow_result.print result;
+      if debug
+      then Format.eprintf "/// result@\n%a@\n@." T.Flow_result.print result;
       result)

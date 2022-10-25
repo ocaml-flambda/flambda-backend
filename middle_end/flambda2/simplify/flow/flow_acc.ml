@@ -16,6 +16,7 @@ module T = Flow_types
 module EPA = Continuation_extra_params_and_args
 
 type t = T.Acc.t
+
 type cont_info = T.Continuation_info.t
 
 let print = T.Acc.print
@@ -29,12 +30,13 @@ let empty () =
   let wrong_dummy_toplevel_cont =
     Continuation.create ~name:wrong_dummy_toplevel_cont_name ()
   in
-  let res : t = {
-    stack = [];
-    map = Continuation.Map.empty;
-    extra = Continuation.Map.empty;
-    dummy_toplevel_cont = wrong_dummy_toplevel_cont
-  } in
+  let res : t =
+    { stack = [];
+      map = Continuation.Map.empty;
+      extra = Continuation.Map.empty;
+      dummy_toplevel_cont = wrong_dummy_toplevel_cont
+    }
+  in
   res
 
 (* Updates *)
@@ -50,7 +52,7 @@ let add_extra_params_and_args cont extra (t : t) =
   in
   { t with extra }
 
-let enter_continuation continuation ~recursive ~is_exn_handler params (t: t) =
+let enter_continuation continuation ~recursive ~is_exn_handler params (t : t) =
   let parent_continuation =
     match t.stack with [] -> None | parent :: _ -> Some parent.continuation
   in
@@ -135,12 +137,12 @@ let record_var_alias var definition t =
 let record_ref_named named_rewrite_id ~bound_to prim (t : t) =
   update_top_of_stack ~t ~f:(fun cont_info ->
       let mutable_let_prim : T.Mutable_let_prim.t =
-        { bound_var = bound_to; named_rewrite_id; prim; }
+        { bound_var = bound_to; named_rewrite_id; prim }
       in
       let mutable_let_prims_rev =
         mutable_let_prim :: cont_info.mutable_let_prims_rev
       in
-      { cont_info with mutable_let_prims_rev; })
+      { cont_info with mutable_let_prims_rev })
 
 let record_symbol_projection var name_occurrences t =
   update_top_of_stack ~t ~f:(fun elt ->
@@ -216,7 +218,8 @@ let add_apply_conts ~result_cont ~exn_cont t =
       let add_func_result cont rewrite_id ~extra_args apply_cont_args =
         Continuation.Map.update cont
           (fun (rewrite_map_opt :
-                 T.Cont_arg.t Numeric_types.Int.Map.t Apply_cont_rewrite_id.Map.t
+                 T.Cont_arg.t Numeric_types.Int.Map.t
+                 Apply_cont_rewrite_id.Map.t
                  option) ->
             let rewrite_map =
               Option.value ~default:Apply_cont_rewrite_id.Map.empty
@@ -230,7 +233,8 @@ let add_apply_conts ~result_cont ~exn_cont t =
                       Apply_cont_rewrite_id.print rewrite_id
                   | None ->
                     let map =
-                      Numeric_types.Int.Map.singleton 0 T.Cont_arg.Function_result
+                      Numeric_types.Int.Map.singleton 0
+                        T.Cont_arg.Function_result
                     in
                     let _, map =
                       List.fold_left
@@ -269,7 +273,8 @@ let add_apply_cont_args ~rewrite_id cont arg_name_simples t =
       let apply_cont_args =
         Continuation.Map.update cont
           (fun (rewrite_map_opt :
-                 T.Cont_arg.t Numeric_types.Int.Map.t Apply_cont_rewrite_id.Map.t
+                 T.Cont_arg.t Numeric_types.Int.Map.t
+                 Apply_cont_rewrite_id.Map.t
                  option) ->
             let rewrite_map =
               Option.value ~default:Apply_cont_rewrite_id.Map.empty
@@ -399,7 +404,6 @@ let extend_args_with_extra_args (t : T.Acc.t) =
         Continuation.Map.add cont elt map)
       t.extra map
   in
-  (* TODO: remove extra from `t` so that extend_args_with_extra_args is idempotent ? *)
+  (* TODO: remove extra from `t` so that extend_args_with_extra_args is
+     idempotent ? *)
   { t with map }
-
-

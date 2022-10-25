@@ -20,9 +20,9 @@ type t =
     params_kind : Flambda_kind.With_subkind.t Variable.Map.t;
     graph : G.directed_graph;
     dominator_roots : Variable.Set.t
-    (* variables that are dominated only by themselves, usually because a
-       constant or a symbol can flow to that variable, and thus that
-       variable cannot be dominated by another variable. *)
+        (* variables that are dominated only by themselves, usually because a
+           constant or a symbol can flow to that variable, and thus that
+           variable cannot be dominated by another variable. *)
   }
 
 type alias_map = Variable.t Variable.Map.t
@@ -57,26 +57,26 @@ let add_edge ~src ~dst t =
       ~const:(fun _ -> add_root src t)
       ~symbol:(fun _ ~coercion:_ -> add_root src t)
       ~var:(fun dst ~coercion:_ ->
-          let graph =
-            Variable.Map.update src
-              (function
-                | None -> Some (Variable.Set.singleton dst)
-                | Some s -> Some (Variable.Set.add dst s))
-              t.graph
-          in
-          { t with graph })
+        let graph =
+          Variable.Map.update src
+            (function
+              | None -> Some (Variable.Set.singleton dst)
+              | Some s -> Some (Variable.Set.add dst s))
+            t.graph
+        in
+        { t with graph })
 
-let add_continuation_info map _k (elt : T.Continuation_info.t) t ~return_continuation ~exn_continuation
-  =
+let add_continuation_info map _k (elt : T.Continuation_info.t) t
+    ~return_continuation ~exn_continuation =
   let t =
     List.fold_left
       (fun t bp ->
-         let var = Bound_parameter.var bp in
-         let t = add_node t var in
-         let params_kind =
-           Variable.Map.add var (Bound_parameter.kind bp) t.params_kind
-         in
-         { t with params_kind })
+        let var = Bound_parameter.var bp in
+        let t = add_node t var in
+        let params_kind =
+          Variable.Map.add var (Bound_parameter.kind bp) t.params_kind
+        in
+        { t with params_kind })
       t
       (Bound_parameters.to_list elt.params)
   in
@@ -87,36 +87,37 @@ let add_continuation_info map _k (elt : T.Continuation_info.t) t ~return_continu
   in
   Continuation.Map.fold
     (fun k rewrite_ids t ->
-       if Continuation.equal return_continuation k
-       || Continuation.equal exn_continuation k
-       then t
-       else
-         let params =
-           match Continuation.Map.find k map with
-           | elt -> Array.of_list (Bound_parameters.vars elt.T.Continuation_info.params)
-           | exception Not_found ->
-             Misc.fatal_errorf "Continuation not found during Data_flow: %a@."
-               Continuation.print k
-         in
-         Apply_cont_rewrite_id.Map.fold
-           (fun _rewrite_id args t ->
-              Numeric_types.Int.Map.fold
-                (fun i (dst : T.Cont_arg.t) t ->
-                   (* Note on the direction of the edge:
+      if Continuation.equal return_continuation k
+         || Continuation.equal exn_continuation k
+      then t
+      else
+        let params =
+          match Continuation.Map.find k map with
+          | elt ->
+            Array.of_list (Bound_parameters.vars elt.T.Continuation_info.params)
+          | exception Not_found ->
+            Misc.fatal_errorf "Continuation not found during Data_flow: %a@."
+              Continuation.print k
+        in
+        Apply_cont_rewrite_id.Map.fold
+          (fun _rewrite_id args t ->
+            Numeric_types.Int.Map.fold
+              (fun i (dst : T.Cont_arg.t) t ->
+                (* Note on the direction of the edge:
 
-                      We later do a dominator analysis on this graph. To do so,
-                      we consider that an edge from ~src to ~dst means: ~dst is
-                      used as argument (of an apply_cont), that maps to ~src (as
-                      param of a continuation). *)
-                   let src = params.(i) in
-                   match dst with
-                   | Simple dst -> add_edge ~src ~dst t
-                   | Function_result -> add_root src t
-                   | New_let_binding (var, _) ->
-                     let t = add_root var t in
-                     add_edge ~src ~dst:(Simple.var var) t)
-                args t)
-           rewrite_ids t)
+                   We later do a dominator analysis on this graph. To do so, we
+                   consider that an edge from ~src to ~dst means: ~dst is used
+                   as argument (of an apply_cont), that maps to ~src (as param
+                   of a continuation). *)
+                let src = params.(i) in
+                match dst with
+                | Simple dst -> add_edge ~src ~dst t
+                | Function_result -> add_root src t
+                | New_let_binding (var, _) ->
+                  let t = add_root var t in
+                  add_edge ~src ~dst:(Simple.var var) t)
+              args t)
+          rewrite_ids t)
     elt.apply_cont_args t
 
 let create ~required_names ~return_continuation ~exn_continuation map =
@@ -136,13 +137,12 @@ let create ~required_names ~return_continuation ~exn_continuation map =
   let t =
     Variable.Set.fold
       (fun var t ->
-         let graph =
-           Variable.Map.update var
-             (function
-               | Some _ as res -> res | None -> Some Variable.Set.empty)
-             t.graph
-         in
-         { t with graph })
+        let graph =
+          Variable.Map.update var
+            (function Some _ as res -> res | None -> Some Variable.Set.empty)
+            t.graph
+        in
+        { t with graph })
       all_variables t
   in
   (* Format.eprintf "GRAPH:@\n%a@." (Variable.Map.print Variable.Set.print)
@@ -152,11 +152,11 @@ let create ~required_names ~return_continuation ~exn_continuation map =
 let find_dom var doms =
   (* there are tow cases where the variable is not in the "doms" maps:
 
-     - is not mapped in the graph, which means that it is a let-bound
-       variable, in which case it can only be dominated by itself.
+     - is not mapped in the graph, which means that it is a let-bound variable,
+     in which case it can only be dominated by itself.
 
      - we are in th efirst iteration of a loop fixpoint, in which case we also
-       want to initialize the dominator to the variable itself. *)
+     want to initialize the dominator to the variable itself. *)
   try Variable.Map.find var doms with Not_found -> var
 
 let update_doms_for_one_var { dominator_roots; graph; _ } doms var =
@@ -182,10 +182,10 @@ let initialize_doms_for_fixpoint { graph; _ } doms vars =
   let all_predecessors =
     List.fold_left
       (fun acc var ->
-         let predecessors =
-           try Variable.Map.find var graph with Not_found -> assert false
-         in
-         Variable.Set.union predecessors acc)
+        let predecessors =
+          try Variable.Map.find var graph with Not_found -> assert false
+        in
+        Variable.Set.union predecessors acc)
       Variable.Set.empty vars
   in
   let init_doms =
@@ -204,22 +204,21 @@ let rec dom_fixpoint ({ graph; dominator_roots; _ } as t) acc vars =
   let acc' =
     List.fold_left
       (fun acc var ->
-         if Variable.Set.mem var dominator_roots
-         then Variable.Map.add var (Variable.Set.singleton var) acc
-         else
-           let init_doms = Variable.Map.find var acc in
-           let predecessors =
-             try Variable.Map.find var graph with Not_found -> assert false
-           in
-           let new_doms =
-             Variable.Set.fold
-               (fun predecessor new_doms ->
-                  Variable.Set.inter new_doms
-                    (Variable.Map.find predecessor acc))
-               predecessors init_doms
-           in
-           let new_doms = Variable.Set.add var new_doms in
-           Variable.Map.add var new_doms acc)
+        if Variable.Set.mem var dominator_roots
+        then Variable.Map.add var (Variable.Set.singleton var) acc
+        else
+          let init_doms = Variable.Map.find var acc in
+          let predecessors =
+            try Variable.Map.find var graph with Not_found -> assert false
+          in
+          let new_doms =
+            Variable.Set.fold
+              (fun predecessor new_doms ->
+                Variable.Set.inter new_doms (Variable.Map.find predecessor acc))
+              predecessors init_doms
+          in
+          let new_doms = Variable.Set.add var new_doms in
+          Variable.Map.add var new_doms acc)
       acc vars
   in
   if Variable.Map.equal Variable.Set.equal acc acc'
@@ -230,12 +229,12 @@ let extract_doms doms fixpoint_result vars =
   let var_set = Variable.Set.of_list vars in
   List.fold_left
     (fun doms var ->
-       let fixpoint_doms = Variable.Map.find var fixpoint_result in
-       let var_doms = Variable.Set.diff fixpoint_doms var_set in
-       let cardinal = Variable.Set.cardinal var_doms in
-       assert (cardinal <= 1);
-       let dom = if cardinal = 1 then Variable.Set.choose var_doms else var in
-       Variable.Map.add var dom doms)
+      let fixpoint_doms = Variable.Map.find var fixpoint_result in
+      let var_doms = Variable.Set.diff fixpoint_doms var_set in
+      let cardinal = Variable.Set.cardinal var_doms in
+      assert (cardinal <= 1);
+      let dom = if cardinal = 1 then Variable.Set.choose var_doms else var in
+      Variable.Map.add var dom doms)
     doms vars
 
 let dominator_analysis ({ graph; _ } as t) : alias_map =
@@ -243,13 +242,13 @@ let dominator_analysis ({ graph; _ } as t) : alias_map =
   let dominators =
     Array.fold_right
       (fun component doms ->
-         match component with
-         | G.No_loop var -> update_doms_for_one_var t doms var
-         | G.Has_loop vars ->
-           let loop_doms = initialize_doms_for_fixpoint t doms vars in
-           let loop_result = dom_fixpoint t loop_doms vars in
-           let doms = extract_doms doms loop_result vars in
-           doms)
+        match component with
+        | G.No_loop var -> update_doms_for_one_var t doms var
+        | G.Has_loop vars ->
+          let loop_doms = initialize_doms_for_fixpoint t doms vars in
+          let loop_result = dom_fixpoint t loop_doms vars in
+          let doms = extract_doms doms loop_result vars in
+          doms)
       components Variable.Map.empty
   in
   dominators
@@ -257,20 +256,20 @@ let dominator_analysis ({ graph; _ } as t) : alias_map =
 let aliases_kind { params_kind; required_names; _ } aliases =
   Variable.Map.fold
     (fun param kind acc ->
-       if not (Name.Set.mem (Name.var param) required_names)
-       then acc
-       else
-         let alias = Variable.Map.find param aliases in
-         (* CR: Not sure this is absolutely necessary, but it's simpler. The
-            alternative would be to do a join of all kinds with subkinds for
-            all the members of the alias class. *)
-         let kind = Flambda_kind.With_subkind.kind kind in
-         (match Variable.Map.find alias acc with
-          | exception Not_found -> ()
-          | alias_kind ->
-            if not (Flambda_kind.equal kind alias_kind)
-            then Misc.fatal_errorf "Incoherent kinds for aliases !");
-         Variable.Map.add alias kind acc)
+      if not (Name.Set.mem (Name.var param) required_names)
+      then acc
+      else
+        let alias = Variable.Map.find param aliases in
+        (* CR: Not sure this is absolutely necessary, but it's simpler. The
+           alternative would be to do a join of all kinds with subkinds for all
+           the members of the alias class. *)
+        let kind = Flambda_kind.With_subkind.kind kind in
+        (match Variable.Map.find alias acc with
+        | exception Not_found -> ()
+        | alias_kind ->
+          if not (Flambda_kind.equal kind alias_kind)
+          then Misc.fatal_errorf "Incoherent kinds for aliases !");
+        Variable.Map.add alias kind acc)
     params_kind Variable.Map.empty
 
 module Dot = struct
@@ -280,8 +279,8 @@ module Dot = struct
   let node ~ctx ~root ppf var =
     if root
     then
-      Format.fprintf ppf "%a [shape=record label=\"%a\"];@\n" (node_id ~ctx)
-        var Variable.print var
+      Format.fprintf ppf "%a [shape=record label=\"%a\"];@\n" (node_id ~ctx) var
+        Variable.print var
     else
       Format.fprintf ppf "%a [label=\"%a\"];@\n" (node_id ~ctx) var
         Variable.print var
@@ -289,8 +288,8 @@ module Dot = struct
   let nodes ~ctx ~roots ppf var_map =
     Variable.Map.iter
       (fun var _ ->
-         let root = Variable.Set.mem var roots in
-         node ~ctx ~root ppf var)
+        let root = Variable.Set.mem var roots in
+        node ~ctx ~root ppf var)
       var_map
 
   let edge ~ctx ~color ppf src dst =
@@ -300,7 +299,7 @@ module Dot = struct
   let edges ~ctx ~color ppf edge_map =
     Variable.Map.iter
       (fun src dst_set ->
-         Variable.Set.iter (fun dst -> edge ~ctx ~color ppf src dst) dst_set)
+        Variable.Set.iter (fun dst -> edge ~ctx ~color ppf src dst) dst_set)
       edge_map
 
   let edges' ~ctx ~color ppf edge_map =

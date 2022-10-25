@@ -28,13 +28,12 @@ type t = Flow_types.Acc.t
 (** Printing *)
 val print : Format.formatter -> t -> unit
 
-(** "Consume" the extra args of an accumulator in order to add them to the regular
-    args and parameters in the continuation info of each continuation. *)
+(** "Consume" the extra args of an accumulator in order to add them to the
+    regular args and parameters in the continuation info of each continuation. *)
 val extend_args_with_extra_args : t -> t
 
 (** A name for the incorrec tdummy toplevel cont used to initialize the acc. *)
 val wrong_dummy_toplevel_cont_name : string
-
 
 (* {2 Creation and updates} *)
 
@@ -71,7 +70,11 @@ val record_var_binding :
 val record_var_alias : Variable.t -> Simple.t -> t -> t
 
 val record_ref_named :
-  Named_rewrite_id.t -> bound_to:Variable.t -> Flow_types.Mutable_prim.t -> t -> t
+  Named_rewrite_id.t ->
+  bound_to:Variable.t ->
+  Flow_types.Mutable_prim.t ->
+  t ->
+  t
 
 (** Add a variable binding to the symbol. Projections might get recorded
     multiple times. *)
@@ -110,4 +113,3 @@ val add_apply_cont_args :
 (** Add extra params and args to a continuation. *)
 val add_extra_params_and_args :
   Continuation.t -> Continuation_extra_params_and_args.t -> t -> t
-

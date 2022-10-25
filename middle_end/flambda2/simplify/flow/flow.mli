@@ -13,7 +13,6 @@
 (**************************************************************************)
 
 module Acc : sig
-
   (** The type of accumulator for flow analysis *)
   type t
 
@@ -40,8 +39,8 @@ module Acc : sig
     t ->
     t
 
-  (** Pop the current top of the stack. Used when exiting the current continuation
-      handler. *)
+  (** Pop the current top of the stack. Used when exiting the current
+      continuation handler. *)
   val exit_continuation : Continuation.t -> t -> t
 
   (** That variable is defined in the current handler *)
@@ -55,7 +54,11 @@ module Acc : sig
   val record_var_alias : Variable.t -> Simple.t -> t -> t
 
   val record_ref_named :
-    Named_rewrite_id.t -> bound_to:Variable.t -> Flow_types.Mutable_prim.t -> t -> t
+    Named_rewrite_id.t ->
+    bound_to:Variable.t ->
+    Flow_types.Mutable_prim.t ->
+    t ->
+    t
 
   (** Add a variable binding to the symbol. Projections might get recorded
       multiple times. *)
@@ -70,8 +73,9 @@ module Acc : sig
   (** Add a value slot from the current handler. *)
   val record_value_slot : Name.t -> Value_slot.t -> Name_occurrences.t -> t -> t
 
-  (** Add name occurrences used in the body of the current continuation's handler,
-      *excluding* uses in apply_cont expressions, which are tracked separately. *)
+  (** Add name occurrences used in the body of the current continuation's
+      handler, *excluding* uses in apply_cont expressions, which are tracked
+      separately. *)
   val add_used_in_current_handler : Name_occurrences.t -> t -> t
 
   (** Add the given continuation as being used as the return continuation for a
@@ -94,11 +98,9 @@ module Acc : sig
   (** Add extra params and args to a continuation. *)
   val add_extra_params_and_args :
     Continuation.t -> Continuation_extra_params_and_args.t -> t -> t
-
 end
 
 module Analysis : sig
-
   (** Perform flow analysis *)
   val analyze :
     ?speculative:bool ->
@@ -107,6 +109,6 @@ module Analysis : sig
     exn_continuation:Continuation.t ->
     code_age_relation:Code_age_relation.t ->
     used_value_slots:Name_occurrences.t Or_unknown.t ->
-    Acc.t -> Flow_types.Flow_result.t
-
+    Acc.t ->
+    Flow_types.Flow_result.t
 end

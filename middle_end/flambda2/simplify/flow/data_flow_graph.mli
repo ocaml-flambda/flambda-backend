@@ -12,7 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-
 (** An internal type for the data_flow graph *)
 type t
 
@@ -25,9 +24,8 @@ val create :
   exn_continuation:Continuation.t ->
   code_age_relation:Code_age_relation.t ->
   used_value_slots:Name_occurrences.t Or_unknown.t ->
-  Flow_types.Continuation_info.t Continuation.Map.t -> t
+  Flow_types.Continuation_info.t Continuation.Map.t ->
+  t
 
 (** Run the required names analysis *)
 val required_names : t -> Flow_types.Data_flow_result.t
-
-

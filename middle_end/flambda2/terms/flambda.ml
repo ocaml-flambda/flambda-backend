@@ -911,7 +911,8 @@ module Continuation_handler = struct
                 Pattern_match_pair_error.Parameter_lists_have_different_lengths))
 
   let print ~cont ~recursive ppf ch : unit =
-    print_continuation_handler ~first:true recursive ppf cont ch Or_unknown.Unknown
+    print_continuation_handler ~first:true recursive ppf cont ch
+      Or_unknown.Unknown
 
   let is_exn_handler t = t.is_exn_handler
 

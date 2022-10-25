@@ -20,7 +20,6 @@
 
    mshinwell: in practice I'm not sure this will make any difference *)
 
-
 (* Continuation arguments at call sites of continuations *)
 (* ***************************************************** *)
 
@@ -41,14 +40,13 @@ end
 (* ************************************************** *)
 
 module Mutable_prim = struct
-
   type t =
-    | Block_load of {
-        bak : Flambda_primitive.Block_access_kind.t;
-        mut : Mutability.t;
-        block: Variable.t;
-        field: int;
-      }
+    | Block_load of
+        { bak : Flambda_primitive.Block_access_kind.t;
+          mut : Mutability.t;
+          block : Variable.t;
+          field : int
+        }
     | Block_set of
         Flambda_primitive.Block_access_kind.t
         * Flambda_primitive.Init_or_assign.t
@@ -69,42 +67,36 @@ module Mutable_prim = struct
         Simple.print value
     | Make_block (_, _, _, args) ->
       Format.fprintf ppf "Make_block [%a]" Simple.List.print args
-
-
 end
 
 (* Bindings to primitive that we track for the mutable unboxing *)
 (* ************************************************************ *)
 
 module Mutable_let_prim = struct
+  type t =
+    { bound_var : Variable.t;
+      prim : Mutable_prim.t;
+      named_rewrite_id : Named_rewrite_id.t
+    }
 
-  type t = {
-    bound_var : Variable.t;
-    prim : Mutable_prim.t;
-    named_rewrite_id : Named_rewrite_id.t;
-  }
-
-  let print ppf { bound_var; prim; named_rewrite_id = _; } =
-    Format.fprintf ppf "%a = %a" Variable.print bound_var Mutable_prim.print prim
+  let print ppf { bound_var; prim; named_rewrite_id = _ } =
+    Format.fprintf ppf "%a = %a" Variable.print bound_var Mutable_prim.print
+      prim
 
   module List = struct
-
     type nonrec t = t list
 
     let print_rev ppf l =
       Format.fprintf ppf "[%a]"
         (Format.pp_print_list print ~pp_sep:Format.pp_print_space)
         (List.rev l)
-
   end
-
 end
 
 (* Accumulated flow information for a single continuation handler *)
 (* ************************************************************** *)
 
 module Continuation_info = struct
-
   type t =
     { continuation : Continuation.t;
       recursive : bool;
@@ -120,7 +112,7 @@ module Continuation_info = struct
       value_slots : Name_occurrences.t Name.Map.t Value_slot.Map.t;
       apply_cont_args :
         Cont_arg.t Numeric_types.Int.Map.t Apply_cont_rewrite_id.Map.t
-          Continuation.Map.t
+        Continuation.Map.t
     }
 
   let [@ocamlformat "disable"] print ppf
@@ -172,14 +164,12 @@ module Continuation_info = struct
       (Continuation.Map.print (Apply_cont_rewrite_id.Map.print
         (Numeric_types.Int.Map.print Cont_arg.print)))
       apply_cont_args
-
 end
 
 (* Flow accumulator *)
 (* **************** *)
 
 module Acc = struct
-
   type t =
     { stack : Continuation_info.t list;
       map : Continuation_info.t Continuation.Map.t;
@@ -189,11 +179,11 @@ module Acc = struct
 
   let print_stack ppf stack =
     Format.fprintf ppf "@[<v 1>(%a)@]"
-      (Format.pp_print_list Continuation_info.print ~pp_sep:Format.pp_print_space)
+      (Format.pp_print_list Continuation_info.print
+         ~pp_sep:Format.pp_print_space)
       stack
 
-  let print_map ppf map =
-    Continuation.Map.print Continuation_info.print ppf map
+  let print_map ppf map = Continuation.Map.print Continuation_info.print ppf map
 
   let print_extra ppf extra =
     Continuation.Map.print Continuation_extra_params_and_args.print ppf extra
@@ -208,14 +198,12 @@ module Acc = struct
       print_stack stack
       print_map map
       print_extra extra
-
 end
 
 (* Result of the flow analysis: reachable code ids *)
 (* *********************************************** *)
 
 module Reachable_code_ids = struct
-
   type t =
     { live_code_ids : Code_id.Set.t;
       ancestors_of_live_code_ids : Code_id.Set.t
@@ -228,14 +216,12 @@ module Reachable_code_ids = struct
       )@]"
       Code_id.Set.print live_code_ids
       Code_id.Set.print ancestors_of_live_code_ids
-
 end
 
 (* Result of the flow analysis: data flow analysis *)
 (* *********************************************** *)
 
 module Data_flow_result = struct
-
   type t =
     { required_names : Name.Set.t;
       reachable_code_ids : Reachable_code_ids.t
@@ -250,14 +236,12 @@ module Data_flow_result = struct
        )@]"
     Name.Set.print required_names
     Reachable_code_ids.print reachable_code_ids
-
 end
 
 (* Result of the flow analysis: aliased parameters of continuations *)
 (* **************************************************************** *)
 
 module Continuation_param_aliases = struct
-
   type recursive_continuation_wrapper =
     | No_wrapper
     | Wrapper_needed
@@ -288,18 +272,16 @@ module Continuation_param_aliases = struct
       (Variable.Map.print Variable.print) lets_to_introduce
       Variable.Set.print extra_args_for_aliases
       pp_wrapper recursive_continuation_wrapper
-
 end
 
 (* Result of the flow analysis: alias analysis result *)
 (* ************************************************** *)
 
 module Alias_result = struct
-
-  type t = {
-    aliases_kind : Flambda_kind.t Variable.Map.t;
-    continuation_parameters : Continuation_param_aliases.t Continuation.Map.t
-  }
+  type t =
+    { aliases_kind : Flambda_kind.t Variable.Map.t;
+      continuation_parameters : Continuation_param_aliases.t Continuation.Map.t
+    }
 
   let [@ocamlformat "disable"] print ppf
       { aliases_kind; continuation_parameters } =
@@ -310,14 +292,12 @@ module Alias_result = struct
        )@]"
       (Variable.Map.print Flambda_kind.print) aliases_kind
       (Continuation.Map.print Continuation_param_aliases.print) continuation_parameters
-
 end
 
 (* Result of the flow analysis: mutable unboxing *)
 (* ********************************************* *)
 
 module Mutable_unboxing_result = struct
-
   type t =
     { additionnal_epa : Continuation_extra_params_and_args.t Continuation.Map.t;
       let_rewrites : Named_rewrite.t Named_rewrite_id.Map.t
@@ -331,19 +311,16 @@ module Mutable_unboxing_result = struct
        )@]"
       (Continuation.Map.print Continuation_extra_params_and_args.print) additionnal_epa
       (Named_rewrite_id.Map.print Named_rewrite.print) let_rewrites
-
 end
-
 
 (* Result of the flow analysis *)
 (* *************************** *)
 
 module Flow_result = struct
-
   type t =
     { data_flow_result : Data_flow_result.t;
       aliases_result : Alias_result.t;
-      mutable_unboxing_result : Mutable_unboxing_result.t;
+      mutable_unboxing_result : Mutable_unboxing_result.t
     }
 
   let [@ocamlformat "disable"] print ppf
@@ -357,5 +334,4 @@ module Flow_result = struct
     Data_flow_result.print data_flow_result
     Alias_result.print aliases_result
     Mutable_unboxing_result.print mutable_unboxing_result
-
 end

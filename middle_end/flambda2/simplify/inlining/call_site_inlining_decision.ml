@@ -98,7 +98,8 @@ let speculative_inlining dacc ~apply ~function_type ~simplify_expr ~return_arity
                mutable_unboxing_result
              }
               : Flow_types.Flow_result.t) =
-          Flow.Analysis.analyze data_flow ~speculative:true ~print_name:"speculative" ~code_age_relation:Code_age_relation.empty
+          Flow.Analysis.analyze data_flow ~speculative:true
+            ~print_name:"speculative" ~code_age_relation:Code_age_relation.empty
             ~used_value_slots:Unknown ~return_continuation:function_return_cont
             ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
         in
@@ -123,8 +124,9 @@ let speculative_inlining dacc ~apply ~function_type ~simplify_expr ~return_arity
         in
         let uacc =
           UA.create ~required_names ~reachable_code_ids:Unknown
-            ~compute_slot_offsets:false ~continuation_param_aliases:aliases_result
-            ~mutable_unboxing_result uenv dacc
+            ~compute_slot_offsets:false
+            ~continuation_param_aliases:aliases_result ~mutable_unboxing_result
+            uenv dacc
         in
         rebuild uacc ~after_rebuild:(fun expr uacc -> expr, uacc))
   in

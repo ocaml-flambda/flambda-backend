@@ -20,9 +20,9 @@ type t =
     params_kind : Flambda_kind.With_subkind.t Variable.Map.t;
     graph : G.directed_graph;
     dominator_roots : Variable.Set.t
-    (* variables that are dominated only by themselves, usually because a
-       constant or a symbol can flow to that variable, and thus that
-       variable cannot be dominated by another variable. *)
+        (* variables that are dominated only by themselves, usually because a
+           constant or a symbol can flow to that variable, and thus that
+           variable cannot be dominated by another variable. *)
   }
 
 type alias_map = Variable.t Variable.Map.t
@@ -40,13 +40,12 @@ val dominator_analysis : t -> alias_map
 val aliases_kind : t -> alias_map -> Flambda_kind.t Variable.Map.t
 
 module Dot : sig
-
   (** Printing function *)
   val print :
     ctx:int ->
     print_name:string ->
     doms:Variable.t Variable.Map.t ->
-    Format.formatter -> t -> unit
-
+    Format.formatter ->
+    t ->
+    unit
 end
-

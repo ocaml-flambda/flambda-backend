@@ -40,7 +40,7 @@ type t =
     mutable_unboxing_result : Flow_types.Mutable_unboxing_result.t;
     demoted_exn_handlers : Continuation.Set.t;
     slot_offsets : Slot_offsets.t Or_unknown.t;
-    continuation_param_aliases : Flow_types.Alias_result.t;
+    continuation_param_aliases : Flow_types.Alias_result.t
   }
 
 let [@ocamlformat "disable"] print ppf

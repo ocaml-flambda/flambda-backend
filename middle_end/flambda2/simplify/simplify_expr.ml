@@ -16,9 +16,8 @@
 
 open! Simplify_import
 
-let simplify_toplevel_common dacc simplify ~params
-    ~return_continuation ~return_arity ~exn_continuation ~return_cont_scope
-    ~exn_cont_scope =
+let simplify_toplevel_common dacc simplify ~params ~return_continuation
+    ~return_arity ~exn_continuation ~return_cont_scope ~exn_cont_scope =
   (* The usage analysis needs a continuation whose handler holds the toplevel
      code of the function. Since such a continuation does not exist, we create a
      dummy one here. *)
@@ -26,8 +25,7 @@ let simplify_toplevel_common dacc simplify ~params
     Continuation.create ~name:"dummy_toplevel_continuation" ()
   in
   let dacc =
-    DA.map_flow_acc dacc
-      ~f:(Flow.Acc.init_toplevel ~dummy_toplevel_cont params)
+    DA.map_flow_acc dacc ~f:(Flow.Acc.init_toplevel ~dummy_toplevel_cont params)
   in
   let expr, uacc =
     simplify dacc ~down_to_up:(fun dacc ~rebuild ->
@@ -44,7 +42,7 @@ let simplify_toplevel_common dacc simplify ~params
            used_value_slots, and in return we do not use the reachable_code_id
            part of the data_flow analysis. *)
         let code_age_relation, used_value_slots =
-          match (Closure_info.in_or_out_of_closure closure_info) with
+          match Closure_info.in_or_out_of_closure closure_info with
           | In_a_closure -> Code_age_relation.empty, Or_unknown.Unknown
           | Not_in_a_closure ->
             ( DA.code_age_relation dacc,
@@ -70,7 +68,7 @@ let simplify_toplevel_common dacc simplify ~params
            the the live code ids are unknown, which will prevent any from being
            mistakenly deleted. *)
         let reachable_code_ids : _ Or_unknown.t =
-          match (Closure_info.in_or_out_of_closure closure_info) with
+          match Closure_info.in_or_out_of_closure closure_info with
           | In_a_closure -> Unknown
           | Not_in_a_closure -> Known reachable_code_ids
         in
@@ -86,7 +84,8 @@ let simplify_toplevel_common dacc simplify ~params
         in
         let uacc =
           UA.create ~required_names ~reachable_code_ids ~mutable_unboxing_result
-            ~compute_slot_offsets:true ~continuation_param_aliases:aliases_result uenv dacc
+            ~compute_slot_offsets:true
+            ~continuation_param_aliases:aliases_result uenv dacc
         in
         rebuild uacc ~after_rebuild:(fun expr uacc -> expr, uacc))
   in
@@ -138,8 +137,8 @@ and simplify_function_body dacc expr ~return_continuation ~return_arity
   | Do_not_loopify ->
     simplify_toplevel_common dacc
       (fun dacc -> simplify_expr dacc expr)
-      ~params ~return_continuation ~return_arity
-      ~exn_continuation ~return_cont_scope ~exn_cont_scope
+      ~params ~return_continuation ~return_arity ~exn_continuation
+      ~return_cont_scope ~exn_cont_scope
   | Loopify cont ->
     let call_self_cont_expr =
       let args = Bound_parameters.simples params in
@@ -155,8 +154,8 @@ and simplify_function_body dacc expr ~return_continuation ~return_arity
         Simplify_let_cont_expr.simplify_as_recursive_let_cont ~simplify_expr
           dacc
           (call_self_cont_expr, handlers))
-      ~params ~return_continuation ~return_arity
-      ~exn_continuation ~return_cont_scope ~exn_cont_scope
+      ~params ~return_continuation ~return_arity ~exn_continuation
+      ~return_cont_scope ~exn_cont_scope
 
 and[@inline always] simplify_let dacc let_expr ~down_to_up =
   Simplify_let_expr.simplify_let ~simplify_expr ~simplify_function_body dacc
@@ -166,5 +165,6 @@ let simplify_toplevel dacc expr ~return_continuation ~return_arity
     ~exn_continuation ~return_cont_scope ~exn_cont_scope =
   let params = Bound_parameters.empty in
   simplify_toplevel_common dacc
-    (fun dacc -> simplify_expr dacc expr) ~params ~return_continuation ~return_arity
-    ~exn_continuation ~return_cont_scope ~exn_cont_scope
+    (fun dacc -> simplify_expr dacc expr)
+    ~params ~return_continuation ~return_arity ~exn_continuation
+    ~return_cont_scope ~exn_cont_scope

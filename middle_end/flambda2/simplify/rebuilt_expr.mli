@@ -83,7 +83,9 @@ module Continuation_handler : sig
   val print :
     cont:Continuation.t ->
     recursive:Recursive.t ->
-    Format.formatter -> t -> unit
+    Format.formatter ->
+    t ->
+    unit
 
   val create :
     Are_rebuilding_terms.t ->
