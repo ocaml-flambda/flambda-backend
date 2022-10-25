@@ -14,8 +14,7 @@ jobs:
             os: ubuntu-latest
             ocamlparam: ''
             check_arch: true
-            env:
-              USE_RUNTIME: d
+            use_runtime: d
 
           - name: closure_cfg_local
             config: --enable-middle-end=closure --enable-stack-allocation
@@ -41,8 +40,7 @@ jobs:
             config: --enable-middle-end=flambda2
             os: ubuntu-latest
             ocamlparam: ''
-            env:
-              USE_RUNTIME: d
+            use_runtime: d
 
           - name: flambda2_frame_pointers
             config: --enable-middle-end=flambda2 --enable-frame-pointers
@@ -151,6 +149,7 @@ jobs:
         if [ $build_upstream = true ]; then make -j$J build_and_test_upstream; else make $target; fi
       env:
         BUILD_OCAMLPARAM: ${{ matrix.ocamlparam }}
+        USE_RUNTIME: ${{ matrix.use_runtime }}
 
     - name: Check other architectures
       working-directory: flambda_backend
