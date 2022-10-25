@@ -216,16 +216,21 @@ needs to exist during the installation step):
 Note that if the Flambda backend tree is already configured, it should be cleaned
 thoroughly (e.g. `git clean -dfX`) before reconfiguring with a different prefix.
 
-Then build the compiler normally (`make`).
+Then build the compiler with the command `make _install` (this is the default
+target plus some setup in preparation for installation).
 Once that is done, we're ready to install the compiler:
 
 ```shell
-opam custom-install ocaml-variants.4.12.0+flambda2+trunk -- make install
+opam custom-install ocaml-variants.4.12.0+flambda2+trunk -- make install_for_opam
 ```
 
 The exact version doesn't matter that much, but the version number should
 match the one in the Flambda backend tree.  (The name of the package given
 here is independent of the name of the switch.)
+Note that due to some issues with some versions of the custom-install plugin,
+it is recommended to run the command `opam reinstall --forget-pending` after
+every use of `opam custom-install`, otherwise any subsequent `opam` command
+tries to rebuild the compiler from scratch.
 
 To finish the installation, `opam install ocaml.4.12.0` will install the remaining
 auxiliary packages necessary for a regular switch. After that, normal opam
