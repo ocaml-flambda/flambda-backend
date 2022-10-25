@@ -363,9 +363,11 @@ let add_check_attribute expr loc attributes =
     | Assume p -> Printf.sprintf "%s assume" (to_string p)
     | Default_check -> assert false
   in
-  match expr, get_check_attribute attributes with
-  | expr, [] -> expr
-  | Lfunction({ attr = { stub = false } as attr } as funct), [check] ->
+  match expr with
+  | Lfunction({ attr = { stub = false } as attr } as funct) ->
+    begin match get_check_attribute attributes with
+    | [] -> expr
+    | [check] ->
       begin match attr.check with
       | Default_check -> ()
       | Assert Noalloc | Assume Noalloc ->
@@ -374,40 +376,36 @@ let add_check_attribute expr loc attributes =
       end;
       let attr = { attr with check } in
       Lfunction { funct with attr }
-  | expr, [check] ->
-      Location.prerr_warning loc
-        (Warnings.Misplaced_attribute (to_string check));
-      expr
-  | expr, a::b::_ ->
-    Location.prerr_warning loc
-      (Warnings.Duplicated_attribute
-         (Printf.sprintf "%s/%s"(to_string a) (to_string b)));
-    expr
+    | (_ :: _ :: _) -> assert false
+    end
+  | _ -> expr
 
 let add_poll_attribute expr loc attributes =
-  match expr, get_poll_attribute attributes with
-  | expr, Default_poll -> expr
-  | Lfunction({ attr = { stub = false } as attr } as funct), poll ->
+  match expr with
+  | Lfunction({ attr = { stub = false } as attr } as funct) ->
+    begin match get_poll_attribute attributes with
+    | Default_poll -> expr
+    | Error_poll as poll ->
       begin match attr.poll with
       | Default_poll -> ()
       | Error_poll ->
-          Location.prerr_warning loc
-            (Warnings.Duplicated_attribute "error_poll")
+        Location.prerr_warning loc
+          (Warnings.Duplicated_attribute "error_poll")
       end;
       let attr = { attr with poll } in
       check_poll_inline loc attr;
       check_poll_local loc attr;
       let attr = { attr with inline = Never_inline; local = Never_local } in
       Lfunction { funct with attr }
-  | expr, Error_poll ->
-      Location.prerr_warning loc
-        (Warnings.Misplaced_attribute "error_poll");
-      expr
+    end
+  | _ -> expr
 
 let add_loop_attribute expr loc attributes =
-  match expr, get_loop_attribute attributes with
-  | expr, Default_loop -> expr
-  | Lfunction({ attr = { stub = false } as attr } as funct), loop ->
+  match expr with
+  | Lfunction({ attr = { stub = false } as attr } as funct) ->
+    begin match get_loop_attribute attributes with
+    | Default_loop -> expr
+    | (Always_loop | Never_loop) as loop ->
       begin match attr.loop with
       | Default_loop -> ()
       | Always_loop | Never_loop ->
@@ -416,10 +414,8 @@ let add_loop_attribute expr loc attributes =
       end;
       let attr = { attr with loop } in
       Lfunction { funct with attr = attr }
-  | expr, (Always_loop | Never_loop) ->
-      Location.prerr_warning loc
-        (Warnings.Misplaced_attribute "loop");
-      expr
+    end
+  | _ -> expr
 
 (* Get the [@inlined] attribute payload (or default if not present). *)
 let get_inlined_attribute e =
