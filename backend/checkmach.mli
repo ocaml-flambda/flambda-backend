@@ -56,10 +56,10 @@ end
 
 module Detail : sig
   type context =
-    | In_raise (* The current allocation occured in a raise*)
-    | In_catch (* The current allocation occured in a catch block *)
+    | In_raise (* The current allocation occurred in a raise*)
+    | In_catch (* The current allocation occurred in a catch block *)
     | Somewhere_else
-  (* The current allocation occured somewhere else in the code *)
+  (* The current allocation occurred somewhere else in the code *)
 
   type kind =
     | Caml_alloc
@@ -88,6 +88,6 @@ val keep_all_details : bool ref
 
 type details = (string, Detail.t list) Hashtbl.t
 
-(* Assert that [keep_all_details] has been set to true and returns details about
+(* Asserts that [keep_all_details] has been set to true and returns details about
    all allocations in this compilation unit. *)
 val details : unit -> details
