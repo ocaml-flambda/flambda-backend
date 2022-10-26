@@ -3371,11 +3371,8 @@ let transl_builtin name args dbg typ_res =
   | "caml_unsigned_int64_mulh_unboxed" -> mulhi ~signed:false Pint64 args dbg
   | "caml_int32_unsigned_to_int_trunc_unboxed_to_untagged" ->
     Some (zero_extend_32 dbg (one_arg name args))
-  | "caml_csel_value"
-  | "caml_csel_int_untagged"
-  | "caml_csel_int64_unboxed"
-  | "caml_csel_int32_unboxed"
-  | "caml_csel_nativeint_unboxed"
+  | "caml_csel_value" | "caml_csel_int_untagged" | "caml_csel_int64_unboxed"
+  | "caml_csel_int32_unboxed" | "caml_csel_nativeint_unboxed"
   | "caml_csel_float_unboxed" ->
     let op = Ccsel typ_res in
     let cond, ifso, ifnot = three_args name args in
@@ -3554,7 +3551,10 @@ let cextcall (prim : Primitive.description) args dbg ret ty_args returns =
         dbg )
   in
   if prim.prim_c_builtin
-  then match transl_builtin name args dbg ret with Some op -> op | None -> default
+  then
+    match transl_builtin name args dbg ret with
+    | Some op -> op
+    | None -> default
   else default
 
 (* Symbols *)
@@ -4112,7 +4112,10 @@ let extcall ~dbg ~returns ~alloc ~is_c_builtin ~ty_args name typ_res args =
         dbg )
   in
   if is_c_builtin
-  then match transl_builtin name args dbg typ_res with Some op -> op | None -> default
+  then
+    match transl_builtin name args dbg typ_res with
+    | Some op -> op
+    | None -> default
   else default
 
 let bigarray_load ~dbg ~elt_kind ~elt_size ~elt_chunk ~bigarray ~index =
