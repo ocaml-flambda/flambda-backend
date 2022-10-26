@@ -147,7 +147,7 @@ method! reload_operation op arg res =
       then super#reload_operation op arg res
       else (arg, res)
   | Icsel tst ->
-      (* Last argument and result must the same register.
+      (* Last argument and result must be in the same register.
          Result must be in register. The last two arguments are used
          for emitting cmov, the remaining for [Mach.test]. *)
     (*  CR gyorsh: we already use Array.sub here,
@@ -159,6 +159,8 @@ method! reload_operation op arg res =
         weird). *)
       if stackp res.(0)
       then begin
+        (* [reload_test] may lose some sharing between the arguments for the test,
+           and the last two.  *)
         let r = self#makereg res.(0) in
         let len = Array.length arg in
         let arg' = Array.copy arg in
