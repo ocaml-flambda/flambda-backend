@@ -159,8 +159,9 @@ method! reload_operation op arg res =
         weird). *)
       if stackp res.(0)
       then begin
-        (* [reload_test] may lose some sharing between the arguments for the test,
-           and the last two.  *)
+        (* CR-soon gyorsh: [reload_test] may lose some sharing
+           between the arguments of the test and the last two arguments
+           and the result of the move. *)
         let r = self#makereg res.(0) in
         let len = Array.length arg in
         let arg' = Array.copy arg in
