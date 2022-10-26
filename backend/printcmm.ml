@@ -150,6 +150,15 @@ let trywith_kind ppf kind =
   | Regular -> ()
   | Delayed i -> fprintf ppf "<delayed %d>" i
 
+let to_string msg =
+  let b = Buffer.create 17 in
+  let ppf = Format.formatter_of_buffer b in
+  Format.fprintf ppf "Hello: ";
+  Format.kfprintf (fun ppf ->
+    Format.pp_print_flush ppf ();
+    Buffer.contents b
+  ) ppf msg
+
 let operation d = function
   | Capply(_ty, _) -> "app" ^ location d
   | Cextcall { func = lbl; _ } ->
@@ -193,7 +202,8 @@ let operation d = function
   | Csubf -> "-f"
   | Cmulf -> "*f"
   | Cdivf -> "/f"
-  | Ccsel -> "csel"
+  | Ccsel ret_typ ->
+    to_string "csel %a" machtype ret_typ
   | Cfloatofint -> "floatofint"
   | Cintoffloat -> "intoffloat"
   | Cvalueofint -> "valueofint"

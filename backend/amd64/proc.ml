@@ -542,7 +542,7 @@ let operation_supported = function
   | Capply _ | Cextcall _ | Cload _ | Calloc _ | Cstore _
   | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
-  | Ccsel
+  | Ccsel _
   | Cbswap _
   | Cclz _ | Cctz _
   | Ccmpi _ | Caddv | Cadda | Ccmpa _
