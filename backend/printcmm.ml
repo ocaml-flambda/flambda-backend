@@ -193,6 +193,7 @@ let operation d = function
   | Csubf -> "-f"
   | Cmulf -> "*f"
   | Cdivf -> "/f"
+  | Ccsel -> "csel"
   | Cfloatofint -> "floatofint"
   | Cintoffloat -> "intoffloat"
   | Cvalueofint -> "valueofint"

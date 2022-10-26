@@ -168,6 +168,16 @@ let linear i n contains_calls =
     | Iop(Imove | Ireload | Ispill)
       when i.Mach.arg.(0).loc = i.Mach.res.(0).loc ->
         linear env i.Mach.next n
+    | Iop((Icsel _) as op) ->
+      (* CR gyorsh: this optimization can leave behind dead code
+         from computing the condition. *)
+      let len = Array.length i.Mach.arg in
+      let ifso = i.Mach.arg.(len-2) in
+      let ifnot = i.Mach.arg.(len-1) in
+      if Reg.same_loc i.Mach.res.(0) ifso &&
+         Reg.same_loc i.Mach.res.(0) ifnot
+      then linear env i.Mach.next n
+      else copy_instr (Lop op) i (linear env i.Mach.next n)
     | Iop((Ipoll { return_label = None; _ }) as op) ->
         (* If the poll call does not already specify where to jump to after
            the poll (the expected situation in the current implementation),

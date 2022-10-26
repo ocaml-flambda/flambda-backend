@@ -568,6 +568,7 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
            | Ipopcnt | Iclz _ | Ictz _ | Ilsl | Ilsr | Iasr | Icomp _ ) as op),
           i ) ->
       basic (Intop_imm (op, i))
+    | Icsel tst -> basic (Csel tst)
     | Ivalueofint -> basic Valueofint
     | Iintofvalue -> basic Intofvalue
     | Iprobe_is_enabled { name } -> basic (Probe_is_enabled { name })

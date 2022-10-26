@@ -368,6 +368,7 @@ let operation_supported = function
   | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf
   | Cfloatofint | Cintoffloat | Cintofvalue | Cvalueofint
   | Ccmpf _
+  | Ccsel
   | Craise _
   | Ccheckbound
   | Cprobe _ | Cprobe_is_enabled _ | Copaque

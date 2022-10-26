@@ -349,6 +349,7 @@ let operation_can_raise = function
 
 let operation_allocates = function
   | Ifar_alloc _ -> true
+  | Ifar_poll _
   | Ifar_intop_checkbound
   | Ifar_intop_imm_checkbound _
   | Ishiftcheckbound _
