@@ -40,11 +40,6 @@ module Instruction = struct
   module IdMap = MoreLabels.Map.Make (Int)
 end
 
-let first_instruction_id (block : Cfg.basic_block) : int =
-  match block.body with
-  | [] -> block.terminator.id
-  | first_instr :: _ -> first_instr.id
-
 let[@inline] int_max (left : int) (right : int) =
   if left >= right then left else right
 
@@ -157,8 +152,8 @@ let simplify_cfg : Cfg_with_layout.t -> Cfg_with_layout.t =
  fun cfg_with_layout ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   Cfg.iter_blocks cfg ~f:(fun _label block ->
-      block.body
-        <- List.filter block.body ~f:(fun instr -> not (Cfg.is_noop_move instr)));
+      Cfg.BasicInstructionList.filter_left block.body ~f:(fun instr ->
+          not (Cfg.is_noop_move instr)));
   Eliminate_fallthrough_blocks.run cfg_with_layout;
   Merge_straightline_blocks.run cfg_with_layout;
   Eliminate_dead_code.run_dead_block cfg_with_layout;
@@ -196,14 +191,19 @@ let precondition : Cfg_with_layout.t -> unit =
       | Intoffloat -> ()
       | Valueofint -> ()
       | Intofvalue -> ()
-      | Probe _ -> ()
       | Probe_is_enabled _ -> ()
       | Opaque -> ()
       | Begin_region -> ()
       | End_region -> ()
-      | Specific _ -> ()
+      | Specific op ->
+        if Arch.operation_can_raise op
+        then
+          fatal
+            "architecture specific instruction %d that can raise but isn't a \
+             terminator"
+            id
       | Name_for_debugger _ -> ())
-    | Call _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> ()
+    | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> ()
   in
   let register_must_not_be_on_stack (id : Instruction.id) (reg : Reg.t) : unit =
     match reg.Reg.loc with
@@ -378,22 +378,21 @@ let remove_prologue_if_not_required : Cfg_with_layout.t -> unit =
   then
     (* note: `Cfize` has put the prologue in the entry block *)
     let block = Cfg.get_block_exn cfg cfg.entry_label in
-    block.body
-      <- List.filter block.body ~f:(fun instr ->
-             match instr.Cfg.desc with Cfg.Prologue -> false | _ -> true)
+    Cfg.BasicInstructionList.filter_left block.body ~f:(fun instr ->
+        match instr.Cfg.desc with Cfg.Prologue -> false | _ -> true)
 
 let update_live_fields : Cfg_with_layout.t -> liveness -> unit =
  fun cfg_with_layout liveness ->
   (* CR xclerc for xclerc: partial duplicate of
      `Asmgen.recompute_liveness_on_cfg` *)
-  let with_liveness (instr : _ Cfg.instruction) =
+  let set_liveness (instr : _ Cfg.instruction) =
     match Cfg_dataflow.Instr.Tbl.find_opt liveness instr.id with
     | None -> fatal "Missing liveness information for instruction %d" instr.id
-    | Some { Cfg_liveness.before = _; across } -> Cfg.set_live instr across
+    | Some { Cfg_liveness.before = _; across } -> instr.live <- across
   in
   Cfg.iter_blocks (Cfg_with_layout.cfg cfg_with_layout) ~f:(fun _label block ->
-      block.body <- ListLabels.map block.body ~f:with_liveness;
-      block.terminator <- with_liveness block.terminator)
+      Cfg.BasicInstructionList.iter block.body ~f:set_liveness;
+      set_liveness block.terminator)
 
 let update_spill_cost : Cfg_with_layout.t -> unit =
  fun cfg_with_layout ->
@@ -456,3 +455,81 @@ let may_use_stack_operands_everywhere :
   may_use_stack_operands_array map instr.arg;
   may_use_stack_operands_array map instr.res;
   All_spilled_registers_rewritten
+
+let insert_block :
+    Cfg_with_layout.t ->
+    Cfg.BasicInstructionList.t ->
+    after:Cfg.basic_block ->
+    next_instruction_id:(unit -> Instruction.id) ->
+    unit =
+ fun cfg_with_layout body ~after:predecessor_block ~next_instruction_id ->
+  let cfg = Cfg_with_layout.cfg cfg_with_layout in
+  let successors =
+    Cfg.successor_labels ~normal:true ~exn:false predecessor_block
+  in
+  if Label.Set.cardinal successors = 0
+  then
+    Misc.fatal_errorf
+      "Cannot insert a block after block %a: it has no successors" Label.print
+      predecessor_block.start;
+  let last_insn =
+    match Cfg.BasicInstructionList.last body with
+    | None -> Misc.fatal_error "Inserting an empty block"
+    | Some i -> i
+  in
+  let copy (i : Cfg.basic Cfg.instruction) : Cfg.basic Cfg.instruction =
+    { i with id = next_instruction_id () }
+  in
+  (* copy body if there is more than one successor *)
+  let first = ref true in
+  let get_body () =
+    if !first
+    then (
+      first := false;
+      body)
+    else
+      let new_body = Cfg.BasicInstructionList.make_empty () in
+      Cfg.BasicInstructionList.iter body ~f:(fun instr ->
+          Cfg.BasicInstructionList.add_end new_body (copy instr));
+      new_body
+  in
+  Label.Set.iter
+    (fun successor_label ->
+      let successor_block = Cfg.get_block_exn cfg successor_label in
+      let start = Cmm.new_label () in
+      let block : Cfg.basic_block =
+        { start;
+          body = get_body ();
+          terminator =
+            { (* The [successor_block] is the only successor. *)
+              desc = Cfg.Always successor_label;
+              arg = [||];
+              res = [||];
+              dbg = last_insn.dbg;
+              fdo = last_insn.fdo;
+              live = last_insn.live;
+              stack_offset = last_insn.stack_offset;
+              id = next_instruction_id ();
+              irc_work_list = Unknown_list
+            };
+          (* The [predecessor_block] is the only predecessor. *)
+          predecessors = Label.Set.singleton predecessor_block.start;
+          stack_offset = predecessor_block.terminator.stack_offset;
+          exn = None;
+          can_raise = false;
+          is_trap_handler = false;
+          dead = predecessor_block.dead
+        }
+      in
+      Cfg_with_layout.add_block cfg_with_layout block
+        ~after:predecessor_block.start;
+      (* Change the labels for the terminator in [predecessor_block]. *)
+      Cfg.replace_successor_labels cfg ~normal:true ~exn:false predecessor_block
+        ~f:(fun old_label ->
+          if Label.equal old_label successor_label then start else old_label);
+      (* Update predecessors for the [successor_block]. *)
+      successor_block.predecessors
+        <- successor_block.predecessors
+           |> Label.Set.remove predecessor_block.start
+           |> Label.Set.add start)
+    successors

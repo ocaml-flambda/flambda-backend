@@ -100,9 +100,10 @@ let linearize_terminator cfg (terminator : Cfg.terminator Cfg.instruction)
      we are making an arbitrary choice. *)
   (* If one of the successors is a fallthrough label, do not emit a jump for it.
      Otherwise, the last jump is unconditional. *)
-  let branch_or_fallthrough lbl =
-    if Label.equal next.label lbl then [] else [L.Lbranch lbl]
+  let branch_or_fallthrough d lbl =
+    if Label.equal next.label lbl then d else d @ [L.Lbranch lbl]
   in
+  let single d = [d], None in
   let emit_bool (c1, l1) (c2, l2) =
     (* c1 must be the inverse of c2 *)
     match Label.equal l1 next.label, Label.equal l2 next.label with
@@ -116,22 +117,42 @@ let linearize_terminator cfg (terminator : Cfg.terminator Cfg.instruction)
   in
   let desc_list, tailrec_label =
     match terminator.desc with
-    | Return -> [L.Lreturn], None
-    | Raise kind -> [L.Lraise kind], None
-    | Tailcall (Func Indirect) -> [L.Lop Itailcall_ind], None
-    | Tailcall (Func (Direct { func_symbol })) ->
-      [L.Lop (Itailcall_imm { func = func_symbol })], None
-    | Tailcall (Self { destination }) ->
+    | Return -> single L.Lreturn
+    | Raise kind -> single (L.Lraise kind)
+    | Tailcall_func Indirect -> single (L.Lop Itailcall_ind)
+    | Tailcall_func (Direct { func_symbol }) ->
+      single (L.Lop (Itailcall_imm { func = func_symbol }))
+    | Tailcall_self { destination } ->
       [L.Lop (Itailcall_imm { func = Cfg.fun_name cfg })], Some destination
     | Call_no_return { func_symbol; alloc; ty_args; ty_res } ->
-      ( [ L.Lop
-            (Iextcall
-               { func = func_symbol; alloc; ty_args; ty_res; returns = false })
-        ],
-        None )
-    | Switch labels -> [L.Lswitch labels], None
+      single
+        (L.Lop
+           (Iextcall
+              { func = func_symbol; alloc; ty_args; ty_res; returns = false }))
+    | Call { op; label_after } ->
+      let op : Mach.operation =
+        match op with
+        | Indirect -> Icall_ind
+        | Direct { func_symbol } -> Icall_imm { func = func_symbol }
+      in
+      branch_or_fallthrough [L.Lop op] label_after, None
+    | Prim { op; label_after } ->
+      let op : Mach.operation =
+        match op with
+        | External { func_symbol; alloc; ty_args; ty_res } ->
+          Iextcall
+            { func = func_symbol; alloc; ty_args; ty_res; returns = true }
+        | Checkbound { immediate = None } -> Iintop Icheckbound
+        | Checkbound { immediate = Some i } -> Iintop_imm (Icheckbound, i)
+        | Alloc { bytes; dbginfo; mode } -> Ialloc { bytes; dbginfo; mode }
+        | Probe { name; handler_code_sym } -> Iprobe { name; handler_code_sym }
+      in
+      branch_or_fallthrough [L.Lop op] label_after, None
+    | Specific_can_raise { op; label_after } ->
+      branch_or_fallthrough [L.Lop (Ispecific op)] label_after, None
+    | Switch labels -> single (L.Lswitch labels)
     | Never -> Misc.fatal_error "Cannot linearize terminator: Never"
-    | Always label -> branch_or_fallthrough label, None
+    | Always label -> branch_or_fallthrough [] label, None
     | Parity_test { ifso; ifnot } ->
       emit_bool (Ieventest, ifso) (Ioddtest, ifnot), None
     | Truth_test { ifso; ifnot } ->
@@ -143,7 +164,7 @@ let linearize_terminator cfg (terminator : Cfg.terminator Cfg.instruction)
       in
       match Label.Set.cardinal successor_labels with
       | 0 -> assert false
-      | 1 -> branch_or_fallthrough (Label.Set.min_elt successor_labels), None
+      | 1 -> branch_or_fallthrough [] (Label.Set.min_elt successor_labels), None
       | 2 | 3 | 4 ->
         let must_be_last, any =
           Label.Set.fold
@@ -186,7 +207,7 @@ let linearize_terminator cfg (terminator : Cfg.terminator Cfg.instruction)
               else Some (L.Lcondbranch (Ifloattest c, lbl)))
             any
         in
-        branches @ branch_or_fallthrough last, None
+        branches @ branch_or_fallthrough [] last, None
       | _ -> assert false)
     | Int_test { lt; eq; gt; imm; is_signed } -> (
       let successor_labels =
@@ -194,7 +215,7 @@ let linearize_terminator cfg (terminator : Cfg.terminator Cfg.instruction)
       in
       match Label.Set.cardinal successor_labels with
       | 0 -> assert false
-      | 1 -> branch_or_fallthrough (Label.Set.min_elt successor_labels), None
+      | 1 -> branch_or_fallthrough [] (Label.Set.min_elt successor_labels), None
       | 2 | 3 ->
         (* If fallthrough label is a successor, do not emit a jump for it.
            Otherwise, the last jump could be unconditional. *)
@@ -219,7 +240,7 @@ let linearize_terminator cfg (terminator : Cfg.terminator Cfg.instruction)
           let find l = if Label.equal next.label l then None else Some l in
           [L.Lcondbranch3 (find lt, find eq, find gt)], None
         else
-          let init = branch_or_fallthrough last in
+          let init = branch_or_fallthrough [] last in
           ( Label.Set.fold
               (fun lbl acc ->
                 let cond =
@@ -262,18 +283,20 @@ let need_starting_label (cfg_with_layout : CL.t) (block : Cfg.basic_block)
       (* No need for the label, unless the predecessor's terminator is [Switch]
          when the label is needed for the jump table; or [Poll_and_jump], in
          which case there will always be a jump to such label. *)
-      (* CR-someday gyorsh: is this correct with label_after for calls? *)
       match prev_block.terminator.desc with
       | Switch _ | Poll_and_jump _ -> true
       | Never -> Misc.fatal_error "Cannot linearize terminator: Never"
-      | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _ ->
+      | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
+      | Call _ | Prim _ | Specific_can_raise _ ->
         (* If the label came from the original [Linear] code, preserve it for
            checking that the conversion from [Linear] to [Cfg] and back is the
            identity; and for various assertions in reorder. *)
         let new_labels = CL.new_labels cfg_with_layout in
         CL.preserve_orig_labels cfg_with_layout
         && not (Label.Set.mem block.start new_labels)
-      | Return | Raise _ | Tailcall _ | Call_no_return _ -> assert false)
+      | Return | Raise _ | Tailcall_func _ | Tailcall_self _ | Call_no_return _
+        ->
+        assert false)
 
 let adjust_stack_offset body (block : Cfg.basic_block)
     ~(prev_block : Cfg.basic_block) =
@@ -307,9 +330,9 @@ let run cfg_with_layout =
       | (Some _ | None), None -> ()
       | None, Some _ -> tailrec_label := terminator_tailrec_label
       | Some old_trl, Some new_trl -> assert (Label.equal old_trl new_trl));
-      List.fold_left
-        (fun next i -> basic_to_linear i ~next)
-        terminator (List.rev block.body)
+      Cfg.BasicInstructionList.fold_right
+        ~f:(fun i next -> basic_to_linear i ~next)
+        ~init:terminator block.body
     in
     let insn =
       if i = 0

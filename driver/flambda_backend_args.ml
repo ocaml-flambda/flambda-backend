@@ -59,6 +59,18 @@ let mk_alloc_check f =
 let mk_dcheckmach f =
   "-dcheckmach", Arg.Unit f, " (undocumented)"
 
+let mk_disable_poll_insertion f =
+  "-disable-poll-insertion", Arg.Unit f, " Do not insert poll points"
+
+let mk_long_frames f =
+  "-long-frames", Arg.Unit f, " Allow stack frames longer than 2^16 bytes"
+
+let mk_no_long_frames f =
+  "-no-long-frames", Arg.Unit f, " Do not allow stack frames longer than 2^16 bytes"
+
+let mk_debug_long_frames_threshold f =
+  "-debug-long-frames-threshold", Arg.Int f, "n debug only: set long frames threshold"
+
 let mk_dump_inlining_paths f =
   "-dump-inlining-paths", Arg.Unit f, " Dump inlining paths when dumping flambda2 terms"
 
@@ -415,6 +427,17 @@ let mk_no_dwarf_for_startup_file f =
   "-gno-startup", Arg.Unit f, " Emit the same DWARF information for the\n\
     \     startup file as the upstream compiler"
 
+let set_long_frames_threshold n =
+  if n < 0 then
+    raise (Arg.Bad "Long frames threshold must be non-negative.");
+  if n > Flambda_backend_flags.max_long_frames_threshold then
+    raise
+      (Arg.Bad
+         (Printf.sprintf "Long frames threshold too big: 0x%x, \
+                          must be less or equal to 0x%x" n
+            Flambda_backend_flags.max_long_frames_threshold));
+  Flambda_backend_flags.long_frames_threshold := n
+
 module type Flambda_backend_options = sig
   val ocamlcfg : unit -> unit
   val no_ocamlcfg : unit -> unit
@@ -431,6 +454,12 @@ module type Flambda_backend_options = sig
   val heap_reduction_threshold : int -> unit
   val alloc_check : unit -> unit
   val dcheckmach : unit -> unit
+
+  val disable_poll_insertion : unit -> unit
+
+  val long_frames : unit -> unit
+  val no_long_frames : unit -> unit
+  val long_frames_threshold : int -> unit
 
   val internal_assembler : unit -> unit
 
@@ -503,6 +532,12 @@ struct
     mk_heap_reduction_threshold F.heap_reduction_threshold;
     mk_alloc_check F.alloc_check;
     mk_dcheckmach F.dcheckmach;
+
+    mk_disable_poll_insertion F.disable_poll_insertion;
+
+    mk_long_frames F.long_frames;
+    mk_no_long_frames F.no_long_frames;
+    mk_debug_long_frames_threshold F.long_frames_threshold;
 
     mk_internal_assembler F.internal_assembler;
 
@@ -610,6 +645,12 @@ module Flambda_backend_options_impl = struct
     Flambda_backend_flags.heap_reduction_threshold := x
   let alloc_check = set' Flambda_backend_flags.alloc_check
   let dcheckmach = set' Flambda_backend_flags.dump_checkmach
+
+  let disable_poll_insertion = set' Flambda_backend_flags.disable_poll_insertion
+
+  let long_frames =  set' Flambda_backend_flags.allow_long_frames
+  let no_long_frames = clear' Flambda_backend_flags.allow_long_frames
+  let long_frames_threshold n = set_long_frames_threshold n
 
   let internal_assembler = set' Flambda_backend_flags.internal_assembler
 
@@ -808,6 +849,17 @@ module Extra_params = struct
     | "heap-reduction-threshold" -> set_int' Flambda_backend_flags.heap_reduction_threshold
     | "alloc-check" -> set' Flambda_backend_flags.alloc_check
     | "dump-checkmach" -> set' Flambda_backend_flags.dump_checkmach
+    | "disable-poll-insertion" -> set' Flambda_backend_flags.disable_poll_insertion
+    | "long-frames" -> set' Flambda_backend_flags.allow_long_frames
+    | "debug-long-frames-threshold" ->
+      begin match Compenv.check_int ppf name v with
+      | Some n -> set_long_frames_threshold n; true
+      | None ->
+        raise
+          (Arg.Bad
+             (Printf.sprintf "Expected integer between 0 and %d"
+                Flambda_backend_flags.max_long_frames_threshold))
+      end
     | "dasm-comments" -> set' Flambda_backend_flags.dasm_comments
     | "dno-asm-comments" -> clear' Flambda_backend_flags.dasm_comments
     | "gupstream-dwarf" -> set' Debugging.restrict_to_upstream_dwarf

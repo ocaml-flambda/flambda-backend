@@ -71,3 +71,9 @@ let remove t cont =
   { continuation_uses = Continuation.Map.remove cont t.continuation_uses }
 
 let delete_continuation_uses = remove
+
+let mark_non_inlinable { continuation_uses } =
+  let continuation_uses =
+    Continuation.Map.map Continuation_uses.mark_non_inlinable continuation_uses
+  in
+  { continuation_uses }

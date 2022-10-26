@@ -29,7 +29,7 @@ module type Forward_transfer = sig
       exceptional : domain
     }
 
-  val basic : domain -> Cfg.basic Cfg.instruction -> image
+  val basic : domain -> Cfg.basic Cfg.instruction -> domain
 
   val terminator : domain -> Cfg.terminator Cfg.instruction -> image
 end
@@ -63,8 +63,7 @@ module type Backward_transfer = sig
 
   type error
 
-  val basic :
-    domain -> exn:domain -> Cfg.basic Cfg.instruction -> (domain, error) result
+  val basic : domain -> Cfg.basic Cfg.instruction -> (domain, error) result
 
   val terminator :
     domain ->

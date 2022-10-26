@@ -204,8 +204,8 @@ let relative_history t = t.relative_history
 
 let position t = t.position
 
-let free_names
-    { callee;
+let free_names_except_callee
+    { callee = _;
       continuation;
       exn_continuation;
       args;
@@ -219,12 +219,16 @@ let free_names
       region
     } =
   Name_occurrences.union_list
-    [ Simple.free_names callee;
-      Result_continuation.free_names continuation;
+    [ Result_continuation.free_names continuation;
       Exn_continuation.free_names exn_continuation;
       Simple.List.free_names args;
       Call_kind.free_names call_kind;
       Name_occurrences.singleton_variable region Name_mode.normal ]
+
+let free_names t =
+  Name_occurrences.union
+    (Simple.free_names t.callee)
+    (free_names_except_callee t)
 
 let apply_renaming
     ({ callee;
@@ -314,11 +318,6 @@ let with_call_kind t call_kind =
   t
 
 let with_args t args = { t with args }
-
-let with_continuation_callee_and_args t continuation ~callee ~args ~region =
-  let t = { t with continuation; callee; args; region } in
-  invariant t;
-  t
 
 let inlining_arguments t = inlining_state t |> Inlining_state.arguments
 

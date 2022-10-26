@@ -28,7 +28,7 @@ module Transfer = struct
       exceptional : domain
     }
 
-  let basic value _ = { normal = value; exceptional = value }
+  let basic value _ = value
 
   let terminator value _ = { normal = value; exceptional = value }
 end

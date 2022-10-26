@@ -63,14 +63,9 @@ module Block = struct
            | _ -> true)
     in
     let terminator = Terminator.make ~remove_locs terminator in
-    let can_raise =
-      List.exists
-        (fun (i : basic instruction) -> Cfg.can_raise_basic i.desc)
-        body
-      || Cfg.can_raise_terminator terminator.desc
-    in
+    let can_raise = Cfg.can_raise_terminator terminator.desc in
     { start;
-      body;
+      body = Cfg.BasicInstructionList.of_list body;
       terminator;
       predecessors = Label.Set.empty;
       stack_offset = 0;
@@ -173,7 +168,7 @@ let () =
   in
   Label.Tbl.add cfg.Cfg.blocks (Cfg.entry_label cfg)
     { start = Cfg.entry_label cfg;
-      body = [];
+      body = Cfg.BasicInstructionList.make_empty ();
       exn = None;
       can_raise = false;
       is_trap_handler = false;
@@ -288,18 +283,13 @@ let base_templ () : Cfg_desc.t * (unit -> int) =
               }
           };
           { start = call_label;
-            body =
-              [ { id = make_id ();
-                  desc = Call (F Indirect);
-                  arg = arg_locs;
-                  res = tmp_result_locs
-                } ];
+            body = [];
             exn = None;
             terminator =
               { id = make_id ();
-                desc = Always move_tmp_res_label;
-                arg = [||];
-                res = [||]
+                desc = Call { op = Indirect; label_after = move_tmp_res_label };
+                arg = arg_locs;
+                res = tmp_result_locs
               }
           };
           { start = move_tmp_res_label;
@@ -440,8 +430,8 @@ let () =
       cfg, cfg)
     ~exp_std:"fatal exception raised when creating description"
     ~exp_err:
-      ">> Fatal error: Duplicate instruction no. 8 while creating \
-       pre-allocation description"
+      ">> Fatal error: Duplicate instruction no. 8 while adding a basic \
+       instruction to the description"
 
 let () =
   check "Duplicate terminator found when creating description"
@@ -453,8 +443,8 @@ let () =
       cfg, cfg)
     ~exp_std:"fatal exception raised when creating description"
     ~exp_err:
-      ">> Fatal error: Duplicate instruction no. 13 while creating \
-       pre-allocation description"
+      ">> Fatal error: Duplicate instruction no. 13 while adding a terminator \
+       instruction to the description"
 
 let () =
   check "Regalloc specific instructions are checked when creating description"
@@ -463,36 +453,36 @@ let () =
       let cfg = Cfg_desc.make ~remove_regalloc:false ~remove_locs:true templ in
       cfg, cfg)
     ~exp_std:"fatal exception raised when creating description"
-    ~exp_err:">> Fatal error: instruction 20 is a spill"
+    ~exp_err:">> Fatal error: instruction 19 is a spill"
 
 let () =
-  check "Instruction argument count"
+  check "Terminator result count"
     (fun () ->
       let templ, make_id = base_templ () in
       let cfg1 = Cfg_desc.make_pre templ in
-      templ.&(call_label).!(0).arg <- Array.sub templ.&(call_label).!(0).arg 0 1;
+      templ.&(call_label).terminator.res <- [||];
       let cfg2 = Cfg_desc.make_post templ in
       cfg1, cfg2)
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
-      ">> Fatal error: In instruction's no 14 arguments: register array length \
-       has changed. Before: 4. Now: 1."
+      ">> Fatal error: In instruction's no 13 results: register array length \
+       has changed. Before: 1. Now: 0."
 
 let () =
   check "Instruction result count"
     (fun () ->
       let templ, make_id = base_templ () in
       let cfg1 = Cfg_desc.make_pre templ in
-      templ.&(call_label).!(0).res <- [||];
+      templ.&(add_label).!(0).res <- [||];
       let cfg2 = Cfg_desc.make_post templ in
       cfg1, cfg2)
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
-      ">> Fatal error: In instruction's no 14 results: register array length \
+      ">> Fatal error: In instruction's no 8 results: register array length \
        has changed. Before: 1. Now: 0."
 
 let () =
-  check "Terminator arugment count"
+  check "Terminator argument count"
     (fun () ->
       let templ, make_id = base_templ () in
       let cfg1 = Cfg_desc.make_pre templ in
@@ -551,7 +541,7 @@ let () =
       cfg, cfg)
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
-      ">> Fatal error: instruction 21 has a register with an unknown location"
+      ">> Fatal error: instruction 20 has a register with an unknown location"
 
 let () =
   check "Precoloring can't change"
@@ -563,7 +553,7 @@ let () =
       cfg1, cfg2)
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
-      ">> Fatal error: In instruction's no 18 results: changed preassigned \
+      ">> Fatal error: In instruction's no 17 results: changed preassigned \
        register's location from %rdi to %rbx"
 
 let () =
@@ -577,8 +567,8 @@ let () =
       cfg1, cfg2)
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
-      ">> Fatal error: Duplicate instruction no. 10 while checking \
-       post-allocation description"
+      ">> Fatal error: Duplicate instruction no. 10 while checking a basic \
+       instruction in the new CFG"
 
 let () =
   check "Regalloc changed existing instruction into regalloc instruction"
@@ -590,7 +580,7 @@ let () =
       cfg1, cfg2)
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
-      ">> Fatal error: Register allocation changed existing instruction no. 24 \
+      ">> Fatal error: Register allocation changed existing instruction no. 23 \
        into a register allocation specific instruction"
 
 let () =
@@ -607,18 +597,18 @@ let () =
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
       ">> Fatal error: Register allocation added non-regalloc specific \
-       instruction no. 27"
+       instruction no. 26"
 
 let () =
-  check "Regalloc added a terminator and a block"
+  check "Regalloc added a 'goto' and a block"
     (fun () ->
       let templ, make_id = base_templ () in
-      (* The spill has the same id as another instruction. *)
       let cfg1 = Cfg_desc.make_pre templ in
+      let tmp_label = new_label 1 in
       let templ =
         { templ with
           blocks =
-            { start = new_label 1;
+            { start = tmp_label;
               exn = None;
               body = [];
               terminator =
@@ -631,12 +621,131 @@ let () =
             :: templ.blocks
         }
       in
+      templ.&(add_label).terminator.desc <- Always tmp_label;
+      let cfg2 = Cfg_desc.make_post templ in
+      cfg1, cfg2)
+    ~exp_std:"" ~exp_err:""
+
+let () =
+  check "Regalloc added a fallthrough block that goes to the wrong label"
+    (fun () ->
+      let templ, make_id = base_templ () in
+      let cfg1 = Cfg_desc.make_pre templ in
+      let tmp_label = new_label 1 in
+      let templ =
+        { templ with
+          blocks =
+            { start = tmp_label;
+              exn = None;
+              body = [];
+              terminator =
+                { desc = Always call_label;
+                  res = [||];
+                  arg = [||];
+                  id = make_id ()
+                }
+            }
+            :: templ.blocks
+        }
+      in
+      templ.&(add_label).terminator.desc <- Always tmp_label;
       let cfg2 = Cfg_desc.make_post templ in
       cfg1, cfg2)
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
-      ">> Fatal error: Register allocation added non-regalloc specific \
-       instruction no. 27"
+      ">> Fatal error: When checking equivalence of labels before and after \
+       allocation got different successor id's. Successor (label, instr id) \
+       before: (6, 6). Successor (label, instr id) after: (8, 13)."
+
+let () =
+  check "Regalloc added a not allowed terminator and a block"
+    (fun () ->
+      let templ, make_id = base_templ () in
+      let cfg1 = Cfg_desc.make_pre templ in
+      let tmp_label = new_label 1 in
+      let templ =
+        { templ with
+          blocks =
+            { start = tmp_label;
+              exn = None;
+              body = [];
+              terminator =
+                { desc = Return; res = [||]; arg = [||]; id = make_id () }
+            }
+            :: templ.blocks
+        }
+      in
+      templ.&(add_label).terminator.desc <- Always tmp_label;
+      let cfg2 = Cfg_desc.make_post templ in
+      cfg1, cfg2)
+    ~exp_std:"fatal exception raised when validating description"
+    ~exp_err:
+      ">> Fatal error: Register allocation added a terminator no. 26 but \
+       that's not allowed for this type of terminator: Return"
+
+let () =
+  check "Regalloc reordered instructions between blocks"
+    (fun () ->
+      let templ, make_id = base_templ () in
+      let cfg1 = Cfg_desc.make_pre templ in
+      let add_body = templ.&(add_label).body in
+      templ.&(add_label).body <- [];
+      templ.&(return_label).body <- add_body @ templ.&(return_label).body;
+      let cfg2 = Cfg_desc.make_post templ in
+      cfg1, cfg2)
+    ~exp_std:"fatal exception raised when validating description"
+    ~exp_err:
+      ">> Fatal error: The instruction's no. 8 successor id has changed. \
+       Before allocation: 7. After allocation (ignoring instructions added by \
+       allocation): 6."
+
+let () =
+  check "Regalloc reordered instructions within a block"
+    (fun () ->
+      let templ, make_id = base_templ () in
+      let cfg1 = Cfg_desc.make_pre templ in
+      let block = templ.&(move_tmp_res_label) in
+      block.body
+        <- (block.body |> List.rev |> function
+            | i1 :: i2 :: t -> i2 :: i1 :: t
+            | l -> l |> List.rev);
+      let cfg2 = Cfg_desc.make_post templ in
+      cfg1, cfg2)
+    ~exp_std:"fatal exception raised when validating description"
+    ~exp_err:
+      ">> Fatal error: The instruction's no. 12 successor id has changed. \
+       Before allocation: 11. After allocation (ignoring instructions added by \
+       allocation): 9."
+
+let () =
+  check "Regalloc added a loop"
+    (fun () ->
+      let templ, make_id = base_templ () in
+      let cfg1 = Cfg_desc.make_pre templ in
+      let tmp_label = new_label 1 in
+      let templ =
+        { templ with
+          blocks =
+            { start = tmp_label;
+              exn = None;
+              body = [];
+              terminator =
+                { desc = Always tmp_label;
+                  res = [||];
+                  arg = [||];
+                  id = make_id ()
+                }
+            }
+            :: templ.blocks
+        }
+      in
+      let cfg2 = Cfg_desc.make_post templ in
+      cfg1, cfg2)
+    ~exp_std:"fatal exception raised when validating description"
+    ~exp_err:
+      ">> Fatal error: Visiting the same block 8 without knowing the successor \
+       instruction's id. That means there's a loop consisting of only \
+       instructions added by the register allocator."
 
 let () =
   check "Regalloc changed instruction desc"
@@ -658,7 +767,9 @@ let () =
       let cfg2 = Cfg_desc.make_post templ in
       cfg1, cfg2)
     ~exp_std:"fatal exception raised when validating description"
-    ~exp_err:">> Fatal error: The desc of instruction with id 3 changed"
+    ~exp_err:
+      ">> Fatal error: The desc of terminator with id 3 changed, before: \
+       Return, after: Raise."
 
 let () =
   check "Deleted instruction"

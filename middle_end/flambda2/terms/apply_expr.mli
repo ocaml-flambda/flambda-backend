@@ -19,6 +19,8 @@
 
 type t
 
+val free_names_except_callee : t -> Name_occurrences.t
+
 include Expr_std.S with type t := t
 
 include Contains_ids.S with type t := t
@@ -102,15 +104,6 @@ val with_args : t -> Simple.t list -> t
 
 (** Change the call kind of an application. *)
 val with_call_kind : t -> Call_kind.t -> t
-
-(** Change the continuation, callee and arguments of an application. *)
-val with_continuation_callee_and_args :
-  t ->
-  Result_continuation.t ->
-  callee:Simple.t ->
-  args:Simple.t list ->
-  region:Variable.t ->
-  t
 
 val inlining_state : t -> Inlining_state.t
 

@@ -239,12 +239,6 @@ let check_operation : location -> Cfg.operation -> Cfg.operation -> unit =
   | Intoffloat, Intoffloat -> ()
   | Valueofint, Valueofint -> ()
   | Intofvalue, Intofvalue -> ()
-  | ( Probe
-        { name = expected_name; handler_code_sym = expected_handler_code_sym },
-      Probe { name = result_name; handler_code_sym = result_handler_code_sym } )
-    when String.equal expected_name result_name
-         && String.equal expected_handler_code_sym result_handler_code_sym ->
-    ()
   | ( Probe_is_enabled { name = expected_name },
       Probe_is_enabled { name = result_name } )
     when String.equal expected_name result_name ->
@@ -297,6 +291,12 @@ let check_prim_call_operation :
       Checkbound { immediate = result_immediate } )
     when Option.equal Int.equal expected_immediate result_immediate ->
     ()
+  | ( Probe
+        { name = expected_name; handler_code_sym = expected_handler_code_sym },
+      Probe { name = result_name; handler_code_sym = result_handler_code_sym } )
+    when String.equal expected_name result_name
+         && String.equal expected_handler_code_sym result_handler_code_sym ->
+    ()
   | _ -> different location "primitive call operation"
  [@@ocaml.warning "-4"]
 
@@ -312,37 +312,10 @@ let check_func_call_operation :
   | _ -> different location "function call operation"
  [@@ocaml.warning "-4"]
 
-let check_tail_call_operation :
-    State.t ->
-    location ->
-    Cfg.tail_call_operation ->
-    Cfg.tail_call_operation ->
-    unit =
- fun state location expected result ->
-  match expected, result with
-  | ( Self { destination = expected_destination },
-      Self { destination = result_destination } ) ->
-    State.add_labels_to_check state location expected_destination
-      result_destination
-  | Func expected_func, Func result_func ->
-    check_func_call_operation location expected_func result_func
-  | _ -> different location "tail call operation"
- [@@ocaml.warning "-4"]
-
-let check_call_operation :
-    location -> Cfg.call_operation -> Cfg.call_operation -> unit =
- fun location expected result ->
-  match expected, result with
-  | P expected, P result -> check_prim_call_operation location expected result
-  | F expected, F result -> check_func_call_operation location expected result
-  | _ -> different location "call operation"
- [@@ocaml.warning "-4"]
-
 let check_basic : State.t -> location -> Cfg.basic -> Cfg.basic -> unit =
  fun state location expected result ->
   match expected, result with
   | Op expected, Op result -> check_operation location expected result
-  | Call expected, Call result -> check_call_operation location expected result
   | Reloadretaddr, Reloadretaddr -> ()
   | ( Pushtrap { lbl_handler = expected_lbl_handler },
       Pushtrap { lbl_handler = result_lbl_handler } ) ->
@@ -399,7 +372,6 @@ let check_basic_instruction :
   let check_live =
     match result.desc with
     | Op _ -> true
-    | Call _ -> true
     | Reloadretaddr -> true
     | Pushtrap _ -> false
     | Poptrap -> false
@@ -408,23 +380,24 @@ let check_basic_instruction :
   check_instruction ~check_live ~check_dbg ~check_arg:true idx location expected
     result
 
-let rec check_basic_instruction_list :
+let check_basic_instruction_list :
     State.t ->
     location ->
-    int ->
-    Cfg.basic Cfg.instruction list ->
-    Cfg.basic Cfg.instruction list ->
+    Cfg.BasicInstructionList.t ->
+    Cfg.BasicInstructionList.t ->
     unit =
- fun state location idx expected result ->
-  match expected, result with
-  | [], [] -> ()
-  | _ :: _, [] ->
-    different location "bodies with different sizes (expected is longer)"
-  | [], _ :: _ ->
-    different location "bodies with different sizes (result is longer)"
-  | expected_hd :: expected_tl, result_hd :: result_tl ->
-    check_basic_instruction state location idx expected_hd result_hd;
-    check_basic_instruction_list state location (succ idx) expected_tl result_tl
+ fun state location expected result ->
+  let expected_len = Cfg.BasicInstructionList.length expected in
+  let result_len = Cfg.BasicInstructionList.length result in
+  if expected_len = result_len
+  then
+    let i = ref 0 in
+    Cfg.BasicInstructionList.iter2 expected result ~f:(fun expected result ->
+        check_basic_instruction state location !i expected result;
+        incr i)
+  else if expected_len > result_len
+  then different location "bodies with different sizes (expected is longer)"
+  else different location "bodies with different sizes (result is longer)"
 
 let check_terminator_instruction :
     State.t ->
@@ -483,11 +456,28 @@ let check_terminator_instruction :
     Array.iter2 (fun l1 l2 -> State.add_to_explore state l1 l2) a1 a2
   | Return, Return -> ()
   | Raise rk1, Raise rk2 when equal_raise_kind rk1 rk2 -> ()
-  | Tailcall tc1, Tailcall tc2 ->
+  | ( Tailcall_self { destination = expected_destination },
+      Tailcall_self { destination = result_destination } ) ->
     let location = location ^ " (terminator)" in
-    check_tail_call_operation state location tc1 tc2
+    State.add_labels_to_check state location expected_destination
+      result_destination
+  | Tailcall_func tc1, Tailcall_func tc2 ->
+    let location = location ^ " (terminator)" in
+    check_func_call_operation location tc1 tc2
   | Call_no_return cn1, Call_no_return cn2 ->
     check_external_call_operation location cn1 cn2
+  | Call { op = cn1; label_after = lbl1 }, Call { op = cn2; label_after = lbl2 }
+    ->
+    check_func_call_operation location cn1 cn2;
+    State.add_to_explore state lbl1 lbl2
+  | Prim { op = cn1; label_after = lbl1 }, Prim { op = cn2; label_after = lbl2 }
+    ->
+    check_prim_call_operation location cn1 cn2;
+    State.add_to_explore state lbl1 lbl2
+  | ( Specific_can_raise { op = op1; label_after = lbl1 },
+      Specific_can_raise { op = op2; label_after = lbl2 } )
+    when Arch.equal_specific_operation op1 op2 ->
+    State.add_to_explore state lbl1 lbl2
   | Poll_and_jump return_label1, Poll_and_jump return_label2
     when Label.equal return_label1 return_label2 ->
     ()
@@ -497,7 +487,8 @@ let check_terminator_instruction :
     match expected.desc with
     | Always _ -> false
     | Never | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-    | Switch _ | Return | Raise _ | Tailcall _ | Call_no_return _
+    | Switch _ | Return | Raise _ | Tailcall_self _ | Tailcall_func _
+    | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _
     | Poll_and_jump _ ->
       true
   in
@@ -512,7 +503,7 @@ let check_basic_block : State.t -> Cfg.basic_block -> Cfg.basic_block -> unit =
       (Label.to_string expected.start)
       (Label.to_string result.start)
   in
-  check_basic_instruction_list state location 0 expected.body result.body;
+  check_basic_instruction_list state location expected.body result.body;
   check_terminator_instruction state location expected.terminator
     result.terminator;
   (* State.add_label_sets_to_check state (location ^ " (predecessors)")

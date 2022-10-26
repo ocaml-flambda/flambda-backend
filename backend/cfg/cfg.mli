@@ -31,9 +31,58 @@ include module type of struct
   include Cfg_intf.S
 end
 
+module BasicInstructionList : sig
+  type instr = basic instruction
+
+  type cell
+
+  val insert_before : cell -> instr -> unit
+
+  val insert_after : cell -> instr -> unit
+
+  val instr : cell -> instr
+
+  type t
+
+  val make_empty : unit -> t
+
+  val make_single : instr -> t
+
+  val of_list : instr list -> t
+
+  val hd : t -> instr option
+
+  val last : t -> instr option
+
+  val add_begin : t -> instr -> unit
+
+  val add_end : t -> instr -> unit
+
+  val is_empty : t -> bool
+
+  val length : t -> int
+
+  val filter_left : t -> f:(instr -> bool) -> unit
+
+  val filter_right : t -> f:(instr -> bool) -> unit
+
+  val iter : t -> f:(instr -> unit) -> unit
+
+  val iter_cell : t -> f:(cell -> unit) -> unit
+
+  val iter2 : t -> t -> f:(instr -> instr -> unit) -> unit
+
+  val fold_left : t -> f:('a -> instr -> 'a) -> init:'a -> 'a
+
+  val fold_right : t -> f:(instr -> 'a -> 'a) -> init:'a -> 'a
+
+  (* Adds all of the elements of `from` to `to_`, and clears `from`. *)
+  val transfer : to_:t -> from:t -> unit -> unit
+end
+
 type basic_block =
   { start : Label.t;
-    mutable body : basic instruction list;
+    body : BasicInstructionList.t;
     mutable terminator : terminator instruction;
     mutable predecessors : Label.Set.t;
         (** All predecessors, both normal and exceptional paths. *)
@@ -109,7 +158,11 @@ val replace_successor_labels :
     vice versa. *)
 val can_raise_interproc : basic_block -> bool
 
+val first_instruction_id : basic_block -> int
+
 val mem_block : t -> Label.t -> bool
+
+val add_block_exn : t -> basic_block -> unit
 
 val remove_block_exn : t -> Label.t -> unit
 
@@ -158,19 +211,13 @@ val print_instruction :
 
 val can_raise_terminator : terminator -> bool
 
-val can_raise_basic : basic -> bool
-
-val can_raise_operation : operation -> bool
-
 val is_pure_terminator : terminator -> bool
 
 val is_pure_basic : basic -> bool
 
 val is_noop_move : basic instruction -> bool
 
-val set_stack_offset : 'a instruction -> int -> 'a instruction
-
-val set_live : 'a instruction -> Reg.Set.t -> 'a instruction
+val set_stack_offset : 'a instruction -> int -> unit
 
 val string_of_irc_work_list : irc_work_list -> string
 

@@ -277,7 +277,7 @@ module type Forward_transfer = sig
       exceptional : domain
     }
 
-  val basic : domain -> Cfg.basic Cfg.instruction -> image
+  val basic : domain -> Cfg.basic Cfg.instruction -> domain
 
   val terminator : domain -> Cfg.terminator Cfg.instruction -> image
 end
@@ -333,18 +333,16 @@ module Forward (D : Domain_S) (T : Forward_transfer with type domain = D.t) :
         Cfg.basic_block ->
         transfer_image =
      fun ~update_instr value block ->
-      let transfer f (acc_normal, acc_exceptional) (instr : _ Cfg.instruction) =
-        let { T.normal; exceptional } = f acc_normal instr in
-        update_instr instr.id normal;
-        normal, D.join exceptional acc_exceptional
+      let transfer f g acc (instr : _ Cfg.instruction) =
+        let res = f acc instr in
+        update_instr instr.id (g res);
+        res
       in
-      let normal, exceptional =
-        transfer T.terminator
-          (ListLabels.fold_left block.body ~init:(value, value)
-             ~f:(transfer T.basic))
-          block.terminator
-      in
-      { normal; exceptional }
+      transfer T.terminator
+        (fun { normal; exceptional = _ } -> normal)
+        (Cfg.BasicInstructionList.fold_left block.body ~init:value
+           ~f:(transfer T.basic (fun d -> d)))
+        block.terminator
   end
 
   module Dataflow_impl = Make_dataflow (Direction)
@@ -382,8 +380,7 @@ module type Backward_transfer = sig
 
   type error
 
-  val basic :
-    domain -> exn:domain -> Cfg.basic Cfg.instruction -> (domain, error) result
+  val basic : domain -> Cfg.basic Cfg.instruction -> (domain, error) result
 
   val terminator :
     domain ->
@@ -479,8 +476,8 @@ module Backward (D : Domain_S) (T : Backward_transfer with type domain = D.t) :
         transfer block.terminator (T.terminator normal ~exn block.terminator)
       in
       let value =
-        ListLabels.fold_right block.body ~init:value ~f:(fun instr value ->
-            transfer instr (T.basic value ~exn instr))
+        Cfg.BasicInstructionList.fold_right block.body ~init:value
+          ~f:(fun instr value -> transfer instr (T.basic value instr))
       in
       let value =
         if block.is_trap_handler

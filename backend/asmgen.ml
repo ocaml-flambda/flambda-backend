@@ -241,18 +241,18 @@ let recompute_liveness_on_cfg (cfg_with_layout : Cfg_with_layout.t) : Cfg_with_l
   let init = { Cfg_liveness.before = Reg.Set.empty; across = Reg.Set.empty; } in
   begin match Cfg_liveness.Liveness.run cfg ~init ~map:Cfg_liveness.Liveness.Instr () with
     | Ok (liveness : Cfg_liveness.Liveness.domain Cfg_dataflow.Instr.Tbl.t) ->
-      let with_liveness (instr : _ Cfg.instruction) =
+      let set_liveness (instr : _ Cfg.instruction) =
         match Cfg_dataflow.Instr.Tbl.find_opt liveness instr.id with
         | None ->
           Misc.fatal_errorf "Missing liveness information for instruction %d in function %s@."
             instr.id
             cfg.Cfg.fun_name
         | Some { Cfg_liveness.before = _; across } ->
-          Cfg.set_live instr across
+          instr.live <- across
       in
       Cfg.iter_blocks cfg ~f:(fun _label block ->
-          block.body <- ListLabels.map block.body ~f:with_liveness;
-          block.terminator <- with_liveness block.terminator;
+          Cfg.BasicInstructionList.iter block.body ~f:set_liveness;
+          set_liveness block.terminator;
         );
     | Aborted _ -> .
     | Max_iterations_reached ->
@@ -260,7 +260,7 @@ let recompute_liveness_on_cfg (cfg_with_layout : Cfg_with_layout.t) : Cfg_with_l
         cfg.Cfg.fun_name;
   end;
   Cfg.iter_blocks cfg ~f:(fun _label block ->
-      block.body <- ListLabels.filter block.body ~f:(fun instr ->
+      Cfg.BasicInstructionList.filter_left block.body ~f:(fun instr ->
           not (Cfg.is_noop_move instr)));
   let layout : Label.t list =
     ListLabels.filter (Cfg_with_layout.layout cfg_with_layout) ~f:(fun label ->

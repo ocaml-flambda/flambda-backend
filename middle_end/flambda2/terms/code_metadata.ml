@@ -35,7 +35,8 @@ type t =
     is_my_closure_used : bool;
     inlining_decision : Function_decl_inlining_decision_type.t;
     absolute_history : Inlining_history.Absolute.t;
-    relative_history : Inlining_history.Relative.t
+    relative_history : Inlining_history.Relative.t;
+    loopify : Loopify_attribute.t
   }
 
 type code_metadata = t
@@ -101,6 +102,8 @@ module Code_metadata_accessors (X : Metadata_view_type) = struct
   let absolute_history t = (metadata t).absolute_history
 
   let relative_history t = (metadata t).relative_history
+
+  let loopify t = (metadata t).loopify
 end
 
 module type Code_metadata_accessors_result_type = sig
@@ -143,13 +146,15 @@ type 'a create_type =
   inlining_decision:Function_decl_inlining_decision_type.t ->
   absolute_history:Inlining_history.Absolute.t ->
   relative_history:Inlining_history.Relative.t ->
+  loopify:Loopify_attribute.t ->
   'a
 
 let createk k code_id ~newer_version_of ~params_arity ~num_trailing_local_params
     ~result_arity ~result_types ~contains_no_escaping_local_allocs ~stub
     ~(inline : Inline_attribute.t) ~check ~poll_attribute ~is_a_functor
     ~recursive ~cost_metrics ~inlining_arguments ~dbg ~is_tupled
-    ~is_my_closure_used ~inlining_decision ~absolute_history ~relative_history =
+    ~is_my_closure_used ~inlining_decision ~absolute_history ~relative_history
+    ~loopify =
   (match stub, inline with
   | true, (Available_inline | Never_inline | Default_inline)
   | ( false,
@@ -186,7 +191,8 @@ let createk k code_id ~newer_version_of ~params_arity ~num_trailing_local_params
       is_my_closure_used;
       inlining_decision;
       absolute_history;
-      relative_history
+      relative_history;
+      loopify
     }
 
 let create = createk (fun t -> t)
@@ -221,7 +227,7 @@ let [@ocamlformat "disable"] print ppf
          result_types; contains_no_escaping_local_allocs;
          recursive; cost_metrics; inlining_arguments;
          dbg; is_tupled; is_my_closure_used; inlining_decision;
-         absolute_history; relative_history } =
+         absolute_history; relative_history; loopify } =
   let module C = Flambda_colours in
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>%t(newer_version_of@ %a)%t@]@ \
@@ -242,7 +248,8 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>%t(is_tupled@ %b)%t@]@ \
       @[<hov 1>(is_my_closure_used@ %b)@]@ \
       %a\
-      @[<hov 1>(inlining_decision@ %a)@]\
+      @[<hov 1>(inlining_decision@ %a)@]@ \
+      @[<hov 1>(loopify@ %a)@]\
       )@]"
     (if Option.is_none newer_version_of then Flambda_colours.elide
     else Flambda_colours.none)
@@ -306,6 +313,7 @@ let [@ocamlformat "disable"] print ppf
     is_my_closure_used
     print_inlining_paths (relative_history, absolute_history)
     Function_decl_inlining_decision_type.print inlining_decision
+    Loopify_attribute.print loopify
 
 let free_names
     { code_id = _;
@@ -328,7 +336,8 @@ let free_names
       is_my_closure_used = _;
       inlining_decision = _;
       absolute_history = _;
-      relative_history = _
+      relative_history = _;
+      loopify = _
     } =
   (* [code_id] is only in [t.code_metadata] for the use of [compare]; it doesn't
      count as a free name. *)
@@ -367,7 +376,8 @@ let apply_renaming
        is_my_closure_used = _;
        inlining_decision = _;
        absolute_history = _;
-       relative_history = _
+       relative_history = _;
+       loopify = _
      } as t) renaming =
   (* inlined and modified version of Option.map to preserve sharing *)
   let newer_version_of' =
@@ -417,7 +427,8 @@ let ids_for_export
       is_my_closure_used = _;
       inlining_decision = _;
       absolute_history = _;
-      relative_history = _
+      relative_history = _;
+      loopify = _
     } =
   let ids =
     let newer_version_of_ids =
@@ -453,7 +464,8 @@ let approx_equal
       is_my_closure_used = is_my_closure_used1;
       inlining_decision = inlining_decision1;
       absolute_history = absolute_history1;
-      relative_history = relative_history1
+      relative_history = relative_history1;
+      loopify = loopify1
     }
     { code_id = code_id2;
       newer_version_of = newer_version_of2;
@@ -475,7 +487,8 @@ let approx_equal
       is_my_closure_used = is_my_closure_used2;
       inlining_decision = inlining_decision2;
       absolute_history = absolute_history2;
-      relative_history = relative_history2
+      relative_history = relative_history2;
+      loopify = loopify2
     } =
   Code_id.equal code_id1 code_id2
   && (Option.equal Code_id.equal) newer_version_of1 newer_version_of2
@@ -499,6 +512,7 @@ let approx_equal
        inlining_decision2
   && Inlining_history.Absolute.compare absolute_history1 absolute_history2 = 0
   && Inlining_history.Relative.compare relative_history1 relative_history2 = 0
+  && Loopify_attribute.equal loopify1 loopify2
 
 let map_result_types ({ result_types; _ } as t) ~f =
   { t with

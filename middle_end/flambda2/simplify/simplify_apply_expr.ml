@@ -47,11 +47,14 @@ let record_free_names_of_apply_as_used0 apply data_flow =
 let record_free_names_of_apply_as_used dacc apply =
   DA.map_data_flow dacc ~f:(record_free_names_of_apply_as_used0 apply)
 
-let simplify_direct_tuple_application ~simplify_expr dacc apply
-    ~params_arity:param_arity ~result_arity ~apply_alloc_mode
-    ~contains_no_escaping_local_allocs ~current_region ~down_to_up =
+let simplify_direct_tuple_application ~simplify_expr dacc apply ~result_arity
+    ~apply_alloc_mode ~current_region ~callee's_code_id ~callee's_code_metadata
+    ~down_to_up =
   let dbg = Apply.dbg apply in
-  let n = Flambda_arity.With_subkinds.cardinal param_arity in
+  let n =
+    Flambda_arity.With_subkinds.cardinal
+      (Code_metadata.params_arity callee's_code_metadata)
+  in
   (* Split the tuple argument from other potential over application arguments *)
   let tuple, over_application_args =
     match Apply.args apply with
@@ -80,9 +83,9 @@ let simplify_direct_tuple_application ~simplify_expr dacc apply
       (* [apply] already got a correct relative_history and
          [split_direct_over_application] infers the relative history from the
          one on [apply] so there's nothing to do here. *)
-      Simplify_common.split_direct_over_application apply ~param_arity
-        ~result_arity ~apply_alloc_mode ~contains_no_escaping_local_allocs
-        ~current_region
+      Simplify_common.split_direct_over_application apply ~result_arity
+        ~apply_alloc_mode ~current_region ~callee's_code_id
+        ~callee's_code_metadata
   in
   (* Insert the projections and simplify the new expression, to allow field
      projections to be simplified, and over-application/full_application
@@ -125,7 +128,7 @@ let rebuild_non_inlined_direct_full_application apply ~use_id ~exn_cont_use_id
   in
   after_rebuild expr uacc
 
-let simplify_direct_full_application ~simplify_expr dacc apply function_type
+let simplify_direct_full_application0 ~simplify_expr dacc apply function_type
     ~params_arity ~result_arity ~(result_types : _ Or_unknown_or_bottom.t)
     ~down_to_up ~coming_from_indirect ~callee's_code_metadata =
   let inlined =
@@ -270,6 +273,47 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
       ~rebuild:
         (rebuild_non_inlined_direct_full_application apply ~use_id
            ~exn_cont_use_id ~result_arity ~coming_from_indirect)
+
+let loopify_decision_for_call dacc apply =
+  let denv = DA.denv dacc in
+  match DE.closure_info denv with
+  | Not_in_a_closure | In_a_set_of_closures_but_not_yet_in_a_specific_closure ->
+    Loopify_state.do_not_loopify
+  | Closure { return_continuation; exn_continuation; my_closure; _ } ->
+    let tenv = DE.typing_env denv in
+    let[@inline always] canon simple =
+      Simple.without_coercion (TE.get_canonical_simple_exn tenv simple)
+    in
+    if Simple.equal (canon (Simple.var my_closure)) (canon (Apply.callee apply))
+       && (match Apply.continuation apply with
+          | Never_returns ->
+            (* If we never return, then this call is a tail-call *)
+            true
+          | Return apply_return_continuation ->
+            Continuation.equal apply_return_continuation return_continuation)
+       && Exn_continuation.equal
+            (Apply.exn_continuation apply)
+            (Exn_continuation.create ~exn_handler:exn_continuation
+               ~extra_args:[])
+    then DE.loopify_state denv
+    else Loopify_state.do_not_loopify
+
+let simplify_self_tail_call dacc apply self_cont ~down_to_up =
+  Simplify_apply_cont_expr.simplify_apply_cont dacc
+    (Apply_cont_expr.create self_cont ~args:(Apply.args apply)
+       ~dbg:(Apply.dbg apply))
+    ~down_to_up
+
+let simplify_direct_full_application ~simplify_expr dacc apply function_type
+    ~params_arity ~result_arity ~result_types ~down_to_up ~coming_from_indirect
+    ~callee's_code_metadata =
+  match loopify_decision_for_call dacc apply with
+  | Loopify self_cont ->
+    simplify_self_tail_call dacc apply self_cont ~down_to_up
+  | Do_not_loopify ->
+    simplify_direct_full_application0 ~simplify_expr dacc apply function_type
+      ~params_arity ~result_arity ~result_types ~down_to_up
+      ~coming_from_indirect ~callee's_code_metadata
 
 (* CR mshinwell: need to work out what to do for local alloc transformations
    when there are zero args. *)
@@ -514,6 +558,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
           ~is_my_closure_used:
             (Function_params_and_body.is_my_closure_used params_and_body)
           ~inlining_decision:Stub ~absolute_history ~relative_history
+          ~loopify:Never_loopify
       in
       Static_const_or_code.create_code code
     in
@@ -579,14 +624,14 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
   in
   simplify_expr dacc expr ~down_to_up
 
-let simplify_direct_over_application ~simplify_expr dacc apply ~param_arity
-    ~result_arity ~down_to_up ~coming_from_indirect ~apply_alloc_mode
-    ~contains_no_escaping_local_allocs ~current_region =
+let simplify_direct_over_application ~simplify_expr dacc apply ~result_arity
+    ~down_to_up ~coming_from_indirect ~apply_alloc_mode ~current_region
+    ~callee's_code_id ~callee's_code_metadata =
   fail_if_probe apply;
   let expr =
-    Simplify_common.split_direct_over_application apply ~param_arity
-      ~result_arity ~apply_alloc_mode ~contains_no_escaping_local_allocs
-      ~current_region
+    Simplify_common.split_direct_over_application apply ~result_arity
+      ~apply_alloc_mode ~current_region ~callee's_code_id
+      ~callee's_code_metadata
   in
   let down_to_up dacc ~rebuild =
     let rebuild uacc ~after_rebuild =
@@ -669,12 +714,9 @@ let simplify_direct_function_call ~simplify_expr dacc apply
        tuple argument, irrespective of what [Code.params_arity] says. *)
     if must_be_detupled
     then
-      simplify_direct_tuple_application ~simplify_expr dacc apply ~params_arity
-        ~result_arity ~apply_alloc_mode
-        ~contains_no_escaping_local_allocs:
-          (Code_metadata.contains_no_escaping_local_allocs
-             callee's_code_metadata)
-        ~current_region ~down_to_up
+      simplify_direct_tuple_application ~simplify_expr dacc apply ~result_arity
+        ~apply_alloc_mode ~current_region ~callee's_code_id
+        ~callee's_code_metadata ~down_to_up
     else
       let args = Apply.args apply in
       let provided_num_args = List.length args in
@@ -686,13 +728,9 @@ let simplify_direct_function_call ~simplify_expr dacc apply
           ~coming_from_indirect ~callee's_code_metadata
       else if provided_num_args > num_params
       then
-        simplify_direct_over_application ~simplify_expr dacc apply
-          ~param_arity:params_arity ~result_arity ~down_to_up
-          ~coming_from_indirect ~apply_alloc_mode
-          ~contains_no_escaping_local_allocs:
-            (Code_metadata.contains_no_escaping_local_allocs
-               callee's_code_metadata)
-          ~current_region
+        simplify_direct_over_application ~simplify_expr dacc apply ~result_arity
+          ~down_to_up ~coming_from_indirect ~apply_alloc_mode ~current_region
+          ~callee's_code_id ~callee's_code_metadata
       else if provided_num_args > 0 && provided_num_args < num_params
       then
         simplify_direct_partial_application ~simplify_expr dacc apply

@@ -43,14 +43,15 @@ let log_instruction_suffix (instr : _ Cfg.instruction) (liveness : liveness) :
 
 let log_body_and_terminator :
     indent:int ->
-    Cfg.basic Cfg.instruction list ->
+    Cfg.BasicInstructionList.t ->
     Cfg.terminator Cfg.instruction ->
     liveness ->
     unit =
  fun ~indent body term liveness ->
   if irc_debug && irc_verbose
   then (
-    List.iter body ~f:(fun (instr : Cfg.basic Cfg.instruction) ->
+    Cfg.BasicInstructionList.iter body
+      ~f:(fun (instr : Cfg.basic Cfg.instruction) ->
         log_instruction_prefix ~indent instr;
         Cfg.dump_basic Format.err_formatter instr.Cfg.desc;
         log_instruction_suffix instr liveness);
@@ -145,14 +146,13 @@ let is_move_basic : Cfg.basic -> bool =
     | Intoffloat -> false
     | Valueofint -> false
     | Intofvalue -> false
-    | Probe _ -> false
     | Probe_is_enabled _ -> false
     | Opaque -> false
     | Begin_region -> false
     | End_region -> false
     | Specific _ -> false
     | Name_for_debugger _ -> false)
-  | Call _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> false
+  | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> false
 
 let is_move_instruction : Cfg.basic Cfg.instruction -> bool =
  fun instr -> is_move_basic instr.desc

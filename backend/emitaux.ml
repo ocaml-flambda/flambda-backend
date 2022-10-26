@@ -17,6 +17,7 @@
 
 type error =
   | Stack_frame_too_large of int
+  | Stack_frame_way_too_large of int
 
 exception Error of error
 
@@ -119,16 +120,48 @@ type frame_descr =
   { fd_lbl: int;                        (* Return address *)
     fd_frame_size: int;                 (* Size of stack frame *)
     fd_live_offset: int list;           (* Offsets/regs of live addresses *)
-    fd_debuginfo: frame_debuginfo }     (* Location, if any *)
+    fd_debuginfo: frame_debuginfo;      (* Location, if any *)
+    fd_long: bool;                      (* Use 32 instead of 16 bit format. *)
+  }
 
 let frame_descriptors = ref([] : frame_descr list)
 
+let get_flags debuginfo =
+  match debuginfo with
+  | Dbg_other d | Dbg_raise d ->
+    if Debuginfo.is_none d then 0 else 1
+  | Dbg_alloc dbgs ->
+    if !Clflags.debug &&
+       List.exists (fun d ->
+         not (Debuginfo.is_none d.Debuginfo.alloc_dbg)) dbgs
+    then 3 else 2
+
+let is_long n =
+  assert (n >= 0);
+  (* Long frames must fit in 32-bit integer and
+     not truncated upon conversion from int on any target. *)
+  if n > 0x3FFF_FFFF then
+    raise (Error(Stack_frame_way_too_large n));
+  n >= !Flambda_backend_flags.long_frames_threshold
+
 let record_frame_descr ~label ~frame_size ~live_offset debuginfo =
-  frame_descriptors :=
-    { fd_lbl = label;
+  assert (frame_size land 3 = 0);
+  let fd_long =
+    is_long (frame_size + get_flags debuginfo) ||
+    (* The checks below are redundant
+       (if they fail, then frame size check above should have failed),
+       but they make the safety of [emit_frame] clear. *)
+    is_long (List.length live_offset) ||
+    (List.exists is_long live_offset)
+  in
+  if fd_long && not !Flambda_backend_flags.allow_long_frames then
+    raise (Error(Stack_frame_too_large frame_size));
+  frame_descriptors :=     { fd_lbl = label;
       fd_frame_size = frame_size;
       fd_live_offset = List.sort_uniq (-) live_offset;
-      fd_debuginfo = debuginfo } :: !frame_descriptors
+      fd_debuginfo = debuginfo;
+      fd_long;
+    } :: !frame_descriptors
 
 type emit_frame_actions =
   { efa_code_label: int -> unit;
@@ -183,28 +216,22 @@ let emit_frames a =
       Label_table.add debuginfos key lbl;
       lbl
   in
-  let efa_16_checked n =
-    assert (n >= 0);
-    if n < 0x1_0000
-    then a.efa_16 n
-    else raise (Error(Stack_frame_too_large n))
-  in
+  let emit_32 n = n |> Int32.of_int |> a.efa_32 in
   let emit_frame fd =
-    assert (fd.fd_frame_size land 3 = 0);
-    let flags =
-      match fd.fd_debuginfo with
-      | Dbg_other d | Dbg_raise d ->
-        if Debuginfo.is_none d then 0 else 1
-      | Dbg_alloc dbgs ->
-        if !Clflags.debug &&
-           List.exists (fun d ->
-             not (Debuginfo.is_none d.Debuginfo.alloc_dbg)) dbgs
-        then 3 else 2
-    in
+    let flags = get_flags fd.fd_debuginfo in
     a.efa_code_label fd.fd_lbl;
-    efa_16_checked (fd.fd_frame_size + flags);
-    efa_16_checked (List.length fd.fd_live_offset);
-    List.iter efa_16_checked fd.fd_live_offset;
+    (* For short format, the size is guaranteed
+       to be less than the constant below. *)
+    if fd.fd_long then begin
+      a.efa_16 Flambda_backend_flags.max_long_frames_threshold;
+      a.efa_align 4;
+    end;
+    let emit_16_or_32 =
+      if fd.fd_long then emit_32 else a.efa_16
+    in
+    emit_16_or_32 (fd.fd_frame_size + flags);
+    emit_16_or_32 (List.length fd.fd_live_offset);
+    List.iter emit_16_or_32 fd.fd_live_offset;
     begin match fd.fd_debuginfo with
     | _ when flags = 0 ->
       ()
@@ -407,5 +434,7 @@ let reduce_heap_size ~reset =
 
 let report_error ppf = function
   | Stack_frame_too_large n ->
-      Format.fprintf ppf "stack frame too large (%d bytes)" n
-
+    Format.fprintf ppf "stack frame too large (%d bytes). \n\
+                        Use -long-frames compiler flag." n
+  | Stack_frame_way_too_large n ->
+    Format.fprintf ppf "stack frame too large (%d bytes)." n

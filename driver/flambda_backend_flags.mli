@@ -28,6 +28,11 @@ val heap_reduction_threshold : int ref
 val alloc_check : bool ref
 val dump_checkmach : bool ref
 
+val disable_poll_insertion : bool ref
+val allow_long_frames : bool ref
+val max_long_frames_threshold : int
+val long_frames_threshold : int ref
+
 type function_result_types = Never | Functors_only | All_functions
 type opt_level = Oclassic | O2 | O3
 type 'a or_default = Set of 'a | Default

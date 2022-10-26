@@ -765,6 +765,10 @@ let rebuild_recursive_let_cont_handlers cont ~params ~original_cont_scope
       in
       uacc, Some handlers
   in
+  let name_occurrences =
+    Name_occurrences.increase_counts (UA.name_occurrences uacc)
+  in
+  let uacc = UA.with_name_occurrences uacc ~name_occurrences in
   after_rebuild handlers uacc
 
 let after_one_recursive_let_cont_handler_rebuilt cont ~original_cont_scope
@@ -829,12 +833,18 @@ let prepare_to_rebuild_one_recursive_let_cont_handler cont params
 
 let after_downwards_traversal_of_one_recursive_let_cont_handler cont
     unboxing_decisions ~down_to_up params ~original_cont_scope
-    ~cont_uses_in_body dacc ~rebuild:rebuild_handler =
+    ~cont_uses_in_body ~body_continuation_uses_env dacc ~rebuild:rebuild_handler
+    =
   let dacc = DA.map_data_flow dacc ~f:(Data_flow.exit_continuation cont) in
+  let handler_continuation_uses_env = DA.continuation_uses_env dacc in
+  let continuation_uses_env =
+    CUE.union body_continuation_uses_env
+      (CUE.mark_non_inlinable handler_continuation_uses_env)
+  in
   let arg_types_by_use_id =
     (* At this point all uses (in both the body and the handler) of [cont] are
        in [dacc]. *)
-    match CUE.get_continuation_uses (DA.continuation_uses_env dacc) cont with
+    match CUE.get_continuation_uses continuation_uses_env cont with
     | None ->
       ListLabels.map (Bound_parameters.to_list params) ~f:(fun _ ->
           Apply_cont_rewrite_id.Map.empty)
@@ -851,7 +861,7 @@ let after_downwards_traversal_of_one_recursive_let_cont_handler cont
     DA.map_data_flow dacc ~f:(fun data_flow ->
         Data_flow.add_extra_params_and_args cont extra_params_and_args data_flow)
   in
-  let cont_uses_env = CUE.remove (DA.continuation_uses_env dacc) cont in
+  let cont_uses_env = CUE.remove continuation_uses_env cont in
   let dacc = DA.with_continuation_uses_env dacc ~cont_uses_env in
   down_to_up dacc
     ~rebuild:
@@ -887,14 +897,16 @@ let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
   let dacc =
     DA.map_denv dacc ~f:(fun denv -> DE.set_at_unit_toplevel_state denv false)
   in
+  let body_continuation_uses_env = DA.continuation_uses_env dacc in
   let cont_uses_in_body =
-    CUE.get_continuation_uses (DA.continuation_uses_env dacc) cont
+    CUE.get_continuation_uses body_continuation_uses_env cont
   in
   match cont_uses_in_body with
   | None ->
     let rebuild uacc ~after_rebuild = after_rebuild None uacc in
     down_to_up dacc ~rebuild
   | Some cont_uses_in_body ->
+    let dacc = DA.with_continuation_uses_env dacc ~cont_uses_env:CUE.empty in
     let arg_types_by_use_id_in_body =
       Continuation_uses.get_arg_types_by_use_id cont_uses_in_body
     in
@@ -929,7 +941,7 @@ let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
       ~down_to_up:
         (after_downwards_traversal_of_one_recursive_let_cont_handler cont
            unboxing_decisions params ~original_cont_scope ~down_to_up
-           ~cont_uses_in_body)
+           ~cont_uses_in_body ~body_continuation_uses_env)
 
 let rebuild_recursive_let_cont_expr are_rebuilding_terms ~body
     ~free_names_of_body ~handlers =
@@ -1024,12 +1036,9 @@ let simplify_recursive_let_cont_stage1 ~simplify_expr ~denv_before_body ~body
          ~original_cont_scope ~down_to_up)
 
 let simplify_recursive_let_cont_stage0 ~simplify_expr dacc ~down_to_up ~body
-    rec_handlers =
-  let module CH = Continuation_handler in
-  assert (not (Continuation_handlers.contains_exn_handler rec_handlers));
+    handlers =
   let denv_before_body = DA.denv dacc in
   let original_cont_scope = DE.get_continuation_scope denv_before_body in
-  let handlers = Continuation_handlers.to_map rec_handlers in
   let cont, cont_handler =
     match Continuation.Map.bindings handlers with
     | [] | _ :: _ :: _ ->
@@ -1038,14 +1047,22 @@ let simplify_recursive_let_cont_stage0 ~simplify_expr dacc ~down_to_up ~body
          yet implemented"
     | [c] -> c
   in
-  CH.pattern_match cont_handler
+  Continuation_handler.pattern_match cont_handler
     ~f:
       (simplify_recursive_let_cont_stage1 ~simplify_expr ~denv_before_body ~body
          cont ~original_cont_scope ~down_to_up dacc)
 
+let simplify_as_recursive_let_cont ~simplify_expr dacc (body, handlers)
+    ~down_to_up =
+  simplify_recursive_let_cont_stage0 ~simplify_expr dacc ~down_to_up ~body
+    handlers
+
 let simplify_recursive_let_cont ~simplify_expr dacc recs ~down_to_up =
-  Recursive_let_cont_handlers.pattern_match recs
-    ~f:(simplify_recursive_let_cont_stage0 ~simplify_expr dacc ~down_to_up)
+  Recursive_let_cont_handlers.pattern_match recs ~f:(fun ~body rec_handlers ->
+      assert (not (Continuation_handlers.contains_exn_handler rec_handlers));
+      let handlers = Continuation_handlers.to_map rec_handlers in
+      simplify_recursive_let_cont_stage0 ~simplify_expr dacc ~down_to_up ~body
+        handlers)
 
 let simplify_let_cont ~simplify_expr dacc (let_cont : Let_cont.t) ~down_to_up =
   match let_cont with
