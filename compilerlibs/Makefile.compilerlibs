@@ -128,8 +128,6 @@ TYPING_CMI = \
   typing/outcometree.cmi
 
 LAMBDA = \
-  lambda/debuginfo.cmo \
-  lambda/lambda.cmo \
   lambda/printlambda.cmo \
   lambda/switch.cmo \
   lambda/matching.cmo \

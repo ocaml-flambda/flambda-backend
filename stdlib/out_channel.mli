@@ -16,7 +16,7 @@
 (** Output channels.
 
     @since 4.14.0 *)
-
+open! Stdlib
 type t = out_channel
 (** The type of output channel. *)
 

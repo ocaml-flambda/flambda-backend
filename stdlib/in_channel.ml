@@ -12,7 +12,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-
+open! Stdlib
 type t = in_channel
 
 type open_flag = Stdlib.open_flag =

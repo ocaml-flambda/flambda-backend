@@ -273,9 +273,9 @@ DEPEND_DUMMY_FILES=\
 depend: beforedepend
 	touch $(DEPEND_DUMMY_FILES)
 	$(OCAMLRUN) $(ROOTDIR)/boot/ocamlc -depend -slash \
-	  -I byte -bytecode *.mli *.ml byte/dynlink.ml > .depend
+	   -bytecode *.mli *.ml byte/dynlink.ml > .depend
 	$(OCAMLRUN) $(ROOTDIR)/boot/ocamlc -depend -slash \
-	  -I native -native *.ml native/dynlink.ml >> .depend
+	   -native *.ml native/dynlink.ml >> .depend
 	rm -f $(DEPEND_DUMMY_FILES)
 
 include .depend

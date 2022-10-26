@@ -207,7 +207,18 @@ distclean: clean
 clean::
 	rm -f $(CAMLHEADERS)
 
-export AWK
+stdlib.cmi: stdlib.mli
+	$(CAMLC) $(COMPFLAGS) \
+	 -pp "$(AWK) -f ./expand_module_aliases.awk" -c $<
+
+stdlib.cmo: stdlib.ml
+	$(CAMLC) $(COMPFLAGS) \
+	 -pp "$(AWK) -f ./expand_module_aliases.awk" -c $<
+
+stdlib.cmx: stdlib.ml
+	$(CAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) \
+	 -pp "$(AWK) -f ./expand_module_aliases.awk" -c $<
+
 
 %.cmi: %.mli
 	$(CAMLC) $(COMPFLAGS) -c $<
@@ -215,7 +226,7 @@ export AWK
 # The dependency on the .mli file is in .depend (since stdlib__Foo.cmi
 # depends on stdlib__foo.mli)
 stdlib__%.cmi:
-	$(CAMLC) $(COMPFLAGS) $(shell ./Compflags $@) \
+	$(CAMLC) $(COMPFLAGS) \
 	         -o $@ -c $(filter %.mli, $^)
 
 %.cmo: %.ml
@@ -224,7 +235,7 @@ stdlib__%.cmi:
 # The dependency on the .ml file is in .depend (since stdlib__Foo.cmo
 # depends on stdlib__foo.ml)
 stdlib__%.cmo:
-	$(CAMLC) $(COMPFLAGS) $(shell ./Compflags $@) \
+	$(CAMLC) $(COMPFLAGS) \
 	         -o $@ -c $(filter %.ml, $^)
 
 %.cmx: %.ml
@@ -233,7 +244,7 @@ stdlib__%.cmo:
 # The dependency on the .ml file is in .depend (since stdlib__Foo.cmx
 # depends on stdlib__foo.ml)
 stdlib__%.cmx:
-	$(CAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) $(shell ./Compflags $@) \
+	$(CAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) \
 	           -o $@ -c $(filter %.ml, $^)
 
 # Dependencies on the compiler

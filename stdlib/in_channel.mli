@@ -16,7 +16,7 @@
 (** Input channels.
 
     @since 4.14.0 *)
-
+open! Stdlib
 type t = in_channel
 (** The type of input channel. *)
 
