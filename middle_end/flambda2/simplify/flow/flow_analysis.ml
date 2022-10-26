@@ -104,7 +104,9 @@ let analyze ?(speculative = false) ?print_name ~return_continuation
               ~return_continuation ~exn_continuation ~continuation_parameters
               ~pp_node control)
           (Lazy.force control_flow_graph_ppf));
-      let reference_result = Mutable_unboxing.make_result reference_analysis in
+      let reference_result, required_regions =
+        Mutable_unboxing.make_result reference_analysis
+      in
       let required_names_after_ref_reference_analysis =
         (* CR pchambart/gbury: this is an overapproximation of actually used new
            parameters. We might want to filter this using another round of
@@ -117,7 +119,7 @@ let analyze ?(speculative = false) ?print_name ~return_continuation
             in
             Name.Set.union required_names (Name.set_of_var_set params))
           reference_result.T.Mutable_unboxing_result.additionnal_epa
-          dead_variable_result.required_names
+          (Name.Set.union dead_variable_result.required_names required_regions)
       in
       (* Return *)
       let result =
