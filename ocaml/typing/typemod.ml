@@ -1976,17 +1976,9 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
                  mod_attributes = smod.pmod_attributes;
                  mod_loc = smod.pmod_loc } in
       let aliasable = not (Env.is_functor_arg path env) in
-      if alias && aliasable then begin
-        if not !Clflags.transparent_modules then begin
-          (* -no-alias-deps is off; we can count on having the .cmi available to
-             get the full compilation unit *)
-          let address = Env.find_module_address path env in
-          match Env.address_head address with
-          | AHunit cu -> Env.add_required_global cu
-          | AHlocal _ -> ()
-        end;
-        md
-      end else begin
+      if alias && aliasable then
+        (Env.add_required_global path env; md)
+      else begin
         let mty =
           if sttn then
             Env.find_strengthened_module ~aliasable path env
@@ -2897,17 +2889,18 @@ let package_units initial_env objfiles cmifile modulename =
     List.map
       (fun f ->
          let pref = chop_extensions f in
-         let modname =
-           String.capitalize_ascii(Filename.basename pref)
+         let unit =
+           pref
+           |> Filename.basename
+           |> String.capitalize_ascii
            |> Compilation_unit.Name.of_string
-           |> Compilation_unit.create_child modulename
          in
+         let modname = Compilation_unit.create_child modulename unit in
          let sg = Env.read_signature modname (pref ^ ".cmi") in
          if Filename.check_suffix f ".cmi" &&
             not(Mtype.no_code_needed_sig Env.initial_safe_string sg)
          then raise(Error(Location.none, Env.empty,
                           Implementation_is_required f));
-         (* CR lmaurer: Why are we reading the signature twice? *)
          Compilation_unit.name modname,
          Env.read_signature modname (pref ^ ".cmi"))
       objfiles in

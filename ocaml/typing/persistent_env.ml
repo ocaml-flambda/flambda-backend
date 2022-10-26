@@ -205,7 +205,7 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
       if not access_allowed then
         let prefix = Compilation_unit.for_pack_prefix current_unit in
         error (Direct_reference_from_wrong_package (name, filename, prefix));
-  | _ -> ()
+  | None -> ()
   end;
   let {persistent_structures; _} = penv in
   Hashtbl.add persistent_structures modname (Found (ps, pm));

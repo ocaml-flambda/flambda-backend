@@ -100,8 +100,8 @@ end
 
 module Uid = struct
   type t =
-    | Compilation_unit of Compilation_unit.t
-    | Item of { comp_unit: Compilation_unit.t option; id: int }
+    | Compilation_unit of string
+    | Item of { comp_unit: string; id: int }
     | Internal
     | Predef of string
 
@@ -115,12 +115,8 @@ module Uid = struct
     let print fmt = function
       | Internal -> Format.pp_print_string fmt "<internal>"
       | Predef name -> Format.fprintf fmt "<predef:%s>" name
-      | Compilation_unit cu -> Compilation_unit.print fmt cu
-      | Item { comp_unit; id } ->
-          (* Preserve old behavior when the compilation unit could be the empty string *)
-          Format.fprintf fmt "%a.%d"
-            (Misc.Stdlib.Option.print Compilation_unit.print) comp_unit
-            id
+      | Compilation_unit s -> Format.pp_print_string fmt s
+      | Item { comp_unit; id } -> Format.fprintf fmt "%s.%d" comp_unit id
 
     let output oc t =
       let fmt = Format.formatter_of_out_channel oc in
@@ -133,10 +129,15 @@ module Uid = struct
 
   let mk  ~current_unit =
       incr id;
-      Item { comp_unit = current_unit; id = !id }
+      let comp_unit =
+        match current_unit with
+        | Some cu -> cu |> Compilation_unit.full_path_as_string
+        | None -> ""
+      in
+      Item { comp_unit; id = !id }
 
-  let of_compilation_unit_id cu =
-    Compilation_unit cu
+  let of_compilation_unit_id id =
+    Compilation_unit (id |> Compilation_unit.full_path_as_string)
 
   let of_predef_id id =
     if not (Ident.is_predef id) then

@@ -709,17 +709,11 @@ let rec address_head = function
   | Alocal id -> AHlocal id
   | Adot (a, _) -> address_head a
 
-let equal_address_head ah1 ah2 =
-  match ah1, ah2 with
-  | AHunit cu1, AHunit cu2 -> Compilation_unit.equal cu1 cu2
-  | AHlocal id1, AHlocal id2 -> Ident.equal id1 id2
-  | (AHunit _ | AHlocal _), _ -> false
-
 (* The name of the compilation unit currently compiled. *)
 module Current_unit_name : sig
   val get : unit -> Compilation_unit.t option
   val set : Compilation_unit.t option -> unit
-  val is : Compilation_unit.Name.t -> bool
+  val is : string -> bool
   val is_ident : Ident.t -> bool
   val is_path : Path.t -> bool
 end = struct
@@ -730,9 +724,12 @@ end = struct
   let get_name () =
     Option.map Compilation_unit.name (get ())
   let is name =
-    Option.equal Compilation_unit.Name.equal (get_name ()) (Some name)
+    let current_name_string =
+      Option.map Compilation_unit.Name.to_string (get_name ())
+    in
+    Option.equal String.equal current_name_string (Some name)
   let is_ident id =
-    Ident.is_global id && is (Ident.name id |> Compilation_unit.Name.of_string)
+    Ident.is_global id && is (Ident.name id)
   let is_path = function
   | Pident id -> is_ident id
   | Pdot _ | Papply _ -> false
@@ -751,13 +748,7 @@ let find_same_module id tbl =
 let find_name_module ~mark name tbl =
   match IdTbl.find_name wrap_module ~mark name tbl with
   | x -> x
-  | exception Not_found
-    when not (Current_unit_name.is (name |> Compilation_unit.Name.of_string)) ->
-      (* CR lmaurer: The use of [Ident.create_persistent] here is pretty gross in
-         the current regime. It's not actually the [Ident.t] corresponding to a
-         compilation unit (and only bytecode compilation guarantees there is
-         such a thing). It's really just part of the API between this and
-         [Typemod.type_module_aux]. *)
+  | exception Not_found when not (Current_unit_name.is name) ->
       let path = Pident(Ident.create_persistent name) in
       path, Mod_persistent
 
@@ -1158,14 +1149,6 @@ let find_constructor_address path env =
   | Papply _ ->
       raise Not_found
 
-let find_compilation_unit modname =
-  (* CR-someday lmaurer: This is a bit gross. Could add an
-     [mda_compilation_unit] field, but it's not clear how
-     to fill it in other cases. *)
-  match get_address (find_pers_mod modname).mda_address with
-  | Aunit cu -> cu
-  | Alocal _ | Adot _ -> assert false (* see [sign_of_cmi] *)
-
 let find_hash_type path env =
   match path with
   | Pident id ->
@@ -1190,9 +1173,16 @@ let has_probe name = String.Set.mem name !probes
 let required_globals = s_ref []
 let reset_required_globals () = required_globals := []
 let get_required_globals () = !required_globals
-let add_required_global id =
+let add_required_unit id =
   if not (List.exists (Compilation_unit.equal id) !required_globals)
   then required_globals := id :: !required_globals
+let add_required_global id env =
+  if not !Clflags.transparent_modules
+  then
+    let address = find_module_address id env in
+    match address_head address with
+    | AHlocal _ -> ()
+    | AHunit id -> add_required_unit id
 
 let rec normalize_module_path lax env = function
   | Pident id as path when lax && Ident.is_global id ->
@@ -1214,14 +1204,9 @@ and expand_module_path lax env path =
     {mdl_type=MtyL_alias path1} ->
       let path' = normalize_module_path lax env path1 in
       if lax || !Clflags.transparent_modules then path' else
-      let head = address_head (find_value_address path env) in
-      let head' = address_head (find_value_address path' env) in
-      begin match head with
-      | AHunit cu when not (equal_address_head head head') ->
-        add_required_global cu
-      | AHunit _ | AHlocal _ ->
-        ()
-      end;
+      let id = Path.head path in
+      if Ident.is_global_or_predef id && not (Ident.same id (Path.head path'))
+      then add_required_global (Pident id) env;
       path'
   | _ -> path
   with Not_found when lax
@@ -1560,11 +1545,12 @@ let add_to_tbl id decl tbl =
   let decls = try NameMap.find id tbl with Not_found -> [] in
   NameMap.add id (decl :: decls) tbl
 
-exception Primitives_don't_have_addresses
+let primitive_address_error =
+  Invalid_argument "Primitives don't have addresses"
 
 let value_declaration_address (_ : t) id decl =
   match decl.val_kind with
-  | Val_prim _ -> EnvLazy.create_failed Primitives_don't_have_addresses
+  | Val_prim _ -> EnvLazy.create_failed primitive_address_error
   | _ -> EnvLazy.create_forced (Alocal id)
 
 let extension_declaration_address (_ : t) id (_ : extension_constructor) =
@@ -1624,7 +1610,7 @@ let rec components_of_module_maker
             let decl' = Subst.value_description sub decl in
             let addr =
               match decl.val_kind with
-              | Val_prim _ -> EnvLazy.create_failed Primitives_don't_have_addresses
+              | Val_prim _ -> EnvLazy.create_failed primitive_address_error
               | _ -> next_address ()
             in
             let vda = { vda_description = decl';
@@ -2928,10 +2914,9 @@ let bound_module name env =
   match IdTbl.find_name wrap_module ~mark:false name env.modules with
   | _ -> true
   | exception Not_found ->
-      let name = name |> Compilation_unit.Name.of_string in
       if Current_unit_name.is name then false
       else begin
-        match find_pers_mod name with
+        match find_pers_mod (name |> Compilation_unit.Name.of_string) with
         | _ -> true
         | exception Not_found -> false
       end

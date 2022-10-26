@@ -129,7 +129,7 @@ val normalize_modtype_path: t -> Path.t -> Path.t
 
 val reset_required_globals: unit -> unit
 val get_required_globals: unit -> Compilation_unit.t list
-val add_required_global: Compilation_unit.t -> unit
+val add_required_global: Path.t -> t -> unit
 
 val reset_probes: unit -> unit
 val add_probe: string -> unit
@@ -407,8 +407,6 @@ val is_imported_opaque: Compilation_unit.Name.t -> bool
 
 (* [register_import_as_opaque md] registers [md] as an opaque imported module *)
 val register_import_as_opaque: Compilation_unit.Name.t -> unit
-
-val find_compilation_unit : Compilation_unit.Name.t -> Compilation_unit.t
 
 (* Summaries -- compact representation of an environment, to be
    exported in debugging information. *)
