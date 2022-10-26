@@ -90,7 +90,20 @@ let mk_float_cond ~lt ~eq ~gt ~uo =
   | false, false, false, true -> Must_be_last
   | true, false, false, true -> Must_be_last
 
-let linearize_terminator cfg (terminator : Cfg.terminator Cfg.instruction)
+let cross_section cfg_with_layout src dst =
+  if !Flambda_backend_flags.basic_block_sections
+  then
+    let src_section = CL.get_section cfg_with_layout src in
+    let dst_section = CL.get_section cfg_with_layout dst in
+    match src_section, dst_section with
+    | None, None -> false
+    | Some src_name, Some dst_name -> not (String.equal src_name dst_name)
+    | Some _, None -> Misc.fatal_errorf "Missing section for %d" dst
+    | None, Some _ -> Misc.fatal_errorf "Missing section for %d" src
+  else false
+
+let linearize_terminator cfg_with_layout func start
+    (terminator : Cfg.terminator Cfg.instruction)
     ~(next : Linear_utils.labelled_insn) : L.instruction * Label.t option =
   (* CR-someday gyorsh: refactor, a lot of redundant code for different cases *)
   (* CR-someday gyorsh: for successor labels that are not fallthrough, order of
@@ -101,13 +114,13 @@ let linearize_terminator cfg (terminator : Cfg.terminator Cfg.instruction)
   (* If one of the successors is a fallthrough label, do not emit a jump for it.
      Otherwise, the last jump is unconditional. *)
   let branch_or_fallthrough d lbl =
-    if !Flambda_backend_flags.basic_block_sections
+    if cross_section cfg_with_layout start lbl
        || not (Label.equal next.label lbl)
     then d @ [L.Lbranch lbl]
     else d
   in
   let branch_or_fallthrough_next =
-    if !Flambda_backend_flags.basic_block_sections
+    if cross_section cfg_with_layout start next.label
     then [L.Lbranch next.label]
     else []
   in
@@ -131,7 +144,7 @@ let linearize_terminator cfg (terminator : Cfg.terminator Cfg.instruction)
     | Tailcall_func (Direct { func_symbol }) ->
       [L.Lop (Itailcall_imm { func = func_symbol })], None
     | Tailcall_self { destination } ->
-      [L.Lop (Itailcall_imm { func = Cfg.fun_name cfg })], Some destination
+      [L.Lop (Itailcall_imm { func })], Some destination
     | Call_no_return { func_symbol; alloc; ty_args; ty_res } ->
       single
         (L.Lop
@@ -246,7 +259,7 @@ let linearize_terminator cfg (terminator : Cfg.terminator Cfg.instruction)
         then
           (* generates one cmp instruction for all conditional jumps here *)
           let find l =
-            if (not !Flambda_backend_flags.basic_block_sections)
+            if (not (cross_section cfg_with_layout start l))
                && Label.equal next.label l
             then None
             else Some l
@@ -285,6 +298,8 @@ let linearize_terminator cfg (terminator : Cfg.terminator Cfg.instruction)
 let need_starting_label (cfg_with_layout : CL.t) (block : Cfg.basic_block)
     ~(prev_block : Cfg.basic_block) =
   if block.is_trap_handler
+  then true
+  else if cross_section cfg_with_layout prev_block.start block.start
   then true
   else
     match Label.Set.elements block.predecessors with
@@ -337,7 +352,8 @@ let run cfg_with_layout =
     assert (Label.equal label block.start);
     let body =
       let terminator, terminator_tailrec_label =
-        linearize_terminator cfg block.terminator ~next:!next
+        linearize_terminator cfg_with_layout cfg.fun_name block.start
+          block.terminator ~next:!next
       in
       (match !tailrec_label, terminator_tailrec_label with
       | (Some _ | None), None -> ()
@@ -359,8 +375,7 @@ let run cfg_with_layout =
         let prev = layout.(i - 1) in
         let prev_block = Label.Tbl.find cfg.blocks prev in
         let body =
-          if !Flambda_backend_flags.basic_block_sections
-             || need_starting_label cfg_with_layout block ~prev_block
+          if need_starting_label cfg_with_layout block ~prev_block
           then to_linear_instr (Llabel block.start) ~next:body
           else body
         in

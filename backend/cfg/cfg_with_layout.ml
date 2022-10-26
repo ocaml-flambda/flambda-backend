@@ -71,6 +71,8 @@ let assign_blocks_to_section t labels name =
       | None -> Hashtbl.replace t.sections label name)
     labels
 
+let get_section t label = Hashtbl.find_opt t.sections label
+
 let remove_block t label =
   Cfg.remove_block_exn t.cfg label;
   t.layout <- List.filter (fun l -> not (Label.equal l label)) t.layout;
