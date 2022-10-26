@@ -228,13 +228,21 @@ let function_name = ref ""
    after emitting data. *)
 let current_basic_block_section = ref ""
 
+let get_basic_block_section_name () =
+  Printf.sprintf "%s.%s" !function_name !current_basic_block_section
+
 let emit_Llabel fallthrough lbl section_name =
   if !Flambda_backend_flags.basic_block_sections then begin
-     let name = Printf.sprintf "%s_L%d" !function_name lbl in
-     current_basic_block_section := name;
-     cfi_endproc ();
-     emit_named_text_section name;
-     cfi_startproc ()
+    match section_name with
+    | Some name ->
+      if not (String.equal name !current_basic_block_section) then begin
+        current_basic_block_section := name;
+        cfi_endproc ();
+        emit_named_text_section (get_basic_block_section_name ());
+        cfi_startproc ();
+      end
+    | None ->
+      ()
   end;
   if not fallthrough && !fastcode_flag then D.align ~data:false 4;
   def_label lbl
@@ -1258,7 +1266,7 @@ let emit_instr fallthrough i =
                          ConstLabel lbl))
       done;
       if (!Flambda_backend_flags.basic_block_sections) then begin
-        emit_named_text_section !current_basic_block_section
+        emit_named_text_section (get_basic_block_section_name ())
       end else
         emit_named_text_section !function_name
   | Lentertrap ->
