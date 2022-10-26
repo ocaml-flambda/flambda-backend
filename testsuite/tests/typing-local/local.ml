@@ -1243,7 +1243,6 @@ let foo () =
 val foo : unit -> int = <fun>
 |}]
 
-
 (* Parameter modes must be matched by the type *)
 
 let foo : 'a -> unit = fun (local_ x) -> ()

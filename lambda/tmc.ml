@@ -36,6 +36,7 @@ type ambiguous_arguments = {
 
 type error =
   | Ambiguous_constructor_arguments of ambiguous_arguments
+  | Tmc_without_region
 
 exception Error of Location.t * error
 
@@ -557,7 +558,12 @@ let llets lk vk bindings body =
   ) bindings body
 
 let find_candidate = function
-  | Lfunction lfun when lfun.attr.tmc_candidate -> Some lfun
+  | Lfunction lfun when lfun.attr.tmc_candidate ->
+     (* TMC does not make sense for local-returning functions *)
+     if not lfun.region then
+       raise (Error (Debuginfo.Scoped_location.to_location lfun.loc,
+                     Tmc_without_region));
+     Some lfun
   | _ -> None
 
 let declare_binding ctx (var, def) =
@@ -704,6 +710,9 @@ let rec choice ctx t =
             then Tailcall_expectation true
             else Default_tailcall
           in
+          (* This application is in tail position of a region=true function
+             (or Tmc_without_region would have occurred), so it must be Heap *)
+          assert (Lambda.is_heap_mode apply.ap_mode);
           {
             Choice.dps = Dps.make (fun ~tail ~dst ->
               Lapply { apply with
@@ -961,17 +970,26 @@ and traverse_binding outer_ctx inner_ctx (var, def) =
       loc = lfun.loc;
     } in
     let dst = { dst_param with offset = Offset (Lvar dst_param.offset) } in
-    (* FIXME modes may be incorrect here *)
+    let params = add_dst_params dst_param lfun.params in
+    let kind =
+      match lfun.mode, lfun.kind with
+      | Alloc_heap, Tupled ->
+         (* Support of Tupled function: see [choice_apply]. *)
+         Curried {nlocal=0}
+      | Alloc_local, (Tupled | Curried _) ->
+         Curried {nlocal=List.length params}
+      | Alloc_heap, (Curried _ as k) ->
+         (* Prepending arguments does not affect nlocal *)
+         k
+    in
     Lambda.duplicate @@ lfunction
-      ~kind:
-        (* Support of Tupled function: see [choice_apply]. *)
-        (Curried {nlocal=0})
-      ~params:(add_dst_params dst_param lfun.params)
+      ~kind
+      ~params
       ~return:lfun.return
       ~body:(Choice.dps ~tail:true ~dst:dst fun_choice)
       ~attr:lfun.attr
       ~loc:lfun.loc
-      ~mode:alloc_heap
+      ~mode:lfun.mode
       ~region:true
   in
   let dps_var = special.dps_id in
@@ -1032,6 +1050,10 @@ let () =
             |> List.map sub
           in
           Some (Location.errorf ~loc ~sub:submgs "%t" print_msg)
+      | Error (loc, Tmc_without_region) ->
+          Some (Location.errorf ~loc
+                  "[@tail_mod_cons]: Functions cannot be both local-returning \
+                   and [@tail_mod_cons]")
       | _ ->
         None
     )
