@@ -170,7 +170,8 @@ let linear i n contains_calls =
         linear env i.Mach.next n
     | Iop((Icsel _) as op) ->
       (* CR gyorsh: this optimization can leave behind dead code
-         from computing the condition. *)
+         from computing the condition and the arguments, because there
+         is not dead code elimination after linearize. *)
       let len = Array.length i.Mach.arg in
       let ifso = i.Mach.arg.(len-2) in
       let ifnot = i.Mach.arg.(len-1) in
