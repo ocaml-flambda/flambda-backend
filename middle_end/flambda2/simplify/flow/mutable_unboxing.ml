@@ -251,12 +251,28 @@ let continuations_defining_refs ~non_escaping_refs ~(source_info : T.Acc.t) =
       defined)
     source_info.map
 
-let continuations_with_live_ref ~non_escaping_refs ~dom ~source_info ~control_flow_graph =
+let continuations_with_live_ref ~non_escaping_refs ~dom ~source_info
+    ~(control_flow_graph : Control_flow_graph.t) =
   let continuations_defining_refs =
     continuations_defining_refs ~non_escaping_refs ~source_info
   in
   let continuations_using_refs =
     continuations_using_refs ~non_escaping_refs ~dom ~source_info
+  in
+  (* TODO factorise fixpoint code *)
+  let q_is_empty, pop, push =
+    let q = Queue.create () in
+    let q_s = ref Continuation.Set.empty in
+    ( (fun () -> Queue.is_empty q),
+      (fun () ->
+        let k = Queue.pop q in
+        q_s := Continuation.Set.remove k !q_s;
+        k),
+      fun k ->
+        if not (Continuation.Set.mem k !q_s)
+        then (
+          Queue.add k q;
+          q_s := Continuation.Set.add k !q_s) )
   in
   let continuations_using_refs_but_not_defining_them =
     Continuation.Map.merge
@@ -272,6 +288,40 @@ let continuations_with_live_ref ~non_escaping_refs ~dom ~source_info ~control_fl
         | Some defined, Some used -> Some (Variable.Set.diff used defined))
       continuations_defining_refs continuations_using_refs
   in
+  let () =
+    Continuation.Map.iter
+      (fun cont used -> if not (Variable.Set.is_empty used) then push cont)
+      continuations_using_refs_but_not_defining_them
+  in
+  let res = ref continuations_using_refs_but_not_defining_them in
+  while not (q_is_empty ()) do
+    let k = pop () in
+    (* let elt = Continuation.Map.find k source_info.map in *)
+    let used_refs = Continuation.Map.find k !res in
+    let callers =
+      match Continuation.Map.find k control_flow_graph.callers with
+      | exception Not_found ->
+        Misc.fatal_errorf "Callers not found for: %a" Continuation.print k
+      | callers -> callers
+    in
+    Continuation.Set.iter
+      (fun caller ->
+        let defined_refs =
+          Continuation.Map.find caller continuations_defining_refs
+        in
+        let old_using_refs = Continuation.Map.find caller !res in
+        let new_using_refs =
+          Variable.Set.diff
+            (Variable.Set.union old_using_refs used_refs)
+            defined_refs
+        in
+        if not (Variable.Set.equal old_using_refs new_using_refs)
+        then (
+          res := Continuation.Map.add caller new_using_refs !res;
+          push caller))
+      callers
+  done;
+  let other_res =
   Control_flow_graph.fixpoint
     control_flow_graph
     ~init:continuations_using_refs_but_not_defining_them
@@ -283,6 +333,13 @@ let continuations_with_live_ref ~non_escaping_refs ~dom ~source_info ~control_fl
           Variable.Set.diff
             (Variable.Set.union old_using_refs used_refs)
             defined_refs)
+  in
+  if not (Continuation.Map.equal Variable.Set.equal !res other_res) then
+    Format.eprintf
+      "ERROR:@\nres: %a@\n@\nother_res: %a@\n@."
+      (Continuation.Map.print Variable.Set.print) !res
+      (Continuation.Map.print Variable.Set.print) other_res;
+  !res
 
 let list_to_int_map l =
   let _, map =

@@ -118,37 +118,33 @@ let fixpoint t ~init ~f =
                  ) (Continuation.Map.find callee t.callers) res
            end
          | G.Has_loop conts ->
-           begin match List.find (fun k -> Continuation.Map.mem k res) conts with
-             | exception Not_found -> res
-             | k ->
-               let q = Queue.create () in
-               let q_s = ref (Continuation.Set.singleton k) in
-               Queue.add k q;
-               let cur = ref res in
-               while not (Queue.is_empty q) do
-                 let callee = Queue.pop q in
-                 q_s := Continuation.Set.remove callee !q_s;
-                 let callee_set = Continuation.Map.find callee !cur in
-                 let callers =
-                   match Continuation.Map.find callee t.callers with
-                   | exception Not_found ->
-                     Misc.fatal_errorf "Callers not found for: %a" Continuation.print callee
-                   | callers -> callers
-                 in
-                 Continuation.Set.iter (fun caller ->
-                     let caller_set = Continuation.Map.find caller !cur in
-                     let caller_new_set = f ~caller ~caller_set ~callee ~callee_set in
-                     if not (Variable.Set.equal caller_set caller_new_set)
-                     then (
-                       cur := Continuation.Map.add caller caller_new_set !cur;
-                       if not (Continuation.Set.mem caller !q_s) then
-                         (Queue.add caller q;
-                          q_s := Continuation.Set.add caller !q_s)
-                     )
-                   ) callers
-               done;
-               !cur
-           end
+           let q = Queue.create () in
+           List.iter (fun k -> Queue.add k q) conts;
+           let q_s = ref (Continuation.Set.of_list conts) in
+           let cur = ref res in
+           while not (Queue.is_empty q) do
+             let callee = Queue.pop q in
+             q_s := Continuation.Set.remove callee !q_s;
+             let callee_set = Continuation.Map.find callee !cur in
+             let callers =
+               match Continuation.Map.find callee t.callers with
+               | exception Not_found ->
+                 Misc.fatal_errorf "Callers not found for: %a" Continuation.print callee
+               | callers -> callers
+             in
+             Continuation.Set.iter (fun caller ->
+                 let caller_set = Continuation.Map.find caller !cur in
+                 let caller_new_set = f ~caller ~caller_set ~callee ~callee_set in
+                 if not (Variable.Set.equal caller_set caller_new_set)
+                 then (
+                   cur := Continuation.Map.add caller caller_new_set !cur;
+                   if not (Continuation.Set.mem caller !q_s) then
+                     (Queue.add caller q;
+                      q_s := Continuation.Set.add caller !q_s)
+                 )
+               ) callers
+           done;
+           !cur
       ) components init
   in
   res
