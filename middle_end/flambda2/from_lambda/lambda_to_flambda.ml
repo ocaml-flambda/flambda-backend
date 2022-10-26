@@ -138,6 +138,8 @@ module Env : sig
 
   val current_region : t -> Ident.t
 
+  val my_region : t -> Ident.t
+
   (** The innermost (newest) region is first in the list. *)
   val region_stack : t -> region_stack_element list
 
@@ -379,6 +381,8 @@ end = struct
       match t.region_stack with
       | [] -> t.my_region
       | (Regular region | Try_with region) :: _ -> region
+
+  let my_region t = t.my_region
 
   let region_stack t = t.region_stack
 
@@ -785,7 +789,7 @@ let restore_continuation_context acc env ccenv cont ~close_early body =
   | Some region ->
     (* If we need to close regions early then do it now; otherwise redirect the
        return continuation to the one closing such regions, if any exist. See
-       comment in [cps_non_tail] on the [Lregion] case. *)
+       comment in [cps] on the [Lregion] case. *)
     if close_early
     then
       CC.close_let acc ccenv (Ident.create_local "unit")
@@ -834,9 +838,14 @@ let apply_cont_with_extra_args acc env ccenv ~dbg cont traps args =
 
 let wrap_return_continuation acc env ccenv (apply : IR.apply) =
   let extra_args = Env.extra_args_for_continuation env apply.continuation in
+  let close_early, region =
+    match apply.region_close with
+    | Rc_normal | Rc_nontail -> false, apply.region
+    | Rc_close_at_apply -> true, Env.my_region env
+  in
   let body acc ccenv continuation =
     match extra_args with
-    | [] -> CC.close_apply acc ccenv { apply with continuation }
+    | [] -> CC.close_apply acc ccenv { apply with continuation; region }
     | _ :: _ ->
       let wrapper_cont = Continuation.create () in
       let return_value = Ident.create_local "return_val" in
@@ -848,16 +857,12 @@ let wrap_return_continuation acc env ccenv (apply : IR.apply) =
         CC.close_apply_cont acc ccenv ~dbg continuation None args
       in
       let body acc ccenv =
-        CC.close_apply acc ccenv { apply with continuation = wrapper_cont }
+        CC.close_apply acc ccenv
+          { apply with continuation = wrapper_cont; region }
       in
       CC.close_let_cont acc ccenv ~name:wrapper_cont ~is_exn_handler:false
         ~params:[return_value, Not_user_visible, Pgenval]
         ~recursive:Nonrecursive ~body ~handler
-  in
-  let close_early =
-    match apply.region_close with
-    | Rc_normal | Rc_nontail -> false
-    | Rc_close_at_apply -> true
   in
   restore_continuation_context acc env ccenv apply.continuation ~close_early
     body
