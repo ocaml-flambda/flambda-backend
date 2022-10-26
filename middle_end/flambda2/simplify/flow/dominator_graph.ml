@@ -155,7 +155,7 @@ let find_dom var doms =
      - is not mapped in the graph, which means that it is a let-bound variable,
      in which case it can only be dominated by itself.
 
-     - we are in th efirst iteration of a loop fixpoint, in which case we also
+     - we are in the first iteration of a loop fixpoint, in which case we also
      want to initialize the dominator to the variable itself. *)
   try Variable.Map.find var doms with Not_found -> var
 
@@ -315,3 +315,4 @@ module Dot = struct
           (edges ~ctx ~color:"black")
           t.graph (edges' ~ctx ~color:"red") doms)
 end
+

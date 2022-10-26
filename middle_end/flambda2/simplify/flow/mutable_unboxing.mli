@@ -18,7 +18,7 @@ val create :
   dom:Dominator_graph.alias_map ->
   dom_graph:Dominator_graph.t ->
   source_info:Flow_types.Acc.t ->
-  callers:Continuation.Set.t Continuation.Map.t ->
+  control_flow_graph:Control_flow_graph.t ->
   return_continuation:Continuation.t ->
   exn_continuation:Continuation.t ->
   t

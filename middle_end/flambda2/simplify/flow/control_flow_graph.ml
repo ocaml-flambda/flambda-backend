@@ -13,10 +13,11 @@
 (**************************************************************************)
 
 module T = Flow_types
+module G = Strongly_connected_components.Make(Continuation)
 
 type t =
   { dummy_toplevel_cont : Continuation.t;
-    callers : Continuation.Set.t Continuation.Map.t;
+    callers : G.directed_graph;
     parents : Continuation.t Continuation.Map.t;
     children : Continuation.Set.t Continuation.Map.t
   }
@@ -92,13 +93,6 @@ let compute_available_variables ~(source_info : T.Acc.t) t =
       acc, acc)
     Variable.Set.empty
 
-let compute_transitive_parents t =
-  map_fold_on_children t
-    (fun k acc ->
-      let acc = Continuation.Set.add k acc in
-      acc, acc)
-    Continuation.Set.empty
-
 let compute_added_extra_args added_extra_args t =
   map_fold_on_children t
     (fun k available ->
@@ -106,31 +100,69 @@ let compute_added_extra_args added_extra_args t =
         available ))
     Variable.Set.empty
 
+let fixpoint t ~init ~f =
+  let components = G.connected_components_sorted_from_roots_to_leaf t.callers in
+  let res =
+    Array.fold_right
+      (fun component res ->
+         match component with
+         | G.No_loop callee ->
+           begin match Continuation.Map.find callee res with
+             | exception Not_found ->
+               res
+             | callee_set ->
+               Continuation.Set.fold (fun caller res ->
+                   let caller_set = Continuation.Map.find caller res in
+                   let caller_new_set = f ~caller ~caller_set ~callee ~callee_set in
+                   Continuation.Map.add caller caller_new_set res
+                 ) (Continuation.Map.find callee t.callers) res
+           end
+         | G.Has_loop conts ->
+           begin match List.find (fun k -> Continuation.Map.mem k res) conts with
+             | exception Not_found -> res
+             | k ->
+               let q = Queue.create () in
+               let q_s = ref (Continuation.Set.singleton k) in
+               Queue.add k q;
+               let cur = ref res in
+               while not (Queue.is_empty q) do
+                 let callee = Queue.pop q in
+                 q_s := Continuation.Set.remove callee !q_s;
+                 let callee_set = Continuation.Map.find callee !cur in
+                 let callers =
+                   match Continuation.Map.find callee t.callers with
+                   | exception Not_found ->
+                     Misc.fatal_errorf "Callers not found for: %a" Continuation.print callee
+                   | callers -> callers
+                 in
+                 Continuation.Set.iter (fun caller ->
+                     let caller_set = Continuation.Map.find caller !cur in
+                     let caller_new_set = f ~caller ~caller_set ~callee ~callee_set in
+                     if not (Variable.Set.equal caller_set caller_new_set)
+                     then (
+                       cur := Continuation.Map.add caller caller_new_set !cur;
+                       if not (Continuation.Set.mem caller !q_s) then
+                         (Queue.add caller q;
+                          q_s := Continuation.Set.add caller !q_s)
+                     )
+                   ) callers
+               done;
+               !cur
+           end
+      ) components init
+  in
+  res
+
 let compute_continuation_extra_args_for_aliases ~speculative ~required_names
     ~(source_info : T.Acc.t) doms t :
     T.Continuation_param_aliases.t Continuation.Map.t =
   let available_variables = compute_available_variables ~source_info t in
-  let transitive_parents = compute_transitive_parents t in
   let remove_vars_in_scope_of k var_set =
     let elt : T.Continuation_info.t = Continuation.Map.find k source_info.map in
     let res =
       Variable.Set.diff var_set (Continuation.Map.find k available_variables)
     in
     Variable.Set.diff res elt.defined
-  in
-  let q_is_empty, pop, push =
-    let q = Queue.create () in
-    let q_s = ref Continuation.Set.empty in
-    ( (fun () -> Queue.is_empty q),
-      (fun () ->
-        let k = Queue.pop q in
-        q_s := Continuation.Set.remove k !q_s;
-        k),
-      fun k ->
-        if not (Continuation.Set.mem k !q_s)
-        then (
-          Queue.add k q;
-          q_s := Continuation.Set.add k !q_s) )
   in
   let init =
     Continuation.Map.mapi
@@ -153,47 +185,18 @@ let compute_continuation_extra_args_for_aliases ~speculative ~required_names
             (Bound_parameters.vars elt.T.Continuation_info.params)
         in
         let s = remove_vars_in_scope_of k s in
-        if not (Variable.Set.is_empty s) then push k;
         s)
       source_info.map
   in
-  let res = ref init in
-  while not (q_is_empty ()) do
-    let k = pop () in
-    let elt = Continuation.Map.find k source_info.map in
-    let aliases_needed = Continuation.Map.find k !res in
-    let callers =
-      match Continuation.Map.find k t.callers with
-      | exception Not_found ->
-        Misc.fatal_errorf "Callers not found for: %a" Continuation.print k
-      | callers -> callers
-    in
-    let callers =
-      if not elt.recursive
-      then callers
-      else
-        Continuation.Set.filter
-          (fun caller ->
-            not
-              (Continuation.Set.mem k
-                 (Continuation.Map.find caller transitive_parents)))
-          callers
-    in
-    Continuation.Set.iter
-      (fun caller ->
-        let old_aliases_needed = Continuation.Map.find caller !res in
-        let new_aliases_needed =
-          Variable.Set.union old_aliases_needed
-            (remove_vars_in_scope_of caller aliases_needed)
-        in
-        if not (Variable.Set.equal old_aliases_needed new_aliases_needed)
-        then (
-          res := Continuation.Map.add caller new_aliases_needed !res;
-          push caller))
-      callers
-  done;
+  let added_extra_args = fixpoint t ~init
+      ~f:(fun ~caller ~caller_set:caller_aliases_needed
+           ~callee:_ ~callee_set:callee_aliases_needed ->
+           Variable.Set.union caller_aliases_needed
+             (remove_vars_in_scope_of caller callee_aliases_needed)
+         )
+  in
   let extra_args_for_toplevel_cont =
-    Continuation.Map.find t.dummy_toplevel_cont !res
+    Continuation.Map.find t.dummy_toplevel_cont added_extra_args
   in
   (* When doing speculative inlining, the flow analysis only has access to the
      inlined body of the function being (speculatively) inlined. Thus, it is
@@ -212,7 +215,6 @@ let compute_continuation_extra_args_for_aliases ~speculative ~required_names
        Toplevel continuation cannot have needed extra argument for aliases: \
        %a@."
       Variable.Set.print extra_args_for_toplevel_cont;
-  let added_extra_args = !res in
   let available_added_extra_args =
     compute_added_extra_args added_extra_args t
   in

@@ -86,7 +86,7 @@ let analyze ?(speculative = false) ?print_name ~return_continuation
       let control = Control_flow_graph.create ~dummy_toplevel_cont t in
       let reference_analysis =
         Mutable_unboxing.create ~dom:aliases ~dom_graph ~source_info:t
-          ~callers:control.callers ~return_continuation ~exn_continuation
+          ~control_flow_graph:control ~return_continuation ~exn_continuation
       in
       let pp_node = Mutable_unboxing.pp_node reference_analysis in
       let continuation_parameters =

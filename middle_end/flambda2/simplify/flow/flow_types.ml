@@ -97,6 +97,20 @@ end
 (* ************************************************************** *)
 
 module Continuation_info = struct
+(*
+   Some notes:
+
+   - {direct_aliases} is used to have a more precise escaping analysis for
+     mutable unboxing, since from_lambda occasionally generates aliases of
+   the form [let r' = r], which without a precise alias tracking, would be
+   considered as escaping.
+
+   - the {bindings} field records dependencies between names, usually created by primitive applications;
+         in the case of effectful primitives (that can't be removed), we do not
+         record dependencies, but instead recrod all args of the effectful prim
+         as unconditionally used (in {used_in_handler}). Similarly, for primitives
+         tracked in {mutable_let_prims_rev}, we do not record the dependencies
+         in this field, since we already have the more precise information. *)
   type t =
     { continuation : Continuation.t;
       recursive : bool;
