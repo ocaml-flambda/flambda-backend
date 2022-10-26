@@ -336,6 +336,9 @@ let adjust_stack_offset body (block : Cfg.basic_block)
     let delta_bytes = block_stack_offset - prev_stack_offset in
     to_linear_instr (Ladjust_stack_offset { delta_bytes }) ~next:body
 
+let make_Llabel cfg_with_layout label =
+  Linear.Llabel { label; section_name = CL.get_section cfg_with_layout label }
+
 (* CR-someday gyorsh: handle duplicate labels in new layout: print the same
    block more than once. *)
 let run cfg_with_layout =
@@ -376,7 +379,8 @@ let run cfg_with_layout =
         let prev_block = Label.Tbl.find cfg.blocks prev in
         let body =
           if need_starting_label cfg_with_layout block ~prev_block
-          then to_linear_instr (Llabel block.start) ~next:body
+          then
+            to_linear_instr (make_Llabel cfg_with_layout block.start) ~next:body
           else body
         in
         adjust_stack_offset body block ~prev_block

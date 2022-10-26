@@ -43,8 +43,11 @@ let instr' ?(print_reg = Printmach.reg) ppf i =
       fprintf ppf "reload retaddr"
   | Lreturn ->
       fprintf ppf "return %a" regs i.arg
-  | Llabel lbl ->
-      fprintf ppf "%a:" label lbl
+  | Llabel { label = lbl; section_name; } ->
+    fprintf ppf "%a%s:" label lbl
+      (match section_name with
+       | None -> ""
+       | Some name -> sprintf "in %s section" name)
   | Lbranch lbl ->
       fprintf ppf "goto %a" label lbl
   | Lcondbranch(tst, lbl) ->

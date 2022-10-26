@@ -32,7 +32,7 @@ and instruction_desc =
   | Lop of Mach.operation
   | Lreloadretaddr
   | Lreturn
-  | Llabel of label
+  | Llabel of { label : label; section_name : string option }
   | Lbranch of label
   | Lcondbranch of Mach.test * label
   | Lcondbranch3 of label option * label option * label option

@@ -228,7 +228,7 @@ let function_name = ref ""
    after emitting data. *)
 let current_basic_block_section = ref ""
 
-let emit_Llabel fallthrough lbl =
+let emit_Llabel fallthrough lbl section_name =
   if !Flambda_backend_flags.basic_block_sections then begin
      let name = Printf.sprintf "%s_L%d" !function_name lbl in
      current_basic_block_section := name;
@@ -1206,8 +1206,8 @@ let emit_instr fallthrough i =
       output_epilogue begin fun () ->
         I.ret ()
       end
-  | Llabel lbl ->
-      emit_Llabel fallthrough lbl
+  | Llabel { label = lbl; section_name } ->
+      emit_Llabel fallthrough lbl section_name
   | Lbranch lbl ->
       I.jmp (label lbl)
   | Lcondbranch(tst, lbl) ->

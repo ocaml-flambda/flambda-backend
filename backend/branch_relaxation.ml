@@ -23,7 +23,7 @@ module Make (T : Branch_relaxation_intf.S) = struct
     let rec fill_map pc instr =
       match instr.desc with
       | Lend -> (pc, map)
-      | Llabel lbl -> Hashtbl.add map lbl pc; fill_map pc instr.next
+      | Llabel { label=lbl; _ } -> Hashtbl.add map lbl pc; fill_map pc instr.next
       | op -> fill_map (pc + T.instr_size op) instr.next
     in
     fill_map 0 code
@@ -73,6 +73,7 @@ module Make (T : Branch_relaxation_intf.S) = struct
       | _ ->
         Misc.fatal_error "Unsupported instruction for branch relaxation"
 
+
   let fixup_branches ~code_size ~max_out_of_line_code_offset map code =
     let expand_optbranch lbl n arg next =
       match lbl with
@@ -110,9 +111,10 @@ module Make (T : Branch_relaxation_intf.S) = struct
             fixup true (pc + T.instr_size instr.desc) instr.next
           | Lcondbranch (test, lbl) ->
             let lbl2 = Cmm.new_label() in
+            let llabel = Llabel { label = lbl2; section_name = None } in
             let cont =
               instr_cons (Lbranch lbl) [||] [||]
-                (instr_cons (Llabel lbl2) [||] [||] instr.next)
+                (instr_cons llabel [||] [||] instr.next)
             in
             instr.desc <- Lcondbranch (invert_test test, lbl2);
             instr.next <- cont;
