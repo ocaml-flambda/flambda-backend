@@ -205,7 +205,8 @@ let def_label ?typ s =
    supported on the target system. *)
 
 let emit_named_text_section func_name =
-  if !Clflags.function_sections then
+  if !Clflags.function_sections ||
+     !Flambda_backend_flags.basic_block_sections then
     begin match system with
     | S_macosx
     (* Names of section segments in macosx are restricted to 16 characters,
@@ -229,7 +230,10 @@ let function_name = ref ""
 let current_basic_block_section = ref ""
 
 let get_basic_block_section_name () =
-  Printf.sprintf "%s.%s" !function_name !current_basic_block_section
+  if String.length !current_basic_block_section = 0 then
+    Printf.sprintf "%s" !function_name
+  else
+    Printf.sprintf "%s.%s" !function_name !current_basic_block_section
 
 let emit_Llabel fallthrough lbl section_name =
   if !Flambda_backend_flags.basic_block_sections then begin
