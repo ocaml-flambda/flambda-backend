@@ -189,6 +189,7 @@ let basic_or_terminator_of_operation :
          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ ) as op),
         imm ) ->
     Basic (Op (Intop_imm (op, imm)))
+  | Icsel tst -> Basic (Op (Csel tst))
   | Icompf comp -> Basic (Op (Compf comp))
   | Inegf -> Basic (Op Negf)
   | Iabsf -> Basic (Op Absf)
@@ -660,7 +661,7 @@ module Stack_offset_and_exn = struct
     | Op
         ( Move | Spill | Reload | Const_int _ | Const_float _ | Const_symbol _
         | Load _ | Store _ | Intop _ | Intop_imm _ | Negf | Absf | Addf | Subf
-        | Mulf | Divf | Compf _ | Floatofint | Intoffloat | Valueofint
+        | Mulf | Divf | Compf _ | Floatofint | Intoffloat | Valueofint | Csel _
         | Intofvalue | Probe_is_enabled _ | Opaque | Begin_region | End_region
         | Specific _ | Name_for_debugger _ )
     | Reloadretaddr | Prologue ->

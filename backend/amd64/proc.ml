@@ -359,6 +359,7 @@ let destroyed_at_oper = function
                | Double ), _, _))
   | Iop(Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
        | Icompf _
+       | Icsel _
        | Ifloatofint | Iintoffloat
        | Ivalueofint | Iintofvalue
        | Iconst_int _ | Iconst_float _ | Iconst_symbol _
@@ -409,6 +410,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
                     | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _),_)
        | Negf | Absf | Addf | Subf | Mulf | Divf
        | Compf _
+       | Csel _
        | Floatofint | Intoffloat
        | Valueofint | Intofvalue
        | Probe_is_enabled _
@@ -462,6 +464,7 @@ let safe_register_pressure = function
   | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue
   | Icompf _
+  | Icsel _
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Istackoffset _ | Iload (_, _, _) | Istore (_, _, _)
@@ -497,6 +500,7 @@ let max_register_pressure =
             | Double ),
             _, _)
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Icsel _
   | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
@@ -538,6 +542,7 @@ let operation_supported = function
   | Capply _ | Cextcall _ | Cload _ | Calloc _ | Cstore _
   | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
+  | Ccsel _
   | Cbswap _
   | Cclz _ | Cctz _
   | Ccmpi _ | Caddv | Cadda | Ccmpa _

@@ -186,6 +186,10 @@ let operation' ?(print_reg = reg) op arg ppf res =
   | Isubf -> fprintf ppf "%a -f %a" reg arg.(0) reg arg.(1)
   | Imulf -> fprintf ppf "%a *f %a" reg arg.(0) reg arg.(1)
   | Idivf -> fprintf ppf "%a /f %a" reg arg.(0) reg arg.(1)
+  | Icsel tst ->
+    let len = Array.length arg in
+    fprintf ppf "csel %a ? %a : %a"
+      (test tst) arg reg arg.(len-2) reg arg.(len-1)
   | Ifloatofint -> fprintf ppf "floatofint %a" reg arg.(0)
   | Iintoffloat -> fprintf ppf "intoffloat %a" reg arg.(0)
   | Ivalueofint -> fprintf ppf "valueofint %a" reg arg.(0)

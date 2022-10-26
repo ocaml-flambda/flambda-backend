@@ -245,6 +245,7 @@ method class_of_operation op =
   | Iintop_imm(Icheckbound, _) -> Op_checkbound
   | Iintop_imm(_, _) -> Op_pure
   | Icompf _
+  | Icsel _
   | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue -> Op_pure
   | Ispecific _ -> Op_other

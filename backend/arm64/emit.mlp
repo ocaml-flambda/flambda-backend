@@ -514,6 +514,7 @@ module BR = Branch_relaxation.Make (struct
       | 16 | 24 | 32 -> 1
       | _ -> 1 + num_instructions_for_intconst (Nativeint.of_int num_bytes)
       end
+    | Lop (Icsel _) -> 4
     | Lop (Ibeginregion | Iendregion) ->
        Misc.fatal_error "Local allocations not supported on this architecture"
     | Lop (Iintop (Icomp _)) -> 2
@@ -700,6 +701,20 @@ let name_for_float_comparison = function
   | CFge -> "ge"
   | CFnge -> "lt"
 
+let move src dst =
+  if src.loc <> dst.loc then begin
+    match (src, dst) with
+    | {loc = Reg _; typ = Float}, {loc = Reg _} ->
+      `	fmov	{emit_reg dst}, {emit_reg src}\n`
+    | {loc = Reg _}, {loc = Reg _} ->
+      `	mov	{emit_reg dst}, {emit_reg src}\n`
+    | {loc = Reg _}, {loc = Stack _} ->
+      `	str	{emit_reg src}, {emit_stack dst}\n`
+    | {loc = Stack _}, {loc = Reg _} ->
+      `	ldr	{emit_reg dst}, {emit_stack src}\n`
+    | _ ->
+      assert false
+  end
 (* Output the assembly code for an instruction *)
 
 let emit_instr i =
@@ -716,20 +731,7 @@ let emit_instr i =
         `	str	x30, [sp, #{emit_int (n-8)}]\n`
       end
     | Lop(Imove | Ispill | Ireload) ->
-        let src = i.arg.(0) and dst = i.res.(0) in
-        if src.loc <> dst.loc then begin
-          match (src, dst) with
-          | {loc = Reg _; typ = Float}, {loc = Reg _} ->
-              `	fmov	{emit_reg dst}, {emit_reg src}\n`
-          | {loc = Reg _}, {loc = Reg _} ->
-              `	mov	{emit_reg dst}, {emit_reg src}\n`
-          | {loc = Reg _}, {loc = Stack _} ->
-              `	str	{emit_reg src}, {emit_stack dst}\n`
-          | {loc = Stack _}, {loc = Reg _} ->
-              `	ldr	{emit_reg dst}, {emit_stack src}\n`
-          | _ ->
-              assert false
-        end
+        move i.arg.(0) i.res.(0)
     | Lop(Ispecific Imove32) ->
         let src = i.arg.(0) and dst = i.res.(0) in
         if src.loc <> dst.loc then begin
@@ -972,6 +974,39 @@ let emit_instr i =
     | Lop (Iname_for_debugger _) -> ()
     | Lop (Iprobe _ | Iprobe_is_enabled _) ->
         fatal_error ("Probes not supported.")
+    | Lop (Icsel tst) ->
+      let len = Array.length i.arg in
+      let ifso = i.arg.(len - 2) in
+      let ifnot = i.arg.(len - 1) in
+      if Reg.same_loc ifso ifnot then
+        move ifso i.res.(0)
+      else
+        begin match tst with
+        | Itruetest ->
+            `	cmp	{emit_reg i.arg.(0)}, #0\n`;
+            `	csel	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, ne\n`
+        | Ifalsetest ->
+            `	cmp	{emit_reg i.arg.(0)}, #0\n`;
+            `	csel	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, eq\n`
+        | Iinttest cmp ->
+            let comp = name_for_comparison cmp in
+            `	cmp	{emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;
+            `	csel	{emit_reg i.res.(0)}, {emit_reg i.arg.(2)}, {emit_reg i.arg.(3)}, {emit_string comp}\n`
+        | Iinttest_imm(cmp, n) ->
+            let comp = name_for_comparison cmp in
+            emit_cmpimm i.arg.(0) n;
+            `	csel	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, {emit_string comp}\n`
+        | Ifloattest cmp ->
+            let comp = name_for_float_comparison cmp in
+            `	fcmp	{emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;
+            `	csel	{emit_reg i.res.(0)}, {emit_reg i.arg.(2)}, {emit_reg i.arg.(3)}, {emit_string comp}\n`
+        | Ioddtest ->
+            `	tst	{emit_reg i.arg.(0)}, #1\n`;
+            `	csel	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, ne\n`
+        | Ieventest ->
+            `	tst	{emit_reg i.arg.(0)}, #1\n`;
+            `	csel	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, eq\n`
+        end
     | Lreloadretaddr ->
         ()
     | Lreturn ->

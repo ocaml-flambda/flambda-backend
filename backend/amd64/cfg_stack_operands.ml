@@ -183,6 +183,7 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
     may_use_stack_operand_for_result map instr ~num_args:2
   | Op(Intop_imm((Iadd | Isub | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr), _)) ->
     may_use_stack_operand_for_result map instr ~num_args:1
+  | Op (Csel _) (* CR gyorsh: optimize *)
   | Op (Specific (Ilfence | Isfence | Imfence))
   | Op (Intop(Imulh _ | Imul | Idiv | Imod))
   | Op (Intop_imm ((Imulh _ | Imul | Idiv | Imod), _))
@@ -205,7 +206,7 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
     May_still_have_spilled_registers
   | Op (Intop Icheckbound)
   | Op (Intop_imm ((Ipopcnt | Iclz _ | Ictz _ | Icheckbound), _)) ->
-    (* should no happen *)
+    (* should not happen *)
     fatal "unexpected instruction"
   end
 

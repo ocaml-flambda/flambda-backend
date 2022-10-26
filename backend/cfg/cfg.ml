@@ -315,6 +315,7 @@ let dump_op ppf = function
   | Mulf -> Format.fprintf ppf "mulf"
   | Divf -> Format.fprintf ppf "divf"
   | Compf _ -> Format.fprintf ppf "compf"
+  | Csel _ -> Format.fprintf ppf "csel"
   | Floatofint -> Format.fprintf ppf "floattoint"
   | Intoffloat -> Format.fprintf ppf "intoffloat"
   | Valueofint -> Format.fprintf ppf "valueofint"
@@ -506,6 +507,7 @@ let is_pure_operation : operation -> bool = function
   | Mulf -> true
   | Divf -> true
   | Compf _ -> true
+  | Csel _ -> true
   | Floatofint -> true
   | Intoffloat -> true
   (* Conservative to ensure valueofint/intofvalue are not eliminated before
@@ -546,6 +548,14 @@ let is_noop_move instr =
     | Unknown -> false
     | Reg _ | Stack _ -> Reg.same_loc instr.arg.(0) instr.res.(0))
     && Proc.register_class instr.arg.(0) = Proc.register_class instr.res.(0)
+  | Op (Csel _) -> (
+    match instr.res.(0).loc with
+    | Unknown -> false
+    | Reg _ | Stack _ ->
+      let len = Array.length instr.arg in
+      let ifso = instr.arg.(len - 2) in
+      let ifnot = instr.arg.(len - 1) in
+      Reg.same_loc instr.res.(0) ifso && Reg.same_loc instr.res.(0) ifnot)
   | Op
       ( Const_int _ | Const_float _ | Const_symbol _ | Stackoffset _ | Load _
       | Store _ | Intop _ | Intop_imm _ | Negf | Absf | Addf | Subf | Mulf

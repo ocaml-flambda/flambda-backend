@@ -69,6 +69,7 @@ type operation =
   | Iintop_imm of integer_operation * int
   | Icompf of float_comparison
   | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Icsel of test
   | Ifloatofint | Iintoffloat
   | Ivalueofint | Iintofvalue
   | Iopaque
@@ -178,6 +179,7 @@ let rec instr_iter f i =
             | Iintop _ | Iintop_imm _
             | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
             | Icompf _
+            | Icsel _
             | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue
             | Ispecific _ | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _
             | Iopaque
@@ -200,6 +202,7 @@ let operation_is_pure = function
           | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _)
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icompf _
+  | Icsel _
   | Ifloatofint | Iintoffloat
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _
   | Iload (_, _, _) | Iname_for_debugger _
@@ -218,6 +221,7 @@ let operation_can_raise op =
           | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _)
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icompf _
+  | Icsel _
   | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _
   | Istackoffset _ | Istore _  | Iload (_, _, _) | Iname_for_debugger _
