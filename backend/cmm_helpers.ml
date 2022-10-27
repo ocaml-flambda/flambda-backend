@@ -3372,8 +3372,7 @@ let transl_builtin name args dbg typ_res =
   | "caml_int32_unsigned_to_int_trunc_unboxed_to_untagged" ->
     Some (zero_extend_32 dbg (one_arg name args))
   | "caml_csel_value" | "caml_csel_int_untagged" | "caml_csel_int64_unboxed"
-  | "caml_csel_int32_unboxed" | "caml_csel_nativeint_unboxed"
-  | "caml_csel_float_unboxed" ->
+  | "caml_csel_int32_unboxed" | "caml_csel_nativeint_unboxed" ->
     let op = Ccsel typ_res in
     let cond, ifso, ifnot = three_args name args in
     if_operation_supported op ~f:(fun () ->
