@@ -103,8 +103,8 @@ let compute_added_extra_args added_extra_args t =
 let fixpoint t ~init ~f =
   let components = G.connected_components_sorted_from_roots_to_leaf t.callers in
   let res =
-    Array.fold_right
-      (fun component res ->
+    Array.fold_left
+      (fun res component ->
          match component with
          | G.No_loop callee ->
            begin match Continuation.Map.find callee res with
@@ -145,7 +145,7 @@ let fixpoint t ~init ~f =
                ) callers
            done;
            !cur
-      ) components init
+      ) init components
   in
   res
 
