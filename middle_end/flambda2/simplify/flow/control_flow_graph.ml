@@ -166,6 +166,10 @@ let compute_continuation_extra_args_for_aliases ~speculative ~required_names
     in
     Variable.Set.diff res elt.defined
   in
+  (* We remove aliases to unboxed blocks, so that they won't try to be passed as
+     extra args. These would normally be deleted, except in recursive
+     continuations, where they would still be added and cause the code to
+     fail. *)
   let doms =
     Variable.Map.mapi
       (fun param dom ->
