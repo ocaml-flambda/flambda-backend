@@ -72,14 +72,14 @@ let previously_free_depth_variables t = t.previously_free_depth_variables
 let compute_value_slot_types_inside_function ~value_slot_types
     ~degraded_value_slots =
   Value_slot.Map.mapi
-    (fun value_slot type_prior_to_sets ->
+    (fun value_slot (type_prior_to_sets, kind) ->
       let type_prior_to_sets =
         (* See comment below about [degraded_value_slots]. *)
         if Value_slot.Set.mem value_slot degraded_value_slots
         then T.any_value
         else type_prior_to_sets
       in
-      type_prior_to_sets)
+      type_prior_to_sets, kind)
     value_slot_types
 
 let compute_closure_types_inside_functions ~denv ~all_sets_of_closures
@@ -251,7 +251,7 @@ let create ~dacc_prior_to_sets ~simplify_function_body ~all_sets_of_closures
     List.concat_map
       (fun value_slot_types ->
         Value_slot.Map.mapi
-          (fun value_slot ty ->
+          (fun value_slot (ty, _kind) ->
             let vars = TE.free_names_transitive (DE.typing_env denv) ty in
             NO.fold_variables vars ~init:Variable.Set.empty
               ~f:(fun free_depth_variables var ->

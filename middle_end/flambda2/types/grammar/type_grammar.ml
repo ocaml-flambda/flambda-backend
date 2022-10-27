@@ -132,14 +132,16 @@ and closures_entry =
 
 (* Products are a set of constraints: each new field reduces the concrete set.
    The empty product is top. There is no bottom. All components must be of the
-   same kind.
+   same kind except for [value_slot_indexed_product].
 
    { 1 => Unknown; 2 => V } is equal to { 2 => V } *)
 and function_slot_indexed_product =
   { function_slot_components_by_index : t Function_slot.Map.t }
 
 and value_slot_indexed_product =
-  { value_slot_components_by_index : t Value_slot.Map.t }
+  { value_slot_components_by_index :
+      (t * Flambda_kind.With_subkind.t) Value_slot.Map.t
+  }
 
 and int_indexed_product =
   { fields : t array;
@@ -335,7 +337,7 @@ and free_names_function_slot_indexed_product ~follow_value_slots
 and free_names_value_slot_indexed_product ~follow_value_slots
     { value_slot_components_by_index } =
   Value_slot.Map.fold
-    (fun value_slot t free_names_acc ->
+    (fun value_slot (t, _kind) free_names_acc ->
       Name_occurrences.add_value_slot_in_types
         (Name_occurrences.union
            (free_names0 ~follow_value_slots t)
@@ -623,10 +625,10 @@ and apply_renaming_value_slot_indexed_product { value_slot_components_by_index }
   let value_slot_components_by_index =
     (* CR-someday mshinwell: some loss of sharing here, potentially *)
     Value_slot.Map.filter_map
-      (fun value_slot ty ->
+      (fun value_slot (ty, kind) ->
         if not (Renaming.value_slot_is_used renaming value_slot)
         then None
-        else Some (apply_renaming ty renaming))
+        else Some (apply_renaming ty renaming, kind))
       value_slot_components_by_index
   in
   { value_slot_components_by_index }
@@ -849,7 +851,9 @@ and print_function_slot_indexed_product ppf
 and print_value_slot_indexed_product ppf { value_slot_components_by_index } =
   Format.fprintf ppf
     "@[<hov 1>(@[<hov 1>(value_slot_components_by_index@ %a)@])@]"
-    (Value_slot.Map.print print)
+    (Value_slot.Map.print (fun ppf (t, kind) ->
+         Format.fprintf ppf "@[(%a @<1>\u{2237} %a)@]" print t
+           K.With_subkind.print kind))
     value_slot_components_by_index
 
 and print_int_indexed_product ppf { fields; kind } =
@@ -1017,7 +1021,7 @@ and ids_for_export_function_slot_indexed_product
 and ids_for_export_value_slot_indexed_product { value_slot_components_by_index }
     =
   Value_slot.Map.fold
-    (fun _ t ids -> Ids_for_export.union ids (ids_for_export t))
+    (fun _ (t, _kind) ids -> Ids_for_export.union ids (ids_for_export t))
     value_slot_components_by_index Ids_for_export.empty
 
 and ids_for_export_int_indexed_product { fields; kind = _ } =
@@ -1698,15 +1702,16 @@ and remove_unused_value_slots_and_shortcut_aliases_value_slot_indexed_product
   let value_slot_components_by_index =
     (* CR-someday mshinwell: some loss of sharing here, potentially *)
     Value_slot.Map.filter_map
-      (fun value_slot ty ->
+      (fun value_slot (ty, kind) ->
         if (not
               (Value_slot.in_compilation_unit value_slot
                  (Compilation_unit.get_current_exn ())))
            || Value_slot.Set.mem value_slot used_value_slots
         then
           Some
-            (remove_unused_value_slots_and_shortcut_aliases ty ~used_value_slots
-               ~canonicalise)
+            ( remove_unused_value_slots_and_shortcut_aliases ty
+                ~used_value_slots ~canonicalise,
+              kind )
         else None)
       value_slot_components_by_index
   in
@@ -2079,7 +2084,7 @@ and project_function_slot_indexed_product ~to_project ~expand
     ({ function_slot_components_by_index } as product) =
   let function_slot_components_by_index' =
     Function_slot.Map.map_sharing
-      (project_variables_out ~to_project ~expand)
+      (fun t -> project_variables_out ~to_project ~expand t)
       function_slot_components_by_index
   in
   if function_slot_components_by_index == function_slot_components_by_index'
@@ -2091,7 +2096,9 @@ and project_value_slot_indexed_product ~to_project ~expand
     ({ value_slot_components_by_index } as product) =
   let value_slot_components_by_index' =
     Value_slot.Map.map_sharing
-      (project_variables_out ~to_project ~expand)
+      (fun ((t, kind) as component) ->
+        let t' = project_variables_out ~to_project ~expand t in
+        if t == t' then component else t', kind)
       value_slot_components_by_index
   in
   if value_slot_components_by_index == value_slot_components_by_index'
@@ -2199,18 +2206,19 @@ module Product = struct
     type t = function_slot_indexed_product
 
     let create function_slot_components_by_index =
-      if Flambda_features.check_invariants ()
-      then
-        Function_slot.Map.iter
-          (fun _ ty ->
+      let function_slot_components_by_index =
+        Function_slot.Map.map
+          (fun ty ->
             if not (K.equal (kind ty) K.value)
             then
               Misc.fatal_errorf
                 "Function-slot-indexed products can only hold types of kind \
                  [Value]:@ %a"
                 (Function_slot.Map.print print)
-                function_slot_components_by_index)
-          function_slot_components_by_index;
+                function_slot_components_by_index
+            else ty)
+          function_slot_components_by_index
+      in
       { function_slot_components_by_index }
 
     let top = { function_slot_components_by_index = Function_slot.Map.empty }
@@ -2224,18 +2232,6 @@ module Product = struct
     type t = value_slot_indexed_product
 
     let create value_slot_components_by_index =
-      if Flambda_features.check_invariants ()
-      then
-        Value_slot.Map.iter
-          (fun _ ty ->
-            if not (K.equal (kind ty) K.value)
-            then
-              Misc.fatal_errorf
-                "Value-slot-indexed products can only hold types of kind \
-                 [Value]:@ %a"
-                (Value_slot.Map.print print)
-                value_slot_components_by_index)
-          value_slot_components_by_index;
       { value_slot_components_by_index }
 
     let top = { value_slot_components_by_index = Value_slot.Map.empty }
@@ -2572,7 +2568,7 @@ module Row_like_for_closures = struct
               (Set_of_closures_contents.value_slots index))
       then Unknown
       else
-        let env_var_ty =
+        let env_var_ty_and_kind =
           try
             Value_slot.Map.find env_var
               maps_to.value_slot_types.value_slot_components_by_index
@@ -2583,7 +2579,7 @@ module Row_like_for_closures = struct
               Value_slot.print env_var Set_of_closures_contents.print index
               print_closures_entry maps_to
         in
-        Known env_var_ty
+        Known env_var_ty_and_kind
 end
 
 module Env_extension = struct

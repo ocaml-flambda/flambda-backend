@@ -17,12 +17,14 @@ module Projection : sig
     | Block_load of { index : Targetint_31_63.t }
     | Project_value_slot of
         { project_from : Function_slot.t;
-          value_slot : Value_slot.t
+          value_slot : Value_slot.t;
+          kind : Flambda_kind.With_subkind.t
         }
 
   val block_load : index:Targetint_31_63.t -> t
 
-  val project_value_slot : Function_slot.t -> Value_slot.t -> t
+  val project_value_slot :
+    Function_slot.t -> Value_slot.t -> Flambda_kind.With_subkind.t -> t
 end
 
 type t

@@ -176,12 +176,12 @@ and make_optimistic_fields ~add_tag_to_name ~depth tenv param_type (tag : Tag.t)
 and make_optimistic_vars_within_closure ~depth tenv closures_entry =
   let map = T.Closures_entry.value_slot_types closures_entry in
   Value_slot.Map.mapi
-    (fun value_slot var_type : U.field_decision ->
+    (fun value_slot (var_type, kind) : (U.field_decision * _) ->
       let epa =
         Extra_param_and_args.create ~name:(Value_slot.to_string value_slot)
       in
       let decision =
         make_optimistic_decision ~depth:(depth + 1) tenv ~param_type:var_type
       in
-      { epa; decision })
+      { epa; decision }, kind)
     map

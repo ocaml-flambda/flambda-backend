@@ -28,7 +28,7 @@ val create :
   simplify_function_body:Simplify_common.simplify_function_body ->
   all_sets_of_closures:Set_of_closures.t list ->
   closure_bound_names_all_sets:Bound_name.t Function_slot.Map.t list ->
-  value_slot_types_all_sets:T.t Value_slot.Map.t list ->
+  value_slot_types_all_sets:(T.t * K.With_subkind.t) Value_slot.Map.t list ->
   t
 
 val create_for_stub :

@@ -768,7 +768,7 @@ let meet_project_value_slot_simple env ~min_name_mode t env_var :
   | Value (Ok (Closures { by_function_slot; alloc_mode = _ })) -> (
     match TG.Row_like_for_closures.get_env_var by_function_slot env_var with
     | Unknown -> Need_meet
-    | Known ty -> (
+    | Known (ty, _kind) -> (
       match TG.get_alias_exn ty with
       | simple -> (
         match TE.get_canonical_simple_exn env ~min_name_mode simple with

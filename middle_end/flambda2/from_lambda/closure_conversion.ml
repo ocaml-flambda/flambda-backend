@@ -1285,7 +1285,11 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
         let named =
           Named.create_prim
             (Unary
-               ( Project_value_slot { project_from = function_slot; value_slot },
+               ( Project_value_slot
+                   { project_from = function_slot;
+                     value_slot;
+                     kind = K.With_subkind.any_value
+                   },
                  my_closure' ))
             Debuginfo.none
         in
@@ -1585,7 +1589,9 @@ let close_functions acc external_env ~current_region function_declarations =
         (* We're sure [external_simple] is a variable since
            [value_slot_from_idents] has already filtered constants and symbols
            out. *)
-        Value_slot.Map.add value_slot external_simple map)
+        Value_slot.Map.add value_slot
+          (external_simple, K.With_subkind.any_value)
+          map)
       value_slots_from_idents Value_slot.Map.empty
   in
   let set_of_closures =

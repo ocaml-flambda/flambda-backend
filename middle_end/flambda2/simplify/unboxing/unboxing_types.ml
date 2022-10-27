@@ -58,7 +58,8 @@ type unboxing_decision =
       }
   | Closure_single_entry of
       { function_slot : Function_slot.t;
-        vars_within_closure : field_decision Value_slot.Map.t
+        vars_within_closure :
+          (field_decision * Flambda_kind.With_subkind.t) Value_slot.Map.t
       }
   | Number of Flambda_kind.Naked_number_kind.t * Extra_param_and_args.t
 
@@ -119,7 +120,8 @@ let rec print_decision ppf = function
       "@[<hov 1>(closure_single_entry@ @[<hov>(function_slot@ %a)@]@ @[<hv \
        2>(value_slots@ %a)@])@]"
       Function_slot.print function_slot
-      (Value_slot.Map.print print_field_decision)
+      (Value_slot.Map.print (fun ppf (decision, _kind) ->
+           print_field_decision ppf decision))
       vars_within_closure
   | Unbox (Number (kind, epa)) ->
     Format.fprintf ppf

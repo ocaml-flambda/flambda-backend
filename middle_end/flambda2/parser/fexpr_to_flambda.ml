@@ -315,7 +315,8 @@ let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   | Project_value_slot { project_from; value_slot } ->
     let value_slot = fresh_or_existing_value_slot env value_slot in
     let project_from = fresh_or_existing_function_slot env project_from in
-    Project_value_slot { project_from; value_slot }
+    Project_value_slot
+      { project_from; value_slot; kind = Flambda_kind.With_subkind.any_value }
   | Project_function_slot { move_from; move_to } ->
     let move_from = fresh_or_existing_function_slot env move_from in
     let move_to = fresh_or_existing_function_slot env move_to in
@@ -415,9 +416,10 @@ let set_of_closures env fun_decls value_slots =
     |> Function_slot.Lmap.of_list |> Function_declarations.create
   in
   let value_slots = Option.value value_slots ~default:[] in
-  let value_slots : Simple.t Value_slot.Map.t =
+  let value_slots : (Simple.t * Flambda_kind.With_subkind.t) Value_slot.Map.t =
     let convert ({ var; value } : Fexpr.one_value_slot) =
-      fresh_or_existing_value_slot env var, simple env value
+      ( fresh_or_existing_value_slot env var,
+        (simple env value, Flambda_kind.With_subkind.any_value) )
     in
     List.map convert value_slots |> Value_slot.Map.of_list
   in

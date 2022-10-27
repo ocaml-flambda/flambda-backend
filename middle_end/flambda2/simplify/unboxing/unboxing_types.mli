@@ -49,7 +49,8 @@ type unboxing_decision =
       }
   | Closure_single_entry of
       { function_slot : Function_slot.t;
-        vars_within_closure : field_decision Value_slot.Map.t
+        vars_within_closure :
+          (field_decision * Flambda_kind.With_subkind.t) Value_slot.Map.t
       }
   (* By "single entry" we mean that the corresponding set of closures only
      contains a single closure. *)

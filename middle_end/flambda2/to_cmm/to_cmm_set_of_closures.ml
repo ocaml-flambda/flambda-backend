@@ -86,7 +86,7 @@ end) : sig
     Code_id.t Function_slot.Map.t ->
     Debuginfo.t ->
     startenv:int ->
-    Simple.t Value_slot.Map.t ->
+    (Simple.t * Flambda_kind.With_subkind.t) Value_slot.Map.t ->
     Env.t ->
     Ece.t ->
     prev_updates:Cmm.expression option ->
@@ -101,7 +101,14 @@ end = struct
       let field = P.infix_header ~function_slot_offset:(slot_offset + 1) ~dbg in
       field :: acc, slot_offset + 1, env, Ece.pure, updates
     | Value_slot v ->
-      let simple = Value_slot.Map.find v value_slots in
+      let simple, kind = Value_slot.Map.find v value_slots in
+      if not
+           (Flambda_kind.equal
+              (Flambda_kind.With_subkind.kind kind)
+              Flambda_kind.value)
+      then
+        Misc.fatal_errorf "Value slot %a not of kind Value (%a)" Simple.print
+          simple Debuginfo.print_compact dbg;
       let contents, env, eff = P.simple ~dbg env simple in
       let env, fields, updates =
         match contents with

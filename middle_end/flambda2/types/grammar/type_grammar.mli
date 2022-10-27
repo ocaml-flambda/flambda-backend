@@ -118,7 +118,9 @@ and function_slot_indexed_product = private
   { function_slot_components_by_index : t Function_slot.Map.t }
 
 and value_slot_indexed_product = private
-  { value_slot_components_by_index : t Value_slot.Map.t }
+  { value_slot_components_by_index :
+      (t * Flambda_kind.With_subkind.t) Value_slot.Map.t
+  }
 
 and int_indexed_product = private
   { fields : t array;
@@ -301,7 +303,8 @@ module Product : sig
 
     val top : t
 
-    val create : flambda_type Value_slot.Map.t -> t
+    val create :
+      (flambda_type * Flambda_kind.With_subkind.t) Value_slot.Map.t -> t
 
     val width : t -> Targetint_31_63.t
   end
@@ -345,7 +348,8 @@ module Closures_entry : sig
   val find_function_type :
     t -> Function_slot.t -> Function_type.t Or_unknown_or_bottom.t
 
-  val value_slot_types : t -> flambda_type Value_slot.Map.t
+  val value_slot_types :
+    t -> (flambda_type * Flambda_kind.With_subkind.t) Value_slot.Map.t
 end
 
 module Row_like_index : sig
@@ -463,7 +467,10 @@ module Row_like_for_closures : sig
 
   (** Same as For_blocks.get_field: attempt to find the type associated to the
       given environment variable without an expensive meet. *)
-  val get_env_var : t -> Value_slot.t -> flambda_type Or_unknown.t
+  val get_env_var :
+    t ->
+    Value_slot.t ->
+    (flambda_type * Flambda_kind.With_subkind.t) Or_unknown.t
 
   (** Similar to [get_env_var] but for closures within the set. *)
   val get_closure : t -> Function_slot.t -> flambda_type Or_unknown.t

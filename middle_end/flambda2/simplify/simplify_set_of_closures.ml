@@ -579,16 +579,18 @@ let simplify_and_lift_set_of_closures dacc ~closure_bound_vars_inverse
   in
   let value_slot_types =
     Value_slot.Map.map
-      (fun value_slot ->
+      (fun (value_slot, kind_with_subkind) ->
+        let kind = K.With_subkind.kind kind_with_subkind in
         Simple.pattern_match value_slot
-          ~const:(fun _ -> T.alias_type_of K.value value_slot)
+          ~const:(fun _ ->
+            T.alias_type_of K.value value_slot, kind_with_subkind)
           ~name:(fun name ~coercion ->
             Name.pattern_match name
               ~var:(fun var ->
                 match Variable.Map.find var closure_bound_vars_inverse with
                 | exception Not_found ->
                   assert (DE.mem_variable (DA.denv dacc) var);
-                  T.alias_type_of K.value value_slot
+                  T.alias_type_of kind value_slot, kind_with_subkind
                 | function_slot ->
                   let closure_symbol =
                     Function_slot.Map.find function_slot closure_symbols_map
@@ -596,8 +598,9 @@ let simplify_and_lift_set_of_closures dacc ~closure_bound_vars_inverse
                   let simple =
                     Simple.with_coercion (Simple.symbol closure_symbol) coercion
                   in
-                  T.alias_type_of K.value simple)
-              ~symbol:(fun _sym -> T.alias_type_of K.value value_slot)))
+                  T.alias_type_of kind simple, kind_with_subkind)
+              ~symbol:(fun _sym ->
+                T.alias_type_of kind value_slot, kind_with_subkind)))
       value_slots
   in
   let context =
@@ -705,8 +708,8 @@ let simplify_non_lifted_set_of_closures0 dacc bound_vars ~closure_bound_vars
 
 type lifting_decision_result =
   { can_lift : bool;
-    value_slots : Simple.t Value_slot.Map.t;
-    value_slot_types : T.t Value_slot.Map.t;
+    value_slots : (Simple.t * K.With_subkind.t) Value_slot.Map.t;
+    value_slot_types : (T.t * K.With_subkind.t) Value_slot.Map.t;
     symbol_projections : Symbol_projection.t Variable.Map.t
   }
 
@@ -723,7 +726,7 @@ let type_value_slots_and_make_lifting_decision_for_one_set dacc
      available.) *)
   let value_slots, value_slot_types, symbol_projections =
     Value_slot.Map.fold
-      (fun value_slot env_entry
+      (fun value_slot (env_entry, kind)
            (value_slots, value_slot_types, symbol_projections) ->
         let env_entry, ty, symbol_projections =
           let ty =
@@ -747,9 +750,11 @@ let type_value_slots_and_make_lifting_decision_for_one_set dacc
           in
           simple, ty, symbol_projections
         in
-        let value_slots = Value_slot.Map.add value_slot env_entry value_slots in
+        let value_slots =
+          Value_slot.Map.add value_slot (env_entry, kind) value_slots
+        in
         let value_slot_types =
-          Value_slot.Map.add value_slot ty value_slot_types
+          Value_slot.Map.add value_slot (ty, kind) value_slot_types
         in
         value_slots, value_slot_types, symbol_projections)
       (Set_of_closures.value_slots set_of_closures)
@@ -791,7 +796,7 @@ let type_value_slots_and_make_lifting_decision_for_one_set dacc
          | Unknown -> false)
        | Heap -> true
   in
-  let value_slot_permits_lifting _value_slot simple =
+  let value_slot_permits_lifting _value_slot (simple, _kind) =
     can_lift_coercion (Simple.coercion simple)
     && Simple.pattern_match' simple
          ~const:(fun _ -> true)

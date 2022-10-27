@@ -296,8 +296,9 @@ and compute_extra_args_for_closure ~pass rewrite_id ~typing_env_at_use
     arg_being_unboxed function_slot vars_within_closure : U.decision =
   let vars_within_closure =
     Value_slot.Map.mapi
-      (fun var ({ epa; decision } : U.field_decision) : U.field_decision ->
-        let unboxer = Unboxers.Closure_field.unboxer function_slot var in
+      (fun var (({ epa; decision } : U.field_decision), kind) :
+           (U.field_decision * _) ->
+        let unboxer = Unboxers.Closure_field.unboxer function_slot var kind in
         let new_extra_arg, new_arg_being_unboxed =
           unbox_arg unboxer ~typing_env_at_use arg_being_unboxed
         in
@@ -308,7 +309,7 @@ and compute_extra_args_for_closure ~pass rewrite_id ~typing_env_at_use
           compute_extra_args_for_one_decision_and_use ~pass rewrite_id
             ~typing_env_at_use new_arg_being_unboxed decision
         in
-        { epa; decision })
+        { epa; decision }, kind)
       vars_within_closure
   in
   Unbox (Closure_single_entry { function_slot; vars_within_closure })
@@ -428,7 +429,8 @@ let add_extra_params_and_args extra_params_and_args decision =
         extra_params_and_args fields
     | Unbox (Closure_single_entry { function_slot = _; vars_within_closure }) ->
       Value_slot.Map.fold
-        (fun _ ({ epa; decision } : U.field_decision) extra_params_and_args ->
+        (fun _ (({ epa; decision } : U.field_decision), _kind)
+             extra_params_and_args ->
           let extra_param = BP.create epa.param K.With_subkind.any_value in
           let extra_params_and_args =
             EPA.add extra_params_and_args ~extra_param ~extra_args:epa.args

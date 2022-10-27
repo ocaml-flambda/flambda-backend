@@ -112,7 +112,8 @@ val exactly_this_closure :
   all_function_slots_in_set:
     Type_grammar.function_type Or_unknown_or_bottom.t Function_slot.Map.t ->
   all_closure_types_in_set:Type_grammar.t Function_slot.Map.t ->
-  all_value_slots_in_set:Type_grammar.t Value_slot.Map.t ->
+  all_value_slots_in_set:
+    (Type_grammar.t * Flambda_kind.With_subkind.t) Value_slot.Map.t ->
   Alloc_mode.For_types.t ->
   Type_grammar.t
 
@@ -123,13 +124,14 @@ val closure_with_at_least_these_function_slots :
 
 val closure_with_at_least_these_value_slots :
   this_function_slot:Function_slot.t ->
-  Variable.t Value_slot.Map.t ->
+  (Variable.t * Flambda_kind.With_subkind.t) Value_slot.Map.t ->
   Type_grammar.t
 
 val closure_with_at_least_this_value_slot :
   this_function_slot:Function_slot.t ->
   Value_slot.t ->
   value_slot_var:Variable.t ->
+  value_slot_kind:Flambda_kind.With_subkind.t ->
   Type_grammar.t
 
 val type_for_const : Reg_width_const.t -> Type_grammar.t

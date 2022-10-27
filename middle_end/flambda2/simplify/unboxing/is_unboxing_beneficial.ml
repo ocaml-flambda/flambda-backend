@@ -48,11 +48,12 @@ let rec filter_non_beneficial_decisions decision : U.decision =
     let is_unboxing_beneficial = ref false in
     let vars_within_closure =
       Value_slot.Map.map
-        (fun ({ epa; decision } : U.field_decision) : U.field_decision ->
+        (fun (({ epa; decision } : U.field_decision), kind) :
+             (U.field_decision * _) ->
           is_unboxing_beneficial
             := !is_unboxing_beneficial || is_unboxing_beneficial_for_epa epa;
           let decision = filter_non_beneficial_decisions decision in
-          { epa; decision })
+          { epa; decision }, kind)
         vars_within_closure
     in
     if !is_unboxing_beneficial

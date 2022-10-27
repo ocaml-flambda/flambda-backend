@@ -61,14 +61,15 @@ let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
   | Unbox (Closure_single_entry { function_slot; vars_within_closure }) ->
     let denv =
       Value_slot.Map.fold
-        (fun _ ({ epa = { param = var; _ }; _ } : U.field_decision) denv ->
+        (fun _ (({ epa = { param = var; _ }; _ } : U.field_decision), _) denv ->
           let v = VB.create var Name_mode.normal in
           DE.define_variable denv v K.value)
         vars_within_closure denv
     in
     let map =
       Value_slot.Map.map
-        (fun ({ epa = { param = var; _ }; _ } : U.field_decision) -> var)
+        (fun (({ epa = { param = var; _ }; _ } : U.field_decision), kind) ->
+          var, kind)
         vars_within_closure
     in
     let shape =
@@ -77,7 +78,7 @@ let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
     in
     let denv = add_equation_on_var denv param_var shape in
     Value_slot.Map.fold
-      (fun _ (field : U.field_decision) denv ->
+      (fun _ ((field : U.field_decision), _) denv ->
         denv_of_decision denv ~param_var:field.epa.param field.decision)
       vars_within_closure denv
   | Unbox (Variant { tag; const_ctors; fields_by_tag }) ->

@@ -842,9 +842,46 @@ and meet_product_value_slot_indexed env
     ({ value_slot_components_by_index = components_by_index2 } :
       TG.Product.Value_slot_indexed.t) :
     (TG.Product.Value_slot_indexed.t * TEE.t) Or_bottom.t =
+  let components_by_index1' =
+    Value_slot.Map.fold
+      (fun value_slot (ty, _) components_by_index ->
+        Value_slot.Map.add value_slot ty components_by_index)
+      components_by_index1 Value_slot.Map.empty
+  in
+  let components_by_index2' =
+    Value_slot.Map.fold
+      (fun value_slot (ty, _) components_by_index ->
+        Value_slot.Map.add value_slot ty components_by_index)
+      components_by_index2 Value_slot.Map.empty
+  in
   let<+ components_by_index, env_extension =
-    meet_generic_product env ~components_by_index1 ~components_by_index2
-      ~union:Value_slot.Map.union
+    meet_generic_product env ~components_by_index1:components_by_index1'
+      ~components_by_index2:components_by_index2' ~union:Value_slot.Map.union
+  in
+  let components_by_index =
+    Value_slot.Map.mapi
+      (fun value_slot ty ->
+        let component1 =
+          Value_slot.Map.find_opt value_slot components_by_index1
+        in
+        let component2 =
+          Value_slot.Map.find_opt value_slot components_by_index2
+        in
+        let kind =
+          match component1, component2 with
+          | Some (_, kind1), Some (_, kind2) ->
+            (* CR mshinwell: is this too strong? *)
+            if not (K.With_subkind.equal kind1 kind2)
+            then
+              Misc.fatal_errorf
+                "Unequal kinds %a and %a in value slot product meet"
+                K.With_subkind.print kind1 K.With_subkind.print kind2;
+            kind1
+          | Some (_, kind), None | None, Some (_, kind) -> kind
+          | None, None -> assert false
+        in
+        ty, kind)
+      components_by_index
   in
   TG.Product.Value_slot_indexed.create components_by_index, env_extension
 
@@ -1457,34 +1494,19 @@ and join_closures_entry env
   in
   TG.Closures_entry.create ~function_types ~closure_types ~value_slot_types
 
-and join_generic_product :
-      'key 'key_map.
-      Join_env.t ->
-      components_by_index1:'key_map ->
-      components_by_index2:'key_map ->
-      merge:
-        (('key -> TG.t option -> TG.t option -> TG.t option) ->
-        'key_map ->
-        'key_map ->
-        'key_map) ->
-      'key_map =
- fun env ~components_by_index1 ~components_by_index2 ~merge ->
-  merge
-    (fun _index ty1_opt ty2_opt ->
-      match ty1_opt, ty2_opt with
-      | None, _ | _, None -> None
-      | Some ty1, Some ty2 -> (
-        match join env ty1 ty2 with Known ty -> Some ty | Unknown -> None))
-    components_by_index1 components_by_index2
-
 and join_function_slot_indexed_product env
     ({ function_slot_components_by_index = components_by_index1 } :
       TG.Product.Function_slot_indexed.t)
     ({ function_slot_components_by_index = components_by_index2 } :
       TG.Product.Function_slot_indexed.t) : TG.Product.Function_slot_indexed.t =
   let function_slot_components_by_index =
-    join_generic_product env ~components_by_index1 ~components_by_index2
-      ~merge:Function_slot.Map.merge
+    Function_slot.Map.merge
+      (fun _index ty1_opt ty2_opt ->
+        match ty1_opt, ty2_opt with
+        | None, _ | _, None -> None
+        | Some ty1, Some ty2 -> (
+          match join env ty1 ty2 with Known ty -> Some ty | Unknown -> None))
+      components_by_index1 components_by_index2
   in
   TG.Product.Function_slot_indexed.create function_slot_components_by_index
 
@@ -1494,8 +1516,21 @@ and join_value_slot_indexed_product env
     ({ value_slot_components_by_index = components_by_index2 } :
       TG.Product.Value_slot_indexed.t) : TG.Product.Value_slot_indexed.t =
   let value_slot_components_by_index =
-    join_generic_product env ~components_by_index1 ~components_by_index2
-      ~merge:Value_slot.Map.merge
+    Value_slot.Map.merge
+      (fun _index ty1_opt ty2_opt ->
+        match ty1_opt, ty2_opt with
+        | None, _ | _, None -> None
+        | Some (ty1, kind1), Some (ty2, kind2) -> (
+          (* CR mshinwell: is this too strong? *)
+          if not (K.With_subkind.equal kind1 kind2)
+          then
+            Misc.fatal_errorf
+              "Unequal kinds %a and %a in value slot product meet"
+              K.With_subkind.print kind1 K.With_subkind.print kind2;
+          match join env ty1 ty2 with
+          | Known ty -> Some (ty, kind1)
+          | Unknown -> None))
+      components_by_index1 components_by_index2
   in
   TG.Product.Value_slot_indexed.create value_slot_components_by_index
 

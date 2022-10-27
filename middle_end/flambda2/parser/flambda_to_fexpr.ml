@@ -437,7 +437,7 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   | Opaque_identity _ -> Opaque_identity
   | Unbox_number bk -> Unbox_number bk
   | Untag_immediate -> Untag_immediate
-  | Project_value_slot { project_from; value_slot } ->
+  | Project_value_slot { project_from; value_slot; kind = _ } ->
     let project_from = Env.translate_function_slot env project_from in
     let value_slot = Env.translate_value_slot env value_slot in
     Project_value_slot { project_from; value_slot }
@@ -520,7 +520,13 @@ let prim env (p : Flambda_primitive.t) : Fexpr.prim =
 
 let value_slots env map =
   List.map
-    (fun (var, value) ->
+    (fun (var, (value, kind)) ->
+      if not
+           (Flambda_kind.equal
+              (Flambda_kind.With_subkind.kind kind)
+              Flambda_kind.value)
+      then
+        Misc.fatal_errorf "Value slot %a not of kind Value" Simple.print value;
       let var = Env.translate_value_slot env var in
       let value = simple env value in
       { Fexpr.var; value })

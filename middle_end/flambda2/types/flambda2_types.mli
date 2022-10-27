@@ -284,7 +284,8 @@ end
 module Closures_entry : sig
   type t
 
-  val value_slot_types : t -> flambda_type Value_slot.Map.t
+  val value_slot_types :
+    t -> (flambda_type * Flambda_kind.With_subkind.t) Value_slot.Map.t
 end
 
 val free_names : t -> Name_occurrences.t
@@ -464,7 +465,8 @@ val exactly_this_closure :
   all_function_slots_in_set:
     Function_type.t Or_unknown_or_bottom.t Function_slot.Map.t ->
   all_closure_types_in_set:t Function_slot.Map.t ->
-  all_value_slots_in_set:flambda_type Value_slot.Map.t ->
+  all_value_slots_in_set:
+    (flambda_type * Flambda_kind.With_subkind.t) Value_slot.Map.t ->
   Alloc_mode.For_types.t ->
   flambda_type
 
@@ -477,11 +479,12 @@ val closure_with_at_least_this_value_slot :
   this_function_slot:Function_slot.t ->
   Value_slot.t ->
   value_slot_var:Variable.t ->
+  value_slot_kind:Flambda_kind.With_subkind.t ->
   flambda_type
 
 val closure_with_at_least_these_value_slots :
   this_function_slot:Function_slot.t ->
-  Variable.t Value_slot.Map.t ->
+  (Variable.t * Flambda_kind.With_subkind.t) Value_slot.Map.t ->
   flambda_type
 
 val array_of_length :
