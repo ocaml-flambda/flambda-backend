@@ -89,10 +89,13 @@ let analyze ?(speculative = false) ?print_name ~return_continuation
           ~control_flow_graph:control ~return_continuation ~exn_continuation
       in
       let pp_node = Mutable_unboxing.pp_node reference_analysis in
+      let reference_result, required_regions, unboxed_blocks =
+        Mutable_unboxing.make_result reference_analysis
+      in
       let continuation_parameters =
         Control_flow_graph.compute_continuation_extra_args_for_aliases
           ~speculative ~source_info:t aliases control
-          ~required_names:dead_variable_result.required_names
+          ~required_names:dead_variable_result.required_names ~unboxed_blocks
       in
       (match print_name with
       | None -> ()
@@ -104,9 +107,6 @@ let analyze ?(speculative = false) ?print_name ~return_continuation
               ~return_continuation ~exn_continuation ~continuation_parameters
               ~pp_node control)
           (Lazy.force control_flow_graph_ppf));
-      let reference_result, required_regions =
-        Mutable_unboxing.make_result reference_analysis
-      in
       let required_names_after_ref_reference_analysis =
         (* CR pchambart/gbury: this is an overapproximation of actually used new
            parameters. We might want to filter this using another round of

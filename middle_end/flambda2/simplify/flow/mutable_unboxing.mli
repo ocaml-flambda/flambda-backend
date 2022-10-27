@@ -23,6 +23,7 @@ val create :
   exn_continuation:Continuation.t ->
   t
 
-val make_result : t -> Flow_types.Mutable_unboxing_result.t * Name.Set.t
+val make_result :
+  t -> Flow_types.Mutable_unboxing_result.t * Name.Set.t * Variable.Set.t
 
 val pp_node : t -> Format.formatter -> Continuation.t -> unit

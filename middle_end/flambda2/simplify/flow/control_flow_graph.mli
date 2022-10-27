@@ -26,11 +26,12 @@ val create : dummy_toplevel_cont:Continuation.t -> Flow_types.Acc.t -> t
 val fixpoint :
   t ->
   init:Variable.Set.t Continuation.Map.t ->
-  f:(caller:Continuation.t ->
-     caller_set:Variable.Set.t ->
-     callee:Continuation.t ->
-     callee_set:Variable.Set.t ->
-     Variable.Set.t) ->
+  f:
+    (caller:Continuation.t ->
+    caller_set:Variable.Set.t ->
+    callee:Continuation.t ->
+    callee_set:Variable.Set.t ->
+    Variable.Set.t) ->
   Variable.Set.t Continuation.Map.t
 
 (** Run the required names analysis *)
@@ -38,6 +39,7 @@ val compute_continuation_extra_args_for_aliases :
   speculative:bool ->
   required_names:Name.Set.t ->
   source_info:Flow_types.Acc.t ->
+  unboxed_blocks:Variable.Set.t ->
   Variable.t Variable.Map.t ->
   t ->
   Flow_types.Continuation_param_aliases.t Continuation.Map.t

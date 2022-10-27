@@ -273,17 +273,16 @@ let continuations_with_live_ref ~non_escaping_refs ~dom ~source_info
         | Some defined, Some used -> Some (Variable.Set.diff used defined))
       continuations_defining_refs continuations_using_refs
   in
-  Control_flow_graph.fixpoint
-    control_flow_graph
+  Control_flow_graph.fixpoint control_flow_graph
     ~init:continuations_using_refs_but_not_defining_them
-    ~f:(fun ~caller ~caller_set:old_using_refs
-         ~callee:_ ~callee_set:used_refs ->
-        let defined_refs =
-          Continuation.Map.find caller continuations_defining_refs
-        in
-          Variable.Set.diff
-            (Variable.Set.union old_using_refs used_refs)
-            defined_refs)
+    ~f:(fun ~caller ~caller_set:old_using_refs ~callee:_ ~callee_set:used_refs
+       ->
+      let defined_refs =
+        Continuation.Map.find caller continuations_defining_refs
+      in
+      Variable.Set.diff
+        (Variable.Set.union old_using_refs used_refs)
+        defined_refs)
 
 let list_to_int_map l =
   let _, map =
@@ -478,7 +477,8 @@ let create ~(dom : Dominator_graph.alias_map) ~(dom_graph : Dominator_graph.t)
              kinds))
       non_escaping_refs;
   let continuations_with_live_ref =
-    continuations_with_live_ref ~non_escaping_refs ~dom ~source_info ~control_flow_graph
+    continuations_with_live_ref ~non_escaping_refs ~dom ~source_info
+      ~control_flow_graph
   in
   (* Format.printf "@[<hov 2>Cont using refs:@ %a@]@."
    *   (Continuation.Map.print Variable.Set.print)
@@ -589,4 +589,5 @@ let make_result result =
   let additionnal_epa = add_to_extra_params_and_args result in
   let let_rewrites = result.rewrites in
   ( T.Mutable_unboxing_result.{ additionnal_epa; let_rewrites },
-    result.required_regions )
+    result.required_regions,
+    Variable.Map.keys result.non_escaping_makeblock )

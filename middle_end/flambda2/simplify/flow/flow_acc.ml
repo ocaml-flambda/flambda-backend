@@ -404,4 +404,4 @@ let extend_args_with_extra_args (t : T.Acc.t) =
         Continuation.Map.add cont elt map)
       t.extra map
   in
-  { t with map; extra = Continuation.Map.empty; }
+  { t with map; extra = Continuation.Map.empty }
