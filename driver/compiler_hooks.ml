@@ -129,6 +129,8 @@ let register : type a. a pass -> (a -> unit) -> unit =
   | Cmm -> hooks.cmm <- f :: hooks.cmm
   | Inlining_tree -> hooks.inlining_tree <- f :: hooks.inlining_tree
   | Check_allocations ->
+    if not !Flambda_backend_flags.alloc_check then
+      Misc.fatal_error "[-alloc-check] flag must be passed when the Check_allocations hook is requested";
     Checkmach.keep_all_details := true;
     hooks.check_allocations <- f :: hooks.check_allocations
 

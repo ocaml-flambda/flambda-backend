@@ -47,7 +47,8 @@ module Detail = struct
         }
     | Direct_call of string (* Function name *)
     | Direct_tailcall of string (* Function name *)
-    | Direct_call_unknown of string (* Function name *)
+    | Direct_call_unknown of string
+    (* Function in which the call originates from *)
     | Extcall of string (* Function name *)
     | Arch_specific
 
@@ -61,7 +62,8 @@ module Detail = struct
       Printf.sprintf "probe %s handler %s" name handler_code_sym
     | Direct_call n -> Printf.sprintf "direct call to %s" n
     | Direct_tailcall n -> Printf.sprintf "direct tailcall to %s" n
-    | Direct_call_unknown n -> Printf.sprintf "call to unknown function %s" n
+    | Direct_call_unknown n ->
+      Printf.sprintf "call to unknown function within function %s" n
     | Extcall n -> Printf.sprintf "external call to %s" n
     | Arch_specific -> "Arch.specific_operation"
 
