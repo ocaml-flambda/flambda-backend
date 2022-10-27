@@ -901,10 +901,10 @@ let recursive_let_cont_handler_wrapper_params uacc ~cont ~rewrite =
     && Name.Set.mem (Name.var var) required_names
   in
   let original_params =
-    Bound_parameters.to_list @@ Apply_cont_rewrite.original_params rewrite
+    Bound_parameters.to_list (Apply_cont_rewrite.original_params rewrite)
   in
   let used_extra_params =
-    Bound_parameters.to_list @@ Apply_cont_rewrite.used_extra_params rewrite
+    Bound_parameters.to_list (Apply_cont_rewrite.used_extra_params rewrite)
   in
   let params = List.filter kept_param (original_params @ used_extra_params) in
   Bound_parameters.create params
@@ -1250,7 +1250,7 @@ let rebuild_recursive_let_cont ~body handlers ~cost_metrics_of_handlers
         let rec_params =
           let original_params =
             Bound_parameters.to_list
-            @@ Apply_cont_rewrite.original_params rewrite
+              (Apply_cont_rewrite.original_params rewrite)
           in
           let used_params = Apply_cont_rewrite.used_params rewrite in
           let used_original_params =
@@ -1260,7 +1260,7 @@ let rebuild_recursive_let_cont ~body handlers ~cost_metrics_of_handlers
           in
           let used_extra_params =
             Bound_parameters.to_list
-            @@ Apply_cont_rewrite.used_extra_params rewrite
+              (Apply_cont_rewrite.used_extra_params rewrite)
           in
           List.filter
             (fun param ->

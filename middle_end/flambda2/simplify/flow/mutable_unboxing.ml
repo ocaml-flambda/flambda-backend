@@ -319,7 +319,7 @@ module Fold_prims = struct
         let bound_to = Numeric_types.Int.Map.find field fields in
         let rewrite =
           Named_rewrite.prim_rewrite
-          @@ Named_rewrite.Prim_rewrite.replace_by_binding ~var ~bound_to
+            (Named_rewrite.Prim_rewrite.replace_by_binding ~var ~bound_to)
         in
         { env with
           rewrites = Named_rewrite_id.Map.add rewrite_id rewrite env.rewrites
@@ -336,7 +336,7 @@ module Fold_prims = struct
         if ref_to_var_debug
         then Format.printf "Remove Block set %a@." Variable.print var;
         let rewrite =
-          Named_rewrite.prim_rewrite @@ Named_rewrite.Prim_rewrite.remove_prim
+          Named_rewrite.prim_rewrite Named_rewrite.Prim_rewrite.remove_prim
         in
         let fields = Numeric_types.Int.Map.add field value fields in
         { bindings = Variable.Map.add block fields env.bindings;
@@ -351,7 +351,7 @@ module Fold_prims = struct
           then Format.printf "Remove Makeblock %a@." Variable.print var
         in
         let rewrite =
-          Named_rewrite.prim_rewrite @@ Named_rewrite.Prim_rewrite.remove_prim
+          Named_rewrite.prim_rewrite Named_rewrite.Prim_rewrite.remove_prim
         in
         let fields = list_to_int_map values in
         { bindings = Variable.Map.add var fields env.bindings;
