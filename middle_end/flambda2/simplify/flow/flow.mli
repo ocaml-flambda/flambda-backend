@@ -50,15 +50,13 @@ module Acc : sig
   val record_var_binding :
     Variable.t -> Name_occurrences.t -> generate_phantom_lets:bool -> t -> t
 
-  (** Add an alias in the current handler. *)
-  val record_var_alias : Variable.t -> Simple.t -> t -> t
-
-  val record_ref_named :
-    Named_rewrite_id.t ->
-    bound_to:Variable.t ->
-    Flow_types.Mutable_prim.t ->
-    t ->
-    t
+  (** Record a let-binding *)
+  val record_let_binding :
+    rewrite_id:Named_rewrite_id.t ->
+    generate_phantom_lets:bool ->
+    let_bound:Bound_pattern.t ->
+    simplified_defining_expr:Simplified_named.t ->
+    t -> t
 
   (** Add a variable binding to the symbol. Projections might get recorded
       multiple times. *)

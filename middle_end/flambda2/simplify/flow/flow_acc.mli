@@ -70,7 +70,8 @@ val record_var_binding :
 val record_let_binding :
   rewrite_id:Named_rewrite_id.t ->
   generate_phantom_lets:bool ->
-  Simplify_named_result.binding_to_place ->
+  let_bound:Bound_pattern.t ->
+  simplified_defining_expr:Simplified_named.t ->
   t -> t
 
 (** Add a variable binding to the symbol. Projections might get recorded
