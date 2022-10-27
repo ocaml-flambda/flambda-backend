@@ -3373,6 +3373,9 @@ let transl_builtin name args dbg typ_res =
     Some (zero_extend_32 dbg (one_arg name args))
   | "caml_csel_value" | "caml_csel_int_untagged" | "caml_csel_int64_unboxed"
   | "caml_csel_int32_unboxed" | "caml_csel_nativeint_unboxed" ->
+    (* Unboxed float variant of csel intrinsic is not currently supported. It
+       can be emitted on arm64 using FCSEL, but there appears to be no
+       corresponding instruction on amd64 for xmm registers. *)
     let op = Ccsel typ_res in
     let cond, ifso, ifnot = three_args name args in
     if_operation_supported op ~f:(fun () ->
