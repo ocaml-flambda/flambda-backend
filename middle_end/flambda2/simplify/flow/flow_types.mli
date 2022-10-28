@@ -37,6 +37,8 @@ end
 
 module Mutable_prim : sig
   type t =
+    | Is_int of Variable.t
+    | Get_tag of Variable.t
     | Block_load of
         { bak : Flambda_primitive.Block_access_kind.t;
           mut : Mutability.t;

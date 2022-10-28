@@ -25,7 +25,7 @@ type extra_ref_args =
 
 type t =
   { (* non_escaping_references : Variable.Set.t *)
-    non_escaping_makeblock : Flambda_kind.With_subkind.t list Variable.Map.t;
+    non_escaping_makeblock : (Tag.t * Flambda_kind.With_subkind.t list) Variable.Map.t;
     continuations_with_live_ref : Variable.Set.t Continuation.Map.t;
     extra_ref_params_and_args :
       (extra_ref_params * extra_ref_args) Continuation.Map.t;
@@ -90,7 +90,7 @@ let escaping ~(dom : Dominator_graph.alias_map) ~(dom_graph : Dominator_graph.t)
     match prim with
     | Make_block (_, _, _, args) -> Simple.List.free_names args
     | Block_set (_, _, _, _, value) -> Simple.free_names value
-    | Block_load _ -> Name_occurrences.empty
+    | Is_int _ | Get_tag _ | Block_load _ -> Name_occurrences.empty
   in
   let escaping_by_use (elt : T.Continuation_info.t) =
     let add_name_occurrences occurrences init =
@@ -171,10 +171,7 @@ let non_escaping_makeblocks_and_required_regions ~escaping ~source_info =
       List.fold_left
         (fun (map, regions) T.Mutable_let_prim.{ bound_var = var; prim; _ } ->
           match prim with
-          | Make_block (kind, Mutable, region, args) ->
-            (* TODO: remove the mutable constraint, there is no reason to
-               restrict to it. This is only there to test on the mutable
-               cases *)
+          | Make_block (kind, _, region, args) ->
             if Variable.Set.mem var escaping
             then
               let regions =
@@ -184,21 +181,19 @@ let non_escaping_makeblocks_and_required_regions ~escaping ~source_info =
               in
               map, regions
             else
+              let tag =
+                match kind with
+                | Values (tag, _) -> Tag.Scannable.to_tag tag
+                | Naked_floats -> Tag.double_array_tag
+              in
               let kinds =
                 match kind with
                 | Naked_floats ->
                   List.map (fun _ -> Flambda_kind.With_subkind.naked_float) args
                 | Values (_, kinds) -> kinds
               in
-              Variable.Map.add var kinds map, regions
-          | Make_block (_, (Immutable | Immutable_unique), region, _) ->
-            let regions =
-              match region with
-              | Heap -> regions
-              | Local { region } -> Name.Set.add (Name.var region) regions
-            in
-            map, regions
-          | Block_load _ | Block_set _ -> map, regions)
+              Variable.Map.add var (tag, kinds) map, regions
+          | Block_load _ | Block_set _ | Is_int _ | Get_tag _ -> map, regions)
         (map, regions) elt.mutable_let_prims_rev)
     source_info.T.Acc.map
     (Variable.Map.empty, Name.Set.empty)
@@ -206,6 +201,7 @@ let non_escaping_makeblocks_and_required_regions ~escaping ~source_info =
 let prims_using_ref ~non_escaping_refs ~dom prim =
   match (prim : T.Mutable_prim.t) with
   | Make_block _ -> Variable.Set.empty
+  | Is_int block | Get_tag block
   | Block_set (_, _, block, _, _) | Block_load { block; _ } ->
     let block =
       match Variable.Map.find block dom with
@@ -307,6 +303,44 @@ module Fold_prims = struct
   let apply_prim ~dom ~non_escaping_refs env rewrite_id var
       (prim : T.Mutable_prim.t) =
     match prim with
+    | Is_int block -> (
+      let block =
+        match Variable.Map.find block dom with
+        | exception Not_found -> block
+        | block -> block
+      in
+      match Variable.Map.find block env.bindings with
+      | exception Not_found -> env
+      | _fields -> (
+        (* We only consider for unboxing vluaes which are aliases to a single
+           makeblock. In particular, for variants, this means that we only
+           consider for unboxing variant values which are blocks. *)
+        let bound_to = Simple.untagged_const_bool false in
+        let rewrite =
+          Named_rewrite.prim_rewrite
+            (Named_rewrite.Prim_rewrite.replace_by_binding ~var ~bound_to)
+        in
+        { env with
+          rewrites = Named_rewrite_id.Map.add rewrite_id rewrite env.rewrites
+        })
+    )
+    | Get_tag block -> (
+      let block =
+        match Variable.Map.find block dom with
+        | exception Not_found -> block
+        | block -> block
+      in
+      match Variable.Map.find block non_escaping_refs with
+      | exception Not_found -> env
+      | tag, _ ->
+        let bound_to = Simple.untagged_const_int (Tag.to_targetint_31_63 tag) in
+        let rewrite =
+          Named_rewrite.prim_rewrite
+            (Named_rewrite.Prim_rewrite.replace_by_binding ~var ~bound_to)
+        in
+        { env with
+          rewrites = Named_rewrite_id.Map.add rewrite_id rewrite env.rewrites
+        })
     | Block_load { block; field; _ } -> (
       let block =
         match Variable.Map.find block dom with
@@ -359,12 +393,12 @@ module Fold_prims = struct
         }
 
   let init_env
-      ~(non_escaping_refs : Flambda_kind.With_subkind.t list Variable.Map.t)
+      ~(non_escaping_refs : (Tag.t * Flambda_kind.With_subkind.t list) Variable.Map.t)
       ~(refs_needed : Variable.Set.t) ~rewrites =
     let env, params =
       Variable.Set.fold
         (fun ref_needed (env, params) ->
-          let arity = Variable.Map.find ref_needed non_escaping_refs in
+          let _, arity = Variable.Map.find ref_needed non_escaping_refs in
           let ref_params =
             List.mapi
               (fun i kind ->
@@ -401,7 +435,7 @@ module Fold_prims = struct
       Numeric_types.Int.Map.disjoint_union i1 shifted_i2
 
   let do_stuff
-      ~(non_escaping_refs : Flambda_kind.With_subkind.t list Variable.Map.t)
+      ~(non_escaping_refs : (Tag.t * Flambda_kind.With_subkind.t list) Variable.Map.t)
       ~continuations_with_live_ref ~dom ~(source_info : T.Acc.t) =
     let rewrites = ref Named_rewrite_id.Map.empty in
     let extra_params_and_args =
@@ -470,8 +504,9 @@ let create ~(dom : Dominator_graph.alias_map) ~(dom_graph : Dominator_graph.t)
   if (not (Variable.Map.is_empty non_escaping_refs)) && ref_to_var_debug
   then
     Format.printf "Non escaping makeblocks %a@."
-      (Variable.Map.print (fun ppf kinds ->
-           Format.fprintf ppf "[%a]"
+      (Variable.Map.print (fun ppf (tag, kinds) ->
+           Format.fprintf ppf "{%a}[%a]"
+             Tag.print tag
              (Format.pp_print_list ~pp_sep:Format.pp_print_space
                 Flambda_kind.With_subkind.print)
              kinds))

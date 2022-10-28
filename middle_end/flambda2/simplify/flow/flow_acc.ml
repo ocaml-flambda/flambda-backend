@@ -337,15 +337,31 @@ let record_let_binding ~rewrite_id ~generate_phantom_lets ~let_bound
       record_var_alias var simple t
     | Set_of_closures _ | Rec_info _ -> record_var_bindings t free_names
     | Prim (prim, _) -> (
+      let bound_var = Bound_pattern.must_be_singleton let_bound in
+      let var = Bound_var.var bound_var in
       match[@ocaml.warning "-4"] prim with
       | Unary (End_region, _region) ->
         (* Uses of region variables in [End_region] don't count as uses. *)
         t
+      | Unary (Is_int _, simple) -> (
+          match Simple.must_be_var simple with
+          | Some (v, _) ->
+            record_var_bindings (
+              record_ref_named rewrite_id ~bound_to:var
+                (Is_int v) t) Name_occurrences.empty
+          | None -> record_var_bindings t free_names
+        )
+      | Unary (Get_tag, simple) -> (
+          match Simple.must_be_var simple with
+          | Some (v, _) ->
+            record_var_bindings (
+              record_ref_named rewrite_id ~bound_to:var
+                (Get_tag v) t) Name_occurrences.empty
+          | None -> record_var_bindings t free_names
+        )
       | Binary (Block_load (bak, mut), block, field) -> (
         match get_block_and_constant_field ~block ~field with
         | Some (block, field) ->
-          let bound_var = Bound_pattern.must_be_singleton let_bound in
-          let var = Bound_var.var bound_var in
           record_var_bindings
             (record_ref_named rewrite_id ~bound_to:var
                (Block_load { bak; mut; block; field })
@@ -355,15 +371,11 @@ let record_let_binding ~rewrite_id ~generate_phantom_lets ~let_bound
       | Ternary (Block_set (access_kind, init_or_assign), block, field, c) -> (
         match get_block_and_constant_field ~block ~field with
         | Some (block, field) ->
-          let bound_var = Bound_pattern.must_be_singleton let_bound in
-          let var = Bound_var.var bound_var in
           record_ref_named rewrite_id ~bound_to:var
             (Block_set (access_kind, init_or_assign, block, field, c))
             t
         | None -> add_used_in_current_handler free_names t)
       | Variadic (Make_block (kind, mutability, alloc_mode), args) ->
-        let bound_var = Bound_pattern.must_be_singleton let_bound in
-        let var = Bound_var.var bound_var in
         record_var_bindings
           (record_ref_named rewrite_id ~bound_to:var
              (Make_block (kind, mutability, alloc_mode, args))
@@ -374,10 +386,7 @@ let record_let_binding ~rewrite_id ~generate_phantom_lets ~let_bound
         then (* the primitive can be removed *)
           record_var_bindings t free_names
         else
-          let t =
-            Bound_pattern.fold_all_bound_vars let_bound ~init:t ~f:(fun t v ->
-                record_defined_var (Bound_var.var v) t)
-          in
+          let t = record_defined_var var t in
           add_used_in_current_handler free_names t))
 
 (* Normalisation *)

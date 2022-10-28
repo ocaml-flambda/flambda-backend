@@ -239,7 +239,7 @@ let add_name_occurrences name_occurrences
 let mutable_prim_free_names (mutable_prim : T.Mutable_prim.t) :
     Name_occurrences.t =
   match mutable_prim with
-  | Block_load { block; _ } ->
+  | Is_int block | Get_tag block | Block_load { block; _ } ->
     Name_occurrences.singleton_variable block Name_mode.normal
   | Block_set (_, _, block, _field, c) ->
     Name_occurrences.add_variable (Simple.free_names c) block Name_mode.normal
@@ -313,6 +313,7 @@ let add_continuation_info map ~return_continuation ~exn_continuation
       (fun t T.Mutable_let_prim.{ bound_var; prim; named_rewrite_id = _ } ->
         let src = Name.var bound_var in
         match prim with
+        | Is_int _ | Get_tag _
         | Make_block _ | Block_load _ ->
           Name_occurrences.fold_names
             ~f:(fun t dst -> add_dependency ~src ~dst t)
