@@ -28,6 +28,19 @@
 module C = Cfg
 module CL = Cfg_with_layout
 
+let is_terminator_call_or_external (block : C.basic_block) =
+  match block.terminator.desc with
+  | Call _ | Prim { op = External _; _ } -> true
+  | Prim { op=(Alloc _|Checkbound _|Probe _); _ }
+  | Never|Return|Always _|Parity_test _|Truth_test _|Float_test _|Int_test _|
+  Switch _|Raise _|Tailcall_self _|Tailcall_func _|Call_no_return _|
+  Specific_can_raise _|Poll_and_jump _    -> false
+
+let has_call_as_predecessor cfg (block : C.basic_block) =
+  Label.Set.exists (fun pred_label ->
+    let pred_block = C.get_block_exn cfg pred_label in
+    is_terminator_call_or_external pred_block) block.predecessors
+
 let is_fallthrough_block cfg_with_layout (block : C.basic_block) =
   let cfg = CL.cfg cfg_with_layout in
   if Label.equal cfg.entry_label block.start
@@ -42,7 +55,13 @@ let is_fallthrough_block cfg_with_layout (block : C.basic_block) =
       let target_label = Label.Set.min_elt successors in
       if Label.equal target_label block.start
       then None (* self-loop *)
-      else Some target_label
+      else begin
+        (* if one of the predecessors is a Call, keep block to correctly record
+           execution counters on the return from the call. *)
+        if has_call_as_predecessor cfg block
+        then None
+        else Some target_label
+      end
     else None
 
 (* CR-someday mshinwell: The logic below looks similar in structure to
