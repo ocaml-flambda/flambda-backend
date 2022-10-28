@@ -204,7 +204,7 @@ let def_label ?typ s =
 (* Output .text section directive, or named .text.caml.<name> if enabled and
    supported on the target system. *)
 
-let emit_named_text_section func_name =
+let emit_named_text_section ?(suffix = "") func_name =
   if !Clflags.function_sections ||
      !Flambda_backend_flags.basic_block_sections then
     begin match system with
@@ -216,7 +216,7 @@ let emit_named_text_section func_name =
        systems does not support function sections. *)
       ->  assert false
     | _ -> D.section
-             [ ".text.caml."^(emit_symbol func_name) ]
+             [ Printf.sprintf ".text.caml.%s%s" (emit_symbol func_name) suffix ]
              (Some "ax")
              ["@progbits"]
     end
@@ -229,11 +229,14 @@ let function_name = ref ""
    after emitting data. *)
 let current_basic_block_section = ref ""
 
-let get_basic_block_section_name () =
-  if String.length !current_basic_block_section = 0 then
-    Printf.sprintf "%s" !function_name
-  else
-    Printf.sprintf "%s.%s" !function_name !current_basic_block_section
+let emit_basic_block_section_name () =
+  let suffix =
+    if String.length !current_basic_block_section = 0 then
+      ""
+    else
+      "."^(!current_basic_block_section)
+  in
+  emit_named_text_section !function_name ~suffix
 
 let emit_Llabel fallthrough lbl section_name =
   if !Flambda_backend_flags.basic_block_sections then begin
@@ -242,7 +245,7 @@ let emit_Llabel fallthrough lbl section_name =
       if not (String.equal name !current_basic_block_section) then begin
         current_basic_block_section := name;
         cfi_endproc ();
-        emit_named_text_section (get_basic_block_section_name ());
+        emit_basic_block_section_name ();
         cfi_startproc ();
       end
     | None ->
@@ -1269,10 +1272,7 @@ let emit_instr fallthrough i =
         D.long (ConstSub (ConstLabel(emit_label jumptbl.(i)),
                          ConstLabel lbl))
       done;
-      if (!Flambda_backend_flags.basic_block_sections) then begin
-        emit_named_text_section (get_basic_block_section_name ())
-      end else
-        emit_named_text_section !function_name
+      emit_basic_block_section_name ()
   | Lentertrap ->
       if fp then begin
         let delta = frame_size () - 16 (* retaddr + rbp *) in
