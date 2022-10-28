@@ -155,9 +155,8 @@ let fixpoint t ~init ~f =
   in
   res
 
-let compute_continuation_extra_args_for_aliases ~speculative ~required_names
-    ~(source_info : T.Acc.t) ~unboxed_blocks doms t :
-    T.Continuation_param_aliases.t Continuation.Map.t =
+let extra_args_for_aliases_overapproximation ~required_names
+    ~(source_info : T.Acc.t) ~unboxed_blocks doms t =
   let available_variables = compute_available_variables ~source_info t in
   let remove_vars_in_scope_of k var_set =
     let elt : T.Continuation_info.t = Continuation.Map.find k source_info.map in
@@ -206,31 +205,9 @@ let compute_continuation_extra_args_for_aliases ~speculative ~required_names
         Variable.Set.union caller_aliases_needed
           (remove_vars_in_scope_of caller callee_aliases_needed))
   in
-  let extra_args_for_toplevel_cont =
-    Continuation.Map.find t.dummy_toplevel_cont added_extra_args
-  in
-  (* When doing speculative inlining, the flow analysis only has access to the
-     inlined body of the function being (speculatively) inlined. Thus, it is
-     possible for a canonical alias to be defined outside the inliend body (a
-     typical occurrence would be a String length compute before the call of the
-     inlined funciton, but shared with the uses inside the funciton by the cse).
+  added_extra_args
 
-     Note that while this is true for aliases, we do not need a similar
-     mechanism for mutable unboxing, since when doing mutable unboxing, we
-     require that we have seen the creation of the block. *)
-  if (not speculative)
-     && not (Variable.Set.is_empty extra_args_for_toplevel_cont)
-  then
-    Format.eprintf
-      "ERROR:@\n\
-       Toplevel continuation cannot have needed extra argument for aliases: \
-       %a@."
-      Variable.Set.print extra_args_for_toplevel_cont;
-  let available_added_extra_args =
-    compute_added_extra_args added_extra_args t
-  in
-  Continuation.Map.mapi
-    (fun k aliases_needed ->
+let minimize_extra_args_for_one_continuation ~(source_info : T.Acc.t) ~unboxed_blocks ~available_added_extra_args doms k aliases_needed =
       let available = Continuation.Map.find k available_added_extra_args in
       let extra_args_for_aliases = Variable.Set.diff aliases_needed available in
       let elt = Continuation.Map.find k source_info.map in
@@ -315,8 +292,38 @@ let compute_continuation_extra_args_for_aliases ~speculative ~required_names
           recursive_continuation_wrapper
         }
       in
-      res)
-    added_extra_args
+      res
+
+let minimize_extra_args_for_aliases ~source_info ~unboxed_blocks doms added_extra_args t =
+  let available_added_extra_args = compute_added_extra_args added_extra_args t in
+  Continuation.Map.mapi (minimize_extra_args_for_one_continuation ~source_info ~unboxed_blocks ~available_added_extra_args doms) added_extra_args
+
+let compute_continuation_extra_args_for_aliases ~speculative ~required_names
+    ~source_info ~unboxed_blocks doms t :
+    T.Continuation_param_aliases.t Continuation.Map.t =
+  let added_extra_args = extra_args_for_aliases_overapproximation ~required_names ~source_info ~unboxed_blocks doms t in
+  let extra_args_for_toplevel_cont =
+    Continuation.Map.find t.dummy_toplevel_cont added_extra_args
+  in
+  (* When doing speculative inlining, the flow analysis only has access to the
+     inlined body of the function being (speculatively) inlined. Thus, it is
+     possible for a canonical alias to be defined outside the inliend body (a
+     typical occurrence would be a String length compute before the call of the
+     inlined funciton, but shared with the uses inside the funciton by the cse).
+
+     Note that while this is true for aliases, we do not need a similar
+     mechanism for mutable unboxing, since when doing mutable unboxing, we
+     require that we have seen the creation of the block. *)
+  if (not speculative)
+     && not (Variable.Set.is_empty extra_args_for_toplevel_cont)
+  then
+    Format.eprintf
+      "ERROR:@\n\
+       Toplevel continuation cannot have needed extra argument for aliases: \
+       %a@."
+      Variable.Set.print extra_args_for_toplevel_cont;
+  let extra_args_for_aliases = minimize_extra_args_for_aliases ~source_info ~unboxed_blocks doms added_extra_args t in
+  extra_args_for_aliases
 
 module Dot = struct
   let node_id ~ctx ppf (cont : Continuation.t) =
