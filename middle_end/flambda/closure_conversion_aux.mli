@@ -73,9 +73,11 @@ module Function_decls : sig
     val body : t -> Lambda.lambda
     val inline : t -> Lambda.inline_attribute
     val specialise : t -> Lambda.specialise_attribute
+    val check : t -> Lambda.check_attribute
     val is_a_functor : t -> bool
     val stub : t -> bool
     val loc : t -> Lambda.scoped_location
+    val poll_attribute : t -> Lambda.poll_attribute
 
     (* Like [all_free_idents], but for just one function. *)
     val free_idents : t -> Ident.Set.t

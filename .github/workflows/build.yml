@@ -14,6 +14,8 @@ jobs:
             os: ubuntu-latest
             ocamlparam: ''
             check_arch: true
+            use_runtime: d
+            ocamlrunparam: "v=0,V=1"
 
           - name: closure_cfg_local
             config: --enable-middle-end=closure --enable-stack-allocation
@@ -39,6 +41,8 @@ jobs:
             config: --enable-middle-end=flambda2
             os: ubuntu-latest
             ocamlparam: ''
+            use_runtime: d
+            ocamlrunparam: "v=0,V=1"
 
           - name: flambda2_frame_pointers
             config: --enable-middle-end=flambda2 --enable-frame-pointers
@@ -87,7 +91,7 @@ jobs:
       id: cache
       with:
         path: ${{ github.workspace }}/ocaml-412/_install
-        key: ${{ matrix.os }}-cache-ocaml-412-dune-2.7.0-275-gf01752f7
+        key: ${{ matrix.os }}-cache-ocaml-412-dune-341
 
     - name: Checkout OCaml 4.12
       uses: actions/checkout@master
@@ -111,8 +115,8 @@ jobs:
       uses: actions/checkout@master
       if: steps.cache.outputs.cache-hit != 'true'
       with:
-        repository: 'ocaml-flambda/dune'
-        ref: 'special_dune'
+        repository: 'ocaml/dune'
+        ref: '3.4.1'
         path: 'dune'
 
     - name: Build dune
@@ -128,7 +132,7 @@ jobs:
 
     - name: Install GCC 32-bit libraries
       if: matrix.name == 'build_upstream-32-bit'
-      run: sudo apt-get install gcc-multilib
+      run: sudo apt-get install gcc-multilib gfortran-multilib
 
     - name: Configure Flambda backend
       working-directory: flambda_backend
@@ -144,9 +148,11 @@ jobs:
       run: |
         if [ $run_testsuite = true ]; then target=ci; else target=compiler; fi
         export PATH=$GITHUB_WORKSPACE/ocaml-412/_install/bin:$PATH
-        if [ $build_upstream = true ]; then make -j$J build_upstream; else make $target; fi
+        if [ $build_upstream = true ]; then make -j$J build_and_test_upstream; else make $target; fi
       env:
         BUILD_OCAMLPARAM: ${{ matrix.ocamlparam }}
+        OCAMLRUNPARAM: ${{ matrix.ocamlrunparam }}
+        USE_RUNTIME: ${{ matrix.use_runtime }}
 
     - name: Check other architectures
       working-directory: flambda_backend

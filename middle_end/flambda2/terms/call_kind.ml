@@ -78,12 +78,12 @@ end
 type t =
   | Function of
       { function_call : Function_call.t;
-        alloc_mode : Alloc_mode.t
+        alloc_mode : Alloc_mode.For_types.t
       }
   | Method of
       { kind : Method_kind.t;
         obj : Simple.t;
-        alloc_mode : Alloc_mode.t
+        alloc_mode : Alloc_mode.For_types.t
       }
   | C_call of
       { alloc : bool;
@@ -100,7 +100,7 @@ let [@ocamlformat "disable"] print ppf t =
         @[<hov 1>(alloc_mode@ %a)@]\
         )@]"
       Function_call.print function_call
-      Alloc_mode.print alloc_mode
+      Alloc_mode.For_types.print alloc_mode
   | Method { kind; obj; alloc_mode } ->
     fprintf ppf "@[<hov 1>(Method@ \
         @[<hov 1>(obj@ %a)@]@ \
@@ -109,14 +109,14 @@ let [@ocamlformat "disable"] print ppf t =
         )@]"
       Simple.print obj
       Method_kind.print kind
-      Alloc_mode.print alloc_mode
+      Alloc_mode.For_types.print alloc_mode
   | C_call { alloc; param_arity; return_arity; is_c_builtin; } ->
     fprintf ppf "@[(C@ @[(alloc %b)@]@ @[(is_c_builtin %b)@]@ \
-        @<0>%s@<1>\u{2237}@<0>%s %a @<1>\u{2192} %a)@]"
+        %t@<1>\u{2237}%t %a @<1>\u{2192} %a)@]"
       alloc
       is_c_builtin
-      (Flambda_colours.elide ())
-      (Flambda_colours.normal ())
+      Flambda_colours.elide
+      Flambda_colours.pop
       Flambda_arity.print param_arity
       Flambda_arity.print return_arity
 

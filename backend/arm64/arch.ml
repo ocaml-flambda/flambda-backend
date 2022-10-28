@@ -44,6 +44,7 @@ type cmm_label = int
 type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
 
 type specific_operation =
+  | Ifar_poll of { return_label: cmm_label option }
   | Ifar_alloc of { bytes : int; dbginfo : Debuginfo.alloc_dbginfo }
   | Ifar_intop_checkbound
   | Ifar_intop_imm_checkbound of { bound : int; }
@@ -112,6 +113,8 @@ let int_of_bswap_bitwidth = function
 
 let print_specific_operation printreg op ppf arg =
   match op with
+  | Ifar_poll _ ->
+    fprintf ppf "(far) poll"
   | Ifar_alloc { bytes; } ->
     fprintf ppf "(far) alloc %i" bytes
   | Ifar_intop_checkbound ->
@@ -228,7 +231,7 @@ let equal_specific_operation left right =
     Int.equal (int_of_bswap_bitwidth left) (int_of_bswap_bitwidth right)
   | Imove32, Imove32 -> true
   | Isignext left, Isignext right -> Int.equal left right
-  | (Ifar_alloc _  | Ifar_intop_checkbound | Ifar_intop_imm_checkbound _
+  | (Ifar_alloc _  | Ifar_poll _ | Ifar_intop_checkbound | Ifar_intop_imm_checkbound _
     | Ishiftarith _ | Ishiftcheckbound _ | Ifar_shiftcheckbound _
     | Imuladd | Imulsub | Inegmulf | Imuladdf | Inegmuladdf | Imulsubf
     | Inegmulsubf | Isqrtf | Ibswap _ | Imove32 | Isignext _), _ -> false
@@ -304,7 +307,7 @@ let is_logical_immediate x =
 (* Specific operations that are pure *)
 
 let operation_is_pure : specific_operation -> bool = function
-  | Ifar_alloc _ -> false
+  | Ifar_alloc _ | Ifar_poll _ -> false
   | Ifar_intop_checkbound -> false
   | Ifar_intop_imm_checkbound _ -> false
   | Ishiftarith _ -> true
@@ -326,10 +329,31 @@ let operation_is_pure : specific_operation -> bool = function
 
 let operation_can_raise = function
   | Ifar_alloc _
+  | Ifar_poll _
   | Ifar_intop_checkbound
   | Ifar_intop_imm_checkbound _
   | Ishiftcheckbound _
   | Ifar_shiftcheckbound _ -> true
+  | Imuladd
+  | Imulsub
+  | Inegmulf
+  | Imuladdf
+  | Inegmuladdf
+  | Imulsubf
+  | Inegmulsubf
+  | Isqrtf
+  | Imove32
+  | Ishiftarith (_, _)
+  | Isignext _
+  | Ibswap _ -> false
+
+let operation_allocates = function
+  | Ifar_alloc _ -> true
+  | Ifar_poll _
+  | Ifar_intop_checkbound
+  | Ifar_intop_imm_checkbound _
+  | Ishiftcheckbound _
+  | Ifar_shiftcheckbound _
   | Imuladd
   | Imulsub
   | Inegmulf

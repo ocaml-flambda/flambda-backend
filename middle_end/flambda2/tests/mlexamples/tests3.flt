@@ -1,7 +1,7 @@
 let $camlTests3__first_const41 = Block 0 () in
 let code size(39) f_1
                     (c : imm tagged, m, n, x' : imm tagged, y' : imm tagged)
-                    my_closure my_depth -> k * k1 : imm tagged =
+                    my_closure my_region my_depth -> k * k1 : imm tagged =
   let next_depth = rec_info (succ my_depth) in
   (let prim = c < 0 in
    let Pintcomp = %Tag_imm prim in
@@ -26,7 +26,7 @@ let code size(39) f_1
            let Paddint = x + y in
            cont k (Paddint))
 in
-let code size(80) foo_0 (arr, f, i : imm tagged) my_closure my_depth -> k
+let code size(80) foo_0 (arr, f, i : imm tagged) my_closure my_region my_depth -> k
                     * k1 : imm tagged =
   let next_depth = rec_info (succ my_depth) in
   (let prim = %array_length dynamic arr in
@@ -77,7 +77,7 @@ let code size(39) f_1 deleted :
 in
 let code size(80) foo_0 deleted : val * val * imm tagged -> imm tagged in
 let code size(72) newer_version_of(foo_0) foo_0_1 (arr, f, i : imm tagged)
-                                            my_closure my_depth -> k * k1
+                                            my_closure my_region my_depth -> k * k1
                                             : imm tagged =
   (let prim = %array_length dynamic arr in
    let prim_1 = %int_comp unsigned i < prim in

@@ -56,7 +56,7 @@ let these_naked_nativeints is = TG.these_naked_nativeints is
 
 let any_tagged_immediate =
   TG.create_variant ~is_unique:false ~immediates:Unknown
-    ~blocks:(Known TG.Row_like_for_blocks.bottom) (Known Heap)
+    ~blocks:(Known TG.Row_like_for_blocks.bottom)
 
 let these_tagged_immediates0 imms =
   match Targetint_31_63.Set.get_singleton imms with
@@ -67,7 +67,7 @@ let these_tagged_immediates0 imms =
     else
       TG.create_variant ~is_unique:false
         ~immediates:(Known (these_naked_immediates imms))
-        ~blocks:(Known TG.Row_like_for_blocks.bottom) (Known Heap)
+        ~blocks:(Known TG.Row_like_for_blocks.bottom)
 
 let these_tagged_immediates imms = these_tagged_immediates0 imms
 
@@ -99,30 +99,33 @@ let these_boxed_int64s is alloc_mode =
 let these_boxed_nativeints is alloc_mode =
   TG.box_nativeint (these_naked_nativeints is) alloc_mode
 
-let any_boxed_float = TG.box_float TG.any_naked_float Unknown
+let any_boxed_float =
+  TG.box_float TG.any_naked_float (Alloc_mode.For_types.unknown ())
 
-let any_boxed_int32 = TG.box_int32 TG.any_naked_int32 Unknown
+let any_boxed_int32 =
+  TG.box_int32 TG.any_naked_int32 (Alloc_mode.For_types.unknown ())
 
-let any_boxed_int64 = TG.box_int64 TG.any_naked_int64 Unknown
+let any_boxed_int64 =
+  TG.box_int64 TG.any_naked_int64 (Alloc_mode.For_types.unknown ())
 
-let any_boxed_nativeint = TG.box_nativeint TG.any_naked_nativeint Unknown
+let any_boxed_nativeint =
+  TG.box_nativeint TG.any_naked_nativeint (Alloc_mode.For_types.unknown ())
 
 let any_block =
   TG.create_variant ~is_unique:false
-    ~immediates:(Known TG.bottom_naked_immediate) ~blocks:Unknown Unknown
+    ~immediates:(Known TG.bottom_naked_immediate) ~blocks:Unknown
 
-let blocks_with_these_tags tags : _ Or_unknown.t =
+let blocks_with_these_tags tags alloc_mode : _ Or_unknown.t =
   if not (Tag.Set.for_all Tag.is_structured_block tags)
   then Unknown
   else
     let blocks =
       TG.Row_like_for_blocks.create_blocks_with_these_tags ~field_kind:K.value
-        tags
+        tags alloc_mode
     in
     Known
       (TG.create_variant ~is_unique:false
-         ~immediates:(Known TG.bottom_naked_immediate) ~blocks:(Known blocks)
-         Unknown)
+         ~immediates:(Known TG.bottom_naked_immediate) ~blocks:(Known blocks))
 
 let immutable_block ~is_unique tag ~field_kind alloc_mode ~fields =
   match Targetint_31_63.of_int_option (List.length fields) with
@@ -134,8 +137,7 @@ let immutable_block ~is_unique tag ~field_kind alloc_mode ~fields =
       ~blocks:
         (Known
            (TG.Row_like_for_blocks.create ~field_kind ~field_tys:fields
-              (Closed tag)))
-      alloc_mode
+              (Closed tag) alloc_mode))
 
 let immutable_block_with_size_at_least ~tag ~n ~field_kind ~field_n_minus_one =
   let n = Targetint_31_63.to_int n in
@@ -148,8 +150,9 @@ let immutable_block_with_size_at_least ~tag ~n ~field_kind ~field_n_minus_one =
   TG.create_variant ~is_unique:false
     ~immediates:(Known (bottom K.naked_immediate))
     ~blocks:
-      (Known (TG.Row_like_for_blocks.create ~field_kind ~field_tys (Open tag)))
-    Unknown
+      (Known
+         (TG.Row_like_for_blocks.create ~field_kind ~field_tys (Open tag)
+            (Alloc_mode.For_types.unknown ())))
 
 let variant ~const_ctors ~non_const_ctors alloc_mode =
   let blocks =
@@ -159,29 +162,10 @@ let variant ~const_ctors ~non_const_ctors alloc_mode =
           Tag.Map.add (Tag.Scannable.to_tag tag) ty non_const_ctors)
         non_const_ctors Tag.Map.empty
     in
-    TG.Row_like_for_blocks.create_exactly_multiple ~field_tys_by_tag
+    TG.Row_like_for_blocks.create_exactly_multiple ~field_tys_by_tag alloc_mode
   in
   TG.create_variant ~is_unique:false ~immediates:(Known const_ctors)
-    ~blocks:(Known blocks) alloc_mode
-
-let open_variant_from_const_ctors_type ~const_ctors =
-  TG.create_variant ~is_unique:false ~immediates:(Known const_ctors)
-    ~blocks:Unknown Unknown
-
-let open_variant_from_non_const_ctor_with_size_at_least ~n ~field_n_minus_one =
-  let n = Targetint_31_63.to_int n in
-  let field_tys =
-    List.init n (fun index ->
-        if index < n - 1
-        then TG.any_value
-        else TG.alias_type_of K.value (Simple.var field_n_minus_one))
-  in
-  TG.create_variant ~is_unique:false ~immediates:Unknown
-    ~blocks:
-      (Known
-         (TG.Row_like_for_blocks.create ~field_kind:K.value ~field_tys
-            (Open Unknown)))
-    Unknown
+    ~blocks:(Known blocks)
 
 let exactly_this_closure function_slot ~all_function_slots_in_set:function_types
     ~all_closure_types_in_set:closure_types
@@ -232,7 +216,7 @@ let closure_with_at_least_these_function_slots ~this_function_slot
     TG.Row_like_for_closures.create_at_least this_function_slot
       set_of_closures_contents closures_entry
   in
-  TG.create_closures Unknown by_function_slot
+  TG.create_closures (Alloc_mode.For_types.unknown ()) by_function_slot
 
 let closure_with_at_least_these_value_slots ~this_function_slot value_slots =
   let value_slot_types =
@@ -254,7 +238,7 @@ let closure_with_at_least_these_value_slots ~this_function_slot value_slots =
     TG.Row_like_for_closures.create_at_least this_function_slot
       set_of_closures_contents closures_entry
   in
-  TG.create_closures Unknown by_function_slot
+  TG.create_closures (Alloc_mode.For_types.unknown ()) by_function_slot
 
 let closure_with_at_least_this_value_slot ~this_function_slot value_slot
     ~value_slot_var =
@@ -293,7 +277,7 @@ let arity_of_list ts = Flambda_arity.create (List.map TG.kind ts)
 let unknown_types_from_arity arity =
   List.map (fun kind -> unknown kind) (Flambda_arity.to_list arity)
 
-let rec unknown_with_subkind ?(alloc_mode = Or_unknown.Unknown)
+let rec unknown_with_subkind ?(alloc_mode = Alloc_mode.For_types.unknown ())
     (kind : Flambda_kind.With_subkind.t) =
   (* CR mshinwell: use [alloc_mode] more *)
   match Flambda_kind.With_subkind.subkind kind with

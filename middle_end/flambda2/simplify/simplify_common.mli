@@ -82,6 +82,18 @@ type simplify_toplevel =
   exn_cont_scope:Scope.t ->
   Rebuilt_expr.t * Upwards_acc.t
 
+type simplify_function_body =
+  Downwards_acc.t ->
+  Expr.t ->
+  return_continuation:Continuation.t ->
+  return_arity:Flambda_arity.With_subkinds.t ->
+  exn_continuation:Continuation.t ->
+  return_cont_scope:Scope.t ->
+  exn_cont_scope:Scope.t ->
+  loopify_state:Loopify_state.t ->
+  params:Bound_parameters.t ->
+  Rebuilt_expr.t * Upwards_acc.t
+
 val simplify_projection :
   Downwards_acc.t ->
   original_term:Named.t ->
@@ -106,10 +118,11 @@ val project_tuple :
     application of the leftover arguments. *)
 val split_direct_over_application :
   Apply_expr.t ->
-  param_arity:Flambda_arity.With_subkinds.t ->
   result_arity:Flambda_arity.With_subkinds.t ->
-  apply_alloc_mode:Alloc_mode.t ->
-  contains_no_escaping_local_allocs:bool ->
+  apply_alloc_mode:Alloc_mode.For_types.t ->
+  current_region:Variable.t ->
+  callee's_code_id:Code_id.t ->
+  callee's_code_metadata:Code_metadata.t ->
   Expr.t
 
 type apply_cont_context =

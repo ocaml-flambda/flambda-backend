@@ -67,6 +67,8 @@ end) : sig
   val for_all : t -> f:(N.t -> bool) -> bool
 
   val filter : t -> f:(N.t -> bool) -> t
+
+  val increase_counts : t -> t
 end = struct
   module For_one_name : sig
     type t
@@ -89,6 +91,8 @@ end = struct
     val max_name_mode_opt : t -> Name_mode.t option
 
     val union : t -> t -> t
+
+    val increase_count : t -> t
   end = struct
     (* CR mshinwell: Provide 32-bit implementation? Probably not worth it now I
        suppose. *)
@@ -189,6 +193,15 @@ end = struct
             (num_occurrences_in_types t1 + num_occurrences_in_types t2)
       lor encode_phantom_occurrences
             (num_occurrences_phantom t1 + num_occurrences_phantom t2)
+
+    let increase_count t =
+      let increase_if_not_zero n = if n = 0 then n else succ n in
+      encode_normal_occurrences
+        (increase_if_not_zero (num_occurrences_normal t))
+      lor encode_in_types_occurrences
+            (increase_if_not_zero (num_occurrences_in_types t))
+      lor encode_phantom_occurrences
+            (increase_if_not_zero (num_occurrences_phantom t))
   end
 
   type t = For_one_name.t N.Map.t
@@ -308,8 +321,10 @@ end = struct
   let for_all t ~f = N.Map.for_all (fun name _ -> f name) t
 
   let filter t ~f = N.Map.filter (fun name _ -> f name) t
+
+  let increase_counts t = N.Map.map For_one_name.increase_count t
 end
-[@@inlined always]
+[@@inline always]
 
 module For_names = For_one_variety_of_names (struct
   include Name
@@ -683,17 +698,18 @@ let diff
       code_ids = code_ids1;
       newer_version_of_code_ids = newer_version_of_code_ids1
     }
-    { names = names2;
-      continuations = continuations2;
-      continuations_with_traps = continuations_with_traps2;
-      continuations_in_trap_actions = continuations_in_trap_actions2;
-      function_slots_in_projections = function_slots_in_projections2;
-      value_slots_in_projections = value_slots_in_projections2;
-      function_slots_in_declarations = function_slots_in_declarations2;
-      value_slots_in_declarations = value_slots_in_declarations2;
-      code_ids = code_ids2;
-      newer_version_of_code_ids = newer_version_of_code_ids2
-    } =
+    ~without:
+      { names = names2;
+        continuations = continuations2;
+        continuations_with_traps = continuations_with_traps2;
+        continuations_in_trap_actions = continuations_in_trap_actions2;
+        function_slots_in_projections = function_slots_in_projections2;
+        value_slots_in_projections = value_slots_in_projections2;
+        function_slots_in_declarations = function_slots_in_declarations2;
+        value_slots_in_declarations = value_slots_in_declarations2;
+        code_ids = code_ids2;
+        newer_version_of_code_ids = newer_version_of_code_ids2
+      } =
   let names = For_names.diff names1 names2 in
   let continuations = For_continuations.diff continuations1 continuations2 in
   let continuations_with_traps =
@@ -845,21 +861,21 @@ let value_slot_is_used_or_imported t value_slot =
   Value_slot.is_imported value_slot
   || For_value_slots.mem t.value_slots_in_projections value_slot
 
-let remove_var t var =
+let remove_var t ~var =
   if For_names.is_empty t.names
   then t
   else
     let names = For_names.remove t.names (Name.var var) in
     { t with names }
 
-let remove_symbol t symbol =
+let remove_symbol t ~symbol =
   if For_names.is_empty t.names
   then t
   else
     let names = For_names.remove t.names (Name.symbol symbol) in
     { t with names }
 
-let remove_code_id t code_id =
+let remove_code_id t ~code_id =
   if For_code_ids.is_empty t.code_ids
      && For_code_ids.is_empty t.newer_version_of_code_ids
   then t
@@ -870,22 +886,22 @@ let remove_code_id t code_id =
     in
     { t with code_ids; newer_version_of_code_ids }
 
-let remove_code_id_or_symbol t (cis : Code_id_or_symbol.t) =
-  Code_id_or_symbol.pattern_match cis
-    ~code_id:(fun code_id -> remove_code_id t code_id)
-    ~symbol:(fun symbol -> remove_symbol t symbol)
+let remove_code_id_or_symbol t ~(code_id_or_symbol : Code_id_or_symbol.t) =
+  Code_id_or_symbol.pattern_match code_id_or_symbol
+    ~code_id:(fun code_id -> remove_code_id t ~code_id)
+    ~symbol:(fun symbol -> remove_symbol t ~symbol)
 
-let remove_continuation t k =
+let remove_continuation t ~continuation =
   if For_continuations.is_empty t.continuations
      && For_continuations.is_empty t.continuations_in_trap_actions
   then t
   else
-    let continuations = For_continuations.remove t.continuations k in
+    let continuations = For_continuations.remove t.continuations continuation in
     let continuations_with_traps =
-      For_continuations.remove t.continuations_with_traps k
+      For_continuations.remove t.continuations_with_traps continuation
     in
     let continuations_in_trap_actions =
-      For_continuations.remove t.continuations_in_trap_actions k
+      For_continuations.remove t.continuations_in_trap_actions continuation
     in
     { t with
       continuations;
@@ -1127,3 +1143,51 @@ let ids_for_export
       (For_code_ids.keys newer_version_of_code_ids)
   in
   Ids_for_export.create ~variables ~symbols ~code_ids ~continuations ()
+
+let increase_counts
+    { names;
+      continuations;
+      continuations_with_traps;
+      continuations_in_trap_actions;
+      function_slots_in_projections;
+      value_slots_in_projections;
+      function_slots_in_declarations;
+      value_slots_in_declarations;
+      code_ids;
+      newer_version_of_code_ids
+    } =
+  let names = For_names.increase_counts names in
+  let continuations = For_continuations.increase_counts continuations in
+  let continuations_with_traps =
+    For_continuations.increase_counts continuations_with_traps
+  in
+  let continuations_in_trap_actions =
+    For_continuations.increase_counts continuations_in_trap_actions
+  in
+  let function_slots_in_projections =
+    For_function_slots.increase_counts function_slots_in_projections
+  in
+  let value_slots_in_projections =
+    For_value_slots.increase_counts value_slots_in_projections
+  in
+  let function_slots_in_declarations =
+    For_function_slots.increase_counts function_slots_in_declarations
+  in
+  let value_slots_in_declarations =
+    For_value_slots.increase_counts value_slots_in_declarations
+  in
+  let code_ids = For_code_ids.increase_counts code_ids in
+  let newer_version_of_code_ids =
+    For_code_ids.increase_counts newer_version_of_code_ids
+  in
+  { names;
+    continuations;
+    continuations_with_traps;
+    continuations_in_trap_actions;
+    function_slots_in_projections;
+    value_slots_in_projections;
+    function_slots_in_declarations;
+    value_slots_in_declarations;
+    code_ids;
+    newer_version_of_code_ids
+  }

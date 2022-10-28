@@ -431,8 +431,8 @@ type flattened_for_printing =
 
 let _shape_colour descr =
   match descr with
-  | Flat_code _ | Flat_deleted_code _ -> Flambda_colours.code_id ()
-  | Flat_set_of_closures _ | Flat_block_like _ -> Flambda_colours.symbol ()
+  | Flat_code _ | Flat_deleted_code _ -> Flambda_colours.code_id
+  | Flat_set_of_closures _ | Flat_block_like _ -> Flambda_colours.symbol
 
 let rec named_must_be_static_consts (named : named) =
   match named with
@@ -513,17 +513,13 @@ and print ppf (t : expr) =
   | Let let_expr -> print_let_expr ppf let_expr
   | Let_cont let_cont -> print_let_cont_expr ppf let_cont
   | Apply apply ->
-    Format.fprintf ppf "@[<hov 1>(@<0>%sapply@<0>%s@ %a)@]"
-      (Flambda_colours.expr_keyword ())
-      (Flambda_colours.normal ())
-      Apply.print apply
+    Format.fprintf ppf "@[<hov 1>(%tapply%t@ %a)@]" Flambda_colours.expr_keyword
+      Flambda_colours.pop Apply.print apply
   | Apply_cont apply_cont -> Apply_cont.print ppf apply_cont
   | Switch switch -> Switch.print ppf switch
   | Invalid { message } ->
-    fprintf ppf "@[(@<0>%sinvalid@<0>%s@ @[<hov 1>%s@])@]"
-      (Flambda_colours.invalid_keyword ())
-      (Flambda_colours.normal ())
-      message
+    fprintf ppf "@[(%tinvalid%t@ @[<hov 1>%s@])@]"
+      Flambda_colours.invalid_keyword Flambda_colours.pop message
 
 and print_continuation_handler (recursive : Recursive.t) ppf k
     ({ cont_handler_abst = _; is_exn_handler } as t) occurrences ~first =
@@ -533,21 +529,18 @@ and print_continuation_handler (recursive : Recursive.t) ppf k
     (match descr handler with
     | Apply_cont _ | Invalid _ -> fprintf ppf "@[<hov 0>"
     | Let _ | Let_cont _ | Apply _ | Switch _ -> fprintf ppf "@[<v 0>");
-    fprintf ppf "@[<hov 1>@<0>%s%a@<0>%s%s@<0>%s%s@<0>%s"
-      (Flambda_colours.continuation_definition ())
-      Continuation.print k
-      (Flambda_colours.expr_keyword ())
+    fprintf ppf "@[<hov 1>%t%a%t%t%s%t%t%s%t"
+      Flambda_colours.continuation_definition Continuation.print k
+      Flambda_colours.pop Flambda_colours.expr_keyword
       (match recursive with Non_recursive -> "" | Recursive -> " (rec)")
-      (Flambda_colours.continuation_annotation ())
+      Flambda_colours.pop Flambda_colours.continuation_annotation
       (if is_exn_handler then "[eh]" else "")
-      (Flambda_colours.normal ());
+      Flambda_colours.pop;
     if not (Bound_parameters.is_empty params)
     then fprintf ppf " %a" Bound_parameters.print params;
-    fprintf ppf "@<0>%s #%a:@<0>%s@]@ @[<hov 0>%a@]" (Flambda_colours.elide ())
+    fprintf ppf "%t #%a:%t@]@ @[<hov 0>%a@]" Flambda_colours.elide
       (Or_unknown.print Num_occurrences.print)
-      occurrences
-      (Flambda_colours.normal ())
-      print handler;
+      occurrences Flambda_colours.pop print handler;
     fprintf ppf "@]"
   in
   Name_abstraction.pattern_match_for_printing
@@ -559,22 +552,20 @@ and print_continuation_handler (recursive : Recursive.t) ppf k
 
 and print_function_params_and_body ppf t =
   let print ~return_continuation ~exn_continuation params ~body ~my_closure
-      ~is_my_closure_used:_ ~my_depth ~free_names_of_body:_ =
+      ~is_my_closure_used:_ ~my_region ~my_depth ~free_names_of_body:_ =
     let my_closure =
       Bound_parameter.create my_closure (K.With_subkind.create K.value Anything)
     in
     fprintf ppf
-      "@[<hov 1>(@<0>%s@<1>\u{03bb}@<0>%s@[<hov \
-       1>@<1>\u{3008}%a@<1>\u{3009}@<1>\u{300a}%a@<1>\u{300b}%a %a @<0>%s%a \
-       @<0>%s.@<0>%s@]@ %a))@]"
-      (Flambda_colours.lambda ())
-      (Flambda_colours.normal ())
-      Continuation.print return_continuation Continuation.print exn_continuation
+      "@[<hov 1>(%t@<1>\u{03bb}%t@[<hov \
+       1>@<1>\u{3008}%a@<1>\u{3009}@<1>\u{300a}%a@<1>\u{300b}\u{27c5}%t%a%t\u{27c6}@ \
+       %a %a %t%a%t %t.%t@]@ %a))@]"
+      Flambda_colours.lambda Flambda_colours.pop Continuation.print
+      return_continuation Continuation.print exn_continuation
+      Flambda_colours.parameter Variable.print my_region Flambda_colours.pop
       Bound_parameters.print params Bound_parameter.print my_closure
-      (Flambda_colours.depth_variable ())
-      Variable.print my_depth (Flambda_colours.elide ())
-      (Flambda_colours.normal ())
-      print body
+      Flambda_colours.depth_variable Variable.print my_depth Flambda_colours.pop
+      Flambda_colours.elide Flambda_colours.pop print body
   in
   let module BFF = Bound_for_function in
   Name_abstraction.pattern_match_for_printing
@@ -585,8 +576,8 @@ and print_function_params_and_body ppf t =
         ~return_continuation:(BFF.return_continuation bff)
         ~exn_continuation:(BFF.exn_continuation bff) (BFF.params bff) ~body:expr
         ~my_closure:(BFF.my_closure bff)
-        ~is_my_closure_used:t.is_my_closure_used ~my_depth:(BFF.my_depth bff)
-        ~free_names_of_body:free_names)
+        ~is_my_closure_used:t.is_my_closure_used ~my_region:(BFF.my_region bff)
+        ~my_depth:(BFF.my_depth bff) ~free_names_of_body:free_names)
 
 and print_let_cont_expr ppf t =
   let rec gather_let_conts let_conts let_cont =
@@ -701,9 +692,8 @@ and flatten_for_printing t =
     ~f:(fun bound_pattern { body; _ } -> print bound_pattern ~body)
 
 and print_closure_binding ppf (function_slot, sym) =
-  Format.fprintf ppf "@[%a @<0>%s\u{21a4}@<0>%s@ %a@]" Symbol.print sym
-    (Flambda_colours.elide ()) (Flambda_colours.elide ()) Function_slot.print
-    function_slot
+  Format.fprintf ppf "@[%a %t\u{21a4}%t@ %a@]" Symbol.print sym
+    Flambda_colours.elide Flambda_colours.pop Function_slot.print function_slot
 
 and print_flattened_descr_lhs ppf descr =
   match descr with
@@ -713,8 +703,8 @@ and print_flattened_descr_lhs ppf descr =
     Format.fprintf ppf "@[<hov 0>%a@]"
       (Format.pp_print_list
          ~pp_sep:(fun ppf () ->
-           Format.fprintf ppf "@<0>%s,@ @<0>%s" (Flambda_colours.elide ())
-             (Flambda_colours.normal ()))
+           Format.fprintf ppf "%t,@ %t" Flambda_colours.elide
+             Flambda_colours.pop)
          print_closure_binding)
       (Function_slot.Lmap.bindings closure_symbols)
   | Flat_block_like (symbol, _) -> Symbol.print ppf symbol
@@ -733,14 +723,9 @@ and print_flattened ppf
     } =
   fprintf ppf "@[<hov 1>";
   if second_or_later_rec_binding
-  then
-    fprintf ppf "@<0>%sand @<0>%s"
-      (Flambda_colours.expr_keyword ())
-      (Flambda_colours.normal ());
-  fprintf ppf "%a@<0>%s =@<0>%s@ %a@]" print_flattened_descr_lhs descr
-    (Flambda_colours.elide ())
-    (Flambda_colours.normal ())
-    print_flattened_descr_rhs descr
+  then fprintf ppf "%tand %t" Flambda_colours.expr_keyword Flambda_colours.pop;
+  fprintf ppf "%a%t =%t@ %a@]" print_flattened_descr_lhs descr
+    Flambda_colours.elide Flambda_colours.pop print_flattened_descr_rhs descr
 
 and flatten_let_symbol t : _ * expr =
   let rec flatten (expr : expr) : _ * expr =
@@ -784,25 +769,23 @@ and print_let_expr ppf ({ let_abst = _; defining_expr } as t) : unit =
   let let_bound_var_colour bound_pattern defining_expr =
     let name_mode = Bound_pattern.name_mode bound_pattern in
     if Name_mode.is_phantom name_mode
-    then Flambda_colours.elide ()
+    then Flambda_colours.elide
     else
       match (defining_expr : named) with
-      | Rec_info _ -> Flambda_colours.depth_variable ()
+      | Rec_info _ -> Flambda_colours.depth_variable
       | Simple _ | Prim _ | Set_of_closures _ | Static_consts _ ->
-        Flambda_colours.variable ()
+        Flambda_colours.variable
   in
-
   let rec let_body (expr : expr) =
     match descr expr with
     | Let ({ let_abst = _; defining_expr } as t) ->
       let print (bound_pattern : Bound_pattern.t) ~body =
         match bound_pattern with
         | Singleton _ | Set_of_closures _ ->
-          fprintf ppf "@ @[<hov 1>@<0>%s%a@<0>%s =@<0>%s@ %a@]"
+          fprintf ppf "@ @[<hov 1>%t%a%t%t =%t@ %a@]"
             (let_bound_var_colour bound_pattern defining_expr)
-            Bound_pattern.print bound_pattern (Flambda_colours.elide ())
-            (Flambda_colours.normal ())
-            print_named defining_expr;
+            Bound_pattern.print bound_pattern Flambda_colours.pop
+            Flambda_colours.elide Flambda_colours.pop print_named defining_expr;
           let_body body
         | Static _ -> expr
       in
@@ -816,11 +799,10 @@ and print_let_expr ppf ({ let_abst = _; defining_expr } as t) : unit =
     match bound_pattern with
     | Static _ -> print_let_static ppf t
     | Singleton _ | Set_of_closures _ ->
-      fprintf ppf "@[<v 0>@[<v 0>@[<hov 1>@<0>%s%a@<0>%s =@<0>%s@ %a@]"
+      fprintf ppf "@[<v 0>@[<v 0>@[<hov 1>%t%a%t%t =%t@ %a@]"
         (let_bound_var_colour bound_pattern defining_expr)
-        Bound_pattern.print bound_pattern (Flambda_colours.elide ())
-        (Flambda_colours.normal ())
-        print_named defining_expr;
+        Bound_pattern.print bound_pattern Flambda_colours.pop
+        Flambda_colours.elide Flambda_colours.pop print_named defining_expr;
       let expr = let_body body in
       fprintf ppf "@]@ %a@]" print expr
   in
@@ -838,10 +820,8 @@ and print_named ppf (t : named) =
   match t with
   | Simple simple -> Simple.print ppf simple
   | Prim (prim, dbg) ->
-    fprintf ppf "@[<hov 1>(%a@<0>%s%a@<0>%s)@]" Flambda_primitive.print prim
-      (Flambda_colours.debuginfo ())
-      print_or_elide_debuginfo dbg
-      (Flambda_colours.normal ())
+    fprintf ppf "@[<hov 1>(%a%t%a%t)@]" Flambda_primitive.print prim
+      Flambda_colours.debuginfo print_or_elide_debuginfo dbg Flambda_colours.pop
   | Set_of_closures set_of_closures -> Set_of_closures.print ppf set_of_closures
   | Static_consts consts -> print_static_const_group ppf consts
   | Rec_info rec_info_expr -> Rec_info_expr.print ppf rec_info_expr
@@ -855,15 +835,13 @@ and print_static_const_group ppf static_const_group =
 and print_static_const_or_code ppf static_const_or_code =
   match static_const_or_code with
   | Code code ->
-    fprintf ppf "@[<hov 1>(@<0>%sCode@<0>%s@ %a)@]"
-      (Flambda_colours.static_part ())
-      (Flambda_colours.normal ())
+    fprintf ppf "@[<hov 1>(%tCode%t@ %a)@]" Flambda_colours.static_part
+      Flambda_colours.pop
       (Code0.print ~print_function_params_and_body)
       code
   | Deleted_code ->
-    fprintf ppf "@[<hov 1>(@<0>%sDeleted_code@<0>%s)@]"
-      (Flambda_colours.static_part ())
-      (Flambda_colours.normal ())
+    fprintf ppf "@[<hov 1>(%tDeleted_code%t)@]" Flambda_colours.static_part
+      Flambda_colours.pop
   | Static_const const -> Static_const.print ppf const
 
 module Continuation_handler = struct
@@ -964,7 +942,7 @@ module Function_params_and_body = struct
   type t = function_params_and_body
 
   let create ~return_continuation ~exn_continuation params ~body
-      ~free_names_of_body ~my_closure ~my_depth =
+      ~free_names_of_body ~my_closure ~my_region ~my_depth =
     Bound_parameters.check_no_duplicates params;
     let is_my_closure_used =
       Or_unknown.map free_names_of_body ~f:(fun free_names_of_body ->
@@ -973,7 +951,7 @@ module Function_params_and_body = struct
     let base : Base.t = { expr = body; free_names = free_names_of_body } in
     let bound_for_function =
       Bound_for_function.create ~return_continuation ~exn_continuation ~params
-        ~my_closure ~my_depth
+        ~my_closure ~my_region ~my_depth
     in
     let abst = A.create bound_for_function base in
     { abst; is_my_closure_used }
@@ -988,7 +966,8 @@ module Function_params_and_body = struct
       ~return_continuation:(BFF.return_continuation bff)
       ~exn_continuation:(BFF.exn_continuation bff) (BFF.params bff) ~body:expr
       ~my_closure:(BFF.my_closure bff) ~is_my_closure_used:t.is_my_closure_used
-      ~my_depth:(BFF.my_depth bff) ~free_names_of_body:free_names
+      ~my_region:(BFF.my_region bff) ~my_depth:(BFF.my_depth bff)
+      ~free_names_of_body:free_names
 
   let pattern_match_pair t1 t2 ~f =
     A.pattern_match_pair t1.abst t2.abst
@@ -1005,6 +984,7 @@ module Function_params_and_body = struct
           (Bound_for_function.params bound_for_function)
           ~body1 ~body2
           ~my_closure:(Bound_for_function.my_closure bound_for_function)
+          ~my_region:(Bound_for_function.my_region bound_for_function)
           ~my_depth:(Bound_for_function.my_depth bound_for_function))
 
   let apply_renaming = apply_renaming_function_params_and_body
@@ -1332,41 +1312,6 @@ module Named = struct
   let print = print_named
 
   let apply_renaming = apply_renaming_named
-
-  let box_value name (kind : Flambda_kind.t) dbg alloc_mode : t * Flambda_kind.t
-      =
-    let simple = Simple.name name in
-    match kind with
-    | Value -> Simple simple, kind
-    | Naked_number Naked_immediate -> Misc.fatal_error "Not yet supported"
-    | Naked_number Naked_float ->
-      Prim (Unary (Box_number (Naked_float, alloc_mode), simple), dbg), K.value
-    | Naked_number Naked_int32 ->
-      Prim (Unary (Box_number (Naked_int32, alloc_mode), simple), dbg), K.value
-    | Naked_number Naked_int64 ->
-      Prim (Unary (Box_number (Naked_int64, alloc_mode), simple), dbg), K.value
-    | Naked_number Naked_nativeint ->
-      ( Prim (Unary (Box_number (Naked_nativeint, alloc_mode), simple), dbg),
-        K.value )
-    | Region -> Misc.fatal_error "Cannot box values of [Region] kind"
-    | Rec_info -> Misc.fatal_error "Cannot box values of [Rec_info] kind"
-
-  let unbox_value name (kind : Flambda_kind.t) dbg : t * Flambda_kind.t =
-    let simple = Simple.name name in
-    match kind with
-    | Value -> Simple simple, kind
-    | Naked_number Naked_immediate -> Misc.fatal_error "Not yet supported"
-    | Naked_number Naked_float ->
-      Prim (Unary (Unbox_number Naked_float, simple), dbg), K.naked_float
-    | Naked_number Naked_int32 ->
-      Prim (Unary (Unbox_number Naked_int32, simple), dbg), K.naked_int32
-    | Naked_number Naked_int64 ->
-      Prim (Unary (Unbox_number Naked_int64, simple), dbg), K.naked_int64
-    | Naked_number Naked_nativeint ->
-      ( Prim (Unary (Unbox_number Naked_nativeint, simple), dbg),
-        K.naked_nativeint )
-    | Region -> Misc.fatal_error "Cannot unbox values of [Region] kind"
-    | Rec_info -> Misc.fatal_error "Cannot unbox values of [Rec_info] kind"
 
   let at_most_generative_effects (t : t) =
     match t with

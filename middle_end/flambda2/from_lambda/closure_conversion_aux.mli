@@ -45,7 +45,8 @@ module IR : sig
         { prim : Lambda.primitive;
           args : simple list;
           loc : Lambda.scoped_location;
-          exn_continuation : exn_continuation option
+          exn_continuation : exn_continuation option;
+          region : Ident.t
         }
 
   type apply_kind =
@@ -65,7 +66,8 @@ module IR : sig
       region_close : Lambda.region_close;
       inlined : Lambda.inlined_attribute;
       probe : Lambda.probe;
-      mode : Lambda.alloc_mode
+      mode : Lambda.alloc_mode;
+      region : Ident.t
     }
 
   type switch =
@@ -140,7 +142,7 @@ module Env : sig
   val add_value_approximation : t -> Name.t -> value_approximation -> t
 
   val add_block_approximation :
-    t -> Name.t -> value_approximation array -> Alloc_mode.t -> t
+    t -> Name.t -> value_approximation array -> Alloc_mode.For_types.t -> t
 
   val add_approximation_alias : t -> Name.t -> Name.t -> t
 
@@ -177,6 +179,13 @@ end
 
 (** Used to pipe some data through closure conversion *)
 module Acc : sig
+  type closure_info = private
+    { return_continuation : Continuation.t;
+      exn_continuation : Exn_continuation.t;
+      my_closure : Variable.t;
+      is_purely_tailrec : bool
+    }
+
   type t
 
   val create :
@@ -250,6 +259,18 @@ module Acc : sig
 
   val add_set_of_closures_offsets :
     is_phantom:bool -> t -> Set_of_closures.t -> t
+
+  val top_closure_info : t -> closure_info option
+
+  val push_closure_info :
+    t ->
+    return_continuation:Continuation.t ->
+    exn_continuation:Exn_continuation.t ->
+    my_closure:Variable.t ->
+    is_purely_tailrec:bool ->
+    t
+
+  val pop_closure_info : t -> closure_info * t
 end
 
 (** Used to represent information about a set of function declarations during
@@ -267,6 +288,7 @@ module Function_decls : sig
       return:Lambda.value_kind ->
       return_continuation:Continuation.t ->
       exn_continuation:IR.exn_continuation ->
+      my_region:Ident.t ->
       body:(Acc.t -> Env.t -> Acc.t * Flambda.Import.Expr.t) ->
       attr:Lambda.function_attribute ->
       loc:Lambda.scoped_location ->
@@ -292,13 +314,21 @@ module Function_decls : sig
 
     val exn_continuation : t -> IR.exn_continuation
 
+    val my_region : t -> Ident.t
+
     val body : t -> Acc.t -> Env.t -> Acc.t * Flambda.Import.Expr.t
 
     val inline : t -> Lambda.inline_attribute
 
     val specialise : t -> Lambda.specialise_attribute
 
+    val poll_attribute : t -> Lambda.poll_attribute
+
+    val loop : t -> Lambda.loop_attribute
+
     val is_a_functor : t -> bool
+
+    val check_attribute : t -> Lambda.check_attribute
 
     val stub : t -> bool
 

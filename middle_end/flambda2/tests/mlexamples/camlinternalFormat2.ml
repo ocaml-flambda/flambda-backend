@@ -1412,7 +1412,6 @@ let bprint_fmt buf fmt =
       fmtiter rest ign_flag
     | End_of_format -> ()
   in
-
   fmtiter fmt false
 
 (***)

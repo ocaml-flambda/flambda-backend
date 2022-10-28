@@ -274,7 +274,7 @@ let subst_set_of_closures env set =
            subst_value_slot env var, subst_simple env simple)
     |> Value_slot.Map.of_list
   in
-  Set_of_closures.create Heap ~value_slots decls
+  Set_of_closures.create Alloc_mode.For_allocations.heap ~value_slots decls
 
 let subst_rec_info_expr _env ri =
   (* Only depth variables can occur in [Rec_info_expr], and we only mess with
@@ -290,7 +290,8 @@ let subst_call_kind env (call_kind : Call_kind.t) : Call_kind.t =
   match call_kind with
   | Function { function_call = Direct { code_id; return_arity }; _ } ->
     let code_id = subst_code_id env code_id in
-    Call_kind.direct_function_call code_id ~return_arity Heap
+    Call_kind.direct_function_call code_id ~return_arity
+      Alloc_mode.For_types.heap
   | _ -> call_kind
 
 let rec subst_expr env e =
@@ -387,12 +388,13 @@ and subst_params_and_body env params_and_body =
          ~body
          ~my_closure
          ~is_my_closure_used:_
+         ~my_region
          ~my_depth
          ~free_names_of_body
        ->
       let body = subst_expr env body in
       Function_params_and_body.create ~return_continuation ~exn_continuation
-        params ~body ~my_closure ~free_names_of_body ~my_depth)
+        params ~body ~my_closure ~my_region ~free_names_of_body ~my_depth)
 
 and subst_let_cont env (let_cont_expr : Let_cont_expr.t) =
   match let_cont_expr with
@@ -432,8 +434,10 @@ and subst_apply env apply =
   let inlining_state = Apply_expr.inlining_state apply in
   let relative_history = Apply_expr.relative_history apply in
   let position = Apply_expr.position apply in
+  let region = Apply_expr.region apply in
   Apply_expr.create ~callee ~continuation exn_continuation ~args ~call_kind dbg
     ~inlined ~inlining_state ~probe_name:None ~position ~relative_history
+    ~region
   |> Expr.create_apply
 
 and subst_apply_cont env apply_cont =
@@ -898,7 +902,8 @@ let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
       ~subst2:(fun _ arity -> arity)
       env (code_id1, return_arity1) (code_id2, return_arity2)
     |> Comparison.map ~f:(fun (code_id, return_arity) ->
-           Call_kind.direct_function_call code_id ~return_arity Heap)
+           Call_kind.direct_function_call code_id ~return_arity
+             Alloc_mode.For_types.heap)
   | ( Function
         { function_call =
             Indirect_known_arity
@@ -923,7 +928,7 @@ let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
     pairs ~f1:method_kinds ~f2:simple_exprs ~subst2:subst_simple env
       (kind1, obj1) (kind2, obj2)
     |> Comparison.map ~f:(fun (kind, obj) ->
-           Call_kind.method_call kind ~obj Heap)
+           Call_kind.method_call kind ~obj Alloc_mode.For_types.heap)
   | ( C_call
         { alloc = alloc1;
           param_arity = param_arity1;
@@ -988,6 +993,7 @@ let apply_exprs env apply1 apply2 : Expr.t Comparison.t =
             ~inlining_state:(Apply.inlining_state apply1)
             ~probe_name:None ~position:(Apply.position apply1)
             ~relative_history:(Apply_expr.relative_history apply1)
+            ~region:(Apply_expr.region apply1)
           |> Expr.create_apply
       }
 
@@ -1149,13 +1155,14 @@ and codes env (code1 : Code.t) (code2 : Code.t) =
            ~body1
            ~body2
            ~my_closure
+           ~my_region
            ~my_depth
          ->
         exprs env body1 body2
         |> Comparison.map ~f:(fun body1' ->
                Function_params_and_body.create ~return_continuation
-                 ~exn_continuation params ~body:body1' ~my_closure ~my_depth
-                 ~free_names_of_body:Unknown))
+                 ~exn_continuation params ~body:body1' ~my_closure ~my_region
+                 ~my_depth ~free_names_of_body:Unknown))
   in
   pairs ~f1:bodies
     ~f2:(options ~f:code_ids ~subst:subst_code_id)
@@ -1265,6 +1272,7 @@ and cont_handlers env handler1 handler2 =
 let flambda_units u1 u2 =
   let ret_cont = Continuation.create ~sort:Toplevel_return () in
   let exn_cont = Continuation.create () in
+  let toplevel_my_region = Variable.create "toplevel_my_region" in
   let mk_renaming u =
     let renaming = Renaming.empty in
     let renaming =
@@ -1277,6 +1285,11 @@ let flambda_units u1 u2 =
         (Flambda_unit.exn_continuation u)
         ~guaranteed_fresh:exn_cont
     in
+    let renaming =
+      Renaming.add_fresh_variable renaming
+        (Flambda_unit.toplevel_my_region u)
+        ~guaranteed_fresh:toplevel_my_region
+    in
     renaming
   in
   let env = Env.create () in
@@ -1287,4 +1300,4 @@ let flambda_units u1 u2 =
          let module_symbol = Flambda_unit.module_symbol u1 in
          Flambda_unit.create ~return_continuation:ret_cont
            ~exn_continuation:exn_cont ~body ~module_symbol
-           ~used_value_slots:Unknown)
+           ~used_value_slots:Unknown ~toplevel_my_region)

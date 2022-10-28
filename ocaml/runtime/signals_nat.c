@@ -72,21 +72,31 @@ void caml_garbage_collection(void)
       h = (h + 1) & caml_frame_descriptors_mask;
     }
     /* Must be an allocation frame */
-    CAMLassert(d && d->frame_size != 0xFFFF && (d->frame_size & 2));
+    CAMLassert(d && d->frame_size != 0xFFFF &&
+               (get_frame_size(d) & 2));
   }
 
   /* Compute the total allocation size at this point,
      including allocations combined by Comballoc */
-  alloc_len = (unsigned char*)(&d->live_ofs[d->num_live]);
+  alloc_len = get_end_of_live_ofs(d);
   nallocs = *alloc_len++;
-  for (i = 0; i < nallocs; i++) {
-    allocsz += Whsize_wosize(Wosize_encoded_alloc_len(alloc_len[i]));
-  }
-  /* We have computed whsize (including header), but need wosize (without) */
-  allocsz -= 1;
 
-  caml_alloc_small_dispatch(allocsz, CAML_DO_TRACK | CAML_FROM_CAML,
-                            nallocs, alloc_len);
+  if (nallocs == 0) {
+    /* This is a poll */
+    caml_process_pending_actions();
+  }
+  else
+  {
+    for (i = 0; i < nallocs; i++) {
+      allocsz += Whsize_wosize(Wosize_encoded_alloc_len(alloc_len[i]));
+    }
+
+    /* We have computed whsize (including header), but need wosize (without) */
+    allocsz -= 1;
+
+    caml_alloc_small_dispatch(allocsz, CAML_DO_TRACK | CAML_FROM_CAML,
+                              nallocs, alloc_len);
+  }
 }
 
 DECLARE_SIGNAL_HANDLER(handle_signal)

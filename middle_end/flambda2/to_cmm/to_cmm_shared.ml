@@ -139,7 +139,7 @@ let invalid res ~message =
       let message_sym =
         Symbol.create
           (Compilation_unit.get_current_exn ())
-          (Linkage_name.create
+          (Linkage_name.of_string
              (Variable.unique_name (Variable.create "invalid")))
       in
       let res =

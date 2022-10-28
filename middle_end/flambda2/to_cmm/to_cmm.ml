@@ -46,6 +46,8 @@ let flush_cmm_helpers_state () =
         "There shouldn't be any closures in Cmmgen_state during Flambda 2 to \
          Cmm translation"
   in
+  (* reset the structured constants, just in case *)
+  Cmmgen_state.set_structured_constants [];
   match Cmmgen_state.get_and_clear_data_items () with
   | [] ->
     let cst_map = Cmmgen_state.get_and_clear_constants () in
@@ -61,7 +63,7 @@ let flush_cmm_helpers_state () =
    it will already be included in the list of GC roots; otherwise it does not
    *have* to be a root. *)
 
-let unit0 ~offsets ~make_symbol flambda_unit ~all_code =
+let unit0 ~offsets flambda_unit ~all_code =
   (* If someone wants to add 32-bit support in the future there will be a
      (merged) PR on ocaml-flambda/flambda-backend which can be used as a guide:
      https://github.com/ocaml-flambda/flambda-backend/pull/685 *)
@@ -101,25 +103,25 @@ let unit0 ~offsets ~make_symbol flambda_unit ~all_code =
   let entry =
     (* CR mshinwell: This should at least be given a source file location. *)
     let dbg = Debuginfo.none in
-    let fun_name = Compilenv.make_symbol (Some "entry") in
+    let fun_name = Cmm_helpers.make_symbol "entry" in
     let fun_codegen =
       let fun_codegen = [Cmm.Reduce_code_size; Cmm.Use_linscan_regalloc] in
       if Flambda_features.backend_cse_at_toplevel ()
       then fun_codegen
       else Cmm.No_CSE :: fun_codegen
     in
-    C.cfunction (C.fundecl fun_name [] body fun_codegen dbg)
+    C.cfunction (C.fundecl fun_name [] body fun_codegen dbg Default_poll)
   in
   let { R.data_items; gc_roots; functions } = R.to_cmm res in
   let cmm_helpers_data = flush_cmm_helpers_state () in
   let gc_root_data =
-    C.gc_root_table ~make_symbol
+    C.gc_root_table
       (List.map
          (fun sym -> Linkage_name.to_string (Symbol.linkage_name sym))
          gc_roots)
   in
   (gc_root_data :: data_items) @ cmm_helpers_data @ functions @ [entry]
 
-let unit ~offsets ~make_symbol flambda_unit ~all_code =
+let unit ~offsets flambda_unit ~all_code =
   Profile.record_call "flambda_to_cmm" (fun () ->
-      unit0 ~offsets ~make_symbol flambda_unit ~all_code)
+      unit0 ~offsets flambda_unit ~all_code)

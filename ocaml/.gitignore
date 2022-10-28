@@ -56,6 +56,10 @@ _build
 /ocamlopt.opt
 /ocamlnat
 /dirs-to-ignore.inc
+/dune-project
+/*.sexp
+/_install
+/_runtest
 
 # specific files and patterns in sub-directories
 
@@ -267,6 +271,4 @@ _build
 /yacc/.gdb_history
 
 /otherlibs/dynlink/natdynlinkops
-/otherlibs/dynlink/natdynlinkops1
-/otherlibs/dynlink/natdynlinkops2
 

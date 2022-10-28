@@ -67,7 +67,7 @@ let create_lifted_constant (dacc, lifted_constants)
    for such sets. See comment in [Simplify_let_expr], function [rebuild_let]. *)
 
 let simplify_named0 dacc (bound_pattern : Bound_pattern.t) (named : Named.t)
-    ~simplify_toplevel : Simplify_named_result.t Or_invalid.t =
+    ~simplify_function_body : Simplify_named_result.t Or_invalid.t =
   match named with
   | Simple simple ->
     let bound_var = Bound_pattern.must_be_singleton bound_pattern in
@@ -78,7 +78,7 @@ let simplify_named0 dacc (bound_pattern : Bound_pattern.t) (named : Named.t)
     let defining_expr =
       if simple == new_simple
       then Simplified_named.create named
-      else Simplified_named.create (Named.create_simple simple)
+      else Simplified_named.create (Named.create_simple new_simple)
     in
     Ok
       (Simplify_named_result.have_simplified_to_single_term dacc bound_pattern
@@ -124,7 +124,7 @@ let simplify_named0 dacc (bound_pattern : Bound_pattern.t) (named : Named.t)
   | Set_of_closures set_of_closures ->
     Ok
       (Simplify_set_of_closures.simplify_non_lifted_set_of_closures dacc
-         bound_pattern set_of_closures ~simplify_toplevel)
+         bound_pattern set_of_closures ~simplify_function_body)
   | Static_consts static_consts ->
     let bound_static = Bound_pattern.must_be_static bound_pattern in
     let binds_symbols = Bound_static.binds_symbols bound_static in
@@ -137,16 +137,15 @@ let simplify_named0 dacc (bound_pattern : Bound_pattern.t) (named : Named.t)
     let bound_static, static_consts, dacc =
       try
         Simplify_static_const.simplify_static_consts dacc bound_static
-          static_consts ~simplify_toplevel
+          static_consts ~simplify_function_body
       with Misc.Fatal_error ->
         let bt = Printexc.get_raw_backtrace () in
         Format.eprintf
           "\n\
-           %sContext is:%s simplifying 'let symbol' binding of@ %a@ with \
+           %tContext is:%t simplifying 'let symbol' binding of@ %a@ with \
            downwards accumulator:@ %a\n"
-          (Flambda_colours.error ())
-          (Flambda_colours.normal ())
-          Bound_static.print bound_static DA.print dacc;
+          Flambda_colours.error Flambda_colours.pop Bound_static.print
+          bound_static DA.print dacc;
         Printexc.raise_with_backtrace Misc.Fatal_error bt
     in
     let dacc, lifted_constants =
@@ -215,10 +214,10 @@ let removed_operations ~(original : Named.t) (result : _ Or_invalid.t) =
         Removed_operations.prim original_prim)
     | Rec_info _ -> zero)
 
-let simplify_named dacc bound_pattern named ~simplify_toplevel =
+let simplify_named dacc bound_pattern named ~simplify_function_body =
   try
     let simplified_named_or_invalid =
-      simplify_named0 ~simplify_toplevel dacc bound_pattern named
+      simplify_named0 ~simplify_function_body dacc bound_pattern named
     in
     ( simplified_named_or_invalid,
       removed_operations ~original:named simplified_named_or_invalid )
@@ -226,9 +225,8 @@ let simplify_named dacc bound_pattern named ~simplify_toplevel =
     let bt = Printexc.get_raw_backtrace () in
     Format.eprintf
       "\n\
-       %sContext is:%s simplifying [Let] binding@ %a =@ %a@ with downwards \
+       %tContext is:%t simplifying [Let] binding@ %a =@ %a@ with downwards \
        accumulator:@ %a\n"
-      (Flambda_colours.error ())
-      (Flambda_colours.normal ())
-      Bound_pattern.print bound_pattern Named.print named DA.print dacc;
+      Flambda_colours.error Flambda_colours.pop Bound_pattern.print
+      bound_pattern Named.print named DA.print dacc;
     Printexc.raise_with_backtrace Misc.Fatal_error bt

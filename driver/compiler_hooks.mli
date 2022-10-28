@@ -40,6 +40,7 @@ type _ pass =
   | Raw_clambda : Clambda.ulambda pass
   | Clambda : Clambda.ulambda pass
 
+  | Mach_polling : Mach.fundecl pass
   | Mach_combine : Mach.fundecl pass
   | Mach_cse : Mach.fundecl pass
   | Mach_spill : Mach.fundecl pass

@@ -5,9 +5,10 @@ open! Cfg_irc_utils
 open! Cfg_irc_split
 module State = Cfg_irc_state
 
-let build : State.t -> Cfg_with_layout.t -> liveness -> unit =
- fun state cfg_with_layout liveness ->
+let build : State.t -> Cfg_with_liveness.t -> unit =
+ fun state cfg_with_liveness ->
   if irc_debug then log ~indent:1 "build";
+  let liveness = Cfg_with_liveness.liveness cfg_with_liveness in
   let add_edges_live (id : Instruction.id) ~(def : Reg.t array)
       ~(move_src : Reg.t) ~(destroyed : Reg.t array) : unit =
     let live = Cfg_dataflow.Instr.Tbl.find liveness id in
@@ -25,6 +26,7 @@ let build : State.t -> Cfg_with_layout.t -> liveness -> unit =
           Array.iter destroyed ~f:(fun reg2 -> State.add_edge state reg1 reg2))
         live.across
   in
+  let cfg_with_layout = Cfg_with_liveness.cfg_with_layout cfg_with_liveness in
   Cfg_with_layout.iter_instructions cfg_with_layout
     ~instruction:(fun (instr : Instruction.t) ->
       if is_move_instruction instr
@@ -44,23 +46,21 @@ let build : State.t -> Cfg_with_layout.t -> liveness -> unit =
         add_edges_live instr.id ~def:instr.res ~move_src ~destroyed:[||])
       else
         add_edges_live instr.id ~def:instr.res ~move_src:Reg.dummy
-          ~destroyed:(destroyed_at_basic instr.desc))
+          ~destroyed:(Proc.destroyed_at_basic instr.desc))
     ~terminator:(fun term ->
       (* we assume that a terminator cannot be a move instruction *)
       add_edges_live term.id ~def:term.res ~move_src:Reg.dummy
-        ~destroyed:(destroyed_at_terminator term.desc));
+        ~destroyed:(Proc.destroyed_at_terminator term.desc));
   Cfg.iter_blocks (Cfg_with_layout.cfg cfg_with_layout) ~f:(fun _label block ->
       if block.is_trap_handler
       then
-        let first_id =
-          match block.body with [] -> block.terminator.id | hd :: _ -> hd.id
-        in
+        let first_id = Cfg.first_instruction_id block in
         let live = Cfg_dataflow.Instr.Tbl.find liveness first_id in
         Reg.Set.iter
           (fun reg1 ->
             Array.iter Proc.destroyed_at_raise ~f:(fun reg2 ->
                 State.add_edge state reg1 reg2))
-          live.across)
+          (Reg.Set.remove Proc.loc_exn_bucket live.before))
 
 let make_work_list : State.t -> unit =
  fun state ->
@@ -244,7 +244,7 @@ let select_spilling_register_using_heuristics : State.t -> Reg.t =
     | true -> fatal "spill_work_list is empty"
     | false ->
       State.fold_spill_work_list state ~init:(Reg.dummy, Float.max_float)
-        ~f:(fun reg ((_curr_reg, curr_min_cost) as acc) ->
+        ~f:(fun ((_curr_reg, curr_min_cost) as acc) reg ->
           let reg_cost = weighted_cost reg in
           if reg_cost < curr_min_cost then reg, reg_cost else acc)
       |> fst)
@@ -321,8 +321,15 @@ let assign_colors : State.t -> Cfg_with_layout.t -> unit =
       let alias = State.find_alias state n in
       n.Reg.irc_color <- alias.Reg.irc_color)
 
-let rewrite : State.t -> Cfg_with_layout.t -> Reg.t list -> reset:bool -> unit =
- fun state cfg_with_layout spilled_nodes ~reset ->
+type direction =
+  | Load_before_cell of Cfg.BasicInstructionList.cell
+  | Store_after_cell of Cfg.BasicInstructionList.cell
+  | Load_after_list of Cfg.BasicInstructionList.t
+  | Store_before_list of Cfg.BasicInstructionList.t
+
+let rewrite : State.t -> Cfg_with_liveness.t -> Reg.t list -> reset:bool -> unit
+    =
+ fun state cfg_with_liveness spilled_nodes ~reset ->
   if irc_debug then log ~indent:1 "rewrite";
   let spilled_map : Reg.t Reg.Tbl.t =
     List.fold_left spilled_nodes ~init:(Reg.Tbl.create 17)
@@ -363,20 +370,9 @@ let rewrite : State.t -> Cfg_with_layout.t -> Reg.t list -> reset:bool -> unit =
     done;
     !i < len
   in
-  let[@inline] instruction_contains_spilled (instr : Instruction.t) : bool =
-    array_contains_spilled instr.arg || array_contains_spilled instr.res
-  in
-  let rec instruction_list_contains_spilled (l : Instruction.t list) : bool =
-    match l with
-    | [] -> false
-    | hd :: tl ->
-      instruction_contains_spilled hd || instruction_list_contains_spilled tl
-  in
-  let rewrite_instruction ~(direction : [`load | `store])
+  let rewrite_instruction ~(direction : direction)
       ~(sharing : (Reg.t * [`load | `store]) Reg.Tbl.t)
-      (acc : Instruction.t list) (instr : _ Cfg.instruction) :
-      Instruction.t list =
-    let res = ref acc in
+      (instr : _ Cfg.instruction) : unit =
     let f (reg : Reg.t) : Reg.t =
       if reg.Reg.irc_work_list = Reg.Spilled
       then (
@@ -385,75 +381,89 @@ let rewrite : State.t -> Cfg_with_layout.t -> Reg.t list -> reset:bool -> unit =
           | None -> assert false
           | Some r -> r
         in
-        let move =
-          match direction with `load -> Move.Load | `store -> Move.Store
+        let move, move_dir =
+          match direction with
+          | Load_before_cell _ | Load_after_list _ -> Move.Load, `load
+          | Store_after_cell _ | Store_before_list _ -> Move.Store, `store
         in
         let add_instr, temp =
           match Reg.Tbl.find_opt sharing reg with
           | None ->
             let new_temp = make_new_temporary ~move reg in
-            Reg.Tbl.add sharing reg (new_temp, direction);
+            Reg.Tbl.add sharing reg (new_temp, move_dir);
             true, new_temp
-          | Some (r, dir) -> dir <> direction, r
-        in
-        let from, to_ =
-          match direction with
-          | `load -> spilled, temp
-          | `store -> temp, spilled
+          | Some (r, dir) -> dir <> move_dir, r
         in
         (if add_instr
         then
+          let from, to_ =
+            match move_dir with
+            | `load -> spilled, temp
+            | `store -> temp, spilled
+          in
           let new_instr =
             Move.make_instr move
               ~id:(State.get_and_incr_instruction_id state)
               ~copy:instr ~from ~to_
           in
-          res := new_instr :: !res);
+          match direction with
+          | Load_before_cell cell ->
+            Cfg.BasicInstructionList.insert_before cell new_instr
+          | Store_after_cell cell ->
+            Cfg.BasicInstructionList.insert_after cell new_instr
+          | Load_after_list list ->
+            Cfg.BasicInstructionList.add_end list new_instr
+          | Store_before_list list ->
+            Cfg.BasicInstructionList.add_begin list new_instr);
         temp)
       else reg
     in
-    (match direction with
-    | `load -> instr.arg <- Array.map instr.arg ~f
-    | `store -> instr.res <- Array.map instr.res ~f);
-    !res
+    match direction with
+    | Load_before_cell _ | Load_after_list _ ->
+      if array_contains_spilled instr.arg
+      then instr.arg <- Array.map instr.arg ~f
+    | Store_after_cell _ | Store_before_list _ ->
+      if array_contains_spilled instr.res
+      then instr.res <- Array.map instr.res ~f
   in
-  let rec rewrite_body (acc : Instruction.t list) (body : Instruction.t list)
-      (terminator : Cfg.terminator Cfg.instruction) : Instruction.t list =
-    match body with
-    | [] ->
-      let acc =
-        rewrite_instruction ~direction:`load ~sharing:(Reg.Tbl.create 8) acc
-          terminator
-      in
-      List.rev acc
-    | hd :: tl ->
-      let sharing = Reg.Tbl.create 8 in
-      let acc = rewrite_instruction ~direction:`load ~sharing acc hd in
-      let acc = hd :: acc in
-      let acc = rewrite_instruction ~direction:`store ~sharing acc hd in
-      rewrite_body acc tl terminator
-  in
-  Cfg.iter_blocks (Cfg_with_layout.cfg cfg_with_layout) ~f:(fun label block ->
-      (* CR xclerc for xclerc: we currently assume that a terminator does not
-         "define" a register that may be spilled. Calls are reasonably fine
-         since their result is in a precolored register. *)
-      assert (not (array_contains_spilled block.terminator.res));
-      let body_needs_rewrite =
-        instruction_list_contains_spilled block.body
-        || array_contains_spilled block.terminator.arg
-      in
-      if body_needs_rewrite
+  let liveness = Cfg_with_liveness.liveness cfg_with_liveness in
+  Cfg.iter_blocks (Cfg_with_liveness.cfg cfg_with_liveness)
+    ~f:(fun label block ->
+      if irc_debug
       then (
-        if irc_debug
-        then (
-          log ~indent:2 "body of #%d, before:" label;
-          log_body_and_terminator ~indent:3 block.body block.terminator);
-        block.body <- rewrite_body [] block.body block.terminator;
+        log ~indent:2 "body of #%d, before:" label;
+        log_body_and_terminator ~indent:3 block.body block.terminator liveness);
+      Cfg.BasicInstructionList.iter_cell block.body ~f:(fun cell ->
+          let instr = Cfg.BasicInstructionList.instr cell in
+          match Cfg_stack_operands.basic spilled_map instr with
+          | All_spilled_registers_rewritten -> ()
+          | May_still_have_spilled_registers ->
+            let sharing = Reg.Tbl.create 8 in
+            rewrite_instruction ~direction:(Load_before_cell cell) ~sharing
+              instr;
+            rewrite_instruction ~direction:(Store_after_cell cell) ~sharing
+              instr);
+      match Cfg_stack_operands.terminator spilled_map block.terminator with
+      | All_spilled_registers_rewritten -> ()
+      | May_still_have_spilled_registers ->
+        (let sharing = Reg.Tbl.create 8 in
+         rewrite_instruction ~direction:(Load_after_list block.body)
+           ~sharing:(Reg.Tbl.create 8) block.terminator;
+         let new_instrs = Cfg.BasicInstructionList.make_empty () in
+         rewrite_instruction ~direction:(Store_before_list new_instrs) ~sharing
+           block.terminator;
+         if not (Cfg.BasicInstructionList.is_empty new_instrs)
+         then
+           (* insert block *)
+           Cfg_regalloc_utils.insert_block
+             (Cfg_with_liveness.cfg_with_layout cfg_with_liveness)
+             new_instrs ~after:block ~next_instruction_id:(fun () ->
+               State.get_and_incr_instruction_id state));
         if irc_debug
         then (
           log ~indent:2 "and after:";
-          log_body_and_terminator ~indent:3 block.body block.terminator;
-          log ~indent:2 "end")));
+          log_body_and_terminator ~indent:3 block.body block.terminator liveness;
+          log ~indent:2 "end"));
   if reset
   then State.reset state ~new_temporaries:!new_temporaries
   else (
@@ -465,12 +475,12 @@ let rewrite : State.t -> Cfg_with_layout.t -> Reg.t list -> reset:bool -> unit =
    seems to be fine with 4 *)
 let max_rounds = 50
 
-let rec main : round:int -> State.t -> Cfg_with_layout.t -> liveness =
- fun ~round state cfg_with_layout ->
+let rec main : round:int -> State.t -> Cfg_with_liveness.t -> unit =
+ fun ~round state cfg_with_liveness ->
   if round > max_rounds
   then
     fatal "register allocation was not succesful after %d rounds (%s)"
-      max_rounds (Cfg_with_layout.cfg cfg_with_layout).fun_name;
+      max_rounds (Cfg_with_liveness.cfg cfg_with_liveness).fun_name;
   if irc_debug then log ~indent:0 "main, round #%d" round;
   let work_lists_desc state (name, f) =
     Printf.sprintf "%s:%s" name (if f state then "{}" else "...")
@@ -486,8 +496,8 @@ let rec main : round:int -> State.t -> Cfg_with_layout.t -> liveness =
   let log_work_list_desc prefix =
     if irc_debug then log ~indent:1 "%s -- %s" prefix (work_lists_desc state)
   in
-  let liveness = liveness_analysis cfg_with_layout in
-  build state cfg_with_layout liveness;
+  build state cfg_with_liveness;
+  let cfg_with_layout = Cfg_with_liveness.cfg_with_layout cfg_with_liveness in
   if irc_debug
   then (
     let adj_set = State.adj_set state in
@@ -528,20 +538,20 @@ let rec main : round:int -> State.t -> Cfg_with_layout.t -> liveness =
   assign_colors state cfg_with_layout;
   State.invariant state;
   match State.spilled_nodes state with
-  | [] ->
-    if irc_debug then log ~indent:1 "(end of main)";
-    liveness
+  | [] -> if irc_debug then log ~indent:1 "(end of main)"
   | _ :: _ as spilled_nodes ->
     if irc_debug
     then
       List.iter spilled_nodes ~f:(fun reg ->
           log ~indent:1 "/!\\ register %a needs to be spilled" Printmach.reg reg);
-    rewrite state cfg_with_layout spilled_nodes ~reset:true;
+    rewrite state cfg_with_liveness spilled_nodes ~reset:true;
     State.invariant state;
-    main ~round:(succ round) state cfg_with_layout
+    Cfg_with_liveness.invalidate_liveness cfg_with_liveness;
+    main ~round:(succ round) state cfg_with_liveness
 
-let run : Cfg_with_layout.t -> Cfg_with_layout.t =
- fun cfg_with_layout ->
+let run : Cfg_with_liveness.t -> Cfg_with_liveness.t =
+ fun cfg_with_liveness ->
+  let cfg_with_layout = Cfg_with_liveness.cfg_with_layout cfg_with_liveness in
   on_fatal ~f:(fun () -> save_cfg "irc" cfg_with_layout);
   if irc_debug
   then log ~indent:0 "run (%S)" (Cfg_with_layout.cfg cfg_with_layout).fun_name;
@@ -567,12 +577,7 @@ let run : Cfg_with_layout.t -> Cfg_with_layout.t =
   let spilling_because_split =
     match Lazy.force Split_mode.env with
     | Off -> []
-    | Naive -> (
-      match naive_split_points cfg_with_layout with
-      | [] -> []
-      | _ :: _ as split_points ->
-        let liveness = liveness_analysis cfg_with_layout in
-        naive_split_cfg state cfg_with_layout split_points liveness)
+    | Naive -> naive_split_cfg state cfg_with_liveness
   in
   let spilling_because_split_or_unused : Reg.t list =
     Reg.Set.fold
@@ -585,8 +590,13 @@ let run : Cfg_with_layout.t -> Cfg_with_layout.t =
         log ~indent:0 "%a <- spilling_because_split_or_unused" Printmach.reg r);
   (match spilling_because_split_or_unused with
   | [] -> ()
-  | _ :: _ as spilling -> rewrite state cfg_with_layout spilling ~reset:false);
-  let liveness = main ~round:1 state cfg_with_layout in
+  | _ :: _ as spilling ->
+    List.iter spilling ~f:(fun reg -> State.add_spilled_nodes state reg);
+    (* note: rewrite will remove the `spilling` registers from the "spilled"
+       work list and set the field to unknown. *)
+    rewrite state cfg_with_liveness spilling ~reset:false;
+    Cfg_with_liveness.invalidate_liveness cfg_with_liveness);
+  main ~round:1 state cfg_with_liveness;
   (* note: slots need to be updated before prologue removal *)
   if irc_debug
   then
@@ -597,10 +607,11 @@ let run : Cfg_with_layout.t -> Cfg_with_layout.t =
     ~num_stack_slots:(State.num_stack_slots state);
   remove_prologue_if_not_required cfg_with_layout;
   update_register_locations ();
-  update_live_fields cfg_with_layout liveness;
+  update_live_fields cfg_with_layout
+    (Cfg_with_liveness.liveness cfg_with_liveness);
   if irc_debug && irc_invariants
   then (
     log ~indent:0 "postcondition";
-    postcondition cfg_with_layout);
+    postcondition cfg_with_layout ~allow_stack_operands:true);
   Array.iter all_precolored_regs ~f:(fun reg -> reg.Reg.degree <- 0);
-  cfg_with_layout
+  cfg_with_liveness

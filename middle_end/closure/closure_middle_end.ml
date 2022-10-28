@@ -35,14 +35,25 @@ let lambda_to_clambda ~backend ~filename:_ ~prefixname:_ ~ppf_dump
     Closure.intro ~backend ~size:lambda.main_module_block_size lambda.code
   in
   let provenance : Clambda.usymbol_provenance =
+    let current_unit_ident =
+      Compilation_unit.get_current_exn ()
+      |> Compilation_unit.name
+      |> Compilation_unit.Name.persistent_ident
+    in
     { original_idents = [];
-      module_path =
-        Path.Pident (Ident.create_persistent (Compilenv.current_unit_name ()));
+      (* CR-someday lmaurer: Properly construct a [Path.t] from the module name
+         with its pack prefix. *)
+      module_path = Path.Pident current_unit_ident;
     }
+  in
+  let symbol =
+    Symbol.for_current_unit ()
+    |> Symbol.linkage_name
+    |> Linkage_name.to_string
   in
   let preallocated_block =
     Clambda.{
-      symbol = Compilenv.make_symbol None;
+      symbol;
       exported = true;
       tag = 0;
       fields = List.init lambda.main_module_block_size (fun _ -> None);

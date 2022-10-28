@@ -50,11 +50,10 @@ let add_use t kind ~env_at_use id ~arg_types =
     let bt = Printexc.get_raw_backtrace () in
     Format.eprintf
       "\n\
-       %sContext is:%s adding use of %a with arg types@ (%a);@ existing uses:@ \
+       %tContext is:%t adding use of %a with arg types@ (%a);@ existing uses:@ \
        %a; environment:@ %a"
-      (Flambda_colours.error ())
-      (Flambda_colours.normal ())
-      Continuation.print t.continuation
+      Flambda_colours.error Flambda_colours.pop Continuation.print
+      t.continuation
       (Format.pp_print_list ~pp_sep:Format.pp_print_space T.print)
       arg_types print t DE.print env_at_use;
     Printexc.raise_with_backtrace Misc.Fatal_error bt
@@ -104,3 +103,6 @@ let get_typing_env_no_more_than_one_use t =
   | _ :: _ ->
     Misc.fatal_errorf "Only zero or one continuation use(s) expected:@ %a" print
       t
+
+let mark_non_inlinable t =
+  { t with uses = List.map U.mark_non_inlinable t.uses }

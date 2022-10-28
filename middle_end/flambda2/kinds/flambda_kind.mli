@@ -168,6 +168,8 @@ module With_subkind : sig
 
   val naked_nativeint : t
 
+  val region : t
+
   val boxed_float : t
 
   val boxed_int32 : t

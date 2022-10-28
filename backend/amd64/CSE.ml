@@ -34,7 +34,8 @@ method! class_of_operation op =
     | Ioffset_loc(_, _) -> Op_store true
     | Ifloatarithmem _ | Ifloatsqrtf _ -> Op_load Mutable
     | Ibswap _ | Isqrtf -> super#class_of_operation op
-    | Irdtsc | Irdpmc -> Op_other
+    | Irdtsc | Irdpmc
+    | Ilfence | Isfence | Imfence -> Op_other
     | Ifloat_iround | Ifloat_min | Ifloat_max | Ifloat_round _
     | Icrc32q -> Op_pure
     | Ipause
@@ -42,12 +43,14 @@ method! class_of_operation op =
     end
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icompf _
-  | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Iconst_symbol _
+  | Icsel _
+  | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue
+  | Iconst_int _ | Iconst_float _ | Iconst_symbol _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _ | Iextcall _
   | Istackoffset _ | Iload _ | Istore _ | Ialloc _
   | Iintop _ | Iintop_imm _
   | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque
-  | Ibeginregion | Iendregion
+  | Ibeginregion | Iendregion | Ipoll _
     -> super#class_of_operation op
 
 end

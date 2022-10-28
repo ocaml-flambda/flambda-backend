@@ -70,6 +70,9 @@ val ocamlsrcdir : string
 val flambda : bool
 (** Whether flambda has been enabled at configure time *)
 
+val flambda2 : bool
+(** Whether flambda2 has been enabled at configure time *)
+
 val safe_string : bool
 (** Whether the compiler was configured with -safe-string *)
 

@@ -716,7 +716,7 @@ end = struct
   let is name =
     !current_unit = name
   let is_ident id =
-    Ident.persistent id && is (Ident.name id)
+    Ident.is_global id && is (Ident.name id)
   let is_path = function
   | Pident id -> is_ident id
   | Pdot _ | Papply _ -> false
@@ -729,7 +729,7 @@ let find_same_module id tbl =
   match IdTbl.find_same id tbl with
   | x -> x
   | exception Not_found
-    when Ident.persistent id && not (Current_unit_name.is_ident id) ->
+    when Ident.is_global id && not (Current_unit_name.is_ident id) ->
       Mod_persistent
 
 let find_name_module ~mark name tbl =
@@ -740,7 +740,7 @@ let find_name_module ~mark name tbl =
       path, Mod_persistent
 
 let add_persistent_structure id env =
-  if not (Ident.persistent id) then invalid_arg "Env.add_persistent_structure";
+  if not (Ident.is_global id) then invalid_arg "Env.add_persistent_structure";
   if Current_unit_name.is_ident id then env
   else begin
     let material =
@@ -1159,12 +1159,12 @@ let required_globals = s_ref []
 let reset_required_globals () = required_globals := []
 let get_required_globals () = !required_globals
 let add_required_global id =
-  if Ident.global id && not !Clflags.transparent_modules
+  if Ident.is_global_or_predef id && not !Clflags.transparent_modules
   && not (List.exists (Ident.same id) !required_globals)
   then required_globals := id :: !required_globals
 
 let rec normalize_module_path lax env = function
-  | Pident id as path when lax && Ident.persistent id ->
+  | Pident id as path when lax && Ident.is_global id ->
       path (* fast path (avoids lookup) *)
   | Pdot (p, s) as path ->
       let p' = normalize_module_path lax env p in
@@ -1184,12 +1184,12 @@ and expand_module_path lax env path =
       let path' = normalize_module_path lax env path1 in
       if lax || !Clflags.transparent_modules then path' else
       let id = Path.head path in
-      if Ident.global id && not (Ident.same id (Path.head path'))
+      if Ident.is_global_or_predef id && not (Ident.same id (Path.head path'))
       then add_required_global id;
       path'
   | _ -> path
   with Not_found when lax
-  || (match path with Pident id -> not (Ident.persistent id) | _ -> true) ->
+  || (match path with Pident id -> not (Ident.is_global id) | _ -> true) ->
       path
 
 let normalize_module_path oloc env path =
@@ -1331,7 +1331,7 @@ let rec scrape_alias_for_visit env mty =
   | MtyL_alias path -> begin
       match path with
       | Pident id
-        when Ident.persistent id
+        when Ident.is_global id
           && not (Persistent_env.looked_up !persistent_env (Ident.name id)) ->
           false
       | path -> (* PR#6600: find_module may raise Not_found *)
@@ -1732,6 +1732,7 @@ and check_value_name name loc =
 
 and store_value ?check mode id addr decl env =
   check_value_name (Ident.name id) decl.val_loc;
+  Builtin_attributes.mark_alerts_used decl.val_attributes;
   Option.iter
     (fun f -> check_usage decl.val_loc id decl.val_uid f !value_declarations)
     check;
@@ -1754,6 +1755,7 @@ and store_type ~check id info env =
   let labels = Datarepr.labels_of_type path info in
   let descrs = (List.map snd constructors, List.map snd labels) in
   let tda = { tda_declaration = info; tda_descriptions = descrs } in
+  Builtin_attributes.mark_alerts_used info.type_attributes;
   if check && not loc.Location.loc_ghost &&
     Warnings.is_active (Warnings.Unused_constructor ("", false, false))
   then begin
@@ -1782,12 +1784,17 @@ and store_type ~check id info env =
     constrs =
       List.fold_right
         (fun (id, descr) constrs ->
+           Builtin_attributes.mark_alerts_used descr.cstr_attributes;
+           Builtin_attributes.mark_warn_on_literal_pattern_used
+             descr.cstr_attributes;
            let cda = { cda_description = descr; cda_address = None } in
            TycompTbl.add id cda constrs)
         constructors env.constrs;
     labels =
       List.fold_right
-        (fun (id, descr) labels -> TycompTbl.add id descr labels)
+        (fun (id, descr) labels ->
+           Builtin_attributes.mark_alerts_used descr.lbl_attributes;
+           TycompTbl.add id descr labels)
         labels env.labels;
     types = IdTbl.add id tda env.types;
     summary = Env_type(env.summary, id, info) }
@@ -1809,6 +1816,9 @@ and store_extension ~check ~rebind id addr ext env =
     Datarepr.extension_descr ~current_unit:(get_unit_name ()) (Pident id) ext
   in
   let cda = { cda_description = cstr; cda_address = Some addr } in
+  Builtin_attributes.mark_alerts_used ext.ext_attributes;
+  Builtin_attributes.mark_alerts_used cstr.cstr_attributes;
+  Builtin_attributes.mark_warn_on_literal_pattern_used cstr.cstr_attributes;
   if check && not loc.Location.loc_ghost &&
     Warnings.is_active (Warnings.Unused_extension ("", false, false, false))
   then begin
@@ -1858,6 +1868,7 @@ and store_module ?(update_summary=true) ~check
     summary }
 
 and store_modtype ?(update_summary=true) id info env =
+  Builtin_attributes.mark_alerts_used info.Subst.Lazy.mtdl_attributes;
   let summary =
     if not update_summary then env.summary
     else Env_modtype (env.summary, id, Subst.Lazy.force_modtype_decl info) in
@@ -1866,12 +1877,14 @@ and store_modtype ?(update_summary=true) id info env =
     summary }
 
 and store_class id addr desc env =
+  Builtin_attributes.mark_alerts_used desc.cty_attributes;
   let clda = { clda_declaration = desc; clda_address = addr } in
   { env with
     classes = IdTbl.add id clda env.classes;
     summary = Env_class(env.summary, id, desc) }
 
 and store_cltype id desc env =
+  Builtin_attributes.mark_alerts_used desc.clty_attributes;
   { env with
     cltypes = IdTbl.add id desc env.cltypes;
     summary = Env_cltype(env.summary, id, desc) }

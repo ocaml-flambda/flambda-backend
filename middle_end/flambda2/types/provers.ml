@@ -180,8 +180,7 @@ let meet_naked_immediates env t =
 
 let prove_equals_tagged_immediates env t : _ proof_of_property =
   match expand_head env t with
-  | Value (Ok (Variant { immediates; blocks; is_unique = _; alloc_mode = _ }))
-    -> (
+  | Value (Ok (Variant { immediates; blocks; is_unique = _ })) -> (
     match blocks with
     | Unknown -> Unknown
     | Known blocks ->
@@ -202,17 +201,10 @@ let prove_equals_tagged_immediates env t : _ proof_of_property =
 
 let meet_equals_tagged_immediates env t : _ meet_shortcut =
   match expand_head env t with
-  | Value (Ok (Variant { immediates; blocks; is_unique = _; alloc_mode = _ }))
-    -> (
-    match blocks with
+  | Value (Ok (Variant { immediates; blocks = _; is_unique = _ })) -> (
+    match immediates with
     | Unknown -> Need_meet
-    | Known blocks -> (
-      if not (TG.Row_like_for_blocks.is_bottom blocks)
-      then Need_meet
-      else
-        match immediates with
-        | Unknown -> Need_meet
-        | Known imms -> meet_naked_immediates env imms))
+    | Known imms -> meet_naked_immediates env imms)
   | Value
       (Ok
         ( Mutable_block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
@@ -364,7 +356,8 @@ let meet_variant_like env t =
 let prove_variant_like env t = as_property (prove_variant_like_generic env t)
 
 type boxed_or_tagged_number =
-  | Boxed of Flambda_kind.Boxable_number.t
+  | Boxed of
+      Alloc_mode.For_types.t * Flambda_kind.Boxable_number.t * Type_grammar.t
   | Tagged_immediate
 
 (* CR pchambart: Remove fragile matchs and reuse this function *)
@@ -372,19 +365,21 @@ let prove_is_a_boxed_or_tagged_number env t :
     boxed_or_tagged_number proof_of_property =
   match expand_head env t with
   | Value Unknown -> Unknown
-  | Value
-      (Ok (Variant { blocks; immediates = _; is_unique = _; alloc_mode = _ }))
-    -> (
+  | Value (Ok (Variant { blocks; immediates = _; is_unique = _ })) -> (
     match blocks with
     | Unknown -> Unknown
     | Known blocks ->
       if TG.Row_like_for_blocks.is_bottom blocks
       then Proved Tagged_immediate
       else Unknown)
-  | Value (Ok (Boxed_float _)) -> Proved (Boxed Naked_float)
-  | Value (Ok (Boxed_int32 _)) -> Proved (Boxed Naked_int32)
-  | Value (Ok (Boxed_int64 _)) -> Proved (Boxed Naked_int64)
-  | Value (Ok (Boxed_nativeint _)) -> Proved (Boxed Naked_nativeint)
+  | Value (Ok (Boxed_float (contents_ty, alloc_mode))) ->
+    Proved (Boxed (alloc_mode, Naked_float, contents_ty))
+  | Value (Ok (Boxed_int32 (contents_ty, alloc_mode))) ->
+    Proved (Boxed (alloc_mode, Naked_int32, contents_ty))
+  | Value (Ok (Boxed_int64 (contents_ty, alloc_mode))) ->
+    Proved (Boxed (alloc_mode, Naked_int64, contents_ty))
+  | Value (Ok (Boxed_nativeint (contents_ty, alloc_mode))) ->
+    Proved (Boxed (alloc_mode, Naked_nativeint, contents_ty))
   | Value (Bottom | Ok (Mutable_block _ | Closures _ | String _ | Array _)) ->
     Unknown
   | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
@@ -444,7 +439,7 @@ let prove_is_a_boxed_nativeint env t : _ proof_of_property =
     wrong_kind "Value" t
 
 let prove_unique_tag_and_size0 env t :
-    (Tag_and_size.t * TG.Product.Int_indexed.t * Alloc_mode.t Or_unknown.t)
+    (Tag_and_size.t * TG.Product.Int_indexed.t * Alloc_mode.For_types.t)
     proof_of_property =
   match expand_head env t with
   | Value (Ok (Variant blocks_imms)) -> (
@@ -458,8 +453,8 @@ let prove_unique_tag_and_size0 env t :
         | Known blocks -> (
           match TG.Row_like_for_blocks.get_singleton blocks with
           | None -> Unknown
-          | Some (tag_and_size, product) ->
-            Proved (tag_and_size, product, blocks_imms.alloc_mode))
+          | Some (tag_and_size, product, alloc_mode) ->
+            Proved (tag_and_size, product, alloc_mode))
       else Unknown)
   | Value (Ok (Mutable_block _)) | Value (Ok _) | Value Unknown | Value Bottom
     ->
@@ -477,8 +472,8 @@ let prove_unique_tag_and_size env t :
 let prove_unique_fully_constructed_immutable_heap_block env t :
     _ proof_of_property =
   match prove_unique_tag_and_size0 env t with
-  | Unknown | Proved (_, _, (Unknown | Known Local)) -> Unknown
-  | Proved (tag_and_size, product, Known Heap) -> (
+  | Unknown | Proved (_, _, (Heap_or_local | Local)) -> Unknown
+  | Proved (tag_and_size, product, Heap) -> (
     let result =
       List.fold_left
         (fun (result : _ proof_of_property) field_ty : _ proof_of_property ->
@@ -600,6 +595,17 @@ let meet_strings env t : String_info.Set.t meet_shortcut =
   | Naked_nativeint _ | Rec_info _ | Region _ ->
     Misc.fatal_errorf "Kind error: expected [Value]:@ %a" TG.print t
 
+let prove_strings env t : _ proof_of_property =
+  match expand_head env t with
+  | Value (Ok (String strs)) ->
+    (* At present we only track statically-allocated strings (see
+       [Type_grammar]). *)
+    Proved (Alloc_mode.For_types.heap, strs)
+  | Value (Ok _ | Unknown | Bottom) -> Unknown
+  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
+  | Naked_nativeint _ | Rec_info _ | Region _ ->
+    Misc.fatal_errorf "Kind error: expected [Value]:@ %a" TG.print t
+
 type tagging_proof_kind =
   | Prove
   | Meet
@@ -607,8 +613,7 @@ type tagging_proof_kind =
 let[@inline always] inspect_tagging_of_simple proof_kind env ~min_name_mode t :
     Simple.t generic_proof =
   match expand_head env t with
-  | Value (Ok (Variant { immediates; blocks; is_unique = _; alloc_mode = _ }))
-    -> (
+  | Value (Ok (Variant { immediates; blocks; is_unique = _ })) -> (
     let inspect_immediates () =
       match immediates with
       | Unknown -> Unknown
@@ -707,9 +712,7 @@ let meet_boxed_nativeint_containing_simple =
 let meet_block_field_simple env ~min_name_mode t field_index :
     Simple.t meet_shortcut =
   match expand_head env t with
-  | Value
-      (Ok (Variant { immediates = _; blocks; is_unique = _; alloc_mode = _ }))
-    -> (
+  | Value (Ok (Variant { immediates = _; blocks; is_unique = _ })) -> (
     match blocks with
     | Unknown -> Need_meet
     | Known blocks -> (
@@ -788,15 +791,14 @@ let meet_rec_info env t : Rec_info_expr.t meet_shortcut =
   | Naked_nativeint _ | Region _ ->
     wrong_kind "Rec_info" t
 
-let prove_alloc_mode_of_boxed_number env t : Alloc_mode.t proof_of_property =
+let prove_alloc_mode_of_boxed_number env t :
+    Alloc_mode.For_types.t proof_of_property =
   match expand_head env t with
   | Value (Ok (Boxed_float (_, alloc_mode)))
   | Value (Ok (Boxed_int32 (_, alloc_mode)))
   | Value (Ok (Boxed_int64 (_, alloc_mode)))
-  | Value (Ok (Boxed_nativeint (_, alloc_mode))) -> (
-    match alloc_mode with
-    | Unknown -> Unknown
-    | Known alloc_mode -> Proved alloc_mode)
+  | Value (Ok (Boxed_nativeint (_, alloc_mode))) ->
+    Proved alloc_mode
   | Value (Ok (Variant _ | Mutable_block _ | String _ | Array _ | Closures _))
   | Value (Unknown | Bottom) ->
     Unknown
@@ -807,17 +809,24 @@ let prove_alloc_mode_of_boxed_number env t : Alloc_mode.t proof_of_property =
 let never_holds_locally_allocated_values env var kind : _ proof_of_property =
   let t = TE.find env (Name.var var) (Some kind) in
   match expand_head env t with
+  | Value (Ok (Variant { blocks; _ })) -> (
+    match blocks with
+    | Unknown -> Unknown
+    | Known blocks -> (
+      if TG.Row_like_for_blocks.is_bottom blocks
+      then Proved ()
+      else
+        match blocks.alloc_mode with
+        | Heap -> Proved ()
+        | Local | Heap_or_local -> Unknown))
   | Value (Ok (Boxed_float (_, alloc_mode)))
   | Value (Ok (Boxed_int32 (_, alloc_mode)))
   | Value (Ok (Boxed_int64 (_, alloc_mode)))
   | Value (Ok (Boxed_nativeint (_, alloc_mode)))
-  | Value (Ok (Variant { alloc_mode; _ }))
   | Value (Ok (Mutable_block { alloc_mode }))
   | Value (Ok (Closures { alloc_mode; _ }))
   | Value (Ok (Array { alloc_mode; _ })) -> (
-    match alloc_mode with
-    | Known Heap -> Proved ()
-    | Known Local | Unknown -> Unknown)
+    match alloc_mode with Heap -> Proved () | Local | Heap_or_local -> Unknown)
   | Value (Ok (String _)) -> Proved ()
   | Value Unknown -> Unknown
   | Value Bottom -> Unknown
@@ -872,40 +881,21 @@ let prove_physical_equality env t1 t2 =
         let module SS = String_info.Set in
         if SS.is_empty (SS.inter s1 s2) then Proved false else Unknown
       (* Immediates and allocated values -> Proved false *)
-      | ( Variant
-            { immediates = _;
-              blocks = Known blocks;
-              is_unique = _;
-              alloc_mode = _
-            },
+      | ( Variant { immediates = _; blocks = Known blocks; is_unique = _ },
           ( Mutable_block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
           | Boxed_nativeint _ | Closures _ | String _ | Array _ ) )
       | ( ( Mutable_block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
           | Boxed_nativeint _ | Closures _ | String _ | Array _ ),
-          Variant
-            { immediates = _;
-              blocks = Known blocks;
-              is_unique = _;
-              alloc_mode = _
-            } )
+          Variant { immediates = _; blocks = Known blocks; is_unique = _ } )
         when TG.Row_like_for_blocks.is_bottom blocks ->
         Proved false
       (* Variants:
        * incompatible immediates and incompatible block tags -> Proved false
        * same immediate on both sides, no blocks -> Proved true
        *)
-      | ( Variant
-            { immediates = immediates1;
-              blocks = blocks1;
-              is_unique = _;
-              alloc_mode = _
-            },
-          Variant
-            { immediates = immediates2;
-              blocks = blocks2;
-              is_unique = _;
-              alloc_mode = _
-            } ) -> (
+      | ( Variant { immediates = immediates1; blocks = blocks1; is_unique = _ },
+          Variant { immediates = immediates2; blocks = blocks2; is_unique = _ }
+        ) -> (
         match immediates1, immediates2, blocks1, blocks2 with
         | Known imms, _, _, Known blocks
           when TG.is_obviously_bottom imms
@@ -959,8 +949,8 @@ let prove_physical_equality env t1 t2 =
                   TG.Row_like_for_blocks.get_singleton blocks2 )
               with
               | None, _ | _, None -> Unknown
-              | Some ((tag1, size1), _fields1), Some ((tag2, size2), _fields2)
-                ->
+              | ( Some ((tag1, size1), _fields1, _alloc_mode1),
+                  Some ((tag2, size2), _fields2, _alloc_mode2) ) ->
                 if Tag.equal tag1 tag2 && Targetint_31_63.equal size1 size2
                 then
                   (* CR vlaviron and chambart: We could add a special case for

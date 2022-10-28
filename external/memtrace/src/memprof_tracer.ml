@@ -1,3 +1,7 @@
+module Thread = struct
+  let yield () : unit = failwith "only single threaded programs supported"
+end
+
 type t =
   { mutable locked : bool;
     mutable locked_ext : bool;

@@ -1471,6 +1471,7 @@ let transl_function f =
     else
       transl env body in
   let fun_codegen_options =
+    transl_attrib f.check @
     if !Clflags.optimize_for_speed then
       []
     else
@@ -1480,6 +1481,7 @@ let transl_function f =
              fun_args = List.map (fun (id, _) -> (id, typ_val)) f.params;
              fun_body = cmm_body;
              fun_codegen_options;
+             fun_poll = f.poll;
              fun_dbg  = f.dbg}
 
 (* Translate all function definitions *)
@@ -1569,7 +1571,7 @@ let compunit (ulam, preallocated_blocks, constants) =
         (fun () -> dbg)
     else
       transl empty_env ulam in
-  let c1 = [Cfunction {fun_name = Compilenv.make_symbol (Some "entry");
+  let c1 = [Cfunction {fun_name = make_symbol "entry";
                        fun_args = [];
                        fun_body = init_code;
                        (* This function is often large and run only once.
@@ -1582,7 +1584,8 @@ let compunit (ulam, preallocated_blocks, constants) =
                            Use_linscan_regalloc;
                          ]
                          else [ Reduce_code_size; Use_linscan_regalloc ];
-                       fun_dbg  = Debuginfo.none }] in
+                       fun_dbg  = Debuginfo.none;
+                       fun_poll = Default_poll }] in
   let c2 = transl_clambda_constants constants c1 in
   let c3 = transl_all_functions c2 in
   Cmmgen_state.set_structured_constants [];

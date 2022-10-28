@@ -237,7 +237,6 @@ module Context = struct
               `Int requested_inline ] ]
           |> Table.create
         in
-
         Format.fprintf ppf
           "@[<v>@[<h>Code@ size@ was@ estimated@ to@ be@ %a@]@,\
            @,\
@@ -373,7 +372,9 @@ module Uid = struct
     if Compilation_unit.equal compilation_unit cu_uid
     then Format.fprintf ppf "[[%s][here]]" t
     else
-      let external_reports = Compilation_unit.name cu_uid ^ ".0.inlining.org" in
+      let external_reports =
+        Format.asprintf "%a.0.inlining.org" Compilation_unit.print_name cu_uid
+      in
       try
         let file = Load_path.find_uncap external_reports in
         Format.fprintf ppf "[[file:%s::%s][in compilation unit %a]]" t file
@@ -545,9 +546,7 @@ module Inlining_tree = struct
               ~apply_to_child m)
       | Inline { prev } -> insert_or_update_descendant prev ~apply_to_child
     in
-
     let { path; dbg; decision_with_context } = decision in
-
     if Compilation_unit.equal compilation_unit (IHA.compilation_unit path)
     then
       let path = IHA.path path in
@@ -616,9 +615,7 @@ module Inlining_tree = struct
       let defined_in = IHA.compilation_unit to_ in
       if Compilation_unit.equal defined_in compilation_unit
       then Format.fprintf ppf "this compilation unit"
-      else
-        Format.fprintf ppf "%s"
-          (Compilation_unit.string_for_printing defined_in)
+      else Format.fprintf ppf "%a" Compilation_unit.print_name defined_in
     in
     Format.fprintf ppf
       "@[<hov>The@ decision@ to@ inline@ this@ call@ was@ taken@ in@ %a@ at@ \
@@ -654,14 +651,12 @@ module Inlining_tree = struct
           Format.fprintf ppf "@[<hov>Defined@ %a@]@,@,"
             (Uid.print_link_hum ~compilation_unit)
             (Uid.create ~compilation_unit (IHA.path callee));
-
           (match decision with
           | Decision decision_with_context ->
             Format.fprintf ppf "@[<v>%a@]" print_decision_with_context
               decision_with_context
           | Reference path -> print_reference ~compilation_unit ppf path
           | Unavailable -> print_unavailable ppf ());
-
           Format.fprintf ppf "@]@,@,";
           print ppf ~compilation_unit ~depth:(depth + 1)
             ~path:(IHA.Inline { prev = path })

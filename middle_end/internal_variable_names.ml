@@ -119,6 +119,7 @@ let pfloatcomp = "Pfloatcomp"
 let pfloatfield = "Pfloatfield"
 let pfloatofint = "Pfloatofint"
 let pgetglobal = "Pgetglobal"
+let pgetpredef = "Pgetpredef"
 let pidentity = "Pidentity"
 let pignore = "Pignore"
 let pint_as_pointer = "Pint_as_pointer"
@@ -126,6 +127,8 @@ let pintcomp = "Pintcomp"
 let pcompare_ints = "Pcompare_ints"
 let pcompare_floats = "Pcompare_floats"
 let pcompare_bints = "Pcompare_bints"
+let pobj_dup = "Pobj_dup"
+let pobj_magic = "Pobj_magic"
 let pintofbint = "Pintofbint"
 let pintoffloat = "Pintoffloat"
 let pisint = "Pisint"
@@ -223,6 +226,9 @@ let pfloatcomp_arg = "Pfloatcomp_arg"
 let pfloatfield_arg = "Pfloatfield_arg"
 let pfloatofint_arg = "Pfloatofint_arg"
 let pgetglobal_arg = "Pgetglobal_arg"
+let pgetpredef_arg = "Pgetpredef_arg"
+let pobj_dup_arg = "Pobj_dup_arg"
+let pobj_magic_arg = "Pobj_magic_arg"
 let pidentity_arg = "Pidentity_arg"
 let pignore_arg = "Pignore_arg"
 let pint_as_pointer_arg = "Pint_as_pointer_arg"
@@ -323,6 +329,7 @@ let of_primitive : Lambda.primitive -> string = function
   | Pdirapply _ -> pdirapply
   | Pgetglobal _ -> pgetglobal
   | Psetglobal _ -> psetglobal
+  | Pgetpredef _ -> pgetpredef
   | Pmakeblock _ -> pmakeblock
   | Pmakefloatblock _ -> pmakefloatblock
   | Pfield _ -> pfield
@@ -421,6 +428,8 @@ let of_primitive : Lambda.primitive -> string = function
   | Pint_as_pointer -> pint_as_pointer
   | Popaque -> popaque
   | Pprobe_is_enabled _ -> pprobe_is_enabled
+  | Pobj_dup -> pobj_dup
+  | Pobj_magic -> pobj_magic
 
 let of_primitive_arg : Lambda.primitive -> string = function
   | Pidentity -> pidentity_arg
@@ -431,6 +440,7 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pdirapply _ -> pdirapply_arg
   | Pgetglobal _ -> pgetglobal_arg
   | Psetglobal _ -> psetglobal_arg
+  | Pgetpredef _ -> pgetpredef_arg
   | Pmakeblock _ -> pmakeblock_arg
   | Pmakefloatblock _ -> pmakefloatblock_arg
   | Pfield _ -> pfield_arg
@@ -529,3 +539,5 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pint_as_pointer -> pint_as_pointer_arg
   | Popaque -> popaque_arg
   | Pprobe_is_enabled _ -> pprobe_is_enabled_arg
+  | Pobj_dup -> pobj_dup_arg
+  | Pobj_magic -> pobj_magic_arg

@@ -19,8 +19,14 @@
 type 'code t =
   | Value_unknown
   | Value_symbol of Symbol.t
-  | Closure_approximation of Code_id.t * Function_slot.t * 'code
-  | Block_approximation of 'code t array * Alloc_mode.t
+  | Value_int of Targetint_31_63.t
+  | Closure_approximation of
+      { code_id : Code_id.t;
+        function_slot : Function_slot.t;
+        code : 'code;
+        symbol : Symbol.t option
+      }
+  | Block_approximation of 'code t array * Alloc_mode.For_types.t
 
 val print : Format.formatter -> 'a t -> unit
 

@@ -2372,7 +2372,6 @@ let send_function (arity, mode) =
                           dbg () ) ],
                     dbg () ) ) ) )
   in
-
   let body = Clet (VP.create clos', clos, body) in
   let cache = cache in
   let fun_name = send_function_name arity mode in
@@ -2386,7 +2385,8 @@ let send_function (arity, mode) =
       fun_args = List.map (fun (arg, ty) -> VP.create arg, ty) fun_args;
       fun_body = body;
       fun_codegen_options = [];
-      fun_dbg
+      fun_dbg;
+      fun_poll = Default_poll
     }
 
 let apply_function arity =
@@ -2399,7 +2399,8 @@ let apply_function arity =
       fun_args = List.map (fun arg -> VP.create arg, typ_val) all_args;
       fun_body = body;
       fun_codegen_options = [];
-      fun_dbg
+      fun_dbg;
+      fun_poll = Default_poll
     }
 
 (* Generate tuplifying functions:
@@ -2431,7 +2432,8 @@ let tuplify_function arity =
             @ [Cvar clos],
             dbg () );
       fun_codegen_options = [];
-      fun_dbg
+      fun_dbg;
+      fun_poll = Default_poll
     }
 
 (* Generate currying functions:
@@ -2506,7 +2508,8 @@ let final_curry_function ~nlocal ~arity =
       fun_args = [VP.create last_arg, typ_val; VP.create last_clos, typ_val];
       fun_body = curry_fun [] last_clos (arity - 1);
       fun_codegen_options = [];
-      fun_dbg
+      fun_dbg;
+      fun_poll = Default_poll
     }
 
 let rec intermediate_curry_functions ~nlocal ~arity num =
@@ -2553,7 +2556,8 @@ let rec intermediate_curry_functions ~nlocal ~arity num =
                   Cvar clos ],
                 dbg () ));
         fun_codegen_options = [];
-        fun_dbg
+        fun_dbg;
+        fun_poll = Default_poll
       }
     ::
     (if arity <= max_arity_optimized && arity - num > 2
@@ -2599,7 +2603,8 @@ let rec intermediate_curry_functions ~nlocal ~arity num =
                 (List.map (fun (arg, _) -> Cvar arg) direct_args)
                 clos;
             fun_codegen_options = [];
-            fun_dbg
+            fun_dbg;
+            fun_poll = Default_poll
           }
       in
       cf :: intermediate_curry_functions ~nlocal ~arity (num + 1)
@@ -2677,6 +2682,11 @@ let floatfield n ptr dbg =
       dbg )
 
 let int_as_pointer arg dbg = Cop (Caddi, [arg; Cconst_int (-1, dbg)], dbg)
+
+let int_of_value arg dbg = Cop (Cintofvalue, [arg], dbg)
+
+let value_of_int arg dbg = Cop (Cvalueofint, [arg], dbg)
+
 (* always a pointer outside the heap *)
 
 let raise_prim raise_kind arg dbg =
@@ -3207,6 +3217,12 @@ let bigstring_set size unsafe arg1 arg2 arg3 dbg =
                      check_bound unsafe size dbg (bigstring_length ba dbg) idx
                        (unaligned_set size ba_data idx newval dbg))))))
 
+let three_args name args =
+  match args with
+  | [arg1; arg2; arg3] -> arg1, arg2, arg3
+  | _ ->
+    Misc.fatal_errorf "Cmm_helpers: expected exactly 3 arguments for %s" name
+
 let two_args name args =
   match args with
   | [arg1; arg2] -> arg1, arg2
@@ -3269,7 +3285,7 @@ let ext_pointer_prefetch ~is_write locality arg dbg =
     For situations such as where the Cmm code below returns e.g. an untagged
     integer, we exploit the generic mechanism on "external" to deal with the
     tagging before the result is returned to the user. *)
-let transl_builtin name args dbg =
+let transl_builtin name args dbg typ_res =
   match name with
   | "caml_int_clz_tagged_to_untagged" ->
     (* The tag does not change the number of leading zeros. The advantage of
@@ -3355,9 +3371,22 @@ let transl_builtin name args dbg =
   | "caml_unsigned_int64_mulh_unboxed" -> mulhi ~signed:false Pint64 args dbg
   | "caml_int32_unsigned_to_int_trunc_unboxed_to_untagged" ->
     Some (zero_extend_32 dbg (one_arg name args))
+  | "caml_csel_value" | "caml_csel_int_untagged" | "caml_csel_int64_unboxed"
+  | "caml_csel_int32_unboxed" | "caml_csel_nativeint_unboxed" ->
+    (* Unboxed float variant of csel intrinsic is not currently supported. It
+       can be emitted on arm64 using FCSEL, but there appears to be no
+       corresponding instruction on amd64 for xmm registers. *)
+    let op = Ccsel typ_res in
+    let cond, ifso, ifnot = three_args name args in
+    if_operation_supported op ~f:(fun () ->
+        Cop (op, [test_bool dbg cond; ifso; ifnot], dbg))
   (* Native_pointer: handled as unboxed nativeint *)
   | "caml_ext_pointer_as_native_pointer" ->
     Some (int_as_pointer (one_arg name args) dbg)
+  | "caml_native_pointer_of_value" ->
+    Some (int_of_value (one_arg name args) dbg)
+  | "caml_native_pointer_to_value" ->
+    Some (value_of_int (one_arg name args) dbg)
   | "caml_native_pointer_load_immediate"
   | "caml_native_pointer_load_unboxed_nativeint" ->
     Some (Cop (Cload (Word_int, Mutable), args, dbg))
@@ -3524,7 +3553,10 @@ let cextcall (prim : Primitive.description) args dbg ret ty_args returns =
         dbg )
   in
   if prim.prim_c_builtin
-  then match transl_builtin name args dbg with Some op -> op | None -> default
+  then
+    match transl_builtin name args dbg ret with
+    | Some op -> op
+    | None -> default
   else default
 
 (* Symbols *)
@@ -3586,6 +3618,15 @@ let emit_float_array_constant symb fields cont =
     (floatarray_header (List.length fields))
     (Misc.map_end (fun f -> Cdouble f) fields cont)
 
+let make_symbol ?compilation_unit name =
+  let compilation_unit =
+    match compilation_unit with
+    | None -> Compilation_unit.get_current_exn ()
+    | Some compilation_unit -> compilation_unit
+  in
+  Symbol.for_name compilation_unit name
+  |> Symbol.linkage_name |> Linkage_name.to_string
+
 (* Generate the entry point *)
 
 let entry_point namelist =
@@ -3609,7 +3650,7 @@ let entry_point namelist =
   let body =
     List.fold_right
       (fun name next ->
-        let entry_sym = Compilenv.make_symbol ~unitname:name (Some "entry") in
+        let entry_sym = make_symbol ~compilation_unit:name "entry" in
         Csequence
           ( Cop (Capply (typ_void, Rc_normal), [cconst_symbol entry_sym], dbg ()),
             Csequence (incr_global_inited (), next) ))
@@ -3622,7 +3663,8 @@ let entry_point namelist =
       fun_args = [];
       fun_body = body;
       fun_codegen_options = [Reduce_code_size];
-      fun_dbg
+      fun_dbg;
+      fun_poll = Default_poll
     }
 
 (* Generate the table of globals *)
@@ -3631,7 +3673,7 @@ let cint_zero = Cint 0n
 
 let global_table namelist =
   let mksym name =
-    Csymbol_address (Compilenv.make_symbol ~unitname:name (Some "gc_roots"))
+    Csymbol_address (make_symbol ~compilation_unit:name "gc_roots")
   in
   Cdata
     (Cglobal_symbol "caml_globals" :: Cdefine_symbol "caml_globals"
@@ -3651,7 +3693,7 @@ let globals_map v = global_data "caml_globals_map" v
 
 let frame_table namelist =
   let mksym name =
-    Csymbol_address (Compilenv.make_symbol ~unitname:name (Some "frametable"))
+    Csymbol_address (make_symbol ~compilation_unit:name "frametable")
   in
   Cdata
     (Cglobal_symbol "caml_frametable" :: Cdefine_symbol "caml_frametable"
@@ -3662,8 +3704,8 @@ let frame_table namelist =
 
 let segment_table namelist symbol begname endname =
   let addsyms name lst =
-    Csymbol_address (Compilenv.make_symbol ~unitname:name (Some begname))
-    :: Csymbol_address (Compilenv.make_symbol ~unitname:name (Some endname))
+    Csymbol_address (make_symbol ~compilation_unit:name begname)
+    :: Csymbol_address (make_symbol ~compilation_unit:name endname)
     :: lst
   in
   Cdata
@@ -3770,7 +3812,7 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
 (* Build the NULL terminated array of gc roots *)
 
 let emit_gc_roots_table ~symbols cont =
-  let table_symbol = Compilenv.make_symbol (Some "gc_roots") in
+  let table_symbol = make_symbol "gc_roots" in
   Cdata
     (Cglobal_symbol table_symbol :: Cdefine_symbol table_symbol
      :: List.map (fun s -> Csymbol_address s) symbols
@@ -4072,7 +4114,10 @@ let extcall ~dbg ~returns ~alloc ~is_c_builtin ~ty_args name typ_res args =
         dbg )
   in
   if is_c_builtin
-  then match transl_builtin name args dbg with Some op -> op | None -> default
+  then
+    match transl_builtin name args dbg typ_res with
+    | Some op -> op
+    | None -> default
   else default
 
 let bigarray_load ~dbg ~elt_kind ~elt_size ~elt_chunk ~bigarray ~index =
@@ -4138,13 +4183,13 @@ let cfunction decl = Cmm.Cfunction decl
 
 let cdata d = Cmm.Cdata d
 
-let fundecl fun_name fun_args fun_body fun_codegen_options fun_dbg =
-  { Cmm.fun_name; fun_args; fun_body; fun_codegen_options; fun_dbg }
+let fundecl fun_name fun_args fun_body fun_codegen_options fun_dbg fun_poll =
+  { Cmm.fun_name; fun_args; fun_body; fun_codegen_options; fun_dbg; fun_poll }
 
 (* Gc root table *)
 
-let gc_root_table ~make_symbol syms =
-  let table_symbol = make_symbol ?unitname:None (Some "gc_roots") in
+let gc_root_table syms =
+  let table_symbol = make_symbol ?compilation_unit:None "gc_roots" in
   cdata
     (define_symbol ~global:true table_symbol
     @ List.map symbol_address syms
@@ -4170,3 +4215,11 @@ let cmm_arith_size (e : Cmm.expression) =
   | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ | Cregion _
   | Ctail _ ->
     None
+
+let transl_property : Lambda.property -> Cmm.property = function
+  | Noalloc -> Noalloc
+
+let transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list = function
+  | Default_check -> []
+  | Assert p -> [Assert (transl_property p)]
+  | Assume p -> [Assume (transl_property p)]

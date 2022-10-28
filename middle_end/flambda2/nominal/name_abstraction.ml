@@ -65,7 +65,8 @@ let apply_renaming (type bindable)
 let free_names (type bindable)
     (module Bindable : Bindable.S with type t = bindable) (bindable, term)
     ~free_names_of_term =
-  Name_occurrences.diff (free_names_of_term term) (Bindable.free_names bindable)
+  Name_occurrences.diff (free_names_of_term term)
+    ~without:(Bindable.free_names bindable)
 
 let ids_for_export (type bindable)
     (module Bindable : Bindable.S with type t = bindable) (bindable, term)

@@ -44,12 +44,10 @@ let rebuild_let simplify_named_result removed_operations
       (* See the comment in [simplify_let], below; this case is analogous. *)
       lifted_constants_from_defining_expr
     | Not_in_a_closure ->
-      if Are_rebuilding_terms.do_not_rebuild_terms
-           (UA.are_rebuilding_terms uacc)
-      then lifted_constants_from_defining_expr
-      else
-        LCS.fold lifted_constants_from_defining_expr ~init:LCS.empty
-          ~f:(keep_lifted_constant_only_if_used uacc)
+      (* We must filter even if not rebuilding terms, otherwise the free names
+         of the terms might get out of sync with [Data_flow]. *)
+      LCS.fold lifted_constants_from_defining_expr ~init:LCS.empty
+        ~f:(keep_lifted_constant_only_if_used uacc)
   in
   (* At this point, the free names in [uacc] are the free names of [body], plus
      all used value slots seen in the whole compilation unit. *)
@@ -123,12 +121,10 @@ let record_lifted_constant_definition_for_data_flow ~being_defined data_flow
   match D.descr definition with
   | Code code_id ->
     DF.record_code_id_binding code_id
-      (Name_occurrences.union being_defined (D.free_names definition))
+      (NO.union being_defined (D.free_names definition))
       data_flow
   | Block_like { symbol; _ } ->
-    let free_names =
-      Name_occurrences.union being_defined (D.free_names definition)
-    in
+    let free_names = NO.union being_defined (D.free_names definition) in
     DF.record_symbol_binding symbol free_names data_flow
   | Set_of_closures { closure_symbols_with_types; _ } -> (
     let expr = D.defining_expr definition in
@@ -136,7 +132,7 @@ let record_lifted_constant_definition_for_data_flow ~being_defined data_flow
     | Some (Static_const const) ->
       let set_of_closures = Static_const.must_be_set_of_closures const in
       let free_names =
-        Name_occurrences.union being_defined
+        NO.union being_defined
           (Function_declarations.free_names
              (Set_of_closures.function_decls set_of_closures))
       in
@@ -145,9 +141,7 @@ let record_lifted_constant_definition_for_data_flow ~being_defined data_flow
         (record_one_function_slot_for_data_flow ~free_names ~value_slots)
         closure_symbols_with_types data_flow
     | None | Some (Code _ | Deleted_code) ->
-      let free_names =
-        Name_occurrences.union being_defined (D.free_names definition)
-      in
+      let free_names = NO.union being_defined (D.free_names definition) in
       Function_slot.Lmap.fold
         (fun _ (symbol, _) data_flow ->
           DF.record_symbol_binding symbol free_names data_flow)
@@ -171,10 +165,9 @@ let record_lifted_constant_for_data_flow data_flow lifted_constant =
        are only used in the newer_version_of field of another binding will be
        deleted as expected. *)
     let symbols = Bound_static.symbols_being_defined bound_static in
-    Name_occurrences.empty
+    NO.empty
     |> Symbol.Set.fold
-         (fun symbol acc ->
-           Name_occurrences.add_symbol acc symbol Name_mode.normal)
+         (fun symbol acc -> NO.add_symbol acc symbol Name_mode.normal)
          symbols
   in
   ListLabels.fold_left
@@ -189,12 +182,25 @@ let record_new_defining_expression_binding_for_data_flow dacc data_flow
     let can_be_removed =
       match named with
       | Simple _ | Set_of_closures _ | Rec_info _ -> true
-      | Prim (prim, _) -> P.at_most_generative_effects prim
+      | Prim (prim, _) ->
+        P.at_most_generative_effects prim
+        || Option.is_some (P.is_end_region prim)
     in
     if not can_be_removed
     then DF.add_used_in_current_handler free_names data_flow
     else
       let generate_phantom_lets = DE.generate_phantom_lets (DA.denv dacc) in
+      let free_names =
+        match named with
+        | Simple _ | Set_of_closures _ | Rec_info _ -> free_names
+        | Prim (prim, _) ->
+          (* Uses of region variables in [End_region] don't count as uses. *)
+          if Option.is_some (P.is_end_region prim)
+          then
+            (* Format.eprintf "ignoring free names for %a\n%!" P.print prim;*)
+            NO.empty
+          else free_names
+      in
       Bound_pattern.fold_all_bound_vars binding.let_bound ~init:data_flow
         ~f:(fun data_flow v ->
           DF.record_var_binding (VB.var v) free_names ~generate_phantom_lets
@@ -219,8 +225,8 @@ let update_data_flow dacc closure_info ~lifted_constants_from_defining_expr
     ~init:data_flow
     ~f:(record_new_defining_expression_binding_for_data_flow dacc)
 
-let simplify_let0 ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up
-    bound_pattern ~body =
+let simplify_let0 ~simplify_expr ~simplify_function_body dacc let_expr
+    ~down_to_up bound_pattern ~body =
   let module L = Flambda.Let in
   let original_dacc = dacc in
   (* Remember then clear the lifted constants memory in [DA] so we can easily
@@ -231,7 +237,7 @@ let simplify_let0 ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up
   let defining_expr = L.defining_expr let_expr in
   let simplify_named_result, removed_operations =
     Simplify_named.simplify_named dacc bound_pattern defining_expr
-      ~simplify_toplevel
+      ~simplify_function_body
   in
   (* We must make sure that if [Invalid] is going to be produced, [uacc] doesn't
      contain any extraneous data for e.g. lifted constants that will never be
@@ -296,8 +302,10 @@ let simplify_let0 ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up
     in
     simplify_expr dacc body ~down_to_up
 
-let simplify_let ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up =
+let simplify_let ~simplify_expr ~simplify_function_body dacc let_expr
+    ~down_to_up =
   let module L = Flambda.Let in
   L.pattern_match let_expr
     ~f:
-      (simplify_let0 ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up)
+      (simplify_let0 ~simplify_expr ~simplify_function_body dacc let_expr
+         ~down_to_up)

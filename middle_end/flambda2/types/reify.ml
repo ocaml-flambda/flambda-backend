@@ -74,7 +74,7 @@ let try_to_reify_fields env ~var_allowed alloc_mode ~field_types =
 let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
     ~var_is_symbol_projection env t : reification_result =
   let min_name_mode = Name_mode.normal in
-  let var_allowed (alloc_mode : Alloc_mode.t Or_unknown.t) var =
+  let var_allowed (alloc_mode : Alloc_mode.For_types.t) var =
     (* It is only safe to lift a [Local] allocation if it can be guaranteed that
        no locally-allocated value is reachable from it: therefore, any variables
        involved in the definition of an (inconstant) value to be lifted have
@@ -94,8 +94,8 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
        || var_is_defined_at_toplevel var
           &&
           match alloc_mode with
-          | Known Heap -> true
-          | Unknown | Known Local -> (
+          | Heap -> true
+          | Heap_or_local | Local -> (
             match
               Provers.never_holds_locally_allocated_values env var
                 Flambda_kind.value
@@ -123,14 +123,14 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
     match
       Expand_head.expand_head env t |> Expand_head.Expanded_type.descr_oub
     with
-    | Value (Ok (Variant { is_unique; blocks; immediates; alloc_mode })) -> (
+    | Value (Ok (Variant { is_unique; blocks; immediates })) -> (
       match blocks, immediates with
       | Known blocks, Known imms ->
         if Expand_head.is_bottom env imms
         then
           match TG.Row_like_for_blocks.get_singleton blocks with
           | None -> try_canonical_simple ()
-          | Some ((tag, size), field_types) -> (
+          | Some ((tag, size), field_types, alloc_mode) -> (
             assert (
               Targetint_31_63.equal size
                 (TG.Product.Int_indexed.width field_types));

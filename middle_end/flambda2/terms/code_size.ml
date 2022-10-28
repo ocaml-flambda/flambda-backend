@@ -145,14 +145,14 @@ let block_set (kind : Flambda_primitive.Block_access_kind.t)
     (init : Flambda_primitive.Init_or_assign.t) =
   match kind, init with
   | Values _, Assignment Heap -> nonalloc_extcall_size (* caml_modify *)
-  | Values _, (Assignment Local | Initialization) -> 1 (* cadda + store *)
+  | Values _, (Assignment (Local _) | Initialization) -> 1 (* cadda + store *)
   | Naked_floats _, (Assignment _ | Initialization) -> 1
 
 let array_set (kind : Flambda_primitive.Array_kind.t)
     (init : Flambda_primitive.Init_or_assign.t) =
   match kind, init with
   | Values, Assignment Heap -> nonalloc_extcall_size
-  | Values, (Assignment Local | Initialization) -> 1
+  | Values, (Assignment (Local _) | Initialization) -> 1
   | (Immediates | Naked_floats), (Assignment _ | Initialization) -> 1
 
 let string_or_bigstring_load kind width =
@@ -317,7 +317,7 @@ let unary_prim_size prim =
   | Bigarray_length _ -> 2 (* cadda + load *)
   | String_length _ -> 5
   | Int_as_pointer -> 1
-  | Opaque_identity -> 0
+  | Opaque_identity _ -> 0
   | Int_arith (kind, op) -> unary_int_prim_size kind op
   | Float_arith _ -> 2
   | Num_conv { src; dst } -> arith_conversion_size src dst
@@ -332,6 +332,7 @@ let unary_prim_size prim =
   | Is_boxed_float -> 4 (* tag load + comparison *)
   | Is_flat_float_array -> 4 (* tag load + comparison *)
   | End_region -> 1
+  | Obj_dup -> alloc_extcall_size + 1
 
 let binary_prim_size prim =
   match (prim : Flambda_primitive.binary_primitive) with

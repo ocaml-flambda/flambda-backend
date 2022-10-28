@@ -576,7 +576,8 @@ FUNCTION(G(caml_start_program))
     /* Common code for caml_start_program and caml_callback* */
 LBL(caml_start_program):
     /* Build a callback link */
-        subq    $8, %rsp; CFI_ADJUST (8)        /* stack 16-aligned */
+        pushq   Caml_state(async_exception_pointer); CFI_ADJUST (8)
+        /* Stack is 16-aligned at this point */
         pushq   Caml_state(gc_regs); CFI_ADJUST(8)
         pushq   Caml_state(last_return_address); CFI_ADJUST(8)
         pushq   Caml_state(bottom_of_stack); CFI_ADJUST(8)
@@ -587,6 +588,7 @@ LBL(caml_start_program):
         pushq   %r13; CFI_ADJUST(8)
         pushq   Caml_state(exception_pointer); CFI_ADJUST(8)
         movq    %rsp, Caml_state(exception_pointer)
+        movq    %rsp, Caml_state(async_exception_pointer)
     /* Call the OCaml code */
         call    *%r12
 LBL(107):
@@ -600,7 +602,7 @@ LBL(109):
         popq    Caml_state(bottom_of_stack); CFI_ADJUST(-8)
         popq    Caml_state(last_return_address); CFI_ADJUST(-8)
         popq    Caml_state(gc_regs); CFI_ADJUST(-8)
-        addq    $8, %rsp; CFI_ADJUST (-8);
+        popq    Caml_state(async_exception_pointer); CFI_ADJUST(-8)
     /* Restore callee-save registers. */
         POP_CALLEE_SAVE_REGS
     /* Return to caller. */
@@ -696,7 +698,7 @@ ENDFUNCTION(G(caml_raise_exception))
 FUNCTION(G(caml_stack_overflow))
         movq    C_ARG_1, %r14                 /* Caml_state */
         LEA_VAR(caml_exn_Stack_overflow, %rax)
-        movq    Caml_state(exception_pointer), %rsp /* cut the stack */
+        movq    Caml_state(async_exception_pointer), %rsp /* cut the stack */
      /* Recover previous exn handler */
         popq    Caml_state(exception_pointer)
         ret                                   /* jump to handler's code */
@@ -766,9 +768,6 @@ G(caml_system__frametable):
         .value  -1          /* negative frame size => use callback link */
         .value  0           /* no roots here */
         .align  EIGHT_ALIGN
-        .quad   16
-        .quad   0
-        .string "amd64.S"
 
 #if defined(SYS_macosx)
         .literal16

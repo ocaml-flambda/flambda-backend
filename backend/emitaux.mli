@@ -105,6 +105,7 @@ val reduce_heap_size : reset:(unit -> unit) -> unit
 
 type error =
   | Stack_frame_too_large of int
+  | Stack_frame_way_too_large of int
 
 exception Error of error
 val report_error: Format.formatter -> error -> unit

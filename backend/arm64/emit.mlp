@@ -397,6 +397,8 @@ let num_call_gc_and_check_bound_points instr =
     | Lend -> totals
     | Lop (Ialloc _) when !fastcode_flag ->
       loop instr.next (call_gc + 1, check_bound)
+    | Lop (Ipoll _) ->
+      loop instr.next (call_gc + 1, check_bound)
     | Lop (Iintop Icheckbound)
     | Lop (Iintop_imm (Icheckbound, _))
     | Lop (Ispecific (Ishiftcheckbound _)) ->
@@ -409,6 +411,7 @@ let num_call_gc_and_check_bound_points instr =
     (* The following four should never be seen, since this function is run
        before branch relaxation. *)
     | Lop (Ispecific (Ifar_alloc _))
+    | Lop (Ispecific (Ifar_poll _))
     | Lop (Ispecific Ifar_intop_checkbound)
     | Lop (Ispecific (Ifar_intop_imm_checkbound _))
     | Lop (Ispecific (Ifar_shiftcheckbound _)) -> assert false
@@ -455,6 +458,7 @@ module BR = Branch_relaxation.Make (struct
 
     let classify_instr = function
       | Lop (Ialloc _)
+      | Lop (Ipoll _)
       | Lop (Iintop Icheckbound)
       | Lop (Iintop_imm (Icheckbound, _))
       | Lop (Ispecific (Ishiftcheckbound _)) -> Some Bcc
@@ -502,12 +506,15 @@ module BR = Branch_relaxation.Make (struct
       based + begin match size with Single -> 2 | _ -> 1 end
     | Lop (Ialloc _) when !fastcode_flag -> 5
     | Lop (Ispecific (Ifar_alloc _)) when !fastcode_flag -> 6
+    | Lop (Ipoll _) -> 3
+    | Lop (Ispecific (Ifar_poll _)) -> 4
     | Lop (Ialloc { bytes = num_bytes; _ })
     | Lop (Ispecific (Ifar_alloc { bytes = num_bytes; _ })) ->
       begin match num_bytes with
       | 16 | 24 | 32 -> 1
       | _ -> 1 + num_instructions_for_intconst (Nativeint.of_int num_bytes)
       end
+    | Lop (Icsel _) -> 4
     | Lop (Ibeginregion | Iendregion) ->
        Misc.fatal_error "Local allocations not supported on this architecture"
     | Lop (Iintop (Icomp _)) -> 2
@@ -524,6 +531,7 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Iintop _) -> 1
     | Lop (Iintop_imm _) -> 1
     | Lop (Ifloatofint | Iintoffloat | Iabsf | Inegf | Ispecific Isqrtf) -> 1
+    | Lop (Ivalueofint | Iintofvalue) -> 1
     | Lop (Iaddf | Isubf | Imulf | Idivf | Ispecific Inegmulf) -> 1
     | Lop (Iopaque) -> 0
     | Lop (Ispecific (Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf)) -> 1
@@ -565,6 +573,9 @@ module BR = Branch_relaxation.Make (struct
       | Lambda.Raise_reraise -> 1
       | Lambda.Raise_notrace -> 4
       end
+
+  let relax_poll ~return_label =
+    Lop (Ispecific (Ifar_poll { return_label }))
 
   let relax_allocation ~num_bytes ~dbginfo =
     Lop (Ispecific (Ifar_alloc { bytes = num_bytes; dbginfo }))
@@ -623,6 +634,40 @@ let assembly_code_for_allocation i ~n ~far ~dbginfo =
     `{emit_label lbl_frame}:	add	{emit_reg i.res.(0)}, {emit_reg reg_alloc_ptr}, #8\n`
   end
 
+let assembly_code_for_poll i ~far ~return_label =
+  let lbl_frame = record_frame_label i.live (Dbg_alloc []) in
+  let lbl_call_gc = new_label() in
+  let lbl_after_poll = match return_label with
+  | None -> new_label()
+  | Some lbl -> lbl in
+  let offset = Domainstate.(idx_of_field Domain_young_limit) * 8 in
+    `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, #{emit_int offset}]\n`;
+    `	cmp	{emit_reg reg_alloc_ptr}, {emit_reg reg_tmp1}\n`;
+  if not far then begin
+    match return_label with
+    | None ->
+        `	b.ls	{emit_label lbl_call_gc}\n`;
+        `{emit_label lbl_after_poll}:\n`
+    | Some return_label ->
+        `	b.hi	{emit_label return_label}\n`;
+        `	b	{emit_label lbl_call_gc}\n`;
+  end else begin
+    match return_label with
+    | None ->
+        `	b.hi	{emit_label lbl_after_poll}\n`;
+        `	b	{emit_label lbl_call_gc}\n`;
+        `{emit_label lbl_after_poll}:\n`
+    | Some return_label ->
+        let lbl = new_label () in
+        `	b.ls	{emit_label lbl}\n`;
+        `	b	{emit_label return_label}\n`;
+        `{emit_label lbl}:	b	{emit_label lbl_call_gc}\n`
+  end;
+  call_gc_sites :=
+    { gc_lbl = lbl_call_gc;
+      gc_return_lbl = lbl_after_poll;
+      gc_frame_lbl = lbl_frame; } :: !call_gc_sites
+
 (* Output .text section directive, or named .text.caml.<name> if enabled. *)
 
 let emit_named_text_section func_name =
@@ -656,6 +701,20 @@ let name_for_float_comparison = function
   | CFge -> "ge"
   | CFnge -> "lt"
 
+let move src dst =
+  if src.loc <> dst.loc then begin
+    match (src, dst) with
+    | {loc = Reg _; typ = Float}, {loc = Reg _} ->
+      `	fmov	{emit_reg dst}, {emit_reg src}\n`
+    | {loc = Reg _}, {loc = Reg _} ->
+      `	mov	{emit_reg dst}, {emit_reg src}\n`
+    | {loc = Reg _}, {loc = Stack _} ->
+      `	str	{emit_reg src}, {emit_stack dst}\n`
+    | {loc = Stack _}, {loc = Reg _} ->
+      `	ldr	{emit_reg dst}, {emit_stack src}\n`
+    | _ ->
+      assert false
+  end
 (* Output the assembly code for an instruction *)
 
 let emit_instr i =
@@ -672,20 +731,7 @@ let emit_instr i =
         `	str	x30, [sp, #{emit_int (n-8)}]\n`
       end
     | Lop(Imove | Ispill | Ireload) ->
-        let src = i.arg.(0) and dst = i.res.(0) in
-        if src.loc <> dst.loc then begin
-          match (src, dst) with
-          | {loc = Reg _; typ = Float}, {loc = Reg _} ->
-              `	fmov	{emit_reg dst}, {emit_reg src}\n`
-          | {loc = Reg _}, {loc = Reg _} ->
-              `	mov	{emit_reg dst}, {emit_reg src}\n`
-          | {loc = Reg _}, {loc = Stack _} ->
-              `	str	{emit_reg src}, {emit_stack dst}\n`
-          | {loc = Stack _}, {loc = Reg _} ->
-              `	ldr	{emit_reg dst}, {emit_stack src}\n`
-          | _ ->
-              assert false
-        end
+        move i.arg.(0) i.res.(0)
     | Lop(Ispecific Imove32) ->
         let src = i.arg.(0) and dst = i.res.(0) in
         if src.loc <> dst.loc then begin
@@ -793,6 +839,10 @@ let emit_instr i =
         assembly_code_for_allocation i ~n ~far:true ~dbginfo
     | Lop(Ialloc { mode = Alloc_local } | Ibeginregion | Iendregion) ->
        Misc.fatal_error "Local allocations not supported on this architecture"
+    | Lop(Ipoll { return_label }) ->
+        assembly_code_for_poll i ~far:false ~return_label
+    | Lop(Ispecific (Ifar_poll { return_label })) ->
+        assembly_code_for_poll i ~far:true ~return_label
     | Lop(Iintop_imm(Iadd, n)) ->
         emit_addimm i.res.(0) i.arg.(0) n
     | Lop(Iintop_imm(Isub, n)) ->
@@ -863,6 +913,19 @@ let emit_instr i =
                      | Ispecific Isqrtf -> "fsqrt"
                      | _                -> assert false) in
         `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
+    | Lop(Ivalueofint | Iintofvalue) ->
+        let src = i.arg.(0) and dst = i.res.(0) in
+        if src.loc <> dst.loc then begin
+          match (src, dst) with
+          | {loc = Reg _}, {loc = Reg _} ->
+              `	mov	{emit_reg dst}, {emit_reg src}\n`
+          | {loc = Reg _}, {loc = Stack _} ->
+              `	str	{emit_reg src}, {emit_stack dst}\n`
+          | {loc = Stack _}, {loc = Reg _} ->
+              `	ldr	{emit_reg dst}, {emit_stack src}\n`
+          | _ ->
+              assert false
+        end
     | Lop(Iaddf | Isubf | Imulf | Idivf | Ispecific Inegmulf as op) ->
         let instr = (match op with
                      | Iaddf              -> "fadd"
@@ -911,6 +974,39 @@ let emit_instr i =
     | Lop (Iname_for_debugger _) -> ()
     | Lop (Iprobe _ | Iprobe_is_enabled _) ->
         fatal_error ("Probes not supported.")
+    | Lop (Icsel tst) ->
+      let len = Array.length i.arg in
+      let ifso = i.arg.(len - 2) in
+      let ifnot = i.arg.(len - 1) in
+      if Reg.same_loc ifso ifnot then
+        move ifso i.res.(0)
+      else
+        begin match tst with
+        | Itruetest ->
+            `	cmp	{emit_reg i.arg.(0)}, #0\n`;
+            `	csel	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, ne\n`
+        | Ifalsetest ->
+            `	cmp	{emit_reg i.arg.(0)}, #0\n`;
+            `	csel	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, eq\n`
+        | Iinttest cmp ->
+            let comp = name_for_comparison cmp in
+            `	cmp	{emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;
+            `	csel	{emit_reg i.res.(0)}, {emit_reg i.arg.(2)}, {emit_reg i.arg.(3)}, {emit_string comp}\n`
+        | Iinttest_imm(cmp, n) ->
+            let comp = name_for_comparison cmp in
+            emit_cmpimm i.arg.(0) n;
+            `	csel	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, {emit_string comp}\n`
+        | Ifloattest cmp ->
+            let comp = name_for_float_comparison cmp in
+            `	fcmp	{emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;
+            `	csel	{emit_reg i.res.(0)}, {emit_reg i.arg.(2)}, {emit_reg i.arg.(3)}, {emit_string comp}\n`
+        | Ioddtest ->
+            `	tst	{emit_reg i.arg.(0)}, #1\n`;
+            `	csel	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, ne\n`
+        | Ieventest ->
+            `	tst	{emit_reg i.arg.(0)}, #1\n`;
+            `	csel	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, eq\n`
+        end
     | Lreloadretaddr ->
         ()
     | Lreturn ->
@@ -1089,28 +1185,28 @@ let data l =
 let begin_assembly ~init_dwarf:_ =
   reset_debug_info();
   `	.file	\"\"\n`;  (* PR#7037 *)
-  let lbl_begin = Compilenv.make_symbol (Some "data_begin") in
+  let lbl_begin = Cmm_helpers.make_symbol "data_begin" in
   `	.data\n`;
   `	.globl	{emit_symbol lbl_begin}\n`;
   `{emit_symbol lbl_begin}:\n`;
-  let lbl_begin = Compilenv.make_symbol (Some "code_begin") in
+  let lbl_begin = Cmm_helpers.make_symbol "code_begin" in
   emit_named_text_section lbl_begin;
   `	.globl	{emit_symbol lbl_begin}\n`;
   `{emit_symbol lbl_begin}:\n`
 
 let end_assembly _dwarf =
-  let lbl_end = Compilenv.make_symbol (Some "code_end") in
+  let lbl_end = Cmm_helpers.make_symbol "code_end" in
   emit_named_text_section lbl_end;
   `	.globl	{emit_symbol lbl_end}\n`;
   `{emit_symbol lbl_end}:\n`;
-  let lbl_end = Compilenv.make_symbol (Some "data_end") in
+  let lbl_end = Cmm_helpers.make_symbol "data_end" in
   `	.data\n`;
   `	.quad	0\n`;  (* PR#6329 *)
   `	.globl	{emit_symbol lbl_end}\n`;
   `{emit_symbol lbl_end}:\n`;
   `	.quad	0\n`;
   `	.align	3\n`;  (* #7887 *)
-  let lbl = Compilenv.make_symbol (Some "frametable") in
+  let lbl = Cmm_helpers.make_symbol "frametable" in
   `	.globl	{emit_symbol lbl}\n`;
   `{emit_symbol lbl}:\n`;
   emit_frames

@@ -482,7 +482,7 @@ let emit_float_constant cst lbl =
   emit_float64_split_directive cst
 
 let emit_global_label s =
-  let lbl = Compilenv.make_symbol (Some s) in
+  let lbl = Cmm_helpers.make_symbol s in
   add_def_symbol lbl;
   let lbl = emit_symbol lbl in
   D.global lbl;
@@ -1042,7 +1042,7 @@ let begin_assembly() =
 
   D.data ();
   emit_global_label "data_begin";
-  emit_named_text_section (Compilenv.make_symbol (Some "code_begin"));
+  emit_named_text_section (Cmm_helpers.make_symbol "code_begin");
   emit_global_label "code_begin"
 
 let end_assembly() =
@@ -1051,7 +1051,7 @@ let end_assembly() =
     List.iter (fun (cst,lbl) -> emit_float_constant cst lbl) !float_constants
   end;
 
-  emit_named_text_section (Compilenv.make_symbol (Some "code_end"));
+  emit_named_text_section (Cmm_helpers.make_symbol "code_end");
   emit_global_label "code_end";
 
   D.data ();

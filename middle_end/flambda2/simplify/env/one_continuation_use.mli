@@ -35,3 +35,5 @@ val use_kind : t -> Continuation_use_kind.t
 val arg_types : t -> T.t list
 
 val env_at_use : t -> DE.t
+
+val mark_non_inlinable : t -> t

@@ -289,7 +289,7 @@ module Alias_set = struct
 
   let [@ocamlformat "disable"] print ppf { const; names; } =
     let none ppf () =
-      Format.fprintf ppf "@<0>%s()" (Flambda_colours.elide ())
+      Format.fprintf ppf "%t()%t" Flambda_colours.elide Flambda_colours.pop
     in
     Format.fprintf ppf
       "@[<hov 1>(\
@@ -384,14 +384,14 @@ let [@ocamlformat "disable"] print ppf
   let print_element_and_coercion ppf (elt, coercion) =
     Format.fprintf ppf "@[<hov 1>(\
                         %a@ \
-                        @[<hov 1>@<0>%s(coercion@ %a)@<0>%s@]\
+                        @[<hov 1>%t(coercion@ %a)%t@]\
                         )@]"
       Simple.print elt
       (if Coercion.is_id coercion
-      then Flambda_colours.elide ()
-      else Flambda_colours.normal ())
+      then Flambda_colours.elide
+      else Flambda_colours.none)
       Coercion.print coercion
-      (Flambda_colours.normal ())
+      Flambda_colours.pop
   in
   Format.fprintf ppf
     "@[<hov 1>(\

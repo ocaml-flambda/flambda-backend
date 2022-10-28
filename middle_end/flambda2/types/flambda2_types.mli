@@ -312,7 +312,7 @@ val bottom : Flambda_kind.t -> t
 val unknown : Flambda_kind.t -> t
 
 val unknown_with_subkind :
-  ?alloc_mode:Alloc_mode.t Or_unknown.t -> Flambda_kind.With_subkind.t -> t
+  ?alloc_mode:Alloc_mode.For_types.t -> Flambda_kind.With_subkind.t -> t
 
 (** Create an bottom type with the same kind as the given type. *)
 val bottom_like : t -> t
@@ -355,27 +355,27 @@ val any_rec_info : t
 val this_tagged_immediate : Targetint_31_63.t -> t
 
 val this_boxed_float :
-  Numeric_types.Float_by_bit_pattern.t -> Alloc_mode.t Or_unknown.t -> t
+  Numeric_types.Float_by_bit_pattern.t -> Alloc_mode.For_types.t -> t
 
-val this_boxed_int32 : Numeric_types.Int32.t -> Alloc_mode.t Or_unknown.t -> t
+val this_boxed_int32 : Numeric_types.Int32.t -> Alloc_mode.For_types.t -> t
 
-val this_boxed_int64 : Numeric_types.Int64.t -> Alloc_mode.t Or_unknown.t -> t
+val this_boxed_int64 : Numeric_types.Int64.t -> Alloc_mode.For_types.t -> t
 
-val this_boxed_nativeint : Targetint_32_64.t -> Alloc_mode.t Or_unknown.t -> t
+val this_boxed_nativeint : Targetint_32_64.t -> Alloc_mode.For_types.t -> t
 
 val these_tagged_immediates : Targetint_31_63.Set.t -> t
 
 val these_boxed_floats :
-  Numeric_types.Float_by_bit_pattern.Set.t -> Alloc_mode.t Or_unknown.t -> t
+  Numeric_types.Float_by_bit_pattern.Set.t -> Alloc_mode.For_types.t -> t
 
 val these_boxed_int32s :
-  Numeric_types.Int32.Set.t -> Alloc_mode.t Or_unknown.t -> t
+  Numeric_types.Int32.Set.t -> Alloc_mode.For_types.t -> t
 
 val these_boxed_int64s :
-  Numeric_types.Int64.Set.t -> Alloc_mode.t Or_unknown.t -> t
+  Numeric_types.Int64.Set.t -> Alloc_mode.For_types.t -> t
 
 val these_boxed_nativeints :
-  Targetint_32_64.Set.t -> Alloc_mode.t Or_unknown.t -> t
+  Targetint_32_64.Set.t -> Alloc_mode.For_types.t -> t
 
 (** Building of types representing untagged / unboxed values from specified
     constants. *)
@@ -401,25 +401,22 @@ val these_naked_int64s : Numeric_types.Int64.Set.t -> t
 
 val these_naked_nativeints : Targetint_32_64.Set.t -> t
 
-val boxed_float_alias_to :
-  naked_float:Variable.t -> Alloc_mode.t Or_unknown.t -> t
+val boxed_float_alias_to : naked_float:Variable.t -> Alloc_mode.For_types.t -> t
 
-val boxed_int32_alias_to :
-  naked_int32:Variable.t -> Alloc_mode.t Or_unknown.t -> t
+val boxed_int32_alias_to : naked_int32:Variable.t -> Alloc_mode.For_types.t -> t
 
-val boxed_int64_alias_to :
-  naked_int64:Variable.t -> Alloc_mode.t Or_unknown.t -> t
+val boxed_int64_alias_to : naked_int64:Variable.t -> Alloc_mode.For_types.t -> t
 
 val boxed_nativeint_alias_to :
-  naked_nativeint:Variable.t -> Alloc_mode.t Or_unknown.t -> t
+  naked_nativeint:Variable.t -> Alloc_mode.For_types.t -> t
 
-val box_float : t -> Alloc_mode.t Or_unknown.t -> t
+val box_float : t -> Alloc_mode.For_types.t -> t
 
-val box_int32 : t -> Alloc_mode.t Or_unknown.t -> t
+val box_int32 : t -> Alloc_mode.For_types.t -> t
 
-val box_int64 : t -> Alloc_mode.t Or_unknown.t -> t
+val box_int64 : t -> Alloc_mode.For_types.t -> t
 
-val box_nativeint : t -> Alloc_mode.t Or_unknown.t -> t
+val box_nativeint : t -> Alloc_mode.For_types.t -> t
 
 val tagged_immediate_alias_to : naked_immediate:Variable.t -> t
 
@@ -436,7 +433,7 @@ val immutable_block :
   is_unique:bool ->
   Tag.t ->
   field_kind:Flambda_kind.t ->
-  Alloc_mode.t Or_unknown.t ->
+  Alloc_mode.For_types.t ->
   fields:t list ->
   t
 
@@ -450,18 +447,13 @@ val immutable_block_with_size_at_least :
   field_n_minus_one:Variable.t ->
   t
 
-val mutable_block : Alloc_mode.t Or_unknown.t -> t
+val mutable_block : Alloc_mode.For_types.t -> t
 
 val variant :
   const_ctors:t ->
   non_const_ctors:t list Tag.Scannable.Map.t ->
-  Alloc_mode.t Or_unknown.t ->
+  Alloc_mode.For_types.t ->
   t
-
-val open_variant_from_const_ctors_type : const_ctors:t -> t
-
-val open_variant_from_non_const_ctor_with_size_at_least :
-  n:Targetint_31_63.t -> field_n_minus_one:Variable.t -> t
 
 val this_immutable_string : string -> t
 
@@ -473,7 +465,7 @@ val exactly_this_closure :
     Function_type.t Or_unknown_or_bottom.t Function_slot.Map.t ->
   all_closure_types_in_set:t Function_slot.Map.t ->
   all_value_slots_in_set:flambda_type Value_slot.Map.t ->
-  Alloc_mode.t Or_unknown.t ->
+  Alloc_mode.For_types.t ->
   flambda_type
 
 val closure_with_at_least_these_function_slots :
@@ -495,19 +487,19 @@ val closure_with_at_least_these_value_slots :
 val array_of_length :
   element_kind:Flambda_kind.With_subkind.t Or_unknown.t ->
   length:flambda_type ->
-  Alloc_mode.t Or_unknown.t ->
+  Alloc_mode.For_types.t ->
   flambda_type
 
 val mutable_array :
   element_kind:Flambda_kind.With_subkind.t Or_unknown.t ->
   length:flambda_type ->
-  Alloc_mode.t Or_unknown.t ->
+  Alloc_mode.For_types.t ->
   flambda_type
 
 val immutable_array :
   element_kind:Flambda_kind.With_subkind.t Or_unknown.t ->
   fields:flambda_type list ->
-  Alloc_mode.t Or_unknown.t ->
+  Alloc_mode.For_types.t ->
   flambda_type
 
 (** Construct a type equal to the type of the given name. (The name must be
@@ -583,15 +575,15 @@ val prove_variant_like :
   Typing_env.t -> t -> variant_like_proof proof_of_property
 
 (** If [ty] is known to represent a boxed number or a tagged integer,
-    [prove_is_a_boxed_number env ty] is [Proved kind]. [kind] is the kind of the
-    unboxed number.
+    [prove_is_a_boxed_number env ty] is [Proved (alloc_mode,kind,contents_ty)].
+    [kind] is the kind of the unboxed number.
 
     If [ty] is known to represent something of kind value that is not a number
     [prove_is_a_boxed_number env ty] is [Invalid].
 
     Otherwise it is [Unknown] or [Wrong_kind] when [ty] is not of kind value. *)
 type boxed_or_tagged_number = private
-  | Boxed of Flambda_kind.Boxable_number.t
+  | Boxed of Alloc_mode.For_types.t * Flambda_kind.Boxable_number.t * t
   | Tagged_immediate
 
 val prove_is_a_boxed_or_tagged_number :
@@ -625,14 +617,14 @@ val prove_is_immediates_array : Typing_env.t -> t -> unit proof_of_property
 val meet_is_immutable_array :
   Typing_env.t ->
   t ->
-  (Flambda_kind.With_subkind.t Or_unknown.t * t * Alloc_mode.t Or_unknown.t)
+  (Flambda_kind.With_subkind.t Or_unknown.t * t * Alloc_mode.For_types.t)
   meet_shortcut
 
 val meet_single_closures_entry :
   Typing_env.t ->
   t ->
   (Function_slot.t
-  * Alloc_mode.t Or_unknown.t
+  * Alloc_mode.For_types.t
   * Closures_entry.t
   * Function_type.t)
   meet_shortcut
@@ -641,12 +633,17 @@ val prove_single_closures_entry :
   Typing_env.t ->
   t ->
   (Function_slot.t
-  * Alloc_mode.t Or_unknown.t
+  * Alloc_mode.For_types.t
   * Closures_entry.t
   * Function_type.t)
   proof_of_property
 
 val meet_strings : Typing_env.t -> t -> String_info.Set.t meet_shortcut
+
+val prove_strings :
+  Typing_env.t ->
+  t ->
+  (Alloc_mode.For_types.t * String_info.Set.t) proof_of_property
 
 (** Attempt to show that the provided type describes the tagged version of a
     unique naked immediate [Simple].
@@ -700,7 +697,7 @@ val meet_project_function_slot_simple :
 val meet_rec_info : Typing_env.t -> t -> Rec_info_expr.t meet_shortcut
 
 val prove_alloc_mode_of_boxed_number :
-  Typing_env.t -> t -> Alloc_mode.t proof_of_property
+  Typing_env.t -> t -> Alloc_mode.For_types.t proof_of_property
 
 val prove_physical_equality : Typing_env.t -> t -> t -> bool proof_of_property
 

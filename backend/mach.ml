@@ -69,9 +69,12 @@ type operation =
   | Iintop_imm of integer_operation * int
   | Icompf of float_comparison
   | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Icsel of test
   | Ifloatofint | Iintoffloat
+  | Ivalueofint | Iintofvalue
   | Iopaque
   | Ispecific of Arch.specific_operation
+  | Ipoll of { return_label: Cmm.label option }
   | Iname_for_debugger of { ident : Backend_var.t; which_parameter : int option;
       provenance : unit option; is_assignment : bool; }
   | Iprobe of { name: string; handler_code_sym: string; }
@@ -106,6 +109,7 @@ type fundecl =
     fun_body: instruction;
     fun_codegen_options : Cmm.codegen_option list;
     fun_dbg : Debuginfo.t;
+    fun_poll: Lambda.poll_attribute;
     fun_num_stack_slots: int array;
     fun_contains_calls: bool;
   }
@@ -175,16 +179,19 @@ let rec instr_iter f i =
             | Iintop _ | Iintop_imm _
             | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
             | Icompf _
-            | Ifloatofint | Iintoffloat
+            | Icsel _
+            | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue
             | Ispecific _ | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _
             | Iopaque
-            | Ibeginregion | Iendregion) ->
+            | Ibeginregion | Iendregion | Ipoll _) ->
         instr_iter f i.next
 
 let operation_is_pure = function
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
-  | Iextcall _ | Istackoffset _ | Istore _ | Ialloc _
-  | Iintop(Icheckbound) | Iintop_imm(Icheckbound, _) | Iopaque -> false
+  | Iextcall _ | Istackoffset _ | Istore _ | Ialloc _ | Ipoll _
+  | Iintop(Icheckbound) | Iintop_imm(Icheckbound, _) | Iopaque
+  (* Conservative to ensure valueofint/intofvalue are not eliminated before emit. *)
+  | Ivalueofint | Iintofvalue -> false
   | Ibeginregion | Iendregion -> false
   | Iprobe _ -> false
   | Iprobe_is_enabled _-> true
@@ -195,7 +202,9 @@ let operation_is_pure = function
           | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _)
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icompf _
-  | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Iconst_symbol _
+  | Icsel _
+  | Ifloatofint | Iintoffloat
+  | Iconst_int _ | Iconst_float _ | Iconst_symbol _
   | Iload (_, _, _) | Iname_for_debugger _
     -> true
 
@@ -204,8 +213,7 @@ let operation_can_raise op =
   match op with
   | Icall_ind | Icall_imm _ | Iextcall _
   | Iintop (Icheckbound) | Iintop_imm (Icheckbound, _)
-  | Iprobe _
-  | Ialloc _ -> true
+  | Iprobe _ -> true
   | Ispecific sop -> Arch.operation_can_raise sop
   | Iintop_imm((Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
                | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _), _)
@@ -213,11 +221,13 @@ let operation_can_raise op =
           | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _)
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icompf _
-  | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Iconst_symbol _
+  | Icsel _
+  | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue
+  | Iconst_int _ | Iconst_float _ | Iconst_symbol _
   | Istackoffset _ | Istore _  | Iload (_, _, _) | Iname_for_debugger _
   | Itailcall_imm _ | Itailcall_ind
   | Iopaque | Ibeginregion | Iendregion
-  | Iprobe_is_enabled _
+  | Iprobe_is_enabled _ | Ialloc _ | Ipoll _
     -> false
 
 let free_conts_for_handlers fundecl =

@@ -412,7 +412,7 @@ let output_test_zero arg =
 
 (* Output a floating-point compare and branch *)
 
-let emit_float_test cmp i lbl =
+let emit_float_test cmp i ~(taken:X86_ast.condition -> unit) =
   (* Effect of comisd on flags and conditional branches:
                      ZF PF CF  cond. branches taken
         unordered     1  1  1  je, jb, jbe, jp
@@ -425,44 +425,70 @@ let emit_float_test cmp i lbl =
   match cmp with
   | CFeq when arg i 1 = arg i 0 ->
       I.ucomisd (arg i 1) (arg i 0);
-      I.j NP lbl
+      taken NP
   | CFeq ->
       let next = new_label() in
       I.ucomisd (arg i 1) (arg i 0);
-      I.jp (label next);          (* skip if unordered *)
-      I.je lbl;                   (* branch taken if x=y *)
+      I.jp (label next);           (* skip if unordered *)
+      taken E;                     (* branch taken if x=y *)
       def_label next
   | CFneq when arg i 1 = arg i 0 ->
       I.ucomisd (arg i 1) (arg i 0);
-      I.jp lbl
+      taken P
   | CFneq ->
       I.ucomisd (arg i 1) (arg i 0);
-      I.jp lbl;                   (* branch taken if unordered *)
-      I.jne lbl                   (* branch taken if x<y or x>y *)
+      taken P;                     (* branch taken if unordered *)
+      taken NE                     (* branch taken if x<y or x>y *)
   | CFlt ->
       I.comisd (arg i 0) (arg i 1);
-      I.ja lbl                    (* branch taken if y>x i.e. x<y *)
+      taken A                      (* branch taken if y>x i.e. x<y *)
   | CFnlt ->
       I.comisd (arg i 0) (arg i 1);
-      I.jbe lbl                   (* taken if unordered or y<=x i.e. !(x<y) *)
+      taken BE                     (* taken if unordered or y<=x i.e. !(x<y) *)
   | CFle ->
       I.comisd (arg i 0) (arg i 1);(* swap compare *)
-      I.jae lbl                    (* branch taken if y>=x i.e. x<=y *)
+      taken AE                     (* branch taken if y>=x i.e. x<=y *)
   | CFnle ->
       I.comisd (arg i 0) (arg i 1);(* swap compare *)
-      I.jb lbl                     (* taken if unordered or y<x i.e. !(x<=y) *)
+      taken B                      (* taken if unordered or y<x i.e. !(x<=y) *)
   | CFgt ->
       I.comisd (arg i 1) (arg i 0);
-      I.ja lbl                     (* branch taken if x>y *)
+      taken A                      (* branch taken if x>y *)
   | CFngt ->
       I.comisd (arg i 1) (arg i 0);
-      I.jbe lbl                    (* taken if unordered or x<=y i.e. !(x>y) *)
+      taken BE                     (* taken if unordered or x<=y i.e. !(x>y) *)
   | CFge ->
       I.comisd (arg i 1) (arg i 0);(* swap compare *)
-      I.jae lbl                    (* branch taken if x>=y *)
+      taken AE                     (* branch taken if x>=y *)
   | CFnge ->
       I.comisd (arg i 1) (arg i 0);(* swap compare *)
-      I.jb lbl                     (* taken if unordered or x<y i.e. !(x>=y) *)
+      taken B                      (* taken if unordered or x<y i.e. !(x>=y) *)
+
+let emit_test i ~(taken:X86_ast.condition -> unit) = function
+  | Itruetest ->
+    output_test_zero i.arg.(0);
+    taken NE
+  | Ifalsetest ->
+    output_test_zero i.arg.(0);
+    taken E
+  | Iinttest cmp ->
+    I.cmp (arg i 1) (arg i 0);
+    taken (cond cmp)
+  | Iinttest_imm((Isigned Ceq | Isigned Cne |
+                  Iunsigned Ceq | Iunsigned Cne) as cmp, 0) ->
+    output_test_zero i.arg.(0);
+    taken (cond cmp)
+  | Iinttest_imm(cmp, n) ->
+    I.cmp (int n) (arg i 0);
+    taken (cond cmp)
+  | Ifloattest cmp ->
+    emit_float_test cmp i ~taken
+  | Ioddtest ->
+    I.test (int 1) (arg8 i 0);
+    taken NE
+  | Ieventest ->
+    I.test (int 1) (arg8 i 0);
+    taken E
 
 (* Deallocate the stack frame before a return or tail call *)
 
@@ -500,7 +526,7 @@ let emit_float_constant f lbl =
   D.qword (Const f)
 
 let emit_global_label s =
-  let lbl = Compilenv.make_symbol (Some s) in
+  let lbl = Cmm_helpers.make_symbol s in
   add_def_symbol lbl;
   let lbl = emit_symbol lbl in
   D.global lbl;
@@ -577,7 +603,7 @@ type probe =
 
 let probe_handler_wrapper_name probe_label =
   let w = Printf.sprintf "probe_wrapper_%d" probe_label in
-  Compilenv.make_symbol (Some w)
+  Cmm_helpers.make_symbol w
   |> emit_symbol
 
 let probes = ref []
@@ -850,6 +876,27 @@ let emit_instr fallthrough i =
       local_realloc_sites :=
         { lr_lbl = lbl_call;
           lr_return_lbl = lbl_after_alloc } :: !local_realloc_sites
+  | Lop(Ipoll { return_label }) ->
+      I.cmp (domain_field Domainstate.Domain_young_limit) r15;
+      let gc_call_label = new_label () in
+      let lbl_after_poll = match return_label with
+                  | None -> new_label()
+                  | Some(lbl) -> lbl in
+      let lbl_frame =
+        record_frame_label i.live (Dbg_alloc [])
+      in
+      begin match return_label with
+      | None -> I.jbe (label gc_call_label)
+      | Some return_label -> I.ja (label return_label)
+      end;
+      call_gc_sites :=
+        { gc_lbl = gc_call_label;
+          gc_return_lbl = lbl_after_poll;
+          gc_frame = lbl_frame; } :: !call_gc_sites;
+      begin match return_label with
+      | None -> def_label lbl_after_poll
+      | Some _ -> I.jmp (label gc_call_label)
+      end
   | Lop(Iintop(Icomp cmp)) ->
       I.cmp (arg i 1) (arg i 0);
       I.set (cond cmp) al;
@@ -908,6 +955,8 @@ let emit_instr fallthrough i =
       I.cvtsi2sd  (arg i 0)  (res i 0)
   | Lop(Iintoffloat) ->
       I.cvttsd2si (arg i 0) (res i 0)
+  | Lop(Iintofvalue | Ivalueofint) ->
+      move i.arg.(0) i.res.(0)
   | Lop(Iopaque) ->
       assert (i.arg.(0).loc = i.res.(0).loc)
   | Lop(Ispecific(Ilea addr)) ->
@@ -982,6 +1031,15 @@ let emit_instr fallthrough i =
   | Lop(Iintop Ipopcnt) ->
       assert (!popcnt_support);
       I.popcnt (arg i 0) (res i 0)
+  | Lop(Icsel tst) ->
+    let len = Array.length i.arg in
+    let ifso = i.arg.(len - 2) in
+    let ifnot = i.arg.(len - 1) in
+    assert (Reg.same_loc ifnot i.res.(0));
+    let taken c =
+      I.cmov c (reg ifso) (res i 0)
+    in
+    emit_test i tst ~taken
   | Lop(Ispecific Irdtsc) ->
     I.rdtsc ();
     let rdx = Reg64 RDX in
@@ -1006,6 +1064,12 @@ let emit_instr fallthrough i =
     I.sal (int 32) rdx; (* shift edx to the high part of rdx *)
     I.mov eax (res32 i 0); (* zero-extend eax *)
     I.or_ rdx (res i 0) (* combine high and low into rax *)
+  | Lop (Ispecific Ilfence) ->
+    I.lfence ()
+  | Lop (Ispecific Isfence) ->
+    I.sfence ()
+  | Lop (Ispecific Imfence) ->
+    I.mfence ()
   | Lop (Ispecific Icrc32q) ->
     assert (arg i 0 = res i 0);
     I.crc32 (arg i 1) (res i 0)
@@ -1070,32 +1134,7 @@ let emit_instr fallthrough i =
       I.jmp (label lbl)
   | Lcondbranch(tst, lbl) ->
       let lbl = label lbl in
-      begin match tst with
-      | Itruetest ->
-          output_test_zero i.arg.(0);
-          I.jne lbl
-      | Ifalsetest ->
-          output_test_zero i.arg.(0);
-          I.je lbl
-      | Iinttest cmp ->
-          I.cmp (arg i 1) (arg i 0);
-          I.j (cond cmp) lbl
-      | Iinttest_imm((Isigned Ceq | Isigned Cne |
-                      Iunsigned Ceq | Iunsigned Cne) as cmp, 0) ->
-          output_test_zero i.arg.(0);
-          I.j (cond cmp) lbl
-      | Iinttest_imm(cmp, n) ->
-          I.cmp (int n) (arg i 0);
-          I.j (cond cmp) lbl
-      | Ifloattest cmp ->
-          emit_float_test cmp i lbl
-      | Ioddtest ->
-          I.test (int 1) (arg8 i 0);
-          I.jne lbl
-      | Ieventest ->
-          I.test (int 1) (arg8 i 0);
-          I.je lbl
-      end
+      emit_test i tst ~taken:(fun c -> I.j c lbl)
   | Lcondbranch3(lbl0, lbl1, lbl2) ->
       I.cmp (int 1) (arg i 0);
       begin match lbl0 with
@@ -1130,7 +1169,8 @@ let emit_instr fallthrough i =
 
       begin match system with
       | S_mingw64 | S_cygwin -> D.section [".rdata"] (Some "dr") []
-      | S_macosx | S_win64 -> () (* with LLVM/OS X and MASM, use the text segment *)
+      | S_macosx | S_win64 -> ()
+        (* with LLVM/OS X and MASM, use the text segment *)
       | _ -> D.section [".rodata"] None []
       end;
       D.align ~data:true 4;
@@ -1321,7 +1361,7 @@ let begin_assembly ~init_dwarf =
   D.data ();
   emit_global_label "data_begin";
 
-  emit_named_text_section (Compilenv.make_symbol (Some "code_begin"));
+  emit_named_text_section (Cmm_helpers.make_symbol "code_begin");
   emit_global_label "code_begin";
   if system = S_macosx then I.nop (); (* PR#4690 *)
   ()
@@ -1635,7 +1675,7 @@ let end_assembly dwarf =
   (* Emit probe handler wrappers *)
   List.iter emit_probe_handler_wrapper !probes;
 
-  emit_named_text_section (Compilenv.make_symbol (Some "code_end"));
+  emit_named_text_section (Cmm_helpers.make_symbol "code_end");
   if system = S_macosx then I.nop ();
   (* suppress "ld warning: atom sorting error" *)
 
@@ -1680,7 +1720,7 @@ let end_assembly dwarf =
     };
 
   if system = S_linux then begin
-    let frametable = emit_symbol (Compilenv.make_symbol (Some "frametable")) in
+    let frametable = emit_symbol (Cmm_helpers.make_symbol "frametable") in
     D.size frametable (ConstSub (ConstThis, ConstLabel frametable))
   end;
 

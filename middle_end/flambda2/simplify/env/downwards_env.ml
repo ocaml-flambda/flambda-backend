@@ -44,7 +44,8 @@ type t =
     closure_info : Closure_info.t;
     get_imported_code : unit -> Exported_code.t;
     all_code : Code.t Code_id.Map.t;
-    inlining_history_tracker : Inlining_history.Tracker.t
+    inlining_history_tracker : Inlining_history.Tracker.t;
+    loopify_state : Loopify_state.t
   }
 
 let print_debuginfo ppf dbg =
@@ -60,6 +61,7 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
                 do_not_rebuild_terms; closure_info;
                 unit_toplevel_return_continuation; all_code;
                 get_imported_code = _; inlining_history_tracker = _;
+                loopify_state
               } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(round@ %d)@]@ \
@@ -75,7 +77,8 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
       @[<hov 1>(cse@ @[<hov 1>%a@])@]@ \
       @[<hov 1>(do_not_rebuild_terms@ %b)@]@ \
       @[<hov 1>(closure_info@ %a)@]@ \
-      @[<hov 1>(all_code@ %a)@]\
+      @[<hov 1>(all_code@ %a)@]@ \
+      @[<hov 1>(loopify_state@ %a)@]\
       )@]"
     round
     TE.print typing_env
@@ -91,13 +94,21 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
     do_not_rebuild_terms
     Closure_info.print closure_info
     (Code_id.Map.print Code.print) all_code
+    Loopify_state.print loopify_state
 
 let create ~round ~(resolver : resolver)
     ~(get_imported_names : get_imported_names)
     ~(get_imported_code : get_imported_code) ~propagating_float_consts
-    ~unit_toplevel_exn_continuation ~unit_toplevel_return_continuation =
+    ~unit_toplevel_exn_continuation ~unit_toplevel_return_continuation
+    ~toplevel_my_region =
+  let typing_env = TE.create ~resolver ~get_imported_names in
+  let typing_env =
+    TE.add_definition typing_env
+      (Bound_name.create (Name.var toplevel_my_region) Name_mode.normal)
+      K.region
+  in
   { round;
-    typing_env = TE.create ~resolver ~get_imported_names;
+    typing_env;
     inlined_debuginfo = Debuginfo.none;
     can_inline = true;
     inlining_state = Inlining_state.default ~round;
@@ -112,7 +123,8 @@ let create ~round ~(resolver : resolver)
     all_code = Code_id.Map.empty;
     get_imported_code;
     inlining_history_tracker =
-      Inlining_history.Tracker.empty (Compilation_unit.get_current_exn ())
+      Inlining_history.Tracker.empty (Compilation_unit.get_current_exn ());
+    loopify_state = Loopify_state.do_not_loopify
   }
 
 let all_code t = t.all_code
@@ -171,7 +183,8 @@ let enter_set_of_closures
       closure_info = _;
       get_imported_code;
       all_code;
-      inlining_history_tracker
+      inlining_history_tracker;
+      loopify_state = _
     } =
   { round;
     typing_env = TE.closure_env typing_env;
@@ -188,7 +201,8 @@ let enter_set_of_closures
     closure_info = Closure_info.in_a_set_of_closures;
     get_imported_code;
     all_code;
-    inlining_history_tracker
+    inlining_history_tracker;
+    loopify_state = Loopify_state.do_not_loopify
   }
 
 let define_variable t var kind =
@@ -337,7 +351,7 @@ let add_parameters_with_unknown_types ?alloc_modes ?name_mode ?at_unit_toplevel
         Misc.fatal_errorf "Params and alloc modes do not match up:@ %a"
           Bound_parameters.print params';
       alloc_modes
-    | None -> List.map (fun _ -> Or_unknown.Unknown) params
+    | None -> List.map (fun _ -> Alloc_mode.For_types.unknown ()) params
   in
   let param_types =
     ListLabels.map2 params alloc_modes ~f:(fun param alloc_mode ->
@@ -471,10 +485,11 @@ let set_rebuild_terms t = { t with do_not_rebuild_terms = false }
 let are_rebuilding_terms t =
   Are_rebuilding_terms.of_bool (not t.do_not_rebuild_terms)
 
-let enter_closure code_id ~return_continuation ~exn_continuation t =
+let enter_closure code_id ~return_continuation ~exn_continuation ~my_closure t =
   { t with
     closure_info =
       Closure_info.in_a_closure code_id ~return_continuation ~exn_continuation
+        ~my_closure
   }
 
 let closure_info t = t.closure_info
@@ -528,3 +543,7 @@ let generate_phantom_lets t =
   (* It would be a waste of time generating phantom lets when not rebuilding
      terms, since they have no effect on cost metrics. *)
   && Are_rebuilding_terms.are_rebuilding (are_rebuilding_terms t)
+
+let loopify_state t = t.loopify_state
+
+let set_loopify_state loopify_state t = { t with loopify_state }

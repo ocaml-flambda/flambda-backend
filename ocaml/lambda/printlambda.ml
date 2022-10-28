@@ -220,8 +220,9 @@ let primitive ppf = function
   | Pignore -> fprintf ppf "ignore"
   | Prevapply _ -> fprintf ppf "revapply"
   | Pdirapply _ -> fprintf ppf "dirapply"
-  | Pgetglobal id -> fprintf ppf "global %a" Ident.print id
-  | Psetglobal id -> fprintf ppf "setglobal %a" Ident.print id
+  | Pgetglobal cu -> fprintf ppf "global %a!" Compilation_unit.print cu
+  | Psetglobal cu -> fprintf ppf "setglobal %a!" Compilation_unit.print cu
+  | Pgetpredef id -> fprintf ppf "getpredef %a!" Ident.print id
   | Pmakeblock(tag, Immutable, shape, mode) ->
       fprintf ppf "make%sblock %i%a"
         (alloc_mode mode) tag block_shape shape
@@ -439,6 +440,8 @@ let primitive ppf = function
   | Pint_as_pointer -> fprintf ppf "int_as_pointer"
   | Popaque -> fprintf ppf "opaque"
   | Pprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled[%s]" name
+  | Pobj_dup -> fprintf ppf "obj_dup"
+  | Pobj_magic -> fprintf ppf "obj_magic"
 
 let name_of_primitive = function
   | Pidentity -> "Pidentity"
@@ -449,6 +452,7 @@ let name_of_primitive = function
   | Pdirapply _ -> "Pdirapply"
   | Pgetglobal _ -> "Pgetglobal"
   | Psetglobal _ -> "Psetglobal"
+  | Pgetpredef _ -> "Pgetpredef"
   | Pmakeblock _ -> "Pmakeblock"
   | Pmakefloatblock _ -> "Pmakefloatblock"
   | Pfield _ -> "Pfield"
@@ -547,8 +551,20 @@ let name_of_primitive = function
   | Pint_as_pointer -> "Pint_as_pointer"
   | Popaque -> "Popaque"
   | Pprobe_is_enabled _ -> "Pprobe_is_enabled"
+  | Pobj_dup -> "Pobj_dup"
+  | Pobj_magic -> "Pobj_magic"
 
-let function_attribute ppf { inline; specialise; local; is_a_functor; stub } =
+let check_attribute ppf check =
+  let check_property = function
+    | Noalloc -> "noalloc"
+  in
+  match check with
+  | Default_check -> ()
+  | Assert p -> fprintf ppf "assert %s@ " (check_property p)
+  | Assume p -> fprintf ppf "assume %s@ " (check_property p)
+
+let function_attribute ppf
+    { inline; specialise; check; local; is_a_functor; stub; poll; loop } =
   if is_a_functor then
     fprintf ppf "is_a_functor@ ";
   if stub then
@@ -569,6 +585,16 @@ let function_attribute ppf { inline; specialise; local; is_a_functor; stub } =
   | Default_local -> ()
   | Always_local -> fprintf ppf "always_local@ "
   | Never_local -> fprintf ppf "never_local@ "
+  end;
+  begin match poll with
+  | Default_poll -> ()
+  | Error_poll -> fprintf ppf "error_poll@ "
+  end;
+  check_attribute ppf check;
+  begin match loop with
+  | Default_loop -> ()
+  | Always_loop -> fprintf ppf "always_loop@ "
+  | Never_loop -> fprintf ppf "never_loop@ "
   end
 
 let apply_tailcall_attribute ppf = function

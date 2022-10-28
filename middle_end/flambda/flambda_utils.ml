@@ -343,7 +343,7 @@ let toplevel_substitution_named sb named =
   | _ -> assert false
 
 let make_closure_declaration
-      ~is_classic_mode ~id ~alloc_mode ~region ~body ~params ~stub : Flambda.t =
+      ~is_classic_mode ~id ~alloc_mode ~region ~body ~params : Flambda.t =
   let free_variables = Flambda.free_variables body in
   let param_set = Parameter.Set.vars params in
   if not (Variable.Set.subset param_set free_variables) then begin
@@ -363,9 +363,10 @@ let make_closure_declaration
   let function_declaration =
     Flambda.create_function_declaration
       ~params:(List.map subst_param params) ~alloc_mode  ~region
-      ~body ~stub ~inline:Default_inline
-      ~specialise:Default_specialise ~is_a_functor:false
+      ~body ~stub:true ~inline:Default_inline
+      ~specialise:Default_specialise ~check:Default_check ~is_a_functor:false
       ~closure_origin:(Closure_origin.create (Closure_id.wrap id))
+      ~poll:Default_poll
   in
   assert (Variable.Set.equal (Variable.Set.map subst free_variables)
     function_declaration.free_variables);
@@ -832,12 +833,12 @@ module Switch_storer = Switch.Store (struct
 end)
 
 let fun_vars_referenced_in_decls
-      (function_decls : Flambda.function_declarations) ~closure_symbol =
+      (function_decls : Flambda.function_declarations) =
   let fun_vars = Variable.Map.keys function_decls.funs in
   let symbols_to_fun_vars =
     Variable.Set.fold (fun fun_var symbols_to_fun_vars ->
         let closure_id = Closure_id.wrap fun_var in
-        let symbol = closure_symbol closure_id in
+        let symbol = Symbol_utils.Flambda.for_closure closure_id in
         Symbol.Map.add symbol fun_var symbols_to_fun_vars)
       fun_vars
       Symbol.Map.empty
@@ -860,9 +861,9 @@ let fun_vars_referenced_in_decls
     function_decls.funs
 
 let closures_required_by_entry_point ~(entry_point : Closure_id.t)
-      ~closure_symbol (function_decls : Flambda.function_declarations) =
+      (function_decls : Flambda.function_declarations) =
   let dependencies =
-    fun_vars_referenced_in_decls function_decls ~closure_symbol
+    fun_vars_referenced_in_decls function_decls
   in
   let set = ref Variable.Set.empty in
   let queue = Queue.create () in

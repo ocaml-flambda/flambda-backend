@@ -8,16 +8,6 @@
 ;*                                                                        *
 ;**************************************************************************
 
-; set warning as error in release profile
-
-(env
- (main
-  (flags
-   (:standard -warn-error +A)))
- (boot
-  (flags
-   (:standard -warn-error +A))))
-
 ; Since upstream has the middle end code inside ocamloptcomp, we do the
 ; same for the moment.
 
@@ -91,16 +81,14 @@
   backend_var
   clambda
   clambda_primitives
-  compilation_unit
   compilenv
   mangling
   convert_primitives
   internal_variable_names
-  linkage_name
   printclambda
   printclambda_primitives
   semantics_of_primitives
-  symbol
+  symbol_utils
   variable
   ;; middle_end/closure/
   closure
@@ -202,9 +190,11 @@
   linscan
   liveness
   mach
+  polling
   printcmm
   printlinear
   printmach
+  checkmach
   proc
   reg
   reload
@@ -234,11 +224,14 @@
   cfg_intf
   cfg_to_linear
   cfg_with_layout
+  cfg_with_liveness
   cfg_dataflow
   cfg_deadcode
   cfg_liveness
   cfg_regalloc_utils
+  cfg_regalloc_validate
   cfg_to_linear_desc
+  cfg_stack_operands
   cfg_irc
   cfg_irc_state
   cfg_irc_utils
@@ -390,6 +383,7 @@
    %{dep:backend/debug/dwarf/dwarf_high/dwarf_high.a}
    %{dep:backend/debug/dwarf/dwarf_ocaml/dwarf_ocaml.a}
    %{dep:flambda_backend_common.a}
+   %{dep:middle_end/flambda2/import/flambda2_import.a}
    %{dep:middle_end/flambda2/ui/flambda2_ui.a}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.a}
    %{dep:middle_end/flambda2/numbers/flambda2_numbers.a}
@@ -424,6 +418,7 @@
    %{dep:backend/debug/dwarf/dwarf_high/dwarf_high.cma}
    %{dep:backend/debug/dwarf/dwarf_ocaml/dwarf_ocaml.cma}
    %{dep:flambda_backend_common.cma}
+   %{dep:middle_end/flambda2/import/flambda2_import.cma}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cma}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cma}
    %{dep:middle_end/flambda2/numbers/flambda2_numbers.cma}
@@ -458,6 +453,7 @@
    %{dep:backend/debug/dwarf/dwarf_high/dwarf_high.cmxa}
    %{dep:backend/debug/dwarf/dwarf_ocaml/dwarf_ocaml.cmxa}
    %{dep:flambda_backend_common.cmxa}
+   %{dep:middle_end/flambda2/import/flambda2_import.cmxa}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cmxa}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cmxa}
    %{dep:middle_end/flambda2/numbers/flambda2_numbers.cmxa}
@@ -489,9 +485,12 @@
 
 (install
  (files
-  (external/owee/libcompiler_owee_stubs_native.a
+  (external/owee/libcompiler_owee_stubs.a
    as
-   compiler-libs/libcompiler_owee_stubs_native.a)
+   compiler-libs/libcompiler_owee_stubs.a)
+  (external/owee/libcompiler_owee_stubs.a
+   as
+   compiler-libs/libcompiler_owee_stubs_native.a) ; for special_dune compat
   (ocamloptcomp_with_flambda2.cma as compiler-libs/ocamloptcomp.cma)
   (ocamloptcomp_with_flambda2.cmxa as compiler-libs/ocamloptcomp.cmxa)
   (ocamloptcomp_with_flambda2.a as compiler-libs/ocamloptcomp.a))
@@ -508,16 +507,13 @@
   (backend_var.mli as compiler-libs/backend_var.mli)
   (clambda.mli as compiler-libs/clambda.mli)
   (clambda_primitives.mli as compiler-libs/clambda_primitives.mli)
-  (compilation_unit.mli as compiler-libs/compilation_unit.mli)
   (compilenv.mli as compiler-libs/compilenv.mli)
   (mangling.mli as compiler-libs/mangling.mli)
   (convert_primitives.mli as compiler-libs/convert_primitives.mli)
   (internal_variable_names.mli as compiler-libs/internal_variable_names.mli)
-  (linkage_name.mli as compiler-libs/linkage_name.mli)
   (printclambda.mli as compiler-libs/printclambda.mli)
   (printclambda_primitives.mli as compiler-libs/printclambda_primitives.mli)
   (semantics_of_primitives.mli as compiler-libs/semantics_of_primitives.mli)
-  (symbol.mli as compiler-libs/symbol.mli)
   (variable.mli as compiler-libs/variable.mli)
   (closure.mli as compiler-libs/closure.mli)
   (closure_middle_end.mli as compiler-libs/closure_middle_end.mli)
@@ -712,9 +708,11 @@
   (linscan.mli as compiler-libs/linscan.mli)
   (liveness.mli as compiler-libs/liveness.mli)
   (mach.mli as compiler-libs/mach.mli)
+  (polling.mli as compiler-libs/polling.mli)
   (printcmm.mli as compiler-libs/printcmm.mli)
   (printlinear.mli as compiler-libs/printlinear.mli)
   (printmach.mli as compiler-libs/printmach.mli)
+  (checkmach.mli as compiler-libs/mach_checks.mli)
   (proc.mli as compiler-libs/proc.mli)
   (reg.mli as compiler-libs/reg.mli)
   (reload.mli as compiler-libs/reload.mli)
@@ -745,11 +743,14 @@
   (cfg.mli as compiler-libs/cfg.mli)
   (cfg_to_linear.mli as compiler-libs/cfg_to_linear.mli)
   (cfg_with_layout.mli as compiler-libs/cfg_with_layout.mli)
+  (cfg_with_liveness.mli as compiler-libs/cfg_with_liveness.mli)
   (cfg_dataflow.mli as compiler-libs/cfg_dataflow.mli)
   (cfg_deadcode.mli as compiler-libs/cfg_deadcode.mli)
   (cfg_liveness.mli as compiler-libs/cfg_liveness.mli)
   (cfg_regalloc_utils.mli as compiler-libs/cfg_regalloc_utils.mli)
+  (cfg_regalloc_validate.mli as compiler-libs/cfg_regalloc_validate.mli)
   (cfg_to_linear_desc.mli as compiler-libs/cfg_to_linear_desc.mli)
+  (cfg_stack_operands.mli as compiler-libs/cfg_stack_operands.mli)
   (cfg_irc.mli as compiler-libs/cfg_irc.mli)
   (cfg_irc_state.mli as compiler-libs/cfg_irc_state.mli)
   (cfg_irc_utils.mli as compiler-libs/cfg_irc_utils.mli)
@@ -1013,6 +1014,10 @@
   (.ocamloptcomp.objs/byte/opterrors.cmo as compiler-libs/opterrors.cmo)
   (.ocamloptcomp.objs/byte/opterrors.cmt as compiler-libs/opterrors.cmt)
   (.ocamloptcomp.objs/byte/opterrors.cmti as compiler-libs/opterrors.cmti)
+  (.ocamloptcomp.objs/byte/polling.cmi as compiler-libs/polling.cmi)
+  (.ocamloptcomp.objs/byte/polling.cmo as compiler-libs/polling.cmo)
+  (.ocamloptcomp.objs/byte/polling.cmt as compiler-libs/polling.cmt)
+  (.ocamloptcomp.objs/byte/polling.cmti as compiler-libs/polling.cmti)
   (.ocamloptcomp.objs/byte/printcmm.cmi as compiler-libs/printcmm.cmi)
   (.ocamloptcomp.objs/byte/printcmm.cmo as compiler-libs/printcmm.cmo)
   (.ocamloptcomp.objs/byte/printcmm.cmt as compiler-libs/printcmm.cmt)
@@ -1027,6 +1032,11 @@
   (.ocamloptcomp.objs/byte/printmach.cmo as compiler-libs/printmach.cmo)
   (.ocamloptcomp.objs/byte/printmach.cmt as compiler-libs/printmach.cmt)
   (.ocamloptcomp.objs/byte/printmach.cmti as compiler-libs/printmach.cmti)
+  (.ocamloptcomp.objs/native/checkmach.cmx as compiler-libs/checkmach.cmx)
+  (.ocamloptcomp.objs/byte/checkmach.cmi as compiler-libs/checkmach.cmi)
+  (.ocamloptcomp.objs/byte/checkmach.cmo as compiler-libs/checkmach.cmo)
+  (.ocamloptcomp.objs/byte/checkmach.cmt as compiler-libs/checkmach.cmt)
+  (.ocamloptcomp.objs/byte/checkmach.cmti as compiler-libs/checkmach.cmti)
   (.ocamloptcomp.objs/byte/proc.cmi as compiler-libs/proc.cmi)
   (.ocamloptcomp.objs/byte/proc.cmo as compiler-libs/proc.cmo)
   (.ocamloptcomp.objs/byte/proc.cmt as compiler-libs/proc.cmt)
@@ -1160,6 +1170,18 @@
   (.ocamloptcomp.objs/byte/cfg_with_layout.cmti
    as
    compiler-libs/cfg_with_layout.cmti)
+  (.ocamloptcomp.objs/byte/cfg_with_liveness.cmi
+   as
+   compiler-libs/cfg_with_liveness.cmi)
+  (.ocamloptcomp.objs/byte/cfg_with_liveness.cmo
+   as
+   compiler-libs/cfg_with_liveness.cmo)
+  (.ocamloptcomp.objs/byte/cfg_with_liveness.cmt
+   as
+   compiler-libs/cfg_with_liveness.cmt)
+  (.ocamloptcomp.objs/byte/cfg_with_liveness.cmti
+   as
+   compiler-libs/cfg_with_liveness.cmti)
   (.ocamloptcomp.objs/byte/cfg_dataflow.cmi
    as
    compiler-libs/cfg_dataflow.cmi)
@@ -1208,6 +1230,31 @@
   (.ocamloptcomp.objs/byte/cfg_regalloc_utils.cmti
    as
    compiler-libs/cfg_regalloc_utils.cmti)
+
+  (.ocamloptcomp.objs/byte/cfg_regalloc_validate.cmi
+   as
+   compiler-libs/cfg_regalloc_validate.cmi)
+  (.ocamloptcomp.objs/byte/cfg_regalloc_validate.cmo
+   as
+   compiler-libs/cfg_regalloc_validate.cmo)
+  (.ocamloptcomp.objs/byte/cfg_regalloc_validate.cmt
+    as
+    compiler-libs/cfg_regalloc_validate.cmt)
+  (.ocamloptcomp.objs/byte/cfg_regalloc_validate.cmti
+    as
+    compiler-libs/cfg_regalloc_validate.cmti)
+  (.ocamloptcomp.objs/byte/cfg_stack_operands.cmi
+   as
+   compiler-libs/cfg_stack_operands.cmi)
+  (.ocamloptcomp.objs/byte/cfg_stack_operands.cmo
+   as
+   compiler-libs/cfg_stack_operands.cmo)
+  (.ocamloptcomp.objs/byte/cfg_stack_operands.cmt
+   as
+   compiler-libs/cfg_stack_operands.cmt)
+  (.ocamloptcomp.objs/byte/cfg_stack_operands.cmti
+   as
+   compiler-libs/cfg_stack_operands.cmti)
   (.ocamloptcomp.objs/byte/cfg_to_linear_desc.cmi
    as
    compiler-libs/cfg_to_linear_desc.cmi)
@@ -1439,6 +1486,7 @@
   (.ocamloptcomp.objs/native/optcompile.cmx as compiler-libs/optcompile.cmx)
   (.ocamloptcomp.objs/native/opterrors.cmx as compiler-libs/opterrors.cmx)
   (.ocamloptcomp.objs/native/printcmm.cmx as compiler-libs/printcmm.cmx)
+  (.ocamloptcomp.objs/native/polling.cmx as compiler-libs/polling.cmx)
   (.ocamloptcomp.objs/native/printlinear.cmx
    as
    compiler-libs/printlinear.cmx)
@@ -1476,6 +1524,9 @@
   (.ocamloptcomp.objs/native/cfg_with_layout.cmx
    as
    compiler-libs/cfg_with_layout.cmx)
+  (.ocamloptcomp.objs/native/cfg_with_liveness.cmx
+   as
+   compiler-libs/cfg_with_liveness.cmx)
   (.ocamloptcomp.objs/native/cfg_dataflow.cmx
    as
    compiler-libs/cfg_dataflow.cmx)
@@ -1488,6 +1539,12 @@
   (.ocamloptcomp.objs/native/cfg_regalloc_utils.cmx
    as
    compiler-libs/cfg_regalloc_utils.cmx)
+  (.ocamloptcomp.objs/native/cfg_regalloc_validate.cmx
+    as
+    compiler-libs/cfg_regalloc_validate.cmx)
+  (.ocamloptcomp.objs/native/cfg_stack_operands.cmx
+   as
+   compiler-libs/cfg_stack_operands.cmx)
   (.ocamloptcomp.objs/native/cfg_to_linear_desc.cmx
    as
    compiler-libs/cfg_to_linear_desc.cmx)
@@ -1819,18 +1876,6 @@
   (.ocamloptcomp.objs/byte/cmxs_format.cmti
    as
    compiler-libs/cmxs_format.cmti)
-  (.ocamloptcomp.objs/byte/compilation_unit.cmi
-   as
-   compiler-libs/compilation_unit.cmi)
-  (.ocamloptcomp.objs/byte/compilation_unit.cmo
-   as
-   compiler-libs/compilation_unit.cmo)
-  (.ocamloptcomp.objs/byte/compilation_unit.cmt
-   as
-   compiler-libs/compilation_unit.cmt)
-  (.ocamloptcomp.objs/byte/compilation_unit.cmti
-   as
-   compiler-libs/compilation_unit.cmti)
   (.ocamloptcomp.objs/byte/compilenv.cmi as compiler-libs/compilenv.cmi)
   (.ocamloptcomp.objs/byte/compilenv.cmo as compiler-libs/compilenv.cmo)
   (.ocamloptcomp.objs/byte/compilenv.cmt as compiler-libs/compilenv.cmt)
@@ -2159,18 +2204,6 @@
   (.ocamloptcomp.objs/byte/lift_let_to_initialize_symbol.cmti
    as
    compiler-libs/lift_let_to_initialize_symbol.cmti)
-  (.ocamloptcomp.objs/byte/linkage_name.cmi
-   as
-   compiler-libs/linkage_name.cmi)
-  (.ocamloptcomp.objs/byte/linkage_name.cmo
-   as
-   compiler-libs/linkage_name.cmo)
-  (.ocamloptcomp.objs/byte/linkage_name.cmt
-   as
-   compiler-libs/linkage_name.cmt)
-  (.ocamloptcomp.objs/byte/linkage_name.cmti
-   as
-   compiler-libs/linkage_name.cmti)
   (.ocamloptcomp.objs/byte/mutable_variable.cmi
    as
    compiler-libs/mutable_variable.cmi)
@@ -2401,10 +2434,10 @@
   (.ocamloptcomp.objs/byte/static_exception.cmti
    as
    compiler-libs/static_exception.cmti)
-  (.ocamloptcomp.objs/byte/symbol.cmi as compiler-libs/symbol.cmi)
-  (.ocamloptcomp.objs/byte/symbol.cmo as compiler-libs/symbol.cmo)
-  (.ocamloptcomp.objs/byte/symbol.cmt as compiler-libs/symbol.cmt)
-  (.ocamloptcomp.objs/byte/symbol.cmti as compiler-libs/symbol.cmti)
+  (.ocamloptcomp.objs/byte/symbol_utils.cmi as compiler-libs/symbol_utils.cmi)
+  (.ocamloptcomp.objs/byte/symbol_utils.cmo as compiler-libs/symbol_utils.cmo)
+  (.ocamloptcomp.objs/byte/symbol_utils.cmt as compiler-libs/symbol_utils.cmt)
+  (.ocamloptcomp.objs/byte/symbol_utils.cmti as compiler-libs/symbol_utils.cmti)
   (.ocamloptcomp.objs/byte/tag.cmi as compiler-libs/tag.cmi)
   (.ocamloptcomp.objs/byte/tag.cmo as compiler-libs/tag.cmo)
   (.ocamloptcomp.objs/byte/tag.cmt as compiler-libs/tag.cmt)
@@ -2477,30 +2510,6 @@
   (.ocamloptcomp.objs/byte/variable.cmo as compiler-libs/variable.cmo)
   (.ocamloptcomp.objs/byte/variable.cmt as compiler-libs/variable.cmt)
   (.ocamloptcomp.objs/byte/variable.cmti as compiler-libs/variable.cmti)
-  (ocaml/.ocamlcommon.objs/byte/extensions.cmi
-   as
-   compiler-libs/extensions.cmi)
-  (ocaml/.ocamlcommon.objs/byte/extensions.cmo
-   as
-   compiler-libs/extensions.cmo)
-  (ocaml/.ocamlcommon.objs/byte/extensions.cmt
-   as
-   compiler-libs/extensions.cmt)
-  (ocaml/.ocamlcommon.objs/byte/extensions.cmti
-   as
-   compiler-libs/extensions.cmti)
-  (ocaml/.ocamlcommon.objs/byte/translcomprehension.cmi
-   as
-   compiler-libs/translcomprehension.cmi)
-  (ocaml/.ocamlcommon.objs/byte/translcomprehension.cmo
-   as
-   compiler-libs/translcomprehension.cmo)
-  (ocaml/.ocamlcommon.objs/byte/translcomprehension.cmt
-   as
-   compiler-libs/translcomprehension.cmt)
-  (ocaml/.ocamlcommon.objs/byte/translcomprehension.cmti
-   as
-   compiler-libs/translcomprehension.cmti)
   (.ocamloptcomp.objs/native/alias_analysis.cmx
    as
    compiler-libs/alias_analysis.cmx)
@@ -2540,9 +2549,6 @@
   (.ocamloptcomp.objs/native/closure_origin.cmx
    as
    compiler-libs/closure_origin.cmx)
-  (.ocamloptcomp.objs/native/compilation_unit.cmx
-   as
-   compiler-libs/compilation_unit.cmx)
   (.ocamloptcomp.objs/native/compilenv.cmx as compiler-libs/compilenv.cmx)
   (.ocamloptcomp.objs/native/mangling.cmx as compiler-libs/mangling.cmx)
   (.ocamloptcomp.objs/native/convert_primitives.cmx
@@ -2625,9 +2631,6 @@
   (.ocamloptcomp.objs/native/lift_let_to_initialize_symbol.cmx
    as
    compiler-libs/lift_let_to_initialize_symbol.cmx)
-  (.ocamloptcomp.objs/native/linkage_name.cmx
-   as
-   compiler-libs/linkage_name.cmx)
   (.ocamloptcomp.objs/native/mutable_variable.cmx
    as
    compiler-libs/mutable_variable.cmx)
@@ -2684,7 +2687,7 @@
   (.ocamloptcomp.objs/native/static_exception.cmx
    as
    compiler-libs/static_exception.cmx)
-  (.ocamloptcomp.objs/native/symbol.cmx as compiler-libs/symbol.cmx)
+  (.ocamloptcomp.objs/native/symbol_utils.cmx as compiler-libs/symbol_utils.cmx)
   (.ocamloptcomp.objs/native/tag.cmx as compiler-libs/tag.cmx)
   (.ocamloptcomp.objs/native/traverse_for_exported_symbols.cmx
    as
@@ -2709,13 +2712,7 @@
   (backend/asm_targets/.asm_targets.objs/native/asm_targets.cmx
    as
    compiler-libs/asm_targets.cmx)
-  (.ocamloptcomp.objs/native/cfg_format.cmx as compiler-libs/cfg_format.cmx)
-  (ocaml/.ocamlcommon.objs/native/extensions.cmx
-   as
-   compiler-libs/extensions.cmx)
-  (ocaml/.ocamlcommon.objs/native/translcomprehension.cmx
-   as
-   compiler-libs/translcomprehension.cmx)))
+  (.ocamloptcomp.objs/native/cfg_format.cmx as compiler-libs/cfg_format.cmx)))
 
 (install
  (section lib)

@@ -27,12 +27,15 @@ let name_expr_from_var = Flambda_utils.name_expr_from_var
 
 type t = {
   current_unit_id : Ident.t;
-  symbol_for_global' : (Ident.t -> Symbol.t);
   filename : string;
   backend : (module Backend_intf.S);
   mutable imported_symbols : Symbol.Set.t;
   mutable declared_symbols : (Symbol.t * Flambda.constant_defining_value) list;
 }
+
+let pack_prefix_for_global_ident t =
+  let module B = (val t.backend : Backend_intf.S) in
+  B.pack_prefix_for_global_ident
 
 let add_default_argument_wrappers lam =
   let defs_are_all_functions (defs : (_ * Lambda.lambda) list) =
@@ -107,13 +110,14 @@ let tupled_function_call_stub original_params unboxed_version ~closure_bound_var
   let tuple_param = Parameter.wrap tuple_param_var alloc_mode in
   Flambda.create_function_declaration ~params:[tuple_param] ~alloc_mode ~region
     ~body ~stub:true ~inline:Default_inline
-    ~specialise:Default_specialise ~is_a_functor:false
+    ~specialise:Default_specialise ~check:Default_check ~is_a_functor:false
     ~closure_origin:(Closure_origin.create (Closure_id.wrap closure_bound_var))
+    ~poll:Default_poll (* don't propogate attribute to wrappers *)
 
 let register_const t (constant:Flambda.constant_defining_value) name
     : Flambda.constant_defining_value_block_field * Internal_variable_names.t =
   let var = Variable.create name in
-  let symbol = Symbol.of_variable var in
+  let symbol = Symbol_utils.Flambda.for_variable var in
   t.declared_symbols <- (symbol, constant) :: t.declared_symbols;
   Symbol symbol, name
 
@@ -353,9 +357,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
     let zero = Variable.create Names.zero in
     let is_zero = Variable.create Names.is_zero in
     let exn = Variable.create Names.division_by_zero in
-    let exn_symbol =
-      t.symbol_for_global' Predef.ident_division_by_zero
-    in
+    let exn_symbol = Symbol.for_predef_ident Predef.ident_division_by_zero in
     let dbg = Debuginfo.from_location loc in
     let zero_const : Flambda.named =
       match prim with
@@ -424,7 +426,8 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
         (If_then_else (cond, arg2, Var const_false, Pintval)))
   | Lprim ((Psequand | Psequor), _, _) ->
     Misc.fatal_error "Psequand / Psequor must have exactly two arguments"
-  | Lprim ((Pidentity | Pbytes_to_string | Pbytes_of_string), [arg], _) ->
+  | Lprim ((Pidentity | Pbytes_to_string | Pbytes_of_string | Pobj_magic),
+           [arg], _) ->
     close t env arg
   | Lprim (Pignore, [arg], _) ->
     let var = Variable.create Names.ignore in
@@ -477,20 +480,27 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
       close t env
         (Lambda.Llet(Strict, Pgenval, Ident.create_local "dummy",
                      arg, Lconst const))
-  | Lprim (Pfield _, [Lprim (Pgetglobal id, [],_)], _)
-      when Ident.same id t.current_unit_id ->
+  | Lprim (Pfield _, [Lprim (Pgetglobal cu, [],_)], _)
+      when Ident.same (cu |> Compilation_unit.to_global_ident_for_legacy_code)
+             t.current_unit_id ->
     Misc.fatal_errorf "[Pfield (Pgetglobal ...)] for the current compilation \
         unit is forbidden upon entry to the middle end"
   | Lprim (Psetfield (_, _, _), [Lprim (Pgetglobal _, [], _); _], _) ->
     Misc.fatal_errorf "[Psetfield (Pgetglobal ...)] is \
         forbidden upon entry to the middle end"
-  | Lprim (Pgetglobal id, [], _) when Ident.is_predef id ->
-    let symbol = t.symbol_for_global' id in
+  | Lprim (Pgetpredef id, [], _) ->
+    assert (Ident.is_predef id);
+    let symbol = Symbol.for_predef_ident id in
     t.imported_symbols <- Symbol.Set.add symbol t.imported_symbols;
     name_expr (Symbol symbol) ~name:Names.predef_exn
-  | Lprim (Pgetglobal id, [], _) ->
+  | Lprim (Pgetglobal cu, [], _) ->
+    let id = cu |> Compilation_unit.to_global_ident_for_legacy_code in
     assert (not (Ident.same id t.current_unit_id));
-    let symbol = t.symbol_for_global' id in
+    let cu =
+      Compilation_unit.with_for_pack_prefix cu
+        (pack_prefix_for_global_ident t id)
+    in
+    let symbol = Symbol.for_compilation_unit cu in
     t.imported_symbols <- Symbol.Set.add symbol t.imported_symbols;
     name_expr (Symbol symbol) ~name:Names.pgetglobal
   | Lprim (lambda_p, args, loc) ->
@@ -650,8 +660,10 @@ and close_functions t external_env function_declarations : Flambda.named =
         ~body ~stub
         ~inline:(Function_decl.inline decl)
         ~specialise:(Function_decl.specialise decl)
+        ~check:(Function_decl.check decl)
         ~is_a_functor:(Function_decl.is_a_functor decl)
         ~closure_origin
+        ~poll:(Function_decl.poll_attribute decl)
     in
     match Function_decl.kind decl with
     | Curried _ ->
@@ -729,21 +741,27 @@ and close_let_bound_expression t ?let_rec_ident let_bound_var env
 let lambda_to_flambda ~backend ~module_ident ~size ~filename lam
       : Flambda.program =
   let lam = add_default_argument_wrappers lam in
-  let module Backend = (val backend : Backend_intf.S) in
   let compilation_unit = Compilation_unit.get_current_exn () in
+  let current_unit_id =
+    Compilation_unit.name compilation_unit
+    |> Compilation_unit.Name.to_string
+    |> Ident.create_persistent
+  in
   let t =
-    { current_unit_id = Compilation_unit.get_persistent_ident compilation_unit;
-      symbol_for_global' = Backend.symbol_for_global';
+    { current_unit_id;
       filename;
       backend;
       imported_symbols = Symbol.Set.empty;
       declared_symbols = [];
     }
   in
-  let module_symbol = Backend.symbol_for_global' module_ident in
+  let module_symbol =
+    let pack_prefix = Compilation_unit.Prefix.from_clflags () in
+    Symbol.for_global_or_predef_ident pack_prefix module_ident
+  in
   let block_symbol =
     let var = Variable.create Internal_variable_names.module_as_block in
-    Symbol.of_variable var
+    Symbol_utils.Flambda.for_variable var
   in
   (* The global module block is built by accessing the fields of all the
      introduced symbols. *)

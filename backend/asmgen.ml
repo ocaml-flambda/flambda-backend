@@ -25,9 +25,11 @@ open Cmm
 
 open Dwarf_ocaml
 
+module String = Misc.Stdlib.String
+
 type error =
   | Assembler_error of string
-  | Mismatched_for_pack of string option
+  | Mismatched_for_pack of Compilation_unit.Prefix.t
   | Asm_generation of string * Emitaux.error
 
 exception Error of error
@@ -68,15 +70,13 @@ let should_save_cfg_before_emit () =
   should_save_ir_after Compiler_pass.Simplify_cfg && (not !start_from_emit)
 
 let linear_unit_info =
-  { Linear_format.unit_name = "";
+  { Linear_format.unit = Compilation_unit.dummy;
     items = [];
-    for_pack = None;
   }
 
 let new_cfg_unit_info () =
-  { Cfg_format.unit_name = "";
+  { Cfg_format.unit = Compilation_unit.dummy;
     items = [];
-    for_pack = None;
   }
 
 let cfg_unit_info = new_cfg_unit_info ()
@@ -88,23 +88,21 @@ let (pass_to_cfg : Cfg_format.cfg_unit_info Compiler_pass_map.t) =
   |> Compiler_pass_map.add Compiler_pass.Selection (new_cfg_unit_info ())
 
 let reset () =
+  Checkmach.reset_unit_info ();
   start_from_emit := false;
   Compiler_pass_map.iter (fun pass (cfg_unit_info : Cfg_format.cfg_unit_info) ->
     if should_save_ir_after pass then begin
-      cfg_unit_info.unit_name <- Compilenv.current_unit_name ();
+      cfg_unit_info.unit <- Compilation_unit.get_current_exn ();
       cfg_unit_info.items <- [];
-      cfg_unit_info.for_pack <- !Clflags.for_package;
     end)
     pass_to_cfg;
   if should_save_before_emit () then begin
-    linear_unit_info.unit_name <- Compilenv.current_unit_name ();
+    linear_unit_info.unit <- Compilation_unit.get_current_exn ();
     linear_unit_info.items <- [];
-    linear_unit_info.for_pack <- !Clflags.for_package;
   end;
   if should_save_cfg_before_emit () then begin
-    cfg_unit_info.unit_name <- Compilenv.current_unit_name ();
+    cfg_unit_info.unit <- Compilation_unit.get_current_exn ();
     cfg_unit_info.items <- [];
-    cfg_unit_info.for_pack <- !Clflags.for_package;
   end
 
 let save_data dl =
@@ -242,26 +240,27 @@ let recompute_liveness_on_cfg (cfg_with_layout : Cfg_with_layout.t) : Cfg_with_l
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   let init = { Cfg_liveness.before = Reg.Set.empty; across = Reg.Set.empty; } in
   begin match Cfg_liveness.Liveness.run cfg ~init ~map:Cfg_liveness.Liveness.Instr () with
-    | Result.Ok (liveness : Cfg_liveness.Liveness.domain Cfg_dataflow.Instr.Tbl.t) ->
-      let with_liveness (instr : _ Cfg.instruction) =
+    | Ok (liveness : Cfg_liveness.Liveness.domain Cfg_dataflow.Instr.Tbl.t) ->
+      let set_liveness (instr : _ Cfg.instruction) =
         match Cfg_dataflow.Instr.Tbl.find_opt liveness instr.id with
         | None ->
           Misc.fatal_errorf "Missing liveness information for instruction %d in function %s@."
             instr.id
             cfg.Cfg.fun_name
         | Some { Cfg_liveness.before = _; across } ->
-          Cfg.set_live instr across
+          instr.live <- across
       in
       Cfg.iter_blocks cfg ~f:(fun _label block ->
-          block.body <- ListLabels.map block.body ~f:with_liveness;
-          block.terminator <- with_liveness block.terminator;
+          Cfg.BasicInstructionList.iter block.body ~f:set_liveness;
+          set_liveness block.terminator;
         );
-    | Result.Error _ ->
+    | Aborted _ -> .
+    | Max_iterations_reached ->
       Misc.fatal_errorf "Unable to compute liveness from CFG for function %s@."
         cfg.Cfg.fun_name;
   end;
   Cfg.iter_blocks cfg ~f:(fun _label block ->
-      block.body <- ListLabels.filter block.body ~f:(fun instr ->
+      Cfg.BasicInstructionList.filter_left block.body ~f:(fun instr ->
           not (Cfg.is_noop_move instr)));
   let layout : Label.t list =
     ListLabels.filter (Cfg_with_layout.layout cfg_with_layout) ~f:(fun label ->
@@ -348,34 +347,52 @@ let register_allocator : register_allocator =
     | "" | "upstream" -> Upstream
     | _ -> Misc.fatal_errorf "unknown register allocator %S" id
 
-let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
+let compile_fundecl ?dwarf ~ppf_dump ~funcnames fd_cmm =
   Proc.init ();
   Reg.reset();
   fd_cmm
   ++ Profile.record ~accumulate:true "cmm_invariants" (cmm_invariants ppf_dump)
-  ++ Profile.record ~accumulate:true "selection" Selection.fundecl
+  ++ Profile.record ~accumulate:true "selection"
+       (Selection.fundecl ~future_funcnames:funcnames)
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_sel
   ++ pass_dump_if ppf_dump dump_selection "After instruction selection"
-  ++ save_mach_as_cfg Compiler_pass.Selection
+  ++ Profile.record ~accumulate:true "save_mach_as_cfg"
+       (save_mach_as_cfg Compiler_pass.Selection)
+  ++ Profile.record ~accumulate:true "polling"
+       (Polling.instrument_fundecl ~future_funcnames:funcnames)
+  ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_polling
   ++ Profile.record ~accumulate:true "comballoc" Comballoc.fundecl
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_combine
   ++ pass_dump_if ppf_dump dump_combine "After allocation combining"
   ++ Profile.record ~accumulate:true "cse" CSE.fundecl
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_cse
   ++ pass_dump_if ppf_dump dump_cse "After CSE"
-  ++ (fun (fd : Mach.fundecl) ->
+  ++ Profile.record ~accumulate:true "checkmach" (Checkmach.fundecl ppf_dump)
+  ++ Profile.record ~accumulate:true "regalloc" (fun (fd : Mach.fundecl) ->
     let force_linscan = should_use_linscan fd in
-      match force_linscan, register_allocator with
-      | false, IRC ->
-        let res =
+    match force_linscan, register_allocator with
+    | false, IRC ->
+      fd
+      ++ Profile.record ~accumulate:true "irc" (fun fd ->
+        let cfg =
           fd
           ++ Profile.record ~accumulate:true "cfgize" cfgize
+          ++ Cfg_with_liveness.make
           ++ Profile.record ~accumulate:true "cfg_deadcode" Cfg_deadcode.run
-          ++ Profile.record ~accumulate:true "cfg_irc" Cfg_irc.run
         in
-        (Cfg_regalloc_utils.simplify_cfg res)
-        ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run
-      | true, _ | false, Upstream ->
+        let cfg_description =
+          Profile.record ~accumulate:true "cfg_create_description"
+            Cfg_regalloc_validate.Description.create (Cfg_with_liveness.cfg_with_layout cfg)
+        in
+        cfg
+        ++ Profile.record ~accumulate:true "cfg_irc" Cfg_irc.run
+        ++ Cfg_with_liveness.cfg_with_layout
+        ++ Profile.record ~accumulate:true "cfg_validate_description" (Cfg_regalloc_validate.run cfg_description)
+        ++ Profile.record ~accumulate:true "cfg_simplify" Cfg_regalloc_utils.simplify_cfg
+        ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run)
+    | true, _ | false, Upstream ->
+      fd
+      ++ Profile.record ~accumulate:true "default" (fun fd ->
         let res =
           fd
           ++ Profile.record ~accumulate:true "liveness" liveness
@@ -400,37 +417,56 @@ let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
               test_cfgize f res;
             end;
             res)
-        ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code")
+        ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code"))
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Linear
-  ++ (fun (fd : Linear.fundecl) ->
+  ++ Profile.record ~accumulate:true "reorder_blocks" (fun (fd : Linear.fundecl) ->
     if !Flambda_backend_flags.use_ocamlcfg then begin
       fd
       ++ Profile.record ~accumulate:true "linear_to_cfg"
            (Linear_to_cfg.run ~preserve_orig_labels:true)
       ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg
       ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg "After linear_to_cfg"
-      ++ save_cfg
-      ++ reorder_blocks_random ppf_dump
+      ++ Profile.record ~accumulate:true "save_cfg" save_cfg
+      ++ Profile.record ~accumulate:true "cfg_reorder_blocks" (reorder_blocks_random ppf_dump)
       ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run
       ++ pass_dump_linear_if ppf_dump dump_linear "After cfg_to_linear"
     end else
       fd)
   ++ Profile.record ~accumulate:true "scheduling" Scheduling.fundecl
   ++ pass_dump_linear_if ppf_dump dump_scheduling "After instruction scheduling"
-  ++ save_linear
-  ++ emit_fundecl ~dwarf
+  ++ Profile.record ~accumulate:true "save_linear" save_linear
+  ++ Profile.record ~accumulate:true "emit_fundecl" (emit_fundecl ~dwarf)
 
 let compile_data dl =
   dl
   ++ save_data
   ++ emit_data
 
-let compile_phrase ?dwarf ~ppf_dump p =
-  if !dump_cmm then fprintf ppf_dump "%a@." Printcmm.phrase p;
-  match p with
-  | Cfunction fd -> compile_fundecl ?dwarf ~ppf_dump fd
-  | Cdata dl -> compile_data dl
+let compile_phrases ?dwarf ~ppf_dump ps =
+    let funcnames =
+      List.fold_left (fun s p ->
+          match p with
+          | Cfunction fd -> String.Set.add fd.fun_name s
+          | Cdata _ -> s)
+        String.Set.empty ps
+    in
+    let rec compile ~funcnames ps =
+      match ps with
+      | [] -> ()
+      | p :: ps ->
+          if !dump_cmm then fprintf ppf_dump "%a@." Printcmm.phrase p;
+          match p with
+          | Cfunction fd ->
+            compile_fundecl ?dwarf ~ppf_dump ~funcnames fd;
+            compile ~funcnames:(String.Set.remove fd.fun_name funcnames) ps
+          | Cdata dl ->
+            compile_data dl;
+            compile ~funcnames ps
+    in
+    compile ~funcnames ps
 
+let compile_phrase ?dwarf ~ppf_dump p =
+  compile_phrases ?dwarf ~ppf_dump [p]
 
 (* For the native toplevel: generates generic functions unless
    they are already available in the process *)
@@ -444,7 +480,8 @@ let compile_genfuns ?dwarf ~ppf_dump f =
        (Cmm_helpers.Generic_fns_tbl.of_fns
           (Compilenv.current_unit_infos ()).ui_generic_fns))
 
-let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename ~may_reduce_heap gen =
+let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename ~may_reduce_heap
+        ~ppf_dump gen =
   reset ();
   let create_asm = should_emit () &&
                    (keep_asm || not !Emitaux.binary_backend_available) in
@@ -456,6 +493,7 @@ let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename ~may_reduc
        Misc.try_finally
          (fun () ->
             gen ();
+            Checkmach.record_unit_info ppf_dump;
             write_ir output_prefix)
          ~always:(fun () ->
              if create_asm then close_out !Emitaux.output_channel)
@@ -483,13 +521,17 @@ let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename ~may_reduc
 
 let build_dwarf ~asm_directives:(module Asm_directives : Asm_targets.Asm_directives_intf.S) sourcefile =
   let unit_name =
-    Compilation_unit.get_persistent_ident (Compilation_unit.get_current_exn ())
+    (* CR lmaurer: This doesn't actually need to be an [Ident.t] *)
+    Symbol.for_current_unit ()
+    |> Symbol.linkage_name
+    |> Linkage_name.to_string
+    |> Ident.create_persistent
   in
   let code_begin =
-    Compilenv.make_symbol (Some "code_begin") |> Asm_targets.Asm_symbol.create
+    Cmm_helpers.make_symbol "code_begin" |> Asm_targets.Asm_symbol.create
   in
   let code_end =
-    Compilenv.make_symbol (Some "code_end") |> Asm_targets.Asm_symbol.create
+    Cmm_helpers.make_symbol "code_end" |> Asm_targets.Asm_symbol.create
   in
   Dwarf.create
     ~sourcefile
@@ -573,7 +615,7 @@ let end_gen_implementation0 unix ?toplevel ~ppf_dump ~sourcefile make_cmm =
   in
   make_cmm ()
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cmm
-  ++ Profile.record "compile_phrases" (List.iter (compile_phrase ?dwarf ~ppf_dump))
+  ++ Profile.record "compile_phrases" (compile_phrases ?dwarf ~ppf_dump)
   ++ (fun () -> ());
   (match toplevel with None -> () | Some f -> compile_genfuns ~ppf_dump f);
   (* We add explicit references to external primitive symbols.  This
@@ -608,7 +650,7 @@ let asm_filename output_prefix =
 
 let compile_implementation unix ?toplevel ~backend ~filename ~prefixname
       ~middle_end ~ppf_dump (program : Lambda.program) =
-  compile_unit ~output_prefix:prefixname
+  compile_unit ~ppf_dump ~output_prefix:prefixname
     ~asm_filename:(asm_filename prefixname) ~keep_asm:!keep_asm_file
     ~obj_filename:(prefixname ^ ext_obj)
     ~may_reduce_heap:(Option.is_none toplevel)
@@ -623,7 +665,7 @@ let compile_implementation unix ?toplevel ~backend ~filename ~prefixname
 let compile_implementation_flambda2 unix ?toplevel ?(keep_symbol_tables=true)
     ~filename ~prefixname ~size:module_block_size_in_words ~module_ident
     ~module_initializer ~flambda2 ~ppf_dump ~required_globals () =
-  compile_unit ~output_prefix:prefixname
+  compile_unit ~ppf_dump ~output_prefix:prefixname
     ~asm_filename:(asm_filename prefixname) ~keep_asm:!keep_asm_file
     ~obj_filename:(prefixname ^ ext_obj)
     ~may_reduce_heap:(Option.is_none toplevel)
@@ -640,10 +682,12 @@ let compile_implementation_flambda2 unix ?toplevel ?(keep_symbol_tables=true)
 let linear_gen_implementation unix filename =
   let open Linear_format in
   let linear_unit_info, _ = restore filename in
-  (match !Clflags.for_package, linear_unit_info.for_pack with
-   | None, None -> ()
-   | Some expected, Some saved when String.equal expected saved -> ()
-   | _, saved -> raise(Error(Mismatched_for_pack saved)));
+  let current_package = Compilation_unit.Prefix.from_clflags () in
+  let saved_package =
+    Compilation_unit.for_pack_prefix linear_unit_info.unit
+  in
+  if not (Compilation_unit.Prefix.equal current_package saved_package)
+  then raise(Error(Mismatched_for_pack saved_package));
   let emit_item ~dwarf = function
     | Data dl -> emit_data dl
     | Func f -> emit_fundecl ~dwarf f
@@ -670,13 +714,15 @@ let report_error ppf = function
       fprintf ppf "Assembler error, input left in file %a"
         Location.print_filename file
   | Mismatched_for_pack saved ->
-    let msg = function
-       | None -> "without -for-pack"
-       | Some s -> "with -for-pack "^s
+    let msg prefix =
+      if Compilation_unit.Prefix.is_empty prefix
+      then "without -for-pack"
+      else "with -for-pack " ^ Compilation_unit.Prefix.to_string prefix
      in
      fprintf ppf
        "This input file cannot be compiled %s: it was generated %s."
-       (msg !Clflags.for_package) (msg saved)
+       (msg (Compilation_unit.Prefix.from_clflags ()))
+       (msg saved)
   | Asm_generation(fn, err) ->
      fprintf ppf
        "Error producing assembly code for %s: %a"

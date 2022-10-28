@@ -110,8 +110,9 @@ type primitive =
   | Prevapply of region_close
   | Pdirapply of region_close
     (* Globals *)
-  | Pgetglobal of Ident.t
-  | Psetglobal of Ident.t
+  | Pgetglobal of Compilation_unit.t
+  | Psetglobal of Compilation_unit.t
+  | Pgetpredef of Ident.t
   (* Operations on heap blocks *)
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakefloatblock of mutable_flag * alloc_mode
@@ -211,6 +212,9 @@ type primitive =
   | Popaque
   (* Statically-defined probes *)
   | Pprobe_is_enabled of { name: string }
+  (* Primitives for [Obj] *)
+  | Pobj_dup
+  | Pobj_magic
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -370,6 +374,23 @@ type local_attribute =
   | Never_local (* [@local never] *)
   | Default_local (* [@local maybe] or no [@local] attribute *)
 
+type poll_attribute =
+  | Error_poll (* [@poll error] *)
+  | Default_poll (* no [@poll] attribute *)
+
+type property =
+  | Noalloc
+
+type check_attribute =
+  | Default_check
+  | Assert of property
+  | Assume of property
+
+type loop_attribute =
+  | Always_loop (* [@loop] or [@loop always] *)
+  | Never_loop (* [@loop never] *)
+  | Default_loop (* no [@loop] attribute *)
+
 type function_kind = Curried of {nlocal: int} | Tupled
 
 type let_kind = Strict | Alias | StrictOpt
@@ -389,6 +410,9 @@ type function_attribute = {
   inline : inline_attribute;
   specialise : specialise_attribute;
   local: local_attribute;
+  check : check_attribute;
+  poll: poll_attribute;
+  loop: loop_attribute;
   is_a_functor: bool;
   stub: bool;
 }
@@ -520,6 +544,9 @@ let default_function_attribute = {
   inline = Default_inline;
   specialise = Default_specialise;
   local = Default_local;
+  check = Default_check ;
+  poll = Default_poll;
+  loop = Default_loop;
   is_a_functor = false;
   stub = false;
 }
@@ -817,8 +844,16 @@ let rec patch_guarded patch = function
 
 let rec transl_address loc = function
   | Env.Aident id ->
-      if Ident.global id
-      then Lprim(Pgetglobal id, [], loc)
+      if Ident.is_predef id
+      then Lprim (Pgetpredef id, [], loc)
+      else if Ident.is_global id
+      then
+        (* Prefixes are currently always empty *)
+        let cu =
+          Compilation_unit.create Compilation_unit.Prefix.empty
+            (Ident.name id |> Compilation_unit.Name.of_string)
+        in
+        Lprim(Pgetglobal cu, [], loc)
       else Lvar id
   | Env.Adot(addr, pos) ->
       Lprim(Pfield (pos, Reads_agree), [transl_address loc addr], loc)
@@ -1172,7 +1207,7 @@ let mod_setfield pos =
 let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pidentity | Pbytes_to_string | Pbytes_of_string | Pignore -> None
   | Prevapply _ | Pdirapply _ -> Some alloc_local
-  | Pgetglobal _ | Psetglobal _ -> None
+  | Pgetglobal _ | Psetglobal _ | Pgetpredef _ -> None
   | Pmakeblock (_, _, _, m) -> Some m
   | Pmakefloatblock (_, m) -> Some m
   | Pfield _ | Pfield_computed _ | Psetfield _ | Psetfield_computed _ -> None
@@ -1247,3 +1282,5 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pint_as_pointer -> None
   | Popaque -> None
   | Pprobe_is_enabled _ -> None
+  | Pobj_dup -> Some alloc_heap
+  | Pobj_magic -> None

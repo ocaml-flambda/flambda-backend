@@ -63,10 +63,16 @@ method reload_operation op arg res =
      res to be stack-allocated, but do something for
      stack-to-stack moves *)
   match op with
-    Imove | Ireload | Ispill ->
+    Imove | Ireload | Ispill | Iintofvalue | Ivalueofint ->
       begin match arg.(0), res.(0) with
-        {loc = Stack s1}, {loc = Stack s2} when s1 <> s2 ->
-          ([| self#makereg arg.(0) |], res)
+        {loc = Stack s1}, {loc = Stack s2} ->
+          if s1 = s2
+          && Proc.register_class arg.(0) = Proc.register_class res.(0) then
+            (* nothing will be emitted later,
+               not necessary to apply constraints *)
+            (arg, res)
+          else
+            ([| self#makereg arg.(0) |], res)
       | _ ->
           (arg, res)
       end
@@ -146,6 +152,7 @@ method fundecl f num_stack_slots =
   ({fun_name = f.fun_name; fun_args = f.fun_args;
     fun_body = new_body; fun_codegen_options = f.fun_codegen_options;
     fun_dbg  = f.fun_dbg;
+    fun_poll = f.fun_poll;
     fun_contains_calls = f.fun_contains_calls;
     fun_num_stack_slots = Array.copy num_stack_slots;
    },

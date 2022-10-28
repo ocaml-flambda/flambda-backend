@@ -1,5 +1,5 @@
 let $camlTests5__first_const27 = Block 0 () in
-let code rec size(24) f_0 (x : imm tagged) my_closure my_depth -> k * k1
+let code rec size(24) f_0 (x : imm tagged) my_closure my_region my_depth -> k * k1
                         : imm tagged =
   let next_depth = rec_info (succ my_depth) in
   let g = %project_function_slot (f -> g) my_closure in
@@ -13,7 +13,7 @@ let code rec size(24) f_0 (x : imm tagged) my_closure my_depth -> k * k1
       let Psubint = x - 1 in
       apply g (Psubint) -> k * k1
 in
-let code rec size(24) g_1 (y : imm tagged) my_closure my_depth -> k * k1
+let code rec size(24) g_1 (y : imm tagged) my_closure my_region my_depth -> k * k1
                         : imm tagged =
   let next_depth = rec_info (succ my_depth) in
   let f = %project_function_slot (g -> f) my_closure in

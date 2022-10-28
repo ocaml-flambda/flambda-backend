@@ -62,8 +62,12 @@ val compile_implementation_flambda2
   -> unit
   -> unit
 
-val compile_implementation_linear :
-    (module Compiler_owee.Unix_intf.S) -> string -> progname:string -> unit
+val compile_implementation_linear
+  : (module Compiler_owee.Unix_intf.S)
+  -> string
+  -> progname:string
+  -> ppf_dump:Format.formatter
+  -> unit
 
 val compile_phrase
   : ?dwarf:Dwarf_ocaml.Dwarf.t
@@ -73,7 +77,7 @@ val compile_phrase
 
 type error =
   | Assembler_error of string
-  | Mismatched_for_pack of string option
+  | Mismatched_for_pack of Compilation_unit.Prefix.t
   | Asm_generation of string * Emitaux.error
 
 exception Error of error
@@ -85,6 +89,7 @@ val compile_unit
    -> keep_asm:bool
    -> obj_filename:string
    -> may_reduce_heap:bool
+   -> ppf_dump:Format.formatter
    -> (unit -> unit)
    -> unit
 

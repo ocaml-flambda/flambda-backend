@@ -190,6 +190,7 @@ and operation =
   | Caddi | Csubi | Cmuli | Cmulhi of { signed: bool } | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
   | Cbswap of { bitwidth: bswap_bitwidth; }
+  | Ccsel of machtype
   | Cclz of { arg_is_non_zero: bool; }
   | Cctz of { arg_is_non_zero: bool; }
   | Cpopcnt
@@ -200,6 +201,7 @@ and operation =
   | Cnegf | Cabsf
   | Caddf | Csubf | Cmulf | Cdivf
   | Cfloatofint | Cintoffloat
+  | Cvalueofint | Cintofvalue
   | Ccmpf of float_comparison
   | Craise of Lambda.raise_kind
   | Ccheckbound
@@ -244,16 +246,22 @@ type expression =
   | Cregion of expression
   | Ctail of expression
 
+type property =
+  | Noalloc
+
 type codegen_option =
   | Reduce_code_size
   | No_CSE
   | Use_linscan_regalloc
+  | Assert of property
+  | Assume of property
 
 type fundecl =
   { fun_name: string;
     fun_args: (Backend_var.With_provenance.t * machtype) list;
     fun_body: expression;
     fun_codegen_options : codegen_option list;
+    fun_poll: Lambda.poll_attribute;
     fun_dbg : Debuginfo.t;
   }
 

@@ -150,6 +150,14 @@ let trywith_kind ppf kind =
   | Regular -> ()
   | Delayed i -> fprintf ppf "<delayed %d>" i
 
+let to_string msg =
+  let b = Buffer.create 17 in
+  let ppf = Format.formatter_of_buffer b in
+  Format.kfprintf (fun ppf ->
+    Format.pp_print_flush ppf ();
+    Buffer.contents b
+  ) ppf msg
+
 let operation d = function
   | Capply(_ty, _) -> "app" ^ location d
   | Cextcall { func = lbl; _ } ->
@@ -193,8 +201,12 @@ let operation d = function
   | Csubf -> "-f"
   | Cmulf -> "*f"
   | Cdivf -> "/f"
+  | Ccsel ret_typ ->
+    to_string "csel %a" machtype ret_typ
   | Cfloatofint -> "floatofint"
   | Cintoffloat -> "intoffloat"
+  | Cvalueofint -> "valueofint"
+  | Cintofvalue -> "intofvalue"
   | Ccmpf c -> Printf.sprintf "%sf" (float_comparison c)
   | Craise k -> Lambda.raise_kind k ^ location d
   | Ccheckbound -> "checkbound" ^ location d
@@ -339,6 +351,19 @@ and sequence ppf = function
 
 and expression ppf e = fprintf ppf "%a" expr e
 
+let property : Cmm.property -> string = function
+    | Noalloc -> "noalloc"
+
+let codegen_option = function
+  | Reduce_code_size -> "reduce_code_size"
+  | No_CSE -> "no_cse"
+  | Use_linscan_regalloc -> "linscan"
+  | Assert p -> "assert "^(property p)
+  | Assume p -> "assume "^(property p)
+
+let print_codegen_options ppf l =
+  List.iter (fun c -> fprintf ppf " %s" (codegen_option c)) l
+
 let fundecl ppf f =
   let print_cases ppf cases =
     let first = ref true in
@@ -348,8 +373,8 @@ let fundecl ppf f =
        fprintf ppf "%a: %a" VP.print id machtype ty)
      cases in
   with_location_mapping ~label:"Function" ~dbg:f.fun_dbg ppf (fun () ->
-  fprintf ppf "@[<1>(function%s %s@;<1 4>@[<1>(%a)@]@ @[%a@])@]@."
-         (location f.fun_dbg) f.fun_name
+  fprintf ppf "@[<1>(function%s%a@ %s@;<1 4>@[<1>(%a)@]@ @[%a@])@]@."
+         (location f.fun_dbg) print_codegen_options f.fun_codegen_options f.fun_name
          print_cases f.fun_args sequence f.fun_body)
 
 let data_item ppf = function

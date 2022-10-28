@@ -42,6 +42,7 @@ val params_and_body :
   Code_id.t ->
   Function_params_and_body.t ->
   fun_dbg:Debuginfo.t ->
+  check:Check_attribute.t ->
   translate_expr:
     (To_cmm_env.t ->
     To_cmm_result.t ->

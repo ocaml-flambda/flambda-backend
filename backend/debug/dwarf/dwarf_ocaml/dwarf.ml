@@ -34,7 +34,6 @@ let create ~sourcefile ~unit_name ~asm_directives ~get_file_id ~code_begin
   (match !Dwarf_flags.gdwarf_format with
   | Thirty_two -> Dwarf_format.set Thirty_two
   | Sixty_four -> Dwarf_format.set Sixty_four);
-
   let compilation_unit_proto_die =
     Dwarf_compilation_unit.compile_unit_proto_die ~sourcefile ~unit_name
       ~code_begin ~code_end

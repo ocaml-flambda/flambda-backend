@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/usr/bin/env -S bash -e
 
 help() {
   echo "./compile-coq <compiler_path> <path_to_directory> [--opam opam] [-c|--compile-opam] [-r|--remove]"

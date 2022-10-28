@@ -481,7 +481,7 @@ let emit_float_constant f lbl =
   D.qword (Const f)
 
 let emit_global_label s =
-  let lbl = Compilenv.make_symbol (Some s) in
+  let lbl = Cmm_helpers.make_symbol s in
   add_def_symbol lbl;
   let lbl = emit_symbol lbl in
   D.global lbl;
@@ -556,7 +556,7 @@ type probe =
 
 let probe_handler_wrapper_name probe_label =
   let w = Printf.sprintf "probe_wrapper_%d" probe_label in
-  Compilenv.make_symbol (Some w)
+  Cmm_helpers.make_symbol w
   |> emit_symbol
 
 let probes = ref []
@@ -571,7 +571,7 @@ let find_or_add_semaphore name =
   match String.Map.find_opt name !probe_semaphores with
   | Some label -> label
   | None ->
-    let sym = Compilenv.make_symbol (Some ("semaphore_"^name)) in
+    let sym = Cmm_helpers.make_symbol ("semaphore_"^name) in
     probe_semaphores := String.Map.add name sym !probe_semaphores;
     sym
 
@@ -1162,7 +1162,7 @@ let begin_assembly() =
   D.data ();
   emit_global_label "data_begin";
 
-  emit_named_text_section (Compilenv.make_symbol (Some "code_begin"));
+  emit_named_text_section (Cmm_helpers.make_symbol "code_begin");
   emit_global_label "code_begin";
   if system = S_macosx then I.nop (); (* PR#4690 *)
   ()
@@ -1438,7 +1438,7 @@ let end_assembly() =
   (* Emit probe handler wrappers *)
   List.iter emit_probe_handler_wrapper !probes;
 
-  emit_named_text_section (Compilenv.make_symbol (Some "code_end"));
+  emit_named_text_section (Cmm_helpers.make_symbol "code_end");
   if system = S_macosx then I.nop ();
   (* suppress "ld warning: atom sorting error" *)
 
@@ -1483,7 +1483,7 @@ let end_assembly() =
     };
 
   if system = S_linux then begin
-    let frametable = emit_symbol (Compilenv.make_symbol (Some "frametable")) in
+    let frametable = emit_symbol (Cmm_helpers.make_symbol "frametable") in
     D.size frametable (ConstSub (ConstThis, ConstLabel frametable))
   end;
 

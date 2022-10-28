@@ -91,7 +91,11 @@ let module_of_filename inputfile outputprefix =
   let basename = Filename.basename outputprefix in
   let name =
     try
-      let pos = String.index basename '.' in
+      (* For hidden files (i.e., those starting with '.'), include the initial
+         '.' in the module name rather than let it be empty. It's still not a
+         /good/ module name, but at least it's not rejected out of hand by
+         [Compilation_unit.Name.of_string]. *)
+      let pos = String.index_from basename 1 '.' in
       String.sub basename 0 pos
     with Not_found -> basename
   in
@@ -465,6 +469,9 @@ let read_one_param ppf position name v =
   | "timings" | "profile" ->
      let if_on = if name = "timings" then [ `Time ] else Profile.all_columns in
      profile_columns := if check_bool ppf name v then if_on else []
+
+  | "timings-precision" ->
+     int_setter ppf "timings-precision" timings_precision v
 
   | "stop-after" ->
     set_compiler_pass ppf v ~name Clflags.stop_after ~filter:(fun _ -> true)

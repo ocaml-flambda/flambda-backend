@@ -23,8 +23,8 @@ open Interval
 
 module V = Backend_var
 
-let loc ?(wrap_out = fun ppf f -> f ppf) ~reg_class ~unknown ppf l = 
-  match l with 
+let loc ?(wrap_out = fun ppf f -> f ppf) ~reg_class ~unknown ppf l =
+  match l with
   | Unknown -> unknown ppf
   | Reg r ->
       wrap_out ppf (fun ppf -> fprintf ppf "%s" (Proc.register_name r))
@@ -186,8 +186,14 @@ let operation' ?(print_reg = reg) op arg ppf res =
   | Isubf -> fprintf ppf "%a -f %a" reg arg.(0) reg arg.(1)
   | Imulf -> fprintf ppf "%a *f %a" reg arg.(0) reg arg.(1)
   | Idivf -> fprintf ppf "%a /f %a" reg arg.(0) reg arg.(1)
+  | Icsel tst ->
+    let len = Array.length arg in
+    fprintf ppf "csel %a ? %a : %a"
+      (test tst) arg reg arg.(len-2) reg arg.(len-1)
   | Ifloatofint -> fprintf ppf "floatofint %a" reg arg.(0)
   | Iintoffloat -> fprintf ppf "intoffloat %a" reg arg.(0)
+  | Ivalueofint -> fprintf ppf "valueofint %a" reg arg.(0)
+  | Iintofvalue -> fprintf ppf "intofvalue %a" reg arg.(0)
   | Iopaque -> fprintf ppf "opaque %a" reg arg.(0)
   | Iname_for_debugger { ident; which_parameter; } ->
     fprintf ppf "name_for_debugger %a%s=%a"
@@ -200,6 +206,12 @@ let operation' ?(print_reg = reg) op arg ppf res =
   | Iendregion -> fprintf ppf "endregion %a" reg arg.(0)
   | Ispecific op ->
       Arch.print_specific_operation reg op ppf arg
+  | Ipoll { return_label } ->
+      fprintf ppf "poll call";
+      (match return_label with
+      | None -> ()
+      | Some return_label ->
+        fprintf ppf " returning to L%d" return_label)
   | Iprobe {name;handler_code_sym} ->
     fprintf ppf "probe \"%s\" %s %a" name handler_code_sym regs arg
   | Iprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled \"%s\"" name
@@ -282,8 +294,10 @@ let fundecl ppf f =
       ""
     else
       " " ^ Debuginfo.to_string f.fun_dbg in
-  fprintf ppf "@[<v 2>%s(%a)%s@,%a@]"
-    f.fun_name regs f.fun_args dbg instr f.fun_body
+  fprintf ppf "@[<v 2>%s(%a)%s%a@,%a@]"
+    f.fun_name regs f.fun_args dbg
+    Printcmm.print_codegen_options f.fun_codegen_options
+    instr f.fun_body
 
 let phase msg ppf f =
   fprintf ppf "*** %s@.%a@." msg fundecl f

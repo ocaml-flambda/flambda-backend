@@ -1,172 +1,405 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 open! Int_replace_polymorphic_compare
+module Instr = Numbers.Int
 
-module type Forward_domain = sig
+module type Transfer_domain_S = sig
   type t
-
-  val top : t
 
   val bot : t
 
-  val compare : t -> t -> int
+  val less_equal : t -> t -> bool
+end
+
+module type Dataflow_direction_S = sig
+  module Transfer_domain : Transfer_domain_S
+
+  type transfer_image
+
+  val join_result :
+    old_value:Transfer_domain.t ->
+    transfer_result:transfer_image ->
+    predecessor:Cfg.basic_block ->
+    current:Cfg.basic_block ->
+    Transfer_domain.t
+
+  type instr_domain
+
+  (* For a given block gives a sequence of all successor labels (taking the
+     dataflow direction into account). *)
+  val edges_out : Cfg.basic_block -> Label.t Seq.t
+
+  val transfer_block :
+    update_instr:(int -> instr_domain -> unit) ->
+    Transfer_domain.t ->
+    Cfg.basic_block ->
+    transfer_image
+end
+
+module type Dataflow_S = sig
+  module Transfer_domain : Transfer_domain_S
+
+  type work_state
+
+  type instr_domain
+
+  val create :
+    Cfg.t ->
+    init:(Cfg.basic_block -> Transfer_domain.t option) ->
+    store_instr:bool ->
+    work_state
+
+  val get_res_block : work_state -> Transfer_domain.t Label.Tbl.t
+
+  val get_res_instr_exn : work_state -> instr_domain Instr.Tbl.t
+
+  val run : max_iteration:int -> work_state -> (unit, unit) Result.t
+end
+
+module Make_dataflow (D : Dataflow_direction_S) :
+  Dataflow_S
+    with type Transfer_domain.t = D.Transfer_domain.t
+     and type instr_domain = D.instr_domain = struct
+  module Transfer_domain = D.Transfer_domain
+
+  module WorkSet : sig
+    type t
+
+    type element = Label.t
+
+    val create : priorities:int Label.Tbl.t -> t
+
+    val add : t -> element -> unit
+
+    val is_empty : t -> bool
+
+    val remove_and_return : t -> element
+  end = struct
+    module WorkSetElement = struct
+      type t =
+        { priority : int;
+          label : Label.t
+        }
+
+      let compare t1 t2 =
+        match Int.compare t1.priority t2.priority with
+        | 0 -> Label.compare t1.label t2.label
+        | c -> c
+    end
+
+    module WorkSet = Set.Make (WorkSetElement)
+
+    type t =
+      { priorities : int Label.Tbl.t;
+        mutable work_set : WorkSet.t
+      }
+
+    type element = Label.t
+
+    let create ~priorities = { priorities; work_set = WorkSet.empty }
+
+    let add t label =
+      let priority = Label.Tbl.find t.priorities label in
+      t.work_set <- WorkSet.add { label; priority } t.work_set
+
+    let is_empty t = WorkSet.is_empty t.work_set
+
+    let choose t = WorkSet.max_elt t.work_set
+
+    let remove_and_return t =
+      let element = choose t in
+      t.work_set <- WorkSet.remove element t.work_set;
+      element.label
+  end
+
+  type work_state =
+    { cfg : Cfg.t;
+      mutable queue : WorkSet.t;
+      map_block : Transfer_domain.t Label.Tbl.t;
+      map_instr : D.instr_domain Instr.Tbl.t option
+    }
+
+  type instr_domain = D.instr_domain
+
+  type priority_helper =
+    { label : Label.t;
+      mutable index : int;
+      mutable lowlink : int;
+      mutable on_stack : bool
+    }
+
+  let compute_priorities (cfg : Cfg.t) =
+    (* This algorithm is based on Tarjan's strongly connected components
+       algorithm explained in "DEPTH-FIRST SEARCH AND LINEAR GRAPH ALGORITHMS*"
+       by Robert Tarjan, chapter 4.
+
+       We assign priorities to the nodes based on order they are popped from the
+       stack. With that, for two strongly connected components C1 and C2 with an
+       edge from C1 to C2 all nodes from C1 will have higher priorities than
+       nodes in C2. That is a good order for computing dataflow on the DAG of
+       strongly connected components.
+
+       Nodes in a single strongly connected component are added to the stack in
+       pre-order and when popping the order is be reversed. But we compute
+       dataflow in order of decreasing priority so it will go through them in
+       the original pre-order. That seems to be a good heuristic for strongly
+       connected components because for a simple cycle that is the best
+       ordering. *)
+    let stack = Stack.create () in
+    let mapping = Label.Tbl.create (Label.Tbl.length cfg.blocks) in
+    let priorities = Label.Tbl.create (Label.Tbl.length cfg.blocks) in
+    let priority = ref 0 in
+    let rec pop_until v =
+      let w_values = Stack.pop stack in
+      w_values.on_stack <- false;
+      incr priority;
+      let w = w_values.label in
+      assert (not (Label.Tbl.mem priorities w));
+      Label.Tbl.add priorities w !priority;
+      if not (Label.equal v w) then pop_until v
+    in
+    let i = ref 0 in
+    let int_min (i1 : int) (i2 : int) : int = if i1 < i2 then i1 else i2 in
+    let rec strong_connect v =
+      assert (not (Label.Tbl.mem mapping v));
+      incr i;
+      let v_values = { label = v; index = !i; lowlink = !i; on_stack = true } in
+      Label.Tbl.add mapping v v_values;
+      Stack.push v_values stack;
+      let block = Cfg.get_block_exn cfg v in
+      Seq.iter
+        (fun w ->
+          match Label.Tbl.find_opt mapping w with
+          | None ->
+            let w_values = strong_connect w in
+            v_values.lowlink <- int_min v_values.lowlink w_values.lowlink
+          | Some w_values ->
+            if w_values.on_stack
+            then v_values.lowlink <- int_min v_values.lowlink w_values.index)
+        (D.edges_out block);
+      if v_values.lowlink = v_values.index then pop_until v;
+      v_values
+    in
+    Cfg.iter_blocks cfg ~f:(fun label _block ->
+        if not (Label.Tbl.mem mapping label)
+        then
+          let (_ : priority_helper) = strong_connect label in
+          assert (Stack.is_empty stack));
+    assert (Label.Tbl.length priorities = Label.Tbl.length cfg.blocks);
+    priorities
+
+  let update_instr : work_state -> int -> instr_domain -> unit =
+   fun t instr_id value ->
+    match t.map_instr with
+    | None -> ()
+    | Some map_instr -> Instr.Tbl.replace map_instr instr_id value
+
+  let create :
+      Cfg.t ->
+      init:(Cfg.basic_block -> Transfer_domain.t option) ->
+      store_instr:bool ->
+      work_state =
+   fun cfg ~init ~store_instr ->
+    let priorities = compute_priorities cfg in
+    let queue = WorkSet.create ~priorities in
+    let map_block = Label.Tbl.create (Label.Tbl.length cfg.Cfg.blocks) in
+    let map_instr =
+      if store_instr
+      then
+        let map_instr =
+          (* CR-soon xclerc for xclerc: review the `16` constant. *)
+          Instr.Tbl.create (Label.Tbl.length cfg.Cfg.blocks * 16)
+        in
+        Some map_instr
+      else None
+    in
+    let t = { cfg; queue; map_block; map_instr } in
+    Cfg.iter_blocks cfg ~f:(fun label block ->
+        let value = init block |> Option.value ~default:D.Transfer_domain.bot in
+        Label.Tbl.replace map_block label value;
+        WorkSet.add t.queue label);
+    t
+
+  let get_res_block t = t.map_block
+
+  let get_res_instr_exn t = Option.get t.map_instr
+
+  let run ~max_iteration work_state =
+    let iteration = ref 0 in
+    while
+      (not (WorkSet.is_empty work_state.queue)) && !iteration < max_iteration
+    do
+      incr iteration;
+      let element = WorkSet.remove_and_return work_state.queue in
+      let current_block = Cfg.get_block_exn work_state.cfg element in
+      let current_value =
+        Label.Tbl.find work_state.map_block current_block.start
+      in
+      let transfer_result =
+        D.transfer_block ~update_instr:(update_instr work_state) current_value
+          current_block
+      in
+      Seq.iter
+        (fun successor ->
+          let successor_block = Cfg.get_block_exn work_state.cfg successor in
+          let successor_value =
+            Label.Tbl.find work_state.map_block successor_block.start
+          in
+          let new_value =
+            D.join_result ~old_value:successor_value ~transfer_result
+              ~predecessor:current_block ~current:successor_block
+          in
+          if not (Transfer_domain.less_equal new_value successor_value)
+          then (
+            Label.Tbl.replace work_state.map_block successor new_value;
+            WorkSet.add work_state.queue successor))
+        (D.edges_out current_block);
+      ()
+    done;
+    if WorkSet.is_empty work_state.queue then Ok () else Error ()
+end
+
+module type Domain_S = sig
+  type t
+
+  val bot : t
 
   val join : t -> t -> t
 
-  val to_string : t -> string
+  val less_equal : t -> t -> bool
 end
 
 module type Forward_transfer = sig
   type domain
 
-  type t =
+  type image =
     { normal : domain;
       exceptional : domain
     }
 
-  val basic : domain -> Cfg.basic Cfg.instruction -> t
+  val basic : domain -> Cfg.basic Cfg.instruction -> domain
 
-  val terminator : domain -> Cfg.terminator Cfg.instruction -> t
+  val terminator : domain -> Cfg.terminator Cfg.instruction -> image
 end
 
 module type Forward_S = sig
   type domain
 
-  type map = domain Label.Tbl.t
-
   val run :
-    Cfg.t -> ?max_iteration:int -> ?init:domain -> unit -> (map, map) Result.t
+    Cfg.t ->
+    ?max_iteration:int ->
+    init:domain ->
+    unit ->
+    (domain Label.Tbl.t, unit) result
 end
 
-module Forward
-    (D : Forward_domain)
-    (T : Forward_transfer with type domain = D.t) :
+module Forward (D : Domain_S) (T : Forward_transfer with type domain = D.t) :
   Forward_S with type domain = D.t = struct
-  type domain = D.t
+  module Direction :
+    Dataflow_direction_S
+      with type Transfer_domain.t = D.t
+       and type instr_domain = D.t = struct
+    module Transfer_domain : Transfer_domain_S with type t = D.t = struct
+      include D
+    end
 
-  type transfer = T.t
-
-  type map = domain Label.Tbl.t
-
-  module WorkSetElement = struct
-    type t =
-      { label : Label.t;
-        value : domain
+    type transfer_image = T.image =
+      { normal : D.t;
+        exceptional : D.t
       }
 
-    let compare { label = left_label; value = left_value }
-        { label = right_label; value = right_value } =
-      match Label.compare left_label right_label with
-      | 0 -> D.compare left_value right_value
-      | res -> res
+    type instr_domain = D.t
+
+    let edges_out : Cfg.basic_block -> Label.t Seq.t =
+     fun block ->
+      (* CR-soon azewierzejew for xclerc: Add something to [Cfg] interface to
+         make this function (and the one in [Backward]) more efficient. *)
+      Cfg.successor_labels ~normal:true ~exn:true block |> Label.Set.to_seq
+
+    let join_result :
+        old_value:Transfer_domain.t ->
+        transfer_result:transfer_image ->
+        predecessor:Cfg.basic_block ->
+        current:Cfg.basic_block ->
+        Transfer_domain.t =
+     fun ~old_value ~transfer_result ~predecessor:_ ~current ->
+      if current.is_trap_handler
+      then D.join old_value transfer_result.exceptional
+      else D.join old_value transfer_result.normal
+
+    let transfer_block :
+        update_instr:(int -> instr_domain -> unit) ->
+        Transfer_domain.t ->
+        Cfg.basic_block ->
+        transfer_image =
+     fun ~update_instr value block ->
+      let transfer f g acc (instr : _ Cfg.instruction) =
+        let res = f acc instr in
+        update_instr instr.id (g res);
+        res
+      in
+      transfer T.terminator
+        (fun { normal; exceptional = _ } -> normal)
+        (Cfg.BasicInstructionList.fold_left block.body ~init:value
+           ~f:(transfer T.basic (fun d -> d)))
+        block.terminator
   end
 
-  module WorkSet = Set.Make (WorkSetElement)
+  module Dataflow_impl = Make_dataflow (Direction)
 
-  let transfer_block : domain -> Cfg.basic_block -> transfer =
-   fun value block ->
-    let transfer f (acc_normal, acc_exceptional) instr =
-      let { T.normal; exceptional } = f acc_normal instr in
-      normal, D.join exceptional acc_exceptional
-    in
-    let normal, exceptional =
-      transfer T.terminator
-        (ListLabels.fold_left block.body ~init:(value, value)
-           ~f:(transfer T.basic))
-        block.terminator
-    in
-    { normal; exceptional }
-
-  let create : Cfg.t -> init:domain option -> map * WorkSet.t ref =
-   fun cfg ~init ->
-    let map = Label.Tbl.create (Label.Tbl.length cfg.Cfg.blocks) in
-    let set = ref WorkSet.empty in
-    let value = Option.value init ~default:D.top in
-    (* The need to have several blocks in the initial work set stems from the
-       fact that we currently need to consider all trap handlers as alive. *)
-    Cfg.iter_blocks cfg ~f:(fun label block ->
-        if Label.equal label cfg.entry_label || block.is_trap_handler
-        then set := WorkSet.add { WorkSetElement.label; value } !set);
-    map, set
-
-  let remove_and_return :
-      Cfg.t -> WorkSet.t ref -> WorkSetElement.t * Cfg.basic_block =
-   fun cfg set ->
-    let element = WorkSet.choose !set in
-    set := WorkSet.remove element !set;
-    element, Cfg.get_block_exn cfg element.label
+  type domain = D.t
 
   let run :
-      Cfg.t -> ?max_iteration:int -> ?init:domain -> unit -> (map, map) Result.t
-      =
-   fun cfg ?(max_iteration = max_int) ?init () ->
-    let res, work_set = create cfg ~init in
-    let iteration = ref 0 in
-    while (not (WorkSet.is_empty !work_set)) && !iteration < max_iteration do
-      incr iteration;
-      let element, block = remove_and_return cfg work_set in
-      let ({ normal; exceptional } : T.t) =
-        transfer_block element.value block
-      in
-      let update ~normal ~exn value =
-        Label.Set.iter
-          (fun successor_label ->
-            let old_value =
-              Option.value
-                (Label.Tbl.find_opt res successor_label)
-                ~default:D.bot
-            in
-            let new_value = D.join old_value value in
-            if not (D.compare new_value old_value <= 0)
-            then (
-              Label.Tbl.replace res successor_label new_value;
-              work_set
-                := WorkSet.add
-                     { WorkSetElement.label = successor_label;
-                       value = new_value
-                     }
-                     !work_set))
-          (Cfg.successor_labels ~normal ~exn block)
-      in
-      update ~normal:true ~exn:false normal;
-      update ~normal:false ~exn:true exceptional
-    done;
-    if WorkSet.is_empty !work_set then Result.Ok res else Result.Error res
+      Cfg.t ->
+      ?max_iteration:int ->
+      init:domain ->
+      unit ->
+      (domain Label.Tbl.t, unit) result =
+   fun cfg ?(max_iteration = max_int) ~init () ->
+    let work_state =
+      Dataflow_impl.create cfg
+        ~init:(fun block ->
+          if Label.equal block.start cfg.entry_label || block.is_trap_handler
+          then Some init
+          else None)
+        ~store_instr:false
+    in
+    Dataflow_impl.run ~max_iteration work_state
+    |> Result.map (fun () -> Dataflow_impl.get_res_block work_state)
 end
 
-module type Backward_domain = sig
-  type t
-
-  val bot : t
-
-  val compare : t -> t -> int
-
-  val join : t -> t -> t
-
-  val less_equal : t -> t -> bool
-
-  val to_string : t -> string
+module Dataflow_result = struct
+  type ('a, 'e) t =
+    | Ok of 'a
+    | Aborted of 'a * 'e
+    | Max_iterations_reached
 end
 
 module type Backward_transfer = sig
   type domain
 
-  val basic : domain -> exn:domain -> Cfg.basic Cfg.instruction -> domain
+  type error
+
+  val basic : domain -> Cfg.basic Cfg.instruction -> (domain, error) result
 
   val terminator :
-    domain -> exn:domain -> Cfg.terminator Cfg.instruction -> domain
+    domain ->
+    exn:domain ->
+    Cfg.terminator Cfg.instruction ->
+    (domain, error) result
 
-  val exception_ : domain -> domain
+  val exception_ : domain -> (domain, error) result
 end
-
-module Instr = Numbers.Int
 
 module type Backward_S = sig
   type domain
 
+  type error
+
   type _ map =
     | Block : domain Label.Tbl.t map
     | Instr : domain Instr.Tbl.t map
+    | Both : (domain Instr.Tbl.t * domain Label.Tbl.t) map
 
   val run :
     Cfg.t ->
@@ -174,80 +407,94 @@ module type Backward_S = sig
     init:domain ->
     map:'a map ->
     unit ->
-    ('a, 'a) Result.t
+    ('a, error) Dataflow_result.t
 end
 
-module Backward
-    (D : Backward_domain)
-    (T : Backward_transfer with type domain = D.t) :
-  Backward_S with type domain = D.t = struct
-  (* CR xclerc for xclerc: see what can be shared with `Forward`. *)
+module Backward (D : Domain_S) (T : Backward_transfer with type domain = D.t) :
+  Backward_S with type domain = D.t and type error = T.error = struct
+  type error = T.error
+
+  exception Dataflow_aborted of error
+
+  type transfer_domain =
+    { normal : D.t;
+      exn : D.t
+    }
+
+  let unwrap_transfer_result value =
+    match value with
+    | Ok value -> value
+    | Error error -> raise (Dataflow_aborted error)
+
+  module Direction :
+    Dataflow_direction_S
+      with type Transfer_domain.t = transfer_domain
+       and type instr_domain = D.t = struct
+    module Transfer_domain : Transfer_domain_S with type t = transfer_domain =
+    struct
+      type t = transfer_domain =
+        { normal : D.t;
+          exn : D.t
+        }
+
+      let bot = { normal = D.bot; exn = D.bot }
+
+      let less_equal t1 t2 =
+        D.less_equal t1.normal t2.normal && D.less_equal t1.exn t2.exn
+    end
+
+    type transfer_image = D.t
+
+    type instr_domain = D.t
+
+    let edges_out : Cfg.basic_block -> Label.t Seq.t =
+     fun block -> Cfg.predecessor_labels block |> List.to_seq
+
+    let join_result :
+        old_value:Transfer_domain.t ->
+        transfer_result:transfer_image ->
+        predecessor:Cfg.basic_block ->
+        current:Cfg.basic_block ->
+        Transfer_domain.t =
+     fun ~old_value ~transfer_result ~predecessor ~current:_ ->
+      if predecessor.is_trap_handler
+      then { old_value with exn = D.join old_value.exn transfer_result }
+      else { old_value with normal = D.join old_value.normal transfer_result }
+
+    let transfer_block :
+        update_instr:(int -> instr_domain -> unit) ->
+        Transfer_domain.t ->
+        Cfg.basic_block ->
+        transfer_image =
+     fun ~update_instr { normal; exn } block ->
+      let transfer (instr : _ Cfg.instruction) value =
+        let value = unwrap_transfer_result value in
+        update_instr instr.id value;
+        value
+      in
+      let value =
+        transfer block.terminator (T.terminator normal ~exn block.terminator)
+      in
+      let value =
+        Cfg.BasicInstructionList.fold_right block.body ~init:value
+          ~f:(fun instr value -> transfer instr (T.basic value instr))
+      in
+      let value =
+        if block.is_trap_handler
+        then value |> T.exception_ |> unwrap_transfer_result
+        else value
+      in
+      value
+  end
+
+  module Dataflow_impl = Make_dataflow (Direction)
 
   type domain = D.t
 
   type _ map =
     | Block : domain Label.Tbl.t map
     | Instr : domain Instr.Tbl.t map
-
-  module WorkSetElement = struct
-    type t =
-      { label : Label.t;
-        value : domain
-      }
-
-    let compare { label = left_label; value = left_value }
-        { label = right_label; value = right_value } =
-      match Label.compare left_label right_label with
-      | 0 -> D.compare left_value right_value
-      | res -> res
-  end
-
-  module WorkSet = Set.Make (WorkSetElement)
-
-  let transfer_block :
-      domain Instr.Tbl.t option ->
-      domain ->
-      exn:domain ->
-      Cfg.basic_block ->
-      domain =
-   fun tbl value ~exn block ->
-    let replace (instr : _ Cfg.instruction) value =
-      match tbl with
-      | None -> value
-      | Some tbl ->
-        Instr.Tbl.replace tbl instr.id value;
-        value
-    in
-    let value =
-      replace block.terminator (T.terminator value ~exn block.terminator)
-    in
-    let value =
-      ListLabels.fold_right block.body ~init:value ~f:(fun instr value ->
-          replace instr (T.basic value ~exn instr))
-    in
-    value
-
-  let create :
-      Cfg.t ->
-      init:domain ->
-      domain Label.Tbl.t * domain Instr.Tbl.t * WorkSet.t ref =
-   fun cfg ~init ->
-    let map_block = Label.Tbl.create (Label.Tbl.length cfg.Cfg.blocks) in
-    (* CR-soon xclerc for xclerc: review the `16` constant. *)
-    let map_instr = Instr.Tbl.create (Label.Tbl.length cfg.Cfg.blocks * 16) in
-    let set = ref WorkSet.empty in
-    let value = init in
-    Cfg.iter_blocks cfg ~f:(fun label _block ->
-        Label.Tbl.replace map_block label value;
-        set := WorkSet.add { WorkSetElement.label; value } !set);
-    map_block, map_instr, set
-
-  let remove_and_return :
-      Cfg.t -> WorkSet.t ref -> WorkSetElement.t * Cfg.basic_block =
-   fun cfg set ->
-    let element = WorkSet.choose !set in
-    set := WorkSet.remove element !set;
-    element, Cfg.get_block_exn cfg element.label
+    | Both : (domain Instr.Tbl.t * domain Label.Tbl.t) map
 
   let run :
       type a.
@@ -256,89 +503,28 @@ module Backward
       init:domain ->
       map:a map ->
       unit ->
-      (a, a) Result.t =
+      (a, error) Dataflow_result.t =
    fun cfg ?(max_iteration = max_int) ~init ~map () ->
-    let res_block, res_instr, work_set = create cfg ~init in
-    let iteration = ref 0 in
-    (* note: `handler_map` contains the value at the *start* of the block. *)
-    let handler_map : D.t Label.Tbl.t =
-      Label.Tbl.create (Label.Tbl.length cfg.Cfg.blocks)
+    let store_instr = match map with Block -> false | Both | Instr -> true in
+    let work_state =
+      Dataflow_impl.create cfg
+        ~init:(fun _ -> Some { normal = init; exn = D.bot })
+        ~store_instr
     in
-    let instr_map : D.t Instr.Tbl.t option =
-      match map with Block -> None | Instr -> Some res_instr
-    in
-    while (not (WorkSet.is_empty !work_set)) && !iteration < max_iteration do
-      incr iteration;
-      let element, block = remove_and_return cfg work_set in
-      let exn : domain =
-        Option.map
-          (fun exceptional_successor ->
-            Label.Tbl.find_opt handler_map exceptional_successor)
-          block.exn
-        |> Option.join
-        |> Option.value ~default:D.bot
+    let get_result () : a =
+      let get_res_block () =
+        Label.Tbl.map (Dataflow_impl.get_res_block work_state)
+          (fun { normal; exn = _ } -> normal)
       in
-      let value = transfer_block instr_map element.value ~exn block in
-      if block.is_trap_handler
-      then (
-        let old_value =
-          Option.value
-            (Label.Tbl.find_opt handler_map block.start)
-            ~default:D.bot
-        in
-        let new_value = T.exception_ value in
-        if not (D.less_equal new_value old_value)
-        then (
-          Label.Tbl.replace handler_map block.start new_value;
-          List.iter
-            (fun predecessor_label ->
-              let current_value =
-                Option.value
-                  (Label.Tbl.find_opt res_block predecessor_label)
-                  ~default:D.bot
-              in
-              work_set
-                := WorkSet.add
-                     { WorkSetElement.label = predecessor_label;
-                       value = current_value
-                     }
-                     !work_set)
-            (Cfg.predecessor_labels block)))
-      else
-        List.iter
-          (fun predecessor_label ->
-            let old_value =
-              Option.value
-                (Label.Tbl.find_opt res_block predecessor_label)
-                ~default:D.bot
-            in
-            let new_value = D.join old_value value in
-            if not (D.less_equal new_value old_value)
-            then (
-              Label.Tbl.replace res_block predecessor_label new_value;
-              let already_in_workset = ref false in
-              work_set
-                := WorkSet.filter
-                     (fun { WorkSetElement.label; value } ->
-                       if Label.equal label predecessor_label
-                       then (
-                         if D.less_equal new_value value
-                         then already_in_workset := true;
-                         not (D.less_equal value new_value))
-                       else true)
-                     !work_set;
-              if not !already_in_workset
-              then
-                work_set
-                  := WorkSet.add
-                       { WorkSetElement.label = predecessor_label;
-                         value = new_value
-                       }
-                       !work_set))
-          (Cfg.predecessor_labels block)
-    done;
-    let return x =
-      if WorkSet.is_empty !work_set then Result.Ok x else Result.Error x
+      let get_res_instr () = Dataflow_impl.get_res_instr_exn work_state in
+      match map with
+      | Block -> get_res_block ()
+      | Instr -> get_res_instr ()
+      | Both -> get_res_instr (), get_res_block ()
     in
-    match map with Block -> return res_block | Instr -> return res_instr
+    try
+      match Dataflow_impl.run ~max_iteration work_state with
+      | Ok () -> Ok (get_result ())
+      | Error () -> Max_iterations_reached
+    with Dataflow_aborted error -> Aborted (get_result (), error)
 end

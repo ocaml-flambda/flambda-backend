@@ -105,9 +105,8 @@ end = struct
       match t with
       | No_alias head -> print_head ppf head
       | Equals simple ->
-        Format.fprintf ppf "@[(@<0>%s=@<0>%s %a)@]" (Flambda_colours.error ())
-          (Flambda_colours.normal ())
-          Simple.print simple
+        Format.fprintf ppf "@[(%t=%t %a)@]" Flambda_colours.error
+          Flambda_colours.pop Simple.print simple
 
     let[@inline always] apply_renaming ~apply_renaming_head t renaming =
       if Renaming.is_empty renaming
@@ -258,20 +257,16 @@ end
 include T
 
 let print ~print_head ppf t =
-  let colour = Flambda_colours.top_or_bottom_type () in
+  let colour = Flambda_colours.top_or_bottom_type in
   match descr t with
   | Unknown ->
     if Flambda_features.unicode ()
-    then
-      Format.fprintf ppf "@<0>%s@<1>\u{22a4}@<0>%s" colour
-        (Flambda_colours.normal ())
-    else Format.fprintf ppf "@<0>%sT@<0>%s" colour (Flambda_colours.normal ())
+    then Format.fprintf ppf "%t@<1>\u{22a4}%t" colour Flambda_colours.pop
+    else Format.fprintf ppf "%tT%t" colour Flambda_colours.pop
   | Bottom ->
     if Flambda_features.unicode ()
-    then
-      Format.fprintf ppf "@<0>%s@<1>\u{22a5}@<0>%s" colour
-        (Flambda_colours.normal ())
-    else Format.fprintf ppf "@<0>%s_|_@<0>%s" colour (Flambda_colours.normal ())
+    then Format.fprintf ppf "%t@<1>\u{22a5}%t" colour Flambda_colours.pop
+    else Format.fprintf ppf "%t_|_%t" colour Flambda_colours.pop
   | Ok descr -> Descr.print ~print_head ppf descr
 
 let[@inline always] apply_coercion ~apply_coercion_head coercion t :

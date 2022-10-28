@@ -68,16 +68,11 @@ let load_symbol_approx loader symbol : Code_or_metadata.t Value_approximation.t
     T.Typing_env.Serializable.extract_symbol_approx typing_env symbol find_code
 
 let all_predefined_exception_symbols ~symbol_for_global =
-  Predef.all_predef_exns
-  |> List.map (fun ident ->
-         symbol_for_global
-           ?comp_unit:(Some (Compilation_unit.predefined_exception ()))
-           ident)
-  |> Symbol.Set.of_list
+  Predef.all_predef_exns |> List.map symbol_for_global |> Symbol.Set.of_list
 
 let predefined_exception_typing_env ~symbol_for_global =
   let comp_unit = Compilation_unit.get_current_exn () in
-  Compilation_unit.set_current (Compilation_unit.predefined_exception ());
+  Compilation_unit.set_current Compilation_unit.predef_exn;
   let typing_env =
     TE.Serializable.predefined_exceptions
       (all_predefined_exception_symbols ~symbol_for_global)
@@ -97,8 +92,7 @@ let create_loader ~get_global_info ~symbol_for_global =
     predefined_exception_typing_env ~symbol_for_global
   in
   loader.imported_units
-    <- Compilation_unit.Map.singleton
-         (Compilation_unit.predefined_exception ())
+    <- Compilation_unit.Map.singleton Compilation_unit.predef_exn
          (Some predefined_exception_typing_env);
   loader.imported_names
     <- TE.Serializable.name_domain predefined_exception_typing_env;
@@ -135,7 +129,8 @@ let compute_reachable_names_and_code ~module_symbol ~free_names_of_name code =
                 free_names
             in
             let new_names =
-              Name_occurrences.diff names_to_consider names_already_added
+              Name_occurrences.diff names_to_consider
+                ~without:names_already_added
             in
             Name_occurrences.union new_names names_to_add
       in
@@ -156,7 +151,8 @@ let compute_reachable_names_and_code ~module_symbol ~free_names_of_name code =
               .with_only_names_and_code_ids_promoting_newer_version_of ty_names
             in
             let new_names =
-              Name_occurrences.diff names_to_consider names_already_added
+              Name_occurrences.diff names_to_consider
+                ~without:names_already_added
             in
             Name_occurrences.union new_names names_to_add
           | None ->
