@@ -24,17 +24,16 @@ type non_escaping_block =
     fields_kinds : Flambda_kind.With_subkind.t list
   }
 
-type extra_ref_params = Bound_parameter.t list
+type extra_params = Bound_parameter.t list
 
-type extra_ref_args =
+type extra_args =
   Simple.t Numeric_types.Int.Map.t Apply_cont_rewrite_id.Map.t
   Continuation.Map.t
 
 type t =
   { non_escaping_makeblocks : non_escaping_block Variable.Map.t;
-    continuations_with_live_ref : Variable.Set.t Continuation.Map.t;
-    extra_ref_params_and_args :
-      (extra_ref_params * extra_ref_args) Continuation.Map.t;
+    continuations_with_live_block : Variable.Set.t Continuation.Map.t;
+    extra_params_and_args : (extra_params * extra_args) Continuation.Map.t;
     rewrites : Named_rewrite.t Named_rewrite_id.Map.t;
     required_regions : Name.Set.t
   }
@@ -259,7 +258,7 @@ let continuations_defining_refs ~non_escaping_refs ~(source_info : T.Acc.t) =
       defined)
     source_info.map
 
-let continuations_with_live_ref ~non_escaping_refs ~dom ~source_info
+let continuations_with_live_block ~non_escaping_refs ~dom ~source_info
     ~(control_flow_graph : Control_flow_graph.t) =
   let continuations_defining_refs =
     continuations_defining_refs ~non_escaping_refs ~source_info
@@ -447,7 +446,7 @@ module Fold_prims = struct
       Numeric_types.Int.Map.disjoint_union i1 shifted_i2
 
   let do_stuff ~(non_escaping_refs : non_escaping_block Variable.Map.t)
-      ~continuations_with_live_ref ~dom ~(source_info : T.Acc.t) =
+      ~continuations_with_live_block ~dom ~(source_info : T.Acc.t) =
     let rewrites = ref Named_rewrite_id.Map.empty in
     let extra_params_and_args =
       Continuation.Map.mapi
@@ -469,7 +468,7 @@ module Fold_prims = struct
             Apply_cont_rewrite_id.Map.map
               (fun _args ->
                 match
-                  Continuation.Map.find cont continuations_with_live_ref
+                  Continuation.Map.find cont continuations_with_live_block
                 with
                 | exception Not_found -> Numeric_types.Int.Map.empty
                 | refs_needed ->
@@ -487,7 +486,7 @@ module Fold_prims = struct
             Continuation.Map.mapi refs_params_to_add elt.apply_cont_args
           in
           extra_ref_params, new_apply_cont_args)
-        continuations_with_live_ref
+        continuations_with_live_block
     in
     extra_params_and_args, !rewrites
 end
@@ -511,33 +510,33 @@ let create ~(dom : Dominator_graph.alias_map) ~(dom_graph : Dominator_graph.t)
                 Flambda_kind.With_subkind.print)
              fields_kinds))
       non_escaping_refs;
-  let continuations_with_live_ref =
-    continuations_with_live_ref ~non_escaping_refs ~dom ~source_info
+  let continuations_with_live_block =
+    continuations_with_live_block ~non_escaping_refs ~dom ~source_info
       ~control_flow_graph
   in
   let toplevel_used =
     Continuation.Map.find source_info.dummy_toplevel_cont
-      continuations_with_live_ref
+      continuations_with_live_block
   in
   if not (Variable.Set.is_empty toplevel_used)
   then
     Misc.fatal_errorf
       "Toplevel continuation cannot have needed extra argument for ref: %a@."
       Variable.Set.print toplevel_used;
-  let extra_ref_params_and_args, rewrites =
-    Fold_prims.do_stuff ~dom ~source_info ~continuations_with_live_ref
+  let extra_params_and_args, rewrites =
+    Fold_prims.do_stuff ~dom ~source_info ~continuations_with_live_block
       ~non_escaping_refs
   in
-  { extra_ref_params_and_args;
+  { extra_params_and_args;
     non_escaping_makeblocks = non_escaping_refs;
-    continuations_with_live_ref;
+    continuations_with_live_block;
     rewrites;
     required_regions
   }
 
-let pp_node { non_escaping_makeblocks = _; continuations_with_live_ref; _ } ppf
-    cont =
-  match Continuation.Map.find cont continuations_with_live_ref with
+let pp_node { non_escaping_makeblocks = _; continuations_with_live_block; _ }
+    ppf cont =
+  match Continuation.Map.find cont continuations_with_live_block with
   | exception Not_found -> ()
   | live_refs -> Format.fprintf ppf " %a" Variable.Set.print live_refs
 
@@ -564,7 +563,7 @@ let add_to_extra_params_and_args result =
                   | None -> (
                     match
                       Continuation.Map.find callee_cont
-                        result.extra_ref_params_and_args
+                        result.extra_params_and_args
                     with
                     | exception Not_found -> []
                     | extra_params, _ ->
@@ -590,13 +589,13 @@ let add_to_extra_params_and_args result =
                 Some extra_args)
               all_extra_args)
           extra_args all_extra_args)
-      result.extra_ref_params_and_args Continuation.Map.empty
+      result.extra_params_and_args Continuation.Map.empty
   in
   let epa =
     Continuation.Map.fold
       (fun cont extra_args epa ->
         let extra_params =
-          match Continuation.Map.find cont result.extra_ref_params_and_args with
+          match Continuation.Map.find cont result.extra_params_and_args with
           | exception Not_found -> []
           | extra_params, _ -> extra_params
         in
