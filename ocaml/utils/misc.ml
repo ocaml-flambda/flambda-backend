@@ -1002,17 +1002,10 @@ module EnvLazy = struct
   let create_forced y =
     ref (Done y)
 
-  type does_not_return = |
-  exception I_just_want_a_backtrace
+  let backtrace_size = 64
 
   let create_failed e =
-    let bt =
-      (* We want to call [Printexc.get_raw_backtrace], but that's only valid in
-         an exception handler. So let's handle an exception. *)
-      match (raise I_just_want_a_backtrace : does_not_return) with
-      | exception _ -> Printexc.get_raw_backtrace ()
-      | _ -> .
-    in
+    let bt = Printexc.get_callstack backtrace_size in
     ref (Raise (e, bt))
 
   let log () =
