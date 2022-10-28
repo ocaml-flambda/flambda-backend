@@ -119,13 +119,13 @@ let linearize_terminator cfg_with_layout func start
     then d @ [L.Lbranch lbl]
     else d
   in
-  let branch_or_fallthrough_next =
-    if cross_section cfg_with_layout start next.label
-    then [L.Lbranch next.label]
-    else []
-  in
   let single d = [d], None in
   let emit_bool (c1, l1) (c2, l2) =
+    let branch_or_fallthrough_next =
+      if cross_section cfg_with_layout start next.label
+      then [L.Lbranch next.label]
+      else []
+    in
     (* c1 must be the inverse of c2 *)
     match Label.equal l1 next.label, Label.equal l2 next.label with
     | true, true -> branch_or_fallthrough_next
