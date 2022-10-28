@@ -176,19 +176,18 @@ let compute_continuation_extra_args_for_aliases ~speculative ~required_names
         let s =
           List.fold_left
             (fun acc param ->
-               match Variable.Map.find param doms with
-               | exception Not_found ->
-                 if Name.Set.mem (Name.var param) required_names
-                 then
-                   Misc.fatal_errorf "Dom not found for: %a@." Variable.print
-                     param
-                 else
-                   acc
-               | dom ->
-                 if Variable.equal param dom || Variable.Set.mem dom unboxed_blocks then
-                   acc
-                 else
-                   Variable.Set.add dom acc)
+              match Variable.Map.find param doms with
+              | exception Not_found ->
+                if Name.Set.mem (Name.var param) required_names
+                then
+                  Misc.fatal_errorf "Dom not found for: %a@." Variable.print
+                    param
+                else acc
+              | dom ->
+                if Variable.equal param dom
+                   || Variable.Set.mem dom unboxed_blocks
+                then acc
+                else Variable.Set.add dom acc)
             Variable.Set.empty
             (Bound_parameters.vars elt.T.Continuation_info.params)
         in
@@ -276,10 +275,9 @@ let compute_continuation_extra_args_for_aliases ~speculative ~required_names
                 | None ->
                   let removed = Variable.Set.add param removed in
                   let lets_to_introduce =
-                    if Variable.Set.mem alias unboxed_blocks then
-                      lets_to_introduce
-                    else
-                      Variable.Map.add param alias lets_to_introduce
+                    if Variable.Set.mem alias unboxed_blocks
+                    then lets_to_introduce
+                    else Variable.Map.add param alias lets_to_introduce
                   in
                   removed, lets_to_introduce
                 | Some (aliased_to, exception_param) ->
@@ -296,10 +294,9 @@ let compute_continuation_extra_args_for_aliases ~speculative ~required_names
                     in
                     let removed = Variable.Set.add param removed in
                     let lets_to_introduce =
-                      if Variable.Set.mem alias unboxed_blocks then
-                        lets_to_introduce
-                      else
-                        Variable.Map.add param alias lets_to_introduce
+                      if Variable.Set.mem alias unboxed_blocks
+                      then lets_to_introduce
+                      else Variable.Map.add param alias lets_to_introduce
                     in
                     removed, lets_to_introduce))
           (Variable.Set.empty, Variable.Map.empty)
