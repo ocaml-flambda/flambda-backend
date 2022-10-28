@@ -56,7 +56,8 @@ module Acc : sig
     generate_phantom_lets:bool ->
     let_bound:Bound_pattern.t ->
     simplified_defining_expr:Simplified_named.t ->
-    t -> t
+    t ->
+    t
 
   (** Add a variable binding to the symbol. Projections might get recorded
       multiple times. *)

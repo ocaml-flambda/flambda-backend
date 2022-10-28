@@ -310,82 +310,75 @@ let get_block_and_constant_field ~block ~field =
   Simple.pattern_match field
     ~name:(fun _ ~coercion:_ -> None)
     ~const:(fun const ->
-        Simple.pattern_match' block
-          ~const:(fun _ -> None)
-          ~symbol:(fun _ ~coercion:_ -> None)
-          ~var:(fun var ~coercion:_ ->
-              let field =
-                match[@ocaml.warning "-4"] Reg_width_const.descr const with
-                | Tagged_immediate i -> Targetint_31_63.to_int i
-                | _ -> assert false
-              in
-              Some (var, field)))
+      Simple.pattern_match' block
+        ~const:(fun _ -> None)
+        ~symbol:(fun _ ~coercion:_ -> None)
+        ~var:(fun var ~coercion:_ ->
+          let field =
+            match[@ocaml.warning "-4"] Reg_width_const.descr const with
+            | Tagged_immediate i -> Targetint_31_63.to_int i
+            | _ -> assert false
+          in
+          Some (var, field)))
 
-let record_let_binding ~rewrite_id ~generate_phantom_lets
-    ~let_bound ~simplified_defining_expr t =
+let record_let_binding ~rewrite_id ~generate_phantom_lets ~let_bound
+    ~simplified_defining_expr t =
   match (simplified_defining_expr : Simplified_named.t) with
   | { free_names; named; cost_metrics = _ } -> (
     let record_var_bindings t free_names =
-      Bound_pattern.fold_all_bound_vars let_bound ~init:t
-        ~f:(fun t v ->
-            record_var_binding (Bound_var.var v) free_names
-              ~generate_phantom_lets t)
+      Bound_pattern.fold_all_bound_vars let_bound ~init:t ~f:(fun t v ->
+          record_var_binding (Bound_var.var v) free_names ~generate_phantom_lets
+            t)
     in
     match[@ocaml.warning "-4"] named with
     | Simple simple ->
       let bound_var = Bound_pattern.must_be_singleton let_bound in
       let var = Bound_var.var bound_var in
       record_var_alias var simple t
-    | Set_of_closures _ | Rec_info _ ->
-      record_var_bindings t free_names
+    | Set_of_closures _ | Rec_info _ -> record_var_bindings t free_names
     | Prim (prim, _) -> (
-        match[@ocaml.warning "-4"] prim with
-        | Unary (End_region, _region) ->
-          (* Uses of region variables in [End_region] don't count as uses. *)
-          t
-        | Binary (Block_load (bak, mut), block, field) ->
-          begin match get_block_and_constant_field ~block ~field with
-          | Some (block, field) ->
-            let bound_var =
-              Bound_pattern.must_be_singleton let_bound
-            in
-            let var = Bound_var.var bound_var in
-            record_ref_named rewrite_id ~bound_to:var
-              (Block_load { bak; mut; block; field }) t
-          | None ->
-            record_var_bindings t free_names
-          end
-        | Ternary (Block_set (access_kind, init_or_assign), block, field, c) ->
-          begin match get_block_and_constant_field ~block ~field with
-            | Some (block, field) ->
-              let bound_var =
-                Bound_pattern.must_be_singleton let_bound
-              in
-              let var = Bound_var.var bound_var in
-              record_ref_named rewrite_id ~bound_to:var
-                (Block_set (access_kind, init_or_assign, block, field, c)) t
-            | None ->
-              add_used_in_current_handler free_names t
-          end
-        | Variadic (Make_block (kind, mutability, alloc_mode), args) ->
+      match[@ocaml.warning "-4"] prim with
+      | Unary (End_region, _region) ->
+        (* Uses of region variables in [End_region] don't count as uses. *)
+        t
+      | Binary (Block_load (bak, mut), block, field) -> (
+        match get_block_and_constant_field ~block ~field with
+        | Some (block, field) ->
+          let bound_var = Bound_pattern.must_be_singleton let_bound in
+          let var = Bound_var.var bound_var in
+          record_var_bindings
+            (record_ref_named rewrite_id ~bound_to:var
+               (Block_load { bak; mut; block; field })
+               t)
+            Name_occurrences.empty
+        | None -> record_var_bindings t free_names)
+      | Ternary (Block_set (access_kind, init_or_assign), block, field, c) -> (
+        match get_block_and_constant_field ~block ~field with
+        | Some (block, field) ->
           let bound_var = Bound_pattern.must_be_singleton let_bound in
           let var = Bound_var.var bound_var in
           record_ref_named rewrite_id ~bound_to:var
-            (Make_block (kind, mutability, alloc_mode, args)) t
-        | _ ->
-          if Flambda_primitive.at_most_generative_effects prim then
-            (* the primitive can be removed *)
-            record_var_bindings t free_names
-          else (
-            let t =
-              Bound_pattern.fold_all_bound_vars let_bound ~init:t
-                ~f:(fun t v -> record_defined_var (Bound_var.var v) t)
-            in
-            add_used_in_current_handler free_names t
-          )
-      )
-  )
-
+            (Block_set (access_kind, init_or_assign, block, field, c))
+            t
+        | None -> add_used_in_current_handler free_names t)
+      | Variadic (Make_block (kind, mutability, alloc_mode), args) ->
+        let bound_var = Bound_pattern.must_be_singleton let_bound in
+        let var = Bound_var.var bound_var in
+        record_var_bindings
+          (record_ref_named rewrite_id ~bound_to:var
+             (Make_block (kind, mutability, alloc_mode, args))
+             t)
+          Name_occurrences.empty
+      | _ ->
+        if Flambda_primitive.at_most_generative_effects prim
+        then (* the primitive can be removed *)
+          record_var_bindings t free_names
+        else
+          let t =
+            Bound_pattern.fold_all_bound_vars let_bound ~init:t ~f:(fun t v ->
+                record_defined_var (Bound_var.var v) t)
+          in
+          add_used_in_current_handler free_names t))
 
 (* Normalisation *)
 (* ************* *)

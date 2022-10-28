@@ -207,7 +207,8 @@ let record_new_defining_expression_binding_for_data_flow dacc ~rewrite_id
     data_flow (binding : Simplify_named_result.binding_to_place) : Flow.Acc.t =
   let generate_phantom_lets = DE.generate_phantom_lets (DA.denv dacc) in
   Flow.Acc.record_let_binding ~rewrite_id ~generate_phantom_lets
-    ~let_bound:binding.let_bound ~simplified_defining_expr:binding.simplified_defining_expr data_flow
+    ~let_bound:binding.let_bound
+    ~simplified_defining_expr:binding.simplified_defining_expr data_flow
 
 let update_data_flow dacc closure_info ~lifted_constants_from_defining_expr
     simplify_named_result ~rewrite_id data_flow =
