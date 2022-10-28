@@ -189,45 +189,52 @@ be advisable to clean the whole tree again.
 
 It is possible to create a OPAM switch with the Flambda backend compiler.
 
-First, you'll need to install the `opam-custom-install` plugin. See
-[here](https://gitlab.ocamlpro.com/louis/opam-custom-install) for instructions.
-(This can be done in any OPAM switch, e.g. a standard 4.12.0 switch.)
+The first step is to choose where to put the switch. One possibility is to use a
+local switch at the root of the tree, in which case the prefix will be
+`${flambda-backend-root-dir}/_opam`, but it's also possible to use a local switch elsewhere or
+a global switch. For a global switch named `flambda-backend`, the prefix will be
+`$(opam var root)/flambda-backend`.
 
-Then you'll need to create an empty switch. The recommended way is to use a
-local switch in the Flambda backend directory:
-
-```shell
-opam switch create . --empty
-```
-
-(A global switch can also be used, in which case the `--prefix` argument
-to `configure` given below needs to point at the switch directory under the OPAM root.
-It is also necessary to `opam switch` to the new switch and then update the current
-environment with `opam env` after the above `opam switch create` command.)
-
-The Flambda backend must also be configured with this switch as prefix
-(this can be done before actually creating the switch, the directory only
-needs to exist during the installation step):
+The Flambda backend must then be configured with this switch as prefix:
 
 ```shell
-./configure --prefix=/path/to/cwd/_opam ...
+./configure --prefix=${opam_switch_prefix} ...
 ```
 
 Note that if the Flambda backend tree is already configured, it should be cleaned
 thoroughly (e.g. `git clean -dfX`) before reconfiguring with a different prefix.
 
 Then build the compiler with the command `make _install` (this is the default
-target plus some setup in preparation for installation).
-Once that is done, we're ready to install the compiler:
+target plus some setup in preparation for installation). As usual when building,
+a 4.12 compiler (and dune) need to be in the path.
+
+Now the build part is done, we don't need to stay in the build environment
+anymore; the switch creation will likely replace it if your terminal is setup
+to automatically follow the active opam switch.
+
+The next step is to create the switch if it wasn't done already (if you already
+had created a switch from a previous attempt, you will need to remove it first):
 
 ```shell
-opam custom-install ocaml-variants.4.12.0+flambda2+trunk -- make install_for_opam
+# For a local switch:
+opam switch create . --empty --repositories=flambda2=git+https://github.com/ocaml-flambda/flambda2-opam.git,default
+# For a global switch:
+opam switch create flambda-backend --empty --repositories=flambda2=git+https://github.com/ocaml-flambda/flambda2-opam.git,default
 ```
 
-The exact version doesn't matter that much, but the version number should
-match the one in the Flambda backend tree.  (The name of the package given
-here is independent of the name of the switch.)
-Note that due to some issues with some versions of the custom-install plugin,
+Then we can install the compiler. The recommended way is to use the `opam-custom-install`
+plugin. See [here](https://gitlab.ocamlpro.com/louis/opam-custom-install)
+for instructions. The plugin can be installed in any existing OPAM switch,
+for example a 4.12 switch used for building. Once installed, the plugin will be
+available whatever the current active switch is.
+Once the plugin is installed, we can use it to install the compiler:
+
+```shell
+opam custom-install ocaml-variants.4.12.0+flambda2 -- make -C ${flambda-backend-root-dir} install_for_opam
+```
+The `-C ${flambda-backend-dir}` part can be omitted if we're still in the build directory.
+
+Note that due to issues with some versions of the custom-install plugin,
 it is recommended to run the command `opam reinstall --forget-pending` after
 every use of `opam custom-install`, otherwise any subsequent `opam` command
 tries to rebuild the compiler from scratch.
@@ -236,15 +243,23 @@ To finish the installation, `opam install ocaml.4.12.0` will install the remaini
 auxiliary packages necessary for a regular switch. After that, normal opam
 packages can be installed the usual way.
 
-It is also possible to update the compiler after hacking:
+It is also possible to update the compiler after hacking, by running the
+`opam custom-install` command again. It also accepts a `-n` flag to skip
+recompilation of the packages which depend on the compiler, which can be useful
+when the output of the compiler is unchanged apart from extra logging.
+
+As `opam-custom-install` is still experimental, it can sometimes be hard to install.
+In this case, it is possible to use the more fragile `opam install --fake` command:
+
 ```shell
-# This will reinstall the compiler, and recompile all packages
-# that depend on the compiler
-opam custom-install ocaml-variants -- make install
-# This skips recompilation of other packages,
-# particularly useful for debugging
-opam custom-install --no-recompilations ocaml-variants -- make install
+opam install --fake ocaml-variants.4.12.0+flambda2
+make -C ${flambda-backend-root-dir} install_for_opam
 ```
+
+The main drawback of this approach is that there isn't any way to cleanup an
+installation properly without deleting the whole switch; if the set of installed
+files change between one `make install_for_opam` command and the next, strange
+bugs might appear.
 
 ## Pulling changes onto a release branch
 
