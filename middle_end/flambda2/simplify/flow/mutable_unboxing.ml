@@ -17,6 +17,13 @@ module EPA = Continuation_extra_params_and_args
 
 let ref_to_var_debug = Sys.getenv_opt "RTV" <> None
 
+(* Types *)
+
+type non_escaping_block =
+  { tag : Tag.t;
+    fields_kinds : Flambda_kind.With_subkind.t list
+  }
+
 type extra_ref_params = Bound_parameter.t list
 
 type extra_ref_args =
@@ -24,15 +31,15 @@ type extra_ref_args =
   Continuation.Map.t
 
 type t =
-  { (* non_escaping_references : Variable.Set.t *)
-    non_escaping_makeblock :
-      (Tag.t * Flambda_kind.With_subkind.t list) Variable.Map.t;
+  { non_escaping_makeblocks : non_escaping_block Variable.Map.t;
     continuations_with_live_ref : Variable.Set.t Continuation.Map.t;
     extra_ref_params_and_args :
       (extra_ref_params * extra_ref_args) Continuation.Map.t;
     rewrites : Named_rewrite.t Named_rewrite_id.Map.t;
     required_regions : Name.Set.t
   }
+
+(* Escaping analysis *)
 
 let free_names_of_apply_cont_args
     (apply_cont_args :
@@ -53,118 +60,119 @@ let free_names_of_apply_cont_args
         args free)
     apply_cont_args Variable.Set.empty
 
-let escaping ~(dom : Dominator_graph.alias_map) ~(dom_graph : Dominator_graph.t)
-    ~(source_info : T.Acc.t) ~return_continuation ~exn_continuation =
-  ignore source_info;
-  let escaping_by_alias =
-    Variable.Map.fold
-      (fun flow_to flow_from escaping ->
-        let alias_to =
-          match Variable.Map.find flow_to dom with
-          | exception Not_found -> flow_to
-          | v -> v
-        in
-        let new_escaping =
-          Variable.Set.fold
-            (fun flow_from escaping ->
-              let alias_from =
-                match Variable.Map.find flow_from dom with
-                | exception Not_found -> flow_from
-                | v -> v
-              in
-              let is_escaping = not (Variable.equal alias_to alias_from) in
-              if is_escaping
-              then Variable.Set.add alias_from escaping
-              else escaping)
-            flow_from Variable.Set.empty
-        in
-        (* Format.printf "From %a to %a@." Variable.Set.print flow_from
-         *   Variable.print flow_to; *)
-        (* if not (Variable.Set.is_empty new_escaping)
-         * then
-         *   Format.printf "Escaping by alias %a@." Variable.Set.print
-         *     new_escaping; *)
-        Variable.Set.union escaping new_escaping)
-      dom_graph.graph Variable.Set.empty
-  in
-  let ref_prim_escaping (prim : T.Mutable_prim.t) =
-    match prim with
-    | Make_block (_, _, _, args) -> Simple.List.free_names args
-    | Block_set (_, _, _, _, value) -> Simple.free_names value
-    | Is_int _ | Get_tag _ | Block_load _ -> Name_occurrences.empty
-  in
-  let escaping_by_use (elt : T.Continuation_info.t) =
-    let add_name_occurrences occurrences init =
-      Name_occurrences.fold_variables occurrences ~init ~f:(fun escaping var ->
-          let escaping =
-            match Variable.Map.find var dom with
-            | exception Not_found -> escaping
-            | var -> Variable.Set.add var escaping
-          in
-          Variable.Set.add var escaping)
-    in
-    let escaping =
-      add_name_occurrences elt.used_in_handler Variable.Set.empty
-    in
-    let escaping =
-      (* TODO: filter out deps when _name is not in required_names *)
-      Name.Map.fold
-        (fun _name deps escaping -> add_name_occurrences deps escaping)
-        elt.bindings escaping
-    in
-    let escaping =
-      Value_slot.Map.fold
-        (fun _value_slot map escaping ->
-          Name.Map.fold
-            (fun _closure_name values_in_env escaping ->
-              add_name_occurrences values_in_env escaping)
-            map escaping)
-        elt.value_slots escaping
-    in
-    let escaping =
-      List.fold_left
-        (fun escaping T.Mutable_let_prim.{ prim; _ } ->
-          add_name_occurrences (ref_prim_escaping prim) escaping)
-        escaping elt.mutable_let_prims_rev
-    in
-    escaping
-  in
-  let escaping_by_use =
-    Continuation.Map.fold
-      (fun _cont elt escaping ->
-        Variable.Set.union (escaping_by_use elt) escaping)
-      source_info.map Variable.Set.empty
-  in
-  (* if not (Variable.Set.is_empty escaping_by_use)
-   * then Format.printf "Escaping by use %a@." Variable.Set.print escaping_by_use; *)
-  let escaping_by_return =
-    Continuation.Map.fold
-      (fun _cont (elt : T.Continuation_info.t) escaping ->
-        let add_escaping cont escaping =
-          match Continuation.Map.find cont elt.apply_cont_args with
+let escaping_by_alias ~(dom : Dominator_graph.alias_map)
+    ~(dom_graph : Dominator_graph.t) =
+  Variable.Map.fold
+    (fun flow_to flow_from escaping ->
+      let alias_to =
+        match Variable.Map.find flow_to dom with
+        | exception Not_found -> flow_to
+        | v -> v
+      in
+      let new_escaping =
+        Variable.Set.fold
+          (fun flow_from escaping ->
+            let alias_from =
+              match Variable.Map.find flow_from dom with
+              | exception Not_found -> flow_from
+              | v -> v
+            in
+            let is_escaping = not (Variable.equal alias_to alias_from) in
+            if is_escaping
+            then Variable.Set.add alias_from escaping
+            else escaping)
+          flow_from Variable.Set.empty
+      in
+      Variable.Set.union escaping new_escaping)
+    dom_graph.graph Variable.Set.empty
+
+let names_escaping_from_mutable_prim (prim : T.Mutable_prim.t) =
+  match prim with
+  | Make_block (_, _, _, args) -> Simple.List.free_names args
+  | Block_set (_, _, _, _, value) -> Simple.free_names value
+  | Is_int _ | Get_tag _ | Block_load _ -> Name_occurrences.empty
+
+let escaping_by_use_for_one_continuation ~required_names
+    ~(dom : Dominator_graph.alias_map) (elt : T.Continuation_info.t) =
+  let add_name_occurrences occurrences init =
+    Name_occurrences.fold_variables occurrences ~init ~f:(fun escaping var ->
+        let escaping =
+          match Variable.Map.find var dom with
           | exception Not_found -> escaping
-          | apply_cont_args ->
-            Variable.Set.fold
-              (fun var escaping ->
-                let escaping =
-                  match Variable.Map.find var dom with
-                  | exception Not_found -> escaping
-                  | var -> Variable.Set.add var escaping
-                in
-                Variable.Set.add var escaping)
-              (free_names_of_apply_cont_args apply_cont_args)
-              escaping
+          | var -> Variable.Set.add var escaping
         in
-        let escaping = add_escaping return_continuation escaping in
-        add_escaping exn_continuation escaping)
-      source_info.map Variable.Set.empty
+        Variable.Set.add var escaping)
   in
-  (* if not (Variable.Set.is_empty escaping_by_return)
-   * then
-   *   Format.printf "Escaping by return %a@." Variable.Set.print
-   *     escaping_by_return; *)
+  let escaping = add_name_occurrences elt.used_in_handler Variable.Set.empty in
+  let escaping =
+    Name.Map.fold
+      (fun name deps escaping ->
+        if Name.Set.mem name required_names
+        then add_name_occurrences deps escaping
+        else escaping)
+      elt.bindings escaping
+  in
+  let escaping =
+    Value_slot.Map.fold
+      (fun _value_slot map escaping ->
+        Name.Map.fold
+          (fun _closure_name values_in_env escaping ->
+            add_name_occurrences values_in_env escaping)
+          map escaping)
+      elt.value_slots escaping
+  in
+  let escaping =
+    List.fold_left
+      (fun escaping T.Mutable_let_prim.{ prim; _ } ->
+        add_name_occurrences (names_escaping_from_mutable_prim prim) escaping)
+      escaping elt.mutable_let_prims_rev
+  in
+  escaping
+
+let escaping_by_use ~required_names ~(dom : Dominator_graph.alias_map)
+    ~(source_info : T.Acc.t) =
+  Continuation.Map.fold
+    (fun _cont elt escaping ->
+      Variable.Set.union
+        (escaping_by_use_for_one_continuation ~required_names ~dom elt)
+        escaping)
+    source_info.map Variable.Set.empty
+
+let escaping_by_return ~(dom : Dominator_graph.alias_map)
+    ~(source_info : T.Acc.t) ~return_continuation ~exn_continuation =
+  Continuation.Map.fold
+    (fun _cont (elt : T.Continuation_info.t) escaping ->
+      let add_escaping cont escaping =
+        match Continuation.Map.find cont elt.apply_cont_args with
+        | exception Not_found -> escaping
+        | apply_cont_args ->
+          Variable.Set.fold
+            (fun var escaping ->
+              let escaping =
+                match Variable.Map.find var dom with
+                | exception Not_found -> escaping
+                | var -> Variable.Set.add var escaping
+              in
+              Variable.Set.add var escaping)
+            (free_names_of_apply_cont_args apply_cont_args)
+            escaping
+      in
+      let escaping = add_escaping return_continuation escaping in
+      add_escaping exn_continuation escaping)
+    source_info.map Variable.Set.empty
+
+let escaping ~(dom : Dominator_graph.alias_map) ~(dom_graph : Dominator_graph.t)
+    ~(source_info : T.Acc.t) ~return_continuation ~exn_continuation
+    ~required_names =
+  let escaping_by_alias = escaping_by_alias ~dom ~dom_graph in
+  let escaping_by_use = escaping_by_use ~required_names ~dom ~source_info in
+  let escaping_by_return =
+    escaping_by_return ~dom ~source_info ~return_continuation ~exn_continuation
+  in
   Variable.Set.union escaping_by_alias
     (Variable.Set.union escaping_by_return escaping_by_use)
+
+(* *)
 
 let non_escaping_makeblocks_and_required_regions ~escaping ~source_info =
   Continuation.Map.fold
@@ -172,6 +180,7 @@ let non_escaping_makeblocks_and_required_regions ~escaping ~source_info =
       List.fold_left
         (fun (map, regions) T.Mutable_let_prim.{ bound_var = var; prim; _ } ->
           match prim with
+          | Block_load _ | Block_set _ | Is_int _ | Get_tag _ -> map, regions
           | Make_block (kind, _, region, args) ->
             if Variable.Set.mem var escaping
             then
@@ -182,19 +191,19 @@ let non_escaping_makeblocks_and_required_regions ~escaping ~source_info =
               in
               map, regions
             else
-              let tag =
+              let non_escaping_block =
                 match kind with
-                | Values (tag, _) -> Tag.Scannable.to_tag tag
-                | Naked_floats -> Tag.double_array_tag
-              in
-              let kinds =
-                match kind with
+                | Values (tag, fields_kinds) ->
+                  { tag = Tag.Scannable.to_tag tag; fields_kinds }
                 | Naked_floats ->
-                  List.map (fun _ -> Flambda_kind.With_subkind.naked_float) args
-                | Values (_, kinds) -> kinds
+                  { tag = Tag.double_array_tag;
+                    fields_kinds =
+                      List.map
+                        (fun _ -> Flambda_kind.With_subkind.naked_float)
+                        args
+                  }
               in
-              Variable.Map.add var (tag, kinds) map, regions
-          | Block_load _ | Block_set _ | Is_int _ | Get_tag _ -> map, regions)
+              Variable.Map.add var non_escaping_block map, regions)
         (map, regions) elt.mutable_let_prims_rev)
     source_info.T.Acc.map
     (Variable.Map.empty, Name.Set.empty)
@@ -334,7 +343,7 @@ module Fold_prims = struct
       in
       match Variable.Map.find block non_escaping_refs with
       | exception Not_found -> env
-      | tag, _ ->
+      | { tag; fields_kinds = _ } ->
         let bound_to = Simple.untagged_const_int (Tag.to_targetint_31_63 tag) in
         let rewrite =
           Named_rewrite.prim_rewrite
@@ -394,21 +403,21 @@ module Fold_prims = struct
           rewrites = Named_rewrite_id.Map.add rewrite_id rewrite env.rewrites
         }
 
-  let init_env
-      ~(non_escaping_refs :
-         (Tag.t * Flambda_kind.With_subkind.t list) Variable.Map.t)
+  let init_env ~(non_escaping_refs : non_escaping_block Variable.Map.t)
       ~(refs_needed : Variable.Set.t) ~rewrites =
     let env, params =
       Variable.Set.fold
         (fun ref_needed (env, params) ->
-          let _, arity = Variable.Map.find ref_needed non_escaping_refs in
+          let { tag = _; fields_kinds } =
+            Variable.Map.find ref_needed non_escaping_refs
+          in
           let ref_params =
             List.mapi
               (fun i kind ->
                 let name = Variable.unique_name ref_needed in
                 let var = Variable.create (Printf.sprintf "%s_%i" name i) in
                 Bound_parameter.create var kind)
-              arity
+              fields_kinds
           in
           let env =
             let fields =
@@ -437,9 +446,7 @@ module Fold_prims = struct
       in
       Numeric_types.Int.Map.disjoint_union i1 shifted_i2
 
-  let do_stuff
-      ~(non_escaping_refs :
-         (Tag.t * Flambda_kind.With_subkind.t list) Variable.Map.t)
+  let do_stuff ~(non_escaping_refs : non_escaping_block Variable.Map.t)
       ~continuations_with_live_ref ~dom ~(source_info : T.Acc.t) =
     let rewrites = ref Named_rewrite_id.Map.empty in
     let extra_params_and_args =
@@ -485,42 +492,29 @@ module Fold_prims = struct
     extra_params_and_args, !rewrites
 end
 
-(* TODO: For all continuations with live ref, add parameters for every field of
-   every live ref.
-
-   for all continuations, fold over the ref_prims (after list rev) to propagate
-   the names of the fields at each block_set and record aliases for block_load.
-
-   for evey apply cont to those continuations, add the corresponding arguments
-   using the last names of the fields. *)
-
 let create ~(dom : Dominator_graph.alias_map) ~(dom_graph : Dominator_graph.t)
     ~(source_info : T.Acc.t) ~(control_flow_graph : Control_flow_graph.t)
-    ~return_continuation ~exn_continuation : t =
+    ~required_names ~return_continuation ~exn_continuation : t =
   let escaping =
-    escaping ~dom ~dom_graph ~source_info ~return_continuation ~exn_continuation
+    escaping ~dom ~dom_graph ~source_info ~required_names ~return_continuation
+      ~exn_continuation
   in
-  (* Format.printf "@[<hov 2>Escaping vars@ %a@]@." Variable.Set.print
-     escaping; *)
   let non_escaping_refs, required_regions =
     non_escaping_makeblocks_and_required_regions ~escaping ~source_info
   in
   if (not (Variable.Map.is_empty non_escaping_refs)) && ref_to_var_debug
   then
     Format.printf "Non escaping makeblocks %a@."
-      (Variable.Map.print (fun ppf (tag, kinds) ->
+      (Variable.Map.print (fun ppf { tag; fields_kinds } ->
            Format.fprintf ppf "{%a}[%a]" Tag.print tag
              (Format.pp_print_list ~pp_sep:Format.pp_print_space
                 Flambda_kind.With_subkind.print)
-             kinds))
+             fields_kinds))
       non_escaping_refs;
   let continuations_with_live_ref =
     continuations_with_live_ref ~non_escaping_refs ~dom ~source_info
       ~control_flow_graph
   in
-  (* Format.printf "@[<hov 2>Cont using refs:@ %a@]@."
-   *   (Continuation.Map.print Variable.Set.print)
-   *   continuations_with_live_ref; *)
   let toplevel_used =
     Continuation.Map.find source_info.dummy_toplevel_cont
       continuations_with_live_ref
@@ -535,13 +529,13 @@ let create ~(dom : Dominator_graph.alias_map) ~(dom_graph : Dominator_graph.t)
       ~non_escaping_refs
   in
   { extra_ref_params_and_args;
-    non_escaping_makeblock = non_escaping_refs;
+    non_escaping_makeblocks = non_escaping_refs;
     continuations_with_live_ref;
     rewrites;
     required_regions
   }
 
-let pp_node { non_escaping_makeblock = _; continuations_with_live_ref; _ } ppf
+let pp_node { non_escaping_makeblocks = _; continuations_with_live_ref; _ } ppf
     cont =
   match Continuation.Map.find cont continuations_with_live_ref with
   | exception Not_found -> ()
@@ -628,4 +622,4 @@ let make_result result =
   let let_rewrites = result.rewrites in
   ( T.Mutable_unboxing_result.{ additionnal_epa; let_rewrites },
     result.required_regions,
-    Variable.Map.keys result.non_escaping_makeblock )
+    Variable.Map.keys result.non_escaping_makeblocks )
