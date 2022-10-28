@@ -242,6 +242,15 @@ let minimize_extra_args_for_one_continuation ~(source_info : T.Acc.t)
   let removed_aliased_params_and_extra_params, lets_to_introduce =
     List.fold_left
       (fun (removed, lets_to_introduce) param ->
+        let default alias =
+          let removed = Variable.Set.add param removed in
+          let lets_to_introduce =
+            if Variable.Set.mem alias unboxed_blocks
+            then lets_to_introduce
+            else Variable.Map.add param alias lets_to_introduce
+          in
+          removed, lets_to_introduce
+        in
         match Variable.Map.find param doms with
         | exception Not_found -> removed, lets_to_introduce
         | alias -> (
@@ -249,33 +258,16 @@ let minimize_extra_args_for_one_continuation ~(source_info : T.Acc.t)
           then removed, lets_to_introduce
           else
             match exception_handler_first_param_aliased with
-            | None ->
-              let removed = Variable.Set.add param removed in
-              let lets_to_introduce =
-                if Variable.Set.mem alias unboxed_blocks
-                then lets_to_introduce
-                else Variable.Map.add param alias lets_to_introduce
-              in
-              removed, lets_to_introduce
+            | None -> default alias
             | Some (aliased_to, exception_param) ->
               let is_first_exception_param =
                 Variable.equal exception_param param
               in
               if is_first_exception_param
               then removed, lets_to_introduce
-              else
-                let alias =
-                  if Variable.equal alias aliased_to
-                  then exception_param
-                  else alias
-                in
-                let removed = Variable.Set.add param removed in
-                let lets_to_introduce =
-                  if Variable.Set.mem alias unboxed_blocks
-                  then lets_to_introduce
-                  else Variable.Map.add param alias lets_to_introduce
-                in
-                removed, lets_to_introduce))
+              else if Variable.equal alias aliased_to
+              then default exception_param
+              else default alias))
       (Variable.Set.empty, Variable.Map.empty)
       (Bound_parameters.vars elt.params)
   in
