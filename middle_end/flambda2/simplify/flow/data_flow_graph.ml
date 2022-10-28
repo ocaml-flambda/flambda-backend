@@ -313,8 +313,7 @@ let add_continuation_info map ~return_continuation ~exn_continuation
       (fun t T.Mutable_let_prim.{ bound_var; prim; named_rewrite_id = _ } ->
         let src = Name.var bound_var in
         match prim with
-        | Is_int _ | Get_tag _
-        | Make_block _ | Block_load _ ->
+        | Is_int _ | Get_tag _ | Make_block _ | Block_load _ ->
           Name_occurrences.fold_names
             ~f:(fun t dst -> add_dependency ~src ~dst t)
             (mutable_prim_free_names prim)

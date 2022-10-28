@@ -344,21 +344,19 @@ let record_let_binding ~rewrite_id ~generate_phantom_lets ~let_bound
         (* Uses of region variables in [End_region] don't count as uses. *)
         t
       | Unary (Is_int _, simple) -> (
-          match Simple.must_be_var simple with
-          | Some (v, _) ->
-            record_var_bindings (
-              record_ref_named rewrite_id ~bound_to:var
-                (Is_int v) t) Name_occurrences.empty
-          | None -> record_var_bindings t free_names
-        )
+        match Simple.must_be_var simple with
+        | Some (v, _) ->
+          record_var_bindings
+            (record_ref_named rewrite_id ~bound_to:var (Is_int v) t)
+            Name_occurrences.empty
+        | None -> record_var_bindings t free_names)
       | Unary (Get_tag, simple) -> (
-          match Simple.must_be_var simple with
-          | Some (v, _) ->
-            record_var_bindings (
-              record_ref_named rewrite_id ~bound_to:var
-                (Get_tag v) t) Name_occurrences.empty
-          | None -> record_var_bindings t free_names
-        )
+        match Simple.must_be_var simple with
+        | Some (v, _) ->
+          record_var_bindings
+            (record_ref_named rewrite_id ~bound_to:var (Get_tag v) t)
+            Name_occurrences.empty
+        | None -> record_var_bindings t free_names)
       | Binary (Block_load (bak, mut), block, field) -> (
         match get_block_and_constant_field ~block ~field with
         | Some (block, field) ->

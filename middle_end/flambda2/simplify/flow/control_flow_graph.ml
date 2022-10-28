@@ -207,101 +207,110 @@ let extra_args_for_aliases_overapproximation ~required_names
   in
   added_extra_args
 
-let minimize_extra_args_for_one_continuation ~(source_info : T.Acc.t) ~unboxed_blocks ~available_added_extra_args doms k aliases_needed =
-      let available = Continuation.Map.find k available_added_extra_args in
-      let extra_args_for_aliases = Variable.Set.diff aliases_needed available in
-      let elt = Continuation.Map.find k source_info.map in
-      let exception_handler_first_param : Variable.t option =
-        if elt.is_exn_handler
-        then
-          match Bound_parameters.to_list elt.params with
-          | [] ->
-            Misc.fatal_errorf
-              "exception handler continuation %a must have at least one \
-               parameter"
-              Continuation.print k
-          | first :: _ -> Some (Bound_parameter.var first)
-        else None
-      in
-      (* For exception continuations the first parameter cannot be removed, so
-         instead of rewriting the parameter to its dominator, we instead rewrite
-         every alias to the exception parameter *)
-      let extra_args_for_aliases, exception_handler_first_param_aliased =
-        match exception_handler_first_param with
-        | None -> extra_args_for_aliases, None
-        | Some exception_param -> (
-          match Variable.Map.find exception_param doms with
-          | exception Not_found -> extra_args_for_aliases, None
-          | alias ->
-            if Variable.equal exception_param alias
-            then extra_args_for_aliases, None
-            else
-              ( Variable.Set.remove alias extra_args_for_aliases,
-                Some (alias, exception_param) ))
-      in
-      let removed_aliased_params_and_extra_params, lets_to_introduce =
-        List.fold_left
-          (fun (removed, lets_to_introduce) param ->
-            match Variable.Map.find param doms with
-            | exception Not_found -> removed, lets_to_introduce
-            | alias -> (
-              if Variable.equal param alias
+let minimize_extra_args_for_one_continuation ~(source_info : T.Acc.t)
+    ~unboxed_blocks ~available_added_extra_args doms k aliases_needed =
+  let available = Continuation.Map.find k available_added_extra_args in
+  let extra_args_for_aliases = Variable.Set.diff aliases_needed available in
+  let elt = Continuation.Map.find k source_info.map in
+  let exception_handler_first_param : Variable.t option =
+    if elt.is_exn_handler
+    then
+      match Bound_parameters.to_list elt.params with
+      | [] ->
+        Misc.fatal_errorf
+          "exception handler continuation %a must have at least one parameter"
+          Continuation.print k
+      | first :: _ -> Some (Bound_parameter.var first)
+    else None
+  in
+  (* For exception continuations the first parameter cannot be removed, so
+     instead of rewriting the parameter to its dominator, we instead rewrite
+     every alias to the exception parameter *)
+  let extra_args_for_aliases, exception_handler_first_param_aliased =
+    match exception_handler_first_param with
+    | None -> extra_args_for_aliases, None
+    | Some exception_param -> (
+      match Variable.Map.find exception_param doms with
+      | exception Not_found -> extra_args_for_aliases, None
+      | alias ->
+        if Variable.equal exception_param alias
+        then extra_args_for_aliases, None
+        else
+          ( Variable.Set.remove alias extra_args_for_aliases,
+            Some (alias, exception_param) ))
+  in
+  let removed_aliased_params_and_extra_params, lets_to_introduce =
+    List.fold_left
+      (fun (removed, lets_to_introduce) param ->
+        match Variable.Map.find param doms with
+        | exception Not_found -> removed, lets_to_introduce
+        | alias -> (
+          if Variable.equal param alias
+          then removed, lets_to_introduce
+          else
+            match exception_handler_first_param_aliased with
+            | None ->
+              let removed = Variable.Set.add param removed in
+              let lets_to_introduce =
+                if Variable.Set.mem alias unboxed_blocks
+                then lets_to_introduce
+                else Variable.Map.add param alias lets_to_introduce
+              in
+              removed, lets_to_introduce
+            | Some (aliased_to, exception_param) ->
+              let is_first_exception_param =
+                Variable.equal exception_param param
+              in
+              if is_first_exception_param
               then removed, lets_to_introduce
               else
-                match exception_handler_first_param_aliased with
-                | None ->
-                  let removed = Variable.Set.add param removed in
-                  let lets_to_introduce =
-                    if Variable.Set.mem alias unboxed_blocks
-                    then lets_to_introduce
-                    else Variable.Map.add param alias lets_to_introduce
-                  in
-                  removed, lets_to_introduce
-                | Some (aliased_to, exception_param) ->
-                  let is_first_exception_param =
-                    Variable.equal exception_param param
-                  in
-                  if is_first_exception_param
-                  then removed, lets_to_introduce
-                  else
-                    let alias =
-                      if Variable.equal alias aliased_to
-                      then exception_param
-                      else alias
-                    in
-                    let removed = Variable.Set.add param removed in
-                    let lets_to_introduce =
-                      if Variable.Set.mem alias unboxed_blocks
-                      then lets_to_introduce
-                      else Variable.Map.add param alias lets_to_introduce
-                    in
-                    removed, lets_to_introduce))
-          (Variable.Set.empty, Variable.Map.empty)
-          (Bound_parameters.vars elt.params)
-      in
-      let recursive_continuation_wrapper :
-          T.Continuation_param_aliases.recursive_continuation_wrapper =
-        if elt.recursive && not (Variable.Set.is_empty extra_args_for_aliases)
-        then Wrapper_needed
-        else No_wrapper
-      in
-      let res : T.Continuation_param_aliases.t =
-        { extra_args_for_aliases;
-          removed_aliased_params_and_extra_params;
-          lets_to_introduce;
-          recursive_continuation_wrapper
-        }
-      in
-      res
+                let alias =
+                  if Variable.equal alias aliased_to
+                  then exception_param
+                  else alias
+                in
+                let removed = Variable.Set.add param removed in
+                let lets_to_introduce =
+                  if Variable.Set.mem alias unboxed_blocks
+                  then lets_to_introduce
+                  else Variable.Map.add param alias lets_to_introduce
+                in
+                removed, lets_to_introduce))
+      (Variable.Set.empty, Variable.Map.empty)
+      (Bound_parameters.vars elt.params)
+  in
+  let recursive_continuation_wrapper :
+      T.Continuation_param_aliases.recursive_continuation_wrapper =
+    if elt.recursive && not (Variable.Set.is_empty extra_args_for_aliases)
+    then Wrapper_needed
+    else No_wrapper
+  in
+  let res : T.Continuation_param_aliases.t =
+    { extra_args_for_aliases;
+      removed_aliased_params_and_extra_params;
+      lets_to_introduce;
+      recursive_continuation_wrapper
+    }
+  in
+  res
 
-let minimize_extra_args_for_aliases ~source_info ~unboxed_blocks doms added_extra_args t =
-  let available_added_extra_args = compute_added_extra_args added_extra_args t in
-  Continuation.Map.mapi (minimize_extra_args_for_one_continuation ~source_info ~unboxed_blocks ~available_added_extra_args doms) added_extra_args
+let minimize_extra_args_for_aliases ~source_info ~unboxed_blocks doms
+    added_extra_args t =
+  let available_added_extra_args =
+    compute_added_extra_args added_extra_args t
+  in
+  Continuation.Map.mapi
+    (minimize_extra_args_for_one_continuation ~source_info ~unboxed_blocks
+       ~available_added_extra_args doms)
+    added_extra_args
 
 let compute_continuation_extra_args_for_aliases ~speculative ~required_names
     ~source_info ~unboxed_blocks doms t :
     T.Continuation_param_aliases.t Continuation.Map.t =
-  let added_extra_args = extra_args_for_aliases_overapproximation ~required_names ~source_info ~unboxed_blocks doms t in
+  let added_extra_args =
+    extra_args_for_aliases_overapproximation ~required_names ~source_info
+      ~unboxed_blocks doms t
+  in
   let extra_args_for_toplevel_cont =
     Continuation.Map.find t.dummy_toplevel_cont added_extra_args
   in
@@ -322,7 +331,10 @@ let compute_continuation_extra_args_for_aliases ~speculative ~required_names
        Toplevel continuation cannot have needed extra argument for aliases: \
        %a@."
       Variable.Set.print extra_args_for_toplevel_cont;
-  let extra_args_for_aliases = minimize_extra_args_for_aliases ~source_info ~unboxed_blocks doms added_extra_args t in
+  let extra_args_for_aliases =
+    minimize_extra_args_for_aliases ~source_info ~unboxed_blocks doms
+      added_extra_args t
+  in
   extra_args_for_aliases
 
 module Dot = struct

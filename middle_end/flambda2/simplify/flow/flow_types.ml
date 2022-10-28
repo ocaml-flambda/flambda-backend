@@ -62,10 +62,8 @@ module Mutable_prim = struct
         * Simple.t list
 
   let print ppf = function
-    | Is_int v ->
-      Format.fprintf ppf "Is_int (%a)" Variable.print v
-    | Get_tag v ->
-      Format.fprintf ppf "Get_tag (%a)" Variable.print v
+    | Is_int v -> Format.fprintf ppf "Is_int (%a)" Variable.print v
+    | Get_tag v -> Format.fprintf ppf "Get_tag (%a)" Variable.print v
     | Block_load { block; field; _ } ->
       Format.fprintf ppf "Block_load (%a, %i)" Variable.print block field
     | Block_set (_, _, block, field, value) ->
