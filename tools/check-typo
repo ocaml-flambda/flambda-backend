@@ -112,6 +112,9 @@ case "$1" in
           echo "INFO: pruned path $2 (.git)" >&2
           exit 0;;
     esac
+    if git check-ignore -q "$2"; then
+        exit 0
+    fi
     if test -n "$(check_prune "$2")"; then
         echo "INFO: pruned path $2 (typo.prune)" >&2
         exit 0
@@ -198,6 +201,7 @@ EXIT_CODE=0
       *$f*) is_cmd_line=true;;
       *) is_cmd_line=false;;
     esac
+    if $path_in_index || $is_cmd_line; then :; else continue; fi
     if [ -z "$OCAML_CT_PREFIX" ] ; then
       if [ -x "$f" ] ; then
         check_script "$f"
@@ -207,7 +211,6 @@ EXIT_CODE=0
         check_script "$f"
       fi
     fi
-    if $path_in_index || $is_cmd_line; then :; else continue; fi
     attr_rules=''
     if $path_in_index; then
       # Below is a git plumbing command to detect whether git regards a
@@ -303,9 +306,48 @@ EXIT_CODE=0
           }
         }
 
-        BEGIN { state = "(first line)"; }
+        BEGIN { state = "(first line)"; in_recipe = 0; in_continuation = 0; }
 
-        match($0, /\t/) {
+        # Makefile recipe automaton
+
+        # in_continuation == 1 if the line ends with a backslash
+        # in_recipe is:
+        #   0 - not in a recipe
+        #   1 - target line scanned, but not yet seen first recipe line
+        #   2 - scanning recipe lines
+
+        # Non-recipe line
+        match($0, /^[^\t#] *[^# ]/) {
+          if (!in_continuation) {
+            if (!match($0, /^(ifn?eq|else|endif)/)) {
+              in_recipe = 0;
+            }
+          }
+        }
+
+        # target: or target:: line
+        match($0, /^[^#]*[^:#]::?($|[^=])/) {
+          if (!in_continuation) {
+            in_recipe = 1;
+          }
+        }
+
+        match($0, /^\t[^\t]+$/) {
+          if (in_recipe == 0 \
+              || in_recipe == 1 && in_continuation \
+              || is_err("makefile-whitespace")) {
+            err("tab", "TAB character(s)");
+          } else {
+            ++ counts["makefile-whitespace"];
+            in_recipe = 2;
+          }
+        }
+
+        match($0, /.$/) {
+          in_continuation = (substr($0, length($0)) == "\\");
+        }
+
+        match($0, /.\t/) {
           err("tab", "TAB character(s)");
           t = utf8_decode($0);
           if (more_columns(t, 80)){

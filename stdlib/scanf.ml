@@ -18,7 +18,7 @@ open! Stdlib
 
 [@@@ocaml.flambda_o3]
 
-[@@@ocaml.warning "Ae"]
+[@@@ocaml.warning "+A-e"]
 [@@@ocaml.inline "9"]
 
 open CamlinternalFormatBasics
@@ -164,7 +164,7 @@ module Scanning : SCANNING = struct
     mutable ic_char_count : int;
     mutable ic_line_count : int;
     mutable ic_token_count : int;
-    mutable ic_get_next_char : unit -> char;
+    ic_get_next_char : unit -> char;
     ic_token_buffer : Buffer.t;
     ic_input_name : in_channel_name;
   }
@@ -816,7 +816,7 @@ let scan_float width precision ib =
   match c with
   | '.' ->
     let width = Scanning.store_char width ib c in
-    let precision = min width precision in
+    let precision = Int.min width precision in
     let width = width - (precision - scan_fractional_part precision ib) in
     scan_exponent_part width ib, precision
   | _ ->
@@ -861,7 +861,7 @@ let scan_hex_float width precision ib =
               match Scanning.peek_char ib with
               | 'p' | 'P' -> width
               | _ ->
-                let precision = min width precision in
+                let precision = Int.min width precision in
                 width - (precision - scan_hexadecimal_int precision ib)
           )
           | _ -> width in
@@ -894,7 +894,7 @@ let scan_caml_float_rest width precision ib =
     let width = Scanning.store_char width ib c in
     (* The effective width available for scanning the fractional part is
        the minimum of declared precision and width left. *)
-    let precision = min width precision in
+    let precision = Int.min width precision in
     (* After scanning the fractional part with [precision] provisional width,
        [width_precision] is left. *)
     let width_precision = scan_fractional_part precision ib in
@@ -930,7 +930,7 @@ let scan_caml_float width precision ib =
             match Scanning.peek_char ib with
             | 'p' | 'P' -> width
             | _ ->
-              let precision = min width precision in
+              let precision = Int.min width precision in
               width - (precision - scan_hexadecimal_int precision ib)
         )
         | 'p' | 'P' -> width

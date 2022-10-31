@@ -13,37 +13,15 @@
 ;**************************************************************************
 
 (rule
- (targets config.ml)
+ (targets config.ml domainstate.ml domainstate.mli)
  (mode    fallback)
  (deps    (:mk Makefile)
           ../Makefile.config
           ../Makefile.common
           ../Makefile.config_if_required
           ../Makefile.build_config
-          ; for now the utils Makefile does not use build_config
+          domainstate.ml.c
+          domainstate.mli.c
+          ../runtime/caml/domain_state.tbl
           config.mlp)
  (action  (system "make -sf %{mk} %{targets}")))
-
-(rule
- (targets domainstate.ml)
- (mode    fallback)
- (deps    (:conf ../Makefile.config)
-          (:c domainstate.ml.c)
-          (:tbl ../runtime/caml/domain_state.tbl))
- (action
-   (with-stdout-to %{targets}
-     (bash
-       "`grep '^CPP=' %{conf} | cut -d'=' -f2` -I ../runtime/caml %{c}"
-       ))))
-
-(rule
- (targets domainstate.mli)
- (mode    fallback)
- (deps    (:conf ../Makefile.config)
-          (:c domainstate.mli.c)
-          (:tbl ../runtime/caml/domain_state.tbl))
- (action
-   (with-stdout-to %{targets}
-     (bash
-       "`grep '^CPP=' %{conf} | cut -d'=' -f2` -I ../runtime/caml %{c}"
-       ))))

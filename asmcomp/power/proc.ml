@@ -139,7 +139,7 @@ let loc_int_pair last_int make_stack int ofs =
   end
 
 let calling_conventions first_int last_int first_float last_float
-    make_stack first_stack arg =
+      make_stack first_stack arg =
   let loc = Array.make (Array.length arg) Reg.dummy in
   let int = ref first_int in
   let float = ref first_float in
@@ -163,18 +163,18 @@ let outgoing ofs =
   else Domainstate (ofs + size_domainstate_args)
 let not_supported _ofs = fatal_error "Proc.loc_results: cannot call"
 
-let max_arguments_for_tailcalls = 8 (* in regs *) + 64 (* in domain state *)
+let max_arguments_for_tailcalls = 16 (* in regs *) + 64 (* in domain state *)
 
 let loc_arguments arg =
-    calling_conventions 0 7 100 112 outgoing (- size_domainstate_args) arg
+    calling_conventions 0 15 100 112 outgoing (- size_domainstate_args) arg
 
 let loc_parameters arg =
   let (loc, _ofs) =
-    calling_conventions 0 7 100 112 incoming (- size_domainstate_args) arg
+    calling_conventions 0 15 100 112 incoming (- size_domainstate_args) arg
   in loc
 
 let loc_results res =
-  let (loc, _ofs) = calling_conventions 0 7 100 112 not_supported 0 res
+  let (loc, _ofs) = calling_conventions 0 15 100 112 not_supported 0 res
   in loc
 
 (* C calling conventions for ELF32:

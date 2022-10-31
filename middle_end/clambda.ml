@@ -91,6 +91,7 @@ and ufunction = {
   dbg    : Debuginfo.t;
   env    : Backend_var.t option;
   mode   : Lambda.alloc_mode;
+  poll   : poll_attribute;
 }
 
 and ulambda_switch =
@@ -109,6 +110,7 @@ type function_description =
     mutable fun_float_const_prop: bool; (* Can propagate FP consts *)
     fun_region: bool;                   (* If false, may locally allocate
                                            in caller's region *)
+    fun_poll: poll_attribute;           (* Error on poll/alloc/call *)
   }
 
 (* Approximation of values *)

@@ -214,12 +214,9 @@ let field_read_semantics ppf sem =
   | Reads_vary -> fprintf ppf "_mut"
 
 let primitive ppf = function
-  | Pidentity -> fprintf ppf "id"
   | Pbytes_to_string -> fprintf ppf "bytes_to_string"
   | Pbytes_of_string -> fprintf ppf "bytes_of_string"
   | Pignore -> fprintf ppf "ignore"
-  | Prevapply _ -> fprintf ppf "revapply"
-  | Pdirapply _ -> fprintf ppf "dirapply"
   | Pgetglobal id -> fprintf ppf "global %a" Ident.print id
   | Psetglobal id -> fprintf ppf "setglobal %a" Ident.print id
   | Pmakeblock(tag, Immutable, shape, mode) ->
@@ -443,12 +440,9 @@ let primitive ppf = function
   | Pobj_magic -> fprintf ppf "obj_magic"
 
 let name_of_primitive = function
-  | Pidentity -> "Pidentity"
   | Pbytes_of_string -> "Pbytes_of_string"
   | Pbytes_to_string -> "Pbytes_to_string"
   | Pignore -> "Pignore"
-  | Prevapply _ -> "Prevapply"
-  | Pdirapply _ -> "Pdirapply"
   | Pgetglobal _ -> "Pgetglobal"
   | Psetglobal _ -> "Psetglobal"
   | Pmakeblock _ -> "Pmakeblock"
@@ -561,29 +555,35 @@ let check_attribute ppf check =
   | Assert p -> fprintf ppf "assert %s@ " (check_property p)
   | Assume p -> fprintf ppf "assume %s@ " (check_property p)
 
-let function_attribute ppf { inline; specialise; check; local; is_a_functor; stub } =
-  if is_a_functor then
+let function_attribute ppf t =
+  if t.is_a_functor then
     fprintf ppf "is_a_functor@ ";
-  if stub then
+  if t.stub then
     fprintf ppf "stub@ ";
-  begin match inline with
+  begin match t.inline with
   | Default_inline -> ()
   | Always_inline -> fprintf ppf "always_inline@ "
   | Available_inline -> fprintf ppf "available_inline@ "
   | Never_inline -> fprintf ppf "never_inline@ "
   | Unroll i -> fprintf ppf "unroll(%i)@ " i
   end;
-  begin match specialise with
+  begin match t.specialise with
   | Default_specialise -> ()
   | Always_specialise -> fprintf ppf "always_specialise@ "
   | Never_specialise -> fprintf ppf "never_specialise@ "
   end;
-  begin match local with
+  begin match t.local with
   | Default_local -> ()
   | Always_local -> fprintf ppf "always_local@ "
   | Never_local -> fprintf ppf "never_local@ "
   end;
-  check_attribute ppf check
+  check_attribute ppf t.check;
+  if t.tmc_candidate then
+    fprintf ppf "tail_mod_cons@ ";
+  begin match t.poll with
+  | Default_poll -> ()
+  | Error_poll -> fprintf ppf "error_poll@ "
+  end
 
 let apply_tailcall_attribute ppf = function
   | Default_tailcall -> ()
@@ -654,7 +654,7 @@ let rec lam ppf = function
       fprintf ppf "@[<2>(function%s%a@ %a%a%a)@]"
         (alloc_kind mode) pr_params params
         function_attribute attr return_kind (rmode, return) lam body
-  | (Llet _ | Lmutlet _) as expr ->
+  | Llet _ | Lmutlet _ as expr ->
       let let_kind = begin function
         | Llet(str,_,_,_,_) ->
            begin match str with

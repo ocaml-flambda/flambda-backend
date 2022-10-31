@@ -77,7 +77,7 @@ let mk_config f =
 
 let mk_config_var f =
   "-config-var", Arg.String f,
-  " Print the value of a configuration variable, a newline, and exit\n\
+  " Print the value of a configuration variable, without a newline, and exit\n\
 \    (print nothing and exit with error value if the variable does not exist)"
 ;;
 
@@ -92,6 +92,11 @@ let mk_dllib f =
 let mk_dllpath f =
   "-dllpath", Arg.String f,
   "<dir>  Add <dir> to the run-time search path for shared libraries"
+;;
+
+let mk_eval f =
+  "-e", Arg.String f,
+  "<script>  Evaluate given script"
 ;;
 
 let mk_function_sections f =
@@ -586,6 +591,10 @@ let mk_no_unboxed_types f =
   " unannotated unboxable types will not be unboxed (default)"
 ;;
 
+let mk_force_tmc f =
+  "-force-tmc", Arg.Unit f, " Rewrite all possible TMC calls"
+;;
+
 let mk_unsafe f =
   "-unsafe", Arg.Unit f,
   " Do not compile bounds checking on array and string access"
@@ -708,7 +717,7 @@ let mk_nopervasives f =
 
 let mk_match_context_rows f =
   "-match-context-rows", Arg.Int f,
-  let[@manual.ref "s:comp-options"] chapter, section = 9, 2 in
+  let[@manual.ref "s:comp-options"] chapter, section = 11, 2 in
   Printf.sprintf
   "<n>  (advanced, see manual section %d.%d.)" chapter section
 ;;
@@ -737,12 +746,21 @@ let mk_disable_all_extensions f =
   \    ignores any extensions requested in OCAMLPARAM."
 ;;
 
+let mk_dump_dir f =
+  "-dump-dir", Arg.String f,
+  "<dir> dump output like -dlambda into <dir>/<target>.dump"
+;;
+
 let mk_dparsetree f =
   "-dparsetree", Arg.Unit f, " (undocumented)"
 ;;
 
 let mk_dtypedtree f =
   "-dtypedtree", Arg.Unit f, " (undocumented)"
+;;
+
+let mk_dshape f =
+  "-dshape", Arg.Unit f, " (undocumented)"
 ;;
 
 let mk_drawlambda f =
@@ -839,16 +857,6 @@ let mk_dcse f =
 
 let mk_dlive f =
   "-dlive", Arg.Unit f, " (undocumented)"
-;;
-
-let mk_davail f =
-  "-davail", Arg.Unit f, " Print register availability info when printing \
-    liveness"
-;;
-
-let mk_drunavail f =
-  "-drunavail", Arg.Unit f, " Run register availability pass (for testing \
-    only; needs -g)"
 ;;
 
 let mk_dspill f =
@@ -970,6 +978,7 @@ module type Common_options = sig
   val _no_strict_sequence : unit -> unit
   val _strict_formats : unit -> unit
   val _no_strict_formats : unit -> unit
+  val _force_tmc : unit -> unit
   val _unboxed_types : unit -> unit
   val _no_unboxed_types : unit -> unit
   val _unsafe_string : unit -> unit
@@ -996,6 +1005,7 @@ module type Core_options = sig
   val _dsource : unit -> unit
   val _dparsetree : unit -> unit
   val _dtypedtree : unit -> unit
+  val _dshape : unit -> unit
   val _drawlambda : unit -> unit
   val _dlambda : unit -> unit
 
@@ -1051,6 +1061,7 @@ module type Compiler_options = sig
   val _dtimings_precision : int -> unit
   val _dprofile : unit -> unit
   val _dump_into_file : unit -> unit
+  val _dump_dir : string -> unit
 
   val _args: string -> string array
   val _args0: string -> string array
@@ -1069,6 +1080,7 @@ module type Toplevel_options = sig
   val _args0 : string -> string array
   val _color : string -> unit
   val _error_style : string -> unit
+  val _eval: string -> unit
 end
 ;;
 
@@ -1141,8 +1153,6 @@ module type Optcommon_options = sig
   val _dcombine : unit -> unit
   val _dcse : unit -> unit
   val _dlive : unit -> unit
-  val _davail : unit -> unit
-  val _drunavail : unit -> unit
   val _dspill : unit -> unit
   val _dsplit : unit -> unit
   val _dinterf : unit -> unit
@@ -1271,6 +1281,7 @@ struct
     mk_strict_formats F._strict_formats;
     mk_no_strict_formats F._no_strict_formats;
     mk_thread F._thread;
+    mk_force_tmc F._force_tmc;
     mk_unboxed_types F._unboxed_types;
     mk_no_unboxed_types F._no_unboxed_types;
     mk_unsafe F._unsafe;
@@ -1298,6 +1309,7 @@ struct
     mk_dsource F._dsource;
     mk_dparsetree F._dparsetree;
     mk_dtypedtree F._dtypedtree;
+    mk_dshape F._dshape;
     mk_drawlambda F._drawlambda;
     mk_dlambda F._dlambda;
     mk_dinstr F._dinstr;
@@ -1306,6 +1318,7 @@ struct
     mk_dtimings_precision F._dtimings_precision;
     mk_dprofile F._dprofile;
     mk_dump_into_file F._dump_into_file;
+    mk_dump_dir F._dump_dir;
 
     mk_args F._args;
     mk_args0 F._args0;
@@ -1368,12 +1381,14 @@ struct
     mk_dsource F._dsource;
     mk_dparsetree F._dparsetree;
     mk_dtypedtree F._dtypedtree;
+    mk_dshape F._dshape;
     mk_drawlambda F._drawlambda;
     mk_dlambda F._dlambda;
     mk_dinstr F._dinstr;
 
     mk_args F._args;
     mk_args0 F._args0;
+    mk_eval F._eval;
   ]
 end;;
 
@@ -1476,6 +1491,7 @@ struct
     mk_strict_formats F._strict_formats;
     mk_no_strict_formats F._no_strict_formats;
     mk_thread F._thread;
+    mk_force_tmc F._force_tmc;
     mk_unbox_closures F._unbox_closures;
     mk_unbox_closures_factor F._unbox_closures_factor;
     mk_inline_max_unroll F._inline_max_unroll;
@@ -1502,6 +1518,7 @@ struct
     mk_dsource F._dsource;
     mk_dparsetree F._dparsetree;
     mk_dtypedtree F._dtypedtree;
+    mk_dshape F._dshape;
     mk_drawlambda F._drawlambda;
     mk_dlambda F._dlambda;
     mk_drawclambda F._drawclambda;
@@ -1519,8 +1536,6 @@ struct
     mk_dcombine F._dcombine;
     mk_dcse F._dcse;
     mk_dlive F._dlive;
-    mk_davail F._davail;
-    mk_drunavail F._drunavail;
     mk_dspill F._dspill;
     mk_dsplit F._dsplit;
     mk_dinterf F._dinterf;
@@ -1535,6 +1550,7 @@ struct
     mk_dtimings_precision F._dtimings_precision;
     mk_dprofile F._dprofile;
     mk_dump_into_file F._dump_into_file;
+    mk_dump_dir F._dump_dir;
     mk_dump_pass F._dump_pass;
     mk_alloc_check F._alloc_check;
 
@@ -1619,6 +1635,7 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_dsource F._dsource;
     mk_dparsetree F._dparsetree;
     mk_dtypedtree F._dtypedtree;
+    mk_dshape F._dshape;
     mk_drawlambda F._drawlambda;
     mk_dlambda F._dlambda;
     mk_drawclambda F._drawclambda;
@@ -1631,8 +1648,6 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_dcombine F._dcombine;
     mk_dcse F._dcse;
     mk_dlive F._dlive;
-    mk_davail F._davail;
-    mk_drunavail F._drunavail;
     mk_dspill F._dspill;
     mk_dsplit F._dsplit;
     mk_dinterf F._dinterf;
@@ -1644,6 +1659,7 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_dinterval F._dinterval;
     mk_dstartup F._dstartup;
     mk_dump_pass F._dump_pass;
+    mk_eval F._eval;
   ]
 end;;
 
@@ -1682,6 +1698,7 @@ struct
     mk_strict_formats F._strict_formats;
     mk_no_strict_formats F._no_strict_formats;
     mk_thread F._thread;
+    mk_force_tmc F._force_tmc;
     mk_unboxed_types F._unboxed_types;
     mk_no_unboxed_types F._no_unboxed_types;
     mk_unsafe_string F._unsafe_string;
@@ -1773,7 +1790,8 @@ module Default = struct
     let _strict_sequence = set strict_sequence
     let _unboxed_types = set unboxed_types
     let _unsafe_string = set unsafe_string
-    let _w s = Warnings.parse_options false s
+    let _w s =
+      Warnings.parse_options false s |> Option.iter Location.(prerr_alert none)
 
     let anonymous = Compenv.anonymous
 
@@ -1788,6 +1806,7 @@ module Default = struct
     let _drawlambda = set dump_rawlambda
     let _dsource = set dump_source
     let _dtypedtree = set dump_typedtree
+    let _dshape = set dump_shape
     let _dunique_ids = set unique_ids
     let _dno_unique_ids = clear unique_ids
     let _dlocations = set locations
@@ -1797,7 +1816,8 @@ module Default = struct
     let _nopervasives = set nopervasives
     let _ppx s = Compenv.first_ppx := (s :: (!Compenv.first_ppx))
     let _unsafe = set unsafe
-    let _warn_error s = Warnings.parse_options true s
+    let _warn_error s =
+      Warnings.parse_options true s |> Option.iter Location.(prerr_alert none)
     let _warn_help = Warnings.help_warnings
   end
 
@@ -1807,7 +1827,6 @@ module Default = struct
     let _classic_inlining () = set_oclassic ()
     let _compact = clear optimize_for_speed
     let _dalloc = set dump_regalloc
-    let _davail () = dump_avail := true
     let _dclambda = set dump_clambda
     let _dcmm = set dump_cmm
     let _dcmm_invariants = set cmm_invariants
@@ -1827,7 +1846,6 @@ module Default = struct
     let _drawclambda = set dump_rawclambda
     let _drawflambda = set dump_rawflambda
     let _dreload = set dump_reload
-    let _drunavail () = debug_runavail := true
     let _dscheduling = set dump_scheduling
     let _dsel = set dump_selection
     let _dspill = set dump_spill
@@ -1915,6 +1933,7 @@ module Default = struct
     let _dtimings () = profile_columns := [`Time]
     let _dtimings_precision n = timings_precision := n
     let _dump_into_file = set dump_into_file
+    let _dump_dir s = dump_dir := Some s
     let _for_pack s = for_package := (Some (String.capitalize_ascii s))
     let _g = set debug
     let _i = set print_types
@@ -1979,8 +1998,10 @@ module Default = struct
     let _noprompt = set noprompt
     let _nopromptcont = set nopromptcont
     let _stdin () = (* placeholder: file_argument ""*) ()
+    let _force_tmc = set force_tmc
     let _version () = print_version ()
     let _vnum () = print_version_num ()
+    let _eval (_:string) = ()
   end
 
   module Topmain = struct
@@ -2014,6 +2035,7 @@ module Default = struct
         "Profiling with \"gprof\" (option `-p') is only supported up to \
          OCaml 4.08.0"
     let _shared () = shared := true; dlcode := true
+    let _force_tmc = set force_tmc
     let _v () = Compenv.print_version_and_library "native-code compiler"
     let _no_probes = clear probes
     let _probes = set probes
@@ -2037,6 +2059,7 @@ module Default = struct
     let _pp s = Clflags.preprocessor := (Some s)
     let _ppx s = Clflags.all_ppx := (s :: (!Clflags.all_ppx))
     let _thread = set Clflags.use_threads
+    let _force_tmc = set force_tmc
     let _v () = Compenv.print_version_and_library "documentation generator"
     let _verbose = set Clflags.verbose
     let _version = Compenv.print_version_string
@@ -2070,6 +2093,7 @@ third-party libraries such as Lwt, but with a different API."
     let _output_complete_exe () =
       _output_complete_obj (); output_complete_executable := true
     let _output_obj () = output_c_object := true; custom_runtime := true
+    let _force_tmc = set force_tmc
     let _use_prims s = use_prims := s
     let _use_runtime s = use_runtime := s
     let _v () = Compenv.print_version_and_library "compiler"

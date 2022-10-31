@@ -41,6 +41,12 @@ let is_tailcall_attribute =
 let is_property_attribute = function
   | Noalloc -> [ ["noalloc"; "ocaml.noalloc"], true ]
 
+let is_tmc_attribute =
+  [ ["tail_mod_cons"; "ocaml.tail_mod_cons"], true ]
+
+let is_poll_attribute =
+  [ ["poll"], true ]
+
 let find_attribute p attributes =
   let inline_attribute = Builtin_attributes.filter_attributes p attributes in
   let attr =
@@ -210,6 +216,18 @@ let parse_property_attribute attr p =
         ]
         payload
 
+let parse_poll_attribute attr =
+  match attr with
+  | None -> Default_poll
+  | Some {Parsetree.attr_name = {txt; loc}; attr_payload = payload} ->
+      parse_id_payload txt loc
+        ~default:Default_poll
+        ~empty:Default_poll
+        [
+          "error", Error_poll;
+        ]
+        payload
+
 let get_inline_attribute l =
   let attr = find_attribute is_inline_attribute l in
   parse_inline_attribute attr
@@ -233,6 +251,10 @@ let get_check_attribute l =
     | a -> Some a)
     [Noalloc]
 
+let get_poll_attribute l =
+  let attr = find_attribute is_poll_attribute l in
+  parse_poll_attribute attr
+
 let check_local_inline loc attr =
   match attr.local, attr.inline with
   | Always_local, (Always_inline | Available_inline | Unroll _) ->
@@ -240,6 +262,28 @@ let check_local_inline loc attr =
         (Warnings.Duplicated_attribute "local/inline")
   | _ ->
       ()
+
+let check_poll_inline loc attr =
+  match attr.poll, attr.inline with
+  | Error_poll, (Always_inline | Available_inline | Unroll _) ->
+      Location.prerr_warning loc
+        (Warnings.Inlining_impossible
+          "[@poll error] is incompatible with inlining")
+  | _ ->
+      ()
+
+let check_poll_local loc attr =
+  match attr.poll, attr.local with
+  | Error_poll, Always_local ->
+      Location.prerr_warning loc
+        (Warnings.Inlining_impossible
+          "[@poll error] is incompatible with local function optimization")
+  | _ ->
+      ()
+
+let lfunction_with_attr ~attr
+  { kind; params; return; body; attr=_; loc; mode; region } =
+  lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region
 
 let add_inline_attribute expr loc attributes =
   match expr with
@@ -256,7 +300,8 @@ let add_inline_attribute expr loc attributes =
         end;
         let attr = { attr with inline } in
         check_local_inline loc attr;
-        Lfunction { funct with attr = attr }
+        check_poll_inline loc attr;
+        lfunction_with_attr ~attr funct
     end
   | _ -> expr
 
@@ -273,7 +318,7 @@ let add_specialise_attribute expr loc attributes =
             (Warnings.Duplicated_attribute "specialise")
       end;
       let attr = { attr with specialise } in
-      Lfunction { funct with attr }
+      lfunction_with_attr ~attr funct
     end
   | _ -> expr
 
@@ -291,7 +336,8 @@ let add_local_attribute expr loc attributes =
       end;
       let attr = { attr with local } in
       check_local_inline loc attr;
-      Lfunction { funct with attr }
+      check_poll_local loc attr;
+      lfunction_with_attr ~attr funct
     end
   | _ -> expr
 
@@ -314,7 +360,7 @@ let add_check_attribute expr loc attributes =
             (Warnings.Duplicated_attribute (to_string check))
       end;
       let attr = { attr with check } in
-      Lfunction { funct with attr }
+      lfunction_with_attr ~attr funct
   | expr, [check] ->
       Location.prerr_warning loc
         (Warnings.Misplaced_attribute (to_string check));
@@ -324,6 +370,41 @@ let add_check_attribute expr loc attributes =
       (Warnings.Duplicated_attribute
          (Printf.sprintf "%s/%s"(to_string a) (to_string b)));
     expr
+
+let add_tmc_attribute expr loc attributes =
+  match expr with
+  | Lfunction funct ->
+     let attr = find_attribute is_tmc_attribute attributes in
+     begin match attr with
+     | None -> expr
+     | Some _ ->
+        if funct.attr.tmc_candidate then
+            Location.prerr_warning loc
+              (Warnings.Duplicated_attribute "tail_mod_cons");
+        let attr = { funct.attr with tmc_candidate = true } in
+        lfunction_with_attr ~attr funct
+     end
+  | _ -> expr
+
+let add_poll_attribute expr loc attributes =
+  match expr, get_poll_attribute attributes with
+  | expr, Default_poll -> expr
+  | Lfunction({ attr = { stub = false } as attr } as funct), poll ->
+      begin match attr.poll with
+      | Default_poll -> ()
+      | Error_poll ->
+          Location.prerr_warning loc
+            (Warnings.Duplicated_attribute "error_poll")
+      end;
+      let attr = { attr with poll } in
+      check_poll_inline loc attr;
+      check_poll_local loc attr;
+      let attr = { attr with inline = Never_inline; local = Never_local } in
+      lfunction_with_attr ~attr funct
+  | expr, Error_poll ->
+      Location.prerr_warning loc
+        (Warnings.Misplaced_attribute "error_poll");
+      expr
 
 (* Get the [@inlined] attribute payload (or default if not present). *)
 let get_inlined_attribute e =
@@ -377,5 +458,12 @@ let add_function_attributes lam loc attr =
   in
   let lam =
     add_check_attribute lam loc attr
+  in
+  let lam =
+    add_tmc_attribute lam loc attr
+  in
+  let lam =
+    (* last because poll overrides inline and local *)
+    add_poll_attribute lam loc attr
   in
   lam

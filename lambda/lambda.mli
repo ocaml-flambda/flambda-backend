@@ -70,12 +70,9 @@ type region_close =
   | Rc_close_at_apply (* close region and tail call *)
 
 type primitive =
-  | Pidentity
   | Pbytes_to_string
   | Pbytes_of_string
   | Pignore
-  | Prevapply of region_close
-  | Pdirapply of region_close
     (* Globals *)
   | Pgetglobal of Ident.t
   | Psetglobal of Ident.t
@@ -101,7 +98,7 @@ type primitive =
   | Pandint | Porint | Pxorint
   | Plslint | Plsrint | Pasrint
   | Pintcomp of integer_comparison
-  (* Comparions that return int (not bool like above) for ordering *)
+  (* Comparisons that return int (not bool like above) for ordering *)
   | Pcompare_ints | Pcompare_floats | Pcompare_bints of boxed_integer
   | Poffsetint of int
   | Poffsetref of int
@@ -289,6 +286,10 @@ type local_attribute =
 type property =
   | Noalloc
 
+type poll_attribute =
+  | Error_poll (* [@poll error] *)
+  | Default_poll (* no [@poll] attribute *)
+
 type check_attribute =
   | Default_check
   | Assert of property
@@ -297,7 +298,7 @@ type check_attribute =
 type function_kind = Curried of {nlocal: int} | Tupled
 (* [nlocal] determines how many arguments may be partially applied
    before the resulting closure must be locally allocated.
-   See [check_lfunction] for details *)
+   See [lfunction] for details *)
 
 type let_kind = Strict | Alias | StrictOpt
 (* Meaning of kinds for let x = e in e':
@@ -321,8 +322,10 @@ type function_attribute = {
   specialise : specialise_attribute;
   local: local_attribute;
   check : check_attribute;
+  poll: poll_attribute;
   is_a_functor: bool;
   stub: bool;
+  tmc_candidate: bool;
 }
 
 type scoped_location = Debuginfo.Scoped_location.t
@@ -358,7 +361,7 @@ type lambda =
   | Lifused of Ident.t * lambda
   | Lregion of lambda
 
-and lfunction =
+and lfunction = private
   { kind: function_kind;
     params: (Ident.t * value_kind) list;
     return: value_kind;
@@ -407,6 +410,7 @@ and lambda_switch =
     sw_numblocks: int;                  (* Number of tag block cases *)
     sw_blocks: (int * lambda) list;     (* Tag block cases *)
     sw_failaction : lambda option}      (* Action to take if failure *)
+
 and lambda_event =
   { lev_loc: scoped_location;
     lev_kind: lambda_event_kind;
@@ -444,9 +448,20 @@ val make_key: lambda -> lambda option
 val const_unit: structured_constant
 val const_int : int -> structured_constant
 val lambda_unit: lambda
-val check_lfunction : lfunction -> unit
 val name_lambda: let_kind -> lambda -> (Ident.t -> lambda) -> lambda
 val name_lambda_list: lambda list -> (lambda list -> lambda) -> lambda
+
+val lfunction :
+  kind:function_kind ->
+  params:(Ident.t * value_kind) list ->
+  return:value_kind ->
+  body:lambda ->
+  attr:function_attribute -> (* specified with [@inline] attribute *)
+  loc:scoped_location ->
+  mode:alloc_mode ->
+  region:bool ->
+  lambda
+
 
 val iter_head_constructor: (lambda -> unit) -> lambda -> unit
 (** [iter_head_constructor f lam] apply [f] to only the first level of
@@ -524,6 +539,9 @@ val swap_float_comparison : float_comparison -> float_comparison
 
 val default_function_attribute : function_attribute
 val default_stub_attribute : function_attribute
+
+val find_exact_application :
+  function_kind -> arity:int -> lambda list -> lambda list option
 
 val max_arity : unit -> int
   (** Maximal number of parameters for a function, or in other words,

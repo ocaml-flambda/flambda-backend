@@ -379,7 +379,7 @@ let var = ref [];;
 let f x = var := x::!var; x;;
 [%%expect{|
 val var : '_weak1 list ref = {contents = []}
-val f : '_weak2 -> '_weak2 = <fun>
+val f : '_weak1 -> '_weak1 = <fun>
 |}];;
 
 let z = [|1;2;3|];;
@@ -450,8 +450,8 @@ val z : int array array = [|[|1; 2; 3|]; [|4; 5; 6|]|]
 let var = ref [];;
 let f x = var := x::!var; x;;
 [%%expect{|
-val var : '_weak3 list ref = {contents = []}
-val f : '_weak4 -> '_weak4 = <fun>
+val var : '_weak2 list ref = {contents = []}
+val f : '_weak2 -> '_weak2 = <fun>
 |}];;
 
 let z = [1;2;3];;
@@ -521,8 +521,8 @@ val z : int list list = [[1; 2; 3]; [4; 5; 6]]
 let var = ref [];;
 let f x = var := x::!var; x;;
 [%%expect{|
-val var : '_weak5 list ref = {contents = []}
-val f : '_weak6 -> '_weak6 = <fun>
+val var : '_weak3 list ref = {contents = []}
+val f : '_weak3 -> '_weak3 = <fun>
 |}];;
 
 
