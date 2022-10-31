@@ -265,7 +265,6 @@ parsing/ast_mapper.cmo : \
     utils/load_path.cmi \
     utils/config.cmi \
     utils/clflags.cmi \
-    parsing/builtin_attributes.cmi \
     parsing/asttypes.cmi \
     parsing/ast_helper.cmi \
     parsing/ast_mapper.cmi
@@ -277,7 +276,6 @@ parsing/ast_mapper.cmx : \
     utils/load_path.cmx \
     utils/config.cmx \
     utils/clflags.cmx \
-    parsing/builtin_attributes.cmx \
     parsing/asttypes.cmi \
     parsing/ast_helper.cmx \
     parsing/ast_mapper.cmi
@@ -289,13 +287,11 @@ parsing/asttypes.cmi : \
 parsing/attr_helper.cmo : \
     parsing/parsetree.cmi \
     parsing/location.cmi \
-    parsing/builtin_attributes.cmi \
     parsing/asttypes.cmi \
     parsing/attr_helper.cmi
 parsing/attr_helper.cmx : \
     parsing/parsetree.cmi \
     parsing/location.cmx \
-    parsing/builtin_attributes.cmx \
     parsing/asttypes.cmi \
     parsing/attr_helper.cmi
 parsing/attr_helper.cmi : \
@@ -311,7 +307,6 @@ parsing/builtin_attributes.cmo : \
     utils/config.cmi \
     utils/clflags.cmi \
     parsing/asttypes.cmi \
-    parsing/ast_helper.cmi \
     parsing/builtin_attributes.cmi
 parsing/builtin_attributes.cmx : \
     utils/warnings.cmx \
@@ -322,7 +317,6 @@ parsing/builtin_attributes.cmx : \
     utils/config.cmx \
     utils/clflags.cmx \
     parsing/asttypes.cmi \
-    parsing/ast_helper.cmx \
     parsing/builtin_attributes.cmi
 parsing/builtin_attributes.cmi : \
     parsing/parsetree.cmi \
@@ -454,7 +448,6 @@ parsing/parser.cmo : \
     parsing/docstrings.cmi \
     utils/clflags.cmi \
     parsing/camlinternalMenhirLib.cmi \
-    parsing/builtin_attributes.cmi \
     parsing/asttypes.cmi \
     parsing/ast_helper.cmi \
     parsing/parser.cmi
@@ -467,7 +460,6 @@ parsing/parser.cmx : \
     parsing/docstrings.cmx \
     utils/clflags.cmx \
     parsing/camlinternalMenhirLib.cmx \
-    parsing/builtin_attributes.cmx \
     parsing/asttypes.cmi \
     parsing/ast_helper.cmx \
     parsing/parser.cmi
@@ -3530,7 +3522,6 @@ lambda/translattribute.cmo : \
     parsing/location.cmi \
     lambda/lambda.cmi \
     utils/config.cmi \
-    parsing/builtin_attributes.cmi \
     lambda/translattribute.cmi
 lambda/translattribute.cmx : \
     utils/warnings.cmx \
@@ -3541,7 +3532,6 @@ lambda/translattribute.cmx : \
     parsing/location.cmx \
     lambda/lambda.cmx \
     utils/config.cmx \
-    parsing/builtin_attributes.cmx \
     lambda/translattribute.cmi
 lambda/translattribute.cmi : \
     typing/typedtree.cmi \
