@@ -114,10 +114,6 @@ let lifted_constants t = t.lifted_constants
 let get_and_clear_lifted_constants t =
   { t with lifted_constants = LCS.empty }, t.lifted_constants
 
-let required_names t = t.flow_result.data_flow_result.required_names
-
-let reachable_code_ids t = t.flow_result.data_flow_result.reachable_code_ids
-
 let cost_metrics t = t.cost_metrics
 
 let are_rebuilding_terms t = t.are_rebuilding_terms
@@ -195,6 +191,10 @@ let is_demoted_exn_handler t cont =
 let slot_offsets t = t.slot_offsets
 
 let with_slot_offsets t slot_offsets = { t with slot_offsets }
+
+let required_names t = t.flow_result.data_flow_result.required_names
+
+let reachable_code_ids t = t.flow_result.data_flow_result.reachable_code_ids
 
 let continuation_param_aliases t = t.flow_result.aliases_result
 

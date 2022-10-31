@@ -35,10 +35,6 @@ val cost_metrics : t -> Cost_metrics.t
 
 val code_age_relation : t -> Code_age_relation.t
 
-val required_names : t -> Name.Set.t
-
-val reachable_code_ids : t -> Flow_types.Reachable_code_ids.t Or_unknown.t
-
 (** Return the lifted constants that still need to be placed (i.e. have
     [Let]-expressions made for them) on the upwards traversal. *)
 val lifted_constants : t -> Lifted_constant_state.t
@@ -101,6 +97,12 @@ val is_demoted_exn_handler : t -> Continuation.t -> bool
 val slot_offsets : t -> Slot_offsets.t Or_unknown.t
 
 val with_slot_offsets : t -> Slot_offsets.t Or_unknown.t -> t
+
+(* Functions to extract specific fields of [flow_result]. *)
+
+val required_names : t -> Name.Set.t
+
+val reachable_code_ids : t -> Flow_types.Reachable_code_ids.t Or_unknown.t
 
 val continuation_param_aliases : t -> Flow_types.Alias_result.t
 
