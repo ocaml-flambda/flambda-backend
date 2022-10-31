@@ -52,6 +52,7 @@ let close_phrase lam =
   let open Lambda in
   Ident.Set.fold (fun id l ->
     let glb, pos = toplevel_value id in
+    let glb = Compilation_unit.of_string (Ident.name glb) in
     let glob =
       Lprim (Pfield (pos, Reads_agree),
              [Lprim (Pgetglobal glb, [], Loc_unknown)],
