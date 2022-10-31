@@ -29,7 +29,8 @@ CAMLprim value unix_unlink(value path)
   caml_unix_check_path(path, "unlink");
   p = caml_stat_strdup_to_os(String_val(path));
   caml_enter_blocking_section();
-  ret = caml_unlink(p);
+  /* CR mshinwell: caml_unlink causes a compiler error on macOS */
+  ret = unlink(p);
   caml_leave_blocking_section();
   caml_stat_free(p);
   if (ret == -1) uerror("unlink", path);

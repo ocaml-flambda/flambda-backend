@@ -58,7 +58,7 @@
  ; We should change the code so this "-open" can be removed.
  ; Likewise fix occurrences of warning 9.
  (flags
-  (:standard -principal -w -9))
+  (:standard -principal -w -9-69-70))
  (ocamlopt_flags
   (:include %{project_root}/ocamlopt_flags.sexp))
  (instrumentation
@@ -490,7 +490,8 @@
    compiler-libs/libcompiler_owee_stubs.a)
   (external/owee/libcompiler_owee_stubs.a
    as
-   compiler-libs/libcompiler_owee_stubs_native.a) ; for special_dune compat
+   compiler-libs/libcompiler_owee_stubs_native.a)
+  ; for special_dune compat
   (ocamloptcomp_with_flambda2.cma as compiler-libs/ocamloptcomp.cma)
   (ocamloptcomp_with_flambda2.cmxa as compiler-libs/ocamloptcomp.cmxa)
   (ocamloptcomp_with_flambda2.a as compiler-libs/ocamloptcomp.a))
@@ -1230,7 +1231,6 @@
   (.ocamloptcomp.objs/byte/cfg_regalloc_utils.cmti
    as
    compiler-libs/cfg_regalloc_utils.cmti)
-
   (.ocamloptcomp.objs/byte/cfg_regalloc_validate.cmi
    as
    compiler-libs/cfg_regalloc_validate.cmi)
@@ -1238,11 +1238,11 @@
    as
    compiler-libs/cfg_regalloc_validate.cmo)
   (.ocamloptcomp.objs/byte/cfg_regalloc_validate.cmt
-    as
-    compiler-libs/cfg_regalloc_validate.cmt)
+   as
+   compiler-libs/cfg_regalloc_validate.cmt)
   (.ocamloptcomp.objs/byte/cfg_regalloc_validate.cmti
-    as
-    compiler-libs/cfg_regalloc_validate.cmti)
+   as
+   compiler-libs/cfg_regalloc_validate.cmti)
   (.ocamloptcomp.objs/byte/cfg_stack_operands.cmi
    as
    compiler-libs/cfg_stack_operands.cmi)
@@ -1540,8 +1540,8 @@
    as
    compiler-libs/cfg_regalloc_utils.cmx)
   (.ocamloptcomp.objs/native/cfg_regalloc_validate.cmx
-    as
-    compiler-libs/cfg_regalloc_validate.cmx)
+   as
+   compiler-libs/cfg_regalloc_validate.cmx)
   (.ocamloptcomp.objs/native/cfg_stack_operands.cmx
    as
    compiler-libs/cfg_stack_operands.cmx)
@@ -2434,10 +2434,18 @@
   (.ocamloptcomp.objs/byte/static_exception.cmti
    as
    compiler-libs/static_exception.cmti)
-  (.ocamloptcomp.objs/byte/symbol_utils.cmi as compiler-libs/symbol_utils.cmi)
-  (.ocamloptcomp.objs/byte/symbol_utils.cmo as compiler-libs/symbol_utils.cmo)
-  (.ocamloptcomp.objs/byte/symbol_utils.cmt as compiler-libs/symbol_utils.cmt)
-  (.ocamloptcomp.objs/byte/symbol_utils.cmti as compiler-libs/symbol_utils.cmti)
+  (.ocamloptcomp.objs/byte/symbol_utils.cmi
+   as
+   compiler-libs/symbol_utils.cmi)
+  (.ocamloptcomp.objs/byte/symbol_utils.cmo
+   as
+   compiler-libs/symbol_utils.cmo)
+  (.ocamloptcomp.objs/byte/symbol_utils.cmt
+   as
+   compiler-libs/symbol_utils.cmt)
+  (.ocamloptcomp.objs/byte/symbol_utils.cmti
+   as
+   compiler-libs/symbol_utils.cmti)
   (.ocamloptcomp.objs/byte/tag.cmi as compiler-libs/tag.cmi)
   (.ocamloptcomp.objs/byte/tag.cmo as compiler-libs/tag.cmo)
   (.ocamloptcomp.objs/byte/tag.cmt as compiler-libs/tag.cmt)
@@ -2687,7 +2695,9 @@
   (.ocamloptcomp.objs/native/static_exception.cmx
    as
    compiler-libs/static_exception.cmx)
-  (.ocamloptcomp.objs/native/symbol_utils.cmx as compiler-libs/symbol_utils.cmx)
+  (.ocamloptcomp.objs/native/symbol_utils.cmx
+   as
+   compiler-libs/symbol_utils.cmx)
   (.ocamloptcomp.objs/native/tag.cmx as compiler-libs/tag.cmx)
   (.ocamloptcomp.objs/native/traverse_for_exported_symbols.cmx
    as

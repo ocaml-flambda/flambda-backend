@@ -1057,11 +1057,11 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
         if is_local_mode clos_mode then assert (is_local_mode new_clos_mode);
         let ret_mode = if fundesc.fun_region then alloc_heap else alloc_local in
         let (new_fun, approx) = close { backend; fenv; cenv; mutable_vars }
-          (Lfunction{
-               kind;
-               return = Pgenval;
-               params = List.map (fun v -> v, Pgenval) final_args;
-               body = Lapply{
+          (lfunction
+               ~kind
+               ~return:Pgenval
+               ~params:(List.map (fun v -> v, Pgenval) final_args)
+               ~body:(Lapply{
                  ap_loc=loc;
                  ap_func=(Lvar funct_var);
                  ap_args=internal_args;
@@ -1071,11 +1071,11 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
                  ap_inlined=Default_inlined;
                  ap_specialised=Default_specialise;
                  ap_probe=None;
-               };
-               loc;
-               mode = new_clos_mode;
-               region = fundesc.fun_region;
-               attr = default_function_attribute})
+               })
+               ~loc
+               ~mode:new_clos_mode
+               ~region:fundesc.fun_region
+               ~attr:default_function_attribute)
         in
         let new_fun =
           iter first_args
@@ -1208,23 +1208,9 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
   | Lprim(Pignore, [arg], _loc) ->
       let expr, approx = make_const_int 0 in
       Usequence(fst (close env arg), expr), approx
-  | Lprim((Pidentity | Pbytes_to_string | Pbytes_of_string | Pobj_magic),
+  | Lprim(( Pbytes_to_string | Pbytes_of_string | Pobj_magic),
           [arg], _loc) ->
       close env arg
-  | Lprim(Pdirapply pos,[funct;arg], loc)
-  | Lprim(Prevapply pos,[arg;funct], loc) ->
-      close env
-        (Lapply{
-           ap_loc=loc;
-           ap_func=funct;
-           ap_args=[arg];
-           ap_region_close=pos;
-           ap_mode=alloc_heap;
-           ap_tailcall=Default_tailcall;
-           ap_inlined=Default_inlined;
-           ap_specialised=Default_specialise;
-           ap_probe=None;
-         })
   | Lprim(Pgetglobal cu, [], loc) ->
       let id = Compilation_unit.to_global_ident_for_legacy_code cu in
       let dbg = Debuginfo.from_location loc in
@@ -1402,9 +1388,8 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
   let uncurried_defs =
     List.map
       (function
-          (id, Lfunction({kind; params; return; body; attr; loc; mode; region}
-                         as funct)) ->
-            Lambda.check_lfunction funct;
+          (id, Lfunction(
+              {kind; params; return; body; attr; loc; mode; region})) ->
             let attrib = attr.check in
             let label =
               Symbol_utils.for_fun_ident ~compilation_unit:None loc id

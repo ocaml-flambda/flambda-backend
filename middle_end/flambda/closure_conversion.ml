@@ -14,7 +14,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-9-30-40-41-42-66"]
+[@@@ocaml.warning "+a-4-9-30-40-41-42-66-69"]
 open! Int_replace_polymorphic_compare
 
 module Env = Closure_conversion_aux.Env
@@ -426,7 +426,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
         (If_then_else (cond, arg2, Var const_false, Pintval)))
   | Lprim ((Psequand | Psequor), _, _) ->
     Misc.fatal_error "Psequand / Psequor must have exactly two arguments"
-  | Lprim ((Pidentity | Pbytes_to_string | Pbytes_of_string | Pobj_magic),
+  | Lprim ((Pbytes_to_string | Pbytes_of_string | Pobj_magic),
            [arg], _) ->
     close t env arg
   | Lprim (Pignore, [arg], _) ->
@@ -436,24 +436,6 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
     in
     Flambda.create_let var defining_expr
       (name_expr (Const (Int 0)) ~name:Names.unit)
-  | Lprim (Pdirapply pos, [funct; arg], loc)
-  | Lprim (Prevapply pos, [arg; funct], loc) ->
-    let apply : Lambda.lambda_apply =
-      { ap_func = funct;
-        ap_args = [arg];
-        ap_region_close = pos;
-        ap_mode = Lambda.alloc_heap;
-        ap_loc = loc;
-        (* CR-someday lwhite: it would be nice to be able to give
-           application attributes to functions applied with the application
-           operators. *)
-        ap_tailcall = Default_tailcall;
-        ap_inlined = Default_inlined;
-        ap_specialised = Default_specialise;
-        ap_probe = None;
-      }
-    in
-    close t env (Lambda.Lapply apply)
   | Lprim (Praise kind, [arg], loc) ->
     let arg_var = Variable.create Names.raise_arg in
     let dbg = Debuginfo.from_location loc in

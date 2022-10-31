@@ -12,7 +12,7 @@
   * Fabrice LE FESSANT (INRIA/OCamlPro)
 *)
 
-[@@@ocaml.warning "+A-4-9"]
+[@@@ocaml.warning "+A-4-9-69"]
 
 open X86_ast
 open X86_proc
@@ -1677,7 +1677,7 @@ let assemble_section arch section =
   let icount = ref 0 in
   ArrayLabels.iter section.sec_instrs ~f:(function
     | NewLabel (lbl, _) ->
-        String.Tbl.add local_labels lbl !icount 
+        String.Tbl.add local_labels lbl !icount
     | Ins _ -> incr icount
     | _ -> ());
 

@@ -391,7 +391,7 @@ let name_expression ~loc ~attrs exp =
     { pat_desc = Tpat_var(id, mknoloc name);
       pat_loc = loc;
       pat_extra = [];
-      pat_mode = Btype.Value_mode.global;
+      pat_mode = Types.Value_mode.global;
       pat_type = exp.exp_type;
       pat_env = exp.exp_env;
       pat_attributes = []; }
@@ -430,7 +430,7 @@ let execute_phrase print_outcome ppf phr =
       in
       Compilenv.reset compilation_unit;
       Typecore.reset_delayed_checks ();
-      let (str, sg, names, newenv) =
+      let (str, sg, names, _shape, newenv) =
         Typemod.type_toplevel_phrase oldenv oldsig sstr
       in
       if !Clflags.dump_typedtree then Printtyped.implementation ppf str;

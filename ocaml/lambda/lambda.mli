@@ -296,10 +296,6 @@ type check_attribute =
   | Assert of property
   | Assume of property
 
-type poll_attribute =
-  | Error_poll (* [@poll error] *)
-  | Default_poll (* no [@poll] attribute *)
-
 type loop_attribute =
   | Always_loop (* [@loop] or [@loop always] *)
   | Never_loop (* [@loop never] *)

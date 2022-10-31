@@ -9,7 +9,7 @@
     function call are specified as preassigned registers instead of
     reconstructing the argument locations from the function type. *)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-4-30-40-41-42-69"]
 
 include Cfg_intf.S
 

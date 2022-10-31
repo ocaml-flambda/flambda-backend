@@ -1879,6 +1879,10 @@ module SArgBlocks = struct
 
   let gtint = Ccmpi Cgt
 
+  type arg = expression
+
+  type test = expression
+
   type act = expression
 
   type loc = Debuginfo.t
@@ -1896,6 +1900,10 @@ module SArgBlocks = struct
   let make_isout h arg = Cop (Ccmpa Clt, [h; arg], Debuginfo.none)
 
   let make_isin h arg = Cop (Ccmpa Cge, [h; arg], Debuginfo.none)
+
+  let make_is_nonzero arg = arg
+
+  let arg_as_test arg = arg
 
   let make_if value_kind cond ifso ifnot =
     Cifthenelse
