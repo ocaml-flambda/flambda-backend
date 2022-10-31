@@ -494,7 +494,6 @@ let emit_named_text_section func_name =
 type probe =
   {
     probe_stack_offset: int;
-    probe_num_stack_slots: int array;
     (* Record frame info held in the corresponding mutable variables. *)
     probe_label: label;
     (* Probe site, recorded in .note.stapsdt section
@@ -502,6 +501,8 @@ type probe =
     probe_insn: Linear.instruction;
     (* Iprobe instruction, recorded at probe site and used for emitting
        the notes and the wrapper code at the end of the compilation unit. *)
+    probe_fundecl: Linear.fundecl;
+    (* Surrounding function at the probe site *)
   }
 
 let probe_handler_wrapper_name probe_label =
@@ -868,7 +869,7 @@ let emit_instr env fallthrough i =
       { probe_label;
         probe_insn = i;
         probe_stack_offset = env.stack_offset;
-        probe_num_stack_slots = Array.copy env.f.fun_num_stack_slots;
+        probe_fundecl = env.f;
       }
     in
     probes := probe :: !probes;
@@ -1198,25 +1199,27 @@ let make_stack_loc ~offset i (r : Reg.t) =
    This assumption might no longer hold in the presence of unboxed types.
 *)
 
-let emit_probe_handler_wrapper _p =
-  failwith "FIXME: Probes unimplemented in 4.14"
-(*
+(* CR sdolan for gyorsh: Is this correct?
+   (For both emit_probe_handler_wrapper and emit_probe_notes?) *)
+let probe_env p =
+  (* Restore stack frame info as it was at the probe site, so we can easily
+     refer to slots in the corresponding frame.  (As per the comment above,
+     recall that the wrapper does however have its own frame.) *)
+  let env = Emitaux.mk_env p.probe_fundecl in
+  assert (env.f.fun_frame_required = true);
+  env.stack_offset <- p.probe_stack_offset;
+  (* Account for the return address that is now pushed on the stack. *)
+  env.stack_offset <- env.stack_offset + 8;
+  env  
+
+let emit_probe_handler_wrapper p =
   let wrap_label = probe_handler_wrapper_name p.probe_label in
   let probe_name, handler_code_sym =
     match p.probe_insn.desc with
     | Lop (Iprobe { name; handler_code_sym; }) -> name, handler_code_sym
     | _ -> assert false
   in
-  (* Restore stack frame info as it was at the probe site, so we can easily
-     refer to slots in the corresponding frame.  (As per the comment above,
-     recall that the wrapper does however have its own frame.) *)
-  env.frame_required <- true;
-  env.stack_offset <- p.probe_stack_offset;
-  for i = 0 to Proc.num_register_classes - 1 do
-    num_stack_slots.(i) <- p.num_stack_slots.(i);
-  done;
-  (* Account for the return address that is now pushed on the stack. *)
-  env.stack_offset <- env.stack_offset + 8;
+  let env = probe_env p in
   (* Emit function entry code *)
   D.comment (Printf.sprintf "probe %s %s" probe_name handler_code_sym);
   emit_named_text_section wrap_label;
@@ -1252,25 +1255,25 @@ let emit_probe_handler_wrapper _p =
   let padding = if ((wrapper_frame_size k) mod 16) = 0 then 0 else 8 in
   let n = k + padding in
   (* Allocate stack space *)
-  emit_stack_offset n;
+  emit_stack_offset env n;
   (* Save all live hard registers *)
   let offset = aux_offset + tmp_offset + loc_offset in
   let saved_live = Array.mapi (make_stack_loc ~offset) live in
-  Array.iteri (fun i reg -> move reg saved_live.(i)) live;
+  Array.iteri (fun i reg -> move env reg saved_live.(i)) live;
   (* Spill r15 to free it to be used as a temporary register for stack to
      stack copying. *)
   let offset = tmp_offset + loc_offset in
   let saved_r15 = make_stack_loc 0 (Reg.dummy) ~offset in
-  I.mov r15 (reg saved_r15);
+  I.mov r15 (reg env saved_r15);
   (* Spill all arguments of the probe.  Some of these may already be on the
      stack, in which case a temporary is used for the move. *)
   let tmp = Array.mapi (make_stack_loc ~offset:loc_offset) p.probe_insn.arg in
-  Array.iteri (fun i reg -> move_allowing_stack_to_stack reg (tmp.(i)))
+  Array.iteri (fun i reg -> move_allowing_stack_to_stack env reg (tmp.(i)))
     p.probe_insn.arg;
   (* Load probe arguments to correct locations for the handler *)
-  Array.iteri (fun i reg -> move_allowing_stack_to_stack tmp.(i) reg) loc_args;
+  Array.iteri (fun i reg -> move_allowing_stack_to_stack env tmp.(i) reg) loc_args;
   (* Reload spilled registers used as temporaries *)
-  I.mov (reg saved_r15) r15;
+  I.mov (reg env saved_r15) r15;
   (* Emit call to handler *)
   add_used_symbol handler_code_sym;
   emit_call handler_code_sym;
@@ -1301,18 +1304,15 @@ let emit_probe_handler_wrapper _p =
   I.ret ();
   cfi_endproc ();
   emit_function_type_and_size wrap_label
-*)
 
 let emit_probe_notes0 () =
-  failwith "FIXME: Probes unimplemented in 4.14"
-(*
   begin match system with
   | S_gnu | S_cygwin | S_solaris | S_win32 | S_linux_elf | S_bsd_elf
   | S_beos | S_mingw | S_win64 | S_linux | S_mingw64 | S_unknown ->
     D.section [".note.stapsdt"] (Some "?") [ "\"note\"" ]
   | S_macosx -> D.section ["__DATA";"__note_stapsdt"] None ["regular"]
   end;
-  let stap_arg arg =
+  let stap_arg env arg =
     let arg_name =
       match arg.loc with
       | Stack s ->
@@ -1330,8 +1330,9 @@ let emit_probe_notes0 () =
       | Lop (Iprobe { name; _; }) -> name
       | _ -> assert false
     in
+    let env = probe_env p in
     let args =
-      Array.fold_right (fun arg acc -> (stap_arg arg)::acc)
+      Array.fold_right (fun arg acc -> (stap_arg env arg)::acc)
         p.probe_insn.arg
         []
       |> String.concat " "
@@ -1394,7 +1395,6 @@ let emit_probe_notes0 () =
       D.word (const 0);
       add_def_symbol label)
     !probe_semaphores
-*)
 
 let emit_probe_notes () =
   match !probes with
