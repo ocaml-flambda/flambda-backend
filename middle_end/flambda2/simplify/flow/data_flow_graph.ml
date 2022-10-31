@@ -22,7 +22,7 @@ type t =
     code_id_to_code_id : Code_id.Set.t Code_id.Map.t;
     unconditionally_used : Name.Set.t;
     code_id_unconditionally_used : Code_id.Set.t;
-    is_toplevel : bool;
+    is_toplevel : bool
   }
 
 module Reachable = struct
@@ -56,16 +56,18 @@ module Reachable = struct
       name_queue name_enqueued =
     match Queue.take name_queue with
     | exception Queue.Empty ->
-      if t.is_toplevel then
+      if t.is_toplevel
+      then
         if Queue.is_empty code_id_queue
         then
           T.Data_flow_result.
             { required_names = name_enqueued;
-              reachable_code_ids = Known
-                T.Reachable_code_ids.{
-                  live_code_ids = code_id_enqueued;
-                  ancestors_of_live_code_ids = older_enqueued
-                }
+              reachable_code_ids =
+                Known
+                  T.Reachable_code_ids.
+                    { live_code_ids = code_id_enqueued;
+                      ancestors_of_live_code_ids = older_enqueued
+                    }
             }
         else
           reachable_code_ids t code_id_queue code_id_enqueued (Queue.create ())
@@ -164,14 +166,12 @@ let print ppf
       code_id_unconditionally_used
     } =
   Format.fprintf ppf
-    "@[<hov 1>(@[<hov 1>(is_toplevel %b)@]@ \
-     @[<hov 1>(code_age_relation@ %a)@]@ @[<hov 1>(name_to_name@ \
-     %a)@]@ @[<hov 1>(name_to_code_id@ %a)@]@ @[<hov 1>(code_id_to_name@ \
-     %a)@]@ @[<hov 1>(code_id_to_code_id@ %a)@]@ @[<hov \
-     1>(unconditionally_used@ %a)@]@ @[<hov 1>(code_id_unconditionally_used@ \
-     %a)@])@]"
-    is_toplevel
-    Code_age_relation.print code_age_relation
+    "@[<hov 1>(@[<hov 1>(is_toplevel %b)@]@ @[<hov 1>(code_age_relation@ \
+     %a)@]@ @[<hov 1>(name_to_name@ %a)@]@ @[<hov 1>(name_to_code_id@ %a)@]@ \
+     @[<hov 1>(code_id_to_name@ %a)@]@ @[<hov 1>(code_id_to_code_id@ %a)@]@ \
+     @[<hov 1>(unconditionally_used@ %a)@]@ @[<hov \
+     1>(code_id_unconditionally_used@ %a)@])@]"
+    is_toplevel Code_age_relation.print code_age_relation
     (Name.Map.print Name.Set.print)
     name_to_name
     (Name.Map.print Code_id.Set.print)
@@ -414,12 +414,17 @@ let create ~return_continuation ~exn_continuation ~code_age_relation
     ~used_value_slots map =
   (* Build the dependencies using the regular params and args of continuations,
      and the let-bindings in continuations handlers. *)
-  let is_toplevel = match (used_value_slots : _ Or_unknown.t) with Known _ -> true | Unknown -> false in
+  let is_toplevel =
+    match (used_value_slots : _ Or_unknown.t) with
+    | Known _ -> true
+    | Unknown -> false
+  in
   let t =
     Continuation.Map.fold
       (add_continuation_info map ~return_continuation ~exn_continuation
          ~used_value_slots)
-      map (empty code_age_relation is_toplevel)
+      map
+      (empty code_age_relation is_toplevel)
   in
   t
 
@@ -431,12 +436,13 @@ let required_names
        code_id_to_code_id = _;
        unconditionally_used;
        code_id_unconditionally_used;
-       is_toplevel;
+       is_toplevel
      } as t) =
   let name_queue = Queue.create () in
   Name.Set.iter (fun v -> Queue.push v name_queue) unconditionally_used;
   let code_id_queue = Queue.create () in
-  if is_toplevel then
+  if is_toplevel
+  then
     Code_id.Set.iter
       (fun v -> Queue.push v code_id_queue)
       code_id_unconditionally_used;

@@ -49,7 +49,8 @@ let simplify_toplevel_common dacc simplify ~params ~return_continuation
             assert false
           | Not_in_a_closure ->
             ( DA.code_age_relation dacc,
-              Or_unknown.Known (DA.used_value_slots dacc), "toplevel" )
+              Or_unknown.Known (DA.used_value_slots dacc),
+              "toplevel" )
         in
         let flow_result =
           Flow.Analysis.analyze data_flow ~print_name ~code_age_relation
@@ -66,8 +67,7 @@ let simplify_toplevel_common dacc simplify ~params ~return_continuation
             (Flambda_arity.With_subkinds.create [K.With_subkind.any_value])
         in
         let uacc =
-          UA.create ~flow_result
-            ~compute_slot_offsets:true uenv dacc
+          UA.create ~flow_result ~compute_slot_offsets:true uenv dacc
         in
         rebuild uacc ~after_rebuild:(fun expr uacc -> expr, uacc))
   in

@@ -119,9 +119,7 @@ let speculative_inlining dacc ~apply ~function_type ~simplify_expr ~return_arity
               scope return_arity
         in
         let uacc =
-          UA.create ~flow_result
-            ~compute_slot_offsets:false
-            uenv dacc
+          UA.create ~flow_result ~compute_slot_offsets:false uenv dacc
         in
         rebuild uacc ~after_rebuild:(fun expr uacc -> expr, uacc))
   in
