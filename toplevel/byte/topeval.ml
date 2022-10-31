@@ -15,6 +15,8 @@
 
 (* The interactive toplevel loop *)
 
+#18 "ocaml/toplevel/byte/topeval.ml"
+
 open Format
 open Misc
 open Parsetree
