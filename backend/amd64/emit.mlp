@@ -229,7 +229,7 @@ let function_name = ref ""
    after emitting data. *)
 let current_basic_block_section = ref ""
 
-let emit_basic_block_section_name () =
+let emit_function_or_basic_block_section_name () =
   let suffix =
     if String.length !current_basic_block_section = 0 then
       ""
@@ -245,7 +245,7 @@ let emit_Llabel fallthrough lbl section_name =
       if not (String.equal name !current_basic_block_section) then begin
         current_basic_block_section := name;
         cfi_endproc ();
-        emit_basic_block_section_name ();
+        emit_function_or_basic_block_section_name ();
         cfi_startproc ();
       end
     | None ->
@@ -1272,7 +1272,7 @@ let emit_instr fallthrough i =
         D.long (ConstSub (ConstLabel(emit_label jumptbl.(i)),
                          ConstLabel lbl))
       done;
-      emit_basic_block_section_name ()
+      emit_function_or_basic_block_section_name ()
   | Lentertrap ->
       if fp then begin
         let delta = frame_size () - 16 (* retaddr + rbp *) in
@@ -1350,14 +1350,15 @@ let fundecl fundecl =
   local_realloc_sites := [];
   bound_error_sites := [];
   bound_error_call := 0;
-  current_basic_block_section := "";
   for i = 0 to Proc.num_register_classes - 1 do
     num_stack_slots.(i) <- fundecl.fun_num_stack_slots.(i);
   done;
   prologue_required := fundecl.fun_prologue_required;
   frame_required := fundecl.fun_frame_required;
   all_functions := fundecl :: !all_functions;
-  emit_named_text_section !function_name;
+  current_basic_block_section :=
+    Option.value fundecl.fun_section_name ~default:"";
+  emit_function_or_basic_block_section_name ();
   D.align ~data:false 16;
   add_def_symbol fundecl.fun_name;
   if system = S_macosx
