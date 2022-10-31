@@ -93,11 +93,7 @@ let speculative_inlining dacc ~apply ~function_type ~simplify_expr ~return_arity
            Thus we here provide empty/dummy values for the used_value_slots and
            code_age_relation, and ignore the reachable_code_id part of the
            data_flow analysis. *)
-        let ({ data_flow_result = { required_names; reachable_code_ids = _ };
-               aliases_result;
-               mutable_unboxing_result
-             }
-              : Flow_types.Flow_result.t) =
+        let flow_result =
           Flow.Analysis.analyze data_flow ~speculative:true
             ~print_name:"speculative" ~code_age_relation:Code_age_relation.empty
             ~used_value_slots:Unknown ~return_continuation:function_return_cont
@@ -123,9 +119,8 @@ let speculative_inlining dacc ~apply ~function_type ~simplify_expr ~return_arity
               scope return_arity
         in
         let uacc =
-          UA.create ~required_names ~reachable_code_ids:Unknown
+          UA.create ~flow_result
             ~compute_slot_offsets:false
-            ~continuation_param_aliases:aliases_result ~mutable_unboxing_result
             uenv dacc
         in
         rebuild uacc ~after_rebuild:(fun expr uacc -> expr, uacc))

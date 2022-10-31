@@ -20,12 +20,8 @@ type t
 val print : Format.formatter -> t -> unit
 
 val create :
-  required_names:Name.Set.t ->
-  reachable_code_ids:Flow_types.Reachable_code_ids.t Or_unknown.t ->
+  flow_result:Flow_types.Flow_result.t ->
   compute_slot_offsets:bool ->
-  continuation_param_aliases:Flow_types.Alias_result.t ->
-  mutable_unboxing_result:Flow_types.Mutable_unboxing_result.t ->
-  (* TODO use single flow parameter *)
   Upwards_env.t ->
   Downwards_acc.t ->
   t
