@@ -32,7 +32,9 @@ exception Error of error
    they are used to provide consistency across
    input_value and output_value usage. *)
 type signature = Types.signature_item list
-type crcs = (Compilation_unit.Name.t * Digest.t option) list
+type import_info =
+  Compilation_unit.Name.t * (Compilation_unit.t * Digest.t) option
+type crcs = import_info list
 type flags = pers_flags list
 type header = Compilation_unit.t * signature
 
@@ -90,7 +92,8 @@ let output_cmi filename oc cmi =
   flush oc;
   let crc = Digest.file filename in
   let crcs =
-    (Compilation_unit.name cmi.cmi_name, Some crc) :: cmi.cmi_crcs
+    (Compilation_unit.name cmi.cmi_name, Some (cmi.cmi_name, crc))
+    :: cmi.cmi_crcs
   in
   output_value oc (crcs : crcs);
   output_value oc (cmi.cmi_flags : flags);

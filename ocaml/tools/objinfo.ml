@@ -57,6 +57,13 @@ let print_name_crc (name, crco) =
   in
     printf "\t%s\t%a\n" crc Compilation_unit.Name.output name
 
+let print_intf_import (name, data) =
+  let crco = data |> Option.map (fun (_unit, crc) -> crc) in
+  print_name_crc (name, crco)
+
+let print_impl_import (unit, crco) =
+  print_name_crc (Compilation_unit.name unit, crco)
+
 let print_line name =
   printf "\t%s\n" name
 
@@ -69,7 +76,7 @@ let print_required_global id =
 let print_cmo_infos cu =
   printf "Unit name: %a\n" Compilation_unit.output cu.cu_name;
   print_string "Interfaces imported:\n";
-  List.iter print_name_crc cu.cu_imports;
+  List.iter print_intf_import cu.cu_imports;
   print_string "Required globals:\n";
   List.iter print_required_global cu.cu_required_globals;
   printf "Uses unsafe features: ";
@@ -100,13 +107,13 @@ let print_cma_infos (lib : Cmo_format.library) =
 let print_cmi_infos name crcs =
   printf "Unit name: %a\n" Compilation_unit.output name;
   printf "Interfaces imported:\n";
-  List.iter print_name_crc crcs
+  List.iter print_intf_import crcs
 
 let print_cmt_infos cmt =
   let open Cmt_format in
   printf "Cmt unit name: %a\n" Compilation_unit.output cmt.cmt_modname;
   print_string "Cmt interfaces imported:\n";
-  List.iter print_name_crc cmt.cmt_imports;
+  List.iter print_intf_import cmt.cmt_imports;
   printf "Source file: %s\n"
          (match cmt.cmt_sourcefile with None -> "(none)" | Some f -> f);
   printf "Compilation flags:";
@@ -129,9 +136,9 @@ let print_general_infos name crc defines cmi cmx =
   printf "Globals defined:\n";
   List.iter print_line (List.map linkage_name defines);
   printf "Interfaces imported:\n";
-  List.iter print_name_crc cmi;
+  List.iter print_intf_import cmi;
   printf "Implementations imported:\n";
-  List.iter print_name_crc cmx
+  List.iter print_impl_import cmx
 
 let print_global_table table =
   printf "Globals defined:\n";
@@ -207,12 +214,6 @@ let print_cmxs_infos header =
 
 let p_title title = printf "%s:\n" title
 
-let p_section title = function
-  | [] -> ()
-  | l ->
-      p_title title;
-      List.iter print_name_crc l
-
 let p_list title print = function
   | [] -> ()
   | l ->
@@ -229,9 +230,10 @@ let dump_byte ic =
          let len = Bytesections.seek_section ic section in
          if len > 0 then match section with
            | "CRCS" ->
-               p_section
+               p_list
                  "Imported units"
-                 (input_value ic : (Compilation_unit.Name.t * Digest.t option) list)
+                 print_intf_import
+                 (input_value ic : Cmo_format.import_info list)
            | "DLLS" ->
                p_list
                  "Used DLLs"

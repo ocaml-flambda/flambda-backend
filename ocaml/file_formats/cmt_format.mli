@@ -48,6 +48,9 @@ and binary_part =
   | Partial_signature_item of signature_item
   | Partial_module_type of module_type
 
+type import_info =
+  (Compilation_unit.Name.t * (Compilation_unit.t * Digest.t) option)
+
 type cmt_infos = {
   cmt_modname : Compilation_unit.t;
   cmt_annots : binary_annots;
@@ -60,7 +63,7 @@ type cmt_infos = {
   cmt_loadpath : string list;
   cmt_source_digest : string option;
   cmt_initial_env : Env.t;
-  cmt_imports : (Compilation_unit.Name.t * Digest.t option) list;
+  cmt_imports : import_info list;
   cmt_interface_digest : Digest.t option;
   cmt_use_summaries : bool;
 }

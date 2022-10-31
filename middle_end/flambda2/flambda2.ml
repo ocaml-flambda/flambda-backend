@@ -17,20 +17,20 @@
 (* Unlike most of the rest of Flambda 2, this file depends on ocamloptcomp,
    meaning it can call [Compilenv]. *)
 
-let get_module_info comp_unit_name =
+let get_module_info comp_unit cmx_name =
   (* Typing information for predefined exceptions should be populated directly
      by the callee. *)
-  if Compilation_unit.Name.equal comp_unit_name Compilation_unit.Name.predef_exn
+  if Compilation_unit.Name.equal cmx_name Compilation_unit.Name.predef_exn
   then
     Misc.fatal_error
       "get_global_info is not for use with predefined exception compilation \
        units";
-  if Compilation_unit.Name.equal comp_unit_name
+  if Compilation_unit.Name.equal cmx_name
        (Flambda2_identifiers.Symbol.external_symbols_compilation_unit ()
        |> Compilation_unit.name)
   then None
   else
-    match Compilenv.get_unit_export_info comp_unit_name with
+    match Compilenv.get_unit_export_info comp_unit cmx_name with
     | None | Some (Flambda2 None) -> None
     | Some (Flambda2 (Some info)) -> Some info
     | Some (Clambda _) ->
@@ -39,12 +39,12 @@ let get_module_info comp_unit_name =
       Misc.fatal_errorf
         "The .cmx file for unit %a was compiled with the Closure middle-end, \
          not Flambda 2, and cannot be loaded"
-        Compilation_unit.Name.print comp_unit_name
+        Compilation_unit.Name.print cmx_name
     | Some (Flambda1 _) ->
       Misc.fatal_errorf
         "The .cmx file for unit %a was compiled with the Flambda 1 middle-end, \
          not Flambda 2, and cannot be loaded"
-        Compilation_unit.Name.print comp_unit_name
+        Compilation_unit.Name.print cmx_name
 
 let print_rawflambda ppf unit =
   if Flambda_features.dump_rawflambda ()

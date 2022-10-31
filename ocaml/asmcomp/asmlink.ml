@@ -27,25 +27,32 @@ type error =
   | Not_an_object_file of filepath
   | Missing_implementations of (CU.t * string list) list
   | Inconsistent_interface of CU.Name.t * filepath * filepath
-  | Inconsistent_implementation of CU.Name.t * filepath * filepath
+  | Inconsistent_implementation of CU.t * filepath * filepath
   | Assembler_error of filepath
   | Linking_error of int
   | Multiple_definition of CU.Name.t * filepath * filepath
-  | Missing_cmx of filepath * CU.Name.t
+  | Missing_cmx of filepath * CU.t
 
 exception Error of error
 
 (* Consistency check between interfaces and implementations *)
 
-module Cmi_consistbl = Consistbl.Make (CU.Name)
+module Consistent_data = struct
+  type t = CU.t * Digest.t
+
+  let equal (cu1, digest1) (cu2, digest2) =
+    CU.equal cu1 cu2 && Digest.equal digest1 digest2
+end
+
+module Cmi_consistbl = Consistbl.Make (CU.Name) (Consistent_data)
 let crc_interfaces = Cmi_consistbl.create ()
 let interfaces = ref ([] : CU.Name.t list)
 
-module Cmx_consistbl = Consistbl.Make (CU.Name)
+module Cmx_consistbl = Consistbl.Make (CU) (Digest)
 let crc_implementations = Cmx_consistbl.create ()
-let implementations = ref ([] : CU.Name.t list)
-let implementations_defined = ref ([] : (CU.Name.t * string) list)
-let cmx_required = ref ([] : CU.Name.t list)
+let implementations = ref ([] : CU.t list)
+let implementations_defined = ref ([] : (CU.t * string) list)
+let cmx_required = ref ([] : CU.t list)
 
 let check_consistency file_name unit crc =
   begin try
@@ -86,16 +93,16 @@ let check_consistency file_name unit crc =
   end;
   let ui_name = CU.name unit.ui_unit in
   begin try
-    let source = List.assoc ui_name !implementations_defined in
-    raise (Error(Multiple_definition(CU.name unit.ui_unit, file_name, source)))
+    let source = List.assoc unit.ui_unit !implementations_defined in
+    raise (Error(Multiple_definition(ui_name, file_name, source)))
   with Not_found -> ()
   end;
-  implementations := ui_name :: !implementations;
-  Cmx_consistbl.set crc_implementations ui_name crc file_name;
+  implementations := unit.ui_unit :: !implementations;
+  Cmx_consistbl.set crc_implementations unit.ui_unit crc file_name;
   implementations_defined :=
-    (ui_name, file_name) :: !implementations_defined;
+    (unit.ui_unit, file_name) :: !implementations_defined;
   if CU.is_packed unit.ui_unit then
-    cmx_required := ui_name :: !cmx_required
+    cmx_required := unit.ui_unit :: !cmx_required
 
 let extract_crc_interfaces () =
   Cmi_consistbl.extract !interfaces crc_interfaces
@@ -197,9 +204,7 @@ let scan_file file tolink =
   | Unit (file_name,info,crc) ->
       (* This is a .cmx file. It must be linked in any case. *)
       remove_required info.ui_unit;
-      List.iter (fun (name, crc) ->
-          add_required file_name (assume_no_prefix name, crc))
-        info.ui_imports_cmx;
+      List.iter (add_required file_name) info.ui_imports_cmx;
       (info, file_name, crc) :: tolink
   | Library (file_name,infos) ->
       (* This is an archive file. Each unit contained in it will be linked
@@ -216,8 +221,7 @@ let scan_file file tolink =
              let req_by =
                Printf.sprintf "%s(%s)" file_name (ui_name |> CU.Name.to_string)
              in
-             info.ui_imports_cmx |> List.iter (fun (modname, digest) ->
-               add_required req_by (assume_no_prefix modname, digest));
+             List.iter (add_required req_by) info.ui_imports_cmx;
              (info, file_name, crc) :: reqd
            end else
            reqd)
@@ -237,13 +241,17 @@ let make_globals_map units_list ~crc_interfaces =
   let defined =
     List.map (fun (unit, _, impl_crc) ->
         let name = CU.name unit.ui_unit in
-        let intf_crc = CU.Name.Tbl.find crc_interfaces name in
+        let intf_crc =
+          CU.Name.Tbl.find crc_interfaces name
+          |> Option.map (fun (_unit, crc) -> crc)
+        in
         CU.Name.Tbl.remove crc_interfaces name;
         let syms = List.map Symbol.for_compilation_unit unit.ui_defines in
         (unit.ui_unit, intf_crc, Some impl_crc, syms))
       units_list
   in
   CU.Name.Tbl.fold (fun name intf acc ->
+      let intf = Option.map (fun (_unit, crc) -> crc) intf in
       (assume_no_prefix name, intf, None, []) :: acc)
     crc_interfaces defined
 
@@ -436,7 +444,7 @@ let report_error ppf = function
               over implementation %a@]"
        Location.print_filename file1
        Location.print_filename file2
-       CU.Name.print intf
+       CU.print intf
   | Assembler_error file ->
       fprintf ppf "Error while assembling %a" Location.print_filename file
   | Linking_error exitcode ->
@@ -455,9 +463,9 @@ let report_error ppf = function
          Please recompile %a@ with the correct `-I' option@ \
          so that %a.cmx@ is found.@]"
         Location.print_filename filename
-        CU.Name.print name
+        CU.print name
         Location.print_filename  filename
-        CU.Name.print name
+        CU.Name.print (CU.name name)
 
 let () =
   Location.register_error_of_exn

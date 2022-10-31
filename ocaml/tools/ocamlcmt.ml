@@ -89,7 +89,7 @@ let print_info cmt =
     let crc =
       match crco with
         None -> dummy_crc
-      | Some crc -> Digest.to_hex crc
+      | Some (_unit, crc) -> Digest.to_hex crc
     in
     Printf.fprintf oc "import: %a %s\n" Compilation_unit.Name.output name crc;
   ) (List.sort compare_imports cmt.cmt_imports);

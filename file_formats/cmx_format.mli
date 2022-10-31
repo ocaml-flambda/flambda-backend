@@ -44,7 +44,10 @@ type generic_fns =
     apply_fun: apply_fn list;
     send_fun: apply_fn list }
 
-type crcs = (Compilation_unit.Name.t * Digest.t option) list
+type import_info_cmi =
+  Compilation_unit.Name.t * (Compilation_unit.t * Digest.t) option
+type import_info_cmx =
+  Compilation_unit.t * Digest.t option
 
 (* Symbols of function that pass certain checks for special properties. *)
 type checks =
@@ -60,8 +63,10 @@ type unit_infos =
                                           (* All compilation units in the
                                              .cmx file (i.e. [ui_unit] and
                                              any produced via [Asmpackager]) *)
-    mutable ui_imports_cmi: crcs;         (* Interfaces imported *)
-    mutable ui_imports_cmx: crcs;         (* Infos imported *)
+    mutable ui_imports_cmi: import_info_cmi list;
+                                          (* Interfaces imported *)
+    mutable ui_imports_cmx: import_info_cmx list;
+                                          (* Infos imported *)
     mutable ui_generic_fns: generic_fns;  (* Generic functions needed *)
     mutable ui_export_info: export_info;
     mutable ui_checks: checks;
@@ -79,8 +84,8 @@ type lib_unit_info =
     li_imports_cmx : Bitmap.t } (* subset of lib_imports_cmx *)
 
 type library_infos =
-  { lib_imports_cmi: (Compilation_unit.Name.t * Digest.t option) array;
-    lib_imports_cmx: (Compilation_unit.Name.t * Digest.t option) array;
+  { lib_imports_cmi: import_info_cmi array;
+    lib_imports_cmx: import_info_cmx array;
     lib_units: lib_unit_info list;
     lib_generic_fns: generic_fns;
     (* In the following fields the lists are reversed with respect to

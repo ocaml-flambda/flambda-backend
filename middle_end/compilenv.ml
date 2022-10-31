@@ -176,7 +176,7 @@ let read_library_info filename =
 
 (* Read and cache info on global identifiers *)
 
-let get_unit_info modname =
+let get_unit_info comp_unit modname =
   if CU.Name.equal modname (CU.name current_unit.ui_unit)
   then
     Some current_unit
@@ -203,7 +203,7 @@ let get_unit_info modname =
           end
       in
       current_unit.ui_imports_cmx <-
-        (modname, crc) :: current_unit.ui_imports_cmx;
+        (comp_unit, crc) :: current_unit.ui_imports_cmx;
       CU.Name.Tbl.add global_infos_table modname infos;
       infos
   end
@@ -211,13 +211,13 @@ let get_unit_info modname =
 let which_cmx_file desired_comp_unit =
   CU.which_cmx_file desired_comp_unit ~accessed_by:(CU.get_current_exn ())
 
-let get_unit_export_info modname =
-  match get_unit_info modname with
+let get_unit_export_info comp_unit modname =
+  match get_unit_info comp_unit modname with
   | None -> None
   | Some ui -> Some ui.ui_export_info
 
 let get_global_info global_ident =
-  get_unit_info (which_cmx_file global_ident)
+  get_unit_info global_ident (which_cmx_file global_ident)
 
 let get_global_export_info id =
   match get_global_info id with
@@ -278,7 +278,7 @@ let approx_for_global comp_unit =
   match CU.Name.Tbl.find export_infos_table modname with
   | otherwise -> Some otherwise
   | exception Not_found ->
-    match get_unit_info modname with
+    match get_unit_info comp_unit modname with
     | None -> None
     | Some ui ->
       let exported = get_flambda_export_info ui in

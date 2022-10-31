@@ -19,7 +19,14 @@
 open Misc
 open Cmi_format
 
-module Consistbl = Consistbl.Make (Compilation_unit.Name)
+module Consistent_data = struct
+  type t = Compilation_unit.t * Digest.t
+
+  let equal (cu1, digest1) (cu2, digest2) =
+    Compilation_unit.equal cu1 cu2 && Digest.equal digest1 digest2
+end
+
+module Consistbl = Consistbl.Make (Compilation_unit.Name) (Consistent_data)
 
 let add_delayed_check_forward = ref (fun _ -> assert false)
 
@@ -29,6 +36,8 @@ type error =
   | Need_recursive_types of Compilation_unit.t
   | Depend_on_unsafe_string_unit of Compilation_unit.t
   | Inconsistent_package_declaration of Compilation_unit.t * filepath
+  | Inconsistent_package_declaration_between_imports of
+      filepath * Compilation_unit.t * Compilation_unit.t
   | Direct_reference_from_wrong_package of
       Compilation_unit.t * filepath * Compilation_unit.Prefix.t
 
@@ -53,7 +62,7 @@ type can_load_cmis =
 
 type pers_struct = {
   ps_name: Compilation_unit.t;
-  ps_crcs: (Compilation_unit.Name.t * Digest.t option) list;
+  ps_crcs: Cmi_format.import_info list;
   ps_filename: string;
   ps_flags: pers_flags list;
 }
@@ -121,9 +130,9 @@ let import_crcs penv ~source crcs =
   let import_crc (name, crco) =
     match crco with
     | None -> ()
-    | Some crc ->
+    | Some (unit, crc) ->
         add_import penv name;
-        Consistbl.check crc_units name crc source
+        Consistbl.check crc_units name (unit, crc) source
   in List.iter import_crc crcs
 
 let check_consistency penv ps =
@@ -132,8 +141,13 @@ let check_consistency penv ps =
       unit_name = name;
       inconsistent_source = source;
       original_source = auth;
+      inconsistent_data = source_unit, _;
+      original_data = auth_unit, _;
     } ->
-    error (Inconsistent_import(name, auth, source))
+    if Compilation_unit.equal source_unit auth_unit
+    then error (Inconsistent_import(name, auth, source))
+    else error (Inconsistent_package_declaration_between_imports(
+        ps.ps_filename, auth_unit, source_unit))
 
 let can_load_cmis penv =
   !(penv.can_load_cmis)
@@ -279,6 +293,7 @@ let check_pers_struct penv f ~loc name =
             Format.asprintf "%a uses -unsafe-string"
               Compilation_unit.print name
         | Inconsistent_package_declaration _ -> assert false
+        | Inconsistent_package_declaration_between_imports _ -> assert false
         | Direct_reference_from_wrong_package (unit, _filename, prefix) ->
             Format.asprintf "%a is inaccessible from %a"
               Compilation_unit.print unit
@@ -315,7 +330,7 @@ let crc_of_unit penv f name =
   in
     match crco with
       None -> assert false
-    | Some crc -> crc
+    | Some (_, crc) -> crc
 
 let imports {imported_units; crc_units; _} =
   Consistbl.extract (Compilation_unit.Name.Set.elements !imported_units)
@@ -364,11 +379,13 @@ let save_cmi penv psig pm =
          will also return its crc *)
       let ps =
         { ps_name = modname;
-          ps_crcs = (Compilation_unit.name cmi.cmi_name, Some crc) :: imports;
+          ps_crcs =
+            (Compilation_unit.name cmi.cmi_name, Some (cmi.cmi_name, crc))
+            :: imports;
           ps_filename = filename;
           ps_flags = flags;
         } in
-      save_pers_struct penv crc ps pm
+      save_pers_struct penv (cmi.cmi_name, crc) ps pm
     )
     ~exceptionally:(fun () -> remove_file filename)
 
@@ -399,9 +416,15 @@ let report_error ppf =
                            safe-string mode (-force-safe-string)"
   | Inconsistent_package_declaration(intf_package, intf_filename) ->
       fprintf ppf
-        "@[<hov>The interface %a@ is compiled for package %s.@ %s]"
+        "@[<hov>The interface %a@ is compiled for package %s.@ %s@]"
         Compilation_unit.print intf_package intf_filename
         "The compilation flag -for-pack with the same package is required"
+  | Inconsistent_package_declaration_between_imports (filename, unit1, unit2) ->
+      fprintf ppf
+        "@[<hov>The file %s@ is imported both as %a@ and as %a.@]"
+        filename
+        Compilation_unit.print unit1
+        Compilation_unit.print unit2
   | Direct_reference_from_wrong_package(unit, filename, prefix) ->
       fprintf ppf
         "@[<hov>Invalid reference to %a (in file %s) from %a.@ %s]"

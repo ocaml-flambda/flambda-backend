@@ -23,8 +23,11 @@ module Make (Module_name : sig
   module Map : Map.S with type key = t
   module Tbl : Hashtbl.S with type key = t
   val compare : t -> t -> int
+end) (Data : sig
+  type t
+  val equal : t -> t -> bool
 end) = struct
-  type t = (Digest.t * filepath) Module_name.Tbl.t
+  type t = (Data.t * filepath) Module_name.Tbl.t
 
   let create () = Module_name.Tbl.create 13
 
@@ -34,16 +37,21 @@ end) = struct
     unit_name : Module_name.t;
     inconsistent_source : string;
     original_source : string;
+    inconsistent_data : Data.t;
+    original_data : Data.t;
   }
 
   exception Not_available of Module_name.t
 
   let check_ tbl name crc source =
     let (old_crc, old_source) = Module_name.Tbl.find tbl name in
-    if crc <> old_crc then raise(Inconsistency {
+    if not (Data.equal crc old_crc)
+    then raise(Inconsistency {
         unit_name = name;
         inconsistent_source = source;
         original_source = old_source;
+        inconsistent_data = crc;
+        original_data = old_crc;
       })
 
   let check tbl name crc source =

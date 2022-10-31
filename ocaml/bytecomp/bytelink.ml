@@ -165,7 +165,14 @@ let scan_file obj_name tolink =
 
 (* Consistency check between interfaces *)
 
-module Consistbl = Consistbl.Make (CU.Name)
+module Consistent_data = struct
+  type t = CU.t * Digest.t
+
+  let equal (cu1, digest1) (cu2, digest2) =
+    CU.equal cu1 cu2 && Digest.equal digest1 digest2
+end
+
+module Consistbl = Consistbl.Make (CU.Name) (Consistent_data)
 
 let crc_interfaces = Consistbl.create ()
 let interfaces = ref ([] : CU.Name.t list)

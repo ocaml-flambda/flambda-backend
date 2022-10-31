@@ -137,7 +137,7 @@ let read_library_info filename =
 
 (* Read and cache info on global identifiers *)
 
-let get_unit_info modname =
+let get_unit_info comp_unit modname =
   if CU.Name.equal modname (CU.name current_unit.ui_unit)
   then
     Some current_unit
@@ -163,7 +163,7 @@ let get_unit_info modname =
           end
       in
       current_unit.ui_imports_cmx <-
-        (modname, crc) :: current_unit.ui_imports_cmx;
+        (comp_unit, crc) :: current_unit.ui_imports_cmx;
       CU.Name.Tbl.add global_infos_table modname infos;
       infos
   end
@@ -172,7 +172,7 @@ let which_cmx_file desired_comp_unit =
   CU.which_cmx_file desired_comp_unit ~accessed_by:(CU.get_current_exn ())
 
 let get_global_info global_ident =
-  get_unit_info (which_cmx_file global_ident)
+  get_unit_info global_ident (which_cmx_file global_ident)
 
 let cache_unit_info ui =
   CU.Name.Tbl.add global_infos_table (which_cmx_file ui.ui_unit) (Some ui)
@@ -220,15 +220,15 @@ let set_export_info export_info =
 let approx_for_global comp_unit =
   if CU.equal comp_unit CU.predef_exn
   then invalid_arg "approx_for_global with predef_exn compilation unit";
-  let comp_unit_name = which_cmx_file comp_unit in
-  match CU.Name.Tbl.find export_infos_table comp_unit_name with
+  let modname = which_cmx_file comp_unit in
+  match CU.Name.Tbl.find export_infos_table modname with
   | otherwise -> Some otherwise
   | exception Not_found ->
-    match get_unit_info comp_unit_name with
+    match get_unit_info comp_unit modname with
     | None -> None
     | Some ui ->
       let exported = get_flambda_export_info ui in
-      CU.Name.Tbl.add export_infos_table comp_unit_name exported;
+      CU.Name.Tbl.add export_infos_table modname exported;
       merged_environment := Export_info.merge !merged_environment exported;
       Some exported
 

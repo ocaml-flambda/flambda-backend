@@ -1,4 +1,4 @@
-#3 "otherlibs/dynlink/dynlink.ml"
+#2 "otherlibs/dynlink/dynlink.ml"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -23,6 +23,10 @@ open! Dynlink_compilerlibs
 module DC = Dynlink_common
 module DT = Dynlink_types
 
+let convert_cmi_import (name, data) =
+  (name |> Compilation_unit.Name.to_string),
+  Option.map (fun (_unit, crc) -> crc) data
+
 module Bytecode = struct
   type filename = string
 
@@ -32,10 +36,9 @@ module Bytecode = struct
     let name (t : t) = Compilation_unit.full_path_as_string t.cu_name
     let crc _t = None
 
-    let convert_imports l =
-      List.map (fun (name, crc) -> Compilation_unit.Name.to_string name, crc) l
+    let interface_imports (t : t) =
+      List.map convert_cmi_import t.cu_imports
 
-    let interface_imports (t : t) = t.cu_imports |> convert_imports
     let implementation_imports (t : t) =
       let required_from_unit =
         t.cu_required_globals
@@ -92,6 +95,9 @@ module Bytecode = struct
         in
         let defined =
           Symtable.is_defined_in_global_map !default_global_map id
+        in
+        let interface =
+          Option.map (fun (_unit, crc) -> crc) interface
         in
         let implementation =
           if defined then Some (None, DT.Loaded)
@@ -228,14 +234,16 @@ module Native = struct
   module Unit_header = struct
     type t = Cmxs_format.dynunit
 
-    let name (t : t) = t.dynu_name |> Compilation_unit.full_path_as_string
+    let name (t : t) = t.dynu_name |> Compilation_unit.name_as_string
     let crc (t : t) = Some t.dynu_crc
 
-    let convert_imports l =
-      List.map (fun (name, crc) -> Compilation_unit.Name.to_string name, crc) l
+    let convert_cmx_import (name, crc) =
+      (name |> Compilation_unit.name_as_string), crc
 
-    let interface_imports (t : t) = t.dynu_imports_cmi |> convert_imports
-    let implementation_imports (t : t) = t.dynu_imports_cmx |> convert_imports
+    let interface_imports (t : t) =
+      List.map convert_cmi_import t.dynu_imports_cmi
+    let implementation_imports (t : t) =
+      List.map convert_cmx_import t.dynu_imports_cmx
 
     let defined_symbols (t : t) =
       List.map (fun comp_unit ->

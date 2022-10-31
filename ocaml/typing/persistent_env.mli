@@ -16,8 +16,14 @@
 
 open Misc
 
+module Consistent_data : sig
+  type t = Compilation_unit.t * Digest.t
+
+  val equal : t -> t -> bool
+end
+
 module Consistbl : module type of struct
-  include Consistbl.Make (Compilation_unit.Name)
+  include Consistbl.Make (Compilation_unit.Name) (Consistent_data)
 end
 
 type error =
@@ -26,6 +32,8 @@ type error =
   | Need_recursive_types of Compilation_unit.t
   | Depend_on_unsafe_string_unit of Compilation_unit.t
   | Inconsistent_package_declaration of Compilation_unit.t * filepath
+  | Inconsistent_package_declaration_between_imports of
+      filepath * Compilation_unit.t * Compilation_unit.t
   | Direct_reference_from_wrong_package of
       Compilation_unit.t * filepath * Compilation_unit.Prefix.t
 
@@ -96,11 +104,10 @@ val without_cmis : 'a t -> ('b -> 'c) -> 'b -> 'c
     allow [penv] to openi cmis during its execution *)
 
 (* may raise Consistbl.Inconsistency *)
-val import_crcs : 'a t -> source:filepath
-  -> (Compilation_unit.Name.t * Digest.t option) list -> unit
+val import_crcs : 'a t -> source:filepath -> Cmi_format.import_info list -> unit
 
 (* Return the set of compilation units imported, with their CRC *)
-val imports : 'a t -> (Compilation_unit.Name.t * Digest.t option) list
+val imports : 'a t -> Cmi_format.import_info list
 
 (* Return the CRC of the interface of the given compilation unit *)
 val crc_of_unit: 'a t -> (Persistent_signature.t -> 'a)

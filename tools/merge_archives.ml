@@ -79,7 +79,7 @@ let merge_cmxa0 ~archives =
                 end));
   let cmis = Array.make !ncmis (Compilation_unit.Name.dummy, None) in
   Hashtbl.iter (fun name (crc, i) -> cmis.(i) <- name, crc) cmi_table;
-  let cmxs = Array.make !ncmxs (Compilation_unit.Name.dummy, None) in
+  let cmxs = Array.make !ncmxs (Compilation_unit.dummy, None) in
   Hashtbl.iter (fun name (crc, i) -> cmxs.(i) <- name, crc) cmx_table;
   let genfns = Cmm_helpers.Generic_fns_tbl.make () in
   let _, lib_units, lib_ccobjs, lib_ccopts =
