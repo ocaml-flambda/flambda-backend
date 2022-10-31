@@ -30,7 +30,6 @@ module Make (Module_name : sig
   val compare : t -> t -> int
 end) (Data : sig
   type t
-  val equal : t -> t -> bool
 end) : sig
   type t
 
@@ -38,40 +37,42 @@ end) : sig
 
   val clear: t -> unit
 
-  val check: t -> Module_name.t -> Data.t -> filepath -> unit
-        (* [check tbl name data source]
-             checks consistency of ([name], [data]) with infos previously
-             stored in [tbl]. If no data was previously associated with
-             [name], record ([name], [data]) in [tbl].
+  val check: t -> Module_name.t -> Data.t -> Digest.t -> filepath -> unit
+        (* [check tbl name data crc source]
+             checks consistency of ([name], [crc]) with infos previously
+             stored in [tbl].  If no CRC was previously associated with
+             [name], record ([name], [data], [crc]) in [tbl].
              [source] is the name of the file from which the information
              comes from.  This is used for error reporting. *)
 
-  val check_noadd: t -> Module_name.t -> Data.t -> filepath -> unit
-        (* Same as [check], but raise [Not_available] if no data was previously
+  val check_noadd: t -> Module_name.t -> Data.t -> Digest.t -> filepath -> unit
+        (* Same as [check], but raise [Not_available] if no CRC was previously
              associated with [name]. *)
 
-  val set: t -> Module_name.t -> Data.t -> filepath -> unit
-        (* [set tbl name data source] forcefully associates [name] with
-           [data] in [tbl], even if [name] already had different data
+  val set: t -> Module_name.t -> Data.t -> Digest.t -> filepath -> unit
+        (* [set tbl name data crc source] forcefully associates [name] with
+           ([data], [crc]) in [tbl], even if [name] already had a different CRC
            associated with [name] in [tbl]. *)
 
   val source: t -> Module_name.t -> filepath
         (* [source tbl name] returns the file name associated with [name]
-           if the latter has associated data in [tbl].
+           if the latter has an associated CRC in [tbl].
            Raise [Not_found] otherwise. *)
 
-  val find: t -> Module_name.t -> Data.t option
+  val find: t -> Module_name.t -> (Data.t * Digest.t) option
 
-  val extract: Module_name.t list -> t -> (Module_name.t * Data.t option) list
+  val extract:
+    Module_name.t list -> t -> (Module_name.t * (Data.t * Digest.t) option) list
         (* [extract tbl names] returns an associative list mapping each string
-           in [names] to the data associated with it in [tbl]. If no data is
-           associated with a name then it is mapped to [None]. *)
+           in [names] to the data and CRC associated with it in [tbl]. If no CRC
+           is associated with a name then it is mapped to [None]. *)
 
-  val extract_map : Module_name.Set.t -> t -> Data.t option Module_name.Map.t
+  val extract_map :
+    Module_name.Set.t -> t -> (Data.t * Digest.t) option Module_name.Map.t
         (* Like [extract] but with a more sophisticated type. *)
 
   val filter: (Module_name.t -> bool) -> t -> unit
-        (* [filter pred tbl] removes from [tbl] table all (name, data) pairs
+        (* [filter pred tbl] removes from [tbl] table all (name, CRC) pairs
            such that [pred name] is [false]. *)
 
   exception Inconsistency of {
@@ -81,8 +82,9 @@ end) : sig
     inconsistent_data : Data.t;
     original_data : Data.t;
   }
-  (* Raised by [check] when a data mismatch is detected. *)
+  (* Raised by [check] when a CRC mismatch is detected. *)
 
   exception Not_available of Module_name.t
-        (* Raised by [check_noadd] when a name doesn't have associated data. *)
+        (* Raised by [check_noadd] when a name doesn't have an associated
+           CRC. *)
 end

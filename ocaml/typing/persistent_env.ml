@@ -19,14 +19,7 @@
 open Misc
 open Cmi_format
 
-module Consistent_data = struct
-  type t = Compilation_unit.t * Digest.t
-
-  let equal (cu1, digest1) (cu2, digest2) =
-    Compilation_unit.equal cu1 cu2 && Digest.equal digest1 digest2
-end
-
-module Consistbl = Consistbl.Make (Compilation_unit.Name) (Consistent_data)
+module Consistbl = Consistbl.Make (Compilation_unit.Name) (Compilation_unit)
 
 let add_delayed_check_forward = ref (fun _ -> assert false)
 
@@ -132,7 +125,7 @@ let import_crcs penv ~source crcs =
     | None -> ()
     | Some (unit, crc) ->
         add_import penv name;
-        Consistbl.check crc_units name (unit, crc) source
+        Consistbl.check crc_units name unit crc source
   in List.iter import_crc crcs
 
 let check_consistency penv ps =
@@ -141,8 +134,8 @@ let check_consistency penv ps =
       unit_name = name;
       inconsistent_source = source;
       original_source = auth;
-      inconsistent_data = source_unit, _;
-      original_data = auth_unit, _;
+      inconsistent_data = source_unit;
+      original_data = auth_unit;
     } ->
     if Compilation_unit.equal source_unit auth_unit
     then error (Inconsistent_import(name, auth, source))
@@ -183,7 +176,7 @@ let save_pers_struct penv crc ps pm =
         | Unsafe_string -> ()
         | Opaque -> register_import_as_opaque penv modname)
     ps.ps_flags;
-  Consistbl.set crc_units modname crc ps.ps_filename;
+  Consistbl.set crc_units modname ps.ps_name crc ps.ps_filename;
   add_import penv modname
 
 let acknowledge_pers_struct penv check modname pers_sig pm =
@@ -385,7 +378,7 @@ let save_cmi penv psig pm =
           ps_filename = filename;
           ps_flags = flags;
         } in
-      save_pers_struct penv (cmi.cmi_name, crc) ps pm
+      save_pers_struct penv crc ps pm
     )
     ~exceptionally:(fun () -> remove_file filename)
 

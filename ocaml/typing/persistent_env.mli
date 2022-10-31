@@ -16,14 +16,8 @@
 
 open Misc
 
-module Consistent_data : sig
-  type t = Compilation_unit.t * Digest.t
-
-  val equal : t -> t -> bool
-end
-
 module Consistbl : module type of struct
-  include Consistbl.Make (Compilation_unit.Name) (Consistent_data)
+  include Consistbl.Make (Compilation_unit.Name) (Compilation_unit)
 end
 
 type error =

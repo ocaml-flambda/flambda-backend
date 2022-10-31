@@ -165,14 +165,7 @@ let scan_file obj_name tolink =
 
 (* Consistency check between interfaces *)
 
-module Consistent_data = struct
-  type t = CU.t * Digest.t
-
-  let equal (cu1, digest1) (cu2, digest2) =
-    CU.equal cu1 cu2 && Digest.equal digest1 digest2
-end
-
-module Consistbl = Consistbl.Make (CU.Name) (Consistent_data)
+module Consistbl = Consistbl.Make (CU.Name) (Compilation_unit)
 
 let crc_interfaces = Consistbl.create ()
 let interfaces = ref ([] : CU.Name.t list)
@@ -185,10 +178,10 @@ let check_consistency file_name cu =
         interfaces := name :: !interfaces;
         match crco with
           None -> ()
-        | Some crc ->
+        | Some (full_name, crc) ->
             if CU.Name.equal name (CU.name cu.cu_name)
-            then Consistbl.set crc_interfaces name crc file_name
-            else Consistbl.check crc_interfaces name crc file_name)
+            then Consistbl.set crc_interfaces name full_name crc file_name
+            else Consistbl.check crc_interfaces name full_name crc file_name)
       cu.cu_imports
   with Consistbl.Inconsistency {
       unit_name = name;

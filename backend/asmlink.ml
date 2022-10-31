@@ -47,18 +47,11 @@ type unit_link_info = {
 
 (* Consistency check between interfaces and implementations *)
 
-module Consistent_data = struct
-  type t = CU.t * Digest.t
-
-  let equal (cu1, digest1) (cu2, digest2) =
-    CU.equal cu1 cu2 && Digest.equal digest1 digest2
-end
-
-module Cmi_consistbl = Consistbl.Make (CU.Name) (Consistent_data)
+module Cmi_consistbl = Consistbl.Make (CU.Name) (CU)
 let crc_interfaces = Cmi_consistbl.create ()
 let interfaces = CU.Name.Tbl.create 100
 
-module Cmx_consistbl = Consistbl.Make (CU) (Digest)
+module Cmx_consistbl = Consistbl.Make (CU) (Unit)
 let crc_implementations = Cmx_consistbl.create ()
 let implementations = ref ([] : CU.t list)
 let implementations_defined = CU.Tbl.create 100
@@ -71,8 +64,8 @@ let check_cmi_consistency file_name cmis =
         CU.Name.Tbl.replace interfaces name ();
         match crco with
           None -> ()
-        | Some crc ->
-            Cmi_consistbl.check crc_interfaces name crc file_name)
+        | Some (full_name, crc) ->
+            Cmi_consistbl.check crc_interfaces name full_name crc file_name)
       cmis
   with Cmi_consistbl.Inconsistency {
       unit_name = name;
@@ -91,7 +84,7 @@ let check_cmx_consistency file_name cmxs =
               if List.mem name !cmx_required then
                 raise(Error(Missing_cmx(file_name, name)))
           | Some crc ->
-              Cmx_consistbl.check crc_implementations name crc file_name)
+              Cmx_consistbl.check crc_implementations name () crc file_name)
       cmxs
   with Cmx_consistbl.Inconsistency {
       unit_name = name;
@@ -110,7 +103,7 @@ let check_consistency ~unit cmis cmxs =
   with Not_found -> ()
   end;
   implementations := unit.name :: !implementations;
-  Cmx_consistbl.check crc_implementations unit.name unit.crc unit.file_name;
+  Cmx_consistbl.check crc_implementations unit.name () unit.crc unit.file_name;
   CU.Tbl.replace implementations_defined unit.name unit.file_name;
   if CU.is_packed unit.name then
     cmx_required := unit.name :: !cmx_required
@@ -123,6 +116,7 @@ let extract_crc_interfaces () =
 
 let extract_crc_implementations () =
   Cmx_consistbl.extract !implementations crc_implementations
+  |> List.map (fun (name, crco) -> name, Option.map snd crco)
 
 (* Add C objects and options and "custom" info from a library descriptor.
    See bytecomp/bytelink.ml for comments on the order of C objects. *)
