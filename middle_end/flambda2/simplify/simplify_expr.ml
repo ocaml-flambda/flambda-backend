@@ -63,15 +63,6 @@ let simplify_toplevel_common dacc simplify ~params ~return_continuation
           Flow.Analysis.analyze data_flow ~print_name ~code_age_relation
             ~used_value_slots ~return_continuation ~exn_continuation
         in
-        (* The code_id part of the data_flow analysis is correct only at
-           toplevel where all the code_ids are, so when in a closure, we state
-           the the live code ids are unknown, which will prevent any from being
-           mistakenly deleted. *)
-        let reachable_code_ids : _ Or_unknown.t =
-          match Closure_info.in_or_out_of_closure closure_info with
-          | In_a_closure -> Unknown
-          | Not_in_a_closure -> Known reachable_code_ids
-        in
         let uenv =
           UE.add_function_return_or_exn_continuation
             (UE.create (DA.are_rebuilding_terms dacc))

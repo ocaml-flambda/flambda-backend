@@ -242,7 +242,7 @@ end
 module Data_flow_result = struct
   type t =
     { required_names : Name.Set.t;
-      reachable_code_ids : Reachable_code_ids.t
+      reachable_code_ids : Reachable_code_ids.t Or_unknown.t
     }
 
   let[@ocamlformat "disable"] print ppf
@@ -253,7 +253,7 @@ module Data_flow_result = struct
          @[<hov 1>(reachable_code_ids@ %a)@]@ \
        )@]"
     Name.Set.print required_names
-    Reachable_code_ids.print reachable_code_ids
+    (Or_unknown.print Reachable_code_ids.print) reachable_code_ids
 end
 
 (* Result of the flow analysis: aliased parameters of continuations *)

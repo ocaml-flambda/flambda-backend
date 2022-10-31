@@ -140,7 +140,7 @@ module Data_flow_result : sig
     { required_names : Name.Set.t;
           (** The set of all variables that are in fact used to compute the
               returned value of the function being analyzed. *)
-      reachable_code_ids : Reachable_code_ids.t
+      reachable_code_ids : Reachable_code_ids.t Or_unknown.t
     }
 
   val print : Format.formatter -> t -> unit

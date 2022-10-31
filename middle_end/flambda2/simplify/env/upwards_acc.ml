@@ -33,8 +33,6 @@ type t =
     cost_metrics : Cost_metrics.t;
     are_rebuilding_terms : ART.t;
     generate_phantom_lets : bool;
-    (* CR gbury: required_names and reachable_code_ids should be exposed in the
-       same field, as a Data_flow.dead_variable_result field. *)
     required_names : Name.Set.t;
     reachable_code_ids : Flow_types.Reachable_code_ids.t Or_unknown.t;
     mutable_unboxing_result : Flow_types.Mutable_unboxing_result.t;
