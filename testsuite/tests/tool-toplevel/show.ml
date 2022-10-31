@@ -5,6 +5,26 @@
 (* this is a set of tests to test the #show functionality
  * of toplevel *)
 
+class o = object val x = 0 end;;
+[%%expect{|
+class o : object val x : int end
+|}];;
+#show o;;
+[%%expect{|
+type o = <  >
+class o : object val x : int end
+class type o = object val x : int end
+|}];;
+class type t = object val x : int end;;
+[%%expect{|
+class type t = object val x : int end
+|}];;
+#show t;;
+[%%expect{|
+type t = <  >
+class type t = object val x : int end
+|}];;
+
 #show Foo;;
 [%%expect {|
 Unknown element.
@@ -40,7 +60,7 @@ type 'a option = None | Some of 'a
 
 #show option;;
 [%%expect {|
-type nonrec 'a option = None | Some of 'a
+type 'a option = None | Some of 'a
 |}];;
 
 #show Open_binary;;
@@ -59,7 +79,7 @@ type Stdlib.open_flag =
 
 #show open_flag;;
 [%%expect {|
-type nonrec open_flag =
+type open_flag =
     Open_rdonly
   | Open_wronly
   | Open_append
@@ -90,7 +110,7 @@ type extensible += B of int
 
 #show extensible;;
 [%%expect {|
-type nonrec extensible = ..
+type extensible = ..
 |}];;
 
 type 'a t = ..;;

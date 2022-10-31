@@ -167,7 +167,7 @@ let not_supported _ofs = fatal_error "Proc.loc_results: cannot call"
 (* OCaml calling convention:
      first integer args in r0...r15
      first float args in d0...d15
-     remaining args in domain area, then on stack.
+     remaining args in domain state area, then on stack.
    Return values in r0...r15 or d0...d15. *)
 
 let max_arguments_for_tailcalls = 16 (* in regs *) + 64 (* in domain state *)
@@ -267,7 +267,7 @@ let destroyed_at_oper = function
       all_phys_regs
   | Iop(Iextcall { alloc = false; }) ->
       destroyed_at_c_call
-  | Iop(Ialloc _) ->
+  | Iop(Ialloc _) | Iop(Ipoll _) ->
       [| reg_x8 |]
   | Iop( Iintoffloat | Ifloatofint
        | Iload(Single, _, _) | Istore(Single, _, _)) ->
@@ -282,12 +282,12 @@ let destroyed_at_reloadretaddr = [| |]
 
 let safe_register_pressure = function
   | Iextcall _ -> 7
-  | Ialloc _ -> 22
+  | Ialloc _ | Ipoll _ -> 22
   | _ -> 23
 
 let max_register_pressure = function
   | Iextcall _ -> [| 7; 8 |]  (* 7 integer callee-saves, 8 FP callee-saves *)
-  | Ialloc _ -> [| 22; 32 |]
+  | Ialloc _ | Ipoll _ -> [| 22; 32 |]
   | Iintoffloat | Ifloatofint
   | Iload(Single, _, _) | Istore(Single, _, _) -> [| 23; 31 |]
   | _ -> [| 23; 32 |]

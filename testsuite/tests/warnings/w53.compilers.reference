@@ -1,7 +1,15 @@
+File "w53.ml", line 64, characters 37-46:
+64 | let test_ppwarning = 42 [@@ppwarning "warning"]
+                                          ^^^^^^^^^
+Warning 22 [preprocessor]: warning
 File "w53.ml", line 12, characters 4-5:
 12 | let h x = x [@inline] (* rejected *)
          ^
 Warning 32 [unused-value-declaration]: unused value h.
+File "w53.ml", line 334, characters 2-33:
+334 |   let x : int64 = 42L [@@noalloc] (* rejected *)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "noalloc" attribute cannot appear in this context
 File "w53.ml", line 12, characters 14-20:
 12 | let h x = x [@inline] (* rejected *)
                    ^^^^^^
@@ -34,14 +42,22 @@ File "w53.ml", line 25, characters 16-24:
 25 | let q x = h x [@tailcall] (* rejected *)
                      ^^^^^^^^
 Warning 53 [misplaced-attribute]: the "tailcall" attribute cannot appear in this context
-File "w53.ml", line 33, characters 0-32:
+File "w53.ml", line 33, characters 25-31:
 33 | module C = struct end [@@inline] (* rejected *)
-     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                              ^^^^^^
 Warning 53 [misplaced-attribute]: the "inline" attribute cannot appear in this context
-File "w53.ml", line 34, characters 0-39:
+File "w53.ml", line 34, characters 26-38:
 34 | module C' = struct end [@@ocaml.inline] (* rejected *)
-     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Warning 53 [misplaced-attribute]: the "inline" attribute cannot appear in this context
+                               ^^^^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "ocaml.inline" attribute cannot appear in this context
+File "w53.ml", line 35, characters 25-32:
+35 | module D = struct end [@@inlined] (* rejected *)
+                              ^^^^^^^
+Warning 53 [misplaced-attribute]: the "inlined" attribute cannot appear in this context
+File "w53.ml", line 36, characters 26-39:
+36 | module D' = struct end [@@ocaml.inlined] (* rejected *)
+                               ^^^^^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "ocaml.inlined" attribute cannot appear in this context
 File "w53.ml", line 40, characters 16-22:
 40 | module G = (A [@inline])(struct end) (* rejected *)
                      ^^^^^^

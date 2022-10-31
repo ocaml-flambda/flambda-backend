@@ -464,14 +464,20 @@ let highlight_quote ppf
         (* Single-line error *)
         Format.fprintf ppf "%s | %s@," line_nb line;
         Format.fprintf ppf "%*s   " (String.length line_nb) "";
-        for pos = line_start_cnum to rightmost.pos_cnum - 1 do
+        String.iteri (fun i c ->
+          let pos = line_start_cnum + i in
           if ISet.is_start iset ~pos <> None then
             Format.fprintf ppf "@{<%s>" highlight_tag;
           if ISet.mem iset ~pos then Format.pp_print_char ppf '^'
-          else Format.pp_print_char ppf ' ';
+          else if pos < rightmost.pos_cnum then begin
+            (* For alignment purposes, align using a tab for each tab in the
+               source code *)
+            if c = '\t' then Format.pp_print_char ppf '\t'
+            else Format.pp_print_char ppf ' '
+          end;
           if ISet.is_end iset ~pos <> None then
             Format.fprintf ppf "@}"
-        done;
+        ) line;
         Format.fprintf ppf "@}@,"
     | _ ->
         (* Multi-line error *)
@@ -721,13 +727,19 @@ let batch_mode_printer : report_printer =
   let pp_txt ppf txt = Format.fprintf ppf "@[%t@]" txt in
   let pp self ppf report =
     setup_colors ();
-    (* Make sure we keep [num_loc_lines] updated. *)
+    (* Make sure we keep [num_loc_lines] updated.
+       The tabulation box is here to give submessage the option
+       to be aligned with the main message box
+    *)
     print_updating_num_loc_lines ppf (fun ppf () ->
-      Format.fprintf ppf "@[<v>%a%a: %a%a@]@."
+      Format.fprintf ppf "@[<v>%a%a%a: %a%a%a%a@]@."
+      Format.pp_open_tbox ()
       (self.pp_main_loc self report) report.main.loc
       (self.pp_report_kind self report) report.kind
+      Format.pp_set_tab ()
       (self.pp_main_txt self report) report.main.txt
       (self.pp_submsgs self report) report.sub
+      Format.pp_close_tbox ()
     ) ()
   in
   let pp_report_kind _self _ ppf = function
