@@ -138,7 +138,6 @@
 ; Disabled since there can be only one (data_only_dirs) declaration
 ;(data_only_dirs yacc)
 (include duneconf/dirs-to-ignore.inc)
-(include duneconf/jst-extra.inc)
 
 (rule
  (deps (source_tree yacc))

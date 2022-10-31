@@ -125,6 +125,5 @@ let implementation ~hook_parse_tree ~hook_typed_tree info ~backend =
         backend info typed
       end;
     end;
-    Builtin_attributes.warn_unused ();
     Warnings.check_fatal ();
   )
