@@ -395,6 +395,11 @@ let run cfg_with_layout =
   let fun_prologue_required =
     Proc.prologue_required ~fun_contains_calls ~fun_num_stack_slots
   in
+  let fun_section_name =
+    if !Flambda_backend_flags.basic_block_sections
+    then CL.get_section cfg_with_layout cfg.entry_label
+    else None
+  in
   { Linear.fun_name = cfg.fun_name;
     fun_body = !next.insn;
     fun_tailrec_entry_point_label = !tailrec_label;
@@ -403,7 +408,8 @@ let run cfg_with_layout =
     fun_contains_calls;
     fun_num_stack_slots;
     fun_frame_required;
-    fun_prologue_required
+    fun_prologue_required;
+    fun_section_name
   }
 
 (** debug print block as assembly *)
