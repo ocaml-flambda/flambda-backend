@@ -29,15 +29,16 @@ OC_CPPFLAGS += -I$(ROOTDIR)/runtime
 NATIVE_CPPFLAGS = \
   -DNATIVE_CODE -DTARGET_$(ARCH) -DMODEL_$(MODEL) -DSYS_$(SYSTEM)
 
-CAMLRUN ?= $(ROOTDIR)/boot/ocamlrun
-
 LIBS = -nostdlib -I $(ROOTDIR)/stdlib -I $(ROOTDIR)/otherlibs/$(UNIXLIB)
 
 CAMLC=$(BEST_OCAMLC) $(LIBS)
 CAMLOPT=$(BEST_OCAMLOPT) $(LIBS)
 
-MKLIB=$(CAMLRUN) $(ROOTDIR)/tools/ocamlmklib$(EXE)
-COMPFLAGS=-w +33..39 -warn-error A -g -bin-annot -safe-string
+MKLIB=$(OCAMLRUN) $(ROOTDIR)/tools/ocamlmklib$(EXE)
+COMPFLAGS=-w +33..39 -warn-error +A -g -bin-annot -safe-string
+ifeq "$(FLAMBDA)" "true"
+OPTCOMPFLAGS += -O3
+endif
 
 LIBNAME=threads
 
@@ -63,23 +64,27 @@ all: lib$(LIBNAME).$(A) $(LIBNAME).cma $(CMIFILES)
 allopt: lib$(LIBNAME)nat.$(A) $(LIBNAME).cmxa $(CMIFILES)
 
 lib$(LIBNAME).$(A): $(BYTECODE_C_OBJS)
-	$(MKLIB_CMD) -o $(LIBNAME) $(BYTECODE_C_OBJS) $(PTHREAD_LINK)
+	$(MKLIB_CMD) -o $(LIBNAME) $(BYTECODE_C_OBJS) $(PTHREAD_LIBS)
 
 lib$(LIBNAME)nat.$(A): $(NATIVECODE_C_OBJS)
 	$(MKLIB_CMD) -o $(LIBNAME)nat $^
 
 $(LIBNAME).cma: $(THREADS_BCOBJS)
 ifeq "$(UNIX_OR_WIN32)" "unix"
-	$(MKLIB) -o $(LIBNAME) -ocamlc '$(CAMLC)' -linkall \
-	  $(PTHREAD_CAML_LINK) $^
+	$(MKLIB) -o $(LIBNAME) -ocamlc '$(CAMLC)' -cclib -lunix -linkall \
+	  $(PTHREAD_CAML_LIBS) $^
+# TODO: Figure out why -cclib -lunix is used here.
+# It may be because of the threadsUnix module which is deprecated.
+# It may hence be good to figure out whether this module shouldn't be
+# removed, and then -cclib -lunix arguments.
 else # Windows
 	$(MKLIB) -o $(LIBNAME) -ocamlc "$(CAMLC)" -linkall \
-	  $(PTHREAD_CAML_LINK) $^
+	  $(PTHREAD_CAML_LIBS) $^
 endif
 
 # See remark above: force static linking of libthreadsnat.a
 $(LIBNAME).cmxa: $(THREADS_NCOBJS)
-	$(CAMLOPT) -linkall -a -cclib -lthreadsnat $(PTHREAD_CAML_LINK) -o $@ $^
+	$(CAMLOPT) -linkall -a -cclib -lthreadsnat $(PTHREAD_CAML_LIBS) -o $@ $^
 
 # Note: I removed "-cclib -lunix" from the line above.
 # Indeed, if we link threads.cmxa, then we must also link unix.cmxa,
@@ -114,7 +119,6 @@ install:
 	  $(INSTALL_PROG) dllthreads$(EXT_DLL) "$(INSTALL_STUBLIBDIR)"; \
 	fi
 	$(INSTALL_DATA) libthreads.$(A) "$(INSTALL_LIBDIR)"
-	cd "$(INSTALL_LIBDIR)"; $(RANLIB) libthreads.$(A)
 	mkdir -p "$(INSTALL_THREADSLIBDIR)"
 	$(INSTALL_DATA) \
 	  $(CMIFILES) threads.cma \
@@ -129,21 +133,17 @@ endif
 
 installopt:
 	$(INSTALL_DATA) libthreadsnat.$(A) "$(INSTALL_LIBDIR)"
-	cd "$(INSTALL_LIBDIR)"; $(RANLIB) libthreadsnat.$(A)
 	$(INSTALL_DATA) \
 	  $(THREADS_NCOBJS) threads.cmxa threads.$(A) \
 	  "$(INSTALL_THREADSLIBDIR)"
-	cd "$(INSTALL_THREADSLIBDIR)" && $(RANLIB) threads.$(A)
 
-.SUFFIXES: .ml .mli .cmo .cmi .cmx
-
-.mli.cmi:
+%.cmi: %.mli
 	$(CAMLC) -c $(COMPFLAGS) $<
 
-.ml.cmo:
+%.cmo: %.ml
 	$(CAMLC) -c $(COMPFLAGS) $<
 
-.ml.cmx:
+%.cmx: %.ml
 	$(CAMLOPT) -c $(COMPFLAGS) $(OPTCOMPFLAGS) $<
 
 DEP_FILES := st_stubs.b.$(D)
@@ -167,6 +167,6 @@ $(foreach object_type, b n, $(eval $(call GEN_RULE,$(object_type))))
 
 .PHONY: depend
 depend:
-	$(CAMLRUN) $(ROOTDIR)/boot/ocamlc -depend -slash *.mli *.ml > .depend
+	$(OCAMLRUN) $(ROOTDIR)/boot/ocamlc -depend -slash *.mli *.ml > .depend
 
 include .depend

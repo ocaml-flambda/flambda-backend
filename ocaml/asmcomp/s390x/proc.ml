@@ -123,8 +123,7 @@ let calling_conventions
           ofs := !ofs + size_float
         end
   done;
-  (loc, Misc.align (max 0 !ofs) 16)
-  (* Keep stack 16-aligned. *)
+  (loc, Misc.align (max 0 !ofs) 16) (* Keep stack 16-aligned. *)
 
 let incoming ofs =
   if ofs >= 0
@@ -136,16 +135,16 @@ let outgoing ofs =
   else Domainstate (ofs + size_domainstate_args)
 let not_supported _ofs = fatal_error "Proc.loc_results: cannot call"
 
-let max_arguments_for_tailcalls = 5 (* in regs *) + 64 (* in domain state *)
+let max_arguments_for_tailcalls = 8 (* in regs *) + 64 (* in domain state *)
 
 let loc_arguments arg =
-  calling_conventions 0 4 100 103 outgoing (- size_domainstate_args) arg
+  calling_conventions 0 7 100 103 outgoing (- size_domainstate_args) arg
 let loc_parameters arg =
   let (loc, _ofs) =
-    calling_conventions 0 4 100 103 incoming (- size_domainstate_args) arg
+    calling_conventions 0 7 100 103 incoming (- size_domainstate_args) arg
   in loc
 let loc_results res =
-  let (loc, _ofs) = calling_conventions 0 4 100 103 not_supported 0 res in loc
+  let (loc, _ofs) = calling_conventions 0 7 100 103 not_supported 0 res in loc
 
 (*   C calling conventions under SVR4:
      use GPR 2-6 and FPR 0,2,4,6 just like ML calling conventions.

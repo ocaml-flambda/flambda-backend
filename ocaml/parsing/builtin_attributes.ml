@@ -184,17 +184,38 @@ let cat s1 s2 =
 
 let alert_attr x =
   match x.attr_name.txt with
-  | "ocaml.deprecated"|"deprecated" ->
+  | "ocaml.deprecated"|"deprecated" -> begin
+      mark_used x.attr_name;
       Some (x, "deprecated", string_of_opt_payload x.attr_payload)
+    end
   | "ocaml.alert"|"alert" ->
       begin match kind_and_message x.attr_payload with
-      | Some (kind, message) -> Some (x, kind, message)
+      | Some (kind, message) -> begin
+        mark_used x.attr_name;
+        Some (x, kind, message)
+      end
       | None -> None (* note: bad payloads detected by warning_attribute *)
       end
   | _ -> None
 
 let alert_attrs l =
   List.filter_map alert_attr l
+
+let mark_alerts_used l =
+  List.iter (fun a ->
+    match a.attr_name.txt with
+    | "ocaml.deprecated"|"deprecated"|"ocaml.alert"|"alert" ->
+      mark_used a.attr_name
+    | _ -> ())
+    l
+
+let mark_warn_on_literal_pattern_used l =
+  List.iter (fun a ->
+    match a.attr_name.txt with
+    | "ocaml.warn_on_literal_pattern"|"warn_on_literal_pattern" ->
+      mark_used a.attr_name
+    | _ -> ())
+    l
 
 let alerts_of_attrs l =
   List.fold_left
@@ -260,26 +281,21 @@ let rec attrs_of_str = function
 
 let alerts_of_str str = alerts_of_attrs (attrs_of_str str)
 
-let check_no_alert attrs =
-  List.iter
-    (fun (a, _, _) ->
-       Location.prerr_warning a.attr_loc
-         (Warnings.Misplaced_attribute a.attr_name.txt)
-    )
-    (alert_attrs attrs)
-
 let warn_payload loc txt msg =
   Location.prerr_warning loc (Warnings.Attribute_payload (txt, msg))
 
 let warning_attribute ?(ppwarning = true) =
-  let process loc txt errflag payload =
+  let process loc name errflag payload =
+    mark_used name;
     match string_of_payload payload with
     | Some s ->
-        begin try Warnings.parse_options errflag s
-        with Arg.Bad msg -> warn_payload loc txt msg
+        begin try
+          Option.iter (Location.prerr_alert loc)
+            (Warnings.parse_options errflag s)
+        with Arg.Bad msg -> warn_payload loc name.txt msg
         end
     | None ->
-        warn_payload loc txt "A single string literal is expected"
+        warn_payload loc name.txt "A single string literal is expected"
   in
   let process_alert loc txt = function
     | PStr[{pstr_desc=
@@ -298,17 +314,17 @@ let warning_attribute ?(ppwarning = true) =
         | None -> warn_payload loc txt "Invalid payload"
   in
   function
-  | {attr_name = {txt = ("ocaml.warning"|"warning") as txt; _};
+  | {attr_name = {txt = ("ocaml.warning"|"warning"); _} as name;
      attr_loc;
      attr_payload;
      } ->
-      process attr_loc txt false attr_payload
-  | {attr_name = {txt = ("ocaml.warnerror"|"warnerror") as txt; _};
+      process attr_loc name false attr_payload
+  | {attr_name = {txt = ("ocaml.warnerror"|"warnerror"); _} as name;
      attr_loc;
      attr_payload
     } ->
-      process attr_loc txt true attr_payload
-  | {attr_name = {txt="ocaml.ppwarning"|"ppwarning"; _};
+      process attr_loc name true attr_payload
+  | {attr_name = {txt="ocaml.ppwarning"|"ppwarning"; _} as name;
      attr_loc = _;
      attr_payload =
        PStr [
@@ -317,12 +333,14 @@ let warning_attribute ?(ppwarning = true) =
            pstr_loc }
        ];
     } when ppwarning ->
-     Location.prerr_warning pstr_loc (Warnings.Preprocessor s)
-  | {attr_name = {txt = ("ocaml.alert"|"alert") as txt; _};
+    (mark_used name;
+     Location.prerr_warning pstr_loc (Warnings.Preprocessor s))
+  | {attr_name = {txt = ("ocaml.alert"|"alert"); _} as name;
      attr_loc;
      attr_payload;
      } ->
-      process_alert attr_loc txt attr_payload
+      (mark_used name;
+       process_alert attr_loc name.txt attr_payload)
   | _ ->
      ()
 
@@ -337,34 +355,39 @@ let warning_scope ?ppwarning attrs f =
     Warnings.restore prev;
     raise exn
 
-
-let warn_on_literal_pattern =
+let has_attribute nms attrs =
   List.exists
-    (fun a -> match a.attr_name.txt with
-       | "ocaml.warn_on_literal_pattern"|"warn_on_literal_pattern" -> true
-       | _ -> false
-    )
+    (fun a ->
+       if List.mem a.attr_name.txt nms
+       then (mark_used a.attr_name; true)
+       else false)
+    attrs
 
-let explicit_arity =
-  List.exists
-    (fun a -> match a.attr_name.txt with
-       | "ocaml.explicit_arity"|"explicit_arity" -> true
-       | _ -> false
-    )
+let filter_attributes nms_and_conds attrs =
+  List.filter (fun a ->
+    List.exists (fun (nms, cond) ->
+      if List.mem a.attr_name.txt nms
+      then (mark_used a.attr_name; cond)
+      else false)
+      nms_and_conds
+  ) attrs
 
-let immediate =
-  List.exists
-    (fun a -> match a.attr_name.txt with
-       | "ocaml.immediate"|"immediate" -> true
-       | _ -> false
-    )
+let when_attribute_is nms attr ~f =
+  if List.mem attr.attr_name.txt nms then begin
+    mark_used attr.attr_name;
+    f ()
+  end
 
-let immediate64 =
-  List.exists
-    (fun a -> match a.attr_name.txt with
-       | "ocaml.immediate64"|"immediate64" -> true
-       | _ -> false
-    )
+let warn_on_literal_pattern attrs =
+  has_attribute ["ocaml.warn_on_literal_pattern"; "warn_on_literal_pattern"]
+    attrs
+
+let explicit_arity attrs =
+  has_attribute ["ocaml.explicit_arity"; "explicit_arity"] attrs
+
+let immediate attrs = has_attribute ["ocaml.immediate"; "immediate"] attrs
+
+let immediate64 attrs = has_attribute ["ocaml.immediate64"; "immediate64"] attrs
 
 (* The "ocaml.boxed (default)" and "ocaml.unboxed (default)"
    attributes cannot be input by the user, they are added by the
@@ -373,14 +396,9 @@ let immediate64 =
    source file because the default can change between compiler
    invocations. *)
 
-let check l a = List.mem a.attr_name.txt l
+let has_unboxed attrs = has_attribute ["ocaml.unboxed"; "unboxed"] attrs
 
-let has_unboxed attr =
-  List.exists (check ["ocaml.unboxed"; "unboxed"])
-    attr
-
-let has_boxed attr =
-  List.exists (check ["ocaml.boxed"; "boxed"]) attr
+let has_boxed attrs = has_attribute ["ocaml.boxed"; "boxed"] attrs
 
 let parse_empty_payload attr =
   match attr.attr_payload with
@@ -399,31 +417,20 @@ let parse_int_payload attr =
     None
 
 let clflags_attribute_without_payload attr ~name clflags_ref =
-  if String.equal attr.attr_name.txt name
-    || String.equal attr.attr_name.txt ("ocaml." ^ name)
-  then begin
+  when_attribute_is [name; "ocaml." ^ name] attr ~f:(fun () ->
     match parse_empty_payload attr with
     | Some () -> clflags_ref := true
-    | None -> ()
-  end
+    | None -> ())
 
 let clflags_attribute_without_payload' attr ~name ~f =
-  if String.equal attr.attr_name.txt name
-    || String.equal attr.attr_name.txt ("ocaml." ^ name)
-  then begin
-    match parse_empty_payload attr with
-    | Some () -> f ()
-    | None -> ()
-  end
+  when_attribute_is [name; "ocaml." ^ name] attr ~f:(fun () ->
+    Option.iter f (parse_empty_payload attr))
 
 let clflags_attribute_with_int_payload attr ~name clflags_ref =
-  if String.equal attr.attr_name.txt name
-    || String.equal attr.attr_name.txt ("ocaml." ^ name)
-  then begin
+  when_attribute_is [name; "ocaml." ^ name] attr ~f:(fun () ->
     match parse_int_payload attr with
     | Some i -> clflags_ref := i
-    | None -> ()
-  end
+    | None -> ())
 
 let principal_attribute attr =
   clflags_attribute_without_payload attr
@@ -450,9 +457,7 @@ let flambda_o3_attribute attr =
     ~f:(fun () -> if Config.flambda || Config.flambda2 then Clflags.set_o3 ())
 
 let inline_attribute attr =
-  if String.equal attr.attr_name.txt "inline"
-    || String.equal attr.attr_name.txt "ocaml.inline"
-  then begin
+  when_attribute_is ["inline"; "ocaml.inline"] attr ~f:(fun () ->
     let err_msg =
       "Either specify an integer, or the form accepted by '-inline' in quotes"
     in
@@ -464,8 +469,7 @@ let inline_attribute attr =
       | Some i ->
         let s = string_of_int i in
         Clflags.Float_arg_helper.parse s err_msg Clflags.inline_threshold
-      | None -> warn_payload attr.attr_loc attr.attr_name.txt err_msg
-  end
+      | None -> warn_payload attr.attr_loc attr.attr_name.txt err_msg)
 
 let afl_inst_ratio_attribute attr =
   clflags_attribute_with_int_payload attr
@@ -487,48 +491,57 @@ let parse_standard_implementation_attributes attr =
   flambda_o3_attribute attr;
   flambda_oclassic_attribute attr
 
-let has_local_opt attr =
-  List.exists (check ["ocaml.local_opt"; "local_opt"]) attr
+let has_local_opt attrs =
+  has_attribute ["ocaml.local_opt"; "local_opt"] attrs
 
-let has_curry attr = List.exists (check ["extension.curry"; "ocaml.curry"; "curry"]) attr
+let has_curry attrs =
+  has_attribute ["extension.curry"; "ocaml.curry"; "curry"] attrs
 
-let has_global attr =
-  List.exists (check ["extension.global"; "ocaml.global"; "global"]) attr
+let has_global attrs =
+  has_attribute ["extension.global"; "ocaml.global"; "global"] attrs
 
-let has_nonlocal attr =
-  List.exists (check ["extension.nonlocal"; "ocaml.nonlocal"; "nonlocal"]) attr
+let has_nonlocal attrs =
+  has_attribute ["extension.nonlocal"; "ocaml.nonlocal"; "nonlocal"] attrs
 
 (* extension.* is generated by the parser and not usually written directly,
    so does not have a short form. An error is reported if it is seen when
    the extension is disabled *)
 
 let check_local ext_names other_names attr =
-  if List.exists (check ext_names) attr then
+  if has_attribute ext_names attr then
     if not (Clflags.Extension.is_enabled Local) then
       Error ()
     else
       Ok true
   else
-    Ok (List.exists (check other_names) attr)
+    Ok (has_attribute other_names attr)
 
 let has_local attr =
   check_local ["extension.local"] ["ocaml.local"; "local"] attr
 
 let tailcall attr =
-  let has_tail = List.exists (check ["ocaml.tail"; "tail"]) attr in
-  let has_nontail = List.exists (check ["ocaml.nontail"; "nontail"]) attr in
-  match has_tail, has_nontail with
-  | true, false -> Ok (Some `Tail)
-  | false, true -> Ok (Some `Nontail)
-  | false, false -> Ok None
-  | true, true -> Error `Conflict
+  let has_nontail = has_attribute ["ocaml.nontail"; "nontail"] attr in
+  let tail_attrs = filter_attributes [["ocaml.tail";"tail"], true] attr in
+  match has_nontail, tail_attrs with
+  | true, (_ :: _) -> Error `Conflict
+  | _, (_ :: _ :: _) -> Error `Conflict
+  | false, [] -> Ok None
+  | true, [] -> Ok (Some `Nontail)
+  | false, [{attr_payload = PStr []}] -> Ok (Some `Tail)
+  | false, [t] ->
+     match ident_of_payload t.attr_payload with
+     | Some "hint" -> Ok (Some `Tail_if_possible)
+     | _ ->
+        Location.prerr_warning t.attr_loc
+          (Warnings.Attribute_payload
+             (t.attr_name.txt, "Only 'hint' is supported"));
+        Ok (Some `Tail_if_possible)
 
 let has_include_functor attr =
-  if List.exists (check ["extension.include_functor"]) attr then
+  if has_attribute ["extension.include_functor"] attr then
     if not (Clflags.Extension.is_enabled Include_functor) then
       Error ()
     else
       Ok true
   else
     Ok false
-

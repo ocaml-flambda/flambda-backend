@@ -490,14 +490,15 @@ let transl_list_comp type_comp body acc_var mats ~transl_exp ~scopes ~loc =
       pat_id , pval, args, func, body, mats
   in
   let fn =
-    Lfunction {kind = Curried {nlocal=0};
-              params= [param, pval; acc_var, Pgenval];
-              return = Pgenval;
-              attr = default_function_attribute;
-              loc = loc;
-              body = body;
-              mode = alloc_heap;
-              region = true}
+    lfunction
+      ~kind:(Curried {nlocal=0})
+      ~params:[param, pval; acc_var, Pgenval]
+      ~return:Pgenval
+      ~attr:default_function_attribute
+      ~loc
+      ~body
+      ~mode:alloc_heap
+      ~region:true
   in
   Lapply{
     ap_loc=loc;

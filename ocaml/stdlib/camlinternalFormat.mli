@@ -18,7 +18,7 @@ open! Stdlib
 
 (* No comments, OCaml stdlib internal use only. *)
 
-[@@@ocaml.warning "Ae"]
+[@@@ocaml.warning "+A-e"]
 
 open CamlinternalFormatBasics
 

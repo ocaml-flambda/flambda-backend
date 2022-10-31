@@ -57,8 +57,10 @@
   path
   primitive
   type_immediacy
+  shape
   types
   btype
+  lazy_backtrack
   subst
   predef
   datarepr
@@ -234,6 +236,8 @@
 
 (copy_files ../../utils/linkage_name.mli)
 
+(copy_files ../../utils/lazy_backtrack.ml)
+
 (copy_files ../../parsing/location.mli)
 
 (copy_files ../../parsing/longident.mli)
@@ -257,6 +261,8 @@
 (copy_files ../../typing/primitive.mli)
 
 (copy_files ../../typing/type_immediacy.mli)
+
+(copy_files ../../typing/shape.mli)
 
 (copy_files ../../typing/types.mli)
 
@@ -366,8 +372,10 @@
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Debuginfo.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Btype.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Consistbl.cmo
+  .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Shape.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Datarepr.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Load_path.cmo
+  .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Lazy_backtrack.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Persistent_env.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Docstrings.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ast_helper.cmo
@@ -421,7 +429,11 @@
    .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Location.cmx
    .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ident.cmx
    .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Longident.cmx
+   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Builtin_attributes.cmx
+   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Type_immediacy.cmx
    .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Path.cmx
+   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Attr_helper.cmx
+   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Primitive.cmx
    .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Types.cmx
    .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Syntaxerr.cmx
    .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Bytesections.cmx
@@ -430,15 +442,13 @@
    .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Debuginfo.cmx
    .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Btype.cmx
    .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Consistbl.cmx
+   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Shape.cmx
    .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Datarepr.cmx
    .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Load_path.cmx
+   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Lazy_backtrack.cmx
    .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Persistent_env.cmx
    .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Docstrings.cmx
    .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_helper.cmx
-   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Builtin_attributes.cmx
-   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Type_immediacy.cmx
-   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Attr_helper.cmx
-   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Primitive.cmx
    .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Predef.cmx
    .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_mapper.cmx
    .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Subst.cmx
