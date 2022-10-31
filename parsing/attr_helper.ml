@@ -23,7 +23,7 @@ type error =
 exception Error of Location.t * error
 
 let get_no_payload_attribute alt_names attrs =
-  match Builtin_attributes.filter_attributes [alt_names,true] attrs with
+  match List.filter (fun a -> List.mem a.attr_name.txt alt_names) attrs with
   | [] -> None
   | [ {attr_name = name; attr_payload = PStr []; attr_loc = _} ] -> Some name
   | [ {attr_name = name; _} ] ->
