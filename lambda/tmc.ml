@@ -858,7 +858,7 @@ let rec choice ctx t =
 
     (* in common cases we just return *)
     | Pbytes_to_string | Pbytes_of_string
-    | Pgetglobal _ | Psetglobal _
+    | Pgetglobal _ | Psetglobal _ | Pgetpredef _
     | Pfield _ | Pfield_computed _
     | Psetfield _ | Psetfield_computed _
     | Pfloatfield _ | Psetfloatfield _

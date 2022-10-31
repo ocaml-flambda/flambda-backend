@@ -557,9 +557,8 @@ let check_attribute ppf check =
   | Assert p -> fprintf ppf "assert %s@ " (check_property p)
   | Assume p -> fprintf ppf "assume %s@ " (check_property p)
 
-let function_attribute ppf
-    { inline; specialise; check; local; is_a_functor; stub; poll; loop } =
-  if is_a_functor then
+let function_attribute ppf t =
+  if t.is_a_functor then
     fprintf ppf "is_a_functor@ ";
   if t.stub then
     fprintf ppf "stub@ ";
@@ -580,20 +579,14 @@ let function_attribute ppf
   | Always_local -> fprintf ppf "always_local@ "
   | Never_local -> fprintf ppf "never_local@ "
   end;
-  begin match poll with
-  | Default_poll -> ()
-  | Error_poll -> fprintf ppf "error_poll@ "
-  end;
   check_attribute ppf t.check;
   if t.tmc_candidate then
     fprintf ppf "tail_mod_cons@ ";
-  begin match loop with
+  begin match t.loop with
   | Default_loop -> ()
   | Always_loop -> fprintf ppf "always_loop@ "
   | Never_loop -> fprintf ppf "never_loop@ "
   end;
-  if t.tmc_candidate then
-    fprintf ppf "tail_mod_cons@ ";
   begin match t.poll with
   | Default_poll -> ()
   | Error_poll -> fprintf ppf "error_poll@ "

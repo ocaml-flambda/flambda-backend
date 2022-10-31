@@ -21,7 +21,7 @@
    -principal
    -absname
    -w
-   +a-4-9-40-41-42-44-45-48
+   +a-4-9-40-41-42-44-45-48-69-70
    -warn-error
    A
    -bin-annot
@@ -163,6 +163,8 @@
 (copy_files ../../typing/primitive.ml)
 
 (copy_files ../../typing/type_immediacy.ml)
+
+(copy_files ../../typing/shape.ml)
 
 (copy_files ../../typing/types.ml)
 
