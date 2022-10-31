@@ -41,19 +41,15 @@ let simplify_toplevel_common dacc simplify ~params ~return_continuation
            a closure, we use empty/dummy values for the code_age_relation and
            used_value_slots, and in return we do not use the reachable_code_id
            part of the data_flow analysis. *)
-        let code_age_relation, used_value_slots =
-          match Closure_info.in_or_out_of_closure closure_info with
-          | In_a_closure -> Code_age_relation.empty, Or_unknown.Unknown
-          | Not_in_a_closure ->
-            ( DA.code_age_relation dacc,
-              Or_unknown.Known (DA.used_value_slots dacc) )
-        in
-        let print_name =
+        let code_age_relation, used_value_slots, print_name =
           match closure_info with
-          | Not_in_a_closure -> "toplevel"
+          | Closure { code_id; _ } ->
+            Code_age_relation.empty, Or_unknown.Unknown, Code_id.name code_id
           | In_a_set_of_closures_but_not_yet_in_a_specific_closure ->
             assert false
-          | Closure { code_id; _ } -> Code_id.name code_id
+          | Not_in_a_closure ->
+            ( DA.code_age_relation dacc,
+              Or_unknown.Known (DA.used_value_slots dacc), "toplevel" )
         in
         let flow_result =
           Flow.Analysis.analyze data_flow ~print_name ~code_age_relation
