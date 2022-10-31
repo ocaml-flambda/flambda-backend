@@ -293,7 +293,6 @@ module Function_decls : sig
       attr:Lambda.function_attribute ->
       loc:Lambda.scoped_location ->
       free_idents_of_body:Ident.Set.t ->
-      stub:bool ->
       Recursive.t ->
       closure_alloc_mode:Lambda.alloc_mode ->
       num_trailing_local_params:int ->
