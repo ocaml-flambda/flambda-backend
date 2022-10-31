@@ -50,28 +50,11 @@
   (modules cmpbyt)
   (libraries ocamlcommon ocamlbytecomp))
 
-(library
-  (name ocamlmklib_common)
-  (modes byte native)
-  (wrapped false)
-  (modules ocamlmklibconfig)
-  (libraries ocamlcommon ocamlbytecomp))
-
-; We should fix this so it doesn't need "make".
-(rule
-  (targets ocamlmklibconfig.ml)
-  (deps
-    ../Makefile.config
-    ../Makefile
-    Makefile
-    .depend)
-  (action (run make -s %{targets})))
-
 (executable
   (name ocamlmklib)
   (modes byte native)
   (modules ocamlmklib)
-  (libraries ocamlcommon ocamlbytecomp ocamlmklib_common))
+  (libraries ocamlcommon ocamlbytecomp))
 
 (install
   (files

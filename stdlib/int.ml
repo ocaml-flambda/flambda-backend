@@ -43,6 +43,8 @@ external shift_right : (int[@local_opt]) -> (int[@local_opt]) -> int = "%asrint"
 external shift_right_logical : (int[@local_opt]) -> (int[@local_opt]) -> int = "%lsrint"
 let equal : int -> int -> bool = ( = )
 let compare : int -> int -> int = Stdlib.compare
+let min x y : t = if x <= y then x else y
+let max x y : t = if x >= y then x else y
 external to_float : (int[@local_opt]) -> (float[@local_opt]) = "%floatofint"
 external of_float : (float[@local_opt]) -> int = "%intoffloat"
 

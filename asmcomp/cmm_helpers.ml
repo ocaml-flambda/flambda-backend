@@ -777,6 +777,11 @@ let addr_array_set_local arr ofs newval dbg =
   Cop(Cextcall("caml_modify_local", typ_void, [], false),
       [arr; untag_int ofs dbg; newval], dbg)
 
+let addr_array_initialize arr ofs newval dbg =
+  Cop(Cextcall("caml_initialize", typ_void, [], false),
+      [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
+
+
 (* String length *)
 
 (* Length of string block *)
@@ -1559,9 +1564,11 @@ struct
   let geint = Ccmpi Cge
   let gtint = Ccmpi Cgt
 
-  type act = expression
   type loc = Debuginfo.t
   type value_kind = unit
+  type arg = expression
+  type test = expression
+  type act = expression
 
   (* CR mshinwell: GPR#2294 will fix the Debuginfo here *)
 
@@ -1570,6 +1577,8 @@ struct
   let make_offset arg n = add_const arg n Debuginfo.none
   let make_isout h arg = Cop (Ccmpa Clt, [h ; arg], Debuginfo.none)
   let make_isin h arg = Cop (Ccmpa Cge, [h ; arg], Debuginfo.none)
+  let make_is_nonzero arg = arg
+  let arg_as_test arg = arg
   let make_if () cond ifso ifnot =
     Cifthenelse (cond, Debuginfo.none, ifso, Debuginfo.none, ifnot,
       Debuginfo.none)
@@ -2010,6 +2019,7 @@ let send_function (arity, mode) =
     fun_args = List.map (fun (arg, ty) -> VP.create arg, ty) fun_args;
     fun_body = body;
     fun_codegen_options = [];
+    fun_poll = Default_poll;
     fun_dbg;
    }
 
@@ -2023,6 +2033,7 @@ let apply_function arity =
     fun_args = List.map (fun arg -> (VP.create arg, typ_val)) all_args;
     fun_body = body;
     fun_codegen_options = [];
+    fun_poll = Default_poll;
     fun_dbg;
    }
 
@@ -2051,6 +2062,7 @@ let tuplify_function arity =
           :: access_components 0 @ [Cvar clos],
           (dbg ()));
     fun_codegen_options = [];
+    fun_poll = Default_poll;
     fun_dbg;
    }
 
@@ -2122,6 +2134,7 @@ let final_curry_function ~nlocal ~arity =
     fun_args = [VP.create last_arg, typ_val; VP.create last_clos, typ_val];
     fun_body = curry_fun [] last_clos (arity-1);
     fun_codegen_options = [];
+    fun_poll = Default_poll;
     fun_dbg;
    }
 
@@ -2161,6 +2174,7 @@ let rec intermediate_curry_functions ~nlocal ~arity num =
                  Cvar arg; Cvar clos],
                 dbg ());
       fun_codegen_options = [];
+      fun_poll = Default_poll;
       fun_dbg;
      }
     ::
@@ -2200,6 +2214,7 @@ let rec intermediate_curry_functions ~nlocal ~arity num =
                fun_body = iter (num+1)
                   (List.map (fun (arg,_) -> Cvar arg) direct_args) clos;
                fun_codegen_options = [];
+               fun_poll = Default_poll;
                fun_dbg;
               }
           in
@@ -2321,6 +2336,7 @@ type binary_primitive = expression -> expression -> Debuginfo.t -> expression
 type assignment_kind =
     | Caml_modify
     | Caml_modify_local
+    | Caml_initialize (* never local *)
     | Simple of initialization_or_assignment
 
 let assignment_kind
@@ -2332,7 +2348,7 @@ let assignment_kind
     assert Config.stack_allocation;
     Caml_modify_local
   | Heap_initialization, _ ->
-     Misc.fatal_error "Cmm_helpers: Lambda.Heap_initialization unsupported"
+     Caml_initialize
   | (Assignment _), Immediate -> Simple Assignment
   | Root_initialization, (Immediate | Pointer) -> Simple Initialization
 
@@ -2347,6 +2363,11 @@ let setfield n ptr init arg1 arg2 dbg =
       return_unit dbg
         (Cop(Cextcall("caml_modify_local", typ_void, [], false),
              [arg1; Cconst_int (n,dbg); arg2],
+             dbg))
+  | Caml_initialize ->
+      return_unit dbg
+        (Cop(Cextcall("caml_initialize", typ_void, [], false),
+             [field_address arg1 n dbg; arg2],
              dbg))
   | Simple init ->
       return_unit dbg (set_field arg1 n arg2 init dbg)
@@ -2540,6 +2561,8 @@ let setfield_computed ptr init arg1 arg2 arg3 dbg =
       return_unit dbg (addr_array_set arg1 arg2 arg3 dbg)
   | Caml_modify_local ->
       return_unit dbg (addr_array_set_local arg1 arg2 arg3 dbg)
+  | Caml_initialize ->
+      return_unit dbg (addr_array_initialize arg1 arg2 arg3 dbg)
   | Simple _ ->
       return_unit dbg (int_array_set arg1 arg2 arg3 dbg)
 
@@ -2550,14 +2573,13 @@ let bytesset_unsafe arg1 arg2 arg3 dbg =
 
 let bytesset_safe arg1 arg2 arg3 dbg =
   return_unit dbg
-    (bind "newval" (untag_int arg3 dbg) (fun newval ->
+    (bind "newval" (ignore_high_bit_int (untag_int arg3 dbg)) (fun newval ->
       bind "index" (untag_int arg2 dbg) (fun idx ->
        bind "str" arg1 (fun str ->
         Csequence(
           make_checkbound dbg [string_length str dbg; idx],
           Cop(Cstore (Byte_unsigned, Assignment),
-              [add_int str idx dbg;
-               ignore_high_bit_int newval],
+              [add_int str idx dbg; newval],
               dbg))))))
 
 let arrayset_unsafe kind arg1 arg2 arg3 dbg =
@@ -2761,6 +2783,7 @@ let entry_point namelist =
              fun_args = [];
              fun_body = body;
              fun_codegen_options = [Reduce_code_size];
+             fun_poll = Default_poll;
              fun_dbg;
             }
 
