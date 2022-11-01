@@ -1765,7 +1765,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
         check = Default_check;
         loop = Default_loop;
         is_a_functor = false;
-        stub = false;
+        stub = true;
         poll = Default_poll
       }
   in
@@ -1793,9 +1793,8 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
         ~kind:(Lambda.Curried { nlocal = num_trailing_local_params })
         ~params ~return:Lambda.Pgenval ~return_continuation ~exn_continuation
         ~my_region:apply.region ~body:fbody ~attr ~loc:apply.loc
-        ~free_idents_of_body ~stub:true ~closure_alloc_mode
-        ~num_trailing_local_params ~contains_no_escaping_local_allocs
-        Recursive.Non_recursive ]
+        ~free_idents_of_body ~closure_alloc_mode ~num_trailing_local_params
+        ~contains_no_escaping_local_allocs Recursive.Non_recursive ]
   in
   let body acc env =
     let arg = find_simple_from_id env wrapper_id in

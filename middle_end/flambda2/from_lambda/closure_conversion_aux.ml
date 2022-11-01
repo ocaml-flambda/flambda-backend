@@ -626,7 +626,6 @@ module Function_decls = struct
         free_idents_of_body : Ident.Set.t;
         attr : Lambda.function_attribute;
         loc : Lambda.scoped_location;
-        stub : bool;
         recursive : Recursive.t;
         closure_alloc_mode : Lambda.alloc_mode;
         num_trailing_local_params : int;
@@ -634,9 +633,10 @@ module Function_decls = struct
       }
 
     let create ~let_rec_ident ~function_slot ~kind ~params ~return
-        ~return_continuation ~exn_continuation ~my_region ~body ~attr ~loc
-        ~free_idents_of_body ~stub recursive ~closure_alloc_mode
-        ~num_trailing_local_params ~contains_no_escaping_local_allocs =
+        ~return_continuation ~exn_continuation ~my_region ~body
+        ~(attr : Lambda.function_attribute) ~loc ~free_idents_of_body recursive
+        ~closure_alloc_mode ~num_trailing_local_params
+        ~contains_no_escaping_local_allocs =
       let let_rec_ident =
         match let_rec_ident with
         | None -> Ident.create_local "unnamed_function"
@@ -654,7 +654,6 @@ module Function_decls = struct
         free_idents_of_body;
         attr;
         loc;
-        stub;
         recursive;
         closure_alloc_mode;
         num_trailing_local_params;
