@@ -29,7 +29,7 @@ module CU = Compilation_unit
 type error =
     Not_a_unit_info of string
   | Corrupted_unit_info of string
-  | Illegal_renaming of CU.Name.t * CU.Name.t * string
+  | Illegal_renaming of CU.t * CU.t * string
 
 exception Error of error
 
@@ -191,9 +191,8 @@ let get_unit_info comp_unit modname =
             let filename =
               Load_path.find_uncap ((modname |> CU.Name.to_string) ^ ".cmx") in
             let (ui, crc) = read_unit_info filename in
-            if not (CU.Name.equal (CU.name ui.ui_unit) modname) then
-              raise(Error(Illegal_renaming(modname, CU.name ui.ui_unit,
-                filename)));
+            if not (CU.equal ui.ui_unit comp_unit) then
+              raise(Error(Illegal_renaming(comp_unit, ui.ui_unit, filename)));
             cache_checks ui.ui_checks;
             (Some ui, Some crc)
           with Not_found ->
@@ -401,8 +400,8 @@ let report_error ppf = function
       fprintf ppf "%a@ contains the description for unit\
                    @ %a when %a was expected"
         Location.print_filename filename
-        CU.Name.print name
-        CU.Name.print modname
+        CU.print name
+        CU.print modname
 
 let () =
   Location.register_error_of_exn
