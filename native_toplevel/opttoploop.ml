@@ -444,7 +444,7 @@ let execute_phrase print_outcome ppf phr =
                                       [{ vb_expr = e
                                        ; vb_pat =
                                            { pat_desc = Tpat_any;
-                                             pat_extra = []; _ }
+                                             _ }
                                        ; vb_attributes = attrs }])
             ; str_loc = loc }
           ] ->
