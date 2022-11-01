@@ -28,3 +28,7 @@ to build without running the testsuite, or:
     $ make -f Makefile.jst hacking
 
 to start a continuously polling build of the compiler.
+
+Note that the dune-based build system is entirely separate from the main
+Makefile, and so you will need to use `make -f Makefile.jst install` 
+to install after building.
