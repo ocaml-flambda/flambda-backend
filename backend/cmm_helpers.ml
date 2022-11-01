@@ -2845,15 +2845,17 @@ type binary_primitive = expression -> expression -> Debuginfo.t -> expression
 type assignment_kind =
   | Caml_modify
   | Caml_modify_local
+  | Caml_initialize (* never local *)
   | Simple of initialization_or_assignment
 
 let assignment_kind (ptr : Lambda.immediate_or_pointer)
     (init : Lambda.initialization_or_assignment) =
   match init, ptr with
   | Assignment Alloc_heap, Pointer -> Caml_modify
-  | Assignment Alloc_local, Pointer -> Caml_modify_local
-  | Heap_initialization, _ ->
-    Misc.fatal_error "Cmm_helpers: Lambda.Heap_initialization unsupported"
+  | Assignment Alloc_local, Pointer ->
+    assert Config.stack_allocation;
+    Caml_modify_local
+  | Heap_initialization, _ -> Caml_initialize
   | Assignment _, Immediate -> Simple Assignment
   | Root_initialization, (Immediate | Pointer) -> Simple Initialization
 
@@ -2888,6 +2890,21 @@ let setfield n ptr init arg1 arg2 dbg =
                ty_args = []
              },
            [arg1; Cconst_int (n, dbg); arg2],
+           dbg ))
+  | Caml_initialize ->
+    return_unit dbg
+      (Cop
+         ( Cextcall
+             { func = "caml_initialize";
+               ty = typ_void;
+               alloc = false;
+               builtin = false;
+               returns = true;
+               effects = Arbitrary_effects;
+               coeffects = Has_coeffects;
+               ty_args = []
+             },
+           [field_address arg1 n dbg; arg2],
            dbg ))
   | Simple init -> return_unit dbg (set_field arg1 n arg2 init dbg)
 
@@ -3091,6 +3108,8 @@ let setfield_computed ptr init arg1 arg2 arg3 dbg =
   | Caml_modify -> return_unit dbg (addr_array_set arg1 arg2 arg3 dbg)
   | Caml_modify_local ->
     return_unit dbg (addr_array_set_local arg1 arg2 arg3 dbg)
+  | Caml_initialize ->
+    return_unit dbg (addr_array_initialize arg1 arg2 arg3 dbg)
   | Simple _ -> return_unit dbg (int_array_set arg1 arg2 arg3 dbg)
 
 let bytesset_unsafe arg1 arg2 arg3 dbg =
