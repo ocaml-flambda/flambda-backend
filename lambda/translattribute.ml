@@ -45,7 +45,7 @@ let is_tmc_attribute =
   [ ["tail_mod_cons"; "ocaml.tail_mod_cons"], true ]
 
 let is_poll_attribute =
-  [ ["poll"], true ]
+  [ ["poll"; "ocaml.poll"], true ]
 
 let find_attribute p attributes =
   let inline_attribute = Builtin_attributes.filter_attributes p attributes in

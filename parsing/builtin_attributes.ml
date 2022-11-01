@@ -49,6 +49,8 @@ let warn_unused () =
 let builtin_attrs =
   [ "inline"; "ocaml.inline"
   ; "inlined"; "ocaml.inlined"
+  ; "specialise"; "ocaml.specialise"
+  ; "specialised"; "ocaml.specialised"
   ; "tailcall"; "ocaml.tailcall"
   ; "unrolled"; "ocaml.unrolled"
   ; "error"; "ocaml.error"
@@ -79,6 +81,7 @@ let builtin_attrs =
   ; "include_functor"; "ocaml.include_functor"; "extension.include_functor"
   ; "noalloc"; "ocaml.noalloc"
   ; "untagged"; "ocaml.untagged"
+  ; "poll"; "ocaml.poll"
   ]
 
 let builtin_attrs =
