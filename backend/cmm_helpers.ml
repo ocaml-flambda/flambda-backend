@@ -2070,7 +2070,43 @@ let generic_apply mut clos args (pos, mode) dbg =
     let cargs =
       (Cconst_symbol (apply_function_sym arity mode, dbg) :: args) @ [clos]
     in
-    Cop (Capply (typ_val, pos), cargs, dbg)
+    let call_caml_apply = Cop (Capply (typ_val, pos), cargs, dbg)  in
+    if !Flambda_backend_flags.caml_apply_inline_fast_path then
+      (*    (if (= clos.arity N)
+       *      (app clos.direct a1 ... aN clos)
+       *      call_caml_applyN)
+      *)
+      (* CR gyorsh: Should we use
+         [Asttypes.Mutable] and [Rc_normal]
+         instead of [mut] and [pos] in the code below?
+         In [apply_function_body], the former is used.
+         In the single argument case above, the latter is used.
+      *)
+      (* CR gyorsh: [args] are used twice below, do we need to "bind" them all? *)
+      bind "fun" clos (fun clos ->
+        Cifthenelse
+          ( Cop
+              ( Ccmpi Ceq,
+                [ Cop
+                    ( Casr,
+                      [ get_field_gen mut clos 1 dbg;
+                        Cconst_int (pos_arity_in_closinfo, dbg) ],
+                      dbg);
+                  Cconst_int (arity, dbg) ],
+                dbg),
+            dbg,
+            Cop
+              ( Capply (typ_val, pos),
+                (get_field_gen mut clos 2 dbg
+                 :: args)
+                @ [clos],
+                dbg),
+            dbg,
+            call_caml_apply,
+            dbg,
+            Vval Pgenval ))
+    else
+      call_caml_apply
 
 let send kind met obj args akind dbg =
   let call_met obj args clos =
