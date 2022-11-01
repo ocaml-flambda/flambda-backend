@@ -39,6 +39,14 @@ let bind_nonvar name arg fn =
     let id = V.create_local name in
     Clet (VP.create id, arg, fn (Cvar id))
 
+let bind_list name args fn =
+  let rec aux bound_args = function
+    | [] -> fn bound_args
+    | arg :: args ->
+      bind name arg (fun bound_arg -> aux (bound_arg :: bound_args) args)
+  in
+  aux [] (List.rev args)
+
 let caml_black = Nativeint.shift_left (Nativeint.of_int 3) 8
 
 let caml_local = Nativeint.shift_left (Nativeint.of_int 2) 8
@@ -2067,14 +2075,16 @@ let generic_apply mut clos args (pos, mode) dbg =
           (Capply (typ_val, pos), [get_field_gen mut clos 0 dbg; arg; clos], dbg))
   | _ ->
     let arity = List.length args in
-    let cargs =
-      (Cconst_symbol (apply_function_sym arity mode, dbg) :: args) @ [clos]
+    let call_caml_apply clos args =
+      let cargs =
+        (Cconst_symbol (apply_function_sym arity mode, dbg) :: args) @ [clos]
+      in
+      Cop (Capply (typ_val, pos), cargs, dbg)
     in
-    let call_caml_apply = Cop (Capply (typ_val, pos), cargs, dbg)  in
     if !Flambda_backend_flags.caml_apply_inline_fast_path then
       (*    (if (= clos.arity N)
        *      (app clos.direct a1 ... aN clos)
-       *      call_caml_applyN)
+       *      (app call_caml_applyN a1 .. aN clos)
       *)
       (* CR gyorsh: Should we use
          [Asttypes.Mutable] and [Rc_normal]
@@ -2082,7 +2092,7 @@ let generic_apply mut clos args (pos, mode) dbg =
          In [apply_function_body], the former is used.
          In the single argument case above, the latter is used.
       *)
-      (* CR gyorsh: [args] are used twice below, do we need to "bind" them all? *)
+      bind_list "arg" args (fun args ->
       bind "fun" clos (fun clos ->
         Cifthenelse
           ( Cop
@@ -2102,11 +2112,11 @@ let generic_apply mut clos args (pos, mode) dbg =
                 @ [clos],
                 dbg),
             dbg,
-            call_caml_apply,
+            call_caml_apply clos args,
             dbg,
-            Vval Pgenval ))
+            Vval Pgenval)))
     else
-      call_caml_apply
+      call_caml_apply clos args
 
 let send kind met obj args akind dbg =
   let call_met obj args clos =
