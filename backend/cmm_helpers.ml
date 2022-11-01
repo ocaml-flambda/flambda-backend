@@ -2067,56 +2067,50 @@ let ptr_offset ptr offset dbg =
 let direct_apply lbl args (pos, _mode) dbg =
   Cop (Capply (typ_val, pos), Cconst_symbol (lbl, dbg) :: args, dbg)
 
+let call_caml_apply mut clos args pos mode dbg =
+  let arity = List.length args in
+  let really_call_caml_apply clos args =
+    let cargs =
+      (Cconst_symbol (apply_function_sym arity mode, dbg) :: args) @ [clos]
+    in
+    Cop (Capply (typ_val, pos), cargs, dbg)
+  in
+  if !Flambda_backend_flags.caml_apply_inline_fast_path
+  then
+    (*    (if (= clos.arity N)
+     *      (app clos.direct a1 ... aN clos)
+     *      (app call_caml_applyN a1 .. aN clos)
+     *)
+    bind_list "arg" args (fun args ->
+        bind "fun" clos (fun clos ->
+            Cifthenelse
+              ( Cop
+                  ( Ccmpi Ceq,
+                    [ Cop
+                        ( Casr,
+                          [ get_field_gen mut clos 1 dbg;
+                            Cconst_int (pos_arity_in_closinfo, dbg) ],
+                          dbg );
+                      Cconst_int (arity, dbg) ],
+                    dbg ),
+                dbg,
+                Cop
+                  ( Capply (typ_val, pos),
+                    (get_field_gen mut clos 2 dbg :: args) @ [clos],
+                    dbg ),
+                dbg,
+                really_call_caml_apply clos args,
+                dbg,
+                Vval Pgenval )))
+  else really_call_caml_apply clos args
+
 let generic_apply mut clos args (pos, mode) dbg =
   match args with
   | [arg] ->
     bind "fun" clos (fun clos ->
         Cop
           (Capply (typ_val, pos), [get_field_gen mut clos 0 dbg; arg; clos], dbg))
-  | _ ->
-    let arity = List.length args in
-    let call_caml_apply clos args =
-      let cargs =
-        (Cconst_symbol (apply_function_sym arity mode, dbg) :: args) @ [clos]
-      in
-      Cop (Capply (typ_val, pos), cargs, dbg)
-    in
-    if !Flambda_backend_flags.caml_apply_inline_fast_path then
-      (*    (if (= clos.arity N)
-       *      (app clos.direct a1 ... aN clos)
-       *      (app call_caml_applyN a1 .. aN clos)
-      *)
-      (* CR gyorsh: Should we use
-         [Asttypes.Mutable] and [Rc_normal]
-         instead of [mut] and [pos] in the code below?
-         In [apply_function_body], the former is used.
-         In the single argument case above, the latter is used.
-      *)
-      bind_list "arg" args (fun args ->
-      bind "fun" clos (fun clos ->
-        Cifthenelse
-          ( Cop
-              ( Ccmpi Ceq,
-                [ Cop
-                    ( Casr,
-                      [ get_field_gen mut clos 1 dbg;
-                        Cconst_int (pos_arity_in_closinfo, dbg) ],
-                      dbg);
-                  Cconst_int (arity, dbg) ],
-                dbg),
-            dbg,
-            Cop
-              ( Capply (typ_val, pos),
-                (get_field_gen mut clos 2 dbg
-                 :: args)
-                @ [clos],
-                dbg),
-            dbg,
-            call_caml_apply clos args,
-            dbg,
-            Vval Pgenval)))
-    else
-      call_caml_apply clos args
+  | _ -> call_caml_apply mut clos args pos mode dbg
 
 let send kind met obj args akind dbg =
   let call_met obj args clos =
@@ -4121,12 +4115,7 @@ let indirect_call ~dbg ty pos alloc_mode f args =
            ( Capply (ty, pos),
              [load ~dbg Word_int Asttypes.Mutable ~addr:(Cvar v); arg; Cvar v],
              dbg ))
-  | args ->
-    let arity = List.length args in
-    let l =
-      (Cconst_symbol (apply_function_sym arity alloc_mode, dbg) :: args) @ [f]
-    in
-    Cop (Capply (ty, pos), l, dbg)
+  | args -> call_caml_apply Asttypes.Mutable f args pos alloc_mode dbg
 
 let indirect_full_call ~dbg ty pos alloc_mode f = function
   (* the single-argument case is already optimized by indirect_call *)
