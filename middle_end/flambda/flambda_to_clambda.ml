@@ -18,6 +18,7 @@
 
 module V = Backend_var
 module VP = Backend_var.With_provenance
+module Int = Misc.Stdlib.Int
 
 type 'a for_one_or_more_units = {
   fun_offset_table : int Closure_id.Map.t;
@@ -144,7 +145,6 @@ end = struct
     { subst : Clambda.ulambda Variable.Map.t;
       var : V.t Variable.Map.t;
       mutable_var : V.t Mutable_variable.Map.t;
-      toplevel : bool;
       allocated_constant_for_symbol : Allocated_const.t Symbol.Map.t;
     }
 
@@ -152,7 +152,6 @@ end = struct
     { subst = Variable.Map.empty;
       var = Variable.Map.empty;
       mutable_var = Mutable_variable.Map.empty;
-      toplevel = false;
       allocated_constant_for_symbol = Symbol.Map.empty;
     }
 
@@ -454,7 +453,7 @@ and to_clambda_switch t env cases num_keys default =
   List.iter
     (fun (key, lam) ->
       index.(key) <- store.act_store () lam;
-      smallest_key := min key !smallest_key
+      smallest_key := Int.min key !smallest_key
     )
     cases;
   if !smallest_key < num_keys then begin
