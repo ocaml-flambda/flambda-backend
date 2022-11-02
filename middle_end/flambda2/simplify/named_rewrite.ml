@@ -26,16 +26,20 @@ module Prim_rewrite = struct
         { var : Variable.t;
           bound_to : Simple.t
         }
+    | Invalid
 
   let print ppf = function
     | Remove_prim -> Format.fprintf ppf "Remove_prim"
     | Replace_by_binding { var; bound_to } ->
       Format.fprintf ppf "Replace_by_binding { %a = %a}" Variable.print var
         Simple.print bound_to
+    | Invalid -> Format.fprintf ppf "Invalid"
 
   let remove_prim = Remove_prim
 
   let replace_by_binding ~var ~bound_to = Replace_by_binding { var; bound_to }
+
+  let invalid = Invalid
 end
 
 (* We currently only rewrite primitives *)

@@ -74,22 +74,24 @@ let rebuild_let simplify_named_result removed_operations ~rewrite_id
   let bindings =
     Simplify_named_result.bindings_to_place_in_any_order simplify_named_result
   in
-  let bindings =
+  let bindings, body, uacc =
     let Flow_types.Mutable_unboxing_result.{ let_rewrites; _ } =
       UA.mutable_unboxing_result uacc
     in
     match Named_rewrite_id.Map.find rewrite_id let_rewrites with
-    | exception Not_found -> bindings
+    | exception Not_found -> bindings, body, uacc
     | rewrite -> (
       (* Format.printf "Rewrite %a@." Data_flow.print_rewrite rewrite; *)
       match bindings with
-      | [] -> []
+      | [] -> [], body, uacc
       | _ :: _ :: _ -> assert false
       | [binding] -> (
         match rewrite with
+        | Prim_rewrite Invalid ->
+          [], RE.create_invalid (Flambda.Invalid.Message "prim_rewrite_invalid"),
+          UA.clear_name_occurrences uacc
         | Prim_rewrite Remove_prim ->
-          (* TODO differently: doesnt account for benefit *)
-          []
+          [], body, uacc
         | Prim_rewrite (Replace_by_binding { var; bound_to }) ->
           let bv = Bound_pattern.must_be_singleton binding.let_bound in
           let var' = Bound_var.var bv in
@@ -100,7 +102,7 @@ let rebuild_let simplify_named_result removed_operations ~rewrite_id
                 Simplified_named.create (Named.create_simple bound_to)
             }
           in
-          [binding]))
+          [binding], body, uacc))
   in
   (* Return as quickly as possible if there is nothing to do. In this case, all
      constants get floated up to an outer binding. *)
