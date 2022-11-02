@@ -56,6 +56,16 @@ let enter_continuation continuation ~recursive ~is_exn_handler params (t : t) =
   let parent_continuation =
     match t.stack with [] -> None | parent :: _ -> Some parent.continuation
   in
+  let used_in_handler =
+    if not is_exn_handler
+    then Name_occurrences.empty
+    else
+      (* The first param of an exn_handler is unconditionally used *)
+      let first_param =
+        Bound_parameter.var (List.hd (Bound_parameters.to_list params))
+      in
+      Name_occurrences.singleton_variable first_param Name_mode.normal
+  in
   let cont_info : cont_info =
     { continuation;
       recursive;
@@ -68,7 +78,7 @@ let enter_continuation continuation ~recursive ~is_exn_handler params (t : t) =
       defined = Variable.Set.empty;
       code_ids = Code_id.Map.empty;
       value_slots = Value_slot.Map.empty;
-      used_in_handler = Name_occurrences.empty;
+      used_in_handler;
       apply_cont_args = Continuation.Map.empty
     }
   in
