@@ -126,6 +126,17 @@ let escaping_by_use_for_one_continuation ~required_names
         add_name_occurrences (names_escaping_from_mutable_prim prim) escaping)
       escaping elt.mutable_let_prims_rev
   in
+  let escaping =
+    if elt.is_exn_handler
+    then
+      let first_param =
+        Bound_parameter.var (List.hd (Bound_parameters.to_list elt.params))
+      in
+      match Variable.Map.find first_param dom with
+      | exception Not_found -> escaping
+      | var -> Variable.Set.add var escaping
+    else escaping
+  in
   escaping
 
 let escaping_by_use ~required_names ~(dom : Dominator_graph.alias_map)
