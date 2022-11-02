@@ -23,6 +23,9 @@
 val version: string
 (** The current version number of the system *)
 
+val bindir: string
+(** The directory containing the binary programs *)
+
 val standard_library: string
 (** The directory containing the standard libraries *)
 
@@ -79,8 +82,13 @@ val mkexe: string
 val mkmaindll: string
 (** The linker command line to build main programs as dlls. *)
 
-val ranlib: string
-(** Command to randomize a library, or "" if not needed *)
+val default_rpath: string
+(** Option to add a directory to be searched for libraries at runtime
+    (used by ocamlmklib) *)
+
+val mksharedlibrpath: string
+(** Option to add a directory to be searched for shared libraries at runtime
+    (used by ocamlmklib) *)
 
 val ar: string
 (** Name of the ar command, or "" if not needed  (MSVC) *)
@@ -248,6 +256,11 @@ val probes : bool
 
 val windows_unicode: bool
 (** Whether Windows Unicode runtime is enabled *)
+
+val naked_pointers : bool
+(** Whether the runtime supports naked pointers
+
+    @since 4.14.0 *)
 
 val supports_shared_libraries: bool
 (** Whether shared libraries are supported
