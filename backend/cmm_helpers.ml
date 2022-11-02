@@ -2067,13 +2067,13 @@ let ptr_offset ptr offset dbg =
 let direct_apply lbl args (pos, _mode) dbg =
   Cop (Capply (typ_val, pos), Cconst_symbol (lbl, dbg) :: args, dbg)
 
-let call_caml_apply mut clos args pos mode dbg =
+let call_caml_apply ty mut clos args pos mode dbg =
   let arity = List.length args in
   let really_call_caml_apply clos args =
     let cargs =
       (Cconst_symbol (apply_function_sym arity mode, dbg) :: args) @ [clos]
     in
-    Cop (Capply (typ_val, pos), cargs, dbg)
+    Cop (Capply (ty, pos), cargs, dbg)
   in
   if !Flambda_backend_flags.caml_apply_inline_fast_path
   then
@@ -2095,7 +2095,7 @@ let call_caml_apply mut clos args pos mode dbg =
                     dbg ),
                 dbg,
                 Cop
-                  ( Capply (typ_val, pos),
+                  ( Capply (ty, pos),
                     (get_field_gen mut clos 2 dbg :: args) @ [clos],
                     dbg ),
                 dbg,
@@ -2110,7 +2110,7 @@ let generic_apply mut clos args (pos, mode) dbg =
     bind "fun" clos (fun clos ->
         Cop
           (Capply (typ_val, pos), [get_field_gen mut clos 0 dbg; arg; clos], dbg))
-  | _ -> call_caml_apply mut clos args pos mode dbg
+  | _ -> call_caml_apply typ_val mut clos args pos mode dbg
 
 let send kind met obj args akind dbg =
   let call_met obj args clos =
@@ -4115,7 +4115,7 @@ let indirect_call ~dbg ty pos alloc_mode f args =
            ( Capply (ty, pos),
              [load ~dbg Word_int Asttypes.Mutable ~addr:(Cvar v); arg; Cvar v],
              dbg ))
-  | args -> call_caml_apply Asttypes.Mutable f args pos alloc_mode dbg
+  | args -> call_caml_apply ty Asttypes.Mutable f args pos alloc_mode dbg
 
 let indirect_full_call ~dbg ty pos alloc_mode f = function
   (* the single-argument case is already optimized by indirect_call *)
