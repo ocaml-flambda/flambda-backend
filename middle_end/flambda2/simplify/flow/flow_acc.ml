@@ -376,17 +376,17 @@ let record_let_binding ~rewrite_id ~generate_phantom_lets ~let_bound
                t)
             Name_occurrences.empty
         | None -> record_var_bindings t free_names)
-      | Ternary (Block_set (access_kind, init_or_assign), block, field, c) -> (
+      | Ternary (Block_set (bak, _), block, field, value) -> (
         match get_block_and_constant_field ~block ~field with
         | Some (block, field) ->
           record_ref_named rewrite_id ~bound_to:var
-            (Block_set (access_kind, init_or_assign, block, field, c))
+            (Block_set { bak; block; field; value })
             t
         | None -> add_used_in_current_handler free_names t)
-      | Variadic (Make_block (kind, mutability, alloc_mode), args) ->
+      | Variadic (Make_block (kind, mut, alloc_mode), fields) ->
         record_var_bindings
           (record_ref_named rewrite_id ~bound_to:var
-             (Make_block (kind, mutability, alloc_mode, args))
+             (Make_block { kind; mut; alloc_mode; fields })
              t)
           Name_occurrences.empty
       | _ ->

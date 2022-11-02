@@ -87,8 +87,8 @@ let escaping_by_alias ~(dom : Dominator_graph.alias_map)
 
 let names_escaping_from_mutable_prim (prim : T.Mutable_prim.t) =
   match prim with
-  | Make_block (_, _, _, args) -> Simple.List.free_names args
-  | Block_set (_, _, _, _, value) -> Simple.free_names value
+  | Make_block { fields; _ } -> Simple.List.free_names fields
+  | Block_set { value; _ } -> Simple.free_names value
   | Is_int _ | Get_tag _ | Block_load _ -> Name_occurrences.empty
 
 let escaping_by_use_for_one_continuation ~required_names
@@ -180,11 +180,11 @@ let non_escaping_makeblocks_and_required_regions ~escaping ~source_info =
         (fun (map, regions) T.Mutable_let_prim.{ bound_var = var; prim; _ } ->
           match prim with
           | Block_load _ | Block_set _ | Is_int _ | Get_tag _ -> map, regions
-          | Make_block (kind, _, region, args) ->
+          | Make_block { kind; alloc_mode; fields; _ } ->
             if Variable.Set.mem var escaping
             then
               let regions =
-                match region with
+                match alloc_mode with
                 | Heap -> regions
                 | Local { region } -> Name.Set.add (Name.var region) regions
               in
@@ -199,7 +199,7 @@ let non_escaping_makeblocks_and_required_regions ~escaping ~source_info =
                     fields_kinds =
                       List.map
                         (fun _ -> Flambda_kind.With_subkind.naked_float)
-                        args
+                        fields
                   }
               in
               Variable.Map.add var non_escaping_block map, regions)
@@ -212,7 +212,7 @@ let prims_using_block ~non_escaping_blocks ~dom prim =
   | Make_block _ -> Variable.Set.empty
   | Is_int block
   | Get_tag block
-  | Block_set (_, _, block, _, _)
+  | Block_set { block; _ }
   | Block_load { block; _ } ->
     let block =
       match Variable.Map.find block dom with
@@ -382,7 +382,7 @@ module Fold_prims = struct
           { env with
             rewrites = Named_rewrite_id.Map.add rewrite_id rewrite env.rewrites
           })
-    | Block_set (bak, _, block, field, value) ->
+    | Block_set { bak; block; field; value } ->
       with_unboxed_fields ~block ~dom ~env ~f:(fun fields ->
           if ref_to_var_debug
           then Format.printf "Remove Block set %a@." Variable.print var;
@@ -401,7 +401,7 @@ module Fold_prims = struct
           { bindings = Variable.Map.add block fields env.bindings;
             rewrites = Named_rewrite_id.Map.add rewrite_id rewrite env.rewrites
           })
-    | Make_block (_, _, _, values) ->
+    | Make_block { fields; _ } ->
       if not (Variable.Map.mem var non_escaping_blocks)
       then env
       else
@@ -412,7 +412,7 @@ module Fold_prims = struct
         let rewrite =
           Named_rewrite.prim_rewrite Named_rewrite.Prim_rewrite.remove_prim
         in
-        let fields = list_to_int_map values in
+        let fields = list_to_int_map fields in
         { bindings = Variable.Map.add var fields env.bindings;
           rewrites = Named_rewrite_id.Map.add rewrite_id rewrite env.rewrites
         }

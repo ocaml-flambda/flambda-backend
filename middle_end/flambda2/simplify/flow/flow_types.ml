@@ -50,27 +50,28 @@ module Mutable_prim = struct
           field : int
         }
     | Block_set of
-        Flambda_primitive.Block_access_kind.t
-        * Flambda_primitive.Init_or_assign.t
-        * Variable.t
-        * int
-        * Simple.t
+        { bak : Flambda_primitive.Block_access_kind.t;
+          block : Variable.t;
+          field : int;
+          value : Simple.t
+        }
     | Make_block of
-        Flambda_primitive.Block_kind.t
-        * Mutability.t
-        * Alloc_mode.For_allocations.t
-        * Simple.t list
+        { kind : Flambda_primitive.Block_kind.t;
+          mut : Mutability.t;
+          alloc_mode : Alloc_mode.For_allocations.t;
+          fields : Simple.t list
+        }
 
   let print ppf = function
     | Is_int v -> Format.fprintf ppf "Is_int (%a)" Variable.print v
     | Get_tag v -> Format.fprintf ppf "Get_tag (%a)" Variable.print v
     | Block_load { block; field; _ } ->
       Format.fprintf ppf "Block_load (%a, %i)" Variable.print block field
-    | Block_set (_, _, block, field, value) ->
+    | Block_set { block; field; value; _ } ->
       Format.fprintf ppf "Block_set (%a, %i, %a)" Variable.print block field
         Simple.print value
-    | Make_block (_, _, _, args) ->
-      Format.fprintf ppf "Make_block [%a]" Simple.List.print args
+    | Make_block { fields; _ } ->
+      Format.fprintf ppf "Make_block [%a]" Simple.List.print fields
 end
 
 (* Bindings to primitive that we track for the mutable unboxing *)

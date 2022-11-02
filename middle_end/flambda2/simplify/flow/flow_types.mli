@@ -46,16 +46,17 @@ module Mutable_prim : sig
           field : int
         }
     | Block_set of
-        Flambda_primitive.Block_access_kind.t
-        * Flambda_primitive.Init_or_assign.t
-        * Variable.t
-        * int
-        * Simple.t
+        { bak : Flambda_primitive.Block_access_kind.t;
+          block : Variable.t;
+          field : int;
+          value : Simple.t
+        }
     | Make_block of
-        Flambda_primitive.Block_kind.t
-        * Mutability.t
-        * Alloc_mode.For_allocations.t
-        * Simple.t list
+        { kind : Flambda_primitive.Block_kind.t;
+          mut : Mutability.t;
+          alloc_mode : Alloc_mode.For_allocations.t;
+          fields : Simple.t list
+        }
 
   val print : Format.formatter -> t -> unit
 end

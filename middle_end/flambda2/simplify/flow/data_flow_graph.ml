@@ -251,9 +251,10 @@ let mutable_prim_free_names (mutable_prim : T.Mutable_prim.t) :
   match mutable_prim with
   | Is_int block | Get_tag block | Block_load { block; _ } ->
     Name_occurrences.singleton_variable block Name_mode.normal
-  | Block_set (_, _, block, _field, c) ->
-    Name_occurrences.add_variable (Simple.free_names c) block Name_mode.normal
-  | Make_block (_, _, _, args) -> Simple.List.free_names args
+  | Block_set { block; value; _ } ->
+    Name_occurrences.add_variable (Simple.free_names value) block
+      Name_mode.normal
+  | Make_block { fields; _ } -> Simple.List.free_names fields
 
 let add_continuation_info map ~return_continuation ~exn_continuation
     ~used_value_slots _
