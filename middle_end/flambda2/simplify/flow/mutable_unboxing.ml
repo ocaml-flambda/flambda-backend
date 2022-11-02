@@ -366,7 +366,9 @@ module Fold_prims = struct
             Named_rewrite.prim_rewrite
               (Named_rewrite.Prim_rewrite.replace_by_binding ~var ~bound_to)
           | exception Not_found ->
-            let k = Flambda_primitive.Block_access_kind.element_kind_for_load bak in
+            let k =
+              Flambda_primitive.Block_access_kind.element_kind_for_load bak
+            in
             Named_rewrite.prim_rewrite (Named_rewrite.Prim_rewrite.invalid k)
         in
         { env with
@@ -389,7 +391,9 @@ module Fold_prims = struct
             ( Named_rewrite.prim_rewrite Named_rewrite.Prim_rewrite.remove_prim,
               Numeric_types.Int.Map.add field value fields )
           else
-            let k = Flambda_primitive.Block_access_kind.element_kind_for_load bak in
+            let k =
+              Flambda_primitive.Block_access_kind.element_kind_for_load bak
+            in
             ( Named_rewrite.prim_rewrite (Named_rewrite.Prim_rewrite.invalid k),
               fields )
         in

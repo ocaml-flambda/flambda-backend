@@ -624,7 +624,8 @@ let effects_and_coeffects_of_nullary_primitive p =
     Effects.Only_generative_effects Mutable, Coeffects.Has_coeffects
 
 let nullary_classify_for_printing p =
-  match p with Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region -> Neither
+  match p with
+  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region -> Neither
 
 type unary_primitive =
   | Duplicate_block of { kind : Duplicate_block_kind.t }
@@ -1662,7 +1663,8 @@ let free_names t =
 let apply_renaming t renaming =
   let apply simple = Simple.apply_renaming simple renaming in
   match t with
-  | Nullary (Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region) -> t
+  | Nullary (Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region) ->
+    t
   | Unary (prim, x0) ->
     let prim' = apply_renaming_unary_primitive prim renaming in
     let x0' = apply x0 in

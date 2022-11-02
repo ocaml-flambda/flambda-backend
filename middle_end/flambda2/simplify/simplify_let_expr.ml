@@ -91,7 +91,8 @@ let rebuild_let simplify_named_result removed_operations ~rewrite_id
           (* TODO: add benefit for removed prim here and below *)
           []
         | Prim_rewrite (Invalid k) ->
-          (* CR gbury: try and add debuginfo in {Simplify_named_result.binding_to_place} ? *)
+          (* CR gbury: try and add debuginfo in
+             {Simplify_named_result.binding_to_place} ? *)
           let dbg = Debuginfo.none in
           let prim : P.t = Nullary (Invalid k) in
           let binding =

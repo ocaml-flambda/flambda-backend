@@ -40,7 +40,6 @@ module Prim_rewrite = struct
   let remove_prim = Remove_prim
 
   let replace_by_binding ~var ~bound_to = Replace_by_binding { var; bound_to }
-
 end
 
 (* We currently only rewrite primitives *)
