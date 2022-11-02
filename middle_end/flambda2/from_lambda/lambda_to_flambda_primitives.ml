@@ -1197,9 +1197,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
       "Closure_conversion.convert_primitive: Wrong arity for ternary primitive \
        %a (%a)"
       Printlambda.primitive prim H.print_list_of_simple_or_prim args
-  | ( ( Pidentity | Pignore | Prevapply _ | Pdirapply _ | Psequand | Psequor
-      | Pbytes_of_string | Pbytes_to_string ),
-      _ ) ->
+  | (Pignore | Psequand | Psequor | Pbytes_of_string | Pbytes_to_string), _ ->
     Misc.fatal_errorf
       "[%a] should have been removed by [Lambda_to_flambda.transform_primitive]"
       Printlambda.primitive prim

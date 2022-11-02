@@ -25,7 +25,7 @@
    When a new function is added which is not implemented on Windows (or
    partially implemented), or the Windows-status of an existing function is
    changed, remember to update the summary table in
-   manual/manual/library/libunix.etex
+   manual/src/library/libunix.etex
 *)
 
 (** Interface to the Unix system.
@@ -229,13 +229,14 @@ val fork : unit -> int
 (** Fork a new process. The returned integer is 0 for the child
    process, the pid of the child process for the parent process.
 
-   On Windows: not implemented, use {!create_process} or threads. *)
+   @raise Invalid_argument on Windows. Use {!create_process} or threads
+   instead. *)
 
 val wait : unit -> int * process_status
 (** Wait until one of the children processes die, and return its pid
    and termination status.
 
-   On Windows: not implemented, use {!waitpid}. *)
+   @raise Invalid_argument on Windows. Use {!waitpid} instead. *)
 
 val waitpid : mode:wait_flag list -> int -> int * process_status
 (** Same as {!wait}, but waits for the child process whose pid is given.
@@ -286,14 +287,15 @@ val getpid : unit -> int
 val getppid : unit -> int
 (** Return the pid of the parent process.
 
-    On Windows: not implemented (because it is meaningless). *)
+    @raise Invalid_argument on Windows (because it is
+    meaningless) *)
 
 val nice : int -> int
 (** Change the process priority. The integer argument is added to the
    ``nice'' value. (Higher values of the ``nice'' value mean
    lower priorities.) Return the new nice value.
 
-   On Windows: not implemented. *)
+   @raise Invalid_argument on Windows *)
 
 (** {1 Basic file input/output} *)
 
@@ -393,16 +395,27 @@ val in_channel_of_descr : file_descr -> in_channel
    Text mode is supported only if the descriptor refers to a file
    or pipe, but is not supported if it refers to a socket.
 
-   On Windows: [set_binary_mode_in] always fails on channels created
-   with this function.
+   On Windows: {!Stdlib.set_binary_mode_in} always fails on channels
+   created with this function.
 
-   Beware that channels are buffered so more characters may have been
-   read from the file descriptor than those accessed using channel functions.
-   Channels also keep a copy of the current position in the file.
+   Beware that input channels are buffered, so more characters may
+   have been read from the descriptor than those accessed using
+   channel functions.  Channels also keep a copy of the current
+   position in the file.
 
-   You need to explicitly close all channels created with this function.
-   Closing the channel also closes the underlying file descriptor (unless
-   it was already closed). *)
+   Closing the channel [ic] returned by [in_channel_of_descr fd]
+   using [close_in ic] also closes the underlying descriptor [fd].
+   It is incorrect to close both the channel [ic] and the descriptor [fd].
+
+   If several channels are created on the same descriptor, one of the
+   channels must be closed, but not the others.
+   Consider for example a descriptor [s] connected to a socket and two
+   channels [ic = in_channel_of_descr s] and [oc = out_channel_of_descr s].
+   The recommended closing protocol is to perform [close_out oc],
+   which flushes buffered output to the socket then closes the socket.
+   The [ic] channel must not be closed and will be collected by the GC
+   eventually.
+*)
 
 val out_channel_of_descr : file_descr -> out_channel
 (** Create an output channel writing on the given descriptor.
@@ -411,17 +424,21 @@ val out_channel_of_descr : file_descr -> out_channel
    Text mode is supported only if the descriptor refers to a file
    or pipe, but is not supported if it refers to a socket.
 
-   On Windows: [set_binary_mode_out] always fails on channels created
+   On Windows: {!Stdlib.set_binary_mode_out} always fails on channels created
    with this function.
 
-   Beware that channels are buffered so you may have to [flush] them
-   to ensure that all data has been sent to the file descriptor.
-   Channels also keep a copy of the current position in the file.
+   Beware that output channels are buffered, so you may have to call
+   {!Stdlib.flush} to ensure that all data has been sent to the
+   descriptor.  Channels also keep a copy of the current position in
+   the file.
 
-   You need to explicitly close all channels created with this function.
-   Closing the channel flushes the data and closes the underlying file
-   descriptor (unless it has already been closed, in which case the
-   buffered data is lost).*)
+   Closing the channel [oc] returned by [out_channel_of_descr fd]
+   using [close_out oc] also closes the underlying descriptor [fd].
+   It is incorrect to close both the channel [ic] and the descriptor [fd].
+
+   See {!Unix.in_channel_of_descr} for a discussion of the closing
+   protocol when several channels are created on the same descriptor.
+*)
 
 val descr_of_in_channel : in_channel -> file_descr
 (** Return the descriptor corresponding to an input channel. *)
@@ -628,6 +645,11 @@ val link : ?follow (* thwart tools/sync_stdlib_docs *) :bool ->
                  unavailable.
    @raise ENOSYS On {e Windows} if [~follow:false] is requested. *)
 
+val realpath : string -> string
+(** [realpath p] is an absolute pathname for [p] obtained by resolving
+    all extra [/] characters, relative path segments and symbolic links.
+
+    @since 4.13.0 *)
 
 (** {1 File permissions and ownership} *)
 
@@ -646,23 +668,23 @@ val chmod : string -> perm:file_perm -> unit
 val fchmod : file_descr -> perm:file_perm -> unit
 (** Change the permissions of an opened file.
 
-    On Windows: not implemented. *)
+    @raise Invalid_argument on Windows *)
 
 val chown : string -> uid:int -> gid:int -> unit
 (** Change the owner uid and owner gid of the named file.
 
-    On Windows: not implemented. *)
+    @raise Invalid_argument on Windows *)
 
 val fchown : file_descr -> uid:int -> gid:int -> unit
 (** Change the owner uid and owner gid of an opened file.
 
-    On Windows: not implemented. *)
+    @raise Invalid_argument on Windows *)
 
 val umask : int -> int
 (** Set the process's file mode creation mask, and return the previous
     mask.
 
-    On Windows: not implemented. *)
+    @raise Invalid_argument on Windows *)
 
 val access : string -> perm:access_permission list -> unit
 (** Check that the process has the given permissions over the named file.
@@ -773,7 +795,7 @@ val getcwd : unit -> string
 val chroot : string -> unit
 (** Change the process root directory.
 
-    On Windows: not implemented. *)
+    @raise Invalid_argument on Windows *)
 
 type dir_handle = Unix.dir_handle
 (** The type of descriptors over opened directories. *)
@@ -807,7 +829,7 @@ val pipe : ?cloexec: (* thwart tools/sync_stdlib_docs *) bool ->
 val mkfifo : string -> perm:file_perm -> unit
 (** Create a named pipe with the given permissions (see {!umask}).
 
-   On Windows: not implemented. *)
+   @raise Invalid_argument on Windows *)
 
 
 (** {1 High-level process and redirection management} *)
@@ -823,7 +845,7 @@ val create_process :
    concurrently with the current process.
    The standard input and outputs of the new process are connected
    to the descriptors [stdin], [stdout] and [stderr].
-   Passing e.g. [Stdlib.stdout] for [stdout] prevents the redirection
+   Passing e.g. {!Unix.stdout} for [stdout] prevents the redirection
    and causes the new process to have the same standard output
    as the current process.
    The executable file [prog] is searched in the path.
@@ -881,28 +903,32 @@ val open_process_full :
    {!open_process_full}. *)
 
 val open_process_args_in : string -> string array -> in_channel
-(** High-level pipe and process management. The first argument specifies the
-   command to run, and the second argument specifies the argument array passed
-   to the command.  This function runs the command in parallel with the program.
-   The standard output of the command is redirected to a pipe, which can be read
-   via the returned input channel.
+(** [open_process_args_in prog args] runs the program [prog] with arguments
+    [args].  The new process executes concurrently with the current process.
+    The standard output of the new process is redirected to a pipe, which can be
+    read via the returned input channel.
+
+    The executable file [prog] is searched in the path. This behaviour changed
+    in 4.12; previously [prog] was looked up only in the current directory.
+
+    The new process has the same environment as the current process.
 
     @since 4.08.0 *)
 
 val open_process_args_out : string -> string array -> out_channel
-(** Same as {!open_process_args_in}, but redirect the standard input of the
-   command to a pipe.  Data written to the returned output channel is sent to
-   the standard input of the command.  Warning: writes on output channels are
-   buffered, hence be careful to call {!Stdlib.flush} at the right times to
-   ensure correct synchronization.
+(** Same as {!open_process_args_in}, but redirect the standard input of the new
+    process to a pipe.  Data written to the returned output channel is sent to
+    the standard input of the program.  Warning: writes on output channels are
+    buffered, hence be careful to call {!Stdlib.flush} at the right times to
+    ensure correct synchronization.
 
     @since 4.08.0 *)
 
 val open_process_args : string -> string array -> in_channel * out_channel
-(** Same as {!open_process_args_out}, but redirects both the standard input
-   and standard output of the command to pipes connected to the two returned
-   channels.  The input channel is connected to the output of the command, and
-   the output channel to the input of the command.
+(** Same as {!open_process_args_out}, but redirects both the standard input and
+    standard output of the new process to pipes connected to the two returned
+    channels.  The input channel is connected to the output of the program, and
+    the output channel to the input of the program.
 
     @since 4.08.0 *)
 
@@ -910,9 +936,9 @@ val open_process_args_full :
   string -> string array -> string array ->
     in_channel * out_channel * in_channel
 (** Similar to {!open_process_args}, but the third argument specifies the
-   environment passed to the command.  The result is a triple of channels
-   connected respectively to the standard output, standard input, and standard
-   error of the command.
+    environment passed to the new process.  The result is a triple of channels
+    connected respectively to the standard output, standard input, and standard
+    error of the program.
 
     @since 4.08.0 *)
 
@@ -1100,24 +1126,28 @@ val sigprocmask : mode:sigprocmask_command -> int list -> int list
    function redirects to [Thread.sigmask]. I.e., [sigprocmask] only
    changes the mask of the current thread.
 
-   On Windows: not implemented (no inter-process signals on Windows). *)
+   @raise Invalid_argument on Windows (no inter-process signals on
+   Windows) *)
 
 val sigpending : unit -> int list
 (** Return the set of blocked signals that are currently pending.
 
-   On Windows: not implemented (no inter-process signals on Windows). *)
+   @raise Invalid_argument on Windows (no inter-process
+   signals on Windows) *)
 
 val sigsuspend : int list -> unit
 (** [sigsuspend sigs] atomically sets the blocked signals to [sigs]
    and waits for a non-ignored, non-blocked signal to be delivered.
    On return, the blocked signals are reset to their initial value.
 
-   On Windows: not implemented (no inter-process signals on Windows). *)
+   @raise Invalid_argument on Windows (no inter-process signals on
+   Windows) *)
 
 val pause : unit -> unit
 (** Wait until a non-ignored, non-blocked signal is delivered.
 
-  On Windows: not implemented (no inter-process signals on Windows). *)
+   @raise Invalid_argument on Windows (no inter-process signals on
+   Windows) *)
 
 
 (** {1 Time functions} *)
@@ -1176,7 +1206,7 @@ val mktime : tm -> float * tm
 val alarm : int -> int
 (** Schedule a [SIGALRM] signal after the given number of seconds.
 
-   On Windows: not implemented. *)
+   @raise Invalid_argument on Windows *)
 
 val sleep : int -> unit
 (** Stop execution for the given number of seconds. *)
@@ -1221,7 +1251,7 @@ type interval_timer_status = Unix.interval_timer_status =
 val getitimer : interval_timer -> interval_timer_status
 (** Return the current status of the given interval timer.
 
-   On Windows: not implemented. *)
+   @raise Invalid_argument on Windows *)
 
 val setitimer :
   interval_timer -> interval_timer_status -> interval_timer_status
@@ -1234,7 +1264,7 @@ val setitimer :
    Setting [s.it_interval] to zero causes the timer to be disabled
    after its next expiration.
 
-   On Windows: not implemented. *)
+   @raise Invalid_argument on Windows *)
 
 
 (** {1 User id, group id} *)
@@ -1252,7 +1282,7 @@ val geteuid : unit -> int
 val setuid : int -> unit
 (** Set the real user id and effective user id for the process.
 
-   On Windows: not implemented. *)
+   @raise Invalid_argument on Windows *)
 
 val getgid : unit -> int
 (** Return the group id of the user executing the process.
@@ -1267,7 +1297,7 @@ val getegid : unit -> int
 val setgid : int -> unit
 (** Set the real group id and effective group id for the process.
 
-   On Windows: not implemented. *)
+   @raise Invalid_argument on Windows *)
 
 val getgroups : unit -> int array
 (** Return the list of groups to which the user executing the process
@@ -1279,7 +1309,7 @@ val setgroups : int array -> unit
 (** [setgroups groups] sets the supplementary group IDs for the
     calling process. Appropriate privileges are required.
 
-    On Windows: not implemented. *)
+    @raise Invalid_argument on Windows *)
 
 val initgroups : string -> int -> unit
 (** [initgroups user group] initializes the group access list by
@@ -1287,7 +1317,7 @@ val initgroups : string -> int -> unit
     which [user] is a member. The additional group [group] is also
     added to the list.
 
-    On Windows: not implemented. *)
+    @raise Invalid_argument on Windows *)
 
 type passwd_entry = Unix.passwd_entry =
   { pw_name : string;
@@ -1378,7 +1408,8 @@ type socket_domain = Unix.socket_domain =
 (** The type of socket domains.  Not all platforms support
     IPv6 sockets (type [PF_INET6]).
 
-    On Windows: [PF_UNIX] not implemented.  *)
+   On Windows: [PF_UNIX] supported since 4.14.0 on Windows 10 1803
+   and later.  *)
 
 type socket_type = Unix.socket_type =
     SOCK_STREAM                 (** Stream socket *)
@@ -1417,7 +1448,9 @@ val socketpair :
     file_descr * file_descr
 (** Create a pair of unnamed sockets, connected together.
    See {!set_close_on_exec} for documentation on the [cloexec]
-   optional argument. *)
+   optional argument.
+
+   @raise Invalid_argument on Windows *)
 
 val accept : ?cloexec: (* thwart tools/sync_stdlib_docs *) bool ->
              file_descr -> file_descr * sockaddr
@@ -1582,14 +1615,23 @@ val open_connection : sockaddr -> in_channel * out_channel
 (** Connect to a server at the given address.
    Return a pair of buffered channels connected to the server.
    Remember to call {!Stdlib.flush} on the output channel at the right
-   times to ensure correct synchronization. *)
+   times to ensure correct synchronization.
+
+   The two channels returned by [open_connection] share a descriptor
+   to a socket.  Therefore, when the connection is over, you should
+   call {!Stdlib.close_out} on the output channel, which will also close
+   the underlying socket.  Do not call {!Stdlib.close_in} on the input
+   channel; it will be collected by the GC eventually.
+*)
+
 
 val shutdown_connection : in_channel -> unit
 (** ``Shut down'' a connection established with {!open_connection};
    that is, transmit an end-of-file condition to the server reading
-   on the other side of the connection. This does not fully close the
-   file descriptor associated with the channel, which you must remember
-   to free via {!Stdlib.close_in}. *)
+   on the other side of the connection. This does not close the
+   socket and the channels used by the connection.
+   See {!Unix.open_connection} for how to close them once the
+   connection is over. *)
 
 val establish_server :
   (in_channel -> out_channel -> unit) -> addr:sockaddr -> unit
@@ -1599,7 +1641,14 @@ val establish_server :
    is created for each connection. The function {!establish_server}
    never returns normally.
 
-   On Windows: not implemented (use threads). *)
+   The two channels given to the function share a descriptor to a
+   socket.  The function does not need to close the channels, since this
+   occurs automatically when the function returns.  If the function
+   prefers explicit closing, it should close the output channel using
+   {!Stdlib.close_out} and leave the input channel unclosed,
+   for reasons explained in {!Unix.in_channel_of_descr}.
+
+   @raise Invalid_argument on Windows. Use threads instead. *)
 
 
 (** {1 Host and protocol databases} *)
@@ -1777,7 +1826,7 @@ val tcgetattr : file_descr -> terminal_io
 (** Return the status of the terminal referred to by the given
    file descriptor.
 
-   On Windows: not implemented. *)
+   @raise Invalid_argument on Windows *)
 
 type setattr_when = Unix.setattr_when =
     TCSANOW
@@ -1794,20 +1843,20 @@ val tcsetattr : file_descr -> mode:setattr_when -> terminal_io -> unit
    the output parameters; [TCSAFLUSH], when changing the input
    parameters.
 
-   On Windows: not implemented. *)
+   @raise Invalid_argument on Windows *)
 
 val tcsendbreak : file_descr -> duration:int -> unit
 (** Send a break condition on the given file descriptor.
    The second argument is the duration of the break, in 0.1s units;
    0 means standard duration (0.25s).
 
-   On Windows: not implemented. *)
+   @raise Invalid_argument on Windows *)
 
 val tcdrain : file_descr -> unit
 (** Waits until all output written on the given file descriptor
    has been transmitted.
 
-   On Windows: not implemented. *)
+   @raise Invalid_argument on Windows *)
 
 type flush_queue = Unix.flush_queue =
     TCIFLUSH
@@ -1821,7 +1870,7 @@ val tcflush : file_descr -> mode:flush_queue -> unit
    [TCOFLUSH] flushes data written but not transmitted, and
    [TCIOFLUSH] flushes both.
 
-   On Windows: not implemented. *)
+   @raise Invalid_argument on Windows *)
 
 type flow_action = Unix.flow_action =
     TCOOFF
@@ -1836,10 +1885,10 @@ val tcflow : file_descr -> mode:flow_action -> unit
    [TCIOFF] transmits a STOP character to suspend input,
    and [TCION] transmits a START character to restart input.
 
-   On Windows: not implemented. *)
+   @raise Invalid_argument on Windows *)
 
 val setsid : unit -> int
 (** Put the calling process in a new session and detach it from
    its controlling terminal.
 
-   On Windows: not implemented. *)
+   @raise Invalid_argument on Windows *)

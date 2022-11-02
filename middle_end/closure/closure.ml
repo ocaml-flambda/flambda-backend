@@ -518,6 +518,8 @@ let simplif_prim_pure ~backend fpc p (args, approxs) dbg =
       make_const (List.nth l n)
   | Pfield n, [ Uprim(P.Pmakeblock _, ul, _) ], [approx]
     when n < List.length ul ->
+      (* This case is particularly useful for removing allocations
+         for optional parameters *)
       (List.nth ul n, field_approx n approx)
   (* Strings *)
   | (Pstringlength | Pbyteslength),
@@ -525,6 +527,10 @@ let simplif_prim_pure ~backend fpc p (args, approxs) dbg =
      [ Value_const(Uconst_ref(_, Some (Uconst_string s))) ] ->
       make_const_int (String.length s)
   (* Kind test *)
+  | Pisint, [ Uprim(P.Pmakeblock _, _, _) ], _ ->
+      (* This case is particularly useful for removing allocations
+         for optional parameters *)
+      make_const_bool false
   | Pisint, _, [a1] ->
       begin match a1 with
       | Value_const(Uconst_int _) -> make_const_bool true
@@ -706,8 +712,6 @@ let rec substitute loc ((backend, fpc) as st) sb rn ulam =
             substitute loc st sb rn u2
           else
             substitute loc st sb rn u3
-      | Uprim(P.Pmakeblock _, _, _) ->
-          substitute loc st sb rn u2
       | su1 ->
           Uifthenelse(su1, substitute loc st sb rn u2,
                            substitute loc st sb rn u3, kind)
@@ -792,8 +796,12 @@ let bind_params { backend; mutable_vars; _ } loc fdesc params args funct body =
           let p1' = VP.rename p1 in
           let u1, u2 =
             match VP.name p1, a1 with
-            | "*opt*", Uprim(P.Pmakeblock(0, Immutable, kind, mode),
-                             [a], dbg) ->
+            | "*opt*", Uprim(P.Pmakeblock(0, Immutable, kind, mode), [a], dbg) ->
+                (* This parameter corresponds to an optional parameter,
+                   and although it is used twice pushing the expression down
+                   actually allows us to remove the allocation as it will
+                   appear once under a Pisint primitive and once under a Pfield
+                   primitive (see [simplif_prim_pure]) *)
                 a, Uprim(P.Pmakeblock(0, Immutable, kind, mode),
                          [Uvar (VP.var p1')], dbg)
             | _ ->
@@ -819,9 +827,6 @@ let bind_params { backend; mutable_vars; _ } loc fdesc params args funct body =
        params, args, (if is_pure funct then body else Usequence (funct, body))
   in
   aux V.Map.empty params args body
-
-(* Check if a lambda term is ``pure'',
-   that is without side-effects *and* not containing function definitions *)
 
 let warning_if_forced_inlined ~loc ~attribute warning =
   if attribute = Always_inlined then
@@ -1057,11 +1062,11 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
         if is_local_mode clos_mode then assert (is_local_mode new_clos_mode);
         let ret_mode = if fundesc.fun_region then alloc_heap else alloc_local in
         let (new_fun, approx) = close { backend; fenv; cenv; mutable_vars }
-          (Lfunction{
-               kind;
-               return = Pgenval;
-               params = List.map (fun v -> v, Pgenval) final_args;
-               body = Lapply{
+          (lfunction
+               ~kind
+               ~return:Pgenval
+               ~params:(List.map (fun v -> v, Pgenval) final_args)
+               ~body:(Lapply{
                  ap_loc=loc;
                  ap_func=(Lvar funct_var);
                  ap_args=internal_args;
@@ -1071,11 +1076,11 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
                  ap_inlined=Default_inlined;
                  ap_specialised=Default_specialise;
                  ap_probe=None;
-               };
-               loc;
-               mode = new_clos_mode;
-               region = fundesc.fun_region;
-               attr = default_function_attribute})
+               })
+               ~loc
+               ~mode:new_clos_mode
+               ~region:fundesc.fun_region
+               ~attr:default_function_attribute)
         in
         let new_fun =
           iter first_args
@@ -1208,23 +1213,9 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
   | Lprim(Pignore, [arg], _loc) ->
       let expr, approx = make_const_int 0 in
       Usequence(fst (close env arg), expr), approx
-  | Lprim((Pidentity | Pbytes_to_string | Pbytes_of_string | Pobj_magic),
+  | Lprim(( Pbytes_to_string | Pbytes_of_string | Pobj_magic),
           [arg], _loc) ->
       close env arg
-  | Lprim(Pdirapply pos,[funct;arg], loc)
-  | Lprim(Prevapply pos,[arg;funct], loc) ->
-      close env
-        (Lapply{
-           ap_loc=loc;
-           ap_func=funct;
-           ap_args=[arg];
-           ap_region_close=pos;
-           ap_mode=alloc_heap;
-           ap_tailcall=Default_tailcall;
-           ap_inlined=Default_inlined;
-           ap_specialised=Default_specialise;
-           ap_probe=None;
-         })
   | Lprim(Pgetglobal cu, [], loc) ->
       let id = Compilation_unit.to_global_ident_for_legacy_code cu in
       let dbg = Debuginfo.from_location loc in
@@ -1402,9 +1393,8 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
   let uncurried_defs =
     List.map
       (function
-          (id, Lfunction({kind; params; return; body; attr; loc; mode; region}
-                         as funct)) ->
-            Lambda.check_lfunction funct;
+          (id, Lfunction(
+              {kind; params; return; body; attr; loc; mode; region})) ->
             let attrib = attr.check in
             let label =
               Symbol_utils.for_fun_ident ~compilation_unit:None loc id

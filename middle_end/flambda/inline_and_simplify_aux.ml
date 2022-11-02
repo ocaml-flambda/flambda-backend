@@ -16,6 +16,7 @@
 
 [@@@ocaml.warning "+a-4-9-30-40-41-42-66"]
 open! Int_replace_polymorphic_compare
+module Int = Misc.Stdlib.Int
 
 module Env = struct
   type scope = Current | Outer
@@ -333,7 +334,7 @@ module Env = struct
       try
         Closure_origin.Map.find id t.inlining_counts
       with Not_found ->
-        max 1 (Clflags.Int_arg_helper.get
+        Int.max 1 (Clflags.Int_arg_helper.get
                  ~key:t.round !Clflags.inline_max_unroll)
     in
     inlining_count > 0
@@ -343,7 +344,7 @@ module Env = struct
       try
         Closure_origin.Map.find id t.inlining_counts
       with Not_found ->
-        max 1 (Clflags.Int_arg_helper.get
+        Int.max 1 (Clflags.Int_arg_helper.get
                  ~key:t.round !Clflags.inline_max_unroll)
     in
     let inlining_counts =

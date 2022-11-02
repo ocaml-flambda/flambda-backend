@@ -21,6 +21,8 @@
  * SOFTWARE.
  *)
 
+[@@@ocaml.warning "-69"]
+
 module String = Misc.Stdlib.String
 
 let escape_symbols part =
@@ -134,10 +136,10 @@ let convert_identifier str =
     Templated (s, [Cpp_name (Simple "quoted")])
 
 let convert_closure_id id loc =
-  if String.begins_with id "anon_fn["
+  if String.begins_with id ~prefix:"anon_fn["
   then
     (* Keep the unique integer stamp *)
-    let _init, stamp = String.split_last_exn id '_' in
+    let _init, stamp = String.split_last_exn id ~split_on:'_' in
     (* Put the location inside C++ template args *)
     Templated ("anon_fn_" ^ stamp, build_location_info loc)
   else
@@ -146,7 +148,7 @@ let convert_closure_id id loc =
     | 'A' .. 'Z' | 'a' .. 'z' | '0' .. '9' | '_' -> convert_identifier id
     (* An operator *)
     | _op ->
-      let op, stamp = String.split_last_exn id '_' in
+      let op, stamp = String.split_last_exn id ~split_on:'_' in
       Templated ("op_" ^ stamp, [Cpp_name (Simple (name_op op))])
 
 let convert_scope scope =
@@ -164,7 +166,7 @@ let convert_scope scope =
 let list_of_scopes scopes =
   (* Works for now since the only separators are '.' and '#' *)
   let scope_str = Debuginfo.Scoped_location.string_of_scopes scopes in
-  String.split_on_chars scope_str ['.'; '#']
+  String.split_on_chars scope_str ~split_on:['.'; '#']
 
 let scope_matches_closure_id scope closure_id =
   (* If the `id` is an anonymous function this corresponds to that, and, even if
@@ -172,11 +174,11 @@ let scope_matches_closure_id scope closure_id =
      `let f = fun x -> ...`) *)
   String.equal scope "(fun)"
   (* Normal case where closure id and scope match directly *)
-  || String.begins_with closure_id scope
+  || String.begins_with closure_id ~prefix:scope
   || (* For operators, the scope is wrapped in parens *)
   String.length scope >= 3
   && String.begins_with closure_id
-       (String.sub scope 1 (String.length scope - 2))
+       ~prefix:(String.sub scope 1 (String.length scope - 2))
 
 (* Returns a pair of the top-level module and the list of scopes that strictly
    contain the closure id *)
@@ -200,7 +202,7 @@ let module_and_scopes ~unitname loc id =
 
 let remove_prefix ~prefix str =
   let n = String.length prefix in
-  if String.begins_with str prefix
+  if String.begins_with str ~prefix
   then String.sub str n (String.length str - n)
   else str
 
@@ -208,7 +210,8 @@ let fun_symbol ~unitname ~loc ~id =
   let unitname = remove_prefix ~prefix:"caml" unitname in
   let top_level_module, sub_scopes = module_and_scopes ~unitname loc id in
   let namespace_parts name =
-    String.split_on_string name "__" |> List.map (fun part -> Simple part)
+    String.split_on_string name ~split_on:"__"
+    |> List.map (fun part -> Simple part)
   in
   let parts =
     List.concat

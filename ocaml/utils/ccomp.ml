@@ -140,24 +140,19 @@ let create_archive archive file_list =
                                quoted_archive (quote_files file_list))
     | _ ->
         assert(String.length Config.ar > 0);
-        let r1 =
-          command(Printf.sprintf "%s rc %s %s"
-                  Config.ar quoted_archive (quote_files file_list)) in
-        if r1 <> 0 || String.length Config.ranlib = 0
-        then r1
-        else command(Config.ranlib ^ " " ^ quoted_archive)
+        command(Printf.sprintf "%s rc %s %s"
+                Config.ar quoted_archive (quote_files file_list))
 
-let expand_libname name =
-  if String.length name < 2 || String.sub name 0 2 <> "-l"
-  then name
-  else begin
-    let libname =
-      "lib" ^ String.sub name 2 (String.length name - 2) ^ Config.ext_lib in
-    try
-      Load_path.find libname
-    with Not_found ->
-      libname
-  end
+let expand_libname cclibs =
+  cclibs |> List.map (fun cclib ->
+    if Misc.Stdlib.String.starts_with ~prefix:"-l" cclib then
+      let libname =
+        "lib" ^ String.sub cclib 2 (String.length cclib - 2) ^ Config.ext_lib in
+      try
+        Load_path.find libname
+      with Not_found ->
+        libname
+    else cclib)
 
 type link_mode =
   | Exe
@@ -177,10 +172,10 @@ let call_linker mode output_name files extra =
   Profile.record_call "c-linker" (fun () ->
     let cmd =
       if mode = Partial then
-        let l_prefix =
+        let (l_prefix, files) =
           match Config.ccomp_type with
-          | "msvc" -> "/libpath:"
-          | _ -> "-L"
+          | "msvc" -> ("/libpath:", expand_libname files)
+          | _ -> ("-L", files)
         in
         Printf.sprintf "%s%s %s %s %s"
           Config.native_pack_linker

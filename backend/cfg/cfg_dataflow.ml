@@ -1,4 +1,4 @@
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-4-30-40-41-42-69"]
 
 open! Int_replace_polymorphic_compare
 module Instr = Numbers.Int

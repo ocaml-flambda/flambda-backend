@@ -14,7 +14,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-4-30-40-41-42-69"]
 
 (* CR-someday vlaviron for mshinwell: I believe that the phantom lets introduced
    in un_anf (when the new debug_full flag is enabled) bind mostly variables

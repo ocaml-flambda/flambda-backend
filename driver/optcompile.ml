@@ -126,8 +126,9 @@ let emit unix i =
 
 let implementation unix ~backend ~flambda2 ~start_from ~source_file
     ~output_prefix ~keep_symbol_tables =
-  let backend info typed =
+  let backend info ({ structure; coercion; _ } : Typedtree.implementation) =
     reset_compilenv ~module_name:info.module_name;
+    let typed = structure, coercion in
     if Config.flambda
     then flambda unix info backend typed
     else if Config.flambda2
@@ -139,7 +140,9 @@ let implementation unix ~backend ~flambda2 ~start_from ~source_file
   | Parsing ->
     Compile_common.implementation
       ~hook_parse_tree:(Compiler_hooks.execute Compiler_hooks.Parse_tree_impl)
-      ~hook_typed_tree:(Compiler_hooks.execute Compiler_hooks.Typed_tree_impl)
+      ~hook_typed_tree:(fun (impl : Typedtree.implementation) ->
+        Compiler_hooks.execute Compiler_hooks.Typed_tree_impl
+          (impl.structure, impl.coercion))
       info ~backend
   | Emit -> emit unix info ~ppf_dump:info.ppf_dump
   | _ -> Misc.fatal_errorf "Cannot start from %s"
