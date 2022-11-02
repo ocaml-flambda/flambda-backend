@@ -207,7 +207,7 @@ let non_escaping_makeblocks_and_required_regions ~escaping ~source_info =
     source_info.T.Acc.map
     (Variable.Map.empty, Name.Set.empty)
 
-let prims_using_ref ~non_escaping_refs ~dom prim =
+let prims_using_block ~non_escaping_blocks ~dom prim =
   match (prim : T.Mutable_prim.t) with
   | Make_block _ -> Variable.Set.empty
   | Is_int block
@@ -219,77 +219,83 @@ let prims_using_ref ~non_escaping_refs ~dom prim =
       | exception Not_found -> block
       | block -> block
     in
-    if Variable.Map.mem block non_escaping_refs
+    if Variable.Map.mem block non_escaping_blocks
     then Variable.Set.singleton block
     else Variable.Set.empty
 
-let continuations_using_refs ~non_escaping_refs ~dom ~(source_info : T.Acc.t) =
+let continuations_using_blocks ~non_escaping_blocks ~dom
+    ~(source_info : T.Acc.t) =
   Continuation.Map.mapi
     (fun _cont (elt : T.Continuation_info.t) ->
       let used =
         List.fold_left
-          (fun used_ref T.Mutable_let_prim.{ prim; _ } ->
-            Variable.Set.union used_ref
-              (prims_using_ref ~non_escaping_refs ~dom prim))
+          (fun used_block T.Mutable_let_prim.{ prim; _ } ->
+            Variable.Set.union used_block
+              (prims_using_block ~non_escaping_blocks ~dom prim))
           Variable.Set.empty elt.mutable_let_prims_rev
       in
       if (not (Variable.Set.is_empty used)) && ref_to_var_debug
       then
-        Format.printf "Cont using ref %a %a@." Continuation.print _cont
+        Format.printf "Cont using block %a %a@." Continuation.print _cont
           Variable.Set.print used;
       used)
     source_info.map
 
-let continuations_defining_refs ~non_escaping_refs ~(source_info : T.Acc.t) =
+let continuations_defining_blocks ~non_escaping_blocks ~(source_info : T.Acc.t)
+    =
   Continuation.Map.mapi
     (fun _cont (elt : T.Continuation_info.t) ->
       let defined =
         List.fold_left
-          (fun defined_refs T.Mutable_let_prim.{ bound_var = var; _ } ->
-            if Variable.Map.mem var non_escaping_refs
-            then Variable.Set.add var defined_refs
-            else defined_refs)
+          (fun defined_blocks T.Mutable_let_prim.{ bound_var = var; _ } ->
+            if Variable.Map.mem var non_escaping_blocks
+            then Variable.Set.add var defined_blocks
+            else defined_blocks)
           Variable.Set.empty elt.mutable_let_prims_rev
       in
       if (not (Variable.Set.is_empty defined)) && ref_to_var_debug
       then
-        Format.printf "Cont defining ref %a %a@." Continuation.print _cont
+        Format.printf "Cont defining block %a %a@." Continuation.print _cont
           Variable.Set.print defined;
       defined)
     source_info.map
 
-let continuations_with_live_block ~non_escaping_refs ~dom ~source_info
+let continuations_with_live_block ~non_escaping_blocks ~dom ~source_info
     ~(control_flow_graph : Control_flow_graph.t) =
-  let continuations_defining_refs =
-    continuations_defining_refs ~non_escaping_refs ~source_info
+  let continuations_defining_blocks =
+    continuations_defining_blocks ~non_escaping_blocks ~source_info
   in
-  let continuations_using_refs =
-    continuations_using_refs ~non_escaping_refs ~dom ~source_info
+  let continuations_using_blocks =
+    continuations_using_blocks ~non_escaping_blocks ~dom ~source_info
   in
-  let continuations_using_refs_but_not_defining_them =
+  let continuations_using_blocks_but_not_defining_them =
     Continuation.Map.merge
       (fun _cont defined used ->
         match defined, used with
         | None, None -> assert false (* *)
         | None, Some _used ->
           Misc.fatal_errorf
-            "In Data_flow: incomplete map of continuation defining refs"
+            "In Data_flow: incomplete map of continuation defining blocks"
         | Some _defined, None ->
           Misc.fatal_errorf
-            "In Data_flow: incomplete map of continuation using refs"
+            "In Data_flow: incomplete map of continuation using blocks"
         | Some defined, Some used -> Some (Variable.Set.diff used defined))
-      continuations_defining_refs continuations_using_refs
+      continuations_defining_blocks continuations_using_blocks
   in
   Control_flow_graph.fixpoint control_flow_graph
-    ~init:continuations_using_refs_but_not_defining_them
-    ~f:(fun ~caller ~caller_set:old_using_refs ~callee:_ ~callee_set:used_refs
+    ~init:continuations_using_blocks_but_not_defining_them
+    ~f:(fun
+         ~caller
+         ~caller_set:old_using_blocks
+         ~callee:_
+         ~callee_set:used_blocks
        ->
-      let defined_refs =
-        Continuation.Map.find caller continuations_defining_refs
+      let defined_blocks =
+        Continuation.Map.find caller continuations_defining_blocks
       in
       Variable.Set.diff
-        (Variable.Set.union old_using_refs used_refs)
-        defined_refs)
+        (Variable.Set.union old_using_blocks used_blocks)
+        defined_blocks)
 
 let list_to_int_map l =
   let _, map =
@@ -307,101 +313,96 @@ let int_map_to_list m = List.map snd (Numeric_types.Int.Map.bindings m)
 module Fold_prims = struct
   type env =
     { bindings : Simple.t Numeric_types.Int.Map.t Variable.Map.t;
-      (* non escaping references bindings *)
+      (* non escaping / unboxed blocks fields values *)
       rewrites : Named_rewrite.t Named_rewrite_id.Map.t
     }
 
-  let apply_prim ~dom ~non_escaping_refs env rewrite_id var
+  let with_unboxed_block ~block ~dom ~env ~non_escaping_blocks ~f =
+    let block =
+      match Variable.Map.find block dom with
+      | exception Not_found -> block
+      | block -> block
+    in
+    match Variable.Map.find block non_escaping_blocks with
+    | exception Not_found -> env
+    | { tag; fields_kinds } -> f ~tag ~fields_kinds
+
+  let with_unboxed_fields ~block ~dom ~env ~f =
+    let block =
+      match Variable.Map.find block dom with
+      | exception Not_found -> block
+      | block -> block
+    in
+    match Variable.Map.find block env.bindings with
+    | exception Not_found -> env
+    | fields -> f fields
+
+  let apply_prim ~dom ~non_escaping_blocks env rewrite_id var
       (prim : T.Mutable_prim.t) =
     match prim with
-    | Is_int block -> (
-      let block =
-        match Variable.Map.find block dom with
-        | exception Not_found -> block
-        | block -> block
-      in
-      match Variable.Map.find block env.bindings with
-      | exception Not_found -> env
-      | _fields ->
-        (* We only consider for unboxing vluaes which are aliases to a single
-           makeblock. In particular, for variants, this means that we only
-           consider for unboxing variant values which are blocks. *)
-        let bound_to = Simple.untagged_const_bool false in
-        let rewrite =
-          Named_rewrite.prim_rewrite
-            (Named_rewrite.Prim_rewrite.replace_by_binding ~var ~bound_to)
-        in
-        { env with
-          rewrites = Named_rewrite_id.Map.add rewrite_id rewrite env.rewrites
-        })
-    | Get_tag block -> (
-      let block =
-        match Variable.Map.find block dom with
-        | exception Not_found -> block
-        | block -> block
-      in
-      match Variable.Map.find block non_escaping_refs with
-      | exception Not_found -> env
-      | { tag; fields_kinds = _ } ->
-        let bound_to = Simple.untagged_const_int (Tag.to_targetint_31_63 tag) in
-        let rewrite =
-          Named_rewrite.prim_rewrite
-            (Named_rewrite.Prim_rewrite.replace_by_binding ~var ~bound_to)
-        in
-        { env with
-          rewrites = Named_rewrite_id.Map.add rewrite_id rewrite env.rewrites
-        })
-    | Block_load { block; field; bak; _ } -> (
-      let block =
-        match Variable.Map.find block dom with
-        | exception Not_found -> block
-        | block -> block
-      in
-      match Variable.Map.find block env.bindings with
-      | exception Not_found -> env
-      | fields ->
-        let rewrite =
-          match Numeric_types.Int.Map.find field fields with
-          | bound_to ->
+    | Is_int block ->
+      with_unboxed_fields ~block ~dom ~env ~f:(fun _fields ->
+          (* We only consider for unboxing vluaes which are aliases to a single
+             makeblock. In particular, for variants, this means that we only
+             consider for unboxing variant values which are blocks. *)
+          let bound_to = Simple.untagged_const_bool false in
+          let rewrite =
             Named_rewrite.prim_rewrite
               (Named_rewrite.Prim_rewrite.replace_by_binding ~var ~bound_to)
-          | exception Not_found ->
-            let k =
-              Flambda_primitive.Block_access_kind.element_kind_for_load bak
-            in
-            Named_rewrite.prim_rewrite (Named_rewrite.Prim_rewrite.invalid k)
-        in
-        { env with
-          rewrites = Named_rewrite_id.Map.add rewrite_id rewrite env.rewrites
-        })
-    | Block_set (bak, _, block, field, value) -> (
-      let block =
-        match Variable.Map.find block dom with
-        | exception Not_found -> block
-        | block -> block
-      in
-      match Variable.Map.find block env.bindings with
-      | exception Not_found -> env
-      | fields ->
-        if ref_to_var_debug
-        then Format.printf "Remove Block set %a@." Variable.print var;
-        let rewrite, fields =
-          if Numeric_types.Int.Map.mem field fields
-          then
-            ( Named_rewrite.prim_rewrite Named_rewrite.Prim_rewrite.remove_prim,
-              Numeric_types.Int.Map.add field value fields )
-          else
-            let k =
-              Flambda_primitive.Block_access_kind.element_kind_for_load bak
-            in
-            ( Named_rewrite.prim_rewrite (Named_rewrite.Prim_rewrite.invalid k),
-              fields )
-        in
-        { bindings = Variable.Map.add block fields env.bindings;
-          rewrites = Named_rewrite_id.Map.add rewrite_id rewrite env.rewrites
-        })
+          in
+          { env with
+            rewrites = Named_rewrite_id.Map.add rewrite_id rewrite env.rewrites
+          })
+    | Get_tag block ->
+      with_unboxed_block ~block ~dom ~env ~non_escaping_blocks
+        ~f:(fun ~tag ~fields_kinds:_ ->
+          let bound_to =
+            Simple.untagged_const_int (Tag.to_targetint_31_63 tag)
+          in
+          let rewrite =
+            Named_rewrite.prim_rewrite
+              (Named_rewrite.Prim_rewrite.replace_by_binding ~var ~bound_to)
+          in
+          { env with
+            rewrites = Named_rewrite_id.Map.add rewrite_id rewrite env.rewrites
+          })
+    | Block_load { block; field; bak; _ } ->
+      with_unboxed_fields ~block ~dom ~env ~f:(fun fields ->
+          let rewrite =
+            match Numeric_types.Int.Map.find field fields with
+            | bound_to ->
+              Named_rewrite.prim_rewrite
+                (Named_rewrite.Prim_rewrite.replace_by_binding ~var ~bound_to)
+            | exception Not_found ->
+              let k =
+                Flambda_primitive.Block_access_kind.element_kind_for_load bak
+              in
+              Named_rewrite.prim_rewrite (Named_rewrite.Prim_rewrite.invalid k)
+          in
+          { env with
+            rewrites = Named_rewrite_id.Map.add rewrite_id rewrite env.rewrites
+          })
+    | Block_set (bak, _, block, field, value) ->
+      with_unboxed_fields ~block ~dom ~env ~f:(fun fields ->
+          if ref_to_var_debug
+          then Format.printf "Remove Block set %a@." Variable.print var;
+          let rewrite, fields =
+            if Numeric_types.Int.Map.mem field fields
+            then
+              ( Named_rewrite.prim_rewrite Named_rewrite.Prim_rewrite.remove_prim,
+                Numeric_types.Int.Map.add field value fields )
+            else
+              let k =
+                Flambda_primitive.Block_access_kind.element_kind_for_load bak
+              in
+              ( Named_rewrite.prim_rewrite (Named_rewrite.Prim_rewrite.invalid k),
+                fields )
+          in
+          { bindings = Variable.Map.add block fields env.bindings;
+            rewrites = Named_rewrite_id.Map.add rewrite_id rewrite env.rewrites
+          })
     | Make_block (_, _, _, values) ->
-      if not (Variable.Map.mem var non_escaping_refs)
+      if not (Variable.Map.mem var non_escaping_blocks)
       then env
       else
         let () =
@@ -416,18 +417,18 @@ module Fold_prims = struct
           rewrites = Named_rewrite_id.Map.add rewrite_id rewrite env.rewrites
         }
 
-  let init_env ~(non_escaping_refs : non_escaping_block Variable.Map.t)
-      ~(refs_needed : Variable.Set.t) ~rewrites =
+  let init_env ~(non_escaping_blocks : non_escaping_block Variable.Map.t)
+      ~(blocks_needed : Variable.Set.t) ~rewrites =
     let env, params =
       Variable.Set.fold
-        (fun ref_needed (env, params) ->
+        (fun block_needed (env, params) ->
           let { tag = _; fields_kinds } =
-            Variable.Map.find ref_needed non_escaping_refs
+            Variable.Map.find block_needed non_escaping_blocks
           in
-          let ref_params =
+          let block_params =
             List.mapi
               (fun i kind ->
-                let name = Variable.unique_name ref_needed in
+                let name = Variable.unique_name block_needed in
                 let var = Variable.create (Printf.sprintf "%s_%i" name i) in
                 Bound_parameter.create var kind)
               fields_kinds
@@ -437,14 +438,14 @@ module Fold_prims = struct
               list_to_int_map
                 (List.map
                    (fun bp -> Simple.var (Bound_parameter.var bp))
-                   ref_params)
+                   block_params)
             in
             { env with
-              bindings = Variable.Map.add ref_needed fields env.bindings
+              bindings = Variable.Map.add block_needed fields env.bindings
             }
           in
-          env, List.rev_append ref_params params)
-        refs_needed
+          env, List.rev_append block_params params)
+        blocks_needed
         ({ bindings = Variable.Map.empty; rewrites }, [])
     in
     env, List.rev params
@@ -459,47 +460,49 @@ module Fold_prims = struct
       in
       Numeric_types.Int.Map.disjoint_union i1 shifted_i2
 
-  let do_stuff ~(non_escaping_refs : non_escaping_block Variable.Map.t)
+  let do_stuff ~(non_escaping_blocks : non_escaping_block Variable.Map.t)
       ~continuations_with_live_block ~dom ~(source_info : T.Acc.t) =
     let rewrites = ref Named_rewrite_id.Map.empty in
     let extra_params_and_args =
       Continuation.Map.mapi
-        (fun cont (refs_needed : Variable.Set.t) ->
+        (fun cont (blocks_needed : Variable.Set.t) ->
           let elt = Continuation.Map.find cont source_info.map in
-          let env, extra_ref_params =
-            init_env ~non_escaping_refs ~refs_needed ~rewrites:!rewrites
+          let env, extra_block_params =
+            init_env ~non_escaping_blocks ~blocks_needed ~rewrites:!rewrites
           in
           let env =
             List.fold_left
               (fun env T.Mutable_let_prim.{ named_rewrite_id; bound_var; prim } ->
-                apply_prim ~dom ~non_escaping_refs env named_rewrite_id
+                apply_prim ~dom ~non_escaping_blocks env named_rewrite_id
                   bound_var prim)
               env
               (List.rev elt.mutable_let_prims_rev)
           in
           rewrites := env.rewrites;
-          let refs_params_to_add cont rewrites =
+          let blocks_params_to_add cont rewrites =
             Apply_cont_rewrite_id.Map.map
               (fun _args ->
                 match
                   Continuation.Map.find cont continuations_with_live_block
                 with
                 | exception Not_found -> Numeric_types.Int.Map.empty
-                | refs_needed ->
+                | blocks_needed ->
                   let extra_args =
                     Variable.Set.fold
-                      (fun ref_needed extra_args ->
-                        let args = Variable.Map.find ref_needed env.bindings in
+                      (fun block_needed extra_args ->
+                        let args =
+                          Variable.Map.find block_needed env.bindings
+                        in
                         append_int_map extra_args args)
-                      refs_needed Numeric_types.Int.Map.empty
+                      blocks_needed Numeric_types.Int.Map.empty
                   in
                   extra_args)
               rewrites
           in
           let new_apply_cont_args =
-            Continuation.Map.mapi refs_params_to_add elt.apply_cont_args
+            Continuation.Map.mapi blocks_params_to_add elt.apply_cont_args
           in
-          extra_ref_params, new_apply_cont_args)
+          extra_block_params, new_apply_cont_args)
         continuations_with_live_block
     in
     extra_params_and_args, !rewrites
@@ -512,10 +515,10 @@ let create ~(dom : Dominator_graph.alias_map) ~(dom_graph : Dominator_graph.t)
     escaping ~dom ~dom_graph ~source_info ~required_names ~return_continuation
       ~exn_continuation
   in
-  let non_escaping_refs, required_regions =
+  let non_escaping_blocks, required_regions =
     non_escaping_makeblocks_and_required_regions ~escaping ~source_info
   in
-  if (not (Variable.Map.is_empty non_escaping_refs)) && ref_to_var_debug
+  if (not (Variable.Map.is_empty non_escaping_blocks)) && ref_to_var_debug
   then
     Format.printf "Non escaping makeblocks %a@."
       (Variable.Map.print (fun ppf { tag; fields_kinds } ->
@@ -523,9 +526,9 @@ let create ~(dom : Dominator_graph.alias_map) ~(dom_graph : Dominator_graph.t)
              (Format.pp_print_list ~pp_sep:Format.pp_print_space
                 Flambda_kind.With_subkind.print)
              fields_kinds))
-      non_escaping_refs;
+      non_escaping_blocks;
   let continuations_with_live_block =
-    continuations_with_live_block ~non_escaping_refs ~dom ~source_info
+    continuations_with_live_block ~non_escaping_blocks ~dom ~source_info
       ~control_flow_graph
   in
   let toplevel_used =
@@ -535,14 +538,14 @@ let create ~(dom : Dominator_graph.alias_map) ~(dom_graph : Dominator_graph.t)
   if not (Variable.Set.is_empty toplevel_used)
   then
     Misc.fatal_errorf
-      "Toplevel continuation cannot have needed extra argument for ref: %a@."
+      "Toplevel continuation cannot have needed extra argument for block: %a@."
       Variable.Set.print toplevel_used;
   let extra_params_and_args, rewrites =
     Fold_prims.do_stuff ~dom ~source_info ~continuations_with_live_block
-      ~non_escaping_refs
+      ~non_escaping_blocks
   in
   { extra_params_and_args;
-    non_escaping_makeblocks = non_escaping_refs;
+    non_escaping_makeblocks = non_escaping_blocks;
     continuations_with_live_block;
     rewrites;
     required_regions
@@ -552,11 +555,11 @@ let pp_node { non_escaping_makeblocks = _; continuations_with_live_block; _ }
     ppf cont =
   match Continuation.Map.find cont continuations_with_live_block with
   | exception Not_found -> ()
-  | live_refs -> Format.fprintf ppf " %a" Variable.Set.print live_refs
+  | live_blocks -> Format.fprintf ppf " %a" Variable.Set.print live_blocks
 
 let add_to_extra_params_and_args result =
   let epa = Continuation.Map.empty in
-  let extra_ref_args :
+  let extra_block_args :
       EPA.Extra_arg.t Apply_cont_rewrite_id.Map.t list Continuation.Map.t =
     Continuation.Map.fold
       (fun _caller_cont (_extra_params, extra_args) all_extra_args ->
@@ -626,7 +629,7 @@ let add_to_extra_params_and_args result =
             in
             Some epa_for_cont)
           epa)
-      extra_ref_args epa
+      extra_block_args epa
   in
   epa
 
