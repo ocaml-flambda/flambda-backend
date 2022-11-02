@@ -460,7 +460,8 @@ module Fold_prims = struct
       in
       Numeric_types.Int.Map.disjoint_union i1 shifted_i2
 
-  let do_stuff ~(non_escaping_blocks : non_escaping_block Variable.Map.t)
+  let compute_rewrites
+      ~(non_escaping_blocks : non_escaping_block Variable.Map.t)
       ~continuations_with_live_block ~dom ~(source_info : T.Acc.t) =
     let rewrites = ref Named_rewrite_id.Map.empty in
     let extra_params_and_args =
@@ -541,7 +542,7 @@ let create ~(dom : Dominator_graph.alias_map) ~(dom_graph : Dominator_graph.t)
       "Toplevel continuation cannot have needed extra argument for block: %a@."
       Variable.Set.print toplevel_used;
   let extra_params_and_args, rewrites =
-    Fold_prims.do_stuff ~dom ~source_info ~continuations_with_live_block
+    Fold_prims.compute_rewrites ~dom ~source_info ~continuations_with_live_block
       ~non_escaping_blocks
   in
   { extra_params_and_args;
