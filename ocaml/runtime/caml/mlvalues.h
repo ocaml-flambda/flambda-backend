@@ -251,14 +251,18 @@ CAMLextern value caml_get_public_method (value obj, value tag);
    to the environment part. */
 #ifdef ARCH_SIXTYFOUR
 #define Arity_closinfo(info) ((intnat)(info) >> 56)
-#define Start_env_closinfo(info) (((uintnat)(info) << 8) >> 9)
-#define Make_closinfo(arity,delta) \
-  (((uintnat)(arity) << 56) + ((uintnat)(delta) << 1) + 1)
+#define Start_env_closinfo(info) (((uintnat)(info) << 9) >> 10)
+#define Is_last_closinfo(info) (((uintnat)(info) << 8) >> 63)
+#define Make_closinfo(arity,delta,is_last) \
+  (((uintnat)(arity) << 56) + ((uintnat)(is_last) << 55) \
+    + ((uintnat)(delta) << 1) + 1)
 #else
 #define Arity_closinfo(info) ((intnat)(info) >> 24)
-#define Start_env_closinfo(info) (((uintnat)(info) << 8) >> 9)
-#define Make_closinfo(arity,delta) \
-  (((uintnat)(arity) << 24) + ((uintnat)(delta) << 1) + 1)
+#define Start_env_closinfo(info) (((uintnat)(info) << 9) >> 10)
+#define Is_last_closinfo(info) (((uintnat)(info) << 8) >> 31)
+#define Make_closinfo(arity,delta,is_last) \
+  (((uintnat)(arity) << 24) + ((uintnat)(is_last) << 23) \
+    + ((uintnat)(delta) << 1) + 1)
 #endif
 
 /* This tag is used (with Forward_tag) to implement lazy values.

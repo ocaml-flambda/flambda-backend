@@ -105,7 +105,7 @@ end) : sig
 end = struct
   (* The [offset]s here are measured in units of words. *)
   let fill_slot for_static_sets decls dbg ~startenv value_slots env res acc
-      ~slot_offset updates slot =
+      ~slot_offset updates slot ~is_last =
     match (slot : Slot_offsets.Layout.slot) with
     | Infix_header ->
       let field = P.infix_header ~function_slot_offset:(slot_offset + 1) ~dbg in
@@ -142,7 +142,7 @@ end = struct
         get_func_decl_params_arity env code_id
       in
       let closure_info =
-        C.closure_info ~arity ~startenv:(startenv - slot_offset)
+        C.closure_info ~arity ~startenv:(startenv - slot_offset) ~is_last
       in
       let acc =
         match for_static_sets with
@@ -191,6 +191,19 @@ end = struct
 
   let rec fill_layout0 for_static_sets decls dbg ~startenv value_slots env res
       effs acc updates ~starting_offset slots =
+    let last_function_slot_offset =
+      List.fold_left
+        (fun last_function_slot_offset
+             (slot_offset, (slot : Slot_offsets.Layout.slot)) ->
+          match slot with
+          | Function_slot _ ->
+            (* [Slot_offsets] claims that [slots] is sorted with the earliest
+               slot first. *)
+            assert (slot_offset > last_function_slot_offset);
+            slot_offset
+          | Value_slot _ | Infix_header -> last_function_slot_offset)
+        (-1) slots
+    in
     match slots with
     | [] -> List.rev acc, starting_offset, env, res, effs, updates
     | (slot_offset, slot) :: slots ->
@@ -205,9 +218,10 @@ end = struct
           List.init (slot_offset - starting_offset) (fun _ -> P.int ~dbg 1n)
           @ acc
       in
+      let is_last = slot_offset = last_function_slot_offset in
       let acc, next_offset, env, res, eff, updates =
         fill_slot for_static_sets decls dbg ~startenv value_slots env res acc
-          ~slot_offset updates slot
+          ~slot_offset updates slot ~is_last
       in
       let effs = Ece.join eff effs in
       fill_layout0 for_static_sets decls dbg ~startenv value_slots env res effs
