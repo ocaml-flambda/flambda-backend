@@ -351,7 +351,7 @@ module Fold_prims = struct
         { env with
           rewrites = Named_rewrite_id.Map.add rewrite_id rewrite env.rewrites
         })
-    | Block_load { block; field; _ } -> (
+    | Block_load { block; field; bak; _ } -> (
       let block =
         match Variable.Map.find block dom with
         | exception Not_found -> block
@@ -366,12 +366,13 @@ module Fold_prims = struct
             Named_rewrite.prim_rewrite
               (Named_rewrite.Prim_rewrite.replace_by_binding ~var ~bound_to)
           | exception Not_found ->
-            Named_rewrite.prim_rewrite Named_rewrite.Prim_rewrite.invalid
+            let k = Flambda_primitive.Block_access_kind.element_kind_for_load bak in
+            Named_rewrite.prim_rewrite (Named_rewrite.Prim_rewrite.invalid k)
         in
         { env with
           rewrites = Named_rewrite_id.Map.add rewrite_id rewrite env.rewrites
         })
-    | Block_set (_, _, block, field, value) -> (
+    | Block_set (bak, _, block, field, value) -> (
       let block =
         match Variable.Map.find block dom with
         | exception Not_found -> block
@@ -388,7 +389,8 @@ module Fold_prims = struct
             ( Named_rewrite.prim_rewrite Named_rewrite.Prim_rewrite.remove_prim,
               Numeric_types.Int.Map.add field value fields )
           else
-            ( Named_rewrite.prim_rewrite Named_rewrite.Prim_rewrite.invalid,
+            let k = Flambda_primitive.Block_access_kind.element_kind_for_load bak in
+            ( Named_rewrite.prim_rewrite (Named_rewrite.Prim_rewrite.invalid k),
               fields )
         in
         { bindings = Variable.Map.add block fields env.bindings;

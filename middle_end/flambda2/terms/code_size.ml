@@ -304,6 +304,8 @@ let binary_float_comp_primitive _op = 2
 
 let nullary_prim_size prim =
   match (prim : Flambda_primitive.nullary_primitive) with
+  (* CR gbury: check this *)
+  | Invalid _ -> 0
   | Optimised_out _ -> 0
   | Probe_is_enabled { name = _ } -> 4
   | Begin_region -> 1

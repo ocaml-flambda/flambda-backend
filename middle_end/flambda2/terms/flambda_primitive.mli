@@ -100,6 +100,8 @@ module Block_access_kind : sig
   val print : Format.formatter -> t -> unit
 
   val compare : t -> t -> int
+
+  val element_kind_for_load : t -> Flambda_kind.t
 end
 
 (* CR-someday mshinwell: We should have unboxed arrays of int32, int64 and
@@ -191,6 +193,11 @@ type signed_or_unsigned =
 
 (** Primitives taking exactly zero arguments. *)
 type nullary_primitive =
+  | Invalid of Flambda_kind.t
+      (** Used when rebuilding a primitive that turns out to be invalid.
+          This is easier to use than turning a whole let-binding into Invalid
+          (which might end up deleting code on the way up, resulting in a
+          typing env out-of-sync with the generated code). *)
   | Optimised_out of Flambda_kind.t
       (** Used for phantom bindings for which there is not enough information
           remaining to build a meaningful value. Can only be used in a phantom
