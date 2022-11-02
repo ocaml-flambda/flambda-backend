@@ -88,8 +88,9 @@ let rebuild_let simplify_named_result removed_operations ~rewrite_id
       | [binding] -> (
         match rewrite with
         | Prim_rewrite Invalid ->
-          [], RE.create_invalid (Flambda.Invalid.Message "prim_rewrite_invalid"),
-          UA.clear_name_occurrences uacc
+          ( [],
+            RE.create_invalid (Flambda.Invalid.Message "prim_rewrite_invalid"),
+            UA.clear_name_occurrences uacc )
         | Prim_rewrite Remove_prim ->
           (* TODO add benefit for removed prim here and below *)
           [], body, uacc

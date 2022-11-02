@@ -394,12 +394,13 @@ module Fold_prims = struct
         if ref_to_var_debug
         then Format.printf "Remove Block set %a@." Variable.print var;
         let rewrite, fields =
-          if Numeric_types.Int.Map.mem field fields then
-            Named_rewrite.prim_rewrite Named_rewrite.Prim_rewrite.remove_prim,
-            Numeric_types.Int.Map.add field value fields
+          if Numeric_types.Int.Map.mem field fields
+          then
+            ( Named_rewrite.prim_rewrite Named_rewrite.Prim_rewrite.remove_prim,
+              Numeric_types.Int.Map.add field value fields )
           else
-            Named_rewrite.prim_rewrite Named_rewrite.Prim_rewrite.invalid,
-            fields
+            ( Named_rewrite.prim_rewrite Named_rewrite.Prim_rewrite.invalid,
+              fields )
         in
         { bindings = Variable.Map.add block fields env.bindings;
           rewrites = Named_rewrite_id.Map.add rewrite_id rewrite env.rewrites
