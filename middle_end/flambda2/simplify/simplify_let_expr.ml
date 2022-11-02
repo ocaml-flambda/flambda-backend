@@ -91,6 +91,7 @@ let rebuild_let simplify_named_result removed_operations ~rewrite_id
           [], RE.create_invalid (Flambda.Invalid.Message "prim_rewrite_invalid"),
           UA.clear_name_occurrences uacc
         | Prim_rewrite Remove_prim ->
+          (* TODO add benefit for removed prim here and below *)
           [], body, uacc
         | Prim_rewrite (Replace_by_binding { var; bound_to }) ->
           let bv = Bound_pattern.must_be_singleton binding.let_bound in
