@@ -2077,10 +2077,13 @@ let call_caml_apply ty mut clos args pos mode dbg =
   in
   if !Flambda_backend_flags.caml_apply_inline_fast_path
   then
-    (*    (if (= clos.arity N)
+    (* Generate the following expression:
+     *  (if (= clos.arity N)
      *      (app clos.direct a1 ... aN clos)
-     *      (app call_caml_applyN a1 .. aN clos)
+     *      (app caml_applyN a1 .. aN clos)
      *)
+    (* CR-someday gyorsh: in the [else] case above, call another version of
+       caml_applyN that has only the cold path. *)
     bind_list "arg" args (fun args ->
         bind "fun" clos (fun clos ->
             Cifthenelse
