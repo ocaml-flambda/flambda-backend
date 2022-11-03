@@ -6591,6 +6591,7 @@ toplevel/topcommon.cmo : \
     parsing/longident.cmi \
     parsing/location.cmi \
     utils/load_path.cmi \
+    utils/linkage_name.cmi \
     parsing/lexer.cmi \
     typing/ident.cmi \
     toplevel/genprintval.cmi \
@@ -6618,6 +6619,7 @@ toplevel/topcommon.cmx : \
     parsing/longident.cmx \
     parsing/location.cmx \
     utils/load_path.cmx \
+    utils/linkage_name.cmx \
     parsing/lexer.cmx \
     typing/ident.cmx \
     toplevel/genprintval.cmx \
