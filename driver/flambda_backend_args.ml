@@ -408,6 +408,10 @@ let mk_dfreshen f =
   "-dfreshen", Arg.Unit f, " Freshen bound names when printing (Flambda 2 only)"
 ;;
 
+let mk_dflow f =
+  "-dflow", Arg.Unit f, " Dump debug info for the flow computation (Flambda 2 only)"
+;;
+
 module Debugging = Dwarf_flags
 
 (* CR mshinwell: These help texts should show the default values. *)
@@ -512,6 +516,7 @@ module type Flambda_backend_options = sig
   val dflexpect : unit -> unit
   val dslot_offsets : unit -> unit
   val dfreshen : unit -> unit
+  val dflow : unit -> unit
 end
 
 module Make_flambda_backend_options (F : Flambda_backend_options) =
@@ -614,6 +619,7 @@ struct
     mk_dflexpect F.dflexpect;
     mk_dslot_offsets F.dslot_offsets;
     mk_dfreshen F.dfreshen;
+    mk_dflow F.dflow;
   ]
 end
 
@@ -774,6 +780,7 @@ module Flambda_backend_options_impl = struct
   let dflexpect = set' Flambda2.Dump.flexpect
   let dslot_offsets = set' Flambda2.Dump.slot_offsets
   let dfreshen = set' Flambda2.Dump.freshen
+  let dflow = set' Flambda2.Dump.flow
 end
 
 module type Debugging_options = sig

@@ -74,45 +74,49 @@ let rebuild_let simplify_named_result removed_operations ~rewrite_id
   let bindings =
     Simplify_named_result.bindings_to_place_in_any_order simplify_named_result
   in
-  let bindings =
+  let uacc, bindings =
     let Flow_types.Mutable_unboxing_result.{ let_rewrites; _ } =
       UA.mutable_unboxing_result uacc
     in
     match Named_rewrite_id.Map.find rewrite_id let_rewrites with
-    | exception Not_found -> bindings
+    | exception Not_found -> uacc, bindings
     | rewrite -> (
-      (* Format.printf "Rewrite %a@." Data_flow.print_rewrite rewrite; *)
       match bindings with
-      | [] -> []
+      | [] -> uacc, []
       | _ :: _ :: _ -> assert false
       | [binding] -> (
-        match rewrite with
-        | Prim_rewrite Remove_prim ->
-          (* TODO: add benefit for removed prim here and below *)
-          []
-        | Prim_rewrite (Invalid k) ->
-          (* CR gbury: try and add debuginfo in
-             {Simplify_named_result.binding_to_place} ? *)
-          let dbg = Debuginfo.none in
-          let prim : P.t = Nullary (Invalid k) in
-          let binding =
-            { binding with
-              simplified_defining_expr =
-                Simplified_named.create (Named.create_prim prim dbg)
-            }
+        match rewrite, binding.original_defining_expr with
+        | Prim_rewrite prim_rewrite, Prim (original_prim, dbg) ->
+          let uacc = UA.notify_removed ~operation:(Removed_operations.prim original_prim) uacc in
+          let new_bindings =
+            match prim_rewrite with
+          | Remove_prim ->
+            []
+          | Invalid k ->
+            let prim : P.t = Nullary (Invalid k) in
+            let binding =
+              { binding with
+                simplified_defining_expr =
+                  Simplified_named.create (Named.create_prim prim dbg)
+              }
+            in
+            [binding]
+          | Replace_by_binding { var; bound_to } ->
+            let bv = Bound_pattern.must_be_singleton binding.let_bound in
+            let var' = Bound_var.var bv in
+            assert (Variable.equal var var');
+            let binding =
+              { binding with
+                simplified_defining_expr =
+                  Simplified_named.create (Named.create_simple bound_to)
+              }
+            in
+            [binding]
           in
-          [binding]
-        | Prim_rewrite (Replace_by_binding { var; bound_to }) ->
-          let bv = Bound_pattern.must_be_singleton binding.let_bound in
-          let var' = Bound_var.var bv in
-          assert (Variable.equal var var');
-          let binding =
-            { binding with
-              simplified_defining_expr =
-                Simplified_named.create (Named.create_simple bound_to)
-            }
-          in
-          [binding]))
+          uacc, new_bindings
+        | Prim_rewrite _, (Simple _ | Set_of_closures _ | Static_consts _ | Rec_info _) ->
+          Misc.fatal_errorf "Prim_rewrite applied to a non-prim Named.t"
+      ))
   in
   (* Return as quickly as possible if there is nothing to do. In this case, all
      constants get floated up to an outer binding. *)

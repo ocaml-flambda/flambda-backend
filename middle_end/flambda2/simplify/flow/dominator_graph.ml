@@ -145,8 +145,6 @@ let create ~required_names ~return_continuation ~exn_continuation map =
         { t with graph })
       all_variables t
   in
-  (* Format.eprintf "GRAPH:@\n%a@." (Variable.Map.print Variable.Set.print)
-     t.graph; *)
   t
 
 let find_dom var doms =

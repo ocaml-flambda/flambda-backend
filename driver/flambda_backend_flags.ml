@@ -122,6 +122,7 @@ module Flambda2 = struct
     let flexpect = ref false
     let slot_offsets = ref false
     let freshen = ref false
+    let flow = ref false
   end
 
   module Expert = struct

@@ -13,36 +13,36 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* Rewriting of primitives. Currently this is only used by the mutable unboxing
-   (aka ref-to-var) analysis, and these rewrite are applied when going upwards
-   and rebuilding expressions. *)
-module Prim_rewrite = struct
-  type t =
+module Prim_rewrite : sig
+
+  (** Rewrite for primitives *)
+  type t = private
     | Remove_prim
     | Invalid of Flambda_kind.t
     | Replace_by_binding of
         { var : Variable.t;
           bound_to : Simple.t
-        }
+        } (**)
 
-  let print ppf = function
-    | Invalid _ -> Format.fprintf ppf "Invalid"
-    | Remove_prim -> Format.fprintf ppf "Remove_prim"
-    | Replace_by_binding { var; bound_to } ->
-      Format.fprintf ppf "Replace_by_binding { %a = %a }" Variable.print var
-        Simple.print bound_to
+  val print : Format.formatter -> t -> unit
 
-  let invalid k = Invalid k
+  (** Replace the primitive by the [Invalid] primitive. *)
+  val invalid : Flambda_kind.t -> t
 
-  let remove_prim = Remove_prim
+  (** Remove the primitve (and its binding) *)
+  val remove_prim : t
 
-  let replace_by_binding ~var ~bound_to = Replace_by_binding { var; bound_to }
+  (** Replace the primitive by the given [Simple.t] *)
+  val replace_by_binding : var:Variable.t -> bound_to:Simple.t -> t
+
 end
 
-(* We currently only rewrite primitives *)
-type t = Prim_rewrite of Prim_rewrite.t
+(** Named rewrites. These apply at [let_expr] constructions. *)
+type t = private
+  | Prim_rewrite of Prim_rewrite.t
 
-let print ppf = function
-  | Prim_rewrite prim_rewrite -> Prim_rewrite.print ppf prim_rewrite
+val print : Format.formatter -> t -> unit
 
-let prim_rewrite prim_rewrite = Prim_rewrite prim_rewrite
+val prim_rewrite : Prim_rewrite.t -> t
+
+

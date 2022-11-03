@@ -15,8 +15,6 @@
 module T = Flow_types
 module EPA = Continuation_extra_params_and_args
 
-let ref_to_var_debug = Sys.getenv_opt "RTV" <> None
-
 (* Types *)
 
 type non_escaping_block =
@@ -234,7 +232,7 @@ let continuations_using_blocks ~non_escaping_blocks ~dom
               (prims_using_block ~non_escaping_blocks ~dom prim))
           Variable.Set.empty elt.mutable_let_prims_rev
       in
-      if (not (Variable.Set.is_empty used)) && ref_to_var_debug
+      if (not (Variable.Set.is_empty used)) && Flambda_features.dump_flow ()
       then
         Format.printf "Cont using block %a %a@." Continuation.print _cont
           Variable.Set.print used;
@@ -253,7 +251,7 @@ let continuations_defining_blocks ~non_escaping_blocks ~(source_info : T.Acc.t)
             else defined_blocks)
           Variable.Set.empty elt.mutable_let_prims_rev
       in
-      if (not (Variable.Set.is_empty defined)) && ref_to_var_debug
+      if (not (Variable.Set.is_empty defined)) && Flambda_features.dump_flow ()
       then
         Format.printf "Cont defining block %a %a@." Continuation.print _cont
           Variable.Set.print defined;
@@ -390,7 +388,7 @@ module Fold_prims = struct
           })
     | Block_set { bak; block; field; value } ->
       with_unboxed_fields ~block ~dom ~env ~f:(fun ~block fields ->
-          if ref_to_var_debug
+          if Flambda_features.dump_flow ()
           then Format.printf "Remove Block set %a@." Variable.print var;
           let rewrite, fields =
             if Numeric_types.Int.Map.mem field fields
@@ -410,18 +408,16 @@ module Fold_prims = struct
     | Make_block { fields; _ } ->
       if not (Variable.Map.mem var non_escaping_blocks)
       then env
-      else
-        let () =
-          if ref_to_var_debug
-          then Format.printf "Remove Makeblock %a@." Variable.print var
-        in
+      else (
+        if Flambda_features.dump_flow ()
+        then Format.printf "Remove Makeblock %a@." Variable.print var;
         let rewrite =
           Named_rewrite.prim_rewrite Named_rewrite.Prim_rewrite.remove_prim
         in
         let fields = list_to_int_map fields in
         { bindings = Variable.Map.add var fields env.bindings;
           rewrites = Named_rewrite_id.Map.add rewrite_id rewrite env.rewrites
-        }
+        })
 
   let init_env ~(non_escaping_blocks : non_escaping_block Variable.Map.t)
       ~(blocks_needed : Variable.Set.t) ~rewrites =
@@ -525,7 +521,7 @@ let create ~(dom : Dominator_graph.alias_map) ~(dom_graph : Dominator_graph.t)
   let non_escaping_blocks, required_regions =
     non_escaping_makeblocks_and_required_regions ~escaping ~source_info
   in
-  if (not (Variable.Map.is_empty non_escaping_blocks)) && ref_to_var_debug
+  if (not (Variable.Map.is_empty non_escaping_blocks)) && Flambda_features.dump_flow ()
   then
     Format.printf "Non escaping makeblocks %a@."
       (Variable.Map.print (fun ppf { tag; fields_kinds } ->

@@ -14,42 +14,47 @@
 
 module T = Flow_types
 
-let debug = Sys.getenv_opt "DF" <> None
-
-let ref_to_var_debug = Sys.getenv_opt "RTV" <> None
-
-let r = ref ~-1
+(* debugging code *)
 
 let dominator_graph_ppf =
   lazy
-    (match Sys.getenv_opt "DOM_GRAPH" with
-    | None -> None
-    | Some filename ->
-      let ch = open_out filename in
-      let ppf = Format.formatter_of_out_channel ch in
-      Format.fprintf ppf "digraph g {@\n";
-      at_exit (fun () ->
-          Format.fprintf ppf "@\n}@.";
-          close_out ch);
-      Some ppf)
+    (let filename = "dom.dot" in
+     let ch = open_out filename in
+     let ppf = Format.formatter_of_out_channel ch in
+     Format.fprintf ppf "digraph g {@\n";
+     at_exit (fun () ->
+         Format.fprintf ppf "@\n}@.";
+         close_out ch);
+     ppf)
 
 let control_flow_graph_ppf =
-  lazy
-    (match Sys.getenv_opt "FLOW_GRAPH" with
-    | None -> None
-    | Some filename ->
+  lazy (
+    let filename = "flow.dot" in
       let ch = open_out filename in
       let ppf = Format.formatter_of_out_channel ch in
       Format.fprintf ppf "digraph g {@\n";
       at_exit (fun () ->
           Format.fprintf ppf "@\n}@.";
           close_out ch);
-      Some ppf)
+      ppf)
+
+let dot_count = ref ~-1
+let print_graph ~print ~print_name ~lazy_ppf ~graph =
+    match print_name with
+    | None -> ()
+    | Some print_name ->
+      incr dot_count;
+      let ppf = Lazy.force lazy_ppf in
+      print ~ctx:!dot_count ~print_name ppf graph
+
+(* analysis *)
 
 let analyze ?(speculative = false) ?print_name ~return_continuation
     ~exn_continuation ~code_age_relation ~used_value_slots t : T.Flow_result.t =
   Profile.record_call ~accumulate:true "data_flow" (fun () ->
-      if debug then Format.eprintf "PRESOURCE:@\n%a@\n@." T.Acc.print t;
+      if Flambda_features.dump_flow () then
+        Format.eprintf "PRESOURCE:@\n%a@\n@." T.Acc.print t;
+      (* Accumulator normalization *)
       let ({ T.Acc.stack; map; extra = _; dummy_toplevel_cont } as t) =
         Flow_acc.extend_args_with_extra_args t
       in
@@ -58,14 +63,16 @@ let analyze ?(speculative = false) ?print_name ~return_continuation
         not
           (Continuation.name dummy_toplevel_cont
           = Flow_acc.wrong_dummy_toplevel_cont_name));
-      if debug then Format.eprintf "SOURCE:@\n%a@\n@." T.Acc.print t;
-      (* Dead variable analysis *)
+      if Flambda_features.dump_flow () then
+        Format.eprintf "SOURCE:@\n%a@\n@." T.Acc.print t;
+      (* dependency graph *)
       let deps =
         Data_flow_graph.create map ~return_continuation ~exn_continuation
           ~code_age_relation ~used_value_slots
       in
-      if debug
+      if Flambda_features.dump_flow ()
       then Format.eprintf "/// graph@\n%a@\n@." Data_flow_graph.print deps;
+      (* Dead variable analysis *)
       let dead_variable_result = Data_flow_graph.required_names deps in
       (* Aliases analysis *)
       let dom_graph =
@@ -74,15 +81,10 @@ let analyze ?(speculative = false) ?print_name ~return_continuation
       in
       let aliases = Dominator_graph.dominator_analysis dom_graph in
       let aliases_kind = Dominator_graph.aliases_kind dom_graph aliases in
-      (match print_name with
-      | None -> ()
-      | Some print_name ->
-        Option.iter
-          (fun ppf ->
-            incr r;
-            Dominator_graph.Dot.print ~print_name ~ctx:!r ~doms:aliases ppf
-              dom_graph)
-          (Lazy.force dominator_graph_ppf));
+      if Flambda_features.dump_flow ()
+      then print_graph ~print_name ~lazy_ppf:dominator_graph_ppf ~graph:dom_graph
+          ~print:(Dominator_graph.Dot.print ~doms:aliases);
+      (* control flow graph *)
       let control = Control_flow_graph.create ~dummy_toplevel_cont t in
       let reference_analysis =
         Mutable_unboxing.create ~dom:aliases ~dom_graph ~source_info:t
@@ -99,16 +101,11 @@ let analyze ?(speculative = false) ?print_name ~return_continuation
           ~speculative ~source_info:t aliases control
           ~required_names:dead_variable_result.required_names ~unboxed_blocks
       in
-      (match print_name with
-      | None -> ()
-      | Some print_name ->
-        Option.iter
-          (fun ppf ->
-            incr r;
-            Control_flow_graph.Dot.print ~df:t ~print_name ~ctx:!r ppf
+      if Flambda_features.dump_flow ()
+      then print_graph ~print_name ~lazy_ppf:control_flow_graph_ppf ~graph:control
+          ~print:(Control_flow_graph.Dot.print ~df:t
               ~return_continuation ~exn_continuation ~continuation_parameters
-              ~pp_node control)
-          (Lazy.force control_flow_graph_ppf));
+              ~pp_node);
       let required_names_after_ref_reference_analysis =
         (* CR pchambart/gbury: this is an overapproximation of actually used new
            parameters. We might want to filter this using another round of
@@ -123,7 +120,6 @@ let analyze ?(speculative = false) ?print_name ~return_continuation
           reference_result.T.Mutable_unboxing_result.additionnal_epa
           (Name.Set.union dead_variable_result.required_names required_regions)
       in
-      (* Return *)
       let result =
         T.Flow_result.
           { data_flow_result =
@@ -134,14 +130,8 @@ let analyze ?(speculative = false) ?print_name ~return_continuation
             mutable_unboxing_result = reference_result
           }
       in
-      if (not
-            (Named_rewrite_id.Map.is_empty
-               result.mutable_unboxing_result.let_rewrites))
-         && ref_to_var_debug
+      if Flambda_features.dump_flow ()
       then
-        Format.printf "let_rewrites %a@."
-          (Named_rewrite_id.Map.print Named_rewrite.print)
-          result.mutable_unboxing_result.let_rewrites;
-      if debug
-      then Format.eprintf "/// result@\n%a@\n@." T.Flow_result.print result;
+        Format.eprintf "/// result@\n%a@\n@." T.Flow_result.print result;
+      (* return *)
       result)

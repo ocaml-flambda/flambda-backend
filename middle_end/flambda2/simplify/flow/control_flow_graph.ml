@@ -318,7 +318,7 @@ let compute_continuation_extra_args_for_aliases ~speculative ~required_names
   if (not speculative)
      && not (Variable.Set.is_empty extra_args_for_toplevel_cont)
   then
-    Format.eprintf
+    Misc.fatal_errorf
       "ERROR:@\n\
        Toplevel continuation cannot have needed extra argument for aliases: \
        %a@."
