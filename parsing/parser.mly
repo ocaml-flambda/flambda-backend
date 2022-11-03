@@ -170,9 +170,9 @@ let local_ext_loc loc = mkloc "extension.local" loc
 let local_attr loc =
   Builtin_attributes.mk_internal ~loc (local_ext_loc loc) (PStr [])
 
-let local_extension =
+let local_extension loc =
   Exp.mk ~loc:Location.none
-    (Pexp_extension(local_ext_loc Location.none, PStr []))
+    (Pexp_extension(local_ext_loc loc, PStr []))
 
 let include_functor_ext_loc loc = mkloc "extension.include_functor" loc
 
@@ -180,8 +180,8 @@ let include_functor_attr loc =
   Builtin_attributes.mk_internal ~loc:loc (include_functor_ext_loc loc)
     (PStr [])
 
-let mkexp_stack ~loc exp =
-  ghexp ~loc (Pexp_apply(local_extension, [Nolabel, exp]))
+let mkexp_stack ~loc ~kwd_loc exp =
+  ghexp ~loc (Pexp_apply(local_extension (make_loc kwd_loc), [Nolabel, exp]))
 
 let mkpat_stack pat loc =
   {pat with ppat_attributes = local_attr loc :: pat.ppat_attributes}
@@ -192,8 +192,8 @@ let mktyp_stack typ loc =
 let wrap_exp_stack exp loc =
   {exp with pexp_attributes = local_attr loc :: exp.pexp_attributes}
 
-let mkexp_local_if p ~loc exp =
-  if p then mkexp_stack ~loc exp else exp
+let mkexp_local_if p ~loc ~kwd_loc exp =
+  if p then mkexp_stack ~loc ~kwd_loc exp else exp
 
 let mkpat_local_if p pat loc =
   if p then mkpat_stack pat (make_loc loc) else pat
@@ -2401,7 +2401,7 @@ expr:
      { not_expecting $loc($1) "wildcard \"_\"" }
 /* END AVOID */
   | LOCAL seq_expr
-     { mkexp_stack ~loc:$sloc $2 }
+     { mkexp_stack ~loc:$sloc ~kwd_loc:($loc($1)) $2 }
 ;
 %inline expr_attrs:
   | LET MODULE ext_attributes mkrhs(module_name) module_binding_body IN seq_expr
@@ -2659,7 +2659,7 @@ let_binding_body_no_punning:
             local_loc
         in
         let exp =
-          mkexp_local_if $1 ~loc:$sloc
+          mkexp_local_if $1 ~loc:$sloc ~kwd_loc:($loc($1))
             (wrap_exp_local_if $1 (mkexp_constraint ~loc:$sloc $5 $3)
                local_loc)
         in
@@ -2672,7 +2672,7 @@ let_binding_body_no_punning:
                (Ppat_constraint($2, ghtyp ~loc:($loc($4)) $4)))
             $loc($1)
         in
-        let exp = mkexp_local_if $1 ~loc:$sloc $6 in
+        let exp = mkexp_local_if $1 ~loc:$sloc ~kwd_loc:($loc($1)) $6 in
         (pat, exp) }
   | let_ident COLON TYPE lident_list DOT core_type EQUAL seq_expr
       { let exp, poly =
@@ -2685,7 +2685,7 @@ let_binding_body_no_punning:
       { let loc = ($startpos($1), $endpos($3)) in
         (ghpat ~loc (Ppat_constraint($1, $3)), $5) }
   | LOCAL let_ident local_strict_binding
-      { ($2, mkexp_stack ~loc:$sloc $3) }
+      { ($2, mkexp_stack ~loc:$sloc ~kwd_loc:($loc($1)) $3) }
 ;
 let_binding_body:
   | let_binding_body_no_punning
