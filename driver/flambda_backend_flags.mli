@@ -90,6 +90,7 @@ module Flambda2 : sig
     val flexpect : bool ref
     val slot_offsets : bool ref
     val freshen : bool ref
+    val flow : bool ref
   end
 
   module Expert : sig

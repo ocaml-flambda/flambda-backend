@@ -231,6 +231,14 @@ let create_let uacc (bound_vars : Bound_pattern.t) (defining_expr : Named.t)
       uacc,
       let_creation_result )
 
+let create_let_binding uacc bound_vars defining_expr
+    ~free_names_of_defining_expr ~body ~cost_metrics_of_defining_expr =
+  let re, uacc, _ =
+    create_let uacc bound_vars defining_expr ~free_names_of_defining_expr ~body
+      ~cost_metrics_of_defining_expr
+  in
+  re, uacc
+
 let create_coerced_singleton_let uacc var defining_expr
     ~coercion_from_defining_expr_to_var ~free_names_of_defining_expr ~body
     ~cost_metrics_of_defining_expr =

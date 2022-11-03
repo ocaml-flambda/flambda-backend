@@ -92,6 +92,7 @@ module type Flambda_backend_options = sig
   val dflexpect : unit -> unit
   val dslot_offsets : unit -> unit
   val dfreshen : unit -> unit
+  val dflow : unit -> unit
 end
 
 (** Command line arguments required for ocamlopt.*)

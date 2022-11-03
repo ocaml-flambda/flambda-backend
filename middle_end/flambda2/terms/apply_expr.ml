@@ -204,6 +204,27 @@ let relative_history t = t.relative_history
 
 let position t = t.position
 
+let free_names_without_exn_continuation
+    { callee;
+      continuation;
+      exn_continuation = _;
+      args;
+      call_kind;
+      dbg = _;
+      inlined = _;
+      inlining_state = _;
+      probe_name = _;
+      position = _;
+      relative_history = _;
+      region
+    } =
+  Name_occurrences.union_list
+    [ Simple.free_names callee;
+      Result_continuation.free_names continuation;
+      Simple.List.free_names args;
+      Call_kind.free_names call_kind;
+      Name_occurrences.singleton_variable region Name_mode.normal ]
+
 let free_names_except_callee
     { callee = _;
       continuation;

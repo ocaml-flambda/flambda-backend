@@ -236,6 +236,8 @@ module Typing_env : sig
 
     val inter : t -> t -> t
 
+    val singleton : Simple.t -> t
+
     val print : Format.formatter -> t -> unit
   end
 

@@ -23,6 +23,8 @@ val free_names_except_callee : t -> Name_occurrences.t
 
 include Expr_std.S with type t := t
 
+val free_names_without_exn_continuation : t -> Name_occurrences.t
+
 include Contains_ids.S with type t := t
 
 module Result_continuation : sig
