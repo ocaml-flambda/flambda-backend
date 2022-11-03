@@ -421,9 +421,16 @@ let bind_variable_to_primitive = bind_variable_with_decision
 
 (* Variable lookup (for potential inlining) *)
 
+type split_result =
+  | Already_split
+  | Split of
+      { new_bindings : any_binding list;
+        split_binding : complex binding
+      }
+
 let split_complex_binding (binding : complex binding) =
   match binding.bound_expr with
-  | Split _ -> None
+  | Split _ -> Already_split
   | Splittable { name = _; args; prim_effects; make_expr } ->
     let (new_bindings, _), new_cmm_args =
       List.fold_left_map
@@ -466,7 +473,7 @@ let split_complex_binding (binding : complex binding) =
         cmm_var = binding.cmm_var
       }
     in
-    Some (new_bindings, split_binding)
+    Split { new_bindings; split_binding }
 
 let remove_binding env var =
   { env with bindings = Variable.Map.remove var env.bindings }
@@ -486,8 +493,8 @@ let will_not_inline_simple env { cmm_var; bound_expr = Simple _; _ } =
 
 let split_and_inline env var binding =
   match split_complex_binding binding with
-  | None -> will_inline_complex env binding
-  | Some (new_bindings, split_binding) ->
+  | Already_split -> will_inline_complex env binding
+  | Split { new_bindings; split_binding } ->
     let env =
       (* for duplicated bindings, we need to replace the original splittable
          binding with the new split binding in the bindings map of the env *)
@@ -626,9 +633,9 @@ let flush_delayed_lets ?(entering_loop = false) env =
           None
         | Must_inline_and_duplicate -> (
           match split_complex_binding b with
-          | None -> (* already split *) Some binding
-          | Some (arg_bindings, split_binding) ->
-            List.iter flush arg_bindings;
+          | Already_split -> Some binding
+          | Split { new_bindings; split_binding } ->
+            List.iter flush new_bindings;
             Some (Binding split_binding))
         | Must_inline_once -> (
           match To_cmm_effects.classify_by_effects_and_coeffects b.effs with
@@ -641,9 +648,9 @@ let flush_delayed_lets ?(entering_loop = false) env =
             Some binding
           | Pure | Generative_duplicable | Coeffect_only | Effect -> (
             match split_complex_binding b with
-            | None -> (* already split *) Some binding
-            | Some (arg_bindings, split_binding) ->
-              List.iter flush arg_bindings;
+            | Already_split -> Some binding
+            | Split { new_bindings; split_binding } ->
+              List.iter flush new_bindings;
               Some (Binding split_binding)))
         | May_inline_once -> (
           match To_cmm_effects.classify_by_effects_and_coeffects b.effs with
