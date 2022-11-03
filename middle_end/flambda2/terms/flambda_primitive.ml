@@ -568,28 +568,35 @@ type result_kind =
   | Unit
 
 type nullary_primitive =
+  | Invalid of K.t
   | Optimised_out of K.t
   | Probe_is_enabled of { name : string }
   | Begin_region
 
 let nullary_primitive_eligible_for_cse = function
-  | Optimised_out _ | Probe_is_enabled _ | Begin_region -> false
+  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region -> false
 
 let compare_nullary_primitive p1 p2 =
   match p1, p2 with
+  | Invalid k1, Invalid k2 -> K.compare k1 k2
   | Optimised_out k1, Optimised_out k2 -> K.compare k1 k2
   | Probe_is_enabled { name = name1 }, Probe_is_enabled { name = name2 } ->
     String.compare name1 name2
   | Begin_region, Begin_region -> 0
+  | Invalid _, (Optimised_out _ | Probe_is_enabled _ | Begin_region) -> -1
   | Optimised_out _, (Probe_is_enabled _ | Begin_region) -> -1
+  | Optimised_out _, Invalid _ -> 1
   | Probe_is_enabled _, Begin_region -> -1
-  | Probe_is_enabled _, Optimised_out _ -> 1
-  | Begin_region, (Optimised_out _ | Probe_is_enabled _) -> 1
+  | Probe_is_enabled _, (Invalid _ | Optimised_out _) -> 1
+  | Begin_region, (Invalid _ | Optimised_out _ | Probe_is_enabled _) -> 1
 
 let equal_nullary_primitive p1 p2 = compare_nullary_primitive p1 p2 = 0
 
 let print_nullary_primitive ppf p =
   match p with
+  | Invalid _ ->
+    Format.fprintf ppf "%tInvalid%t" Flambda_colours.invalid_keyword
+      Flambda_colours.pop
   | Optimised_out _ ->
     Format.fprintf ppf "%tOptimised_out%t" Flambda_colours.elide
       Flambda_colours.pop
@@ -599,12 +606,14 @@ let print_nullary_primitive ppf p =
 
 let result_kind_of_nullary_primitive p : result_kind =
   match p with
+  | Invalid k -> Singleton k
   | Optimised_out k -> Singleton k
   | Probe_is_enabled _ -> Singleton K.naked_immediate
   | Begin_region -> Singleton K.region
 
 let effects_and_coeffects_of_nullary_primitive p =
   match p with
+  | Invalid _ -> Effects.Arbitrary_effects, Coeffects.Has_coeffects
   | Optimised_out _ -> Effects.No_effects, Coeffects.No_coeffects
   | Probe_is_enabled _ ->
     (* This doesn't really have effects, but we want to make sure it never gets
@@ -615,7 +624,8 @@ let effects_and_coeffects_of_nullary_primitive p =
     Effects.Only_generative_effects Mutable, Coeffects.Has_coeffects
 
 let nullary_classify_for_printing p =
-  match p with Optimised_out _ | Probe_is_enabled _ | Begin_region -> Neither
+  match p with
+  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region -> Neither
 
 type unary_primitive =
   | Duplicate_block of { kind : Duplicate_block_kind.t }
@@ -1628,7 +1638,7 @@ let equal t1 t2 = compare t1 t2 = 0
 
 let free_names t =
   match t with
-  | Nullary (Optimised_out _ | Probe_is_enabled _ | Begin_region) ->
+  | Nullary (Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region) ->
     Name_occurrences.empty
   | Unary (prim, x0) ->
     Name_occurrences.union
@@ -1653,7 +1663,8 @@ let free_names t =
 let apply_renaming t renaming =
   let apply simple = Simple.apply_renaming simple renaming in
   match t with
-  | Nullary (Optimised_out _ | Probe_is_enabled _ | Begin_region) -> t
+  | Nullary (Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region) ->
+    t
   | Unary (prim, x0) ->
     let prim' = apply_renaming_unary_primitive prim renaming in
     let x0' = apply x0 in
@@ -1680,7 +1691,7 @@ let apply_renaming t renaming =
 
 let ids_for_export t =
   match t with
-  | Nullary (Optimised_out _ | Probe_is_enabled _ | Begin_region) ->
+  | Nullary (Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region) ->
     Ids_for_export.empty
   | Unary (prim, x0) ->
     Ids_for_export.union

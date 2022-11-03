@@ -506,11 +506,20 @@ let binary_float_comp_primitive_yielding_int _env dbg x y =
 
 (* Primitives *)
 
-let nullary_primitive _env dbg prim : _ * Cmm.expression =
+let nullary_primitive _env res dbg prim =
   match (prim : P.nullary_primitive) with
+  | Invalid _ ->
+    let message = "Invalid primitive" in
+    let expr, res = C.invalid res ~message in
+    None, expr, res
   | Optimised_out _ -> Misc.fatal_errorf "TODO: phantom let-bindings in to_cmm"
-  | Probe_is_enabled { name } -> None, Cop (Cprobe_is_enabled { name }, [], dbg)
-  | Begin_region -> None, C.beginregion ~dbg
+  | Probe_is_enabled { name } ->
+    (* CR gbury: we should never manually build cmm expression in this file. We
+       should instead always use smart constructors defined in `cmm_helpers` or
+       `to_cmm_shared.ml` *)
+    let expr = Cmm.Cop (Cprobe_is_enabled { name }, [], dbg) in
+    None, expr, res
+  | Begin_region -> None, C.beginregion ~dbg, res
 
 let unary_primitive env res dbg f arg =
   match (f : P.unary_primitive) with
@@ -685,7 +694,7 @@ let prim env res dbg (p : P.t) =
      order. This therefore matches the original source code. *)
   match p with
   | Nullary prim ->
-    let extra, expr = nullary_primitive env dbg prim in
+    let extra, expr, res = nullary_primitive env res dbg prim in
     expr, extra, env, res, Ece.pure
   | Unary (unary, x) ->
     let x, env, eff = simple env x in

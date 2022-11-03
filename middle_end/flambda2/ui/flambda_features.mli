@@ -70,6 +70,8 @@ val dump_flexpect : unit -> bool
 
 val dump_slot_offsets : unit -> bool
 
+val dump_flow : unit -> bool
+
 val freshen_when_printing : unit -> bool
 
 module Inlining : sig
