@@ -83,7 +83,7 @@ let rec make_directory dir =
       Sys.mkdir dir 0o777
     end
 
-let with_ppf_dump ~file_prefix f =
+let with_ppf_dump ?stdout ~file_prefix f =
   let with_ch ch =
     let ppf = Format.formatter_of_out_channel ch in
     ppf,
@@ -93,7 +93,12 @@ let with_ppf_dump ~file_prefix f =
   in
   let ppf_dump, finally =
     match !Clflags.dump_dir, !Clflags.dump_into_file with
-    | None, false -> Format.err_formatter, ignore
+    | None, false ->
+        let formatter =
+          if Option.is_some stdout then Format.std_formatter
+          else Format.err_formatter
+        in
+        formatter, ignore
     | None, true -> with_ch (open_out (file_prefix ^ ".dump"))
     | Some d, _ ->
         let () = make_directory Filename.(dirname @@ concat d @@ file_prefix) in
