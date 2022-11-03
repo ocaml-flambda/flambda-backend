@@ -1,6 +1,6 @@
 (* TEST
 
-files = "main.ml member.ml"
+readonly_files = "main.ml member.ml"
 
 * setup-ocamlc.byte-build-env
 ** ocamlc.byte

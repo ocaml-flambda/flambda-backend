@@ -32,6 +32,7 @@ type error =
   | Cannot_open_dll of filepath
   | Required_module_unavailable of string * Compilation_unit.t
   | Camlheader of string * filepath
+  | Wrong_link_order of (string * string) list
 
 exception Error of error
 
@@ -89,6 +90,8 @@ let add_ccobjs origin l =
 (* First pass: determine which units are needed *)
 
 let missing_globals = ref Ident.Map.empty
+let provided_globals = ref Ident.Set.empty
+let badly_ordered_dependencies : (string * string) list ref = ref []
 
 let is_required (rel, _pos) =
   match rel with
@@ -98,6 +101,11 @@ let is_required (rel, _pos) =
 
 let add_required compunit =
   let add id =
+    if Ident.Set.mem id !provided_globals then begin
+      let cu_name = CU.full_path_as_string compunit.cu_name in
+      badly_ordered_dependencies :=
+        ((Ident.name id), cu_name) :: !badly_ordered_dependencies;
+    end;
     missing_globals := Ident.Map.add id compunit.cu_name !missing_globals
   in
   let add_unit unit =
@@ -109,7 +117,8 @@ let add_required compunit =
 let remove_required (rel, _pos) =
   match rel with
     Reloc_setglobal id ->
-      missing_globals := Ident.Map.remove id !missing_globals
+      missing_globals := Ident.Map.remove id !missing_globals;
+      provided_globals := Ident.Set.add id !provided_globals;
   | _ -> ()
 
 let scan_file obj_name tolink =
@@ -478,7 +487,9 @@ let link_bytecode_as_c tolink outfile with_main =
 \nextern \"C\" {\
 \n#endif\
 \n#include <caml/mlvalues.h>\
-\n#include <caml/startup.h>\n";
+\n#include <caml/startup.h>\
+\n#include <caml/sys.h>\
+\n#include <caml/misc.h>\n";
        output_string outchan "static int caml_code[] = {\n";
        Symtable.init();
        clear_crc_interfaces ();
@@ -509,11 +520,7 @@ let link_bytecode_as_c tolink outfile with_main =
        (* The entry point *)
        if with_main then begin
          output_string outchan "\
-\n#ifdef _WIN32\
-\nint wmain(int argc, wchar_t **argv)\
-\n#else\
-\nint main(int argc, char **argv)\
-\n#endif\
+\nint main_os(int argc, char_os **argv)\
 \n{\
 \n  caml_byte_program_mode = COMPLETE_EXE;\
 \n  caml_startup_code(caml_code, sizeof(caml_code),\
@@ -521,7 +528,7 @@ let link_bytecode_as_c tolink outfile with_main =
 \n                    caml_sections, sizeof(caml_sections),\
 \n                    /* pooling */ 0,\
 \n                    argv);\
-\n  caml_sys_exit(Val_int(0));\
+\n  caml_do_exit(0);\
 \n  return 0; /* not reached */\
 \n}\n"
        end else begin
@@ -567,7 +574,7 @@ let link_bytecode_as_c tolink outfile with_main =
 \n}\
 \n#endif\n";
     );
-  if !Clflags.debug then
+  if not with_main && !Clflags.debug then
     output_cds_file ((Filename.chop_extension outfile) ^ ".cds")
 
 (* Build a custom runtime *)
@@ -632,7 +639,11 @@ let link objfiles output_name =
     match Ident.Map.bindings missing_modules with
     | [] -> ()
     | (id, cu_name) :: _ ->
-        raise (Error (Required_module_unavailable (Ident.name id, cu_name)))
+        match !badly_ordered_dependencies with
+        | [] ->
+            raise (Error (Required_module_unavailable (Ident.name id, cu_name)))
+        | l ->
+            raise (Error (Wrong_link_order l))
   end;
   Clflags.ccobjs := !Clflags.ccobjs @ !lib_ccobjs; (* put user's libs last *)
   Clflags.all_ccopts := !lib_ccopts @ !Clflags.all_ccopts;
@@ -770,6 +781,12 @@ let report_error ppf = function
         Compilation_unit.print m
   | Camlheader (msg, header) ->
       fprintf ppf "System error while copying file %s: %s" header msg
+  | Wrong_link_order l ->
+      let depends_on ppf (dep, depending) =
+        fprintf ppf "%s depends on %s" depending dep
+      in
+      fprintf ppf "@[<hov 2>Wrong link order: %a@]"
+        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",@ ") depends_on) l
 
 let () =
   Location.register_error_of_exn

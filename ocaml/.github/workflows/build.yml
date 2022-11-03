@@ -18,6 +18,8 @@ jobs:
           - name: flambda-local
             config: --enable-flambda --enable-stack-allocation
             os: ubuntu-latest
+            use_runtime: d
+            ocamlrunparam: "v=0,V=1"
 
           - name: i386
             config: CC='cc32' AS='as --32' ASPP='gcc -m32 -c' -host i386-linux PARTIALLD='ld -r -melf_i386'
@@ -108,3 +110,5 @@ jobs:
         make -f Makefile.jst runtest-upstream
       env:
         BUILD_OCAMLPARAM: ${{ matrix.ocamlparam }}
+        OCAMLRUNPARAM: ${{ matrix.ocamlrunparam }}
+        USE_RUNTIME: ${{ matrix.use_runtime }}

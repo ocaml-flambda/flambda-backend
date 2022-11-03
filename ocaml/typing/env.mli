@@ -18,6 +18,10 @@
 open Types
 open Misc
 
+val register_uid : Uid.t -> Location.t -> unit
+
+val get_uid_to_loc_tbl : unit -> Location.t Types.Uid.Tbl.t
+
 type value_unbound_reason =
   | Val_unbound_instance_variable
   | Val_unbound_self
@@ -57,10 +61,12 @@ val empty: t
 val initial_safe_string: t
 val initial_unsafe_string: t
 val diff: t -> t -> Ident.t list
-val copy_local: from:t -> t -> t
 
-type type_descriptions =
-    constructor_description list * label_description list
+type type_descr_kind =
+  (label_description, constructor_description) type_kind
+
+  (* alias for compatibility *)
+type type_descriptions = type_descr_kind
 
 (* For short-paths *)
 type iter_cont
@@ -108,6 +114,9 @@ val find_module_address: Path.t -> t -> address
 val find_class_address: Path.t -> t -> address
 val find_constructor_address: Path.t -> t -> address
 
+val shape_of_path:
+  namespace:Shape.Sig_component_kind.t -> t -> Path.t -> Shape.t
+
 val add_functor_arg: Ident.t -> t -> t
 val is_functor_arg: Path.t -> t -> bool
 
@@ -142,11 +151,16 @@ val mark_value_used: Uid.t -> unit
 val mark_module_used: Uid.t -> unit
 val mark_type_used: Uid.t -> unit
 
-type constructor_usage = Positive | Pattern | Privatize
+type constructor_usage = Positive | Pattern | Exported_private | Exported
 val mark_constructor_used:
     constructor_usage -> constructor_declaration -> unit
 val mark_extension_used:
     constructor_usage -> extension_constructor -> unit
+
+type label_usage =
+    Projection | Mutation | Construct | Exported_private | Exported
+val mark_label_used:
+    label_usage -> label_declaration -> unit
 
 (* Lookup by long identifiers *)
 
@@ -235,14 +249,14 @@ val lookup_all_constructors_from_type:
   (constructor_description * (unit -> unit)) list
 
 val lookup_label:
-  ?use:bool -> loc:Location.t -> Longident.t -> t ->
+  ?use:bool -> loc:Location.t -> label_usage -> Longident.t -> t ->
   label_description
 val lookup_all_labels:
-  ?use:bool -> loc:Location.t -> Longident.t -> t ->
+  ?use:bool -> loc:Location.t -> label_usage -> Longident.t -> t ->
   ((label_description * (unit -> unit)) list,
    Location.t * t * lookup_error) result
 val lookup_all_labels_from_type:
-  ?use:bool -> loc:Location.t -> Path.t -> t ->
+  ?use:bool -> loc:Location.t -> label_usage -> Path.t -> t ->
   (label_description * (unit -> unit)) list
 
 val lookup_instance_variable:
@@ -286,10 +300,10 @@ val add_value:
 val add_type: check:bool -> Ident.t -> type_declaration -> t -> t
 val add_extension:
   check:bool -> rebind:bool -> Ident.t -> extension_constructor -> t -> t
-val add_module:
-  ?arg:bool -> Ident.t -> module_presence -> module_type -> t -> t
-val add_module_declaration: ?arg:bool -> check:bool -> Ident.t ->
-  module_presence -> module_declaration -> t -> t
+val add_module: ?arg:bool -> ?shape:Shape.t ->
+  Ident.t -> module_presence -> module_type -> t -> t
+val add_module_declaration: ?arg:bool -> ?shape:Shape.t -> check:bool ->
+  Ident.t -> module_presence -> module_declaration -> t -> t
 val add_module_declaration_lazy: update_summary:bool ->
   Ident.t -> module_presence -> Subst.Lazy.module_decl -> t -> t
 val add_modtype: Ident.t -> modtype_declaration -> t -> t
@@ -320,7 +334,6 @@ val filter_non_loaded_persistent : (Ident.t -> bool) -> t -> t
 
 (* Insertion of all fields of a signature. *)
 
-val add_item: signature_item -> t -> t
 val add_signature: signature -> t -> t
 
 (* Insertion of all fields of a signature, relative to the given path.
@@ -333,6 +346,8 @@ val open_signature:
     t -> (t, [`Not_found | `Functor]) result
 
 val open_pers_signature: string -> t -> (t, [`Not_found]) result
+
+val remove_last_open: Path.t -> t -> t option
 
 (* Insertion by name *)
 
@@ -347,7 +362,7 @@ val enter_module:
   scope:int -> ?arg:bool -> string -> module_presence ->
   module_type -> t -> Ident.t * t
 val enter_module_declaration:
-  scope:int -> ?arg:bool -> string -> module_presence ->
+  scope:int -> ?arg:bool -> ?shape:Shape.t -> string -> module_presence ->
   module_declaration -> t -> Ident.t * t
 val enter_modtype:
   scope:int -> string -> modtype_declaration -> t -> Ident.t * t
@@ -357,7 +372,14 @@ val enter_cltype:
 
 (* Same as [add_signature] but refreshes (new stamp) and rescopes bound idents
    in the process. *)
-val enter_signature: scope:int -> signature -> t -> signature * t
+val enter_signature: ?mod_shape:Shape.t -> scope:int -> signature -> t ->
+  signature * t
+
+(* Same as [enter_signature] but also extends the shape map ([parent_shape])
+   with all the the items from the signature, their shape being a projection
+   from the given shape. *)
+val enter_signature_and_shape: scope:int -> parent_shape:Shape.Map.t ->
+  Shape.t -> signature -> t -> signature * Shape.Map.t * t
 
 val enter_unbound_value : string -> value_unbound_reason -> t -> t
 
@@ -445,8 +467,12 @@ val set_type_used_callback:
 
 (* Forward declaration to break mutual recursion with Includemod. *)
 val check_functor_application:
-      (errors:bool -> loc:Location.t -> t -> module_type ->
-         Path.t -> module_type -> Path.t -> unit) ref
+  (errors:bool -> loc:Location.t ->
+   lid_whole_app:Longident.t ->
+   f0_path:Path.t -> args:(Path.t * Types.module_type) list ->
+   arg_path:Path.t -> arg_mty:Types.module_type ->
+   param_mty:Types.module_type ->
+   t -> unit) ref
 (* Forward declaration to break mutual recursion with Typemod. *)
 val check_well_formed_module:
     (t -> Location.t -> string -> module_type -> unit) ref

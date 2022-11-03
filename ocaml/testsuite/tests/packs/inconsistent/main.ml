@@ -1,6 +1,6 @@
 (* TEST
 
-files = "member.ml member2.ml use_member_directly.ml"
+readonly_files = "member.ml member2.ml use_member_directly.ml"
 
 * setup-ocamlopt.byte-build-env
 ** ocamlopt.byte

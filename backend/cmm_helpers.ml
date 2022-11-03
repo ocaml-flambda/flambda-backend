@@ -1879,6 +1879,10 @@ module SArgBlocks = struct
 
   let gtint = Ccmpi Cgt
 
+  type arg = expression
+
+  type test = expression
+
   type act = expression
 
   type loc = Debuginfo.t
@@ -1896,6 +1900,10 @@ module SArgBlocks = struct
   let make_isout h arg = Cop (Ccmpa Clt, [h; arg], Debuginfo.none)
 
   let make_isin h arg = Cop (Ccmpa Cge, [h; arg], Debuginfo.none)
+
+  let make_is_nonzero arg = arg
+
+  let arg_as_test arg = arg
 
   let make_if value_kind cond ifso ifnot =
     Cifthenelse
@@ -2837,15 +2845,17 @@ type binary_primitive = expression -> expression -> Debuginfo.t -> expression
 type assignment_kind =
   | Caml_modify
   | Caml_modify_local
+  | Caml_initialize (* never local *)
   | Simple of initialization_or_assignment
 
 let assignment_kind (ptr : Lambda.immediate_or_pointer)
     (init : Lambda.initialization_or_assignment) =
   match init, ptr with
   | Assignment Alloc_heap, Pointer -> Caml_modify
-  | Assignment Alloc_local, Pointer -> Caml_modify_local
-  | Heap_initialization, _ ->
-    Misc.fatal_error "Cmm_helpers: Lambda.Heap_initialization unsupported"
+  | Assignment Alloc_local, Pointer ->
+    assert Config.stack_allocation;
+    Caml_modify_local
+  | Heap_initialization, _ -> Caml_initialize
   | Assignment _, Immediate -> Simple Assignment
   | Root_initialization, (Immediate | Pointer) -> Simple Initialization
 
@@ -2880,6 +2890,21 @@ let setfield n ptr init arg1 arg2 dbg =
                ty_args = []
              },
            [arg1; Cconst_int (n, dbg); arg2],
+           dbg ))
+  | Caml_initialize ->
+    return_unit dbg
+      (Cop
+         ( Cextcall
+             { func = "caml_initialize";
+               ty = typ_void;
+               alloc = false;
+               builtin = false;
+               returns = true;
+               effects = Arbitrary_effects;
+               coeffects = Has_coeffects;
+               ty_args = []
+             },
+           [field_address arg1 n dbg; arg2],
            dbg ))
   | Simple init -> return_unit dbg (set_field arg1 n arg2 init dbg)
 
@@ -3083,6 +3108,8 @@ let setfield_computed ptr init arg1 arg2 arg3 dbg =
   | Caml_modify -> return_unit dbg (addr_array_set arg1 arg2 arg3 dbg)
   | Caml_modify_local ->
     return_unit dbg (addr_array_set_local arg1 arg2 arg3 dbg)
+  | Caml_initialize ->
+    return_unit dbg (addr_array_initialize arg1 arg2 arg3 dbg)
   | Simple _ -> return_unit dbg (int_array_set arg1 arg2 arg3 dbg)
 
 let bytesset_unsafe arg1 arg2 arg3 dbg =
@@ -3217,6 +3244,12 @@ let bigstring_set size unsafe arg1 arg2 arg3 dbg =
                      check_bound unsafe size dbg (bigstring_length ba dbg) idx
                        (unaligned_set size ba_data idx newval dbg))))))
 
+let three_args name args =
+  match args with
+  | [arg1; arg2; arg3] -> arg1, arg2, arg3
+  | _ ->
+    Misc.fatal_errorf "Cmm_helpers: expected exactly 3 arguments for %s" name
+
 let two_args name args =
   match args with
   | [arg1; arg2] -> arg1, arg2
@@ -3279,7 +3312,7 @@ let ext_pointer_prefetch ~is_write locality arg dbg =
     For situations such as where the Cmm code below returns e.g. an untagged
     integer, we exploit the generic mechanism on "external" to deal with the
     tagging before the result is returned to the user. *)
-let transl_builtin name args dbg =
+let transl_builtin name args dbg typ_res =
   match name with
   | "caml_int_clz_tagged_to_untagged" ->
     (* The tag does not change the number of leading zeros. The advantage of
@@ -3365,6 +3398,15 @@ let transl_builtin name args dbg =
   | "caml_unsigned_int64_mulh_unboxed" -> mulhi ~signed:false Pint64 args dbg
   | "caml_int32_unsigned_to_int_trunc_unboxed_to_untagged" ->
     Some (zero_extend_32 dbg (one_arg name args))
+  | "caml_csel_value" | "caml_csel_int_untagged" | "caml_csel_int64_unboxed"
+  | "caml_csel_int32_unboxed" | "caml_csel_nativeint_unboxed" ->
+    (* Unboxed float variant of csel intrinsic is not currently supported. It
+       can be emitted on arm64 using FCSEL, but there appears to be no
+       corresponding instruction on amd64 for xmm registers. *)
+    let op = Ccsel typ_res in
+    let cond, ifso, ifnot = three_args name args in
+    if_operation_supported op ~f:(fun () ->
+        Cop (op, [test_bool dbg cond; ifso; ifnot], dbg))
   (* Native_pointer: handled as unboxed nativeint *)
   | "caml_ext_pointer_as_native_pointer" ->
     Some (int_as_pointer (one_arg name args) dbg)
@@ -3538,7 +3580,10 @@ let cextcall (prim : Primitive.description) args dbg ret ty_args returns =
         dbg )
   in
   if prim.prim_c_builtin
-  then match transl_builtin name args dbg with Some op -> op | None -> default
+  then
+    match transl_builtin name args dbg ret with
+    | Some op -> op
+    | None -> default
   else default
 
 (* Symbols *)
@@ -4096,7 +4141,10 @@ let extcall ~dbg ~returns ~alloc ~is_c_builtin ~ty_args name typ_res args =
         dbg )
   in
   if is_c_builtin
-  then match transl_builtin name args dbg with Some op -> op | None -> default
+  then
+    match transl_builtin name args dbg typ_res with
+    | Some op -> op
+    | None -> default
   else default
 
 let bigarray_load ~dbg ~elt_kind ~elt_size ~elt_chunk ~bigarray ~index =

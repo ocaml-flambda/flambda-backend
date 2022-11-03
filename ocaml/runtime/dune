@@ -42,16 +42,26 @@
           obj.c lexing.c callback.c debugger.c weak.c compact.c finalise.c
           custom.c dynlink.c afl.c unix.c win32.c bigarray.c main.c memprof.c 
           domain.c caml/domain_state.tbl eventlog.c skiplist.c codefrag.c
-          instrtrace.c caml/opnames.h prims.c) 
+          instrtrace.c caml/opnames.h build_config.h prims.c)
  (action
    (progn
-     (run make -sj8 %{targets}))))
+     (run make -sj8 COMPUTE_DEPS=false %{targets}))))
+
+(rule
+  (targets sak)
+  (deps sak.c caml/misc.h caml/config.h caml/s.h caml/m.h)
+  (action (run make -s COMPUTE_DEPS=false %{targets})))
+
+(rule
+  (targets build_config.h)
+  (deps ../Makefile.config sak)
+  (action (run make -s COMPUTE_DEPS=false %{targets})))
 
 (rule
   (targets prims.c)
   (mode fallback)
   (deps primitives Makefile)
-  (action (run make -s %{targets})))
+  (action (run make -s COMPUTE_DEPS=false %{targets})))
 
 (rule
  (targets libasmrun.a libasmrund.a libasmruni.a libasmrun_pic.a
@@ -69,29 +79,19 @@
   caml/domain_state.tbl eventlog.c prims.c)
  (action
   (progn
-   (run make -sj8 %{targets}))))
+   (run make -sj8 COMPUTE_DEPS=false %{targets}))))
 
 (rule
   (targets ld.conf)
-  (deps ../Makefile.config)
-  (action (run make -s %{targets})))
-
-;(rule
-;  (targets prims.o)
-;  (deps primitives Makefile)
-;  (action
-;    (progn
-;      ; Find out what's going wrong here
-;      (run make -j8 %{targets})
-;      (bash "chmod o+w %{targets}"))))
-;
+  (deps ../Makefile.config build_config.h)
+  (action (run make -s COMPUTE_DEPS=false %{targets})))
 
 (rule
   (targets ocamlrun)
   (deps libcamlrun.a prims.o)
   (action
     (progn
-    (run make -s %{targets}))))
+    (run make -s COMPUTE_DEPS=false %{targets}))))
 
 (rule
   (targets ocamlrund)
@@ -100,14 +100,14 @@
   (deps libcamlrund.a prims.o ocamlrun)
   (action
     (progn
-      (run make -s %{targets}))))
+      (run make -s COMPUTE_DEPS=false %{targets}))))
 
 (rule
   (targets ocamlruni)
   (deps libcamlruni.a prims.o ocamlrund)
   (action
     (progn
-      (run make -s %{targets}))))
+      (run make -s COMPUTE_DEPS=false %{targets}))))
 
 (install
   (files

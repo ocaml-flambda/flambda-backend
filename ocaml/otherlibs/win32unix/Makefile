@@ -19,12 +19,12 @@
 
 # Files in this directory
 WIN_FILES = accept.c bind.c channels.c close.c \
-  close_on.c connect.c createprocess.c dup.c dup2.c errmsg.c envir.c \
+  close_on.c connect.c createprocess.c dup.c errmsg.c envir.c \
   getpeername.c getpid.c getsockname.c gettimeofday.c isatty.c \
   link.c listen.c lockf.c lseek.c nonblock.c \
   mmap.c open.c pipe.c read.c readlink.c rename.c \
-  select.c sendrecv.c \
-  shutdown.c sleep.c socket.c sockopt.c startup.c stat.c \
+  realpath.c select.c sendrecv.c \
+  shutdown.c sleep.c socket.c socketpair.c sockopt.c startup.c stat.c \
   symlink.c system.c times.c truncate.c unixsupport.c windir.c winwait.c \
   write.c winlist.c winworker.c windbug.c utimes.c
 
@@ -64,7 +64,12 @@ $(UNIX_FILES) $(UNIX_CAML_FILES): %: ../unix/%
 
 .PHONY: depend
 depend: $(ALL_FILES) $(UNIX_CAML_FILES) unix.ml
-	$(CAMLRUN) $(ROOTDIR)/boot/ocamlc -depend -slash $(UNIX_CAML_FILES) \
+	$(OCAMLRUN) $(ROOTDIR)/boot/ocamlc -depend -slash $(UNIX_CAML_FILES) \
 	  unix.ml > .depend
 
 include .depend
+
+# This empty target is here for AppVeyor to allow dependencies to be built
+# without doing anything else.
+.PHONY: setup-depend
+setup-depend:

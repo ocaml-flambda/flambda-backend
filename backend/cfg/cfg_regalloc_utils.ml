@@ -187,6 +187,7 @@ let precondition : Cfg_with_layout.t -> unit =
       | Mulf -> ()
       | Divf -> ()
       | Compf _ -> ()
+      | Csel _ -> ()
       | Floatofint -> ()
       | Intoffloat -> ()
       | Valueofint -> ()

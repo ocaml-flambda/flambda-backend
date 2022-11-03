@@ -35,6 +35,7 @@ type error =
   | Cannot_open_dll of filepath
   | Required_module_unavailable of string * Compilation_unit.t
   | Camlheader of string * filepath
+  | Wrong_link_order of (string * string) list
 
 exception Error of error
 

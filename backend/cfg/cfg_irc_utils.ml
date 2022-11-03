@@ -142,6 +142,7 @@ let is_move_basic : Cfg.basic -> bool =
     | Mulf -> false
     | Divf -> false
     | Compf _ -> false
+    | Csel _ -> false
     | Floatofint -> false
     | Intoffloat -> false
     | Valueofint -> false

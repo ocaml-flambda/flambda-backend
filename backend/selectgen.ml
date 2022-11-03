@@ -182,6 +182,7 @@ let oper_result_type = function
   | Caddv -> typ_val
   | Cadda -> typ_addr
   | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf -> typ_float
+  | Ccsel ty -> ty
   | Cfloatofint -> typ_float
   | Cintoffloat -> typ_int
   | Cvalueofint -> typ_val
@@ -458,6 +459,7 @@ method is_simple_expr = function
       | Cxor | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf
       | Cclz _ | Cctz _ | Cpopcnt
       | Cbswap _
+      | Ccsel _
       | Cabsf | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat
       | Cvalueofint | Cintofvalue
       | Ccmpf _ -> List.for_all self#is_simple_expr args
@@ -508,6 +510,7 @@ method effects_of exp =
       | Cprobe_is_enabled _ -> EC.coeffect_only Coeffect.Arbitrary
       | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi | Cand | Cor | Cxor
       | Cbswap _
+      | Ccsel _
       | Cclz _ | Cctz _ | Cpopcnt
       | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf | Cabsf
       | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat
@@ -626,6 +629,9 @@ method select_operation op args _dbg =
   | (Cadda, _) -> self#select_arith_comm Iadd args
   | (Ccmpa comp, _) -> self#select_arith_comp (Iunsigned comp) args
   | (Ccmpf comp, _) -> (Icompf comp, args)
+  | (Ccsel _, [cond; ifso; ifnot]) ->
+     let (cond, earg) = self#select_condition cond in
+     (Icsel cond, [ earg; ifso; ifnot ])
   | (Cnegf, _) -> (Inegf, args)
   | (Cabsf, _) -> (Iabsf, args)
   | (Caddf, _) -> (Iaddf, args)

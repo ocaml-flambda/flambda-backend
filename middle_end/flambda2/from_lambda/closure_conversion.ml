@@ -642,29 +642,29 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
         Misc.fatal_error "Unexpected empty float block in [Closure_conversion]"
       | Pmakearray (_, _, _mode) ->
         register_const0 acc Static_const.empty_array "empty_array"
-      | Pidentity | Pbytes_to_string | Pbytes_of_string | Pignore | Prevapply _
-      | Pdirapply _ | Pgetglobal _ | Psetglobal _ | Pgetpredef _ | Pfield _
-      | Pfield_computed _ | Psetfield _ | Psetfield_computed _ | Pfloatfield _
-      | Psetfloatfield _ | Pduprecord _ | Pccall _ | Praise _ | Psequand
-      | Psequor | Pnot | Pnegint | Paddint | Psubint | Pmulint | Pdivint _
-      | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint | Pasrint
-      | Pintcomp _ | Pcompare_ints | Pcompare_floats | Pcompare_bints _
-      | Poffsetint _ | Poffsetref _ | Pintoffloat | Pfloatofint _ | Pnegfloat _
-      | Pabsfloat _ | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
-      | Pfloatcomp _ | Pstringlength | Pstringrefu | Pstringrefs | Pbyteslength
-      | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets | Pduparray _
-      | Parraylength _ | Parrayrefu _ | Parraysetu _ | Parrayrefs _
-      | Parraysets _ | Pisint _ | Pisout | Pbintofint _ | Pintofbint _
-      | Pcvtbint _ | Pnegbint _ | Paddbint _ | Psubbint _ | Pmulbint _
-      | Pdivbint _ | Pmodbint _ | Pandbint _ | Porbint _ | Pxorbint _
-      | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp _ | Pbigarrayref _
-      | Pbigarrayset _ | Pbigarraydim _ | Pstring_load_16 _ | Pstring_load_32 _
-      | Pstring_load_64 _ | Pbytes_load_16 _ | Pbytes_load_32 _
-      | Pbytes_load_64 _ | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _
-      | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
-      | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
-      | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer | Popaque
-      | Pprobe_is_enabled _ | Pobj_dup | Pobj_magic ->
+      | Pbytes_to_string | Pbytes_of_string | Pignore | Pgetglobal _
+      | Psetglobal _ | Pgetpredef _ | Pfield _ | Pfield_computed _ | Psetfield _
+      | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Pduprecord _
+      | Pccall _ | Praise _ | Psequand | Psequor | Pnot | Pnegint | Paddint
+      | Psubint | Pmulint | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint
+      | Plslint | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints
+      | Pcompare_floats | Pcompare_bints _ | Poffsetint _ | Poffsetref _
+      | Pintoffloat | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _
+      | Psubfloat _ | Pmulfloat _ | Pdivfloat _ | Pfloatcomp _ | Pstringlength
+      | Pstringrefu | Pstringrefs | Pbyteslength | Pbytesrefu | Pbytessetu
+      | Pbytesrefs | Pbytessets | Pduparray _ | Parraylength _ | Parrayrefu _
+      | Parraysetu _ | Parrayrefs _ | Parraysets _ | Pisint _ | Pisout
+      | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _
+      | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _ | Pandbint _
+      | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
+      | Pbintcomp _ | Pbigarrayref _ | Pbigarrayset _ | Pbigarraydim _
+      | Pstring_load_16 _ | Pstring_load_32 _ | Pstring_load_64 _
+      | Pbytes_load_16 _ | Pbytes_load_32 _ | Pbytes_load_64 _ | Pbytes_set_16 _
+      | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbigstring_load_16 _
+      | Pbigstring_load_32 _ | Pbigstring_load_64 _ | Pbigstring_set_16 _
+      | Pbigstring_set_32 _ | Pbigstring_set_64 _ | Pctconst _ | Pbswap16
+      | Pbbswap _ | Pint_as_pointer | Popaque | Pprobe_is_enabled _ | Pobj_dup
+      | Pobj_magic ->
         (* Inconsistent with outer match *)
         assert false
     in
@@ -1763,8 +1763,9 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
         check = Default_check;
         loop = Default_loop;
         is_a_functor = false;
-        stub = false;
-        poll = Default_poll
+        stub = true;
+        poll = Default_poll;
+        tmc_candidate = false
       }
   in
   let free_idents_of_body =
@@ -1791,9 +1792,8 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
         ~kind:(Lambda.Curried { nlocal = num_trailing_local_params })
         ~params ~return:Lambda.Pgenval ~return_continuation ~exn_continuation
         ~my_region:apply.region ~body:fbody ~attr ~loc:apply.loc
-        ~free_idents_of_body ~stub:true ~closure_alloc_mode
-        ~num_trailing_local_params ~contains_no_escaping_local_allocs
-        Recursive.Non_recursive ]
+        ~free_idents_of_body ~closure_alloc_mode ~num_trailing_local_params
+        ~contains_no_escaping_local_allocs Recursive.Non_recursive ]
   in
   let body acc env =
     let arg = find_simple_from_id env wrapper_id in
