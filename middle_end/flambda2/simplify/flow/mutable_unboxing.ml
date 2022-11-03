@@ -325,7 +325,7 @@ module Fold_prims = struct
     in
     match Variable.Map.find block non_escaping_blocks with
     | exception Not_found -> env
-    | { tag; fields_kinds } -> f ~tag ~fields_kinds
+    | { tag; fields_kinds } -> f ~block ~tag ~fields_kinds
 
   let with_unboxed_fields ~block ~dom ~env ~f =
     let block =
@@ -341,7 +341,9 @@ module Fold_prims = struct
       (prim : T.Mutable_prim.t) =
     match prim with
     | Is_int block ->
-      with_unboxed_fields ~block ~dom ~env ~f:(fun ~block:_ _fields ->
+      with_unboxed_fields ~block ~dom ~env ~f:(fun ~block _fields ->
+          ignore block;
+          (* ensure that only the canonical alias of block is in scope *)
           (* We only consider for unboxing vluaes which are aliases to a single
              makeblock. In particular, for variants, this means that we only
              consider for unboxing variant values which are blocks. *)
@@ -355,7 +357,9 @@ module Fold_prims = struct
           })
     | Get_tag block ->
       with_unboxed_block ~block ~dom ~env ~non_escaping_blocks
-        ~f:(fun ~tag ~fields_kinds:_ ->
+        ~f:(fun ~block ~tag ~fields_kinds:_ ->
+          ignore block;
+          (* ensure that only the canonical alias of block is in scope *)
           let bound_to =
             Simple.untagged_const_int (Tag.to_targetint_31_63 tag)
           in
@@ -367,7 +371,9 @@ module Fold_prims = struct
             rewrites = Named_rewrite_id.Map.add rewrite_id rewrite env.rewrites
           })
     | Block_load { block; field; bak; _ } ->
-      with_unboxed_fields ~block ~dom ~env ~f:(fun ~block:_ fields ->
+      with_unboxed_fields ~block ~dom ~env ~f:(fun ~block fields ->
+          ignore block;
+          (* ensure that only the canonical alias of block is in scope *)
           let rewrite =
             match Numeric_types.Int.Map.find field fields with
             | bound_to ->
