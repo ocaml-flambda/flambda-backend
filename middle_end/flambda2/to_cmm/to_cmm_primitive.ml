@@ -541,7 +541,8 @@ let unary_primitive env res dbg f arg =
   | String_length _ -> None, res, fun arg -> C.string_length arg dbg
   | Int_as_pointer -> None, res, fun arg -> C.int_as_pointer arg dbg
   | Opaque_identity { middle_end_only = true } -> None, res, fun arg -> arg
-  | Opaque_identity { middle_end_only = false } -> None, res, fun arg -> C.opaque arg dbg
+  | Opaque_identity { middle_end_only = false } ->
+    None, res, fun arg -> C.opaque arg dbg
   | Int_arith (kind, op) ->
     None, res, fun arg -> unary_int_arith_primitive env dbg kind op arg
   | Float_arith op ->
