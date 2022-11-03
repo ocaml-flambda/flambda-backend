@@ -28,32 +28,33 @@ let dominator_graph_ppf =
      ppf)
 
 let control_flow_graph_ppf =
-  lazy (
-    let filename = "flow.dot" in
-      let ch = open_out filename in
-      let ppf = Format.formatter_of_out_channel ch in
-      Format.fprintf ppf "digraph g {@\n";
-      at_exit (fun () ->
-          Format.fprintf ppf "@\n}@.";
-          close_out ch);
-      ppf)
+  lazy
+    (let filename = "flow.dot" in
+     let ch = open_out filename in
+     let ppf = Format.formatter_of_out_channel ch in
+     Format.fprintf ppf "digraph g {@\n";
+     at_exit (fun () ->
+         Format.fprintf ppf "@\n}@.";
+         close_out ch);
+     ppf)
 
 let dot_count = ref ~-1
+
 let print_graph ~print ~print_name ~lazy_ppf ~graph =
-    match print_name with
-    | None -> ()
-    | Some print_name ->
-      incr dot_count;
-      let ppf = Lazy.force lazy_ppf in
-      print ~ctx:!dot_count ~print_name ppf graph
+  match print_name with
+  | None -> ()
+  | Some print_name ->
+    incr dot_count;
+    let ppf = Lazy.force lazy_ppf in
+    print ~ctx:!dot_count ~print_name ppf graph
 
 (* analysis *)
 
 let analyze ?(speculative = false) ?print_name ~return_continuation
     ~exn_continuation ~code_age_relation ~used_value_slots t : T.Flow_result.t =
   Profile.record_call ~accumulate:true "data_flow" (fun () ->
-      if Flambda_features.dump_flow () then
-        Format.eprintf "PRESOURCE:@\n%a@\n@." T.Acc.print t;
+      if Flambda_features.dump_flow ()
+      then Format.eprintf "PRESOURCE:@\n%a@\n@." T.Acc.print t;
       (* Accumulator normalization *)
       let ({ T.Acc.stack; map; extra = _; dummy_toplevel_cont } as t) =
         Flow_acc.extend_args_with_extra_args t
@@ -63,8 +64,8 @@ let analyze ?(speculative = false) ?print_name ~return_continuation
         not
           (Continuation.name dummy_toplevel_cont
           = Flow_acc.wrong_dummy_toplevel_cont_name));
-      if Flambda_features.dump_flow () then
-        Format.eprintf "SOURCE:@\n%a@\n@." T.Acc.print t;
+      if Flambda_features.dump_flow ()
+      then Format.eprintf "SOURCE:@\n%a@\n@." T.Acc.print t;
       (* dependency graph *)
       let deps =
         Data_flow_graph.create map ~return_continuation ~exn_continuation
@@ -82,7 +83,8 @@ let analyze ?(speculative = false) ?print_name ~return_continuation
       let aliases = Dominator_graph.dominator_analysis dom_graph in
       let aliases_kind = Dominator_graph.aliases_kind dom_graph aliases in
       if Flambda_features.dump_flow ()
-      then print_graph ~print_name ~lazy_ppf:dominator_graph_ppf ~graph:dom_graph
+      then
+        print_graph ~print_name ~lazy_ppf:dominator_graph_ppf ~graph:dom_graph
           ~print:(Dominator_graph.Dot.print ~doms:aliases);
       (* control flow graph *)
       let control = Control_flow_graph.create ~dummy_toplevel_cont t in
@@ -102,10 +104,11 @@ let analyze ?(speculative = false) ?print_name ~return_continuation
           ~required_names:dead_variable_result.required_names ~unboxed_blocks
       in
       if Flambda_features.dump_flow ()
-      then print_graph ~print_name ~lazy_ppf:control_flow_graph_ppf ~graph:control
-          ~print:(Control_flow_graph.Dot.print ~df:t
-              ~return_continuation ~exn_continuation ~continuation_parameters
-              ~pp_node);
+      then
+        print_graph ~print_name ~lazy_ppf:control_flow_graph_ppf ~graph:control
+          ~print:
+            (Control_flow_graph.Dot.print ~df:t ~return_continuation
+               ~exn_continuation ~continuation_parameters ~pp_node);
       let required_names_after_ref_reference_analysis =
         (* CR pchambart/gbury: this is an overapproximation of actually used new
            parameters. We might want to filter this using another round of
@@ -131,7 +134,6 @@ let analyze ?(speculative = false) ?print_name ~return_continuation
           }
       in
       if Flambda_features.dump_flow ()
-      then
-        Format.eprintf "/// result@\n%a@\n@." T.Flow_result.print result;
+      then Format.eprintf "/// result@\n%a@\n@." T.Flow_result.print result;
       (* return *)
       result)

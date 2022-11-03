@@ -824,9 +824,9 @@ let make_rewrite_for_recursive_continuation uacc ~cont ~original_cont_scope
     UA.continuation_param_aliases uacc
   in
   let { Flow_types.Continuation_param_aliases
-         .removed_aliased_params_and_extra_params;
-         _
-       } =
+        .removed_aliased_params_and_extra_params;
+        _
+      } =
     Continuation.Map.find cont continuation_parameters
   in
   let kept_param param =

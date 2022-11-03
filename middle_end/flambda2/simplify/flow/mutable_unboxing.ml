@@ -521,7 +521,8 @@ let create ~(dom : Dominator_graph.alias_map) ~(dom_graph : Dominator_graph.t)
   let non_escaping_blocks, required_regions =
     non_escaping_makeblocks_and_required_regions ~escaping ~source_info
   in
-  if (not (Variable.Map.is_empty non_escaping_blocks)) && Flambda_features.dump_flow ()
+  if (not (Variable.Map.is_empty non_escaping_blocks))
+     && Flambda_features.dump_flow ()
   then
     Format.printf "Non escaping makeblocks %a@."
       (Variable.Map.print (fun ppf { tag; fields_kinds } ->

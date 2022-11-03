@@ -14,7 +14,6 @@
 (**************************************************************************)
 
 module Prim_rewrite : sig
-
   (** Rewrite for primitives *)
   type t = private
     | Remove_prim
@@ -22,7 +21,8 @@ module Prim_rewrite : sig
     | Replace_by_binding of
         { var : Variable.t;
           bound_to : Simple.t
-        } (**)
+        }
+  (**)
 
   val print : Format.formatter -> t -> unit
 
@@ -34,15 +34,11 @@ module Prim_rewrite : sig
 
   (** Replace the primitive by the given [Simple.t] *)
   val replace_by_binding : var:Variable.t -> bound_to:Simple.t -> t
-
 end
 
 (** Named rewrites. These apply at [let_expr] constructions. *)
-type t = private
-  | Prim_rewrite of Prim_rewrite.t
+type t = private Prim_rewrite of Prim_rewrite.t
 
 val print : Format.formatter -> t -> unit
 
 val prim_rewrite : Prim_rewrite.t -> t
-
-
