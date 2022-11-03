@@ -14,8 +14,9 @@
 
 type t = Effects.t * Coeffects.t * Placement.t
 
-let [@ocamlformat "disable"] print fmt (eff, coeff, dup) =
-  Format.fprintf fmt "%a * %a * %a" Effects.print eff Coeffects.print coeff Placement.print dup
+let print fmt (eff, coeff, dup) =
+  Format.fprintf fmt "%a * %a * %a" Effects.print eff Coeffects.print coeff
+    Placement.print dup
 
 let compare (e1, c1, d1) (e2, c2, d2) =
   match Effects.compare e1 e2 with
