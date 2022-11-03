@@ -36,7 +36,7 @@ let with_info ~native ~tool_name ~source_file ~output_prefix ~dump_ext k =
   Env.set_unit_name module_name;
   let env = Compmisc.initial_env() in
   let dump_file = String.concat "." [output_prefix; dump_ext] in
-  Compmisc.with_ppf_dump ~file_prefix:dump_file @@ fun ppf_dump ->
+  Compmisc.with_ppf_dump ~file_prefix:dump_file (fun ppf_dump ->
   k {
     module_name;
     output_prefix;
@@ -45,7 +45,7 @@ let with_info ~native ~tool_name ~source_file ~output_prefix ~dump_ext k =
     ppf_dump;
     tool_name;
     native;
-  }
+  })
 
 (** Compile a .mli file *)
 
