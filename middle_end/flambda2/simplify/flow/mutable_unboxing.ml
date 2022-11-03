@@ -335,13 +335,13 @@ module Fold_prims = struct
     in
     match Variable.Map.find block env.bindings with
     | exception Not_found -> env
-    | fields -> f fields
+    | fields -> f ~block fields
 
   let apply_prim ~dom ~non_escaping_blocks env rewrite_id var
       (prim : T.Mutable_prim.t) =
     match prim with
     | Is_int block ->
-      with_unboxed_fields ~block ~dom ~env ~f:(fun _fields ->
+      with_unboxed_fields ~block ~dom ~env ~f:(fun ~block:_ _fields ->
           (* We only consider for unboxing vluaes which are aliases to a single
              makeblock. In particular, for variants, this means that we only
              consider for unboxing variant values which are blocks. *)
@@ -367,7 +367,7 @@ module Fold_prims = struct
             rewrites = Named_rewrite_id.Map.add rewrite_id rewrite env.rewrites
           })
     | Block_load { block; field; bak; _ } ->
-      with_unboxed_fields ~block ~dom ~env ~f:(fun fields ->
+      with_unboxed_fields ~block ~dom ~env ~f:(fun ~block:_ fields ->
           let rewrite =
             match Numeric_types.Int.Map.find field fields with
             | bound_to ->
@@ -383,7 +383,7 @@ module Fold_prims = struct
             rewrites = Named_rewrite_id.Map.add rewrite_id rewrite env.rewrites
           })
     | Block_set { bak; block; field; value } ->
-      with_unboxed_fields ~block ~dom ~env ~f:(fun fields ->
+      with_unboxed_fields ~block ~dom ~env ~f:(fun ~block fields ->
           if ref_to_var_debug
           then Format.printf "Remove Block set %a@." Variable.print var;
           let rewrite, fields =
