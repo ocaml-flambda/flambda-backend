@@ -242,10 +242,10 @@ let subst_unary_primitive env (p : Flambda_primitive.unary_primitive) :
     let move_from = subst_function_slot env move_from in
     let move_to = subst_function_slot env move_to in
     Project_function_slot { move_from; move_to }
-  | Project_value_slot { project_from; value_slot } ->
+  | Project_value_slot { project_from; value_slot; kind } ->
     let project_from = subst_function_slot env project_from in
     let value_slot = subst_value_slot env value_slot in
-    Project_value_slot { project_from; value_slot }
+    Project_value_slot { project_from; value_slot; kind }
   | _ -> p
 
 let subst_primitive env (p : Flambda_primitive.t) : Flambda_primitive.t =
@@ -270,8 +270,8 @@ let subst_set_of_closures env set =
   let value_slots =
     Set_of_closures.value_slots set
     |> Value_slot.Map.bindings
-    |> List.map (fun (var, simple) ->
-           subst_value_slot env var, subst_simple env simple)
+    |> List.map (fun (var, (simple, kind)) ->
+           subst_value_slot env var, (subst_simple env simple, kind))
     |> Value_slot.Map.of_list
   in
   Set_of_closures.create Alloc_mode.For_allocations.heap ~value_slots decls
@@ -631,15 +631,26 @@ let unary_prim_ops env (prim_op1 : Flambda_primitive.unary_primitive)
            Flambda_primitive.Project_function_slot
              { move_from = move_from1'; move_to = move_to1' })
   | ( Project_value_slot
-        { project_from = function_slot1; value_slot = value_slot1 },
+        { project_from = function_slot1;
+          value_slot = value_slot1;
+          kind = kind1
+        },
       Project_value_slot
-        { project_from = function_slot2; value_slot = value_slot2 } ) ->
-    pairs ~f1:function_slots ~f2:value_slots env
-      (function_slot1, value_slot1)
-      (function_slot2, value_slot2)
-    |> Comparison.map ~f:(fun (function_slot1', value_slot1') ->
+        { project_from = function_slot2;
+          value_slot = value_slot2;
+          kind = kind2
+        } ) ->
+    triples ~f1:function_slots ~f2:value_slots
+      ~f3:(Comparator.of_predicate Flambda_kind.With_subkind.equal)
+      env
+      (function_slot1, value_slot1, kind1)
+      (function_slot2, value_slot2, kind2)
+    |> Comparison.map ~f:(fun (function_slot1', value_slot1', kind1') ->
            Flambda_primitive.Project_value_slot
-             { project_from = function_slot1'; value_slot = value_slot1' })
+             { project_from = function_slot1';
+               value_slot = value_slot1';
+               kind = kind1'
+             })
   | _, _ ->
     if Flambda_primitive.equal_unary_primitive prim_op1 prim_op2
     then Equivalent
@@ -738,21 +749,22 @@ let sets_of_closures env set1 set2 : Set_of_closures.t Comparison.t =
    * similar (and less worrisome) with function slots. *)
   let value_slots_by_value set =
     Value_slot.Map.bindings (Set_of_closures.value_slots set)
-    |> List.map (fun (var, value) -> subst_simple env value, var)
+    |> List.map (fun (var, (value, kind)) -> kind, subst_simple env value, var)
   in
   (* We want to process the whole map to find new correspondences between
    * value slots, so we need to remember whether we've found any mismatches *)
   let ok = ref true in
   let () =
-    let compare (value1, _var1) (value2, _var2) =
-      Simple.compare value1 value2
+    let compare (kind1, value1, _var1) (kind2, value2, _var2) =
+      let c = Flambda_kind.With_subkind.compare kind1 kind2 in
+      if c = 0 then Simple.compare value1 value2 else c
     in
     iter2_merged (value_slots_by_value set1) (value_slots_by_value set2)
       ~compare ~f:(fun elt1 elt2 ->
         match elt1, elt2 with
         | None, None -> ()
         | Some _, None | None, Some _ -> ok := false
-        | Some (_value1, var1), Some (_value2, var2) -> (
+        | Some (_kind1, _value1, var1), Some (_kind2, _value2, var2) -> (
           match value_slots env var1 var2 with
           | Equivalent -> ()
           | Different { approximant = _ } -> ok := false))

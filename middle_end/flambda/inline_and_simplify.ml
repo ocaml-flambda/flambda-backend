@@ -859,12 +859,20 @@ and simplify_partial_application env r ~lhs_of_application
       Variable.rename ~debug_info:(Closure_id.debug_info closure_id_being_applied)
         (Closure_id.unwrap closure_id_being_applied)
     in
+    let free_variables =
+      Variable.Map.of_list
+        (List.map (fun p -> Parameter.var p, Parameter.kind p) freshened_params)
+    in
+    let free_variables =
+      Variable.Map.add lhs_of_application Lambda.Pgenval free_variables
+    in
     Flambda_utils.make_closure_declaration ~id:closure_variable
       ~is_classic_mode:false
       ~body
       ~alloc_mode:partial_mode
       ~region:function_decl.A.region
       ~params:remaining_args
+      ~free_variables
   in
   let with_known_args =
     Flambda_utils.bind

@@ -87,6 +87,7 @@ type specialised_to = {
       [specialised_args] respectively) in the same set of closures.
       As such, this field describes a relation of projections between
       either the [free_vars] or the [specialised_args]. *)
+  kind : Lambda.value_kind;
 }
 
 (** Flambda terms are partitioned in a pseudo-ANF manner; many terms are

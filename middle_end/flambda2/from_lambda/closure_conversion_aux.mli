@@ -104,36 +104,49 @@ module Env : sig
 
   val clear_local_bindings : t -> t
 
-  val add_var : t -> Ident.t -> Variable.t -> t
+  val add_var : t -> Ident.t -> Variable.t -> Flambda_kind.With_subkind.t -> t
 
-  val add_vars : t -> Ident.t list -> Variable.t list -> t
+  val add_vars :
+    t -> Ident.t list -> (Variable.t * Flambda_kind.With_subkind.t) list -> t
 
-  val add_var_map : t -> Variable.t Ident.Map.t -> t
+  val add_var_map :
+    t -> (Variable.t * Flambda_kind.With_subkind.t) Ident.Map.t -> t
 
-  val add_var_like : t -> Ident.t -> IR.user_visible -> t * Variable.t
+  val add_var_like :
+    t ->
+    Ident.t ->
+    IR.user_visible ->
+    Flambda_kind.With_subkind.t ->
+    t * Variable.t
 
   val add_vars_like :
-    t -> (Ident.t * IR.user_visible) list -> t * Variable.t list
+    t ->
+    (Ident.t * IR.user_visible * Flambda_kind.With_subkind.t) list ->
+    t * Variable.t list
 
   val find_name : t -> Ident.t -> Name.t
 
   val find_name_exn : t -> Ident.t -> Name.t
 
-  val find_var : t -> Ident.t -> Variable.t
+  val find_var : t -> Ident.t -> Variable.t * Flambda_kind.With_subkind.t
 
-  val find_var_exn : t -> Ident.t -> Variable.t
+  val find_var_exn : t -> Ident.t -> Variable.t * Flambda_kind.With_subkind.t
 
-  val find_vars : t -> Ident.t list -> Variable.t list
+  val find_vars :
+    t -> Ident.t list -> (Variable.t * Flambda_kind.With_subkind.t) list
 
   val add_global : t -> int -> Symbol.t -> t
 
   val find_global : t -> int -> Symbol.t
 
-  val add_simple_to_substitute : t -> Ident.t -> Simple.t -> t
+  val add_simple_to_substitute :
+    t -> Ident.t -> Simple.t -> Flambda_kind.With_subkind.t -> t
 
-  val add_simple_to_substitute_map : t -> Simple.t Ident.Map.t -> t
+  val add_simple_to_substitute_map :
+    t -> (Simple.t * Flambda_kind.With_subkind.t) Ident.Map.t -> t
 
-  val find_simple_to_substitute_exn : t -> Ident.t -> Simple.t
+  val find_simple_to_substitute_exn :
+    t -> Ident.t -> Simple.t * Flambda_kind.With_subkind.t
 
   val add_value_approximation : t -> Name.t -> value_approximation -> t
 

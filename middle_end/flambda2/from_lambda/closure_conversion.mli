@@ -27,6 +27,7 @@ val close_let :
   Env.t ->
   Ident.t ->
   IR.user_visible ->
+  Flambda_kind.With_subkind.t ->
   IR.named ->
   body:(Acc.t -> Env.t -> Expr_with_acc.t) ->
   Expr_with_acc.t

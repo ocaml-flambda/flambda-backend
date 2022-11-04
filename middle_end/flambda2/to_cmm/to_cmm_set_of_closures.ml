@@ -90,7 +90,7 @@ end) : sig
     Code_id.t Function_slot.Map.t ->
     Debuginfo.t ->
     startenv:int ->
-    Simple.t Value_slot.Map.t ->
+    (Simple.t * Flambda_kind.With_subkind.t) Value_slot.Map.t ->
     Env.t ->
     To_cmm_result.t ->
     Ece.t ->
@@ -110,8 +110,17 @@ end = struct
     | Infix_header ->
       let field = P.infix_header ~function_slot_offset:(slot_offset + 1) ~dbg in
       field :: acc, slot_offset + 1, env, res, Ece.pure, updates
-    | Value_slot v ->
-      let simple = Value_slot.Map.find v value_slots in
+    | Value_slot { value_slot; is_scanned; size = _ } ->
+      let simple, kind = Value_slot.Map.find value_slot value_slots in
+      if (not
+            (Flambda_kind.equal
+               (Flambda_kind.With_subkind.kind kind)
+               Flambda_kind.value))
+         && is_scanned
+      then
+        Misc.fatal_errorf
+          "Value slot %a not of kind Value (%a) but is visible by GC"
+          Simple.print simple Debuginfo.print_compact dbg;
       let contents, env, res, eff = P.simple ~dbg env res simple in
       let env, res, fields, updates =
         match contents with

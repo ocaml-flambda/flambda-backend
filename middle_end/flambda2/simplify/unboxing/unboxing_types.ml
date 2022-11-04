@@ -64,7 +64,8 @@ type unboxing_decision =
 
 and field_decision =
   { epa : Extra_param_and_args.t;
-    decision : decision
+    decision : decision;
+    kind : Flambda_kind.With_subkind.t
   }
 
 and const_ctors_decision =
@@ -126,10 +127,11 @@ let rec print_decision ppf = function
       "@[<hv 1>(number@ @[<h>(kind %a)@]@ @[<hv 1>(var %a)@])@]"
       Flambda_kind.Naked_number_kind.print kind Extra_param_and_args.print epa
 
-and print_field_decision ppf { epa; decision } =
+and print_field_decision ppf { epa; decision; kind } =
   Format.fprintf ppf
-    "@[<hv 1>(@,@[<hov 1>(var %a)@]@ @[<hv 1>(decision@ %a)@])@]"
+    "@[<hv 1>(@,@[<hov 1>(var %a)@]@ @[<hv 1>(decision@ %a)@]@ (kind@ %a))@]"
     Extra_param_and_args.print epa print_decision decision
+    Flambda_kind.With_subkind.print kind
 
 and print_fields_decisions ppf l =
   let pp_sep = Format.pp_print_space in

@@ -93,7 +93,7 @@ let closure_info ~arity ~startenv ~is_last =
       (shift_left
           (Bool.to_int is_last |> Nativeint.of_int)
           (pos_arity_in_closinfo - 1))
-        (add (shift_left (of_int startenv) 1) 1n)))
+      (add (shift_left (of_int startenv) 1) 1n)))
 
 let alloc_float_header mode dbg =
   match mode with

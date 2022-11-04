@@ -51,10 +51,11 @@ module Transform = struct
                   what_to_specialise ->
               let group = Projection.projecting_from projection in
               assert (Variable.Map.mem group set_of_closures.specialised_args);
+              let kind = (Variable.Map.find group set_of_closures.specialised_args).kind in
               let what_to_specialise =
                 W.new_specialised_arg what_to_specialise ~fun_var ~group
                   ~definition:(Projection_from_existing_specialised_arg
-                      projection)
+                      (projection, kind))
               in
               match Variable.Map.find group invariant_params_flow with
               | exception Not_found -> what_to_specialise
@@ -80,6 +81,7 @@ module Transform = struct
                          corresponding inner specialised arg of
                          [target_fun_var].  (The outer vars referenced in the
                          projection remain unchanged.) *)
+                      let kind = (Variable.Map.find target_spec_arg set_of_closures.specialised_args).kind in
                       let projection =
                         Projection.map_projecting_from projection
                           ~f:(fun var ->
@@ -89,7 +91,7 @@ module Transform = struct
                       W.new_specialised_arg what_to_specialise
                         ~fun_var:target_fun_var ~group
                         ~definition:
-                          (Projection_from_existing_specialised_arg projection)
+                          (Projection_from_existing_specialised_arg (projection, kind))
                     end)
                   flow
                   what_to_specialise)

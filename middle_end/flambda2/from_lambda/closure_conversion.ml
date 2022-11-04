@@ -55,7 +55,10 @@ let declare_symbol_for_function_slot env ident function_slot : Env.t * Symbol.t
       (Compilation_unit.get_current_exn ())
       (Linkage_name.of_string (Function_slot.to_string function_slot))
   in
-  let env = Env.add_simple_to_substitute env ident (Simple.symbol symbol) in
+  let env =
+    Env.add_simple_to_substitute env ident (Simple.symbol symbol)
+      K.With_subkind.any_value
+  in
   env, symbol
 
 let register_const0 acc constant name =
@@ -163,16 +166,18 @@ let close_const acc const =
   let named = Named.create_simple simple in
   acc, named, name
 
-let find_simple_from_id env id =
+let find_simple_from_id_with_kind env id =
   match Env.find_simple_to_substitute_exn env id with
-  | simple -> simple
+  | simple, kind -> simple, kind
   | exception Not_found -> (
     match Env.find_var_exn env id with
     | exception Not_found ->
       Misc.fatal_errorf
         "find_simple_from_id: Cannot find [Ident] %a in environment" Ident.print
         id
-    | var -> Simple.var var)
+    | var, kind -> Simple.var var, kind)
+
+let find_simple_from_id env id = fst (find_simple_from_id_with_kind env id)
 
 (* CR mshinwell: Avoid the double lookup *)
 let find_simple acc env (simple : IR.simple) =
@@ -723,15 +728,16 @@ let close_named acc env ~let_bound_var (named : IR.named)
       (fun acc named -> k acc (Some named))
   | Prim { prim; args; loc; exn_continuation; region } ->
     close_primitive acc env ~let_bound_var named prim ~args loc exn_continuation
-      ~current_region:(Env.find_var env region) k
+      ~current_region:(fst (Env.find_var env region))
+      k
 
-let close_let acc env id user_visible defining_expr
+let close_let acc env id user_visible kind defining_expr
     ~(body : Acc.t -> Env.t -> Expr_with_acc.t) : Expr_with_acc.t =
-  let body_env, var = Env.add_var_like env id user_visible in
+  let body_env, var = Env.add_var_like env id user_visible kind in
   let cont acc (defining_expr : Named.t option) =
     match defining_expr with
     | Some (Simple simple) ->
-      let body_env = Env.add_simple_to_substitute env id simple in
+      let body_env = Env.add_simple_to_substitute env id simple kind in
       body acc body_env
     | None -> body acc body_env
     | Some (Prim ((Nullary Begin_region | Unary (End_region, _)), _))
@@ -795,7 +801,8 @@ let close_let acc env id user_visible defining_expr
               (* In spirit, this is the same as the simple case but more
                  cumbersome to detect, we have to remove the now useless
                  let-binding later. *)
-              Some (Env.add_simple_to_substitute env id (Simple.symbol sym))
+              Some
+                (Env.add_simple_to_substitute env id (Simple.symbol sym) kind)
             | _ ->
               Some (Env.add_value_approximation body_env (Name.var var) approx))
           )
@@ -827,17 +834,16 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
       Misc.fatal_errorf
         "[Let_cont]s marked as exception handlers must be [Nonrecursive]: %a"
         Continuation.print name);
-  let params_with_kinds = params in
-  let handler_env, params =
-    Env.add_vars_like env
-      (List.map
-         (fun (param, user_visible, _kind) -> param, user_visible)
-         params)
+  let params_with_kinds =
+    List.map
+      (fun (param, user_visible, kind) ->
+        param, user_visible, K.With_subkind.from_lambda kind)
+      params
   in
+  let handler_env, params = Env.add_vars_like env params_with_kinds in
   let handler_params =
     List.map2
-      (fun param (_, _, kind) ->
-        BP.create param (K.With_subkind.from_lambda kind))
+      (fun param (_, _, kind) -> BP.create param kind)
       params params_with_kinds
     |> Bound_parameters.create
   in
@@ -847,13 +853,13 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
       | None -> handler_env
       | Some args ->
         List.fold_left2
-          (fun env arg_approx (param, (param_id, _, _)) ->
+          (fun env arg_approx (param, (param_id, _, kind)) ->
             let env =
               Env.add_value_approximation env (Name.var param) arg_approx
             in
             match (arg_approx : Env.value_approximation) with
             | Value_symbol s | Closure_approximation { symbol = Some s; _ } ->
-              Env.add_simple_to_substitute env param_id (Simple.symbol s)
+              Env.add_simple_to_substitute env param_id (Simple.symbol s) kind
             | _ -> env)
           handler_env args
           (List.combine params params_with_kinds)
@@ -888,7 +894,7 @@ let close_exact_or_unknown_apply acc env
   let callee = find_simple_from_id env func in
   let current_region =
     match replace_region with
-    | None -> Env.find_var env region
+    | None -> fst (Env.find_var env region)
     | Some region -> region
   in
   let mode = Alloc_mode.For_types.from_lambda mode in
@@ -1188,7 +1194,10 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
           in
           let simple = Simple.with_coercion (Simple.var var) coerce_to_deeper in
           let approx = Function_slot.Map.find function_slot approx_map in
-          let env = Env.add_simple_to_substitute env let_rec_ident simple in
+          let env =
+            Env.add_simple_to_substitute env let_rec_ident simple
+              K.With_subkind.any_value
+          in
           let env = Env.add_value_approximation env (Name.var var) approx in
           to_bind, env)
         (Variable.Map.empty, closure_env)
@@ -1197,23 +1206,27 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
   let closure_env =
     Ident.Map.fold
       (fun id var env ->
-        Simple.pattern_match
-          (find_simple_from_id external_env id)
+        let simple, kind = find_simple_from_id_with_kind external_env id in
+        Simple.pattern_match simple
           ~const:(fun _ -> assert false)
           ~name:(fun name ~coercion:_ ->
-            Env.add_approximation_alias (Env.add_var env id var) name
-              (Name.var var)))
+            Env.add_approximation_alias
+              (Env.add_var env id var kind)
+              name (Name.var var)))
       value_slots_for_idents closure_env
   in
   let closure_env =
     List.fold_right
-      (fun (id, _) env ->
-        let env, _var = Env.add_var_like env id User_visible in
+      (fun (id, kind) env ->
+        let env, _var =
+          Env.add_var_like env id User_visible (K.With_subkind.from_lambda kind)
+        in
         env)
       params closure_env
   in
   let closure_env, my_region =
     Env.add_var_like closure_env my_region Not_user_visible
+      K.With_subkind.region
   in
   let closure_env = Env.with_depth closure_env my_depth in
   let closure_env, absolute_history, relative_history =
@@ -1233,7 +1246,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
      as stubs but certainly should be. *)
   let stub = Function_decl.stub decl in
   let param_vars =
-    List.map (fun (id, kind) -> Env.find_var closure_env id, kind) params
+    List.map (fun (id, kind) -> fst (Env.find_var closure_env id), kind) params
   in
   let params =
     List.map
@@ -1284,7 +1297,11 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
         let named =
           Named.create_prim
             (Unary
-               ( Project_value_slot { project_from = function_slot; value_slot },
+               ( Project_value_slot
+                   { project_from = function_slot;
+                     value_slot;
+                     kind = K.With_subkind.any_value
+                   },
                  my_closure' ))
             Debuginfo.none
         in
@@ -1404,7 +1421,7 @@ let close_functions acc external_env ~current_region function_declarations =
         let has_non_var_subst, subst_var =
           match Env.find_simple_to_substitute_exn external_env id with
           | exception Not_found -> false, None
-          | simple ->
+          | simple, _kind ->
             Simple.pattern_match simple
               ~const:(fun _ -> true, None)
               ~name:(fun name ~coercion:_ ->
@@ -1580,11 +1597,13 @@ let close_functions acc external_env ~current_region function_declarations =
   let value_slots =
     Ident.Map.fold
       (fun id value_slot map ->
-        let external_simple = find_simple_from_id external_env id in
+        let external_simple, kind =
+          find_simple_from_id_with_kind external_env id
+        in
         (* We're sure [external_simple] is a variable since
            [value_slot_from_idents] has already filtered constants and symbols
            out. *)
-        Value_slot.Map.add value_slot external_simple map)
+        Value_slot.Map.add value_slot (external_simple, kind) map)
       value_slots_from_idents Value_slot.Map.empty
   in
   let set_of_closures =
@@ -1621,12 +1640,14 @@ let close_functions acc external_env ~current_region function_declarations =
 
 let close_let_rec acc env ~function_declarations
     ~(body : Acc.t -> Env.t -> Expr_with_acc.t) ~current_region =
-  let current_region = Env.find_var env current_region in
+  let current_region = fst (Env.find_var env current_region) in
   let env =
     List.fold_right
       (fun decl env ->
         let id = Function_decl.let_rec_ident decl in
-        let env, _var = Env.add_var_like env id User_visible in
+        let env, _var =
+          Env.add_var_like env id User_visible K.With_subkind.any_value
+        in
         env)
       function_declarations env
   in
@@ -1634,7 +1655,9 @@ let close_let_rec acc env ~function_declarations
     List.fold_left
       (fun (fun_vars_map, ident_map) decl ->
         let ident = Function_decl.let_rec_ident decl in
-        let fun_var = VB.create (Env.find_var env ident) Name_mode.normal in
+        let fun_var =
+          VB.create (fst (Env.find_var env ident)) Name_mode.normal
+        in
         let function_slot = Function_decl.function_slot decl in
         ( Function_slot.Map.add function_slot fun_var fun_vars_map,
           Function_slot.Map.add function_slot ident ident_map ))
@@ -1678,6 +1701,7 @@ let close_let_rec acc env ~function_declarations
           let ident = Function_slot.Map.find function_slot ident_map in
           let env =
             Env.add_simple_to_substitute env ident (Simple.symbol symbol)
+              K.With_subkind.any_value
           in
           Env.add_value_approximation env (Name.symbol symbol) approx)
         symbols env
@@ -1839,7 +1863,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) over_args
   in
   let apply_region =
     match needs_region with
-    | None -> Env.find_var env apply.region
+    | None -> fst (Env.find_var env apply.region)
     | Some (region, _) -> region
   in
   let perform_over_application acc =
@@ -2117,6 +2141,7 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
   let return_cont = Continuation.create ~sort:Toplevel_return () in
   let env, toplevel_my_region =
     Env.add_var_like env toplevel_my_region Not_user_visible
+      Flambda_kind.With_subkind.region
   in
   let slot_offsets = Slot_offsets.empty in
   let acc = Acc.create ~slot_offsets in

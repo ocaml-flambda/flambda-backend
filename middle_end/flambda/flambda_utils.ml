@@ -343,16 +343,16 @@ let toplevel_substitution_named sb named =
   | _ -> assert false
 
 let make_closure_declaration
-      ~is_classic_mode ~id ~alloc_mode ~region ~body ~params : Flambda.t =
-  let free_variables = Flambda.free_variables body in
+      ~is_classic_mode ~id ~alloc_mode ~region ~body ~params ~free_variables : Flambda.t =
   let param_set = Parameter.Set.vars params in
-  if not (Variable.Set.subset param_set free_variables) then begin
+  let free_variables_set = Variable.Map.keys free_variables in
+  if not (Variable.Set.subset param_set free_variables_set) then begin
     Misc.fatal_error "Flambda_utils.make_closure_declaration"
   end;
   let sb =
     Variable.Set.fold
       (fun id sb -> Variable.Map.add id (Variable.rename id) sb)
-      free_variables Variable.Map.empty
+      free_variables_set Variable.Map.empty
   in
   (* CR-soon mshinwell: try to eliminate this [toplevel_substitution].  This
      function is only called from [Inline_and_simplify], so we should be able
@@ -368,13 +368,15 @@ let make_closure_declaration
       ~closure_origin:(Closure_origin.create (Closure_id.wrap id))
       ~poll:Default_poll
   in
-  assert (Variable.Set.equal (Variable.Set.map subst free_variables)
+  assert (Variable.Set.equal (Variable.Set.map subst free_variables_set)
     function_declaration.free_variables);
   let free_vars =
     Variable.Map.fold (fun id id' fv' ->
+        let kind = Variable.Map.find id free_variables in
         let spec_to : Flambda.specialised_to =
           { var = id;
             projection = None;
+            kind;
           }
         in
         Variable.Map.add id' spec_to fv')
