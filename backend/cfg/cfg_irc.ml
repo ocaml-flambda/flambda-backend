@@ -327,7 +327,8 @@ type direction =
   | Load_after_list of Cfg.BasicInstructionList.t
   | Store_before_list of Cfg.BasicInstructionList.t
 
-let rewrite : State.t -> Cfg_with_liveness.t -> Reg.t list -> reset:bool -> unit
+(* Returns `true` if new temporaries have been introduced. *)
+let rewrite : State.t -> Cfg_with_liveness.t -> Reg.t list -> reset:bool -> bool
     =
  fun state cfg_with_liveness spilled_nodes ~reset ->
   if irc_debug then log ~indent:1 "rewrite";
@@ -464,12 +465,16 @@ let rewrite : State.t -> Cfg_with_liveness.t -> Reg.t list -> reset:bool -> unit
           log ~indent:2 "and after:";
           log_body_and_terminator ~indent:3 block.body block.terminator liveness;
           log ~indent:2 "end"));
-  if reset
-  then State.reset state ~new_temporaries:!new_temporaries
-  else (
+  match !new_temporaries, reset with
+  | [], _ -> false
+  | _ :: _, true ->
+    State.reset state ~new_temporaries:!new_temporaries;
+    true
+  | _ :: _, false ->
     State.add_introduced_temporaries_list state !new_temporaries;
     State.clear_spilled_nodes state;
-    State.add_initial_list state !new_temporaries)
+    State.add_initial_list state !new_temporaries;
+    true
 
 (* CR xclerc for xclerc: could probably be lower; the compiler distribution
    seems to be fine with 4 *)
@@ -539,15 +544,17 @@ let rec main : round:int -> State.t -> Cfg_with_liveness.t -> unit =
   State.invariant state;
   match State.spilled_nodes state with
   | [] -> if irc_debug then log ~indent:1 "(end of main)"
-  | _ :: _ as spilled_nodes ->
+  | _ :: _ as spilled_nodes -> (
     if irc_debug
     then
       List.iter spilled_nodes ~f:(fun reg ->
           log ~indent:1 "/!\\ register %a needs to be spilled" Printmach.reg reg);
-    rewrite state cfg_with_liveness spilled_nodes ~reset:true;
-    State.invariant state;
-    Cfg_with_liveness.invalidate_liveness cfg_with_liveness;
-    main ~round:(succ round) state cfg_with_liveness
+    match rewrite state cfg_with_liveness spilled_nodes ~reset:true with
+    | false -> ()
+    | true ->
+      State.invariant state;
+      Cfg_with_liveness.invalidate_liveness cfg_with_liveness;
+      main ~round:(succ round) state cfg_with_liveness)
 
 let run : Cfg_with_liveness.t -> Cfg_with_liveness.t =
  fun cfg_with_liveness ->
@@ -590,12 +597,13 @@ let run : Cfg_with_liveness.t -> Cfg_with_liveness.t =
         log ~indent:0 "%a <- spilling_because_split_or_unused" Printmach.reg r);
   (match spilling_because_split_or_unused with
   | [] -> ()
-  | _ :: _ as spilling ->
+  | _ :: _ as spilling -> (
     List.iter spilling ~f:(fun reg -> State.add_spilled_nodes state reg);
     (* note: rewrite will remove the `spilling` registers from the "spilled"
        work list and set the field to unknown. *)
-    rewrite state cfg_with_liveness spilling ~reset:false;
-    Cfg_with_liveness.invalidate_liveness cfg_with_liveness);
+    match rewrite state cfg_with_liveness spilling ~reset:false with
+    | false -> ()
+    | true -> Cfg_with_liveness.invalidate_liveness cfg_with_liveness));
   main ~round:1 state cfg_with_liveness;
   (* note: slots need to be updated before prologue removal *)
   if irc_debug
