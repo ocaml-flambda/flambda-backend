@@ -29,12 +29,12 @@ let compare (e1, c1, d1) (e2, c2, d2) =
 (* Some useful constants *)
 let pure : t = No_effects, No_coeffects, Strict
 
-let pure_duplicatable : t = No_effects, No_coeffects, Delay
+let pure_can_be_duplicated : t = No_effects, No_coeffects, Delay
 
 let all : t = Arbitrary_effects, Has_coeffects, Strict
 
 let read : t = No_effects, Has_coeffects, Strict
 
-(* Joining effects and coeffects *)
+(* Joining effects, coeffects and placement *)
 let join (eff1, coeff1, dup1) (eff2, coeff2, dup2) =
   Effects.join eff1 eff2, Coeffects.join coeff1 coeff2, Placement.join dup1 dup2

@@ -456,7 +456,7 @@ let lift_set_of_closures env res ~body ~bound_vars layout set ~translate_expr
         let sym = C.symbol ~dbg (Function_slot.Map.find cid closure_symbols) in
         Env.bind_variable acc v ~defining_expr:sym
           ~num_normal_occurrences_of_bound_vars
-          ~effects_and_coeffects_of_defining_expr:Ece.pure_duplicatable)
+          ~effects_and_coeffects_of_defining_expr:Ece.pure_can_be_duplicated)
       env cids bound_vars
   in
   translate_expr env res body

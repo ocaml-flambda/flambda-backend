@@ -672,7 +672,9 @@ let arg_list ?consider_inlining_effectful_expressions ~dbg env l =
     let y, env, eff = arg ?consider_inlining_effectful_expressions ~dbg env x in
     y :: list, env, Ece.join eff effs
   in
-  let args, env, effs = List.fold_left aux ([], env, Ece.pure_duplicatable) l in
+  let args, env, effs =
+    List.fold_left aux ([], env, Ece.pure_can_be_duplicated) l
+  in
   List.rev args, env, effs
 
 let arg_list' ?consider_inlining_effectful_expressions ~dbg env l =
@@ -680,7 +682,9 @@ let arg_list' ?consider_inlining_effectful_expressions ~dbg env l =
     let y, env, eff = arg ?consider_inlining_effectful_expressions ~dbg env x in
     (y, eff) :: list, env, Ece.join eff effs
   in
-  let args, env, effs = List.fold_left aux ([], env, Ece.pure_duplicatable) l in
+  let args, env, effs =
+    List.fold_left aux ([], env, Ece.pure_can_be_duplicated) l
+  in
   List.rev args, env, effs
 
 let prim_simple env res dbg p =

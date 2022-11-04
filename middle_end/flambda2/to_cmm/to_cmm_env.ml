@@ -489,7 +489,9 @@ let will_inline_complex env { effs; bound_expr; _ } =
     cmm_expr, env, effs
 
 let will_not_inline_simple env { cmm_var; bound_expr = Simple _; _ } =
-  C.var (Backend_var.With_provenance.var cmm_var), env, Ece.pure_duplicatable
+  ( C.var (Backend_var.With_provenance.var cmm_var),
+    env,
+    Ece.pure_can_be_duplicated )
 
 let split_and_inline env var binding =
   match split_complex_binding binding with
@@ -561,7 +563,7 @@ let inline_variable ?consider_inlining_effectful_expressions env var =
     match Variable.Map.find var env.vars with
     | exception Not_found ->
       Misc.fatal_errorf "Variable %a not found in env" Variable.print var
-    | e -> e, env, Ece.pure_duplicatable)
+    | e -> e, env, Ece.pure_can_be_duplicated)
   | Binding binding -> (
     match binding.inline with
     | Do_not_inline -> will_not_inline_simple env binding
