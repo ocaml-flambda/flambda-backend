@@ -409,7 +409,15 @@ let update_spill_cost : Cfg_with_layout.t -> unit =
     update_array instr.res
   in
   Cfg_with_layout.iter_instructions cfg_with_layout ~instruction:update_instr
-    ~terminator:update_instr
+    ~terminator:(fun (term : Cfg.terminator Cfg.instruction) ->
+      (* Ignore probes *)
+      match term.desc with
+      | Prim { op = Probe _; _ } -> ()
+      | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
+      | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
+      | Tailcall_func _ | Call_no_return _ | Call _ | Prim _
+      | Specific_can_raise _ | Poll_and_jump _ ->
+        update_instr term)
 
 let is_spilled reg = reg.Reg.irc_work_list = Reg.Spilled
 
