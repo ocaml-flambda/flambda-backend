@@ -158,7 +158,7 @@ let [@ocamlformat "disable"] print_bound_expr (type a) ppf (b : a bound_expr) =
     Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(name@ %s)@]@ \
       @[<hov 1>(args@ @[<hov 1>(%a)@])@]\
-    )@]"
+      )@]"
       name
       (Format.pp_print_list (fun ppf (cmm, _) -> Printcmm.expression ppf cmm)) args
 
@@ -170,7 +170,7 @@ let [@ocamlformat "disable"] print_binding ppf
       @[<hov 1>(effs@ %a)@]@ \
       @[<hov 1>(var@ %a)@]@ \
       @[<hov 1>(expr@ %a)@]\
-    )@]"
+      )@]"
     order
     print_inline inline
     Ece.print effs
@@ -293,11 +293,14 @@ let complex_no_split name cmm_expr effs =
   splittable_primitive name [] effs (fun _ -> cmm_expr)
 
 let is_cmm_simple cmm =
-  match[@ocaml.warning "-4"] (cmm : Cmm.expression) with
+  match (cmm : Cmm.expression) with
   | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _ | Cvar _
     ->
     true
-  | _ -> false
+  | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _ | Ctuple _ | Cop _
+  | Csequence _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _
+  | Cregion _ | Ctail _ ->
+    false
 
 let create_binding_aux (type a) ?extra env effs var ~(inline : a inline)
     (bound_expr : a bound_expr) =
@@ -357,9 +360,9 @@ let bind_variable_with_decision (type a) ?extra env var ~inline
     | Generative_duplicable -> (
       match (inline : a inline) with
       | Must_inline_once ->
-        (* CR: this allows to move allocations marked as `Must_inline_once` past
-           function calls (and other effectful expressions), which can break
-           some allocation-counting tests. *)
+        (* CR gbury: this allows to move allocations marked as
+           `Must_inline_once` past function calls (and other effectful
+           expressions), which can break some allocation-counting tests. *)
         env
       | May_inline_once | Do_not_inline ->
         (* Generative expressions not marked as `must_inline` are treated as

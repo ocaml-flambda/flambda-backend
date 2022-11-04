@@ -32,8 +32,8 @@ type effects_and_coeffects_classification = private
           coeffectful expressions (and pure expressions), but cannot commute
           with an effectful expression. *)
   | Generative_duplicable
-      (** Only immutable generative effects. These are tecnically effects (since
-          functions in the `Gc` module can read counters related to
+      (** Only immutable generative effects. These are technically effects
+          (since functions in the `Gc` module can read counters related to
           allocations), but we are interested in moving allocation (e.g. for
           unboxing of numbers in classic mode). *)
 

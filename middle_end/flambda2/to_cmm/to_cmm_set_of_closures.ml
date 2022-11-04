@@ -215,12 +215,13 @@ module Dynamic = Make_layout_filler (struct
 
   let int ~dbg i = C.nativeint ~dbg i
 
-  (* The reason why we can inline simple here is the same as in
+  (* The reason why we can inline simples here is the same as in
      `To_cmm_shared.simple_list`: the first simple translated (and thus in which
      an inlining/substitution can occur), is the last simple that will be
      evaluated, according to the right-to-left evaluation order. This is ensured
-     by the fact that we build each field of the set of closure in left-to-right
-     order, so that the first translated field is actually evaluated last. *)
+     by the fact that we build each field of the set of closures in
+     left-to-right order, so that the first translated field is actually
+     evaluated last. *)
   let simple ~dbg env simple =
     let term, env, eff = C.simple ~dbg env simple in
     `Data [term], env, eff

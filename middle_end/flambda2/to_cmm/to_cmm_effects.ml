@@ -73,7 +73,7 @@ let classify_let_binding var
     | _, _, Strict -> May_inline_once)
   | More_than_one -> (
     (* Note: expressions in loops are counted as having two occurrences to
-       ensure that they fall in this case *)
+       ensure that they fall into this case *)
     match effects_and_coeffects_of_defining_expr with
     | _, _, Delay -> Must_inline_and_duplicate
     | _, _, Strict -> Regular)

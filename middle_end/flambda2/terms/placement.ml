@@ -16,19 +16,18 @@ type t =
   | Delay
   | Strict
 
-let [@ocamlformat "disable"] print ppf dup =
-  match dup with
-  | Delay -> Format.fprintf ppf "duplicatable"
-  | Strict -> Format.fprintf ppf "non-duplicatable"
+let print ppf = function
+  | Delay -> Format.fprintf ppf "Delay"
+  | Strict -> Format.fprintf ppf "Strict"
 
-let compare dup1 dup2 =
-  match dup1, dup2 with
+let compare placement1 placement2 =
+  match placement1, placement2 with
   | Delay, Delay -> 0
   | Delay, Strict -> -1
   | Strict, Strict -> 0
   | Strict, Delay -> 1
 
-let join dup1 dup2 =
-  match dup1, dup2 with
+let join placement1 placement2 =
+  match placement1, placement2 with
   | Delay, Delay -> Delay
   | Delay, Strict | Strict, Strict | Strict, Delay -> Strict
