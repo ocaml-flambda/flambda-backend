@@ -276,8 +276,16 @@ module ArraySet = struct
     val dummy : t
   end
 
-  (* CR-someday xclerc for xclerc: consider using unsafe versions of blit and
-     fill. *)
+  external unsafe_blit :
+    src:'a array ->
+    src_pos:int ->
+    dst:'a array ->
+    dst_pos:int ->
+    len:int ->
+    unit = "caml_array_blit"
+
+  external unsafe_fill : 'a array -> pos:int -> len:int -> 'a -> unit
+    = "caml_array_fill"
 
   module Make (T : OrderedTypeWithDummy) : S with type e = T.t = struct
     type e = T.t
@@ -293,7 +301,7 @@ module ArraySet = struct
       { array; length }
 
     let clear t =
-      Array.fill t.array ~pos:0 ~len:t.length T.dummy;
+      unsafe_fill t.array ~pos:0 ~len:t.length T.dummy;
       t.length <- 0
 
     let is_empty t = Int.equal t.length 0
@@ -325,12 +333,12 @@ module ArraySet = struct
           let len_before = idx in
           if len_before > 0
           then
-            Array.blit ~src:t.array ~src_pos:0 ~dst:new_array ~dst_pos:0
+            unsafe_blit ~src:t.array ~src_pos:0 ~dst:new_array ~dst_pos:0
               ~len:len_before;
           let len_after = t.length - idx in
           if len_after > 0
           then
-            Array.blit ~src:t.array ~src_pos:idx ~dst:new_array
+            unsafe_blit ~src:t.array ~src_pos:idx ~dst:new_array
               ~dst_pos:(succ idx) ~len:len_after;
           Array.unsafe_set new_array idx e;
           t.array <- new_array;
@@ -340,7 +348,7 @@ module ArraySet = struct
           let len = t.length - idx in
           if len > 0
           then
-            Array.blit ~src:t.array ~src_pos:idx ~dst:t.array
+            unsafe_blit ~src:t.array ~src_pos:idx ~dst:t.array
               ~dst_pos:(succ idx) ~len;
           Array.unsafe_set t.array idx e;
           t.length <- succ t.length)
@@ -353,7 +361,7 @@ module ArraySet = struct
         let len = t.length - idx - 1 in
         if len > 0
         then
-          Array.blit ~src:t.array ~src_pos:(succ idx) ~dst:t.array ~dst_pos:idx
+          unsafe_blit ~src:t.array ~src_pos:(succ idx) ~dst:t.array ~dst_pos:idx
             ~len;
         t.length <- pred t.length;
         Array.unsafe_set t.array t.length T.dummy)
