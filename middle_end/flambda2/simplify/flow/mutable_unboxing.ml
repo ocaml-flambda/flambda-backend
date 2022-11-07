@@ -89,6 +89,22 @@ let names_escaping_from_mutable_prim (prim : T.Mutable_prim.t) =
   | Block_set { value; _ } -> Simple.free_names value
   | Is_int _ | Get_tag _ | Block_load _ -> Name_occurrences.empty
 
+let names_used_in_new_let_binding (elt : T.Continuation_info.t) =
+  Continuation.Map.fold
+    (fun _cont apply_cont_args vars ->
+      Apply_cont_rewrite_id.Map.fold
+        (fun _ args vars ->
+          Numeric_types.Int.Map.fold
+            (fun _ (arg : T.Cont_arg.t) vars ->
+              match arg with
+              | Function_result | Simple _ -> vars
+              | New_let_binding (_, deps) ->
+                Name_occurrences.fold_variables deps ~init:vars
+                  ~f:(fun vars v -> Variable.Set.add v vars))
+            args vars)
+        apply_cont_args vars)
+    elt.apply_cont_args Variable.Set.empty
+
 let escaping_by_use_for_one_continuation ~required_names
     ~(dom : Dominator_graph.alias_map) (elt : T.Continuation_info.t) =
   let add_name_occurrences occurrences init =
@@ -108,6 +124,19 @@ let escaping_by_use_for_one_continuation ~required_names
         then add_name_occurrences deps escaping
         else escaping)
       elt.bindings escaping
+  in
+  let escaping =
+    (* CR ncourant: we could track primitives here as other primitives here
+       (mainly [Block_load]), but the usefulness of this is unclear for now.
+
+       See [flambda2/tests/ref_to_var/unboxing_cse.ml] *)
+    Variable.Set.fold
+      (fun var escaping ->
+        match Variable.Map.find var dom with
+        | exception Not_found -> escaping
+        | var -> Variable.Set.add var escaping)
+      (names_used_in_new_let_binding elt)
+      escaping
   in
   let escaping =
     Value_slot.Map.fold
