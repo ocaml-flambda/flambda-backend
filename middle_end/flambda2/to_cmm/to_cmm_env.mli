@@ -18,10 +18,27 @@
 (** Environment for Flambda to Cmm translation *)
 type t
 
+(** Some necessary info to translate some primitives without access to the
+    environment or "res". *)
+type prim_extra_info =
+  | No_info
+  | Projection_diff of int
+  | Invalid_message of Symbol.t
+
+(** Record of all primitive translation functions, to avoid a cyclic dependency. *)
+type trans_prim = {
+  nullary : prim_extra_info -> Flambda_primitive.nullary_primitive -> Cmm.expression;
+  unary : prim_extra_info -> Flambda_primitive.unary_primitive -> Cmm.expression -> Cmm.expression;
+  binary : prim_extra_info -> Flambda_primitive.binary_primitive -> Cmm.expression -> Cmm.expression -> Cmm.expression;
+  ternary : prim_extra_info -> Flambda_primitive.ternary_primitive -> Cmm.expression -> Cmm.expression -> Cmm.expression -> Cmm.expression;
+  variadic : prim_extra_info -> Flambda_primitive.variadic_primitive -> Cmm.expression list -> Cmm.expression;
+}
+
 (** Create an environment for translating a toplevel expression. *)
 val create :
   Exported_offsets.t ->
   Exported_code.t ->
+  trans_prim:trans_prim ->
   return_continuation:Continuation.t ->
   exn_continuation:Continuation.t ->
   t
@@ -158,11 +175,9 @@ val simple : Cmm.expression -> simple bound_expr
     needed. The effects that are passed must correspond respectively to each
     individual argument and to the primitive itself. *)
 val splittable_primitive :
-  string ->
+  Flambda_primitive.Without_args.t ->
   (Cmm.expression * Effects_and_coeffects.t) list ->
-  Effects_and_coeffects.t ->
-  (Cmm.expression list -> Cmm.expression) ->
-  complex bound_expr
+  prim_extra_info -> complex bound_expr
 
 (** Bind a variable, with support for splitting duplicatable primitives with
     non-duplicatable arguments. *)

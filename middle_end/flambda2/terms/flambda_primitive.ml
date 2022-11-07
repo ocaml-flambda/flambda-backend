@@ -1501,7 +1501,7 @@ let args_kind_of_variadic_primitive p : arg_kinds =
 let result_kind_of_variadic_primitive p : result_kind =
   match p with Make_block _ | Make_array _ -> Singleton K.value
 
-let effects_and_coeffects_of_variadic_primitive p ~args =
+let effects_and_coeffects_of_variadic_primitive p =
   match p with
   | Make_block (_, mut, alloc_mode) | Make_array (_, mut, alloc_mode) ->
     let coeffects : Coeffects.t =
@@ -1509,13 +1509,7 @@ let effects_and_coeffects_of_variadic_primitive p ~args =
       | Heap -> Coeffects.No_coeffects
       | Local _ -> Coeffects.Has_coeffects
     in
-    if List.length args >= 1
-    then Effects.Only_generative_effects mut, coeffects, Placement.Strict
-    else
-      (* Zero-sized blocks and arrays are immutable and statically allocated,
-         However, we currently only lift primitives that have *exactly*
-         generative effects. *)
-      Effects.Only_generative_effects Immutable, coeffects, Placement.Strict
+    Effects.Only_generative_effects mut, coeffects, Placement.Strict
 
 let variadic_classify_for_printing p =
   match p with Make_block _ | Make_array _ -> Constructive
@@ -1782,8 +1776,7 @@ let effects_and_coeffects (t : t) =
   | Unary (prim, _) -> effects_and_coeffects_of_unary_primitive prim
   | Binary (prim, _, _) -> effects_and_coeffects_of_binary_primitive prim
   | Ternary (prim, _, _, _) -> effects_and_coeffects_of_ternary_primitive prim
-  | Variadic (prim, args) ->
-    effects_and_coeffects_of_variadic_primitive prim ~args
+  | Variadic (prim, _) -> effects_and_coeffects_of_variadic_primitive prim
 
 let no_effects_or_coeffects t =
   match effects_and_coeffects t with
@@ -1975,6 +1968,15 @@ module Without_args = struct
     | Binary prim -> print_binary_primitive ppf prim
     | Ternary prim -> print_ternary_primitive ppf prim
     | Variadic prim -> print_variadic_primitive ppf prim
+
+  let effects_and_coeffects (t : t) =
+    match t with
+    | Nullary prim -> effects_and_coeffects_of_nullary_primitive prim
+    | Unary prim -> effects_and_coeffects_of_unary_primitive prim
+    | Binary prim -> effects_and_coeffects_of_binary_primitive prim
+    | Ternary prim -> effects_and_coeffects_of_ternary_primitive prim
+    | Variadic prim -> effects_and_coeffects_of_variadic_primitive prim
+
 end
 
 let is_begin_or_end_region t =
