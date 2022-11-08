@@ -17,7 +17,7 @@ let parse_flambda filename =
     in
     Compilation_unit.set_current comp_unit;
     Format.printf "%a@.@." Print_fexpr.flambda_unit unit;
-    let fl2 = Fexpr_to_flambda.conv ~module_ident:comp_unit unit in
+    let fl2 = Fexpr_to_flambda.conv comp_unit unit in
     Format.printf "flambda:@.%a@.@." Flambda_unit.print fl2;
     check_invariants fl2;
     let cmx_loader = Flambda_cmx.create_loader ~get_global_info in

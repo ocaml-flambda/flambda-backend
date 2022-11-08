@@ -899,9 +899,9 @@ let bind_all_code_ids env (unit : Fexpr.flambda_unit) =
   in
   go env unit.body
 
-let conv ~module_ident (fexpr : Fexpr.flambda_unit) : Flambda_unit.t =
+let conv comp_unit (fexpr : Fexpr.flambda_unit) : Flambda_unit.t =
   let module_symbol =
-    Flambda2_import.Symbol.for_compilation_unit module_ident
+    Flambda2_import.Symbol.for_compilation_unit comp_unit
     |> Symbol.create_wrapped
   in
   let env = init_env () in

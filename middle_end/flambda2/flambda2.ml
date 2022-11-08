@@ -30,7 +30,7 @@ let get_module_info comp_unit ~cmx_name =
        |> Compilation_unit.name)
   then None
   else
-    match Compilenv.get_unit_export_info comp_unit cmx_name with
+    match Compilenv.get_unit_export_info comp_unit ~cmx_name with
     | None | Some (Flambda2 None) -> None
     | Some (Flambda2 (Some info)) -> Some info
     | Some (Clambda _) ->

@@ -137,33 +137,33 @@ let read_library_info filename =
 
 (* Read and cache info on global identifiers *)
 
-let get_unit_info comp_unit modname =
-  if CU.Name.equal modname (CU.name current_unit.ui_unit)
+let get_unit_info comp_unit ~cmx_name =
+  if CU.Name.equal cmx_name (CU.name current_unit.ui_unit)
   then
     Some current_unit
   else begin
     try
-      CU.Name.Tbl.find global_infos_table modname
+      CU.Name.Tbl.find global_infos_table cmx_name
     with Not_found ->
       let (infos, crc) =
-        if Env.is_imported_opaque modname then (None, None)
+        if Env.is_imported_opaque cmx_name then (None, None)
         else begin
           try
             let filename =
-              Load_path.find_uncap ((modname |> CU.Name.to_string) ^ ".cmx") in
+              Load_path.find_uncap ((cmx_name |> CU.Name.to_string) ^ ".cmx") in
             let (ui, crc) = read_unit_info filename in
             if not (CU.equal ui.ui_unit comp_unit) then
               raise(Error(Illegal_renaming(comp_unit, ui.ui_unit, filename)));
             (Some ui, Some crc)
           with Not_found ->
-            let warn = Warnings.No_cmx_file (modname |> CU.Name.to_string) in
+            let warn = Warnings.No_cmx_file (cmx_name |> CU.Name.to_string) in
               Location.prerr_warning Location.none warn;
               (None, None)
           end
       in
       current_unit.ui_imports_cmx <-
         (comp_unit, crc) :: current_unit.ui_imports_cmx;
-      CU.Name.Tbl.add global_infos_table modname infos;
+      CU.Name.Tbl.add global_infos_table cmx_name infos;
       infos
   end
 
@@ -171,7 +171,7 @@ let which_cmx_file desired_comp_unit =
   CU.which_cmx_file desired_comp_unit ~accessed_by:(CU.get_current_exn ())
 
 let get_global_info global_ident =
-  get_unit_info global_ident (which_cmx_file global_ident)
+  get_unit_info global_ident ~cmx_name:(which_cmx_file global_ident)
 
 let cache_unit_info ui =
   CU.Name.Tbl.add global_infos_table (which_cmx_file ui.ui_unit) (Some ui)
@@ -188,7 +188,8 @@ let toplevel_approx :
   (CU.t, Clambda.value_approximation) Hashtbl.t = Hashtbl.create 16
 
 let record_global_approx_toplevel () =
-  Hashtbl.add toplevel_approx current_unit.ui_unit
+  Hashtbl.add toplevel_approx
+    current_unit.ui_unit
     (get_clambda_approx current_unit)
 
 let global_approx id =
@@ -219,15 +220,15 @@ let set_export_info export_info =
 let approx_for_global comp_unit =
   if CU.equal comp_unit CU.predef_exn
   then invalid_arg "approx_for_global with predef_exn compilation unit";
-  let modname = which_cmx_file comp_unit in
-  match CU.Name.Tbl.find export_infos_table modname with
+  let cmx_name = which_cmx_file comp_unit in
+  match CU.Name.Tbl.find export_infos_table cmx_name with
   | otherwise -> Some otherwise
   | exception Not_found ->
-    match get_unit_info comp_unit modname with
+    match get_unit_info comp_unit ~cmx_name with
     | None -> None
     | Some ui ->
       let exported = get_flambda_export_info ui in
-      CU.Name.Tbl.add export_infos_table modname exported;
+      CU.Name.Tbl.add export_infos_table cmx_name exported;
       merged_environment := Export_info.merge !merged_environment exported;
       Some exported
 

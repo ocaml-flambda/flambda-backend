@@ -32,5 +32,6 @@ val to_bytecode :
 *)
 
 val emit_bytecode :
-  Compile_common.info -> Instruct.instruction list * Compilation_unit.Set.t -> unit
+  Compile_common.info -> Instruct.instruction list * Compilation_unit.Set.t ->
+    unit
 (** [emit_bytecode bytecode] output the bytecode executable. *)

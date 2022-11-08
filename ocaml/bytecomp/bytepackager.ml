@@ -231,7 +231,8 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
         cu_pos = pos_code;
         cu_codesize = pos_debug - pos_code;
         cu_reloc = List.rev !relocs;
-        cu_imports = (modname, Some (cu_name, Env.crc_of_unit modname)) :: imports;
+        cu_imports =
+          (modname, Some (cu_name, Env.crc_of_unit modname)) :: imports;
         cu_primitives = !primitives;
         cu_required_globals = Compilation_unit.Set.elements required_globals;
         cu_force_link = !force_link;

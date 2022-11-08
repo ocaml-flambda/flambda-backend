@@ -26,7 +26,7 @@ let name_expr = Flambda_utils.name_expr
 let name_expr_from_var = Flambda_utils.name_expr_from_var
 
 type t = {
-  current_unit_id : Compilation_unit.t;
+  current_unit : Compilation_unit.t;
   filename : string;
   backend : (module Backend_intf.S);
   mutable imported_symbols : Symbol.Set.t;
@@ -459,7 +459,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
         (Lambda.Llet(Strict, Pgenval, Ident.create_local "dummy",
                      arg, Lconst const))
   | Lprim (Pfield _, [Lprim (Pgetglobal cu, [],_)], _)
-      when Compilation_unit.equal cu t.current_unit_id ->
+      when Compilation_unit.equal cu t.current_unit ->
     Misc.fatal_errorf "[Pfield (Pgetglobal ...)] for the current compilation \
         unit is forbidden upon entry to the middle end"
   | Lprim (Psetfield (_, _, _), [Lprim (Pgetglobal _, [], _); _], _) ->
@@ -471,7 +471,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
     t.imported_symbols <- Symbol.Set.add symbol t.imported_symbols;
     name_expr (Symbol symbol) ~name:Names.predef_exn
   | Lprim (Pgetglobal cu, [], _) ->
-    assert (not (Compilation_unit.equal cu t.current_unit_id));
+    assert (not (Compilation_unit.equal cu t.current_unit));
     let symbol = Symbol.for_compilation_unit cu in
     t.imported_symbols <- Symbol.Set.add symbol t.imported_symbols;
     name_expr (Symbol symbol) ~name:Names.pgetglobal
@@ -713,9 +713,9 @@ and close_let_bound_expression t ?let_rec_ident let_bound_var env
 let lambda_to_flambda ~backend ~compilation_unit ~size ~filename lam
       : Flambda.program =
   let lam = add_default_argument_wrappers lam in
-  let current_unit_id = Compilation_unit.get_current_exn () in
+  let current_unit = Compilation_unit.get_current_exn () in
   let t =
-    { current_unit_id;
+    { current_unit;
       filename;
       backend;
       imported_symbols = Symbol.Set.empty;
