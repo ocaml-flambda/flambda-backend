@@ -207,15 +207,6 @@ end
 
 module B = DC.Make (Bytecode)
 
-(* This must match the runtime representation of the argument to
-   [Cmm_helpers.globals_map]. *)
-type global_map = {
-  name : Compilation_unit.t;
-  crc_intf : Digest.t option;
-  crc_impl : Digest.t option;
-  syms : Symbol.t list;
-}
-
 module Native = struct
   type handle
 
@@ -224,7 +215,7 @@ module Native = struct
     = "caml_sys_exit" "caml_natdynlink_open"
   external ndl_run : handle -> string -> unit
     = "caml_sys_exit" "caml_natdynlink_run"
-  external ndl_getmap : unit -> global_map list
+  external ndl_getmap : unit -> Consistbl.native_global_map_entry list
     = "caml_sys_exit" "caml_natdynlink_getmap"
   external ndl_globals_inited : unit -> int
     = "caml_sys_exit" "caml_natdynlink_globals_inited"

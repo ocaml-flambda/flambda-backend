@@ -698,7 +698,7 @@ and close_let_bound_expression t ?let_rec_ident let_bound_var env
         ~var:let_bound_var))
   | lam -> Expr (close t env lam)
 
-let lambda_to_flambda ~backend ~module_ident ~size lam
+let lambda_to_flambda ~backend ~compilation_unit ~size lam
       : Flambda.program =
   let lam = add_default_argument_wrappers lam in
   let current_unit_id = Compilation_unit.get_current_exn () in
@@ -709,7 +709,7 @@ let lambda_to_flambda ~backend ~module_ident ~size lam
       declared_symbols = [];
     }
   in
-  let module_symbol = Symbol.for_compilation_unit module_ident in
+  let module_symbol = Symbol.for_compilation_unit compilation_unit in
   let block_symbol =
     let var = Variable.create Internal_variable_names.module_as_block in
     Symbol_utils.Flambda.for_variable var

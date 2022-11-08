@@ -20,7 +20,7 @@ val lambda_to_flambda :
   mode:'mode Flambda_features.mode ->
   big_endian:bool ->
   cmx_loader:Flambda_cmx.loader ->
-  module_ident:Compilation_unit.t ->
+  compilation_unit:Compilation_unit.t ->
   module_block_size_in_words:int ->
   Lambda.lambda ->
   'mode Closure_conversion.close_program_result

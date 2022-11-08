@@ -106,8 +106,8 @@ let make_package_object unix ~ppf_dump members targetobj targetname coercion
           | PM_impl _ -> Some(CU.create_child (CU.get_current_exn ()) m.pm_name))
         members in
     let for_pack_prefix = CU.Prefix.from_clflags () in
-    let modname = targetname |> CU.Name.of_string in
-    let module_ident = CU.create for_pack_prefix modname in
+    let modname = CU.Name.of_string targetname in
+    let compilation_unit = CU.create for_pack_prefix modname in
     let prefixname = Filename.remove_extension objtemp in
     let required_globals = Compilation_unit.Set.empty in
     if Config.flambda2 then begin
@@ -119,7 +119,7 @@ let make_package_object unix ~ppf_dump members targetobj targetname coercion
         ~filename:targetname
         ~prefixname
         ~size:main_module_block_size
-        ~module_ident
+        ~compilation_unit
         ~module_initializer
         ~flambda2
         ~ppf_dump
@@ -137,7 +137,7 @@ let make_package_object unix ~ppf_dump members targetobj targetname coercion
             { Lambda.
               code;
               main_module_block_size;
-              module_ident;
+              compilation_unit;
               required_globals;
             }
           in
@@ -145,14 +145,14 @@ let make_package_object unix ~ppf_dump members targetobj targetname coercion
         else
           let main_module_block_size, code =
             Translmod.transl_store_package components
-              module_ident coercion
+              compilation_unit coercion
           in
           let code = Simplif.simplify_lambda code in
           let program =
             { Lambda.
               code;
               main_module_block_size;
-              module_ident;
+              compilation_unit;
               required_globals;
             }
           in

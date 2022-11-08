@@ -905,20 +905,20 @@ let required_globals ~flambda body =
 
 (* Compile an implementation *)
 
-let transl_implementation_flambda module_name (str, cc) =
+let transl_implementation_flambda compilation_unit (str, cc) =
   reset_labels ();
   primitive_declarations := [];
   Translprim.clear_used_primitives ();
   Translcore.clear_probe_handlers ();
-  let scopes = enter_compilation_unit ~scopes:empty_scopes module_name in
+  let scopes = enter_compilation_unit ~scopes:empty_scopes compilation_unit in
   let body, size =
     Translobj.transl_label_init (fun () ->
       let body, size =
         transl_struct ~scopes Loc_unknown [] cc
-          (global_path module_name) str in
+          (global_path compilation_unit) str in
       Translcore.declare_probe_handlers body, size)
   in
-  { module_ident = module_name;
+  { compilation_unit;
     main_module_block_size = size;
     required_globals = required_globals ~flambda:true body;
     code = body }
@@ -928,7 +928,7 @@ let transl_implementation module_name (str, cc) =
     transl_implementation_flambda module_name (str, cc)
   in
   let code =
-    Lprim (Psetglobal implementation.module_ident, [implementation.code],
+    Lprim (Psetglobal implementation.compilation_unit, [implementation.code],
            Loc_unknown)
   in
   { implementation with code }
@@ -1517,17 +1517,17 @@ let transl_store_phrases module_name str =
   in
   transl_store_gen ~scopes module_name (str,Tcoerce_none) true
 
-let transl_store_implementation module_name (str, restr) =
+let transl_store_implementation compilation_unit (str, restr) =
   let s = !transl_store_subst in
   transl_store_subst := Ident.Map.empty;
-  let scopes = enter_compilation_unit ~scopes:empty_scopes module_name in
-  let (i, code) = transl_store_gen ~scopes module_name (str, restr) false in
+  let scopes = enter_compilation_unit ~scopes:empty_scopes compilation_unit in
+  let i, code = transl_store_gen ~scopes compilation_unit (str, restr) false in
   transl_store_subst := s;
   { Lambda.main_module_block_size = i;
     code;
-    (* module_ident is not used by closure, but this allow to share
+    (* compilation_unit is not used by closure, but this allow to share
        the type with the flambda version *)
-    module_ident = module_name;
+    compilation_unit;
     required_globals = required_globals ~flambda:true code }
 
 (* Compile a toplevel phrase *)

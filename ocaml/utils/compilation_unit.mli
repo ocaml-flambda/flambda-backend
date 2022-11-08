@@ -134,7 +134,9 @@ val can_access_by_name : t -> accessed_by:t -> bool
     This is tricky in the case of packs.  It can be done by lining up the
     desired compilation unit's full path (i.e. pack prefix then unit name)
     against the accessing unit's full path and observing when/if they
-    diverge. *)
+    diverge.
+
+    This is only used for native code compilation. *)
 val which_cmx_file : t -> accessed_by:t -> Name.t
 
 (** A distinguished compilation unit for initialisation of mutable state. *)

@@ -2092,13 +2092,13 @@ let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
     (acc, body) components
 
 let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
-    ~cmx_loader ~module_ident ~module_block_size_in_words ~program
+    ~cmx_loader ~compilation_unit ~module_block_size_in_words ~program
     ~prog_return_cont ~exn_continuation ~toplevel_my_region :
     mode close_program_result =
   let env = Env.create ~big_endian ~cmx_loader in
   let module_symbol =
     Symbol.create_wrapped
-      (Flambda2_import.Symbol.for_compilation_unit module_ident)
+      (Flambda2_import.Symbol.for_compilation_unit compilation_unit)
   in
   let module_block_tag = Tag.Scannable.zero in
   let module_block_var = Variable.create "module_block" in

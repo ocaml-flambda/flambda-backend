@@ -20,6 +20,7 @@
 
 type t
 
+(* For predefined exception identifiers. *)
 val for_predef_ident : Ident.t -> t
 
 (** It is assumed that the provided [Ident.t] is in the current unit. *)

@@ -22,7 +22,7 @@ type loader
 val create_loader :
   get_module_info:
     (Compilation_unit.t ->
-    Compilation_unit.Name.t ->
+    cmx_name:Compilation_unit.Name.t ->
     Flambda_cmx_format.t option) ->
   loader
 

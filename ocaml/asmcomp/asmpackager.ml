@@ -107,7 +107,7 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
         members in
     let for_pack_prefix = CU.Prefix.from_clflags () in
     let modname = targetname |> CU.Name.of_string in
-    let module_ident = CU.create for_pack_prefix modname in
+    let compilation_unit = CU.create for_pack_prefix modname in
     let prefixname = Filename.remove_extension objtemp in
     let required_globals = CU.Set.empty in
     let program, middle_end =
@@ -120,7 +120,7 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
           { Lambda.
             code;
             main_module_block_size;
-            module_ident;
+            compilation_unit;
             required_globals;
           }
         in
@@ -128,14 +128,14 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
       else
         let main_module_block_size, code =
           Translmod.transl_store_package components
-            module_ident coercion
+            compilation_unit coercion
         in
         let code = Simplif.simplify_lambda code in
         let program =
           { Lambda.
             code;
             main_module_block_size;
-            module_ident;
+            compilation_unit;
             required_globals;
           }
         in

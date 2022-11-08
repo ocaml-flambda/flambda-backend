@@ -1693,9 +1693,9 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
 
 (* CR pchambart: define a record `target_config` to hold things like
    `big_endian` *)
-let lambda_to_flambda ~mode ~big_endian ~cmx_loader ~module_ident
+let lambda_to_flambda ~mode ~big_endian ~cmx_loader ~compilation_unit
     ~module_block_size_in_words (lam : Lambda.lambda) =
-  let current_unit_id = module_ident in
+  let current_unit_id = compilation_unit in
   let return_continuation = Continuation.create ~sort:Define_root_symbol () in
   let exn_continuation = Continuation.create () in
   let toplevel_my_region = Ident.create_local "toplevel_my_region" in
@@ -1706,6 +1706,6 @@ let lambda_to_flambda ~mode ~big_endian ~cmx_loader ~module_ident
   let toplevel acc ccenv =
     cps_tail acc env ccenv lam return_continuation exn_continuation
   in
-  CC.close_program ~mode ~big_endian ~cmx_loader ~module_ident
+  CC.close_program ~mode ~big_endian ~cmx_loader ~compilation_unit
     ~module_block_size_in_words ~program:toplevel
     ~prog_return_cont:return_continuation ~exn_continuation ~toplevel_my_region

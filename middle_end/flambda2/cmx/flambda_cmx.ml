@@ -21,7 +21,7 @@ module TE = Flambda2_types.Typing_env
 type loader =
   { get_module_info :
       Compilation_unit.t ->
-      Compilation_unit.Name.t ->
+      cmx_name:Compilation_unit.Name.t ->
       Flambda_cmx_format.t option;
     mutable imported_names : Name.Set.t;
     mutable imported_code : Exported_code.t;
@@ -37,7 +37,7 @@ let load_cmx_file_contents loader comp_unit =
   match Compilation_unit.Name.Map.find cmx_file loader.imported_units with
   | typing_env_or_none -> typing_env_or_none
   | exception Not_found -> (
-    match loader.get_module_info comp_unit cmx_file with
+    match loader.get_module_info comp_unit ~cmx_name:cmx_file with
     | None ->
       (* To make things easier to think about, we never retry after a .cmx load
          fails. *)

@@ -21,7 +21,7 @@ val lambda_to_cmm :
   ppf_dump:Format.formatter ->
   prefixname:string ->
   filename:string ->
-  module_ident:Compilation_unit.t ->
+  compilation_unit:Compilation_unit.t ->
   module_block_size_in_words:int ->
   module_initializer:Lambda.lambda ->
   keep_symbol_tables:bool ->
@@ -29,5 +29,5 @@ val lambda_to_cmm :
 
 val get_module_info :
   Compilation_unit.t ->
-  Compilation_unit.Name.t ->
+  cmx_name:Compilation_unit.Name.t ->
   Flambda2_cmx.Flambda_cmx_format.t option

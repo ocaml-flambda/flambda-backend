@@ -655,7 +655,8 @@ let compile_implementation unix ?toplevel ~backend ~filename ~prefixname
     ~obj_filename:(prefixname ^ ext_obj)
     ~may_reduce_heap:(Option.is_none toplevel)
     (fun () ->
-      Compilation_unit.Set.iter Compilenv.require_global program.required_globals;
+      Compilation_unit.Set.iter Compilenv.require_global
+        program.required_globals;
       let clambda_with_constants =
         middle_end ~backend ~filename ~prefixname ~ppf_dump program
       in
@@ -663,17 +664,17 @@ let compile_implementation unix ?toplevel ~backend ~filename ~prefixname
         clambda_with_constants)
 
 let compile_implementation_flambda2 unix ?toplevel ?(keep_symbol_tables=true)
-    ~filename ~prefixname ~size:module_block_size_in_words ~module_ident
+    ~filename ~prefixname ~size:module_block_size_in_words ~compilation_unit
     ~module_initializer ~flambda2 ~ppf_dump ~required_globals () =
   compile_unit ~ppf_dump ~output_prefix:prefixname
     ~asm_filename:(asm_filename prefixname) ~keep_asm:!keep_asm_file
     ~obj_filename:(prefixname ^ ext_obj)
     ~may_reduce_heap:(Option.is_none toplevel)
     (fun () ->
-      Compilation_unit.Set.iter (fun cu -> Compilenv.require_global cu)
+      Compilation_unit.Set.iter Compilenv.require_global
         required_globals;
       let cmm_phrases =
-        flambda2 ~ppf_dump ~prefixname ~filename ~module_ident
+        flambda2 ~ppf_dump ~prefixname ~filename ~compilation_unit
           ~module_block_size_in_words ~module_initializer
           ~keep_symbol_tables
       in
