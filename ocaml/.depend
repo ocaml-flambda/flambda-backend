@@ -68,13 +68,19 @@ utils/config.cmx : \
     utils/config.cmi
 utils/config.cmi :
 utils/consistbl.cmo : \
+    utils/symbol.cmi \
     utils/misc.cmi \
+    utils/compilation_unit.cmi \
     utils/consistbl.cmi
 utils/consistbl.cmx : \
+    utils/symbol.cmx \
     utils/misc.cmx \
+    utils/compilation_unit.cmx \
     utils/consistbl.cmi
 utils/consistbl.cmi : \
-    utils/misc.cmi
+    utils/symbol.cmi \
+    utils/misc.cmi \
+    utils/compilation_unit.cmi
 utils/diffing.cmo : \
     utils/misc.cmi \
     utils/diffing.cmi
@@ -2677,10 +2683,10 @@ asmcomp/cmm_helpers.cmx : \
     asmcomp/cmm_helpers.cmi
 asmcomp/cmm_helpers.cmi : \
     utils/targetint.cmi \
-    utils/symbol.cmi \
     typing/primitive.cmi \
     lambda/lambda.cmi \
     lambda/debuginfo.cmi \
+    utils/consistbl.cmi \
     utils/compilation_unit.cmi \
     file_formats/cmx_format.cmi \
     asmcomp/cmmgen_state.cmi \
@@ -6478,104 +6484,6 @@ toplevel/genprintval.cmi : \
     typing/path.cmi \
     typing/outcometree.cmi \
     typing/env.cmi
-toplevel/opttoploop.cmo : \
-    utils/warnings.cmi \
-    typing/types.cmi \
-    typing/typemod.cmi \
-    typing/typedtree.cmi \
-    typing/typecore.cmi \
-    lambda/translmod.cmi \
-    utils/symbol.cmi \
-    lambda/simplif.cmi \
-    asmcomp/proc.cmi \
-    typing/printtyped.cmi \
-    typing/printtyp.cmi \
-    lambda/printlambda.cmi \
-    parsing/printast.cmi \
-    typing/predef.cmi \
-    parsing/pprintast.cmi \
-    driver/pparse.cmi \
-    typing/path.cmi \
-    parsing/parsetree.cmi \
-    parsing/parse.cmi \
-    typing/outcometree.cmi \
-    typing/oprint.cmi \
-    utils/misc.cmi \
-    parsing/longident.cmi \
-    parsing/location.cmi \
-    utils/load_path.cmi \
-    utils/linkage_name.cmi \
-    parsing/lexer.cmi \
-    lambda/lambda.cmi \
-    typing/includemod.cmi \
-    middle_end/flambda/import_approx.cmi \
-    typing/ident.cmi \
-    toplevel/genprintval.cmi \
-    middle_end/flambda/flambda_middle_end.cmi \
-    typing/env.cmi \
-    utils/config.cmi \
-    driver/compmisc.cmi \
-    middle_end/compilenv.cmi \
-    utils/compilation_unit.cmi \
-    driver/compenv.cmi \
-    middle_end/closure/closure_middle_end.cmi \
-    utils/clflags.cmi \
-    typing/btype.cmi \
-    middle_end/backend_intf.cmi \
-    parsing/asttypes.cmi \
-    parsing/ast_helper.cmi \
-    asmcomp/asmlink.cmi \
-    asmcomp/asmgen.cmi \
-    asmcomp/arch.cmo
-toplevel/opttoploop.cmx : \
-    utils/warnings.cmx \
-    typing/types.cmx \
-    typing/typemod.cmx \
-    typing/typedtree.cmx \
-    typing/typecore.cmx \
-    lambda/translmod.cmx \
-    utils/symbol.cmx \
-    lambda/simplif.cmx \
-    asmcomp/proc.cmx \
-    typing/printtyped.cmx \
-    typing/printtyp.cmx \
-    lambda/printlambda.cmx \
-    parsing/printast.cmx \
-    typing/predef.cmx \
-    parsing/pprintast.cmx \
-    driver/pparse.cmx \
-    typing/path.cmx \
-    parsing/parsetree.cmi \
-    parsing/parse.cmx \
-    typing/outcometree.cmi \
-    typing/oprint.cmx \
-    utils/misc.cmx \
-    parsing/longident.cmx \
-    parsing/location.cmx \
-    utils/load_path.cmx \
-    utils/linkage_name.cmx \
-    parsing/lexer.cmx \
-    lambda/lambda.cmx \
-    typing/includemod.cmx \
-    middle_end/flambda/import_approx.cmx \
-    typing/ident.cmx \
-    toplevel/genprintval.cmx \
-    middle_end/flambda/flambda_middle_end.cmx \
-    typing/env.cmx \
-    utils/config.cmx \
-    driver/compmisc.cmx \
-    middle_end/compilenv.cmx \
-    utils/compilation_unit.cmx \
-    driver/compenv.cmx \
-    middle_end/closure/closure_middle_end.cmx \
-    utils/clflags.cmx \
-    typing/btype.cmx \
-    middle_end/backend_intf.cmi \
-    parsing/asttypes.cmi \
-    parsing/ast_helper.cmx \
-    asmcomp/asmlink.cmx \
-    asmcomp/asmgen.cmx \
-    asmcomp/arch.cmx
 toplevel/topcommon.cmo : \
     typing/typedtree.cmi \
     parsing/printast.cmi \
@@ -6591,7 +6499,6 @@ toplevel/topcommon.cmo : \
     parsing/longident.cmi \
     parsing/location.cmi \
     utils/load_path.cmi \
-    utils/linkage_name.cmi \
     parsing/lexer.cmi \
     typing/ident.cmi \
     toplevel/genprintval.cmi \
@@ -6599,6 +6506,7 @@ toplevel/topcommon.cmo : \
     bytecomp/dll.cmi \
     utils/config.cmi \
     driver/compmisc.cmi \
+    utils/compilation_unit.cmi \
     driver/compenv.cmi \
     utils/clflags.cmi \
     parsing/asttypes.cmi \
@@ -6619,7 +6527,6 @@ toplevel/topcommon.cmx : \
     parsing/longident.cmx \
     parsing/location.cmx \
     utils/load_path.cmx \
-    utils/linkage_name.cmx \
     parsing/lexer.cmx \
     typing/ident.cmx \
     toplevel/genprintval.cmx \
@@ -6627,6 +6534,7 @@ toplevel/topcommon.cmx : \
     bytecomp/dll.cmx \
     utils/config.cmx \
     driver/compmisc.cmx \
+    utils/compilation_unit.cmx \
     driver/compenv.cmx \
     utils/clflags.cmx \
     parsing/asttypes.cmi \
@@ -6643,7 +6551,8 @@ toplevel/topcommon.cmi : \
     parsing/location.cmi \
     typing/ident.cmi \
     toplevel/genprintval.cmi \
-    typing/env.cmi
+    typing/env.cmi \
+    utils/compilation_unit.cmi
 toplevel/topdirs.cmo : \
     utils/warnings.cmi \
     typing/types.cmi \
@@ -6779,6 +6688,7 @@ toplevel/byte/topeval.cmo : \
     bytecomp/dll.cmi \
     utils/config.cmi \
     driver/compmisc.cmi \
+    utils/compilation_unit.cmi \
     file_formats/cmo_format.cmi \
     utils/clflags.cmi \
     bytecomp/bytegen.cmi \
@@ -6814,6 +6724,7 @@ toplevel/byte/topeval.cmx : \
     bytecomp/dll.cmx \
     utils/config.cmx \
     driver/compmisc.cmx \
+    utils/compilation_unit.cmx \
     file_formats/cmo_format.cmi \
     utils/clflags.cmx \
     bytecomp/bytegen.cmx \
@@ -6898,6 +6809,7 @@ toplevel/native/topeval.cmo : \
     lambda/translmod.cmi \
     toplevel/native/tophooks.cmi \
     toplevel/topcommon.cmi \
+    utils/symbol.cmi \
     lambda/simplif.cmi \
     typing/shape.cmi \
     typing/printtyped.cmi \
@@ -6930,6 +6842,7 @@ toplevel/native/topeval.cmx : \
     lambda/translmod.cmx \
     toplevel/native/tophooks.cmx \
     toplevel/topcommon.cmx \
+    utils/symbol.cmx \
     lambda/simplif.cmx \
     typing/shape.cmx \
     typing/printtyped.cmx \
@@ -6964,7 +6877,6 @@ toplevel/native/tophooks.cmo : \
     middle_end/flambda/import_approx.cmi \
     middle_end/flambda/flambda_middle_end.cmi \
     utils/config.cmi \
-    middle_end/compilenv.cmi \
     middle_end/closure/closure_middle_end.cmi \
     utils/clflags.cmi \
     middle_end/backend_intf.cmi \
@@ -6980,7 +6892,6 @@ toplevel/native/tophooks.cmx : \
     middle_end/flambda/import_approx.cmx \
     middle_end/flambda/flambda_middle_end.cmx \
     utils/config.cmx \
-    middle_end/compilenv.cmx \
     middle_end/closure/closure_middle_end.cmx \
     utils/clflags.cmx \
     middle_end/backend_intf.cmi \

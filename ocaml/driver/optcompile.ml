@@ -39,16 +39,16 @@ let flambda i backend Typedtree.{structure; coercion; _} =
   |> Profile.(record transl)
       (Translmod.transl_implementation_flambda i.module_name)
   |> Profile.(record generate)
-    (fun {Lambda.module_ident; main_module_block_size;
+    (fun {Lambda.compilation_unit; main_module_block_size;
           required_globals; code } ->
-    ((module_ident, main_module_block_size), code)
+    ((compilation_unit, main_module_block_size), code)
     |>> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.lambda
     |>> Simplif.simplify_lambda
     |>> print_if i.ppf_dump Clflags.dump_lambda Printlambda.lambda
-    |> (fun ((module_ident, main_module_block_size), code) ->
+    |> (fun ((compilation_unit, main_module_block_size), code) ->
       let program : Lambda.program =
         { Lambda.
-          module_ident;
+          compilation_unit;
           main_module_block_size;
           required_globals;
           code;

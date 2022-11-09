@@ -50,7 +50,7 @@ let run_expect_test ~get_module_info ~extension ~filename
   let { Simplify.unit = actual_fl; _ } =
     Simplify.run ~cmx_loader ~round:0 before_fl
   in
-  let expected_fl = Fexpr_to_flambda.conv ~module_ident:comp_unit expected in
+  let expected_fl = Fexpr_to_flambda.conv comp_unit expected in
   match Compare.flambda_units actual_fl expected_fl with
   | Equivalent -> Pass
   | Different { approximant = actual' } ->
