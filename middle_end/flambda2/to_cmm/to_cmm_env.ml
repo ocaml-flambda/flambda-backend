@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 module C = Cmm_helpers
+module R = To_cmm_result
 module P = Flambda_primitive
 module Ece = Effects_and_coeffects
 
@@ -32,25 +33,19 @@ type extra_info =
   | Untag of Cmm.expression
   | Boxed_number
 
-(* Primitive translation. To break cyclic dependencies between this file
-   and to_cmm_primitive.ml, we declare [prim_extra_info] here. *)
-
-type prim_extra_info =
-  | No_info
-  | Projection_diff of int
-  | Invalid_message of Symbol.t
-
 (* Since to_cmm_primitive.ml depends on this file, and in this file, we need
    to translate delayed/split primitives, we need to have access to the
    translation primitive from to_cmm_primitive.ml, and we'll get them through
    this record. *)
 
-type trans_prim = {
-  nullary : prim_extra_info -> P.nullary_primitive -> Cmm.expression;
-  unary : prim_extra_info -> P.unary_primitive -> Cmm.expression -> Cmm.expression;
-  binary : prim_extra_info -> P.binary_primitive -> Cmm.expression -> Cmm.expression -> Cmm.expression;
-  ternary : prim_extra_info -> P.ternary_primitive -> Cmm.expression -> Cmm.expression -> Cmm.expression -> Cmm.expression;
-  variadic : prim_extra_info -> P.variadic_primitive -> Cmm.expression list -> Cmm.expression;
+type prim_res = extra_info option * R.t * Cmm.expression
+type ('env, 'prim, 'arity) prim_helper = 'env -> R.t -> Debuginfo.t -> 'prim -> 'arity
+type 'env trans_prim = {
+  nullary : ('env, P.nullary_primitive, prim_res) prim_helper;
+  unary : ('env, P.unary_primitive, Cmm.expression -> prim_res) prim_helper;
+  binary : ('env, P.binary_primitive, Cmm.expression -> Cmm.expression -> prim_res) prim_helper;
+  ternary : ('env, P.ternary_primitive, Cmm.expression -> Cmm.expression -> Cmm.expression -> prim_res) prim_helper;
+  variadic : ('env, P.variadic_primitive, Cmm.expression list -> prim_res) prim_helper;
 }
 
 (* Delayed let-bindings (see the .mli) *)
@@ -85,9 +80,9 @@ type _ bound_expr =
   | Simple : { cmm_expr : Cmm.expression } -> simple bound_expr
   | Split : { cmm_expr : Cmm.expression } -> complex bound_expr
   | Splittable_prim : {
+      dbg : Debuginfo.t;
       prim : Flambda_primitive.Without_args.t;
       args : (Cmm.expression * Ece.t) list;
-      prim_extra_info : prim_extra_info;
     }
       -> complex bound_expr
 
@@ -109,7 +104,7 @@ type t =
   { (* Global information.
 
        This is computed once and remains valid for a whole compilation unit. *)
-    trans_prim : trans_prim;
+    trans_prim : t trans_prim;
     (* Primitive translation functions. *)
     offsets : Exported_offsets.t;
     (* Offsets for function and value slots. *)
@@ -177,11 +172,13 @@ let [@ocamlformat "disable"] print_bound_expr (type a) ppf (b : a bound_expr) =
   match b with
   | Simple { cmm_expr; } | Split { cmm_expr; } ->
     Printcmm.expression ppf cmm_expr
-  | Splittable_prim { prim; args; prim_extra_info = _; } ->
+  | Splittable_prim { prim; args; dbg; } ->
     Format.fprintf ppf "@[<hov 1>(\
+      @[<hov 1>(dbg@ %a)@]@ \
       @[<hov 1>(prim@ %a)@]@ \
       @[<hov 1>(args@ @[<hov 1>(%a)@])@]\
       )@]"
+      Debuginfo.print_compact dbg
       Flambda_primitive.Without_args.print prim
       (Format.pp_print_list (fun ppf (cmm, _) -> Printcmm.expression ppf cmm)) args
 
@@ -312,8 +309,8 @@ let simple cmm_expr = Simple { cmm_expr }
 let complex_no_split cmm_expr =
   Split { cmm_expr; }
 
-let splittable_primitive prim args prim_extra_info =
-  Splittable_prim { prim; args; prim_extra_info; }
+let splittable_primitive dbg prim args =
+  Splittable_prim { dbg; prim; args; }
 
 let is_cmm_simple cmm =
   match (cmm : Cmm.expression) with
@@ -477,24 +474,37 @@ let new_bindings_for_splitting order args =
   in
   new_bindings, new_cmm_args
 
-let rebuild_prim ~trans_prim prim args prim_extra_info =
-  match (prim, args : Flambda_primitive.Without_args.t * _) with
-  | Nullary nullary, [] -> trans_prim.nullary prim_extra_info nullary
-  | Unary unary, [x] -> trans_prim.unary prim_extra_info unary x
-  | Binary binary, [x; y] -> trans_prim.binary prim_extra_info binary x y
-  | Ternary ternary, [x; y; z] -> trans_prim.ternary prim_extra_info ternary x y z
-  | Variadic variadic, args -> trans_prim.variadic prim_extra_info variadic args
-  | (Nullary _ | Unary _ | Binary _ | Ternary _), _ ->
-    Misc.fatal_errorf "Mismatched arity when splitting a binding in to_cmm_env:@\n%a@\n%a"
-      Flambda_primitive.Without_args.print prim
-      (Format.pp_print_list Printcmm.expression) args
+let rebuild_prim ~dbg ~env ~res prim args =
+  let extra_info, res, cmm =
+    match (prim, args : Flambda_primitive.Without_args.t * _) with
+    | Nullary nullary, [] ->
+      env.trans_prim.nullary env res dbg nullary
+    | Unary unary, [x] ->
+      env.trans_prim.unary env res dbg unary x
+    | Binary binary, [x; y] ->
+      env.trans_prim.binary env res dbg binary x y
+    | Ternary ternary, [x; y; z] ->
+      env.trans_prim.ternary env res dbg ternary x y z
+    | Variadic variadic, args ->
+      env.trans_prim.variadic env res dbg variadic args
+    | (Nullary _ | Unary _ | Binary _ | Ternary _), _ ->
+      Misc.fatal_errorf "Mismatched arity when splitting a binding in to_cmm_env:@\n%a@\n%a"
+        Flambda_primitive.Without_args.print prim
+        (Format.pp_print_list Printcmm.expression) args
+  in
+  (* CR gbury: this assert should currently hold, as 1) very few primitives actually
+     generate an [extra_info], 2) very few primitives are marked as must_inline,
+     and 3) these two do not overlap. However, we could relax that restriction in
+     the future, and record the extra_info adequately. *)
+  assert (extra_info = None);
+  cmm, res
 
-let split_complex_binding ~trans_prim (binding : complex binding) =
+let split_complex_binding ~env ~res (binding : complex binding) =
   match binding.bound_expr with
-  | Split _ -> Already_split
-  | Splittable_prim { prim; args; prim_extra_info; } ->
+  | Split _ -> res, Already_split
+  | Splittable_prim { dbg; prim; args; } ->
     let new_bindings, new_cmm_args = new_bindings_for_splitting binding.order args in
-    let new_cmm_expr = rebuild_prim ~trans_prim prim new_cmm_args prim_extra_info in
+    let new_cmm_expr, res = rebuild_prim ~dbg ~env ~res prim new_cmm_args in
     let prim_effects = Flambda_primitive.Without_args.effects_and_coeffects prim in
     (match To_cmm_effects.classify_by_effects_and_coeffects prim_effects with
     | Pure | Generative_duplicable -> ()
@@ -510,29 +520,30 @@ let split_complex_binding ~trans_prim (binding : complex binding) =
         cmm_var = binding.cmm_var
       }
     in
-    Split { new_bindings; split_binding }
+    res, Split { new_bindings; split_binding }
 
 let remove_binding env var =
   { env with bindings = Variable.Map.remove var env.bindings }
 
-let will_inline_simple env { effs; bound_expr = Simple { cmm_expr }; _ } =
-  cmm_expr, env, effs
+let will_inline_simple env res { effs; bound_expr = Simple { cmm_expr }; _ } =
+  cmm_expr, env, res, effs
 
-let will_inline_complex env { effs; bound_expr; _ } =
+let will_inline_complex env res { effs; bound_expr; _ } =
   match bound_expr with
-  | Split { cmm_expr } -> cmm_expr, env, effs
-  | Splittable_prim { prim; args; prim_extra_info; } ->
-    let cmm_expr = rebuild_prim ~trans_prim:env.trans_prim prim (List.map fst args) prim_extra_info in
-    cmm_expr, env, effs
+  | Split { cmm_expr } -> cmm_expr, env, res, effs
+  | Splittable_prim { dbg; prim; args; } ->
+    let cmm_expr, res = rebuild_prim ~dbg ~env ~res prim (List.map fst args) in
+    cmm_expr, env, res, effs
 
-let will_not_inline_simple env { cmm_var; bound_expr = Simple _; _ } =
+let will_not_inline_simple env res { cmm_var; bound_expr = Simple _; _ } =
   ( C.var (Backend_var.With_provenance.var cmm_var),
-    env,
+    env, res,
     Ece.pure_can_be_duplicated )
 
-let split_and_inline env var binding =
-  match split_complex_binding ~trans_prim:env.trans_prim binding with
-  | Already_split -> will_inline_complex env binding
+let split_and_inline env res var binding =
+  let res, split_result = split_complex_binding ~env ~res binding in
+  match split_result with
+  | Already_split -> will_inline_complex env res binding
   | Split { new_bindings; split_binding } ->
     let env =
       (* for duplicated bindings, we need to replace the original splittable
@@ -553,7 +564,7 @@ let split_and_inline env var binding =
           })
         env new_bindings
     in
-    will_inline_complex env split_binding
+    will_inline_complex env res split_binding
 
 let pop_from_top_stage ?consider_inlining_effectful_expressions env var =
   match env.stages with
@@ -592,7 +603,7 @@ let pop_from_top_stage ?consider_inlining_effectful_expressions env var =
       Some { env with stages }
     else None
 
-let inline_variable ?consider_inlining_effectful_expressions env var =
+let inline_variable ?consider_inlining_effectful_expressions env res var =
   match Variable.Map.find var env.bindings with
   | exception Not_found -> (
     (* this happens for continuation parameters and bindings that have been
@@ -600,34 +611,34 @@ let inline_variable ?consider_inlining_effectful_expressions env var =
     match Variable.Map.find var env.vars with
     | exception Not_found ->
       Misc.fatal_errorf "Variable %a not found in env" Variable.print var
-    | e -> e, env, Ece.pure_can_be_duplicated)
+    | e -> e, env, res, Ece.pure_can_be_duplicated)
   | Binding binding -> (
     match binding.inline with
-    | Do_not_inline -> will_not_inline_simple env binding
-    | Must_inline_and_duplicate -> split_and_inline env var binding
+    | Do_not_inline -> will_not_inline_simple env res binding
+    | Must_inline_and_duplicate -> split_and_inline env res var binding
     | Must_inline_once -> (
       let env = remove_binding env var in
       match To_cmm_effects.classify_by_effects_and_coeffects binding.effs with
-      | Pure | Generative_duplicable -> will_inline_complex env binding
+      | Pure | Generative_duplicable -> will_inline_complex env res binding
       | Effect | Coeffect_only -> (
         match
           pop_from_top_stage ?consider_inlining_effectful_expressions env var
         with
-        | None -> split_and_inline env var binding
-        | Some env -> will_inline_complex env binding))
+        | None -> split_and_inline env res var binding
+        | Some env -> will_inline_complex env res binding))
     | May_inline_once -> (
       match To_cmm_effects.classify_by_effects_and_coeffects binding.effs with
       | Pure ->
         let env = remove_binding env var in
-        will_inline_simple env binding
+        will_inline_simple env res binding
       | Generative_duplicable | Effect | Coeffect_only -> (
         match
           pop_from_top_stage ?consider_inlining_effectful_expressions env var
         with
-        | None -> will_not_inline_simple env binding
+        | None -> will_not_inline_simple env res binding
         | Some env ->
           let env = remove_binding env var in
-          will_inline_simple env binding)))
+          will_inline_simple env res binding)))
 
 (* Flushing delayed bindings *)
 
@@ -638,14 +649,12 @@ module M = Map.Make (struct
   let compare x y = compare y x
 end)
 
-let flush_delayed_lets ?(entering_loop = false) env =
+let flush_delayed_lets ?(entering_loop = false) env res =
   (* Generate a wrapper function to introduce the delayed let-bindings. *)
   let wrap_flush order_map e =
     M.fold
       (fun _ (Binding b) acc ->
         match b.inline, b.bound_expr with
-        (* We drop bindings that have been marked as being inlined and
-           duplicated. *)
         | Must_inline_and_duplicate, _ | Must_inline_once, _ ->
           Misc.fatal_errorf "'Must inline' bindings should never be flushed"
         | May_inline_once, Simple { cmm_expr }
@@ -657,6 +666,7 @@ let flush_delayed_lets ?(entering_loop = false) env =
      loops. CR gbury: this is now done by creating a binding with the inline
      status `Must_inline_and_duplicate`, so the caller of `to_cmm_env` has to
      make that decision of whether to substitute inside loops. *)
+  let res = ref res in
   let bindings_to_flush = ref M.empty in
   let flush (Binding b as binding) =
     if M.mem b.order !bindings_to_flush
@@ -671,7 +681,9 @@ let flush_delayed_lets ?(entering_loop = false) env =
           flush binding;
           None
         | Must_inline_and_duplicate -> (
-          match split_complex_binding ~trans_prim:env.trans_prim b with
+          let r, split_res = split_complex_binding ~env ~res:!res b in
+          res := r;
+          match split_res with
           | Already_split -> Some binding
           | Split { new_bindings; split_binding } ->
             List.iter flush new_bindings;
@@ -686,7 +698,9 @@ let flush_delayed_lets ?(entering_loop = false) env =
           | (Pure | Generative_duplicable) when not entering_loop ->
             Some binding
           | Pure | Generative_duplicable | Coeffect_only | Effect -> (
-            match split_complex_binding ~trans_prim:env.trans_prim b with
+            let r, split_res = split_complex_binding ~env ~res:!res b in
+            res := r;
+            match split_res with
             | Already_split -> Some binding
             | Split { new_bindings; split_binding } ->
               List.iter flush new_bindings;
@@ -709,4 +723,4 @@ let flush_delayed_lets ?(entering_loop = false) env =
       env.bindings
   in
   let flush e = wrap_flush !bindings_to_flush e in
-  flush, { env with stages = []; bindings = bindings_to_keep }
+  flush, { env with stages = []; bindings = bindings_to_keep }, !res

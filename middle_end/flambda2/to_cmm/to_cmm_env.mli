@@ -18,27 +18,31 @@
 (** Environment for Flambda to Cmm translation *)
 type t
 
-(** Some necessary info to translate some primitives without access to the
-    environment or "res". *)
-type prim_extra_info =
-  | No_info
-  | Projection_diff of int
-  | Invalid_message of Symbol.t
+(** Extra information about bound variables, used for optimisation. *)
+type extra_info =
+  | Untag of Cmm.expression
+      (** The variable is bound to the result of untagging the given Cmm
+          expression. This allows to obtain the Cmm expression as it was before
+          untagging. *)
+  | Boxed_number  (** The variable is bound to a boxed number. *)
 
 (** Record of all primitive translation functions, to avoid a cyclic dependency. *)
-type trans_prim = {
-  nullary : prim_extra_info -> Flambda_primitive.nullary_primitive -> Cmm.expression;
-  unary : prim_extra_info -> Flambda_primitive.unary_primitive -> Cmm.expression -> Cmm.expression;
-  binary : prim_extra_info -> Flambda_primitive.binary_primitive -> Cmm.expression -> Cmm.expression -> Cmm.expression;
-  ternary : prim_extra_info -> Flambda_primitive.ternary_primitive -> Cmm.expression -> Cmm.expression -> Cmm.expression -> Cmm.expression;
-  variadic : prim_extra_info -> Flambda_primitive.variadic_primitive -> Cmm.expression list -> Cmm.expression;
+type prim_res = extra_info option * To_cmm_result.t * Cmm.expression
+type ('env, 'prim, 'arity) prim_helper = 'env -> To_cmm_result.t -> Debuginfo.t -> 'prim -> 'arity
+type 'env trans_prim = {
+  nullary : ('env, Flambda_primitive.nullary_primitive, prim_res) prim_helper;
+  unary : ('env, Flambda_primitive.unary_primitive, Cmm.expression -> prim_res) prim_helper;
+  binary : ('env, Flambda_primitive.binary_primitive, Cmm.expression -> Cmm.expression -> prim_res) prim_helper;
+  ternary : ('env, Flambda_primitive.ternary_primitive, Cmm.expression -> Cmm.expression -> Cmm.expression -> prim_res) prim_helper;
+  variadic : ('env, Flambda_primitive.variadic_primitive, Cmm.expression list -> prim_res) prim_helper;
 }
+
 
 (** Create an environment for translating a toplevel expression. *)
 val create :
   Exported_offsets.t ->
   Exported_code.t ->
-  trans_prim:trans_prim ->
+  trans_prim:t trans_prim ->
   return_continuation:Continuation.t ->
   exn_continuation:Continuation.t ->
   t
@@ -73,14 +77,6 @@ val get_code_metadata : t -> Code_id.t -> Code_metadata.t
 val exported_offsets : t -> Exported_offsets.t
 
 (** {2 Variable bindings} *)
-
-(** Extra information about bound variables, used for optimisation. *)
-type extra_info =
-  | Untag of Cmm.expression
-      (** The variable is bound to the result of untagging the given Cmm
-          expression. This allows to obtain the Cmm expression as it was before
-          untagging. *)
-  | Boxed_number  (** The variable is bound to a boxed number. *)
 
 (** Create (and bind) a Cmm variable for the given Flambda variable, returning
     the new environment and the created variable. Will produce a fatal error if
@@ -175,9 +171,10 @@ val simple : Cmm.expression -> simple bound_expr
     needed. The effects that are passed must correspond respectively to each
     individual argument and to the primitive itself. *)
 val splittable_primitive :
+  Debuginfo.t ->
   Flambda_primitive.Without_args.t ->
   (Cmm.expression * Effects_and_coeffects.t) list ->
-  prim_extra_info -> complex bound_expr
+  complex bound_expr
 
 (** Bind a variable, with support for splitting duplicatable primitives with
     non-duplicatable arguments. *)
@@ -205,13 +202,14 @@ val bind_variable :
 val inline_variable :
   ?consider_inlining_effectful_expressions:bool ->
   t ->
+  To_cmm_result.t ->
   Variable.t ->
-  Cmm.expression * t * Effects_and_coeffects.t
+  Cmm.expression * t * To_cmm_result.t * Effects_and_coeffects.t
 
 (** Wrap the given Cmm expression with all the delayed let bindings accumulated
     in the environment. *)
 val flush_delayed_lets :
-  ?entering_loop:bool -> t -> (Cmm.expression -> Cmm.expression) * t
+  ?entering_loop:bool -> t -> To_cmm_result.t -> (Cmm.expression -> Cmm.expression) * t * To_cmm_result.t
 
 (** Fetch the extra info for a Flambda variable (if any), specified as a
     [Simple]. *)

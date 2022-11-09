@@ -59,13 +59,13 @@ let symbol_from_linkage_name ~dbg ln =
 
 let symbol ~dbg sym = symbol_from_linkage_name ~dbg (Symbol.linkage_name sym)
 
-let name0 ?consider_inlining_effectful_expressions env name =
+let name0 ?consider_inlining_effectful_expressions env res name =
   Name.pattern_match name
     ~var:(fun v ->
-      To_cmm_env.inline_variable ?consider_inlining_effectful_expressions env v)
+      To_cmm_env.inline_variable ?consider_inlining_effectful_expressions env res v)
     ~symbol:(fun s ->
       (* CR mshinwell: fix debuginfo? *)
-      symbol ~dbg:Debuginfo.none s, env, Ece.pure_can_be_duplicated)
+      symbol ~dbg:Debuginfo.none s, env, res, Ece.pure_can_be_duplicated)
 
 let name env name = name0 env name
 
@@ -79,11 +79,11 @@ let const ~dbg cst =
   | Naked_int64 i -> int64 ~dbg i
   | Naked_nativeint t -> targetint ~dbg t
 
-let simple ?consider_inlining_effectful_expressions ~dbg env s =
+let simple ?consider_inlining_effectful_expressions ~dbg env res s =
   Simple.pattern_match s
     ~name:(fun n ~coercion:_ ->
-      name0 ?consider_inlining_effectful_expressions env n)
-    ~const:(fun c -> const ~dbg c, env, Ece.pure_can_be_duplicated)
+      name0 ?consider_inlining_effectful_expressions env res n)
+    ~const:(fun c -> const ~dbg c, env, res, Ece.pure_can_be_duplicated)
 
 let name_static name =
   Name.pattern_match name
@@ -108,19 +108,19 @@ let simple_static s =
     ~name:(fun n ~coercion:_ -> name_static n)
     ~const:(fun c -> `Data (const_static c))
 
-let simple_list ?consider_inlining_effectful_expressions ~dbg env l =
+let simple_list ?consider_inlining_effectful_expressions ~dbg env res l =
   (* Note that [To_cmm_primitive] relies on this function translating the
      [Simple] at the head of the list first. *)
-  let aux (list, env, effs) x =
-    let y, env, eff =
-      simple ?consider_inlining_effectful_expressions ~dbg env x
+  let aux (list, env, res, effs) x =
+    let y, env, res, eff =
+      simple ?consider_inlining_effectful_expressions ~dbg env res x
     in
-    y :: list, env, Ece.join eff effs
+    y :: list, env, res, Ece.join eff effs
   in
-  let args, env, effs =
-    List.fold_left aux ([], env, Ece.pure_can_be_duplicated) l
+  let args, env, res, effs =
+    List.fold_left aux ([], env, res, Ece.pure_can_be_duplicated) l
   in
-  List.rev args, env, effs
+  List.rev args, env, res, effs
 
 let bound_parameters env l =
   let flambda_vars = Bound_parameters.vars l in
@@ -162,13 +162,13 @@ let invalid res ~message =
   in
   call_expr, res
 
-let make_update env dbg kind ~symbol var ~index ~prev_updates =
-  let e, env, _ece = To_cmm_env.inline_variable env var in
+let make_update env res dbg kind ~symbol var ~index ~prev_updates =
+  let e, env, res, _ece = To_cmm_env.inline_variable env res var in
   let addr = field_address symbol index dbg in
   let update = store ~dbg kind Initialization ~addr ~new_value:e in
   match prev_updates with
-  | None -> env, Some update
-  | Some prev_updates -> env, Some (sequence prev_updates update)
+  | None -> env, res, Some update
+  | Some prev_updates -> env, res, Some (sequence prev_updates update)
 
 let check_arity arity args =
   Flambda_arity.With_subkinds.cardinal arity = List.length args
