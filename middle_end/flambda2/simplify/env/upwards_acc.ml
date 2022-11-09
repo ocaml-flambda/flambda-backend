@@ -35,7 +35,8 @@ type t =
     generate_phantom_lets : bool;
     demoted_exn_handlers : Continuation.Set.t;
     slot_offsets : Slot_offsets.t Or_unknown.t;
-    flow_result : Flow_types.Flow_result.t
+    flow_result : Flow_types.Flow_result.t;
+    resimplify : bool;
   }
 
 let [@ocamlformat "disable"] print ppf
@@ -43,7 +44,7 @@ let [@ocamlformat "disable"] print ppf
         name_occurrences; used_value_slots; all_code = _;
         shareable_constants; cost_metrics; are_rebuilding_terms;
         generate_phantom_lets;
-        demoted_exn_handlers; slot_offsets; flow_result
+        demoted_exn_handlers; slot_offsets; flow_result; resimplify;
       } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(uenv@ %a)@]@ \
@@ -58,6 +59,7 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>(demoted_exn_handlers@ %a)@]@ \
       @[<hov 1>(slot_offsets@ %a@)@]@ \
       @[<hov 1>(flow_result@ %a)@]\
+      %a\
       )@]"
     UE.print uenv
     Code_age_relation.print code_age_relation
@@ -71,6 +73,10 @@ let [@ocamlformat "disable"] print ppf
     Continuation.Set.print demoted_exn_handlers
     (Or_unknown.print Slot_offsets.print) slot_offsets
     Flow_types.Flow_result.print flow_result
+    (if resimplify then
+       (fun ppf () -> Format.fprintf ppf "@ @[<hov 1>(should_resimplify)@]")
+     else
+       (fun _ppf () -> ())) ()
 
 let create ~flow_result ~compute_slot_offsets uenv dacc =
   let are_rebuilding_terms = DE.are_rebuilding_terms (DA.denv dacc) in
@@ -100,7 +106,8 @@ let create ~flow_result ~compute_slot_offsets uenv dacc =
     generate_phantom_lets;
     demoted_exn_handlers = DA.demoted_exn_handlers dacc;
     slot_offsets;
-    flow_result
+    flow_result;
+    resimplify = false;
   }
 
 let creation_dacc t = t.creation_dacc
@@ -199,3 +206,7 @@ let reachable_code_ids t = t.flow_result.data_flow_result.reachable_code_ids
 let continuation_param_aliases t = t.flow_result.aliases_result
 
 let mutable_unboxing_result t = t.flow_result.mutable_unboxing_result
+
+let set_resimplify t = { t with resimplify = true }
+
+let resimplify t = t.resimplify
