@@ -285,7 +285,7 @@ let default_load ppf (program : Lambda.program) =
       ~filename ~prefixname:filename
       ~flambda2:Flambda2.lambda_to_cmm ~ppf_dump:ppf
       ~size:program.main_module_block_size
-      ~module_ident:program.module_ident
+      ~compilation_unit:program.compilation_unit
       ~module_initializer:program.code
       ~required_globals:program.required_globals
   end
@@ -317,7 +317,7 @@ let default_load ppf (program : Lambda.program) =
      files) *)
   res
 
-let load_lambda ppf ~module_ident ~required_globals lam size =
+let load_lambda ppf ~compilation_unit ~required_globals lam size =
   if !Clflags.dump_rawlambda then fprintf ppf "%a@." Printlambda.lambda lam;
   let slam = Simplif.simplify_lambda lam in
   if !Clflags.dump_lambda then fprintf ppf "%a@." Printlambda.lambda slam;
@@ -325,7 +325,7 @@ let load_lambda ppf ~module_ident ~required_globals lam size =
     { Lambda.
       code = slam;
       main_module_block_size = size;
-      module_ident;
+      compilation_unit;
       required_globals;
     }
   in
@@ -448,15 +448,15 @@ let execute_phrase print_outcome ppf phr =
             str, sg', true
         | _ -> str, sg', false
       in
-      let module_ident, res, required_globals, size =
+      let compilation_unit, res, required_globals, size =
         if any_flambda then
-          let { Lambda.module_ident; main_module_block_size = size;
+          let { Lambda.compilation_unit; main_module_block_size = size;
                 required_globals; code = res } =
             Translmod.transl_implementation_flambda compilation_unit
               (str, coercion)
           in
-          remember module_ident 0 sg';
-          module_ident, close_phrase res, required_globals, size
+          remember compilation_unit 0 sg';
+          compilation_unit, close_phrase res, required_globals, size
         else
           let size, res = Translmod.transl_store_phrases compilation_unit str in
           compilation_unit, res, Compilation_unit.Set.empty, size
@@ -465,7 +465,9 @@ let execute_phrase print_outcome ppf phr =
       begin try
         toplevel_env := newenv;
         toplevel_sig := List.rev_append sg' oldsig;
-        let res = load_lambda ppf ~required_globals ~module_ident res size in
+        let res =
+          load_lambda ppf ~required_globals ~compilation_unit res size
+        in
         let out_phr =
           match res with
           | Result _ ->

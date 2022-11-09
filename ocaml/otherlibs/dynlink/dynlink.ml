@@ -91,7 +91,8 @@ module Bytecode = struct
   let fold_initial_units ~init ~f =
     List.fold_left (fun acc (modname, interface) ->
         let id =
-          Compilation_unit.to_global_ident_for_bytecode (assume_no_prefix modname)
+          Compilation_unit.to_global_ident_for_bytecode
+            (assume_no_prefix modname)
         in
         let defined =
           Symtable.is_defined_in_global_map !default_global_map id
