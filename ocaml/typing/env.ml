@@ -1362,13 +1362,15 @@ let get_required_globals () = !required_globals
 let add_required_unit id =
   if not (List.exists (Compilation_unit.equal id) !required_globals)
   then required_globals := id :: !required_globals
-let add_required_global id env =
+let add_required_global path env =
   if not !Clflags.transparent_modules
   then
-    let address = find_module_address id env in
-    match address_head address with
-    | AHlocal _ -> ()
-    | AHunit id -> add_required_unit id
+    let head = Path.head path in
+    if Ident.is_global head then
+      let address = find_module_address (Pident head) env in
+      match address_head address with
+      | AHlocal _ -> ()
+      | AHunit id -> add_required_unit id
 
 let rec normalize_module_path lax env = function
   | Pident id as path when lax && Ident.is_global id ->
