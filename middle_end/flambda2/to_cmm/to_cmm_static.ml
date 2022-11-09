@@ -44,8 +44,8 @@ let rec static_block_updates symb env res acc i = function
       static_block_updates symb env res acc (i + 1) r
     | Dynamically_computed (var, dbg) ->
       let env, res, acc =
-        C.make_update env res dbg Word_val ~symbol:(C.symbol ~dbg symb) var ~index:i
-          ~prev_updates:acc
+        C.make_update env res dbg Word_val ~symbol:(C.symbol ~dbg symb) var
+          ~index:i ~prev_updates:acc
       in
       static_block_updates symb env res acc (i + 1) r)
 
@@ -56,8 +56,8 @@ let rec static_float_array_updates symb env res acc i = function
     | Const _ -> static_float_array_updates symb env res acc (i + 1) r
     | Var (var, dbg) ->
       let env, res, acc =
-        C.make_update env res dbg Double ~symbol:(C.symbol ~dbg symb) var ~index:i
-          ~prev_updates:acc
+        C.make_update env res dbg Double ~symbol:(C.symbol ~dbg symb) var
+          ~index:i ~prev_updates:acc
       in
       static_float_array_updates symb env res acc (i + 1) r)
 

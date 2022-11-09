@@ -1976,7 +1976,6 @@ module Without_args = struct
     | Binary prim -> effects_and_coeffects_of_binary_primitive prim
     | Ternary prim -> effects_and_coeffects_of_ternary_primitive prim
     | Variadic prim -> effects_and_coeffects_of_variadic_primitive prim
-
 end
 
 let is_begin_or_end_region t =

@@ -37,8 +37,8 @@ let bind_var_to_simple ~dbg env res v ~num_normal_occurrences_of_bound_vars s =
     C.simple ~dbg env res s
   in
   let env =
-    Env.bind_variable env v ~effects_and_coeffects_of_defining_expr ~defining_expr
-      ~num_normal_occurrences_of_bound_vars
+    Env.bind_variable env v ~effects_and_coeffects_of_defining_expr
+      ~defining_expr ~num_normal_occurrences_of_bound_vars
   in
   env, res
 
@@ -94,21 +94,24 @@ let translate_apply0 env res apply =
       ( C.direct_call ~dbg ty pos
           (C.symbol_from_linkage_name ~dbg code_linkage_name)
           args,
-        env, res,
+        env,
+        res,
         Ece.all )
     | Some name ->
       ( C.probe ~dbg ~name
           ~handler_code_linkage_name:(Linkage_name.to_string code_linkage_name)
           ~args
         |> C.return_unit dbg,
-        env, res,
+        env,
+        res,
         Ece.all ))
   | Function { function_call = Indirect_unknown_arity; alloc_mode } ->
     fail_if_probe apply;
     ( C.indirect_call ~dbg Cmm.typ_val pos
         (Alloc_mode.For_types.to_lambda alloc_mode)
         callee args,
-      env, res,
+      env,
+      res,
       Ece.all )
   | Function
       { function_call = Indirect_known_arity { return_arity; param_arity };
@@ -128,7 +131,8 @@ let translate_apply0 env res apply =
       ( C.indirect_full_call ~dbg ty pos
           (Alloc_mode.For_types.to_lambda alloc_mode)
           callee args,
-        env, res,
+        env,
+        res,
         Ece.all )
   | Call_kind.C_call { alloc; return_arity; param_arity; is_c_builtin } ->
     fail_if_probe apply;
@@ -165,7 +169,8 @@ let translate_apply0 env res apply =
     in
     ( wrap dbg
         (C.extcall ~dbg ~alloc ~is_c_builtin ~returns ~ty_args callee ty args),
-      env, res,
+      env,
+      res,
       Ece.all )
   | Call_kind.Method { kind; obj; alloc_mode } ->
     fail_if_probe apply;
@@ -196,7 +201,9 @@ let translate_apply env res apply =
       let arg, env, res, _ = C.simple ~dbg env res arg in
       C.sequence (C.assign v arg) call, env, res
     in
-    let call, env, res = List.fold_left2 aux (call, env, res) extra_args mut_vars in
+    let call, env, res =
+      List.fold_left2 aux (call, env, res) extra_args mut_vars
+    in
     call, env, res, effs
   else
     Misc.fatal_errorf

@@ -26,17 +26,36 @@ type extra_info =
           untagging. *)
   | Boxed_number  (** The variable is bound to a boxed number. *)
 
-(** Record of all primitive translation functions, to avoid a cyclic dependency. *)
+(** Record of all primitive translation functions, to avoid a cyclic
+    dependency. *)
 type prim_res = extra_info option * To_cmm_result.t * Cmm.expression
-type ('env, 'prim, 'arity) prim_helper = 'env -> To_cmm_result.t -> Debuginfo.t -> 'prim -> 'arity
-type 'env trans_prim = {
-  nullary : ('env, Flambda_primitive.nullary_primitive, prim_res) prim_helper;
-  unary : ('env, Flambda_primitive.unary_primitive, Cmm.expression -> prim_res) prim_helper;
-  binary : ('env, Flambda_primitive.binary_primitive, Cmm.expression -> Cmm.expression -> prim_res) prim_helper;
-  ternary : ('env, Flambda_primitive.ternary_primitive, Cmm.expression -> Cmm.expression -> Cmm.expression -> prim_res) prim_helper;
-  variadic : ('env, Flambda_primitive.variadic_primitive, Cmm.expression list -> prim_res) prim_helper;
-}
 
+type ('env, 'prim, 'arity) prim_helper =
+  'env -> To_cmm_result.t -> Debuginfo.t -> 'prim -> 'arity
+
+type 'env trans_prim =
+  { nullary : ('env, Flambda_primitive.nullary_primitive, prim_res) prim_helper;
+    unary :
+      ( 'env,
+        Flambda_primitive.unary_primitive,
+        Cmm.expression -> prim_res )
+      prim_helper;
+    binary :
+      ( 'env,
+        Flambda_primitive.binary_primitive,
+        Cmm.expression -> Cmm.expression -> prim_res )
+      prim_helper;
+    ternary :
+      ( 'env,
+        Flambda_primitive.ternary_primitive,
+        Cmm.expression -> Cmm.expression -> Cmm.expression -> prim_res )
+      prim_helper;
+    variadic :
+      ( 'env,
+        Flambda_primitive.variadic_primitive,
+        Cmm.expression list -> prim_res )
+      prim_helper
+  }
 
 (** Create an environment for translating a toplevel expression. *)
 val create :
@@ -209,7 +228,10 @@ val inline_variable :
 (** Wrap the given Cmm expression with all the delayed let bindings accumulated
     in the environment. *)
 val flush_delayed_lets :
-  ?entering_loop:bool -> t -> To_cmm_result.t -> (Cmm.expression -> Cmm.expression) * t * To_cmm_result.t
+  ?entering_loop:bool ->
+  t ->
+  To_cmm_result.t ->
+  (Cmm.expression -> Cmm.expression) * t * To_cmm_result.t
 
 (** Fetch the extra info for a Flambda variable (if any), specified as a
     [Simple]. *)

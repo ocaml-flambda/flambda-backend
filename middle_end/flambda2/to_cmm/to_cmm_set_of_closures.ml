@@ -74,7 +74,10 @@ module Make_layout_filler (P : sig
     To_cmm_env.t ->
     To_cmm_result.t ->
     Simple.t ->
-    [`Data of cmm_term list | `Var of Variable.t] * To_cmm_env.t * To_cmm_result.t * Ece.t
+    [`Data of cmm_term list | `Var of Variable.t]
+    * To_cmm_env.t
+    * To_cmm_result.t
+    * Ece.t
 
   val infix_header : dbg:Debuginfo.t -> function_slot_offset:int -> cmm_term
 
@@ -93,7 +96,12 @@ end) : sig
     Ece.t ->
     prev_updates:Cmm.expression option ->
     (int * Slot_offsets.Layout.slot) list ->
-    P.cmm_term list * int * Env.t * To_cmm_result.t * Ece.t * Cmm.expression option
+    P.cmm_term list
+    * int
+    * Env.t
+    * To_cmm_result.t
+    * Ece.t
+    * Cmm.expression option
 end = struct
   (* The [offset]s here are measured in units of words. *)
   let fill_slot for_static_sets decls dbg ~startenv value_slots env res acc
@@ -181,8 +189,8 @@ end = struct
         in
         acc, slot_offset + size, env, res, Ece.pure, updates)
 
-  let rec fill_layout0 for_static_sets decls dbg ~startenv value_slots env res effs
-      acc updates ~starting_offset slots =
+  let rec fill_layout0 for_static_sets decls dbg ~startenv value_slots env res
+      effs acc updates ~starting_offset slots =
     match slots with
     | [] -> List.rev acc, starting_offset, env, res, effs, updates
     | (slot_offset, slot) :: slots ->
@@ -202,8 +210,8 @@ end = struct
           ~slot_offset updates slot
       in
       let effs = Ece.join eff effs in
-      fill_layout0 for_static_sets decls dbg ~startenv value_slots env res effs acc
-        updates ~starting_offset:next_offset slots
+      fill_layout0 for_static_sets decls dbg ~startenv value_slots env res effs
+        acc updates ~starting_offset:next_offset slots
 
   let fill_layout for_static_sets decls dbg ~startenv value_slots env res effs
       ~prev_updates slots =

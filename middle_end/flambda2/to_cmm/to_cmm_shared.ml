@@ -62,7 +62,8 @@ let symbol ~dbg sym = symbol_from_linkage_name ~dbg (Symbol.linkage_name sym)
 let name0 ?consider_inlining_effectful_expressions env res name =
   Name.pattern_match name
     ~var:(fun v ->
-      To_cmm_env.inline_variable ?consider_inlining_effectful_expressions env res v)
+      To_cmm_env.inline_variable ?consider_inlining_effectful_expressions env
+        res v)
     ~symbol:(fun s ->
       (* CR mshinwell: fix debuginfo? *)
       symbol ~dbg:Debuginfo.none s, env, res, Ece.pure_can_be_duplicated)

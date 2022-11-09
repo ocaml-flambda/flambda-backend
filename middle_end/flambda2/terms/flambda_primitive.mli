@@ -381,9 +381,8 @@ module Without_args : sig
   val print : Format.formatter -> t -> unit
 
   (** Describe the effects and coeffects that the application of the given
-    primitive may have. *)
+      primitive may have. *)
   val effects_and_coeffects : t -> Effects_and_coeffects.t
-
 end
 
 (** A description of the kind of values which a unary primitive expects as its
