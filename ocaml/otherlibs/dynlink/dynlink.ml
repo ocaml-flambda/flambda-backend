@@ -256,7 +256,7 @@ module Native = struct
 
   let fold_initial_units ~init ~f =
     let rank = ref 0 in
-    List.fold_left (fun acc { name; crc_intf; crc_impl; syms; } ->
+    List.fold_left (fun acc { Consistbl. name; crc_intf; crc_impl; syms; } ->
         let name = Compilation_unit.full_path_as_string name in
         let syms =
           List.map
