@@ -208,6 +208,13 @@ end
 
 module B = DC.Make (Bytecode)
 
+type global_map = {
+  name : Compilation_unit.t;
+  crc_intf : Digest.t option;
+  crc_impl : Digest.t option;
+  syms : Symbol.t list;
+}
+
 module Native = struct
   type handle
 
@@ -216,7 +223,7 @@ module Native = struct
     = "caml_sys_exit" "caml_natdynlink_open"
   external ndl_run : handle -> string -> unit
     = "caml_sys_exit" "caml_natdynlink_run"
-  external ndl_getmap : unit -> Consistbl.native_global_map_entry list
+  external ndl_getmap : unit -> global_map list
     = "caml_sys_exit" "caml_natdynlink_getmap"
   external ndl_globals_inited : unit -> int
     = "caml_sys_exit" "caml_natdynlink_globals_inited"
@@ -256,7 +263,7 @@ module Native = struct
 
   let fold_initial_units ~init ~f =
     let rank = ref 0 in
-    List.fold_left (fun acc { Consistbl. name; crc_intf; crc_impl; syms; } ->
+    List.fold_left (fun acc { name; crc_intf; crc_impl; syms; } ->
         let name = Compilation_unit.full_path_as_string name in
         let syms =
           List.map

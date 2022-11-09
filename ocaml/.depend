@@ -2683,10 +2683,10 @@ asmcomp/cmm_helpers.cmx : \
     asmcomp/cmm_helpers.cmi
 asmcomp/cmm_helpers.cmi : \
     utils/targetint.cmi \
+    utils/symbol.cmi \
     typing/primitive.cmi \
     lambda/lambda.cmi \
     lambda/debuginfo.cmi \
-    utils/consistbl.cmi \
     utils/compilation_unit.cmi \
     file_formats/cmx_format.cmi \
     asmcomp/cmmgen_state.cmi \

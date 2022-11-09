@@ -591,8 +591,13 @@ val global_table: Compilation_unit.t list -> phrase
 (** Add references to the given symbols *)
 val reference_symbols: string list -> phrase
 
-(** Generate the caml_globals_map structure, as a marshalled string constant. *)
-val globals_map : Consistbl.native_global_map_entry list -> phrase
+(** Generate the caml_globals_map structure, as a marshalled string constant.
+    The runtime representation of the type here must match that of [type
+    global_map] in the natdynlink code. *)
+val globals_map :
+  (Compilation_unit.Name.t * Digest.t option * Digest.t option * Symbol.t list)
+  list ->
+  phrase
 
 (** Generate the caml_frametable table, referencing the frametables
     from the given compilation units *)

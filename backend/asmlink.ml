@@ -313,25 +313,15 @@ let make_globals_map units_list =
   let defined =
     List.map (fun unit ->
         let name = CU.name unit.name in
-        let crc_intf = find_crc name in
+        let intf_crc = find_crc name in
         CU.Name.Tbl.remove interfaces name;
         let syms = List.map Symbol.for_compilation_unit unit.defines in
-        { Consistbl.
-          name = unit.name;
-          crc_intf;
-          crc_impl = Some unit.crc;
-          syms
-        })
+        (name, intf_crc, Some unit.crc, syms))
       units_list
   in
   CU.Name.Tbl.fold (fun name () globals_map ->
-      let crc_intf = find_crc name in
-      { Consistbl.
-        name = assume_no_prefix name;
-        crc_intf;
-        crc_impl = None;
-        syms = []
-      } :: globals_map)
+      let intf_crc = find_crc name in
+      (name, intf_crc, None, []) :: globals_map)
     interfaces
     defined
 

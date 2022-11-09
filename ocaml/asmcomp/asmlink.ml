@@ -189,11 +189,6 @@ let read_file obj_name =
   end
   else raise(Error(Not_an_object_file file_name))
 
-let assume_no_prefix modname =
-  (* We're the linker, so we assume that everything's already been packed, so
-     no module needs its prefix considered. *)
-  CU.create CU.Prefix.empty modname
-
 let scan_file file tolink =
   match file with
   | Unit (file_name,info,crc) ->
@@ -236,28 +231,18 @@ let make_globals_map units_list ~crc_interfaces =
   let defined =
     List.map (fun (unit, _, impl_crc) ->
         let name = CU.name unit.ui_unit in
-        let crc_intf =
+        let intf_crc =
           CU.Name.Tbl.find crc_interfaces name
           |> Option.map (fun (_unit, crc) -> crc)
         in
         CU.Name.Tbl.remove crc_interfaces name;
         let syms = List.map Symbol.for_compilation_unit unit.ui_defines in
-        { Consistbl.
-          name = unit.ui_unit;
-          crc_intf;
-          crc_impl = Some impl_crc;
-          syms
-        })
+        (name, intf_crc, Some impl_crc, syms))
       units_list
   in
-  CU.Name.Tbl.fold (fun name intf acc ->
-      let crc_intf = Option.map (fun (_unit, crc) -> crc) intf in
-      { Consistbl.
-        name = assume_no_prefix name;
-        crc_intf;
-        crc_impl = None;
-        syms = [];
-      } :: acc)
+  CU.Name.Tbl.fold (fun name intf globals_map ->
+      let intf = Option.map (fun (_unit, crc) -> crc) intf in
+      (name, intf, None, []) :: globals_map)
     crc_interfaces defined
 
 let make_startup_file ~ppf_dump units_list ~crc_interfaces =
