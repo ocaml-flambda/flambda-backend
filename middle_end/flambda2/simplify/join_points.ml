@@ -174,6 +174,10 @@ let compute_handler_env ?cut_after uses ~env_at_fork ~consts_lifted_during_body
       DE.set_inlined_debuginfo handler_env
         (DE.get_inlined_debuginfo env_at_fork)
     in
+    let handler_env =
+      DE.set_at_unit_toplevel_state handler_env
+        (DE.at_unit_toplevel env_at_fork)
+    in
     { handler_env;
       arg_types_by_use_id;
       extra_params_and_args = Continuation_extra_params_and_args.empty;
