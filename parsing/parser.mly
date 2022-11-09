@@ -237,11 +237,6 @@ let mkld_global ld loc =
 let mkld_nonlocal ld loc =
   { ld with pld_attributes = nonlocal_attr loc :: ld.pld_attributes }
 
-type global_flag =
-  | Global
-  | Nonlocal
-  | Nothing
-
 let mkld_global_maybe gbl ld loc =
   match gbl with
   | Global -> mkld_global ld loc
