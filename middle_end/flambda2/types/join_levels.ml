@@ -152,13 +152,16 @@ let join_types ~env_at_fork envs_with_levels =
 
 let construct_joined_level envs_with_levels ~env_at_fork ~allowed ~joined_types
     ~params =
-  let variable_is_in_new_level var =
+  let allowed_and_new =
     (* Parameters are already in the resulting environment *)
-    Name_occurrences.mem_var allowed var
-    && not
-         (List.exists
-            (fun param -> Variable.equal var (Bound_parameter.var param))
-            params)
+    List.fold_left
+      (fun allowed_and_new param ->
+        Name_occurrences.remove_var allowed_and_new
+          ~var:(Bound_parameter.var param))
+      allowed params
+  in
+  let variable_is_in_new_level var =
+    Name_occurrences.mem_var allowed_and_new var
   in
   let defined_vars, binding_times =
     List.fold_left
