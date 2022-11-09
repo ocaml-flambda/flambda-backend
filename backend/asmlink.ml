@@ -196,11 +196,6 @@ let read_file obj_name =
   end
   else raise(Error(Not_an_object_file file_name))
 
-let assume_no_prefix modname =
-  (* We're the linker, so we assume that everything's already been packed, so
-     no module needs its prefix considered. *)
-  CU.create CU.Prefix.empty modname
-
 let scan_file ~shared genfns file (objfiles, tolink) =
   match read_file file with
   | Unit (file_name,info,crc) ->
