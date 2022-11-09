@@ -93,7 +93,7 @@ include Topcommon.MakeEvalPrinter(EvalBase)
 
 let may_trace = ref false (* Global lock on tracing *)
 
-let load_lambda ppf ~module_ident ~required_globals phrase_name lam size =
+let load_lambda ppf ~compilation_unit ~required_globals phrase_name lam size =
   if !Clflags.dump_rawlambda then fprintf ppf "%a@." Printlambda.lambda lam;
   let slam = Simplif.simplify_lambda lam in
   if !Clflags.dump_lambda then fprintf ppf "%a@." Printlambda.lambda slam;
@@ -102,7 +102,7 @@ let load_lambda ppf ~module_ident ~required_globals phrase_name lam size =
     { Lambda.
       code = slam;
       main_module_block_size = size;
-      module_ident;
+      compilation_unit;
       required_globals;
     }
   in
@@ -203,15 +203,15 @@ let execute_phrase print_outcome ppf phr =
              str, sg', true
          | None -> str, sg', false
       in
-      let module_ident, res, required_globals, size =
+      let compilation_unit, res, required_globals, size =
         if Config.flambda then
-          let { Lambda.module_ident; main_module_block_size = size;
+          let { Lambda.compilation_unit; main_module_block_size = size;
                 required_globals; code = res } =
             Translmod.transl_implementation_flambda phrase_comp_unit
               (str, Tcoerce_none)
           in
-          remember module_ident 0 sg';
-          module_ident, close_phrase res, required_globals, size
+          remember compilation_unit 0 sg';
+          compilation_unit, close_phrase res, required_globals, size
         else
           let size, res = Translmod.transl_store_phrases phrase_comp_unit str in
           phrase_comp_unit, res, Compilation_unit.Set.empty, size
@@ -221,7 +221,7 @@ let execute_phrase print_outcome ppf phr =
         toplevel_env := newenv;
         toplevel_sig := List.rev_append sg' oldsig;
         let res =
-          load_lambda ppf ~required_globals ~module_ident phrase_name res size
+          load_lambda ppf ~required_globals ~compilation_unit phrase_name res size
         in
         let out_phr =
           match res with
@@ -229,7 +229,7 @@ let execute_phrase print_outcome ppf phr =
               if Config.flambda then
                 (* CR-someday trefis: *)
                 Env.register_import_as_opaque
-                  (Compilation_unit.name module_ident)
+                  (Compilation_unit.name compilation_unit)
               else
                 Compilenv.record_global_approx_toplevel ();
               if print_outcome then
