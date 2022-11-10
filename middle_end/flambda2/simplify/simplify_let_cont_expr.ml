@@ -1427,33 +1427,23 @@ type stage1 = {
   recinfo : stage1_recinfos ;
 }
 
-type stage2_recinfos =
-  | Recursive of {
-      continuation_handlers : (Bound_parameters.t * Expr.t) Continuation.Map.t
-    }
-  | Non_recursive of {
-      cont : Continuation.t ;
-      params : Bound_parameters.t ;
-      handler : Expr.t ;
-      is_exn_handler : bool ;
-      unit_toplevel_exn_cont : Continuation.t
-    }
-
 type stage2 = {
   denv_before_body : DE.t ;
   prior_lifted_constants : LCS.t ;
+  prior_cont_uses_env : CUE.t ;
   original_cont_scope : Scope.t ;
-  recinfo : stage2_recinfos ;
+  recinfo : stage1_recinfos ;
 }
 
 type handler_to_rebuild = {
   params : Bound_parameters.t ;
   rebuild_handler : (Rebuilt_expr.t * Upwards_acc.t) Simplify_common.rebuild ;
-} 
+}
 
 type stage3_recinfos =
   | Recursive of {
-      continuation_handlers : (handler_to_rebuild * CUE.t) Continuation.Map.t
+      continuation_handlers : handler_to_rebuild Continuation.Map.t ;
+      continuation_uses : Continuation.Set.t Continuation.Map.t ;
     }
   | Non_recursive of {
       cont : Continuation.t ;
@@ -1463,6 +1453,8 @@ type stage3_recinfos =
 
 type stage3 = {
   rebuild_body : (Rebuilt_expr.t * Upwards_acc.t) Simplify_common.rebuild ;
+  body_continuation_uses_env : CUE.t ;
+  prior_continuation_uses_env : CUE.t ;
   recinfo : stage3_recinfos
 }
 
@@ -1533,14 +1525,65 @@ let simplify_let_cont_stage3 (_stage3 : stage3) ~down_to_up:_ _dacc =
   failwith "TODO"
 
 (* simplify for single handler: compute unbox decisions *)
-
-let simplify_let_cont_stage2 ~simplify_expr:_ (stage2 : stage2) ~down_to_up:_ dacc_after_body ~rebuild:_rebuild_body =
-  let denv = LCS.add_to_denv stage2.denv_before_body (DA.get_lifted_constants dacc_after_body) in
-  (* actually, at beginning of each handler? *) let _dacc = reset_dacc_denv dacc_after_body denv in
+let simplify_single_handler ~simplify_expr:_ _is_recursive _denv_to_reset _dacc _handler k =
+  (* TODO compute unbox decisions, compute continuation uses in handler *)
+  (* TODO reset dacc using denv, take care of code_age_relation *)
   failwith "TODO"
 
+let rec simplify_handlers ~simplify_expr ~down_to_up is_recursive used_handlers remaining_handlers simplified_handlers_set simplified_handlers dacc denv_to_reset =
+  match Continuation.Set.min_elt_opt used_handlers with
+  | None ->
+    (* TODO mark all remaning handlers as unused *)
+    let stage3 = failwith "TODO" in
+    simplify_let_cont_stage3 stage3 ~down_to_up dacc
+  | Some cont ->
+    let handler = Continuation.Map.find cont remaining_handlers in
+    let remaining_handlers = Continuation.Map.remove cont remaining_handlers in
+    simplify_single_handler ~simplify_expr is_recursive denv_to_reset dacc handler (fun dacc rebuild_handler handler_uses ->
+        let simplified_handlers_set = Continuation.Set.add cont simplified_handlers_set in
+        let used_handlers = Continuation.Set.union used_handlers
+            (Continuation.Set.diff handler_uses simplified_handlers_set)
+        in
+        let simplified_handlers = Continuation.Map.add cont (rebuild_handler, handler_uses) simplified_handlers in
+        simplify_handlers ~simplify_expr ~down_to_up is_recursive used_handlers remaining_handlers simplified_handlers_set simplified_handlers dacc denv_to_reset
+      )
+
+
+let simplify_let_cont_stage2 ~simplify_expr (stage2 : stage2) ~down_to_up dacc ~rebuild:_rebuild_body =
+  let body_continuation_uses_env = DA.continuation_uses_env dacc in
+  let denv = stage2.denv_before_body in
+  let at_unit_toplevel, is_recursive, remaining_handlers =
+    match stage2.recinfo with
+    | Non_recursive { cont; params; handler; is_exn_handler } ->
+      let at_unit_toplevel =
+        (* We try to show that [handler] postdominates [body] (which is done by
+           showing that [body] can only return through [cont]) and that if [body]
+           raises any exceptions then it only does so to toplevel. If this can be
+           shown and we are currently at the toplevel of a compilation unit, the
+           handler for the environment can remain marked as toplevel (and suitable
+           for "let symbol" bindings); otherwise, it cannot. *)
+        DE.at_unit_toplevel denv
+        && (not is_exn_handler)
+        && Continuation.Set.subset
+          (CUE.all_continuations_used body_continuation_uses_env)
+          (Continuation.Set.of_list [cont; DE.unit_toplevel_exn_continuation denv])
+      in
+      at_unit_toplevel, false, Continuation.Map.singleton cont (params, handler, is_exn_handler)
+    | Recursive { continuation_handlers } ->
+      false, true, Continuation.Map.map (fun (params, handler) -> (params, handler, false)) continuation_handlers
+  in
+  let denv = LCS.add_to_denv denv (DA.get_lifted_constants dacc) in
+  let denv = DE.set_at_unit_toplevel_state denv at_unit_toplevel in
+  let used_handlers =
+    Continuation.Set.inter
+      (Continuation.Map.keys remaining_handlers)
+      (CUE.all_continuations_used body_continuation_uses_env)
+  in
+  simplify_handlers ~simplify_expr ~down_to_up is_recursive used_handlers remaining_handlers Continuation.Set.empty Continuation.Map.empty dacc denv
 
 let simplify_let_cont_stage1 ~simplify_expr dacc (stage1 : stage1) ~down_to_up =
+  let prior_cont_uses_env = DA.continuation_uses_env dacc in
+  let dacc = DA.with_continuation_uses_env dacc ~cont_uses_env:CUE.empty in
   let dacc, prior_lifted_constants = DA.get_and_clear_lifted_constants dacc in
   let denv_before_body = DA.denv dacc in
   let original_cont_scope = DE.get_continuation_scope denv_before_body in
@@ -1550,12 +1593,9 @@ let simplify_let_cont_stage1 ~simplify_expr dacc (stage1 : stage1) ~down_to_up =
   let stage2 = {
     denv_before_body ;
     prior_lifted_constants ;
+    prior_cont_uses_env ;
     original_cont_scope ;
-    recinfo = match stage1.recinfo with
-      | Recursive { continuation_handlers } -> Recursive { continuation_handlers }
-      | Non_recursive { cont; params; handler; is_exn_handler } ->
-        let unit_toplevel_exn_cont = DE.unit_toplevel_exn_continuation denv_before_body in
-        Non_recursive { cont; params; handler; is_exn_handler; unit_toplevel_exn_cont }
+    recinfo = stage1.recinfo
   }
   in
   simplify_expr dacc stage1.body ~down_to_up:(simplify_let_cont_stage2 ~simplify_expr stage2 ~down_to_up)
