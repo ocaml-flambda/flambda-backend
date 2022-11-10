@@ -29,8 +29,7 @@ type cont =
         handler_body : Flambda.Expr.t
       }
 
-type extra_info =
-  | Untag of Cmm.expression
+type extra_info = Untag of Cmm.expression
 
 (* Since to_cmm_primitive.ml depends on this file, and in this file, we need to
    translate delayed/split primitives, we need to have access to the translation
@@ -213,16 +212,18 @@ let [@ocamlformat "disable"] print_binding (type a) ppf
     Backend_var.With_provenance.print cmm_var
     print_bound_expr bound_expr
 
-let print_any_binding ppf (Binding binding) =
-  print_binding ppf binding
+let print_any_binding ppf (Binding binding) = print_binding ppf binding
 
 let print_stage ppf = function
   | Effect v -> Format.fprintf ppf "(Effect %a)" Variable.print v
-  | Coeffect_only s -> Format.fprintf ppf "(Coeffect_only %a)" Variable.Set.print s
+  | Coeffect_only s ->
+    Format.fprintf ppf "(Coeffect_only %a)" Variable.Set.print s
 
 let print_stages ppf stages =
   let pp_sep ppf () = Format.fprintf ppf "@," in
-  Format.fprintf ppf "(@[<v>%a@])" (Format.pp_print_list ~pp_sep print_stage) stages
+  Format.fprintf ppf "(@[<v>%a@])"
+    (Format.pp_print_list ~pp_sep print_stage)
+    stages
 
 (* Code and closures *)
 
@@ -390,41 +391,44 @@ let bind_variable_with_decision (type a) ?extra env var ~inline
     =
   (* CR gbury: we actually need to "lie" about the effects and coeffects of
      allocations that we must inline, or else we end up with expressions with
-     effects that will not be inlined (see [to_cmm_primitive.ml] and in particular
-     ~consider_inllining_effectful_expressions).
+     effects that will not be inlined (see [to_cmm_primitive.ml] and in
+     particular ~consider_inllining_effectful_expressions).
 
      For instance, consider:
 
-     * let x = box_number 1. in
-     * let y = unbox_number x in
-     * let z = y +. 1. in ...
+     * let x = box_number 1. in * let y = unbox_number x in * let z = y +. 1. in
+     ...
 
-     because we only ever join effects when translating primitives, and that we only
-     use the effects and coeffects from the flambda code, we generate:
-     - a binding "x -> box_number 1." with generative effects (as expected)
-     - a binding "y -> 1." (because we inlined "x", and cmm_helper functions eliminated
-       the unbox-of-box), but this binding has generative effects, because it effects
-       are computed as : ece(prim:unbox_number) ∪ ece(x), and since "x" has generative
-       effects, we end up with a binding for "y" that has generative effects.
-     - when we translate the addition, we explicitly do not consider inlining effectful
-       expressions, and thus we do not inline "y", since it has effects.
+     because we only ever join effects when translating primitives, and that we
+     only use the effects and coeffects from the flambda code, we generate: - a
+     binding "x -> box_number 1." with generative effects (as expected) - a
+     binding "y -> 1." (because we inlined "x", and cmm_helper functions
+     eliminated the unbox-of-box), but this binding has generative effects,
+     because it effects are computed as : ece(prim:unbox_number) ∪ ece(x), and
+     since "x" has generative effects, we end up with a binding for "y" that has
+     generative effects. - when we translate the addition, we explicitly do not
+     consider inlining effectful expressions, and thus we do not inline "y",
+     since it has effects.
 
-     To counteract that, we instead consider that generative effects arising from
-     Delay/"must inline" primitives do not count, and that we consider the binding
-     to be pure.
+     To counteract that, we instead consider that generative effects arising
+     from Delay/"must inline" primitives do not count, and that we consider the
+     binding to be pure.
 
      CR gbury: this allows to move allocations marked as `Must_inline_once` past
      function calls (and other effectful expressions), which can break some
      allocation-counting tests (the same also applies to allocations marked as
      `Must_inline_and_duplicate` but that is more expected). *)
   let effs, classification =
-    let classification = To_cmm_effects.classify_by_effects_and_coeffects effs in
+    let classification =
+      To_cmm_effects.classify_by_effects_and_coeffects effs
+    in
     let change_eff_to effs =
       effs, To_cmm_effects.classify_by_effects_and_coeffects effs
     in
     match[@ocaml.warning "-4"] (inline : a inline), classification with
     | Must_inline_once, Generative_duplicable -> change_eff_to Ece.pure
-    | Must_inline_and_duplicate, Generative_duplicable -> change_eff_to Ece.pure_can_be_duplicated
+    | Must_inline_and_duplicate, Generative_duplicable ->
+      change_eff_to Ece.pure_can_be_duplicated
     | _, _ -> effs, classification
   in
   let env, binding = create_binding ?extra env ~inline effs var defining_expr in
@@ -555,18 +559,16 @@ let rebuild_prim ~dbg ~env ~res prim args =
      actually generate an [extra_info], 2) very few primitives are marked as
      must_inline, and 3) these two do not overlap. However, we could relax that
      restriction in the future, and record the extra_info adequately. *)
-  begin match extra_info with
-    | None -> ()
-    | Some extra_info ->
-      Misc.fatal_errorf
-        "Unexpected extra_info in to_cmm_env during prim_rebuild:@\n\
-         %a@ in@\n\
-         %a(%a)[%a]"
-        print_extra_info extra_info
-        P.Without_args.print prim
-        (Format.pp_print_list Printcmm.expression) args
-        Debuginfo.print_compact dbg
-  end;
+  (match extra_info with
+  | None -> ()
+  | Some extra_info ->
+    Misc.fatal_errorf
+      "Unexpected extra_info in to_cmm_env during prim_rebuild:@\n\
+       %a@ in@\n\
+       %a(%a)[%a]"
+      print_extra_info extra_info P.Without_args.print prim
+      (Format.pp_print_list Printcmm.expression)
+      args Debuginfo.print_compact dbg);
   cmm, res
 
 let split_complex_binding ~env ~res (binding : complex binding) =
@@ -595,7 +597,10 @@ let split_complex_binding ~env ~res (binding : complex binding) =
       }
     in
     Format.eprintf "*** new bindings:@\n@[<v>%a@]@."
-      (Format.pp_print_list ~pp_sep:(fun ppf () -> Format.fprintf ppf "@,") print_any_binding) new_bindings;
+      (Format.pp_print_list
+         ~pp_sep:(fun ppf () -> Format.fprintf ppf "@,")
+         print_any_binding)
+      new_bindings;
     Format.eprintf "*** split_binding:@\n%a@\n@." print_binding split_binding;
     res, Split { new_bindings; split_binding }
 

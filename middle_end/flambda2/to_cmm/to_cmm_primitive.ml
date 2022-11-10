@@ -702,27 +702,29 @@ let trans_prim : To_cmm_env.t To_cmm_env.trans_prim =
 
 let consider_inlining_effectful_expressions p =
   (* By default we are very conservative about the inlining of effectful
-     expressions into the arguments of primitives. We consider inlining
-     in the following cases:
+     expressions into the arguments of primitives. We consider inlining in the
+     following cases:
 
      - in the case where the primitive compiles directly to an allocation.
-       Unlike for most primitives, inlining of the arguments gives a real
-       benefit for these, by keeping live ranges shorter (which could be
-       critical for register allocation performance in cases such as
-       initialisation of very large arrays). We are also confident that the code
-       for compiling allocations does not incorrectly reorder or duplicate
-       arguments, whereas we are not universally confident about that for the
-       other Cmm translation functions.
+     Unlike for most primitives, inlining of the arguments gives a real benefit
+     for these, by keeping live ranges shorter (which could be critical for
+     register allocation performance in cases such as initialisation of very
+     large arrays). We are also confident that the code for compiling
+     allocations does not incorrectly reorder or duplicate arguments, whereas we
+     are not universally confident about that for the other Cmm translation
+     functions.
 
-     This criterion should not be relaxed for any primitive until it is
-     certain that the Cmm translation for such primitive both respects
-     right-to-left evaluation order and does not duplicate any arguments. *)
-    match[@ocaml.warning "-4"] (p : P.t) with
-    | Variadic ((Make_block _ | Make_array _), _) -> Some true
-    | Nullary _ | Unary _ | Binary _ | Ternary _ -> None
+     This criterion should not be relaxed for any primitive until it is certain
+     that the Cmm translation for such primitive both respects right-to-left
+     evaluation order and does not duplicate any arguments. *)
+  match[@ocaml.warning "-4"] (p : P.t) with
+  | Variadic ((Make_block _ | Make_array _), _) -> Some true
+  | Nullary _ | Unary _ | Binary _ | Ternary _ -> None
 
 let prim_simple env res dbg p =
-  let consider_inlining_effectful_expressions = consider_inlining_effectful_expressions p in
+  let consider_inlining_effectful_expressions =
+    consider_inlining_effectful_expressions p
+  in
   let arg = arg ?consider_inlining_effectful_expressions ~dbg in
   (* Somewhat counter-intuitively, the left-to-right translation below (e.g. [x]
      before [y] in the [Binary] case) correctly matches right-to-left evaluation
@@ -768,7 +770,9 @@ let prim_simple env res dbg p =
     Env.simple expr, None, env, res, effs
 
 let prim_complex env res dbg p =
-  let consider_inlining_effectful_expressions = consider_inlining_effectful_expressions p in
+  let consider_inlining_effectful_expressions =
+    consider_inlining_effectful_expressions p
+  in
   let arg = arg ?consider_inlining_effectful_expressions ~dbg in
   (* see comment in [prim_simple] *)
   let prim', args, effs, env, res =
