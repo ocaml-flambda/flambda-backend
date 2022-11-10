@@ -31,7 +31,6 @@ type cont =
 
 type extra_info =
   | Untag of Cmm.expression
-  | Boxed_number
 
 (* Since to_cmm_primitive.ml depends on this file, and in this file, we need to
    translate delayed/split primitives, we need to have access to the translation
@@ -175,6 +174,9 @@ let return_continuation env = env.return_continuation
 
 let exn_continuation env = env.exn_continuation
 
+let print_extra_info ppf = function
+  | Untag e -> Format.fprintf ppf "Untag(%a)" Printcmm.expression e
+
 let [@ocamlformat "disable"] print_inline (type a) ppf (inline : a inline) =
   match inline with
   | Do_not_inline -> Format.fprintf ppf "do_not_inline"
@@ -196,8 +198,8 @@ let [@ocamlformat "disable"] print_bound_expr (type a) ppf (b : a bound_expr) =
       Flambda_primitive.Without_args.print prim
       (Format.pp_print_list (fun ppf (cmm, _) -> Printcmm.expression ppf cmm)) args
 
-let [@ocamlformat "disable"] print_binding ppf
-    (Binding { order; inline; effs; cmm_var; bound_expr; }) =
+let [@ocamlformat "disable"] print_binding (type a) ppf
+    ({ order; inline; effs; cmm_var; bound_expr; } : a binding) =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(order@ %d)@]@ \
       @[<hov 1>(inline@ %a)@]@ \
@@ -210,6 +212,17 @@ let [@ocamlformat "disable"] print_binding ppf
     Ece.print effs
     Backend_var.With_provenance.print cmm_var
     print_bound_expr bound_expr
+
+let print_any_binding ppf (Binding binding) =
+  print_binding ppf binding
+
+let print_stage ppf = function
+  | Effect v -> Format.fprintf ppf "(Effect %a)" Variable.print v
+  | Coeffect_only s -> Format.fprintf ppf "(Coeffect_only %a)" Variable.Set.print s
+
+let print_stages ppf stages =
+  let pp_sep ppf () = Format.fprintf ppf "@," in
+  Format.fprintf ppf "(@[<v>%a@])" (Format.pp_print_list ~pp_sep print_stage) stages
 
 (* Code and closures *)
 
@@ -355,6 +368,7 @@ let create_binding_aux (type a) ?extra env effs var ~(inline : a inline)
     | None -> env.vars_extra
     | Some info -> Variable.Map.add var info env.vars_extra
   in
+  Format.eprintf "*** new binding@\n%a@\n@." print_any_binding binding;
   let env = { env with bindings; vars; vars_extra } in
   env, binding
 
@@ -374,28 +388,63 @@ let create_binding (type a) ?extra env effs var ~(inline : a inline)
 let bind_variable_with_decision (type a) ?extra env var ~inline
     ~(defining_expr : a bound_expr) ~effects_and_coeffects_of_defining_expr:effs
     =
+  (* CR gbury: we actually need to "lie" about the effects and coeffects of
+     allocations that we must inline, or else we end up with expressions with
+     effects that will not be inlined (see [to_cmm_primitive.ml] and in particular
+     ~consider_inllining_effectful_expressions).
+
+     For instance, consider:
+
+     * let x = box_number 1. in
+     * let y = unbox_number x in
+     * let z = y +. 1. in ...
+
+     because we only ever join effects when translating primitives, and that we only
+     use the effects and coeffects from the flambda code, we generate:
+     - a binding "x -> box_number 1." with generative effects (as expected)
+     - a binding "y -> 1." (because we inlined "x", and cmm_helper functions eliminated
+       the unbox-of-box), but this binding has generative effects, because it effects
+       are computed as : ece(prim:unbox_number) ∪ ece(x), and since "x" has generative
+       effects, we end up with a binding for "y" that has generative effects.
+     - when we translate the addition, we explicitly do not consider inlining effectful
+       expressions, and thus we do not inline "y", since it has effects.
+
+     To counteract that, we instead consider that generative effects arising from
+     Delay/"must inline" primitives do not count, and that we consider the binding
+     to be pure.
+
+     CR gbury: this allows to move allocations marked as `Must_inline_once` past
+     function calls (and other effectful expressions), which can break some
+     allocation-counting tests (the same also applies to allocations marked as
+     `Must_inline_and_duplicate` but that is more expected). *)
+  let effs, classification =
+    let classification = To_cmm_effects.classify_by_effects_and_coeffects effs in
+    let change_eff_to effs =
+      effs, To_cmm_effects.classify_by_effects_and_coeffects effs
+    in
+    match[@ocaml.warning "-4"] (inline : a inline), classification with
+    | Must_inline_once, Generative_duplicable -> change_eff_to Ece.pure
+    | Must_inline_and_duplicate, Generative_duplicable -> change_eff_to Ece.pure_can_be_duplicated
+    | _, _ -> effs, classification
+  in
   let env, binding = create_binding ?extra env ~inline effs var defining_expr in
   match (inline : a inline) with
   | Must_inline_and_duplicate ->
     (* check that the effects and coeffects allow the expression to be
        duplicated without changing semantics *)
-    (match To_cmm_effects.classify_by_effects_and_coeffects effs with
+    (match classification with
     | Pure | Generative_duplicable -> ()
     | Coeffect_only | Effect ->
       Misc.fatal_errorf
         "Incorrect effects and/or coeffects for a duplicated binding: %a"
-        print_binding binding);
+        print_any_binding binding);
     env
   | May_inline_once | Must_inline_once | Do_not_inline -> (
-    match To_cmm_effects.classify_by_effects_and_coeffects effs with
+    match classification with
     | Pure -> env
     | Generative_duplicable -> (
       match (inline : a inline) with
-      | Must_inline_once ->
-        (* CR gbury: this allows to move allocations marked as
-           `Must_inline_once` past function calls (and other effectful
-           expressions), which can break some allocation-counting tests. *)
-        env
+      | Must_inline_once -> env
       | May_inline_once | Do_not_inline ->
         (* Generative expressions not marked as `must_inline` are treated as
            having effects, since function from the `Gc` module can read counters
@@ -506,7 +555,18 @@ let rebuild_prim ~dbg ~env ~res prim args =
      actually generate an [extra_info], 2) very few primitives are marked as
      must_inline, and 3) these two do not overlap. However, we could relax that
      restriction in the future, and record the extra_info adequately. *)
-  assert (extra_info = None);
+  begin match extra_info with
+    | None -> ()
+    | Some extra_info ->
+      Misc.fatal_errorf
+        "Unexpected extra_info in to_cmm_env during prim_rebuild:@\n\
+         %a@ in@\n\
+         %a(%a)[%a]"
+        print_extra_info extra_info
+        P.Without_args.print prim
+        (Format.pp_print_list Printcmm.expression) args
+        Debuginfo.print_compact dbg
+  end;
   cmm, res
 
 let split_complex_binding ~env ~res (binding : complex binding) =
@@ -534,6 +594,9 @@ let split_complex_binding ~env ~res (binding : complex binding) =
         cmm_var = binding.cmm_var
       }
     in
+    Format.eprintf "*** new bindings:@\n@[<v>%a@]@."
+      (Format.pp_print_list ~pp_sep:(fun ppf () -> Format.fprintf ppf "@,") print_any_binding) new_bindings;
+    Format.eprintf "*** split_binding:@\n%a@\n@." print_binding split_binding;
     res, Split { new_bindings; split_binding }
 
 let remove_binding env var =
@@ -650,7 +713,11 @@ let inline_variable ?consider_inlining_effectful_expressions env res var =
         match
           pop_from_top_stage ?consider_inlining_effectful_expressions env var
         with
-        | None -> will_not_inline_simple env res binding
+        | None ->
+          Format.eprintf
+            "/// not inlining %a (because of stages)@\nstages: %a@\n@."
+            Variable.print var print_stages env.stages;
+          will_not_inline_simple env res binding
         | Some env ->
           let env = remove_binding env var in
           will_inline_simple env res binding)))

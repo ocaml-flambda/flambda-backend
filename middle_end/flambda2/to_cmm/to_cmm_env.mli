@@ -24,7 +24,6 @@ type extra_info =
       (** The variable is bound to the result of untagging the given Cmm
           expression. This allows to obtain the Cmm expression as it was before
           untagging. *)
-  | Boxed_number  (** The variable is bound to a boxed number. *)
 
 (** Record of all primitive translation functions, to avoid a cyclic
     dependency. *)

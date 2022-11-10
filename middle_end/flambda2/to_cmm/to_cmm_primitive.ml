@@ -559,7 +559,7 @@ let unary_primitive env res dbg f arg =
   | Unbox_number kind -> None, res, unbox_number ~dbg kind arg
   | Untag_immediate -> Some (Env.Untag arg), res, C.untag_int arg dbg
   | Box_number (kind, alloc_mode) ->
-    Some Env.Boxed_number, res, box_number ~dbg kind alloc_mode arg
+    None, res, box_number ~dbg kind alloc_mode arg
   | Tag_immediate ->
     (* We could return [Env.Tag] here, but probably unnecessary at the
        moment. *)
@@ -700,11 +700,12 @@ let trans_prim : To_cmm_env.t To_cmm_env.trans_prim =
         None, res, cmm)
   }
 
-let prim_simple env res dbg p =
-  let consider_inlining_effectful_expressions =
-    (* By default we are very conservative about the inlining of effectful
-       expressions into the arguments of primitives. We only consider inlining
-       in the case where the primitive compiles directly to an allocation.
+let consider_inlining_effectful_expressions p =
+  (* By default we are very conservative about the inlining of effectful
+     expressions into the arguments of primitives. We consider inlining
+     in the following cases:
+
+     - in the case where the primitive compiles directly to an allocation.
        Unlike for most primitives, inlining of the arguments gives a real
        benefit for these, by keeping live ranges shorter (which could be
        critical for register allocation performance in cases such as
@@ -713,13 +714,15 @@ let prim_simple env res dbg p =
        arguments, whereas we are not universally confident about that for the
        other Cmm translation functions.
 
-       This criterion should not be relaxed for any primitive until it is
-       certain that the Cmm translation for such primitive both respects
-       right-to-left evaluation order and does not duplicate any arguments. *)
-    match (p : P.t) with
-    | Nullary _ | Unary _ | Binary _ | Ternary _ -> None
+     This criterion should not be relaxed for any primitive until it is
+     certain that the Cmm translation for such primitive both respects
+     right-to-left evaluation order and does not duplicate any arguments. *)
+    match[@ocaml.warning "-4"] (p : P.t) with
     | Variadic ((Make_block _ | Make_array _), _) -> Some true
-  in
+    | Nullary _ | Unary _ | Binary _ | Ternary _ -> None
+
+let prim_simple env res dbg p =
+  let consider_inlining_effectful_expressions = consider_inlining_effectful_expressions p in
   let arg = arg ?consider_inlining_effectful_expressions ~dbg in
   (* Somewhat counter-intuitively, the left-to-right translation below (e.g. [x]
      before [y] in the [Binary] case) correctly matches right-to-left evaluation
@@ -765,12 +768,7 @@ let prim_simple env res dbg p =
     Env.simple expr, None, env, res, effs
 
 let prim_complex env res dbg p =
-  let consider_inlining_effectful_expressions =
-    (* see comment in [prim_simple] *)
-    match (p : P.t) with
-    | Nullary _ | Unary _ | Binary _ | Ternary _ -> None
-    | Variadic ((Make_block _ | Make_array _), _) -> Some true
-  in
+  let consider_inlining_effectful_expressions = consider_inlining_effectful_expressions p in
   let arg = arg ?consider_inlining_effectful_expressions ~dbg in
   (* see comment in [prim_simple] *)
   let prim', args, effs, env, res =

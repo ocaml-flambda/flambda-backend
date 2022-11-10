@@ -684,7 +684,7 @@ and switch env res switch =
     match Targetint_31_63.Map.cardinal arms with
     | 2 -> (
       match Env.extra_info env scrutinee with
-      | None | Some Boxed_number -> untagged_scrutinee_cmm, false
+      | None -> untagged_scrutinee_cmm, false
       | Some (Untag tagged_scrutinee_cmm) ->
         let size_untagged =
           Option.value
