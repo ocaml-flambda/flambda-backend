@@ -252,9 +252,23 @@ let full_path t =
 let is_parent t ~child =
   List.equal Name.equal (full_path t) (Prefix.to_list child.for_pack_prefix)
 
-let can_access_by_name t ~accessed_by =
-  let prefix = Prefix.to_list t.for_pack_prefix in
-  List.is_prefix prefix ~of_:(full_path accessed_by) ~equal:Name.equal
+let is_strict_prefix list1 ~of_:list2 ~equal =
+  not (List.equal equal list1 list2) && List.is_prefix list1 ~of_:list2 ~equal
+
+let can_access_by_name t ~accessed_by:me =
+  let my_path = full_path me in
+  (* Criterion 1 in .mli *)
+  let t's_prefix_is_my_ancestor =
+    List.is_prefix
+      (t.for_pack_prefix |> Prefix.to_list)
+      ~of_:my_path
+      ~equal:Name.equal
+  in
+  (* Criterion 2 *)
+  let t_is_not_my_strict_ancestor =
+    not (is_strict_prefix (full_path t) ~of_:my_path ~equal:Name.equal)
+  in
+  t's_prefix_is_my_ancestor && t_is_not_my_strict_ancestor
 
 let which_cmx_file desired_comp_unit ~accessed_by : Name.t =
   let desired_prefix = for_pack_prefix desired_comp_unit in

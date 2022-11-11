@@ -111,23 +111,33 @@ val to_global_ident_for_bytecode : t -> Ident.t
     the other unit has this one as its path prefix. *)
 val is_parent : t -> child:t -> bool
 
-(** Find whether one compilation unit can access another. This is allowed if the
-    accessed unit is a member of either the accessing unit or one of the
-    accessing unit's ancestors. In other words, the accessed unit's prefix must
-    be equal to or a prefix of the accessing unit's full path. For example:
+(** Find whether one compilation unit can access another directly, without going
+    through a pack. Equivalently, find whether one unit's .cmx file is visible
+    while compiling another. Access to a packed unit is allowed only "from
+    inside the pack," which is to say, a unit can only access its own members
+    and those of its ancestors, though not the ancestors themselves. Thought of
+    as a node in a tree, this means a module can access its own children, its
+    own siblings, and its ancestors' siblings.
+
+    In terms of paths, in order for [X] to access [Y],
+
+    (1) [Y]'s prefix must be equal to or a prefix of [X]'s full path, and
+    (2) [Y] itself must not be (strictly) a prefix of [X] (though [X] and [Y] may
+        be equal).
+
+    For example:
 
     * [A.B.C] _can_ access [A.Q] because [A.Q] is a member of [A] and [A] is
-      an ancestor of [A.B.C]. In other words, [A.D] has prefix [A] and [A] is a
+      an ancestor of [A.B.C]. In other words, [A.Q]'s prefix is [A] and [A] is a
       prefix of [A.B.C].
     * [A.Q] _cannot_ access [A.B.C] because [A.B] is not a prefix of [A.Q].
     * [A.Q] _can_ however access [A.B], because [A] _is_ a prefix of [A.Q].
     * [A.Q] _can_ also access its own member, [A.Q.R], because [A.Q.R]'s prefix
       is exactly [A.Q].
     * [A.Q] _cannot_ access [A.Q.R.S], because [A.Q.R] is not a prefix of [A.Q].
-    * [A.Q] _cannot_ access [F.G].
-
-    All of this follows directly from which [.cmx] files are available while
-    compiling the accessing unit. *)
+    * [A.Q] _can_ access [F], since [F]'s prefix is the empty path, which is
+      trivially a prefix of [A.Q].
+    * [A.Q] _cannot_ access [F.G] (by criterion 1) or [A] (by criterion 2). *)
 val can_access_by_name : t -> accessed_by:t -> bool
 
 (** Determine which .cmx file to load for a given compilation unit.
