@@ -95,11 +95,3 @@ end) = struct
          done)
       !to_remove
 end
-
-(* Type shared between the backend and the native dynlink code. *)
-type native_global_map_entry = {
-  name : Compilation_unit.t;
-  crc_intf : Digest.t option;
-  crc_impl : Digest.t option;
-  syms : Symbol.t list;
-}
