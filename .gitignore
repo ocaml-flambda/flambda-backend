@@ -125,6 +125,7 @@ _build
 /ocamldoc/test_stdlib
 /ocamldoc/test_latex
 /ocamldoc/test
+/ocamldoc/stdlib_man
 
 /ocamltest/.dep
 /ocamltest/ocamltest
@@ -240,6 +241,7 @@ _build
 /tools/ocamlprof
 /tools/ocamlprof.opt
 /tools/opnames.ml
+/tools/ocamlmklibconfig.ml
 /tools/dumpobj
 /tools/dumpobj.opt
 /tools/dumpapprox
