@@ -392,23 +392,27 @@ let bind_variable_with_decision (type a) ?extra env var ~inline
   (* CR gbury: we actually need to "lie" about the effects and coeffects of
      allocations that we must inline, or else we end up with expressions with
      effects that will not be inlined (see [to_cmm_primitive.ml] and in
-     particular ~consider_inllining_effectful_expressions).
+     particular ~consider_inllining_effectful_expressions). For instance,
+     consider: *)
+  (*
+   * let x = box_number 1. in
+   * let y = unbox_number x in
+   * let z = y +. 1. in
+   * ...
+   *)
+  (* because we only ever join effects when translating primitives, and that we
+     only use the effects and coeffects from the flambda code, we generate:
 
-     For instance, consider:
+     - a binding "x -> box_number 1." with generative effects (as expected)
 
-     * let x = box_number 1. in * let y = unbox_number x in * let z = y +. 1. in
-     ...
-
-     because we only ever join effects when translating primitives, and that we
-     only use the effects and coeffects from the flambda code, we generate: - a
-     binding "x -> box_number 1." with generative effects (as expected) - a
-     binding "y -> 1." (because we inlined "x", and cmm_helper functions
+     - a binding "y -> 1." (because we inlined "x", and cmm_helper functions
      eliminated the unbox-of-box), but this binding has generative effects,
      because it effects are computed as : ece(prim:unbox_number) ∪ ece(x), and
      since "x" has generative effects, we end up with a binding for "y" that has
-     generative effects. - when we translate the addition, we explicitly do not
-     consider inlining effectful expressions, and thus we do not inline "y",
-     since it has effects.
+     generative effects.
+
+     - when we translate the addition, we explicitly do not consider inlining
+     effectful expressions, and thus we do not inline "y", since it has effects.
 
      To counteract that, we instead consider that generative effects arising
      from Delay/"must inline" primitives do not count, and that we consider the
