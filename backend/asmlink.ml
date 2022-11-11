@@ -196,6 +196,11 @@ let read_file obj_name =
   end
   else raise(Error(Not_an_object_file file_name))
 
+let assume_no_prefix modname =
+  (* We're the linker, so we assume that everything's already been packed, so
+     no module needs its prefix considered. *)
+  CU.create CU.Prefix.empty modname
+
 let scan_file ~shared genfns file (objfiles, tolink) =
   match read_file file with
   | Unit (file_name,info,crc) ->
@@ -311,12 +316,12 @@ let make_globals_map units_list =
         let intf_crc = find_crc name in
         CU.Name.Tbl.remove interfaces name;
         let syms = List.map Symbol.for_compilation_unit unit.defines in
-        (name, intf_crc, Some unit.crc, syms))
+        (unit.name, intf_crc, Some unit.crc, syms))
       units_list
   in
   CU.Name.Tbl.fold (fun name () globals_map ->
       let intf_crc = find_crc name in
-      (name, intf_crc, None, []) :: globals_map)
+      (assume_no_prefix name, intf_crc, None, []) :: globals_map)
     interfaces
     defined
 
