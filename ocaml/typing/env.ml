@@ -1256,11 +1256,14 @@ let find_type_descrs p env =
 
 let rec find_module_address path env =
   match path with
-  | Pident id -> get_address (find_ident_module id env).mda_address
+  | Pident id -> find_ident_module_address id env
   | Pdot(p, s) ->
       let c = find_structure_components p env in
       get_address (NameMap.find s c.comp_modules).mda_address
   | Papply _ -> raise Not_found
+
+and find_ident_module_address id env =
+  get_address (find_ident_module id env).mda_address
 
 and force_address = function
   | Projection { parent; pos } -> Adot(get_address parent, pos)
@@ -1359,18 +1362,17 @@ let shape_or_leaf uid = function
 let required_globals = s_ref []
 let reset_required_globals () = required_globals := []
 let get_required_globals () = !required_globals
-let add_required_unit id =
-  if not (List.exists (Compilation_unit.equal id) !required_globals)
-  then required_globals := id :: !required_globals
+let add_required_unit cu =
+  if not (List.exists (Compilation_unit.equal cu) !required_globals)
+  then required_globals := cu :: !required_globals
+let add_required_ident id env =
+  if not !Clflags.transparent_modules && Ident.is_global id then
+    let address = find_ident_module_address id env in
+    match address_head address with
+    | AHlocal _ -> ()
+    | AHunit cu -> add_required_unit cu
 let add_required_global path env =
-  if not !Clflags.transparent_modules
-  then
-    let head = Path.head path in
-    if Ident.is_global head then
-      let address = find_module_address (Pident head) env in
-      match address_head address with
-      | AHlocal _ -> ()
-      | AHunit id -> add_required_unit id
+  add_required_ident (Path.head path) env
 
 let rec normalize_module_path lax env = function
   | Pident id as path when lax && Ident.is_global id ->
@@ -1391,10 +1393,11 @@ and expand_module_path lax env path =
   try match find_module_lazy ~alias:true path env with
     {mdl_type=MtyL_alias path1} ->
       let path' = normalize_module_path lax env path1 in
-      if lax || !Clflags.transparent_modules then path' else
-      let id = Path.head path in
-      if Ident.is_global_or_predef id && not (Ident.same id (Path.head path'))
-      then add_required_global (Pident id) env;
+      if not (lax || !Clflags.transparent_modules) then begin
+        let id = Path.head path in
+        if Ident.is_global_or_predef id && not (Ident.same id (Path.head path'))
+        then add_required_global (Pident id) env
+      end;
       path'
   | _ -> path
   with Not_found when lax
