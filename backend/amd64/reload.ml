@@ -166,7 +166,7 @@ method! reload_operation op arg res =
         let len = Array.length arg in
         let arg' = Array.copy arg in
         let test_arg = self#reload_test tst (Array.sub arg 0 (len - 2)) in
-        for i = 0 to len - 2 do
+        for i = 0 to len - 2 - 1 do
           arg'.(i) <- test_arg.(i)
         done;
         arg'.(len - 1) <- r;
