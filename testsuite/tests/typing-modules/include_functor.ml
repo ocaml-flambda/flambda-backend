@@ -675,3 +675,25 @@ Line 20, characters 16-17:
 Error: This expression has type int but an expression was expected of type
          string
 |}];;
+
+(* Test 21: Check that scraping of result type happens in environment expanded
+   with parameter type. *)
+module M21 = struct
+  module F (_ : sig end) = struct
+    module type S = sig end
+  end
+
+  module P = struct
+    module Make (M : sig end) : F(M).S = struct end
+  end
+
+  include functor P.Make
+end;;
+[%%expect{|
+module M21 :
+  sig
+    module F : sig end -> sig module type S = sig end end
+    module P : sig module Make : functor (M : sig end) -> F(M).S end
+  end
+|}];;
+
