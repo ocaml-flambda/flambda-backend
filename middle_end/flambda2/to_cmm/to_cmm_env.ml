@@ -225,6 +225,10 @@ let print_stages ppf stages =
     (Format.pp_print_list ~pp_sep print_stage)
     stages
 
+let print ppf t =
+  Format.fprintf ppf "@[<hov 1>(@[<hov 1>(stages %a)@]@ )@]" print_stages
+    t.stages
+
 (* Code and closures *)
 
 let get_code_metadata env code_id =

@@ -18,6 +18,9 @@
 (** Environment for Flambda to Cmm translation *)
 type t
 
+(** Printing function *)
+val print : Format.formatter -> t -> unit
+
 (** Extra information about bound variables, used for optimisation. *)
 type extra_info =
   | Untag of Cmm.expression
