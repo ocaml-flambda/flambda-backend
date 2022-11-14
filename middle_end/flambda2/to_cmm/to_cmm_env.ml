@@ -369,7 +369,7 @@ let create_binding_aux (type a) ?extra env effs var ~(inline : a inline)
     | None -> env.vars_extra
     | Some info -> Variable.Map.add var info env.vars_extra
   in
-  Format.eprintf "*** new binding@\n%a@\n@." print_any_binding binding;
+  (* Format.eprintf "*** new binding@\n%a@\n@." print_any_binding binding; *)
   let env = { env with bindings; vars; vars_extra } in
   env, binding
 
@@ -600,12 +600,14 @@ let split_complex_binding ~env ~res (binding : complex binding) =
         cmm_var = binding.cmm_var
       }
     in
-    Format.eprintf "*** new bindings:@\n@[<v>%a@]@."
-      (Format.pp_print_list
-         ~pp_sep:(fun ppf () -> Format.fprintf ppf "@,")
-         print_any_binding)
-      new_bindings;
-    Format.eprintf "*** split_binding:@\n%a@\n@." print_binding split_binding;
+    (*
+     * Format.eprintf "*** new bindings:@\n@[<v>%a@]@."
+     *   (Format.pp_print_list
+     *     ~pp_sep:(fun ppf () -> Format.fprintf ppf "@,")
+     *      print_any_binding)
+     *  new_bindings;
+     * Format.eprintf "*** split_binding:@\n%a@\n@." print_binding split_binding;
+     *)
     res, Split { new_bindings; split_binding }
 
 let remove_binding env var =
@@ -723,9 +725,8 @@ let inline_variable ?consider_inlining_effectful_expressions env res var =
           pop_from_top_stage ?consider_inlining_effectful_expressions env var
         with
         | None ->
-          Format.eprintf
-            "/// not inlining %a (because of stages)@\nstages: %a@\n@."
-            Variable.print var print_stages env.stages;
+          (* Format.eprintf "/// not inlining %a (because of stages)@\nstages:
+             %a@\n@." Variable.print var print_stages env.stages; *)
           will_not_inline_simple env res binding
         | Some env ->
           let env = remove_binding env var in
