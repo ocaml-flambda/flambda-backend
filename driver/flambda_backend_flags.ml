@@ -27,9 +27,8 @@ let heap_reduction_threshold = ref default_heap_reduction_threshold (* -heap-red
 let alloc_check = ref false             (* -alloc-check *)
 let dump_checkmach = ref false          (* -dcheckmach *)
 
-(* CR-soon gyorsh: re-enable tests testsuite/tests/asmcomp/poll_*
-   when changing the default for [disable_poll_insertion] to false. *)
-let disable_poll_insertion = ref true   (* -disable-poll-insertion *)
+let disable_poll_insertion = ref (not Config.poll_insertion)
+                                        (* -disable-poll-insertion *)
 let allow_long_frames = ref true        (* -no-long-frames *)
 (* Keep the value of [max_long_frames_threshold] in sync with LONG_FRAME_MARKER
    in ocaml/runtime/roots_nat.c *)

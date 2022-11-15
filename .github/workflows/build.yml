@@ -18,7 +18,7 @@ jobs:
             ocamlrunparam: "v=0,V=1"
 
           - name: closure_cfg_local
-            config: --enable-middle-end=closure --enable-stack-allocation
+            config: --enable-middle-end=closure --enable-stack-allocation --enable-poll-insertion
             os: ubuntu-latest
             ocamlparam: _,ocamlcfg=1
 
@@ -28,12 +28,12 @@ jobs:
             ocamlparam: ''
 
           - name: flambda1_frame_pointers
-            config: --enable-middle-end=flambda --enable-frame-pointers
+            config: --enable-middle-end=flambda --enable-frame-pointers --enable-poll-insertion
             os: ubuntu-latest
             ocamlparam: ''
 
           - name: flambda1_cfg_local
-            config: --enable-middle-end=flambda --enable-stack-allocation
+            config: --enable-middle-end=flambda --enable-stack-allocation --enable-poll-insertion
             os: ubuntu-latest
             ocamlparam: _,ocamlcfg=1
 
@@ -45,7 +45,7 @@ jobs:
             ocamlrunparam: "v=0,V=1"
 
           - name: flambda2_frame_pointers
-            config: --enable-middle-end=flambda2 --enable-frame-pointers
+            config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-poll-insertion
             os: ubuntu-latest
             ocamlparam: ''
 

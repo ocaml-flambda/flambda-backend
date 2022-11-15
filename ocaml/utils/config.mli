@@ -273,6 +273,9 @@ val afl_instrument : bool
 val stack_allocation : bool
 (** Whether to stack allocate local values *)
 
+val poll_insertion : bool
+(** Whether to insert poll points *)
+
 (** Access to configuration values *)
 val print_config : out_channel -> unit
 

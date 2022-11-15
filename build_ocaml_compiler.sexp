@@ -19,5 +19,6 @@
    no_flat_float_array
    perf_demangled_symbols
    stack_allocation
+   poll_insertion
    ))
  )
