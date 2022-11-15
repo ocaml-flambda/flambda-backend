@@ -295,6 +295,7 @@ ocamltest_config.ml: ocamltest_config.ml.in Makefile ../Makefile.config
 	    $(call SUBST,NAKED_POINTERS) \
 	    $(call SUBST,PROBES) \
 	    $(call SUBST,STACK_ALLOCATION) \
+	    $(call SUBST,POLL_INSERTION) \
 	    $< > $@
 
 # Manual

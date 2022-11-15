@@ -130,3 +130,6 @@ val probes : bool
 
 val stack_allocation : bool
 (** Whether stack allocation is enabled *)
+
+val poll_insertion : bool
+(** Whether poll insertion is enabled *)

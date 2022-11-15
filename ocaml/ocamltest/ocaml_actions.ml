@@ -1204,6 +1204,18 @@ let no_stack_allocation = Actions.make
     "Stack allocation disabled"
     "Stack allocation enabled")
 
+let poll_insertion = Actions.make
+  "poll-insertion"
+  (Actions_helpers.pass_or_skip Ocamltest_config.poll_insertion
+    "Poll insertion enabled"
+    "Poll insertion disabled")
+
+let no_poll_insertion = Actions.make
+  "no-poll-insertion"
+  (Actions_helpers.pass_or_skip (not Ocamltest_config.poll_insertion)
+    "Stack allocation disabled"
+    "Stack allocation enabled")
+
 let ocamldoc = Ocaml_tools.ocamldoc
 
 let ocamldoc_output_file env prefix =
@@ -1400,6 +1412,8 @@ let _ =
     no_afl_instrument;
     stack_allocation;
     no_stack_allocation;
+    poll_insertion;
+    no_poll_insertion;
     setup_ocamldoc_build_env;
     run_ocamldoc;
     check_ocamldoc_output;
