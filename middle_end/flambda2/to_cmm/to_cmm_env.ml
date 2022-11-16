@@ -74,18 +74,7 @@ type _ inline =
 (* Note on the effects of splittable bindings:
 
    The arguments are stored with their effects. This means that if we need to
-   split the binding, we can re-bind each argument with its correct effects.
-
-   The [prim_effects] field stores the effects of the primitive itself (the part
-   of the binding that can be duplicated).
-
-   When the binding is inlined without splitting, these effects are not used;
-   instead the effects of the whole expression are used (they are stored
-   alongside the binding, as for normal bindings).
-
-   When the binding is split, [make_expr] is called on variables only, and the
-   effects of the resulting expression are assumed to be exactly
-   [prim_effects]. *)
+   split the binding, we can re-bind each argument with its correct effects. *)
 type _ bound_expr =
   | Simple : { cmm_expr : Cmm.expression } -> simple bound_expr
   | Split : { cmm_expr : Cmm.expression } -> complex bound_expr
@@ -434,8 +423,8 @@ let bind_variable_with_decision (type a) ?extra env var ~inline
       effs, To_cmm_effects.classify_by_effects_and_coeffects effs
     in
     match[@ocaml.warning "-4"] (inline : a inline), classification with
-    | Must_inline_once, Generative_duplicable -> change_eff_to Ece.pure
-    | Must_inline_and_duplicate, Generative_duplicable ->
+    | Must_inline_once, Generative_immutable -> change_eff_to Ece.pure
+    | Must_inline_and_duplicate, Generative_immutable ->
       change_eff_to Ece.pure_can_be_duplicated
     | _, _ -> effs, classification
   in
@@ -445,7 +434,7 @@ let bind_variable_with_decision (type a) ?extra env var ~inline
     (* check that the effects and coeffects allow the expression to be
        duplicated without changing semantics *)
     (match classification with
-    | Pure | Generative_duplicable -> ()
+    | Pure | Generative_immutable -> ()
     | Coeffect_only | Effect ->
       Misc.fatal_errorf
         "Incorrect effects and/or coeffects for a duplicated binding: %a"
@@ -454,7 +443,7 @@ let bind_variable_with_decision (type a) ?extra env var ~inline
   | May_inline_once | Must_inline_once | Do_not_inline -> (
     match classification with
     | Pure -> env
-    | Generative_duplicable -> (
+    | Generative_immutable -> (
       match (inline : a inline) with
       | Must_inline_once -> env
       | May_inline_once | Do_not_inline ->
@@ -591,7 +580,7 @@ let split_complex_binding ~env ~res (binding : complex binding) =
       Flambda_primitive.Without_args.effects_and_coeffects prim
     in
     (match To_cmm_effects.classify_by_effects_and_coeffects prim_effects with
-    | Pure | Generative_duplicable -> ()
+    | Pure | Generative_immutable -> ()
     | Effect | Coeffect_only ->
       Misc.fatal_errorf
         "Once split, a 'must_inline_once' binding cannot have effects or \
@@ -712,7 +701,7 @@ let inline_variable ?consider_inlining_effectful_expressions env res var =
     | Must_inline_once -> (
       let env = remove_binding env var in
       match To_cmm_effects.classify_by_effects_and_coeffects binding.effs with
-      | Pure | Generative_duplicable -> will_inline_complex env res binding
+      | Pure | Generative_immutable -> will_inline_complex env res binding
       | Effect | Coeffect_only -> (
         match
           pop_from_top_stage ?consider_inlining_effectful_expressions env var
@@ -724,7 +713,7 @@ let inline_variable ?consider_inlining_effectful_expressions env res var =
       | Pure ->
         let env = remove_binding env var in
         will_inline_simple env res binding
-      | Generative_duplicable | Effect | Coeffect_only -> (
+      | Generative_immutable | Effect | Coeffect_only -> (
         match
           pop_from_top_stage ?consider_inlining_effectful_expressions env var
         with
@@ -791,9 +780,8 @@ let flush_delayed_lets ?(entering_loop = false) env res =
              try and push the arguments down the branch (otherwise, when we
              split, the arguments of the splittable binding would be flushed
              before the branch in control flow). *)
-          | (Pure | Generative_duplicable) when not entering_loop ->
-            Some binding
-          | Pure | Generative_duplicable | Coeffect_only | Effect -> (
+          | (Pure | Generative_immutable) when not entering_loop -> Some binding
+          | Pure | Generative_immutable | Coeffect_only | Effect -> (
             let r, split_res = split_complex_binding ~env ~res:!res b in
             res := r;
             match split_res with
@@ -813,7 +801,7 @@ let flush_delayed_lets ?(entering_loop = false) env res =
               flush binding;
               None)
             else Some binding
-          | Generative_duplicable | Coeffect_only | Effect ->
+          | Generative_immutable | Coeffect_only | Effect ->
             flush binding;
             None))
       env.bindings

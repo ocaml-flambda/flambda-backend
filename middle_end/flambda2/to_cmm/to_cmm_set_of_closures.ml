@@ -513,7 +513,7 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
   assert (
     match To_cmm_effects.classify_by_effects_and_coeffects peff with
     | Pure -> true
-    | Generative_duplicable | Effect | Coeffect_only -> false);
+    | Generative_immutable | Effect | Coeffect_only -> false);
   (* Helper function to get the a cmm expr for a closure offset *)
   let get_closure_by_offset env set_cmm function_slot =
     match
