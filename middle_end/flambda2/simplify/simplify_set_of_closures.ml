@@ -172,8 +172,6 @@ let simplify_function_body context ~outer_dacc function_slot_opt
   match
     C.simplify_function_body context dacc body ~return_continuation
       ~exn_continuation ~return_arity:(Code.result_arity code)
-      ~return_cont_scope:Scope.initial
-      ~exn_cont_scope:(Scope.next Scope.initial) ~loopify_state ~params
       ~implicit_params:
         (Bound_parameters.create
            [ Bound_parameter.create my_closure
@@ -181,6 +179,7 @@ let simplify_function_body context ~outer_dacc function_slot_opt
              Bound_parameter.create my_region Flambda_kind.With_subkind.region;
              Bound_parameter.create my_depth Flambda_kind.With_subkind.rec_info
            ])
+      ~loopify_state ~params
   with
   | body, uacc ->
     let dacc_after_body = UA.creation_dacc uacc in

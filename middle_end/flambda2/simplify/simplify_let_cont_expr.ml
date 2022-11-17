@@ -341,7 +341,7 @@ type behaviour =
 
 let rebuild_non_recursive_let_cont_handler cont
     (uses : Join_points.result option) ~params ~handler ~free_names_of_handler
-    ~cost_metrics_of_handler ~is_single_inlinable_use scope ~is_exn_handler
+    ~cost_metrics_of_handler ~is_single_inlinable_use _scope ~is_exn_handler
     (extra_params_and_args : EPA.t) ~rewrite_ids:_
     (cont_handler : RE.Continuation_handler.t) uacc ~after_rebuild =
   Format.eprintf "rebuild_non_recursive_let_cont_handler %a@." Continuation.print cont;
@@ -364,7 +364,7 @@ let rebuild_non_recursive_let_cont_handler cont
         assert (not is_exn_handler);
         (* We pass the parameters and the handler expression, rather than the
            [CH.t], to avoid re-opening the name abstraction. *)
-        UE.add_linearly_used_inlinable_continuation uenv cont scope ~params
+        UE.add_linearly_used_inlinable_continuation uenv cont ~params
           ~handler ~free_names_of_handler ~cost_metrics_of_handler)
       else
         let behaviour =
@@ -393,12 +393,12 @@ let rebuild_non_recursive_let_cont_handler cont
         match behaviour with
         | Invalid ->
           let arity = Bound_parameters.arity_with_subkinds params in
-          UE.add_invalid_continuation uenv cont scope arity
+          UE.add_invalid_continuation uenv cont arity
         | Alias_for alias_for ->
           let arity = Bound_parameters.arity_with_subkinds params in
           UE.add_continuation_alias uenv cont arity ~alias_for
         | Unknown ->
-          UE.add_non_inlinable_continuation uenv cont scope ~params
+          UE.add_non_inlinable_continuation uenv cont ~params
             ~handler:(Known handler))
   in
   (* The parameters are removed from the free name information as they are no
@@ -807,7 +807,7 @@ type make_rewrite_context =
   | In_handler
   | In_body of { rewrite_ids : Apply_cont_rewrite_id.Set.t }
 
-let make_rewrite_for_recursive_continuation uacc ~cont ~original_cont_scope
+let make_rewrite_for_recursive_continuation uacc ~cont ~original_cont_scope:_
     ~original_params ~context ~extra_params_and_args =
   let extra_params_and_args =
     match context with
@@ -863,7 +863,7 @@ let make_rewrite_for_recursive_continuation uacc ~cont ~original_cont_scope
         let params =
           Bound_parameters.append used_params_list used_extra_params_list
         in
-        UE.add_non_inlinable_continuation uenv cont original_cont_scope ~params
+        UE.add_non_inlinable_continuation uenv cont ~params
           ~handler:Unknown)
   in
   uacc, rewrite
@@ -959,7 +959,7 @@ let rebuild_recursive_let_cont_handlers cont ~params ~original_cont_scope
     | Rec ->
       let uacc =
         UA.map_uenv uacc ~f:(fun uenv ->
-            UE.add_non_inlinable_continuation uenv cont original_cont_scope
+            UE.add_non_inlinable_continuation uenv cont
               ~params ~handler:(Known handler))
       in
       let handlers =
@@ -1730,7 +1730,6 @@ let rebuild_single_non_recursive_handler ~at_unit_toplevel ~is_single_inlinable_
 
   let uenv = UA.uenv uacc in
   let uenv =
-    let scope = Scope.initial in (* CR ncourant: I think this is never used in UE, we could remove it *)
       if (* We must make the final decision now as to whether to inline this
             continuation or not; we can't wait until
             [Simplify_apply_cont.rebuild_apply_cont] because we need to decide
@@ -1743,7 +1742,7 @@ let rebuild_single_non_recursive_handler ~at_unit_toplevel ~is_single_inlinable_
         assert (not is_exn_handler);
         (* We pass the parameters and the handler expression, rather than the
            [CH.t], to avoid re-opening the name abstraction. *)
-        UE.add_linearly_used_inlinable_continuation uenv cont scope ~params
+        UE.add_linearly_used_inlinable_continuation uenv cont ~params
           ~handler ~free_names_of_handler:free_names ~cost_metrics_of_handler:cost_metrics)
       else
         let behaviour =
@@ -1772,12 +1771,12 @@ let rebuild_single_non_recursive_handler ~at_unit_toplevel ~is_single_inlinable_
         match behaviour with
         | Invalid ->
           let arity = Bound_parameters.arity_with_subkinds params in
-          UE.add_invalid_continuation uenv cont scope arity
+          UE.add_invalid_continuation uenv cont arity
         | Alias_for alias_for ->
           let arity = Bound_parameters.arity_with_subkinds params in
           UE.add_continuation_alias uenv cont arity ~alias_for
         | Unknown ->
-          UE.add_non_inlinable_continuation uenv cont scope ~params
+          UE.add_non_inlinable_continuation uenv cont ~params
             ~handler:(Known handler)
   in
   let uacc = UA.with_uenv uacc uenv in
