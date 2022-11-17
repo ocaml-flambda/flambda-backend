@@ -1435,9 +1435,11 @@ type stage2 = {
   recinfo : stage1_recinfos ;
 }
 
-type handler_to_rebuild = {
+type expr_to_rebuild = (Rebuilt_expr.t * Upwards_acc.t) Simplify_common.rebuild
+
+type stage3_handler_to_rebuild = {
   params : Bound_parameters.t ;
-  rebuild_handler : (Rebuilt_expr.t * Upwards_acc.t) Simplify_common.rebuild ;
+  rebuild_handler : expr_to_rebuild ;
   is_exn_handler : bool ;
   continuations_used : Continuation.Set.t ;
   unbox_decisions : Unbox_continuation_params.Decisions.t option ;
@@ -1445,32 +1447,43 @@ type handler_to_rebuild = {
 }
 
 type stage3 = {
-  rebuild_body : (Rebuilt_expr.t * Upwards_acc.t) Simplify_common.rebuild ;
-  handlers : handler_to_rebuild Continuation.Map.t ;
+  rebuild_body : expr_to_rebuild ;
+  cont_uses_env : CUE.t ;
+  at_unit_toplevel : bool ;
+  handlers : stage3_handler_to_rebuild Continuation.Map.t ;
 }
 
-type stage4_recinfos_element =
+type stage4_handler_to_rebuild = {
+  params : Bound_parameters.t ;
+  rebuild_handler : expr_to_rebuild ;
+  is_exn_handler : bool ;
+  extra_params_and_args : EPA.t ;
+  rewrite_ids : Apply_cont_rewrite_id.Set.t ;
+}
+
+type stage4_handlers_group =
   | Recursive of {
-      rebuild_continuation_handlers : handler_to_rebuild Continuation.Map.t
+      rebuild_continuation_handlers : stage4_handler_to_rebuild Continuation.Map.t
     }
   | Non_recursive of {
       cont : Continuation.t ;
-      is_exn_handler : bool ;
-      handler : handler_to_rebuild ;
+      handler : stage4_handler_to_rebuild ;
       is_single_inlinable_use : bool ;
     }
 
 type stage4 = {
-  rebuild_body : (Rebuilt_expr.t * Upwards_acc.t) Simplify_common.rebuild ;
-  recinfo : stage4_recinfos_element list ;
+  rebuild_body : expr_to_rebuild ;
+  at_unit_toplevel : bool ;
+  handlers_from_the_outside_to_the_inside : stage4_handlers_group list ;
 }
 
 type rebuilt_handler = {
   handler : Rebuilt_expr.Continuation_handler.t ;
-  free_names_of_handler : Name_occurrences.t ;
+  name_occurrences_of_handler : Name_occurrences.t ;
+  cost_metrics_of_handler : Cost_metrics.t ;
 }
 
-type stage5_recinfo_element =
+type stage5_handlers_group =
   | Recursive of {
       continuation_handlers : rebuilt_handler Continuation.Map.t
     }
@@ -1480,12 +1493,18 @@ type stage5_recinfo_element =
     }
 
 type stage5 = {
-  rebuild_body : (Rebuilt_expr.t * Upwards_acc.t) Simplify_common.rebuild ;
-  recinfo : stage5_recinfo_element list ;
+  rebuild_body : expr_to_rebuild ;
+  handlers_from_the_inside_to_the_outside : stage5_handlers_group list ;
+  name_occurrences_of_subsequent_exprs : Name_occurrences.t ;
+  cost_metrics_of_subsequent_exprs : Cost_metrics.t ;
+  uenv_of_subsequent_exprs : UE.t ;
 }
 
 type stage6 = {
-  recinfo : stage5_recinfo_element list ;
+  handlers_from_the_inside_to_the_outside : stage5_handlers_group list ;
+  name_occurrences_of_subsequent_exprs : Name_occurrences.t ;
+  cost_metrics_of_subsequent_exprs : Cost_metrics.t ;
+  uenv_of_subsequent_exprs : UE.t ;
 }
 
 let reset_dacc_denv dacc previous_denv =
@@ -1495,21 +1514,333 @@ let reset_dacc_denv dacc previous_denv =
   in
   DA.with_denv dacc (DE.with_typing_env previous_denv typing_env)
 
-let simplify_let_cont_stage6 (_stage6 : stage6) ~after_rebuild:_ _body _uacc =
+let simplify_let_cont_stage6 (stage6 : stage6) ~after_rebuild body uacc =
   (* Here both the body and the handlers have been rebuilt. We only need to restore the cost metrics
      and name occurrences accumulators, rebuild all the let cont expressions, and call after_rebuild
      with the result and the new upwards accumulator. *)
-  failwith "TODO"
+  let name_occurrences_body = UA.name_occurrences uacc in
+  let cost_metrics_of_body = UA.cost_metrics uacc in
+  let rec rebuild_groups body name_occurrences_body cost_metrics_of_body uacc groups =
+    match groups with
+    | [] ->
+      let uacc =
+        UA.with_name_occurrences ~name_occurrences:(Name_occurrences.union name_occurrences_body stage6.name_occurrences_of_subsequent_exprs) uacc
+      in
+      let uacc =
+        UA.with_cost_metrics (Cost_metrics.(+) cost_metrics_of_body stage6.cost_metrics_of_subsequent_exprs)
+          uacc
+      in
+      let uacc = UA.with_uenv uacc stage6.uenv_of_subsequent_exprs in
+      after_rebuild body uacc
+    | Non_recursive { cont; handler } :: groups ->
 
-let simplify_let_cont_stage5 (_stage5 : stage5) _uacc ~after_rebuild:_ =
+  let num_free_occurrences_of_cont_in_body =
+    (* Note that this does not count uses in trap actions. If there are uses in
+       trap actions, but [remove_let_cont_leaving_body] is [true] below, then
+       this must be a case where the exception handler can be demoted to a
+       normal handler. This will cause the trap actions to be erased. *)
+    NO.count_continuation name_occurrences_body cont
+  in
+  let is_applied_with_traps =
+    NO.continuation_is_applied_with_traps name_occurrences_body cont
+  in
+  let remove_let_cont_leaving_body =
+    match num_free_occurrences_of_cont_in_body with
+    | Zero -> true
+    | One | More_than_one -> false
+  in
+  (* We are passing back over a binder, so remove the bound continuation from
+     the free name information. Then compute the free names of the whole
+     [Let_cont]. *)
+  let name_occurrences_body =
+    NO.remove_continuation name_occurrences_body ~continuation:cont
+  in
+  (* Having rebuilt both the body and handler, the [Let_cont] expression itself
+     is rebuilt -- unless either the continuation had zero uses, in which case
+     we're left with the body; or if the body is just an [Apply_cont] (with no
+     trap action) of [cont], in which case we're left with the handler.
+
+TODO update this comment
+
+     The upwards environment of [uacc] is replaced so that out-of-scope
+     continuation bindings do not end up in the accumulator. *)
+  let expr, name_occurrences, cost_metrics =
+    if remove_let_cont_leaving_body
+    then
+      body, name_occurrences_body, cost_metrics_of_body
+    else
+      let remove_let_cont_leaving_handler =
+        match RE.to_apply_cont body with
+        | Some apply_cont -> (
+          if not (Continuation.equal cont (Apply_cont.continuation apply_cont))
+          then false
+          else
+            match Apply_cont.args apply_cont with
+            | [] -> Option.is_none (Apply_cont.trap_action apply_cont)
+            | _ :: _ -> false)
+        | None -> false
+      in
+      if remove_let_cont_leaving_handler
+      then
+        failwith("handler_expr"), handler.name_occurrences_of_handler, handler.cost_metrics_of_handler
+      else
+        let name_occurrences = NO.union name_occurrences_body handler.name_occurrences_of_handler in
+        let cost_metrics =
+          Cost_metrics.(+) cost_metrics_of_body (Cost_metrics.increase_due_to_let_cont_non_recursive ~cost_metrics_of_handler:handler.cost_metrics_of_handler)
+        in
+        let expr =
+          RE.create_non_recursive_let_cont'
+            (UA.are_rebuilding_terms uacc)
+            cont handler.handler ~body ~num_free_occurrences_of_cont_in_body
+            ~is_applied_with_traps
+        in
+        expr, name_occurrences, cost_metrics
+  in
+   rebuild_groups expr name_occurrences cost_metrics uacc groups
+    | Recursive { continuation_handlers } :: group ->
+      failwith "TODO"
+  in
+  rebuild_groups body name_occurrences_body cost_metrics_of_body uacc stage6.handlers_from_the_inside_to_the_outside
+
+let simplify_let_cont_stage5 (stage5 : stage5) uacc ~after_rebuild =
   (* At this point all handlers have been rebuild and added to the upwards environment. All that we
      still need to do is to rebuild the body, and then rebuild the chain of let cont expressions once
      this is done. We reinit the name occurrences and cost metrics one last time to get precise
      information for those two in the body, we rebuild the body, and we pass on to the final stage
      for the reconstruction of the let cont expressions. *)
-  failwith "TODO"
+  let uacc = UA.clear_cost_metrics (UA.clear_name_occurrences uacc) in
+  let stage6 : stage6 = {
+    name_occurrences_of_subsequent_exprs = stage5.name_occurrences_of_subsequent_exprs ;
+    cost_metrics_of_subsequent_exprs = stage5.cost_metrics_of_subsequent_exprs ;
+    uenv_of_subsequent_exprs = stage5.uenv_of_subsequent_exprs ;
+    handlers_from_the_inside_to_the_outside = stage5.handlers_from_the_inside_to_the_outside ;
+  } in
+  stage5.rebuild_body uacc ~after_rebuild:(simplify_let_cont_stage6 stage6 ~after_rebuild)
 
-let simplify_let_cont_stage4 (_stage4 : stage4) _uacc ~after_rebuild:_ =
+
+  let add_lets_around_handler cont at_unit_toplevel uacc handler =
+    let Flow_types.Alias_result.{ continuation_parameters; _ } =
+      UA.continuation_param_aliases uacc
+    in
+    let continuation_parameters =
+      Continuation.Map.find cont continuation_parameters
+    in
+    let handler, uacc =
+      Variable.Map.fold
+        (fun var bound_to (handler, uacc) ->
+          let bound_pattern =
+            Bound_pattern.singleton (Bound_var.create var Name_mode.normal)
+          in
+          let named = Named.create_simple (Simple.var bound_to) in
+          let handler, uacc =
+            Expr_builder.create_let_binding uacc bound_pattern named
+              ~free_names_of_defining_expr:
+                (Name_occurrences.singleton_variable bound_to Name_mode.normal)
+              ~cost_metrics_of_defining_expr:Cost_metrics.zero ~body:handler
+          in
+          handler, uacc)
+        continuation_parameters.lets_to_introduce (handler, uacc)
+    in
+    let handler, uacc =
+      (* We might need to place lifted constants now, as they could depend on
+         continuation parameters. As such we must also compute the unused
+         parameters after placing any constants! *)
+      if not at_unit_toplevel
+      then handler, uacc
+      else
+        let uacc, lifted_constants_from_body =
+          UA.get_and_clear_lifted_constants uacc
+        in
+        EB.place_lifted_constants uacc
+          ~lifted_constants_from_defining_expr:LCS.empty
+          ~lifted_constants_from_body
+          ~put_bindings_around_body:(fun uacc ~body -> body, uacc)
+          ~body:handler
+    in
+    let free_names = UA.name_occurrences uacc in
+    let cost_metrics = UA.cost_metrics uacc in
+    handler, uacc, free_names, cost_metrics
+
+let add_phantom_params_bindings uacc handler new_phantom_params =
+  let new_phantom_param_bindings_outermost_first =
+    List.map
+      (fun param ->
+         let var = BP.var param in
+         let kind = K.With_subkind.kind (BP.kind param) in
+         let var = Bound_var.create var Name_mode.phantom in
+         let let_bound = Bound_pattern.singleton var in
+         let prim = Flambda_primitive.(Nullary (Optimised_out kind)) in
+         let named = Named.create_prim prim Debuginfo.none in
+         let simplified_defining_expr = Simplified_named.create named in
+         { Simplify_named_result.let_bound;
+           simplified_defining_expr;
+           original_defining_expr = named
+         })
+      (Bound_parameters.to_list new_phantom_params)
+  in
+  EB.make_new_let_bindings uacc ~body:handler
+    ~bindings_outermost_first:new_phantom_param_bindings_outermost_first
+
+
+let rebuild_single_non_recursive_handler ~at_unit_toplevel ~is_single_inlinable_use cont (handler_to_rebuild : stage4_handler_to_rebuild) uacc k =
+  (* Clear existing name occurrences & cost metrics *)
+  let uacc = UA.clear_name_occurrences (UA.clear_cost_metrics uacc) in
+  let { is_exn_handler ; rewrite_ids ; params ; rebuild_handler ; extra_params_and_args } = handler_to_rebuild in
+  rebuild_handler uacc ~after_rebuild:(fun handler uacc ->
+      let handler, uacc, free_names, cost_metrics = add_lets_around_handler cont at_unit_toplevel uacc handler in
+            let extra_params_and_args =
+        add_extra_params_for_continuation_param_aliases cont uacc rewrite_ids
+          extra_params_and_args
+        |> add_extra_params_for_reference_fields cont uacc
+      in
+      let { extra_params_used_as_normal; extra_params_not_used_as_normal } =
+        compute_used_extra_params uacc extra_params_and_args
+          ~is_single_inlinable_use ~free_names ~handler
+      in
+      let { params_used_as_normal; params_not_used_as_normal } =
+        compute_used_params uacc params ~is_exn_handler ~is_single_inlinable_use
+          ~free_names ~handler
+      in
+      let new_phantom_params =
+        List.filter
+          (fun param -> NO.mem_var free_names (BP.var param))
+          (params_not_used_as_normal @ extra_params_not_used_as_normal)
+      in
+      let rewrite =
+        Apply_cont_rewrite.create ~original_params:params
+          ~used_params:(BP.Set.of_list params_used_as_normal)
+          ~extra_params:(EPA.extra_params extra_params_and_args)
+          ~extra_args:(EPA.extra_args extra_params_and_args)
+          ~used_extra_params:(BP.Set.of_list extra_params_used_as_normal)
+      in
+      let uacc =
+        UA.map_uenv uacc ~f:(fun uenv ->
+            UE.add_apply_cont_rewrite uenv cont rewrite)
+      in
+      let params = Bound_parameters.create
+          (params_used_as_normal @ extra_params_used_as_normal)
+      in
+      let new_phantom_params = Bound_parameters.create new_phantom_params in
+      let handler, uacc = add_phantom_params_bindings uacc handler new_phantom_params in
+      let cont_handler =
+        RE.Continuation_handler.create
+          (UA.are_rebuilding_terms uacc)
+          params ~handler ~free_names_of_handler:free_names ~is_exn_handler
+      in
+
+  let uenv = UA.uenv uacc in
+  let uenv =
+    let scope = Scope.initial in (* CR ncourant: I think this is never used in UE, we could remove it *)
+      if (* We must make the final decision now as to whether to inline this
+            continuation or not; we can't wait until
+            [Simplify_apply_cont.rebuild_apply_cont] because we need to decide
+            sooner than that whether to keep the [Let_cont] (in order to keep
+            free name sets correct). *)
+         is_single_inlinable_use
+      then (
+        (* Note that [Continuation_uses] won't set [is_single_inlinable_use] if
+           [cont] is an exception handler. *)
+        assert (not is_exn_handler);
+        (* We pass the parameters and the handler expression, rather than the
+           [CH.t], to avoid re-opening the name abstraction. *)
+        UE.add_linearly_used_inlinable_continuation uenv cont scope ~params
+          ~handler ~free_names_of_handler:free_names ~cost_metrics_of_handler:cost_metrics)
+      else
+        let behaviour =
+          (* CR-someday mshinwell: This could be replaced by a more
+             sophisticated analysis, but for the moment we just use a simple
+             syntactic check. *)
+          if is_exn_handler
+          then Unknown
+          else
+            match RE.to_apply_cont handler with
+            | Some apply_cont -> (
+              match Apply_cont.trap_action apply_cont with
+              | Some _ -> Unknown
+              | None ->
+                let args = Apply_cont.args apply_cont in
+                let params = Bound_parameters.simples params in
+                if Misc.Stdlib.List.compare Simple.compare args params = 0
+                then Alias_for (Apply_cont.continuation apply_cont)
+                else Unknown)
+            | None ->
+              if RE.can_be_removed_as_invalid handler
+                   (UA.are_rebuilding_terms uacc)
+              then Invalid
+              else Unknown
+        in
+        match behaviour with
+        | Invalid ->
+          let arity = Bound_parameters.arity_with_subkinds params in
+          UE.add_invalid_continuation uenv cont scope arity
+        | Alias_for alias_for ->
+          let arity = Bound_parameters.arity_with_subkinds params in
+          UE.add_continuation_alias uenv cont arity ~alias_for
+        | Unknown ->
+          UE.add_non_inlinable_continuation uenv cont scope ~params
+            ~handler:(Known handler)
+  in
+  let uacc = UA.with_uenv uacc uenv in
+  (* The parameters are removed from the free name information as they are no
+     longer in scope. *)
+    let free_names =
+      ListLabels.fold_left
+        (Bound_parameters.to_list params
+        @ Bound_parameters.to_list (EPA.extra_params extra_params_and_args))
+        ~init:free_names
+        ~f:(fun name_occurrences param ->
+          NO.remove_var name_occurrences ~var:(BP.var param))
+    in
+
+      let rebuilt_handler : rebuilt_handler = {
+        handler = cont_handler ;
+        name_occurrences_of_handler = free_names ;
+        cost_metrics_of_handler = cost_metrics ;
+      } in
+      k rebuilt_handler uacc
+    )
+
+let rebuild_single_recursive_handler cont (handler_to_rebuild : stage4_handler_to_rebuild) at_unit_toplevel uacc k =
+  (* Clear existing name occurrences & cost metrics *)
+  let uacc = UA.clear_name_occurrences (UA.clear_cost_metrics uacc) in
+  (* For recursive only, TODO
+     let uacc, _rewrite =
+     make_rewrite_for_recursive_continuation uacc ~cont ~original_cont_scope
+      ~original_params:params ~context:In_handler ~extra_params_and_args
+     in
+  *)
+  handler_to_rebuild.rebuild_handler uacc ~after_rebuild:(fun handler uacc ->
+      let handler, uacc, free_names, cost_metrics = add_lets_around_handler cont false uacc handler in
+
+      failwith "TODO" ()
+    )
+
+let rec rebuild_continuation_handlers_loop ~rebuild_body ~name_occurrences_of_subsequent_exprs ~cost_metrics_of_subsequent_exprs ~uenv_of_subsequent_exprs ~at_unit_toplevel uacc ~after_rebuild (groups_to_rebuild : stage4_handlers_group list) rebuilt_groups =
+  match groups_to_rebuild with
+  | [] ->
+    let stage5 : stage5 = {
+      rebuild_body ;
+      name_occurrences_of_subsequent_exprs ;
+      cost_metrics_of_subsequent_exprs ;
+      uenv_of_subsequent_exprs ;
+      handlers_from_the_inside_to_the_outside = rebuilt_groups ;
+    } in
+    simplify_let_cont_stage5 stage5 uacc ~after_rebuild
+  | Non_recursive { cont; handler; is_single_inlinable_use } :: groups_to_rebuild ->
+    rebuild_single_non_recursive_handler ~at_unit_toplevel ~is_single_inlinable_use cont handler uacc
+      (fun rebuilt_handler uacc ->
+         rebuild_continuation_handlers_loop ~rebuild_body ~name_occurrences_of_subsequent_exprs ~cost_metrics_of_subsequent_exprs ~uenv_of_subsequent_exprs ~at_unit_toplevel uacc ~after_rebuild
+           groups_to_rebuild (Non_recursive { cont; handler = rebuilt_handler } :: rebuilt_groups)
+      )
+  | Recursive { rebuild_continuation_handlers } :: groups_to_rebuild ->
+    (* Common setup for recursive handlers: add rewrites *)
+    failwith "TODO" ()
+    (* Rebuild all the handlers *)
+    failwith "TODO" ()
+    (* Add all rewrites and continue rebuilding *)
+    failwith "TODO" ()
+
+let simplify_let_cont_stage4 (stage4 : stage4) uacc ~after_rebuild =
   (* Here we just returned from the global [down_to_up], which is asking us to rebuild the let cont.
      The flow analyses have been done, and we start to rebuild the expressions. As with the downward
      pass, we loop over each defined handler to rebuild it. As the handlers have been sorted by
@@ -1532,12 +1863,14 @@ let simplify_let_cont_stage4 (_stage4 : stage4) _uacc ~after_rebuild:_ =
      and the cost metrics before rebuilding each handler, so that we know the name occurrences and
      cost metrics corresponding to each handler when rebuilding later.
   *)
-  (* TODO setup apply_cont_rewrites (recursive case: before & after, non-recursive: only after) *)
-  (* TODO after each handler: compute used params, update uenv, don't re-add handler to list
-     if to be inlined *)
-  failwith "TODO"
+  let name_occurrences_of_subsequent_exprs = UA.name_occurrences uacc in
+  let cost_metrics_of_subsequent_exprs = UA.cost_metrics uacc in
+  let uenv_of_subsequent_exprs = UA.uenv uacc in
+  rebuild_continuation_handlers_loop ~rebuild_body:stage4.rebuild_body ~at_unit_toplevel:stage4.at_unit_toplevel ~name_occurrences_of_subsequent_exprs ~cost_metrics_of_subsequent_exprs ~uenv_of_subsequent_exprs uacc ~after_rebuild stage4.handlers_from_the_outside_to_the_inside []
 
-let simplify_let_cont_stage3 (_stage3 : stage3) ~down_to_up:_ _dacc =
+module SCC = Strongly_connected_components.Make(Continuation)
+
+let simplify_let_cont_stage3 (stage3 : stage3) ~down_to_up dacc =
   (* At this point we have done a downwards traversal on the body and all the handlers,
      and we need to call the global [down_to_up] function. First however, we have to take care of
      several things:
@@ -1545,19 +1878,76 @@ let simplify_let_cont_stage3 (_stage3 : stage3) ~down_to_up:_ _dacc =
      - We need to compute the extra params and args related to unboxed parameters. This could not
        be done earlier, as we might not have seen every use of the continuations.
 
+     - Now that we were able to compute the extra params and args, we add this information to the
+       flow analysis, so that it can correctly compute all the information we need when going up.
+
      - We perform a strongly-connected components analysis of the continuations to be able to turn
        mutually-recursive continuations into several independant blocks of recursive or non-recursive
        continuations. In case one of those is non-recursive, we can check whether the continuation is
        inlinable if it is used a single time.
-
-     - Now that we were able to compute the extra params and args, and that we know which continuations
-       are recursive and which are not, we add all this information to the flow analysis, so that
-       it can correctly compute all the information we need when going up.
   *)
-  failwith "TODO"
+  let get_uses cont =
+    match CUE.get_continuation_uses stage3.cont_uses_env cont with
+    | None -> Misc.fatal_errorf "Uses of %a not found in [simplify_let_cont_stage3]@." Continuation.print cont
+    | Some cont -> cont
+  in
+  let handlers = Continuation.Map.mapi (fun cont (handler : stage3_handler_to_rebuild) ->
+      let uses = get_uses cont in
+      (* CR ncourant don't use an option *)
+      let extra_params_and_args = match handler.unbox_decisions with
+        | None -> handler.extra_params_and_args_for_cse
+        | Some decisions ->
+          let arg_types_by_use_id = Continuation_uses.get_arg_types_by_use_id uses in
+          Unbox_continuation_params.compute_extra_params_and_args decisions ~arg_types_by_use_id handler.extra_params_and_args_for_cse
+      in
+      { params = handler.params; rebuild_handler = handler.rebuild_handler; is_exn_handler = handler.is_exn_handler; extra_params_and_args; rewrite_ids = Continuation_uses.get_use_ids uses }
+    ) stage3.handlers
+  in
+
+  let dacc =
+    DA.map_flow_acc dacc ~f:(fun flow_acc ->
+        Continuation.Map.fold (fun cont handler flow_acc ->
+            Flow.Acc.add_extra_params_and_args cont handler.extra_params_and_args flow_acc
+          ) handlers flow_acc
+      )
+  in
+
+  let handlers_graph = Continuation.Map.map (fun handler -> handler.continuations_used) stage3.handlers in
+  let sorted_handlers_from_the_inside_to_the_outside =
+    SCC.connected_components_sorted_from_roots_to_leaf handlers_graph
+  in
+  let handlers_from_the_outside_to_the_inside =
+    Array.fold_left (fun inner group ->
+        let group : stage4_handlers_group = match (group : SCC.component) with
+          | Has_loop conts ->
+            let rebuild_continuation_handlers = List.fold_left (fun group cont ->
+              Continuation.Map.add cont (Continuation.Map.find cont handlers) group)
+                Continuation.Map.empty conts
+            in
+            Recursive { rebuild_continuation_handlers }
+          | No_loop cont ->
+            let handler = Continuation.Map.find cont handlers in
+            let is_single_inlinable_use =
+              match Continuation_uses.get_uses (get_uses cont) with
+              | [] | _ :: _ :: _ -> false
+              | [use] -> match One_continuation_use.use_kind use with
+                | Inlinable -> true
+                | Non_inlinable _ -> false
+            in
+            Non_recursive { cont; handler; is_single_inlinable_use }
+        in
+        group :: inner
+      ) [] sorted_handlers_from_the_inside_to_the_outside
+  in
+  let stage4 : stage4 = {
+    rebuild_body = stage3.rebuild_body ;
+    handlers_from_the_outside_to_the_inside ;
+    at_unit_toplevel = stage3.at_unit_toplevel ;
+  } in
+  down_to_up dacc ~rebuild:(simplify_let_cont_stage4 stage4)
 
 (* simplify for single handler: compute unbox decisions *)
-let simplify_single_handler ~simplify_expr is_recursive cont_uses_env_so_far all_handlers_set denv_to_reset dacc cont (params, handler, is_exn_handler) k =
+let simplify_single_handler ~simplify_expr is_recursive cont_uses_env_so_far consts_lifted_during_body all_handlers_set denv_to_reset dacc cont (params, handler, is_exn_handler) k =
   (* Here we perform the downwards traversal on a single handler. As an invariant enforced by the loop in
      [simplify_handlers], the continuation must have been used at least once for this function to be called,
      so we can use the uses from [cont_uses_env_so_far] to compute the environment for the handler.
@@ -1578,13 +1968,14 @@ let simplify_single_handler ~simplify_expr is_recursive cont_uses_env_so_far all
     escapes) =
     if is_recursive then
       let denv = DE.add_parameters_with_unknown_types ~at_unit_toplevel:false denv_to_reset params in
+      let denv = LCS.add_to_denv denv consts_lifted_during_body in
       let typing_env = TE.with_code_age_relation (DE.typing_env denv) code_age_relation in
       let handler_env = DE.with_typing_env denv typing_env in
       let arg_types_by_use_id = Continuation_uses.get_arg_types_by_use_id uses in
       (handler_env, arg_types_by_use_id, EPA.empty, false, false)
     else
-      (* CR ncourant: I'm not sure about this, the lifted constants have already been reset *)
-      let consts_lifted_during_body = DA.get_lifted_constants dacc in
+      (* CR ncourant: I'm not sure about this, the lifted constants have already been reset
+         TODO: don't reset lifted constants, pass them until here *)
       let Join_points.{ handler_env; arg_types_by_use_id; extra_params_and_args; is_single_inlinable_use; escapes } = Join_points.compute_handler_env uses ~params ~env_at_fork:denv_to_reset ~consts_lifted_during_body
         ~code_age_relation_after_body:code_age_relation in
       ( handler_env, arg_types_by_use_id, extra_params_and_args, is_single_inlinable_use, escapes)
@@ -1600,6 +1991,8 @@ let simplify_single_handler ~simplify_expr is_recursive cont_uses_env_so_far all
           Misc.fatal_errorf
             "Exception handlers should never be marked as [Inlinable]:@ %a@ %a"
             Continuation.print cont Expr.print handler;
+        (* Don't try to unbox parameters of inlinable continuations, since the typing env still contains
+           enough information to avoid re-reading the fields. *)
         handler_env, None, false, dacc
       | Normal_or_exn | Define_root_symbol ->
         let old_is_exn_handler = is_exn_handler in
@@ -1636,14 +2029,20 @@ let simplify_single_handler ~simplify_expr is_recursive cont_uses_env_so_far all
         handler_env, None, false, dacc
     in
   let dacc = DA.with_denv dacc handler_env in
+    (* TODO does this work correctly with mutually-recursive continuations? *)
+    let dacc = DA.map_flow_acc ~f:(Flow.Acc.enter_continuation cont ~recursive:is_recursive ~is_exn_handler params) dacc in
   simplify_expr dacc handler ~down_to_up:(fun dacc ~rebuild:rebuild_handler ->
+    let dacc = DA.map_flow_acc ~f:(Flow.Acc.exit_continuation cont) dacc in
     let cont_uses_env_in_handler = DA.continuation_uses_env dacc in
+    let cont_uses_env_in_handler =
+      if is_recursive then CUE.mark_non_inlinable cont_uses_env_in_handler else cont_uses_env_in_handler
+    in
     let cont_uses_env_so_far = CUE.union cont_uses_env_so_far cont_uses_env_in_handler in
     let continuations_used = Continuation.Set.inter all_handlers_set (CUE.all_continuations_used cont_uses_env_in_handler) in
     k dacc { params; rebuild_handler; is_exn_handler; continuations_used ; unbox_decisions ; extra_params_and_args_for_cse } cont_uses_env_so_far
   )
 
-let rec simplify_handlers ~simplify_expr ~down_to_up rebuild_body is_recursive cont_uses_env_so_far all_handlers_set used_handlers remaining_handlers simplified_handlers_set simplified_handlers dacc denv_to_reset =
+let rec simplify_handlers ~simplify_expr ~down_to_up rebuild_body at_unit_toplevel is_recursive cont_uses_env_so_far consts_lifted_during_body all_handlers_set used_handlers remaining_handlers simplified_handlers_set simplified_handlers dacc denv_to_reset =
   (* This is the core loop to simplify all handlers defined by a let cont. We loop over all handlers,
      each time taking the first handler that we have not yet processed and that has at least one use, until
      we have seen every handler that is reachable.
@@ -1658,18 +2057,19 @@ let rec simplify_handlers ~simplify_expr ~down_to_up rebuild_body is_recursive c
         CUE.remove cont_uses_env cont) simplified_handlers_set cont_uses_env_so_far in
     let dacc = DA.with_continuation_uses_env dacc ~cont_uses_env in
     (* TODO mark all remaning handlers as unused? *)
-    let (stage3 : stage3) = { rebuild_body ; handlers = simplified_handlers } in
+    let (stage3 : stage3) = { rebuild_body ; cont_uses_env = cont_uses_env_so_far ; handlers = simplified_handlers ; at_unit_toplevel } in
     simplify_let_cont_stage3 stage3 ~down_to_up dacc
   | Some cont ->
+    let used_handlers = Continuation.Set.remove cont used_handlers in
     let handler = Continuation.Map.find cont remaining_handlers in
     let remaining_handlers = Continuation.Map.remove cont remaining_handlers in
-    simplify_single_handler ~simplify_expr is_recursive cont_uses_env_so_far all_handlers_set denv_to_reset dacc cont handler (fun dacc rebuild cont_uses_env_so_far ->
+    simplify_single_handler ~simplify_expr is_recursive cont_uses_env_so_far consts_lifted_during_body all_handlers_set denv_to_reset dacc cont handler (fun dacc rebuild cont_uses_env_so_far ->
         let simplified_handlers_set = Continuation.Set.add cont simplified_handlers_set in
         let used_handlers = Continuation.Set.union used_handlers
             (Continuation.Set.diff rebuild.continuations_used simplified_handlers_set)
         in
         let simplified_handlers = Continuation.Map.add cont rebuild simplified_handlers in
-        simplify_handlers ~simplify_expr ~down_to_up rebuild_body is_recursive cont_uses_env_so_far all_handlers_set used_handlers remaining_handlers simplified_handlers_set simplified_handlers dacc denv_to_reset
+        simplify_handlers ~simplify_expr ~down_to_up rebuild_body at_unit_toplevel is_recursive cont_uses_env_so_far consts_lifted_during_body all_handlers_set used_handlers remaining_handlers simplified_handlers_set simplified_handlers dacc denv_to_reset
       )
 
 
@@ -1698,20 +2098,20 @@ let simplify_let_cont_stage2 ~simplify_expr (stage2 : stage2) ~down_to_up dacc ~
     | Recursive { continuation_handlers } ->
       false, true, Continuation.Map.map (fun (params, handler) -> (params, handler, false)) continuation_handlers
   in
-  let denv = LCS.add_to_denv denv (DA.get_lifted_constants dacc) in (* TODO check this *)
+  let consts_lifted_during_body = DA.get_lifted_constants dacc in
   let denv = DE.set_at_unit_toplevel_state denv at_unit_toplevel in
   let all_handlers_set = Continuation.Map.keys remaining_handlers in
   let used_handlers =
     Continuation.Set.inter all_handlers_set
       (CUE.all_continuations_used body_continuation_uses_env)
   in
-  simplify_handlers ~simplify_expr ~down_to_up rebuild_body is_recursive body_continuation_uses_env all_handlers_set used_handlers remaining_handlers Continuation.Set.empty Continuation.Map.empty dacc denv
+  simplify_handlers ~simplify_expr ~down_to_up rebuild_body at_unit_toplevel is_recursive body_continuation_uses_env consts_lifted_during_body all_handlers_set used_handlers remaining_handlers Continuation.Set.empty Continuation.Map.empty dacc denv
 
 let simplify_let_cont_stage1 ~simplify_expr dacc (stage1 : stage1) ~down_to_up =
   (* We begin to simplify a let cont by simplifying its body, so that we can see all uses of the handler
      in the non-recursive case, and so that we can know the values of all invariant arguments in the recursive
      case. We reset the [continuation_uses_env] so we can have precise information on continuations called
-     by the body, and we reset the lifted constants because TODO check why *)
+     by the body, and we reset the lifted constants because we need to add them to the handler's denv. *)
   let prior_cont_uses_env = DA.continuation_uses_env dacc in
   let dacc = DA.with_continuation_uses_env dacc ~cont_uses_env:CUE.empty in
   let dacc, prior_lifted_constants = DA.get_and_clear_lifted_constants dacc in
