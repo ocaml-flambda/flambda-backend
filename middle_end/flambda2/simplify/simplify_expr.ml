@@ -114,13 +114,14 @@ let rec simplify_expr dacc expr ~down_to_up =
 
 and simplify_function_body dacc expr ~return_continuation ~return_arity
     ~exn_continuation ~return_cont_scope ~exn_cont_scope
-    ~(loopify_state : Loopify_state.t) ~params =
+    ~(loopify_state : Loopify_state.t) ~params ~implicit_params =
   match loopify_state with
   | Do_not_loopify ->
     simplify_toplevel_common dacc
       (fun dacc -> simplify_expr dacc expr)
-      ~params ~return_continuation ~return_arity ~exn_continuation
-      ~return_cont_scope ~exn_cont_scope
+      ~params:(Bound_parameters.append params implicit_params)
+      ~return_continuation ~return_arity ~exn_continuation ~return_cont_scope
+      ~exn_cont_scope
   | Loopify cont ->
     let call_self_cont_expr =
       let args = Bound_parameters.simples params in

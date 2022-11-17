@@ -92,6 +92,7 @@ type simplify_function_body =
   exn_cont_scope:Scope.t ->
   loopify_state:Loopify_state.t ->
   params:Bound_parameters.t ->
+  implicit_params:Bound_parameters.t ->
   Rebuilt_expr.t * Upwards_acc.t
 
 val simplify_projection :
