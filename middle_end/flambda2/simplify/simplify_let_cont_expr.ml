@@ -855,7 +855,7 @@ let make_rewrite_for_recursive_continuation uacc ~cont ~original_cont_scope:_
   let uacc =
     UA.map_uenv uacc ~f:(fun uenv ->
         match context with
-        | In_handler -> UE.add_apply_cont_rewrite uenv cont rewrite
+        | In_handler | In_body _ -> UE.add_apply_cont_rewrite uenv cont rewrite
         | In_body _ -> UE.replace_apply_cont_rewrite uenv cont rewrite)
   in
   let uacc =
@@ -1576,7 +1576,7 @@ TODO update this comment
           then false
           else
             match Apply_cont.args apply_cont with
-            | [] -> Option.is_none (Apply_cont.trap_action apply_cont)
+            | [] -> Option.is_none (Apply_cont.trap_action apply_cont) && false (* TODO fixme *)
             | _ :: _ -> false)
         | None -> false
       in
@@ -1597,8 +1597,22 @@ TODO update this comment
         expr, name_occurrences, cost_metrics
   in
    rebuild_groups expr name_occurrences cost_metrics uacc groups
-    | Recursive { continuation_handlers } :: group ->
-      failwith "TODO"
+    | Recursive { continuation_handlers } :: groups ->
+      let rec_handlers = Continuation.Map.map (fun handler -> handler.handler) continuation_handlers in
+      let expr = RE.create_recursive_let_cont (UA.are_rebuilding_terms uacc) rec_handlers ~body in
+      let name_occurrences = Continuation.Map.fold (fun _ handler name_occurrences ->
+        NO.union name_occurrences (NO.increase_counts handler.name_occurrences_of_handler)) continuation_handlers name_occurrences_body
+      in
+      let name_occurrences = Continuation.Map.fold (fun cont _ name_occurrences ->
+        NO.remove_continuation name_occurrences ~continuation:cont) continuation_handlers name_occurrences
+      in
+      let cost_metrics_of_handlers =
+        Continuation.Map.fold (fun _ handler cost_metrics ->
+          Cost_metrics.(+) cost_metrics handler.cost_metrics_of_handler) continuation_handlers Cost_metrics.zero
+      in
+      let cost_metrics = Cost_metrics.increase_due_to_let_cont_recursive ~cost_metrics_of_handlers in
+      let cost_metrics = Cost_metrics.(+) cost_metrics cost_metrics_of_body in
+      rebuild_groups expr name_occurrences cost_metrics uacc groups
   in
   rebuild_groups body name_occurrences_body cost_metrics_of_body uacc stage6.handlers_from_the_inside_to_the_outside
 
@@ -1799,7 +1813,7 @@ let rebuild_single_non_recursive_handler ~at_unit_toplevel ~is_single_inlinable_
       k rebuilt_handler uacc
     )
 
-let rebuild_single_recursive_handler cont (handler_to_rebuild : stage4_handler_to_rebuild) at_unit_toplevel uacc k =
+let rebuild_single_recursive_handler cont (handler_to_rebuild : stage4_handler_to_rebuild) uacc k =
   (* Clear existing name occurrences & cost metrics *)
   let uacc = UA.clear_name_occurrences (UA.clear_cost_metrics uacc) in
   (* For recursive only, TODO
@@ -1810,8 +1824,48 @@ let rebuild_single_recursive_handler cont (handler_to_rebuild : stage4_handler_t
   *)
   handler_to_rebuild.rebuild_handler uacc ~after_rebuild:(fun handler uacc ->
       let handler, uacc, free_names, cost_metrics = add_lets_around_handler cont false uacc handler in
-
-      failwith "TODO" ()
+      let rewrite =
+        match UE.find_apply_cont_rewrite (UA.uenv uacc) cont with
+        | None -> Misc.fatal_errorf
+                    "An [Apply_cont_rewrite] for the recursive continuation %a should \
+                     have already been added"
+                    Continuation.print cont
+        | Some rewrite -> rewrite
+      in
+      let used_params_set = Apply_cont_rewrite.used_params rewrite in
+      let used_params, unused_params =
+        List.partition
+          (fun param -> BP.Set.mem param used_params_set)
+          (Bound_parameters.to_list handler_to_rebuild.params)
+      in
+      let used_extra_params =
+        Apply_cont_rewrite.used_extra_params rewrite
+        |> Bound_parameters.to_list
+      in
+      let new_phantom_params =
+        List.filter
+          (fun param -> NO.mem_var free_names (BP.var param))
+          unused_params
+        |> Bound_parameters.create
+      in
+      let params = Bound_parameters.create (used_params @ used_extra_params) in
+      let handler, uacc = add_phantom_params_bindings uacc handler new_phantom_params in
+      let cont_handler =
+        RE.Continuation_handler.create
+          (UA.are_rebuilding_terms uacc)
+          params ~handler ~free_names_of_handler:free_names ~is_exn_handler:false
+      in
+      let free_names =
+        ListLabels.fold_left (Bound_parameters.to_list params)
+          ~init:free_names ~f:(fun name_occurrences param ->
+              NO.remove_var name_occurrences ~var:(BP.var param))
+      in
+      let rebuilt_handler : rebuilt_handler = {
+        handler = cont_handler ;
+        name_occurrences_of_handler = free_names ;
+        cost_metrics_of_handler = cost_metrics ;
+      } in
+      k rebuilt_handler uacc
     )
 
 let rec rebuild_continuation_handlers_loop ~rebuild_body ~name_occurrences_of_subsequent_exprs ~cost_metrics_of_subsequent_exprs ~uenv_of_subsequent_exprs ~at_unit_toplevel uacc ~after_rebuild (groups_to_rebuild : stage4_handlers_group list) rebuilt_groups =
@@ -1832,12 +1886,31 @@ let rec rebuild_continuation_handlers_loop ~rebuild_body ~name_occurrences_of_su
            groups_to_rebuild (Non_recursive { cont; handler = rebuilt_handler } :: rebuilt_groups)
       )
   | Recursive { rebuild_continuation_handlers } :: groups_to_rebuild ->
-    (* Common setup for recursive handlers: add rewrites *)
-    failwith "TODO" ()
+    (* Common setup for recursive handlers: add rewrites; for now: always add params (ignore alias analysis) *)
+    let uacc = Continuation.Map.fold (fun cont handler uacc ->
+        let uacc, _rewrite = make_rewrite_for_recursive_continuation uacc ~cont
+            ~original_cont_scope:Scope.initial ~original_params:handler.params
+            ~context:(In_body { rewrite_ids = handler.rewrite_ids })
+            ~extra_params_and_args:handler.extra_params_and_args
+        in
+        uacc
+      ) rebuild_continuation_handlers uacc
+    in
     (* Rebuild all the handlers *)
-    failwith "TODO" ()
-    (* Add all rewrites and continue rebuilding *)
-    failwith "TODO" ()
+    let rec loop uacc remaining_handlers rebuilt_handlers k =
+      match Continuation.Map.min_binding_opt remaining_handlers with
+      | None -> k rebuilt_handlers uacc
+      | Some (cont, handler) ->
+        let remaining_handlers = Continuation.Map.remove cont remaining_handlers in
+        rebuild_single_recursive_handler cont handler uacc (fun rebuilt_handler uacc ->
+          loop uacc remaining_handlers (Continuation.Map.add cont rebuilt_handler rebuilt_handlers) k)
+    in
+    loop uacc rebuild_continuation_handlers Continuation.Map.empty (fun rebuilt_handlers uacc ->
+        (* Add all rewrites and continue rebuilding *)
+        rebuild_continuation_handlers_loop ~rebuild_body ~name_occurrences_of_subsequent_exprs
+          ~cost_metrics_of_subsequent_exprs ~uenv_of_subsequent_exprs ~at_unit_toplevel uacc
+          ~after_rebuild groups_to_rebuild (Recursive { continuation_handlers = rebuilt_handlers } :: rebuilt_groups)
+      )
 
 let simplify_let_cont_stage4 (stage4 : stage4) uacc ~after_rebuild =
   (* Here we just returned from the global [down_to_up], which is asking us to rebuild the let cont.
@@ -2151,4 +2224,12 @@ let simplify_let_cont ~simplify_expr dacc (let_cont : Let_cont.t) ~down_to_up =
       in
       { body ; recinfo = Recursive { continuation_handlers } }
   in
+  simplify_let_cont_stage1 ~simplify_expr dacc stage1 ~down_to_up
+
+let simplify_as_recursive_let_cont ~simplify_expr dacc (body, handlers)
+    ~down_to_up =
+  let continuation_handlers =
+    Continuation.Map.map (fun handler -> CH.pattern_match handler ~f:(fun params ~handler -> (params, handler))) handlers
+  in
+  let stage1 : stage1 = { body ; recinfo = Recursive { continuation_handlers } } in
   simplify_let_cont_stage1 ~simplify_expr dacc stage1 ~down_to_up
