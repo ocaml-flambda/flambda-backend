@@ -2141,8 +2141,10 @@ and package_constraints env loc mty constrs =
   end
 
 let modtype_of_package env loc p fl =
+  (* We call Ctype.correct_levels to ensure that the types being added to the
+     module type are at generic_level. *)
   package_constraints env loc (Mty_ident p)
-    (List.map (fun (n, t) -> (Longident.flatten n, t)) fl)
+    (List.map (fun (n, t) -> Longident.flatten n, Ctype.correct_levels t) fl)
 
 let package_subtype env p1 fl1 p2 fl2 =
   let mkmty p fl =
