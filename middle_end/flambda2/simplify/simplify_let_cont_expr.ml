@@ -2046,8 +2046,6 @@ let simplify_single_handler ~simplify_expr is_recursive cont_uses_env_so_far con
       let arg_types_by_use_id = Continuation_uses.get_arg_types_by_use_id uses in
       (handler_env, arg_types_by_use_id, EPA.empty, false, false)
     else
-      (* CR ncourant: I'm not sure about this, the lifted constants have already been reset
-         TODO: don't reset lifted constants, pass them until here *)
       let Join_points.{ handler_env; arg_types_by_use_id; extra_params_and_args; is_single_inlinable_use; escapes } = Join_points.compute_handler_env uses ~params ~env_at_fork:denv_to_reset ~consts_lifted_during_body
         ~code_age_relation_after_body:code_age_relation in
       ( handler_env, arg_types_by_use_id, extra_params_and_args, is_single_inlinable_use, escapes)
@@ -2086,7 +2084,7 @@ let simplify_single_handler ~simplify_expr is_recursive cont_uses_env_so_far con
           let param_types = TE.find_params (DE.typing_env handler_env) params in
           let handler_env, decisions =
             Unbox_continuation_params.make_decisions handler_env
-              ~continuation_is_recursive:false ~arg_types_by_use_id params
+              ~continuation_is_recursive:is_recursive ~arg_types_by_use_id params
               param_types
           in
           handler_env, Some decisions, false, dacc
