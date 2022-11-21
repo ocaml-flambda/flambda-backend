@@ -1479,6 +1479,7 @@ type stage4 = {
 
 type rebuilt_handler = {
   handler : Rebuilt_expr.Continuation_handler.t ;
+  handler_expr : Rebuilt_expr.t ;
   name_occurrences_of_handler : Name_occurrences.t ;
   cost_metrics_of_handler : Cost_metrics.t ;
 }
@@ -1523,6 +1524,11 @@ let simplify_let_cont_stage6 (stage6 : stage6) ~after_rebuild body uacc =
   let rec rebuild_groups body name_occurrences_body cost_metrics_of_body uacc groups =
     match groups with
     | [] ->
+      (* Everything has now been rebuilt.
+
+         We correctly set the name occurrences and the cost metrics, and we restore the
+         upwards environment of [uacc] so that out-of-scope continuation bindings do
+         not end up in the accumulator. *)
       let uacc =
         UA.with_name_occurrences ~name_occurrences:(Name_occurrences.union name_occurrences_body stage6.name_occurrences_of_subsequent_exprs) uacc
       in
@@ -1558,12 +1564,8 @@ let simplify_let_cont_stage6 (stage6 : stage6) ~after_rebuild body uacc =
   (* Having rebuilt both the body and handler, the [Let_cont] expression itself
      is rebuilt -- unless either the continuation had zero uses, in which case
      we're left with the body; or if the body is just an [Apply_cont] (with no
-     trap action) of [cont], in which case we're left with the handler.
+     trap action) of [cont], in which case we're left with the handler. *)
 
-TODO update this comment
-
-     The upwards environment of [uacc] is replaced so that out-of-scope
-     continuation bindings do not end up in the accumulator. *)
   let expr, name_occurrences, cost_metrics =
     if remove_let_cont_leaving_body
     then
@@ -1582,7 +1584,7 @@ TODO update this comment
       in
       if remove_let_cont_leaving_handler
       then
-        failwith("handler_expr"), handler.name_occurrences_of_handler, handler.cost_metrics_of_handler
+        handler.handler_expr, handler.name_occurrences_of_handler, handler.cost_metrics_of_handler
       else
         let name_occurrences = NO.union name_occurrences_body handler.name_occurrences_of_handler in
         let cost_metrics =
@@ -1807,6 +1809,7 @@ let rebuild_single_non_recursive_handler ~at_unit_toplevel ~is_single_inlinable_
 
       let rebuilt_handler : rebuilt_handler = {
         handler = cont_handler ;
+        handler_expr = handler;
         name_occurrences_of_handler = free_names ;
         cost_metrics_of_handler = cost_metrics ;
       } in
@@ -1816,12 +1819,6 @@ let rebuild_single_non_recursive_handler ~at_unit_toplevel ~is_single_inlinable_
 let rebuild_single_recursive_handler cont (handler_to_rebuild : stage4_handler_to_rebuild) uacc k =
   (* Clear existing name occurrences & cost metrics *)
   let uacc = UA.clear_name_occurrences (UA.clear_cost_metrics uacc) in
-  (* For recursive only, TODO
-     let uacc, _rewrite =
-     make_rewrite_for_recursive_continuation uacc ~cont ~original_cont_scope
-      ~original_params:params ~context:In_handler ~extra_params_and_args
-     in
-  *)
   handler_to_rebuild.rebuild_handler uacc ~after_rebuild:(fun handler uacc ->
       let handler, uacc, free_names, cost_metrics = add_lets_around_handler cont false uacc handler in
       let rewrite =
@@ -1862,6 +1859,7 @@ let rebuild_single_recursive_handler cont (handler_to_rebuild : stage4_handler_t
       in
       let rebuilt_handler : rebuilt_handler = {
         handler = cont_handler ;
+        handler_expr = handler ;
         name_occurrences_of_handler = free_names ;
         cost_metrics_of_handler = cost_metrics ;
       } in
@@ -2126,7 +2124,9 @@ let rec simplify_handlers ~simplify_expr ~down_to_up rebuild_body at_unit_toplev
     let cont_uses_env = Continuation.Set.fold (fun cont cont_uses_env ->
         CUE.remove cont_uses_env cont) simplified_handlers_set cont_uses_env_so_far in
     let dacc = DA.with_continuation_uses_env dacc ~cont_uses_env in
-    (* TODO mark all remaning handlers as unused? *)
+    (* CR ncourant: we could possibly mark all remaning handlers as unused, however I'm not sure
+       it is useful: they correspond to completely unreachable code, and any symbol defined
+       within them wouldn't be in scope of the other code, so I think we can ignore them safely. *)
     let (stage3 : stage3) = { rebuild_body ; cont_uses_env = cont_uses_env_so_far ; handlers = simplified_handlers ; at_unit_toplevel } in
     simplify_let_cont_stage3 stage3 ~down_to_up dacc
   | Some cont ->
