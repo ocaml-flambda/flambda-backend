@@ -2169,6 +2169,7 @@ let simplify_let_cont_stage2 ~simplify_expr (stage2 : stage2) ~down_to_up dacc ~
       false, true, Continuation.Map.map (fun (params, handler) -> (params, handler, false)) continuation_handlers
   in
   let consts_lifted_during_body = DA.get_lifted_constants dacc in
+  let dacc = DA.add_to_lifted_constant_accumulator dacc stage2.prior_lifted_constants in
   let denv = DE.set_at_unit_toplevel_state denv at_unit_toplevel in
   let all_handlers_set = Continuation.Map.keys remaining_handlers in
   let used_handlers =
