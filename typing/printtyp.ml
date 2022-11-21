@@ -1211,6 +1211,15 @@ and tree_of_row_field mode (l, f) =
 and tree_of_typlist mode tyl =
   List.map (tree_of_typexp mode) tyl
 
+and tree_of_typ_gf (ty, gf) =
+  let gf =
+    match gf with
+    | Global -> Ogf_global
+    | Nonlocal -> Ogf_nonlocal
+    | Unrestricted -> Ogf_unrestricted
+  in
+  (tree_of_typexp Type ty, gf)
+  
 and tree_of_typobject mode fi nm =
   begin match nm with
   | None ->
@@ -1317,7 +1326,7 @@ let filter_params tyl =
   in List.rev params
 
 let prepare_type_constructor_arguments = function
-  | Cstr_tuple l -> List.iter prepare_type l
+  | Cstr_tuple l -> List.iter (fun (ty, _) -> prepare_type ty) l
   | Cstr_record l -> List.iter (fun l -> prepare_type l.ld_type) l
 
 let rec tree_of_type_decl id decl =
@@ -1449,8 +1458,8 @@ let rec tree_of_type_decl id decl =
       otype_cstrs = constraints }
 
 and tree_of_constructor_arguments = function
-  | Cstr_tuple l -> tree_of_typlist Type l
-  | Cstr_record l -> [ Otyp_record (List.map tree_of_label l) ]
+  | Cstr_tuple l -> List.map tree_of_typ_gf l
+  | Cstr_record l -> [ Otyp_record (List.map tree_of_label l), Ogf_unrestricted ]
 
 and tree_of_constructor cd =
   let name = Ident.name cd.cd_id in
@@ -1497,7 +1506,7 @@ let type_declaration id ppf decl =
 
 let constructor_arguments ppf a =
   let tys = tree_of_constructor_arguments a in
-  !Oprint.out_type ppf (Otyp_tuple tys)
+  !Oprint.out_constr_args ppf tys
 
 (* Print an extension declaration *)
 

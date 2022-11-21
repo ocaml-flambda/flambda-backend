@@ -66,6 +66,8 @@ type error =
   | Boxed_and_unboxed
   | Nonrec_gadt
   | Invalid_private_row_declaration of type_expr
+  | Local_not_enabled
+  | Global_and_nonlocal
 
 open Typedtree
 
@@ -206,6 +208,21 @@ let make_params env params =
   in
     List.map make_param params
 
+
+let transl_global_flags loc attrs =
+  let transl_global_flag loc (r : (bool,unit) result) =
+    match r with
+    | Ok b -> b
+    | Error () -> raise(Error(loc, Local_not_enabled))
+  in
+  let global = transl_global_flag loc (Builtin_attributes.has_global attrs) in 
+  let nonlocal = transl_global_flag loc (Builtin_attributes.has_nonlocal attrs) in 
+  match global, nonlocal with
+  | true, true -> raise(Error(loc, Global_and_nonlocal))
+  | true, false -> Types.Global
+  | false, true -> Types.Nonlocal
+  | false, false -> Types.Unrestricted
+
 let transl_labels env univars closed lbls =
   assert (lbls <> []);
   let all_labels = ref String.Set.empty in
@@ -221,8 +238,13 @@ let transl_labels env univars closed lbls =
       (fun () ->
          let arg = Ast_helper.Typ.force_poly arg in
          let cty = transl_simple_type env ?univars closed Global arg in
+         let gbl =
+           match mut with
+           | Mutable -> Types.Global
+           | Immutable -> transl_global_flags loc attrs
+         in
          {ld_id = Ident.create_local name.txt;
-          ld_name = name; ld_mutable = mut;
+          ld_name = name; ld_mutable = mut; ld_global = gbl;
           ld_type = cty; ld_loc = loc; ld_attributes = attrs}
       )
   in
@@ -232,20 +254,9 @@ let transl_labels env univars closed lbls =
       (fun ld ->
          let ty = ld.ld_type.ctyp_type in
          let ty = match get_desc ty with Tpoly(t,[]) -> t | _ -> ty in
-         let gbl =
-           match ld.ld_mutable with
-           | Mutable -> Types.Global
-           | Immutable ->
-               if Builtin_attributes.has_global ld.ld_attributes then
-                 Types.Global
-               else if Builtin_attributes.has_nonlocal ld.ld_attributes then
-                 Types.Nonlocal
-               else
-                 Types.Unrestricted
-         in
          {Types.ld_id = ld.ld_id;
           ld_mutable = ld.ld_mutable;
-          ld_global = gbl;
+          ld_global = ld.ld_global;
           ld_type = ty;
           ld_loc = ld.ld_loc;
           ld_attributes = ld.ld_attributes;
@@ -255,11 +266,21 @@ let transl_labels env univars closed lbls =
       lbls in
   lbls, lbls'
 
+let transl_types_gf env univars closed tyl =
+  let mk arg =
+    let cty = transl_simple_type env ?univars closed Global arg in
+    let gf = transl_global_flags arg.ptyp_loc arg.ptyp_attributes in
+    (cty, gf)
+  in
+  let tyl_gfl = List.map mk tyl in
+  let tyl_gfl' = List.map (fun (cty, gf) -> cty.ctyp_type, gf) tyl_gfl in
+  tyl_gfl, tyl_gfl'
+
 let transl_constructor_arguments env univars closed = function
   | Pcstr_tuple l ->
-      let l = List.map (transl_simple_type env ?univars closed Global) l in
-      Types.Cstr_tuple (List.map (fun t -> t.ctyp_type) l),
-      Cstr_tuple l
+      let flds, flds' = transl_types_gf env univars closed l in
+      Types.Cstr_tuple flds',
+      Cstr_tuple flds
   | Pcstr_record l ->
       let lbls, lbls' = transl_labels env univars closed l in
       Types.Cstr_record lbls',
@@ -576,7 +597,7 @@ let check_constraints env sdecl (_, decl) =
           begin match cd_args, pcd_args with
           | Cstr_tuple tyl, Pcstr_tuple styl ->
               List.iter2
-                (fun sty ty ->
+                (fun sty (ty, _) ->
                    check_constraints_rec env sty.ptyp_loc visited ty)
                 styl tyl
           | Cstr_record tyl, Pcstr_record styl ->
@@ -1034,7 +1055,7 @@ let transl_extension_constructor ~scope env type_path type_params
         (* Remove "_" names from parameters used in the constructor *)
         if not cdescr.cstr_generalized then begin
           let vars =
-            Ctype.free_variables (Btype.newgenty (Ttuple args))
+            Ctype.free_variables (Btype.newgenty (Ttuple (List.map fst args)))
           in
           List.iter
             (fun ty ->
@@ -1077,7 +1098,7 @@ let transl_extension_constructor ~scope env type_path type_params
               Types.Cstr_tuple args
           | Some decl ->
               let tl =
-                match List.map get_desc args with
+                match List.map (fun (ty, _) -> get_desc ty) args with
                 | [ Tconstr(_, tl, _) ] -> tl
                 | _ -> assert false
               in
@@ -1694,7 +1715,7 @@ let explain_unbound_single ppf tv ty =
 
 
 let tys_of_constr_args = function
-  | Types.Cstr_tuple tl -> tl
+  | Types.Cstr_tuple tl -> List.map fst tl
   | Types.Cstr_record lbls -> List.map (fun l -> l.Types.ld_type) lbls
 
 let report_error ppf = function
@@ -1932,6 +1953,11 @@ let report_error ppf = function
          @[<hv>@[Hint: If you intended to define a private type abbreviation,@ \
          write explicitly@]@;<1 2>private %a@]"
         Printtyp.type_expr ty Printtyp.type_expr ty
+  | Local_not_enabled ->
+      fprintf ppf "@[The local extension is disabled@ \
+                   To enable it, pass the '-extension local' flag@]"
+  | Global_and_nonlocal ->
+      fprintf ppf "@[A type cannot be both global and nonlocal@]"
 
 let () =
   Location.register_error_of_exn

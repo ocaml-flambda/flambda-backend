@@ -243,6 +243,18 @@ let mkld_global_maybe gbl ld loc =
   | Nonlocal -> mkld_nonlocal ld loc
   | Nothing -> ld
 
+let mkcty_global cty loc =
+  { cty with ptyp_attributes = global_attr loc :: cty.ptyp_attributes }
+
+let mkcty_nonlocal cty loc =
+  { cty with ptyp_attributes = nonlocal_attr loc :: cty.ptyp_attributes }
+
+let mkcty_global_maybe gbl cty loc =
+  match gbl with
+  | Global -> mkcty_global cty loc
+  | Nonlocal -> mkcty_nonlocal cty loc
+  | Nothing -> cty
+
 (* TODO define an abstraction boundary between locations-as-pairs
    and locations-as-Location.t; it should be clear when we move from
    one world to the other *)
@@ -3302,8 +3314,14 @@ generalized_constructor_arguments:
                                   { ($2,Pcstr_tuple [],Some $4) }
 ;
 
+%inline atomic_type_gbl:
+  gbl = global_flag cty = atomic_type {
+  mkcty_global_maybe gbl cty (make_loc $loc(gbl))
+}
+;
+
 constructor_arguments:
-  | tys = inline_separated_nonempty_llist(STAR, atomic_type)
+  | tys = inline_separated_nonempty_llist(STAR, atomic_type_gbl)
     %prec below_HASH
       { Pcstr_tuple tys }
   | LBRACE label_declarations RBRACE
@@ -3910,6 +3928,11 @@ mutable_or_global_flag:
   | MUTABLE                                     { Mutable, Nothing }
   | GLOBAL                                      { Immutable, Global }
   | NONLOCAL                                    { Immutable, Nonlocal }
+;
+%inline global_flag:
+          { Nothing }
+  | GLOBAL { Global }
+  | NONLOCAL { Nonlocal }
 ;
 virtual_flag:
     /* empty */                                 { Concrete }

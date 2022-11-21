@@ -245,7 +245,7 @@ let type_kind sub tk = match tk with
   | Ttype_open -> Ptype_open
 
 let constructor_arguments sub = function
-   | Cstr_tuple l -> Pcstr_tuple (List.map (sub.typ sub) l)
+   | Cstr_tuple l -> Pcstr_tuple (List.map (fun (ty, _) -> sub.typ sub ty) l)
    | Cstr_record l -> Pcstr_record (List.map (sub.label_declaration sub) l)
 
 let constructor_declaration sub cd =

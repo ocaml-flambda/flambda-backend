@@ -790,7 +790,7 @@ and build_as_type_aux ~refine (env : Env.t ref) p =
         if keep then p.pat_type else
         let tyl = List.map (build_as_type env) pl in
         let ty_args, ty_res, _ = instance_constructor cstr in
-        List.iter2 (fun (p,ty) -> unify_pat env {p with pat_type = ty})
+        List.iter2 (fun (p,ty) (arg, _) -> unify_pat env {p with pat_type = ty} arg)
           (List.combine pl tyl) ty_args;
         ty_res
       in
@@ -973,28 +973,30 @@ let solve_Ppat_construct ~refine env loc constr no_existentials
     unify_pat_types_return_equated_pairs ~refine loc env ty_res expected_ty
   in
   let expansion_scope = get_gadt_equations_level () in
-  let ty_args, ty_res, equated_types, existential_ctyp =
+  let ty_args_ty, ty_args_gf, ty_res, equated_types, existential_ctyp =
     match existential_styp with
       None ->
         let ty_args, ty_res, _ =
           instance_constructor ~in_pattern:(env, expansion_scope) constr in
-        ty_args, ty_res, unify_res ty_res, None
+        let ty_args_ty, ty_args_gf = List.split ty_args in
+        ty_args_ty, ty_args_gf, ty_res, unify_res ty_res, None
     | Some (name_list, sty) ->
         let in_pattern =
           if name_list = [] then Some (env, expansion_scope) else None in
         let ty_args, ty_res, ty_ex =
           instance_constructor ?in_pattern constr in
         let equated_types = unify_res ty_res in
-        let ty_args, existential_ctyp =
-          solve_constructor_annotation env name_list sty ty_args ty_ex in
-        ty_args, ty_res, equated_types, existential_ctyp
+        let ty_args_ty, ty_args_gf = List.split ty_args in 
+        let ty_args_ty, existential_ctyp =
+          solve_constructor_annotation env name_list sty ty_args_ty ty_ex in
+        ty_args_ty, ty_args_gf, ty_res, equated_types, existential_ctyp
   in
   if constr.cstr_existentials <> [] then
     lower_variables_only !env expansion_scope ty_res;
   end_def ();
   generalize_structure expected_ty;
   generalize_structure ty_res;
-  List.iter generalize_structure ty_args;
+  List.iter generalize_structure ty_args_ty;
   if !Clflags.principal && refine = None then begin
     (* Do not warn for couter examples *)
     let exception Warn_only_once in
@@ -1017,7 +1019,7 @@ let solve_Ppat_construct ~refine env loc constr no_existentials
         equated_types
     with Warn_only_once -> ()
   end;
-  (ty_args, existential_ctyp)
+  (ty_args_ty, ty_args_gf, existential_ctyp)
 
 let solve_Ppat_record_field ~refine loc env label label_lid record_ty =
   begin_def ();
@@ -2136,7 +2138,7 @@ and type_pat_aux
         raise(Error(loc, !env, Constructor_arity_mismatch(lid.txt,
                                      constr.cstr_arity, List.length sargs)));
 
-      let (ty_args, existential_ctyp) =
+      let (ty_args_ty, ty_args_gf, existential_ctyp) =
         solve_Ppat_construct ~refine env loc constr no_existentials
           existential_styp expected_ty
       in
@@ -2159,8 +2161,16 @@ and type_pat_aux
       end;
 
       map_fold_cont
-        (fun (p,t) -> type_pat Value p t)
-        (List.combine sargs ty_args)
+        (fun (p,(ty, gf)) ->
+           let alloc_mode =
+             match gf with
+             | Global -> Value_mode.global
+             | Nonlocal -> Value_mode.local_to_regional alloc_mode.mode
+             | Unrestricted -> alloc_mode.mode
+           in
+           let alloc_mode = simple_pat_mode alloc_mode in
+           type_pat ~alloc_mode Value p ty)
+        (List.combine sargs (List.combine ty_args_ty ty_args_gf))
         (fun args ->
           rvp k {
             pat_desc=Tpat_construct(lid, constr, args, existential_ctyp);
@@ -5781,11 +5791,11 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
       unify_exp env {texp with exp_type = instance ty_res}
         (instance ty_expected));
     end_def ();
-    List.iter generalize_structure ty_args;
+    List.iter (fun (arg, _) -> generalize_structure arg) ty_args;
     generalize_structure ty_res;
   end;
   let ty_args0, ty_res =
-    match instance_list (ty_res :: ty_args) with
+    match instance_list (ty_res :: (List.map fst ty_args)) with
       t :: tl -> tl, t
     | _ -> assert false
   in
@@ -5816,7 +5826,17 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
   in
   let args =
     List.map2
-      (fun e (t,t0) -> type_argument ~recarg env argument_mode e t t0)
+      (fun e ((ty, gf),t0) ->
+         let argument_mode =
+           match gf with
+           | Global ->
+               mode_global
+           | Nonlocal ->
+               mode_nonlocal argument_mode
+           | Unrestricted ->
+               argument_mode
+         in
+         type_argument ~recarg env argument_mode e ty t0)
       sargs (List.combine ty_args ty_args0)
   in
   if constr.cstr_private = Private then

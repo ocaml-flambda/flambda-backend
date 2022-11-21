@@ -529,7 +529,7 @@ let closed_type_decl decl =
             | Some _ -> ()
             | None ->
                 match cd_args with
-                | Cstr_tuple l ->  List.iter closed_type l
+                | Cstr_tuple l ->  List.iter (fun (ty, _) -> closed_type ty) l
                 | Cstr_record l -> List.iter (fun l -> closed_type l.ld_type) l
           )
           v
@@ -1231,7 +1231,7 @@ let instance_constructor ?in_pattern cstr =
         List.iter process cstr.cstr_existentials
     end;
     let ty_res = copy scope cstr.cstr_res in
-    let ty_args = List.map (copy scope) cstr.cstr_args in
+    let ty_args = List.map (fun (ty, gf) -> copy scope ty, gf) cstr.cstr_args in
     let ty_ex = List.map (copy scope) cstr.cstr_existentials in
     (ty_args, ty_res, ty_ex)
   )
@@ -2429,7 +2429,7 @@ and mcomp_variant_description type_pairs env xs ys =
     | c1 :: xs, c2 :: ys   ->
       mcomp_type_option type_pairs env c1.cd_res c2.cd_res;
       begin match c1.cd_args, c2.cd_args with
-      | Cstr_tuple l1, Cstr_tuple l2 -> mcomp_list type_pairs env l1 l2
+      | Cstr_tuple l1, Cstr_tuple l2 -> mcomp_tuple_description type_pairs env l1 l2
       | Cstr_record l1, Cstr_record l2 ->
           mcomp_record_description type_pairs env l1 l2
       | _ -> raise Incompatible
@@ -2441,6 +2441,19 @@ and mcomp_variant_description type_pairs env xs ys =
     | _ -> raise Incompatible
   in
   iter xs ys
+
+and mcomp_tuple_description type_pairs env =
+  let rec iter x y =
+    match x, y with
+    | (ty1, gf1) :: xs, (ty2, gf2) :: ys ->
+      mcomp type_pairs env ty1 ty2;
+      if gf1 = gf2
+      then iter xs ys
+      else raise (Unify (expand_to_unification_error env []))
+    | [], [] -> ()
+    | _ -> raise (Unify (expand_to_unification_error env []))
+  in
+  iter
 
 and mcomp_record_description type_pairs env =
   let rec iter x y =

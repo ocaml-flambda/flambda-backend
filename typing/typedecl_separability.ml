@@ -57,7 +57,7 @@ let structure : type_definition -> type_structure = fun def ->
       end
 
   | ( Type_record ([{ld_type = ty; _}], Record_unboxed _)
-    | Type_variant ([{cd_args = Cstr_tuple [ty]; _}], Variant_unboxed)
+    | Type_variant ([{cd_args = Cstr_tuple [ty, _]; _}], Variant_unboxed)
     | Type_variant ([{cd_args = Cstr_record [{ld_type = ty; _}]; _}],
                     Variant_unboxed)) ->
      let params =

@@ -224,9 +224,9 @@ let value_kind env ty =
               | Cstr_tuple fields ->
                 let num_nodes_visited, fields =
                   List.fold_left_map
-                    (fun num_nodes_visited field ->
+                    (fun num_nodes_visited (ty, _) ->
                       let num_nodes_visited = num_nodes_visited + 1 in
-                      loop env ~visited ~depth ~num_nodes_visited field)
+                      loop env ~visited ~depth ~num_nodes_visited ty)
                     num_nodes_visited fields
                 in
                 (false, num_nodes_visited), fields

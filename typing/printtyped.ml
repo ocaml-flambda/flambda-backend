@@ -945,7 +945,7 @@ and constructor_decl i ppf {cd_id; cd_name = _; cd_vars;
   option (i+1) core_type ppf cd_res
 
 and constructor_arguments i ppf = function
-  | Cstr_tuple l -> list i core_type ppf l
+  | Cstr_tuple l -> list i field_decl ppf l
   | Cstr_record l -> list i label_decl ppf l
 
 and label_decl i ppf {ld_id; ld_name = _; ld_mutable; ld_type; ld_loc;
@@ -955,6 +955,9 @@ and label_decl i ppf {ld_id; ld_name = _; ld_mutable; ld_type; ld_loc;
   line (i+1) ppf "%a\n" fmt_mutable_flag ld_mutable;
   line (i+1) ppf "%a" fmt_ident ld_id;
   core_type (i+1) ppf ld_type
+
+and field_decl i ppf (ty, _) =
+  core_type (i+1) ppf ty
 
 and longident_x_pattern i ppf (li, _, p) =
   line i ppf "%a\n" fmt_longident li;

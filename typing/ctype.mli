@@ -154,7 +154,7 @@ val new_local_type:
 val existential_name: constructor_description -> type_expr -> string
 val instance_constructor:
         ?in_pattern:Env.t ref * int ->
-        constructor_description -> type_expr list * type_expr * type_expr list
+        constructor_description -> (type_expr * global_flag) list * type_expr * type_expr list
         (* Same, for a constructor. Also returns existentials. *)
 val instance_parameterized_type:
         ?keep_names:bool ->

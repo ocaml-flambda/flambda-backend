@@ -2285,3 +2285,291 @@ module F :
   functor (X : sig val foo : (float -> local_ string) bi end) ->
     sig val foo : (float -> string) bi end
 |}]
+
+
+(*
+ * constructor arguments global/nonlocal
+ *)
+
+(* Global argument are preserved in module inclusion *)
+module M : sig
+  type t = Bar of int * global_ string
+end = struct
+  type t = Bar of int * string
+end
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = Bar of int * string
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = Bar of int * string end
+       is not included in
+         sig type t = Bar of int * global_ string end
+       Type declarations do not match:
+         type t = Bar of int * string
+       is not included in
+         type t = Bar of int * global_ string
+       Constructors do not match:
+         Bar of int * string
+       is not the same as:
+         Bar of int * global_ string
+       Locality mismatch at argument position 2 : The second is global and the first is not.
+|}]
+
+
+module M : sig
+  type t = Bar of int * string
+end = struct
+  type t = Bar of int * global_ string
+end
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = Bar of int * global_ string
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = Bar of int * global_ string end
+       is not included in
+         sig type t = Bar of int * string end
+       Type declarations do not match:
+         type t = Bar of int * global_ string
+       is not included in
+         type t = Bar of int * string
+       Constructors do not match:
+         Bar of int * global_ string
+       is not the same as:
+         Bar of int * string
+       Locality mismatch at argument position 2 : The first is global and the second is not.
+|}]
+
+(* Nonlocal argument are preserved in module inclusion *)
+module M : sig
+  type t = Bar of int * nonlocal_ string
+end = struct
+  type t = Bar of int * string
+end
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = Bar of int * string
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = Bar of int * string end
+       is not included in
+         sig type t = Bar of int * nonlocal_ string end
+       Type declarations do not match:
+         type t = Bar of int * string
+       is not included in
+         type t = Bar of int * nonlocal_ string
+       Constructors do not match:
+         Bar of int * string
+       is not the same as:
+         Bar of int * nonlocal_ string
+       Locality mismatch at argument position 2 : The second is nonlocal and the first is not.
+|}]
+
+
+module M : sig
+  type t = Bar of int * string
+end = struct
+  type t = Bar of int * nonlocal_ string
+end
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = Bar of int * nonlocal_ string
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = Bar of int * nonlocal_ string end
+       is not included in
+         sig type t = Bar of int * string end
+       Type declarations do not match:
+         type t = Bar of int * nonlocal_ string
+       is not included in
+         type t = Bar of int * string
+       Constructors do not match:
+         Bar of int * nonlocal_ string
+       is not the same as:
+         Bar of int * string
+       Locality mismatch at argument position 2 : The first is nonlocal and the second is not.
+|}]
+
+(* global_ and nonlocal_ bind closer than star *)
+type gfoo = GFoo of global_ string * string
+type rfoo = RFoo of nonlocal_ string * string
+[%%expect{|
+type gfoo = GFoo of global_ string * string
+type rfoo = RFoo of nonlocal_ string * string
+|}]
+
+(* TESTING OF GLOBAL_ *)
+
+(* global arguments must be global when constructing
+   cannot be regional or local
+*)
+let f (local_ s : string) =
+  GFoo (s, "bar")
+[%%expect{|
+Line 2, characters 8-9:
+2 |   GFoo (s, "bar")
+            ^
+Error: This value escapes its region
+|}]
+
+let f =
+  let local_ s = "foo" in
+  GFoo (s, "bar")
+[%%expect{|
+Line 3, characters 8-9:
+3 |   GFoo (s, "bar")
+            ^
+Error: This value escapes its region
+|}]
+
+(* s' extracted from x as global *)
+(* despite x is local or regional*)
+let f (s : string) =
+  let local_ x = GFoo (s, "bar") in
+  match x with
+  | GFoo (s', _) -> ref s'
+
+[%%expect{|
+val f : string -> string ref = <fun>
+|}]
+
+let f (local_ x : gfoo) =
+  match x with
+  | GFoo (s', _) -> ref s'
+
+[%%expect{|
+val f : local_ gfoo -> string ref = <fun>
+|}]
+
+(* the argument not marked global remains contingent on construction  *)
+(* local gives local *)
+let f (s : string) =
+  let local_ x = GFoo ("bar", s) in
+  match x with
+  | GFoo (_, s') -> s'
+
+[%%expect{|
+Line 4, characters 20-22:
+4 |   | GFoo (_, s') -> s'
+                        ^^
+Error: This local value escapes its region
+  Hint: Cannot return local value without an explicit "local_" annotation
+|}]
+
+(* and regional gives regional *)
+let f (local_ x : gfoo) =
+  match x with
+  | GFoo (_, s') -> ref s'
+
+[%%expect{|
+Line 3, characters 24-26:
+3 |   | GFoo (_, s') -> ref s'
+                            ^^
+Error: This value escapes its region
+|}]
+
+(* TESTING NONLOCAL_ *)
+(* nonlocal argument must be outer than the construction*)
+(* below, local is not outer than local*)
+let f (local_ s : string) =
+  let local_ s' = "foo" in
+  let local_ x = RFoo(s', "bar") in
+  "bar"
+[%%expect{|
+Line 3, characters 22-24:
+3 |   let local_ x = RFoo(s', "bar") in
+                          ^^
+Error: This local value escapes its region
+|}]
+
+(* local is not outer than global either *)
+let f =
+  let local_ s = "foo" in
+  let x = RFoo(s, "bar") in
+  "bar"
+[%%expect{|
+Line 3, characters 15-16:
+3 |   let x = RFoo(s, "bar") in
+                   ^
+Error: This local value escapes its region
+|}]
+
+
+(* but global is outer than local *)
+let f (s : string) =  (* s is global *)
+  let local_ _x = RFoo (s, "bar") in  (* x is local *)
+  "foo"
+[%%expect{|
+val f : string -> string = <fun>
+|}]
+
+(* and regional is outer than local *)
+let f (local_ s : string) =  (* s is regional *)
+  let local_ _x = RFoo (s, "bar") in  (* x is local *)
+  "foo"
+[%%expect{|
+val f : local_ string -> string = <fun>
+|}]
+
+(* s' extracted from x is not local  *)
+(* even though x is local *)
+let f (local_ s : string) =
+  let local_ x = RFoo (s, "bar") in
+  match x with
+  | RFoo (s', _) -> s'
+
+[%%expect{|
+val f : local_ string -> local_ string = <fun>
+|}]
+
+(* Moreover, it is not global *)
+let f (local_ s : string) =
+  let local_ x = RFoo(s, "bar") in
+  match x with
+  | RFoo (s', _) -> GFoo (s', "bar")
+[%%expect{|
+Line 4, characters 26-28:
+4 |   | RFoo (s', _) -> GFoo (s', "bar")
+                              ^^
+Error: This value escapes its region
+|}]
+
+(* x is already global *)
+(* regional s' extracted from x is still global *)
+let f (s : string) =
+  let x = RFoo (s, "bar") in
+  match x with
+  | RFoo (s', _) -> GFoo(s', "bar")
+[%%expect{|
+val f : string -> gfoo = <fun>
+|}]
+
+(* regional s extracted from regional x *)
+(* still regional *)
+(* first it is not local *)
+let f (local_ x : rfoo) =
+  match x with
+  | RFoo (s, _) -> s
+[%%expect{|
+val f : local_ rfoo -> local_ string = <fun>
+|}]
+
+(* second, it is not global *)
+let f (local_ x : rfoo) =
+  match x with
+  | RFoo (s, _) -> ref s
+[%%expect{|
+Line 3, characters 23-24:
+3 |   | RFoo (s, _) -> ref s
+                           ^
+Error: This value escapes its region
+|}]
