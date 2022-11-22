@@ -16,8 +16,9 @@
 
 open! Simplify_import
 
-let simplify_toplevel_common dacc simplify ~params ~return_continuation
-    ~return_arity ~exn_continuation ~return_cont_scope ~exn_cont_scope =
+let simplify_toplevel_common dacc simplify ~params ~implicit_params
+    ~return_continuation ~return_arity ~exn_continuation ~return_cont_scope
+    ~exn_cont_scope =
   (* The usage analysis needs a continuation whose handler holds the toplevel
      code of the function. Since such a continuation does not exist, we create a
      dummy one here. *)
@@ -25,7 +26,10 @@ let simplify_toplevel_common dacc simplify ~params ~return_continuation
     Continuation.create ~name:"dummy_toplevel_continuation" ()
   in
   let dacc =
-    DA.map_flow_acc dacc ~f:(Flow.Acc.init_toplevel ~dummy_toplevel_cont params)
+    DA.map_flow_acc dacc
+      ~f:
+        (Flow.Acc.init_toplevel ~dummy_toplevel_cont
+           (Bound_parameters.append params implicit_params))
   in
   let expr, uacc =
     simplify dacc ~down_to_up:(fun dacc ~rebuild ->
@@ -114,13 +118,13 @@ let rec simplify_expr dacc expr ~down_to_up =
 
 and simplify_function_body dacc expr ~return_continuation ~return_arity
     ~exn_continuation ~return_cont_scope ~exn_cont_scope
-    ~(loopify_state : Loopify_state.t) ~params =
+    ~(loopify_state : Loopify_state.t) ~params ~implicit_params =
   match loopify_state with
   | Do_not_loopify ->
     simplify_toplevel_common dacc
       (fun dacc -> simplify_expr dacc expr)
-      ~params ~return_continuation ~return_arity ~exn_continuation
-      ~return_cont_scope ~exn_cont_scope
+      ~params ~implicit_params ~return_continuation ~return_arity
+      ~exn_continuation ~return_cont_scope ~exn_cont_scope
   | Loopify cont ->
     let call_self_cont_expr =
       let args = Bound_parameters.simples params in
@@ -136,8 +140,8 @@ and simplify_function_body dacc expr ~return_continuation ~return_arity
         Simplify_let_cont_expr.simplify_as_recursive_let_cont ~simplify_expr
           dacc
           (call_self_cont_expr, handlers))
-      ~params ~return_continuation ~return_arity ~exn_continuation
-      ~return_cont_scope ~exn_cont_scope
+      ~params ~implicit_params ~return_continuation ~return_arity
+      ~exn_continuation ~return_cont_scope ~exn_cont_scope
 
 and[@inline always] simplify_let dacc let_expr ~down_to_up =
   Simplify_let_expr.simplify_let ~simplify_expr ~simplify_function_body dacc
@@ -146,7 +150,8 @@ and[@inline always] simplify_let dacc let_expr ~down_to_up =
 let simplify_toplevel dacc expr ~return_continuation ~return_arity
     ~exn_continuation ~return_cont_scope ~exn_cont_scope =
   let params = Bound_parameters.empty in
+  let implicit_params = Bound_parameters.empty in
   simplify_toplevel_common dacc
     (fun dacc -> simplify_expr dacc expr)
-    ~params ~return_continuation ~return_arity ~exn_continuation
-    ~return_cont_scope ~exn_cont_scope
+    ~params ~implicit_params ~return_continuation ~return_arity
+    ~exn_continuation ~return_cont_scope ~exn_cont_scope
