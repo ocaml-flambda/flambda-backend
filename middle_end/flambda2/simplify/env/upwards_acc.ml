@@ -36,7 +36,7 @@ type t =
     demoted_exn_handlers : Continuation.Set.t;
     slot_offsets : Slot_offsets.t Or_unknown.t;
     flow_result : Flow_types.Flow_result.t;
-    resimplify : bool;
+    resimplify : bool
   }
 
 let [@ocamlformat "disable"] print ppf
@@ -107,7 +107,7 @@ let create ~flow_result ~compute_slot_offsets uenv dacc =
     demoted_exn_handlers = DA.demoted_exn_handlers dacc;
     slot_offsets;
     flow_result;
-    resimplify = false;
+    resimplify = false
   }
 
 let creation_dacc t = t.creation_dacc
