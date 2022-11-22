@@ -101,6 +101,7 @@ module Flambda2 : sig
       val max_block_size_for_projections : int option
       val max_unboxing_depth : int
       val can_inline_recursive_functions : bool
+      val max_function_simplify_run : int
     end
 
     type flags = {
@@ -110,6 +111,7 @@ module Flambda2 : sig
       max_block_size_for_projections : int option;
       max_unboxing_depth : int;
       can_inline_recursive_functions : bool;
+      max_function_simplify_run : int;
     }
 
     val default_for_opt_level : opt_level or_default -> flags
@@ -120,6 +122,7 @@ module Flambda2 : sig
     val max_block_size_for_projections : int option or_default ref
     val max_unboxing_depth : int or_default ref
     val can_inline_recursive_functions : bool or_default ref
+    val max_function_simplify_run : int or_default ref
   end
 
   module Debug : sig
