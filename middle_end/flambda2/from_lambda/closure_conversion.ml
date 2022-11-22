@@ -1053,6 +1053,14 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
     Let_cont_with_acc.build_recursive acc
       ~invariant_params:Bound_parameters.empty ~handlers ~body
 
+let warn_not_inlined_if_needed (apply : IR.apply) reason =
+  match apply.inlined with
+  | Hint_inlined | Never_inlined | Default_inlined -> ()
+  | Always_inlined | Unroll _ ->
+    Location.prerr_warning
+      (Debuginfo.Scoped_location.to_location apply.loc)
+      (Warnings.Inlining_impossible reason)
+
 let close_exact_or_unknown_apply acc env
     ({ kind;
        func;
@@ -1066,7 +1074,7 @@ let close_exact_or_unknown_apply acc env
        region_close;
        region;
        return_arity
-     } :
+     } as ir_apply :
       IR.apply) callee_approx ~replace_region : Expr_with_acc.t =
   let callee = find_simple_from_id env func in
   let current_region =
@@ -1133,7 +1141,9 @@ let close_exact_or_unknown_apply acc env
   if Flambda_features.classic_mode ()
   then
     match Inlining.inlinable env apply callee_approx with
-    | Not_inlinable -> Expr_with_acc.create_apply acc apply
+    | Not_inlinable ->
+      warn_not_inlined_if_needed ir_apply "Function information unavailable";
+      Expr_with_acc.create_apply acc apply
     | Inlinable func_desc ->
       let acc = Acc.mark_continuation_as_untrackable continuation acc in
       let acc =
@@ -2251,10 +2261,14 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
         { apply with args; continuation = apply.continuation }
         (Some approx) ~replace_region:None
     | Partial_app { provided; missing_arity } ->
+      if Flambda_features.classic_mode ()
+      then warn_not_inlined_if_needed apply "Partial application";
       wrap_partial_application acc env apply.continuation apply approx ~provided
         ~missing_arity ~arity ~num_trailing_local_params
         ~contains_no_escaping_local_allocs
     | Over_app { full; remaining; remaining_arity } ->
+      if Flambda_features.classic_mode ()
+      then warn_not_inlined_if_needed apply "Over-application";
       let full_args_call apply_continuation ~region acc =
         let mode =
           if contains_no_escaping_local_allocs
