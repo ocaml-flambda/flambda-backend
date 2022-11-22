@@ -8,8 +8,6 @@
   (:standard
    -principal
    -open
-   Flambda_backend_utils
-   -open
    Flambda2_algorithms
    -open
    Flambda2_bound_identifiers

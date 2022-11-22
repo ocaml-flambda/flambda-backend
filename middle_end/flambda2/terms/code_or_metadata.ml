@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+module File_sections = Flambda_backend_utils.File_sections
+
 type code_status =
   | Loaded of Code.t
   | Not_loaded of

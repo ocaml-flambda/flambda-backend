@@ -16,6 +16,8 @@
 
 (** Contents of middle-end-specific portion of .cmx files when using Flambda. *)
 
+module File_sections = Flambda_backend_utils.File_sections
+
 type table_data =
   { symbols : (Symbol.t * Symbol.exported) list;
     variables : (Variable.t * Variable.exported) list;
