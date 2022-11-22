@@ -80,8 +80,12 @@ let rec unsafe_get t index =
     if index < n then unsafe_get t1 index else unsafe_get t2 (index - n)
 
 let get t index =
-  if index < 0 || index >= length t
-  then Misc.fatal_errorf "File_sections.get index out of bounds";
+  let len = length t in
+  if index < 0 || index >= len
+  then
+    Misc.fatal_errorf
+      "File_sections.get index out of bounds: index is %d, but length is %d"
+      index len;
   unsafe_get t index
 
 let rec unsafe_blit_to_array t dest start_index =
