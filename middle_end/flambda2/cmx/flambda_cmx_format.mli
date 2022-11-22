@@ -36,8 +36,6 @@ val import_typing_env_and_code :
 
 val exported_offsets : t -> Exported_offsets.t
 
-(* val functions_info : t -> Exported_code.t *)
-
 val with_exported_offsets : t -> Exported_offsets.t -> t
 
 (** Rename the compilation units for packed modules to the pack unit, so that

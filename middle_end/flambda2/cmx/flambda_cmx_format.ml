@@ -200,9 +200,6 @@ let exported_offsets (t, _) =
     (fun offsets t0 -> Exported_offsets.merge offsets t0.exported_offsets)
     Exported_offsets.empty t
 
-(* let functions_info t = List.fold_left (fun code t0 -> Exported_code.merge
-   code t0.all_code) Exported_code.empty t *)
-
 let with_exported_offsets (t, sections) exported_offsets =
   match t with
   | [t0] -> [{ t0 with exported_offsets }], sections
@@ -274,17 +271,16 @@ let print0 ~sections ppf t =
   Format.fprintf ppf "@[<hov>Offsets:@ %a@]@;" Exported_offsets.print
     t.exported_offsets
 
-let [@ocamlformat "disable"] print ppf (t, sections) =
+let print ppf (t, sections) =
   let rec print_rest ppf = function
     | [] -> ()
     | t0 :: t ->
-      Format.fprintf ppf "@ (%a)"
-        (print0 ~sections) t0;
+      Format.fprintf ppf "@ (%a)" (print0 ~sections) t0;
       print_rest ppf t
   in
   match t with
   | [] -> assert false
-  | [ t0 ] -> print0 ~sections ppf t0
+  | [t0] -> print0 ~sections ppf t0
   | t0 :: t ->
-    Format.fprintf ppf "Packed units:@ @[<v>(%a)%a@]"
-      (print0 ~sections) t0 print_rest t
+    Format.fprintf ppf "Packed units:@ @[<v>(%a)%a@]" (print0 ~sections) t0
+      print_rest t

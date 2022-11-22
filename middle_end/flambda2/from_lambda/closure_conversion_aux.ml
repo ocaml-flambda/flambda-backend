@@ -178,13 +178,15 @@ module Env = struct
             if not (Code_or_metadata.code_present code)
             then approx
             else
-              match[@ocaml.warning "-fragile-match"]
+              match
                 Inlining.definition_inlining_decision
                   (Code_metadata.inline metadata)
                   (Code_metadata.cost_metrics metadata)
               with
               | Attribute_inline | Small_function _ -> approx
-              | _ ->
+              | Not_yet_decided | Never_inline_attribute | Stub | Recursive
+              | Function_body_too_large _ | Speculatively_inlinable _
+              | Functor _ ->
                 Value_approximation.Closure_approximation
                   { code_id;
                     function_slot;
