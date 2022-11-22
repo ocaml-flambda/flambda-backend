@@ -455,8 +455,6 @@ let introduce_code dacc code =
   |> LCS.singleton_list_of_constants
   |> DA.add_to_lifted_constant_accumulator ~also_add_to_env:() dacc
 
-let max_run_rounds = 2
-
 let simplify_function context ~outer_dacc function_slot code_id
     ~closure_bound_names_inside_function =
   match DE.find_code_exn (DA.denv (C.dacc_prior_to_sets context)) code_id with
@@ -476,7 +474,10 @@ let simplify_function context ~outer_dacc function_slot code_id
         in
         code_id, outer_dacc
       | Some (Rebuilding new_code, new_code_const) ->
-        if should_resimplify && count < max_run_rounds
+        let max_function_simplify_run =
+          Flambda_features.Expert.max_function_simplify_run ()
+        in
+        if should_resimplify && count < max_function_simplify_run
         then run ~outer_dacc ~code:new_code (count + 1)
         else
           let outer_dacc =

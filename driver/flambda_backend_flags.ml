@@ -133,6 +133,7 @@ module Flambda2 = struct
       let max_block_size_for_projections = None
       let max_unboxing_depth = 3
       let can_inline_recursive_functions = false
+      let max_function_simplify_run = 2
     end
 
     type flags = {
@@ -142,6 +143,7 @@ module Flambda2 = struct
       max_block_size_for_projections : int option;
       max_unboxing_depth : int;
       can_inline_recursive_functions : bool;
+      max_function_simplify_run : int;
     }
 
     let default = {
@@ -151,6 +153,7 @@ module Flambda2 = struct
       max_block_size_for_projections = Default.max_block_size_for_projections;
       max_unboxing_depth = Default.max_unboxing_depth;
       can_inline_recursive_functions = Default.can_inline_recursive_functions;
+      max_function_simplify_run = Default.max_function_simplify_run;
     }
 
     let oclassic = {
@@ -174,6 +177,7 @@ module Flambda2 = struct
     let max_block_size_for_projections = ref Default
     let max_unboxing_depth = ref Default
     let can_inline_recursive_functions = ref Default
+    let max_function_simplify_run = ref Default
   end
 
   module Debug = struct
