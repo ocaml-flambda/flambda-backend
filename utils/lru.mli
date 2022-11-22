@@ -12,29 +12,38 @@
 (*                                                                        *)
 (**************************************************************************)
 
-module type LRUSlot =
-  sig
-    type uncached
-    type cached
+(** Implementation of an LRU cache. Each slot of the cache is specified by an
+    [uncached] type and a [cached] type. The [uncached] type corresponds to the
+    information from which the [cached] information is derived. The cache
+    ensures that at most [capacity] slots are loaded at each point in time. *)
 
-    val load : uncached -> cached
-    val unload : uncached -> cached -> unit
-  end
+module type Lru_Slot = sig
+  type uncached
 
-module type S =
-  sig
-    type t
-    type slot
-    type uncached
-    type cached
+  type cached
 
-    val create : int -> t
+  val load : uncached -> cached
 
-    val add_slot : uncached -> cached -> t -> slot
+  val unload : uncached -> cached -> unit
+end
 
-    val load_slot : slot -> t -> cached
+module type S = sig
+  type t
 
-    val unload_all : t -> unit
-  end
+  type slot
 
-module Make(Slot : LRUSlot) : S with type uncached = Slot.uncached and type cached = Slot.cached
+  type uncached
+
+  type cached
+
+  val create : capacity:int -> t
+
+  val add_slot : uncached -> cached -> t -> slot
+
+  val load_slot : slot -> t -> cached
+
+  val unload_all : t -> unit
+end
+
+module Make (Slot : Lru_Slot) :
+  S with type uncached = Slot.uncached and type cached = Slot.cached
