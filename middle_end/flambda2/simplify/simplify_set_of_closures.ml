@@ -449,11 +449,10 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
   in
   { code_id; code = Some (code, code_const); outer_dacc; should_resimplify }
 
-let introduce_code dacc code =
-  Code_id.Lmap.bindings code
-  |> List.map (fun (code_id, code) -> LC.create_code code_id code)
-  |> LCS.singleton_list_of_constants
-  |> DA.add_to_lifted_constant_accumulator ~also_add_to_env:() dacc
+let introduce_code dacc code_id code_const =
+  let code = LC.create_code code_id code_const in
+  DA.add_to_lifted_constant_accumulator ~also_add_to_env:() dacc
+    (LCS.singleton code)
 
 let simplify_function context ~outer_dacc function_slot code_id
     ~closure_bound_names_inside_function =
@@ -468,10 +467,7 @@ let simplify_function context ~outer_dacc function_slot code_id
       | None -> code_id, outer_dacc
       | Some (Not_rebuilding, new_code_const) ->
         (* Not rebuilding: there is no code to resimplify *)
-        let outer_dacc =
-          introduce_code outer_dacc
-            (Code_id.Lmap.singleton code_id new_code_const)
-        in
+        let outer_dacc = introduce_code outer_dacc code_id new_code_const in
         code_id, outer_dacc
       | Some (Rebuilding new_code, new_code_const) ->
         let max_function_simplify_run =
@@ -480,10 +476,7 @@ let simplify_function context ~outer_dacc function_slot code_id
         if should_resimplify && count < max_function_simplify_run
         then run ~outer_dacc ~code:new_code (count + 1)
         else
-          let outer_dacc =
-            introduce_code outer_dacc
-              (Code_id.Lmap.singleton code_id new_code_const)
-          in
+          let outer_dacc = introduce_code outer_dacc code_id new_code_const in
           code_id, outer_dacc
     in
     run ~outer_dacc ~code 0
