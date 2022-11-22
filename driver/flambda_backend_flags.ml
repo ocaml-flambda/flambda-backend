@@ -179,7 +179,7 @@ module Flambda2 = struct
   module Debug = struct
     module Default = struct
       let concrete_types_only_on_canonicals = false
-      let keep_invalid_handlers = true
+      let keep_invalid_handlers = false
     end
 
     let concrete_types_only_on_canonicals =
