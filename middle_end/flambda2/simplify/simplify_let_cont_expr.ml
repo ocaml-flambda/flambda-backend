@@ -1578,7 +1578,7 @@ let simplify_let_cont_stage6 (stage6 : stage6) ~after_rebuild body uacc =
           then false
           else
             match Apply_cont.args apply_cont with
-            | [] -> Option.is_none (Apply_cont.trap_action apply_cont) && false (* TODO fixme *)
+            | [] -> Option.is_none (Apply_cont.trap_action apply_cont)
             | _ :: _ -> false)
         | None -> false
       in
