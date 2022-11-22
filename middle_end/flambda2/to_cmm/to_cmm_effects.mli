@@ -16,7 +16,7 @@
 open! Flambda.Import
 
 (** Classification of expressions based on their effects and coeffects. *)
-type effects_and_coeffects_classification = private
+type effects_and_coeffects_classification =
   | Pure
       (** Pure expressions can be commuted with *everything*, including
           effectful expressions such as function calls. *)

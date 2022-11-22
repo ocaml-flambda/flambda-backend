@@ -362,7 +362,6 @@ let create_binding_aux (type a) ?extra env effs var ~(inline : a inline)
     | None -> env.vars_extra
     | Some info -> Variable.Map.add var info env.vars_extra
   in
-  (* Format.eprintf "*** new binding@\n%a@\n@." print_any_binding binding; *)
   let env = { env with bindings; vars; vars_extra } in
   env, binding
 
@@ -373,7 +372,7 @@ let create_binding (type a) ?extra env effs var ~(inline : a inline)
      must_inline_and_duplicate (since it basically replaces a variable by either
      another variable, a constant, or a symbol). *)
   match bound_expr with
-  | Simple { cmm_expr } when is_cmm_simple cmm_expr ->
+  | (Split { cmm_expr } | Simple { cmm_expr }) when is_cmm_simple cmm_expr ->
     create_binding_aux ?extra env effs var ~inline:Must_inline_and_duplicate
       (Split { cmm_expr })
   | Simple _ | Split _ | Splittable_prim _ ->
@@ -419,13 +418,9 @@ let bind_variable_with_decision (type a) ?extra env var ~inline
     let classification =
       To_cmm_effects.classify_by_effects_and_coeffects effs
     in
-    let change_eff_to effs =
-      effs, To_cmm_effects.classify_by_effects_and_coeffects effs
-    in
     match[@ocaml.warning "-4"] (inline : a inline), classification with
-    | Must_inline_once, Generative_immutable -> change_eff_to Ece.pure
-    | Must_inline_and_duplicate, Generative_immutable ->
-      change_eff_to Ece.pure_can_be_duplicated
+    | (Must_inline_once | Must_inline_and_duplicate), Generative_immutable ->
+      Ece.pure_can_be_duplicated, To_cmm_effects.Pure
     | _, _ -> effs, classification
   in
   let env, binding = create_binding ?extra env ~inline effs var defining_expr in
@@ -434,8 +429,8 @@ let bind_variable_with_decision (type a) ?extra env var ~inline
     (* check that the effects and coeffects allow the expression to be
        duplicated without changing semantics *)
     (match classification with
-    | Pure | Generative_immutable -> ()
-    | Coeffect_only | Effect ->
+    | Pure -> ()
+    | Generative_immutable | Coeffect_only | Effect ->
       Misc.fatal_errorf
         "Incorrect effects and/or coeffects for a duplicated binding: %a"
         print_any_binding binding);
@@ -593,14 +588,6 @@ let split_complex_binding ~env ~res (binding : complex binding) =
         cmm_var = binding.cmm_var
       }
     in
-    (*
-     * Format.eprintf "*** new bindings:@\n@[<v>%a@]@."
-     *   (Format.pp_print_list
-     *     ~pp_sep:(fun ppf () -> Format.fprintf ppf "@,")
-     *      print_any_binding)
-     *  new_bindings;
-     * Format.eprintf "*** split_binding:@\n%a@\n@." print_binding split_binding;
-     *)
     res, Split { new_bindings; split_binding }
 
 let remove_binding env var =
@@ -648,7 +635,7 @@ let split_and_inline env res var binding =
     in
     will_inline_complex env res split_binding
 
-let pop_from_top_stage ?consider_inlining_effectful_expressions env var =
+let pop_if_in_top_stage ?consider_inlining_effectful_expressions env var =
   match env.stages with
   | [] -> None
   | Effect var_from_stage :: prev_stages ->
@@ -693,7 +680,10 @@ let inline_variable ?consider_inlining_effectful_expressions env res var =
     match Variable.Map.find var env.vars with
     | exception Not_found ->
       Misc.fatal_errorf "Variable %a not found in env" Variable.print var
-    | e -> e, env, res, Ece.pure_can_be_duplicated)
+    | e ->
+      (* the env.vars map only contain bindings to expressions of the form
+         [Cmm.Cvar _], hence the effects. *)
+      e, env, res, Ece.pure_can_be_duplicated)
   | Binding binding -> (
     match binding.inline with
     | Do_not_inline -> will_not_inline_simple env res binding
@@ -704,7 +694,7 @@ let inline_variable ?consider_inlining_effectful_expressions env res var =
       | Pure | Generative_immutable -> will_inline_complex env res binding
       | Effect | Coeffect_only -> (
         match
-          pop_from_top_stage ?consider_inlining_effectful_expressions env var
+          pop_if_in_top_stage ?consider_inlining_effectful_expressions env var
         with
         | None -> split_and_inline env res var binding
         | Some env -> will_inline_complex env res binding))
@@ -715,12 +705,9 @@ let inline_variable ?consider_inlining_effectful_expressions env res var =
         will_inline_simple env res binding
       | Generative_immutable | Effect | Coeffect_only -> (
         match
-          pop_from_top_stage ?consider_inlining_effectful_expressions env var
+          pop_if_in_top_stage ?consider_inlining_effectful_expressions env var
         with
-        | None ->
-          (* Format.eprintf "/// not inlining %a (because of stages)@\nstages:
-             %a@\n@." Variable.print var print_stages env.stages; *)
-          will_not_inline_simple env res binding
+        | None -> will_not_inline_simple env res binding
         | Some env ->
           let env = remove_binding env var in
           will_inline_simple env res binding)))
