@@ -125,6 +125,8 @@ module Expert : sig
   val max_unboxing_depth : unit -> int
 
   val can_inline_recursive_functions : unit -> bool
+
+  val max_function_simplify_run : unit -> int
 end
 
 val stack_allocation_enabled : unit -> bool

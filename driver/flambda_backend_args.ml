@@ -243,6 +243,13 @@ let mk_no_flambda2_expert_can_inline_recursive_functions f =
     (format_not_default Flambda2.Expert.Default.can_inline_recursive_functions)
 ;;
 
+let mk_flambda2_expert_max_function_simplify_run f =
+  "-flambda2-expert-max-function-simplify-run", Arg.Int f,
+  Printf.sprintf " Do not run simplification of function more\n\
+      \     than this (default %d) (Flambda 2 only)"
+    Flambda2.Expert.Default.max_function_simplify_run
+;;
+
 let mk_flambda2_debug_concrete_types_only_on_canonicals f =
   "-flambda2-debug-concrete-types-only-on-canonicals", Arg.Unit f,
   Printf.sprintf " Check that concrete\n\
@@ -488,6 +495,7 @@ module type Flambda_backend_options = sig
   val flambda2_expert_max_unboxing_depth : int -> unit
   val flambda2_expert_can_inline_recursive_functions : unit -> unit
   val no_flambda2_expert_can_inline_recursive_functions : unit -> unit
+  val flambda2_expert_max_function_simplify_run : int -> unit
   val flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
   val no_flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
   val flambda2_debug_keep_invalid_handlers : unit -> unit
@@ -583,6 +591,8 @@ struct
       F.flambda2_expert_can_inline_recursive_functions;
     mk_no_flambda2_expert_can_inline_recursive_functions
       F.no_flambda2_expert_can_inline_recursive_functions;
+    mk_flambda2_expert_max_function_simplify_run
+      F.flambda2_expert_max_function_simplify_run;
     mk_flambda2_debug_concrete_types_only_on_canonicals
       F.flambda2_debug_concrete_types_only_on_canonicals;
     mk_no_flambda2_debug_concrete_types_only_on_canonicals
@@ -698,6 +708,8 @@ module Flambda_backend_options_impl = struct
     Flambda2.Expert.can_inline_recursive_functions := Flambda_backend_flags.Set true
   let no_flambda2_expert_can_inline_recursive_functions () =
     Flambda2.Expert.can_inline_recursive_functions := Flambda_backend_flags.Set false
+  let flambda2_expert_max_function_simplify_run runs =
+    Flambda2.Expert.max_function_simplify_run := Flambda_backend_flags.Set runs
   let flambda2_debug_concrete_types_only_on_canonicals =
     set' Flambda2.Debug.concrete_types_only_on_canonicals
   let no_flambda2_debug_concrete_types_only_on_canonicals =
@@ -905,6 +917,8 @@ module Extra_params = struct
        set_int Flambda2.Expert.max_unboxing_depth
     | "flambda2-expert-can-inline-recursive-functions" ->
        set Flambda2.Expert.can_inline_recursive_functions
+    | "flambda2-expert-max-function-simplify-run" ->
+       set_int Flambda2.Expert.max_function_simplify_run
     | "flambda2-inline-max-depth" ->
        Clflags.Int_arg_helper.parse v
          "Bad syntax in OCAMLPARAM for 'flambda2-inline-max-depth'"
