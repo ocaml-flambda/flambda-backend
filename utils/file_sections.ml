@@ -18,7 +18,7 @@ type section =
   | Loaded of Obj.t
   | Pending of { byte_offset_in_file : int }
 
-module File_Lru_Cache = Lru.Make (struct
+module File_lru_cache = Lru.Make (struct
   type cached = in_channel
 
   type uncached = string
@@ -28,13 +28,13 @@ module File_Lru_Cache = Lru.Make (struct
   let unload _ ic = close_in ic
 end)
 
-let file_lru = File_Lru_Cache.create ~capacity:128
+let file_lru = File_lru_cache.create ~capacity:128
 
-let () = at_exit (fun () -> File_Lru_Cache.unload_all file_lru)
+let () = at_exit (fun () -> File_lru_cache.unload_all file_lru)
 
 type t =
   | From_file of
-      { channel : File_Lru_Cache.slot;
+      { channel : File_lru_cache.slot;
         sections : section array
       }
   | In_memory of Obj.t array
@@ -42,7 +42,7 @@ type t =
 (* For efficient concatenation *)
 
 let create section_toc file channel ~first_section_offset =
-  let channel = File_Lru_Cache.add_slot file channel file_lru in
+  let channel = File_lru_cache.add_slot file channel file_lru in
   if Array.length section_toc = 0
   then In_memory [||]
   else
@@ -65,7 +65,7 @@ let read_section sections channel index =
   match sections.(index) with
   | Loaded section_contents -> section_contents
   | Pending { byte_offset_in_file } ->
-    let channel = File_Lru_Cache.load_slot channel file_lru in
+    let channel = File_lru_cache.load_slot channel file_lru in
     seek_in channel byte_offset_in_file;
     let section_contents : Obj.t = input_value channel in
     sections.(index) <- Loaded section_contents;

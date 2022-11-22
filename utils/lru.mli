@@ -17,7 +17,7 @@
     information from which the [cached] information is derived. The cache
     ensures that at most [capacity] slots are loaded at each point in time. *)
 
-module type Lru_Slot = sig
+module type Lru_slot = sig
   type uncached
 
   type cached
@@ -45,5 +45,5 @@ module type S = sig
   val unload_all : t -> unit
 end
 
-module Make (Slot : Lru_Slot) :
+module Make (Slot : Lru_slot) :
   S with type uncached = Slot.uncached and type cached = Slot.cached
