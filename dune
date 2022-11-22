@@ -58,7 +58,7 @@
  ; We should change the code so this "-open" can be removed.
  ; Likewise fix occurrences of warning 9.
  (flags
-  (:standard -principal -w -9-69-70))
+  (:standard -principal -w -9-69-70 -open Flambda_backend_utils))
  (ocamlopt_flags
   (:include %{project_root}/ocamlopt_flags.sexp))
  (instrumentation
@@ -271,6 +271,7 @@
  (libraries
   ocamlcommon
   flambda_backend_common
+  flambda_backend_utils
   flambda2_identifiers
   flambda2_cmx
   dwarf_ocaml

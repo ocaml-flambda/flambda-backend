@@ -8,6 +8,8 @@
   (:standard
    -principal
    -open
+   Flambda_backend_utils
+   -open
    Flambda2_algorithms
    -open
    Flambda2_bound_identifiers
@@ -35,6 +37,7 @@
   (:standard -O3))
  (libraries
   ocamlcommon
+  flambda_backend_utils
   flambda2_algorithms
   flambda2_bound_identifiers
   flambda2_identifiers
