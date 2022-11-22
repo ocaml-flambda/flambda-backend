@@ -28,7 +28,7 @@ module File_Lru_Cache = Lru.Make (struct
   let unload _ ic = close_in ic
 end)
 
-let file_lru = File_Lru_Cache.create 128
+let file_lru = File_Lru_Cache.create ~capacity:128
 
 let () = at_exit (fun () -> File_Lru_Cache.unload_all file_lru)
 
