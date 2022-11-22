@@ -73,6 +73,13 @@ let simplify_toplevel_common dacc simplify ~params ~implicit_params
         let uacc =
           UA.create ~flow_result ~compute_slot_offsets:true uenv dacc
         in
+        let uacc =
+          if not
+               (Named_rewrite_id.Map.is_empty
+                  flow_result.mutable_unboxing_result.let_rewrites)
+          then UA.set_resimplify uacc
+          else uacc
+        in
         rebuild uacc ~after_rebuild:(fun expr uacc -> expr, uacc))
   in
   (* We don't check occurrences of variables or symbols here because the check
