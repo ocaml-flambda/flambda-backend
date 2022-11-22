@@ -511,15 +511,15 @@ let nullary_primitive _env res dbg prim =
   | Invalid _ ->
     let message = "Invalid primitive" in
     let expr, res = C.invalid res ~message in
-    None, expr, res
+    None, res, expr
   | Optimised_out _ -> Misc.fatal_errorf "TODO: phantom let-bindings in to_cmm"
   | Probe_is_enabled { name } ->
     (* CR gbury: we should never manually build cmm expression in this file. We
        should instead always use smart constructors defined in `cmm_helpers` or
        `to_cmm_shared.ml` *)
     let expr = Cmm.Cop (Cprobe_is_enabled { name }, [], dbg) in
-    None, expr, res
-  | Begin_region -> None, C.beginregion ~dbg, res
+    None, res, expr
+  | Begin_region -> None, res, C.beginregion ~dbg
 
 let unary_primitive env res dbg f arg =
   match (f : P.unary_primitive) with
@@ -559,7 +559,7 @@ let unary_primitive env res dbg f arg =
   | Unbox_number kind -> None, res, unbox_number ~dbg kind arg
   | Untag_immediate -> Some (Env.Untag arg), res, C.untag_int arg dbg
   | Box_number (kind, alloc_mode) ->
-    Some Env.Boxed_number, res, box_number ~dbg kind alloc_mode arg
+    None, res, box_number ~dbg kind alloc_mode arg
   | Tag_immediate ->
     (* We could return [Env.Tag] here, but probably unnecessary at the
        moment. *)
@@ -656,27 +656,76 @@ let variadic_primitive _env dbg f args =
   | Make_block (kind, _mut, alloc_mode) -> make_block ~dbg kind alloc_mode args
   | Make_array (kind, _mut, alloc_mode) -> make_array ~dbg kind alloc_mode args
 
-let prim env res dbg (p : P.t) =
-  let consider_inlining_effectful_expressions =
-    (* By default we are very conservative about the inlining of effectful
-       expressions into the arguments of primitives. We only consider inlining
-       in the case where the primitive compiles directly to an allocation.
-       Unlike for most primitives, inlining of the arguments gives a real
-       benefit for these, by keeping live ranges shorter (which could be
-       critical for register allocation performance in cases such as
-       initialisation of very large arrays). We are also confident that the code
-       for compiling allocations does not incorrectly reorder or duplicate
-       arguments, whereas we are not universally confident about that for the
-       other Cmm translation functions.
+let arg ?consider_inlining_effectful_expressions ~dbg env res simple =
+  C.simple ?consider_inlining_effectful_expressions ~dbg env res simple
 
-       This criterion should not be relaxed for any primitive until it is
-       certain that the Cmm translation for such primitive both respects
-       right-to-left evaluation order and does not duplicate any arguments. *)
-    match p with
-    | Nullary _ | Unary _ | Binary _ | Ternary _ -> None
-    | Variadic ((Make_block _ | Make_array _), _) -> Some true
+let arg_list ?consider_inlining_effectful_expressions ~dbg env res l =
+  let aux (list, env, res, effs) x =
+    let y, env, res, eff =
+      arg ?consider_inlining_effectful_expressions ~dbg env res x
+    in
+    y :: list, env, res, Ece.join eff effs
   in
-  let simple = C.simple ?consider_inlining_effectful_expressions ~dbg in
+  let args, env, res, effs =
+    List.fold_left aux ([], env, res, Ece.pure_can_be_duplicated) l
+  in
+  List.rev args, env, res, effs
+
+let arg_list' ?consider_inlining_effectful_expressions ~dbg env res l =
+  let aux (list, env, res, effs) x =
+    let y, env, res, eff =
+      arg ?consider_inlining_effectful_expressions ~dbg env res x
+    in
+    (y, eff) :: list, env, res, Ece.join eff effs
+  in
+  let args, env, res, effs =
+    List.fold_left aux ([], env, res, Ece.pure_can_be_duplicated) l
+  in
+  List.rev args, env, res, effs
+
+let trans_prim : To_cmm_env.t To_cmm_env.trans_prim =
+  { nullary = nullary_primitive;
+    unary = unary_primitive;
+    binary =
+      (fun env res dbg prim x y ->
+        let cmm = binary_primitive env dbg prim x y in
+        None, res, cmm);
+    ternary =
+      (fun env res dbg prim x y z ->
+        let cmm = ternary_primitive env dbg prim x y z in
+        None, res, cmm);
+    variadic =
+      (fun env res dbg prim args ->
+        let cmm = variadic_primitive env dbg prim args in
+        None, res, cmm)
+  }
+
+let consider_inlining_effectful_expressions p =
+  (* By default we are very conservative about the inlining of effectful
+     expressions into the arguments of primitives. We consider inlining in the
+     following cases:
+
+     - in the case where the primitive compiles directly to an allocation.
+     Unlike for most primitives, inlining of the arguments gives a real benefit
+     for these, by keeping live ranges shorter (which could be critical for
+     register allocation performance in cases such as initialisation of very
+     large arrays). We are also confident that the code for compiling
+     allocations does not incorrectly reorder or duplicate arguments, whereas we
+     are not universally confident about that for the other Cmm translation
+     functions.
+
+     This criterion should not be relaxed for any primitive until it is certain
+     that the Cmm translation for such primitive both respects right-to-left
+     evaluation order and does not duplicate any arguments. *)
+  match[@ocaml.warning "-4"] (p : P.t) with
+  | Variadic ((Make_block _ | Make_array _), _) -> Some true
+  | Nullary _ | Unary _ | Binary _ | Ternary _ -> None
+
+let prim_simple env res dbg p =
+  let consider_inlining_effectful_expressions =
+    consider_inlining_effectful_expressions p
+  in
+  let arg = arg ?consider_inlining_effectful_expressions ~dbg in
   (* Somewhat counter-intuitively, the left-to-right translation below (e.g. [x]
      before [y] in the [Binary] case) correctly matches right-to-left evaluation
      order---ensuring maximal inlining---since [C.simple_list] translates the
@@ -692,30 +741,68 @@ let prim env res dbg (p : P.t) =
      desired output Make_block [effect-y; effect-x]. The backend will compile
      this to run effect-x before effect-y by virtue of right-to-left evaluation
      order. This therefore matches the original source code. *)
-  match p with
+  match (p : P.t) with
   | Nullary prim ->
-    let extra, expr, res = nullary_primitive env res dbg prim in
-    expr, extra, env, res, Ece.pure
+    let extra, res, expr = nullary_primitive env res dbg prim in
+    Env.simple expr, extra, env, res, Ece.pure
   | Unary (unary, x) ->
-    let x, env, eff = simple env x in
+    let x, env, res, eff = arg env res x in
     let extra, res, expr = unary_primitive env res dbg unary x in
-    expr, extra, env, res, eff
+    Env.simple expr, extra, env, res, eff
   | Binary (binary, x, y) ->
-    let x, env, effx = simple env x in
-    let y, env, effy = simple env y in
+    let x, env, res, effx = arg env res x in
+    let y, env, res, effy = arg env res y in
     let effs = Ece.join effx effy in
     let expr = binary_primitive env dbg binary x y in
-    expr, None, env, res, effs
+    Env.simple expr, None, env, res, effs
   | Ternary (ternary, x, y, z) ->
-    let x, env, effx = simple env x in
-    let y, env, effy = simple env y in
-    let z, env, effz = simple env z in
+    let x, env, res, effx = arg env res x in
+    let y, env, res, effy = arg env res y in
+    let z, env, res, effz = arg env res z in
     let effs = Ece.join (Ece.join effx effy) effz in
     let expr = ternary_primitive env dbg ternary x y z in
-    expr, None, env, res, effs
+    Env.simple expr, None, env, res, effs
   | Variadic (((Make_block _ | Make_array _) as variadic), l) ->
-    let args, env, effs =
-      C.simple_list ?consider_inlining_effectful_expressions ~dbg env l
+    let args, env, res, effs =
+      arg_list ?consider_inlining_effectful_expressions ~dbg env res l
     in
     let expr = variadic_primitive env dbg variadic args in
-    expr, None, env, res, effs
+    Env.simple expr, None, env, res, effs
+
+let prim_complex env res dbg p =
+  let consider_inlining_effectful_expressions =
+    consider_inlining_effectful_expressions p
+  in
+  let arg = arg ?consider_inlining_effectful_expressions ~dbg in
+  (* see comment in [prim_simple] *)
+  let prim', args, effs, env, res =
+    match (p : P.t) with
+    | Nullary prim ->
+      let prim' = P.Without_args.Nullary prim in
+      prim', [], Ece.pure_can_be_duplicated, env, res
+    | Unary (unary, x) ->
+      let prim' = P.Without_args.Unary unary in
+      let x, env, res, eff = arg env res x in
+      prim', [x, eff], eff, env, res
+    | Binary (binary, x, y) ->
+      let prim' = P.Without_args.Binary binary in
+      let x, env, res, effx = arg env res x in
+      let y, env, res, effy = arg env res y in
+      let effs = Ece.join effx effy in
+      prim', [x, effx; y, effy], effs, env, res
+    | Ternary (ternary, x, y, z) ->
+      let prim' = P.Without_args.Ternary ternary in
+      let x, env, res, effx = arg env res x in
+      let y, env, res, effy = arg env res y in
+      let z, env, res, effz = arg env res z in
+      let effs = Ece.join (Ece.join effx effy) effz in
+      prim', [x, effx; y, effy; z, effz], effs, env, res
+    | Variadic (((Make_block _ | Make_array _) as variadic), l) ->
+      let prim' = P.Without_args.Variadic variadic in
+      let args, env, res, effs =
+        arg_list' ?consider_inlining_effectful_expressions ~dbg env res l
+      in
+      prim', args, effs, env, res
+  in
+  let bound_expr = Env.splittable_primitive dbg prim' args in
+  bound_expr, env, res, effs
