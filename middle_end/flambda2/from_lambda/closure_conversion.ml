@@ -209,25 +209,22 @@ module Inlining = struct
     | Some (Value_symbol _) | Some (Value_int _) | Some (Block_approximation _)
       ->
       assert false
-    | Some (Closure_approximation { code = Metadata_only _; _ }) ->
-      Inlining_report.record_decision_at_call_site_for_known_function ~tracker
-        ~apply ~pass:After_closure_conversion ~unrolling_depth:None
-        ~callee:(Inlining_history.Absolute.empty compilation_unit)
-        ~are_rebuilding_terms Definition_says_not_to_inline;
-      Not_inlinable
-    | Some (Closure_approximation { code = Code_present code; _ }) ->
+    | Some (Closure_approximation { code; _ }) ->
+      let metadata = Code_or_metadata.code_metadata code in
       let fun_params_length =
-        Code.params_arity code |> Flambda_arity.With_subkinds.to_arity
-        |> Flambda_arity.length
+        Code_metadata.params_arity metadata
+        |> Flambda_arity.With_subkinds.to_arity |> Flambda_arity.length
       in
-      if fun_params_length > List.length (Apply_expr.args apply)
+      if (not (Code_or_metadata.code_present code))
+         || fun_params_length > List.length (Apply_expr.args apply)
       then (
         Inlining_report.record_decision_at_call_site_for_known_function ~tracker
           ~apply ~pass:After_closure_conversion ~unrolling_depth:None
-          ~callee:(Code.absolute_history code)
+          ~callee:(Inlining_history.Absolute.empty compilation_unit)
           ~are_rebuilding_terms Definition_says_not_to_inline;
         Not_inlinable)
       else
+        let code = Code_or_metadata.get_code code in
         let inlined_call = Apply_expr.inlined apply in
         let decision, res =
           match inlined_call with

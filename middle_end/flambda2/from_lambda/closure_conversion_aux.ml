@@ -169,26 +169,30 @@ module Env = struct
             ());
         let rec filter_inlinable approx =
           match (approx : value_approximation) with
-          | Value_unknown | Value_symbol _ | Value_int _
-          | Closure_approximation { code = Metadata_only _; _ } ->
-            approx
+          | Value_unknown | Value_symbol _ | Value_int _ -> approx
           | Block_approximation (approxs, alloc_mode) ->
             let approxs = Array.map filter_inlinable approxs in
             Value_approximation.Block_approximation (approxs, alloc_mode)
-          | Closure_approximation
-              { code_id; function_slot; code = Code_present code; _ } -> (
-            match[@ocaml.warning "-fragile-match"]
-              Inlining.definition_inlining_decision (Code.inline code)
-                (Code.cost_metrics code)
-            with
-            | Attribute_inline | Small_function _ -> approx
-            | _ ->
-              Value_approximation.Closure_approximation
-                { code_id;
-                  function_slot;
-                  code = Code_or_metadata.(remember_only_metadata (create code));
-                  symbol = None
-                })
+          | Closure_approximation { code_id; function_slot; code; _ } -> (
+            let metadata = Code_or_metadata.code_metadata code in
+            if not (Code_or_metadata.code_present code)
+            then approx
+            else
+              match
+                Inlining.definition_inlining_decision
+                  (Code_metadata.inline metadata)
+                  (Code_metadata.cost_metrics metadata)
+              with
+              | Attribute_inline | Small_function _ -> approx
+              | Not_yet_decided | Never_inline_attribute | Stub | Recursive
+              | Function_body_too_large _ | Speculatively_inlinable _
+              | Functor _ ->
+                Value_approximation.Closure_approximation
+                  { code_id;
+                    function_slot;
+                    code = Code_or_metadata.create_metadata_only metadata;
+                    symbol = None
+                  })
         in
         let approx = filter_inlinable approx in
         externals := Symbol.Map.add symbol approx !externals;

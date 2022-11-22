@@ -98,6 +98,9 @@ fmt:
 	ocamlformat -i \
 	  $$(find backend/debug/dwarf \
 	    \( -name "*.ml" -or -name "*.mli" \))
+	ocamlformat -i \
+	  $$(find utils \
+	    \( -name "*.ml" -or -name "*.mli" \))
 
 .PHONY: check-fmt
 check-fmt:
@@ -109,7 +112,8 @@ check-fmt:
            [ "$$(git status --porcelain backend/debug)" != "" ] || \
            [ "$$(git status --porcelain backend/cmm_helpers.ml{,i})" != "" ] || \
            [ "$$(git status --porcelain backend/checkmach.ml{,i})" != "" ] || \
-           [ "$$(git status --porcelain tools/merge_archives.ml)" != "" ]; then \
+           [ "$$(git status --porcelain tools/merge_archives.ml)" != "" ] || \
+           [ "$$(git status --porcelain utils)" != "" ]; then \
 	  echo; \
 	  echo "Tree must be clean before running 'make check-fmt'"; \
 	  exit 1; \
@@ -123,7 +127,8 @@ check-fmt:
            [ "$$(git diff backend/debug)" != "" ] || \
            [ "$$(git diff backend/cmm_helpers.ml{,i})" != "" ] || \
            [ "$$(git diff backend/checkmach.ml{,i})" != "" ] || \
-           [ "$$(git diff tools/merge_archives.ml)" != "" ]; then \
+           [ "$$(git diff tools/merge_archives.ml)" != "" ] || \
+           [ "$$(git diff utils)" != "" ]; then \
 	  echo; \
 	  echo "The following code was not formatted correctly:"; \
 	  echo "(the + side of the diff is how it should be formatted)"; \
