@@ -140,8 +140,8 @@ and simplify_function_body dacc expr ~return_continuation ~return_arity
         Simplify_let_cont_expr.simplify_as_recursive_let_cont ~simplify_expr
           dacc
           (call_self_cont_expr, handlers))
-      ~params ~implicit_params ~return_continuation ~return_arity ~exn_continuation
-      ~return_cont_scope ~exn_cont_scope
+      ~params ~implicit_params ~return_continuation ~return_arity
+      ~exn_continuation ~return_cont_scope ~exn_cont_scope
 
 and[@inline always] simplify_let dacc let_expr ~down_to_up =
   Simplify_let_expr.simplify_let ~simplify_expr ~simplify_function_body dacc
