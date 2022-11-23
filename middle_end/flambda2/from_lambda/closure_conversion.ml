@@ -229,10 +229,10 @@ module Inlining = struct
         let stub_policy =
           (* Imitating Closure in classic mode, which ignores stubs entirely.
              Otherwise we allow inlining stubs in stubs for simplify. *)
-          not (Flambda_features.classic_mode ()) && Code.stub code
+          (not (Flambda_features.classic_mode ())) && Code.stub code
         in
         let decision, res =
-          if not (Env.currently_in_stub env) || stub_policy
+          if (not (Env.currently_in_stub env)) || stub_policy
           then
             match inlined_call with
             | Never_inlined ->
