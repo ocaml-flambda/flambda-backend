@@ -1054,12 +1054,15 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
       ~invariant_params:Bound_parameters.empty ~handlers ~body
 
 let warn_not_inlined_if_needed (apply : IR.apply) reason =
-  match apply.inlined with
-  | Hint_inlined | Never_inlined | Default_inlined -> ()
-  | Always_inlined | Unroll _ ->
+  let warn kind =
     Location.prerr_warning
       (Debuginfo.Scoped_location.to_location apply.loc)
-      (Warnings.Inlining_impossible reason)
+      (Warnings.Inlining_impossible (reason kind))
+  in
+  match apply.inlined with
+  | Hint_inlined | Never_inlined | Default_inlined -> ()
+  | Always_inlined -> warn Inlining_helpers.Inlined
+  | Unroll _ -> warn Inlining_helpers.Unroll
 
 let close_exact_or_unknown_apply acc env
     ({ kind;
@@ -1142,7 +1145,8 @@ let close_exact_or_unknown_apply acc env
   then
     match Inlining.inlinable env apply callee_approx with
     | Not_inlinable ->
-      warn_not_inlined_if_needed ir_apply "Function information unavailable";
+      warn_not_inlined_if_needed ir_apply (fun _ ->
+          "Function information unavailable");
       Expr_with_acc.create_apply acc apply
     | Inlinable func_desc ->
       let acc = Acc.mark_continuation_as_untrackable continuation acc in
@@ -2097,8 +2101,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
       close_exn_continuation acc env apply.exn_continuation
     in
     let inlined = Inlined_attribute.from_lambda apply.inlined in
-    (* Keeping the attributes is useless in classic mode but matches the
-       behaviour of simplify, and this split is done either way *)
+    (* Keeping the inlining attributes matches the behaviour of simplify *)
     let probe_name =
       match apply.probe with None -> None | Some { name } -> Some name
     in
@@ -2261,14 +2264,12 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
         { apply with args; continuation = apply.continuation }
         (Some approx) ~replace_region:None
     | Partial_app { provided; missing_arity } ->
-      if Flambda_features.classic_mode ()
-      then warn_not_inlined_if_needed apply "Partial application";
+      warn_not_inlined_if_needed apply
+        Inlining_helpers.inlined_attribute_on_partial_application_msg;
       wrap_partial_application acc env apply.continuation apply approx ~provided
         ~missing_arity ~arity ~num_trailing_local_params
         ~contains_no_escaping_local_allocs
     | Over_app { full; remaining; remaining_arity } ->
-      if Flambda_features.classic_mode ()
-      then warn_not_inlined_if_needed apply "Over-application";
       let full_args_call apply_continuation ~region acc =
         let mode =
           if contains_no_escaping_local_allocs

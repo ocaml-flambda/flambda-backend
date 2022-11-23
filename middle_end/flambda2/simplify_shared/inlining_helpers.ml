@@ -115,3 +115,12 @@ let wrap_inlined_body_for_exn_extra_args acc ~extra_args ~apply_exn_continuation
   in
   let_cont_create acc wrapper ~handler_params:wrapper_handler_params
     ~handler:wrapper_handler ~body:body_with_push ~is_exn_handler:true
+
+type attribute_kind =
+  | Inlined
+  | Unroll
+
+let string_of_kind = function Inlined -> "[@inlined]" | Unroll -> "[@unroll]]"
+
+let inlined_attribute_on_partial_application_msg kind =
+  string_of_kind kind ^ " attributes may not be used on partial applications"
