@@ -5,22 +5,13 @@
 (library
  (name flambda2_types)
  (wrapped true)
- (instrumentation (backend bisect_ppx))
+ (instrumentation
+  (backend bisect_ppx))
  (flags
   (:standard
    -principal
    -open
    Flambda2_algorithms
-   -open
-   Flambda2_bound_identifiers
-   -open
-   Flambda2_identifiers
-   -open
-   Flambda2_kinds
-   -open
-   Flambda2_lattices
-   -open
-   Flambda2_nominal
    -open
    Flambda2_numbers
    -open
@@ -34,12 +25,7 @@
  (libraries
   ocamlcommon
   flambda2_algorithms
-  flambda2_bound_identifiers
   flambda2_classic_mode_types
-  flambda2_identifiers
-  flambda2_kinds
-  flambda2_lattices
-  flambda2_nominal
   flambda2_numbers
   flambda2_term_basics
   flambda2_ui))

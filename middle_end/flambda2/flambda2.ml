@@ -18,7 +18,7 @@
    meaning it can call [Compilenv]. *)
 
 let symbol_for_global id =
-  Compilenv.symbol_for_global' id |> Flambda2_identifiers.Symbol.create_wrapped
+  Compilenv.symbol_for_global' id |> Flambda2_term_basics.Symbol.create_wrapped
 
 let get_global_info comp_unit =
   (* Typing information for predefined exceptions should be populated directly
@@ -29,7 +29,7 @@ let get_global_info comp_unit =
       "get_global_info is not for use with predefined exception compilation \
        units";
   if Compilation_unit.equal comp_unit
-       (Flambda2_identifiers.Symbol.external_symbols_compilation_unit ())
+       (Flambda2_term_basics.Symbol.external_symbols_compilation_unit ())
   then None
   else
     (* CR lmaurer: It feels like there should be a
@@ -168,8 +168,8 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
     if not keep_symbol_tables
     then (
       Compilenv.reset_info_tables ();
-      Flambda2_identifiers.Continuation.reset ();
-      Flambda2_identifiers.Int_ids.reset ());
+      Flambda2_term_basics.Continuation.reset ();
+      Flambda2_term_basics.Int_ids.reset ());
     cmm
   in
   Profile.record_call "flambda2" run

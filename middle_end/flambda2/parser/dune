@@ -3,14 +3,16 @@
 ; @regen alias that regenerates them only if asked for. The Makefile then runs
 ; the alias with --auto-promote.
 
-(alias (name regen))
+(alias
+ (name regen))
 
 (rule
  (target flambda_lex.ml.new)
  (deps flambda_lex.mll)
  (alias regen)
  (action
-  (chdir %{workspace_root}
+  (chdir
+   %{workspace_root}
    (run ocamllex -q %{deps} -o %{target}))))
 
 (rule
@@ -52,7 +54,8 @@
 
 ; NOTE: flambda_parser.messages is massively out of date.
 
-(alias (name regen-messages))
+(alias
+ (name regen-messages))
 
 (rule
  (alias regen-messages)
@@ -60,7 +63,8 @@
  (targets)
  (action
   (progn
-   (with-stdout-to flambda_parser_messages.ml.new
+   (with-stdout-to
+    flambda_parser_messages.ml.new
     (run menhir --compile-errors %{deps}))
    (diff flambda_parser_messages.ml flambda_parser_messages.ml.new))))
 
@@ -100,16 +104,11 @@
 (library
  (name flambda2_parser)
  (wrapped true)
- (instrumentation (backend bisect_ppx))
+ (instrumentation
+  (backend bisect_ppx))
  (flags
   (:standard
    -principal
-   -open
-   Flambda2_bound_identifiers
-   -open
-   Flambda2_identifiers
-   -open
-   Flambda2_kinds
    -open
    Flambda2_term_basics
    -open
@@ -117,11 +116,7 @@
    -open
    Flambda2_algorithms
    -open
-   Flambda2_numbers
-   -open
-   Flambda2_lattices
-   -open
-   Flambda2_nominal))
+   Flambda2_numbers))
  (ocamlopt_flags
   (:standard -O3))
  (modules
@@ -131,10 +126,5 @@
   ocamlcommon
   flambda2_algorithms
   flambda2_terms
-  flambda2_bound_identifiers
-  flambda2_identifiers
-  flambda2_kinds
   flambda2_term_basics
-  flambda2_numbers
-  flambda2_lattices
-  flambda2_nominal))
+  flambda2_numbers))
