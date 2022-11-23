@@ -11,18 +11,11 @@
   (:standard
    -principal
    -open
-   Flambda2_algorithms
-   -open
-   Flambda2_numbers
-   -open
    Flambda2_import
    -open
-   Flambda2_ui))
+   Flambda2_ui
+   -open
+   Flambda_backend_utils))
  (ocamlopt_flags
   (:standard -O3))
- (libraries
-  ocamlcommon
-  flambda2_algorithms
-  flambda2_import
-  flambda2_numbers
-  flambda2_ui))
+ (libraries ocamlcommon flambda2_import flambda2_ui flambda_backend_utils))

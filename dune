@@ -386,8 +386,6 @@
    %{dep:utils/flambda_backend_utils.a}
    %{dep:middle_end/flambda2/import/flambda2_import.a}
    %{dep:middle_end/flambda2/ui/flambda2_ui.a}
-   %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.a}
-   %{dep:middle_end/flambda2/numbers/flambda2_numbers.a}
    %{dep:middle_end/flambda2/term_basics/flambda2_term_basics.a}
    %{dep:middle_end/flambda2/classic_mode_types/flambda2_classic_mode_types.a}
    %{dep:middle_end/flambda2/types/flambda2_types.a}
@@ -417,8 +415,6 @@
    %{dep:utils/flambda_backend_utils.cma}
    %{dep:middle_end/flambda2/import/flambda2_import.cma}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cma}
-   %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cma}
-   %{dep:middle_end/flambda2/numbers/flambda2_numbers.cma}
    %{dep:middle_end/flambda2/term_basics/flambda2_term_basics.cma}
    %{dep:middle_end/flambda2/classic_mode_types/flambda2_classic_mode_types.cma}
    %{dep:middle_end/flambda2/types/flambda2_types.cma}
@@ -448,8 +444,6 @@
    %{dep:utils/flambda_backend_utils.cmxa}
    %{dep:middle_end/flambda2/import/flambda2_import.cmxa}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cmxa}
-   %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cmxa}
-   %{dep:middle_end/flambda2/numbers/flambda2_numbers.cmxa}
    %{dep:middle_end/flambda2/term_basics/flambda2_term_basics.cmxa}
    %{dep:middle_end/flambda2/classic_mode_types/flambda2_classic_mode_types.cmxa}
    %{dep:middle_end/flambda2/types/flambda2_types.cmxa}

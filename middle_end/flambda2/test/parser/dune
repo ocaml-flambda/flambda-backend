@@ -114,9 +114,7 @@
    -open
    Flambda2_terms
    -open
-   Flambda2_algorithms
-   -open
-   Flambda2_numbers))
+   Flambda_backend_utils))
  (ocamlopt_flags
   (:standard -O3))
  (modules
@@ -124,7 +122,6 @@
  ; ignore inputs to sed
  (libraries
   ocamlcommon
-  flambda2_algorithms
   flambda2_terms
   flambda2_term_basics
-  flambda2_numbers))
+  flambda_backend_utils))
