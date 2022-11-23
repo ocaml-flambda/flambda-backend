@@ -44,3 +44,13 @@
   flambda2_terms
   flambda2_to_cmm
   flambda2_ui))
+
+(library
+ (name flambda2_import)
+ (wrapped false)
+ (instrumentation
+  (backend bisect_ppx))
+ (ocamlopt_flags
+  (:standard -O3))
+ (modules flambda2_import)
+ (libraries ocamlcommon))
