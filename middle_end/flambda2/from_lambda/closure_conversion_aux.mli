@@ -178,7 +178,7 @@ module Env : sig
 
   val entering_stub : t -> t
 
-  val can_inline_non_stub : t -> bool
+  val currently_in_stub : t -> bool
 end
 
 (** Used to pipe some data through closure conversion *)

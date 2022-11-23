@@ -379,7 +379,7 @@ module Env = struct
 
   let entering_stub t = { t with in_stub = true }
 
-  let can_inline_non_stub t = not t.in_stub
+  let currently_in_stub t = t.in_stub
 end
 
 module Acc = struct
