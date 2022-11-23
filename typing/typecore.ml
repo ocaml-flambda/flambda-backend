@@ -2250,7 +2250,8 @@ and type_pat_aux
       end
   | Ppat_array spl ->
       let ty_elt = solve_Ppat_array ~refine loc env expected_ty in
-      map_fold_cont (fun p -> type_pat Value p ty_elt) spl (fun pl ->
+      map_fold_cont (fun p -> type_pat ~alloc_mode:(simple_pat_mode Value_mode.global)
+       Value p ty_elt) spl (fun pl ->
         rvp k {
         pat_desc = Tpat_array pl;
         pat_loc = loc; pat_extra=[];
@@ -4152,7 +4153,7 @@ and type_expect_
       let to_unify = Predef.type_array ty in
       with_explanation (fun () ->
         unify_exp_types loc env to_unify (generic_instance ty_expected));
-      let argument_mode = mode_subcomponent expected_mode in
+      let argument_mode = mode_global in
       let argl =
         List.map
           (fun sarg -> type_expect env argument_mode sarg (mk_expected ty))

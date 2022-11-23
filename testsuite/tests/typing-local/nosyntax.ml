@@ -28,7 +28,10 @@ let local_ref (f : lfn -> unit) =
   f (fun s -> let _ = [|s;s;s|] in 1)
 
 [%%expect{|
-val local_ref : (lfn -> unit) -> unit = <fun>
+Line 2, characters 24-25:
+2 |   f (fun s -> let _ = [|s;s;s|] in 1)
+                            ^
+Error: This value escapes its region
 |}]
 
 type foo = {

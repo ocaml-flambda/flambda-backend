@@ -2573,3 +2573,39 @@ Line 3, characters 23-24:
                            ^
 Error: This value escapes its region
 |}]
+
+
+(* test of arrays *)
+(* as elements of arrays are mutable *)
+(* it is only safe for them to be at global mode *)
+(* cf: similarly reference cell can contain only global values *)
+
+(* on construction of array, we ensure elements are global *)
+
+let f (local_ x : string) = 
+  [|x; "foo"|]
+[%%expect{|
+Line 2, characters 4-5:
+2 |   [|x; "foo"|]
+        ^
+Error: This value escapes its region
+|}]
+
+let f (x : string) = 
+  [|x; "foo"|]
+[%%expect{|
+val f : string -> string array = <fun>
+|}]  
+
+
+(* on pattern matching of array, 
+   elements are strengthened to global 
+  even if array itself is local *)
+let f (local_ a : string array) = 
+  match a with
+  | [| x; _ |] -> ref x
+  | _ -> ref "foo"
+
+[%%expect{|
+val f : local_ string array -> string ref = <fun>
+|}]  
