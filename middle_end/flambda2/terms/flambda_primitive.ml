@@ -1832,8 +1832,6 @@ module Eligible_for_cse = struct
 
     let print = print
   end)
-
-  let equal t1 t2 = compare t1 t2 = 0
 end
 
 module Without_args = struct
