@@ -248,8 +248,7 @@ let binary_int_shift_primitive kind op =
 let binary_int_comp_primitive kind cmp =
   match
     ( (kind : Flambda_kind.Standard_int.t),
-      (cmp : Flambda_primitive.signed_or_unsigned Flambda_primitive.comparison)
-    )
+      (cmp : Flambda_primitive.signed Flambda_primitive.comparison) )
   with
   | Naked_int64, Neq
   | Naked_int64, Eq
@@ -290,7 +289,7 @@ let binary_int_comp_primitive kind cmp =
     2
 
 let int_comparison_like_compare_functions (kind : Flambda_kind.Standard_int.t)
-    (_signedness : Flambda_primitive.signed_or_unsigned) =
+    (_signedness : Flambda_primitive.signed) =
   match kind with
   | Tagged_immediate | Naked_immediate | Naked_int32 | Naked_int64
   | Naked_nativeint ->

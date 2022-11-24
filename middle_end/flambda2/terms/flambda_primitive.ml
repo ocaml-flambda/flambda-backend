@@ -292,46 +292,39 @@ let writing_to_an_array = writing_to_a_block
 
 let writing_to_bytes_or_bigstring = writing_to_a_block
 
-type 'signed_or_unsigned comparison =
+type 'signed comparison =
   | Eq
   | Neq
-  | Lt of 'signed_or_unsigned
-  | Gt of 'signed_or_unsigned
-  | Le of 'signed_or_unsigned
-  | Ge of 'signed_or_unsigned
+  | Lt of 'signed
+  | Gt of 'signed
+  | Le of 'signed
+  | Ge of 'signed
 
-type 'signed_or_unsigned comparison_behaviour =
-  | Yielding_bool of 'signed_or_unsigned comparison
-  | Yielding_int_like_compare_functions of 'signed_or_unsigned
+type 'signed comparison_behaviour =
+  | Yielding_bool of 'signed comparison
+  | Yielding_int_like_compare_functions of 'signed
 
-let print_comparison print_signed_or_unsigned ppf c =
+let print_comparison print_signed ppf c =
   match c with
   | Neq -> fprintf ppf "<>"
   | Eq -> fprintf ppf "="
-  | Lt signed_or_unsigned ->
-    fprintf ppf "<%a" print_signed_or_unsigned signed_or_unsigned
-  | Le signed_or_unsigned ->
-    fprintf ppf "<=%a" print_signed_or_unsigned signed_or_unsigned
-  | Gt signed_or_unsigned ->
-    fprintf ppf ">%a" print_signed_or_unsigned signed_or_unsigned
-  | Ge signed_or_unsigned ->
-    fprintf ppf ">=%a" print_signed_or_unsigned signed_or_unsigned
+  | Lt signed -> fprintf ppf "<%a" print_signed signed
+  | Le signed -> fprintf ppf "<=%a" print_signed signed
+  | Gt signed -> fprintf ppf ">%a" print_signed signed
+  | Ge signed -> fprintf ppf ">=%a" print_signed signed
 
-let print_comparison_and_behaviour print_signed_or_unsigned ppf behaviour =
+let print_comparison_and_behaviour print_signed ppf behaviour =
   match behaviour with
-  | Yielding_bool comparison ->
-    print_comparison print_signed_or_unsigned ppf comparison
-  | Yielding_int_like_compare_functions signed_or_unsigned ->
-    fprintf ppf "<compare%a>" print_signed_or_unsigned signed_or_unsigned
+  | Yielding_bool comparison -> print_comparison print_signed ppf comparison
+  | Yielding_int_like_compare_functions signed ->
+    fprintf ppf "<compare%a>" print_signed signed
 
-type signed_or_unsigned =
+type signed =
   | Signed
   | Unsigned
 
-let print_signed_or_unsigned ppf signed_or_unsigned =
-  match signed_or_unsigned with
-  | Signed -> fprintf ppf ""
-  | Unsigned -> fprintf ppf "u"
+let print_signed ppf signed =
+  match signed with Signed -> fprintf ppf "" | Unsigned -> fprintf ppf "u"
 
 type equality_comparison =
   | Eq
@@ -990,7 +983,7 @@ type binary_primitive =
   | Phys_equal of equality_comparison
   | Int_arith of K.Standard_int.t * binary_int_arith_op
   | Int_shift of K.Standard_int.t * int_shift_op
-  | Int_comp of K.Standard_int.t * signed_or_unsigned comparison_behaviour
+  | Int_comp of K.Standard_int.t * signed comparison_behaviour
   | Float_arith of binary_float_arith_op
   | Float_comp of unit comparison_behaviour
 
@@ -1067,7 +1060,7 @@ let print_binary_primitive ppf p =
   | Int_arith (_k, op) -> print_binary_int_arith_op ppf op
   | Int_shift (_k, op) -> print_int_shift_op ppf op
   | Int_comp (_, comp_behaviour) ->
-    print_comparison_and_behaviour print_signed_or_unsigned ppf comp_behaviour
+    print_comparison_and_behaviour print_signed ppf comp_behaviour
   | Float_arith op -> print_binary_float_arith_op ppf op
   | Float_comp comp_behaviour ->
     print_comparison_and_behaviour (fun _ppf () -> ()) ppf comp_behaviour;

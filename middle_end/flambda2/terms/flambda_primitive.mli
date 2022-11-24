@@ -124,13 +124,13 @@ module Init_or_assign : sig
   val to_lambda : t -> Lambda.initialization_or_assignment
 end
 
-type 'signed_or_unsigned comparison =
+type 'signed comparison =
   | Eq
   | Neq
-  | Lt of 'signed_or_unsigned
-  | Gt of 'signed_or_unsigned
-  | Le of 'signed_or_unsigned
-  | Ge of 'signed_or_unsigned
+  | Lt of 'signed
+  | Gt of 'signed
+  | Le of 'signed
+  | Ge of 'signed
 
 type equality_comparison =
   | Eq
@@ -187,7 +187,7 @@ type bytes_like_value =
 
 type num_dimensions = int
 
-type signed_or_unsigned =
+type signed =
   | Signed
   | Unsigned
 
@@ -295,9 +295,9 @@ type unary_primitive =
 (** Whether a comparison is to yield a boolean result, as given by a particular
     comparison operator, or whether it is to behave in the manner of "compare"
     functions that yield tagged immediates -1, 0 or 1. *)
-type 'signed_or_unsigned comparison_behaviour =
-  | Yielding_bool of 'signed_or_unsigned comparison
-  | Yielding_int_like_compare_functions of 'signed_or_unsigned
+type 'signed comparison_behaviour =
+  | Yielding_bool of 'signed comparison
+  | Yielding_int_like_compare_functions of 'signed
 
 (** Binary arithmetic operations on integers. *)
 type binary_int_arith_op =
@@ -333,8 +333,7 @@ type binary_primitive =
       (** [Phys_equal] is only for things of kind [Value]. *)
   | Int_arith of Flambda_kind.Standard_int.t * binary_int_arith_op
   | Int_shift of Flambda_kind.Standard_int.t * int_shift_op
-  | Int_comp of
-      Flambda_kind.Standard_int.t * signed_or_unsigned comparison_behaviour
+  | Int_comp of Flambda_kind.Standard_int.t * signed comparison_behaviour
   | Float_arith of binary_float_arith_op
   | Float_comp of unit comparison_behaviour
 

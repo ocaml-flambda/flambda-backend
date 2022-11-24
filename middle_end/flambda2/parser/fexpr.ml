@@ -208,7 +208,7 @@ type equality_comparison = Flambda_primitive.equality_comparison =
   | Eq
   | Neq
 
-type signed_or_unsigned = Flambda_primitive.signed_or_unsigned =
+type signed_or_unsigned = Flambda_primitive.signed =
   | Signed
   | Unsigned
 
