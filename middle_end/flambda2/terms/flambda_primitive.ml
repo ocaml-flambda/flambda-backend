@@ -221,7 +221,6 @@ module Init_or_assign = struct
     | Assignment of Alloc_mode.For_allocations.t
 
   let print ppf t =
-    let fprintf = fprintf in
     match t with
     | Initialization -> fprintf ppf "Init"
     | Assignment mode ->
@@ -309,7 +308,6 @@ type 'signed_or_unsigned comparison_behaviour =
   | Yielding_int_like_compare_functions of 'signed_or_unsigned
 
 let print_comparison print_signed_or_unsigned ppf c =
-  let fprintf = fprintf in
   match c with
   | Neq -> fprintf ppf "<>"
   | Eq -> fprintf ppf "="
@@ -375,7 +373,6 @@ module Bigarray_kind = struct
       K.value
 
   let print ppf t =
-    let fprintf = fprintf in
     match t with
     | Float32 -> fprintf ppf "Float32"
     | Float64 -> fprintf ppf "Float64"
@@ -428,7 +425,6 @@ module Bigarray_layout = struct
     | Fortran
 
   let print ppf t =
-    let fprintf = fprintf in
     match t with C -> fprintf ppf "C" | Fortran -> fprintf ppf "Fortran"
 
   let from_lambda (layout : Lambda.bigarray_layout) =
@@ -488,7 +484,6 @@ type string_accessor_width =
   | Sixty_four
 
 let print_string_accessor_width ppf w =
-  let fprintf = fprintf in
   match w with
   | Eight -> fprintf ppf "8"
   | Sixteen -> fprintf ppf "16"
@@ -517,7 +512,6 @@ type unary_int_arith_op =
   | Swap_byte_endianness
 
 let print_unary_int_arith_op ppf o =
-  let fprintf = fprintf in
   match o with
   | Neg -> fprintf ppf "~-"
   | Swap_byte_endianness -> fprintf ppf "bswap"
@@ -527,7 +521,6 @@ type unary_float_arith_op =
   | Neg
 
 let print_unary_float_arith_op ppf o =
-  let fprintf = fprintf in
   match o with Abs -> fprintf ppf "abs" | Neg -> fprintf ppf "~-"
 
 type arg_kinds =
@@ -767,7 +760,6 @@ let compare_unary_primitive p1 p2 =
 let equal_unary_primitive p1 p2 = compare_unary_primitive p1 p2 = 0
 
 let print_unary_primitive ppf p =
-  let fprintf = fprintf in
   match p with
   | Duplicate_block { kind } ->
     fprintf ppf "@[<hov 1>(Duplicate_block %a)@]" Duplicate_block_kind.print
@@ -999,7 +991,6 @@ type binary_int_arith_op =
   | Xor
 
 let print_binary_int_arith_op ppf o =
-  let fprintf = fprintf in
   match o with
   | Add -> fprintf ppf "+"
   | Sub -> fprintf ppf "-"
@@ -1028,7 +1019,6 @@ type binary_float_arith_op =
   | Div
 
 let print_binary_float_arith_op ppf o =
-  let fprintf = fprintf in
   match o with
   | Add -> fprintf ppf "+."
   | Sub -> fprintf ppf "-."
@@ -1119,7 +1109,6 @@ let compare_binary_primitive p1 p2 =
 let equal_binary_primitive p1 p2 = compare_binary_primitive p1 p2 = 0
 
 let print_binary_primitive ppf p =
-  let fprintf = fprintf in
   match p with
   | Block_load (kind, mut) ->
     fprintf ppf "@[(Block_load@ %a@ %a)@]" Block_access_kind.print kind
@@ -1271,7 +1260,6 @@ let compare_ternary_primitive p1 p2 =
 let equal_ternary_primitive p1 p2 = compare_ternary_primitive p1 p2 = 0
 
 let print_ternary_primitive ppf p =
-  let fprintf = fprintf in
   match p with
   | Block_set (kind, init) ->
     fprintf ppf "(Block_set %a %a)" Block_access_kind.print kind
@@ -1402,7 +1390,6 @@ let compare_variadic_primitive p1 p2 =
 let equal_variadic_primitive p1 p2 = compare_variadic_primitive p1 p2 = 0
 
 let print_variadic_primitive ppf p =
-  let fprintf = fprintf in
   match p with
   | Make_block (kind, mut, alloc_mode) ->
     fprintf ppf "@[<hov 1>(Make_block@ %a@ %a@ %a)@]" Block_kind.print kind
