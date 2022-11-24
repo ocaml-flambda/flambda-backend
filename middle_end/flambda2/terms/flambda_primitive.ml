@@ -30,18 +30,16 @@ module Block_kind = struct
     | Values of Tag.Scannable.t * K.With_subkind.t list
     | Naked_floats
 
-  let [@ocamlformat "disable"] print ppf t =
-   match t with
-   | Values (tag, shape) ->
-     Format.fprintf ppf
-       "@[<hov 1>(Values@ \
-         @[<hov 1>(tag %a)@]@ \
-         @[<hov 1>(shape@ @[<hov 1>(%a)@])@])@]"
-       Tag.Scannable.print tag
-       (Format.pp_print_list ~pp_sep:Format.pp_print_space
-      K.With_subkind.print) shape
-   | Naked_floats ->
-     Format.pp_print_string ppf "Naked_floats"
+  let print ppf t =
+    match t with
+    | Values (tag, shape) ->
+      Format.fprintf ppf
+        "@[<hov 1>(Values@ @[<hov 1>(tag %a)@]@ @[<hov 1>(shape@ @[<hov \
+         1>(%a)@])@])@]"
+        Tag.Scannable.print tag
+        (Format.pp_print_list ~pp_sep:Format.pp_print_space K.With_subkind.print)
+        shape
+    | Naked_floats -> Format.pp_print_string ppf "Naked_floats"
 
   let compare t1 t2 =
     match t1, t2 with
@@ -64,7 +62,7 @@ module Array_kind = struct
     | Values
     | Naked_floats
 
-  let [@ocamlformat "disable"] print ppf t =
+  let print ppf t =
     match t with
     | Immediates -> Format.pp_print_string ppf "Immediates"
     | Naked_floats -> Format.pp_print_string ppf "Naked_floats"
@@ -102,21 +100,16 @@ module Duplicate_block_kind = struct
         }
     | Naked_floats of { length : Targetint_31_63.t }
 
-  let [@ocamlformat "disable"] print ppf t =
+  let print ppf t =
     match t with
-    | Values { tag; length; } ->
+    | Values { tag; length } ->
       Format.fprintf ppf
-        "@[<hov 1>(Block_of_values \
-          @[<hov 1>(tag@ %a)@]@ \
-          @[<hov 1>(length@ %a)@]\
-          )@]"
-        Tag.Scannable.print tag
-        Targetint_31_63.print length
-    | Naked_floats { length; } ->
+        "@[<hov 1>(Block_of_values @[<hov 1>(tag@ %a)@]@ @[<hov 1>(length@ \
+         %a)@])@]"
+        Tag.Scannable.print tag Targetint_31_63.print length
+    | Naked_floats { length } ->
       Format.fprintf ppf
-        "@[<hov 1>(Block_of_naked_floats@ \
-          @[<hov 1>(length@ %a)@]\
-          )@]"
+        "@[<hov 1>(Block_of_naked_floats@ @[<hov 1>(length@ %a)@])@]"
         Targetint_31_63.print length
 
   let compare t1 t2 =
@@ -137,16 +130,14 @@ module Duplicate_array_kind = struct
     | Values
     | Naked_floats of { length : Targetint_31_63.t option }
 
-  let [@ocamlformat "disable"] print ppf t =
+  let print ppf t =
     match t with
     | Immediates -> Format.pp_print_string ppf "Immediates"
     | Values -> Format.pp_print_string ppf "Values"
-    | Naked_floats { length; } ->
-      Format.fprintf ppf
-        "@[<hov 1>(Naked_floats@ \
-          @[<hov 1>(length@ %a)@]\
-          )@]"
-        (Misc.Stdlib.Option.print Targetint_31_63.print) length
+    | Naked_floats { length } ->
+      Format.fprintf ppf "@[<hov 1>(Naked_floats@ @[<hov 1>(length@ %a)@])@]"
+        (Misc.Stdlib.Option.print Targetint_31_63.print)
+        length
 
   let compare t1 t2 =
     match t1, t2 with
@@ -164,7 +155,7 @@ module Block_access_field_kind = struct
     | Any_value
     | Immediate
 
-  let [@ocamlformat "disable"] print ppf t =
+  let print ppf t =
     match t with
     | Any_value -> Format.pp_print_string ppf "Any_value"
     | Immediate -> Format.pp_print_string ppf "Immediate"
@@ -181,24 +172,20 @@ module Block_access_kind = struct
         }
     | Naked_floats of { size : Targetint_31_63.t Or_unknown.t }
 
-  let [@ocamlformat "disable"] print ppf t =
+  let print ppf t =
     match t with
-    | Values { tag; size; field_kind; } ->
+    | Values { tag; size; field_kind } ->
       Format.fprintf ppf
-        "@[<hov 1>(Values@ \
-          @[<hov 1>(tag@ %a)@]@ \
-          @[<hov 1>(size@ %a)@]@ \
-          @[<hov 1>(field_kind@ %a)@]\
-          )@]"
-        (Or_unknown.print Tag.Scannable.print) tag
-        (Or_unknown.print Targetint_31_63.print) size
-        Block_access_field_kind.print field_kind
-    | Naked_floats { size; } ->
-      Format.fprintf ppf
-        "@[<hov 1>(Naked_floats@ \
-          @[<hov 1>(size@ %a)@]\
-          )@]"
-        (Or_unknown.print Targetint_31_63.print) size
+        "@[<hov 1>(Values@ @[<hov 1>(tag@ %a)@]@ @[<hov 1>(size@ %a)@]@ @[<hov \
+         1>(field_kind@ %a)@])@]"
+        (Or_unknown.print Tag.Scannable.print)
+        tag
+        (Or_unknown.print Targetint_31_63.print)
+        size Block_access_field_kind.print field_kind
+    | Naked_floats { size } ->
+      Format.fprintf ppf "@[<hov 1>(Naked_floats@ @[<hov 1>(size@ %a)@])@]"
+        (Or_unknown.print Targetint_31_63.print)
+        size
 
   let element_kind_for_load t =
     match t with Values _ -> K.value | Naked_floats _ -> K.naked_float
@@ -232,11 +219,12 @@ module Init_or_assign = struct
     | Initialization
     | Assignment of Alloc_mode.For_allocations.t
 
-  let [@ocamlformat "disable"] print ppf t =
+  let print ppf t =
     let fprintf = Format.fprintf in
     match t with
     | Initialization -> fprintf ppf "Init"
-    | Assignment mode -> fprintf ppf "Assign %a" Alloc_mode.For_allocations.print mode
+    | Assignment mode ->
+      fprintf ppf "Assign %a" Alloc_mode.For_allocations.print mode
 
   let compare = Stdlib.compare
 
@@ -1539,7 +1527,7 @@ include Container_types.Make (struct
 
   let hash _t = Misc.fatal_error "Not implemented"
 
-  let [@ocamlformat "disable"] print ppf t =
+  let print ppf t =
     let colour =
       match classify_for_printing t with
       | Constructive -> Flambda_colours.prim_constructive
@@ -1548,37 +1536,24 @@ include Container_types.Make (struct
     in
     match t with
     | Nullary prim ->
-      Format.fprintf ppf "@[<hov 1>%t%a%t@]"
-        colour
-        print_nullary_primitive prim
+      Format.fprintf ppf "@[<hov 1>%t%a%t@]" colour print_nullary_primitive prim
         Flambda_colours.pop
     | Unary (prim, v0) ->
-      Format.fprintf ppf "@[<hov 1>(%t%a%t@ %a)@]"
-        colour
-        print_unary_primitive prim
-        Flambda_colours.pop
-        Simple.print v0
+      Format.fprintf ppf "@[<hov 1>(%t%a%t@ %a)@]" colour print_unary_primitive
+        prim Flambda_colours.pop Simple.print v0
     | Binary (prim, v0, v1) ->
-      Format.fprintf ppf "@[<hov 1>(%t%a%t@ %a@ %a)@]"
-        colour
-        print_binary_primitive prim
-        Flambda_colours.pop
-        Simple.print v0
+      Format.fprintf ppf "@[<hov 1>(%t%a%t@ %a@ %a)@]" colour
+        print_binary_primitive prim Flambda_colours.pop Simple.print v0
         Simple.print v1
     | Ternary (prim, v0, v1, v2) ->
-      Format.fprintf ppf "@[<hov 1>(%t%a%t@ %a@ %a@ %a)@]"
-        colour
-        print_ternary_primitive prim
-        Flambda_colours.pop
-        Simple.print v0
-        Simple.print v1
-        Simple.print v2
+      Format.fprintf ppf "@[<hov 1>(%t%a%t@ %a@ %a@ %a)@]" colour
+        print_ternary_primitive prim Flambda_colours.pop Simple.print v0
+        Simple.print v1 Simple.print v2
     | Variadic (prim, vs) ->
-      Format.fprintf ppf "@[<hov 1>(%t%a%t@ %a)@]"
-        colour
-        print_variadic_primitive prim
-        Flambda_colours.pop
-        (Format.pp_print_list ~pp_sep:Format.pp_print_space Simple.print) vs
+      Format.fprintf ppf "@[<hov 1>(%t%a%t@ %a)@]" colour
+        print_variadic_primitive prim Flambda_colours.pop
+        (Format.pp_print_list ~pp_sep:Format.pp_print_space Simple.print)
+        vs
 end)
 
 let equal t1 t2 = compare t1 t2 = 0
@@ -1824,7 +1799,7 @@ module Without_args = struct
     | Ternary of ternary_primitive
     | Variadic of variadic_primitive
 
-  let [@ocamlformat "disable"] print ppf (t : t) =
+  let print ppf (t : t) =
     match t with
     | Nullary prim -> print_nullary_primitive ppf prim
     | Unary prim -> print_unary_primitive ppf prim
