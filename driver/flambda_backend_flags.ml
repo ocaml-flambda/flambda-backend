@@ -27,7 +27,7 @@ let heap_reduction_threshold = ref default_heap_reduction_threshold (* -heap-red
 let alloc_check = ref false             (* -alloc-check *)
 let dump_checkmach = ref false          (* -dcheckmach *)
 
-let disable_poll_insertion = ref false  (* -disable-poll-insertion *)
+let disable_poll_insertion = ref true   (* -disable-poll-insertion *)
 let allow_long_frames = ref true        (* -no-long-frames *)
 (* Keep the value of [max_long_frames_threshold] in sync with LONG_FRAME_MARKER
    in ocaml/runtime/roots_nat.c *)
