@@ -384,6 +384,7 @@
    %{dep:backend/debug/dwarf/dwarf_high/dwarf_high.a}
    %{dep:backend/debug/dwarf/dwarf_ocaml/dwarf_ocaml.a}
    %{dep:flambda_backend_common.a}
+   %{dep:utils/flambda_backend_utils.a}
    %{dep:middle_end/flambda2/import/flambda2_import.a}
    %{dep:middle_end/flambda2/ui/flambda2_ui.a}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.a}
