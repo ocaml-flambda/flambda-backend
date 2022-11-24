@@ -1450,28 +1450,22 @@ end)
 let equal t1 t2 = compare t1 t2 = 0
 
 let free_names t =
-  match t with
+  (match t with
   | Nullary (Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region) ->
-    Name_occurrences.empty
-  | Unary (prim, x0) ->
-    Name_occurrences.union
-      (free_names_unary_primitive prim)
-      (Simple.free_names x0)
+    []
+  | Unary (prim, x0) -> [free_names_unary_primitive prim; Simple.free_names x0]
   | Binary (prim, x0, x1) ->
-    Name_occurrences.union_list
-      [ free_names_binary_primitive prim;
-        Simple.free_names x0;
-        Simple.free_names x1 ]
+    [ free_names_binary_primitive prim;
+      Simple.free_names x0;
+      Simple.free_names x1 ]
   | Ternary (prim, x0, x1, x2) ->
-    Name_occurrences.union_list
-      [ free_names_ternary_primitive prim;
-        Simple.free_names x0;
-        Simple.free_names x1;
-        Simple.free_names x2 ]
+    [ free_names_ternary_primitive prim;
+      Simple.free_names x0;
+      Simple.free_names x1;
+      Simple.free_names x2 ]
   | Variadic (prim, xs) ->
-    Name_occurrences.union
-      (free_names_variadic_primitive prim)
-      (Simple.List.free_names xs)
+    [free_names_variadic_primitive prim; Simple.List.free_names xs])
+  |> Name_occurrences.union_list
 
 let apply_renaming t renaming =
   let apply simple = Simple.apply_renaming simple renaming in
