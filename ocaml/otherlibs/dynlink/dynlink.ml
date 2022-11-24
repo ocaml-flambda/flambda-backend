@@ -279,7 +279,7 @@ module Native = struct
         (Printexc.get_raw_backtrace ())
 
   let run_shared_startup handle ~filename ~priv =
-    ndl_run handle "_shared_startup" ~filename ~priv
+    ndl_run handle "caml_shared_startup" ~filename ~priv
 
   let run handle ~filename ~unit_header ~priv =
     List.iter (fun cu -> ndl_run handle cu ~filename ~priv)
