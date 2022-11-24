@@ -472,8 +472,6 @@ let writing_to_a_bigarray kind =
        observable coeffect. *) ->
     Effects.Arbitrary_effects, Coeffects.No_coeffects, Placement.Strict
 
-let bigarray_index_kind = K.value
-
 type string_like_value =
   | String
   | Bytes
