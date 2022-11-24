@@ -83,7 +83,7 @@ let join ?cut_after denv params ~consts_lifted_during_body ~use_envs_with_ids =
   in
   denv, extra_params_and_args
 
-let meet_equations_on_params typing_env ~params:params' ~param_types =
+let add_equations_on_params typing_env ~params:params' ~param_types =
   let params = Bound_parameters.to_list params' in
   if Flambda_features.check_invariants ()
      && List.compare_lengths params param_types <> 0
@@ -96,33 +96,28 @@ let meet_equations_on_params typing_env ~params:params' ~param_types =
       param_types;
   List.fold_left2
     (fun typing_env param param_type ->
-      let kind = Bound_parameter.kind param in
-      let raw_kind = Flambda_kind.With_subkind.kind kind in
       let name = Bound_parameter.name param in
-      let type_from_kind = T.unknown_with_subkind kind in
-      match T.meet typing_env type_from_kind param_type with
-      | Bottom ->
-        (* This should really replace the corresponding uses with [Invalid], but
-           this seems an unusual situation, so we don't do that currently. *)
-        TE.add_equation typing_env name (T.bottom raw_kind)
-      | Ok (meet_ty, env_extension) ->
-        let typing_env = TE.add_equation typing_env name meet_ty in
-        TE.add_env_extension typing_env env_extension)
+      let kind = Bound_parameter.kind param in
+      if Flambda_kind.With_subkind.has_useful_subkind_info kind then
+        let raw_kind = Flambda_kind.With_subkind.kind kind in
+        let type_from_kind = T.unknown_with_subkind kind in
+        match T.meet typing_env type_from_kind param_type with
+        | Bottom ->
+          (* This should really replace the corresponding uses with [Invalid], but
+             this seems an unusual situation, so we don't do that currently. *)
+          TE.add_equation typing_env name (T.bottom raw_kind)
+        | Ok (meet_ty, env_extension) ->
+          let typing_env = TE.add_equation typing_env name meet_ty in
+          TE.add_env_extension typing_env env_extension
+      else
+        TE.add_equation typing_env name param_type
+    )
     typing_env params param_types
 
 let compute_handler_env ?cut_after uses ~env_at_fork ~consts_lifted_during_body
     ~params ~code_age_relation_after_body =
   (* Augment the environment at each use with the parameter definitions and
      associated equations. *)
-  let need_to_meet_param_types =
-    (* If there is information available from the subkinds of the parameters, we
-       will need to meet the types from the subkinds (e.g. "unknown boxed
-       float") with the argument types at each use. *)
-    Bound_parameters.exists
-      (fun param ->
-        BP.kind param |> Flambda_kind.With_subkind.has_useful_subkind_info)
-      params
-  in
   let uses_list = Continuation_uses.get_uses uses in
   let use_envs_with_ids =
     List.map
@@ -130,9 +125,7 @@ let compute_handler_env ?cut_after uses ~env_at_fork ~consts_lifted_during_body
         let add_or_meet_param_type typing_env =
           let typing_env = TE.add_definitions_of_params typing_env ~params in
           let param_types = U.arg_types use in
-          if need_to_meet_param_types
-          then meet_equations_on_params typing_env ~params ~param_types
-          else TE.add_equations_on_params typing_env ~params ~param_types
+          add_equations_on_params typing_env ~params ~param_types
         in
         let use_env =
           DE.map_typing_env (U.env_at_use use) ~f:add_or_meet_param_type
