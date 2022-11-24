@@ -22,6 +22,8 @@ module K = Flambda_kind
 
 let fprintf = Format.fprintf
 
+let constructor_tag p = Obj.tag (Obj.repr p)
+
 type classification_for_printing =
   | Constructive
   | Destructive
@@ -661,33 +663,6 @@ let unary_primitive_eligible_for_cse p ~arg =
   | End_region | Obj_dup -> false
 
 let compare_unary_primitive p1 p2 =
-  let unary_primitive_numbering p =
-    match p with
-    | Duplicate_array _ -> 0
-    | Duplicate_block _ -> 1
-    | Is_int _ -> 2
-    | Get_tag -> 3
-    | Array_length -> 4
-    | Bigarray_length _ -> 5
-    | String_length _ -> 6
-    | Int_as_pointer -> 7
-    | Opaque_identity _ -> 8
-    | Int_arith _ -> 9
-    | Float_arith _ -> 10
-    | Num_conv _ -> 11
-    | Boolean_not -> 12
-    | Reinterpret_int64_as_float -> 13
-    | Unbox_number _ -> 14
-    | Box_number _ -> 15
-    | Untag_immediate -> 16
-    | Tag_immediate -> 17
-    | Project_function_slot _ -> 18
-    | Project_value_slot _ -> 19
-    | Is_boxed_float -> 20
-    | Is_flat_float_array -> 21
-    | End_region -> 22
-    | Obj_dup -> 23
-  in
   match p1, p2 with
   | ( Duplicate_array
         { kind = kind1;
@@ -755,7 +730,7 @@ let compare_unary_primitive p1 p2 =
       | Project_value_slot _ | Is_boxed_float | Is_flat_float_array | End_region
       | Obj_dup ),
       _ ) ->
-    Stdlib.compare (unary_primitive_numbering p1) (unary_primitive_numbering p2)
+    Stdlib.compare (constructor_tag p1) (constructor_tag p2)
 
 let equal_unary_primitive p1 p2 = compare_unary_primitive p1 p2 = 0
 
@@ -1054,19 +1029,6 @@ let binary_primitive_eligible_for_cse p =
     Flambda_features.float_const_prop ()
 
 let compare_binary_primitive p1 p2 =
-  let binary_primitive_numbering p =
-    match p with
-    | Array_load _ -> 0
-    | Block_load _ -> 1
-    | String_or_bigstring_load _ -> 2
-    | Bigarray_load _ -> 3
-    | Phys_equal _ -> 4
-    | Int_arith _ -> 5
-    | Int_shift _ -> 6
-    | Int_comp _ -> 7
-    | Float_arith _ -> 8
-    | Float_comp _ -> 9
-  in
   match p1, p2 with
   | Block_load (kind1, mut1), Block_load (kind2, mut2) ->
     let c = Block_access_kind.compare kind1 kind2 in
@@ -1102,9 +1064,7 @@ let compare_binary_primitive p1 p2 =
       | Bigarray_load _ | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _
       | Float_arith _ | Float_comp _ ),
       _ ) ->
-    Stdlib.compare
-      (binary_primitive_numbering p1)
-      (binary_primitive_numbering p2)
+    Stdlib.compare (constructor_tag p1) (constructor_tag p2)
 
 let equal_binary_primitive p1 p2 = compare_binary_primitive p1 p2 = 0
 
@@ -1225,13 +1185,6 @@ let ternary_primitive_eligible_for_cse p =
     false
 
 let compare_ternary_primitive p1 p2 =
-  let ternary_primitive_numbering p =
-    match p with
-    | Block_set _ -> 0
-    | Array_set _ -> 1
-    | Bytes_or_bigstring_set _ -> 2
-    | Bigarray_set _ -> 3
-  in
   match p1, p2 with
   | Block_set (kind1, init_or_assign1), Block_set (kind2, init_or_assign2) ->
     let c = Block_access_kind.compare kind1 kind2 in
@@ -1253,9 +1206,7 @@ let compare_ternary_primitive p1 p2 =
       if c <> 0 then c else Stdlib.compare layout1 layout2
   | (Block_set _ | Array_set _ | Bytes_or_bigstring_set _ | Bigarray_set _), _
     ->
-    Stdlib.compare
-      (ternary_primitive_numbering p1)
-      (ternary_primitive_numbering p2)
+    Stdlib.compare (constructor_tag p1) (constructor_tag p2)
 
 let equal_ternary_primitive p1 p2 = compare_ternary_primitive p1 p2 = 0
 
@@ -1472,14 +1423,6 @@ include Container_types.Make (struct
     if t1 == t2
     then 0
     else
-      let numbering t =
-        match t with
-        | Nullary _ -> 0
-        | Unary _ -> 1
-        | Binary _ -> 2
-        | Ternary _ -> 3
-        | Variadic _ -> 4
-      in
       match t1, t2 with
       | Nullary p, Nullary p' -> compare_nullary_primitive p p'
       | Unary (p, s1), Unary (p', s1') ->
@@ -1507,7 +1450,7 @@ include Container_types.Make (struct
         let c = compare_variadic_primitive p p' in
         if c <> 0 then c else Simple.List.compare s s'
       | (Nullary _ | Unary _ | Binary _ | Ternary _ | Variadic _), _ ->
-        Stdlib.compare (numbering t1) (numbering t2)
+        Stdlib.compare (constructor_tag t1) (constructor_tag t2)
 
   let equal t1 t2 = compare t1 t2 = 0
 
