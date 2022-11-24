@@ -22,6 +22,8 @@ module K = Flambda_kind
 
 let fprintf = Format.fprintf
 
+let ( let* ) c f = if c <> 0 then c else f ()
+
 let constructor_tag p = Obj.tag (Obj.repr p)
 
 type classification_for_printing =
@@ -48,10 +50,8 @@ module Block_kind = struct
   let compare t1 t2 =
     match t1, t2 with
     | Values (tag1, shape1), Values (tag2, shape2) ->
-      let c = Tag.Scannable.compare tag1 tag2 in
-      if c <> 0
-      then c
-      else Misc.Stdlib.List.compare K.With_subkind.compare shape1 shape2
+      let* () = Tag.Scannable.compare tag1 tag2 in
+      Misc.Stdlib.List.compare K.With_subkind.compare shape1 shape2
     | Naked_floats, Naked_floats -> 0
     | Values _, _ -> -1
     | _, Values _ -> 1
@@ -119,8 +119,8 @@ module Duplicate_block_kind = struct
     match t1, t2 with
     | ( Values { tag = tag1; length = length1 },
         Values { tag = tag2; length = length2 } ) ->
-      let c = Tag.Scannable.compare tag1 tag2 in
-      if c <> 0 then c else Targetint_31_63.compare length1 length2
+      let* () = Tag.Scannable.compare tag1 tag2 in
+      Targetint_31_63.compare length1 length2
     | Naked_floats { length = length1 }, Naked_floats { length = length2 } ->
       Targetint_31_63.compare length1 length2
     | Values _, Naked_floats _ -> -1
@@ -199,14 +199,9 @@ module Block_access_kind = struct
     match t1, t2 with
     | ( Values { tag = tag1; size = size1; field_kind = field_kind1 },
         Values { tag = tag2; size = size2; field_kind = field_kind2 } ) ->
-      let c = Or_unknown.compare Tag.Scannable.compare tag1 tag2 in
-      if c <> 0
-      then c
-      else
-        let c = Or_unknown.compare Targetint_31_63.compare size1 size2 in
-        if c <> 0
-        then c
-        else Block_access_field_kind.compare field_kind1 field_kind2
+      let* () = Or_unknown.compare Tag.Scannable.compare tag1 tag2 in
+      let* () = Or_unknown.compare Targetint_31_63.compare size1 size2 in
+      Block_access_field_kind.compare field_kind1 field_kind2
     | Naked_floats { size = size1 }, Naked_floats { size = size2 } ->
       Or_unknown.compare Targetint_31_63.compare size1 size2
     | Values _, Naked_floats _ -> -1
@@ -674,14 +669,9 @@ let compare_unary_primitive p1 p2 =
           source_mutability = source_mutability2;
           destination_mutability = destination_mutability2
         } ) ->
-    let c = Duplicate_array_kind.compare kind1 kind2 in
-    if c <> 0
-    then c
-    else
-      let c = Stdlib.compare source_mutability1 source_mutability2 in
-      if c <> 0
-      then c
-      else Stdlib.compare destination_mutability1 destination_mutability2
+    let* () = Duplicate_array_kind.compare kind1 kind2 in
+    let* () = Stdlib.compare source_mutability1 source_mutability2 in
+    Stdlib.compare destination_mutability1 destination_mutability2
   | Duplicate_block { kind = kind1 }, Duplicate_block { kind = kind2 } ->
     Duplicate_block_kind.compare kind1 kind2
   | ( Is_int { variant_only = variant_only1 },
@@ -690,11 +680,11 @@ let compare_unary_primitive p1 p2 =
   | Get_tag, Get_tag -> 0
   | String_length kind1, String_length kind2 -> Stdlib.compare kind1 kind2
   | Int_arith (kind1, op1), Int_arith (kind2, op2) ->
-    let c = K.Standard_int.compare kind1 kind2 in
-    if c <> 0 then c else Stdlib.compare op1 op2
+    let* () = K.Standard_int.compare kind1 kind2 in
+    Stdlib.compare op1 op2
   | Num_conv { src = src1; dst = dst1 }, Num_conv { src = src2; dst = dst2 } ->
-    let c = K.Standard_int_or_float.compare src1 src2 in
-    if c <> 0 then c else K.Standard_int_or_float.compare dst1 dst2
+    let* () = K.Standard_int_or_float.compare src1 src2 in
+    K.Standard_int_or_float.compare dst1 dst2
   | Float_arith op1, Float_arith op2 -> Stdlib.compare op1 op2
   | Array_length, Array_length -> 0
   | Bigarray_length { dimension = dim1 }, Bigarray_length { dimension = dim2 }
@@ -703,22 +693,20 @@ let compare_unary_primitive p1 p2 =
   | Unbox_number kind1, Unbox_number kind2 ->
     K.Boxable_number.compare kind1 kind2
   | Box_number (kind1, alloc_mode1), Box_number (kind2, alloc_mode2) ->
-    let c = K.Boxable_number.compare kind1 kind2 in
-    if c <> 0
-    then c
-    else Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2
+    let* () = K.Boxable_number.compare kind1 kind2 in
+    Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2
   | Untag_immediate, Untag_immediate -> 0
   | Tag_immediate, Tag_immediate -> 0
   | ( Project_function_slot { move_from = move_from1; move_to = move_to1 },
       Project_function_slot { move_from = move_from2; move_to = move_to2 } ) ->
-    let c = Function_slot.compare move_from1 move_from2 in
-    if c <> 0 then c else Function_slot.compare move_to1 move_to2
+    let* () = Function_slot.compare move_from1 move_from2 in
+    Function_slot.compare move_to1 move_to2
   | ( Project_value_slot
         { project_from = function_slot1; value_slot = value_slot1 },
       Project_value_slot
         { project_from = function_slot2; value_slot = value_slot2 } ) ->
-    let c = Function_slot.compare function_slot1 function_slot2 in
-    if c <> 0 then c else Value_slot.compare value_slot1 value_slot2
+    let* () = Function_slot.compare function_slot1 function_slot2 in
+    Value_slot.compare value_slot1 value_slot2
   | ( Opaque_identity { middle_end_only = middle_end_only1 },
       Opaque_identity { middle_end_only = middle_end_only2 } ) ->
     Bool.compare middle_end_only1 middle_end_only2
@@ -1031,33 +1019,30 @@ let binary_primitive_eligible_for_cse p =
 let compare_binary_primitive p1 p2 =
   match p1, p2 with
   | Block_load (kind1, mut1), Block_load (kind2, mut2) ->
-    let c = Block_access_kind.compare kind1 kind2 in
-    if c <> 0 then c else Mutability.compare mut1 mut2
+    let* () = Block_access_kind.compare kind1 kind2 in
+    Mutability.compare mut1 mut2
   | Array_load (kind1, mut1), Array_load (kind2, mut2) ->
-    let c = Array_kind.compare kind1 kind2 in
-    if c <> 0 then c else Mutability.compare mut1 mut2
+    let* () = Array_kind.compare kind1 kind2 in
+    Mutability.compare mut1 mut2
   | ( String_or_bigstring_load (string_like1, width1),
       String_or_bigstring_load (string_like2, width2) ) ->
-    let c = Stdlib.compare string_like1 string_like2 in
-    if c <> 0 then c else Stdlib.compare width1 width2
+    let* () = Stdlib.compare string_like1 string_like2 in
+    Stdlib.compare width1 width2
   | ( Bigarray_load (num_dim1, kind1, layout1),
       Bigarray_load (num_dim2, kind2, layout2) ) ->
-    let c = Stdlib.compare num_dim1 num_dim2 in
-    if c <> 0
-    then c
-    else
-      let c = Stdlib.compare kind1 kind2 in
-      if c <> 0 then c else Stdlib.compare layout1 layout2
+    let* () = Stdlib.compare num_dim1 num_dim2 in
+    let* () = Stdlib.compare kind1 kind2 in
+    Stdlib.compare layout1 layout2
   | Phys_equal comp1, Phys_equal comp2 -> Stdlib.compare comp1 comp2
   | Int_arith (kind1, op1), Int_arith (kind2, op2) ->
-    let c = K.Standard_int.compare kind1 kind2 in
-    if c <> 0 then c else Stdlib.compare op1 op2
+    let* () = K.Standard_int.compare kind1 kind2 in
+    Stdlib.compare op1 op2
   | Int_shift (kind1, op1), Int_shift (kind2, op2) ->
-    let c = K.Standard_int.compare kind1 kind2 in
-    if c <> 0 then c else Stdlib.compare op1 op2
+    let* () = K.Standard_int.compare kind1 kind2 in
+    Stdlib.compare op1 op2
   | Int_comp (kind1, comp_behaviour1), Int_comp (kind2, comp_behaviour2) ->
-    let c = K.Standard_int.compare kind1 kind2 in
-    if c <> 0 then c else Stdlib.compare comp_behaviour1 comp_behaviour2
+    let* () = K.Standard_int.compare kind1 kind2 in
+    Stdlib.compare comp_behaviour1 comp_behaviour2
   | Float_arith op1, Float_arith op2 -> Stdlib.compare op1 op2
   | Float_comp comp1, Float_comp comp2 -> Stdlib.compare comp1 comp2
   | ( ( Block_load _ | Array_load _ | String_or_bigstring_load _
@@ -1187,23 +1172,20 @@ let ternary_primitive_eligible_for_cse p =
 let compare_ternary_primitive p1 p2 =
   match p1, p2 with
   | Block_set (kind1, init_or_assign1), Block_set (kind2, init_or_assign2) ->
-    let c = Block_access_kind.compare kind1 kind2 in
-    if c <> 0 then c else Init_or_assign.compare init_or_assign1 init_or_assign2
+    let* () = Block_access_kind.compare kind1 kind2 in
+    Init_or_assign.compare init_or_assign1 init_or_assign2
   | Array_set (kind1, init_or_assign1), Array_set (kind2, init_or_assign2) ->
-    let c = Array_kind.compare kind1 kind2 in
-    if c <> 0 then c else Init_or_assign.compare init_or_assign1 init_or_assign2
+    let* () = Array_kind.compare kind1 kind2 in
+    Init_or_assign.compare init_or_assign1 init_or_assign2
   | ( Bytes_or_bigstring_set (kind1, width1),
       Bytes_or_bigstring_set (kind2, width2) ) ->
-    let c = Stdlib.compare kind1 kind2 in
-    if c <> 0 then c else Stdlib.compare width1 width2
+    let* () = Stdlib.compare kind1 kind2 in
+    Stdlib.compare width1 width2
   | ( Bigarray_set (num_dims1, kind1, layout1),
       Bigarray_set (num_dims2, kind2, layout2) ) ->
-    let c = Stdlib.compare num_dims1 num_dims2 in
-    if c <> 0
-    then c
-    else
-      let c = Stdlib.compare kind1 kind2 in
-      if c <> 0 then c else Stdlib.compare layout1 layout2
+    let* () = Stdlib.compare num_dims1 num_dims2 in
+    let* () = Stdlib.compare kind1 kind2 in
+    Stdlib.compare layout1 layout2
   | (Block_set _ | Array_set _ | Bytes_or_bigstring_set _ | Bigarray_set _), _
     ->
     Stdlib.compare (constructor_tag p1) (constructor_tag p2)
@@ -1317,24 +1299,14 @@ let compare_variadic_primitive p1 p2 =
   match p1, p2 with
   | Make_block (kind1, mut1, alloc_mode1), Make_block (kind2, mut2, alloc_mode2)
     ->
-    let c = Block_kind.compare kind1 kind2 in
-    if c <> 0
-    then c
-    else
-      let c = Stdlib.compare mut1 mut2 in
-      if c <> 0
-      then c
-      else Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2
+    let* () = Block_kind.compare kind1 kind2 in
+    let* () = Stdlib.compare mut1 mut2 in
+    Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2
   | Make_array (kind1, mut1, alloc_mode1), Make_array (kind2, mut2, alloc_mode2)
     ->
-    let c = Array_kind.compare kind1 kind2 in
-    if c <> 0
-    then c
-    else
-      let c = Stdlib.compare mut1 mut2 in
-      if c <> 0
-      then c
-      else Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2
+    let* () = Array_kind.compare kind1 kind2 in
+    let* () = Stdlib.compare mut1 mut2 in
+    Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2
   | Make_block _, Make_array _ -> -1
   | Make_array _, Make_block _ -> 1
 
@@ -1426,29 +1398,20 @@ include Container_types.Make (struct
       match t1, t2 with
       | Nullary p, Nullary p' -> compare_nullary_primitive p p'
       | Unary (p, s1), Unary (p', s1') ->
-        let c = compare_unary_primitive p p' in
-        if c <> 0 then c else Simple.compare s1 s1'
+        let* () = compare_unary_primitive p p' in
+        Simple.compare s1 s1'
       | Binary (p, s1, s2), Binary (p', s1', s2') ->
-        let c = compare_binary_primitive p p' in
-        if c <> 0
-        then c
-        else
-          let c = Simple.compare s1 s1' in
-          if c <> 0 then c else Simple.compare s2 s2'
+        let* () = compare_binary_primitive p p' in
+        let* () = Simple.compare s1 s1' in
+        Simple.compare s2 s2'
       | Ternary (p, s1, s2, s3), Ternary (p', s1', s2', s3') ->
-        let c = compare_ternary_primitive p p' in
-        if c <> 0
-        then c
-        else
-          let c = Simple.compare s1 s1' in
-          if c <> 0
-          then c
-          else
-            let c = Simple.compare s2 s2' in
-            if c <> 0 then c else Simple.compare s3 s3'
+        let* () = compare_ternary_primitive p p' in
+        let* () = Simple.compare s1 s1' in
+        let* () = Simple.compare s2 s2' in
+        Simple.compare s3 s3'
       | Variadic (p, s), Variadic (p', s') ->
-        let c = compare_variadic_primitive p p' in
-        if c <> 0 then c else Simple.List.compare s s'
+        let* () = compare_variadic_primitive p p' in
+        Simple.List.compare s s'
       | (Nullary _ | Unary _ | Binary _ | Ternary _ | Variadic _), _ ->
         Stdlib.compare (constructor_tag t1) (constructor_tag t2)
 
