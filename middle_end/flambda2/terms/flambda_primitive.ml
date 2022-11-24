@@ -1621,35 +1621,25 @@ module Eligible_for_cse = struct
   let to_primitive t = t
 
   let filter_map_args t ~f =
+    let ( let<* ) = Option.bind in
     match t with
     | Nullary _ -> Some t
-    | Unary (prim, arg) -> (
-      match f arg with
-      | None -> None
-      | Some arg' -> if arg == arg' then Some t else Some (Unary (prim, arg')))
-    | Binary (prim, arg1, arg2) -> (
-      match f arg1 with
-      | None -> None
-      | Some arg1' -> (
-        match f arg2 with
-        | None -> None
-        | Some arg2' ->
-          if arg1 == arg1' && arg2 == arg2'
-          then Some t
-          else Some (Binary (prim, arg1', arg2'))))
-    | Ternary (prim, arg1, arg2, arg3) -> (
-      match f arg1 with
-      | None -> None
-      | Some arg1' -> (
-        match f arg2 with
-        | None -> None
-        | Some arg2' -> (
-          match f arg3 with
-          | None -> None
-          | Some arg3' ->
-            if arg1 == arg1' && arg2 == arg2' && arg3 == arg3'
-            then Some t
-            else Some (Ternary (prim, arg1', arg2', arg3')))))
+    | Unary (prim, arg) ->
+      let<* arg' = f arg in
+      if arg == arg' then Some t else Some (Unary (prim, arg'))
+    | Binary (prim, arg1, arg2) ->
+      let<* arg1' = f arg1 in
+      let<* arg2' = f arg2 in
+      if arg1 == arg1' && arg2 == arg2'
+      then Some t
+      else Some (Binary (prim, arg1', arg2'))
+    | Ternary (prim, arg1, arg2, arg3) ->
+      let<* arg1' = f arg1 in
+      let<* arg2' = f arg2 in
+      let<* arg3' = f arg3 in
+      if arg1 == arg1' && arg2 == arg2' && arg3 == arg3'
+      then Some t
+      else Some (Ternary (prim, arg1', arg2', arg3'))
     | Variadic (prim, args) ->
       let args' = List.filter_map f args in
       if List.compare_lengths args args' = 0
