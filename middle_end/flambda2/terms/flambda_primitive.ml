@@ -826,52 +826,36 @@ let print_unary_primitive ppf p =
 
 let arg_kind_of_unary_primitive p =
   match p with
-  | Duplicate_array _ | Duplicate_block _ -> K.value
-  | Is_int _ -> K.value
-  | Get_tag -> K.value
-  | String_length _ -> K.value
-  | Int_as_pointer -> K.value
-  | Opaque_identity _ -> K.value
+  | Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag | String_length _
+  | Int_as_pointer | Opaque_identity _ | Boolean_not | Array_length
+  | Bigarray_length _ | Unbox_number _ | Untag_immediate
+  | Project_function_slot _ | Project_value_slot _ | Is_boxed_float
+  | Is_flat_float_array | Obj_dup ->
+    K.value
   | Int_arith (kind, _) -> K.Standard_int.to_kind kind
   | Num_conv { src; dst = _ } -> K.Standard_int_or_float.to_kind src
-  | Boolean_not -> K.value
   | Reinterpret_int64_as_float -> K.naked_int64
   | Float_arith _ -> K.naked_float
-  | Array_length | Bigarray_length _ -> K.value
-  | Unbox_number _ | Untag_immediate -> K.value
   | Box_number (kind, _) -> K.Boxable_number.unboxed_kind kind
   | Tag_immediate -> K.naked_immediate
-  | Project_function_slot _ | Project_value_slot _ | Is_boxed_float
-  | Is_flat_float_array ->
-    K.value
   | End_region -> K.region
-  | Obj_dup -> K.value
 
 let result_kind_of_unary_primitive p : result_kind =
   match p with
-  | Duplicate_array _ | Duplicate_block _ -> Singleton K.value
-  | Is_int _ | Get_tag -> Singleton K.naked_immediate
-  | String_length _ -> Singleton K.naked_immediate
-  | Int_as_pointer ->
-    (* This primitive is *only* to be used when the resulting pointer points at
-       something which is a valid OCaml value (even if outside of the heap). *)
+  | Duplicate_array _ | Duplicate_block _ | Array_length | End_region | Obj_dup
+  | Boolean_not | Box_number _ | Tag_immediate | Project_function_slot _
+  | Project_value_slot _ | Opaque_identity _ | Int_as_pointer ->
+    (* [Int_as_pointer] is *only* to be used when the resulting pointer points
+       at something which is a valid OCaml value (even if outside of the
+       heap). *)
     Singleton K.value
-  | Opaque_identity _ -> Singleton K.value
+  | Is_int _ | Get_tag | String_length _ | Bigarray_length _ | Untag_immediate
+  | Is_boxed_float | Is_flat_float_array ->
+    Singleton K.naked_immediate
   | Int_arith (kind, _) -> Singleton (K.Standard_int.to_kind kind)
   | Num_conv { src = _; dst } -> Singleton (K.Standard_int_or_float.to_kind dst)
-  | Boolean_not -> Singleton K.value
-  | Reinterpret_int64_as_float -> Singleton K.naked_float
-  | Float_arith _ -> Singleton K.naked_float
-  | Array_length -> Singleton K.value
-  | Bigarray_length _ -> Singleton K.naked_immediate
+  | Reinterpret_int64_as_float | Float_arith _ -> Singleton K.naked_float
   | Unbox_number kind -> Singleton (K.Boxable_number.unboxed_kind kind)
-  | Untag_immediate -> Singleton K.naked_immediate
-  | Box_number _ | Tag_immediate | Project_function_slot _
-  | Project_value_slot _ ->
-    Singleton K.value
-  | Is_boxed_float | Is_flat_float_array -> Singleton K.naked_immediate
-  | End_region -> Singleton K.value
-  | Obj_dup -> Singleton K.value
 
 let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
   match p with
@@ -957,17 +941,17 @@ let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
 
 let unary_classify_for_printing p =
   match p with
-  | Duplicate_array _ | Duplicate_block _ | Obj_dup -> Constructive
-  | String_length _ | Get_tag -> Destructive
-  | Is_int _ | Int_as_pointer | Opaque_identity _ | Int_arith _ | Num_conv _
-  | Boolean_not | Reinterpret_int64_as_float | Float_arith _ ->
-    Neither
-  | Array_length | Bigarray_length _ | Unbox_number _ | Untag_immediate ->
+  | Duplicate_array _ | Duplicate_block _ | Obj_dup | Box_number _
+  | Tag_immediate ->
+    Constructive
+  | String_length _ | Get_tag | Array_length | Bigarray_length _
+  | Unbox_number _ | Untag_immediate | Project_function_slot _
+  | Project_value_slot _ ->
     Destructive
-  | Box_number _ | Tag_immediate -> Constructive
-  | Project_function_slot _ | Project_value_slot _ -> Destructive
-  | Is_boxed_float | Is_flat_float_array -> Neither
-  | End_region -> Neither
+  | Is_int _ | Int_as_pointer | Opaque_identity _ | Int_arith _ | Num_conv _
+  | Boolean_not | Reinterpret_int64_as_float | Float_arith _ | Is_boxed_float
+  | Is_flat_float_array | End_region ->
+    Neither
 
 let free_names_unary_primitive p =
   match p with
