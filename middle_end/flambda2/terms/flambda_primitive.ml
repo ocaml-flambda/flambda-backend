@@ -89,9 +89,9 @@ module Array_kind = struct
 
   let element_kind t =
     match t with
-    | Immediates -> Flambda_kind.With_subkind.tagged_immediate
-    | Values -> Flambda_kind.With_subkind.any_value
-    | Naked_floats -> Flambda_kind.With_subkind.naked_float
+    | Immediates -> K.With_subkind.tagged_immediate
+    | Values -> K.With_subkind.any_value
+    | Naked_floats -> K.With_subkind.naked_float
 end
 
 module Duplicate_block_kind = struct
@@ -623,16 +623,16 @@ type unary_primitive =
   | String_length of string_or_bytes
   | Int_as_pointer
   | Opaque_identity of { middle_end_only : bool }
-  | Int_arith of Flambda_kind.Standard_int.t * unary_int_arith_op
+  | Int_arith of K.Standard_int.t * unary_int_arith_op
   | Float_arith of unary_float_arith_op
   | Num_conv of
-      { src : Flambda_kind.Standard_int_or_float.t;
-        dst : Flambda_kind.Standard_int_or_float.t
+      { src : K.Standard_int_or_float.t;
+        dst : K.Standard_int_or_float.t
       }
   | Boolean_not
   | Reinterpret_int64_as_float
-  | Unbox_number of Flambda_kind.Boxable_number.t
-  | Box_number of Flambda_kind.Boxable_number.t * Alloc_mode.For_allocations.t
+  | Unbox_number of K.Boxable_number.t
+  | Box_number of K.Boxable_number.t * Alloc_mode.For_allocations.t
   | Untag_immediate
   | Tag_immediate
   | Project_function_slot of
@@ -797,9 +797,8 @@ let print_unary_primitive ppf p =
     fprintf ppf "@[(Opaque_identity@ (middle_end_only %b))@]" middle_end_only
   | Int_arith (_k, o) -> print_unary_int_arith_op ppf o
   | Num_conv { src; dst } ->
-    fprintf ppf "Num_conv_%a_to_%a"
-      Flambda_kind.Standard_int_or_float.print_lowercase src
-      Flambda_kind.Standard_int_or_float.print_lowercase dst
+    fprintf ppf "Num_conv_%a_to_%a" K.Standard_int_or_float.print_lowercase src
+      K.Standard_int_or_float.print_lowercase dst
   | Boolean_not -> fprintf ppf "Boolean_not"
   | Reinterpret_int64_as_float -> fprintf ppf "Reinterpret_int64_as_float"
   | Float_arith o -> print_unary_float_arith_op ppf o
@@ -1055,10 +1054,9 @@ type binary_primitive =
   | String_or_bigstring_load of string_like_value * string_accessor_width
   | Bigarray_load of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
   | Phys_equal of equality_comparison
-  | Int_arith of Flambda_kind.Standard_int.t * binary_int_arith_op
-  | Int_shift of Flambda_kind.Standard_int.t * int_shift_op
-  | Int_comp of
-      Flambda_kind.Standard_int.t * signed_or_unsigned comparison_behaviour
+  | Int_arith of K.Standard_int.t * binary_int_arith_op
+  | Int_shift of K.Standard_int.t * int_shift_op
+  | Int_comp of K.Standard_int.t * signed_or_unsigned comparison_behaviour
   | Float_arith of binary_float_arith_op
   | Float_comp of unit comparison_behaviour
 
