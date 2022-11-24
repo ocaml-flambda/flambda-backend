@@ -70,6 +70,33 @@ and head_of_kind_value =
         alloc_mode : Alloc_mode.For_types.t
       }
 
+(* CR someday vlaviron: comparison results are encoded as naked immediates, and
+   in a few cases (physical equality mostly) some values of the boolean carry
+   information that we can represent in the types. Here is an actual example
+   where it would be useful: *)
+
+(* type t =
+ *   | A1 of float array
+ *   | A2 of int array
+ *   | A3 of int array
+ *   | A4 of int array
+ *
+ * let bar t =
+ *   match t with
+ *   | A3 x -> array_unsafe_get x 0 (* Not specialised currently *)
+ *   | _ -> assert false *)
+
+(* Since the match is compiled using equality on the tag and not a regular
+   switch, we currently fail to restrict the type of [t] to the single [A3]
+   constructor. We could solve that by adding another case like Is_int and
+   Get_tag, or we could go in the other direction and make each individual
+   number in the set for the Naked_immediates case carry an extension. We could
+   even use that for encoding the Is_int and Get_tag constraints, although it is
+   not completely clear what the impact on performance would be (we could store
+   minimal extensions, carrying a shape, or we could pre-compute the full meet
+   for each case and store precise extensions; the first version would be faster
+   if we don't actually use the extensions, while the second version would be
+   particularly useful if we switch several times on the same scrutinee. *)
 and head_of_kind_naked_immediate =
   | Naked_immediates of Targetint_31_63.Set.t
   | Is_int of t

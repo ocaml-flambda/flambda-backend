@@ -408,6 +408,10 @@ module With_subkind = struct
           subkind print kind));
     { kind; subkind }
 
+  let compatible t ~when_used_at =
+    equal t.kind when_used_at.kind
+    && Subkind.compatible t.subkind ~when_used_at:when_used_at.subkind
+
   let kind t = t.kind
 
   let subkind t = t.subkind
@@ -534,9 +538,6 @@ module With_subkind = struct
 
     let hash { kind; subkind } = Hashtbl.hash (hash kind, Subkind.hash subkind)
   end)
-
-  let compatible t ~when_used_at =
-    Subkind.compatible t.subkind ~when_used_at:when_used_at.subkind
 
   let has_useful_subkind_info t =
     match t.subkind with
