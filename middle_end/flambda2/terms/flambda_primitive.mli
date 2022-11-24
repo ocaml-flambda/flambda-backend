@@ -366,8 +366,6 @@ include Contains_names.S with type t := t
 
 include Contains_ids.S with type t := t
 
-val args : t -> Simple.t list
-
 (** Simpler version (e.g. for [Inlining_cost]), where only the actual primitive
     matters, not the arguments. *)
 module Without_args : sig
@@ -419,27 +417,11 @@ val result_kind_of_ternary_primitive : ternary_primitive -> result_kind
 val result_kind_of_variadic_primitive : variadic_primitive -> result_kind
 
 (** Describe the kind of the result of the given primitive. *)
-val result_kind : t -> result_kind
-
-(** Like the [result_kind]s, but returns the appropriate [Flambda_kind]. *)
-val result_kind_of_nullary_primitive' : nullary_primitive -> Flambda_kind.t
-
-val result_kind_of_unary_primitive' : unary_primitive -> Flambda_kind.t
-
-val result_kind_of_binary_primitive' : binary_primitive -> Flambda_kind.t
-
-val result_kind_of_ternary_primitive' : ternary_primitive -> Flambda_kind.t
-
-val result_kind_of_variadic_primitive' : variadic_primitive -> Flambda_kind.t
-
 val result_kind' : t -> Flambda_kind.t
 
 (** Describe the effects and coeffects that the application of the given
     primitive may have. *)
 val effects_and_coeffects : t -> Effects_and_coeffects.t
-
-(** Returns [true] iff the given primitive has neither effects nor coeffects. *)
-val no_effects_or_coeffects : t -> bool
 
 val at_most_generative_effects : t -> bool
 
@@ -464,11 +446,7 @@ module Eligible_for_cse : sig
 
   val create_get_tag : block:Name.t -> t
 
-  val eligible : primitive_application -> bool
-
   val to_primitive : t -> primitive_application
-
-  val fold_args : t -> init:'a -> f:('a -> Simple.t -> 'a * Simple.t) -> 'a * t
 
   val filter_map_args : t -> f:(Simple.t -> Simple.t option) -> t option
 

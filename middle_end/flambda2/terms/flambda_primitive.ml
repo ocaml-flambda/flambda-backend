@@ -1726,31 +1726,6 @@ let result_kind (t : t) =
 let result_kind' t =
   match result_kind t with Singleton kind -> kind | Unit -> K.value
 
-let result_kind_of_nullary_primitive' t =
-  match result_kind_of_nullary_primitive t with
-  | Singleton kind -> kind
-  | Unit -> K.value
-
-let result_kind_of_unary_primitive' t =
-  match result_kind_of_unary_primitive t with
-  | Singleton kind -> kind
-  | Unit -> K.value
-
-let result_kind_of_binary_primitive' t =
-  match result_kind_of_binary_primitive t with
-  | Singleton kind -> kind
-  | Unit -> K.value
-
-let result_kind_of_ternary_primitive' t =
-  match result_kind_of_ternary_primitive t with
-  | Singleton kind -> kind
-  | Unit -> K.value
-
-let result_kind_of_variadic_primitive' t =
-  match result_kind_of_variadic_primitive t with
-  | Singleton kind -> kind
-  | Unit -> K.value
-
 let effects_and_coeffects (t : t) =
   match t with
   | Nullary prim -> effects_and_coeffects_of_nullary_primitive prim
@@ -1758,14 +1733,6 @@ let effects_and_coeffects (t : t) =
   | Binary (prim, _, _) -> effects_and_coeffects_of_binary_primitive prim
   | Ternary (prim, _, _, _) -> effects_and_coeffects_of_ternary_primitive prim
   | Variadic (prim, _) -> effects_and_coeffects_of_variadic_primitive prim
-
-let no_effects_or_coeffects t =
-  match effects_and_coeffects t with
-  | No_effects, No_coeffects, _ -> true
-  | ( (No_effects | Only_generative_effects _ | Arbitrary_effects),
-      (No_coeffects | Has_coeffects),
-      _ ) ->
-    false
 
 let at_most_generative_effects t =
   match effects_and_coeffects t with
@@ -1839,34 +1806,7 @@ module Eligible_for_cse = struct
 
   let create_get_tag ~block = Unary (Get_tag, Simple.name block)
 
-  let eligible t = match create t with None -> false | Some _ -> true
-
   let to_primitive t = t
-
-  let fold_args t ~init ~f =
-    match t with
-    | Nullary _ -> init, t
-    | Unary (prim, arg) ->
-      let acc, arg = f init arg in
-      acc, Unary (prim, arg)
-    | Binary (prim, arg1, arg2) ->
-      let acc, arg1 = f init arg1 in
-      let acc, arg2 = f acc arg2 in
-      acc, Binary (prim, arg1, arg2)
-    | Ternary (prim, arg1, arg2, arg3) ->
-      let acc, arg1 = f init arg1 in
-      let acc, arg2 = f acc arg2 in
-      let acc, arg3 = f acc arg3 in
-      acc, Ternary (prim, arg1, arg2, arg3)
-    | Variadic (prim, args) ->
-      let acc, args =
-        List.fold_left
-          (fun (acc, args) arg ->
-            let acc, arg = f acc arg in
-            acc, arg :: args)
-          (init, []) args
-      in
-      acc, Variadic (prim, List.rev args)
 
   let filter_map_args t ~f =
     match t with
@@ -1925,14 +1865,6 @@ module Eligible_for_cse = struct
 
   let equal t1 t2 = compare t1 t2 = 0
 end
-
-let args t =
-  match t with
-  | Nullary _ -> []
-  | Unary (_, arg) -> [arg]
-  | Binary (_, arg1, arg2) -> [arg1; arg2]
-  | Ternary (_, arg1, arg2, arg3) -> [arg1; arg2; arg3]
-  | Variadic (_, args) -> args
 
 module Without_args = struct
   type t =
