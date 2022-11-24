@@ -45,7 +45,7 @@ module Block_kind = struct
         Tag.Scannable.print tag
         (Format.pp_print_list ~pp_sep:Format.pp_print_space K.With_subkind.print)
         shape
-    | Naked_floats -> Format.pp_print_string ppf "Naked_floats"
+    | Naked_floats -> fprintf ppf "Naked_floats"
 
   let compare t1 t2 =
     match t1, t2 with
@@ -68,9 +68,9 @@ module Array_kind = struct
 
   let print ppf t =
     match t with
-    | Immediates -> Format.pp_print_string ppf "Immediates"
-    | Naked_floats -> Format.pp_print_string ppf "Naked_floats"
-    | Values -> Format.pp_print_string ppf "Values"
+    | Immediates -> fprintf ppf "Immediates"
+    | Naked_floats -> fprintf ppf "Naked_floats"
+    | Values -> fprintf ppf "Values"
 
   let compare = Stdlib.compare
 
@@ -135,8 +135,8 @@ module Duplicate_array_kind = struct
 
   let print ppf t =
     match t with
-    | Immediates -> Format.pp_print_string ppf "Immediates"
-    | Values -> Format.pp_print_string ppf "Values"
+    | Immediates -> fprintf ppf "Immediates"
+    | Values -> fprintf ppf "Values"
     | Naked_floats { length } ->
       fprintf ppf "@[<hov 1>(Naked_floats@ @[<hov 1>(length@ %a)@])@]"
         (Misc.Stdlib.Option.print Targetint_31_63.print)
@@ -160,8 +160,8 @@ module Block_access_field_kind = struct
 
   let print ppf t =
     match t with
-    | Any_value -> Format.pp_print_string ppf "Any_value"
-    | Immediate -> Format.pp_print_string ppf "Immediate"
+    | Any_value -> fprintf ppf "Any_value"
+    | Immediate -> fprintf ppf "Immediate"
 
   let compare = Stdlib.compare
 end
@@ -331,9 +331,7 @@ type equality_comparison =
   | Neq
 
 let print_equality_comparison ppf op =
-  match op with
-  | Eq -> Format.pp_print_string ppf "Eq"
-  | Neq -> Format.pp_print_string ppf "Neq"
+  match op with Eq -> fprintf ppf "Eq" | Neq -> fprintf ppf "Neq"
 
 module Bigarray_kind = struct
   type t =
@@ -454,9 +452,9 @@ type string_like_value =
 
 let print_string_like_value ppf s =
   match s with
-  | String -> Format.pp_print_string ppf "string"
-  | Bytes -> Format.pp_print_string ppf "bytes"
-  | Bigstring -> Format.pp_print_string ppf "bigstring"
+  | String -> fprintf ppf "string"
+  | Bytes -> fprintf ppf "bytes"
+  | Bigstring -> fprintf ppf "bigstring"
 
 type bytes_like_value =
   | Bytes
@@ -464,8 +462,8 @@ type bytes_like_value =
 
 let print_bytes_like_value ppf b =
   match b with
-  | Bytes -> Format.pp_print_string ppf "bytes"
-  | Bigstring -> Format.pp_print_string ppf "bigstring"
+  | Bytes -> fprintf ppf "bytes"
+  | Bigstring -> fprintf ppf "bigstring"
 
 type string_accessor_width =
   | Eight
@@ -473,19 +471,15 @@ type string_accessor_width =
   | Thirty_two
   | Sixty_four
 
-let print_string_accessor_width ppf w =
-  match w with
-  | Eight -> fprintf ppf "8"
-  | Sixteen -> fprintf ppf "16"
-  | Thirty_two -> fprintf ppf "32"
-  | Sixty_four -> fprintf ppf "64"
-
 let byte_width_of_string_accessor_width width =
   match width with
   | Eight -> 1
   | Sixteen -> 2
   | Thirty_two -> 4
   | Sixty_four -> 8
+
+let print_string_accessor_width ppf w =
+  Format.pp_print_int ppf (byte_width_of_string_accessor_width w)
 
 let kind_of_string_accessor_width width =
   match width with
@@ -555,7 +549,7 @@ let print_nullary_primitive ppf p =
     fprintf ppf "%tOptimised_out%t" Flambda_colours.elide Flambda_colours.pop
   | Probe_is_enabled { name } ->
     fprintf ppf "@[<hov 1>(Probe_is_enabled@ %s)@]" name
-  | Begin_region -> Format.pp_print_string ppf "Begin_region"
+  | Begin_region -> fprintf ppf "Begin_region"
 
 let result_kind_of_nullary_primitive p : result_kind =
   match p with
@@ -750,8 +744,8 @@ let print_unary_primitive ppf p =
       project_from Value_slot.print value_slot
   | Is_boxed_float -> fprintf ppf "Is_boxed_float"
   | Is_flat_float_array -> fprintf ppf "Is_flat_float_array"
-  | End_region -> Format.pp_print_string ppf "End_region"
-  | Obj_dup -> Format.pp_print_string ppf "Obj_dup"
+  | End_region -> fprintf ppf "End_region"
+  | Obj_dup -> fprintf ppf "Obj_dup"
 
 let arg_kind_of_unary_primitive p =
   match p with
@@ -1349,9 +1343,7 @@ let apply_renaming_variadic_primitive p renaming =
 
 let ids_for_export_variadic_primitive p =
   match p with
-  | Make_block (_kind, _mut, alloc_mode) ->
-    Alloc_mode.For_allocations.ids_for_export alloc_mode
-  | Make_array (_kind, _mut, alloc_mode) ->
+  | Make_block (_, _, alloc_mode) | Make_array (_, _, alloc_mode) ->
     Alloc_mode.For_allocations.ids_for_export alloc_mode
 
 type t =
