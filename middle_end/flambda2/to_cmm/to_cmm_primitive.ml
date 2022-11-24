@@ -420,10 +420,7 @@ let binary_int_shift_primitive _env dbg kind op x y =
   | (Naked_int64 | Naked_nativeint), Asr -> C.asr_int x y dbg
 
 let binary_int_comp_primitive _env dbg kind cmp x y =
-  match
-    ( (kind : Flambda_kind.Standard_int.t),
-      (cmp : P.signed_or_unsigned P.comparison) )
-  with
+  match (kind : Flambda_kind.Standard_int.t), (cmp : P.signed P.comparison) with
   (* [x] and [y] are expressions yielding well-formed tagged immediates, that is
      to say, their least significant bit (LSB) is 1. However when comparing
      tagged immediates, there always exists one argument (i.e. either [x] or
@@ -476,8 +473,8 @@ let binary_int_comp_primitive _env dbg kind cmp x y =
       Neq ) ->
     C.neq ~dbg x y
 
-let binary_int_comp_primitive_yielding_int _env dbg _kind
-    (signed : P.signed_or_unsigned) x y =
+let binary_int_comp_primitive_yielding_int _env dbg _kind (signed : P.signed) x
+    y =
   match signed with
   | Signed -> C.mk_compare_ints_untagged dbg x y
   | Unsigned ->

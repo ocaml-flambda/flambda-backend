@@ -512,15 +512,13 @@ module Binary_int_shift_nativeint =
   Binary_arith_like (Int_ops_for_binary_shift_nativeint)
 
 module Int_ops_for_binary_comp (I : A.Int_number_kind) : sig
-  include
-    Binary_arith_like_sig
-      with type op = P.signed_or_unsigned P.comparison_behaviour
+  include Binary_arith_like_sig with type op = P.signed P.comparison_behaviour
 end = struct
   module Lhs = I.Num
   module Rhs = I.Num
   module Result = Targetint_31_63
 
-  type op = P.signed_or_unsigned P.comparison_behaviour
+  type op = P.signed P.comparison_behaviour
 
   let arg_kind = I.standard_int_or_float_kind
 
@@ -549,7 +547,7 @@ end = struct
 
   module Num = I.Num
 
-  let op (op : P.signed_or_unsigned P.comparison_behaviour) n1 n2 =
+  let op (op : P.signed P.comparison_behaviour) n1 n2 =
     match op with
     | Yielding_bool op -> (
       let bool b = Targetint_31_63.bool b in
@@ -564,8 +562,8 @@ end = struct
       | Gt Unsigned -> Some (bool (Num.compare_unsigned n1 n2 > 0))
       | Le Unsigned -> Some (bool (Num.compare_unsigned n1 n2 <= 0))
       | Ge Unsigned -> Some (bool (Num.compare_unsigned n1 n2 >= 0)))
-    | Yielding_int_like_compare_functions signed_or_unsigned -> (
-      match signed_or_unsigned with
+    | Yielding_int_like_compare_functions signed -> (
+      match signed with
       | Signed ->
         let int i = Targetint_31_63.of_int i in
         let c = Num.compare n1 n2 in
