@@ -20,6 +20,8 @@
 
 module K = Flambda_kind
 
+let fprintf = Format.fprintf
+
 type classification_for_printing =
   | Constructive
   | Destructive
@@ -33,7 +35,7 @@ module Block_kind = struct
   let print ppf t =
     match t with
     | Values (tag, shape) ->
-      Format.fprintf ppf
+      fprintf ppf
         "@[<hov 1>(Values@ @[<hov 1>(tag %a)@]@ @[<hov 1>(shape@ @[<hov \
          1>(%a)@])@])@]"
         Tag.Scannable.print tag
@@ -103,13 +105,12 @@ module Duplicate_block_kind = struct
   let print ppf t =
     match t with
     | Values { tag; length } ->
-      Format.fprintf ppf
+      fprintf ppf
         "@[<hov 1>(Block_of_values @[<hov 1>(tag@ %a)@]@ @[<hov 1>(length@ \
          %a)@])@]"
         Tag.Scannable.print tag Targetint_31_63.print length
     | Naked_floats { length } ->
-      Format.fprintf ppf
-        "@[<hov 1>(Block_of_naked_floats@ @[<hov 1>(length@ %a)@])@]"
+      fprintf ppf "@[<hov 1>(Block_of_naked_floats@ @[<hov 1>(length@ %a)@])@]"
         Targetint_31_63.print length
 
   let compare t1 t2 =
@@ -135,7 +136,7 @@ module Duplicate_array_kind = struct
     | Immediates -> Format.pp_print_string ppf "Immediates"
     | Values -> Format.pp_print_string ppf "Values"
     | Naked_floats { length } ->
-      Format.fprintf ppf "@[<hov 1>(Naked_floats@ @[<hov 1>(length@ %a)@])@]"
+      fprintf ppf "@[<hov 1>(Naked_floats@ @[<hov 1>(length@ %a)@])@]"
         (Misc.Stdlib.Option.print Targetint_31_63.print)
         length
 
@@ -175,7 +176,7 @@ module Block_access_kind = struct
   let print ppf t =
     match t with
     | Values { tag; size; field_kind } ->
-      Format.fprintf ppf
+      fprintf ppf
         "@[<hov 1>(Values@ @[<hov 1>(tag@ %a)@]@ @[<hov 1>(size@ %a)@]@ @[<hov \
          1>(field_kind@ %a)@])@]"
         (Or_unknown.print Tag.Scannable.print)
@@ -183,7 +184,7 @@ module Block_access_kind = struct
         (Or_unknown.print Targetint_31_63.print)
         size Block_access_field_kind.print field_kind
     | Naked_floats { size } ->
-      Format.fprintf ppf "@[<hov 1>(Naked_floats@ @[<hov 1>(size@ %a)@])@]"
+      fprintf ppf "@[<hov 1>(Naked_floats@ @[<hov 1>(size@ %a)@])@]"
         (Or_unknown.print Targetint_31_63.print)
         size
 
@@ -220,7 +221,7 @@ module Init_or_assign = struct
     | Assignment of Alloc_mode.For_allocations.t
 
   let print ppf t =
-    let fprintf = Format.fprintf in
+    let fprintf = fprintf in
     match t with
     | Initialization -> fprintf ppf "Init"
     | Assignment mode ->
@@ -308,7 +309,7 @@ type 'signed_or_unsigned comparison_behaviour =
   | Yielding_int_like_compare_functions of 'signed_or_unsigned
 
 let print_comparison print_signed_or_unsigned ppf c =
-  let fprintf = Format.fprintf in
+  let fprintf = fprintf in
   match c with
   | Neq -> fprintf ppf "<>"
   | Eq -> fprintf ppf "="
@@ -326,7 +327,7 @@ let print_comparison_and_behaviour print_signed_or_unsigned ppf behaviour =
   | Yielding_bool comparison ->
     print_comparison print_signed_or_unsigned ppf comparison
   | Yielding_int_like_compare_functions signed_or_unsigned ->
-    Format.fprintf ppf "<compare%a>" print_signed_or_unsigned signed_or_unsigned
+    fprintf ppf "<compare%a>" print_signed_or_unsigned signed_or_unsigned
 
 type signed_or_unsigned =
   | Signed
@@ -334,8 +335,8 @@ type signed_or_unsigned =
 
 let print_signed_or_unsigned ppf signed_or_unsigned =
   match signed_or_unsigned with
-  | Signed -> Format.fprintf ppf ""
-  | Unsigned -> Format.fprintf ppf "u"
+  | Signed -> fprintf ppf ""
+  | Unsigned -> fprintf ppf "u"
 
 type equality_comparison =
   | Eq
@@ -374,7 +375,7 @@ module Bigarray_kind = struct
       K.value
 
   let print ppf t =
-    let fprintf = Format.fprintf in
+    let fprintf = fprintf in
     match t with
     | Float32 -> fprintf ppf "Float32"
     | Float64 -> fprintf ppf "Float64"
@@ -427,7 +428,7 @@ module Bigarray_layout = struct
     | Fortran
 
   let print ppf t =
-    let fprintf = Format.fprintf in
+    let fprintf = fprintf in
     match t with C -> fprintf ppf "C" | Fortran -> fprintf ppf "Fortran"
 
   let from_lambda (layout : Lambda.bigarray_layout) =
@@ -487,7 +488,7 @@ type string_accessor_width =
   | Sixty_four
 
 let print_string_accessor_width ppf w =
-  let fprintf = Format.fprintf in
+  let fprintf = fprintf in
   match w with
   | Eight -> fprintf ppf "8"
   | Sixteen -> fprintf ppf "16"
@@ -509,14 +510,14 @@ let kind_of_string_accessor_width width =
 
 type num_dimensions = int
 
-let print_num_dimensions ppf d = Format.fprintf ppf "%d" d
+let print_num_dimensions ppf d = fprintf ppf "%d" d
 
 type unary_int_arith_op =
   | Neg
   | Swap_byte_endianness
 
 let print_unary_int_arith_op ppf o =
-  let fprintf = Format.fprintf in
+  let fprintf = fprintf in
   match o with
   | Neg -> fprintf ppf "~-"
   | Swap_byte_endianness -> fprintf ppf "bswap"
@@ -526,7 +527,7 @@ type unary_float_arith_op =
   | Neg
 
 let print_unary_float_arith_op ppf o =
-  let fprintf = Format.fprintf in
+  let fprintf = fprintf in
   match o with Abs -> fprintf ppf "abs" | Neg -> fprintf ppf "~-"
 
 type arg_kinds =
@@ -565,13 +566,12 @@ let equal_nullary_primitive p1 p2 = compare_nullary_primitive p1 p2 = 0
 let print_nullary_primitive ppf p =
   match p with
   | Invalid _ ->
-    Format.fprintf ppf "%tInvalid%t" Flambda_colours.invalid_keyword
+    fprintf ppf "%tInvalid%t" Flambda_colours.invalid_keyword
       Flambda_colours.pop
   | Optimised_out _ ->
-    Format.fprintf ppf "%tOptimised_out%t" Flambda_colours.elide
-      Flambda_colours.pop
+    fprintf ppf "%tOptimised_out%t" Flambda_colours.elide Flambda_colours.pop
   | Probe_is_enabled { name } ->
-    Format.fprintf ppf "@[<hov 1>(Probe_is_enabled@ %s)@]" name
+    fprintf ppf "@[<hov 1>(Probe_is_enabled@ %s)@]" name
   | Begin_region -> Format.pp_print_string ppf "Begin_region"
 
 let result_kind_of_nullary_primitive p : result_kind =
@@ -767,7 +767,7 @@ let compare_unary_primitive p1 p2 =
 let equal_unary_primitive p1 p2 = compare_unary_primitive p1 p2 = 0
 
 let print_unary_primitive ppf p =
-  let fprintf = Format.fprintf in
+  let fprintf = fprintf in
   match p with
   | Duplicate_block { kind } ->
     fprintf ppf "@[<hov 1>(Duplicate_block %a)@]" Duplicate_block_kind.print
@@ -801,10 +801,10 @@ let print_unary_primitive ppf p =
     fprintf ppf "Box_%a[%a]" K.Boxable_number.print_lowercase_short k
       Alloc_mode.For_allocations.print alloc_mode
   | Project_function_slot { move_from; move_to } ->
-    Format.fprintf ppf "@[(Project_function_slot@ (%a \u{2192} %a))@]"
+    fprintf ppf "@[(Project_function_slot@ (%a \u{2192} %a))@]"
       Function_slot.print move_from Function_slot.print move_to
   | Project_value_slot { project_from; value_slot } ->
-    Format.fprintf ppf "@[(Project_value_slot@ (%a@ %a))@]" Function_slot.print
+    fprintf ppf "@[(Project_value_slot@ (%a@ %a))@]" Function_slot.print
       project_from Value_slot.print value_slot
   | Is_boxed_float -> fprintf ppf "Is_boxed_float"
   | Is_flat_float_array -> fprintf ppf "Is_flat_float_array"
@@ -999,7 +999,7 @@ type binary_int_arith_op =
   | Xor
 
 let print_binary_int_arith_op ppf o =
-  let fprintf = Format.fprintf in
+  let fprintf = fprintf in
   match o with
   | Add -> fprintf ppf "+"
   | Sub -> fprintf ppf "-"
@@ -1016,7 +1016,6 @@ type int_shift_op =
   | Asr
 
 let print_int_shift_op ppf o =
-  let fprintf = Format.fprintf in
   match o with
   | Lsl -> fprintf ppf "lsl"
   | Lsr -> fprintf ppf "lsr"
@@ -1029,7 +1028,7 @@ type binary_float_arith_op =
   | Div
 
 let print_binary_float_arith_op ppf o =
-  let fprintf = Format.fprintf in
+  let fprintf = fprintf in
   match o with
   | Add -> fprintf ppf "+."
   | Sub -> fprintf ppf "-."
@@ -1120,7 +1119,7 @@ let compare_binary_primitive p1 p2 =
 let equal_binary_primitive p1 p2 = compare_binary_primitive p1 p2 = 0
 
 let print_binary_primitive ppf p =
-  let fprintf = Format.fprintf in
+  let fprintf = fprintf in
   match p with
   | Block_load (kind, mut) ->
     fprintf ppf "@[(Block_load@ %a@ %a)@]" Block_access_kind.print kind
@@ -1136,7 +1135,7 @@ let print_binary_primitive ppf p =
       "@[(Bigarray_load (num_dimensions@ %d)@ (kind@ %a)@ (layout@ %a))@]"
       num_dimensions Bigarray_kind.print kind Bigarray_layout.print layout
   | Phys_equal op ->
-    Format.fprintf ppf "@[(Phys_equal %a)@]" print_equality_comparison op
+    fprintf ppf "@[(Phys_equal %a)@]" print_equality_comparison op
   | Int_arith (_k, op) -> print_binary_int_arith_op ppf op
   | Int_shift (_k, op) -> print_int_shift_op ppf op
   | Int_comp (_, comp_behaviour) ->
@@ -1272,7 +1271,7 @@ let compare_ternary_primitive p1 p2 =
 let equal_ternary_primitive p1 p2 = compare_ternary_primitive p1 p2 = 0
 
 let print_ternary_primitive ppf p =
-  let fprintf = Format.fprintf in
+  let fprintf = fprintf in
   match p with
   | Block_set (kind, init) ->
     fprintf ppf "(Block_set %a %a)" Block_access_kind.print kind
@@ -1403,7 +1402,7 @@ let compare_variadic_primitive p1 p2 =
 let equal_variadic_primitive p1 p2 = compare_variadic_primitive p1 p2 = 0
 
 let print_variadic_primitive ppf p =
-  let fprintf = Format.fprintf in
+  let fprintf = fprintf in
   match p with
   | Make_block (kind, mut, alloc_mode) ->
     fprintf ppf "@[<hov 1>(Make_block@ %a@ %a@ %a)@]" Block_kind.print kind
@@ -1536,22 +1535,21 @@ include Container_types.Make (struct
     in
     match t with
     | Nullary prim ->
-      Format.fprintf ppf "@[<hov 1>%t%a%t@]" colour print_nullary_primitive prim
+      fprintf ppf "@[<hov 1>%t%a%t@]" colour print_nullary_primitive prim
         Flambda_colours.pop
     | Unary (prim, v0) ->
-      Format.fprintf ppf "@[<hov 1>(%t%a%t@ %a)@]" colour print_unary_primitive
-        prim Flambda_colours.pop Simple.print v0
+      fprintf ppf "@[<hov 1>(%t%a%t@ %a)@]" colour print_unary_primitive prim
+        Flambda_colours.pop Simple.print v0
     | Binary (prim, v0, v1) ->
-      Format.fprintf ppf "@[<hov 1>(%t%a%t@ %a@ %a)@]" colour
-        print_binary_primitive prim Flambda_colours.pop Simple.print v0
-        Simple.print v1
+      fprintf ppf "@[<hov 1>(%t%a%t@ %a@ %a)@]" colour print_binary_primitive
+        prim Flambda_colours.pop Simple.print v0 Simple.print v1
     | Ternary (prim, v0, v1, v2) ->
-      Format.fprintf ppf "@[<hov 1>(%t%a%t@ %a@ %a@ %a)@]" colour
+      fprintf ppf "@[<hov 1>(%t%a%t@ %a@ %a@ %a)@]" colour
         print_ternary_primitive prim Flambda_colours.pop Simple.print v0
         Simple.print v1 Simple.print v2
     | Variadic (prim, vs) ->
-      Format.fprintf ppf "@[<hov 1>(%t%a%t@ %a)@]" colour
-        print_variadic_primitive prim Flambda_colours.pop
+      fprintf ppf "@[<hov 1>(%t%a%t@ %a)@]" colour print_variadic_primitive prim
+        Flambda_colours.pop
         (Format.pp_print_list ~pp_sep:Format.pp_print_space Simple.print)
         vs
 end)
