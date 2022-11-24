@@ -1268,9 +1268,7 @@ let apply_renaming_ternary_primitive p renaming =
 
 let ids_for_export_ternary_primitive p =
   match p with
-  | Block_set (_kind, init_or_assign) ->
-    Init_or_assign.ids_for_export init_or_assign
-  | Array_set (_kind, init_or_assign) ->
+  | Block_set (_, init_or_assign) | Array_set (_, init_or_assign) ->
     Init_or_assign.ids_for_export init_or_assign
   | Bytes_or_bigstring_set _ | Bigarray_set _ -> Ids_for_export.empty
 
@@ -1470,16 +1468,13 @@ let apply_renaming t renaming =
     if prim == prim' && x0' == x0 then t else Unary (prim', x0')
   | Binary (prim, x0, x1) ->
     let prim' = apply_renaming_binary_primitive prim renaming in
-    let x0' = apply x0 in
-    let x1' = apply x1 in
+    let x0', x1' = apply x0, apply x1 in
     if prim == prim' && x0' == x0 && x1' == x1
     then t
     else Binary (prim', x0', x1')
   | Ternary (prim, x0, x1, x2) ->
     let prim' = apply_renaming_ternary_primitive prim renaming in
-    let x0' = apply x0 in
-    let x1' = apply x1 in
-    let x2' = apply x2 in
+    let x0', x1', x2' = apply x0, apply x1, apply x2 in
     if prim == prim' && x0' == x0 && x1' == x1 && x2' == x2
     then t
     else Ternary (prim', x0', x1', x2')
