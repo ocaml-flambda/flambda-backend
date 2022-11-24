@@ -397,6 +397,7 @@ end
 module Let_cont_with_acc : sig
   val build_recursive :
     Acc.t ->
+    invariant_params:Bound_parameters.t ->
     handlers:
       ((Acc.t -> Expr_with_acc.t) * Bound_parameters.t * bool)
       Continuation.Map.t ->

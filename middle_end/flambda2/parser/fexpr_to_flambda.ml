@@ -548,7 +548,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         ~free_names_of_body:Unknown
     | Recursive ->
       let handlers = Continuation.Map.singleton name handler in
-      Flambda.Let_cont.create_recursive handlers ~body)
+      Flambda.Let_cont.create_recursive ~invariant_params:Bound_parameters.empty handlers ~body)
   | Let_cont _ -> failwith "TODO andwhere"
   | Apply_cont ac -> Flambda.Expr.create_apply_cont (apply_cont env ac)
   | Switch { scrutinee; cases } ->

@@ -102,7 +102,7 @@ and recursive_let_cont_handlers_t0 =
   }
 
 and recursive_let_cont_handlers =
-  (Bound_continuations.t, recursive_let_cont_handlers_t0) Name_abstraction.t
+  (Bound_continuations_and_parameters.t, recursive_let_cont_handlers_t0) Name_abstraction.t
 
 and continuation_handler_t0 =
   { num_normal_occurrences_of_params : Num_occurrences.t Variable.Map.t;
@@ -239,7 +239,7 @@ and apply_renaming_recursive_let_cont_handlers_t0 { handlers; body } renaming =
 
 and apply_renaming_recursive_let_cont_handlers t renaming =
   Name_abstraction.apply_renaming
-    (module Bound_continuations)
+    (module Bound_continuations_and_parameters)
     t renaming
     ~apply_renaming_to_term:apply_renaming_recursive_let_cont_handlers_t0
 
@@ -396,7 +396,7 @@ and ids_for_export_recursive_let_cont_handlers_t0 { handlers; body } =
 
 and ids_for_export_recursive_let_cont_handlers t =
   Name_abstraction.ids_for_export
-    (module Bound_continuations)
+    (module Bound_continuations_and_parameters)
     t ~ids_for_export_of_term:ids_for_export_recursive_let_cont_handlers_t0
 
 and ids_for_export_function_params_and_body_base { expr; free_names = _ } =
@@ -616,7 +616,7 @@ and print_let_cont_expr ppf t =
         new_let_conts @ let_conts, body
       in
       Name_abstraction.pattern_match_for_printing
-        (module Bound_continuations)
+        (module Bound_continuations_and_parameters)
         handlers
         ~apply_renaming_to_term:apply_renaming_recursive_let_cont_handlers_t0
         ~f:(fun _ { body; handlers } -> print ~body handlers)
@@ -1156,34 +1156,35 @@ module Recursive_let_cont_handlers = struct
     let ids_for_export = ids_for_export_recursive_let_cont_handlers_t0
   end
 
-  module A = Name_abstraction.Make (Bound_continuations) (T0)
+  module A = Name_abstraction.Make (Bound_continuations_and_parameters) (T0)
 
   type t = recursive_let_cont_handlers
 
-  let create ~body handlers =
+  let create ~body ~invariant_params handlers =
     let bound = Continuation_handlers.domain handlers in
     let handlers0 = T0.create ~body handlers in
-    A.create
-      (Bound_continuations.create (Continuation.Set.elements bound))
-      handlers0
+    let conts = (Bound_continuations.create (Continuation.Set.elements bound)) in
+    A.create (Bound_continuations_and_parameters.create conts invariant_params) handlers0
 
   let pattern_match t ~f =
     let open A in
-    let<> _, { body; handlers } = t in
-    f ~body handlers
+    let<> bound, { body; handlers } = t in
+    let invariant_params = Bound_continuations_and_parameters.params bound in
+    f ~invariant_params ~body handlers
 
   let pattern_match_pair t1 t2 ~f =
     A.pattern_match_pair t1 t2
       ~f:(fun
-           _bound
+           bound
            (handlers0_1 : recursive_let_cont_handlers_t0)
            (handlers0_2 : recursive_let_cont_handlers_t0)
          ->
+        let invariant_params = Bound_continuations_and_parameters.params bound in
         let body1 = handlers0_1.body in
         let body2 = handlers0_2.body in
         let handlers1 = handlers0_1.handlers in
         let handlers2 = handlers0_2.handlers in
-        f ~body1 ~body2 handlers1 handlers2)
+        f ~invariant_params ~body1 ~body2 handlers1 handlers2)
 
   let apply_renaming = apply_renaming_recursive_let_cont_handlers
 end
@@ -1480,11 +1481,11 @@ module Let_cont_expr = struct
     create_non_recursive' ~cont handler ~body
       ~num_free_occurrences_of_cont_in_body ~is_applied_with_traps
 
-  let create_recursive handlers ~body =
+  let create_recursive ~invariant_params handlers ~body =
     if Continuation_handlers.contains_exn_handler handlers
     then Misc.fatal_error "Exception-handling continuations cannot be recursive";
     Expr.create_let_cont
-      (Recursive (Recursive_let_cont_handlers.create handlers ~body))
+      (Recursive (Recursive_let_cont_handlers.create ~invariant_params handlers ~body))
 
   let apply_renaming = apply_renaming_let_cont_expr
 end

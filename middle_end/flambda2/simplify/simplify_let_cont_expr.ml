@@ -1229,6 +1229,7 @@ let rebuild_recursive_let_cont ~body handlers ~cost_metrics_of_handlers
       | No_wrapper ->
         ( RE.create_recursive_let_cont
             (UA.are_rebuilding_terms uacc)
+            ~invariant_params:Bound_parameters.empty
             rec_handlers ~body,
           uacc )
       | Wrapper_needed ->
@@ -1267,6 +1268,7 @@ let rebuild_recursive_let_cont ~body handlers ~cost_metrics_of_handlers
           let apply_cont = Apply_cont.create cont ~args ~dbg:Debuginfo.none in
           let body = RE.create_apply_cont apply_cont in
           RE.create_recursive_let_cont
+            ~invariant_params:Bound_parameters.empty
             (UA.are_rebuilding_terms uacc)
             rec_handlers ~body
         in
@@ -1395,7 +1397,7 @@ let simplify_as_recursive_let_cont ~simplify_expr dacc (body, handlers)
     handlers
 
 let simplify_recursive_let_cont ~simplify_expr dacc recs ~down_to_up =
-  Recursive_let_cont_handlers.pattern_match recs ~f:(fun ~body rec_handlers ->
+  Recursive_let_cont_handlers.pattern_match recs ~f:(fun ~invariant_params:_ ~body rec_handlers ->
       assert (not (Continuation_handlers.contains_exn_handler rec_handlers));
       let handlers = Continuation_handlers.to_map rec_handlers in
       simplify_recursive_let_cont_stage0 ~simplify_expr dacc ~down_to_up ~body
@@ -1601,7 +1603,7 @@ let simplify_let_cont_stage6 (stage6 : stage6) ~after_rebuild body uacc =
    rebuild_groups expr name_occurrences cost_metrics uacc groups
     | Recursive { continuation_handlers } :: groups ->
       let rec_handlers = Continuation.Map.map (fun handler -> handler.handler) continuation_handlers in
-      let expr = RE.create_recursive_let_cont (UA.are_rebuilding_terms uacc) rec_handlers ~body in
+      let expr = RE.create_recursive_let_cont (UA.are_rebuilding_terms uacc) ~invariant_params:Bound_parameters.empty rec_handlers ~body in
       let name_occurrences = Continuation.Map.fold (fun _ handler name_occurrences ->
         NO.union name_occurrences (NO.increase_counts handler.name_occurrences_of_handler)) continuation_handlers name_occurrences_body
       in
@@ -2215,7 +2217,8 @@ let simplify_let_cont ~simplify_expr dacc (let_cont : Let_cont.t) ~down_to_up =
       let (params, handler) = CH.pattern_match cont_handler ~f:(fun params ~handler -> (params, handler)) in
       { body ; recinfo = Non_recursive { cont; params; handler; is_exn_handler } }
     | Recursive handlers ->
-      let (body, rec_handlers) = Recursive_let_cont_handlers.pattern_match handlers ~f:(fun ~body rec_handlers -> (body, rec_handlers)) in
+      (* TODO handle invariant params*)
+      let (_invariant_params, body, rec_handlers) = Recursive_let_cont_handlers.pattern_match handlers ~f:(fun ~invariant_params ~body rec_handlers -> (invariant_params, body, rec_handlers)) in
       assert (not (Continuation_handlers.contains_exn_handler rec_handlers));
       let handlers = Continuation_handlers.to_map rec_handlers in
       let continuation_handlers =
