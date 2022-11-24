@@ -37,7 +37,7 @@ module Value = struct
     Format.pp_print_string ppf (match t with A -> "A" | B -> "B")
 end
 
-module Tree = Flambda2_algorithms.Patricia_tree.Make (Key)
+module Tree = Flambda_backend_utils.Patricia_tree.Make (Key)
 module Set = Tree.Set
 module Map = Tree.Map
 

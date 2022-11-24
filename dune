@@ -384,17 +384,17 @@
    %{dep:backend/debug/dwarf/dwarf_ocaml/dwarf_ocaml.a}
    %{dep:flambda_backend_common.a}
    %{dep:utils/flambda_backend_utils.a}
-   %{dep:middle_end/flambda2/import/flambda2_import.a}
+   %{dep:middle_end/flambda2/flambda2_import.a}
    %{dep:middle_end/flambda2/ui/flambda2_ui.a}
    %{dep:middle_end/flambda2/term_basics/flambda2_term_basics.a}
-   %{dep:middle_end/flambda2/classic_mode_types/flambda2_classic_mode_types.a}
+   %{dep:middle_end/flambda2/cmx/classic_mode_types/flambda2_classic_mode_types.a}
    %{dep:middle_end/flambda2/types/flambda2_types.a}
    %{dep:middle_end/flambda2/terms/flambda2_terms.a}
    %{dep:middle_end/flambda2/simplify_shared/flambda2_simplify_shared.a}
    %{dep:middle_end/flambda2/cmx/flambda2_cmx.a}
    %{dep:middle_end/flambda2/from_lambda/flambda2_from_lambda.a}
    %{dep:middle_end/flambda2/simplify/flambda2_simplify.a}
-   %{dep:middle_end/flambda2/parser/flambda2_parser.a}
+   %{dep:middle_end/flambda2/test/parser/flambda2_parser.a}
    %{dep:external/owee/compiler_owee.a}
    %{dep:ocamloptcomp.a}
    %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.a}
@@ -413,17 +413,17 @@
    %{dep:backend/debug/dwarf/dwarf_ocaml/dwarf_ocaml.cma}
    %{dep:flambda_backend_common.cma}
    %{dep:utils/flambda_backend_utils.cma}
-   %{dep:middle_end/flambda2/import/flambda2_import.cma}
+   %{dep:middle_end/flambda2/flambda2_import.cma}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cma}
    %{dep:middle_end/flambda2/term_basics/flambda2_term_basics.cma}
-   %{dep:middle_end/flambda2/classic_mode_types/flambda2_classic_mode_types.cma}
+   %{dep:middle_end/flambda2/cmx/classic_mode_types/flambda2_classic_mode_types.cma}
    %{dep:middle_end/flambda2/types/flambda2_types.cma}
    %{dep:middle_end/flambda2/terms/flambda2_terms.cma}
    %{dep:middle_end/flambda2/simplify_shared/flambda2_simplify_shared.cma}
    %{dep:middle_end/flambda2/cmx/flambda2_cmx.cma}
    %{dep:middle_end/flambda2/from_lambda/flambda2_from_lambda.cma}
    %{dep:middle_end/flambda2/simplify/flambda2_simplify.cma}
-   %{dep:middle_end/flambda2/parser/flambda2_parser.cma}
+   %{dep:middle_end/flambda2/test/parser/flambda2_parser.cma}
    %{dep:external/owee/compiler_owee.cma}
    %{dep:ocamloptcomp.cma}
    %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.cma}
@@ -442,17 +442,17 @@
    %{dep:backend/debug/dwarf/dwarf_ocaml/dwarf_ocaml.cmxa}
    %{dep:flambda_backend_common.cmxa}
    %{dep:utils/flambda_backend_utils.cmxa}
-   %{dep:middle_end/flambda2/import/flambda2_import.cmxa}
+   %{dep:middle_end/flambda2/flambda2_import.cmxa}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cmxa}
    %{dep:middle_end/flambda2/term_basics/flambda2_term_basics.cmxa}
-   %{dep:middle_end/flambda2/classic_mode_types/flambda2_classic_mode_types.cmxa}
+   %{dep:middle_end/flambda2/cmx/classic_mode_types/flambda2_classic_mode_types.cmxa}
    %{dep:middle_end/flambda2/types/flambda2_types.cmxa}
    %{dep:middle_end/flambda2/terms/flambda2_terms.cmxa}
    %{dep:middle_end/flambda2/simplify_shared/flambda2_simplify_shared.cmxa}
    %{dep:middle_end/flambda2/cmx/flambda2_cmx.cmxa}
    %{dep:middle_end/flambda2/from_lambda/flambda2_from_lambda.cmxa}
    %{dep:middle_end/flambda2/simplify/flambda2_simplify.cmxa}
-   %{dep:middle_end/flambda2/parser/flambda2_parser.cmxa}
+   %{dep:middle_end/flambda2/test/parser/flambda2_parser.cmxa}
    %{dep:external/owee/compiler_owee.cmxa}
    %{dep:ocamloptcomp.cmxa}
    %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.cmxa}

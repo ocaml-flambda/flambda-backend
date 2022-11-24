@@ -2,6 +2,7 @@
 
 open! Int_replace_polymorphic_compare
 open! Flambda
+open Flambda_backend_utils
 
 (* General notes on comparison
  *

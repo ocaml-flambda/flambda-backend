@@ -1,8 +1,4 @@
-open Flambda2_bound_identifiers
-open Flambda2_identifiers
-open Flambda2_kinds
-open Flambda2_nominal
-open Flambda2_numbers
+open Flambda_backend_utils
 open Flambda2_term_basics
 module K = Flambda_kind
 module T = Flambda2_types
