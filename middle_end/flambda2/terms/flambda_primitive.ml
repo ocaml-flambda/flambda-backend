@@ -630,32 +630,26 @@ type unary_primitive =
    for CSE, since we deal with projections through types. *)
 let unary_primitive_eligible_for_cse p ~arg =
   match p with
-  | Duplicate_array _ -> false
-  | Duplicate_block { kind = _ } -> false
-  | Is_int _ | Get_tag -> true
-  | Array_length -> true
-  | Bigarray_length _ -> false
-  | String_length _ -> true
-  | Int_as_pointer -> true
-  | Opaque_identity _ -> false
-  | Int_arith _ -> true
-  | Float_arith _ ->
-    (* See comment in effects_and_coeffects *)
-    Flambda_features.float_const_prop ()
-  | Num_conv _ | Boolean_not | Reinterpret_int64_as_float -> true
-  | Unbox_number _ | Untag_immediate -> false
-  | Box_number (_, Local _) ->
-    (* For the moment we don't CSE any local allocations. *)
-    (* CR mshinwell: relax this in the future? *)
+  | Duplicate_array _
+  | Duplicate_block { kind = _ }
+  | Bigarray_length _ | Opaque_identity _ | Unbox_number _ | Untag_immediate
+  | Box_number (_, Local _)
+  (* For the moment we don't CSE any local allocations. *)
+  (* CR mshinwell: relax this in the future? *)
+  | Project_function_slot _ | Project_value_slot _ | End_region | Obj_dup ->
     false
+  | Is_int _ | Get_tag | Array_length | String_length _ | Int_as_pointer
+  | Int_arith _ | Num_conv _ | Boolean_not | Reinterpret_int64_as_float
+  | Is_boxed_float | Is_flat_float_array ->
+    true
   | Box_number (_, Heap) | Tag_immediate ->
     (* Boxing or tagging of constants will yield values that can be lifted and
        if needs be deduplicated -- so there's no point in adding CSE variables
        to hold them. *)
     Simple.is_var arg
-  | Project_function_slot _ | Project_value_slot _ -> false
-  | Is_boxed_float | Is_flat_float_array -> true
-  | End_region | Obj_dup -> false
+  | Float_arith _ ->
+    (* See comment in effects_and_coeffects *)
+    Flambda_features.float_const_prop ()
 
 let compare_unary_primitive p1 p2 =
   match p1, p2 with
@@ -1346,9 +1340,7 @@ let variadic_classify_for_printing p =
 
 let free_names_variadic_primitive p =
   match p with
-  | Make_block (_kind, _mut, alloc_mode) ->
-    Alloc_mode.For_allocations.free_names alloc_mode
-  | Make_array (_kind, _mut, alloc_mode) ->
+  | Make_block (_, _mut, alloc_mode) | Make_array (_, _mut, alloc_mode) ->
     Alloc_mode.For_allocations.free_names alloc_mode
 
 let apply_renaming_variadic_primitive p renaming =
