@@ -1479,31 +1479,13 @@ and cps_function_bindings env (bindings : (Ident.t * L.lambda) list) =
     then Recursive
     else Non_recursive
   in
-  List.fold_left
-    (fun bindings binding ->
-      match binding with
-      | [(fun_id, def)] ->
-        let fundef =
-          cps_function env ~fid:fun_id ~recursive:(recursive fun_id)
-            ~precomputed_free_idents:(Ident.Map.find fun_id free_idents)
-            def
-        in
-        bindings @ [fundef]
-      | [(fun_id, def); (inner_id, inner_def)] ->
-        let fundef =
-          cps_function env ~fid:fun_id ~recursive:(recursive fun_id)
-            ~precomputed_free_idents:(Ident.Map.find fun_id free_idents)
-            def
-        in
-        let inner_fundef =
-          cps_function env ~fid:inner_id ~recursive:(recursive inner_id)
-            ~precomputed_free_idents:(Ident.Map.find inner_id free_idents)
-            inner_def
-        in
-        bindings @ [fundef; inner_fundef]
-      | _ -> assert false
-      (* checked above *))
-    [] bindings_with_wrappers
+  let bindings_with_wrappers = List.flatten bindings_with_wrappers in
+  List.map
+    (fun (fun_id, def) ->
+      cps_function env ~fid:fun_id ~recursive:(recursive fun_id)
+        ~precomputed_free_idents:(Ident.Map.find fun_id free_idents)
+        def)
+    bindings_with_wrappers
 
 and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
     ({ kind; params; return; body; attr; loc; mode; region } : L.lfunction) :
