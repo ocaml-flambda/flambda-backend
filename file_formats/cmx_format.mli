@@ -80,8 +80,8 @@ type unit_infos =
 type unit_infos_raw =
   { uir_unit: Compilation_unit.t;
     uir_defines: Compilation_unit.t list;
-    uir_imports_cmi: crcs;
-    uir_imports_cmx: crcs;
+    uir_imports_cmi: import_info_cmi list;
+    uir_imports_cmx: import_info_cmx list;
     uir_generic_fns: generic_fns;
     uir_export_info: export_info_raw;
     uir_checks: checks;
