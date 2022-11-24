@@ -307,24 +307,6 @@ let writing_to_an_array = writing_to_a_block
 
 let writing_to_bytes_or_bigstring = writing_to_a_block
 
-let bigarray_kind = K.value
-
-let bigstring_kind = K.value
-
-let block_kind = K.value
-
-let array_kind = K.value
-
-let string_or_bytes_kind = K.value
-
-let block_index_kind = K.value
-
-let array_index_kind = K.value
-
-let string_or_bigstring_index_kind = K.value
-
-let bytes_or_bigstring_index_kind = K.value
-
 type 'signed_or_unsigned comparison =
   | Eq
   | Neq
@@ -1198,21 +1180,13 @@ let print_binary_primitive ppf p =
 
 let args_kind_of_binary_primitive p =
   match p with
-  | Block_load _ -> block_kind, block_index_kind
-  | Array_load _ -> array_kind, array_index_kind
-  | String_or_bigstring_load ((String | Bytes), _) ->
-    string_or_bytes_kind, string_or_bigstring_index_kind
-  | String_or_bigstring_load (Bigstring, _) ->
-    bigstring_kind, string_or_bigstring_index_kind
-  | Bigarray_load (_, _, _) -> bigarray_kind, bigarray_index_kind
-  | Phys_equal _ -> K.value, K.value
-  | Int_arith (kind, _) ->
+  | Block_load _ | Array_load _ | String_or_bigstring_load _ | Bigarray_load _
+  | Phys_equal _ ->
+    K.value, K.value
+  | Int_arith (kind, _) | Int_comp (kind, _) ->
     let kind = K.Standard_int.to_kind kind in
     kind, kind
   | Int_shift (kind, _) -> K.Standard_int.to_kind kind, K.naked_immediate
-  | Int_comp (kind, _) ->
-    let kind = K.Standard_int.to_kind kind in
-    kind, kind
   | Float_arith _ | Float_comp _ -> K.naked_float, K.naked_float
 
 let result_kind_of_binary_primitive p : result_kind =
@@ -1349,25 +1323,23 @@ let print_ternary_primitive ppf p =
 let args_kind_of_ternary_primitive p =
   match p with
   | Block_set (access_kind, _) ->
-    ( block_kind,
-      block_index_kind,
-      Block_access_kind.element_kind_for_set access_kind )
+    K.value, K.value, Block_access_kind.element_kind_for_set access_kind
   | Array_set (kind, _) ->
-    array_kind, array_index_kind, Array_kind.element_kind_for_set kind
+    K.value, K.value, Array_kind.element_kind_for_set kind
   | Bytes_or_bigstring_set (Bytes, (Eight | Sixteen)) ->
-    string_or_bytes_kind, bytes_or_bigstring_index_kind, K.naked_immediate
+    K.value, K.value, K.naked_immediate
   | Bytes_or_bigstring_set (Bytes, Thirty_two) ->
-    string_or_bytes_kind, bytes_or_bigstring_index_kind, K.naked_int32
+    K.value, K.value, K.naked_int32
   | Bytes_or_bigstring_set (Bytes, Sixty_four) ->
-    string_or_bytes_kind, bytes_or_bigstring_index_kind, K.naked_int64
+    K.value, K.value, K.naked_int64
   | Bytes_or_bigstring_set (Bigstring, (Eight | Sixteen)) ->
-    bigstring_kind, bytes_or_bigstring_index_kind, K.naked_immediate
+    K.value, K.value, K.naked_immediate
   | Bytes_or_bigstring_set (Bigstring, Thirty_two) ->
-    bigstring_kind, bytes_or_bigstring_index_kind, K.naked_int32
+    K.value, K.value, K.naked_int32
   | Bytes_or_bigstring_set (Bigstring, Sixty_four) ->
-    bigstring_kind, bytes_or_bigstring_index_kind, K.naked_int64
+    K.value, K.value, K.naked_int64
   | Bigarray_set (_, kind, _) ->
-    bigarray_kind, bigarray_index_kind, Bigarray_kind.element_kind kind
+    K.value, K.value, Bigarray_kind.element_kind kind
 
 let result_kind_of_ternary_primitive p : result_kind =
   match p with
