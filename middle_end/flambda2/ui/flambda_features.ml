@@ -101,6 +101,8 @@ let dump_flexpect () = !Flambda_backend_flags.Flambda2.Dump.flexpect
 
 let dump_slot_offsets () = !Flambda_backend_flags.Flambda2.Dump.slot_offsets
 
+let dump_flow () = !Flambda_backend_flags.Flambda2.Dump.flow
+
 let freshen_when_printing () = !Flambda_backend_flags.Flambda2.Dump.freshen
 
 module Inlining = struct
@@ -225,6 +227,10 @@ module Expert = struct
   let can_inline_recursive_functions () =
     !Flambda_backend_flags.Flambda2.Expert.can_inline_recursive_functions
     |> with_default ~f:(fun d -> d.can_inline_recursive_functions)
+
+  let max_function_simplify_run () =
+    !Flambda_backend_flags.Flambda2.Expert.max_function_simplify_run
+    |> with_default ~f:(fun d -> d.max_function_simplify_run)
 end
 
 let stack_allocation_enabled () = Config.stack_allocation

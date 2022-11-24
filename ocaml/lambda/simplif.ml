@@ -740,22 +740,7 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
     | Llet(Strict, k, id,
            (Lifthenelse(Lprim (Pisint _, [Lvar optparam], _), _, _, _) as def),
            rest) when
-        (not (Clflags.is_flambda2 ()))
-          && Ident.name optparam = "*opt*" && List.mem_assoc optparam params
-          && not (List.mem_assoc optparam map)
-      ->
-        let wrapper_body, inner = aux ((optparam, id) :: map) add_region rest in
-        Llet(Strict, k, id, def, wrapper_body), inner
-    | Llet(Strict, k, id,
-        (Lswitch(Lvar optparam,
-           {sw_numconsts = 1;
-            sw_consts = [_];
-            sw_numblocks = 1;
-            sw_blocks = [_];
-            sw_failaction = None}, _dbg, _)
-         as def), rest) when
-        Clflags.is_flambda2 ()
-          && Ident.name optparam = "*opt*" && List.mem_assoc optparam params
+        Ident.name optparam = "*opt*" && List.mem_assoc optparam params
           && not (List.mem_assoc optparam map)
       ->
         let wrapper_body, inner = aux ((optparam, id) :: map) add_region rest in

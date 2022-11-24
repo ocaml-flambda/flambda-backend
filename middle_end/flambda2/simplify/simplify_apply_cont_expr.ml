@@ -137,15 +137,6 @@ let simplify_apply_cont dacc apply_cont ~down_to_up =
   let { S.simples = args; simple_tys = arg_types } =
     S.simplify_simples dacc (AC.args apply_cont)
   in
-  let dacc =
-    let record_args_for_data_flow data_flow =
-      Data_flow.add_apply_cont_args
-        (AC.continuation apply_cont)
-        (List.map Simple.free_names args)
-        data_flow
-    in
-    DA.map_data_flow dacc ~f:record_args_for_data_flow
-  in
   let use_kind =
     Simplify_common.apply_cont_use_kind ~context:Apply_cont_expr apply_cont
   in
@@ -153,6 +144,14 @@ let simplify_apply_cont dacc apply_cont ~down_to_up =
     DA.record_continuation_use dacc
       (AC.continuation apply_cont)
       use_kind ~env_at_use:(DA.denv dacc) ~arg_types
+  in
+  let dacc =
+    let record_args_for_data_flow data_flow =
+      Flow.Acc.add_apply_cont_args
+        (AC.continuation apply_cont)
+        ~rewrite_id args data_flow
+    in
+    DA.map_flow_acc dacc ~f:record_args_for_data_flow
   in
   let dbg = AC.debuginfo apply_cont in
   let dbg = DE.add_inlined_debuginfo (DA.denv dacc) dbg in

@@ -18,6 +18,12 @@
 
 type t
 
+type raw
+
+val to_raw : t -> raw * Flambda_backend_utils.File_sections.t
+
+val from_raw : sections:Flambda_backend_utils.File_sections.t -> raw -> t
+
 val create :
   final_typing_env:Flambda2_types.Typing_env.Serializable.t ->
   all_code:Exported_code.t ->
@@ -29,8 +35,6 @@ val import_typing_env_and_code :
   t -> Flambda2_types.Typing_env.Serializable.t * Exported_code.t
 
 val exported_offsets : t -> Exported_offsets.t
-
-val functions_info : t -> Exported_code.t
 
 val with_exported_offsets : t -> Exported_offsets.t -> t
 

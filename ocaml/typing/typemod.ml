@@ -131,38 +131,42 @@ let extract_sig_functor_open funct_body env loc mty sig_acc =
         with Includemod.Error msg ->
           raise (Error(loc, env, Not_included_functor msg))
       in
+      (* We must scrape the result type in an environment expanded with the
+         parameter type (to avoid `Not_found` exceptions when it is referenced).
+         Because we don't have an actual parameter, we create definitions for
+         the parameter's types with [sig_make_manifest].  References to this
+         fake parameter are eliminated later.  *)
+      let extended_env =
+        match param with
+        | None -> env
+        | Some id ->
+          let sg_param = Mtype.sig_make_manifest sig_acc in
+          Env.add_module ~arg:true id Mp_present (Mty_signature sg_param) env
+      in
       let incl_kind, sg_result =
         (* Accept functor types of the forms:
               sig..end -> sig..end
            and
               sig..end -> () -> sig..end *)
-        match Mtype.scrape env mty_result with
+        match Mtype.scrape extended_env mty_result with
         | Mty_signature sg_result -> Tincl_functor coercion, sg_result
         | Mty_functor (Unit,_) when funct_body && Mtype.contains_type env mty ->
             raise (Error (loc, env, Not_includable_in_functor_body))
         | Mty_functor (Unit,mty_result) -> begin
-            match Mtype.scrape env mty_result with
+            match Mtype.scrape extended_env mty_result with
             | Mty_signature sg_result -> Tincl_gen_functor coercion, sg_result
             | sg -> raise (Error (loc,env,Signature_result_expected
                                             (Mty_functor (Unit,sg))))
           end
         | sg -> raise (Error (loc,env,Signature_result_expected sg))
       in
-      (* Like the [Pmod_apply] case, we want to use [nondep_supertype] to
-         eliminate references to the functor's parameter in its result type.
-         Unlike that case, we don't have an actual parameter, just the previous
-         contents of the module currently being checked.  So we create
-         definitions for the parameter's types with [sig_make_manifest] before
-         the call to [nondep_sig]. *)
+      (* Here we eliminate references to the non-existent parameter module using
+         [nondep_sig]. *)
       let sg =
         match param with
         | None -> sg_result
         | Some id ->
-          let sg_param = Mtype.sig_make_manifest sig_acc in
-          let env =
-            Env.add_module ~arg:true id Mp_present (Mty_signature sg_param) env
-          in
-          try Mtype.nondep_sig env [id] sg_result
+          try Mtype.nondep_sig extended_env [id] sg_result
           with Ctype.Nondep_cannot_erase _ ->
             raise(Error(loc, env, Cannot_eliminate_dependency
                                     (Functor_included, mty_func)))
@@ -2137,8 +2141,10 @@ and package_constraints env loc mty constrs =
   end
 
 let modtype_of_package env loc p fl =
+  (* We call Ctype.correct_levels to ensure that the types being added to the
+     module type are at generic_level. *)
   package_constraints env loc (Mty_ident p)
-    (List.map (fun (n, t) -> (Longident.flatten n, t)) fl)
+    (List.map (fun (n, t) -> Longident.flatten n, Ctype.correct_levels t) fl)
 
 let package_subtype env p1 fl1 p2 fl2 =
   let mkmty p fl =
