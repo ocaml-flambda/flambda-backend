@@ -409,8 +409,8 @@ module With_subkind = struct
     { kind; subkind }
 
   let compatible t ~when_used_at =
-    equal t.kind when_used_at.kind &&
-    Subkind.compatible t.subkind ~when_used_at:when_used_at.subkind
+    equal t.kind when_used_at.kind
+    && Subkind.compatible t.subkind ~when_used_at:when_used_at.subkind
 
   let kind t = t.kind
 
