@@ -2019,6 +2019,64 @@ let simplify_let_cont_stage3 (stage3 : stage3) ~down_to_up dacc =
   } in
   down_to_up dacc ~rebuild:(simplify_let_cont_stage4 stage4)
 
+
+let prepare_dacc_for_handlers dacc ~env_at_fork ~params ~consts_lifted_during_body cont continuation_sort is_exn_handler uses =
+  let join_result = Join_points.compute_handler_env uses ~params ~env_at_fork ~consts_lifted_during_body in
+  let code_age_relation = TE.code_age_relation (DA.typing_env dacc) in
+  let handler_env = DE.with_code_age_relation code_age_relation join_result.handler_env in
+  (* let dacc = DA.with_continuation_uses_env dacc ~cont_uses_env:CUE.empty in (* maybe we can put that later *)*) 
+  let handler_env, unbox_decisions, is_exn_handler, dacc =
+    match (continuation_sort : Continuation.Sort.t) with
+    | Normal_or_exn when join_result.is_single_inlinable_use ->
+      if is_exn_handler
+      then
+        (* This should be prevented by [Simplify_apply_cont_expr]. *)
+        Misc.fatal_errorf
+          "Exception handlers should never be marked as [Inlinable]:@ %a"
+          Continuation.print cont;
+      (* Don't try to unbox parameters of inlinable continuations,
+         since the typing env still contains enough information to
+         avoid re-reading the fields. *)
+      handler_env, None, false, dacc
+    | Normal_or_exn | Define_root_symbol ->
+      let old_is_exn_handler = is_exn_handler in
+      (* If the continuation is an exception handler but it never escapes, it
+         can be demoted to a normal (non-exception) handler. It will then
+         become eligible for unboxing. *)
+      let is_exn_handler = is_exn_handler && join_result.escapes in
+      let dacc =
+        if not (Bool.equal old_is_exn_handler is_exn_handler)
+        then DA.demote_exn_handler dacc cont
+        else dacc
+      in
+      if is_exn_handler
+      then handler_env, None, true, dacc
+      else
+        (* Unbox the parameters of the continuation if possible. Any such
+           unboxing will induce a rewrite (or wrapper) on the application
+           sites of the continuation. *)
+        let param_types = TE.find_params (DE.typing_env handler_env) params in
+        let handler_env, decisions =
+          Unbox_continuation_params.make_decisions handler_env
+            ~continuation_is_recursive:false ~arg_types_by_use_id:join_result.arg_types_by_use_id params
+            param_types
+        in
+        handler_env, Some decisions, false, dacc
+    | Return | Toplevel_return ->
+      if is_exn_handler
+      then
+        (* This should be prevented by [Simplify_apply_cont_expr]. *)
+        Misc.fatal_errorf
+          "Exception handlers should never be marked as [Return] or \
+           [Toplevel_return]:@ %a"
+          Continuation.print cont;
+      handler_env, None, false, dacc
+  in
+  DA.with_denv dacc handler_env, unbox_decisions, is_exn_handler,
+  join_result.extra_params_and_args, join_result.is_single_inlinable_use
+
+
+
 (* simplify for single handler: compute unbox decisions *)
 let simplify_single_handler ~simplify_expr is_recursive cont_uses_env_so_far consts_lifted_during_body all_handlers_set denv_to_reset dacc cont (params, handler, is_exn_handler) k =
   (* Here we perform the downwards traversal on a single handler. As an invariant enforced by the loop in
@@ -2151,24 +2209,46 @@ let simplify_let_cont_stage2 ~simplify_expr (stage2 : stage2) ~down_to_up dacc ~
   let denv = stage2.denv_before_body in
   let consts_lifted_during_body = DA.get_lifted_constants dacc in
   let dacc = DA.add_to_lifted_constant_accumulator dacc stage2.prior_lifted_constants in
-  let at_unit_toplevel, is_recursive, remaining_handlers =
     match stage2.recinfo with
-    | Non_recursive { cont; params; handler; is_exn_handler } ->
-      let at_unit_toplevel =
-        (* We try to show that [handler] postdominates [body] (which is done by
-           showing that [body] can only return through [cont]) and that if [body]
-           raises any exceptions then it only does so to toplevel. If this can be
-           shown and we are currently at the toplevel of a compilation unit, the
-           handler for the environment can remain marked as toplevel (and suitable
-           for "let symbol" bindings); otherwise, it cannot. *)
-        DE.at_unit_toplevel denv
-        && (not is_exn_handler)
-        && Continuation.Set.subset
-          (CUE.all_continuations_used body_continuation_uses_env)
-          (Continuation.Set.of_list [cont; DE.unit_toplevel_exn_continuation denv])
-      in
-      at_unit_toplevel, false, Continuation.Map.singleton cont (params, handler, is_exn_handler)
+    | Non_recursive { cont; params; handler; is_exn_handler } -> begin
+        match Continuation_uses_env.get_continuation_uses body_continuation_uses_env cont with
+        | None ->
+          (* Continuation unused, jump directly to stage3 *)
+          let (stage3 : stage3) = {
+            rebuild_body ;
+            cont_uses_env = body_continuation_uses_env ;
+            handlers = Continuation.Map.empty ;
+            at_unit_toplevel = false (* Unused in this case *)
+          } in
+          simplify_let_cont_stage3 stage3 ~down_to_up dacc
+        | Some uses ->
+          let at_unit_toplevel =
+            (* We try to show that [handler] postdominates [body] (which is done by
+               showing that [body] can only return through [cont]) and that if [body]
+               raises any exceptions then it only does so to toplevel. If this can be
+               shown and we are currently at the toplevel of a compilation unit, the
+               handler for the environment can remain marked as toplevel (and suitable
+               for "let symbol" bindings); otherwise, it cannot. *)
+            DE.at_unit_toplevel denv
+            && (not is_exn_handler)
+            && Continuation.Set.subset
+              (CUE.all_continuations_used body_continuation_uses_env)
+              (Continuation.Set.of_list [cont; DE.unit_toplevel_exn_continuation denv])
+          in
+          let denv = DE.set_at_unit_toplevel_state denv at_unit_toplevel in
+          let is_recursive = false in
+          simplify_single_handler ~simplify_expr is_recursive body_continuation_uses_env consts_lifted_during_body Continuation.Set.empty denv dacc cont (params, handler, is_exn_handler)
+            (fun dacc rebuild cont_uses_env_so_far ->
+             let cont_uses_env = CUE.remove cont_uses_env_so_far cont in
+             let dacc = DA.with_continuation_uses_env dacc ~cont_uses_env in
+             (* CR ncourant: we could possibly mark all remaning handlers as unused, however I'm not sure
+                it is useful: they correspond to completely unreachable code, and any symbol defined
+                within them wouldn't be in scope of the other code, so I think we can ignore them safely. *)
+             let stage3 : stage3 = { rebuild_body ; cont_uses_env = cont_uses_env_so_far ; handlers = Continuation.Map.singleton cont rebuild ; at_unit_toplevel } in
+            simplify_let_cont_stage3 stage3 ~down_to_up dacc)
+    end
     | Recursive { continuation_handlers; invariant_params = _ } ->
+      let at_unit_toplevel, is_recursive, remaining_handlers =
       false, true, Continuation.Map.map (fun (params, handler) -> (params, handler, false)) continuation_handlers
   in
   let denv = DE.set_at_unit_toplevel_state denv at_unit_toplevel in
