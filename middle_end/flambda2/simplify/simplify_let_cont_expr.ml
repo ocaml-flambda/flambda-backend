@@ -437,10 +437,10 @@ let simplify_non_recursive_let_cont_handler ~simplify_expr ~denv_before_body
   in
   let env_at_fork =
     DE.set_at_unit_toplevel_state denv_before_body at_unit_toplevel
-  in
+  in(*
   let code_age_relation_after_body =
     TE.code_age_relation (DA.typing_env dacc_after_body)
-  in
+  in*)
   let consts_lifted_during_body = DA.get_lifted_constants dacc_after_body in
   let uses, rewrite_ids =
     match CUE.get_continuation_uses cont_uses_env cont with
@@ -448,7 +448,7 @@ let simplify_non_recursive_let_cont_handler ~simplify_expr ~denv_before_body
     | Some uses ->
       ( Some
           (Join_points.compute_handler_env uses ~params ~env_at_fork
-             ~consts_lifted_during_body ~code_age_relation_after_body),
+             ~consts_lifted_during_body (* ~code_age_relation_after_body *)),
         Continuation_uses.get_use_ids uses )
   in
   let dacc =
@@ -1415,6 +1415,7 @@ let simplify_let_cont ~simplify_expr dacc (let_cont : Let_cont.t) ~down_to_up =
 
 type stage1_recinfos =
   | Recursive of {
+      invariant_params : Bound_parameters.t ;
       continuation_handlers : (Bound_parameters.t * Expr.t) Continuation.Map.t
     }
   | Non_recursive of {
@@ -2032,7 +2033,6 @@ let simplify_single_handler ~simplify_expr is_recursive cont_uses_env_so_far con
     | None -> Misc.fatal_errorf "No continuation uses found for %a but simplify_single_handler called@." Continuation.print cont
     | Some uses -> uses
   in
-  let code_age_relation = TE.code_age_relation (DA.typing_env dacc) in
   let ( handler_env,
     arg_types_by_use_id,
     extra_params_and_args_for_cse,
@@ -2040,16 +2040,15 @@ let simplify_single_handler ~simplify_expr is_recursive cont_uses_env_so_far con
     escapes) =
     if is_recursive then
       let denv = DE.add_parameters_with_unknown_types ~at_unit_toplevel:false denv_to_reset params in
-      let denv = LCS.add_to_denv denv consts_lifted_during_body in
-      let typing_env = TE.with_code_age_relation (DE.typing_env denv) code_age_relation in
-      let handler_env = DE.with_typing_env denv typing_env in
+      let handler_env = LCS.add_to_denv denv consts_lifted_during_body in
       let arg_types_by_use_id = Continuation_uses.get_arg_types_by_use_id uses in
       (handler_env, arg_types_by_use_id, EPA.empty, false, false)
     else
-      let Join_points.{ handler_env; arg_types_by_use_id; extra_params_and_args; is_single_inlinable_use; escapes } = Join_points.compute_handler_env uses ~params ~env_at_fork:denv_to_reset ~consts_lifted_during_body
-        ~code_age_relation_after_body:code_age_relation in
+      let Join_points.{ handler_env; arg_types_by_use_id; extra_params_and_args; is_single_inlinable_use; escapes } = Join_points.compute_handler_env uses ~params ~env_at_fork:denv_to_reset ~consts_lifted_during_body in
       ( handler_env, arg_types_by_use_id, extra_params_and_args, is_single_inlinable_use, escapes)
   in
+  let code_age_relation = TE.code_age_relation (DA.typing_env dacc) in
+  let handler_env = DE.with_code_age_relation code_age_relation handler_env in
   let dacc = DA.with_continuation_uses_env dacc ~cont_uses_env:CUE.empty in
 
     let handler_env, unbox_decisions, is_exn_handler, dacc =
@@ -2150,6 +2149,8 @@ let simplify_let_cont_stage2 ~simplify_expr (stage2 : stage2) ~down_to_up dacc ~
      handlers defined by the let cont. *)
   let body_continuation_uses_env = DA.continuation_uses_env dacc in
   let denv = stage2.denv_before_body in
+  let consts_lifted_during_body = DA.get_lifted_constants dacc in
+  let dacc = DA.add_to_lifted_constant_accumulator dacc stage2.prior_lifted_constants in
   let at_unit_toplevel, is_recursive, remaining_handlers =
     match stage2.recinfo with
     | Non_recursive { cont; params; handler; is_exn_handler } ->
@@ -2167,11 +2168,9 @@ let simplify_let_cont_stage2 ~simplify_expr (stage2 : stage2) ~down_to_up dacc ~
           (Continuation.Set.of_list [cont; DE.unit_toplevel_exn_continuation denv])
       in
       at_unit_toplevel, false, Continuation.Map.singleton cont (params, handler, is_exn_handler)
-    | Recursive { continuation_handlers } ->
+    | Recursive { continuation_handlers; invariant_params = _ } ->
       false, true, Continuation.Map.map (fun (params, handler) -> (params, handler, false)) continuation_handlers
   in
-  let consts_lifted_during_body = DA.get_lifted_constants dacc in
-  let dacc = DA.add_to_lifted_constant_accumulator dacc stage2.prior_lifted_constants in
   let denv = DE.set_at_unit_toplevel_state denv at_unit_toplevel in
   let all_handlers_set = Continuation.Map.keys remaining_handlers in
   let used_handlers =
@@ -2217,14 +2216,13 @@ let simplify_let_cont ~simplify_expr dacc (let_cont : Let_cont.t) ~down_to_up =
       let (params, handler) = CH.pattern_match cont_handler ~f:(fun params ~handler -> (params, handler)) in
       { body ; recinfo = Non_recursive { cont; params; handler; is_exn_handler } }
     | Recursive handlers ->
-      (* TODO handle invariant params*)
-      let (_invariant_params, body, rec_handlers) = Recursive_let_cont_handlers.pattern_match handlers ~f:(fun ~invariant_params ~body rec_handlers -> (invariant_params, body, rec_handlers)) in
+      let (invariant_params, body, rec_handlers) = Recursive_let_cont_handlers.pattern_match handlers ~f:(fun ~invariant_params ~body rec_handlers -> (invariant_params, body, rec_handlers)) in
       assert (not (Continuation_handlers.contains_exn_handler rec_handlers));
       let handlers = Continuation_handlers.to_map rec_handlers in
       let continuation_handlers =
         Continuation.Map.map (fun handler -> CH.pattern_match handler ~f:(fun params ~handler -> (params, handler))) handlers
       in
-      { body ; recinfo = Recursive { continuation_handlers } }
+      { body ; recinfo = Recursive { invariant_params; continuation_handlers } }
   in
   simplify_let_cont_stage1 ~simplify_expr dacc stage1 ~down_to_up
 
@@ -2233,5 +2231,5 @@ let simplify_as_recursive_let_cont ~simplify_expr dacc (body, handlers)
   let continuation_handlers =
     Continuation.Map.map (fun handler -> CH.pattern_match handler ~f:(fun params ~handler -> (params, handler))) handlers
   in
-  let stage1 : stage1 = { body ; recinfo = Recursive { continuation_handlers } } in
+  let stage1 : stage1 = { body ; recinfo = Recursive { invariant_params = Bound_parameters.empty (* FIXME *); continuation_handlers } } in
   simplify_let_cont_stage1 ~simplify_expr dacc stage1 ~down_to_up

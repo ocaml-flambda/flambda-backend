@@ -115,7 +115,7 @@ let add_equations_on_params typing_env ~params:params' ~param_types =
     typing_env params param_types
 
 let compute_handler_env ?cut_after uses ~env_at_fork ~consts_lifted_during_body
-    ~params ~code_age_relation_after_body =
+    ~params =
   (* Augment the environment at each use with the parameter definitions and
      associated equations. *)
   let uses_list = Continuation_uses.get_uses uses in
@@ -202,10 +202,6 @@ let compute_handler_env ?cut_after uses ~env_at_fork ~consts_lifted_during_body
         (* Define parameters with basic equations from the subkinds *)
         let denv = DE.add_parameters_with_unknown_types denv params in
         denv, Continuation_extra_params_and_args.empty
-    in
-    let handler_env =
-      DE.map_typing_env handler_env ~f:(fun handler_env ->
-          TE.with_code_age_relation handler_env code_age_relation_after_body)
     in
     let escapes =
       List.exists

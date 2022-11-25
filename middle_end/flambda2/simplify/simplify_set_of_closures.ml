@@ -270,14 +270,15 @@ let compute_result_types ~is_a_functor ~return_cont_uses ~dacc_after_body
         ~cut_after:(Scope.prev (DE.get_continuation_scope env_at_fork))
         uses ~params:return_cont_params ~env_at_fork
         ~consts_lifted_during_body:lifted_consts_this_function
-        ~code_age_relation_after_body:
-          (TE.code_age_relation (DA.typing_env dacc_after_body))
     in
     let params_and_results =
       Bound_parameters.var_set
         (Bound_parameters.append params return_cont_params)
     in
     let typing_env = DE.typing_env join.handler_env in
+    let typing_env = TE.with_code_age_relation typing_env
+        (TE.code_age_relation (DA.typing_env dacc_after_body))
+    in
     let results_and_types =
       List.map
         (fun result ->

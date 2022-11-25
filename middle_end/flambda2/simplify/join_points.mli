@@ -32,5 +32,4 @@ val compute_handler_env :
   env_at_fork:Downwards_env.t ->
   consts_lifted_during_body:Lifted_constant_state.t ->
   params:Bound_parameters.t ->
-  code_age_relation_after_body:Code_age_relation.t ->
   result
