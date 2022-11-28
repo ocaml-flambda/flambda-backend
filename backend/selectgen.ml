@@ -1062,7 +1062,9 @@ method emit_expr (env:environment) exp =
          exceptional path. It must not be ended in the non-exception case
          as local allocations may be returned from the body of the "try". *)
       let end_region =
-        if Config.stack_allocation && not Config.flambda2 then begin
+        if Config.stack_allocation
+          && match kind with Regular -> true | Delayed _ -> false
+        then begin
           let reg = self#regs_for typ_int in
           self#insert env (Iop Ibeginregion) [| |] reg;
           fun handler_instruction -> instr_cons (Iop Iendregion) reg [| |] handler_instruction
