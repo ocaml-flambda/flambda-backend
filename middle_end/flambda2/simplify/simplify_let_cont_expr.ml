@@ -2169,39 +2169,6 @@ let simplify_single_handler ~simplify_expr is_recursive cont_uses_env_so_far con
     k dacc { params; rebuild_handler; is_exn_handler; continuations_used ; unbox_decisions ; extra_params_and_args_for_cse } cont_uses_env_so_far
   )
 
-let rec simplify_handlers ~simplify_expr ~down_to_up rebuild_body at_unit_toplevel is_recursive cont_uses_env_so_far consts_lifted_during_body all_handlers_set used_handlers remaining_handlers simplified_handlers_set simplified_handlers dacc denv_to_reset =
-  (* This is the core loop to simplify all handlers defined by a let cont. We loop over all handlers,
-     each time taking the first handler that we have not yet processed and that has at least one use, until
-     we have seen every handler that is reachable.
-  *)
-  (* CR ncourant: this makes the order in which continuations are processed dependant on things like
-     the name of the compilation unit. However, recursive continuations are specified using a
-     [Continuation.Map.t], which already depends on the name of the compilation unit, so we leave
-     this as-is for now. *)
-  match Continuation.Set.min_elt_opt used_handlers with
-  | None ->
-    let cont_uses_env = Continuation.Set.fold (fun cont cont_uses_env ->
-        CUE.remove cont_uses_env cont) simplified_handlers_set cont_uses_env_so_far in
-    let dacc = DA.with_continuation_uses_env dacc ~cont_uses_env in
-    (* CR ncourant: we could possibly mark all remaning handlers as unused, however I'm not sure
-       it is useful: they correspond to completely unreachable code, and any symbol defined
-       within them wouldn't be in scope of the other code, so I think we can ignore them safely. *)
-    let (stage3 : stage3) = { rebuild_body ; cont_uses_env = cont_uses_env_so_far ; handlers = simplified_handlers ; at_unit_toplevel } in
-    simplify_let_cont_stage3 stage3 ~down_to_up dacc
-  | Some cont ->
-    let used_handlers = Continuation.Set.remove cont used_handlers in
-    let handler = Continuation.Map.find cont remaining_handlers in
-    let remaining_handlers = Continuation.Map.remove cont remaining_handlers in
-    simplify_single_handler ~simplify_expr is_recursive cont_uses_env_so_far consts_lifted_during_body all_handlers_set denv_to_reset dacc cont handler (fun dacc rebuild cont_uses_env_so_far ->
-        let simplified_handlers_set = Continuation.Set.add cont simplified_handlers_set in
-        let used_handlers = Continuation.Set.union used_handlers
-            (Continuation.Set.diff rebuild.continuations_used simplified_handlers_set)
-        in
-        let simplified_handlers = Continuation.Map.add cont rebuild simplified_handlers in
-        simplify_handlers ~simplify_expr ~down_to_up rebuild_body at_unit_toplevel is_recursive cont_uses_env_so_far consts_lifted_during_body all_handlers_set used_handlers remaining_handlers simplified_handlers_set simplified_handlers dacc denv_to_reset
-      )
-
-
 let simplify_let_cont_stage2 ~simplify_expr (stage2 : stage2) ~down_to_up dacc ~rebuild:rebuild_body =
   (* At this point, we have done the downwards traversal of the body. We prepare to loop over all the
      handlers defined by the let cont. *)
@@ -2257,6 +2224,40 @@ let simplify_let_cont_stage2 ~simplify_expr (stage2 : stage2) ~down_to_up dacc ~
     Continuation.Set.inter all_handlers_set
       (CUE.all_continuations_used body_continuation_uses_env)
   in
+
+let rec simplify_handlers ~simplify_expr ~down_to_up rebuild_body at_unit_toplevel is_recursive cont_uses_env_so_far consts_lifted_during_body all_handlers_set used_handlers remaining_handlers simplified_handlers_set simplified_handlers dacc denv_to_reset =
+  (* This is the core loop to simplify all handlers defined by a let cont. We loop over all handlers,
+     each time taking the first handler that we have not yet processed and that has at least one use, until
+     we have seen every handler that is reachable.
+  *)
+  (* CR ncourant: this makes the order in which continuations are processed dependant on things like
+     the name of the compilation unit. However, recursive continuations are specified using a
+     [Continuation.Map.t], which already depends on the name of the compilation unit, so we leave
+     this as-is for now. *)
+  match Continuation.Set.min_elt_opt used_handlers with
+  | None ->
+    let cont_uses_env = Continuation.Set.fold (fun cont cont_uses_env ->
+        CUE.remove cont_uses_env cont) simplified_handlers_set cont_uses_env_so_far in
+    let dacc = DA.with_continuation_uses_env dacc ~cont_uses_env in
+    (* CR ncourant: we could possibly mark all remaning handlers as unused, however I'm not sure
+       it is useful: they correspond to completely unreachable code, and any symbol defined
+       within them wouldn't be in scope of the other code, so I think we can ignore them safely. *)
+    let (stage3 : stage3) = { rebuild_body ; cont_uses_env = cont_uses_env_so_far ; handlers = simplified_handlers ; at_unit_toplevel } in
+    simplify_let_cont_stage3 stage3 ~down_to_up dacc
+  | Some cont ->
+    let used_handlers = Continuation.Set.remove cont used_handlers in
+    let handler = Continuation.Map.find cont remaining_handlers in
+    let remaining_handlers = Continuation.Map.remove cont remaining_handlers in
+    simplify_single_handler ~simplify_expr is_recursive cont_uses_env_so_far consts_lifted_during_body all_handlers_set denv_to_reset dacc cont handler (fun dacc rebuild cont_uses_env_so_far ->
+        let simplified_handlers_set = Continuation.Set.add cont simplified_handlers_set in
+        let used_handlers = Continuation.Set.union used_handlers
+            (Continuation.Set.diff rebuild.continuations_used simplified_handlers_set)
+        in
+        let simplified_handlers = Continuation.Map.add cont rebuild simplified_handlers in
+        simplify_handlers ~simplify_expr ~down_to_up rebuild_body at_unit_toplevel is_recursive cont_uses_env_so_far consts_lifted_during_body all_handlers_set used_handlers remaining_handlers simplified_handlers_set simplified_handlers dacc denv_to_reset
+      )
+in
+
   simplify_handlers ~simplify_expr ~down_to_up rebuild_body at_unit_toplevel is_recursive body_continuation_uses_env consts_lifted_during_body all_handlers_set used_handlers remaining_handlers Continuation.Set.empty Continuation.Map.empty dacc denv
 
 let simplify_let_cont_stage1 ~simplify_expr dacc (stage1 : stage1) ~down_to_up =
