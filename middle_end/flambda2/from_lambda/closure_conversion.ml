@@ -700,9 +700,13 @@ let close_named acc env ~let_bound_var (named : IR.named)
       ~register_const_string:(fun acc -> register_const_string acc)
       prim Debuginfo.none
       (fun acc named -> k acc (Some named))
-  | Begin_region ->
+  | Begin_region { try_region_parent } ->
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
-      Nullary Begin_region
+      match try_region_parent with
+      | None -> Nullary Begin_region
+      | Some try_region_parent ->
+        let try_region_parent = find_simple_from_id env try_region_parent in
+        Unary (Begin_try_region, Simple try_region_parent)
     in
     Lambda_to_flambda_primitives_helpers.bind_rec acc None
       ~register_const_string:(fun acc -> register_const_string acc)
