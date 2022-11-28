@@ -279,7 +279,7 @@ let transl_check_attrib : Check_attribute.t -> Cmm.codegen_option list =
 
 let params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
     ~exn_continuation params ~body ~my_closure
-    ~(is_my_closure_used : _ Or_unknown.t) ~translate_expr =
+    ~(is_my_closure_used : _ Or_unknown.t) ~my_region ~translate_expr =
   let params =
     let is_my_closure_used =
       match is_my_closure_used with
@@ -299,6 +299,14 @@ let params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
      trap action is attached to one of its calls *)
   let env =
     Env.enter_function_body env ~return_continuation ~exn_continuation
+  in
+  (* [my_region] can be referenced in [Begin_try_region] primitives so must be
+     in the environment; but the Cmm value to which it is bound will never be
+     used. *)
+  let env =
+    Env.bind_variable env my_region ~defining_expr:(C.unit ~dbg:fun_dbg)
+      ~num_normal_occurrences_of_bound_vars:Variable.Map.empty
+      ~effects_and_coeffects_of_defining_expr:Ece.pure
   in
   (* Translate the arg list and body *)
   let env, fun_args = C.bound_parameters env params in
@@ -324,14 +332,14 @@ let params_and_body env res code_id p ~fun_dbg ~check ~translate_expr =
          ~body
          ~my_closure
          ~is_my_closure_used
-         ~my_region:_
+         ~my_region
          ~my_depth:_
          ~free_names_of_body:_
        ->
       try
         params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
           ~exn_continuation params ~body ~my_closure ~is_my_closure_used
-          ~translate_expr
+          ~my_region ~translate_expr
       with Misc.Fatal_error as e ->
         let bt = Printexc.get_raw_backtrace () in
         Format.eprintf

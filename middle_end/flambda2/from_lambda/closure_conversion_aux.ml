@@ -35,7 +35,7 @@ module IR = struct
   type named =
     | Simple of simple
     | Get_tag of Ident.t
-    | Begin_region
+    | Begin_region of { try_region_parent : Ident.t option }
     | End_region of Ident.t
     | Prim of
         { prim : Lambda.primitive;
@@ -84,7 +84,10 @@ module IR = struct
     | Simple (Var id) -> Ident.print ppf id
     | Simple (Const cst) -> Printlambda.structured_constant ppf cst
     | Get_tag id -> fprintf ppf "@[<2>(Gettag %a)@]" Ident.print id
-    | Begin_region -> fprintf ppf "Begin_region"
+    | Begin_region { try_region_parent = None } -> fprintf ppf "Begin_region"
+    | Begin_region { try_region_parent = Some try_region_parent } ->
+      fprintf ppf "@[<2>(Begin_region@ (try_region_parent %a))@]" Ident.print
+        try_region_parent
     | End_region id -> fprintf ppf "@[<2>(End_region@ %a)@]" Ident.print id
     | Prim { prim; args; _ } ->
       fprintf ppf "@[<2>(%a %a)@]" Printlambda.primitive prim
