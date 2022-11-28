@@ -470,6 +470,9 @@ let simplify_is_flat_float_array dacc ~original_term ~arg:_ ~arg_ty ~result_var
 let simplify_opaque_identity dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
   SPR.create_unknown dacc ~result_var K.value ~original_term
 
+let simplify_begin_try_region dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
+  SPR.create_unknown dacc ~result_var K.region ~original_term
+
 let simplify_end_region dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
   let ty = T.this_tagged_immediate Targetint_31_63.zero in
   let dacc = DA.add_variable dacc result_var ty in
@@ -592,6 +595,7 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
       simplify_duplicate_array ~kind ~source_mutability ~destination_mutability
     | Duplicate_block { kind } -> simplify_duplicate_block ~kind
     | Opaque_identity { middle_end_only = _ } -> simplify_opaque_identity
+    | Begin_try_region -> simplify_begin_try_region
     | End_region -> simplify_end_region
     | Obj_dup -> simplify_obj_dup dbg
   in
