@@ -315,6 +315,11 @@ let add_continuation_info map ~return_continuation ~exn_continuation
            T.Mutable_let_prim.
              { bound_var; prim; original_prim; named_rewrite_id = _ } ->
         let src = Name.var bound_var in
+        (* This is an over-aproximation of the the dependencies after mutable
+           unboxing, but: if no unboxing happen this is the correct
+           dependencies, if some unboxing happens, then we will run a second
+           round of optimisation on the current function (if this is the code of
+           a function) that will actually remove those spurious dependencies *)
         match prim with
         | Is_int _ | Get_tag _ | Make_block _ | Block_load _ ->
           Name_occurrences.fold_names
