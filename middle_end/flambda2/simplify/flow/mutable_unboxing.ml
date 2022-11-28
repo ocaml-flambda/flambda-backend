@@ -504,7 +504,9 @@ module Fold_prims = struct
           in
           let env =
             List.fold_left
-              (fun env T.Mutable_let_prim.{ named_rewrite_id; bound_var; prim } ->
+              (fun env
+                   T.Mutable_let_prim.
+                     { named_rewrite_id; bound_var; prim; original_prim = _ } ->
                 apply_prim ~dom ~non_escaping_blocks env named_rewrite_id
                   bound_var prim)
               env

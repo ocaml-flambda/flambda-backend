@@ -246,16 +246,6 @@ let add_name_occurrences name_occurrences
   in
   { t with unconditionally_used; code_id_unconditionally_used }
 
-let mutable_prim_free_names (mutable_prim : T.Mutable_prim.t) :
-    Name_occurrences.t =
-  match mutable_prim with
-  | Is_int block | Get_tag block | Block_load { block; _ } ->
-    Name_occurrences.singleton_variable block Name_mode.normal
-  | Block_set { block; value; _ } ->
-    Name_occurrences.add_variable (Simple.free_names value) block
-      Name_mode.normal
-  | Make_block { fields; _ } -> Simple.List.free_names fields
-
 let add_continuation_info map ~return_continuation ~exn_continuation
     ~used_value_slots _
     T.Continuation_info.
@@ -321,15 +311,18 @@ let add_continuation_info map ~return_continuation ~exn_continuation
   in
   let t =
     List.fold_left
-      (fun t T.Mutable_let_prim.{ bound_var; prim; named_rewrite_id = _ } ->
+      (fun t
+           T.Mutable_let_prim.
+             { bound_var; prim; original_prim; named_rewrite_id = _ } ->
         let src = Name.var bound_var in
         match prim with
         | Is_int _ | Get_tag _ | Make_block _ | Block_load _ ->
           Name_occurrences.fold_names
             ~f:(fun t dst -> add_dependency ~src ~dst t)
-            (mutable_prim_free_names prim)
+            (Flambda_primitive.free_names original_prim)
             ~init:t
-        | Block_set _ -> add_name_occurrences (mutable_prim_free_names prim) t)
+        | Block_set _ ->
+          add_name_occurrences (Flambda_primitive.free_names original_prim) t)
       t mutable_let_prims_rev
   in
   let t =

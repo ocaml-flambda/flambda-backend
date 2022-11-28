@@ -144,10 +144,10 @@ let record_var_alias var definition t =
       let defined = Variable.Set.add var elt.defined in
       { elt with direct_aliases; defined })
 
-let record_ref_named named_rewrite_id ~bound_to prim (t : t) =
+let record_ref_named named_rewrite_id ~bound_to original_prim prim (t : t) =
   update_top_of_stack ~t ~f:(fun cont_info ->
       let mutable_let_prim : T.Mutable_let_prim.t =
-        { bound_var = bound_to; named_rewrite_id; prim }
+        { bound_var = bound_to; named_rewrite_id; original_prim; prim }
       in
       let mutable_let_prims_rev =
         mutable_let_prim :: cont_info.mutable_let_prims_rev
@@ -357,21 +357,21 @@ let record_let_binding ~rewrite_id ~generate_phantom_lets ~let_bound
         match Simple.must_be_var simple with
         | Some (v, _) ->
           record_var_bindings
-            (record_ref_named rewrite_id ~bound_to:var (Is_int v) t)
+            (record_ref_named rewrite_id ~bound_to:var prim (Is_int v) t)
             Name_occurrences.empty
         | None -> record_var_bindings t free_names)
       | Unary (Get_tag, simple) -> (
         match Simple.must_be_var simple with
         | Some (v, _) ->
           record_var_bindings
-            (record_ref_named rewrite_id ~bound_to:var (Get_tag v) t)
+            (record_ref_named rewrite_id ~bound_to:var prim (Get_tag v) t)
             Name_occurrences.empty
         | None -> record_var_bindings t free_names)
       | Binary (Block_load (bak, mut), block, field) -> (
         match get_block_and_constant_field ~block ~field with
         | Some (block, field) ->
           record_var_bindings
-            (record_ref_named rewrite_id ~bound_to:var
+            (record_ref_named rewrite_id ~bound_to:var prim
                (Block_load { bak; mut; block; field })
                t)
             Name_occurrences.empty
@@ -379,13 +379,13 @@ let record_let_binding ~rewrite_id ~generate_phantom_lets ~let_bound
       | Ternary (Block_set (bak, _), block, field, value) -> (
         match get_block_and_constant_field ~block ~field with
         | Some (block, field) ->
-          record_ref_named rewrite_id ~bound_to:var
+          record_ref_named rewrite_id ~bound_to:var prim
             (Block_set { bak; block; field; value })
             t
         | None -> add_used_in_current_handler free_names t)
       | Variadic (Make_block (kind, mut, alloc_mode), fields) ->
         record_var_bindings
-          (record_ref_named rewrite_id ~bound_to:var
+          (record_ref_named rewrite_id ~bound_to:var prim
              (Make_block { kind; mut; alloc_mode; fields })
              t)
           Name_occurrences.empty
