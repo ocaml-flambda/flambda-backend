@@ -245,10 +245,14 @@ CAMLextern value caml_get_public_method (value obj, value tag);
 #define Code_val(val) (((code_t *) (val)) [0])     /* Also an l-value. */
 #define Closinfo_val(val) Field((val), 1)          /* Arity and start env */
 /* In the closure info field, the top 8 bits are the arity (signed).
+   The next least significant bit is set iff the current closure is the
+   last one to occur in the block.  (This is used in the compactor.)
    The low bit is set to one, to look like an integer.
-   The remaining bits are the field number for the first word of the
-   environment, or, in other words, the offset (in words) from the closure
-   to the environment part. */
+   The remaining bits are the field number for the first word of the scannable
+   part of the environment, or, in other words, the offset (in words) from the
+   closure to the scannable part of the environment.
+   The non-scannable part of the environment lives between the end of the
+   last closure and the start of the scannable environment within the block. */
 #ifdef ARCH_SIXTYFOUR
 #define Arity_closinfo(info) ((intnat)(info) >> 56)
 #define Start_env_closinfo(info) (((uintnat)(info) << 9) >> 10)
