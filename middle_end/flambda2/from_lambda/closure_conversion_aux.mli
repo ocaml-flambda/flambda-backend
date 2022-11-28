@@ -37,7 +37,7 @@ module IR : sig
   type named =
     | Simple of simple
     | Get_tag of Ident.t (* Intermediary primitive for block switch *)
-    | Begin_region
+    | Begin_region of { try_region_parent : Ident.t option }
     | End_region of Ident.t
         (** [Begin_region] and [End_region] are needed because these primitives
             don't exist in Lambda *)

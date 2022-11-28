@@ -1235,12 +1235,17 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
        generation pass ensures that there will be an enclosing region around the
        whole [Ltrywith] (possibly not immediately enclosing, but maybe further
        out). The only reason we need a [Begin_region] here is to be able to
-       unwind the local allocation stack if the exception handler is invoked. We
-       need an [End_region] too so that, on the non-exceptional path at the end
-       of the [try] block, the local allocation stack is correctly unwound in
-       the case where the region around the whole [Ltrywith] is unused. (See
-       [uses_local_try] in regions.ml in the testsuite.) *)
-    CC.close_let acc ccenv region Not_user_visible Begin_region
+       unwind the local allocation stack if the exception handler is invoked.
+       There is no corresponding [End_region] on the non-exceptional path
+       because there might be a local allocation in the "try" block that needs
+       to be returned. In effect, such allocations are treated as if they were
+       in the parent region, although they will be annotated with the region
+       identifier of the "try region". To handle this correctly we annotate the
+       [Begin_region] with its parent region. This use of the parent region will
+       ensure that the parent does not get deleted unless the try region is
+       unused. *)
+    CC.close_let acc ccenv region Not_user_visible
+      (Begin_region { try_region_parent = Some (Env.current_region env) })
       ~body:(fun acc ccenv ->
         maybe_insert_let_cont "try_with_result" kind k acc env ccenv
           (fun acc env ccenv k ->
@@ -1264,13 +1269,10 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                         cps_tail acc env ccenv body poptrap_continuation
                           handler_continuation))
                   ~handler:(fun acc env ccenv ->
-                    CC.close_let acc ccenv (Ident.create_local "unit")
-                      Not_user_visible (End_region region)
-                      ~body:(fun acc ccenv ->
-                        let env = Env.leaving_try_region env in
-                        apply_cont_with_extra_args acc env ccenv ~dbg k
-                          (Some (IR.Pop { exn_handler = handler_continuation }))
-                          [IR.Var body_result])))
+                    let env = Env.leaving_try_region env in
+                    apply_cont_with_extra_args acc env ccenv ~dbg k
+                      (Some (IR.Pop { exn_handler = handler_continuation }))
+                      [IR.Var body_result]))
               ~handler:(fun acc env ccenv ->
                 CC.close_let acc ccenv (Ident.create_local "unit")
                   Not_user_visible (End_region region) ~body:(fun acc ccenv ->
@@ -1327,7 +1329,8 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
        continuation for the code after the body. *)
     let region = Ident.create_local "region" in
     let dbg = Debuginfo.none in
-    CC.close_let acc ccenv region Not_user_visible Begin_region
+    CC.close_let acc ccenv region Not_user_visible
+      (Begin_region { try_region_parent = None })
       ~body:(fun acc ccenv ->
         maybe_insert_let_cont "body_return" Pgenval k acc env ccenv
           (fun acc env ccenv k ->
