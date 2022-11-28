@@ -95,7 +95,7 @@ let analyze ?(speculative = false) ?print_name ~return_continuation
           ~return_continuation ~exn_continuation
       in
       let pp_node = Mutable_unboxing.pp_node reference_analysis in
-      let reference_result, required_regions, unboxed_blocks =
+      let reference_result, unboxed_blocks =
         Mutable_unboxing.make_result reference_analysis
       in
       let continuation_parameters =
@@ -121,7 +121,7 @@ let analyze ?(speculative = false) ?print_name ~return_continuation
             in
             Name.Set.union required_names (Name.set_of_var_set params))
           reference_result.T.Mutable_unboxing_result.additionnal_epa
-          (Name.Set.union dead_variable_result.required_names required_regions)
+          dead_variable_result.required_names
       in
       let result =
         T.Flow_result.
