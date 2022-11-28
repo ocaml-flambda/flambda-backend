@@ -44,7 +44,7 @@ let digest_interface unit loadpath =
     close_in ic;
     let crc =
       match cmi.Cmi_format.cmi_crcs with
-        (_, Some crc) :: _ -> crc
+        (_, Some (_unit, crc)) :: _ -> crc
       | _             -> raise Corrupted_interface
     in
     crc

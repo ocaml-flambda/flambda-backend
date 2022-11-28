@@ -44,12 +44,15 @@ module Uid = struct
 
   let mk  ~current_unit =
       incr id;
-      Item { comp_unit = current_unit; id = !id }
+      let comp_unit =
+        match current_unit with
+        | Some cu -> cu |> Compilation_unit.full_path_as_string
+        | None -> ""
+      in
+      Item { comp_unit; id = !id }
 
   let of_compilation_unit_id id =
-    if not (Ident.is_global id) then
-      Misc.fatal_errorf "Types.Uid.of_compilation_unit_id %S" (Ident.name id);
-    Compilation_unit (Ident.name id)
+    Compilation_unit (id |> Compilation_unit.full_path_as_string)
 
   let of_predef_id id =
     if not (Ident.is_predef id) then
@@ -464,7 +467,7 @@ let of_path ~find_shape ~namespace =
   aux namespace
 
 let for_persistent_unit s =
-  { uid = Some (Uid.of_compilation_unit_id (Ident.create_persistent s));
+  { uid = Some (Compilation_unit s);
     desc = Comp_unit s }
 
 let leaf_for_unpack = { uid = None; desc = Leaf }

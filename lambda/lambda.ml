@@ -497,9 +497,9 @@ and lambda_event_kind =
   | Lev_module_definition of Ident.t
 
 type program =
-  { module_ident : Ident.t;
+  { compilation_unit : Compilation_unit.t;
     main_module_block_size : int;
-    required_globals : Ident.Set.t;
+    required_globals : Compilation_unit.Set.t;
     code : lambda }
 
 let const_int n = Const_base (Const_int n)
@@ -839,17 +839,10 @@ let rec patch_guarded patch = function
 (* Translate an access path *)
 
 let rec transl_address loc = function
-  | Env.Aident id ->
+  | Env.Aunit cu -> Lprim(Pgetglobal cu, [], loc)
+  | Env.Alocal id ->
       if Ident.is_predef id
       then Lprim (Pgetpredef id, [], loc)
-      else if Ident.is_global id
-      then
-        (* Prefixes are currently always empty *)
-        let cu =
-          Compilation_unit.create Compilation_unit.Prefix.empty
-            (Ident.name id |> Compilation_unit.Name.of_string)
-        in
-        Lprim(Pgetglobal cu, [], loc)
       else Lvar id
   | Env.Adot(addr, pos) ->
       Lprim(Pfield (pos, Reads_agree), [transl_address loc addr], loc)

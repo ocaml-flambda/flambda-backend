@@ -39,7 +39,7 @@ val type_toplevel_phrase:
   Typedtree.structure * Types.signature * Signature_names.t * Shape.t *
   Env.t
 val type_implementation:
-  string -> string -> string -> Env.t ->
+  string -> string -> Compilation_unit.t -> Env.t ->
   Parsetree.structure -> Typedtree.implementation
 val type_interface:
         Env.t -> Parsetree.signature -> Typedtree.signature
@@ -60,11 +60,11 @@ val modtype_of_package:
 val path_of_module : Typedtree.module_expr -> Path.t option
 
 val save_signature:
-  string -> Typedtree.signature -> string -> string ->
+  Compilation_unit.t -> Typedtree.signature -> string -> string ->
   Env.t -> Cmi_format.cmi_infos -> unit
 
 val package_units:
-  Env.t -> string list -> string -> string -> Typedtree.module_coercion
+  Env.t -> string list -> string -> Compilation_unit.t -> Typedtree.module_coercion
 
 (* Should be in Envaux, but it breaks the build of the debugger *)
 val initial_env:

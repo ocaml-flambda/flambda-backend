@@ -40,6 +40,7 @@ odoc_analyse.cmo : \
     ../typing/env.cmi \
     ../utils/config.cmi \
     ../driver/compmisc.cmi \
+    ../utils/compilation_unit.cmi \
     ../utils/clflags.cmi \
     odoc_analyse.cmi
 odoc_analyse.cmx : \
@@ -68,6 +69,7 @@ odoc_analyse.cmx : \
     ../typing/env.cmx \
     ../utils/config.cmx \
     ../driver/compmisc.cmx \
+    ../utils/compilation_unit.cmx \
     ../utils/clflags.cmx \
     odoc_analyse.cmi
 odoc_analyse.cmi : \
