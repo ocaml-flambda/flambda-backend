@@ -81,10 +81,11 @@ module Mutable_let_prim = struct
   type t =
     { bound_var : Variable.t;
       prim : Mutable_prim.t;
+      original_prim : Flambda_primitive.t;
       named_rewrite_id : Named_rewrite_id.t
     }
 
-  let print ppf { bound_var; prim; named_rewrite_id = _ } =
+  let print ppf { bound_var; prim; original_prim = _; named_rewrite_id = _ } =
     Format.fprintf ppf "%a = %a" Variable.print bound_var Mutable_prim.print
       prim
 
