@@ -31,7 +31,7 @@ let _dump_function_sizes flam =
         set_of_closures.function_decls.funs)
 
 let lambda_to_flambda ~ppf_dump ~prefixname ~backend ~size
-      ~module_ident ~module_initializer =
+      ~compilation_unit ~module_initializer =
   Profile.record_call "flambda" (fun () ->
     let previous_warning_reporter = !Location.warning_reporter in
     let module WarningSet =
@@ -82,7 +82,7 @@ let lambda_to_flambda ~ppf_dump ~prefixname ~backend ~size
                (fun () ->
                   module_initializer
                   |> Closure_conversion.lambda_to_flambda ~backend
-                       ~module_ident ~size)
+                       ~compilation_unit ~size)
            in
            if !Clflags.dump_rawflambda
            then
@@ -216,7 +216,7 @@ let lambda_to_clambda ~backend ~prefixname ~ppf_dump
   let program =
     lambda_to_flambda ~ppf_dump ~prefixname ~backend
       ~size:program.main_module_block_size
-      ~module_ident:program.module_ident
+      ~compilation_unit:program.compilation_unit
       ~module_initializer:program.code
   in
   let export = Build_export_info.build_transient program in

@@ -90,16 +90,18 @@ exception Undefined_global of string
 
 module type EVAL_BASE = sig
 
+  val eval_compilation_unit: Compilation_unit.t -> Obj.t
+
   (* Return the value referred to by a base ident.
      @raise [Undefined_global] if not found *)
   val eval_ident: Ident.t -> Obj.t
-
 end
 
 module MakeEvalPrinter (E: EVAL_BASE) = struct
 
   let rec eval_address = function
-    | Env.Aident id -> E.eval_ident id
+    | Env.Aunit cu -> E.eval_compilation_unit cu
+    | Env.Alocal id -> E.eval_ident id
     | Env.Adot(p, pos) -> Obj.field (eval_address p) pos
 
   let eval_path find env path =

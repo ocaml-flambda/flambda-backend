@@ -118,18 +118,9 @@ module Make_importer (S : sig
 
   val import : exported -> t
 
-  val map_compilation_unit :
-    (Compilation_unit.t -> Compilation_unit.t) -> exported -> exported
-
   include Container_types.S with type t := t
 end) : sig
   val import : (S.t * S.exported) list -> S.t S.Map.t
-
-  val update_for_pack :
-    pack_units:Compilation_unit.Set.t ->
-    pack:Compilation_unit.t ->
-    (S.t * S.exported) list ->
-    (S.t * S.exported) list
 end = struct
   let import from_table_data =
     (* The returned map gives the hash collisions. *)
@@ -138,16 +129,6 @@ end = struct
         let new_key = S.import exported in
         if key == new_key then import_map else S.Map.add key new_key import_map)
       S.Map.empty from_table_data
-
-  let update_for_pack ~pack_units ~pack from_table_data =
-    let update_cu unit =
-      if Compilation_unit.Set.mem unit pack_units then pack else unit
-    in
-    List.map
-      (fun (symbol, exported) ->
-        let exported = S.map_compilation_unit update_cu exported in
-        symbol, exported)
-      from_table_data
 end
 [@@inline always]
 
@@ -206,37 +187,6 @@ let with_exported_offsets (t, sections) exported_offsets =
   | [] | _ :: _ :: _ ->
     Misc.fatal_error "Cannot set exported offsets on multiple units"
 
-let update_for_pack0 ~pack_units ~pack t =
-  let symbols =
-    Symbol_importer.update_for_pack ~pack_units ~pack t.table_data.symbols
-  in
-  let variables =
-    Variable_importer.update_for_pack ~pack_units ~pack t.table_data.variables
-  in
-  let simples =
-    Simple_importer.update_for_pack ~pack_units ~pack t.table_data.simples
-  in
-  let consts =
-    Const_importer.update_for_pack ~pack_units ~pack t.table_data.consts
-  in
-  let code_ids =
-    Code_id_importer.update_for_pack ~pack_units ~pack t.table_data.code_ids
-  in
-  let continuations =
-    Continuation_importer.update_for_pack ~pack_units ~pack
-      t.table_data.continuations
-  in
-  let table_data =
-    { symbols; variables; simples; consts; code_ids; continuations }
-  in
-  { t with table_data }
-
-let update_for_pack ~pack_units ~pack t_opt =
-  match t_opt with
-  | None -> None
-  | Some (t, sections) ->
-    Some (List.map (update_for_pack0 ~pack_units ~pack) t, sections)
-
 let merge t1_opt t2_opt =
   match t1_opt, t2_opt with
   | None, None -> None
@@ -263,7 +213,7 @@ let merge t1_opt t2_opt =
 let print0 ~sections ppf t =
   Format.fprintf ppf "@[<hov>Original unit:@ %a@]@;" Compilation_unit.print
     t.original_compilation_unit;
-  Compilation_unit.set_current t.original_compilation_unit;
+  Compilation_unit.set_current (Some t.original_compilation_unit);
   let typing_env, code = import_typing_env_and_code0 ~sections t in
   Format.fprintf ppf "@[<hov>Typing env:@ %a@]@;"
     Flambda2_types.Typing_env.Serializable.print typing_env;

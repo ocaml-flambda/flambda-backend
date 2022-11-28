@@ -48,10 +48,6 @@ type close_functions_result =
    correctly compute the free names of [Code]. *)
 let use_of_symbol_as_simple acc symbol = acc, Simple.symbol symbol
 
-let symbol_for_ident acc env id =
-  let symbol = Env.symbol_for_global env id in
-  use_of_symbol_as_simple acc symbol
-
 let declare_symbol_for_function_slot env ident function_slot : Env.t * Symbol.t
     =
   let symbol =
@@ -583,16 +579,21 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
     close_c_call acc env ~loc ~let_bound_var prim ~args exn_continuation dbg
       ~current_region k
   | Pgetglobal cu, [] ->
-    let id = cu |> Compilation_unit.to_global_ident_for_legacy_code in
-    if Ident.same id (Env.current_unit_id env)
+    if Compilation_unit.equal cu (Env.current_unit env)
     then
       Misc.fatal_errorf "Pgetglobal %a in the same unit" Compilation_unit.print
         cu;
-    let acc, simple = symbol_for_ident acc env id in
+    let symbol =
+      Flambda2_import.Symbol.for_compilation_unit cu |> Symbol.create_wrapped
+    in
+    let acc, simple = use_of_symbol_as_simple acc symbol in
     let named = Named.create_simple simple in
     k acc (Some named)
   | Pgetpredef id, [] ->
-    let acc, simple = symbol_for_ident acc env id in
+    let symbol =
+      Flambda2_import.Symbol.for_predef_ident id |> Symbol.create_wrapped
+    in
+    let acc, simple = use_of_symbol_as_simple acc symbol in
     let named = Named.create_simple simple in
     k acc (Some named)
   | Praise raise_kind, [_] ->
@@ -683,11 +684,8 @@ let close_named acc env ~let_bound_var (named : IR.named)
     (k : Acc.t -> Named.t option -> Expr_with_acc.t) : Expr_with_acc.t =
   match named with
   | Simple (Var id) ->
-    let acc, simple =
-      if not (Ident.is_predef id)
-      then find_simple acc env (Var id)
-      else symbol_for_ident acc env id
-    in
+    assert (not (Ident.is_global_or_predef id));
+    let acc, simple = find_simple acc env (Var id) in
     let named = Named.create_simple simple in
     k acc (Some named)
   | Simple (Const cst) ->
@@ -2090,13 +2088,14 @@ let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
         defining_expr ~body)
     (acc, body) components
 
-let close_program (type mode) ~(mode : mode Flambda_features.mode)
-    ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
-    ~module_block_size_in_words ~program ~prog_return_cont ~exn_continuation
-    ~toplevel_my_region : mode close_program_result =
-  let env = Env.create ~symbol_for_global ~big_endian ~cmx_loader in
+let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
+    ~cmx_loader ~compilation_unit ~module_block_size_in_words ~program
+    ~prog_return_cont ~exn_continuation ~toplevel_my_region :
+    mode close_program_result =
+  let env = Env.create ~big_endian ~cmx_loader in
   let module_symbol =
-    symbol_for_global (Ident.create_persistent (Ident.name module_ident))
+    Symbol.create_wrapped
+      (Flambda2_import.Symbol.for_compilation_unit compilation_unit)
   in
   let module_block_tag = Tag.Scannable.zero in
   let module_block_var = Variable.create "module_block" in
@@ -2105,7 +2104,7 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode)
     Env.add_var_like env toplevel_my_region Not_user_visible
   in
   let slot_offsets = Slot_offsets.empty in
-  let acc = Acc.create ~symbol_for_global ~slot_offsets in
+  let acc = Acc.create ~slot_offsets in
   let load_fields_body acc =
     let field_vars =
       List.init module_block_size_in_words (fun pos ->

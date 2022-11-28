@@ -131,9 +131,8 @@ module Env = struct
     { variables : Variable.t Ident.Map.t;
       globals : Symbol.t Numeric_types.Int.Map.t;
       simples_to_substitute : Simple.t Ident.Map.t;
-      current_unit_id : Ident.t;
+      current_unit : Compilation_unit.t;
       current_depth : Variable.t option;
-      symbol_for_global : Ident.t -> Symbol.t;
       value_approximations : value_approximation Name.Map.t;
       approximation_for_external_symbol : Symbol.t -> value_approximation;
       big_endian : bool;
@@ -141,9 +140,7 @@ module Env = struct
       inlining_history_tracker : Inlining_history.Tracker.t
     }
 
-  let current_unit_id t = t.current_unit_id
-
-  let symbol_for_global t = t.symbol_for_global
+  let current_unit t = t.current_unit
 
   let big_endian t = t.big_endian
 
@@ -198,34 +195,28 @@ module Env = struct
         externals := Symbol.Map.add symbol approx !externals;
         approx
 
-  let create ~symbol_for_global ~big_endian ~cmx_loader =
-    let compilation_unit = Compilation_unit.get_current_exn () in
-    let current_unit_id =
-      Compilation_unit.name compilation_unit
-      |> Compilation_unit.Name.to_string |> Ident.create_persistent
-    in
+  let create ~big_endian ~cmx_loader =
+    let current_unit = Compilation_unit.get_current_exn () in
     { variables = Ident.Map.empty;
       globals = Numeric_types.Int.Map.empty;
       simples_to_substitute = Ident.Map.empty;
-      current_unit_id;
+      current_unit;
       current_depth = None;
       value_approximations = Name.Map.empty;
       approximation_for_external_symbol =
         (if Flambda_features.classic_mode ()
         then approximation_loader cmx_loader
         else fun _symbol -> Value_approximation.Value_unknown);
-      symbol_for_global;
       big_endian;
       path_to_root = Debuginfo.Scoped_location.Loc_unknown;
-      inlining_history_tracker = Inlining_history.Tracker.empty compilation_unit
+      inlining_history_tracker = Inlining_history.Tracker.empty current_unit
     }
 
   let clear_local_bindings
       { variables = _;
         globals;
         simples_to_substitute;
-        current_unit_id;
-        symbol_for_global;
+        current_unit;
         current_depth;
         value_approximations;
         approximation_for_external_symbol;
@@ -241,11 +232,10 @@ module Env = struct
     { variables = Ident.Map.empty;
       globals;
       simples_to_substitute;
-      current_unit_id;
+      current_unit;
       current_depth;
       value_approximations;
       approximation_for_external_symbol;
-      symbol_for_global;
       big_endian;
       path_to_root;
       inlining_history_tracker
@@ -398,7 +388,6 @@ module Acc = struct
       continuation_applications : continuation_application Continuation.Map.t;
       cost_metrics : Cost_metrics.t;
       seen_a_function : bool;
-      symbol_for_global : Ident.t -> Symbol.t;
       slot_offsets : Slot_offsets.t;
       regions_closed_early : Ident.Set.t;
       closure_infos : closure_info list
@@ -415,7 +404,7 @@ module Acc = struct
 
   let with_seen_a_function t seen_a_function = { t with seen_a_function }
 
-  let create ~symbol_for_global ~slot_offsets =
+  let create ~slot_offsets =
     { declared_symbols = [];
       lifted_sets_of_closures = [];
       shareable_constants = Static_const.Map.empty;
@@ -424,7 +413,6 @@ module Acc = struct
       continuation_applications = Continuation.Map.empty;
       cost_metrics = Cost_metrics.zero;
       seen_a_function = false;
-      symbol_for_global;
       slot_offsets;
       regions_closed_early = Ident.Set.empty;
       closure_infos = []
@@ -574,8 +562,6 @@ module Acc = struct
     let free_names, acc, return = eval_branch_free_names acc ~f in
     let cost_metrics = cost_metrics acc in
     cost_metrics, free_names, with_cost_metrics saved_cost_metrics acc, return
-
-  let symbol_for_global t = t.symbol_for_global
 
   let add_set_of_closures_offsets ~is_phantom t set_of_closures =
     let slot_offsets =

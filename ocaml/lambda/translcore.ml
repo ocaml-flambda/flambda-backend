@@ -36,7 +36,7 @@ let use_dup_for_constant_arrays_bigger_than = 4
 (* Forward declaration -- to be filled in by Translmod.transl_module *)
 let transl_module =
   ref((fun ~scopes:_ _cc _rootpath _modl -> assert false) :
-      scopes:scopes -> module_coercion -> Path.t option ->
+      scopes:scopes -> module_coercion -> Longident.t option ->
       module_expr -> lambda)
 
 let transl_object =
@@ -61,13 +61,12 @@ let prim_fresh_oo_id =
 let transl_extension_constructor ~scopes env path ext =
   let path =
     Printtyp.wrap_printing_env env ~error:true (fun () ->
-      Option.map (Printtyp.rewrite_double_underscore_paths env) path)
+      Option.map (Printtyp.rewrite_double_underscore_longidents env) path)
   in
   let name =
-    match path, !Clflags.for_package with
-      None, _ -> Ident.name ext.ext_id
-    | Some p, None -> Path.name p
-    | Some p, Some pack -> Printf.sprintf "%s.%s" pack (Path.name p)
+    match path with
+    | None -> Ident.name ext.ext_id
+    | Some path -> Format.asprintf "%a" Pprintast.longident path
   in
   let loc = of_location ~scopes ext.ext_loc in
   match ext.ext_kind with

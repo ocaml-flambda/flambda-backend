@@ -17,29 +17,20 @@
 (* Unlike most of the rest of Flambda 2, this file depends on ocamloptcomp,
    meaning it can call [Compilenv]. *)
 
-let symbol_for_global id =
-  Compilenv.symbol_for_global' id |> Flambda2_identifiers.Symbol.create_wrapped
-
-let get_global_info comp_unit =
+let get_module_info comp_unit ~cmx_name =
   (* Typing information for predefined exceptions should be populated directly
      by the callee. *)
-  if Compilation_unit.equal comp_unit Compilation_unit.predef_exn
+  if Compilation_unit.Name.equal cmx_name Compilation_unit.Name.predef_exn
   then
     Misc.fatal_error
       "get_global_info is not for use with predefined exception compilation \
        units";
-  if Compilation_unit.equal comp_unit
-       (Flambda2_identifiers.Symbol.external_symbols_compilation_unit ())
+  if Compilation_unit.Name.equal cmx_name
+       (Flambda2_identifiers.Symbol.external_symbols_compilation_unit ()
+       |> Compilation_unit.name)
   then None
   else
-    (* CR lmaurer: It feels like there should be a
-       [Compilenv.get_global_info_for_unit] here, but I'm not quite sure how to
-       implement it. *)
-    let id =
-      Compilation_unit.name comp_unit
-      |> Compilation_unit.Name.to_string |> Ident.create_persistent
-    in
-    match Compilenv.get_global_export_info id with
+    match Compilenv.get_unit_export_info comp_unit ~cmx_name with
     | None | Some (Flambda2 None) -> None
     | Some (Flambda2 (Some info)) -> Some info
     | Some (Clambda _) ->
@@ -48,12 +39,12 @@ let get_global_info comp_unit =
       Misc.fatal_errorf
         "The .cmx file for unit %a was compiled with the Closure middle-end, \
          not Flambda 2, and cannot be loaded"
-        Compilation_unit.print comp_unit
+        Compilation_unit.Name.print cmx_name
     | Some (Flambda1 _) ->
       Misc.fatal_errorf
         "The .cmx file for unit %a was compiled with the Flambda 1 middle-end, \
          not Flambda 2, and cannot be loaded"
-        Compilation_unit.print comp_unit
+        Compilation_unit.Name.print cmx_name
 
 let print_rawflambda ppf unit =
   if Flambda_features.dump_rawflambda ()
@@ -93,7 +84,7 @@ let output_flexpect ~ml_filename ~raw_flambda:old_unit new_unit =
         Print_fexpr.expect_test_spec ppf test;
         Format.pp_print_flush ppf ())
 
-let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
+let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~compilation_unit
     ~module_block_size_in_words ~module_initializer ~keep_symbol_tables =
   (* Make sure -linscan is enabled in classic mode. Doing this here to be sure
      it happens exactly when -Oclassic is in effect, which we don't know at CLI
@@ -119,15 +110,13 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
       "Cannot compile on targets where floats are not word-width when the \
        float array optimisation is enabled";
   let run () =
-    let cmx_loader =
-      Flambda_cmx.create_loader ~get_global_info ~symbol_for_global
-    in
+    let cmx_loader = Flambda_cmx.create_loader ~get_module_info in
     let (Mode mode) = Flambda_features.mode () in
     let raw_flambda, close_program_metadata =
       Profile.record_call "lambda_to_flambda" (fun () ->
-          Lambda_to_flambda.lambda_to_flambda ~mode ~symbol_for_global
-            ~big_endian:Arch.big_endian ~cmx_loader ~module_ident
-            ~module_block_size_in_words module_initializer)
+          Lambda_to_flambda.lambda_to_flambda ~mode ~big_endian:Arch.big_endian
+            ~cmx_loader ~compilation_unit ~module_block_size_in_words
+            module_initializer)
     in
     Compiler_hooks.execute Raw_flambda2 raw_flambda;
     print_rawflambda ppf raw_flambda;

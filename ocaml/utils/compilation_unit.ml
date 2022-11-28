@@ -22,7 +22,7 @@ module List = Misc.Stdlib.List
 module String = Misc.Stdlib.String
 
 type error =
-  | Invalid_character of char
+  | Invalid_character of char * string
   | Bad_compilation_unit_name of string
 
 exception Error of error
@@ -43,9 +43,9 @@ module Name : sig
   type t
   include Identifiable.S with type t := t
   val dummy : t
+  val predef_exn : t
   val of_string : string -> t
   val to_string : t -> string
-  val persistent_ident : t -> Ident.t
   val check_as_path_component : t -> unit
 end = struct
   (* Be VERY careful changing this. Anything not equivalent to [string] will
@@ -84,16 +84,17 @@ end = struct
 
   let dummy = "*dummy*"
 
-  let to_string t = t
+  let predef_exn = "*predef*"
 
-  let persistent_ident t = Ident.create_persistent t
+  let to_string t = t
 end
 
 module Prefix : sig
   type t
   include Identifiable.S with type t := t
-  val parse_for_pack : string option -> t
+  val parse_for_pack : string -> t
   val from_clflags : unit -> t
+  val of_list : Name.t list -> t
   val to_list : t -> Name.t list
   val to_string : t -> string
   val empty : t
@@ -130,20 +131,19 @@ end = struct
       || code >= 65 && code <= 90 (* [A-Z] *)
       || code >= 97 && code <= 122 (* [a-z] *)
 
-  let parse pack =
+  let parse_for_pack pack =
     let prefix = String.split_on_char '.' pack in
     ListLabels.iter prefix ~f:(fun module_name ->
       String.iteri (fun i c ->
           if not (is_valid_character (i=0) c) then
-            raise (Error (Invalid_character c)))
+            raise (Error (Invalid_character (c, module_name))))
         module_name);
     ListLabels.map prefix ~f:Name.of_string
 
-  let parse_for_pack = function
+  let from_clflags () =
+    match !Clflags.for_package with
     | None -> []
-    | Some pack -> parse pack
-
-  let from_clflags () = parse_for_pack !Clflags.for_package
+    | Some pack -> parse_for_pack pack
 
   let to_string p =
     Format.asprintf "%a" print p
@@ -154,6 +154,8 @@ end = struct
     match t with
     | [] -> true
     | _::_ -> false
+
+  let of_list t = t
 
   let to_list t = t
 end
@@ -176,6 +178,13 @@ let create for_pack_prefix name =
     hash = Hashtbl.hash (name, for_pack_prefix)
   }
 
+let create_child parent name =
+  let prefix =
+    (parent.for_pack_prefix |> Prefix.to_list) @ [ parent.name ]
+    |> Prefix.of_list
+  in
+  create prefix name
+
 let of_string str =
   let for_pack_prefix, name =
     match String.rindex_opt str '.' with
@@ -184,15 +193,14 @@ let of_string str =
         (* See [Name.check_as_path_component]; this allows ".cinaps" as a
            compilation unit *)
         Prefix.empty, Name.of_string str
-    | Some pos ->
-        Prefix.parse_for_pack (Some (String.sub str 0 (pos+1))),
-        Name.of_string (String.sub str (pos+1) (String.length str - pos - 1))
+    | Some _ ->
+        Misc.fatal_errorf "[of_string] does not parse qualified names"
   in
   create for_pack_prefix name
 
 let dummy = create Prefix.empty (Name.of_string "*none*")
 
-let predef_exn = create Prefix.empty (Name.of_string "*predef*")
+let predef_exn = create Prefix.empty Name.predef_exn
 
 let name t = t.name
 
@@ -244,13 +252,73 @@ let full_path t =
 let is_parent t ~child =
   List.equal Name.equal (full_path t) (Prefix.to_list child.for_pack_prefix)
 
+let is_strict_prefix list1 ~of_:list2 ~equal =
+  not (List.equal equal list1 list2) && List.is_prefix list1 ~of_:list2 ~equal
+
+let can_access_by_name t ~accessed_by:me =
+  let my_path = full_path me in
+  (* Criterion 1 in .mli *)
+  let t's_prefix_is_my_ancestor =
+    List.is_prefix
+      (t.for_pack_prefix |> Prefix.to_list)
+      ~of_:my_path
+      ~equal:Name.equal
+  in
+  (* Criterion 2 *)
+  let t_is_not_my_strict_ancestor =
+    not (is_strict_prefix (full_path t) ~of_:my_path ~equal:Name.equal)
+  in
+  t's_prefix_is_my_ancestor && t_is_not_my_strict_ancestor
+
+let which_cmx_file desired_comp_unit ~accessed_by : Name.t =
+  let desired_prefix = for_pack_prefix desired_comp_unit in
+  if Prefix.is_empty desired_prefix then
+    (* If the unit we're looking for is not in a pack, then the correct .cmx
+       file is the one with the same name as the unit, irrespective of any
+       current pack. *)
+    name desired_comp_unit
+  else
+    (* This lines up the full paths as described above. *)
+    let rec match_components ~current ~desired =
+      match current, desired with
+      | current_name::current, desired_name::desired ->
+        if Name.equal current_name desired_name then
+          (* The full paths are equal up to the current point; keep going. *)
+          match_components ~current ~desired
+        else
+          (* The paths have diverged.  The next component of the desired
+             path is the .cmx file to load. *)
+          desired_name
+      | [], desired_name::_desired ->
+        (* The whole of the current unit's full path (including the name of
+           the unit itself) is now known to be a prefix of the desired unit's
+           pack *prefix*.  This means we must be making a pack.  The .cmx
+           file to load is named after the next component of the desired
+           unit's path (which may in turn be a pack). *)
+        desired_name
+      | [], [] ->
+        (* The paths were equal, so the desired compilation unit is just the
+           current one. *)
+        name desired_comp_unit
+      | _::_, [] ->
+        (* The current path is longer than the desired unit's path, which
+           means we're attempting to go back up the pack hierarchy.  This is
+           an error. *)
+        Misc.fatal_errorf "Compilation unit@ %a@ is inaccessible when \
+            compiling compilation unit@ %a"
+          print desired_comp_unit
+          print accessed_by
+    in
+    match_components ~current:(full_path accessed_by)
+      ~desired:(full_path desired_comp_unit)
+
 let print_name ppf t =
   Format.fprintf ppf "%a" Name.print t.name
 
 let full_path_as_string t =
   Format.asprintf "%a" print t
 
-let to_global_ident_for_legacy_code t =
+let to_global_ident_for_bytecode t =
   Ident.create_persistent (full_path_as_string t)
 
 let print_debug ppf { for_pack_prefix; hash = _; name } =
@@ -267,10 +335,12 @@ let print_debug ppf { for_pack_prefix; hash = _; name } =
 
 let current = ref None
 
-let set_current t =
-  current := Some t
+let set_current t_opt =
+  current := t_opt
 
 let get_current () = !current
+
+let get_current_or_dummy () = Option.value !current ~default:dummy
 
 let get_current_exn () =
   match !current with

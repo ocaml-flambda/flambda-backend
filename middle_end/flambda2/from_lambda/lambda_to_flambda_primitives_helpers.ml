@@ -95,6 +95,9 @@ let raise_exn_for_failure acc ~dbg exn_cont exn_bucket extra_let_binding =
       (Bound_pattern.singleton bound_var)
       defining_expr ~body:apply_cont
 
+let symbol_for_prim id =
+  Flambda2_import.Symbol.for_predef_ident id |> Symbol.create_wrapped
+
 let expression_for_failure acc exn_cont ~register_const_string primitive dbg
     (failure : failure) =
   let exn_cont =
@@ -108,9 +111,7 @@ let expression_for_failure acc exn_cont ~register_const_string primitive dbg
   in
   match failure with
   | Division_by_zero ->
-    let division_by_zero =
-      (Acc.symbol_for_global acc) Predef.ident_division_by_zero
-    in
+    let division_by_zero = symbol_for_prim Predef.ident_division_by_zero in
     raise_exn_for_failure acc ~dbg exn_cont
       (Simple.symbol division_by_zero)
       None
@@ -128,7 +129,7 @@ let expression_for_failure acc exn_cont ~register_const_string primitive dbg
           Misc.fatal_error "Cannot find Invalid_argument exception in Predef"
         | ident -> ident
       in
-      (Acc.symbol_for_global acc) invalid_argument
+      symbol_for_prim invalid_argument
     in
     let contents_of_exn_bucket =
       [Simple.symbol invalid_argument; Simple.symbol error_text]

@@ -38,14 +38,6 @@ val exported_offsets : t -> Exported_offsets.t
 
 val with_exported_offsets : t -> Exported_offsets.t -> t
 
-(** Rename the compilation units for packed modules to the pack unit, so that
-    file lookups search for the right cmx *)
-val update_for_pack :
-  pack_units:Compilation_unit.Set.t ->
-  pack:Compilation_unit.t ->
-  t option ->
-  t option
-
 (** Aggregate several cmx into one for packs *)
 val merge : t option -> t option -> t option
 

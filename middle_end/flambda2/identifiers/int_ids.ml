@@ -450,9 +450,7 @@ module Symbol = struct
   let unsafe_create compilation_unit linkage_name =
     Symbol_data.unsafe_create compilation_unit linkage_name |> create_wrapped
 
-  let extern_syms =
-    Compilation_unit.create Compilation_unit.Prefix.empty
-      ("*extern*" |> Compilation_unit.Name.of_string)
+  let extern_syms = "*extern*" |> Compilation_unit.of_string
 
   let external_symbols_compilation_unit () = extern_syms
 

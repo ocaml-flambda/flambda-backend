@@ -38,7 +38,8 @@ let lambda_to_clambda ~backend ~filename:_ ~prefixname:_ ~ppf_dump
     let current_unit_ident =
       Compilation_unit.get_current_exn ()
       |> Compilation_unit.name
-      |> Compilation_unit.Name.persistent_ident
+      |> Compilation_unit.Name.to_string
+      |> Ident.create_persistent
     in
     { original_idents = [];
       (* CR-someday lmaurer: Properly construct a [Path.t] from the module name
