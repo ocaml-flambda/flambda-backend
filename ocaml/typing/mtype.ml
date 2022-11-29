@@ -47,7 +47,8 @@ let rec strengthen_lazy ~aliasable env mty p =
   | MtyL_functor(Named (Some param, arg), res)
     when !Clflags.applicative_functors ->
       let env =
-        Env.add_module ~arg:true param Mp_present (Subst.Lazy.force_modtype arg) env
+        Env.add_module ~arg:true param Mp_present (Subst.Lazy.force_modtype arg)
+          env
       in
       MtyL_functor(Named (Some param, arg),
         strengthen_lazy ~aliasable:false env res (Papply(p, Pident param)))
