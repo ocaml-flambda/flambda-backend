@@ -878,7 +878,7 @@ let prepare_dacc_for_handlers dacc ~env_at_fork ~params ~is_recursive ~consts_li
       handler_env, None, false, dacc
   in
   DA.with_denv dacc handler_env, unbox_decisions, is_exn_handler,
-  join_result.extra_params_and_args, join_result.is_single_inlinable_use
+  join_result.extra_params_and_args
 
 
 let simplify_handler ~simplify_expr ~is_recursive ~is_exn_handler ~params cont dacc handler k =
@@ -1006,7 +1006,7 @@ let simplify_let_cont_stage2 ~simplify_expr (stage2 : stage2) ~down_to_up dacc ~
             at_unit_toplevel = false (* Unused in this case *)
           } in
           simplify_let_cont_stage3 stage3 ~down_to_up dacc
-        | Some _uses ->
+        | Some uses ->
           let at_unit_toplevel =
             (* We try to show that [handler] postdominates [body] (which is done by
                showing that [body] can only return through [cont]) and that if [body]
@@ -1022,13 +1022,21 @@ let simplify_let_cont_stage2 ~simplify_expr (stage2 : stage2) ~down_to_up dacc ~
           in
           let denv = DE.set_at_unit_toplevel_state denv at_unit_toplevel in
           (* CR: use named arguments *)
-          simplify_single_handler ~simplify_expr ~is_recursive:false body_continuation_uses_env consts_lifted_during_body Continuation.Set.empty denv dacc cont (params, handler, is_exn_handler)
-            (fun dacc rebuild cont_uses_env_so_far ->
-             let cont_uses_env = CUE.remove cont_uses_env_so_far cont in
-             (* CR add explanation about cont_uses_env here *)
-             let dacc = DA.with_continuation_uses_env dacc ~cont_uses_env in
-             let stage3 : stage3 = { rebuild_body ; cont_uses_env = cont_uses_env_so_far ; handlers = Continuation.Map.singleton cont rebuild ; at_unit_toplevel } in
-            simplify_let_cont_stage3 stage3 ~down_to_up dacc)
+
+          let dacc, unbox_decisions, is_exn_handler, extra_params_and_args_for_cse =
+            prepare_dacc_for_handlers dacc ~env_at_fork:denv ~params ~is_recursive:false ~consts_lifted_during_body cont (Continuation.sort cont) is_exn_handler uses
+          in
+          simplify_handler ~simplify_expr ~is_recursive:false ~is_exn_handler ~params cont dacc handler
+            (fun dacc rebuild_handler cont_uses_env_in_handler ->
+               let cont_uses_env_so_far = CUE.union body_continuation_uses_env cont_uses_env_in_handler in
+               let continuations_used = Continuation.Set.empty in
+               let rebuild = { params; rebuild_handler; is_exn_handler; continuations_used ; unbox_decisions ; extra_params_and_args_for_cse } in
+               let cont_uses_env = CUE.remove cont_uses_env_so_far cont in
+               (* CR add explanation about cont_uses_env here *)
+               let dacc = DA.with_continuation_uses_env dacc ~cont_uses_env in
+               let stage3 : stage3 = { rebuild_body ; cont_uses_env = cont_uses_env_so_far ; handlers = Continuation.Map.singleton cont rebuild ; at_unit_toplevel } in
+               simplify_let_cont_stage3 stage3 ~down_to_up dacc
+            )
     end
     | Recursive { continuation_handlers; invariant_params = _ } ->
       let remaining_handlers = Continuation.Map.map
