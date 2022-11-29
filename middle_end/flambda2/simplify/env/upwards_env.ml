@@ -80,9 +80,7 @@ let continuation_arity t cont =
   find_continuation t cont |> Continuation_in_env.arity
 
 let add_continuation0 t cont cont_in_env =
-  let continuations =
-    Continuation.Map.add cont cont_in_env t.continuations
-  in
+  let continuations = Continuation.Map.add cont cont_in_env t.continuations in
   { t with continuations }
 
 let add_non_inlinable_continuation t cont ~params ~handler =

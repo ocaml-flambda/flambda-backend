@@ -950,7 +950,8 @@ module Let_cont_with_acc = struct
     let acc = Acc.remove_continuation_from_free_names cont acc in
     acc, expr
 
-  let create_recursive acc ~invariant_params handlers ~body ~cost_metrics_of_handlers =
+  let create_recursive acc ~invariant_params handlers ~body
+      ~cost_metrics_of_handlers =
     let acc =
       Acc.increment_metrics
         (Cost_metrics.increase_due_to_let_cont_recursive
@@ -990,7 +991,8 @@ module Let_cont_with_acc = struct
            (Name_occurrences.increase_counts handlers_free_names))
         acc
     in
-    create_recursive acc ~invariant_params handlers ~body ~cost_metrics_of_handlers
+    create_recursive acc ~invariant_params handlers ~body
+      ~cost_metrics_of_handlers
 
   let build_non_recursive acc cont ~handler_params ~handler ~body
       ~is_exn_handler =

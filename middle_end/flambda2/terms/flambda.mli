@@ -374,7 +374,9 @@ module Let_cont_expr : sig
   (** Create a definition of a set of possibly-recursive continuations. *)
   val create_recursive :
     invariant_params:Bound_parameters.t ->
-    Continuation_handler.t Continuation.Map.t -> body:expr -> expr
+    Continuation_handler.t Continuation.Map.t ->
+    body:expr ->
+    expr
 end
 
 module Non_recursive_let_cont_handler : sig
@@ -407,7 +409,14 @@ module Recursive_let_cont_handlers : sig
 
   (** Deconstruct a continuation binding to get the bound continuations,
       together with the expressions and handlers over which they are scoped. *)
-  val pattern_match : t -> f:(invariant_params:Bound_parameters.t -> body:expr -> Continuation_handlers.t -> 'a) -> 'a
+  val pattern_match :
+    t ->
+    f:
+      (invariant_params:Bound_parameters.t ->
+      body:expr ->
+      Continuation_handlers.t ->
+      'a) ->
+    'a
 
   (** Deconstruct two continuation bindings using the same bound continuations. *)
   val pattern_match_pair :

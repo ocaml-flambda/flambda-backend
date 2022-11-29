@@ -276,7 +276,8 @@ let compute_result_types ~is_a_functor ~return_cont_uses ~dacc_after_body
         (Bound_parameters.append params return_cont_params)
     in
     let typing_env = DE.typing_env join.handler_env in
-    let typing_env = TE.with_code_age_relation typing_env
+    let typing_env =
+      TE.with_code_age_relation typing_env
         (TE.code_age_relation (DA.typing_env dacc_after_body))
     in
     let results_and_types =

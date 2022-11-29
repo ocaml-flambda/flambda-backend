@@ -427,7 +427,8 @@ and let_cont env res (let_cont : Flambda.Let_cont.t) =
         | May_inline -> let_cont_inlined env res k handler body
         | Regular -> let_cont_not_inlined env res k handler body)
   | Recursive handlers ->
-    Recursive_let_cont_handlers.pattern_match handlers ~f:(fun ~invariant_params:_ ~body conts ->
+    Recursive_let_cont_handlers.pattern_match handlers
+      ~f:(fun ~invariant_params:_ ~body conts ->
         (* TODO fix invariant params *)
         if Continuation_handlers.contains_exn_handler conts
         then

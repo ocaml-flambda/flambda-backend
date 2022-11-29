@@ -83,7 +83,8 @@ let join ?cut_after denv params ~consts_lifted_during_body ~use_envs_with_ids =
   in
   denv, extra_params_and_args
 
-let add_equations_on_params typing_env ~is_recursive ~params:params' ~param_types =
+let add_equations_on_params typing_env ~is_recursive ~params:params'
+    ~param_types =
   let params = Bound_parameters.to_list params' in
   let number_of_parameters_mismatch () =
     Misc.fatal_errorf
@@ -96,37 +97,39 @@ let add_equations_on_params typing_env ~is_recursive ~params:params' ~param_type
   let rec add_equations_on_params typing_env params param_types =
     match params with
     | [] ->
-      if Flambda_features.check_invariants () && not is_recursive &&
-         (match param_types with [] -> false | _ :: _ -> true) then
-        number_of_parameters_mismatch ();
+      if Flambda_features.check_invariants ()
+         && (not is_recursive)
+         && match param_types with [] -> false | _ :: _ -> true
+      then number_of_parameters_mismatch ();
       typing_env
-    | param :: params ->
+    | param :: params -> (
       match param_types with
       | [] -> number_of_parameters_mismatch ()
       | param_type :: param_types ->
         let name = Bound_parameter.name param in
         let kind = Bound_parameter.kind param in
         let typing_env =
-          if Flambda_kind.With_subkind.has_useful_subkind_info kind then
+          if Flambda_kind.With_subkind.has_useful_subkind_info kind
+          then
             let raw_kind = Flambda_kind.With_subkind.kind kind in
             let type_from_kind = T.unknown_with_subkind kind in
             match T.meet typing_env type_from_kind param_type with
             | Bottom ->
-              (* This should really replace the corresponding uses with [Invalid], but
-                 this seems an unusual situation, so we don't do that currently. *)
+              (* This should really replace the corresponding uses with
+                 [Invalid], but this seems an unusual situation, so we don't do
+                 that currently. *)
               TE.add_equation typing_env name (T.bottom raw_kind)
             | Ok (meet_ty, env_extension) ->
               let typing_env = TE.add_equation typing_env name meet_ty in
               TE.add_env_extension typing_env env_extension
-          else
-            TE.add_equation typing_env name param_type
+          else TE.add_equation typing_env name param_type
         in
-        add_equations_on_params typing_env params param_types
+        add_equations_on_params typing_env params param_types)
   in
   add_equations_on_params typing_env params param_types
 
-let compute_handler_env ?cut_after uses ~is_recursive ~env_at_fork ~consts_lifted_during_body
-    ~params =
+let compute_handler_env ?cut_after uses ~is_recursive ~env_at_fork
+    ~consts_lifted_during_body ~params =
   (* Augment the environment at each use with the parameter definitions and
      associated equations. *)
   let uses_list = Continuation_uses.get_uses uses in

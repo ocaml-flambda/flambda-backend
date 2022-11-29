@@ -817,7 +817,7 @@ and let_cont_expr env (lc : Flambda.Let_cont_expr.t) =
   | Recursive handlers ->
     Flambda.Recursive_let_cont_handlers.pattern_match handlers
       ~f:(fun ~invariant_params:_ ~body handlers ->
-          (* TODO support them *)
+        (* TODO support them *)
         let env =
           Continuation.Set.fold
             (fun c env ->
@@ -1025,7 +1025,8 @@ module Iter = struct
           let h = Non_recursive_let_cont_handler.handler handler in
           let_cont_aux f_c f_s k h body)
     | Recursive handlers ->
-      Recursive_let_cont_handlers.pattern_match handlers ~f:(fun ~invariant_params:_ ~body conts ->
+      Recursive_let_cont_handlers.pattern_match handlers
+        ~f:(fun ~invariant_params:_ ~body conts ->
           assert (not (Continuation_handlers.contains_exn_handler conts));
           let_cont_rec f_c f_s conts body)
 

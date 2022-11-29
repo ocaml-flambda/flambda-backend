@@ -13,8 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** The product of [Bound_continuations] and [Bound_parameters], to be used
-    for [Name_abstraction]. *)
+(** The product of [Bound_continuations] and [Bound_parameters], to be used for
+    [Name_abstraction]. *)
 
 type t
 
