@@ -398,11 +398,12 @@ val remove_mode_variables: type_expr -> unit
 
 val nongen_schema: Env.t -> type_expr -> bool
         (* Check whether the given type scheme contains no non-generic
-           type variables *)
+           type variables, and ensure mode variables are fully determined *)
 
 val nongen_class_declaration: class_declaration -> bool
         (* Check whether the given class type contains no non-generic
-           type variables. Uses the empty environment.  *)
+           type variables, and ensures mode variables are fully determined.
+           Uses the empty environment.  *)
 
 val free_variables: ?env:Env.t -> type_expr -> type_expr list
         (* If env present, then check for incomplete definitions too *)

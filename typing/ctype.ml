@@ -5214,6 +5214,7 @@ let rec nongen_schema_rec env ty =
 
 (* Return whether all variables of type [ty] are generic. *)
 let nongen_schema env ty =
+  remove_mode_variables ty;
   visited := TypeSet.empty;
   try
     nongen_schema_rec env ty;
