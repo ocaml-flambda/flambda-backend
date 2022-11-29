@@ -163,15 +163,21 @@ let apply_renaming t renaming =
     let code' = Code.apply_renaming code renaming in
     if code == code' then t else Code_present { code_status = Loaded code' }
   | Code_present { code_status = Not_loaded not_loaded } ->
+    let metadata' = Code_metadata.apply_renaming not_loaded.metadata renaming in
     let delayed_renaming' =
       Renaming.compose ~second:renaming ~first:not_loaded.delayed_renaming
     in
-    if delayed_renaming' == not_loaded.delayed_renaming
+    if metadata' == not_loaded.metadata
+       && delayed_renaming' == not_loaded.delayed_renaming
     then t
     else
       Code_present
         { code_status =
-            Not_loaded { not_loaded with delayed_renaming = delayed_renaming' }
+            Not_loaded
+              { not_loaded with
+                metadata = metadata';
+                delayed_renaming = delayed_renaming'
+              }
         }
 
 let ids_for_export t =
