@@ -447,7 +447,7 @@ let simplify_non_recursive_let_cont_handler ~simplify_expr ~denv_before_body
     | None -> None, Apply_cont_rewrite_id.Set.empty
     | Some uses ->
       ( Some
-          (Join_points.compute_handler_env uses ~params ~env_at_fork
+          (Join_points.compute_handler_env uses ~is_recursive:false ~params ~env_at_fork
              ~consts_lifted_during_body (* ~code_age_relation_after_body *)),
         Continuation_uses.get_use_ids uses )
   in
@@ -2020,11 +2020,10 @@ let simplify_let_cont_stage3 (stage3 : stage3) ~down_to_up dacc =
   down_to_up dacc ~rebuild:(simplify_let_cont_stage4 stage4)
 
 
-let prepare_dacc_for_handlers dacc ~env_at_fork ~params ~consts_lifted_during_body cont continuation_sort is_exn_handler uses =
-  let join_result = Join_points.compute_handler_env uses ~params ~env_at_fork ~consts_lifted_during_body in
+let prepare_dacc_for_handlers dacc ~env_at_fork ~params ~is_recursive ~consts_lifted_during_body cont continuation_sort is_exn_handler uses =
+  let join_result = Join_points.compute_handler_env uses ~params ~is_recursive ~env_at_fork ~consts_lifted_during_body in
   let code_age_relation = TE.code_age_relation (DA.typing_env dacc) in
   let handler_env = DE.with_code_age_relation code_age_relation join_result.handler_env in
-  (* let dacc = DA.with_continuation_uses_env dacc ~cont_uses_env:CUE.empty in (* maybe we can put that later *)*) 
   let handler_env, unbox_decisions, is_exn_handler, dacc =
     match (continuation_sort : Continuation.Sort.t) with
     | Normal_or_exn when join_result.is_single_inlinable_use ->
@@ -2076,6 +2075,23 @@ let prepare_dacc_for_handlers dacc ~env_at_fork ~params ~consts_lifted_during_bo
   join_result.extra_params_and_args, join_result.is_single_inlinable_use
 
 
+let simplify_handler ~simplify_expr ~is_recursive ~is_exn_handler ~params cont dacc handler k =
+  let dacc = DA.with_continuation_uses_env dacc ~cont_uses_env:CUE.empty in
+  (* TODO does this work correctly with mutually-recursive continuations? *)
+  let dacc = DA.map_flow_acc
+      ~f:(Flow.Acc.enter_continuation cont
+            ~recursive:is_recursive ~is_exn_handler params) dacc in
+  simplify_expr dacc handler ~down_to_up:(fun dacc ~rebuild:rebuild_handler ->
+      let dacc = DA.map_flow_acc ~f:(Flow.Acc.exit_continuation cont) dacc in
+      let cont_uses_env_in_handler = DA.continuation_uses_env dacc in
+      let cont_uses_env_in_handler =
+        if is_recursive then
+          CUE.mark_non_inlinable cont_uses_env_in_handler
+        else
+          cont_uses_env_in_handler
+      in
+      k dacc rebuild_handler cont_uses_env_in_handler
+    )
 
 (* simplify for single handler: compute unbox decisions *)
 let simplify_single_handler ~simplify_expr ~is_recursive cont_uses_env_so_far consts_lifted_during_body all_handlers_set denv_to_reset dacc cont (params, handler, is_exn_handler) k =
@@ -2102,12 +2118,11 @@ let simplify_single_handler ~simplify_expr ~is_recursive cont_uses_env_so_far co
       let arg_types_by_use_id = Continuation_uses.get_arg_types_by_use_id uses in
       (handler_env, arg_types_by_use_id, EPA.empty, false, false)
     else
-      let Join_points.{ handler_env; arg_types_by_use_id; extra_params_and_args; is_single_inlinable_use; escapes } = Join_points.compute_handler_env uses ~params ~env_at_fork:denv_to_reset ~consts_lifted_during_body in
+      let Join_points.{ handler_env; arg_types_by_use_id; extra_params_and_args; is_single_inlinable_use; escapes } = Join_points.compute_handler_env uses ~is_recursive:false ~params ~env_at_fork:denv_to_reset ~consts_lifted_during_body in
       ( handler_env, arg_types_by_use_id, extra_params_and_args, is_single_inlinable_use, escapes)
   in
   let code_age_relation = TE.code_age_relation (DA.typing_env dacc) in
   let handler_env = DE.with_code_age_relation code_age_relation handler_env in
-  let dacc = DA.with_continuation_uses_env dacc ~cont_uses_env:CUE.empty in
 
     let handler_env, unbox_decisions, is_exn_handler, dacc =
       match Continuation.sort cont with
@@ -2155,19 +2170,13 @@ let simplify_single_handler ~simplify_expr ~is_recursive cont_uses_env_so_far co
             Continuation.print cont Expr.print handler;
         handler_env, None, false, dacc
     in
-  let dacc = DA.with_denv dacc handler_env in
-    (* TODO does this work correctly with mutually-recursive continuations? *)
-    let dacc = DA.map_flow_acc ~f:(Flow.Acc.enter_continuation cont ~recursive:is_recursive ~is_exn_handler params) dacc in
-  simplify_expr dacc handler ~down_to_up:(fun dacc ~rebuild:rebuild_handler ->
-    let dacc = DA.map_flow_acc ~f:(Flow.Acc.exit_continuation cont) dacc in
-    let cont_uses_env_in_handler = DA.continuation_uses_env dacc in
-    let cont_uses_env_in_handler =
-      if is_recursive then CUE.mark_non_inlinable cont_uses_env_in_handler else cont_uses_env_in_handler
-    in
-    let cont_uses_env_so_far = CUE.union cont_uses_env_so_far cont_uses_env_in_handler in
-    let continuations_used = Continuation.Set.inter all_handlers_set (CUE.all_continuations_used cont_uses_env_in_handler) in
-    k dacc { params; rebuild_handler; is_exn_handler; continuations_used ; unbox_decisions ; extra_params_and_args_for_cse } cont_uses_env_so_far
-  )
+    let dacc = DA.with_denv dacc handler_env in
+    simplify_handler ~simplify_expr ~is_recursive ~is_exn_handler ~params cont dacc handler
+      (fun dacc rebuild_handler cont_uses_env_in_handler ->
+         let cont_uses_env_so_far = CUE.union cont_uses_env_so_far cont_uses_env_in_handler in
+         let continuations_used = Continuation.Set.inter all_handlers_set (CUE.all_continuations_used cont_uses_env_in_handler) in
+         k dacc { params; rebuild_handler; is_exn_handler; continuations_used ; unbox_decisions ; extra_params_and_args_for_cse } cont_uses_env_so_far
+      )
 
 let simplify_let_cont_stage2 ~simplify_expr (stage2 : stage2) ~down_to_up dacc ~rebuild:rebuild_body =
   (* At this point, we have done the downwards traversal of the body. We prepare to loop over all the

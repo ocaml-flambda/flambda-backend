@@ -29,6 +29,7 @@ type result = private
 val compute_handler_env :
   ?cut_after:Scope.t ->
   Continuation_uses.t ->
+  is_recursive:bool ->
   env_at_fork:Downwards_env.t ->
   consts_lifted_during_body:Lifted_constant_state.t ->
   params:Bound_parameters.t ->
