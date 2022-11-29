@@ -578,8 +578,10 @@ let split_complex_binding ~env ~res (binding : complex binding) =
     | Pure | Generative_immutable -> ()
     | Effect | Coeffect_only ->
       Misc.fatal_errorf
-        "Once split, a 'must_inline_once' binding cannot have effects or \
-         coeffects, since it can be moved around to be inlined.");
+        "Primitive %a was marked as `must_inline`, but is has coeffects and/or \
+         effects. This would lead to errors when moving the primitive \
+         application to substitute it."
+        Flambda_primitive.Without_args.print prim);
     let split_binding =
       { order = binding.order;
         effs = prim_effects;
