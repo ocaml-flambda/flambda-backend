@@ -288,7 +288,7 @@ let params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
      used. *)
   let env =
     Env.bind_variable env my_region ~defining_expr:(C.unit ~dbg:fun_dbg)
-      ~num_normal_occurrences_of_bound_vars:Variable.Map.empty
+      ~num_normal_occurrences_of_bound_vars:Or_unknown.Unknown
       ~effects_and_coeffects_of_defining_expr:Ece.pure
   in
   (* Translate the arg list and body *)

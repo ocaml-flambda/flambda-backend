@@ -99,7 +99,7 @@ let unit0 ~offsets flambda_unit ~all_code =
     Env.bind_variable env
       (Flambda_unit.toplevel_my_region flambda_unit)
       ~defining_expr:(C.unit ~dbg:Debuginfo.none)
-      ~num_normal_occurrences_of_bound_vars:Variable.Map.empty
+      ~num_normal_occurrences_of_bound_vars:Or_unknown.Unknown
       ~effects_and_coeffects_of_defining_expr:Effects_and_coeffects.pure
   in
   let r = R.create ~module_symbol:(Flambda_unit.module_symbol flambda_unit) in
