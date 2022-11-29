@@ -245,8 +245,6 @@ type stage1 = {
 type stage2 = {
   denv_before_body : DE.t ;
   prior_lifted_constants : LCS.t ;
-  prior_cont_uses_env : CUE.t ;
-  original_cont_scope : Scope.t ; (* TODO: remove this *)
   recinfo : stage1_recinfos ;
 }
 
@@ -1095,20 +1093,14 @@ let simplify_let_cont_stage1 ~simplify_expr dacc (stage1 : stage1) ~down_to_up =
      in the non-recursive case, and so that we can know the values of all invariant arguments in the recursive
      case. We reset the [continuation_uses_env] so we can have precise information on continuations called
      by the body, and we reset the lifted constants because we need to add them to the handler's denv. *)
-  (* CR gbury: we do not need to store and reset the CUE here, we could simply do it right after going down the body *)
-  let prior_cont_uses_env = DA.continuation_uses_env dacc in
-  let dacc = DA.with_continuation_uses_env dacc ~cont_uses_env:CUE.empty in
   let dacc, prior_lifted_constants = DA.get_and_clear_lifted_constants dacc in
   let denv_before_body = DA.denv dacc in
-  let original_cont_scope = DE.get_continuation_scope denv_before_body in
   let dacc =
     DA.with_denv dacc (DE.increment_continuation_scope denv_before_body)
   in
   let stage2 = {
     denv_before_body ;
     prior_lifted_constants ;
-    prior_cont_uses_env ;
-    original_cont_scope ;
     recinfo = stage1.recinfo
   }
   in
