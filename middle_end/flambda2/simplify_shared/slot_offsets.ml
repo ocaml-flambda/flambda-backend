@@ -92,7 +92,8 @@ module Layout = struct
     | Infix_header
     | Function_slot of
         { size : words;
-          function_slot : Function_slot.t
+          function_slot : Function_slot.t;
+          last_function_slot : bool
         }
 
   type t =
@@ -104,9 +105,10 @@ module Layout = struct
   let print_slot fmt = function
     | Value_slot v -> Format.fprintf fmt "value_slot %a" Value_slot.print v
     | Infix_header -> Format.fprintf fmt "infix_header"
-    | Function_slot { size; function_slot } ->
-      Format.fprintf fmt "function_slot(%d) %a" size Function_slot.print
-        function_slot
+    | Function_slot { size; function_slot; last_function_slot } ->
+      Format.fprintf fmt "function_slot%s(%d) %a"
+        (if last_function_slot then "[last]" else "")
+        size Function_slot.print function_slot
 
   let print fmt l =
     Format.fprintf fmt "@[<v>startenv: %d;@ " l.startenv;
@@ -122,7 +124,7 @@ module Layout = struct
         | Some Dead_function_slot -> acc
         | Some (Live_function_slot { size; offset }) ->
           Numeric_types.Int.Map.add offset
-            (Function_slot { size; function_slot })
+            (Function_slot { size; function_slot; last_function_slot = false })
             acc
         | None ->
           Misc.fatal_errorf "No function_slot offset for %a" Function_slot.print
@@ -166,12 +168,20 @@ module Layout = struct
       in
       startenv, acc_slots
     | Value_slot _ ->
-      let startenv =
-        match startenv with
-        | Some i ->
+      let startenv, acc_slots =
+        match startenv, acc_slots with
+        | Some i, _ ->
           assert (i < offset);
-          startenv
-        | None -> Some offset
+          startenv, acc_slots
+        | None, (o, Function_slot s) :: r ->
+          ( Some offset,
+            (o, Function_slot { s with last_function_slot = true }) :: r )
+        | None, [] -> Misc.fatal_errorf "Set of closures with no closure slot"
+        | None, (_, ((Value_slot _ | Infix_header) as slot)) :: _ ->
+          Misc.fatal_errorf
+            "Expected a function slot right before the first value slot, but \
+             found %a"
+            print_slot slot
       in
       let acc_slots = (offset, slot) :: acc_slots in
       startenv, acc_slots
