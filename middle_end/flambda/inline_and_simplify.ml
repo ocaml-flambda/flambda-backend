@@ -842,6 +842,13 @@ and simplify_partial_application env r ~lhs_of_application
     List.fold_left (fun _mode (p,_) -> Parameter.alloc_mode p)
       function_decl.A.alloc_mode applied_args
   in
+  if not (Lambda.sub_mode partial_mode mode) then
+    Misc.fatal_errorf "Partial application of %a with wrong mode at %s"
+      Closure_id.print closure_id_being_applied
+      (Debuginfo.to_string dbg);
+  let result_mode =
+    if function_decl.A.region then Lambda.alloc_heap else Lambda.alloc_local
+  in
   let wrapper_accepting_remaining_args =
     let body : Flambda.t =
       Apply {
@@ -850,7 +857,7 @@ and simplify_partial_application env r ~lhs_of_application
         kind = Direct closure_id_being_applied;
         dbg;
         reg_close = Rc_normal;
-        mode;
+        mode = result_mode;
         inlined = Default_inlined;
         specialise = Default_specialise;
         probe = None;
