@@ -960,7 +960,13 @@ let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
   | Box_number (_, alloc_mode) ->
     (* Ensure boxing operations for numbers are inlined/substituted in to_cmm *)
     let placement : Placement.t =
-      if Flambda_features.classic_mode () then Delay else Strict
+      if Flambda_features.classic_mode ()
+      then
+        (* Local allocations have coeffects, to avoid them being moved past a
+           begin/end region. Hence, it is not safe to force the allocation to be
+           moved, so we cannot use the `Delay` mode for those. *)
+        match alloc_mode with Heap -> Delay | Local _ -> Strict
+      else Strict
     in
     let coeffects : Coeffects.t =
       match alloc_mode with Heap -> No_coeffects | Local _ -> Has_coeffects
