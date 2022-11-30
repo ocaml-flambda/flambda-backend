@@ -300,23 +300,7 @@ let rec expr env res e =
   | Switch e' -> switch env res e'
   | Invalid { message } -> C.invalid res ~message
 
-and let_expr0 env res let_expr (bound_pattern : Bound_pattern.t)
-    ~num_normal_occurrences_of_bound_vars ~body =
-  match bound_pattern, Let.defining_expr let_expr with
-  | Singleton v, Simple s ->
-    let v = Bound_var.var v in
-    (* CR mshinwell: Try to get a proper [dbg] here (although the majority of
-       these bindings should have been substituted out). *)
-    let dbg = Debuginfo.none in
-    let env, res =
-      bind_var_to_simple ~dbg env res v ~num_normal_occurrences_of_bound_vars s
-    in
-    expr env res body
-  | Singleton _, Prim (p, _)
-    when (not (Flambda_features.stack_allocation_enabled ()))
-         && Flambda_primitive.is_begin_or_end_region p ->
-    expr env res body
-  | Singleton v, Prim (p, dbg) -> (
+and let_prim env res ~num_normal_occurrences_of_bound_vars v p dbg body =
     let v = Bound_var.var v in
     let effects_and_coeffects_of_prim =
       Flambda_primitive.effects_and_coeffects p
@@ -358,7 +342,38 @@ and let_expr0 env res let_expr (bound_pattern : Bound_pattern.t)
     | Drop_defining_expr | Regular -> simple_case Do_not_inline
     | May_inline_once -> simple_case May_inline_once
     | Must_inline_once -> complex_case Must_inline_once
-    | Must_inline_and_duplicate -> complex_case Must_inline_and_duplicate)
+    | Must_inline_and_duplicate -> complex_case Must_inline_and_duplicate
+
+
+and let_expr0 env res let_expr (bound_pattern : Bound_pattern.t)
+    ~num_normal_occurrences_of_bound_vars ~body =
+  match[@warning "-4"] bound_pattern, Let.defining_expr let_expr with
+  | Singleton v, Simple s ->
+    let v = Bound_var.var v in
+    (* CR mshinwell: Try to get a proper [dbg] here (although the majority of
+       these bindings should have been substituted out). *)
+    let dbg = Debuginfo.none in
+    let env, res =
+      bind_var_to_simple ~dbg env res v ~num_normal_occurrences_of_bound_vars s
+    in
+    expr env res body
+  | Singleton _, Prim (p, _)
+    when (not (Flambda_features.stack_allocation_enabled ()))
+         && Flambda_primitive.is_begin_or_end_region p ->
+    expr env res body
+  | Singleton v, Prim ((Unary (End_region, _) as p), dbg) ->
+    (* CR gbury: this is a hack to prevent moving of expressions past an
+       End_region. We have to do this manually because we currently have effects
+       and coeffects that are not precise enough. Particularly, an immutable
+       load of a locally allocated block is considered as pure, and thus can be
+       moved past an end_region. Here we also need to flush everything, including
+       must_inline bindings, particularly projections that mayb project from
+       locally allocated closures (and that must not be moved past an end_region). *)
+    let wrap, env, res = Env.flush_delayed_lets ~mode:Flush_everything env res in
+    let cmm, res = let_prim env res ~num_normal_occurrences_of_bound_vars v p dbg body in
+    wrap cmm, res
+  | Singleton v, Prim (p, dbg) ->
+    let_prim env res ~num_normal_occurrences_of_bound_vars v p dbg body
   | Set_of_closures bound_vars, Set_of_closures soc ->
     To_cmm_set_of_closures.let_dynamic_set_of_closures env res ~body ~bound_vars
       ~num_normal_occurrences_of_bound_vars soc ~translate_expr:expr
