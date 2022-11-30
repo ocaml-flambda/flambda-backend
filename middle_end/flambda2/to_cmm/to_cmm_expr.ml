@@ -234,7 +234,7 @@ let translate_raise env res apply exn_handler args =
     let exn, env, res, _ = C.simple ~dbg env res exn in
     let extra, env, res, _ = C.simple_list ~dbg env res extra in
     let mut_vars = Env.get_exn_extra_args env exn_handler in
-    let wrap, _, res = Env.flush_delayed_lets env res in
+    let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
     let cmm =
       List.fold_left2
         (fun expr arg v -> C.sequence (C.assign v arg) expr)
@@ -259,7 +259,7 @@ let translate_jump_to_continuation env res apply types cont args =
     in
     let dbg = Apply_cont.debuginfo apply in
     let args, env, res, _ = C.simple_list ~dbg env res args in
-    let wrap, _, res = Env.flush_delayed_lets env res in
+    let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
     wrap (C.cexit cont args trap_actions), res
   else
     Misc.fatal_errorf "Types (%a) do not match arguments of@ %a"
@@ -273,7 +273,7 @@ let translate_jump_to_return_continuation env res apply return_cont args =
   | [return_value] -> (
     let dbg = Apply_cont.debuginfo apply in
     let return_value, env, res, _ = C.simple ~dbg env res return_value in
-    let wrap, _, res = Env.flush_delayed_lets env res in
+    let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
     match Apply_cont.trap_action apply with
     | None -> wrap return_value, res
     | Some (Pop _) -> wrap (C.trap_return return_value [Cmm.Pop]), res
@@ -372,7 +372,7 @@ and let_expr0 env res let_expr (bound_pattern : Bound_pattern.t)
     match update_opt with
     | None -> expr env res body
     | Some update ->
-      let wrap, env, res = Env.flush_delayed_lets env res in
+      let wrap, env, res = Env.flush_delayed_lets ~mode:Branching_point env res in
       let body, res = expr env res body in
       wrap (C.sequence update body), res)
   | Singleton _, Rec_info _ -> expr env res body
@@ -432,7 +432,7 @@ and let_cont_not_inlined env res k handler body =
   (* CR gbury: "split" the environment according to which variables the handler
      and the body uses, to allow for inlining to proceed within each
      expression. *)
-  let wrap, env, res = Env.flush_delayed_lets env res in
+  let wrap, env, res = Env.flush_delayed_lets ~mode:Branching_point env res in
   let is_exn_handler = Continuation_handler.is_exn_handler handler in
   let vars, arity, handler, res = continuation_handler env res handler in
   let catch_id, env =
@@ -514,7 +514,7 @@ and let_cont_rec env res conts body =
      occurrence) *)
   (* CR-someday mshinwell: As discussed, the tradeoff here is not clear, since
      flushing might increase register pressure. *)
-  let wrap, env, res = Env.flush_delayed_lets ~entering_loop:true env res in
+  let wrap, env, res = Env.flush_delayed_lets ~mode:Entering_loop env res in
   (* Compute the environment for Ccatch ids *)
   let conts_to_handlers = Continuation_handlers.to_map conts in
   let env =
@@ -583,11 +583,11 @@ and apply_expr env res apply =
   match Apply.continuation apply with
   | Never_returns ->
     (* Case 1 *)
-    let wrap, _, res = Env.flush_delayed_lets env res in
+    let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
     wrap call, res
   | Return k when Continuation.equal (Env.return_continuation env) k ->
     (* Case 1 *)
-    let wrap, _, res = Env.flush_delayed_lets env res in
+    let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
     wrap call, res
   | Return k -> (
     let[@inline always] unsupported () =
@@ -602,7 +602,7 @@ and apply_expr env res apply =
     | Jump { param_types = []; cont = _ } -> unsupported ()
     | Jump { param_types = [_]; cont } ->
       (* Case 2 *)
-      let wrap, _, res = Env.flush_delayed_lets env res in
+      let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
       wrap (C.cexit cont [call] []), res
     | Inline { handler_params; handler_body = body; handler_params_occurrences }
       -> (
@@ -699,7 +699,7 @@ and switch env res switch =
         else untagged_scrutinee_cmm, false)
     | _ -> untagged_scrutinee_cmm, false
   in
-  let wrap, env, res = Env.flush_delayed_lets env res in
+  let wrap, env, res = Env.flush_delayed_lets ~mode:Branching_point env res in
   let prepare_discriminant ~must_tag d =
     let targetint_d = Targetint_31_63.to_targetint d in
     Targetint_32_64.to_int_checked

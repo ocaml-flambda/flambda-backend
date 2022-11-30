@@ -227,10 +227,15 @@ val inline_variable :
   Variable.t ->
   Cmm.expression * t * To_cmm_result.t * Effects_and_coeffects.t
 
+type flush_mode =
+  | Entering_loop
+  | Branching_point
+  | Flush_everything
+
 (** Wrap the given Cmm expression with all the delayed let bindings accumulated
     in the environment. *)
 val flush_delayed_lets :
-  ?entering_loop:bool ->
+  mode:flush_mode ->
   t ->
   To_cmm_result.t ->
   (Cmm.expression -> Cmm.expression) * t * To_cmm_result.t
