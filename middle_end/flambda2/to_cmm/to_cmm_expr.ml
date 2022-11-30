@@ -301,49 +301,47 @@ let rec expr env res e =
   | Invalid { message } -> C.invalid res ~message
 
 and let_prim env res ~num_normal_occurrences_of_bound_vars v p dbg body =
-    let v = Bound_var.var v in
-    let effects_and_coeffects_of_prim =
-      Flambda_primitive.effects_and_coeffects p
+  let v = Bound_var.var v in
+  let effects_and_coeffects_of_prim =
+    Flambda_primitive.effects_and_coeffects p
+  in
+  let inline =
+    To_cmm_effects.classify_let_binding v ~num_normal_occurrences_of_bound_vars
+      ~effects_and_coeffects_of_defining_expr:effects_and_coeffects_of_prim
+  in
+  let simple_case (inline : Env.simple Env.inline) =
+    let defining_expr, extra, env, res, args_effs =
+      To_cmm_primitive.prim_simple env res dbg p
     in
-    let inline =
-      To_cmm_effects.classify_let_binding v
-        ~num_normal_occurrences_of_bound_vars
-        ~effects_and_coeffects_of_defining_expr:effects_and_coeffects_of_prim
+    let effects_and_coeffects_of_defining_expr =
+      Ece.join args_effs effects_and_coeffects_of_prim
     in
-    let simple_case (inline : Env.simple Env.inline) =
-      let defining_expr, extra, env, res, args_effs =
-        To_cmm_primitive.prim_simple env res dbg p
-      in
-      let effects_and_coeffects_of_defining_expr =
-        Ece.join args_effs effects_and_coeffects_of_prim
-      in
-      let env =
-        Env.bind_variable_to_primitive ?extra env v ~inline
-          ~effects_and_coeffects_of_defining_expr ~defining_expr
-      in
-      expr env res body
+    let env =
+      Env.bind_variable_to_primitive ?extra env v ~inline
+        ~effects_and_coeffects_of_defining_expr ~defining_expr
     in
-    let complex_case (inline : Env.complex Env.inline) =
-      let defining_expr, env, res, args_effs =
-        To_cmm_primitive.prim_complex env res dbg p
-      in
-      let effects_and_coeffects_of_defining_expr =
-        Ece.join args_effs effects_and_coeffects_of_prim
-      in
-      let env =
-        Env.bind_variable_to_primitive env v ~inline
-          ~effects_and_coeffects_of_defining_expr ~defining_expr
-      in
-      expr env res body
+    expr env res body
+  in
+  let complex_case (inline : Env.complex Env.inline) =
+    let defining_expr, env, res, args_effs =
+      To_cmm_primitive.prim_complex env res dbg p
     in
-    match inline with
-    (* It can be useful to translate a dropped expression because it allows to
-       inline (and thus remove from the env) the arguments in it. *)
-    | Drop_defining_expr | Regular -> simple_case Do_not_inline
-    | May_inline_once -> simple_case May_inline_once
-    | Must_inline_once -> complex_case Must_inline_once
-    | Must_inline_and_duplicate -> complex_case Must_inline_and_duplicate
-
+    let effects_and_coeffects_of_defining_expr =
+      Ece.join args_effs effects_and_coeffects_of_prim
+    in
+    let env =
+      Env.bind_variable_to_primitive env v ~inline
+        ~effects_and_coeffects_of_defining_expr ~defining_expr
+    in
+    expr env res body
+  in
+  match inline with
+  (* It can be useful to translate a dropped expression because it allows to
+     inline (and thus remove from the env) the arguments in it. *)
+  | Drop_defining_expr | Regular -> simple_case Do_not_inline
+  | May_inline_once -> simple_case May_inline_once
+  | Must_inline_once -> complex_case Must_inline_once
+  | Must_inline_and_duplicate -> complex_case Must_inline_and_duplicate
 
 and let_expr0 env res let_expr (bound_pattern : Bound_pattern.t)
     ~num_normal_occurrences_of_bound_vars ~body =
@@ -366,11 +364,16 @@ and let_expr0 env res let_expr (bound_pattern : Bound_pattern.t)
        End_region. We have to do this manually because we currently have effects
        and coeffects that are not precise enough. Particularly, an immutable
        load of a locally allocated block is considered as pure, and thus can be
-       moved past an end_region. Here we also need to flush everything, including
-       must_inline bindings, particularly projections that mayb project from
-       locally allocated closures (and that must not be moved past an end_region). *)
-    let wrap, env, res = Env.flush_delayed_lets ~mode:Flush_everything env res in
-    let cmm, res = let_prim env res ~num_normal_occurrences_of_bound_vars v p dbg body in
+       moved past an end_region. Here we also need to flush everything,
+       including must_inline bindings, particularly projections that mayb
+       project from locally allocated closures (and that must not be moved past
+       an end_region). *)
+    let wrap, env, res =
+      Env.flush_delayed_lets ~mode:Flush_everything env res
+    in
+    let cmm, res =
+      let_prim env res ~num_normal_occurrences_of_bound_vars v p dbg body
+    in
     wrap cmm, res
   | Singleton v, Prim (p, dbg) ->
     let_prim env res ~num_normal_occurrences_of_bound_vars v p dbg body
@@ -387,7 +390,9 @@ and let_expr0 env res let_expr (bound_pattern : Bound_pattern.t)
     match update_opt with
     | None -> expr env res body
     | Some update ->
-      let wrap, env, res = Env.flush_delayed_lets ~mode:Branching_point env res in
+      let wrap, env, res =
+        Env.flush_delayed_lets ~mode:Branching_point env res
+      in
       let body, res = expr env res body in
       wrap (C.sequence update body), res)
   | Singleton _, Rec_info _ -> expr env res body

@@ -760,28 +760,33 @@ let flush_delayed_lets ~mode env res =
           flush binding;
           None
         | Must_inline_and_duplicate -> (
-          begin match mode with
-            | Flush_everything -> flush binding; None
-            | Branching_point | Entering_loop ->
-              let r, split_res = split_complex_binding ~env ~res:!res b in
-              res := r;
-              match split_res with
-              | Already_split -> Some binding
-              | Split { new_bindings; split_binding } ->
-                List.iter flush new_bindings;
-                Some (Binding split_binding)
-          end)
+          match mode with
+          | Flush_everything ->
+            flush binding;
+            None
+          | Branching_point | Entering_loop -> (
+            let r, split_res = split_complex_binding ~env ~res:!res b in
+            res := r;
+            match split_res with
+            | Already_split -> Some binding
+            | Split { new_bindings; split_binding } ->
+              List.iter flush new_bindings;
+              Some (Binding split_binding)))
         | Must_inline_once -> (
-          match mode, To_cmm_effects.classify_by_effects_and_coeffects b.effs with
+          match
+            mode, To_cmm_effects.classify_by_effects_and_coeffects b.effs
+          with
           (* when not entering a loop, and with pure/generative effects at most,
              we can wait to split the binding, so that we can have a chance to
              try and push the arguments down the branch (otherwise, when we
              split, the arguments of the splittable binding would be flushed
              before the branch in control flow). *)
-          | Flush_everything, _ -> flush binding; None
+          | Flush_everything, _ ->
+            flush binding;
+            None
           | Branching_point, (Pure | Generative_immutable) -> Some binding
-          | (Branching_point | Entering_loop),
-            (Pure | Generative_immutable | Coeffect_only | Effect) -> (
+          | ( (Branching_point | Entering_loop),
+              (Pure | Generative_immutable | Coeffect_only | Effect) ) -> (
             let r, split_res = split_complex_binding ~env ~res:!res b in
             res := r;
             match split_res with
@@ -795,11 +800,12 @@ let flush_delayed_lets ~mode env res =
              inlined, ensuring that the corresponding expressions are sunk down
              as far as possible, including past control flow branching
              points. *)
-            | Pure ->
-              begin match mode with
-                | Flush_everything | Entering_loop -> flush binding; None
-                | Branching_point -> Some binding
-              end
+          | Pure -> (
+            match mode with
+            | Flush_everything | Entering_loop ->
+              flush binding;
+              None
+            | Branching_point -> Some binding)
           | Generative_immutable | Coeffect_only | Effect ->
             flush binding;
             None))
