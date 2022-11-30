@@ -301,8 +301,10 @@ let params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
     Env.enter_function_body env ~return_continuation ~exn_continuation
   in
   (* [my_region] can be referenced in [Begin_try_region] primitives so must be
-     in the environment; but the Cmm value to which it is bound will never be
-     used. *)
+     in the environment; however it should never end up in actual generated
+     code, so we don't need any binder for it (this is why we can ignore
+     [_bound_var]. If it does end up in generated code, Selection will complain
+     and refuse to compile the code. *)
   let env, _bound_var = Env.create_bound_parameter env my_region in
   (* Translate the arg list and body *)
   let env, fun_args = C.bound_parameters env params in
