@@ -93,15 +93,10 @@ let unit0 ~offsets flambda_unit ~all_code =
       (Flambda_unit.return_continuation flambda_unit)
       ~param_types:(List.map snd return_cont_params)
   in
-  (* [my_region] can be referenced in [Begin_try_region] primitives so must be
-     in the environment; but the Cmm value to which it is bound will never be
-     used. *)
-  let env =
-    Env.bind_variable env
+  (* See comment in [To_cmm_set_of_closures] about binding [my_region] *)
+  let env, _bound_var =
+    Env.create_bound_parameter env
       (Flambda_unit.toplevel_my_region flambda_unit)
-      ~defining_expr:(C.unit ~dbg:Debuginfo.none)
-      ~num_normal_occurrences_of_bound_vars:Variable.Map.empty
-      ~effects_and_coeffects_of_defining_expr:Effects_and_coeffects.pure
   in
   let r = R.create ~module_symbol:(Flambda_unit.module_symbol flambda_unit) in
   let body, res = To_cmm_expr.expr env r (Flambda_unit.body flambda_unit) in
