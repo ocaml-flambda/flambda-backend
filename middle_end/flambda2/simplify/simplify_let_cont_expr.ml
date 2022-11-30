@@ -936,7 +936,7 @@ let simplify_let_cont_stage3 (stage3 : stage3) ~down_to_up dacc =
   down_to_up dacc ~rebuild:(simplify_let_cont_stage4 stage4)
 
 let prepare_dacc_for_handlers dacc ~env_at_fork ~params ~is_recursive
-    ~consts_lifted_during_body cont continuation_sort is_exn_handler uses =
+    ~consts_lifted_during_body continuation_sort is_exn_handler_cont uses =
   let join_result =
     Join_points.compute_handler_env uses ~params ~is_recursive ~env_at_fork
       ~consts_lifted_during_body
@@ -946,10 +946,13 @@ let prepare_dacc_for_handlers dacc ~env_at_fork ~params ~is_recursive
     DE.with_code_age_relation code_age_relation join_result.handler_env
   in
   let handler_env, unbox_decisions, is_exn_handler, dacc =
+    if is_recursive then handler_env, None, false, dacc else (* TODO Remove this, this prevents unboxing of invariant parameters *)
+
     match (continuation_sort : Continuation.Sort.t) with
     | Normal_or_exn when join_result.is_single_inlinable_use ->
-      if is_exn_handler
-      then
+     (match is_exn_handler_cont with
+     (* CR maybe use better type *)
+     | Some cont ->
         (* This should be prevented by [Simplify_apply_cont_expr]. *)
         Misc.fatal_errorf
           "Exception handlers should never be marked as [Inlinable]:@ %a"
@@ -957,17 +960,16 @@ let prepare_dacc_for_handlers dacc ~env_at_fork ~params ~is_recursive
       (* Don't try to unbox parameters of inlinable continuations, since the
          typing env still contains enough information to avoid re-reading the
          fields. *)
-      handler_env, None, false, dacc
+      | None -> handler_env, None, false, dacc)
     | Normal_or_exn | Define_root_symbol ->
-      let old_is_exn_handler = is_exn_handler in
-      (* If the continuation is an exception handler but it never escapes, it
-         can be demoted to a normal (non-exception) handler. It will then become
-         eligible for unboxing. *)
-      let is_exn_handler = is_exn_handler && join_result.escapes in
-      let dacc =
-        if not (Bool.equal old_is_exn_handler is_exn_handler)
-        then DA.demote_exn_handler dacc cont
-        else dacc
+      let dacc, is_exn_handler =
+        match is_exn_handler_cont with
+        | None -> dacc, false
+        | Some cont ->
+          if join_result.escapes then
+            dacc, true
+          else
+            DA.demote_exn_handler dacc cont, false
       in
       if is_exn_handler
       then handler_env, None, true, dacc
@@ -984,14 +986,14 @@ let prepare_dacc_for_handlers dacc ~env_at_fork ~params ~is_recursive
         in
         handler_env, Some decisions, false, dacc
     | Return | Toplevel_return ->
-      if is_exn_handler
-      then
+      (match is_exn_handler_cont with
+       Some cont ->
         (* This should be prevented by [Simplify_apply_cont_expr]. *)
         Misc.fatal_errorf
           "Exception handlers should never be marked as [Return] or \
            [Toplevel_return]:@ %a"
-          Continuation.print cont;
-      handler_env, None, false, dacc
+          Continuation.print cont
+       | None -> handler_env, None, false, dacc)
   in
   ( DA.with_denv dacc handler_env,
     unbox_decisions,
@@ -1193,8 +1195,8 @@ let simplify_let_cont_stage2 ~simplify_expr (stage2 : stage2) ~down_to_up dacc
       (* CR: use named arguments *)
       let dacc, unbox_decisions, is_exn_handler, extra_params_and_args_for_cse =
         prepare_dacc_for_handlers dacc ~env_at_fork:denv ~params
-          ~is_recursive:false ~consts_lifted_during_body cont
-          (Continuation.sort cont) is_exn_handler uses
+          ~is_recursive:false ~consts_lifted_during_body
+          (Continuation.sort cont) (if is_exn_handler then Some cont else None) uses
       in
       simplify_handler ~simplify_expr ~is_recursive:false ~is_exn_handler
         ~params cont dacc handler
@@ -1223,7 +1225,7 @@ let simplify_let_cont_stage2 ~simplify_expr (stage2 : stage2) ~down_to_up dacc
             }
           in
           simplify_let_cont_stage3 stage3 ~down_to_up dacc))
-  | Recursive { continuation_handlers; invariant_params = _ } ->
+  | Recursive { continuation_handlers; invariant_params } ->
     let remaining_handlers =
       Continuation.Map.map
         (* CR : uses record instead of triple *)
@@ -1238,6 +1240,20 @@ let simplify_let_cont_stage2 ~simplify_expr (stage2 : stage2) ~down_to_up dacc
       Continuation.Set.inter all_handlers_set
         (CUE.all_continuations_used body_continuation_uses_env)
     in
+    let uses =
+      (* TODO: this only works for one continuation, and it needs to be used *)
+      assert (Continuation.Map.cardinal continuation_handlers = 1);
+      let (cont, _) = Continuation.Map.choose continuation_handlers in
+      match CUE.get_continuation_uses body_continuation_uses_env cont with
+      | None -> Misc.fatal_error "TODOOOOOOOOOO"
+      | Some uses -> uses
+    in
+    let dacc, unbox_decisions, is_exn_handler, extra_params_and_args_for_cse =
+      prepare_dacc_for_handlers dacc ~env_at_fork:denv ~params:invariant_params
+        ~is_recursive:true ~consts_lifted_during_body Normal_or_exn None uses
+    in
+    assert (not (is_exn_handler));
+    assert (unbox_decisions = None); (* TODO *)
     (* CR: move this to a separate function *)
     (* CR: rename used_handlers -> reachable_handlers_to_simplify *)
     (* CR: rename remaining_handlers -> handlers_map / all_handlers *)
