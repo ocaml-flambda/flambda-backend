@@ -677,17 +677,24 @@ let rewrite_apply_cont0 uacc rewrite ~ctx id apply_cont :
       Apply_cont.print apply_cont Bound_parameters.print original_params'
       Simple.List.print args;
   let original_params_with_args = List.combine original_params args in
-  let args =
+  let invariant_params = Apply_cont_rewrite.invariant_params rewrite in
+  let invariant_args, args =
     let used_params = Apply_cont_rewrite.used_params rewrite in
-    List.filter_map
-      (fun (original_param, arg) ->
-        if BP.Set.mem original_param used_params then Some arg else None)
-      original_params_with_args
+    List.partition_map (fun x -> x)
+      (List.filter_map
+         (fun (original_param, arg) : _ Either.t option ->
+            if BP.Set.mem original_param used_params then
+              if BP.Set.mem original_param invariant_params then
+                Some (Left arg)
+              else
+                Some (Right arg)
+            else None)
+      original_params_with_args)
   in
   let extra_args_list = Apply_cont_rewrite.extra_args rewrite id in
-  let extra_args_rev, extra_lets, _ =
+  let extra_invariant_args_rev, extra_args_rev, extra_lets, _ =
     List.fold_left
-      (fun (extra_args_rev, extra_lets, required_by_other_extra_args)
+      (fun (extra_invariant_args_rev, extra_args_rev, extra_lets, required_by_other_extra_args)
            ( (arg : Continuation_extra_params_and_args.Extra_arg.t),
              (used : Apply_cont_rewrite.used) ) ->
         (* Some extra_args computation can depend on other extra args. But those
@@ -722,14 +729,15 @@ let rewrite_apply_cont0 uacc rewrite ~ctx id apply_cont :
             in
             Simple.var temp, [extra_let], Flambda_primitive.free_names prim
         in
-        let extra_args_rev =
+        let extra_invariant_args_rev, extra_args_rev =
           match used with
-          | Used -> extra_arg :: extra_args_rev
-          | Unused -> extra_args_rev
+          | Used -> extra_invariant_args_rev, extra_arg :: extra_args_rev
+          | Used_as_invariant -> extra_arg :: extra_invariant_args_rev, extra_args_rev
+          | Unused -> extra_invariant_args_rev, extra_args_rev
         in
         let required_let =
           match used with
-          | Used -> true
+          | Used | Used_as_invariant -> true
           | Unused ->
             let defined_names = Simple.free_names extra_arg in
             Name_occurrences.inter_domain_is_non_empty defined_names
@@ -737,14 +745,14 @@ let rewrite_apply_cont0 uacc rewrite ~ctx id apply_cont :
         in
         if required_let
         then
-          ( extra_args_rev,
+          ( extra_invariant_args_rev, extra_args_rev,
             extra_let @ extra_lets,
             Name_occurrences.union free_names required_by_other_extra_args )
-        else extra_args_rev, extra_lets, required_by_other_extra_args)
-      ([], [], Name_occurrences.empty)
+        else extra_invariant_args_rev, extra_args_rev, extra_lets, required_by_other_extra_args)
+      ([], [], [], Name_occurrences.empty)
       extra_args_list
   in
-  let args = args @ List.rev extra_args_rev in
+  let args = invariant_args @ List.rev extra_invariant_args_rev @ args @ List.rev extra_args_rev in
   let apply_cont = Apply_cont.update_args apply_cont ~args in
   match extra_lets with
   | [] -> Apply_cont apply_cont
@@ -797,6 +805,7 @@ let rewrite_exn_continuation rewrite id exn_cont =
                (used : Apply_cont_rewrite.used) ) ->
           match used, arg with
           | Used, Already_in_scope simple -> Some simple
+          | Used_as_invariant, _ -> Misc.fatal_errorf "exn continuation has an invariant arg: %a" Exn_continuation.print exn_cont
           | Unused, Already_in_scope _ -> None
           | ( (Used | Unused),
               (New_let_binding _ | New_let_binding_with_named_args _) ) ->

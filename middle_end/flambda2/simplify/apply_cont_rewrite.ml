@@ -20,17 +20,20 @@ module Id = Apply_cont_rewrite_id
 
 type used =
   | Used
+  | Used_as_invariant
   | Unused
 
 type t =
   { original_params : Bound_parameters.t;
     used_params : BP.Set.t;
     used_extra_params : Bound_parameters.t;
-    extra_args : (EA.t * used) list Id.Map.t
+    invariant_params : BP.Set.t;
+    extra_args : (EA.t * used) list Id.Map.t;
   }
 
 let print_used ppf = function
   | Used -> ()
+  | Used_as_invariant -> Format.fprintf ppf "@ invariant"
   | Unused -> Format.fprintf ppf "@ unused"
 
 let print_ea_used ppf t =
@@ -40,23 +43,26 @@ let print_ea_used ppf t =
     t
 
 let [@ocamlformat "disable"] print ppf
-  { original_params; used_params; used_extra_params; extra_args; } =
+  { original_params; used_params; used_extra_params; invariant_params; extra_args; } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(original_params@ (%a))@]@ \
       @[<hov 1>(used_params@ %a)@]@ \
       @[<hov 1>(used_extra_params@ (%a))@]@ \
+      @[<hov 1>(invariant_params@ %a)@]@ \
       @[<hov 1>(extra_args@ %a)@]\
       )@]"
   Bound_parameters.print original_params
     BP.Set.print used_params
     Bound_parameters.print used_extra_params
+    BP.Set.print invariant_params
     (Id.Map.print print_ea_used) extra_args
 
 let does_nothing t =
   Bound_parameters.cardinal t.original_params = BP.Set.cardinal t.used_params
   && Bound_parameters.is_empty t.used_extra_params
+  && BP.Set.is_empty t.invariant_params
 
-let create ~original_params ~used_params ~extra_params ~extra_args
+let create ~original_params ~used_params ~invariant_params ~extra_params ~extra_args
     ~used_extra_params =
   Bound_parameters.check_no_duplicates original_params;
   Bound_parameters.check_no_duplicates extra_params;
@@ -89,7 +95,7 @@ let create ~original_params ~used_params ~extra_params ~extra_args
             (fun extra_param extra_arg ->
               ( extra_arg,
                 if BP.Set.mem extra_param used_extra_params
-                then Used
+                then if BP.Set.mem extra_param invariant_params then Used_as_invariant else Used
                 else Unused ))
             (Bound_parameters.to_list extra_params)
             extra_args)
@@ -100,13 +106,18 @@ let create ~original_params ~used_params ~extra_params ~extra_args
       (fun extra_param -> BP.Set.mem extra_param used_extra_params)
       extra_params
   in
-  { original_params; used_params; used_extra_params; extra_args }
+  let invariant_params =
+    BP.Set.inter invariant_params (BP.Set.of_list (Bound_parameters.to_list original_params))
+  in
+  { original_params; used_params; used_extra_params; invariant_params; extra_args }
 
 let original_params t = t.original_params
 
 let used_params t = t.used_params
 
 let used_extra_params t = t.used_extra_params
+
+let invariant_params t = t.invariant_params
 
 let extra_args t id =
   match Id.Map.find id t.extra_args with

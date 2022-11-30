@@ -23,6 +23,7 @@ type t
 
 type used = private
   | Used
+  | Used_as_invariant
   | Unused
 
 val print : Format.formatter -> t -> unit
@@ -32,6 +33,7 @@ val print : Format.formatter -> t -> unit
 val create :
   original_params:Bound_parameters.t ->
   used_params:Bound_parameter.Set.t ->
+  invariant_params:Bound_parameter.Set.t ->
   extra_params:Bound_parameters.t ->
   extra_args:
     Continuation_extra_params_and_args.Extra_arg.t list
@@ -44,6 +46,8 @@ val original_params : t -> Bound_parameters.t
 val used_params : t -> Bound_parameter.Set.t
 
 val used_extra_params : t -> Bound_parameters.t
+
+val invariant_params : t -> Bound_parameter.Set.t
 
 val extra_args :
   t ->

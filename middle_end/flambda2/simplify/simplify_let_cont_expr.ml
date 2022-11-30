@@ -119,8 +119,7 @@ let compute_used_params uacc params ~is_exn_handler ~is_single_inlinable_use
     in
     { params_used_as_normal; params_not_used_as_normal }
 
-let add_extra_params_for_continuation_param_aliases cont uacc rewrite_ids
-    extra_params_and_args =
+let extra_params_for_continuation_param_aliases cont uacc rewrite_ids =
   let Flow_types.Alias_result.{ continuation_parameters; aliases_kind; _ } =
     UA.continuation_param_aliases uacc
   in
@@ -140,7 +139,7 @@ let add_extra_params_for_continuation_param_aliases cont uacc rewrite_ids
           Anything
       in
       EPA.add ~extra_param:(Bound_parameter.create var var_kind) ~extra_args epa)
-    required_extra_args.extra_args_for_aliases extra_params_and_args
+    required_extra_args.extra_args_for_aliases EPA.empty
 
 let add_extra_params_for_reference_fields cont uacc extra_params_and_args =
   let Flow_types.Mutable_unboxing_result.{ additionnal_epa; _ } =
@@ -162,17 +161,15 @@ type make_rewrite_context =
 
 let make_rewrite_for_recursive_continuation uacc ~cont ~original_cont_scope:_
     ~original_params ~context ~extra_params_and_args =
-  let extra_params_and_args =
+  let invariant_epa =
     match context with
-    | In_handler -> extra_params_and_args
+    | In_handler -> assert false
     | In_body { rewrite_ids } ->
-      (* In the body, the rewrite will refer to the wrapper continuation, if
-         there is one, which might have additionnal arguments for the aliases *)
-      let extra_params_and_args =
-        add_extra_params_for_continuation_param_aliases cont uacc rewrite_ids
-          extra_params_and_args
-      in
-      extra_params_and_args
+      extra_params_for_continuation_param_aliases cont uacc rewrite_ids
+  in
+  let extra_params_and_args =
+    EPA.concat ~inner:extra_params_and_args
+      ~outer:invariant_epa
   in
   let extra_params_and_args =
     add_extra_params_for_reference_fields cont uacc extra_params_and_args
@@ -201,6 +198,7 @@ let make_rewrite_for_recursive_continuation uacc ~cont ~original_cont_scope:_
   let used_extra_params = Bound_parameters.to_set used_extra_params_list in
   let rewrite =
     Apply_cont_rewrite.create ~original_params ~used_params
+      ~invariant_params:Bound_parameter.Set.empty (* (Bound_parameters.to_set (EPA.extra_params invariant_epa)) *)
       ~extra_params:(EPA.extra_params extra_params_and_args)
       ~extra_args:(EPA.extra_args extra_params_and_args)
       ~used_extra_params
@@ -563,8 +561,8 @@ let rebuild_single_non_recursive_handler ~at_unit_toplevel
         add_lets_around_handler cont at_unit_toplevel uacc handler
       in
       let extra_params_and_args =
-        add_extra_params_for_continuation_param_aliases cont uacc rewrite_ids
-          extra_params_and_args
+        EPA.concat ~inner:extra_params_and_args
+          ~outer:(extra_params_for_continuation_param_aliases cont uacc rewrite_ids)
         |> add_extra_params_for_reference_fields cont uacc
       in
       let { extra_params_used_as_normal; extra_params_not_used_as_normal } =
@@ -583,6 +581,7 @@ let rebuild_single_non_recursive_handler ~at_unit_toplevel
       let rewrite =
         Apply_cont_rewrite.create ~original_params:params
           ~used_params:(BP.Set.of_list params_used_as_normal)
+          ~invariant_params:BP.Set.empty
           ~extra_params:(EPA.extra_params extra_params_and_args)
           ~extra_args:(EPA.extra_args extra_params_and_args)
           ~used_extra_params:(BP.Set.of_list extra_params_used_as_normal)
