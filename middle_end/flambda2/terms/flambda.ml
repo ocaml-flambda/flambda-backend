@@ -102,7 +102,7 @@ and recursive_let_cont_handlers_t0 =
   }
 
 and recursive_let_cont_handlers =
-  ( Bound_continuations_and_parameters.t,
+  ( Bound_continuations.t,
     recursive_let_cont_handlers_t0 )
   Name_abstraction.t
 
@@ -117,7 +117,8 @@ and continuation_handler =
     is_exn_handler : bool
   }
 
-and continuation_handlers = continuation_handler Continuation.Map.t
+and continuation_handlers =
+  (Bound_parameters.t, continuation_handler Continuation.Map.t) Name_abstraction.t
 
 and function_params_and_body_base =
   { expr : expr;
@@ -241,7 +242,7 @@ and apply_renaming_recursive_let_cont_handlers_t0 { handlers; body } renaming =
 
 and apply_renaming_recursive_let_cont_handlers t renaming =
   Name_abstraction.apply_renaming
-    (module Bound_continuations_and_parameters)
+    (module Bound_continuations)
     t renaming
     ~apply_renaming_to_term:apply_renaming_recursive_let_cont_handlers_t0
 
@@ -275,11 +276,17 @@ and apply_renaming_continuation_handler
   else { cont_handler_abst = cont_handler_abst'; is_exn_handler }
 
 and apply_renaming_continuation_handlers t renaming =
+  Name_abstraction.apply_renaming
+    (module Bound_parameters)
+    t renaming
+    ~apply_renaming_to_term:apply_renaming_continuations_handlers_t0
+
+and apply_renaming_continuations_handlers_t0 t renaming =
   Continuation.Map.fold
     (fun k handler result ->
-      let k = Renaming.apply_continuation renaming k in
-      let handler = apply_renaming_continuation_handler handler renaming in
-      Continuation.Map.add k handler result)
+       let k = Renaming.apply_continuation renaming k in
+       let handler = apply_renaming_continuation_handler handler renaming in
+       Continuation.Map.add k handler result)
     t Continuation.Map.empty
 
 and apply_renaming_function_params_and_body_base { expr; free_names } renaming =
@@ -336,6 +343,12 @@ and ids_for_export_continuation_handler
     ~ids_for_export_of_term:ids_for_export_continuation_handler_t0
 
 and ids_for_export_continuation_handlers t =
+  Name_abstraction.ids_for_export
+    (module Bound_parameters)
+    t
+    ~ids_for_export_of_term:ids_for_export_continuation_handlers_t0
+
+and ids_for_export_continuation_handlers_t0 t =
   Continuation.Map.fold
     (fun k handler ids ->
       Ids_for_export.union ids
@@ -398,7 +411,7 @@ and ids_for_export_recursive_let_cont_handlers_t0 { handlers; body } =
 
 and ids_for_export_recursive_let_cont_handlers t =
   Name_abstraction.ids_for_export
-    (module Bound_continuations_and_parameters)
+    (module Bound_continuations)
     t ~ids_for_export_of_term:ids_for_export_recursive_let_cont_handlers_t0
 
 and ids_for_export_function_params_and_body_base { expr; free_names = _ } =
@@ -523,7 +536,7 @@ and print ppf (t : expr) =
     fprintf ppf "@[(%tinvalid%t@ @[<hov 1>%s@])@]"
       Flambda_colours.invalid_keyword Flambda_colours.pop message
 
-and print_continuation_handler (recursive : Recursive.t) ppf k
+and print_continuation_handler (recursive : Recursive.t) invariant_params ppf k
     ({ cont_handler_abst = _; is_exn_handler } as t) occurrences ~first =
   let fprintf = Format.fprintf in
   if not first then fprintf ppf "@ ";
@@ -538,6 +551,8 @@ and print_continuation_handler (recursive : Recursive.t) ppf k
       Flambda_colours.pop Flambda_colours.continuation_annotation
       (if is_exn_handler then "[eh]" else "")
       Flambda_colours.pop;
+    if not (Bound_parameters.is_empty invariant_params)
+    then fprintf ppf "(invariant %a)" Bound_parameters.print invariant_params;
     if not (Bound_parameters.is_empty params)
     then fprintf ppf " %a" Bound_parameters.print params;
     fprintf ppf "%t #%a:%t@]@ @[<hov 0>%a@]" Flambda_colours.elide
@@ -593,7 +608,7 @@ and print_let_cont_expr ppf t =
           | Let _ | Apply _ | Apply_cont _ | Switch _ | Invalid _ ->
             let_conts, body
         in
-        ( (k, Recursive.Non_recursive, handler.handler, num_free_occurrences)
+        ( (k, Recursive.Non_recursive, Bound_parameters.empty, handler.handler, num_free_occurrences)
           :: let_conts,
           body )
       in
@@ -602,7 +617,7 @@ and print_let_cont_expr ppf t =
         handler.continuation_and_body ~apply_renaming_to_term:apply_renaming
         ~f:(fun k body -> print k ~body)
     | Recursive handlers ->
-      let print ~body handlers =
+      let print ~body ~invariant_params handlers =
         let let_conts, body =
           match descr body with
           | Let_cont let_cont -> gather_let_conts let_conts let_cont
@@ -612,23 +627,29 @@ and print_let_cont_expr ppf t =
         let new_let_conts =
           List.map
             (fun (k, handler) ->
-              k, Recursive.Recursive, handler, Or_unknown.Unknown)
+              k, Recursive.Recursive, invariant_params, handler, Or_unknown.Unknown)
             (Continuation.Map.bindings handlers)
         in
         new_let_conts @ let_conts, body
       in
       Name_abstraction.pattern_match_for_printing
-        (module Bound_continuations_and_parameters)
+        (module Bound_continuations)
         handlers
         ~apply_renaming_to_term:apply_renaming_recursive_let_cont_handlers_t0
-        ~f:(fun _ { body; handlers } -> print ~body handlers)
+        ~f:(fun _ { body; handlers } ->
+            Name_abstraction.pattern_match_for_printing
+              (module Bound_parameters)
+              handlers
+              ~apply_renaming_to_term:apply_renaming_continuations_handlers_t0
+              ~f:(fun invariant_params handlers ->
+                  print ~body ~invariant_params handlers))
   in
   let let_conts, body = gather_let_conts [] t in
   fprintf ppf "@[<v 1>(%a@;" print body;
   let first = ref true in
   List.iter
-    (fun (cont, recursive, handler, occurrences) ->
-      print_continuation_handler recursive ppf cont handler occurrences
+    (fun (cont, recursive, invariant_params, handler, occurrences) ->
+      print_continuation_handler recursive invariant_params ppf cont handler occurrences
         ~first:!first;
       first := false)
     (List.rev let_conts);
@@ -913,7 +934,7 @@ module Continuation_handler = struct
                 Pattern_match_pair_error.Parameter_lists_have_different_lengths))
 
   let print ~cont ~recursive ppf ch : unit =
-    print_continuation_handler ~first:true recursive ppf cont ch
+    print_continuation_handler ~first:true recursive Bound_parameters.empty ppf cont ch
       Or_unknown.Unknown
 
   let is_exn_handler t = t.is_exn_handler
@@ -922,7 +943,7 @@ module Continuation_handler = struct
 end
 
 module Continuation_handlers = struct
-  type t = continuation_handlers
+  type t = continuation_handler Continuation.Map.t
 
   let to_map t = t
 
@@ -1149,6 +1170,14 @@ end
 
 module Recursive_let_cont_handlers = struct
   module T0 = struct
+    type t = continuation_handler Continuation.Map.t
+
+    let apply_renaming = apply_renaming_continuations_handlers_t0
+
+    let ids_for_export = ids_for_export_continuation_handlers_t0
+  end
+
+  module T1 = struct
     type t = recursive_let_cont_handlers_t0
 
     let create ~body handlers = { handlers; body }
@@ -1158,39 +1187,35 @@ module Recursive_let_cont_handlers = struct
     let ids_for_export = ids_for_export_recursive_let_cont_handlers_t0
   end
 
-  module A = Name_abstraction.Make (Bound_continuations_and_parameters) (T0)
+  module A0 = Name_abstraction.Make (Bound_parameters) (T0)
+  module A1 = Name_abstraction.Make (Bound_continuations) (T1)
 
   type t = recursive_let_cont_handlers
 
   let create ~body ~invariant_params handlers =
     let bound = Continuation_handlers.domain handlers in
-    let handlers0 = T0.create ~body handlers in
+    let handlers0 = T1.create ~body (A0.create invariant_params handlers) in
     let conts = Bound_continuations.create (Continuation.Set.elements bound) in
-    A.create
-      (Bound_continuations_and_parameters.create conts invariant_params)
-      handlers0
+    A1.create conts handlers0
 
   let pattern_match t ~f =
-    let open A in
-    let<> bound, { body; handlers } = t in
-    let invariant_params = Bound_continuations_and_parameters.params bound in
+    let open A1 in
+    let<> _, { body; handlers } = t in
+    let open! A0 in
+    let<> invariant_params, handlers = handlers in
     f ~invariant_params ~body handlers
 
   let pattern_match_pair t1 t2 ~f =
-    A.pattern_match_pair t1 t2
-      ~f:(fun
-           bound
+    A1.pattern_match_pair t1 t2
+      ~f:(fun _
            (handlers0_1 : recursive_let_cont_handlers_t0)
            (handlers0_2 : recursive_let_cont_handlers_t0)
-         ->
-        let invariant_params =
-          Bound_continuations_and_parameters.params bound
-        in
-        let body1 = handlers0_1.body in
-        let body2 = handlers0_2.body in
-        let handlers1 = handlers0_1.handlers in
-        let handlers2 = handlers0_2.handlers in
-        f ~invariant_params ~body1 ~body2 handlers1 handlers2)
+           ->
+             let body1 = handlers0_1.body in
+             let body2 = handlers0_2.body in
+             A0.pattern_match_pair handlers0_1.handlers handlers0_2.handlers
+               ~f:(fun invariant_params handlers1 handlers2 ->
+                   f ~invariant_params ~body1 ~body2 handlers1 handlers2))
 
   let apply_renaming = apply_renaming_recursive_let_cont_handlers
 end
