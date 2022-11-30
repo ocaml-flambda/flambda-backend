@@ -733,11 +733,11 @@ let flush_delayed_lets ~mode env res =
   let wrap_flush order_map e =
     M.fold
       (fun _ (Binding b) acc ->
-        match b.inline, b.bound_expr with
-        | Must_inline_and_duplicate, _ | Must_inline_once, _ ->
-          Misc.fatal_errorf "'Must inline' bindings should never be flushed"
-        | May_inline_once, Simple { cmm_expr }
-        | Do_not_inline, Simple { cmm_expr } ->
+        match b.bound_expr with
+        | Splittable_prim _ ->
+          Misc.fatal_errorf
+            "Complex bindings should have been split prior to being flushed."
+        | Split { cmm_expr } | Simple { cmm_expr } ->
           Cmm_helpers.letin b.cmm_var ~defining_expr:cmm_expr ~body:acc)
       order_map e
   in
@@ -760,18 +760,20 @@ let flush_delayed_lets ~mode env res =
           flush binding;
           None
         | Must_inline_and_duplicate -> (
-          match mode with
-          | Flush_everything ->
-            flush binding;
-            None
-          | Branching_point | Entering_loop -> (
-            let r, split_res = split_complex_binding ~env ~res:!res b in
-            res := r;
+          let r, split_res = split_complex_binding ~env ~res:!res b in
+          res := r;
+          let split_binding =
             match split_res with
-            | Already_split -> Some binding
+            | Already_split -> binding
             | Split { new_bindings; split_binding } ->
               List.iter flush new_bindings;
-              Some (Binding split_binding)))
+              Binding split_binding
+          in
+          match mode with
+          | Flush_everything ->
+            flush split_binding;
+            None
+          | Branching_point | Entering_loop -> Some split_binding)
         | Must_inline_once -> (
           match
             mode, To_cmm_effects.classify_by_effects_and_coeffects b.effs
@@ -781,19 +783,23 @@ let flush_delayed_lets ~mode env res =
              try and push the arguments down the branch (otherwise, when we
              split, the arguments of the splittable binding would be flushed
              before the branch in control flow). *)
-          | Flush_everything, _ ->
-            flush binding;
-            None
           | Branching_point, (Pure | Generative_immutable) -> Some binding
-          | ( (Branching_point | Entering_loop),
+          | ( (Branching_point | Entering_loop | Flush_everything),
               (Pure | Generative_immutable | Coeffect_only | Effect) ) -> (
             let r, split_res = split_complex_binding ~env ~res:!res b in
             res := r;
-            match split_res with
-            | Already_split -> Some binding
-            | Split { new_bindings; split_binding } ->
-              List.iter flush new_bindings;
-              Some (Binding split_binding)))
+            let split_binding =
+              match split_res with
+              | Already_split -> binding
+              | Split { new_bindings; split_binding } ->
+                List.iter flush new_bindings;
+                Binding split_binding
+            in
+            match mode with
+            | Flush_everything ->
+              flush split_binding;
+              None
+            | Branching_point | Entering_loop -> Some split_binding))
         | May_inline_once -> (
           match To_cmm_effects.classify_by_effects_and_coeffects b.effs with
           (* Unless entering a loop, we do not flush pure bindings that can be
