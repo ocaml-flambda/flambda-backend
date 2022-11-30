@@ -243,7 +243,7 @@ type expression =
   | Cexit of exit_label * expression list * trap_action list
   | Ctrywith of expression * trywith_kind * Backend_var.With_provenance.t
       * expression * Debuginfo.t * value_kind
-  | Cregion of expression
+  | Cregion of Clambda.tail_policy * expression
   | Ctail of expression
 
 type property =
@@ -311,7 +311,7 @@ let iter_shallow_tail f = function
       f e1;
       f e2;
       true
-  | Cregion e ->
+  | Cregion (_, e) ->
       f e;
       true
   | Ctail e ->
@@ -357,8 +357,8 @@ let map_shallow_tail ?kind f = function
   | Ctrywith(e1, kind', id, e2, dbg, kind_before) ->
       Ctrywith(f e1, kind', id, f e2, dbg,
               Option.value kind ~default:kind_before)
-  | Cregion e ->
-      Cregion(f e)
+  | Cregion (p, e) ->
+      Cregion(p, f e)
   | Ctail e ->
       Ctail(f e)
   | Cexit _ | Cop (Craise _, _, _) as cmm ->
@@ -413,7 +413,7 @@ let iter_shallow f = function
       List.iter f el
   | Ctrywith (e1, _kind, _id, e2, _dbg, _value_kind) ->
       f e1; f e2
-  | Cregion e ->
+  | Cregion (_, e) ->
       f e
   | Ctail e ->
       f e
@@ -450,8 +450,8 @@ let map_shallow f = function
       Cexit (n, List.map f el, traps)
   | Ctrywith (e1, kind, id, e2, dbg, value_kind) ->
       Ctrywith (f e1, kind, id, f e2, dbg, value_kind)
-  | Cregion e ->
-      Cregion (f e)
+  | Cregion (p, e) ->
+      Cregion (p, f e)
   | Ctail e ->
       Ctail (f e)
   | Cconst_int _

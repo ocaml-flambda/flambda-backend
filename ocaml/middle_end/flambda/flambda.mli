@@ -113,7 +113,7 @@ type t =
   | Try_with of t * Variable.t * t
   | While of t * t
   | For of for_loop
-  | Region of t
+  | Region of Clambda.tail_policy * t
   | Tail of t
   | Proved_unreachable
 

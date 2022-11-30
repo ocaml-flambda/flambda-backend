@@ -66,14 +66,14 @@ let getglobal dbg id =
   let symbol = Compilenv.symbol_for_global id |> Linkage_name.to_string in
   Uprim (P.Pread_symbol symbol, [], dbg)
 
-let region ulam =
+let region policy ulam =
   let is_trivial =
     match ulam with
     | Uvar _ | Uconst _ -> true
     | _ -> false
   in
   if is_trivial then ulam
-  else Uregion ulam
+  else Uregion (policy, ulam)
 
 let tail ulam =
   let is_trivial =
@@ -119,7 +119,7 @@ let occurs_var var u =
     | Usend(_, met, obj, args, _, _) ->
         occurs met || occurs obj || List.exists occurs args
     | Uunreachable -> false
-    | Uregion e -> occurs e
+    | Uregion (_, e) -> occurs e
     | Utail e -> occurs e
   and occurs_array a =
     try
@@ -232,7 +232,7 @@ let lambda_smaller lam threshold =
         size := !size + 8;
         lambda_size met; lambda_size obj; lambda_list_size args
     | Uunreachable -> ()
-    | Uregion e ->
+    | Uregion (_, e) ->
         size := !size + 2;
         lambda_size e
     | Utail e ->
@@ -261,7 +261,7 @@ let rec is_pure = function
   | Uoffset(arg, _) -> is_pure arg
   | Ulet(Immutable, _, _var, def, body) ->
       is_pure def && is_pure body
-  | Uregion body -> is_pure body
+  | Uregion (_, body) -> is_pure body
   | Utail body -> is_pure body
   | _ -> false
 
@@ -735,8 +735,8 @@ let rec substitute loc ((backend, fpc) as st) sb rn ulam =
             List.map (substitute loc st sb rn) ul, pos, dbg)
   | Uunreachable ->
       Uunreachable
-  | Uregion e ->
-      region (substitute loc st sb rn e)
+  | Uregion (p, e) ->
+      region p (substitute loc st sb rn e)
   | Utail e ->
       tail (substitute loc st sb rn e)
 
@@ -1112,7 +1112,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
           in
           let body =
             match mode, fundesc.fun_region with
-            | Alloc_heap, false -> region body
+            | Alloc_heap, false -> region May_drop_tail body
             | _ -> body
           in
           let body =
@@ -1341,7 +1341,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
       assert false
   | Lregion lam ->
       let ulam, approx = close env lam in
-      region ulam, approx
+      region May_drop_tail ulam, approx
 
 and close_list env = function
     [] -> []
@@ -1636,7 +1636,7 @@ let collect_exported_structured_constants a =
     | Uassign (_, u) -> ulam u
     | Usend (_, u1, u2, ul, _, _) -> ulam u1; ulam u2; List.iter ulam ul
     | Uunreachable -> ()
-    | Uregion u -> ulam u
+    | Uregion (_, u) -> ulam u
     | Utail u -> ulam u
   in
   approx a

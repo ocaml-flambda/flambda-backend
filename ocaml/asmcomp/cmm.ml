@@ -200,7 +200,7 @@ type expression =
   | Cexit of int * expression list
   | Ctrywith of expression * Backend_var.With_provenance.t * expression
       * Debuginfo.t
-  | Cregion of expression
+  | Cregion of Clambda.tail_policy * expression
   | Ctail of expression
 
 type codegen_option =
@@ -262,7 +262,7 @@ let iter_shallow_tail f = function
       f e1;
       f e2;
       true
-  | Cregion e ->
+  | Cregion (_, e) ->
       f e;
       true
   | Ctail e ->
@@ -304,8 +304,8 @@ let map_shallow_tail f = function
       Ccatch(rec_flag, List.map map_h handlers, f body)
   | Ctrywith(e1, id, e2, dbg) ->
       Ctrywith(f e1, id, f e2, dbg)
-  | Cregion e ->
-      Cregion(f e)
+  | Cregion (p, e) ->
+      Cregion(p, f e)
   | Ctail e ->
       Ctail(f e)
   | Cexit _ | Cop (Craise _, _, _) as cmm ->
@@ -360,7 +360,7 @@ let iter_shallow f = function
       List.iter f el
   | Ctrywith (e1, _id, e2, _dbg) ->
       f e1; f e2
-  | Cregion e ->
+  | Cregion (_, e) ->
       f e
   | Ctail e ->
       f e
@@ -397,8 +397,8 @@ let map_shallow f = function
       Cexit (n, List.map f el)
   | Ctrywith (e1, id, e2, dbg) ->
       Ctrywith (f e1, id, f e2, dbg)
-  | Cregion e ->
-      Cregion (f e)
+  | Cregion (p, e) ->
+      Cregion (p, f e)
   | Ctail e ->
       Ctail (f e)
   | Cconst_int _

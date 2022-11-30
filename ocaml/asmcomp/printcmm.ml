@@ -25,6 +25,10 @@ let rec_flag ppf = function
   | Nonrecursive -> ()
   | Recursive -> fprintf ppf " rec"
 
+let tail_policy ppf : Clambda.tail_policy -> unit = function
+  | May_drop_tail -> ()
+  | Must_keep_tail -> fprintf ppf " keep_tail"
+
 let machtype_component ppf = function
   | Val -> fprintf ppf "val"
   | Addr -> fprintf ppf "addr"
@@ -270,8 +274,8 @@ let rec expr ppf = function
   | Ctrywith(e1, id, e2, _dbg) ->
       fprintf ppf "@[<2>(try@ %a@;<1 -2>with@ %a@ %a)@]"
              sequence e1 VP.print id sequence e2
-  | Cregion e ->
-      fprintf ppf "@[<2>(region@ %a)@]" sequence e
+  | Cregion (p, e) ->
+      fprintf ppf "@[<2>(region@ %a@ %a)@]" tail_policy p sequence e
   | Ctail e ->
       fprintf ppf "@[<2>(tail@ %a)@]" sequence e
 

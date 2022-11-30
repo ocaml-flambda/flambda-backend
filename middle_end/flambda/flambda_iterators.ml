@@ -45,7 +45,7 @@ let apply_on_subexpressions f f_named (flam : Flambda.t) =
   | While (f1,f2) ->
     f f1; f f2
   | For { body; _ } -> f body
-  | Region body -> f body
+  | Region (_, body) -> f body
   | Tail body -> f body
 
 let rec list_map_sharing f l =
@@ -161,12 +161,12 @@ let map_subexpressions f f_named (tree:Flambda.t) : Flambda.t =
       tree
     else
       For { bound_var; from_value; to_value; direction; body = new_body; }
-  | Region body ->
+  | Region (p, body) ->
     let new_body = f body in
     if new_body == body then
       tree
     else
-      Region new_body
+      Region (p, new_body)
   | Tail body ->
     let new_body = f body in
     if new_body == body then
@@ -398,12 +398,12 @@ let map_general ~toplevel f f_named tree =
           else
             For { bound_var; from_value; to_value; direction;
               body = new_body; }
-        | Region body ->
+        | Region (p, body) ->
           let new_body = aux body in
           if new_body == body then
             tree
           else
-            Region new_body
+            Region (p, new_body)
         | Tail body ->
           let new_body = aux body in
           if new_body == body then

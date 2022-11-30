@@ -233,7 +233,7 @@ let variable_and_symbol_invariants (program : Flambda.program) =
     | While (e1, e2) ->
       loop env e1;
       loop env e2
-    | Region e ->
+    | Region (_, e) ->
       loop env e
     | Tail e ->
       loop env e

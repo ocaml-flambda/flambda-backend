@@ -22,6 +22,9 @@ open Lambda
 type function_label = string
 type arity = Lambda.function_kind * int
 type apply_kind = Lambda.region_close * Lambda.alloc_mode
+type tail_policy =
+  | Must_keep_tail
+  | May_drop_tail
 
 type ustructured_constant =
   | Uconst_float of float
@@ -79,7 +82,7 @@ and ulambda =
       meth_kind * ulambda * ulambda * ulambda list
       * apply_kind * Debuginfo.t
   | Uunreachable
-  | Uregion of ulambda
+  | Uregion of tail_policy * ulambda
   | Utail of ulambda
 
 and ufunction = {

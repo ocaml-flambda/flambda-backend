@@ -171,7 +171,7 @@ let rec expr_size env = function
       | RHS_block blocksize -> RHS_infix { blocksize; offset }
       | RHS_nonrec -> RHS_nonrec
       | _ -> assert false)
-  | Uregion exp ->
+  | Uregion (_, exp) ->
       expr_size env exp
   | Utail exp ->
       expr_size env exp
@@ -704,8 +704,8 @@ let rec transl env e =
   | Uunreachable ->
       let dbg = Debuginfo.none in
       Cop(Cload (Word_int, Mutable), [Cconst_int (0, dbg)], dbg)
-  | Uregion e ->
-      region (transl env e)
+  | Uregion (p, e) ->
+      region p (transl env e)
   | Utail e ->
       Ctail (transl env e)
 

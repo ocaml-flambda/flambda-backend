@@ -571,8 +571,8 @@ val send :
   Lambda.meth_kind -> expression -> expression -> expression list
   -> Clambda.apply_kind -> Debuginfo.t -> expression
 
-(** Construct [Cregion e], eliding some useless regions *)
-val region : expression -> expression
+(** Construct [Cregion (p, e)], eliding some useless regions *)
+val region : Clambda.tail_policy -> expression -> expression
 
 (** Generic Cmm fragments *)
 

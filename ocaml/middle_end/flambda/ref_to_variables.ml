@@ -80,7 +80,7 @@ let variables_not_used_as_local_reference (tree:Flambda.t) =
       loop body
     | Static_raise (_, args) ->
       set := Variable.Set.union (Variable.Set.of_list args) !set
-    | Region body ->
+    | Region (_, body) ->
       loop body
     | Tail body ->
       loop body

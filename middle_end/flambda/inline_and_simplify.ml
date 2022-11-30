@@ -908,7 +908,7 @@ and simplify_over_application env r ~args ~args_approxs ~function_decls
   let expr = Lift_code.lift_lets_expr expr ~toplevel:true in
   let expr =
     match mode, function_decl.A.region with
-    | Lambda.Alloc_heap, false -> Flambda.Region expr
+    | Lambda.Alloc_heap, false -> Flambda.Region (May_drop_tail, expr)
     | _ -> expr
   in
   let expr =
@@ -1427,13 +1427,13 @@ and simplify env r (tree : Flambda.t) : Flambda.t * R.t =
         in
         let branch, r = simplify env r branch in
         branch, R.map_benefit r B.remove_branch)
-  | Region body ->
+  | Region (policy, body) ->
      let use_outer_region = R.may_use_region r in
      let r = R.set_region_use r false in
      let body, r = simplify env r body in
      let use_inner_region = R.may_use_region r in
      let r = R.set_region_use r use_outer_region in
-     if use_inner_region then Region body, r
+     if use_inner_region then Region (policy, body), r
      else body, r
   | Tail body ->
      let r = R.set_region_use r true in

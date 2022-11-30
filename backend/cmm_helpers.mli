@@ -771,8 +771,8 @@ val send :
   Debuginfo.t ->
   expression
 
-(** Construct [Cregion e], eliding some useless regions *)
-val region : expression -> expression
+(** Construct [Cregion (p, e)], eliding some useless regions *)
+val region : Clambda.tail_policy -> expression -> expression
 
 (** [cextcall prim args dbg type_of_result] returns Cextcall operation that
     corresponds to [prim]. If [prim] is a C builtin supported on the target,

@@ -587,7 +587,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
     Misc.fatal_error "[Lifused] should have been removed by \
         [Simplif.simplify_lets]"
   | Lregion body ->
-    Region (close t env body)
+    Region (May_drop_tail, close t env body)
 
 (** Perform closure conversion on a set of function declarations, returning a
     set of closures.  (The set will often only contain a single function;

@@ -235,7 +235,7 @@ let make_var_info (clam : Clambda.ulambda) : var_info =
       ignore_debuginfo dbg
     | Uunreachable ->
       ()
-    | Uregion e ->
+    | Uregion (_, e) ->
       loop ~depth e
     | Utail e ->
       loop ~depth e
@@ -457,7 +457,7 @@ let let_bound_vars_that_can_be_moved var_info (clam : Clambda.ulambda) =
       ignore_debuginfo dbg
     | Uunreachable ->
       let_stack := []
-    | Uregion e ->
+    | Uregion (_, e) ->
       let_stack := [];
       loop e
     | Utail e ->
@@ -606,9 +606,9 @@ let rec substitute_let_moveable is_let_moveable env (clam : Clambda.ulambda)
     Usend (kind, e1, e2, args, pos, dbg)
   | Uunreachable ->
     Uunreachable
-  | Uregion e ->
+  | Uregion (p, e) ->
     let e = substitute_let_moveable is_let_moveable env e in
-    Uregion (e)
+    Uregion (p, e)
   | Utail e ->
     let e = substitute_let_moveable is_let_moveable env e in
     Utail (e)
@@ -836,9 +836,9 @@ let rec un_anf_and_moveable var_info env (clam : Clambda.ulambda)
     Usend (kind, e1, e2, args, pos, dbg), Fixed
   | Uunreachable ->
     Uunreachable, Fixed
-  | Uregion e ->
+  | Uregion (p, e) ->
     let e = un_anf var_info env e in
-    Uregion e, Fixed
+    Uregion (p, e), Fixed
   | Utail e ->
     let e = un_anf var_info env e in
     Utail e, Fixed

@@ -196,7 +196,7 @@ let rec expr_size env = function
       | RHS_block blocksize -> RHS_infix { blocksize; offset }
       | RHS_nonrec -> RHS_nonrec
       | _ -> assert false)
-  | Uregion exp ->
+  | Uregion (_, exp) ->
       expr_size env exp
   | Utail exp ->
       expr_size env exp
@@ -376,7 +376,7 @@ let rec is_unboxed_number_cmm = function
           No_unboxing
       end
     | Cexit _ | Cop (Craise _, _, _) -> No_result
-    | Csequence (_, a) | Cregion a | Ctail a
+    | Csequence (_, a) | Cregion (_, a) | Ctail a
     | Clet (_, _, a) | Cphantom_let (_, _, a) | Clet_mut (_, _, _, a) ->
       is_unboxed_number_cmm a
     | Cconst_int _
@@ -759,8 +759,8 @@ let rec transl env e =
   | Uunreachable ->
       let dbg = Debuginfo.none in
       Cop(Cload (Word_int, Mutable), [Cconst_int (0, dbg)], dbg)
-  | Uregion e ->
-      region (transl env e)
+  | Uregion (p, e) ->
+      region p (transl env e)
   | Utail e ->
       Ctail (transl env e)
 

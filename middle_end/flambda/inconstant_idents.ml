@@ -297,7 +297,7 @@ module Inconstants (P:Param) (Backend:Backend_intf.S) = struct
       mark_var meth curr;
       mark_var obj curr;
       List.iter (fun arg -> mark_var arg curr) args
-    | Region body ->
+    | Region (_, body) ->
       mark_curr curr;
       mark_loop ~toplevel [] body
     | Tail body ->

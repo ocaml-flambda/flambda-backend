@@ -252,7 +252,7 @@ type expression =
   | Cexit of exit_label * expression list * trap_action list
   | Ctrywith of expression * trywith_kind * Backend_var.With_provenance.t
       * expression * Debuginfo.t * value_kind
-  | Cregion of expression
+  | Cregion of Clambda.tail_policy * expression
   | Ctail of expression
 
 type property =

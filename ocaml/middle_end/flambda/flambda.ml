@@ -77,7 +77,7 @@ type t =
   | Try_with of t * Variable.t * t
   | While of t * t
   | For of for_loop
-  | Region of t
+  | Region of Clambda.tail_policy * t
   | Tail of t
   | Proved_unreachable
 
@@ -347,8 +347,13 @@ let rec lam ppf (flam : t) =
       (match direction with
         Asttypes.Upto -> "to" | Asttypes.Downto -> "downto")
       Variable.print to_value lam body
-  | Region body ->
-    fprintf ppf "@[<2>(region@ %a)@]" lam body
+  | Region (p, body) ->
+    let policy ppf () =
+      match p with
+      | May_drop_tail -> ()
+      | Must_keep_tail -> fprintf ppf "<keep_tail>"
+    in
+    fprintf ppf "@[<2>(region%a@ %a)@]" policy () lam body
   | Tail body ->
     fprintf ppf "@[<2>(tail@ %a)@]" lam body
 
@@ -622,7 +627,7 @@ let rec variables_usage ?ignore_uses_as_callee ?ignore_uses_as_argument
         free_variable meth;
         free_variable obj;
         List.iter free_variable args;
-      | Region body ->
+      | Region (_, body) ->
         aux body
       | Tail body ->
         aux body
@@ -823,7 +828,7 @@ let iter_general ~toplevel f f_named maybe_named =
       | String_switch (_, sw, def) ->
         List.iter (fun (_,l) -> aux l) sw;
         Option.iter aux def
-      | Region body ->
+      | Region (_, body) ->
         aux body
       | Tail body ->
         aux body
@@ -898,10 +903,6 @@ module With_free_variables = struct
         free_vars_of_body;
       }
 
-  let create_region (t : expr t) =
-    let Expr (body, fv) = t in
-    Expr (Region body, fv)
-
   let expr (t : expr t) =
     match t with
     | Expr (expr, free_vars) -> Named (Expr expr, free_vars)
@@ -926,7 +927,7 @@ let fold_lets_option
   let finish ~last_body ~acc ~rev_lets =
     let module W = With_free_variables in
     let acc, t =
-      List.fold_left (fun (acc, t) (has_region, var, defining_expr) ->
+      List.fold_left (fun (acc, t) (var, defining_expr) ->
           let free_vars_of_body = W.free_variables t in
           let acc, var, defining_expr =
             filter_defining_expr acc var defining_expr free_vars_of_body
@@ -937,7 +938,6 @@ let fold_lets_option
             | Some defining_expr ->
               W.of_expr (W.create_let_reusing_body var defining_expr t)
           in
-          let t = if has_region then W.create_region t else t in
           acc, t)
         (acc, W.of_expr last_body)
         rev_lets
@@ -946,13 +946,11 @@ let fold_lets_option
   in
   let rec loop (t : t) ~acc ~rev_lets =
     match t with
-    | Let { var; defining_expr; body; _ }
-    | Region (Let { var; defining_expr; body; _ }) ->
+    | Let { var; defining_expr; body; _ } ->
       let acc, var, defining_expr =
         for_defining_expr acc var defining_expr
       in
-      let has_region = match t with Region _ -> true | _ -> false in
-      let rev_lets = (has_region, var, defining_expr) :: rev_lets in
+      let rev_lets = (var, defining_expr) :: rev_lets in
       loop body ~acc ~rev_lets
     | t ->
       let last_body, acc = for_last_body acc t in

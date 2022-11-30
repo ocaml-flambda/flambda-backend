@@ -23,6 +23,18 @@ type function_label = string
 type arity = Lambda.function_kind * int
 type apply_kind = Lambda.region_close * Lambda.alloc_mode
 
+(** Controls how [tail] expressions must be handled when generating code for a
+    region. May also entail invariants on the region itself. *)
+type tail_policy =
+  | Must_keep_tail
+  (** An [Iendregion] instruction must be generated for each [tail] expression
+      occurring in this region. Guarantees that there will be a [tail] (or
+      close-at-apply [apply]) at every tail position of the region. *)
+  | May_drop_tail
+  (** The [Iendregion] for a [tail] expression not occurring in (function-level)
+      tail position may be elided, and there may or may not be [tail]
+      expressions in this region. *)
+
 type ustructured_constant =
   | Uconst_float of float
   | Uconst_int32 of int32
@@ -90,7 +102,7 @@ and ulambda =
       meth_kind * ulambda * ulambda * ulambda list
       * apply_kind * Debuginfo.t
   | Uunreachable
-  | Uregion of ulambda
+  | Uregion of tail_policy * ulambda
   | Utail of ulambda
 
 and ufunction = {

@@ -28,7 +28,12 @@ type trap_stack_info =
   | Unreachable
   | Reachable of trap_stack
 
-type region_stack = Reg.t array list
+type region_info =
+  { reg : Reg.t array;
+    tail_policy : Clambda.tail_policy;
+    in_tail_of_parent : bool;
+  }
+type region_stack = region_info list
 
 type environment =
   { vars : (Reg.t array
@@ -142,6 +147,16 @@ let env_empty = {
   region_tail = false;
 }
 
+let env_top_region env = List.hd env.regions
+
+let env_enter_region reg tail_policy env =
+  let region = { reg; tail_policy; in_tail_of_parent = env.region_tail } in
+  { env with regions = region :: env.regions; region_tail = true }
+
+let env_leave_region env =
+  let region_tail = (env_top_region env).in_tail_of_parent in
+  { env with regions = List.tl env.regions; region_tail }
+
 (* Assuming [rs] is equal to or a suffix of [env.regions],
    return the last region in [env.regions] but not [rs]
    (or None if they are equal) *)
@@ -149,10 +164,10 @@ let env_close_regions env rs =
   let rec aux v es rs =
     match es, rs with
     | [], [] -> v
-    | (r :: _), (r' :: _) when r == r' -> v
+    | (r :: _), (r' :: _) when r.reg == r'.reg -> v
     | [], _::_ ->
        Misc.fatal_error "Selectgen.env_close_regions: not a suffix"
-    | r :: es, rs -> aux (Some r) es rs
+    | r :: es, rs -> aux (Some r.reg) es rs
   in
   aux None env.regions rs
 
@@ -1103,19 +1118,34 @@ method emit_expr (env:environment) exp =
           Misc.fatal_errorf "Selection.emit_expr: Unbound handler %d" lbl
         end
       end
-  | Cregion e ->
+  | Cregion (p, e) ->
      let reg = self#regs_for typ_int in
      self#insert env (Iop Ibeginregion) [| |] reg;
-     let env = { env with regions = reg::env.regions; region_tail = true } in
-     begin match self#emit_expr env e with
-       None -> None
-     | Some _ as res ->
-        self#insert env (Iop Iendregion) reg [| |];
-        res
+     let env = env_enter_region reg p env in
+     begin match p with
+       May_drop_tail ->
+        begin match self#emit_expr env e with
+          None -> None
+        | Some _ as res ->
+           self#insert env (Iop Iendregion) reg [| |];
+           res
+        end
+     | Must_keep_tail ->
+        (* We're guaranteed to have tail expressions in all the right places, so
+           just press on *)
+        self#emit_expr env e
      end
   | Ctail e ->
       assert env.region_tail;
-      self#emit_expr env e
+      let { reg; tail_policy; _ } = env_top_region env in
+      begin match tail_policy with
+        May_drop_tail ->
+          self#emit_expr env e
+      | Must_keep_tail ->
+          self#insert env (Iop Iendregion) reg [| |];
+          let env = env_leave_region env in
+          self#emit_expr env e
+      end
 
 method private emit_sequence (env:environment) exp =
   let s = {< instr_seq = dummy_instr >} in
@@ -1297,7 +1327,7 @@ method private insert_return (env:environment) r (traps:trap_action list) =
   | Some r ->
       let loc = Proc.loc_results (Reg.typv r) in
       if env.region_tail then
-        self#insert env (Iop Iendregion) (List.hd env.regions) [||];
+        self#insert env (Iop Iendregion) (env_top_region env).reg [||];
       self#insert_moves env r loc;
       self#insert env (Ireturn traps) loc [||]
 
@@ -1332,7 +1362,7 @@ method emit_tail (env:environment) exp =
             Icall_ind ->
               let r1 = self#emit_tuple env new_args in
               if endregion && tail then
-                self#insert env (Iop Iendregion) (List.hd env.regions) [||];
+                self#insert env (Iop Iendregion) (env_top_region env).reg [||];
               let endregion = endregion && not tail in
               let rarg = Array.sub r1 1 (Array.length r1 - 1) in
               let (loc_arg, stack_ofs) = Proc.loc_arguments (Reg.typv rarg) in
@@ -1352,7 +1382,7 @@ method emit_tail (env:environment) exp =
                   self#insert env (Iop(Istackoffset(-stack_ofs))) [||] [||]
                 end else begin
                   self#insert_move_results env loc_res rd stack_ofs;
-                  self#insert env (Iop Iendregion) (List.hd env.regions) [||];
+                  self#insert env (Iop Iendregion) (env_top_region env).reg [||];
                   self#insert_moves env rd loc_res
                 end;
                 self#insert env (Ireturn (pop_all_traps env)) loc_res [||]
@@ -1360,7 +1390,7 @@ method emit_tail (env:environment) exp =
           | Icall_imm { func; } ->
               let r1 = self#emit_tuple env new_args in
               if endregion && tail then
-                self#insert env (Iop Iendregion) (List.hd env.regions) [||];
+                self#insert env (Iop Iendregion) (env_top_region env).reg [||];
               let endregion = endregion && not tail in
               let (loc_arg, stack_ofs) = Proc.loc_arguments (Reg.typv r1) in
               if stack_ofs = 0 && trap_stack_is_empty env && not endregion then begin
@@ -1382,7 +1412,7 @@ method emit_tail (env:environment) exp =
                   self#insert env (Iop(Istackoffset(-stack_ofs))) [||] [||]
                 end else begin
                   self#insert_move_results env loc_res rd stack_ofs;
-                  self#insert env (Iop Iendregion) (List.hd env.regions) [||];
+                  self#insert env (Iop Iendregion) (env_top_region env).reg [||];
                   self#insert_moves env rd loc_res
                 end;
                 self#insert env (Ireturn (pop_all_traps env)) loc_res [||]
@@ -1515,20 +1545,20 @@ method emit_tail (env:environment) exp =
           Misc.fatal_errorf "Selection.emit_expr: Unbound handler %d" lbl
         end
       end
-  | Cregion e ->
+  | Cregion (p, e) ->
       if env.region_tail then
         self#emit_return env exp (pop_all_traps env)
       else begin
         let reg = self#regs_for typ_int in
         self#insert env (Iop Ibeginregion) [| |] reg;
-        let env' = { env with regions = reg::env.regions; region_tail = true } in
+        let env' = env_enter_region reg p env in
         self#emit_tail env' e
       end
   | Ctail e ->
       assert env.region_tail;
-      self#insert env' (Iop Iendregion) (List.hd env.regions) [| |];
-      self#emit_tail { env with regions = List.tl env.regions;
-                                region_tail = false } e
+      self#insert env' (Iop Iendregion) (env_top_region env).reg [| |];
+      let env' = env_leave_region env in
+      self#emit_tail env' e
   | Cop _
   | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _
   | Cvar _

@@ -201,7 +201,7 @@ and expression =
   | Cexit of int * expression list
   | Ctrywith of expression * Backend_var.With_provenance.t * expression
       * Debuginfo.t
-  | Cregion of expression
+  | Cregion of Clambda.tail_policy * expression
   | Ctail of expression
 
 type codegen_option =

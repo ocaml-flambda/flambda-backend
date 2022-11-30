@@ -119,6 +119,10 @@ and apply_kind ppf : apply_kind -> unit = function
   | (Rc_normal | Rc_nontail), Alloc_local -> fprintf ppf "apply[L]"
   | Rc_close_at_apply, Alloc_local -> fprintf ppf "apply[end_region][L]"
 
+and tail_policy ppf : tail_policy -> unit = function
+  | Must_keep_tail -> fprintf ppf "region[keep_tail]"
+  | May_drop_tail -> fprintf ppf "region"
+
 and lam ppf = function
   | Uvar id ->
       V.print ppf id
@@ -269,8 +273,8 @@ and lam ppf = function
         form kind lam obj lam met args largs
   | Uunreachable ->
       fprintf ppf "unreachable"
-  | Uregion e ->
-      fprintf ppf "@[<2>(region@ %a)@]" lam e
+  | Uregion (p, e) ->
+      fprintf ppf "@[<2>(%a@ %a)@]" tail_policy p lam e
   | Utail e ->
       fprintf ppf "@[<2>(tail@ %a)@]" lam e
 

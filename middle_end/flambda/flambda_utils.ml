@@ -88,6 +88,14 @@ let equal_direction_flag
   | Downto, Downto -> true
   | (Upto | Downto), _ -> false
 
+let equal_tail_policy
+      (x : Clambda.tail_policy)
+      (y : Clambda.tail_policy) =
+  match x, y with
+  | Must_keep_tail, Must_keep_tail -> true
+  | May_drop_tail, May_drop_tail -> true
+  | (Must_keep_tail | May_drop_tail), _ -> false
+
 let rec same (l1 : Flambda.t) (l2 : Flambda.t) =
   l1 == l2 || (* it is ok for the string case: if they are physically the same,
                  it is the same original branch *)
@@ -156,8 +164,8 @@ let rec same (l1 : Flambda.t) (l2 : Flambda.t) =
       && equal_direction_flag direction1 direction2
       && same body1 body2
   | For _, _ | _, For _ -> false
-  | Region body1, Region body2 ->
-    same body1 body2
+  | Region (policy1, body1), Region (policy2, body2) ->
+    equal_tail_policy policy1 policy2 && same body1 body2
   | Region _, _ | _, Region _ -> false
   | Tail body1, Tail body2 ->
     same body1 body2

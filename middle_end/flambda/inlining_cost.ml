@@ -121,7 +121,7 @@ let lambda_smaller' lam ~than:threshold =
       size := !size + 2; lambda_size cond; lambda_size body
     | For { body; _ } ->
       size := !size + 4; lambda_size body
-    | Region body ->
+    | Region (_, body) ->
       size := !size + 2; lambda_size body
     | Tail body ->
       lambda_size body

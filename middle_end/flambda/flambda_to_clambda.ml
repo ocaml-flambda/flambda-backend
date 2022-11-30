@@ -356,7 +356,7 @@ let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda =
   | Send { kind; meth; obj; args; dbg; reg_close; mode } ->
     Usend (kind, subst_var env meth, subst_var env obj,
       subst_vars env args, (reg_close,mode), dbg)
-  | Region body ->
+  | Region (policy, body) ->
       let body = to_clambda t env body in
       let is_trivial =
         match body with
@@ -364,7 +364,7 @@ let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda =
         | _ -> false
       in
       if is_trivial then body
-      else Uregion body
+      else Uregion (policy, body)
   | Tail body ->
       let body = to_clambda t env body in
       let is_trivial =

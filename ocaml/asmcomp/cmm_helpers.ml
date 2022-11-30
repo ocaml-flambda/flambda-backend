@@ -1840,7 +1840,7 @@ let cache_public_method meths tag cache dbg =
 
 let has_local_allocs e =
   let rec loop = function
-    | Cregion e ->
+    | Cregion (_, e) ->
         (* Local allocations within a nested region do not affect this region,
            except inside a Ctail block *)
         loop_until_tail e
@@ -1877,10 +1877,10 @@ let remove_region_tail e =
   | () -> e
   | exception Exit -> remove_tail e
 
-let region e =
-  (* [Cregion e] is equivalent to [e] if [e] contains no local allocs *)
+let region p e =
+  (* [Cregion (p, e)] is equivalent to [e] if [e] contains no local allocs *)
   if has_local_allocs e then
-    Cregion e
+    Cregion (p, e)
   else
     remove_region_tail e
 
