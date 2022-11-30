@@ -1022,9 +1022,9 @@ let simplify_handler ~simplify_expr ~is_recursive ~is_exn_handler ~params cont
       k dacc rebuild_handler cont_uses_env_in_handler)
 
 (* simplify for single handler: compute unbox decisions *)
-let simplify_single_handler ~simplify_expr ~is_recursive cont_uses_env_so_far
-    consts_lifted_during_body all_handlers_set denv_to_reset dacc cont
-    (params, handler, is_exn_handler) k =
+let simplify_single_recursive_handler ~simplify_expr cont_uses_env_so_far
+    consts_lifted_during_body extra_params_and_args_for_cse all_handlers_set denv_to_reset dacc cont
+    (params, handler) k =
   (* Here we perform the downwards traversal on a single handler. As an
      invariant enforced by the loop in [simplify_handlers], the continuation
      must have been used at least once for this function to be called, so we can
@@ -1035,103 +1035,37 @@ let simplify_single_handler ~simplify_expr ~is_recursive cont_uses_env_so_far
      correctly simplify the handler using the unboxed parameters, but we delay
      the unboxing extra_params_and_args to later, when we will have seen all
      uses (needed for the recursive continuation handlers). *)
-  let uses =
+  let handler_env = DE.add_parameters_with_unknown_types ~at_unit_toplevel:false
+      denv_to_reset params
+  in
+  let handler_env = LCS.add_to_denv handler_env consts_lifted_during_body in
+  let arg_types_by_use_id =
     match CUE.get_continuation_uses cont_uses_env_so_far cont with
     | None ->
       Misc.fatal_errorf
         "No continuation uses found for %a but simplify_single_handler called@."
         Continuation.print cont
-    | Some uses -> uses
-  in
-  let ( handler_env,
-        arg_types_by_use_id,
-        extra_params_and_args_for_cse,
-        is_single_inlinable_use,
-        escapes ) =
-    if is_recursive
-    then
-      let denv =
-        DE.add_parameters_with_unknown_types ~at_unit_toplevel:false
-          denv_to_reset params
-      in
-      let handler_env = LCS.add_to_denv denv consts_lifted_during_body in
-      let arg_types_by_use_id =
-        Continuation_uses.get_arg_types_by_use_id uses
-      in
-      handler_env, arg_types_by_use_id, EPA.empty, false, false
-    else
-      let ({ handler_env;
-             arg_types_by_use_id;
-             extra_params_and_args;
-             is_single_inlinable_use;
-             escapes
-           }
-            : Join_points.result) =
-        Join_points.compute_handler_env uses ~is_recursive:false ~params
-          ~env_at_fork:denv_to_reset ~consts_lifted_during_body
-      in
-      ( handler_env,
-        arg_types_by_use_id,
-        extra_params_and_args,
-        is_single_inlinable_use,
-        escapes )
+    | Some uses -> Continuation_uses.get_arg_types_by_use_id uses
   in
   let code_age_relation = TE.code_age_relation (DA.typing_env dacc) in
   let handler_env = DE.with_code_age_relation code_age_relation handler_env in
-  let handler_env, unbox_decisions, is_exn_handler, dacc =
-    match Continuation.sort cont with
-    | Normal_or_exn when is_single_inlinable_use ->
-      if is_exn_handler
-      then
-        (* This should be prevented by [Simplify_apply_cont_expr]. *)
-        Misc.fatal_errorf
-          "Exception handlers should never be marked as [Inlinable]:@ %a@ %a"
-          Continuation.print cont Expr.print handler;
-      (* CR gbury: explain mor precisely that handler_env is actually the env at
-         the use site of the cont (or something similar), which will allow
-         correct simplification as if we we substituted the continuation (which
-         we will do later). *)
-      (* Don't try to unbox parameters of inlinable continuations, since the
-         typing env still contains enough information to avoid re-reading the
-         fields. *)
-      handler_env, None, false, dacc
-    | Normal_or_exn | Define_root_symbol ->
-      let old_is_exn_handler = is_exn_handler in
-      (* If the continuation is an exception handler but it never escapes, it
-         can be demoted to a normal (non-exception) handler. It will then become
-         eligible for unboxing. *)
-      let is_exn_handler = is_exn_handler && escapes in
-      let dacc =
-        if not (Bool.equal old_is_exn_handler is_exn_handler)
-        then DA.demote_exn_handler dacc cont
-        else dacc
-      in
-      if is_exn_handler
-      then handler_env, None, true, dacc
-      else
+  let handler_env, unbox_decisions, dacc =
         (* Unbox the parameters of the continuation if possible. Any such
            unboxing will induce a rewrite (or wrapper) on the application sites
            of the continuation; that rewrite will be comptued later, when we
            compute all the extra args and params. *)
+    (* CR ncourant: I don't like having to provide arg_types_by_use_id when the continuation is recursive *)
+    (* CR ncourant: maybe we could get the param_types directly from the params themselves instead? (since only the kind is used) *)
         let param_types = TE.find_params (DE.typing_env handler_env) params in
         let handler_env, decisions =
           Unbox_continuation_params.make_decisions handler_env
-            ~continuation_is_recursive:is_recursive ~arg_types_by_use_id params
+            ~continuation_is_recursive:true ~arg_types_by_use_id params
             param_types
         in
-        handler_env, Some decisions, false, dacc
-    | Return | Toplevel_return ->
-      if is_exn_handler
-      then
-        (* This should be prevented by [Simplify_apply_cont_expr]. *)
-        Misc.fatal_errorf
-          "Exception handlers should never be marked as [Return] or \
-           [Toplevel_return]:@ %a@ %a"
-          Continuation.print cont Expr.print handler;
-      handler_env, None, false, dacc
+        handler_env, Some decisions, dacc
   in
   let dacc = DA.with_denv dacc handler_env in
-  simplify_handler ~simplify_expr ~is_recursive ~is_exn_handler ~params cont
+  simplify_handler ~simplify_expr ~is_recursive:true ~is_exn_handler:false ~params cont
     dacc handler (fun dacc rebuild_handler cont_uses_env_in_handler ->
       let cont_uses_env_so_far =
         CUE.union cont_uses_env_so_far cont_uses_env_in_handler
@@ -1143,7 +1077,7 @@ let simplify_single_handler ~simplify_expr ~is_recursive cont_uses_env_so_far
       k dacc
         { params;
           rebuild_handler;
-          is_exn_handler;
+          is_exn_handler = false;
           continuations_used;
           unbox_decisions;
           extra_params_and_args_for_cse
@@ -1226,15 +1160,9 @@ let simplify_let_cont_stage2 ~simplify_expr (stage2 : stage2) ~down_to_up dacc
           in
           simplify_let_cont_stage3 stage3 ~down_to_up dacc))
   | Recursive { continuation_handlers; invariant_params } ->
-    let remaining_handlers =
-      Continuation.Map.map
-        (* CR : uses record instead of triple *)
-          (fun (params, handler) -> params, handler, false)
-        continuation_handlers
-    in
     let denv = DE.set_at_unit_toplevel_state denv false in
     (* CR: handlers -> conts ? *)
-    let all_handlers_set = Continuation.Map.keys remaining_handlers in
+    let all_handlers_set = Continuation.Map.keys continuation_handlers in
     (* CR gbury: used_handlers_in_body ? *)
     let used_handlers =
       Continuation.Set.inter all_handlers_set
@@ -1258,7 +1186,7 @@ let simplify_let_cont_stage2 ~simplify_expr (stage2 : stage2) ~down_to_up dacc
     (* CR: rename used_handlers -> reachable_handlers_to_simplify *)
     (* CR: rename remaining_handlers -> handlers_map / all_handlers *)
     let rec simplify_handlers cont_uses_env_so_far used_handlers
-        remaining_handlers simplified_handlers_set simplified_handlers dacc =
+        simplified_handlers_set simplified_handlers dacc =
       (* This is the core loop to simplify all handlers defined by a let cont.
          We loop over all handlers, each time taking the first handler that we
          have not yet processed and that has at least one use, until we have
@@ -1293,13 +1221,11 @@ let simplify_let_cont_stage2 ~simplify_expr (stage2 : stage2) ~down_to_up dacc
         simplify_let_cont_stage3 stage3 ~down_to_up dacc
       | Some cont ->
         let used_handlers = Continuation.Set.remove cont used_handlers in
-        let handler = Continuation.Map.find cont remaining_handlers in
-        let remaining_handlers =
-          Continuation.Map.remove cont remaining_handlers
-        in
+        let handler = Continuation.Map.find cont continuation_handlers in
         (* TODO: This is not needed *)
-        simplify_single_handler ~simplify_expr ~is_recursive:true
-          cont_uses_env_so_far consts_lifted_during_body all_handlers_set denv
+        simplify_single_recursive_handler ~simplify_expr
+          cont_uses_env_so_far consts_lifted_during_body extra_params_and_args_for_cse
+          all_handlers_set denv
           dacc cont handler (fun dacc rebuild cont_uses_env_so_far ->
             let simplified_handlers_set =
               Continuation.Set.add cont simplified_handlers_set
@@ -1313,11 +1239,11 @@ let simplify_let_cont_stage2 ~simplify_expr (stage2 : stage2) ~down_to_up dacc
               Continuation.Map.add cont rebuild simplified_handlers
             in
             simplify_handlers cont_uses_env_so_far used_handlers
-              remaining_handlers simplified_handlers_set simplified_handlers
+              simplified_handlers_set simplified_handlers
               dacc)
     in
     simplify_handlers body_continuation_uses_env used_handlers
-      remaining_handlers Continuation.Set.empty Continuation.Map.empty dacc
+      Continuation.Set.empty Continuation.Map.empty dacc
 
 let simplify_let_cont_stage1 ~simplify_expr dacc (stage1 : stage1) ~down_to_up =
   (* We begin to simplify a let cont by simplifying its body, so that we can see
