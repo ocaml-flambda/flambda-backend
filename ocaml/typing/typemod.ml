@@ -2232,7 +2232,7 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
       in
       let md =
         if alias && aliasable then
-          (Env.add_required_global (Path.head path); md)
+          (Env.add_required_global path env; md)
         else begin
           let mty =
             if sttn then
@@ -3133,7 +3133,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
         type_structure initial_env ast in
       let shape =
         Shape.set_uid_if_none shape
-          (Uid.of_compilation_unit_id (Ident.create_persistent modulename))
+          (Uid.of_compilation_unit_id modulename)
       in
       let simple_sg = Signature_names.simplify finalenv names sg in
       if !Clflags.print_types then begin
@@ -3155,9 +3155,10 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
         let sourceintf =
           Filename.remove_extension sourcefile ^ !Config.interface_suffix in
         if Sys.file_exists sourceintf then begin
+          let basename = modulename |> Compilation_unit.name_as_string in
           let intf_file =
             try
-              Load_path.find_uncap (modulename ^ ".cmi")
+              Load_path.find_uncap (basename ^ ".cmi")
             with Not_found ->
               raise(Error(Location.in_file sourcefile, Env.empty,
                           Interface_not_compiled sourceintf)) in
@@ -3240,6 +3241,7 @@ let package_signatures units =
   let units_with_ids =
     List.map
       (fun (name, sg) ->
+        let name = name |> Compilation_unit.Name.to_string in
         let oldid = Ident.create_persistent name in
         let newid = Ident.create_local name in
         (oldid, newid, sg))
@@ -3272,22 +3274,30 @@ let package_units initial_env objfiles cmifile modulename =
     List.map
       (fun f ->
          let pref = chop_extensions f in
-         let modname = String.capitalize_ascii(Filename.basename pref) in
+         let unit =
+           pref
+           |> Filename.basename
+           |> String.capitalize_ascii
+           |> Compilation_unit.Name.of_string
+         in
+         let modname = Compilation_unit.create_child modulename unit in
          let sg = Env.read_signature modname (pref ^ ".cmi") in
          if Filename.check_suffix f ".cmi" &&
             not(Mtype.no_code_needed_sig Env.initial_safe_string sg)
          then raise(Error(Location.none, Env.empty,
                           Implementation_is_required f));
-         (modname, Env.read_signature modname (pref ^ ".cmi")))
+         Compilation_unit.name modname,
+         Env.read_signature modname (pref ^ ".cmi"))
       objfiles in
   (* Compute signature of packaged unit *)
   Ident.reinit();
   let sg = package_signatures units in
   (* Compute the shape of the package *)
   let prefix = Filename.remove_extension cmifile in
-  let pack_uid = Uid.of_compilation_unit_id (Ident.create_persistent prefix) in
+  let pack_uid = Uid.of_compilation_unit_id modulename in
   let shape =
     List.fold_left (fun map (name, _sg) ->
+      let name = Compilation_unit.Name.to_string name in
       let id = Ident.create_persistent name in
       Shape.Map.add_module map id (Shape.for_persistent_unit name)
     ) Shape.Map.empty units

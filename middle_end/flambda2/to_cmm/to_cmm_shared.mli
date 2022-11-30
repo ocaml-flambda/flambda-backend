@@ -38,8 +38,9 @@ val symbol : dbg:Debuginfo.t -> Symbol.t -> Cmm.expression
 (** This does not inline effectful expressions. *)
 val name :
   To_cmm_env.t ->
+  To_cmm_result.t ->
   Name.t ->
-  Cmm.expression * To_cmm_env.t * Effects_and_coeffects.t
+  Cmm.expression * To_cmm_env.t * To_cmm_result.t * Effects_and_coeffects.t
 
 val const : dbg:Debuginfo.t -> Reg_width_const.t -> Cmm.expression
 
@@ -50,8 +51,9 @@ val simple :
   ?consider_inlining_effectful_expressions:bool ->
   dbg:Debuginfo.t ->
   To_cmm_env.t ->
+  To_cmm_result.t ->
   Simple.t ->
-  Cmm.expression * To_cmm_env.t * Effects_and_coeffects.t
+  Cmm.expression * To_cmm_env.t * To_cmm_result.t * Effects_and_coeffects.t
 
 val simple_static :
   Simple.t -> [`Data of Cmm.data_item list | `Var of Variable.t]
@@ -62,8 +64,9 @@ val simple_list :
   ?consider_inlining_effectful_expressions:bool ->
   dbg:Debuginfo.t ->
   To_cmm_env.t ->
+  To_cmm_result.t ->
   Simple.t list ->
-  Cmm.expression list * To_cmm_env.t * Effects_and_coeffects.t
+  Cmm.expression list * To_cmm_env.t * To_cmm_result.t * Effects_and_coeffects.t
 
 val bound_parameters :
   To_cmm_env.t ->
@@ -76,13 +79,14 @@ val invalid :
 (** Make an update to a statically-allocated block. *)
 val make_update :
   To_cmm_env.t ->
+  To_cmm_result.t ->
   Debuginfo.t ->
   Cmm.memory_chunk ->
   symbol:Cmm.expression ->
   Variable.t ->
   index:int ->
   prev_updates:Cmm.expression option ->
-  To_cmm_env.t * Cmm.expression option
+  To_cmm_env.t * To_cmm_result.t * Cmm.expression option
 
 val check_arity : Flambda_arity.With_subkinds.t -> _ list -> bool
 

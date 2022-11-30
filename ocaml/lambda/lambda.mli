@@ -432,15 +432,16 @@ and lambda_event_kind =
   | Lev_module_definition of Ident.t
 
 type program =
-  { module_ident : Ident.t;
+  { compilation_unit : Compilation_unit.t;
     main_module_block_size : int;
-    required_globals : Ident.Set.t;    (* Modules whose initializer side effects
-                                          must occur before [code]. *)
+    required_globals : Compilation_unit.Set.t;
+                                        (* Modules whose initializer side effects
+                                           must occur before [code]. *)
     code : lambda }
 (* Lambda code for the middle-end.
    * In the closure case the code is a sequence of assignments to a
      preallocated block of size [main_module_block_size] using
-     (Setfield(Getglobal(module_ident))). The size is used to preallocate
+     (Setfield(Getpredef(compilation_unit))). The size is used to preallocate
      the block.
    * In the flambda case the code is an expression returning a block
      value of size [main_module_block_size]. The size is used to build

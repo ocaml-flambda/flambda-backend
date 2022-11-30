@@ -48,10 +48,6 @@ type close_functions_result =
    correctly compute the free names of [Code]. *)
 let use_of_symbol_as_simple acc symbol = acc, Simple.symbol symbol
 
-let symbol_for_ident acc env id =
-  let symbol = Env.symbol_for_global env id in
-  use_of_symbol_as_simple acc symbol
-
 let declare_symbol_for_function_slot env ident function_slot : Env.t * Symbol.t
     =
   let symbol =
@@ -209,25 +205,22 @@ module Inlining = struct
     | Some (Value_symbol _) | Some (Value_int _) | Some (Block_approximation _)
       ->
       assert false
-    | Some (Closure_approximation { code = Metadata_only _; _ }) ->
-      Inlining_report.record_decision_at_call_site_for_known_function ~tracker
-        ~apply ~pass:After_closure_conversion ~unrolling_depth:None
-        ~callee:(Inlining_history.Absolute.empty compilation_unit)
-        ~are_rebuilding_terms Definition_says_not_to_inline;
-      Not_inlinable
-    | Some (Closure_approximation { code = Code_present code; _ }) ->
+    | Some (Closure_approximation { code; _ }) ->
+      let metadata = Code_or_metadata.code_metadata code in
       let fun_params_length =
-        Code.params_arity code |> Flambda_arity.With_subkinds.to_arity
-        |> Flambda_arity.length
+        Code_metadata.params_arity metadata
+        |> Flambda_arity.With_subkinds.to_arity |> Flambda_arity.length
       in
-      if fun_params_length > List.length (Apply_expr.args apply)
+      if (not (Code_or_metadata.code_present code))
+         || fun_params_length > List.length (Apply_expr.args apply)
       then (
         Inlining_report.record_decision_at_call_site_for_known_function ~tracker
           ~apply ~pass:After_closure_conversion ~unrolling_depth:None
-          ~callee:(Code.absolute_history code)
+          ~callee:(Inlining_history.Absolute.empty compilation_unit)
           ~are_rebuilding_terms Definition_says_not_to_inline;
         Not_inlinable)
       else
+        let code = Code_or_metadata.get_code code in
         let inlined_call = Apply_expr.inlined apply in
         let decision, res =
           match inlined_call with
@@ -586,16 +579,21 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
     close_c_call acc env ~loc ~let_bound_var prim ~args exn_continuation dbg
       ~current_region k
   | Pgetglobal cu, [] ->
-    let id = cu |> Compilation_unit.to_global_ident_for_legacy_code in
-    if Ident.same id (Env.current_unit_id env)
+    if Compilation_unit.equal cu (Env.current_unit env)
     then
       Misc.fatal_errorf "Pgetglobal %a in the same unit" Compilation_unit.print
         cu;
-    let acc, simple = symbol_for_ident acc env id in
+    let symbol =
+      Flambda2_import.Symbol.for_compilation_unit cu |> Symbol.create_wrapped
+    in
+    let acc, simple = use_of_symbol_as_simple acc symbol in
     let named = Named.create_simple simple in
     k acc (Some named)
   | Pgetpredef id, [] ->
-    let acc, simple = symbol_for_ident acc env id in
+    let symbol =
+      Flambda2_import.Symbol.for_predef_ident id |> Symbol.create_wrapped
+    in
+    let acc, simple = use_of_symbol_as_simple acc symbol in
     let named = Named.create_simple simple in
     k acc (Some named)
   | Praise raise_kind, [_] ->
@@ -686,11 +684,8 @@ let close_named acc env ~let_bound_var (named : IR.named)
     (k : Acc.t -> Named.t option -> Expr_with_acc.t) : Expr_with_acc.t =
   match named with
   | Simple (Var id) ->
-    let acc, simple =
-      if not (Ident.is_predef id)
-      then find_simple acc env (Var id)
-      else symbol_for_ident acc env id
-    in
+    assert (not (Ident.is_global_or_predef id));
+    let acc, simple = find_simple acc env (Var id) in
     let named = Named.create_simple simple in
     k acc (Some named)
   | Simple (Const cst) ->
@@ -705,9 +700,13 @@ let close_named acc env ~let_bound_var (named : IR.named)
       ~register_const_string:(fun acc -> register_const_string acc)
       prim Debuginfo.none
       (fun acc named -> k acc (Some named))
-  | Begin_region ->
+  | Begin_region { try_region_parent } ->
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
-      Nullary Begin_region
+      match try_region_parent with
+      | None -> Nullary Begin_region
+      | Some try_region_parent ->
+        let try_region_parent = find_simple_from_id env try_region_parent in
+        Unary (Begin_try_region, Simple try_region_parent)
     in
     Lambda_to_flambda_primitives_helpers.bind_rec acc None
       ~register_const_string:(fun acc -> register_const_string acc)
@@ -2093,13 +2092,14 @@ let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
         defining_expr ~body)
     (acc, body) components
 
-let close_program (type mode) ~(mode : mode Flambda_features.mode)
-    ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
-    ~module_block_size_in_words ~program ~prog_return_cont ~exn_continuation
-    ~toplevel_my_region : mode close_program_result =
-  let env = Env.create ~symbol_for_global ~big_endian ~cmx_loader in
+let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
+    ~cmx_loader ~compilation_unit ~module_block_size_in_words ~program
+    ~prog_return_cont ~exn_continuation ~toplevel_my_region :
+    mode close_program_result =
+  let env = Env.create ~big_endian ~cmx_loader in
   let module_symbol =
-    symbol_for_global (Ident.create_persistent (Ident.name module_ident))
+    Symbol.create_wrapped
+      (Flambda2_import.Symbol.for_compilation_unit compilation_unit)
   in
   let module_block_tag = Tag.Scannable.zero in
   let module_block_var = Variable.create "module_block" in
@@ -2108,7 +2108,7 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode)
     Env.add_var_like env toplevel_my_region Not_user_visible
   in
   let slot_offsets = Slot_offsets.empty in
-  let acc = Acc.create ~symbol_for_global ~slot_offsets in
+  let acc = Acc.create ~slot_offsets in
   let load_fields_body acc =
     let field_vars =
       List.init module_block_size_in_words (fun pos ->

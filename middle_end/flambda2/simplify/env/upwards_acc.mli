@@ -107,3 +107,7 @@ val reachable_code_ids : t -> Flow_types.Reachable_code_ids.t Or_unknown.t
 val continuation_param_aliases : t -> Flow_types.Alias_result.t
 
 val mutable_unboxing_result : t -> Flow_types.Mutable_unboxing_result.t
+
+val set_resimplify : t -> t
+
+val resimplify : t -> bool

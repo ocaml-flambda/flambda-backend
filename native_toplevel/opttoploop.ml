@@ -51,16 +51,21 @@ external ndl_run_toplevel: string -> string -> res
 let default_lookup sym =
   Dynlink.unsafe_get_global_value ~bytecode_or_asm_symbol:sym
 
-let global_symbol id =
-  let sym = Compilenv.symbol_for_global id in
+let global_symbol comp_unit =
   let lookup =
     match !jit with
       | None -> default_lookup
       | Some {Jit.lookup_symbol; _} -> lookup_symbol
   in
-  match lookup (sym |> Linkage_name.to_string) with
+  let linkage_name =
+    Symbol.for_compilation_unit comp_unit
+    |> Symbol.linkage_name
+    |> Linkage_name.to_string
+  in
+  match lookup linkage_name with
   | None ->
-    fatal_error ("Opttoploop.global_symbol " ^ (Ident.unique_name id))
+    fatal_error ("Opttoploop.global_symbol " ^
+      (Compilation_unit.full_path_as_string comp_unit))
   | Some obj -> obj
 
 let need_symbol sym =
@@ -108,18 +113,13 @@ let toplevel_value id =
   try Ident.find_same id !remembered
   with _ -> failwith ("Unknown ident: " ^ Ident.unique_name id)
 
-let compilation_unit_of_toplevel_ident id =
-  Compilation_unit.create Compilation_unit.Prefix.empty
-    (Ident.name id |> Compilation_unit.Name.of_string)
-
 let close_phrase lam =
   let open Lambda in
   Ident.Set.fold (fun id l ->
     let glb, pos = toplevel_value id in
     let glob =
       Lprim (mod_field pos,
-             [Lprim (Pgetglobal (glb |> compilation_unit_of_toplevel_ident),
-                                 [], Loc_unknown)],
+             [Lprim (Pgetglobal glb, [], Loc_unknown)],
              Loc_unknown)
     in
     Llet(Strict, Pgenval, id, glob, l)
@@ -134,10 +134,10 @@ let toplevel_value id =
 (* Return the value referred to by a path *)
 
 let rec eval_address = function
-  | Env.Aident id ->
-      if Ident.is_global id
-      then global_symbol id
-      else toplevel_value id
+  | Env.Aunit cu ->
+      global_symbol cu
+  | Env.Alocal id ->
+      toplevel_value id
   | Env.Adot(a, pos) ->
       Obj.field (eval_address a) pos
 
@@ -260,10 +260,6 @@ let phrase_name = ref "TOP"
 module Backend = struct
   (* See backend_intf.mli. *)
 
-  let symbol_for_global' = Compilenv.symbol_for_global'
-
-  let pack_prefix_for_global_ident = Compilenv.pack_prefix_for_global_ident
-
   let really_import_approx = Import_approx.really_import_approx
   let import_symbol = Import_approx.import_symbol
 
@@ -289,7 +285,7 @@ let default_load ppf (program : Lambda.program) =
       ~filename ~prefixname:filename
       ~flambda2:Flambda2.lambda_to_cmm ~ppf_dump:ppf
       ~size:program.main_module_block_size
-      ~module_ident:program.module_ident
+      ~compilation_unit:program.compilation_unit
       ~module_initializer:program.code
       ~required_globals:program.required_globals
   end
@@ -321,7 +317,7 @@ let default_load ppf (program : Lambda.program) =
      files) *)
   res
 
-let load_lambda ppf ~module_ident ~required_globals lam size =
+let load_lambda ppf ~compilation_unit ~required_globals lam size =
   if !Clflags.dump_rawlambda then fprintf ppf "%a@." Printlambda.lambda lam;
   let slam = Simplif.simplify_lambda lam in
   if !Clflags.dump_lambda then fprintf ppf "%a@." Printlambda.lambda slam;
@@ -329,7 +325,7 @@ let load_lambda ppf ~module_ident ~required_globals lam size =
     { Lambda.
       code = slam;
       main_module_block_size = size;
-      module_ident;
+      compilation_unit;
       required_globals;
     }
   in
@@ -452,30 +448,33 @@ let execute_phrase print_outcome ppf phr =
             str, sg', true
         | _ -> str, sg', false
       in
-      let module_ident, res, required_globals, size =
+      let compilation_unit, res, required_globals, size =
         if any_flambda then
-          let { Lambda.module_ident; main_module_block_size = size;
+          let { Lambda.compilation_unit; main_module_block_size = size;
                 required_globals; code = res } =
-            Translmod.transl_implementation_flambda !phrase_name
+            Translmod.transl_implementation_flambda compilation_unit
               (str, coercion)
           in
-          remember module_ident 0 sg';
-          module_ident, close_phrase res, required_globals, size
+          remember compilation_unit 0 sg';
+          compilation_unit, close_phrase res, required_globals, size
         else
-          let size, res = Translmod.transl_store_phrases !phrase_name str in
-          Ident.create_persistent !phrase_name, res, Ident.Set.empty, size
+          let size, res = Translmod.transl_store_phrases compilation_unit str in
+          compilation_unit, res, Compilation_unit.Set.empty, size
       in
       Warnings.check_fatal ();
       begin try
         toplevel_env := newenv;
         toplevel_sig := List.rev_append sg' oldsig;
-        let res = load_lambda ppf ~required_globals ~module_ident res size in
+        let res =
+          load_lambda ppf ~required_globals ~compilation_unit res size
+        in
         let out_phr =
           match res with
           | Result _ ->
               if any_flambda then
                 (* CR-someday trefis: *)
-                Env.register_import_as_opaque (Ident.name module_ident)
+                Env.register_import_as_opaque
+                  (Compilation_unit.name compilation_unit)
               else
                 Compilenv.record_global_approx_toplevel ();
               if print_outcome then

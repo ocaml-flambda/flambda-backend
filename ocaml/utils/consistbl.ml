@@ -23,8 +23,10 @@ module Make (Module_name : sig
   module Map : Map.S with type key = t
   module Tbl : Hashtbl.S with type key = t
   val compare : t -> t -> int
+end) (Data : sig
+  type t
 end) = struct
-  type t = (Digest.t * filepath) Module_name.Tbl.t
+  type t = (Data.t * Digest.t * filepath) Module_name.Tbl.t
 
   let create () = Module_name.Tbl.create 13
 
@@ -34,36 +36,41 @@ end) = struct
     unit_name : Module_name.t;
     inconsistent_source : string;
     original_source : string;
+    inconsistent_data : Data.t;
+    original_data : Data.t;
   }
 
   exception Not_available of Module_name.t
 
-  let check_ tbl name crc source =
-    let (old_crc, old_source) = Module_name.Tbl.find tbl name in
-    if crc <> old_crc then raise(Inconsistency {
+  let check_ tbl name data crc source =
+    let (old_data, old_crc, old_source) = Module_name.Tbl.find tbl name in
+    if not (Digest.equal crc old_crc)
+    then raise(Inconsistency {
         unit_name = name;
         inconsistent_source = source;
         original_source = old_source;
+        inconsistent_data = data;
+        original_data = old_data;
       })
 
-  let check tbl name crc source =
-    try check_ tbl name crc source
+  let check tbl name data crc source =
+    try check_ tbl name data crc source
     with Not_found ->
-      Module_name.Tbl.add tbl name (crc, source)
+      Module_name.Tbl.add tbl name (data, crc, source)
 
-  let check_noadd tbl name crc source =
-    try check_ tbl name crc source
+  let check_noadd tbl name data crc source =
+    try check_ tbl name data crc source
     with Not_found ->
       raise (Not_available name)
 
-  let set tbl name crc source = Module_name.Tbl.add tbl name (crc, source)
+  let set tbl name data crc source = Module_name.Tbl.add tbl name (data, crc, source)
 
-  let source tbl name = snd (Module_name.Tbl.find tbl name)
+  let source tbl name = thd3 (Module_name.Tbl.find tbl name)
 
   let find t name =
     match Module_name.Tbl.find t name with
     | exception Not_found -> None
-    | (crc, _) -> Some crc
+    | (data, crc, _) -> Some (data, crc)
 
   let extract l tbl =
     let l = List.sort_uniq Module_name.compare l in

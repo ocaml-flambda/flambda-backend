@@ -30,13 +30,13 @@ module Env : sig
   type region_stack_element
 
   val create :
-    current_unit_id:Ident.t ->
+    current_unit:Compilation_unit.t ->
     return_continuation:Continuation.t ->
     exn_continuation:Continuation.t ->
     my_region:Ident.t ->
     t
 
-  val current_unit_id : t -> Ident.t
+  val current_unit : t -> Compilation_unit.t
 
   val is_mutable : t -> Ident.t -> bool
 
@@ -170,7 +170,7 @@ end = struct
     | Try_with of Ident.t
 
   type t =
-    { current_unit_id : Ident.t;
+    { current_unit : Compilation_unit.t;
       current_values_of_mutables_in_scope :
         (Ident.t * Lambda.value_kind) Ident.Map.t;
       mutables_needed_by_continuations : Ident.Set.t Continuation.Map.t;
@@ -184,13 +184,12 @@ end = struct
       region_closure_continuations : region_closure_continuation Ident.Map.t
     }
 
-  let create ~current_unit_id ~return_continuation ~exn_continuation ~my_region
-      =
+  let create ~current_unit ~return_continuation ~exn_continuation ~my_region =
     let mutables_needed_by_continuations =
       Continuation.Map.of_list
         [return_continuation, Ident.Set.empty; exn_continuation, Ident.Set.empty]
     in
-    { current_unit_id;
+    { current_unit;
       current_values_of_mutables_in_scope = Ident.Map.empty;
       mutables_needed_by_continuations;
       try_stack = [];
@@ -204,7 +203,7 @@ end = struct
       region_closure_continuations = Ident.Map.empty
     }
 
-  let current_unit_id t = t.current_unit_id
+  let current_unit t = t.current_unit
 
   let is_mutable t id = Ident.Map.mem id t.current_values_of_mutables_in_scope
 
@@ -610,9 +609,7 @@ let transform_primitive env (prim : L.primitive) args loc =
     let result = L.Lconst (Const_base (Const_int 0)) in
     Transformed (L.Llet (Strict, Pgenval, ident, arg, result))
   | Pfield _, [L.Lprim (Pgetglobal cu, [], _)]
-    when Ident.same
-           (cu |> Compilation_unit.to_global_ident_for_legacy_code)
-           (Env.current_unit_id env) ->
+    when Compilation_unit.equal cu (Env.current_unit env) ->
     Misc.fatal_error
       "[Pfield (Pgetglobal ...)] for the current compilation unit is forbidden \
        upon entry to the middle end"
@@ -991,9 +988,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     let id = Ident.create_local (name_for_function func) in
     let dbg = Debuginfo.from_location func.loc in
     let func =
-      cps_function env ~fid:id ~stub:false
-        ~recursive:(Non_recursive : Recursive.t)
-        func
+      cps_function env ~fid:id ~recursive:(Non_recursive : Recursive.t) func
     in
     let body acc ccenv = apply_cps_cont k ~dbg acc env ccenv id in
     CC.close_let_rec acc ccenv ~function_declarations:[func] ~body
@@ -1220,12 +1215,17 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
        generation pass ensures that there will be an enclosing region around the
        whole [Ltrywith] (possibly not immediately enclosing, but maybe further
        out). The only reason we need a [Begin_region] here is to be able to
-       unwind the local allocation stack if the exception handler is invoked. We
-       need an [End_region] too so that, on the non-exceptional path at the end
-       of the [try] block, the local allocation stack is correctly unwound in
-       the case where the region around the whole [Ltrywith] is unused. (See
-       [uses_local_try] in regions.ml in the testsuite.) *)
-    CC.close_let acc ccenv region Not_user_visible Begin_region
+       unwind the local allocation stack if the exception handler is invoked.
+       There is no corresponding [End_region] on the non-exceptional path
+       because there might be a local allocation in the "try" block that needs
+       to be returned. In effect, such allocations are treated as if they were
+       in the parent region, although they will be annotated with the region
+       identifier of the "try region". To handle this correctly we annotate the
+       [Begin_region] with its parent region. This use of the parent region will
+       ensure that the parent does not get deleted unless the try region is
+       unused. *)
+    CC.close_let acc ccenv region Not_user_visible
+      (Begin_region { try_region_parent = Some (Env.current_region env) })
       ~body:(fun acc ccenv ->
         maybe_insert_let_cont "try_with_result" kind k acc env ccenv
           (fun acc env ccenv k ->
@@ -1249,13 +1249,10 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                         cps_tail acc env ccenv body poptrap_continuation
                           handler_continuation))
                   ~handler:(fun acc env ccenv ->
-                    CC.close_let acc ccenv (Ident.create_local "unit")
-                      Not_user_visible (End_region region)
-                      ~body:(fun acc ccenv ->
-                        let env = Env.leaving_try_region env in
-                        apply_cont_with_extra_args acc env ccenv ~dbg k
-                          (Some (IR.Pop { exn_handler = handler_continuation }))
-                          [IR.Var body_result])))
+                    let env = Env.leaving_try_region env in
+                    apply_cont_with_extra_args acc env ccenv ~dbg k
+                      (Some (IR.Pop { exn_handler = handler_continuation }))
+                      [IR.Var body_result]))
               ~handler:(fun acc env ccenv ->
                 CC.close_let acc ccenv (Ident.create_local "unit")
                   Not_user_visible (End_region region) ~body:(fun acc ccenv ->
@@ -1312,7 +1309,8 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
        continuation for the code after the body. *)
     let region = Ident.create_local "region" in
     let dbg = Debuginfo.none in
-    CC.close_let acc ccenv region Not_user_visible Begin_region
+    CC.close_let acc ccenv region Not_user_visible
+      (Begin_region { try_region_parent = None })
       ~body:(fun acc ccenv ->
         maybe_insert_let_cont "body_return" Pgenval k acc env ccenv
           (fun acc env ccenv k ->
@@ -1481,38 +1479,17 @@ and cps_function_bindings env (bindings : (Ident.t * L.lambda) list) =
     then Recursive
     else Non_recursive
   in
-  List.fold_left
-    (fun bindings binding ->
-      match binding with
-      | [(fun_id, def)] ->
-        let fundef =
-          cps_function env ~fid:fun_id ~stub:false ~recursive:(recursive fun_id)
-            ~precomputed_free_idents:(Ident.Map.find fun_id free_idents)
-            def
-        in
-        bindings @ [fundef]
-      | [(fun_id, def); (inner_id, inner_def)] ->
-        let fundef =
-          cps_function env ~fid:fun_id ~stub:false ~recursive:(recursive fun_id)
-            ~precomputed_free_idents:(Ident.Map.find fun_id free_idents)
-            def
-        in
-        let inner_fundef =
-          cps_function env ~fid:inner_id ~stub:true
-            ~recursive:(recursive inner_id)
-            ~precomputed_free_idents:(Ident.Map.find inner_id free_idents)
-            inner_def
-        in
-        bindings @ [fundef; inner_fundef]
-      | _ -> assert false
-      (* checked above *))
-    [] bindings_with_wrappers
+  let bindings_with_wrappers = List.flatten bindings_with_wrappers in
+  List.map
+    (fun (fun_id, def) ->
+      cps_function env ~fid:fun_id ~recursive:(recursive fun_id)
+        ~precomputed_free_idents:(Ident.Map.find fun_id free_idents)
+        def)
+    bindings_with_wrappers
 
-and cps_function env ~fid ~stub ~(recursive : Recursive.t)
-    ?precomputed_free_idents
+and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
     ({ kind; params; return; body; attr; loc; mode; region } : L.lfunction) :
     Function_decl.t =
-  let attr = { attr with stub = attr.stub || stub } in
   let num_trailing_local_params =
     match kind with Curried { nlocal } -> nlocal | Tupled -> 0
   in
@@ -1525,7 +1502,7 @@ and cps_function env ~fid ~stub ~(recursive : Recursive.t)
   in
   let my_region = Ident.create_local "my_region" in
   let new_env =
-    Env.create ~current_unit_id:(Env.current_unit_id env)
+    Env.create ~current_unit:(Env.current_unit env)
       ~return_continuation:body_cont ~exn_continuation:body_exn_cont ~my_region
   in
   let exn_continuation : IR.exn_continuation =
@@ -1695,22 +1672,18 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
 
 (* CR pchambart: define a record `target_config` to hold things like
    `big_endian` *)
-let lambda_to_flambda ~mode ~symbol_for_global ~big_endian ~cmx_loader
-    ~module_ident ~module_block_size_in_words (lam : Lambda.lambda) =
-  let current_unit_id =
-    Compilation_unit.name (Compilation_unit.get_current_exn ())
-    |> Compilation_unit.Name.persistent_ident
-  in
+let lambda_to_flambda ~mode ~big_endian ~cmx_loader ~compilation_unit
+    ~module_block_size_in_words (lam : Lambda.lambda) =
   let return_continuation = Continuation.create ~sort:Define_root_symbol () in
   let exn_continuation = Continuation.create () in
   let toplevel_my_region = Ident.create_local "toplevel_my_region" in
   let env =
-    Env.create ~current_unit_id ~return_continuation ~exn_continuation
-      ~my_region:toplevel_my_region
+    Env.create ~current_unit:compilation_unit ~return_continuation
+      ~exn_continuation ~my_region:toplevel_my_region
   in
   let toplevel acc ccenv =
     cps_tail acc env ccenv lam return_continuation exn_continuation
   in
-  CC.close_program ~mode ~symbol_for_global ~big_endian ~cmx_loader
-    ~module_ident ~module_block_size_in_words ~program:toplevel
+  CC.close_program ~mode ~big_endian ~cmx_loader ~compilation_unit
+    ~module_block_size_in_words ~program:toplevel
     ~prog_return_cont:return_continuation ~exn_continuation ~toplevel_my_region

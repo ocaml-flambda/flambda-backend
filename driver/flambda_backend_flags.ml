@@ -27,7 +27,9 @@ let heap_reduction_threshold = ref default_heap_reduction_threshold (* -heap-red
 let alloc_check = ref false             (* -alloc-check *)
 let dump_checkmach = ref false          (* -dcheckmach *)
 
-let disable_poll_insertion = ref false  (* -disable-poll-insertion *)
+(* CR-soon gyorsh: re-enable tests testsuite/tests/asmcomp/poll_*
+   when changing the default for [disable_poll_insertion] to false. *)
+let disable_poll_insertion = ref true   (* -disable-poll-insertion *)
 let allow_long_frames = ref true        (* -no-long-frames *)
 (* Keep the value of [max_long_frames_threshold] in sync with LONG_FRAME_MARKER
    in ocaml/runtime/roots_nat.c *)
@@ -133,6 +135,7 @@ module Flambda2 = struct
       let max_block_size_for_projections = None
       let max_unboxing_depth = 3
       let can_inline_recursive_functions = false
+      let max_function_simplify_run = 2
     end
 
     type flags = {
@@ -142,6 +145,7 @@ module Flambda2 = struct
       max_block_size_for_projections : int option;
       max_unboxing_depth : int;
       can_inline_recursive_functions : bool;
+      max_function_simplify_run : int;
     }
 
     let default = {
@@ -151,6 +155,7 @@ module Flambda2 = struct
       max_block_size_for_projections = Default.max_block_size_for_projections;
       max_unboxing_depth = Default.max_unboxing_depth;
       can_inline_recursive_functions = Default.can_inline_recursive_functions;
+      max_function_simplify_run = Default.max_function_simplify_run;
     }
 
     let oclassic = {
@@ -174,6 +179,7 @@ module Flambda2 = struct
     let max_block_size_for_projections = ref Default
     let max_unboxing_depth = ref Default
     let can_inline_recursive_functions = ref Default
+    let max_function_simplify_run = ref Default
   end
 
   module Debug = struct

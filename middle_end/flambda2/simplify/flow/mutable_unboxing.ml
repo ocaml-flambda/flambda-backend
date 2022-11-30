@@ -32,8 +32,7 @@ type t =
   { non_escaping_makeblocks : non_escaping_block Variable.Map.t;
     continuations_with_live_block : Variable.Set.t Continuation.Map.t;
     extra_params_and_args : (extra_params * extra_args) Continuation.Map.t;
-    rewrites : Named_rewrite.t Named_rewrite_id.Map.t;
-    required_regions : Name.Set.t
+    rewrites : Named_rewrite.t Named_rewrite_id.Map.t
   }
 
 (* Escaping analysis *)
@@ -200,22 +199,16 @@ let escaping ~(dom : Dominator_graph.alias_map) ~(dom_graph : Dominator_graph.t)
 
 (* *)
 
-let non_escaping_makeblocks_and_required_regions ~escaping ~source_info =
+let non_escaping_makeblocks ~escaping ~source_info =
   Continuation.Map.fold
-    (fun _cont (elt : T.Continuation_info.t) (map, regions) ->
+    (fun _cont (elt : T.Continuation_info.t) map ->
       List.fold_left
-        (fun (map, regions) T.Mutable_let_prim.{ bound_var = var; prim; _ } ->
+        (fun map T.Mutable_let_prim.{ bound_var = var; prim; _ } ->
           match prim with
-          | Block_load _ | Block_set _ | Is_int _ | Get_tag _ -> map, regions
-          | Make_block { kind; alloc_mode; fields; _ } ->
+          | Block_load _ | Block_set _ | Is_int _ | Get_tag _ -> map
+          | Make_block { kind; alloc_mode = _; fields; _ } ->
             if Variable.Set.mem var escaping
-            then
-              let regions =
-                match alloc_mode with
-                | Heap -> regions
-                | Local { region } -> Name.Set.add (Name.var region) regions
-              in
-              map, regions
+            then map
             else
               let non_escaping_block =
                 match kind with
@@ -229,10 +222,9 @@ let non_escaping_makeblocks_and_required_regions ~escaping ~source_info =
                         fields
                   }
               in
-              Variable.Map.add var non_escaping_block map, regions)
-        (map, regions) elt.mutable_let_prims_rev)
-    source_info.T.Acc.map
-    (Variable.Map.empty, Name.Set.empty)
+              Variable.Map.add var non_escaping_block map)
+        map elt.mutable_let_prims_rev)
+    source_info.T.Acc.map Variable.Map.empty
 
 let prims_using_block ~non_escaping_blocks ~dom prim =
   match (prim : T.Mutable_prim.t) with
@@ -504,7 +496,9 @@ module Fold_prims = struct
           in
           let env =
             List.fold_left
-              (fun env T.Mutable_let_prim.{ named_rewrite_id; bound_var; prim } ->
+              (fun env
+                   T.Mutable_let_prim.
+                     { named_rewrite_id; bound_var; prim; original_prim = _ } ->
                 apply_prim ~dom ~non_escaping_blocks env named_rewrite_id
                   bound_var prim)
               env
@@ -547,9 +541,7 @@ let create ~(dom : Dominator_graph.alias_map) ~(dom_graph : Dominator_graph.t)
     escaping ~dom ~dom_graph ~source_info ~required_names ~return_continuation
       ~exn_continuation
   in
-  let non_escaping_blocks, required_regions =
-    non_escaping_makeblocks_and_required_regions ~escaping ~source_info
-  in
+  let non_escaping_blocks = non_escaping_makeblocks ~escaping ~source_info in
   if (not (Variable.Map.is_empty non_escaping_blocks))
      && Flambda_features.dump_flow ()
   then
@@ -580,8 +572,7 @@ let create ~(dom : Dominator_graph.alias_map) ~(dom_graph : Dominator_graph.t)
   { extra_params_and_args;
     non_escaping_makeblocks = non_escaping_blocks;
     continuations_with_live_block;
-    rewrites;
-    required_regions
+    rewrites
   }
 
 let pp_node { non_escaping_makeblocks = _; continuations_with_live_block; _ }
@@ -670,5 +661,4 @@ let make_result result =
   let additionnal_epa = add_to_extra_params_and_args result in
   let let_rewrites = result.rewrites in
   ( T.Mutable_unboxing_result.{ additionnal_epa; let_rewrites },
-    result.required_regions,
     Variable.Map.keys result.non_escaping_makeblocks )

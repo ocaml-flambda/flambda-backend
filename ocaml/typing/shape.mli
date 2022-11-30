@@ -22,8 +22,8 @@ module Uid : sig
 
   val reinit : unit -> unit
 
-  val mk : current_unit:string -> t
-  val of_compilation_unit_id : Ident.t -> t
+  val mk : current_unit:Compilation_unit.t option -> t
+  val of_compilation_unit_id : Compilation_unit.t -> t
   val of_predef_id : Ident.t -> t
   val internal_not_actually_unique : t
 
@@ -91,6 +91,7 @@ val leaf : Uid.t -> t
 
 val decompose_abs : t -> (var * t) option
 
+(* CR lmaurer: Should really take a [Compilation_unit.t] *)
 val for_persistent_unit : string -> t
 val leaf_for_unpack : t
 

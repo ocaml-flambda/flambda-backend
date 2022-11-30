@@ -37,7 +37,7 @@ module IR : sig
   type named =
     | Simple of simple
     | Get_tag of Ident.t (* Intermediary primitive for block switch *)
-    | Begin_region
+    | Begin_region of { try_region_parent : Ident.t option }
     | End_region of Ident.t
         (** [Begin_region] and [End_region] are needed because these primitives
             don't exist in Lambda *)
@@ -100,11 +100,7 @@ module Env : sig
 
   type t
 
-  val create :
-    symbol_for_global:(Ident.t -> Symbol.t) ->
-    big_endian:bool ->
-    cmx_loader:Flambda_cmx.loader ->
-    t
+  val create : big_endian:bool -> cmx_loader:Flambda_cmx.loader -> t
 
   val clear_local_bindings : t -> t
 
@@ -152,9 +148,7 @@ module Env : sig
 
   val with_depth : t -> Variable.t -> t
 
-  val current_unit_id : t -> Ident.t
-
-  val symbol_for_global : t -> Ident.t -> Symbol.t
+  val current_unit : t -> Compilation_unit.t
 
   val big_endian : t -> bool
 
@@ -188,8 +182,7 @@ module Acc : sig
 
   type t
 
-  val create :
-    symbol_for_global:(Ident.t -> Symbol.t) -> slot_offsets:Slot_offsets.t -> t
+  val create : slot_offsets:Slot_offsets.t -> t
 
   val declared_symbols : t -> (Symbol.t * Static_const.t) list
 
@@ -252,8 +245,6 @@ module Acc : sig
      in acc *)
   val measure_cost_metrics :
     t -> f:(t -> t * 'a) -> Cost_metrics.t * Name_occurrences.t * t * 'a
-
-  val symbol_for_global : t -> Ident.t -> Symbol.t
 
   val slot_offsets : t -> Slot_offsets.t
 

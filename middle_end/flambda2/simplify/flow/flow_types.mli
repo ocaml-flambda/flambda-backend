@@ -68,6 +68,7 @@ module Mutable_let_prim : sig
   type t =
     { bound_var : Variable.t;
       prim : Mutable_prim.t;
+      original_prim : Flambda_primitive.t;
       named_rewrite_id : Named_rewrite_id.t
     }
 

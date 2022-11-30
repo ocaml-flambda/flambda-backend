@@ -35,7 +35,7 @@ module IR = struct
   type named =
     | Simple of simple
     | Get_tag of Ident.t
-    | Begin_region
+    | Begin_region of { try_region_parent : Ident.t option }
     | End_region of Ident.t
     | Prim of
         { prim : Lambda.primitive;
@@ -84,7 +84,10 @@ module IR = struct
     | Simple (Var id) -> Ident.print ppf id
     | Simple (Const cst) -> Printlambda.structured_constant ppf cst
     | Get_tag id -> fprintf ppf "@[<2>(Gettag %a)@]" Ident.print id
-    | Begin_region -> fprintf ppf "Begin_region"
+    | Begin_region { try_region_parent = None } -> fprintf ppf "Begin_region"
+    | Begin_region { try_region_parent = Some try_region_parent } ->
+      fprintf ppf "@[<2>(Begin_region@ (try_region_parent %a))@]" Ident.print
+        try_region_parent
     | End_region id -> fprintf ppf "@[<2>(End_region@ %a)@]" Ident.print id
     | Prim { prim; args; _ } ->
       fprintf ppf "@[<2>(%a %a)@]" Printlambda.primitive prim
@@ -131,9 +134,8 @@ module Env = struct
     { variables : Variable.t Ident.Map.t;
       globals : Symbol.t Numeric_types.Int.Map.t;
       simples_to_substitute : Simple.t Ident.Map.t;
-      current_unit_id : Ident.t;
+      current_unit : Compilation_unit.t;
       current_depth : Variable.t option;
-      symbol_for_global : Ident.t -> Symbol.t;
       value_approximations : value_approximation Name.Map.t;
       approximation_for_external_symbol : Symbol.t -> value_approximation;
       big_endian : bool;
@@ -141,9 +143,7 @@ module Env = struct
       inlining_history_tracker : Inlining_history.Tracker.t
     }
 
-  let current_unit_id t = t.current_unit_id
-
-  let symbol_for_global t = t.symbol_for_global
+  let current_unit t = t.current_unit
 
   let big_endian t = t.big_endian
 
@@ -169,59 +169,57 @@ module Env = struct
             ());
         let rec filter_inlinable approx =
           match (approx : value_approximation) with
-          | Value_unknown | Value_symbol _ | Value_int _
-          | Closure_approximation { code = Metadata_only _; _ } ->
-            approx
+          | Value_unknown | Value_symbol _ | Value_int _ -> approx
           | Block_approximation (approxs, alloc_mode) ->
             let approxs = Array.map filter_inlinable approxs in
             Value_approximation.Block_approximation (approxs, alloc_mode)
-          | Closure_approximation
-              { code_id; function_slot; code = Code_present code; _ } -> (
-            match[@ocaml.warning "-fragile-match"]
-              Inlining.definition_inlining_decision (Code.inline code)
-                (Code.cost_metrics code)
-            with
-            | Attribute_inline | Small_function _ -> approx
-            | _ ->
-              Value_approximation.Closure_approximation
-                { code_id;
-                  function_slot;
-                  code = Code_or_metadata.(remember_only_metadata (create code));
-                  symbol = None
-                })
+          | Closure_approximation { code_id; function_slot; code; _ } -> (
+            let metadata = Code_or_metadata.code_metadata code in
+            if not (Code_or_metadata.code_present code)
+            then approx
+            else
+              match
+                Inlining.definition_inlining_decision
+                  (Code_metadata.inline metadata)
+                  (Code_metadata.cost_metrics metadata)
+              with
+              | Attribute_inline | Small_function _ -> approx
+              | Not_yet_decided | Never_inline_attribute | Stub | Recursive
+              | Function_body_too_large _ | Speculatively_inlinable _
+              | Functor _ ->
+                Value_approximation.Closure_approximation
+                  { code_id;
+                    function_slot;
+                    code = Code_or_metadata.create_metadata_only metadata;
+                    symbol = None
+                  })
         in
         let approx = filter_inlinable approx in
         externals := Symbol.Map.add symbol approx !externals;
         approx
 
-  let create ~symbol_for_global ~big_endian ~cmx_loader =
-    let compilation_unit = Compilation_unit.get_current_exn () in
-    let current_unit_id =
-      Compilation_unit.name compilation_unit
-      |> Compilation_unit.Name.to_string |> Ident.create_persistent
-    in
+  let create ~big_endian ~cmx_loader =
+    let current_unit = Compilation_unit.get_current_exn () in
     { variables = Ident.Map.empty;
       globals = Numeric_types.Int.Map.empty;
       simples_to_substitute = Ident.Map.empty;
-      current_unit_id;
+      current_unit;
       current_depth = None;
       value_approximations = Name.Map.empty;
       approximation_for_external_symbol =
         (if Flambda_features.classic_mode ()
         then approximation_loader cmx_loader
         else fun _symbol -> Value_approximation.Value_unknown);
-      symbol_for_global;
       big_endian;
       path_to_root = Debuginfo.Scoped_location.Loc_unknown;
-      inlining_history_tracker = Inlining_history.Tracker.empty compilation_unit
+      inlining_history_tracker = Inlining_history.Tracker.empty current_unit
     }
 
   let clear_local_bindings
       { variables = _;
         globals;
         simples_to_substitute;
-        current_unit_id;
-        symbol_for_global;
+        current_unit;
         current_depth;
         value_approximations;
         approximation_for_external_symbol;
@@ -237,11 +235,10 @@ module Env = struct
     { variables = Ident.Map.empty;
       globals;
       simples_to_substitute;
-      current_unit_id;
+      current_unit;
       current_depth;
       value_approximations;
       approximation_for_external_symbol;
-      symbol_for_global;
       big_endian;
       path_to_root;
       inlining_history_tracker
@@ -394,7 +391,6 @@ module Acc = struct
       continuation_applications : continuation_application Continuation.Map.t;
       cost_metrics : Cost_metrics.t;
       seen_a_function : bool;
-      symbol_for_global : Ident.t -> Symbol.t;
       slot_offsets : Slot_offsets.t;
       regions_closed_early : Ident.Set.t;
       closure_infos : closure_info list
@@ -411,7 +407,7 @@ module Acc = struct
 
   let with_seen_a_function t seen_a_function = { t with seen_a_function }
 
-  let create ~symbol_for_global ~slot_offsets =
+  let create ~slot_offsets =
     { declared_symbols = [];
       lifted_sets_of_closures = [];
       shareable_constants = Static_const.Map.empty;
@@ -420,7 +416,6 @@ module Acc = struct
       continuation_applications = Continuation.Map.empty;
       cost_metrics = Cost_metrics.zero;
       seen_a_function = false;
-      symbol_for_global;
       slot_offsets;
       regions_closed_early = Ident.Set.empty;
       closure_infos = []
@@ -570,8 +565,6 @@ module Acc = struct
     let free_names, acc, return = eval_branch_free_names acc ~f in
     let cost_metrics = cost_metrics acc in
     cost_metrics, free_names, with_cost_metrics saved_cost_metrics acc, return
-
-  let symbol_for_global t = t.symbol_for_global
 
   let add_set_of_closures_offsets ~is_phantom t set_of_closures =
     let slot_offsets =

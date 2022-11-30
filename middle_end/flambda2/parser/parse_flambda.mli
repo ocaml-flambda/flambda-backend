@@ -15,7 +15,4 @@ val make_compilation_unit :
   unit ->
   Compilation_unit.t
 
-val parse :
-  symbol_for_global:(Ident.t -> Symbol.t) ->
-  string ->
-  (Flambda_unit.t, error) result
+val parse : string -> (Flambda_unit.t, error) result

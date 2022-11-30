@@ -65,7 +65,7 @@ let linear_unit_info =
 let reset () =
   start_from_emit := false;
   if should_save_before_emit () then begin
-    linear_unit_info.unit <- Compilation_unit.get_current_exn ();
+    linear_unit_info.unit <- Compilation_unit.get_current_or_dummy ();
     linear_unit_info.items <- [];
   end
 
@@ -272,7 +272,8 @@ let compile_implementation ?toplevel ~backend ~prefixname ~middle_end
     ~asm_filename:(asm_filename prefixname) ~keep_asm:!keep_asm_file
     ~obj_filename:(prefixname ^ ext_obj)
     (fun () ->
-      Ident.Set.iter Compilenv.require_global program.required_globals;
+      Compilation_unit.Set.iter Compilenv.require_global
+        program.required_globals;
       let clambda_with_constants =
         middle_end ~backend ~prefixname ~ppf_dump program
       in

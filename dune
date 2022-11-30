@@ -115,7 +115,6 @@
   closure_offsets
   effect_analysis
   export_info
-  export_info_for_pack
   extract_projections
   find_recursive_functions
   flambda
@@ -271,6 +270,7 @@
  (libraries
   ocamlcommon
   flambda_backend_common
+  flambda_backend_utils
   flambda2_identifiers
   flambda2_cmx
   dwarf_ocaml
@@ -383,6 +383,7 @@
    %{dep:backend/debug/dwarf/dwarf_high/dwarf_high.a}
    %{dep:backend/debug/dwarf/dwarf_ocaml/dwarf_ocaml.a}
    %{dep:flambda_backend_common.a}
+   %{dep:utils/flambda_backend_utils.a}
    %{dep:middle_end/flambda2/import/flambda2_import.a}
    %{dep:middle_end/flambda2/ui/flambda2_ui.a}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.a}
@@ -418,6 +419,7 @@
    %{dep:backend/debug/dwarf/dwarf_high/dwarf_high.cma}
    %{dep:backend/debug/dwarf/dwarf_ocaml/dwarf_ocaml.cma}
    %{dep:flambda_backend_common.cma}
+   %{dep:utils/flambda_backend_utils.cma}
    %{dep:middle_end/flambda2/import/flambda2_import.cma}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cma}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cma}
@@ -453,6 +455,7 @@
    %{dep:backend/debug/dwarf/dwarf_high/dwarf_high.cmxa}
    %{dep:backend/debug/dwarf/dwarf_ocaml/dwarf_ocaml.cmxa}
    %{dep:flambda_backend_common.cmxa}
+   %{dep:utils/flambda_backend_utils.cmxa}
    %{dep:middle_end/flambda2/import/flambda2_import.cmxa}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cmxa}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cmxa}
@@ -540,7 +543,6 @@
   (closure_offsets.mli as compiler-libs/closure_offsets.mli)
   (effect_analysis.mli as compiler-libs/effect_analysis.mli)
   (export_info.mli as compiler-libs/export_info.mli)
-  (export_info_for_pack.mli as compiler-libs/export_info_for_pack.mli)
   (extract_projections.mli as compiler-libs/extract_projections.mli)
   (find_recursive_functions.mli
    as
@@ -1918,18 +1920,6 @@
   (.ocamloptcomp.objs/byte/export_info.cmti
    as
    compiler-libs/export_info.cmti)
-  (.ocamloptcomp.objs/byte/export_info_for_pack.cmi
-   as
-   compiler-libs/export_info_for_pack.cmi)
-  (.ocamloptcomp.objs/byte/export_info_for_pack.cmo
-   as
-   compiler-libs/export_info_for_pack.cmo)
-  (.ocamloptcomp.objs/byte/export_info_for_pack.cmt
-   as
-   compiler-libs/export_info_for_pack.cmt)
-  (.ocamloptcomp.objs/byte/export_info_for_pack.cmti
-   as
-   compiler-libs/export_info_for_pack.cmti)
   (.ocamloptcomp.objs/byte/extract_projections.cmi
    as
    compiler-libs/extract_projections.cmi)
@@ -2569,9 +2559,6 @@
   (.ocamloptcomp.objs/native/export_info.cmx
    as
    compiler-libs/export_info.cmx)
-  (.ocamloptcomp.objs/native/export_info_for_pack.cmx
-   as
-   compiler-libs/export_info_for_pack.cmx)
   (.ocamloptcomp.objs/native/extract_projections.cmx
    as
    compiler-libs/extract_projections.cmx)
