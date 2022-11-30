@@ -303,11 +303,7 @@ let params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
   (* [my_region] can be referenced in [Begin_try_region] primitives so must be
      in the environment; but the Cmm value to which it is bound will never be
      used. *)
-  let env =
-    Env.bind_variable env my_region ~defining_expr:(C.unit ~dbg:fun_dbg)
-      ~num_normal_occurrences_of_bound_vars:Variable.Map.empty
-      ~effects_and_coeffects_of_defining_expr:Ece.pure
-  in
+  let env, _bound_var = Env.create_bound_parameter env my_region in
   (* Translate the arg list and body *)
   let env, fun_args = C.bound_parameters env params in
   let fun_body, res = translate_expr env res body in
