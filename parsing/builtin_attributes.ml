@@ -200,13 +200,13 @@ let alert_attr x =
 let alert_attrs l =
   List.filter_map alert_attr l
 
-let mark_alerts_used l =
-  List.iter (fun a ->
-    match a.attr_name.txt with
-    | "ocaml.deprecated"|"deprecated"|"ocaml.alert"|"alert" ->
-      mark_used a.attr_name
-    | _ -> ())
-    l
+let mark_alert_used a =
+  match a.attr_name.txt with
+  | "ocaml.deprecated"|"deprecated"|"ocaml.alert"|"alert" ->
+    mark_used a.attr_name
+  | _ -> ()
+
+let mark_alerts_used l = List.iter mark_alert_used l
 
 let mark_warn_on_literal_pattern_used l =
   List.iter (fun a ->

@@ -49,6 +49,7 @@ val mk_internal:
 (** Marks alert attributes used for the purposes of misplaced attribute
     warnings.  Call this when moving things with alert attributes into the
     environment. *)
+val mark_alert_used : Parsetree.attribute -> unit
 val mark_alerts_used : Parsetree.attributes -> unit
 
 (** Marks "warn_on_literal_pattern" attributes used for the purposes of

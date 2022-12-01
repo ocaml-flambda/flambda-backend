@@ -1756,6 +1756,7 @@ and transl_signature env (sg : Parsetree.signature) =
         typedtree, tsg, newenv
     | Psig_attribute attr ->
         Builtin_attributes.parse_standard_interface_attributes attr;
+        Builtin_attributes.mark_alert_used attr;
         mksig (Tsig_attribute attr) env loc, [], env
     | Psig_extension (ext, _attrs) ->
         raise (Error_forward (Builtin_attributes.error_of_extension ext))
@@ -2890,6 +2891,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
         raise (Error_forward (Builtin_attributes.error_of_extension ext))
     | Pstr_attribute attr ->
         Builtin_attributes.parse_standard_implementation_attributes attr;
+        Builtin_attributes.mark_alert_used attr;
         Tstr_attribute attr, [], shape_map, env
   in
   let toplevel_sig = Option.value toplevel ~default:[] in
