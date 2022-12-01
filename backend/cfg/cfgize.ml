@@ -661,11 +661,10 @@ module Stack_offset_and_exn = struct
     | Op (Stackoffset n) -> stack_offset + n, traps
     | Op
         ( Move | Spill | Reload | Const_int _ | Const_float _ | Const_symbol _
-        | Load _ | Store _ | Intop _ | Intop_imm _ | Intop_atomic _
-        | Negf | Absf | Addf | Subf | Mulf | Divf | Compf _
-        | Floatofint | Intoffloat | Valueofint | Csel _
-        | Intofvalue | Probe_is_enabled _ | Opaque | Begin_region | End_region
-        | Specific _ | Name_for_debugger _ )
+        | Load _ | Store _ | Intop _ | Intop_imm _ | Intop_atomic _ | Negf
+        | Absf | Addf | Subf | Mulf | Divf | Compf _ | Floatofint | Intoffloat
+        | Valueofint | Csel _ | Intofvalue | Probe_is_enabled _ | Opaque
+        | Begin_region | End_region | Specific _ | Name_for_debugger _ )
     | Reloadretaddr | Prologue ->
       stack_offset, traps
 

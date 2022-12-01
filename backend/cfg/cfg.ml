@@ -568,11 +568,10 @@ let is_noop_move instr =
       Reg.same_loc instr.res.(0) ifso && Reg.same_loc instr.res.(0) ifnot)
   | Op
       ( Const_int _ | Const_float _ | Const_symbol _ | Stackoffset _ | Load _
-      | Store _ | Intop _ | Intop_imm _ | Intop_atomic _
-      | Negf | Absf | Addf | Subf | Mulf | Divf | Compf _
-      | Floatofint | Intoffloat | Opaque | Valueofint
-      | Intofvalue | Probe_is_enabled _ | Specific _ | Name_for_debugger _
-      | Begin_region | End_region )
+      | Store _ | Intop _ | Intop_imm _ | Intop_atomic _ | Negf | Absf | Addf
+      | Subf | Mulf | Divf | Compf _ | Floatofint | Intoffloat | Opaque
+      | Valueofint | Intofvalue | Probe_is_enabled _ | Specific _
+      | Name_for_debugger _ | Begin_region | End_region )
   | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
     false
 

@@ -328,7 +328,8 @@ end = struct
     | Icsel _ | Iname_for_debugger _ ->
       assert (Mach.operation_is_pure op)
     | Istackoffset _ | Iprobe_is_enabled _ | Iopaque | Ibeginregion | Iendregion
-    | Iintop_atomic _ -> ()
+    | Iintop_atomic _ ->
+      ()
     | Istore _ -> ()
     | Iintop Icheckbound | Iintop_imm (Icheckbound, _) ->
       report_fail t "checkbound" dbg
