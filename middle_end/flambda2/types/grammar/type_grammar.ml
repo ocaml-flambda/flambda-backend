@@ -64,7 +64,7 @@ and head_of_kind_value =
       }
   | String of String_info.Set.t
   | Array of
-      { element_kind : Flambda_kind.With_subkind.t Or_unknown.t;
+      { element_kind : Flambda_kind.With_subkind.t Or_unknown_or_bottom.t;
         length : t;
         contents : array_contents Or_unknown.t;
         alloc_mode : Alloc_mode.For_types.t
@@ -755,13 +755,13 @@ and print_head_of_kind_value ppf head =
   | Array { element_kind; length; contents = Unknown; alloc_mode } ->
     Format.fprintf ppf
       "@[<hov 1>(Array@ (element_kind@ %a)@ (length@ %a)@ (alloc_mode@ %a))@]"
-      (Or_unknown.print Flambda_kind.With_subkind.print)
+      (Or_unknown_or_bottom.print Flambda_kind.With_subkind.print)
       element_kind print length Alloc_mode.For_types.print alloc_mode
   | Array { element_kind; length; contents = Known Mutable; alloc_mode } ->
     Format.fprintf ppf
       "@[<hov 1>(Mutable_array@ (element_kind@ %a)@ (length@ %a)@ (alloc_mode@ \
        %a))@]"
-      (Or_unknown.print Flambda_kind.With_subkind.print)
+      (Or_unknown_or_bottom.print Flambda_kind.With_subkind.print)
       element_kind print length Alloc_mode.For_types.print alloc_mode
   | Array
       { element_kind;
@@ -772,7 +772,7 @@ and print_head_of_kind_value ppf head =
     Format.fprintf ppf
       "@[<hov 1>(Immutable_array@ (element_kind@ %a)@ (length@ %a)@ \
        (alloc_mode@ %a)@ (fields@ (%a)))@]"
-      (Or_unknown.print Flambda_kind.With_subkind.print)
+      (Or_unknown_or_bottom.print Flambda_kind.With_subkind.print)
       element_kind print length Alloc_mode.For_types.print alloc_mode
       (Format.pp_print_list ~pp_sep:Format.pp_print_space print)
       fields

@@ -315,14 +315,14 @@ let rec unknown_with_subkind ?(alloc_mode = Alloc_mode.For_types.unknown ())
       ~fields:(List.init num_fields (fun _ -> TG.any_naked_float))
       alloc_mode
   | Float_array ->
-    TG.mutable_array ~element_kind:(Known Flambda_kind.With_subkind.naked_float)
+    TG.mutable_array ~element_kind:(Ok Flambda_kind.With_subkind.naked_float)
       ~length:any_tagged_immediate alloc_mode
   | Immediate_array ->
     TG.mutable_array
-      ~element_kind:(Known Flambda_kind.With_subkind.tagged_immediate)
+      ~element_kind:(Ok Flambda_kind.With_subkind.tagged_immediate)
       ~length:any_tagged_immediate alloc_mode
   | Value_array ->
-    TG.mutable_array ~element_kind:(Known Flambda_kind.With_subkind.any_value)
+    TG.mutable_array ~element_kind:(Ok Flambda_kind.With_subkind.any_value)
       ~length:any_tagged_immediate alloc_mode
   | Generic_array ->
     TG.mutable_array ~element_kind:Unknown ~length:any_tagged_immediate
