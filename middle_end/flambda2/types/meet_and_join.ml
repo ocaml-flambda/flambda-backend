@@ -959,7 +959,12 @@ and meet_env_extension0 env (ext1 : TEE.t) (ext2 : TEE.t) extra_extensions :
               then Name.Map.remove name eqs
               else Name.Map.add (* replace *) name ty eqs
             in
-            eqs, new_ext :: extra_extensions))
+            let extra_extensions =
+              if TEE.is_empty new_ext
+              then extra_extensions
+              else new_ext :: extra_extensions
+            in
+            eqs, extra_extensions))
       (TEE.to_map ext2)
       (TEE.to_map ext1, extra_extensions)
   in
