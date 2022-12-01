@@ -165,7 +165,7 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
     let fields, field_tys = List.split fields_with_tys in
     let dacc =
       bind_result_sym
-        (T.immutable_array ~element_kind:(Known K.With_subkind.naked_float)
+        (T.immutable_array ~element_kind:(Ok K.With_subkind.naked_float)
            ~fields:field_tys Alloc_mode.For_types.heap)
     in
     ( Rebuilt_static_const.create_immutable_float_array
@@ -179,7 +179,7 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
     let fields, field_tys = List.split fields_with_tys in
     let dacc =
       bind_result_sym
-        (T.immutable_array ~element_kind:(Known K.With_subkind.any_value)
+        (T.immutable_array ~element_kind:(Ok K.With_subkind.any_value)
            ~fields:field_tys Alloc_mode.For_types.heap)
     in
     ( Rebuilt_static_const.create_immutable_value_array
@@ -198,7 +198,7 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
        specialised non-empty array and the empty array." *)
     let dacc =
       bind_result_sym
-        (T.array_of_length ~element_kind:Unknown
+        (T.array_of_length ~element_kind:Bottom
            ~length:(T.this_tagged_immediate Targetint_31_63.zero)
            Alloc_mode.For_types.heap)
     in

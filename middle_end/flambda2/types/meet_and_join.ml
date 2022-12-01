@@ -98,31 +98,35 @@ let[@inline always] join_unknown join_contents (env : Join_env.t)
   | _, Unknown | Unknown, _ -> Unknown
   | Known contents1, Known contents2 -> join_contents env contents1 contents2
 
-let meet_array_element_kinds (element_kind1 : _ Or_unknown.t)
-    (element_kind2 : _ Or_unknown.t) : _ Or_bottom.t =
+(* Note: Bottom is a valid element kind for empty arrays, so this function never
+   leads to a general Bottom result *)
+let meet_array_element_kinds (element_kind1 : _ Or_unknown_or_bottom.t)
+    (element_kind2 : _ Or_unknown_or_bottom.t) : _ Or_unknown_or_bottom.t =
   match element_kind1, element_kind2 with
-  | Unknown, Unknown -> Ok Or_unknown.Unknown
-  | Unknown, Known kind | Known kind, Unknown -> Ok (Or_unknown.Known kind)
-  | Known element_kind1, Known element_kind2 ->
+  | Unknown, Unknown -> Unknown
+  | Bottom, _ | _, Bottom -> Bottom
+  | Unknown, Ok kind | Ok kind, Unknown -> Ok kind
+  | Ok element_kind1, Ok element_kind2 ->
     if Flambda_kind.With_subkind.compatible element_kind1
          ~when_used_at:element_kind2
-    then Ok (Or_unknown.Known element_kind1)
+    then Ok element_kind1
     else if Flambda_kind.With_subkind.compatible element_kind2
               ~when_used_at:element_kind1
-    then Ok (Or_unknown.Known element_kind2)
+    then Ok element_kind2
     else Bottom
 
-let join_array_element_kinds (element_kind1 : _ Or_unknown.t)
-    (element_kind2 : _ Or_unknown.t) : _ Or_unknown.t =
+let join_array_element_kinds (element_kind1 : _ Or_unknown_or_bottom.t)
+    (element_kind2 : _ Or_unknown_or_bottom.t) : _ Or_unknown_or_bottom.t =
   match element_kind1, element_kind2 with
-  | Unknown, Unknown | Unknown, Known _ | Known _, Unknown -> Unknown
-  | Known element_kind1, Known element_kind2 ->
+  | Unknown, _ | _, Unknown -> Unknown
+  | Bottom, element_kind | element_kind, Bottom -> element_kind
+  | Ok element_kind1, Ok element_kind2 ->
     if Flambda_kind.With_subkind.compatible element_kind1
          ~when_used_at:element_kind2
-    then Known element_kind2
+    then Ok element_kind2
     else if Flambda_kind.With_subkind.compatible element_kind2
               ~when_used_at:element_kind1
-    then Known element_kind1
+    then Ok element_kind1
     else Unknown
 
 let rec meet env (t1 : TG.t) (t2 : TG.t) : (TG.t * TEE.t) Or_bottom.t =
@@ -386,11 +390,13 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
           alloc_mode = alloc_mode2
         } ) ->
     let<* alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
-    let<* element_kind = meet_array_element_kinds element_kind1 element_kind2 in
+    let element_kind = meet_array_element_kinds element_kind1 element_kind2 in
     let<* contents, env_extension =
       meet_array_contents env array_contents1 array_contents2
     in
     let<* length, env_extension' = meet env length1 length2 in
+    (* Note: If the element kind is Bottom, we could meet the length type with
+       the constant 0 (only the empty array can have element kind Bottom *)
     let<+ env_extension = meet_env_extension env env_extension env_extension' in
     ( TG.Head_of_kind_value.create_array_with_contents ~element_kind ~length
         contents alloc_mode,
