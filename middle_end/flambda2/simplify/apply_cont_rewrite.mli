@@ -47,6 +47,8 @@ val used_params : t -> Bound_parameter.Set.t
 
 val used_extra_params : t -> Bound_parameters.t
 
+val used_extra_invariant_params : t -> Bound_parameters.t
+
 val invariant_params : t -> Bound_parameter.Set.t
 
 val extra_args :

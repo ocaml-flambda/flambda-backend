@@ -27,6 +27,7 @@ type t =
   { original_params : Bound_parameters.t;
     used_params : BP.Set.t;
     used_extra_params : Bound_parameters.t;
+    used_extra_invariant_params : Bound_parameters.t;
     invariant_params : BP.Set.t;
     extra_args : (EA.t * used) list Id.Map.t;
   }
@@ -43,23 +44,26 @@ let print_ea_used ppf t =
     t
 
 let [@ocamlformat "disable"] print ppf
-  { original_params; used_params; used_extra_params; invariant_params; extra_args; } =
+  { original_params; used_params; used_extra_params; used_extra_invariant_params; invariant_params; extra_args; } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(original_params@ (%a))@]@ \
       @[<hov 1>(used_params@ %a)@]@ \
       @[<hov 1>(used_extra_params@ (%a))@]@ \
+      @[<hov 1>(used_extra_invariant_params@ (%a))@]@ \
       @[<hov 1>(invariant_params@ %a)@]@ \
       @[<hov 1>(extra_args@ %a)@]\
       )@]"
   Bound_parameters.print original_params
     BP.Set.print used_params
     Bound_parameters.print used_extra_params
+    Bound_parameters.print used_extra_invariant_params
     BP.Set.print invariant_params
     (Id.Map.print print_ea_used) extra_args
 
 let does_nothing t =
   Bound_parameters.cardinal t.original_params = BP.Set.cardinal t.used_params
   && Bound_parameters.is_empty t.used_extra_params
+  && Bound_parameters.is_empty t.used_extra_invariant_params
   && BP.Set.is_empty t.invariant_params
 
 let create ~original_params ~used_params ~invariant_params ~extra_params ~extra_args
@@ -106,16 +110,25 @@ let create ~original_params ~used_params ~invariant_params ~extra_params ~extra_
       (fun extra_param -> BP.Set.mem extra_param used_extra_params)
       extra_params
   in
+  let used_extra_invariant_params, used_extra_params =
+    List.partition (fun extra_param -> BP.Set.mem extra_param invariant_params)
+      (Bound_parameters.to_list used_extra_params)
+  in
+  let used_extra_invariant_params, used_extra_params =
+    Bound_parameters.create used_extra_invariant_params, Bound_parameters.create used_extra_params
+  in
   let invariant_params =
     BP.Set.inter invariant_params (BP.Set.of_list (Bound_parameters.to_list original_params))
   in
-  { original_params; used_params; used_extra_params; invariant_params; extra_args }
+  { original_params; used_params; used_extra_params; used_extra_invariant_params; invariant_params; extra_args }
 
 let original_params t = t.original_params
 
 let used_params t = t.used_params
 
 let used_extra_params t = t.used_extra_params
+
+let used_extra_invariant_params t = t.used_extra_invariant_params
 
 let invariant_params t = t.invariant_params
 

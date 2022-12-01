@@ -155,17 +155,10 @@ type behaviour =
   | Alias_for of Continuation.t
   | Unknown
 
-type make_rewrite_context =
-  | In_handler
-  | In_body of { rewrite_ids : Apply_cont_rewrite_id.Set.t }
-
-let make_rewrite_for_recursive_continuation uacc ~cont ~original_cont_scope:_
-    ~original_params ~context ~extra_params_and_args =
+let make_rewrite_for_recursive_continuation uacc ~cont
+    ~original_params ~rewrite_ids ~extra_params_and_args =
   let invariant_epa =
-    match context with
-    | In_handler -> assert false
-    | In_body { rewrite_ids } ->
-      extra_params_for_continuation_param_aliases cont uacc rewrite_ids
+    extra_params_for_continuation_param_aliases cont uacc rewrite_ids
   in
   let extra_params_and_args =
     EPA.concat ~inner:extra_params_and_args
@@ -198,16 +191,14 @@ let make_rewrite_for_recursive_continuation uacc ~cont ~original_cont_scope:_
   let used_extra_params = Bound_parameters.to_set used_extra_params_list in
   let rewrite =
     Apply_cont_rewrite.create ~original_params ~used_params
-      ~invariant_params:Bound_parameter.Set.empty (* (Bound_parameters.to_set (EPA.extra_params invariant_epa)) *)
+      ~invariant_params:(Bound_parameters.to_set (EPA.extra_params invariant_epa))
       ~extra_params:(EPA.extra_params extra_params_and_args)
       ~extra_args:(EPA.extra_args extra_params_and_args)
       ~used_extra_params
   in
   let uacc =
     UA.map_uenv uacc ~f:(fun uenv ->
-        match context with
-        | In_handler | In_body _ -> UE.add_apply_cont_rewrite uenv cont rewrite
-        | In_body _ -> UE.replace_apply_cont_rewrite uenv cont rewrite)
+        UE.add_apply_cont_rewrite uenv cont rewrite)
   in
   let uacc =
     UA.map_uenv uacc ~f:(fun uenv ->
@@ -699,8 +690,14 @@ let rebuild_single_recursive_handler cont
           (fun param -> BP.Set.mem param used_params_set)
           (Bound_parameters.to_list handler_to_rebuild.params)
       in
+      let used_invariant_params, used_params =
+        List.partition (fun param -> BP.Set.mem param (Apply_cont_rewrite.invariant_params rewrite)) used_params
+      in
       let used_extra_params =
         Apply_cont_rewrite.used_extra_params rewrite |> Bound_parameters.to_list
+      in
+      let used_extra_invariant_params =
+        Apply_cont_rewrite.used_extra_invariant_params rewrite |> Bound_parameters.to_list
       in
       let new_phantom_params =
         List.filter
@@ -708,7 +705,10 @@ let rebuild_single_recursive_handler cont
           unused_params
         |> Bound_parameters.create
       in
-      let params = Bound_parameters.create (used_params @ used_extra_params) in
+      let params = Bound_parameters.create (
+          used_invariant_params @ used_extra_invariant_params @
+          used_params @ used_extra_params
+        ) in
       let handler, uacc =
         add_phantom_params_bindings uacc handler new_phantom_params
       in
@@ -764,8 +764,8 @@ let rec rebuild_continuation_handlers_loop ~rebuild_body
         (fun cont handler uacc ->
           let uacc, _rewrite =
             make_rewrite_for_recursive_continuation uacc ~cont
-              ~original_cont_scope:Scope.initial ~original_params:handler.params
-              ~context:(In_body { rewrite_ids = handler.rewrite_ids })
+              ~original_params:handler.params
+              ~rewrite_ids:handler.rewrite_ids
               ~extra_params_and_args:handler.extra_params_and_args
           in
           uacc)
