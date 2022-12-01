@@ -252,9 +252,11 @@ type stage3_handler_to_rebuild =
 
 type stage3 =
   { rebuild_body : expr_to_rebuild;
-    cont_uses_env : CUE.t;
-    (* TODO: clarify where this comes from ? (body ? body+handler ?) *)
+    cont_uses_env : CUE.t; (* total cont uses env in body + handlers (+ previous exprs) *)
     at_unit_toplevel : bool;
+    invariant_params : Bound_parameters.t;
+    (* invariant_unbox_decisions : Unbox_continuation_params.Decisions.t option; *) (* TODO *)
+    invariant_extra_params_and_args_for_cse : EPA.t;
     handlers : stage3_handler_to_rebuild Continuation.Map.t
   }
 
@@ -850,6 +852,10 @@ let simplify_let_cont_stage3 (stage3 : stage3) ~down_to_up dacc =
      independant blocks of recursive or non-recursive continuations. In case one
      of those is non-recursive, we can check whether the continuation is
      inlinable if it is used a single time. *)
+  (* CR ncourant: handle invariant_params & invariant_extra_params_and_args_for_cse *)
+  (* Note: invariant_extra_params_and_args_for_cse needs to be completed with the new
+     rewrite_ids *)
+  (* Question: won't this prevent invariant_extra_params_and_args_for_cse to be deleted? (probably not: dataflow should detect them being unused) *)
   let get_uses cont =
     match CUE.get_continuation_uses stage3.cont_uses_env cont with
     | None ->
@@ -1022,7 +1028,7 @@ let simplify_handler ~simplify_expr ~is_recursive ~is_exn_handler ~params cont
 
 (* simplify for single handler: compute unbox decisions *)
 let simplify_single_recursive_handler ~simplify_expr cont_uses_env_so_far
-    consts_lifted_during_body extra_params_and_args_for_cse all_handlers_set denv_to_reset dacc cont
+    consts_lifted_during_body all_handlers_set denv_to_reset dacc cont
     (params, handler) k =
   (* Here we perform the downwards traversal on a single handler. As an
      invariant enforced by the loop in [simplify_handlers], the continuation
@@ -1079,7 +1085,7 @@ let simplify_single_recursive_handler ~simplify_expr cont_uses_env_so_far
           is_exn_handler = false;
           continuations_used;
           unbox_decisions;
-          extra_params_and_args_for_cse
+          extra_params_and_args_for_cse = EPA.empty;
         }
         cont_uses_env_so_far)
 
@@ -1104,6 +1110,8 @@ let simplify_let_cont_stage2 ~simplify_expr (stage2 : stage2) ~down_to_up dacc
       let (stage3 : stage3) =
         { rebuild_body;
           cont_uses_env = body_continuation_uses_env;
+          invariant_params = Bound_parameters.empty;
+          invariant_extra_params_and_args_for_cse = EPA.empty;
           handlers = Continuation.Map.empty;
           at_unit_toplevel = false (* Unused in this case *)
         }
@@ -1153,6 +1161,8 @@ let simplify_let_cont_stage2 ~simplify_expr (stage2 : stage2) ~down_to_up dacc
           let stage3 : stage3 =
             { rebuild_body;
               cont_uses_env = cont_uses_env_so_far;
+              invariant_params = Bound_parameters.empty;
+              invariant_extra_params_and_args_for_cse = EPA.empty;
               handlers = Continuation.Map.singleton cont rebuild;
               at_unit_toplevel
             }
@@ -1213,6 +1223,8 @@ let simplify_let_cont_stage2 ~simplify_expr (stage2 : stage2) ~down_to_up dacc
         let (stage3 : stage3) =
           { rebuild_body;
             cont_uses_env = cont_uses_env_so_far;
+            invariant_params;
+            invariant_extra_params_and_args_for_cse = extra_params_and_args_for_cse;
             handlers = simplified_handlers;
             at_unit_toplevel = false
           }
@@ -1223,7 +1235,7 @@ let simplify_let_cont_stage2 ~simplify_expr (stage2 : stage2) ~down_to_up dacc
         let handler = Continuation.Map.find cont continuation_handlers in
         (* TODO: This is not needed *)
         simplify_single_recursive_handler ~simplify_expr
-          cont_uses_env_so_far consts_lifted_during_body extra_params_and_args_for_cse
+          cont_uses_env_so_far consts_lifted_during_body
           all_handlers_set denv
           dacc cont handler (fun dacc rebuild cont_uses_env_so_far ->
             let simplified_handlers_set =
