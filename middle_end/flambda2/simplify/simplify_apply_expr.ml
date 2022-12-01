@@ -412,6 +412,18 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         "New closure alloc mode cannot be [Heap] when existing closure alloc \
          mode is [Local]: direct partial application:@ %a"
         Apply.print apply));
+  (match new_closure_alloc_mode with
+  | Heap -> ()
+  | Local _ -> (
+    match Apply.call_kind apply with
+    | Function { alloc_mode; _ } | Method { alloc_mode; _ } -> (
+      match alloc_mode with
+      | Local | Heap_or_local -> ()
+      | Heap ->
+        Misc.fatal_errorf "Partial application of %a with wrong mode at %s"
+          Code_id.print callee's_code_id
+          (Debuginfo.to_string (Apply.dbg apply)))
+    | C_call _ -> ()));
   let contains_no_escaping_local_allocs =
     Code_metadata.contains_no_escaping_local_allocs callee's_code_metadata
   in
