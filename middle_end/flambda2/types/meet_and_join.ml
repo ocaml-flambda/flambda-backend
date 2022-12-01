@@ -395,8 +395,9 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
       meet_array_contents env array_contents1 array_contents2
     in
     let<* length, env_extension' = meet env length1 length2 in
-    (* Note: If the element kind is Bottom, we could meet the length type with
-       the constant 0 (only the empty array can have element kind Bottom *)
+    (* CR-someday vlaviron: If the element kind is Bottom, we could meet the
+       length type with the constant 0 (only the empty array can have element
+       kind Bottom). *)
     let<+ env_extension = meet_env_extension env env_extension env_extension' in
     ( TG.Head_of_kind_value.create_array_with_contents ~element_kind ~length
         contents alloc_mode,
