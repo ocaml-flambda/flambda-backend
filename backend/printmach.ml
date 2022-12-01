@@ -99,6 +99,13 @@ let is_unary_op = function
   | Icheckbound
     -> false
 
+let intop_atomic = function
+  | Ifetchadd -> " += "
+  | Ifetchsub -> " -= "
+  | Ifetchor -> " |= "
+  | Ifetchand -> " &= "
+  | Ifetchxor -> " ^= "
+
 let intop = function
   | Iadd -> " + "
   | Isub -> " - "
@@ -179,6 +186,7 @@ let operation' ?(print_reg = reg) op arg ppf res =
         fprintf ppf "%a%s%a" reg arg.(0) (intop op) reg arg.(1)
       end
   | Iintop_imm(op, n) -> fprintf ppf "%a%s%i" reg arg.(0) (intop op) n
+  | Iintop_atomic op -> fprintf ppf "lock [%a]%s%a" reg arg.(0) (intop_atomic op) reg arg.(1)
   | Icompf cmp -> fprintf ppf "%a%s%a" reg arg.(0) (floatcomp cmp) reg arg.(1)
   | Inegf -> fprintf ppf "-f %a" reg arg.(0)
   | Iabsf -> fprintf ppf "absf %a" reg arg.(0)

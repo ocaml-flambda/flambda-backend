@@ -94,7 +94,7 @@ let rdx = phys_reg 4
 let pseudoregs_for_operation op arg res =
   match op with
   (* Two-address binary operations: arg.(0) and res.(0) must be the same *)
-    Iintop(Iadd|Isub|Imul|Iand|Ior|Ixor) | Iaddf|Isubf|Imulf|Idivf ->
+    Iintop(Iadd|Isub|Imul|Iand|Ior|Ixor) | Iaddf|Isubf|Imulf|Idivf | Iintop_atomic _ ->
       ([|res.(0); arg.(1)|], res)
   (* One-address unary operations: arg.(0) and res.(0) must be the same *)
   | Iintop_imm((Iadd|Isub|Imul|Iand|Ior|Ixor|Ilsl|Ilsr|Iasr), _)

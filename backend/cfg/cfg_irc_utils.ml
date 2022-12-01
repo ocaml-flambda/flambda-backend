@@ -135,6 +135,7 @@ let is_move_basic : Cfg.basic -> bool =
     | Store _ -> false
     | Intop _ -> false
     | Intop_imm _ -> false
+    | Intop_atomic _ -> false
     | Negf -> false
     | Absf -> false
     | Addf -> false

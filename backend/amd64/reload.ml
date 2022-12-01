@@ -173,6 +173,7 @@ method! reload_operation op arg res =
         (arg', [|r|])
       end else  (arg, res)
   | Iintop (Ipopcnt | Iclz _| Ictz _)
+  | Iintop_atomic _
   | Ispecific  (Isqrtf | Isextend32 | Izextend32 | Ilea _
                | Istore_int (_, _, _)
                | Ioffset_loc (_, _) | Ifloatarithmem (_, _)

@@ -95,7 +95,8 @@ let rec combine i allocstate =
               | Iclz _ | Ictz _ | Icomp _))
   | Iop(Iintop_imm((Iadd | Isub | Imul | Idiv | Imod | Iand | Ior | Ixor
                    | Ilsl | Ilsr | Iasr | Ipopcnt | Imulh _
-                   | Iclz _ | Ictz _ | Icomp _),_))  ->
+                   | Iclz _ | Ictz _ | Icomp _),_))
+  | Iop(Iintop_atomic _) ->
       let (newnext, s') = combine i.next allocstate in
       (instr_cons_debug i.desc i.arg i.res i.dbg newnext, s')
   | Iifthenelse(test, ifso, ifnot) ->

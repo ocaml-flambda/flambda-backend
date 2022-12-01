@@ -180,6 +180,7 @@ let precondition : Cfg_with_layout.t -> unit =
       | Store _ -> ()
       | Intop _ -> ()
       | Intop_imm _ -> ()
+      | Intop_atomic _ -> ()
       | Negf -> ()
       | Absf -> ()
       | Addf -> ()
