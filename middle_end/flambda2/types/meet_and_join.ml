@@ -933,7 +933,7 @@ and meet_env_extension0 env (ext1 : TEE.t) (ext2 : TEE.t) extra_extensions :
     | Some simple2 ->
       Simple.pattern_match simple2
         ~const:(fun _ -> false)
-        ~name:(fun name2 ~coercion:_ ->
+        ~name:(fun name2 ~coercion:coercion1to2 ->
           match Name.Map.find_opt name2 ext with
           | None -> false
           | Some ty3 -> (
@@ -942,7 +942,10 @@ and meet_env_extension0 env (ext1 : TEE.t) (ext2 : TEE.t) extra_extensions :
             | Some simple3 ->
               Simple.pattern_match simple3
                 ~const:(fun _ -> false)
-                ~name:(fun name3 ~coercion:_ -> Name.equal name1 name3)))
+                ~name:(fun name3 ~coercion:coercion2to3 ->
+                  Name.equal name1 name3
+                  && Coercion.is_id
+                       (Coercion.compose_exn coercion1to2 ~then_:coercion2to3))))
   in
   let equations, extra_extensions =
     Name.Map.fold
