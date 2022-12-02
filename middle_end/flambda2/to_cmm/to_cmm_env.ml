@@ -373,6 +373,9 @@ let create_binding (type a) ?extra env effs var ~(inline : a inline)
      another variable, a constant, or a symbol). *)
   match bound_expr with
   | (Split { cmm_expr } | Simple { cmm_expr }) when is_cmm_simple cmm_expr ->
+    (* trivial/simple cmm expression (as decided by [is_cmm_simple]) do not have
+       effects and coeffects *)
+    let effs = Ece.pure_can_be_duplicated in
     create_binding_aux ?extra env effs var ~inline:Must_inline_and_duplicate
       (Split { cmm_expr })
   | Simple _ | Split _ | Splittable_prim _ ->
