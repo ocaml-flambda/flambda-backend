@@ -1746,13 +1746,19 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
     IR.{ exn_handler = Continuation.create (); extra_args = [] }
   in
   let all_args = args @ List.map (fun (a, _) -> IR.Var a) params in
+  let result_mode =
+    if contains_no_escaping_local_allocs
+    then Lambda.alloc_heap
+    else Lambda.alloc_local
+  in
   let fbody acc env =
     close_exact_or_unknown_apply acc env
       { apply with
         kind = Function;
         args = all_args;
         continuation = return_continuation;
-        exn_continuation
+        exn_continuation;
+        mode = result_mode
       }
       (Some approx) ~replace_region:None
   in
@@ -1787,6 +1793,11 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
       let num_supplied_local_args = args_arity - num_leading_heap_params in
       Lambda.alloc_local, num_trailing_local_params - num_supplied_local_args
   in
+  if not (Lambda.sub_mode closure_alloc_mode apply.IR.mode)
+  then
+    Misc.fatal_errorf "Partial application of %a with wrong mode at %s"
+      Ident.print apply.IR.func
+      (Debuginfo.Scoped_location.string_of_scoped_location apply.IR.loc);
   let function_declarations =
     (* CR keryan: Same as above, better kind for return type *)
     [ Function_decl.create ~let_rec_ident:(Some wrapper_id) ~function_slot
