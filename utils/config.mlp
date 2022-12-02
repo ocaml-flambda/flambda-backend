@@ -94,6 +94,7 @@ let probes = %%PROBES%%
 let afl_instrument = %%AFL_INSTRUMENT%%
 
 let stack_allocation = %%STACK_ALLOCATION%%
+let poll_insertion = %%POLL_INSERTION%%
 
 (* When artifacts are incompatible with upstream OCaml, ocaml-jst uses
    magic numbers ending in 5xx. (The AST and bytecode executables remain
