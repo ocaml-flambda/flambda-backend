@@ -36,8 +36,8 @@ let bind_var_to_simple ~dbg env res v ~num_normal_occurrences_of_bound_vars s =
   let defining_expr, env, res, effects_and_coeffects_of_defining_expr =
     C.simple ~dbg env res s
   in
-  let env =
-    Env.bind_variable env v ~effects_and_coeffects_of_defining_expr
+  let env, res =
+    Env.bind_variable env res v ~effects_and_coeffects_of_defining_expr
       ~defining_expr ~num_normal_occurrences_of_bound_vars
   in
   env, res
@@ -316,8 +316,8 @@ and let_prim env res ~num_normal_occurrences_of_bound_vars v p dbg body =
     let effects_and_coeffects_of_defining_expr =
       Ece.join args_effs effects_and_coeffects_of_prim
     in
-    let env =
-      Env.bind_variable_to_primitive ?extra env v ~inline
+    let env, res =
+      Env.bind_variable_to_primitive ?extra env res v ~inline
         ~effects_and_coeffects_of_defining_expr ~defining_expr
     in
     expr env res body
@@ -329,8 +329,8 @@ and let_prim env res ~num_normal_occurrences_of_bound_vars v p dbg body =
     let effects_and_coeffects_of_defining_expr =
       Ece.join args_effs effects_and_coeffects_of_prim
     in
-    let env =
-      Env.bind_variable_to_primitive env v ~inline
+    let env, res =
+      Env.bind_variable_to_primitive env res v ~inline
         ~effects_and_coeffects_of_defining_expr ~defining_expr
     in
     expr env res body
@@ -632,9 +632,9 @@ and apply_expr env res apply =
       | [] -> unsupported ()
       | [param] ->
         let var = Bound_parameter.var param in
-        let env =
-          Env.bind_variable env var ~effects_and_coeffects_of_defining_expr:effs
-            ~defining_expr:call
+        let env, res =
+          Env.bind_variable env res var
+            ~effects_and_coeffects_of_defining_expr:effs ~defining_expr:call
             ~num_normal_occurrences_of_bound_vars:handler_params_occurrences
         in
         expr env res body
