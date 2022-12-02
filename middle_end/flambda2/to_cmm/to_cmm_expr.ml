@@ -365,9 +365,9 @@ and let_expr0 env res let_expr (bound_pattern : Bound_pattern.t)
        and coeffects that are not precise enough. Particularly, an immutable
        load of a locally allocated block is considered as pure, and thus can be
        moved past an end_region. Here we also need to flush everything,
-       including must_inline bindings, particularly projections that may
-       project from locally allocated closures (and that must not be moved past
-       an end_region). *)
+       including must_inline bindings, particularly projections that may project
+       from locally allocated closures (and that must not be moved past an
+       end_region). *)
     let wrap, env, res =
       Env.flush_delayed_lets ~mode:Flush_everything env res
     in
