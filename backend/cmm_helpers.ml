@@ -2222,10 +2222,7 @@ let remove_region_tail e =
 
 let region p e =
   (* [Cregion (p, e)] is equivalent to [e] if [e] contains no local allocs *)
-  if has_local_allocs e then
-    Cregion (p, e)
-  else
-    remove_region_tail e
+  if has_local_allocs e then Cregion (p, e) else remove_region_tail e
 
 (* CR mshinwell: These will be filled in by later pull requests. *)
 let placeholder_dbg () = Debuginfo.none
