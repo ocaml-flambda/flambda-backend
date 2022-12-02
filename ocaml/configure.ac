@@ -2035,10 +2035,10 @@ AS_IF([test x"$DEFAULT_STRING" = "xunsafe"],
   [default_safe_string=false],
   [default_safe_string=true])
 
-AS_IF([test x"$enable_stack_allocation" = "xyes"],
+AS_IF([test x"$enable_stack_allocation" = "xno"],
+  [stack_allocation=false],
   [AC_DEFINE([STACK_ALLOCATION])
-   stack_allocation=true],
-  [stack_allocation=false])
+   stack_allocation=true])
 
 AS_IF([test x"$enable_poll_insertion" = "xyes"],
   [AC_DEFINE([POLL_INSERTION])
