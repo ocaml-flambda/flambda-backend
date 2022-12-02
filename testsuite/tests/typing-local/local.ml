@@ -1904,22 +1904,17 @@ val primloc : int32 -> int = <fun>
 |}]
 
 (* (&&) and (||) tail call on the right *)
-let testbool1 x =
-  let local_ b = not x in
-  (b || false) && true
+let testbool1 f = let local_ r = ref 42 in (f r || false) && true 
 
-let testbool2 x =
-  let local_ b = not x in
-  true && (false || b)
+let testbool2 f = let local_ r = ref 42 in true && (false || f r)
 [%%expect{|
-val testbool1 : bool -> bool = <fun>
-Line 7, characters 20-21:
-7 |   true && (false || b)
-                        ^
+val testbool1 : (local_ int ref -> bool) -> bool = <fun>
+Line 3, characters 63-64:
+3 | let testbool2 f = let local_ r = ref 42 in true && (false || f r)
+                                                                   ^
 Error: This local value escapes its region
-  Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: This argument cannot be local, because this is a tail call
 |}]
-
 
 (* mode-crossing using unary + *)
 let promote (local_ x) = +x
