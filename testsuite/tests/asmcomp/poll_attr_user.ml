@@ -1,5 +1,5 @@
 (* TEST
-  *
+  * poll-insertion
   ** setup-ocamlopt.byte-build-env
   *** ocamlopt.byte
 ocamlopt_byte_exit_status = "2"

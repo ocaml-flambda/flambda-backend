@@ -693,6 +693,7 @@ build_vendor
 build_cpu
 build
 dune
+poll_insertion
 stack_allocation
 intel_jcc_bug_cflags
 naked_pointers_checker
@@ -873,6 +874,7 @@ enable_flat_float_array
 enable_function_sections
 with_afl
 enable_stack_allocation
+enable_poll_insertion
 with_flexdll
 enable_shared
 enable_static
@@ -1564,6 +1566,7 @@ Optional Features:
                           do not emit each function in a separate section
   --enable-stack-allocation
                           enable stack allocation of local values
+  --enable-poll-insertion enable insertion of poll points
   --enable-shared[=PKGS]  build shared libraries [default=yes]
   --enable-static[=PKGS]  build static libraries [default=yes]
   --enable-fast-install[=PKGS]
@@ -2923,6 +2926,7 @@ OCAML_VERSION_SHORT=4.14
 
 
 
+
 ## Generated files
 
 ac_config_files="$ac_config_files Makefile.build_config"
@@ -3423,6 +3427,12 @@ fi
 # Check whether --enable-stack-allocation was given.
 if test "${enable_stack_allocation+set}" = set; then :
   enableval=$enable_stack_allocation;
+fi
+
+
+# Check whether --enable-poll-insertion was given.
+if test "${enable_poll_insertion+set}" = set; then :
+  enableval=$enable_poll_insertion;
 fi
 
 
@@ -17933,6 +17943,14 @@ if test x"$enable_stack_allocation" = "xyes"; then :
    stack_allocation=true
 else
   stack_allocation=false
+fi
+
+if test x"$enable_poll_insertion" = "xyes"; then :
+  $as_echo "#define POLL_INSERTION 1" >>confdefs.h
+
+   poll_insertion=true
+else
+  poll_insertion=false
 fi
 
 oc_cflags="$common_cflags $internal_cflags"

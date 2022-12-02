@@ -262,6 +262,7 @@ let find_poll_alloc_or_calls instr =
   List.rev !matches
 
 let is_disabled fun_name =
+  (not Config.poll_insertion) ||
   !Flambda_backend_flags.disable_poll_insertion ||
   function_is_assumed_to_never_poll fun_name
 
