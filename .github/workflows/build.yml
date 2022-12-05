@@ -69,7 +69,7 @@ jobs:
 
           - name: build_upstream-32-bit
             config: --enable-middle-end=closure CC="gcc -m32" AS="as --32" ASPP="gcc -m32 -c" -host i386-linux PARTIALLD="ld -r -melf_i386"
-            os: ubuntu-latest
+            os: ubuntu-20.04
 
     env:
       J: "3"
