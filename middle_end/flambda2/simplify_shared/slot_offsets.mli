@@ -82,7 +82,8 @@ module Layout : sig
     | Infix_header
     | Function_slot of
         { size : int;
-          function_slot : Function_slot.t
+          function_slot : Function_slot.t;
+          last_function_slot : bool
         }
   (**)
 

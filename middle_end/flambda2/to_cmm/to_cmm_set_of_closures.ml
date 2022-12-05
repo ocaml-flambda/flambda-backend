@@ -135,7 +135,7 @@ end = struct
             env, res, [P.int ~dbg 1n], updates)
       in
       List.rev_append fields acc, slot_offset + 1, env, res, eff, updates
-    | Function_slot { size; function_slot } -> (
+    | Function_slot { size; function_slot; last_function_slot } -> (
       let code_id = Function_slot.Map.find function_slot decls in
       let code_linkage_name = Code_id.linkage_name code_id in
       let arity, closure_code_pointers, dbg =
@@ -143,6 +143,7 @@ end = struct
       in
       let closure_info =
         C.closure_info ~arity ~startenv:(startenv - slot_offset)
+          ~is_last:last_function_slot
       in
       let acc =
         match for_static_sets with
@@ -301,13 +302,11 @@ let params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
     Env.enter_function_body env ~return_continuation ~exn_continuation
   in
   (* [my_region] can be referenced in [Begin_try_region] primitives so must be
-     in the environment; but the Cmm value to which it is bound will never be
-     used. *)
-  let env =
-    Env.bind_variable env my_region ~defining_expr:(C.unit ~dbg:fun_dbg)
-      ~num_normal_occurrences_of_bound_vars:Variable.Map.empty
-      ~effects_and_coeffects_of_defining_expr:Ece.pure
-  in
+     in the environment; however it should never end up in actual generated
+     code, so we don't need any binder for it (this is why we can ignore
+     [_bound_var]). If it does end up in generated code, Selection will complain
+     and refuse to compile the code. *)
+  let env, _bound_var = Env.create_bound_parameter env my_region in
   (* Translate the arg list and body *)
   let env, fun_args = C.bound_parameters env params in
   let fun_body, res = translate_expr env res body in

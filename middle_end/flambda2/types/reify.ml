@@ -384,7 +384,10 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
       | _ :: _ -> (
         match element_kind with
         | Unknown -> try_canonical_simple ()
-        | Known element_kind -> (
+        | Bottom ->
+          (* CR someday vlaviron: we could use [Lift Empty_array] here *)
+          try_canonical_simple ()
+        | Ok element_kind -> (
           let kind = Flambda_kind.With_subkind.kind element_kind in
           match kind with
           | Value -> (

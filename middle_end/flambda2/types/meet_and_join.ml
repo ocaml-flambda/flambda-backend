@@ -98,31 +98,35 @@ let[@inline always] join_unknown join_contents (env : Join_env.t)
   | _, Unknown | Unknown, _ -> Unknown
   | Known contents1, Known contents2 -> join_contents env contents1 contents2
 
-let meet_array_element_kinds (element_kind1 : _ Or_unknown.t)
-    (element_kind2 : _ Or_unknown.t) : _ Or_bottom.t =
+(* Note: Bottom is a valid element kind for empty arrays, so this function never
+   leads to a general Bottom result *)
+let meet_array_element_kinds (element_kind1 : _ Or_unknown_or_bottom.t)
+    (element_kind2 : _ Or_unknown_or_bottom.t) : _ Or_unknown_or_bottom.t =
   match element_kind1, element_kind2 with
-  | Unknown, Unknown -> Ok Or_unknown.Unknown
-  | Unknown, Known kind | Known kind, Unknown -> Ok (Or_unknown.Known kind)
-  | Known element_kind1, Known element_kind2 ->
+  | Unknown, Unknown -> Unknown
+  | Bottom, _ | _, Bottom -> Bottom
+  | Unknown, Ok kind | Ok kind, Unknown -> Ok kind
+  | Ok element_kind1, Ok element_kind2 ->
     if Flambda_kind.With_subkind.compatible element_kind1
          ~when_used_at:element_kind2
-    then Ok (Or_unknown.Known element_kind1)
+    then Ok element_kind1
     else if Flambda_kind.With_subkind.compatible element_kind2
               ~when_used_at:element_kind1
-    then Ok (Or_unknown.Known element_kind2)
+    then Ok element_kind2
     else Bottom
 
-let join_array_element_kinds (element_kind1 : _ Or_unknown.t)
-    (element_kind2 : _ Or_unknown.t) : _ Or_unknown.t =
+let join_array_element_kinds (element_kind1 : _ Or_unknown_or_bottom.t)
+    (element_kind2 : _ Or_unknown_or_bottom.t) : _ Or_unknown_or_bottom.t =
   match element_kind1, element_kind2 with
-  | Unknown, Unknown | Unknown, Known _ | Known _, Unknown -> Unknown
-  | Known element_kind1, Known element_kind2 ->
+  | Unknown, _ | _, Unknown -> Unknown
+  | Bottom, element_kind | element_kind, Bottom -> element_kind
+  | Ok element_kind1, Ok element_kind2 ->
     if Flambda_kind.With_subkind.compatible element_kind1
          ~when_used_at:element_kind2
-    then Known element_kind2
+    then Ok element_kind2
     else if Flambda_kind.With_subkind.compatible element_kind2
               ~when_used_at:element_kind1
-    then Known element_kind1
+    then Ok element_kind1
     else Unknown
 
 let rec meet env (t1 : TG.t) (t2 : TG.t) : (TG.t * TEE.t) Or_bottom.t =
@@ -386,11 +390,14 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
           alloc_mode = alloc_mode2
         } ) ->
     let<* alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
-    let<* element_kind = meet_array_element_kinds element_kind1 element_kind2 in
+    let element_kind = meet_array_element_kinds element_kind1 element_kind2 in
     let<* contents, env_extension =
       meet_array_contents env array_contents1 array_contents2
     in
     let<* length, env_extension' = meet env length1 length2 in
+    (* CR-someday vlaviron: If the element kind is Bottom, we could meet the
+       length type with the constant 0 (only the empty array can have element
+       kind Bottom). *)
     let<+ env_extension = meet_env_extension env env_extension env_extension' in
     ( TG.Head_of_kind_value.create_array_with_contents ~element_kind ~length
         contents alloc_mode,
@@ -918,6 +925,28 @@ and meet_env_extension0 env (ext1 : TEE.t) (ext2 : TEE.t) extra_extensions :
 
      To get around this, we'll suppose that [t2] is smaller than [t1] and add
      equations from [t2] to [t1], along with all extra equations *)
+  let has_reverse_alias name1 ty2 ext =
+    (* If we're adding an equation [x : (= y)] but we already have an equation
+       [y : (= x)], then we can drop the equation as redundant. *)
+    match TG.get_alias_opt ty2 with
+    | None -> false
+    | Some simple2 ->
+      Simple.pattern_match simple2
+        ~const:(fun _ -> false)
+        ~name:(fun name2 ~coercion:coercion1to2 ->
+          match Name.Map.find_opt name2 ext with
+          | None -> false
+          | Some ty3 -> (
+            match TG.get_alias_opt ty3 with
+            | None -> false
+            | Some simple3 ->
+              Simple.pattern_match simple3
+                ~const:(fun _ -> false)
+                ~name:(fun name3 ~coercion:coercion2to3 ->
+                  Name.equal name1 name3
+                  && Coercion.is_id
+                       (Coercion.compose_exn coercion1to2 ~then_:coercion2to3))))
+  in
   let equations, extra_extensions =
     Name.Map.fold
       (fun name ty (eqs, extra_extensions) ->
@@ -930,11 +959,16 @@ and meet_env_extension0 env (ext1 : TEE.t) (ext2 : TEE.t) extra_extensions :
           | Bottom -> raise Bottom_meet
           | Ok (ty, new_ext) ->
             let eqs =
-              if MTC.is_alias_of_name ty name
+              if MTC.is_alias_of_name ty name || has_reverse_alias name ty eqs
               then Name.Map.remove name eqs
               else Name.Map.add (* replace *) name ty eqs
             in
-            eqs, new_ext :: extra_extensions))
+            let extra_extensions =
+              if TEE.is_empty new_ext
+              then extra_extensions
+              else new_ext :: extra_extensions
+            in
+            eqs, extra_extensions))
       (TEE.to_map ext2)
       (TEE.to_map ext1, extra_extensions)
   in

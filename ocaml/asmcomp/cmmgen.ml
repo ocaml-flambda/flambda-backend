@@ -395,6 +395,7 @@ let rec transl env e =
           [] ->
             List.map (transl env) clos_vars
         | f :: rem ->
+            let is_last = match rem with [] -> true | _::_ -> false in
             Cmmgen_state.add_function f;
             let dbg = f.dbg in
             let without_header =
@@ -402,12 +403,12 @@ let rec transl env e =
               | Curried _, (1|0) as arity ->
                 Cconst_symbol (f.label, dbg) ::
                 alloc_closure_info ~arity
-                                   ~startenv:(startenv - pos) dbg ::
+                                   ~startenv:(startenv - pos) ~is_last dbg ::
                 transl_fundecls (pos + 3) rem
               | arity ->
                 Cconst_symbol (curry_function_sym f.arity, dbg) ::
                 alloc_closure_info ~arity
-                                   ~startenv:(startenv - pos) dbg ::
+                                   ~startenv:(startenv - pos) ~is_last dbg ::
                 Cconst_symbol (f.label, dbg) ::
                 transl_fundecls (pos + 4) rem
             in

@@ -62,6 +62,9 @@ let mk_dcheckmach f =
 let mk_disable_poll_insertion f =
   "-disable-poll-insertion", Arg.Unit f, " Do not insert poll points"
 
+let mk_enable_poll_insertion f =
+  "-enable-poll-insertion", Arg.Unit f, " Insert poll points"
+
 let mk_long_frames f =
   "-long-frames", Arg.Unit f, " Allow stack frames longer than 2^16 bytes"
 
@@ -467,6 +470,7 @@ module type Flambda_backend_options = sig
   val dcheckmach : unit -> unit
 
   val disable_poll_insertion : unit -> unit
+  val enable_poll_insertion : unit -> unit
 
   val long_frames : unit -> unit
   val no_long_frames : unit -> unit
@@ -547,6 +551,7 @@ struct
     mk_dcheckmach F.dcheckmach;
 
     mk_disable_poll_insertion F.disable_poll_insertion;
+    mk_enable_poll_insertion F.enable_poll_insertion;
 
     mk_long_frames F.long_frames;
     mk_no_long_frames F.no_long_frames;
@@ -663,6 +668,7 @@ module Flambda_backend_options_impl = struct
   let dcheckmach = set' Flambda_backend_flags.dump_checkmach
 
   let disable_poll_insertion = set' Flambda_backend_flags.disable_poll_insertion
+  let enable_poll_insertion = clear' Flambda_backend_flags.disable_poll_insertion
 
   let long_frames =  set' Flambda_backend_flags.allow_long_frames
   let no_long_frames = clear' Flambda_backend_flags.allow_long_frames
@@ -868,7 +874,7 @@ module Extra_params = struct
     | "heap-reduction-threshold" -> set_int' Flambda_backend_flags.heap_reduction_threshold
     | "alloc-check" -> set' Flambda_backend_flags.alloc_check
     | "dump-checkmach" -> set' Flambda_backend_flags.dump_checkmach
-    | "disable-poll-insertion" -> set' Flambda_backend_flags.disable_poll_insertion
+    | "poll-insertion" -> set' Flambda_backend_flags.disable_poll_insertion
     | "long-frames" -> set' Flambda_backend_flags.allow_long_frames
     | "debug-long-frames-threshold" ->
       begin match Compenv.check_int ppf name v with

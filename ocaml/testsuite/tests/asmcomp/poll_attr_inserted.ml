@@ -1,13 +1,14 @@
 (* TEST
-  * setup-ocamlopt.byte-build-env
-  ** ocamlopt.byte
+  * poll-insertion
+  ** setup-ocamlopt.byte-build-env
+  *** ocamlopt.byte
 ocamlopt_byte_exit_status = "2"
-  *** check-ocamlopt.byte-output
+  **** check-ocamlopt.byte-output
 
-  * setup-ocamlopt.opt-build-env
-  ** ocamlopt.opt
+  ** setup-ocamlopt.opt-build-env
+  *** ocamlopt.opt
 ocamlopt_opt_exit_status = "2"
-  *** check-ocamlopt.opt-output
+  **** check-ocamlopt.opt-output
 *)
 
 let[@poll error] c x =

@@ -136,6 +136,9 @@ val apply_cont_use_kind :
 val clear_demoted_trap_action_and_patch_unused_exn_bucket :
   Upwards_acc.t -> Apply_cont.t -> Apply_cont.t
 
+(** Warning: This function relies on [T.meet_is_flat_float_array], which could
+    return any kind for empty arrays. So this function is only safe for
+    operations that are invalid on empty arrays. *)
 val specialise_array_kind :
   Downwards_acc.t ->
   Flambda_primitive.Array_kind.t ->

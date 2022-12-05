@@ -334,6 +334,9 @@ let clear_demoted_trap_action_and_patch_unused_exn_bucket uacc apply_cont =
   let apply_cont = clear_demoted_trap_action uacc apply_cont in
   patch_unused_exn_bucket uacc apply_cont
 
+(* Warning: This function relies on [T.meet_is_flat_float_array], which could
+   return any kind for empty arrays. So this function is only safe for
+   operations that are invalid on empty arrays. *)
 let specialise_array_kind dacc (array_kind : P.Array_kind.t) ~array_ty :
     _ Or_bottom.t =
   let typing_env = DA.typing_env dacc in

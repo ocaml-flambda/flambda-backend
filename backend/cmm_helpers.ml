@@ -106,16 +106,20 @@ let caml_int64_ops = "caml_int64_ops"
 let pos_arity_in_closinfo = (8 * size_addr) - 8
 (* arity = the top 8 bits of the closinfo word *)
 
-let closure_info ~arity ~startenv =
+let closure_info ~arity ~startenv ~is_last =
   let arity =
     match arity with Lambda.Tupled, n -> -n | Lambda.Curried _, n -> n
   in
   assert (-128 <= arity && arity <= 127);
-  assert (0 <= startenv && startenv < 1 lsl (pos_arity_in_closinfo - 1));
+  assert (0 <= startenv && startenv < 1 lsl (pos_arity_in_closinfo - 2));
   Nativeint.(
     add
       (shift_left (of_int arity) pos_arity_in_closinfo)
-      (add (shift_left (of_int startenv) 1) 1n))
+      (add
+         (shift_left
+            (Bool.to_int is_last |> Nativeint.of_int)
+            (pos_arity_in_closinfo - 1))
+         (add (shift_left (of_int startenv) 1) 1n)))
 
 let alloc_float_header mode dbg =
   match mode with
@@ -131,8 +135,8 @@ let alloc_closure_header ~mode sz dbg =
 
 let alloc_infix_header ofs dbg = Cconst_natint (infix_header ofs, dbg)
 
-let alloc_closure_info ~arity ~startenv dbg =
-  Cconst_natint (closure_info ~arity ~startenv, dbg)
+let alloc_closure_info ~arity ~startenv ~is_last dbg =
+  Cconst_natint (closure_info ~arity ~startenv ~is_last, dbg)
 
 let alloc_boxedint32_header mode dbg =
   match mode with
@@ -2548,7 +2552,7 @@ let rec intermediate_curry_functions ~nlocal ~arity num =
                   Cconst_symbol (name1 ^ "_" ^ Int.to_string (num + 1), dbg ());
                   alloc_closure_info
                     ~arity:(curried (arity - num - 1))
-                    ~startenv:3 (dbg ());
+                    ~startenv:3 (dbg ()) ~is_last:true;
                   Cconst_symbol
                     (name1 ^ "_" ^ Int.to_string (num + 1) ^ "_app", dbg ());
                   Cvar arg;
@@ -2559,7 +2563,8 @@ let rec intermediate_curry_functions ~nlocal ~arity num =
               ( Calloc mode,
                 [ alloc_closure_header ~mode 4 (dbg ());
                   Cconst_symbol (name1 ^ "_" ^ Int.to_string (num + 1), dbg ());
-                  alloc_closure_info ~arity:(curried 1) ~startenv:2 (dbg ());
+                  alloc_closure_info ~arity:(curried 1) ~startenv:2
+                    ~is_last:true (dbg ());
                   Cvar arg;
                   Cvar clos ],
                 dbg () ));
@@ -3299,6 +3304,12 @@ let prefetch ~is_write locality arg dbg =
   if_operation_supported op ~f:(fun () ->
       return_unit dbg (Cop (op, [arg], dbg)))
 
+let prefetch_offset ~is_write locality (arg1, arg2) dbg =
+  (* [arg2], the index, is already untagged. *)
+  let op = Cprefetch { is_write; locality } in
+  if_operation_supported op ~f:(fun () ->
+      return_unit dbg (Cop (op, [add_int arg1 arg2 dbg], dbg)))
+
 let ext_pointer_prefetch ~is_write locality arg dbg =
   prefetch ~is_write locality (int_as_pointer arg dbg) dbg
 
@@ -3534,23 +3545,40 @@ let transl_builtin name args dbg typ_res =
     ext_pointer_prefetch ~is_write:false Moderate (one_arg name args) dbg
   | "caml_prefetch_read_low_ext_pointer" ->
     ext_pointer_prefetch ~is_write:false Low (one_arg name args) dbg
-  (* Native_pointer prefetch *)
-  | "caml_prefetch_write_high_native_pointer_unboxed" ->
+  (* Value and unboxed Native_pointer prefetch *)
+  | "caml_prefetch_write_high" ->
     prefetch ~is_write:true High (one_arg name args) dbg
-  | "caml_prefetch_write_moderate_native_pointer_unboxed" ->
+  | "caml_prefetch_write_moderate" ->
     prefetch ~is_write:true Moderate (one_arg name args) dbg
-  | "caml_prefetch_write_low_native_pointer_unboxed" ->
+  | "caml_prefetch_write_low" ->
     prefetch ~is_write:true Low (one_arg name args) dbg
-  | "caml_prefetch_write_none_native_pointer_unboxed" ->
+  | "caml_prefetch_write_none" ->
     prefetch ~is_write:true Nonlocal (one_arg name args) dbg
-  | "caml_prefetch_read_none_native_pointer_unboxed" ->
+  | "caml_prefetch_read_none" ->
     prefetch ~is_write:false Nonlocal (one_arg name args) dbg
-  | "caml_prefetch_read_high_native_pointer_unboxed" ->
+  | "caml_prefetch_read_high" ->
     prefetch ~is_write:false High (one_arg name args) dbg
-  | "caml_prefetch_read_moderate_native_pointer_unboxed" ->
+  | "caml_prefetch_read_moderate" ->
     prefetch ~is_write:false Moderate (one_arg name args) dbg
-  | "caml_prefetch_read_low_native_pointer_unboxed" ->
+  | "caml_prefetch_read_low" ->
     prefetch ~is_write:false Low (one_arg name args) dbg
+  (* Prefetch value with offset *)
+  | "caml_prefetch_write_high_val_offset_untagged" ->
+    prefetch_offset ~is_write:true High (two_args name args) dbg
+  | "caml_prefetch_write_moderate_val_offset_untagged" ->
+    prefetch_offset ~is_write:true Moderate (two_args name args) dbg
+  | "caml_prefetch_write_low_val_offset_untagged" ->
+    prefetch_offset ~is_write:true Low (two_args name args) dbg
+  | "caml_prefetch_write_none_val_offset_untagged" ->
+    prefetch_offset ~is_write:true Nonlocal (two_args name args) dbg
+  | "caml_prefetch_read_none_val_offset_untagged" ->
+    prefetch_offset ~is_write:false Nonlocal (two_args name args) dbg
+  | "caml_prefetch_read_high_val_offset_untagged" ->
+    prefetch_offset ~is_write:false High (two_args name args) dbg
+  | "caml_prefetch_read_moderate_val_offset_untagged" ->
+    prefetch_offset ~is_write:false Moderate (two_args name args) dbg
+  | "caml_prefetch_read_low_val_offset_untagged" ->
+    prefetch_offset ~is_write:false Low (two_args name args) dbg
   | _ -> None
 
 let transl_effects (e : Primitive.effects) : Cmm.effects =
@@ -3809,19 +3837,21 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
     let rec emit_others pos = function
       | [] -> clos_vars @ cont
       | (f2 : Clambda.ufunction) :: rem -> (
+        let is_last = match rem with [] -> true | _ :: _ -> false in
         match f2.arity with
         | (Curried _, (0 | 1)) as arity ->
           (Cint (infix_header pos) :: closure_symbol f2)
           @ Csymbol_address f2.label
-            :: Cint (closure_info ~arity ~startenv:(startenv - pos))
+            :: Cint (closure_info ~arity ~startenv:(startenv - pos) ~is_last)
             :: emit_others (pos + 3) rem
         | arity ->
           (Cint (infix_header pos) :: closure_symbol f2)
           @ Csymbol_address (curry_function_sym arity)
-            :: Cint (closure_info ~arity ~startenv:(startenv - pos))
+            :: Cint (closure_info ~arity ~startenv:(startenv - pos) ~is_last)
             :: Csymbol_address f2.label
             :: emit_others (pos + 4) rem)
     in
+    let is_last = match remainder with [] -> true | _ :: _ -> false in
     Cint (black_closure_header (fundecls_size fundecls + List.length clos_vars))
     :: cdefine_symbol symb
     @ closure_symbol f1
@@ -3829,11 +3859,11 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
     match f1.arity with
     | (Curried _, (0 | 1)) as arity ->
       Csymbol_address f1.label
-      :: Cint (closure_info ~arity ~startenv)
+      :: Cint (closure_info ~arity ~startenv ~is_last)
       :: emit_others 3 remainder
     | arity ->
       Csymbol_address (curry_function_sym arity)
-      :: Cint (closure_info ~arity ~startenv)
+      :: Cint (closure_info ~arity ~startenv ~is_last)
       :: Csymbol_address f1.label :: emit_others 4 remainder)
 
 (* Build the NULL terminated array of gc roots *)
