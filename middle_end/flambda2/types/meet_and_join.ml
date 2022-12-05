@@ -925,6 +925,28 @@ and meet_env_extension0 env (ext1 : TEE.t) (ext2 : TEE.t) extra_extensions :
 
      To get around this, we'll suppose that [t2] is smaller than [t1] and add
      equations from [t2] to [t1], along with all extra equations *)
+  let has_reverse_alias name1 ty2 ext =
+    (* If we're adding an equation [x : (= y)] but we already have an equation
+       [y : (= x)], then we can drop the equation as redundant. *)
+    match TG.get_alias_opt ty2 with
+    | None -> false
+    | Some simple2 ->
+      Simple.pattern_match simple2
+        ~const:(fun _ -> false)
+        ~name:(fun name2 ~coercion:coercion1to2 ->
+          match Name.Map.find_opt name2 ext with
+          | None -> false
+          | Some ty3 -> (
+            match TG.get_alias_opt ty3 with
+            | None -> false
+            | Some simple3 ->
+              Simple.pattern_match simple3
+                ~const:(fun _ -> false)
+                ~name:(fun name3 ~coercion:coercion2to3 ->
+                  Name.equal name1 name3
+                  && Coercion.is_id
+                       (Coercion.compose_exn coercion1to2 ~then_:coercion2to3))))
+  in
   let equations, extra_extensions =
     Name.Map.fold
       (fun name ty (eqs, extra_extensions) ->
@@ -937,11 +959,16 @@ and meet_env_extension0 env (ext1 : TEE.t) (ext2 : TEE.t) extra_extensions :
           | Bottom -> raise Bottom_meet
           | Ok (ty, new_ext) ->
             let eqs =
-              if MTC.is_alias_of_name ty name
+              if MTC.is_alias_of_name ty name || has_reverse_alias name ty eqs
               then Name.Map.remove name eqs
               else Name.Map.add (* replace *) name ty eqs
             in
-            eqs, new_ext :: extra_extensions))
+            let extra_extensions =
+              if TEE.is_empty new_ext
+              then extra_extensions
+              else new_ext :: extra_extensions
+            in
+            eqs, extra_extensions))
       (TEE.to_map ext2)
       (TEE.to_map ext1, extra_extensions)
   in

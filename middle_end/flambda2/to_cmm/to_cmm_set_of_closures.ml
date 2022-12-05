@@ -135,7 +135,7 @@ end = struct
             env, res, [P.int ~dbg 1n], updates)
       in
       List.rev_append fields acc, slot_offset + 1, env, res, eff, updates
-    | Function_slot { size; function_slot } -> (
+    | Function_slot { size; function_slot; last_function_slot } -> (
       let code_id = Function_slot.Map.find function_slot decls in
       let code_linkage_name = Code_id.linkage_name code_id in
       let arity, closure_code_pointers, dbg =
@@ -143,6 +143,7 @@ end = struct
       in
       let closure_info =
         C.closure_info ~arity ~startenv:(startenv - slot_offset)
+          ~is_last:last_function_slot
       in
       let acc =
         match for_static_sets with
