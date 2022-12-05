@@ -80,17 +80,20 @@ let caml_int64_ops = "caml_int64_ops"
 let pos_arity_in_closinfo = 8 * size_addr - 8
        (* arity = the top 8 bits of the closinfo word *)
 
-let closure_info ~arity ~startenv =
+let closure_info ~arity ~startenv ~is_last =
   let arity =
     match arity with
     | Lambda.Tupled, n -> -n
     | Lambda.Curried _, n -> n
   in
   assert (-128 <= arity && arity <= 127);
-  assert (0 <= startenv && startenv < 1 lsl (pos_arity_in_closinfo - 1));
+  assert (0 <= startenv && startenv < 1 lsl (pos_arity_in_closinfo - 2));
   Nativeint.(add (shift_left (of_int arity) pos_arity_in_closinfo)
-                 (add (shift_left (of_int startenv) 1)
-                      1n))
+    (add
+      (shift_left
+          (Bool.to_int is_last |> Nativeint.of_int)
+          (pos_arity_in_closinfo - 1))
+        (add (shift_left (of_int startenv) 1) 1n)))
 
 let alloc_float_header mode dbg =
   match mode with
@@ -102,8 +105,8 @@ let alloc_closure_header ~mode sz dbg =
   | Alloc_heap -> Cconst_natint (white_closure_header sz, dbg)
   | Alloc_local -> Cconst_natint (local_closure_header sz, dbg)
 let alloc_infix_header ofs dbg = Cconst_natint (infix_header ofs, dbg)
-let alloc_closure_info ~arity ~startenv dbg =
-  Cconst_natint (closure_info ~arity ~startenv, dbg)
+let alloc_closure_info ~arity ~startenv ~is_last dbg =
+  Cconst_natint (closure_info ~arity ~startenv ~is_last, dbg)
 let alloc_boxedint32_header mode dbg =
   match mode with
   | Lambda.Alloc_heap -> Cconst_natint (boxedint32_header, dbg)
@@ -2161,7 +2164,7 @@ let rec intermediate_curry_functions ~nlocal ~arity num =
                [alloc_closure_header ~mode 5 (dbg ());
                 Cconst_symbol(name1 ^ "_" ^ Int.to_string (num+1), dbg ());
                 alloc_closure_info ~arity:(curried (arity - num - 1))
-                                   ~startenv:3 (dbg ());
+                                   ~startenv:3 ~is_last:true (dbg ());
                 Cconst_symbol(name1 ^ "_" ^ Int.to_string (num+1) ^ "_app",
                   dbg ());
                 Cvar arg; Cvar clos],
@@ -2170,7 +2173,8 @@ let rec intermediate_curry_functions ~nlocal ~arity num =
            Cop(Calloc mode,
                 [alloc_closure_header ~mode 4 (dbg ());
                  Cconst_symbol(name1 ^ "_" ^ Int.to_string (num+1), dbg ());
-                 alloc_closure_info ~arity:(curried 1) ~startenv:2 (dbg ());
+                 alloc_closure_info ~arity:(curried 1) ~startenv:2
+                   ~is_last:true (dbg ());
                  Cvar arg; Cvar clos],
                 dbg ());
       fun_codegen_options = [];
@@ -2915,20 +2919,22 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
       let rec emit_others pos = function
           [] -> clos_vars @ cont
       | (f2 : Clambda.ufunction) :: rem ->
+          let is_last = match rem with [] -> true | _ :: _ -> false in
           match f2.arity with
           | Curried _, (0|1) as arity ->
             Cint(infix_header pos) ::
             (closure_symbol f2) @
             Csymbol_address f2.label ::
-            Cint(closure_info ~arity ~startenv:(startenv - pos)) ::
+            Cint(closure_info ~arity ~startenv:(startenv - pos) ~is_last) ::
             emit_others (pos + 3) rem
           | arity ->
             Cint(infix_header pos) ::
             (closure_symbol f2) @
             Csymbol_address(curry_function_sym f2.arity) ::
-            Cint(closure_info ~arity ~startenv:(startenv - pos)) ::
+            Cint(closure_info ~arity ~startenv:(startenv - pos) ~is_last) ::
             Csymbol_address f2.label ::
             emit_others (pos + 4) rem in
+      let is_last = match remainder with [] -> true | _ :: _ -> false in
       Cint(black_closure_header (fundecls_size fundecls
                                  + List.length clos_vars)) ::
       cdefine_symbol symb @
@@ -2936,11 +2942,11 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
       match f1.arity with
       | Curried _, (0|1) as arity ->
         Csymbol_address f1.label ::
-        Cint(closure_info ~arity ~startenv) ::
+        Cint(closure_info ~arity ~startenv ~is_last) ::
         emit_others 3 remainder
       | arity ->
         Csymbol_address(curry_function_sym f1.arity) ::
-        Cint(closure_info ~arity ~startenv) ::
+        Cint(closure_info ~arity ~startenv ~is_last) ::
         Csymbol_address f1.label ::
         emit_others 4 remainder
 
