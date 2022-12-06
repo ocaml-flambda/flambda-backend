@@ -663,7 +663,8 @@ type unary_primitive =
       }
   | Project_value_slot of
       { project_from : Function_slot.t;
-        value_slot : Value_slot.t
+        value_slot : Value_slot.t;
+        kind : Flambda_kind.With_subkind.t
       }
   | Is_boxed_float
   | Is_flat_float_array
@@ -782,11 +783,21 @@ let compare_unary_primitive p1 p2 =
     let c = Function_slot.compare move_from1 move_from2 in
     if c <> 0 then c else Function_slot.compare move_to1 move_to2
   | ( Project_value_slot
-        { project_from = function_slot1; value_slot = value_slot1 },
+        { project_from = function_slot1;
+          value_slot = value_slot1;
+          kind = kind1
+        },
       Project_value_slot
-        { project_from = function_slot2; value_slot = value_slot2 } ) ->
+        { project_from = function_slot2;
+          value_slot = value_slot2;
+          kind = kind2
+        } ) ->
     let c = Function_slot.compare function_slot1 function_slot2 in
-    if c <> 0 then c else Value_slot.compare value_slot1 value_slot2
+    if c <> 0
+    then c
+    else
+      let c = Value_slot.compare value_slot1 value_slot2 in
+      if c <> 0 then c else K.With_subkind.compare kind1 kind2
   | ( Opaque_identity { middle_end_only = middle_end_only1 },
       Opaque_identity { middle_end_only = middle_end_only2 } ) ->
     Bool.compare middle_end_only1 middle_end_only2
@@ -840,9 +851,10 @@ let print_unary_primitive ppf p =
   | Project_function_slot { move_from; move_to } ->
     Format.fprintf ppf "@[(Project_function_slot@ (%a \u{2192} %a))@]"
       Function_slot.print move_from Function_slot.print move_to
-  | Project_value_slot { project_from; value_slot } ->
-    Format.fprintf ppf "@[(Project_value_slot@ (%a@ %a))@]" Function_slot.print
-      project_from Value_slot.print value_slot
+  | Project_value_slot { project_from; value_slot; kind } ->
+    Format.fprintf ppf "@[(Project_value_slot@ (%a@ %a@ %a))@]"
+      Function_slot.print project_from Value_slot.print value_slot
+      K.With_subkind.print kind
   | Is_boxed_float -> fprintf ppf "Is_boxed_float"
   | Is_flat_float_array -> fprintf ppf "Is_flat_float_array"
   | Begin_try_region -> Format.pp_print_string ppf "Begin_try_region"
@@ -1012,7 +1024,7 @@ let free_names_unary_primitive p =
       (Name_occurrences.add_function_slot_in_projection Name_occurrences.empty
          move_to Name_mode.normal)
       move_from Name_mode.normal
-  | Project_value_slot { value_slot; project_from } ->
+  | Project_value_slot { value_slot; project_from; kind = _ } ->
     Name_occurrences.add_function_slot_in_projection
       (Name_occurrences.add_value_slot_in_projection Name_occurrences.empty
          value_slot Name_mode.normal)

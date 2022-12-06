@@ -585,11 +585,11 @@ let unary_primitive env res dbg f arg =
       let message = dead_slots_msg dbg [c1; c2] [] in
       let expr, res = C.invalid res ~message in
       None, res, expr)
-  | Project_value_slot { project_from; value_slot } -> (
+  | Project_value_slot { project_from; value_slot; kind = _ } -> (
     match
       value_slot_offset env value_slot, function_slot_offset env project_from
     with
-    | Live_value_slot { offset }, Live_function_slot { offset = base; _ } ->
+    | Live_value_slot { offset; _ }, Live_function_slot { offset = base; _ } ->
       None, res, C.get_field_gen Asttypes.Immutable arg (offset - base) dbg
     | Dead_value_slot, Live_function_slot _ ->
       let message = dead_slots_msg dbg [] [value_slot] in

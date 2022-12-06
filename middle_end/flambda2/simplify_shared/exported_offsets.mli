@@ -15,11 +15,13 @@
 (** Public state to store the mapping from elements of a closure to offset. *)
 type t
 
+type words = int
+
 type function_slot_info =
   | Dead_function_slot
   | Live_function_slot of
-      { offset : int;
-        size : int
+      { offset : words;
+        size : words
             (* Number of fields taken for the function:
 
                2 fields (code pointer + arity) for function of arity one
@@ -29,7 +31,11 @@ type function_slot_info =
 
 type value_slot_info =
   | Dead_value_slot
-  | Live_value_slot of { offset : int }
+  | Live_value_slot of
+      { offset : words;
+        size : words;
+        is_scanned : bool
+      }
 
 (** The empty environment *)
 val empty : t

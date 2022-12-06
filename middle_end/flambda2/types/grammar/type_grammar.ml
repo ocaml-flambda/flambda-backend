@@ -159,7 +159,7 @@ and closures_entry =
 
 (* Products are a set of constraints: each new field reduces the concrete set.
    The empty product is top. There is no bottom. All components must be of the
-   same kind.
+   same kind except for [value_slot_indexed_product].
 
    { 1 => Unknown; 2 => V } is equal to { 2 => V } *)
 and function_slot_indexed_product =
@@ -2226,18 +2226,19 @@ module Product = struct
     type t = function_slot_indexed_product
 
     let create function_slot_components_by_index =
-      if Flambda_features.check_invariants ()
-      then
-        Function_slot.Map.iter
-          (fun _ ty ->
+      let function_slot_components_by_index =
+        Function_slot.Map.map
+          (fun ty ->
             if not (K.equal (kind ty) K.value)
             then
               Misc.fatal_errorf
                 "Function-slot-indexed products can only hold types of kind \
                  [Value]:@ %a"
                 (Function_slot.Map.print print)
-                function_slot_components_by_index)
-          function_slot_components_by_index;
+                function_slot_components_by_index
+            else ty)
+          function_slot_components_by_index
+      in
       { function_slot_components_by_index }
 
     let top = { function_slot_components_by_index = Function_slot.Map.empty }
@@ -2251,18 +2252,6 @@ module Product = struct
     type t = value_slot_indexed_product
 
     let create value_slot_components_by_index =
-      if Flambda_features.check_invariants ()
-      then
-        Value_slot.Map.iter
-          (fun _ ty ->
-            if not (K.equal (kind ty) K.value)
-            then
-              Misc.fatal_errorf
-                "Value-slot-indexed products can only hold types of kind \
-                 [Value]:@ %a"
-                (Value_slot.Map.print print)
-                value_slot_components_by_index)
-          value_slot_components_by_index;
       { value_slot_components_by_index }
 
     let top = { value_slot_components_by_index = Value_slot.Map.empty }

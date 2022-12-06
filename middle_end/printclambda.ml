@@ -137,12 +137,13 @@ and lam ppf = function
       let lams ppf largs =
         List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in
       fprintf ppf "@[<2>(%a@ %a%a)@]" apply_kind kind lam lfun lams largs
-  | Uclosure(clos, fv) ->
+  | Uclosure { functions ; not_scanned_slots ; scanned_slots } ->
       let funs ppf =
         List.iter (fprintf ppf "@ @[<2>%a@]" one_fun) in
       let lams ppf =
         List.iter (fprintf ppf "@ %a" lam) in
-      fprintf ppf "@[<2>(closure@ %a %a)@]" funs clos lams fv
+      fprintf ppf "@[<2>(closure@ %a (%a) %a)@]" funs functions
+        lams not_scanned_slots lams scanned_slots
   | Uoffset(l,i) -> fprintf ppf "@[<2>(offset %a %d)@]" lam l i
   | Ulet(mut, kind, id, arg, body) ->
       let rec letbody ul = match ul with
