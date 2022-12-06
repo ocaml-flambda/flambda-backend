@@ -428,7 +428,8 @@ let new_bindings_for_splitting order args =
           (* we need to rebind the argument *)
           let new_cmm_var =
             Backend_var.With_provenance.create ?provenance:None
-              (Backend_var.create_local (Format.asprintf "to_cmm_split_%d" order))
+              (Backend_var.create_local
+                 (Format.asprintf "to_cmm_split_%d" order))
           in
           let binding =
             Binding
@@ -513,7 +514,7 @@ let split_complex_binding ~env ~res (binding : complex binding) =
 
 (* Adding binding to the env and split them *)
 
-let rec add_binding_to_env ?extra env res var ((Binding binding) as b) =
+let rec add_binding_to_env ?extra env res var (Binding binding as b) =
   let env =
     let bindings = Variable.Map.add var b env.bindings in
     let cmm_expr = C.var (Backend_var.With_provenance.var binding.cmm_var) in
@@ -523,9 +524,11 @@ let rec add_binding_to_env ?extra env res var ((Binding binding) as b) =
       | None -> env.vars_extra
       | Some info -> Variable.Map.add var info env.vars_extra
     in
-    { env with bindings; vars; vars_extra; }
+    { env with bindings; vars; vars_extra }
   in
-  let classification = To_cmm_effects.classify_by_effects_and_coeffects binding.effs in
+  let classification =
+    To_cmm_effects.classify_by_effects_and_coeffects binding.effs
+  in
   let inline : _ inline = binding.inline in
   match inline with
   | Must_inline_and_duplicate -> (
@@ -577,8 +580,8 @@ and split_in_env env res var binding =
     let env, res =
       List.fold_left
         (fun (env, res) new_binding ->
-           let flambda_var = Variable.create "to_cmm_tmp" in
-           add_binding_to_env env res flambda_var new_binding)
+          let flambda_var = Variable.create "to_cmm_tmp" in
+          add_binding_to_env env res flambda_var new_binding)
         (env, res) new_bindings
     in
     env, res, split_binding
