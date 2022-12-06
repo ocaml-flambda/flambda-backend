@@ -54,6 +54,13 @@ module List = struct
     | _, _, _ -> invalid_arg "List.fold_left3"
 end
 
+let make_do_not_unbox_decisions params : Decisions.t =
+  let decisions =
+    List.map (fun param -> (param, U.Do_not_unbox Unboxing_not_requested))
+      (Bound_parameters.to_list params)
+  in
+  { decisions; rewrite_ids_seen = Apply_cont_rewrite_id.Set.empty }
+
 let make_decisions ~continuation_is_recursive ~arg_types_by_use_id denv params
     params_types : DE.t * Decisions.t =
   let params = Bound_parameters.to_list params in

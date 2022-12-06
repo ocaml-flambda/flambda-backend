@@ -51,6 +51,8 @@ val add :
 
 val concat : outer:t -> inner:t -> t
 
+val replace_extra_args : t -> Extra_arg.t list Apply_cont_rewrite_id.Map.t -> t
+
 val extra_params : t -> Bound_parameters.t
 
 val extra_args : t -> Extra_arg.t list Apply_cont_rewrite_id.Map.t

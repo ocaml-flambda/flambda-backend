@@ -159,7 +159,7 @@ let bound_parameters_equal b1 b2 =
   List.equal Bound_parameter.equal (Bound_parameters.to_list b1) (Bound_parameters.to_list b2)
 
 let make_rewrite_for_recursive_continuation uacc ~cont
-    ~original_invariant_params ~known_other_invariant_params ~invariant_epa_params
+    ~original_invariant_params ~invariant_extra_params ~invariant_epa_params
     ~original_params ~rewrite_ids ~extra_params_and_args =
   let invariant_epa =
     extra_params_for_continuation_param_aliases cont uacc rewrite_ids
@@ -199,7 +199,7 @@ let make_rewrite_for_recursive_continuation uacc ~cont
   let used_extra_params = Bound_parameters.to_set used_extra_params_list in
   let invariant_params =
     BP.Set.union (Bound_parameters.to_set original_invariant_params)
-      (BP.Set.union (Bound_parameters.to_set known_other_invariant_params)
+      (BP.Set.union (Bound_parameters.to_set invariant_extra_params)
       (Bound_parameters.to_set (EPA.extra_params invariant_epa)))
   in
   let rewrite =
@@ -258,8 +258,7 @@ type stage3_handler_to_rebuild =
     is_exn_handler : bool;
     continuations_used : Continuation.Set.t;
     (* TODO: add comment to describe this precisely *)
-    unbox_decisions : Unbox_continuation_params.Decisions.t option;
-    (* TODO: remove option *)
+    unbox_decisions : Unbox_continuation_params.Decisions.t;
     extra_params_and_args_for_cse : EPA.t
   }
 
@@ -268,8 +267,7 @@ type stage3 =
     cont_uses_env : CUE.t; (* total cont uses env in body + handlers (+ previous exprs) *)
     at_unit_toplevel : bool;
     invariant_params : Bound_parameters.t;
-    (* invariant_unbox_decisions : Unbox_continuation_params.Decisions.t option; *) (* TODO *)
-    invariant_extra_params_and_args_for_cse : EPA.t;
+    invariant_extra_params_and_args : EPA.t;
     handlers : stage3_handler_to_rebuild Continuation.Map.t
   }
 
@@ -278,6 +276,9 @@ type stage4_handler_to_rebuild =
     rebuild_handler : expr_to_rebuild;
     is_exn_handler : bool;
     extra_params_and_args : EPA.t;
+    invariant_extra_params_and_args : EPA.t;
+    (* Note: EPA.extra_params invariant_extra_params_and_args should always be equa
+       to invariant_extra_params in stage4 *)
     rewrite_ids : Apply_cont_rewrite_id.Set.t
   }
 
@@ -297,7 +298,7 @@ type stage4 =
     at_unit_toplevel : bool;
     handlers_from_the_outside_to_the_inside : stage4_handlers_group list;
     original_invariant_params : Bound_parameters.t;
-    known_other_invariant_params : Bound_parameters.t;
+    invariant_extra_params : Bound_parameters.t;
   }
 
 type rebuilt_handler =
@@ -552,7 +553,7 @@ let add_phantom_params_bindings uacc handler new_phantom_params =
     ~bindings_outermost_first:new_phantom_param_bindings_outermost_first
 
 let rebuild_single_non_recursive_handler ~at_unit_toplevel
-    ~is_single_inlinable_use cont
+    ~is_single_inlinable_use ~original_invariant_params cont
     (handler_to_rebuild : stage4_handler_to_rebuild) uacc k =
   (* Clear existing name occurrences & cost metrics *)
   let uacc = UA.clear_name_occurrences (UA.clear_cost_metrics uacc) in
@@ -560,9 +561,15 @@ let rebuild_single_non_recursive_handler ~at_unit_toplevel
         rewrite_ids;
         params;
         rebuild_handler;
-        extra_params_and_args
+        extra_params_and_args;
+        invariant_extra_params_and_args;
       } =
     handler_to_rebuild
+  in
+  let params = Bound_parameters.append original_invariant_params params in
+  let extra_params_and_args =
+    EPA.concat
+      ~inner:invariant_extra_params_and_args ~outer:extra_params_and_args
   in
   rebuild_handler uacc ~after_rebuild:(fun handler uacc ->
       let handler, uacc, free_names, cost_metrics =
@@ -751,7 +758,7 @@ let rebuild_single_recursive_handler cont
 
 let rec rebuild_continuation_handlers_loop ~rebuild_body
     ~name_occurrences_of_subsequent_exprs ~cost_metrics_of_subsequent_exprs
-    ~uenv_of_subsequent_exprs ~at_unit_toplevel ~original_invariant_params ~known_other_invariant_params uacc ~after_rebuild
+    ~uenv_of_subsequent_exprs ~at_unit_toplevel ~original_invariant_params ~invariant_extra_params uacc ~after_rebuild
     (groups_to_rebuild : stage4_handlers_group list) rebuilt_groups =
   match groups_to_rebuild with
   | [] ->
@@ -767,11 +774,12 @@ let rec rebuild_continuation_handlers_loop ~rebuild_body
   | Non_recursive { cont; handler; is_single_inlinable_use }
     :: groups_to_rebuild ->
     rebuild_single_non_recursive_handler ~at_unit_toplevel
+      ~original_invariant_params
       ~is_single_inlinable_use cont handler uacc (fun rebuilt_handler uacc ->
         rebuild_continuation_handlers_loop ~rebuild_body
           ~name_occurrences_of_subsequent_exprs
           ~cost_metrics_of_subsequent_exprs ~uenv_of_subsequent_exprs
-          ~at_unit_toplevel ~original_invariant_params ~known_other_invariant_params uacc ~after_rebuild groups_to_rebuild
+          ~at_unit_toplevel ~original_invariant_params ~invariant_extra_params uacc ~after_rebuild groups_to_rebuild
           (Non_recursive { cont; handler = rebuilt_handler } :: rebuilt_groups))
   | Recursive { rebuild_continuation_handlers } :: groups_to_rebuild ->
     (* Common setup for recursive handlers: add rewrites; for now: always add
@@ -790,9 +798,9 @@ let rec rebuild_continuation_handlers_loop ~rebuild_body
             make_rewrite_for_recursive_continuation uacc ~cont
               ~original_params:handler.params
               ~rewrite_ids:handler.rewrite_ids
-              ~extra_params_and_args:handler.extra_params_and_args
+              ~extra_params_and_args:(EPA.concat ~inner:handler.invariant_extra_params_and_args ~outer:handler.extra_params_and_args)
               ~original_invariant_params
-              ~known_other_invariant_params ~invariant_epa_params
+              ~invariant_extra_params ~invariant_epa_params
           in
           uacc)
         rebuild_continuation_handlers uacc
@@ -825,7 +833,7 @@ let rec rebuild_continuation_handlers_loop ~rebuild_body
         rebuild_continuation_handlers_loop ~rebuild_body
           ~name_occurrences_of_subsequent_exprs
           ~cost_metrics_of_subsequent_exprs ~uenv_of_subsequent_exprs
-          ~at_unit_toplevel ~original_invariant_params ~known_other_invariant_params uacc ~after_rebuild groups_to_rebuild
+          ~at_unit_toplevel ~original_invariant_params ~invariant_extra_params uacc ~after_rebuild groups_to_rebuild
           (Recursive { continuation_handlers = rebuilt_handlers; invariant_params }
           :: rebuilt_groups))
 
@@ -859,7 +867,7 @@ let simplify_let_cont_stage4 (stage4 : stage4) uacc ~after_rebuild =
   let cost_metrics_of_subsequent_exprs = UA.cost_metrics uacc in
   let uenv_of_subsequent_exprs = UA.uenv uacc in
   rebuild_continuation_handlers_loop ~rebuild_body:stage4.rebuild_body
-    ~at_unit_toplevel:stage4.at_unit_toplevel ~original_invariant_params:stage4.original_invariant_params ~known_other_invariant_params:stage4.known_other_invariant_params
+    ~at_unit_toplevel:stage4.at_unit_toplevel ~original_invariant_params:stage4.original_invariant_params ~invariant_extra_params:stage4.invariant_extra_params
     ~name_occurrences_of_subsequent_exprs ~cost_metrics_of_subsequent_exprs
     ~uenv_of_subsequent_exprs uacc ~after_rebuild
     stage4.handlers_from_the_outside_to_the_inside []
@@ -899,25 +907,38 @@ let simplify_let_cont_stage3 (stage3 : stage3) ~down_to_up dacc =
     Continuation.Map.mapi
       (fun cont (handler : stage3_handler_to_rebuild) ->
         let uses = get_uses cont in
-        (* CR ncourant don't use an option *)
+        let use_ids = Continuation_uses.get_use_ids uses in
+        let invariant_extra_args =
+          Apply_cont_rewrite_id.Map.of_set (fun rewrite_id ->
+              match Apply_cont_rewrite_id.Map.find rewrite_id (EPA.extra_args stage3.invariant_extra_params_and_args) with
+              | extra_args -> extra_args
+              | exception Not_found ->
+                List.map (fun param ->
+                    EPA.Extra_arg.Already_in_scope (Simple.var (Bound_parameter.var param))
+                  )
+                  (Bound_parameters.to_list (EPA.extra_params stage3.invariant_extra_params_and_args))
+            ) use_ids
+        in
+        let invariant_epa =
+          EPA.replace_extra_args stage3.invariant_extra_params_and_args invariant_extra_args
+        in
         let extra_params_and_args =
-          match handler.unbox_decisions with
-          | None -> handler.extra_params_and_args_for_cse
-          | Some decisions ->
-            let arg_types_by_use_id =
-              Continuation_uses.get_arg_types_by_use_id uses
-            in
-            let _, arg_types_by_use_id =
-              Misc.Stdlib.List.split_at (List.length (Bound_parameters.to_list stage3.invariant_params))
-                arg_types_by_use_id
-            in
-            Unbox_continuation_params.compute_extra_params_and_args decisions
-              ~arg_types_by_use_id handler.extra_params_and_args_for_cse
+          let arg_types_by_use_id =
+            Continuation_uses.get_arg_types_by_use_id uses
+          in
+          let _, arg_types_by_use_id =
+            Misc.Stdlib.List.split_at
+              (List.length (Bound_parameters.to_list stage3.invariant_params))
+              arg_types_by_use_id
+          in
+          Unbox_continuation_params.compute_extra_params_and_args handler.unbox_decisions
+            ~arg_types_by_use_id handler.extra_params_and_args_for_cse
         in
         { params = handler.params;
           rebuild_handler = handler.rebuild_handler;
           is_exn_handler = handler.is_exn_handler;
           extra_params_and_args;
+          invariant_extra_params_and_args = invariant_epa;
           rewrite_ids = Continuation_uses.get_use_ids uses
         })
       stage3.handlers
@@ -927,7 +948,7 @@ let simplify_let_cont_stage3 (stage3 : stage3) ~down_to_up dacc =
         Continuation.Map.fold
           (fun cont handler flow_acc ->
             Flow.Acc.add_extra_params_and_args cont
-              handler.extra_params_and_args flow_acc)
+              (EPA.concat ~inner:handler.invariant_extra_params_and_args ~outer:handler.extra_params_and_args) flow_acc)
           handlers flow_acc)
   in
   let handlers_graph =
@@ -973,7 +994,7 @@ let simplify_let_cont_stage3 (stage3 : stage3) ~down_to_up dacc =
       handlers_from_the_outside_to_the_inside;
       at_unit_toplevel = stage3.at_unit_toplevel;
       original_invariant_params = stage3.invariant_params;
-      known_other_invariant_params = EPA.extra_params stage3.invariant_extra_params_and_args_for_cse;
+      invariant_extra_params = EPA.extra_params stage3.invariant_extra_params_and_args;
     }
   in
   down_to_up dacc ~rebuild:(simplify_let_cont_stage4 stage4)
@@ -989,9 +1010,10 @@ let prepare_dacc_for_handlers dacc ~env_at_fork ~params ~is_recursive
   let handler_env =
     DE.with_code_age_relation code_age_relation join_result.handler_env
   in
+  let do_not_unbox () =
+    Unbox_continuation_params.make_do_not_unbox_decisions params
+  in
   let handler_env, unbox_decisions, is_exn_handler, dacc =
-    if is_recursive then handler_env, None, false, dacc else (* TODO Remove this, this prevents unboxing of invariant parameters *)
-
     match (continuation_sort : Continuation.Sort.t) with
     | Normal_or_exn when join_result.is_single_inlinable_use ->
      (match is_exn_handler_cont with
@@ -1004,7 +1026,7 @@ let prepare_dacc_for_handlers dacc ~env_at_fork ~params ~is_recursive
       (* Don't try to unbox parameters of inlinable continuations, since the
          typing env still contains enough information to avoid re-reading the
          fields. *)
-      | None -> handler_env, None, false, dacc)
+      | None -> handler_env, do_not_unbox (), false, dacc)
     | Normal_or_exn | Define_root_symbol ->
       let dacc, is_exn_handler =
         match is_exn_handler_cont with
@@ -1016,7 +1038,7 @@ let prepare_dacc_for_handlers dacc ~env_at_fork ~params ~is_recursive
             DA.demote_exn_handler dacc cont, false
       in
       if is_exn_handler
-      then handler_env, None, true, dacc
+      then handler_env, do_not_unbox (), true, dacc
       else
         (* Unbox the parameters of the continuation if possible. Any such
            unboxing will induce a rewrite (or wrapper) on the application sites
@@ -1028,7 +1050,7 @@ let prepare_dacc_for_handlers dacc ~env_at_fork ~params ~is_recursive
             ~arg_types_by_use_id params
             param_types
         in
-        handler_env, Some decisions, false, dacc
+        handler_env, decisions, false, dacc
     | Return | Toplevel_return ->
       (match is_exn_handler_cont with
        Some cont ->
@@ -1037,7 +1059,7 @@ let prepare_dacc_for_handlers dacc ~env_at_fork ~params ~is_recursive
           "Exception handlers should never be marked as [Return] or \
            [Toplevel_return]:@ %a"
           Continuation.print cont
-       | None -> handler_env, None, false, dacc)
+       | None -> handler_env, do_not_unbox (), false, dacc)
   in
   ( DA.with_denv dacc handler_env,
     unbox_decisions,
@@ -1100,7 +1122,7 @@ let simplify_single_recursive_handler ~simplify_expr cont_uses_env_so_far ~invar
             ~continuation_is_recursive:true ~arg_types_by_use_id params
             param_types
         in
-        handler_env, Some decisions, dacc
+        handler_env, decisions, dacc
   in
   let dacc = DA.with_denv dacc handler_env in
   simplify_handler ~simplify_expr ~is_recursive:true ~is_exn_handler:false ~params ~invariant_params cont
@@ -1144,7 +1166,7 @@ let simplify_let_cont_stage2 ~simplify_expr (stage2 : stage2) ~down_to_up dacc
         { rebuild_body;
           cont_uses_env = body_continuation_uses_env;
           invariant_params = Bound_parameters.empty;
-          invariant_extra_params_and_args_for_cse = EPA.empty;
+          invariant_extra_params_and_args = EPA.empty;
           handlers = Continuation.Map.empty;
           at_unit_toplevel = false (* Unused in this case *)
         }
@@ -1169,7 +1191,7 @@ let simplify_let_cont_stage2 ~simplify_expr (stage2 : stage2) ~down_to_up dacc
       (* CR: use named arguments *)
       let dacc, unbox_decisions, is_exn_handler, extra_params_and_args_for_cse =
         prepare_dacc_for_handlers dacc ~env_at_fork:denv ~params
-          ~is_recursive:false ~consts_lifted_during_body
+          ~consts_lifted_during_body ~is_recursive:true
           (Continuation.sort cont) (if is_exn_handler then Some cont else None)
           (Continuation_uses.get_uses uses)
           ~arg_types_by_use_id:(Continuation_uses.get_arg_types_by_use_id uses)
@@ -1187,7 +1209,7 @@ let simplify_let_cont_stage2 ~simplify_expr (stage2 : stage2) ~down_to_up dacc
               is_exn_handler;
               continuations_used;
               unbox_decisions;
-              extra_params_and_args_for_cse
+              extra_params_and_args_for_cse;
             }
           in
           let cont_uses_env = CUE.remove cont_uses_env_so_far cont in
@@ -1197,7 +1219,7 @@ let simplify_let_cont_stage2 ~simplify_expr (stage2 : stage2) ~down_to_up dacc
             { rebuild_body;
               cont_uses_env = cont_uses_env_so_far;
               invariant_params = Bound_parameters.empty;
-              invariant_extra_params_and_args_for_cse = EPA.empty;
+              invariant_extra_params_and_args = EPA.empty;
               handlers = Continuation.Map.singleton cont rebuild;
               at_unit_toplevel
             }
@@ -1222,13 +1244,18 @@ let simplify_let_cont_stage2 ~simplify_expr (stage2 : stage2) ~down_to_up dacc
     in
     let dacc, unbox_decisions, is_exn_handler, extra_params_and_args_for_cse =
       prepare_dacc_for_handlers dacc ~env_at_fork:denv ~params:invariant_params
-        ~is_recursive:true ~consts_lifted_during_body Normal_or_exn None
+        ~is_recursive:true
+        ~consts_lifted_during_body Normal_or_exn None
         (List.flatten (List.map Continuation_uses.get_uses all_uses))
         ~arg_types_by_use_id
     in
+    let invariant_epa =
+      Unbox_continuation_params.compute_extra_params_and_args
+        unbox_decisions ~arg_types_by_use_id
+        extra_params_and_args_for_cse
+    in
     let denv = DA.denv dacc in
     assert (not (is_exn_handler));
-    assert (unbox_decisions = None); (* TODO *)
     (* CR: move this to a separate function *)
     (* CR: rename used_handlers -> reachable_handlers_to_simplify *)
     (* CR: rename remaining_handlers -> handlers_map / all_handlers *)
@@ -1262,7 +1289,7 @@ let simplify_let_cont_stage2 ~simplify_expr (stage2 : stage2) ~down_to_up dacc
           { rebuild_body;
             cont_uses_env = cont_uses_env_so_far;
             invariant_params;
-            invariant_extra_params_and_args_for_cse = extra_params_and_args_for_cse;
+            invariant_extra_params_and_args = invariant_epa;
             handlers = simplified_handlers;
             at_unit_toplevel = false
           }

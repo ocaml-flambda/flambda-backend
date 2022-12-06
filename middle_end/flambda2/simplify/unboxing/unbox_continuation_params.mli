@@ -22,6 +22,8 @@ module Decisions : sig
   val print : Format.formatter -> t -> unit
 end
 
+val make_do_not_unbox_decisions : Bound_parameters.t -> Decisions.t
+
 val make_decisions :
   continuation_is_recursive:bool ->
   arg_types_by_use_id:Continuation_uses.arg_types_by_use_id ->
