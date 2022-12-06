@@ -180,11 +180,6 @@ let compute_extra_arg_for_number kind unboxer epa rewrite_id ~typing_env_at_use
 (* Recursive descent on decisions *)
 (* ****************************** *)
 
-let are_there_unknown_use_sites (pass : U.pass) =
-  match pass with
-  | Filter { recursive } -> recursive
-  | Compute_all_extra_args -> false
-
 let rec compute_extra_args_for_one_decision_and_use ~(pass : U.pass) rewrite_id
     ~typing_env_at_use arg_being_unboxed decision : U.decision =
   try
@@ -192,7 +187,7 @@ let rec compute_extra_args_for_one_decision_and_use ~(pass : U.pass) rewrite_id
       ~typing_env_at_use arg_being_unboxed decision
   with Prevent_current_unboxing -> (
     match pass with
-    | Filter _ -> Do_not_unbox Not_enough_information_at_use
+    | Filter -> Do_not_unbox Not_enough_information_at_use
     | Compute_all_extra_args ->
       Misc.fatal_errorf "This case should have been filtered out before.")
 
@@ -204,17 +199,11 @@ and compute_extra_args_for_one_decision_and_use_aux ~(pass : U.pass) rewrite_id
     compute_extra_args_for_block ~pass rewrite_id ~typing_env_at_use
       arg_being_unboxed tag fields
   | Unbox (Closure_single_entry { function_slot; vars_within_closure }) ->
-    if are_there_unknown_use_sites pass
-    then prevent_current_unboxing ()
-    else
-      compute_extra_args_for_closure ~pass rewrite_id ~typing_env_at_use
-        arg_being_unboxed function_slot vars_within_closure
+    compute_extra_args_for_closure ~pass rewrite_id ~typing_env_at_use
+      arg_being_unboxed function_slot vars_within_closure
   | Unbox
       (Variant { tag; const_ctors = const_ctors_from_decision; fields_by_tag })
     -> (
-    if are_there_unknown_use_sites pass
-    then prevent_current_unboxing ()
-    else
       let invalid () =
         (* Invalid here means that the Apply_cont is unreachable, i.e. the args
            we generated will never be actually used at runtime, so the values of

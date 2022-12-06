@@ -941,7 +941,8 @@ let simplify_let_cont_stage3 (stage3 : stage3) ~down_to_up dacc =
   down_to_up dacc ~rebuild:(simplify_let_cont_stage4 stage4)
 
 let prepare_dacc_for_handlers dacc ~env_at_fork ~params ~is_recursive
-    ~consts_lifted_during_body continuation_sort is_exn_handler_cont uses =
+    ~consts_lifted_during_body continuation_sort is_exn_handler_cont uses
+    ~arg_types_by_use_id =
   let join_result =
     Join_points.compute_handler_env uses ~params ~is_recursive ~env_at_fork
       ~consts_lifted_during_body
@@ -986,7 +987,7 @@ let prepare_dacc_for_handlers dacc ~env_at_fork ~params ~is_recursive
         let handler_env, decisions =
           Unbox_continuation_params.make_decisions handler_env
             ~continuation_is_recursive:false
-            ~arg_types_by_use_id:join_result.arg_types_by_use_id params
+            ~arg_types_by_use_id params
             param_types
         in
         handler_env, Some decisions, false, dacc
@@ -1044,16 +1045,10 @@ let simplify_single_recursive_handler ~simplify_expr cont_uses_env_so_far
       denv_to_reset params
   in
   let handler_env = LCS.add_to_denv handler_env consts_lifted_during_body in
-  let arg_types_by_use_id =
-    match CUE.get_continuation_uses cont_uses_env_so_far cont with
-    | None ->
-      Misc.fatal_errorf
-        "No continuation uses found for %a but simplify_single_handler called@."
-        Continuation.print cont
-    | Some uses -> Continuation_uses.get_arg_types_by_use_id uses
-  in
   let code_age_relation = TE.code_age_relation (DA.typing_env dacc) in
   let handler_env = DE.with_code_age_relation code_age_relation handler_env in
+  (* TODO: use arg_types_by_use_id in body instead? *)
+  let arg_types_by_use_id = List.map (fun _ -> Apply_cont_rewrite_id.Map.empty) (Bound_parameters.to_list params) in
   let handler_env, unbox_decisions, dacc =
         (* Unbox the parameters of the continuation if possible. Any such
            unboxing will induce a rewrite (or wrapper) on the application sites
@@ -1137,7 +1132,9 @@ let simplify_let_cont_stage2 ~simplify_expr (stage2 : stage2) ~down_to_up dacc
       let dacc, unbox_decisions, is_exn_handler, extra_params_and_args_for_cse =
         prepare_dacc_for_handlers dacc ~env_at_fork:denv ~params
           ~is_recursive:false ~consts_lifted_during_body
-          (Continuation.sort cont) (if is_exn_handler then Some cont else None) uses
+          (Continuation.sort cont) (if is_exn_handler then Some cont else None)
+          (Continuation_uses.get_uses uses)
+          ~arg_types_by_use_id:(Continuation_uses.get_arg_types_by_use_id uses)
       in
       simplify_handler ~simplify_expr ~is_recursive:false ~is_exn_handler
         ~params cont dacc handler
@@ -1177,17 +1174,19 @@ let simplify_let_cont_stage2 ~simplify_expr (stage2 : stage2) ~down_to_up dacc
       Continuation.Set.inter all_handlers_set
         (CUE.all_continuations_used body_continuation_uses_env)
     in
-    let uses =
-      (* TODO: this only works for one continuation, and it needs to be used *)
-      assert (Continuation.Map.cardinal continuation_handlers = 1);
-      let (cont, _) = Continuation.Map.choose continuation_handlers in
-      match CUE.get_continuation_uses body_continuation_uses_env cont with
-      | None -> Misc.fatal_error "TODOOOOOOOOOO"
-      | Some uses -> uses
+    let all_uses =
+      List.filter_map (CUE.get_continuation_uses body_continuation_uses_env)
+        (Continuation.Set.elements all_handlers_set)
+    in
+    let arity = Bound_parameters.arity invariant_params in
+    let arg_types_by_use_id =
+      Continuation_uses.get_arg_types_by_use_id_for_invariant_params arity all_uses
     in
     let dacc, unbox_decisions, is_exn_handler, extra_params_and_args_for_cse =
       prepare_dacc_for_handlers dacc ~env_at_fork:denv ~params:invariant_params
-        ~is_recursive:true ~consts_lifted_during_body Normal_or_exn None uses
+        ~is_recursive:true ~consts_lifted_during_body Normal_or_exn None
+        (List.flatten (List.map Continuation_uses.get_uses all_uses))
+        ~arg_types_by_use_id
     in
     assert (not (is_exn_handler));
     assert (unbox_decisions = None); (* TODO *)

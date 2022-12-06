@@ -19,7 +19,6 @@ module U = One_continuation_use
 
 type result =
   { handler_env : DE.t;
-    arg_types_by_use_id : Continuation_uses.arg_types_by_use_id;
     extra_params_and_args : Continuation_extra_params_and_args.t;
     is_single_inlinable_use : bool;
     escapes : bool
@@ -132,7 +131,6 @@ let compute_handler_env ?cut_after uses ~is_recursive ~env_at_fork
     ~consts_lifted_during_body ~params =
   (* Augment the environment at each use with the parameter definitions and
      associated equations. *)
-  let uses_list = Continuation_uses.get_uses uses in
   let use_envs_with_ids =
     List.map
       (fun use ->
@@ -145,9 +143,8 @@ let compute_handler_env ?cut_after uses ~is_recursive ~env_at_fork
           DE.map_typing_env (U.env_at_use use) ~f:add_or_meet_param_type
         in
         use_env, U.id use, U.use_kind use)
-      uses_list
+      uses
   in
-  let arg_types_by_use_id = Continuation_uses.get_arg_types_by_use_id uses in
   match use_envs_with_ids with
   | [(use_env, _, Inlinable)] when not is_recursive ->
     (* There is only one use of the continuation and it is inlinable. No join
@@ -186,7 +183,6 @@ let compute_handler_env ?cut_after uses ~is_recursive ~env_at_fork
         (DE.at_unit_toplevel env_at_fork)
     in
     { handler_env;
-      arg_types_by_use_id;
       extra_params_and_args = Continuation_extra_params_and_args.empty;
       is_single_inlinable_use = true;
       escapes = false
@@ -226,7 +222,6 @@ let compute_handler_env ?cut_after uses ~is_recursive ~env_at_fork
         use_envs_with_ids
     in
     { handler_env;
-      arg_types_by_use_id;
       extra_params_and_args;
       is_single_inlinable_use = false;
       escapes

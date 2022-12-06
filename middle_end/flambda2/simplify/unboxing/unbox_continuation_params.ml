@@ -65,11 +65,10 @@ let make_decisions ~continuation_is_recursive ~arg_types_by_use_id denv params
            use sites (to prevent decisions that would be detrimental), and
            compute the necessary denv. *)
         let decision =
+          (* CR ncourant: optimistic_unboxing_decision should take recursive as
+             argument, and we should not refine if recursive *)
           Optimistic_unboxing_decision.make_optimistic_decision ~depth:0
-            (DE.typing_env denv) ~param_type
-          |> refine_decision_based_on_arg_types_at_uses ~rewrite_ids_seen:empty
-               nth arg_type_by_use_id
-               ~pass:(Filter { recursive = continuation_is_recursive })
+            ~recursive:continuation_is_recursive (DE.typing_env denv) ~param_type
         in
         let decision =
           if continuation_is_recursive
@@ -81,7 +80,10 @@ let make_decisions ~continuation_is_recursive ~arg_types_by_use_id denv params
                leaving the loop if the value is unused, while the benefit might
                be great most of the time. *)
             decision
-          else Is_unboxing_beneficial.filter_non_beneficial_decisions decision
+          else
+            refine_decision_based_on_arg_types_at_uses ~rewrite_ids_seen:empty
+              nth arg_type_by_use_id ~pass:Filter decision
+            |> Is_unboxing_beneficial.filter_non_beneficial_decisions
         in
         let denv =
           Build_unboxing_denv.denv_of_decision denv ~param_var:(BP.var param)

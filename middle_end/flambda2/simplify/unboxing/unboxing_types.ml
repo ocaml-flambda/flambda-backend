@@ -85,7 +85,7 @@ type decisions =
   }
 
 type pass =
-  | Filter of { recursive : bool }
+  | Filter
   | Compute_all_extra_args
 
 (* Printing *)
