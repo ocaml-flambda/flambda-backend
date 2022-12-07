@@ -3315,8 +3315,7 @@ let ext_pointer_prefetch ~is_write locality arg dbg =
 
 let atomic op (arg1, arg2) dbg =
   let op = Catomic { op } in
-  if_operation_supported op ~f:(fun () ->
-    Cop (op, [arg1; arg2], dbg))
+  if_operation_supported op ~f:(fun () -> Cop (op, [arg1; arg2], dbg))
 
 (** [transl_builtin prim args dbg] returns None if the built-in [prim] is not
     supported, otherwise it constructs and returns the corresponding Cmm
