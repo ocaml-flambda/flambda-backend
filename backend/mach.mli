@@ -28,7 +28,7 @@ type integer_comparison =
   | Iunsigned of Cmm.integer_comparison
 
 type atomic_integer_operation =
-    Ifetchadd | Ifetchsub | Ifetchor | Ifetchand | Ifetchxor
+    Ifetchadd | Ifetchsub | Ifetchor | Ifetchand | Ifetchxor | Icompareandswap
 
 type integer_operation =
     Iadd | Isub | Imul | Imulh of { signed: bool } | Idiv | Imod

@@ -101,6 +101,14 @@ let temporal_locality = function
   | Moderate -> "moderate"
   | High -> "high"
 
+let atomic_op = function
+  | Fetch_add -> "add"
+  | Fetch_sub -> "sub"
+  | Fetch_or -> "or"
+  | Fetch_and -> "and"
+  | Fetch_xor -> "xor"
+  | CAS -> "compareandswap"
+
 let phantom_defining_expr ppf defining_expr =
   match defining_expr with
   | Cphantom_const_int i -> Targetint.print ppf i
@@ -216,6 +224,7 @@ let operation d = function
   | Cprefetch { is_write; locality; } ->
     Printf.sprintf "prefetch is_write=%b prefetch_temporal_locality_hint=%s"
       is_write (temporal_locality locality)
+  | Catomic { op } -> Printf.sprintf "atomic %s" (atomic_op op)
   | Copaque -> "opaque"
   | Cbeginregion -> "beginregion"
   | Cendregion -> "endregion"

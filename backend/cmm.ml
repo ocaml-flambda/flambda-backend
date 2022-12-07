@@ -132,6 +132,14 @@ type rec_flag = Nonrecursive | Recursive
 
 type prefetch_temporal_locality_hint = Nonlocal | Low | Moderate | High
 
+type atomic_op =
+  | Fetch_add
+  | Fetch_sub
+  | Fetch_and
+  | Fetch_or
+  | Fetch_xor
+  | CAS
+
 type effects = No_effects | Arbitrary_effects
 type coeffects = No_coeffects | Has_coeffects
 
@@ -195,6 +203,7 @@ and operation =
   | Cctz of { arg_is_non_zero: bool; }
   | Cpopcnt
   | Cprefetch of { is_write: bool; locality: prefetch_temporal_locality_hint; }
+  | Catomic of { op : atomic_op }
   | Ccmpi of integer_comparison
   | Caddv | Cadda
   | Ccmpa of integer_comparison

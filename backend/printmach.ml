@@ -105,6 +105,7 @@ let intop_atomic = function
   | Ifetchor -> " |= "
   | Ifetchand -> " &= "
   | Ifetchxor -> " ^= "
+  | Icompareandswap -> " cas "
 
 let intop = function
   | Iadd -> " + "
@@ -186,7 +187,10 @@ let operation' ?(print_reg = reg) op arg ppf res =
         fprintf ppf "%a%s%a" reg arg.(0) (intop op) reg arg.(1)
       end
   | Iintop_imm(op, n) -> fprintf ppf "%a%s%i" reg arg.(0) (intop op) n
-  | Iintop_atomic op -> fprintf ppf "lock [%a]%s%a" reg arg.(0) (intop_atomic op) reg arg.(1)
+  | Iintop_atomic Icompareandswap ->
+    fprintf ppf "cas [%a] ?%a %a" reg arg.(0) reg arg.(1) reg arg.(2)
+  | Iintop_atomic op ->
+    fprintf ppf "lock [%a]%s%a" reg arg.(0) (intop_atomic op) reg arg.(1)
   | Icompf cmp -> fprintf ppf "%a%s%a" reg arg.(0) (floatcomp cmp) reg arg.(1)
   | Inegf -> fprintf ppf "-f %a" reg arg.(0)
   | Iabsf -> fprintf ppf "absf %a" reg arg.(0)

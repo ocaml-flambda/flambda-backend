@@ -283,6 +283,7 @@ let intop_atomic (op : Mach.atomic_integer_operation) =
   | Ifetchand -> " &= "
   | Ifetchor -> " |= "
   | Ifetchxor -> " ^= "
+  | Icompareandswap -> " cas "
 
 let intop (op : Mach.integer_operation) =
   match op with
@@ -316,7 +317,7 @@ let dump_op ppf = function
   | Store _ -> Format.fprintf ppf "store"
   | Intop op -> Format.fprintf ppf "intop %s" (intop op)
   | Intop_imm (op, n) -> Format.fprintf ppf "intop %s %d" (intop op) n
-  | Intop_atomic op -> Format.fprintf ppf "atomic_intop %s" (intop_atomic op)
+  | Intop_atomic op -> Format.fprintf ppf "intop atomic %s" (intop_atomic op)
   | Negf -> Format.fprintf ppf "negf"
   | Absf -> Format.fprintf ppf "absf"
   | Addf -> Format.fprintf ppf "addf"
