@@ -57,7 +57,8 @@ type unboxing_decision =
 
 and field_decision =
   { epa : Extra_param_and_args.t;
-    decision : decision
+    decision : decision;
+    kind : Flambda_kind.With_subkind.t
   }
 
 and const_ctors_decision =

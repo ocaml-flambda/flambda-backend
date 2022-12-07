@@ -131,9 +131,10 @@ module Env = struct
   type value_approximation = Code_or_metadata.t Value_approximation.t
 
   type t =
-    { variables : Variable.t Ident.Map.t;
+    { variables : (Variable.t * Flambda_kind.With_subkind.t) Ident.Map.t;
       globals : Symbol.t Numeric_types.Int.Map.t;
-      simples_to_substitute : Simple.t Ident.Map.t;
+      simples_to_substitute :
+        (Simple.t * Flambda_kind.With_subkind.t) Ident.Map.t;
       current_unit : Compilation_unit.t;
       current_depth : Variable.t option;
       value_approximations : value_approximation Name.Map.t;
@@ -229,7 +230,7 @@ module Env = struct
       } =
     let simples_to_substitute =
       Ident.Map.filter
-        (fun _ simple -> not (Simple.is_var simple))
+        (fun _ (simple, _kind) -> not (Simple.is_var simple))
         simples_to_substitute
     in
     { variables = Ident.Map.empty;
@@ -246,35 +247,37 @@ module Env = struct
 
   let with_depth t depth_var = { t with current_depth = Some depth_var }
 
-  let add_var t id var = { t with variables = Ident.Map.add id var t.variables }
+  let add_var t id var kind =
+    { t with variables = Ident.Map.add id (var, kind) t.variables }
 
-  let add_vars t ids vars = List.fold_left2 add_var t ids vars
+  let add_vars t ids vars =
+    List.fold_left2 (fun t id (var, kind) -> add_var t id var kind) t ids vars
 
   let add_var_map t map =
     { t with variables = Ident.Map.union_right t.variables map }
 
-  let add_var_like t id (user_visible : IR.user_visible) =
+  let add_var_like t id (user_visible : IR.user_visible) kind =
     let user_visible =
       match user_visible with
       | Not_user_visible -> None
       | User_visible -> Some ()
     in
     let var = Variable.create_with_same_name_as_ident ?user_visible id in
-    add_var t id var, var
+    add_var t id var kind, var
 
   let add_vars_like t ids =
     let vars =
       List.map
-        (fun (id, (user_visible : IR.user_visible)) ->
+        (fun (id, (user_visible : IR.user_visible), kind) ->
           let user_visible =
             match user_visible with
             | Not_user_visible -> None
             | User_visible -> Some ()
           in
-          Variable.create_with_same_name_as_ident ?user_visible id)
+          Variable.create_with_same_name_as_ident ?user_visible id, kind)
         ids
     in
-    add_vars t (List.map fst ids) vars, vars
+    add_vars t (List.map (fun (id, _, _) -> id) ids) vars, List.map fst vars
 
   let find_var t id =
     try Ident.Map.find id t.variables
@@ -285,9 +288,9 @@ module Env = struct
 
   let find_var_exn t id = Ident.Map.find id t.variables
 
-  let find_name t id = Name.var (find_var t id)
+  let find_name t id = Name.var (fst (find_var t id))
 
-  let find_name_exn t id = Name.var (find_var_exn t id)
+  let find_name_exn t id = Name.var (fst (find_var_exn t id))
 
   let find_vars t ids = List.map (fun id -> find_var t id) ids
 
@@ -300,13 +303,14 @@ module Env = struct
       Misc.fatal_error
         ("Closure_conversion.Env.find_global: global " ^ string_of_int pos)
 
-  let add_simple_to_substitute t id simple =
+  let add_simple_to_substitute t id simple kind =
     if Ident.Map.mem id t.simples_to_substitute
     then
       Misc.fatal_errorf "Cannot redefine [Simple] associated with %a"
         Ident.print id;
     { t with
-      simples_to_substitute = Ident.Map.add id simple t.simples_to_substitute
+      simples_to_substitute =
+        Ident.Map.add id (simple, kind) t.simples_to_substitute
     }
 
   let add_simple_to_substitute_map t map =

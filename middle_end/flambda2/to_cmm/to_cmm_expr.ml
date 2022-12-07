@@ -234,7 +234,7 @@ let translate_raise env res apply exn_handler args =
     let exn, env, res, _ = C.simple ~dbg env res exn in
     let extra, env, res, _ = C.simple_list ~dbg env res extra in
     let mut_vars = Env.get_exn_extra_args env exn_handler in
-    let wrap, _, res = Env.flush_delayed_lets env res in
+    let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
     let cmm =
       List.fold_left2
         (fun expr arg v -> C.sequence (C.assign v arg) expr)
@@ -259,7 +259,7 @@ let translate_jump_to_continuation env res apply types cont args =
     in
     let dbg = Apply_cont.debuginfo apply in
     let args, env, res, _ = C.simple_list ~dbg env res args in
-    let wrap, _, res = Env.flush_delayed_lets env res in
+    let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
     wrap (C.cexit cont args trap_actions), res
   else
     Misc.fatal_errorf "Types (%a) do not match arguments of@ %a"
@@ -273,7 +273,7 @@ let translate_jump_to_return_continuation env res apply return_cont args =
   | [return_value] -> (
     let dbg = Apply_cont.debuginfo apply in
     let return_value, env, res, _ = C.simple ~dbg env res return_value in
-    let wrap, _, res = Env.flush_delayed_lets env res in
+    let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
     match Apply_cont.trap_action apply with
     | None -> wrap return_value, res
     | Some (Pop _) -> wrap (C.trap_return return_value [Cmm.Pop]), res
@@ -300,9 +300,52 @@ let rec expr env res e =
   | Switch e' -> switch env res e'
   | Invalid { message } -> C.invalid res ~message
 
+and let_prim env res ~num_normal_occurrences_of_bound_vars v p dbg body =
+  let v = Bound_var.var v in
+  let effects_and_coeffects_of_prim =
+    Flambda_primitive.effects_and_coeffects p
+  in
+  let inline =
+    To_cmm_effects.classify_let_binding v ~num_normal_occurrences_of_bound_vars
+      ~effects_and_coeffects_of_defining_expr:effects_and_coeffects_of_prim
+  in
+  let simple_case (inline : Env.simple Env.inline) =
+    let defining_expr, extra, env, res, args_effs =
+      To_cmm_primitive.prim_simple env res dbg p
+    in
+    let effects_and_coeffects_of_defining_expr =
+      Ece.join args_effs effects_and_coeffects_of_prim
+    in
+    let env =
+      Env.bind_variable_to_primitive ?extra env v ~inline
+        ~effects_and_coeffects_of_defining_expr ~defining_expr
+    in
+    expr env res body
+  in
+  let complex_case (inline : Env.complex Env.inline) =
+    let defining_expr, env, res, args_effs =
+      To_cmm_primitive.prim_complex env res dbg p
+    in
+    let effects_and_coeffects_of_defining_expr =
+      Ece.join args_effs effects_and_coeffects_of_prim
+    in
+    let env =
+      Env.bind_variable_to_primitive env v ~inline
+        ~effects_and_coeffects_of_defining_expr ~defining_expr
+    in
+    expr env res body
+  in
+  match inline with
+  (* It can be useful to translate a dropped expression because it allows to
+     inline (and thus remove from the env) the arguments in it. *)
+  | Drop_defining_expr | Regular -> simple_case Do_not_inline
+  | May_inline_once -> simple_case May_inline_once
+  | Must_inline_once -> complex_case Must_inline_once
+  | Must_inline_and_duplicate -> complex_case Must_inline_and_duplicate
+
 and let_expr0 env res let_expr (bound_pattern : Bound_pattern.t)
     ~num_normal_occurrences_of_bound_vars ~body =
-  match bound_pattern, Let.defining_expr let_expr with
+  match[@warning "-4"] bound_pattern, Let.defining_expr let_expr with
   | Singleton v, Simple s ->
     let v = Bound_var.var v in
     (* CR mshinwell: Try to get a proper [dbg] here (although the majority of
@@ -316,49 +359,24 @@ and let_expr0 env res let_expr (bound_pattern : Bound_pattern.t)
     when (not (Flambda_features.stack_allocation_enabled ()))
          && Flambda_primitive.is_begin_or_end_region p ->
     expr env res body
-  | Singleton v, Prim (p, dbg) -> (
-    let v = Bound_var.var v in
-    let effects_and_coeffects_of_prim =
-      Flambda_primitive.effects_and_coeffects p
+  | Singleton v, Prim ((Unary (End_region, _) as p), dbg) ->
+    (* CR gbury: this is a hack to prevent moving of expressions past an
+       End_region. We have to do this manually because we currently have effects
+       and coeffects that are not precise enough. Particularly, an immutable
+       load of a locally allocated block is considered as pure, and thus can be
+       moved past an end_region. Here we also need to flush everything,
+       including must_inline bindings, particularly projections that may project
+       from locally allocated closures (and that must not be moved past an
+       end_region). *)
+    let wrap, env, res =
+      Env.flush_delayed_lets ~mode:Flush_everything env res
     in
-    let inline =
-      To_cmm_effects.classify_let_binding v
-        ~num_normal_occurrences_of_bound_vars
-        ~effects_and_coeffects_of_defining_expr:effects_and_coeffects_of_prim
+    let cmm, res =
+      let_prim env res ~num_normal_occurrences_of_bound_vars v p dbg body
     in
-    let simple_case (inline : Env.simple Env.inline) =
-      let defining_expr, extra, env, res, args_effs =
-        To_cmm_primitive.prim_simple env res dbg p
-      in
-      let effects_and_coeffects_of_defining_expr =
-        Ece.join args_effs effects_and_coeffects_of_prim
-      in
-      let env =
-        Env.bind_variable_to_primitive ?extra env v ~inline
-          ~effects_and_coeffects_of_defining_expr ~defining_expr
-      in
-      expr env res body
-    in
-    let complex_case (inline : Env.complex Env.inline) =
-      let defining_expr, env, res, args_effs =
-        To_cmm_primitive.prim_complex env res dbg p
-      in
-      let effects_and_coeffects_of_defining_expr =
-        Ece.join args_effs effects_and_coeffects_of_prim
-      in
-      let env =
-        Env.bind_variable_to_primitive env v ~inline
-          ~effects_and_coeffects_of_defining_expr ~defining_expr
-      in
-      expr env res body
-    in
-    match inline with
-    (* It can be useful to translate a dropped expression because it allows to
-       inline (and thus remove from the env) the arguments in it. *)
-    | Drop_defining_expr | Regular -> simple_case Do_not_inline
-    | May_inline_once -> simple_case May_inline_once
-    | Must_inline_once -> complex_case Must_inline_once
-    | Must_inline_and_duplicate -> complex_case Must_inline_and_duplicate)
+    wrap cmm, res
+  | Singleton v, Prim (p, dbg) ->
+    let_prim env res ~num_normal_occurrences_of_bound_vars v p dbg body
   | Set_of_closures bound_vars, Set_of_closures soc ->
     To_cmm_set_of_closures.let_dynamic_set_of_closures env res ~body ~bound_vars
       ~num_normal_occurrences_of_bound_vars soc ~translate_expr:expr
@@ -372,7 +390,9 @@ and let_expr0 env res let_expr (bound_pattern : Bound_pattern.t)
     match update_opt with
     | None -> expr env res body
     | Some update ->
-      let wrap, env, res = Env.flush_delayed_lets env res in
+      let wrap, env, res =
+        Env.flush_delayed_lets ~mode:Branching_point env res
+      in
       let body, res = expr env res body in
       wrap (C.sequence update body), res)
   | Singleton _, Rec_info _ -> expr env res body
@@ -432,7 +452,7 @@ and let_cont_not_inlined env res k handler body =
   (* CR gbury: "split" the environment according to which variables the handler
      and the body uses, to allow for inlining to proceed within each
      expression. *)
-  let wrap, env, res = Env.flush_delayed_lets env res in
+  let wrap, env, res = Env.flush_delayed_lets ~mode:Branching_point env res in
   let is_exn_handler = Continuation_handler.is_exn_handler handler in
   let vars, arity, handler, res = continuation_handler env res handler in
   let catch_id, env =
@@ -514,7 +534,7 @@ and let_cont_rec env res conts body =
      occurrence) *)
   (* CR-someday mshinwell: As discussed, the tradeoff here is not clear, since
      flushing might increase register pressure. *)
-  let wrap, env, res = Env.flush_delayed_lets ~entering_loop:true env res in
+  let wrap, env, res = Env.flush_delayed_lets ~mode:Entering_loop env res in
   (* Compute the environment for Ccatch ids *)
   let conts_to_handlers = Continuation_handlers.to_map conts in
   let env =
@@ -583,11 +603,11 @@ and apply_expr env res apply =
   match Apply.continuation apply with
   | Never_returns ->
     (* Case 1 *)
-    let wrap, _, res = Env.flush_delayed_lets env res in
+    let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
     wrap call, res
   | Return k when Continuation.equal (Env.return_continuation env) k ->
     (* Case 1 *)
-    let wrap, _, res = Env.flush_delayed_lets env res in
+    let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
     wrap call, res
   | Return k -> (
     let[@inline always] unsupported () =
@@ -602,7 +622,7 @@ and apply_expr env res apply =
     | Jump { param_types = []; cont = _ } -> unsupported ()
     | Jump { param_types = [_]; cont } ->
       (* Case 2 *)
-      let wrap, _, res = Env.flush_delayed_lets env res in
+      let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
       wrap (C.cexit cont [call] []), res
     | Inline { handler_params; handler_body = body; handler_params_occurrences }
       -> (
@@ -699,7 +719,7 @@ and switch env res switch =
         else untagged_scrutinee_cmm, false)
     | _ -> untagged_scrutinee_cmm, false
   in
-  let wrap, env, res = Env.flush_delayed_lets env res in
+  let wrap, env, res = Env.flush_delayed_lets ~mode:Branching_point env res in
   let prepare_discriminant ~must_tag d =
     let targetint_d = Targetint_31_63.to_targetint d in
     Targetint_32_64.to_int_checked
