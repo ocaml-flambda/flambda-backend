@@ -3313,9 +3313,9 @@ let prefetch_offset ~is_write locality (arg1, arg2) dbg =
 let ext_pointer_prefetch ~is_write locality arg dbg =
   prefetch ~is_write locality (int_as_pointer arg dbg) dbg
 
-let atomic op (arg1, arg2) dbg =
-  let op = Catomic { op } in
-  if_operation_supported op ~f:(fun () -> Cop (op, [arg1; arg2], dbg))
+let atomic op size (arg1, arg2) dbg =
+  let op = Catomic { op; size } in
+  if_operation_supported op ~f:(fun () -> Cop (op, [arg2; arg1], dbg))
 
 (** [transl_builtin prim args dbg] returns None if the built-in [prim] is not
     supported, otherwise it constructs and returns the corresponding Cmm
@@ -3584,7 +3584,7 @@ let transl_builtin name args dbg typ_res =
   | "caml_prefetch_read_low_val_offset_untagged" ->
     prefetch_offset ~is_write:false Low (two_args name args) dbg
   | "caml_native_pointer_fetch_and_add_nativeint_unboxed" ->
-    atomic Fetch_add (two_args name args) dbg
+    atomic Fetch_add Word_int (two_args name args) dbg
   | _ -> None
 
 let transl_effects (e : Primitive.effects) : Cmm.effects =

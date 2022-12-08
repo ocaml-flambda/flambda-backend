@@ -28,7 +28,7 @@ type integer_comparison =
   | Iunsigned of Cmm.integer_comparison
 
 type atomic_integer_operation =
-    Ifetchadd | Ifetchsub | Ifetchor | Ifetchand | Ifetchxor | Icompareandswap
+  Ifetchadd | Icompareandswap
 
 type integer_operation =
     Iadd | Isub | Imul | Imulh of { signed: bool } | Idiv | Imod
@@ -74,7 +74,8 @@ type operation =
                 mode: Lambda.alloc_mode }
   | Iintop of integer_operation
   | Iintop_imm of integer_operation * int
-  | Iintop_atomic of atomic_integer_operation
+  | Iintop_atomic of { op : atomic_integer_operation;
+      size : Cmm.memory_chunk; addr : Arch.addressing_mode }
   | Icompf of float_comparison
   | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icsel of test

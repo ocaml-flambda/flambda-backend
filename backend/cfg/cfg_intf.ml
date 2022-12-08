@@ -66,7 +66,11 @@ module S = struct
     | Store of Cmm.memory_chunk * Arch.addressing_mode * bool
     | Intop of Mach.integer_operation
     | Intop_imm of Mach.integer_operation * int
-    | Intop_atomic of Mach.atomic_integer_operation
+    | Intop_atomic of
+        { op : Mach.atomic_integer_operation;
+          size : Cmm.memory_chunk;
+          addr : Arch.addressing_mode
+        }
     | Negf
     | Absf
     | Addf

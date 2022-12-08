@@ -20,7 +20,7 @@ let from_basic (basic : basic) : Linear.instruction_desc =
       | Store (c, m, b) -> Istore (c, m, b)
       | Intop op -> Iintop op
       | Intop_imm (op, i) -> Iintop_imm (op, i)
-      | Intop_atomic op -> Iintop_atomic op
+      | Intop_atomic { op; size; addr } -> Iintop_atomic { op; size; addr }
       | Negf -> Inegf
       | Absf -> Iabsf
       | Addf -> Iaddf

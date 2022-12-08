@@ -568,7 +568,8 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
            | Ipopcnt | Iclz _ | Ictz _ | Ilsl | Ilsr | Iasr | Icomp _ ) as op),
           i ) ->
       basic (Intop_imm (op, i))
-    | Iintop_atomic op -> basic (Intop_atomic op)
+    | Iintop_atomic { op; size; addr } ->
+      basic (Intop_atomic { op; size; addr })
     | Icsel tst -> basic (Csel tst)
     | Ivalueofint -> basic Valueofint
     | Iintofvalue -> basic Intofvalue

@@ -189,7 +189,8 @@ let basic_or_terminator_of_operation :
          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ ) as op),
         imm ) ->
     Basic (Op (Intop_imm (op, imm)))
-  | Iintop_atomic op -> Basic (Op (Intop_atomic op))
+  | Iintop_atomic { op; size; addr } ->
+    Basic (Op (Intop_atomic { op; size; addr }))
   | Icsel tst -> Basic (Op (Csel tst))
   | Icompf comp -> Basic (Op (Compf comp))
   | Inegf -> Basic (Op Negf)

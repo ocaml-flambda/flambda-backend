@@ -644,7 +644,9 @@ method select_operation op args _dbg =
   | (Cintoffloat, _) -> (Iintoffloat, args)
   | (Cvalueofint, _) -> (Ivalueofint, args)
   | (Cintofvalue, _) -> (Iintofvalue, args)
-  | (Catomic {op}, _) -> (Iintop_atomic (self#select_atomic_op op), args)
+  | (Catomic {op; size}, [arg1; arg2]) ->
+    let (addr, eloc) = self#select_addressing size arg2 in
+    (Iintop_atomic { op = self#select_atomic_op op; size; addr }, [arg1; eloc])
   | (Ccheckbound, _) ->
     self#select_arith Icheckbound args
   | (Cprobe { name; handler_code_sym; }, _) ->
@@ -656,10 +658,6 @@ method select_operation op args _dbg =
 
 method private select_atomic_op = function
   | Fetch_add -> Ifetchadd
-  | Fetch_sub -> Ifetchsub
-  | Fetch_and -> Ifetchand
-  | Fetch_or -> Ifetchor
-  | Fetch_xor -> Ifetchxor
   | CAS -> Icompareandswap
 
 method private select_arith_comm op = function
