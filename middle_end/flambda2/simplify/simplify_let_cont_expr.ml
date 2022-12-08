@@ -1191,7 +1191,7 @@ let simplify_let_cont_stage2 ~simplify_expr (stage2 : stage2) ~down_to_up dacc
       (* CR: use named arguments *)
       let dacc, unbox_decisions, is_exn_handler, extra_params_and_args_for_cse =
         prepare_dacc_for_handlers dacc ~env_at_fork:denv ~params
-          ~consts_lifted_during_body ~is_recursive:true
+          ~consts_lifted_during_body ~is_recursive:false
           (Continuation.sort cont) (if is_exn_handler then Some cont else None)
           (Continuation_uses.get_uses uses)
           ~arg_types_by_use_id:(Continuation_uses.get_arg_types_by_use_id uses)
