@@ -3313,9 +3313,20 @@ let prefetch_offset ~is_write locality (arg1, arg2) dbg =
 let ext_pointer_prefetch ~is_write locality arg dbg =
   prefetch ~is_write locality (int_as_pointer arg dbg) dbg
 
-let atomic op size (arg1, arg2) dbg =
+let native_pointer_atomic op size (dst, src) dbg =
   let op = Catomic { op; size } in
-  if_operation_supported op ~f:(fun () -> Cop (op, [arg2; arg1], dbg))
+  if_operation_supported op ~f:(fun () -> Cop (op, [src; dst], dbg))
+
+let ext_pointer_atomic op size (dst, src) dbg =
+  let op = Catomic { op; size } in
+  if_operation_supported op ~f:(fun () ->
+      Cop (op, [src; int_as_pointer dst dbg], dbg))
+
+let bigstring_atomic op size (bs, idx, src) dbg =
+  let op = Catomic { op; size } in
+  if_operation_supported op ~f:(fun () ->
+    let ba_data = Cop (Cload (Word_int, Mutable), [field_address bs 1 dbg], dbg) in
+    Cop (op, [src; add_int ba_data idx dbg; idx], dbg))
 
 (** [transl_builtin prim args dbg] returns None if the built-in [prim] is not
     supported, otherwise it constructs and returns the corresponding Cmm
@@ -3585,11 +3596,25 @@ let transl_builtin name args dbg typ_res =
     prefetch_offset ~is_write:false Low (two_args name args) dbg
   | "caml_native_pointer_fetch_and_add_nativeint_unboxed"
   | "caml_native_pointer_fetch_and_add_int_untagged" ->
-    atomic Fetch_add Word_int (two_args name args) dbg
+    native_pointer_atomic Fetch_add Word_int (two_args name args) dbg
   | "caml_native_pointer_fetch_and_add_int64_unboxed" when size_int = 8 ->
-    atomic Fetch_add Word_int (two_args name args) dbg
+    native_pointer_atomic Fetch_add Word_int (two_args name args) dbg
   | "caml_native_pointer_fetch_and_add_int32_unboxed" ->
-    atomic Fetch_add Thirtytwo_signed (two_args name args) dbg
+    native_pointer_atomic Fetch_add Thirtytwo_signed (two_args name args) dbg
+  | "caml_ext_pointer_fetch_and_add_nativeint_unboxed"
+  | "caml_ext_pointer_fetch_and_add_int_untagged" ->
+    ext_pointer_atomic Fetch_add Word_int (two_args name args) dbg
+  | "caml_ext_pointer_fetch_and_add_int64_unboxed" when size_int = 8 ->
+    ext_pointer_atomic Fetch_add Word_int (two_args name args) dbg
+  | "caml_ext_pointer_fetch_and_add_int32_unboxed" ->
+    ext_pointer_atomic Fetch_add Thirtytwo_signed (two_args name args) dbg
+  | "caml_bigstring_fetch_and_add_nativeint_unboxed"
+  | "caml_bigstring_fetch_and_add_int_untagged" ->
+    bigstring_atomic Fetch_add Word_int (three_args name args) dbg
+  | "caml_bigstring_fetch_and_add_int64_unboxed" when size_int = 8 ->
+    bigstring_atomic Fetch_add Word_int (three_args name args) dbg
+  | "caml_bigstring_fetch_and_add_int32_unboxed" ->
+    bigstring_atomic Fetch_add Thirtytwo_signed (three_args name args) dbg
   | _ -> None
 
 let transl_effects (e : Primitive.effects) : Cmm.effects =

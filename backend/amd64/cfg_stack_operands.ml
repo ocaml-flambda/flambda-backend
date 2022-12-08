@@ -174,8 +174,6 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
     binary_operation map instr Result_can_be_on_stack
   | Op (Intop (Icomp _)) ->
     binary_operation map instr Result_cannot_be_on_stack
-  | Op (Intop_atomic _) ->
-    binary_operation map instr Result_cannot_be_on_stack
   | Op (Specific (Ifloat_iround | Ifloat_round _))
   | Op (Intop_imm (Icomp _, _)) ->
     may_use_stack_operand_for_only_argument map instr ~has_result:true
@@ -191,6 +189,7 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   | Op (Intop_imm ((Imulh _ | Imul | Idiv | Imod), _))
   | Op (Specific (Irdtsc | Irdpmc))
   | Op (Intop (Ipopcnt | Iclz _| Ictz _))
+  | Op (Intop_atomic _)
   | Op (Move | Spill | Reload | Negf | Absf | Const_float _ | Compf _ | Stackoffset _
        | Load _ | Store _ | Name_for_debugger _ | Probe_is_enabled _
        | Valueofint | Intofvalue | Opaque | Begin_region | End_region )

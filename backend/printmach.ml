@@ -186,14 +186,14 @@ let operation' ?(print_reg = reg) op arg ppf res =
   | Iintop_atomic {op = Icompareandswap; size; addr} ->
     fprintf ppf "cas %s[%a] ?%a %a"
       (Printcmm.chunk size)
-      (Arch.print_addressing reg addr) (Array.sub arg 0 1)
-      reg arg.(1) reg arg.(2)
+      (Arch.print_addressing reg addr) (Array.sub arg 2 (Array.length arg - 1))
+      reg arg.(0) reg arg.(1)
   | Iintop_atomic {op; size; addr} ->
     fprintf ppf "lock %s[%a]%s%a"
       (Printcmm.chunk size)
-      (Arch.print_addressing reg addr) (Array.sub arg 0 1)
+      (Arch.print_addressing reg addr) (Array.sub arg 1 (Array.length arg - 1))
       (intop_atomic op)
-      reg arg.(1)
+      reg arg.(0)
   | Icompf cmp -> fprintf ppf "%a%s%a" reg arg.(0) (floatcomp cmp) reg arg.(1)
   | Inegf -> fprintf ppf "-f %a" reg arg.(0)
   | Iabsf -> fprintf ppf "absf %a" reg arg.(0)

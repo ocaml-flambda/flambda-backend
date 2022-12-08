@@ -1224,7 +1224,8 @@ let emit_lock_xaddq b dst src =
   match (dst, src) with
   | ((Mem _ | Mem64_RIP _) as rm), Reg64 reg ->
       let reg = rd_of_reg64 reg in
-      emit_mod_rm_reg b rexw [ 0xF0; 0x0F; 0xC1 ] rm reg
+      buf_int8 b 0xF0;
+      emit_mod_rm_reg b rexw [ 0x0F; 0xC1 ] rm reg
   | _ ->
       Format.eprintf "lock xaddq src=%a dst=%a@." print_old_arg src print_old_arg dst;
       assert false
@@ -1233,7 +1234,8 @@ let emit_lock_xaddl b dst src =
   match (dst, src) with
   | ((Mem _ | Mem64_RIP _) as rm), Reg32 reg ->
       let reg = rd_of_reg64 reg in
-      emit_mod_rm_reg b no_rex [ 0xF0; 0x0F; 0xC1 ] rm reg
+      buf_int8 b 0xF0;
+      emit_mod_rm_reg b no_rex [ 0x0F; 0xC1 ] rm reg
   | _ ->
       Format.eprintf "lock xaddl src=%a dst=%a@." print_old_arg src print_old_arg dst;
       assert false
