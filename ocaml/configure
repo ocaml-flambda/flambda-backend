@@ -17937,12 +17937,12 @@ else
   default_safe_string=true
 fi
 
-if test x"$enable_stack_allocation" = "xyes"; then :
+if test x"$enable_stack_allocation" = "xno"; then :
+  stack_allocation=false
+else
   $as_echo "#define STACK_ALLOCATION 1" >>confdefs.h
 
    stack_allocation=true
-else
-  stack_allocation=false
 fi
 
 if test x"$enable_poll_insertion" = "xyes"; then :
