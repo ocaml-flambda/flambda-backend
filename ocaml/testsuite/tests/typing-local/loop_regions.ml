@@ -8,6 +8,7 @@
  *)
 
 external local_stack_offset : unit -> int = "caml_local_stack_offset"
+let local_stack_offset () = local_stack_offset () / (Sys.word_size / 8)
 external opaque_local : ('a[@local_opt]) -> ('a[@local_opt]) = "%opaque"
 
 let print_offsets (name,allocs) =

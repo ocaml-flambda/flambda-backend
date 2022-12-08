@@ -17,8 +17,8 @@ jobs:
             use_runtime: d
             ocamlrunparam: "v=0,V=1"
 
-          - name: closure_cfg_local
-            config: --enable-middle-end=closure --enable-stack-allocation --enable-poll-insertion
+          - name: closure_cfg
+            config: --enable-middle-end=closure --enable-poll-insertion
             os: ubuntu-latest
             ocamlparam: _,ocamlcfg=1
 
@@ -32,8 +32,8 @@ jobs:
             os: ubuntu-latest
             ocamlparam: ''
 
-          - name: flambda1_cfg_local
-            config: --enable-middle-end=flambda --enable-stack-allocation --enable-poll-insertion
+          - name: flambda1_cfg
+            config: --enable-middle-end=flambda --enable-poll-insertion
             os: ubuntu-latest
             ocamlparam: _,ocamlcfg=1
 
@@ -49,8 +49,8 @@ jobs:
             os: ubuntu-latest
             ocamlparam: ''
 
-          - name: flambda2_cfg_local
-            config: --enable-middle-end=flambda2 --enable-stack-allocation
+          - name: flambda2_cfg
+            config: --enable-middle-end=flambda2
             os: ubuntu-latest
             ocamlparam: _,ocamlcfg=1
 
