@@ -32,3 +32,25 @@ to start a continuously polling build of the compiler.
 Note that the dune-based build system is entirely separate from the main
 Makefile, and so you will need to use `make -f Makefile.jst install` 
 to install after building.
+
+## Testing
+
+As demonstrated above, you can
+
+    $ make -f Makefile.jst runtest-upstream
+
+to run the entire testsuite. As a shorter synonym, you may also
+
+    $ make -f Makefile.jst test
+
+If you want to run just one test or one test directory, you can
+
+    $ make -f Makefile.jst test-one TEST=<<test file here>>
+    $ make -f Makefile.jst test-one DIR=<<test dir here>>
+
+where the test file or test dir are specified with respect to the
+`testsuite/tests` directory. For example:
+
+    $ make -f Makefile.jst test-one TEST=typing-local/local.ml
+    $ make -f Makefile.jst test-one DIR=typing-local
+

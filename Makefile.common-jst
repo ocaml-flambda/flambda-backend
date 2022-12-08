@@ -169,8 +169,8 @@ main_build = _build/main
 
 # The following horror will be removed when work to allow the testsuite to
 # run on an installed tree (led by David Allsopp) is completed.
-.PHONY: runtest-upstream
-runtest-upstream: _install
+.PHONY: runtest-upstream test install_for_test
+install_for_test: _install
 	rm -rf _runtest
 	mkdir _runtest
 	ln -s ../_install _runtest/_install
@@ -247,6 +247,7 @@ runtest-upstream: _install
 	# ocamltest itself
 	mkdir _runtest/ocamltest
 	cp $(main_build)/$(ocamldir)/ocamltest/ocamltest.byte _runtest/ocamltest/ocamltest
+test: install_for_test
 	if [ "$(middle_end)" = "flambda2" ]; then \
 	  for dir in `cd ocaml/testsuite; ls -1 -d tests/*`; do \
 	    if ! grep -q "^  $$dir " testsuite/flambda2-test-list; then \
@@ -277,6 +278,16 @@ runtest-upstream: _install
                fi \
              fi)
 
+runtest-upstream: test
+
+test-one: install_for_test
+	(export OCAMLSRCDIR=$$(pwd)/_runtest; \
+	 export CAML_LD_LIBRARY_PATH=$$(pwd)/_runtest/lib/ocaml/stublibs; \
+	 if $$(which gfortran > /dev/null 2>&1); then \
+	   export LIBRARY_PATH=$$(dirname $$(gfortran -print-file-name=libgfortran.a)); \
+	 fi; \
+	 cd _runtest/testsuite && make one $(if $(TEST),TEST="tests/$(TEST)") $(if $(DIR),DIR="tests/$(DIR)"))
+         
 # This target is like a polling version of upstream "make ocamlopt"
 .PHONY: hacking
 hacking: _build/_bootinstall
