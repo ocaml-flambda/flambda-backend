@@ -187,6 +187,7 @@ module I = struct
   let jp = j P
   let lea x y = emit (LEA (x, y))
   let lock_xaddq x y = emit (LOCK_XADDQ (x, y))
+  let lock_xaddl x y = emit (LOCK_XADDL (x, y))
   let maxsd x y = emit (MAXSD (x,y))
   let minsd x y = emit (MINSD (x,y))
   let mov x y = emit (MOV (x, y))

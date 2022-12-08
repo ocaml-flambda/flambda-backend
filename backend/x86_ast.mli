@@ -173,6 +173,7 @@ type instruction =
   | JMP of arg
   | LEA of arg * arg
   | LOCK_XADDQ of arg * arg
+  | LOCK_XADDL of arg * arg
   | LEAVE
   | MAXSD of arg * arg
   | MINSD of arg * arg

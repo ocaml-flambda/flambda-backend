@@ -192,6 +192,7 @@ let print_instr b = function
   | JMP arg -> i1_call_jmp b "jmp" arg
   | LEA (arg1, arg2) -> i2_s b "lea" arg1 arg2
   | LOCK_XADDQ (arg1, arg2) -> i2 b "lock xaddq" arg1 arg2
+  | LOCK_XADDL (arg1, arg2) -> i2 b "lock xaddl" arg1 arg2
   | LEAVE -> i0 b "leave"
   | MAXSD (arg1, arg2) -> i2 b "maxsd" arg1 arg2
   | MINSD (arg1, arg2) -> i2 b "minsd" arg1 arg2

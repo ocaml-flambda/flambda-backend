@@ -1229,6 +1229,15 @@ let emit_lock_xaddq b dst src =
       Format.eprintf "lock xaddq src=%a dst=%a@." print_old_arg src print_old_arg dst;
       assert false
 
+let emit_lock_xaddl b dst src =
+  match (dst, src) with
+  | ((Mem _ | Mem64_RIP _) as rm), Reg32 reg ->
+      let reg = rd_of_reg64 reg in
+      emit_mod_rm_reg b no_rex [ 0xF0; 0x0F; 0xC1 ] rm reg
+  | _ ->
+      Format.eprintf "lock xaddl src=%a dst=%a@." print_old_arg src print_old_arg dst;
+      assert false
+
 let emit_stack_reg b opcode dst =
   match dst with
   | Reg64 reg ->
@@ -1547,6 +1556,7 @@ let assemble_instr b loc = function
   | LEAVE -> emit_leave b
   | LEA (src, dst) -> emit_LEA b dst src
   | LOCK_XADDQ (src, dst) -> emit_lock_xaddq b dst src
+  | LOCK_XADDL (src, dst) -> emit_lock_xaddl b dst src
   | MAXSD (src, dst) -> emit_maxsd b ~dst ~src
   | MINSD (src, dst) -> emit_minsd b ~dst ~src
   | MOV (src, dst) -> emit_MOV b dst src

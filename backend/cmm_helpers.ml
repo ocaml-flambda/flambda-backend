@@ -3583,8 +3583,13 @@ let transl_builtin name args dbg typ_res =
     prefetch_offset ~is_write:false Moderate (two_args name args) dbg
   | "caml_prefetch_read_low_val_offset_untagged" ->
     prefetch_offset ~is_write:false Low (two_args name args) dbg
-  | "caml_native_pointer_fetch_and_add_nativeint_unboxed" ->
+  | "caml_native_pointer_fetch_and_add_nativeint_unboxed"
+  | "caml_native_pointer_fetch_and_add_int_untagged" ->
     atomic Fetch_add Word_int (two_args name args) dbg
+  | "caml_native_pointer_fetch_and_add_int64_unboxed" when size_int = 8 ->
+    atomic Fetch_add Word_int (two_args name args) dbg
+  | "caml_native_pointer_fetch_and_add_int32_unboxed" ->
+    atomic Fetch_add Thirtytwo_signed (two_args name args) dbg
   | _ -> None
 
 let transl_effects (e : Primitive.effects) : Cmm.effects =
