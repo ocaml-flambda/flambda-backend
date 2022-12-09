@@ -422,6 +422,10 @@ let new_bindings_for_splitting order args =
   let (new_bindings, _), new_cmm_args =
     List.fold_left_map
       (fun (new_bindings, order) (cmm_arg, arg_effs) ->
+        (* Cr gbury: here, instead of using [is_cmm_simple],
+           we could instead look at [arg_effs] and not create a new binding
+           if it has `pure_can_be_duplicated` effects (or any ece that allows
+           duplication). *)
         if is_cmm_simple cmm_arg
         then (new_bindings, order), cmm_arg
         else
@@ -596,7 +600,15 @@ let bind_variable_with_decision (type a) ?extra env res var ~inline
     in
     match[@ocaml.warning "-4"] (inline : a inline), classification with
     | (Must_inline_once | Must_inline_and_duplicate), Generative_immutable ->
-      Ece.pure_can_be_duplicated
+      (* Even if the primitive/top of the cmm expr being bound, must be duplicated
+         (as specified by [inline]), that doesn't mean that its arguments (some of which
+         may have been inlined) are also duplicatable, so we must take care of only
+         downgrading the effects and coeffects to pure, and not the placement, which
+         must be kept. *)
+      begin match (effs : Ece.t) with
+        | _, _, Delay -> Ece.pure_can_be_duplicated
+        | _, _, Strict -> Ece.pure
+      end
     | _, _ -> effs
   in
   let binding = create_binding ~inline effs var defining_expr in
