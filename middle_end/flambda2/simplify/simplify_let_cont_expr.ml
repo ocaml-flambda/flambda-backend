@@ -16,108 +16,46 @@
 
 open! Simplify_import
 
-type used_extra_params =
-  { extra_params_used_as_normal : BP.t list;
-    extra_params_not_used_as_normal : BP.t list
-  }
+let decide_param_usage_non_recursive free_names required_names removed_aliased exn_bucket param : Apply_cont_rewrite.used =
+  (* The free_names computation is the reference here, because it records
+     precisely what is actually used in the term being rebuilt. The required
+     variables computed by the data_flow analysis can only be an over
+     approximation of it here (given that some simplification/dead code
+     elimination may have removed some uses on the way up). To make sure the
+     data_flow analysis is correct (or rather than the pre-condition for its
+     correctness are verified, i.e. that on the way down, the use
+     constraints accumulated are an over-approximation of the actual use
+     constraints), we check here that all actually-used variables were also
+     marked as used by the data_flow analysis. *)
+  let param_var = BP.var param in
+  let is_used =
+    match NO.count_variable_normal_mode free_names param_var with
+    | Zero -> Option.equal Variable.equal exn_bucket (Some param_var)
+    | One | More_than_one -> true
+  in
+  if is_used && not (Name.Set.mem (Name.var param_var) required_names) then
+    Misc.fatal_errorf
+      "The data_flow analysis marked the param %a@ as not \
+       required, but the free_names indicate it is actually used:@ \n\
+       free_names = %a" BP.print param NO.print free_names;
+  if is_used && not (Variable.Set.mem param_var removed_aliased) then
+    Misc.fatal_errorf
+      "The alias analysis marked the param %a@ as removed, \
+       but the free_names indicate it is actually used:@ \n\
+       free_names = %a" BP.print param NO.print free_names;
+  if is_used then Used else Unused
 
-let compute_used_extra_params uacc (extra_params_and_args : EPA.t)
-    ~is_single_inlinable_use ~free_names ~handler =
-  (* If the continuation is going to be inlined out, we don't need to spend time
-     here calculating unused parameters, since the creation of [Let]-expressions
-     around the continuation's handler will do that anyway. *)
-  if is_single_inlinable_use
+let decide_param_usage_recursive required_names invariant_set removed_aliased param : Apply_cont_rewrite.used =
+  if Name.Set.mem (BP.name param) required_names &&
+     not (Variable.Set.mem (BP.var param) removed_aliased)
   then
-    { extra_params_used_as_normal =
-        Bound_parameters.to_list (EPA.extra_params extra_params_and_args);
-      extra_params_not_used_as_normal = []
-    }
+    if Bound_parameter.Set.mem param invariant_set then
+      Used_as_invariant
+    else
+      Used
   else
-    let used_or_not extra_param =
-      let used =
-        NO.greatest_name_mode_var free_names (BP.var extra_param)
-        |> Name_mode.Or_absent.is_present_as_normal
-      in
-      (* The free_names computation is the reference here, because it records
-         precisely what is actually used in the term being rebuilt. The required
-         variables computed by the data_flow analysis can only be an over
-         approximation of it here (given that some simplification/dead code
-         elimination may have removed some uses on the way up). To make sure the
-         data_flow analysis is correct (or rather than the pre-condition for its
-         correctness are verified, i.e. that on the way down, the use
-         constraints accumulated are an over-approximation of the actual use
-         constraints), we check here that all actually-used variables were also
-         marked as used by the data_flow analysis. *)
-      if not (Flambda_features.check_invariants ())
-      then used
-      else
-        let marked_as_required =
-          Name.Set.mem (Name.var (BP.var extra_param)) (UA.required_names uacc)
-        in
-        if used && not marked_as_required
-        then
-          Misc.fatal_errorf
-            "The data_flow analysis marked the extra param %a@ as not \
-             required, but the free_names indicate it is actually used:@ \n\
-             free_names = %a@ \n\
-             handler = %a" BP.print extra_param NO.print free_names
-            (RE.print (UA.are_rebuilding_terms uacc))
-            handler;
-        used
-    in
-    let extra_params_used_as_normal, extra_params_not_used_as_normal =
-      ListLabels.partition
-        (Bound_parameters.to_list (EPA.extra_params extra_params_and_args))
-        ~f:used_or_not
-    in
-    { extra_params_used_as_normal; extra_params_not_used_as_normal }
+    Unused
 
-type used_params =
-  { params_used_as_normal : BP.t list;
-    params_not_used_as_normal : BP.t list
-  }
-
-let compute_used_params uacc params ~is_exn_handler ~is_single_inlinable_use
-    ~free_names ~handler =
-  let params = Bound_parameters.to_list params in
-  if is_single_inlinable_use
-  then { params_used_as_normal = params; params_not_used_as_normal = [] }
-  else
-    let first = ref true in
-    let param_is_used param =
-      (* CR mshinwell: We should have a robust means of propagating which
-         parameter is the exception bucket. Then this hack can be removed. *)
-      if !first && is_exn_handler
-      then (
-        (* If this argument is actually unused, the Apply_conts are updated
-           accordingly in simplify_apply_cont. Apply_cont_rewrite can't at the
-           moment represent this transformation. *)
-        first := false;
-        true)
-      else (
-        first := false;
-        let param_var = BP.var param in
-        let num = NO.count_variable_normal_mode free_names param_var in
-        match num with
-        | Zero -> false
-        | One | More_than_one ->
-          (* Same as above *)
-          if Flambda_features.check_invariants ()
-             && not (Name.Set.mem (Name.var param_var) (UA.required_names uacc))
-          then
-            Misc.fatal_errorf
-              "The data_flow analysis marked the original param %a@ as not \
-               required, but the free_names indicate it is actually used:@ \n\
-               free_names = %a@ \n\
-               handler = %a" BP.print param NO.print free_names
-              (RE.print (UA.are_rebuilding_terms uacc))
-              handler;
-          true)
-    in
-    let params_used_as_normal, params_not_used_as_normal =
-      List.partition param_is_used params
-    in
-    { params_used_as_normal; params_not_used_as_normal }
 
 let extra_params_for_continuation_param_aliases cont uacc rewrite_ids =
   let Flow_types.Alias_result.{ continuation_parameters; aliases_kind; _ } =
@@ -141,14 +79,14 @@ let extra_params_for_continuation_param_aliases cont uacc rewrite_ids =
       EPA.add ~extra_param:(Bound_parameter.create var var_kind) ~extra_args epa)
     required_extra_args.extra_args_for_aliases EPA.empty
 
-let add_extra_params_for_reference_fields cont uacc extra_params_and_args =
+let add_extra_params_for_mutable_unboxing cont uacc extra_params_and_args =
   let Flow_types.Mutable_unboxing_result.{ additionnal_epa; _ } =
     UA.mutable_unboxing_result uacc
   in
   match Continuation.Map.find cont additionnal_epa with
   | exception Not_found -> extra_params_and_args
   | additionnal_epa ->
-    EPA.concat ~outer:extra_params_and_args ~inner:additionnal_epa
+    EPA.concat ~inner:extra_params_and_args ~outer:additionnal_epa
 
 type behaviour =
   | Invalid
@@ -158,69 +96,42 @@ type behaviour =
 let bound_parameters_equal b1 b2 =
   List.equal Bound_parameter.equal (Bound_parameters.to_list b1) (Bound_parameters.to_list b2)
 
+let get_removed_aliased_params uacc cont =
+  let param_aliases = UA.continuation_param_aliases uacc in
+  let cont_params = Continuation.Map.find cont param_aliases.continuation_parameters in
+  cont_params.removed_aliased_params_and_extra_params
+
 let make_rewrite_for_recursive_continuation uacc ~cont
-    ~original_invariant_params ~invariant_extra_params ~invariant_epa_params
-    ~original_params ~rewrite_ids ~extra_params_and_args =
-  let invariant_epa =
-    extra_params_for_continuation_param_aliases cont uacc rewrite_ids
-  in
-  (* CR need Bound_parameters.equal *)
-  if not (bound_parameters_equal (EPA.extra_params invariant_epa) invariant_epa_params) then
-    Misc.fatal_errorf "Invariant params by dataflow seem to differ between continuations: invariant params for %a are %a but expected to be %a" Continuation.print cont Bound_parameters.print (EPA.extra_params invariant_epa) Bound_parameters.print invariant_epa_params;
-  let extra_params_and_args =
-    EPA.concat ~inner:extra_params_and_args
-      ~outer:invariant_epa
-  in
-  let extra_params_and_args =
-    add_extra_params_for_reference_fields cont uacc extra_params_and_args
-  in
+    ~original_invariant_params ~invariant_extra_params_and_args
+    ~original_variant_params ~variant_extra_params_and_args
+    ~rewrite_ids =
+  (* Note: extra_params_and_args come from CSE & immutable unboxing *)
+  let alias_epa = extra_params_for_continuation_param_aliases cont uacc rewrite_ids in
+  let invariant_extra_params_and_args = EPA.concat ~inner:invariant_extra_params_and_args ~outer:alias_epa in
+  let variant_extra_params_and_args = add_extra_params_for_mutable_unboxing cont uacc variant_extra_params_and_args in
   let required_names = UA.required_names uacc in
-  let Flow_types.Alias_result.{ continuation_parameters; _ } =
-    UA.continuation_param_aliases uacc
+  let removed_aliased = get_removed_aliased_params uacc cont in
+  let invariant_set =
+    BP.Set.union
+      (Bound_parameters.to_set original_invariant_params)
+      (Bound_parameters.to_set (EPA.extra_params invariant_extra_params_and_args))
   in
-  let { Flow_types.Continuation_param_aliases
-        .removed_aliased_params_and_extra_params;
-        _
-      } =
-    Continuation.Map.find cont continuation_parameters
-  in
-  let kept_param param =
-    let var = BP.var param in
-    (not (Variable.Set.mem var removed_aliased_params_and_extra_params))
-    && Name.Set.mem (Name.var var) required_names
-  in
-  let original_params = Bound_parameters.append original_invariant_params original_params in
-  let used_params_list = Bound_parameters.filter kept_param original_params in
-  let used_params = Bound_parameters.to_set used_params_list in
-  let extra_params = EPA.extra_params extra_params_and_args in
-  let used_extra_params_list =
-    Bound_parameters.filter kept_param extra_params
-  in
-  let used_extra_params = Bound_parameters.to_set used_extra_params_list in
-  let invariant_params =
-    BP.Set.union (Bound_parameters.to_set original_invariant_params)
-      (BP.Set.union (Bound_parameters.to_set invariant_extra_params)
-      (Bound_parameters.to_set (EPA.extra_params invariant_epa)))
-  in
+  let decide_param_usage = decide_param_usage_recursive required_names invariant_set removed_aliased in
   let rewrite =
-    Apply_cont_rewrite.create ~original_params ~used_params
-      ~invariant_params
-      ~extra_params:(EPA.extra_params extra_params_and_args)
-      ~extra_args:(EPA.extra_args extra_params_and_args)
-      ~used_extra_params
+    Apply_cont_rewrite.create
+      ~original_params:(Bound_parameters.append original_invariant_params original_variant_params)
+      ~extra_params_and_args:(EPA.concat ~outer:invariant_extra_params_and_args ~inner:variant_extra_params_and_args)
+      ~decide_param_usage
   in
+  let invariant_params, variant_params = Apply_cont_rewrite.get_used_params rewrite in
+  let params = Bound_parameters.append invariant_params variant_params in
   let uacc =
     UA.map_uenv uacc ~f:(fun uenv ->
-        UE.add_apply_cont_rewrite uenv cont rewrite)
+        let uenv = UE.add_apply_cont_rewrite uenv cont rewrite in
+        UE.add_non_inlinable_continuation uenv cont ~params ~handler:Unknown
+      )
   in
-  let uacc =
-    UA.map_uenv uacc ~f:(fun uenv ->
-        let params =
-          Bound_parameters.append used_params_list used_extra_params_list
-        in
-        UE.add_non_inlinable_continuation uenv cont ~params ~handler:Unknown)
-  in
-  uacc, rewrite
+  uacc
 
 (***** Old code / New code ************************************************* *)
 (* TODO: add aciiart graph of stages *)
@@ -552,6 +463,10 @@ let add_phantom_params_bindings uacc handler new_phantom_params =
   EB.make_new_let_bindings uacc ~body:handler
     ~bindings_outermost_first:new_phantom_param_bindings_outermost_first
 
+let remove_params params free_names =
+  ListLabels.fold_left (Bound_parameters.to_list params) ~init:free_names
+    ~f:(fun free_names param -> NO.remove_var free_names ~var:(BP.var param))
+
 let rebuild_single_non_recursive_handler ~at_unit_toplevel
     ~is_single_inlinable_use ~original_invariant_params cont
     (handler_to_rebuild : stage4_handler_to_rebuild) uacc k =
@@ -566,11 +481,14 @@ let rebuild_single_non_recursive_handler ~at_unit_toplevel
       } =
     handler_to_rebuild
   in
+  (* In case the continuation was previously recursive, we make sure not to forget
+     the invariant original and extra params. *)
   let params = Bound_parameters.append original_invariant_params params in
   let extra_params_and_args =
     EPA.concat
       ~inner:invariant_extra_params_and_args ~outer:extra_params_and_args
   in
+
   rebuild_handler uacc ~after_rebuild:(fun handler uacc ->
       let handler, uacc, free_names, cost_metrics =
         add_lets_around_handler cont at_unit_toplevel uacc handler
@@ -578,38 +496,29 @@ let rebuild_single_non_recursive_handler ~at_unit_toplevel
       let extra_params_and_args =
         EPA.concat ~inner:extra_params_and_args
           ~outer:(extra_params_for_continuation_param_aliases cont uacc rewrite_ids)
-        |> add_extra_params_for_reference_fields cont uacc
+        |> add_extra_params_for_mutable_unboxing cont uacc
       in
-      let { extra_params_used_as_normal; extra_params_not_used_as_normal } =
-        compute_used_extra_params uacc extra_params_and_args
-          ~is_single_inlinable_use ~free_names ~handler
+      let exn_bucket =
+        if is_exn_handler then
+          Some (Bound_parameter.var (List.hd (Bound_parameters.to_list params)))
+        else
+          None
       in
-      let { params_used_as_normal; params_not_used_as_normal } =
-        compute_used_params uacc params ~is_exn_handler ~is_single_inlinable_use
-          ~free_names ~handler
-      in
-      let new_phantom_params =
-        List.filter
-          (fun param -> NO.mem_var free_names (BP.var param))
-          (params_not_used_as_normal @ extra_params_not_used_as_normal)
+      let removed_aliased = get_removed_aliased_params uacc cont in
+      let decide_param_usage = decide_param_usage_non_recursive
+          free_names (UA.required_names uacc) removed_aliased exn_bucket
       in
       let rewrite =
-        Apply_cont_rewrite.create ~original_params:params
-          ~used_params:(BP.Set.of_list params_used_as_normal)
-          ~invariant_params:BP.Set.empty
-          ~extra_params:(EPA.extra_params extra_params_and_args)
-          ~extra_args:(EPA.extra_args extra_params_and_args)
-          ~used_extra_params:(BP.Set.of_list extra_params_used_as_normal)
+        Apply_cont_rewrite.create
+          ~original_params:params
+          ~extra_params_and_args
+          ~decide_param_usage
       in
-      let uacc =
-        UA.map_uenv uacc ~f:(fun uenv ->
-            UE.add_apply_cont_rewrite uenv cont rewrite)
-      in
-      let params =
-        Bound_parameters.create
-          (params_used_as_normal @ extra_params_used_as_normal)
-      in
-      let new_phantom_params = Bound_parameters.create new_phantom_params in
+      let invariant_params, params = Apply_cont_rewrite.get_used_params rewrite in
+      if not (Bound_parameters.is_empty invariant_params) then
+        Misc.fatal_errorf "Non-recursive continuation has invariant params: %a"
+          Apply_cont_rewrite.print rewrite;
+      let new_phantom_params = Bound_parameters.empty (* TODO *) in
       let handler, uacc =
         add_phantom_params_bindings uacc handler new_phantom_params
       in
@@ -618,7 +527,12 @@ let rebuild_single_non_recursive_handler ~at_unit_toplevel
           (UA.are_rebuilding_terms uacc)
           params ~handler ~free_names_of_handler:free_names ~is_exn_handler
       in
+      let uacc =
+        UA.map_uenv uacc ~f:(fun uenv ->
+            UE.add_apply_cont_rewrite uenv cont rewrite)
+      in
       let uenv = UA.uenv uacc in
+      (* TODO move to its own function *)
       let uenv =
         (* CR : factor this out in a separate function ? *)
         if (* We must make the final decision now as to whether to inline this
@@ -708,43 +622,19 @@ let rebuild_single_recursive_handler cont
             Continuation.print cont
         | Some rewrite -> rewrite
       in
-      let used_params_set = Apply_cont_rewrite.used_params rewrite in
-      let used_params, unused_params =
-        List.partition
-          (fun param -> BP.Set.mem param used_params_set)
-          (Bound_parameters.to_list handler_to_rebuild.params)
-      in
-      let used_invariant_params, used_params =
-        List.partition (fun param -> BP.Set.mem param (Apply_cont_rewrite.invariant_params rewrite)) used_params
-      in
-      let used_extra_params =
-        Apply_cont_rewrite.used_extra_params rewrite |> Bound_parameters.to_list
-      in
-      let used_extra_invariant_params =
-        Apply_cont_rewrite.used_extra_invariant_params rewrite |> Bound_parameters.to_list
-      in
-      let new_phantom_params =
-        List.filter
-          (fun param -> NO.mem_var free_names (BP.var param))
-          unused_params
-        |> Bound_parameters.create
-      in
-      let params = Bound_parameters.create (
-          used_params @ used_extra_params
-        ) in
+      let new_phantom_params = Bound_parameters.empty in
       let handler, uacc =
         add_phantom_params_bindings uacc handler new_phantom_params
       in
+      let invariant_params, variant_params = Apply_cont_rewrite.get_used_params rewrite in
       let cont_handler =
         RE.Continuation_handler.create
           (UA.are_rebuilding_terms uacc)
-          params ~handler ~free_names_of_handler:free_names
+          variant_params ~handler ~free_names_of_handler:free_names
           ~is_exn_handler:false
       in
       let free_names =
-        ListLabels.fold_left (Bound_parameters.to_list params @ used_invariant_params @ used_extra_invariant_params) ~init:free_names
-          ~f:(fun name_occurrences param ->
-            NO.remove_var name_occurrences ~var:(BP.var param))
+        remove_params invariant_params (remove_params variant_params free_names)
       in
       let rebuilt_handler : rebuilt_handler =
         { handler = cont_handler;
@@ -753,7 +643,6 @@ let rebuild_single_recursive_handler cont
           cost_metrics_of_handler = cost_metrics
         }
       in
-      let invariant_params = Bound_parameters.create (used_invariant_params @ used_extra_invariant_params) in
       k invariant_params rebuilt_handler uacc)
 
 let rec rebuild_continuation_handlers_loop ~rebuild_body
@@ -784,25 +673,14 @@ let rec rebuild_continuation_handlers_loop ~rebuild_body
   | Recursive { rebuild_continuation_handlers } :: groups_to_rebuild ->
     (* Common setup for recursive handlers: add rewrites; for now: always add
        params (ignore alias analysis) *)
-    let invariant_epa_params =
-      let cont, handler = Continuation.Map.choose rebuild_continuation_handlers in
-      let invariant_epa =
-        extra_params_for_continuation_param_aliases cont uacc handler.rewrite_ids
-      in
-      EPA.extra_params invariant_epa
-    in
     let uacc =
       Continuation.Map.fold
         (fun cont handler uacc ->
-          let uacc, _rewrite =
-            make_rewrite_for_recursive_continuation uacc ~cont
-              ~original_params:handler.params
-              ~rewrite_ids:handler.rewrite_ids
-              ~extra_params_and_args:(EPA.concat ~inner:handler.invariant_extra_params_and_args ~outer:handler.extra_params_and_args)
-              ~original_invariant_params
-              ~invariant_extra_params ~invariant_epa_params
-          in
-          uacc)
+           make_rewrite_for_recursive_continuation uacc ~cont
+             ~original_invariant_params ~original_variant_params:handler.params
+             ~invariant_extra_params_and_args:handler.invariant_extra_params_and_args
+             ~variant_extra_params_and_args:handler.extra_params_and_args
+             ~rewrite_ids:handler.rewrite_ids)
         rebuild_continuation_handlers uacc
     in
     (* Rebuild all the handlers *)
