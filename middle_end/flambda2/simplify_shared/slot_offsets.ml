@@ -159,7 +159,7 @@ module Layout = struct
     | _, (Value_slot _ | Infix_header) ->
       Misc.fatal_errorf
         "Slot_offsets: function slots should be added before any other so that \
-         the alst funciton slot can be computed correctly"
+         the last function slot can be computed correctly"
     | exception Not_found ->
       Misc.fatal_errorf
         "Slot_offsets: set of closures msut have at least one function slot"
@@ -219,7 +219,7 @@ module Layout = struct
       assert false
 
   let make env function_slots value_slots =
-    (* functions slots must be added first to the map so that we can then
+    (* Function slots must be added first to the map so that we can then
        identify the last function slot *)
     let map =
       Numeric_types.Int.Map.empty
