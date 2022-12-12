@@ -102,6 +102,9 @@ let is_unary_op = function
 let intop_atomic = function
   | Ifetchadd -> " += "
   | Ifetchsub -> " -= "
+  | Ifetchand -> " &= "
+  | Ifetchor -> " |= "
+  | Ifetchxor -> " ^= "
   | Icompareandswap -> " cas "
 
 let intop = function

@@ -662,6 +662,9 @@ method select_operation op args _dbg =
 method private select_atomic_op = function
   | Fetch_add -> Ifetchadd
   | Fetch_sub -> Ifetchsub
+  | Fetch_and -> Ifetchand
+  | Fetch_or -> Ifetchor
+  | Fetch_xor -> Ifetchxor
   | CAS -> Icompareandswap
 
 method private select_arith_comm op = function

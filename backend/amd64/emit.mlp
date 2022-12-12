@@ -715,6 +715,25 @@ let emit_cas instr size addr =
   | true -> I.lock_cmpxchgq set_to dst; I.set E res
   | false -> I.lock_cmpxchgl set_to dst; I.set E res
 
+let emit_bit_atomic op qword dst =
+  (* input val and result are in rax *)
+  let lbl = new_label () in
+  let reg, mov, cmpxchg =
+    if qword then (fun r -> Reg64 r), I.movq, I.lock_cmpxchgq
+             else (fun r -> Reg32 r), I.mov, I.lock_cmpxchgl in
+  let rax, rcx, rdx = reg RAX, reg RCX, reg RDX in
+  mov rax rdx; (* input|rax -> rdx *)
+  def_label lbl;
+  mov dst rax; (* (dst) -> output|rax *)
+  mov rax rcx; (* rax -> rcx *)
+  (match op with
+  | Ifetchand -> I.and_ rdx rcx; (* input|rdx & rcx -> rcx *)
+  | Ifetchor -> I.or_ rdx rcx;   (* input|rdx | rcx -> rcx *)
+  | Ifetchxor -> I.xor rdx rcx;  (* input|rdx ^ rcx -> rcx *)
+  | _ -> Misc.fatal_error "Atomic bitwise op got non bitwise op.");
+  cmpxchg rcx dst;  (* rcx -> (dst) if (dst) = rax *)
+  I.jne (label lbl) (* else restart *)
+
 let emit_atomic instr op size addr =
   let qword, src, dst =
     match size with
@@ -732,6 +751,7 @@ let emit_atomic instr op size addr =
   | true, Ifetchsub -> I.neg src; I.lock_xaddq src dst
   | false, Ifetchsub -> I.neg src; I.lock_xaddl src dst
   | _, Icompareandswap -> emit_cas instr size addr
+  | _, (Ifetchand|Ifetchor|Ifetchxor) -> emit_bit_atomic op qword dst
 
 (* Emit an instruction *)
 let emit_instr fallthrough i =

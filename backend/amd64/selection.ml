@@ -101,11 +101,16 @@ let pseudoregs_for_operation op arg res =
       let arg = Array.copy arg in
       arg.(0) <- rax;
       (arg, res)
-  | Iintop_atomic _ ->
+  | Iintop_atomic {op = Ifetchadd|Ifetchsub; size = _; addr = _} ->
       (* first arg must be the same as res.(0) *)
       let arg = Array.copy arg in
       arg.(0) <- res.(0);
       (arg, res)
+  | Iintop_atomic {op = Ifetchand|Ifetchor|Ifetchxor; size = _; addr = _} ->
+      (* first arg and result must be rax, and it uses rcx/rdx *)
+      let arg = Array.copy arg in
+      arg.(0) <- rax;
+      (arg, [| rax; rcx; rdx |])
   (* One-address unary operations: arg.(0) and res.(0) must be the same *)
   | Iintop_imm((Iadd|Isub|Imul|Iand|Ior|Ixor|Ilsl|Ilsr|Iasr), _)
   | Iabsf | Inegf

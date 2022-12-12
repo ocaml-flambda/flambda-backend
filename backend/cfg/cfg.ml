@@ -280,6 +280,9 @@ let intop_atomic (op : Mach.atomic_integer_operation) =
   match op with
   | Ifetchadd -> " += "
   | Ifetchsub -> " -= "
+  | Ifetchand -> " &= "
+  | Ifetchor -> " |= "
+  | Ifetchxor -> " ^= "
   | Icompareandswap -> " cas "
 
 let intop (op : Mach.integer_operation) =
