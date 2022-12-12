@@ -3249,6 +3249,12 @@ let bigstring_set size unsafe arg1 arg2 arg3 dbg =
                      check_bound unsafe size dbg (bigstring_length ba dbg) idx
                        (unaligned_set size ba_data idx newval dbg))))))
 
+let four_args name args =
+  match args with
+  | [arg1; arg2; arg3; arg4] -> arg1, arg2, arg3, arg4
+  | _ ->
+    Misc.fatal_errorf "Cmm_helpers: expected exactly 4 arguments for %s" name
+
 let three_args name args =
   match args with
   | [arg1; arg2; arg3] -> arg1, arg2, arg3
@@ -3312,6 +3318,24 @@ let prefetch_offset ~is_write locality (arg1, arg2) dbg =
 
 let ext_pointer_prefetch ~is_write locality arg dbg =
   prefetch ~is_write locality (int_as_pointer arg dbg) dbg
+
+let native_pointer_cas size (dst, compare_with, set_to) dbg =
+  let op = Catomic { op = CAS; size } in
+  if_operation_supported op ~f:(fun () ->
+      Cop (op, [compare_with; set_to; dst], dbg))
+
+let ext_pointer_cas size (dst, compare_with, set_to) dbg =
+  let op = Catomic { op = CAS; size } in
+  if_operation_supported op ~f:(fun () ->
+      Cop (op, [compare_with; set_to; int_as_pointer dst dbg], dbg))
+
+let bigstring_cas size (bs, idx, compare_with, set_to) dbg =
+  let op = Catomic { op = CAS; size } in
+  if_operation_supported op ~f:(fun () ->
+      let ba_data =
+        Cop (Cload (Word_int, Mutable), [field_address bs 1 dbg], dbg)
+      in
+      Cop (op, [compare_with; set_to; add_int ba_data idx dbg], dbg))
 
 let native_pointer_atomic op size (dst, src) dbg =
   let op = Catomic { op; size } in
@@ -3638,6 +3662,27 @@ let transl_builtin name args dbg typ_res =
     bigstring_atomic Fetch_sub Word_int (three_args name args) dbg
   | "caml_bigstring_fetch_and_sub_int32_unboxed" ->
     bigstring_atomic Fetch_sub Thirtytwo_signed (three_args name args) dbg
+  | "caml_native_pointer_compare_and_swap_int_untagged"
+  | "caml_native_pointer_compare_and_swap_nativeint_unboxed" ->
+    native_pointer_cas Word_int (three_args name args) dbg
+  | "caml_native_pointer_compare_and_swap_int64_unboxed" when size_int = 8 ->
+    native_pointer_cas Word_int (three_args name args) dbg
+  | "caml_native_pointer_compare_and_swap_int32_unboxed" ->
+    native_pointer_cas Thirtytwo_signed (three_args name args) dbg
+  | "caml_ext_pointer_compare_and_swap_int_untagged"
+  | "caml_ext_pointer_compare_and_swap_nativeint_unboxed" ->
+    ext_pointer_cas Word_int (three_args name args) dbg
+  | "caml_ext_pointer_compare_and_swap_int64_unboxed" when size_int = 8 ->
+    ext_pointer_cas Word_int (three_args name args) dbg
+  | "caml_ext_pointer_compare_and_swap_int32_unboxed" ->
+    ext_pointer_cas Thirtytwo_signed (three_args name args) dbg
+  | "caml_bigstring_compare_and_swap_int_untagged"
+  | "caml_bigstring_compare_and_swap_nativeint_unboxed" ->
+    bigstring_cas Word_int (four_args name args) dbg
+  | "caml_bigstring_compare_and_swap_int64_unboxed" when size_int = 8 ->
+    bigstring_cas Word_int (four_args name args) dbg
+  | "caml_bigstring_compare_and_swap_int32_unboxed" ->
+    bigstring_cas Thirtytwo_signed (four_args name args) dbg
   | _ -> None
 
 let transl_effects (e : Primitive.effects) : Cmm.effects =

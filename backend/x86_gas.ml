@@ -191,6 +191,8 @@ let print_instr b = function
   | J (c, arg) -> i1_call_jmp b ("j" ^ string_of_condition c) arg
   | JMP arg -> i1_call_jmp b "jmp" arg
   | LEA (arg1, arg2) -> i2_s b "lea" arg1 arg2
+  | LOCK_CMPXCHGQ (arg1, arg2) -> i2 b "lock cmpxchgq" arg1 arg2
+  | LOCK_CMPXCHGL (arg1, arg2) -> i2 b "lock cmpxchgl" arg1 arg2
   | LOCK_XADDQ (arg1, arg2) -> i2 b "lock xaddq" arg1 arg2
   | LOCK_XADDL (arg1, arg2) -> i2 b "lock xaddl" arg1 arg2
   | LEAVE -> i0 b "leave"

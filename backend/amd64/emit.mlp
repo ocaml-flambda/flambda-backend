@@ -698,7 +698,24 @@ let emit_push_trap_label handler =
   traps.push_traps <- lbl::traps.push_traps;
   traps.enter_traps <- Int.Set.add handler traps.enter_traps
 
-let emit_atomic_arith instr op size addr =
+let emit_cas instr size addr =
+  (* compare_with is in rax *)
+  let res = res8 instr 0 in
+  let qword, set_to, dst =
+    match size with
+    | Word_int | Word_val ->
+      true, arg instr 1, addressing addr QWORD instr 2
+    | Thirtytwo_signed | Thirtytwo_unsigned ->
+      false, arg32 instr 1, addressing addr DWORD instr 2
+    | Byte_unsigned | Byte_signed
+    | Sixteen_unsigned | Sixteen_signed
+    | Single | Double -> Misc.fatal_error "Atomic cas got non 32/64 bit size."
+  in
+  match qword with
+  | true -> I.lock_cmpxchgq set_to dst; I.set E res
+  | false -> I.lock_cmpxchgl set_to dst; I.set E res
+
+let emit_atomic instr op size addr =
   let qword, src, dst =
     match size with
     | Word_int | Word_val ->
@@ -707,14 +724,14 @@ let emit_atomic_arith instr op size addr =
       false, arg32 instr 0, addressing addr DWORD instr 1
     | Byte_unsigned | Byte_signed
     | Sixteen_unsigned | Sixteen_signed
-    | Single | Double -> Misc.fatal_error "Atomic op got non 32/64 bit integer."
+    | Single | Double -> Misc.fatal_error "Atomic got non 32/64 bit size."
   in
   match qword, op with
   | true, Ifetchadd -> I.lock_xaddq src dst
   | false, Ifetchadd -> I.lock_xaddl src dst
   | true, Ifetchsub -> I.neg src; I.lock_xaddq src dst
   | false, Ifetchsub -> I.neg src; I.lock_xaddl src dst
-  | _ -> Misc.fatal_error "Unimplemented atomic."
+  | _, Icompareandswap -> emit_cas instr size addr
 
 (* Emit an instruction *)
 let emit_instr fallthrough i =
@@ -958,7 +975,7 @@ let emit_instr fallthrough i =
       (* We have i.arg.(0) = i.res.(0) *)
       instr_for_intop op (int n) (res i 0)
   | Lop(Iintop_atomic{op; size; addr}) ->
-      emit_atomic_arith i op size addr
+      emit_atomic i op size addr
   | Lop(Icompf cmp) ->
       let cond, need_swap = float_cond_and_need_swap cmp in
       let a0, a1 = if need_swap then arg i 1, arg i 0 else arg i 0, arg i 1 in

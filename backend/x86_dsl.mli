@@ -181,6 +181,8 @@ module I : sig
   val jne: arg -> unit
   val jp: arg -> unit
   val lea: arg -> arg -> unit
+  val lock_cmpxchgq: arg -> arg -> unit
+  val lock_cmpxchgl: arg -> arg -> unit
   val lock_xaddq: arg -> arg -> unit
   val lock_xaddl: arg -> arg -> unit
   val maxsd: arg -> arg -> unit

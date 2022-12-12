@@ -172,6 +172,8 @@ type instruction =
   | J of condition * arg
   | JMP of arg
   | LEA of arg * arg
+  | LOCK_CMPXCHGQ of arg * arg
+  | LOCK_CMPXCHGL of arg * arg
   | LOCK_XADDQ of arg * arg
   | LOCK_XADDL of arg * arg
   | LEAVE

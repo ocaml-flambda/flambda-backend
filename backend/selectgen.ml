@@ -647,6 +647,9 @@ method select_operation op args _dbg =
   | (Catomic {op; size}, [src; dst]) ->
     let (addr, eloc) = self#select_addressing size dst in
     (Iintop_atomic { op = self#select_atomic_op op; size; addr }, [src; eloc])
+  | (Catomic {op = CAS; size}, [compare_with; set_to; dst]) ->
+    let (addr, eloc) = self#select_addressing size dst in
+    (Iintop_atomic { op = self#select_atomic_op CAS; size; addr }, [compare_with; set_to; eloc])
   | (Ccheckbound, _) ->
     self#select_arith Icheckbound args
   | (Cprobe { name; handler_code_sym; }, _) ->
