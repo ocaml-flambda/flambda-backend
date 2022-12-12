@@ -698,6 +698,24 @@ let emit_push_trap_label handler =
   traps.push_traps <- lbl::traps.push_traps;
   traps.enter_traps <- Int.Set.add handler traps.enter_traps
 
+let emit_atomic_arith instr op size addr =
+  let qword, src, dst =
+    match size with
+    | Word_int | Word_val ->
+      true, arg instr 0, addressing addr QWORD instr 1
+    | Thirtytwo_signed | Thirtytwo_unsigned ->
+      false, arg32 instr 0, addressing addr DWORD instr 1
+    | Byte_unsigned | Byte_signed
+    | Sixteen_unsigned | Sixteen_signed
+    | Single | Double -> Misc.fatal_error "Atomic op got non 32/64 bit integer."
+  in
+  match qword, op with
+  | true, Ifetchadd -> I.lock_xaddq src dst
+  | false, Ifetchadd -> I.lock_xaddl src dst
+  | true, Ifetchsub -> I.neg src; I.lock_xaddq src dst
+  | false, Ifetchsub -> I.neg src; I.lock_xaddl src dst
+  | _ -> Misc.fatal_error "Unimplemented atomic."
+
 (* Emit an instruction *)
 let emit_instr fallthrough i =
   emit_debug_info_linear i;
@@ -939,18 +957,8 @@ let emit_instr fallthrough i =
   | Lop(Iintop_imm(op, n)) ->
       (* We have i.arg.(0) = i.res.(0) *)
       instr_for_intop op (int n) (res i 0)
-  | Lop(Iintop_atomic{op = Ifetchadd; size; addr}) ->
-    begin match size with
-    | Word_int | Word_val ->
-      I.lock_xaddq (arg i 0) (addressing addr QWORD i 1)
-    | Thirtytwo_signed | Thirtytwo_unsigned ->
-      I.lock_xaddl (arg32 i 0) (addressing addr DWORD i 1)
-    | Byte_unsigned | Byte_signed
-    | Sixteen_unsigned | Sixteen_signed
-    | Single | Double -> Misc.fatal_error "Atomic op got non 32/64 bit integer."
-    end
-  | Lop(Iintop_atomic{op = Icompareandswap; size = _; addr = _}) ->
-      assert false
+  | Lop(Iintop_atomic{op; size; addr}) ->
+      emit_atomic_arith i op size addr
   | Lop(Icompf cmp) ->
       let cond, need_swap = float_cond_and_need_swap cmp in
       let a0, a1 = if need_swap then arg i 1, arg i 0 else arg i 0, arg i 1 in

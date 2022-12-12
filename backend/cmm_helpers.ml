@@ -3617,6 +3617,27 @@ let transl_builtin name args dbg typ_res =
     bigstring_atomic Fetch_add Word_int (three_args name args) dbg
   | "caml_bigstring_fetch_and_add_int32_unboxed" ->
     bigstring_atomic Fetch_add Thirtytwo_signed (three_args name args) dbg
+  | "caml_native_pointer_fetch_and_sub_nativeint_unboxed"
+  | "caml_native_pointer_fetch_and_sub_int_untagged" ->
+    native_pointer_atomic Fetch_sub Word_int (two_args name args) dbg
+  | "caml_native_pointer_fetch_and_sub_int64_unboxed" when size_int = 8 ->
+    native_pointer_atomic Fetch_sub Word_int (two_args name args) dbg
+  | "caml_native_pointer_fetch_and_sub_int32_unboxed" ->
+    native_pointer_atomic Fetch_sub Thirtytwo_signed (two_args name args) dbg
+  | "caml_ext_pointer_fetch_and_sub_nativeint_unboxed"
+  | "caml_ext_pointer_fetch_and_sub_int_untagged" ->
+    ext_pointer_atomic Fetch_sub Word_int (two_args name args) dbg
+  | "caml_ext_pointer_fetch_and_sub_int64_unboxed" when size_int = 8 ->
+    ext_pointer_atomic Fetch_sub Word_int (two_args name args) dbg
+  | "caml_ext_pointer_fetch_and_sub_int32_unboxed" ->
+    ext_pointer_atomic Fetch_sub Thirtytwo_signed (two_args name args) dbg
+  | "caml_bigstring_fetch_and_sub_nativeint_unboxed"
+  | "caml_bigstring_fetch_and_sub_int_untagged" ->
+    bigstring_atomic Fetch_sub Word_int (three_args name args) dbg
+  | "caml_bigstring_fetch_and_sub_int64_unboxed" when size_int = 8 ->
+    bigstring_atomic Fetch_sub Word_int (three_args name args) dbg
+  | "caml_bigstring_fetch_and_sub_int32_unboxed" ->
+    bigstring_atomic Fetch_sub Thirtytwo_signed (three_args name args) dbg
   | _ -> None
 
 let transl_effects (e : Primitive.effects) : Cmm.effects =

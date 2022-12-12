@@ -103,6 +103,7 @@ let temporal_locality = function
 
 let atomic_op = function
   | Fetch_add -> "add"
+  | Fetch_sub -> "sub"
   | CAS -> "compareandswap"
 
 let phantom_defining_expr ppf defining_expr =
