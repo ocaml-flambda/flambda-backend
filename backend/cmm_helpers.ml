@@ -3325,8 +3325,10 @@ let ext_pointer_atomic op size (dst, src) dbg =
 let bigstring_atomic op size (bs, idx, src) dbg =
   let op = Catomic { op; size } in
   if_operation_supported op ~f:(fun () ->
-    let ba_data = Cop (Cload (Word_int, Mutable), [field_address bs 1 dbg], dbg) in
-    Cop (op, [src; add_int ba_data idx dbg], dbg))
+      let ba_data =
+        Cop (Cload (Word_int, Mutable), [field_address bs 1 dbg], dbg)
+      in
+      Cop (op, [src; add_int ba_data idx dbg], dbg))
 
 (** [transl_builtin prim args dbg] returns None if the built-in [prim] is not
     supported, otherwise it constructs and returns the corresponding Cmm
