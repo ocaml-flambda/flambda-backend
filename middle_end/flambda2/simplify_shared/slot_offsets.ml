@@ -150,6 +150,20 @@ module Layout = struct
             function_slot)
       l acc
 
+  let mark_last_function_slot map =
+    match Numeric_types.Int.Map.max_binding map with
+    | offset, Function_slot slot ->
+      Numeric_types.Int.Map.add offset
+        (Function_slot { slot with last_function_slot = true })
+        map
+    | _, (Value_slot _ | Infix_header) ->
+      Misc.fatal_errorf
+        "Slot_offsets: function slots should be added before any other so that \
+         the last function slot can be computed correctly"
+    | exception Not_found ->
+      Misc.fatal_errorf
+        "Slot_offsets: set of closures msut have at least one function slot"
+
   let order_value_slots env l acc =
     Value_slot.Map.fold
       (fun value_slot _ acc ->
@@ -189,28 +203,13 @@ module Layout = struct
       in
       startenv, acc_slots
     | Value_slot { is_scanned; _ } ->
-      let startenv, acc_slots =
-        match startenv, acc_slots, is_scanned with
-        | Some i, _, _ ->
+      let startenv =
+        match startenv with
+        | Some i ->
           assert is_scanned;
           assert (i < offset);
-          startenv, acc_slots
-        | None, (o, Function_slot s) :: r, _ ->
-          ( (if is_scanned then Some offset else None),
-            (o, Function_slot { s with last_function_slot = true }) :: r )
-        | None, [], _ ->
-          Misc.fatal_errorf "Set of closures with no closure slot"
-        | None, _, false -> None, acc_slots
-        | None, (_, Value_slot { is_scanned = false; _ }) :: _, true ->
-          Some offset, acc_slots
-        | ( None,
-            (_, ((Value_slot { is_scanned = true; _ } | Infix_header) as slot))
-            :: _,
-            true ) ->
-          Misc.fatal_errorf
-            "Expected a function slot or a non-scanned value slot right before \
-             the first value slot, but found %a"
-            print_slot slot
+          startenv
+        | None -> if is_scanned then Some offset else None
       in
       let acc_slots = (offset, slot) :: acc_slots in
       startenv, acc_slots
@@ -220,10 +219,13 @@ module Layout = struct
       assert false
 
   let make env function_slots value_slots =
+    (* Function slots must be added first to the map so that we can then
+       identify the last function slot *)
     let map =
       Numeric_types.Int.Map.empty
-      |> order_value_slots env value_slots
       |> order_function_slots env function_slots
+      |> mark_last_function_slot
+      |> order_value_slots env value_slots
     in
     let startenv_opt, rev_slots =
       Numeric_types.Int.Map.fold layout_aux map (None, [])
