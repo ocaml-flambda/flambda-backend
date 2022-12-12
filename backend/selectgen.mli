@@ -31,6 +31,8 @@ val size_expr : environment -> Cmm.expression -> int
 
 val select_mutable_flag : Asttypes.mutable_flag -> Mach.mutable_flag
 
+type region_stack
+
 module Effect : sig
   type t =
     | None
@@ -162,8 +164,12 @@ class virtual selector_generic : object
   method insert_move_results :
     environment -> Reg.t array -> Reg.t array -> int -> unit
   method insert_moves : environment -> Reg.t array -> Reg.t array -> unit
+  method insert_endregions :
+    environment -> Reg.t array list -> unit
   method emit_expr :
     environment -> Cmm.expression -> Reg.t array option
+  method emit_expr_aux :
+    environment -> Cmm.expression -> (Reg.t array * region_stack) option
   method emit_tail : environment -> Cmm.expression -> unit
 
   (* [contains_calls] is declared as a reference instance variable,
