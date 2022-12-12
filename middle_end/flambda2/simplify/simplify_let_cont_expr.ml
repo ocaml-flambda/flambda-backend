@@ -16,8 +16,8 @@
 
 open! Simplify_import
 
-let decide_param_usage_non_recursive free_names required_names removed_aliased
-    exn_bucket param : Apply_cont_rewrite.used =
+let decide_param_usage_non_recursive ~free_names ~required_names ~removed_aliased
+    ~exn_bucket param : Apply_cont_rewrite.used =
   (* The free_names computation is the reference here, because it records
      precisely what is actually used in the term being rebuilt. The required
      variables computed by the data_flow analysis can only be an over
@@ -48,7 +48,7 @@ let decide_param_usage_non_recursive free_names required_names removed_aliased
        free_names = %a" BP.print param NO.print free_names;
   if is_used then Used else Unused
 
-let decide_param_usage_recursive required_names invariant_set removed_aliased
+let decide_param_usage_recursive ~required_names ~invariant_set ~removed_aliased
     param : Apply_cont_rewrite.used =
   if Name.Set.mem (BP.name param) required_names
      && not (Variable.Set.mem (BP.var param) removed_aliased)
@@ -129,7 +129,7 @@ let make_rewrite_for_recursive_continuation uacc ~cont
          (EPA.extra_params invariant_extra_params_and_args))
   in
   let decide_param_usage =
-    decide_param_usage_recursive required_names invariant_set removed_aliased
+    decide_param_usage_recursive ~required_names ~invariant_set ~removed_aliased
   in
   let rewrite =
     Apply_cont_rewrite.create
@@ -209,7 +209,7 @@ type stage4_handler_to_rebuild =
     extra_params_and_args : EPA.t;
     invariant_extra_params_and_args : EPA.t;
     (* Note: EPA.extra_params invariant_extra_params_and_args should always be
-       equa to invariant_extra_params in stage4 *)
+       equal to invariant_extra_params in stage4 *)
     rewrite_ids : Apply_cont_rewrite_id.Set.t
   }
 
@@ -529,8 +529,8 @@ let rebuild_single_non_recursive_handler ~at_unit_toplevel
       in
       let removed_aliased = get_removed_aliased_params uacc cont in
       let decide_param_usage =
-        decide_param_usage_non_recursive free_names (UA.required_names uacc)
-          removed_aliased exn_bucket
+        decide_param_usage_non_recursive ~free_names
+          ~required_names:(UA.required_names uacc) ~removed_aliased ~exn_bucket
       in
       let rewrite =
         Apply_cont_rewrite.create ~original_params:params ~extra_params_and_args
@@ -543,10 +543,15 @@ let rebuild_single_non_recursive_handler ~at_unit_toplevel
       then
         Misc.fatal_errorf "Non-recursive continuation has invariant params: %a"
           Apply_cont_rewrite.print rewrite;
-      let new_phantom_params = Bound_parameters.empty (* TODO *) in
+      let new_phantom_params =
+        Bound_parameters.filter
+          (fun param -> NO.mem_var free_names (BP.var param))
+          (Apply_cont_rewrite.get_unused_params rewrite)
+      in
       let handler, uacc =
         add_phantom_params_bindings uacc handler new_phantom_params
       in
+      let free_names = remove_params new_phantom_params free_names in
       let cont_handler =
         RE.Continuation_handler.create
           (UA.are_rebuilding_terms uacc)
@@ -613,14 +618,7 @@ let rebuild_single_non_recursive_handler ~at_unit_toplevel
       let uacc = UA.with_uenv uacc uenv in
       (* The parameters are removed from the free name information as they are
          no longer in scope. *)
-      let free_names =
-        ListLabels.fold_left
-          (Bound_parameters.to_list params
-          @ Bound_parameters.to_list (EPA.extra_params extra_params_and_args))
-          ~init:free_names
-          ~f:(fun name_occurrences param ->
-            NO.remove_var name_occurrences ~var:(BP.var param))
-      in
+      let free_names = remove_params params free_names in
       let rebuilt_handler : rebuilt_handler =
         { handler = cont_handler;
           handler_expr = handler;
@@ -647,10 +645,15 @@ let rebuild_single_recursive_handler cont
             Continuation.print cont
         | Some rewrite -> rewrite
       in
-      let new_phantom_params = Bound_parameters.empty in
+      let new_phantom_params =
+        Bound_parameters.filter
+          (fun param -> NO.mem_var free_names (BP.var param))
+          (Apply_cont_rewrite.get_unused_params rewrite)
+      in
       let handler, uacc =
         add_phantom_params_bindings uacc handler new_phantom_params
       in
+      let free_names = remove_params new_phantom_params free_names in
       let invariant_params, variant_params =
         Apply_cont_rewrite.get_used_params rewrite
       in

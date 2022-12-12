@@ -102,6 +102,15 @@ let rec partition_used l usage =
     let invariant, normal = partition_used l usage in
     x :: invariant, normal
 
+let rec get_unused l usage =
+  match l, usage with
+  | [], [] -> []
+  | [], _ :: _ | _ :: _, [] ->
+    Misc.fatal_errorf
+      "Apply_cont_rewrite.get_unused: list and usage must have the same length"
+  | x :: l, Unused :: usage -> x :: get_unused l usage
+  | _ :: l, (Used | Used_as_invariant) :: usage -> get_unused l usage
+
 let get_used_params rewrite =
   let invariant_params, variant_params =
     partition_used
@@ -115,6 +124,19 @@ let get_used_params rewrite =
   in
   ( Bound_parameters.create (invariant_params @ invariant_extra_params),
     Bound_parameters.create (variant_params @ variant_extra_params) )
+
+let get_unused_params rewrite =
+  let unused_params =
+    get_unused
+      (Bound_parameters.to_list rewrite.original_params)
+      rewrite.original_params_usage
+  in
+  let unused_extra_params =
+    get_unused
+      (Bound_parameters.to_list rewrite.extra_params)
+      rewrite.extra_params_usage
+  in
+  Bound_parameters.create (unused_params @ unused_extra_params)
 
 type rewrite_apply_cont_ctx =
   | Apply_cont

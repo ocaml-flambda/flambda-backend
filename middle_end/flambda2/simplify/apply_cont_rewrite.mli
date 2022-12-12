@@ -40,6 +40,8 @@ val does_nothing : t -> bool
 
 val get_used_params : t -> Bound_parameters.t * Bound_parameters.t
 
+val get_unused_params : t -> Bound_parameters.t
+
 val original_params_arity : t -> Flambda_arity.With_subkinds.t
 
 type rewrite_apply_cont_ctx =
