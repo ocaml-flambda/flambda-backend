@@ -24,12 +24,11 @@ type used =
   | Used_as_invariant
 
 type t =
-  {
-    original_params_usage : used list ;
-    extra_params_usage : used list ;
-    extra_args : EA.t list Id.Map.t ;
-    original_params : Bound_parameters.t ;
-    extra_params : Bound_parameters.t ;
+  { original_params_usage : used list;
+    extra_params_usage : used list;
+    extra_args : EA.t list Id.Map.t;
+    original_params : Bound_parameters.t;
+    extra_params : Bound_parameters.t
   }
 
 let print_used ppf = function
@@ -39,8 +38,10 @@ let print_used ppf = function
 
 let print_params_used ppf (params, usage) =
   Format.fprintf ppf "(%a)"
-    (Format.pp_print_list ~pp_sep:Format.pp_print_space (fun ppf (param, used) ->
-         Format.fprintf ppf "(%a:@ %a)" Bound_parameter.print param print_used used))
+    (Format.pp_print_list ~pp_sep:Format.pp_print_space
+       (fun ppf (param, used) ->
+         Format.fprintf ppf "(%a:@ %a)" Bound_parameter.print param print_used
+           used))
     (List.combine (Bound_parameters.to_list params) usage)
 
 let [@ocamlformat "disable"] print ppf
@@ -58,10 +59,12 @@ let [@ocamlformat "disable"] print ppf
     extra_args
 
 let does_nothing t =
-  List.for_all (function | Used -> true | Used_as_invariant | Unused -> false)
-    t.original_params_usage &&
-  List.for_all (function | Unused -> true | Used | Used_as_invariant -> false)
-    t.extra_params_usage
+  List.for_all
+    (function Used -> true | Used_as_invariant | Unused -> false)
+    t.original_params_usage
+  && List.for_all
+       (function Unused -> true | Used | Used_as_invariant -> false)
+       t.extra_params_usage
 
 let create ~original_params ~extra_params_and_args ~decide_param_usage =
   let extra_params = EPA.extra_params extra_params_and_args in
@@ -74,8 +77,12 @@ let create ~original_params ~extra_params_and_args ~decide_param_usage =
   let extra_params_usage =
     List.map decide_param_usage (Bound_parameters.to_list extra_params)
   in
-  { original_params_usage; extra_params_usage; extra_args;
-    original_params; extra_params }
+  { original_params_usage;
+    extra_params_usage;
+    extra_args;
+    original_params;
+    extra_params
+  }
 
 let original_params_arity t =
   Bound_parameters.arity_with_subkinds t.original_params
@@ -84,9 +91,10 @@ let rec partition_used l usage =
   match l, usage with
   | [], [] -> [], []
   | [], _ :: _ | _ :: _, [] ->
-    Misc.fatal_error "Apply_cont_rewrite.partition_used: list and usage must have the same length"
-  | _ :: l, Unused :: usage ->
-    partition_used l usage
+    Misc.fatal_error
+      "Apply_cont_rewrite.partition_used: list and usage must have the same \
+       length"
+  | _ :: l, Unused :: usage -> partition_used l usage
   | x :: l, Used :: usage ->
     let invariant, normal = partition_used l usage in
     invariant, x :: normal
@@ -96,15 +104,17 @@ let rec partition_used l usage =
 
 let get_used_params rewrite =
   let invariant_params, variant_params =
-    partition_used (Bound_parameters.to_list rewrite.original_params)
+    partition_used
+      (Bound_parameters.to_list rewrite.original_params)
       rewrite.original_params_usage
   in
   let invariant_extra_params, variant_extra_params =
-    partition_used (Bound_parameters.to_list rewrite.extra_params)
+    partition_used
+      (Bound_parameters.to_list rewrite.extra_params)
       rewrite.extra_params_usage
   in
-  Bound_parameters.create (invariant_params @ invariant_extra_params),
-  Bound_parameters.create (variant_params @ variant_extra_params)
+  ( Bound_parameters.create (invariant_params @ invariant_extra_params),
+    Bound_parameters.create (variant_params @ variant_extra_params) )
 
 type rewrite_apply_cont_ctx =
   | Apply_cont
@@ -112,21 +122,25 @@ type rewrite_apply_cont_ctx =
 
 let extra_args_list rewrite id =
   try Id.Map.find id rewrite.extra_args
-  with Not_found ->
-  match rewrite.extra_params_usage with
-  | [] -> []
-  | _ :: _ ->
-    Misc.fatal_errorf
-      "Apply_cont_rewrite.extra_args_list:@ \
-       Could not find extra args but extra params were not empty"
+  with Not_found -> (
+    match rewrite.extra_params_usage with
+    | [] -> []
+    | _ :: _ ->
+      Misc.fatal_errorf
+        "Apply_cont_rewrite.extra_args_list:@ Could not find extra args but \
+         extra params were not empty")
 
 let make_rewrite rewrite ~ctx id args =
-  let invariant_args, args = partition_used args rewrite.original_params_usage in
+  let invariant_args, args =
+    partition_used args rewrite.original_params_usage
+  in
   let extra_args_list = extra_args_list rewrite id in
   let extra_invariant_args_rev, extra_args_rev, extra_lets, _ =
     List.fold_left2
-      (fun (extra_invariant_args_rev, extra_args_rev, extra_lets, required_by_other_extra_args)
-           (arg : EA.t) used ->
+      (fun ( extra_invariant_args_rev,
+             extra_args_rev,
+             extra_lets,
+             required_by_other_extra_args ) (arg : EA.t) used ->
         (* Some extra_args computation can depend on other extra args. But those
            required extra args might not be needed as argument to the
            continuation. But we want to keep the let bindings.
@@ -142,8 +156,10 @@ let make_rewrite rewrite ~ctx id args =
                 Code_size.prim prim,
                 Flambda.Named.create_prim prim Debuginfo.none )
             in
-            Simple.var temp, [extra_let], Flambda_primitive.free_names prim,
-            Name_occurrences.singleton_variable temp Name_mode.normal
+            ( Simple.var temp,
+              [extra_let],
+              Flambda_primitive.free_names prim,
+              Name_occurrences.singleton_variable temp Name_mode.normal )
           | New_let_binding_with_named_args (temp, gen_prim) ->
             let prim =
               match (ctx : rewrite_apply_cont_ctx) with
@@ -159,68 +175,85 @@ let make_rewrite rewrite ~ctx id args =
                 Code_size.prim prim,
                 Flambda.Named.create_prim prim Debuginfo.none )
             in
-            Simple.var temp, [extra_let], Flambda_primitive.free_names prim,
-            Name_occurrences.singleton_variable temp Name_mode.normal
+            ( Simple.var temp,
+              [extra_let],
+              Flambda_primitive.free_names prim,
+              Name_occurrences.singleton_variable temp Name_mode.normal )
         in
         let required_let, extra_invariant_args_rev, extra_args_rev =
           match used with
-          | Used ->
-            true, extra_invariant_args_rev, extra_arg :: extra_args_rev
+          | Used -> true, extra_invariant_args_rev, extra_arg :: extra_args_rev
           | Used_as_invariant ->
             true, extra_arg :: extra_invariant_args_rev, extra_args_rev
           | Unused ->
-            Name_occurrences.inter_domain_is_non_empty defined_names
-              required_by_other_extra_args,
-            extra_invariant_args_rev, extra_args_rev
+            ( Name_occurrences.inter_domain_is_non_empty defined_names
+                required_by_other_extra_args,
+              extra_invariant_args_rev,
+              extra_args_rev )
         in
         if required_let
         then
-          ( extra_invariant_args_rev, extra_args_rev,
+          ( extra_invariant_args_rev,
+            extra_args_rev,
             extra_let @ extra_lets,
             Name_occurrences.union free_names required_by_other_extra_args )
-        else extra_invariant_args_rev, extra_args_rev, extra_lets, required_by_other_extra_args)
+        else
+          ( extra_invariant_args_rev,
+            extra_args_rev,
+            extra_lets,
+            required_by_other_extra_args ))
       ([], [], [], Name_occurrences.empty)
       extra_args_list rewrite.extra_params_usage
   in
-  extra_lets,
-  invariant_args @ List.rev_append extra_invariant_args_rev args @ List.rev extra_args_rev
+  ( extra_lets,
+    invariant_args
+    @ List.rev_append extra_invariant_args_rev args
+    @ List.rev extra_args_rev )
 
 let rewrite_exn_continuation rewrite id exn_cont =
   let exn_cont_arity = Exn_continuation.arity exn_cont in
   if not
-       (Flambda_arity.With_subkinds.equal
-          exn_cont_arity
+       (Flambda_arity.With_subkinds.equal exn_cont_arity
           (original_params_arity rewrite))
   then
     Misc.fatal_errorf
       "Arity of exception continuation %a does not match@ [original_params] \
        (%a)"
-      Exn_continuation.print exn_cont Bound_parameters.print rewrite.original_params;
+      Exn_continuation.print exn_cont Bound_parameters.print
+      rewrite.original_params;
   assert (Flambda_arity.With_subkinds.cardinal exn_cont_arity >= 1);
-  if List.hd rewrite.original_params_usage <> Used then
-    Misc.fatal_errorf "The usage of the exn parameter of the continuation rewrite should be [Used]: %a"
+  if List.hd rewrite.original_params_usage <> Used
+  then
+    Misc.fatal_errorf
+      "The usage of the exn parameter of the continuation rewrite should be \
+       [Used]: %a"
       print rewrite;
-  if List.exists (fun x -> x = Used_as_invariant)
-      (rewrite.original_params_usage @ rewrite.extra_params_usage) then
-    Misc.fatal_errorf "An exception continuation should never have invariant parameters: %a"
+  if List.exists
+       (fun x -> x = Used_as_invariant)
+       (rewrite.original_params_usage @ rewrite.extra_params_usage)
+  then
+    Misc.fatal_errorf
+      "An exception continuation should never have invariant parameters: %a"
       print rewrite;
-  let _, extra_args0 = partition_used (Exn_continuation.extra_args exn_cont)
+  let _, extra_args0 =
+    partition_used
+      (Exn_continuation.extra_args exn_cont)
       (List.tl rewrite.original_params_usage)
   in
   let _, extra_args1 =
     let extra_args_list =
-      List.map2 (fun (arg : EA.t) extra_param ->
+      List.map2
+        (fun (arg : EA.t) extra_param ->
           match arg with
-          | Already_in_scope simple ->
-            simple, Bound_parameter.kind extra_param
+          | Already_in_scope simple -> simple, Bound_parameter.kind extra_param
           | New_let_binding _ | New_let_binding_with_named_args _ ->
             (* Note: this is unsupported for now. If we choose to support it in
-               the future, we must take care of not introducing a wrapper continuation,
-               which would come with its own pushtrap/poptrap. *)
+               the future, we must take care of not introducing a wrapper
+               continuation, which would come with its own pushtrap/poptrap. *)
             Misc.fatal_error
               "[New_let_binding] are currently forbidden for exn continuation \
-               rewrites"
-        ) (extra_args_list rewrite id)
+               rewrites")
+        (extra_args_list rewrite id)
         (Bound_parameters.to_list rewrite.extra_params)
     in
     partition_used extra_args_list rewrite.extra_params_usage

@@ -56,7 +56,8 @@ let deciders =
     Unboxers.Int64.decider;
     Unboxers.Nativeint.decider ]
 
-let rec make_optimistic_decision ~depth ~recursive tenv ~param_type : U.decision =
+let rec make_optimistic_decision ~depth ~recursive tenv ~param_type : U.decision
+    =
   let param_type_is_alias_to_symbol =
     match T.get_alias_exn param_type with
     | exception Not_found -> false
@@ -87,8 +88,8 @@ let rec make_optimistic_decision ~depth ~recursive tenv ~param_type : U.decision
         match T.prove_unique_tag_and_size tenv param_type with
         | Proved (tag, size) when unbox_blocks ->
           let fields =
-            make_optimistic_fields ~add_tag_to_name:false ~depth ~recursive tenv param_type
-              tag size
+            make_optimistic_fields ~add_tag_to_name:false ~depth ~recursive tenv
+              param_type tag size
           in
           Unbox (Unique_tag_and_size { tag; fields })
         | Proved _ | Unknown -> (
@@ -105,8 +106,8 @@ let rec make_optimistic_decision ~depth ~recursive tenv ~param_type : U.decision
               Tag.Scannable.Map.mapi
                 (fun scannable_tag size ->
                   let tag = Tag.Scannable.to_tag scannable_tag in
-                  make_optimistic_fields ~add_tag_to_name:true ~depth ~recursive tenv
-                    param_type tag size)
+                  make_optimistic_fields ~add_tag_to_name:true ~depth ~recursive
+                    tenv param_type tag size)
                 non_const_ctors_with_sizes
             in
             Unbox (Variant { tag; const_ctors; fields_by_tag })
@@ -115,14 +116,15 @@ let rec make_optimistic_decision ~depth ~recursive tenv ~param_type : U.decision
             | Proved (function_slot, _, closures_entry, _fun_decl)
               when unbox_closures && not recursive ->
               let vars_within_closure =
-                make_optimistic_vars_within_closure ~depth ~recursive tenv closures_entry
+                make_optimistic_vars_within_closure ~depth ~recursive tenv
+                  closures_entry
               in
               Unbox
                 (Closure_single_entry { function_slot; vars_within_closure })
             | Proved _ | Unknown -> Do_not_unbox Incomplete_parameter_type)))
 
-and make_optimistic_fields ~add_tag_to_name ~depth ~recursive tenv param_type (tag : Tag.t)
-    size =
+and make_optimistic_fields ~add_tag_to_name ~depth ~recursive tenv param_type
+    (tag : Tag.t) size =
   let field_kind, field_base_name =
     if Tag.equal tag Tag.double_array_tag
     then K.naked_float, "unboxed_float_field"
@@ -169,7 +171,8 @@ and make_optimistic_fields ~add_tag_to_name ~depth ~recursive tenv param_type (t
     List.map2
       (fun epa var_type : U.field_decision ->
         let decision =
-          make_optimistic_decision ~depth:(depth + 1) ~recursive tenv ~param_type:var_type
+          make_optimistic_decision ~depth:(depth + 1) ~recursive tenv
+            ~param_type:var_type
         in
         { epa; decision; kind = field_kind_with_subkind })
       field_vars field_types
@@ -184,7 +187,8 @@ and make_optimistic_vars_within_closure ~depth ~recursive tenv closures_entry =
         Extra_param_and_args.create ~name:(Value_slot.to_string value_slot)
       in
       let decision =
-        make_optimistic_decision ~depth:(depth + 1) ~recursive tenv ~param_type:var_type
+        make_optimistic_decision ~depth:(depth + 1) ~recursive tenv
+          ~param_type:var_type
       in
       let kind =
         K.With_subkind.create

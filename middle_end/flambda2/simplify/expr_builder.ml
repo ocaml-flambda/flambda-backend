@@ -663,9 +663,7 @@ let no_rewrite_apply_cont apply_cont = Apply_cont apply_cont
 let rewrite_apply_cont0 uacc rewrite ~ctx id apply_cont :
     rewrite_apply_cont_result =
   let args = Apply_cont.args apply_cont in
-  let extra_lets, args =
-    Apply_cont_rewrite.make_rewrite rewrite ~ctx id args
-  in
+  let extra_lets, args = Apply_cont_rewrite.make_rewrite rewrite ~ctx id args in
   let apply_cont = Apply_cont.update_args apply_cont ~args in
   match extra_lets with
   | [] -> Apply_cont apply_cont

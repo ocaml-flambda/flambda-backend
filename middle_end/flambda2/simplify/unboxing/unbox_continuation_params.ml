@@ -56,7 +56,8 @@ end
 
 let make_do_not_unbox_decisions params : Decisions.t =
   let decisions =
-    List.map (fun param -> (param, U.Do_not_unbox Unboxing_not_requested))
+    List.map
+      (fun param -> param, U.Do_not_unbox Unboxing_not_requested)
       (Bound_parameters.to_list params)
   in
   { decisions; rewrite_ids_seen = Apply_cont_rewrite_id.Set.empty }
@@ -75,7 +76,8 @@ let make_decisions ~continuation_is_recursive ~arg_types_by_use_id denv params
           (* CR ncourant: optimistic_unboxing_decision should take recursive as
              argument, and we should not refine if recursive *)
           Optimistic_unboxing_decision.make_optimistic_decision ~depth:0
-            ~recursive:continuation_is_recursive (DE.typing_env denv) ~param_type
+            ~recursive:continuation_is_recursive (DE.typing_env denv)
+            ~param_type
         in
         let decision =
           if continuation_is_recursive

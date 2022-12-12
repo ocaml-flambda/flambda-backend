@@ -547,8 +547,8 @@ and let_cont_rec env res invariant_params conts body =
           Continuation_handler.pattern_match' handler
             ~f:(fun params ~num_normal_occurrences_of_params:_ ~handler:_ ->
               List.map C.machtype_of_kinded_parameter
-                (Bound_parameters.to_list (Bound_parameters.append invariant_params params))
-              )
+                (Bound_parameters.to_list
+                   (Bound_parameters.append invariant_params params)))
         in
         snd (Env.add_jump_cont acc k ~param_types:continuation_arg_tys))
       conts_to_handlers env
@@ -560,7 +560,10 @@ and let_cont_rec env res invariant_params conts body =
     Continuation.Map.fold
       (fun k handler (conts_to_handlers, res) ->
         let vars, _arity, handler, res = continuation_handler env res handler in
-        Continuation.Map.add k (invariant_vars @ vars, handler) conts_to_handlers, res)
+        ( Continuation.Map.add k
+            (invariant_vars @ vars, handler)
+            conts_to_handlers,
+          res ))
       conts_to_handlers
       (Continuation.Map.empty, res)
   in

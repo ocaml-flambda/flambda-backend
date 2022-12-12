@@ -54,7 +54,4 @@ val make_rewrite :
   (Bound_var.t * Code_size.t * Flambda.Named.t) list * Simple.t list
 
 val rewrite_exn_continuation :
-  t ->
-  Apply_cont_rewrite_id.t ->
-  Exn_continuation.t ->
-  Exn_continuation.t
+  t -> Apply_cont_rewrite_id.t -> Exn_continuation.t -> Exn_continuation.t

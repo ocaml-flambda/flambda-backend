@@ -268,7 +268,8 @@ let compute_result_types ~is_a_functor ~return_cont_uses ~dacc_after_body
     let join =
       Join_points.compute_handler_env
         ~cut_after:(Scope.prev (DE.get_continuation_scope env_at_fork))
-        (Continuation_uses.get_uses uses) ~is_recursive:false ~params:return_cont_params ~env_at_fork
+        (Continuation_uses.get_uses uses)
+        ~is_recursive:false ~params:return_cont_params ~env_at_fork
         ~consts_lifted_during_body:lifted_consts_this_function
     in
     let params_and_results =

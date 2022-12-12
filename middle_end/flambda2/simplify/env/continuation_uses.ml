@@ -85,24 +85,35 @@ let add_value_to_arg_map arg_map arg_type ~use =
 let add_uses_to_arg_maps arg_maps uses =
   List.fold_left
     (fun arg_maps use ->
-       let arg_types = U.arg_types use in
-       fst (Misc.Stdlib.List.map2_prefix
-              (fun arg_map arg_type -> add_value_to_arg_map arg_map arg_type ~use)
-              arg_maps arg_types))
+      let arg_types = U.arg_types use in
+      fst
+        (Misc.Stdlib.List.map2_prefix
+           (fun arg_map arg_type -> add_value_to_arg_map arg_map arg_type ~use)
+           arg_maps arg_types))
     arg_maps uses
 
 let empty_arg_maps arity : arg_types_by_use_id =
-  List.map (fun _ -> Apply_cont_rewrite_id.Map.empty) (Flambda_arity.to_list arity)
+  List.map
+    (fun _ -> Apply_cont_rewrite_id.Map.empty)
+    (Flambda_arity.to_list arity)
 
 let get_arg_types_by_use_id t =
   add_uses_to_arg_maps (empty_arg_maps t.arity) t.uses
 
 let get_arg_types_by_use_id_for_invariant_params arity l =
-  List.fold_left (fun arg_maps t ->
-      if not (Misc.Stdlib.List.is_prefix ~equal:Flambda_kind.equal (Flambda_arity.to_list arity) ~of_:(Flambda_arity.to_list t.arity)) then
-        Misc.fatal_errorf "Arity of invariant params@ (%a) is not a prefix of the arity of the continuation uses@ (%a)" Flambda_arity.print arity Flambda_arity.print t.arity;
-      add_uses_to_arg_maps arg_maps t.uses
-    ) (empty_arg_maps arity) l
+  List.fold_left
+    (fun arg_maps t ->
+      if not
+           (Misc.Stdlib.List.is_prefix ~equal:Flambda_kind.equal
+              (Flambda_arity.to_list arity)
+              ~of_:(Flambda_arity.to_list t.arity))
+      then
+        Misc.fatal_errorf
+          "Arity of invariant params@ (%a) is not a prefix of the arity of the \
+           continuation uses@ (%a)"
+          Flambda_arity.print arity Flambda_arity.print t.arity;
+      add_uses_to_arg_maps arg_maps t.uses)
+    (empty_arg_maps arity) l
 
 let get_use_ids t =
   List.fold_left

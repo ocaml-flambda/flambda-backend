@@ -409,7 +409,8 @@ and subst_let_cont env (let_cont_expr : Let_cont_expr.t) =
         Let_cont_expr.create_non_recursive cont handler ~body
           ~free_names_of_body:Unknown)
   | Recursive handlers ->
-    Recursive_let_cont_handlers.pattern_match handlers ~f:(fun ~invariant_params ~body handlers ->
+    Recursive_let_cont_handlers.pattern_match handlers
+      ~f:(fun ~invariant_params ~body handlers ->
         let body = subst_expr env body in
         let handlers =
           Continuation.Map.map_sharing (subst_cont_handler env)
