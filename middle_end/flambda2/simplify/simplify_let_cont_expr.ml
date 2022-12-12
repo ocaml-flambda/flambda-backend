@@ -38,7 +38,7 @@ let decide_param_usage_non_recursive free_names required_names removed_aliased e
       "The data_flow analysis marked the param %a@ as not \
        required, but the free_names indicate it is actually used:@ \n\
        free_names = %a" BP.print param NO.print free_names;
-  if is_used && not (Variable.Set.mem param_var removed_aliased) then
+  if is_used && Variable.Set.mem param_var removed_aliased then
     Misc.fatal_errorf
       "The alias analysis marked the param %a@ as removed, \
        but the free_names indicate it is actually used:@ \n\
