@@ -144,6 +144,7 @@ _build
 /otherlibs/dynlink/dynlink_compilerlibs/*.ml
 /otherlibs/dynlink/dynlink_compilerlibs/*.mli
 /otherlibs/dynlink/dynlink_compilerlibs/.depend
+/otherlibs/dynlink/dynlink_compilerlibs.mli
 /otherlibs/threads/marshal.mli
 /otherlibs/threads/stdlib.mli
 /otherlibs/threads/unix.mli
