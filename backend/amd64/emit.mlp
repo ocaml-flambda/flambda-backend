@@ -698,39 +698,28 @@ let emit_push_trap_label handler =
   traps.push_traps <- lbl::traps.push_traps;
   traps.enter_traps <- Int.Set.add handler traps.enter_traps
 
-let emit_cas instr size addr =
-  (* compare_with is in rax *)
-  let res = res instr 0 in
-  let res8 = res8 instr 0 in
-  let qword, set_to, dst =
-    match size with
-    | Word_int | Word_val ->
-      true, arg instr 1, addressing addr QWORD instr 2
-    | Thirtytwo_signed | Thirtytwo_unsigned ->
-      false, arg32 instr 1, addressing addr DWORD instr 2
-    | Byte_unsigned | Byte_signed
-    | Sixteen_unsigned | Sixteen_signed
-    | Single | Double -> Misc.fatal_error "Atomic cas got non 32/64 bit size."
-  in
-  match qword with
-  | true -> I.lock_cmpxchgq set_to dst; I.set E res8; I.movzx res8 res
-  | false -> I.lock_cmpxchgl set_to dst; I.set E res8; I.movzx res8 res
-
 let emit_atomic instr op size addr =
-  let qword, src, dst =
+  let qword =
     match size with
-    | Word_int | Word_val ->
-      true, arg instr 0, addressing addr QWORD instr 1
-    | Thirtytwo_signed | Thirtytwo_unsigned ->
-      false, arg32 instr 0, addressing addr DWORD instr 1
+    | Word_int | Word_val -> false
+    | Thirtytwo_signed | Thirtytwo_unsigned -> true
     | Byte_unsigned | Byte_signed
     | Sixteen_unsigned | Sixteen_signed
     | Single | Double -> Misc.fatal_error "Atomic got non 32/64 bit size."
   in
-  match qword, op with
-  | true, Ifetch_and_add -> I.lock_xaddq src dst
-  | false, Ifetch_and_add -> I.lock_xaddl src dst
-  | _, Icompare_and_swap -> emit_cas instr size addr
+  let src, dst = match op, qword with
+  | Ifetch_and_add, false -> arg32 instr 0, addressing addr DWORD instr 1
+  | Ifetch_and_add, true -> arg instr 0, addressing addr QWORD instr 1
+  | Icompare_and_swap, false -> arg32 instr 1, addressing addr DWORD instr 2
+  | Icompare_and_swap, true -> arg instr 1, addressing addr QWORD instr 2 in
+  match op with
+  | Ifetch_and_add -> I.lock_xadd src dst
+  | Icompare_and_swap ->
+    (* compare_with is already in rax, set_to is src *)
+    let res8, res = res8 instr 0, res instr 0 in
+    I.lock_cmpxchg src dst;
+    I.set E res8;
+    I.movzx res8 res
 
 (* Emit an instruction *)
 let emit_instr fallthrough i =

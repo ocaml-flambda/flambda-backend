@@ -3322,12 +3322,14 @@ let ext_pointer_prefetch ~is_write locality arg dbg =
 let native_pointer_cas size (dst, compare_with, set_to) dbg =
   let op = Catomic { op = Compare_and_swap; size } in
   if_operation_supported op ~f:(fun () ->
-      Cop (op, [compare_with; set_to; dst], dbg))
+      tag_int (Cop (op, [compare_with; set_to; dst], dbg)) dbg)
 
 let ext_pointer_cas size (dst, compare_with, set_to) dbg =
   let op = Catomic { op = Compare_and_swap; size } in
   if_operation_supported op ~f:(fun () ->
-      Cop (op, [compare_with; set_to; int_as_pointer dst dbg], dbg))
+      tag_int
+        (Cop (op, [compare_with; set_to; int_as_pointer dst dbg], dbg))
+        dbg)
 
 let bigstring_cas size (bs, idx, compare_with, set_to) dbg =
   let op = Catomic { op = Compare_and_swap; size } in
@@ -3335,7 +3337,9 @@ let bigstring_cas size (bs, idx, compare_with, set_to) dbg =
       let ba_data =
         Cop (Cload (Word_int, Mutable), [field_address bs 1 dbg], dbg)
       in
-      Cop (op, [compare_with; set_to; add_int ba_data idx dbg], dbg))
+      tag_int
+        (Cop (op, [compare_with; set_to; add_int ba_data idx dbg], dbg))
+        dbg)
 
 let native_pointer_atomic op size (dst, src) dbg =
   let src =
