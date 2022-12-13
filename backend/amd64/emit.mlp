@@ -700,7 +700,8 @@ let emit_push_trap_label handler =
 
 let emit_cas instr size addr =
   (* compare_with is in rax *)
-  let res = res8 instr 0 in
+  let res = res instr 0 in
+  let res8 = res8 instr 0 in
   let qword, set_to, dst =
     match size with
     | Word_int | Word_val ->
@@ -712,8 +713,8 @@ let emit_cas instr size addr =
     | Single | Double -> Misc.fatal_error "Atomic cas got non 32/64 bit size."
   in
   match qword with
-  | true -> I.lock_cmpxchgq set_to dst; I.set E res
-  | false -> I.lock_cmpxchgl set_to dst; I.set E res
+  | true -> I.lock_cmpxchgq set_to dst; I.set E res8; I.movzx res8 res
+  | false -> I.lock_cmpxchgl set_to dst; I.set E res8; I.movzx res8 res
 
 let emit_atomic instr op size addr =
   let qword, src, dst =
