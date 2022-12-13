@@ -23,7 +23,7 @@ jobs:
 
           - name: i386
             config: CC='cc32' AS='as --32' ASPP='gcc -m32 -c' -host i386-linux PARTIALLD='ld -r -melf_i386'
-            os: ubuntu-latest
+            os: ubuntu-20.04
             ocamlparam: ''
             boot_config: CC='cc32' AS='as --32' ASPP='gcc -m32 -c' -host i386-linux PARTIALLD='ld -r -melf_i386'
             boot_cachekey: 32bit

@@ -117,8 +117,10 @@ let value_description sub x = sub.typ sub x.val_desc
 
 let label_decl sub {ld_type; _} = sub.typ sub ld_type
 
+let field_decl sub (ty, _) = sub.typ sub ty
+
 let constructor_args sub = function
-  | Cstr_tuple l -> List.iter (sub.typ sub) l
+  | Cstr_tuple l -> List.iter (field_decl sub) l
   | Cstr_record l -> List.iter (label_decl sub) l
 
 let constructor_decl sub {cd_args; cd_res; _} =

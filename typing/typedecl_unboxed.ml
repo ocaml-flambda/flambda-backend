@@ -27,7 +27,7 @@ let rec get_unboxed_type_representation env ty fuel =
     | exception Not_found -> Some ty
     | {type_params; type_kind =
          Type_record ([{ld_type = ty2; _}], Record_unboxed _)
-       | Type_variant ([{cd_args = Cstr_tuple [ty2]; _}], Variant_unboxed)
+       | Type_variant ([{cd_args = Cstr_tuple [ty2, _]; _}], Variant_unboxed)
        | Type_variant ([{cd_args = Cstr_record [{ld_type = ty2; _}]; _}],
                        Variant_unboxed)}
       ->
