@@ -81,25 +81,14 @@ let linkage_name_for_compilation_unit comp_unit =
   caml_symbol_prefix ^ suffix
   |> Linkage_name.of_string
 
-let for_global_or_predef_ident pack_prefix id =
-  assert (Ident.is_global_or_predef id);
-  let linkage_name, compilation_unit =
-    if Ident.is_predef id then
-      "caml_exn_" ^ Ident.name id |> Linkage_name.of_string, CU.predef_exn
-    else
-      let compilation_unit =
-        Compilation_unit.create pack_prefix
-          (Ident.name id |> Compilation_unit.Name.of_string)
-      in
-      linkage_name_for_compilation_unit compilation_unit, compilation_unit
-  in
+let for_predef_ident id =
+  assert (Ident.is_predef id);
+  let linkage_name = "caml_exn_" ^ Ident.name id |> Linkage_name.of_string in
+  let compilation_unit = CU.predef_exn in
   { compilation_unit;
     linkage_name;
     hash = Hashtbl.hash linkage_name;
   }
-
-let for_predef_ident id =
-  for_global_or_predef_ident Compilation_unit.Prefix.empty id
 
 let unsafe_create compilation_unit linkage_name =
   { compilation_unit;

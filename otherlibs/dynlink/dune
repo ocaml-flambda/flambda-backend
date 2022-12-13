@@ -228,13 +228,15 @@
 
 (rule
   (targets dynlink.cma)
-  (deps dynlink_internal.cma)
   (action
     (run %{ocamlc}
       -g -a
       -ccopt %{read:natdynlinkops}
       -o dynlink.cma
+      %{deps}))
+  (deps
       ; NOTE: Be sure to keep these arguments in dependency order!
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Int_replace_polymorphic_compare.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Binutils.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Local_store.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Build_path_prefix_map.cmo
@@ -250,12 +252,14 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Location.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ident.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Longident.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Compilation_unit.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Linkage_name.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Symbol.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Path.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Types.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Syntaxerr.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Bytesections.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Cmi_format.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Int_replace_polymorphic_compare.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Debuginfo.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Btype.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Consistbl.cmo
@@ -281,26 +285,24 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Runtimedef.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Symtable.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Opcodes.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Compilation_unit.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Linkage_name.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Symbol.cmo
       .dynlink_internal.objs/byte/dynlink_types.cmo
       .dynlink_internal.objs/byte/dynlink_platform_intf.cmo
       .dynlink_internal.objs/byte/dynlink_common.cmo
       .dynlink_internal.objs/byte/dynlink.cmo
     )
-  )
 )
 
 (rule
   (targets dynlink.cmxa dynlink.a)
-  (deps dynlink_internal.cmxa)
   (action
     (run %{ocamlopt}
       -g -a
       -ccopt %{read:natdynlinkops}
       -o dynlink.cmxa
+      %{deps}))
+  (deps
       ; NOTE: Be sure to keep these arguments in dependency order!
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Int_replace_polymorphic_compare.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Binutils.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Local_store.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Build_path_prefix_map.cmx
@@ -316,12 +318,14 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Location.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ident.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Longident.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Compilation_unit.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Linkage_name.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Symbol.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Path.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Types.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Syntaxerr.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Bytesections.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Cmi_format.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Int_replace_polymorphic_compare.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Debuginfo.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Btype.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Consistbl.cmx
@@ -347,15 +351,11 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Runtimedef.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Symtable.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Opcodes.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Compilation_unit.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Linkage_name.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Symbol.cmx
       .dynlink_internal.objs/native/dynlink_types.cmx
       .dynlink_internal.objs/native/dynlink_platform_intf.cmx
       .dynlink_internal.objs/native/dynlink_common.cmx
       .dynlink_internal.objs/native/dynlink.cmx
     )
-  )
 )
 
 (executable

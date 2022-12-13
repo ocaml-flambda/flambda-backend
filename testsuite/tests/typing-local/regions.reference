@@ -13,6 +13,7 @@
          toplevel binding: OK
      toplevel rec binding: OK
             toplevel eval: OK
+      constant switch arm: OK
           first class mod: OK
        class d definition: OK
         class definitions: OK

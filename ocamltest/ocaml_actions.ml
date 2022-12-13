@@ -1129,13 +1129,15 @@ let no_flat_float_array = make
 
 let flambda = Actions.make
   "flambda"
-  (Actions_helpers.pass_or_skip Ocamltest_config.flambda
+  (Actions_helpers.pass_or_skip
+     (Ocamltest_config.flambda || Ocamltest_config.flambda2)
     "support for flambda enabled"
     "support for flambda disabled")
 
 let no_flambda = make
   "no-flambda"
-  (Actions_helpers.pass_or_skip (not Ocamltest_config.flambda)
+  (Actions_helpers.pass_or_skip
+     (not (Ocamltest_config.flambda || Ocamltest_config.flambda2))
     "support for flambda disabled"
     "support for flambda enabled")
 
@@ -1208,6 +1210,18 @@ let stack_allocation = Actions.make
 let no_stack_allocation = Actions.make
   "no-stack-allocation"
   (Actions_helpers.pass_or_skip (not Ocamltest_config.stack_allocation)
+    "Stack allocation disabled"
+    "Stack allocation enabled")
+
+let poll_insertion = Actions.make
+  "poll-insertion"
+  (Actions_helpers.pass_or_skip Ocamltest_config.poll_insertion
+    "Poll insertion enabled"
+    "Poll insertion disabled")
+
+let no_poll_insertion = Actions.make
+  "no-poll-insertion"
+  (Actions_helpers.pass_or_skip (not Ocamltest_config.poll_insertion)
     "Stack allocation disabled"
     "Stack allocation enabled")
 
@@ -1408,6 +1422,8 @@ let _ =
     no_afl_instrument;
     stack_allocation;
     no_stack_allocation;
+    poll_insertion;
+    no_poll_insertion;
     setup_ocamldoc_build_env;
     run_ocamldoc;
     check_ocamldoc_output;
