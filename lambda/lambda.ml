@@ -107,8 +107,9 @@ type primitive =
   | Pbytes_of_string
   | Pignore
     (* Globals *)
-  | Pgetglobal of Ident.t
-  | Psetglobal of Ident.t
+  | Pgetglobal of Compilation_unit.t
+  | Psetglobal of Compilation_unit.t
+  | Pgetpredef of Ident.t
   (* Operations on heap blocks *)
   | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pmakefloatblock of mutable_flag * alloc_mode
@@ -375,6 +376,11 @@ type check_attribute =
   | Assert of property
   | Assume of property
 
+type loop_attribute =
+  | Always_loop (* [@loop] or [@loop always] *)
+  | Never_loop (* [@loop never] *)
+  | Default_loop (* no [@loop] attribute *)
+
 type function_kind = Curried of {nlocal: int} | Tupled
 
 type let_kind = Strict | Alias | StrictOpt
@@ -396,6 +402,7 @@ type function_attribute = {
   local: local_attribute;
   check : check_attribute;
   poll: poll_attribute;
+  loop: loop_attribute;
   is_a_functor: bool;
   stub: bool;
   tmc_candidate: bool;
@@ -490,9 +497,9 @@ and lambda_event_kind =
   | Lev_module_definition of Ident.t
 
 type program =
-  { module_ident : Ident.t;
+  { compilation_unit : Compilation_unit.t;
     main_module_block_size : int;
-    required_globals : Ident.Set.t;
+    required_globals : Compilation_unit.Set.t;
     code : lambda }
 
 let const_int n = Const_base (Const_int n)
@@ -537,6 +544,7 @@ let default_function_attribute = {
   local = Default_local;
   check = Default_check ;
   poll = Default_poll;
+  loop = Default_loop;
   is_a_functor = false;
   stub = false;
   tmc_candidate = false;
@@ -831,9 +839,10 @@ let rec patch_guarded patch = function
 (* Translate an access path *)
 
 let rec transl_address loc = function
-  | Env.Aident id ->
-      if Ident.is_global_or_predef id
-      then Lprim(Pgetglobal id, [], loc)
+  | Env.Aunit cu -> Lprim(Pgetglobal cu, [], loc)
+  | Env.Alocal id ->
+      if Ident.is_predef id
+      then Lprim (Pgetpredef id, [], loc)
       else Lvar id
   | Env.Adot(addr, pos) ->
       Lprim(Pfield (pos, Reads_agree), [transl_address loc addr], loc)
@@ -1203,7 +1212,7 @@ let mod_setfield pos =
 
 let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pbytes_to_string | Pbytes_of_string | Pignore -> None
-  | Pgetglobal _ | Psetglobal _ -> None
+  | Pgetglobal _ | Psetglobal _ | Pgetpredef _ -> None
   | Pmakeblock (_, _, _, m) -> Some m
   | Pmakefloatblock (_, m) -> Some m
   | Pfield _ | Pfield_computed _ | Psetfield _ | Psetfield_computed _ -> None

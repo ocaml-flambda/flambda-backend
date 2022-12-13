@@ -112,7 +112,8 @@ let preserve_tailcall_for_prim = function
     Popaque | Psequor | Psequand
   | Pobj_magic ->
       true
-  | Pbytes_to_string | Pbytes_of_string | Pignore | Pgetglobal _ | Psetglobal _
+  | Pbytes_to_string | Pbytes_of_string | Pignore
+  | Pgetglobal _ | Psetglobal _ | Pgetpredef _
   | Pmakeblock _ | Pmakefloatblock _
   | Pfield _ | Pfield_computed _ | Psetfield _
   | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Pduprecord _
@@ -390,8 +391,11 @@ let comp_bint_primitive bi suff args =
 
 let comp_primitive p args =
   match p with
-    Pgetglobal id -> Kgetglobal id
-  | Psetglobal id -> Ksetglobal id
+    Pgetglobal cu ->
+      Kgetglobal (cu |> Compilation_unit.to_global_ident_for_bytecode)
+  | Psetglobal cu ->
+      Ksetglobal (cu |> Compilation_unit.to_global_ident_for_bytecode)
+  | Pgetpredef id -> Kgetglobal id
   | Pintcomp cmp -> Kintcomp cmp
   | Pcompare_ints -> Kccall("caml_int_compare", 2)
   | Pcompare_floats -> Kccall("caml_float_compare", 2)

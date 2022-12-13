@@ -338,7 +338,6 @@ MIDDLE_END = \
   middle_end/flambda/inlining_cost.cmo \
   middle_end/flambda/simple_value_approx.cmo \
   middle_end/flambda/export_info.cmo \
-  middle_end/flambda/export_info_for_pack.cmo \
   middle_end/compilenv.cmo \
   $(MIDDLE_END_CLOSURE) \
   $(MIDDLE_END_FLAMBDA)

@@ -45,7 +45,10 @@ let is_tmc_attribute =
   [ ["tail_mod_cons"; "ocaml.tail_mod_cons"], true ]
 
 let is_poll_attribute =
-  [ ["poll"], true ]
+  [ ["poll"; "ocaml.poll"], true ]
+
+let is_loop_attribute =
+  [ ["loop"; "ocaml.loop"], true ]
 
 let find_attribute p attributes =
   let inline_attribute = Builtin_attributes.filter_attributes p attributes in
@@ -228,6 +231,19 @@ let parse_poll_attribute attr =
         ]
         payload
 
+let parse_loop_attribute attr =
+  match attr with
+  | None -> Default_loop
+  | Some {Parsetree.attr_name = {txt; loc}; attr_payload = payload} ->
+      parse_id_payload txt loc
+        ~default:Default_loop
+        ~empty:Always_loop
+        [
+          "never", Never_loop;
+          "always", Always_loop;
+        ]
+        payload
+
 let get_inline_attribute l =
   let attr = find_attribute is_inline_attribute l in
   parse_inline_attribute attr
@@ -254,6 +270,10 @@ let get_check_attribute l =
 let get_poll_attribute l =
   let attr = find_attribute is_poll_attribute l in
   parse_poll_attribute attr
+
+let get_loop_attribute l =
+  let attr = find_attribute is_loop_attribute l in
+  parse_loop_attribute attr
 
 let check_local_inline loc attr =
   match attr.local, attr.inline with
@@ -371,6 +391,23 @@ let add_check_attribute expr loc attributes =
          (Printf.sprintf "%s/%s"(to_string a) (to_string b)));
     expr
 
+let add_loop_attribute expr loc attributes =
+  match expr with
+  | Lfunction({ attr = { stub = false } as attr } as funct) ->
+    begin match get_loop_attribute attributes with
+    | Default_loop -> expr
+    | (Always_loop | Never_loop) as loop ->
+      begin match attr.loop with
+      | Default_loop -> ()
+      | Always_loop | Never_loop ->
+          Location.prerr_warning loc
+            (Warnings.Duplicated_attribute "loop")
+      end;
+      let attr = { attr with loop } in
+      lfunction_with_attr ~attr funct
+    end
+  | _ -> expr
+
 let add_tmc_attribute expr loc attributes =
   match expr with
   | Lfunction funct ->
@@ -458,6 +495,9 @@ let add_function_attributes lam loc attr =
   in
   let lam =
     add_check_attribute lam loc attr
+  in
+  let lam =
+    add_loop_attribute lam loc attr
   in
   let lam =
     add_tmc_attribute lam loc attr

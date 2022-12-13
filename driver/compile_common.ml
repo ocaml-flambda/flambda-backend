@@ -17,7 +17,7 @@ open Misc
 
 type info = {
   source_file : string;
-  module_name : string;
+  module_name : Compilation_unit.t;
   output_prefix : string;
   env : Env.t;
   ppf_dump : Format.formatter;
@@ -33,19 +33,24 @@ let annot i = i.output_prefix ^ ".annot"
 let with_info ~native ~tool_name ~source_file ~output_prefix ~dump_ext k =
   Compmisc.init_path ();
   let module_name = Compenv.module_of_filename source_file output_prefix in
-  Env.set_unit_name module_name;
+  let for_pack_prefix = Compilation_unit.Prefix.from_clflags () in
+  let compilation_unit =
+    Compilation_unit.create for_pack_prefix
+      (module_name |> Compilation_unit.Name.of_string)
+  in
+  Compilation_unit.set_current (Some compilation_unit);
   let env = Compmisc.initial_env() in
   let dump_file = String.concat "." [output_prefix; dump_ext] in
-  Compmisc.with_ppf_dump ~file_prefix:dump_file @@ fun ppf_dump ->
+  Compmisc.with_ppf_dump ~file_prefix:dump_file (fun ppf_dump ->
   k {
-    module_name;
+    module_name = compilation_unit;
     output_prefix;
     env;
     source_file;
     ppf_dump;
     tool_name;
     native;
-  }
+  })
 
 (** Compile a .mli file *)
 

@@ -126,6 +126,7 @@ ocamlcmt.cmo : \
     ../utils/load_path.cmi \
     ../typing/envaux.cmi \
     ../driver/compmisc.cmi \
+    ../utils/compilation_unit.cmi \
     ../file_formats/cmt_format.cmi \
     ../typing/cmt2annot.cmo \
     ../utils/clflags.cmi \
@@ -138,6 +139,7 @@ ocamlcmt.cmx : \
     ../utils/load_path.cmx \
     ../typing/envaux.cmx \
     ../driver/compmisc.cmx \
+    ../utils/compilation_unit.cmx \
     ../file_formats/cmt_format.cmx \
     ../typing/cmt2annot.cmx \
     ../utils/clflags.cmx \

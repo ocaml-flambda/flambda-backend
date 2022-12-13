@@ -20,11 +20,8 @@
 
 type t
 
+(* For predefined exception identifiers. *)
 val for_predef_ident : Ident.t -> t
-
-(* CR mshinwell: Insist on -for-pack for .mli files; then this function
-   will not need to take a pack prefix. *)
-val for_global_or_predef_ident : Compilation_unit.Prefix.t -> Ident.t -> t
 
 (** It is assumed that the provided [Ident.t] is in the current unit. *)
 val for_local_ident : Ident.t -> t

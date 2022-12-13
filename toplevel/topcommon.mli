@@ -76,6 +76,8 @@ exception Undefined_global of string
 
 module type EVAL_BASE = sig
 
+  val eval_compilation_unit: Compilation_unit.t -> Obj.t
+
   (* Return the value referred to by a base ident
      @raise [Undefined_global] if not found *)
   val eval_ident: Ident.t -> Obj.t

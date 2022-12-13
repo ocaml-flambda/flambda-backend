@@ -249,6 +249,7 @@ ocamltest_config.ml: ocamltest_config.ml.in Makefile ../Makefile.config
 	    $(call SUBST_STRING,CPP) \
 	    $(call SUBST_STRING,ocamlsrcdir) \
 	    $(call SUBST,FLAMBDA) \
+	    $(call SUBST,FLAMBDA2) \
 	    $(call SUBST,FORCE_SAFE_STRING) \
 	    $(call SUBST,FLAT_FLOAT_ARRAY) \
 	    $(call SUBST,WITH_OCAMLDOC) \
@@ -276,6 +277,7 @@ ocamltest_config.ml: ocamltest_config.ml.in Makefile ../Makefile.config
 	    $(call SUBST,NAKED_POINTERS) \
 	    $(call SUBST,PROBES) \
 	    $(call SUBST,STACK_ALLOCATION) \
+	    $(call SUBST,POLL_INSERTION) \
 	    $< > $@
 
 # Manual

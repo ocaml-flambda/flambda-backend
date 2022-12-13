@@ -131,38 +131,42 @@ let extract_sig_functor_open funct_body env loc mty sig_acc =
         with Includemod.Error msg ->
           raise (Error(loc, env, Not_included_functor msg))
       in
+      (* We must scrape the result type in an environment expanded with the
+         parameter type (to avoid `Not_found` exceptions when it is referenced).
+         Because we don't have an actual parameter, we create definitions for
+         the parameter's types with [sig_make_manifest].  References to this
+         fake parameter are eliminated later.  *)
+      let extended_env =
+        match param with
+        | None -> env
+        | Some id ->
+          let sg_param = Mtype.sig_make_manifest sig_acc in
+          Env.add_module ~arg:true id Mp_present (Mty_signature sg_param) env
+      in
       let incl_kind, sg_result =
         (* Accept functor types of the forms:
               sig..end -> sig..end
            and
               sig..end -> () -> sig..end *)
-        match Mtype.scrape env mty_result with
+        match Mtype.scrape extended_env mty_result with
         | Mty_signature sg_result -> Tincl_functor coercion, sg_result
         | Mty_functor (Unit,_) when funct_body && Mtype.contains_type env mty ->
             raise (Error (loc, env, Not_includable_in_functor_body))
         | Mty_functor (Unit,mty_result) -> begin
-            match Mtype.scrape env mty_result with
+            match Mtype.scrape extended_env mty_result with
             | Mty_signature sg_result -> Tincl_gen_functor coercion, sg_result
             | sg -> raise (Error (loc,env,Signature_result_expected
                                             (Mty_functor (Unit,sg))))
           end
         | sg -> raise (Error (loc,env,Signature_result_expected sg))
       in
-      (* Like the [Pmod_apply] case, we want to use [nondep_supertype] to
-         eliminate references to the functor's parameter in its result type.
-         Unlike that case, we don't have an actual parameter, just the previous
-         contents of the module currently being checked.  So we create
-         definitions for the parameter's types with [sig_make_manifest] before
-         the call to [nondep_sig]. *)
+      (* Here we eliminate references to the non-existent parameter module using
+         [nondep_sig]. *)
       let sg =
         match param with
         | None -> sg_result
         | Some id ->
-          let sg_param = Mtype.sig_make_manifest sig_acc in
-          let env =
-            Env.add_module ~arg:true id Mp_present (Mty_signature sg_param) env
-          in
-          try Mtype.nondep_sig env [id] sg_result
+          try Mtype.nondep_sig extended_env [id] sg_result
           with Ctype.Nondep_cannot_erase _ ->
             raise(Error(loc, env, Cannot_eliminate_dependency
                                     (Functor_included, mty_func)))
@@ -2137,8 +2141,10 @@ and package_constraints env loc mty constrs =
   end
 
 let modtype_of_package env loc p fl =
+  (* We call Ctype.correct_levels to ensure that the types being added to the
+     module type are at generic_level. *)
   package_constraints env loc (Mty_ident p)
-    (List.map (fun (n, t) -> (Longident.flatten n, t)) fl)
+    (List.map (fun (n, t) -> Longident.flatten n, Ctype.correct_levels t) fl)
 
 let package_subtype env p1 fl1 p2 fl2 =
   let mkmty p fl =
@@ -2226,7 +2232,7 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
       in
       let md =
         if alias && aliasable then
-          (Env.add_required_global (Path.head path); md)
+          (Env.add_required_global path env; md)
         else begin
           let mty =
             if sttn then
@@ -3127,7 +3133,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
         type_structure initial_env ast in
       let shape =
         Shape.set_uid_if_none shape
-          (Uid.of_compilation_unit_id (Ident.create_persistent modulename))
+          (Uid.of_compilation_unit_id modulename)
       in
       let simple_sg = Signature_names.simplify finalenv names sg in
       if !Clflags.print_types then begin
@@ -3149,9 +3155,10 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
         let sourceintf =
           Filename.remove_extension sourcefile ^ !Config.interface_suffix in
         if Sys.file_exists sourceintf then begin
+          let basename = modulename |> Compilation_unit.name_as_string in
           let intf_file =
             try
-              Load_path.find_uncap (modulename ^ ".cmi")
+              Load_path.find_uncap (basename ^ ".cmi")
             with Not_found ->
               raise(Error(Location.in_file sourcefile, Env.empty,
                           Interface_not_compiled sourceintf)) in
@@ -3234,6 +3241,7 @@ let package_signatures units =
   let units_with_ids =
     List.map
       (fun (name, sg) ->
+        let name = name |> Compilation_unit.Name.to_string in
         let oldid = Ident.create_persistent name in
         let newid = Ident.create_local name in
         (oldid, newid, sg))
@@ -3266,22 +3274,30 @@ let package_units initial_env objfiles cmifile modulename =
     List.map
       (fun f ->
          let pref = chop_extensions f in
-         let modname = String.capitalize_ascii(Filename.basename pref) in
+         let unit =
+           pref
+           |> Filename.basename
+           |> String.capitalize_ascii
+           |> Compilation_unit.Name.of_string
+         in
+         let modname = Compilation_unit.create_child modulename unit in
          let sg = Env.read_signature modname (pref ^ ".cmi") in
          if Filename.check_suffix f ".cmi" &&
             not(Mtype.no_code_needed_sig Env.initial_safe_string sg)
          then raise(Error(Location.none, Env.empty,
                           Implementation_is_required f));
-         (modname, Env.read_signature modname (pref ^ ".cmi")))
+         Compilation_unit.name modname,
+         Env.read_signature modname (pref ^ ".cmi"))
       objfiles in
   (* Compute signature of packaged unit *)
   Ident.reinit();
   let sg = package_signatures units in
   (* Compute the shape of the package *)
   let prefix = Filename.remove_extension cmifile in
-  let pack_uid = Uid.of_compilation_unit_id (Ident.create_persistent prefix) in
+  let pack_uid = Uid.of_compilation_unit_id modulename in
   let shape =
     List.fold_left (fun map (name, _sg) ->
+      let name = Compilation_unit.Name.to_string name in
       let id = Ident.create_persistent name in
       Shape.Map.add_module map id (Shape.for_persistent_unit name)
     ) Shape.Map.empty units

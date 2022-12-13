@@ -46,8 +46,6 @@ let dll_run dll entry =
 module Backend = struct
   (* See backend_intf.mli. *)
 
-  let pack_prefix_for_global_ident = Compilenv.pack_prefix_for_global_ident
-
   let really_import_approx = Import_approx.really_import_approx
   let import_symbol = Import_approx.import_symbol
 
