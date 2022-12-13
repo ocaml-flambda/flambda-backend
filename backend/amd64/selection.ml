@@ -96,21 +96,16 @@ let pseudoregs_for_operation op arg res =
   (* Two-address binary operations: arg.(0) and res.(0) must be the same *)
   Iintop(Iadd|Isub|Imul|Iand|Ior|Ixor) | Iaddf|Isubf|Imulf|Idivf ->
       ([|res.(0); arg.(1)|], res)
-  | Iintop_atomic {op = Icompareandswap; size = _; addr = _} ->
+  | Iintop_atomic {op = Icompare_and_swap; size = _; addr = _} ->
       (* first arg must be rax *)
       let arg = Array.copy arg in
       arg.(0) <- rax;
       (arg, res)
-  | Iintop_atomic {op = Ifetchadd|Ifetchsub; size = _; addr = _} ->
+  | Iintop_atomic {op = Ifetch_and_add; size = _; addr = _} ->
       (* first arg must be the same as res.(0) *)
       let arg = Array.copy arg in
       arg.(0) <- res.(0);
       (arg, res)
-  | Iintop_atomic {op = Ifetchand|Ifetchor|Ifetchxor; size = _; addr = _} ->
-      (* first arg and result must be rax, and it uses rcx/rdx *)
-      let arg = Array.copy arg in
-      arg.(0) <- rax;
-      (arg, [| rax; rcx; rdx |])
   (* One-address unary operations: arg.(0) and res.(0) must be the same *)
   | Iintop_imm((Iadd|Isub|Imul|Iand|Ior|Ixor|Ilsl|Ilsr|Iasr), _)
   | Iabsf | Inegf

@@ -104,7 +104,7 @@ type rec_flag = Nonrecursive | Recursive
 
 type prefetch_temporal_locality_hint = Nonlocal | Low | Moderate | High
 
-type atomic_op = Fetch_add | Fetch_sub | Fetch_and | Fetch_or | Fetch_xor | CAS
+type atomic_op = Fetch_and_add | Compare_and_swap
 
 type effects = No_effects | Arbitrary_effects
 type coeffects = No_coeffects | Has_coeffects

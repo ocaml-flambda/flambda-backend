@@ -644,12 +644,12 @@ method select_operation op args _dbg =
   | (Cintoffloat, _) -> (Iintoffloat, args)
   | (Cvalueofint, _) -> (Ivalueofint, args)
   | (Cintofvalue, _) -> (Iintofvalue, args)
-  | (Catomic {op; size}, [src; dst]) ->
+  | (Catomic {op = Fetch_and_add; size}, [src; dst]) ->
     let (addr, eloc) = self#select_addressing size dst in
-    (Iintop_atomic { op = self#select_atomic_op op; size; addr }, [src; eloc])
-  | (Catomic {op = CAS; size}, [compare_with; set_to; dst]) ->
+    (Iintop_atomic { op = Ifetch_and_add; size; addr }, [src; eloc])
+  | (Catomic {op = Compare_and_swap; size}, [compare_with; set_to; dst]) ->
     let (addr, eloc) = self#select_addressing size dst in
-    (Iintop_atomic { op = self#select_atomic_op CAS; size; addr }, [compare_with; set_to; eloc])
+    (Iintop_atomic { op = Icompare_and_swap; size; addr }, [compare_with; set_to; eloc])
   | (Ccheckbound, _) ->
     self#select_arith Icheckbound args
   | (Cprobe { name; handler_code_sym; }, _) ->
@@ -658,14 +658,6 @@ method select_operation op args _dbg =
   | (Cbeginregion, _) -> Ibeginregion, []
   | (Cendregion, _) -> Iendregion, args
   | _ -> Misc.fatal_error "Selection.select_oper"
-
-method private select_atomic_op = function
-  | Fetch_add -> Ifetchadd
-  | Fetch_sub -> Ifetchsub
-  | Fetch_and -> Ifetchand
-  | Fetch_or -> Ifetchor
-  | Fetch_xor -> Ifetchxor
-  | CAS -> Icompareandswap
 
 method private select_arith_comm op = function
   | [arg; Cconst_int (n, _)] when self#is_immediate op n ->

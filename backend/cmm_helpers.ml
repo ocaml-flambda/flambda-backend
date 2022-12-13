@@ -3320,17 +3320,17 @@ let ext_pointer_prefetch ~is_write locality arg dbg =
   prefetch ~is_write locality (int_as_pointer arg dbg) dbg
 
 let native_pointer_cas size (dst, compare_with, set_to) dbg =
-  let op = Catomic { op = CAS; size } in
+  let op = Catomic { op = Compare_and_swap; size } in
   if_operation_supported op ~f:(fun () ->
       Cop (op, [compare_with; set_to; dst], dbg))
 
 let ext_pointer_cas size (dst, compare_with, set_to) dbg =
-  let op = Catomic { op = CAS; size } in
+  let op = Catomic { op = Compare_and_swap; size } in
   if_operation_supported op ~f:(fun () ->
       Cop (op, [compare_with; set_to; int_as_pointer dst dbg], dbg))
 
 let bigstring_cas size (bs, idx, compare_with, set_to) dbg =
-  let op = Catomic { op = CAS; size } in
+  let op = Catomic { op = Compare_and_swap; size } in
   if_operation_supported op ~f:(fun () ->
       let ba_data =
         Cop (Cload (Word_int, Mutable), [field_address bs 1 dbg], dbg)
@@ -3338,16 +3338,25 @@ let bigstring_cas size (bs, idx, compare_with, set_to) dbg =
       Cop (op, [compare_with; set_to; add_int ba_data idx dbg], dbg))
 
 let native_pointer_atomic op size (dst, src) dbg =
-  let op = Catomic { op; size } in
+  let src =
+    match op with `Add -> src | `Sub -> sub_int (Cconst_int (0, dbg)) src dbg
+  in
+  let op = Catomic { op = Fetch_and_add; size } in
   if_operation_supported op ~f:(fun () -> Cop (op, [src; dst], dbg))
 
 let ext_pointer_atomic op size (dst, src) dbg =
-  let op = Catomic { op; size } in
+  let src =
+    match op with `Add -> src | `Sub -> sub_int (Cconst_int (0, dbg)) src dbg
+  in
+  let op = Catomic { op = Fetch_and_add; size } in
   if_operation_supported op ~f:(fun () ->
       Cop (op, [src; int_as_pointer dst dbg], dbg))
 
 let bigstring_atomic op size (bs, idx, src) dbg =
-  let op = Catomic { op; size } in
+  let src =
+    match op with `Add -> src | `Sub -> sub_int (Cconst_int (0, dbg)) src dbg
+  in
+  let op = Catomic { op = Fetch_and_add; size } in
   if_operation_supported op ~f:(fun () ->
       let ba_data =
         Cop (Cload (Word_int, Mutable), [field_address bs 1 dbg], dbg)
@@ -3623,46 +3632,46 @@ let transl_builtin name args dbg typ_res =
   (* Atomics *)
   | "caml_native_pointer_fetch_and_add_nativeint_unboxed"
   | "caml_native_pointer_fetch_and_add_int_untagged" ->
-    native_pointer_atomic Fetch_add Word_int (two_args name args) dbg
+    native_pointer_atomic `Add Word_int (two_args name args) dbg
   | "caml_native_pointer_fetch_and_add_int64_unboxed" when size_int = 8 ->
-    native_pointer_atomic Fetch_add Word_int (two_args name args) dbg
+    native_pointer_atomic `Add Word_int (two_args name args) dbg
   | "caml_native_pointer_fetch_and_add_int32_unboxed" ->
-    native_pointer_atomic Fetch_add Thirtytwo_signed (two_args name args) dbg
+    native_pointer_atomic `Add Thirtytwo_signed (two_args name args) dbg
   | "caml_ext_pointer_fetch_and_add_nativeint_unboxed"
   | "caml_ext_pointer_fetch_and_add_int_untagged" ->
-    ext_pointer_atomic Fetch_add Word_int (two_args name args) dbg
+    ext_pointer_atomic `Add Word_int (two_args name args) dbg
   | "caml_ext_pointer_fetch_and_add_int64_unboxed" when size_int = 8 ->
-    ext_pointer_atomic Fetch_add Word_int (two_args name args) dbg
+    ext_pointer_atomic `Add Word_int (two_args name args) dbg
   | "caml_ext_pointer_fetch_and_add_int32_unboxed" ->
-    ext_pointer_atomic Fetch_add Thirtytwo_signed (two_args name args) dbg
+    ext_pointer_atomic `Add Thirtytwo_signed (two_args name args) dbg
   | "caml_bigstring_fetch_and_add_nativeint_unboxed"
   | "caml_bigstring_fetch_and_add_int_untagged" ->
-    bigstring_atomic Fetch_add Word_int (three_args name args) dbg
+    bigstring_atomic `Add Word_int (three_args name args) dbg
   | "caml_bigstring_fetch_and_add_int64_unboxed" when size_int = 8 ->
-    bigstring_atomic Fetch_add Word_int (three_args name args) dbg
+    bigstring_atomic `Add Word_int (three_args name args) dbg
   | "caml_bigstring_fetch_and_add_int32_unboxed" ->
-    bigstring_atomic Fetch_add Thirtytwo_signed (three_args name args) dbg
+    bigstring_atomic `Add Thirtytwo_signed (three_args name args) dbg
   | "caml_native_pointer_fetch_and_sub_nativeint_unboxed"
   | "caml_native_pointer_fetch_and_sub_int_untagged" ->
-    native_pointer_atomic Fetch_sub Word_int (two_args name args) dbg
+    native_pointer_atomic `Sub Word_int (two_args name args) dbg
   | "caml_native_pointer_fetch_and_sub_int64_unboxed" when size_int = 8 ->
-    native_pointer_atomic Fetch_sub Word_int (two_args name args) dbg
+    native_pointer_atomic `Sub Word_int (two_args name args) dbg
   | "caml_native_pointer_fetch_and_sub_int32_unboxed" ->
-    native_pointer_atomic Fetch_sub Thirtytwo_signed (two_args name args) dbg
+    native_pointer_atomic `Sub Thirtytwo_signed (two_args name args) dbg
   | "caml_ext_pointer_fetch_and_sub_nativeint_unboxed"
   | "caml_ext_pointer_fetch_and_sub_int_untagged" ->
-    ext_pointer_atomic Fetch_sub Word_int (two_args name args) dbg
+    ext_pointer_atomic `Sub Word_int (two_args name args) dbg
   | "caml_ext_pointer_fetch_and_sub_int64_unboxed" when size_int = 8 ->
-    ext_pointer_atomic Fetch_sub Word_int (two_args name args) dbg
+    ext_pointer_atomic `Sub Word_int (two_args name args) dbg
   | "caml_ext_pointer_fetch_and_sub_int32_unboxed" ->
-    ext_pointer_atomic Fetch_sub Thirtytwo_signed (two_args name args) dbg
+    ext_pointer_atomic `Sub Thirtytwo_signed (two_args name args) dbg
   | "caml_bigstring_fetch_and_sub_nativeint_unboxed"
   | "caml_bigstring_fetch_and_sub_int_untagged" ->
-    bigstring_atomic Fetch_sub Word_int (three_args name args) dbg
+    bigstring_atomic `Sub Word_int (three_args name args) dbg
   | "caml_bigstring_fetch_and_sub_int64_unboxed" when size_int = 8 ->
-    bigstring_atomic Fetch_sub Word_int (three_args name args) dbg
+    bigstring_atomic `Sub Word_int (three_args name args) dbg
   | "caml_bigstring_fetch_and_sub_int32_unboxed" ->
-    bigstring_atomic Fetch_sub Thirtytwo_signed (three_args name args) dbg
+    bigstring_atomic `Sub Thirtytwo_signed (three_args name args) dbg
   | "caml_native_pointer_compare_and_swap_int_untagged"
   | "caml_native_pointer_compare_and_swap_nativeint_unboxed" ->
     native_pointer_cas Word_int (three_args name args) dbg
@@ -3684,69 +3693,6 @@ let transl_builtin name args dbg typ_res =
     bigstring_cas Word_int (four_args name args) dbg
   | "caml_bigstring_compare_and_swap_int32_unboxed" ->
     bigstring_cas Thirtytwo_signed (four_args name args) dbg
-  | "caml_native_pointer_fetch_and_and_nativeint_unboxed"
-  | "caml_native_pointer_fetch_and_and_int_untagged" ->
-    native_pointer_atomic Fetch_and Word_int (two_args name args) dbg
-  | "caml_native_pointer_fetch_and_and_int64_unboxed" when size_int = 8 ->
-    native_pointer_atomic Fetch_and Word_int (two_args name args) dbg
-  | "caml_native_pointer_fetch_and_and_int32_unboxed" ->
-    native_pointer_atomic Fetch_and Thirtytwo_signed (two_args name args) dbg
-  | "caml_native_pointer_fetch_and_or_nativeint_unboxed"
-  | "caml_native_pointer_fetch_and_or_int_untagged" ->
-    native_pointer_atomic Fetch_or Word_int (two_args name args) dbg
-  | "caml_native_pointer_fetch_and_or_int64_unboxed" when size_int = 8 ->
-    native_pointer_atomic Fetch_or Word_int (two_args name args) dbg
-  | "caml_native_pointer_fetch_and_or_int32_unboxed" ->
-    native_pointer_atomic Fetch_or Thirtytwo_signed (two_args name args) dbg
-  | "caml_native_pointer_fetch_and_xor_nativeint_unboxed"
-  | "caml_native_pointer_fetch_and_xor_int_untagged" ->
-    native_pointer_atomic Fetch_xor Word_int (two_args name args) dbg
-  | "caml_native_pointer_fetch_and_xor_int64_unboxed" when size_int = 8 ->
-    native_pointer_atomic Fetch_xor Word_int (two_args name args) dbg
-  | "caml_native_pointer_fetch_and_xor_int32_unboxed" ->
-    native_pointer_atomic Fetch_xor Thirtytwo_signed (two_args name args) dbg
-  | "caml_ext_pointer_fetch_and_and_nativeint_unboxed"
-  | "caml_ext_pointer_fetch_and_and_int_untagged" ->
-    ext_pointer_atomic Fetch_and Word_int (two_args name args) dbg
-  | "caml_ext_pointer_fetch_and_and_int64_unboxed" when size_int = 8 ->
-    ext_pointer_atomic Fetch_and Word_int (two_args name args) dbg
-  | "caml_ext_pointer_fetch_and_and_int32_unboxed" ->
-    ext_pointer_atomic Fetch_and Thirtytwo_signed (two_args name args) dbg
-  | "caml_ext_pointer_fetch_and_or_nativeint_unboxed"
-  | "caml_ext_pointer_fetch_and_or_int_untagged" ->
-    ext_pointer_atomic Fetch_or Word_int (two_args name args) dbg
-  | "caml_ext_pointer_fetch_and_or_int64_unboxed" when size_int = 8 ->
-    ext_pointer_atomic Fetch_or Word_int (two_args name args) dbg
-  | "caml_ext_pointer_fetch_and_or_int32_unboxed" ->
-    ext_pointer_atomic Fetch_or Thirtytwo_signed (two_args name args) dbg
-  | "caml_ext_pointer_fetch_and_xor_nativeint_unboxed"
-  | "caml_ext_pointer_fetch_and_xor_int_untagged" ->
-    ext_pointer_atomic Fetch_xor Word_int (two_args name args) dbg
-  | "caml_ext_pointer_fetch_and_xor_int64_unboxed" when size_int = 8 ->
-    ext_pointer_atomic Fetch_xor Word_int (two_args name args) dbg
-  | "caml_ext_pointer_fetch_and_xor_int32_unboxed" ->
-    ext_pointer_atomic Fetch_xor Thirtytwo_signed (two_args name args) dbg
-  | "caml_bigstring_fetch_and_and_nativeint_unboxed"
-  | "caml_bigstring_fetch_and_and_int_untagged" ->
-    bigstring_atomic Fetch_and Word_int (three_args name args) dbg
-  | "caml_bigstring_fetch_and_and_int64_unboxed" when size_int = 8 ->
-    bigstring_atomic Fetch_and Word_int (three_args name args) dbg
-  | "caml_bigstring_fetch_and_and_int32_unboxed" ->
-    bigstring_atomic Fetch_and Thirtytwo_signed (three_args name args) dbg
-  | "caml_bigstring_fetch_and_or_nativeint_unboxed"
-  | "caml_bigstring_fetch_and_or_int_untagged" ->
-    bigstring_atomic Fetch_or Word_int (three_args name args) dbg
-  | "caml_bigstring_fetch_and_or_int64_unboxed" when size_int = 8 ->
-    bigstring_atomic Fetch_or Word_int (three_args name args) dbg
-  | "caml_bigstring_fetch_and_or_int32_unboxed" ->
-    bigstring_atomic Fetch_or Thirtytwo_signed (three_args name args) dbg
-  | "caml_bigstring_fetch_and_xor_nativeint_unboxed"
-  | "caml_bigstring_fetch_and_xor_int_untagged" ->
-    bigstring_atomic Fetch_xor Word_int (three_args name args) dbg
-  | "caml_bigstring_fetch_and_xor_int64_unboxed" when size_int = 8 ->
-    bigstring_atomic Fetch_xor Word_int (three_args name args) dbg
-  | "caml_bigstring_fetch_and_xor_int32_unboxed" ->
-    bigstring_atomic Fetch_xor Thirtytwo_signed (three_args name args) dbg
   | _ -> None
 
 let transl_effects (e : Primitive.effects) : Cmm.effects =

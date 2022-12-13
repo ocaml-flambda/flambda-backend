@@ -102,12 +102,8 @@ let temporal_locality = function
   | High -> "high"
 
 let atomic_op = function
-  | Fetch_add -> "add"
-  | Fetch_sub -> "sub"
-  | Fetch_and -> "and"
-  | Fetch_or -> "or"
-  | Fetch_xor -> "xor"
-  | CAS -> "compareandswap"
+  | Fetch_and_add -> "add"
+  | Compare_and_swap -> "compareandswap"
 
 let phantom_defining_expr ppf defining_expr =
   match defining_expr with
