@@ -3366,9 +3366,9 @@ let ext_pointer_atomic add_or_sub size (arg1, arg2) dbg =
   let op = Catomic { op = Fetch_and_add; size } in
   if_operation_supported op ~f:(fun () ->
       bind "src"
-        (match add_or_sub with `Add -> arg1 | `Sub -> neg_int arg1 dbg)
+        (match add_or_sub with `Add -> arg2 | `Sub -> neg_int arg2 dbg)
         (fun src ->
-          bind "dst" (int_as_pointer arg2 dbg) (fun dst ->
+          bind "dst" (int_as_pointer arg1 dbg) (fun dst ->
               Cop (op, [src; dst], dbg))))
 
 let bigstring_atomic add_or_sub size (arg1, arg2, arg3) dbg =
