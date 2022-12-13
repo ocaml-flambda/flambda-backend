@@ -138,6 +138,16 @@ let escape_string s =
     Bytes.to_string s'
   end
 
+let rec print_typlist print_elem sep ppf =
+  function
+    [] -> ()
+  | [ty] -> print_elem ppf ty
+  | ty :: tyl ->
+      print_elem ppf ty;
+      pp_print_string ppf sep;
+      pp_print_space ppf ();
+      print_typlist print_elem sep ppf tyl
+
 
 let print_out_string ppf s =
   let not_escaped =
@@ -414,15 +424,6 @@ and print_row_field ppf (l, opt_amp, tyl) =
   in
   fprintf ppf "@[<hv 2>`%s%t%a@]" l pr_of (print_typlist print_out_type " &")
     tyl
-and print_typlist print_elem sep ppf =
-  function
-    [] -> ()
-  | [ty] -> print_elem ppf ty
-  | ty :: tyl ->
-      print_elem ppf ty;
-      pp_print_string ppf sep;
-      pp_print_space ppf ();
-      print_typlist print_elem sep ppf tyl
 and print_typargs ppf =
   function
     [] -> ()
@@ -435,14 +436,23 @@ and print_typargs ppf =
       pp_close_box ppf ();
       pp_print_space ppf ()
 and print_out_label ppf (name, mut_or_gbl, arg) =
-  let flag =
+  if Clflags.Extension.is_enabled Local then
+    let flag =
+      match mut_or_gbl with
+      | Ogom_mutable -> "mutable "
+      | Ogom_global -> "global_ "
+      | Ogom_nonlocal -> "nonlocal_ "
+      | Ogom_immutable -> ""
+    in
+    fprintf ppf "@[<2>%s%s :@ %a@];" flag name print_out_type arg
+  else
     match mut_or_gbl with
-    | Ogom_mutable -> "mutable "
-    | Ogom_global -> "global_ "
-    | Ogom_nonlocal -> "nonlocal_ "
-    | Ogom_immutable -> ""
-  in
-  fprintf ppf "@[<2>%s%s :@ %a@];" flag name print_out_type arg
+    | Ogom_mutable -> fprintf ppf "@[mutable %s :@ %a@];" name print_out_type arg
+    | Ogom_immutable -> fprintf ppf "@[%s :@ %a@];" name print_out_type arg
+    | Ogom_global -> fprintf ppf "@[%s :@ %a@];" name print_out_type
+                       (Otyp_attribute (arg, {oattr_name="global"}))
+    | Ogom_nonlocal -> fprintf ppf "@[%s :@ %a@];" name print_out_type
+                       (Otyp_attribute (arg, {oattr_name="nonlocal"}))
 
 let out_label = ref print_out_label
 
@@ -743,12 +753,12 @@ and print_out_type_decl kwd ppf td =
         print_private td.otype_private
         print_record_decl lbls
   | Otyp_sum constrs ->
-      let variants fmt constrs =
+    let variants fmt constrs =
         if constrs = [] then fprintf fmt "|" else
         fprintf fmt "%a" (print_list print_out_constr
           (fun ppf -> fprintf ppf "@ | ")) constrs in
-      fprintf ppf " =%a@;<1 2>%a"
-        print_private td.otype_private variants constrs
+    fprintf ppf " =%a@;<1 2>%a"
+      print_private td.otype_private variants constrs
   | Otyp_open ->
       fprintf ppf " =%a .."
         print_private td.otype_private
@@ -763,6 +773,31 @@ and print_out_type_decl kwd ppf td =
     print_constraints
     print_immediate
     print_unboxed
+
+and print_simple_out_gf_type ppf (ty, gf) =
+  let locals_enabled = Clflags.Extension.is_enabled Local in
+  match gf with
+  | Ogf_global ->
+    if locals_enabled then begin
+      pp_print_string ppf "global_";
+      pp_print_space ppf ();
+      print_simple_out_type ppf ty
+    end else begin
+      print_out_type ppf (Otyp_attribute (ty, {oattr_name="global"}))
+    end
+  | Ogf_nonlocal ->
+    if locals_enabled then begin
+      pp_print_string ppf "nonlocal_";
+      pp_print_space ppf ();
+      print_simple_out_type ppf ty
+    end else begin
+      print_out_type ppf (Otyp_attribute (ty, {oattr_name="nonlocal"}))
+    end
+  | Ogf_unrestricted ->
+    print_simple_out_type ppf ty
+
+and print_out_constr_args ppf tyl =
+  print_typlist print_simple_out_gf_type " *" ppf tyl
 
 and print_out_constr ppf constr =
   let {
@@ -782,16 +817,15 @@ and print_out_constr ppf constr =
           pp_print_string ppf name
       | _ ->
           fprintf ppf "@[<2>%s of@ %a@]" name
-            (print_typlist print_simple_out_type " *") tyl
+            print_out_constr_args tyl
       end
   | Some ret_type ->
       begin match tyl with
       | [] ->
-          fprintf ppf "@[<2>%s :@ %a@]" name print_simple_out_type  ret_type
+          fprintf ppf "@[<2>%s :@ %a@]" name print_simple_out_type ret_type
       | _ ->
           fprintf ppf "@[<2>%s :@ %a -> %a@]" name
-            (print_typlist print_simple_out_type " *")
-            tyl print_simple_out_type ret_type
+            print_out_constr_args tyl print_simple_out_type ret_type
       end
 
 and print_out_extension_constructor ppf ext =
@@ -833,9 +867,10 @@ and print_out_type_extension ppf te =
     print_extended_type
     (if te.otyext_private = Asttypes.Private then " private" else "")
     (print_list print_out_constr (fun ppf -> fprintf ppf "@ | "))
-    te.otyext_constructors
+     te.otyext_constructors
 
 let out_constr = ref print_out_constr
+let out_constr_args = ref print_out_constr_args
 let _ = out_module_type := print_out_module_type
 let _ = out_signature := print_out_signature
 let _ = out_sig_item := print_out_sig_item

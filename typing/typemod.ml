@@ -1760,6 +1760,7 @@ and transl_signature env (sg : Parsetree.signature) =
         typedtree, tsg, newenv
     | Psig_attribute attr ->
         Builtin_attributes.parse_standard_interface_attributes attr;
+        Builtin_attributes.mark_alert_used attr;
         mksig (Tsig_attribute attr) env loc, [], env
     | Psig_extension (ext, _attrs) ->
         raise (Error_forward (Builtin_attributes.error_of_extension ext))
@@ -1942,17 +1943,13 @@ and nongen_signature_item env f = function
   | Sig_module(_id, _, md, _, _) -> nongen_modtype env f md.md_type
   | _ -> false
 
-let nongen_ty env ty =
-  Ctype.remove_mode_variables ty;
-  Ctype.nongen_schema env ty
-
 let check_nongen_signature_item env sig_item =
   match sig_item with
     Sig_value(_id, vd, _) ->
-      if nongen_ty env vd.val_type then
+      if Ctype.nongen_schema env vd.val_type then
         raise (Error (vd.val_loc, env, Non_generalizable vd.val_type))
   | Sig_module (_id, _, md, _, _) ->
-      if nongen_modtype env nongen_ty md.md_type then
+      if nongen_modtype env Ctype.nongen_schema md.md_type then
         raise(Error(md.md_loc, env, Non_generalizable_module md.md_type))
   | _ -> ()
 
@@ -2900,6 +2897,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
         raise (Error_forward (Builtin_attributes.error_of_extension ext))
     | Pstr_attribute attr ->
         Builtin_attributes.parse_standard_implementation_attributes attr;
+        Builtin_attributes.mark_alert_used attr;
         Tstr_attribute attr, [], shape_map, env
   in
   let toplevel_sig = Option.value toplevel ~default:[] in
@@ -2989,7 +2987,7 @@ let type_module_type_of env smod =
   in
   let mty = Mtype.scrape_for_type_of ~remove_aliases env tmty.mod_type in
   (* PR#5036: must not contain non-generalized type variables *)
-  if nongen_modtype env nongen_ty mty then
+  if nongen_modtype env Ctype.nongen_schema mty then
     raise(Error(smod.pmod_loc, env, Non_generalizable_module mty));
   tmty, mty
 

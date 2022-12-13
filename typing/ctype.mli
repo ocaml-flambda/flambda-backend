@@ -154,7 +154,7 @@ val new_local_type:
 val existential_name: constructor_description -> type_expr -> string
 val instance_constructor:
         ?in_pattern:Env.t ref * int ->
-        constructor_description -> type_expr list * type_expr * type_expr list
+        constructor_description -> (type_expr * global_flag) list * type_expr * type_expr list
         (* Same, for a constructor. Also returns existentials. *)
 val instance_parameterized_type:
         ?keep_names:bool ->
@@ -228,7 +228,7 @@ val extract_concrete_typedecl:
 val unify: Env.t -> type_expr -> type_expr -> unit
         (* Unify the two types given. Raise [Unify] if not possible. *)
 val unify_gadt:
-        equations_level:int -> allow_recursive:bool ->
+        equations_level:int -> allow_recursive_equations:bool ->
         Env.t ref -> type_expr -> type_expr -> Btype.TypePairs.t
         (* Unify the two types given and update the environment with the
            local constraints. Raise [Unify] if not possible.
@@ -398,11 +398,12 @@ val remove_mode_variables: type_expr -> unit
 
 val nongen_schema: Env.t -> type_expr -> bool
         (* Check whether the given type scheme contains no non-generic
-           type variables *)
+           type variables, and ensure mode variables are fully determined *)
 
 val nongen_class_declaration: class_declaration -> bool
         (* Check whether the given class type contains no non-generic
-           type variables. Uses the empty environment.  *)
+           type variables, and ensures mode variables are fully determined.
+           Uses the empty environment.  *)
 
 val free_variables: ?env:Env.t -> type_expr -> type_expr list
         (* If env present, then check for incomplete definitions too *)

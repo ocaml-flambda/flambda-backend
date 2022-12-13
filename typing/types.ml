@@ -276,7 +276,7 @@ and constructor_declaration =
   }
 
 and constructor_arguments =
-  | Cstr_tuple of type_expr list
+  | Cstr_tuple of (type_expr * global_flag) list
   | Cstr_record of label_declaration list
 
 type extension_constructor =
@@ -389,7 +389,7 @@ type constructor_description =
   { cstr_name: string;                  (* Constructor name *)
     cstr_res: type_expr;                (* Type of the result *)
     cstr_existentials: type_expr list;  (* list of existentials *)
-    cstr_args: type_expr list;          (* Type of the arguments *)
+    cstr_args: (type_expr * global_flag) list;          (* Type of the arguments *)
     cstr_arity: int;                    (* Number of arguments *)
     cstr_tag: constructor_tag;          (* Tag for heap blocks *)
     cstr_consts: int;                   (* Number of constant constructors *)
