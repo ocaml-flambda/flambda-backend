@@ -21,7 +21,7 @@ exception Error of Location.t * error
 
 let compute_decl env tdecl =
   match (tdecl.type_kind, tdecl.type_manifest) with
-  | (Type_variant ([{cd_args = Cstr_tuple [arg]
+  | (Type_variant ([{cd_args = Cstr_tuple [arg, _]
                             | Cstr_record [{ld_type = arg; _}]; _}],
                    Variant_unboxed)
     | Type_record ([{ld_type = arg; _}], Record_unboxed _)), _ ->

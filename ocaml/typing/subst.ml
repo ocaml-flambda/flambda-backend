@@ -286,7 +286,7 @@ let label_declaration copy_scope s l =
 
 let constructor_arguments copy_scope s = function
   | Cstr_tuple l ->
-      Cstr_tuple (List.map (typexp copy_scope s) l)
+      Cstr_tuple (List.map (fun (ty, gf) -> (typexp copy_scope s ty, gf)) l)
   | Cstr_record l ->
       Cstr_record (List.map (label_declaration copy_scope s) l)
 

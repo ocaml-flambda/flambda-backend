@@ -68,19 +68,13 @@ utils/config.cmx : \
     utils/config.cmi
 utils/config.cmi :
 utils/consistbl.cmo : \
-    utils/symbol.cmi \
     utils/misc.cmi \
-    utils/compilation_unit.cmi \
     utils/consistbl.cmi
 utils/consistbl.cmx : \
-    utils/symbol.cmx \
     utils/misc.cmx \
-    utils/compilation_unit.cmx \
     utils/consistbl.cmi
 utils/consistbl.cmi : \
-    utils/symbol.cmi \
-    utils/misc.cmi \
-    utils/compilation_unit.cmi
+    utils/misc.cmi
 utils/diffing.cmo : \
     utils/misc.cmi \
     utils/diffing.cmi
@@ -1461,6 +1455,7 @@ typing/typecore.cmo : \
     typing/types.cmi \
     typing/typedtree.cmi \
     typing/typedecl.cmi \
+    typing/type_immediacy.cmi \
     typing/subst.cmi \
     typing/shape.cmi \
     typing/rec_check.cmi \
@@ -1495,6 +1490,7 @@ typing/typecore.cmx : \
     typing/types.cmx \
     typing/typedtree.cmx \
     typing/typedecl.cmx \
+    typing/type_immediacy.cmx \
     typing/subst.cmx \
     typing/shape.cmx \
     typing/rec_check.cmx \
