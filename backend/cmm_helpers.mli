@@ -114,6 +114,8 @@ val add_int : expression -> expression -> Debuginfo.t -> expression
 
 val sub_int : expression -> expression -> Debuginfo.t -> expression
 
+val neg_int : expression -> Debuginfo.t -> expression
+
 val lsl_int : expression -> expression -> Debuginfo.t -> expression
 
 val mul_int : expression -> expression -> Debuginfo.t -> expression

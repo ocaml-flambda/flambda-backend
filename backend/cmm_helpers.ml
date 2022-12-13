@@ -219,6 +219,8 @@ let rec sub_int c1 c2 dbg =
     add_const (sub_int c1 c2 dbg) n1 dbg
   | c1, c2 -> Cop (Csubi, [c1; c2], dbg)
 
+let neg_int c dbg = sub_int (Cconst_int (0, dbg)) c dbg
+
 let rec lsl_int c1 c2 dbg =
   match c1, c2 with
   | Cop (Clsl, [c; Cconst_int (n1, _)], _), Cconst_int (n2, _)
@@ -3319,53 +3321,70 @@ let prefetch_offset ~is_write locality (arg1, arg2) dbg =
 let ext_pointer_prefetch ~is_write locality arg dbg =
   prefetch ~is_write locality (int_as_pointer arg dbg) dbg
 
-let native_pointer_cas size (dst, compare_with, set_to) dbg =
+let native_pointer_cas size (arg1, arg2, arg3) dbg =
   let op = Catomic { op = Compare_and_swap; size } in
   if_operation_supported op ~f:(fun () ->
-      tag_int (Cop (op, [compare_with; set_to; dst], dbg)) dbg)
+      bind "set_to" arg3 (fun set_to ->
+          bind "compare_with" arg2 (fun compare_with ->
+              bind "dst" arg1 (fun dst ->
+                  tag_int (Cop (op, [compare_with; set_to; dst], dbg)) dbg))))
 
-let ext_pointer_cas size (dst, compare_with, set_to) dbg =
+let ext_pointer_cas size (arg1, arg2, arg3) dbg =
   let op = Catomic { op = Compare_and_swap; size } in
   if_operation_supported op ~f:(fun () ->
-      tag_int
-        (Cop (op, [compare_with; set_to; int_as_pointer dst dbg], dbg))
-        dbg)
+      bind "set_to" arg3 (fun set_to ->
+          bind "compare_with" arg2 (fun compare_with ->
+              bind "dst" (int_as_pointer arg1 dbg) (fun dst ->
+                  tag_int (Cop (op, [compare_with; set_to; dst], dbg)) dbg))))
 
-let bigstring_cas size (bs, idx, compare_with, set_to) dbg =
+let bigstring_cas size (arg1, arg2, arg3, arg4) dbg =
   let op = Catomic { op = Compare_and_swap; size } in
   if_operation_supported op ~f:(fun () ->
-      let ba_data =
-        Cop (Cload (Word_int, Mutable), [field_address bs 1 dbg], dbg)
-      in
-      tag_int
-        (Cop (op, [compare_with; set_to; add_int ba_data idx dbg], dbg))
-        dbg)
+      bind "set_to" arg4 (fun set_to ->
+          bind "compare_with" arg3 (fun compare_with ->
+              bind "idx" arg2 (fun idx ->
+                  bind "bs" arg1 (fun bs ->
+                      bind "bs_data"
+                        (Cop
+                           ( Cload (Word_int, Mutable),
+                             [field_address bs 1 dbg],
+                             dbg ))
+                        (fun bs_data ->
+                          bind "dst" (add_int bs_data idx dbg) (fun dst ->
+                              tag_int
+                                (Cop (op, [compare_with; set_to; dst], dbg))
+                                dbg)))))))
 
-let native_pointer_atomic op size (dst, src) dbg =
-  let src =
-    match op with `Add -> src | `Sub -> sub_int (Cconst_int (0, dbg)) src dbg
-  in
-  let op = Catomic { op = Fetch_and_add; size } in
-  if_operation_supported op ~f:(fun () -> Cop (op, [src; dst], dbg))
-
-let ext_pointer_atomic op size (dst, src) dbg =
-  let src =
-    match op with `Add -> src | `Sub -> sub_int (Cconst_int (0, dbg)) src dbg
-  in
+let native_pointer_atomic add_or_sub size (arg1, arg2) dbg =
   let op = Catomic { op = Fetch_and_add; size } in
   if_operation_supported op ~f:(fun () ->
-      Cop (op, [src; int_as_pointer dst dbg], dbg))
+      bind "src"
+        (match add_or_sub with `Add -> arg2 | `Sub -> neg_int arg2 dbg)
+        (fun src -> bind "dst" arg1 (fun dst -> Cop (op, [src; dst], dbg))))
 
-let bigstring_atomic op size (bs, idx, src) dbg =
-  let src =
-    match op with `Add -> src | `Sub -> sub_int (Cconst_int (0, dbg)) src dbg
-  in
+let ext_pointer_atomic add_or_sub size (arg1, arg2) dbg =
   let op = Catomic { op = Fetch_and_add; size } in
   if_operation_supported op ~f:(fun () ->
-      let ba_data =
-        Cop (Cload (Word_int, Mutable), [field_address bs 1 dbg], dbg)
-      in
-      Cop (op, [src; add_int ba_data idx dbg], dbg))
+      bind "src"
+        (match add_or_sub with `Add -> arg1 | `Sub -> neg_int arg1 dbg)
+        (fun src ->
+          bind "dst" (int_as_pointer arg2 dbg) (fun dst ->
+              Cop (op, [src; dst], dbg))))
+
+let bigstring_atomic add_or_sub size (arg1, arg2, arg3) dbg =
+  let op = Catomic { op = Fetch_and_add; size } in
+  if_operation_supported op ~f:(fun () ->
+      bind "src"
+        (match add_or_sub with `Add -> arg3 | `Sub -> neg_int arg3 dbg)
+        (fun src ->
+          bind "idx" arg2 (fun idx ->
+              bind "bs" arg1 (fun bs ->
+                  bind "bs_data"
+                    (Cop
+                       (Cload (Word_int, Mutable), [field_address bs 1 dbg], dbg))
+                    (fun bs_data ->
+                      bind "dst" (add_int bs_data idx dbg) (fun dst ->
+                          Cop (op, [src; dst], dbg)))))))
 
 (** [transl_builtin prim args dbg] returns None if the built-in [prim] is not
     supported, otherwise it constructs and returns the corresponding Cmm
