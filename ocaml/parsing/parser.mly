@@ -115,23 +115,7 @@ let mkoperator =
 let mkpatvar ~loc name =
   mkpat ~loc (Ppat_var (mkrhs name loc))
 
-(*
-  Ghost expressions and patterns:
-  expressions and patterns that do not appear explicitly in the
-  source file they have the loc_ghost flag set to true.
-  Then the profiler will not try to instrument them and the
-  -annot option will not try to display their type.
-
-  Every grammar rule that generates an element with a location must
-  make at most one non-ghost element, the topmost one.
-
-  How to tell whether your location must be ghost:
-  A location corresponds to a range of characters in the source file.
-  If the location contains a piece of code that is syntactically
-  valid (according to the documentation), and corresponds to the
-  AST node, then the location must be real; in all other cases,
-  it must be ghost.
-*)
+(* See commentary about ghost locations at the declaration of Location.t *)
 let ghexp ~loc d = Exp.mk ~loc:(ghost_loc loc) d
 let ghpat ~loc d = Pat.mk ~loc:(ghost_loc loc) d
 let ghtyp ~loc d = Typ.mk ~loc:(ghost_loc loc) d
@@ -170,9 +154,9 @@ let local_ext_loc loc = mkloc "extension.local" loc
 let local_attr loc =
   Builtin_attributes.mk_internal ~loc (local_ext_loc loc) (PStr [])
 
-let local_extension =
+let local_extension loc =
   Exp.mk ~loc:Location.none
-    (Pexp_extension(local_ext_loc Location.none, PStr []))
+    (Pexp_extension(local_ext_loc loc, PStr []))
 
 let include_functor_ext_loc loc = mkloc "extension.include_functor" loc
 
@@ -180,8 +164,8 @@ let include_functor_attr loc =
   Builtin_attributes.mk_internal ~loc:loc (include_functor_ext_loc loc)
     (PStr [])
 
-let mkexp_stack ~loc exp =
-  ghexp ~loc (Pexp_apply(local_extension, [Nolabel, exp]))
+let mkexp_stack ~loc ~kwd_loc exp =
+  ghexp ~loc (Pexp_apply(local_extension (make_loc kwd_loc), [Nolabel, exp]))
 
 let mkpat_stack pat loc =
   {pat with ppat_attributes = local_attr loc :: pat.ppat_attributes}
@@ -192,8 +176,8 @@ let mktyp_stack typ loc =
 let wrap_exp_stack exp loc =
   {exp with pexp_attributes = local_attr loc :: exp.pexp_attributes}
 
-let mkexp_local_if p ~loc exp =
-  if p then mkexp_stack ~loc exp else exp
+let mkexp_local_if p ~loc ~kwd_loc exp =
+  if p then mkexp_stack ~loc ~kwd_loc exp else exp
 
 let mkpat_local_if p pat loc =
   if p then mkpat_stack pat (make_loc loc) else pat
@@ -237,16 +221,23 @@ let mkld_global ld loc =
 let mkld_nonlocal ld loc =
   { ld with pld_attributes = nonlocal_attr loc :: ld.pld_attributes }
 
-type global_flag =
-  | Global
-  | Nonlocal
-  | Nothing
-
 let mkld_global_maybe gbl ld loc =
   match gbl with
   | Global -> mkld_global ld loc
   | Nonlocal -> mkld_nonlocal ld loc
   | Nothing -> ld
+
+let mkcty_global cty loc =
+  { cty with ptyp_attributes = global_attr loc :: cty.ptyp_attributes }
+
+let mkcty_nonlocal cty loc =
+  { cty with ptyp_attributes = nonlocal_attr loc :: cty.ptyp_attributes }
+
+let mkcty_global_maybe gbl cty loc =
+  match gbl with
+  | Global -> mkcty_global cty loc
+  | Nonlocal -> mkcty_nonlocal cty loc
+  | Nothing -> cty
 
 (* TODO define an abstraction boundary between locations-as-pairs
    and locations-as-Location.t; it should be clear when we move from
@@ -2394,7 +2385,7 @@ expr:
      { not_expecting $loc($1) "wildcard \"_\"" }
 /* END AVOID */
   | LOCAL seq_expr
-     { mkexp_stack ~loc:$sloc $2 }
+     { mkexp_stack ~loc:$sloc ~kwd_loc:($loc($1)) $2 }
 ;
 %inline expr_attrs:
   | LET MODULE ext_attributes mkrhs(module_name) module_binding_body IN seq_expr
@@ -2652,7 +2643,7 @@ let_binding_body_no_punning:
             local_loc
         in
         let exp =
-          mkexp_local_if $1 ~loc:$sloc
+          mkexp_local_if $1 ~loc:$sloc ~kwd_loc:($loc($1))
             (wrap_exp_local_if $1 (mkexp_constraint ~loc:$sloc $5 $3)
                local_loc)
         in
@@ -2665,7 +2656,7 @@ let_binding_body_no_punning:
                (Ppat_constraint($2, ghtyp ~loc:($loc($4)) $4)))
             $loc($1)
         in
-        let exp = mkexp_local_if $1 ~loc:$sloc $6 in
+        let exp = mkexp_local_if $1 ~loc:$sloc ~kwd_loc:($loc($1)) $6 in
         (pat, exp) }
   | let_ident COLON TYPE lident_list DOT core_type EQUAL seq_expr
       { let exp, poly =
@@ -2678,7 +2669,7 @@ let_binding_body_no_punning:
       { let loc = ($startpos($1), $endpos($3)) in
         (ghpat ~loc (Ppat_constraint($1, $3)), $5) }
   | LOCAL let_ident local_strict_binding
-      { ($2, mkexp_stack ~loc:$sloc $3) }
+      { ($2, mkexp_stack ~loc:$sloc ~kwd_loc:($loc($1)) $3) }
 ;
 let_binding_body:
   | let_binding_body_no_punning
@@ -3307,8 +3298,14 @@ generalized_constructor_arguments:
                                   { ($2,Pcstr_tuple [],Some $4) }
 ;
 
+%inline atomic_type_gbl:
+  gbl = global_flag cty = atomic_type {
+  mkcty_global_maybe gbl cty (make_loc $loc(gbl))
+}
+;
+
 constructor_arguments:
-  | tys = inline_separated_nonempty_llist(STAR, atomic_type)
+  | tys = inline_separated_nonempty_llist(STAR, atomic_type_gbl)
     %prec below_HASH
       { Pcstr_tuple tys }
   | LBRACE label_declarations RBRACE
@@ -3915,6 +3912,11 @@ mutable_or_global_flag:
   | MUTABLE                                     { Mutable, Nothing }
   | GLOBAL                                      { Immutable, Global }
   | NONLOCAL                                    { Immutable, Nonlocal }
+;
+%inline global_flag:
+          { Nothing }
+  | GLOBAL { Global }
+  | NONLOCAL { Nonlocal }
 ;
 virtual_flag:
     /* empty */                                 { Concrete }

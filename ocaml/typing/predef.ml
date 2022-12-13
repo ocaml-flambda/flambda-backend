@@ -184,7 +184,7 @@ let common_initial_env add_type add_extension empty_env =
     add_extension id
       { ext_type_path = path_exn;
         ext_type_params = [];
-        ext_args = Cstr_tuple l;
+        ext_args = Cstr_tuple (List.map (fun x -> (x, Unrestricted)) l);
         ext_ret_type = None;
         ext_private = Asttypes.Public;
         ext_loc = Location.none;
@@ -218,13 +218,13 @@ let common_initial_env add_type add_extension empty_env =
        ~variance:Variance.covariant
        ~separability:Separability.Ind
        ~kind:(fun tvar ->
-         variant [cstr ident_nil []; cstr ident_cons [tvar; type_list tvar]])
+         variant [cstr ident_nil []; cstr ident_cons [tvar, Unrestricted; type_list tvar, Unrestricted]])
   |> add_type ident_nativeint
   |> add_type1 ident_option
        ~variance:Variance.covariant
        ~separability:Separability.Ind
        ~kind:(fun tvar ->
-         variant [cstr ident_none []; cstr ident_some [tvar]])
+         variant [cstr ident_none []; cstr ident_some [tvar, Unrestricted]])
   |> add_type ident_string
   |> add_type ident_unit
        ~immediate:Always

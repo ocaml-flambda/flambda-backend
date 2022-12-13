@@ -154,8 +154,12 @@ let label_decl sub x =
   let ld_type = sub.typ sub x.ld_type in
   {x with ld_type}
 
+let field_decl sub (ty, gf) =
+  let ty = sub.typ sub ty in
+  (ty, gf)
+
 let constructor_args sub = function
-  | Cstr_tuple l -> Cstr_tuple (List.map (sub.typ sub) l)
+  | Cstr_tuple l -> Cstr_tuple (List.map (field_decl sub) l)
   | Cstr_record l -> Cstr_record (List.map (label_decl sub) l)
 
 let constructor_decl sub cd =

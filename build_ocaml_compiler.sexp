@@ -8,6 +8,7 @@
   uses_autoconf
   is_flambda_backend
   build_m32_from_upstream
+  stack_allocation_by_default
   ))
  (features (
    normal

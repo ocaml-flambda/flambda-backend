@@ -44,6 +44,11 @@ type override_flag = Override | Fresh
 
 type closed_flag = Closed | Open
 
+type global_flag =
+  | Global
+  | Nonlocal
+  | Nothing
+
 type label = string
 
 type arg_label =
