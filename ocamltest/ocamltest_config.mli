@@ -73,6 +73,9 @@ val ocamlsrcdir : string
 val flambda : bool
 (** Whether flambda has been enabled at configure time *)
 
+val flambda2 : bool
+(** Whether flambda2 has been enabled at configure time *)
+
 val safe_string : bool
 (** Whether the compiler was configured with -safe-string *)
 
@@ -130,3 +133,6 @@ val probes : bool
 
 val stack_allocation : bool
 (** Whether stack allocation is enabled *)
+
+val poll_insertion : bool
+(** Whether poll insertion is enabled *)

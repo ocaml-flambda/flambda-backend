@@ -18,7 +18,6 @@
 
 open Misc
 open Asttypes
-open Path
 open Types
 open Typedtree
 open Lambda
@@ -50,15 +49,29 @@ let cons_opt x_opt xs =
 (* Keep track of the root path (from the root of the namespace to the
    currently compiled module expression).  Useful for naming extensions. *)
 
-let global_path glob = Some(Pident glob)
+let longident_of_comp_unit cu =
+  let rec of_names names_rev =
+    match names_rev with
+    | [] -> fatal_error "empty sequence of names"
+    | [name] -> Longident.Lident name
+    | name :: names_rev -> Longident.Ldot (of_names names_rev, name)
+  in
+  let names_rev =
+    Compilation_unit.full_path cu
+    |> List.rev_map Compilation_unit.Name.to_string
+  in
+  of_names names_rev
+
+let global_path cu =
+  Some(longident_of_comp_unit cu)
 let functor_path path param =
   match path with
     None -> None
-  | Some p -> Some(Papply(p, Pident param))
+  | Some p -> Some(Longident.Lapply(p, Lident (Ident.name param)))
 let field_path path field =
   match path with
     None -> None
-  | Some p -> Some(Pdot(p, Ident.name field))
+  | Some p -> Some(Longident.Ldot(p, Ident.name field))
 
 (* Compile type extensions *)
 
@@ -535,6 +548,7 @@ let rec compile_functor ~scopes mexp coercion root_path loc =
       local = Default_local;
       check = Default_check;
       poll = Default_poll;
+      loop = Never_loop;
       is_a_functor = true;
       stub = false;
       tmc_candidate = false;
@@ -858,29 +872,29 @@ let _ =
 (* Introduce dependencies on modules referenced only by "external". *)
 
 let scan_used_globals lam =
-  let globals = ref Ident.Set.empty in
+  let globals = ref Compilation_unit.Set.empty in
   let rec scan lam =
     Lambda.iter_head_constructor scan lam;
     match lam with
-      Lprim ((Pgetglobal id | Psetglobal id), _, _) ->
-        globals := Ident.Set.add id !globals
+      Lprim ((Pgetglobal cu | Psetglobal cu), _, _) ->
+        globals := Compilation_unit.Set.add cu !globals
     | _ -> ()
   in
   scan lam; !globals
 
 let required_globals ~flambda body =
   let globals = scan_used_globals body in
-  let add_global id req =
-    if not flambda && Ident.Set.mem id globals then
+  let add_global comp_unit req =
+    if not flambda && Compilation_unit.Set.mem comp_unit globals then
       req
     else
-      Ident.Set.add id req
+      Compilation_unit.Set.add comp_unit req
   in
   let required =
     List.fold_left
-      (fun acc path -> add_global (Path.head path) acc)
-      (if flambda then globals else Ident.Set.empty)
-      (Translprim.get_used_primitives ())
+      (fun acc cu -> add_global cu acc)
+      (if flambda then globals else Compilation_unit.Set.empty)
+      (Translprim.get_units_with_used_primitives ())
   in
   let required =
     List.fold_right add_global (Env.get_required_globals ()) required
@@ -891,21 +905,20 @@ let required_globals ~flambda body =
 
 (* Compile an implementation *)
 
-let transl_implementation_flambda module_name (str, cc) =
+let transl_implementation_flambda compilation_unit (str, cc) =
   reset_labels ();
   primitive_declarations := [];
   Translprim.clear_used_primitives ();
   Translcore.clear_probe_handlers ();
-  let module_id = Ident.create_persistent module_name in
-  let scopes = enter_module_definition ~scopes:empty_scopes module_id in
+  let scopes = enter_compilation_unit ~scopes:empty_scopes compilation_unit in
   let body, size =
     Translobj.transl_label_init (fun () ->
       let body, size =
         transl_struct ~scopes Loc_unknown [] cc
-          (global_path module_id) str in
+          (global_path compilation_unit) str in
       Translcore.declare_probe_handlers body, size)
   in
-  { module_ident = module_id;
+  { compilation_unit;
     main_module_block_size = size;
     required_globals = required_globals ~flambda:true body;
     code = body }
@@ -915,7 +928,7 @@ let transl_implementation module_name (str, cc) =
     transl_implementation_flambda module_name (str, cc)
   in
   let code =
-    Lprim (Psetglobal implementation.module_ident, [implementation.code],
+    Lprim (Psetglobal implementation.compilation_unit, [implementation.code],
            Loc_unknown)
   in
   { implementation with code }
@@ -1481,7 +1494,6 @@ let transl_store_gen ~scopes module_name ({ str_items = str }, restr) topl =
   primitive_declarations := [];
   Translcore.clear_probe_handlers ();
   Translprim.clear_used_primitives ();
-  let module_id = Ident.create_persistent module_name in
   let (map, prims, aliases, size) =
     build_ident_map restr (defined_idents str) (more_idents str) in
   let f str =
@@ -1491,37 +1503,36 @@ let transl_store_gen ~scopes module_name ({ str_items = str }, restr) topl =
         assert (size = 0);
         Lambda.subst (fun _ _ env -> env) !transl_store_subst
           (transl_exp ~scopes expr)
-      | str -> transl_store_structure ~scopes module_id map prims aliases str
+      | str ->
+        transl_store_structure ~scopes module_name map prims aliases str
     in
     Translcore.declare_probe_handlers expr
   in
-  transl_store_label_init module_id size f str
+  transl_store_label_init module_name size f str
   (*size, transl_label_init (transl_store_structure module_id map prims str)*)
 
 let transl_store_phrases module_name str =
   let scopes =
-    enter_module_definition ~scopes:empty_scopes
-      (Ident.create_persistent module_name)
+    enter_compilation_unit ~scopes:empty_scopes module_name
   in
   transl_store_gen ~scopes module_name (str,Tcoerce_none) true
 
-let transl_store_implementation module_name (str, restr) =
+let transl_store_implementation compilation_unit (str, restr) =
   let s = !transl_store_subst in
   transl_store_subst := Ident.Map.empty;
-  let module_ident = Ident.create_persistent module_name in
-  let scopes = enter_module_definition ~scopes:empty_scopes module_ident in
-  let (i, code) = transl_store_gen ~scopes module_name (str, restr) false in
+  let scopes = enter_compilation_unit ~scopes:empty_scopes compilation_unit in
+  let i, code = transl_store_gen ~scopes compilation_unit (str, restr) false in
   transl_store_subst := s;
   { Lambda.main_module_block_size = i;
     code;
-    (* module_ident is not used by closure, but this allow to share
+    (* compilation_unit is not used by closure, but this allow to share
        the type with the flambda version *)
-    module_ident;
+    compilation_unit;
     required_globals = required_globals ~flambda:true code }
 
 (* Compile a toplevel phrase *)
 
-let toploop_ident = Ident.create_persistent "Toploop"
+let toploop_unit = Compilation_unit.of_string "Toploop"
 let toploop_getvalue_pos = 0 (* position of getvalue in module Toploop *)
 let toploop_setvalue_pos = 1 (* position of setvalue in module Toploop *)
 
@@ -1539,7 +1550,7 @@ let toploop_getvalue id =
   Lapply{
     ap_loc=Loc_unknown;
     ap_func=Lprim(mod_field toploop_getvalue_pos,
-                  [Lprim(Pgetglobal toploop_ident, [], Loc_unknown)],
+                  [Lprim(Pgetglobal toploop_unit, [], Loc_unknown)],
                   Loc_unknown);
     ap_args=[Lconst(Const_base(
       Const_string (toplevel_name id, Location.none, None)))];
@@ -1555,7 +1566,7 @@ let toploop_setvalue id lam =
   Lapply{
     ap_loc=Loc_unknown;
     ap_func=Lprim(mod_field toploop_setvalue_pos,
-                  [Lprim(Pgetglobal toploop_ident, [], Loc_unknown)],
+                  [Lprim(Pgetglobal toploop_unit, [], Loc_unknown)],
                   Loc_unknown);
     ap_args=
       [Lconst(Const_base(
@@ -1613,7 +1624,7 @@ let transl_toplevel_item ~scopes item =
       set_toplevel_unique_name id;
       let lam = transl_module
                   ~scopes:(enter_module_definition ~scopes id)
-                  Tcoerce_none (Some(Pident id)) modl in
+                  Tcoerce_none (Some(Lident (Ident.name id))) modl in
       toploop_setvalue id lam
   | Tstr_recmodule bindings ->
       let idents = List.filter_map (fun mb -> mb.mb_id) bindings in
@@ -1625,7 +1636,7 @@ let transl_toplevel_item ~scopes item =
            | Some id ->
              transl_module
                ~scopes:(enter_module_definition ~scopes id)
-               Tcoerce_none (Some (Pident id)) modl)
+               Tcoerce_none (Some (Lident (Ident.name id))) modl)
         bindings
         (make_sequence toploop_setvalue_id idents)
   | Tstr_class cl_list ->

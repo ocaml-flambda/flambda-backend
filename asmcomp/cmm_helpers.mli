@@ -59,12 +59,13 @@ val boxedint64_header : nativeint
 val boxedintnat_header : nativeint
 
 (** Closure info for a closure of given arity and distance to environment *)
-val closure_info : arity:Clambda.arity -> startenv:int -> nativeint
+val closure_info : arity:Clambda.arity -> startenv:int -> is_last:bool
+  -> nativeint
 
 (** Wrappers *)
 val alloc_infix_header : int -> Debuginfo.t -> expression
 val alloc_closure_info :
-      arity:(Lambda.function_kind * int) -> startenv:int ->
+      arity:(Lambda.function_kind * int) -> startenv:int -> is_last:bool ->
       Debuginfo.t -> expression
 
 (** Integers *)
@@ -595,7 +596,7 @@ val reference_symbols: string list -> phrase
     The runtime representation of the type here must match that of [type
     global_map] in the natdynlink code. *)
 val globals_map:
-  (Compilation_unit.Name.t * Digest.t option * Digest.t option * Symbol.t list)
+  (Compilation_unit.t * Digest.t option * Digest.t option * Symbol.t list)
   list ->
   phrase
 

@@ -39,16 +39,16 @@ let flambda i backend Typedtree.{structure; coercion; _} =
   |> Profile.(record transl)
       (Translmod.transl_implementation_flambda i.module_name)
   |> Profile.(record generate)
-    (fun {Lambda.module_ident; main_module_block_size;
+    (fun {Lambda.compilation_unit; main_module_block_size;
           required_globals; code } ->
-    ((module_ident, main_module_block_size), code)
+    ((compilation_unit, main_module_block_size), code)
     |>> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.lambda
     |>> Simplif.simplify_lambda
     |>> print_if i.ppf_dump Clflags.dump_lambda Printlambda.lambda
-    |> (fun ((module_ident, main_module_block_size), code) ->
+    |> (fun ((compilation_unit, main_module_block_size), code) ->
       let program : Lambda.program =
         { Lambda.
-          module_ident;
+          compilation_unit;
           main_module_block_size;
           required_globals;
           code;
@@ -80,23 +80,15 @@ let clambda i backend Typedtree.{structure; coercion; _} =
             ~ppf_dump:i.ppf_dump;
        Compilenv.save_unit_info (cmx i))
 
-let reset_compilenv ~module_name =
-  let for_pack_prefix = Compilation_unit.Prefix.from_clflags () in
-  let comp_unit =
-    Compilation_unit.create for_pack_prefix
-      (Compilation_unit.Name.of_string module_name)
-  in
-  Compilenv.reset comp_unit
-
 (* Emit assembly directly from Linear IR *)
 let emit i =
-  reset_compilenv ~module_name:i.module_name;
+  Compilenv.reset i.module_name;
   Asmgen.compile_implementation_linear i.output_prefix ~progname:i.source_file
 
 let implementation ~backend ~start_from ~source_file
     ~output_prefix ~keep_symbol_tables:_ =
   let backend info typed =
-    reset_compilenv ~module_name:info.module_name;
+    Compilenv.reset info.module_name;
     if Config.flambda
     then flambda info backend typed
     else clambda info backend typed

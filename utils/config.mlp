@@ -94,6 +94,7 @@ let probes = %%PROBES%%
 let afl_instrument = %%AFL_INSTRUMENT%%
 
 let stack_allocation = %%STACK_ALLOCATION%%
+let poll_insertion = %%POLL_INSERTION%%
 
 (* When artifacts are incompatible with upstream OCaml, ocaml-jst uses
    magic numbers ending in 5xx. (The AST and bytecode executables remain
@@ -230,6 +231,7 @@ let configuration_variables =
 
   p_bool "flambda_backend" flambda_backend;
   p_bool "probes" probes;
+  p_bool "stack_allocation" stack_allocation;
 ]
 
 let print_config_value oc = function

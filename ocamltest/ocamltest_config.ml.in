@@ -49,6 +49,8 @@ let ocamlsrcdir = "%%ocamlsrcdir%%"
 
 let flambda = %%FLAMBDA%%
 
+let flambda2 = %%FLAMBDA2%%
+
 let ocamlc_default_flags = ""
 let ocamlopt_default_flags = ""
 
@@ -92,3 +94,5 @@ let naked_pointers = %%NAKED_POINTERS%%
 let probes = %%PROBES%%
 
 let stack_allocation = %%STACK_ALLOCATION%%
+
+let poll_insertion = %%POLL_INSERTION%%

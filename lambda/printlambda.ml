@@ -217,8 +217,9 @@ let primitive ppf = function
   | Pbytes_to_string -> fprintf ppf "bytes_to_string"
   | Pbytes_of_string -> fprintf ppf "bytes_of_string"
   | Pignore -> fprintf ppf "ignore"
-  | Pgetglobal id -> fprintf ppf "global %a" Ident.print id
-  | Psetglobal id -> fprintf ppf "setglobal %a" Ident.print id
+  | Pgetglobal cu -> fprintf ppf "global %a!" Compilation_unit.print cu
+  | Psetglobal cu -> fprintf ppf "setglobal %a!" Compilation_unit.print cu
+  | Pgetpredef id -> fprintf ppf "getpredef %a!" Ident.print id
   | Pmakeblock(tag, Immutable, shape, mode) ->
       fprintf ppf "make%sblock %i%a"
         (alloc_mode mode) tag block_shape shape
@@ -445,6 +446,7 @@ let name_of_primitive = function
   | Pignore -> "Pignore"
   | Pgetglobal _ -> "Pgetglobal"
   | Psetglobal _ -> "Psetglobal"
+  | Pgetpredef _ -> "Pgetpredef"
   | Pmakeblock _ -> "Pmakeblock"
   | Pmakefloatblock _ -> "Pmakefloatblock"
   | Pfield _ -> "Pfield"
@@ -580,6 +582,11 @@ let function_attribute ppf t =
   check_attribute ppf t.check;
   if t.tmc_candidate then
     fprintf ppf "tail_mod_cons@ ";
+  begin match t.loop with
+  | Default_loop -> ()
+  | Always_loop -> fprintf ppf "always_loop@ "
+  | Never_loop -> fprintf ppf "never_loop@ "
+  end;
   begin match t.poll with
   | Default_poll -> ()
   | Error_poll -> fprintf ppf "error_poll@ "

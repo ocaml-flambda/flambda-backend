@@ -15,6 +15,8 @@
 
 (* The interactive toplevel loop *)
 
+#18 "ocaml/toplevel/byte/topeval.ml"
+
 open Format
 open Misc
 open Parsetree
@@ -43,19 +45,19 @@ let implementation_label = ""
 
 module EvalBase = struct
 
+  let eval_compilation_unit cu =
+    try
+      Symtable.get_global_value
+        (cu |> Compilation_unit.to_global_ident_for_bytecode)
+    with Symtable.Error (Undefined_global name) ->
+      raise (Undefined_global name)
+
   let eval_ident id =
-    if Ident.is_global_or_predef id then begin
-      try
-        Symtable.get_global_value id
-      with Symtable.Error (Undefined_global name) ->
-        raise (Undefined_global name)
-    end else begin
-      let name = Translmod.toplevel_name id in
-      try
-        String.Map.find name !toplevel_value_bindings
-      with Not_found ->
-        raise (Undefined_global name)
-    end
+    let name = Translmod.toplevel_name id in
+    try
+      String.Map.find name !toplevel_value_bindings
+    with Not_found ->
+      raise (Undefined_global name)
 
 end
 
@@ -199,8 +201,8 @@ let check_consistency ppf filename cu =
       original_source = auth;
     } ->
     fprintf ppf "@[<hv 0>The files %s@ and %s@ \
-                 disagree over interface %s@]@."
-            user auth name;
+                 disagree over interface %a@]@."
+            user auth Compilation_unit.Name.print name;
     raise Load_failed
 
 (* This is basically Dynlink.Bytecode.run with no digest *)

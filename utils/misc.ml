@@ -944,8 +944,6 @@ let print_if ppf flag printer arg =
 
 
 type filepath = string
-type modname = string
-type crcs = (modname * Digest.t option) list
 
 type alerts = string Stdlib.String.Map.t
 
