@@ -197,7 +197,7 @@ $(LOCAL_SRC)/%.cmx: $(LOCAL_SRC)/%.ml
 # and ocamlopt invocations.  The resulting files are different, probably because
 # of sharing differences.  Writing an .mli file would be problematic.  Instead
 # we allow the compiler to generate the inferred .cmi upon the ocamlc
-# invocation, then trick it (by touching dynlink_compilerlibs.cmi) upon the
+# invocation, then trick it (by touching dynlink_compilerlibs.mli) upon the
 # ocamlopt invocation, which causes it to use the ocamlc-generated .cmi.
 dynlink_compilerlibs.cmi: $(COMPILERLIBS_CMO)
 	rm -f dynlink_compilerlibs.mli
