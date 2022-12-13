@@ -771,6 +771,7 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
         in
         let inner_params = List.map map_param (List.map fst params) in
         let new_ids = List.map Ident.rename inner_params in
+        let new_kinds = List.map (fun (p, kind) -> if List.mem_assoc p map then Pvalue Pgenval else kind) params in
         let subst =
           List.fold_left2 (fun s id new_id ->
             Ident.Map.add id new_id s
@@ -780,7 +781,7 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
         let body = if add_region then Lregion body else body in
         let inner_fun =
           lfunction ~kind:(Curried {nlocal=0})
-            ~params:(List.combine new_ids (List.map snd params))
+            ~params:(List.combine new_ids new_kinds)
             ~return ~body ~attr ~loc ~mode ~region:true
         in
         (wrapper_body, (inner_id, inner_fun))
