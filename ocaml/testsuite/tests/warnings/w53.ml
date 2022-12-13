@@ -51,7 +51,7 @@ module J' = Set.Make [@@ocaml.inlined]
 module type K = sig
   val a1 : int [@deprecated]   (* rejected *)
   val a2 : int [@@deprecated]  (* accepted *)
-  val a3 : int [@@@deprecated] (* rejected *)
+  [@@@deprecated] (* accepted*)
 end
 
 let [@unrolled 42] rec test_unrolled x = (* rejected *)

@@ -46,10 +46,16 @@ type privacy_mismatch =
   | Private_extensible_variant
   | Private_row_type
 
+type locality_mismatch =
+  { order : position
+  ; nonlocal : bool
+  (* whether expected mode is nonlocal or global *)
+  }
+
 type label_mismatch =
   | Type of Errortrace.equality_error
   | Mutability of position
-  | Nonlocality of position * bool
+  | Nonlocality of locality_mismatch
 
 type record_change =
   (Types.label_declaration as 'ld, 'ld, label_mismatch) Diffing_with_keys.change
@@ -64,6 +70,7 @@ type constructor_mismatch =
   | Inline_record of record_change list
   | Kind of position
   | Explicit_return_type of position
+  | Nonlocality of int * locality_mismatch
 
 type extension_constructor_mismatch =
   | Constructor_privacy

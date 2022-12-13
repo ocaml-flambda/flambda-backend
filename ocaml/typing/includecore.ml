@@ -167,10 +167,15 @@ type privacy_mismatch =
   | Private_extensible_variant
   | Private_row_type
 
+type locality_mismatch =
+  { order : position;
+    nonlocal : bool
+  }
+
 type label_mismatch =
   | Type of Errortrace.equality_error
   | Mutability of position
-  | Nonlocality of position * bool
+  | Nonlocality of locality_mismatch
 
 type record_change =
   (Types.label_declaration, Types.label_declaration, label_mismatch)
@@ -186,6 +191,7 @@ type constructor_mismatch =
   | Inline_record of record_change list
   | Kind of position
   | Explicit_return_type of position
+  | Nonlocality of int * locality_mismatch
 
 type extension_constructor_mismatch =
   | Constructor_privacy
@@ -222,6 +228,17 @@ type type_mismatch =
   | Variant_mismatch of variant_change list
   | Unboxed_representation of position
   | Immediate of Type_immediacy.Violation.t
+
+let report_locality_mismatch first second ppf err =
+  let {order; nonlocal} = err in
+  let sort =
+    if nonlocal then "nonlocal"
+    else "global"
+  in
+  Format.fprintf ppf "%s is %s and %s is not."
+    (String.capitalize_ascii  (choose order first second))
+    sort
+    (choose_other order first second)
 
 let report_primitive_mismatch first second ppf err =
   let pr fmt = Format.fprintf ppf fmt in
@@ -287,15 +304,7 @@ let report_label_mismatch first second env ppf err =
       Format.fprintf ppf "%s is mutable and %s is not."
         (String.capitalize_ascii (choose ord first second))
         (choose_other ord first second)
-  | Nonlocality(ord, nonlocal) ->
-      let sort =
-        if nonlocal then "nonlocal"
-        else "global"
-      in
-      Format.fprintf ppf "%s is %s and %s is not."
-        (String.capitalize_ascii  (choose ord first second))
-        sort
-        (choose_other ord first second)
+  | Nonlocality err_ -> report_locality_mismatch first second ppf err_
 
 let pp_record_diff first second prefix decl env ppf (x : record_change) =
   match x with
@@ -362,6 +371,10 @@ let report_constructor_mismatch first second decl env ppf err =
       pr "%s has explicit return type and %s doesn't."
         (String.capitalize_ascii (choose ord first second))
         (choose_other ord first second)
+  | Nonlocality (i, err) ->
+      pr "Locality mismatch at argument position %i : %a"
+        (i + 1) (report_locality_mismatch first second) err
+        (* argument position is one-based; more intuitive *)
 
 let pp_variant_diff first second prefix decl env ppf (x : variant_change) =
   match x with
@@ -469,35 +482,43 @@ let report_type_mismatch first second decl env ppf err =
           pr "%s is not a type that is always immediate on 64 bit platforms."
             first
 
+let compare_global_flags flag0 flag1 =
+  match flag0, flag1 with
+  | Global, (Nonlocal | Unrestricted) ->
+    Some {order = First; nonlocal = false}
+  | (Nonlocal | Unrestricted), Global ->
+    Some {order = Second; nonlocal = false}
+  | Nonlocal, Unrestricted ->
+    Some {order = First; nonlocal = true}
+  | Unrestricted, Nonlocal ->
+    Some {order = Second; nonlocal = true}
+  | Global, Global
+  | Nonlocal, Nonlocal
+  | Unrestricted, Unrestricted ->
+    None
+
 module Record_diffing = struct
 
   let compare_labels env params1 params2
-      (ld1 : Types.label_declaration)
-      (ld2 : Types.label_declaration) =
-    if ld1.ld_mutable <> ld2.ld_mutable
-    then
-      let ord = if ld1.ld_mutable = Asttypes.Mutable then First else Second in
-      Some (Mutability ord)
-    else begin
-      match ld1.ld_global, ld2.ld_global with
-      | Global, (Nonlocal | Unrestricted) ->
-        Some (Nonlocality(First, false))
-      | (Nonlocal | Unrestricted), Global ->
-        Some (Nonlocality(Second, false))
-      | Nonlocal, Unrestricted ->
-        Some (Nonlocality(First, true))
-      | Unrestricted, Nonlocal ->
-        Some (Nonlocality(Second, true))
-      | Global, Global
-      | Nonlocal, Nonlocal
-      | Unrestricted, Unrestricted ->
-        let tl1 = params1 @ [ld1.ld_type] in
-        let tl2 = params2 @ [ld2.ld_type] in
-        match Ctype.equal env true tl1 tl2 with
-        | exception Ctype.Equality err ->
-            Some (Type err : label_mismatch)
-        | () -> None
-    end
+        (ld1 : Types.label_declaration)
+        (ld2 : Types.label_declaration) =
+        if ld1.ld_mutable <> ld2.ld_mutable
+        then
+          let ord = if ld1.ld_mutable = Asttypes.Mutable then First else Second in
+          Some (Mutability ord)
+        else begin
+          match compare_global_flags ld1.ld_global ld2.ld_global with
+          | None -> 
+            let tl1 = params1 @ [ld1.ld_type] in
+            let tl2 = params2 @ [ld2.ld_type] in
+            begin
+            match Ctype.equal env true tl1 tl2 with
+            | exception Ctype.Equality err ->
+                Some (Type err : label_mismatch)
+            | () -> None
+            end 
+          | Some e -> Some (Nonlocality e : label_mismatch)
+        end         
 
   let rec equal ~loc env params1 params2
       (labels1 : Types.label_declaration list)
@@ -615,6 +636,15 @@ module Record_diffing = struct
 
 end
 
+(* just like List.find_map, but also gives index if found *)
+let rec find_map_idx f ?(off = 0) l =
+  match l with
+  | [] -> None
+  | x :: xs -> begin
+      match f x with
+      | None -> find_map_idx f ~off:(off+1) xs
+      | Some y -> Some (off, y)
+    end  
 
 module Variant_diffing = struct
 
@@ -624,11 +654,16 @@ module Variant_diffing = struct
         if List.length arg1 <> List.length arg2 then
           Some (Arity : constructor_mismatch)
         else begin
-        (* Ctype.equal must be called on all arguments at once, cf. PR#7378 *)
-        match Ctype.equal env true (params1 @ arg1) (params2 @ arg2) with
-        | exception Ctype.Equality err -> Some (Type err)
-        | () -> None
-      end
+          let arg1_tys, arg1_gfs = List.split arg1
+          and arg2_tys, arg2_gfs = List.split arg2
+          in          
+          (* Ctype.equal must be called on all arguments at once, cf. PR#7378 *)
+          match Ctype.equal env true (params1 @ arg1_tys) (params2 @ arg2_tys) with
+          | exception Ctype.Equality err -> Some (Type err)
+          | () -> List.combine arg1_gfs arg2_gfs
+                  |> find_map_idx (fun (x,y) -> compare_global_flags x y)
+                  |> Option.map (fun (i, err) -> Nonlocality (i, err))
+        end
     | Types.Cstr_record l1, Types.Cstr_record l2 ->
         Option.map
           (fun rec_err -> Inline_record rec_err)

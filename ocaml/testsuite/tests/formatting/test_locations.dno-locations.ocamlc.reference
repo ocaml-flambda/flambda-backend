@@ -126,7 +126,7 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
                         <arg>
                           Nolabel
                           expression 
-                            value_mode global
+                            value_mode <modevar>
                             Texp_apply
                             apply_mode Default
                             expression 
@@ -158,7 +158,7 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
                         <arg>
                           Nolabel
                           expression 
-                            value_mode global
+                            value_mode <modevar>
                             Texp_apply
                             apply_mode Default
                             expression 

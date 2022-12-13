@@ -384,7 +384,7 @@ module Analyser =
             in
             let vc_args =
               match cd_args with
-              | Cstr_tuple l -> Cstr_tuple (List.map (Odoc_env.subst_type env) l)
+              | Cstr_tuple l -> Cstr_tuple (List.map (fun (ty, _) -> Odoc_env.subst_type env ty) l)
               | Cstr_record l ->
                   Cstr_record (List.map (get_field env name_comment_list) l)
             in
@@ -421,7 +421,7 @@ module Analyser =
       let open Typedtree in
       function
       | Cstr_tuple l ->
-          Odoc_type.Cstr_tuple (List.map tuple l)
+          Odoc_type.Cstr_tuple (List.map (fun (ty, _) -> tuple ty) l)
       | Cstr_record l ->
           let comments = Record.(doc typedtree) pos_end l in
           Odoc_type.Cstr_record (List.map (record comments) l)
@@ -847,7 +847,7 @@ module Analyser =
               let xt_args =
                 match types_ext.ext_args with
                 | Cstr_tuple l ->
-                    Cstr_tuple (List.map (Odoc_env.subst_type new_env) l)
+                    Cstr_tuple (List.map (fun (ty, _) -> Odoc_env.subst_type new_env ty) l)
                 | Cstr_record l ->
                     let docs = Record.(doc types ext_loc_end) l in
                     Cstr_record (List.map (get_field new_env docs) l)
@@ -891,7 +891,7 @@ module Analyser =
             let ex_args =
               let pos_end = Loc.end_ types_ext.ext_loc in
               match types_ext.ext_args with
-              | Cstr_tuple l -> Cstr_tuple (List.map (Odoc_env.subst_type env) l)
+              | Cstr_tuple l -> Cstr_tuple (List.map (fun (ty, _) -> Odoc_env.subst_type env ty) l)
               | Cstr_record l ->
                   let docs = Record.(doc types) pos_end l in
                   Cstr_record (List.map (get_field env docs) l)
