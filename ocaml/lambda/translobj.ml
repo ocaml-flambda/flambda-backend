@@ -95,7 +95,7 @@ let transl_label_init_general f =
          let const =
            Lprim (Popaque, [Lconst c], Debuginfo.Scoped_location.Loc_unknown)
          in
-         Llet(Alias, Pgenval, id, const, expr))
+         Llet(Alias, structured_constant_layout c, id, const, expr))
       consts expr
   in
   (*let expr =
@@ -118,7 +118,7 @@ let transl_label_init_flambda f =
   let expr =
     if !method_count = 0 then expr
     else
-      Llet (Strict, Pgenval, method_cache_id,
+      Llet (Strict, Pvalue Pgenval, method_cache_id,
         Lprim (Pccall prim_makearray,
                [int !method_count; int 0],
                Loc_unknown),
@@ -186,7 +186,7 @@ let oo_wrap env req f x =
                         [lambda_unit; lambda_unit; lambda_unit],
                         Loc_unknown)
                 in
-                Llet(StrictOpt, Pgenval, id,
+                Llet(StrictOpt, Pvalue Pgenval, id,
                      Lprim (Popaque, [cl], Loc_unknown),
                      lambda))
              lambda !classes

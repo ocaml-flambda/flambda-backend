@@ -151,8 +151,8 @@ let expand_record_head h =
   | _ -> h
 
 let bind_alias p id ~arg ~action =
-  let k = Typeopt.value_kind p.pat_env p.pat_type in
-  bind_with_value_kind Alias (id, k) arg action
+  let k = Typeopt.layout p.pat_env p.pat_type in
+  bind_with_layout Alias (id, k) arg action
 
 let head_loc ~scopes head =
   Scoped_location.of_location ~scopes head.pat_loc
@@ -938,7 +938,7 @@ type 'row pattern_matching = {
 type handler = {
   provenance : matrix;
   exit : int;
-  vars : (Ident.t * Lambda.value_kind) list;
+  vars : (Ident.t * Lambda.layout) list;
   pm : initial_clause pattern_matching
 }
 
@@ -1576,7 +1576,7 @@ and precompile_or ~arg (cls : Simple.clause list) ors args def k =
               Typedtree.pat_bound_idents_full orp
               |> List.filter (fun (id, _, _) -> Ident.Set.mem id pm_fv)
               |> List.map (fun (id, _, ty) ->
-                     (id, Typeopt.value_kind orp.pat_env ty))
+                     (id, Typeopt.layout orp.pat_env ty))
             in
             let or_num = next_raise_count () in
             let new_patl = Patterns.omega_list patl in
@@ -1903,12 +1903,12 @@ let inline_lazy_force_cond arg pos loc =
   let force_fun = Lazy.force code_force_lazy_block in
   Llet
     ( Strict,
-      Pgenval,
+      Pvalue Pgenval,
       idarg,
       arg,
       Llet
         ( Alias,
-          Pgenval,
+          Pvalue Pgenval,
           tag,
           Lprim (Pccall prim_obj_tag, [ varg ], loc),
           Lifthenelse
@@ -1936,7 +1936,7 @@ let inline_lazy_force_cond arg pos loc =
                       ap_probe=None
                     },
                   (* ... arg *)
-                  varg, Pgenval), Pgenval) ) )
+                  varg, Pvalue Pgenval), Pvalue Pgenval) ) )
 
 let inline_lazy_force_switch arg pos loc =
   let idarg = Ident.create_local "lzarg" in
@@ -1944,7 +1944,7 @@ let inline_lazy_force_switch arg pos loc =
   let force_fun = Lazy.force code_force_lazy_block in
   Llet
     ( Strict,
-      Pgenval,
+      Pvalue Pgenval,
       idarg,
       arg,
       Lifthenelse
@@ -1974,7 +1974,7 @@ let inline_lazy_force_switch arg pos loc =
                   ];
                 sw_failaction = Some varg
               },
-              loc, Pgenval), Pgenval) )
+              loc, Pvalue Pgenval), Pvalue Pgenval) )
 
 let inline_lazy_force arg pos loc =
   if !Clflags.afl_instrument then
@@ -2166,16 +2166,16 @@ let prim_string_notequal =
 let prim_string_compare =
   Pccall (Primitive.simple ~name:"caml_string_compare" ~arity:2 ~alloc:false)
 
-let bind_sw arg k =
+let bind_sw arg layout k =
   match arg with
   | Lvar _ -> k arg
   | _ ->
       let id = Ident.create_local "switch" in
-      Llet (Strict, Pgenval, id, arg, k (Lvar id))
+      Llet (Strict, layout, id, arg, k (Lvar id))
 
 (* Sequential equality tests *)
 
-let make_string_test_sequence loc kind arg sw d =
+let make_string_test_sequence loc layout arg sw d =
   let d, sw =
     match d with
     | None -> (
@@ -2185,7 +2185,7 @@ let make_string_test_sequence loc kind arg sw d =
       )
     | Some d -> (d, sw)
   in
-  bind_sw arg (fun arg ->
+  bind_sw arg (Pvalue Pgenval) (fun arg ->
       List.fold_right
         (fun (str, lam) k ->
           Lifthenelse
@@ -2194,7 +2194,7 @@ let make_string_test_sequence loc kind arg sw d =
                   [ arg; Lconst (Const_immstring str) ],
                   loc ),
               k,
-              lam, kind ))
+              lam, layout ))
         sw d)
 
 let rec split k xs =
@@ -2230,6 +2230,7 @@ let rec do_make_string_test_tree loc kind arg sw delta d =
     let lt, (s, act), gt = split len sw in
     bind_sw
       (Lprim (prim_string_compare, [ arg; Lconst (Const_immstring s) ], loc))
+      (Pvalue Pintval)
       (fun r ->
         tree_way_test loc kind r
           (do_make_string_test_tree loc kind arg lt delta d)
@@ -2239,9 +2240,10 @@ let rec do_make_string_test_tree loc kind arg sw delta d =
 (* Entry point *)
 let expand_stringswitch loc kind arg sw d =
   match d with
-  | None -> bind_sw arg (fun arg -> do_make_string_test_tree loc kind arg sw 0 None)
+  | None -> bind_sw arg (Pvalue Pgenval)
+              (fun arg -> do_make_string_test_tree loc kind arg sw 0 None)
   | Some e ->
-      bind_sw arg (fun arg ->
+      bind_sw arg (Pvalue Pgenval) (fun arg ->
           make_catch kind e (fun d ->
               do_make_string_test_tree loc kind arg sw 1 (Some d)))
 
@@ -2367,7 +2369,7 @@ module SArg = struct
   type test = Lambda.lambda
   type act = Lambda.lambda
 
-  type value_kind = Lambda.value_kind
+  type layout = Lambda.layout
 
   let make_prim p args = Lprim (p, args, Loc_unknown)
 
@@ -2384,7 +2386,8 @@ module SArg = struct
           let newvar = Ident.create_local "switcher" in
           (newvar, Lvar newvar)
     in
-    bind Alias newvar arg (body newarg)
+    (* Note: the code in [switch.ml] will only call bind with an integer argument *)
+    bind_with_layout Alias (newvar, Pvalue Pintval) arg (body newarg)
 
   let make_const i = Lconst (Const_base (Const_int i))
 
@@ -2838,7 +2841,7 @@ let combine_constructor value_kind loc arg pat_env cstr partial ctx def
                       (Lprim (Pintcomp Ceq, [ Lvar tag; ext ], loc), act, rem, value_kind))
                   nonconsts default
               in
-              Llet (Alias, Pgenval, tag,
+              Llet (Alias, Pvalue Pintval, tag,
                     Lprim (Pfield (0, Reads_agree), [ arg ], loc),
                     tests)
         in
@@ -2936,7 +2939,7 @@ let call_switcher_variant_constr value_kind loc fail arg int_lambda_list =
   let v = Ident.create_local "variant" in
   Llet
     ( Alias,
-      Pgenval,
+      Pvalue Pintval,
       v,
       Lprim (nonconstant_variant_field 0, [ arg ], loc),
       call_switcher value_kind loc fail (Lvar v) min_int max_int int_lambda_list )
@@ -3019,7 +3022,8 @@ let combine_array value_kind loc arg kind partial ctx def (len_lambda_list, tota
     let switch =
       call_switcher value_kind loc fail (Lvar newvar) 0 max_int len_lambda_list
     in
-    bind Alias newvar (Lprim (Parraylength kind, [ arg ], loc)) switch
+    bind_with_layout Alias (newvar, Pvalue Pintval)
+      (Lprim (Parraylength kind, [ arg ], loc)) switch
   in
   (lambda1, Jumps.union local_jumps total1)
 
@@ -3081,7 +3085,7 @@ let compile_list compile_fun division =
   in
   c_rec [] division
 
-let compile_orhandlers value_kind compile_fun lambda1 total1 ctx to_catch =
+let compile_orhandlers layout compile_fun lambda1 total1 ctx to_catch =
   let rec do_rec r total_r = function
     | [] -> (r, total_r)
     | { provenance = mat; exit = i; vars; pm } :: rem -> (
@@ -3091,20 +3095,20 @@ let compile_orhandlers value_kind compile_fun lambda1 total1 ctx to_catch =
           (* Whilst the handler is [lambda_unit] it is actually unused and only added
              to produce well-formed code. In reality this expression returns a
              [value_kind]. *)
-          do_rec (Lstaticcatch (r, (i, vars), lambda_unit, value_kind)) total_r rem
+          do_rec (Lstaticcatch (r, (i, vars), lambda_unit, layout)) total_r rem
         | handler_i, total_i ->
           begin match raw_action r with
           | Lstaticraise (j, args) ->
               if i = j then
                 ( List.fold_right2
-                    (bind_with_value_kind Alias)
+                    (bind_with_layout Alias)
                     vars args handler_i,
                   Jumps.map (Context.rshift_num (ncols mat)) total_i )
               else
                 do_rec r total_r rem
           | _ ->
               do_rec
-                (Lstaticcatch (r, (i, vars), handler_i, value_kind))
+                (Lstaticcatch (r, (i, vars), handler_i, layout))
                 (Jumps.union (Jumps.remove i total_r)
                    (Jumps.map (Context.rshift_num (ncols mat)) total_i))
                 rem
@@ -3136,49 +3140,49 @@ let rec approx_present v = function
   | Lvar vv -> Ident.same v vv
   | _ -> true
 
-let rec lower_bind v arg lam =
+let rec lower_bind v arg_layout arg lam =
   match lam with
-  | Lifthenelse (cond, ifso, ifnot, kind) -> (
+  | Lifthenelse (cond, ifso, ifnot, layout) -> (
       let pcond = approx_present v cond
       and pso = approx_present v ifso
       and pnot = approx_present v ifnot in
       match (pcond, pso, pnot) with
       | false, false, false -> lam
       | false, true, false ->
-          Lifthenelse (cond, lower_bind v arg ifso, ifnot, kind)
+          Lifthenelse (cond, lower_bind v arg_layout arg ifso, ifnot, layout)
       | false, false, true ->
-          Lifthenelse (cond, ifso, lower_bind v arg ifnot, kind)
-      | _, _, _ -> bind Alias v arg lam
+          Lifthenelse (cond, ifso, lower_bind v arg_layout arg ifnot, layout)
+      | _, _, _ -> bind_with_layout Alias (v, arg_layout) arg lam
     )
   | Lswitch (ls, ({ sw_consts = [ (i, act) ]; sw_blocks = [] } as sw), loc,
-             kind)
+             layout)
     when not (approx_present v ls) ->
-      Lswitch (ls, { sw with sw_consts = [ (i, lower_bind v arg act) ] },
-               loc, kind)
+      Lswitch (ls, { sw with sw_consts = [ (i, lower_bind v arg_layout arg act) ] },
+               loc, layout)
   | Lswitch (ls, ({ sw_consts = []; sw_blocks = [ (i, act) ] } as sw),
-             loc, kind)
+             loc, layout)
     when not (approx_present v ls) ->
-      Lswitch (ls, { sw with sw_blocks = [ (i, lower_bind v arg act) ] },
-               loc, kind)
+      Lswitch (ls, { sw with sw_blocks = [ (i, lower_bind v arg_layout arg act) ] },
+               loc, layout)
   | Llet (Alias, k, vv, lv, l) ->
       if approx_present v lv then
-        bind Alias v arg lam
+        bind_with_layout Alias (v, arg_layout) arg lam
       else
-        Llet (Alias, k, vv, lv, lower_bind v arg l)
-  | _ -> bind Alias v arg lam
+        Llet (Alias, k, vv, lv, lower_bind v arg_layout arg l)
+  | _ -> bind_with_layout Alias (v, arg_layout) arg lam
 
-let bind_check str v arg lam =
+let bind_check str v arg_layout arg lam =
   match (str, arg) with
-  | _, Lvar _ -> bind str v arg lam
-  | Alias, _ -> lower_bind v arg lam
-  | _, _ -> bind str v arg lam
+  | _, Lvar _ -> bind_with_layout str (v, arg_layout) arg lam
+  | Alias, _ -> lower_bind v arg_layout arg lam
+  | _, _ -> bind_with_layout str (v, arg_layout) arg lam
 
 let comp_exit ctx m =
   match Default_environment.pop m.default with
   | Some ((_, i), _) -> (Lstaticraise (i, []), Jumps.singleton i ctx)
   | None -> fatal_error "Matching.comp_exit"
 
-let rec comp_match_handlers value_kind comp_fun partial ctx first_match next_matchs =
+let rec comp_match_handlers layout comp_fun partial ctx first_match next_matchs =
   match next_matchs with
   | [] -> comp_fun partial ctx first_match
   | rem -> (
@@ -3198,7 +3202,7 @@ let rec comp_match_handlers value_kind comp_fun partial ctx first_match next_mat
               match comp_fun partial ctx_i pm with
               | li, total_i ->
                 c_rec
-                  (Lstaticcatch (body, (i, []), li, value_kind))
+                  (Lstaticcatch (body, (i, []), li, layout))
                   (Jumps.union total_i total_rem)
                   rem
               | exception Unused ->
@@ -3206,7 +3210,7 @@ let rec comp_match_handlers value_kind comp_fun partial ctx first_match next_mat
                      to produce well-formed code. In reality this expression returns a
                      [value_kind]. *)
                   c_rec
-                  (Lstaticcatch (body, (i, []), lambda_unit, value_kind))
+                  (Lstaticcatch (body, (i, []), lambda_unit, layout))
                   total_rem rem
             end
           )
@@ -3217,7 +3221,7 @@ let rec comp_match_handlers value_kind comp_fun partial ctx first_match next_mat
       | exception Unused -> (
         match next_matchs with
         | [] -> raise Unused
-        | (_, x) :: xs -> comp_match_handlers value_kind comp_fun partial ctx x xs
+        | (_, x) :: xs -> comp_match_handlers layout comp_fun partial ctx x xs
       )
     )
 
@@ -3265,48 +3269,50 @@ let rec compile_match ~scopes value_kind repr partial ctx
       compile_match_nonempty ~scopes value_kind repr partial ctx
         { m with cases = map_on_rows Non_empty_row.of_initial nonempty_cases }
 
-and compile_match_nonempty ~scopes value_kind repr partial ctx
+and compile_match_nonempty ~scopes layout repr partial ctx
     (m : Typedtree.pattern Non_empty_row.t clause pattern_matching)=
   match m with
   | { cases = []; args = [] } -> comp_exit ctx m
   | { args = (arg, str) :: argl } ->
+      let arg_layout = Pvalue Pgenval in
       let v, newarg = arg_to_var arg m.cases in
       let args = (newarg, Alias) :: argl in
       let cases = List.map (half_simplify_nonempty ~arg:newarg) m.cases in
       let m = { m with args; cases } in
       let first_match, rem =
         split_and_precompile_half_simplified ~arg:newarg m in
-      combine_handlers ~scopes value_kind repr partial ctx (v, str, arg) first_match rem
+      combine_handlers ~scopes layout repr partial ctx (v, str, arg_layout, arg) first_match rem
   | _ -> assert false
 
-and compile_match_simplified ~scopes value_kind  repr partial ctx
+and compile_match_simplified ~scopes layout repr partial ctx
     (m : Simple.clause pattern_matching) =
   match m with
   | { cases = []; args = [] } -> comp_exit ctx m
   | { args = ((Lvar v as arg), str) :: argl } ->
+      let arg_layout = Pvalue Pgenval in
       let args = (arg, Alias) :: argl in
       let m = { m with args } in
       let first_match, rem = split_and_precompile_simplified m in
-      combine_handlers value_kind ~scopes repr partial ctx (v, str, arg)
+      combine_handlers layout ~scopes repr partial ctx (v, str, arg_layout, arg)
         first_match rem
   | _ -> assert false
 
-and combine_handlers ~scopes value_kind repr partial ctx (v, str, arg)
+and combine_handlers ~scopes layout repr partial ctx (v, str, arg_layout, arg)
     first_match rem =
   let lam, total =
-    comp_match_handlers value_kind
+    comp_match_handlers layout
       (( if dbg then
-         do_compile_matching_pr ~scopes value_kind
+         do_compile_matching_pr ~scopes layout
        else
-         do_compile_matching ~scopes value_kind
+         do_compile_matching ~scopes layout
        )
          repr)
       partial ctx first_match rem
   in
-  (bind_check str v arg lam, total)
+  (bind_check str v arg_layout arg lam, total)
 
 (* verbose version of do_compile_matching, for debug *)
-and do_compile_matching_pr ~scopes value_kind repr partial ctx x =
+and do_compile_matching_pr ~scopes layout repr partial ctx x =
   Format.eprintf "COMPILE: %s\nMATCH\n"
     ( match partial with
     | Partial -> "Partial"
@@ -3315,7 +3321,7 @@ and do_compile_matching_pr ~scopes value_kind repr partial ctx x =
   pretty_precompiled x;
   Format.eprintf "CTX\n";
   Context.eprintf ctx;
-  let ((_, jumps) as r) = do_compile_matching ~scopes value_kind repr partial ctx x in
+  let ((_, jumps) as r) = do_compile_matching ~scopes layout repr partial ctx x in
   Format.eprintf "JUMPS\n";
   Jumps.eprintf jumps;
   r
@@ -3709,7 +3715,7 @@ let assign_pat ~scopes value_kind opt nraise catch_ids loc pat lam =
     simple_for_let ~scopes value_kind loc lam pat code in
   List.fold_left push_sublet exit rev_sublets
 
-let for_let ~scopes loc param pat body_kind body =
+let for_let ~scopes loc param pat body_layout body =
   match pat.pat_desc with
   | Tpat_any ->
       (* This eliminates a useless variable (and stack slot in bytecode)
@@ -3717,36 +3723,36 @@ let for_let ~scopes loc param pat body_kind body =
       Lsequence (param, body)
   | Tpat_var (id, _) ->
       (* fast path, and keep track of simple bindings to unboxable numbers *)
-      let k = Typeopt.value_kind pat.pat_env pat.pat_type in
+      let k = Typeopt.layout pat.pat_env pat.pat_type in
       Llet (Strict, k, id, param, body)
   | _ ->
       let opt = ref false in
       let nraise = next_raise_count () in
       let catch_ids = pat_bound_idents_full pat in
-      let ids_with_kinds =
+      let ids_with_layouts =
         List.map
-          (fun (id, _, typ) -> (id, Typeopt.value_kind pat.pat_env typ))
+          (fun (id, _, typ) -> (id, Typeopt.layout pat.pat_env typ))
           catch_ids
       in
       let ids = List.map (fun (id, _, _) -> id) catch_ids in
       let bind =
-        map_return (assign_pat ~scopes body_kind opt nraise ids loc pat) param in
+        map_return (assign_pat ~scopes body_layout opt nraise ids loc pat) param in
       if !opt then
-        Lstaticcatch (bind, (nraise, ids_with_kinds), body, body_kind)
+        Lstaticcatch (bind, (nraise, ids_with_layouts), body, body_layout)
       else
-        simple_for_let ~scopes body_kind loc param pat body
+        simple_for_let ~scopes body_layout loc param pat body
 
 (* Handling of tupled functions and matchings *)
 
 (* Easy case since variables are available *)
-let for_tupled_function ~scopes loc kind paraml pats_act_list partial =
+let for_tupled_function ~scopes loc layout paraml pats_act_list partial =
   let partial = check_partial_list pats_act_list partial in
   let args = List.map (fun id -> (Lvar id, Strict)) paraml in
   let handler =
-    toplevel_handler ~scopes kind loc ~failer:Raise_match_failure
+    toplevel_handler ~scopes layout loc ~failer:Raise_match_failure
       partial args pats_act_list in
   handler (fun partial pm ->
-    compile_match ~scopes kind None partial
+    compile_match ~scopes layout None partial
       (Context.start (List.length paraml)) pm
   )
 
@@ -3817,18 +3823,18 @@ let flatten_precompiled size args pmh =
    Hence it needs a fourth argument, which it ignores
 *)
 
-let compile_flattened ~scopes value_kind repr partial ctx pmh =
+let compile_flattened ~scopes layout repr partial ctx pmh =
   match pmh with
-  | FPm pm -> compile_match_nonempty value_kind ~scopes repr partial ctx pm
+  | FPm pm -> compile_match_nonempty layout ~scopes repr partial ctx pm
   | FPmOr { body = b; handlers = hs } ->
       let lam, total =
-        compile_match_nonempty value_kind ~scopes repr partial ctx b
+        compile_match_nonempty layout ~scopes repr partial ctx b
       in
-      compile_orhandlers value_kind
-        (compile_match ~scopes value_kind repr partial)
+      compile_orhandlers layout
+        (compile_match ~scopes layout repr partial)
         lam total ctx hs
 
-let do_for_multiple_match ~scopes value_kind loc paraml mode pat_act_list partial =
+let do_for_multiple_match ~scopes layout loc paraml mode pat_act_list partial =
   let repr = None in
   let arg =
     let sloc = Scoped_location.of_location ~scopes loc in
@@ -3836,7 +3842,7 @@ let do_for_multiple_match ~scopes value_kind loc paraml mode pat_act_list partia
   let handler =
     let partial = check_partial pat_act_list partial in
     let rows = map_on_rows (fun p -> (p, [])) pat_act_list in
-    toplevel_handler ~scopes value_kind loc ~failer:Raise_match_failure
+    toplevel_handler ~scopes layout loc ~failer:Raise_match_failure
       partial [ (arg, Strict) ] rows in
   handler (fun partial pm1 ->
     let pm1_half =
@@ -3847,16 +3853,18 @@ let do_for_multiple_match ~scopes value_kind loc paraml mode pat_act_list partia
     and idl = List.map (function
       | Lvar id -> id
       | _ -> Ident.create_local "*match*") paraml in
+    (* TODO find a way to get the layouts *)
+    let idl_with_layouts = List.map (fun id -> (id, Pvalue Pgenval)) idl in
     let args = List.map (fun id -> (Lvar id, Alias)) idl in
     let flat_next = flatten_precompiled size args next
     and flat_nexts =
       List.map (fun (e, pm) -> (e, flatten_precompiled size args pm)) nexts
     in
     let lam, total =
-      comp_match_handlers value_kind (compile_flattened ~scopes value_kind repr) partial
+      comp_match_handlers layout (compile_flattened ~scopes layout repr) partial
         (Context.start size) flat_next flat_nexts
     in
-    List.fold_right2 (bind Strict) idl paraml lam, total
+    List.fold_right2 (bind_with_layout Strict) idl_with_layouts paraml lam, total
   )
 
 (* PR#4828: Believe it or not, the 'paraml' argument below
@@ -3870,10 +3878,12 @@ let param_to_var param =
 let bind_opt (v, eo) k =
   match eo with
   | None -> k
-  | Some e -> Lambda.bind Strict v e k
+  | Some e ->
+      (* TODO find a way to get the layout *)
+      Lambda.bind_with_layout Strict (v, Pvalue Pgenval) e k
 
-let for_multiple_match ~scopes value_kind loc paraml mode pat_act_list partial =
+let for_multiple_match ~scopes layout loc paraml mode pat_act_list partial =
   let v_paraml = List.map param_to_var paraml in
   let paraml = List.map (fun (v, _) -> Lvar v) v_paraml in
   List.fold_right bind_opt v_paraml
-    (do_for_multiple_match ~scopes value_kind loc paraml mode pat_act_list partial)
+    (do_for_multiple_match ~scopes layout loc paraml mode pat_act_list partial)

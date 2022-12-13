@@ -192,19 +192,24 @@ and float_comparison =
 and array_kind =
     Pgenarray | Paddrarray | Pintarray | Pfloatarray
 
-and value_kind =
+and value_kind__ =
     Pgenval | Pfloatval | Pboxedintval of boxed_integer | Pintval
   | Pvariant of {
       consts : int list;
-      non_consts : (int * value_kind list) list;
+      non_consts : (int * value_kind__ list) list;
       (** [non_consts] must be non-empty.  For constant variants [Pintval]
           must be used.  This causes a small loss of precision but it is not
           expected to be significant. *)
     }
   | Parrayval of array_kind
 
+and layout =
+    Punboxedint of boxed_integer
+  | Pvalue of value_kind__
+  | Pvoid
+
 and block_shape =
-  value_kind list option
+  value_kind__ list option
 
 and boxed_integer = Primitive.boxed_integer =
     Pnativeint | Pint32 | Pint64
@@ -230,7 +235,11 @@ and raise_kind =
 
 val equal_primitive : primitive -> primitive -> bool
 
-val equal_value_kind : value_kind -> value_kind -> bool
+val equal_value_kind : value_kind__ -> value_kind__ -> bool
+
+val equal_layout : layout -> layout -> bool
+
+val must_be_value : layout -> value_kind__
 
 val equal_boxed_integer : boxed_integer -> boxed_integer -> bool
 
@@ -343,21 +352,21 @@ type lambda =
   | Lconst of structured_constant
   | Lapply of lambda_apply
   | Lfunction of lfunction
-  | Llet of let_kind * value_kind * Ident.t * lambda * lambda
-  | Lmutlet of value_kind * Ident.t * lambda * lambda
+  | Llet of let_kind * layout * Ident.t * lambda * lambda
+  | Lmutlet of layout * Ident.t * lambda * lambda
   | Lletrec of (Ident.t * lambda) list * lambda
   | Lprim of primitive * lambda list * scoped_location
-  | Lswitch of lambda * lambda_switch * scoped_location * value_kind
+  | Lswitch of lambda * lambda_switch * scoped_location * layout
 (* switch on strings, clauses are sorted by string order,
    strings are pairwise distinct *)
   | Lstringswitch of
-      lambda * (string * lambda) list * lambda option * scoped_location * value_kind
+      lambda * (string * lambda) list * lambda option * scoped_location * layout
   | Lstaticraise of int * lambda list
-  | Lstaticcatch of lambda * (int * (Ident.t * value_kind) list) * lambda * value_kind
-  | Ltrywith of lambda * Ident.t * lambda * value_kind
+  | Lstaticcatch of lambda * (int * (Ident.t * layout) list) * lambda * layout
+  | Ltrywith of lambda * Ident.t * lambda * layout
 (* Lifthenelse (e, t, f) evaluates t if e evaluates to 0, and
    evaluates f if e evaluates to any other value *)
-  | Lifthenelse of lambda * lambda * lambda * value_kind
+  | Lifthenelse of lambda * lambda * lambda * layout
   | Lsequence of lambda * lambda
   | Lwhile of lambda_while
   | Lfor of lambda_for
@@ -370,8 +379,8 @@ type lambda =
 
 and lfunction = private
   { kind: function_kind;
-    params: (Ident.t * value_kind) list;
-    return: value_kind;
+    params: (Ident.t * layout) list;
+    return: layout;
     body: lambda;
     attr: function_attribute; (* specified with [@inline] attribute *)
     loc : scoped_location;
@@ -455,13 +464,13 @@ val make_key: lambda -> lambda option
 val const_unit: structured_constant
 val const_int : int -> structured_constant
 val lambda_unit: lambda
-val name_lambda: let_kind -> lambda -> (Ident.t -> lambda) -> lambda
-val name_lambda_list: lambda list -> (lambda list -> lambda) -> lambda
+val name_lambda: let_kind -> lambda -> layout -> (Ident.t -> lambda) -> lambda
+val name_lambda_list: (lambda * layout) list -> (lambda list -> lambda) -> lambda
 
 val lfunction :
   kind:function_kind ->
-  params:(Ident.t * value_kind) list ->
-  return:value_kind ->
+  params:(Ident.t * layout) list ->
+  return:layout ->
   body:lambda ->
   attr:function_attribute -> (* specified with [@inline] attribute *)
   loc:scoped_location ->
@@ -534,9 +543,9 @@ val shallow_map  :
   lambda -> lambda
   (** Rewrite each immediate sub-term with the function. *)
 
-val bind : let_kind -> Ident.t -> lambda -> lambda -> lambda
-val bind_with_value_kind:
-  let_kind -> (Ident.t * value_kind) -> lambda -> lambda -> lambda
+val bind_genval : let_kind -> Ident.t -> lambda -> lambda -> lambda
+val bind_with_layout:
+  let_kind -> (Ident.t * layout) -> lambda -> lambda -> lambda
 
 val negate_integer_comparison : integer_comparison -> integer_comparison
 val swap_integer_comparison : integer_comparison -> integer_comparison
@@ -595,3 +604,5 @@ val reset: unit -> unit
 *)
 val mod_field: ?read_semantics: field_read_semantics -> int -> primitive
 val mod_setfield: int -> primitive
+
+val structured_constant_layout : structured_constant -> layout

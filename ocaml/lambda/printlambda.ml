@@ -95,18 +95,26 @@ and value_kind' ppf = function
   | Pvariant { consts; non_consts; } ->
     variant_kind value_kind' ppf ~consts ~non_consts
 
-let return_kind ppf (mode, kind) =
+and layout ppf = function
+  | Pvalue Pgenval -> ()
+  | Pvalue kind -> value_kind ppf kind
+  | Punboxedint bi -> fprintf ppf "[unboxed_%s]" (boxed_integer_name bi)
+  | Pvoid -> fprintf ppf "[void]"
+
+let return_kind ppf (mode, layout) =
   let smode = alloc_mode mode in
-  match kind with
-  | Pgenval when is_heap_mode mode -> ()
-  | Pgenval -> fprintf ppf ": %s@ " smode
-  | Pintval -> fprintf ppf ": int@ "
-  | Pfloatval -> fprintf ppf ": %sfloat@ " smode
-  | Parrayval elt_kind ->
+  match layout with
+  | Pvalue Pgenval when is_heap_mode mode -> ()
+  | Pvalue Pgenval -> fprintf ppf ": %s@ " smode
+  | Pvalue Pintval -> fprintf ppf ": int@ "
+  | Pvalue Pfloatval -> fprintf ppf ": %sfloat@ " smode
+  | Pvalue (Parrayval elt_kind) ->
      fprintf ppf ": %s%sarray@ " smode (array_kind elt_kind)
-  | Pboxedintval bi -> fprintf ppf ": %s%s@ " smode (boxed_integer_name bi)
-  | Pvariant { consts; non_consts; } ->
+  | Pvalue (Pboxedintval bi) -> fprintf ppf ": %s%s@ " smode (boxed_integer_name bi)
+  | Pvalue (Pvariant { consts; non_consts; }) ->
     variant_kind value_kind' ppf ~consts ~non_consts
+  | Punboxedint bi -> fprintf ppf ": unboxed_%s@ " (boxed_integer_name bi)
+  | Pvoid -> fprintf ppf ": void@ "
 
 let field_kind ppf = function
   | Pgenval -> pp_print_string ppf "*"
@@ -646,7 +654,7 @@ let rec lam ppf = function
         match kind with
         | Curried _ ->
             List.iter (fun (param, k) ->
-                fprintf ppf "@ %a%a" Ident.print param value_kind k) params
+                fprintf ppf "@ %a%a" Ident.print param layout k) params
         | Tupled ->
             fprintf ppf " (";
             let first = ref true in
@@ -654,7 +662,7 @@ let rec lam ppf = function
               (fun (param, k) ->
                 if !first then first := false else fprintf ppf ",@ ";
                 Ident.print ppf param;
-                value_kind ppf k)
+                layout ppf k)
               params;
             fprintf ppf ")" in
       let rmode = if region then alloc_heap else alloc_local in
@@ -676,7 +684,7 @@ let rec lam ppf = function
         | Lmutlet(k, id, arg, body) as l ->
            if sp then fprintf ppf "@ ";
            fprintf ppf "@[<2>%a =%s%a@ %a@]"
-             Ident.print id (let_kind l) value_kind k lam arg;
+             Ident.print id (let_kind l) layout k lam arg;
            letbody ~sp:true body
         | expr -> expr in
       fprintf ppf "@[<2>(let@ @[<hv 1>(";
@@ -696,7 +704,7 @@ let rec lam ppf = function
       let lams ppf largs =
         List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in
       fprintf ppf "@[<2>(%a%a)@]" primitive prim lams largs
-  | Lswitch(larg, sw, _loc, _kind) ->
+  | Lswitch(larg, sw, _loc, _layout) ->
       let switch ppf sw =
         let spc = ref false in
         List.iter
@@ -719,7 +727,7 @@ let rec lam ppf = function
        "@[<1>(%s %a@ @[<v 0>%a@])@]"
        (match sw.sw_failaction with None -> "switch*" | _ -> "switch")
        lam larg switch sw
-  | Lstringswitch(arg, cases, default, _, _kind) ->
+  | Lstringswitch(arg, cases, default, _, _layout) ->
       let switch ppf cases =
         let spc = ref false in
         List.iter
@@ -739,20 +747,20 @@ let rec lam ppf = function
       let lams ppf largs =
         List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in
       fprintf ppf "@[<2>(exit@ %d%a)@]" i lams ls;
-  | Lstaticcatch(lbody, (i, vars), lhandler, _kind) ->
+  | Lstaticcatch(lbody, (i, vars), lhandler, _layout) ->
       fprintf ppf "@[<2>(catch@ %a@;<1 -1>with (%d%a)@ %a)@]"
         lam lbody i
         (fun ppf vars ->
            List.iter
-             (fun (x, k) -> fprintf ppf " %a%a" Ident.print x value_kind k)
+             (fun (x, k) -> fprintf ppf " %a%a" Ident.print x layout k)
              vars
         )
         vars
         lam lhandler
-  | Ltrywith(lbody, param, lhandler, _kind) ->
+  | Ltrywith(lbody, param, lhandler, _layout) ->
       fprintf ppf "@[<2>(try@ %a@;<1 -1>with %a@ %a)@]"
         lam lbody Ident.print param lam lhandler
-  | Lifthenelse(lcond, lif, lelse, _kind) ->
+  | Lifthenelse(lcond, lif, lelse, _layout) ->
       fprintf ppf "@[<2>(if@ %a@ %a@ %a)@]" lam lcond lam lif lam lelse
   | Lsequence(l1, l2) ->
       fprintf ppf "@[<2>(seq@ %a@ %a)@]" lam l1 sequence l2

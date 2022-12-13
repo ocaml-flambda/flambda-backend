@@ -242,7 +242,8 @@ let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda =
   | Let { var; defining_expr; body; _ } ->
     (* TODO: synthesize proper value_kind *)
     let id, env_body = Env.add_fresh_ident env var in
-    Ulet (Immutable, Pgenval, VP.create id,
+    (* TODO kind *)
+    Ulet (Immutable, Pvalue Pgenval, VP.create id,
       to_clambda_named t env var defining_expr,
       to_clambda t env_body body)
   | Let_mutable { var = mut_var; initial_value = var; body; contents_kind } ->
@@ -326,7 +327,8 @@ let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda =
     let env_handler, ids =
       List.fold_right (fun var (env, ids) ->
           let id, env = Env.add_fresh_ident env var in
-          env, (VP.create id, Lambda.Pgenval) :: ids)
+          (* TODO kind *)
+          env, (VP.create id, Lambda.Pvalue Lambda.Pgenval) :: ids)
         vars (env, [])
     in
     Ucatch (Static_exception.to_int static_exn, ids,
@@ -572,11 +574,12 @@ and to_clambda_set_of_closures t env
     in
     { label;
       arity = clambda_arity function_decl;
+      (* TODO kinds *)
       params =
         List.map
-          (fun var -> VP.create var, Lambda.Pgenval)
+          (fun var -> VP.create var, Lambda.(Pvalue Pgenval))
           (params @ [env_var]);
-      return = Lambda.Pgenval;
+      return = Lambda.(Pvalue Pgenval);
       body = to_clambda t env_body function_decl.body;
       dbg = function_decl.dbg;
       env = Some env_var;
@@ -631,8 +634,9 @@ and to_clambda_closed_set_of_closures t env symbol
     in
     { label;
       arity = clambda_arity function_decl;
-      params = List.map (fun var -> VP.create var, Lambda.Pgenval) params;
-      return = Lambda.Pgenval;
+      (* TODO kinds *)
+      params = List.map (fun var -> VP.create var, Lambda.(Pvalue Pgenval)) params;
+      return = Lambda.(Pvalue Pgenval);
       body;
       dbg = function_decl.dbg;
       env = None;

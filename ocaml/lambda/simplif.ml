@@ -553,8 +553,8 @@ let simplify_lets lam =
       let slbody = simplif lbody in
       begin try
         let kind = match kind_ref with
-          | None -> Pgenval
-          | Some [field_kind] -> field_kind
+          | None -> Pvalue Pgenval
+          | Some [field_kind] -> Pvalue field_kind
           | Some _ -> assert false
         in
         mkmutlet kind v slinit (eliminate_ref v slbody)
@@ -780,7 +780,7 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
         let body = if add_region then Lregion body else body in
         let inner_fun =
           lfunction ~kind:(Curried {nlocal=0})
-            ~params:(List.map (fun id -> id, Pgenval) new_ids)
+            ~params:(List.combine new_ids (List.map snd params))
             ~return ~body ~attr ~loc ~mode ~region:true
         in
         (wrapper_body, (inner_id, inner_fun))

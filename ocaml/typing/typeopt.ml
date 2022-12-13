@@ -170,9 +170,10 @@ let bigarray_type_kind_and_layout env typ =
   | _ ->
       (Pbigarray_unknown, Pbigarray_unknown_layout)
 
-let value_kind env ty =
+let layout env ty =
+  (* Note: this only works as long as types can only represent values *)
   let rec loop env ~visited ~depth ~num_nodes_visited ty
-      : int * Lambda.value_kind =
+      : int * Lambda.value_kind__ =
     let[@inline] cannot_proceed () =
       Numbers.Int.Set.mem (get_id ty) visited
         || depth >= 2
@@ -346,12 +347,12 @@ let value_kind env ty =
     loop env ~visited:Numbers.Int.Set.empty ~depth:0
       ~num_nodes_visited:0 ty
   in
-  value_kind
+  Pvalue value_kind
 
-let function_return_value_kind env ty =
+let function_return_layout env ty =
   match is_function_type env ty with
-  | Some (_lhs, rhs) -> value_kind env rhs
-  | None -> Pgenval
+  | Some (_lhs, rhs) -> layout env rhs
+  | None -> (* TODO: this seems dangerous *) Pvalue Pgenval
 
 (** Whether a forward block is needed for a lazy thunk on a value, i.e.
     if the value can be represented as a float/forward/lazy *)
@@ -387,6 +388,15 @@ let classify_lazy_argument : Typedtree.expression ->
     | _ ->
        `Other
 
-let value_kind_union (k1 : Lambda.value_kind) (k2 : Lambda.value_kind) =
+let value_kind_union (k1 : Lambda.value_kind__) (k2 : Lambda.value_kind__) =
   if Lambda.equal_value_kind k1 k2 then k1
   else Pgenval
+
+let layout_union (layout1 : Lambda.layout) (layout2 : Lambda.layout) =
+  match layout1, layout2 with
+  | Pvalue k1, Pvalue k2 ->
+      Pvalue (value_kind_union k1 k2)
+  | (Pvalue _ | Pvoid | Punboxedint _), _ ->
+      if Lambda.equal_layout layout1 layout2 then layout1 else
+        Misc.fatal_errorf "Union of incompatible layouts %a and %a"
+          Printlambda.layout layout1 Printlambda.layout layout2

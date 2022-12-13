@@ -81,7 +81,7 @@ let transl_type_extension ~scopes env rootpath tyext body =
         transl_extension_constructor ~scopes env
           (field_path rootpath ext.ext_id) ext
       in
-      Llet(Strict, Pgenval, ext.ext_id, lam, body))
+      Llet(Strict, Pvalue Pgenval, ext.ext_id, lam, body))
     tyext.tyext_constructors
     body
 
@@ -92,7 +92,7 @@ let rec apply_coercion loc strict restr arg =
     Tcoerce_none ->
       arg
   | Tcoerce_structure(pos_cc_list, id_pos_list) ->
-      name_lambda strict arg (fun id ->
+      name_lambda strict arg (Pvalue Pgenval) (fun id ->
         let get_field pos =
           if pos < 0 then lambda_unit
           else
@@ -107,13 +107,13 @@ let rec apply_coercion loc strict restr arg =
   | Tcoerce_functor(cc_arg, cc_res) ->
       let param = Ident.create_local "funarg" in
       let carg = apply_coercion loc Alias cc_arg (Lvar param) in
-      apply_coercion_result loc strict arg [param, Pgenval] [carg] cc_res
+      apply_coercion_result loc strict arg [param, Pvalue Pgenval] [carg] cc_res
   | Tcoerce_primitive { pc_desc; pc_env; pc_type; pc_poly_mode } ->
       let poly_mode = Option.map Translcore.transl_alloc_mode pc_poly_mode in
       Translprim.transl_primitive loc pc_desc pc_env pc_type ~poly_mode None
   | Tcoerce_alias (env, path, cc) ->
       let lam = transl_module_path loc env path in
-      name_lambda strict arg
+      name_lambda strict arg (Pvalue Pgenval)
         (fun _ -> apply_coercion loc Alias cc lam)
 
 and apply_coercion_field loc get_field (pos, cc) =
@@ -125,14 +125,14 @@ and apply_coercion_result loc strict funct params args cc_res =
     let param = Ident.create_local "funarg" in
     let arg = apply_coercion loc Alias cc_arg (Lvar param) in
     apply_coercion_result loc strict funct
-      ((param, Pgenval) :: params) (arg :: args) cc_res
+      ((param, Pvalue Pgenval) :: params) (arg :: args) cc_res
   | _ ->
-      name_lambda strict funct
+      name_lambda strict funct (Pvalue Pgenval)
         (fun id ->
            lfunction
              ~kind:(Curried {nlocal=0})
              ~params:(List.rev params)
-             ~return:Pgenval
+             ~return:(Pvalue Pgenval)
              ~attr:{ default_function_attribute with
                         is_a_functor = true;
                         stub = true; }
@@ -162,7 +162,7 @@ and wrap_id_pos_list loc id_pos_list get_field lam =
     List.fold_left (fun (lam, s) (id',pos,c) ->
       if Ident.Set.mem id' fv then
         let id'' = Ident.create_local (Ident.name id') in
-        (Llet(Alias, Pgenval, id'',
+        (Llet(Alias, Pvalue Pgenval, id'',
              apply_coercion loc Alias c (get_field pos),lam),
          Ident.Map.add id' id'' s)
       else (lam, s))
@@ -253,7 +253,7 @@ let preallocate_letrec ~bindings ~body =
          Primitive.simple ~name:"caml_alloc_dummy" ~arity:1 ~alloc:true
        in
        let size : lambda = Lconst (Const_base (Const_int size)) in
-       Llet (Strict, Pgenval, id,
+       Llet (Strict, Pvalue Pgenval, id,
              Lprim (Pccall desc, [size], Loc_unknown), body))
     body_with_initialization bindings
 
@@ -405,7 +405,7 @@ let eval_rec_bindings bindings cont =
   | (_, None, _) :: rem ->
       bind_inits rem
   | (Id id, Some(loc, shape), _rhs) :: rem ->
-      Llet(Strict, Pgenval, id,
+      Llet(Strict, Pvalue Pgenval, id,
            Lapply{
              ap_loc=Loc_unknown;
              ap_func=mod_prim "init_mod";
@@ -424,7 +424,7 @@ let eval_rec_bindings bindings cont =
   | (Ignore_loc loc, None, rhs) :: rem ->
       Lsequence(Lprim(Pignore, [rhs], loc), bind_strict rem)
   | (Id id, None, rhs) :: rem ->
-      Llet(Strict, Pgenval, id, rhs, bind_strict rem)
+      Llet(Strict, Pvalue Pgenval, id, rhs, bind_strict rem)
   | (_id, Some _, _rhs) :: rem ->
       bind_strict rem
   and patch_forwards = function
@@ -531,8 +531,8 @@ let rec compile_functor ~scopes mexp coercion root_path loc =
     List.fold_left (fun (params, body) (param, loc, arg_coercion) ->
         let param' = Ident.rename param in
         let arg = apply_coercion loc Alias arg_coercion (Lvar param') in
-        let params = (param', Pgenval) :: params in
-        let body = Llet (Alias, Pgenval, param, arg, body) in
+        let params = (param', Pvalue Pgenval) :: params in
+        let body = Llet (Alias, Pvalue Pgenval, param, arg, body) in
         params, body)
       ([], transl_module ~scopes res_coercion body_path body)
       functor_params_rev
@@ -540,7 +540,7 @@ let rec compile_functor ~scopes mexp coercion root_path loc =
   lfunction
     ~kind:(Curried {nlocal=0})
     ~params
-    ~return:Pgenval
+    ~return:(Pvalue Pgenval)
     ~attr:{
       inline = inline_attribute;
       specialise = Default_specialise;
@@ -663,7 +663,7 @@ and transl_structure ~scopes loc fields cc rootpath final_env = function
       | Tstr_value(rec_flag, pat_expr_list) ->
           (* Translate bindings first *)
           let mk_lam_let =
-            transl_let ~scopes ~in_structure:true rec_flag pat_expr_list Pgenval in
+            transl_let ~scopes ~in_structure:true rec_flag pat_expr_list (Pvalue Pgenval) in
           let ext_fields =
             List.rev_append (let_bound_idents pat_expr_list) fields in
           (* Then, translate remainder of struct *)
@@ -689,7 +689,7 @@ and transl_structure ~scopes loc fields cc rootpath final_env = function
           let body, size =
             transl_structure ~scopes loc (id::fields) cc rootpath final_env rem
           in
-          Llet(Strict, Pgenval, id,
+          Llet(Strict, Pvalue Pgenval, id,
                transl_extension_constructor ~scopes
                                             item.str_env
                                             path
@@ -728,7 +728,7 @@ and transl_structure ~scopes loc fields cc rootpath final_env = function
                   lev_env = Env.empty;
                 })
               in
-              Llet(pure_module mb.mb_expr, Pgenval, id, module_body, body), size
+              Llet(pure_module mb.mb_expr, Pvalue Pgenval, id, module_body, body), size
           end
       | Tstr_module ({mb_presence=Mp_absent}) ->
           transl_structure ~scopes loc fields cc rootpath final_env rem
@@ -783,7 +783,7 @@ and transl_structure ~scopes loc fields cc rootpath final_env = function
                 let body, size =
                   rebind_idents (pos + 1) (id :: newfields) ids
                 in
-                Llet(Alias, Pgenval, id,
+                Llet(Alias, Pvalue Pgenval, id,
                      Lprim(mod_field pos, [Lvar mid],
                            of_location ~scopes incl.incl_loc), body),
                 size
@@ -801,7 +801,7 @@ and transl_structure ~scopes loc fields cc rootpath final_env = function
                 Strict, transl_include_functor ~generative:true modl ccs
                           scopes loc
           in
-          Llet(let_kind, Pgenval, mid, modl, body),
+          Llet(let_kind, Pvalue Pgenval, mid, modl, body),
           size
 
       | Tstr_open od ->
@@ -823,13 +823,13 @@ and transl_structure ~scopes loc fields cc rootpath final_env = function
                   let body, size =
                     rebind_idents (pos + 1) (id :: newfields) ids
                   in
-                  Llet(Alias, Pgenval, id,
+                  Llet(Alias, Pvalue Pgenval, id,
                       Lprim(mod_field pos, [Lvar mid],
                             of_location ~scopes od.open_loc), body),
                   size
               in
               let body, size = rebind_idents 0 fields ids in
-              Llet(pure, Pgenval, mid,
+              Llet(pure, Pvalue Pgenval, mid,
                    transl_module ~scopes Tcoerce_none None od.open_expr, body),
               size
           end
@@ -1115,7 +1115,7 @@ let transl_store_structure ~scopes glob map prims aliases str =
             let ids = let_bound_idents pat_expr_list in
             let lam =
               transl_let ~scopes ~in_structure:true rec_flag pat_expr_list
-                 Pintval (* unit *)
+                 (Pvalue Pintval) (* unit *)
                  (store_idents Loc_unknown ids)
             in
             Lsequence(Lambda.subst no_env_update subst lam,
@@ -1147,7 +1147,7 @@ let transl_store_structure ~scopes glob map prims aliases str =
                                            path
                                            ext.tyexn_constructor
             in
-            Lsequence(Llet(Strict, Pgenval, id,
+            Lsequence(Llet(Strict, Pvalue Pgenval, id,
                            Lambda.subst no_env_update subst lam,
                            store_ident loc id),
                       transl_store ~scopes rootpath
@@ -1177,7 +1177,7 @@ let transl_store_structure ~scopes glob map prims aliases str =
             (* Careful: see next case *)
             let subst = !transl_store_subst in
             Lsequence(lam,
-                      Llet(Strict, Pgenval, id,
+                      Llet(Strict, Pvalue Pgenval, id,
                            Lambda.subst no_env_update subst
                              (Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
                                     List.map (fun id -> Lvar id)
@@ -1206,7 +1206,7 @@ let transl_store_structure ~scopes glob map prims aliases str =
             let subst = !transl_store_subst in
             let field = field_of_str loc str in
             Lsequence(lam,
-                      Llet(Strict, Pgenval, id,
+                      Llet(Strict, Pvalue Pgenval, id,
                            Lambda.subst no_env_update subst
                              (Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
                                     List.map field map, loc)),
@@ -1230,7 +1230,7 @@ let transl_store_structure ~scopes glob map prims aliases str =
                the compilation unit (add_ident true returns subst unchanged).
                If not, we can use the value from the global
                (add_ident true adds id -> Pgetglobal... to subst). *)
-            Llet(Strict, Pgenval, id, Lambda.subst no_env_update subst lam,
+            Llet(Strict, Pvalue Pgenval, id, Lambda.subst no_env_update subst lam,
                  Lsequence(store_ident (of_location ~scopes loc) id,
                            transl_store ~scopes rootpath
                              (add_ident true id subst)
@@ -1296,7 +1296,7 @@ let transl_store_structure ~scopes glob map prims aliases str =
                   transl_store ~scopes rootpath (add_idents true ids0 subst)
                     cont rem
               | id :: ids, arg :: args ->
-                  Llet(Alias, Pgenval, id,
+                  Llet(Alias, Pvalue Pgenval, id,
                        Lambda.subst no_env_update subst (field arg),
                        Lsequence(store_ident (of_location ~scopes loc) id,
                                  loop ids args))
@@ -1321,7 +1321,7 @@ let transl_store_structure ~scopes glob map prims aliases str =
               | [] -> transl_store
                         ~scopes rootpath (add_idents true ids subst) cont rem
               | id :: idl ->
-                  Llet(Alias, Pgenval, id, Lprim(mod_field pos, [Lvar mid],
+                  Llet(Alias, Pvalue Pgenval, id, Lprim(mod_field pos, [Lvar mid],
                                                  loc),
                        Lsequence(store_ident loc id,
                                  store_idents (pos + 1) idl))
@@ -1334,7 +1334,7 @@ let transl_store_structure ~scopes glob map prims aliases str =
               | Tincl_gen_functor ccs ->
                   transl_include_functor ~generative:true modl ccs scopes loc
             in
-            Llet(Strict, Pgenval, mid,
+            Llet(Strict, Pvalue Pgenval, mid,
                  Lambda.subst no_env_update subst modl,
                  store_idents 0 ids)
         | Tstr_open od ->
@@ -1351,7 +1351,7 @@ let transl_store_structure ~scopes glob map prims aliases str =
                   | [] -> transl_store ~scopes rootpath
                             (add_idents true ids0 subst) cont rem
                   | id :: idl ->
-                      Llet(Alias, Pgenval, id, Lvar ids.(pos),
+                      Llet(Alias, Pvalue Pgenval, id, Lvar ids.(pos),
                            Lsequence(store_ident loc id,
                                      store_idents (pos + 1) idl))
                 in
@@ -1374,14 +1374,14 @@ let transl_store_structure ~scopes glob map prims aliases str =
                         [] -> transl_store ~scopes rootpath
                                 (add_idents true ids subst) cont rem
                       | id :: idl ->
-                          Llet(Alias, Pgenval, id,
+                          Llet(Alias, Pvalue Pgenval, id,
                                Lprim(mod_field pos,
                                      [Lvar mid], loc),
                                Lsequence(store_ident loc id,
                                          store_idents (pos + 1) idl))
                     in
                     Llet(
-                      pure, Pgenval, mid,
+                      pure, Pvalue Pgenval, mid,
                       Lambda.subst no_env_update subst
                         (transl_module ~scopes Tcoerce_none None od.open_expr),
                       store_idents 0 ids)
@@ -1595,7 +1595,7 @@ let toploop_setvalue id lam =
 let toploop_setvalue_id id = toploop_setvalue id (Lvar id)
 
 let close_toplevel_term (lam, ()) =
-  Ident.Set.fold (fun id l -> Llet(Strict, Pgenval, id,
+  Ident.Set.fold (fun id l -> Llet(Strict, Pvalue Pgenval, id,
                                   toploop_getvalue id, l))
                 (free_variables lam) lam
 
@@ -1612,7 +1612,7 @@ let transl_toplevel_item ~scopes item =
   | Tstr_value(rec_flag, pat_expr_list) ->
       let idents = let_bound_idents pat_expr_list in
       transl_let ~scopes ~in_structure:true rec_flag pat_expr_list
-        Pintval (* unit *)
+        (Pvalue Pintval) (* unit *)
         (make_sequence toploop_setvalue_id idents)
   | Tstr_typext(tyext) ->
       let idents =
@@ -1685,7 +1685,7 @@ let transl_toplevel_item ~scopes item =
           Lsequence(toploop_setvalue id
                       (Lprim(mod_field pos, [Lvar mid], Loc_unknown)),
                     set_idents (pos + 1) ids) in
-      Llet(Strict, Pgenval, mid, modl, set_idents 0 ids)
+      Llet(Strict, Pvalue Pgenval, mid, modl, set_idents 0 ids)
   | Tstr_primitive descr ->
       record_primitive descr.val_val;
       lambda_unit
@@ -1708,7 +1708,7 @@ let transl_toplevel_item ~scopes item =
                             (Lprim(mod_field pos, [Lvar mid], Loc_unknown)),
                           set_idents (pos + 1) ids)
           in
-          Llet(pure, Pgenval, mid,
+          Llet(pure, Pvalue Pgenval, mid,
                transl_module ~scopes Tcoerce_none None od.open_expr,
                set_idents 0 ids)
       end
@@ -1805,7 +1805,7 @@ let transl_store_package component_names target_name coercion =
       in
       let blk = Ident.create_local "block" in
       (List.length pos_cc_list,
-       Llet (Strict, Pgenval, blk,
+       Llet (Strict, Pvalue Pgenval, blk,
              apply_coercion Loc_unknown Strict coercion components,
              make_sequence
                (fun pos _id ->

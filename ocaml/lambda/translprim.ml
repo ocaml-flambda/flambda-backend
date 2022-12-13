@@ -487,11 +487,13 @@ let specialize_primitive env ty ~has_constant_constructor prim =
       | _, _ -> Some (Primitive (Pbigarrayset(unsafe, n, k, l), arity))
     end
   | Primitive (Pmakeblock(tag, mut, None, mode), arity), fields -> begin
-      let shape = List.map (Typeopt.value_kind env) fields in
+      let shape = List.map (Typeopt.layout env) fields in
+      let shape = List.map (function Pvalue v -> v | _ -> Misc.fatal_error "Non-value kind in block") shape in
       let useful = List.exists (fun knd -> knd <> Pgenval) shape in
       if useful then
         Some (Primitive (Pmakeblock(tag, mut, Some shape, mode),arity))
-      else None
+      else
+        None
     end
   | Comparison(comp, Compare_generic), p1 :: _ ->
     if (has_constant_constructor
@@ -699,7 +701,7 @@ let lambda_of_prim prim_name prim loc args arg_exps =
         | Some [exn_exp; _] -> event_after loc exn_exp (Lvar vexn)
         | Some _ -> assert false
       in
-      Llet(Strict, Pgenval, vexn, exn,
+      Llet(Strict, Pvalue Pgenval, vexn, exn,
            Lsequence(Lprim(Pccall caml_restore_raw_backtrace,
                            [Lvar vexn; bt],
                            loc),
@@ -788,8 +790,9 @@ let transl_primitive loc p env ty ~poly_mode path =
     | Some prim -> prim
   in
   let rec make_params n =
+    (* TODO handle primitives with non-value kind *)
     if n <= 0 then []
-    else (Ident.create_local "prim", Pgenval) :: make_params (n-1)
+    else (Ident.create_local "prim", Pvalue Pgenval) :: make_params (n-1)
   in
   let params = make_params p.prim_arity in
   let args = List.map (fun (id, _) -> Lvar id) params in
@@ -819,7 +822,7 @@ let transl_primitive loc p env ty ~poly_mode path =
      lfunction
        ~kind:(Curried {nlocal})
        ~params
-       ~return:Pgenval
+       ~return:(Pvalue Pgenval) (* TODO *)
        ~attr:default_stub_attribute
        ~loc
        ~body

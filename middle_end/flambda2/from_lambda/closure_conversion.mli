@@ -44,7 +44,7 @@ val close_let_cont :
   Env.t ->
   name:Continuation.t ->
   is_exn_handler:bool ->
-  params:(Ident.t * IR.user_visible * Lambda.value_kind) list ->
+  params:(Ident.t * IR.user_visible * Lambda.layout) list ->
   recursive:Asttypes.rec_flag ->
   handler:(Acc.t -> Env.t -> Expr_with_acc.t) ->
   body:(Acc.t -> Env.t -> Expr_with_acc.t) ->

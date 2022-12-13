@@ -56,10 +56,10 @@ let ignore_primitive (_ : Clambda_primitives.primitive) = ()
 let ignore_string (_ : string) = ()
 let ignore_int_array (_ : int array) = ()
 let ignore_var_with_provenance (_ : VP.t) = ()
-let ignore_params_with_value_kind (_ : (VP.t * Lambda.value_kind) list) = ()
+let ignore_params_with_layout (_ : (VP.t * Lambda.layout) list) = ()
 let ignore_direction_flag (_ : Asttypes.direction_flag) = ()
 let ignore_meth_kind (_ : Lambda.meth_kind) = ()
-let ignore_value_kind (_ : Lambda.value_kind) = ()
+let ignore_layout (_ : Lambda.layout) = ()
 
 (* CR-soon mshinwell: check we aren't traversing function bodies more than
    once (need to analyse exactly what the calls are from Cmmgen into this
@@ -155,8 +155,8 @@ let make_var_info (clam : Clambda.ulambda) : var_info =
              environment_vars :=
                V.Set.add (VP.var env_var) !environment_vars);
           ignore_function_label label;
-          ignore_params_with_value_kind params;
-          ignore_value_kind return;
+          ignore_params_with_layout params;
+          ignore_layout return;
           loop ~depth:(depth + 1) body;
           ignore_debuginfo dbg;
           ignore_var_option env)
@@ -201,9 +201,9 @@ let make_var_info (clam : Clambda.ulambda) : var_info =
       ignore_int static_exn;
       List.iter (loop ~depth) args
     | Ucatch (static_exn, vars, body, handler, kind) ->
-      ignore_value_kind kind;
+      ignore_layout kind;
       ignore_int static_exn;
-      ignore_params_with_value_kind vars;
+      ignore_params_with_layout vars;
       loop ~depth body;
       loop ~depth handler
     | Utrywith (body, var, handler, _kind) ->
@@ -327,8 +327,8 @@ let let_bound_vars_that_can_be_moved var_info (clam : Clambda.ulambda) =
       List.iter (fun {Clambda. label; arity=_; params; return; body; dbg; env; mode=_;
                       check=_; poll=_} ->
           ignore_function_label label;
-          ignore_params_with_value_kind params;
-          ignore_value_kind return;
+          ignore_params_with_layout params;
+          ignore_layout return;
           let_stack := [];
           loop body;
           let_stack := [];
@@ -391,7 +391,7 @@ let let_bound_vars_that_can_be_moved var_info (clam : Clambda.ulambda) =
           loop action)
         us_actions_blocks;
       ignore_debuginfo dbg;
-      ignore_value_kind kind;
+      ignore_layout kind;
       let_stack := []
     | Ustringswitch (cond, branches, default, kind) ->
       examine_argument_list [cond];
@@ -402,15 +402,15 @@ let let_bound_vars_that_can_be_moved var_info (clam : Clambda.ulambda) =
         branches;
       let_stack := [];
       Option.iter loop default;
-      ignore_value_kind kind;
+      ignore_layout kind;
       let_stack := []
     | Ustaticfail (static_exn, args) ->
       ignore_int static_exn;
       examine_argument_list args
     | Ucatch (static_exn, vars, body, handler, kind) ->
-      ignore_value_kind kind;
+      ignore_layout kind;
       ignore_int static_exn;
-      ignore_params_with_value_kind vars;
+      ignore_params_with_layout vars;
       let_stack := [];
       loop body;
       let_stack := [];
@@ -422,7 +422,7 @@ let let_bound_vars_that_can_be_moved var_info (clam : Clambda.ulambda) =
       let_stack := [];
       ignore_var_with_provenance var;
       loop handler;
-      ignore_value_kind kind;
+      ignore_layout kind;
       let_stack := []
     | Uifthenelse (cond, ifso, ifnot, kind) ->
       examine_argument_list [cond];
@@ -430,7 +430,7 @@ let let_bound_vars_that_can_be_moved var_info (clam : Clambda.ulambda) =
       loop ifso;
       let_stack := [];
       loop ifnot;
-      ignore_value_kind kind;
+      ignore_layout kind;
       let_stack := []
     | Usequence (e1, e2) ->
       loop e1;

@@ -109,7 +109,7 @@ let rec same (l1 : Flambda.t) (l2 : Flambda.t) =
     ->
     Mutable_variable.equal mv1 mv2
       && Variable.equal v1 v2
-      && Lambda.equal_value_kind ck1 ck2
+      && Lambda.equal_layout ck1 ck2
       && same b1 b2
   | Let_mutable _, _ | _, Let_mutable _ -> false
   | Let_rec (bl1, a1), Let_rec (bl2, a2) ->
@@ -123,7 +123,7 @@ let rec same (l1 : Flambda.t) (l2 : Flambda.t) =
       && Misc.Stdlib.List.equal
         (fun (s1, e1) (s2, e2) -> String.equal s1 s2 && same e1 e2) s1 s2
       && Option.equal same d1 d2
-      && Lambda.equal_value_kind k1 k2
+      && Lambda.equal_layout k1 k2
   | String_switch _, _ | _, String_switch _ -> false
   | Static_raise (e1, a1), Static_raise (e2, a2) ->
     Static_exception.equal e1 e2 && Misc.Stdlib.List.equal Variable.equal a1 a2
@@ -133,15 +133,15 @@ let rec same (l1 : Flambda.t) (l2 : Flambda.t) =
       && Misc.Stdlib.List.equal Variable.equal v1 v2
       && same a1 a2
       && same b1 b2
-      && Lambda.equal_value_kind k1 k2
+      && Lambda.equal_layout k1 k2
   | Static_catch _, _ | _, Static_catch _ -> false
   | Try_with (a1, v1, b1, k1), Try_with (a2, v2, b2, k2) ->
     same a1 a2 && Variable.equal v1 v2 && same b1 b2
-    && Lambda.equal_value_kind k1 k2
+    && Lambda.equal_layout k1 k2
   | Try_with _, _ | _, Try_with _ -> false
   | If_then_else (a1, b1, c1, k1), If_then_else (a2, b2, c2, k2) ->
     Variable.equal a1 a2 && same b1 b2 && same c1 c2
-    && Lambda.equal_value_kind k1 k2
+    && Lambda.equal_layout k1 k2
   | If_then_else _, _ | _, If_then_else _ -> false
   | While (a1, b1), While (a2, b2) ->
     same a1 a2 && same b1 b2
@@ -243,7 +243,7 @@ and sameswitch (fs1 : Flambda.switch) (fs2 : Flambda.switch) =
     && Misc.Stdlib.List.equal samecase fs1.consts fs2.consts
     && Misc.Stdlib.List.equal samecase fs1.blocks fs2.blocks
     && Option.equal same fs1.failaction fs2.failaction
-    && Lambda.equal_value_kind fs1.kind fs2.kind
+    && Lambda.equal_layout fs1.kind fs2.kind
 
 let can_be_merged = same
 

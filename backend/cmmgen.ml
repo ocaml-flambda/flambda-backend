@@ -338,8 +338,8 @@ let join_unboxed_number_kind ~strict k1 k2 =
   | _, _ -> No_unboxing
 
 let is_strict = function
-  | Pfloatval | Pboxedintval _ -> false
-  | Pintval | Pgenval | Pvariant _ | Parrayval _ -> true
+  | Pvalue Pfloatval | Pvalue Pboxedintval _ -> false
+  | Pvalue (Pintval | Pgenval | Pvariant _ | Parrayval _) | Punboxedint _ | Pvoid -> true
 
 let rec is_unboxed_number_cmm = function
     | Cop(Calloc mode, [Cconst_natint (hdr, _); _], dbg)
@@ -392,19 +392,19 @@ let rec is_unboxed_number_cmm = function
     | Ccatch (_, _, _, Vval (Pintval | Pvariant _)) ->
       No_unboxing
     | Cifthenelse (_, _, a, _, b, _, Vval kind) ->
-      join_unboxed_number_kind ~strict:(is_strict kind)
+      join_unboxed_number_kind ~strict:(is_strict (Pvalue kind))
         (is_unboxed_number_cmm a)
         (is_unboxed_number_cmm b)
     | Cswitch (_, _,  cases, _, Vval kind) ->
       let cases = Array.map (fun (x, _) -> is_unboxed_number_cmm x) cases in
-      let strict = is_strict kind in
+      let strict = is_strict (Pvalue kind) in
       Array.fold_left (join_unboxed_number_kind ~strict) No_result cases
     | Ctrywith (a, _, _, b, _, Vval kind) ->
-      join_unboxed_number_kind ~strict:(is_strict kind)
+      join_unboxed_number_kind ~strict:(is_strict (Pvalue kind))
         (is_unboxed_number_cmm a)
         (is_unboxed_number_cmm b)
     | Ccatch (_, handlers, body, Vval kind) ->
-      let strict = is_strict kind in
+      let strict = is_strict (Pvalue kind) in
       List.fold_left
         (join_unboxed_number_kind ~strict)
         (is_unboxed_number_cmm body)
@@ -651,27 +651,27 @@ let rec transl env e =
           (untag_int (transl env arg) dbg)
           s.us_index_consts
           (Array.map (fun expr -> transl env expr, dbg) s.us_actions_consts)
-          dbg (Vval kind)
+          dbg (kind_of_layout kind)
       else if Array.length s.us_index_consts = 0 then
         bind "switch" (transl env arg) (fun arg ->
-          transl_switch dbg (Vval kind) env (get_tag arg dbg)
+          transl_switch dbg (kind_of_layout kind) env (get_tag arg dbg)
             s.us_index_blocks s.us_actions_blocks)
       else
         bind "switch" (transl env arg) (fun arg ->
           Cifthenelse(
           Cop(Cand, [arg; Cconst_int (1, dbg)], dbg),
           dbg,
-          transl_switch dbg (Vval kind) env
+          transl_switch dbg (kind_of_layout kind) env
             (untag_int arg dbg) s.us_index_consts s.us_actions_consts,
           dbg,
-          transl_switch dbg (Vval kind) env
+          transl_switch dbg (kind_of_layout kind) env
             (get_tag arg dbg) s.us_index_blocks s.us_actions_blocks,
-          dbg, Vval kind))
+          dbg, kind_of_layout kind))
   | Ustringswitch(arg,sw,d, kind) ->
       let dbg = Debuginfo.none in
       bind "switch" (transl env arg)
         (fun arg ->
-          strmatch_compile dbg (Vval kind) arg (Option.map (transl env) d)
+          strmatch_compile dbg (kind_of_layout kind) arg (Option.map (transl env) d)
             (List.map (fun (s,act) -> s,transl env act) sw))
   | Ustaticfail (nfail, args) ->
       let cargs = List.map (transl env) args in
@@ -681,21 +681,21 @@ let rec transl env e =
   | Ucatch(nfail, [], body, handler, kind) ->
       let dbg = Debuginfo.none in
       let env_body = enter_catch_body env nfail in
-      make_catch (Vval kind) nfail
+      make_catch (kind_of_layout kind) nfail
         (transl env_body body)
         (transl env handler) dbg
   | Ucatch(nfail, ids, body, handler, kind) ->
       let dbg = Debuginfo.none in
-      transl_catch (Vval kind) env nfail ids body handler dbg
+      transl_catch (kind_of_layout kind) env nfail ids body handler dbg
   | Utrywith(body, exn, handler, kind) ->
       let dbg = Debuginfo.none in
       let new_body = transl (incr_depth env) body in
-      Ctrywith(new_body, Regular, exn, transl env handler, dbg, Vval kind)
+      Ctrywith(new_body, Regular, exn, transl env handler, dbg, kind_of_layout kind)
   | Uifthenelse(cond, ifso, ifnot, kind) ->
       let ifso_dbg = Debuginfo.none in
       let ifnot_dbg = Debuginfo.none in
       let dbg = Debuginfo.none in
-      transl_if env (Vval kind) Unknown dbg cond
+      transl_if env (kind_of_layout kind) Unknown dbg cond
         ifso_dbg (transl env ifso) ifnot_dbg (transl env ifnot)
   | Usequence(exp1, exp2) ->
       Csequence(remove_unit(transl env exp1), transl env exp2)
@@ -1218,7 +1218,7 @@ and transl_unbox_sized size dbg env exp =
   | Thirty_two -> transl_unbox_int dbg env Pint32 exp
   | Sixty_four -> transl_unbox_int dbg env Pint64 exp
 
-and transl_let env str (kind : Lambda.value_kind) id exp transl_body =
+and transl_let env str (kind : Lambda.layout) id exp transl_body =
   let dbg = Debuginfo.none in
   let cexp = transl env exp in
   let unboxing =
@@ -1231,9 +1231,9 @@ and transl_let env str (kind : Lambda.value_kind) id exp transl_body =
        We conservatively mark these as Alloc_heap, although with more tracking
        of allocation mode it may be possible to mark some Alloc_local *)
     match str, kind with
-    | Mutable, Pfloatval ->
+    | Mutable, Pvalue Pfloatval ->
         Boxed (Boxed_float (alloc_heap, dbg), false)
-    | Mutable, Pboxedintval bi ->
+    | Mutable, Pvalue (Pboxedintval bi) ->
         Boxed (Boxed_integer (bi, alloc_heap, dbg), false)
     | _ ->
         is_unboxed_number_cmm cexp
@@ -1244,7 +1244,7 @@ and transl_let env str (kind : Lambda.value_kind) id exp transl_body =
          there may be constant closures inside that need lifting out. *)
       begin match str, kind with
       | (Immutable | Immutable_unique), _ -> Clet(id, cexp, transl_body env)
-      | Mutable, Pintval -> Clet_mut(id, typ_int, cexp, transl_body env)
+      | Mutable, Pvalue Pintval -> Clet_mut(id, typ_int, cexp, transl_body env)
       | Mutable, _ -> Clet_mut(id, typ_val, cexp, transl_body env)
       end
   | Boxed (boxed_number, false) ->

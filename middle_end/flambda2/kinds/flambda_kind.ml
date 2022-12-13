@@ -472,7 +472,7 @@ module With_subkind = struct
     | Naked_int64 -> naked_int64
     | Naked_nativeint -> naked_nativeint
 
-  let rec from_lambda (vk : Lambda.value_kind) =
+  let rec from_lambda_value_kind (vk : Lambda.value_kind__) =
     match vk with
     | Pgenval -> any_value
     | Pfloatval -> boxed_float
@@ -498,7 +498,7 @@ module With_subkind = struct
               match Tag.Scannable.create tag with
               | Some tag ->
                 Tag.Scannable.Map.add tag
-                  (List.map (fun vk -> subkind (from_lambda vk)) fields)
+                  (List.map (fun vk -> subkind (from_lambda_value_kind vk)) fields)
                   non_consts
               | None ->
                 Misc.fatal_errorf "Non-scannable tag %d in [Pvariant]" tag)
@@ -509,6 +509,14 @@ module With_subkind = struct
     | Parrayval Pintarray -> immediate_array
     | Parrayval Paddrarray -> value_array
     | Parrayval Pgenarray -> generic_array
+
+  let from_lambda (layout : Lambda.layout) =
+    match layout with
+    | Pvalue vk -> from_lambda_value_kind vk
+    | Punboxedint Pint32 -> naked_int32
+    | Punboxedint Pint64 -> naked_int64
+    | Punboxedint Pnativeint -> naked_nativeint
+    | Pvoid -> failwith "TODO"
 
   include Container_types.Make (struct
     type nonrec t = t

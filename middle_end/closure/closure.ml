@@ -809,7 +809,8 @@ let bind_params { backend; mutable_vars; _ } loc fdesc params args funct body =
           in
           let body' = aux (V.Map.add (VP.var p1) u2 subst) pl al body in
           if occurs_var (VP.var p1) body then
-            Ulet(Immutable, Pgenval, p1', u1, body')
+            (* TODO kind *)
+            Ulet(Immutable, Pvalue Pgenval, p1', u1, body')
           else if is_erasable a1 then body'
           else Usequence(a1, body')
         end
@@ -874,14 +875,14 @@ let direct_apply env fundesc ufunct uargs pos mode ~probe ~loc ~attribute =
        List.fold_left (fun app (binding,_) ->
            match binding with
            | None -> app
-           | Some (v, e) -> Ulet(Immutable, Pgenval, v, e, app))
+           | Some (v, e) -> Ulet(Immutable, Pvalue Pgenval, v, e, app)) (* TODO kind *)
          (if fundesc.fun_closed then
             Usequence (ufunct,
                        Udirect_apply (fundesc.fun_label, app_args,
                                       probe, kind, dbg))
           else
             let clos = V.create_local "clos" in
-            Ulet(Immutable, Pgenval, VP.create clos, ufunct,
+            Ulet(Immutable, Pvalue Pgenval, VP.create clos, ufunct,
                  Udirect_apply(fundesc.fun_label, app_args @ [Uvar clos],
                                probe, kind, dbg)))
          args
@@ -1039,7 +1040,8 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
               [] -> body
             | (arg1, arg2) :: args ->
               iter args
-                (Ulet (Immutable, Pgenval, VP.create arg1, arg2, body))
+                (* TODO kind *)
+                (Ulet (Immutable, Pvalue Pgenval, VP.create arg1, arg2, body))
         in
         let internal_args =
           (List.map (fun (arg1, _arg2) -> Lvar arg1) first_args)
@@ -1064,8 +1066,9 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
         let (new_fun, approx) = close { backend; fenv; cenv; mutable_vars }
           (lfunction
                ~kind
-               ~return:Pgenval
-               ~params:(List.map (fun v -> v, Pgenval) final_args)
+               (* TODO kinds *)
+               ~return:(Pvalue Pgenval)
+               ~params:(List.map (fun v -> v, Pvalue Pgenval) final_args)
                ~body:(Lapply{
                  ap_loc=loc;
                  ap_func=(Lvar funct_var);
@@ -1084,7 +1087,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
         in
         let new_fun =
           iter first_args
-            (Ulet (Immutable, Pgenval, VP.create funct_var, ufunct, new_fun))
+            (Ulet (Immutable, Pvalue Pgenval, VP.create funct_var, ufunct, new_fun))
         in
         warning_if_forced_inlined ~loc ~attribute "Partial application";
         fail_if_probe ~probe "Partial application";
@@ -1120,7 +1123,8 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
           in
           let result =
             List.fold_left (fun body (id, defining_expr) ->
-                Ulet (Immutable, Pgenval, VP.create id, defining_expr, body))
+                (* TODO kind *)
+                Ulet (Immutable, Pvalue Pgenval, VP.create id, defining_expr, body))
               body
               args
           in
@@ -1176,7 +1180,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
             (fun (id, pos, _approx) sb ->
               V.Map.add id (Uoffset(Uvar clos_ident, pos)) sb)
             infos V.Map.empty in
-        (Ulet(Immutable, Pgenval, VP.create clos_ident, clos,
+        (Ulet(Immutable, Pvalue Pgenval, VP.create clos_ident, clos,
               substitute Debuginfo.none (backend, !Clflags.float_const_prop) sb
                 None ubody),
          approx)
@@ -1209,7 +1213,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
       in
       let arg, _approx = close env arg in
       let id = Ident.create_local "dummy" in
-      Ulet(Immutable, Pgenval, VP.create id, arg, cst), approx
+      Ulet(Immutable, Pvalue Pgenval, VP.create id, arg, cst), approx
   | Lprim(Pignore, [arg], _loc) ->
       let expr, approx = make_const_int 0 in
       Usequence(fst (close env arg), expr), approx
@@ -1451,7 +1455,7 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
     let fun_params =
       if !useless_env
       then params
-      else params @ [env_param, Pgenval]
+      else params @ [env_param, Pvalue Pgenval]
     in
     let f =
       {

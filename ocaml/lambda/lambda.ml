@@ -219,16 +219,21 @@ and integer_comparison =
 and float_comparison =
     CFeq | CFneq | CFlt | CFnlt | CFgt | CFngt | CFle | CFnle | CFge | CFnge
 
-and value_kind =
+and value_kind__ =
     Pgenval | Pfloatval | Pboxedintval of boxed_integer | Pintval
   | Pvariant of {
       consts : int list;
-      non_consts : (int * value_kind list) list;
+      non_consts : (int * value_kind__ list) list;
     }
   | Parrayval of array_kind
 
+and layout =
+    Punboxedint of boxed_integer
+  | Pvalue of value_kind__
+  | Pvoid
+
 and block_shape =
-  value_kind list option
+  value_kind__ list option
 
 and array_kind =
     Pgenarray | Paddrarray | Pintarray | Pfloatarray
@@ -286,6 +291,18 @@ let rec equal_value_kind x y =
   | (Pgenval | Pfloatval | Pboxedintval _ | Pintval | Pvariant _
       | Parrayval _), _ -> false
 
+let equal_layout x y =
+  match x, y with
+  | Punboxedint bi1, Punboxedint bi2 -> equal_boxed_integer bi1 bi2
+  | Pvalue v1, Pvalue v2 -> equal_value_kind v1 v2
+  | Pvoid, Pvoid -> true
+  | (Punboxedint _ | Pvalue _ | Pvoid), _ -> false
+
+let must_be_value layout =
+  match layout with
+  | Pvalue v -> v
+  | Punboxedint _ | Pvoid ->
+      Misc.fatal_error "Layout is not a value"
 
 type structured_constant =
     Const_base of constant
@@ -416,17 +433,17 @@ type lambda =
   | Lconst of structured_constant
   | Lapply of lambda_apply
   | Lfunction of lfunction
-  | Llet of let_kind * value_kind * Ident.t * lambda * lambda
-  | Lmutlet of value_kind * Ident.t * lambda * lambda
+  | Llet of let_kind * layout * Ident.t * lambda * lambda
+  | Lmutlet of layout * Ident.t * lambda * lambda
   | Lletrec of (Ident.t * lambda) list * lambda
   | Lprim of primitive * lambda list * scoped_location
-  | Lswitch of lambda * lambda_switch * scoped_location * value_kind
+  | Lswitch of lambda * lambda_switch * scoped_location * layout
   | Lstringswitch of
-      lambda * (string * lambda) list * lambda option * scoped_location * value_kind
+      lambda * (string * lambda) list * lambda option * scoped_location * layout
   | Lstaticraise of int * lambda list
-  | Lstaticcatch of lambda * (int * (Ident.t * value_kind) list) * lambda * value_kind
-  | Ltrywith of lambda * Ident.t * lambda * value_kind
-  | Lifthenelse of lambda * lambda * lambda * value_kind
+  | Lstaticcatch of lambda * (int * (Ident.t * layout) list) * lambda * layout
+  | Ltrywith of lambda * Ident.t * lambda * layout
+  | Lifthenelse of lambda * lambda * lambda * layout
   | Lsequence of lambda * lambda
   | Lwhile of lambda_while
   | Lfor of lambda_for
@@ -440,8 +457,8 @@ type lambda =
 
 and lfunction =
   { kind: function_kind;
-    params: (Ident.t * value_kind) list;
-    return: value_kind;
+    params: (Ident.t * layout) list;
+    return: layout;
     body: lambda;
     attr: function_attribute; (* specified with [@inline] attribute *)
     loc: scoped_location;
@@ -649,21 +666,21 @@ let make_key e =
 
 (***************)
 
-let name_lambda strict arg fn =
+let name_lambda strict arg layout fn =
   match arg with
     Lvar id -> fn id
   | _ ->
       let id = Ident.create_local "let" in
-      Llet(strict, Pgenval, id, arg, fn id)
+      Llet(strict, layout, id, arg, fn id)
 
 let name_lambda_list args fn =
   let rec name_list names = function
     [] -> fn (List.rev names)
-  | (Lvar _ as arg) :: rem ->
+  | (Lvar _ as arg, _) :: rem ->
       name_list (arg :: names) rem
-  | arg :: rem ->
+  | (arg, layout) :: rem ->
       let id = Ident.create_local "let" in
-      Llet(Strict, Pgenval, id, arg, name_list (Lvar id :: names) rem) in
+      Llet(Strict, layout, id, arg, name_list (Lvar id :: names) rem) in
   name_list [] args
 
 
@@ -1074,7 +1091,7 @@ let shallow_map ~tail ~non_tail:f = function
       Lprim(p, [f l1; tail l2], loc)
   | Lprim (p, el, loc) ->
       Lprim (p, List.map f el, loc)
-  | Lswitch (e, sw, loc,kind) ->
+  | Lswitch (e, sw, loc, layout) ->
       Lswitch (f e,
                { sw_numconsts = sw.sw_numconsts;
                  sw_consts = List.map (fun (n, e) -> (n, tail e)) sw.sw_consts;
@@ -1082,21 +1099,21 @@ let shallow_map ~tail ~non_tail:f = function
                  sw_blocks = List.map (fun (n, e) -> (n, tail e)) sw.sw_blocks;
                  sw_failaction = Option.map tail sw.sw_failaction;
                },
-               loc,kind)
-  | Lstringswitch (e, sw, default, loc,kind) ->
+               loc, layout)
+  | Lstringswitch (e, sw, default, loc, layout) ->
       Lstringswitch (
         f e,
         List.map (fun (s, e) -> (s, tail e)) sw,
         Option.map tail default,
-        loc, kind)
+        loc, layout)
   | Lstaticraise (i, args) ->
       Lstaticraise (i, List.map f args)
-  | Lstaticcatch (body, id, handler, kind) ->
-      Lstaticcatch (tail body, id, tail handler, kind)
-  | Ltrywith (e1, v, e2, kind) ->
-      Ltrywith (f e1, v, tail e2, kind)
-  | Lifthenelse (e1, e2, e3, kind) ->
-      Lifthenelse (f e1, tail e2, tail e3, kind)
+  | Lstaticcatch (body, id, handler, layout) ->
+      Lstaticcatch (tail body, id, tail handler, layout)
+  | Ltrywith (e1, v, e2, layout) ->
+      Ltrywith (f e1, v, tail e2, layout)
+  | Lifthenelse (e1, e2, e3, layout) ->
+      Lifthenelse (f e1, tail e2, tail e3, layout)
   | Lsequence (e1, e2) ->
       Lsequence (f e1, tail e2)
   | Lwhile lw ->
@@ -1123,13 +1140,13 @@ let map f =
 
 (* To let-bind expressions to variables *)
 
-let bind_with_value_kind str (var, kind) exp body =
+let bind_with_layout str (var, layout) exp body =
   match exp with
     Lvar var' when Ident.same var var' -> body
-  | _ -> Llet(str, kind, var, exp, body)
+  | _ -> Llet(str, layout, var, exp, body)
 
-let bind str var exp body =
-  bind_with_value_kind str (var, Pgenval) exp body
+let bind_genval str var exp body =
+  bind_with_layout str (var, Pvalue Pgenval) exp body
 
 let negate_integer_comparison = function
   | Ceq -> Cne
@@ -1296,3 +1313,16 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pprobe_is_enabled _ -> None
   | Pobj_dup -> Some alloc_heap
   | Pobj_magic -> None
+
+let constant_layout = function
+  | Const_int _ | Const_char _ -> Pvalue Pintval
+  | Const_string _ -> Pvalue Pgenval
+  | Const_int32 _ -> Pvalue (Pboxedintval Pint32)
+  | Const_int64 _ -> Pvalue (Pboxedintval Pint64)
+  | Const_nativeint _ -> Pvalue (Pboxedintval Pnativeint)
+  | Const_float _ -> Pvalue Pfloatval
+
+let structured_constant_layout = function
+  | Const_base const -> constant_layout const
+  | Const_block _ | Const_immstring _ -> Pvalue Pgenval
+  | Const_float_array _ | Const_float_block _ -> Pvalue (Parrayval Pfloatarray)

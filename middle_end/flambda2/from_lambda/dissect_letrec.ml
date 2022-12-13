@@ -156,7 +156,7 @@ type letrec =
 
 type let_def =
   { let_kind : Lambda.let_kind;
-    value_kind : Lambda.value_kind;
+    value_kind : Lambda.value_kind__;
     ident : Ident.t
   }
 
@@ -212,7 +212,7 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
       let pre ~tail : Lambda.lambda =
         Llet
           ( current_let.let_kind,
-            current_let.value_kind,
+            Pvalue current_let.value_kind,
             current_let.ident,
             lam,
             letrec.pre ~tail )
@@ -241,7 +241,7 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
     let lam =
       List.fold_left
         (fun body (id, def) : Lambda.lambda ->
-          Llet (Strict, Pgenval, id, def, body))
+          Llet (Strict, Pvalue Pgenval, id, def, body))
         (Lambda.Lprim (prim, args, dbg))
         defs
     in
@@ -302,7 +302,7 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
       assert (not (Ident.Set.mem id free_vars_body));
       (* It is not used, we only keep the effect *)
       { letrec with effects = Lsequence (def, letrec.effects) }
-  | Llet (((Strict | Alias | StrictOpt) as let_kind), value_kind, id, def, body)
+  | Llet (((Strict | Alias | StrictOpt) as let_kind), layout, id, def, body)
     ->
     let letbound = Ident.Set.add id letrec.letbound in
     let letrec = { letrec with letbound } in
@@ -312,12 +312,17 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
       (* Non recursive let *)
       let letrec = prepare_letrec recursive_set current_let body letrec in
       let pre ~tail : Lambda.lambda =
-        Llet (let_kind, value_kind, id, def, letrec.pre ~tail)
+        Llet (let_kind, layout, id, def, letrec.pre ~tail)
       in
       { letrec with pre }
     else
       let recursive_set = Ident.Set.add id recursive_set in
       let letrec = prepare_letrec recursive_set current_let body letrec in
+      let value_kind =
+        match layout with
+        | Pvalue kind -> kind
+        | Punboxedint _ | Pvoid -> Misc.fatal_errorf "Unboxed kinds not allowed in letrec"
+      in
       let let_def = { let_kind; value_kind; ident = id } in
       prepare_letrec recursive_set (Some let_def) def letrec
   | Lsequence (lam1, lam2) ->
@@ -513,7 +518,7 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
       match current_let with
       | Some cl ->
         fun ~tail : Lambda.lambda ->
-          Llet (cl.let_kind, cl.value_kind, cl.ident, lam, letrec.pre ~tail)
+          Llet (cl.let_kind, Pvalue cl.value_kind, cl.ident, lam, letrec.pre ~tail)
       | None -> fun ~tail : Lambda.lambda -> Lsequence (lam, letrec.pre ~tail)
     in
     { letrec with pre }
@@ -579,12 +584,12 @@ let dissect_letrec ~bindings ~body =
   let with_non_rec = letrec.pre ~tail:functions in
   let with_preallocations =
     List.fold_left
-      (fun body (id, binding) -> Llet (Strict, Pgenval, id, binding, body))
+      (fun body (id, binding) -> Llet (Strict, Pvalue Pgenval, id, binding, body))
       with_non_rec preallocations
   in
   let with_constants =
     List.fold_left
-      (fun body (id, const) -> Llet (Strict, Pgenval, id, Lconst const, body))
+      (fun body (id, const) -> Llet (Strict, Pvalue Pgenval, id, Lconst const, body))
       with_preallocations letrec.consts
   in
   let substituted = Lambda.rename letrec.substitution with_constants in
@@ -593,9 +598,9 @@ let dissect_letrec ~bindings ~body =
   else
     Lstaticcatch
       ( Lregion (Lambda.rename bound_ids_freshening substituted),
-        (cont, List.map (fun (bound_id, _) -> bound_id, Pgenval) bindings),
+        (cont, List.map (fun (bound_id, _) -> bound_id, Pvalue Pgenval) bindings),
         real_body,
-        Pgenval )
+        Pvalue Pgenval )
 
 type dissected =
   | Dissected of Lambda.lambda

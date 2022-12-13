@@ -122,7 +122,7 @@ let close_phrase lam =
                                  [], Loc_unknown)],
              Loc_unknown)
     in
-    Llet(Strict, Pgenval, id, glob, l)
+    Llet(Strict, Pvalue Pgenval, id, glob, l)
   ) (free_variables lam) lam
 
 let toplevel_value id =

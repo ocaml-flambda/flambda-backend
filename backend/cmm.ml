@@ -211,7 +211,7 @@ and operation =
   | Cbeginregion | Cendregion
 
 type value_kind =
-  | Vval of Lambda.value_kind (* Valid OCaml values *)
+  | Vval of Lambda.value_kind__ (* Valid OCaml values *)
   | Vint (* Untagged integers and off-heap pointers *)
   | Vaddr (* Derived pointers *)
   | Vfloat (* Unboxed floating-point numbers *)

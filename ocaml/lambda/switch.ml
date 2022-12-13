@@ -118,7 +118,7 @@ sig
   type arg
   type test
   type act
-  type value_kind
+  type layout
 
   val bind : arg -> (arg -> act) -> act
   val make_const : int -> arg
@@ -129,10 +129,10 @@ sig
   val make_is_nonzero : arg -> test
   val arg_as_test : arg -> test
 
-  val make_if : value_kind -> test -> act -> act -> act
-  val make_switch : loc -> value_kind -> arg -> int array -> act array -> act
+  val make_if : layout -> test -> act -> act -> act
+  val make_switch : loc -> layout -> arg -> int array -> act array -> act
 
-  val make_catch : value_kind -> act -> int * (act -> act)
+  val make_catch : layout -> act -> int * (act -> act)
   val make_exit : int -> act
 end
 
@@ -557,66 +557,66 @@ let rec pkey chan  = function
     end ;
     !r, !rc
 
-  let make_if_test kind test arg i ifso ifnot =
-    Arg.make_if kind
+  let make_if_test layout test arg i ifso ifnot =
+    Arg.make_if layout
       (Arg.make_prim test [arg ; Arg.make_const i])
       ifso ifnot
 
-  let make_if_lt kind arg i  ifso ifnot = match i with
+  let make_if_lt layout arg i  ifso ifnot = match i with
     | 1 ->
-        make_if_test kind Arg.leint arg 0 ifso ifnot
+        make_if_test layout Arg.leint arg 0 ifso ifnot
     | _ ->
-        make_if_test kind Arg.ltint arg i ifso ifnot
+        make_if_test layout Arg.ltint arg i ifso ifnot
 
-  and make_if_ge kind arg i  ifso ifnot = match i with
+  and make_if_ge layout arg i  ifso ifnot = match i with
     | 1 ->
-        make_if_test kind Arg.gtint arg 0 ifso ifnot
+        make_if_test layout Arg.gtint arg 0 ifso ifnot
     | _ ->
-        make_if_test kind Arg.geint arg i ifso ifnot
+        make_if_test layout Arg.geint arg i ifso ifnot
 
-  and make_if_eq kind arg i ifso ifnot =
-    make_if_test kind Arg.eqint arg i ifso ifnot
+  and make_if_eq layout arg i ifso ifnot =
+    make_if_test layout Arg.eqint arg i ifso ifnot
 
-  and make_if_ne kind arg i ifso ifnot =
-    make_if_test kind Arg.neint arg i ifso ifnot
+  and make_if_ne layout arg i ifso ifnot =
+    make_if_test layout Arg.neint arg i ifso ifnot
 
-  let make_if_nonzero kind arg ifso ifnot =
-    Arg.make_if kind (Arg.make_is_nonzero arg) ifso ifnot
+  let make_if_nonzero layout arg ifso ifnot =
+    Arg.make_if layout (Arg.make_is_nonzero arg) ifso ifnot
 
-  let make_if_bool kind arg ifso ifnot =
-    Arg.make_if kind (Arg.arg_as_test arg) ifso ifnot
+  let make_if_bool layout arg ifso ifnot =
+    Arg.make_if layout (Arg.arg_as_test arg) ifso ifnot
 
-  let do_make_if_out kind h arg ifso ifno =
-    Arg.make_if kind (Arg.make_isout h arg) ifso ifno
+  let do_make_if_out layout h arg ifso ifno =
+    Arg.make_if layout (Arg.make_isout h arg) ifso ifno
 
-  let make_if_out kind ctx l d mk_ifso mk_ifno = match l with
+  let make_if_out layout ctx l d mk_ifso mk_ifno = match l with
     | 0 ->
-        do_make_if_out kind
+        do_make_if_out layout
           (Arg.make_const d) ctx.arg (mk_ifso ctx) (mk_ifno ctx)
     | _ ->
         Arg.bind
           (Arg.make_offset ctx.arg (-l))
           (fun arg ->
              let ctx = {off= (-l+ctx.off) ; arg=arg} in
-             do_make_if_out kind
+             do_make_if_out layout
                (Arg.make_const d) arg (mk_ifso ctx) (mk_ifno ctx))
 
-  let do_make_if_in kind h arg ifso ifno =
-    Arg.make_if kind (Arg.make_isin h arg) ifso ifno
+  let do_make_if_in layout h arg ifso ifno =
+    Arg.make_if layout (Arg.make_isin h arg) ifso ifno
 
-  let make_if_in kind ctx l d mk_ifso mk_ifno = match l with
+  let make_if_in layout ctx l d mk_ifso mk_ifno = match l with
     | 0 ->
-        do_make_if_in kind
+        do_make_if_in layout
           (Arg.make_const d) ctx.arg (mk_ifso ctx) (mk_ifno ctx)
     | _ ->
         Arg.bind
           (Arg.make_offset ctx.arg (-l))
           (fun arg ->
              let ctx = {off= (-l+ctx.off) ; arg=arg} in
-             do_make_if_in kind
+             do_make_if_in layout
                (Arg.make_const d) arg (mk_ifso ctx) (mk_ifno ctx))
 
-  let rec c_test kind ctx ({cases=cases ; actions=actions} as s) =
+  let rec c_test layout ctx ({cases=cases ; actions=actions} as s) =
     let lcases = Array.length cases in
     assert(lcases > 0) ;
     if lcases = 1 then
@@ -641,35 +641,35 @@ let rec pkey chan  = function
           if low=high then begin
             if less_tests coutside cinside then
               make_if_eq
-                kind
+                layout
                 ctx.arg
                 (low+ctx.off)
-                (c_test kind ctx {s with cases=inside})
-                (c_test kind ctx {s with cases=outside})
+                (c_test layout ctx {s with cases=inside})
+                (c_test layout ctx {s with cases=outside})
             else
               make_if_ne
-                kind
+                layout
                 ctx.arg
                 (low+ctx.off)
-                (c_test kind ctx {s with cases=outside})
-                (c_test kind ctx {s with cases=inside})
+                (c_test layout ctx {s with cases=outside})
+                (c_test layout ctx {s with cases=inside})
           end else begin
             if less_tests coutside cinside then
               make_if_in
-                kind
+                layout
                 ctx
                 (low+ctx.off)
                 (high-low)
-                (fun ctx -> c_test kind ctx {s with cases=inside})
-                (fun ctx -> c_test kind ctx {s with cases=outside})
+                (fun ctx -> c_test layout ctx {s with cases=inside})
+                (fun ctx -> c_test layout ctx {s with cases=outside})
             else
               make_if_out
-                kind
+                layout
                 ctx
                 (low+ctx.off)
                 (high-low)
-                (fun ctx -> c_test kind ctx {s with cases=outside})
-                (fun ctx -> c_test kind ctx {s with cases=inside})
+                (fun ctx -> c_test layout ctx {s with cases=outside})
+                (fun ctx -> c_test layout ctx {s with cases=inside})
           end
       | Sep i ->
           let lim,left,right = coupe cases i in
@@ -681,24 +681,24 @@ let rec pkey chan  = function
           if i=1 && (lim+ctx.off)=1 && get_low cases 0+ctx.off=0 then
             if lcases = 2 && get_high cases 1+ctx.off = 1 then
               make_if_bool
-                kind
+                layout
                 ctx.arg
-                (c_test kind ctx right) (c_test kind ctx left)
+                (c_test layout ctx right) (c_test layout ctx left)
             else
               make_if_nonzero
-                kind
+                layout
                 ctx.arg
-                (c_test kind ctx right) (c_test kind ctx left)
+                (c_test layout ctx right) (c_test layout ctx left)
           else if less_tests cright cleft then
             make_if_lt
-              kind
+              layout
               ctx.arg (lim+ctx.off)
-              (c_test kind ctx left) (c_test kind ctx right)
+              (c_test layout ctx left) (c_test layout ctx right)
           else
             make_if_ge
-              kind
+              layout
               ctx.arg (lim+ctx.off)
-              (c_test kind ctx right) (c_test kind ctx left)
+              (c_test layout ctx right) (c_test layout ctx left)
 
     end
 
@@ -849,7 +849,7 @@ let rec pkey chan  = function
   ;;
 
 
-  let do_zyva loc kind (low,high) arg cases actions =
+  let do_zyva loc layout (low,high) arg cases actions =
     let old_ok = !ok_inter in
     ok_inter := (abs low <= inter_limit && abs high <= inter_limit) ;
     if !ok_inter <> old_ok then Hashtbl.clear t ;
@@ -862,28 +862,28 @@ let rec pkey chan  = function
   prerr_endline "" ;
 *)
     let n_clusters,k = comp_clusters s in
-    let clusters = make_clusters loc kind s n_clusters k in
-    c_test kind {arg=arg ; off=0} clusters
+    let clusters = make_clusters loc layout s n_clusters k in
+    c_test layout {arg=arg ; off=0} clusters
 
-  let abstract_shared kind actions =
+  let abstract_shared layout actions =
     let handlers = ref (fun x -> x) in
     let actions =
       Array.map
         (fun act -> match  act with
            | Single act -> act
            | Shared act ->
-               let i,h = Arg.make_catch kind act in
+               let i,h = Arg.make_catch layout act in
                let oh = !handlers in
                handlers := (fun act -> h (oh act)) ;
                Arg.make_exit i)
         actions in
     !handlers,actions
 
-  let zyva loc kind lh arg cases actions =
+  let zyva loc layout lh arg cases actions =
     assert (Array.length cases > 0) ;
     let actions = actions.act_get_shared () in
-    let hs,actions = abstract_shared kind actions in
-    hs (do_zyva loc kind lh arg cases actions)
+    let hs,actions = abstract_shared layout actions in
+    hs (do_zyva loc layout lh arg cases actions)
 
   and test_sequence kind arg cases actions =
     assert (Array.length cases > 0) ;

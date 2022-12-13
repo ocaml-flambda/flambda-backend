@@ -48,12 +48,13 @@ let add_default_argument_wrappers lam =
                    mode; region}, body) ->
       begin match
         Simplif.split_default_wrapper ~id ~kind ~params
-          ~body:fbody ~return:Pgenval ~attr ~loc ~mode ~region
+          (* TODO kind *)
+          ~body:fbody ~return:(Pvalue Pgenval) ~attr ~loc ~mode ~region
       with
-      | [fun_id, def] -> Llet (Alias, Pgenval, fun_id, def, body)
+      | [fun_id, def] -> Llet (Alias, Pvalue Pgenval, fun_id, def, body)
       | [fun_id, def; inner_fun_id, def_inner] ->
-        Llet (Alias, Pgenval, inner_fun_id, def_inner,
-              Llet (Alias, Pgenval, fun_id, def, body))
+        Llet (Alias, Pvalue Pgenval, inner_fun_id, def_inner,
+              Llet (Alias, Pvalue Pgenval, fun_id, def, body))
       | _ -> assert false
       end
     | Lletrec (defs, body) as lam ->
@@ -65,7 +66,8 @@ let add_default_argument_wrappers lam =
                  | (id, Lambda.Lfunction {kind; params; body; attr; loc;
                                           mode; region}) ->
                    Simplif.split_default_wrapper ~id ~kind ~params ~body
-                     ~return:Pgenval ~attr ~loc ~mode ~region
+                     (* TODO kind *)
+                     ~return:(Pvalue Pgenval) ~attr ~loc ~mode ~region
                  | _ -> assert false)
                defs)
         in
@@ -403,7 +405,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
                      case in the array data types work.
                      mshinwell: deferred CR *)
                   name_expr ~name:Names.result
-                    (Prim (prim, [numerator; denominator], dbg)), Pintval))))))
+                    (Prim (prim, [numerator; denominator], dbg)), Pvalue Pintval))))))
   | Lprim ((Pdivint Safe | Pmodint Safe
            | Pdivbint { is_safe = Safe } | Pmodbint { is_safe = Safe }), _, _)
       when not !Clflags.unsafe ->
@@ -415,7 +417,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
     let cond = Variable.create Names.cond_sequor in
     Flambda.create_let const_true (Const (Int 1))
       (Flambda.create_let cond (Expr arg1)
-        (If_then_else (cond, Var const_true, arg2, Pintval)))
+        (If_then_else (cond, Var const_true, arg2, Pvalue Pintval)))
   | Lprim (Psequand, [arg1; arg2], _) ->
     let arg1 = close t env arg1 in
     let arg2 = close t env arg2 in
@@ -423,7 +425,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
     let cond = Variable.create Names.const_sequand in
     Flambda.create_let const_false (Const (Int 0))
       (Flambda.create_let cond (Expr arg1)
-        (If_then_else (cond, arg2, Var const_false, Pintval)))
+        (If_then_else (cond, arg2, Var const_false, Pvalue Pintval)))
   | Lprim ((Psequand | Psequor), _, _) ->
     Misc.fatal_error "Psequand / Psequor must have exactly two arguments"
   | Lprim ((Pbytes_to_string | Pbytes_of_string | Pobj_magic),
@@ -459,8 +461,9 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
             Lambda.const_int 0 (* tag 0 is the same as Native *)
         end
       in
+      (* This should always be a boxed value *)
       close t env
-        (Lambda.Llet(Strict, Pgenval, Ident.create_local "dummy",
+        (Lambda.Llet(Strict, Pvalue Pgenval, Ident.create_local "dummy",
                      arg, Lconst const))
   | Lprim (Pfield _, [Lprim (Pgetglobal cu, [],_)], _)
       when Ident.same (cu |> Compilation_unit.to_global_ident_for_legacy_code)

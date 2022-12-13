@@ -52,6 +52,15 @@ let rec value_kind0 ppf kind =
 
 let value_kind kind = Format.asprintf "%a" value_kind0 kind
 
+let layout layout =
+  let open Lambda in
+  match layout with
+  | Pvalue kind -> value_kind kind
+  | Pvoid -> ":#void"
+  | Punboxedint Pnativeint -> ":#nativeint"
+  | Punboxedint Pint32 -> ":#int32"
+  | Punboxedint Pint64 -> ":#int64"
+
 let rec structured_constant ppf = function
   | Uconst_float x -> fprintf ppf "%F" x
   | Uconst_int32 x -> fprintf ppf "%ldl" x
@@ -81,11 +90,11 @@ and one_fun ppf f =
       (fun (x, k) ->
          fprintf ppf "@ %a%a"
            VP.print x
-           Printlambda.value_kind k
+           Printlambda.layout k
       )
   in
   fprintf ppf "(fun@ %s%s%a@ %d@ @[<2>%a@]@ @[<2>%a@])"
-    f.label (value_kind f.return) Printlambda.check_attribute f.check
+    f.label (layout f.return) Printlambda.check_attribute f.check
     (snd f.arity) idents f.params lam f.body
 
 and phantom_defining_expr ppf = function
@@ -149,12 +158,12 @@ and lam ppf = function
         | Ulet(mut, kind, id, arg, body) ->
             fprintf ppf "@ @[<2>%a%s%s@ %a@]"
               VP.print id
-              (mutable_flag mut) (value_kind kind) lam arg;
+              (mutable_flag mut) (layout kind) lam arg;
             letbody body
         | _ -> ul in
       fprintf ppf "@[<2>(let@ @[<hv 1>(@[<2>%a%s%s@ %a@]"
         VP.print id (mutable_flag mut)
-          (value_kind kind) lam arg;
+          (layout kind) lam arg;
       let expr = letbody body in
       fprintf ppf ")@]@ %a)@]" lam expr
   | Uphantom_let (id, defining_expr, body) ->
@@ -233,7 +242,7 @@ and lam ppf = function
              (fun (x, k) ->
                 fprintf ppf " %a%a"
                  VP.print x
-                 Printlambda.value_kind k
+                 Printlambda.layout k
              )
              vars
         )
