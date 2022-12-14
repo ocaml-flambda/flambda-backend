@@ -2501,9 +2501,9 @@ and mcomp_tuple_description type_pairs env =
       mcomp type_pairs env ty1 ty2;
       if gf1 = gf2
       then iter xs ys
-      else raise (Unify (expand_to_unification_error env []))
+      else raise Incompatible
     | [], [] -> ()
-    | _ -> raise (Unify (expand_to_unification_error env []))
+    | _ -> raise Incompatible
   in
   iter
 
