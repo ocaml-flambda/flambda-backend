@@ -105,7 +105,8 @@ let i0 b s = bprintf b "\t%s" s
 let i1 b s x = bprintf b "\t%s\t%a" s arg x
 let i1_s b s x = bprintf b "\t%s%s\t%a" s (suf x) arg x
 let i2 b s x y = bprintf b "\t%s\t%a, %a" s arg x arg y
-let i2_s b s x y = bprintf b "\t%s%s\t%a, %a" s (suf y) arg x arg y
+let i2_sx b s x y = bprintf b "\t%s%s\t%a, %a" s (suf x) arg x arg y
+let i2_sy b s x y = bprintf b "\t%s%s\t%a, %a" s (suf y) arg x arg y
 let i2_ss b s x y = bprintf b "\t%s%s%s\t%a, %a" s (suf x) (suf y) arg x arg y
 let i3 b s x y z = bprintf b "\t%s\t%a, %a, %a" s arg x arg y arg z
 
@@ -119,27 +120,27 @@ let i1_call_jmp b s = function
   | _ -> assert false
 
 let print_instr b = function
-  | ADD (arg1, arg2) -> i2_s b "add" arg1 arg2
+  | ADD (arg1, arg2) -> i2_sy b "add" arg1 arg2
   | ADDSD (arg1, arg2) -> i2 b "addsd" arg1 arg2
-  | AND (arg1, arg2) -> i2_s b "and" arg1 arg2
+  | AND (arg1, arg2) -> i2_sy b "and" arg1 arg2
   | ANDPD (arg1, arg2) -> i2 b "andpd" arg1 arg2
-  | BSF (arg1, arg2) -> i2_s b "bsf" arg1 arg2
-  | BSR (arg1, arg2) -> i2_s b "bsr" arg1 arg2
+  | BSF (arg1, arg2) -> i2_sy b "bsf" arg1 arg2
+  | BSR (arg1, arg2) -> i2_sy b "bsr" arg1 arg2
   | BSWAP arg -> i1 b "bswap" arg
   | CALL arg  -> i1_call_jmp b "call" arg
   | CDQ -> i0 b "cltd"
   | CMOV (c, arg1, arg2) -> i2 b ("cmov" ^ string_of_condition c) arg1 arg2
-  | CMP (arg1, arg2) -> i2_s b "cmp" arg1 arg2
+  | CMP (arg1, arg2) -> i2_sy b "cmp" arg1 arg2
   | CMPSD (c, arg1, arg2) ->
       i2 b ("cmp" ^ string_of_float_condition c ^ "sd") arg1 arg2
   | COMISD (arg1, arg2) -> i2 b "comisd" arg1 arg2
   | CQO ->  i0 b "cqto"
-  | CRC32 (arg1, arg2) -> i2_s b "crc32" arg1 arg2
+  | CRC32 (arg1, arg2) -> i2_sy b "crc32" arg1 arg2
   | CVTSD2SI (arg1, arg2) -> i2 b "cvtsd2si" arg1 arg2
   | CVTSD2SS (arg1, arg2) -> i2 b "cvtsd2ss" arg1 arg2
   | CVTSI2SD (arg1, arg2) -> i2 b ("cvtsi2sd" ^ suf arg1) arg1 arg2
   | CVTSS2SD (arg1, arg2) -> i2 b "cvtss2sd" arg1 arg2
-  | CVTTSD2SI (arg1, arg2) -> i2_s b "cvttsd2si" arg1 arg2
+  | CVTTSD2SI (arg1, arg2) -> i2_sy b "cvttsd2si" arg1 arg2
   | DEC arg -> i1_s b "dec" arg
   | DIVSD (arg1, arg2) -> i2 b "divsd" arg1 arg2
   | FABS -> i0 b "fabs"
@@ -185,14 +186,14 @@ let print_instr b = function
   | HLT -> i0 b "hlt"
   | IDIV arg -> i1_s b "idiv" arg
   | IMUL (arg, None) -> i1_s b "imul" arg
-  | IMUL (arg1, Some arg2) -> i2_s b "imul" arg1 arg2
+  | IMUL (arg1, Some arg2) -> i2_sy b "imul" arg1 arg2
   | MUL arg -> i1_s b "mul" arg
   | INC arg -> i1_s b "inc" arg
   | J (c, arg) -> i1_call_jmp b ("j" ^ string_of_condition c) arg
   | JMP arg -> i1_call_jmp b "jmp" arg
-  | LEA (arg1, arg2) -> i2_s b "lea" arg1 arg2
-  | LOCK_CMPXCHG (arg1, arg2) -> i2 b "lock cmpxchg" arg1 arg2
-  | LOCK_XADD (arg1, arg2) -> i2 b "lock xadd" arg1 arg2
+  | LEA (arg1, arg2) -> i2_sy b "lea" arg1 arg2
+  | LOCK_CMPXCHG (arg1, arg2) -> i2_sx b "lock cmpxchg" arg1 arg2
+  | LOCK_XADD (arg1, arg2) -> i2_sx b "lock xadd" arg1 arg2
   | LEAVE -> i0 b "leave"
   | MAXSD (arg1, arg2) -> i2 b "maxsd" arg1 arg2
   | MINSD (arg1, arg2) -> i2 b "minsd" arg1 arg2
@@ -201,7 +202,7 @@ let print_instr b = function
       i2 b "movabsq" arg1 arg2
   | MOV ((Sym _ as arg1), (Reg64 _ as arg2)) when windows ->
       i2 b "movabsq" arg1 arg2
-  | MOV (arg1, arg2) -> i2_s b "mov" arg1 arg2
+  | MOV (arg1, arg2) -> i2_sy b "mov" arg1 arg2
   | MOVAPD (arg1, arg2) -> i2 b "movapd" arg1 arg2
   | MOVD (arg1, arg2) -> i2 b "movd" arg1 arg2
   | MOVQ (arg1, arg2) -> i2 b "movq" arg1 arg2
@@ -214,10 +215,10 @@ let print_instr b = function
   | MULSD (arg1, arg2) -> i2 b "mulsd" arg1 arg2
   | NEG arg -> i1 b "neg" arg
   | NOP -> i0 b "nop"
-  | OR (arg1, arg2) -> i2_s b "or" arg1 arg2
+  | OR (arg1, arg2) -> i2_sy b "or" arg1 arg2
   | PAUSE -> i0 b "pause"
   | POP  arg -> i1_s b "pop" arg
-  | POPCNT (arg1, arg2) -> i2_s b "popcnt" arg1 arg2
+  | POPCNT (arg1, arg2) -> i2_sy b "popcnt" arg1 arg2
   | PREFETCH (is_write, hint, arg1) ->
     (match is_write, hint with
      | true, T0 -> i1 b "prefetchw" arg1
@@ -232,17 +233,17 @@ let print_instr b = function
   | MFENCE -> i0 b "mfence"
   | RET ->  i0 b "ret"
   | ROUNDSD (r, arg1, arg2) -> i3 b "roundsd" (imm_of_rounding r) arg1 arg2
-  | SAL (arg1, arg2) -> i2_s b "sal" arg1 arg2
-  | SAR (arg1, arg2) -> i2_s b "sar" arg1 arg2
+  | SAL (arg1, arg2) -> i2_sy b "sal" arg1 arg2
+  | SAR (arg1, arg2) -> i2_sy b "sar" arg1 arg2
   | SET (c, arg) -> i1 b ("set" ^ string_of_condition c) arg
-  | SHR (arg1, arg2) -> i2_s b "shr" arg1 arg2
+  | SHR (arg1, arg2) -> i2_sy b "shr" arg1 arg2
   | SQRTSD (arg1, arg2) -> i2 b "sqrtsd" arg1 arg2
-  | SUB (arg1, arg2) -> i2_s b "sub" arg1 arg2
+  | SUB (arg1, arg2) -> i2_sy b "sub" arg1 arg2
   | SUBSD (arg1, arg2) -> i2 b "subsd" arg1 arg2
-  | TEST (arg1, arg2) -> i2_s b "test" arg1 arg2
+  | TEST (arg1, arg2) -> i2_sy b "test" arg1 arg2
   | UCOMISD (arg1, arg2) -> i2 b "ucomisd" arg1 arg2
   | XCHG (arg1, arg2) -> i2 b "xchg" arg1 arg2
-  | XOR (arg1, arg2) -> i2_s b "xor" arg1 arg2
+  | XOR (arg1, arg2) -> i2_sy b "xor" arg1 arg2
   | XORPD (arg1, arg2) -> i2 b "xorpd" arg1 arg2
 
 (* bug:
