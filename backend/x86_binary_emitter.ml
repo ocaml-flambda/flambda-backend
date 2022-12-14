@@ -1245,7 +1245,7 @@ let emit_lock_xadd b dst src =
       buf_int8 b 0xF0;
       emit_mod_rm_reg b no_rex [ 0x0F; 0xC1 ] rm reg
   | _ ->
-      Format.eprintf "lock xaddq src=%a dst=%a@." print_old_arg src print_old_arg dst;
+      Format.eprintf "lock xadd src=%a dst=%a@." print_old_arg src print_old_arg dst;
       assert false
 
 let emit_stack_reg b opcode dst =
