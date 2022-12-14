@@ -100,8 +100,8 @@ let is_unary_op = function
     -> false
 
 let intop_atomic = function
-  | Ifetch_and_add -> " += "
-  | Icompare_and_swap -> " cas "
+  | Fetch_and_add -> " += "
+  | compare_and_swap -> " cas "
 
 let intop = function
   | Iadd -> " + "
@@ -183,12 +183,12 @@ let operation' ?(print_reg = reg) op arg ppf res =
         fprintf ppf "%a%s%a" reg arg.(0) (intop op) reg arg.(1)
       end
   | Iintop_imm(op, n) -> fprintf ppf "%a%s%i" reg arg.(0) (intop op) n
-  | Iintop_atomic {op = Icompare_and_swap; size; addr} ->
+  | Iintop_atomic {op = Compare_and_swap; size; addr} ->
     fprintf ppf "lock cas %s[%a] ?%a %a"
       (Printcmm.chunk size)
       (Arch.print_addressing reg addr) (Array.sub arg 2 (Array.length arg - 1))
       reg arg.(0) reg arg.(1)
-  | Iintop_atomic {op = Ifetch_and_add; size; addr} ->
+  | Iintop_atomic {op = Fetch_and_add; size; addr} ->
     fprintf ppf "lock %s[%a] += %a"
       (Printcmm.chunk size)
       (Arch.print_addressing reg addr) (Array.sub arg 1 (Array.length arg - 1))

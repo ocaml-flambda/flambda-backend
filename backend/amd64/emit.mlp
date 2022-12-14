@@ -708,13 +708,13 @@ let emit_atomic instr op size addr =
     | Single | Double -> Misc.fatal_error "Atomic got non 32/64 bit size."
   in
   let src, dst = match op, qword with
-  | Ifetch_and_add, false -> arg32 instr 0, addressing addr DWORD instr 1
-  | Ifetch_and_add, true -> arg instr 0, addressing addr QWORD instr 1
-  | Icompare_and_swap, false -> arg32 instr 1, addressing addr DWORD instr 2
-  | Icompare_and_swap, true -> arg instr 1, addressing addr QWORD instr 2 in
+  | Fetch_and_add, false -> arg32 instr 0, addressing addr DWORD instr 1
+  | Fetch_and_add, true -> arg instr 0, addressing addr QWORD instr 1
+  | Compare_and_swap, false -> arg32 instr 1, addressing addr DWORD instr 2
+  | Compare_and_swap, true -> arg instr 1, addressing addr QWORD instr 2 in
   match op with
-  | Ifetch_and_add -> I.lock_xadd src dst
-  | Icompare_and_swap ->
+  | Fetch_and_add -> I.lock_xadd src dst
+  | Compare_and_swap ->
     (* compare_with is already in rax, set_to is src *)
     let res8, res = res8 instr 0, res instr 0 in
     I.lock_cmpxchg src dst;

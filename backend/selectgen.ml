@@ -646,10 +646,10 @@ method select_operation op args _dbg =
   | (Cintofvalue, _) -> (Iintofvalue, args)
   | (Catomic {op = Fetch_and_add; size}, [src; dst]) ->
     let (addr, eloc) = self#select_addressing size dst in
-    (Iintop_atomic { op = Ifetch_and_add; size; addr }, [src; eloc])
+    (Iintop_atomic { op = Fetch_and_add; size; addr }, [src; eloc])
   | (Catomic {op = Compare_and_swap; size}, [compare_with; set_to; dst]) ->
     let (addr, eloc) = self#select_addressing size dst in
-    (Iintop_atomic { op = Icompare_and_swap; size; addr }, [compare_with; set_to; eloc])
+    (Iintop_atomic { op = Compare_and_swap; size; addr }, [compare_with; set_to; eloc])
   | (Ccheckbound, _) ->
     self#select_arith Icheckbound args
   | (Cprobe { name; handler_code_sym; }, _) ->

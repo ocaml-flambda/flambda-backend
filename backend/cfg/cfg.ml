@@ -276,8 +276,8 @@ let intcomp (comp : Mach.integer_comparison) =
   | Isigned c -> Printf.sprintf " %ss " (Printcmm.integer_comparison c)
   | Iunsigned c -> Printf.sprintf " %su " (Printcmm.integer_comparison c)
 
-let intop_atomic (op : Mach.atomic_integer_operation) =
-  match op with Ifetch_and_add -> " += " | Icompare_and_swap -> " cas "
+let intop_atomic (op : Cmm.atomic_op) =
+  match op with Fetch_and_add -> " += " | Compare_and_swap -> " cas "
 
 let intop (op : Mach.integer_operation) =
   match op with
