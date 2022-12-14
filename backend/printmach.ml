@@ -99,10 +99,6 @@ let is_unary_op = function
   | Icheckbound
     -> false
 
-let intop_atomic = function
-  | Fetch_and_add -> " += "
-  | compare_and_swap -> " cas "
-
 let intop = function
   | Iadd -> " + "
   | Isub -> " - "
