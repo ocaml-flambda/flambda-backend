@@ -159,10 +159,10 @@ build_upstream: ocaml/config.status
 install_upstream: build_upstream
 	(cd _build_upstream && $(MAKE) install)
 	cp ocaml/VERSION $(prefix)/lib/ocaml/
-	ln -s $(prefix)/lib/ocaml/compiler-libs/ocamltoplevel.cmxa \
-	  ocamlopttoplevel.cmxa
-	ln -s $(prefix)/lib/ocaml/compiler-libs/ocamltoplevel.a \
-	  ocamlopttoplevel.a
+	ln -s ocamltoplevel.cmxa \
+	  $(prefix)/lib/ocaml/compiler-libs/ocamlopttoplevel.cmxa
+	ln -s ocamltoplevel.a \
+	  $(prefix)/lib/ocaml/compiler-libs/ocamlopttoplevel.a
 
 .PHONY: build_and_test_upstream
 build_and_test_upstream: build_upstream
