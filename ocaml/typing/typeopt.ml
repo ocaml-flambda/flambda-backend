@@ -173,7 +173,7 @@ let bigarray_type_kind_and_layout env typ =
 let layout env ty =
   (* Note: this only works as long as types can only represent values *)
   let rec loop env ~visited ~depth ~num_nodes_visited ty
-      : int * Lambda.value_kind__ =
+      : int * Lambda.value_kind =
     let[@inline] cannot_proceed () =
       Numbers.Int.Set.mem (get_id ty) visited
         || depth >= 2
@@ -388,7 +388,7 @@ let classify_lazy_argument : Typedtree.expression ->
     | _ ->
        `Other
 
-let value_kind_union (k1 : Lambda.value_kind__) (k2 : Lambda.value_kind__) =
+let value_kind_union (k1 : Lambda.value_kind) (k2 : Lambda.value_kind) =
   if Lambda.equal_value_kind k1 k2 then k1
   else Pgenval
 

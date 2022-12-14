@@ -219,21 +219,21 @@ and integer_comparison =
 and float_comparison =
     CFeq | CFneq | CFlt | CFnlt | CFgt | CFngt | CFle | CFnle | CFge | CFnge
 
-and value_kind__ =
+and value_kind =
     Pgenval | Pfloatval | Pboxedintval of boxed_integer | Pintval
   | Pvariant of {
       consts : int list;
-      non_consts : (int * value_kind__ list) list;
+      non_consts : (int * value_kind list) list;
     }
   | Parrayval of array_kind
 
 and layout =
     Punboxedint of boxed_integer
-  | Pvalue of value_kind__
+  | Pvalue of value_kind
   | Pvoid
 
 and block_shape =
-  value_kind__ list option
+  value_kind list option
 
 and array_kind =
     Pgenarray | Paddrarray | Pintarray | Pfloatarray

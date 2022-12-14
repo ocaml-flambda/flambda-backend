@@ -192,11 +192,11 @@ and float_comparison =
 and array_kind =
     Pgenarray | Paddrarray | Pintarray | Pfloatarray
 
-and value_kind__ =
+and value_kind =
     Pgenval | Pfloatval | Pboxedintval of boxed_integer | Pintval
   | Pvariant of {
       consts : int list;
-      non_consts : (int * value_kind__ list) list;
+      non_consts : (int * value_kind list) list;
       (** [non_consts] must be non-empty.  For constant variants [Pintval]
           must be used.  This causes a small loss of precision but it is not
           expected to be significant. *)
@@ -205,11 +205,11 @@ and value_kind__ =
 
 and layout =
     Punboxedint of boxed_integer
-  | Pvalue of value_kind__
+  | Pvalue of value_kind
   | Pvoid
 
 and block_shape =
-  value_kind__ list option
+  value_kind list option
 
 and boxed_integer = Primitive.boxed_integer =
     Pnativeint | Pint32 | Pint64
@@ -235,11 +235,11 @@ and raise_kind =
 
 val equal_primitive : primitive -> primitive -> bool
 
-val equal_value_kind : value_kind__ -> value_kind__ -> bool
+val equal_value_kind : value_kind -> value_kind -> bool
 
 val equal_layout : layout -> layout -> bool
 
-val must_be_value : layout -> value_kind__
+val must_be_value : layout -> value_kind
 
 val equal_boxed_integer : boxed_integer -> boxed_integer -> bool
 

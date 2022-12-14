@@ -132,17 +132,17 @@ and float_comparison = Lambda.float_comparison =
 and array_kind = Lambda.array_kind =
     Pgenarray | Paddrarray | Pintarray | Pfloatarray
 
-and value_kind__ = Lambda.value_kind__ =
+and value_kind = Lambda.value_kind =
   (* CR mshinwell: Pfloatval should be renamed to Pboxedfloatval *)
     Pgenval | Pfloatval | Pboxedintval of boxed_integer | Pintval
   | Pvariant of {
       consts : int list;
-      non_consts : (int * value_kind__ list) list;
+      non_consts : (int * value_kind list) list;
     }
   | Parrayval of array_kind
 
 and layout = Lambda.layout =
-  | Punboxedint of boxed_integer | Pvalue of value_kind__ | Pvoid
+  | Punboxedint of boxed_integer | Pvalue of value_kind | Pvoid
 
 and block_shape = Lambda.block_shape
 and boxed_integer = Primitive.boxed_integer =

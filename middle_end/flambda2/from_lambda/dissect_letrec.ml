@@ -156,7 +156,7 @@ type letrec =
 
 type let_def =
   { let_kind : Lambda.let_kind;
-    value_kind : Lambda.value_kind__;
+    value_kind : Lambda.value_kind;
     ident : Ident.t
   }
 

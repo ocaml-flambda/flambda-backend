@@ -472,7 +472,7 @@ module With_subkind = struct
     | Naked_int64 -> naked_int64
     | Naked_nativeint -> naked_nativeint
 
-  let rec from_lambda_value_kind (vk : Lambda.value_kind__) =
+  let rec from_lambda_value_kind (vk : Lambda.value_kind) =
     match vk with
     | Pgenval -> any_value
     | Pfloatval -> boxed_float
