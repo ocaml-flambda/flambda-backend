@@ -41,8 +41,8 @@ open! Simplify_import
  *           +---------------------------------+
  *)
 
-(* For each stage, the information received by this stage
-   is of type stage_data. *)
+(* For each stage, the information received by this stage is of type
+   stage_data. *)
 type original_handlers =
   | Recursive of
       { invariant_params : Bound_parameters.t;
@@ -72,8 +72,8 @@ type handler_after_downwards_traversal =
   { params : Bound_parameters.t;
     rebuild_handler : expr_to_rebuild;
     is_exn_handler : bool;
-    (* continuations_used is the set of which continuations from this
-       block of mutually recursive continuations is used inside the handler *)
+    (* continuations_used is the set of which continuations from this block of
+       mutually recursive continuations is used inside the handler *)
     continuations_used : Continuation.Set.t;
     unbox_decisions : Unbox_continuation_params.Decisions.t;
     extra_params_and_args_for_cse : EPA.t
@@ -102,9 +102,7 @@ type handler_to_rebuild =
 
 type handlers_to_rebuild_group =
   | Recursive of
-      { rebuild_continuation_handlers :
-          handler_to_rebuild Continuation.Map.t
-      }
+      { rebuild_continuation_handlers : handler_to_rebuild Continuation.Map.t }
   | Non_recursive of
       { cont : Continuation.t;
         handler : handler_to_rebuild;
@@ -151,8 +149,8 @@ type rebuild_let_cont_data =
     uenv_of_subsequent_exprs : UE.t
   }
 
-let decide_param_usage_non_recursive ~free_names ~required_names ~removed_aliased
-    ~exn_bucket param : Apply_cont_rewrite.used =
+let decide_param_usage_non_recursive ~free_names ~required_names
+    ~removed_aliased ~exn_bucket param : Apply_cont_rewrite.used =
   (* The free_names computation is the reference here, because it records
      precisely what is actually used in the term being rebuilt. The required
      variables computed by the data_flow analysis can only be an over
@@ -286,7 +284,6 @@ let make_rewrite_for_recursive_continuation uacc ~cont
         UE.add_non_inlinable_continuation uenv cont ~params ~handler:Unknown)
   in
   uacc
-
 
 let rebuild_let_cont (data : rebuild_let_cont_data) ~after_rebuild body uacc =
   (* Here both the body and the handlers have been rebuilt. We only need to
@@ -427,7 +424,8 @@ let rebuild_let_cont (data : rebuild_let_cont_data) ~after_rebuild body uacc =
   rebuild_groups body name_occurrences_body cost_metrics_of_body uacc
     data.handlers_from_the_inside_to_the_outside
 
-let prepare_to_rebuild_body (data : prepare_to_rebuild_body_data) uacc ~after_rebuild =
+let prepare_to_rebuild_body (data : prepare_to_rebuild_body_data) uacc
+    ~after_rebuild =
   (* At this point all handlers have been rebuild and added to the upwards
      environment. All that we still need to do is to rebuild the body, and then
      rebuild the chain of let cont expressions once this is done. We reinit the
@@ -445,8 +443,7 @@ let prepare_to_rebuild_body (data : prepare_to_rebuild_body_data) uacc ~after_re
         data.handlers_from_the_inside_to_the_outside
     }
   in
-  rebuild_body uacc
-    ~after_rebuild:(rebuild_let_cont data ~after_rebuild)
+  rebuild_body uacc ~after_rebuild:(rebuild_let_cont data ~after_rebuild)
 
 let add_lets_around_handler cont at_unit_toplevel uacc handler =
   let Flow_types.Alias_result.{ continuation_parameters; _ } =
@@ -777,7 +774,8 @@ let rec rebuild_continuation_handlers_loop ~rebuild_body
              { continuation_handlers = rebuilt_handlers; invariant_params }
           :: rebuilt_groups))
 
-let prepare_to_rebuild_handlers (data : prepare_to_rebuild_handlers_data) uacc ~after_rebuild =
+let prepare_to_rebuild_handlers (data : prepare_to_rebuild_handlers_data) uacc
+    ~after_rebuild =
   (* Here we just returned from the global [down_to_up], which is asking us to
      rebuild the let cont. The flow analyses have been done, and we start to
      rebuild the expressions. As with the downward pass, we loop over each
@@ -816,7 +814,9 @@ let prepare_to_rebuild_handlers (data : prepare_to_rebuild_handlers_data) uacc ~
 
 module SCC = Strongly_connected_components.Make (Continuation)
 
-let after_downwards_traversal_of_body_and_handlers (data : after_downwards_traversal_of_body_and_handlers_data) ~down_to_up dacc =
+let after_downwards_traversal_of_body_and_handlers
+    (data : after_downwards_traversal_of_body_and_handlers_data) ~down_to_up
+    dacc =
   (* At this point we have done a downwards traversal on the body and all the
      handlers, and we need to call the global [down_to_up] function. First
      however, we have to take care of several things:
@@ -1099,7 +1099,8 @@ let simplify_single_recursive_handler ~simplify_expr cont_uses_env_so_far
         }
         cont_uses_env_so_far)
 
-let after_downwards_traversal_of_body ~simplify_expr (data : after_downwards_traversal_of_body_data) ~down_to_up dacc
+let after_downwards_traversal_of_body ~simplify_expr
+    (data : after_downwards_traversal_of_body_data) ~down_to_up dacc
     ~rebuild:rebuild_body =
   (* At this point, we have done the downwards traversal of the body. We prepare
      to loop over all the handlers defined by the let cont. *)
@@ -1275,7 +1276,8 @@ let after_downwards_traversal_of_body ~simplify_expr (data : after_downwards_tra
     simplify_handlers body_continuation_uses_env used_handlers
       Continuation.Set.empty Continuation.Map.empty dacc
 
-let simplify_let_cont0 ~simplify_expr dacc (data : simplify_let_cont_data) ~down_to_up =
+let simplify_let_cont0 ~simplify_expr dacc (data : simplify_let_cont_data)
+    ~down_to_up =
   (* We begin to simplify a let cont by simplifying its body, so that we can see
      all external calls to the handler in the non-recursive case, and so that we
      can know the values of all invariant arguments in the recursive case. We
@@ -1292,7 +1294,8 @@ let simplify_let_cont0 ~simplify_expr dacc (data : simplify_let_cont_data) ~down
     { denv_before_body; prior_lifted_constants; handlers = data.handlers }
   in
   simplify_expr dacc body
-    ~down_to_up:(after_downwards_traversal_of_body ~simplify_expr data ~down_to_up)
+    ~down_to_up:
+      (after_downwards_traversal_of_body ~simplify_expr data ~down_to_up)
 
 let simplify_let_cont ~simplify_expr dacc (let_cont : Let_cont.t) ~down_to_up =
   (* This is the entry point to simplify a let cont expression. The only thing
@@ -1334,9 +1337,10 @@ let simplify_let_cont ~simplify_expr dacc (let_cont : Let_cont.t) ~down_to_up =
 
 let simplify_as_recursive_let_cont ~simplify_expr dacc (body, handlers)
     ~down_to_up =
-  (* Loopify needs to simplify a recursive continuation, but knowing the unique id
-     of the continuation and parameters being simplified, so this function allows to
-     simplify a recursive let cont with the name abstraction already opened. *)
+  (* Loopify needs to simplify a recursive continuation, but knowing the unique
+     id of the continuation and parameters being simplified, so this function
+     allows to simplify a recursive let cont with the name abstraction already
+     opened. *)
   let continuation_handlers =
     Continuation.Map.map
       (fun handler ->
@@ -1347,9 +1351,7 @@ let simplify_as_recursive_let_cont ~simplify_expr dacc (body, handlers)
     { body;
       handlers =
         Recursive
-          { invariant_params = Bound_parameters.empty;
-            continuation_handlers
-          }
+          { invariant_params = Bound_parameters.empty; continuation_handlers }
     }
   in
   simplify_let_cont0 ~simplify_expr dacc data ~down_to_up
