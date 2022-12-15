@@ -430,6 +430,10 @@ let new_bindings_for_splitting order args =
         then (new_bindings, order), cmm_arg
         else
           (* we need to rebind the argument *)
+          (* CR gbury: we should try and store the flambda/cmm variable
+             initially associated to this expression when it was built (and
+             before it was inlined during the to_cmm translation), instead of
+             using a fresh one here. *)
           let new_cmm_var =
             Backend_var.With_provenance.create ?provenance:None
               (Backend_var.create_local
@@ -536,6 +540,16 @@ let rec add_binding_to_env ?extra env res var (Binding binding as b) =
   let inline : _ inline = binding.inline in
   match inline with
   | Must_inline_and_duplicate -> (
+    (* Bindings containing expressions that have effects/coeffects must be split
+       at creation time, to ensure that the effectful/coeffectful expressions go
+       on the stage stack (whereas the `must_inline_and_duplicate` bindings are
+       *not* on the stage stack).
+
+       Note that it would be correct to split all `must_inline_and_duplicate`
+       bindings, regardless of its effects. However, we will always need to
+       split some bindings late (particularly `must_inline_once` bindings), so
+       always splitting `must_inline_and_duplicate` would not simplify the rest
+       of the code much. *)
     match classification with
     | Pure | Generative_immutable -> env, res
     | Coeffect_only | Effect ->
@@ -566,6 +580,7 @@ let rec add_binding_to_env ?extra env res var (Binding binding as b) =
       in
       { env with stages }, res)
 
+(* CR gbury: find a better name for this function *)
 and split_in_env env res var binding =
   let res, split_result = split_complex_binding ~env ~res binding in
   match split_result with
@@ -593,14 +608,37 @@ and split_in_env env res var binding =
 let bind_variable_with_decision (type a) ?extra env res var ~inline
     ~(defining_expr : a bound_expr) ~effects_and_coeffects_of_defining_expr:effs
     =
-  (* See comment above about effects and coeffects of 'must_inline' bindings *)
   let effs =
     let classification =
       To_cmm_effects.classify_by_effects_and_coeffects effs
     in
     match[@ocaml.warning "-4"] (inline : a inline), classification with
     | (Must_inline_once | Must_inline_and_duplicate), Generative_immutable -> (
-      (* Even if the primitive/top of the cmm expr being bound, must be
+      (* Effects (including generative immutbale effects) can severly limit the
+         inlining of bindings (due to the
+         [~consider_inlining_effectful_expressions]). See CR above for a more
+         lengthy explanation.
+
+         Therefore, we try and "forget" generative effects here. This is
+         reasonable since the only reason that `Generative_immutable' effects
+         are considered effects is to prevent allocations from being moved
+         across a `Gc` function call (and the main point of that is to not
+         invalidate allocation tests). We consider that the Delay placement on a
+         allocating primitive explicitly allows re-ordering past `Gc` function
+         calls, and therefore it is correct to ignore the generative effects; we
+         also do that when computing the effects after splitting a binding (see
+         [split_complex_binding]).
+
+         Note that in some cases, there might be situations where an allocation
+         with Strict placement might be inlined inside a Delay allocation, and
+         end up moved across a `Gc` function call beause of this. Such cases are
+         currently impossible since only [Box_number] and [Project_value_slot]
+         have a Delay placement, but may appaer in the future if/when some more
+         primitives are marked as `Delay`. But even then, the only issue would
+         be that some allocations would be accidentally re-ordered across `Gc`
+         function calls.
+
+         Lastly, even if the primitive/top of the cmm expr being bound, must be
          duplicated (as specified by [inline]), that doesn't mean that its
          arguments (some of which may have been inlined) are also duplicatable,
          so we must take care of only downgrading the effects and coeffects to
