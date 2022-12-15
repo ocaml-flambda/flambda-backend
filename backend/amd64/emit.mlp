@@ -698,20 +698,12 @@ let emit_push_trap_label handler =
   traps.push_traps <- lbl::traps.push_traps;
   traps.enter_traps <- Int.Set.add handler traps.enter_traps
 
-let emit_atomic instr op size addr =
-  let qword =
-    match size with
-    | Word_int | Word_val -> true
-    | Thirtytwo_signed | Thirtytwo_unsigned -> false
-    | Byte_unsigned | Byte_signed
-    | Sixteen_unsigned | Sixteen_signed
-    | Single | Double -> Misc.fatal_error "Atomic got non 32/64 bit size."
-  in
-  let src, dst = match op, qword with
-  | Fetch_and_add, false -> arg32 instr 0, addressing addr DWORD instr 1
-  | Fetch_and_add, true -> arg instr 0, addressing addr QWORD instr 1
-  | Compare_and_swap, false -> arg32 instr 1, addressing addr DWORD instr 2
-  | Compare_and_swap, true -> arg instr 1, addressing addr QWORD instr 2 in
+let emit_atomic instr op (size : Cmm.atomic_bitwidth) addr =
+  let src, dst = match op, size with
+  | Fetch_and_add, Thirtytwo -> arg32 instr 0, addressing addr DWORD instr 1
+  | Fetch_and_add, (Sixtyfour|Word) -> arg instr 0, addressing addr QWORD instr 1
+  | Compare_and_swap, Thirtytwo -> arg32 instr 1, addressing addr DWORD instr 2
+  | Compare_and_swap, (Sixtyfour|Word) -> arg instr 1, addressing addr QWORD instr 2 in
   match op with
   | Fetch_and_add -> I.lock_xadd src dst
   | Compare_and_swap ->

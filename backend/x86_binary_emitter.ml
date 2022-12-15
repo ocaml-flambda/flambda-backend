@@ -1221,32 +1221,28 @@ let emit_LEA b dst src =
       assert false
 
 let emit_lock_cmpxchg b dst src =
-  match (dst, src) with
+  let rex, rm, reg = match (dst, src) with
   | ((Mem _ | Mem64_RIP _) as rm), Reg64 reg ->
-      let reg = rd_of_reg64 reg in
-      buf_int8 b 0xF0;
-      emit_mod_rm_reg b rexw [ 0x0F; 0xB1 ] rm reg
+    rexw, rm, rd_of_reg64 reg
   | ((Mem _ | Mem64_RIP _) as rm), Reg32 reg ->
-      let reg = rd_of_reg64 reg in
-      buf_int8 b 0xF0;
-      emit_mod_rm_reg b no_rex [ 0x0F; 0xB1 ] rm reg
+    no_rex, rm, rd_of_reg64 reg
   | _ ->
-      Format.eprintf "lock cmpxchg src=%a dst=%a@." print_old_arg src print_old_arg dst;
-      assert false
+    Misc.fatal_errorf "lock cmpxchg src=%a dst=%a@." print_old_arg src print_old_arg dst
+  in
+  buf_int8 b 0xF0;
+  emit_mod_rm_reg b rex [ 0x0F; 0xB1 ] rm reg
 
 let emit_lock_xadd b dst src =
-  match (dst, src) with
+  let rex, rm, reg = match (dst, src) with
   | ((Mem _ | Mem64_RIP _) as rm), Reg64 reg ->
-      let reg = rd_of_reg64 reg in
-      buf_int8 b 0xF0;
-      emit_mod_rm_reg b rexw [ 0x0F; 0xC1 ] rm reg
+    rexw, rm, rd_of_reg64 reg
   | ((Mem _ | Mem64_RIP _) as rm), Reg32 reg ->
-      let reg = rd_of_reg64 reg in
-      buf_int8 b 0xF0;
-      emit_mod_rm_reg b no_rex [ 0x0F; 0xC1 ] rm reg
+    no_rex, rm, rd_of_reg64 reg
   | _ ->
-      Format.eprintf "lock xadd src=%a dst=%a@." print_old_arg src print_old_arg dst;
-      assert false
+    Misc.fatal_errorf "lock cmpxchg src=%a dst=%a@." print_old_arg src print_old_arg dst
+  in
+  buf_int8 b 0xF0;
+  emit_mod_rm_reg b rex [ 0x0F; 0xC1 ] rm reg
 
 let emit_stack_reg b opcode dst =
   match dst with

@@ -68,7 +68,7 @@ module S = struct
     | Intop_imm of Mach.integer_operation * int
     | Intop_atomic of
         { op : Cmm.atomic_op;
-          size : Cmm.memory_chunk;
+          size : Cmm.atomic_bitwidth;
           addr : Arch.addressing_mode
         }
     | Negf

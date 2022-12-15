@@ -95,6 +95,11 @@ let chunk = function
   | Single -> "float32"
   | Double -> "float64"
 
+let atomic_bitwidth : Cmm.atomic_bitwidth -> string = function
+  | Word -> "int"
+  | Thirtytwo -> "int32"
+  | Sixtyfour -> "int64"
+
 let temporal_locality = function
   | Nonlocal -> "nonlocal"
   | Low -> "low"
@@ -220,7 +225,7 @@ let operation d = function
   | Cprefetch { is_write; locality; } ->
     Printf.sprintf "prefetch is_write=%b prefetch_temporal_locality_hint=%s"
       is_write (temporal_locality locality)
-  | Catomic { op } -> Printf.sprintf "atomic %s" (atomic_op op)
+  | Catomic { op; size = _ } -> Printf.sprintf "atomic %s" (atomic_op op)
   | Copaque -> "opaque"
   | Cbeginregion -> "beginregion"
   | Cendregion -> "endregion"

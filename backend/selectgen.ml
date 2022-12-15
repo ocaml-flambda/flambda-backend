@@ -645,10 +645,12 @@ method select_operation op args _dbg =
   | (Cvalueofint, _) -> (Ivalueofint, args)
   | (Cintofvalue, _) -> (Iintofvalue, args)
   | (Catomic {op = Fetch_and_add; size}, [src; dst]) ->
-    let (addr, eloc) = self#select_addressing size dst in
+    let dst_size = match size with Word | Sixtyfour -> Word_int | Thirtytwo -> Thirtytwo_signed in
+    let (addr, eloc) = self#select_addressing dst_size dst in
     (Iintop_atomic { op = Fetch_and_add; size; addr }, [src; eloc])
   | (Catomic {op = Compare_and_swap; size}, [compare_with; set_to; dst]) ->
-    let (addr, eloc) = self#select_addressing size dst in
+    let dst_size = match size with Word | Sixtyfour -> Word_int | Thirtytwo -> Thirtytwo_signed in
+    let (addr, eloc) = self#select_addressing dst_size dst in
     (Iintop_atomic { op = Compare_and_swap; size; addr }, [compare_with; set_to; eloc])
   | (Ccheckbound, _) ->
     self#select_arith Icheckbound args
