@@ -1324,7 +1324,7 @@ let reset_all () =
   float_constants := [];
   all_functions := []
 
-let begin_assembly ~init_dwarf =
+let begin_assembly unix ~init_dwarf =
   reset_all ();
 
   init_dwarf ();
