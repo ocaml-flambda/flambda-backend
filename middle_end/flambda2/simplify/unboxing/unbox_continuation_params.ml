@@ -62,9 +62,19 @@ let make_do_not_unbox_decisions params : Decisions.t =
   in
   { decisions; rewrite_ids_seen = Apply_cont_rewrite_id.Set.empty }
 
-let make_decisions ~continuation_is_recursive ~arg_types_by_use_id denv params
-    params_types : DE.t * Decisions.t =
+type continuation_arg_types =
+  | Recursive
+  | Non_recursive of Continuation_uses.arg_types_by_use_id
+
+let make_decisions ~continuation_arg_types denv params params_types :
+    DE.t * Decisions.t =
   let params = Bound_parameters.to_list params in
+  let continuation_is_recursive, arg_types_by_use_id =
+    match continuation_arg_types with
+    | Recursive ->
+      true, List.map (fun _ -> Apply_cont_rewrite_id.Map.empty) params
+    | Non_recursive arg_types_by_use_id -> false, arg_types_by_use_id
+  in
   let empty = Apply_cont_rewrite_id.Set.empty in
   let _, denv, rev_decisions, seen =
     List.fold_left3
@@ -73,8 +83,6 @@ let make_decisions ~continuation_is_recursive ~arg_types_by_use_id denv params
            use sites (to prevent decisions that would be detrimental), and
            compute the necessary denv. *)
         let decision =
-          (* CR ncourant: optimistic_unboxing_decision should take recursive as
-             argument, and we should not refine if recursive *)
           Optimistic_unboxing_decision.make_optimistic_decision ~depth:0
             ~recursive:continuation_is_recursive (DE.typing_env denv)
             ~param_type
