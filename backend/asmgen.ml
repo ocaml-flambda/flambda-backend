@@ -483,6 +483,8 @@ let compile_genfuns ?dwarf ~ppf_dump f =
 let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename ~may_reduce_heap
         ~ppf_dump gen =
   reset ();
+  if !Flambda_backend_flags.internal_assembler then
+    Emitaux.binary_backend_available := true;
   let create_asm = should_emit () &&
                    (keep_asm || not !Emitaux.binary_backend_available) in
   Emitaux.create_asm_file := create_asm;
@@ -580,11 +582,6 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) = (
   )
 
 let emit_begin_assembly_with_dwarf unix ~disable_dwarf ~emit_begin_assembly ~sourcefile () =
-  if !Flambda_backend_flags.internal_assembler then
-    (
-    Emitaux.binary_backend_available := true;
-    Emitaux.create_asm_file := !Clflags.keep_asm_file)
-  else ();
   let no_dwarf () =
     emit_begin_assembly unix ~init_dwarf:(fun () -> ());
     None
