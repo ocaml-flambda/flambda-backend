@@ -15,6 +15,12 @@
 (*                                                                        *)
 (**************************************************************************)
 
+(* CR-someday lmaurer: This file should do no parsing or low-level binary I/O
+   _whatsoever_. No magic numbers, no sections, and _especially_ no
+   [input_value]. Any such code here is necessarily duplicated code, and worse,
+   particularly fiddly duplicated code that segfaults rather than producing
+   compile-time errors. *)
+
 (* Dump info on .cmi, .cmo, .cmx, .cma, .cmxa, .cmxs files
    and on bytecode executables. *)
 
@@ -160,41 +166,45 @@ let print_generic_fns gfns =
 
 
 let print_cmx_infos (ui, crc) =
-  print_general_infos Compilation_unit.output ui.ui_unit crc ui.ui_defines
-    (fun f -> List.iter f ui.ui_imports_cmi)
-    (fun f -> List.iter f ui.ui_imports_cmx);
-  begin match ui.ui_export_info with
-  | Clambda approx ->
+  print_general_infos Compilation_unit.output ui.uir_unit crc ui.uir_defines
+    (fun f -> List.iter f ui.uir_imports_cmi)
+    (fun f -> List.iter f ui.uir_imports_cmx);
+  begin match ui.uir_export_info with
+  | Clambda_raw approx ->
     if not !no_approx then begin
       printf "Clambda approximation:\n";
       Format.fprintf Format.std_formatter "  %a@." Printclambda.approx approx
     end else
       Format.printf "Clambda unit@.";
-  | Flambda1 export ->
+  | Flambda1_raw export ->
     if not !no_approx || not !no_code then
       printf "Flambda export information:\n"
     else
       printf "Flambda unit\n";
     if not !no_approx then begin
-      Compilation_unit.set_current (Some ui.ui_unit);
-      let root_symbols = List.map Symbol.for_compilation_unit ui.ui_defines in
+      Compilation_unit.set_current (Some ui.uir_unit);
+      let root_symbols = List.map Symbol.for_compilation_unit ui.uir_defines in
       Format.printf "approximations@ %a@.@."
         Export_info.print_approx (export, root_symbols)
     end;
     if not !no_code then
       Format.printf "functions@ %a@.@."
         Export_info.print_functions export
-  | Flambda2 None ->
+  | Flambda2_raw None ->
     printf "Flambda 2 unit (with no export information)\n"
-  | Flambda2 (Some cmx) ->
+  | Flambda2_raw (Some cmx) ->
     printf "Flambda 2 export information:\n";
     flush stdout;
+    let cmx =
+      Flambda2_cmx.Flambda_cmx_format.from_raw cmx
+        ~sections:Flambda_backend_utils.File_sections.empty
+    in
     Format.printf "%a\n%!" Flambda2_cmx.Flambda_cmx_format.print cmx
   end;
-  print_generic_fns ui.ui_generic_fns;
-  printf "Force link: %s\n" (if ui.ui_force_link then "YES" else "no");
+  print_generic_fns ui.uir_generic_fns;
+  printf "Force link: %s\n" (if ui.uir_force_link then "YES" else "no");
   printf "Functions with neither allocations nor indirect calls:\n";
-  String.Set.iter print_line ui.ui_checks.ui_noalloc_functions
+  String.Set.iter print_line ui.uir_checks.ui_noalloc_functions
 
 let print_cmxa_infos (lib : Cmx_format.library_infos) =
   printf "Extra C object files:";
@@ -320,7 +330,7 @@ let dump_obj_by_kind filename ic obj_kind =
          | Some cmt -> print_cmt_infos cmt
        end
     | Cmx _config ->
-       let ui = (input_value ic : unit_infos) in
+       let ui = (input_value ic : unit_infos_raw) in
        let crc = Digest.input ic in
        close_in ic;
        print_cmx_infos (ui, crc)
