@@ -179,6 +179,16 @@ let operation' ?(print_reg = reg) op arg ppf res =
         fprintf ppf "%a%s%a" reg arg.(0) (intop op) reg arg.(1)
       end
   | Iintop_imm(op, n) -> fprintf ppf "%a%s%i" reg arg.(0) (intop op) n
+  | Iintop_atomic {op = Compare_and_swap; size; addr} ->
+    fprintf ppf "lock cas %s[%a] ?%a %a"
+      (Printcmm.atomic_bitwidth size)
+      (Arch.print_addressing reg addr) (Array.sub arg 2 (Array.length arg - 2))
+      reg arg.(0) reg arg.(1)
+  | Iintop_atomic {op = Fetch_and_add; size; addr} ->
+    fprintf ppf "lock %s[%a] += %a"
+      (Printcmm.atomic_bitwidth size)
+      (Arch.print_addressing reg addr) (Array.sub arg 1 (Array.length arg - 1))
+      reg arg.(0)
   | Icompf cmp -> fprintf ppf "%a%s%a" reg arg.(0) (floatcomp cmp) reg arg.(1)
   | Inegf -> fprintf ppf "-f %a" reg arg.(0)
   | Iabsf -> fprintf ppf "absf %a" reg arg.(0)

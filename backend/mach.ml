@@ -67,6 +67,8 @@ type operation =
                 mode : Lambda.alloc_mode }
   | Iintop of integer_operation
   | Iintop_imm of integer_operation * int
+  | Iintop_atomic of { op : Cmm.atomic_op; size : Cmm.atomic_bitwidth;
+                       addr : Arch.addressing_mode }
   | Icompf of float_comparison
   | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icsel of test
@@ -176,7 +178,7 @@ let rec instr_iter f i =
             | Iconst_int _ | Iconst_float _ | Iconst_symbol _
             | Icall_ind | Icall_imm _ | Iextcall _ | Istackoffset _
             | Iload _ | Istore _ | Ialloc _
-            | Iintop _ | Iintop_imm _
+            | Iintop _ | Iintop_imm _ | Iintop_atomic _
             | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
             | Icompf _
             | Icsel _
@@ -191,7 +193,7 @@ let operation_is_pure = function
   | Iextcall _ | Istackoffset _ | Istore _ | Ialloc _ | Ipoll _
   | Iintop(Icheckbound) | Iintop_imm(Icheckbound, _) | Iopaque
   (* Conservative to ensure valueofint/intofvalue are not eliminated before emit. *)
-  | Ivalueofint | Iintofvalue -> false
+  | Ivalueofint | Iintofvalue | Iintop_atomic _ -> false
   | Ibeginregion | Iendregion -> false
   | Iprobe _ -> false
   | Iprobe_is_enabled _-> true
@@ -219,6 +221,7 @@ let operation_can_raise op =
                | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _), _)
   | Iintop(Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
           | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _)
+  | Iintop_atomic _
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icompf _
   | Icsel _

@@ -48,7 +48,7 @@ method! class_of_operation op =
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _ | Iextcall _
   | Istackoffset _ | Iload _ | Istore _ | Ialloc _
-  | Iintop _ | Iintop_imm _
+  | Iintop _ | Iintop_imm _ | Iintop_atomic _
   | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque
   | Ibeginregion | Iendregion | Ipoll _
     -> super#class_of_operation op

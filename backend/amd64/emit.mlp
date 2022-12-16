@@ -698,6 +698,21 @@ let emit_push_trap_label handler =
   traps.push_traps <- lbl::traps.push_traps;
   traps.enter_traps <- Int.Set.add handler traps.enter_traps
 
+let emit_atomic instr op (size : Cmm.atomic_bitwidth) addr =
+  let src, dst = match op, size with
+  | Fetch_and_add, Thirtytwo -> arg32 instr 0, addressing addr DWORD instr 1
+  | Fetch_and_add, (Sixtyfour|Word) -> arg instr 0, addressing addr QWORD instr 1
+  | Compare_and_swap, Thirtytwo -> arg32 instr 1, addressing addr DWORD instr 2
+  | Compare_and_swap, (Sixtyfour|Word) -> arg instr 1, addressing addr QWORD instr 2 in
+  match op with
+  | Fetch_and_add -> I.lock_xadd src dst
+  | Compare_and_swap ->
+    (* compare_with is already in rax, set_to is src *)
+    let res8, res = res8 instr 0, res instr 0 in
+    I.lock_cmpxchg src dst;
+    I.set E res8;
+    I.movzx res8 res
+
 (* Emit an instruction *)
 let emit_instr fallthrough i =
   emit_debug_info_linear i;
@@ -939,6 +954,8 @@ let emit_instr fallthrough i =
   | Lop(Iintop_imm(op, n)) ->
       (* We have i.arg.(0) = i.res.(0) *)
       instr_for_intop op (int n) (res i 0)
+  | Lop(Iintop_atomic{op; size; addr}) ->
+      emit_atomic i op size addr
   | Lop(Icompf cmp) ->
       let cond, need_swap = float_cond_and_need_swap cmp in
       let a0, a1 = if need_swap then arg i 1, arg i 0 else arg i 0, arg i 1 in

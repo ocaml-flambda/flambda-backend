@@ -276,6 +276,9 @@ let intcomp (comp : Mach.integer_comparison) =
   | Isigned c -> Printf.sprintf " %ss " (Printcmm.integer_comparison c)
   | Iunsigned c -> Printf.sprintf " %su " (Printcmm.integer_comparison c)
 
+let intop_atomic (op : Cmm.atomic_op) =
+  match op with Fetch_and_add -> " += " | Compare_and_swap -> " cas "
+
 let intop (op : Mach.integer_operation) =
   match op with
   | Iadd -> " + "
@@ -308,6 +311,8 @@ let dump_op ppf = function
   | Store _ -> Format.fprintf ppf "store"
   | Intop op -> Format.fprintf ppf "intop %s" (intop op)
   | Intop_imm (op, n) -> Format.fprintf ppf "intop %s %d" (intop op) n
+  | Intop_atomic { op; size = _; addr = _ } ->
+    Format.fprintf ppf "intop atomic %s" (intop_atomic op)
   | Negf -> Format.fprintf ppf "negf"
   | Absf -> Format.fprintf ppf "absf"
   | Addf -> Format.fprintf ppf "addf"
@@ -500,6 +505,7 @@ let is_pure_operation : operation -> bool = function
   | Store _ -> false
   | Intop _ -> true
   | Intop_imm _ -> true
+  | Intop_atomic _ -> false
   | Negf -> true
   | Absf -> true
   | Addf -> true
@@ -558,10 +564,10 @@ let is_noop_move instr =
       Reg.same_loc instr.res.(0) ifso && Reg.same_loc instr.res.(0) ifnot)
   | Op
       ( Const_int _ | Const_float _ | Const_symbol _ | Stackoffset _ | Load _
-      | Store _ | Intop _ | Intop_imm _ | Negf | Absf | Addf | Subf | Mulf
-      | Divf | Compf _ | Floatofint | Intoffloat | Opaque | Valueofint
-      | Intofvalue | Probe_is_enabled _ | Specific _ | Name_for_debugger _
-      | Begin_region | End_region )
+      | Store _ | Intop _ | Intop_imm _ | Intop_atomic _ | Negf | Absf | Addf
+      | Subf | Mulf | Divf | Compf _ | Floatofint | Intoffloat | Opaque
+      | Valueofint | Intofvalue | Probe_is_enabled _ | Specific _
+      | Name_for_debugger _ | Begin_region | End_region )
   | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
     false
 

@@ -189,6 +189,7 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   | Op (Intop_imm ((Imulh _ | Imul | Idiv | Imod), _))
   | Op (Specific (Irdtsc | Irdpmc))
   | Op (Intop (Ipopcnt | Iclz _| Ictz _))
+  | Op (Intop_atomic _)
   | Op (Move | Spill | Reload | Negf | Absf | Const_float _ | Compf _ | Stackoffset _
        | Load _ | Store _ | Name_for_debugger _ | Probe_is_enabled _
        | Valueofint | Intofvalue | Opaque | Begin_region | End_region )

@@ -219,6 +219,8 @@ let rec sub_int c1 c2 dbg =
     add_const (sub_int c1 c2 dbg) n1 dbg
   | c1, c2 -> Cop (Csubi, [c1; c2], dbg)
 
+let neg_int c dbg = sub_int (Cconst_int (0, dbg)) c dbg
+
 let rec lsl_int c1 c2 dbg =
   match c1, c2 with
   | Cop (Clsl, [c; Cconst_int (n1, _)], _), Cconst_int (n2, _)
@@ -3249,6 +3251,12 @@ let bigstring_set size unsafe arg1 arg2 arg3 dbg =
                      check_bound unsafe size dbg (bigstring_length ba dbg) idx
                        (unaligned_set size ba_data idx newval dbg))))))
 
+let four_args name args =
+  match args with
+  | [arg1; arg2; arg3; arg4] -> arg1, arg2, arg3, arg4
+  | _ ->
+    Misc.fatal_errorf "Cmm_helpers: expected exactly 4 arguments for %s" name
+
 let three_args name args =
   match args with
   | [arg1; arg2; arg3] -> arg1, arg2, arg3
@@ -3312,6 +3320,66 @@ let prefetch_offset ~is_write locality (arg1, arg2) dbg =
 
 let ext_pointer_prefetch ~is_write locality arg dbg =
   prefetch ~is_write locality (int_as_pointer arg dbg) dbg
+
+let native_pointer_cas size (arg1, arg2, arg3) dbg =
+  let op = Catomic { op = Compare_and_swap; size } in
+  if_operation_supported op ~f:(fun () ->
+      bind "set_to" arg3 (fun set_to ->
+          bind "compare_with" arg2 (fun compare_with ->
+              bind "dst" arg1 (fun dst ->
+                  tag_int (Cop (op, [compare_with; set_to; dst], dbg)) dbg))))
+
+let ext_pointer_cas size (arg1, arg2, arg3) dbg =
+  native_pointer_cas size (int_as_pointer arg1 dbg, arg2, arg3) dbg
+
+let bigstring_cas size (arg1, arg2, arg3, arg4) dbg =
+  let op = Catomic { op = Compare_and_swap; size } in
+  if_operation_supported op ~f:(fun () ->
+      bind "set_to" arg4 (fun set_to ->
+          bind "compare_with" arg3 (fun compare_with ->
+              bind "idx" arg2 (fun idx ->
+                  bind "bs" arg1 (fun bs ->
+                      bind "bs_data"
+                        (Cop
+                           ( Cload (Word_int, Mutable),
+                             [field_address bs 1 dbg],
+                             dbg ))
+                        (fun bs_data ->
+                          bind "dst" (add_int bs_data idx dbg) (fun dst ->
+                              tag_int
+                                (Cop (op, [compare_with; set_to; dst], dbg))
+                                dbg)))))))
+
+let native_pointer_atomic_add size (arg1, arg2) dbg =
+  let op = Catomic { op = Fetch_and_add; size } in
+  if_operation_supported op ~f:(fun () ->
+      bind "src" arg2 (fun src ->
+          bind "dst" arg1 (fun dst -> Cop (op, [src; dst], dbg))))
+
+let native_pointer_atomic_sub size (arg1, arg2) dbg =
+  native_pointer_atomic_add size (arg1, neg_int arg2 dbg) dbg
+
+let ext_pointer_atomic_add size (arg1, arg2) dbg =
+  native_pointer_atomic_add size (int_as_pointer arg1 dbg, arg2) dbg
+
+let ext_pointer_atomic_sub size (arg1, arg2) dbg =
+  native_pointer_atomic_add size (int_as_pointer arg1 dbg, neg_int arg2 dbg) dbg
+
+let bigstring_atomic_add size (arg1, arg2, arg3) dbg =
+  let op = Catomic { op = Fetch_and_add; size } in
+  if_operation_supported op ~f:(fun () ->
+      bind "src" arg3 (fun src ->
+          bind "idx" arg2 (fun idx ->
+              bind "bs" arg1 (fun bs ->
+                  bind "bs_data"
+                    (Cop
+                       (Cload (Word_int, Mutable), [field_address bs 1 dbg], dbg))
+                    (fun bs_data ->
+                      bind "dst" (add_int bs_data idx dbg) (fun dst ->
+                          Cop (op, [src; dst], dbg)))))))
+
+let bigstring_atomic_sub size (arg1, arg2, arg3) dbg =
+  bigstring_atomic_add size (arg1, arg2, neg_int arg3 dbg) dbg
 
 (** [transl_builtin prim args dbg] returns None if the built-in [prim] is not
     supported, otherwise it constructs and returns the corresponding Cmm
@@ -3579,6 +3647,70 @@ let transl_builtin name args dbg typ_res =
     prefetch_offset ~is_write:false Moderate (two_args name args) dbg
   | "caml_prefetch_read_low_val_offset_untagged" ->
     prefetch_offset ~is_write:false Low (two_args name args) dbg
+  (* Atomics *)
+  | "caml_native_pointer_fetch_and_add_nativeint_unboxed"
+  | "caml_native_pointer_fetch_and_add_int_untagged" ->
+    native_pointer_atomic_add Word (two_args name args) dbg
+  | "caml_native_pointer_fetch_and_add_int64_unboxed" when size_int = 8 ->
+    native_pointer_atomic_add Sixtyfour (two_args name args) dbg
+  | "caml_native_pointer_fetch_and_add_int32_unboxed" ->
+    native_pointer_atomic_add Thirtytwo (two_args name args) dbg
+  | "caml_ext_pointer_fetch_and_add_nativeint_unboxed"
+  | "caml_ext_pointer_fetch_and_add_int_untagged" ->
+    ext_pointer_atomic_add Word (two_args name args) dbg
+  | "caml_ext_pointer_fetch_and_add_int64_unboxed" when size_int = 8 ->
+    ext_pointer_atomic_add Sixtyfour (two_args name args) dbg
+  | "caml_ext_pointer_fetch_and_add_int32_unboxed" ->
+    ext_pointer_atomic_add Thirtytwo (two_args name args) dbg
+  | "caml_bigstring_fetch_and_add_nativeint_unboxed"
+  | "caml_bigstring_fetch_and_add_int_untagged" ->
+    bigstring_atomic_add Word (three_args name args) dbg
+  | "caml_bigstring_fetch_and_add_int64_unboxed" when size_int = 8 ->
+    bigstring_atomic_add Sixtyfour (three_args name args) dbg
+  | "caml_bigstring_fetch_and_add_int32_unboxed" ->
+    bigstring_atomic_add Thirtytwo (three_args name args) dbg
+  | "caml_native_pointer_fetch_and_sub_nativeint_unboxed"
+  | "caml_native_pointer_fetch_and_sub_int_untagged" ->
+    native_pointer_atomic_sub Word (two_args name args) dbg
+  | "caml_native_pointer_fetch_and_sub_int64_unboxed" when size_int = 8 ->
+    native_pointer_atomic_sub Sixtyfour (two_args name args) dbg
+  | "caml_native_pointer_fetch_and_sub_int32_unboxed" ->
+    native_pointer_atomic_sub Thirtytwo (two_args name args) dbg
+  | "caml_ext_pointer_fetch_and_sub_nativeint_unboxed"
+  | "caml_ext_pointer_fetch_and_sub_int_untagged" ->
+    ext_pointer_atomic_sub Word (two_args name args) dbg
+  | "caml_ext_pointer_fetch_and_sub_int64_unboxed" when size_int = 8 ->
+    ext_pointer_atomic_sub Sixtyfour (two_args name args) dbg
+  | "caml_ext_pointer_fetch_and_sub_int32_unboxed" ->
+    ext_pointer_atomic_sub Thirtytwo (two_args name args) dbg
+  | "caml_bigstring_fetch_and_sub_nativeint_unboxed"
+  | "caml_bigstring_fetch_and_sub_int_untagged" ->
+    bigstring_atomic_sub Word (three_args name args) dbg
+  | "caml_bigstring_fetch_and_sub_int64_unboxed" when size_int = 8 ->
+    bigstring_atomic_sub Sixtyfour (three_args name args) dbg
+  | "caml_bigstring_fetch_and_sub_int32_unboxed" ->
+    bigstring_atomic_sub Thirtytwo (three_args name args) dbg
+  | "caml_native_pointer_compare_and_swap_int_untagged"
+  | "caml_native_pointer_compare_and_swap_nativeint_unboxed" ->
+    native_pointer_cas Word (three_args name args) dbg
+  | "caml_native_pointer_compare_and_swap_int64_unboxed" when size_int = 8 ->
+    native_pointer_cas Sixtyfour (three_args name args) dbg
+  | "caml_native_pointer_compare_and_swap_int32_unboxed" ->
+    native_pointer_cas Thirtytwo (three_args name args) dbg
+  | "caml_ext_pointer_compare_and_swap_int_untagged"
+  | "caml_ext_pointer_compare_and_swap_nativeint_unboxed" ->
+    ext_pointer_cas Word (three_args name args) dbg
+  | "caml_ext_pointer_compare_and_swap_int64_unboxed" when size_int = 8 ->
+    ext_pointer_cas Sixtyfour (three_args name args) dbg
+  | "caml_ext_pointer_compare_and_swap_int32_unboxed" ->
+    ext_pointer_cas Thirtytwo (three_args name args) dbg
+  | "caml_bigstring_compare_and_swap_int_untagged"
+  | "caml_bigstring_compare_and_swap_nativeint_unboxed" ->
+    bigstring_cas Word (four_args name args) dbg
+  | "caml_bigstring_compare_and_swap_int64_unboxed" when size_int = 8 ->
+    bigstring_cas Sixtyfour (four_args name args) dbg
+  | "caml_bigstring_compare_and_swap_int32_unboxed" ->
+    bigstring_cas Thirtytwo (four_args name args) dbg
   | _ -> None
 
 let transl_effects (e : Primitive.effects) : Cmm.effects =

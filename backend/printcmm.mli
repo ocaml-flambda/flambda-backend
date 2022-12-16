@@ -27,6 +27,7 @@ val float_comparison : Cmm.float_comparison -> string
 val trap_action_list : formatter -> Cmm.trap_action list -> unit
 val trywith_kind : formatter -> Cmm.trywith_kind -> unit
 val chunk : Cmm.memory_chunk -> string
+val atomic_bitwidth : Cmm.atomic_bitwidth -> string
 val operation : Debuginfo.t -> Cmm.operation -> string
 val expression : formatter -> Cmm.expression -> unit
 val fundecl : formatter -> Cmm.fundecl -> unit
