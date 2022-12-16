@@ -633,7 +633,7 @@ let bind_variable_with_decision (type a) ?extra env res var ~inline
          with Strict placement might be inlined inside a Delay allocation, and
          end up moved across a `Gc` function call beause of this. Such cases are
          currently impossible since only [Box_number] and [Project_value_slot]
-         have a Delay placement, but may appaer in the future if/when some more
+         have a Delay placement, but may appear in the future if/when some more
          primitives are marked as `Delay`. But even then, the only issue would
          be that some allocations would be accidentally re-ordered across `Gc`
          function calls.
