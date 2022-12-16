@@ -860,9 +860,6 @@ module Extra_params = struct
       end;
       true
     in
-    let clear' option =
-      Compenv.setter ppf (fun b -> b) name [ option ] v; false
-    in
     match name with
     | "internal-assembler" -> set' Flambda_backend_flags.internal_assembler
     | "ocamlcfg" -> set' Flambda_backend_flags.use_ocamlcfg
@@ -886,11 +883,8 @@ module Extra_params = struct
                 Flambda_backend_flags.max_long_frames_threshold))
       end
     | "dasm-comments" -> set' Flambda_backend_flags.dasm_comments
-    | "dno-asm-comments" -> clear' Flambda_backend_flags.dasm_comments
     | "gupstream-dwarf" -> set' Debugging.restrict_to_upstream_dwarf
-    | "gno-upstream-dwarf" -> clear' Debugging.restrict_to_upstream_dwarf
     | "gstartup" -> set' Debugging.dwarf_for_startup_file
-    | "gno-startup" -> clear' Debugging.dwarf_for_startup_file
     | "flambda2-join-points" -> set Flambda2.join_points
     | "flambda2-result-types" ->
       (match String.lowercase_ascii v with
