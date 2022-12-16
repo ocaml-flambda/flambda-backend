@@ -802,29 +802,29 @@ module Flambda_backend_options_impl = struct
 end
 
 module type Debugging_options = sig
-  val _restrict_to_upstream_dwarf : unit -> unit
-  val _no_restrict_to_upstream_dwarf : unit -> unit
-  val _dwarf_for_startup_file : unit -> unit
-  val _no_dwarf_for_startup_file : unit -> unit
+  val restrict_to_upstream_dwarf : unit -> unit
+  val no_restrict_to_upstream_dwarf : unit -> unit
+  val dwarf_for_startup_file : unit -> unit
+  val no_dwarf_for_startup_file : unit -> unit
 end
 
 module Make_debugging_options (F : Debugging_options) = struct
   let list3 = [
-    mk_restrict_to_upstream_dwarf F._restrict_to_upstream_dwarf;
-    mk_no_restrict_to_upstream_dwarf F._no_restrict_to_upstream_dwarf;
-    mk_dwarf_for_startup_file F._dwarf_for_startup_file;
-    mk_no_dwarf_for_startup_file F._no_dwarf_for_startup_file;
+    mk_restrict_to_upstream_dwarf F.restrict_to_upstream_dwarf;
+    mk_no_restrict_to_upstream_dwarf F.no_restrict_to_upstream_dwarf;
+    mk_dwarf_for_startup_file F.dwarf_for_startup_file;
+    mk_no_dwarf_for_startup_file F.no_dwarf_for_startup_file;
    ]
 end
 
 module Debugging_options_impl = struct
-  let _restrict_to_upstream_dwarf () =
+  let restrict_to_upstream_dwarf () =
     Debugging.restrict_to_upstream_dwarf := true
-  let _no_restrict_to_upstream_dwarf () =
+  let no_restrict_to_upstream_dwarf () =
     Debugging.restrict_to_upstream_dwarf := false
-  let _dwarf_for_startup_file () =
+  let dwarf_for_startup_file () =
     Debugging.dwarf_for_startup_file := true
-  let _no_dwarf_for_startup_file () =
+  let no_dwarf_for_startup_file () =
     Debugging.dwarf_for_startup_file := false
 end
 
