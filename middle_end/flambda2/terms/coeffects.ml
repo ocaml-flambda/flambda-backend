@@ -22,8 +22,8 @@ type t =
 
 let [@ocamlformat "disable"] print ppf co =
   match co with
-  | No_coeffects -> Format.fprintf ppf "no coeffects"
-  | Has_coeffects -> Format.fprintf ppf "has coeffects"
+  | No_coeffects -> Format.fprintf ppf "No_coeffects"
+  | Has_coeffects -> Format.fprintf ppf "Has_coeffects"
 
 let compare co1 co2 =
   match co1, co2 with

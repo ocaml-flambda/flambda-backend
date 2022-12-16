@@ -476,15 +476,15 @@ let lift_set_of_closures env res ~body ~bound_vars layout set ~translate_expr
   (* Update the result with the new static data *)
   let res = R.archive_data (R.set_data res static_data) in
   (* Bind the variables to the symbols for function slots. *)
-  let env =
+  let env, res =
     List.fold_left2
-      (fun acc cid v ->
+      (fun (env, res) cid v ->
         let v = Bound_var.var v in
         let sym = C.symbol ~dbg (Function_slot.Map.find cid closure_symbols) in
-        Env.bind_variable acc v ~defining_expr:sym
+        Env.bind_variable env res v ~defining_expr:sym
           ~num_normal_occurrences_of_bound_vars
           ~effects_and_coeffects_of_defining_expr:Ece.pure_can_be_duplicated)
-      env cids bound_vars
+      (env, res) cids bound_vars
   in
   translate_expr env res body
 
@@ -519,8 +519,8 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
   in
   let soc_var = Variable.create "*set_of_closures*" in
   let defining_expr = Env.simple csoc in
-  let env =
-    Env.bind_variable_to_primitive env soc_var ~inline:Env.Do_not_inline
+  let env, res =
+    Env.bind_variable_to_primitive env res soc_var ~inline:Env.Do_not_inline
       ~defining_expr ~effects_and_coeffects_of_defining_expr:effs
   in
   (* Get from the env the cmm variable that was created and bound to the
@@ -544,17 +544,17 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
         Function_slot.print function_slot
   in
   (* Add env bindings for all of the function slots. *)
-  let env =
+  let env, res =
     List.fold_left2
-      (fun acc cid v ->
+      (fun (env, res) cid v ->
         match get_closure_by_offset env soc_cmm_var cid with
-        | None -> acc
+        | None -> env, res
         | Some (defining_expr, effects_and_coeffects_of_defining_expr) ->
           let v = Bound_var.var v in
-          Env.bind_variable acc v ~defining_expr
+          Env.bind_variable env res v ~defining_expr
             ~num_normal_occurrences_of_bound_vars
             ~effects_and_coeffects_of_defining_expr)
-      env
+      (env, res)
       (Function_slot.Lmap.keys decls)
       bound_vars
   in
