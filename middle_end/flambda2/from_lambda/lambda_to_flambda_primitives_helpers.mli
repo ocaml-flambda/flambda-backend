@@ -54,11 +54,15 @@ val print_list_of_simple_or_prim :
 
 open Closure_conversion_aux
 
+val simplify_boxing :
+  Env.t -> bound_var:Variable.t -> Flambda.Named.t -> Env.t * Flambda.Named.t
+
 val bind_rec :
   Acc.t ->
+  Env.t ->
   Exn_continuation.t option ->
   register_const_string:(Acc.t -> string -> Acc.t * Symbol.t) ->
   expr_primitive ->
   Debuginfo.t ->
-  (Acc.t -> Flambda.Named.t -> Expr_with_acc.t) ->
+  (Acc.t -> Env.t -> Flambda.Named.t -> Expr_with_acc.t) ->
   Expr_with_acc.t
