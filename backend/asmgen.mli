@@ -70,8 +70,7 @@ val compile_implementation_linear
   -> unit
 
 val compile_phrase
-  : ?dwarf:Dwarf_ocaml.Dwarf.t
-  -> ppf_dump:Format.formatter
+  : ppf_dump:Format.formatter
   -> Cmm.phrase
   -> unit
 
@@ -92,21 +91,3 @@ val compile_unit
    -> ppf_dump:Format.formatter
    -> (unit -> unit)
    -> unit
-
-(* First-class module building for DWARF *)
-
-(* Sets up assembly emitting.
-  Calls [emit_begin_assembly] (which in most case
-  should be something similar to [Emit.begin_assembly]).
-  Might return an instance of [Dwarf_ocaml.Dwarf.t] that can be used to generate
-  dwarf information for the target system. *)
-val emit_begin_assembly_with_dwarf
-   : (module Compiler_owee.Unix_intf.S)
-  -> disable_dwarf:bool
-  -> emit_begin_assembly:((module Compiler_owee.Unix_intf.S)
-                          -> init_dwarf:(unit -> unit) -> unit)
-  -> sourcefile:string
-  -> unit
-  -> Dwarf_ocaml.Dwarf.t option
-
-val build_asm_directives : unit -> (module Asm_targets.Asm_directives_intf.S)

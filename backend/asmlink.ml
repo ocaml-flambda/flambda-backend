@@ -335,26 +335,22 @@ let make_globals_map units_list =
     interfaces
     defined
 
-let make_startup_file unix ~ppf_dump ~named_startup_file ~filename genfns units =
+let sourcefile_for_dwarf ~named_startup_file filename =
+  (* Ensure the name emitted into the DWARF is stable, for build
+     reproducibility purposes. *)
+  if named_startup_file then filename
+  else ".startup"
+
+let make_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units =
   Location.input_name := "caml_startup"; (* set name of "current" input *)
   let startup_comp_unit =
     CU.create CU.Prefix.empty (CU.Name.of_string "_startup")
   in
   Compilenv.reset startup_comp_unit;
-  let dwarf =
-    let filename =
-      (* Ensure the name emitted into the DWARF is stable, for build
-         reproducibility purposes. *)
-      if named_startup_file then filename
-      else ".startup"
-    in
-    Asmgen.emit_begin_assembly_with_dwarf unix
-      ~disable_dwarf:(not !Dwarf_flags.dwarf_for_startup_file)
-      ~emit_begin_assembly:Emit.begin_assembly
-      ~sourcefile:filename
-      ()
-  in
-  let compile_phrase p = Asmgen.compile_phrase ~ppf_dump ?dwarf p in
+  Emitaux.Dwarf_helpers.init ~disable_dwarf:(not !Dwarf_flags.dwarf_for_startup_file)
+    sourcefile_for_dwarf;
+  Emit.begin_assembly unix;
+  let compile_phrase p = Asmgen.compile_phrase ~ppf_dump p in
   let name_list =
     List.flatten (List.map (fun u -> u.defines) units) in
   compile_phrase (Cmm_helpers.entry_point name_list);
@@ -384,16 +380,18 @@ let make_startup_file unix ~ppf_dump ~named_startup_file ~filename genfns units 
   compile_phrase (Cmm_helpers.frame_table all_comp_units);
   if !Clflags.output_complete_object then
     force_linking_of_startup ~ppf_dump;
-  Emit.end_assembly dwarf
+  Emit.end_assembly ()
 
-let make_shared_startup_file unix ~ppf_dump genfns units =
+let make_shared_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units =
   let compile_phrase p = Asmgen.compile_phrase ~ppf_dump p in
   Location.input_name := "caml_startup";
   let shared_startup_comp_unit =
     CU.create CU.Prefix.empty (CU.Name.of_string "_shared_startup")
   in
   Compilenv.reset shared_startup_comp_unit;
-  Emit.begin_assembly unix ~init_dwarf:(fun () -> ());
+  Emitaux.Dwarf_helpers.init ~disable_dwarf:(not !Dwarf_flags.dwarf_for_startup_file)
+    sourcefile_for_dwarf;
+  Emit.begin_assembly unix;
   List.iter compile_phrase
     (Cmm_helpers.generic_functions true genfns);
   let dynunits = List.map (fun u -> Option.get u.dynunit) units in
@@ -404,7 +402,7 @@ let make_shared_startup_file unix ~ppf_dump genfns units =
     force_linking_of_startup ~ppf_dump;
   (* this is to force a reference to all units, otherwise the linker
      might drop some of them (in case of libraries) *)
-  Emit.end_assembly None
+  Emit.end_assembly ()
 
 let call_linker_shared file_list output_name =
   let exitcode = Ccomp.call_linker Ccomp.Dll output_name file_list "" in
@@ -423,18 +421,21 @@ let link_shared unix ~ppf_dump objfiles output_name =
     Clflags.ccobjs := !Clflags.ccobjs @ !lib_ccobjs;
     Clflags.all_ccopts := !lib_ccopts @ !Clflags.all_ccopts;
     let objfiles = List.rev ml_objfiles @ List.rev !Clflags.ccobjs in
+    let named_startup_file = named_startup_file () in
     let startup =
-      if named_startup_file ()
+      if named_startup_file
       then output_name ^ ".startup" ^ ext_asm
       else Filename.temp_file "camlstartup" ext_asm in
     let startup_obj = output_name ^ ".startup" ^ ext_obj in
+    let sourcefile_for_dwarf = sourcefile_for_dwarf ~named_startup_file startup in
     Asmgen.compile_unit ~output_prefix:output_name
       ~asm_filename:startup ~keep_asm:!Clflags.keep_startup_file
       ~obj_filename:startup_obj
       ~may_reduce_heap:true
       ~ppf_dump
       (fun () ->
-         make_shared_startup_file unix ~ppf_dump genfns units_tolink
+         make_shared_startup_file unix ~ppf_dump ~sourcefile_for_dwarf
+           genfns units_tolink
       );
     call_linker_shared (startup_obj :: objfiles) output_name;
     if !Flambda_backend_flags.internal_assembler then
@@ -501,14 +502,15 @@ let link unix ~ppf_dump objfiles output_name =
       if named_startup_file
       then output_name ^ ".startup" ^ ext_asm
       else Filename.temp_file "camlstartup" ext_asm in
+    let sourcefile_for_dwarf = sourcefile_for_dwarf ~named_startup_file startup in
     let startup_obj = Filename.temp_file "camlstartup" ext_obj in
     Asmgen.compile_unit ~output_prefix:output_name
       ~asm_filename:startup ~keep_asm:!Clflags.keep_startup_file
       ~obj_filename:startup_obj
       ~may_reduce_heap:true
       ~ppf_dump
-      (fun () -> make_startup_file unix ~ppf_dump ~named_startup_file
-        ~filename:startup genfns units_tolink);
+      (fun () -> make_startup_file unix ~ppf_dump
+                   ~sourcefile_for_dwarf genfns units_tolink);
     Emitaux.reduce_heap_size ~reset:(fun () -> reset ());
     Misc.try_finally
       (fun () -> call_linker ml_objfiles startup_obj output_name)
