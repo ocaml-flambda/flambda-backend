@@ -71,6 +71,8 @@ type _ inline =
   | Must_inline_once : complex inline
   | Must_inline_and_duplicate : complex inline
 
+type any_inline = Any_inline : _ inline -> any_inline [@@unboxed]
+
 (* Note on the effects of splittable bindings:
 
    The arguments are stored with their effects. This means that if we need to
@@ -584,8 +586,11 @@ let rec add_binding_to_env ?extra env res var (Binding binding as b) =
 and split_in_env env res var binding =
   let res, split_result = split_complex_binding ~env ~res binding in
   match split_result with
-  | Already_split -> env, res, binding
+  | Already_split ->
+    Format.eprintf "split_in_env: Already_split\n%!";
+    env, res, binding
   | Split { new_bindings; split_binding } ->
+    Format.eprintf "split_in_env: Split\n%!";
     let env =
       (* for duplicated bindings, we need to replace the original splittable
          binding with the new split binding in the bindings map of the env *)
@@ -757,18 +762,29 @@ let inline_variable ?consider_inlining_effectful_expressions env res var =
       e, env, res, Ece.pure_can_be_duplicated)
   | Binding binding -> (
     match binding.inline with
-    | Do_not_inline -> will_not_inline_simple env res binding
-    | Must_inline_and_duplicate -> split_and_inline env res var binding
+    | Do_not_inline ->
+      Format.eprintf "inline_variable: Do_not_inline\n%!";
+      will_not_inline_simple env res binding
+    | Must_inline_and_duplicate ->
+      Format.eprintf "inline_variable: Must_inline_and_dup\n%!";
+      split_and_inline env res var binding
     | Must_inline_once -> (
+      Format.eprintf "inline_variable: Must_inline_once...\n%!";
       let env = remove_binding env var in
       match To_cmm_effects.classify_by_effects_and_coeffects binding.effs with
-      | Pure | Generative_immutable -> will_inline_complex env res binding
+      | Pure | Generative_immutable ->
+        Format.eprintf "...Pure/Gen_immut\n%!";
+        will_inline_complex env res binding
       | Effect | Coeffect_only -> (
         match
           pop_if_in_top_stage ?consider_inlining_effectful_expressions env var
         with
-        | None -> split_and_inline env res var binding
-        | Some env -> will_inline_complex env res binding))
+        | None ->
+          Format.eprintf "Eff/Coeff_only: None\n%!";
+          split_and_inline env res var binding
+        | Some env ->
+          Format.eprintf "Eff/Coeff_only: Some\n%!";
+          will_inline_complex env res binding))
     | May_inline_once -> (
       match To_cmm_effects.classify_by_effects_and_coeffects binding.effs with
       | Pure ->
@@ -787,33 +803,42 @@ let inline_variable ?consider_inlining_effectful_expressions env res var =
 
 let force_binding_to_be_split t res var =
   match Variable.Map.find var t.bindings with
-  | exception Not_found -> t, res
+  | exception Not_found -> t, res, None
   | binding -> (
     match binding with
     | Binding
-        { bound_expr = Simple _; inline = Do_not_inline | May_inline_once; _ }
-      ->
-      t, res
+        { bound_expr = Simple _;
+          inline = (Do_not_inline | May_inline_once) as inline;
+          _
+        } ->
+      t, res, Some (Any_inline inline)
     | Binding
         ({ bound_expr = Split _ | Splittable_prim _;
-           inline = Must_inline_once | Must_inline_and_duplicate;
+           inline = (Must_inline_once | Must_inline_and_duplicate) as inline;
            _
          } as binding) ->
       let t, res, _binding = split_in_env t res var binding in
-      t, res)
+      t, res, Some (Any_inline inline))
 
 let add_alias t res ~var
     ~(num_normal_occurrences_of_var : Num_occurrences.t Variable.Map.t)
     ~alias_of =
-  let t, res = force_binding_to_be_split t res alias_of in
+  Format.eprintf "add_alias var=%a (occs %a), alias_of=%a\n%!" Variable.print
+    var
+    (Variable.Map.print Num_occurrences.print)
+    num_normal_occurrences_of_var Variable.print alias_of;
+  let t, res, inline = force_binding_to_be_split t res alias_of in
   let cmm_expr, t, res, ece = inline_variable t res alias_of in
+  Format.eprintf "cmm_expr for alias_of: %a\n%!" Printcmm.expression cmm_expr;
   let[@inline] simple_case () =
+    Format.eprintf "...simple case\n%!";
     let defining_expr : simple bound_expr = Simple { cmm_expr } in
     let inline : simple inline = Do_not_inline in
     bind_variable_with_decision t res var ~inline ~defining_expr
       ~effects_and_coeffects_of_defining_expr:ece
   in
   let[@inline] complex_case ~(inline_alias_of : complex inline) =
+    Format.eprintf "...complex case: ";
     let defining_expr : complex bound_expr = Split { cmm_expr } in
     let inline : complex inline =
       match inline_alias_of with
@@ -824,27 +849,25 @@ let add_alias t res ~var
           | num_occurrences -> num_occurrences
         in
         match num_occurrences_of_var with
-        | Zero | One -> Must_inline_once
-        | More_than_one -> Must_inline_and_duplicate)
-      | Must_inline_and_duplicate -> Must_inline_and_duplicate
+        | Zero | One ->
+          Format.eprintf "Must_inline_once\n%!";
+          Must_inline_once
+        | More_than_one ->
+          Format.eprintf "Must_inline_and_dup (1)\n%!";
+          Must_inline_and_duplicate)
+      | Must_inline_and_duplicate ->
+        Format.eprintf "Must_inline_and_dup (2)\n%!";
+        Must_inline_and_duplicate
     in
     bind_variable_with_decision t res var ~inline ~defining_expr
       ~effects_and_coeffects_of_defining_expr:ece
   in
-  match Variable.Map.find var t.bindings with
-  | exception Not_found -> simple_case ()
-  | binding -> (
-    match binding with
-    | Binding
-        { bound_expr = Simple _; inline = Do_not_inline | May_inline_once; _ }
-      ->
-      simple_case ()
-    | Binding
-        { bound_expr = Split _ | Splittable_prim _;
-          inline = (Must_inline_once | Must_inline_and_duplicate) as inline;
-          _
-        } ->
-      complex_case ~inline_alias_of:inline)
+  match inline with
+  | None -> simple_case ()
+  | Some (Any_inline (Do_not_inline | May_inline_once)) -> simple_case ()
+  | Some (Any_inline ((Must_inline_once | Must_inline_and_duplicate) as inline))
+    ->
+    complex_case ~inline_alias_of:inline
 
 (* Flushing delayed bindings *)
 
