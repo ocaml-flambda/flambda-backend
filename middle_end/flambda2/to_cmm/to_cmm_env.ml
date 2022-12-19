@@ -911,7 +911,10 @@ let flush_delayed_lets ~mode env res =
   let bindings_to_flush = ref M.empty in
   let flush (Binding b as binding) =
     if M.mem b.order !bindings_to_flush
-    then Misc.fatal_errorf "Duplicate order for bindings when flushing";
+    then
+      Misc.fatal_errorf "Duplicate order for bindings when flushing: %a = %a"
+        Backend_var.With_provenance.print b.cmm_var print_bound_expr
+        b.bound_expr;
     bindings_to_flush := M.add b.order binding !bindings_to_flush
   in
   let bindings_to_keep =
