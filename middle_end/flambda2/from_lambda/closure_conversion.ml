@@ -446,7 +446,8 @@ let close_c_call acc env ~loc ~let_bound_var
             let prim = P.Unary (Reinterpret_int64_as_float, arg) in
             let acc, return_result =
               Apply_cont_with_acc.create acc return_continuation
-                ~args:[Simple.var result] ~dbg
+                ~args:[Simple.var result]
+                ~dbg
             in
             let acc, return_result_expr =
               Expr_with_acc.create_apply_cont acc return_result

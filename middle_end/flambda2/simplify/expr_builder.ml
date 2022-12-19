@@ -368,8 +368,7 @@ let create_raw_let_symbol uacc bound_static static_consts ~body =
     UA.with_name_occurrences uacc ~name_occurrences:free_names_of_let
     |> UA.add_cost_metrics
          (Cost_metrics.increase_due_to_let_expr
-            ~is_phantom:
-              false
+            ~is_phantom:false
               (* Static consts always have zero cost metrics at present. *)
             ~cost_metrics_of_defining_expr:Cost_metrics.zero)
   in

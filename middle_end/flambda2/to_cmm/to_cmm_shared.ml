@@ -159,7 +159,8 @@ let invalid res ~message =
   in
   let call_expr =
     extcall ~dbg ~alloc:false ~is_c_builtin:false ~returns:false ~ty_args:[XInt]
-      "caml_flambda2_invalid" Cmm.typ_void [symbol ~dbg message_sym]
+      "caml_flambda2_invalid" Cmm.typ_void
+      [symbol ~dbg message_sym]
   in
   call_expr, res
 
