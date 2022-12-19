@@ -4,7 +4,7 @@
 		{
 			"label": "Build & install Flambda backend",
 			"type": "shell",
-			"command": "opam exec --switch=4.11.1 make install",
+			"command": "opam exec --switch=4.14.0 make install",
 			"group": "build",
 			"problemMatcher": [
 				"$ocamlc"
