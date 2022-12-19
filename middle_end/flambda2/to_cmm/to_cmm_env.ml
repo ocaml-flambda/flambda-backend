@@ -816,7 +816,13 @@ let force_binding_to_be_split t res var =
         } ->
       t, res, Some (Any_inline inline)
     | Binding
-        ({ bound_expr = Split _ | Splittable_prim _;
+        { bound_expr = Split _;
+          inline = (Must_inline_once | Must_inline_and_duplicate) as inline;
+          _
+        } ->
+      t, res, Some (Any_inline inline)
+    | Binding
+        ({ bound_expr = Splittable_prim _;
            inline = (Must_inline_once | Must_inline_and_duplicate) as inline;
            _
          } as binding) ->
