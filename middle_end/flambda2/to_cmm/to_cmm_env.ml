@@ -586,7 +586,7 @@ let rec add_binding_to_env ?extra env res var (Binding binding as b) =
       { env with stages }, res)
 
 (* CR gbury: find a better name for this function *)
-and split_in_env env res var binding =
+and split_in_env ?ensure_in_env env res var binding =
   let res, split_result = split_complex_binding ~env ~res binding in
   match split_result with
   | Already_split ->
@@ -597,11 +597,15 @@ and split_in_env env res var binding =
     let env =
       (* for duplicated bindings, we need to replace the original splittable
          binding with the new split binding in the bindings map of the env *)
-      (* match split_binding.inline with | Must_inline_once -> env |
-         Must_inline_and_duplicate -> *)
-      { env with
-        bindings = Variable.Map.add var (Binding split_binding) env.bindings
-      }
+      let[@inline] update_env () =
+        { env with
+          bindings = Variable.Map.add var (Binding split_binding) env.bindings
+        }
+      in
+      match split_binding.inline with
+      | Must_inline_once ->
+        if Option.is_none ensure_in_env then env else update_env ()
+      | Must_inline_and_duplicate -> update_env ()
     in
     let env, res =
       List.fold_left
@@ -825,7 +829,9 @@ let force_binding_to_be_split t res var =
            inline = (Must_inline_once | Must_inline_and_duplicate) as inline;
            _
          } as binding) ->
-      let t, res, _binding = split_in_env t res var binding in
+      (* The binding must remain in the environment in all cases so that
+         [inline_variable] can find it (see below). *)
+      let t, res, _binding = split_in_env ~ensure_in_env:() t res var binding in
       t, res, Some (Any_inline inline))
 
 let add_alias t res ~var
