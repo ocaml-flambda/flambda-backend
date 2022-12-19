@@ -4,7 +4,7 @@ This repository is for more experimental work, of production quality, on the mid
 and backend of the OCaml compiler.
 This is also the home of the Flambda 2 optimiser.
 
-The Flambda backend is currently based on OCaml 4.12.0.
+The Flambda backend is currently based on OCaml 4.14.0.
 
 The following gives basic instructions for getting set up.  Please see
 [`HACKING.md`](HACKING.md) for more detailed instructions if you want to develop in this repo.
@@ -18,7 +18,7 @@ Only currently tested on Linux/x86-64 and macOS/x86-64.
 
 One-time setup:
 ```
-$ opam switch 4.12.0  # or "opam switch create 4.12.0" if you haven't got that switch already
+$ opam switch 4.14.0  # or "opam switch create 4.14.0" if you haven't got that switch already
 $ eval $(opam env)
 $ opam install dune
 ```
@@ -38,7 +38,7 @@ The Flambda backend tree has to be configured before building.  The configure sc
 in; you have to run `autoconf`.  For example:
 ```
 $ autoconf
-$ ./configure --prefix=/path/to/install/dir --enable-middle-end=closure --with-dune=$DUNE_DIR/dune.exe
+$ ./configure --prefix=/path/to/install/dir --enable-middle-end=closure
 ```
 You can also specify `--enable-middle-end=flambda` or `--enable-middle-end=flambda2`.  (The Flambda 2
 compiler is not yet ready for production use.)
