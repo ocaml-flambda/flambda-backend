@@ -597,12 +597,11 @@ and split_in_env env res var binding =
     let env =
       (* for duplicated bindings, we need to replace the original splittable
          binding with the new split binding in the bindings map of the env *)
-      match split_binding.inline with
-      | Must_inline_once -> env
-      | Must_inline_and_duplicate ->
-        { env with
-          bindings = Variable.Map.add var (Binding split_binding) env.bindings
-        }
+      (* match split_binding.inline with | Must_inline_once -> env |
+         Must_inline_and_duplicate -> *)
+      { env with
+        bindings = Variable.Map.add var (Binding split_binding) env.bindings
+      }
     in
     let env, res =
       List.fold_left
