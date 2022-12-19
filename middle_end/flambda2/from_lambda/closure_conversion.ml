@@ -14,6 +14,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
+let debug () =
+  match Sys.getenv "DEBUG" with exception Not_found -> false | _ -> true
+
 [@@@ocaml.warning "-fragile-match"]
 
 open! Int_replace_polymorphic_compare
@@ -284,12 +287,14 @@ module Inlining = struct
       ~exn_continuation ~return_continuation ~apply_exn_continuation
       ~apply_return_continuation ~bind_params ~bind_depth ~apply_renaming
 
-  let wrap_inlined_body_for_exn_extra_args acc ~extra_args
+  let wrap_inlined_body_for_exn_extra_args env acc ~extra_args
       ~apply_exn_continuation ~apply_return_continuation ~result_arity
       ~make_inlined_body =
     let apply_cont_create acc ~trap_action cont ~args ~dbg =
       let acc, apply_cont =
-        Apply_cont_with_acc.create acc ~trap_action cont ~args ~dbg
+        let args_approx = List.map (Env.find_value_approximation env) args in
+        Apply_cont_with_acc.create acc ~trap_action cont ~args
+          ~args_approx:(Some args_approx) ~dbg
       in
       Expr_with_acc.create_apply_cont acc apply_cont
     in
@@ -302,7 +307,7 @@ module Inlining = struct
       ~apply_exn_continuation ~apply_return_continuation ~result_arity
       ~make_inlined_body ~apply_cont_create ~let_cont_create
 
-  let inline acc ~apply ~apply_depth ~func_desc:code =
+  let inline env acc ~apply ~apply_depth ~func_desc:code =
     let callee = Apply.callee apply in
     let region_inlined_into = Apply.region apply in
     let args = Apply.args apply in
@@ -344,7 +349,7 @@ module Inlining = struct
               (Exn_continuation.exn_handler apply_exn_continuation)
             ~apply_return_continuation
         | extra_args ->
-          wrap_inlined_body_for_exn_extra_args acc ~extra_args
+          wrap_inlined_body_for_exn_extra_args env acc ~extra_args
             ~apply_exn_continuation ~apply_return_continuation
             ~result_arity:(Code.result_arity code) ~make_inlined_body)
 end
@@ -447,7 +452,7 @@ let close_c_call acc env ~loc ~let_bound_var
             let acc, return_result =
               Apply_cont_with_acc.create acc return_continuation
                 ~args:[Simple.var result]
-                ~dbg
+                ~args_approx:None ~dbg
             in
             let acc, return_result_expr =
               Expr_with_acc.create_apply_cont acc return_result
@@ -624,7 +629,8 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
     let raise_kind = Some (Trap_action.Raise_kind.from_lambda raise_kind) in
     let trap_action = Trap_action.Pop { exn_handler; raise_kind } in
     let acc, apply_cont =
-      Apply_cont_with_acc.create acc ~trap_action exn_handler ~args ~dbg
+      Apply_cont_with_acc.create acc ~trap_action exn_handler ~args
+        ~args_approx:None ~dbg
     in
     (* Since raising of an exception doesn't terminate, we don't call [k]. *)
     Expr_with_acc.create_apply_cont acc apply_cont
@@ -905,9 +911,12 @@ let close_exact_or_unknown_apply acc env
   let acc, call_kind =
     match kind with
     | Function -> (
+      if debug () then Format.eprintf "callee %a: " Simple.print callee;
       ( acc,
         match (callee_approx : Env.value_approximation option) with
         | Some (Closure_approximation { code_id; code = code_or_meta; _ }) ->
+          if debug ()
+          then Format.eprintf "... code id %a\n%!" Code_id.print code_id;
           let return_arity, is_tupled =
             let meta = Code_or_metadata.code_metadata code_or_meta in
             Code_metadata.(result_arity meta, is_tupled meta)
@@ -919,7 +928,9 @@ let close_exact_or_unknown_apply acc env
                for now *)
             Call_kind.indirect_function_call_unknown_arity mode
           else Call_kind.direct_function_call code_id ~return_arity mode
-        | None -> Call_kind.indirect_function_call_unknown_arity mode
+        | None ->
+          if debug () then Format.eprintf "... no approx found\n%!";
+          Call_kind.indirect_function_call_unknown_arity mode
         | Some
             ( Value_unknown | Value_symbol _ | Value_int _
             | Block_approximation _ ) ->
@@ -965,7 +976,8 @@ let close_exact_or_unknown_apply acc env
           (Exn_continuation.exn_handler apply_exn_continuation)
           acc
       in
-      Inlining.inline acc ~apply ~apply_depth:(Env.current_depth env) ~func_desc
+      Inlining.inline env acc ~apply ~apply_depth:(Env.current_depth env)
+        ~func_desc
   else Expr_with_acc.create_apply acc apply
 
 let close_apply_cont acc env ~dbg cont trap_action args : Expr_with_acc.t =
@@ -973,7 +985,8 @@ let close_apply_cont acc env ~dbg cont trap_action args : Expr_with_acc.t =
   let trap_action = close_trap_action_opt trap_action in
   let args_approx = List.map (Env.find_value_approximation env) args in
   let acc, apply_cont =
-    Apply_cont_with_acc.create acc ?trap_action ~args_approx cont ~args ~dbg
+    Apply_cont_with_acc.create acc ?trap_action ~args_approx:(Some args_approx)
+      cont ~args ~dbg
   in
   Expr_with_acc.create_apply_cont acc apply_cont
 
@@ -997,8 +1010,8 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
         let acc, args = find_simples acc env args in
         let args_approx = List.map (Env.find_value_approximation env) args in
         let action acc =
-          Apply_cont_with_acc.create acc ?trap_action ~args_approx cont ~args
-            ~dbg:condition_dbg
+          Apply_cont_with_acc.create acc ?trap_action
+            ~args_approx:(Some args_approx) cont ~args ~dbg:condition_dbg
         in
         acc, (Targetint_31_63.of_int case, action))
       acc sw.consts
@@ -1022,9 +1035,10 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
     let comparison_result' = VB.create comparison_result Name_mode.normal in
     let acc, default_action =
       let acc, args = find_simples acc env default_args in
+      let args_approx = List.map (Env.find_value_approximation env) args in
       let trap_action = close_trap_action_opt default_trap_action in
       Apply_cont_with_acc.create acc ?trap_action default_action ~args
-        ~dbg:condition_dbg
+        ~args_approx:(Some args_approx) ~dbg:condition_dbg
     in
     let acc, switch =
       let scrutinee = Simple.var comparison_result in
@@ -1053,10 +1067,13 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
             then acc, cases
             else
               let acc, args = find_simples acc env args in
+              let args_approx =
+                List.map (Env.find_value_approximation env) args
+              in
               let trap_action = close_trap_action_opt trap_action in
               let default acc =
                 Apply_cont_with_acc.create acc ?trap_action default ~args
-                  ~dbg:condition_dbg
+                  ~args_approx:(Some args_approx) ~dbg:condition_dbg
               in
               acc, Targetint_31_63.Map.add case default cases)
           (Numeric_types.Int.zero_to_n (sw.numconsts - 1))
@@ -1216,7 +1233,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
           ~name:(fun name ~coercion:_ ->
             Env.add_approximation_alias
               (Env.add_var env id var kind)
-              name (Name.var var)))
+              (Simple.name name) ~alias:(Name.var var)))
       value_slots_for_idents closure_env
   in
   let closure_env =
@@ -1540,6 +1557,10 @@ let close_functions acc external_env ~current_region function_declarations =
           let env, symbol =
             declare_symbol_for_function_slot env ident function_slot
           in
+          if debug ()
+          then
+            Format.eprintf "Function slot %a -> symbol %a\n%!"
+              Function_slot.print function_slot Symbol.print symbol;
           let approx =
             match Function_slot.Map.find function_slot approx_map with
             | Value_approximation.Closure_approximation
@@ -1555,7 +1576,18 @@ let close_functions acc external_env ~current_region function_declarations =
           env, Function_slot.Map.add function_slot symbol symbol_map)
         function_slots_from_idents
         (external_env, Function_slot.Map.empty)
-    else external_env, Function_slot.Map.empty
+    else
+      let () =
+        if not (debug ())
+        then ()
+        else (
+          Format.eprintf "Not being lifted: ";
+          Ident.Map.iter
+            (fun ident _ -> Format.eprintf "%s " (Ident.name ident))
+            function_slots_from_idents;
+          Format.eprintf "\n%!")
+      in
+      external_env, Function_slot.Map.empty
   in
   let acc, approximations =
     List.fold_left
@@ -1626,6 +1658,12 @@ let close_functions acc external_env ~current_region function_declarations =
       Function_slot.Lmap.mapi
         (fun function_slot _ ->
           let sym = Function_slot.Map.find function_slot symbol_map in
+          if debug ()
+          then
+            Format.eprintf
+              "Marking Closure_approximation for function slot %a with symbol \
+               %a"
+              Function_slot.print function_slot Symbol.print sym;
           let approx =
             match Function_slot.Map.find function_slot approximations with
             | Value_approximation.Closure_approximation
@@ -1839,7 +1877,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
     let arg = find_simple_from_id env wrapper_id in
     let acc, apply_cont =
       Apply_cont_with_acc.create acc
-        ~args_approx:[Env.find_value_approximation env arg]
+        ~args_approx:(Some [Env.find_value_approximation env arg])
         apply_continuation ~args:[arg] ~dbg:Debuginfo.none
     in
     Expr_with_acc.create_apply_cont acc apply_cont
@@ -1916,7 +1954,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) over_args
           let acc, apply_cont_expr =
             Apply_cont_with_acc.create acc apply.continuation
               ~args:(List.map BP.simple over_application_results)
-              ~dbg:apply_dbg
+              ~args_approx:None ~dbg:apply_dbg
           in
           acc, Expr.create_apply_cont apply_cont_expr
         in
@@ -1956,9 +1994,11 @@ type call_args_split =
 let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
   let callee = find_simple_from_id env apply.func in
   let approx = Env.find_value_approximation env callee in
+  if debug () then Format.eprintf "close_apply: callee %a: " Simple.print callee;
   let code_info =
     match approx with
     | Closure_approximation { code; _ } ->
+      if debug () then Format.eprintf "closure approximation found\n%!";
       let metadata = Code_or_metadata.code_metadata code in
       Some
         ( Code_metadata.params_arity metadata,
@@ -1966,7 +2006,9 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
           Code_metadata.num_trailing_local_params metadata,
           Code_metadata.contains_no_escaping_local_allocs metadata,
           Code_metadata.result_arity metadata )
-    | Value_unknown -> None
+    | Value_unknown ->
+      if debug () then Format.eprintf "unknown approximation found\n%!";
+      None
     | Value_symbol _ | Value_int _ | Block_approximation _ ->
       if Flambda_features.check_invariants ()
       then
@@ -2170,7 +2212,7 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
         (* Module initialisers return unit, but since that is taken care of
            during Cmm generation, we can instead "return" [module_symbol] here
            to ensure that its associated "let symbol" doesn't get deleted. *)
-        Apply_cont_with_acc.create acc return_cont ~args:[arg]
+        Apply_cont_with_acc.create acc return_cont ~args:[arg] ~args_approx:None
           ~dbg:Debuginfo.none
       in
       let acc, return = Expr_with_acc.create_apply_cont acc apply_cont in

@@ -127,6 +127,8 @@ module Inlining = struct
           (Code_size.of_int inline_threshold)
 end
 
+let symbol_approxs = ref Symbol.Map.empty
+
 module Env = struct
   type value_approximation = Code_or_metadata.t Value_approximation.t
 
@@ -347,13 +349,17 @@ module Env = struct
     | Boxed_from n -> n
     | Unboxed_from _ -> name
 
-  let add_value_approximation t name approx =
+  let add_value_approximation t name approx : t =
     if Value_approximation.is_unknown approx
     then t
     else
-      { t with
-        value_approximations = Name.Map.add name approx t.value_approximations
-      }
+      Name.pattern_match name ~var:(fun _ ->
+          { t with
+            value_approximations = Name.Map.add name approx t.value_approximations
+          })
+        ~symbol:(fun sym ->
+          symbol_approxs := Symbol.Map.add sym approx !symbol_approxs;
+          t)
 
   let add_block_approximation t name approxs alloc_mode =
     if Array.for_all Value_approximation.is_unknown approxs
@@ -365,14 +371,18 @@ module Env = struct
     Simple.pattern_match simple
       ~const:(fun _ -> Value_approximation.Value_unknown)
       ~name:(fun name ~coercion:_ ->
-        try Name.Map.find name t.value_approximations
-        with Not_found ->
-          Name.pattern_match name
-            ~var:(fun _ -> Value_approximation.Value_unknown)
-            ~symbol:t.approximation_for_external_symbol)
+        Name.pattern_match name ~var:(fun _ ->
+            try Name.Map.find name t.value_approximations
+            with Not_found ->
+              Name.pattern_match name
+                ~var:(fun _ -> Value_approximation.Value_unknown)
+                ~symbol:(fun _ -> assert false))
+          ~symbol:(fun sym ->
+            try Symbol.Map.find sym !symbol_approxs
+            with Not_found -> t.approximation_for_external_symbol sym))
 
-  let add_approximation_alias t name alias =
-    match find_value_approximation t (Simple.name name) with
+  let add_approximation_alias t simple ~alias =
+    match find_value_approximation t simple with
     | Value_unknown -> t
     | ( Value_symbol _ | Value_int _ | Closure_approximation _
       | Block_approximation _ ) as approx ->
@@ -866,7 +876,7 @@ module Expr_with_acc = struct
 end
 
 module Apply_cont_with_acc = struct
-  let create acc ?trap_action ?args_approx cont ~args ~dbg =
+  let create acc ?trap_action ~args_approx cont ~args ~dbg =
     let apply_cont = Apply_cont.create ?trap_action cont ~args ~dbg in
     let acc = Acc.add_continuation_application ~cont args_approx acc in
     let acc =
@@ -877,7 +887,7 @@ module Apply_cont_with_acc = struct
     acc, apply_cont
 
   let goto acc cont =
-    create acc cont ~args:[] ?args_approx:None ~dbg:Debuginfo.none
+    create acc cont ~args:[] ~args_approx:None ~dbg:Debuginfo.none
 end
 
 module Let_with_acc = struct

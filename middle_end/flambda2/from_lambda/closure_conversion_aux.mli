@@ -159,7 +159,7 @@ module Env : sig
   val add_block_approximation :
     t -> Name.t -> value_approximation array -> Alloc_mode.For_types.t -> t
 
-  val add_approximation_alias : t -> Name.t -> Name.t -> t
+  val add_approximation_alias : t -> Simple.t -> alias:Name.t -> t
 
   val find_value_approximation : t -> Simple.t -> value_approximation
 
@@ -386,7 +386,7 @@ module Apply_cont_with_acc : sig
   val create :
     Acc.t ->
     ?trap_action:Trap_action.t ->
-    ?args_approx:Env.value_approximation list ->
+    args_approx:Env.value_approximation list option ->
     Continuation.t ->
     args:Simple.t list ->
     dbg:Debuginfo.t ->
