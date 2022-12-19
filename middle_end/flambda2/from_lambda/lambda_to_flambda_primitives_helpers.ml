@@ -154,6 +154,8 @@ let expression_for_failure acc exn_cont ~register_const_string primitive dbg
     raise_exn_for_failure acc ~dbg exn_cont (Simple.var exn_bucket)
       (Some extra_let_binding)
 
+exception Exit
+
 let simplify_boxing env ~bound_var (named : Named.t) =
   match named with
   | Prim (Unary (prim, arg), _) -> (
@@ -163,8 +165,10 @@ let simplify_boxing env ~bound_var (named : Named.t) =
         ~const:(fun _ ->
           (* CR keryan : This is not true with un/tag operations, which could
              also benefit from this in the futur *)
-          Misc.fatal_error
-            "Constant found on un/boxing operation, should have been lifted.")
+          (* XXX mshinwell: this triggers on js_of_ocaml, dom_html.ml *)
+          (* Misc.fatal_error "Constant found on un/boxing operation, should
+             have been lifted.") *)
+          raise Exit)
         arg
     in
     match prim with
@@ -196,6 +200,10 @@ let simplify_boxing env ~bound_var (named : Named.t) =
   | Prim ((Nullary _ | Binary _ | Ternary _ | Variadic _), _)
   | Simple _ | Set_of_closures _ | Static_consts _ | Rec_info _ ->
     env, named
+
+(* XXX mshinwell: temporary hack, see above *)
+let simplify_boxing env ~bound_var (named : Named.t) =
+  try simplify_boxing env ~bound_var named with Exit -> env, named
 
 let rec bind_rec acc env exn_cont ~register_const_string (prim : expr_primitive)
     (dbg : Debuginfo.t) (cont : Acc.t -> Env.t -> Named.t -> Expr_with_acc.t) :
