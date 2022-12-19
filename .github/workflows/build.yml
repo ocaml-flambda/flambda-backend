@@ -86,30 +86,30 @@ jobs:
       with:
         path: 'flambda_backend'
 
-    - name: Cache OCaml 4.12 and dune
+    - name: Cache OCaml 4.14 and dune
       uses: actions/cache@v1
       id: cache
       with:
-        path: ${{ github.workspace }}/ocaml-412/_install
-        key: ${{ matrix.os }}-cache-ocaml-412-dune-341
+        path: ${{ github.workspace }}/ocaml-414/_install
+        key: ${{ matrix.os }}-cache-ocaml-414
 
-    - name: Checkout OCaml 4.12
+    - name: Checkout OCaml 4.14
       uses: actions/checkout@master
       if: steps.cache.outputs.cache-hit != 'true'
       with:
         repository: 'ocaml/ocaml'
-        path: 'ocaml-412'
-        ref: '4.12'
+        path: 'ocaml-414'
+        ref: '4.14'
 
-    - name: Build OCaml 4.12
+    - name: Build OCaml 4.14
       if: steps.cache.outputs.cache-hit != 'true'
-      working-directory: ocaml-412
+      working-directory: ocaml-414
       run: |
-        ./configure --prefix=$GITHUB_WORKSPACE/ocaml-412/_install
+        ./configure --prefix=$GITHUB_WORKSPACE/ocaml-414/_install
         make -j $J world.opt
         make install
         # Remove unneeded parts to shrink cache file
-        rm -rf $GITHUB_WORKSPACE/ocaml-412/_install/{lib/ocaml/compiler-libs,lib/ocaml/expunge,bin/*.byte}
+        rm -rf $GITHUB_WORKSPACE/ocaml-414/_install/{lib/ocaml/compiler-libs,lib/ocaml/expunge,bin/*.byte}
 
     - name: Checkout dune github repo
       uses: actions/checkout@master
@@ -123,8 +123,8 @@ jobs:
       working-directory: dune
       if: steps.cache.outputs.cache-hit != 'true'
       run: |
-        PATH=$GITHUB_WORKSPACE/ocaml-412/_install/bin:$PATH make release
-        cp dune.exe $GITHUB_WORKSPACE/ocaml-412/_install/bin/dune
+        PATH=$GITHUB_WORKSPACE/ocaml-414/_install/bin:$PATH make release
+        cp dune.exe $GITHUB_WORKSPACE/ocaml-414/_install/bin/dune
 
     - name: Install GNU parallel
       if: matrix.os == 'macos-latest'
@@ -140,14 +140,14 @@ jobs:
         autoconf
         ./configure \
           --prefix=$GITHUB_WORKSPACE/_install \
-          --with-dune=$GITHUB_WORKSPACE/ocaml-412/_install/bin/dune \
+          --with-dune=$GITHUB_WORKSPACE/ocaml-414/_install/bin/dune \
           ${{ matrix.config }}
 
     - name: Build, install and test Flambda backend
       working-directory: flambda_backend
       run: |
         if [ $run_testsuite = true ]; then target=ci; else target=compiler; fi
-        export PATH=$GITHUB_WORKSPACE/ocaml-412/_install/bin:$PATH
+        export PATH=$GITHUB_WORKSPACE/ocaml-414/_install/bin:$PATH
         if [ $build_upstream = true ]; then make -j$J build_and_test_upstream; else make $target; fi
       env:
         BUILD_OCAMLPARAM: ${{ matrix.ocamlparam }}
@@ -158,4 +158,4 @@ jobs:
       working-directory: flambda_backend
       if: matrix.check_arch == true
       run: |
-        PATH=$GITHUB_WORKSPACE/ocaml-412/_install/bin:$PATH make check_all_arches
+        PATH=$GITHUB_WORKSPACE/ocaml-414/_install/bin:$PATH make check_all_arches
