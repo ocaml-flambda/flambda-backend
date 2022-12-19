@@ -783,6 +783,69 @@ let inline_variable ?consider_inlining_effectful_expressions env res var =
           let env = remove_binding env var in
           will_inline_simple env res binding)))
 
+(* Handling of aliases between variables *)
+
+let force_binding_to_be_split t res var =
+  match Variable.Map.find var t.bindings with
+  | exception Not_found -> t, res
+  | binding -> (
+    match binding with
+    | Binding
+        { bound_expr = Simple _; inline = Do_not_inline | May_inline_once; _ }
+      ->
+      t, res
+    | Binding
+        ({ bound_expr = Split _ | Splittable_prim _;
+           inline = Must_inline_once | Must_inline_and_duplicate;
+           _
+         } as binding) ->
+      let t, res, _binding = split_in_env t res var binding in
+      t, res)
+
+let add_alias t res ~var
+    ~(num_normal_occurrences_of_var : Num_occurrences.t Variable.Map.t)
+    ~alias_of =
+  let t, res = force_binding_to_be_split t res alias_of in
+  let cmm_expr, t, res, ece = inline_variable t res alias_of in
+  let[@inline] simple_case () =
+    let defining_expr : simple bound_expr = Simple { cmm_expr } in
+    let inline : simple inline = Do_not_inline in
+    bind_variable_with_decision t res var ~inline ~defining_expr
+      ~effects_and_coeffects_of_defining_expr:ece
+  in
+  let[@inline] complex_case ~(inline_alias_of : complex inline) =
+    let defining_expr : complex bound_expr = Split { cmm_expr } in
+    let inline : complex inline =
+      match inline_alias_of with
+      | Must_inline_once -> (
+        let num_occurrences_of_var : Num_occurrences.t =
+          match Variable.Map.find var num_normal_occurrences_of_var with
+          | exception Not_found -> More_than_one
+          | num_occurrences -> num_occurrences
+        in
+        match num_occurrences_of_var with
+        | Zero | One -> Must_inline_once
+        | More_than_one -> Must_inline_and_duplicate)
+      | Must_inline_and_duplicate -> Must_inline_and_duplicate
+    in
+    bind_variable_with_decision t res var ~inline ~defining_expr
+      ~effects_and_coeffects_of_defining_expr:ece
+  in
+  match Variable.Map.find var t.bindings with
+  | exception Not_found -> simple_case ()
+  | binding -> (
+    match binding with
+    | Binding
+        { bound_expr = Simple _; inline = Do_not_inline | May_inline_once; _ }
+      ->
+      simple_case ()
+    | Binding
+        { bound_expr = Split _ | Splittable_prim _;
+          inline = (Must_inline_once | Must_inline_and_duplicate) as inline;
+          _
+        } ->
+      complex_case ~inline_alias_of:inline)
+
 (* Flushing delayed bindings *)
 
 (* Map on integers in descending order *)

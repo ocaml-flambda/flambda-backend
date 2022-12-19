@@ -221,6 +221,14 @@ val bind_variable :
   effects_and_coeffects_of_defining_expr:Effects_and_coeffects.t ->
   t * To_cmm_result.t
 
+val add_alias :
+  t ->
+  To_cmm_result.t ->
+  var:Variable.t ->
+  num_normal_occurrences_of_var:Num_occurrences.t Variable.Map.t ->
+  alias_of:Variable.t ->
+  t * To_cmm_result.t
+
 (** Try and inline an Flambda variable using the delayed let-bindings. *)
 val inline_variable :
   ?consider_inlining_effectful_expressions:bool ->
