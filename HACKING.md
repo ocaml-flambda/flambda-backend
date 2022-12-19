@@ -89,7 +89,7 @@ Depending on the initial changes, it might be necessary to do this multiple time
 ## Rebuilding during dev work
 
 To rebuild after making changes, you can just type `make`. You need to
-have a working OCaml 4.12 compiler on your PATH before doing so,
+have a working OCaml 4.14 compiler on your PATH before doing so,
 e.g. installed via OPAM.
 
 There is a special target `make hacking` which starts Dune in polling mode.  The rebuild
@@ -206,7 +206,7 @@ thoroughly (e.g. `git clean -dfX`) before reconfiguring with a different prefix.
 
 Then build the compiler with the command `make _install` (this is the default
 target plus some setup in preparation for installation). As usual when building,
-a 4.12 compiler (and dune) need to be in the path.
+a 4.14 compiler (and dune) need to be in the path.
 
 Now the build part is done, we don't need to stay in the build environment
 anymore; the switch creation will likely replace it if your terminal is setup
@@ -225,12 +225,12 @@ opam switch create flambda-backend --empty --repositories=flambda2=git+https://g
 Then we can install the compiler. The recommended way is to use the `opam-custom-install`
 plugin. See [here](https://gitlab.ocamlpro.com/louis/opam-custom-install)
 for instructions. The plugin can be installed in any existing OPAM switch,
-for example a 4.12 switch used for building. Once installed, the plugin will be
+for example a 4.14 switch used for building. Once installed, the plugin will be
 available whatever the current active switch is.
 Once the plugin is installed, we can use it to install the compiler:
 
 ```shell
-opam custom-install ocaml-variants.4.12.0+flambda2 -- make -C ${flambda-backend-root-dir} install_for_opam
+opam custom-install ocaml-variants.4.14.0+flambda2 -- make -C ${flambda-backend-root-dir} install_for_opam
 ```
 The `-C ${flambda-backend-dir}` part can be omitted if we're still in the build directory.
 
@@ -239,7 +239,7 @@ it is recommended to run the command `opam reinstall --forget-pending` after
 every use of `opam custom-install`, otherwise any subsequent `opam` command
 tries to rebuild the compiler from scratch.
 
-To finish the installation, `opam install ocaml.4.12.0` will install the remaining
+To finish the installation, `opam install ocaml.4.14.0` will install the remaining
 auxiliary packages necessary for a regular switch. After that, normal opam
 packages can be installed the usual way.
 
@@ -252,7 +252,7 @@ As `opam-custom-install` is still experimental, it can sometimes be hard to inst
 In this case, it is possible to use the more fragile `opam install --fake` command:
 
 ```shell
-opam install --fake ocaml-variants.4.12.0+flambda2
+opam install --fake ocaml-variants.4.14.0+flambda2
 make -C ${flambda-backend-root-dir} install_for_opam
 ```
 

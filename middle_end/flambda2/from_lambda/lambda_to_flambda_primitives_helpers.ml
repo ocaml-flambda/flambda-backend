@@ -334,7 +334,8 @@ let rec bind_rec acc env exn_cont ~register_const_string (prim : expr_primitive)
       @@ fun acc _env ifso ->
       let acc, apply_cont =
         Apply_cont_with_acc.create acc join_point_cont
-          ~args:[Simple.var ifso_result] ~dbg
+          ~args:[Simple.var ifso_result]
+          ~dbg
       in
       let acc, body = Expr_with_acc.create_apply_cont acc apply_cont in
       Let_with_acc.create acc
@@ -346,7 +347,8 @@ let rec bind_rec acc env exn_cont ~register_const_string (prim : expr_primitive)
       @@ fun acc _env ifnot ->
       let acc, apply_cont =
         Apply_cont_with_acc.create acc join_point_cont
-          ~args:[Simple.var ifnot_result] ~dbg
+          ~args:[Simple.var ifnot_result]
+          ~dbg
       in
       let acc, body = Expr_with_acc.create_apply_cont acc apply_cont in
       Let_with_acc.create acc

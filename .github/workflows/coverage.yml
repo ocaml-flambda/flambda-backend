@@ -23,10 +23,10 @@ jobs:
         path: 'flambda_backend'
 
     # This adds a switch at $GITHUB_WORKSPACE/_opam
-    - name: Set up OCaml 4.12
+    - name: Set up OCaml 4.14
       uses: ocaml/setup-ocaml@v2
       with:
-        ocaml-compiler: 4.12
+        ocaml-compiler: 4.14
         opam-pin: false
         opam-depext: false
 
@@ -35,19 +35,12 @@ jobs:
       id: cache
       with:
         path: ${{ github.workspace }}/_opam
-        key: ${{ matrix.os }}-cache-ocaml-412-dune-2.9.1-g7606d586
-
-    - name: Build Dune
-      if: steps.cache.outputs.cache-hit != 'true'
-      run: |
-        opam pin dune --yes \
-          git+https://github.com/ocaml-flambda/dune#special_dune
+        key: ${{ matrix.os }}-cache-ocaml-414-dune-2.9.1-g7606d586
 
     - name: Build bisect_ppx
       if: steps.cache.outputs.cache-hit != 'true'
       run: |
-        # bisect_ppx fails to build with current ppxlib
-        opam pin ppxlib 0.23.0 --yes
+        opam pin ppxlib 0.25.1
         opam pin bisect_ppx --yes \
           git+https://github.com/lukemaurer/bisect_ppx#html-report-collate-fix
 
