@@ -976,8 +976,11 @@ let flush_delayed_lets ~mode env res =
               Format.eprintf "flushing split binding? %b: %a = %a\n%!"
                 must_flush Backend_var.With_provenance.print b.cmm_var
                 print_bound_expr b.bound_expr;
-            if must_flush then flush split_binding;
-            None
+            if must_flush
+            then (
+              flush split_binding;
+              None)
+            else Some split_binding
           | Branching_point | Entering_loop -> Some split_binding)
         | Must_inline_once -> (
           match
