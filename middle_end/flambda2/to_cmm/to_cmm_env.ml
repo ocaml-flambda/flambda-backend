@@ -960,6 +960,11 @@ let flush_delayed_lets ~mode env res =
           in
           match mode with
           | Flush_everything ->
+            if debug ()
+            then
+              Format.eprintf "flushing split binding: %a = %a\n%!"
+                Backend_var.With_provenance.print b.cmm_var print_bound_expr
+                b.bound_expr;
             flush split_binding;
             None
           | Branching_point | Entering_loop -> Some split_binding)
