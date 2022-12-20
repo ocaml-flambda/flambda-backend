@@ -807,7 +807,8 @@ let inline_variable ?consider_inlining_effectful_expressions env res var =
 
 (* Handling of aliases between variables *)
 
-let force_binding_to_be_split t res var =
+let maybe_force_binding_to_be_split t res var
+    ~(num_occurrences_of_var : Num_occurrences.t) =
   match Variable.Map.find var t.bindings with
   | exception Not_found -> t, res, None
   | binding -> (
@@ -823,6 +824,16 @@ let force_binding_to_be_split t res var =
           inline = (Must_inline_once | Must_inline_and_duplicate) as inline;
           _
         } ->
+      t, res, Some (Any_inline inline)
+    | Binding
+        { bound_expr = Splittable_prim _;
+          inline = Must_inline_once as inline;
+          _
+        }
+      when match num_occurrences_of_var with
+           | Zero | One -> true
+           | More_than_one -> false ->
+      (* No need to split in this case. *)
       t, res, Some (Any_inline inline)
     | Binding
         ({ bound_expr = Splittable_prim _;
@@ -843,7 +854,14 @@ let add_alias t res ~var
       var
       (Variable.Map.print Num_occurrences.print)
       num_normal_occurrences_of_var Variable.print alias_of;
-  let t, res, inline = force_binding_to_be_split t res alias_of in
+  let num_occurrences_of_var : Num_occurrences.t =
+    match Variable.Map.find var num_normal_occurrences_of_var with
+    | exception Not_found -> More_than_one
+    | num_occurrences -> num_occurrences
+  in
+  let t, res, inline =
+    maybe_force_binding_to_be_split t res alias_of ~num_occurrences_of_var
+  in
   let cmm_expr, t, res, ece = inline_variable t res alias_of in
   if debug ()
   then
@@ -861,11 +879,6 @@ let add_alias t res ~var
     let inline : complex inline =
       match inline_alias_of with
       | Must_inline_once -> (
-        let num_occurrences_of_var : Num_occurrences.t =
-          match Variable.Map.find var num_normal_occurrences_of_var with
-          | exception Not_found -> More_than_one
-          | num_occurrences -> num_occurrences
-        in
         match num_occurrences_of_var with
         | Zero | One ->
           if debug () then Format.eprintf "Must_inline_once\n%!";
