@@ -18,7 +18,6 @@ open! Simplify_import
 
 let simplify_toplevel_common dacc simplify ~params ~implicit_params
     ~return_continuation ~return_arity ~exn_continuation =
-    ~exn_cont_scope =
   (* The usage analysis needs a continuation whose handler holds the toplevel
      code of the function. Since such a continuation does not exist, we create a
      dummy one here. *)
