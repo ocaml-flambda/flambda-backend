@@ -960,12 +960,23 @@ let flush_delayed_lets ~mode env res =
           in
           match mode with
           | Flush_everything ->
+            let must_flush =
+              match split_binding with
+              | Binding { effs = _, coeffects, _; _ } -> (
+                match coeffects with
+                | Has_coeffects ->
+                  (* Any operation that deals with the local stack pointer or
+                     values on the local stack must be flushed now. However
+                     these all have coeffects. *)
+                  true
+                | No_coeffects -> false)
+            in
             if debug ()
             then
-              Format.eprintf "flushing split binding: %a = %a\n%!"
-                Backend_var.With_provenance.print b.cmm_var print_bound_expr
-                b.bound_expr;
-            flush split_binding;
+              Format.eprintf "flushing split binding? %b: %a = %a\n%!"
+                must_flush Backend_var.With_provenance.print b.cmm_var
+                print_bound_expr b.bound_expr;
+            if must_flush then flush split_binding;
             None
           | Branching_point | Entering_loop -> Some split_binding)
         | Must_inline_once -> (
