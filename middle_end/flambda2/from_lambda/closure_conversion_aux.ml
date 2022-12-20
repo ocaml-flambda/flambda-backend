@@ -21,7 +21,7 @@ module IR = struct
 
   type exn_continuation =
     { exn_handler : Continuation.t;
-      extra_args : (simple * Lambda.value_kind) list
+      extra_args : (simple * Lambda.layout) list
     }
 
   type trap_action =
@@ -614,8 +614,8 @@ module Function_decls = struct
       { let_rec_ident : Ident.t;
         function_slot : Function_slot.t;
         kind : Lambda.function_kind;
-        params : (Ident.t * Lambda.value_kind) list;
-        return : Lambda.value_kind;
+        params : (Ident.t * Lambda.layout) list;
+        return : Lambda.layout;
         return_continuation : Continuation.t;
         exn_continuation : IR.exn_continuation;
         my_region : Ident.t;

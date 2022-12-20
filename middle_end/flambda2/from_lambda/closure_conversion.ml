@@ -1770,7 +1770,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
     List.mapi
       (fun n _kind_with_subkind ->
         ( Ident.create_local ("param" ^ string_of_int (args_arity + n)),
-          Lambda.Pgenval ))
+          Lambda.layout_top ))
       (Flambda_arity.With_subkinds.to_list missing_args)
   in
   let return_continuation = Continuation.create ~sort:Return () in
@@ -1834,7 +1834,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
     (* CR keryan: Same as above, better kind for return type *)
     [ Function_decl.create ~let_rec_ident:(Some wrapper_id) ~function_slot
         ~kind:(Lambda.Curried { nlocal = num_trailing_local_params })
-        ~params ~return:Lambda.Pgenval ~return_continuation ~exn_continuation
+        ~params ~return:Lambda.layout_top ~return_continuation ~exn_continuation
         ~my_region:apply.region ~body:fbody ~attr ~loc:apply.loc
         ~free_idents_of_body ~closure_alloc_mode ~num_trailing_local_params
         ~contains_no_escaping_local_allocs Recursive.Non_recursive ]

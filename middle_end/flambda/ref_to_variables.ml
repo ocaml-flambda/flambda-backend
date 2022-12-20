@@ -147,7 +147,7 @@ let eliminate_ref_of_expr flam =
                 (Let_mutable { var = field_var;
                                initial_value = init;
                                body;
-                               contents_kind = kind } : Flambda.t))
+                               contents_kind = Lambda.Pvalue kind } : Flambda.t))
             (0,body) l shape in
         expr
       | Let _ | Let_mutable _

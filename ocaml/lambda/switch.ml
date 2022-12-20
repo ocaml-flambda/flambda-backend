@@ -118,7 +118,7 @@ sig
   type arg
   type test
   type act
-  type value_kind
+  type layout
 
   val bind : arg -> (arg -> act) -> act
   val make_const : int -> arg
@@ -129,10 +129,10 @@ sig
   val make_is_nonzero : arg -> test
   val arg_as_test : arg -> test
 
-  val make_if : value_kind -> test -> act -> act -> act
-  val make_switch : loc -> value_kind -> arg -> int array -> act array -> act
+  val make_if : layout -> test -> act -> act -> act
+  val make_switch : loc -> layout -> arg -> int array -> act array -> act
 
-  val make_catch : value_kind -> act -> int * (act -> act)
+  val make_catch : layout -> act -> int * (act -> act)
   val make_exit : int -> act
 end
 

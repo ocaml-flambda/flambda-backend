@@ -23,7 +23,7 @@ type t
 type parameter = t
 
 (** Make a parameter from a variable with default attributes *)
-val wrap : Variable.t -> Lambda.alloc_mode -> Lambda.value_kind -> t
+val wrap : Variable.t -> Lambda.alloc_mode -> Lambda.layout -> t
 
 val var : t -> Variable.t
 
@@ -31,7 +31,7 @@ val var : t -> Variable.t
     up to and including this parameter *)
 val alloc_mode : t -> Lambda.alloc_mode
 
-val kind : t -> Lambda.value_kind
+val kind : t -> Lambda.layout
 
 (** Rename the inner variable of the parameter *)
 val rename

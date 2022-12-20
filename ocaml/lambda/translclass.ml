@@ -27,7 +27,7 @@ type error = Tags of label * label
 
 exception Error of Location.t * error
 
-let lfunction ?(kind=Curried {nlocal=0}) ?(region=true) params body =
+let lfunction ?(kind=Curried {nlocal=0}) ?(region=true) return_layout params body =
   if params = [] then body else
   match kind, body with
   | Curried {nlocal=0},
@@ -35,14 +35,14 @@ let lfunction ?(kind=Curried {nlocal=0}) ?(region=true) params body =
                body = body'; attr; loc}
     when List.length params + List.length params' <= Lambda.max_arity() ->
       lfunction ~kind ~params:(params @ params')
-                ~return:Pgenval
+                ~return:return_layout
                 ~body:body'
                 ~attr
                 ~loc
                 ~mode:alloc_heap
                 ~region
   |  _ ->
-      lfunction ~kind ~params ~return:Pgenval
+      lfunction ~kind ~params ~return:return_layout
                 ~body
                 ~attr:default_function_attribute
                 ~loc:Loc_unknown
@@ -96,7 +96,7 @@ let transl_val tbl create name =
 let transl_vals tbl create strict vals rem =
   List.fold_right
     (fun (name, id) rem ->
-      Llet(strict, Pgenval, id, transl_val tbl create name, rem))
+      Llet(strict, Lambda.layout_int, id, transl_val tbl create name, rem))
     vals rem
 
 let meths_super tbl meths inh_meths =
@@ -112,7 +112,7 @@ let meths_super tbl meths inh_meths =
 let bind_super tbl (vals, meths) cl_init =
   transl_vals tbl false StrictOpt vals
     (List.fold_right (fun (_nm, id, def) rem ->
-         Llet(StrictOpt, Pgenval, id, def, rem))
+         Llet(StrictOpt, Lambda.layout_object, id, def, rem))
        meths cl_init)
 
 let create_object cl obj init =
@@ -125,7 +125,7 @@ let create_object cl obj init =
              [obj; Lvar cl]))
   else begin
    (inh_init,
-    Llet(Strict, Pgenval, obj',
+    Llet(Strict, Lambda.layout_object, obj',
             mkappl (oo_prim "create_object_opt", [obj; Lvar cl]),
          Lsequence(obj_init,
                    if not has_init then Lvar obj' else
@@ -194,11 +194,11 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
        let build params rem =
          let param = name_pattern "param" pat in
          Lambda.lfunction
-                   ~kind:(Curried {nlocal=0}) ~params:((param, Pgenval)::params)
-                   ~return:Pgenval
+                   ~kind:(Curried {nlocal=0}) ~params:((param, Lambda.layout_top)::params)
+                   ~return:Lambda.layout_top
                    ~attr:default_function_attribute
                    ~loc:(of_location ~scopes pat.pat_loc)
-                   ~body:(Matching.for_function ~scopes Pgenval pat.pat_loc
+                   ~body:(Matching.for_function ~scopes Lambda.layout_top pat.pat_loc
                              None (Lvar param) [pat, rem] partial)
                    ~mode:alloc_heap
                    ~region:true
@@ -219,7 +219,7 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
         build_object_init ~scopes cl_table obj (vals @ params)
           inh_init obj_init cl
       in
-      (inh_init, Translcore.transl_let ~scopes rec_flag defs Pgenval obj_init)
+      (inh_init, Translcore.transl_let ~scopes rec_flag defs Lambda.layout_top obj_init)
   | Tcl_open (_, cl)
   | Tcl_constraint (cl, _, _, _, _) ->
       build_object_init ~scopes cl_table obj params inh_init obj_init cl
@@ -238,12 +238,12 @@ let rec build_object_init_0
       let ((_,inh_init), obj_init) =
         build_object_init ~scopes cl_table obj params (envs,[]) copy_env cl in
       let obj_init =
-        if ids = [] then obj_init else lfunction [self, Pgenval] obj_init in
-      (inh_init, lfunction [env, Pgenval] (subst_env env inh_init obj_init))
+        if ids = [] then obj_init else lfunction Lambda.layout_top [self, Lambda.layout_top] obj_init in
+      (inh_init, lfunction Lambda.layout_top [env, Lambda.layout_top] (subst_env env inh_init obj_init))
 
 
 let bind_method tbl lab id cl_init =
-  Llet(Strict, Pgenval, id, mkappl (oo_prim "get_method_label",
+  Llet(Strict, Lambda.layout_int, id, mkappl (oo_prim "get_method_label",
                            [Lvar tbl; transl_label lab]),
        cl_init)
 
@@ -258,11 +258,11 @@ let bind_methods tbl meths vals cl_init =
     if nvals = 0 then "get_method_labels", [] else
     "new_methods_variables", [transl_meth_list (List.map fst vals)]
   in
-  Llet(Strict, Pgenval, ids,
+  Llet(Strict, Lambda.layout_array Pintarray, ids,
        mkappl (oo_prim getter,
                [Lvar tbl; transl_meth_list (List.map fst methl)] @ names),
        List.fold_right
-         (fun (_lab,id) lam -> decr i; Llet(StrictOpt, Pgenval, id,
+         (fun (_lab,id) lam -> decr i; Llet(StrictOpt, Lambda.layout_int, id,
                                            lfield ids !i, lam))
          (methl @ vals) cl_init)
 
@@ -300,7 +300,7 @@ let rec build_class_init ~scopes cla cstr super inh_init cl_init msubst top cl =
       begin match inh_init with
       | (_, path_lam, obj_init)::inh_init ->
           (inh_init,
-           Llet (Strict, Pgenval, obj_init,
+           Llet (Strict, Lambda.layout_object, obj_init,
                  mkappl(Lprim(class_field 1, [path_lam], Loc_unknown), Lvar cla ::
                         if top then [Lprim(class_field 3, [path_lam], Loc_unknown)]
                         else []),
@@ -338,7 +338,7 @@ let rec build_class_init ~scopes cla cstr super inh_init cl_init msubst top cl =
                   if !Clflags.native_code && List.length met_code = 1 then
                     (* Force correct naming of method for profiles *)
                     let met = Ident.create_local ("method_" ^ name.txt) in
-                    [Llet(Strict, Pgenval, met, List.hd met_code, Lvar met)]
+                    [Llet(Strict, Lambda.layout_top, met, List.hd met_code, Lvar met)]
                   else met_code
                 in
                 (inh_init, cl_init,
@@ -391,22 +391,22 @@ let rec build_class_init ~scopes cla cstr super inh_init cl_init msubst top cl =
           let cl_init =
             List.fold_left
               (fun init (nm, id, _) ->
-                Llet(StrictOpt, Pgenval, id,
+                Llet(StrictOpt, Lambda.layout_top, id,
                      lfield inh (index nm concr_meths + ofs),
                      init))
               cl_init methids in
           let cl_init =
             List.fold_left
               (fun init (nm, id) ->
-                Llet(StrictOpt, Pgenval, id,
+                Llet(StrictOpt, Lambda.layout_top, id,
                      lfield inh (index nm vals + 1), init))
               cl_init valids in
           (inh_init,
-           Llet (Strict, Pgenval, inh,
+           Llet (Strict, Lambda.layout_array Pgenarray, inh,
                  mkappl(oo_prim "inherits", narrow_args @
                         [path_lam;
                          Lconst(const_int (if top then 1 else 0))]),
-                 Llet(StrictOpt, Pgenval, obj_init, lfield inh 0, cl_init)))
+                 Llet(StrictOpt, Lambda.layout_top, obj_init, lfield inh 0, cl_init)))
       | _ ->
           let core cl_init =
             build_class_init
@@ -428,7 +428,7 @@ let rec build_class_lets ~scopes cl =
     Tcl_let (rec_flag, defs, _vals, cl') ->
       let env, wrap = build_class_lets ~scopes cl' in
       (env, fun x ->
-          Translcore.transl_let ~scopes rec_flag defs Pgenval (wrap x))
+          Translcore.transl_let ~scopes rec_flag defs Lambda.layout_top (wrap x))
   | _ ->
       (cl.cl_env, fun x -> x)
 
@@ -464,11 +464,11 @@ let rec transl_class_rebind ~scopes obj_init cl vf =
       let build params rem =
         let param = name_pattern "param" pat in
         Lambda.lfunction
-                  ~kind:(Curried {nlocal=0}) ~params:((param, Pgenval)::params)
-                  ~return:Pgenval
+                  ~kind:(Curried {nlocal=0}) ~params:((param, Lambda.layout_top)::params)
+                  ~return:Lambda.layout_top
                   ~attr:default_function_attribute
                   ~loc:(of_location ~scopes pat.pat_loc)
-                  ~body:(Matching.for_function ~scopes Pgenval pat.pat_loc
+                  ~body:(Matching.for_function ~scopes Lambda.layout_top pat.pat_loc
                             None (Lvar param) [pat, rem] partial)
                   ~mode:alloc_heap
                   ~region:true
@@ -486,7 +486,7 @@ let rec transl_class_rebind ~scopes obj_init cl vf =
   | Tcl_let (rec_flag, defs, _vals, cl) ->
       let path, path_lam, obj_init =
         transl_class_rebind ~scopes obj_init cl vf in
-      (path, path_lam, Translcore.transl_let ~scopes rec_flag defs Pgenval obj_init)
+      (path, path_lam, Translcore.transl_let ~scopes rec_flag defs Lambda.layout_top obj_init)
   | Tcl_structure _ -> raise Exit
   | Tcl_constraint (cl', _, _, _, _) ->
       let path, path_lam, obj_init =
@@ -507,11 +507,11 @@ let rec transl_class_rebind_0 ~scopes (self:Ident.t) obj_init cl vf =
       let path, path_lam, obj_init =
         transl_class_rebind_0 ~scopes self obj_init cl vf
       in
-      (path, path_lam, Translcore.transl_let ~scopes rec_flag defs Pgenval obj_init)
+      (path, path_lam, Translcore.transl_let ~scopes rec_flag defs Lambda.layout_top obj_init)
   | _ ->
       let path, path_lam, obj_init =
         transl_class_rebind ~scopes obj_init cl vf in
-      (path, path_lam, lfunction [self, Pgenval] obj_init)
+      (path, path_lam, lfunction Lambda.layout_top [self, Lambda.layout_top] obj_init)
 
 let transl_class_rebind ~scopes cl vf =
   try
@@ -532,7 +532,7 @@ let transl_class_rebind ~scopes cl vf =
     in
     let _, path_lam, obj_init' =
       transl_class_rebind_0 ~scopes self obj_init0 cl vf in
-    let id = (obj_init' = lfunction [self, Pgenval] obj_init0) in
+    let id = (obj_init' = lfunction Lambda.layout_top [self, Lambda.layout_top] obj_init0) in
     if id then path_lam else
 
     let cla = Ident.create_local "class"
@@ -541,15 +541,15 @@ let transl_class_rebind ~scopes cl vf =
     and table = Ident.create_local "table"
     and envs = Ident.create_local "envs" in
     Llet(
-    Strict, Pgenval, new_init, lfunction [obj_init, Pgenval] obj_init',
+    Strict, Lambda.layout_function, new_init, lfunction Lambda.layout_top [obj_init, Lambda.layout_top] obj_init',
     Llet(
-    Alias, Pgenval, cla, path_lam,
+    Alias, Lambda.layout_class, cla, path_lam,
     Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
           [mkappl(Lvar new_init, [lfield cla 0]);
-           lfunction [table, Pgenval]
-             (Llet(Strict, Pgenval, env_init,
+           lfunction Lambda.layout_top [table, Lambda.layout_top]
+             (Llet(Strict, Lambda.layout_top, env_init,
                    mkappl(lfield cla 1, [Lvar table]),
-                   lfunction [envs, Pgenval]
+                   lfunction Lambda.layout_top [envs, Lambda.layout_top]
                      (mkappl(Lvar new_init,
                              [mkappl(Lvar env_init, [Lvar envs])]))));
            lfield cla 2;
@@ -745,7 +745,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
   let no_env_update _ _ env = env in
   let msubst arr = function
       Lfunction {kind = Curried _ as kind; region;
-                 params = (self, Pgenval) :: args; body} ->
+                 params = (self, layout) :: args; body} ->
         let env = Ident.create_local "env" in
         let body' =
           if new_ids = [] then body else
@@ -754,11 +754,11 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
           (* Doesn't seem to improve size for bytecode *)
           (* if not !Clflags.native_code then raise Not_found; *)
           if not arr || !Clflags.debug then raise Not_found;
-          builtin_meths [self] env env2 (lfunction args body')
+          builtin_meths [self] env env2 (lfunction Lambda.layout_top args body')
         with Not_found ->
-          [lfunction ~kind ~region ((self, Pgenval) :: args)
+          [lfunction ~kind ~region Lambda.layout_top ((self, layout) :: args)
              (if not (Ident.Set.mem env (free_variables body')) then body' else
-              Llet(Alias, Pgenval, env,
+              Llet(Alias, Lambda.layout_top, env,
                    Lprim(Pfield_computed Reads_vary,
                          [Lvar self; Lvar env2],
                          Loc_unknown),
@@ -777,8 +777,8 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
     if top then lam else
     (* must be called only once! *)
     let lam = Lambda.subst no_env_update (subst env1 lam 1 new_ids_init) lam in
-    Llet(Alias, Pgenval, env1, (if l = [] then Lvar envs else lfield envs 0),
-    Llet(Alias, Pgenval, env1',
+    Llet(Alias, Lambda.layout_top, env1, (if l = [] then Lvar envs else lfield envs 0),
+    Llet(Alias, Lambda.layout_top, env1',
          (if !new_ids_init = [] then Lvar env1 else lfield env1 0),
          lam))
   in
@@ -808,10 +808,10 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
       if name' <> name then raise(Error(cl.cl_loc, Tags(name, name'))))
     tags pub_meths;
   let ltable table lam =
-    Llet(Strict, Pgenval, table,
+    Llet(Strict, Lambda.layout_array Pgenarray, table,
          mkappl (oo_prim "create_table", [transl_meth_list pub_meths]), lam)
   and ldirect obj_init =
-    Llet(Strict, Pgenval, obj_init, cl_init,
+    Llet(Strict, Lambda.layout_top, obj_init, cl_init,
          Lsequence(mkappl (oo_prim "init_class", [Lvar cla]),
                    mkappl (Lvar obj_init, [lambda_unit])))
   in
@@ -824,11 +824,11 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                            ~kind:(Curried {nlocal=0})
                            ~attr:default_function_attribute
                            ~loc:Loc_unknown
-                           ~return:Pgenval
+                           ~return:Lambda.layout_top
                            ~mode:alloc_heap
                            ~region:true
-                           ~params:[cla, Pgenval] ~body:cl_init) in
-    Llet(Strict, Pgenval, class_init, cl_init, lam (free_variables cl_init))
+                           ~params:[cla, Lambda.layout_class] ~body:cl_init) in
+    Llet(Strict, Lambda.layout_top, class_init, cl_init, lam (free_variables cl_init))
   and lbody fv =
     if List.for_all (fun id -> not (Ident.Set.mem id fv)) ids then
       mkappl (oo_prim "make_class",[transl_meth_list pub_meths;
@@ -836,7 +836,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
     else
       ltable table (
       Llet(
-      Strict, Pgenval, env_init, mkappl (Lvar class_init, [Lvar table]),
+      Strict, Lambda.layout_top, env_init, mkappl (Lvar class_init, [Lvar table]),
       Lsequence(
       mkappl (oo_prim "init_class", [Lvar table]),
       Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
@@ -849,10 +849,10 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                           ~kind:(Curried {nlocal=0})
                           ~attr:default_function_attribute
                           ~loc:Loc_unknown
-                          ~return:Pgenval
+                          ~return:Lambda.layout_top
                           ~mode:alloc_heap
                           ~region:true
-                          ~params:[cla, Pgenval] ~body:cl_init;
+                          ~params:[cla, Lambda.layout_class] ~body:cl_init;
            lambda_unit; lenvs],
          Loc_unknown)
   in
@@ -883,13 +883,13 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
       (List.rev inh_init)
   in
   let make_envs lam =
-    Llet(StrictOpt, Pgenval, envs,
+    Llet(StrictOpt, Lambda.layout_top, envs,
          (if linh_envs = [] then lenv else
          Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
                lenv :: linh_envs, Loc_unknown)),
          lam)
   and def_ids cla lam =
-    Llet(StrictOpt, Pgenval, env2,
+    Llet(StrictOpt, Lambda.layout_int, env2,
          mkappl (oo_prim "new_variable", [Lvar cla; transl_label ""]),
          lam)
   in
@@ -904,18 +904,18 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
       inh_paths
   in
   let lclass lam =
-    Llet(Strict, Pgenval, class_init,
+    Llet(Strict, Lambda.layout_class, class_init,
          Lambda.lfunction
-                   ~kind:(Curried {nlocal=0}) ~params:[cla, Pgenval]
-                   ~return:Pgenval
+                   ~kind:(Curried {nlocal=0}) ~params:[cla, Lambda.layout_class]
+                   ~return:Lambda.layout_top
                    ~attr:default_function_attribute
                    ~loc:Loc_unknown
                    ~mode:alloc_heap
                    ~region:true
                    ~body:(def_ids cla cl_init), lam)
   and lcache lam =
-    if inh_keys = [] then Llet(Alias, Pgenval, cached, Lvar tables, lam) else
-    Llet(Strict, Pgenval, cached,
+    if inh_keys = [] then Llet(Alias, Lambda.layout_top, cached, Lvar tables, lam) else
+    Llet(Strict, Lambda.layout_top, cached,
          mkappl (oo_prim "lookup_tables",
                 [Lvar tables; Lprim(Pmakearray(Paddrarray, Immutable, alloc_heap),
                                     inh_keys, Loc_unknown)]),
@@ -926,7 +926,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
   in
   let ldirect () =
     ltable cla
-      (Llet(Strict, Pgenval, env_init, def_ids cla cl_init,
+      (Llet(Strict, Lambda.layout_top, env_init, def_ids cla cl_init,
             Lsequence(mkappl (oo_prim "init_class", [Lvar cla]),
                       lset cached 0 (Lvar env_init))))
   and lclass_virt () =
@@ -937,8 +937,8 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
          ~loc:Loc_unknown
          ~mode:alloc_heap
          ~region:true
-         ~return:Pgenval
-         ~params:[cla, Pgenval]
+         ~return:Lambda.layout_top
+         ~params:[cla, Lambda.layout_class]
          ~body:(def_ids cla cl_init))
   in
   let lupdate_cache =
@@ -954,7 +954,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
          so that the program's behaviour does not change between runs *)
       lupdate_cache
     else
-      Lifthenelse(lfield cached 0, lambda_unit, lupdate_cache, Pgenval) in
+      Lifthenelse(lfield cached 0, lambda_unit, lupdate_cache, Lambda.layout_top) in
   llets (
   lcache (
   Lsequence(lcheck_cache,

@@ -18,8 +18,8 @@
 
 module Definition : sig
   type t =
-    | Existing_inner_free_var of Variable.t * Lambda.value_kind
-    | Projection_from_existing_specialised_arg of Projection.t * Lambda.value_kind
+    | Existing_inner_free_var of Variable.t * Lambda.layout
+    | Projection_from_existing_specialised_arg of Projection.t * Lambda.layout
 end
 
 module What_to_specialise : sig
