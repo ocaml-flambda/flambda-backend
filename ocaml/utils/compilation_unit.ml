@@ -173,11 +173,28 @@ end = struct
   let to_list t = t
 end
 
-(* As with [Name.t], changing this requires bumping magic numbers. *)
-type t =
+(* As with [Name.t], changing [with_prefix] or [t] requires bumping magic
+   numbers. *)
+type with_prefix =
   { name : Name.t;
     for_pack_prefix : Prefix.t
   }
+
+(* type t = Without_prefix of Name.t [@@unboxed] | With_prefix of with_prefix *)
+type t = Obj.t
+
+let[@inline] pattern_match t ~f =
+  let tag = Obj.tag t in
+  assert (tag = 0 || tag = Obj.string_tag);
+  if tag <> 0
+  then f Prefix.empty (Sys.opaque_identity (Obj.obj t : Name.t))
+  else
+    let with_prefix = Sys.opaque_identity (Obj.obj t : with_prefix) in
+    f with_prefix.for_pack_prefix with_prefix.name
+
+let name t = pattern_match t ~f:(fun _ name -> name)
+
+let for_pack_prefix t = pattern_match t ~f:(fun prefix _ -> prefix)
 
 let create for_pack_prefix name =
   if not (Prefix.is_empty for_pack_prefix)
@@ -185,13 +202,15 @@ let create for_pack_prefix name =
     Name.check_as_path_component name;
     ListLabels.iter ~f:Name.check_as_path_component
       (for_pack_prefix |> Prefix.to_list));
-  { name; for_pack_prefix }
+  if Prefix.is_empty for_pack_prefix
+  then Sys.opaque_identity (Obj.repr name)
+  else Sys.opaque_identity (Obj.repr { for_pack_prefix; name })
 
-let create_child parent name =
+let create_child parent name_ =
   let prefix =
-    (parent.for_pack_prefix |> Prefix.to_list) @ [parent.name] |> Prefix.of_list
+    (for_pack_prefix parent |> Prefix.to_list) @ [name parent] |> Prefix.of_list
   in
-  create prefix name
+  create prefix name_
 
 let of_string str =
   let for_pack_prefix, name =
@@ -209,46 +228,47 @@ let dummy = create Prefix.empty (Name.of_string "*none*")
 
 let predef_exn = create Prefix.empty Name.predef_exn
 
-let name t = t.name
-
 let name_as_string t = name t |> Name.to_string
 
-let for_pack_prefix t = t.for_pack_prefix
+let with_for_pack_prefix t for_pack_prefix = create for_pack_prefix (name t)
 
-let with_for_pack_prefix t for_pack_prefix = { t with for_pack_prefix }
-
-let is_packed t = not (Prefix.is_empty t.for_pack_prefix)
+let is_packed t = not (Prefix.is_empty (for_pack_prefix t))
 
 include Identifiable.Make (struct
   type nonrec t = t
 
-  let compare ({ name = name1; for_pack_prefix = for_pack_prefix1 } as t1)
-      ({ name = name2; for_pack_prefix = for_pack_prefix2 } as t2) =
+  let compare t1 t2 =
     if t1 == t2
     then 0
     else
-      let c = Name.compare name1 name2 in
-      if c <> 0 then c else Prefix.compare for_pack_prefix1 for_pack_prefix2
+      pattern_match t1 ~f:(fun for_pack_prefix1 name1 ->
+          pattern_match t2 ~f:(fun for_pack_prefix2 name2 ->
+              let c = Name.compare name1 name2 in
+              if c <> 0
+              then c
+              else Prefix.compare for_pack_prefix1 for_pack_prefix2))
 
   let equal x y = if x == y then true else compare x y = 0
 
   let print fmt t =
-    if Prefix.is_empty t.for_pack_prefix
-    then Format.fprintf fmt "%a" Name.print t.name
-    else
-      Format.fprintf fmt "%a.%a" Prefix.print t.for_pack_prefix Name.print
-        t.name
+    pattern_match t ~f:(fun for_pack_prefix name ->
+        if Prefix.is_empty for_pack_prefix
+        then Format.fprintf fmt "%a" Name.print name
+        else
+          Format.fprintf fmt "%a.%a" Prefix.print for_pack_prefix Name.print
+            name)
 
   let output = output_of_print print
 
-  let hash { name; for_pack_prefix } =
-    Hashtbl.hash (Name.hash name, Prefix.hash for_pack_prefix)
+  let hash t =
+    pattern_match t ~f:(fun for_pack_prefix name ->
+        Hashtbl.hash (Name.hash name, Prefix.hash for_pack_prefix))
 end)
 
-let full_path t = Prefix.to_list t.for_pack_prefix @ [t.name]
+let full_path t = Prefix.to_list (for_pack_prefix t) @ [name t]
 
 let is_parent t ~child =
-  List.equal Name.equal (full_path t) (Prefix.to_list child.for_pack_prefix)
+  List.equal Name.equal (full_path t) (Prefix.to_list (for_pack_prefix child))
 
 let is_strict_prefix list1 ~of_:list2 ~equal =
   (not (List.equal equal list1 list2)) && List.is_prefix list1 ~of_:list2 ~equal
@@ -258,7 +278,7 @@ let can_access_by_name t ~accessed_by:me =
   (* Criterion 1 in .mli *)
   let t's_prefix_is_my_ancestor =
     List.is_prefix
-      (t.for_pack_prefix |> Prefix.to_list)
+      (for_pack_prefix t |> Prefix.to_list)
       ~of_:my_path ~equal:Name.equal
   in
   (* Criterion 2 *)
@@ -311,14 +331,19 @@ let which_cmx_file desired_comp_unit ~accessed_by : Name.t =
     match_components ~current:(full_path accessed_by)
       ~desired:(full_path desired_comp_unit)
 
-let print_name ppf t = Format.fprintf ppf "%a" Name.print t.name
+let print_name ppf t = Format.fprintf ppf "%a" Name.print (name t)
 
-let full_path_as_string t = Format.asprintf "%a" print t
+let full_path_as_string t =
+  if Prefix.is_empty (for_pack_prefix t)
+  then Name.to_string (name t)
+  else Format.asprintf "%a" print t
 
 let to_global_ident_for_bytecode t =
   Ident.create_persistent (full_path_as_string t)
 
-let print_debug ppf { for_pack_prefix; name } =
+let print_debug ppf t =
+  let name = name t in
+  let for_pack_prefix = for_pack_prefix t in
   if Prefix.is_empty for_pack_prefix
   then Format.fprintf ppf "@[<hov 1>(@[<hov 1>(id@ %a)@])@]" Name.print name
   else
