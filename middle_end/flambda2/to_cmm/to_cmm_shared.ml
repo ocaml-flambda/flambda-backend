@@ -13,6 +13,7 @@
 (**************************************************************************)
 
 open! Cmm_helpers
+open! Cmm_builtins
 module Ece = Effects_and_coeffects
 
 let exttype_of_kind (k : Flambda_kind.t) : Cmm.exttype =

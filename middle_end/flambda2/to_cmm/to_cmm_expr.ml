@@ -21,6 +21,7 @@ module K = Flambda_kind
 
 module C = struct
   include Cmm_helpers
+  include Cmm_builtins
   include To_cmm_shared
 end
 
