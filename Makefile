@@ -93,7 +93,7 @@ fmt:
 	  $$(find backend/debug \
 	    \( -name "*.ml" -or -name "*.mli" \))
 	ocamlformat -i backend/cmm_helpers.ml{,i}
-    ocamlformat -i backend/cmm_builtins.ml{,i}
+	ocamlformat -i backend/cmm_builtins.ml{,i}
 	ocamlformat -i backend/checkmach.ml{,i}
 	ocamlformat -i tools/merge_archives.ml
 	ocamlformat -i \
