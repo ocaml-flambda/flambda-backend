@@ -176,8 +176,7 @@ end
 (* As with [Name.t], changing this requires bumping magic numbers. *)
 type t =
   { name : Name.t;
-    for_pack_prefix : Prefix.t;
-    hash : int
+    for_pack_prefix : Prefix.t
   }
 
 let create for_pack_prefix name =
@@ -186,7 +185,7 @@ let create for_pack_prefix name =
     Name.check_as_path_component name;
     ListLabels.iter ~f:Name.check_as_path_component
       (for_pack_prefix |> Prefix.to_list));
-  { name; for_pack_prefix; hash = Hashtbl.hash (name, for_pack_prefix) }
+  { name; for_pack_prefix }
 
 let create_child parent name =
   let prefix =
@@ -223,20 +222,13 @@ let is_packed t = not (Prefix.is_empty t.for_pack_prefix)
 include Identifiable.Make (struct
   type nonrec t = t
 
-  let compare
-      ({ name = name1; for_pack_prefix = for_pack_prefix1; hash = hash1; _ } as
-      t1)
-      ({ name = name2; for_pack_prefix = for_pack_prefix2; hash = hash2; _ } as
-      t2) =
+  let compare ({ name = name1; for_pack_prefix = for_pack_prefix1 } as t1)
+      ({ name = name2; for_pack_prefix = for_pack_prefix2 } as t2) =
     if t1 == t2
     then 0
     else
-      let c = Stdlib.compare hash1 hash2 in
-      if c <> 0
-      then c
-      else
-        let c = Name.compare name1 name2 in
-        if c <> 0 then c else Prefix.compare for_pack_prefix1 for_pack_prefix2
+      let c = Name.compare name1 name2 in
+      if c <> 0 then c else Prefix.compare for_pack_prefix1 for_pack_prefix2
 
   let equal x y = if x == y then true else compare x y = 0
 
@@ -249,7 +241,8 @@ include Identifiable.Make (struct
 
   let output = output_of_print print
 
-  let hash t = t.hash
+  let hash { name; for_pack_prefix } =
+    Hashtbl.hash (Name.hash name, Prefix.hash for_pack_prefix)
 end)
 
 let full_path t = Prefix.to_list t.for_pack_prefix @ [t.name]
@@ -325,7 +318,7 @@ let full_path_as_string t = Format.asprintf "%a" print t
 let to_global_ident_for_bytecode t =
   Ident.create_persistent (full_path_as_string t)
 
-let print_debug ppf { for_pack_prefix; hash = _; name } =
+let print_debug ppf { for_pack_prefix; name } =
   if Prefix.is_empty for_pack_prefix
   then Format.fprintf ppf "@[<hov 1>(@[<hov 1>(id@ %a)@])@]" Name.print name
   else
