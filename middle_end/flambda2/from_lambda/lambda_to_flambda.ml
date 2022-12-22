@@ -1053,6 +1053,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
   | Lapply
       { ap_func;
         ap_args;
+        ap_result_layout;
         ap_region_close;
         ap_mode;
         ap_loc;
@@ -1063,7 +1064,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
       } ->
     (* Note that we don't need kind information about [ap_args] since we already
        have it on the corresponding [Simple]s in the environment. *)
-    maybe_insert_let_cont "apply_result" Lambda.layout_top k acc env ccenv
+    maybe_insert_let_cont "apply_result" ap_result_layout k acc env ccenv
       (fun acc env ccenv k ->
         cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode
           ap_loc ap_inlined ap_probe k k_exn)
@@ -1254,7 +1255,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
         let body acc ccenv = cps_tail acc body_env ccenv body k k_exn in
         CC.close_let_cont acc ccenv ~name:continuation ~is_exn_handler:false
           ~params ~recursive ~body ~handler)
-  | Lsend (meth_kind, meth, obj, args, pos, mode, loc) ->
+  | Lsend (meth_kind, meth, obj, args, pos, mode, loc, layout) ->
     cps_non_tail_simple acc env ccenv obj
       (fun acc env ccenv obj ->
         cps_non_tail_var "meth" acc env ccenv meth
@@ -1262,7 +1263,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
           (fun acc env ccenv meth ->
             cps_non_tail_list acc env ccenv args
               (fun acc env ccenv args ->
-                maybe_insert_let_cont "send_result" Lambda.layout_top k acc env
+                maybe_insert_let_cont "send_result" layout k acc env
                   ccenv (fun acc env ccenv k ->
                     let exn_continuation : IR.exn_continuation =
                       { exn_handler = k_exn;

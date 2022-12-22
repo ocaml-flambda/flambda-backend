@@ -146,6 +146,7 @@ and apply_coercion_result loc strict funct params args cc_res =
                       ap_loc=loc;
                       ap_func=Lvar id;
                       ap_args=List.rev args;
+                      ap_result_layout=Lambda.layout_module;
                       ap_region_close=Rc_normal;
                       ap_mode=alloc_heap;
                       ap_tailcall=Default_tailcall;
@@ -410,6 +411,7 @@ let eval_rec_bindings bindings cont =
            Lapply{
              ap_loc=Loc_unknown;
              ap_func=mod_prim "init_mod";
+             ap_result_layout = Lambda.layout_module;
              ap_args=[loc; shape];
              ap_region_close=Rc_normal;
              ap_mode=alloc_heap;
@@ -439,6 +441,7 @@ let eval_rec_bindings bindings cont =
         Lapply {
           ap_loc=Loc_unknown;
           ap_func=mod_prim "update_mod";
+          ap_result_layout = Lambda.layout_unit;
           ap_args=[shape; Lvar id; rhs];
           ap_region_close=Rc_normal;
           ap_mode=alloc_heap;
@@ -581,6 +584,7 @@ and transl_module ~scopes cc rootpath mexp =
            ap_loc=loc;
            ap_func=transl_module ~scopes Tcoerce_none None funct;
            ap_args=[transl_module ~scopes ccarg None arg];
+           ap_result_layout = Lambda.layout_module;
            ap_region_close=Rc_normal;
            ap_mode=alloc_heap;
            ap_tailcall=Default_tailcall;
@@ -858,6 +862,7 @@ and transl_include_functor ~generative modl params scopes loc =
     ap_loc = loc;
     ap_func = modl;
     ap_args = params;
+    ap_result_layout = Lambda.layout_module;
     ap_region_close=Rc_normal;
     ap_mode = alloc_heap;
     ap_tailcall = Default_tailcall;
@@ -1554,6 +1559,7 @@ let toploop_getvalue id =
                   Loc_unknown);
     ap_args=[Lconst(Const_base(
       Const_string (toplevel_name id, Location.none, None)))];
+    ap_result_layout = Lambda.layout_top;
     ap_region_close=Rc_normal;
     ap_mode=alloc_heap;
     ap_tailcall=Default_tailcall;
@@ -1572,6 +1578,7 @@ let toploop_setvalue id lam =
       [Lconst(Const_base(
          Const_string(toplevel_name id, Location.none, None)));
        lam];
+    ap_result_layout = Lambda.layout_top;
     ap_region_close=Rc_normal;
     ap_mode=alloc_heap;
     ap_tailcall=Default_tailcall;

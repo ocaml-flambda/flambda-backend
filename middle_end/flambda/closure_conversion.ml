@@ -329,7 +329,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
       in
       Let_rec (defs, close t env body)
     end
-  | Lsend (kind, meth, obj, args, reg_close, mode, loc) ->
+  | Lsend (kind, meth, obj, args, reg_close, mode, loc, _layout) ->
     let meth_var = Variable.create Names.meth in
     let obj_var = Variable.create Names.obj in
     let dbg = Debuginfo.from_location loc in

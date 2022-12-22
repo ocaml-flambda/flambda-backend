@@ -370,7 +370,7 @@ type lambda =
   | Lfor of lambda_for
   | Lassign of Ident.t * lambda
   | Lsend of meth_kind * lambda * lambda * lambda list
-             * region_close * alloc_mode * scoped_location
+             * region_close * alloc_mode * scoped_location * layout
   | Levent of lambda * lambda_event
   | Lifused of Ident.t * lambda
   | Lregion of lambda
@@ -409,6 +409,7 @@ and lambda_for =
 and lambda_apply =
   { ap_func : lambda;
     ap_args : lambda list;
+    ap_result_layout : layout;
     ap_region_close : region_close;
     ap_mode : alloc_mode;
     ap_loc : scoped_location;
@@ -482,6 +483,8 @@ val layout_boxedint : boxed_integer -> layout
 val layout_field : layout
 val layout_lazy : layout
 val layout_lazy_contents : layout
+(* A layout that is Pgenval because we are missing layout polymorphism *)
+val layout_any_value : layout
 
 val layout_top : layout
 
@@ -626,3 +629,5 @@ val mod_field: ?read_semantics: field_read_semantics -> int -> primitive
 val mod_setfield: int -> primitive
 
 val structured_constant_layout : structured_constant -> layout
+
+val primitive_result_layout : primitive -> layout
