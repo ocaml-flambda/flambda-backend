@@ -4674,29 +4674,30 @@ and type_expect_
       let ty = newvar() in
       (* remember original level *)
       begin_def ();
-      Typetexp.narrow ();
-      let modl, md_shape = !type_module env smodl in
-      Mtype.lower_nongen (get_level ty) modl.mod_type;
-      let pres =
-        match modl.mod_type with
-        | Mty_alias _ -> Mp_absent
-        | _ -> Mp_present
-      in
-      let scope = create_scope () in
-      let md =
-        { md_type = modl.mod_type; md_attributes = []; md_loc = name.loc;
-          md_uid = Uid.mk ~current_unit:(Env.get_unit_name ()); }
-      in
-      let (id, new_env) =
-        match name.txt with
-        | None -> None, env
-        | Some name ->
-          let id, env =
-            Env.enter_module_declaration ~scope ~shape:md_shape name pres md env
-          in
-          Some id, env
-      in
-      Typetexp.widen ();
+      let modl, pres, id, new_env = Typetexp.narrow_in begin fun () ->
+        let modl, md_shape = !type_module env smodl in
+        Mtype.lower_nongen (get_level ty) modl.mod_type;
+        let pres =
+          match modl.mod_type with
+          | Mty_alias _ -> Mp_absent
+          | _ -> Mp_present
+        in
+        let scope = create_scope () in
+        let md =
+          { md_type = modl.mod_type; md_attributes = []; md_loc = name.loc;
+            md_uid = Uid.mk ~current_unit:(Env.get_unit_name ()); }
+        in
+        let (id, new_env) =
+          match name.txt with
+          | None -> None, env
+          | Some name ->
+            let id, env =
+              Env.enter_module_declaration ~scope ~shape:md_shape name pres md env
+            in
+            Some id, env
+        in
+        modl, pres, id, new_env
+      end in
       (* ideally, we should catch Expr_type_clash errors
          in type_expect triggered by escaping identifiers from the local module
          and refine them into Scoping_let_module errors
@@ -6075,33 +6076,33 @@ and type_unpacks ?(in_function : (Location.t * type_expr * bool) option)
   let extended_env, tunpacks =
     List.fold_left (fun (env, tunpacks) unpack ->
       begin_def ();
-      Typetexp.narrow ();
-      let modl, md_shape =
-        !type_module env
-          Ast_helper.(
-            Mod.unpack ~loc:unpack.tu_loc
-              (Exp.ident ~loc:unpack.tu_name.loc
-                 (mkloc (Longident.Lident unpack.tu_name.txt)
-                    unpack.tu_name.loc)))
-      in
-      Mtype.lower_nongen (get_level ty) modl.mod_type;
-      let pres =
-        match modl.mod_type with
-        | Mty_alias _ -> Mp_absent
-        | _ -> Mp_present
-      in
-      let scope = create_scope () in
-      let md =
-        { md_type = modl.mod_type; md_attributes = [];
-          md_loc = unpack.tu_name.loc;
-          md_uid = unpack.tu_uid; }
-      in
-      let (id, env) =
-        Env.enter_module_declaration ~scope ~shape:md_shape
-          unpack.tu_name.txt pres md env
-      in
-      Typetexp.widen ();
-      env, (id, unpack.tu_name, pres, modl) :: tunpacks
+      Typetexp.narrow_in begin fun () ->
+        let modl, md_shape =
+          !type_module env
+            Ast_helper.(
+              Mod.unpack ~loc:unpack.tu_loc
+                (Exp.ident ~loc:unpack.tu_name.loc
+                   (mkloc (Longident.Lident unpack.tu_name.txt)
+                      unpack.tu_name.loc)))
+        in
+        Mtype.lower_nongen (get_level ty) modl.mod_type;
+        let pres =
+          match modl.mod_type with
+          | Mty_alias _ -> Mp_absent
+          | _ -> Mp_present
+        in
+        let scope = create_scope () in
+        let md =
+          { md_type = modl.mod_type; md_attributes = [];
+            md_loc = unpack.tu_name.loc;
+            md_uid = unpack.tu_uid; }
+        in
+        let (id, env) =
+          Env.enter_module_declaration ~scope ~shape:md_shape
+            unpack.tu_name.txt pres md env
+        in
+        env, (id, unpack.tu_name, pres, modl) :: tunpacks
+      end
     ) (env, []) unpacks
   in
   (* ideally, we should catch Expr_type_clash errors

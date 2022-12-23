@@ -98,20 +98,13 @@ let reset_type_variables () =
   Ctype.reset_reified_var_counter ();
   type_variables := TyVarMap.empty
 
-include (struct
-    let type_variable_stack = Stack.create ()
-
-    let narrow () =
-      Stack.push (increase_global_level (), !type_variables) type_variable_stack
-    let widen () =
-      let gl, tv = Stack.pop type_variable_stack in
-      restore_global_level gl;
-      type_variables := tv
-  end : sig
-    val narrow : unit -> unit
-    val widen : unit -> unit
-  end
-)
+let narrow_in f =
+  let old_gl = increase_global_level () in
+  let old_tv = !type_variables in
+  let result = f () in
+  restore_global_level old_gl;
+  type_variables := old_tv;
+  result
 
 let strict_ident c = (c = '_' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z')
 
@@ -557,9 +550,7 @@ and transl_type_aux env policy mode styp =
       ctyp (Ttyp_poly (vars, cty)) ty'
   | Ptyp_package (p, l) ->
       let l, mty = create_package_mty true styp.ptyp_loc env (p, l) in
-      narrow ();
-      let mty = !transl_modtype env mty in
-      widen ();
+      let mty = narrow_in (fun () -> !transl_modtype env mty) in
       let ptys = List.map (fun (s, pty) ->
                              s, transl_type env policy Alloc_mode.Global pty
                           ) l in

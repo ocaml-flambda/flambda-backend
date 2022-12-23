@@ -53,8 +53,8 @@ val transl_type_param:
 
 val get_alloc_mode : Parsetree.core_type -> alloc_mode_const
 
-val narrow: unit -> unit
-val widen: unit -> unit
+val narrow_in: (unit -> 'a) -> 'a
+  (* Evaluate in a narrowed type-variable scope *)
 
 exception Already_bound
 
