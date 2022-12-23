@@ -215,8 +215,8 @@ let transl_global_flags loc attrs =
     | Ok b -> b
     | Error () -> raise(Error(loc, Local_not_enabled))
   in
-  let global = transl_global_flag loc (Builtin_attributes.has_global attrs) in 
-  let nonlocal = transl_global_flag loc (Builtin_attributes.has_nonlocal attrs) in 
+  let global = transl_global_flag loc (Builtin_attributes.has_global attrs) in
+  let nonlocal = transl_global_flag loc (Builtin_attributes.has_nonlocal attrs) in
   match global, nonlocal with
   | true, true -> raise(Error(loc, Global_and_nonlocal))
   | true, false -> Types.Global
@@ -296,7 +296,7 @@ let make_constructor env loc type_path type_params svars sargs sret_type =
   | Some sret_type ->
       (* if it's a generalized constructor we must first narrow and
          then widen so as to not introduce any new constraints *)
-      let z = narrow () in
+      narrow ();
       reset_type_variables ();
       let univars, closed =
         match svars with
@@ -337,7 +337,7 @@ let make_constructor env loc type_path type_params svars sargs sret_type =
          Btype.iter_type_expr_cstr_args set_level args;
          set_level ret_type;
       end;
-      widen z;
+      widen ();
       targs, Some tret_type, args, Some ret_type
 
 let transl_declaration env sdecl (id, uid) =

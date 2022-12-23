@@ -55,8 +55,6 @@ exception Error_forward of Location.error
 (** Map indexed by type variable names. *)
 module TyVarMap = Misc.Stdlib.String.Map
 
-type variable_context = int * type_expr TyVarMap.t
-
 (* Support for first-class modules. *)
 
 let transl_modtype_longident = ref (fun _ -> assert false)
@@ -100,12 +98,20 @@ let reset_type_variables () =
   Ctype.reset_reified_var_counter ();
   type_variables := TyVarMap.empty
 
-let narrow () =
-  (increase_global_level (), !type_variables)
+include (struct
+    let type_variable_stack = Stack.create ()
 
-let widen (gl, tv) =
-  restore_global_level gl;
-  type_variables := tv
+    let narrow () =
+      Stack.push (increase_global_level (), !type_variables) type_variable_stack
+    let widen () =
+      let gl, tv = Stack.pop type_variable_stack in
+      restore_global_level gl;
+      type_variables := tv
+  end : sig
+    val narrow : unit -> unit
+    val widen : unit -> unit
+  end
+)
 
 let strict_ident c = (c = '_' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z')
 
@@ -551,9 +557,9 @@ and transl_type_aux env policy mode styp =
       ctyp (Ttyp_poly (vars, cty)) ty'
   | Ptyp_package (p, l) ->
       let l, mty = create_package_mty true styp.ptyp_loc env (p, l) in
-      let z = narrow () in
+      narrow ();
       let mty = !transl_modtype env mty in
-      widen z;
+      widen ();
       let ptys = List.map (fun (s, pty) ->
                              s, transl_type env policy Alloc_mode.Global pty
                           ) l in

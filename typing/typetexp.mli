@@ -53,9 +53,8 @@ val transl_type_param:
 
 val get_alloc_mode : Parsetree.core_type -> alloc_mode_const
 
-type variable_context
-val narrow: unit -> variable_context
-val widen: variable_context -> unit
+val narrow: unit -> unit
+val widen: unit -> unit
 
 exception Already_bound
 

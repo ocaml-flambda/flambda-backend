@@ -3037,10 +3037,10 @@ let type_package env m p fl =
   (* Same as Pexp_letmodule *)
   (* remember original level *)
   Ctype.begin_def ();
-  let context = Typetexp.narrow () in
+  Typetexp.narrow ();
   let modl, _mod_shape = type_module env m in
   let scope = Ctype.create_scope () in
-  Typetexp.widen context;
+  Typetexp.widen ();
   let fl', env =
     match fl with
     | [] -> [], env

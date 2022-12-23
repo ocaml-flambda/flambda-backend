@@ -1376,14 +1376,14 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
          }
   | Pcl_constraint (scl', scty) ->
       Ctype.begin_class_def ();
-      let context = Typetexp.narrow () in
+      Typetexp.narrow ();
       let cl = class_expr cl_num val_env met_env virt self_scope scl' in
       complete_class_type cl.cl_loc val_env virt Class_type cl.cl_type;
-      Typetexp.widen context;
-      let context = Typetexp.narrow () in
+      Typetexp.widen ();
+      Typetexp.narrow ();
       let clty = class_type val_env virt self_scope scty in
       complete_class_type clty.cltyp_loc val_env virt Class clty.cltyp_type;
-      Typetexp.widen context;
+      Typetexp.widen ();
       Ctype.end_def ();
 
       Ctype.limited_generalize_class_type
