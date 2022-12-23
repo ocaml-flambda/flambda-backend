@@ -18,10 +18,9 @@
    prefixes.
 
    By "compilation unit" we mean the code and data associated with the
-   compilation of a single .ml source file: that is to say, file-level
-   entities having OCaml semantics.  The notion neither includes the special
-   "startup" files nor external libraries.
-*)
+   compilation of a single .ml source file: that is to say, file-level entities
+   having OCaml semantics. The notion neither includes the special "startup"
+   files nor external libraries. *)
 
 [@@@ocaml.warning "+a-9-40-41-42"]
 
@@ -191,7 +190,11 @@ type error = private
 exception Error of error
 
 val set_current : t option -> unit
+
 val get_current : unit -> t option
+
 val get_current_or_dummy : unit -> t
+
 val get_current_exn : unit -> t
+
 val is_current : t -> bool
