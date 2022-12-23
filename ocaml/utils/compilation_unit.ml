@@ -183,11 +183,14 @@ type with_prefix =
 (* type t = Without_prefix of Name.t [@@unboxed] | With_prefix of with_prefix *)
 type t = Obj.t
 
+(* Some manual inlining is done here to ensure good performance under
+   Closure. *)
+
 let for_pack_prefix_and_name t =
   let tag = Obj.tag t in
   assert (tag = 0 || tag = Obj.string_tag);
   if tag <> 0
-  then Prefix.empty, (Sys.opaque_identity (Obj.obj t : Name.t))
+  then Prefix.empty, Sys.opaque_identity (Obj.obj t : Name.t)
   else
     let with_prefix = Sys.opaque_identity (Obj.obj t : with_prefix) in
     with_prefix.for_pack_prefix, with_prefix.name
@@ -196,7 +199,7 @@ let name t =
   let tag = Obj.tag t in
   assert (tag = 0 || tag = Obj.string_tag);
   if tag <> 0
-  then (Sys.opaque_identity (Obj.obj t : Name.t))
+  then Sys.opaque_identity (Obj.obj t : Name.t)
   else
     let with_prefix = Sys.opaque_identity (Obj.obj t : with_prefix) in
     with_prefix.name
@@ -258,9 +261,7 @@ include Identifiable.Make (struct
       let for_pack_prefix1, name1 = for_pack_prefix_and_name t1 in
       let for_pack_prefix2, name2 = for_pack_prefix_and_name t2 in
       let c = Name.compare name1 name2 in
-      if c <> 0
-      then c
-      else Prefix.compare for_pack_prefix1 for_pack_prefix2
+      if c <> 0 then c else Prefix.compare for_pack_prefix1 for_pack_prefix2
 
   let equal x y = if x == y then true else compare x y = 0
 
@@ -268,9 +269,7 @@ include Identifiable.Make (struct
     let for_pack_prefix, name = for_pack_prefix_and_name t in
     if Prefix.is_empty for_pack_prefix
     then Format.fprintf fmt "%a" Name.print name
-    else
-      Format.fprintf fmt "%a.%a" Prefix.print for_pack_prefix Name.print
-        name
+    else Format.fprintf fmt "%a.%a" Prefix.print for_pack_prefix Name.print name
 
   let output = output_of_print print
 
