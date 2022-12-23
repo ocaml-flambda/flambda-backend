@@ -101,6 +101,9 @@ fmt:
 	ocamlformat -i \
 	  $$(find utils \
 	    \( -name "*.ml" -or -name "*.mli" \))
+	ocamlformat -i \
+	  $$(find ocaml/utils \
+	    \( -name "*.ml" -or -name "*.mli" \))
 
 .PHONY: check-fmt
 check-fmt:
@@ -113,6 +116,7 @@ check-fmt:
            [ "$$(git status --porcelain backend/cmm_helpers.ml{,i})" != "" ] || \
            [ "$$(git status --porcelain backend/checkmach.ml{,i})" != "" ] || \
            [ "$$(git status --porcelain tools/merge_archives.ml)" != "" ] || \
+           [ "$$(git status --porcelain ocaml/utils)" != "" ] || \
            [ "$$(git status --porcelain utils)" != "" ]; then \
 	  echo; \
 	  echo "Tree must be clean before running 'make check-fmt'"; \
@@ -128,6 +132,7 @@ check-fmt:
            [ "$$(git diff backend/cmm_helpers.ml{,i})" != "" ] || \
            [ "$$(git diff backend/checkmach.ml{,i})" != "" ] || \
            [ "$$(git diff tools/merge_archives.ml)" != "" ] || \
+           [ "$$(git diff ocaml/utils)" != "" ] || \
            [ "$$(git diff utils)" != "" ]; then \
 	  echo; \
 	  echo "The following code was not formatted correctly:"; \
