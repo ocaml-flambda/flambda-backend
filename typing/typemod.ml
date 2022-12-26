@@ -3037,7 +3037,7 @@ let type_package env m p fl =
   (* Same as Pexp_letmodule *)
   (* remember original level *)
   Ctype.begin_def ();
-  let modl, scope = Typetexp.narrow_in begin fun () ->
+  let modl, scope = Typetexp.TyVarEnv.narrow_in begin fun () ->
     let modl, _mod_shape = type_module env m in
     let scope = Ctype.create_scope () in
     modl, scope
@@ -3534,4 +3534,4 @@ let () =
 let reset ~preserve_persistent_env =
   Env.reset_cache ~preserve_persistent_env;
   Envaux.reset_cache ~preserve_persistent_env;
-  Typetexp.reset_type_variables ()
+  Typetexp.TyVarEnv.reset ()

@@ -237,7 +237,7 @@ let transl_labels env univars closed lbls =
     Builtin_attributes.warning_scope attrs
       (fun () ->
          let arg = Ast_helper.Typ.force_poly arg in
-         let cty = transl_simple_type env ?univars closed Global arg in
+         let cty = transl_simple_type env ?univars ~fixed:closed Global arg in
          let gbl =
            match mut with
            | Mutable -> Types.Global
@@ -268,7 +268,7 @@ let transl_labels env univars closed lbls =
 
 let transl_types_gf env univars closed tyl =
   let mk arg =
-    let cty = transl_simple_type env ?univars closed Global arg in
+    let cty = transl_simple_type env ?univars ~fixed:closed Global arg in
     let gf = transl_global_flags arg.ptyp_loc arg.ptyp_attributes in
     (cty, gf)
   in
@@ -293,21 +293,21 @@ let make_constructor env loc type_path type_params svars sargs sret_type =
         transl_constructor_arguments env None true sargs
       in
         targs, None, args, None
-  | Some sret_type -> narrow_in begin fun () ->
+  | Some sret_type -> TyVarEnv.narrow_in begin fun () ->
       (* if it's a generalized constructor we must work in a narrowed
          context so as to not introduce any new constraints *)
-      reset_type_variables ();
+      TyVarEnv.reset ();
       let univars, closed =
         match svars with
         | [] -> None, false
         | vs ->
            Ctype.begin_def();
-           Some (make_poly_univars (List.map (fun v -> v.txt) vs)), true
+           Some (TyVarEnv.make_poly_univars (List.map (fun v -> v.txt) vs)), true
       in
       let args, targs =
         transl_constructor_arguments env univars closed sargs
       in
-      let tret_type = transl_simple_type env ?univars closed Global sret_type in
+      let tret_type = transl_simple_type env ?univars ~fixed:closed Global sret_type in
       let ret_type = tret_type.ctyp_type in
       (* TODO add back type_path as a parameter ? *)
       begin match get_desc ret_type with
@@ -341,14 +341,14 @@ let make_constructor env loc type_path type_params svars sargs sret_type =
 
 let transl_declaration env sdecl (id, uid) =
   (* Bind type parameters *)
-  reset_type_variables();
+  TyVarEnv.reset ();
   Ctype.begin_def ();
   let tparams = make_params env sdecl.ptype_params in
   let params = List.map (fun (cty, _) -> cty.ctyp_type) tparams in
   let cstrs = List.map
     (fun (sty, sty', loc) ->
-      transl_simple_type env false Global sty,
-      transl_simple_type env false Global sty', loc)
+      transl_simple_type env ~fixed:false Global sty,
+      transl_simple_type env ~fixed:false Global sty', loc)
     sdecl.ptype_cstrs
   in
   let unboxed_attr = get_unboxed_from_attributes sdecl in
@@ -463,7 +463,7 @@ let transl_declaration env sdecl (id, uid) =
         None -> None, None
       | Some sty ->
         let no_row = not (is_fixed_type sdecl) in
-        let cty = transl_simple_type env no_row Global sty in
+        let cty = transl_simple_type env ~fixed:no_row Global sty in
         Some cty, Some cty.ctyp_type
     in
     let arity = List.length params in
@@ -1144,9 +1144,9 @@ let is_rebind ext =
 
 let transl_type_extension extend env loc styext =
   (* Note: it would be incorrect to call [create_scope] *after*
-     [reset_type_variables] or after [begin_def] (see #10010). *)
+     [TyVarEnv.reset] or after [begin_def] (see #10010). *)
   let scope = Ctype.create_scope () in
-  reset_type_variables();
+  TyVarEnv.reset ();
   Ctype.begin_def();
   let type_path, type_decl =
     let lid = styext.ptyext_path in
@@ -1255,7 +1255,7 @@ let transl_type_extension extend env loc styext =
 
 let transl_exception env sext =
   let scope = Ctype.create_scope () in
-  reset_type_variables();
+  TyVarEnv.reset ();
   Ctype.begin_def();
   let ext =
     transl_extension_constructor ~scope env
@@ -1488,7 +1488,7 @@ let transl_value_decl env loc valdecl =
 let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
     sdecl =
   Env.mark_type_used sig_decl.type_uid;
-  reset_type_variables();
+  TyVarEnv.reset ();
   Ctype.begin_def();
   (* In the first part of this function, we typecheck the syntactic
      declaration [sdecl] in the outer environment [outer_env]. *)
@@ -1499,8 +1499,8 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   let arity = List.length params in
   let constraints =
     List.map (fun (ty, ty', loc) ->
-      let cty = transl_simple_type env false Global ty in
-      let cty' = transl_simple_type env false Global ty' in
+      let cty = transl_simple_type env ~fixed:false Global ty in
+      let cty' = transl_simple_type env ~fixed:false Global ty' in
       (* Note: We delay the unification of those constraints
          after the unification of parameters, so that clashing
          constraints report an error on the constraint location
@@ -1512,7 +1512,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   let (tman, man) =  match sdecl.ptype_manifest with
       None -> None, None
     | Some sty ->
-        let cty = transl_simple_type env no_row Global sty in
+        let cty = transl_simple_type env ~fixed:no_row Global sty in
         Some cty, Some cty.ctyp_type
   in
   (* In the second part, we check the consistency between the two
