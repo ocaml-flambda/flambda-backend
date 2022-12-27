@@ -31,8 +31,8 @@ module Name : sig
   (** Printing, comparison, sets, maps, etc. *)
   include Identifiable.S with type t := t
 
-  (** [dummy] is a placeholder for units that does not have a valid name, as
-      in the, or during initialisation of the compiler.  It is not a valid
+  (** [dummy] is a placeholder for units that does not have a valid name, as in
+      the, or during initialisation of the compiler. It is not a valid
       identifier and thus cannot be generated through [of_string]. *)
   val dummy : t
 
@@ -47,8 +47,8 @@ module Name : sig
 end
 
 module Prefix : sig
-  (** A pack name prefix, as specified to "-for-pack".  Such a prefix may
-      be empty. *)
+  (** A pack name prefix, as specified to "-for-pack". Such a prefix may be
+      empty. *)
   type t
 
   (** Printing, comparison, sets, maps, etc. *)
@@ -60,8 +60,8 @@ module Prefix : sig
       in the syntax of the "-for-pack" argument. *)
   val parse_for_pack : string -> t
 
-  (** Return the prefix specified to "-for-pack". Returns the empty prefix if
-      no "-for-pack" was passed. *)
+  (** Return the prefix specified to "-for-pack". Returns the empty prefix if no
+      "-for-pack" was passed. *)
   val from_clflags : unit -> t
 
   (** Return the list of names comprising the prefix, outermost first. *)
@@ -73,10 +73,10 @@ module Prefix : sig
 end
 
 (** The name of a compilation unit qualified with any "-for-pack" prefix that
-    was specified when the unit was compiled.  For example if compiling foo.ml
+    was specified when the unit was compiled. For example if compiling foo.ml
     with "-for-pack Baz.Bar", the corresponding value of type [t] would
-    represent "Baz.Bar.Foo", with its [name] representing "Foo" and its
-    [prefix] representing "Baz.Bar". *)
+    represent "Baz.Bar.Foo", with its [name] representing "Foo" and its [prefix]
+    representing "Baz.Bar". *)
 type t
 
 (** Printing, comparison, sets, maps, etc. *)
@@ -91,14 +91,14 @@ val print_debug : Format.formatter -> t -> unit
     mangled in any way). *)
 val create : Prefix.t -> Name.t -> t
 
-(** Create a compilation unit contained by another. Effectively uses the
-    parent compilation unit as the prefix. *)
+(** Create a compilation unit contained by another. Effectively uses the parent
+    compilation unit as the prefix. *)
 val create_child : t -> Name.t -> t
 
 (** Create a compilation unit from the given [name]. No prefix is allowed;
-    throws a fatal error if there is a "." in the name. (As a special case,
-    a "." is allowed as the first character, to handle compilation units
-    which take their names from hidden files.) *)
+    throws a fatal error if there is a "." in the name. (As a special case, a
+    "." is allowed as the first character, to handle compilation units which
+    take their names from hidden files.) *)
 val of_string : string -> t
 
 (** Create a global [Ident.t] representing this compilation unit. Only intended
@@ -120,30 +120,27 @@ val is_parent : t -> child:t -> bool
 
     In terms of paths, in order for [X] to access [Y],
 
-    (1) [Y]'s prefix must be equal to or a prefix of [X]'s full path, and
-    (2) [Y] itself must not be (strictly) a prefix of [X] (though [X] and [Y] may
-        be equal).
+    (1) [Y]'s prefix must be equal to or a prefix of [X]'s full path, and (2)
+    [Y] itself must not be (strictly) a prefix of [X] (though [X] and [Y] may be
+    equal).
 
     For example:
 
-    * [A.B.C] _can_ access [A.Q] because [A.Q] is a member of [A] and [A] is
-      an ancestor of [A.B.C]. In other words, [A.Q]'s prefix is [A] and [A] is a
-      prefix of [A.B.C].
-    * [A.Q] _cannot_ access [A.B.C] because [A.B] is not a prefix of [A.Q].
-    * [A.Q] _can_ however access [A.B], because [A] _is_ a prefix of [A.Q].
-    * [A.Q] _can_ also access its own member, [A.Q.R], because [A.Q.R]'s prefix
-      is exactly [A.Q].
-    * [A.Q] _cannot_ access [A.Q.R.S], because [A.Q.R] is not a prefix of [A.Q].
-    * [A.Q] _can_ access [F], since [F]'s prefix is the empty path, which is
-      trivially a prefix of [A.Q].
-    * [A.Q] _cannot_ access [F.G] (by criterion 1) or [A] (by criterion 2). *)
+    * [A.B.C] _can_ access [A.Q] because [A.Q] is a member of [A] and [A] is an
+    ancestor of [A.B.C]. In other words, [A.Q]'s prefix is [A] and [A] is a
+    prefix of [A.B.C]. * [A.Q] _cannot_ access [A.B.C] because [A.B] is not a
+    prefix of [A.Q]. * [A.Q] _can_ however access [A.B], because [A] _is_ a
+    prefix of [A.Q]. * [A.Q] _can_ also access its own member, [A.Q.R], because
+    [A.Q.R]'s prefix is exactly [A.Q]. * [A.Q] _cannot_ access [A.Q.R.S],
+    because [A.Q.R] is not a prefix of [A.Q]. * [A.Q] _can_ access [F], since
+    [F]'s prefix is the empty path, which is trivially a prefix of [A.Q]. *
+    [A.Q] _cannot_ access [F.G] (by criterion 1) or [A] (by criterion 2). *)
 val can_access_by_name : t -> accessed_by:t -> bool
 
-(** Determine which .cmx file to load for a given compilation unit.
-    This is tricky in the case of packs.  It can be done by lining up the
-    desired compilation unit's full path (i.e. pack prefix then unit name)
-    against the accessing unit's full path and observing when/if they
-    diverge.
+(** Determine which .cmx file to load for a given compilation unit. This is
+    tricky in the case of packs. It can be done by lining up the desired
+    compilation unit's full path (i.e. pack prefix then unit name) against the
+    accessing unit's full path and observing when/if they diverge.
 
     This is only used for native code compilation. *)
 val which_cmx_file : t -> accessed_by:t -> Name.t
@@ -157,8 +154,8 @@ val predef_exn : t
 (** The name of the compilation unit, excluding any [for_pack_prefix]. *)
 val name : t -> Name.t
 
-(** The name of the compilation unit, excluding any [for_pack_prefix], as
-    as a string. *)
+(** The name of the compilation unit, excluding any [for_pack_prefix], as as a
+    string. *)
 
 (* CR mshinwell: Try to delete this as soon as the functor packs work is
    finished. *)
@@ -174,12 +171,12 @@ val with_for_pack_prefix : t -> Prefix.t -> t
     [for_pack_prefix]. *)
 val is_packed : t -> bool
 
-(** Returns the full path of the compilation unit.  The basename of the unit
-    will be the last component of the returned list. *)
+(** Returns the full path of the compilation unit. The basename of the unit will
+    be the last component of the returned list. *)
 val full_path : t -> Name.t list
 
-(** Returns the full path of the compilation unit, as a string, following
-    usual conventions. *)
+(** Returns the full path of the compilation unit, as a string, following usual
+    conventions. *)
 val full_path_as_string : t -> string
 
 type error = private
