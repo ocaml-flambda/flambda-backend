@@ -23,9 +23,10 @@ open! Dynlink_compilerlibs
 module DC = Dynlink_common
 module DT = Dynlink_types
 
-let convert_cmi_import (name, data) =
-  (name |> Compilation_unit.Name.to_string),
-  Option.map (fun (_unit, crc) -> crc) data
+let convert_cmi_import import =
+  let name = Import_info.name import |> Compilation_unit.Name.to_string in
+  let crc = Import_info.crc import in
+  name, crc
 
 module Bytecode = struct
   type filename = string
@@ -37,7 +38,7 @@ module Bytecode = struct
     let crc _t = None
 
     let interface_imports (t : t) =
-      List.map convert_cmi_import t.cu_imports
+      List.map convert_cmi_import (Array.to_list t.cu_imports)
 
     let implementation_imports (t : t) =
       let required_from_unit =
@@ -68,7 +69,7 @@ module Bytecode = struct
 
   type handle = Stdlib.in_channel * filename * Digest.t
 
-  let default_crcs = ref []
+  let default_crcs = ref [| |]
   let default_global_map = ref Symtable.empty_global_map
 
   let init () =
@@ -89,16 +90,15 @@ module Bytecode = struct
     Compilation_unit.create Compilation_unit.Prefix.empty modname
 
   let fold_initial_units ~init ~f =
-    List.fold_left (fun acc (modname, interface) ->
+    Array.fold_left (fun acc import ->
+        let modname = Import_info.name import in
+        let crc = Import_info.crc import in
         let id =
           Compilation_unit.to_global_ident_for_bytecode
             (assume_no_prefix modname)
         in
         let defined =
           Symtable.is_defined_in_global_map !default_global_map id
-        in
-        let interface =
-          Option.map (fun (_unit, crc) -> crc) interface
         in
         let implementation =
           if defined then Some (None, DT.Loaded)
@@ -109,7 +109,7 @@ module Bytecode = struct
           else []
         in
         let comp_unit = modname |> Compilation_unit.Name.to_string in
-        f acc ~comp_unit ~interface ~implementation ~defined_symbols)
+        f acc ~comp_unit ~interface:crc ~implementation ~defined_symbols)
       init
       !default_crcs
 
@@ -236,13 +236,15 @@ module Native = struct
     let name (t : t) = t.dynu_name |> Compilation_unit.name_as_string
     let crc (t : t) = Some t.dynu_crc
 
-    let convert_cmx_import (name, crc) =
-      (name |> Compilation_unit.name_as_string), crc
+    let convert_cmx_import import =
+      let cu = Import_info.cu import |> Compilation_unit.name_as_string in
+      let crc = Import_info.crc import in
+      cu, crc
 
     let interface_imports (t : t) =
-      List.map convert_cmi_import t.dynu_imports_cmi
+      List.map convert_cmi_import (Array.to_list t.dynu_imports_cmi)
     let implementation_imports (t : t) =
-      List.map convert_cmx_import t.dynu_imports_cmx
+      List.map convert_cmx_import (Array.to_list t.dynu_imports_cmx)
 
     let defined_symbols (t : t) =
       List.map (fun comp_unit ->

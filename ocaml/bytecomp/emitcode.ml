@@ -412,7 +412,7 @@ let to_file outchan unit_name objfile ~required_globals code =
       cu_pos = pos_code;
       cu_codesize = !out_position;
       cu_reloc = List.rev !reloc_info;
-      cu_imports = Env.imports();
+      cu_imports = Env.imports() |> Array.of_list;
       cu_primitives = List.map Primitive.byte_name
                                !Translmod.primitive_declarations;
       cu_required_globals = Compilation_unit.Set.elements required_globals;

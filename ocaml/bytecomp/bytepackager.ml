@@ -221,7 +221,7 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
     let pos_final = pos_out oc in
     let imports =
       List.filter
-        (fun (name, _crc) -> not (List.mem name unit_names))
+        (fun import -> not (List.mem (Import_info.name import) unit_names))
         (Bytelink.extract_crc_interfaces()) in
     let for_pack_prefix = CU.Prefix.from_clflags () in
     let modname = targetname |> CU.Name.of_string in
@@ -232,7 +232,10 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
         cu_codesize = pos_debug - pos_code;
         cu_reloc = List.rev !relocs;
         cu_imports =
-          (modname, Some (cu_name, Env.crc_of_unit modname)) :: imports;
+          Array.of_list
+            ((Import_info.create modname
+               ~crc_with_unit:(Some (cu_name, Env.crc_of_unit modname)))
+              :: imports);
         cu_primitives = !primitives;
         cu_required_globals = Compilation_unit.Set.elements required_globals;
         cu_force_link = !force_link;

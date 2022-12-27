@@ -36,9 +36,11 @@ let expunge_map tbl =
   Symtable.filter_global_map (fun id -> keep (Ident.name id)) tbl
 
 let expunge_crcs tbl =
-  List.filter
-    (fun (unit, _crc) -> keep (unit |> Compilation_unit.Name.to_string))
-    tbl
+  Array.to_list tbl
+  |> List.filter
+    (fun import ->
+      keep (Import_info.name import |> Compilation_unit.Name.to_string))
+  |> Array.of_list
 
 let main () =
   let input_name = Sys.argv.(1) in
@@ -65,7 +67,7 @@ let main () =
           let global_map = (input_value ic : Symtable.global_map) in
           output_value oc (expunge_map global_map)
       | "CRCS" ->
-          let crcs = (input_value ic : Cmo_format.import_info list) in
+          let crcs = (input_value ic : Import_info.t array) in
           output_value oc (expunge_crcs crcs)
       | _ ->
           copy_file_chunk ic oc len

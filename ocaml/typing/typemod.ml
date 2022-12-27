@@ -3320,15 +3320,16 @@ let package_units initial_env objfiles cmifile modulename =
     (* Determine imports *)
     let unit_names = List.map fst units in
     let imports =
-      List.filter
-        (fun (name, _crc) -> not (List.mem name unit_names))
+      List.filter (fun import ->
+          let name = Import_info.name import in
+          not (List.mem name unit_names))
         (Env.imports()) in
     (* Write packaged signature *)
     if not !Clflags.dont_write_files then begin
       let cmi =
         Env.save_signature_with_imports ~alerts:Misc.Stdlib.String.Map.empty
           sg modulename
-          (prefix ^ ".cmi") imports
+          (prefix ^ ".cmi") (Array.of_list imports)
       in
       Cmt_format.save_cmt (prefix ^ ".cmt")  modulename
         (Cmt_format.Packed (cmi.Cmi_format.cmi_sign, objfiles)) None initial_env

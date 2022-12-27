@@ -60,7 +60,9 @@ let cmx_required = ref ([] : CU.t list)
 let check_cmi_consistency file_name cmis =
   try
     Array.iter
-      (fun (name, crco) ->
+      (fun import ->
+        let name = Import_info.name import in
+        let crco = Import_info.crc_with_unit import in
         CU.Name.Tbl.replace interfaces name ();
         match crco with
           None -> ()
@@ -77,7 +79,9 @@ let check_cmi_consistency file_name cmis =
 let check_cmx_consistency file_name cmxs =
   try
     Array.iter
-      (fun (name, crco) ->
+      (fun import ->
+        let name = Import_info.cu import in
+        let crco = Import_info.crc import in
         implementations := name :: !implementations;
         match crco with
             None ->
@@ -110,13 +114,16 @@ let check_consistency ~unit cmis cmxs =
 
 let extract_crc_interfaces () =
   CU.Name.Tbl.fold (fun name () crcs ->
-      (name, Cmi_consistbl.find crc_interfaces name) :: crcs)
+      let crc_with_unit = Cmi_consistbl.find crc_interfaces name in
+      Import_info.create name ~crc_with_unit :: crcs)
     interfaces
     []
 
 let extract_crc_implementations () =
   Cmx_consistbl.extract !implementations crc_implementations
-  |> List.map (fun (name, crco) -> name, Option.map snd crco)
+  |> List.map (fun (cu, crc) ->
+       let crc = Option.map (fun ((), crc) -> crc) crc in
+       Import_info.create_normal cu ~crc)
 
 (* Add C objects and options and "custom" info from a library descriptor.
    See bytecomp/bytelink.ml for comments on the order of C objects. *)
@@ -151,7 +158,8 @@ let is_required name =
   try ignore (Hashtbl.find missing_globals name); true
   with Not_found -> false
 
-let add_required by (name, _crc) =
+let add_required by import =
+  let name = Import_info.cu import in
   try
     let rq = Hashtbl.find missing_globals name in
     rq := by :: !rq
@@ -206,16 +214,16 @@ let scan_file ~shared genfns file (objfiles, tolink) =
   | Unit (file_name,info,crc) ->
       (* This is a .cmx file. It must be linked in any case. *)
       remove_required info.ui_unit;
-      List.iter (fun (name, crc) ->
-          add_required (file_name, None) (name, crc))
+      List.iter (fun import ->
+          add_required (file_name, None) import)
         info.ui_imports_cmx;
       let dynunit : Cmxs_format.dynunit option =
         if not shared then None else
           Some { dynu_name = info.ui_unit;
                  dynu_crc = crc;
                  dynu_defines = info.ui_defines;
-                 dynu_imports_cmi = info.ui_imports_cmi;
-                 dynu_imports_cmx = info.ui_imports_cmx }
+                 dynu_imports_cmi = info.ui_imports_cmi |> Array.of_list;
+                 dynu_imports_cmx = info.ui_imports_cmx |> Array.of_list }
       in
       let unit =
         { name = info.ui_unit;
@@ -261,8 +269,8 @@ let scan_file ~shared genfns file (objfiles, tolink) =
              remove_required info.li_name;
              let req_by = (file_name, Some li_name) in
              info.li_imports_cmx |> Misc.Bitmap.iter (fun i ->
-               let modname, digest = infos.lib_imports_cmx.(i) in
-               add_required req_by (modname, digest));
+               let import = infos.lib_imports_cmx.(i) in
+               add_required req_by import);
              let imports_list tbl bits =
                List.init (Array.length tbl) (fun i ->
                  if Misc.Bitmap.get bits i then Some tbl.(i) else None)
@@ -275,9 +283,11 @@ let scan_file ~shared genfns file (objfiles, tolink) =
                    dynu_crc = info.li_crc;
                    dynu_defines = info.li_defines;
                    dynu_imports_cmi =
-                     imports_list infos.lib_imports_cmi info.li_imports_cmi;
+                     imports_list infos.lib_imports_cmi info.li_imports_cmi
+                     |> Array.of_list;
                    dynu_imports_cmx =
-                     imports_list infos.lib_imports_cmx info.li_imports_cmx }
+                     imports_list infos.lib_imports_cmx info.li_imports_cmx
+                     |> Array.of_list }
              in
              let unit =
                { name = info.li_name;

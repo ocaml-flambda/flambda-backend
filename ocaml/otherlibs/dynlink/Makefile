@@ -87,6 +87,7 @@ COMPILERLIBS_SOURCES=\
   utils/int_replace_polymorphic_compare.ml \
   typing/ident.ml \
   utils/compilation_unit.ml \
+  utils/import_info.ml \
   utils/linkage_name.ml \
   utils/symbol.ml \
   utils/lazy_backtrack.ml \

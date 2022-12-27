@@ -49,8 +49,10 @@ let cmx_required = ref ([] : CU.t list)
 
 let check_consistency file_name unit crc =
   begin try
-    List.iter
-      (fun (name, crco) ->
+    Array.iter
+      (fun import ->
+        let name = Import_info.name import in
+        let crco = Import_info.crc_with_unit import in
         interfaces := name :: !interfaces;
         match crco with
           None -> ()
@@ -68,8 +70,10 @@ let check_consistency file_name unit crc =
     raise(Error(Inconsistent_interface(name, user, auth)))
   end;
   begin try
-    List.iter
-      (fun (name, crco) ->
+    Array.iter
+      (fun import ->
+        let name = Import_info.cu import in
+        let crco = Import_info.crc import in
         implementations := name :: !implementations;
         match crco with
             None ->
@@ -100,9 +104,15 @@ let check_consistency file_name unit crc =
 
 let extract_crc_interfaces () =
   Cmi_consistbl.extract !interfaces crc_interfaces
+  |> List.map (fun (name, crc_with_unit) ->
+      Import_info.create name ~crc_with_unit)
+
 let extract_crc_implementations () =
   Cmx_consistbl.extract !implementations crc_implementations
-  |> List.map (fun (name, crco) -> name, Option.map snd crco)
+  |> List.map (fun (cu, crc) ->
+       let crc = Option.map (fun ((), crc) -> crc) crc in
+       Import_info.create_normal cu ~crc)
+
 
 (* Add C objects and options and "custom" info from a library descriptor.
    See bytecomp/bytelink.ml for comments on the order of C objects. *)
@@ -137,7 +147,8 @@ let is_required name =
   try ignore (Hashtbl.find missing_globals name); true
   with Not_found -> false
 
-let add_required by (name, _crc) =
+let add_required by import =
+  let name = Import_info.cu import in
   try
     let rq = Hashtbl.find missing_globals name in
     rq := by :: !rq
@@ -199,7 +210,7 @@ let scan_file file tolink =
   | Unit (file_name,info,crc) ->
       (* This is a .cmx file. It must be linked in any case. *)
       remove_required info.ui_unit;
-      List.iter (add_required file_name) info.ui_imports_cmx;
+      Array.iter (add_required file_name) info.ui_imports_cmx;
       (info, file_name, crc) :: tolink
   | Library (file_name,infos) ->
       (* This is an archive file. Each unit contained in it will be linked
@@ -216,7 +227,7 @@ let scan_file file tolink =
              let req_by =
                Printf.sprintf "%s(%s)" file_name (ui_name |> CU.Name.to_string)
              in
-             List.iter (add_required req_by) info.ui_imports_cmx;
+             Array.iter (add_required req_by) info.ui_imports_cmx;
              (info, file_name, crc) :: reqd
            end else
            reqd)
@@ -231,6 +242,8 @@ let force_linking_of_startup ~ppf_dump =
 let make_globals_map units_list ~crc_interfaces =
   let crc_interfaces =
     crc_interfaces
+    |> List.map (fun import ->
+         Import_info.name import, Import_info.crc_with_unit import)
     |> CU.Name.Tbl.of_list
   in
   let defined =
