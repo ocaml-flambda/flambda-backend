@@ -54,7 +54,6 @@ where the test file or test dir are specified with respect to the
     $ make -f Makefile.jst test-one TEST=typing-local/local.ml
     $ make -f Makefile.jst test-one DIR=typing-local
 
-<<<<<<< HEAD
 ## Debugging
 
 OCaml 4.14 makes `type_expr` abstract, and thus normal debug printing
@@ -71,5 +70,3 @@ the debugger to load the compiler code, required for the next
 step.
 
 4. Execute `source tools/debug_printers` to install the printers.
-=======
->>>>>>> origin/flambda-patches
