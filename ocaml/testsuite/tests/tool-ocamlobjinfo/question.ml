@@ -15,4 +15,6 @@ program = "question.cmx"
    segfault on us. *)
 *)
 
-let answer = 42
+(* We use a function rather than a value of type int to ensure that there
+   is an Flambda 2 code section. *)
+let answer () = 42
