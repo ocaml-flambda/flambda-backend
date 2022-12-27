@@ -47,6 +47,7 @@ UTILS = \
   utils/target_system.cmo \
   typing/ident.cmo \
   utils/compilation_unit.cmo utils/linkage_name.cmo utils/symbol.cmo \
+  utils/import_info.cmo \
   utils/lazy_backtrack.cmo \
   utils/diffing.cmo \
   utils/diffing_with_keys.cmo

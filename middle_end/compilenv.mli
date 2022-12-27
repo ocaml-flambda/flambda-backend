@@ -133,6 +133,13 @@ val require_global: Compilation_unit.t -> unit
 
 val read_library_info: string -> library_infos
 
+(* CR mshinwell: see comment in .ml
+val ensure_sharing_between_cmi_and_cmx_imports :
+  (_ * (Compilation_unit.t * _) option) list ->
+  (Compilation_unit.t * 'a) list ->
+  (Compilation_unit.t * 'a) list
+*)
+
 type error =
     Not_a_unit_info of string
   | Corrupted_unit_info of string
