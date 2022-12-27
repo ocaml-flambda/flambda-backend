@@ -178,6 +178,13 @@ let save_cmt filename modname binary_annots sourcefile initial_env cmi shape =
            | Some cmi -> Some (output_cmi temp_file_name oc cmi)
          in
          let source_digest = Option.map Digest.file sourcefile in
+         let get_imports () =
+           Env.imports ()
+           |> List.map (fun import ->
+                let name = Import_info.name import in
+                let crc_with_unit = Import_info.crc_with_unit import in
+                name, crc_with_unit)
+         in
          let compare_imports (modname1, _crc1) (modname2, _crc2) =
            Compilation_unit.Name.compare modname1 modname2
          in
@@ -193,7 +200,7 @@ let save_cmt filename modname binary_annots sourcefile initial_env cmi shape =
            cmt_source_digest = source_digest;
            cmt_initial_env = if need_to_clear_env then
                keep_only_summary initial_env else initial_env;
-           cmt_imports = List.sort compare_imports (Env.imports ());
+           cmt_imports = List.sort compare_imports (get_imports ());
            cmt_interface_digest = this_crc;
            cmt_use_summaries = need_to_clear_env;
            cmt_uid_to_loc = Env.get_uid_to_loc_tbl ();

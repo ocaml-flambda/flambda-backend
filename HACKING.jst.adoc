@@ -2,9 +2,9 @@
 
 ocaml-jst has a dune-based build system which is different from
 upstream OCaml. To get started, you'll need a working install of OCaml
-4.12 and dune, e.g. via OPAM:
+4.14 and dune, e.g. via OPAM:
 
-    $ opam switch create 4.12.0
+    $ opam switch create 4.14.0
     $ eval $(opam env)
     $ opam install dune
 
@@ -30,7 +30,7 @@ to build without running the testsuite, or:
 to start a continuously polling build of the compiler.
 
 Note that the dune-based build system is entirely separate from the main
-Makefile, and so you will need to use `make -f Makefile.jst install` 
+Makefile, and so you will need to use `make -f Makefile.jst install`
 to install after building.
 
 ## Testing
@@ -54,6 +54,7 @@ where the test file or test dir are specified with respect to the
     $ make -f Makefile.jst test-one TEST=typing-local/local.ml
     $ make -f Makefile.jst test-one DIR=typing-local
 
+<<<<<<< HEAD
 ## Debugging
 
 OCaml 4.14 makes `type_expr` abstract, and thus normal debug printing
@@ -70,3 +71,5 @@ the debugger to load the compiler code, required for the next
 step.
 
 4. Execute `source tools/debug_printers` to install the printers.
+=======
+>>>>>>> origin/flambda-patches

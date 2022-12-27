@@ -2766,8 +2766,7 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
   in
   loop ty_fun mode_fun rev_args sargs
 
-let collect_apply_args env funct ignore_labels
-       ty_fun ty_fun0 mode_fun sargs ret_tvar =
+let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret_tvar =
   let warned = ref false in
   let rec loop ty_fun ty_fun0 mode_fun rev_args sargs =
     let ty_fun' = expand_head env ty_fun in

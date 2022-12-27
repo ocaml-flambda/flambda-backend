@@ -48,6 +48,8 @@ and binary_part =
   | Partial_signature_item of signature_item
   | Partial_module_type of module_type
 
+(* CR mshinwell: this should be removed in favour of [Import_info.t],
+   but will require a new Merlin *)
 type import_info =
   (Compilation_unit.Name.t * (Compilation_unit.t * Digest.t) option)
 

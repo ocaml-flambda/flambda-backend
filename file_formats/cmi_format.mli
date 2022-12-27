@@ -21,13 +21,10 @@ type pers_flags =
   | Opaque
   | Unsafe_string
 
-type import_info =
-    Compilation_unit.Name.t * (Compilation_unit.t * Digest.t) option
-
 type cmi_infos = {
     cmi_name : Compilation_unit.t;
     cmi_sign : Types.signature_item list;
-    cmi_crcs : import_info list;
+    cmi_crcs : Import_info.t array;
     cmi_flags : pers_flags list;
 }
 
