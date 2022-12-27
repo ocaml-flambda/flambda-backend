@@ -214,12 +214,13 @@ let for_pack_prefix t =
     with_prefix.for_pack_prefix
 
 let create for_pack_prefix name =
-  if not (Prefix.is_empty for_pack_prefix)
+  let empty_prefix = Prefix.is_empty for_pack_prefix in
+  if not empty_prefix
   then (
     Name.check_as_path_component name;
     ListLabels.iter ~f:Name.check_as_path_component
       (for_pack_prefix |> Prefix.to_list));
-  if Prefix.is_empty for_pack_prefix
+  if empty_prefix
   then Sys.opaque_identity (Obj.repr name)
   else Sys.opaque_identity (Obj.repr { for_pack_prefix; name })
 
@@ -347,6 +348,8 @@ let which_cmx_file desired_comp_unit ~accessed_by : Name.t =
 let print_name ppf t = Format.fprintf ppf "%a" Name.print (name t)
 
 let full_path_as_string t =
+  (* We take care not to break sharing when the prefix is empty. However we
+     can't share in the case where there is a prefix. *)
   if Prefix.is_empty (for_pack_prefix t)
   then Name.to_string (name t)
   else Format.asprintf "%a" print t
