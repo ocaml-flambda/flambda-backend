@@ -199,6 +199,10 @@ let print_cmx_infos (ui, crc) =
       Flambda2_cmx.Flambda_cmx_format.from_raw cmx
         ~sections:Flambda_backend_utils.File_sections.empty
     in
+    (* CR ncourant: I think it would be better to actually read the
+       sections here (the cost is almost zero anyway), in case the
+       printing code uses them at some point.  (They might even be
+       currently read, I'm not sure). *)
     Format.printf "%a\n%!" Flambda2_cmx.Flambda_cmx_format.print cmx
   end;
   print_generic_fns ui.uir_generic_fns;
