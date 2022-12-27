@@ -25,15 +25,12 @@ type reloc_info =
 
 (* Descriptor for compilation units *)
 
-type import_info =
-  Compilation_unit.Name.t * (Compilation_unit.t * Digest.t) option
-
 type compilation_unit_descr =
   { cu_name: Compilation_unit.t;        (* Name of compilation unit *)
     mutable cu_pos: int;                (* Absolute position in file *)
     cu_codesize: int;                   (* Size of code block *)
     cu_reloc: (reloc_info * int) list;  (* Relocation information *)
-    cu_imports: import_info list;       (* Names and CRC of intfs imported *)
+    cu_imports: Import_info.t array;    (* Names and CRC of intfs imported *)
     cu_required_globals: Compilation_unit.t list;
                                         (* Compilation units whose
                                            initialization side effects

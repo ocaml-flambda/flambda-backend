@@ -19,11 +19,6 @@
 
 (* Format of .cmx, .cmxa and .cmxs files *)
 
-type import_info_cmi =
-  Compilation_unit.Name.t * (Compilation_unit.t * Digest.t) option
-type import_info_cmx =
-  Compilation_unit.t * Digest.t option
-
 (* Each .o file has a matching .cmx file that provides the following infos
    on the compilation unit:
      - list of other units imported, with MD5s of their .cmx files
@@ -45,9 +40,9 @@ type unit_infos =
                                           (* All compilation units in the
                                              .cmx file (i.e. [ui_name] and
                                              any produced via [Asmpackager]) *)
-    mutable ui_imports_cmi: import_info_cmi list;
+    mutable ui_imports_cmi: Import_info.t array;
                                           (* Interfaces imported *)
-    mutable ui_imports_cmx: import_info_cmx list;
+    mutable ui_imports_cmx: Import_info.t array;
                                           (* Infos imported *)
     mutable ui_curry_fun: Clambda.arity list; (* Currying functions needed *)
     mutable ui_apply_fun: apply_fn list;  (* Apply functions needed *)
