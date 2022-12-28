@@ -177,6 +177,7 @@ type error =
   | Uncurried_function_escapes
   | Local_return_annotation_mismatch of Location.t
   | Bad_tail_annotation of [`Conflict|`Not_a_tailcall]
+  | Optional_poly_param
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -537,13 +538,22 @@ let has_local_attr loc attrs =
   match Builtin_attributes.has_local attrs with
   | Ok l -> l
   | Error () ->
-     raise(Typetexp.Error(loc, Env.empty, Local_not_enabled))
+     raise(Typetexp.Error(loc, Env.empty, Unsupported_extension Local))
 
 let has_local_attr_pat ppat =
   has_local_attr ppat.ppat_loc ppat.ppat_attributes
 
 let has_local_attr_exp pexp =
   has_local_attr pexp.pexp_loc pexp.pexp_attributes
+
+let has_poly_constraint spat =
+  match spat.ppat_desc with
+  | Ppat_constraint(_, styp) -> begin
+      match styp.ptyp_desc with
+      | Ptyp_poly _ -> true
+      | _ -> false
+    end
+  | _ -> false
 
 let mode_cross env (ty : type_expr) mode =
   if is_principal ty then begin
@@ -883,19 +893,6 @@ and build_as_type_aux ~refine (env : Env.t ref) p =
 
 (* Constraint solving during typing of patterns *)
 
-let solve_Ppat_poly_constraint ~refine mode env loc sty expected_ty =
-  let cty, ty, force = Typetexp.transl_simple_type_delayed !env mode sty in
-  unify_pat_types ~refine loc env ty (instance expected_ty);
-  pattern_force := force :: !pattern_force;
-  match get_desc ty with
-  | Tpoly (body, tyl) ->
-      begin_def ();
-      init_def generic_level;
-      let _, ty' = instance_poly ~keep_names:true false tyl body in
-      end_def ();
-      (cty, ty, ty')
-  | _ -> assert false
-
 let solve_Ppat_alias ~refine env pat =
   begin_def ();
   let ty_var, mode = build_as_type_and_mode ~refine env pat in
@@ -1072,6 +1069,12 @@ let solve_Ppat_constraint ~refine loc env mode sty expected_ty =
   generalize_structure ty;
   let ty, expected_ty' = instance ty, ty in
   unify_pat_types ~refine loc env ty (instance expected_ty);
+  let expected_ty' =
+    match get_desc expected_ty' with
+    | Tpoly (expected_ty', tl) ->
+        snd (instance_poly ~keep_names:true false tl expected_ty')
+    | _ -> expected_ty'
+  in
   (cty, ty, expected_ty')
 
 let solve_Ppat_variant ~refine loc env tag no_arg expected_ty =
@@ -2013,25 +2016,6 @@ and type_pat_aux
             pat_attributes = [];
             pat_env = !env }
       end
-  | Ppat_constraint(
-      {ppat_desc=Ppat_var name; ppat_loc=lloc; ppat_attributes = attrs},
-      ({ptyp_desc=Ptyp_poly _} as sty)) ->
-      (* explicitly polymorphic type *)
-      assert construction_not_used_in_counterexamples;
-      let type_mode =
-        if has_local_attr_pat sp then Alloc_mode.Local
-        else Alloc_mode.Global
-      in
-      let cty, ty, ty' =
-        solve_Ppat_poly_constraint ~refine type_mode env lloc sty expected_ty in
-      let id = enter_variable lloc name alloc_mode.mode ty' attrs in
-      rvp k { pat_desc = Tpat_var (id, name);
-              pat_loc = lloc;
-              pat_extra = [Tpat_constraint cty, loc, sp.ppat_attributes];
-              pat_type = ty;
-              pat_mode = alloc_mode.mode;
-              pat_attributes = [];
-              pat_env = !env }
   | Ppat_alias(sq, name) ->
       assert construction_not_used_in_counterexamples;
       type_pat Value sq expected_ty (fun q ->
@@ -2389,17 +2373,7 @@ and type_pat_aux
           Printtyp.raw_type_expr p.pat_type;*)
         let extra = (Tpat_constraint cty, loc, sp'.ppat_attributes) in
         let p : k general_pattern =
-          match category, (p : k general_pattern) with
-          | Value, {pat_desc = Tpat_var (id,s); _} ->
-            {p with
-              pat_type = ty;
-              pat_desc =
-                Tpat_alias
-                  ({p with pat_desc = Tpat_any; pat_attributes = []}, id,s);
-              pat_extra = [extra];
-            }
-          | _, p ->
-             { p with pat_type = ty; pat_extra = extra::p.pat_extra }
+          { p with pat_type = ty; pat_extra = extra::p.pat_extra }
         in k p)
   | Ppat_type lid ->
       assert construction_not_used_in_counterexamples;
@@ -2531,6 +2505,7 @@ let type_pattern_list
   (patl, new_env, get_ref pattern_force, pvs, unpacks)
 
 let type_class_arg_pattern cl_num val_env met_env l spat =
+  if !Clflags.principal then Ctype.begin_def ();
   reset_pattern false;
   let nv = newvar () in
   let alloc_mode = simple_pat_mode Value_mode.global in
@@ -2543,6 +2518,11 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
   end;
   List.iter (fun f -> f()) (get_ref pattern_force);
   if is_optional l then unify_pat (ref val_env) pat (type_option (newvar ()));
+  let pvs = !pattern_variables in
+  if !Clflags.principal then begin
+    Ctype.end_def ();
+    iter_pattern_variables_type generalize_structure pvs;
+  end;
   let (pv, val_env, met_env) =
     List.fold_right
       (fun {pv_id; pv_type; pv_loc; pv_as_var; pv_attributes}
@@ -2573,7 +2553,7 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
             met_env
          in
          ((id', pv_id, pv_type)::pv, val_env, met_env))
-      !pattern_variables ([], val_env, met_env)
+      pvs ([], val_env, met_env)
   in
   (pat, pv, val_env, met_env)
 
@@ -2686,7 +2666,7 @@ type untyped_apply_arg =
         wrapped_in_some : bool; }
   | Unknown_arg of
       { sarg : Parsetree.expression;
-        ty_arg : type_expr;
+        ty_arg_mono : type_expr;
         mode_arg : Alloc_mode.t; }
   | Eliminated_optional_arg of
       { mode_fun: Alloc_mode.t;
@@ -2716,11 +2696,13 @@ let remaining_function_type ty_ret mode_ret rev_args =
          | Arg (Unknown_arg { mode_arg; _ } | Known_arg { mode_arg; _ }) ->
              let closed_args = mode_arg :: closed_args in
              (ty_ret, mode_ret, closed_args)
-         | Arg (Eliminated_optional_arg { mode_fun; ty_arg; mode_arg; level })
+         | Arg (Eliminated_optional_arg
+                  { mode_fun; ty_arg; mode_arg; level })
          | Omitted { mode_fun; ty_arg; mode_arg; level } ->
+             let arrow_desc = lbl, mode_arg, mode_ret in
              let ty_ret =
                newty2 ~level
-                 (Tarrow ((lbl, mode_arg, mode_ret), ty_arg, ty_ret, commu_ok))
+                 (Tarrow (arrow_desc, ty_arg, ty_ret, commu_ok))
              in
              let mode_ret =
                Alloc_mode.join (mode_fun :: closed_args)
@@ -2743,11 +2725,12 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
     match sargs with
     | [] -> ty_fun, mode_fun, List.rev rev_args
     | (lbl, sarg) :: rest ->
-        let (mode_arg, ty_arg, mode_res, ty_res) =
+        let (mode_arg, ty_arg_mono, mode_res, ty_res) =
           let ty_fun = expand_head env ty_fun in
           match get_desc ty_fun with
           | Tvar _ ->
-              let ty_arg = newvar () in
+              let ty_arg_mono = newvar () in
+              let ty_arg = newmono ty_arg_mono in
               let ty_res = newvar () in
               if ret_tvar &&
                  not (is_prim ~name:"%identity" funct) &&
@@ -2760,10 +2743,10 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
               let kind = (lbl, mode_arg, mode_res) in
               unify env ty_fun
                 (newty (Tarrow(kind,ty_arg,ty_res,commu_var ())));
-              (mode_arg, ty_arg, mode_res, ty_res)
+              (mode_arg, ty_arg_mono, mode_res, ty_res)
         | Tarrow ((l, mode_arg, mode_res), ty_arg, ty_res, _)
           when labels_match ~param:l ~arg:lbl ->
-            (mode_arg, ty_arg, mode_res, ty_res)
+            (mode_arg, tpoly_get_mono ty_arg, mode_res, ty_res)
         | td ->
             let ty_fun = match td with Tarrow _ -> newty td | _ -> ty_fun in
             let ty_res = remaining_function_type ty_fun mode_fun rev_args in
@@ -2778,7 +2761,7 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
                 raise(Error(funct.exp_loc, env, Apply_non_function
                               (expand_head env funct.exp_type)))
     in
-    let arg = Unknown_arg { sarg; ty_arg; mode_arg } in
+    let arg = Unknown_arg { sarg; ty_arg_mono; mode_arg; } in
     loop ty_res mode_res ((lbl, Arg arg) :: rev_args) rest
   in
   loop ty_fun mode_fun rev_args sargs
@@ -2807,7 +2790,8 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
           if wrapped_in_some then
             may_warn sarg.pexp_loc
               (Warnings.Not_principal "using an optional argument here");
-          Arg (Known_arg { sarg; ty_arg; ty_arg0; mode_arg; wrapped_in_some })
+          Arg (Known_arg
+            { sarg; ty_arg; ty_arg0; mode_arg; wrapped_in_some })
         in
         let eliminate_optional_arg () =
           may_warn funct.exp_loc
@@ -2878,9 +2862,10 @@ let type_omitted_parameters expected_mode env ty_ret mode_ret args =
              let args = (lbl, arg) :: args in
              (ty_ret, mode_ret, open_args, closed_args, args)
          | Omitted { mode_fun; ty_arg; mode_arg; level } ->
+             let arrow_desc = (lbl, mode_arg, mode_ret) in
              let ty_ret =
                newty2 ~level
-                 (Tarrow ((lbl, mode_arg, mode_ret), ty_arg, ty_ret, commu_ok))
+                 (Tarrow (arrow_desc, ty_arg, ty_ret, commu_ok))
              in
              let new_closed_args =
                List.map
@@ -3154,11 +3139,30 @@ let is_local_returning_function cases =
 
 let rec approx_type env sty =
   match sty.ptyp_desc with
-    Ptyp_arrow (p, _, sty) ->
-      let ty1 = if is_optional p then type_option (newvar ()) else newvar () in
+  | Ptyp_arrow (p, ({ ptyp_desc = Ptyp_poly _ } as arg_sty), sty) ->
+      if is_optional p then newvar ()
+      else begin
+        let arg_mode = Typetexp.get_alloc_mode arg_sty in
+        let arg_ty =
+          (* Polymorphic types will only unify with types that match all of their
+           polymorphic parts, so we need to fully translate the type here
+           unlike in the monomorphic case *)
+          Typetexp.transl_simple_type env false arg_mode arg_sty
+        in
+        let ret = approx_type env sty in
+        let marg = Alloc_mode.of_const arg_mode in
+        let mret = Alloc_mode.newvar () in
+        newty (Tarrow ((p,marg,mret), arg_ty.ctyp_type, ret, commu_ok))
+      end
+  | Ptyp_arrow (p, arg_sty, sty) ->
+      let arg_mode = Typetexp.get_alloc_mode arg_sty in
+      let arg =
+        if is_optional p then type_option (newvar ()) else newvar ()
+      in
       let ret = approx_type env sty in
-      let marg = Alloc_mode.newvar () and mret = Alloc_mode.newvar () in
-      newty (Tarrow ((p,marg,mret), ty1, ret, commu_ok))
+      let marg = Alloc_mode.of_const arg_mode in
+      let mret = Alloc_mode.newvar () in
+      newty (Tarrow ((p,marg,mret), newmono arg, ret, commu_ok))
   | Ptyp_tuple args ->
       newty (Ttuple (List.map (approx_type env) args))
   | Ptyp_constr (lid, ctl) ->
@@ -3168,60 +3172,113 @@ let rec approx_type env sty =
         let tyl = List.map (approx_type env) ctl in
         newconstr path tyl
       end
-  | Ptyp_poly (_, sty) ->
-      approx_type env sty
   | _ -> newvar ()
 
-let rec type_approx env sexp =
+let type_pattern_approx env spat ty_expected =
+  match spat.ppat_desc with
+  | Ppat_constraint(_, ({ptyp_desc=Ptyp_poly _} as sty)) ->
+      let arg_type_mode =
+        if has_local_attr_pat spat then Alloc_mode.Local
+        else Alloc_mode.Global
+      in
+      let ty_pat =
+        Typetexp.transl_simple_type env false arg_type_mode sty
+      in
+      begin try unify env ty_pat.ctyp_type ty_expected with Unify trace ->
+        raise(Error(spat.ppat_loc, env, Pattern_type_clash(trace, None)))
+      end;
+  | _ -> ()
+
+let rec type_function_approx env loc label spato sexp in_function ty_expected =
+  let has_local, has_poly =
+    match spato with
+    | None -> false, false
+    | Some spat ->
+        let has_local = has_local_attr_pat spat in
+        let has_poly = has_poly_constraint spat in
+        if has_poly && is_optional label then
+          raise(Error(spat.ppat_loc, env, Optional_poly_param));
+        has_local, has_poly
+  in
+  let loc_fun, ty_fun =
+    match in_function with
+    | Some (loc, ty) -> loc, ty
+    | None -> loc, ty_expected
+  in
+  let (arg_mode, ty_arg, _, ty_res) =
+    try filter_arrow env ty_expected label ~force_tpoly:(not has_poly)
+    with Filter_arrow_failed err ->
+      let explanation = None in
+      let err = match err with
+        | Unification_error unif_err ->
+            Expr_type_clash(unif_err, explanation, None)
+        | Label_mismatch { got; expected; expected_type} ->
+            Abstract_wrong_label { got; expected; expected_type; explanation }
+        | Not_a_function -> begin
+            match in_function with
+            | Some _ -> Too_many_arguments(ty_fun, explanation)
+            | None   -> Not_a_function(ty_fun, explanation)
+          end
+      in
+      raise (Error(loc_fun, env, err))
+  in
+  if has_local then
+    eqmode ~loc ~env arg_mode Alloc_mode.local
+      (Param_mode_mismatch ty_expected);
+  if has_poly then begin
+    match spato with
+    | None -> ()
+    | Some spat -> type_pattern_approx env spat ty_arg
+  end;
+  let in_function = Some (loc_fun, ty_fun) in
+  type_approx_aux env sexp in_function ty_res
+
+and type_approx_aux env sexp in_function ty_expected =
   match sexp.pexp_desc with
-    Pexp_let (_, _, e) -> type_approx env e
-  | Pexp_fun (p, _, spat, e) ->
-      let marg =
-        if has_local_attr_pat spat then Alloc_mode.local
-        else Alloc_mode.newvar ()
-      in
-      let mret = Alloc_mode.newvar () in
-      let ty = if is_optional p then type_option (newvar ()) else newvar () in
-      let ret = type_approx env e in
-      newty (Tarrow((p,marg,mret), ty, ret, commu_ok))
+    Pexp_let (_, _, e) -> type_approx_aux env e None ty_expected
+  | Pexp_fun (l, _, p, e) ->
+      type_function_approx env sexp.pexp_loc l (Some p) e
+        in_function ty_expected
   | Pexp_function ({pc_rhs=e}::_) ->
-      let ret = type_approx env e in
-      let marg = Alloc_mode.newvar () and mret = Alloc_mode.newvar () in
-      newty (Tarrow((Nolabel,marg,mret), newvar (), ret, commu_ok))
-  | Pexp_match (_, {pc_rhs=e}::_) -> type_approx env e
-  | Pexp_try (e, _) -> type_approx env e
-  | Pexp_tuple l -> newty (Ttuple(List.map (type_approx env) l))
-  | Pexp_ifthenelse (_,e,_) -> type_approx env e
-  | Pexp_sequence (_,e) -> type_approx env e
+      type_function_approx env sexp.pexp_loc Nolabel None e
+        in_function ty_expected
+  | Pexp_match (_, {pc_rhs=e}::_) -> type_approx_aux env e None ty_expected
+  | Pexp_try (e, _) -> type_approx_aux env e None ty_expected
+  | Pexp_tuple l ->
+      let tys = List.map (fun _ -> newvar ()) l in
+      let ty = newty (Ttuple tys) in
+      begin try unify env ty ty_expected with Unify err ->
+        raise(Error(sexp.pexp_loc, env, Expr_type_clash (err, None, None)))
+      end;
+      List.iter2
+        (fun e ty -> type_approx_aux env e None ty)
+        l tys
+  | Pexp_ifthenelse (_,e,_) -> type_approx_aux env e None ty_expected
+  | Pexp_sequence (_,e) -> type_approx_aux env e None ty_expected
   | Pexp_constraint (e, sty) ->
-      let ty = type_approx env e in
-      let ty1 = approx_type env sty in
-      begin try unify env ty ty1 with Unify err ->
+      let ty_expected' = approx_type env sty in
+      begin try unify env ty_expected' ty_expected with Unify err ->
         raise(Error(sexp.pexp_loc, env, Expr_type_clash (err, None, None)))
       end;
-      ty1
-  | Pexp_coerce (e, sty1, sty2) ->
-      let approx_ty_opt = function
-        | None -> newvar ()
-        | Some sty -> approx_type env sty
-      in
-      let ty = type_approx env e
-      and ty1 = approx_ty_opt sty1
-      and ty2 = approx_type env sty2 in
-      begin try unify env ty ty1 with Unify err ->
-        raise(Error(sexp.pexp_loc, env, Expr_type_clash (err, None, None)))
-      end;
-      ty2
+      type_approx_aux env e None ty_expected'
+  | Pexp_coerce (_, _, sty) ->
+      let ty = approx_type env sty in
+      begin try unify env ty ty_expected with Unify trace ->
+        raise(Error(sexp.pexp_loc, env, Expr_type_clash (trace, None, None)))
+      end
   | Pexp_apply
       ({ pexp_desc = Pexp_extension(
          {txt = "extension.local"|"ocaml.local"|"local"}, PStr []) },
        [Nolabel, e]) ->
-    type_approx env e
+    type_approx_aux env e None ty_expected
   | Pexp_apply
       ({ pexp_desc = Pexp_extension({txt = "extension.escape"}, PStr []) },
        [Nolabel, e]) ->
-    type_approx env e
-  | _ -> newvar ()
+    type_approx_aux env e None ty_expected
+  | _ -> ()
+
+let type_approx env sexp ty =
+  type_approx_aux env sexp None ty
 
 (* Check that all univars are safe in a type. Both exp.exp_type and
    ty_expected should already be generalized. *)
@@ -3528,9 +3585,11 @@ type apply_prim =
   | Revapply
 let check_apply_prim_type prim typ =
   match get_desc typ with
-  | Tarrow ((Nolabel,_,_),a,b,_) ->
+  | Tarrow ((Nolabel,_,_),a,b,_) when tpoly_is_mono a ->
+      let a = tpoly_get_mono a in
       begin match get_desc b with
-      | Tarrow((Nolabel,_,_),c,d,_) ->
+      | Tarrow((Nolabel,_,_),c,d,_) when tpoly_is_mono c ->
+          let c = tpoly_get_mono c in
           let f, x, res =
             match prim with
             | Apply -> a, c, d
@@ -3538,6 +3597,7 @@ let check_apply_prim_type prim typ =
           in
           begin match get_desc f with
           | Tarrow((Nolabel,_,_),fl,fr,_) ->
+              let fl = tpoly_get_mono fl in
               is_Tvar fl && is_Tvar fr && is_Tvar x && is_Tvar res
               && Types.eq_type fl x && Types.eq_type fr res
           | _ -> false
@@ -3708,6 +3768,8 @@ and type_expect_
       (* Defaults are always global. They can be moved out of the function's
          region by Simplf.split_default_wrapper, or they could be evaluated
          later than expected by Translcore.push_defaults *)
+      if has_poly_constraint spat then
+        raise(Error(spat.ppat_loc, env, Optional_poly_param));
       let scases = [
         Exp.case
           (Pat.construct ~loc:default_loc
@@ -3742,23 +3804,30 @@ and type_expect_
       let has_local = has_local_attr_pat spat in
       type_function ?in_function loc sexp.pexp_attributes env
                     expected_mode ty_expected_explained
-                    l has_local [Exp.case pat body]
+                    l ~has_local ~has_poly:false [Exp.case pat body]
   | Pexp_fun (l, None, spat, sbody) ->
       let has_local = has_local_attr_pat spat in
+      let has_poly = has_poly_constraint spat in
+      if has_poly && is_optional l then
+        raise(Error(spat.ppat_loc, env, Optional_poly_param));
+      if has_poly
+         && not (Clflags.Extension.is_enabled Polymorphic_parameters) then
+        raise (Typetexp.Error (loc, env,
+          Unsupported_extension Polymorphic_parameters));
       type_function ?in_function loc sexp.pexp_attributes env
-                    expected_mode ty_expected_explained l has_local
-                    [Ast_helper.Exp.case spat sbody]
+                    expected_mode ty_expected_explained l ~has_local
+                    ~has_poly [Ast_helper.Exp.case spat sbody]
   | Pexp_function caselist ->
       type_function ?in_function
         loc sexp.pexp_attributes env expected_mode
-        ty_expected_explained Nolabel false caselist
+        ty_expected_explained Nolabel ~has_local:false ~has_poly:false caselist
   | Pexp_apply
       ({ pexp_desc = Pexp_extension({txt = "extension.local"}, PStr []) },
        [Nolabel, sbody]) ->
       if not (Clflags.Extension.is_enabled Local) then
-        raise (Typetexp.Error (loc, Env.empty, Local_not_enabled));
+        raise (Typetexp.Error (loc, Env.empty, Unsupported_extension Local));
       let mode = expect_mode_cross env ty_expected mode_local in
-      submode ~loc ~env mode.mode expected_mode;
+      submode ~loc ~env Value_mode.local expected_mode;
       let exp =
         type_expect ?in_function ~recarg env mode sbody
           ty_expected_explained
@@ -4739,7 +4808,7 @@ and type_expect_
             { exp with exp_type = instance ty }
         | Tvar _ ->
             let exp = type_exp env expected_mode sbody in
-            let exp = {exp with exp_type = newty (Tpoly (exp.exp_type, []))} in
+            let exp = {exp with exp_type = newmono exp.exp_type} in
             unify_exp env exp ty;
             exp
         | _ -> assert false
@@ -4842,17 +4911,16 @@ and type_expect_
       let op_type = instance op_desc.val_type in
       let spat_params, ty_params = loop slet.pbop_pat (newvar ()) sands in
       let ty_func_result = newvar () in
+      let arrow_desc = Nolabel, Alloc_mode.global, Alloc_mode.global in
       let ty_func =
-        newty (Tarrow(
-          (Nolabel, Alloc_mode.global, Alloc_mode.global),
-          ty_params, ty_func_result, commu_ok))
+        newty (Tarrow(arrow_desc, newmono ty_params, ty_func_result, commu_ok))
       in
       let ty_result = newvar () in
       let ty_andops = newvar () in
       let ty_op =
-        newty (Tarrow((Nolabel, Alloc_mode.global, Alloc_mode.global), ty_andops,
-          newty (Tarrow((Nolabel, Alloc_mode.global, Alloc_mode.global),
-                        ty_func, ty_result, commu_ok)), commu_ok))
+        newty (Tarrow(arrow_desc, newmono ty_andops,
+          newty (Tarrow(arrow_desc, newmono ty_func,
+            ty_result, commu_ok)), commu_ok))
       in
       begin try
         unify env op_type ty_op
@@ -5048,9 +5116,8 @@ and type_binding_op_ident env s =
   assert (kind = Id_value);
   path, desc
 
-and type_function ?in_function
-    loc attrs env (expected_mode : expected_mode)
-    ty_expected_explained arg_label has_local caselist =
+and type_function ?in_function loc attrs env (expected_mode : expected_mode)
+      ty_expected_explained arg_label ~has_local ~has_poly caselist =
   let { ty = ty_expected; explanation } = ty_expected_explained in
   register_allocation expected_mode;
   let alloc_mode = Value_mode.regional_to_global_alloc expected_mode.mode in
@@ -5069,7 +5136,13 @@ and type_function ?in_function
   in
   let ty_expected' = instance ty_expected in
   let (arg_mode, ty_arg, ret_mode, ty_res) =
-    try filter_arrow env ty_expected' arg_label
+    let force_tpoly =
+      (* If [has_poly] is true then we rely on the later call to
+         type_pat to enforce the invariant that the parameter type
+         be a [Tpoly] node *)
+      not has_poly
+    in
+    try filter_arrow env ty_expected' arg_label ~force_tpoly
     with Filter_arrow_failed err ->
       let err = match err with
         | Unification_error unif_err ->
@@ -5099,20 +5172,24 @@ and type_function ?in_function
       raise (Error(loc_fun, env, Uncurried_function_escapes))
     end
   end;
-  let ty_arg =
-    if is_optional arg_label then
-      let tv = newvar() in
-      begin
-        try unify env ty_arg (type_option tv)
-        with Unify _ -> assert false
-      end;
-      type_option tv
-    else ty_arg
-  in
   if separate then begin
     end_def ();
     generalize_structure ty_arg;
     generalize_structure ty_res
+  end;
+  if not has_poly && not (tpoly_is_mono ty_arg) && !Clflags.principal
+       && get_level ty_arg < Btype.generic_level then begin
+    let snap = Btype.snapshot () in
+    let really_poly =
+      try
+        unify env (newmono (newvar ())) ty_arg;
+        false
+      with Unify _ -> true
+    in
+    Btype.backtrack snap;
+    if really_poly then
+      Location.prerr_warning loc
+        (Warnings.Not_principal "this higher-rank function");
   end;
   let env, region_locked =
     match in_function with
@@ -5159,9 +5236,23 @@ and type_function ?in_function
     else
       None
   in
+  let ty_arg_mono =
+    if has_poly then ty_arg
+    else begin
+      let ty, vars = tpoly_get_poly ty_arg in
+      if vars = [] then ty
+      else begin
+        begin_def ();
+        init_def generic_level;
+        let _, ty_arg = instance_poly ~keep_names:true false vars ty in
+        end_def ();
+        ty_arg
+      end
+    end
+  in
   let cases, partial =
     type_cases Value ?in_function env (simple_pat_mode arg_value_mode)
-      cases_expected_mode ty_arg (mk_expected ty_res) true loc caselist in
+      cases_expected_mode ty_arg_mono (mk_expected ty_res) true loc caselist in
   let not_nolabel_function ty =
     let ls, tvar = list_labels env ty in
     List.for_all ((<>) Nolabel) ls && not tvar
@@ -5603,7 +5694,10 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
         match get_desc (expand_head env ty_fun) with
         | Tarrow ((l,marg,_mret),ty_arg,ty_fun,_) when is_optional l ->
             let marg = Value_mode.of_alloc marg in
-            let ty = option_none env (instance ty_arg) marg sarg.pexp_loc in
+            let ty =
+              option_none env (instance (tpoly_get_mono ty_arg))
+                marg sarg.pexp_loc
+            in
             make_args ((l, Arg ty) :: args) ty_fun
         | Tarrow ((l,_,_),_,ty_res',_) when l = Nolabel || !Clflags.classic ->
             List.rev args, ty_fun, no_labels ty_res'
@@ -5696,29 +5790,73 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       unify_exp env texp ty_expected;
       texp
 
-and type_apply_arg env ~funct ~index ~position ~partial_app (lbl, arg) =
+and type_apply_arg env ~app_loc ~funct ~index ~position ~partial_app (lbl, arg) =
   match arg with
-  | Arg (Unknown_arg { sarg; ty_arg; mode_arg }) ->
-      let mode, _ = Alloc_mode.newvar_below mode_arg in
-      let expected_mode =
-        mode_argument ~funct ~index ~position ~partial_app mode in
-      let arg = type_expect env expected_mode sarg (mk_expected ty_arg) in
-      if is_optional lbl then
-        unify_exp env arg (type_option(newvar()));
-      (lbl, Arg arg)
-  | Arg (Known_arg { sarg; ty_arg; ty_arg0; mode_arg; wrapped_in_some }) ->
+  | Arg (Unknown_arg { sarg; ty_arg_mono; mode_arg }) ->
       let mode, _ = Alloc_mode.newvar_below mode_arg in
       let expected_mode =
         mode_argument ~funct ~index ~position ~partial_app mode in
       let arg =
-        if wrapped_in_some then
-          option_some env
-            (type_argument env (mode_subcomponent expected_mode) sarg
-               (extract_option_type env ty_arg)
-               (extract_option_type env ty_arg0))
-            expected_mode.mode
-        else
-          type_argument env expected_mode sarg ty_arg ty_arg0
+        type_expect env expected_mode sarg (mk_expected ty_arg_mono)
+      in
+      if is_optional lbl then
+        unify_exp env arg (type_option(newvar()));
+      (lbl, Arg arg)
+  | Arg (Known_arg { sarg; ty_arg; ty_arg0;
+                     mode_arg; wrapped_in_some }) ->
+      let mode, _ = Alloc_mode.newvar_below mode_arg in
+      let expected_mode =
+        mode_argument ~funct ~index ~position ~partial_app mode in
+      let ty_arg', vars = tpoly_get_poly ty_arg in
+      let arg =
+        if vars = [] then begin
+          let ty_arg0' = tpoly_get_mono ty_arg0 in
+          if wrapped_in_some then begin
+            option_some env
+              (type_argument env (mode_subcomponent expected_mode) sarg
+                 (extract_option_type env ty_arg')
+                 (extract_option_type env ty_arg0'))
+              expected_mode.mode
+          end else begin
+            type_argument env expected_mode sarg ty_arg' ty_arg0'
+          end
+        end else begin
+          if !Clflags.principal
+             && get_level ty_arg < Btype.generic_level then begin
+            let snap = Btype.snapshot () in
+            let really_poly =
+              try
+                unify env (newmono (newvar ())) ty_arg;
+                false
+              with Unify _ -> true
+            in
+            Btype.backtrack snap;
+            if really_poly then
+              Location.prerr_warning app_loc
+                (Warnings.Not_principal "applying a higher-rank function here");
+          end;
+          begin_def ();
+          let separate =
+            !Clflags.principal || Env.has_local_constraints env
+          in
+          if separate then begin_def ();
+          let vars, ty_arg' = instance_poly false vars ty_arg' in
+          if separate then begin
+            end_def ();
+            generalize_structure ty_arg';
+          end;
+          let (ty_arg0', vars0) = tpoly_get_poly ty_arg0 in
+          let vars0, ty_arg0' = instance_poly false vars0 ty_arg0' in
+          List.iter2 (fun ty ty' -> unify_var env ty ty') vars vars0;
+          let arg =
+            type_argument env expected_mode sarg ty_arg' ty_arg0'
+          in
+          end_def ();
+          if maybe_expansive arg then
+            lower_contravariant env arg.exp_type;
+          generalize_and_check_univars env "argument" arg ty_arg vars;
+          {arg with exp_type = instance arg.exp_type}
+        end
       in
       (lbl, Arg arg)
   | Arg (Eliminated_optional_arg { ty_arg; _ }) ->
@@ -5732,15 +5870,15 @@ and type_apply_arg env ~funct ~index ~position ~partial_app (lbl, arg) =
 and type_application env app_loc expected_mode position funct funct_mode sargs ret_tvar =
   let is_ignore funct =
     is_prim ~name:"%ignore" funct &&
-    (try ignore (filter_arrow env (instance funct.exp_type) Nolabel); true
-     with Filter_arrow_failed _ -> false)
+    (try ignore (filter_arrow_mono env (instance funct.exp_type) Nolabel); true
+     with Filter_arrow_mono_failed -> false)
   in
   match sargs with
   | (* Special case for ignore: avoid discarding warning *)
     [Nolabel, sarg] when is_ignore funct ->
       if !Clflags.principal then begin_def () ;
       let marg, ty_arg, mres, ty_res =
-        filter_arrow env (instance funct.exp_type) Nolabel
+        filter_arrow_mono env (instance funct.exp_type) Nolabel
       in
       if !Clflags.principal then begin
         end_def (); 
@@ -5783,7 +5921,7 @@ and type_application env app_loc expected_mode position funct funct_mode sargs r
       let position = if partial_app then Default else position in
       let args =
         List.mapi (fun index arg ->
-            type_apply_arg env ~funct ~index ~position ~partial_app arg)
+            type_apply_arg env ~app_loc ~funct ~index ~position ~partial_app arg)
           args
       in
       let ty_ret, mode_ret, args =
@@ -6273,11 +6411,16 @@ and type_let
          in
          attrs, pat_mode, exp_mode, spat)
       spat_sexp_list in
+  let is_recursive = (rec_flag = Recursive) in
   let nvs = List.map (fun _ -> newvar ()) spatl in
+  if is_recursive then begin_def ();
   let (pat_list, new_env, force, pvs, unpacks) =
     type_pattern_list Value existential_context env spatl nvs allow in
+  if is_recursive then begin
+    end_def ();
+    iter_pattern_variables_type generalize pvs
+  end;
   let attrs_list = List.map (fun (attrs, _, _, _) -> attrs) spatl in
-  let is_recursive = (rec_flag = Recursive) in
   (* If recursive, first unify with an approximation of the expression *)
   if is_recursive then
     List.iter2
@@ -6288,7 +6431,8 @@ and type_let
               {pat with pat_type =
                snd (instance_poly ~keep_names:true false tl ty)}
           | _ -> pat
-        in unify_pat (ref env) pat (type_approx env binding.pvb_expr))
+        in
+        type_approx env binding.pvb_expr pat.pat_type)
       pat_list spat_sexp_list;
   (* Polymorphic variant processing *)
   List.iter
@@ -6304,11 +6448,13 @@ and type_let
       end_def ();
       iter_pattern_variables_type generalize_structure pvs;
       List.map (fun (m, pat) ->
-        generalize_structure pat.pat_type;
-        m, {pat with pat_type = instance pat.pat_type}
+        let ty = pat.pat_type in
+        generalize_structure ty;
+        m, {pat with pat_type = instance ty}, ty
       ) pat_list
-    end else
-      pat_list
+    end else begin
+      List.map (fun (m, pat) -> (m, pat, pat.pat_type)) pat_list
+    end
   in
   (* Only bind pattern variables after generalizing *)
   List.iter (fun f -> f()) force;
@@ -6342,7 +6488,7 @@ and type_let
            || (is_recursive && (Warnings.is_active Warnings.Unused_rec_flag))))
       attrs_list
   in
-  let mode_pat_slot_list =
+  let mode_typ_slot_list =
     (* Algorithm to detect unused declarations in recursive bindings:
        - During type checking of the definitions, we capture the 'value_used'
          events on the bound identifiers and record them in a slot corresponding
@@ -6360,9 +6506,9 @@ and type_let
        warning is 26, not 27.
      *)
     List.map2
-      (fun attrs (mode, pat) ->
+      (fun attrs (mode, pat, expected_ty) ->
          Builtin_attributes.warning_scope ~ppwarning:false attrs (fun () ->
-           if not warn_about_unused_bindings then mode, pat, None
+           if not warn_about_unused_bindings then mode, expected_ty, None
            else
              let some_used = ref false in
              (* has one of the identifier of this pattern been used? *)
@@ -6394,16 +6540,16 @@ and type_let
                     )
                )
                (Typedtree.pat_bound_idents pat);
-             mode, pat, Some slot
+             mode, expected_ty, Some slot
          ))
       attrs_list
       pat_list
   in
   let exp_list =
     List.map2
-      (fun {pvb_expr=sexp; pvb_attributes; _} (mode, pat, slot) ->
+      (fun {pvb_expr=sexp; pvb_attributes; _} (mode, expected_ty, slot) ->
         if is_recursive then current_slot := slot;
-        match get_desc pat.pat_type with
+        match get_desc expected_ty with
         | Tpoly (ty, tl) ->
             if !Clflags.principal then begin_def ();
             let vars, ty' = instance_poly ~keep_names:true true tl ty in
@@ -6427,13 +6573,13 @@ and type_let
               Builtin_attributes.warning_scope pvb_attributes (fun () ->
                   if rec_flag = Recursive then
                     type_unpacks exp_env mode
-                      unpacks sexp (mk_expected pat.pat_type)
+                      unpacks sexp (mk_expected expected_ty)
                   else
                     type_expect exp_env mode
-                      sexp (mk_expected pat.pat_type))
+                      sexp (mk_expected expected_ty))
             in
             exp, None)
-      spat_sexp_list mode_pat_slot_list in
+      spat_sexp_list mode_typ_slot_list in
   current_slot := None;
   if is_recursive && not !rec_needed then begin
     let {pvb_pat; pvb_attributes} = List.hd spat_sexp_list in
@@ -6444,7 +6590,7 @@ and type_let
       )
   end;
   List.iter2
-    (fun (_,pat) (attrs, exp) ->
+    (fun (_,pat,_) (attrs, exp) ->
        Builtin_attributes.warning_scope ~ppwarning:false attrs
          (fun () ->
             ignore(check_partial env pat.pat_type pat.pat_loc
@@ -6456,13 +6602,13 @@ and type_let
   let pvs = List.map (fun pv -> { pv with pv_type = instance pv.pv_type}) pvs in
   end_def();
   List.iter2
-    (fun (_,pat) (exp, _) ->
+    (fun (_,pat,_) (exp, _) ->
        if maybe_expansive exp then
          lower_contravariant env pat.pat_type)
     pat_list exp_list;
   iter_pattern_variables_type generalize pvs;
   List.iter2
-    (fun (_,pat) (exp, vars) ->
+    (fun (_,_,expected_ty) (exp, vars) ->
        match vars with
        | None ->
          (* We generalize expressions even if they are not bound to a variable
@@ -6478,12 +6624,12 @@ and type_let
        | Some vars ->
            if maybe_expansive exp then
              lower_contravariant env exp.exp_type;
-           generalize_and_check_univars env "definition" exp pat.pat_type vars)
+           generalize_and_check_univars env "definition" exp expected_ty vars)
     pat_list exp_list;
   let l = List.combine pat_list exp_list in
   let l =
     List.map2
-      (fun ((_,p), (e, _)) pvb ->
+      (fun ((_,p,_), (e, _)) pvb ->
         {vb_pat=p; vb_expr=e; vb_attributes=pvb.pvb_attributes;
          vb_loc=pvb.pvb_loc;
         })
@@ -6493,7 +6639,6 @@ and type_let
     List.iter
       (fun {vb_pat=pat} -> match pat.pat_desc with
            Tpat_var _ -> ()
-         | Tpat_alias ({pat_desc=Tpat_any}, _, _) -> ()
          | _ -> raise(Error(pat.pat_loc, env, Illegal_letrec_pat)))
       l;
   List.iter (function
@@ -6518,13 +6663,12 @@ and type_andops env sarg sands expected_ty =
         let ty_arg = newvar () in
         let ty_rest = newvar () in
         let ty_result = newvar() in
+        let arrow_desc = (Nolabel,Alloc_mode.global,Alloc_mode.global) in
         let ty_rest_fun =
-          newty (Tarrow((Nolabel,Alloc_mode.global,Alloc_mode.global),
-                        ty_arg, ty_result, commu_ok))
+          newty (Tarrow(arrow_desc, newmono ty_arg, ty_result, commu_ok))
         in
         let ty_op =
-          newty (Tarrow((Nolabel,Alloc_mode.global,Alloc_mode.global),
-                        ty_rest, ty_rest_fun, commu_ok))
+          newty (Tarrow(arrow_desc, newmono ty_rest, ty_rest_fun, commu_ok))
         in
         begin try
           unify env op_type ty_op
@@ -7274,6 +7418,9 @@ let report_error ~loc env = function
         (match err with
          | `Conflict -> "is contradictory"
          | `Not_a_tailcall -> "is not on a tail call")
+  | Optional_poly_param ->
+      Location.errorf ~loc
+        "Optional parameters cannot be polymorphic"
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env ~error:true env

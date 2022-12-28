@@ -199,7 +199,13 @@ let rec extract_last_arrow desc =
       try extract_last_arrow r
       with Bad_printing_function -> res
 
-let extract_target_type ty = fst (extract_last_arrow ty)
+let extract_target_type ty =
+  let ty = fst (extract_last_arrow ty) in
+  match Ctype.filter_mono ty with
+  | exception Ctype.Filter_mono_failed ->
+      raise Bad_printing_function
+  | ty -> ty
+
 let extract_target_parameters ty =
   let ty = extract_target_type ty |> Ctype.expand_head !toplevel_env in
   match get_desc ty with
@@ -246,10 +252,12 @@ let match_generic_printer_type desc path args printer_type =
     List.map (fun ty_var -> Ctype.newconstr printer_type [ty_var]) args in
   let ty_expected =
     List.fold_right
-      (fun ty_arg ty -> Ctype.newty
-         (Tarrow ((Asttypes.Nolabel,Alloc_mode.global,Alloc_mode.global),
-                  ty_arg, ty,
-                  commu_var ())))
+      (fun ty_arg ty ->
+         let arrow_desc =
+           Asttypes.Nolabel,Alloc_mode.global,Alloc_mode.global
+         in
+         Ctype.newty
+           (Tarrow (arrow_desc, Ctype.newmono ty_arg, ty, commu_var ())))
       ty_args (Ctype.newconstr printer_type [ty_target]) in
   begin try
     Ctype.unify !toplevel_env
@@ -537,6 +545,9 @@ let is_rec_module id md =
   Btype.unmark_iterators.it_module_declaration Btype.unmark_iterators md;
   rs
 
+let secretly_the_same_path env path1 path2 =
+  let norm path = Printtyp.rewrite_double_underscore_paths env path in
+  Path.same (norm path1) (norm path2)
 
 let () =
   reg_show_prim "show_module"
@@ -546,27 +557,46 @@ let () =
          | Pident id -> id
          | _ -> id
        in
-       let rec accum_aliases md acc =
-         let acc rs =
+       let rec accum_aliases path md acc =
+         let def rs =
            Sig_module (id, Mp_present,
                        {md with md_type = trim_signature md.md_type},
-                       rs, Exported) :: acc in
+                       rs, Exported) in
          match md.md_type with
-         | Mty_alias path ->
-             let md = Env.find_module path env in
-             accum_aliases md (acc Trec_not)
+         | Mty_alias new_path ->
+             let md = Env.find_module new_path env in
+             accum_aliases new_path md
+               (if secretly_the_same_path env path new_path
+                then acc
+                else def Trec_not :: acc)
          | Mty_ident _ | Mty_signature _ | Mty_functor _ ->
-             List.rev (acc (is_rec_module id md))
+             List.rev (def (is_rec_module id md) :: acc)
        in
-       accum_aliases md []
+       accum_aliases path md []
     )
     "Print the signature of the corresponding module."
 
 let () =
   reg_show_prim "show_module_type"
     (fun env loc id lid ->
-       let _path, desc = Env.lookup_modtype ~loc lid env in
-       [ Sig_modtype (id, desc, Exported) ]
+       let path, mtd = Env.lookup_modtype ~loc lid env in
+       let id = match path with
+         | Pident id -> id
+         | _ -> id
+       in
+       let rec accum_defs path mtd acc =
+         let def = Sig_modtype (id, mtd, Exported) in
+         match mtd.mtd_type with
+         | Some (Mty_ident new_path) ->
+             let mtd = Env.find_modtype new_path env in
+             accum_defs new_path mtd
+               (if secretly_the_same_path env path new_path
+                then acc
+                else def :: acc)
+         | None | Some (Mty_alias _ | Mty_signature _ | Mty_functor _) ->
+             List.rev (def :: acc)
+       in
+       accum_defs path mtd []
     )
     "Print the signature of the corresponding module type."
 

@@ -51,6 +51,8 @@ val type_variable: Location.t -> string -> type_expr
 val transl_type_param:
   Env.t -> Parsetree.core_type -> Typedtree.core_type
 
+val get_alloc_mode : Parsetree.core_type -> alloc_mode_const
+
 type variable_context
 val narrow: unit -> variable_context
 val widen: variable_context -> unit
@@ -77,7 +79,8 @@ type error =
   | Method_mismatch of string * type_expr * type_expr
   | Opened_object of Path.t option
   | Not_an_object of type_expr
-  | Local_not_enabled
+  | Unsupported_extension of Clflags.Extension.t
+  | Polymorphic_optional_param
 
 exception Error of Location.t * Env.t * error
 
