@@ -54,3 +54,19 @@ where the test file or test dir are specified with respect to the
     $ make -f Makefile.jst test-one TEST=typing-local/local.ml
     $ make -f Makefile.jst test-one DIR=typing-local
 
+## Debugging
+
+OCaml 4.14 makes `type_expr` abstract, and thus normal debug printing
+of types no longer works. However, there is now an installable printer
+for types, which we can use to see the types. Here are the instructions:
+
+1. Use the old `Makefile`, not the new `Makefile.jst`. This is an infelicity
+we hope to fix.
+
+2. In the `tools` directory, run `make debug_printers.cmo`.
+
+3. In the debugger, execute some instructions, with e.g. `run` or `step`. This forces
+the debugger to load the compiler code, required for the next
+step.
+
+4. Execute `source tools/debug_printers` to install the printers.

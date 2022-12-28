@@ -25,6 +25,11 @@ open Lambda
    links, and [@@unboxed] types. The returned type will be therefore be none
    of these cases. *)
 let scrape_ty env ty =
+  let ty =
+    match get_desc ty with
+    | Tpoly(ty, _) -> ty
+    | _ -> ty
+  in
   match get_desc ty with
   | Tconstr _ ->
       let ty = Ctype.expand_head_opt env (Ctype.correct_levels ty) in

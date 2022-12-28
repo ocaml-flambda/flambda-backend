@@ -1084,7 +1084,10 @@ let reset () =
   reset_except_context ()
 
 let prepare_for_printing tyl =
-  reset_except_context (); List.iter prepare_type tyl
+  reset_except_context ();
+  List.iter prepare_type tyl
+
+let add_type_to_preparation = prepare_type
 
 (* Disabled in classic mode when printing an unification error *)
 let print_labels = ref true
@@ -1112,12 +1115,14 @@ let rec tree_of_typexp mode ty =
         in
         let t1 =
           if is_optional l then
-            match get_desc ty1 with
+            match get_desc (tpoly_get_mono ty1) with
             | Tconstr(path, [ty], _)
               when Path.same path Predef.path_option ->
                 tree_of_typexp mode ty
             | _ -> Otyp_stuff "<hidden>"
-          else tree_of_typexp mode ty1 in
+          else
+            tree_of_typexp mode ty1
+        in
         let am =
           match Alloc_mode.check_const marg with
           | Some Global -> Oam_global
@@ -1516,10 +1521,13 @@ and tree_of_label l =
 
 let constructor ppf c =
   reset_except_context ();
+  prepare_type_constructor_arguments c.cd_args;
+  Option.iter prepare_type c.cd_res;
   !Oprint.out_constr ppf (tree_of_constructor c)
 
 let label ppf l =
   reset_except_context ();
+  prepare_type l.ld_type;
   !Oprint.out_label ppf (tree_of_label l)
 
 let tree_of_type_declaration id decl rs =
@@ -1587,6 +1595,8 @@ let extension_constructor id ppf ext =
 
 let extension_only_constructor id ppf ext =
   reset_except_context ();
+  prepare_type_constructor_arguments ext.ext_args;
+  Option.iter prepare_type ext.ext_ret_type;
   let name = Ident.name id in
   let args, ret =
     extension_constructor_args_and_ret_type_subtree
@@ -2194,10 +2204,14 @@ let print_tags =
   let comma ppf () = Format.fprintf ppf ",@ " in
   Format.pp_print_list ~pp_sep:comma print_tag
 
-let is_unit env ty =
-  match get_desc (Ctype.expand_head env ty) with
-  | Tconstr (p, _, _) -> Path.same p Predef.path_unit
-  | _ -> false
+let is_unit_arg env ty =
+  let ty, vars = tpoly_get_poly ty in
+  if vars <> [] then false
+  else begin
+    match get_desc (Ctype.expand_head env ty) with
+    | Tconstr (p, _, _) -> Path.same p Predef.path_unit
+    | _ -> false
+  end
 
 let unifiable env ty1 ty2 =
   let snap = Btype.snapshot () in
@@ -2211,12 +2225,12 @@ let unifiable env ty1 ty2 =
 let explanation_diff env t3 t4 : (Format.formatter -> unit) option =
   match get_desc t3, get_desc t4 with
   | Tarrow (_, ty1, ty2, _), _
-    when is_unit env ty1 && unifiable env ty2 t4 ->
+    when is_unit_arg env ty1 && unifiable env ty2 t4 ->
       Some (fun ppf ->
         fprintf ppf
           "@,@[Hint: Did you forget to provide `()' as argument?@]")
   | _, Tarrow (_, ty1, ty2, _)
-    when is_unit env ty1 && unifiable env t3 ty2 ->
+    when is_unit_arg env ty1 && unifiable env t3 ty2 ->
       Some (fun ppf ->
         fprintf ppf
           "@,@[Hint: Did you forget to wrap the expression using \

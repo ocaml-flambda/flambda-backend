@@ -84,7 +84,6 @@ type error =
   | Invalid_type_subst_rhs
   | Unpackable_local_modtype_subst of Path.t
   | With_cannot_remove_packed_modtype of Path.t * module_type
-  | Unsupported_extension of Clflags.Extension.t
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -181,8 +180,8 @@ let extract_sig_functor_open funct_body env loc mty sig_acc =
 let has_include_functor env loc attrs =
   match Builtin_attributes.has_include_functor attrs with
   | Error () ->
-      raise(Error (loc, env,
-                   Unsupported_extension Clflags.Extension.Include_functor))
+      raise(Typetexp.Error (loc, env,
+        Unsupported_extension Include_functor))
   | Ok b -> b
 
 (* Compute the environment after opening a module *)
@@ -2140,8 +2139,11 @@ and package_constraints env loc mty constrs =
 let modtype_of_package env loc p fl =
   (* We call Ctype.correct_levels to ensure that the types being added to the
      module type are at generic_level. *)
-  package_constraints env loc (Mty_ident p)
-    (List.map (fun (n, t) -> Longident.flatten n, Ctype.correct_levels t) fl)
+  let mty =
+    package_constraints env loc (Mty_ident p)
+      (List.map (fun (n, t) -> Longident.flatten n, Ctype.correct_levels t) fl)
+  in
+  Subst.modtype Keep Subst.identity mty
 
 let package_subtype env p1 fl1 p2 fl2 =
   let mkmty p fl =
@@ -2161,9 +2163,11 @@ let () = Ctype.package_subtype := package_subtype
 
 let wrap_constraint env mark arg mty explicit =
   let mark = if mark then Includemod.Mark_both else Includemod.Mark_neither in
+  let mty1 = Subst.modtype Keep Subst.identity arg.mod_type in
+  let mty2 = Subst.modtype Keep Subst.identity mty in
   let coercion =
     try
-      Includemod.modtypes ~loc:arg.mod_loc env ~mark arg.mod_type mty
+      Includemod.modtypes ~loc:arg.mod_loc env ~mark mty1 mty2
     with Includemod.Error msg ->
       raise(Error(arg.mod_loc, env, Not_included msg)) in
   { mod_desc = Tmod_constraint(arg, mty, explicit, coercion);
@@ -3510,12 +3514,6 @@ let report_error ~loc _env = function
         "The module type@ %s@ is not a valid type for a packed module:@ \
          it is defined as a local substitution for a non-path module type."
         (Path.name p)
-  | Unsupported_extension ext ->
-      let ext = Clflags.Extension.to_string ext in
-      Location.errorf ~loc
-        "@[The %s extension is disabled@ \
-         To enable it, pass the '-extension %s' flag@]" ext ext
-
 
 let report_error env ~loc err =
   Printtyp.wrap_printing_env ~error:true env

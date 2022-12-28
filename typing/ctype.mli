@@ -64,6 +64,7 @@ val new_global_var: ?name:string -> unit -> type_expr
            (as type variables ['a] in type constraints). *)
 val newobj: type_expr -> type_expr
 val newconstr: Path.t -> type_expr list -> type_expr
+val newmono : type_expr -> type_expr
 val none: type_expr
         (* A dummy type expression *)
 
@@ -236,10 +237,21 @@ val unify_gadt:
 val unify_var: Env.t -> type_expr -> type_expr -> unit
         (* Same as [unify], but allow free univars when first type
            is a variable. *)
-val filter_arrow: Env.t -> type_expr -> arg_label ->
+val filter_arrow: Env.t -> type_expr -> arg_label -> force_tpoly:bool ->
                   alloc_mode * type_expr * alloc_mode * type_expr
-        (* A special case of unification with [l:'a -> 'b].  Raises
-           [Filter_arrow_failed] instead of [Unify]. *)
+        (* A special case of unification (with l:'a -> 'b). If
+           [force_poly] is false then the usual invariant that the
+           argument type be a [Tpoly] node is not enforced. Raises
+           [Filter_arrow_failed] instead of [Unify].  *)
+val filter_mono: type_expr -> type_expr
+        (* A special case of unification (with Tpoly('a, [])). Can
+           only be called on [Tpoly] nodes. Raises [Filter_mono_failed]
+           instead of [Unify] *)
+val filter_arrow_mono: Env.t -> type_expr -> arg_label ->
+                  alloc_mode * type_expr * alloc_mode * type_expr
+        (* A special case of unification. Composition of [filter_arrow]
+           with [filter_mono] on the argument type. Raises
+           [Filter_arrow_mono_failed] instead of [Unify] *)
 val filter_method: Env.t -> string -> type_expr -> type_expr
         (* A special case of unification (with {m : 'a; 'b}).  Raises
            [Filter_method_failed] instead of [Unify]. *)
@@ -275,6 +287,9 @@ type filter_arrow_failure =
   | Not_a_function
 
 exception Filter_arrow_failed of filter_arrow_failure
+
+exception Filter_mono_failed
+exception Filter_arrow_mono_failed
 
 type filter_method_failure =
   | Unification_error of Errortrace.unification_error
