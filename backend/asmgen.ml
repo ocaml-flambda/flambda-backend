@@ -423,7 +423,7 @@ let compile_fundecl ?dwarf ~ppf_dump ~funcnames fd_cmm =
     if !Flambda_backend_flags.use_ocamlcfg then begin
       fd
       ++ Profile.record ~accumulate:true "linear_to_cfg"
-           (Linear_to_cfg.run ~preserve_orig_labels:true)
+           (Linear_to_cfg.run ~preserve_orig_labels:false)
       ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg
       ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg "After linear_to_cfg"
       ++ Profile.record ~accumulate:true "save_cfg" save_cfg
