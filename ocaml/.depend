@@ -1867,8 +1867,7 @@ typing/typemod.cmi : \
     typing/ident.cmi \
     typing/env.cmi \
     utils/compilation_unit.cmi \
-    file_formats/cmi_format.cmi \
-    utils/clflags.cmi
+    file_formats/cmi_format.cmi
 typing/typeopt.cmo : \
     typing/types.cmi \
     typing/typedtree.cmi \
@@ -1998,6 +1997,7 @@ typing/typetexp.cmi : \
     parsing/location.cmi \
     typing/errortrace.cmi \
     typing/env.cmi \
+    utils/clflags.cmi \
     parsing/asttypes.cmi
 typing/untypeast.cmo : \
     typing/typedtree.cmi \
@@ -4150,6 +4150,7 @@ file_formats/cmx_format.cmi : \
     utils/compilation_unit.cmi \
     middle_end/clambda.cmi
 file_formats/cmxs_format.cmi : \
+    utils/import_info.cmi \
     utils/compilation_unit.cmi
 file_formats/linear_format.cmo : \
     utils/misc.cmi \

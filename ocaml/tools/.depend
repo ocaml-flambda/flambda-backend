@@ -99,6 +99,7 @@ objinfo.cmo : \
     ../middle_end/printclambda.cmi \
     ../utils/misc.cmi \
     ../lambda/lambda.cmi \
+    ../utils/import_info.cmi \
     ../typing/ident.cmi \
     ../middle_end/flambda/export_info.cmi \
     ../utils/compilation_unit.cmi \
@@ -116,6 +117,7 @@ objinfo.cmx : \
     ../middle_end/printclambda.cmx \
     ../utils/misc.cmx \
     ../lambda/lambda.cmx \
+    ../utils/import_info.cmx \
     ../typing/ident.cmx \
     ../middle_end/flambda/export_info.cmx \
     ../utils/compilation_unit.cmx \
