@@ -86,11 +86,13 @@ let print_info cmt =
     Compilation_unit.Name.compare name1 name2
   in
   let imports =
-    cmt.cmt_imports
-    |> Array.to_list
-    |> List.map (fun import ->
-         Import_info.name import, Import_info.crc_with_unit import)
-    |> List.sort compare_imports
+    let imports =
+      Array.map (fun import ->
+          Import_info.name import, Import_info.crc_with_unit import)
+        cmt.cmt_imports
+    in
+    Array.sort compare_imports imports;
+    Array.to_list imports
   in
   List.iter (fun (name, crco) ->
     let crc =

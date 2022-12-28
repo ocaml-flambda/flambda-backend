@@ -181,9 +181,9 @@ let save_cmt filename modname binary_annots sourcefile initial_env cmi shape =
            Compilation_unit.Name.compare modname1 modname2
          in
          let get_imports () =
-           Env.imports ()
-           |> List.sort compare_imports
-           |> Array.of_list
+           let imports = Array.of_list (Env.imports ()) in
+           Array.sort compare_imports imports;
+           imports
          in
          let cmt = {
            cmt_modname = modname;
