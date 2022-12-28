@@ -343,7 +343,7 @@ let compile_fundecl ?dwarf ~ppf_dump ~funcnames fd_cmm =
               test_cfgize f res;
             end;
             res)
-        ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code")
+
         ++ Profile.record ~accumulate:true "reorder_blocks" (fun (fd : Linear.fundecl) ->
         if !Flambda_backend_flags.use_ocamlcfg then begin
           fd
@@ -358,6 +358,7 @@ let compile_fundecl ?dwarf ~ppf_dump ~funcnames fd_cmm =
           ++ pass_dump_linear_if ppf_dump dump_linear "After cfg_to_linear"
         end else
           fd))
+  ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code")
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Linear
   ++ Profile.record ~accumulate:true "scheduling" Scheduling.fundecl
   ++ pass_dump_linear_if ppf_dump dump_scheduling "After instruction scheduling"
