@@ -107,6 +107,7 @@ type error =
   | No_overriding of string * string
   | Duplicate of string * string
   | Closing_self_type of class_signature
+  | Polymorphic_class_parameter
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -192,8 +193,10 @@ let rec constructor_type constr cty =
   | Cty_signature _ ->
       constr
   | Cty_arrow (l, ty, cty) ->
-      Ctype.newty (Tarrow ((l, Alloc_mode.global, Alloc_mode.global),
-                           ty, constructor_type constr cty, commu_ok))
+      let arrow_desc = l, Alloc_mode.global, Alloc_mode.global in
+      let ty = Ctype.newmono ty in
+      Ctype.newty
+        (Tarrow (arrow_desc, ty, constructor_type constr cty, commu_ok))
 
                 (***********************************)
                 (*  Primitives for typing classes  *)
@@ -772,12 +775,11 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
                match get_desc ty with
                | Tvar _ ->
                    let ty' = Ctype.newvar () in
-                   Ctype.unify val_env (Ctype.newty (Tpoly (ty', []))) ty;
-                   Ctype.unify val_env (type_approx val_env sbody) ty'
+                   Ctype.unify val_env (Ctype.newmono ty') ty;
+                   type_approx val_env sbody ty'
                | Tpoly (ty1, tl) ->
                    let _, ty1' = Ctype.instance_poly false tl ty1 in
-                   let ty2 = type_approx val_env sbody in
-                   Ctype.unify val_env ty2 ty1'
+                   type_approx val_env sbody ty1'
                | _ -> assert false
              with Ctype.Unify err ->
                raise(Error(loc, val_env,
@@ -907,10 +909,11 @@ and class_field_second_pass cl_num sign met_env field =
         (fun () ->
            let ty = Btype.method_type label.txt sign in
            let self_type = sign.Types.csig_self in
+           let arrow_desc = Nolabel, Alloc_mode.global, Alloc_mode.global in
+           let self_param_type = Btype.newgenty (Tpoly(self_type, [])) in
            let meth_type =
-             mk_expected
-               (Btype.newgenty (Tarrow((Nolabel, Alloc_mode.global, Alloc_mode.global),
-                                       self_type, ty, commu_ok)))
+             mk_expected (Btype.newgenty
+                (Tarrow(arrow_desc, self_param_type, ty, commu_ok)))
            in
            Ctype.raise_nongen_level ();
            let texp = type_expect met_env sdefinition meth_type in
@@ -926,11 +929,11 @@ and class_field_second_pass cl_num sign met_env field =
         (fun () ->
            Ctype.raise_nongen_level ();
            let unit_type = Ctype.instance Predef.type_unit in
-           let self_type = sign.Types.csig_self in
+           let self_param_type = Ctype.newmono sign.Types.csig_self in
+           let arrow_desc = Nolabel, Alloc_mode.global, Alloc_mode.global in
            let meth_type =
-             mk_expected
-               (Ctype.newty (Tarrow ((Nolabel, Alloc_mode.global, Alloc_mode.global),
-                                     self_type, unit_type, commu_ok)))
+             mk_expected (Ctype.newty
+               (Tarrow (arrow_desc, self_param_type, unit_type, commu_ok)))
            in
            let texp = type_expect met_env sexpr meth_type in
            Ctype.end_def ();
@@ -1120,6 +1123,8 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
           cl_attributes = scl.pcl_attributes;
          }
   | Pcl_fun (l, Some default, spat, sbody) ->
+      if has_poly_constraint spat then
+        raise(Error(spat.ppat_loc, val_env, Polymorphic_class_parameter));
       let loc = default.pexp_loc in
       let open Ast_helper in
       let scases = [
@@ -1150,6 +1155,8 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
       in
       class_expr cl_num val_env met_env virt self_scope sfun
   | Pcl_fun (l, None, spat, scl') ->
+      if has_poly_constraint spat then
+        raise(Error(spat.ppat_loc, val_env, Polymorphic_class_parameter));
       if !Clflags.principal then Ctype.begin_def ();
       let (pat, pv, val_env', met_env) =
         Typecore.type_class_arg_pattern cl_num val_env met_env l spat
@@ -1428,9 +1435,12 @@ let rec approx_declaration cl =
     Pcl_fun (l, _, _, cl) ->
       let arg =
         if Btype.is_optional l then Ctype.instance var_option
-        else Ctype.newvar () in
-      Ctype.newty (Tarrow ((l, Alloc_mode.global, Alloc_mode.global),
-                           arg, approx_declaration cl, commu_ok))
+        else Ctype.newvar ()
+      in
+      let arg = Ctype.newmono arg in
+      let arrow_desc = l, Alloc_mode.global, Alloc_mode.global in
+      Ctype.newty
+        (Tarrow (arrow_desc, arg, approx_declaration cl, commu_ok))
   | Pcl_let (_, _, cl) ->
       approx_declaration cl
   | Pcl_constraint (cl, _) ->
@@ -1442,9 +1452,12 @@ let rec approx_description ct =
     Pcty_arrow (l, _, ct) ->
       let arg =
         if Btype.is_optional l then Ctype.instance var_option
-        else Ctype.newvar () in
-      Ctype.newty (Tarrow ((l, Alloc_mode.global, Alloc_mode.global),
-                           arg, approx_description ct, commu_ok))
+        else Ctype.newvar ()
+      in
+      let arg = Ctype.newmono arg in
+      let arrow_desc = l, Alloc_mode.global, Alloc_mode.global in
+      Ctype.newty
+        (Tarrow (arrow_desc, arg, approx_description ct, commu_ok))
   | _ -> Ctype.newvar ()
 
 (*******************************)
@@ -1996,7 +2009,6 @@ let report_error env ppf = function
         (function ppf ->
            fprintf ppf "but is expected to have type")
   | Unexpected_field (ty, lab) ->
-      Printtyp.prepare_for_printing [ty];
       fprintf ppf
         "@[@[<2>This object is expected to have type :@ %a@]\
          @ This type does not have a method %s."
@@ -2085,7 +2097,8 @@ let report_error env ppf = function
       let print_reason ppf (ty0, real, lab, ty) =
         let ty1 =
           if real then ty0 else Btype.newgenty(Tobject(ty0, ref None)) in
-        Printtyp.prepare_for_printing [ty; ty1];
+        Printtyp.add_type_to_preparation ty;
+        Printtyp.add_type_to_preparation ty1;
         fprintf ppf
           "The method %s@ has type@;<1 2>%a@ where@ %a@ is unbound"
           lab
@@ -2143,6 +2156,9 @@ let report_error env ppf = function
        it has been unified with the self type of a class that is not yet@ \
        completely defined.@]"
       Printtyp.type_scheme sign.csig_self
+  | Polymorphic_class_parameter ->
+      fprintf ppf
+        "Class parameters cannot be polymorphic"
 
 let report_error env ppf err =
   Printtyp.wrap_printing_env ~error:true

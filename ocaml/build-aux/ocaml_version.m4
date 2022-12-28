@@ -25,7 +25,7 @@
 # The following macro, OCAML__DEVELOPMENT_VERSION, should be either
 # [true] of [false].
 
-m4_define([OCAML__DEVELOPMENT_VERSION], [true])
+m4_define([OCAML__DEVELOPMENT_VERSION], [false])
 
 # The three following components (major, minor and patch level) MUST be
 # integers. They MUST NOT be left-padded with zeros and all of them,

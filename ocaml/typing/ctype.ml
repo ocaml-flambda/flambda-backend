@@ -244,6 +244,8 @@ let newobj fields      = newty (Tobject (fields, ref None))
 
 let newconstr path tyl = newty (Tconstr (path, tyl, ref Mnil))
 
+let newmono ty = newty (Tpoly(ty, []))
+
 let none = newty (Ttuple [])                (* Clearly ill-formed type *)
 
 (**** unification mode ****)
@@ -1098,7 +1100,7 @@ let rec copy ?partial ?keep_names scope ty =
       match partial with
         None -> assert false
       | Some (free_univars, keep) ->
-          if TypeSet.is_empty (free_univars ty) then
+          if not (is_Tpoly ty) && TypeSet.is_empty (free_univars ty) then
             if keep then level else !current_level
           else generic_level
     in
@@ -3318,9 +3320,24 @@ type filter_arrow_failure =
 
 exception Filter_arrow_failed of filter_arrow_failure
 
-let filter_arrow env t l =
+let filter_arrow env t l ~force_tpoly =
   let function_type level =
-    let t1 = newvar2 level and t2 = newvar2 level in
+    let t1 =
+      if not force_tpoly then begin
+        assert (not (is_optional l));
+        newvar2 level
+      end else begin
+        let t1 =
+          if is_optional l then
+            newty2 ~level
+              (Tconstr(Predef.path_option,[newvar2 level], ref Mnil))
+          else
+            newvar2 level
+        in
+        newty2 ~level (Tpoly(t1, []))
+      end
+    in
+    let t2 = newvar2 level in
     let marg = Alloc_mode.newvar () in
     let mret = Alloc_mode.newvar () in
     let t' = newty2 ~level (Tarrow ((l,marg,mret), t1, t2, commu_ok)) in
@@ -3349,6 +3366,24 @@ let filter_arrow env t l =
                        { got = l; expected = l'; expected_type = t }))
   | _ ->
       raise (Filter_arrow_failed Not_a_function)
+
+exception Filter_mono_failed
+
+let filter_mono ty =
+  match get_desc ty with
+  | Tpoly(ty, []) -> ty
+  | Tpoly _ -> raise Filter_mono_failed
+  | _ -> assert false
+
+exception Filter_arrow_mono_failed
+
+let filter_arrow_mono env t l =
+  match filter_arrow env t l ~force_tpoly:true with
+  | exception Filter_arrow_failed _ -> raise Filter_arrow_mono_failed
+  | (marg, t1, mret, t2) ->
+      match filter_mono t1 with
+      | exception Filter_mono_failed -> raise Filter_arrow_mono_failed
+      | t1 -> (marg, t1, mret, t2)
 
 type filter_method_failure =
   | Unification_error of unification_error

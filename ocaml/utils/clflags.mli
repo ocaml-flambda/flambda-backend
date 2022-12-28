@@ -172,7 +172,6 @@ val dlcode : bool ref
 val pic_code : bool ref
 val runtime_variant : string ref
 val with_runtime : bool ref
-val force_tmc : bool ref
 val force_slash : bool ref
 val keep_docs : bool ref
 val keep_locs : bool ref
@@ -207,7 +206,7 @@ val dump_into_file : bool ref
 val dump_dir : string option ref
 
 module Extension : sig
-  type t = Comprehensions | Local | Include_functor
+  type t = Comprehensions | Local | Include_functor | Polymorphic_parameters
   val enable : string -> unit
   val is_enabled : t -> bool
   val to_string : t -> string
