@@ -337,27 +337,24 @@ let compile_fundecl ?dwarf ~ppf_dump ~funcnames fd_cmm =
         ++ Profile.record ~accumulate:true "liveness" liveness
         ++ Profile.record ~accumulate:true "regalloc" (regalloc ~ppf_dump 1)
         ++ Profile.record ~accumulate:true "available_regs" Available_regs.fundecl
-        ++ Profile.record ~accumulate:true "linearize" (fun (f : Mach.fundecl) ->
-            let res = Linearize.fundecl f in
-            if !Flambda_backend_flags.cfg_equivalence_check then begin
-              test_cfgize f res;
-            end;
-            res)
-
-        ++ Profile.record ~accumulate:true "reorder_blocks" (fun (fd : Linear.fundecl) ->
-        if !Flambda_backend_flags.use_ocamlcfg then begin
-          fd
-          ++ Profile.record ~accumulate:true "linear_to_cfg"
-               (Linear_to_cfg.run ~preserve_orig_labels:true)
-          ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg
-          ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg "After linear_to_cfg"
-          ++ Profile.record ~accumulate:true "save_cfg" save_cfg
-          ++ Profile.record ~accumulate:true "cfg_reorder_blocks"
-               (reorder_blocks_random ppf_dump)
-          ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run
-          ++ pass_dump_linear_if ppf_dump dump_linear "After cfg_to_linear"
-        end else
-          fd))
+        ++ Profile.record ~accumulate:true "mach to linear" (fun (fd : Mach.fundecl) ->
+          if !Flambda_backend_flags.use_ocamlcfg then begin
+            fd
+            ++ Profile.record ~accumulate:true "cfgize"
+                 (Cfgize.fundecl
+                    ~before_register_allocation:false
+                    ~preserve_orig_labels:false
+                    ~simplify_terminators:true)
+            ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg
+            ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg "After linear_to_cfg"
+            ++ Profile.record ~accumulate:true "save_cfg" save_cfg
+            ++ Profile.record ~accumulate:true "cfg_reorder_blocks"
+                 (reorder_blocks_random ppf_dump)
+            ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run
+          end else begin
+            fd
+            ++ Profile.record ~accumulate:true "linearize" Linearize.fundecl
+          end))
   ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code")
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Linear
   ++ Profile.record ~accumulate:true "scheduling" Scheduling.fundecl
