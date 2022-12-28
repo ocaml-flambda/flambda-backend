@@ -393,21 +393,21 @@ let compile_fundecl ?dwarf ~ppf_dump ~funcnames fd_cmm =
     | true, _ | false, Upstream ->
       fd
       ++ Profile.record ~accumulate:true "default" (fun fd ->
-          fd
-          ++ Profile.record ~accumulate:true "liveness" liveness
-          ++ Profile.record ~accumulate:true "deadcode" Deadcode.fundecl
-          ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_live
-          ++ pass_dump_if ppf_dump dump_live "Liveness analysis"
-          ++ Profile.record ~accumulate:true "spill" Spill.fundecl
-          ++ Profile.record ~accumulate:true "liveness" liveness
-          ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_spill
-          ++ pass_dump_if ppf_dump dump_spill "After spilling"
-          ++ Profile.record ~accumulate:true "split" Split.fundecl
-          ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_split
-          ++ pass_dump_if ppf_dump dump_split "After live range splitting"
-          ++ Profile.record ~accumulate:true "liveness" liveness
-          ++ Profile.record ~accumulate:true "regalloc" (regalloc ~ppf_dump 1)
-          ++ Profile.record ~accumulate:true "available_regs" Available_regs.fundecl
+        fd
+        ++ Profile.record ~accumulate:true "liveness" liveness
+        ++ Profile.record ~accumulate:true "deadcode" Deadcode.fundecl
+        ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_live
+        ++ pass_dump_if ppf_dump dump_live "Liveness analysis"
+        ++ Profile.record ~accumulate:true "spill" Spill.fundecl
+        ++ Profile.record ~accumulate:true "liveness" liveness
+        ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_spill
+        ++ pass_dump_if ppf_dump dump_spill "After spilling"
+        ++ Profile.record ~accumulate:true "split" Split.fundecl
+        ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_split
+        ++ pass_dump_if ppf_dump dump_split "After live range splitting"
+        ++ Profile.record ~accumulate:true "liveness" liveness
+        ++ Profile.record ~accumulate:true "regalloc" (regalloc ~ppf_dump 1)
+        ++ Profile.record ~accumulate:true "available_regs" Available_regs.fundecl
         ++ Profile.record ~accumulate:true "linearize" (fun (f : Mach.fundecl) ->
             let res = Linearize.fundecl f in
             if !Flambda_backend_flags.cfg_equivalence_check then begin
