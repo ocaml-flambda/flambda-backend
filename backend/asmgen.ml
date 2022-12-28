@@ -393,7 +393,6 @@ let compile_fundecl ?dwarf ~ppf_dump ~funcnames fd_cmm =
     | true, _ | false, Upstream ->
       fd
       ++ Profile.record ~accumulate:true "default" (fun fd ->
-        let res =
           fd
           ++ Profile.record ~accumulate:true "liveness" liveness
           ++ Profile.record ~accumulate:true "deadcode" Deadcode.fundecl
@@ -409,8 +408,6 @@ let compile_fundecl ?dwarf ~ppf_dump ~funcnames fd_cmm =
           ++ Profile.record ~accumulate:true "liveness" liveness
           ++ Profile.record ~accumulate:true "regalloc" (regalloc ~ppf_dump 1)
           ++ Profile.record ~accumulate:true "available_regs" Available_regs.fundecl
-        in
-        res
         ++ Profile.record ~accumulate:true "linearize" (fun (f : Mach.fundecl) ->
             let res = Linearize.fundecl f in
             if !Flambda_backend_flags.cfg_equivalence_check then begin
