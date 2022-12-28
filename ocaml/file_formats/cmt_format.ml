@@ -45,9 +45,6 @@ and binary_part =
 | Partial_signature_item of signature_item
 | Partial_module_type of module_type
 
-type import_info =
-  (Compilation_unit.Name.t * (Compilation_unit.t * Digest.t) option)
-
 type cmt_infos = {
   cmt_modname : Compilation_unit.t;
   cmt_annots : binary_annots;
@@ -60,7 +57,7 @@ type cmt_infos = {
   cmt_loadpath : string list;
   cmt_source_digest : Digest.t option;
   cmt_initial_env : Env.t;
-  cmt_imports : import_info list;
+  cmt_imports : Import_info.t array;
   cmt_interface_digest : Digest.t option;
   cmt_use_summaries : bool;
   cmt_uid_to_loc : Location.t Shape.Uid.Tbl.t;
@@ -178,15 +175,15 @@ let save_cmt filename modname binary_annots sourcefile initial_env cmi shape =
            | Some cmi -> Some (output_cmi temp_file_name oc cmi)
          in
          let source_digest = Option.map Digest.file sourcefile in
-         let get_imports () =
-           Env.imports ()
-           |> List.map (fun import ->
-                let name = Import_info.name import in
-                let crc_with_unit = Import_info.crc_with_unit import in
-                name, crc_with_unit)
-         in
-         let compare_imports (modname1, _crc1) (modname2, _crc2) =
+         let compare_imports import1 import2 =
+           let modname1 = Import_info.name import1 in
+           let modname2 = Import_info.name import2 in
            Compilation_unit.Name.compare modname1 modname2
+         in
+         let get_imports () =
+           let imports = Array.of_list (Env.imports ()) in
+           Array.sort compare_imports imports;
+           imports
          in
          let cmt = {
            cmt_modname = modname;
@@ -200,7 +197,7 @@ let save_cmt filename modname binary_annots sourcefile initial_env cmi shape =
            cmt_source_digest = source_digest;
            cmt_initial_env = if need_to_clear_env then
                keep_only_summary initial_env else initial_env;
-           cmt_imports = List.sort compare_imports (get_imports ());
+           cmt_imports = get_imports ();
            cmt_interface_digest = this_crc;
            cmt_use_summaries = need_to_clear_env;
            cmt_uid_to_loc = Env.get_uid_to_loc_tbl ();
