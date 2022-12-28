@@ -81,8 +81,8 @@ let default_ui_export_info =
 let current_unit =
   { ui_unit = CU.dummy;
     ui_defines = [];
-    ui_imports_cmi = [];
-    ui_imports_cmx = [];
+    ui_imports_cmi = [| |];
+    ui_imports_cmx = [| |];
     ui_curry_fun = [];
     ui_apply_fun = [];
     ui_send_fun = [];
@@ -95,8 +95,8 @@ let reset compilation_unit =
   CU.set_current (Some compilation_unit);
   current_unit.ui_unit <- compilation_unit;
   current_unit.ui_defines <- [compilation_unit];
-  current_unit.ui_imports_cmi <- [];
-  current_unit.ui_imports_cmx <- [];
+  current_unit.ui_imports_cmi <- [| |];
+  current_unit.ui_imports_cmx <- [| |];
   current_unit.ui_curry_fun <- [];
   current_unit.ui_apply_fun <- [];
   current_unit.ui_send_fun <- [];
@@ -161,8 +161,9 @@ let get_unit_info comp_unit ~cmx_name =
               (None, None)
           end
       in
+      let import = Import_info.create_normal comp_unit ~crc in
       current_unit.ui_imports_cmx <-
-        (comp_unit, crc) :: current_unit.ui_imports_cmx;
+        Array.append [| import |] current_unit.ui_imports_cmx;
       CU.Name.Tbl.add global_infos_table cmx_name infos;
       infos
   end
@@ -261,7 +262,7 @@ let write_unit_info info filename =
   close_out oc
 
 let save_unit_info filename =
-  current_unit.ui_imports_cmi <- Env.imports();
+  current_unit.ui_imports_cmi <- Array.of_list (Env.imports());
   write_unit_info current_unit filename
 
 let snapshot () = !structured_constants

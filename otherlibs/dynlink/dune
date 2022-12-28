@@ -75,6 +75,7 @@
     cmxs_format
     debug_event
     compilation_unit
+    import_info
     symbol
     linkage_name)
   (modules_without_implementation
@@ -111,6 +112,7 @@
 (copy_files ../../utils/load_path.ml)
 (copy_files ../../utils/int_replace_polymorphic_compare.ml)
 (copy_files ../../utils/compilation_unit.ml)
+(copy_files ../../utils/import_info.ml)
 (copy_files ../../utils/symbol.ml)
 (copy_files ../../utils/linkage_name.ml)
 (copy_files ../../utils/lazy_backtrack.ml)
@@ -162,6 +164,7 @@
 (copy_files ../../utils/load_path.mli)
 (copy_files ../../utils/int_replace_polymorphic_compare.mli)
 (copy_files ../../utils/compilation_unit.mli)
+(copy_files ../../utils/import_info.mli)
 (copy_files ../../utils/symbol.mli)
 (copy_files ../../utils/linkage_name.mli)
 (copy_files ../../utils/lazy_backtrack.mli)
@@ -253,6 +256,7 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ident.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Longident.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Compilation_unit.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Import_info.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Linkage_name.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Symbol.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Path.cmo
@@ -319,6 +323,7 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ident.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Longident.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Compilation_unit.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Import_info.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Linkage_name.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Symbol.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Path.cmx

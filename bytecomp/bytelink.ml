@@ -182,8 +182,10 @@ let implementations_defined = ref ([] : (CU.Name.t * string) list)
 
 let check_consistency file_name cu =
   begin try
-    List.iter
-      (fun (name, crco) ->
+    Array.iter
+      (fun import ->
+        let name = Import_info.name import in
+        let crco = Import_info.crc_with_unit import in
         interfaces := name :: !interfaces;
         match crco with
           None -> ()
@@ -212,6 +214,8 @@ let check_consistency file_name cu =
 
 let extract_crc_interfaces () =
   Consistbl.extract !interfaces crc_interfaces
+  |> List.map (fun (name, crc_with_unit) ->
+       Import_info.create name ~crc_with_unit)
 
 let clear_crc_interfaces () =
   Consistbl.clear crc_interfaces;
@@ -403,7 +407,7 @@ let link_bytecode ?final_name tolink exec_name standalone =
        Symtable.output_global_map outchan;
        Bytesections.record outchan "SYMB";
        (* CRCs for modules *)
-       output_value outchan (extract_crc_interfaces());
+       output_value outchan ((extract_crc_interfaces() |> Array.of_list));
        Bytesections.record outchan "CRCS";
        (* Debug info *)
        if !Clflags.debug then begin
@@ -510,7 +514,7 @@ let link_bytecode_as_c tolink outfile with_main =
        let sections =
          [ "SYMB", Symtable.data_global_map();
            "PRIM", Obj.repr(Symtable.data_primitive_names());
-           "CRCS", Obj.repr(extract_crc_interfaces()) ] in
+           "CRCS", Obj.repr(extract_crc_interfaces() |> Array.of_list) ] in
        output_string outchan "static char caml_sections[] = {\n";
        output_data_string outchan
          (Marshal.to_string sections []);
