@@ -389,6 +389,8 @@ let compile_fundecl ?dwarf ~ppf_dump ~funcnames fd_cmm =
         ++ Cfg_with_liveness.cfg_with_layout
         ++ Profile.record ~accumulate:true "cfg_validate_description" (Cfg_regalloc_validate.run cfg_description)
         ++ Profile.record ~accumulate:true "cfg_simplify" Cfg_regalloc_utils.simplify_cfg
+        ++ Profile.record ~accumulate:true "cfg_reorder_blocks"
+             (reorder_blocks_random ppf_dump)
         ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run)
     | true, _ | false, Upstream ->
       fd
@@ -414,21 +416,22 @@ let compile_fundecl ?dwarf ~ppf_dump ~funcnames fd_cmm =
               test_cfgize f res;
             end;
             res)
-        ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code"))
+        ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code")
+        ++ Profile.record ~accumulate:true "reorder_blocks" (fun (fd : Linear.fundecl) ->
+        if !Flambda_backend_flags.use_ocamlcfg then begin
+          fd
+          ++ Profile.record ~accumulate:true "linear_to_cfg"
+               (Linear_to_cfg.run ~preserve_orig_labels:true)
+          ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg
+          ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg "After linear_to_cfg"
+          ++ Profile.record ~accumulate:true "save_cfg" save_cfg
+          ++ Profile.record ~accumulate:true "cfg_reorder_blocks"
+               (reorder_blocks_random ppf_dump)
+          ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run
+          ++ pass_dump_linear_if ppf_dump dump_linear "After cfg_to_linear"
+        end else
+          fd))
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Linear
-  ++ Profile.record ~accumulate:true "reorder_blocks" (fun (fd : Linear.fundecl) ->
-    if !Flambda_backend_flags.use_ocamlcfg then begin
-      fd
-      ++ Profile.record ~accumulate:true "linear_to_cfg"
-           (Linear_to_cfg.run ~preserve_orig_labels:false)
-      ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg
-      ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg "After linear_to_cfg"
-      ++ Profile.record ~accumulate:true "save_cfg" save_cfg
-      ++ Profile.record ~accumulate:true "cfg_reorder_blocks" (reorder_blocks_random ppf_dump)
-      ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run
-      ++ pass_dump_linear_if ppf_dump dump_linear "After cfg_to_linear"
-    end else
-      fd)
   ++ Profile.record ~accumulate:true "scheduling" Scheduling.fundecl
   ++ pass_dump_linear_if ppf_dump dump_scheduling "After instruction scheduling"
   ++ Profile.record ~accumulate:true "save_linear" save_linear
