@@ -380,6 +380,16 @@ let rec module_path_is_an_alias_of env path ~alias_of =
   | _ -> false
   | exception Not_found -> false
 
+let expand_longident_head name =
+  match find_double_underscore name with
+  | None -> None
+  | Some i ->
+    Some
+      (Ldot
+        (Lident (String.sub name 0 i),
+          String.capitalize_ascii
+            (String.sub name (i + 2) (String.length name - i - 2))))
+
 (* Simple heuristic to print Foo__bar.* as Foo.Bar.* when Foo.Bar is an alias
    for Foo__bar. This pattern is used by the stdlib. *)
 let rec rewrite_double_underscore_paths env p =
@@ -391,15 +401,9 @@ let rec rewrite_double_underscore_paths env p =
             rewrite_double_underscore_paths env b)
   | Pident id ->
     let name = Ident.name id in
-    match find_double_underscore name with
+    match expand_longident_head name with
     | None -> p
-    | Some i ->
-      let better_lid =
-        Ldot
-          (Lident (String.sub name 0 i),
-           String.capitalize_ascii
-             (String.sub name (i + 2) (String.length name - i - 2)))
-      in
+    | Some better_lid ->
       match Env.find_module_by_name better_lid env with
       | exception Not_found -> p
       | p', _ ->
@@ -413,6 +417,25 @@ let rewrite_double_underscore_paths env p =
     p
   else
     rewrite_double_underscore_paths env p
+
+let rec rewrite_double_underscore_longidents env (l : Longident.t) =
+  match l with
+  | Ldot (l, s) ->
+    Ldot (rewrite_double_underscore_longidents env l, s)
+  | Lapply (a, b) ->
+    Lapply (rewrite_double_underscore_longidents env a,
+            rewrite_double_underscore_longidents env b)
+  | Lident name ->
+    match expand_longident_head name with
+    | None -> l
+    | Some l' ->
+      match Env.find_module_by_name l env, Env.find_module_by_name l' env with
+      | exception Not_found -> l
+      | (p, _), (p', _) ->
+          if module_path_is_an_alias_of env p' ~alias_of:p then
+            l'
+          else
+          l
 
 let rec tree_of_path namespace = function
   | Pident id ->
@@ -607,7 +630,7 @@ type best_path = Paths of Path.t list | Best of Path.t
     cache for short-paths
  *)
 let printing_old = ref Env.empty
-let printing_pers = ref String.Set.empty
+let printing_pers = ref Compilation_unit.Name.Set.empty
 (** {!printing_old} and  {!printing_pers} are the keys of the one-slot cache *)
 
 let printing_depth = ref 0
@@ -671,7 +694,8 @@ let rec path_size = function
 
 let same_printing_env env =
   let used_pers = Env.used_persistent () in
-  Env.same_types !printing_old env && String.Set.equal !printing_pers used_pers
+  Env.same_types !printing_old env
+  && Compilation_unit.Name.Set.equal !printing_pers used_pers
 
 let set_printing_env env =
   printing_env := env;
@@ -1211,6 +1235,15 @@ and tree_of_row_field mode (l, f) =
 and tree_of_typlist mode tyl =
   List.map (tree_of_typexp mode) tyl
 
+and tree_of_typ_gf (ty, gf) =
+  let gf =
+    match gf with
+    | Global -> Ogf_global
+    | Nonlocal -> Ogf_nonlocal
+    | Unrestricted -> Ogf_unrestricted
+  in
+  (tree_of_typexp Type ty, gf)
+  
 and tree_of_typobject mode fi nm =
   begin match nm with
   | None ->
@@ -1317,7 +1350,7 @@ let filter_params tyl =
   in List.rev params
 
 let prepare_type_constructor_arguments = function
-  | Cstr_tuple l -> List.iter prepare_type l
+  | Cstr_tuple l -> List.iter (fun (ty, _) -> prepare_type ty) l
   | Cstr_record l -> List.iter (fun l -> prepare_type l.ld_type) l
 
 let rec tree_of_type_decl id decl =
@@ -1449,8 +1482,8 @@ let rec tree_of_type_decl id decl =
       otype_cstrs = constraints }
 
 and tree_of_constructor_arguments = function
-  | Cstr_tuple l -> tree_of_typlist Type l
-  | Cstr_record l -> [ Otyp_record (List.map tree_of_label l) ]
+  | Cstr_tuple l -> List.map tree_of_typ_gf l
+  | Cstr_record l -> [ Otyp_record (List.map tree_of_label l), Ogf_unrestricted ]
 
 and tree_of_constructor cd =
   let name = Ident.name cd.cd_id in
@@ -1497,7 +1530,7 @@ let type_declaration id ppf decl =
 
 let constructor_arguments ppf a =
   let tys = tree_of_constructor_arguments a in
-  !Oprint.out_type ppf (Otyp_tuple tys)
+  !Oprint.out_constr_args ppf tys
 
 (* Print an extension declaration *)
 

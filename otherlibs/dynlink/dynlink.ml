@@ -1,4 +1,4 @@
-#3 "otherlibs/dynlink/dynlink.ml"
+#2 "otherlibs/dynlink/dynlink.ml"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -23,19 +23,30 @@ open! Dynlink_compilerlibs
 module DC = Dynlink_common
 module DT = Dynlink_types
 
+let convert_cmi_import import =
+  let name = Import_info.name import |> Compilation_unit.Name.to_string in
+  let crc = Import_info.crc import in
+  name, crc
+
 module Bytecode = struct
   type filename = string
 
   module Unit_header = struct
     type t = Cmo_format.compilation_unit_descr
 
-    let name (t : t) = Compilation_unit.Name.to_string t.cu_name
+    let name (t : t) = Compilation_unit.full_path_as_string t.cu_name
     let crc _t = None
 
-    let interface_imports (t : t) = t.cu_imports
+    let interface_imports (t : t) =
+      List.map convert_cmi_import (Array.to_list t.cu_imports)
+
     let implementation_imports (t : t) =
-      let required =
+      let required_from_unit =
         t.cu_required_globals
+        |> List.map Compilation_unit.to_global_ident_for_bytecode
+      in
+      let required =
+        required_from_unit
         @ Symtable.required_globals t.cu_reloc
       in
       let required =
@@ -58,7 +69,7 @@ module Bytecode = struct
 
   type handle = Stdlib.in_channel * filename * Digest.t
 
-  let default_crcs = ref []
+  let default_crcs = ref [| |]
   let default_global_map = ref Symtable.empty_global_map
 
   let init () =
@@ -75,9 +86,17 @@ module Bytecode = struct
   let num_globals_inited () =
     Misc.fatal_error "Should never be called for bytecode dynlink"
 
+  let assume_no_prefix modname =
+    Compilation_unit.create Compilation_unit.Prefix.empty modname
+
   let fold_initial_units ~init ~f =
-    List.fold_left (fun acc (comp_unit, interface) ->
-        let id = Ident.create_persistent comp_unit in
+    Array.fold_left (fun acc import ->
+        let modname = Import_info.name import in
+        let crc = Import_info.crc import in
+        let id =
+          Compilation_unit.to_global_ident_for_bytecode
+            (assume_no_prefix modname)
+        in
         let defined =
           Symtable.is_defined_in_global_map !default_global_map id
         in
@@ -86,10 +105,11 @@ module Bytecode = struct
           else None
         in
         let defined_symbols =
-          if defined then [comp_unit]
+          if defined then [Ident.name id]
           else []
         in
-        f acc ~comp_unit ~interface ~implementation ~defined_symbols)
+        let comp_unit = modname |> Compilation_unit.Name.to_string in
+        f acc ~comp_unit ~interface:crc ~implementation ~defined_symbols)
       init
       !default_crcs
 
@@ -126,7 +146,7 @@ module Bytecode = struct
        fragments. *)
     let digest =
       Digest.string
-        (file_digest ^ Compilation_unit.Name.to_string compunit.cu_name)
+        (file_digest ^ Compilation_unit.full_path_as_string compunit.cu_name)
     in
     let events =
       if compunit.cu_debug = 0 then [| |]
@@ -189,7 +209,7 @@ end
 module B = DC.Make (Bytecode)
 
 type global_map = {
-  name : Compilation_unit.Name.t;
+  name : Compilation_unit.t;
   crc_intf : Digest.t option;
   crc_impl : Digest.t option;
   syms : Symbol.t list;
@@ -213,11 +233,18 @@ module Native = struct
   module Unit_header = struct
     type t = Cmxs_format.dynunit
 
-    let name (t : t) = t.dynu_name |> Compilation_unit.Name.to_string
+    let name (t : t) = t.dynu_name |> Compilation_unit.name_as_string
     let crc (t : t) = Some t.dynu_crc
 
-    let interface_imports (t : t) = t.dynu_imports_cmi
-    let implementation_imports (t : t) = t.dynu_imports_cmx
+    let convert_cmx_import import =
+      let cu = Import_info.cu import |> Compilation_unit.name_as_string in
+      let crc = Import_info.crc import in
+      cu, crc
+
+    let interface_imports (t : t) =
+      List.map convert_cmi_import (Array.to_list t.dynu_imports_cmi)
+    let implementation_imports (t : t) =
+      List.map convert_cmx_import (Array.to_list t.dynu_imports_cmx)
 
     let defined_symbols (t : t) =
       List.map (fun comp_unit ->
@@ -239,7 +266,7 @@ module Native = struct
   let fold_initial_units ~init ~f =
     let rank = ref 0 in
     List.fold_left (fun acc { name; crc_intf; crc_impl; syms; } ->
-        let name = Compilation_unit.Name.to_string name in
+        let name = Compilation_unit.full_path_as_string name in
         let syms =
           List.map
             (fun sym -> Symbol.linkage_name sym |> Linkage_name.to_string)
@@ -279,7 +306,7 @@ module Native = struct
         (Printexc.get_raw_backtrace ())
 
   let run_shared_startup handle ~filename ~priv =
-    ndl_run handle "_shared_startup" ~filename ~priv
+    ndl_run handle "caml_shared_startup" ~filename ~priv
 
   let run handle ~filename ~unit_header ~priv =
     List.iter (fun cu -> ndl_run handle cu ~filename ~priv)

@@ -19,10 +19,6 @@
 (** Knowledge that the middle end needs about the backend. *)
 
 module type S = sig
-  (** Compute the pack prefix for the given identifier. *)
-  (* CR mshinwell: rename to pack_prefix_for_global_ident *)
-  val pack_prefix_for_global_ident : (Ident.t -> Compilation_unit.Prefix.t)
-
   (** If the given approximation is that of a symbol (Value_symbol) or an
       external (Value_extern), attempt to find a more informative
       approximation from a previously-written compilation artifact.  In the

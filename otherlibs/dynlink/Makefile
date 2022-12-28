@@ -87,6 +87,7 @@ COMPILERLIBS_SOURCES=\
   utils/int_replace_polymorphic_compare.ml \
   typing/ident.ml \
   utils/compilation_unit.ml \
+  utils/import_info.ml \
   utils/linkage_name.ml \
   utils/symbol.ml \
   utils/lazy_backtrack.ml \
@@ -193,19 +194,21 @@ $(LOCAL_SRC)/%.cmx: $(LOCAL_SRC)/%.ml
 
 # Rules for building the [Dynlink_compilerlibs] bytecode and native packs
 # from their components.
-
+# The dynlink_compilerlibs.cmi file is unfortunately written by both the ocamlc
+# and ocamlopt invocations.  The resulting files are different, probably because
+# of sharing differences.  Writing an .mli file would be problematic.  Instead
+# we allow the compiler to generate the inferred .cmi upon the ocamlc
+# invocation, then trick it (by touching dynlink_compilerlibs.mli) upon the
+# ocamlopt invocation, which causes it to use the ocamlc-generated .cmi.
 dynlink_compilerlibs.cmi: $(COMPILERLIBS_CMO)
+	rm -f dynlink_compilerlibs.mli
 	$(OCAMLC) $(COMPFLAGS) -pack -o dynlink_compilerlibs.cmo $(COMPILERLIBS_CMO)
 
 dynlink_compilerlibs.cmo: dynlink_compilerlibs.cmi
 
-dynlink_compilerlibs.cmx: $(COMPILERLIBS_CMX)
+dynlink_compilerlibs.cmx: $(COMPILERLIBS_CMX) dynlink_compilerlibs.cmi
+	touch dynlink_compilerlibs.mli
 	$(OCAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) -pack -o $@ $(COMPILERLIBS_CMX)
-
-# Rules for building the interface of the [Dynlink_compilerlibs] packs.
-# To avoid falling foul of the problem described below, the .cmo and .cmx
-# files for the dynlink-specific compilerlibs packs generated here---and in
-# particular the corresponding .cmi files -- are kept in separate directories.
 
 # The main dynlink rules start here.
 

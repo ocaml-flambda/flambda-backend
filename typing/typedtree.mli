@@ -728,6 +728,7 @@ and label_declaration =
      ld_id: Ident.t;
      ld_name: string loc;
      ld_mutable: mutable_flag;
+     ld_global: Types.global_flag;
      ld_type: core_type;
      ld_loc: Location.t;
      ld_attributes: attributes;
@@ -745,7 +746,7 @@ and constructor_declaration =
     }
 
 and constructor_arguments =
-  | Cstr_tuple of core_type list
+  | Cstr_tuple of (core_type * Types.global_flag) list
   | Cstr_record of label_declaration list
 
 and type_extension =

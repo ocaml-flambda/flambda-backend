@@ -118,6 +118,7 @@ let pfloatcomp = "Pfloatcomp"
 let pfloatfield = "Pfloatfield"
 let pfloatofint = "Pfloatofint"
 let pgetglobal = "Pgetglobal"
+let pgetpredef = "Pgetpredef"
 let pignore = "Pignore"
 let pint_as_pointer = "Pint_as_pointer"
 let pintcomp = "Pintcomp"
@@ -221,6 +222,7 @@ let pfloatcomp_arg = "Pfloatcomp_arg"
 let pfloatfield_arg = "Pfloatfield_arg"
 let pfloatofint_arg = "Pfloatofint_arg"
 let pgetglobal_arg = "Pgetglobal_arg"
+let pgetpredef_arg = "Pgetpredef_arg"
 let pobj_dup_arg = "Pobj_dup_arg"
 let pobj_magic_arg = "Pobj_magic_arg"
 let pignore_arg = "Pignore_arg"
@@ -318,6 +320,7 @@ let of_primitive : Lambda.primitive -> string = function
   | Pignore -> pignore
   | Pgetglobal _ -> pgetglobal
   | Psetglobal _ -> psetglobal
+  | Pgetpredef _ -> pgetpredef
   | Pmakeblock _ -> pmakeblock
   | Pmakefloatblock _ -> pmakefloatblock
   | Pfield _ -> pfield
@@ -425,6 +428,7 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pignore -> pignore_arg
   | Pgetglobal _ -> pgetglobal_arg
   | Psetglobal _ -> psetglobal_arg
+  | Pgetpredef _ -> pgetpredef_arg
   | Pmakeblock _ -> pmakeblock_arg
   | Pmakefloatblock _ -> pmakefloatblock_arg
   | Pfield _ -> pfield_arg

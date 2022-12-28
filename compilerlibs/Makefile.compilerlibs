@@ -47,6 +47,7 @@ UTILS = \
   utils/target_system.cmo \
   typing/ident.cmo \
   utils/compilation_unit.cmo utils/linkage_name.cmo utils/symbol.cmo \
+  utils/import_info.cmo \
   utils/lazy_backtrack.cmo \
   utils/diffing.cmo \
   utils/diffing_with_keys.cmo
@@ -338,7 +339,6 @@ MIDDLE_END = \
   middle_end/flambda/inlining_cost.cmo \
   middle_end/flambda/simple_value_approx.cmo \
   middle_end/flambda/export_info.cmo \
-  middle_end/flambda/export_info_for_pack.cmo \
   middle_end/compilenv.cmo \
   $(MIDDLE_END_CLOSURE) \
   $(MIDDLE_END_FLAMBDA)

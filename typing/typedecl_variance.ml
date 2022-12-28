@@ -253,8 +253,6 @@ let compute_variance_type env ~check (required, loc) decl tyl =
       set May_weak (mem May_neg v) v)
     params required
 
-let add_false = List.map (fun ty -> false, ty)
-
 (* A parameter is constrained if it is either instantiated,
    or it is a variable appearing in another parameter *)
 let constrained vars ty =
@@ -263,7 +261,7 @@ let constrained vars ty =
   | _ -> true
 
 let for_constr = function
-  | Types.Cstr_tuple l -> add_false l
+  | Types.Cstr_tuple l -> List.map (fun (ty,_) -> false, ty) l
   | Types.Cstr_record l ->
       List.map
         (fun {Types.ld_mutable; ld_type} -> (ld_mutable = Mutable, ld_type))
@@ -324,7 +322,7 @@ let compute_variance_decl env ~check decl (required, _ as rloc) =
                                 tll))
       else begin
         let mn =
-          List.map (fun (_,ty) -> (Types.Cstr_tuple [ty],None)) mn in
+          List.map (fun (_,ty) -> (Types.Cstr_tuple [ty, Unrestricted],None)) mn in
         let tll =
           mn @ List.map (fun c -> c.Types.cd_args, c.Types.cd_res) tll in
         match List.map (compute_variance_gadt env ~check rloc decl) tll with

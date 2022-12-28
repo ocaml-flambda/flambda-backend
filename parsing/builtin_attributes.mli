@@ -49,6 +49,7 @@ val mk_internal:
 (** Marks alert attributes used for the purposes of misplaced attribute
     warnings.  Call this when moving things with alert attributes into the
     environment. *)
+val mark_alert_used : Parsetree.attribute -> unit
 val mark_alerts_used : Parsetree.attributes -> unit
 
 (** Marks "warn_on_literal_pattern" attributes used for the purposes of
@@ -134,12 +135,12 @@ val parse_standard_implementation_attributes : Parsetree.attribute -> unit
 
 val has_local_opt: Parsetree.attributes -> bool
 val has_curry: Parsetree.attributes -> bool
-val has_global: Parsetree.attributes -> bool
-val has_nonlocal: Parsetree.attributes -> bool
 
 (* These functions report Error if the builtin extension.* attributes
    are present despite the extension being disabled *)
 val has_local: Parsetree.attributes -> (bool,unit) result
+val has_global: Parsetree.attributes -> (bool,unit) result
+val has_nonlocal: Parsetree.attributes -> (bool,unit) result
 val tailcall : Parsetree.attributes ->
     ([`Tail|`Nontail|`Tail_if_possible] option, [`Conflict]) result
 val has_include_functor : Parsetree.attributes -> (bool,unit) result

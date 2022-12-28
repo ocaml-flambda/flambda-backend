@@ -18,9 +18,6 @@ open Clflags
 module Backend = struct
   (* See backend_intf.mli. *)
 
-  let pack_prefix_for_global_ident id =
-    Compilenv.pack_prefix_for_global_ident id
-
   let really_import_approx = Import_approx.really_import_approx
   let import_symbol = Import_approx.import_symbol
 
@@ -137,6 +134,6 @@ let main argv ppf =
     Location.report_exception ppf x;
     2
   | () ->
-      Compmisc.with_ppf_dump ~file_prefix:"profile"
+      Compmisc.with_ppf_dump ~stdout:() ~file_prefix:"profile"
         (fun ppf -> Profile.print ppf !Clflags.profile_columns ~timings_precision:!Clflags.timings_precision);
       0

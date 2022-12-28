@@ -408,14 +408,14 @@ let to_file outchan unit_name objfile ~required_globals code =
     end else
       (0, 0) in
   let compunit =
-    { cu_name = Compilation_unit.Name.of_string unit_name;
+    { cu_name = unit_name;
       cu_pos = pos_code;
       cu_codesize = !out_position;
       cu_reloc = List.rev !reloc_info;
-      cu_imports = Env.imports();
+      cu_imports = Env.imports() |> Array.of_list;
       cu_primitives = List.map Primitive.byte_name
                                !Translmod.primitive_declarations;
-      cu_required_globals = Ident.Set.elements required_globals;
+      cu_required_globals = Compilation_unit.Set.elements required_globals;
       cu_force_link = !Clflags.link_everything;
       cu_debug = pos_debug;
       cu_debugsize = size_debug } in

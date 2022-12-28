@@ -28,7 +28,7 @@ type raw_data = nativeint  (* @since 4.12 *)
 external repr : 'a -> t = "%identity"
 external obj : t -> 'a = "%identity"
 external magic : 'a -> 'b = "%obj_magic"
-val [@inline always] is_block : t -> bool
+val is_block : t -> bool
 external is_int : t -> bool = "%obj_is_int"
 external tag : t -> int = "caml_obj_tag" [@@noalloc]
 val size : t -> int
@@ -57,8 +57,8 @@ val field : t -> int -> t
 *)
 val set_field : t -> int -> t -> unit
 
-val [@inline always] double_field : t -> int -> float  (* @since 3.11.2 *)
-val [@inline always] set_double_field : t -> int -> float -> unit
+val double_field : t -> int -> float  (* @since 3.11.2 *)
+val set_double_field : t -> int -> float -> unit
   (* @since 3.11.2 *)
 
 external raw_field : t -> int -> raw_data = "caml_obj_raw_field"
@@ -111,14 +111,14 @@ module Extension_constructor :
 sig
   type t = extension_constructor
   val of_val : 'a -> t
-  val [@inline always] name : t -> string
-  val [@inline always] id : t -> int
+  val name : t -> string
+  val id : t -> int
 end
 val extension_constructor : 'a -> extension_constructor
   [@@ocaml.deprecated "use Obj.Extension_constructor.of_val"]
-val [@inline always] extension_name : extension_constructor -> string
+val extension_name : extension_constructor -> string
   [@@ocaml.deprecated "use Obj.Extension_constructor.name"]
-val [@inline always] extension_id : extension_constructor -> int
+val extension_id : extension_constructor -> int
   [@@ocaml.deprecated "use Obj.Extension_constructor.id"]
 
 module Ephemeron: sig

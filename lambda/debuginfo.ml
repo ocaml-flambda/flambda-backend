@@ -68,6 +68,10 @@ module Scoped_location = struct
   let enter_value_definition ~scopes id =
     cons scopes Sc_value_definition (dot scopes (Ident.name id)) (Ident.name id)
 
+  let enter_compilation_unit ~scopes cu =
+    let name = Compilation_unit.name_as_string cu in
+    cons scopes Sc_module_definition (dot scopes name) name
+
   let enter_module_definition ~scopes id =
     cons scopes Sc_module_definition (dot scopes (Ident.name id)) (Ident.name id)
 
