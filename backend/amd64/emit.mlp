@@ -1327,7 +1327,8 @@ let reset_all () =
 let begin_assembly unix ~init_dwarf =
   reset_all ();
 
-  if !Flambda_backend_flags.internal_assembler then
+  if !Flambda_backend_flags.internal_assembler &&
+     !Emitaux.binary_backend_available then
     X86_proc.register_internal_assembler (Internal_assembler.assemble unix);
 
   init_dwarf ();

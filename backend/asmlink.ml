@@ -403,6 +403,10 @@ let call_linker_shared file_list output_name =
 
 let link_shared unix ~ppf_dump objfiles output_name =
   Profile.record_call output_name (fun () ->
+    if !Flambda_backend_flags.internal_assembler then
+      (* CR-soon gyorsh: workaround to turn off internal assembler temporarily,
+         until it is properly tested for shared library linking. *)
+      Emitaux.binary_backend_available := false;
     let genfns = Cmm_helpers.Generic_fns_tbl.make () in
     let ml_objfiles, units_tolink =
       List.fold_right (scan_file ~shared:true genfns) objfiles ([],[]) in
@@ -423,6 +427,9 @@ let link_shared unix ~ppf_dump objfiles output_name =
          make_shared_startup_file unix ~ppf_dump genfns units_tolink
       );
     call_linker_shared (startup_obj :: objfiles) output_name;
+    if !Flambda_backend_flags.internal_assembler then
+      (* CR gyorsh: restore after workaround. *)
+      Emitaux.binary_backend_available := true;
     remove_file startup_obj
   )
 

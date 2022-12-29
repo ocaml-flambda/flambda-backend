@@ -129,6 +129,8 @@ let implementation unix ~backend ~flambda2 ~start_from ~source_file
     else clambda unix info backend typed
   in
   with_info ~source_file ~output_prefix ~dump_ext:"cmx" @@ fun info ->
+  if !Flambda_backend_flags.internal_assembler then
+      Emitaux.binary_backend_available := true;
   match (start_from:Clflags.Compiler_pass.t) with
   | Parsing ->
     Compile_common.implementation
