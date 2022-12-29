@@ -32,6 +32,7 @@ module IntMap = Map.Make(Int)
 module V = Backend_var
 module VP = Backend_var.With_provenance
 open Cmm_helpers
+open Cmm_builtins
 
 (* Environments used for translation to Cmm. *)
 

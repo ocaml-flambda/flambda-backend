@@ -93,6 +93,7 @@ fmt:
 	  $$(find backend/debug \
 	    \( -name "*.ml" -or -name "*.mli" \))
 	ocamlformat -i backend/cmm_helpers.ml{,i}
+	ocamlformat -i backend/cmm_builtins.ml{,i}
 	ocamlformat -i backend/checkmach.ml{,i}
 	ocamlformat -i tools/merge_archives.ml
 	ocamlformat -i \
@@ -114,6 +115,7 @@ check-fmt:
            [ "$$(git status --porcelain backend/asm_targets)" != "" ] || \
            [ "$$(git status --porcelain backend/debug)" != "" ] || \
            [ "$$(git status --porcelain backend/cmm_helpers.ml{,i})" != "" ] || \
+           [ "$$(git status --porcelain backend/cmm_builtins.ml{,i})" != "" ] || \
            [ "$$(git status --porcelain backend/checkmach.ml{,i})" != "" ] || \
            [ "$$(git status --porcelain tools/merge_archives.ml)" != "" ] || \
            [ "$$(git status --porcelain ocaml/utils)" != "" ] || \
@@ -130,6 +132,7 @@ check-fmt:
            [ "$$(git diff backend/asm_targets)" != "" ] || \
            [ "$$(git diff backend/debug)" != "" ] || \
            [ "$$(git diff backend/cmm_helpers.ml{,i})" != "" ] || \
+           [ "$$(git diff backend/cmm_builtins.ml{,i})" != "" ] || \
            [ "$$(git diff backend/checkmach.ml{,i})" != "" ] || \
            [ "$$(git diff tools/merge_archives.ml)" != "" ] || \
            [ "$$(git diff ocaml/utils)" != "" ] || \
