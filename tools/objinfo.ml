@@ -70,6 +70,10 @@ let print_impl_import import =
   let crco = Import_info.crc import in
   print_name_crc (Compilation_unit.name unit) crco
 
+let print_old_intf_import (name, data) =
+  let crco = data |> Option.map (fun (_unit, crc) -> crc) in
+  print_name_crc name crco
+
 let print_line name =
   printf "\t%s\n" name
 
@@ -119,7 +123,7 @@ let print_cmt_infos cmt =
   let open Cmt_format in
   printf "Cmt unit name: %a\n" Compilation_unit.output cmt.cmt_modname;
   print_string "Cmt interfaces imported:\n";
-  Array.iter print_intf_import cmt.cmt_imports;
+  List.iter print_old_intf_import cmt.cmt_imports;
   printf "Source file: %s\n"
          (match cmt.cmt_sourcefile with None -> "(none)" | Some f -> f);
   printf "Compilation flags:";
