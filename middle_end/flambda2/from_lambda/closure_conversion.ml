@@ -361,13 +361,13 @@ let close_c_call acc env ~loc ~let_bound_var
        prim_native_repr_res
      } :
       Primitive.description) ~(args : Simple.t list) exn_continuation dbg
-    ~current_region (k : Acc.t -> Env.t -> Named.t option -> Expr_with_acc.t) :
+    ~current_region (k : Acc.t -> Named.t option -> Expr_with_acc.t) :
     Expr_with_acc.t =
   (* We always replace the original let-binding with an Flambda expression, so
      we call [k] with [None], to get just the closure-converted body of that
      binding. *)
   let cost_metrics_of_body, free_names_of_body, acc, body =
-    Acc.measure_cost_metrics acc ~f:(fun acc -> k acc env None)
+    Acc.measure_cost_metrics acc ~f:(fun acc -> k acc None)
   in
   let box_return_value =
     match prim_native_repr_res with
@@ -563,8 +563,7 @@ let close_exn_continuation acc env (exn_continuation : IR.exn_continuation) =
 
 let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
     loc (exn_continuation : IR.exn_continuation option) ~current_region
-    (k : Acc.t -> Env.t -> Named.t option -> Expr_with_acc.t) : Expr_with_acc.t
-    =
+    (k : Acc.t -> Named.t option -> Expr_with_acc.t) : Expr_with_acc.t =
   let acc, exn_continuation =
     match exn_continuation with
     | None -> acc, None
@@ -595,14 +594,14 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
     in
     let acc, simple = use_of_symbol_as_simple acc symbol in
     let named = Named.create_simple simple in
-    k acc env (Some named)
+    k acc (Some named)
   | Pgetpredef id, [] ->
     let symbol =
       Flambda2_import.Symbol.for_predef_ident id |> Symbol.create_wrapped
     in
     let acc, simple = use_of_symbol_as_simple acc symbol in
     let named = Named.create_simple simple in
-    k acc env (Some named)
+    k acc (Some named)
   | Praise raise_kind, [_] ->
     let exn_continuation =
       match exn_continuation with
@@ -672,10 +671,10 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
         (* Inconsistent with outer match *)
         assert false
     in
-    k acc env (Some (Named.create_simple (Simple.symbol sym)))
+    k acc (Some (Named.create_simple (Simple.symbol sym)))
   | prim, args ->
-    Lambda_to_flambda_primitives.convert_and_bind acc env ~let_bound_var
-      exn_continuation ~big_endian:(Env.big_endian env)
+    Lambda_to_flambda_primitives.convert_and_bind acc exn_continuation
+      ~big_endian:(Env.big_endian env)
       ~register_const_string:(fun acc -> register_const_string acc)
       prim ~args dbg ~current_region k
 
@@ -688,26 +687,25 @@ let close_trap_action_opt trap_action =
     trap_action
 
 let close_named acc env ~let_bound_var (named : IR.named)
-    (k : Acc.t -> Env.t -> Named.t option -> Expr_with_acc.t) : Expr_with_acc.t
-    =
+    (k : Acc.t -> Named.t option -> Expr_with_acc.t) : Expr_with_acc.t =
   match named with
   | Simple (Var id) ->
     assert (not (Ident.is_global_or_predef id));
     let acc, simple = find_simple acc env (Var id) in
     let named = Named.create_simple simple in
-    k acc env (Some named)
+    k acc (Some named)
   | Simple (Const cst) ->
     let acc, named, _name = close_const acc cst in
-    k acc env (Some named)
+    k acc (Some named)
   | Get_tag var ->
     let named = find_simple_from_id env var in
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
       Unary (Tag_immediate, Prim (Unary (Get_tag, Simple named)))
     in
-    Lambda_to_flambda_primitives_helpers.bind_rec acc env None
+    Lambda_to_flambda_primitives_helpers.bind_rec acc None
       ~register_const_string:(fun acc -> register_const_string acc)
       prim Debuginfo.none
-      (fun acc env named -> k acc env (Some named))
+      (fun acc named -> k acc (Some named))
   | Begin_region { try_region_parent } ->
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
       match try_region_parent with
@@ -716,19 +714,19 @@ let close_named acc env ~let_bound_var (named : IR.named)
         let try_region_parent = find_simple_from_id env try_region_parent in
         Unary (Begin_try_region, Simple try_region_parent)
     in
-    Lambda_to_flambda_primitives_helpers.bind_rec acc env None
+    Lambda_to_flambda_primitives_helpers.bind_rec acc None
       ~register_const_string:(fun acc -> register_const_string acc)
       prim Debuginfo.none
-      (fun acc env named -> k acc env (Some named))
+      (fun acc named -> k acc (Some named))
   | End_region id ->
     let named = find_simple_from_id env id in
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
       Unary (End_region, Simple named)
     in
-    Lambda_to_flambda_primitives_helpers.bind_rec acc env None
+    Lambda_to_flambda_primitives_helpers.bind_rec acc None
       ~register_const_string:(fun acc -> register_const_string acc)
       prim Debuginfo.none
-      (fun acc env named -> k acc env (Some named))
+      (fun acc named -> k acc (Some named))
   | Prim { prim; args; loc; exn_continuation; region } ->
     close_primitive acc env ~let_bound_var named prim ~args loc exn_continuation
       ~current_region:(fst (Env.find_var env region))
@@ -736,21 +734,19 @@ let close_named acc env ~let_bound_var (named : IR.named)
 
 let close_let acc env id user_visible kind defining_expr
     ~(body : Acc.t -> Env.t -> Expr_with_acc.t) : Expr_with_acc.t =
-  (* CR keryan : We can avoid having the bound variable in the environment of
-     the defining expression but it should not appear there anyway *)
-  let env, var = Env.add_var_like env id user_visible kind in
-  let cont acc env (defining_expr : Named.t option) =
+  let body_env, var = Env.add_var_like env id user_visible kind in
+  let cont acc (defining_expr : Named.t option) =
     match defining_expr with
     | Some (Simple simple) ->
       let body_env = Env.add_simple_to_substitute env id simple kind in
       body acc body_env
-    | None -> body acc env
+    | None -> body acc body_env
     | Some (Prim ((Nullary Begin_region | Unary (End_region, _)), _))
       when not (Flambda_features.stack_allocation_enabled ()) ->
       (* We use [body_env] to ensure the region variables are still in the
          environment, to avoid lookup errors, even though the [Let] won't be
          generated. *)
-      body acc env
+      body acc body_env
     | Some defining_expr -> (
       let body_env =
         match defining_expr with
@@ -759,17 +755,17 @@ let close_let acc env id user_visible kind defining_expr
             List.map
               (fun field ->
                 match Simple.must_be_symbol field with
-                | None -> Env.find_value_approximation env field
+                | None -> Env.find_value_approximation body_env field
                 | Some (sym, _) -> Value_approximation.Value_symbol sym)
               fields
             |> Array.of_list
           in
           Some
-            (Env.add_block_approximation env (Name.var var) approxs
+            (Env.add_block_approximation body_env (Name.var var) approxs
                (Alloc_mode.For_allocations.as_type alloc_mode))
         | Prim (Binary (Block_load _, block, field), _) -> (
-          match Env.find_value_approximation env block with
-          | Value_unknown -> Some env
+          match Env.find_value_approximation body_env block with
+          | Value_unknown -> Some body_env
           | Closure_approximation _ | Value_symbol _ | Value_int _ ->
             (* Here we assume [block] has already been substituted as a known
                symbol if it exists, and rely on the invariant that the
@@ -808,9 +804,10 @@ let close_let acc env id user_visible kind defining_expr
                  let-binding later. *)
               Some
                 (Env.add_simple_to_substitute env id (Simple.symbol sym) kind)
-            | _ -> Some (Env.add_value_approximation env (Name.var var) approx))
+            | _ ->
+              Some (Env.add_value_approximation body_env (Name.var var) approx))
           )
-        | _ -> Some env
+        | _ -> Some body_env
       in
       let var = VB.create var Name_mode.normal in
       let bound_pattern = Bound_pattern.singleton var in

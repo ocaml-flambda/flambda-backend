@@ -148,12 +148,6 @@ module Env : sig
   val find_simple_to_substitute_exn :
     t -> Ident.t -> Simple.t * Flambda_kind.With_subkind.t
 
-  val add_boxing_pair : t -> unboxed:Name.t -> boxed:Name.t -> t
-
-  val find_boxed_of : t -> Name.t -> Name.t
-
-  val find_unboxed_of : t -> Name.t -> Name.t
-
   val add_value_approximation : t -> Name.t -> value_approximation -> t
 
   val add_block_approximation :
