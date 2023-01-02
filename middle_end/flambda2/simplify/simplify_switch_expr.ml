@@ -223,7 +223,17 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
     | No_arms | Not_mergeable -> None
     | Mergeable { cont; args } ->
       let num_args = List.length args in
-      let args = List.filter_map Alias_set.choose_opt args in
+      let required_names = UA.required_names uacc in
+      let filter_and_choose_alias alias_set =
+        let available_alias_set =
+          Alias_set.filter alias_set ~f:(fun alias ->
+              Simple.pattern_match alias
+                ~name:(fun name ~coercion:_ -> Name.Set.mem name required_names)
+                ~const:(fun _ -> true))
+        in
+        Alias_set.find_best available_alias_set
+      in
+      let args = List.filter_map filter_and_choose_alias args in
       if List.compare_length_with args num_args = 0
       then Some (cont, args)
       else None

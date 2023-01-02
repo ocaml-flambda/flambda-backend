@@ -232,7 +232,7 @@ module Typing_env : sig
 
     val get_singleton : t -> Simple.t option
 
-    val choose_opt : t -> Simple.t option
+    val find_best : t -> Simple.t option
 
     val inter : t -> t -> t
 
