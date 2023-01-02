@@ -160,8 +160,10 @@ let read_unit_info filename =
     end;
     let uir = (input_value ic : unit_infos_raw) in
     let first_section_offset = pos_in ic in
-    let sections = File_sections.create uir.uir_section_toc filename ic ~first_section_offset in
     seek_in ic (first_section_offset + uir.uir_sections_length);
+    let crc = Digest.input ic in
+    (* This consumes the channel *)
+    let sections = File_sections.create uir.uir_section_toc filename ic ~first_section_offset in
     let export_info =
       match uir.uir_export_info with
       | Clambda_raw info -> Clambda info
@@ -181,9 +183,6 @@ let read_unit_info filename =
       ui_force_link = uir.uir_force_link
     }
     in
-    let crc = Digest.input ic in
-    if Array.length uir.uir_section_toc = 0 then
-      close_in ic;
     (ui, crc)
   with End_of_file | Failure _ ->
     close_in ic;
