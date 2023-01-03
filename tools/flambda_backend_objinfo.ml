@@ -174,12 +174,12 @@ let print_generic_fns gfns =
   printf "Apply functions:%a\n" pr_afuns gfns.apply_fun;
   printf "Send functions:%a\n" pr_afuns gfns.send_fun
 
-let print_cmx_infos (ui, crc) =
-  print_general_infos Compilation_unit.output ui.uir_unit crc ui.uir_defines
-    (fun f -> Array.iter f ui.uir_imports_cmi)
-    (fun f -> Array.iter f ui.uir_imports_cmx);
+let print_cmx_infos (uir, sections, crc) =
+  print_general_infos Compilation_unit.output uir.uir_unit crc uir.uir_defines
+    (fun f -> Array.iter f uir.uir_imports_cmi)
+    (fun f -> Array.iter f uir.uir_imports_cmx);
   begin
-    match ui.uir_export_info with
+    match uir.uir_export_info with
     | Clambda_raw approx ->
       if not !no_approx
       then begin
@@ -193,9 +193,9 @@ let print_cmx_infos (ui, crc) =
       else printf "Flambda unit\n";
       if not !no_approx
       then begin
-        Compilation_unit.set_current (Some ui.uir_unit);
+        Compilation_unit.set_current (Some uir.uir_unit);
         let root_symbols =
-          List.map Symbol.for_compilation_unit ui.uir_defines
+          List.map Symbol.for_compilation_unit uir.uir_defines
         in
         Format.printf "approximations@ %a@.@." Export_info.print_approx
           (export, root_symbols)
@@ -207,20 +207,13 @@ let print_cmx_infos (ui, crc) =
     | Flambda2_raw (Some cmx) ->
       printf "Flambda 2 export information:\n";
       flush stdout;
-      let cmx =
-        Flambda2_cmx.Flambda_cmx_format.from_raw cmx
-          ~sections:Flambda_backend_utils.File_sections.empty
-      in
-      (* CR ncourant: I think it would be better to actually read the sections
-         here (the cost is almost zero anyway), in case the printing code uses
-         them at some point. (They might even be currently read, I'm not
-         sure). *)
+      let cmx = Flambda2_cmx.Flambda_cmx_format.from_raw cmx ~sections in
       Format.printf "%a\n%!" Flambda2_cmx.Flambda_cmx_format.print cmx
   end;
-  print_generic_fns ui.uir_generic_fns;
-  printf "Force link: %s\n" (if ui.uir_force_link then "YES" else "no");
+  print_generic_fns uir.uir_generic_fns;
+  printf "Force link: %s\n" (if uir.uir_force_link then "YES" else "no");
   printf "Functions with neither allocations nor indirect calls:\n";
-  String.Set.iter print_line ui.uir_checks.ui_noalloc_functions
+  String.Set.iter print_line uir.uir_checks.ui_noalloc_functions
 
 let print_cmxa_infos (lib : Cmx_format.library_infos) =
   printf "Extra C object files:";
@@ -337,10 +330,14 @@ let dump_obj_by_kind filename ic obj_kind =
       match cmt with None -> () | Some cmt -> print_cmt_infos cmt
     end
   | Cmx _config ->
-    let ui = (input_value ic : unit_infos_raw) in
+    let uir = (input_value ic : unit_infos_raw) in
+    let first_section_offset = pos_in ic in
+    seek_in ic (first_section_offset + uir.uir_sections_length);
     let crc = Digest.input ic in
-    close_in ic;
-    print_cmx_infos (ui, crc)
+    (* This consumes ic *)
+    let sections = Flambda_backend_utils.File_sections.create
+        uir.uir_section_toc filename ic ~first_section_offset in
+    print_cmx_infos (uir, sections, crc)
   | Cmxa _config ->
     let li = (input_value ic : library_infos) in
     close_in ic;

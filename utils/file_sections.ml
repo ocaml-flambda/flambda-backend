@@ -42,10 +42,12 @@ type t =
 (* For efficient concatenation *)
 
 let create section_toc file channel ~first_section_offset =
-  let channel = File_lru_cache.add_slot file channel file_lru in
   if Array.length section_toc = 0
-  then In_memory [||]
+  then (
+    close_in channel;
+    In_memory [||])
   else
+    let channel = File_lru_cache.add_slot file channel file_lru in
     let sections =
       Array.map
         (fun offset ->
