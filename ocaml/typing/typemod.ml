@@ -84,6 +84,7 @@ type error =
   | Invalid_type_subst_rhs
   | Unpackable_local_modtype_subst of Path.t
   | With_cannot_remove_packed_modtype of Path.t * module_type
+  | No_cmt_without_cmi_for_pack
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -3203,12 +3204,14 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           if not !Clflags.dont_write_files then begin
             let alerts = Builtin_attributes.alerts_of_str ast in
             let cmi =
-              Env.save_signature ~alerts
-                simple_sg modulename (outputprefix ^ ".cmi")
+              if !Clflags.no_output_cmi_for_missing_mli then None
+              else
+                Some (Env.save_signature ~alerts
+                        simple_sg modulename (outputprefix ^ ".cmi"))
             in
             let annots = Cmt_format.Implementation str in
             Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
-              annots (Some sourcefile) initial_env (Some cmi) (Some shape);
+              annots (Some sourcefile) initial_env cmi (Some shape);
             gen_annot outputprefix sourcefile annots
           end;
           { structure = str;
@@ -3330,14 +3333,20 @@ let package_units initial_env objfiles cmifile modulename =
         (Env.imports()) in
     (* Write packaged signature *)
     if not !Clflags.dont_write_files then begin
-      let cmi =
-        Env.save_signature_with_imports ~alerts:Misc.Stdlib.String.Map.empty
-          sg modulename
-          (prefix ^ ".cmi") (Array.of_list imports)
-      in
-      Cmt_format.save_cmt (prefix ^ ".cmt")  modulename
-        (Cmt_format.Packed (cmi.Cmi_format.cmi_sign, objfiles)) None initial_env
-        (Some cmi) (Some shape);
+      if !Clflags.no_output_cmi_for_missing_mli then begin
+        if !Clflags.binary_annotations then begin
+          raise(Error(Location.none, Env.empty, No_cmt_without_cmi_for_pack))
+        end
+      end else begin
+        let cmi =
+          Env.save_signature_with_imports ~alerts:Misc.Stdlib.String.Map.empty
+            sg modulename
+            (prefix ^ ".cmi") (Array.of_list imports)
+        in
+        Cmt_format.save_cmt (prefix ^ ".cmt")  modulename
+          (Cmt_format.Packed (cmi.Cmi_format.cmi_sign, objfiles)) None
+          initial_env (Some cmi) (Some shape)
+      end
     end;
     Tcoerce_none
   end
@@ -3514,6 +3523,10 @@ let report_error ~loc _env = function
         "The module type@ %s@ is not a valid type for a packed module:@ \
          it is defined as a local substitution for a non-path module type."
         (Path.name p)
+  | No_cmt_without_cmi_for_pack ->
+      Location.errorf ~loc
+        "@[<v>It is forbidden to combine -pack, -bin-annot, and@ \
+         -no-output-cmi-for-missing-mli in the same command line@]"
 
 let report_error env ~loc err =
   Printtyp.wrap_printing_env ~error:true env

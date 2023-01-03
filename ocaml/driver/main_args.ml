@@ -438,6 +438,10 @@ let mk_o f =
 let mk_open f =
   "-open", Arg.String f, "<module>  Opens the module <module> before typing"
 
+let mk_no_output_cmi_for_missing_mli f =
+  "-no-output-cmi-for-missing-mli", Arg.Unit f,
+  " Don't output a .cmi when compiling a .ml without a .mli"
+
 let mk_output_obj f =
   "-output-obj", Arg.Unit f, " Output an object file instead of an executable"
 ;;
@@ -1028,6 +1032,7 @@ module type Compiler_options = sig
   val _noautolink : unit -> unit
   val _o : string -> unit
   val _opaque :  unit -> unit
+  val _no_output_cmi_for_missing_mli : unit -> unit
   val _output_obj : unit -> unit
   val _output_complete_obj : unit -> unit
   val _pack : unit -> unit
@@ -1251,6 +1256,7 @@ struct
     mk_o F._o;
     mk_opaque F._opaque;
     mk_open F._open;
+    mk_no_output_cmi_for_missing_mli F._no_output_cmi_for_missing_mli;
     mk_output_obj F._output_obj;
     mk_output_complete_obj F._output_complete_obj;
     mk_output_complete_exe F._output_complete_exe;
@@ -1456,6 +1462,7 @@ struct
     mk_o3 F._o3;
     mk_opaque F._opaque;
     mk_open F._open;
+    mk_no_output_cmi_for_missing_mli F._no_output_cmi_for_missing_mli;
     mk_output_obj F._output_obj;
     mk_output_complete_obj F._output_complete_obj;
     mk_p F._p;
@@ -1936,6 +1943,7 @@ module Default = struct
     let _noautolink = set no_auto_link
     let _o s = output_name := (Some s)
     let _opaque = set opaque
+    let _no_output_cmi_for_missing_mli = set no_output_cmi_for_missing_mli
     let _pack = set make_package
     let _plugin _p = plugin := true
     let _pp s = preprocessor := (Some s)

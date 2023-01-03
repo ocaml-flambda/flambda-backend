@@ -146,6 +146,7 @@ let flambda_invariant_checks =
   ref Config.with_flambda_invariants    (* -flambda-(no-)invariants *)
 
 let dont_write_files = ref false        (* set to true under ocamldoc *)
+let no_output_cmi_for_missing_mli = ref false (* -no-output-cmi-for-missing-mli *)
 
 let insn_sched_default = true
 let insn_sched = ref insn_sched_default (* -[no-]insn-sched *)
