@@ -3335,6 +3335,12 @@ let package_units initial_env objfiles cmifile modulename =
     if not !Clflags.dont_write_files then begin
       if !Clflags.no_output_cmi_for_missing_mli then begin
         if !Clflags.binary_annotations then begin
+          (* CR-someday lmaurer: This error is avoidable if we refactor. The
+             only reason it's raised is that the call to [save_cmt] below
+             relies on calling [Env.save_signature_with_imports] first. Probably
+             we'd want to split [Env.save_siganture_with_imports] so that we can
+             get the [Cmi_format.t] that /would/ be saved (or at least its
+             [cmi_sign]) without actually saving anything. *)
           raise(Error(Location.none, Env.empty, No_cmt_without_cmi_for_pack))
         end
       end else begin
