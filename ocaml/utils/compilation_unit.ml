@@ -247,7 +247,7 @@ let parse_full_path str =
 
 let of_string str =
   let t = parse_full_path str in
-  match t.for_pack_prefix |> Prefix.to_list with
+  match for_pack_prefix t |> Prefix.to_list with
   | [] -> t
   | _ -> Misc.fatal_errorf "[of_string] does not parse qualified names"
 
