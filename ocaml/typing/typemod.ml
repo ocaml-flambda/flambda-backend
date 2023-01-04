@@ -3254,7 +3254,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
                           Interface_not_compiled sourceintf)) in
           let dclsig = Env.read_signature modulename intf_file in
           if Env.is_imported_as_parameter (Compilation_unit.name modulename)
-          || Option.is_some !Clflags.functor_parameter_of then
+          || !Clflags.as_functor_parameter then
             raise (Error (Location.in_file sourcefile, initial_env,
                           Cannot_implement_parameter intf_file));
           let coercion, shape =
@@ -3281,7 +3281,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           gen_annot outputprefix sourcefile annots;
           impl
         end else begin
-          if Option.is_some !Clflags.functor_parameter_of then
+          if !Clflags.as_functor_parameter then
             raise (Error (Location.in_file sourcefile, initial_env,
                           Cannot_implement_parameter sourcefile));
           Location.prerr_warning (Location.in_file sourcefile)
@@ -3381,7 +3381,7 @@ let transl_interface env ast param_names =
 
 
 let type_interface sourcefile env ast =
-  if !Clflags.functor_parameter_of <> None &&
+  if !Clflags.as_functor_parameter &&
      !Clflags.for_package <> None then
     raise (Error (Location.in_file sourcefile, env,
                   Cannot_pack_parameter sourcefile));

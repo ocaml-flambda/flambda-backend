@@ -110,13 +110,9 @@ let print_cma_infos (lib : Cmo_format.library) =
   printf "\n";
   List.iter print_cmo_infos lib.lib_units
 
-let print_cmi_infos name crcs param_of =
+let print_cmi_infos name crcs is_param =
   printf "Unit name: %a\n" Compilation_unit.output name;
-  begin match param_of with
-  | Some param_of ->
-      printf "Parameter of: %a\n" Compilation_unit.output param_of
-  | None -> ()
-  end;
+  if is_param then printf "Is functor parameter\n";
   printf "Interfaces imported:\n";
   Array.iter print_intf_import crcs
 
@@ -323,7 +319,7 @@ let dump_obj_by_kind filename ic obj_kind =
              print_cmi_infos
                cmi.Cmi_format.cmi_name
                cmi.Cmi_format.cmi_crcs
-               cmi.Cmi_format.cmi_param_of
+               cmi.Cmi_format.cmi_is_param
        end;
        begin match cmt with
          | None -> ()

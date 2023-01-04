@@ -728,9 +728,9 @@ let mk_functor_parameter f =
                  functorized unit."
 ;;
 
-let mk_functor_parameter_of f =
-  "-parameter-of", Arg.String f,
-  "<module name> Compiles the interface as a parameter for a given \n\
+let mk_as_functor_parameter f =
+  "-as-parameter", Arg.Unit f,
+  "<module name> Compiles the interface as a parameter for a \n\
                  functorized unit."
 ;;
 
@@ -1022,6 +1022,7 @@ end
 module type Compiler_options = sig
   val _a : unit -> unit
   val _annot : unit -> unit
+  val _as_functor_parameter : unit -> unit
   val _binannot : unit -> unit
   val _c : unit -> unit
   val _cc : string -> unit
@@ -1032,7 +1033,6 @@ module type Compiler_options = sig
   val _for_pack : string -> unit
   val _full_interface : unit -> unit
   val _functor_parameter : string -> unit
-  val _functor_parameter_of : string -> unit
   val _g : unit -> unit
   val _stop_after : string -> unit
   val _i : unit -> unit
@@ -1223,6 +1223,7 @@ struct
     mk_alert F._alert;
     mk_absname F._absname;
     mk_annot F._annot;
+    mk_as_functor_parameter F._as_functor_parameter;
     mk_binannot F._binannot;
     mk_c F._c;
     mk_cc F._cc;
@@ -1242,7 +1243,6 @@ struct
     mk_for_pack_byt F._for_pack;
     mk_full_interface F._full_interface;
     mk_functor_parameter F._functor_parameter;
-    mk_functor_parameter_of F._functor_parameter_of;
     mk_g_byt F._g;
     mk_stop_after ~native:false F._stop_after;
     mk_i F._i;
@@ -1413,6 +1413,7 @@ struct
     mk_afl_instrument F._afl_instrument;
     mk_afl_inst_ratio F._afl_inst_ratio;
     mk_annot F._annot;
+    mk_as_functor_parameter F._as_functor_parameter;
     mk_binannot F._binannot;
     mk_inline_branch_factor F._inline_branch_factor;
     mk_c F._c;
@@ -1431,7 +1432,6 @@ struct
     mk_extension F._extension;
     mk_for_pack_opt F._for_pack;
     mk_functor_parameter F._functor_parameter;
-    mk_functor_parameter_of F._functor_parameter_of;
     mk_g_opt F._g;
     mk_function_sections F._function_sections;
     mk_stop_after ~native:true F._stop_after;
@@ -1933,6 +1933,7 @@ module Default = struct
     let _annot = set annotations
     let _args = Arg.read_arg
     let _args0 = Arg.read_arg0
+    let _as_functor_parameter = set as_functor_parameter
     let _binannot = set binary_annotations
     let _c = set compile_only
     let _cc s = c_compiler := (Some s)
@@ -1948,7 +1949,6 @@ module Default = struct
     let _for_pack s = for_package := (Some (String.capitalize_ascii s))
     let _full_interface = set print_full_interface
     let _functor_parameter s = functor_parameters := s :: !functor_parameters
-    let _functor_parameter_of s = functor_parameter_of := Some s
     let _g = set debug
     let _i = set print_types
     let _impl = Compenv.impl

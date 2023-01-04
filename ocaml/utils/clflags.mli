@@ -111,7 +111,7 @@ val transparent_modules : bool ref
 val unique_ids : bool ref
 val locations : bool ref
 val functor_parameters : string list ref
-val functor_parameter_of : string option ref
+val as_functor_parameter : bool ref
 val dump_source : bool ref
 val dump_parsetree : bool ref
 val dump_typedtree : bool ref

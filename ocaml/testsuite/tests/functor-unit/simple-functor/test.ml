@@ -5,7 +5,7 @@ readonly_files="param.mli make.ml use_make.ml"
 * setup-ocamlc.byte-build-env
 program = "${test_build_directory}/use_make.byte"
 ** ocamlc.byte
-flags = "-parameter-of Make"
+flags = "-as-parameter"
 module = "param.mli"
 *** ocamlc.byte
 flags = "-parameter Param"
@@ -26,7 +26,7 @@ reference = "${test_source_directory}/use_make.reference"
 * setup-ocamlopt.byte-build-env
 program = "${test_build_directory}/use_make.asm"
 ** ocamlopt.byte
-flags = "-parameter-of Make"
+flags = "-as-parameter"
 module = "param.mli"
 *** ocamlopt.byte
 flags = "-parameter Param"

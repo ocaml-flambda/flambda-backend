@@ -57,7 +57,7 @@ type can_load_cmis =
 
 type pers_struct = {
   ps_name: CU.t;
-  ps_param_of: CU.t option;
+  ps_is_param: bool;
   ps_crcs: Import_info.t array;
   ps_filename: string;
   ps_flags: pers_flags list;
@@ -155,19 +155,15 @@ let check_consistency penv ps =
     else error (Inconsistent_package_declaration_between_imports(
         ps.ps_filename, auth_unit, source_unit))
 
-let check_parameter modname param_of functor_unit =
-  let parameter_for_same_module =
-    match !Clflags.functor_parameter_of with
-      None -> false
-    | Some unit ->
-        let unit = Compilation_unit.of_string unit in
-        Option.equal Compilation_unit.equal param_of (Some unit)
+let check_parameter modname =
+  let is_not_packed = not (Compilation_unit.is_packed modname) in
+  let is_parameter_of_current_module =
+    let basename = Compilation_unit.name_as_string modname in
+    List.mem basename !Clflags.functor_parameters
   in
-  let basename = Compilation_unit.name_as_string modname in
-  not (Compilation_unit.is_packed modname) &&
-  List.mem basename !Clflags.functor_parameters &&
-  Compilation_unit.equal (Compilation_unit.get_current_exn ()) functor_unit ||
-  parameter_for_same_module
+  let current_module_is_also_a_parameter = !Clflags.as_functor_parameter in
+  is_not_packed
+  && (is_parameter_of_current_module || current_module_is_also_a_parameter)
 
 let can_load_cmis penv =
   !(penv.can_load_cmis)
@@ -209,11 +205,11 @@ let save_pers_struct penv crc ps pm =
 let acknowledge_pers_struct penv check modname pers_sig pm =
   let { Persistent_signature.filename; cmi } = pers_sig in
   let name = cmi.cmi_name in
-  let param_of = cmi.cmi_param_of in
+  let is_param = cmi.cmi_is_param in
   let crcs = cmi.cmi_crcs in
   let flags = cmi.cmi_flags in
   let ps = { ps_name = name;
-             ps_param_of = param_of;
+             ps_is_param = is_param;
              ps_crcs = crcs;
              ps_filename = filename;
              ps_flags = flags;
@@ -232,16 +228,10 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
         | Alerts _ -> ()
         | Opaque -> register_import_as_opaque penv modname)
     ps.ps_flags;
-  begin match ps.ps_param_of with
-  | None -> ()
-  | Some functor_unit ->
-      (* CR lmaurer: We're effectively passing the same argument to
-         [check_parameter] twice, which is almost certainly a bug, but
-         it was there when I got here and I'm not sure what the
-         correct behavior is. *)
-      if not (check_parameter ps.ps_name ps.ps_param_of functor_unit) then
-        error (Illegal_import_of_parameter(modname, filename))
-      else add_imported_parameter penv modname
+  if ps.ps_is_param then begin
+    if not (check_parameter ps.ps_name) then
+      error (Illegal_import_of_parameter(modname, filename))
+    else add_imported_parameter penv modname
   end;
   if check then check_consistency penv ps;
   begin match CU.get_current () with
@@ -419,15 +409,12 @@ let make_cmi penv modname sign alerts =
       [Alerts alerts];
     ]
   in
-  let param_of =
-    !Clflags.functor_parameter_of
-    |> Option.map Compilation_unit.parse_full_path
-  in
+  let is_param = !Clflags.as_functor_parameter in
   let crcs = imports penv in
   {
     cmi_name = modname;
     cmi_sign = sign;
-    cmi_param_of = param_of;
+    cmi_is_param = is_param;
     cmi_crcs = Array.of_list crcs;
     cmi_flags = flags
   }
@@ -438,7 +425,7 @@ let save_cmi penv psig pm =
       let {
         cmi_name = modname;
         cmi_sign = _;
-        cmi_param_of = param_of;
+        cmi_is_param = is_param;
         cmi_crcs = imports;
         cmi_flags = flags;
       } = cmi in
@@ -450,7 +437,7 @@ let save_cmi penv psig pm =
          will also return its crc *)
       let ps =
         { ps_name = modname;
-          ps_param_of = param_of;
+          ps_is_param = is_param;
           ps_crcs =
             Array.append
               [| Import_info.create_normal cmi.cmi_name ~crc:(Some crc) |]
