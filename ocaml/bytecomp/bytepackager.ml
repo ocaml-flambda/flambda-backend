@@ -267,6 +267,7 @@ let package_files ~ppf_dump initial_env files targetfile =
       Compilation_unit.create (Compilation_unit.Prefix.from_clflags ())
         (targetname |> Compilation_unit.Name.of_string)
     in
+    Compilation_unit.set_current (Some comp_unit);
     Misc.try_finally (fun () ->
         let coercion =
           Typemod.package_units initial_env files targetcmi comp_unit in
