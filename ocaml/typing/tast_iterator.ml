@@ -63,7 +63,9 @@ type iterator =
     with_constraint: iterator -> with_constraint -> unit;
   }
 
-let implementation sub {Typedtree.structure; _} =
+let implementation sub
+    {Typedtree.structure; env; coercion = _; signature = _; shape = _} =
+  sub.env sub env;
   match structure with
     Timpl_structure str | Timpl_functor (_, str) -> sub.structure sub str
 
@@ -300,7 +302,8 @@ let package_type sub {pack_fields; _} =
 
 let binding_op sub {bop_exp; _} = sub.expr sub bop_exp
 
-let interface sub {tintf_desc; _} =
+let interface sub {tintf_desc; tintf_env; tintf_type = _} =
+  sub.env sub tintf_env;
   match tintf_desc with
     Tintf_signature sg | Tintf_functor (_, sg) -> sub.signature sub sg
 
