@@ -33,8 +33,8 @@ open Typedtree
 
 type binary_annots =
   | Packed of Types.signature * string list
-  | Implementation of structure
-  | Interface of signature
+  | Implementation of implementation
+  | Interface of interface
   | Partial_implementation of binary_part array
   | Partial_interface of binary_part array
 

@@ -54,7 +54,9 @@ let record_debug base subst ev =
 
 (* Read the unit information from a .cmo file. *)
 
-type pack_member_kind = PM_intf | PM_impl of compilation_unit_descr
+type pack_member_kind =
+    PM_intf
+  | PM_impl of compilation_unit_descr * Types.compilation_unit
 
 type pack_member =
   { pm_file: string;
@@ -84,7 +86,10 @@ let read_member_info file = (
         then raise(Error(Illegal_renaming(name, file,
           CU.name_as_string compunit.cu_name)));
         close_in ic;
-        PM_impl compunit
+        let sg =
+          Env.read_signature compunit.cu_name (chop_extensions file ^ ".cmi")
+        in
+        PM_impl (compunit, sg)
       with x ->
         close_in ic;
         raise x
@@ -131,7 +136,7 @@ let rec append_bytecode_list oc ofs prefix subst =
       match m.pm_kind with
       | PM_intf ->
           append_bytecode_list oc ofs prefix subst rem
-      | PM_impl compunit ->
+      | PM_impl (compunit, _) ->
           let size =
             append_bytecode oc ofs subst m.pm_file compunit
           in
@@ -159,7 +164,12 @@ let build_global_target ~ppf_dump oc target_name members pos coercion =
       (fun m ->
         match m.pm_kind with
         | PM_intf -> None
-        | PM_impl _ -> Some (m.pm_name |> unit_of_name))
+        | PM_impl (_, ty) ->
+            let is_functor = match ty with
+              | Unit_functor _ -> true
+              | Unit_signature _ -> false
+            in
+            Some (m.pm_name |> unit_of_name, is_functor))
       members in
   let lam = Translmod.transl_package components compilation_unit coercion in
   if !Clflags.dump_rawlambda then
@@ -182,7 +192,7 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
     List.fold_right (fun compunit required_globals -> match compunit with
         | { pm_kind = PM_intf } ->
             required_globals
-        | { pm_kind = PM_impl { cu_required_globals; cu_reloc } } ->
+        | { pm_kind = PM_impl ({ cu_required_globals; cu_reloc }, _) } ->
             let ids_to_remove (rel, _pos) =
               match rel with
                 Reloc_setglobal id -> [id]

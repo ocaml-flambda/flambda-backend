@@ -37,6 +37,8 @@ type mapper =
     expr: mapper -> expression -> expression;
     extension_constructor: mapper -> extension_constructor ->
       extension_constructor;
+    implementation: mapper -> implementation -> implementation;
+    interface: mapper -> interface -> interface;
     module_binding: mapper -> module_binding -> module_binding;
     module_coercion: mapper -> module_coercion -> module_coercion;
     module_declaration: mapper -> module_declaration -> module_declaration;
@@ -72,6 +74,14 @@ type mapper =
 let id x = x
 let tuple2 f1 f2 (x, y) = (f1 x, f2 y)
 let tuple3 f1 f2 f3 (x, y, z) = (f1 x, f2 y, f3 z)
+
+let implementation sub (impl : Typedtree.implementation) =
+  let structure =
+    match impl.structure with
+      Timpl_structure str -> Timpl_structure (sub.structure sub str)
+    | Timpl_functor (args, str) -> Timpl_functor (args, sub.structure sub str)
+  in
+  {impl with structure}
 
 let structure sub {str_items; str_type; str_final_env} =
   {
@@ -429,6 +439,14 @@ let package_type sub x =
 let binding_op sub x =
   { x with bop_exp = sub.expr sub x.bop_exp }
 
+let interface sub intf =
+  let tintf_desc =
+    match intf.tintf_desc with
+      Tintf_signature sg -> Tintf_signature (sub.signature sub sg)
+    | Tintf_functor (args, sg) -> Tintf_functor (args, sub.signature sub sg)
+  in
+  {intf with tintf_desc}
+
 let signature sub x =
   let sig_final_env = sub.env sub x.sig_final_env in
   let sig_items = List.map (sub.signature_item sub) x.sig_items in
@@ -768,6 +786,8 @@ let default =
     env;
     expr;
     extension_constructor;
+    implementation;
+    interface;
     module_binding;
     module_coercion;
     module_declaration;

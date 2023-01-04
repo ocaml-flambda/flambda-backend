@@ -60,6 +60,9 @@ val nondep_sig_item: Env.t -> Ident.t list -> signature_item -> signature_item
            @raise [Ctype.Nondep_cannot_erase] if no such type exists. *)
 val no_code_needed: Env.t -> module_type -> bool
 val no_code_needed_sig: Env.t -> signature -> bool
+        (* Determine whether a signature needs no implementation code,
+           i.e. consists only of type definitions. *)
+val no_code_needed_unit: Env.t -> compilation_unit -> bool
         (* Determine whether a module needs no implementation code,
            i.e. consists only of type definitions. *)
 val enrich_modtype: Env.t -> Path.t -> module_type -> module_type

@@ -63,16 +63,17 @@ let typecheck_intf info ast =
   Profile.(record_call typing) @@ fun () ->
   let tsg =
     ast
-    |> Typemod.type_interface info.env
+    |> Typemod.type_interface info.source_file info.env
     |> print_if info.ppf_dump Clflags.dump_typedtree Printtyped.interface
   in
-  let sg = tsg.Typedtree.sig_type in
+  let sg = tsg.Typedtree.tintf_type in
   if !Clflags.print_types then
     Printtyp.wrap_printing_env ~error:false info.env (fun () ->
         Format.(fprintf std_formatter) "%a@."
           (Printtyp.printed_signature info.source_file)
           sg);
-  ignore (Includemod.signatures info.env ~mark:Mark_both sg sg);
+  ignore (Includemod.compunits ~loc:(Location.in_file info.source_file)
+            info.env ~mark:Mark_both info.source_file sg info.source_file sg);
   Typecore.force_delayed_checks ();
   Builtin_attributes.warn_unused ();
   Warnings.check_fatal ();
@@ -81,7 +82,7 @@ let typecheck_intf info ast =
 let emit_signature info ast tsg =
   let sg =
     let alerts = Builtin_attributes.alerts_of_sig ast in
-    Env.save_signature ~alerts tsg.Typedtree.sig_type
+    Env.save_signature ~alerts tsg.Typedtree.tintf_type
       info.module_name (info.output_prefix ^ ".cmi")
   in
   Typemod.save_signature info.module_name tsg
@@ -112,8 +113,7 @@ let typecheck_impl i parsetree =
   |> Profile.(record typing)
     (Typemod.type_implementation
        i.source_file i.output_prefix i.module_name i.env)
-  |> print_if i.ppf_dump Clflags.dump_typedtree
-    Printtyped.implementation_with_coercion
+  |> print_if i.ppf_dump Clflags.dump_typedtree Printtyped.implementation
   |> print_if i.ppf_dump Clflags.dump_shape
     (fun fmt {Typedtree.shape; _} -> Shape.print fmt shape)
 

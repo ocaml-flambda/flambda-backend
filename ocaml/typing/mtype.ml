@@ -407,6 +407,11 @@ and no_code_needed_sig env sg =
 
 let no_code_needed env mty = no_code_needed_mod env Mp_present mty
 
+let no_code_needed_unit env uty =
+  match uty with
+    Unit_signature sg -> no_code_needed_sig env sg
+  | Unit_functor (_, _) -> false
+
 (* Check whether a module type may return types *)
 
 let rec contains_type env = function

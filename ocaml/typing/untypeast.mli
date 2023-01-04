@@ -39,10 +39,12 @@ type mapper = {
   expr: mapper -> Typedtree.expression -> expression;
   extension_constructor: mapper -> Typedtree.extension_constructor
                          -> extension_constructor;
+  implementation: mapper -> Typedtree.implementation -> implementation;
   include_declaration:
     mapper -> Typedtree.include_declaration -> include_declaration;
   include_description:
     mapper -> Typedtree.include_description -> include_description;
+  interface: mapper -> Typedtree.interface -> interface;
   label_declaration:
     mapper -> Typedtree.label_declaration -> label_declaration;
   location: mapper -> Location.t -> Location.t;
@@ -81,6 +83,9 @@ val default_mapper : mapper
 
 val untype_structure : ?mapper:mapper -> Typedtree.structure -> structure
 val untype_signature : ?mapper:mapper -> Typedtree.signature -> signature
+val untype_implementation :
+  ?mapper:mapper -> Typedtree.implementation -> implementation
+val untype_interface : ?mapper:mapper -> Typedtree.interface -> interface
 val untype_expression : ?mapper:mapper -> Typedtree.expression -> expression
 val untype_pattern : ?mapper:mapper -> _ Typedtree.general_pattern -> pattern
 

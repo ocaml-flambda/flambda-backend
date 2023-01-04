@@ -26,6 +26,8 @@ module Signature_names : sig
   type t
 
   val simplify: Env.t -> t -> signature -> signature
+
+  val simplify_implementation: Env.t -> t -> compilation_unit -> compilation_unit
 end
 
 val type_module:
@@ -42,7 +44,7 @@ val type_implementation:
   string -> string -> Compilation_unit.t -> Env.t ->
   Parsetree.structure -> Typedtree.implementation
 val type_interface:
-        Env.t -> Parsetree.signature -> Typedtree.signature
+        Misc.filepath -> Env.t -> Parsetree.signature -> Typedtree.interface
 val transl_signature:
         Env.t -> Parsetree.signature -> Typedtree.signature
 val check_nongen_signature:
@@ -60,7 +62,7 @@ val modtype_of_package:
 val path_of_module : Typedtree.module_expr -> Path.t option
 
 val save_signature:
-  Compilation_unit.t -> Typedtree.signature -> string -> string ->
+  Compilation_unit.t -> Typedtree.interface -> string -> string ->
   Env.t -> Cmi_format.cmi_infos -> unit
 
 val package_units:
@@ -143,6 +145,8 @@ type error =
   | Invalid_type_subst_rhs
   | Unpackable_local_modtype_subst of Path.t
   | With_cannot_remove_packed_modtype of Path.t * module_type
+  | Cannot_implement_parameter of Misc.filepath
+  | Cannot_pack_parameter of Misc.filepath
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error

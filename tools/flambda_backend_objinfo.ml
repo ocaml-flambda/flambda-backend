@@ -115,8 +115,14 @@ let print_cma_infos (lib : Cmo_format.library) =
   printf "\n";
   List.iter print_cmo_infos lib.lib_units
 
-let print_cmi_infos name crcs =
+let print_cmi_infos name crcs param_of =
   printf "Unit name: %a\n" Compilation_unit.output name;
+  begin
+    match param_of with
+    | Some param_of ->
+      printf "Parameter of: %a\n" Compilation_unit.output param_of
+    | None -> ()
+  end;
   printf "Interfaces imported:\n";
   Array.iter print_intf_import crcs
 
@@ -321,6 +327,7 @@ let dump_obj_by_kind filename ic obj_kind =
       | None -> ()
       | Some cmi ->
         print_cmi_infos cmi.Cmi_format.cmi_name cmi.Cmi_format.cmi_crcs
+          cmi.Cmi_format.cmi_param_of
     end;
     begin
       match cmt with None -> () | Some cmt -> print_cmt_infos cmt
@@ -331,8 +338,10 @@ let dump_obj_by_kind filename ic obj_kind =
     seek_in ic (first_section_offset + uir.uir_sections_length);
     let crc = Digest.input ic in
     (* This consumes ic *)
-    let sections = Flambda_backend_utils.File_sections.create
-        uir.uir_section_toc filename ic ~first_section_offset in
+    let sections =
+      Flambda_backend_utils.File_sections.create uir.uir_section_toc filename ic
+        ~first_section_offset
+    in
     print_cmx_infos (uir, sections, crc)
   | Cmxa _config ->
     let li = (input_value ic : library_infos) in

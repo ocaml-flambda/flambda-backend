@@ -381,6 +381,11 @@ and ext_status =
   | Text_next                      (* not first constructor of an extension *)
   | Text_exception                 (* an exception *)
 
+(* Representation of the module type of a compilation unit. *)
+type compilation_unit =
+    Unit_signature of signature
+  | Unit_functor of functor_parameter list * signature
+
 
 (* Constructor and record label descriptions inserted held in typing
    environments *)
@@ -474,6 +479,17 @@ let signature_item_id = function
 type value_mode =
   { r_as_l : alloc_mode;
     r_as_g : alloc_mode; }
+
+let module_type_of_compilation_unit = function
+    Unit_signature sg -> Mty_signature sg
+  | Unit_functor (args, sg) ->
+      List.fold_right (fun param acc ->
+          Mty_functor (param, acc))
+        args
+        (Mty_signature sg)
+
+let compilation_unit_signature = function
+    Unit_signature sg | Unit_functor (_, sg) -> sg
 
 (**** Definitions for backtracking ****)
 

@@ -1011,9 +1011,33 @@ and label_x_bool_x_core_type_list i ppf x =
       core_type (i+1) ppf ct
 ;;
 
-let interface ppf x = list 0 signature_item ppf x.sig_items;;
+let param i ppf param =
+  match param with
+  | Types.Unit -> line i ppf "()"
+  | Types.Named (None, _) -> line i ppf "_"
+  | Types.Named (Some id, _) -> line i ppf "\"%a\"" fmt_ident id;;
 
-let implementation ppf x = list 0 structure_item ppf x.str_items;;
+let interface_desc ppf x =
+  match x with
+  | Tintf_signature x ->
+      line 1 ppf "Tintf_signature\n";
+      list 1 signature_item ppf x.sig_items
+  | Tintf_functor (params, x) ->
+      line 0 ppf "Tintf_functor\n";
+      list 1 param ppf params;
+      list 1 signature_item ppf x.sig_items;;
 
-let implementation_with_coercion ppf Typedtree.{structure; _} =
-  implementation ppf structure
+let interface ppf {tintf_desc; _} =
+  interface_desc ppf tintf_desc
+
+let implementation_desc ppf x =
+  match x with
+  | Timpl_structure x ->
+      list 0 structure_item ppf x.str_items
+  | Timpl_functor (params, x) ->
+      line 0 ppf "Tintf_functor\n";
+      list 1 param ppf params;
+      list 1 structure_item ppf x.str_items;;
+
+let implementation ppf Typedtree.{structure; _} =
+  implementation_desc ppf structure

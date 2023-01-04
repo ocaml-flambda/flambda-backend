@@ -18,7 +18,7 @@ open Asttypes
 open Types
 open Typedtree
 
-type typedtree = (Typedtree.structure * Typedtree.module_coercion)
+type typedtree = Typedtree.implementation
 
 open Odoc_parameter
 open Odoc_value
@@ -1850,7 +1850,10 @@ module Analyser =
 
      let analyse_typed_tree source_file input_file
          (parsetree : Parsetree.structure) (typedtree : typedtree) =
-       let (tree_structure, _) = typedtree in
+       let tree_structure =
+         match typedtree.structure with
+         | Timpl_structure str | Timpl_functor (_, str) -> str
+       in
        prepare_file source_file input_file;
        (* We create the t_module for this file. *)
        let mod_name = String.capitalize_ascii (Filename.basename (Filename.chop_extension source_file)) in

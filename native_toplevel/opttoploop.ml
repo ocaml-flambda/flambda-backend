@@ -426,10 +426,11 @@ let execute_phrase print_outcome ppf phr =
       in
       Compilenv.reset compilation_unit;
       Typecore.reset_delayed_checks ();
-      let (str, sg, names, _shape, newenv) =
+      let (str, sg, names, shape, newenv) =
         Typemod.type_toplevel_phrase oldenv oldsig sstr
       in
-      if !Clflags.dump_typedtree then Printtyped.implementation ppf str;
+      if !Clflags.dump_typedtree then
+        Printtyped.implementation_desc ppf (Timpl_structure str);
       let sg' = Typemod.Signature_names.simplify newenv names sg in
       let coercion = Includemod.signatures oldenv ~mark:Mark_positive sg sg' in
       Typecore.force_delayed_checks ();
@@ -450,10 +451,17 @@ let execute_phrase print_outcome ppf phr =
       in
       let compilation_unit, res, required_globals, size =
         if any_flambda then
+          let impl =
+            { Typedtree.structure = Timpl_structure str;
+              signature = Unit_signature sg';
+              coercion;
+              shape;
+              env = oldenv;
+            }
+          in
           let { Lambda.compilation_unit; main_module_block_size = size;
                 required_globals; code = res } =
-            Translmod.transl_implementation_flambda compilation_unit
-              (str, coercion)
+            Translmod.transl_implementation_flambda compilation_unit impl
           in
           remember compilation_unit 0 sg';
           compilation_unit, close_phrase res, required_globals, size

@@ -34,6 +34,7 @@ type error =
       filepath * CU.t * CU.t
   | Direct_reference_from_wrong_package of
       CU.t * filepath * CU.Prefix.t
+  | Illegal_import_of_parameter of CU.Name.t * filepath
 
 exception Error of error
 let error err = raise (Error err)
@@ -56,6 +57,7 @@ type can_load_cmis =
 
 type pers_struct = {
   ps_name: CU.t;
+  ps_param_of: CU.t option;
   ps_crcs: Import_info.t array;
   ps_filename: string;
   ps_flags: pers_flags list;
@@ -72,6 +74,7 @@ type 'a t = {
     (CU.Name.t, 'a pers_struct_info) Hashtbl.t;
   imported_units: CU.Name.Set.t ref;
   imported_opaque_units: CU.Name.Set.t ref;
+  imported_units_as_parameters: CU.Name.Set.t ref;
   crc_units: Consistbl.t;
   can_load_cmis: can_load_cmis ref;
 }
@@ -80,6 +83,7 @@ let empty () = {
   persistent_structures = Hashtbl.create 17;
   imported_units = ref CU.Name.Set.empty;
   imported_opaque_units = ref CU.Name.Set.empty;
+  imported_units_as_parameters = ref CU.Name.Set.empty;
   crc_units = Consistbl.create ();
   can_load_cmis = ref Can_load_cmis;
 }
@@ -89,12 +93,14 @@ let clear penv =
     persistent_structures;
     imported_units;
     imported_opaque_units;
+    imported_units_as_parameters;
     crc_units;
     can_load_cmis;
   } = penv in
   Hashtbl.clear persistent_structures;
   imported_units := CU.Name.Set.empty;
   imported_opaque_units := CU.Name.Set.empty;
+  imported_units_as_parameters := CU.Name.Set.empty;
   Consistbl.clear crc_units;
   can_load_cmis := Can_load_cmis;
   ()
@@ -112,6 +118,10 @@ let add_import {imported_units; _} s =
 
 let register_import_as_opaque {imported_opaque_units; _} s =
   imported_opaque_units := CU.Name.Set.add s !imported_opaque_units
+
+let add_imported_parameter {imported_units_as_parameters; _} s =
+  imported_units_as_parameters :=
+    Compilation_unit.Name.Set.add s !imported_units_as_parameters
 
 let find_in_cache {persistent_structures; _} s =
   match Hashtbl.find persistent_structures s with
@@ -144,6 +154,20 @@ let check_consistency penv ps =
     then error (Inconsistent_import(name, auth, source))
     else error (Inconsistent_package_declaration_between_imports(
         ps.ps_filename, auth_unit, source_unit))
+
+let check_parameter modname param_of functor_unit =
+  let parameter_for_same_module =
+    match !Clflags.functor_parameter_of with
+      None -> false
+    | Some unit ->
+        let unit = Compilation_unit.of_string unit in
+        Option.equal Compilation_unit.equal param_of (Some unit)
+  in
+  let basename = Compilation_unit.name_as_string modname in
+  not (Compilation_unit.is_packed modname) &&
+  List.mem basename !Clflags.functor_parameters &&
+  Compilation_unit.equal (Compilation_unit.get_current_exn ()) functor_unit ||
+  parameter_for_same_module
 
 let can_load_cmis penv =
   !(penv.can_load_cmis)
@@ -185,9 +209,11 @@ let save_pers_struct penv crc ps pm =
 let acknowledge_pers_struct penv check modname pers_sig pm =
   let { Persistent_signature.filename; cmi } = pers_sig in
   let name = cmi.cmi_name in
+  let param_of = cmi.cmi_param_of in
   let crcs = cmi.cmi_crcs in
   let flags = cmi.cmi_flags in
   let ps = { ps_name = name;
+             ps_param_of = param_of;
              ps_crcs = crcs;
              ps_filename = filename;
              ps_flags = flags;
@@ -206,6 +232,17 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
         | Alerts _ -> ()
         | Opaque -> register_import_as_opaque penv modname)
     ps.ps_flags;
+  begin match ps.ps_param_of with
+  | None -> ()
+  | Some functor_unit ->
+      (* CR lmaurer: We're effectively passing the same argument to
+         [check_parameter] twice, which is almost certainly a bug, but
+         it was there when I got here and I'm not sure what the
+         correct behavior is. *)
+      if not (check_parameter ps.ps_name ps.ps_param_of functor_unit) then
+        error (Illegal_import_of_parameter(modname, filename))
+      else add_imported_parameter penv modname
+  end;
   if check then check_consistency penv ps;
   begin match CU.get_current () with
   | Some current_unit ->
@@ -294,6 +331,9 @@ let check_pers_struct penv f ~loc name =
             Format.asprintf "%a is inaccessible from %a"
               CU.print unit
               describe_prefix prefix
+        (* The cmi is necessary, otherwise the functor cannot be
+           generated. Moreover, aliases of functor arguments are forbidden. *)
+        | Illegal_import_of_parameter _ -> assert false
       in
       let warn = Warnings.No_cmi_file(name_as_string, Some msg) in
         Location.prerr_warning loc warn
@@ -316,7 +356,14 @@ let check penv f ~loc name =
         (fun () -> check_pers_struct penv f ~loc name)
   end
 
-(* CR mshinwell: delete this having moved to 4.14 build compilers *)
+let read_as_parameter penv val_of_pers_sig modname =
+  match !Persistent_signature.load ~unit_name:modname with
+    Some psig ->
+      let pm = val_of_pers_sig psig in
+      let _ = acknowledge_pers_struct penv true modname psig pm in
+      Some psig
+  | None -> None
+
 module Array = struct
   include Array
 
@@ -360,6 +407,9 @@ let is_imported {imported_units; _} s =
 let is_imported_opaque {imported_opaque_units; _} s =
   CU.Name.Set.mem s !imported_opaque_units
 
+let is_imported_as_parameter {imported_units_as_parameters; _} s =
+  Compilation_unit.Name.Set.mem s !imported_units_as_parameters
+
 let make_cmi penv modname sign alerts =
   let flags =
     List.concat [
@@ -369,10 +419,15 @@ let make_cmi penv modname sign alerts =
       [Alerts alerts];
     ]
   in
+  let param_of =
+    !Clflags.functor_parameter_of
+    |> Option.map Compilation_unit.parse_full_path
+  in
   let crcs = imports penv in
   {
     cmi_name = modname;
     cmi_sign = sign;
+    cmi_param_of = param_of;
     cmi_crcs = Array.of_list crcs;
     cmi_flags = flags
   }
@@ -383,6 +438,7 @@ let save_cmi penv psig pm =
       let {
         cmi_name = modname;
         cmi_sign = _;
+        cmi_param_of = param_of;
         cmi_crcs = imports;
         cmi_flags = flags;
       } = cmi in
@@ -394,6 +450,7 @@ let save_cmi penv psig pm =
          will also return its crc *)
       let ps =
         { ps_name = modname;
+          ps_param_of = param_of;
           ps_crcs =
             Array.append
               [| Import_info.create_normal cmi.cmi_name ~crc:(Some crc) |]
@@ -448,6 +505,14 @@ let report_error ppf =
         filename
         describe_prefix prefix
         "Can only access members of this library's package or a containing package"
+  | Illegal_import_of_parameter(modname, filename) ->
+      fprintf ppf
+        "@[<hov>The file %a@ contains the an interface of a parameter.@ \
+         %a is not declared as a parameter for the current unit (-parameter %a) nor@ \
+         is the current unit itself a parameter.@]"
+        Location.print_filename filename
+        Compilation_unit.Name.print modname
+        Compilation_unit.Name.print modname
 
 let () =
   Location.register_error_of_exn

@@ -85,6 +85,9 @@ module type Compiler_options = sig
   val _config : unit -> unit
   val _config_var : string -> unit
   val _for_pack : string -> unit
+  val _full_interface : unit -> unit
+  val _functor_parameter : string -> unit
+  val _functor_parameter_of : string -> unit
   val _g : unit -> unit
   val _stop_after : string -> unit
   val _i : unit -> unit

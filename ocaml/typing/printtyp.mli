@@ -247,4 +247,4 @@ val rewrite_double_underscore_longidents: Env.t -> Longident.t -> Longident.t
 
 (** [printed_signature sourcefile ppf sg] print the signature [sg] of
     [sourcefile] with potential warnings for name collisions *)
-val printed_signature: string -> formatter -> signature -> unit
+val printed_signature: string -> formatter -> compilation_unit -> unit

@@ -20,24 +20,24 @@ open Typedtree
 open Lambda
 
 val transl_implementation:
-      Compilation_unit.t -> structure * module_coercion -> Lambda.program
+      Compilation_unit.t -> implementation -> Lambda.program
 val transl_store_phrases: Compilation_unit.t -> structure -> int * lambda
 val transl_store_implementation:
-      Compilation_unit.t -> structure * module_coercion -> Lambda.program
+      Compilation_unit.t -> implementation -> Lambda.program
 
 val transl_implementation_flambda:
-  Compilation_unit.t -> structure * module_coercion -> Lambda.program
+  Compilation_unit.t -> implementation -> Lambda.program
 
 val transl_toplevel_definition: structure -> lambda
 val transl_package:
-      Compilation_unit.t option list -> Compilation_unit.t -> module_coercion
-        -> lambda
+      (Compilation_unit.t * bool) option list -> Compilation_unit.t
+        -> module_coercion -> lambda
 val transl_store_package:
-      Compilation_unit.t option list -> Compilation_unit.t -> module_coercion
-        -> int * lambda
+      (Compilation_unit.t * bool) option list -> Compilation_unit.t
+        -> module_coercion -> int * lambda
 
 val transl_package_flambda:
-      Compilation_unit.t option list -> module_coercion -> int * lambda
+      (Compilation_unit.t * bool) option list -> module_coercion -> int * lambda
 
 val toplevel_name: Ident.t -> string
 val nat_toplevel_name: Ident.t -> Compilation_unit.t * int

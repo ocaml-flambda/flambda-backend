@@ -39,7 +39,7 @@ val clambda :
   (module Compiler_owee.Unix_intf.S) ->
   Compile_common.info ->
   (module Backend_intf.S) ->
-  Typedtree.structure * Typedtree.module_coercion -> unit
+  Typedtree.implementation -> unit
 (** [clambda info typed] applies the regular compilation pipeline to the
     given typechecked implementation and outputs the resulting files.
 *)
@@ -48,7 +48,7 @@ val flambda :
   (module Compiler_owee.Unix_intf.S) ->
   Compile_common.info ->
   (module Backend_intf.S) ->
-  Typedtree.structure * Typedtree.module_coercion -> unit
+  Typedtree.implementation -> unit
 (** [flambda info backend typed] applies the Flambda compilation pipeline to the
     given typechecked implementation and outputs the resulting files.
 *)

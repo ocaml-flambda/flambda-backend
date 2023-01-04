@@ -485,47 +485,67 @@ let transl_class_bindings ~scopes cl_list =
    functor(s) being merged with.  Such an attribute will be placed on the
    resulting merged functor. *)
 
+let rec extract_functor_components ~scopes mexp =
+  match mexp.mod_desc with
+    Tmod_functor (param, body) ->
+      let param : Types.functor_parameter =
+        match param with
+        | Unit -> Unit
+        | Named (id, _, mty) -> Named (id, mty.mty_type)
+      in
+      let rem, body = extract_functor_components ~scopes body in
+      (param, of_location ~scopes mexp.mod_loc,
+       Translattribute.get_inline_attribute mexp.mod_attributes) ::
+      rem, body
+  | _ -> [], mexp
+
+let extract_impl_functor_components exp =
+  let str_to_mod str =
+    { mod_desc = Tmod_structure str;
+      mod_type = Mty_signature str.str_type;
+      mod_env = str.str_final_env;
+      mod_loc = Location.none;
+      mod_attributes = []; }
+  in
+  match exp.structure with
+    Timpl_functor (params, body) ->
+      List.map (fun param -> param, Loc_unknown, Default_inline) params,
+      str_to_mod body
+  | Timpl_structure str -> [], str_to_mod str
+
 let merge_inline_attributes attr1 attr2 loc =
   match Lambda.merge_inline_attributes attr1 attr2 with
   | Some attr -> attr
   | None -> raise (Error (to_location loc, Conflicting_inline_attributes))
 
-let merge_functors ~scopes mexp coercion root_path =
-  let rec merge ~scopes mexp coercion path acc inline_attribute =
-    let finished = acc, mexp, path, coercion, inline_attribute in
-    match mexp.mod_desc with
-    | Tmod_functor (param, body) ->
-      let inline_attribute' =
-        Translattribute.get_inline_attribute mexp.mod_attributes
-      in
-      let arg_coercion, res_coercion =
-        match coercion with
-        | Tcoerce_none -> Tcoerce_none, Tcoerce_none
-        | Tcoerce_functor (arg_coercion, res_coercion) ->
-          arg_coercion, res_coercion
-        | _ -> fatal_error "Translmod.merge_functors: bad coercion"
-      in
-      let loc = of_location ~scopes mexp.mod_loc in
-      let path, param =
-        match param with
-        | Unit -> None, Ident.create_local "*"
-        | Named (None, _, _) ->
-          let id = Ident.create_local "_" in
-          functor_path path id, id
-        | Named (Some id, _, _) -> functor_path path id, id
-      in
-      let inline_attribute =
-        merge_inline_attributes inline_attribute inline_attribute' loc
-      in
-      merge ~scopes body res_coercion path ((param, loc, arg_coercion) :: acc)
-        inline_attribute
-    | _ -> finished
+let merge_functors params coercion root_path =
+  let merge (params, coercion, path, inline_attribute) param =
+    let param, loc, inline_attribute' = param in
+    let arg_coercion, res_coercion =
+      match coercion with
+      | Tcoerce_none -> Tcoerce_none, Tcoerce_none
+      | Tcoerce_functor (arg_coercion, res_coercion) ->
+        arg_coercion, res_coercion
+      | _ -> fatal_error "Translmod.merge_functors: bad coercion"
+    in
+    let path, param =
+      match (param : Types.functor_parameter) with
+      | Unit -> None, Ident.create_local "*"
+      | Named (None, _) ->
+        let id = Ident.create_local "_" in
+        functor_path path id, id
+      | Named (Some id, _) -> functor_path path id, id
+    in
+    let inline_attribute =
+      merge_inline_attributes inline_attribute inline_attribute' loc
+    in
+    (param, loc, arg_coercion) :: params, res_coercion, path, inline_attribute
   in
-  merge ~scopes mexp coercion root_path [] Default_inline
+  List.fold_left merge ([], coercion, root_path, Default_inline) params
 
-let rec compile_functor ~scopes mexp coercion root_path loc =
-  let functor_params_rev, body, body_path, res_coercion, inline_attribute =
-    merge_functors ~scopes mexp coercion root_path
+let rec compile_functor ~scopes params body coercion root_path loc =
+  let functor_params_rev, res_coercion, body_path, inline_attribute =
+    merge_functors params coercion root_path
   in
   assert (List.length functor_params_rev >= 1);  (* cf. [transl_module] *)
   let params, body =
@@ -570,7 +590,8 @@ and transl_module ~scopes cc rootpath mexp =
       fst (transl_struct ~scopes loc [] cc rootpath str)
   | Tmod_functor _ ->
       oo_wrap mexp.mod_env true (fun () ->
-        compile_functor ~scopes mexp cc rootpath loc) ()
+        let params, body = extract_functor_components ~scopes mexp in
+        compile_functor ~scopes params body cc rootpath loc) ()
   | Tmod_apply(funct, arg, ccarg) ->
       let inlined_attribute =
         Translattribute.get_inlined_attribute_on_module funct
@@ -903,9 +924,30 @@ let required_globals ~flambda body =
   Translprim.clear_used_primitives ();
   required
 
+let transl_functorized_implementation ~scopes module_id impl =
+  let transl_impl cc path impl =
+    match impl.structure with
+      Timpl_structure str ->
+        transl_struct ~scopes Loc_unknown [] cc
+          (global_path module_id) str
+    | Timpl_functor (_, _) ->
+        let params, body = extract_impl_functor_components impl in
+        compile_functor ~scopes params body cc path Loc_unknown, 1
+  in
+  transl_impl impl.coercion (global_path module_id) impl
+
+let wrap_functorized_implementation impl (code, size) =
+  match impl.structure with
+    Timpl_structure _ -> code, size
+  | Timpl_functor (_, _) ->
+      Lprim(Pmakeblock(0, Immutable, None, Lambda.alloc_heap),
+            [ code ],
+            Loc_unknown),
+      1
+
 (* Compile an implementation *)
 
-let transl_implementation_flambda compilation_unit (str, cc) =
+let transl_implementation_flambda compilation_unit impl =
   reset_labels ();
   primitive_declarations := [];
   Translprim.clear_used_primitives ();
@@ -914,18 +956,18 @@ let transl_implementation_flambda compilation_unit (str, cc) =
   let body, size =
     Translobj.transl_label_init (fun () ->
       let body, size =
-        transl_struct ~scopes Loc_unknown [] cc
-          (global_path compilation_unit) str in
-      Translcore.declare_probe_handlers body, size)
+        transl_functorized_implementation ~scopes compilation_unit impl
+        |> wrap_functorized_implementation impl
+      in Translcore.declare_probe_handlers body, size)
   in
   { compilation_unit;
     main_module_block_size = size;
     required_globals = required_globals ~flambda:true body;
     code = body }
 
-let transl_implementation module_name (str, cc) =
+let transl_implementation module_name impl =
   let implementation =
-    transl_implementation_flambda module_name (str, cc)
+    transl_implementation_flambda module_name impl
   in
   let code =
     Lprim (Psetglobal implementation.compilation_unit, [implementation.code],
@@ -1489,11 +1531,13 @@ let build_ident_map restr idlist more_ids =
 (* Compile an implementation using transl_store_structure
    (for the native-code compiler). *)
 
-let transl_store_gen ~scopes module_name ({ str_items = str }, restr) topl =
+let transl_store_gen_init () =
   reset_labels ();
   primitive_declarations := [];
   Translcore.clear_probe_handlers ();
-  Translprim.clear_used_primitives ();
+  Translprim.clear_used_primitives ()
+
+let transl_store_structure_gen ~scopes module_name ({ str_items = str }, restr) topl =
   let (map, prims, aliases, size) =
     build_ident_map restr (defined_idents str) (more_idents str) in
   let f str =
@@ -1511,17 +1555,38 @@ let transl_store_gen ~scopes module_name ({ str_items = str }, restr) topl =
   transl_store_label_init module_name size f str
   (*size, transl_label_init (transl_store_structure module_id map prims str)*)
 
+let transl_store_functorized_implementation ~scopes module_id impl =
+  let code, i =
+    transl_functorized_implementation ~scopes module_id impl in
+  let body_id = Ident.create_local "*unit-body*" in
+  i,
+  Llet (Strict, Pgenval, body_id, code,
+        Lsequence (Lprim(Psetfield(0, Pointer, Root_initialization),
+                         [Lprim(Pgetglobal module_id, [], Loc_unknown);
+                          Lvar body_id],
+                         Loc_unknown),
+                   lambda_unit))
+
 let transl_store_phrases module_name str =
+  transl_store_gen_init ();
   let scopes =
     enter_compilation_unit ~scopes:empty_scopes module_name
   in
-  transl_store_gen ~scopes module_name (str,Tcoerce_none) true
+  transl_store_structure_gen ~scopes module_name (str,Tcoerce_none) true
 
-let transl_store_implementation compilation_unit (str, restr) =
+let transl_store_gen module_name impl topl =
+  transl_store_gen_init ();
+  let restr = impl.coercion in
+  match impl.structure with
+    Timpl_structure str -> transl_store_structure_gen module_name (str, restr) topl
+  | Timpl_functor _ ->
+      transl_store_functorized_implementation module_name impl
+
+let transl_store_implementation compilation_unit impl =
   let s = !transl_store_subst in
   transl_store_subst := Ident.Map.empty;
   let scopes = enter_compilation_unit ~scopes:empty_scopes compilation_unit in
-  let i, code = transl_store_gen ~scopes compilation_unit (str, restr) false in
+  let i, code = transl_store_gen ~scopes compilation_unit impl false in
   transl_store_subst := s;
   { Lambda.main_module_block_size = i;
     code;
@@ -1727,7 +1792,11 @@ let transl_toplevel_definition str =
 
 let get_component = function
     None -> Lconst const_unit
-  | Some id -> Lprim(Pgetglobal id, [], Loc_unknown)
+  | Some (id, is_functor) ->
+      if not is_functor then Lprim(Pgetglobal id, [], Loc_unknown)
+      else Lprim(Pfield (0, Reads_agree),
+                 [Lprim(Pgetglobal id, [], Loc_unknown)],
+                 Loc_unknown)
 
 let transl_package_flambda component_names coercion =
   let size =

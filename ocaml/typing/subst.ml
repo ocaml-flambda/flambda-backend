@@ -764,3 +764,26 @@ let modtype_declaration sc s decl =
 
 let module_declaration scoping s decl =
   Lazy.(decl |> of_module_decl |> module_decl scoping s |> force_module_decl)
+
+let functor_parameter sc s param =
+  match param with
+  | Types.Unit -> Types.Unit, s
+  | Types.Named (id, mty) ->
+      let mty' = modtype sc s mty in
+      match id with
+      | None -> Types.Named (None, mty'), s
+      | Some id ->
+        let id' = Ident.rename id in
+        Types.Named (Some id', mty'), add_module id (Pident id') s
+
+let compilation_unit sc s uty =
+  match uty with
+  | Unit_signature sg ->
+      Unit_signature (signature sc s sg)
+  | Unit_functor(params, res) ->
+      let params', s' = List.fold_left (fun (params, s) param ->
+          let param', s' = functor_parameter sc s param in
+          param' :: params, s')
+        ([], s) params
+      in
+      Unit_functor(List.rev params', signature sc s' res)

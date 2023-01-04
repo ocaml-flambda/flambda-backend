@@ -34,7 +34,7 @@ exception Error of error
 
 (* Read the unit information from a .cmx file. *)
 
-type pack_member_kind = PM_intf | PM_impl of unit_infos
+type pack_member_kind = PM_intf | PM_impl of unit_infos * Types.compilation_unit
 
 type pack_member =
   { pm_file: string;
@@ -56,7 +56,8 @@ let read_member_info pack_path file = (
       then raise(Error(Wrong_for_pack(file, pack_path)));
       Asmlink.check_consistency file info crc;
       Compilenv.cache_unit_info info;
-      PM_impl info
+      PM_impl (info, Env.read_signature info.ui_unit
+                 (chop_extensions file ^ ".cmi"))
     end in
   { pm_file = file; pm_name = name; pm_kind = kind }
 )
@@ -69,7 +70,7 @@ let check_units members =
   | mb :: tl ->
       begin match mb.pm_kind with
       | PM_intf -> ()
-      | PM_impl infos ->
+      | PM_impl (infos, _) ->
           Array.iter
             (fun import ->
               let unit = Import_info.cu import in
@@ -83,8 +84,8 @@ let check_units members =
 
 (* Make the .o file for the package *)
 
-let make_package_object ~ppf_dump members targetobj targetname coercion
-      ~backend =
+let make_package_object
+    ~ppf_dump members targetobj targetname coercion ~backend =
   Profile.record_call (Printf.sprintf "pack(%s)" targetname) (fun () ->
     let objtemp =
       if !Clflags.keep_asm_file
@@ -104,7 +105,12 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
         (fun m ->
           match m.pm_kind with
           | PM_intf -> None
-          | PM_impl _ -> Some(CU.create_child (CU.get_current_exn ()) m.pm_name))
+          | PM_impl (_, ty) ->
+              let is_functor = match ty with
+                  Types.Unit_functor _ -> true
+                | Types.Unit_signature _ -> false
+              in
+              Some(CU.create_child (CU.get_current_exn ()) m.pm_name, is_functor))
         members in
     let for_pack_prefix = CU.Prefix.from_clflags () in
     let modname = targetname |> CU.Name.of_string in
@@ -186,7 +192,7 @@ let build_package_cmx members cmxfile =
   let units =
     List.fold_right
       (fun m accu ->
-        match m.pm_kind with PM_intf -> accu | PM_impl info -> info :: accu)
+        match m.pm_kind with PM_intf -> accu | PM_impl (info, _) -> info :: accu)
       members [] in
   let ui = Compilenv.current_unit_infos() in
   let ui_export_info =

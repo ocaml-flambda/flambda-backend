@@ -31,26 +31,28 @@ exception Error of error
 (* these type abbreviations are not exported;
    they are used to provide consistency across
    input_value and output_value usage. *)
-type signature = Types.signature_item list
+type signature = Types.compilation_unit
 
 type crcs = Import_info.t array  (* smaller on disk than using a list *)
 type flags = pers_flags list
-type header = Compilation_unit.t * signature
+type header = Compilation_unit.t * signature * Compilation_unit.t option
 
 type cmi_infos = {
     cmi_name : Compilation_unit.t;
     cmi_sign : signature;
+    cmi_param_of : Compilation_unit.t option;
     cmi_crcs : crcs;
     cmi_flags : flags;
 }
 
 let input_cmi ic =
-  let (name, sign) = (input_value ic : header) in
+  let (name, sign, param_of) = (input_value ic : header) in
   let crcs = (input_value ic : crcs) in
   let flags = (input_value ic : flags) in
   {
       cmi_name = name;
       cmi_sign = sign;
+      cmi_param_of = param_of;
       cmi_crcs = crcs;
       cmi_flags = flags;
     }
@@ -87,7 +89,7 @@ let read_cmi filename =
 let output_cmi filename oc cmi =
 (* beware: the provided signature must have been substituted for saving *)
   output_string oc Config.cmi_magic_number;
-  output_value oc ((cmi.cmi_name, cmi.cmi_sign) : header);
+  output_value oc ((cmi.cmi_name, cmi.cmi_sign, cmi.cmi_param_of) : header);
   flush oc;
   let crc = Digest.file filename in
   let crcs =

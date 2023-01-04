@@ -122,7 +122,8 @@ let execute_phrase print_outcome ppf phr =
       let (str, sg, sn, shape, newenv) =
         Typemod.type_toplevel_phrase oldenv oldsig sstr
       in
-      if !Clflags.dump_typedtree then Printtyped.implementation ppf str;
+      if !Clflags.dump_typedtree then
+        Printtyped.implementation_desc ppf (Timpl_structure str);
       let sg' = Typemod.Signature_names.simplify newenv sn sg in
       ignore (Includemod.signatures ~mark:Mark_positive oldenv sg sg');
       Typecore.force_delayed_checks ();

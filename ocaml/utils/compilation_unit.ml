@@ -230,7 +230,7 @@ let create_child parent name_ =
   in
   create prefix name_
 
-let of_string str =
+let parse_full_path str =
   let for_pack_prefix, name =
     match String.rindex_opt str '.' with
     | None -> Prefix.empty, Name.of_string str
@@ -238,9 +238,18 @@ let of_string str =
       (* See [Name.check_as_path_component]; this allows ".cinaps" as a
          compilation unit *)
       Prefix.empty, Name.of_string str
-    | Some _ -> Misc.fatal_errorf "[of_string] does not parse qualified names"
+    | Some pos ->
+      ( Prefix.parse_for_pack (String.sub str 0 pos),
+        Name.of_string (String.sub str (pos + 1) (String.length str - pos - 1))
+      )
   in
   create for_pack_prefix name
+
+let of_string str =
+  let t = parse_full_path str in
+  match t.for_pack_prefix |> Prefix.to_list with
+  | [] -> t
+  | _ -> Misc.fatal_errorf "[of_string] does not parse qualified names"
 
 let dummy = create Prefix.empty (Name.of_string "*none*")
 

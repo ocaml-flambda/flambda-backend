@@ -123,7 +123,7 @@ let process_interface_file sourcefile =
     Pparse.file ~tool_name inputfile
       (no_docstring Parse.interface) Pparse.Signature
   in
-  let sg = Typemod.type_interface (initial_env()) ast in
+  let sg = Typemod.type_interface sourcefile (initial_env()) ast in
   Warnings.check_fatal ();
   (ast, sg, inputfile)
 
@@ -163,8 +163,7 @@ let process_file sourcefile =
          match parsetree_typedtree_opt with
            None ->
              None
-         | Some (parsetree, Typedtree.{structure; coercion; _}) ->
-             let typedtree = (structure, coercion) in
+         | Some (parsetree, typedtree) ->
              let file_module = Ast_analyser.analyse_typed_tree file
                  input_file parsetree typedtree
              in
@@ -193,8 +192,9 @@ let process_file sourcefile =
        Location.input_name := file;
        try
          let (ast, signat, input_file) = process_interface_file file in
+         let sg = Types.compilation_unit_signature signat.tintf_type in
          let file_module = Sig_analyser.analyse_signature file
-             input_file ast signat.sig_type
+             input_file ast sg
          in
 
          file_module.Odoc_module.m_top_deps <- Odoc_dep.intf_dependencies ast ;

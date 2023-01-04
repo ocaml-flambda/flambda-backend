@@ -34,8 +34,8 @@ let (|>>) (x, y) f = (x, f y)
 
 (** Native compilation backend for .ml files. *)
 
-let flambda i backend Typedtree.{structure; coercion; _} =
-  (structure, coercion)
+let flambda i backend impl =
+  impl
   |> Profile.(record transl)
       (Translmod.transl_implementation_flambda i.module_name)
   |> Profile.(record generate)
@@ -62,9 +62,9 @@ let flambda i backend Typedtree.{structure; coercion; _} =
         program);
     Compilenv.save_unit_info (cmx i))
 
-let clambda i backend Typedtree.{structure; coercion; _} =
+let clambda i backend impl =
   Clflags.set_oclassic ();
-  (structure, coercion)
+  impl
   |> Profile.(record transl)
     (Translmod.transl_store_implementation i.module_name)
   |> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.program

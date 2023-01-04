@@ -690,6 +690,7 @@ type error =
   | Missing_module of Location.t * Path.t * Path.t
   | Illegal_value_name of Location.t * string
   | Lookup_error of Location.t * t * lookup_error
+  | Parameter_interface_unavailable of Location.t * Compilation_unit.Name.t
 
 exception Error of error
 
@@ -925,13 +926,18 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
       flags
   in
   let md =
-    { md_type =  Mty_signature sign;
+    { md_type = sign |> Types.module_type_of_compilation_unit;
       md_loc = Location.none;
       md_attributes = [];
       md_uid = Uid.of_compilation_unit_id name;
     }
   in
-  let mda_address = Lazy_backtrack.create_forced (Aunit name) in
+  let addr =
+    match sign with
+      Unit_functor _ -> Adot (Aunit name, 0)
+    | Unit_signature _ -> Aunit name
+  in
+  let mda_address = Lazy_backtrack.create_forced addr in
   let mda_declaration =
     Subst.(Lazy.module_decl Make_local identity (Lazy.of_module_decl md))
   in
@@ -939,7 +945,9 @@ let sign_of_cmi ~freshen { Persistent_env.Persistent_signature.cmi; _ } =
     Shape.for_persistent_unit (name |> Compilation_unit.full_path_as_string)
   in
   let mda_components =
-    let mty = Subst.Lazy.of_modtype (Mty_signature sign) in
+    let mty =
+      Subst.Lazy.of_modtype (sign |> Types.module_type_of_compilation_unit)
+    in
     let mty =
       if freshen then
         Subst.Lazy.modtype (Subst.Rescope (Path.scope path))
@@ -978,6 +986,9 @@ let read_pers_mod modname filename =
 let find_pers_mod name =
   Persistent_env.find !persistent_env read_sign_of_cmi name
 
+let read_pers_mod_as_parameter modname =
+  Persistent_env.read_as_parameter !persistent_env read_sign_of_cmi modname
+
 let check_pers_mod ~loc name =
   Persistent_env.check !persistent_env read_sign_of_cmi ~loc name
 
@@ -989,6 +1000,9 @@ let is_imported_opaque modname =
 
 let register_import_as_opaque modname =
   Persistent_env.register_import_as_opaque !persistent_env modname
+
+let is_imported_as_parameter modname =
+  Persistent_env.is_imported_as_parameter !persistent_env modname
 
 let reset_declaration_caches () =
   Types.Uid.Tbl.clear !value_declarations;
@@ -2610,9 +2624,28 @@ let open_signature
 let read_signature modname filename =
   let mda = read_pers_mod (Compilation_unit.name modname) filename in
   let md = Subst.Lazy.force_module_decl mda.mda_declaration in
-  match md.md_type with
-  | Mty_signature sg -> sg
-  | Mty_ident _ | Mty_functor _ | Mty_alias _ -> assert false
+  (* CR-someday lmaurer: This bit of pain tells me our datatypes are
+     wrong. Could [read_pers_mod] return something that is statically
+     known to have the type of a compilation unit? *)
+  let rec gather_params mty =
+    match mty with
+    | Mty_signature sg -> [], sg
+    | Mty_functor (param, mty) ->
+        let params, sg = gather_params mty in
+        param :: params, sg
+    | Mty_ident _ | Mty_alias _ -> assert false
+  in
+  match gather_params md.md_type with
+  | [], sg -> Unit_signature sg
+  | params, sg -> Unit_functor (params, sg)
+
+let read_as_parameter loc modname =
+  let psig = read_pers_mod_as_parameter modname in
+  match psig with
+    Some Persistent_env.Persistent_signature.{ cmi } ->
+      Types.module_type_of_compilation_unit cmi.Cmi_format.cmi_sign
+  | None ->
+      raise (Error(Parameter_interface_unavailable (loc, modname)))
 
 let is_identchar_latin1 = function
   | 'A'..'Z' | 'a'..'z' | '_' | '\192'..'\214' | '\216'..'\246'
@@ -2642,7 +2675,9 @@ let persistent_structures_of_dir dir =
 let save_signature_with_transform cmi_transform ~alerts sg modname filename =
   Btype.cleanup_abbrev ();
   Subst.reset_for_saving ();
-  let sg = Subst.signature Make_local (Subst.for_saving Subst.identity) sg in
+  let sg =
+    Subst.compilation_unit Make_local (Subst.for_saving Subst.identity) sg
+  in
   let cmi =
     Persistent_env.make_cmi !persistent_env modname sg alerts
     |> cmi_transform in
@@ -3790,6 +3825,9 @@ let report_error ppf = function
       fprintf ppf "'%s' is not a valid value identifier."
         name
   | Lookup_error(loc, t, err) -> report_lookup_error loc t ppf err
+  | Parameter_interface_unavailable (_loc, name) ->
+      fprintf ppf "No compiled interface found for this unit parameter %a"
+        Compilation_unit.Name.print name
 
 let () =
   Location.register_error_of_exn
@@ -3799,7 +3837,8 @@ let () =
             match err with
             | Missing_module (loc, _, _)
             | Illegal_value_name (loc, _)
-            | Lookup_error(loc, _, _) -> loc
+            | Lookup_error(loc, _, _)
+            | Parameter_interface_unavailable (loc, _) -> loc
           in
           let error_of_printer =
             if loc = Location.none

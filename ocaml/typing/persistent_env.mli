@@ -30,6 +30,7 @@ type error =
       filepath * Compilation_unit.t * Compilation_unit.t
   | Direct_reference_from_wrong_package of
       Compilation_unit.t * filepath * Compilation_unit.Prefix.t
+  | Illegal_import_of_parameter of Compilation_unit.Name.t * filepath
 
 exception Error of error
 
@@ -69,6 +70,11 @@ val find_in_cache : 'a t -> Compilation_unit.Name.t -> 'a option
 val check : 'a t -> (Persistent_signature.t -> 'a)
   -> loc:Location.t -> Compilation_unit.Name.t -> unit
 
+(* Similar to [read], but does not consider the module as imported *)
+val read_as_parameter :
+  'a t -> (Persistent_signature.t -> 'a) -> Compilation_unit.Name.t
+  -> Persistent_signature.t option
+
 (* [looked_up penv md] checks if one has already tried
    to read the signature for [md] in the environment
    [penv] (it may have failed) *)
@@ -86,7 +92,11 @@ val is_imported_opaque : 'a t -> Compilation_unit.Name.t -> bool
    opaque module *)
 val register_import_as_opaque : 'a t -> Compilation_unit.Name.t -> unit
 
-val make_cmi : 'a t -> Compilation_unit.t -> Types.signature -> alerts
+(* [is_imported_parameter penv md] checks if [md] has been imported
+   in [penv] as a functor parameter *)
+val is_imported_as_parameter : 'a t -> Compilation_unit.Name.t -> bool
+
+val make_cmi : 'a t -> Compilation_unit.t -> Types.compilation_unit -> alerts
   -> Cmi_format.cmi_infos
 
 val save_cmi : 'a t -> Persistent_signature.t -> 'a -> unit

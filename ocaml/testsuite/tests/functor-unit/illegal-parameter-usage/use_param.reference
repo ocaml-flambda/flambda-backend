@@ -1,0 +1,12 @@
+File "param.mli", line 1:
+Error: Interface param.mli
+       found for this unit is flagged as a functor parameter.
+       It cannot be packed into a module.
+File "param.ml", line 1:
+Error: Interface param.cmi
+       found for this unit is flagged as a functor parameter.
+       It cannot be implemented.
+File "use_param.ml", line 1:
+Error: Interface use_param.ml
+       found for this unit is flagged as a functor parameter.
+       It cannot be implemented.

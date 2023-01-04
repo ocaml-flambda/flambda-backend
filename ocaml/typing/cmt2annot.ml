@@ -175,7 +175,7 @@ let gen_annot target_filename ~sourcefile ~use_summaries annots =
   let iter = iterator ~scope use_summaries in
   match annots with
   | Implementation typedtree ->
-      iter.structure iter typedtree;
+      iter.implementation iter typedtree;
       Stypes.dump target_filename
   | Partial_implementation parts ->
       Array.iter (binary_part iter) parts;

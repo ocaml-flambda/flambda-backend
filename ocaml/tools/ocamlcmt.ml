@@ -114,11 +114,11 @@ let generate_ml target_filename filename cmt =
     match cmt.Cmt_format.cmt_annots with
       | Cmt_format.Implementation typedtree ->
           (fun ppf -> Pprintast.structure ppf
-                                        (Untypeast.untype_structure typedtree)),
+                                        (Untypeast.untype_implementation typedtree)),
           ".ml"
       | Cmt_format.Interface typedtree ->
           (fun ppf -> Pprintast.signature ppf
-                                        (Untypeast.untype_signature typedtree)),
+                                        (Untypeast.untype_interface typedtree)),
           ".mli"
       | _ ->
         Printf.fprintf stderr "File was generated with an error\n%!";

@@ -1021,6 +1021,10 @@ and module_binding =
     }
 (** Values of type [module_binding] represents [module X = ME] *)
 
+type implementation = structure
+
+type interface = signature
+
 (** {1 Toplevel} *)
 
 (** {2 Toplevel phrases} *)

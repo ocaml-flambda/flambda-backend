@@ -840,10 +840,11 @@ and 'a class_infos =
    }
 
 type implementation = {
-  structure: structure;
+  structure: implementation_desc;
   coercion: module_coercion;
-  signature: Types.signature;
+  signature: Types.compilation_unit;
   shape: Shape.t;
+  env: Env.t;
 }
 (** A typechecked implementation including its module structure, its exported
     signature, and a coercion of the module against that signature.
@@ -854,6 +855,20 @@ type implementation = {
     If there isn't one, the signature will be inferred from the module
     structure.
 *)
+
+and implementation_desc =
+  | Timpl_structure of structure
+  | Timpl_functor of Types.functor_parameter list * structure
+
+and interface = {
+    tintf_desc: interface_desc;
+    tintf_type: Types.compilation_unit;
+    tintf_env: Env.t;
+  }
+
+and interface_desc =
+  | Tintf_signature of signature
+  | Tintf_functor of Types.functor_parameter list * signature
 
 (* Auxiliary functions over the a.s.t. *)
 

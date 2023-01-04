@@ -1994,6 +1994,9 @@ and functor_param ~sep ~custom_printer id q =
 
 
 
+let tree_of_compilation_unit uty =
+  tree_of_modtype (Types.module_type_of_compilation_unit uty)
+
 let modtype ppf mty = !Oprint.out_module_type ppf (tree_of_modtype mty)
 let modtype_declaration id ppf decl =
   !Oprint.out_sig_item ppf (tree_of_modtype_declaration id decl)
@@ -2016,21 +2019,33 @@ let print_signature ppf tree =
 let signature ppf sg =
   fprintf ppf "%a" print_signature (tree_of_signature sg)
 
+let print_compilation_unit ppf tree =
+  fprintf ppf "@[<v>%a@]" !Oprint.out_module_type tree
+
 (* Print a signature body (used by -i when compiling a .ml) *)
 let printed_signature sourcefile ppf sg =
   (* we are tracking any collision event for warning 63 *)
   Conflicts.reset ();
   reset_naming_context ();
-  let t = tree_of_signature sg in
-  if Warnings.(is_active @@ Erroneous_printed_signature "")
-  && Conflicts.exists ()
-  then begin
-    let conflicts = Format.asprintf "%t" Conflicts.print_explanations in
-    Location.prerr_warning (Location.in_file sourcefile)
-      (Warnings.Erroneous_printed_signature conflicts);
-    Warnings.check_fatal ()
-  end;
-  fprintf ppf "%a" print_signature t
+  let check () =
+    if Warnings.(is_active @@ Erroneous_printed_signature "")
+    && Conflicts.exists ()
+    then begin
+      let conflicts = Format.asprintf "%t" Conflicts.print_explanations in
+      Location.prerr_warning (Location.in_file sourcefile)
+        (Warnings.Erroneous_printed_signature conflicts);
+      Warnings.check_fatal ()
+    end
+  in
+  if !Clflags.print_full_interface then
+    let t = tree_of_compilation_unit sg in
+    check ();
+    print_compilation_unit ppf t
+  else
+    let sg = Types.compilation_unit_signature sg in
+    let t = tree_of_signature sg in
+    check ();
+    print_signature ppf t
 
 (* Trace-specific printing *)
 

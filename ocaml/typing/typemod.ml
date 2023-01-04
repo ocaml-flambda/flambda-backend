@@ -84,6 +84,8 @@ type error =
   | Invalid_type_subst_rhs
   | Unpackable_local_modtype_subst of Path.t
   | With_cannot_remove_packed_modtype of Path.t * module_type
+  | Cannot_implement_parameter of filepath
+  | Cannot_pack_parameter of filepath
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -1053,6 +1055,9 @@ module Signature_names : sig
     ?info:info -> t -> Location.t -> Signature_group.rec_group -> unit
 
   val simplify: Env.t -> t -> Types.signature -> Types.signature
+
+  val simplify_implementation:
+    Env.t -> t -> Types.compilation_unit -> Types.compilation_unit
 end = struct
 
   type shadowable =
@@ -1320,6 +1325,13 @@ end = struct
       end
     in
     List.filter_map simplify_item sg
+
+  let simplify_implementation env t uty =
+    match uty with
+      Unit_signature sg -> Unit_signature (simplify env t sg)
+    | Unit_functor (args, body) ->
+        let simple_body = simplify env t body in
+        Unit_functor (args, simple_body)
 end
 
 let has_remove_aliases_attribute attr =
@@ -1955,9 +1967,20 @@ let check_nongen_signature_item env sig_item =
 let check_nongen_signature env sg =
   List.iter (check_nongen_signature_item env) sg
 
+let check_nongen_signature_compunit env uty =
+  match uty with
+    Unit_signature sg | Unit_functor (_, sg) ->
+      (* arguments are compilation units too, they have already been checked *)
+      check_nongen_signature env sg
+
 let remove_mode_variables env sg =
   let rm _env ty = Ctype.remove_mode_variables ty; false in
   List.exists (nongen_signature_item env rm) sg |> ignore
+
+let remove_mode_variables_compunit env uty =
+  match uty with
+    Unit_signature sg | Unit_functor (_, sg) ->
+      remove_mode_variables env sg
 
 (* Helpers for typing recursive modules *)
 
@@ -2955,6 +2978,7 @@ let type_toplevel_phrase env sig_acc s =
 
 let type_module_alias = type_module ~alias:true true false None
 let type_module = type_module true false None
+let type_implementation_structure functor_unit = type_structure functor_unit None
 let type_structure = type_structure false None
 
 (* Normalize types in a signature *)
@@ -2971,6 +2995,10 @@ and normalize_signature_item = function
     Sig_value(_id, desc, _) -> Ctype.normalize_type desc.val_type
   | Sig_module(_id, _, md, _, _) -> normalize_modtype md.md_type
   | _ -> ()
+
+let normalize_compunit = function
+    Unit_signature sg -> normalize_signature sg
+  | Unit_functor (_, body) -> normalize_signature body
 
 (* Extract the module type of a module expression *)
 
@@ -3118,6 +3146,52 @@ let () =
 
 (* Typecheck an implementation file *)
 
+let type_implementation_params_and_body env ast loc = function
+    [] ->
+      let str, sg, names, shape, finalenv =
+        type_implementation_structure false env ast in
+      Timpl_structure str,
+      Unit_signature sg,
+      names,
+      shape,
+      finalenv
+  | param_names ->
+      let params, newenv, _ =
+        List.fold_right (fun param_name (params, env, subst) ->
+          match param_name with
+            | "()" ->
+                Types.Unit :: params, env, subst
+            | _ ->
+                (* CR lmaurer: This sets things up so that we resolve the
+                   parameter name to a persistent identifier but then use a
+                   substitution to rewrite all references to use a local
+                   identifier instead. This makes some sense if the idea is to
+                   use the mechanism for persistent modules, but in any case
+                   it's sufficiently weird that it should be explained here. *)
+                let id_pers = Ident.create_persistent param_name in
+                let param = param_name |> Compilation_unit.Name.of_string in
+                let mty = Env.read_as_parameter loc param in
+                let scope = Ctype.create_scope () in
+                (* CR lmaurer: Not sure about [Rescope scope] here *)
+                let mty' = Subst.modtype (Rescope scope) subst mty in
+                let mty' = Mtype.scrape_for_functor_arg env mty' in
+                let id, newenv =
+                  Env.enter_module
+                    ~scope ~arg:true param_name Mp_present mty' env
+                in
+                let subst = Subst.add_module id_pers (Pident id) subst in
+                Types.Named (Some id, mty') :: params, newenv, subst)
+          param_names ([], env, Subst.identity)
+      in
+      let params = List.rev params in
+      let body, sg, names, shape, finalenv =
+        type_implementation_structure true newenv ast in
+      Timpl_functor (params, body),
+      Unit_functor (params, sg),
+      names,
+      shape,
+      finalenv
+
 let gen_annot outputprefix sourcefile annots =
   Cmt2annot.gen_annot (Some (outputprefix ^ ".annot"))
     ~sourcefile:(Some sourcefile) ~use_summaries:false annots
@@ -3132,14 +3206,19 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
       if !Clflags.print_types then (* #7656 *)
         ignore @@ Warnings.parse_options false "-32-34-37-38-60";
       let (str, sg, names, shape, finalenv) =
-        type_structure initial_env ast in
+        type_implementation_params_and_body initial_env ast
+          (Location.in_file sourcefile)
+          (!Clflags.functor_parameters) in
       let shape =
         Shape.set_uid_if_none shape
           (Uid.of_compilation_unit_id modulename)
       in
-      let simple_sg = Signature_names.simplify finalenv names sg in
+      (* CR lmaurer: Leaving this comment in, but I don't know what it's getting
+         at (maybe it's outdated?). *)
+      (* TODO: generate a functor if there are any parameter *)
+      let simple_sg = Signature_names.simplify_implementation finalenv names sg in
       if !Clflags.print_types then begin
-        remove_mode_variables finalenv sg;
+        remove_mode_variables_compunit finalenv sg;
         Typecore.force_delayed_checks ();
         Typecore.optimise_allocations ();
         let shape = Shape.local_reduce shape in
@@ -3147,12 +3226,21 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           (fun () -> fprintf std_formatter "%a@."
               (Printtyp.printed_signature sourcefile) simple_sg
           );
-        gen_annot outputprefix sourcefile (Cmt_format.Implementation str);
-        { structure = str;
-          coercion = Tcoerce_none;
-          shape;
-          signature = simple_sg
-        } (* result is ignored by Compile.implementation *)
+        let impl =
+          { structure = str;
+            coercion = Tcoerce_none;
+            shape;
+            signature = simple_sg;
+            env = initial_env
+          } (* result is ignored by Compile.implementation *)
+        in
+        (* CR lmaurer: The coercion here is just wrong. The fact that one is
+           needed is just an irritating effect of my having to combine two
+           [implementation] types into one: The 4.13/4.14 type has a coercion
+           but isn't used in [Cmt_format], whereas the one from the original
+           functor units doesn't have a coercion and is used in [Cmt_format]. *)
+        gen_annot outputprefix sourcefile (Cmt_format.Implementation impl);
+        impl
       end else begin
         let sourceintf =
           Filename.remove_extension sourcefile ^ !Config.interface_suffix in
@@ -3165,6 +3253,10 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
               raise(Error(Location.in_file sourcefile, Env.empty,
                           Interface_not_compiled sourceintf)) in
           let dclsig = Env.read_signature modulename intf_file in
+          if Env.is_imported_as_parameter (Compilation_unit.name modulename)
+          || Option.is_some !Clflags.functor_parameter_of then
+            raise (Error (Location.in_file sourcefile, initial_env,
+                          Cannot_implement_parameter intf_file));
           let coercion, shape =
             Includemod.compunit initial_env ~mark:Mark_positive
               sourcefile sg intf_file dclsig shape
@@ -3175,24 +3267,31 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
              so that value declarations which are not used internally but
              exported are not reported as being unused. *)
           let shape = Shape.local_reduce shape in
-          let annots = Cmt_format.Implementation str in
+          let impl =
+            { structure = str;
+              coercion;
+              shape;
+              signature = dclsig;
+              env = initial_env
+            }
+          in
+          let annots = Cmt_format.Implementation impl in
           Cmt_format.save_cmt (outputprefix ^ ".cmt") modulename
             annots (Some sourcefile) initial_env None (Some shape);
           gen_annot outputprefix sourcefile annots;
-          { structure = str;
-            coercion;
-            shape;
-            signature = dclsig
-          }
+          impl
         end else begin
+          if Option.is_some !Clflags.functor_parameter_of then
+            raise (Error (Location.in_file sourcefile, initial_env,
+                          Cannot_implement_parameter sourcefile));
           Location.prerr_warning (Location.in_file sourcefile)
             Warnings.Missing_mli;
           let coercion, shape =
             Includemod.compunit initial_env ~mark:Mark_positive
               sourcefile sg "(inferred signature)" simple_sg shape
           in
-          check_nongen_signature finalenv simple_sg;
-          normalize_signature simple_sg;
+          check_nongen_signature_compunit finalenv simple_sg;
+          normalize_compunit simple_sg;
           Typecore.force_delayed_checks ();
           Typecore.optimise_allocations ();
           (* See comment above. Here the target signature contains all
@@ -3200,22 +3299,26 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
              declarations like "let x = true;; let x = 1;;", because in this
              case, the inferred signature contains only the last declaration. *)
           let shape = Shape.local_reduce shape in
+          let impl =
+            { structure = str;
+              coercion;
+              shape;
+              signature = simple_sg;
+              env = initial_env
+            }
+          in
           if not !Clflags.dont_write_files then begin
             let alerts = Builtin_attributes.alerts_of_str ast in
             let cmi =
               Env.save_signature ~alerts
                 simple_sg modulename (outputprefix ^ ".cmi")
             in
-            let annots = Cmt_format.Implementation str in
+            let annots = Cmt_format.Implementation impl in
             Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
               annots (Some sourcefile) initial_env (Some cmi) (Some shape);
             gen_annot outputprefix sourcefile annots
           end;
-          { structure = str;
-            coercion;
-            shape;
-            signature = simple_sg
-          }
+          impl
         end
       end
     )
@@ -3233,8 +3336,56 @@ let save_signature modname tsg outputprefix source_file initial_env cmi =
   Cmt_format.save_cmt  (outputprefix ^ ".cmti") modname
     (Cmt_format.Interface tsg) (Some source_file) initial_env (Some cmi) None
 
-let type_interface env ast =
-  transl_signature env ast
+let transl_interface env ast param_names =
+  let loc = Location.none in
+  (* CR lmaurer: Refactor this and [type_implementation_params_and_body] *)
+  match param_names with
+    [] ->
+      let sg = transl_signature env ast in
+      { tintf_desc = Tintf_signature sg;
+        tintf_type = Unit_signature sg.sig_type;
+        tintf_env = env;
+      }
+  | _ ->
+      let params, newenv, _ =
+        List.fold_right
+          (fun param_name (params, env, subst) ->
+            match param_name with
+              | "()" -> Types.Unit :: params, env, subst
+              | _ ->
+                  let id_pers = Ident.create_persistent param_name in
+                  let param = param_name |> Compilation_unit.Name.of_string in
+                  let mty = Env.read_as_parameter loc param in
+                  let scope = Ctype.create_scope () in
+                  (* CR lmaurer: Not sure about [Rescope scope] *)
+                  let mty = Subst.modtype (Rescope scope) subst mty in
+                  let mty' = Mtype.scrape_for_functor_arg env mty in
+                  let id, newenv =
+                    Env.enter_module ~scope ~arg:true param_name Mp_present mty'
+                      env in
+                  Types.Named (Some id, mty) :: params,
+                  newenv,
+                  Subst.add_module_path
+                    (Path.Pident id_pers)
+                    (Path.Pident id)
+                    subst
+          )
+          param_names ([], env, Subst.identity)
+      in
+      let body = transl_signature newenv ast in
+      let params = List.rev params in
+      { tintf_desc = Tintf_functor (params, body);
+        tintf_type = Unit_functor (params, body.sig_type);
+        tintf_env = newenv;
+      }
+
+
+let type_interface sourcefile env ast =
+  if !Clflags.functor_parameter_of <> None &&
+     !Clflags.for_package <> None then
+    raise (Error (Location.in_file sourcefile, env,
+                  Cannot_pack_parameter sourcefile));
+  transl_interface env ast !Clflags.functor_parameters
 
 (* "Packaging" of several compilation units into one unit
    having them as sub-modules.  *)
@@ -3246,7 +3397,7 @@ let package_signatures units =
         let name = name |> Compilation_unit.Name.to_string in
         let oldid = Ident.create_persistent name in
         let newid = Ident.create_local name in
-        (oldid, newid, sg))
+        (oldid, newid, Types.module_type_of_compilation_unit sg))
       units
   in
   let subst =
@@ -3255,20 +3406,23 @@ let package_signatures units =
         Subst.add_module oldid (Pident newid) acc)
       Subst.identity units_with_ids
   in
-  List.map
-    (fun (_, newid, sg) ->
-      (* This signature won't be used for anything, it'll just be saved in a cmi
-         and cmt. *)
-      let sg = Subst.signature Make_local subst sg in
-      let md =
-        { md_type=Mty_signature sg;
-          md_attributes=[];
-          md_loc=Location.none;
-          md_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
-        }
-      in
-      Sig_module(newid, Mp_present, md, Trec_not, Exported))
-    units_with_ids
+  let sg =
+    List.map
+      (fun (_, newid, sg) ->
+        (* This signature won't be used for anything, it'll just be saved in a cmi
+          and cmt. *)
+        let sg = Subst.modtype Make_local subst sg in
+        let md =
+          { md_type=sg;
+            md_attributes=[];
+            md_loc=Location.none;
+            md_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
+          }
+        in
+        Sig_module(newid, Mp_present, md, Trec_not, Exported))
+      units_with_ids
+  in
+  Unit_signature sg
 
 let package_units initial_env objfiles cmifile modulename =
   (* Read the signatures of the units *)
@@ -3285,7 +3439,7 @@ let package_units initial_env objfiles cmifile modulename =
          let modname = Compilation_unit.create_child modulename unit in
          let sg = Env.read_signature modname (pref ^ ".cmi") in
          if Filename.check_suffix f ".cmi" &&
-            not(Mtype.no_code_needed_sig Env.initial_safe_string sg)
+            not(Mtype.no_code_needed_unit Env.initial_safe_string sg)
          then raise(Error(Location.none, Env.empty,
                           Implementation_is_required f));
          Compilation_unit.name modname,
@@ -3307,6 +3461,9 @@ let package_units initial_env objfiles cmifile modulename =
   in
   (* See if explicit interface is provided *)
   let mlifile = prefix ^ !Config.interface_suffix in
+  (* CR lmaurer: Keeping this comment, but isn't this already done? *)
+  (* temporary, until cmts are updated to reflect the functor *)
+  let cmt_sg = Types.compilation_unit_signature sg in
   if Sys.file_exists mlifile then begin
     if not (Sys.file_exists cmifile) then begin
       raise(Error(Location.in_file mlifile, Env.empty,
@@ -3318,7 +3475,7 @@ let package_units initial_env objfiles cmifile modulename =
         "(obtained by packing)" sg mlifile dclsig shape
     in
     Cmt_format.save_cmt  (prefix ^ ".cmt") modulename
-      (Cmt_format.Packed (sg, objfiles)) None initial_env  None (Some shape);
+      (Cmt_format.Packed (cmt_sg, objfiles)) None initial_env  None (Some shape);
     cc
   end else begin
     (* Determine imports *)
@@ -3335,8 +3492,9 @@ let package_units initial_env objfiles cmifile modulename =
           sg modulename
           (prefix ^ ".cmi") (Array.of_list imports)
       in
+      let cmi_sg = Types.compilation_unit_signature cmi.Cmi_format.cmi_sign in
       Cmt_format.save_cmt (prefix ^ ".cmt")  modulename
-        (Cmt_format.Packed (cmi.Cmi_format.cmi_sign, objfiles)) None initial_env
+        (Cmt_format.Packed (cmi_sg, objfiles)) None initial_env
         (Some cmi) (Some shape);
     end;
     Tcoerce_none
@@ -3514,6 +3672,17 @@ let report_error ~loc _env = function
         "The module type@ %s@ is not a valid type for a packed module:@ \
          it is defined as a local substitution for a non-path module type."
         (Path.name p)
+  | Cannot_implement_parameter path ->
+      Location.errorf ~loc
+        "@[Interface %s@ found for this unit is flagged as a functor parameter.@ \
+         It cannot be implemented.@]"
+        path
+  | Cannot_pack_parameter path ->
+      Location.errorf ~loc
+        "@[Interface %s@ found for this unit is flagged as a functor parameter.@ \
+         It cannot be packed into a module.@]"
+        path
+
 
 let report_error env ~loc err =
   Printtyp.wrap_printing_env ~error:true env

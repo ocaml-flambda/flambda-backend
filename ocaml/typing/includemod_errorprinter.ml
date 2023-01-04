@@ -865,7 +865,8 @@ let module_type_subst ~env id diff =
 let all env = function
   | In_Compilation_unit diff ->
       let first = Location.msg "%a" interface_mismatch diff in
-      signature ~expansion_token:true ~env ~before:[first] ~ctx:[] diff.symptom
+      module_type ~expansion_token:true ~eqmode:false ~env ~before:[first]
+        ~ctx:[] diff.symptom
   | In_Type_declaration (id,reason) ->
       [Location.msg "%t" (core env id reason)]
   | In_Module_type diff ->

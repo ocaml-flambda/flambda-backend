@@ -59,6 +59,7 @@ val output_name : string option ref
 val include_dirs : string list ref
 val no_std_include : bool ref
 val print_types : bool ref
+val print_full_interface : bool ref
 val make_archive : bool ref
 val debug : bool ref
 val debug_full : bool ref
@@ -109,6 +110,8 @@ val float_const_prop : bool ref
 val transparent_modules : bool ref
 val unique_ids : bool ref
 val locations : bool ref
+val functor_parameters : string list ref
+val functor_parameter_of : string option ref
 val dump_source : bool ref
 val dump_parsetree : bool ref
 val dump_typedtree : bool ref

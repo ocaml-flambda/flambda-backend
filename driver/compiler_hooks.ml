@@ -14,10 +14,10 @@ open Misc
 open Compile_common
 
 type _ pass =
-  | Parse_tree_intf : Parsetree.signature pass
-  | Parse_tree_impl : Parsetree.structure pass
-  | Typed_tree_intf : Typedtree.signature pass
-  | Typed_tree_impl : (Typedtree.structure * Typedtree.module_coercion) pass
+  | Parse_tree_intf : Parsetree.interface pass
+  | Parse_tree_impl : Parsetree.implementation pass
+  | Typed_tree_intf : Typedtree.interface pass
+  | Typed_tree_impl : Typedtree.implementation pass
   | Raw_lambda : Lambda.program pass
   | Lambda : Lambda.program pass
   | Raw_flambda2 : Flambda2_terms.Flambda_unit.t pass
@@ -42,10 +42,10 @@ type _ pass =
   | Inlining_tree : Flambda2_simplify_shared.Inlining_report.Inlining_tree.t pass
 
 type t = {
-  mutable parse_tree_intf : (Parsetree.signature -> unit) list;
-  mutable parse_tree_impl : (Parsetree.structure -> unit) list;
-  mutable typed_tree_intf : (Typedtree.signature -> unit) list;
-  mutable typed_tree_impl : ((Typedtree.structure * Typedtree.module_coercion) -> unit) list;
+  mutable parse_tree_intf : (Parsetree.interface -> unit) list;
+  mutable parse_tree_impl : (Parsetree.implementation -> unit) list;
+  mutable typed_tree_intf : (Typedtree.interface -> unit) list;
+  mutable typed_tree_impl : (Typedtree.implementation -> unit) list;
   mutable raw_lambda : (Lambda.program -> unit) list;
   mutable lambda : (Lambda.program -> unit) list;
   mutable raw_flambda2 : (Flambda2_terms.Flambda_unit.t -> unit) list;

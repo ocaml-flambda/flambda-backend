@@ -32,6 +32,8 @@ type iterator =
     env: iterator -> Env.t -> unit;
     expr: iterator -> expression -> unit;
     extension_constructor: iterator -> extension_constructor -> unit;
+    implementation: iterator -> implementation -> unit;
+    interface: iterator -> interface -> unit;
     module_binding: iterator -> module_binding -> unit;
     module_coercion: iterator -> module_coercion -> unit;
     module_declaration: iterator -> module_declaration -> unit;
@@ -60,6 +62,10 @@ type iterator =
     value_description: iterator -> value_description -> unit;
     with_constraint: iterator -> with_constraint -> unit;
   }
+
+let implementation sub {Typedtree.structure; _} =
+  match structure with
+    Timpl_structure str | Timpl_functor (_, str) -> sub.structure sub str
 
 let structure sub {str_items; str_final_env; _} =
   List.iter (sub.structure_item sub) str_items;
@@ -294,6 +300,10 @@ let package_type sub {pack_fields; _} =
 
 let binding_op sub {bop_exp; _} = sub.expr sub bop_exp
 
+let interface sub {tintf_desc; _} =
+  match tintf_desc with
+    Tintf_signature sg | Tintf_functor (_, sg) -> sub.signature sub sg
+
 let signature sub {sig_items; sig_final_env; _} =
   sub.env sub sig_final_env;
   List.iter (sub.signature_item sub) sig_items
@@ -519,6 +529,8 @@ let default_iterator =
     env;
     expr;
     extension_constructor;
+    implementation;
+    interface;
     module_binding;
     module_coercion;
     module_declaration;

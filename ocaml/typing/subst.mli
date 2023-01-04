@@ -80,6 +80,8 @@ val modtype_declaration:
   scoping -> t -> modtype_declaration -> modtype_declaration
 val module_declaration: scoping -> t -> module_declaration -> module_declaration
 
+val compilation_unit: scoping -> t -> compilation_unit -> compilation_unit
+
 (* Composition of substitutions:
      apply (compose s1 s2) x = apply s2 (apply s1 x) *)
 val compose: t -> t -> t

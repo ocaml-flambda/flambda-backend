@@ -652,6 +652,11 @@ and ext_status =
 
 val item_visibility : signature_item -> visibility
 
+(* Representation of the module type of a compilation unit. *)
+type compilation_unit =
+    Unit_signature of signature
+  | Unit_functor of functor_parameter list * signature
+
 (* Constructor and record label descriptions inserted held in typing
    environments *)
 
@@ -713,6 +718,10 @@ type value_mode =
   (* See Value_mode below *)
   { r_as_l : alloc_mode;
     r_as_g : alloc_mode; }
+
+val module_type_of_compilation_unit: compilation_unit -> module_type
+
+val compilation_unit_signature: compilation_unit -> signature
 
 (**** Utilities for backtracking ****)
 

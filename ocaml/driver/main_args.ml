@@ -158,6 +158,10 @@ let mk_i f =
   "-i", Arg.Unit f, " Print inferred interface"
 ;;
 
+let mk_full_interface f =
+  "-full-intf", Arg.Unit f, " Print functorized interface"
+;;
+
 let mk_I f =
   "-I", Arg.String f, "<dir>  Add <dir> to the list of include directories"
 ;;
@@ -718,6 +722,18 @@ let mk_match_context_rows f =
   "<n>  (advanced, see manual section %d.%d.)" chapter section
 ;;
 
+let mk_functor_parameter f =
+  "-parameter", Arg.String f,
+  "<module name> Registers the imported interface as a parameter for the \n\
+                 functorized unit."
+;;
+
+let mk_functor_parameter_of f =
+  "-parameter-of", Arg.String f,
+  "<module name> Compiles the interface as a parameter for a given \n\
+                 functorized unit."
+;;
+
 let mk_use_prims f =
   "-use-prims", Arg.String f, "<file>  (undocumented)"
 ;;
@@ -1014,6 +1030,9 @@ module type Compiler_options = sig
   val _config : unit -> unit
   val _config_var : string -> unit
   val _for_pack : string -> unit
+  val _full_interface : unit -> unit
+  val _functor_parameter : string -> unit
+  val _functor_parameter_of : string -> unit
   val _g : unit -> unit
   val _stop_after : string -> unit
   val _i : unit -> unit
@@ -1221,6 +1240,9 @@ struct
     mk_dtypes F._annot;
     mk_extension F._extension;
     mk_for_pack_byt F._for_pack;
+    mk_full_interface F._full_interface;
+    mk_functor_parameter F._functor_parameter;
+    mk_functor_parameter_of F._functor_parameter_of;
     mk_g_byt F._g;
     mk_stop_after ~native:false F._stop_after;
     mk_i F._i;
@@ -1408,6 +1430,8 @@ struct
     mk_disable_all_extensions F._disable_all_extensions;
     mk_extension F._extension;
     mk_for_pack_opt F._for_pack;
+    mk_functor_parameter F._functor_parameter;
+    mk_functor_parameter_of F._functor_parameter_of;
     mk_g_opt F._g;
     mk_function_sections F._function_sections;
     mk_stop_after ~native:true F._stop_after;
@@ -1922,6 +1946,9 @@ module Default = struct
     let _dump_into_file = set dump_into_file
     let _dump_dir s = dump_dir := Some s
     let _for_pack s = for_package := (Some (String.capitalize_ascii s))
+    let _full_interface = set print_full_interface
+    let _functor_parameter s = functor_parameters := s :: !functor_parameters
+    let _functor_parameter_of s = functor_parameter_of := Some s
     let _g = set debug
     let _i = set print_types
     let _impl = Compenv.impl

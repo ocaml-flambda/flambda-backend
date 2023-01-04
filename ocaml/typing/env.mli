@@ -403,18 +403,20 @@ val set_unit_name: Compilation_unit.t option -> unit
 val get_unit_name: unit -> Compilation_unit.t option
 
 (* Read, save a signature to/from a file *)
-val read_signature: Compilation_unit.t -> filepath -> signature
+val read_signature: Compilation_unit.t -> filepath -> compilation_unit
         (* Arguments: module name, file name. Results: signature. *)
 val save_signature:
-  alerts:alerts -> signature -> Compilation_unit.t -> filepath
+  alerts:alerts -> compilation_unit -> Compilation_unit.t -> filepath
   -> Cmi_format.cmi_infos
         (* Arguments: signature, module name, file name. *)
 val save_signature_with_imports:
-  alerts:alerts -> signature -> Compilation_unit.t -> filepath
+  alerts:alerts -> compilation_unit -> Compilation_unit.t -> filepath
   -> Import_info.t array
   -> Cmi_format.cmi_infos
         (* Arguments: signature, module name, file name,
            imported units with their CRCs. *)
+
+val read_as_parameter : Location.t -> Compilation_unit.Name.t -> module_type
 
 (* Return the CRC of the interface of the given compilation unit *)
 val crc_of_unit: Compilation_unit.Name.t -> Digest.t
@@ -430,6 +432,10 @@ val is_imported_opaque: Compilation_unit.Name.t -> bool
 
 (* [register_import_as_opaque md] registers [md] as an opaque imported module *)
 val register_import_as_opaque: Compilation_unit.Name.t -> unit
+
+(* [is_imported_opaque md] returns true if [md] is a parameter of a functorized
+   module *)
+val is_imported_as_parameter: Compilation_unit.Name.t -> bool
 
 (* Summaries -- compact representation of an environment, to be
    exported in debugging information. *)
@@ -449,6 +455,7 @@ type error =
   | Missing_module of Location.t * Path.t * Path.t
   | Illegal_value_name of Location.t * string
   | Lookup_error of Location.t * t * lookup_error
+  | Parameter_interface_unavailable of Location.t * Compilation_unit.Name.t
 
 exception Error of error
 

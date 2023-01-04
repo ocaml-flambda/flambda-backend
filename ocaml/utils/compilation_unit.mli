@@ -101,6 +101,9 @@ val create_child : t -> Name.t -> t
     which take their names from hidden files.) *)
 val of_string : string -> t
 
+(** Create a compilation unit from the given path. *)
+val parse_full_path : string -> t
+
 (** Create a global [Ident.t] representing this compilation unit. Only intended
     for use in bytecode; most uses of [Ident.t]s that are known to be global
     should simply use [t] instead. *)
