@@ -2,7 +2,7 @@
 
 open! Cfg_regalloc_utils
 
-let ls_debug = true
+let ls_debug = false
 
 let bool_of_param param_name =
   bool_of_param ~guard:(ls_debug, "ls_debug") param_name
