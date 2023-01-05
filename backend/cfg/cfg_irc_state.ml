@@ -29,7 +29,8 @@ module InstructionWorkList = ArraySet.Make (struct
       live = Reg.Set.empty;
       stack_offset = -1;
       id = -1;
-      irc_work_list = Unknown_list
+      irc_work_list = Unknown_list;
+      ls_order = -1
     }
 end)
 
@@ -54,8 +55,7 @@ type t =
     active_moves : InstructionWorkList.t;
     adj_set : RegisterStamp.PairSet.t;
     move_list : Instruction.Set.t Reg.Tbl.t;
-    stack_slots : int Reg.Tbl.t;
-    num_stack_slots : int array;
+    stack_slots : StackSlots.t;
     mutable next_instruction_id : Instruction.id;
     mutable introduced_temporaries : Reg.Set.t
   }
@@ -96,8 +96,7 @@ let[@inline] make ~initial ~next_instruction_id () =
   let active_moves = InstructionWorkList.make ~original_capacity in
   let adj_set = RegisterStamp.PairSet.make ~num_registers in
   let move_list = Reg.Tbl.create 128 in
-  let stack_slots = Reg.Tbl.create 128 in
-  let num_stack_slots = Array.make Proc.num_register_classes 0 in
+  let stack_slots = StackSlots.make () in
   let introduced_temporaries = Reg.Set.empty in
   { initial;
     simplify_work_list;
@@ -115,7 +114,6 @@ let[@inline] make ~initial ~next_instruction_id () =
     adj_set;
     move_list;
     stack_slots;
-    num_stack_slots;
     next_instruction_id;
     introduced_temporaries
   }
@@ -479,20 +477,7 @@ let[@inline] add_alias _state v u =
       Printmach.reg v Printmach.reg u;
   v.Reg.irc_alias <- Some u
 
-let[@inline] get_and_incr_num_stack_slots state reg_class =
-  let res = state.num_stack_slots.(reg_class) in
-  state.num_stack_slots.(reg_class) <- succ res;
-  res
-
-let[@inline] get_num_stack_slot state reg =
-  match Reg.Tbl.find_opt state.stack_slots reg with
-  | Some slot -> slot
-  | None ->
-    let res = get_and_incr_num_stack_slots state (Proc.register_class reg) in
-    Reg.Tbl.add state.stack_slots reg res;
-    res
-
-let[@inline] num_stack_slots state = state.num_stack_slots
+let[@inline] stack_slots state = state.stack_slots
 
 let[@inline] get_and_incr_instruction_id state =
   let res = state.next_instruction_id in
@@ -549,7 +534,7 @@ let[@inline] check_inter_has_no_duplicates (reg : Reg.t) : unit =
 
 let[@inline] invariant state =
   (* CR xclerc for xclerc: avoid multiple conversions to sets. *)
-  if irc_debug && irc_invariants
+  if irc_debug && Lazy.force irc_invariants
   then (
     (* interf (list) is morally a set *)
     List.iter (Reg.all_registers ()) ~f:check_inter_has_no_duplicates;

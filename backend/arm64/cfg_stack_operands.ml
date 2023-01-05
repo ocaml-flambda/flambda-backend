@@ -8,7 +8,7 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   match instr.desc with
   | Op (Specific Imove32) ->
     if debug then check_lengths instr ~of_arg:1 ~of_res:1;
-    begin match is_spilled instr.arg.(0), is_spilled instr.res.(0) with
+    begin match is_spilled map instr.arg.(0), is_spilled map instr.res.(0) with
     | false, false ->
       All_spilled_registers_rewritten
     | false, true ->
