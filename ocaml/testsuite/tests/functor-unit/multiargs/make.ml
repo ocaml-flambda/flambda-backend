@@ -1,1 +1,1 @@
-let f () = Param2.print Param.A
+let f () = Param2.print `A

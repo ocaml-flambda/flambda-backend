@@ -1,1 +1,1 @@
-type t = A | B
+type t = [ `A | `B ]

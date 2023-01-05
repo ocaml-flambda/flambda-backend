@@ -1,1 +1,1 @@
-val print: Param.t -> unit
+val print: [ `A | `B ] -> unit

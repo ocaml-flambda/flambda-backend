@@ -3156,32 +3156,22 @@ let type_implementation_params_and_body env ast loc = function
       shape,
       finalenv
   | param_names ->
-      let params, newenv, _ =
-        List.fold_right (fun param_name (params, env, subst) ->
+      let params, newenv =
+        List.fold_right (fun param_name (params, env) ->
           match param_name with
             | "()" ->
-                Types.Unit :: params, env, subst
+                Types.Unit :: params, env
             | _ ->
-                (* CR lmaurer: This sets things up so that we resolve the
-                   parameter name to a persistent identifier but then use a
-                   substitution to rewrite all references to use a local
-                   identifier instead. This makes some sense if the idea is to
-                   use the mechanism for persistent modules, but in any case
-                   it's sufficiently weird that it should be explained here. *)
-                let id_pers = Ident.create_persistent param_name in
                 let param = param_name |> Compilation_unit.Name.of_string in
                 let mty = Env.read_as_parameter loc param in
                 let scope = Ctype.create_scope () in
-                (* CR lmaurer: Not sure about [Rescope scope] here *)
-                let mty' = Subst.modtype (Rescope scope) subst mty in
-                let mty' = Mtype.scrape_for_functor_arg env mty' in
+                let mty = Mtype.scrape_for_functor_arg env mty in
                 let id, newenv =
                   Env.enter_module
-                    ~scope ~arg:true param_name Mp_present mty' env
+                    ~scope ~arg:true param_name Mp_present mty env
                 in
-                let subst = Subst.add_module id_pers (Pident id) subst in
-                Types.Named (Some id, mty') :: params, newenv, subst)
-          param_names ([], env, Subst.identity)
+                Types.Named (Some id, mty) :: params, newenv)
+          param_names ([], env)
       in
       let body, sg, names, shape, finalenv =
         type_implementation_structure true newenv ast in
