@@ -3183,7 +3183,6 @@ let type_implementation_params_and_body env ast loc = function
                 Types.Named (Some id, mty') :: params, newenv, subst)
           param_names ([], env, Subst.identity)
       in
-      let params = List.rev params in
       let body, sg, names, shape, finalenv =
         type_implementation_structure true newenv ast in
       Timpl_functor (params, body),
@@ -3373,7 +3372,6 @@ let transl_interface env ast param_names =
           param_names ([], env, Subst.identity)
       in
       let body = transl_signature newenv ast in
-      let params = List.rev params in
       { tintf_desc = Tintf_functor (params, body);
         tintf_type = Unit_functor (params, body.sig_type);
         tintf_env = newenv;

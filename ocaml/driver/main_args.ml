@@ -1948,7 +1948,7 @@ module Default = struct
     let _dump_dir s = dump_dir := Some s
     let _for_pack s = for_package := (Some (String.capitalize_ascii s))
     let _full_interface = set print_full_interface
-    let _functor_parameter s = functor_parameters := s :: !functor_parameters
+    let _functor_parameter s = functor_parameters := !functor_parameters @ [ s ]
     let _g = set debug
     let _i = set print_types
     let _impl = Compenv.impl
