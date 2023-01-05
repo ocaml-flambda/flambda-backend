@@ -32,9 +32,8 @@ module type Utils = sig
   val set_spilled : Reg.t -> unit
 end
 
-(* This is the `rewrite` function from IRC, parametrized by state,
-   functions for debugging, and function to test/set the "spilled"
-   state of a register. *)
+(* This is the `rewrite` function from IRC, parametrized by state, functions for
+   debugging, and function to test/set the "spilled" state of a register. *)
 val rewrite_gen :
   (module State with type t = 's) ->
   (module Utils) ->
@@ -43,15 +42,15 @@ val rewrite_gen :
   Reg.t list ->
   Reg.t list
 
-(* Runs the first steps common to register allocators, reinitializing
-   registers, checking preconditions, and collecting information from
-   the CFG. [f] is registered as the [on_fatal] callback. *)
+(* Runs the first steps common to register allocators, reinitializing registers,
+   checking preconditions, and collecting information from the CFG. [f] is
+   registered as the [on_fatal] callback. *)
 val prelude :
   (module Utils) -> f:(unit -> unit) -> Cfg_with_liveness.t -> cfg_infos
 
-(* Runs the last steps common to register allocators, updating the
-   CFG (stack slots, live fields, and prologue), running [f], and
-   checking postconditions. *)
+(* Runs the last steps common to register allocators, updating the CFG (stack
+   slots, live fields, and prologue), running [f], and checking
+   postconditions. *)
 val postlude :
   (module State with type t = 's) ->
   (module Utils) ->

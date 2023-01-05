@@ -38,9 +38,7 @@ module Order = struct
 
   let all = [Layout; DFS]
 
-  let to_string = function
-    | Layout -> "layout"
-    | DFS -> "dfs"
+  let to_string = function Layout -> "layout" | DFS -> "dfs"
 
   let value =
     let available_orders () =
