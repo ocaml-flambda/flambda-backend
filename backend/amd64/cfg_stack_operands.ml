@@ -13,7 +13,7 @@ let may_use_stack_operand_for_second_argument
     check_lengths instr ~of_arg:2 ~of_res:1;
     check_same "res(0)" instr.res.(0) "arg(0)" instr.arg.(0);
   end;
-  begin match is_spilled instr.arg.(1) with
+  begin match is_spilled map instr.arg.(1) with
   | false -> ()
   | true ->
     use_stack_operand map instr.arg 1;
@@ -24,7 +24,7 @@ let may_use_stack_operand_for_only_argument
   : type a . has_result:bool -> spilled_map -> a Cfg.instruction -> stack_operands_rewrite
   = fun ~has_result map instr ->
   if debug then check_lengths instr ~of_arg:1 ~of_res:(if has_result then 1 else 0);
-  begin match is_spilled instr.arg.(0) with
+  begin match is_spilled map instr.arg.(0) with
   | false -> ()
   | true ->
     use_stack_operand map instr.arg 0
@@ -38,7 +38,7 @@ let may_use_stack_operand_for_only_result
   : type a . spilled_map -> a Cfg.instruction -> stack_operands_rewrite
   = fun map instr ->
   if debug then check_lengths instr ~of_arg:0 ~of_res:1;
-  begin match is_spilled instr.res.(0) with
+  begin match is_spilled map instr.res.(0) with
   | false ->
     All_spilled_registers_rewritten
   | true ->
@@ -52,7 +52,7 @@ let may_use_stack_operand_for_result
   if debug then begin
     check_lengths instr ~of_arg:num_args ~of_res:1;
   end;
-  begin match is_spilled instr.res.(0) with
+  begin match is_spilled map instr.res.(0) with
   | false -> ()
   | true ->
     if Reg.same instr.arg.(0) instr.res.(0) then begin
@@ -102,7 +102,7 @@ let binary_operation
   if already_has_memory_operand then
     May_still_have_spilled_registers
   else begin
-    match is_spilled instr.arg.(0), is_spilled instr.arg.(1) with
+    match is_spilled map instr.arg.(0), is_spilled map instr.arg.(1) with
     | false, false ->
       begin match result with
       | No_result | Result_can_be_on_stack ->
@@ -177,11 +177,11 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   | Op (Specific (Ifloat_iround | Ifloat_round _))
   | Op (Intop_imm (Icomp _, _)) ->
     may_use_stack_operand_for_only_argument map instr ~has_result:true
-  | Op (Intop_imm (Iadd, _)) when (Reg.same_loc instr.arg.(0) instr.res.(0)) ->
+  | Op (Intop_imm (Iadd, _)) ->
     May_still_have_spilled_registers
   | Op (Intop(Ilsl | Ilsr | Iasr)) ->
     may_use_stack_operand_for_result map instr ~num_args:2
-  | Op(Intop_imm((Iadd | Isub | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr), _)) ->
+  | Op(Intop_imm((Isub | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr), _)) ->
     may_use_stack_operand_for_result map instr ~num_args:1
   | Op (Csel _) (* CR gyorsh: optimize *)
   | Op (Specific (Ilfence | Isfence | Imfence))

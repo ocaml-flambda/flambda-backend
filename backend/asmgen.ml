@@ -250,15 +250,14 @@ let cfgize (f : Mach.fundecl) : Cfg_with_layout.t =
 type register_allocator =
   | Upstream
   | IRC
+  | LS
 
-let register_allocator : register_allocator =
-  match Sys.getenv_opt "REGISTER_ALLOCATOR" with
-  | None -> Upstream
-  | Some id ->
-    match String.lowercase_ascii id with
-    | "irc" -> IRC
-    | "" | "upstream" -> Upstream
-    | _ -> Misc.fatal_errorf "unknown register allocator %S" id
+let register_allocator () : register_allocator =
+  match String.lowercase_ascii !Flambda_backend_flags.cfg_regalloc with
+  | "irc" -> IRC
+  | "ls" -> LS
+  | "" | "upstream" -> Upstream
+  | other -> Misc.fatal_errorf "unknown register allocator (%S)" other
 
 let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   Proc.init ();
@@ -282,9 +281,16 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   ++ pass_dump_if ppf_dump dump_cse "After CSE"
   ++ Profile.record ~accumulate:true "checkmach" (Checkmach.fundecl ppf_dump)
   ++ Profile.record ~accumulate:true "regalloc" (fun (fd : Mach.fundecl) ->
+      (* CR-someday xclerc for xclerc: we still interpret `-linscan` (and
+         equivalent) as meaning "Upstream's linscan" for the time being. We
+         may switch to CFG's linscan when, after large-scale testing, we are
+         confident the CFG version is ready for production. In the meantime,
+         CFG's linscan is enabled solely by passing `-cfg-regalloc ls` on
+         the command line or putting "cfg-regalloc=ls" in the `OCAMLPARAM`
+         environment variable. *)
     let force_linscan = should_use_linscan fd in
-    match force_linscan, register_allocator with
-    | false, IRC ->
+    match force_linscan, register_allocator () with
+    | false, ((IRC | LS) as regalloc) ->
       fd
       ++ Profile.record ~accumulate:true "irc" (fun fd ->
         let cfg =
@@ -298,9 +304,16 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
             Cfg_regalloc_validate.Description.create (Cfg_with_liveness.cfg_with_layout cfg)
         in
         cfg
-        ++ Profile.record ~accumulate:true "cfg_irc" Cfg_irc.run
+        ++ begin match regalloc with
+          | IRC -> Profile.record ~accumulate:true "cfg_irc" Cfg_irc.run
+          | LS -> Profile.record ~accumulate:true "cfg_ls" Cfg_ls.run
+          | Upstream -> assert false
+        end
         ++ Cfg_with_liveness.cfg_with_layout
-        ++ Profile.record ~accumulate:true "cfg_validate_description" (Cfg_regalloc_validate.run cfg_description)
+        ++ begin match !Flambda_backend_flags.cfg_regalloc_validate with
+          | true -> Profile.record ~accumulate:true "cfg_validate_description" (Cfg_regalloc_validate.run cfg_description)
+          | false -> Fun.id
+        end
         ++ Profile.record ~accumulate:true "cfg_simplify" Cfg_regalloc_utils.simplify_cfg
         ++ Profile.record ~accumulate:true "save_cfg" save_cfg
         ++ Profile.record ~accumulate:true "cfg_reorder_blocks"
