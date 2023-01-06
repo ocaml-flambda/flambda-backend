@@ -57,7 +57,6 @@ type can_load_cmis =
 
 type pers_struct = {
   ps_name: CU.t;
-  ps_is_param: bool;
   ps_crcs: Import_info.t array;
   ps_filename: string;
   ps_flags: pers_flags list;
@@ -209,7 +208,6 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
   let crcs = cmi.cmi_crcs in
   let flags = cmi.cmi_flags in
   let ps = { ps_name = name;
-             ps_is_param = is_param;
              ps_crcs = crcs;
              ps_filename = filename;
              ps_flags = flags;
@@ -228,7 +226,7 @@ let acknowledge_pers_struct penv check modname pers_sig pm =
         | Alerts _ -> ()
         | Opaque -> register_import_as_opaque penv modname)
     ps.ps_flags;
-  if ps.ps_is_param then begin
+  if is_param then begin
     if not (check_parameter ps.ps_name) then
       error (Illegal_import_of_parameter(modname, filename))
     else add_imported_parameter penv modname
@@ -425,7 +423,7 @@ let save_cmi penv psig pm =
       let {
         cmi_name = modname;
         cmi_sign = _;
-        cmi_is_param = is_param;
+        cmi_is_param = _;
         cmi_crcs = imports;
         cmi_flags = flags;
       } = cmi in
@@ -437,7 +435,6 @@ let save_cmi penv psig pm =
          will also return its crc *)
       let ps =
         { ps_name = modname;
-          ps_is_param = is_param;
           ps_crcs =
             Array.append
               [| Import_info.create_normal cmi.cmi_name ~crc:(Some crc) |]
