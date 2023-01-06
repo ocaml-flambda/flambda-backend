@@ -61,8 +61,6 @@ let linkage_name_for_ocamlobjinfo t =
 
 let compilation_unit t = t.compilation_unit
 
-let with_compilation_unit t compilation_unit = { t with compilation_unit }
-
 (* CR-someday lmaurer: Would be nicer to have some of this logic in
    [Linkage_name]; among other things, we could then define
    [Linkage_name.for_current_unit] *)
@@ -120,10 +118,6 @@ let for_compilation_unit compilation_unit =
 
 let for_current_unit () =
   for_compilation_unit (CU.get_current_exn ())
-
-let import_for_pack t ~pack =
-  let compilation_unit = CU.with_for_pack_prefix t.compilation_unit pack in
-  { t with compilation_unit; }
 
 let const_label = ref 0
 
