@@ -100,7 +100,7 @@ module Env : sig
 
   type t
 
-  val create : big_endian:bool -> cmx_loader:Flambda_cmx.loader -> t
+  val create : big_endian:bool -> t
 
   val clear_local_bindings : t -> t
 
@@ -148,14 +148,12 @@ module Env : sig
   val find_simple_to_substitute_exn :
     t -> Ident.t -> Simple.t * Flambda_kind.With_subkind.t
 
-  val add_value_approximation : t -> Name.t -> value_approximation -> t
+  val add_var_approximation : t -> Variable.t -> value_approximation -> t
 
   val add_block_approximation :
-    t -> Name.t -> value_approximation array -> Alloc_mode.For_types.t -> t
+    t -> Variable.t -> value_approximation array -> Alloc_mode.For_types.t -> t
 
-  val add_approximation_alias : t -> Name.t -> Name.t -> t
-
-  val find_value_approximation : t -> Simple.t -> value_approximation
+  val find_var_approximation : t -> Variable.t -> value_approximation
 
   val current_depth : t -> Variable.t option
 
@@ -195,7 +193,7 @@ module Acc : sig
 
   type t
 
-  val create : slot_offsets:Slot_offsets.t -> t
+  val create : slot_offsets:Slot_offsets.t -> cmx_loader:Flambda_cmx.loader -> t
 
   val declared_symbols : t -> (Symbol.t * Static_const.t) list
 
@@ -275,6 +273,10 @@ module Acc : sig
     t
 
   val pop_closure_info : t -> closure_info * t
+
+  val add_symbol_approximation : t -> Symbol.t -> Env.value_approximation -> t
+
+  val find_symbol_approximation : t -> Symbol.t -> Env.value_approximation
 end
 
 (** Used to represent information about a set of function declarations during
