@@ -20,6 +20,4 @@ module Flambda : sig
   val for_variable : Variable.t -> Symbol.t
   val for_closure : Closure_id.t -> Symbol.t
   val for_code_of_closure : Closure_id.t -> Symbol.t
-
-  val import_for_pack : Symbol.t -> pack:Compilation_unit.Prefix.t -> Symbol.t
 end
