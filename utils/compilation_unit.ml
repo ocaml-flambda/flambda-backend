@@ -215,11 +215,13 @@ let for_pack_prefix t =
 
 let create for_pack_prefix name =
   let empty_prefix = Prefix.is_empty for_pack_prefix in
-  if not empty_prefix
-  then (
-    Name.check_as_path_component name;
-    ListLabels.iter ~f:Name.check_as_path_component
-      (for_pack_prefix |> Prefix.to_list));
+  let () =
+    if not empty_prefix
+    then (
+      Name.check_as_path_component name;
+      ListLabels.iter ~f:Name.check_as_path_component
+        (for_pack_prefix |> Prefix.to_list))
+  in
   if empty_prefix
   then Sys.opaque_identity (Obj.repr name)
   else Sys.opaque_identity (Obj.repr { for_pack_prefix; name })
