@@ -35,11 +35,7 @@ val for_compilation_unit : Compilation_unit.t -> t
 val for_current_unit : unit -> t
 val for_new_const_in_current_unit : unit -> t
 
-val import_for_pack : t -> pack:Compilation_unit.Prefix.t -> t
-
 val compilation_unit : t -> Compilation_unit.t
-
-val with_compilation_unit : t -> Compilation_unit.t -> t
 
 val linkage_name : t -> Linkage_name.t
 
