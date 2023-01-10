@@ -387,7 +387,7 @@ method effects_of exp =
   | Cphantom_let (_var, _defining_expr, body) -> self#effects_of body
   | Csequence (e1, e2) ->
     EC.join (self#effects_of e1) (self#effects_of e2)
-  | Cifthenelse (cond, _ifso_dbg, ifso, _ifnot_dbg, ifnot, _dbg) ->
+  | Cifthenelse (cond, _ifso_dbg, ifso, _ifnot_dbg, ifnot, _dbg, _kind) ->
     EC.join (self#effects_of cond)
       (EC.join (self#effects_of ifso) (self#effects_of ifnot))
   | Cop (op, args, _) ->
@@ -719,7 +719,7 @@ method emit_expr (env:environment) exp =
         (Cifthenelse (exp,
           dbg, Cconst_int (1, dbg),
           dbg, Cconst_int (0, dbg),
-          dbg))
+          dbg, Vint))
   | Cop(Copaque, args, dbg) ->
       begin match self#emit_parts_list env args with
         None -> None
@@ -786,7 +786,7 @@ method emit_expr (env:environment) exp =
         None -> None
       | Some _ -> self#emit_expr env e2
       end
-  | Cifthenelse(econd, _ifso_dbg, eif, _ifnot_dbg, eelse, _dbg) ->
+  | Cifthenelse(econd, _ifso_dbg, eif, _ifnot_dbg, eelse, _dbg, _kind) ->
       let (cond, earg) = self#select_condition econd in
       begin match self#emit_expr env' earg with
         None -> None
@@ -798,7 +798,7 @@ method emit_expr (env:environment) exp =
                       rarg [||];
           r
       end
-  | Cswitch(esel, index, ecases, _dbg) ->
+  | Cswitch(esel, index, ecases, _dbg, _kind) ->
       begin match self#emit_expr env' esel with
         None -> None
       | Some rsel ->
@@ -811,9 +811,9 @@ method emit_expr (env:environment) exp =
                       rsel [||];
           r
       end
-  | Ccatch(_, [], e1) ->
+  | Ccatch(_, [], e1, _) ->
       self#emit_expr env e1
-  | Ccatch(rec_flag, handlers, body) ->
+  | Ccatch(rec_flag, handlers, body, _) ->
       let handlers =
         List.map (fun (nfail, ids, e2, dbg) ->
             let rs =
@@ -877,7 +877,7 @@ method emit_expr (env:environment) exp =
           self#insert env (Iexit nfail) [||] [||];
           None
       end
-  | Ctrywith(e1, v, e2, _dbg) ->
+  | Ctrywith(e1, v, e2, _dbg, _value_kind) ->
       let end_region =
         if Config.stack_allocation then begin
           let reg = self#regs_for typ_int in
@@ -1187,7 +1187,7 @@ method emit_tail (env:environment) exp =
         None -> ()
       | Some _ -> self#emit_tail env e2
       end
-  | Cifthenelse(econd, _ifso_dbg, eif, _ifnot_dbg, eelse, _dbg) ->
+  | Cifthenelse(econd, _ifso_dbg, eif, _ifnot_dbg, eelse, _dbg, _kind) ->
       let (cond, earg) = self#select_condition econd in
       begin match self#emit_expr env' earg with
         None -> ()
@@ -1197,7 +1197,7 @@ method emit_tail (env:environment) exp =
                                          self#emit_tail_sequence env eelse))
                       rarg [||]
       end
-  | Cswitch(esel, index, ecases, _dbg) ->
+  | Cswitch(esel, index, ecases, _dbg, _kind) ->
       begin match self#emit_expr env' esel with
         None -> ()
       | Some rsel ->
@@ -1207,9 +1207,9 @@ method emit_tail (env:environment) exp =
           in
           self#insert env (Iswitch (index, cases)) rsel [||]
       end
-  | Ccatch(_, [], e1) ->
+  | Ccatch(_, [], e1, _) ->
       self#emit_tail env e1
-  | Ccatch(rec_flag, handlers, e1) ->
+  | Ccatch(rec_flag, handlers, e1, _) ->
       let handlers =
         List.map (fun (nfail, ids, e2, dbg) ->
             let rs =
@@ -1237,7 +1237,7 @@ method emit_tail (env:environment) exp =
       in
       self#insert env (Icatch(rec_flag, List.map aux handlers, s_body))
         [||] [||]
-  | Ctrywith(e1, v, e2, _dbg) ->
+  | Ctrywith(e1, v, e2, _dbg, _value_kind) ->
       let end_region =
         if Config.stack_allocation then begin
           let reg = self#regs_for typ_int in

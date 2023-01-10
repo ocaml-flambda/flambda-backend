@@ -60,16 +60,25 @@ and ulambda =
       * uphantom_defining_expr option * ulambda
   | Uletrec of (Backend_var.With_provenance.t * ulambda) list * ulambda
   | Uprim of Clambda_primitives.primitive * ulambda list * Debuginfo.t
-  | Uswitch of ulambda * ulambda_switch * Debuginfo.t
-  | Ustringswitch of ulambda * (string * ulambda) list * ulambda option
+  | Uswitch of ulambda * ulambda_switch * Debuginfo.t * Lambda.value_kind
+  | Ustringswitch of
+      ulambda *
+      (string * ulambda) list *
+      ulambda option *
+      Lambda.value_kind
   | Ustaticfail of int * ulambda list
   | Ucatch of
       int *
       (Backend_var.With_provenance.t * value_kind) list *
       ulambda *
-      ulambda
-  | Utrywith of ulambda * Backend_var.With_provenance.t * ulambda
-  | Uifthenelse of ulambda * ulambda * ulambda
+      ulambda *
+      Lambda.value_kind
+  | Utrywith of
+      ulambda *
+      Backend_var.With_provenance.t *
+      ulambda *
+      Lambda.value_kind
+  | Uifthenelse of ulambda * ulambda * ulambda * Lambda.value_kind
   | Usequence of ulambda * ulambda
   | Uwhile of ulambda * ulambda
   | Ufor of Backend_var.With_provenance.t * ulambda * ulambda
