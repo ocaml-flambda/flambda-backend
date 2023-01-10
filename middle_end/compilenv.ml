@@ -215,7 +215,11 @@ let get_unit_info comp_unit ~cmx_name =
             let filename =
               Load_path.find_uncap ((cmx_name |> CU.Name.to_string) ^ ".cmx") in
             let (ui, crc) = read_unit_info filename in
-            if not (CU.equal ui.ui_unit comp_unit) then
+            if not (List.exists (CU.equal comp_unit) ui.ui_defines) then
+              (* CR vlaviron: the error message might be a bit odd, for instance
+                 if the required unit was omitted from the pack by mistake.
+                 But it's the correct message when no packs are involved, so
+                 we're leaving it for now. *)
               raise(Error(Illegal_renaming(comp_unit, ui.ui_unit, filename)));
             cache_checks ui.ui_checks;
             (Some ui, Some crc)
@@ -225,7 +229,17 @@ let get_unit_info comp_unit ~cmx_name =
               (None, None)
           end
       in
-      let import = Import_info.create_normal comp_unit ~crc in
+      let import =
+        match infos with
+        | None ->
+          (* CR vlaviron: This is wrong, as we should register as import the
+             unit we tried to import (the one corresponding to [cmx_name]).
+             I don't know how to compute that unit though, and the following
+             code is correct when no packs are involved. *)
+          Import_info.create_normal comp_unit ~crc
+        | Some ui ->
+          Import_info.create_normal ui.ui_unit ~crc
+      in
       current_unit.ui_imports_cmx <- import :: current_unit.ui_imports_cmx;
       CU.Name.Tbl.add global_infos_table cmx_name infos;
       infos
