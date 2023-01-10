@@ -653,8 +653,8 @@ module Map_specs (V : Value) = struct
   let map_sharing_id m = Map.map_sharing (fun v -> v) m == m
 end
 
-(* CR-someday lmaurer: Move the [Abitrary.t] for keys into a separate module and
-   put the permutation tests in their own file. *)
+(* CR-someday lmaurer: Move the [Abitrary.t] for perms into a separate module
+   and put the permutation tests in their own file. *)
 
 (* A permutation and a value that is not a fixed point under the permutation. In
    other words, the value is an element of the underlying maps. *)
@@ -684,6 +684,7 @@ module Perm_specs (T : Flambda2_algorithms.Container_types.S) = struct
       if T.equal v1 v then v' else if T.equal v1 v' then v else v1
     in
     T.equal (Perm.apply p' v_test) expected
+    && T.equal (Perm.apply (Perm.inverse p') expected) v_test
 
   let apply_compose_one_same p v v' =
     let compose_one p v v' = Perm.compose_one ~first:p v v' in
@@ -706,9 +707,13 @@ module Perm_specs (T : Flambda2_algorithms.Container_types.S) = struct
     test_compose_one ~compose_one p v v' v_test
 
   let apply_compose p1 p2 v_test =
-    T.equal
-      (Perm.apply (Perm.compose ~second:p2 ~first:p1) v_test)
-      (Perm.apply p2 (Perm.apply p1 v_test))
+    let p12 = Perm.compose ~first:p1 ~second:p2 in
+    let p1_inv = Perm.inverse p1 in
+    let p2_inv = Perm.inverse p2 in
+    T.equal (Perm.apply p12 v_test) (Perm.apply p2 (Perm.apply p1 v_test))
+    && T.equal
+         (Perm.apply (Perm.inverse p12) v_test)
+         (Perm.apply (Perm.compose ~first:p2_inv ~second:p1_inv) v_test)
 
   let apply_compose_mem_left { perm = p1; value = v } p2 = apply_compose p1 p2 v
 
@@ -718,6 +723,11 @@ module Perm_specs (T : Flambda2_algorithms.Container_types.S) = struct
   let apply_compose_mem_both { perm = p1; value = v } p2 v' =
     let p2 = Perm.compose_one ~first:p2 v v' in
     apply_compose p1 p2 v
+
+  let compose_inverse_self p =
+    let p_inv = Perm.inverse p in
+    Perm.is_empty (Perm.compose ~first:p ~second:p_inv)
+    && Perm.is_empty (Perm.compose ~first:p_inv ~second:p)
 end
 
 module Types = struct
@@ -1148,6 +1158,7 @@ let () =
       [perm; perm_and_non_fixed_point];
     c "compose then apply with value from both" apply_compose_mem_both
       [perm_and_non_fixed_point; perm; value];
+    c "compose with own inverse" compose_inverse_self [perm];
     ()
   in
   let failure_count = Runner.failure_count runner in

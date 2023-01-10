@@ -26,6 +26,9 @@ module Make (N : Container_types.S) = struct
 
   let empty = { forwards = N.Map.empty; backwards = N.Map.empty }
 
+  let inverse { forwards; backwards } =
+    { forwards = backwards; backwards = forwards }
+
   let [@ocamlformat "disable"] print ppf { forwards; backwards; } =
     Format.fprintf ppf "@[((forwards %a)@ (backwards %a))@]"
       (N.Map.print N.print) forwards
