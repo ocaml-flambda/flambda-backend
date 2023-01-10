@@ -154,6 +154,8 @@ let write_ir prefix =
     Linear_format.save filename linear_unit_info
   end;
   if should_save_cfg_before_emit () then begin
+    if not !Flambda_backend_flags.use_ocamlcfg then
+      Misc.fatal_error "Flag '-save-ir-after simplify_cfg' requires '-ocamlcfg'";
     let filename = Compiler_pass.(to_output_filename Simplify_cfg ~prefix) in
     cfg_unit_info.items <- List.rev cfg_unit_info.items;
     Cfg_format.save filename cfg_unit_info
