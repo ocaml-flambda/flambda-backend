@@ -151,13 +151,24 @@ let join_types ~env_at_fork envs_with_levels =
       Name.Map.merge join_types joined_types (TEL.equations t))
 
 let construct_joined_level envs_with_levels ~env_at_fork ~allowed ~joined_types
-    =
+    ~params =
+  let allowed_and_new =
+    (* Parameters are already in the resulting environment *)
+    List.fold_left
+      (fun allowed_and_new param ->
+        Name_occurrences.remove_var allowed_and_new
+          ~var:(Bound_parameter.var param))
+      allowed params
+  in
+  let variable_is_in_new_level var =
+    Name_occurrences.mem_var allowed_and_new var
+  in
   let defined_vars, binding_times =
     List.fold_left
       (fun (defined_vars, binding_times) (_env_at_use, _id, _use_kind, t) ->
         let defined_vars_this_level =
           Variable.Map.filter
-            (fun var _ -> Name_occurrences.mem_var allowed var)
+            (fun var _ -> variable_is_in_new_level var)
             (TEL.defined_variables_with_kinds t)
         in
         let defined_vars =
@@ -175,11 +186,7 @@ let construct_joined_level envs_with_levels ~env_at_fork ~allowed ~joined_types
         let binding_times_this_level =
           Binding_time.Map.filter_map
             (fun _ vars ->
-              let vars =
-                Variable.Set.filter
-                  (fun var -> Name_occurrences.mem_var allowed var)
-                  vars
-              in
+              let vars = Variable.Set.filter variable_is_in_new_level vars in
               if Variable.Set.is_empty vars then None else Some vars)
             (TEL.variables_by_binding_time t)
         in
@@ -297,6 +304,7 @@ let join ~env_at_fork envs_with_levels ~params ~extra_lifted_consts_in_use_envs
   (* Having calculated which equations to propagate, the resulting level can now
      be constructed. *)
   construct_joined_level envs_with_levels ~env_at_fork ~allowed ~joined_types
+    ~params
 
 let n_way_join ~env_at_fork envs_with_levels ~params
     ~extra_lifted_consts_in_use_envs ~extra_allowed_names =

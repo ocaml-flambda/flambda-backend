@@ -412,9 +412,25 @@ let rebuild_non_recursive_let_cont_handler cont
 
 let simplify_non_recursive_let_cont_handler ~simplify_expr ~denv_before_body
     ~dacc_after_body cont params ~(handler : Expr.t) ~prior_lifted_constants
-    ~scope ~is_exn_handler ~denv_for_toplevel_check ~unit_toplevel_exn_cont
-    ~prior_cont_uses_env ~down_to_up =
+    ~scope ~is_exn_handler ~unit_toplevel_exn_cont ~prior_cont_uses_env
+    ~down_to_up =
   let cont_uses_env = DA.continuation_uses_env dacc_after_body in
+  let at_unit_toplevel =
+    (* We try to show that [handler] postdominates [body] (which is done by
+       showing that [body] can only return through [cont]) and that if [body]
+       raises any exceptions then it only does so to toplevel. If this can be
+       shown and we are currently at the toplevel of a compilation unit, the
+       handler for the environment can remain marked as toplevel (and suitable
+       for "let symbol" bindings); otherwise, it cannot. *)
+    DE.at_unit_toplevel denv_before_body
+    && (not is_exn_handler)
+    && Continuation.Set.subset
+         (CUE.all_continuations_used cont_uses_env)
+         (Continuation.Set.of_list [cont; unit_toplevel_exn_cont])
+  in
+  let env_at_fork =
+    DE.set_at_unit_toplevel_state denv_before_body at_unit_toplevel
+  in
   let code_age_relation_after_body =
     TE.code_age_relation (DA.typing_env dacc_after_body)
   in
@@ -424,8 +440,7 @@ let simplify_non_recursive_let_cont_handler ~simplify_expr ~denv_before_body
     | None -> None, Apply_cont_rewrite_id.Set.empty
     | Some uses ->
       ( Some
-          (Join_points.compute_handler_env uses ~params
-             ~env_at_fork_plus_params:denv_before_body
+          (Join_points.compute_handler_env uses ~params ~env_at_fork
              ~consts_lifted_during_body ~code_age_relation_after_body),
         Continuation_uses.get_use_ids uses )
   in
@@ -519,36 +534,15 @@ let simplify_non_recursive_let_cont_handler ~simplify_expr ~denv_before_body
       DA.map_flow_acc dacc
         ~f:(Flow.Acc.add_extra_params_and_args cont extra_params_and_args)
     in
-    let at_unit_toplevel =
-      (* We try to show that [handler] postdominates [body] (which is done by
-         showing that [body] can only return through [cont]) and that if [body]
-         raises any exceptions then it only does so to toplevel. If this can be
-         shown and we are currently at the toplevel of a compilation unit, the
-         handler for the environment can remain marked as toplevel (and suitable
-         for "let symbol" bindings); otherwise, it cannot. *)
-      DE.at_unit_toplevel denv_for_toplevel_check
-      && (not is_exn_handler)
-      && Continuation.Set.subset
-           (CUE.all_continuations_used cont_uses_env)
-           (Continuation.Set.of_list [cont; unit_toplevel_exn_cont])
-    in
     let dacc =
       let cont_uses_env =
         CUE.union prior_cont_uses_env (CUE.remove cont_uses_env cont)
       in
       let dacc = DA.with_continuation_uses_env dacc ~cont_uses_env in
       let denv =
-        (* Install the environment arising from the join into [dacc]. Note that
-           this environment doesn't just contain the joined types; it may also
-           contain definitions of code that were produced during simplification
-           of the body. (The [DE] component of [dacc_after_body] is discarded
-           since we are now moving into a different scope.) *)
-        DE.set_at_unit_toplevel_state handler_env at_unit_toplevel
-      in
-      let denv =
         if not at_unit_toplevel
-        then denv
-        else DE.mark_parameters_as_toplevel denv params
+        then handler_env
+        else DE.mark_parameters_as_toplevel handler_env params
       in
       DA.with_denv dacc denv
     in
@@ -720,9 +714,9 @@ let after_downwards_traversal_of_non_recursive_let_cont_handler ~down_to_up
   down_to_up dacc ~rebuild
 
 let after_downwards_traversal_of_non_recursive_let_cont_body ~simplify_expr
-    ~denv_before_body ~denv_for_toplevel_check ~unit_toplevel_exn_cont
-    ~prior_lifted_constants ~scope ~is_exn_handler ~prior_cont_uses_env cont
-    params ~handler ~down_to_up dacc_after_body ~rebuild:rebuild_body =
+    ~denv_before_body ~unit_toplevel_exn_cont ~prior_lifted_constants ~scope
+    ~is_exn_handler ~prior_cont_uses_env cont params ~handler ~down_to_up
+    dacc_after_body ~rebuild:rebuild_body =
   let dacc_after_body =
     DA.map_flow_acc dacc_after_body
       ~f:
@@ -733,7 +727,7 @@ let after_downwards_traversal_of_non_recursive_let_cont_body ~simplify_expr
      the handler. *)
   simplify_non_recursive_let_cont_handler ~simplify_expr ~denv_before_body
     ~dacc_after_body cont params ~handler ~prior_lifted_constants ~scope
-    ~is_exn_handler ~denv_for_toplevel_check ~unit_toplevel_exn_cont
+    ~is_exn_handler ~unit_toplevel_exn_cont
     ~prior_cont_uses_env
       (* After doing the downwards traversal of the handler, we continue the
          downwards traversal of any surrounding expression (which would have to
@@ -747,7 +741,6 @@ let after_downwards_traversal_of_non_recursive_let_cont_body ~simplify_expr
 let simplify_non_recursive_let_cont_stage1 ~simplify_expr dacc cont
     ~is_exn_handler ~body ~down_to_up params ~handler =
   let denv = DA.denv dacc in
-  let denv_for_toplevel_check = denv in
   let unit_toplevel_exn_cont = DE.unit_toplevel_exn_continuation denv in
   let scope = DE.get_continuation_scope denv in
   let dacc, prior_lifted_constants =
@@ -757,12 +750,7 @@ let simplify_non_recursive_let_cont_stage1 ~simplify_expr dacc cont
        later. *)
     DA.get_and_clear_lifted_constants dacc
   in
-  let denv_before_body =
-    (* We add the parameters assuming that none of them are at toplevel. When we
-       do the toplevel calculation before simplifying the handler, we will mark
-       any of the parameters that are in fact at toplevel as such. *)
-    DE.add_parameters_with_unknown_types denv params ~at_unit_toplevel:false
-  in
+  let denv_before_body = DA.denv dacc in
   let dacc_for_body =
     (* This increment is required so that we can extract the portion of the
        environment(s) arising between the fork point and the use(s) of the
@@ -779,9 +767,9 @@ let simplify_non_recursive_let_cont_stage1 ~simplify_expr dacc cont
   simplify_expr dacc_for_body body
     ~down_to_up:
       (after_downwards_traversal_of_non_recursive_let_cont_body ~simplify_expr
-         ~denv_before_body ~denv_for_toplevel_check ~unit_toplevel_exn_cont
-         ~prior_lifted_constants ~scope ~is_exn_handler ~prior_cont_uses_env
-         cont params ~handler ~down_to_up)
+         ~denv_before_body ~unit_toplevel_exn_cont ~prior_lifted_constants
+         ~scope ~is_exn_handler ~prior_cont_uses_env cont params ~handler
+         ~down_to_up)
 
 let simplify_non_recursive_let_cont_stage0 ~simplify_expr dacc non_rec
     ~down_to_up cont ~body =
