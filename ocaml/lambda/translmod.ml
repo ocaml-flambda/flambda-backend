@@ -519,32 +519,37 @@ let merge_inline_attributes attr1 attr2 loc =
   | None -> raise (Error (to_location loc, Conflicting_inline_attributes))
 
 let merge_functors params coercion root_path =
-  let merge (params, coercion, path, inline_attribute) param =
-    let param, loc, inline_attribute' = param in
-    let arg_coercion, res_coercion =
-      match coercion with
-      | Tcoerce_none -> Tcoerce_none, Tcoerce_none
-      | Tcoerce_functor (arg_coercion, res_coercion) ->
-        arg_coercion, res_coercion
-      | _ -> fatal_error "Translmod.merge_functors: bad coercion"
-    in
-    let path, param =
-      match (param : Types.functor_parameter) with
-      | Unit -> None, Ident.create_local "*"
-      | Named (None, _) ->
-        let id = Ident.create_local "_" in
-        functor_path path id, id
-      | Named (Some id, _) -> functor_path path id, id
-    in
-    let inline_attribute =
-      merge_inline_attributes inline_attribute inline_attribute' loc
-    in
-    (param, loc, arg_coercion) :: params, res_coercion, path, inline_attribute
+  let rec merge params coercion path acc inline_attribute =
+    let finished = acc, path, coercion, inline_attribute in
+    match params with
+    | param :: params ->
+      let param, loc, inline_attribute' = param in
+      let arg_coercion, res_coercion =
+        match coercion with
+        | Tcoerce_none -> Tcoerce_none, Tcoerce_none
+        | Tcoerce_functor (arg_coercion, res_coercion) ->
+          arg_coercion, res_coercion
+        | _ -> fatal_error "Translmod.merge_functors: bad coercion"
+      in
+      let path, param =
+        match (param : Types.functor_parameter) with
+        | Unit -> None, Ident.create_local "*"
+        | Named (None, _) ->
+          let id = Ident.create_local "_" in
+          functor_path path id, id
+        | Named (Some id, _) -> functor_path path id, id
+      in
+      let inline_attribute =
+        merge_inline_attributes inline_attribute inline_attribute' loc
+      in
+      merge params res_coercion path ((param, loc, arg_coercion) :: acc)
+        inline_attribute
+    | [] -> finished
   in
-  List.fold_left merge ([], coercion, root_path, Default_inline) params
+  merge params coercion root_path [] Default_inline
 
 let rec compile_functor ~scopes params body coercion root_path loc =
-  let functor_params_rev, res_coercion, body_path, inline_attribute =
+  let functor_params_rev, body_path, res_coercion, inline_attribute =
     merge_functors params coercion root_path
   in
   assert (List.length functor_params_rev >= 1);  (* cf. [transl_module] *)
