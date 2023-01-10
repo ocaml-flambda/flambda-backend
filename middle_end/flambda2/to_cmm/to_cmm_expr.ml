@@ -429,7 +429,6 @@ and let_cont env res (let_cont : Flambda.Let_cont.t) =
   | Recursive handlers ->
     Recursive_let_cont_handlers.pattern_match handlers
       ~f:(fun ~invariant_params ~body conts ->
-        (* TODO fix invariant params *)
         if Continuation_handlers.contains_exn_handler conts
         then
           Misc.fatal_errorf
