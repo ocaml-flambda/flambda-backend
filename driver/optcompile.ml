@@ -134,8 +134,7 @@ let implementation unix ~backend ~flambda2 ~start_from ~source_file
     Compile_common.implementation
       ~hook_parse_tree:(Compiler_hooks.execute Compiler_hooks.Parse_tree_impl)
       ~hook_typed_tree:(fun (impl : Typedtree.implementation) ->
-        Compiler_hooks.execute Compiler_hooks.Typed_tree_impl
-          (impl.structure, impl.coercion))
+        Compiler_hooks.execute Compiler_hooks.Typed_tree_impl impl)
       info ~backend
   | Emit -> emit unix info ~ppf_dump:info.ppf_dump
   | _ -> Misc.fatal_errorf "Cannot start from %s"
