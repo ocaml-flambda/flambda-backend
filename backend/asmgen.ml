@@ -167,21 +167,23 @@ let should_use_linscan fd =
   List.mem Cmm.Use_linscan_regalloc fd.Mach.fun_codegen_options
 
 let if_emit_do f x = if should_emit () then f x else ()
-let emit_begin_assembly = if_emit_do Emit.begin_assembly
-let emit_end_assembly filename =
+let emit_begin_assembly unix = if_emit_do Emit.begin_assembly unix
+let emit_end_assembly filename () =
   if_emit_do (fun () ->
     try Emit.end_assembly ()
      with Emitaux.Error e ->
        raise (Error (Asm_generation(filename, e))))
+    ()
 
-let emit_data = if_emit_do Emit.data
-let emit_fundecl =
+let emit_data dl = if_emit_do Emit.data dl
+let emit_fundecl f =
   if_emit_do
     (fun (fundecl : Linear.fundecl) ->
       try
         Profile.record ~accumulate:true "emit" Emit.fundecl fundecl
     with Emitaux.Error e ->
       raise (Error (Asm_generation(fundecl.Linear.fun_name, e))))
+    f
 
 let rec regalloc ~ppf_dump round fd =
   if round > 50 then
