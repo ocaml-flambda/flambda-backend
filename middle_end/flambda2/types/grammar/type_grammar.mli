@@ -43,25 +43,24 @@ and head_of_kind_value = private
   | Variant of
       { immediates : t Or_unknown.t;
         blocks : row_like_for_blocks Or_unknown.t;
-        is_unique : bool;
-        alloc_mode : Alloc_mode.t Or_unknown.t
+        is_unique : bool
       }
   (* CR mshinwell: It would be better to track per-field mutability. *)
-  | Mutable_block of { alloc_mode : Alloc_mode.t Or_unknown.t }
-  | Boxed_float of t * Alloc_mode.t Or_unknown.t
-  | Boxed_int32 of t * Alloc_mode.t Or_unknown.t
-  | Boxed_int64 of t * Alloc_mode.t Or_unknown.t
-  | Boxed_nativeint of t * Alloc_mode.t Or_unknown.t
+  | Mutable_block of { alloc_mode : Alloc_mode.For_types.t }
+  | Boxed_float of t * Alloc_mode.For_types.t
+  | Boxed_int32 of t * Alloc_mode.For_types.t
+  | Boxed_int64 of t * Alloc_mode.For_types.t
+  | Boxed_nativeint of t * Alloc_mode.For_types.t
   | Closures of
       { by_function_slot : row_like_for_closures;
-        alloc_mode : Alloc_mode.t Or_unknown.t
+        alloc_mode : Alloc_mode.For_types.t
       }
   | String of String_info.Set.t
   | Array of
-      { element_kind : Flambda_kind.With_subkind.t Or_unknown.t;
+      { element_kind : Flambda_kind.With_subkind.t Or_unknown_or_bottom.t;
         length : t;
         contents : array_contents Or_unknown.t;
-        alloc_mode : Alloc_mode.t Or_unknown.t
+        alloc_mode : Alloc_mode.For_types.t
       }
 
 and head_of_kind_naked_immediate = private
@@ -97,7 +96,8 @@ and ('index, 'maps_to) row_like_case = private
 
 and row_like_for_blocks = private
   { known_tags : (Block_size.t, int_indexed_product) row_like_case Tag.Map.t;
-    other_tags : (Block_size.t, int_indexed_product) row_like_case Or_bottom.t
+    other_tags : (Block_size.t, int_indexed_product) row_like_case Or_bottom.t;
+    alloc_mode : Alloc_mode.For_types.t
   }
 
 and row_like_for_closures = private
@@ -227,25 +227,22 @@ val these_naked_int64s : Numeric_types.Int64.Set.t -> t
 
 val these_naked_nativeints : Targetint_32_64.Set.t -> t
 
-val boxed_float_alias_to :
-  naked_float:Variable.t -> Alloc_mode.t Or_unknown.t -> t
+val boxed_float_alias_to : naked_float:Variable.t -> Alloc_mode.For_types.t -> t
 
-val boxed_int32_alias_to :
-  naked_int32:Variable.t -> Alloc_mode.t Or_unknown.t -> t
+val boxed_int32_alias_to : naked_int32:Variable.t -> Alloc_mode.For_types.t -> t
 
-val boxed_int64_alias_to :
-  naked_int64:Variable.t -> Alloc_mode.t Or_unknown.t -> t
+val boxed_int64_alias_to : naked_int64:Variable.t -> Alloc_mode.For_types.t -> t
 
 val boxed_nativeint_alias_to :
-  naked_nativeint:Variable.t -> Alloc_mode.t Or_unknown.t -> t
+  naked_nativeint:Variable.t -> Alloc_mode.For_types.t -> t
 
-val box_float : t -> Alloc_mode.t Or_unknown.t -> t
+val box_float : t -> Alloc_mode.For_types.t -> t
 
-val box_int32 : t -> Alloc_mode.t Or_unknown.t -> t
+val box_int32 : t -> Alloc_mode.For_types.t -> t
 
-val box_int64 : t -> Alloc_mode.t Or_unknown.t -> t
+val box_int64 : t -> Alloc_mode.For_types.t -> t
 
-val box_nativeint : t -> Alloc_mode.t Or_unknown.t -> t
+val box_nativeint : t -> Alloc_mode.For_types.t -> t
 
 val tagged_immediate_alias_to : naked_immediate:Variable.t -> t
 
@@ -259,33 +256,33 @@ val create_variant :
   is_unique:bool ->
   immediates:t Or_unknown.t ->
   blocks:row_like_for_blocks Or_unknown.t ->
-  Alloc_mode.t Or_unknown.t ->
   t
 
-val mutable_block : Alloc_mode.t Or_unknown.t -> t
+val mutable_block : Alloc_mode.For_types.t -> t
 
-val create_closures : Alloc_mode.t Or_unknown.t -> row_like_for_closures -> t
+val create_closures : Alloc_mode.For_types.t -> row_like_for_closures -> t
 
+(** Note this assumes the allocation mode is [Heap] *)
 val this_immutable_string : string -> t
 
 val mutable_string : size:int -> t
 
 val array_of_length :
-  element_kind:Flambda_kind.With_subkind.t Or_unknown.t ->
+  element_kind:Flambda_kind.With_subkind.t Or_unknown_or_bottom.t ->
   length:t ->
-  Alloc_mode.t Or_unknown.t ->
+  Alloc_mode.For_types.t ->
   t
 
 val mutable_array :
-  element_kind:Flambda_kind.With_subkind.t Or_unknown.t ->
+  element_kind:Flambda_kind.With_subkind.t Or_unknown_or_bottom.t ->
   length:t ->
-  Alloc_mode.t Or_unknown.t ->
+  Alloc_mode.For_types.t ->
   t
 
 val immutable_array :
-  element_kind:Flambda_kind.With_subkind.t Or_unknown.t ->
+  element_kind:Flambda_kind.With_subkind.t Or_unknown_or_bottom.t ->
   fields:t list ->
-  Alloc_mode.t Or_unknown.t ->
+  Alloc_mode.For_types.t ->
   t
 
 module Product : sig
@@ -382,24 +379,28 @@ module Row_like_for_blocks : sig
     field_kind:Flambda_kind.t ->
     field_tys:flambda_type list ->
     open_or_closed ->
+    Alloc_mode.For_types.t ->
     t
 
   val create_blocks_with_these_tags :
-    field_kind:Flambda_kind.t -> Tag.Set.t -> t
+    field_kind:Flambda_kind.t -> Tag.Set.t -> Alloc_mode.For_types.t -> t
 
   val create_exactly_multiple :
-    field_tys_by_tag:flambda_type list Tag.Map.t -> t
+    field_tys_by_tag:flambda_type list Tag.Map.t -> Alloc_mode.For_types.t -> t
 
   val create_raw :
     known_tags:(Block_size.t, int_indexed_product) row_like_case Tag.Map.t ->
     other_tags:(Block_size.t, int_indexed_product) row_like_case Or_bottom.t ->
+    alloc_mode:Alloc_mode.For_types.t ->
     t
 
   val all_tags : t -> Tag.Set.t Or_unknown.t
 
   val all_tags_and_sizes : t -> Targetint_31_63.t Tag.Map.t Or_unknown.t
 
-  val get_singleton : t -> (Tag_and_size.t * Product.Int_indexed.t) option
+  val get_singleton :
+    t ->
+    (Tag_and_size.t * Product.Int_indexed.t * Alloc_mode.For_types.t) option
 
   (** Get the nth field of the block if it is unambiguous.
 
@@ -555,33 +556,31 @@ module Head_of_kind_value : sig
     is_unique:bool ->
     blocks:Row_like_for_blocks.t Or_unknown.t ->
     immediates:flambda_type Or_unknown.t ->
-    Alloc_mode.t Or_unknown.t ->
     t
 
-  val create_mutable_block : Alloc_mode.t Or_unknown.t -> t
+  val create_mutable_block : Alloc_mode.For_types.t -> t
 
   (* CR-someday mshinwell: these alloc mode params should probably be
      labelled *)
-  val create_boxed_float : flambda_type -> Alloc_mode.t Or_unknown.t -> t
+  val create_boxed_float : flambda_type -> Alloc_mode.For_types.t -> t
 
-  val create_boxed_int32 : flambda_type -> Alloc_mode.t Or_unknown.t -> t
+  val create_boxed_int32 : flambda_type -> Alloc_mode.For_types.t -> t
 
-  val create_boxed_int64 : flambda_type -> Alloc_mode.t Or_unknown.t -> t
+  val create_boxed_int64 : flambda_type -> Alloc_mode.For_types.t -> t
 
-  val create_boxed_nativeint : flambda_type -> Alloc_mode.t Or_unknown.t -> t
+  val create_boxed_nativeint : flambda_type -> Alloc_mode.For_types.t -> t
 
   val create_tagged_immediate : Targetint_31_63.t -> t
 
-  val create_closures :
-    Row_like_for_closures.t -> Alloc_mode.t Or_unknown.t -> t
+  val create_closures : Row_like_for_closures.t -> Alloc_mode.For_types.t -> t
 
   val create_string : String_info.Set.t -> t
 
   val create_array_with_contents :
-    element_kind:Flambda_kind.With_subkind.t Or_unknown.t ->
+    element_kind:Flambda_kind.With_subkind.t Or_unknown_or_bottom.t ->
     length:flambda_type ->
     array_contents Or_unknown.t ->
-    Alloc_mode.t Or_unknown.t ->
+    Alloc_mode.For_types.t ->
     t
 end
 

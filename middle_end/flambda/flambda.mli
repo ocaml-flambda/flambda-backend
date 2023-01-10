@@ -87,6 +87,7 @@ type specialised_to = {
       [specialised_args] respectively) in the same set of closures.
       As such, this field describes a relation of projections between
       either the [free_vars] or the [specialised_args]. *)
+  kind : Lambda.value_kind;
 }
 
 (** Flambda terms are partitioned in a pseudo-ANF manner; many terms are
@@ -336,8 +337,12 @@ and function_declaration = private {
   (** Inlining requirements from the source code. *)
   specialise : Lambda.specialise_attribute;
   (** Specialising requirements from the source code. *)
+  check : Lambda.check_attribute;
+  (** Check function properties requirements from the source code  *)
   is_a_functor : bool;
   (** Whether the function is known definitively to be a functor. *)
+  poll: Lambda.poll_attribute;
+  (** Behaviour for polls *)
 }
 
 (** Equivalent to the similar type in [Lambda]. *)
@@ -567,8 +572,10 @@ val create_function_declaration
   -> stub:bool
   -> inline:Lambda.inline_attribute
   -> specialise:Lambda.specialise_attribute
+  -> check:Lambda.check_attribute
   -> is_a_functor:bool
   -> closure_origin:Closure_origin.t
+  -> poll:Lambda.poll_attribute
   -> function_declaration
 
 (** Create a function declaration based on another function declaration *)

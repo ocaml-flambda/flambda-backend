@@ -94,8 +94,18 @@ let rdx = phys_reg 4
 let pseudoregs_for_operation op arg res =
   match op with
   (* Two-address binary operations: arg.(0) and res.(0) must be the same *)
-    Iintop(Iadd|Isub|Imul|Iand|Ior|Ixor) | Iaddf|Isubf|Imulf|Idivf ->
+  Iintop(Iadd|Isub|Imul|Iand|Ior|Ixor) | Iaddf|Isubf|Imulf|Idivf ->
       ([|res.(0); arg.(1)|], res)
+  | Iintop_atomic {op = Compare_and_swap; size = _; addr = _} ->
+      (* first arg must be rax *)
+      let arg = Array.copy arg in
+      arg.(0) <- rax;
+      (arg, res)
+  | Iintop_atomic {op = Fetch_and_add; size = _; addr = _} ->
+      (* first arg must be the same as res.(0) *)
+      let arg = Array.copy arg in
+      arg.(0) <- res.(0);
+      (arg, res)
   (* One-address unary operations: arg.(0) and res.(0) must be the same *)
   | Iintop_imm((Iadd|Isub|Imul|Iand|Ior|Ixor|Ilsl|Ilsr|Iasr), _)
   | Iabsf | Inegf
@@ -145,6 +155,12 @@ let pseudoregs_for_operation op arg res =
   | Ispecific Icrc32q ->
     (* arg.(0) and res.(0) must be the same *)
     ([|res.(0); arg.(1)|], res)
+  | Icsel _ ->
+    (* last arg must be the same as res.(0) *)
+    let len = Array.length arg in
+    let arg = Array.copy arg in
+    arg.(len-1) <- res.(0);
+    (arg, res)
   (* Other instructions are regular *)
   | Iintop (Ipopcnt|Iclz _|Ictz _|Icomp _|Icheckbound)
   | Iintop_imm ((Imulh _|Idiv|Imod|Icomp _|Icheckbound
@@ -153,11 +169,12 @@ let pseudoregs_for_operation op arg res =
               |Ifloat_iround|Ifloat_round _
               |Ipause|Ilfence|Isfence|Imfence
               |Ioffset_loc (_, _)|Ifloatsqrtf _|Irdtsc|Iprefetch _)
-  | Imove|Ispill|Ireload|Ifloatofint|Iintoffloat|Iconst_int _|Iconst_float _
+  | Imove|Ispill|Ireload|Ifloatofint|Iintoffloat|Ivalueofint|Iintofvalue
+  | Iconst_int _|Iconst_float _
   | Iconst_symbol _|Icall_ind|Icall_imm _|Itailcall_ind|Itailcall_imm _
   | Iextcall _|Istackoffset _|Iload (_, _, _) | Istore (_, _, _)|Ialloc _
   | Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _ | Iopaque
-  | Ibeginregion | Iendregion
+  | Ibeginregion | Iendregion | Ipoll _
     -> raise Use_default
 
 let select_locality (l : Cmm.prefetch_temporal_locality_hint)
@@ -324,11 +341,11 @@ method! select_operation op args dbg =
          Ispecific Ifloat_max, args
       | "caml_pause_hint", ([|Val|] | [| |]) ->
          Ispecific Ipause, args
-      | "caml_load_fence", ([|Val|] | [| |]) -> 
+      | "caml_load_fence", ([|Val|] | [| |]) ->
          Ispecific Ilfence, args
-      | "caml_store_fence", ([|Val|] | [| |]) -> 
+      | "caml_store_fence", ([|Val|] | [| |]) ->
          Ispecific Isfence, args
-      | "caml_memory_fence", ([|Val|] | [| |]) -> 
+      | "caml_memory_fence", ([|Val|] | [| |]) ->
          Ispecific Imfence, args
       | _ ->
         super#select_operation op args dbg
@@ -417,4 +434,5 @@ method! insert_op_debug env op dbg rs rd =
 
 end
 
-let fundecl f = (new selector)#emit_fundecl f
+let fundecl ~future_funcnames f =
+  (new selector)#emit_fundecl ~future_funcnames f

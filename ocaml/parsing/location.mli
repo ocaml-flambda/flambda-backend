@@ -13,7 +13,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** {1 Source code locations (ranges of positions), used in parsetree}
+(** Source code locations (ranges of positions), used in parsetree.
 
   {b Warning:} this module is unstable and part of
   {{!Compiler_libs}compiler-libs}.
@@ -21,6 +21,23 @@
 *)
 
 open Format
+
+(* loc_ghost: Ghost expressions and patterns:
+  expressions and patterns that do not appear explicitly in the
+  source file they have the loc_ghost flag set to true.
+  Then the profiler will not try to instrument them and the
+  -annot option will not try to display their type.
+
+  Every grammar rule that generates an element with a location must
+  make at most one non-ghost element, the topmost one.
+
+  How to tell whether your location must be ghost:
+  A location corresponds to a range of characters in the source file.
+  If the location contains a piece of code that is syntactically
+  valid (according to the documentation), and corresponds to the
+  AST node, then the location must be real; in all other cases,
+  it must be ghost.
+*)
 
 type t = Warnings.loc = {
   loc_start: Lexing.position;

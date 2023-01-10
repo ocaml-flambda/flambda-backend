@@ -71,11 +71,16 @@ type operation =
                 mode: Lambda.alloc_mode }
   | Iintop of integer_operation
   | Iintop_imm of integer_operation * int
+  | Iintop_atomic of { op : Cmm.atomic_op; size : Cmm.atomic_bitwidth;
+                       addr : Arch.addressing_mode }
   | Icompf of float_comparison
   | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Icsel of test
   | Ifloatofint | Iintoffloat
+  | Ivalueofint | Iintofvalue
   | Iopaque
   | Ispecific of Arch.specific_operation
+  | Ipoll of { return_label: Cmm.label option }
   | Iname_for_debugger of { ident : Backend_var.t; which_parameter : int option;
       provenance : unit option; is_assignment : bool; }
     (** [Iname_for_debugger] has the following semantics:
@@ -116,6 +121,7 @@ type fundecl =
     fun_body: instruction;
     fun_codegen_options : Cmm.codegen_option list;
     fun_dbg : Debuginfo.t;
+    fun_poll: Lambda.poll_attribute;
     fun_num_stack_slots: int array;
     fun_contains_calls: bool;
   }

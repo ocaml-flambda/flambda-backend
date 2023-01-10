@@ -59,6 +59,21 @@ let mk_alloc_check f =
 let mk_dcheckmach f =
   "-dcheckmach", Arg.Unit f, " (undocumented)"
 
+let mk_disable_poll_insertion f =
+  "-disable-poll-insertion", Arg.Unit f, " Do not insert poll points"
+
+let mk_enable_poll_insertion f =
+  "-enable-poll-insertion", Arg.Unit f, " Insert poll points"
+
+let mk_long_frames f =
+  "-long-frames", Arg.Unit f, " Allow stack frames longer than 2^16 bytes"
+
+let mk_no_long_frames f =
+  "-no-long-frames", Arg.Unit f, " Do not allow stack frames longer than 2^16 bytes"
+
+let mk_debug_long_frames_threshold f =
+  "-debug-long-frames-threshold", Arg.Int f, "n debug only: set long frames threshold"
+
 let mk_dump_inlining_paths f =
   "-dump-inlining-paths", Arg.Unit f, " Dump inlining paths when dumping flambda2 terms"
 
@@ -231,6 +246,13 @@ let mk_no_flambda2_expert_can_inline_recursive_functions f =
     (format_not_default Flambda2.Expert.Default.can_inline_recursive_functions)
 ;;
 
+let mk_flambda2_expert_max_function_simplify_run f =
+  "-flambda2-expert-max-function-simplify-run", Arg.Int f,
+  Printf.sprintf " Do not run simplification of function more\n\
+      \     than this (default %d) (Flambda 2 only)"
+    Flambda2.Expert.Default.max_function_simplify_run
+;;
+
 let mk_flambda2_debug_concrete_types_only_on_canonicals f =
   "-flambda2-debug-concrete-types-only-on-canonicals", Arg.Unit f,
   Printf.sprintf " Check that concrete\n\
@@ -267,7 +289,7 @@ let mk_flambda2_inline_max_depth f =
   Printf.sprintf "<int>|<round>=<int>[,...]\n\
       \     Maximum depth of search for inlining opportunities inside\n\
       \     inlined functions (default %d) (Flambda 2 only)"
-    Flambda_backend_flags.Flambda2.Inlining.Default.max_depth
+    Flambda_backend_flags.Flambda2.Inlining.Default.default_arguments.max_depth
 ;;
 
 let mk_flambda2_inline_max_rec_depth f =
@@ -275,7 +297,8 @@ let mk_flambda2_inline_max_rec_depth f =
   Printf.sprintf "<int>|<round>=<int>[,...]\n\
       \     Maximum depth of search for inlining opportunities inside\n\
       \     inlined recursive functions (default %d) (Flambda 2 only)"
-    Flambda_backend_flags.Flambda2.Inlining.Default.max_rec_depth
+    Flambda_backend_flags.Flambda2.Inlining.Default.default_arguments.
+      max_rec_depth
 ;;
 
 let mk_flambda2_inline_cost arg descr ~default f =
@@ -288,29 +311,32 @@ let mk_flambda2_inline_cost arg descr ~default f =
     default
 ;;
 
+module Flambda2_inlining_default =
+  Flambda_backend_flags.Flambda2.Inlining.Default
+
 let mk_flambda2_inline_call_cost =
   mk_flambda2_inline_cost "call" "a call"
-    ~default:Flambda_backend_flags.Flambda2.Inlining.Default.call_cost
+    ~default:Flambda2_inlining_default.default_arguments.call_cost
 
 let mk_flambda2_inline_alloc_cost =
   mk_flambda2_inline_cost "alloc" "an allocation"
-    ~default:Flambda_backend_flags.Flambda2.Inlining.Default.alloc_cost
+    ~default:Flambda2_inlining_default.default_arguments.alloc_cost
 
 let mk_flambda2_inline_prim_cost =
   mk_flambda2_inline_cost "prim" "a primitive"
-    ~default:Flambda_backend_flags.Flambda2.Inlining.Default.prim_cost
+    ~default:Flambda2_inlining_default.default_arguments.prim_cost
 
 let mk_flambda2_inline_branch_cost =
   mk_flambda2_inline_cost "branch" "a conditional"
-    ~default:Flambda_backend_flags.Flambda2.Inlining.Default.branch_cost
+    ~default:Flambda2_inlining_default.default_arguments.branch_cost
 
 let mk_flambda2_inline_indirect_call_cost =
   mk_flambda2_inline_cost "indirect" "an indirect call"
-    ~default:Flambda_backend_flags.Flambda2.Inlining.Default.indirect_call_cost
+    ~default:Flambda2_inlining_default.default_arguments.indirect_call_cost
 
 let mk_flambda2_inline_poly_compare_cost =
   mk_flambda2_inline_cost "poly-compare" "a polymorphic comparison"
-    ~default:Flambda_backend_flags.Flambda2.Inlining.Default.poly_compare_cost
+    ~default:Flambda2_inlining_default.default_arguments.poly_compare_cost
 
 (* CR-someday mshinwell: We should have a check that the parameters provided by
    the user are sensible, e.g. small_function_size <= large_function_size. *)
@@ -321,7 +347,7 @@ let mk_flambda2_inline_small_function_size f =
       \     Functions with a cost less than this will always be inlined\n\
       \     unless an attribute instructs otherwise (default %d)\n\
       \     (Flambda 2 only)"
-    Flambda_backend_flags.Flambda2.Inlining.Default.small_function_size
+    Flambda2_inlining_default.default_arguments.small_function_size
 ;;
 
 let mk_flambda2_inline_large_function_size f =
@@ -331,7 +357,7 @@ let mk_flambda2_inline_large_function_size f =
       \     unless an attribute instructs otherwise (default %d); speculative\n\
       \     inlining will be disabled if equal to the small function size\n\
       \     (Flambda 2 only)"
-    Flambda_backend_flags.Flambda2.Inlining.Default.large_function_size
+    Flambda2_inlining_default.default_arguments.large_function_size
 ;;
 
 let mk_flambda2_inline_threshold f =
@@ -339,7 +365,7 @@ let mk_flambda2_inline_threshold f =
     Printf.sprintf "<float>|<round>=<float>[,...]\n\
         \     Aggressiveness of inlining (default %.02f, higher numbers mean\n\
         \     more aggressive) (Flambda 2 only)"
-      Flambda_backend_flags.Flambda2.Inlining.Default.threshold
+      Flambda2_inlining_default.default_arguments.threshold
 
 let mk_flambda2_speculative_inlining_only_if_arguments_useful f =
   "-flambda2-speculative-inlining-only-if-arguments-useful", Arg.Unit f,
@@ -392,6 +418,10 @@ let mk_dfreshen f =
   "-dfreshen", Arg.Unit f, " Freshen bound names when printing (Flambda 2 only)"
 ;;
 
+let mk_dflow f =
+  "-dflow", Arg.Unit f, " Dump debug info for the flow computation (Flambda 2 only)"
+;;
+
 module Debugging = Dwarf_flags
 
 (* CR mshinwell: These help texts should show the default values. *)
@@ -411,6 +441,17 @@ let mk_no_dwarf_for_startup_file f =
   "-gno-startup", Arg.Unit f, " Emit the same DWARF information for the\n\
     \     startup file as the upstream compiler"
 
+let set_long_frames_threshold n =
+  if n < 0 then
+    raise (Arg.Bad "Long frames threshold must be non-negative.");
+  if n > Flambda_backend_flags.max_long_frames_threshold then
+    raise
+      (Arg.Bad
+         (Printf.sprintf "Long frames threshold too big: 0x%x, \
+                          must be less or equal to 0x%x" n
+            Flambda_backend_flags.max_long_frames_threshold));
+  Flambda_backend_flags.long_frames_threshold := n
+
 module type Flambda_backend_options = sig
   val ocamlcfg : unit -> unit
   val no_ocamlcfg : unit -> unit
@@ -427,6 +468,13 @@ module type Flambda_backend_options = sig
   val heap_reduction_threshold : int -> unit
   val alloc_check : unit -> unit
   val dcheckmach : unit -> unit
+
+  val disable_poll_insertion : unit -> unit
+  val enable_poll_insertion : unit -> unit
+
+  val long_frames : unit -> unit
+  val no_long_frames : unit -> unit
+  val long_frames_threshold : int -> unit
 
   val internal_assembler : unit -> unit
 
@@ -451,6 +499,7 @@ module type Flambda_backend_options = sig
   val flambda2_expert_max_unboxing_depth : int -> unit
   val flambda2_expert_can_inline_recursive_functions : unit -> unit
   val no_flambda2_expert_can_inline_recursive_functions : unit -> unit
+  val flambda2_expert_max_function_simplify_run : int -> unit
   val flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
   val no_flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
   val flambda2_debug_keep_invalid_handlers : unit -> unit
@@ -479,6 +528,7 @@ module type Flambda_backend_options = sig
   val dflexpect : unit -> unit
   val dslot_offsets : unit -> unit
   val dfreshen : unit -> unit
+  val dflow : unit -> unit
 end
 
 module Make_flambda_backend_options (F : Flambda_backend_options) =
@@ -499,6 +549,13 @@ struct
     mk_heap_reduction_threshold F.heap_reduction_threshold;
     mk_alloc_check F.alloc_check;
     mk_dcheckmach F.dcheckmach;
+
+    mk_disable_poll_insertion F.disable_poll_insertion;
+    mk_enable_poll_insertion F.enable_poll_insertion;
+
+    mk_long_frames F.long_frames;
+    mk_no_long_frames F.no_long_frames;
+    mk_debug_long_frames_threshold F.long_frames_threshold;
 
     mk_internal_assembler F.internal_assembler;
 
@@ -539,6 +596,8 @@ struct
       F.flambda2_expert_can_inline_recursive_functions;
     mk_no_flambda2_expert_can_inline_recursive_functions
       F.no_flambda2_expert_can_inline_recursive_functions;
+    mk_flambda2_expert_max_function_simplify_run
+      F.flambda2_expert_max_function_simplify_run;
     mk_flambda2_debug_concrete_types_only_on_canonicals
       F.flambda2_debug_concrete_types_only_on_canonicals;
     mk_no_flambda2_debug_concrete_types_only_on_canonicals
@@ -575,6 +634,7 @@ struct
     mk_dflexpect F.dflexpect;
     mk_dslot_offsets F.dslot_offsets;
     mk_dfreshen F.dfreshen;
+    mk_dflow F.dflow;
   ]
 end
 
@@ -606,6 +666,13 @@ module Flambda_backend_options_impl = struct
     Flambda_backend_flags.heap_reduction_threshold := x
   let alloc_check = set' Flambda_backend_flags.alloc_check
   let dcheckmach = set' Flambda_backend_flags.dump_checkmach
+
+  let disable_poll_insertion = set' Flambda_backend_flags.disable_poll_insertion
+  let enable_poll_insertion = clear' Flambda_backend_flags.disable_poll_insertion
+
+  let long_frames =  set' Flambda_backend_flags.allow_long_frames
+  let no_long_frames = clear' Flambda_backend_flags.allow_long_frames
+  let long_frames_threshold n = set_long_frames_threshold n
 
   let internal_assembler = set' Flambda_backend_flags.internal_assembler
 
@@ -647,6 +714,8 @@ module Flambda_backend_options_impl = struct
     Flambda2.Expert.can_inline_recursive_functions := Flambda_backend_flags.Set true
   let no_flambda2_expert_can_inline_recursive_functions () =
     Flambda2.Expert.can_inline_recursive_functions := Flambda_backend_flags.Set false
+  let flambda2_expert_max_function_simplify_run runs =
+    Flambda2.Expert.max_function_simplify_run := Flambda_backend_flags.Set runs
   let flambda2_debug_concrete_types_only_on_canonicals =
     set' Flambda2.Debug.concrete_types_only_on_canonicals
   let no_flambda2_debug_concrete_types_only_on_canonicals =
@@ -729,32 +798,33 @@ module Flambda_backend_options_impl = struct
   let dflexpect = set' Flambda2.Dump.flexpect
   let dslot_offsets = set' Flambda2.Dump.slot_offsets
   let dfreshen = set' Flambda2.Dump.freshen
+  let dflow = set' Flambda2.Dump.flow
 end
 
 module type Debugging_options = sig
-  val _restrict_to_upstream_dwarf : unit -> unit
-  val _no_restrict_to_upstream_dwarf : unit -> unit
-  val _dwarf_for_startup_file : unit -> unit
-  val _no_dwarf_for_startup_file : unit -> unit
+  val restrict_to_upstream_dwarf : unit -> unit
+  val no_restrict_to_upstream_dwarf : unit -> unit
+  val dwarf_for_startup_file : unit -> unit
+  val no_dwarf_for_startup_file : unit -> unit
 end
 
 module Make_debugging_options (F : Debugging_options) = struct
   let list3 = [
-    mk_restrict_to_upstream_dwarf F._restrict_to_upstream_dwarf;
-    mk_no_restrict_to_upstream_dwarf F._no_restrict_to_upstream_dwarf;
-    mk_dwarf_for_startup_file F._dwarf_for_startup_file;
-    mk_no_dwarf_for_startup_file F._no_dwarf_for_startup_file;
+    mk_restrict_to_upstream_dwarf F.restrict_to_upstream_dwarf;
+    mk_no_restrict_to_upstream_dwarf F.no_restrict_to_upstream_dwarf;
+    mk_dwarf_for_startup_file F.dwarf_for_startup_file;
+    mk_no_dwarf_for_startup_file F.no_dwarf_for_startup_file;
    ]
 end
 
 module Debugging_options_impl = struct
-  let _restrict_to_upstream_dwarf () =
+  let restrict_to_upstream_dwarf () =
     Debugging.restrict_to_upstream_dwarf := true
-  let _no_restrict_to_upstream_dwarf () =
+  let no_restrict_to_upstream_dwarf () =
     Debugging.restrict_to_upstream_dwarf := false
-  let _dwarf_for_startup_file () =
+  let dwarf_for_startup_file () =
     Debugging.dwarf_for_startup_file := true
-  let _no_dwarf_for_startup_file () =
+  let no_dwarf_for_startup_file () =
     Debugging.dwarf_for_startup_file := false
 end
 
@@ -790,9 +860,6 @@ module Extra_params = struct
       end;
       true
     in
-    let clear' option =
-      Compenv.setter ppf (fun b -> b) name [ option ] v; false
-    in
     match name with
     | "internal-assembler" -> set' Flambda_backend_flags.internal_assembler
     | "ocamlcfg" -> set' Flambda_backend_flags.use_ocamlcfg
@@ -804,12 +871,20 @@ module Extra_params = struct
     | "heap-reduction-threshold" -> set_int' Flambda_backend_flags.heap_reduction_threshold
     | "alloc-check" -> set' Flambda_backend_flags.alloc_check
     | "dump-checkmach" -> set' Flambda_backend_flags.dump_checkmach
+    | "poll-insertion" -> set' Flambda_backend_flags.disable_poll_insertion
+    | "long-frames" -> set' Flambda_backend_flags.allow_long_frames
+    | "debug-long-frames-threshold" ->
+      begin match Compenv.check_int ppf name v with
+      | Some n -> set_long_frames_threshold n; true
+      | None ->
+        raise
+          (Arg.Bad
+             (Printf.sprintf "Expected integer between 0 and %d"
+                Flambda_backend_flags.max_long_frames_threshold))
+      end
     | "dasm-comments" -> set' Flambda_backend_flags.dasm_comments
-    | "dno-asm-comments" -> clear' Flambda_backend_flags.dasm_comments
     | "gupstream-dwarf" -> set' Debugging.restrict_to_upstream_dwarf
-    | "gno-upstream-dwarf" -> clear' Debugging.restrict_to_upstream_dwarf
     | "gstartup" -> set' Debugging.dwarf_for_startup_file
-    | "gno-startup" -> clear' Debugging.dwarf_for_startup_file
     | "flambda2-join-points" -> set Flambda2.join_points
     | "flambda2-result-types" ->
       (match String.lowercase_ascii v with
@@ -842,6 +917,8 @@ module Extra_params = struct
        set_int Flambda2.Expert.max_unboxing_depth
     | "flambda2-expert-can-inline-recursive-functions" ->
        set Flambda2.Expert.can_inline_recursive_functions
+    | "flambda2-expert-max-function-simplify-run" ->
+       set_int Flambda2.Expert.max_function_simplify_run
     | "flambda2-inline-max-depth" ->
        Clflags.Int_arg_helper.parse v
          "Bad syntax in OCAMLPARAM for 'flambda2-inline-max-depth'"

@@ -108,7 +108,7 @@ Line 1, characters 37-67:
 1 | type distinct_sarg = unit constraint local_ int -> int = int -> int
                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The type constraints are not consistent.
-Type local_ int -> int is not compatible with type int -> int
+       Type local_ int -> int is not compatible with type int -> int
 |}]
 type distinct_sret = unit constraint int -> local_ int = int -> int
 [%%expect{|
@@ -116,7 +116,7 @@ Line 1, characters 37-67:
 1 | type distinct_sret = unit constraint int -> local_ int = int -> int
                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The type constraints are not consistent.
-Type int -> local_ int is not compatible with type int -> int
+       Type int -> local_ int is not compatible with type int -> int
 |}]
 type distinct_sarg_sret = unit constraint local_ int -> int = local_ int -> local_ int
 [%%expect{|
@@ -124,7 +124,8 @@ Line 1, characters 42-86:
 1 | type distinct_sarg_sret = unit constraint local_ int -> int = local_ int -> local_ int
                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The type constraints are not consistent.
-Type local_ int -> int is not compatible with type local_ int -> local_ int
+       Type local_ int -> int is not compatible with type
+         local_ int -> local_ int
 |}]
 
 type local_higher_order = unit constraint
@@ -140,9 +141,10 @@ Line 2, characters 2-66:
 2 |   (int -> int -> int) -> int = (int -> local_ (int -> int)) -> int
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The type constraints are not consistent.
-Type (int -> int -> int) -> int is not compatible with type
-  (int -> local_ (int -> int)) -> int
-Type int -> int -> int is not compatible with type int -> local_ (int -> int)
+       Type (int -> int -> int) -> int is not compatible with type
+         (int -> local_ (int -> int)) -> int
+       Type int -> int -> int is not compatible with type
+         int -> local_ (int -> int)
 |}]
 
 type local_higher_order = unit constraint
@@ -158,9 +160,10 @@ Line 2, characters 2-66:
 2 |   int -> (int -> int -> int) = int -> (int -> local_ (int -> int))
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The type constraints are not consistent.
-Type int -> int -> int -> int is not compatible with type
-  int -> int -> local_ (int -> int)
-Type int -> int -> int is not compatible with type int -> local_ (int -> int)
+       Type int -> int -> int -> int is not compatible with type
+         int -> int -> local_ (int -> int)
+       Type int -> int -> int is not compatible with type
+         int -> local_ (int -> int)
 |}]
 
 let foo () =
@@ -549,6 +552,28 @@ Line 1, characters 61-65:
                                                                  ^^^^
 Error: This local value escapes its region
   Hint: Cannot return local value without an explicit "local_" annotation
+|}]
+
+(* Optional argument elimination eta-expands and therefore allocates *)
+let no_eta (local_ f : unit -> int) = (f : unit -> int)
+[%%expect{|
+val no_eta : local_ (unit -> int) -> unit -> int = <fun>
+|}]
+
+let eta (local_ f : ?a:bool -> unit -> int) = (f : unit -> int)
+[%%expect{|
+Line 1, characters 47-48:
+1 | let eta (local_ f : ?a:bool -> unit -> int) = (f : unit -> int)
+                                                   ^
+Error: This value escapes its region
+|}]
+
+let etajoin p (f : ?b:bool -> unit -> int) (local_ g : unit -> int) =
+  if p then (f : unit -> int) else g
+[%%expect{|
+val etajoin :
+  bool -> (?b:bool -> unit -> int) -> local_ (unit -> int) -> unit -> int =
+  <fun>
 |}]
 
 (* Default arguments *)
@@ -1218,7 +1243,6 @@ let foo () =
 val foo : unit -> int = <fun>
 |}]
 
-
 (* Parameter modes must be matched by the type *)
 
 let foo : 'a -> unit = fun (local_ x) -> ()
@@ -1451,7 +1475,7 @@ Error: Signature mismatch:
          type t = { nonlocal_ foo : string; }
        Fields do not match:
          foo : string;
-       is not compatible with:
+       is not the same as:
          nonlocal_ foo : string;
        The second is nonlocal and the first is not.
 |}]
@@ -1477,7 +1501,7 @@ Error: Signature mismatch:
          type t = { foo : string; }
        Fields do not match:
          nonlocal_ foo : string;
-       is not compatible with:
+       is not the same as:
          foo : string;
        The first is nonlocal and the second is not.
 |}]
@@ -1503,7 +1527,7 @@ Error: Signature mismatch:
          type t = { global_ foo : string; }
        Fields do not match:
          foo : string;
-       is not compatible with:
+       is not the same as:
          global_ foo : string;
        The second is global and the first is not.
 |}]
@@ -1529,7 +1553,7 @@ Error: Signature mismatch:
          type t = { foo : string; }
        Fields do not match:
          global_ foo : string;
-       is not compatible with:
+       is not the same as:
          foo : string;
        The first is global and the second is not.
 |}]
@@ -1764,6 +1788,10 @@ Error: Signature mismatch:
          val add : local_ int32 -> local_ int32 -> local_ int32
        is not included in
          val add : local_ int32 -> local_ int32 -> int32
+       The type local_ int32 -> local_ int32 -> local_ int32
+       is not compatible with the type local_ int32 -> local_ int32 -> int32
+       Type local_ int32 -> local_ int32 is not compatible with type
+         local_ int32 -> int32
 |}]
 module Opt32 : sig external add : (int32[@local_opt]) -> (int32[@local_opt]) -> (int32[@local_opt]) = "%int32_add" end = Int32
 module Bad32_2 : sig val add : local_ int32 -> local_ int32 -> int32 end =
@@ -1793,6 +1821,10 @@ Error: Signature mismatch:
            (int32 [@local_opt]) -> (int32 [@local_opt]) = "%int32_add"
        is not included in
          val add : local_ int32 -> local_ int32 -> int32
+       The type local_ int32 -> local_ int32 -> local_ int32
+       is not compatible with the type local_ int32 -> local_ int32 -> int32
+       Type local_ int32 -> local_ int32 is not compatible with type
+         local_ int32 -> int32
 |}]
 
 module Contravariant_instantiation : sig
@@ -1872,22 +1904,17 @@ val primloc : int32 -> int = <fun>
 |}]
 
 (* (&&) and (||) tail call on the right *)
-let testbool1 x =
-  let local_ b = not x in
-  (b || false) && true
+let testbool1 f = let local_ r = ref 42 in (f r || false) && true 
 
-let testbool2 x =
-  let local_ b = not x in
-  true && (false || b)
+let testbool2 f = let local_ r = ref 42 in true && (false || f r)
 [%%expect{|
-val testbool1 : bool -> bool = <fun>
-Line 7, characters 20-21:
-7 |   true && (false || b)
-                        ^
+val testbool1 : (local_ int ref -> bool) -> bool = <fun>
+Line 3, characters 63-64:
+3 | let testbool2 f = let local_ r = ref 42 in true && (false || f r)
+                                                                   ^
 Error: This local value escapes its region
-  Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: This argument cannot be local, because this is a tail call
 |}]
-
 
 (* mode-crossing using unary + *)
 let promote (local_ x) = +x
@@ -2059,6 +2086,8 @@ Error: Signature mismatch:
          val foo : float -> string
        is not included in
          val foo : local_ float -> string
+       The type float -> string is not compatible with the type
+         local_ float -> string
 |}]
 
 module F (X : sig val foo : float -> local_ string end) : sig
@@ -2077,6 +2106,8 @@ Error: Signature mismatch:
          val foo : float -> local_ string
        is not included in
          val foo : float -> string
+       The type float -> local_ string is not compatible with the type
+         float -> string
 |}]
 
 module F (X : sig val foo : local_ float -> float -> string end) : sig
@@ -2095,6 +2126,8 @@ Error: Signature mismatch:
          val foo : local_ float -> float -> string
        is not included in
          val foo : float -> float -> string
+       The type local_ float -> float -> string
+       is not compatible with the type float -> float -> string
 |}]
 
 module F (X : sig val foo : local_ float -> float -> string end) : sig
@@ -2140,6 +2173,10 @@ Error: Signature mismatch:
          val foo : (float -> string) inv
        is not included in
          val foo : (float -> local_ string) inv
+       The type (float -> string) inv is not compatible with the type
+         (float -> local_ string) inv
+       Type float -> string is not compatible with type
+         float -> local_ string
 |}]
 
 module F (X : sig val foo : (float -> string) co end) : sig
@@ -2167,6 +2204,10 @@ Error: Signature mismatch:
          val foo : (float -> string) contra
        is not included in
          val foo : (float -> local_ string) contra
+       The type (float -> string) contra is not compatible with the type
+         (float -> local_ string) contra
+       Type float -> string is not compatible with type
+         float -> local_ string
 |}]
 
 module F (X : sig val foo : (float -> string) bi end) : sig
@@ -2194,6 +2235,10 @@ Error: Signature mismatch:
          val foo : (float -> local_ string) inv
        is not included in
          val foo : (float -> string) inv
+       The type (float -> local_ string) inv is not compatible with the type
+         (float -> string) inv
+       Type float -> local_ string is not compatible with type
+         float -> string
 |}]
 
 module F (X : sig val foo : (float -> local_ string) co end) : sig
@@ -2212,6 +2257,10 @@ Error: Signature mismatch:
          val foo : (float -> local_ string) co
        is not included in
          val foo : (float -> string) co
+       The type (float -> local_ string) co is not compatible with the type
+         (float -> string) co
+       Type float -> local_ string is not compatible with type
+         float -> string
 |}]
 
 module F (X : sig val foo : (float -> local_ string) contra end) : sig
@@ -2231,3 +2280,327 @@ module F :
   functor (X : sig val foo : (float -> local_ string) bi end) ->
     sig val foo : (float -> string) bi end
 |}]
+
+
+(*
+ * constructor arguments global/nonlocal
+ *)
+
+(* Global argument are preserved in module inclusion *)
+module M : sig
+  type t = Bar of int * global_ string
+end = struct
+  type t = Bar of int * string
+end
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = Bar of int * string
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = Bar of int * string end
+       is not included in
+         sig type t = Bar of int * global_ string end
+       Type declarations do not match:
+         type t = Bar of int * string
+       is not included in
+         type t = Bar of int * global_ string
+       Constructors do not match:
+         Bar of int * string
+       is not the same as:
+         Bar of int * global_ string
+       Locality mismatch at argument position 2 : The second is global and the first is not.
+|}]
+
+
+module M : sig
+  type t = Bar of int * string
+end = struct
+  type t = Bar of int * global_ string
+end
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = Bar of int * global_ string
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = Bar of int * global_ string end
+       is not included in
+         sig type t = Bar of int * string end
+       Type declarations do not match:
+         type t = Bar of int * global_ string
+       is not included in
+         type t = Bar of int * string
+       Constructors do not match:
+         Bar of int * global_ string
+       is not the same as:
+         Bar of int * string
+       Locality mismatch at argument position 2 : The first is global and the second is not.
+|}]
+
+(* Nonlocal argument are preserved in module inclusion *)
+module M : sig
+  type t = Bar of int * nonlocal_ string
+end = struct
+  type t = Bar of int * string
+end
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = Bar of int * string
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = Bar of int * string end
+       is not included in
+         sig type t = Bar of int * nonlocal_ string end
+       Type declarations do not match:
+         type t = Bar of int * string
+       is not included in
+         type t = Bar of int * nonlocal_ string
+       Constructors do not match:
+         Bar of int * string
+       is not the same as:
+         Bar of int * nonlocal_ string
+       Locality mismatch at argument position 2 : The second is nonlocal and the first is not.
+|}]
+
+
+module M : sig
+  type t = Bar of int * string
+end = struct
+  type t = Bar of int * nonlocal_ string
+end
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = Bar of int * nonlocal_ string
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = Bar of int * nonlocal_ string end
+       is not included in
+         sig type t = Bar of int * string end
+       Type declarations do not match:
+         type t = Bar of int * nonlocal_ string
+       is not included in
+         type t = Bar of int * string
+       Constructors do not match:
+         Bar of int * nonlocal_ string
+       is not the same as:
+         Bar of int * string
+       Locality mismatch at argument position 2 : The first is nonlocal and the second is not.
+|}]
+
+(* global_ and nonlocal_ bind closer than star *)
+type gfoo = GFoo of global_ string * string
+type rfoo = RFoo of nonlocal_ string * string
+[%%expect{|
+type gfoo = GFoo of global_ string * string
+type rfoo = RFoo of nonlocal_ string * string
+|}]
+
+(* TESTING OF GLOBAL_ *)
+
+(* global arguments must be global when constructing
+   cannot be regional or local
+*)
+let f (local_ s : string) =
+  GFoo (s, "bar")
+[%%expect{|
+Line 2, characters 8-9:
+2 |   GFoo (s, "bar")
+            ^
+Error: This value escapes its region
+|}]
+
+let f =
+  let local_ s = "foo" in
+  GFoo (s, "bar")
+[%%expect{|
+Line 3, characters 8-9:
+3 |   GFoo (s, "bar")
+            ^
+Error: This value escapes its region
+|}]
+
+(* s' extracted from x as global *)
+(* despite x is local or regional*)
+let f (s : string) =
+  let local_ x = GFoo (s, "bar") in
+  match x with
+  | GFoo (s', _) -> ref s'
+
+[%%expect{|
+val f : string -> string ref = <fun>
+|}]
+
+let f (local_ x : gfoo) =
+  match x with
+  | GFoo (s', _) -> ref s'
+
+[%%expect{|
+val f : local_ gfoo -> string ref = <fun>
+|}]
+
+(* the argument not marked global remains contingent on construction  *)
+(* local gives local *)
+let f (s : string) =
+  let local_ x = GFoo ("bar", s) in
+  match x with
+  | GFoo (_, s') -> s'
+
+[%%expect{|
+Line 4, characters 20-22:
+4 |   | GFoo (_, s') -> s'
+                        ^^
+Error: This local value escapes its region
+  Hint: Cannot return local value without an explicit "local_" annotation
+|}]
+
+(* and regional gives regional *)
+let f (local_ x : gfoo) =
+  match x with
+  | GFoo (_, s') -> ref s'
+
+[%%expect{|
+Line 3, characters 24-26:
+3 |   | GFoo (_, s') -> ref s'
+                            ^^
+Error: This value escapes its region
+|}]
+
+(* TESTING NONLOCAL_ *)
+(* nonlocal argument must be outer than the construction*)
+(* below, local is not outer than local*)
+let f (local_ s : string) =
+  let local_ s' = "foo" in
+  let local_ x = RFoo(s', "bar") in
+  "bar"
+[%%expect{|
+Line 3, characters 22-24:
+3 |   let local_ x = RFoo(s', "bar") in
+                          ^^
+Error: This local value escapes its region
+|}]
+
+(* local is not outer than global either *)
+let f =
+  let local_ s = "foo" in
+  let x = RFoo(s, "bar") in
+  "bar"
+[%%expect{|
+Line 3, characters 15-16:
+3 |   let x = RFoo(s, "bar") in
+                   ^
+Error: This local value escapes its region
+|}]
+
+
+(* but global is outer than local *)
+let f (s : string) =  (* s is global *)
+  let local_ _x = RFoo (s, "bar") in  (* x is local *)
+  "foo"
+[%%expect{|
+val f : string -> string = <fun>
+|}]
+
+(* and regional is outer than local *)
+let f (local_ s : string) =  (* s is regional *)
+  let local_ _x = RFoo (s, "bar") in  (* x is local *)
+  "foo"
+[%%expect{|
+val f : local_ string -> string = <fun>
+|}]
+
+(* s' extracted from x is not local  *)
+(* even though x is local *)
+let f (local_ s : string) =
+  let local_ x = RFoo (s, "bar") in
+  match x with
+  | RFoo (s', _) -> s'
+
+[%%expect{|
+val f : local_ string -> local_ string = <fun>
+|}]
+
+(* Moreover, it is not global *)
+let f (local_ s : string) =
+  let local_ x = RFoo(s, "bar") in
+  match x with
+  | RFoo (s', _) -> GFoo (s', "bar")
+[%%expect{|
+Line 4, characters 26-28:
+4 |   | RFoo (s', _) -> GFoo (s', "bar")
+                              ^^
+Error: This value escapes its region
+|}]
+
+(* x is already global *)
+(* regional s' extracted from x is still global *)
+let f (s : string) =
+  let x = RFoo (s, "bar") in
+  match x with
+  | RFoo (s', _) -> GFoo(s', "bar")
+[%%expect{|
+val f : string -> gfoo = <fun>
+|}]
+
+(* regional s extracted from regional x *)
+(* still regional *)
+(* first it is not local *)
+let f (local_ x : rfoo) =
+  match x with
+  | RFoo (s, _) -> s
+[%%expect{|
+val f : local_ rfoo -> local_ string = <fun>
+|}]
+
+(* second, it is not global *)
+let f (local_ x : rfoo) =
+  match x with
+  | RFoo (s, _) -> ref s
+[%%expect{|
+Line 3, characters 23-24:
+3 |   | RFoo (s, _) -> ref s
+                           ^
+Error: This value escapes its region
+|}]
+
+
+(* test of arrays *)
+(* as elements of arrays are mutable *)
+(* it is only safe for them to be at global mode *)
+(* cf: similarly reference cell can contain only global values *)
+
+(* on construction of array, we ensure elements are global *)
+
+let f (local_ x : string) = 
+  [|x; "foo"|]
+[%%expect{|
+Line 2, characters 4-5:
+2 |   [|x; "foo"|]
+        ^
+Error: This value escapes its region
+|}]
+
+let f (x : string) = 
+  [|x; "foo"|]
+[%%expect{|
+val f : string -> string array = <fun>
+|}]  
+
+
+(* on pattern matching of array, 
+   elements are strengthened to global 
+  even if array itself is local *)
+let f (local_ a : string array) = 
+  match a with
+  | [| x; _ |] -> ref x
+  | _ -> ref "foo"
+
+[%%expect{|
+val f : local_ string array -> string ref = <fun>
+|}]  

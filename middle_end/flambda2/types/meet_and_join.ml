@@ -53,28 +53,28 @@ type meet_expanded_head_result =
 
 exception Bottom_meet
 
-let meet_alloc_mode (alloc_mode1 : Alloc_mode.t Or_unknown.t)
-    (alloc_mode2 : Alloc_mode.t Or_unknown.t) :
-    Alloc_mode.t Or_unknown.t Or_bottom.t =
+let meet_alloc_mode (alloc_mode1 : Alloc_mode.For_types.t)
+    (alloc_mode2 : Alloc_mode.For_types.t) : Alloc_mode.For_types.t Or_bottom.t
+    =
   match alloc_mode1, alloc_mode2 with
-  | Unknown, Unknown -> Ok Unknown
-  | Unknown, Known _ -> Ok alloc_mode2
-  | Known _, Unknown -> Ok alloc_mode1
-  | Known Heap, Known Heap -> Ok (Known Heap)
-  | Known Local, Known Local -> Ok (Known Local)
-  | Known Heap, Known Local | Known Local, Known Heap ->
+  | Heap_or_local, Heap_or_local -> Ok (Alloc_mode.For_types.unknown ())
+  | Heap_or_local, _ -> Ok alloc_mode2
+  | _, Heap_or_local -> Ok alloc_mode1
+  | Heap, Heap -> Ok Alloc_mode.For_types.heap
+  | Local, Local -> Ok (Alloc_mode.For_types.local ())
+  | Heap, Local | Local, Heap ->
     (* It is not safe to pick either [Heap] or [Local] and moreover we should
        never be in this situation by virtue of the OCaml type checker; it is
        bottom. *)
     Bottom
 
-let join_alloc_mode (alloc_mode1 : Alloc_mode.t Or_unknown.t)
-    (alloc_mode2 : Alloc_mode.t Or_unknown.t) : Alloc_mode.t Or_unknown.t =
+let join_alloc_mode (alloc_mode1 : Alloc_mode.For_types.t)
+    (alloc_mode2 : Alloc_mode.For_types.t) : Alloc_mode.For_types.t =
   match alloc_mode1, alloc_mode2 with
-  | Unknown, _ | _, Unknown -> Unknown
-  | Known Heap, Known Heap -> Known Heap
-  | Known Local, Known Local -> Known Local
-  | Known Heap, Known Local | Known Local, Known Heap -> Unknown
+  | Heap_or_local, _ | _, Heap_or_local -> Alloc_mode.For_types.unknown ()
+  | Heap, Heap -> Alloc_mode.For_types.heap
+  | Local, Local -> Alloc_mode.For_types.local ()
+  | Heap, Local | Local, Heap -> Alloc_mode.For_types.unknown ()
 
 let[@inline always] meet_unknown meet_contents ~contents_is_bottom env
     (or_unknown1 : _ Or_unknown.t) (or_unknown2 : _ Or_unknown.t) :
@@ -98,31 +98,35 @@ let[@inline always] join_unknown join_contents (env : Join_env.t)
   | _, Unknown | Unknown, _ -> Unknown
   | Known contents1, Known contents2 -> join_contents env contents1 contents2
 
-let meet_array_element_kinds (element_kind1 : _ Or_unknown.t)
-    (element_kind2 : _ Or_unknown.t) : _ Or_bottom.t =
+(* Note: Bottom is a valid element kind for empty arrays, so this function never
+   leads to a general Bottom result *)
+let meet_array_element_kinds (element_kind1 : _ Or_unknown_or_bottom.t)
+    (element_kind2 : _ Or_unknown_or_bottom.t) : _ Or_unknown_or_bottom.t =
   match element_kind1, element_kind2 with
-  | Unknown, Unknown -> Ok Or_unknown.Unknown
-  | Unknown, Known kind | Known kind, Unknown -> Ok (Or_unknown.Known kind)
-  | Known element_kind1, Known element_kind2 ->
+  | Unknown, Unknown -> Unknown
+  | Bottom, _ | _, Bottom -> Bottom
+  | Unknown, Ok kind | Ok kind, Unknown -> Ok kind
+  | Ok element_kind1, Ok element_kind2 ->
     if Flambda_kind.With_subkind.compatible element_kind1
          ~when_used_at:element_kind2
-    then Ok (Or_unknown.Known element_kind1)
+    then Ok element_kind1
     else if Flambda_kind.With_subkind.compatible element_kind2
               ~when_used_at:element_kind1
-    then Ok (Or_unknown.Known element_kind2)
+    then Ok element_kind2
     else Bottom
 
-let join_array_element_kinds (element_kind1 : _ Or_unknown.t)
-    (element_kind2 : _ Or_unknown.t) : _ Or_unknown.t =
+let join_array_element_kinds (element_kind1 : _ Or_unknown_or_bottom.t)
+    (element_kind2 : _ Or_unknown_or_bottom.t) : _ Or_unknown_or_bottom.t =
   match element_kind1, element_kind2 with
-  | Unknown, Unknown | Unknown, Known _ | Known _, Unknown -> Unknown
-  | Known element_kind1, Known element_kind2 ->
+  | Unknown, _ | _, Unknown -> Unknown
+  | Bottom, element_kind | element_kind, Bottom -> element_kind
+  | Ok element_kind1, Ok element_kind2 ->
     if Flambda_kind.With_subkind.compatible element_kind1
          ~when_used_at:element_kind2
-    then Known element_kind2
+    then Ok element_kind2
     else if Flambda_kind.With_subkind.compatible element_kind2
               ~when_used_at:element_kind1
-    then Known element_kind1
+    then Ok element_kind1
     else Unknown
 
 let rec meet env (t1 : TG.t) (t2 : TG.t) : (TG.t * TEE.t) Or_bottom.t =
@@ -319,38 +323,30 @@ and meet_expanded_head0 env (descr1 : ET.descr) (descr2 : ET.descr) :
 and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
     (head2 : TG.head_of_kind_value) : _ Or_bottom.t =
   match head1, head2 with
-  | ( Variant
-        { blocks = blocks1;
-          immediates = imms1;
-          is_unique = is_unique1;
-          alloc_mode = alloc_mode1
-        },
-      Variant
-        { blocks = blocks2;
-          immediates = imms2;
-          is_unique = is_unique2;
-          alloc_mode = alloc_mode2
-        } ) ->
-    let<* blocks, immediates, env_extension =
+  | ( Variant { blocks = blocks1; immediates = imms1; is_unique = is_unique1 },
+      Variant { blocks = blocks2; immediates = imms2; is_unique = is_unique2 } )
+    ->
+    let<+ blocks, immediates, env_extension =
       meet_variant env ~blocks1 ~imms1 ~blocks2 ~imms2
     in
     (* Uniqueness tracks whether duplication/lifting is allowed. It must always
        be propagated, both for meet and join. *)
     let is_unique = is_unique1 || is_unique2 in
-    let<+ alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
-    ( TG.Head_of_kind_value.create_variant ~is_unique alloc_mode ~blocks
-        ~immediates,
+    ( TG.Head_of_kind_value.create_variant ~is_unique ~blocks ~immediates,
       env_extension )
   | ( Mutable_block { alloc_mode = alloc_mode1 },
       Mutable_block { alloc_mode = alloc_mode2 } ) ->
     let<+ alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
     TG.Head_of_kind_value.create_mutable_block alloc_mode, TEE.empty
-  | ( Variant { alloc_mode = alloc_mode1; _ },
-      Mutable_block { alloc_mode = alloc_mode2 } )
-  | ( Mutable_block { alloc_mode = alloc_mode1 },
-      Variant { alloc_mode = alloc_mode2; _ } ) ->
-    let<+ alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
-    TG.Head_of_kind_value.create_mutable_block alloc_mode, TEE.empty
+  | ( Variant { blocks; _ },
+      (Mutable_block { alloc_mode = alloc_mode_mut } as mut_block) )
+  | ( (Mutable_block { alloc_mode = alloc_mode_mut } as mut_block),
+      Variant { blocks; _ } ) -> (
+    match blocks with
+    | Unknown -> Ok (mut_block, TEE.empty)
+    | Known { alloc_mode = alloc_mode_immut; _ } ->
+      let<+ alloc_mode = meet_alloc_mode alloc_mode_mut alloc_mode_immut in
+      TG.Head_of_kind_value.create_mutable_block alloc_mode, TEE.empty)
   | Boxed_float (n1, alloc_mode1), Boxed_float (n2, alloc_mode2) ->
     let<* n, env_extension = meet env n1 n2 in
     let<+ alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
@@ -394,11 +390,14 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
           alloc_mode = alloc_mode2
         } ) ->
     let<* alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
-    let<* element_kind = meet_array_element_kinds element_kind1 element_kind2 in
+    let element_kind = meet_array_element_kinds element_kind1 element_kind2 in
     let<* contents, env_extension =
       meet_array_contents env array_contents1 array_contents2
     in
     let<* length, env_extension' = meet env length1 length2 in
+    (* CR-someday vlaviron: If the element kind is Bottom, we could meet the
+       length type with the constant 0 (only the empty array can have element
+       kind Bottom). *)
     let<+ env_extension = meet_env_extension env env_extension env_extension' in
     ( TG.Head_of_kind_value.create_array_with_contents ~element_kind ~length
         contents alloc_mode,
@@ -538,7 +537,7 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
           (* No blocks exist with this tag *))
         tags Tag.Set.empty
     in
-    match MTC.blocks_with_these_tags tags with
+    match MTC.blocks_with_these_tags tags (Alloc_mode.For_types.unknown ()) with
     | Known shape ->
       let<+ ty, env_extension = meet env ty shape in
       TG.Head_of_kind_naked_immediate.create_get_tag ty, env_extension
@@ -715,17 +714,21 @@ and meet_row_like :
     Ok (known, other, env_extension)
 
 and meet_row_like_for_blocks env
-    ({ known_tags = known1; other_tags = other1 } : TG.Row_like_for_blocks.t)
-    ({ known_tags = known2; other_tags = other2 } : TG.Row_like_for_blocks.t) :
-    (TG.Row_like_for_blocks.t * TEE.t) Or_bottom.t =
-  let<+ known_tags, other_tags, env_extension =
+    ({ known_tags = known1; other_tags = other1; alloc_mode = alloc_mode1 } :
+      TG.Row_like_for_blocks.t)
+    ({ known_tags = known2; other_tags = other2; alloc_mode = alloc_mode2 } :
+      TG.Row_like_for_blocks.t) : (TG.Row_like_for_blocks.t * TEE.t) Or_bottom.t
+    =
+  let<* known_tags, other_tags, env_extension =
     meet_row_like ~meet_maps_to:meet_int_indexed_product
       ~equal_index:TG.Block_size.equal ~subset_index:TG.Block_size.subset
       ~union_index:TG.Block_size.union ~is_empty_map_known:Tag.Map.is_empty
       ~get_singleton_map_known:Tag.Map.get_singleton
       ~merge_map_known:Tag.Map.merge env ~known1 ~known2 ~other1 ~other2
   in
-  TG.Row_like_for_blocks.create_raw ~known_tags ~other_tags, env_extension
+  let<+ alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
+  ( TG.Row_like_for_blocks.create_raw ~known_tags ~other_tags ~alloc_mode,
+    env_extension )
 
 and meet_row_like_for_closures env
     ({ known_closures = known1; other_closures = other1 } :
@@ -922,6 +925,28 @@ and meet_env_extension0 env (ext1 : TEE.t) (ext2 : TEE.t) extra_extensions :
 
      To get around this, we'll suppose that [t2] is smaller than [t1] and add
      equations from [t2] to [t1], along with all extra equations *)
+  let has_reverse_alias name1 ty2 ext =
+    (* If we're adding an equation [x : (= y)] but we already have an equation
+       [y : (= x)], then we can drop the equation as redundant. *)
+    match TG.get_alias_opt ty2 with
+    | None -> false
+    | Some simple2 ->
+      Simple.pattern_match simple2
+        ~const:(fun _ -> false)
+        ~name:(fun name2 ~coercion:coercion1to2 ->
+          match Name.Map.find_opt name2 ext with
+          | None -> false
+          | Some ty3 -> (
+            match TG.get_alias_opt ty3 with
+            | None -> false
+            | Some simple3 ->
+              Simple.pattern_match simple3
+                ~const:(fun _ -> false)
+                ~name:(fun name3 ~coercion:coercion2to3 ->
+                  Name.equal name1 name3
+                  && Coercion.is_id
+                       (Coercion.compose_exn coercion1to2 ~then_:coercion2to3))))
+  in
   let equations, extra_extensions =
     Name.Map.fold
       (fun name ty (eqs, extra_extensions) ->
@@ -934,11 +959,16 @@ and meet_env_extension0 env (ext1 : TEE.t) (ext2 : TEE.t) extra_extensions :
           | Bottom -> raise Bottom_meet
           | Ok (ty, new_ext) ->
             let eqs =
-              if MTC.is_alias_of_name ty name
+              if MTC.is_alias_of_name ty name || has_reverse_alias name ty eqs
               then Name.Map.remove name eqs
               else Name.Map.add (* replace *) name ty eqs
             in
-            eqs, new_ext :: extra_extensions))
+            let extra_extensions =
+              if TEE.is_empty new_ext
+              then extra_extensions
+              else new_ext :: extra_extensions
+            in
+            eqs, extra_extensions))
       (TEE.to_map ext2)
       (TEE.to_map ext1, extra_extensions)
   in
@@ -1101,27 +1131,16 @@ and join_expanded_head env kind (expanded1 : ET.t) (expanded2 : ET.t) : ET.t =
 and join_head_of_kind_value env (head1 : TG.head_of_kind_value)
     (head2 : TG.head_of_kind_value) : TG.head_of_kind_value Or_unknown.t =
   match head1, head2 with
-  | ( Variant
-        { blocks = blocks1;
-          immediates = imms1;
-          is_unique = is_unique1;
-          alloc_mode = alloc_mode1
-        },
-      Variant
-        { blocks = blocks2;
-          immediates = imms2;
-          is_unique = is_unique2;
-          alloc_mode = alloc_mode2
-        } ) ->
+  | ( Variant { blocks = blocks1; immediates = imms1; is_unique = is_unique1 },
+      Variant { blocks = blocks2; immediates = imms2; is_unique = is_unique2 } )
+    ->
     let>+ blocks, immediates =
       join_variant env ~blocks1 ~imms1 ~blocks2 ~imms2
     in
     (* Uniqueness tracks whether duplication/lifting is allowed. It must always
        be propagated, both for meet and join. *)
     let is_unique = is_unique1 || is_unique2 in
-    let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
-    TG.Head_of_kind_value.create_variant ~is_unique alloc_mode ~blocks
-      ~immediates
+    TG.Head_of_kind_value.create_variant ~is_unique ~blocks ~immediates
   | ( Mutable_block { alloc_mode = alloc_mode1 },
       Mutable_block { alloc_mode = alloc_mode2 } ) ->
     let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
@@ -1416,15 +1435,18 @@ and join_row_like :
   known, other
 
 and join_row_like_for_blocks env
-    ({ known_tags = known1; other_tags = other1 } : TG.Row_like_for_blocks.t)
-    ({ known_tags = known2; other_tags = other2 } : TG.Row_like_for_blocks.t) =
+    ({ known_tags = known1; other_tags = other1; alloc_mode = alloc_mode1 } :
+      TG.Row_like_for_blocks.t)
+    ({ known_tags = known2; other_tags = other2; alloc_mode = alloc_mode2 } :
+      TG.Row_like_for_blocks.t) =
   let known_tags, other_tags =
     join_row_like ~join_maps_to:join_int_indexed_product
       ~maps_to_field_kind:TG.Product.Int_indexed.field_kind
       ~equal_index:TG.Block_size.equal ~inter_index:TG.Block_size.inter
       ~merge_map_known:Tag.Map.merge env ~known1 ~known2 ~other1 ~other2
   in
-  TG.Row_like_for_blocks.create_raw ~known_tags ~other_tags
+  let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
+  TG.Row_like_for_blocks.create_raw ~known_tags ~other_tags ~alloc_mode
 
 and join_row_like_for_closures env
     ({ known_closures = known1; other_closures = other1 } :

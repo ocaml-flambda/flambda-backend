@@ -143,16 +143,25 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pint_as_pointer -> Pint_as_pointer
   | Popaque -> Popaque
   | Pprobe_is_enabled {name} -> Pprobe_is_enabled {name}
-
+  | Pobj_dup ->
+    let module P = Primitive in
+    Pccall (Primitive.make
+      ~name:"caml_obj_dup"
+      ~alloc:true
+      ~c_builtin:false
+      ~effects:Only_generative_effects
+      ~coeffects:Has_coeffects
+      ~native_name:"caml_obj_dup"
+      ~native_repr_args:[P.Prim_global, P.Same_as_ocaml_repr]
+      ~native_repr_res:(P.Prim_global, P.Same_as_ocaml_repr))
+  | Pobj_magic
   | Pbytes_to_string
   | Pbytes_of_string
   | Pctconst _
   | Pignore
-  | Prevapply _
-  | Pdirapply _
-  | Pidentity
   | Pgetglobal _
   | Psetglobal _
+  | Pgetpredef _
     ->
       Misc.fatal_errorf "lambda primitive %a can't be converted to \
                          clambda primitive"

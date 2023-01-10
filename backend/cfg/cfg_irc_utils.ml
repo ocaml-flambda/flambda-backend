@@ -43,14 +43,15 @@ let log_instruction_suffix (instr : _ Cfg.instruction) (liveness : liveness) :
 
 let log_body_and_terminator :
     indent:int ->
-    Cfg.basic Cfg.instruction list ->
+    Cfg.BasicInstructionList.t ->
     Cfg.terminator Cfg.instruction ->
     liveness ->
     unit =
  fun ~indent body term liveness ->
   if irc_debug && irc_verbose
   then (
-    List.iter body ~f:(fun (instr : Cfg.basic Cfg.instruction) ->
+    Cfg.BasicInstructionList.iter body
+      ~f:(fun (instr : Cfg.basic Cfg.instruction) ->
         log_instruction_prefix ~indent instr;
         Cfg.dump_basic Format.err_formatter instr.Cfg.desc;
         log_instruction_suffix instr liveness);
@@ -134,6 +135,7 @@ let is_move_basic : Cfg.basic -> bool =
     | Store _ -> false
     | Intop _ -> false
     | Intop_imm _ -> false
+    | Intop_atomic _ -> false
     | Negf -> false
     | Absf -> false
     | Addf -> false
@@ -141,16 +143,18 @@ let is_move_basic : Cfg.basic -> bool =
     | Mulf -> false
     | Divf -> false
     | Compf _ -> false
+    | Csel _ -> false
     | Floatofint -> false
     | Intoffloat -> false
-    | Probe _ -> false
+    | Valueofint -> false
+    | Intofvalue -> false
     | Probe_is_enabled _ -> false
     | Opaque -> false
     | Begin_region -> false
     | End_region -> false
     | Specific _ -> false
     | Name_for_debugger _ -> false)
-  | Call _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> false
+  | Reloadretaddr | Pushtrap _ | Poptrap | Prologue -> false
 
 let is_move_instruction : Cfg.basic Cfg.instruction -> bool =
  fun instr -> is_move_basic instr.desc
@@ -242,103 +246,147 @@ module Spilling_heuristics = struct
             (available_heuristics ())))
 end
 
-(* CR xclerc for xclerc: consider dynamic sorted arrays *)
-module WorkList = struct
+module ArraySet = struct
   module type S = sig
     type e
 
     type t
 
-    module Set : Set.S with type elt = e
+    val make : original_capacity:int -> t
 
-    val make : expected_max_size:int -> t
-
-    val empty : t -> t
+    val clear : t -> unit
 
     val is_empty : t -> bool
 
-    val add : t -> e -> t
+    val choose_and_remove : t -> e option
 
-    val remove : t -> e -> t
+    val add : t -> e -> unit
 
-    val choose_and_remove : t -> (e * t) option
+    val remove : t -> e -> unit
 
     val iter : t -> f:(e -> unit) -> unit
 
-    val fold : t -> f:(e -> 'a -> 'a) -> init:'a -> 'a
+    val fold : t -> f:('a -> e -> 'a) -> init:'a -> 'a
 
     val to_list : t -> e list
-
-    val to_set : t -> Set.t
   end
 
-  module Make (E : Set.OrderedType) (ES : Set.S with type elt = E.t) :
-    S with type e = E.t and module Set = ES = struct
-    module Set = ES
+  module type OrderedTypeWithDummy = sig
+    include Set.OrderedType
 
-    let cut_off = 16
+    val dummy : t
+  end
 
-    type e = E.t
+  (* CR-someday xclerc for xclerc: consider using unsafe versions of blit and
+     fill. *)
+
+  module Make (T : OrderedTypeWithDummy) : S with type e = T.t = struct
+    type e = T.t
 
     type t =
-      | List of e List.t
-      | Set of Set.t
+      { mutable array : e array;
+        mutable length : int
+      }
 
-    let empty_list = List []
+    let make ~original_capacity =
+      let array = Array.make (max 1 original_capacity) T.dummy in
+      let length = 0 in
+      { array; length }
 
-    let empty_set = Set Set.empty
+    let clear t =
+      Array.fill t.array ~pos:0 ~len:t.length T.dummy;
+      t.length <- 0
 
-    let make ~expected_max_size =
-      if expected_max_size < cut_off then empty_list else empty_set
+    let is_empty t = Int.equal t.length 0
 
-    let empty t = match t with List _ -> empty_list | Set _ -> empty_set
+    let index array length e =
+      let low = ref 0 in
+      let high = ref length in
+      while !low < !high do
+        let mid = (!low + !high) / 2 in
+        if T.compare e (Array.unsafe_get array mid) > 0
+        then low := succ mid
+        else high := mid
+      done;
+      !low
 
-    let is_empty t =
-      match t with
-      | List l -> ( match l with [] -> true | _ :: _ -> false)
-      | Set s -> Set.is_empty s
+    let new_length curr = if curr < 512 then 2 * curr else curr + 128
 
     let add t e =
-      match t with
-      | List l ->
-        if List.exists l ~f:(fun x -> E.compare x e = 0)
-        then t
-        else List (e :: l)
-      | Set s ->
-        let s' = Set.add e s in
-        if s == s' then t else Set s'
+      let idx = index t.array t.length e in
+      if idx >= Array.length t.array
+         || T.compare e (Array.unsafe_get t.array idx) <> 0
+      then (
+        if t.length = Array.length t.array
+        then (
+          (* reallocation *)
+          let new_array =
+            Array.make (new_length (Array.length t.array)) T.dummy
+          in
+          let len_before = idx in
+          if len_before > 0
+          then
+            Array.blit ~src:t.array ~src_pos:0 ~dst:new_array ~dst_pos:0
+              ~len:len_before;
+          let len_after = t.length - idx in
+          if len_after > 0
+          then
+            Array.blit ~src:t.array ~src_pos:idx ~dst:new_array
+              ~dst_pos:(succ idx) ~len:len_after;
+          Array.unsafe_set new_array idx e;
+          t.array <- new_array;
+          t.length <- succ t.length)
+        else
+          (* insertion *)
+          let len = t.length - idx in
+          if len > 0
+          then
+            Array.blit ~src:t.array ~src_pos:idx ~dst:t.array
+              ~dst_pos:(succ idx) ~len;
+          Array.unsafe_set t.array idx e;
+          t.length <- succ t.length)
 
     let remove t e =
-      match t with
-      | List l ->
-        let rec filter e acc = function
-          | [] -> acc
-          | hd :: tl ->
-            if E.compare e hd = 0 then acc @ tl else filter e (hd :: acc) tl
-        in
-        List (filter e [] l)
-      | Set s ->
-        let s' = Set.remove e s in
-        if s == s' then t else Set s'
+      let idx = index t.array t.length e in
+      if idx < Array.length t.array
+         && T.compare e (Array.unsafe_get t.array idx) = 0
+      then (
+        let len = t.length - idx - 1 in
+        if len > 0
+        then
+          Array.blit ~src:t.array ~src_pos:(succ idx) ~dst:t.array ~dst_pos:idx
+            ~len;
+        t.length <- pred t.length;
+        Array.unsafe_set t.array t.length T.dummy)
 
     let choose_and_remove t =
-      match t with
-      | List l -> ( match l with [] -> None | hd :: tl -> Some (hd, List tl))
-      | Set s -> (
-        match Set.choose_opt s with
-        | None -> None
-        | Some e -> Some (e, Set (Set.remove e s)))
+      if Int.equal t.length 0
+      then None
+      else
+        let idx = pred t.length in
+        t.length <- idx;
+        let res = Some (Array.unsafe_get t.array idx) in
+        Array.unsafe_set t.array idx T.dummy;
+        res
 
     let iter t ~f =
-      match t with List l -> List.iter l ~f | Set s -> Set.iter f s
+      for i = 0 to pred t.length do
+        f (Array.unsafe_get t.array i)
+      done
 
     let fold t ~f ~init =
-      match t with
-      | List l -> List.fold_left l ~f:(fun acc elem -> f elem acc) ~init
-      | Set s -> Set.fold f s init
+      let res = ref init in
+      for i = 0 to pred t.length do
+        res := f !res (Array.unsafe_get t.array i)
+      done;
+      !res
 
-    let to_list t = match t with List l -> l | Set s -> Set.elements s
-
-    let to_set t = match t with List l -> Set.of_list l | Set s -> s
+    let to_list t =
+      let rec loop arr idx acc =
+        if idx < 0
+        then acc
+        else loop arr (pred idx) (Array.unsafe_get arr idx :: acc)
+      in
+      loop t.array (pred t.length) []
   end
 end

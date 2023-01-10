@@ -100,6 +100,8 @@ module Block_access_kind : sig
   val print : Format.formatter -> t -> unit
 
   val compare : t -> t -> int
+
+  val element_kind_for_load : t -> Flambda_kind.t
 end
 
 (* CR-someday mshinwell: We should have unboxed arrays of int32, int64 and
@@ -117,7 +119,7 @@ type string_or_bytes =
 module Init_or_assign : sig
   type t =
     | Initialization
-    | Assignment of Alloc_mode.t
+    | Assignment of Alloc_mode.For_allocations.t
 
   val to_lambda : t -> Lambda.initialization_or_assignment
 end
@@ -191,6 +193,11 @@ type signed_or_unsigned =
 
 (** Primitives taking exactly zero arguments. *)
 type nullary_primitive =
+  | Invalid of Flambda_kind.t
+      (** Used when rebuilding a primitive that turns out to be invalid. This is
+          easier to use than turning a whole let-binding into Invalid (which
+          might end up deleting code on the way up, resulting in a typing env
+          out-of-sync with the generated code). *)
   | Optimised_out of Flambda_kind.t
       (** Used for phantom bindings for which there is not enough information
           remaining to build a meaningful value. Can only be used in a phantom
@@ -199,7 +206,8 @@ type nullary_primitive =
       (** Returns a boolean saying whether the given tracing probe is enabled. *)
   | Begin_region
       (** Starting delimiter of local allocation region, returning a region
-          name. *)
+          name. For regions for the "try" part of a "try...with", use
+          [Begin_try_region] (below) instead. *)
 
 (** Untagged binary integer arithmetic operations.
 
@@ -239,7 +247,7 @@ type unary_primitive =
   (* CR gbury: Invariant check: 0 < dimension <= 3 *)
   | String_length of string_or_bytes
   | Int_as_pointer
-  | Opaque_identity
+  | Opaque_identity of { middle_end_only : bool }
   | Int_arith of Flambda_kind.Standard_int.t * unary_int_arith_op
   | Float_arith of unary_float_arith_op
   | Num_conv of
@@ -260,7 +268,7 @@ type unary_primitive =
      [Flambda_kind.Of_naked_number.t] arguments (one input, one output). *)
   | Reinterpret_int64_as_float
   | Unbox_number of Flambda_kind.Boxable_number.t
-  | Box_number of Flambda_kind.Boxable_number.t * Alloc_mode.t
+  | Box_number of Flambda_kind.Boxable_number.t * Alloc_mode.For_allocations.t
   | Untag_immediate
   | Tag_immediate
   | Project_function_slot of
@@ -273,7 +281,8 @@ type unary_primitive =
           closures. *)
   | Project_value_slot of
       { project_from : Function_slot.t;
-        value_slot : Value_slot.t
+        value_slot : Value_slot.t;
+        kind : Flambda_kind.With_subkind.t
       }
       (** Project a value slot from a set of closures -- in other words, read an
           entry from the closure environment (the captured variables). *)
@@ -281,8 +290,12 @@ type unary_primitive =
       (** Only valid when the float array optimisation is enabled. *)
   | Is_flat_float_array
       (** Only valid when the float array optimisation is enabled. *)
+  | Begin_try_region
+      (** Starting delimiter of local allocation region, when used for a "try"
+          body, accepting the parent region as argument. *)
   | End_region
       (** Ending delimiter of local allocation region, accepting a region name. *)
+  | Obj_dup  (** Corresponds to [Obj.dup]; see the documentation in obj.mli. *)
 
 (** Whether a comparison is to yield a boolean result, as given by a particular
     comparison operator, or whether it is to behave in the manner of "compare"
@@ -339,8 +352,8 @@ type ternary_primitive =
 
 (** Primitives taking zero or more arguments. *)
 type variadic_primitive =
-  | Make_block of Block_kind.t * Mutability.t * Alloc_mode.t
-  | Make_array of Array_kind.t * Mutability.t * Alloc_mode.t
+  | Make_block of Block_kind.t * Mutability.t * Alloc_mode.For_allocations.t
+  | Make_array of Array_kind.t * Mutability.t * Alloc_mode.For_allocations.t
 (* CR mshinwell: Invariant checks -- e.g. that the number of arguments matches
    [num_dimensions] *)
 
@@ -371,6 +384,10 @@ module Without_args : sig
     | Variadic of variadic_primitive
 
   val print : Format.formatter -> t -> unit
+
+  (** Describe the effects and coeffects that the application of the given
+      primitive may have. *)
+  val effects_and_coeffects : t -> Effects_and_coeffects.t
 end
 
 (** A description of the kind of values which a unary primitive expects as its
@@ -424,7 +441,7 @@ val result_kind' : t -> Flambda_kind.t
 
 (** Describe the effects and coeffects that the application of the given
     primitive may have. *)
-val effects_and_coeffects : t -> Effects.t * Coeffects.t
+val effects_and_coeffects : t -> Effects_and_coeffects.t
 
 (** Returns [true] iff the given primitive has neither effects nor coeffects. *)
 val no_effects_or_coeffects : t -> bool
@@ -476,3 +493,7 @@ val equal_binary_primitive : binary_primitive -> binary_primitive -> bool
 val equal_ternary_primitive : ternary_primitive -> ternary_primitive -> bool
 
 val equal_variadic_primitive : variadic_primitive -> variadic_primitive -> bool
+
+val is_begin_or_end_region : t -> bool
+
+val is_end_region : t -> Variable.t option

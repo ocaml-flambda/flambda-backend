@@ -74,7 +74,7 @@ let canonicalise availability =
         | None -> ()
         | Some debug_info -> (
           let name = RD.Debug_info.holds_value_of debug_info in
-          if not (V.persistent name)
+          if not (V.is_global_or_predef name)
           then
             match V.Tbl.find regs_by_ident name with
             | exception Not_found -> V.Tbl.add regs_by_ident name reg

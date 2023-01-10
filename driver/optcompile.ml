@@ -45,22 +45,22 @@ let flambda_and_flambda2 i typed ~compile_implementation =
       { program with Lambda.code }
       |> print_if i.ppf_dump Clflags.dump_lambda Printlambda.program
       |> Compiler_hooks.execute_and_pipe Compiler_hooks.Lambda
-      |> (fun ({ Lambda.module_ident; main_module_block_size;
+      |> (fun ({ Lambda.compilation_unit; main_module_block_size;
                  required_globals; code }) ->
-           compile_implementation ~module_ident ~main_module_block_size ~code
+           compile_implementation ~compilation_unit ~main_module_block_size ~code
              ~required_globals;
            Compilenv.save_unit_info (cmx i)))
 
 let flambda2_ unix i ~flambda2 ~keep_symbol_tables typed =
   flambda_and_flambda2 i typed
-    ~compile_implementation:(fun ~module_ident ~main_module_block_size ~code
+    ~compile_implementation:(fun ~compilation_unit ~main_module_block_size ~code
           ~required_globals ->
       Asmgen.compile_implementation_flambda2
         unix
         ~filename:i.source_file
         ~prefixname:i.output_prefix
         ~size:main_module_block_size
-        ~module_ident
+        ~compilation_unit
         ~module_initializer:code
         ~flambda2
         ~ppf_dump:i.ppf_dump
@@ -70,11 +70,11 @@ let flambda2_ unix i ~flambda2 ~keep_symbol_tables typed =
 
 let flambda unix i backend typed =
   flambda_and_flambda2 i typed
-    ~compile_implementation:(fun ~module_ident ~main_module_block_size ~code
+    ~compile_implementation:(fun ~compilation_unit ~main_module_block_size ~code
           ~required_globals ->
       let program : Lambda.program =
         { Lambda.
-          module_ident;
+          compilation_unit;
           main_module_block_size;
           required_globals;
           code;
@@ -113,14 +113,15 @@ let clambda unix i backend typed =
 
 (* Emit assembly directly from Linear IR *)
 let emit unix i =
-  Compilenv.reset ?packname:!Clflags.for_package i.module_name;
+  Compilenv.reset i.module_name;
   Asmgen.compile_implementation_linear unix
     i.output_prefix ~progname:i.source_file
 
 let implementation unix ~backend ~flambda2 ~start_from ~source_file
     ~output_prefix ~keep_symbol_tables =
-  let backend info typed =
-    Compilenv.reset ?packname:!Clflags.for_package info.module_name;
+  let backend info ({ structure; coercion; _ } : Typedtree.implementation) =
+    Compilenv.reset info.module_name;
+    let typed = structure, coercion in
     if Config.flambda
     then flambda unix info backend typed
     else if Config.flambda2
@@ -132,7 +133,8 @@ let implementation unix ~backend ~flambda2 ~start_from ~source_file
   | Parsing ->
     Compile_common.implementation
       ~hook_parse_tree:(Compiler_hooks.execute Compiler_hooks.Parse_tree_impl)
-      ~hook_typed_tree:(Compiler_hooks.execute Compiler_hooks.Typed_tree_impl)
+      ~hook_typed_tree:(fun (impl : Typedtree.implementation) ->
+        Compiler_hooks.execute Compiler_hooks.Typed_tree_impl impl)
       info ~backend
   | Emit -> emit unix info ~ppf_dump:info.ppf_dump
   | _ -> Misc.fatal_errorf "Cannot start from %s"

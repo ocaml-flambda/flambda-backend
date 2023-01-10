@@ -63,7 +63,11 @@ and ulambda =
       function_label * ulambda list * Lambda.probe * apply_kind * Debuginfo.t
   | Ugeneric_apply of
       ulambda * ulambda list * apply_kind * Debuginfo.t
-  | Uclosure of ufunction list * ulambda list
+  | Uclosure of {
+      functions : ufunction list ;
+      not_scanned_slots : ulambda list ;
+      scanned_slots : ulambda list
+    }
   | Uoffset of ulambda * int
   | Ulet of mutable_flag * value_kind * Backend_var.With_provenance.t
       * ulambda * ulambda
@@ -110,7 +114,9 @@ and ufunction = {
   body   : ulambda;
   dbg    : Debuginfo.t;
   env    : Backend_var.t option;
+  poll   : poll_attribute;
   mode   : Lambda.alloc_mode;
+  check  : Lambda.check_attribute;
 }
 
 and ulambda_switch =
@@ -127,6 +133,7 @@ type function_description =
     mutable fun_closed: bool;           (* True if environment not used *)
     mutable fun_inline: (Backend_var.With_provenance.t list * ulambda) option;
     mutable fun_float_const_prop: bool; (* Can propagate FP consts *)
+    fun_poll: poll_attribute;           (* Behaviour for polls *)
     fun_region: bool;                   (* If false, may locally allocate
                                            in caller's region *)
   }

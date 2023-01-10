@@ -28,6 +28,7 @@ open Cmo_format
 let no_approx = ref false
 let no_code = ref false
 let no_crc = ref false
+let shape = ref false
 
 module Magic_number = Misc.Magic_number
 
@@ -49,24 +50,39 @@ let null_crc = String.make 32 '0'
 
 let string_of_crc crc = if !no_crc then null_crc else Digest.to_hex crc
 
-let print_name_crc (name, crco) =
+let print_name_crc name crco =
   let crc =
     match crco with
       None -> dummy_crc
     | Some crc -> string_of_crc crc
   in
-    printf "\t%s\t%s\n" crc name
+    printf "\t%s\t%a\n" crc Compilation_unit.Name.output name
+
+(* CR-someday mshinwell: consider moving to [Import_info.print] *)
+
+let print_intf_import import =
+  let name = Import_info.name import in
+  let crco = Import_info.crc import in
+  print_name_crc name crco
+
+let print_impl_import import =
+  let unit = Import_info.cu import in
+  let crco = Import_info.crc import in
+  print_name_crc (Compilation_unit.name unit) crco
 
 let print_line name =
   printf "\t%s\n" name
 
+let print_name_line cu =
+  printf "\t%a\n" Compilation_unit.Name.output (Compilation_unit.name cu)
+
 let print_required_global id =
-  printf "\t%s\n" (Ident.name id)
+  printf "\t%a\n" Compilation_unit.output id
 
 let print_cmo_infos cu =
-  printf "Unit name: %s\n" cu.cu_name;
+  printf "Unit name: %a\n" Compilation_unit.output cu.cu_name;
   print_string "Interfaces imported:\n";
-  List.iter print_name_crc cu.cu_imports;
+  Array.iter print_intf_import cu.cu_imports;
   print_string "Required globals:\n";
   List.iter print_required_global cu.cu_required_globals;
   printf "Uses unsafe features: ";
@@ -95,15 +111,15 @@ let print_cma_infos (lib : Cmo_format.library) =
   List.iter print_cmo_infos lib.lib_units
 
 let print_cmi_infos name crcs =
-  printf "Unit name: %s\n" name;
+  printf "Unit name: %a\n" Compilation_unit.output name;
   printf "Interfaces imported:\n";
-  List.iter print_name_crc crcs
+  Array.iter print_intf_import crcs
 
 let print_cmt_infos cmt =
   let open Cmt_format in
-  printf "Cmt unit name: %s\n" cmt.cmt_modname;
+  printf "Cmt unit name: %a\n" Compilation_unit.output cmt.cmt_modname;
   print_string "Cmt interfaces imported:\n";
-  List.iter print_name_crc cmt.cmt_imports;
+  Array.iter print_intf_import cmt.cmt_imports;
   printf "Source file: %s\n"
          (match cmt.cmt_sourcefile with None -> "(none)" | Some f -> f);
   printf "Compilation flags:";
@@ -114,17 +130,27 @@ let print_cmt_infos cmt =
   printf "cmt interface digest: %s\n"
     (match cmt.cmt_interface_digest with
      | None -> ""
-     | Some crc -> string_of_crc crc)
+     | Some crc -> string_of_crc crc);
+  if !shape then begin
+    printf "Implementation shape: ";
+    (match cmt.cmt_impl_shape with
+    | None -> printf "(none)\n"
+    | Some shape -> Format.printf "\n%a" Shape.print shape)
+  end
+
+let linkage_name comp_unit =
+  Symbol.for_compilation_unit comp_unit
+  |> Symbol.linkage_name_for_ocamlobjinfo
 
 let print_general_infos name crc defines cmi cmx =
   printf "Name: %s\n" name;
   printf "CRC of implementation: %s\n" (string_of_crc crc);
   printf "Globals defined:\n";
-  List.iter print_line defines;
+  List.iter print_line (List.map linkage_name defines);
   printf "Interfaces imported:\n";
-  List.iter print_name_crc cmi;
+  Array.iter print_intf_import cmi;
   printf "Implementations imported:\n";
-  List.iter print_name_crc cmx
+  Array.iter print_impl_import cmx
 
 let print_global_table table =
   printf "Globals defined:\n";
@@ -136,8 +162,15 @@ open Cmx_format
 open Cmxs_format
 
 let print_cmx_infos (ui, crc) =
+  (* ocamlobjinfo has historically printed the name of the unit without
+     the pack prefix. *)
+  let comp_unit_without_pack_prefix =
+    Compilation_unit.create Compilation_unit.Prefix.empty
+      (Compilation_unit.name ui.ui_unit)
+  in
   print_general_infos
-    ui.ui_name crc ui.ui_defines ui.ui_imports_cmi ui.ui_imports_cmx;
+    (linkage_name comp_unit_without_pack_prefix)
+    crc ui.ui_defines ui.ui_imports_cmi ui.ui_imports_cmx;
   begin match ui.ui_export_info with
   | Clambda approx ->
     if not !no_approx then begin
@@ -151,16 +184,8 @@ let print_cmx_infos (ui, crc) =
     else
       printf "Flambda unit\n";
     if not !no_approx then begin
-      let cu =
-        Compilation_unit.create (Ident.create_persistent ui.ui_name)
-          (Linkage_name.create "__dummy__")
-      in
-      Compilation_unit.set_current cu;
-      let root_symbols =
-        List.map (fun s ->
-            Symbol.of_global_linkage cu (Linkage_name.create ("caml"^s)))
-          ui.ui_defines
-      in
+      Compilation_unit.set_current (Some ui.ui_unit);
+      let root_symbols = List.map Symbol.for_compilation_unit ui.ui_defines in
       Format.printf "approximations@ %a@.@."
         Export_info.print_approx (export, root_symbols)
     end;
@@ -192,7 +217,7 @@ let print_cmxs_infos header =
   List.iter
     (fun ui ->
        print_general_infos
-         ui.dynu_name
+         (ui.dynu_name |> Compilation_unit.full_path_as_string)
          ui.dynu_crc
          ui.dynu_defines
          ui.dynu_imports_cmi
@@ -200,12 +225,6 @@ let print_cmxs_infos header =
     header.dynu_units
 
 let p_title title = printf "%s:\n" title
-
-let p_section title = function
-  | [] -> ()
-  | l ->
-      p_title title;
-      List.iter print_name_crc l
 
 let p_list title print = function
   | [] -> ()
@@ -223,9 +242,10 @@ let dump_byte ic =
          let len = Bytesections.seek_section ic section in
          if len > 0 then match section with
            | "CRCS" ->
-               p_section
+               p_list
                  "Imported units"
-                 (input_value ic : (string * Digest.t option) list)
+                 print_intf_import
+                 ((input_value ic : Import_info.t array) |> Array.to_list)
            | "DLLS" ->
                p_list
                  "Used DLLs"
@@ -280,7 +300,7 @@ let dump_obj_by_kind filename ic obj_kind =
     | Cmo ->
        let cu_pos = input_binary_int ic in
        seek_in ic cu_pos;
-       let cu = (input_value ic : compilation_unit) in
+       let cu = (input_value ic : compilation_unit_descr) in
        close_in ic;
        print_cmo_infos cu
     | Cma ->
@@ -388,6 +408,8 @@ let arg_list = [
     " Do not print module approximation information";
   "-no-code", Arg.Set no_code,
     " Do not print code from exported flambda functions";
+  "-shape", Arg.Set shape,
+    " Print the shape of the module";
   "-null-crc", Arg.Set no_crc, " Print a null CRC for imported interfaces";
   "-args", Arg.Expand Arg.read_arg,
      "<file> Read additional newline separated command line arguments \n\

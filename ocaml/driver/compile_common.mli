@@ -18,7 +18,7 @@
 
 type info = {
   source_file : string;
-  module_name : string;
+  module_name : Compilation_unit.t;
   output_prefix : string;
   env : Env.t;
   ppf_dump : Format.formatter;
@@ -71,18 +71,17 @@ val interface :
 val parse_impl : info -> Parsetree.structure
 (** [parse_impl info] parses an implementation (usually an [.ml] file). *)
 
-val typecheck_impl :
-  info -> Parsetree.structure -> Typedtree.structure * Typedtree.module_coercion
+val typecheck_impl : info -> Parsetree.structure -> Typedtree.implementation
 (** [typecheck_impl info parsetree] typechecks an implementation and returns
-    the typedtree of the associated module, along with a coercion against
-    its public interface.
+    the typedtree of the associated module, its public interface, and a
+    coercion against that public interface.
 *)
 
 val implementation :
   hook_parse_tree:(Parsetree.structure -> unit)
-  -> hook_typed_tree:(Typedtree.structure * Typedtree.module_coercion -> unit)
+  -> hook_typed_tree:(Typedtree.implementation -> unit)
   -> info ->
-  backend:(info -> Typedtree.structure * Typedtree.module_coercion -> unit) ->
+  backend:(info -> Typedtree.implementation -> unit) ->
   unit
 (** The complete compilation pipeline for implementations. *)
 

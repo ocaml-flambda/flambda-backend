@@ -28,6 +28,11 @@ val heap_reduction_threshold : int ref
 val alloc_check : bool ref
 val dump_checkmach : bool ref
 
+val disable_poll_insertion : bool ref
+val allow_long_frames : bool ref
+val max_long_frames_threshold : int
+val long_frames_threshold : int ref
+
 type function_result_types = Never | Functors_only | All_functions
 type opt_level = Oclassic | O2 | O3
 type 'a or_default = Set of 'a | Default
@@ -85,6 +90,7 @@ module Flambda2 : sig
     val flexpect : bool ref
     val slot_offsets : bool ref
     val freshen : bool ref
+    val flow : bool ref
   end
 
   module Expert : sig
@@ -95,6 +101,7 @@ module Flambda2 : sig
       val max_block_size_for_projections : int option
       val max_unboxing_depth : int
       val can_inline_recursive_functions : bool
+      val max_function_simplify_run : int
     end
 
     type flags = {
@@ -104,6 +111,7 @@ module Flambda2 : sig
       max_block_size_for_projections : int option;
       max_unboxing_depth : int;
       can_inline_recursive_functions : bool;
+      max_function_simplify_run : int;
     }
 
     val default_for_opt_level : opt_level or_default -> flags
@@ -114,6 +122,7 @@ module Flambda2 : sig
     val max_block_size_for_projections : int option or_default ref
     val max_unboxing_depth : int or_default ref
     val can_inline_recursive_functions : bool or_default ref
+    val max_function_simplify_run : int or_default ref
   end
 
   module Debug : sig
@@ -127,24 +136,28 @@ module Flambda2 : sig
   end
 
   module Inlining : sig
+    type inlining_arguments = private {
+      max_depth : int;
+      max_rec_depth : int;
+      call_cost : float;
+      alloc_cost : float;
+      prim_cost : float;
+      branch_cost : float;
+      indirect_call_cost : float;
+      poly_compare_cost : float;
+      small_function_size : int;
+      large_function_size : int;
+      threshold : float;
+    }
+
     module Default : sig
-      val max_depth : int
-      val max_rec_depth : int
-
-      val call_cost : float
-      val alloc_cost : float
-      val prim_cost : float
-      val branch_cost : float
-      val indirect_call_cost : float
-      val poly_compare_cost : float
-
-      val small_function_size : int
-      val large_function_size : int
-
-      val threshold : float
-
+      val default_arguments : inlining_arguments
       val speculative_inlining_only_if_arguments_useful : bool
     end
+
+    val oclassic_arguments : inlining_arguments
+    val o2_arguments : inlining_arguments
+    val o3_arguments : inlining_arguments
 
     val max_depth : Clflags.Int_arg_helper.parsed ref
     val max_rec_depth : Clflags.Int_arg_helper.parsed ref

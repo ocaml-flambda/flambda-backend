@@ -174,6 +174,7 @@ let oper_result_type = function
   | Calloc _ -> typ_val
   | Cstore (_c, _) -> typ_void
   | Cprefetch _ -> typ_void
+  | Catomic _ -> typ_int
   | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi |
     Cand | Cor | Cxor | Clsl | Clsr | Casr |
     Cclz _ | Cctz _ | Cpopcnt |
@@ -182,8 +183,11 @@ let oper_result_type = function
   | Caddv -> typ_val
   | Cadda -> typ_addr
   | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf -> typ_float
+  | Ccsel ty -> ty
   | Cfloatofint -> typ_float
   | Cintoffloat -> typ_int
+  | Cvalueofint -> typ_val
+  | Cintofvalue -> typ_int
   | Craise _ -> typ_void
   | Ccheckbound -> typ_void
   | Cprobe _ -> typ_void
@@ -448,7 +452,7 @@ method is_simple_expr = function
         List.for_all self#is_simple_expr args
         (* The following may have side effects *)
       | Capply _ | Cextcall _ | Calloc _ | Cstore _
-      | Craise _ | Ccheckbound
+      | Craise _ | Ccheckbound | Catomic _
       | Cprobe _ | Cprobe_is_enabled _ | Copaque -> false
       | Cprefetch _ | Cbeginregion | Cendregion -> false (* avoid reordering *)
         (* The remaining operations are simple if their args are *)
@@ -456,7 +460,9 @@ method is_simple_expr = function
       | Cxor | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf
       | Cclz _ | Cctz _ | Cpopcnt
       | Cbswap _
+      | Ccsel _
       | Cabsf | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat
+      | Cvalueofint | Cintofvalue
       | Ccmpf _ -> List.for_all self#is_simple_expr args
       end
   | Cassign _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _
@@ -499,15 +505,18 @@ method effects_of exp =
       | Cstore _ -> EC.effect_only Effect.Arbitrary
       | Cbeginregion | Cendregion -> EC.arbitrary
       | Cprefetch _ -> EC.arbitrary
+      | Catomic _ -> EC.arbitrary
       | Craise _ | Ccheckbound -> EC.effect_only Effect.Raise
       | Cload (_, Asttypes.Immutable) -> EC.none
       | Cload (_, Asttypes.Mutable) -> EC.coeffect_only Coeffect.Read_mutable
       | Cprobe_is_enabled _ -> EC.coeffect_only Coeffect.Arbitrary
       | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi | Cand | Cor | Cxor
       | Cbswap _
+      | Ccsel _
       | Cclz _ | Cctz _ | Cpopcnt
       | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf | Cabsf
-      | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat | Ccmpf _ ->
+      | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat
+      | Cvalueofint | Cintofvalue | Ccmpf _ ->
         EC.none
     in
     EC.join from_op (EC.join_list_map args self#effects_of)
@@ -553,9 +562,9 @@ method mark_instr = function
       self#mark_call
   | Iop (Itailcall_ind | Itailcall_imm _) ->
       self#mark_tailcall
-  | Iop (Ialloc _) ->
-      self#mark_call (* caml_alloc*, caml_garbage_collection *)
-  | Iop (Iintop(Icheckbound) | Iintop_imm(Icheckbound, _)) ->
+  | Iop (Ialloc _) | Iop (Ipoll _) ->
+      self#mark_call (* caml_alloc*, caml_garbage_collection (incl. polls) *)
+  | Iop (Iintop (Icheckbound) | Iintop_imm(Icheckbound, _)) ->
       self#mark_c_tailcall (* caml_ml_array_bound_error *)
   | Iraise raise_kind ->
     begin match raise_kind with
@@ -622,6 +631,9 @@ method select_operation op args _dbg =
   | (Cadda, _) -> self#select_arith_comm Iadd args
   | (Ccmpa comp, _) -> self#select_arith_comp (Iunsigned comp) args
   | (Ccmpf comp, _) -> (Icompf comp, args)
+  | (Ccsel _, [cond; ifso; ifnot]) ->
+     let (cond, earg) = self#select_condition cond in
+     (Icsel cond, [ earg; ifso; ifnot ])
   | (Cnegf, _) -> (Inegf, args)
   | (Cabsf, _) -> (Iabsf, args)
   | (Caddf, _) -> (Iaddf, args)
@@ -630,6 +642,16 @@ method select_operation op args _dbg =
   | (Cdivf, _) -> (Idivf, args)
   | (Cfloatofint, _) -> (Ifloatofint, args)
   | (Cintoffloat, _) -> (Iintoffloat, args)
+  | (Cvalueofint, _) -> (Ivalueofint, args)
+  | (Cintofvalue, _) -> (Iintofvalue, args)
+  | (Catomic {op = Fetch_and_add; size}, [src; dst]) ->
+    let dst_size = match size with Word | Sixtyfour -> Word_int | Thirtytwo -> Thirtytwo_signed in
+    let (addr, eloc) = self#select_addressing dst_size dst in
+    (Iintop_atomic { op = Fetch_and_add; size; addr }, [src; eloc])
+  | (Catomic {op = Compare_and_swap; size}, [compare_with; set_to; dst]) ->
+    let dst_size = match size with Word | Sixtyfour -> Word_int | Thirtytwo -> Thirtytwo_signed in
+    let (addr, eloc) = self#select_addressing dst_size dst in
+    (Iintop_atomic { op = Compare_and_swap; size; addr }, [compare_with; set_to; eloc])
   | (Ccheckbound, _) ->
     self#select_arith Icheckbound args
   | (Cprobe { name; handler_code_sym; }, _) ->
@@ -705,12 +727,15 @@ method insert_debug _env desc dbg arg res =
 method insert _env desc arg res =
   instr_seq <- instr_cons desc arg res instr_seq
 
-method extract =
+method extract_onto o =
   let rec extract res i =
     if i == dummy_instr
-    then res
-    else extract {i with next = res} i.next in
-  extract (end_instr ()) instr_seq
+      then res
+      else extract {i with next = res} i.next in
+    extract o instr_seq
+
+method extract =
+  self#extract_onto (end_instr ())
 
 (* Insert a sequence of moves from one pseudoreg set to another. *)
 
@@ -1044,9 +1069,12 @@ method emit_expr (env:environment) exp =
       end
   | Ctrywith(e1, kind, v, e2, _dbg, _value_kind) ->
       (* This region is used only to clean up local allocations in the
-         exceptional path. It need not be ended in the non-exception case. *)
+         exceptional path. It must not be ended in the non-exception case
+         as local allocations may be returned from the body of the "try". *)
       let end_region =
-        if Config.stack_allocation then begin
+        if Config.stack_allocation
+          && match kind with Regular -> true | Delayed _ -> false
+        then begin
           let reg = self#regs_for typ_int in
           self#insert env (Iop Ibeginregion) [| |] reg;
           fun handler_instruction -> instr_cons (Iop Iendregion) reg [| |] handler_instruction
@@ -1529,7 +1557,7 @@ method private emit_tail_sequence env exp =
 
 (* Sequentialization of a function definition *)
 
-method emit_fundecl f =
+method emit_fundecl ~future_funcnames f =
   current_function_name := f.Cmm.fun_name;
   let rargs =
     List.map
@@ -1541,15 +1569,27 @@ method emit_fundecl f =
     List.fold_right2
       (fun (id, _ty) r env -> env_add id r env)
       f.Cmm.fun_args rargs env_empty in
-  self#insert_moves env loc_arg rarg;
   self#emit_tail env f.Cmm.fun_body;
   let body = self#extract in
-  instr_iter (fun instr -> self#mark_instr instr.Mach.desc) body;
+  instr_seq <- dummy_instr;
+  self#insert_moves env loc_arg rarg;
+  let polled_body =
+    if Polling.requires_prologue_poll ~future_funcnames
+         ~fun_name:f.Cmm.fun_name body
+      then
+        instr_cons_debug
+          (Iop(Ipoll { return_label = None })) [||] [||] f.Cmm.fun_dbg body
+    else
+      body
+    in
+  let body_with_prologue = self#extract_onto polled_body in
+  instr_iter (fun instr -> self#mark_instr instr.Mach.desc) body_with_prologue;
   { fun_name = f.Cmm.fun_name;
     fun_args = loc_arg;
-    fun_body = body;
+    fun_body = body_with_prologue;
     fun_codegen_options = f.Cmm.fun_codegen_options;
     fun_dbg  = f.Cmm.fun_dbg;
+    fun_poll = f.Cmm.fun_poll;
     fun_num_stack_slots = Array.make Proc.num_register_classes 0;
     fun_contains_calls = !contains_calls;
   }

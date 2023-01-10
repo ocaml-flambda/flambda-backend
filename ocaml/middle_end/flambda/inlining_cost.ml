@@ -16,6 +16,7 @@
 
 [@@@ocaml.warning "+a-4-9-30-40-41-42-66"]
 open! Int_replace_polymorphic_compare
+module Int = Misc.Stdlib.Int
 
 (* Simple approximation of the space cost of a primitive. *)
 
@@ -93,23 +94,27 @@ let lambda_smaller' lam ~than:threshold =
       List.iter (fun (_, lam) -> lambda_named_size lam) bindings;
       lambda_size body
     | Switch (_, sw) ->
-      let aux = function _::_::_ -> size := !size + 5 | _ -> () in
-      aux sw.consts; aux sw.blocks;
+      let cost cases =
+        let size = List.length cases in
+        if size <= 1 then 0
+        else 3 + size
+      in
+      size := !size + cost sw.consts + cost sw.blocks;
       List.iter (fun (_, lam) -> lambda_size lam) sw.consts;
       List.iter (fun (_, lam) -> lambda_size lam) sw.blocks;
       Option.iter lambda_size sw.failaction
-    | String_switch (_, sw, def) ->
+    | String_switch (_, sw, def, _) ->
       List.iter (fun (_, lam) ->
           size := !size + 2;
           lambda_size lam)
         sw;
       Option.iter lambda_size def
     | Static_raise _ -> ()
-    | Static_catch (_, _, body, handler) ->
+    | Static_catch (_, _, body, handler, _) ->
       incr size; lambda_size body; lambda_size handler
-    | Try_with (body, _, handler) ->
+    | Try_with (body, _, handler, _) ->
       size := !size + 8; lambda_size body; lambda_size handler
-    | If_then_else (_, ifso, ifnot) ->
+    | If_then_else (_, ifso, ifnot, _) ->
       size := !size + 2;
       lambda_size ifso; lambda_size ifnot
     | While (cond, body) ->
@@ -180,7 +185,7 @@ module Threshold = struct
     | Never_inline, _ -> Never_inline
     | _, Never_inline -> Never_inline
     | Can_inline_if_no_larger_than i1, Can_inline_if_no_larger_than i2 ->
-      Can_inline_if_no_larger_than (min i1 i2)
+      Can_inline_if_no_larger_than (Int.min i1 i2)
 
   let equal t1 t2 =
     match t1, t2 with
@@ -682,7 +687,7 @@ let maximum_interesting_size_of_function_body_base =
         let inline_call_cost = cost !Clflags.inline_call_cost ~round in
         direct_call_size + (inline_call_cost * benefit_factor)
       in
-      max_cost := max !max_cost max_size
+      max_cost := Int.max !max_cost max_size
     done;
     !max_cost
   end
@@ -695,7 +700,7 @@ let maximum_interesting_size_of_function_body_multiplier =
         let inline_prim_cost = cost !Clflags.inline_prim_cost ~round in
         inline_prim_cost * benefit_factor
       in
-      max_cost := max !max_cost max_size
+      max_cost := Int.max !max_cost max_size
     done;
     !max_cost
   end

@@ -19,8 +19,21 @@ open Types
 
 val valid_tyvar_name : string -> bool
 
+type poly_univars
+val make_poly_univars : string list -> poly_univars
+  (* Create a set of univars with given names *)
+val check_poly_univars :
+   Env.t -> Location.t -> poly_univars -> type_expr list
+  (* Verify that the given univars are universally quantified,
+     and return the list of variables. The type in which the
+     univars are used must be generalised *)
+val instance_poly_univars :
+   Env.t -> Location.t -> poly_univars -> type_expr list
+  (* Same as [check_poly_univars], but instantiates the resulting
+     type scheme (i.e. variables become Tvar rather than Tunivar) *)
+
 val transl_simple_type:
-        Env.t -> bool -> alloc_mode_const
+        Env.t -> ?univars:poly_univars -> bool -> alloc_mode_const
         -> Parsetree.core_type -> Typedtree.core_type
 val transl_simple_type_univars:
         Env.t -> Parsetree.core_type -> Typedtree.core_type
@@ -38,6 +51,8 @@ val type_variable: Location.t -> string -> type_expr
 val transl_type_param:
   Env.t -> Parsetree.core_type -> Typedtree.core_type
 
+val get_alloc_mode : Parsetree.core_type -> alloc_mode_const
+
 type variable_context
 val narrow: unit -> variable_context
 val widen: variable_context -> unit
@@ -51,8 +66,8 @@ type error =
   | Bound_type_variable of string
   | Recursive_type
   | Unbound_row_variable of Longident.t
-  | Type_mismatch of Ctype.Unification_trace.t
-  | Alias_type_mismatch of Ctype.Unification_trace.t
+  | Type_mismatch of Errortrace.unification_error
+  | Alias_type_mismatch of Errortrace.unification_error
   | Present_has_conjunction of string
   | Present_has_no_type of string
   | Constructor_mismatch of type_expr * type_expr
@@ -64,7 +79,8 @@ type error =
   | Method_mismatch of string * type_expr * type_expr
   | Opened_object of Path.t option
   | Not_an_object of type_expr
-  | Local_not_enabled
+  | Unsupported_extension of Clflags.Extension.t
+  | Polymorphic_optional_param
 
 exception Error of Location.t * Env.t * error
 

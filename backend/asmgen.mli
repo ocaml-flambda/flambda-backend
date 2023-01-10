@@ -46,19 +46,19 @@ val compile_implementation_flambda2
   -> filename:string
   -> prefixname:string
   -> size:int
-  -> module_ident:Ident.t
+  -> compilation_unit:Compilation_unit.t
   -> module_initializer:Lambda.lambda
   -> flambda2:(
     ppf_dump:Format.formatter ->
     prefixname:string ->
     filename:string ->
-    module_ident:Ident.t ->
+    compilation_unit:Compilation_unit.t ->
     module_block_size_in_words:int ->
     module_initializer:Lambda.lambda ->
     keep_symbol_tables:bool ->
     Cmm.phrase list)
   -> ppf_dump:Format.formatter
-  -> required_globals:Ident.Set.t
+  -> required_globals:Compilation_unit.Set.t
   -> unit
   -> unit
 
@@ -77,7 +77,7 @@ val compile_phrase
 
 type error =
   | Assembler_error of string
-  | Mismatched_for_pack of string option
+  | Mismatched_for_pack of Compilation_unit.Prefix.t
   | Asm_generation of string * Emitaux.error
 
 exception Error of error

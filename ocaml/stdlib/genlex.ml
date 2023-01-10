@@ -17,6 +17,7 @@
 open! Stdlib
 
 [@@@ocaml.flambda_o3]
+[@@@ocaml.warning "-3"] (* ignore deprecation warning about module Stream *)
 
 type token =
     Kwd of string

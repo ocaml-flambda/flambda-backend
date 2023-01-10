@@ -14,7 +14,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-4-30-40-41-42-69"]
 
 (* CR-someday vlaviron for mshinwell: I believe that the phantom lets introduced
    in un_anf (when the new debug_full flag is enabled) bind mostly variables
@@ -144,10 +144,12 @@ let make_var_info (clam : Clambda.ulambda) : var_info =
       List.iter (loop ~depth) args;
       ignore_apply_kind info;
       ignore_debuginfo dbg
-    | Uclosure (functions, captured_variables) ->
-      List.iter (loop ~depth) captured_variables;
+    | Uclosure { functions; not_scanned_slots ; scanned_slots } ->
+      List.iter (loop ~depth) not_scanned_slots;
+      List.iter (loop ~depth) scanned_slots;
       List.iter (fun (
-        { Clambda. label; arity=_; params; return; body; dbg; env; mode=_} as clos) ->
+        { Clambda. label; arity=_; params; return; body; dbg; env; mode=_;
+            check=_; poll=_ } as clos) ->
           (match closure_environment_var clos with
            | None -> ()
            | Some env_var ->
@@ -320,10 +322,12 @@ let let_bound_vars_that_can_be_moved var_info (clam : Clambda.ulambda) =
       examine_argument_list (args @ [func]);
       ignore_apply_kind info;
       ignore_debuginfo dbg
-    | Uclosure (functions, captured_variables) ->
-      ignore_ulambda_list captured_variables;
+    | Uclosure { functions ; not_scanned_slots ; scanned_slots } ->
+      ignore_ulambda_list not_scanned_slots;
+      ignore_ulambda_list scanned_slots;
       (* Start a new let stack for speed. *)
-      List.iter (fun {Clambda. label; arity=_; params; return; body; dbg; env; mode=_} ->
+      List.iter (fun {Clambda. label; arity=_; params; return; body; dbg; env; mode=_;
+                      check=_; poll=_} ->
           ignore_function_label label;
           ignore_params_with_value_kind params;
           ignore_value_kind return;
@@ -499,7 +503,7 @@ let rec substitute_let_moveable is_let_moveable env (clam : Clambda.ulambda)
     let func = substitute_let_moveable is_let_moveable env func in
     let args = substitute_let_moveable_list is_let_moveable env args in
     Ugeneric_apply (func, args, kind, dbg)
-  | Uclosure (functions, variables_bound_by_the_closure) ->
+  | Uclosure { functions ; not_scanned_slots ; scanned_slots } ->
     let functions =
       List.map (fun (ufunction : Clambda.ufunction) ->
           { ufunction with
@@ -507,11 +511,15 @@ let rec substitute_let_moveable is_let_moveable env (clam : Clambda.ulambda)
           })
         functions
     in
-    let variables_bound_by_the_closure =
+    let not_scanned_slots =
       substitute_let_moveable_list is_let_moveable env
-        variables_bound_by_the_closure
+        not_scanned_slots
     in
-    Uclosure (functions, variables_bound_by_the_closure)
+    let scanned_slots =
+      substitute_let_moveable_list is_let_moveable env
+        scanned_slots
+    in
+    Uclosure { functions ; not_scanned_slots; scanned_slots }
   | Uoffset (clam, n) ->
     let clam = substitute_let_moveable is_let_moveable env clam in
     Uoffset (clam, n)
@@ -699,7 +707,7 @@ let rec un_anf_and_moveable var_info env (clam : Clambda.ulambda)
     let func = un_anf var_info env func in
     let args = un_anf_list var_info env args in
     Ugeneric_apply (func, args, kind, dbg), Fixed
-  | Uclosure (functions, variables_bound_by_the_closure) ->
+  | Uclosure { functions ; not_scanned_slots ; scanned_slots } ->
     let functions =
       List.map (fun (ufunction : Clambda.ufunction) ->
           { ufunction with
@@ -707,10 +715,9 @@ let rec un_anf_and_moveable var_info env (clam : Clambda.ulambda)
           })
         functions
     in
-    let variables_bound_by_the_closure =
-      un_anf_list var_info env variables_bound_by_the_closure
-    in
-    Uclosure (functions, variables_bound_by_the_closure), Fixed
+    let not_scanned_slots = un_anf_list var_info env not_scanned_slots in
+    let scanned_slots = un_anf_list var_info env scanned_slots in
+    Uclosure { functions ; not_scanned_slots ; scanned_slots }, Fixed
   | Uoffset (clam, n) ->
     let clam, moveable = un_anf_and_moveable var_info env clam in
     Uoffset (clam, n), both_moveable Moveable moveable

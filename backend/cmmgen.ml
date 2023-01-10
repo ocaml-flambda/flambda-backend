@@ -32,6 +32,7 @@ module IntMap = Map.Make(Int)
 module V = Backend_var
 module VP = Backend_var.With_provenance
 open Cmm_helpers
+open Cmm_builtins
 
 (* Environments used for translation to Cmm. *)
 
@@ -156,8 +157,9 @@ type rhs_kind =
 let rec expr_size env = function
   | Uvar id ->
       begin try V.find_same id env with Not_found -> RHS_nonrec end
-  | Uclosure(fundecls, clos_vars) ->
-      RHS_block (fundecls_size fundecls + List.length clos_vars)
+  | Uclosure { functions ; not_scanned_slots ; scanned_slots } ->
+      RHS_block (fundecls_size functions + List.length not_scanned_slots
+        + List.length scanned_slots)
   | Ulet(_str, _kind, id, exp, body) ->
       expr_size (V.add (VP.var id) (expr_size env exp) env) body
   | Uletrec(bindings, body) ->
@@ -426,18 +428,18 @@ let rec transl env e =
       end
   | Uconst sc ->
       transl_constant Debuginfo.none sc
-  | Uclosure(fundecls, []) ->
+  | Uclosure { functions ; not_scanned_slots = [] ; scanned_slots = [] } ->
       let sym = Compilenv.new_const_symbol() in
-      Cmmgen_state.add_constant sym (Const_closure (Local, fundecls, []));
-      List.iter (fun f -> Cmmgen_state.add_function f) fundecls;
+      Cmmgen_state.add_constant sym (Const_closure (Local, functions, []));
+      List.iter (fun f -> Cmmgen_state.add_function f) functions;
       let dbg =
-        match fundecls with
+        match functions with
         | [] -> Debuginfo.none
         | fundecl::_ -> fundecl.dbg
       in
       Cconst_symbol (sym, dbg)
-  | Uclosure(fundecls, clos_vars) ->
-      let startenv = fundecls_size fundecls in
+  | Uclosure { functions ; not_scanned_slots ; scanned_slots } ->
+      let startenv = fundecls_size functions + List.length not_scanned_slots in
       let mode =
         Option.get @@
         List.fold_left (fun s { mode; dbg; _ } ->
@@ -447,11 +449,12 @@ let rec transl env e =
              if not (Lambda.eq_mode mode m') then
                Misc.fatal_errorf "Inconsistent modes in let rec at %s"
                  (Debuginfo.to_string dbg);
-             s) None fundecls in
+             s) None functions in
       let rec transl_fundecls pos = function
           [] ->
-            List.map (transl env) clos_vars
+            List.map (transl env) (not_scanned_slots @ scanned_slots)
         | f :: rem ->
+            let is_last = match rem with [] -> true | _::_ -> false in
             Cmmgen_state.add_function f;
             let dbg = f.dbg in
             let without_header =
@@ -459,12 +462,12 @@ let rec transl env e =
               | Curried _, (1|0) as arity ->
                 Cconst_symbol (f.label, dbg) ::
                 alloc_closure_info ~arity
-                                   ~startenv:(startenv - pos) dbg ::
+                                   ~startenv:(startenv - pos) ~is_last dbg ::
                 transl_fundecls (pos + 3) rem
               | arity ->
                 Cconst_symbol (curry_function_sym arity, dbg) ::
                 alloc_closure_info ~arity
-                                   ~startenv:(startenv - pos) dbg ::
+                                   ~startenv:(startenv - pos) ~is_last dbg ::
                 Cconst_symbol (f.label, dbg) ::
                 transl_fundecls (pos + 4) rem
             in
@@ -473,11 +476,11 @@ let rec transl env e =
             else alloc_infix_header pos f.dbg :: without_header
       in
       let dbg =
-        match fundecls with
+        match functions with
         | [] -> Debuginfo.none
         | fundecl::_ -> fundecl.dbg
       in
-      make_alloc ~mode dbg Obj.closure_tag (transl_fundecls 0 fundecls)
+      make_alloc ~mode dbg Obj.closure_tag (transl_fundecls 0 functions)
   | Uoffset(arg, offset) ->
       (* produces a valid Caml value, pointing just after an infix header *)
       let ptr = transl env arg in
@@ -1471,6 +1474,7 @@ let transl_function f =
     else
       transl env body in
   let fun_codegen_options =
+    transl_attrib f.check @
     if !Clflags.optimize_for_speed then
       []
     else
@@ -1480,6 +1484,7 @@ let transl_function f =
              fun_args = List.map (fun (id, _) -> (id, typ_val)) f.params;
              fun_body = cmm_body;
              fun_codegen_options;
+             fun_poll = f.poll;
              fun_dbg  = f.dbg}
 
 (* Translate all function definitions *)
@@ -1569,7 +1574,7 @@ let compunit (ulam, preallocated_blocks, constants) =
         (fun () -> dbg)
     else
       transl empty_env ulam in
-  let c1 = [Cfunction {fun_name = Compilenv.make_symbol (Some "entry");
+  let c1 = [Cfunction {fun_name = make_symbol "entry";
                        fun_args = [];
                        fun_body = init_code;
                        (* This function is often large and run only once.
@@ -1582,7 +1587,8 @@ let compunit (ulam, preallocated_blocks, constants) =
                            Use_linscan_regalloc;
                          ]
                          else [ Reduce_code_size; Use_linscan_regalloc ];
-                       fun_dbg  = Debuginfo.none }] in
+                       fun_dbg  = Debuginfo.none;
+                       fun_poll = Default_poll }] in
   let c2 = transl_clambda_constants constants c1 in
   let c3 = transl_all_functions c2 in
   Cmmgen_state.set_structured_constants [];

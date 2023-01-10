@@ -7,8 +7,7 @@ type 'a t = [`A of 'a t t] as 'a;; (* fails *)
 Line 1, characters 0-32:
 1 | type 'a t = [`A of 'a t t] as 'a;; (* fails *)
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The definition of t contains a cycle:
-       'a t t as 'a
+Error: The type abbreviation t is cyclic
 |}, Principal{|
 Line 1, characters 0-32:
 1 | type 'a t = [`A of 'a t t] as 'a;; (* fails *)
@@ -143,8 +142,8 @@ let () = print_endline (match PR6505b.x with `Bar s -> s);; (* fails *)
 module PR6505b :
   sig
     type 'o is_an_object = 'o constraint 'o = [>  ]
-    type ('a, 'b) abs = 'b constraint 'a = 'b is_an_object
-      constraint 'b = [>  ]
+    type ('a, 'o) abs = 'o constraint 'a = 'o is_an_object
+      constraint 'o = [>  ]
     val x : (([> `Foo of int ] as 'a) is_an_object, 'a is_an_object) abs
   end
 Line 6, characters 23-57:
@@ -155,7 +154,6 @@ Here is an example of a case that is not matched:
 `Foo _
 Exception: Match_failure ("", 6, 23).
 |}]
-
 
 (* #9866, #9873 *)
 
@@ -214,7 +212,7 @@ Line 1, characters 0-59:
 1 | type 'a t = <a : 'a; b : 'b> constraint <a : 'a; ..> = 'b t;;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: A type variable is unbound in this type declaration.
-In method b: 'b the variable 'b is unbound
+       In method b: 'b the variable 'b is unbound
 |}]
 
 module rec M : sig type 'a t = 'b constraint 'a = 'b t end = M;;
@@ -259,3 +257,117 @@ struct
   type !'a t = 'b constraint 'a = 'b s
 end
 *)
+
+type 'a t = T
+  constraint 'a = int
+  constraint 'a = float
+[%%expect{|
+Line 3, characters 13-23:
+3 |   constraint 'a = float
+                 ^^^^^^^^^^
+Error: The type constraints are not consistent.
+       Type int is not compatible with type float
+|}]
+
+type ('a,'b) t = T
+  constraint 'a = int -> float
+  constraint 'b = bool -> char
+  constraint 'a = 'b
+[%%expect{|
+Line 4, characters 13-20:
+4 |   constraint 'a = 'b
+                 ^^^^^^^
+Error: The type constraints are not consistent.
+       Type int -> float is not compatible with type bool -> char
+       Type int is not compatible with type bool
+|}]
+
+class type ['a, 'b] a = object
+  constraint 'a = 'b
+  constraint 'a = int * int
+  constraint 'b = float * float
+end;;
+[%%expect{|
+Line 4, characters 2-31:
+4 |   constraint 'b = float * float
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The class constraints are not consistent.
+       Type int * int is not compatible with type float * float
+       Type int is not compatible with type float
+|}]
+
+(* #11101 *)
+type ('node,'self) extension = < node: 'node; self: 'self > as 'self
+type 'ext node = < > constraint 'ext = ('ext node, 'self) extension;;
+[%%expect{|
+type ('node, 'a) extension = 'a constraint 'a = < node : 'node; self : 'a >
+type 'a node = <  >
+  constraint 'a = ('a node, < node : 'a node; self : 'b > as 'b) extension
+|}, Principal{|
+type ('node, 'a) extension = < node : 'node; self : 'b > as 'b
+  constraint 'a = < node : 'node; self : 'a >
+type 'a node = <  >
+  constraint 'a = ('a node, < node : 'a node; self : 'b > as 'b) extension
+|}]
+
+class type ['node] extension =
+  object ('self)
+    method clone : 'self
+    method node : 'node
+  end
+type 'ext node = < >
+  constraint 'ext = 'ext node #extension ;;
+[%%expect{|
+class type ['node] extension =
+  object ('a) method clone : 'a method node : 'node end
+type 'a node = <  > constraint 'a = < clone : 'a; node : 'a node; .. >
+|}]
+
+module Raise: sig val default_extension: 'a node extension as 'a end = struct
+  let default_extension = failwith "Default_extension failure"
+end;;
+[%%expect{|
+Exception: Failure "Default_extension failure".
+|}]
+
+
+(* PR#11771 -- Constraints making expansion affect typeability *)
+type foo = Foo
+type bar = Bar
+
+type _ tag =
+  | Foo_tag : foo tag
+  | Bar_tag : bar tag
+
+type ('a, 'self) obj =
+  < foo : foo -> 'a ; bar : bar -> 'a; .. > as 'self
+[%%expect {|
+type foo = Foo
+type bar = Bar
+type _ tag = Foo_tag : foo tag | Bar_tag : bar tag
+type ('a, 'self) obj = 'self
+  constraint 'self = < bar : bar -> 'a; foo : foo -> 'a; .. >
+|}]
+
+let test_obj_no_expansion :
+  type a b. a tag -> < foo : foo -> b ; bar : bar -> b; .. > -> a -> b =
+    fun t obj x ->
+      match t with
+      | Foo_tag -> obj#foo x
+      | Bar_tag -> obj#bar x
+[%%expect {|
+val test_obj_no_expansion :
+  'a tag -> < bar : bar -> 'b; foo : foo -> 'b; .. > -> 'a -> 'b = <fun>
+|}]
+
+let test_obj_with_expansion :
+  type a b. a tag -> (b, _) obj -> a -> b =
+    fun t obj x ->
+      match t with
+      | Foo_tag -> obj#foo x
+      | Bar_tag -> obj#bar x
+[%%expect {|
+val test_obj_with_expansion :
+  'a tag -> ('b, < bar : bar -> 'b; foo : foo -> 'b; .. >) obj -> 'a -> 'b =
+  <fun>
+|}]

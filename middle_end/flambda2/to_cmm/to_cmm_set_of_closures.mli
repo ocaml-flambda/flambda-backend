@@ -21,10 +21,11 @@ type translate_expr =
 
 val let_static_set_of_closures :
   To_cmm_env.t ->
+  To_cmm_result.t ->
   Symbol.t Function_slot.Map.t ->
   Set_of_closures.t ->
   prev_updates:Cmm.expression option ->
-  To_cmm_env.t * Cmm.data_item list * Cmm.expression option
+  To_cmm_env.t * To_cmm_result.t * Cmm.data_item list * Cmm.expression option
 
 val let_dynamic_set_of_closures :
   To_cmm_env.t ->
@@ -42,6 +43,7 @@ val params_and_body :
   Code_id.t ->
   Function_params_and_body.t ->
   fun_dbg:Debuginfo.t ->
+  check:Check_attribute.t ->
   translate_expr:
     (To_cmm_env.t ->
     To_cmm_result.t ->

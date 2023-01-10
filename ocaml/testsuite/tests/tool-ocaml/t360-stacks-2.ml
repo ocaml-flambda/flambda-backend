@@ -1,6 +1,6 @@
 (* TEST
 include tool-ocaml-lib
-flags = "-w a"
+flags = "-w -a"
 ocaml_script_as_argument = "true"
 * setup-ocaml-build-env
 ** ocaml
@@ -12,8 +12,9 @@ let rec f n =
   else 1 + f (n-1)
 in
 try
-  ignore (f 3000000);
-  raise Not_found
+  with_async_exns (fun () ->
+    ignore (f 3000000);
+    raise Not_found)
 with Stack_overflow -> ()
 ;;
 

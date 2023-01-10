@@ -59,6 +59,7 @@ type project_var = Projection.project_var
 type specialised_to = {
   var : Variable.t;
   projection : Projection.t option;
+  kind : Lambda.value_kind;
 }
 
 type t =
@@ -137,7 +138,9 @@ and function_declaration = {
   dbg : Debuginfo.t;
   inline : Lambda.inline_attribute;
   specialise : Lambda.specialise_attribute;
+  check : Lambda.check_attribute;
   is_a_functor : bool;
+  poll: Lambda.poll_attribute;
 }
 
 and switch = {
@@ -186,11 +189,15 @@ module Int = Numbers.Int
 
 let print_specialised_to ppf (spec_to : specialised_to) =
   match spec_to.projection with
-  | None -> fprintf ppf "%a" Variable.print spec_to.var
+  | None ->
+    fprintf ppf "%a[%a]"
+      Variable.print spec_to.var
+      Printlambda.value_kind spec_to.kind
   | Some projection ->
-    fprintf ppf "%a(= %a)"
+    fprintf ppf "%a(= %a)[%a]"
       Variable.print spec_to.var
       Projection.print projection
+      Printlambda.value_kind spec_to.kind
 
 (* CR-soon mshinwell: delete uses of old names *)
 let print_project_var = Projection.print_project_var
@@ -406,8 +413,9 @@ and print_function_declaration ppf var (f : function_declaration) =
     | Never_specialise -> " *never_specialise*"
     | Default_specialise -> ""
   in
-  fprintf ppf "@[<2>(%a%s%s%s%s@ =@ fun@[<2>%a@] ->@ @[<2>%a@])@]@ "
+  fprintf ppf "@[<2>(%a%s%s%s%s%a@ =@ fun@[<2>%a@] ->@ @[<2>%a@])@]@ "
     Variable.print var stub is_a_functor inline specialise
+    Printlambda.check_attribute f.check
     params f.params lam f.body
 
 and print_set_of_closures ppf (set_of_closures : set_of_closures) =
@@ -1042,8 +1050,10 @@ let update_body_of_function_declaration (func_decl: function_declaration)
     stub = func_decl.stub;
     dbg = func_decl.dbg;
     inline = func_decl.inline;
+    check = func_decl.check;
     specialise = func_decl.specialise;
     is_a_functor = func_decl.is_a_functor;
+    poll = func_decl.poll;
   }
 
 let rec check_param_modes mode = function
@@ -1056,8 +1066,10 @@ let rec check_param_modes mode = function
 
 let create_function_declaration ~params ~alloc_mode ~region ~body ~stub
       ~(inline : Lambda.inline_attribute)
-      ~(specialise : Lambda.specialise_attribute) ~is_a_functor
-      ~closure_origin
+      ~(specialise : Lambda.specialise_attribute)
+      ~(check : Lambda.check_attribute)
+      ~is_a_functor
+      ~closure_origin ~poll
       : function_declaration =
   begin match stub, inline with
   | true, (Never_inline | Default_inline)
@@ -1090,7 +1102,9 @@ let create_function_declaration ~params ~alloc_mode ~region ~body ~stub
     dbg = dbg_origin;
     inline;
     specialise;
+    check;
     is_a_functor;
+    poll;
   }
 
 let update_function_declaration_body fun_decl ~body =
@@ -1314,6 +1328,7 @@ let equal_specialised_to (spec_to1 : specialised_to)
       | Some _, None | None, Some _ -> false
       | Some proj1, Some proj2 -> Projection.equal proj1 proj2
     end
+    && Lambda.equal_value_kind spec_to1.kind spec_to2.kind
 
 let compare_project_var = Projection.compare_project_var
 let compare_project_closure = Projection.compare_project_closure

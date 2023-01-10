@@ -19,14 +19,14 @@
 open Types
 
 val extension_descr:
-  current_unit:string -> Path.t -> extension_constructor ->
+  current_unit:Compilation_unit.t option -> Path.t -> extension_constructor ->
   constructor_description
 
 val labels_of_type:
   Path.t -> type_declaration ->
   (Ident.t * label_description) list
 val constructors_of_type:
-  current_unit:string -> Path.t -> type_declaration ->
+  current_unit:Compilation_unit.t option -> Path.t -> type_declaration ->
   (Ident.t * constructor_description) list
 
 
@@ -43,7 +43,3 @@ val constructor_existentials :
     - the types of the constructor's arguments
     - the existential variables introduced by the constructor
  *)
-
-
-(* Set the polymorphic variant row_name field *)
-val set_row_name : type_declaration -> Path.t -> unit

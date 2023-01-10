@@ -44,6 +44,8 @@ type arg_types_by_use_id = arg_at_use Apply_cont_rewrite_id.Map.t list
 
 val get_arg_types_by_use_id : t -> arg_types_by_use_id
 
+val get_use_ids : t -> Apply_cont_rewrite_id.Set.t
+
 val number_of_uses : t -> int
 
 val arity : t -> Flambda_arity.t
@@ -52,3 +54,5 @@ val get_typing_env_no_more_than_one_use :
   t -> Flambda2_types.Typing_env.t option
 
 val union : t -> t -> t
+
+val mark_non_inlinable : t -> t

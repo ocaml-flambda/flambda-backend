@@ -168,7 +168,7 @@ let create_empty_block t start ~stack_offset ~traps =
   in
   let block : C.basic_block =
     { start;
-      body = [];
+      body = Cfg.BasicInstructionList.make_empty ();
       terminator;
       exn = None;
       predecessors = Label.Set.empty;
@@ -192,8 +192,6 @@ let register_block t (block : C.basic_block) traps =
     Misc.fatal_errorf "A block with starting label %d is already registered"
       block.start;
   if !C.verbose then Printf.printf "registering block %d\n" block.start;
-  (* Body is constructed in reverse, fix it now: *)
-  block.body <- List.rev block.body;
   (* Update trap stacks of normal successor blocks. *)
   Label.Set.iter
     (fun label -> record_traps t label traps)
@@ -348,70 +346,6 @@ let mk_int_test ~lbl ~inv ~imm (cmp : Mach.integer_comparison) : C.int_test =
 let block_is_registered t (block : C.basic_block) =
   Label.Tbl.mem t.cfg.blocks block.start
 
-let add_terminator t (block : C.basic_block) (i : L.instruction)
-    (desc : C.terminator) ~stack_offset ~traps =
-  (* All terminators are followed by a label, except branches we created for
-     fallthroughs in Linear. *)
-  (match desc with
-  | Never -> Misc.fatal_error "Cannot add terminator: Never"
-  | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _ -> ()
-  | Switch _ | Return | Raise _ | Tailcall _ | Call_no_return _ ->
-    if not (Linear_utils.defines_label i.next)
-    then
-      Misc.fatal_errorf "Linear instruction not followed by label:@ %a"
-        Printlinear.instr
-        { i with Linear.next = Linear.end_instr });
-  block.terminator <- create_instruction t desc ~stack_offset i;
-  if Cfg.can_raise_terminator desc then record_exn t block traps;
-  register_block t block traps
-
-let to_basic (mop : Mach.operation) : C.basic =
-  match mop with
-  | Icall_ind -> Call (F Indirect)
-  | Icall_imm { func } -> Call (F (Direct { func_symbol = func }))
-  | Iextcall { func; alloc; ty_args; ty_res; returns = true } ->
-    Call (P (External { func_symbol = func; alloc; ty_args; ty_res }))
-  | Iintop Icheckbound -> Call (P (Checkbound { immediate = None }))
-  | Iintop
-      (( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
-       | Ipopcnt | Iclz _ | Ictz _ | Ilsr | Iasr | Icomp _ ) as op) ->
-    Op (Intop op)
-  | Iintop_imm (Icheckbound, i) -> Call (P (Checkbound { immediate = Some i }))
-  | Iintop_imm
-      ( (( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
-         | Ipopcnt | Iclz _ | Ictz _ | Ilsl | Ilsr | Iasr | Icomp _ ) as op),
-        i ) ->
-    Op (Intop_imm (op, i))
-  | Ialloc { bytes; dbginfo; mode } -> Call (P (Alloc { bytes; dbginfo; mode }))
-  | Iprobe { name; handler_code_sym } -> Op (Probe { name; handler_code_sym })
-  | Iprobe_is_enabled { name } -> Op (Probe_is_enabled { name })
-  | Istackoffset i -> Op (Stackoffset i)
-  | Iload (c, a, m) -> Op (Load (c, a, m))
-  | Istore (c, a, b) -> Op (Store (c, a, b))
-  | Imove -> Op Move
-  | Ispill -> Op Spill
-  | Ireload -> Op Reload
-  | Iconst_int n -> Op (Const_int n)
-  | Iconst_float n -> Op (Const_float n)
-  | Iconst_symbol n -> Op (Const_symbol n)
-  | Inegf -> Op Negf
-  | Iabsf -> Op Absf
-  | Iaddf -> Op Addf
-  | Isubf -> Op Subf
-  | Imulf -> Op Mulf
-  | Idivf -> Op Divf
-  | Icompf c -> Op (Compf c)
-  | Ifloatofint -> Op Floatofint
-  | Iintoffloat -> Op Intoffloat
-  | Iopaque -> Op Opaque
-  | Ibeginregion -> Op Begin_region
-  | Iendregion -> Op End_region
-  | Ispecific op -> Op (Specific op)
-  | Iname_for_debugger { ident; which_parameter; provenance; is_assignment } ->
-    Op (Name_for_debugger { ident; which_parameter; provenance; is_assignment })
-  | Itailcall_ind | Itailcall_imm _ | Iextcall { returns = false; _ } ->
-    assert false
-
 let rec adjust_traps (i : L.instruction) ~stack_offset ~traps =
   (* We do not emit any executable code for this insn; it only moves the virtual
      stack pointer in the emitter. We do not have a corresponding insn in [Cfg]
@@ -448,6 +382,42 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
      enough information to compute it upfront, but stack_offset is directly
      computed. *)
   let stack_offset, traps, i = adjust_traps i ~stack_offset ~traps in
+  let add_terminator (desc : C.terminator) ~(next : Linear.instruction) =
+    (* All terminators are followed by a label, except branches we created for
+       fallthroughs in Linear. *)
+    (match desc with
+    | Never -> Misc.fatal_error "Cannot add terminator: Never"
+    | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
+    | Poll_and_jump _ | Call _ | Prim _ | Specific_can_raise _ | Switch _ ->
+      ()
+    | Return | Raise _ | Tailcall_self _ | Tailcall_func _ | Call_no_return _ ->
+      if not (Linear_utils.defines_label i.next)
+      then
+        Misc.fatal_errorf "Linear instruction not followed by label:@ %a"
+          Printlinear.instr
+          { i with Linear.next = L.end_instr });
+    block.terminator <- create_instruction t desc ~stack_offset i;
+    if Cfg.can_raise_terminator desc then record_exn t block traps;
+    register_block t block traps;
+    create_blocks t next block ~stack_offset ~traps
+  in
+  let terminator desc = add_terminator desc ~next:i.next in
+  let terminator_fallthrough (mk_desc : Label.t -> C.terminator) =
+    let fallthrough = get_or_make_label t i.next in
+    let desc = mk_desc fallthrough.label in
+    add_terminator desc ~next:fallthrough.insn
+  in
+  let terminator_call call =
+    terminator_fallthrough (fun label_after -> Call { op = call; label_after })
+  in
+  let terminator_prim prim =
+    terminator_fallthrough (fun label_after -> Prim { op = prim; label_after })
+  in
+  let basic desc =
+    C.BasicInstructionList.add_end block.body
+      (create_instruction t desc i ~stack_offset);
+    create_blocks t i.next block ~stack_offset ~traps
+  in
   match i.desc with
   | Ladjust_stack_offset _ -> assert false
   | Lend ->
@@ -482,61 +452,52 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
     then
       Misc.fatal_errorf "Stack offset is %d, but it must be 0 at Lreturn"
         stack_offset;
-    add_terminator t block i Return ~stack_offset ~traps;
-    create_blocks t i.next block ~stack_offset ~traps
-  | Lraise kind ->
-    add_terminator t block i (Raise kind) ~stack_offset ~traps;
-    create_blocks t i.next block ~stack_offset ~traps
+    terminator Return
+  | Lraise kind -> terminator (Raise kind)
   | Lbranch lbl ->
     if !C.verbose then Printf.printf "Lbranch %d\n" lbl;
-    add_terminator t block i (Always lbl) ~stack_offset ~traps;
-    create_blocks t i.next block ~stack_offset ~traps
+    terminator (Always lbl)
   | Lcondbranch (cond, lbl) ->
     (* This representation does not preserve the order of successors. *)
-    let fallthrough = get_or_make_label t i.next in
-    let inv = fallthrough.label in
-    let desc : C.terminator =
-      match (cond : Mach.test) with
-      | Ieventest -> Parity_test { ifso = lbl; ifnot = inv }
-      | Ioddtest -> Parity_test { ifso = inv; ifnot = lbl }
-      | Itruetest -> Truth_test { ifso = lbl; ifnot = inv }
-      | Ifalsetest -> Truth_test { ifso = inv; ifnot = lbl }
-      | Ifloattest cmp -> Float_test (of_cmm_float_test cmp ~lbl ~inv)
-      | Iinttest cmp -> Int_test (mk_int_test cmp ~lbl ~inv ~imm:None)
-      | Iinttest_imm (cmp, n) ->
-        Int_test (mk_int_test cmp ~lbl ~inv ~imm:(Some n))
-    in
-    add_terminator t block i desc ~stack_offset ~traps;
-    create_blocks t fallthrough.insn block ~stack_offset ~traps
+    terminator_fallthrough (fun inv ->
+        match (cond : Mach.test) with
+        | Ieventest -> Parity_test { ifso = lbl; ifnot = inv }
+        | Ioddtest -> Parity_test { ifso = inv; ifnot = lbl }
+        | Itruetest -> Truth_test { ifso = lbl; ifnot = inv }
+        | Ifalsetest -> Truth_test { ifso = inv; ifnot = lbl }
+        | Ifloattest cmp -> Float_test (of_cmm_float_test cmp ~lbl ~inv)
+        | Iinttest cmp -> Int_test (mk_int_test cmp ~lbl ~inv ~imm:None)
+        | Iinttest_imm (cmp, n) ->
+          Int_test (mk_int_test cmp ~lbl ~inv ~imm:(Some n)))
   | Lcondbranch3 (lbl0, lbl1, lbl2) ->
-    let fallthrough = get_or_make_label t i.next in
-    let get_dest lbl = Option.value lbl ~default:fallthrough.label in
-    let it : C.int_test =
-      { imm = Some 1;
-        is_signed = false;
-        lt = get_dest lbl0;
-        eq = get_dest lbl1;
-        gt = get_dest lbl2
-      }
-    in
-    add_terminator t block i (Int_test it) ~stack_offset ~traps;
-    create_blocks t fallthrough.insn block ~stack_offset ~traps
+    terminator_fallthrough (fun l ->
+        let get_dest lbl = Option.value lbl ~default:l in
+        let it : C.int_test =
+          { imm = Some 1;
+            is_signed = false;
+            lt = get_dest lbl0;
+            eq = get_dest lbl1;
+            gt = get_dest lbl2
+          }
+        in
+        Int_test it)
   | Lswitch labels ->
     (* CR-someday gyorsh: get rid of switches entirely and re-generate them
        based on optimization and perf data? *)
-    add_terminator t block i (Switch labels) ~stack_offset ~traps;
-    create_blocks t i.next block ~stack_offset ~traps
+    terminator (Switch labels)
   | Lpushtrap { lbl_handler } ->
     t.trap_handlers <- Label.Set.add lbl_handler t.trap_handlers;
     record_traps t lbl_handler traps;
     let desc = C.Pushtrap { lbl_handler } in
-    block.body <- create_instruction t desc ~stack_offset i :: block.body;
+    C.BasicInstructionList.add_end block.body
+      (create_instruction t desc ~stack_offset i);
     let stack_offset = stack_offset + Proc.trap_size_in_bytes in
     let traps = T.push traps lbl_handler in
     create_blocks t i.next block ~stack_offset ~traps
   | Lpoptrap ->
     let desc = C.Poptrap in
-    block.body <- create_instruction t desc ~stack_offset i :: block.body;
+    C.BasicInstructionList.add_end block.body
+      (create_instruction t desc ~stack_offset i);
     let stack_offset = stack_offset - Proc.trap_size_in_bytes in
     if stack_offset < 0
     then Misc.fatal_error "Lpoptrap moves the stack offset below zero";
@@ -552,66 +513,97 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
     create_blocks t i.next block ~stack_offset ~traps
   | Lentertrap ->
     (* Must be the first instruction in the block. *)
-    assert (List.compare_length_with block.body 0 = 0);
+    assert (C.BasicInstructionList.is_empty block.body);
     block.is_trap_handler <- true;
     create_blocks t i.next block ~stack_offset ~traps
-  | Lprologue ->
-    let desc = C.Prologue in
-    block.body <- create_instruction t desc i ~stack_offset :: block.body;
-    create_blocks t i.next block ~stack_offset ~traps
-  | Lreloadretaddr ->
-    let desc = C.Reloadretaddr in
-    block.body <- create_instruction t desc i ~stack_offset :: block.body;
-    create_blocks t i.next block ~stack_offset ~traps
+  | Lprologue -> basic C.Prologue
+  | Lreloadretaddr -> basic C.Reloadretaddr
   | Lop mop -> (
+    let basic desc =
+      assert (not (Mach.operation_can_raise mop));
+      basic (C.Op desc)
+    in
     match mop with
-    | Itailcall_ind ->
-      let desc = C.Tailcall (Func Indirect) in
-      add_terminator t block i desc ~stack_offset ~traps;
-      create_blocks t i.next block ~stack_offset ~traps
+    | Itailcall_ind -> terminator (C.Tailcall_func Indirect)
     | Itailcall_imm { func = func_symbol } ->
       let desc =
         if String.equal func_symbol (C.fun_name t.cfg)
         then
           match t.tailrec_label with
           | None -> Misc.fatal_error "tail call to missing tailrec entry point"
-          | Some destination -> C.Tailcall (Self { destination })
-        else C.Tailcall (Func (Direct { func_symbol }))
+          | Some destination -> C.Tailcall_self { destination }
+        else C.Tailcall_func (Direct { func_symbol })
       in
-      add_terminator t block i desc ~stack_offset ~traps;
-      create_blocks t i.next block ~stack_offset ~traps
+      terminator desc
     | Iextcall { func; alloc; ty_args; ty_res; returns = false } ->
-      let desc =
-        C.Call_no_return { func_symbol = func; alloc; ty_args; ty_res }
-      in
-      add_terminator t block i desc ~stack_offset ~traps;
-      create_blocks t i.next block ~stack_offset ~traps
+      terminator
+        (C.Call_no_return { func_symbol = func; alloc; ty_args; ty_res })
+    | Icall_ind -> terminator_call Indirect
+    | Icall_imm { func } -> terminator_call (Direct { func_symbol = func })
+    | Iextcall { func; alloc; ty_args; ty_res; returns = true } ->
+      terminator_prim (External { func_symbol = func; alloc; ty_args; ty_res })
+    | Iintop Icheckbound -> terminator_prim (Checkbound { immediate = None })
+    | Iintop_imm (Icheckbound, i) ->
+      terminator_prim (Checkbound { immediate = Some i })
+    | Ialloc { bytes; dbginfo; mode } ->
+      terminator_prim (Alloc { bytes; dbginfo; mode })
+    | Iprobe { name; handler_code_sym } ->
+      terminator_prim (Probe { name; handler_code_sym })
     | Istackoffset bytes ->
-      let desc = to_basic mop in
-      block.body <- create_instruction t desc i ~stack_offset :: block.body;
+      let desc = C.Op (C.Stackoffset bytes) in
+      C.BasicInstructionList.add_end block.body
+        (create_instruction t desc i ~stack_offset);
       let stack_offset = stack_offset + bytes in
       create_blocks t i.next block ~stack_offset ~traps
-    | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
-    | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Icompf _
-    | Iconst_symbol _ | Icall_ind | Icall_imm _ | Iextcall _
-    | Iload (_, _, _)
-    | Istore (_, _, _)
-    | Ialloc _ | Iintop _
-    | Iintop_imm (_, _)
-    | Iopaque | Iprobe _ | Iprobe_is_enabled _ | Ispecific _ | Ibeginregion
-    | Iendregion | Iname_for_debugger _ ->
-      let desc = to_basic mop in
-      block.body <- create_instruction t desc i ~stack_offset :: block.body;
-      if Mach.operation_can_raise mop
-      then (
-        (* Instruction that can raise is always at the end of a block. *)
-        record_exn t block traps;
-        let fallthrough = get_or_make_label t i.next in
-        let desc : Cfg.terminator = Always fallthrough.label in
-        let i_no_reg = { i with arg = [||]; res = [||]; fdo = Fdo_info.none } in
-        add_terminator t block i_no_reg desc ~stack_offset ~traps;
-        create_blocks t fallthrough.insn block ~stack_offset ~traps)
-      else create_blocks t i.next block ~stack_offset ~traps)
+    | Ipoll { return_label = None } ->
+      terminator_fallthrough (fun return_label -> Poll_and_jump return_label)
+    | Ipoll { return_label = Some return_label } ->
+      terminator (C.Poll_and_jump return_label)
+    | Iintop
+        (( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
+         | Ipopcnt | Iclz _ | Ictz _ | Ilsr | Iasr | Icomp _ ) as op) ->
+      basic (Intop op)
+    | Iintop_imm
+        ( (( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
+           | Ipopcnt | Iclz _ | Ictz _ | Ilsl | Ilsr | Iasr | Icomp _ ) as op),
+          i ) ->
+      basic (Intop_imm (op, i))
+    | Iintop_atomic { op; size; addr } ->
+      basic (Intop_atomic { op; size; addr })
+    | Icsel tst -> basic (Csel tst)
+    | Ivalueofint -> basic Valueofint
+    | Iintofvalue -> basic Intofvalue
+    | Iprobe_is_enabled { name } -> basic (Probe_is_enabled { name })
+    | Iload (c, a, m) -> basic (Load (c, a, m))
+    | Istore (c, a, b) -> basic (Store (c, a, b))
+    | Imove -> basic Move
+    | Ispill -> basic Spill
+    | Ireload -> basic Reload
+    | Iconst_int n -> basic (Const_int n)
+    | Iconst_float n -> basic (Const_float n)
+    | Iconst_symbol n -> basic (Const_symbol n)
+    | Inegf -> basic Negf
+    | Iabsf -> basic Absf
+    | Iaddf -> basic Addf
+    | Isubf -> basic Subf
+    | Imulf -> basic Mulf
+    | Idivf -> basic Divf
+    | Icompf c -> basic (Compf c)
+    | Ifloatofint -> basic Floatofint
+    | Iintoffloat -> basic Intoffloat
+    | Iopaque -> basic Opaque
+    | Ibeginregion -> basic Begin_region
+    | Iendregion -> basic End_region
+    | Iname_for_debugger { ident; which_parameter; provenance; is_assignment }
+      ->
+      basic
+        (Name_for_debugger { ident; which_parameter; provenance; is_assignment })
+    | Ispecific op ->
+      if Arch.operation_can_raise op
+      then
+        terminator_fallthrough (fun label_after ->
+            Specific_can_raise { op; label_after })
+      else basic (Specific op))
 
 let run (f : Linear.fundecl) ~preserve_orig_labels =
   let t =

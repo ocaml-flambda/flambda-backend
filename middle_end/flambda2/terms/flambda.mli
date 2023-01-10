@@ -50,7 +50,7 @@ and expr_descr = private
           frames from the stack, which thus allows for the raising of
           exceptions. *)
   | Switch of Switch.t  (** Conditional control flow. *)
-  | Invalid of { message : string }
+  | Invalid of invalid
       (** Code proved type-incorrect and therefore unreachable. *)
 
 and let_expr
@@ -97,18 +97,22 @@ and static_const_or_code = private
 
 and static_const_group
 
+and invalid =
+  | Body_of_unreachable_continuation of Continuation.t
+  | Apply_cont_of_unreachable_continuation of Continuation.t
+  | Defining_expr_of_let of Bound_pattern.t * named
+  | Closure_type_was_invalid of Apply_expr.t
+  | Zero_switch_arms
+  | Code_not_rebuilt
+  | To_cmm_dummy_body
+  | Application_never_returns of Apply_expr.t
+  | Over_application_never_returns of Apply_expr.t
+  | Message of string
+
 module Invalid : sig
-  type t =
-    | Body_of_unreachable_continuation of Continuation.t
-    | Apply_cont_of_unreachable_continuation of Continuation.t
-    | Defining_expr_of_let of Bound_pattern.t * named
-    | Closure_type_was_invalid of Apply.t
-    | Zero_switch_arms
-    | Code_not_rebuilt
-    | To_cmm_dummy_body
-    | Application_never_returns of Apply.t
-    | Over_application_never_returns of Apply.t
-    | Message of string
+  type t = invalid
+
+  val to_string : t -> string
 end
 
 module Expr : sig
@@ -161,20 +165,6 @@ module Named : sig
   (** Convert one or more expressions for recursion state into the defining
       expression of a [Let]. *)
   val create_rec_info : Rec_info_expr.t -> t
-
-  (** Build an expression boxing the name. The returned kind is the one of the
-      unboxed version. *)
-  val box_value :
-    Name.t ->
-    Flambda_kind.t ->
-    Debuginfo.t ->
-    Alloc_mode.t ->
-    named * Flambda_kind.t
-
-  (** Build an expression unboxing the name. The returned kind is the one of the
-      unboxed version. *)
-  val unbox_value :
-    Name.t -> Flambda_kind.t -> Debuginfo.t -> named * Flambda_kind.t
 
   (** Return a defining expression for a [Let] which is kind-correct, but not
       necessarily type-correct, at the given kind. *)
@@ -262,6 +252,13 @@ module Continuation_handler : sig
       an expression, forming a continuation handler, together with auxiliary
       information about such handler. *)
   type t
+
+  val print :
+    cont:Continuation.t ->
+    recursive:Recursive.t ->
+    Format.formatter ->
+    t ->
+    unit
 
   val apply_renaming : t -> Renaming.t -> t
 
@@ -430,9 +427,9 @@ end
 
 module Function_params_and_body : sig
   (** A name abstraction that comprises a function's parameters (together with
-      any relations between them), the code of the function, and the
-      [my_closure] variable. It also includes the return and exception
-      continuations.
+      any relations between them), the code of the function, and the [my_*]
+      variables giving access to the closure, current region, etc. It also
+      includes the return and exception continuations.
 
       These values are bound using [Define_symbol] constructs (see
       [Flambda_static]).
@@ -456,6 +453,7 @@ module Function_params_and_body : sig
     body:expr ->
     free_names_of_body:Name_occurrences.t Or_unknown.t ->
     my_closure:Variable.t ->
+    my_region:Variable.t ->
     my_depth:Variable.t ->
     t
 
@@ -477,6 +475,7 @@ module Function_params_and_body : sig
       body:expr ->
       my_closure:Variable.t ->
       is_my_closure_used:bool Or_unknown.t ->
+      my_region:Variable.t ->
       my_depth:Variable.t ->
       free_names_of_body:Name_occurrences.t Or_unknown.t ->
       'a) ->
@@ -501,6 +500,7 @@ module Function_params_and_body : sig
       body1:expr ->
       body2:expr ->
       my_closure:Variable.t ->
+      my_region:Variable.t ->
       my_depth:Variable.t ->
       'a) ->
     'a

@@ -98,7 +98,7 @@ include Container_types.Make (struct
     | Region ->
       if Flambda_features.unicode ()
       then
-        Format.fprintf ppf "%t@<1>\u{1d53d}@<1>\u{1d558}%t" colour
+        Format.fprintf ppf "%t@<1>\u{211d}@<1>\u{1d558}%t" colour
           Flambda_colours.pop
       else Format.fprintf ppf "Region"
     | Rec_info ->
@@ -408,6 +408,10 @@ module With_subkind = struct
           subkind print kind));
     { kind; subkind }
 
+  let compatible t ~when_used_at =
+    equal t.kind when_used_at.kind
+    && Subkind.compatible t.subkind ~when_used_at:when_used_at.subkind
+
   let kind t = t.kind
 
   let subkind t = t.subkind
@@ -423,6 +427,8 @@ module With_subkind = struct
   let naked_int64 = create naked_int64 Anything
 
   let naked_nativeint = create naked_nativeint Anything
+
+  let region = create region Anything
 
   let boxed_float = create value Boxed_float
 
@@ -532,9 +538,6 @@ module With_subkind = struct
 
     let hash { kind; subkind } = Hashtbl.hash (hash kind, Subkind.hash subkind)
   end)
-
-  let compatible t ~when_used_at =
-    Subkind.compatible t.subkind ~when_used_at:when_used_at.subkind
 
   let has_useful_subkind_info t =
     match t.subkind with

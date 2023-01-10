@@ -180,6 +180,7 @@ fundecl:
              No_CSE;
            ]
            else [ Reduce_code_size ];
+         fun_poll = Lambda.Default_poll;
          fun_dbg = debuginfo ()} }
 ;
 fun_name:
@@ -276,7 +277,8 @@ expr:
       { Cop(Cstore (Word_int, Assignment),
             [access_array $3 $4 Arch.size_int; $5], Debuginfo.none) }
   | LPAREN FLOATASET expr expr expr RPAREN
-      { Cop(Cstore (Double, Assignment),
+      { let open Lambda in
+        Cop(Cstore (Double, Assignment),
             [access_array $3 $4 Arch.size_float; $5], Debuginfo.none) }
 ;
 exprlist:

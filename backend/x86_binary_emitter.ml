@@ -12,7 +12,7 @@
   * Fabrice LE FESSANT (INRIA/OCamlPro)
 *)
 
-[@@@ocaml.warning "+A-4-9"]
+[@@@ocaml.warning "+A-4-9-69"]
 
 open X86_ast
 open X86_proc
@@ -1220,6 +1220,30 @@ let emit_LEA b dst src =
       Format.eprintf "lea src=%a dst=%a@." print_old_arg src print_old_arg dst;
       assert false
 
+let emit_lock_cmpxchg b dst src =
+  let rex, rm, reg = match (dst, src) with
+  | ((Mem _ | Mem64_RIP _) as rm), Reg64 reg ->
+    rexw, rm, rd_of_reg64 reg
+  | ((Mem _ | Mem64_RIP _) as rm), Reg32 reg ->
+    no_rex, rm, rd_of_reg64 reg
+  | _ ->
+    Misc.fatal_errorf "lock cmpxchg src=%a dst=%a@." print_old_arg src print_old_arg dst
+  in
+  buf_int8 b 0xF0;
+  emit_mod_rm_reg b rex [ 0x0F; 0xB1 ] rm reg
+
+let emit_lock_xadd b dst src =
+  let rex, rm, reg = match (dst, src) with
+  | ((Mem _ | Mem64_RIP _) as rm), Reg64 reg ->
+    rexw, rm, rd_of_reg64 reg
+  | ((Mem _ | Mem64_RIP _) as rm), Reg32 reg ->
+    no_rex, rm, rd_of_reg64 reg
+  | _ ->
+    Misc.fatal_errorf "lock cmpxchg src=%a dst=%a@." print_old_arg src print_old_arg dst
+  in
+  buf_int8 b 0xF0;
+  emit_mod_rm_reg b rex [ 0x0F; 0xC1 ] rm reg
+
 let emit_stack_reg b opcode dst =
   match dst with
   | Reg64 reg ->
@@ -1537,6 +1561,8 @@ let assemble_instr b loc = function
   | JMP dst -> emit_jmp b !loc dst
   | LEAVE -> emit_leave b
   | LEA (src, dst) -> emit_LEA b dst src
+  | LOCK_CMPXCHG (src, dst) -> emit_lock_cmpxchg b dst src
+  | LOCK_XADD (src, dst) -> emit_lock_xadd b dst src
   | MAXSD (src, dst) -> emit_maxsd b ~dst ~src
   | MINSD (src, dst) -> emit_minsd b ~dst ~src
   | MOV (src, dst) -> emit_MOV b dst src
@@ -1677,7 +1703,7 @@ let assemble_section arch section =
   let icount = ref 0 in
   ArrayLabels.iter section.sec_instrs ~f:(function
     | NewLabel (lbl, _) ->
-        String.Tbl.add local_labels lbl !icount 
+        String.Tbl.add local_labels lbl !icount
     | Ins _ -> incr icount
     | _ -> ());
 

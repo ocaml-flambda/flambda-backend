@@ -67,7 +67,7 @@ and preprocessor = ref(None : string option) (* -pp *)
 and all_ppx = ref ([] : string list)        (* -ppx *)
 let absname = ref false                 (* -absname *)
 let annotations = ref false             (* -annot *)
-let binary_annotations = ref false      (* -annot *)
+let binary_annotations = ref false      (* -bin-annot *)
 and use_threads = ref false             (* -thread *)
 and noassert = ref false                (* -noassert *)
 and verbose = ref false                 (* -verbose *)
@@ -100,6 +100,7 @@ let locations = ref true                (* -d(no-)locations *)
 let dump_source = ref false             (* -dsource *)
 let dump_parsetree = ref false          (* -dparsetree *)
 and dump_typedtree = ref false          (* -dtypedtree *)
+and dump_shape = ref false              (* -dshape *)
 and dump_rawlambda = ref false          (* -drawlambda *)
 and dump_lambda = ref false             (* -dlambda *)
 and dump_rawclambda = ref false         (* -drawclambda *)
@@ -119,7 +120,6 @@ and dump_cmm = ref false                (* -dcmm *)
 let dump_selection = ref false          (* -dsel *)
 let dump_cse = ref false                (* -dcse *)
 let dump_live = ref false               (* -dlive *)
-let dump_avail = ref false              (* -davail *)
 let dump_spill = ref false              (* -dspill *)
 let dump_split = ref false              (* -dsplit *)
 let dump_interf = ref false             (* -dinterf *)
@@ -134,8 +134,6 @@ let dump_combine = ref false            (* -dcombine *)
 let default_timings_precision  = 3
 let timings_precision = ref default_timings_precision (* -dtimings-precision *)
 let profile_columns : Profile.column list ref = ref [] (* -dprofile/-dtimings *)
-
-let debug_runavail = ref false          (* -drunavail *)
 
 let native_code = ref false             (* set to true under ocamlopt *)
 
@@ -378,10 +376,10 @@ let set_dumped_pass s enabled =
   end
 
 module Extension = struct
-  type t = Comprehensions | Local | Include_functor
+  type t = Comprehensions | Local | Include_functor | Polymorphic_parameters
 
-  let all = [ Comprehensions; Local; Include_functor ]
-  let default_extensions = [ Local; Include_functor ]
+  let all = [ Comprehensions; Local; Include_functor; Polymorphic_parameters ]
+  let default_extensions = [ Local; Include_functor; Polymorphic_parameters ]
 
   let extensions = ref ([] : t list)   (* -extension *)
   let equal (a : t) (b : t) = (a = b)
@@ -390,11 +388,13 @@ module Extension = struct
     | Comprehensions -> "comprehensions"
     | Local -> "local"
     | Include_functor -> "include_functor"
+    | Polymorphic_parameters -> "polymorphic_parameters"
 
   let of_string = function
     | "comprehensions" -> Comprehensions
     | "local" -> Local
     | "include_functor" -> Include_functor
+    | "polymorphic_parameters" -> Polymorphic_parameters
     | extn -> raise (Arg.Bad(Printf.sprintf "Extension %s is not known" extn))
 
   let disable_all_extensions = ref false             (* -disable-all-extensions *)
@@ -426,6 +426,7 @@ module Extension = struct
 end
 
 let dump_into_file = ref false (* -dump-into-file *)
+let dump_dir: string option ref = ref None (* -dump-dir *)
 
 type 'a env_reader = {
   parse : string -> 'a option;
@@ -552,7 +553,7 @@ module Compiler_pass = struct
   (* If you add a new pass, the following must be updated:
      - the variable `passes` below
      - the manpages in man/ocaml{c,opt}.m
-     - the manual manual/manual/cmds/unified-options.etex
+     - the manual manual/src/cmds/unified-options.etex
   *)
   type t = Parsing | Typing | Scheduling | Emit | Simplify_cfg | Selection
 
@@ -673,17 +674,10 @@ let add_arguments loc args =
       arg_names := String.Map.add arg_name loc !arg_names
   ) args
 
-let print_arguments usage =
-  Arg.usage !arg_spec usage
+let create_usage_msg program =
+  Printf.sprintf "Usage: %s <options> <files>\n\
+    Try '%s --help' for more information." program program
 
-(* This function is almost the same as [Arg.parse_expand], except
-   that [Arg.parse_expand] could not be used because it does not take a
-   reference for [arg_spec].*)
-let parse_arguments argv f msg =
-  try
-    let argv = ref argv in
-    let current = ref 0 in
-    Arg.parse_and_expand_argv_dynamic current argv arg_spec f msg
-  with
-  | Arg.Bad msg -> Printf.eprintf "%s" msg; exit 2
-  | Arg.Help msg -> Printf.printf "%s" msg; exit 0
+
+let print_arguments program =
+  Arg.usage !arg_spec (create_usage_msg program)

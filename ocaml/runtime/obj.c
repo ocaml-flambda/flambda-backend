@@ -108,7 +108,7 @@ CAMLprim value caml_obj_block(value tag, value size)
     /* Closinfo_val is the second field, so we need size at least 2 */
     if (sz < 2) caml_invalid_argument ("Obj.new_block");
     res = caml_alloc(sz, tg);
-    Closinfo_val(res) = Make_closinfo(0, 2); /* does not allocate */
+    Closinfo_val(res) = Make_closinfo(0, 2, 1); /* does not allocate */
     break;
   }
   case String_tag: {
@@ -167,6 +167,7 @@ CAMLprim value caml_obj_with_tag(value new_tag_v, value arg)
 
 CAMLprim value caml_obj_dup(value arg)
 {
+  if (!Is_block(arg)) return arg;
   return caml_obj_with_tag(Val_long(Tag_val(arg)), arg);
 }
 

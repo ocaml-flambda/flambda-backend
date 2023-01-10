@@ -172,6 +172,8 @@ type instruction =
   | J of condition * arg
   | JMP of arg
   | LEA of arg * arg
+  | LOCK_CMPXCHG of arg * arg
+  | LOCK_XADD of arg * arg
   | LEAVE
   | MAXSD of arg * arg
   | MINSD of arg * arg
@@ -196,8 +198,8 @@ type instruction =
   | PUSH of arg
   | RDTSC
   | RDPMC
-  | LFENCE 
-  | SFENCE 
+  | LFENCE
+  | SFENCE
   | MFENCE
   | RET
   | ROUNDSD of rounding * arg * arg

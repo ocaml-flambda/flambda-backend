@@ -50,21 +50,26 @@ val regexp : string -> regexp
    - [\     ] Quotes special characters.  The special characters
               are [$^\.*+?[]].
 
-   Note: the argument to [regexp] is usually a string literal. In this
-   case, any backslash character in the regular expression must be
-   doubled to make it past the OCaml string parser. For example, the
-   following expression:
-   {[ let r = Str.regexp "hello \\([A-Za-z]+\\)" in
-      Str.replace_first r "\\1" "hello world" ]}
+   In regular expressions you will often use backslash characters; it's
+   easier to use a quoted string literal [{|...|}] to avoid having to
+   escape backslashes.
+
+   For example, the following expression:
+   {[ let r = Str.regexp {|hello \([A-Za-z]+\)|} in
+      Str.replace_first r {|\1|} "hello world" ]}
    returns the string ["world"].
 
-   In particular, if you want a regular expression that matches a single
-   backslash character, you need to quote it in the argument to [regexp]
-   (according to the last item of the list above) by adding a second
-   backslash. Then you need to quote both backslashes (according to the
-   syntax of string constants in OCaml) by doubling them again, so you
-   need to write four backslash characters: [Str.regexp "\\\\"].
-*)
+   If you want a regular expression that matches a literal backslash
+   character, you need to double it: [Str.regexp {|\\|}].
+
+   You can use regular string literals ["..."] too, however you will
+   have to escape backslashes. The example above can be rewritten with a
+   regular string literal as:
+   {[ let r = Str.regexp "hello \\([A-Za-z]+\\)" in
+      Str.replace_first r "\\1" "hello world" ]}
+
+   And the regular expression for matching a backslash becomes a
+   quadruple backslash: [Str.regexp "\\\\"]. *)
 
 val regexp_case_fold : string -> regexp
 (** Same as [regexp], but the compiled expression will match text
@@ -156,7 +161,8 @@ val matched_group : int -> string -> string
 (** [matched_group n s] returns the substring of [s] that was matched
    by the [n]th group [\(...\)] of the regular expression that was
    matched by the last call to a matching or searching function (see
-   {!Str.matched_string} for details).
+   {!Str.matched_string} for details). When [n] is [0], it returns the
+   substring matched by the whole regular expression.
    The user must make sure that the parameter [s] is the same string
    that was passed to the matching or searching function.
    @raise Not_found if the [n]th group

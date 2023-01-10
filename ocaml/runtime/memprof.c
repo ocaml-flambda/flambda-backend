@@ -129,7 +129,7 @@ struct entry_array {
 #define MIN_ENTRIES_LOCAL_ALLOC_LEN 16
 #define MIN_ENTRIES_GLOBAL_ALLOC_LEN 128
 
-/* Entries for other blocks. This variable is shared accross threads. */
+/* Entries for other blocks. This variable is shared across threads. */
 static struct entry_array entries_global =
   { NULL, MIN_ENTRIES_GLOBAL_ALLOC_LEN, 0, 0, 0, 0 };
 
@@ -963,8 +963,7 @@ void caml_memprof_track_young(uintnat wosize, int from_caml,
      [local->entries] to make sure the floag is not set back to 1. */
   caml_memprof_set_suspended(0);
 
-  if (Is_exception_result(res))
-    caml_raise(Extract_exception(res));
+  caml_raise_async_if_exception(res, "memprof callback");
 
   /* /!\ Since the heap is in an invalid state before initialization,
      very little heap operations are allowed until then. */

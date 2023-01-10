@@ -272,7 +272,7 @@ and compute_extra_args_for_block ~pass rewrite_id ~typing_env_at_use
   in
   let _, fields =
     List.fold_left_map
-      (fun field_nth ({ epa; decision } : U.field_decision) :
+      (fun field_nth ({ epa; decision; kind } : U.field_decision) :
            (_ * U.field_decision) ->
         let unboxer =
           Unboxers.Field.unboxer ~invalid_const bak ~index:field_nth
@@ -287,7 +287,7 @@ and compute_extra_args_for_block ~pass rewrite_id ~typing_env_at_use
           compute_extra_args_for_one_decision_and_use ~pass rewrite_id
             ~typing_env_at_use new_arg_being_unboxed decision
         in
-        Targetint_31_63.(add one field_nth), { epa; decision })
+        Targetint_31_63.(add one field_nth), { epa; decision; kind })
       Targetint_31_63.zero fields
   in
   Unbox (Unique_tag_and_size { tag; fields })
@@ -296,8 +296,8 @@ and compute_extra_args_for_closure ~pass rewrite_id ~typing_env_at_use
     arg_being_unboxed function_slot vars_within_closure : U.decision =
   let vars_within_closure =
     Value_slot.Map.mapi
-      (fun var ({ epa; decision } : U.field_decision) : U.field_decision ->
-        let unboxer = Unboxers.Closure_field.unboxer function_slot var in
+      (fun var ({ epa; decision; kind } : U.field_decision) : U.field_decision ->
+        let unboxer = Unboxers.Closure_field.unboxer function_slot var kind in
         let new_extra_arg, new_arg_being_unboxed =
           unbox_arg unboxer ~typing_env_at_use arg_being_unboxed
         in
@@ -308,7 +308,7 @@ and compute_extra_args_for_closure ~pass rewrite_id ~typing_env_at_use
           compute_extra_args_for_one_decision_and_use ~pass rewrite_id
             ~typing_env_at_use new_arg_being_unboxed decision
         in
-        { epa; decision })
+        { epa; decision; kind })
       vars_within_closure
   in
   Unbox (Closure_single_entry { function_slot; vars_within_closure })
@@ -377,7 +377,7 @@ and compute_extra_args_for_variant ~pass rewrite_id ~typing_env_at_use
         let new_fields_decisions, _ =
           List.fold_left
             (fun (new_decisions, field_nth)
-                 ({ epa; decision } : U.field_decision) ->
+                 ({ epa; decision; kind } : U.field_decision) ->
               let new_extra_arg, new_arg_being_unboxed =
                 if are_there_non_const_ctors_at_use
                    && Tag.Scannable.equal tag_at_use_site tag_decision
@@ -398,7 +398,7 @@ and compute_extra_args_for_variant ~pass rewrite_id ~typing_env_at_use
                 compute_extra_args_for_one_decision_and_use ~pass rewrite_id
                   ~typing_env_at_use new_arg_being_unboxed decision
               in
-              let field_decision : U.field_decision = { epa; decision } in
+              let field_decision : U.field_decision = { epa; decision; kind } in
               let new_decisions = field_decision :: new_decisions in
               new_decisions, Targetint_31_63.(add one field_nth))
             ([], Targetint_31_63.zero) block_fields
@@ -412,14 +412,9 @@ let add_extra_params_and_args extra_params_and_args decision =
   let rec aux extra_params_and_args (decision : U.decision) =
     match decision with
     | Do_not_unbox _ -> extra_params_and_args
-    | Unbox (Unique_tag_and_size { tag; fields }) ->
+    | Unbox (Unique_tag_and_size { tag = _; fields }) ->
       List.fold_left
-        (fun extra_params_and_args ({ epa; decision } : U.field_decision) ->
-          let kind =
-            if Tag.equal Tag.double_array_tag tag
-            then K.With_subkind.naked_float
-            else K.With_subkind.any_value
-          in
+        (fun extra_params_and_args ({ epa; decision; kind } : U.field_decision) ->
           let extra_param = BP.create epa.param kind in
           let extra_params_and_args =
             EPA.add extra_params_and_args ~extra_param ~extra_args:epa.args
@@ -428,8 +423,9 @@ let add_extra_params_and_args extra_params_and_args decision =
         extra_params_and_args fields
     | Unbox (Closure_single_entry { function_slot = _; vars_within_closure }) ->
       Value_slot.Map.fold
-        (fun _ ({ epa; decision } : U.field_decision) extra_params_and_args ->
-          let extra_param = BP.create epa.param K.With_subkind.any_value in
+        (fun _ ({ epa; decision; kind } : U.field_decision)
+             extra_params_and_args ->
+          let extra_param = BP.create epa.param kind in
           let extra_params_and_args =
             EPA.add extra_params_and_args ~extra_param ~extra_args:epa.args
           in
@@ -440,10 +436,9 @@ let add_extra_params_and_args extra_params_and_args decision =
         Tag.Scannable.Map.fold
           (fun _ block_fields extra_params_and_args ->
             List.fold_left
-              (fun extra_params_and_args ({ epa; decision } : U.field_decision) ->
-                let extra_param =
-                  BP.create epa.param K.With_subkind.any_value
-                in
+              (fun extra_params_and_args
+                   ({ epa; decision; kind } : U.field_decision) ->
+                let extra_param = BP.create epa.param kind in
                 let extra_params_and_args =
                   EPA.add extra_params_and_args ~extra_param
                     ~extra_args:epa.args

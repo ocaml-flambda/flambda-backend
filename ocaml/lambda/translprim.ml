@@ -88,20 +88,27 @@ type prim =
   | Send of Lambda.region_close
   | Send_self of Lambda.region_close
   | Send_cache of Lambda.region_close
+  | Frame_pointers
+  | Identity
+  | Apply of Lambda.region_close
+  | Revapply of Lambda.region_close
 
-let used_primitives = Hashtbl.create 7
+let units_with_used_primitives = Hashtbl.create 7
 let add_used_primitive loc env path =
   match path with
-    Some (Path.Pdot _ as path) ->
-      let path = Env.normalize_path_prefix (Some loc) env path in
-      let unit = Path.head path in
-      if Ident.global unit && not (Hashtbl.mem used_primitives path)
-      then Hashtbl.add used_primitives path loc
+    Some (Path.Pdot (path, _)) ->
+      let address = Env.find_module_address path env in
+      begin match Env.address_head address with
+      | AHunit cu ->
+          if not (Hashtbl.mem units_with_used_primitives cu)
+          then Hashtbl.add units_with_used_primitives cu loc
+      | AHlocal _ -> ()
+      end
   | _ -> ()
 
-let clear_used_primitives () = Hashtbl.clear used_primitives
-let get_used_primitives () =
-  Hashtbl.fold (fun path _ acc -> path :: acc) used_primitives []
+let clear_used_primitives () = Hashtbl.clear units_with_used_primitives
+let get_units_with_used_primitives () =
+  Hashtbl.fold (fun path _ acc -> path :: acc) units_with_used_primitives []
 
 let gen_array_kind =
   if Config.flat_float_array then Pgenarray else Paddrarray
@@ -121,12 +128,12 @@ let lookup_primitive loc poly pos p =
   let mode = to_alloc_mode ~poly p.prim_native_repr_res in
   let arg_modes = List.map (to_alloc_mode ~poly) p.prim_native_repr_args in
   let prim = match p.prim_name with
-    | "%identity" -> Primitive (Pidentity, 1)
+    | "%identity" -> Identity
     | "%bytes_to_string" -> Primitive (Pbytes_to_string, 1)
     | "%bytes_of_string" -> Primitive (Pbytes_of_string, 1)
     | "%ignore" -> Primitive (Pignore, 1)
-    | "%revapply" -> Primitive (Prevapply pos, 2)
-    | "%apply" -> Primitive (Pdirapply pos, 2)
+    | "%revapply" -> Revapply pos
+    | "%apply" -> Apply pos
     | "%loc_LOC" -> Loc Loc_LOC
     | "%loc_FILE" -> Loc Loc_FILE
     | "%loc_LINE" -> Loc Loc_LINE
@@ -161,6 +168,7 @@ let lookup_primitive loc poly pos p =
     | "%ostype_unix" -> Primitive ((Pctconst Ostype_unix), 1)
     | "%ostype_win32" -> Primitive ((Pctconst Ostype_win32), 1)
     | "%ostype_cygwin" -> Primitive ((Pctconst Ostype_cygwin), 1)
+    | "%frame_pointers" -> Frame_pointers
     | "%negint" -> Primitive (Pnegint, 1)
     | "%succint" -> Primitive ((Poffsetint 1), 1)
     | "%predint" -> Primitive ((Poffsetint(-1)), 1)
@@ -380,6 +388,8 @@ let lookup_primitive loc poly pos p =
     | "%greaterequal" -> Comparison(Greater_equal, Compare_generic)
     | "%greaterthan" -> Comparison(Greater_than, Compare_generic)
     | "%compare" -> Comparison(Compare, Compare_generic)
+    | "%obj_dup" -> Primitive(Pobj_dup, 1)
+    | "%obj_magic" -> Primitive(Pobj_magic, 1)
     | s when String.length s > 0 && s.[0] = '%' ->
        raise(Error(loc, Unknown_builtin_primitive s))
     | _ -> External p
@@ -634,8 +644,13 @@ let lambda_of_loc kind sloc =
   | Loc_FILE -> Lconst (Const_immstring file)
   | Loc_MODULE ->
     let filename = Filename.basename file in
-    let name = Env.get_unit_name () in
-    let module_name = if name = "" then "//"^filename^"//" else name in
+    let name = Compilation_unit.get_current () in
+    let module_name =
+      match name with
+      | None -> "//"^filename^"//"
+      | Some comp_unit ->
+        Compilation_unit.name_as_string comp_unit
+    in
     Lconst (Const_immstring module_name)
   | Loc_LOC ->
     let loc = Printf.sprintf "File %S, line %d, characters %d-%d"
@@ -708,10 +723,37 @@ let lambda_of_prim prim_name prim loc args arg_exps =
   | Send_self pos, [obj; meth] ->
       Lsend(Self, meth, obj, [], pos, alloc_heap, loc)
   | Send_cache apos, [obj; meth; cache; pos] ->
-      Lsend(Cached, meth, obj, [cache; pos], apos, alloc_heap, loc)
+      (* Cached mode only works in the native backend *)
+      if !Clflags.native_code then
+        Lsend(Cached, meth, obj, [cache; pos], apos, alloc_heap, loc)
+      else
+        Lsend(Public, meth, obj, [], apos, alloc_heap, loc)
+  | Frame_pointers, [] ->
+      let frame_pointers =
+        if !Clflags.native_code && Config.with_frame_pointers then 1 else 0
+      in
+      Lconst (const_int frame_pointers)
+  | Identity, [arg] -> arg
+  | Apply pos, [func; arg]
+  | Revapply pos, [arg; func] ->
+      Lapply {
+        ap_func = func;
+        ap_args = [arg];
+        ap_loc = loc;
+        (* CR-someday lwhite: it would be nice to be able to give
+           application attributes to functions applied with the application
+           operators. *)
+        ap_tailcall = Default_tailcall;
+        ap_inlined = Default_inlined;
+        ap_specialised = Default_specialise;
+        ap_probe = None;
+        ap_region_close = pos;
+        ap_mode = alloc_heap;
+      }
   | (Raise _ | Raise_with_backtrace
     | Lazy_force _ | Loc _ | Primitive _ | Sys_argv | Comparison _
-    | Send _ | Send_self _ | Send_cache _), _ ->
+    | Send _ | Send_self _ | Send_cache _ | Frame_pointers | Identity
+    | Apply _ | Revapply _), _ ->
       raise(Error(to_location loc, Wrong_arity_builtin_primitive prim_name))
 
 let check_primitive_arity loc p =
@@ -733,6 +775,9 @@ let check_primitive_arity loc p =
     | Loc _ -> p.prim_arity = 1 || p.prim_arity = 0
     | Send _ | Send_self _ -> p.prim_arity = 2
     | Send_cache _ -> p.prim_arity = 4
+    | Frame_pointers -> p.prim_arity = 0
+    | Identity -> p.prim_arity = 1
+    | Apply _ | Revapply _ -> p.prim_arity = 2
   in
   if not ok then raise(Error(loc, Wrong_arity_builtin_primitive p.prim_name))
 
@@ -778,21 +823,17 @@ let transl_primitive loc p env ty ~poly_mode path =
        | (Alloc_local :: _) as args -> List.length args
      in
      let nlocal = count_nlocal arg_modes in
-     let lfunc =
-       { kind = Curried {nlocal};
-         params;
-         return = Pgenval;
-         attr = default_stub_attribute;
-         loc;
-         body;
-         mode = alloc_heap;
-         region }
-     in
-     Lambda.check_lfunction lfunc;
-     Lfunction lfunc
+     lfunction
+       ~kind:(Curried {nlocal})
+       ~params
+       ~return:Pgenval
+       ~attr:default_stub_attribute
+       ~loc
+       ~body
+       ~mode:alloc_heap
+       ~region
 
 let lambda_primitive_needs_event_after = function
-  | Prevapply _ | Pdirapply _ (* PR#6920 *)
   (* We add an event after any primitive resulting in a C call that
      may raise an exception or allocate. These are places where we may
      collect the call stack. *)
@@ -809,10 +850,10 @@ let lambda_primitive_needs_event_after = function
   | Pbytes_load_64 _ | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _
   | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
   | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
-  | Pbbswap _ -> true
+  | Pbbswap _ | Pobj_dup -> true
 
-  | Pidentity | Pbytes_to_string | Pbytes_of_string | Pignore | Psetglobal _
-  | Pgetglobal _ | Pmakeblock _ | Pmakefloatblock _
+  | Pbytes_to_string | Pbytes_of_string | Pignore | Psetglobal _
+  | Pgetglobal _ | Pgetpredef _ | Pmakeblock _ | Pmakefloatblock _
   | Pfield _ | Pfield_computed _ | Psetfield _
   | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Praise _
   | Psequor | Psequand | Pnot | Pnegint | Paddint | Psubint | Pmulint
@@ -823,7 +864,8 @@ let lambda_primitive_needs_event_after = function
   | Pbytessetu | Pmakearray ((Pintarray | Paddrarray | Pfloatarray), _, _)
   | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisout
   | Pprobe_is_enabled _
-  | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer | Popaque -> false
+  | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer | Popaque
+  | Pobj_magic -> false
 
 (* Determine if a primitive should be surrounded by an "after" debug event *)
 let primitive_needs_event_after = function
@@ -831,8 +873,9 @@ let primitive_needs_event_after = function
   | External _ | Sys_argv -> true
   | Comparison(comp, knd) ->
       lambda_primitive_needs_event_after (comparison_primitive comp knd)
-  | Lazy_force _ | Send _ | Send_self _ | Send_cache _ -> true
-  | Raise _ | Raise_with_backtrace | Loc _ -> false
+  | Lazy_force _ | Send _ | Send_self _ | Send_cache _
+  | Apply _ | Revapply _ -> true
+  | Raise _ | Raise_with_backtrace | Loc _ | Frame_pointers | Identity -> false
 
 let transl_primitive_application loc p env ty mode path exp args arg_exps pos =
   let prim =

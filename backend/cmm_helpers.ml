@@ -106,16 +106,20 @@ let caml_int64_ops = "caml_int64_ops"
 let pos_arity_in_closinfo = (8 * size_addr) - 8
 (* arity = the top 8 bits of the closinfo word *)
 
-let closure_info ~arity ~startenv =
+let closure_info ~arity ~startenv ~is_last =
   let arity =
     match arity with Lambda.Tupled, n -> -n | Lambda.Curried _, n -> n
   in
   assert (-128 <= arity && arity <= 127);
-  assert (0 <= startenv && startenv < 1 lsl (pos_arity_in_closinfo - 1));
+  assert (0 <= startenv && startenv < 1 lsl (pos_arity_in_closinfo - 2));
   Nativeint.(
     add
       (shift_left (of_int arity) pos_arity_in_closinfo)
-      (add (shift_left (of_int startenv) 1) 1n))
+      (add
+         (shift_left
+            (Bool.to_int is_last |> Nativeint.of_int)
+            (pos_arity_in_closinfo - 1))
+         (add (shift_left (of_int startenv) 1) 1n)))
 
 let alloc_float_header mode dbg =
   match mode with
@@ -131,8 +135,8 @@ let alloc_closure_header ~mode sz dbg =
 
 let alloc_infix_header ofs dbg = Cconst_natint (infix_header ofs, dbg)
 
-let alloc_closure_info ~arity ~startenv dbg =
-  Cconst_natint (closure_info ~arity ~startenv, dbg)
+let alloc_closure_info ~arity ~startenv ~is_last dbg =
+  Cconst_natint (closure_info ~arity ~startenv ~is_last, dbg)
 
 let alloc_boxedint32_header mode dbg =
   match mode with
@@ -214,6 +218,8 @@ let rec sub_int c1 c2 dbg =
   | Cop (Caddi, [c1; Cconst_int (n1, _)], _), c2 ->
     add_const (sub_int c1 c2 dbg) n1 dbg
   | c1, c2 -> Cop (Csubi, [c1; c2], dbg)
+
+let neg_int c dbg = sub_int (Cconst_int (0, dbg)) c dbg
 
 let rec lsl_int c1 c2 dbg =
   match c1, c2 with
@@ -1879,6 +1885,10 @@ module SArgBlocks = struct
 
   let gtint = Ccmpi Cgt
 
+  type arg = expression
+
+  type test = expression
+
   type act = expression
 
   type loc = Debuginfo.t
@@ -1896,6 +1906,10 @@ module SArgBlocks = struct
   let make_isout h arg = Cop (Ccmpa Clt, [h; arg], Debuginfo.none)
 
   let make_isin h arg = Cop (Ccmpa Cge, [h; arg], Debuginfo.none)
+
+  let make_is_nonzero arg = arg
+
+  let arg_as_test arg = arg
 
   let make_if value_kind cond ifso ifnot =
     Cifthenelse
@@ -2385,7 +2399,8 @@ let send_function (arity, mode) =
       fun_args = List.map (fun (arg, ty) -> VP.create arg, ty) fun_args;
       fun_body = body;
       fun_codegen_options = [];
-      fun_dbg
+      fun_dbg;
+      fun_poll = Default_poll
     }
 
 let apply_function arity =
@@ -2398,7 +2413,8 @@ let apply_function arity =
       fun_args = List.map (fun arg -> VP.create arg, typ_val) all_args;
       fun_body = body;
       fun_codegen_options = [];
-      fun_dbg
+      fun_dbg;
+      fun_poll = Default_poll
     }
 
 (* Generate tuplifying functions:
@@ -2430,7 +2446,8 @@ let tuplify_function arity =
             @ [Cvar clos],
             dbg () );
       fun_codegen_options = [];
-      fun_dbg
+      fun_dbg;
+      fun_poll = Default_poll
     }
 
 (* Generate currying functions:
@@ -2505,7 +2522,8 @@ let final_curry_function ~nlocal ~arity =
       fun_args = [VP.create last_arg, typ_val; VP.create last_clos, typ_val];
       fun_body = curry_fun [] last_clos (arity - 1);
       fun_codegen_options = [];
-      fun_dbg
+      fun_dbg;
+      fun_poll = Default_poll
     }
 
 let rec intermediate_curry_functions ~nlocal ~arity num =
@@ -2536,7 +2554,7 @@ let rec intermediate_curry_functions ~nlocal ~arity num =
                   Cconst_symbol (name1 ^ "_" ^ Int.to_string (num + 1), dbg ());
                   alloc_closure_info
                     ~arity:(curried (arity - num - 1))
-                    ~startenv:3 (dbg ());
+                    ~startenv:3 (dbg ()) ~is_last:true;
                   Cconst_symbol
                     (name1 ^ "_" ^ Int.to_string (num + 1) ^ "_app", dbg ());
                   Cvar arg;
@@ -2547,12 +2565,14 @@ let rec intermediate_curry_functions ~nlocal ~arity num =
               ( Calloc mode,
                 [ alloc_closure_header ~mode 4 (dbg ());
                   Cconst_symbol (name1 ^ "_" ^ Int.to_string (num + 1), dbg ());
-                  alloc_closure_info ~arity:(curried 1) ~startenv:2 (dbg ());
+                  alloc_closure_info ~arity:(curried 1) ~startenv:2
+                    ~is_last:true (dbg ());
                   Cvar arg;
                   Cvar clos ],
                 dbg () ));
         fun_codegen_options = [];
-        fun_dbg
+        fun_dbg;
+        fun_poll = Default_poll
       }
     ::
     (if arity <= max_arity_optimized && arity - num > 2
@@ -2598,7 +2618,8 @@ let rec intermediate_curry_functions ~nlocal ~arity num =
                 (List.map (fun (arg, _) -> Cvar arg) direct_args)
                 clos;
             fun_codegen_options = [];
-            fun_dbg
+            fun_dbg;
+            fun_poll = Default_poll
           }
       in
       cf :: intermediate_curry_functions ~nlocal ~arity (num + 1)
@@ -2777,46 +2798,6 @@ let bswap16 arg dbg =
         [arg],
         dbg )
 
-let if_operation_supported op ~f =
-  match Proc.operation_supported op with true -> Some (f ()) | false -> None
-
-let if_operation_supported_bi bi op ~f =
-  if bi = Primitive.Pint64 && size_int = 4
-  then None
-  else if_operation_supported op ~f
-
-let clz ~arg_is_non_zero bi arg dbg =
-  let op = Cclz { arg_is_non_zero } in
-  if_operation_supported_bi bi op ~f:(fun () ->
-      let res = Cop (op, [make_unsigned_int bi arg dbg], dbg) in
-      if bi = Primitive.Pint32 && size_int = 8
-      then Cop (Caddi, [res; Cconst_int (-32, dbg)], dbg)
-      else res)
-
-let ctz ~arg_is_non_zero bi arg dbg =
-  let arg = make_unsigned_int bi arg dbg in
-  if bi = Primitive.Pint32 && size_int = 8
-  then
-    (* regardless of the value of the argument [arg_is_non_zero], always set the
-       corresponding field to [true], because we make it non-zero below by
-       setting bit 32. *)
-    let op = Cctz { arg_is_non_zero = true } in
-    if_operation_supported_bi bi op ~f:(fun () ->
-        (* Set bit 32 *)
-        let mask = Nativeint.shift_left 1n 32 in
-        Cop (op, [Cop (Cor, [arg; Cconst_natint (mask, dbg)], dbg)], dbg))
-  else
-    let op = Cctz { arg_is_non_zero } in
-    if_operation_supported_bi bi op ~f:(fun () -> Cop (op, [arg], dbg))
-
-let popcnt bi arg dbg =
-  if_operation_supported_bi bi Cpopcnt ~f:(fun () ->
-      Cop (Cpopcnt, [make_unsigned_int bi arg dbg], dbg))
-
-let mulhi bi ~signed args dbg =
-  let op = Cmulhi { signed } in
-  if_operation_supported_bi bi op ~f:(fun () -> Cop (op, args, dbg))
-
 type binary_primitive = expression -> expression -> Debuginfo.t -> expression
 
 (* let pfield_computed = addr_array_ref *)
@@ -2826,15 +2807,17 @@ type binary_primitive = expression -> expression -> Debuginfo.t -> expression
 type assignment_kind =
   | Caml_modify
   | Caml_modify_local
+  | Caml_initialize (* never local *)
   | Simple of initialization_or_assignment
 
 let assignment_kind (ptr : Lambda.immediate_or_pointer)
     (init : Lambda.initialization_or_assignment) =
   match init, ptr with
   | Assignment Alloc_heap, Pointer -> Caml_modify
-  | Assignment Alloc_local, Pointer -> Caml_modify_local
-  | Heap_initialization, _ ->
-    Misc.fatal_error "Cmm_helpers: Lambda.Heap_initialization unsupported"
+  | Assignment Alloc_local, Pointer ->
+    assert Config.stack_allocation;
+    Caml_modify_local
+  | Heap_initialization, _ -> Caml_initialize
   | Assignment _, Immediate -> Simple Assignment
   | Root_initialization, (Immediate | Pointer) -> Simple Initialization
 
@@ -2869,6 +2852,21 @@ let setfield n ptr init arg1 arg2 dbg =
                ty_args = []
              },
            [arg1; Cconst_int (n, dbg); arg2],
+           dbg ))
+  | Caml_initialize ->
+    return_unit dbg
+      (Cop
+         ( Cextcall
+             { func = "caml_initialize";
+               ty = typ_void;
+               alloc = false;
+               builtin = false;
+               returns = true;
+               effects = Arbitrary_effects;
+               coeffects = Has_coeffects;
+               ty_args = []
+             },
+           [field_address arg1 n dbg; arg2],
            dbg ))
   | Simple init -> return_unit dbg (set_field arg1 n arg2 init dbg)
 
@@ -3072,6 +3070,8 @@ let setfield_computed ptr init arg1 arg2 arg3 dbg =
   | Caml_modify -> return_unit dbg (addr_array_set arg1 arg2 arg3 dbg)
   | Caml_modify_local ->
     return_unit dbg (addr_array_set_local arg1 arg2 arg3 dbg)
+  | Caml_initialize ->
+    return_unit dbg (addr_array_initialize arg1 arg2 arg3 dbg)
   | Simple _ -> return_unit dbg (int_array_set arg1 arg2 arg3 dbg)
 
 let bytesset_unsafe arg1 arg2 arg3 dbg =
@@ -3206,326 +3206,6 @@ let bigstring_set size unsafe arg1 arg2 arg3 dbg =
                      check_bound unsafe size dbg (bigstring_length ba dbg) idx
                        (unaligned_set size ba_data idx newval dbg))))))
 
-let two_args name args =
-  match args with
-  | [arg1; arg2] -> arg1, arg2
-  | _ ->
-    Misc.fatal_errorf "Cmm_helpers: expected exactly 2 arguments for %s" name
-
-let one_arg name args =
-  match args with
-  | [arg] -> arg
-  | _ ->
-    Misc.fatal_errorf "Cmm_helpers: expected exactly 1 argument for %s" name
-
-(* Untagging of a negative value shifts in an extra bit. The following code
-   clears the shifted sign bit of an untagged int. This straightline code is
-   faster on most targets than conditional code for checking whether the
-   argument is negative. *)
-let clear_sign_bit arg dbg =
-  let mask = Nativeint.lognot (Nativeint.shift_left 1n ((size_int * 8) - 1)) in
-  Cop (Cand, [arg; Cconst_natint (mask, dbg)], dbg)
-
-let ext_pointer_load chunk name args dbg =
-  let p = int_as_pointer (one_arg name args) dbg in
-  Some (Cop (Cload (chunk, Mutable), [p], dbg))
-
-let ext_pointer_store chunk name args dbg =
-  let arg1, arg2 = two_args name args in
-  let p = int_as_pointer arg1 dbg in
-  Some (return_unit dbg (Cop (Cstore (chunk, Assignment), [p; arg2], dbg)))
-
-let bigstring_prefetch ~is_write locality args dbg =
-  let op = Cprefetch { is_write; locality } in
-  if_operation_supported op ~f:(fun () ->
-      let arg1, arg2 = two_args "bigstring_prefetch" args in
-      (* [arg2], the index, is already untagged. *)
-      bind "index" arg2 (fun idx ->
-          bind "ba" arg1 (fun ba ->
-              bind "ba_data"
-                (Cop (Cload (Word_int, Mutable), [field_address ba 1 dbg], dbg))
-                (fun ba_data ->
-                  (* pointer to element "idx" of "ba" of type (char,
-                     int8_unsigned_elt, c_layout) Bigarray.Array1.t is simply
-                     offset "idx" from "ba_data" *)
-                  return_unit dbg (Cop (op, [add_int ba_data idx dbg], dbg))))))
-
-let prefetch ~is_write locality arg dbg =
-  let op = Cprefetch { is_write; locality } in
-  if_operation_supported op ~f:(fun () ->
-      return_unit dbg (Cop (op, [arg], dbg)))
-
-let ext_pointer_prefetch ~is_write locality arg dbg =
-  prefetch ~is_write locality (int_as_pointer arg dbg) dbg
-
-(** [transl_builtin prim args dbg] returns None if the built-in [prim] is not
-    supported, otherwise it constructs and returns the corresponding Cmm
-    expression.
-
-    The names of builtins below correspond to the native code names associated
-    with "external" declarations in the stand-alone library [ocaml_intrinsics].
-
-    For situations such as where the Cmm code below returns e.g. an untagged
-    integer, we exploit the generic mechanism on "external" to deal with the
-    tagging before the result is returned to the user. *)
-let transl_builtin name args dbg =
-  match name with
-  | "caml_int_clz_tagged_to_untagged" ->
-    (* The tag does not change the number of leading zeros. The advantage of
-       keeping the tag is it guarantees that, on x86-64, the input to the BSR
-       instruction is nonzero. *)
-    let op = Cclz { arg_is_non_zero = true } in
-    if_operation_supported op ~f:(fun () -> Cop (op, args, dbg))
-  | "caml_int_clz_untagged_to_untagged" ->
-    let op = Cclz { arg_is_non_zero = false } in
-    if_operation_supported op ~f:(fun () ->
-        let arg = clear_sign_bit (one_arg name args) dbg in
-        Cop (Caddi, [Cop (op, [arg], dbg); Cconst_int (-1, dbg)], dbg))
-  | "caml_int64_clz_unboxed_to_untagged" ->
-    clz ~arg_is_non_zero:false Pint64 (one_arg name args) dbg
-  | "caml_int32_clz_unboxed_to_untagged" ->
-    clz ~arg_is_non_zero:false Pint32 (one_arg name args) dbg
-  | "caml_nativeint_clz_unboxed_to_untagged" ->
-    clz ~arg_is_non_zero:false Pnativeint (one_arg name args) dbg
-  | "caml_int64_clz_nonzero_unboxed_to_untagged" ->
-    clz ~arg_is_non_zero:true Pint64 (one_arg name args) dbg
-  | "caml_int32_clz_nonzero_unboxed_to_untagged" ->
-    clz ~arg_is_non_zero:true Pint32 (one_arg name args) dbg
-  | "caml_nativeint_clz_nonzero_unboxed_to_untagged" ->
-    clz ~arg_is_non_zero:true Pnativeint (one_arg name args) dbg
-  | "caml_int_popcnt_tagged_to_untagged" ->
-    if_operation_supported Cpopcnt ~f:(fun () ->
-        (* Having the argument tagged saves a shift, but there is one extra
-           "set" bit, which is accounted for by the (-1) below. *)
-        Cop (Caddi, [Cop (Cpopcnt, args, dbg); Cconst_int (-1, dbg)], dbg))
-  | "caml_int_popcnt_untagged_to_untagged" ->
-    (* This code is expected to be faster than [popcnt(tagged_x) - 1] when the
-       untagged argument is already available from a previous computation. *)
-    if_operation_supported Cpopcnt ~f:(fun () ->
-        let arg = clear_sign_bit (one_arg name args) dbg in
-        Cop (Cpopcnt, [arg], dbg))
-  | "caml_int64_popcnt_unboxed_to_untagged" ->
-    popcnt Pint64 (one_arg name args) dbg
-  | "caml_int32_popcnt_unboxed_to_untagged" ->
-    popcnt Pint32 (one_arg name args) dbg
-  | "caml_nativeint_popcnt_unboxed_to_untagged" ->
-    popcnt Pnativeint (one_arg name args) dbg
-  | "caml_int_ctz_untagged_to_untagged" ->
-    (* Assuming a 64-bit x86-64 target:
-
-       Setting the top bit of the input for the BSF instruction ensures the
-       input is nonzero without affecting the result.
-
-       The expression [x lor (1 lsl 63)] sets the top bit of x. The constant:
-
-       [1 lsl 63]
-
-       can be precomputed statically:
-
-       Cconst_natint ((Nativeint.shift_left 1n 63), dbg)
-
-       However, the encoding of this OR instruction with the large static
-       constant is 10 bytes long, on x86-64. Instead, we emit a shift operation,
-       whose corresponding instruction is 1 byte shorter. This will not require
-       an extra register, unless both the argument and result of the BSF
-       instruction are in the same register. *)
-    let op = Cctz { arg_is_non_zero = true } in
-    if_operation_supported op ~f:(fun () ->
-        let c =
-          Cop
-            ( Clsl,
-              [Cconst_int (1, dbg); Cconst_int ((size_int * 8) - 1, dbg)],
-              dbg )
-        in
-        Cop (op, [Cop (Cor, [one_arg name args; c], dbg)], dbg))
-  | "caml_int32_ctz_unboxed_to_untagged" ->
-    ctz ~arg_is_non_zero:false Pint32 (one_arg name args) dbg
-  | "caml_int64_ctz_unboxed_to_untagged" ->
-    ctz ~arg_is_non_zero:false Pint64 (one_arg name args) dbg
-  | "caml_nativeint_ctz_unboxed_to_untagged" ->
-    ctz ~arg_is_non_zero:false Pnativeint (one_arg name args) dbg
-  | "caml_int32_ctz_nonzero_unboxed_to_untagged" ->
-    ctz ~arg_is_non_zero:true Pint32 (one_arg name args) dbg
-  | "caml_int64_ctz_nonzero_unboxed_to_untagged" ->
-    ctz ~arg_is_non_zero:true Pint64 (one_arg name args) dbg
-  | "caml_nativeint_ctz_nonzero_unboxed_to_untagged" ->
-    ctz ~arg_is_non_zero:true Pnativeint (one_arg name args) dbg
-  | "caml_signed_int64_mulh_unboxed" -> mulhi ~signed:true Pint64 args dbg
-  | "caml_unsigned_int64_mulh_unboxed" -> mulhi ~signed:false Pint64 args dbg
-  | "caml_int32_unsigned_to_int_trunc_unboxed_to_untagged" ->
-    Some (zero_extend_32 dbg (one_arg name args))
-  (* Native_pointer: handled as unboxed nativeint *)
-  | "caml_ext_pointer_as_native_pointer" ->
-    Some (int_as_pointer (one_arg name args) dbg)
-  | "caml_native_pointer_load_immediate"
-  | "caml_native_pointer_load_unboxed_nativeint" ->
-    Some (Cop (Cload (Word_int, Mutable), args, dbg))
-  | "caml_native_pointer_store_immediate"
-  | "caml_native_pointer_store_unboxed_nativeint" ->
-    Some (return_unit dbg (Cop (Cstore (Word_int, Assignment), args, dbg)))
-  | "caml_native_pointer_load_unboxed_int64" when size_int = 8 ->
-    Some (Cop (Cload (Word_int, Mutable), args, dbg))
-  | "caml_native_pointer_store_unboxed_int64" when size_int = 8 ->
-    Some (return_unit dbg (Cop (Cstore (Word_int, Assignment), args, dbg)))
-  | "caml_native_pointer_load_signed_int32"
-  | "caml_native_pointer_load_unboxed_int32" ->
-    Some (Cop (Cload (Thirtytwo_signed, Mutable), args, dbg))
-  | "caml_native_pointer_store_signed_int32"
-  | "caml_native_pointer_store_unboxed_int32" ->
-    Some
-      (return_unit dbg (Cop (Cstore (Thirtytwo_signed, Assignment), args, dbg)))
-  | "caml_native_pointer_load_unsigned_int32" ->
-    Some (Cop (Cload (Thirtytwo_unsigned, Mutable), args, dbg))
-  | "caml_native_pointer_store_unsigned_int32" ->
-    Some
-      (return_unit dbg
-         (Cop (Cstore (Thirtytwo_unsigned, Assignment), args, dbg)))
-  | "caml_native_pointer_load_unboxed_float" ->
-    Some (Cop (Cload (Double, Mutable), args, dbg))
-  | "caml_native_pointer_store_unboxed_float" ->
-    Some (return_unit dbg (Cop (Cstore (Double, Assignment), args, dbg)))
-  | "caml_native_pointer_load_unsigned_int8" ->
-    Some (Cop (Cload (Byte_unsigned, Mutable), args, dbg))
-  | "caml_native_pointer_load_signed_int8" ->
-    Some (Cop (Cload (Byte_signed, Mutable), args, dbg))
-  | "caml_native_pointer_load_unsigned_int16" ->
-    Some (Cop (Cload (Sixteen_unsigned, Mutable), args, dbg))
-  | "caml_native_pointer_load_signed_int16" ->
-    Some (Cop (Cload (Sixteen_signed, Mutable), args, dbg))
-  | "caml_native_pointer_store_unsigned_int8" ->
-    Some (return_unit dbg (Cop (Cstore (Byte_unsigned, Assignment), args, dbg)))
-  | "caml_native_pointer_store_signed_int8" ->
-    Some (return_unit dbg (Cop (Cstore (Byte_signed, Assignment), args, dbg)))
-  | "caml_native_pointer_store_unsigned_int16" ->
-    Some
-      (return_unit dbg (Cop (Cstore (Sixteen_unsigned, Assignment), args, dbg)))
-  | "caml_native_pointer_store_signed_int16" ->
-    Some
-      (return_unit dbg (Cop (Cstore (Sixteen_signed, Assignment), args, dbg)))
-  (* Ext_pointer: handled as tagged int *)
-  | "caml_ext_pointer_load_immediate"
-  | "caml_ext_pointer_load_unboxed_nativeint" ->
-    ext_pointer_load Word_int name args dbg
-  | "caml_ext_pointer_store_immediate"
-  | "caml_ext_pointer_store_unboxed_nativeint" ->
-    ext_pointer_store Word_int name args dbg
-  | "caml_ext_pointer_load_unboxed_int64" when size_int = 8 ->
-    ext_pointer_load Word_int name args dbg
-  | "caml_ext_pointer_store_unboxed_int64" when size_int = 8 ->
-    ext_pointer_store Word_int name args dbg
-  | "caml_ext_pointer_load_signed_int32" | "caml_ext_pointer_load_unboxed_int32"
-    ->
-    ext_pointer_load Thirtytwo_signed name args dbg
-  | "caml_ext_pointer_store_signed_int32"
-  | "caml_ext_pointer_store_unboxed_int32" ->
-    ext_pointer_store Thirtytwo_signed name args dbg
-  | "caml_ext_pointer_load_unsigned_int32" ->
-    ext_pointer_load Thirtytwo_unsigned name args dbg
-  | "caml_ext_pointer_store_unsigned_int32" ->
-    ext_pointer_store Thirtytwo_unsigned name args dbg
-  | "caml_ext_pointer_load_unboxed_float" ->
-    ext_pointer_load Double name args dbg
-  | "caml_ext_pointer_store_unboxed_float" ->
-    ext_pointer_store Double name args dbg
-  | "caml_ext_pointer_load_unsigned_int8" ->
-    ext_pointer_load Byte_unsigned name args dbg
-  | "caml_ext_pointer_load_signed_int8" ->
-    ext_pointer_load Byte_signed name args dbg
-  | "caml_ext_pointer_load_unsigned_int16" ->
-    ext_pointer_load Sixteen_unsigned name args dbg
-  | "caml_ext_pointer_load_signed_int16" ->
-    ext_pointer_load Sixteen_signed name args dbg
-  | "caml_ext_pointer_store_unsigned_int8" ->
-    ext_pointer_store Byte_unsigned name args dbg
-  | "caml_ext_pointer_store_signed_int8" ->
-    ext_pointer_store Byte_signed name args dbg
-  | "caml_ext_pointer_store_unsigned_int16" ->
-    ext_pointer_store Sixteen_unsigned name args dbg
-  | "caml_ext_pointer_store_signed_int16" ->
-    ext_pointer_store Sixteen_signed name args dbg
-  (* Bigstring prefetch *)
-  | "caml_prefetch_write_high_bigstring_untagged" ->
-    bigstring_prefetch ~is_write:true High args dbg
-  | "caml_prefetch_write_moderate_bigstring_untagged" ->
-    bigstring_prefetch ~is_write:true Moderate args dbg
-  | "caml_prefetch_write_low_bigstring_untagged" ->
-    bigstring_prefetch ~is_write:true Low args dbg
-  | "caml_prefetch_write_none_bigstring_untagged" ->
-    bigstring_prefetch ~is_write:true Nonlocal args dbg
-  | "caml_prefetch_read_none_bigstring_untagged" ->
-    bigstring_prefetch ~is_write:false Nonlocal args dbg
-  | "caml_prefetch_read_high_bigstring_untagged" ->
-    bigstring_prefetch ~is_write:false High args dbg
-  | "caml_prefetch_read_moderate_bigstring_untagged" ->
-    bigstring_prefetch ~is_write:false Moderate args dbg
-  | "caml_prefetch_read_low_bigstring_untagged" ->
-    bigstring_prefetch ~is_write:false Low args dbg
-  (* Ext_pointer prefetch *)
-  | "caml_prefetch_write_high_ext_pointer" ->
-    ext_pointer_prefetch ~is_write:true High (one_arg name args) dbg
-  | "caml_prefetch_write_moderate_ext_pointer" ->
-    ext_pointer_prefetch ~is_write:true Moderate (one_arg name args) dbg
-  | "caml_prefetch_write_low_ext_pointer" ->
-    ext_pointer_prefetch ~is_write:true Low (one_arg name args) dbg
-  | "caml_prefetch_write_none_ext_pointer" ->
-    ext_pointer_prefetch ~is_write:true Nonlocal (one_arg name args) dbg
-  | "caml_prefetch_read_none_ext_pointer" ->
-    ext_pointer_prefetch ~is_write:false Nonlocal (one_arg name args) dbg
-  | "caml_prefetch_read_high_ext_pointer" ->
-    ext_pointer_prefetch ~is_write:false High (one_arg name args) dbg
-  | "caml_prefetch_read_moderate_ext_pointer" ->
-    ext_pointer_prefetch ~is_write:false Moderate (one_arg name args) dbg
-  | "caml_prefetch_read_low_ext_pointer" ->
-    ext_pointer_prefetch ~is_write:false Low (one_arg name args) dbg
-  (* Native_pointer prefetch *)
-  | "caml_prefetch_write_high_native_pointer_unboxed" ->
-    prefetch ~is_write:true High (one_arg name args) dbg
-  | "caml_prefetch_write_moderate_native_pointer_unboxed" ->
-    prefetch ~is_write:true Moderate (one_arg name args) dbg
-  | "caml_prefetch_write_low_native_pointer_unboxed" ->
-    prefetch ~is_write:true Low (one_arg name args) dbg
-  | "caml_prefetch_write_none_native_pointer_unboxed" ->
-    prefetch ~is_write:true Nonlocal (one_arg name args) dbg
-  | "caml_prefetch_read_none_native_pointer_unboxed" ->
-    prefetch ~is_write:false Nonlocal (one_arg name args) dbg
-  | "caml_prefetch_read_high_native_pointer_unboxed" ->
-    prefetch ~is_write:false High (one_arg name args) dbg
-  | "caml_prefetch_read_moderate_native_pointer_unboxed" ->
-    prefetch ~is_write:false Moderate (one_arg name args) dbg
-  | "caml_prefetch_read_low_native_pointer_unboxed" ->
-    prefetch ~is_write:false Low (one_arg name args) dbg
-  | _ -> None
-
-let transl_effects (e : Primitive.effects) : Cmm.effects =
-  match e with
-  | No_effects -> No_effects
-  | Only_generative_effects | Arbitrary_effects -> Arbitrary_effects
-
-let transl_coeffects (ce : Primitive.coeffects) : Cmm.coeffects =
-  match ce with No_coeffects -> No_coeffects | Has_coeffects -> Has_coeffects
-
-(* [cextcall] is called from [Cmmgen.transl_ccall] *)
-let cextcall (prim : Primitive.description) args dbg ret ty_args returns =
-  let name = Primitive.native_name prim in
-  let default =
-    Cop
-      ( Cextcall
-          { func = name;
-            ty = ret;
-            builtin = prim.prim_c_builtin;
-            effects = transl_effects prim.prim_effects;
-            coeffects = transl_coeffects prim.prim_coeffects;
-            alloc = prim.prim_alloc;
-            returns;
-            ty_args
-          },
-        args,
-        dbg )
-  in
-  if prim.prim_c_builtin
-  then match transl_builtin name args dbg with Some op -> op | None -> default
-  else default
-
 (* Symbols *)
 
 let cdefine_symbol (symb, (global : Cmmgen_state.is_global)) =
@@ -3585,6 +3265,15 @@ let emit_float_array_constant symb fields cont =
     (floatarray_header (List.length fields))
     (Misc.map_end (fun f -> Cdouble f) fields cont)
 
+let make_symbol ?compilation_unit name =
+  let compilation_unit =
+    match compilation_unit with
+    | None -> Compilation_unit.get_current_exn ()
+    | Some compilation_unit -> compilation_unit
+  in
+  Symbol.for_name compilation_unit name
+  |> Symbol.linkage_name |> Linkage_name.to_string
+
 (* Generate the entry point *)
 
 let entry_point namelist =
@@ -3608,7 +3297,7 @@ let entry_point namelist =
   let body =
     List.fold_right
       (fun name next ->
-        let entry_sym = Compilenv.make_symbol ~unitname:name (Some "entry") in
+        let entry_sym = make_symbol ~compilation_unit:name "entry" in
         Csequence
           ( Cop (Capply (typ_void, Rc_normal), [cconst_symbol entry_sym], dbg ()),
             Csequence (incr_global_inited (), next) ))
@@ -3621,7 +3310,8 @@ let entry_point namelist =
       fun_args = [];
       fun_body = body;
       fun_codegen_options = [Reduce_code_size];
-      fun_dbg
+      fun_dbg;
+      fun_poll = Default_poll
     }
 
 (* Generate the table of globals *)
@@ -3630,7 +3320,7 @@ let cint_zero = Cint 0n
 
 let global_table namelist =
   let mksym name =
-    Csymbol_address (Compilenv.make_symbol ~unitname:name (Some "gc_roots"))
+    Csymbol_address (make_symbol ~compilation_unit:name "gc_roots")
   in
   Cdata
     (Cglobal_symbol "caml_globals" :: Cdefine_symbol "caml_globals"
@@ -3650,7 +3340,7 @@ let globals_map v = global_data "caml_globals_map" v
 
 let frame_table namelist =
   let mksym name =
-    Csymbol_address (Compilenv.make_symbol ~unitname:name (Some "frametable"))
+    Csymbol_address (make_symbol ~compilation_unit:name "frametable")
   in
   Cdata
     (Cglobal_symbol "caml_frametable" :: Cdefine_symbol "caml_frametable"
@@ -3661,8 +3351,8 @@ let frame_table namelist =
 
 let segment_table namelist symbol begname endname =
   let addsyms name lst =
-    Csymbol_address (Compilenv.make_symbol ~unitname:name (Some begname))
-    :: Csymbol_address (Compilenv.make_symbol ~unitname:name (Some endname))
+    Csymbol_address (make_symbol ~compilation_unit:name begname)
+    :: Csymbol_address (make_symbol ~compilation_unit:name endname)
     :: lst
   in
   Cdata
@@ -3739,19 +3429,21 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
     let rec emit_others pos = function
       | [] -> clos_vars @ cont
       | (f2 : Clambda.ufunction) :: rem -> (
+        let is_last = match rem with [] -> true | _ :: _ -> false in
         match f2.arity with
         | (Curried _, (0 | 1)) as arity ->
           (Cint (infix_header pos) :: closure_symbol f2)
           @ Csymbol_address f2.label
-            :: Cint (closure_info ~arity ~startenv:(startenv - pos))
+            :: Cint (closure_info ~arity ~startenv:(startenv - pos) ~is_last)
             :: emit_others (pos + 3) rem
         | arity ->
           (Cint (infix_header pos) :: closure_symbol f2)
           @ Csymbol_address (curry_function_sym arity)
-            :: Cint (closure_info ~arity ~startenv:(startenv - pos))
+            :: Cint (closure_info ~arity ~startenv:(startenv - pos) ~is_last)
             :: Csymbol_address f2.label
             :: emit_others (pos + 4) rem)
     in
+    let is_last = match remainder with [] -> true | _ :: _ -> false in
     Cint (black_closure_header (fundecls_size fundecls + List.length clos_vars))
     :: cdefine_symbol symb
     @ closure_symbol f1
@@ -3759,17 +3451,17 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
     match f1.arity with
     | (Curried _, (0 | 1)) as arity ->
       Csymbol_address f1.label
-      :: Cint (closure_info ~arity ~startenv)
+      :: Cint (closure_info ~arity ~startenv ~is_last)
       :: emit_others 3 remainder
     | arity ->
       Csymbol_address (curry_function_sym arity)
-      :: Cint (closure_info ~arity ~startenv)
+      :: Cint (closure_info ~arity ~startenv ~is_last)
       :: Csymbol_address f1.label :: emit_others 4 remainder)
 
 (* Build the NULL terminated array of gc roots *)
 
 let emit_gc_roots_table ~symbols cont =
-  let table_symbol = Compilenv.make_symbol (Some "gc_roots") in
+  let table_symbol = make_symbol "gc_roots" in
   Cdata
     (Cglobal_symbol table_symbol :: Cdefine_symbol table_symbol
      :: List.map (fun s -> Csymbol_address s) symbols
@@ -4053,27 +3745,6 @@ let indirect_full_call ~dbg ty pos alloc_mode f = function
     letin v' ~defining_expr:f
       ~body:(Cop (Capply (ty, pos), (fun_ptr :: args) @ [Cvar v], dbg))
 
-let extcall ~dbg ~returns ~alloc ~is_c_builtin ~ty_args name typ_res args =
-  if not returns then assert (typ_res = typ_void);
-  let default =
-    Cop
-      ( Cextcall
-          { func = name;
-            ty = typ_res;
-            alloc;
-            ty_args;
-            returns;
-            builtin = is_c_builtin;
-            effects = Arbitrary_effects;
-            coeffects = Has_coeffects
-          },
-        args,
-        dbg )
-  in
-  if is_c_builtin
-  then match transl_builtin name args dbg with Some op -> op | None -> default
-  else default
-
 let bigarray_load ~dbg ~elt_kind ~elt_size ~elt_chunk ~bigarray ~index =
   let ba_data_f = field_address bigarray 1 dbg in
   let ba_data_p = load ~dbg Word_int Mutable ~addr:ba_data_f in
@@ -4137,13 +3808,13 @@ let cfunction decl = Cmm.Cfunction decl
 
 let cdata d = Cmm.Cdata d
 
-let fundecl fun_name fun_args fun_body fun_codegen_options fun_dbg =
-  { Cmm.fun_name; fun_args; fun_body; fun_codegen_options; fun_dbg }
+let fundecl fun_name fun_args fun_body fun_codegen_options fun_dbg fun_poll =
+  { Cmm.fun_name; fun_args; fun_body; fun_codegen_options; fun_dbg; fun_poll }
 
 (* Gc root table *)
 
-let gc_root_table ~make_symbol syms =
-  let table_symbol = make_symbol ?unitname:None (Some "gc_roots") in
+let gc_root_table syms =
+  let table_symbol = make_symbol ?compilation_unit:None "gc_roots" in
   cdata
     (define_symbol ~global:true table_symbol
     @ List.map symbol_address syms
@@ -4169,3 +3840,11 @@ let cmm_arith_size (e : Cmm.expression) =
   | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ | Cregion _
   | Ctail _ ->
     None
+
+let transl_property : Lambda.property -> Cmm.property = function
+  | Noalloc -> Noalloc
+
+let transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list = function
+  | Default_check -> []
+  | Assert p -> [Assert (transl_property p)]
+  | Assume p -> [Assume (transl_property p)]

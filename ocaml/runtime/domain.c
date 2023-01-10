@@ -54,6 +54,7 @@ void caml_init_domain ()
   Caml_state->trapsp = NULL;
   Caml_state->trap_barrier = NULL;
   Caml_state->external_raise = NULL;
+  Caml_state->external_raise_async = NULL;
   Caml_state->exn_bucket = Val_unit;
 
   Caml_state->local_arenas = NULL;
@@ -77,6 +78,7 @@ void caml_init_domain ()
   Caml_state->stat_forced_major_collections = 0;
   Caml_state->stat_heap_chunks = 0;
 
+  Caml_state->raising_async_exn = 0;
   Caml_state->backtrace_active = 0;
   Caml_state->backtrace_pos = 0;
   Caml_state->backtrace_buffer = NULL;

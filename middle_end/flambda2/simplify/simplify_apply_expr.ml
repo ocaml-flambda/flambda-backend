@@ -34,24 +34,36 @@ let warn_not_inlined_if_needed apply reason =
       (Debuginfo.to_location (Apply.dbg apply))
       (Warnings.Inlining_impossible reason)
 
-(* Note that this considers that the extra arguments of the exn_continuation are
-   always used. *)
-let record_free_names_of_apply_as_used0 apply data_flow =
+let record_free_names_of_apply_as_used0 apply ~use_id ~exn_cont_use_id data_flow
+    =
   let data_flow =
-    Data_flow.add_used_in_current_handler (Apply.free_names apply) data_flow
+    Flow.Acc.add_used_in_current_handler
+      (Apply.free_names_without_exn_continuation apply)
+      data_flow
   in
-  match Apply.continuation apply with
-  | Never_returns -> data_flow
-  | Return k -> Data_flow.add_apply_result_cont k data_flow
+  let exn_cont = Apply.exn_continuation apply in
+  let result_cont =
+    match Apply.continuation apply, use_id with
+    | Never_returns, None -> None
+    | Return k, Some use_id -> Some (use_id, k)
+    | Never_returns, Some _ | Return _, None -> assert false
+  in
+  Flow.Acc.add_apply_conts
+    ~exn_cont:(exn_cont_use_id, exn_cont)
+    ~result_cont data_flow
 
-let record_free_names_of_apply_as_used dacc apply =
-  DA.map_data_flow dacc ~f:(record_free_names_of_apply_as_used0 apply)
+let record_free_names_of_apply_as_used dacc ~use_id ~exn_cont_use_id apply =
+  DA.map_flow_acc dacc
+    ~f:(record_free_names_of_apply_as_used0 ~use_id ~exn_cont_use_id apply)
 
-let simplify_direct_tuple_application ~simplify_expr dacc apply
-    ~params_arity:param_arity ~result_arity ~apply_alloc_mode
-    ~contains_no_escaping_local_allocs ~down_to_up =
+let simplify_direct_tuple_application ~simplify_expr dacc apply ~result_arity
+    ~apply_alloc_mode ~current_region ~callee's_code_id ~callee's_code_metadata
+    ~down_to_up =
   let dbg = Apply.dbg apply in
-  let n = Flambda_arity.With_subkinds.cardinal param_arity in
+  let n =
+    Flambda_arity.With_subkinds.cardinal
+      (Code_metadata.params_arity callee's_code_metadata)
+  in
   (* Split the tuple argument from other potential over application arguments *)
   let tuple, over_application_args =
     match Apply.args apply with
@@ -80,8 +92,9 @@ let simplify_direct_tuple_application ~simplify_expr dacc apply
       (* [apply] already got a correct relative_history and
          [split_direct_over_application] infers the relative history from the
          one on [apply] so there's nothing to do here. *)
-      Simplify_common.split_direct_over_application apply ~param_arity
-        ~result_arity ~apply_alloc_mode ~contains_no_escaping_local_allocs
+      Simplify_common.split_direct_over_application apply ~result_arity
+        ~apply_alloc_mode ~current_region ~callee's_code_id
+        ~callee's_code_metadata
   in
   (* Insert the projections and simplify the new expression, to allow field
      projections to be simplified, and over-application/full_application
@@ -124,9 +137,9 @@ let rebuild_non_inlined_direct_full_application apply ~use_id ~exn_cont_use_id
   in
   after_rebuild expr uacc
 
-let simplify_direct_full_application ~simplify_expr dacc apply function_type
-    ~params_arity ~result_arity ~result_types ~down_to_up ~coming_from_indirect
-    ~callee's_code_metadata =
+let simplify_direct_full_application0 ~simplify_expr dacc apply function_type
+    ~params_arity ~result_arity ~(result_types : _ Or_unknown_or_bottom.t)
+    ~down_to_up ~coming_from_indirect ~callee's_code_metadata =
   let inlined =
     let decision =
       Call_site_inlining_decision.make_decision dacc ~simplify_expr ~apply
@@ -175,11 +188,20 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
   match inlined with
   | Some (dacc, inlined) -> simplify_expr dacc inlined ~down_to_up
   | None ->
-    let dacc = record_free_names_of_apply_as_used dacc apply in
-    let dacc, use_id =
-      match Apply.continuation apply with
-      | Never_returns -> dacc, None
-      | Return apply_return_continuation ->
+    let dacc, use_id, result_continuation =
+      let result_continuation = Apply.continuation apply in
+      match result_continuation, result_types with
+      | Never_returns, (Unknown | Bottom | Ok _) | Return _, Bottom ->
+        dacc, None, Apply.Result_continuation.Never_returns
+      | Return apply_return_continuation, Unknown ->
+        let dacc, use_id =
+          DA.record_continuation_use dacc apply_return_continuation
+            (Non_inlinable { escaping = true })
+            ~env_at_use:(DA.denv dacc)
+            ~arg_types:(T.unknown_types_from_arity_with_subkinds result_arity)
+        in
+        dacc, Some use_id, result_continuation
+      | Return apply_return_continuation, Ok result_types ->
         Result_types.pattern_match result_types
           ~f:(fun ~params ~results env_extension ->
             if Flambda_arity.With_subkinds.cardinal params_arity
@@ -243,7 +265,7 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
                 (Non_inlinable { escaping = true })
                 ~env_at_use:(DA.denv dacc) ~arg_types
             in
-            dacc, Some use_id)
+            dacc, Some use_id, result_continuation)
     in
     let dacc, exn_cont_use_id =
       DA.record_continuation_use dacc
@@ -254,10 +276,55 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
           (T.unknown_types_from_arity_with_subkinds
              (Exn_continuation.arity (Apply.exn_continuation apply)))
     in
+    let apply = Apply.with_continuation apply result_continuation in
+    let dacc =
+      record_free_names_of_apply_as_used dacc ~use_id ~exn_cont_use_id apply
+    in
     down_to_up dacc
       ~rebuild:
         (rebuild_non_inlined_direct_full_application apply ~use_id
            ~exn_cont_use_id ~result_arity ~coming_from_indirect)
+
+let loopify_decision_for_call dacc apply =
+  let denv = DA.denv dacc in
+  match DE.closure_info denv with
+  | Not_in_a_closure | In_a_set_of_closures_but_not_yet_in_a_specific_closure ->
+    Loopify_state.do_not_loopify
+  | Closure { return_continuation; exn_continuation; my_closure; _ } ->
+    let tenv = DE.typing_env denv in
+    let[@inline always] canon simple =
+      Simple.without_coercion (TE.get_canonical_simple_exn tenv simple)
+    in
+    if Simple.equal (canon (Simple.var my_closure)) (canon (Apply.callee apply))
+       && (match Apply.continuation apply with
+          | Never_returns ->
+            (* If we never return, then this call is a tail-call *)
+            true
+          | Return apply_return_continuation ->
+            Continuation.equal apply_return_continuation return_continuation)
+       && Exn_continuation.equal
+            (Apply.exn_continuation apply)
+            (Exn_continuation.create ~exn_handler:exn_continuation
+               ~extra_args:[])
+    then DE.loopify_state denv
+    else Loopify_state.do_not_loopify
+
+let simplify_self_tail_call dacc apply self_cont ~down_to_up =
+  Simplify_apply_cont_expr.simplify_apply_cont dacc
+    (Apply_cont_expr.create self_cont ~args:(Apply.args apply)
+       ~dbg:(Apply.dbg apply))
+    ~down_to_up
+
+let simplify_direct_full_application ~simplify_expr dacc apply function_type
+    ~params_arity ~result_arity ~result_types ~down_to_up ~coming_from_indirect
+    ~callee's_code_metadata =
+  match loopify_decision_for_call dacc apply with
+  | Loopify self_cont ->
+    simplify_self_tail_call dacc apply self_cont ~down_to_up
+  | Do_not_loopify ->
+    simplify_direct_full_application0 ~simplify_expr dacc apply function_type
+      ~params_arity ~result_arity ~result_types ~down_to_up
+      ~coming_from_indirect ~callee's_code_metadata
 
 (* CR mshinwell: need to work out what to do for local alloc transformations
    when there are zero args. *)
@@ -265,8 +332,8 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
 let simplify_direct_partial_application ~simplify_expr dacc apply
     ~callee's_code_id ~callee's_code_metadata ~callee's_function_slot
     ~param_arity ~result_arity ~recursive ~down_to_up ~coming_from_indirect
-    ~(closure_alloc_mode : Alloc_mode.t Or_unknown.t) ~num_trailing_local_params
-    =
+    ~(closure_alloc_mode_from_type : Alloc_mode.For_types.t) ~current_region
+    ~num_trailing_local_params =
   (* Partial-applications are converted in full applications. Let's assume that
      [foo] takes 6 arguments. Then [foo a b c] gets transformed into:
 
@@ -308,12 +375,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
   assert (arity > args_arity);
   let applied_args, remaining_param_arity =
     Misc.Stdlib.List.map2_prefix
-      (fun arg kind ->
-        if not (K.equal (K.With_subkind.kind kind) K.value)
-        then
-          Misc.fatal_errorf "Non-[value] kind in partial application: %a"
-            Apply.print apply;
-        arg)
+      (fun arg kind -> arg, kind)
       args
       (Flambda_arity.With_subkinds.to_list param_arity)
   in
@@ -328,27 +390,42 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
        be). *)
     let num_leading_heap_params = arity - num_trailing_local_params in
     if args_arity <= num_leading_heap_params
-    then Alloc_mode.Heap, num_trailing_local_params
+    then Alloc_mode.For_allocations.heap, num_trailing_local_params
     else
       let num_supplied_local_args = args_arity - num_leading_heap_params in
-      Alloc_mode.Local, num_trailing_local_params - num_supplied_local_args
+      ( Alloc_mode.For_allocations.local ~region:current_region,
+        num_trailing_local_params - num_supplied_local_args )
   in
-  (match closure_alloc_mode with
-  | Unknown -> ()
-  | Known Heap -> ()
-  | Known Local -> (
+  (match closure_alloc_mode_from_type with
+  | Heap_or_local -> ()
+  | Heap -> ()
+  | Local -> (
     match new_closure_alloc_mode with
-    | Local -> ()
+    | Local _ -> ()
     | Heap ->
       Misc.fatal_errorf
         "New closure alloc mode cannot be [Heap] when existing closure alloc \
          mode is [Local]: direct partial application:@ %a"
         Apply.print apply));
+  (match new_closure_alloc_mode with
+  | Heap -> ()
+  | Local _ -> (
+    match Apply.call_kind apply with
+    | Function { alloc_mode; _ } | Method { alloc_mode; _ } -> (
+      match alloc_mode with
+      | Local | Heap_or_local -> ()
+      | Heap ->
+        Misc.fatal_errorf "Partial application of %a with wrong mode at %s"
+          Code_id.print callee's_code_id
+          (Debuginfo.to_string (Apply.dbg apply)))
+    | C_call _ -> ()));
   let contains_no_escaping_local_allocs =
     Code_metadata.contains_no_escaping_local_allocs callee's_code_metadata
   in
-  let apply_alloc_mode : Alloc_mode.t =
-    if contains_no_escaping_local_allocs then Heap else Local
+  let apply_alloc_mode =
+    if contains_no_escaping_local_allocs
+    then Alloc_mode.For_types.heap
+    else Alloc_mode.For_types.unknown ()
   in
   let wrapper_taking_remaining_args, dacc, code_id, code =
     let return_continuation = Continuation.create () in
@@ -382,12 +459,13 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
             { var : Variable.t;
               (* name to bind to projected variable *)
               value : Simple.t;
-              (* value to store in closure *)
+              kind : K.With_subkind.t;
+              (* value to store in closure, with kind *)
               value_slot : Value_slot.t
             }
     end in
     let mk_value_slot () = Value_slot.create compilation_unit ~name:"arg" in
-    let applied_value value =
+    let applied_value (value, kind) =
       Simple.pattern_match' value
         ~const:(fun const -> Const const)
         ~symbol:(fun symbol ~coercion ->
@@ -395,14 +473,27 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
           then Symbol symbol
           else
             let var = Variable.create "symbol" in
-            In_closure { var; value; value_slot = mk_value_slot () })
+            if not (K.equal (K.With_subkind.kind kind) K.value)
+            then
+              Misc.fatal_errorf
+                "Simple %a which is a symbol should be of kind Value"
+                Simple.print value;
+            In_closure
+              { var;
+                value;
+                kind = K.With_subkind.any_value;
+                value_slot = mk_value_slot ()
+              })
         ~var:(fun var ~coercion:_ ->
-          In_closure { var; value; value_slot = mk_value_slot () })
+          In_closure { var; value; kind; value_slot = mk_value_slot () })
     in
-    let applied_callee = applied_value (Apply.callee apply) in
+    let applied_callee =
+      applied_value (Apply.callee apply, K.With_subkind.any_value)
+    in
     let applied_args = List.map applied_value applied_args in
     let applied_values = applied_callee :: applied_args in
     let my_closure = Variable.create "my_closure" in
+    let my_region = Variable.create "my_region" in
     let my_depth = Variable.create "my_depth" in
     let exn_continuation =
       Apply.exn_continuation apply |> Exn_continuation.without_extra_args
@@ -424,7 +515,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
           exn_continuation ~args ~call_kind dbg ~inlined:Default_inlined
           ~inlining_state:(Apply.inlining_state apply)
           ~position:Normal ~probe_name:None
-          ~relative_history:Inlining_history.Relative.empty
+          ~relative_history:Inlining_history.Relative.empty ~region:my_region
       in
       let cost_metrics =
         Cost_metrics.from_size (Code_size.apply full_application)
@@ -433,20 +524,19 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         (fun (expr, cost_metrics, free_names) applied_value ->
           match applied_value with
           | Const _ | Symbol _ -> expr, cost_metrics, free_names
-          | In_closure { var; value_slot; value = _ } ->
+          | In_closure { var; value_slot; value = _; kind } ->
             let arg = VB.create var Name_mode.normal in
             let prim =
               P.Unary
                 ( Project_value_slot
-                    { project_from = wrapper_function_slot; value_slot },
+                    { project_from = wrapper_function_slot; value_slot; kind },
                   Simple.var my_closure )
             in
             let cost_metrics_of_defining_expr =
               Cost_metrics.from_size (Code_size.prim prim)
             in
             let free_names =
-              Name_occurrences.add_value_slot_in_projection free_names
-                value_slot NM.normal
+              NO.add_value_slot_in_projection free_names value_slot NM.normal
             in
             let expr =
               Let.create
@@ -462,15 +552,16 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
               free_names ))
         ( Expr.create_apply full_application,
           cost_metrics,
-          Apply.free_names full_application
-          |> Name_occurrences.without_names_or_continuations )
+          Apply.free_names full_application |> NO.without_names_or_continuations
+        )
         (List.rev applied_values)
     in
     let params_and_body =
       (* Note that [exn_continuation] has no extra args -- see above. *)
       Function_params_and_body.create ~return_continuation
         ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
-        remaining_params ~body ~my_closure ~my_depth ~free_names_of_body:Unknown
+        remaining_params ~body ~my_closure ~my_region ~my_depth
+        ~free_names_of_body:Unknown
     in
     let name = Function_slot.to_string callee's_function_slot ^ "_partial" in
     let absolute_history, relative_history =
@@ -484,22 +575,21 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
        that stubs are supposed to be inlined, and the inner full application
        will come with the expected result types, it's not going to be
        particularly useful. *)
-    let result_types =
-      Result_types.create_unknown ~params:remaining_params ~result_arity
-    in
     let code : Static_const_or_code.t =
       let code =
         Code.create code_id ~params_and_body
           ~free_names_of_params_and_body:free_names ~newer_version_of:None
           ~params_arity:(Bound_parameters.arity_with_subkinds remaining_params)
-          ~num_trailing_local_params ~result_arity ~result_types
+          ~num_trailing_local_params ~result_arity ~result_types:Unknown
           ~contains_no_escaping_local_allocs ~stub:true ~inline:Default_inline
+          ~poll_attribute:Default ~check:Check_attribute.Default_check
           ~is_a_functor:false ~recursive ~cost_metrics:cost_metrics_of_body
           ~inlining_arguments:(DE.inlining_arguments (DA.denv dacc))
           ~dbg ~is_tupled:false
           ~is_my_closure_used:
             (Function_params_and_body.is_my_closure_used params_and_body)
           ~inlining_decision:Stub ~absolute_history ~relative_history
+          ~loopify:Never_loopify
       in
       Static_const_or_code.create_code code
     in
@@ -512,7 +602,8 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         (fun value ->
           match value with
           | Const _ | Symbol _ -> None
-          | In_closure { value_slot; value; var = _ } -> Some (value_slot, value))
+          | In_closure { value_slot; value; kind; var = _ } ->
+            Some (value_slot, (value, kind)))
         applied_values
       |> Value_slot.Map.of_list
     in
@@ -565,13 +656,14 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
   in
   simplify_expr dacc expr ~down_to_up
 
-let simplify_direct_over_application ~simplify_expr dacc apply ~param_arity
-    ~result_arity ~down_to_up ~coming_from_indirect ~apply_alloc_mode
-    ~contains_no_escaping_local_allocs =
+let simplify_direct_over_application ~simplify_expr dacc apply ~result_arity
+    ~down_to_up ~coming_from_indirect ~apply_alloc_mode ~current_region
+    ~callee's_code_id ~callee's_code_metadata =
   fail_if_probe apply;
   let expr =
-    Simplify_common.split_direct_over_application apply ~param_arity
-      ~result_arity ~apply_alloc_mode ~contains_no_escaping_local_allocs
+    Simplify_common.split_direct_over_application apply ~result_arity
+      ~apply_alloc_mode ~current_region ~callee's_code_id
+      ~callee's_code_metadata
   in
   let down_to_up dacc ~rebuild =
     let rebuild uacc ~after_rebuild =
@@ -594,8 +686,8 @@ let simplify_direct_over_application ~simplify_expr dacc apply ~param_arity
 let simplify_direct_function_call ~simplify_expr dacc apply
     ~callee's_code_id_from_type ~callee's_code_id_from_call_kind
     ~callee's_function_slot ~result_arity ~result_types ~recursive ~arg_types:_
-    ~must_be_detupled ~closure_alloc_mode ~apply_alloc_mode function_decl
-    ~down_to_up =
+    ~must_be_detupled ~closure_alloc_mode_from_type ~apply_alloc_mode
+    ~current_region function_decl ~down_to_up =
   (match Apply.probe_name apply, Apply.inlined apply with
   | None, _ | Some _, Never_inlined -> ()
   | Some _, (Hint_inlined | Unroll _ | Default_inlined | Always_inlined) ->
@@ -654,12 +746,9 @@ let simplify_direct_function_call ~simplify_expr dacc apply
        tuple argument, irrespective of what [Code.params_arity] says. *)
     if must_be_detupled
     then
-      simplify_direct_tuple_application ~simplify_expr dacc apply ~params_arity
-        ~result_arity ~apply_alloc_mode
-        ~contains_no_escaping_local_allocs:
-          (Code_metadata.contains_no_escaping_local_allocs
-             callee's_code_metadata)
-        ~down_to_up
+      simplify_direct_tuple_application ~simplify_expr dacc apply ~result_arity
+        ~apply_alloc_mode ~current_region ~callee's_code_id
+        ~callee's_code_metadata ~down_to_up
     else
       let args = Apply.args apply in
       let provided_num_args = List.length args in
@@ -671,18 +760,15 @@ let simplify_direct_function_call ~simplify_expr dacc apply
           ~coming_from_indirect ~callee's_code_metadata
       else if provided_num_args > num_params
       then
-        simplify_direct_over_application ~simplify_expr dacc apply
-          ~param_arity:params_arity ~result_arity ~down_to_up
-          ~coming_from_indirect ~apply_alloc_mode
-          ~contains_no_escaping_local_allocs:
-            (Code_metadata.contains_no_escaping_local_allocs
-               callee's_code_metadata)
+        simplify_direct_over_application ~simplify_expr dacc apply ~result_arity
+          ~down_to_up ~coming_from_indirect ~apply_alloc_mode ~current_region
+          ~callee's_code_id ~callee's_code_metadata
       else if provided_num_args > 0 && provided_num_args < num_params
       then
         simplify_direct_partial_application ~simplify_expr dacc apply
           ~callee's_code_id ~callee's_code_metadata ~callee's_function_slot
           ~param_arity:params_arity ~result_arity ~recursive ~down_to_up
-          ~coming_from_indirect ~closure_alloc_mode
+          ~coming_from_indirect ~closure_alloc_mode_from_type ~current_region
           ~num_trailing_local_params:
             (Code_metadata.num_trailing_local_params callee's_code_metadata)
       else
@@ -722,7 +808,6 @@ let simplify_function_call_where_callee's_type_unavailable dacc apply
       ~tracker:(DE.inlining_history_tracker denv)
       ~apply ();
   let env_at_use = denv in
-  let dacc = record_free_names_of_apply_as_used dacc apply in
   let dacc, exn_cont_use_id =
     DA.record_continuation_use dacc
       (Exn_continuation.exn_handler (Apply.exn_continuation apply))
@@ -782,6 +867,10 @@ let simplify_function_call_where_callee's_type_unavailable dacc apply
       in
       call_kind, use_id, dacc
   in
+  let dacc =
+    record_free_names_of_apply_as_used ~use_id:(Some use_id) ~exn_cont_use_id
+      dacc apply
+  in
   down_to_up dacc
     ~rebuild:
       (rebuild_function_call_where_callee's_type_unavailable apply call_kind
@@ -830,7 +919,7 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
   match T.meet_single_closures_entry (DE.typing_env denv) callee_ty with
   | Known_result
       ( callee's_function_slot,
-        closure_alloc_mode,
+        closure_alloc_mode_from_type,
         _closures_entry,
         func_decl_type ) ->
     let callee's_code_id_from_call_kind =
@@ -848,14 +937,15 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
     let must_be_detupled =
       call_must_be_detupled (Code_metadata.is_tupled callee's_code_metadata)
     in
+    let current_region = Apply.region apply in
     simplify_direct_function_call ~simplify_expr dacc apply
       ~callee's_code_id_from_type ~callee's_code_id_from_call_kind
       ~callee's_function_slot ~arg_types
       ~result_arity:(Code_metadata.result_arity callee's_code_metadata)
       ~result_types:(Code_metadata.result_types callee's_code_metadata)
       ~recursive:(Code_metadata.recursive callee's_code_metadata)
-      ~must_be_detupled ~closure_alloc_mode ~apply_alloc_mode func_decl_type
-      ~down_to_up
+      ~must_be_detupled ~closure_alloc_mode_from_type ~current_region
+      ~apply_alloc_mode func_decl_type ~down_to_up
   | Need_meet -> type_unavailable ()
   | Invalid ->
     let rebuild uacc ~after_rebuild =
@@ -889,6 +979,7 @@ let simplify_apply_shared dacc apply =
         (Inlining_history.Relative.concat
            ~earlier:(DE.relative_history (DA.denv dacc))
            ~later:(Apply.relative_history apply))
+      ~region:(Apply.region apply)
   in
   dacc, callee_ty, apply, arg_types
 
@@ -929,7 +1020,6 @@ let simplify_method_call dacc apply ~callee_ty ~kind:_ ~obj ~arg_types
     Misc.fatal_errorf
       "All arguments to a method call must be of kind [Value]:@ %a" Apply.print
       apply;
-  let dacc = record_free_names_of_apply_as_used dacc apply in
   let dacc, use_id =
     DA.record_continuation_use dacc apply_cont
       (Non_inlinable { escaping = true })
@@ -943,6 +1033,10 @@ let simplify_method_call dacc apply ~callee_ty ~kind:_ ~obj ~arg_types
       ~arg_types:
         (T.unknown_types_from_arity_with_subkinds
            (Exn_continuation.arity (Apply.exn_continuation apply)))
+  in
+  let dacc =
+    record_free_names_of_apply_as_used dacc ~use_id:(Some use_id)
+      ~exn_cont_use_id apply
   in
   down_to_up dacc ~rebuild:(rebuild_method_call apply ~use_id ~exn_cont_use_id)
 
@@ -998,7 +1092,6 @@ let simplify_c_call ~simplify_expr dacc apply ~callee_ty ~param_arity
     in
     simplify_expr dacc expr ~down_to_up
   | Unchanged { return_types } ->
-    let dacc = record_free_names_of_apply_as_used dacc apply in
     let dacc, use_id =
       match Apply.continuation apply with
       | Return apply_continuation ->
@@ -1026,6 +1119,9 @@ let simplify_c_call ~simplify_expr dacc apply ~callee_ty ~param_arity
         ~arg_types:
           (T.unknown_types_from_arity_with_subkinds
              (Exn_continuation.arity (Apply.exn_continuation apply)))
+    in
+    let dacc =
+      record_free_names_of_apply_as_used dacc ~use_id ~exn_cont_use_id apply
     in
     down_to_up dacc
       ~rebuild:(rebuild_c_call apply ~use_id ~exn_cont_use_id ~return_arity)

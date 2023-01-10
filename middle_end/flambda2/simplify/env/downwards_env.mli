@@ -38,6 +38,7 @@ val create :
   propagating_float_consts:bool ->
   unit_toplevel_exn_continuation:Continuation.t ->
   unit_toplevel_return_continuation:Continuation.t ->
+  toplevel_my_region:Variable.t ->
   t
 
 val all_code : t -> Code.t Code_id.Map.t
@@ -106,7 +107,7 @@ val add_parameters :
   t
 
 val add_parameters_with_unknown_types :
-  ?alloc_modes:Alloc_mode.t Or_unknown.t list ->
+  ?alloc_modes:Alloc_mode.For_types.t list ->
   ?name_mode:Name_mode.t ->
   ?at_unit_toplevel:bool ->
   t ->
@@ -181,6 +182,7 @@ val enter_closure :
   Code_id.t ->
   return_continuation:Continuation.t ->
   exn_continuation:Continuation.t ->
+  my_closure:Variable.t ->
   t ->
   t
 
@@ -200,3 +202,7 @@ val inlining_history_tracker : t -> Inlining_history.Tracker.t
 val set_inlining_history_tracker : Inlining_history.Tracker.t -> t -> t
 
 val relative_history : t -> Inlining_history.Relative.t
+
+val loopify_state : t -> Loopify_state.t
+
+val set_loopify_state : Loopify_state.t -> t -> t

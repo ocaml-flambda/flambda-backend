@@ -1,6 +1,6 @@
 let $camlTests0__first_const18 = Block 0 () in
 let code size(31)
-      f_0 (param : imm tagged) my_closure my_depth -> k * k1 : imm tagged =
+      f_0 (param : imm tagged) my_closure my_region my_depth -> k * k1 : imm tagged =
   let next_depth = rec_info (succ my_depth) in
   (let prim = %is_int 0 in
    let is_scrutinee_int = %Tag_imm prim in
@@ -29,7 +29,7 @@ in
 ===>
 let code f_0 deleted in
 let code size(1) newer_version_of(f_0)
-      f_0_1 (param : imm tagged) my_closure my_depth -> k * k1 : imm tagged =
+      f_0_1 (param : imm tagged) my_closure my_region my_depth -> k * k1 : imm tagged =
   cont k (0)
 in
 let $camlTests0__f_1 = closure f_0_1 @f in

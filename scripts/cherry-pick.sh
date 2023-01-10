@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # To be run from the root of the Flambda backend repo.
 # Cherry pick a commit from upstream repo and apply it to flambda-backend repo.

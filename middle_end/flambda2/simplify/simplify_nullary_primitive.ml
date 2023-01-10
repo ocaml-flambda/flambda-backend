@@ -18,6 +18,7 @@ open! Simplify_import
 let simplify_nullary_primitive dacc original_prim (prim : P.nullary_primitive)
     dbg ~result_var =
   match prim with
+  | Invalid _result_kind -> Simplify_primitive_result.create_invalid dacc
   | Optimised_out result_kind ->
     (match Bound_var.name_mode result_var with
     | Phantom -> ()

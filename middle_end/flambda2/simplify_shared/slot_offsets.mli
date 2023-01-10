@@ -70,6 +70,8 @@ val finalize_offsets :
   t ->
   result
 
+type words = int
+
 (** {2 Offsets & Layouts} *)
 module Layout : sig
   (**)
@@ -78,20 +80,25 @@ module Layout : sig
       layout slot can take up more than one word of memory (this is the case for
       closures, which can take either 2 or 3 words depending on arity). *)
   type slot = private
-    | Value_slot of Value_slot.t
+    | Value_slot of
+        { size : words;
+          is_scanned : bool;
+          value_slot : Value_slot.t
+        }
     | Infix_header
     | Function_slot of
-        { size : int;
-          function_slot : Function_slot.t
+        { size : words;
+          function_slot : Function_slot.t;
+          last_function_slot : bool
         }
   (**)
 
   (** Alias for complete layouts. The list is sorted according to offsets (in
       increasing order). *)
   type t = private
-    { startenv : int;
+    { startenv : words;
       empty_env : bool;
-      slots : (int * slot) list
+      slots : (words * slot) list
     }
 
   (** Order the given function slots and env vars into a list of layout slots

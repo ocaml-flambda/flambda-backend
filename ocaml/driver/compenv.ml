@@ -91,7 +91,11 @@ let module_of_filename inputfile outputprefix =
   let basename = Filename.basename outputprefix in
   let name =
     try
-      let pos = String.index basename '.' in
+      (* For hidden files (i.e., those starting with '.'), include the initial
+         '.' in the module name rather than let it be empty. It's still not a
+         /good/ module name, but at least it's not rejected out of hand by
+         [Compilation_unit.Name.of_string]. *)
+      let pos = String.index_from basename 1 '.' in
       String.sub basename 0 pos
     with Not_found -> basename
   in
@@ -233,6 +237,9 @@ let warnings_for_discarded_params = ref false
 let extra_params = ref None
 let set_extra_params params = extra_params := params
 
+let parse_warnings error v =
+  Option.iter Location.(prerr_alert none) @@ Warnings.parse_options error v
+
 let read_one_param ppf position name v =
   let set name options s =  setter ppf (fun b -> b) name options s in
   let clear name options s = setter ppf (fun b -> not b) name options s in
@@ -296,11 +303,11 @@ let read_one_param ppf position name v =
   |  "dstartup" -> set "dstartup" [ Clflags.keep_startup_file ] v
 
   (* warn-errors *)
-  | "we" | "warn-error" -> Warnings.parse_options true v
+  | "we" | "warn-error" -> parse_warnings true v
   (* warnings *)
-  |  "w"  ->               Warnings.parse_options false v
+  |  "w"  ->               parse_warnings false v
   (* warn-errors *)
-  | "wwe" ->               Warnings.parse_options false v
+  | "wwe" ->               parse_warnings false v
   (* alerts *)
   | "alert" ->             Warnings.parse_alert_option v
 
@@ -479,6 +486,8 @@ let read_one_param ppf position name v =
       | None -> ()
       | Some pass -> set_save_ir_after pass true
     end
+  | "dump-into-file" -> Clflags.dump_into_file := true
+  | "dump-dir" -> Clflags.dump_dir := Some v
 
   | "extension" -> Clflags.Extension.enable v
   | "disable-all-extensions" ->
@@ -615,6 +624,7 @@ let get_objfiles ~with_ocamlparam =
   else
     List.rev !objfiles
 
+let has_linker_inputs = ref false
 
 
 
@@ -652,8 +662,13 @@ let process_action
   | ProcessCFile name ->
       readenv ppf (Before_compile name);
       Location.input_name := name;
-      if Ccomp.compile_file name <> 0 then raise (Exit_with_status 2);
-      ccobjs := c_object_of_filename name :: !ccobjs
+      let obj_name = match !output_name with
+        | None -> c_object_of_filename name
+        | Some n -> n
+      in
+      if Ccomp.compile_file ?output:!output_name name <> 0
+      then raise (Exit_with_status 2);
+      ccobjs := obj_name :: !ccobjs
   | ProcessObjects names ->
       ccobjs := names @ !ccobjs
   | ProcessDLLs names ->
@@ -665,8 +680,10 @@ let process_action
       else if Filename.check_suffix name ".cmi" && !make_package then
         objfiles := name :: !objfiles
       else if Filename.check_suffix name Config.ext_obj
-           || Filename.check_suffix name Config.ext_lib then
+           || Filename.check_suffix name Config.ext_lib then begin
+        has_linker_inputs := true;
         ccobjs := name :: !ccobjs
+      end
       else if not !native_code && Filename.check_suffix name Config.ext_dll then
         dllibs := name :: !dllibs
       else
@@ -704,14 +721,10 @@ let process_deferred_actions env =
   begin
     match final_output_name with
     | None -> ()
-    | Some output_name ->
+    | Some _output_name ->
         if !compile_only then begin
-          if List.filter (function
-              | ProcessCFile name -> c_object_of_filename name <> output_name
-              | _ -> false) !deferred_actions <> [] then
-            fatal "Options -c and -o are incompatible when compiling C files";
-
           if List.length (List.filter (function
+              | ProcessCFile _
               | ProcessImplementation _
               | ProcessInterface _ -> true
               | _ -> false) !deferred_actions) > 1 then
@@ -736,4 +749,33 @@ let process_deferred_actions env =
     !print_types ||
     match !stop_after with
     | None -> false
-    | Some p -> Clflags.Compiler_pass.is_compilation_pass p;
+    | Some p -> Clflags.Compiler_pass.is_compilation_pass p
+
+(* This function is almost the same as [Arg.parse_expand], except
+   that [Arg.parse_expand] could not be used because it does not take a
+   reference for [arg_spec].
+   We use a marker \000 for Arg.parse_and_expand_argv_dynamic
+   so we can split out error message from usage options, because
+   it always concatenates
+   error message with usage options *)
+let parse_arguments ?(current=ref 0) argv f program =
+    try
+      Arg.parse_and_expand_argv_dynamic current argv Clflags.arg_spec f "\000"
+    with
+    | Arg.Bad err_msg ->
+      let usage_msg = create_usage_msg program in
+      let err_msg = err_msg
+      |> String.split_on_char '\000'
+      |> List.hd
+      |> String.trim in
+      Printf.eprintf "%s\n%s\n" err_msg usage_msg;
+      raise (Exit_with_status 2)
+    | Arg.Help msg ->
+      let err_msg =
+        msg
+        |> String.split_on_char '\000'
+        |> String.concat "" in
+      let help_msg =
+        Printf.sprintf "Usage: %s <options> <files>\nOptions are:" program in
+      Printf.printf "%s\n%s" help_msg err_msg;
+      raise (Exit_with_status 0)

@@ -8,6 +8,7 @@
   uses_autoconf
   is_flambda_backend
   build_m32_from_upstream
+  stack_allocation_by_default
   ))
  (features (
    normal
@@ -19,5 +20,6 @@
    no_flat_float_array
    perf_demangled_symbols
    stack_allocation
+   poll_insertion
    ))
  )

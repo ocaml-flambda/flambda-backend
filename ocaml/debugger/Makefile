@@ -20,14 +20,11 @@ include $(ROOTDIR)/Makefile.best_binaries
 
 DYNLINKDIR=$(ROOTDIR)/otherlibs/dynlink
 UNIXDIR=$(ROOTDIR)/otherlibs/$(UNIXLIB)
-CAMLRUN ?= $(ROOTDIR)/boot/ocamlrun
-CAMLYACC ?= $(ROOTDIR)/yacc/ocamlyacc$(EXE)
 
 CAMLC=$(BEST_OCAMLC) -g -nostdlib -I $(ROOTDIR)/stdlib
-COMPFLAGS=$(INCLUDES) -absname -w +a-4-9-41-42-44-45-48 -warn-error A \
+COMPFLAGS=$(INCLUDES) -absname -w +a-4-9-41-42-44-45-48-70 -warn-error +A \
           -safe-string -strict-sequence -strict-formats
 LINKFLAGS=-linkall -I $(UNIXDIR) -I $(DYNLINKDIR)
-CAMLLEX=$(BEST_OCAMLLEX)
 CAMLDEP=$(BEST_OCAMLDEP)
 DEPFLAGS=-slash
 DEPINCLUDES=$(INCLUDES)
@@ -46,16 +43,20 @@ debugger_modules := \
   show_source time_travel program_management frames eval \
   show_information loadprinter debugger_parser command_line main
 
-all_modules := $(compiler_modules) $(debugger_modules)
+compiler_objects := $(addsuffix .cmo,$(compiler_modules))
 
-all_objects := $(addsuffix .cmo,$(all_modules))
+debugger_objects := $(addsuffix .cmo,$(debugger_modules))
 
 libraries = $(ROOTDIR)/compilerlibs/ocamlcommon.cma \
   $(UNIXDIR)/unix.cma $(DYNLINKDIR)/dynlink.cma
 
 all: ocamldebug$(EXE)
 
-ocamldebug$(EXE): $(libraries) $(all_objects)
+ocamldebug.cmo: $(debugger_objects)
+	$(CAMLC) -pack $(COMPFLAGS) -o $@ $^
+
+ocamldebug$(EXE): $(libraries) $(compiler_objects) ocamldebug.cmo \
+    ocamldebug_entry.cmo
 	$(CAMLC) $(LINKFLAGS) -o $@ -linkall $^
 
 install:
@@ -65,27 +66,23 @@ clean::
 	rm -f ocamldebug ocamldebug.exe
 	rm -f *.cmo *.cmi
 
-.SUFFIXES:
-.SUFFIXES: .ml .cmo .mli .cmi
-
-.ml.cmo:
+ocamldebug_entry.cmo: ocamldebug_entry.ml ocamldebug.cmo
 	$(CAMLC) -c $(COMPFLAGS) $<
 
-.mli.cmi:
-	$(CAMLC) -c $(COMPFLAGS) $<
+%.cmo: %.ml
+	$(CAMLC) -c $(COMPFLAGS) -for-pack ocamldebug $<
+
+%.cmi: %.mli
+	$(CAMLC) -c $(COMPFLAGS) -for-pack ocamldebug $<
 
 depend: beforedepend
 	$(CAMLDEP) $(DEPFLAGS) $(DEPINCLUDES) *.mli *.ml \
 	| sed -e 's,$(UNIXDIR)/,$$(UNIXDIR)/,' > .depend
 
-debugger_lexer.ml: debugger_lexer.mll
-	$(CAMLLEX) $(OCAMLLEX_FLAGS) $<
 clean::
 	rm -f debugger_lexer.ml
 beforedepend:: debugger_lexer.ml
 
-debugger_parser.ml debugger_parser.mli: debugger_parser.mly
-	$(CAMLYACC) debugger_parser.mly
 clean::
 	rm -f debugger_parser.ml debugger_parser.mli
 beforedepend:: debugger_parser.ml debugger_parser.mli

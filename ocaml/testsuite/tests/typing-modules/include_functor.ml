@@ -40,6 +40,7 @@ Line 5, characters 18-20:
                       ^^
 Error: Signature mismatch in included functor's parameter:
        Values do not match: val x : bool is not included in val x : t
+       The type bool is not compatible with the type t = int
 |}];;
 
 (* Test 3: Missing type in structure *)
@@ -114,6 +115,7 @@ Line 5, characters 18-20:
                       ^^
 Error: Signature mismatch in included functor's parameter:
        Values do not match: val x : bool is not included in val x : t
+       The type bool is not compatible with the type t
 |}];;
 
 (* Test 7: Missing type in signature *)
@@ -673,3 +675,25 @@ Line 20, characters 16-17:
 Error: This expression has type int but an expression was expected of type
          string
 |}];;
+
+(* Test 21: Check that scraping of result type happens in environment expanded
+   with parameter type. *)
+module M21 = struct
+  module F (_ : sig end) = struct
+    module type S = sig end
+  end
+
+  module P = struct
+    module Make (M : sig end) : F(M).S = struct end
+  end
+
+  include functor P.Make
+end;;
+[%%expect{|
+module M21 :
+  sig
+    module F : sig end -> sig module type S = sig end end
+    module P : sig module Make : functor (M : sig end) -> F(M).S end
+  end
+|}];;
+

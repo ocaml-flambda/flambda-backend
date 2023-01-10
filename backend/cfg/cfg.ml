@@ -29,9 +29,78 @@ let verbose = ref false
 
 include Cfg_intf.S
 
+module BasicInstructionList = struct
+  type instr = basic instruction
+
+  type cell =
+    { instr : instr;
+      mutable before_rev : instr list;
+      mutable after : instr list
+    }
+
+  let insert_before cell instr = cell.before_rev <- instr :: cell.before_rev
+
+  let insert_after cell instr = cell.after <- instr :: cell.after
+
+  let instr cell = cell.instr
+
+  type t = instr list ref
+
+  let make_empty () = ref []
+
+  let make_single instr = ref [instr]
+
+  let of_list l = ref l
+
+  let hd t = match !t with [] -> None | hd :: _ -> Some hd
+
+  let last t =
+    let rec loop = function
+      | [] -> None
+      | [last] -> Some last
+      | _ :: tl -> loop tl
+    in
+    loop !t
+
+  let add_begin t instr = t := instr :: !t
+
+  let add_end t instr = t := !t @ [instr]
+
+  let is_empty t = match !t with [] -> true | _ :: _ -> false
+
+  let length t = ListLabels.length !t
+
+  let filter_left t ~f = t := ListLabels.filter ~f !t
+
+  let filter_right t ~f =
+    t
+      := ListLabels.fold_right
+           ~f:(fun elem acc -> if f elem then elem :: acc else acc)
+           !t ~init:[]
+
+  let iter t ~f = ListLabels.iter ~f !t
+
+  let iter_cell t ~f =
+    t
+      := ListLabels.concat_map !t ~f:(fun instr ->
+             let cell = { instr; before_rev = []; after = [] } in
+             f cell;
+             List.rev cell.before_rev @ [instr] @ cell.after)
+
+  let iter2 t t' ~f = ListLabels.iter2 ~f !t !t'
+
+  let fold_left t ~f ~init = ListLabels.fold_left ~f ~init !t
+
+  let fold_right t ~f ~init = ListLabels.fold_right ~f !t ~init
+
+  let transfer ~to_:t ~from:t' () =
+    t := !t @ !t';
+    t' := []
+end
+
 type basic_block =
   { start : Label.t;
-    mutable body : basic instruction list;
+    body : BasicInstructionList.t;
     mutable terminator : terminator instruction;
     mutable predecessors : Label.Set.t;
     mutable stack_offset : int;
@@ -69,9 +138,9 @@ let mem_block t label = Label.Tbl.mem t.blocks label
 
 let successor_labels_normal ti =
   match ti.desc with
-  | Tailcall (Self { destination }) -> Label.Set.singleton destination
+  | Tailcall_self { destination } -> Label.Set.singleton destination
   | Switch labels -> Array.to_seq labels |> Label.Set.of_seq
-  | Return | Raise _ | Tailcall (Func _) -> Label.Set.empty
+  | Return | Raise _ | Tailcall_func _ -> Label.Set.empty
   | Call_no_return _ -> Label.Set.empty
   | Never -> Label.Set.empty
   | Always l -> Label.Set.singleton l
@@ -82,6 +151,11 @@ let successor_labels_normal ti =
     |> Label.Set.add uo
   | Int_test { lt; gt; eq; imm = _; is_signed = _ } ->
     Label.Set.singleton lt |> Label.Set.add gt |> Label.Set.add eq
+  | Call { op = _; label_after }
+  | Prim { op = _; label_after }
+  | Specific_can_raise { op = _; label_after } ->
+    Label.Set.singleton label_after
+  | Poll_and_jump return_label -> Label.Set.singleton return_label
 
 let successor_labels ~normal ~exn block =
   match normal, exn with
@@ -126,14 +200,26 @@ let replace_successor_labels t ~normal ~exn block ~f =
       | Float_test { lt; eq; gt; uo } ->
         Float_test { lt = f lt; eq = f eq; gt = f gt; uo = f uo }
       | Switch labels -> Switch (Array.map f labels)
-      | Tailcall (Self { destination }) ->
-        Tailcall (Self { destination = f destination })
-      | Tailcall (Func Indirect)
-      | Tailcall (Func (Direct _))
+      | Tailcall_self { destination } ->
+        Tailcall_self { destination = f destination }
+      | Tailcall_func Indirect
+      | Tailcall_func (Direct _)
       | Return | Raise _ | Call_no_return _ ->
         block.terminator.desc
+      | Poll_and_jump return_label -> Poll_and_jump (f return_label)
+      | Call { op; label_after } -> Call { op; label_after = f label_after }
+      | Prim { op; label_after } -> Prim { op; label_after = f label_after }
+      | Specific_can_raise { op; label_after } ->
+        Specific_can_raise { op; label_after = f label_after }
     in
     block.terminator <- { block.terminator with desc }
+
+let add_block_exn t block =
+  if Label.Tbl.mem t.blocks block.start
+  then
+    Misc.fatal_errorf "Cfg.add_block_exn: block %d is already present"
+      block.start;
+  Label.Tbl.add t.blocks block.start block
 
 let remove_block_exn t label =
   match Label.Tbl.find t.blocks label with
@@ -150,6 +236,11 @@ let get_block_exn t label =
   | block -> block
 
 let can_raise_interproc block = block.can_raise && Option.is_none block.exn
+
+let first_instruction_id (block : basic_block) : int =
+  match BasicInstructionList.hd block.body with
+  | None -> block.terminator.id
+  | Some first_instr -> first_instr.id
 
 let fun_name t = t.fun_name
 
@@ -185,6 +276,9 @@ let intcomp (comp : Mach.integer_comparison) =
   | Isigned c -> Printf.sprintf " %ss " (Printcmm.integer_comparison c)
   | Iunsigned c -> Printf.sprintf " %su " (Printcmm.integer_comparison c)
 
+let intop_atomic (op : Cmm.atomic_op) =
+  match op with Fetch_and_add -> " += " | Compare_and_swap -> " cas "
+
 let intop (op : Mach.integer_operation) =
   match op with
   | Iadd -> " + "
@@ -205,8 +299,7 @@ let intop (op : Mach.integer_operation) =
   | Icomp cmp -> intcomp cmp
   | Icheckbound -> assert false
 
-let dump_op ?(specific = fun ppf _ -> Format.fprintf ppf "specific") ppf =
-  function
+let dump_op ppf = function
   | Move -> Format.fprintf ppf "mov"
   | Spill -> Format.fprintf ppf "spill"
   | Reload -> Format.fprintf ppf "reload"
@@ -218,6 +311,8 @@ let dump_op ?(specific = fun ppf _ -> Format.fprintf ppf "specific") ppf =
   | Store _ -> Format.fprintf ppf "store"
   | Intop op -> Format.fprintf ppf "intop %s" (intop op)
   | Intop_imm (op, n) -> Format.fprintf ppf "intop %s %d" (intop op) n
+  | Intop_atomic { op; size = _; addr = _ } ->
+    Format.fprintf ppf "intop atomic %s" (intop_atomic op)
   | Negf -> Format.fprintf ppf "negf"
   | Absf -> Format.fprintf ppf "absf"
   | Addf -> Format.fprintf ppf "addf"
@@ -225,42 +320,30 @@ let dump_op ?(specific = fun ppf _ -> Format.fprintf ppf "specific") ppf =
   | Mulf -> Format.fprintf ppf "mulf"
   | Divf -> Format.fprintf ppf "divf"
   | Compf _ -> Format.fprintf ppf "compf"
+  | Csel _ -> Format.fprintf ppf "csel"
   | Floatofint -> Format.fprintf ppf "floattoint"
   | Intoffloat -> Format.fprintf ppf "intoffloat"
-  | Specific op -> specific ppf op
-  | Probe { name; handler_code_sym } ->
-    Format.fprintf ppf "probe %s %s" name handler_code_sym
+  | Valueofint -> Format.fprintf ppf "valueofint"
+  | Intofvalue -> Format.fprintf ppf "intofvalue"
+  | Specific _ -> Format.fprintf ppf "specific"
   | Probe_is_enabled { name } -> Format.fprintf ppf "probe_is_enabled %s" name
   | Opaque -> Format.fprintf ppf "opaque"
   | Begin_region -> Format.fprintf ppf "beginregion"
   | End_region -> Format.fprintf ppf "endregion"
   | Name_for_debugger _ -> Format.fprintf ppf "name_for_debugger"
 
-let dump_call ppf = function
-  | P prim_call -> (
-    match prim_call with
-    | External { func_symbol : string; _ } ->
-      Format.fprintf ppf "external %s" func_symbol
-    | Alloc { bytes : int; _ } -> Format.fprintf ppf "alloc %d" bytes
-    | Checkbound _ -> Format.fprintf ppf "checkbound")
-  | F func_call -> (
-    match func_call with
-    | Indirect -> Format.fprintf ppf "indirect"
-    | Direct { func_symbol : string; _ } ->
-      Format.fprintf ppf "direct %s" func_symbol)
-
 let dump_basic ppf (basic : basic) =
   let open Format in
   match basic with
   | Op op -> dump_op ppf op
-  | Call call -> fprintf ppf "Call %a" dump_call call
   | Reloadretaddr -> fprintf ppf "Reloadretaddr"
   | Pushtrap { lbl_handler } -> fprintf ppf "Pushtrap handler=%d" lbl_handler
   | Poptrap -> fprintf ppf "Poptrap"
   | Prologue -> fprintf ppf "Prologue"
 
-let dump_terminator' ?(print_reg = Printmach.reg) ?(args = [||]) ?(sep = "\n")
-    ppf (terminator : terminator) =
+let dump_terminator' ?(print_reg = Printmach.reg) ?(res = [||]) ?(args = [||])
+    ?(specific_can_raise = fun ppf _ -> Format.fprintf ppf "specific_can_raise")
+    ?(sep = "\n") ppf (terminator : terminator) =
   let first_arg =
     if Array.length args >= 1
     then Format.fprintf Format.str_formatter " %a" print_reg args.(0);
@@ -276,6 +359,11 @@ let dump_terminator' ?(print_reg = Printmach.reg) ?(args = [||]) ?(sep = "\n")
     then ()
     else Format.fprintf ppf " %a" (Printmach.regs' ~print_reg) args
   in
+  let print_res ppf =
+    if Array.length res > 0
+    then Format.fprintf ppf "%a := " (Printmach.regs' ~print_reg) res
+  in
+  let dump_mach_op ppf op = Printmach.operation' ~print_reg op args ppf [||] in
   let open Format in
   match terminator with
   | Never -> fprintf ppf "deadend"
@@ -312,8 +400,36 @@ let dump_terminator' ?(print_reg = Printmach.reg) ?(args = [||]) ?(sep = "\n")
     fprintf ppf "Call_no_return %s%a" func_symbol print_args args
   | Return -> fprintf ppf "Return%a" print_args args
   | Raise _ -> fprintf ppf "Raise%a" print_args args
-  | Tailcall (Self _) -> fprintf ppf "Tailcall self%a" print_args args
-  | Tailcall (Func _) -> fprintf ppf "Tailcall%a" print_args args
+  | Tailcall_self { destination } ->
+    dump_mach_op ppf
+      (Mach.Itailcall_imm { func = Printf.sprintf "self(%d)" destination })
+  | Tailcall_func call ->
+    dump_mach_op ppf
+      (match call with
+      | Indirect -> Mach.Itailcall_ind
+      | Direct { func_symbol = func } -> Mach.Itailcall_imm { func })
+  | Call { op = call; label_after } ->
+    Format.fprintf ppf "%t%a" print_res dump_mach_op
+      (match call with
+      | Indirect -> Mach.Icall_ind
+      | Direct { func_symbol = func } -> Mach.Icall_imm { func });
+    Format.fprintf ppf "%sgoto %d" sep label_after
+  | Prim { op = prim; label_after } ->
+    Format.fprintf ppf "%t%a" print_res dump_mach_op
+      (match prim with
+      | External { func_symbol = func; ty_res; ty_args; alloc } ->
+        Mach.Iextcall { func; ty_res; ty_args; returns = true; alloc }
+      | Alloc { bytes; dbginfo; mode } -> Mach.Ialloc { bytes; dbginfo; mode }
+      | Checkbound { immediate = Some x } -> Mach.Iintop_imm (Icheckbound, x)
+      | Checkbound { immediate = None } -> Mach.Iintop Icheckbound
+      | Probe { name; handler_code_sym } ->
+        Mach.Iprobe { name; handler_code_sym });
+    Format.fprintf ppf "%sgoto %d" sep label_after
+  | Specific_can_raise { op; label_after } ->
+    Format.fprintf ppf "%a" specific_can_raise op;
+    Format.fprintf ppf "%sgoto %d" sep label_after
+  | Poll_and_jump return_label ->
+    Format.fprintf ppf "Poll_and_jump %a" Label.print return_label
 
 let dump_terminator ?sep ppf terminator = dump_terminator' ?sep ppf terminator
 
@@ -334,9 +450,11 @@ let print_basic' ?print_reg ppf (instruction : basic instruction) =
 let print_basic ppf i = print_basic' ppf i
 
 let print_terminator' ?print_reg ppf (ti : terminator instruction) =
-  if Array.length ti.res > 0
-  then Format.fprintf ppf "%a := " (Printmach.regs' ?print_reg) ti.res;
-  dump_terminator' ?print_reg ~args:ti.arg ~sep:"\n" ppf ti.desc
+  dump_terminator' ?print_reg
+    ~specific_can_raise:(fun ppf op ->
+      (* Print this as basic instruction. *)
+      print_basic' ?print_reg ppf { ti with desc = Op (Specific op) })
+    ~res:ti.res ~args:ti.arg ~sep:"\n" ppf ti.desc
 
 let print_terminator ppf ti = print_terminator' ppf ti
 
@@ -349,55 +467,27 @@ let print_instruction ppf i = print_instruction' ppf i
 
 let can_raise_terminator (i : terminator) =
   match i with
-  | Raise _ | Tailcall (Func _) | Call_no_return _ -> true
+  | Raise _ | Tailcall_func _ | Call_no_return _ | Call _ | Prim _ -> true
+  | Specific_can_raise { op; _ } ->
+    assert (Arch.operation_can_raise op);
+    true
+  | Poll_and_jump _ -> true
   | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-  | Switch _ | Return
-  | Tailcall (Self _) ->
+  | Switch _ | Return | Tailcall_self _ ->
     false
-
-let can_raise_operation : operation -> bool = function
-  | Move -> false
-  | Spill -> false
-  | Reload -> false
-  | Const_int _ -> false
-  | Const_float _ -> false
-  | Const_symbol _ -> false
-  | Stackoffset _ -> false
-  | Load _ -> false
-  | Store _ -> false
-  | Intop _ -> false
-  | Intop_imm _ -> false
-  | Negf -> false
-  | Absf -> false
-  | Addf -> false
-  | Subf -> false
-  | Mulf -> false
-  | Divf -> false
-  | Compf _ -> false
-  | Floatofint -> false
-  | Intoffloat -> false
-  | Probe _ -> true
-  | Probe_is_enabled _ -> false
-  | Specific op -> Arch.operation_can_raise op
-  | Opaque -> false
-  | Name_for_debugger _ -> false
-  | Begin_region -> false
-  | End_region -> false
-
-let can_raise_basic : basic -> bool = function
-  | Op op -> can_raise_operation op
-  | Call _ -> true
-  | Reloadretaddr -> false
-  | Pushtrap _ -> false
-  | Poptrap -> false
-  | Prologue -> false
 
 (* CR gyorsh: [is_pure_terminator] is not the same as [can_raise_terminator]
    because of [Tailcal Self] which is not pure but marked as cannot raise at the
    moment, which we might want to reconsider later. *)
 let is_pure_terminator desc =
   match (desc : terminator) with
-  | Raise _ | Call_no_return _ | Tailcall _ | Return -> false
+  | Return | Raise _ | Call_no_return _ | Tailcall_func _ | Tailcall_self _
+  | Call _ | Prim _ ->
+    false
+  | Specific_can_raise { op; _ } ->
+    assert (Arch.operation_can_raise op);
+    false
+  | Poll_and_jump _ -> false
   | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Switch _ ->
     (* CR gyorsh: fix for memory operands *)
@@ -415,6 +505,7 @@ let is_pure_operation : operation -> bool = function
   | Store _ -> false
   | Intop _ -> true
   | Intop_imm _ -> true
+  | Intop_atomic _ -> false
   | Negf -> true
   | Absf -> true
   | Addf -> true
@@ -422,19 +513,24 @@ let is_pure_operation : operation -> bool = function
   | Mulf -> true
   | Divf -> true
   | Compf _ -> true
+  | Csel _ -> true
   | Floatofint -> true
   | Intoffloat -> true
-  | Probe _ -> false
+  (* Conservative to ensure valueofint/intofvalue are not eliminated before
+     emit. *)
+  | Valueofint -> false
+  | Intofvalue -> false
   | Probe_is_enabled _ -> true
   | Opaque -> false
   | Begin_region -> false
   | End_region -> false
-  | Specific s -> Arch.operation_is_pure s
+  | Specific s ->
+    assert (not (Arch.operation_can_raise s));
+    Arch.operation_is_pure s
   | Name_for_debugger _ -> true
 
 let is_pure_basic : basic -> bool = function
   | Op op -> is_pure_operation op
-  | Call _ -> false
   | Reloadretaddr ->
     (* This is a no-op on supported backends but on some others like "power" it
        wouldn't be. Saying it's not pure doesn't decrease the generated code
@@ -453,17 +549,26 @@ let is_pure_basic : basic -> bool = function
 
 let is_noop_move instr =
   match instr.desc with
-  | Op (Move | Spill | Reload) -> (
-    match instr.arg.(0).loc with
+  | Op (Move | Spill | Reload) ->
+    (match instr.arg.(0).loc with
     | Unknown -> false
     | Reg _ | Stack _ -> Reg.same_loc instr.arg.(0) instr.res.(0))
+    && Proc.register_class instr.arg.(0) = Proc.register_class instr.res.(0)
+  | Op (Csel _) -> (
+    match instr.res.(0).loc with
+    | Unknown -> false
+    | Reg _ | Stack _ ->
+      let len = Array.length instr.arg in
+      let ifso = instr.arg.(len - 2) in
+      let ifnot = instr.arg.(len - 1) in
+      Reg.same_loc instr.res.(0) ifso && Reg.same_loc instr.res.(0) ifnot)
   | Op
       ( Const_int _ | Const_float _ | Const_symbol _ | Stackoffset _ | Load _
-      | Store _ | Intop _ | Intop_imm _ | Negf | Absf | Addf | Subf | Mulf
-      | Divf | Compf _ | Floatofint | Intoffloat | Probe _ | Opaque
-      | Probe_is_enabled _ | Specific _ | Name_for_debugger _ | Begin_region
-      | End_region )
-  | Call _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
+      | Store _ | Intop _ | Intop_imm _ | Intop_atomic _ | Negf | Absf | Addf
+      | Subf | Mulf | Divf | Compf _ | Floatofint | Intoffloat | Opaque
+      | Valueofint | Intofvalue | Probe_is_enabled _ | Specific _
+      | Name_for_debugger _ | Begin_region | End_region )
+  | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
     false
 
 let set_stack_offset (instr : _ instruction) stack_offset =
@@ -471,12 +576,7 @@ let set_stack_offset (instr : _ instruction) stack_offset =
   then
     Misc.fatal_errorf "Cfg.set_stack_offset: expected non-negative got %d"
       stack_offset;
-  if instr.stack_offset = stack_offset
-  then instr
-  else { instr with stack_offset }
-
-let set_live (instr : _ instruction) live =
-  if Reg.Set.equal instr.live live then instr else { instr with live }
+  instr.stack_offset <- stack_offset
 
 let string_of_irc_work_list = function
   | Unknown_list -> "unknown_list"

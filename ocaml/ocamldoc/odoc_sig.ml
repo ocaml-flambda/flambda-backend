@@ -104,8 +104,8 @@ module Signature_search =
       type_expr
 
     let search_method_type name class_sig =
-      let fields = Odoc_misc.get_fields class_sig.Types.csig_self in
-      List.assoc name fields
+      let (_, _, type_expr) = Types.Meths.find name class_sig.Types.csig_meths in
+      type_expr
   end
 
 module type Info_retriever =
@@ -341,7 +341,7 @@ module Analyser =
 
 
     let manifest_structure env name_comment_list type_expr =
-      match type_expr.desc with
+      match get_desc type_expr with
       | Tobject (fields, _) ->
         let f (field_name, _, type_expr) =
           let comment_opt =
@@ -373,7 +373,7 @@ module Analyser =
       match type_kind with
         Types.Type_abstract ->
           Odoc_type.Type_abstract
-      | Types.Type_variant l ->
+      | Types.Type_variant (l,_) ->
           let f {Types.cd_id=constructor_name;cd_args;cd_res=ret_type} =
             let constructor_name = Ident.name constructor_name in
             let comment_opt =
@@ -384,7 +384,7 @@ module Analyser =
             in
             let vc_args =
               match cd_args with
-              | Cstr_tuple l -> Cstr_tuple (List.map (Odoc_env.subst_type env) l)
+              | Cstr_tuple l -> Cstr_tuple (List.map (fun (ty, _) -> Odoc_env.subst_type env ty) l)
               | Cstr_record l ->
                   Cstr_record (List.map (get_field env name_comment_list) l)
             in
@@ -421,7 +421,7 @@ module Analyser =
       let open Typedtree in
       function
       | Cstr_tuple l ->
-          Odoc_type.Cstr_tuple (List.map tuple l)
+          Odoc_type.Cstr_tuple (List.map (fun (ty, _) -> tuple ty) l)
       | Cstr_record l ->
           let comments = Record.(doc typedtree) pos_end l in
           Odoc_type.Cstr_record (List.map (record comments) l)
@@ -452,11 +452,14 @@ module Analyser =
     let erased_names_of_constraints constraints acc =
       List.fold_right (fun constraint_ acc ->
         match constraint_ with
-        | Parsetree.Pwith_type _ | Parsetree.Pwith_module _ -> acc
+        | Parsetree.Pwith_type _ | Parsetree.Pwith_module _ | Parsetree.Pwith_modtype _ -> acc
         | Parsetree.Pwith_typesubst (s, typedecl) ->
            constraint_for_subitem acc s (fun s -> Parsetree.Pwith_typesubst (s, typedecl))
         | Parsetree.Pwith_modsubst (s, modpath) ->
-           constraint_for_subitem acc s (fun s -> Parsetree.Pwith_modsubst (s, modpath)))
+           constraint_for_subitem acc s (fun s -> Parsetree.Pwith_modsubst (s, modpath))
+        | Parsetree.Pwith_modtypesubst (s, modpath) ->
+            constraint_for_subitem acc s
+              (fun s -> Parsetree.Pwith_modtypesubst (s, modpath)))
         constraints acc
 
     let is_erased ident map =
@@ -511,6 +514,7 @@ module Analyser =
            end
         | Parsetree.Psig_modtype {Parsetree.pmtd_name=name} as m ->
           if is_erased name.txt erased then acc else take_item m
+        | Parsetree.Psig_modtypesubst _  -> acc
         | Parsetree.Psig_recmodule mods ->
           (match List.filter
                    (fun pmd ->
@@ -843,7 +847,7 @@ module Analyser =
               let xt_args =
                 match types_ext.ext_args with
                 | Cstr_tuple l ->
-                    Cstr_tuple (List.map (Odoc_env.subst_type new_env) l)
+                    Cstr_tuple (List.map (fun (ty, _) -> Odoc_env.subst_type new_env ty) l)
                 | Cstr_record l ->
                     let docs = Record.(doc types ext_loc_end) l in
                     Cstr_record (List.map (get_field new_env docs) l)
@@ -887,7 +891,7 @@ module Analyser =
             let ex_args =
               let pos_end = Loc.end_ types_ext.ext_loc in
               match types_ext.ext_args with
-              | Cstr_tuple l -> Cstr_tuple (List.map (Odoc_env.subst_type env) l)
+              | Cstr_tuple l -> Cstr_tuple (List.map (fun (ty, _) -> Odoc_env.subst_type env ty) l)
               | Cstr_record l ->
                   let docs = Record.(doc types) pos_end l in
                   Cstr_record (List.map (get_field env docs) l)
@@ -1289,7 +1293,8 @@ module Analyser =
             let (maybe_more, mods) = f ~first: true 0 pos_start_ele decls in
             (maybe_more, new_env, mods)
 
-        | Parsetree.Psig_modtype {Parsetree.pmtd_name=name; pmtd_type=pmodtype_decl} ->
+        | Parsetree.Psig_modtype {Parsetree.pmtd_name=name; pmtd_type=pmodtype_decl}
+        | Parsetree.Psig_modtypesubst {Parsetree.pmtd_name=name; pmtd_type=pmodtype_decl} ->
             let complete_name = Name.concat current_module_name name.txt in
             let sig_mtype =
               try Signature_search.search_module_type table name.txt

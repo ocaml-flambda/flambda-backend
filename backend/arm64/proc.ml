@@ -275,7 +275,7 @@ let destroyed_at_oper = function
       all_phys_regs
   | Iop(Iextcall { alloc = false; }) ->
       destroyed_at_c_call
-  | Iop(Ialloc _) ->
+  | Iop(Ialloc _) | Iop(Ipoll _) ->
       [| reg_x8 |]
   | Iop( Iintoffloat | Ifloatofint
        | Iload(Single, _, _) | Istore(Single, _, _)) ->
@@ -288,15 +288,11 @@ let destroyed_at_reloadretaddr = [| |]
 
 let destroyed_at_pushtrap = [| |]
 
+let destroyed_at_alloc_or_poll = [| reg_x8 |]
+
 (* note: keep this function in sync with `destroyed_at_oper` above. *)
 let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   match basic with
-  | Call (P (External { func_symbol = _; alloc; ty_res = _; ty_args = _; })) ->
-    if alloc then all_phys_regs else destroyed_at_c_call
-  | Call (F (Indirect | Direct _)) ->
-    all_phys_regs
-  | Call (P (Alloc _)) ->
-    [| reg_x8 |]
   | Reloadretaddr ->
     destroyed_at_reloadretaddr
   | Pushtrap _ ->
@@ -306,29 +302,37 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   | Op( Intoffloat | Floatofint
        | Load(Single, _, _) | Store(Single, _, _)) ->
     [| reg_d7 |]
-  | Op _  | Call (P (Checkbound _)) | Poptrap | Prologue ->
+  | Op _ | Poptrap | Prologue ->
     [||]
 
 (* note: keep this function in sync with `destroyed_at_oper` above. *)
 let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
   match terminator with
   | Never -> assert false
+  | Call {op = Indirect | Direct _; _} ->
+    all_phys_regs
+  | Prim {op = Alloc _; _} ->
+    [| reg_x8 |]
   | Always _ | Parity_test _ | Truth_test _ | Float_test _
-  | Int_test _ | Switch _ | Return | Raise _ | Tailcall _ ->
+  | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
+  | Tailcall_func _ | Prim {op = Checkbound _ | Probe _; _}
+  | Specific_can_raise _ ->
     [||]
-  | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; } ->
+  | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; }
+  | Prim {op  = External { func_symbol = _; alloc; ty_res = _; ty_args = _; }; _} ->
     if alloc then all_phys_regs else destroyed_at_c_call
+  | Poll_and_jump _ -> destroyed_at_alloc_or_poll
 
 (* Maximal register pressure *)
 
 let safe_register_pressure = function
   | Iextcall _ -> 7
-  | Ialloc _ -> 22
+  | Ialloc _ | Ipoll _ -> 22
   | _ -> 23
 
 let max_register_pressure = function
   | Iextcall _ -> [| 7; 8 |]  (* 7 integer callee-saves, 8 FP callee-saves *)
-  | Ialloc _ -> [| 22; 32 |]
+  | Ialloc _ | Ipoll _ -> [| 22; 32 |]
   | Iintoffloat | Ifloatofint
   | Iload(Single, _, _) | Istore(Single, _, _) -> [| 23; 31 |]
   | _ -> [| 23; 32 |]
@@ -354,7 +358,7 @@ let init () = ()
 
 let operation_supported = function
   | Cclz _ | Cctz _ | Cpopcnt
-  | Cprefetch _
+  | Cprefetch _ | Catomic _
     -> false   (* Not implemented *)
   | Cbswap _
   | Capply _ | Cextcall _ | Cload _ | Calloc _ | Cstore _
@@ -362,7 +366,9 @@ let operation_supported = function
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
   | Ccmpi _ | Caddv | Cadda | Ccmpa _
   | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf
-  | Cfloatofint | Cintoffloat | Ccmpf _
+  | Cfloatofint | Cintoffloat | Cintofvalue | Cvalueofint
+  | Ccmpf _
+  | Ccsel _
   | Craise _
   | Ccheckbound
   | Cprobe _ | Cprobe_is_enabled _ | Copaque

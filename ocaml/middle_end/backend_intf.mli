@@ -19,9 +19,6 @@
 (** Knowledge that the middle end needs about the backend. *)
 
 module type S = sig
-  (** Compute the symbol for the given identifier. *)
-  val symbol_for_global' : (Ident.t -> Symbol.t)
-
   (** If the given approximation is that of a symbol (Value_symbol) or an
       external (Value_extern), attempt to find a more informative
       approximation from a previously-written compilation artifact.  In the
@@ -29,8 +26,6 @@ module type S = sig
   val really_import_approx : Simple_value_approx.t -> Simple_value_approx.t
 
   val import_symbol : Symbol.t -> Simple_value_approx.t
-
-  val closure_symbol : Closure_id.t -> Symbol.t
 
   (** The natural size of an integer on the target architecture
       (cf. [Arch.size_int] in the native code backend). *)

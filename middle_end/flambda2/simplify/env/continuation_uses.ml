@@ -96,6 +96,11 @@ let get_arg_types_by_use_id t =
         arg_maps arg_types)
     empty_arg_maps t.uses
 
+let get_use_ids t =
+  List.fold_left
+    (fun uses use -> Apply_cont_rewrite_id.Set.add (U.id use) uses)
+    Apply_cont_rewrite_id.Set.empty t.uses
+
 let get_typing_env_no_more_than_one_use t =
   match t.uses with
   | [] -> None
@@ -103,3 +108,6 @@ let get_typing_env_no_more_than_one_use t =
   | _ :: _ ->
     Misc.fatal_errorf "Only zero or one continuation use(s) expected:@ %a" print
       t
+
+let mark_non_inlinable t =
+  { t with uses = List.map U.mark_non_inlinable t.uses }

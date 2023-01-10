@@ -70,12 +70,14 @@ val dump_flexpect : unit -> bool
 
 val dump_slot_offsets : unit -> bool
 
+val dump_flow : unit -> bool
+
 val freshen_when_printing : unit -> bool
 
 module Inlining : sig
   type round_or_default =
     | Round of int
-    | Default
+    | Default of Flambda_backend_flags.opt_level
 
   val depth_scaling_factor : int
 
@@ -123,4 +125,8 @@ module Expert : sig
   val max_unboxing_depth : unit -> int
 
   val can_inline_recursive_functions : unit -> bool
+
+  val max_function_simplify_run : unit -> int
 end
+
+val stack_allocation_enabled : unit -> bool

@@ -19,13 +19,10 @@
  (flags (
    -absname -w +a-4-9-41-42-44-45-48 -warn-error A -bin-annot
    -g -safe-string -strict-sequence -strict-formats
+   -nolabels   ; for UnixLabels
  ))
  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
  (library_flags (:standard -linkall))
- ; UnixLabels is compiled separately as it needs the -nolabels flag.  We can't
- ; currently use an attribute in the .ml file to enable this behaviour as
- ; the system compiler used to build the boot compiler won't understand it.
- (modules (:standard \ unixLabels))
  (foreign_stubs (language c) (names
    accept access addrofstr alarm bind channels chdir chmod chown chroot close
    fsync closedir connect cst2constr cstringv dup dup2 envir errmsg execv execve
@@ -33,7 +30,7 @@
    geteuid getgid getgr getgroups gethost gethostname getlogin getnameinfo
    getpeername getpid getppid getproto getpw gettimeofday getserv getsockname
    getuid gmtime initgroups isatty itimer kill link listen lockf lseek mkdir
-   mkfifo mmap mmap_ba nice open opendir pipe putenv read readdir readlink
+   mkfifo mmap mmap_ba nice open opendir pipe putenv read readdir readlink realpath
    rename rewinddir rmdir select sendrecv setgid setgroups setsid setuid
    shutdown signals sleep socket socketaddr socketpair sockopt stat strofaddr
    symlink termios time times truncate umask unixsupport unlink utimes wait
@@ -43,63 +40,22 @@
            (:include %{project_root}/oc_cppflags.sexp)))
  ))
 
-(library
- (name unixlabels)
- (libraries unix)
- (wrapped false)
- (modes byte native)
- (flags (
-   -absname -w +a-4-9-41-42-44-45-48 -warn-error A -bin-annot
-   -g -safe-string -strict-sequence -strict-formats -nolabels
- ))
- (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
- (modules unixLabels)
-)
-
-(rule
- (targets unix_merged.a)
- (action
-  (run
-   %{dep:../../../tools/merge_dot_a_files.sh}
-   %{targets}
-   %{dep:unix.a}
-   %{dep:unixlabels.a})))
-
-(rule
- (targets unix_merged.cma)
- (action
-  (run
-   %{dep:../../../tools/merge_archives.exe}
-   %{targets}
-   %{dep:unix.cma}
-   %{dep:unixlabels.cma})))
-
-(rule
- (targets unix_merged.cmxa)
- (action
-  (run
-   %{dep:../../../tools/merge_archives.exe}
-   %{targets}
-   %{dep:unix.cmxa}
-   %{dep:unixlabels.cmxa})))
-
 (install
   (files
     .unix.objs/native/unix.cmx
-    .unixlabels.objs/native/unixLabels.cmx
-    (unix_merged.cmxa as unix.cmxa)
-    (unix_merged.a as unix.a)
-    (unix_merged.cma as unix.cma)
+    .unix.objs/native/unixLabels.cmx
+    unix.cmxa
+    unix.a
+    unix.cma
     .unix.objs/byte/unix.cmi
     .unix.objs/byte/unix.cmti
-    .unixlabels.objs/byte/unixLabels.cmi
-    .unixlabels.objs/byte/unixLabels.cmti
-    ; For the moment unix.cmxs does not include UnixLabels.
+    .unix.objs/byte/unixLabels.cmi
+    .unix.objs/byte/unixLabels.cmti
     unix.cmxs
     unix.mli
     unixLabels.mli
     libunix_stubs.a
-    libunix_stubs_native.a
+    (libunix_stubs.a as libunix_stubs_native.a) ; for special_dune compat
     (dllunix_stubs.so as stublibs/dllunix_stubs.so)
     (socketaddr.h as caml/socketaddr.h)
     (unixsupport.h as caml/unixsupport.h)

@@ -25,7 +25,7 @@ open Cmm
 
 type error =
   | Assembler_error of string
-  | Mismatched_for_pack of string option
+  | Mismatched_for_pack of Compilation_unit.Prefix.t
   | Asm_generation of string * Emitaux.error
 
 exception Error of error
@@ -58,17 +58,15 @@ let should_save_before_emit () =
   should_save_ir_after Compiler_pass.Scheduling && (not !start_from_emit)
 
 let linear_unit_info =
-  { Linear_format.unit_name = "";
+  { Linear_format.unit = Compilation_unit.dummy;
     items = [];
-    for_pack = None;
   }
 
 let reset () =
   start_from_emit := false;
   if should_save_before_emit () then begin
-    linear_unit_info.unit_name <- Compilenv.current_unit_name ();
+    linear_unit_info.unit <- Compilation_unit.get_current_or_dummy ();
     linear_unit_info.items <- [];
-    linear_unit_info.for_pack <- !Clflags.for_package;
   end
 
 let save_data dl =
@@ -133,12 +131,15 @@ let rec regalloc ~ppf_dump round fd =
 
 let (++) x f = f x
 
-let compile_fundecl ~ppf_dump fd_cmm =
+let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   Proc.init ();
   Reg.reset();
   fd_cmm
   ++ Profile.record ~accumulate:true "cmm_invariants" (cmm_invariants ppf_dump)
-  ++ Profile.record ~accumulate:true "selection" Selection.fundecl
+  ++ Profile.record ~accumulate:true "selection"
+                    (Selection.fundecl ~future_funcnames:funcnames)
+  ++ Profile.record ~accumulate:true "polling"
+                    (Polling.instrument_fundecl ~future_funcnames:funcnames)
   ++ pass_dump_if ppf_dump dump_selection "After instruction selection"
   ++ Profile.record ~accumulate:true "comballoc" Comballoc.fundecl
   ++ pass_dump_if ppf_dump dump_combine "After allocation combining"
@@ -154,7 +155,6 @@ let compile_fundecl ~ppf_dump fd_cmm =
   ++ pass_dump_if ppf_dump dump_split "After live range splitting"
   ++ Profile.record ~accumulate:true "liveness" liveness
   ++ Profile.record ~accumulate:true "regalloc" (regalloc ~ppf_dump 1)
-  ++ Profile.record ~accumulate:true "available_regs" Available_regs.fundecl
   ++ Profile.record ~accumulate:true "linearize" Linearize.fundecl
   ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code"
   ++ Profile.record ~accumulate:true "scheduling" Scheduling.fundecl
@@ -162,17 +162,38 @@ let compile_fundecl ~ppf_dump fd_cmm =
   ++ save_linear
   ++ emit_fundecl
 
+module String = Misc.Stdlib.String
+
 let compile_data dl =
   dl
   ++ save_data
   ++ emit_data
 
-let compile_phrase ~ppf_dump p =
-  if !dump_cmm then fprintf ppf_dump "%a@." Printcmm.phrase p;
-  match p with
-  | Cfunction fd -> compile_fundecl ~ppf_dump fd
-  | Cdata dl -> compile_data dl
+let compile_phrases ~ppf_dump ps =
+  let funcnames =
+    List.fold_left (fun s p ->
+        match p with
+        | Cfunction fd -> String.Set.add fd.fun_name s
+        | Cdata _ -> s)
+      String.Set.empty ps
+  in
+  let rec compile ~funcnames ps =
+    match ps with
+    | [] -> ()
+    | p :: ps ->
+       if !dump_cmm then fprintf ppf_dump "%a@." Printcmm.phrase p;
+       match p with
+       | Cfunction fd ->
+          compile_fundecl ~ppf_dump ~funcnames fd;
+          compile ~funcnames:(String.Set.remove fd.fun_name funcnames) ps
+       | Cdata dl ->
+          compile_data dl;
+          compile ~funcnames ps
+  in
+  compile ~funcnames ps
 
+let compile_phrase ~ppf_dump p =
+  compile_phrases ~ppf_dump [p]
 
 (* For the native toplevel: generates generic functions unless
    they are already available in the process *)
@@ -217,7 +238,7 @@ let end_gen_implementation ?toplevel ~ppf_dump
   emit_begin_assembly ();
   clambda
   ++ Profile.record "cmm" Cmmgen.compunit
-  ++ Profile.record "compile_phrases" (List.iter (compile_phrase ~ppf_dump))
+  ++ Profile.record "compile_phrases" (compile_phrases ~ppf_dump)
   ++ (fun () -> ());
   (match toplevel with None -> () | Some f -> compile_genfuns ~ppf_dump f);
   (* We add explicit references to external primitive symbols.  This
@@ -235,7 +256,6 @@ let end_gen_implementation ?toplevel ~ppf_dump
 
 type middle_end =
      backend:(module Backend_intf.S)
-  -> filename:string
   -> prefixname:string
   -> ppf_dump:Format.formatter
   -> Lambda.program
@@ -246,25 +266,27 @@ let asm_filename output_prefix =
     then output_prefix ^ ext_asm
     else Filename.temp_file "camlasm" ext_asm
 
-let compile_implementation ?toplevel ~backend ~filename ~prefixname ~middle_end
+let compile_implementation ?toplevel ~backend ~prefixname ~middle_end
       ~ppf_dump (program : Lambda.program) =
   compile_unit ~output_prefix:prefixname
     ~asm_filename:(asm_filename prefixname) ~keep_asm:!keep_asm_file
     ~obj_filename:(prefixname ^ ext_obj)
     (fun () ->
-      Ident.Set.iter Compilenv.require_global program.required_globals;
+      Compilation_unit.Set.iter Compilenv.require_global
+        program.required_globals;
       let clambda_with_constants =
-        middle_end ~backend ~filename ~prefixname ~ppf_dump program
+        middle_end ~backend ~prefixname ~ppf_dump program
       in
       end_gen_implementation ?toplevel ~ppf_dump clambda_with_constants)
 
 let linear_gen_implementation filename =
   let open Linear_format in
   let linear_unit_info, _ = restore filename in
-  (match !Clflags.for_package, linear_unit_info.for_pack with
-   | None, None -> ()
-   | Some expected, Some saved when String.equal expected saved -> ()
-   | _, saved -> raise(Error(Mismatched_for_pack saved)));
+  let current_package = Compilation_unit.Prefix.from_clflags () in
+  let saved_package =
+    Compilation_unit.for_pack_prefix linear_unit_info.unit in
+  if not (Compilation_unit.Prefix.equal current_package saved_package)
+  then raise(Error(Mismatched_for_pack saved_package));
   let emit_item = function
     | Data dl -> emit_data dl
     | Func f -> emit_fundecl f
@@ -288,13 +310,15 @@ let report_error ppf = function
       fprintf ppf "Assembler error, input left in file %a"
         Location.print_filename file
   | Mismatched_for_pack saved ->
-    let msg = function
-       | None -> "without -for-pack"
-       | Some s -> "with -for-pack "^s
+    let msg prefix =
+      if Compilation_unit.Prefix.is_empty prefix
+      then "without -for-pack"
+      else
+        Format.asprintf "with -for-pack %a" Compilation_unit.Prefix.print prefix
      in
      fprintf ppf
        "This input file cannot be compiled %s: it was generated %s."
-       (msg !Clflags.for_package) (msg saved)
+       (msg (Compilation_unit.Prefix.from_clflags ())) (msg saved)
   | Asm_generation(fn, err) ->
      fprintf ppf
        "Error producing assembly code for function %s: %a"

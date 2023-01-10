@@ -104,13 +104,14 @@ type t =
   | Apply of apply
   | Send of send
   | Assign of assign
-  | If_then_else of Variable.t * t * t
+  | If_then_else of Variable.t * t * t * Lambda.value_kind
   | Switch of Variable.t * switch
   | String_switch of Variable.t * (string * t) list * t option
+                     * Lambda.value_kind
   (** Restrictions on [Lambda.Lstringswitch] also apply to [String_switch]. *)
   | Static_raise of Static_exception.t * Variable.t list
-  | Static_catch of Static_exception.t * Variable.t list * t * t
-  | Try_with of t * Variable.t * t
+  | Static_catch of Static_exception.t * Variable.t list * t * t * Lambda.value_kind
+  | Try_with of t * Variable.t * t * Lambda.value_kind
   | While of t * t
   | For of for_loop
   | Region of t
@@ -337,6 +338,8 @@ and function_declaration = private {
   (** Specialising requirements from the source code. *)
   is_a_functor : bool;
   (** Whether the function is known definitively to be a functor. *)
+  poll: Lambda.poll_attribute;
+  (** Behaviour for polls *)
 }
 
 (** Equivalent to the similar type in [Lambda]. *)
@@ -346,6 +349,7 @@ and switch = {
   numblocks : Numbers.Int.Set.t; (** Number of tag block cases *)
   blocks : (int * t) list; (** Tag block cases *)
   failaction : t option; (** Action to take if none matched *)
+  kind : Lambda.value_kind
 }
 
 (** Equivalent to the similar type in [Lambda]. *)
@@ -568,6 +572,7 @@ val create_function_declaration
   -> specialise:Lambda.specialise_attribute
   -> is_a_functor:bool
   -> closure_origin:Closure_origin.t
+  -> poll:Lambda.poll_attribute
   -> function_declaration
 
 (** Create a function declaration based on another function declaration *)

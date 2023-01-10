@@ -18,7 +18,6 @@
 (** The type of converters from Lambda to Clambda. *)
 type middle_end =
      backend:(module Backend_intf.S)
-  -> filename:string
   -> prefixname:string
   -> ppf_dump:Format.formatter
   -> Lambda.program
@@ -28,7 +27,6 @@ type middle_end =
 val compile_implementation
    : ?toplevel:(string -> bool)
   -> backend:(module Backend_intf.S)
-  -> filename:string
   -> prefixname:string
   -> middle_end:middle_end
   -> ppf_dump:Format.formatter
@@ -43,7 +41,7 @@ val compile_phrase :
 
 type error =
   | Assembler_error of string
-  | Mismatched_for_pack of string option
+  | Mismatched_for_pack of Compilation_unit.Prefix.t
   | Asm_generation of string * Emitaux.error
 
 exception Error of error

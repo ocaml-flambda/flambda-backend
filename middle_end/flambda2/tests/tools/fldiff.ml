@@ -1,9 +1,7 @@
 open Import
 
 let parse_flambda file =
-  match
-    Parse_flambda.parse ~symbol_for_global:Flambda2.symbol_for_global file
-  with
+  match Parse_flambda.parse file with
   | Ok unit -> unit
   | Error e ->
     (match e with

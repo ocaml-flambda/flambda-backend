@@ -109,9 +109,11 @@ let rec is_tailcall = function
    from the tail call optimization? *)
 
 let preserve_tailcall_for_prim = function
-    Pidentity | Popaque | Pdirapply _ | Prevapply _ | Psequor | Psequand ->
+    Popaque | Psequor | Psequand
+  | Pobj_magic ->
       true
-  | Pbytes_to_string | Pbytes_of_string | Pignore | Pgetglobal _ | Psetglobal _
+  | Pbytes_to_string | Pbytes_of_string | Pignore
+  | Pgetglobal _ | Psetglobal _ | Pgetpredef _
   | Pmakeblock _ | Pmakefloatblock _
   | Pfield _ | Pfield_computed _ | Psetfield _
   | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Pduprecord _
@@ -131,7 +133,7 @@ let preserve_tailcall_for_prim = function
   | Pbytes_load_32 _ | Pbytes_load_64 _ | Pbytes_set_16 _ | Pbytes_set_32 _
   | Pbytes_set_64 _ | Pbigstring_load_16 _ | Pbigstring_load_32 _
   | Pbigstring_load_64 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _
-  | Pprobe_is_enabled _
+  | Pprobe_is_enabled _ | Pobj_dup
   | Pbigstring_set_64 _ | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer ->
       false
 
@@ -389,8 +391,11 @@ let comp_bint_primitive bi suff args =
 
 let comp_primitive p args =
   match p with
-    Pgetglobal id -> Kgetglobal id
-  | Psetglobal id -> Ksetglobal id
+    Pgetglobal cu ->
+      Kgetglobal (cu |> Compilation_unit.to_global_ident_for_bytecode)
+  | Psetglobal cu ->
+      Ksetglobal (cu |> Compilation_unit.to_global_ident_for_bytecode)
+  | Pgetpredef id -> Kgetglobal id
   | Pintcomp cmp -> Kintcomp cmp
   | Pcompare_ints -> Kccall("caml_int_compare", 2)
   | Pcompare_floats -> Kccall("caml_float_compare", 2)
@@ -470,16 +475,21 @@ let comp_primitive p args =
   | Pisout -> Kisout
   | Pbintofint (bi,_) -> comp_bint_primitive bi "of_int" args
   | Pintofbint bi -> comp_bint_primitive bi "to_int" args
-  | Pcvtbint(Pint32, Pnativeint, _) -> Kccall("caml_nativeint_of_int32", 1)
-  | Pcvtbint(Pnativeint, Pint32, _) -> Kccall("caml_nativeint_to_int32", 1)
-  | Pcvtbint(Pint32, Pint64, _) -> Kccall("caml_int64_of_int32", 1)
-  | Pcvtbint(Pint64, Pint32, _) -> Kccall("caml_int64_to_int32", 1)
-  | Pcvtbint(Pnativeint, Pint64, _) -> Kccall("caml_int64_of_nativeint", 1)
-  | Pcvtbint(Pint64, Pnativeint, _) -> Kccall("caml_int64_to_nativeint", 1)
-  | Pnegbint(bi,_) -> comp_bint_primitive bi "neg" args
-  | Paddbint(bi,_) -> comp_bint_primitive bi "add" args
-  | Psubbint(bi,_) -> comp_bint_primitive bi "sub" args
-  | Pmulbint(bi,_) -> comp_bint_primitive bi "mul" args
+  | Pcvtbint(src, dst, _) ->
+      begin match (src, dst) with
+      | (Pint32, Pnativeint) -> Kccall("caml_nativeint_of_int32", 1)
+      | (Pnativeint, Pint32) -> Kccall("caml_nativeint_to_int32", 1)
+      | (Pint32, Pint64) -> Kccall("caml_int64_of_int32", 1)
+      | (Pint64, Pint32) -> Kccall("caml_int64_to_int32", 1)
+      | (Pnativeint, Pint64) -> Kccall("caml_int64_of_nativeint", 1)
+      | (Pint64, Pnativeint) -> Kccall("caml_int64_to_nativeint", 1)
+      | ((Pint32 | Pint64 | Pnativeint), _) ->
+          fatal_error "Bytegen.comp_primitive: invalid Pcvtbint cast"
+      end
+  | Pnegbint (bi,_) -> comp_bint_primitive bi "neg" args
+  | Paddbint (bi,_) -> comp_bint_primitive bi "add" args
+  | Psubbint (bi,_) -> comp_bint_primitive bi "sub" args
+  | Pmulbint (bi,_) -> comp_bint_primitive bi "mul" args
   | Pdivbint { size = bi } -> comp_bint_primitive bi "div" args
   | Pmodbint { size = bi } -> comp_bint_primitive bi "mod" args
   | Pandbint(bi,_) -> comp_bint_primitive bi "and" args
@@ -508,7 +518,20 @@ let comp_primitive p args =
   | Pint_as_pointer -> Kccall("caml_int_as_pointer", 1)
   | Pbytes_to_string -> Kccall("caml_string_of_bytes", 1)
   | Pbytes_of_string -> Kccall("caml_bytes_of_string", 1)
-  | _ -> fatal_error "Bytegen.comp_primitive"
+  | Pobj_dup -> Kccall("caml_obj_dup", 1)
+  (* The cases below are handled in [comp_expr] before the [comp_primitive] call
+     (in the order in which they appear below),
+     so they should never be reached in this function. *)
+  | Pignore | Popaque | Pobj_magic
+  | Pnot | Psequand | Psequor
+  | Praise _
+  | Pmakearray _ | Pduparray _
+  | Pfloatcomp _
+  | Pmakeblock _
+  | Pmakefloatblock _
+  | Pprobe_is_enabled _
+    ->
+      fatal_error "Bytegen.comp_primitive"
 
 let is_immed n = immed_min <= n && n <= immed_max
 
@@ -569,7 +592,7 @@ let rec comp_expr env exp sz cont =
         end
       end
   | Lsend(kind, met, obj, args, rc, _, _) ->
-      let args = if kind = Cached then List.tl args else args in
+      assert (kind <> Cached);
       let nargs = List.length args + 1 in
       let getmethod, args' =
         if kind = Self then (Kgetmethod, met::obj::args) else
@@ -680,24 +703,10 @@ let rec comp_expr env exp sz cont =
         in
         comp_init env sz decl_size
       end
-  | Lprim((Pidentity | Popaque), [arg], _) ->
+  | Lprim((Popaque | Pobj_magic), [arg], _) ->
       comp_expr env arg sz cont
   | Lprim(Pignore, [arg], _) ->
       comp_expr env arg sz (add_const_unit cont)
-  | Lprim(Pdirapply pos, [func;arg], loc)
-  | Lprim(Prevapply pos, [arg;func], loc) ->
-      let exp = Lapply{
-        ap_loc=loc;
-        ap_func=func;
-        ap_args=[arg];
-        ap_region_close=pos;
-        ap_mode=alloc_heap;
-        ap_tailcall=Default_tailcall;
-        ap_inlined=Default_inlined;
-        ap_specialised=Default_specialise;
-        ap_probe=None;
-      } in
-      comp_expr env exp sz cont
   | Lprim(Pnot, [arg], _) ->
       let newcont =
         match cont with

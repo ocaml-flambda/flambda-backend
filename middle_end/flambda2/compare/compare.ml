@@ -242,10 +242,10 @@ let subst_unary_primitive env (p : Flambda_primitive.unary_primitive) :
     let move_from = subst_function_slot env move_from in
     let move_to = subst_function_slot env move_to in
     Project_function_slot { move_from; move_to }
-  | Project_value_slot { project_from; value_slot } ->
+  | Project_value_slot { project_from; value_slot; kind } ->
     let project_from = subst_function_slot env project_from in
     let value_slot = subst_value_slot env value_slot in
-    Project_value_slot { project_from; value_slot }
+    Project_value_slot { project_from; value_slot; kind }
   | _ -> p
 
 let subst_primitive env (p : Flambda_primitive.t) : Flambda_primitive.t =
@@ -270,11 +270,11 @@ let subst_set_of_closures env set =
   let value_slots =
     Set_of_closures.value_slots set
     |> Value_slot.Map.bindings
-    |> List.map (fun (var, simple) ->
-           subst_value_slot env var, subst_simple env simple)
+    |> List.map (fun (var, (simple, kind)) ->
+           subst_value_slot env var, (subst_simple env simple, kind))
     |> Value_slot.Map.of_list
   in
-  Set_of_closures.create Heap ~value_slots decls
+  Set_of_closures.create Alloc_mode.For_allocations.heap ~value_slots decls
 
 let subst_rec_info_expr _env ri =
   (* Only depth variables can occur in [Rec_info_expr], and we only mess with
@@ -290,7 +290,8 @@ let subst_call_kind env (call_kind : Call_kind.t) : Call_kind.t =
   match call_kind with
   | Function { function_call = Direct { code_id; return_arity }; _ } ->
     let code_id = subst_code_id env code_id in
-    Call_kind.direct_function_call code_id ~return_arity Heap
+    Call_kind.direct_function_call code_id ~return_arity
+      Alloc_mode.For_types.heap
   | _ -> call_kind
 
 let rec subst_expr env e =
@@ -387,12 +388,13 @@ and subst_params_and_body env params_and_body =
          ~body
          ~my_closure
          ~is_my_closure_used:_
+         ~my_region
          ~my_depth
          ~free_names_of_body
        ->
       let body = subst_expr env body in
       Function_params_and_body.create ~return_continuation ~exn_continuation
-        params ~body ~my_closure ~free_names_of_body ~my_depth)
+        params ~body ~my_closure ~my_region ~free_names_of_body ~my_depth)
 
 and subst_let_cont env (let_cont_expr : Let_cont_expr.t) =
   match let_cont_expr with
@@ -432,8 +434,10 @@ and subst_apply env apply =
   let inlining_state = Apply_expr.inlining_state apply in
   let relative_history = Apply_expr.relative_history apply in
   let position = Apply_expr.position apply in
+  let region = Apply_expr.region apply in
   Apply_expr.create ~callee ~continuation exn_continuation ~args ~call_kind dbg
     ~inlined ~inlining_state ~probe_name:None ~position ~relative_history
+    ~region
   |> Expr.create_apply
 
 and subst_apply_cont env apply_cont =
@@ -627,15 +631,26 @@ let unary_prim_ops env (prim_op1 : Flambda_primitive.unary_primitive)
            Flambda_primitive.Project_function_slot
              { move_from = move_from1'; move_to = move_to1' })
   | ( Project_value_slot
-        { project_from = function_slot1; value_slot = value_slot1 },
+        { project_from = function_slot1;
+          value_slot = value_slot1;
+          kind = kind1
+        },
       Project_value_slot
-        { project_from = function_slot2; value_slot = value_slot2 } ) ->
-    pairs ~f1:function_slots ~f2:value_slots env
-      (function_slot1, value_slot1)
-      (function_slot2, value_slot2)
-    |> Comparison.map ~f:(fun (function_slot1', value_slot1') ->
+        { project_from = function_slot2;
+          value_slot = value_slot2;
+          kind = kind2
+        } ) ->
+    triples ~f1:function_slots ~f2:value_slots
+      ~f3:(Comparator.of_predicate Flambda_kind.With_subkind.equal)
+      env
+      (function_slot1, value_slot1, kind1)
+      (function_slot2, value_slot2, kind2)
+    |> Comparison.map ~f:(fun (function_slot1', value_slot1', kind1') ->
            Flambda_primitive.Project_value_slot
-             { project_from = function_slot1'; value_slot = value_slot1' })
+             { project_from = function_slot1';
+               value_slot = value_slot1';
+               kind = kind1'
+             })
   | _, _ ->
     if Flambda_primitive.equal_unary_primitive prim_op1 prim_op2
     then Equivalent
@@ -734,21 +749,22 @@ let sets_of_closures env set1 set2 : Set_of_closures.t Comparison.t =
    * similar (and less worrisome) with function slots. *)
   let value_slots_by_value set =
     Value_slot.Map.bindings (Set_of_closures.value_slots set)
-    |> List.map (fun (var, value) -> subst_simple env value, var)
+    |> List.map (fun (var, (value, kind)) -> kind, subst_simple env value, var)
   in
   (* We want to process the whole map to find new correspondences between
    * value slots, so we need to remember whether we've found any mismatches *)
   let ok = ref true in
   let () =
-    let compare (value1, _var1) (value2, _var2) =
-      Simple.compare value1 value2
+    let compare (kind1, value1, _var1) (kind2, value2, _var2) =
+      let c = Flambda_kind.With_subkind.compare kind1 kind2 in
+      if c = 0 then Simple.compare value1 value2 else c
     in
     iter2_merged (value_slots_by_value set1) (value_slots_by_value set2)
       ~compare ~f:(fun elt1 elt2 ->
         match elt1, elt2 with
         | None, None -> ()
         | Some _, None | None, Some _ -> ok := false
-        | Some (_value1, var1), Some (_value2, var2) -> (
+        | Some (_kind1, _value1, var1), Some (_kind2, _value2, var2) -> (
           match value_slots env var1 var2 with
           | Equivalent -> ()
           | Different { approximant = _ } -> ok := false))
@@ -898,7 +914,8 @@ let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
       ~subst2:(fun _ arity -> arity)
       env (code_id1, return_arity1) (code_id2, return_arity2)
     |> Comparison.map ~f:(fun (code_id, return_arity) ->
-           Call_kind.direct_function_call code_id ~return_arity Heap)
+           Call_kind.direct_function_call code_id ~return_arity
+             Alloc_mode.For_types.heap)
   | ( Function
         { function_call =
             Indirect_known_arity
@@ -923,7 +940,7 @@ let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
     pairs ~f1:method_kinds ~f2:simple_exprs ~subst2:subst_simple env
       (kind1, obj1) (kind2, obj2)
     |> Comparison.map ~f:(fun (kind, obj) ->
-           Call_kind.method_call kind ~obj Heap)
+           Call_kind.method_call kind ~obj Alloc_mode.For_types.heap)
   | ( C_call
         { alloc = alloc1;
           param_arity = param_arity1;
@@ -988,6 +1005,7 @@ let apply_exprs env apply1 apply2 : Expr.t Comparison.t =
             ~inlining_state:(Apply.inlining_state apply1)
             ~probe_name:None ~position:(Apply.position apply1)
             ~relative_history:(Apply_expr.relative_history apply1)
+            ~region:(Apply_expr.region apply1)
           |> Expr.create_apply
       }
 
@@ -1049,7 +1067,9 @@ let rec exprs env e1 e2 : Expr.t Comparison.t =
         apply_cont_exprs env apply_cont1 apply_cont2
         |> Comparison.map ~f:Expr.create_apply_cont
       | Switch switch1, Switch switch2 -> switch_exprs env switch1 switch2
-      | Invalid { message = message1 }, Invalid { message = message2 } ->
+      | Invalid invalid1, Invalid invalid2 ->
+        let message1 = Flambda.Invalid.to_string invalid1 in
+        let message2 = Flambda.Invalid.to_string invalid2 in
         if String.equal message1 message2
         then Equivalent
         else Different { approximant = e1 }
@@ -1149,13 +1169,14 @@ and codes env (code1 : Code.t) (code2 : Code.t) =
            ~body1
            ~body2
            ~my_closure
+           ~my_region
            ~my_depth
          ->
         exprs env body1 body2
         |> Comparison.map ~f:(fun body1' ->
                Function_params_and_body.create ~return_continuation
-                 ~exn_continuation params ~body:body1' ~my_closure ~my_depth
-                 ~free_names_of_body:Unknown))
+                 ~exn_continuation params ~body:body1' ~my_closure ~my_region
+                 ~my_depth ~free_names_of_body:Unknown))
   in
   pairs ~f1:bodies
     ~f2:(options ~f:code_ids ~subst:subst_code_id)
@@ -1265,6 +1286,7 @@ and cont_handlers env handler1 handler2 =
 let flambda_units u1 u2 =
   let ret_cont = Continuation.create ~sort:Toplevel_return () in
   let exn_cont = Continuation.create () in
+  let toplevel_my_region = Variable.create "toplevel_my_region" in
   let mk_renaming u =
     let renaming = Renaming.empty in
     let renaming =
@@ -1277,6 +1299,11 @@ let flambda_units u1 u2 =
         (Flambda_unit.exn_continuation u)
         ~guaranteed_fresh:exn_cont
     in
+    let renaming =
+      Renaming.add_fresh_variable renaming
+        (Flambda_unit.toplevel_my_region u)
+        ~guaranteed_fresh:toplevel_my_region
+    in
     renaming
   in
   let env = Env.create () in
@@ -1287,4 +1314,4 @@ let flambda_units u1 u2 =
          let module_symbol = Flambda_unit.module_symbol u1 in
          Flambda_unit.create ~return_continuation:ret_cont
            ~exn_continuation:exn_cont ~body ~module_symbol
-           ~used_value_slots:Unknown)
+           ~used_value_slots:Unknown ~toplevel_my_region)

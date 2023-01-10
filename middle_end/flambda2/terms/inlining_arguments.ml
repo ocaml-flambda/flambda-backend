@@ -28,6 +28,33 @@ module Args = struct
       threshold : float
     }
 
+  let matches_opt_level
+      { max_inlining_depth;
+        max_rec_depth;
+        call_cost;
+        alloc_cost;
+        prim_cost;
+        branch_cost;
+        indirect_call_cost;
+        poly_compare_cost;
+        small_function_size;
+        large_function_size;
+        threshold
+      } opt_level =
+    let module I = Flambda_features.Inlining in
+    let round_or_default : I.round_or_default = Default opt_level in
+    Int.equal max_inlining_depth (I.max_depth round_or_default)
+    && Int.equal max_rec_depth (I.max_rec_depth round_or_default)
+    && Float.equal call_cost (I.call_cost round_or_default)
+    && Float.equal alloc_cost (I.alloc_cost round_or_default)
+    && Float.equal prim_cost (I.prim_cost round_or_default)
+    && Float.equal branch_cost (I.branch_cost round_or_default)
+    && Float.equal indirect_call_cost (I.indirect_call_cost round_or_default)
+    && Float.equal poly_compare_cost (I.poly_compare_cost round_or_default)
+    && Int.equal small_function_size (I.small_function_size round_or_default)
+    && Int.equal large_function_size (I.large_function_size round_or_default)
+    && Float.equal threshold (I.threshold round_or_default)
+
   let[@ocamlformat "disable"] print ppf t =
     let { max_inlining_depth; max_rec_depth;
           call_cost; alloc_cost; prim_cost; branch_cost;
@@ -36,26 +63,18 @@ module Args = struct
           threshold;
         } = t
     in
-    let module I = Flambda_features.Inlining in
-    if Int.equal max_inlining_depth (I.max_depth Default)
-       && Int.equal max_rec_depth (I.max_rec_depth Default)
-       && Float.equal call_cost (I.call_cost Default)
-       && Float.equal alloc_cost (I.alloc_cost Default)
-       && Float.equal prim_cost (I.prim_cost Default)
-       && Float.equal branch_cost (I.branch_cost Default)
-       && Float.equal indirect_call_cost (I.indirect_call_cost Default)
-       && Float.equal poly_compare_cost (I.poly_compare_cost Default)
-       && Int.equal small_function_size (I.small_function_size Default)
-       && Int.equal large_function_size (I.large_function_size Default)
-       && Float.equal threshold (I.threshold Default)
-    then
-      Format.fprintf ppf "%t<default>%t"
-        Flambda_colours.elide
-        Flambda_colours.pop
+    let module C = Flambda_colours in
+    if matches_opt_level t Oclassic
+    then Format.fprintf ppf "%tOclassic%t" C.elide C.pop
+    else if matches_opt_level t O2
+    then Format.fprintf ppf "%tO2%t" C.elide C.pop
+    else if matches_opt_level t O3
+    then Format.fprintf ppf "%tO3%t" C.elide C.pop
     else
       Format.fprintf ppf
         "@[<hov 1>(\
          @[<hov 1>(max_inlining_depth@ %d)@]@ \
+         @[<hov 1>(max_rec_depth@ %d)@]@ \
          @[<hov 1>(call_cost@ %f)@]@ \
          @[<hov 1>(alloc_cost@ %f)@]@ \
          @[<hov 1>(prim_cost@ %f)@]@ \
@@ -67,6 +86,7 @@ module Args = struct
          @[<hov 1>(threshold@ %f)@]\
          )@]"
         max_inlining_depth
+        max_rec_depth
         call_cost
         alloc_cost
         prim_cost

@@ -395,6 +395,7 @@ let rec transl env e =
           [] ->
             List.map (transl env) clos_vars
         | f :: rem ->
+            let is_last = match rem with [] -> true | _::_ -> false in
             Cmmgen_state.add_function f;
             let dbg = f.dbg in
             let without_header =
@@ -402,12 +403,12 @@ let rec transl env e =
               | Curried _, (1|0) as arity ->
                 Cconst_symbol (f.label, dbg) ::
                 alloc_closure_info ~arity
-                                   ~startenv:(startenv - pos) dbg ::
+                                   ~startenv:(startenv - pos) ~is_last dbg ::
                 transl_fundecls (pos + 3) rem
               | arity ->
                 Cconst_symbol (curry_function_sym f.arity, dbg) ::
                 alloc_closure_info ~arity
-                                   ~startenv:(startenv - pos) dbg ::
+                                   ~startenv:(startenv - pos) ~is_last dbg ::
                 Cconst_symbol (f.label, dbg) ::
                 transl_fundecls (pos + 4) rem
             in
@@ -586,7 +587,7 @@ let rec transl env e =
       end
 
   (* Control structures *)
-  | Uswitch(arg, s, dbg) ->
+  | Uswitch(arg, s, dbg, kind) ->
       (* As in the bytecode interpreter, only matching against constants
          can be checked *)
       if Array.length s.us_index_blocks = 0 then
@@ -594,47 +595,55 @@ let rec transl env e =
           (untag_int (transl env arg) dbg)
           s.us_index_consts
           (Array.map (fun expr -> transl env expr, dbg) s.us_actions_consts)
-          dbg
+          dbg (Vval kind)
       else if Array.length s.us_index_consts = 0 then
         bind "switch" (transl env arg) (fun arg ->
-          transl_switch dbg env (get_tag arg dbg)
+          transl_switch dbg (Vval kind) env (get_tag arg dbg)
             s.us_index_blocks s.us_actions_blocks)
       else
         bind "switch" (transl env arg) (fun arg ->
           Cifthenelse(
           Cop(Cand, [arg; Cconst_int (1, dbg)], dbg),
           dbg,
-          transl_switch dbg env
+          transl_switch dbg (Vval kind) env
             (untag_int arg dbg) s.us_index_consts s.us_actions_consts,
           dbg,
-          transl_switch dbg env
+          transl_switch dbg (Vval kind) env
             (get_tag arg dbg) s.us_index_blocks s.us_actions_blocks,
-          dbg))
-  | Ustringswitch(arg,sw,d) ->
+          dbg, Vval kind))
+  | Ustringswitch(arg,sw,d, kind) ->
       let dbg = Debuginfo.none in
       bind "switch" (transl env arg)
         (fun arg ->
-          strmatch_compile dbg arg (Option.map (transl env) d)
+          strmatch_compile dbg (Vval kind) arg (Option.map (transl env) d)
             (List.map (fun (s,act) -> s,transl env act) sw))
   | Ustaticfail (nfail, args) ->
       let cargs = List.map (transl env) args in
       notify_catch nfail env cargs;
       Cexit (nfail, cargs)
-  | Ucatch(nfail, [], body, handler) ->
+  | Ucatch(nfail, [], body, handler, kind) ->
       let dbg = Debuginfo.none in
-      make_catch nfail (transl env body) (transl env handler) dbg
-  | Ucatch(nfail, ids, body, handler) ->
+      make_catch (Vval kind) nfail (transl env body) (transl env handler) dbg
+  | Ucatch(nfail, ids, body, handler, kind) ->
       let dbg = Debuginfo.none in
-      transl_catch env nfail ids body handler dbg
-  | Utrywith(body, exn, handler) ->
+      transl_catch (Vval kind) env nfail ids body handler dbg
+  | Utrywith(body, exn, handler, kind) ->
       let dbg = Debuginfo.none in
-      Ctrywith(transl env body, exn, transl env handler, dbg)
-  | Uifthenelse(cond, ifso, ifnot) ->
+      Ctrywith(transl env body, exn, transl env handler, dbg, Vval kind)
+  | Uifthenelse(cond, ifso, ifnot, kind) ->
       let ifso_dbg = Debuginfo.none in
       let ifnot_dbg = Debuginfo.none in
       let dbg = Debuginfo.none in
-      transl_if env Unknown dbg cond
-        ifso_dbg (transl env ifso) ifnot_dbg (transl env ifnot)
+      let ifso = transl env ifso in
+      let ifnot = transl env ifnot in
+      let approx =
+        match ifso, ifnot with
+        | Cconst_int (1, _), Cconst_int (3, _) -> Then_false_else_true
+        | Cconst_int (3, _), Cconst_int (1, _) -> Then_true_else_false
+        | _, _ -> Unknown
+      in
+      transl_if env (Vval kind) approx dbg cond
+        ifso_dbg ifso ifnot_dbg ifnot
   | Usequence(exp1, exp2) ->
       Csequence(remove_unit(transl env exp1), transl env exp2)
   | Uwhile(cond, body) ->
@@ -643,12 +652,12 @@ let rec transl env e =
       return_unit dbg
         (ccatch
            (raise_num, [],
-            create_loop(transl_if env Unknown dbg cond
+            create_loop(transl_if env (Vval Pgenval) Unknown dbg cond
                     dbg (remove_unit(transl env body))
                     dbg (Cexit (raise_num,[])))
               dbg,
             Ctuple [],
-            dbg))
+            dbg, Vval Pgenval))
   | Ufor(id, low, high, dir, body) ->
       let dbg = Debuginfo.none in
       let tst = match dir with Upto -> Cgt   | Downto -> Clt in
@@ -679,11 +688,11 @@ let rec transl env e =
                                   dbg),
                                 dbg, Cexit (raise_num,[]),
                                 dbg, Ctuple [],
-                                dbg)))))
+                                dbg, Vint (* unit *))))))
                       dbg,
-                   dbg),
+                   dbg, Vint (* unit*)),
                  Ctuple [],
-                 dbg))))
+                 dbg, Vint (* unit *)))))
   | Uassign(id, exp) ->
       let dbg = Debuginfo.none in
       let cexp = transl env exp in
@@ -701,7 +710,7 @@ let rec transl env e =
   | Utail e ->
       Ctail (transl env e)
 
-and transl_catch env nfail ids body handler dbg =
+and transl_catch (kind : Cmm.value_kind) env nfail ids body handler dbg =
   let ids = List.map (fun (id, kind) -> (id, kind, ref No_result)) ids in
   (* Translate the body, and while doing so, collect the "unboxing type" for
      each argument.  *)
@@ -738,7 +747,7 @@ and transl_catch env nfail ids body handler dbg =
   in
   if env == new_env then
     (* No unboxing *)
-    ccatch (nfail, ids, body, transl env handler, dbg)
+    ccatch (nfail, ids, body, transl env handler, dbg, kind)
   else
     (* allocate new "nfail" to catch errors more easily *)
     let new_nfail = next_raise_count () in
@@ -752,7 +761,7 @@ and transl_catch env nfail ids body handler dbg =
       in
       aux body
     in
-    ccatch (new_nfail, ids, body, transl new_env handler, dbg)
+    ccatch (new_nfail, ids, body, transl new_env handler, dbg, kind)
 
 and transl_make_array dbg env kind mode args =
   match kind with
@@ -857,7 +866,7 @@ and transl_prim_1 env p arg dbg =
       arraylength kind (transl env arg) dbg
   (* Boolean operations *)
   | Pnot ->
-      transl_if env Then_false_else_true
+      transl_if env Vint Then_false_else_true
         dbg arg
         dbg (Cconst_int (1, dbg))
         dbg (Cconst_int (3, dbg))
@@ -916,7 +925,7 @@ and transl_prim_2 env p arg1 arg2 dbg =
   (* Boolean operations *)
   | Psequand ->
       let dbg' = Debuginfo.none in
-      transl_sequand env Then_true_else_false
+      transl_sequand env Vint Then_true_else_false
         dbg arg1
         dbg' arg2
         dbg (Cconst_int (3, dbg))
@@ -926,7 +935,7 @@ and transl_prim_2 env p arg1 arg2 dbg =
            Cifthenelse(test_bool dbg (Cvar id), transl env arg2, Cvar id)) *)
   | Psequor ->
       let dbg' = Debuginfo.none in
-      transl_sequor env Then_true_else_false
+      transl_sequor env Vint Then_true_else_false
         dbg arg1
         dbg' arg2
         dbg (Cconst_int (3, dbg))
@@ -1157,7 +1166,7 @@ and transl_unbox_sized size dbg env exp =
   | Thirty_two -> transl_unbox_int dbg env Pint32 exp
   | Sixty_four -> transl_unbox_int dbg env Pint64 exp
 
-and transl_let env str kind id exp transl_body =
+and transl_let env str (kind : Lambda.value_kind) id exp transl_body =
   let dbg = Debuginfo.none in
   let cexp = transl env exp in
   let unboxing =
@@ -1209,97 +1218,98 @@ and transl_let env str kind id exp transl_body =
       | Mutable, bn -> Clet_mut (v, typ_of_boxed_number bn, cexp, body)
       end
 
-and make_catch ncatch body handler dbg = match body with
+and make_catch (kind : Cmm.value_kind) ncatch body handler dbg = match body with
 | Cexit (nexit,[]) when nexit=ncatch -> handler
-| _ ->  ccatch (ncatch, [], body, handler, dbg)
+| _ ->  ccatch (ncatch, [], body, handler, dbg, kind)
 
 and is_shareable_cont exp =
   match exp with
   | Cexit (_,[]) -> true
   | _ -> false
 
-and make_shareable_cont dbg mk exp =
+and make_shareable_cont (kind : Cmm.value_kind) dbg mk exp =
   if is_shareable_cont exp then mk exp
   else begin
     let nfail = next_raise_count () in
     make_catch
+      kind
       nfail
       (mk (Cexit (nfail,[])))
       exp
       dbg
   end
 
-and transl_if env (approx : then_else)
+and transl_if env (kind : Cmm.value_kind) (approx : then_else)
       (dbg : Debuginfo.t) cond
       (then_dbg : Debuginfo.t) then_
       (else_dbg : Debuginfo.t) else_ =
   match cond with
   | Uconst (Uconst_int 0) -> else_
   | Uconst (Uconst_int 1) -> then_
-  | Uifthenelse (arg1, arg2, Uconst (Uconst_int 0)) ->
+  | Uifthenelse (arg1, arg2, Uconst (Uconst_int 0), _) ->
       (* CR mshinwell: These Debuginfos will flow through from Clambda *)
       let inner_dbg = Debuginfo.none in
       let ifso_dbg = Debuginfo.none in
-      transl_sequand env approx
+      transl_sequand env kind approx
         inner_dbg arg1
         ifso_dbg arg2
         then_dbg then_
         else_dbg else_
-  | Ulet(str, kind, id, exp, cond) ->
-      transl_let env str kind id exp (fun env ->
-        transl_if env approx dbg cond then_dbg then_ else_dbg else_)
+  | Ulet(str, kind_, id, exp, cond) ->
+      transl_let env str kind_ id exp (fun env ->
+        transl_if env kind approx dbg cond then_dbg then_ else_dbg else_)
   | Uprim (Psequand, [arg1; arg2], inner_dbg) ->
-      transl_sequand env approx
+      transl_sequand env kind approx
         inner_dbg arg1
         inner_dbg arg2
         then_dbg then_
         else_dbg else_
-  | Uifthenelse (arg1, Uconst (Uconst_int 1), arg2) ->
+  | Uifthenelse (arg1, Uconst (Uconst_int 1), arg2, _) ->
       let inner_dbg = Debuginfo.none in
       let ifnot_dbg = Debuginfo.none in
-      transl_sequor env approx
+      transl_sequor env kind approx
         inner_dbg arg1
         ifnot_dbg arg2
         then_dbg then_
         else_dbg else_
   | Uprim (Psequor, [arg1; arg2], inner_dbg) ->
-      transl_sequor env approx
+      transl_sequor env kind approx
         inner_dbg arg1
         inner_dbg arg2
         then_dbg then_
         else_dbg else_
   | Uprim (Pnot, [arg], _dbg) ->
-      transl_if env (invert_then_else approx)
+      transl_if env kind (invert_then_else approx)
         dbg arg
         else_dbg else_
         then_dbg then_
-  | Uifthenelse (Uconst (Uconst_int 1), ifso, _) ->
+  | Uifthenelse (Uconst (Uconst_int 1), ifso, _, _) ->
       let ifso_dbg = Debuginfo.none in
-      transl_if env approx
+      transl_if env kind approx
         ifso_dbg ifso
         then_dbg then_
         else_dbg else_
-  | Uifthenelse (Uconst (Uconst_int 0), _, ifnot) ->
+  | Uifthenelse (Uconst (Uconst_int 0), _, ifnot, _) ->
       let ifnot_dbg = Debuginfo.none in
-      transl_if env approx
+      transl_if env kind approx
         ifnot_dbg ifnot
         then_dbg then_
         else_dbg else_
-  | Uifthenelse (cond, ifso, ifnot) ->
+  | Uifthenelse (cond, ifso, ifnot, _) ->
       let inner_dbg = Debuginfo.none in
       let ifso_dbg = Debuginfo.none in
       let ifnot_dbg = Debuginfo.none in
-      make_shareable_cont then_dbg
+      make_shareable_cont kind then_dbg
         (fun shareable_then ->
-           make_shareable_cont else_dbg
+           make_shareable_cont kind else_dbg
              (fun shareable_else ->
                 mk_if_then_else
-                  inner_dbg (test_bool inner_dbg (transl env cond))
-                  ifso_dbg (transl_if env approx
+                  inner_dbg kind (test_bool inner_dbg (transl env cond))
+                  ifso_dbg (transl_if env kind approx
                     ifso_dbg ifso
                     then_dbg shareable_then
                     else_dbg shareable_else)
-                  ifnot_dbg (transl_if env approx
+                  ifnot_dbg (transl_if env kind approx
                     ifnot_dbg ifnot
                     then_dbg shareable_then
                     else_dbg shareable_else))
@@ -1313,50 +1323,50 @@ and transl_if env (approx : then_else)
           mk_not dbg (transl env cond)
       | Unknown ->
           mk_if_then_else
-            dbg (test_bool dbg (transl env cond))
+            dbg kind (test_bool dbg (transl env cond))
             then_dbg then_
             else_dbg else_
     end
 
-and transl_sequand env (approx : then_else)
+and transl_sequand env (kind : Cmm.value_kind) (approx : then_else)
       (arg1_dbg : Debuginfo.t) arg1
       (arg2_dbg : Debuginfo.t) arg2
       (then_dbg : Debuginfo.t) then_
       (else_dbg : Debuginfo.t) else_ =
-  make_shareable_cont else_dbg
+  make_shareable_cont kind else_dbg
     (fun shareable_else ->
-       transl_if env Unknown
+       transl_if env kind Unknown
          arg1_dbg arg1
-         arg2_dbg (transl_if env approx
+         arg2_dbg (transl_if env kind approx
            arg2_dbg arg2
            then_dbg then_
            else_dbg shareable_else)
          else_dbg shareable_else)
     else_
 
-and transl_sequor env (approx : then_else)
+and transl_sequor env (kind : Cmm.value_kind) (approx : then_else)
       (arg1_dbg : Debuginfo.t) arg1
       (arg2_dbg : Debuginfo.t) arg2
       (then_dbg : Debuginfo.t) then_
       (else_dbg : Debuginfo.t) else_ =
-  make_shareable_cont then_dbg
+  make_shareable_cont kind then_dbg
     (fun shareable_then ->
-       transl_if env Unknown
+       transl_if env kind Unknown
          arg1_dbg arg1
          then_dbg shareable_then
-         arg2_dbg (transl_if env approx
+         arg2_dbg (transl_if env kind approx
            arg2_dbg arg2
            then_dbg shareable_then
            else_dbg else_))
     then_
 
 (* This assumes that [arg] can be safely discarded if it is not used. *)
-and transl_switch dbg env arg index cases = match Array.length cases with
+and transl_switch dbg (kind : Cmm.value_kind) env arg index cases = match Array.length cases with
 | 0 -> fatal_error "Cmmgen.transl_switch"
 | 1 -> transl env cases.(0)
 | _ ->
     let cases = Array.map (transl env) cases in
-    transl_switch_clambda dbg arg index cases
+    transl_switch_clambda dbg kind arg index cases
 
 and transl_letrec env bindings cont =
   let dbg = Debuginfo.none in
@@ -1418,6 +1428,7 @@ let transl_function f =
              fun_args = List.map (fun (id, _) -> (id, typ_val)) f.params;
              fun_body = cmm_body;
              fun_codegen_options;
+             fun_poll = f.poll;
              fun_dbg  = f.dbg}
 
 (* Translate all function definitions *)
@@ -1507,7 +1518,7 @@ let compunit (ulam, preallocated_blocks, constants) =
         (fun () -> dbg)
     else
       transl empty_env ulam in
-  let c1 = [Cfunction {fun_name = Compilenv.make_symbol (Some "entry");
+  let c1 = [Cfunction {fun_name = make_symbol "entry";
                        fun_args = [];
                        fun_body = init_code;
                        (* This function is often large and run only once.
@@ -1519,6 +1530,7 @@ let compunit (ulam, preallocated_blocks, constants) =
                            No_CSE;
                          ]
                          else [ Reduce_code_size ];
+                       fun_poll = Default_poll;
                        fun_dbg  = Debuginfo.none }] in
   let c2 = transl_clambda_constants constants c1 in
   let c3 = transl_all_functions c2 in

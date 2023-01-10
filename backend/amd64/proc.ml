@@ -72,9 +72,9 @@ let win64 = Arch.win64
        3. C callee-saved registers.
      This translates to the set { r10, r11 }.  These registers hence cannot
      be used for OCaml parameter passing and must also be marked as
-     destroyed across [Ialloc] (otherwise a call to caml_call_gc@PLT might
-     clobber these two registers before the assembly stub saves them into
-     the GC regs block).
+     destroyed across [Ialloc] and [Ipoll] (otherwise a call to
+     caml_call_gc@PLT might clobber these two registers before the assembly
+     stub saves them into the GC regs block).
 *)
 
 let int_reg_name =
@@ -313,7 +313,7 @@ let destroyed_at_c_call =
        100;101;102;103;104;105;106;107;
        108;109;110;111;112;113;114;115])
 
-let destroyed_at_alloc =
+let destroyed_at_alloc_or_poll =
   if X86_proc.use_plt then
     destroyed_by_plt_stub
   else
@@ -333,7 +333,7 @@ let destroyed_at_oper = function
   | Iop(Iintop(Idiv | Imod)) | Iop(Iintop_imm((Idiv | Imod), _))
         -> [| rax; rdx |]
   | Iop(Istore(Single, _, _)) -> [| rxmm15 |]
-  | Iop(Ialloc _) -> destroyed_at_alloc
+  | Iop(Ialloc _ | Ipoll _) -> destroyed_at_alloc_or_poll
   | Iop(Iintop(Imulh _ | Icomp _) | Iintop_imm((Icomp _), _))
         -> [| rax |]
   | Iswitch(_, _) -> [| rax; rdx |]
@@ -354,12 +354,15 @@ let destroyed_at_oper = function
   | Iop(Iintop_imm((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl
                    | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _
                    | Icheckbound),_))
+  | Iop(Iintop_atomic _)
   | Iop(Istore((Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
                | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
                | Double ), _, _))
   | Iop(Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
        | Icompf _
+       | Icsel _
        | Ifloatofint | Iintoffloat
+       | Ivalueofint | Iintofvalue
        | Iconst_int _ | Iconst_float _ | Iconst_symbol _
        | Itailcall_ind | Itailcall_imm _ | Istackoffset _ | Iload (_, _, _)
        | Iname_for_debugger _ | Iprobe _| Iprobe_is_enabled _ | Iopaque)
@@ -381,8 +384,6 @@ let destroyed_at_reloadretaddr = [| |]
 (* note: keep this function in sync with `destroyed_at_oper` above. *)
 let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   match basic with
-  | Call (P (Alloc _)) ->
-    destroyed_at_alloc
   | Reloadretaddr ->
     destroyed_at_reloadretaddr
   | Pushtrap _ ->
@@ -408,10 +409,12 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
                | Iasr | Ipopcnt | Iclz _ | Ictz _)
        | Intop_imm ((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor
                     | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _),_)
+       | Intop_atomic _
        | Negf | Absf | Addf | Subf | Mulf | Divf
        | Compf _
+       | Csel _
        | Floatofint | Intoffloat
-       | Probe _
+       | Valueofint | Intofvalue
        | Probe_is_enabled _
        | Opaque
        | Begin_region
@@ -423,38 +426,52 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
                   | Isextend32 | Izextend32 | Icrc32q | Ipause
                   | Iprefetch _ | Ilfence | Isfence | Imfence)
        | Name_for_debugger _)
-  | Call (P (Checkbound _))
   | Poptrap | Prologue ->
     if fp then [| rbp |] else [||]
-  | Call (P (External { func_symbol = _; alloc; ty_res = _; ty_args = _; })) ->
-    if alloc then all_phys_regs else destroyed_at_c_call
-  | Call (F (Indirect | Direct _)) ->
-    all_phys_regs
 
 (* note: keep this function in sync with `destroyed_at_oper`. above *)
 let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
   match terminator with
   | Never -> assert false
+  | Prim {op = Alloc _; _} ->
+    destroyed_at_alloc_or_poll
   | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-  | Return | Raise _ | Tailcall _ ->
+  | Return | Raise _ | Tailcall_self  _ | Tailcall_func _
+  | Prim {op = Checkbound _ | Probe _; _}
+  ->
     if fp then [| rbp |] else [||]
   | Switch _ ->
     [| rax; rdx |]
-  | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; } ->
+  | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; }
+  | Prim {op = External { func_symbol = _; alloc; ty_res = _; ty_args = _; }; _} ->
     if alloc then all_phys_regs else destroyed_at_c_call
+  | Call {op = Indirect | Direct _; _} ->
+    all_phys_regs
+  | Specific_can_raise { op = (Ilea _ | Ibswap _ | Isqrtf | Isextend32 | Izextend32
+                       | Ifloatarithmem _ | Ifloatsqrtf _
+                       | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max
+                       | Icrc32q | Irdtsc | Irdpmc | Ipause
+                       | Ilfence | Isfence | Imfence
+                       | Istore_int (_, _, _) | Ioffset_loc (_, _)
+                              | Iprefetch _); _ } ->
+    Misc.fatal_error "no instructions specific for this architecture can raise"
+  | Poll_and_jump _ -> destroyed_at_alloc_or_poll
 
 (* Maximal register pressure *)
 
 
 let safe_register_pressure = function
     Iextcall _ -> if win64 then if fp then 7 else 8 else 0
-  | Ialloc _ | Imove | Ispill | Ireload
-  | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf | Ifloatofint | Iintoffloat
+  | Ialloc _ | Ipoll _ | Imove | Ispill | Ireload
+  | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue
   | Icompf _
+  | Icsel _
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Istackoffset _ | Iload (_, _, _) | Istore (_, _, _)
-  | Iintop _ | Iintop_imm (_, _) | Ispecific _ | Iname_for_debugger _
+  | Iintop _ | Iintop_imm (_, _) | Iintop_atomic _
+  | Ispecific _ | Iname_for_debugger _
   | Iprobe _ | Iprobe_is_enabled _ | Iopaque
   | Ibeginregion | Iendregion
     -> if fp then 10 else 11
@@ -471,7 +488,7 @@ let max_register_pressure =
       else consumes ~int:9 ~float:16
   | Iintop(Idiv | Imod) | Iintop_imm((Idiv | Imod), _) ->
     consumes ~int:2 ~float:0
-  | Ialloc _ ->
+  | Ialloc _ | Ipoll _ ->
     consumes ~int:(1 + num_destroyed_by_plt_stub) ~float:0
   | Iintop(Icomp _) | Iintop_imm((Icomp _), _) ->
     consumes ~int:1 ~float:0
@@ -481,12 +498,15 @@ let max_register_pressure =
            | Ipopcnt|Iclz _| Ictz _|Icheckbound)
   | Iintop_imm((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl | Ilsr
                 | Iasr | Ipopcnt | Iclz _| Ictz _|Icheckbound), _)
+  | Iintop_atomic _
   | Istore((Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
             | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
             | Double ),
             _, _)
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
-  | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Iconst_symbol _
+  | Icsel _
+  | Ifloatofint | Iintoffloat | Ivalueofint | Iintofvalue
+  | Iconst_int _ | Iconst_float _ | Iconst_symbol _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Istackoffset _ | Iload (_, _, _)
   | Ispecific(Ilea _ | Isextend32 | Izextend32 | Iprefetch _ | Ipause
@@ -522,15 +542,18 @@ let init () =
 
 let operation_supported = function
   | Cpopcnt -> !popcnt_support
-  | Cprefetch _
+  | Cprefetch _ | Catomic _
   | Capply _ | Cextcall _ | Cload _ | Calloc _ | Cstore _
   | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
+  | Ccsel _
   | Cbswap _
   | Cclz _ | Cctz _
   | Ccmpi _ | Caddv | Cadda | Ccmpa _
   | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf
-  | Cfloatofint | Cintoffloat | Ccmpf _
+  | Cfloatofint | Cintoffloat
+  | Cvalueofint | Cintofvalue
+  | Ccmpf _
   | Craise _
   | Ccheckbound
   | Cprobe _ | Cprobe_is_enabled _ | Copaque | Cbeginregion | Cendregion

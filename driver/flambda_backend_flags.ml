@@ -27,6 +27,14 @@ let heap_reduction_threshold = ref default_heap_reduction_threshold (* -heap-red
 let alloc_check = ref false             (* -alloc-check *)
 let dump_checkmach = ref false          (* -dcheckmach *)
 
+let disable_poll_insertion = ref (not Config.poll_insertion)
+                                        (* -disable-poll-insertion *)
+let allow_long_frames = ref true        (* -no-long-frames *)
+(* Keep the value of [max_long_frames_threshold] in sync with LONG_FRAME_MARKER
+   in ocaml/runtime/roots_nat.c *)
+let max_long_frames_threshold = 0x7FFF
+let long_frames_threshold = ref max_long_frames_threshold (* -debug-long-frames-threshold n *)
+
 type function_result_types = Never | Functors_only | All_functions
 type opt_level = Oclassic | O2 | O3
 type 'a or_default = Set of 'a | Default
@@ -115,6 +123,7 @@ module Flambda2 = struct
     let flexpect = ref false
     let slot_offsets = ref false
     let freshen = ref false
+    let flow = ref false
   end
 
   module Expert = struct
@@ -125,6 +134,7 @@ module Flambda2 = struct
       let max_block_size_for_projections = None
       let max_unboxing_depth = 3
       let can_inline_recursive_functions = false
+      let max_function_simplify_run = 2
     end
 
     type flags = {
@@ -134,6 +144,7 @@ module Flambda2 = struct
       max_block_size_for_projections : int option;
       max_unboxing_depth : int;
       can_inline_recursive_functions : bool;
+      max_function_simplify_run : int;
     }
 
     let default = {
@@ -143,6 +154,7 @@ module Flambda2 = struct
       max_block_size_for_projections = Default.max_block_size_for_projections;
       max_unboxing_depth = Default.max_unboxing_depth;
       can_inline_recursive_functions = Default.can_inline_recursive_functions;
+      max_function_simplify_run = Default.max_function_simplify_run;
     }
 
     let oclassic = {
@@ -166,6 +178,7 @@ module Flambda2 = struct
     let max_block_size_for_projections = ref Default
     let max_unboxing_depth = ref Default
     let can_inline_recursive_functions = ref Default
+    let max_function_simplify_run = ref Default
   end
 
   module Debug = struct
@@ -183,113 +196,119 @@ module Flambda2 = struct
   module F = Clflags.Float_arg_helper
 
   module Inlining = struct
+    type inlining_arguments = {
+      max_depth : int;
+      max_rec_depth : int;
+      call_cost : float;
+      alloc_cost : float;
+      prim_cost : float;
+      branch_cost : float;
+      indirect_call_cost : float;
+      poly_compare_cost : float;
+      small_function_size : int;
+      large_function_size : int;
+      threshold : float;
+    }
+
     module Default = struct
       let cost_divisor = 8.
 
-      let max_depth = 1
-      let max_rec_depth = 0
-
-      let call_cost = 5. /. cost_divisor
-      let alloc_cost = 7. /. cost_divisor
-      let prim_cost = 3. /. cost_divisor
-      let branch_cost = 5. /. cost_divisor
-      let indirect_call_cost = 4. /. cost_divisor
-      let poly_compare_cost = 10. /. cost_divisor
-
-      let small_function_size = 10
-      let large_function_size = 10
-
-      let threshold = 10.
+      let default_arguments = {
+        max_depth = 1;
+        max_rec_depth = 0;
+        call_cost = 5. /. cost_divisor;
+        alloc_cost = 7. /. cost_divisor;
+        prim_cost = 3. /. cost_divisor;
+        branch_cost = 5. /. cost_divisor;
+        indirect_call_cost = 4. /. cost_divisor;
+        poly_compare_cost = 10. /. cost_divisor;
+        small_function_size = 10;
+        large_function_size = 10;
+        threshold = 10.;
+      }
 
       let speculative_inlining_only_if_arguments_useful = true
     end
 
-    let max_depth = ref (I.default Default.max_depth)
-    let max_rec_depth = ref (I.default Default.max_rec_depth)
+    let max_depth = ref (I.default Default.default_arguments.max_depth)
+    let max_rec_depth = ref (I.default Default.default_arguments.max_rec_depth)
 
-    let call_cost = ref (F.default Default.call_cost)
-    let alloc_cost = ref (F.default Default.alloc_cost)
-    let prim_cost = ref (F.default Default.prim_cost)
-    let branch_cost = ref (F.default Default.branch_cost)
-    let indirect_call_cost = ref (F.default Default.indirect_call_cost)
-    let poly_compare_cost = ref (F.default Default.poly_compare_cost)
+    let call_cost = ref (F.default Default.default_arguments.call_cost)
+    let alloc_cost = ref (F.default Default.default_arguments.alloc_cost)
+    let prim_cost = ref (F.default Default.default_arguments.prim_cost)
+    let branch_cost = ref (F.default Default.default_arguments.branch_cost)
+    let indirect_call_cost =
+      ref (F.default Default.default_arguments.indirect_call_cost)
+    let poly_compare_cost =
+      ref (F.default Default.default_arguments.poly_compare_cost)
 
-    let small_function_size = ref (I.default Default.small_function_size)
-    let large_function_size = ref (I.default Default.large_function_size)
+    let small_function_size =
+      ref (I.default Default.default_arguments.small_function_size)
+    let large_function_size =
+      ref (I.default Default.default_arguments.large_function_size)
 
-    let threshold = ref (F.default Default.threshold)
+    let threshold = ref (F.default Default.default_arguments.threshold)
 
     let speculative_inlining_only_if_arguments_useful =
       ref Default.speculative_inlining_only_if_arguments_useful
 
     let report_bin = ref false
 
-    type inlining_arguments = {
-      max_depth : int option;
-      max_rec_depth : int option;
-      call_cost : float option;
-      alloc_cost : float option;
-      prim_cost : float option;
-      branch_cost : float option;
-      indirect_call_cost : float option;
-      poly_compare_cost : float option;
-      small_function_size : int option;
-      large_function_size : int option;
-      threshold : float option;
-    }
-
     let use_inlining_arguments_set ?round (arg : inlining_arguments) =
       let set_int = Clflags.set_int_arg round in
       let set_float = Clflags.set_float_arg round in
-      set_int max_depth Default.max_depth arg.max_depth;
-      set_int max_rec_depth Default.max_rec_depth arg.max_rec_depth;
-      set_float call_cost Default.call_cost arg.call_cost;
-      set_float alloc_cost Default.alloc_cost arg.alloc_cost;
-      set_float prim_cost Default.prim_cost arg.prim_cost;
-      set_float branch_cost Default.branch_cost arg.branch_cost;
+      set_int max_depth Default.default_arguments.max_depth
+        (Some arg.max_depth);
+      set_int max_rec_depth Default.default_arguments.max_rec_depth
+        (Some arg.max_rec_depth);
+      set_float call_cost Default.default_arguments.call_cost
+        (Some arg.call_cost);
+      set_float alloc_cost Default.default_arguments.alloc_cost
+        (Some arg.alloc_cost);
+      set_float prim_cost Default.default_arguments.prim_cost
+        (Some arg.prim_cost);
+      set_float branch_cost Default.default_arguments.branch_cost
+        (Some arg.branch_cost);
       set_float indirect_call_cost
-        Default.indirect_call_cost arg.indirect_call_cost;
+        Default.default_arguments.indirect_call_cost
+        (Some arg.indirect_call_cost);
       set_float poly_compare_cost
-        Default.poly_compare_cost arg.poly_compare_cost;
+        Default.default_arguments.poly_compare_cost
+        (Some arg.poly_compare_cost);
       set_int small_function_size
-        Default.small_function_size arg.small_function_size;
+        Default.default_arguments.small_function_size
+        (Some arg.small_function_size);
       set_int large_function_size
-        Default.large_function_size arg.large_function_size;
-      set_float threshold Default.threshold arg.threshold
+        Default.default_arguments.large_function_size
+        (Some arg.large_function_size);
+      set_float threshold Default.default_arguments.threshold
+        (Some arg.threshold)
 
     let oclassic_arguments = {
-      max_depth = None;
-      max_rec_depth = None;
-      call_cost = None;
-      alloc_cost = None;
-      prim_cost = None;
-      branch_cost = None;
-      indirect_call_cost = None;
-      poly_compare_cost = None;
+      Default.default_arguments with
       (* We set the small and large function sizes to the same value here to
          recover "classic mode" semantics (no speculative inlining). *)
-      small_function_size = Some Default.small_function_size;
-      large_function_size = Some Default.small_function_size;
+      large_function_size = Default.default_arguments.small_function_size;
       (* [threshold] matches the current compiler's default.  (The factor of
          8 in that default is accounted for by [cost_divisor], above.) *)
-      threshold = Some 10.;
+      threshold = 10.;
     }
 
     let o2_arguments = {
-      max_depth = Some 3;
-      max_rec_depth = Some 0;
-      call_cost = Some (3.0 *. Default.call_cost);
-      alloc_cost = Some (3.0 *. Default.alloc_cost);
-      prim_cost = Some (3.0 *. Default.prim_cost);
-      branch_cost = Some (3.0 *. Default.branch_cost);
-      indirect_call_cost = Some (3.0 *. Default.indirect_call_cost);
-      poly_compare_cost = Some (3.0 *. Default.poly_compare_cost);
-      small_function_size = Some (10 * Default.small_function_size);
-      large_function_size = Some (50 * Default.large_function_size);
-      threshold = Some 100.;
+      max_depth = 3;
+      max_rec_depth = 0;
+      call_cost = 3.0 *. Default.default_arguments.call_cost;
+      alloc_cost = 3.0 *. Default.default_arguments.alloc_cost;
+      prim_cost = 3.0 *. Default.default_arguments.prim_cost;
+      branch_cost = 3.0 *. Default.default_arguments.branch_cost;
+      indirect_call_cost = 3.0 *. Default.default_arguments.indirect_call_cost;
+      poly_compare_cost = 3.0 *. Default.default_arguments.poly_compare_cost;
+      small_function_size = 10 * Default.default_arguments.small_function_size;
+      large_function_size = 50 * Default.default_arguments.large_function_size;
+      threshold = 100.;
     }
 
-    let o3_arguments = { o2_arguments with max_depth = Some 6 }
+    let o3_arguments = { o2_arguments with max_depth = 6 }
   end
 end
 

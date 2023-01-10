@@ -128,6 +128,9 @@ and make_optimistic_fields ~add_tag_to_name ~depth tenv param_type (tag : Tag.t)
     then K.naked_float, "unboxed_float_field"
     else K.value, "unboxed_field"
   in
+  let field_kind_with_subkind =
+    K.With_subkind.create field_kind K.With_subkind.Subkind.Anything
+  in
   let field_name n =
     Format.asprintf "%s%a_%d" field_base_name (pp_tag add_tag_to_name) tag n
   in
@@ -148,7 +151,7 @@ and make_optimistic_fields ~add_tag_to_name ~depth tenv param_type (tag : Tag.t)
   in
   let shape =
     T.immutable_block ~is_unique:false tag ~field_kind ~fields:field_types
-      Unknown
+      (Alloc_mode.For_types.unknown ())
   in
   let env_extension =
     match T.meet tenv param_type shape with
@@ -168,7 +171,7 @@ and make_optimistic_fields ~add_tag_to_name ~depth tenv param_type (tag : Tag.t)
         let decision =
           make_optimistic_decision ~depth:(depth + 1) tenv ~param_type:var_type
         in
-        { epa; decision })
+        { epa; decision; kind = field_kind_with_subkind })
       field_vars field_types
   in
   fields
@@ -183,5 +186,10 @@ and make_optimistic_vars_within_closure ~depth tenv closures_entry =
       let decision =
         make_optimistic_decision ~depth:(depth + 1) tenv ~param_type:var_type
       in
-      { epa; decision })
+      let kind =
+        K.With_subkind.create
+          (Flambda2_types.kind var_type)
+          K.With_subkind.Subkind.Anything
+      in
+      { epa; decision; kind })
     map

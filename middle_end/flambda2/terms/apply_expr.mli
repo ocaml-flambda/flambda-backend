@@ -19,7 +19,11 @@
 
 type t
 
+val free_names_except_callee : t -> Name_occurrences.t
+
 include Expr_std.S with type t := t
+
+val free_names_without_exn_continuation : t -> Name_occurrences.t
 
 include Contains_ids.S with type t := t
 
@@ -54,6 +58,7 @@ val create :
   probe_name:string option ->
   position:Position.t ->
   relative_history:Inlining_history.Relative.t ->
+  region:Variable.t ->
   t
 
 (* CR mshinwell: This doesn't really make sense for C calls; we should have a
@@ -102,10 +107,6 @@ val with_args : t -> Simple.t list -> t
 (** Change the call kind of an application. *)
 val with_call_kind : t -> Call_kind.t -> t
 
-(** Change the continuation, callee and arguments of an application. *)
-val with_continuation_callee_and_args :
-  t -> Result_continuation.t -> callee:Simple.t -> args:Simple.t list -> t
-
 val inlining_state : t -> Inlining_state.t
 
 val inlining_arguments : t -> Inlining_arguments.t
@@ -117,3 +118,6 @@ val relative_history : t -> Inlining_history.Relative.t
 (** Returns [true] if the application returns to the caller, [false] if it is
     non terminating. *)
 val returns : t -> bool
+
+(** The local allocation region for this application. *)
+val region : t -> Variable.t

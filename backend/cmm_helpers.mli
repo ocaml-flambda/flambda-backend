@@ -60,13 +60,18 @@ val boxedint64_header : nativeint
 val boxedintnat_header : nativeint
 
 (** Closure info for a closure of given arity and distance to environment *)
-val closure_info : arity:Clambda.arity -> startenv:int -> nativeint
+val closure_info :
+  arity:Clambda.arity -> startenv:int -> is_last:bool -> nativeint
 
 (** Wrappers *)
 val alloc_infix_header : int -> Debuginfo.t -> expression
 
 val alloc_closure_info :
-  arity:Lambda.function_kind * int -> startenv:int -> Debuginfo.t -> expression
+  arity:Lambda.function_kind * int ->
+  startenv:int ->
+  is_last:bool ->
+  Debuginfo.t ->
+  expression
 
 (** Integers *)
 
@@ -108,6 +113,8 @@ val ignore_high_bit_int : expression -> expression
 val add_int : expression -> expression -> Debuginfo.t -> expression
 
 val sub_int : expression -> expression -> Debuginfo.t -> expression
+
+val neg_int : expression -> Debuginfo.t -> expression
 
 val lsl_int : expression -> expression -> Debuginfo.t -> expression
 
@@ -774,18 +781,6 @@ val send :
 (** Construct [Cregion e], eliding some useless regions *)
 val region : expression -> expression
 
-(** [cextcall prim args dbg type_of_result] returns Cextcall operation that
-    corresponds to [prim]. If [prim] is a C builtin supported on the target,
-    returns [Cmm.operation] variant for [prim]'s intrinsics. *)
-val cextcall :
-  Primitive.description ->
-  expression list ->
-  Debuginfo.t ->
-  machtype ->
-  exttype list ->
-  bool ->
-  expression
-
 (** Generic Cmm fragments *)
 
 (** Generate generic functions *)
@@ -808,27 +803,30 @@ val placeholder_dbg : unit -> Debuginfo.t
 val placeholder_fun_dbg : human_name:string -> Debuginfo.t
 
 (** Entry point *)
-val entry_point : string list -> phrase
+val entry_point : Compilation_unit.t list -> phrase
 
 (** Generate the caml_globals table *)
-val global_table : string list -> phrase
+val global_table : Compilation_unit.t list -> phrase
 
 (** Add references to the given symbols *)
 val reference_symbols : string list -> phrase
 
-(** Generate the caml_globals_map structure, as a marshalled string constant *)
+(** Generate the caml_globals_map structure, as a marshalled string constant.
+    The runtime representation of the type here must match that of [type
+    global_map] in the natdynlink code. *)
 val globals_map :
-  (string * Digest.t option * Digest.t option * string list) list -> phrase
+  (Compilation_unit.t * Digest.t option * Digest.t option * Symbol.t list) list ->
+  phrase
 
 (** Generate the caml_frametable table, referencing the frametables from the
     given compilation units *)
-val frame_table : string list -> phrase
+val frame_table : Compilation_unit.t list -> phrase
 
 (** Generate the tables for data and code positions respectively of the given
     compilation units *)
-val data_segment_table : string list -> phrase
+val data_segment_table : Compilation_unit.t list -> phrase
 
-val code_segment_table : string list -> phrase
+val code_segment_table : Compilation_unit.t list -> phrase
 
 (** Generate data for a predefined exception *)
 val predef_exception : int -> string -> phrase
@@ -1123,18 +1121,6 @@ val indirect_full_call :
   expression list ->
   expression
 
-(** Create a C function call. *)
-val extcall :
-  dbg:Debuginfo.t ->
-  returns:bool ->
-  alloc:bool ->
-  is_c_builtin:bool ->
-  ty_args:exttype list ->
-  string ->
-  machtype ->
-  expression list ->
-  expression
-
 val bigarray_load :
   dbg:Debuginfo.t ->
   elt_kind:Lambda.bigarray_kind ->
@@ -1184,6 +1170,7 @@ val fundecl :
   expression ->
   codegen_option list ->
   Debuginfo.t ->
+  Lambda.poll_attribute ->
   fundecl
 
 (** Create a cmm phrase for a function declaration. *)
@@ -1193,10 +1180,7 @@ val cfunction : fundecl -> phrase
 val cdata : data_item list -> phrase
 
 (** Create the gc root table from a list of root symbols. *)
-val gc_root_table :
-  make_symbol:(?unitname:string -> string option -> string) ->
-  string list ->
-  phrase
+val gc_root_table : string list -> phrase
 
 (* An estimate of the number of arithmetic instructions in a Cmm expression.
    This is currently used in Flambda 2 to determine whether untagging an
@@ -1206,3 +1190,8 @@ val gc_root_table :
    If [None] is returned, that means "no estimate available". The expression
    should be assumed to be potentially large. *)
 val cmm_arith_size : expression -> int option
+
+val transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list
+
+(* CR lmaurer: Return [Linkage_name.t] instead *)
+val make_symbol : ?compilation_unit:Compilation_unit.t -> string -> string

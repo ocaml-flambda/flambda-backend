@@ -6,16 +6,6 @@ let from_basic (basic : basic) : Linear.instruction_desc =
   | Reloadretaddr -> Lreloadretaddr
   | Pushtrap { lbl_handler } -> Lpushtrap { lbl_handler }
   | Poptrap -> Lpoptrap
-  | Call (F Indirect) -> Lop Icall_ind
-  | Call (F (Direct { func_symbol })) -> Lop (Icall_imm { func = func_symbol })
-  | Call (P (External { func_symbol; alloc; ty_args; ty_res })) ->
-    Lop
-      (Iextcall { func = func_symbol; alloc; ty_args; ty_res; returns = true })
-  | Call (P (Checkbound { immediate = None })) -> Lop (Iintop Icheckbound)
-  | Call (P (Checkbound { immediate = Some i })) ->
-    Lop (Iintop_imm (Icheckbound, i))
-  | Call (P (Alloc { bytes; dbginfo; mode })) ->
-    Lop (Ialloc { bytes; dbginfo; mode })
   | Op op ->
     let op : Mach.operation =
       match op with
@@ -30,6 +20,7 @@ let from_basic (basic : basic) : Linear.instruction_desc =
       | Store (c, m, b) -> Istore (c, m, b)
       | Intop op -> Iintop op
       | Intop_imm (op, i) -> Iintop_imm (op, i)
+      | Intop_atomic { op; size; addr } -> Iintop_atomic { op; size; addr }
       | Negf -> Inegf
       | Absf -> Iabsf
       | Addf -> Iaddf
@@ -37,9 +28,11 @@ let from_basic (basic : basic) : Linear.instruction_desc =
       | Mulf -> Imulf
       | Divf -> Idivf
       | Compf c -> Icompf c
+      | Csel c -> Icsel c
       | Floatofint -> Ifloatofint
       | Intoffloat -> Iintoffloat
-      | Probe { name; handler_code_sym } -> Iprobe { name; handler_code_sym }
+      | Valueofint -> Ivalueofint
+      | Intofvalue -> Iintofvalue
       | Probe_is_enabled { name } -> Iprobe_is_enabled { name }
       | Opaque -> Iopaque
       | Specific op -> Ispecific op

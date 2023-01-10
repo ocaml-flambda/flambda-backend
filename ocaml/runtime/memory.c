@@ -462,29 +462,17 @@ CAMLexport color_t caml_allocation_color (void *hp)
 }
 
 Caml_inline value caml_alloc_shr_aux (mlsize_t wosize, tag_t tag, int track,
-                                      int raise_oom, uintnat profinfo)
+                                      uintnat profinfo)
 {
   header_t *hp;
   value *new_block;
 
-  if (wosize > Max_wosize) {
-    if (raise_oom)
-      caml_raise_out_of_memory ();
-    else
-      return 0;
-  }
+  if (wosize > Max_wosize) return 0;
   CAML_EV_ALLOC(wosize);
   hp = caml_fl_allocate (wosize);
   if (hp == NULL){
     new_block = expand_heap (wosize);
-    if (new_block == NULL) {
-      if (!raise_oom)
-        return 0;
-      else if (Caml_state->in_minor_collection)
-        caml_fatal_error ("out of memory");
-      else
-        caml_raise_out_of_memory ();
-    }
+    if (new_block == NULL) return 0;
     caml_fl_add_blocks ((value) new_block);
     hp = caml_fl_allocate (wosize);
   }
@@ -522,41 +510,34 @@ Caml_inline value caml_alloc_shr_aux (mlsize_t wosize, tag_t tag, int track,
   return Val_hp (hp);
 }
 
-#ifdef WITH_PROFINFO
-
-/* Use this to debug problems with macros... */
-#define NO_PROFINFO 0xff
+Caml_inline value check_oom(value v)
+{
+  if (v == 0) {
+    caml_fatal_out_of_memory ();
+  }
+  return v;
+}
 
 CAMLexport value caml_alloc_shr_with_profinfo (mlsize_t wosize, tag_t tag,
                                                intnat profinfo)
 {
-  return caml_alloc_shr_aux(wosize, tag, 1, 1, profinfo);
+  return check_oom(caml_alloc_shr_aux(wosize, tag, 1, profinfo));
 }
 
 CAMLexport value caml_alloc_shr_for_minor_gc (mlsize_t wosize,
-                                              tag_t tag, header_t old_header)
+                                              tag_t tag, header_t old_hd)
 {
-  return caml_alloc_shr_aux (wosize, tag, 0, 1, Profinfo_hd(old_header));
+  return check_oom(caml_alloc_shr_aux(wosize, tag, 0, Profinfo_hd(old_hd)));
 }
-
-#else
-#define NO_PROFINFO 0
-
-CAMLexport value caml_alloc_shr_for_minor_gc (mlsize_t wosize,
-                                              tag_t tag, header_t old_header)
-{
-  return caml_alloc_shr_aux (wosize, tag, 0, 1, NO_PROFINFO);
-}
-#endif /* WITH_PROFINFO */
 
 CAMLexport value caml_alloc_shr (mlsize_t wosize, tag_t tag)
 {
-  return caml_alloc_shr_aux (wosize, tag, 1, 1, NO_PROFINFO);
+  return caml_alloc_shr_with_profinfo(wosize, tag, NO_PROFINFO);
 }
 
 CAMLexport value caml_alloc_shr_no_track_noexc (mlsize_t wosize, tag_t tag)
 {
-  return caml_alloc_shr_aux (wosize, tag, 0, 0, NO_PROFINFO);
+  return caml_alloc_shr_aux(wosize, tag, 0, NO_PROFINFO);
 }
 
 /* Dependent memory is all memory blocks allocated out of the heap
@@ -933,7 +914,7 @@ CAMLexport void* caml_stat_alloc_aligned(asize_t sz, int modulo,
   void *result = caml_stat_alloc_aligned_noexc(sz, modulo, b);
   /* malloc() may return NULL if size is 0 */
   if ((result == NULL) && (sz != 0))
-    caml_raise_out_of_memory();
+    caml_fatal_out_of_memory();
   return result;
 }
 
@@ -967,7 +948,7 @@ CAMLexport caml_stat_block caml_stat_alloc(asize_t sz)
   void *result = caml_stat_alloc_noexc(sz);
   /* malloc() may return NULL if size is 0 */
   if ((result == NULL) && (sz != 0))
-    caml_raise_out_of_memory();
+    caml_fatal_out_of_memory();
   return result;
 }
 
@@ -1014,7 +995,7 @@ CAMLexport caml_stat_block caml_stat_resize(caml_stat_block b, asize_t sz)
 {
   void *result = caml_stat_resize_noexc(b, sz);
   if (result == NULL)
-    caml_raise_out_of_memory();
+    caml_fatal_out_of_memory();
   return result;
 }
 
@@ -1046,7 +1027,7 @@ CAMLexport caml_stat_string caml_stat_strdup(const char *s)
 {
   caml_stat_string result = caml_stat_strdup_noexc(s);
   if (result == NULL)
-    caml_raise_out_of_memory();
+    caml_fatal_out_of_memory();
   return result;
 }
 
@@ -1057,7 +1038,7 @@ CAMLexport wchar_t * caml_stat_wcsdup(const wchar_t *s)
   int slen = wcslen(s);
   wchar_t* result = caml_stat_alloc((slen + 1)*sizeof(wchar_t));
   if (result == NULL)
-    caml_raise_out_of_memory();
+    caml_fatal_out_of_memory();
   memcpy(result, s, (slen + 1)*sizeof(wchar_t));
   return result;
 }

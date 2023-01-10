@@ -15,8 +15,6 @@
 
 (** cmt and cmti files format. *)
 
-open Misc
-
 (** The layout of a cmt file is as follows:
       <cmt> := \{<cmi>\} <cmt magic> \{cmt infos\} \{<source info>\}
     where <cmi> is the cmi file format:
@@ -51,7 +49,7 @@ and binary_part =
   | Partial_module_type of module_type
 
 type cmt_infos = {
-  cmt_modname : modname;
+  cmt_modname : Compilation_unit.t;
   cmt_annots : binary_annots;
   cmt_value_dependencies :
     (Types.value_description * Types.value_description) list;
@@ -62,9 +60,11 @@ type cmt_infos = {
   cmt_loadpath : string list;
   cmt_source_digest : string option;
   cmt_initial_env : Env.t;
-  cmt_imports : crcs;
+  cmt_imports : Import_info.t array;
   cmt_interface_digest : Digest.t option;
   cmt_use_summaries : bool;
+  cmt_uid_to_loc : Location.t Shape.Uid.Tbl.t;
+  cmt_impl_shape : Shape.t option; (* None for mli *)
 }
 
 type error =
@@ -89,11 +89,12 @@ val read_cmi : string -> Cmi_format.cmi_infos
     writes a cmt(i) file.  *)
 val save_cmt :
   string ->  (* filename.cmt to generate *)
-  string ->  (* module name *)
+  Compilation_unit.t ->  (* module name *)
   binary_annots ->
   string option ->  (* source file *)
   Env.t -> (* initial env *)
   Cmi_format.cmi_infos option -> (* if a .cmi was generated *)
+  Shape.t option ->
   unit
 
 (* Miscellaneous functions *)

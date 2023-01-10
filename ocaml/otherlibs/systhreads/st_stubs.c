@@ -19,6 +19,7 @@
 #include "caml/backtrace.h"
 #include "caml/callback.h"
 #include "caml/custom.h"
+#include "caml/debugger.h"
 #include "caml/domain.h"
 #include "caml/fail.h"
 #include "caml/io.h"
@@ -78,6 +79,8 @@ struct caml_thread_struct {
   uintnat last_retaddr;     /* Saved value of Caml_state->last_return_address */
   value * gc_regs;          /* Saved value of Caml_state->gc_regs */
   char * exception_pointer; /* Saved value of Caml_state->exception_pointer */
+  char * async_exception_pointer;
+                       /* Saved value of Caml_state->async_exception_pointer */
   struct caml__roots_block * local_roots; /* Saved value of local_roots */
   struct caml_local_arenas * local_arenas;
   struct longjmp_buffer * exit_buf; /* For thread exit */
@@ -90,6 +93,8 @@ struct caml_thread_struct {
   /* Saved value of Caml_state->local_roots */
   struct caml__roots_block * local_roots;
   struct longjmp_buffer * external_raise; /* Saved Caml_state->external_raise */
+  struct longjmp_buffer * external_raise_async;
+                                    /* Saved Caml_state->external_raise_async */
 #endif
   int backtrace_pos; /* Saved Caml_state->backtrace_pos */
   backtrace_slot * backtrace_buffer; /* Saved Caml_state->backtrace_buffer */
@@ -110,6 +115,9 @@ static st_masterlock caml_master_lock;
 
 /* Whether the "tick" thread is already running */
 static int caml_tick_thread_running = 0;
+
+/* Whether the "tick" thread is enabled */
+static int caml_tick_thread_enabled = 1;
 
 /* The thread identifier of the "tick" thread */
 static st_thread_id caml_tick_thread_id;
@@ -182,6 +190,7 @@ Caml_inline void caml_thread_save_runtime_state(void)
   curr_thread->last_retaddr = Caml_state->last_return_address;
   curr_thread->gc_regs = Caml_state->gc_regs;
   curr_thread->exception_pointer = Caml_state->exception_pointer;
+  curr_thread->async_exception_pointer = Caml_state->async_exception_pointer;
   curr_thread->local_arenas = caml_get_local_arenas();
 #else
   curr_thread->stack_low = Caml_state->stack_low;
@@ -190,6 +199,7 @@ Caml_inline void caml_thread_save_runtime_state(void)
   curr_thread->sp = Caml_state->extern_sp;
   curr_thread->trapsp = Caml_state->trapsp;
   curr_thread->external_raise = Caml_state->external_raise;
+  curr_thread->external_raise_async = Caml_state->external_raise_async;
 #endif
   curr_thread->local_roots = Caml_state->local_roots;
   curr_thread->backtrace_pos = Caml_state->backtrace_pos;
@@ -206,6 +216,7 @@ Caml_inline void caml_thread_restore_runtime_state(void)
   Caml_state->last_return_address = curr_thread->last_retaddr;
   Caml_state->gc_regs = curr_thread->gc_regs;
   Caml_state->exception_pointer = curr_thread->exception_pointer;
+  Caml_state->async_exception_pointer = curr_thread->async_exception_pointer;
   caml_set_local_arenas(curr_thread->local_arenas);
 #else
   Caml_state->stack_low = curr_thread->stack_low;
@@ -214,6 +225,7 @@ Caml_inline void caml_thread_restore_runtime_state(void)
   Caml_state->extern_sp = curr_thread->sp;
   Caml_state->trapsp = curr_thread->trapsp;
   Caml_state->external_raise = curr_thread->external_raise;
+  Caml_state->external_raise_async = curr_thread->external_raise_async;
 #endif
   Caml_state->local_roots = curr_thread->local_roots;
   Caml_state->backtrace_pos = curr_thread->backtrace_pos;
@@ -236,6 +248,12 @@ static void caml_thread_enter_blocking_section(void)
 
 static void caml_thread_leave_blocking_section(void)
 {
+#ifdef _WIN32
+  /* TlsGetValue calls SetLastError which will mask any error which occurred
+     prior to the caml_thread_leave_blocking_section call. EnterCriticalSection
+     does not do this. */
+  DWORD error = GetLastError();
+#endif
   /* Wait until the runtime is free */
   st_masterlock_acquire(&caml_master_lock);
   /* Update curr_thread to point to the thread descriptor corresponding
@@ -243,6 +261,9 @@ static void caml_thread_leave_blocking_section(void)
   curr_thread = st_tls_get(thread_descriptor_key);
   /* Restore the runtime state from the curr_thread descriptor */
   caml_thread_restore_runtime_state();
+#ifdef _WIN32
+  SetLastError(error);
+#endif
 }
 
 /* Hooks for I/O locking */
@@ -334,6 +355,7 @@ static caml_thread_t caml_thread_new_info(void)
   th->top_of_stack = NULL;
   th->last_retaddr = 1;
   th->exception_pointer = NULL;
+  th->async_exception_pointer = NULL;
   th->local_roots = NULL;
   th->local_arenas = NULL;
   th->exit_buf = NULL;
@@ -346,6 +368,7 @@ static caml_thread_t caml_thread_new_info(void)
   th->trapsp = th->stack_high;
   th->local_roots = NULL;
   th->external_raise = NULL;
+  th->external_raise_async = NULL;
 #endif
   th->backtrace_pos = 0;
   th->backtrace_buffer = NULL;
@@ -473,18 +496,48 @@ CAMLprim value caml_thread_initialize(value unit)   /* ML */
   return Val_unit;
 }
 
+/* Start tick thread, if not already running */
+static st_retcode start_tick_thread()
+{
+  st_retcode err;
+  if (caml_tick_thread_running) return 0;
+  err = st_thread_create(&caml_tick_thread_id, caml_thread_tick, NULL);
+  if (err == 0) caml_tick_thread_running = 1;
+  return err;
+}
+
+/* Stop tick thread, if currently running */
+static void stop_tick_thread()
+{
+  if (!caml_tick_thread_running) return;
+  caml_tick_thread_stop = 1;
+  st_thread_join(caml_tick_thread_id);
+  caml_tick_thread_stop = 0;
+  caml_tick_thread_running = 0;
+}
+
+CAMLprim value caml_enable_tick_thread(value v_enable)
+{
+  int enable = Long_val(v_enable) ? 1 : 0;
+
+  if (enable) {
+    st_retcode err = start_tick_thread();
+    st_check_error(err, "caml_enable_tick_thread");
+  } else {
+    stop_tick_thread();
+  }
+
+  caml_tick_thread_enabled = enable;
+  return Val_unit;
+}
+
 /* Cleanup the thread machinery when the runtime is shut down. Joining the tick
    thread take 25ms on average / 50ms in the worst case, so we don't do it on
    program exit. */
 
 CAMLprim value caml_thread_cleanup(value unit)   /* ML */
 {
-  if (caml_tick_thread_running){
-    caml_tick_thread_stop = 1;
-    st_thread_join(caml_tick_thread_id);
-    caml_tick_thread_stop = 0;
-    caml_tick_thread_running = 0;
-  }
+  stop_tick_thread();
   return Val_unit;
 }
 
@@ -518,6 +571,7 @@ static ST_THREAD_FUNCTION caml_thread_start(void * arg)
 {
   caml_thread_t th = (caml_thread_t) arg;
   value clos;
+  void * signal_stack;
 #ifdef NATIVE_CODE
   struct longjmp_buffer termination_buf;
   char tos;
@@ -530,7 +584,8 @@ static ST_THREAD_FUNCTION caml_thread_start(void * arg)
   st_thread_set_id(Ident(th->descr));
   /* Acquire the global mutex */
   caml_leave_blocking_section();
-  caml_setup_stack_overflow_detection();
+  st_thread_set_id(Ident(th->descr));
+  signal_stack = caml_setup_stack_overflow_detection();
 #ifdef NATIVE_CODE
   /* Setup termination handler (for caml_thread_exit) */
   if (sigsetjmp(termination_buf.buf, 0) == 0) {
@@ -544,6 +599,7 @@ static ST_THREAD_FUNCTION caml_thread_start(void * arg)
 #ifdef NATIVE_CODE
   }
 #endif
+  caml_stop_stack_overflow_detection(signal_stack);
   /* The thread now stops running */
   return 0;
 }
@@ -553,6 +609,10 @@ CAMLprim value caml_thread_new(value clos)          /* ML */
   caml_thread_t th;
   st_retcode err;
 
+#ifndef NATIVE_CODE
+  if (caml_debugger_in_use)
+    caml_fatal_error("ocamldebug does not support multithreaded programs");
+#endif
   /* Create a thread info block */
   th = caml_thread_new_info();
   if (th == NULL) caml_raise_out_of_memory();
@@ -573,10 +633,9 @@ CAMLprim value caml_thread_new(value clos)          /* ML */
   /* Create the tick thread if not already done.
      Because of PR#4666, we start the tick thread late, only when we create
      the first additional thread in the current process*/
-  if (! caml_tick_thread_running) {
-    err = st_thread_create(&caml_tick_thread_id, caml_thread_tick, NULL);
+  if (caml_tick_thread_enabled) {
+    err = start_tick_thread();
     st_check_error(err, "Thread.create");
-    caml_tick_thread_running = 1;
   }
   return th->descr;
 }
@@ -586,7 +645,9 @@ CAMLprim value caml_thread_new(value clos)          /* ML */
 CAMLexport int caml_c_thread_register(void)
 {
   caml_thread_t th;
+#ifdef NATIVE_CODE
   st_retcode err;
+#endif
 
   /* Already registered? */
   if (st_tls_get(thread_descriptor_key) != NULL) return 0;
@@ -618,10 +679,7 @@ CAMLexport int caml_c_thread_register(void)
   th->descr = caml_thread_new_descriptor(Val_unit);  /* no closure */
   st_thread_set_id(Ident(th->descr));
   /* Create the tick thread if not already done.  */
-  if (! caml_tick_thread_running) {
-    err = st_thread_create(&caml_tick_thread_id, caml_thread_tick, NULL);
-    if (err == 0) caml_tick_thread_running = 1;
-  }
+  if (caml_tick_thread_enabled) start_tick_thread();
   /* Exit the run-time system */
   caml_enter_blocking_section();
   return 1;
@@ -720,12 +778,14 @@ CAMLprim value caml_thread_yield(value unit)        /* ML */
      our blocking section doesn't contain anything interesting, don't bother
      with saving errno.)
   */
-  caml_raise_if_exception(caml_process_pending_signals_exn());
+  caml_raise_async_if_exception(caml_process_pending_signals_exn(),
+                                "signal handler");
   caml_thread_save_runtime_state();
   st_thread_yield(&caml_master_lock);
   curr_thread = st_tls_get(thread_descriptor_key);
   caml_thread_restore_runtime_state();
-  caml_raise_if_exception(caml_process_pending_signals_exn());
+  caml_raise_async_if_exception(caml_process_pending_signals_exn(),
+                                "signal handler");
 
   return Val_unit;
 }

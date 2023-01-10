@@ -49,6 +49,9 @@ val str : bool
 val objext : string
 (** Extension of object files *)
 
+val libext : string
+(** Extension of library files *)
+
 val asmext : string
 (** Extension of assembly files *)
 
@@ -69,6 +72,9 @@ val ocamlsrcdir : string
 
 val flambda : bool
 (** Whether flambda has been enabled at configure time *)
+
+val flambda2 : bool
+(** Whether flambda2 has been enabled at configure time *)
 
 val safe_string : bool
 (** Whether the compiler was configured with -safe-string *)
@@ -116,7 +122,7 @@ val function_sections : bool
 (** Whether the compiler was configured to generate
     each function in a separate section *)
 
-val has_instrumented_runtime : bool
+val instrumented_runtime : bool
 (** Whether the instrumented runtime is available *)
 
 val naked_pointers : bool
@@ -127,3 +133,6 @@ val probes : bool
 
 val stack_allocation : bool
 (** Whether stack allocation is enabled *)
+
+val poll_insertion : bool
+(** Whether poll insertion is enabled *)

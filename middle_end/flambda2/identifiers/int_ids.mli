@@ -77,9 +77,6 @@ module Const : sig
   val export : t -> exported
 
   val import : exported -> t
-
-  val map_compilation_unit :
-    (Compilation_unit.t -> Compilation_unit.t) -> exported -> exported
 end
 
 module Variable : sig
@@ -102,9 +99,6 @@ module Variable : sig
   val export : t -> exported
 
   val import : exported -> t
-
-  val map_compilation_unit :
-    (Compilation_unit.t -> Compilation_unit.t) -> exported -> exported
 end
 
 module Symbol : sig
@@ -114,10 +108,13 @@ module Symbol : sig
 
   include Container_types.S with type t := t
 
+  (* CR lmaurer: This treats the [Linkage_name.t] as a string to be prefixed
+     rather than the actual linkage name. That's not really consistent with the
+     way linkage names are treated elsewhere. *)
   val create : Compilation_unit.t -> Linkage_name.t -> t
 
-  (** Create the symbol without prefixing with the compilation unit. Used for
-      predefined exceptions *)
+  val create_wrapped : Flambda2_import.Symbol.t -> t
+
   val unsafe_create : Compilation_unit.t -> Linkage_name.t -> t
 
   val compilation_unit : t -> Compilation_unit.t
@@ -130,8 +127,7 @@ module Symbol : sig
 
   val import : exported -> t
 
-  val map_compilation_unit :
-    (Compilation_unit.t -> Compilation_unit.t) -> exported -> exported
+  val external_symbols_compilation_unit : unit -> Compilation_unit.t
 end
 
 module Name : sig
@@ -193,9 +189,6 @@ module Simple : sig
   val export : t -> exported
 
   val import : exported -> t
-
-  val map_compilation_unit :
-    (Compilation_unit.t -> Compilation_unit.t) -> exported -> exported
 end
 
 module Code_id : sig
@@ -230,9 +223,6 @@ module Code_id : sig
   val export : t -> exported
 
   val import : exported -> t
-
-  val map_compilation_unit :
-    (Compilation_unit.t -> Compilation_unit.t) -> exported -> exported
 end
 
 module Code_id_or_symbol : sig

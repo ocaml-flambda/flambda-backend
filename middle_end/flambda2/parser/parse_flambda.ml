@@ -146,25 +146,15 @@ let parse_markdown_doc filename =
 let make_compilation_unit ~extension ~filename ?(tag = "") () =
   let basename = Filename.chop_suffix filename extension |> Filename.basename in
   let name = String.capitalize_ascii basename ^ tag in
-  (* CR lmaurer: Adding "caml" to the front is a hacky way to conform to the
-     simplifier, which breaks when creating the module block symbol unless the
-     compilation unit has exactly this linkage name. It would be better to
-     either have the simplifier use the current compilation unit or not
-     duplicate the prefixing logic here. *)
-  let linkage_name = Linkage_name.create ("caml" ^ name) in
-  Compilation_unit.create ~name linkage_name
+  Compilation_unit.create Compilation_unit.Prefix.empty
+    (name |> Compilation_unit.Name.of_string)
 
-let parse ~symbol_for_global filename =
+let parse filename =
   parse_fexpr filename
   |> Result.map (fun fexpr ->
          let comp_unit = make_compilation_unit ~extension:".fl" ~filename () in
          let old_comp_unit = Compilation_unit.get_current () in
-         Compilation_unit.set_current comp_unit;
-         let module_ident = Compilation_unit.get_persistent_ident comp_unit in
-         let flambda =
-           Fexpr_to_flambda.conv ~symbol_for_global ~module_ident fexpr
-         in
-         (match old_comp_unit with
-         | Some old_comp_unit -> Compilation_unit.set_current old_comp_unit
-         | None -> ());
+         Compilation_unit.set_current (Some comp_unit);
+         let flambda = Fexpr_to_flambda.conv comp_unit fexpr in
+         Compilation_unit.set_current old_comp_unit;
          flambda)

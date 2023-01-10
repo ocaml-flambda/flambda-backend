@@ -14,16 +14,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open! Flambda
-module DA = Downwards_acc
-module DE = Downwards_env
-module K = Flambda_kind
-module BP = Bound_parameter
-module P = Flambda_primitive
-module T = Flambda2_types
-module UA = Upwards_acc
-module UE = Upwards_env
-module AC = Apply_cont_expr
+open Simplify_import
 
 type 'a after_rebuild = Rebuilt_expr.t -> Upwards_acc.t -> 'a
 
@@ -46,6 +37,19 @@ type simplify_toplevel =
   exn_continuation:Continuation.t ->
   return_cont_scope:Scope.t ->
   exn_cont_scope:Scope.t ->
+  Rebuilt_expr.t * Upwards_acc.t
+
+type simplify_function_body =
+  Downwards_acc.t ->
+  Expr.t ->
+  return_continuation:Continuation.t ->
+  return_arity:Flambda_arity.With_subkinds.t ->
+  exn_continuation:Continuation.t ->
+  return_cont_scope:Scope.t ->
+  exn_cont_scope:Scope.t ->
+  loopify_state:Loopify_state.t ->
+  params:Bound_parameters.t ->
+  implicit_params:Bound_parameters.t ->
   Rebuilt_expr.t * Upwards_acc.t
 
 let simplify_projection dacc ~original_term ~deconstructing ~shape ~result_var
@@ -90,13 +94,20 @@ let project_tuple ~dbg ~size ~field tuple =
   let prim = P.Binary (Block_load (bak, mutability), tuple, index) in
   Named.create_prim prim dbg
 
-let split_direct_over_application apply ~param_arity ~result_arity
-    ~(apply_alloc_mode : Alloc_mode.t) ~contains_no_escaping_local_allocs =
-  let arity = Flambda_arity.With_subkinds.cardinal param_arity in
+let split_direct_over_application apply ~result_arity
+    ~(apply_alloc_mode : Alloc_mode.For_types.t) ~current_region
+    ~callee's_code_id ~callee's_code_metadata =
+  let arity =
+    Flambda_arity.With_subkinds.cardinal
+      (Code_metadata.params_arity callee's_code_metadata)
+  in
   let args = Apply.args apply in
   assert (arity < List.length args);
   let first_args, remaining_args = Misc.Stdlib.List.split_at arity args in
   let func_var = Variable.create "full_apply" in
+  let contains_no_escaping_local_allocs =
+    Code_metadata.contains_no_escaping_local_allocs callee's_code_metadata
+  in
   let needs_region =
     (* If the function being called might do a local allocation that escapes,
        then we need a region for such function's return value, unless the
@@ -109,11 +120,13 @@ let split_direct_over_application apply ~param_arity ~result_arity
     match apply_alloc_mode, contains_no_escaping_local_allocs with
     | Heap, false ->
       Some (Variable.create "over_app_region", Continuation.create ())
-    | Heap, true | Local, _ -> None
+    | Heap, true | (Local | Heap_or_local), _ -> None
   in
   let perform_over_application =
-    let alloc_mode : Alloc_mode.t =
-      if contains_no_escaping_local_allocs then Heap else Local
+    let region =
+      match needs_region with
+      | None -> current_region
+      | Some (region, _) -> region
     in
     let continuation =
       (* If there is no need for a new region, then the second (over)
@@ -128,11 +141,13 @@ let split_direct_over_application apply ~param_arity ~result_arity
     Apply.create ~callee:(Simple.var func_var) ~continuation
       (Apply.exn_continuation apply)
       ~args:remaining_args
-      ~call_kind:(Call_kind.indirect_function_call_unknown_arity alloc_mode)
+      ~call_kind:
+        (Call_kind.indirect_function_call_unknown_arity apply_alloc_mode)
       (Apply.dbg apply) ~inlined:(Apply.inlined apply)
       ~inlining_state:(Apply.inlining_state apply)
       ~probe_name:(Apply.probe_name apply) ~position:(Apply.position apply)
       ~relative_history:(Apply.relative_history apply)
+      ~region
   in
   let perform_over_application_free_names =
     Apply.free_names perform_over_application
@@ -141,12 +156,13 @@ let split_direct_over_application apply ~param_arity ~result_arity
     match needs_region with
     | None -> Expr.create_apply perform_over_application
     | Some (region, after_over_application) ->
-      (* This wraps the second application (the over application itself) with
-         [Begin_region] ... [End_region]. This application might raise an
-         exception, but that doesn't need any special handling, since we're not
-         actually introducing any more local allocations here. (Missing the
-         [End_region] on the exceptional return path is fine, c.f. the usual
-         compilation of [try ... with] -- see [Closure_conversion].) *)
+      (* This wraps both applications (the full application and the second
+         application) with [Begin_region] ... [End_region]. The applications
+         might raise an exception, but that doesn't need any special handling,
+         since we're not actually introducing any more local allocations here.
+         (Missing the [End_region] on the exceptional return path is fine, c.f.
+         the usual compilation of [try ... with] -- see
+         [Closure_conversion].) *)
       let over_application_results =
         List.mapi
           (fun i kind ->
@@ -165,8 +181,7 @@ let split_direct_over_application apply ~param_arity ~result_arity
         | Never_returns ->
           (* The whole overapplication never returns, so this point is
              unreachable. *)
-          ( Expr.create_invalid (Over_application_never_returns apply),
-            Name_occurrences.empty )
+          Expr.create_invalid (Over_application_never_returns apply), NO.empty
       in
       let handler_expr =
         Let.create
@@ -180,7 +195,7 @@ let split_direct_over_application apply ~param_arity ~result_arity
         |> Expr.create_let
       in
       let handler_expr_free_names =
-        Name_occurrences.add_variable call_return_continuation_free_names region
+        NO.add_variable call_return_continuation_free_names region
           Name_mode.normal
       in
       let handler =
@@ -204,9 +219,24 @@ let split_direct_over_application apply ~param_arity ~result_arity
       ~is_exn_handler:false
   in
   let full_apply =
-    Apply.with_continuation_callee_and_args apply
-      (Return after_full_application) ~callee:(Apply.callee apply)
+    let alloc_mode =
+      if contains_no_escaping_local_allocs
+      then Alloc_mode.For_types.heap
+      else Alloc_mode.For_types.unknown ()
+    in
+    Apply.create ~callee:(Apply.callee apply)
+      ~continuation:(Return after_full_application)
+      (Apply.exn_continuation apply)
       ~args:first_args
+      ~call_kind:
+        (Call_kind.direct_function_call callee's_code_id
+           ~return_arity:(Code_metadata.result_arity callee's_code_metadata)
+           alloc_mode)
+      (Apply.dbg apply) ~inlined:(Apply.inlined apply)
+      ~inlining_state:(Apply.inlining_state apply)
+      ~probe_name:(Apply.probe_name apply) ~position:(Apply.position apply)
+      ~relative_history:(Apply.relative_history apply)
+      ~region:current_region
   in
   let both_applications =
     Let_cont.create_non_recursive after_full_application
@@ -223,7 +253,7 @@ let split_direct_over_application apply ~param_arity ~result_arity
       ~body:both_applications
       ~free_names_of_body:
         (Known
-           (Name_occurrences.union
+           (NO.union
               (Apply.free_names full_apply)
               perform_over_application_free_names))
     |> Expr.create_let
@@ -304,6 +334,9 @@ let clear_demoted_trap_action_and_patch_unused_exn_bucket uacc apply_cont =
   let apply_cont = clear_demoted_trap_action uacc apply_cont in
   patch_unused_exn_bucket uacc apply_cont
 
+(* Warning: This function relies on [T.meet_is_flat_float_array], which could
+   return any kind for empty arrays. So this function is only safe for
+   operations that are invalid on empty arrays. *)
 let specialise_array_kind dacc (array_kind : P.Array_kind.t) ~array_ty :
     _ Or_bottom.t =
   let typing_env = DA.typing_env dacc in

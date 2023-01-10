@@ -83,10 +83,10 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
       match is_mutable with
       | Immutable ->
         T.immutable_block ~is_unique:false tag ~field_kind:K.value ~fields
-          (Known Heap)
+          Alloc_mode.For_types.heap
       | Immutable_unique ->
         T.immutable_block ~is_unique:true tag ~field_kind:K.value ~fields
-          (Known Heap)
+          Alloc_mode.For_types.heap
       | Mutable -> T.any_value
     in
     let dacc = bind_result_sym ty in
@@ -97,7 +97,7 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
   | Boxed_float or_var ->
     let or_var, ty =
       simplify_or_variable dacc
-        (fun f -> T.this_boxed_float f (Known Heap))
+        (fun f -> T.this_boxed_float f Alloc_mode.For_types.heap)
         or_var K.value
     in
     let dacc = bind_result_sym ty in
@@ -108,7 +108,7 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
   | Boxed_int32 or_var ->
     let or_var, ty =
       simplify_or_variable dacc
-        (fun f -> T.this_boxed_int32 f (Known Heap))
+        (fun f -> T.this_boxed_int32 f Alloc_mode.For_types.heap)
         or_var K.value
     in
     let dacc = bind_result_sym ty in
@@ -119,7 +119,7 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
   | Boxed_int64 or_var ->
     let or_var, ty =
       simplify_or_variable dacc
-        (fun f -> T.this_boxed_int64 f (Known Heap))
+        (fun f -> T.this_boxed_int64 f Alloc_mode.For_types.heap)
         or_var K.value
     in
     let dacc = bind_result_sym ty in
@@ -130,7 +130,7 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
   | Boxed_nativeint or_var ->
     let or_var, ty =
       simplify_or_variable dacc
-        (fun f -> T.this_boxed_nativeint f (Known Heap))
+        (fun f -> T.this_boxed_nativeint f Alloc_mode.For_types.heap)
         or_var K.value
     in
     let dacc = bind_result_sym ty in
@@ -165,8 +165,8 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
     let fields, field_tys = List.split fields_with_tys in
     let dacc =
       bind_result_sym
-        (T.immutable_array ~element_kind:(Known K.With_subkind.naked_float)
-           ~fields:field_tys (Known Heap))
+        (T.immutable_array ~element_kind:(Ok K.With_subkind.naked_float)
+           ~fields:field_tys Alloc_mode.For_types.heap)
     in
     ( Rebuilt_static_const.create_immutable_float_array
         (DA.are_rebuilding_terms dacc)
@@ -179,28 +179,19 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
     let fields, field_tys = List.split fields_with_tys in
     let dacc =
       bind_result_sym
-        (T.immutable_array ~element_kind:(Known K.With_subkind.any_value)
-           ~fields:field_tys (Known Heap))
+        (T.immutable_array ~element_kind:(Ok K.With_subkind.any_value)
+           ~fields:field_tys Alloc_mode.For_types.heap)
     in
     ( Rebuilt_static_const.create_immutable_value_array
         (DA.are_rebuilding_terms dacc)
         fields,
       dacc )
   | Empty_array ->
-    (* CR-someday lmaurer: Comment from lthls:
-
-       "Given that no element can be read from it (or stored in it), any kind
-       would work, but if we introduce a specific Invalid kind for these empty
-       arrays we might even be able to delete all the code that tries to read
-       from or write to a known empty array (although one would hope that the
-       bounds check would already be proved to always fail). [...] That might be
-       also useful for preserving the array kind during a join between a
-       specialised non-empty array and the empty array." *)
     let dacc =
       bind_result_sym
-        (T.array_of_length ~element_kind:Unknown
+        (T.array_of_length ~element_kind:Bottom
            ~length:(T.this_tagged_immediate Targetint_31_63.zero)
-           (Known Heap))
+           Alloc_mode.For_types.heap)
     in
     Rebuilt_static_const.create_empty_array (DA.are_rebuilding_terms dacc), dacc
   | Mutable_string { initial_value } ->
@@ -223,7 +214,7 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
       SC.print static_const
 
 let simplify_static_consts dacc (bound_static : Bound_static.t) static_consts
-    ~simplify_toplevel =
+    ~simplify_function_body =
   let bound_static_list = Bound_static.to_list bound_static in
   let static_consts_list = Static_const_group.to_list static_consts in
   if List.compare_lengths bound_static_list static_consts_list <> 0
@@ -292,7 +283,7 @@ let simplify_static_consts dacc (bound_static : Bound_static.t) static_consts
             in
             let static_const, dacc_after_function =
               Simplify_set_of_closures.simplify_stub_function dacc code
-                ~all_code ~simplify_toplevel
+                ~all_code ~simplify_function_body
             in
             let dacc_after_function =
               DA.add_to_lifted_constant_accumulator dacc_after_function
@@ -356,7 +347,7 @@ let simplify_static_consts dacc (bound_static : Bound_static.t) static_consts
   let bound_static'', static_consts'', dacc =
     Simplify_set_of_closures.simplify_lifted_sets_of_closures dacc
       ~all_sets_of_closures_and_symbols ~closure_bound_names_all_sets
-      ~simplify_toplevel
+      ~simplify_function_body
   in
   (* The ordering of these lists doesn't matter as they will go through
      [Sort_lifted_constants] before the terms are constructed. *)

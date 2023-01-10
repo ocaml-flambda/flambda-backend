@@ -49,7 +49,7 @@ let let_prim ~dbg v prim (free_names, body) =
   let named = Named.create_prim prim dbg in
   let free_names_of_body = Or_unknown.Known free_names in
   let let_expr = Let.create bindable named ~body ~free_names_of_body in
-  let free_names = Name_occurrences.remove_var free_names v in
+  let free_names = NO.remove_var free_names ~var:v in
   let expr = Expr.create_let let_expr in
   free_names, expr
 
@@ -92,23 +92,26 @@ let simplify_comparison ~dbg ~dacc ~cont ~tagged_prim ~float_prim
   | Proved Tagged_immediate, Proved Tagged_immediate ->
     simplify_comparison_of_tagged_immediates ~dbg dacc cont a b
       ~cmp_prim:tagged_prim
-  | Proved (Boxed Naked_float), Proved (Boxed Naked_float) ->
+  | Proved (Boxed (_, Naked_float, _)), Proved (Boxed (_, Naked_float, _)) ->
     simplify_comparison_of_boxed_numbers ~dbg dacc cont a b ~kind:Naked_float
       ~cmp_prim:float_prim
-  | Proved (Boxed Naked_int32), Proved (Boxed Naked_int32) ->
+  | Proved (Boxed (_, Naked_int32, _)), Proved (Boxed (_, Naked_int32, _)) ->
     simplify_comparison_of_boxed_numbers ~dbg dacc cont a b ~kind:Naked_int32
       ~cmp_prim:(boxed_int_prim K.Standard_int.Naked_int32)
-  | Proved (Boxed Naked_int64), Proved (Boxed Naked_int64) ->
+  | Proved (Boxed (_, Naked_int64, _)), Proved (Boxed (_, Naked_int64, _)) ->
     simplify_comparison_of_boxed_numbers ~dbg dacc cont a b ~kind:Naked_int64
       ~cmp_prim:(boxed_int_prim K.Standard_int.Naked_int64)
-  | Proved (Boxed Naked_nativeint), Proved (Boxed Naked_nativeint) ->
+  | ( Proved (Boxed (_, Naked_nativeint, _)),
+      Proved (Boxed (_, Naked_nativeint, _)) ) ->
     simplify_comparison_of_boxed_numbers ~dbg dacc cont a b
       ~kind:Naked_nativeint
       ~cmp_prim:(boxed_int_prim K.Standard_int.Naked_nativeint)
   (* Mismatches between varieties of numbers *)
   | Proved Tagged_immediate, Proved (Boxed _)
   | Proved (Boxed _), Proved Tagged_immediate
-  | ( Proved (Boxed (Naked_float | Naked_int32 | Naked_int64 | Naked_nativeint)),
+  | ( Proved
+        (Boxed
+          (_, (Naked_float | Naked_int32 | Naked_int64 | Naked_nativeint), _)),
       Proved (Boxed _) )
   (* One or two of the arguments is not known *)
   | Unknown, Unknown
@@ -118,38 +121,32 @@ let simplify_comparison ~dbg ~dacc ~cont ~tagged_prim ~float_prim
 
 let simplify_caml_make_vect dacc ~len_ty ~init_value_ty : t =
   let typing_env = DA.typing_env dacc in
-  let element_kind : _ Or_unknown.t Or_bottom.t =
+  let element_kind : _ Or_unknown_or_bottom.t =
     (* We can't deduce subkind information, e.g. an array is all-immediates
        rather than arbitrary values, but we can deduce kind information. *)
     if not (Flambda_features.flat_float_array ())
-    then
-      Ok
-        (Known
-           (Flambda_kind.With_subkind.create (T.kind init_value_ty) Anything))
+    then Ok (Flambda_kind.With_subkind.create (T.kind init_value_ty) Anything)
     else
       match T.prove_is_or_is_not_a_boxed_float typing_env init_value_ty with
       | Proved true ->
         (* A boxed float provided to [caml_make_vect] with the float array
            optimisation on will always yield a flat array of naked floats. *)
-        Ok (Known Flambda_kind.With_subkind.naked_float)
-      | Proved false | Unknown -> Ok Unknown
+        Ok Flambda_kind.With_subkind.naked_float
+      | Proved false | Unknown -> Unknown
   in
-  match element_kind with
-  | Bottom -> Invalid
-  | Ok element_kind ->
-    (* CR-someday mshinwell: We should really adjust the kind of the parameter
-       of the return continuation, e.g. to go from "any value" to "float array"
-       -- but that will need some more infrastructure, since the actual
-       continuation definition needs to be changed on the upwards traversal.
-       Also we would need to think about what would happen if there were other
-       uses of the return continuation possibly with different kinds.
+  (* CR-someday mshinwell: We should really adjust the kind of the parameter of
+     the return continuation, e.g. to go from "any value" to "float array" --
+     but that will need some more infrastructure, since the actual continuation
+     definition needs to be changed on the upwards traversal. Also we would need
+     to think about what would happen if there were other uses of the return
+     continuation possibly with different kinds.
 
-       Also maybe we should allow static allocation of these arrays for
-       reasonable sizes. *)
-    let type_of_returned_array =
-      T.mutable_array ~element_kind ~length:len_ty (Known Heap)
-    in
-    Unchanged { return_types = Known [type_of_returned_array] }
+     Also maybe we should allow static allocation of these arrays for reasonable
+     sizes. *)
+  let type_of_returned_array =
+    T.mutable_array ~element_kind ~length:len_ty Alloc_mode.For_types.heap
+  in
+  Unchanged { return_types = Known [type_of_returned_array] }
 
 let simplify_returning_extcall ~dbg ~cont ~exn_cont:_ dacc fun_name args
     ~arg_types =

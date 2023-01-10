@@ -16,6 +16,90 @@
 
 open! Simplify_import
 
+let simplify_toplevel_common dacc simplify ~params ~implicit_params
+    ~return_continuation ~return_arity ~exn_continuation ~return_cont_scope
+    ~exn_cont_scope =
+  (* The usage analysis needs a continuation whose handler holds the toplevel
+     code of the function. Since such a continuation does not exist, we create a
+     dummy one here. *)
+  let dummy_toplevel_cont =
+    Continuation.create ~name:"dummy_toplevel_continuation" ()
+  in
+  let dacc =
+    DA.map_flow_acc dacc
+      ~f:
+        (Flow.Acc.init_toplevel ~dummy_toplevel_cont
+           (Bound_parameters.append params implicit_params))
+  in
+  let expr, uacc =
+    simplify dacc ~down_to_up:(fun dacc ~rebuild ->
+        let dacc =
+          DA.map_flow_acc dacc
+            ~f:(Flow.Acc.exit_continuation dummy_toplevel_cont)
+        in
+        let data_flow = DA.flow_acc dacc in
+        let closure_info = DE.closure_info (DA.denv dacc) in
+        (* The code_age_relation and used value_slots are only correct at
+           toplevel, and they are only necessary to compute the live code ids,
+           which are only used when simplifying at the toplevel. So if we are in
+           a closure, we use empty/dummy values for the code_age_relation and
+           used_value_slots, and in return we do not use the reachable_code_id
+           part of the data_flow analysis. *)
+        let code_age_relation, used_value_slots, print_name =
+          match closure_info with
+          | Closure { code_id; _ } ->
+            Code_age_relation.empty, Or_unknown.Unknown, Code_id.name code_id
+          | In_a_set_of_closures_but_not_yet_in_a_specific_closure ->
+            assert false
+          | Not_in_a_closure ->
+            ( DA.code_age_relation dacc,
+              Or_unknown.Known (DA.used_value_slots dacc),
+              "toplevel" )
+        in
+        let flow_result =
+          Flow.Analysis.analyze data_flow ~print_name ~code_age_relation
+            ~used_value_slots ~return_continuation ~exn_continuation
+        in
+        let uenv =
+          UE.add_function_return_or_exn_continuation
+            (UE.create (DA.are_rebuilding_terms dacc))
+            return_continuation return_cont_scope return_arity
+        in
+        let uenv =
+          UE.add_function_return_or_exn_continuation uenv exn_continuation
+            exn_cont_scope
+            (Flambda_arity.With_subkinds.create [K.With_subkind.any_value])
+        in
+        let uacc =
+          UA.create ~flow_result ~compute_slot_offsets:true uenv dacc
+        in
+        let uacc =
+          if not
+               (Named_rewrite_id.Map.is_empty
+                  flow_result.mutable_unboxing_result.let_rewrites)
+          then UA.set_resimplify uacc
+          else uacc
+        in
+        rebuild uacc ~after_rebuild:(fun expr uacc -> expr, uacc))
+  in
+  (* We don't check occurrences of variables or symbols here because the check
+     required depends on whether we're dealing with a lambda or the whole
+     compilation unit. Instead these checks are in [Simplify] or
+     [Simplify_set_of_closures]. *)
+  NO.fold_continuations_including_in_trap_actions (UA.name_occurrences uacc)
+    ~init:() ~f:(fun () cont ->
+      if (not (Continuation.equal cont return_continuation))
+         && not (Continuation.equal cont exn_continuation)
+      then
+        Misc.fatal_errorf
+          "Continuation %a should not be free in toplevel expression after \
+           simplification (return continuation %a, exn continuation %a):@ %a"
+          Continuation.print cont
+          (RE.print (UA.are_rebuilding_terms uacc))
+          expr Continuation.print return_continuation Continuation.print
+          exn_continuation);
+  expr, uacc
+
 (* CR-someday mshinwell: Need to simplify each [dbg] we come across. *)
 (* CR-someday mshinwell: Consider defunctionalising to remove the [k]. *)
 
@@ -31,93 +115,50 @@ let rec simplify_expr dacc expr ~down_to_up =
     Simplify_apply_cont_expr.simplify_apply_cont dacc apply_cont ~down_to_up
   | Switch switch ->
     Simplify_switch_expr.simplify_switch
-      ~simplify_let:Simplify_let_expr.simplify_let ~simplify_toplevel dacc
+      ~simplify_let:Simplify_let_expr.simplify_let ~simplify_function_body dacc
       switch ~down_to_up
-  | Invalid { message } ->
+  | Invalid invalid ->
     (* CR mshinwell: Make sure that a program can be simplified to just
        [Invalid]. *)
     down_to_up dacc ~rebuild:(fun uacc ~after_rebuild ->
-        EB.rebuild_invalid uacc (Message message) ~after_rebuild)
+        EB.rebuild_invalid uacc invalid ~after_rebuild)
 
-and simplify_toplevel dacc expr ~return_continuation ~return_arity
-    ~exn_continuation ~return_cont_scope ~exn_cont_scope =
-  (* The usage analysis needs a continuation whose handler holds the toplevel
-     code of the function. Since such a continuation does not exist, we create a
-     dummy one here. *)
-  let dummy_toplevel_cont =
-    Continuation.create ~name:"dummy_toplevel_continuation" ()
-  in
-  let dacc =
-    DA.map_data_flow dacc ~f:(Data_flow.init_toplevel dummy_toplevel_cont [])
-  in
-  let expr, uacc =
-    simplify_expr dacc expr ~down_to_up:(fun dacc ~rebuild ->
-        let dacc =
-          DA.map_data_flow dacc
-            ~f:(Data_flow.exit_continuation dummy_toplevel_cont)
-        in
-        let data_flow = DA.data_flow dacc in
-        let closure_info = DE.closure_info (DA.denv dacc) in
-        (* The code_age_relation and used value_slots are only correct at
-           toplevel, and they are only necessary to compute the live code ids,
-           which are only used when simplifying at the toplevel. So if we are in
-           a closure, we use empty/dummy values for the code_age_relation and
-           used_value_slots, and in return we do not use the reachable_code_id
-           part of the data_flow analysis. *)
-        let code_age_relation, used_value_slots =
-          match Closure_info.in_or_out_of_closure closure_info with
-          | In_a_closure -> Code_age_relation.empty, Or_unknown.Unknown
-          | Not_in_a_closure ->
-            ( DA.code_age_relation dacc,
-              Or_unknown.Known (DA.used_value_slots dacc) )
-        in
-        let ({ required_names; reachable_code_ids } : Data_flow.result) =
-          Data_flow.analyze data_flow ~code_age_relation ~used_value_slots
-            ~return_continuation ~exn_continuation
-        in
-        (* The code_id part of the data_flow analysis is correct only at
-           toplevel where all the code_ids are, so when in a closure, we state
-           the the live code ids are unknown, which will prevent any from being
-           mistakenly deleted. *)
-        let reachable_code_ids : _ Or_unknown.t =
-          match Closure_info.in_or_out_of_closure closure_info with
-          | In_a_closure -> Unknown
-          | Not_in_a_closure -> Known reachable_code_ids
-        in
-        let uenv =
-          UE.add_function_return_or_exn_continuation
-            (UE.create (DA.are_rebuilding_terms dacc))
-            return_continuation return_cont_scope return_arity
-        in
-        let uenv =
-          UE.add_function_return_or_exn_continuation uenv exn_continuation
-            exn_cont_scope
-            (Flambda_arity.With_subkinds.create [K.With_subkind.any_value])
-        in
-        let uacc =
-          UA.create ~required_names ~reachable_code_ids
-            ~compute_slot_offsets:true uenv dacc
-        in
-        rebuild uacc ~after_rebuild:(fun expr uacc -> expr, uacc))
-  in
-  (* We don't check occurrences of variables or symbols here because the check
-     required depends on whether we're dealing with a lambda or the whole
-     compilation unit. Instead these checks are in [Simplify] or
-     [Simplify_set_of_closures]. *)
-  Name_occurrences.fold_continuations_including_in_trap_actions
-    (UA.name_occurrences uacc) ~init:() ~f:(fun () cont ->
-      if (not (Continuation.equal cont return_continuation))
-         && not (Continuation.equal cont exn_continuation)
-      then
-        Misc.fatal_errorf
-          "Continuation %a should not be free in toplevel expression after \
-           simplification (return continuation %a, exn continuation %a):@ %a"
-          Continuation.print cont
-          (RE.print (UA.are_rebuilding_terms uacc))
-          expr Continuation.print return_continuation Continuation.print
-          exn_continuation);
-  expr, uacc
+and simplify_function_body dacc expr ~return_continuation ~return_arity
+    ~exn_continuation ~return_cont_scope ~exn_cont_scope
+    ~(loopify_state : Loopify_state.t) ~params ~implicit_params =
+  match loopify_state with
+  | Do_not_loopify ->
+    simplify_toplevel_common dacc
+      (fun dacc -> simplify_expr dacc expr)
+      ~params ~implicit_params ~return_continuation ~return_arity
+      ~exn_continuation ~return_cont_scope ~exn_cont_scope
+  | Loopify cont ->
+    let call_self_cont_expr =
+      let args = Bound_parameters.simples params in
+      Expr.create_apply_cont (Apply_cont_expr.create cont ~args ~dbg:[])
+    in
+    let handlers =
+      Continuation.Map.singleton cont
+        (Continuation_handler.create params ~handler:expr
+           ~free_names_of_handler:Unknown ~is_exn_handler:false)
+    in
+    simplify_toplevel_common dacc
+      (fun dacc ->
+        Simplify_let_cont_expr.simplify_as_recursive_let_cont ~simplify_expr
+          dacc
+          (call_self_cont_expr, handlers))
+      ~params ~implicit_params ~return_continuation ~return_arity
+      ~exn_continuation ~return_cont_scope ~exn_cont_scope
 
 and[@inline always] simplify_let dacc let_expr ~down_to_up =
-  Simplify_let_expr.simplify_let ~simplify_expr ~simplify_toplevel dacc let_expr
-    ~down_to_up
+  Simplify_let_expr.simplify_let ~simplify_expr ~simplify_function_body dacc
+    let_expr ~down_to_up
+
+let simplify_toplevel dacc expr ~return_continuation ~return_arity
+    ~exn_continuation ~return_cont_scope ~exn_cont_scope =
+  let params = Bound_parameters.empty in
+  let implicit_params = Bound_parameters.empty in
+  simplify_toplevel_common dacc
+    (fun dacc -> simplify_expr dacc expr)
+    ~params ~implicit_params ~return_continuation ~return_arity
+    ~exn_continuation ~return_cont_scope ~exn_cont_scope

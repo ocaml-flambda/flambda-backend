@@ -60,7 +60,8 @@ and 'k pattern_desc =
   | Tpat_constant : constant -> value pattern_desc
   | Tpat_tuple : value general_pattern list -> value pattern_desc
   | Tpat_construct :
-      Longident.t loc * constructor_description * value general_pattern list ->
+      Longident.t loc * constructor_description * value general_pattern list
+      * (Ident.t loc list * core_type) option ->
       value pattern_desc
   | Tpat_variant :
       label * value general_pattern option * row_desc ref ->
@@ -97,6 +98,11 @@ and exp_extra =
   | Texp_poly of core_type option
   | Texp_newtype of string
 
+
+and fun_curry_state =
+  | More_args of { partial_mode : Types.alloc_mode }
+  | Final_arg of { partial_mode : Types.alloc_mode }
+
 and expression_desc =
     Texp_ident of
       Path.t * Longident.t loc * Types.value_description * ident_kind
@@ -104,7 +110,8 @@ and expression_desc =
   | Texp_let of rec_flag * value_binding list * expression
   | Texp_function of { arg_label : arg_label; param : Ident.t;
       cases : value case list; partial : partial;
-      region : bool; warnings : Warnings.state; }
+      region : bool; curry : fun_curry_state;
+      warnings : Warnings.state; }
   | Texp_apply of expression * (arg_label * apply_arg) list * apply_position
   | Texp_match of expression * computation case list * partial
   | Texp_try of expression * value case list
@@ -142,12 +149,12 @@ and expression_desc =
       for_body : expression;
       for_region : bool;
     }
-  | Texp_send of expression * meth * expression option * apply_position
+  | Texp_send of expression * meth * apply_position
   | Texp_new of
       Path.t * Longident.t loc * Types.class_declaration * apply_position
   | Texp_instvar of Path.t * Path.t * string loc
   | Texp_setinstvar of Path.t * Path.t * string loc * expression
-  | Texp_override of Path.t * (Path.t * string loc * expression) list
+  | Texp_override of Path.t * (Ident.t * string loc * expression) list
   | Texp_letmodule of
       Ident.t option * string option loc * Types.module_presence * module_expr *
         expression
@@ -173,8 +180,9 @@ and expression_desc =
 and ident_kind = Id_value | Id_prim of Types.alloc_mode option
 
 and meth =
-    Tmeth_name of string
+  | Tmeth_name of string
   | Tmeth_val of Ident.t
+  | Tmeth_ancestor of Ident.t * Path.t
 
 and comprehension =
    {
@@ -245,7 +253,7 @@ and class_expr_desc =
   | Tcl_let of rec_flag * value_binding list *
                   (Ident.t * expression) list * class_expr
   | Tcl_constraint of
-      class_expr * class_type option * string list * string list * Concr.t
+      class_expr * class_type option * string list * string list * MethSet.t
     (* Visible instance variables, methods and concrete methods *)
   | Tcl_open of open_description * class_expr
 
@@ -407,6 +415,7 @@ and signature_item_desc =
   | Tsig_modsubst of module_substitution
   | Tsig_recmodule of module_declaration list
   | Tsig_modtype of module_type_declaration
+  | Tsig_modtypesubst of module_type_declaration
   | Tsig_open of open_description
   | Tsig_include of include_description
   | Tsig_class of class_description list
@@ -477,8 +486,11 @@ and include_declaration = module_expr include_infos
 and with_constraint =
     Twith_type of type_declaration
   | Twith_module of Path.t * Longident.t loc
+  | Twith_modtype of module_type
   | Twith_typesubst of type_declaration
   | Twith_modsubst of Path.t * Longident.t loc
+  | Twith_modtypesubst of module_type
+
 
 and core_type =
 (* mutable because of [Typeclass.declare_method] *)
@@ -563,6 +575,7 @@ and label_declaration =
      ld_id: Ident.t;
      ld_name: string loc;
      ld_mutable: mutable_flag;
+     ld_global: global_flag;
      ld_type: core_type;
      ld_loc: Location.t;
      ld_attributes: attribute list;
@@ -572,6 +585,7 @@ and constructor_declaration =
     {
      cd_id: Ident.t;
      cd_name: string loc;
+     cd_vars: string loc list;
      cd_args: constructor_arguments;
      cd_res: core_type option;
      cd_loc: Location.t;
@@ -579,7 +593,7 @@ and constructor_declaration =
     }
 
 and constructor_arguments =
-  | Cstr_tuple of core_type list
+  | Cstr_tuple of (core_type * global_flag) list
   | Cstr_record of label_declaration list
 
 and type_extension =
@@ -611,7 +625,7 @@ and extension_constructor =
   }
 
 and extension_constructor_kind =
-    Text_decl of constructor_arguments * core_type option
+    Text_decl of string loc list * constructor_arguments * core_type option
   | Text_rebind of Path.t * Longident.t loc
 
 and class_type =
@@ -672,6 +686,14 @@ and 'a class_infos =
     ci_attributes: attribute list;
    }
 
+type implementation = {
+  structure: structure;
+  coercion: module_coercion;
+  signature: Types.signature;
+  shape: Shape.t;
+}
+
+
 (* Auxiliary functions over the a.s.t. *)
 
 let as_computation_pattern (p : pattern) : computation general_pattern =
@@ -719,7 +741,7 @@ let shallow_iter_pattern_desc
   = fun f -> function
   | Tpat_alias(p, _, _) -> f.f p
   | Tpat_tuple patl -> List.iter f.f patl
-  | Tpat_construct(_, _, patl) -> List.iter f.f patl
+  | Tpat_construct(_, _, patl, _) -> List.iter f.f patl
   | Tpat_variant(_, pat, _) -> Option.iter f.f pat
   | Tpat_record (lbl_pat_list, _) ->
       List.iter (fun (_, _, pat) -> f.f pat) lbl_pat_list
@@ -743,8 +765,8 @@ let shallow_map_pattern_desc
       Tpat_tuple (List.map f.f pats)
   | Tpat_record (lpats, closed) ->
       Tpat_record (List.map (fun (lid, l,p) -> lid, l, f.f p) lpats, closed)
-  | Tpat_construct (lid, c,pats) ->
-      Tpat_construct (lid, c, List.map f.f pats)
+  | Tpat_construct (lid, c, pats, ty) ->
+      Tpat_construct (lid, c, List.map f.f pats, ty)
   | Tpat_array pats ->
       Tpat_array (List.map f.f pats)
   | Tpat_lazy p1 -> Tpat_lazy (f.f p1)

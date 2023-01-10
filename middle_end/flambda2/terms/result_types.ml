@@ -127,32 +127,6 @@ let create ~params ~results env_extension =
   let bound = { Bound.params; results; other_vars } in
   A.create bound env_extension
 
-let create_trivial ~params ~result_arity create_type =
-  let results =
-    List.mapi
-      (fun i kind_with_subkind ->
-        Bound_parameter.create
-          (Variable.create ("result" ^ string_of_int i))
-          kind_with_subkind)
-      (Flambda_arity.With_subkinds.to_list result_arity)
-  in
-  let env_extension =
-    List.fold_left
-      (fun env_extension result ->
-        TEEV.add_or_replace_equation env_extension
-          (Bound_parameter.name result)
-          (create_type (Bound_parameter.kind result)))
-      TEEV.empty results
-  in
-  create ~params ~results:(Bound_parameters.create results) env_extension
-
-let create_unknown ~params ~result_arity =
-  create_trivial ~params ~result_arity (T.unknown_with_subkind ?alloc_mode:None)
-
-let create_bottom ~params ~result_arity =
-  create_trivial ~params ~result_arity (fun kind_with_subkind ->
-      T.bottom (Flambda_kind.With_subkind.kind kind_with_subkind))
-
 let pattern_match t ~f =
   A.pattern_match t
     ~f:(fun { Bound.params; results; other_vars = _ } env_extension ->

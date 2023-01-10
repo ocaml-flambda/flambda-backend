@@ -71,7 +71,7 @@ let rec combine i allocstate =
           i.arg i.res i.dbg next, allocstate)
       end
   | Iop(Icall_ind | Icall_imm _ | Iextcall _ |
-        Itailcall_ind | Itailcall_imm _ | Iprobe _ |
+        Itailcall_ind | Itailcall_imm _ | Ipoll _ | Iprobe _ |
         Iintop Icheckbound | Iintop_imm (Icheckbound, _)) ->
       let newnext = combine_restart i.next in
       (instr_cons_debug i.desc i.arg i.res i.dbg newnext,
@@ -86,15 +86,17 @@ let rec combine i allocstate =
           (instr_cons_debug i.desc i.arg i.res i.dbg newnext, s')
     end
   | Iop((Imove|Ispill|Ireload|Inegf|Iabsf|Iaddf|Isubf|Imulf|Idivf|Ifloatofint|
-         Iintoffloat|Iopaque|Iconst_int _|Iconst_float _|
+         Iintoffloat|Ivalueofint|Iintofvalue|Iopaque|Iconst_int _|Iconst_float _|
          Iconst_symbol _|Istackoffset _|Iload (_, _, _)|Istore (_, _, _)|Icompf _|
+         Icsel _ |
          Ispecific _|Iname_for_debugger _|Iprobe_is_enabled _))
   | Iop(Iintop(Iadd | Isub | Imul | Idiv | Imod | Iand | Ior | Ixor
               | Ilsl | Ilsr | Iasr | Ipopcnt | Imulh _
               | Iclz _ | Ictz _ | Icomp _))
   | Iop(Iintop_imm((Iadd | Isub | Imul | Idiv | Imod | Iand | Ior | Ixor
                    | Ilsl | Ilsr | Iasr | Ipopcnt | Imulh _
-                   | Iclz _ | Ictz _ | Icomp _),_))  ->
+                   | Iclz _ | Ictz _ | Icomp _),_))
+  | Iop(Iintop_atomic _) ->
       let (newnext, s') = combine i.next allocstate in
       (instr_cons_debug i.desc i.arg i.res i.dbg newnext, s')
   | Iifthenelse(test, ifso, ifnot) ->

@@ -29,57 +29,16 @@ val imported_sets_of_closures_table
   : Simple_value_approx.function_declarations option Set_of_closures_id.Tbl.t
         (* flambda-only *)
 
-val reset: ?packname:string -> string -> unit
+val reset : Compilation_unit.t -> unit
         (* Reset the environment and record the name of the unit being
-           compiled (arg).  Optional argument is [-for-pack] prefix. *)
+           compiled (including any associated -for-pack prefix). *)
 
 val reset_info_tables: unit -> unit
-
-val unit_id_from_name: string -> Ident.t
-        (* flambda-only *)
 
 val current_unit_infos: unit -> unit_infos
         (* Return the infos for the unit being compiled *)
 
-val current_unit_name: unit -> string
-        (* Return the name of the unit being compiled
-           clambda-only *)
-
-val current_unit_linkage_name: unit -> Linkage_name.t
-        (* Return the linkage_name of the unit being compiled.
-           flambda-only *)
-
-val current_unit: unit -> Compilation_unit.t
-        (* flambda-only *)
-
-val current_unit_symbol: unit -> Symbol.t
-        (* flambda-only *)
-
-val make_symbol: ?unitname:string -> string option -> string
-        (* [make_symbol ~unitname:u None] returns the asm symbol that
-           corresponds to the compilation unit [u] (default: the current unit).
-           [make_symbol ~unitname:u (Some id)] returns the asm symbol that
-           corresponds to symbol [id] in the compilation unit [u]
-           (or the current unit). *)
-val make_fun_symbol: ?unitname:string -> Debuginfo.Scoped_location.t
-  -> string -> string
-
-val symbol_in_current_unit: string -> bool
-        (* Return true if the given asm symbol belongs to the
-           current compilation unit, false otherwise. *)
-
-val is_predefined_exception: Symbol.t -> bool
-        (* flambda-only *)
-
-val unit_for_global: Ident.t -> Compilation_unit.t
-        (* flambda-only *)
-
-val symbol_for_global: Ident.t -> string
-        (* Return the asm symbol that refers to the given global identifier
-           flambda-only *)
-val symbol_for_global': Ident.t -> Symbol.t
-        (* flambda-only *)
-val global_approx: Ident.t -> Clambda.value_approximation
+val global_approx: Compilation_unit.t -> Clambda.value_approximation
         (* Return the approximation for the given global identifier
            clambda-only *)
 val set_global_approx: Clambda.value_approximation -> unit
@@ -99,9 +58,13 @@ val approx_for_global: Compilation_unit.t -> Export_info.t option
         (* Loads the exported information declaring the compilation_unit
            flambda-only *)
 
-val get_global_info' : Ident.t -> Cmx_format.export_info option
+val get_global_export_info : Compilation_unit.t -> Cmx_format.export_info option
         (* Middle-end-agnostic means of getting the export info found in the
            .cmx file of the given unit. *)
+
+val get_unit_export_info
+  : Compilation_unit.t -> cmx_name:Compilation_unit.Name.t ->
+      Cmx_format.export_info option
 
 val flambda2_set_export_info : Flambda2_cmx.Flambda_cmx_format.t -> unit
         (* Set the export information for the current unit (Flambda 2 only). *)
@@ -132,13 +95,6 @@ val cache_checks : Cmx_format.checks -> unit
         (* [cache_checks c] adds [c] to [cached_checks] *)
 
 val new_const_symbol : unit -> string
-val closure_symbol : Closure_id.t -> Symbol.t
-        (* Symbol of a function if the function is
-           closed (statically allocated)
-           flambda-only *)
-val function_label : Closure_id.t -> string
-        (* linkage name of the code of a function
-           flambda-only *)
 
 val new_structured_constant:
   Clambda.ustructured_constant ->
@@ -171,16 +127,23 @@ val cache_unit_info: unit_infos -> unit
            honored by [symbol_for_global] and [global_approx]
            without looking at the corresponding .cmx file. *)
 
-val require_global: Ident.t -> unit
+val require_global: Compilation_unit.t -> unit
         (* Enforce a link dependency of the current compilation
            unit to the required module *)
 
 val read_library_info: string -> library_infos
 
+(* CR mshinwell: see comment in .ml
+val ensure_sharing_between_cmi_and_cmx_imports :
+  (_ * (Compilation_unit.t * _) option) list ->
+  (Compilation_unit.t * 'a) list ->
+  (Compilation_unit.t * 'a) list
+*)
+
 type error =
     Not_a_unit_info of string
   | Corrupted_unit_info of string
-  | Illegal_renaming of string * string * string
+  | Illegal_renaming of Compilation_unit.t * Compilation_unit.t * string
 
 exception Error of error
 

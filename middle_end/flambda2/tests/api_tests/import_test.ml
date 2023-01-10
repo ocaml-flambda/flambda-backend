@@ -67,7 +67,7 @@ let test () =
 let _ =
   let comp_unit =
     let id = Ident.create_persistent "Test" in
-    let linkage_name = Linkage_name.create "camlTest" in
+    let linkage_name = Linkage_name.of_string "camlTest" in
     Compilation_unit.create id linkage_name
   in
   Compilation_unit.set_current comp_unit;

@@ -1,3 +1,5 @@
+# 2 "backend/amd64/cfg_stack_operands.ml"
+
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 open! Cfg_regalloc_utils
@@ -152,10 +154,6 @@ let binary_operation
 
 let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   begin match instr.desc with
-  | Call (P (Checkbound { immediate = None; } )) ->
-    binary_operation map instr No_result
-  | Call (P (Checkbound { immediate = Some _; } )) ->
-    may_use_stack_operand_for_only_argument map instr ~has_result:false
   | Op (Addf | Subf | Mulf | Divf)
   | Op (Specific (Ifloat_min | Ifloat_max | Icrc32q)) ->
     may_use_stack_operand_for_second_argument map instr
@@ -185,23 +183,22 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
     may_use_stack_operand_for_result map instr ~num_args:2
   | Op(Intop_imm((Iadd | Isub | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr), _)) ->
     may_use_stack_operand_for_result map instr ~num_args:1
-  | Op (Probe _) ->
-    may_use_stack_operands_everywhere map instr
+  | Op (Csel _) (* CR gyorsh: optimize *)
   | Op (Specific (Ilfence | Isfence | Imfence))
   | Op (Intop(Imulh _ | Imul | Idiv | Imod))
   | Op (Intop_imm ((Imulh _ | Imul | Idiv | Imod), _))
   | Op (Specific (Irdtsc | Irdpmc))
   | Op (Intop (Ipopcnt | Iclz _| Ictz _))
+  | Op (Intop_atomic _)
   | Op (Move | Spill | Reload | Negf | Absf | Const_float _ | Compf _ | Stackoffset _
        | Load _ | Store _ | Name_for_debugger _ | Probe_is_enabled _
-       | Opaque | Begin_region | End_region )
+       | Valueofint | Intofvalue | Opaque | Begin_region | End_region )
   | Op (Specific (Isqrtf | Isextend32 | Izextend32 | Ilea _
                  | Istore_int (_, _, _)
                  | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
                  | Ipause
                  | Iprefetch _
                  | Ibswap _| Ifloatsqrtf _))
-  | Call (P (External _ | Alloc _) | F (Indirect | Direct _))
   | Reloadretaddr
   | Pushtrap _
   | Poptrap
@@ -210,7 +207,7 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
     May_still_have_spilled_registers
   | Op (Intop Icheckbound)
   | Op (Intop_imm ((Ipopcnt | Iclz _ | Ictz _ | Icheckbound), _)) ->
-    (* should no happen *)
+    (* should not happen *)
     fatal "unexpected instruction"
   end
 
@@ -218,12 +215,13 @@ let terminator (map : spilled_map) (term : Cfg.terminator Cfg.instruction) =
   ignore map;
   match (term : Cfg.terminator Cfg.instruction).desc with
   | Never -> fatal "unexpected terminator"
-
-  | Int_test { lt = _; eq = _; gt =_; is_signed = _; imm = None; } ->
+  | Int_test { lt = _; eq = _; gt =_; is_signed = _; imm = None; }
+  | Prim  {op = Checkbound { immediate = None; }; _} ->
     binary_operation map term No_result
   | Int_test { lt = _; eq = _; gt =_; is_signed = _; imm = Some _; }
   | Parity_test { ifso = _; ifnot = _; }
-  | Truth_test { ifso = _; ifnot = _; } ->
+  | Truth_test { ifso = _; ifnot = _; }
+  | Prim {op = Checkbound { immediate = Some _; }; _} ->
     may_use_stack_operand_for_only_argument ~has_result:false map term
   | Float_test _ ->
     (* CR-someday xclerc for xclerc: this could be optimized, but the representation
@@ -236,7 +234,14 @@ let terminator (map : spilled_map) (term : Cfg.terminator Cfg.instruction) =
   | Return
   | Raise _
   | Switch _
-  | Tailcall _
-  | Call_no_return _ ->
+  | Tailcall_self _
+  | Tailcall_func _
+  | Call_no_return _
+  | Poll_and_jump _
+  | Prim {op = External _ | Alloc _; _ } | Call {op = Indirect | Direct _; _} ->
     (* no rewrite *)
     May_still_have_spilled_registers
+  | Prim {op = Probe _; _} ->
+    may_use_stack_operands_everywhere map term
+  | Specific_can_raise _ ->
+    fatal "no instructions specific for this architecture can raise"

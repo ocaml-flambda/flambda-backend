@@ -18,9 +18,6 @@ open Clflags
 module Backend = struct
   (* See backend_intf.mli. *)
 
-  let symbol_for_global' = Compilenv.symbol_for_global'
-  let closure_symbol = Compilenv.closure_symbol
-
   let really_import_approx = Import_approx.really_import_approx
   let import_symbol = Import_approx.import_symbol
 
@@ -67,7 +64,7 @@ let main unix argv ppf ~flambda2 =
        "<options> Compute dependencies \
         (use 'ocamlopt -depend -help' for details)"];
     Clflags.Opt_flag_handler.set Flambda_backend_flags.opt_flag_handler;
-    Clflags.parse_arguments argv Compenv.anonymous usage;
+    Compenv.parse_arguments (ref argv) Compenv.anonymous "ocamlopt";
     Compmisc.read_clflags_from_env ();
     if !Clflags.plugin then
       Compenv.fatal "-plugin is only supported up to OCaml 4.08.0";

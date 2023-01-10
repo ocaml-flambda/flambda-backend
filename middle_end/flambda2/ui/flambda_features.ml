@@ -101,77 +101,84 @@ let dump_flexpect () = !Flambda_backend_flags.Flambda2.Dump.flexpect
 
 let dump_slot_offsets () = !Flambda_backend_flags.Flambda2.Dump.slot_offsets
 
+let dump_flow () = !Flambda_backend_flags.Flambda2.Dump.flow
+
 let freshen_when_printing () = !Flambda_backend_flags.Flambda2.Dump.freshen
 
 module Inlining = struct
-  module D = Flambda_backend_flags.Flambda2.Inlining.Default
   module I = Flambda_backend_flags.Flambda2.Inlining
   module IH = Clflags.Int_arg_helper
   module FH = Clflags.Float_arg_helper
 
   type round_or_default =
     | Round of int
-    | Default
+    | Default of Flambda_backend_flags.opt_level
 
   let depth_scaling_factor = 10 (* See [Downwards_env.enter_inlined_apply] *)
+
+  let default_for_opt_level (opt_level : Flambda_backend_flags.opt_level) =
+    match opt_level with
+    | Oclassic -> I.oclassic_arguments
+    | O2 -> I.o2_arguments
+    | O3 -> I.o3_arguments
 
   let max_depth round_or_default =
     let depth =
       match round_or_default with
       | Round round -> IH.get ~key:round !I.max_depth
-      | Default -> D.max_depth
+      | Default opt_level -> (default_for_opt_level opt_level).max_depth
     in
     depth * depth_scaling_factor
 
   let max_rec_depth round_or_default =
     match round_or_default with
     | Round round -> IH.get ~key:round !I.max_rec_depth
-    | Default -> D.max_rec_depth
+    | Default opt_level -> (default_for_opt_level opt_level).max_rec_depth
 
   let call_cost round_or_default =
     match round_or_default with
     | Round round -> FH.get ~key:round !I.call_cost
-    | Default -> D.call_cost
+    | Default opt_level -> (default_for_opt_level opt_level).call_cost
 
   let alloc_cost round_or_default =
     match round_or_default with
     | Round round -> FH.get ~key:round !I.alloc_cost
-    | Default -> D.alloc_cost
+    | Default opt_level -> (default_for_opt_level opt_level).alloc_cost
 
   let prim_cost round_or_default =
     match round_or_default with
     | Round round -> FH.get ~key:round !I.prim_cost
-    | Default -> D.prim_cost
+    | Default opt_level -> (default_for_opt_level opt_level).prim_cost
 
   let branch_cost round_or_default =
     match round_or_default with
     | Round round -> FH.get ~key:round !I.branch_cost
-    | Default -> D.branch_cost
+    | Default opt_level -> (default_for_opt_level opt_level).branch_cost
 
   let indirect_call_cost round_or_default =
     match round_or_default with
     | Round round -> FH.get ~key:round !I.indirect_call_cost
-    | Default -> D.indirect_call_cost
+    | Default opt_level -> (default_for_opt_level opt_level).indirect_call_cost
 
   let poly_compare_cost round_or_default =
     match round_or_default with
     | Round round -> FH.get ~key:round !I.poly_compare_cost
-    | Default -> D.poly_compare_cost
+    | Default opt_level -> (default_for_opt_level opt_level).poly_compare_cost
 
   let small_function_size round_or_default =
     match round_or_default with
     | Round round -> IH.get ~key:round !I.small_function_size
-    | Default -> D.small_function_size
+    | Default opt_level -> (default_for_opt_level opt_level).small_function_size
 
   let large_function_size round_or_default =
     match round_or_default with
     | Round round -> IH.get ~key:round !I.large_function_size
-    | Default -> D.large_function_size
+    | Default opt_level -> (default_for_opt_level opt_level).large_function_size
 
   let threshold round_or_default =
     match round_or_default with
     | Round round -> FH.get ~key:round !I.threshold
-    | Default -> D.threshold
+    | Default opt_level -> (default_for_opt_level opt_level).threshold
 
   let speculative_inlining_only_if_arguments_useful () =
     !Flambda_backend_flags.Flambda2.Inlining
@@ -220,4 +227,10 @@ module Expert = struct
   let can_inline_recursive_functions () =
     !Flambda_backend_flags.Flambda2.Expert.can_inline_recursive_functions
     |> with_default ~f:(fun d -> d.can_inline_recursive_functions)
+
+  let max_function_simplify_run () =
+    !Flambda_backend_flags.Flambda2.Expert.max_function_simplify_run
+    |> with_default ~f:(fun d -> d.max_function_simplify_run)
 end
+
+let stack_allocation_enabled () = Config.stack_allocation

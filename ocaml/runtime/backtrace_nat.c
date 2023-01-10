@@ -47,7 +47,7 @@ frame_descr * caml_next_frame_descriptor(uintnat * pc, char ** sp)
     /* Skip to next frame */
     if (d->frame_size != 0xFFFF) {
       /* Regular frame, update sp/pc and return the frame descriptor */
-      *sp += (d->frame_size & 0xFFFC);
+      *sp += (get_frame_size(d) & 0xFFFFFFFC);
       *pc = Saved_return_address(*sp);
 #ifdef Mask_already_scanned
       *pc = Mask_already_scanned(*pc);
@@ -164,17 +164,19 @@ static debuginfo debuginfo_extract(frame_descr* d, int alloc_idx)
 {
   unsigned char* infoptr;
   uint32_t debuginfo_offset;
+  uint32_t frame_size;
 
   /* The special frames marking the top of an ML stack chunk are never
      returned by caml_next_frame_descriptor, so should never reach here. */
-  CAMLassert(d->frame_size != 0xffff);
+  CAMLassert(d->frame_size != 0xFFFF);
+  frame_size = get_frame_size(d);
 
-  if ((d->frame_size & 1) == 0) {
+  if ((frame_size & 1) == 0) {
     return NULL;
   }
   /* Recover debugging info */
-  infoptr = (unsigned char*)&d->live_ofs[d->num_live];
-  if (d->frame_size & 2) {
+  infoptr = get_end_of_live_ofs(d);
+  if (frame_size & 2) {
     CAMLassert(alloc_idx == -1 || (0 <= alloc_idx && alloc_idx < *infoptr));
     /* skip alloc_lengths */
     infoptr += *infoptr + 1;
@@ -280,13 +282,12 @@ void caml_debuginfo_location(debuginfo dbg, /*out*/ struct caml_loc_info * li)
   li->loc_endchr = ((info2 & 0xF) << 6) | (info1 >> 26);
 }
 
-CAMLprim value caml_add_debug_info(backtrace_slot start, value size,
-                                   value events)
+value caml_add_debug_info(backtrace_slot start, value size, value events)
 {
   return Val_unit;
 }
 
-CAMLprim value caml_remove_debug_info(backtrace_slot start)
+value caml_remove_debug_info(backtrace_slot start)
 {
   return Val_unit;
 }

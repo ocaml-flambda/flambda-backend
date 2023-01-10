@@ -37,7 +37,7 @@ module IR : sig
   type named =
     | Simple of simple
     | Get_tag of Ident.t (* Intermediary primitive for block switch *)
-    | Begin_region
+    | Begin_region of { try_region_parent : Ident.t option }
     | End_region of Ident.t
         (** [Begin_region] and [End_region] are needed because these primitives
             don't exist in Lambda *)
@@ -45,7 +45,8 @@ module IR : sig
         { prim : Lambda.primitive;
           args : simple list;
           loc : Lambda.scoped_location;
-          exn_continuation : exn_continuation option
+          exn_continuation : exn_continuation option;
+          region : Ident.t
         }
 
   type apply_kind =
@@ -65,7 +66,8 @@ module IR : sig
       region_close : Lambda.region_close;
       inlined : Lambda.inlined_attribute;
       probe : Lambda.probe;
-      mode : Lambda.alloc_mode
+      mode : Lambda.alloc_mode;
+      region : Ident.t
     }
 
   type switch =
@@ -98,49 +100,58 @@ module Env : sig
 
   type t
 
-  val create :
-    symbol_for_global:(Ident.t -> Symbol.t) ->
-    big_endian:bool ->
-    cmx_loader:Flambda_cmx.loader ->
-    t
+  val create : big_endian:bool -> cmx_loader:Flambda_cmx.loader -> t
 
   val clear_local_bindings : t -> t
 
-  val add_var : t -> Ident.t -> Variable.t -> t
+  val add_var : t -> Ident.t -> Variable.t -> Flambda_kind.With_subkind.t -> t
 
-  val add_vars : t -> Ident.t list -> Variable.t list -> t
+  val add_vars :
+    t -> Ident.t list -> (Variable.t * Flambda_kind.With_subkind.t) list -> t
 
-  val add_var_map : t -> Variable.t Ident.Map.t -> t
+  val add_var_map :
+    t -> (Variable.t * Flambda_kind.With_subkind.t) Ident.Map.t -> t
 
-  val add_var_like : t -> Ident.t -> IR.user_visible -> t * Variable.t
+  val add_var_like :
+    t ->
+    Ident.t ->
+    IR.user_visible ->
+    Flambda_kind.With_subkind.t ->
+    t * Variable.t
 
   val add_vars_like :
-    t -> (Ident.t * IR.user_visible) list -> t * Variable.t list
+    t ->
+    (Ident.t * IR.user_visible * Flambda_kind.With_subkind.t) list ->
+    t * Variable.t list
 
   val find_name : t -> Ident.t -> Name.t
 
   val find_name_exn : t -> Ident.t -> Name.t
 
-  val find_var : t -> Ident.t -> Variable.t
+  val find_var : t -> Ident.t -> Variable.t * Flambda_kind.With_subkind.t
 
-  val find_var_exn : t -> Ident.t -> Variable.t
+  val find_var_exn : t -> Ident.t -> Variable.t * Flambda_kind.With_subkind.t
 
-  val find_vars : t -> Ident.t list -> Variable.t list
+  val find_vars :
+    t -> Ident.t list -> (Variable.t * Flambda_kind.With_subkind.t) list
 
   val add_global : t -> int -> Symbol.t -> t
 
   val find_global : t -> int -> Symbol.t
 
-  val add_simple_to_substitute : t -> Ident.t -> Simple.t -> t
+  val add_simple_to_substitute :
+    t -> Ident.t -> Simple.t -> Flambda_kind.With_subkind.t -> t
 
-  val add_simple_to_substitute_map : t -> Simple.t Ident.Map.t -> t
+  val add_simple_to_substitute_map :
+    t -> (Simple.t * Flambda_kind.With_subkind.t) Ident.Map.t -> t
 
-  val find_simple_to_substitute_exn : t -> Ident.t -> Simple.t
+  val find_simple_to_substitute_exn :
+    t -> Ident.t -> Simple.t * Flambda_kind.With_subkind.t
 
   val add_value_approximation : t -> Name.t -> value_approximation -> t
 
   val add_block_approximation :
-    t -> Name.t -> value_approximation array -> Alloc_mode.t -> t
+    t -> Name.t -> value_approximation array -> Alloc_mode.For_types.t -> t
 
   val add_approximation_alias : t -> Name.t -> Name.t -> t
 
@@ -150,9 +161,7 @@ module Env : sig
 
   val with_depth : t -> Variable.t -> t
 
-  val current_unit_id : t -> Ident.t
-
-  val symbol_for_global : t -> Ident.t -> Symbol.t
+  val current_unit : t -> Compilation_unit.t
 
   val big_endian : t -> bool
 
@@ -177,10 +186,16 @@ end
 
 (** Used to pipe some data through closure conversion *)
 module Acc : sig
+  type closure_info = private
+    { return_continuation : Continuation.t;
+      exn_continuation : Exn_continuation.t;
+      my_closure : Variable.t;
+      is_purely_tailrec : bool
+    }
+
   type t
 
-  val create :
-    symbol_for_global:(Ident.t -> Symbol.t) -> slot_offsets:Slot_offsets.t -> t
+  val create : slot_offsets:Slot_offsets.t -> t
 
   val declared_symbols : t -> (Symbol.t * Static_const.t) list
 
@@ -244,12 +259,22 @@ module Acc : sig
   val measure_cost_metrics :
     t -> f:(t -> t * 'a) -> Cost_metrics.t * Name_occurrences.t * t * 'a
 
-  val symbol_for_global : t -> Ident.t -> Symbol.t
-
   val slot_offsets : t -> Slot_offsets.t
 
   val add_set_of_closures_offsets :
     is_phantom:bool -> t -> Set_of_closures.t -> t
+
+  val top_closure_info : t -> closure_info option
+
+  val push_closure_info :
+    t ->
+    return_continuation:Continuation.t ->
+    exn_continuation:Exn_continuation.t ->
+    my_closure:Variable.t ->
+    is_purely_tailrec:bool ->
+    t
+
+  val pop_closure_info : t -> closure_info * t
 end
 
 (** Used to represent information about a set of function declarations during
@@ -267,11 +292,11 @@ module Function_decls : sig
       return:Lambda.value_kind ->
       return_continuation:Continuation.t ->
       exn_continuation:IR.exn_continuation ->
+      my_region:Ident.t ->
       body:(Acc.t -> Env.t -> Acc.t * Flambda.Import.Expr.t) ->
       attr:Lambda.function_attribute ->
       loc:Lambda.scoped_location ->
       free_idents_of_body:Ident.Set.t ->
-      stub:bool ->
       Recursive.t ->
       closure_alloc_mode:Lambda.alloc_mode ->
       num_trailing_local_params:int ->
@@ -292,13 +317,21 @@ module Function_decls : sig
 
     val exn_continuation : t -> IR.exn_continuation
 
+    val my_region : t -> Ident.t
+
     val body : t -> Acc.t -> Env.t -> Acc.t * Flambda.Import.Expr.t
 
     val inline : t -> Lambda.inline_attribute
 
     val specialise : t -> Lambda.specialise_attribute
 
+    val poll_attribute : t -> Lambda.poll_attribute
+
+    val loop : t -> Lambda.loop_attribute
+
     val is_a_functor : t -> bool
+
+    val check_attribute : t -> Lambda.check_attribute
 
     val stub : t -> bool
 

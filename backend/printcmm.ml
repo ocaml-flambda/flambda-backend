@@ -95,11 +95,20 @@ let chunk = function
   | Single -> "float32"
   | Double -> "float64"
 
+let atomic_bitwidth : Cmm.atomic_bitwidth -> string = function
+  | Word -> "int"
+  | Thirtytwo -> "int32"
+  | Sixtyfour -> "int64"
+
 let temporal_locality = function
   | Nonlocal -> "nonlocal"
   | Low -> "low"
   | Moderate -> "moderate"
   | High -> "high"
+
+let atomic_op = function
+  | Fetch_and_add -> "fetch_and_add"
+  | Compare_and_swap -> "compare_and_swap"
 
 let phantom_defining_expr ppf defining_expr =
   match defining_expr with
@@ -150,6 +159,14 @@ let trywith_kind ppf kind =
   | Regular -> ()
   | Delayed i -> fprintf ppf "<delayed %d>" i
 
+let to_string msg =
+  let b = Buffer.create 17 in
+  let ppf = Format.formatter_of_buffer b in
+  Format.kfprintf (fun ppf ->
+    Format.pp_print_flush ppf ();
+    Buffer.contents b
+  ) ppf msg
+
 let operation d = function
   | Capply(_ty, _) -> "app" ^ location d
   | Cextcall { func = lbl; _ } ->
@@ -193,8 +210,12 @@ let operation d = function
   | Csubf -> "-f"
   | Cmulf -> "*f"
   | Cdivf -> "/f"
+  | Ccsel ret_typ ->
+    to_string "csel %a" machtype ret_typ
   | Cfloatofint -> "floatofint"
   | Cintoffloat -> "intoffloat"
+  | Cvalueofint -> "valueofint"
+  | Cintofvalue -> "intofvalue"
   | Ccmpf c -> Printf.sprintf "%sf" (float_comparison c)
   | Craise k -> Lambda.raise_kind k ^ location d
   | Ccheckbound -> "checkbound" ^ location d
@@ -204,6 +225,7 @@ let operation d = function
   | Cprefetch { is_write; locality; } ->
     Printf.sprintf "prefetch is_write=%b prefetch_temporal_locality_hint=%s"
       is_write (temporal_locality locality)
+  | Catomic { op; size = _ } -> Printf.sprintf "atomic %s" (atomic_op op)
   | Copaque -> "opaque"
   | Cbeginregion -> "beginregion"
   | Cendregion -> "endregion"
@@ -339,11 +361,15 @@ and sequence ppf = function
 
 and expression ppf e = fprintf ppf "%a" expr e
 
+let property : Cmm.property -> string = function
+    | Noalloc -> "noalloc"
+
 let codegen_option = function
   | Reduce_code_size -> "reduce_code_size"
   | No_CSE -> "no_cse"
   | Use_linscan_regalloc -> "linscan"
-  | Noalloc_check -> "noalloc_check"
+  | Assert p -> "assert "^(property p)
+  | Assume p -> "assume "^(property p)
 
 let print_codegen_options ppf l =
   List.iter (fun c -> fprintf ppf " %s" (codegen_option c)) l

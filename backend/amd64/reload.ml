@@ -146,7 +146,34 @@ method! reload_operation op arg res =
       if !Clflags.pic_code || !Clflags.dlcode || Arch.win64
       then super#reload_operation op arg res
       else (arg, res)
+  | Icsel tst ->
+      (* Last argument and result must be in the same register.
+         Result must be in register. The last two arguments are used
+         for emitting cmov, the remaining for [Mach.test]. *)
+    (*  CR gyorsh: we already use Array.sub here,
+        so no reason for this convoluted arrangement,
+        using the first two args for cmov would simplify most of the
+        code as it won't need to have [len], it will be able to have indexes
+        directly, but then in Emit we will have to do Array.sub again
+        to call emit_test (unless emit_test takes an index, which is also
+        weird). *)
+      if stackp res.(0)
+      then begin
+        (* CR-soon gyorsh: [reload_test] may lose some sharing
+           between the arguments of the test and the last two arguments
+           and the result of the move. *)
+        let r = self#makereg res.(0) in
+        let len = Array.length arg in
+        let arg' = Array.copy arg in
+        let test_arg = self#reload_test tst (Array.sub arg 0 (len - 2)) in
+        for i = 0 to len - 2 - 1 do
+          arg'.(i) <- test_arg.(i)
+        done;
+        arg'.(len - 1) <- r;
+        (arg', [|r|])
+      end else  (arg, res)
   | Iintop (Ipopcnt | Iclz _| Ictz _)
+  | Iintop_atomic _
   | Ispecific  (Isqrtf | Isextend32 | Izextend32 | Ilea _
                | Istore_int (_, _, _)
                | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
@@ -158,8 +185,8 @@ method! reload_operation op arg res =
   | Icompf _
   | Itailcall_ind|Itailcall_imm _|Iextcall _|Istackoffset _|Iload (_, _, _)
   | Istore (_, _, _)|Ialloc _|Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _
-  | Iopaque
-  | Ibeginregion | Iendregion
+  | Ivalueofint | Iintofvalue | Iopaque
+  | Ibeginregion | Iendregion | Ipoll _
     -> (* Other operations: all args and results in registers,
           except moves and probes. *)
       super#reload_operation op arg res

@@ -31,6 +31,7 @@
   (:standard -O3))
  (libraries
   ocamlcommon
+  flambda_backend_utils
   flambda2_algorithms
   flambda2_bound_identifiers
   flambda2_identifiers

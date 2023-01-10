@@ -307,10 +307,10 @@ end = struct
     then (None, Symbol_name_map.find_exn t.symbols s) |> nowhere
     else
       let cunit =
-        let ident = Compilation_unit.name cunit in
-        let linkage_name =
-          Compilation_unit.get_linkage_name cunit |> Linkage_name.to_string
+        let ident =
+          Compilation_unit.name cunit |> Compilation_unit.Name.to_string
         in
+        let linkage_name = Compilation_unit.full_path_as_string cunit in
         let linkage_name =
           if String.equal ident linkage_name then None else Some linkage_name
         in
@@ -434,10 +434,10 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   | Get_tag -> Get_tag
   | Is_int _ -> Is_int (* CR vlaviron: discuss *)
   | Num_conv { src; dst } -> Num_conv { src; dst }
-  | Opaque_identity -> Opaque_identity
+  | Opaque_identity _ -> Opaque_identity
   | Unbox_number bk -> Unbox_number bk
   | Untag_immediate -> Untag_immediate
-  | Project_value_slot { project_from; value_slot } ->
+  | Project_value_slot { project_from; value_slot; kind = _ } ->
     let project_from = Env.translate_function_slot env project_from in
     let value_slot = Env.translate_value_slot env value_slot in
     Project_value_slot { project_from; value_slot }
@@ -448,7 +448,8 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   | String_length string_or_bytes -> String_length string_or_bytes
   | Int_as_pointer | Boolean_not | Duplicate_block _ | Duplicate_array _
   | Bigarray_length _ | Int_arith _ | Float_arith _ | Reinterpret_int64_as_float
-  | Is_boxed_float | Is_flat_float_array | End_region ->
+  | Is_boxed_float | Is_flat_float_array | Begin_try_region | End_region
+  | Obj_dup ->
     Misc.fatal_errorf "TODO: Unary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Unary op)
@@ -520,7 +521,13 @@ let prim env (p : Flambda_primitive.t) : Fexpr.prim =
 
 let value_slots env map =
   List.map
-    (fun (var, value) ->
+    (fun (var, (value, kind)) ->
+      if not
+           (Flambda_kind.equal
+              (Flambda_kind.With_subkind.kind kind)
+              Flambda_kind.value)
+      then
+        Misc.fatal_errorf "Value slot %a not of kind Value" Simple.print value;
       let var = Env.translate_value_slot env var in
       let value = simple env value in
       { Fexpr.var; value })
@@ -600,7 +607,7 @@ let rec expr env e =
   | Apply app -> apply_expr env app
   | Apply_cont app_cont -> apply_cont_expr env app_cont
   | Switch switch -> switch_expr env switch
-  | Invalid { message } -> invalid_expr env ~message
+  | Invalid invalid -> invalid_expr env invalid
 
 and let_expr env le =
   Flambda.Let_expr.pattern_match le ~f:(fun bound ~body : Fexpr.expr ->
@@ -716,6 +723,7 @@ and static_let_expr env bound_static defining_expr body : Fexpr.expr =
                ~body
                ~my_closure
                ~is_my_closure_used:_
+               ~my_region
                ~my_depth
                ~free_names_of_body:_
                :
@@ -732,10 +740,18 @@ and static_let_expr env bound_static defining_expr body : Fexpr.expr =
                 (Bound_parameters.to_list params)
             in
             let closure_var, env = Env.bind_var env my_closure in
+            let region_var, env = Env.bind_var env my_region in
             let depth_var, env = Env.bind_var env my_depth in
             let body = expr env body in
             (* CR-someday lmaurer: Omit exn_cont, closure_var if not used *)
-            { params; ret_cont; exn_cont; closure_var; depth_var; body })
+            { params;
+              ret_cont;
+              exn_cont;
+              closure_var;
+              region_var;
+              depth_var;
+              body
+            })
       in
       let code_size =
         Code.cost_metrics code |> Cost_metrics.size |> Code_size.to_int
@@ -966,7 +982,8 @@ and switch_expr env switch : Fexpr.expr =
   in
   Switch { scrutinee; cases }
 
-and invalid_expr _env ~message : Fexpr.expr = Invalid { message }
+and invalid_expr _env invalid : Fexpr.expr =
+  Invalid { message = Flambda.Invalid.to_string invalid }
 
 (* Iter on all sets of closures of a given program. *)
 module Iter = struct
@@ -977,7 +994,7 @@ module Iter = struct
     | Apply e' -> apply_expr f_c f_s e'
     | Apply_cont e' -> apply_cont f_c f_s e'
     | Switch e' -> switch f_c f_s e'
-    | Invalid { message = _ } -> ()
+    | Invalid _ -> ()
 
   and named let_expr (bound_pattern : Bound_pattern.t) f_c f_s n =
     match (n : Named.t) with
@@ -1048,6 +1065,7 @@ module Iter = struct
                ~body
                ~my_closure:_
                ~is_my_closure_used:_
+               ~my_region:_
                ~my_depth:_
                ~free_names_of_body:_
              -> expr f_c f_s body))

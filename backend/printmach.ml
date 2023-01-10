@@ -23,8 +23,8 @@ open Interval
 
 module V = Backend_var
 
-let loc ?(wrap_out = fun ppf f -> f ppf) ~reg_class ~unknown ppf l = 
-  match l with 
+let loc ?(wrap_out = fun ppf f -> f ppf) ~reg_class ~unknown ppf l =
+  match l with
   | Unknown -> unknown ppf
   | Reg r ->
       wrap_out ppf (fun ppf -> fprintf ppf "%s" (Proc.register_name r))
@@ -179,6 +179,16 @@ let operation' ?(print_reg = reg) op arg ppf res =
         fprintf ppf "%a%s%a" reg arg.(0) (intop op) reg arg.(1)
       end
   | Iintop_imm(op, n) -> fprintf ppf "%a%s%i" reg arg.(0) (intop op) n
+  | Iintop_atomic {op = Compare_and_swap; size; addr} ->
+    fprintf ppf "lock cas %s[%a] ?%a %a"
+      (Printcmm.atomic_bitwidth size)
+      (Arch.print_addressing reg addr) (Array.sub arg 2 (Array.length arg - 2))
+      reg arg.(0) reg arg.(1)
+  | Iintop_atomic {op = Fetch_and_add; size; addr} ->
+    fprintf ppf "lock %s[%a] += %a"
+      (Printcmm.atomic_bitwidth size)
+      (Arch.print_addressing reg addr) (Array.sub arg 1 (Array.length arg - 1))
+      reg arg.(0)
   | Icompf cmp -> fprintf ppf "%a%s%a" reg arg.(0) (floatcomp cmp) reg arg.(1)
   | Inegf -> fprintf ppf "-f %a" reg arg.(0)
   | Iabsf -> fprintf ppf "absf %a" reg arg.(0)
@@ -186,8 +196,14 @@ let operation' ?(print_reg = reg) op arg ppf res =
   | Isubf -> fprintf ppf "%a -f %a" reg arg.(0) reg arg.(1)
   | Imulf -> fprintf ppf "%a *f %a" reg arg.(0) reg arg.(1)
   | Idivf -> fprintf ppf "%a /f %a" reg arg.(0) reg arg.(1)
+  | Icsel tst ->
+    let len = Array.length arg in
+    fprintf ppf "csel %a ? %a : %a"
+      (test tst) arg reg arg.(len-2) reg arg.(len-1)
   | Ifloatofint -> fprintf ppf "floatofint %a" reg arg.(0)
   | Iintoffloat -> fprintf ppf "intoffloat %a" reg arg.(0)
+  | Ivalueofint -> fprintf ppf "valueofint %a" reg arg.(0)
+  | Iintofvalue -> fprintf ppf "intofvalue %a" reg arg.(0)
   | Iopaque -> fprintf ppf "opaque %a" reg arg.(0)
   | Iname_for_debugger { ident; which_parameter; } ->
     fprintf ppf "name_for_debugger %a%s=%a"
@@ -200,6 +216,12 @@ let operation' ?(print_reg = reg) op arg ppf res =
   | Iendregion -> fprintf ppf "endregion %a" reg arg.(0)
   | Ispecific op ->
       Arch.print_specific_operation reg op ppf arg
+  | Ipoll { return_label } ->
+      fprintf ppf "poll call";
+      (match return_label with
+      | None -> ()
+      | Some return_label ->
+        fprintf ppf " returning to L%d" return_label)
   | Iprobe {name;handler_code_sym} ->
     fprintf ppf "probe \"%s\" %s %a" name handler_code_sym regs arg
   | Iprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled \"%s\"" name
@@ -211,6 +233,7 @@ let rec instr ppf i =
     fprintf ppf "@[<1>{%a" regsetaddr i.live;
     if Array.length i.arg > 0 then fprintf ppf "@ +@ %a" regs i.arg;
     fprintf ppf "}@]@,";
+    (* CR-someday mshinwell: to use for gdb work
     if !Clflags.dump_avail then begin
       let module RAS = Reg_availability_set in
       fprintf ppf "@[<1>AB={%a}" (RAS.print ~print_reg:reg) i.available_before;
@@ -220,7 +243,7 @@ let rec instr ppf i =
         fprintf ppf ",AA={%a}" (RAS.print ~print_reg:reg) available_across
       end;
       fprintf ppf "@]@,"
-    end
+    end *)
   end;
   begin match i.desc with
   | Iend -> ()
