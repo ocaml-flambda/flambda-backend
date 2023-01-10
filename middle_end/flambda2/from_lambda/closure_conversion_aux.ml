@@ -104,7 +104,7 @@ module Inlining = struct
     let inline_threshold =
       Clflags.Float_arg_helper.get ~key:0 !Clflags.inline_threshold
     in
-    let magic_scale_constant = 8. in
+    let magic_scale_constant = 20. in
     int_of_float (inline_threshold *. magic_scale_constant)
 
   let definition_inlining_decision inline cost_metrics =
