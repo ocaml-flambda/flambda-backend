@@ -338,7 +338,12 @@ module Env = struct
 
   let find_value_approximation t simple =
     Simple.pattern_match simple
-      ~const:(fun _ -> Value_approximation.Value_unknown)
+      ~const:(fun const ->
+        match Reg_width_const.descr const with
+        | Tagged_immediate i -> Value_approximation.Value_int i
+        | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
+        | Naked_nativeint _ ->
+          Value_approximation.Value_unknown)
       ~name:(fun name ~coercion:_ ->
         try Name.Map.find name t.value_approximations
         with Not_found ->
