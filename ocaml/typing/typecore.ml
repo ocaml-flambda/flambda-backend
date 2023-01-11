@@ -559,7 +559,7 @@ let mode_cross env (ty : type_expr) mode =
   if is_principal ty then begin
     match immediacy env ty with
     | Type_immediacy.Always -> Value_mode.newvar ()
-    | Type_immediacy.Always_on_64bits when !Clflags.native_code && Sys.word_size = 64 ->
+    | Type_immediacy.Always_on_64bits when Sys.word_size = 64 ->
         Value_mode.newvar ()  (* floating and relaxed *)
     | _ -> mode
   end
