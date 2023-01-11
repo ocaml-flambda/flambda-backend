@@ -50,7 +50,7 @@ and expr_descr = private
           frames from the stack, which thus allows for the raising of
           exceptions. *)
   | Switch of Switch.t  (** Conditional control flow. *)
-  | Invalid of invalid
+  | Invalid of { message : string }
       (** Code proved type-incorrect and therefore unreachable. *)
 
 and let_expr
@@ -97,22 +97,18 @@ and static_const_or_code = private
 
 and static_const_group
 
-and invalid =
-  | Body_of_unreachable_continuation of Continuation.t
-  | Apply_cont_of_unreachable_continuation of Continuation.t
-  | Defining_expr_of_let of Bound_pattern.t * named
-  | Closure_type_was_invalid of Apply_expr.t
-  | Zero_switch_arms
-  | Code_not_rebuilt
-  | To_cmm_dummy_body
-  | Application_never_returns of Apply_expr.t
-  | Over_application_never_returns of Apply_expr.t
-  | Message of string
-
 module Invalid : sig
-  type t = invalid
-
-  val to_string : t -> string
+  type t =
+    | Body_of_unreachable_continuation of Continuation.t
+    | Apply_cont_of_unreachable_continuation of Continuation.t
+    | Defining_expr_of_let of Bound_pattern.t * named
+    | Closure_type_was_invalid of Apply.t
+    | Zero_switch_arms
+    | Code_not_rebuilt
+    | To_cmm_dummy_body
+    | Application_never_returns of Apply.t
+    | Over_application_never_returns of Apply.t
+    | Message of string
 end
 
 module Expr : sig

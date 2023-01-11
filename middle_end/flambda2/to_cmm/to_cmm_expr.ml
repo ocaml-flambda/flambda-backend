@@ -299,8 +299,7 @@ let rec expr env res e =
   | Apply e' -> apply_expr env res e'
   | Apply_cont e' -> apply_cont env res e'
   | Switch e' -> switch env res e'
-  | Invalid invalid ->
-    C.invalid res ~message:(Flambda.Invalid.to_string invalid)
+  | Invalid { message } -> C.invalid res ~message
 
 and let_prim env res ~num_normal_occurrences_of_bound_vars v p dbg body =
   let v = Bound_var.var v in
