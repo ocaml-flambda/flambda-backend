@@ -295,6 +295,7 @@ let register_arguments ~specialised_args ~invariant_params
    [old_params_to_new_outside] then also add it to the new specialised args. *)
 let add_param ~specialised_args ~state ~param =
   let alloc_mode = Parameter.alloc_mode param in
+  let kind = Parameter.kind param in
   let param = Parameter.var param in
   let new_param = Variable.rename param in
   let old_inside_to_new_inside =
@@ -316,7 +317,7 @@ let add_param ~specialised_args ~state ~param =
         | None -> state.new_specialised_args_with_old_projections
         | Some new_outside_var ->
             let new_spec : Flambda.specialised_to =
-              { var = new_outside_var; projection = None }
+              { var = new_outside_var; projection = None; kind }
             in
             Variable.Map.add new_param new_spec
               state.new_specialised_args_with_old_projections
@@ -326,7 +327,7 @@ let add_param ~specialised_args ~state ~param =
     { state with old_inside_to_new_inside;
                  new_specialised_args_with_old_projections }
   in
-  state, Parameter.wrap new_param alloc_mode
+  state, Parameter.wrap new_param alloc_mode kind
 
 (* Add a let binding for an old fun_var, add it to the new free variables, and
    add it to [old_inside_to_new_inside] *)
@@ -343,7 +344,7 @@ let add_fun_var ~lhs_of_application ~closure_id_being_applied ~state ~fun_var =
     in
     let let_bindings = (outside_var, expr) :: state.let_bindings in
     let spec : Flambda.specialised_to =
-      { var = outside_var; projection = None; }
+      { var = outside_var; projection = None; kind = Pgenval }
     in
     let new_free_vars_with_old_projections =
       Variable.Map.add inside_var spec state.new_free_vars_with_old_projections

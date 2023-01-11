@@ -63,7 +63,11 @@ and ulambda =
       function_label * ulambda list * Lambda.probe * apply_kind * Debuginfo.t
   | Ugeneric_apply of
       ulambda * ulambda list * apply_kind * Debuginfo.t
-  | Uclosure of ufunction list * ulambda list
+  | Uclosure of {
+      functions : ufunction list ;
+      not_scanned_slots : ulambda list ;
+      scanned_slots : ulambda list
+    }
   | Uoffset of ulambda * int
   | Ulet of mutable_flag * value_kind * Backend_var.With_provenance.t
       * ulambda * ulambda

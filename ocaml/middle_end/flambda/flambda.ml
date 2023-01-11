@@ -59,6 +59,7 @@ type project_var = Projection.project_var
 type specialised_to = {
   var : Variable.t;
   projection : Projection.t option;
+  kind : Lambda.value_kind;
 }
 
 type t =
@@ -187,11 +188,15 @@ module Int = Numbers.Int
 
 let print_specialised_to ppf (spec_to : specialised_to) =
   match spec_to.projection with
-  | None -> fprintf ppf "%a" Variable.print spec_to.var
+  | None ->
+    fprintf ppf "%a[%a]"
+      Variable.print spec_to.var
+      Printlambda.value_kind spec_to.kind
   | Some projection ->
-    fprintf ppf "%a(= %a)"
+    fprintf ppf "%a(= %a)[%a]"
       Variable.print spec_to.var
       Projection.print projection
+      Printlambda.value_kind spec_to.kind
 
 (* CR-soon mshinwell: delete uses of old names *)
 let print_project_var = Projection.print_project_var
@@ -1316,6 +1321,7 @@ let equal_specialised_to (spec_to1 : specialised_to)
       | Some _, None | None, Some _ -> false
       | Some proj1, Some proj2 -> Projection.equal proj1 proj2
     end
+    && Lambda.equal_value_kind spec_to1.kind spec_to2.kind
 
 let compare_project_var = Projection.compare_project_var
 let compare_project_closure = Projection.compare_project_closure

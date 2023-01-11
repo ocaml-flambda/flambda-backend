@@ -68,9 +68,18 @@ let add_closure_offsets
     let map = Var_within_closure.Map.add var_within_closure pos map in
     (map, pos + 1)
   in
+  let gc_invisible_free_vars, gc_visible_free_vars =
+    Variable.Map.partition (fun _ (free_var : Flambda.specialised_to) ->
+        Lambda.equal_value_kind free_var.kind Pintval)
+      free_vars
+  in
+  let free_variable_offsets, free_variable_pos =
+    Variable.Map.fold assign_free_variable_offset
+      gc_invisible_free_vars (free_variable_offsets, free_variable_pos)
+  in
   let free_variable_offsets, _ =
     Variable.Map.fold assign_free_variable_offset
-      free_vars (free_variable_offsets, free_variable_pos)
+      gc_visible_free_vars (free_variable_offsets, free_variable_pos)
   in
   { function_offsets;
     free_variable_offsets;

@@ -104,6 +104,7 @@ let run ~env ~(set_of_closures : Flambda.set_of_closures) =
                    "new inner" and a fresh "new outer" var, since we know
                    the definition is not a duplicate. *)
                 let projecting_from = Projection.projecting_from projection in
+                let kind = (Variable.Map.find projecting_from set_of_closures.free_vars).kind in
                 let new_inner_var = Variable.rename projecting_from in
                 let new_outer_var = Variable.rename projecting_from in
                 let definitions_indexed_by_new_inner_vars =
@@ -117,6 +118,7 @@ let run ~env ~(set_of_closures : Flambda.set_of_closures) =
                 let new_outer_var : Flambda.specialised_to =
                   { var = new_outer_var;
                     projection = Some projection;
+                    kind;
                   }
                 in
                 let additional_free_vars =
