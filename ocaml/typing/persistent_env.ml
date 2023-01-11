@@ -352,6 +352,7 @@ let read_as_parameter penv val_of_pers_sig modname =
       Some psig
   | None -> None
 
+(* CR mshinwell: delete this having moved to 4.14 build compilers *)
 module Array = struct
   include Array
 

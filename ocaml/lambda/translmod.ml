@@ -929,28 +929,19 @@ let required_globals ~flambda body =
   Translprim.clear_used_primitives ();
   required
 
-let transl_functorized_implementation ~scopes module_id impl =
-  let transl_impl cc path impl =
-    match impl.structure with
-      Timpl_structure str ->
-        transl_struct ~scopes Loc_unknown [] cc
-          (global_path module_id) str
-    | Timpl_functor (_, _) ->
-        let params, body = extract_impl_functor_components impl in
-        compile_functor ~scopes params body cc path Loc_unknown, 1
-  in
-  transl_impl impl.coercion (global_path module_id) impl
-
-let wrap_functorized_implementation impl (code, size) =
-  match impl.structure with
-    Timpl_structure _ -> code, size
-  | Timpl_functor (_, _) ->
-      Lprim(Pmakeblock(0, Immutable, None, Lambda.alloc_heap),
-            [ code ],
-            Loc_unknown),
-      1
-
 (* Compile an implementation *)
+
+
+let transl_implementation_module ~scopes module_id impl =
+  let cc = impl.coercion in
+  let path = global_path module_id in
+  match impl.structure with
+    Timpl_structure str ->
+      transl_struct ~scopes Loc_unknown [] cc
+        (global_path module_id) str
+  | Timpl_functor (_, _) ->
+      let params, body = extract_impl_functor_components impl in
+      compile_functor ~scopes params body cc path Loc_unknown, 1
 
 let transl_implementation_flambda compilation_unit impl =
   reset_labels ();
@@ -961,8 +952,17 @@ let transl_implementation_flambda compilation_unit impl =
   let body, size =
     Translobj.transl_label_init (fun () ->
       let body, size =
-        transl_functorized_implementation ~scopes compilation_unit impl
-        |> wrap_functorized_implementation impl
+        transl_implementation_module ~scopes compilation_unit impl
+      in
+      (* A compilation unit must ultimately be a struct, so wrap a functor up *)
+      let body, size =
+        match impl.structure with
+          Timpl_structure _ -> body, size
+        | Timpl_functor (_, _) ->
+            Lprim(Pmakeblock(0, Immutable, None, Lambda.alloc_heap),
+                  [ body ],
+                  Loc_unknown),
+            1
       in Translcore.declare_probe_handlers body, size)
   in
   { compilation_unit;
@@ -1543,6 +1543,7 @@ let transl_store_gen_init () =
   Translprim.clear_used_primitives ()
 
 let transl_store_structure_gen ~scopes module_name ({ str_items = str }, restr) topl =
+  transl_store_gen_init ();
   let (map, prims, aliases, size) =
     build_ident_map restr (defined_idents str) (more_idents str) in
   let f str =
@@ -1560,17 +1561,17 @@ let transl_store_structure_gen ~scopes module_name ({ str_items = str }, restr) 
   transl_store_label_init module_name size f str
   (*size, transl_label_init (transl_store_structure module_id map prims str)*)
 
-let transl_store_functorized_implementation ~scopes module_id impl =
+let transl_store_functor_gen ~scopes module_id impl =
+  (* We can't do any better here, so fall back to computing the whole functor
+     module and setting a single field to it. *)
+  transl_store_gen_init ();
   let code, i =
-    transl_functorized_implementation ~scopes module_id impl in
-  let body_id = Ident.create_local "*unit-body*" in
+    transl_implementation_module ~scopes module_id impl in
+  (* CR lmaurer: I'm 99% convinced this should be 1, not [i], since it's the
+     size of the module block. *)
   i,
-  Llet (Strict, Pgenval, body_id, code,
-        Lsequence (Lprim(Psetfield(0, Pointer, Root_initialization),
-                         [Lprim(Pgetglobal module_id, [], Loc_unknown);
-                          Lvar body_id],
-                         Loc_unknown),
-                   lambda_unit))
+  Lprim(Psetfield(0, Pointer, Root_initialization),
+        [Lprim(Pgetglobal module_id, [], Loc_unknown); code], Loc_unknown)
 
 let transl_store_phrases module_name str =
   transl_store_gen_init ();
@@ -1585,7 +1586,7 @@ let transl_store_gen module_name impl topl =
   match impl.structure with
     Timpl_structure str -> transl_store_structure_gen module_name (str, restr) topl
   | Timpl_functor _ ->
-      transl_store_functorized_implementation module_name impl
+      transl_store_functor_gen module_name impl
 
 let transl_store_implementation compilation_unit impl =
   let s = !transl_store_subst in

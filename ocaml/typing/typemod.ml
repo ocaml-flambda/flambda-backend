@@ -3144,42 +3144,37 @@ let () =
   type_module_type_of_fwd := type_module_type_of
 
 
+(* Common code for interface and implementation files *)
+
+let type_compilation_unit_params env loc param_names =
+  List.fold_right (fun param_name (params, env) ->
+    match param_name with
+    | "()" -> Types.Unit :: params, env
+    | _ ->
+        let param = param_name |> Compilation_unit.Name.of_string in
+        let mty = Env.read_as_parameter loc param in
+        let scope = Ctype.create_scope () in
+        let mty = Mtype.scrape_for_functor_arg env mty in
+        let id, newenv =
+          Env.enter_module
+            ~scope ~arg:true param_name Mp_present mty env
+        in
+        Types.Named (Some id, mty) :: params, newenv)
+  param_names ([], env)
+
+
 (* Typecheck an implementation file *)
 
-let type_implementation_params_and_body env ast loc = function
-    [] ->
-      let str, sg, names, shape, finalenv =
-        type_implementation_structure false env ast in
-      Timpl_structure str,
-      Unit_signature sg,
-      names,
-      shape,
-      finalenv
-  | param_names ->
-      let params, newenv =
-        List.fold_right (fun param_name (params, env) ->
-          match param_name with
-            | "()" ->
-                Types.Unit :: params, env
-            | _ ->
-                let param = param_name |> Compilation_unit.Name.of_string in
-                let mty = Env.read_as_parameter loc param in
-                let scope = Ctype.create_scope () in
-                let mty = Mtype.scrape_for_functor_arg env mty in
-                let id, newenv =
-                  Env.enter_module
-                    ~scope ~arg:true param_name Mp_present mty env
-                in
-                Types.Named (Some id, mty) :: params, newenv)
-          param_names ([], env)
-      in
-      let body, sg, names, shape, finalenv =
-        type_implementation_structure true newenv ast in
-      Timpl_functor (params, body),
-      Unit_functor (params, sg),
-      names,
-      shape,
-      finalenv
+let type_implementation_params_and_body env ast loc param_names =
+  let params, newenv = type_compilation_unit_params env loc param_names in
+  let is_functor = params <> [] in
+  let body, sg, names, shape, finalenv =
+    type_implementation_structure is_functor newenv ast in
+  let desc, unit_type =
+    if is_functor then Timpl_functor (params, body), Unit_functor (params, sg)
+    else Timpl_structure body, Unit_signature sg
+  in
+  desc, unit_type, names, shape, finalenv
 
 let gen_annot outputprefix sourcefile annots =
   Cmt2annot.gen_annot (Some (outputprefix ^ ".annot"))
@@ -3325,55 +3320,28 @@ let save_signature modname tsg outputprefix source_file initial_env cmi =
   Cmt_format.save_cmt  (outputprefix ^ ".cmti") modname
     (Cmt_format.Interface tsg) (Some source_file) initial_env (Some cmi) None
 
-let transl_interface env ast param_names =
-  let loc = Location.none in
-  (* CR lmaurer: Refactor this and [type_implementation_params_and_body] *)
-  match param_names with
-    [] ->
-      let sg = transl_signature env ast in
-      { tintf_desc = Tintf_signature sg;
-        tintf_type = Unit_signature sg.sig_type;
-        tintf_env = env;
-      }
-  | _ ->
-      let params, newenv, _ =
-        List.fold_right
-          (fun param_name (params, env, subst) ->
-            match param_name with
-              | "()" -> Types.Unit :: params, env, subst
-              | _ ->
-                  let id_pers = Ident.create_persistent param_name in
-                  let param = param_name |> Compilation_unit.Name.of_string in
-                  let mty = Env.read_as_parameter loc param in
-                  let scope = Ctype.create_scope () in
-                  (* CR lmaurer: Not sure about [Rescope scope] *)
-                  let mty = Subst.modtype (Rescope scope) subst mty in
-                  let mty' = Mtype.scrape_for_functor_arg env mty in
-                  let id, newenv =
-                    Env.enter_module ~scope ~arg:true param_name Mp_present mty'
-                      env in
-                  Types.Named (Some id, mty) :: params,
-                  newenv,
-                  Subst.add_module_path
-                    (Path.Pident id_pers)
-                    (Path.Pident id)
-                    subst
-          )
-          param_names ([], env, Subst.identity)
-      in
-      let body = transl_signature newenv ast in
-      { tintf_desc = Tintf_functor (params, body);
-        tintf_type = Unit_functor (params, body.sig_type);
-        tintf_env = newenv;
-      }
-
-
 let type_interface sourcefile env ast =
   if !Clflags.as_functor_parameter &&
      !Clflags.for_package <> None then
     raise (Error (Location.in_file sourcefile, env,
                   Cannot_pack_parameter sourcefile));
-  transl_interface env ast !Clflags.functor_parameters
+  let loc = Location.none in
+  let params, newenv =
+    type_compilation_unit_params env loc !Clflags.functor_parameters
+  in
+  let body = transl_signature newenv ast in
+  match params with
+    [] ->
+      { tintf_desc = Tintf_signature body;
+        tintf_type = Unit_signature body.sig_type;
+        tintf_env = newenv;
+      }
+  | _ ->
+      { tintf_desc = Tintf_functor (params, body);
+        tintf_type = Unit_functor (params, body.sig_type);
+        tintf_env = newenv;
+      }
+
 
 (* "Packaging" of several compilation units into one unit
    having them as sub-modules.  *)
