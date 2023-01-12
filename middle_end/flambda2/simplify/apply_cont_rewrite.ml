@@ -167,7 +167,8 @@ let make_rewrite rewrite ~ctx id args =
            required extra args might not be needed as argument to the
            continuation. But we want to keep the let bindings.
            [required_by_other_extra_args] tracks that dependency. It is the set
-           of free variables of [extra_args_rev] and [extra_invariant_args_rev] *)
+           of free variables of [extra_args_rev] and
+           [extra_invariant_args_rev] *)
         let extra_arg, extra_let, free_names, defined_names =
           match arg with
           | Already_in_scope simple ->
