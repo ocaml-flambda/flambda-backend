@@ -1151,7 +1151,10 @@ let fundecl fundecl =
   List.iter emit_call_bound_error !bound_error_sites;
   assert (List.length !call_gc_sites = num_call_gc);
   assert (List.length !bound_error_sites = num_check_bound);
-  `{emit_label fundecl.fun_end_label}:\n`;
+  (match Emitaux.Dwarf_helpers.record_dwarf_for_fundecl
+           ~fun_name:fundecl.fun_name fundecl.fun_dbg with
+   | None -> ()
+   | Some label -> `{emit_label label}:\n`);
   cfi_endproc();
   emit_symbol_type emit_symbol fundecl.fun_name "function";
   emit_symbol_size fundecl.fun_name;
@@ -1188,7 +1191,7 @@ let data l =
 
 (* Beginning / end of an assembly file *)
 
-let begin_assembly _unix ~init_dwarf:_ =
+let begin_assembly _unix =
   reset_debug_info();
   `	.file	\"\"\n`;  (* PR#7037 *)
   let lbl_begin = Cmm_helpers.make_symbol "data_begin" in

@@ -370,8 +370,7 @@ let run cfg_with_layout =
     fun_contains_calls;
     fun_num_stack_slots;
     fun_frame_required;
-    fun_prologue_required;
-    fun_end_label = Cmm.new_label ()
+    fun_prologue_required
   }
 
 (** debug print block as assembly *)

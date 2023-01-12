@@ -59,7 +59,6 @@ type fundecl =
     fun_num_stack_slots: int array;
     fun_frame_required: bool;
     fun_prologue_required: bool;
-    fun_end_label: label;
   }
 
 (* Invert a test *)

@@ -432,6 +432,74 @@ let reduce_heap_size ~reset =
       Gc.compact ())
   end
 
+module Dwarf_helpers = struct
+  open Dwarf_ocaml
+
+  let dwarf = ref None
+  let sourcefile_for_dwarf = ref None
+
+  let begin_dwarf ~build_asm_directives ~code_begin ~code_end ~file_emitter =
+    match !sourcefile_for_dwarf with
+    | None -> ()
+    | Some sourcefile ->
+      let asm_directives = build_asm_directives () in
+      let (module Asm_directives : Asm_targets.Asm_directives_intf.S) = asm_directives in
+      Asm_targets.Asm_label.initialize ~new_label:Cmm.new_label;
+      Asm_directives.initialize ();
+      let unit_name =
+        (* CR lmaurer: This doesn't actually need to be an [Ident.t] *)
+        Symbol.for_current_unit ()
+        |> Symbol.linkage_name
+        |> Linkage_name.to_string
+        |> Ident.create_persistent
+      in
+      let code_begin = Asm_targets.Asm_symbol.create code_begin in
+      let code_end = Asm_targets.Asm_symbol.create code_end in
+      dwarf := Some (Dwarf.create
+                       ~sourcefile
+                       ~unit_name
+                       ~asm_directives
+                       ~get_file_id:(get_file_num ~file_emitter)
+                       ~code_begin ~code_end)
+
+  let reset_dwarf () =
+    dwarf := None;
+    sourcefile_for_dwarf := None
+
+  let init ~disable_dwarf sourcefile =
+    reset_dwarf ();
+    let can_emit_dwarf =
+      !Clflags.debug
+      && not !Dwarf_flags.restrict_to_upstream_dwarf
+      && not disable_dwarf
+    in
+    match can_emit_dwarf,
+          Target_system.architecture (),
+          Target_system.derived_system () with
+    | true, X86_64, _ -> sourcefile_for_dwarf := Some sourcefile
+    | true, _, _
+    | false, _, _ -> ()
+
+  let emit_dwarf () = Option.iter Dwarf_ocaml.Dwarf.emit !dwarf
+
+  let record_dwarf_for_fundecl ~fun_name fun_dbg =
+    match !dwarf with
+    | None -> None
+    | Some dwarf ->
+      let label = Cmm.new_label () in
+      let fun_end_label =
+        Asm_targets.Asm_label.create_int Text label
+      in
+      let fundecl : Dwarf_concrete_instances.fundecl =
+        { fun_name;
+          fun_dbg;
+          fun_end_label;
+        }
+      in
+      Dwarf.dwarf_for_fundecl dwarf fundecl;
+      Some label
+end
+
 let report_error ppf = function
   | Stack_frame_too_large n ->
     Format.fprintf ppf "stack frame too large (%d bytes). \n\

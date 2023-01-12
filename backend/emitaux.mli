@@ -107,6 +107,21 @@ type error =
   | Stack_frame_too_large of int
   | Stack_frame_way_too_large of int
 
+module Dwarf_helpers : sig
+  val init: disable_dwarf:bool -> string -> unit
+
+  val begin_dwarf
+    : build_asm_directives:(unit -> (module Asm_targets.Asm_directives_intf.S))
+    -> code_begin:string
+    -> code_end:string
+    -> file_emitter:(file_num:int -> file_name:string -> unit)
+    -> unit
+
+  val emit_dwarf : unit -> unit
+
+  val record_dwarf_for_fundecl : fun_name:string -> Debuginfo.t -> Cmm.label option
+end
+
 exception Error of error
 val report_error: Format.formatter -> error -> unit
 
