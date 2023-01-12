@@ -1188,7 +1188,7 @@ let data l =
 
 (* Beginning / end of an assembly file *)
 
-let begin_assembly ~init_dwarf:_ =
+let begin_assembly _unix ~init_dwarf:_ =
   reset_debug_info();
   `	.file	\"\"\n`;  (* PR#7037 *)
   let lbl_begin = Cmm_helpers.make_symbol "data_begin" in

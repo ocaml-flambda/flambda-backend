@@ -23,7 +23,7 @@ let compile_file filename =
   end; (* otherwise, stdout *)
   let compilation_unit = "test" |> Compilation_unit.of_string in
   Compilenv.reset compilation_unit;
-  Emit.begin_assembly ~init_dwarf:(fun () -> ());
+  Emit.begin_assembly (module Unix : Compiler_owee.Unix_intf.S) ~init_dwarf:(fun () -> ());
   let ic = open_in filename in
   let lb = Lexing.from_channel ic in
   lb.Lexing.lex_curr_p <- Lexing.{ lb.lex_curr_p with pos_fname = filename };

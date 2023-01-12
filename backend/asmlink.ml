@@ -386,14 +386,14 @@ let make_startup_file unix ~ppf_dump ~named_startup_file ~filename genfns units 
     force_linking_of_startup ~ppf_dump;
   Emit.end_assembly dwarf
 
-let make_shared_startup_file ~ppf_dump genfns units =
+let make_shared_startup_file unix ~ppf_dump genfns units =
   let compile_phrase p = Asmgen.compile_phrase ~ppf_dump p in
   Location.input_name := "caml_startup";
   let shared_startup_comp_unit =
     CU.create CU.Prefix.empty (CU.Name.of_string "_shared_startup")
   in
   Compilenv.reset shared_startup_comp_unit;
-  Emit.begin_assembly ~init_dwarf:(fun () -> ());
+  Emit.begin_assembly unix ~init_dwarf:(fun () -> ());
   List.iter compile_phrase
     (Cmm_helpers.generic_functions true genfns);
   let dynunits = List.map (fun u -> Option.get u.dynunit) units in
@@ -411,8 +411,12 @@ let call_linker_shared file_list output_name =
   if not (exitcode = 0)
   then raise(Error(Linking_error exitcode))
 
-let link_shared ~ppf_dump objfiles output_name =
+let link_shared unix ~ppf_dump objfiles output_name =
   Profile.record_call output_name (fun () ->
+    if !Flambda_backend_flags.internal_assembler then
+      (* CR-soon gyorsh: workaround to turn off internal assembler temporarily,
+         until it is properly tested for shared library linking. *)
+      Emitaux.binary_backend_available := false;
     let genfns = Cmm_helpers.Generic_fns_tbl.make () in
     let ml_objfiles, units_tolink =
       List.fold_right (scan_file ~shared:true genfns) objfiles ([],[]) in
@@ -430,9 +434,12 @@ let link_shared ~ppf_dump objfiles output_name =
       ~may_reduce_heap:true
       ~ppf_dump
       (fun () ->
-         make_shared_startup_file ~ppf_dump genfns units_tolink
+         make_shared_startup_file unix ~ppf_dump genfns units_tolink
       );
     call_linker_shared (startup_obj :: objfiles) output_name;
+    if !Flambda_backend_flags.internal_assembler then
+      (* CR gyorsh: restore after workaround. *)
+      Emitaux.binary_backend_available := true;
     remove_file startup_obj
   )
 

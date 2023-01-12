@@ -169,8 +169,8 @@ let should_use_linscan fd =
   List.mem Cmm.Use_linscan_regalloc fd.Mach.fun_codegen_options
 
 let if_emit_do f x = if should_emit () then f x else ()
-let emit_begin_assembly ~init_dwarf:init_dwarf =
-  if_emit_do (fun init_dwarf -> Emit.begin_assembly ~init_dwarf) init_dwarf
+let emit_begin_assembly unix ~init_dwarf:init_dwarf =
+  if_emit_do (fun init_dwarf -> Emit.begin_assembly unix ~init_dwarf) init_dwarf
 let emit_end_assembly filename =
   if_emit_do
    (fun dwarf ->
@@ -507,13 +507,8 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) = (
   )
 
 let emit_begin_assembly_with_dwarf unix ~disable_dwarf ~emit_begin_assembly ~sourcefile () =
-  if !Flambda_backend_flags.internal_assembler then
-    (X86_proc.register_internal_assembler (Internal_assembler.assemble unix);
-    Emitaux.binary_backend_available := true;
-    Emitaux.create_asm_file := !Clflags.keep_asm_file)
-  else ();
   let no_dwarf () =
-    emit_begin_assembly ~init_dwarf:(fun () -> ());
+    emit_begin_assembly unix ~init_dwarf:(fun () -> ());
     None
   in
   let can_emit =
@@ -526,7 +521,7 @@ let emit_begin_assembly_with_dwarf unix ~disable_dwarf ~emit_begin_assembly ~sou
     let asm_directives = build_asm_directives () in
     let (module Asm_directives : Asm_targets.Asm_directives_intf.S) = asm_directives in
     let dwarf = ref None in
-    emit_begin_assembly ~init_dwarf:(fun () ->
+    emit_begin_assembly unix ~init_dwarf:(fun () ->
         Asm_targets.Asm_label.initialize ~new_label:Cmm.new_label;
         Asm_directives.initialize ();
         dwarf := Some (build_dwarf ~asm_directives sourcefile)

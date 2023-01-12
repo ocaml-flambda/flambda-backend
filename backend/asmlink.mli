@@ -21,7 +21,8 @@ open Format
 val link: (module Compiler_owee.Unix_intf.S) -> ppf_dump:formatter ->
   string list -> string -> unit
 
-val link_shared: ppf_dump:formatter -> string list -> string -> unit
+val link_shared: (module Compiler_owee.Unix_intf.S) ->
+  ppf_dump:formatter -> string list -> string -> unit
 
 val call_linker_shared: string list -> string -> unit
 

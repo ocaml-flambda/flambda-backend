@@ -103,7 +103,8 @@ val compile_unit
 val emit_begin_assembly_with_dwarf
    : (module Compiler_owee.Unix_intf.S)
   -> disable_dwarf:bool
-  -> emit_begin_assembly:(init_dwarf:(unit -> unit) -> unit)
+  -> emit_begin_assembly:((module Compiler_owee.Unix_intf.S)
+                          -> init_dwarf:(unit -> unit) -> unit)
   -> sourcefile:string
   -> unit
   -> Dwarf_ocaml.Dwarf.t option
