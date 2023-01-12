@@ -110,8 +110,8 @@ type pass =
      to unbox. For a non-recursive continuation, that means that all use sites
      of the continuation are known, but for recursive continuations, there are
      likely use sites that are not known at this point, so we only keep the
-     original decision, which does not unbox variants and closures in the
-     recursive case. *)
+     original decision and depend on the fact that we do not generate unboxing
+     decisions for variants and closures in the recursive case. *)
   | Compute_all_extra_args
 (* Last pass, after the traversal of the handler of the continuation. Thus, at
    this point, all use-sites are known, and we can compute the extra args that

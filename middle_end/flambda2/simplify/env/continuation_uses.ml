@@ -100,6 +100,9 @@ let empty_arg_maps arity : arg_types_by_use_id =
 let get_arg_types_by_use_id t =
   add_uses_to_arg_maps (empty_arg_maps t.arity) t.uses
 
+(* We want to get the arg_types_by_use_id for the invariant params only of a
+   mutually-recursive continuation group. In this case, the arguments we want
+   are a prefix of the actual argument lists. *)
 let get_arg_types_by_use_id_for_invariant_params arity l =
   List.fold_left
     (fun arg_maps t ->

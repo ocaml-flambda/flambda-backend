@@ -97,7 +97,7 @@ and non_recursive_let_cont_handler =
   }
 
 and recursive_let_cont_handlers_t0 =
-  { handlers : continuation_handlers;
+  { handlers : continuation_handlers_t0;
     body : expr
   }
 
@@ -115,10 +115,10 @@ and continuation_handler =
     is_exn_handler : bool
   }
 
-and continuation_handlers =
-  ( Bound_parameters.t,
-    continuation_handler Continuation.Map.t )
-  Name_abstraction.t
+and continuation_handlers_t0 =
+  (Bound_parameters.t, continuation_handlers) Name_abstraction.t
+
+and continuation_handlers = continuation_handler Continuation.Map.t
 
 and function_params_and_body_base =
   { expr : expr;
@@ -949,7 +949,7 @@ module Continuation_handler = struct
 end
 
 module Continuation_handlers = struct
-  type t = continuation_handler Continuation.Map.t
+  type t = continuation_handlers
 
   let to_map t = t
 
