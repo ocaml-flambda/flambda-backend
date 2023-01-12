@@ -583,13 +583,23 @@ and to_clambda_set_of_closures t env
       poll = function_decl.poll;
     }
   in
-  let funs = List.map to_clambda_function all_functions in
-  let free_vars =
-    Variable.Map.bindings (Variable.Map.map (
-      fun (free_var : Flambda.specialised_to) ->
-        subst_var env free_var.var) free_vars)
+  let functions = List.map to_clambda_function all_functions in
+  let not_scanned_fv, scanned_fv =
+    Variable.Map.partition (fun _ (free_var : Flambda.specialised_to) ->
+        Lambda.equal_value_kind free_var.kind Pintval)
+      free_vars
   in
-  Uclosure (funs, List.map snd free_vars)
+  let to_closure_args free_vars =
+    List.map snd (
+      Variable.Map.bindings (Variable.Map.map (
+          fun (free_var : Flambda.specialised_to) ->
+            subst_var env free_var.var) free_vars))
+  in
+  Uclosure {
+    functions ;
+    not_scanned_slots = to_closure_args not_scanned_fv ;
+    scanned_slots = to_closure_args scanned_fv
+  }
 
 and to_clambda_closed_set_of_closures t env symbol
       ({ function_decls; } : Flambda.set_of_closures)
