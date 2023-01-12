@@ -128,7 +128,10 @@ module Inlining = struct
       | Round round -> IH.get ~key:round !I.max_depth
       | Default opt_level -> (default_for_opt_level opt_level).max_depth
     in
-    depth * depth_scaling_factor
+    (* This computation (rather than just [depth * depth_scaling_factor]) gives
+       a bit more leeway for always-inlined functions, which reduce the depth by
+       much less than [depth_scaling_factor], to be inlined. *)
+    ((depth + 1) * depth_scaling_factor) - 1
 
   let max_rec_depth round_or_default =
     match round_or_default with
