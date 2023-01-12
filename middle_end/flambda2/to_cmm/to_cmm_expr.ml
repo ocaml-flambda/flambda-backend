@@ -427,14 +427,15 @@ and let_cont env res (let_cont : Flambda.Let_cont.t) =
         | May_inline -> let_cont_inlined env res k handler body
         | Regular -> let_cont_not_inlined env res k handler body)
   | Recursive handlers ->
-    Recursive_let_cont_handlers.pattern_match handlers ~f:(fun ~body conts ->
+    Recursive_let_cont_handlers.pattern_match handlers
+      ~f:(fun ~invariant_params ~body conts ->
         if Continuation_handlers.contains_exn_handler conts
         then
           Misc.fatal_errorf
             "Recursive continuation bindings cannot involve exception \
              handlers:@ %a"
             Let_cont.print let_cont;
-        let_cont_rec env res conts body)
+        let_cont_rec env res invariant_params conts body)
 
 (* The bound continuation [k] will be inlined. *)
 and let_cont_inlined env res k handler body =
@@ -528,7 +529,7 @@ and let_cont_exn_handler env res k body vars handler ~catch_id arity =
   in
   cmm, res
 
-and let_cont_rec env res conts body =
+and let_cont_rec env res invariant_params conts body =
   (* Flush the env now to avoid inlining something inside of a recursive
      continuation (aka a loop), as it would increase the number of times the
      computation is performed (even if there is only one syntactic
@@ -545,17 +546,23 @@ and let_cont_rec env res conts body =
           Continuation_handler.pattern_match' handler
             ~f:(fun params ~num_normal_occurrences_of_params:_ ~handler:_ ->
               List.map C.machtype_of_kinded_parameter
-                (Bound_parameters.to_list params))
+                (Bound_parameters.to_list
+                   (Bound_parameters.append invariant_params params)))
         in
         snd (Env.add_jump_cont acc k ~param_types:continuation_arg_tys))
       conts_to_handlers env
   in
+  (* Generate variables for the invariant params *)
+  let env, invariant_vars = C.bound_parameters env invariant_params in
   (* Translate each continuation handler *)
   let conts_to_handlers, res =
     Continuation.Map.fold
       (fun k handler (conts_to_handlers, res) ->
         let vars, _arity, handler, res = continuation_handler env res handler in
-        Continuation.Map.add k (vars, handler) conts_to_handlers, res)
+        ( Continuation.Map.add k
+            (invariant_vars @ vars, handler)
+            conts_to_handlers,
+          res ))
       conts_to_handlers
       (Continuation.Map.empty, res)
   in

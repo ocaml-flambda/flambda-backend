@@ -20,7 +20,6 @@
 
 type result = private
   { handler_env : Downwards_env.t;
-    arg_types_by_use_id : Continuation_uses.arg_types_by_use_id;
     extra_params_and_args : Continuation_extra_params_and_args.t;
     is_single_inlinable_use : bool;
     escapes : bool
@@ -28,9 +27,9 @@ type result = private
 
 val compute_handler_env :
   ?cut_after:Scope.t ->
-  Continuation_uses.t ->
+  One_continuation_use.t list ->
+  is_recursive:bool ->
   env_at_fork:Downwards_env.t ->
   consts_lifted_during_body:Lifted_constant_state.t ->
   params:Bound_parameters.t ->
-  code_age_relation_after_body:Code_age_relation.t ->
   result
