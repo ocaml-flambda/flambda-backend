@@ -141,7 +141,10 @@ let get_unit_info comp_unit =
   (* If this fails, it likely means that someone didn't call
      [CU.which_cmx_file]. *)
   assert (CU.can_access_cmx_file comp_unit ~accessed_by:current_unit.ui_unit);
-  if CU.equal comp_unit current_unit.ui_unit
+  (* CR lmaurer: Surely this should just compare [comp_unit] to
+     [current_unit.ui_unit], but doing so seems to break Closure. We should fix
+     that. *)
+  if CU.Name.equal (CU.name comp_unit) (CU.name current_unit.ui_unit)
   then
     Some current_unit
   else begin
