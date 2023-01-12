@@ -54,27 +54,9 @@ module List = struct
     | _, _, _ -> invalid_arg "List.fold_left3"
 end
 
-let make_do_not_unbox_decisions params : Decisions.t =
-  let decisions =
-    List.map
-      (fun param -> param, U.Do_not_unbox Unboxing_not_requested)
-      (Bound_parameters.to_list params)
-  in
-  { decisions; rewrite_ids_seen = Apply_cont_rewrite_id.Set.empty }
-
-type continuation_arg_types =
-  | Recursive
-  | Non_recursive of Continuation_uses.arg_types_by_use_id
-
-let make_decisions ~continuation_arg_types denv params params_types :
-    DE.t * Decisions.t =
+let make_decisions ~continuation_is_recursive ~arg_types_by_use_id denv params
+    params_types : DE.t * Decisions.t =
   let params = Bound_parameters.to_list params in
-  let continuation_is_recursive, arg_types_by_use_id =
-    match continuation_arg_types with
-    | Recursive ->
-      true, List.map (fun _ -> Apply_cont_rewrite_id.Map.empty) params
-    | Non_recursive arg_types_by_use_id -> false, arg_types_by_use_id
-  in
   let empty = Apply_cont_rewrite_id.Set.empty in
   let _, denv, rev_decisions, seen =
     List.fold_left3
@@ -84,8 +66,10 @@ let make_decisions ~continuation_arg_types denv params params_types :
            compute the necessary denv. *)
         let decision =
           Optimistic_unboxing_decision.make_optimistic_decision ~depth:0
-            ~recursive:continuation_is_recursive (DE.typing_env denv)
-            ~param_type
+            (DE.typing_env denv) ~param_type
+          |> refine_decision_based_on_arg_types_at_uses ~rewrite_ids_seen:empty
+               nth arg_type_by_use_id
+               ~pass:(Filter { recursive = continuation_is_recursive })
         in
         let decision =
           if continuation_is_recursive
@@ -97,10 +81,7 @@ let make_decisions ~continuation_arg_types denv params params_types :
                leaving the loop if the value is unused, while the benefit might
                be great most of the time. *)
             decision
-          else
-            refine_decision_based_on_arg_types_at_uses ~rewrite_ids_seen:empty
-              nth arg_type_by_use_id ~pass:Filter decision
-            |> Is_unboxing_beneficial.filter_non_beneficial_decisions
+          else Is_unboxing_beneficial.filter_non_beneficial_decisions decision
         in
         let denv =
           Build_unboxing_denv.denv_of_decision denv ~param_var:(BP.var param)

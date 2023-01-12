@@ -883,11 +883,7 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
     let handlers =
       Continuation.Map.singleton name (handler, handler_params, is_exn_handler)
     in
-    (* CR ncourant: If we could somehow detect the syntactically invariant
-       parameters here, we could be able to improve the results of [Simplify] in
-       some cases. *)
-    Let_cont_with_acc.build_recursive acc
-      ~invariant_params:Bound_parameters.empty ~handlers ~body
+    Let_cont_with_acc.build_recursive acc ~handlers ~body
 
 let close_exact_or_unknown_apply acc env
     ({ kind;
