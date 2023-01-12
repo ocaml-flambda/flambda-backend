@@ -544,3 +544,8 @@ let generate_phantom_lets t =
 let loopify_state t = t.loopify_state
 
 let set_loopify_state loopify_state t = { t with loopify_state }
+
+let with_code_age_relation code_age_relation t =
+  { t with
+    typing_env = TE.with_code_age_relation t.typing_env code_age_relation
+  }

@@ -134,10 +134,10 @@ let create_non_recursive_let_cont_without_free_names are_rebuilding cont handler
   else
     Let_cont.create_non_recursive cont handler ~body ~free_names_of_body:Unknown
 
-let create_recursive_let_cont are_rebuilding handlers ~body =
+let create_recursive_let_cont are_rebuilding ~invariant_params handlers ~body =
   if ART.do_not_rebuild_terms are_rebuilding
   then term_not_rebuilt
-  else Let_cont.create_recursive handlers ~body
+  else Let_cont.create_recursive ~invariant_params handlers ~body
 
 let create_switch are_rebuilding switch =
   if ART.do_not_rebuild_terms are_rebuilding

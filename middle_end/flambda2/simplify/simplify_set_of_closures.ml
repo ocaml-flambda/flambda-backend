@@ -172,8 +172,6 @@ let simplify_function_body context ~outer_dacc function_slot_opt
   match
     C.simplify_function_body context dacc body ~return_continuation
       ~exn_continuation ~return_arity:(Code.result_arity code)
-      ~return_cont_scope:Scope.initial
-      ~exn_cont_scope:(Scope.next Scope.initial) ~loopify_state ~params
       ~implicit_params:
         (Bound_parameters.create
            [ Bound_parameter.create my_closure
@@ -181,6 +179,7 @@ let simplify_function_body context ~outer_dacc function_slot_opt
              Bound_parameter.create my_region Flambda_kind.With_subkind.region;
              Bound_parameter.create my_depth Flambda_kind.With_subkind.rec_info
            ])
+      ~loopify_state ~params
   with
   | body, uacc ->
     let dacc_after_body = UA.creation_dacc uacc in
@@ -269,16 +268,19 @@ let compute_result_types ~is_a_functor ~return_cont_uses ~dacc_after_body
     let join =
       Join_points.compute_handler_env
         ~cut_after:(Scope.prev (DE.get_continuation_scope env_at_fork))
-        uses ~params:return_cont_params ~env_at_fork
+        (Continuation_uses.get_uses uses)
+        ~is_recursive:false ~params:return_cont_params ~env_at_fork
         ~consts_lifted_during_body:lifted_consts_this_function
-        ~code_age_relation_after_body:
-          (TE.code_age_relation (DA.typing_env dacc_after_body))
     in
     let params_and_results =
       Bound_parameters.var_set
         (Bound_parameters.append params return_cont_params)
     in
     let typing_env = DE.typing_env join.handler_env in
+    let typing_env =
+      TE.with_code_age_relation typing_env
+        (TE.code_age_relation (DA.typing_env dacc_after_body))
+    in
     let results_and_types =
       List.map
         (fun result ->
