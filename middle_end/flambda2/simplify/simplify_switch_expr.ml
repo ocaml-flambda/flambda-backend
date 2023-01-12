@@ -408,11 +408,13 @@ let simplify_switch0 dacc switch ~down_to_up =
       DA.map_flow_acc dacc
         ~f:(Flow.Acc.add_used_in_current_handler (Simple.free_names scrutinee))
   in
+  let condition_dbg =
+    DE.add_inlined_debuginfo (DA.denv dacc) (Switch.condition_dbg switch)
+  in
   down_to_up dacc
     ~rebuild:
-      (rebuild_switch ~arms
-         ~condition_dbg:(Switch.condition_dbg switch)
-         ~scrutinee ~scrutinee_ty ~dacc_before_switch)
+      (rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
+         ~dacc_before_switch)
 
 let simplify_switch ~simplify_let ~simplify_function_body dacc switch
     ~down_to_up =
