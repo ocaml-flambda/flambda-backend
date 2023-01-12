@@ -22,7 +22,6 @@ type do_not_unbox_reason =
   | Incomplete_parameter_type
   | Not_enough_information_at_use
   | Not_of_kind_value
-  | Unboxing_not_requested
 
 module Extra_param_and_args = struct
   type t =
@@ -86,7 +85,7 @@ type decisions =
   }
 
 type pass =
-  | Filter
+  | Filter of { recursive : bool }
   | Compute_all_extra_args
 
 (* Printing *)
@@ -99,7 +98,6 @@ let print_do_not_unbox_reason ppf = function
   | Not_enough_information_at_use ->
     Format.fprintf ppf "not_enough_information_at_use"
   | Not_of_kind_value -> Format.fprintf ppf "not_of_kind_value"
-  | Unboxing_not_requested -> Format.fprintf ppf "unboxing_not_requested"
 
 let rec print_decision ppf = function
   | Do_not_unbox reason ->
