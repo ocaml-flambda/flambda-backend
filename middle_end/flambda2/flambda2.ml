@@ -17,7 +17,8 @@
 (* Unlike most of the rest of Flambda 2, this file depends on ocamloptcomp,
    meaning it can call [Compilenv]. *)
 
-let get_module_info comp_unit ~cmx_name =
+let get_module_info comp_unit =
+  let cmx_name = Compilation_unit.name comp_unit in
   (* Typing information for predefined exceptions should be populated directly
      by the callee. *)
   if Compilation_unit.Name.equal cmx_name Compilation_unit.Name.predef_exn
@@ -30,7 +31,7 @@ let get_module_info comp_unit ~cmx_name =
        |> Compilation_unit.name)
   then None
   else
-    match Compilenv.get_unit_export_info comp_unit ~cmx_name with
+    match Compilenv.get_unit_export_info comp_unit with
     | None | Some (Flambda2 None) -> None
     | Some (Flambda2 (Some info)) -> Some info
     | Some (Clambda _) ->

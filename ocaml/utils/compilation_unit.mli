@@ -139,6 +139,14 @@ val is_parent : t -> child:t -> bool
     * [A.Q] _cannot_ access [F.G] (by criterion 1) or [A] (by criterion 2). *)
 val can_access_by_name : t -> accessed_by:t -> bool
 
+(** A clearer name for [can_access_by_name] when the .cmx file is what's of
+    interest. *)
+val can_access_cmx_file : t -> accessed_by:t -> bool
+
+(*_ CR-someday lmaurer: Arguably [which_cmx_file] should return a different
+  type, since "compilation unit for which we can load the .cmx" is an important
+  constraint. *)
+
 (** Determine which .cmx file to load for a given compilation unit.
     This is tricky in the case of packs.  It can be done by lining up the
     desired compilation unit's full path (i.e. pack prefix then unit name)
@@ -146,7 +154,7 @@ val can_access_by_name : t -> accessed_by:t -> bool
     diverge.
 
     This is only used for native code compilation. *)
-val which_cmx_file : t -> accessed_by:t -> Name.t
+val which_cmx_file : t -> accessed_by:t -> t
 
 (** A distinguished compilation unit for initialisation of mutable state. *)
 val dummy : t
