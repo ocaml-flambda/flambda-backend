@@ -15,6 +15,7 @@
    frame_pointers
    m32
    no_naked_pointers
+   naked_pointers_checker
    flambda
    flambda2
    no_flat_float_array
