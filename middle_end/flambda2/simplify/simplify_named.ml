@@ -85,6 +85,7 @@ let simplify_named0 dacc (bound_pattern : Bound_pattern.t) (named : Named.t)
          defining_expr ~original_defining_expr:named)
   | Prim (prim, dbg) -> (
     let bound_var = Bound_pattern.must_be_singleton bound_pattern in
+    let dbg = DE.add_inlined_debuginfo (DA.denv dacc) dbg in
     let { Simplify_primitive_result.simplified_named; try_reify; dacc } =
       Simplify_primitive.simplify_primitive dacc prim dbg ~result_var:bound_var
     in
