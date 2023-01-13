@@ -1307,7 +1307,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
       simplif_prim ~backend !Clflags.float_const_prop
                    p (close_list_approx env args) dbg
   | Lswitch(arg, sw, dbg, kind) ->
-      let fn fail =
+      let fn env fail =
         let (uarg, _) = close env arg in
         let const_index, const_actions, fconst =
           close_switch env sw.sw_consts sw.sw_numconsts fail
@@ -1327,17 +1327,18 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
 (* NB: failaction might get copied, thus it should be some Lstaticraise *)
       let fail = sw.sw_failaction in
       begin match fail with
-      | None|Some (Lstaticraise (_,_)) -> fn fail
+      | None|Some (Lstaticraise (_,_)) -> fn env fail
       | Some lamfail ->
           if
             (sw.sw_numconsts - List.length sw.sw_consts) +
             (sw.sw_numblocks - List.length sw.sw_blocks) > 1
           then
             let i = next_raise_count () in
-            let ubody,_ = fn (Some (Lstaticraise (i,[])))
+            let body_env = { env with catch_env = Int.Map.add i i catch_env } in
+            let ubody,_ = fn body_env (Some (Lstaticraise (i,[])))
             and uhandler,_ = close env lamfail in
             Ucatch (i,[],ubody,uhandler,kind),Value_unknown
-          else fn fail
+          else fn env fail
       end
   | Lstringswitch(arg,sw,d,_, kind) ->
       let uarg,_ = close env arg in
