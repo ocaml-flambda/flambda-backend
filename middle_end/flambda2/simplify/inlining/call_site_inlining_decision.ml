@@ -153,13 +153,7 @@ let might_inline dacc ~apply ~code_or_metadata ~function_type ~simplify_expr
   then
     Definition_says_inline
       { was_inline_always =
-          true
-          (* CR mshinwell: We used to have
-             "Function_decl_inlining_decision_type.has_attribute_inline
-             decision" but this seems too restrictive: it's just fine to inline
-             long chains of tiny functions. If the new behaviour proves ok, we
-             might be able to delete [has_attribute_inline], and we should
-             probably rename [was_inline_always]. *)
+          Function_decl_inlining_decision_type.has_attribute_inline decision
       }
   else if Function_decl_inlining_decision_type.cannot_be_inlined decision
   then Definition_says_not_to_inline
