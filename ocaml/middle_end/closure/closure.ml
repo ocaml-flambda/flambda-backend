@@ -769,6 +769,7 @@ type env = {
   fenv : value_approximation V.Map.t;
   mutable_vars : V.Set.t;
   kinds: value_kind V.Map.t;
+  catch_env : int Int.Map.t;
 }
 
 (* Perform an inline expansion:
@@ -975,7 +976,7 @@ let close_approx_var { fenv; cenv } id =
 let close_var env id =
   let (ulam, _app) = close_approx_var env id in ulam
 
-let rec close ({ backend; fenv; cenv ; mutable_vars; kinds } as env) lam =
+let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) lam =
   let module B = (val backend : Backend_intf.S) in
   match lam with
   | Lvar id ->
@@ -1094,7 +1095,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds } as env) lam =
           if fundesc.fun_region then alloc_heap else alloc_local
         in
         let (new_fun, approx) =
-          close { backend; fenv; cenv; mutable_vars; kinds }
+          close { backend; fenv; cenv; mutable_vars; kinds; catch_env }
           (lfunction
              ~kind
              ~return:Pgenval
@@ -1181,12 +1182,12 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds } as env) lam =
       begin match alam with
         Value_const _
            when str = Alias || is_pure ulam ->
-         close { backend; fenv = (V.Map.add id alam fenv); cenv; mutable_vars; kinds }
+         close { backend; fenv = (V.Map.add id alam fenv); cenv; mutable_vars; kinds; catch_env }
            body
       | _ ->
          let (ubody, abody) =
            close
-             { backend; fenv = (V.Map.add id alam fenv); cenv; mutable_vars; kinds }
+             { backend; fenv = (V.Map.add id alam fenv); cenv; mutable_vars; kinds; catch_env }
              body
          in
          (Ulet(Immutable, kind, VP.create id, ulam, ubody), abody)
@@ -1220,7 +1221,8 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds } as env) lam =
               fenv = fenv_body;
               cenv;
               mutable_vars;
-              kinds = kinds_body
+              kinds = kinds_body;
+              catch_env
             }
             body
         in
@@ -1247,7 +1249,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds } as env) lam =
             ((VP.create id, ulam) :: udefs, V.Map.add id approx fenv_body) in
         let (udefs, fenv_body) = clos_defs defs in
         let (ubody, approx) =
-          close { backend; fenv = fenv_body; cenv; mutable_vars; kinds } body in
+          close { backend; fenv = fenv_body; cenv; mutable_vars; kinds; catch_env } body in
         (Uletrec(udefs, ubody), approx)
       end
   (* Compile-time constants *)
@@ -1305,7 +1307,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds } as env) lam =
       simplif_prim ~backend !Clflags.float_const_prop
                    p (close_list_approx env args) dbg
   | Lswitch(arg, sw, dbg, kind) ->
-      let fn fail =
+      let fn env fail =
         let (uarg, _) = close env arg in
         let const_index, const_actions, fconst =
           close_switch env sw.sw_consts sw.sw_numconsts fail
@@ -1325,17 +1327,18 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds } as env) lam =
 (* NB: failaction might get copied, thus it should be some Lstaticraise *)
       let fail = sw.sw_failaction in
       begin match fail with
-      | None|Some (Lstaticraise (_,_)) -> fn fail
+      | None|Some (Lstaticraise (_,_)) -> fn env fail
       | Some lamfail ->
           if
             (sw.sw_numconsts - List.length sw.sw_consts) +
             (sw.sw_numblocks - List.length sw.sw_blocks) > 1
           then
             let i = next_raise_count () in
-            let ubody,_ = fn (Some (Lstaticraise (i,[])))
+            let body_env = { env with catch_env = Int.Map.add i i catch_env } in
+            let ubody,_ = fn body_env (Some (Lstaticraise (i,[])))
             and uhandler,_ = close env lamfail in
             Ucatch (i,[],ubody,uhandler,kind),Value_unknown
-          else fn fail
+          else fn env fail
       end
   | Lstringswitch(arg,sw,d,_, kind) ->
       let uarg,_ = close env arg in
@@ -1352,15 +1355,23 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds } as env) lam =
             ud) d in
       Ustringswitch (uarg,usw,ud,kind),Value_unknown
   | Lstaticraise (i, args) ->
-      (Ustaticfail (i, close_list env args), Value_unknown)
+      let new_i =
+        match Int.Map.find i catch_env with
+        | new_i -> new_i
+        | exception Not_found ->
+          Misc.fatal_errorf "Static raise %d out of the scope of its handler" i
+      in
+      (Ustaticfail (new_i, close_list env args), Value_unknown)
   | Lstaticcatch(body, (i, vars), handler, kind) ->
-      let (ubody, _) = close env body in
+      let new_i = Lambda.next_raise_count () in
+      let body_env = { env with catch_env = Int.Map.add i new_i catch_env } in
+      let (ubody, _) = close body_env body in
       let kinds =
         List.fold_left (fun kinds (var, k) -> V.Map.add var k kinds) kinds vars
       in
       let (uhandler, _) = close { env with kinds } handler in
       let vars = List.map (fun (var, k) -> VP.create var, k) vars in
-      (Ucatch(i, vars, ubody, uhandler, kind), Value_unknown)
+      (Ucatch(new_i, vars, ubody, uhandler, kind), Value_unknown)
   | Ltrywith(body, id, handler, kind) ->
       let (ubody, _) = close env body in
       let (uhandler, _) =
@@ -1424,7 +1435,7 @@ and close_named env id = function
 
 (* Build a shared closure for a set of mutually recursive functions *)
 
-and close_functions { backend; fenv; cenv; mutable_vars; kinds } fun_defs =
+and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_defs =
   let fun_defs =
     List.flatten
       (List.map
@@ -1529,7 +1540,8 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds } fun_defs =
           fenv = fenv_rec;
           cenv = cenv_body;
           mutable_vars;
-          kinds = kinds_body
+          kinds = kinds_body;
+          catch_env
         }
         body
     in
@@ -1606,7 +1618,7 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds } fun_defs =
   let (clos, infos) = List.split clos_info_list in
   let not_scanned_fv, scanned_fv =
     if !useless_env then [], [] else not_scanned_fv, scanned_fv in
-  let env = { backend; fenv; cenv; mutable_vars; kinds } in
+  let env = { backend; fenv; cenv; mutable_vars; kinds; catch_env } in
   (Uclosure {
       functions = clos ;
       not_scanned_slots = List.map (close_var env) not_scanned_fv ;
@@ -1752,7 +1764,7 @@ let intro ~backend ~size lam =
   let (ulam, _approx) =
     close { backend; fenv = V.Map.empty;
             cenv = V.Map.empty; mutable_vars = V.Set.empty;
-            kinds = V.Map.empty } lam
+            kinds = V.Map.empty; catch_env = Int.Map.empty } lam
   in
   let opaque =
     !Clflags.opaque
