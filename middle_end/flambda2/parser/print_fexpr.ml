@@ -439,7 +439,7 @@ let unop ppf u =
   | String_length String -> str "%string_length"
   | Unbox_number bk -> box_or_unbox "unbox" bk
   | Untag_immediate -> str "%untag_imm"
-  | Tag_immediate -> str "%tag_imm"
+  | Tag_immediate -> str "%Tag_imm"
 
 let ternop ppf t a1 a2 a3 =
   match t with

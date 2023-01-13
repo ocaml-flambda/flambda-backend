@@ -85,7 +85,8 @@ let load_file ppf name0 =
       if Filename.check_suffix name ".cmx" || Filename.check_suffix name ".cmxa"
       then
         let cmxs = Filename.temp_file "caml" ".cmxs" in
-        Asmlink.link_shared ~ppf_dump:ppf [name] cmxs;
+        Asmlink.link_shared (module Unix : Compiler_owee.Unix_intf.S)
+          ~ppf_dump:ppf [name] cmxs;
         cmxs,true
       else
         name,false

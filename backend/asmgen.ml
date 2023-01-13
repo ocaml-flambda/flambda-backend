@@ -23,8 +23,6 @@ open Clflags
 open Misc
 open Cmm
 
-open Dwarf_ocaml
-
 module String = Misc.Stdlib.String
 
 type error =
@@ -169,37 +167,23 @@ let should_use_linscan fd =
   List.mem Cmm.Use_linscan_regalloc fd.Mach.fun_codegen_options
 
 let if_emit_do f x = if should_emit () then f x else ()
-let emit_begin_assembly ~init_dwarf:init_dwarf =
-  if_emit_do (fun init_dwarf -> Emit.begin_assembly ~init_dwarf) init_dwarf
-let emit_end_assembly filename =
-  if_emit_do
-   (fun dwarf ->
-     try
-       Emit.end_assembly dwarf
+let emit_begin_assembly unix = if_emit_do Emit.begin_assembly unix
+let emit_end_assembly filename () =
+  if_emit_do (fun () ->
+    try Emit.end_assembly ()
      with Emitaux.Error e ->
        raise (Error (Asm_generation(filename, e))))
+    ()
 
-let emit_data = if_emit_do Emit.data
-let emit_fundecl ~dwarf =
+let emit_data dl = if_emit_do Emit.data dl
+let emit_fundecl f =
   if_emit_do
     (fun (fundecl : Linear.fundecl) ->
       try
-        let () = Profile.record ~accumulate:true "emit" Emit.fundecl fundecl in
-        match dwarf with
-        | None -> ()
-        | Some dwarf ->
-          let fun_end_label =
-            Asm_targets.Asm_label.create_int Text fundecl.fun_end_label
-          in
-          let fundecl : Dwarf_concrete_instances.fundecl =
-            { fun_name = fundecl.fun_name;
-              fun_dbg = fundecl.fun_dbg;
-              fun_end_label;
-            }
-          in
-          Dwarf.dwarf_for_fundecl dwarf fundecl
+        Profile.record ~accumulate:true "emit" Emit.fundecl fundecl
     with Emitaux.Error e ->
       raise (Error (Asm_generation(fundecl.Linear.fun_name, e))))
+    f
 
 let rec regalloc ~ppf_dump round fd =
   if round > 50 then
@@ -276,7 +260,7 @@ let register_allocator : register_allocator =
     | "" | "upstream" -> Upstream
     | _ -> Misc.fatal_errorf "unknown register allocator %S" id
 
-let compile_fundecl ?dwarf ~ppf_dump ~funcnames fd_cmm =
+let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   Proc.init ();
   Reg.reset();
   fd_cmm
@@ -318,6 +302,7 @@ let compile_fundecl ?dwarf ~ppf_dump ~funcnames fd_cmm =
         ++ Cfg_with_liveness.cfg_with_layout
         ++ Profile.record ~accumulate:true "cfg_validate_description" (Cfg_regalloc_validate.run cfg_description)
         ++ Profile.record ~accumulate:true "cfg_simplify" Cfg_regalloc_utils.simplify_cfg
+        ++ Profile.record ~accumulate:true "save_cfg" save_cfg
         ++ Profile.record ~accumulate:true "cfg_reorder_blocks"
              (reorder_blocks_random ppf_dump)
         ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run)
@@ -362,14 +347,14 @@ let compile_fundecl ?dwarf ~ppf_dump ~funcnames fd_cmm =
   ++ Profile.record ~accumulate:true "scheduling" Scheduling.fundecl
   ++ pass_dump_linear_if ppf_dump dump_scheduling "After instruction scheduling"
   ++ Profile.record ~accumulate:true "save_linear" save_linear
-  ++ Profile.record ~accumulate:true "emit_fundecl" (emit_fundecl ~dwarf)
+  ++ Profile.record ~accumulate:true "emit_fundecl" emit_fundecl
 
 let compile_data dl =
   dl
   ++ save_data
   ++ emit_data
 
-let compile_phrases ?dwarf ~ppf_dump ps =
+let compile_phrases ~ppf_dump ps =
     let funcnames =
       List.fold_left (fun s p ->
           match p with
@@ -384,7 +369,7 @@ let compile_phrases ?dwarf ~ppf_dump ps =
           if !dump_cmm then fprintf ppf_dump "%a@." Printcmm.phrase p;
           match p with
           | Cfunction fd ->
-            compile_fundecl ?dwarf ~ppf_dump ~funcnames fd;
+            compile_fundecl ~ppf_dump ~funcnames fd;
             compile ~funcnames:(String.Set.remove fd.fun_name funcnames) ps
           | Cdata dl ->
             compile_data dl;
@@ -392,16 +377,16 @@ let compile_phrases ?dwarf ~ppf_dump ps =
     in
     compile ~funcnames ps
 
-let compile_phrase ?dwarf ~ppf_dump p =
-  compile_phrases ?dwarf ~ppf_dump [p]
+let compile_phrase ~ppf_dump p =
+  compile_phrases ~ppf_dump [p]
 
 (* For the native toplevel: generates generic functions unless
    they are already available in the process *)
-let compile_genfuns ?dwarf ~ppf_dump f =
+let compile_genfuns ~ppf_dump f =
   List.iter
     (function
        | (Cfunction {fun_name = name}) as ph when f name ->
-           compile_phrase ?dwarf ~ppf_dump ph
+           compile_phrase ~ppf_dump ph
        | _ -> ())
     (Cmm_helpers.generic_functions true
        (Cmm_helpers.Generic_fns_tbl.of_fns
@@ -446,103 +431,12 @@ let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename ~may_reduc
        if create_asm && not keep_asm then remove_file asm_filename
     )
 
-let build_dwarf ~asm_directives:(module Asm_directives : Asm_targets.Asm_directives_intf.S) sourcefile =
-  let unit_name =
-    (* CR lmaurer: This doesn't actually need to be an [Ident.t] *)
-    Symbol.for_current_unit ()
-    |> Symbol.linkage_name
-    |> Linkage_name.to_string
-    |> Ident.create_persistent
-  in
-  let code_begin =
-    Cmm_helpers.make_symbol "code_begin" |> Asm_targets.Asm_symbol.create
-  in
-  let code_end =
-    Cmm_helpers.make_symbol "code_end" |> Asm_targets.Asm_symbol.create
-  in
-  Dwarf.create
-    ~sourcefile
-    ~unit_name
-    ~asm_directives:(module Asm_directives)
-    ~get_file_id:(Emitaux.get_file_num ~file_emitter:X86_dsl.D.file)
-    ~code_begin ~code_end
-
-let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) = (
-    module Asm_targets.Asm_directives.Make(struct
-
-      let emit_line str = X86_dsl.D.comment str
-
-      let get_file_num file_name =
-        Emitaux.get_file_num ~file_emitter:X86_dsl.D.file file_name
-
-      let debugging_comments_in_asm_files =
-        !Flambda_backend_flags.dasm_comments
-
-      module D = struct
-        open X86_ast
-
-        include X86_dsl.D
-
-        type data_type =
-          | NONE | DWORD | QWORD
-
-        type nonrec constant = constant
-        let const_int64 num = Const num
-        let const_label str = ConstLabel str
-        let const_add c1 c2 = ConstAdd (c1, c2)
-        let const_sub c1 c2 = ConstSub (c1, c2)
-
-        let label ?data_type str =
-          let typ =
-            Option.map
-              (function
-                | NONE -> X86_ast.NONE
-                | DWORD -> X86_ast.DWORD
-                | QWORD -> X86_ast.QWORD)
-              data_type
-          in
-          label ?typ str
-      end
-    end)
-  )
-
-let emit_begin_assembly_with_dwarf unix ~disable_dwarf ~emit_begin_assembly ~sourcefile () =
-  if !Flambda_backend_flags.internal_assembler then
-    (X86_proc.register_internal_assembler (Internal_assembler.assemble unix);
-    Emitaux.binary_backend_available := true;
-    Emitaux.create_asm_file := !Clflags.keep_asm_file)
-  else ();
-  let no_dwarf () =
-    emit_begin_assembly ~init_dwarf:(fun () -> ());
-    None
-  in
-  let can_emit =
-    !Clflags.debug
-    && not !Dwarf_flags.restrict_to_upstream_dwarf
-    && not disable_dwarf
-  in
-  match can_emit, Target_system.architecture (), Target_system.derived_system () with
-  | true, X86_64, _ ->
-    let asm_directives = build_asm_directives () in
-    let (module Asm_directives : Asm_targets.Asm_directives_intf.S) = asm_directives in
-    let dwarf = ref None in
-    emit_begin_assembly ~init_dwarf:(fun () ->
-        Asm_targets.Asm_label.initialize ~new_label:Cmm.new_label;
-        Asm_directives.initialize ();
-        dwarf := Some (build_dwarf ~asm_directives sourcefile)
-    );
-    !dwarf
-  | true, _, _ -> no_dwarf ()
-  | false, _, _ -> no_dwarf ()
-
 let end_gen_implementation0 unix ?toplevel ~ppf_dump ~sourcefile make_cmm =
-  let dwarf =
-    emit_begin_assembly_with_dwarf unix ~disable_dwarf:false ~emit_begin_assembly
-      ~sourcefile ()
-  in
+  Emitaux.Dwarf_helpers.init ~disable_dwarf:false sourcefile;
+  emit_begin_assembly unix;
   make_cmm ()
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cmm
-  ++ Profile.record "compile_phrases" (compile_phrases ?dwarf ~ppf_dump)
+  ++ Profile.record "compile_phrases" (compile_phrases ~ppf_dump)
   ++ (fun () -> ());
   (match toplevel with None -> () | Some f -> compile_genfuns ~ppf_dump f);
   (* We add explicit references to external primitive symbols.  This
@@ -550,13 +444,13 @@ let end_gen_implementation0 unix ?toplevel ~ppf_dump ~sourcefile make_cmm =
      when part of a C library, won't be discarded by the linker.
      This is important if a module that uses such a symbol is later
      dynlinked. *)
-  compile_phrase ~ppf_dump ?dwarf
+  compile_phrase ~ppf_dump
     (Cmm_helpers.reference_symbols
        (List.filter_map (fun prim ->
            if not (Primitive.native_name_is_external prim) then None
            else Some (Primitive.native_name prim))
           !Translmod.primitive_declarations));
-  emit_end_assembly sourcefile dwarf
+  emit_end_assembly sourcefile ()
 
 let end_gen_implementation unix ?toplevel ~ppf_dump ~sourcefile clambda =
   end_gen_implementation0 unix ?toplevel ~ppf_dump ~sourcefile (fun () ->
@@ -617,17 +511,15 @@ let linear_gen_implementation unix filename =
   in
   if not (Compilation_unit.Prefix.equal current_package saved_package)
   then raise(Error(Mismatched_for_pack saved_package));
-  let emit_item ~dwarf = function
+  let emit_item = function
     | Data dl -> emit_data dl
-    | Func f -> emit_fundecl ~dwarf f
+    | Func f -> emit_fundecl f
   in
   start_from_emit := true;
-  let dwarf =
-    emit_begin_assembly_with_dwarf unix ~disable_dwarf:false
-      ~emit_begin_assembly ~sourcefile:filename ()
-  in
-  Profile.record "Emit" (List.iter (emit_item ~dwarf)) linear_unit_info.items;
-  emit_end_assembly filename dwarf
+  Emitaux.Dwarf_helpers.init ~disable_dwarf:false filename;
+  emit_begin_assembly unix;
+  Profile.record "Emit" (List.iter emit_item) linear_unit_info.items;
+  emit_end_assembly filename ()
 
 let compile_implementation_linear unix output_prefix ~progname =
   compile_unit ~may_reduce_heap:true ~output_prefix

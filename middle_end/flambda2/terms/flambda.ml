@@ -64,7 +64,7 @@ and expr_descr =
   | Apply of Apply.t
   | Apply_cont of Apply_cont.t
   | Switch of Switch.t
-  | Invalid of invalid
+  | Invalid of { message : string }
 
 and let_expr_t0 =
   { num_normal_occurrences_of_bound_vars : Num_occurrences.t Variable.Map.t;
@@ -135,21 +135,6 @@ and static_const_or_code =
 
 and static_const_group = static_const_or_code list
 
-and invalid =
-  (* Note that continuations and other names defined here may reference dead
-     code and have been eliminated, as the free names of an invalid term are
-     empty. *)
-  | Body_of_unreachable_continuation of Continuation.t
-  | Apply_cont_of_unreachable_continuation of Continuation.t
-  | Defining_expr_of_let of Bound_pattern.t * named
-  | Closure_type_was_invalid of Apply_expr.t
-  | Zero_switch_arms
-  | Code_not_rebuilt
-  | To_cmm_dummy_body
-  | Application_never_returns of Apply_expr.t
-  | Over_application_never_returns of Apply_expr.t
-  | Message of string
-
 let rec descr expr =
   With_delayed_renaming.descr expr
     ~apply_renaming_descr:apply_renaming_expr_descr
@@ -173,9 +158,7 @@ and apply_renaming_expr_descr t renaming =
   | Switch switch ->
     let switch' = Switch.apply_renaming switch renaming in
     if switch == switch' then t else Switch switch'
-  | Invalid invalid ->
-    let invalid' = apply_renaming_invalid invalid renaming in
-    if invalid == invalid' then t else Invalid invalid'
+  | Invalid _ -> t
 
 and apply_renaming_named (named : named) renaming : named =
   match named with
@@ -339,34 +322,6 @@ and apply_renaming_static_const_group t renaming =
       apply_renaming_static_const_or_code static_const renaming)
     t
 
-and apply_renaming_invalid invalid renaming =
-  match invalid with
-  | Body_of_unreachable_continuation cont ->
-    let cont' = Renaming.apply_continuation renaming cont in
-    if cont == cont' then invalid else Body_of_unreachable_continuation cont'
-  | Apply_cont_of_unreachable_continuation cont ->
-    let cont' = Renaming.apply_continuation renaming cont in
-    if cont == cont'
-    then invalid
-    else Apply_cont_of_unreachable_continuation cont'
-  | Defining_expr_of_let (bp, named) ->
-    let bp' = Bound_pattern.apply_renaming bp renaming in
-    let named' = apply_renaming_named named renaming in
-    if bp == bp' && named == named'
-    then invalid
-    else Defining_expr_of_let (bp', named')
-  | Closure_type_was_invalid apply ->
-    let apply' = Apply.apply_renaming apply renaming in
-    if apply == apply' then invalid else Closure_type_was_invalid apply'
-  | Application_never_returns apply ->
-    let apply' = Apply.apply_renaming apply renaming in
-    if apply == apply' then invalid else Application_never_returns apply'
-  | Over_application_never_returns apply ->
-    let apply' = Apply.apply_renaming apply renaming in
-    if apply == apply' then invalid else Over_application_never_returns apply'
-  | Zero_switch_arms | Code_not_rebuilt | To_cmm_dummy_body | Message _ ->
-    invalid
-
 let rec ids_for_export_continuation_handler_t0
     { handler; num_normal_occurrences_of_params = _ } =
   ids_for_export handler
@@ -394,7 +349,7 @@ and ids_for_export t =
   | Apply apply -> Apply.ids_for_export apply
   | Apply_cont apply_cont -> Apply_cont.ids_for_export apply_cont
   | Switch switch -> Switch.ids_for_export switch
-  | Invalid invalid -> ids_for_export_invalid invalid
+  | Invalid _ -> Ids_for_export.empty
 
 and ids_for_export_let_expr_t0
     { body; num_normal_occurrences_of_bound_vars = _ } =
@@ -461,22 +416,6 @@ and ids_for_export_static_const_or_code t =
 
 and ids_for_export_static_const_group t =
   List.map ids_for_export_static_const_or_code t |> Ids_for_export.union_list
-
-and ids_for_export_invalid invalid =
-  match invalid with
-  | Body_of_unreachable_continuation cont
-  | Apply_cont_of_unreachable_continuation cont ->
-    Ids_for_export.singleton_continuation cont
-  | Defining_expr_of_let (bp, named) ->
-    Ids_for_export.union
-      (Bound_pattern.ids_for_export bp)
-      (ids_for_export_named named)
-  | Closure_type_was_invalid apply
-  | Application_never_returns apply
-  | Over_application_never_returns apply ->
-    Apply.ids_for_export apply
-  | Zero_switch_arms | Code_not_rebuilt | To_cmm_dummy_body | Message _ ->
-    Ids_for_export.empty
 
 type flattened_for_printing_descr =
   | Flat_code of Code_id.t * function_params_and_body Code0.t
@@ -578,9 +517,9 @@ and print ppf (t : expr) =
       Flambda_colours.pop Apply.print apply
   | Apply_cont apply_cont -> Apply_cont.print ppf apply_cont
   | Switch switch -> Switch.print ppf switch
-  | Invalid invalid ->
-    fprintf ppf "@[(%tinvalid%t@ @[<hov 1>%a@])@]"
-      Flambda_colours.invalid_keyword Flambda_colours.pop print_invalid invalid
+  | Invalid { message } ->
+    fprintf ppf "@[(%tinvalid%t@ @[<hov 1>%s@])@]"
+      Flambda_colours.invalid_keyword Flambda_colours.pop message
 
 and print_continuation_handler (recursive : Recursive.t) ppf k
     ({ cont_handler_abst = _; is_exn_handler } as t) occurrences ~first =
@@ -904,35 +843,6 @@ and print_static_const_or_code ppf static_const_or_code =
     fprintf ppf "@[<hov 1>(%tDeleted_code%t)@]" Flambda_colours.static_part
       Flambda_colours.pop
   | Static_const const -> Static_const.print ppf const
-
-and print_invalid ppf invalid =
-  match invalid with
-  | Body_of_unreachable_continuation cont ->
-    fprintf ppf "(Body_of_unreachable_continuation@ %a)" Continuation.print cont
-  | Apply_cont_of_unreachable_continuation cont ->
-    fprintf ppf "(Apply_cont_of_unreachable_continuation@ %a)"
-      Continuation.print cont
-  | Defining_expr_of_let (bound_pattern, defining_expr) ->
-    fprintf ppf
-      "@[<hov 1>(Defining_expr_of_let@ @[<hov 1>(bound_pattern@ %a)@]@ @[<hov \
-       1>(defining_expr@ %a)@])@]"
-      Bound_pattern.print bound_pattern print_named defining_expr
-  | Closure_type_was_invalid apply_expr ->
-    fprintf ppf
-      "@[<hov 1>(Closure_type_was_invalid@ @[<hov 1>(apply_expr@ %a)@])@]"
-      Apply_expr.print apply_expr
-  | Zero_switch_arms -> fprintf ppf "Zero_switch_arms"
-  | Code_not_rebuilt -> fprintf ppf "Code_not_rebuilt"
-  | To_cmm_dummy_body -> fprintf ppf "To_cmm_dummy_body"
-  | Application_never_returns apply_expr ->
-    fprintf ppf
-      "@[<hov 1>(Application_never_returns@ @[<hov 1>(apply_expr@ %a)@])@]"
-      Apply_expr.print apply_expr
-  | Over_application_never_returns apply_expr ->
-    fprintf ppf
-      "@[<hov 1>(Over_application_never_returns@ @[<hov 1>(apply_expr@ %a)@])@]"
-      Apply_expr.print apply_expr
-  | Message message -> fprintf ppf "%s" message
 
 module Continuation_handler = struct
   module T0 = struct
@@ -1470,9 +1380,48 @@ module Named = struct
 end
 
 module Invalid = struct
-  type t = invalid
+  type t =
+    | Body_of_unreachable_continuation of Continuation.t
+    | Apply_cont_of_unreachable_continuation of Continuation.t
+    | Defining_expr_of_let of Bound_pattern.t * Named.t
+    | Closure_type_was_invalid of Apply_expr.t
+    | Zero_switch_arms
+    | Code_not_rebuilt
+    | To_cmm_dummy_body
+    | Application_never_returns of Apply.t
+    | Over_application_never_returns of Apply.t
+    | Message of string
 
-  let to_string t = Format.asprintf "%a" print_invalid t
+  let to_string t =
+    match t with
+    | Body_of_unreachable_continuation cont ->
+      Format.asprintf "(Body_of_unreachable_continuation@ %a)"
+        Continuation.print cont
+    | Apply_cont_of_unreachable_continuation cont ->
+      Format.asprintf "(Apply_cont_of_unreachable_continuation@ %a)"
+        Continuation.print cont
+    | Defining_expr_of_let (bound_pattern, defining_expr) ->
+      Format.asprintf
+        "@[<hov 1>(Defining_expr_of_let@ @[<hov 1>(bound_pattern@ %a)@]@ \
+         @[<hov 1>(defining_expr@ %a)@])@]"
+        Bound_pattern.print bound_pattern Named.print defining_expr
+    | Closure_type_was_invalid apply_expr ->
+      Format.asprintf
+        "@[<hov 1>(Closure_type_was_invalid@ @[<hov 1>(apply_expr@ %a)@])@]"
+        Apply_expr.print apply_expr
+    | Zero_switch_arms -> "Zero_switch_arms"
+    | Code_not_rebuilt -> "Code_not_rebuilt"
+    | To_cmm_dummy_body -> "To_cmm_dummy_body"
+    | Application_never_returns apply_expr ->
+      Format.asprintf
+        "@[<hov 1>(Application_never_returns@ @[<hov 1>(apply_expr@ %a)@])@]"
+        Apply_expr.print apply_expr
+    | Over_application_never_returns apply_expr ->
+      Format.asprintf
+        "@[<hov 1>(Over_application_never_returns@ @[<hov 1>(apply_expr@ \
+         %a)@])@]"
+        Apply_expr.print apply_expr
+    | Message message -> message
 end
 
 module Expr = struct
@@ -1500,7 +1449,8 @@ module Expr = struct
 
   let create_switch switch = create (Switch switch)
 
-  let create_invalid reason = create (Invalid reason)
+  let create_invalid reason =
+    create (Invalid { message = Invalid.to_string reason })
 end
 
 module Let_cont_expr = struct

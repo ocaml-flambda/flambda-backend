@@ -607,7 +607,7 @@ let rec expr env e =
   | Apply app -> apply_expr env app
   | Apply_cont app_cont -> apply_cont_expr env app_cont
   | Switch switch -> switch_expr env switch
-  | Invalid invalid -> invalid_expr env invalid
+  | Invalid { message } -> invalid_expr env ~message
 
 and let_expr env le =
   Flambda.Let_expr.pattern_match le ~f:(fun bound ~body : Fexpr.expr ->
@@ -982,8 +982,7 @@ and switch_expr env switch : Fexpr.expr =
   in
   Switch { scrutinee; cases }
 
-and invalid_expr _env invalid : Fexpr.expr =
-  Invalid { message = Flambda.Invalid.to_string invalid }
+and invalid_expr _env ~message : Fexpr.expr = Invalid { message }
 
 (* Iter on all sets of closures of a given program. *)
 module Iter = struct
@@ -994,7 +993,7 @@ module Iter = struct
     | Apply e' -> apply_expr f_c f_s e'
     | Apply_cont e' -> apply_cont f_c f_s e'
     | Switch e' -> switch f_c f_s e'
-    | Invalid _ -> ()
+    | Invalid { message = _ } -> ()
 
   and named let_expr (bound_pattern : Bound_pattern.t) f_c f_s n =
     match (n : Named.t) with

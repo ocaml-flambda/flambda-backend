@@ -63,8 +63,7 @@ val get_global_export_info : Compilation_unit.t -> Cmx_format.export_info option
            .cmx file of the given unit. *)
 
 val get_unit_export_info
-  : Compilation_unit.t -> cmx_name:Compilation_unit.Name.t ->
-      Cmx_format.export_info option
+  : Compilation_unit.t -> Cmx_format.export_info option
 
 val flambda2_set_export_info : Flambda2_cmx.Flambda_cmx_format.t -> unit
         (* Set the export information for the current unit (Flambda 2 only). *)

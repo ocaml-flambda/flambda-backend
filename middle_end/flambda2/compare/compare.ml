@@ -1067,9 +1067,7 @@ let rec exprs env e1 e2 : Expr.t Comparison.t =
         apply_cont_exprs env apply_cont1 apply_cont2
         |> Comparison.map ~f:Expr.create_apply_cont
       | Switch switch1, Switch switch2 -> switch_exprs env switch1 switch2
-      | Invalid invalid1, Invalid invalid2 ->
-        let message1 = Flambda.Invalid.to_string invalid1 in
-        let message2 = Flambda.Invalid.to_string invalid2 in
+      | Invalid { message = message1 }, Invalid { message = message2 } ->
         if String.equal message1 message2
         then Equivalent
         else Different { approximant = e1 }
