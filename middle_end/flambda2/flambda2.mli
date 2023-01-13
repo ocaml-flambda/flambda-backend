@@ -28,6 +28,4 @@ val lambda_to_cmm :
   Cmm.phrase list
 
 val get_module_info :
-  Compilation_unit.t ->
-  cmx_name:Compilation_unit.Name.t ->
-  Flambda2_cmx.Flambda_cmx_format.t option
+  Compilation_unit.t -> Flambda2_cmx.Flambda_cmx_format.t option

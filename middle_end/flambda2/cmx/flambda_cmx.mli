@@ -20,11 +20,7 @@
 type loader
 
 val create_loader :
-  get_module_info:
-    (Compilation_unit.t ->
-    cmx_name:Compilation_unit.Name.t ->
-    Flambda_cmx_format.t option) ->
-  loader
+  get_module_info:(Compilation_unit.t -> Flambda_cmx_format.t option) -> loader
 
 val get_imported_names : loader -> unit -> Name.Set.t
 
