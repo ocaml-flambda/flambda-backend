@@ -41,6 +41,7 @@ module Position : sig
   type t =
     | Normal
     | Nontail
+    | Tail
 
   val equal : t -> t -> bool
 end

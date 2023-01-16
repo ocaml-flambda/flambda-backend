@@ -46,7 +46,7 @@ let print_graph ~print ~print_name ~lazy_ppf ~graph =
   | Some print_name ->
     incr dot_count;
     let ppf = Lazy.force lazy_ppf in
-    print ~ctx:!dot_count ~print_name ppf graph
+    print ~ctx:!dot_count ~print_name ppf graph [@nontail]
 
 (* analysis *)
 

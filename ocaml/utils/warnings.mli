@@ -109,6 +109,8 @@ type t =
   | Missing_mli                             (* 70 *)
   | Unused_tmc_attribute                    (* 71 *)
   | Tmc_breaks_tailcall                     (* 72 *)
+
+  | Not_a_tailcall                          (* 200 *)
 ;;
 
 type alert = {kind:string; message:string; def:loc; use:loc}

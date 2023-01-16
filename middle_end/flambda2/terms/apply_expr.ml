@@ -59,13 +59,14 @@ module Position = struct
   type t =
     | Normal
     | Nontail
+    | Tail
 
   let equal t1 t2 =
     match t1, t2 with
     | Normal, Normal -> true
-    | Normal, Nontail -> false
-    | Nontail, Normal -> false
     | Nontail, Nontail -> true
+    | Tail, Tail -> true
+    | (Normal|Nontail|Tail), _ -> false
 end
 
 type t =
@@ -125,7 +126,8 @@ let [@ocamlformat "disable"] print ppf
     (fun ppf position ->
        match position with
        | Position.Normal -> Format.pp_print_string ppf "Normal"
-       | Position.Nontail -> Format.pp_print_string ppf "Nontail")
+       | Position.Nontail -> Format.pp_print_string ppf "Nontail"
+       | Position.Tail -> Format.pp_print_string ppf "Tail")
     position
 
 let invariant

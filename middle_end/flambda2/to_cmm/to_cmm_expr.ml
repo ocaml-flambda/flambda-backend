@@ -71,11 +71,12 @@ let translate_apply0 env res apply =
   in
   let pos =
     match Apply.position apply with
-    | Normal ->
-      (* We always use [Ap_default] since the [Lambda_to_flambda] pass has
-         already taken care of the placement of region begin/end primitives. *)
-      Lambda.Ap_default
+    | Normal -> Lambda.Ap_default
     | Nontail -> Lambda.Ap_nontail
+    | Tail ->
+      (* We always use [close_region=false] since the [Lambda_to_flambda] pass has
+         already taken care of the placement of region begin/end primitives. *)
+       Lambda.Ap_tail {close_region=false}
   in
   match Apply.call_kind apply with
   | Function

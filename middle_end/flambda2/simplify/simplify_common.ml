@@ -115,6 +115,14 @@ let split_direct_over_application apply ~result_arity
        been allocated in their region). *)
     match apply_alloc_mode, contains_no_escaping_local_allocs with
     | Heap, false ->
+       begin match Apply.position apply with
+       | Nontail | Normal -> ()
+       | Tail ->
+          (* By adding the region below, we're moving a call out of
+             tail position, which is dubious. Warn about it. *)
+          Location.prerr_warning (Debuginfo.to_location (Apply.dbg apply))
+            Warnings.Not_a_tailcall
+       end;
       Some (Variable.create "over_app_region", Continuation.create ())
     | Heap, true | (Local | Heap_or_local), _ -> None
   in

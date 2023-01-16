@@ -41,6 +41,17 @@ module VP = Backend_var.With_provenance
 let no_phantom_lets () =
   Misc.fatal_error "Closure does not support phantom let generation"
 
+(* Helpers to avoid printing warnings twice (since close_functions
+   may compile functions multiple times) *)
+let already_printed_warnings : (Location.t * Warnings.t, unit) Hashtbl.t =
+  Hashtbl.create 20
+
+let print_warning ~loc warning =
+  if not (Hashtbl.mem already_printed_warnings (loc, warning)) then begin
+    Hashtbl.add already_printed_warnings (loc, warning) ();
+    Location.prerr_warning loc warning
+  end
+
 (* Auxiliaries for compiling functions *)
 
 let rec split_list n l =
@@ -1150,7 +1161,17 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
           in
           let body =
             match mode, fundesc.fun_region with
-            | Alloc_heap, false -> region body
+            | Alloc_heap, false ->
+               begin match pos with
+               | Ap_nontail | Ap_default -> ()
+               | Ap_tail _ ->
+                  (* By adding the region below, we're moving a call out of
+                     tail position, which is dubious. Warn about it. *)
+                  print_warning
+                    ~loc:(Debuginfo.Scoped_location.to_location loc)
+                    Warnings.Not_a_tailcall
+               end;
+               region body
             | _ -> body
           in
           let body =
@@ -1588,7 +1609,6 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
     let fun_params = List.map (fun (var, _) -> VP.create var) fun_params in
     if lambda_smaller ubody threshold
     then fundesc.fun_inline <- Some(fun_params, ubody);
-
     (f, (id, env_pos, Value_closure(mode, fundesc, approx))) in
   (* Translate all function definitions. *)
   let clos_info_list =
@@ -1748,6 +1768,7 @@ let collect_exported_structured_constants a =
   approx a
 
 let reset () =
+  Hashtbl.clear already_printed_warnings;
   global_approx := [||];
   function_nesting_depth := 0
 

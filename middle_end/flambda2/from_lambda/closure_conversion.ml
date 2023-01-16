@@ -949,7 +949,8 @@ let close_exact_or_unknown_apply acc env
   in
   let position =
     match apply_position with
-    | Ap_default | Ap_tail {close_region=_} -> Apply.Position.Normal
+    | Ap_default -> Apply.Position.Normal
+    | Ap_tail _ -> Apply.Position.Tail
     | Ap_nontail -> Apply.Position.Nontail
   in
   let apply =
@@ -1854,6 +1855,14 @@ let wrap_over_application acc env full_call (apply : IR.apply) over_args
   let needs_region =
     match apply.mode, contains_no_escaping_local_allocs with
     | Alloc_heap, false ->
+      begin match apply.apply_position with
+      | Ap_nontail | Ap_default -> ()
+      | Ap_tail _ ->
+         (* By adding the region below, we're moving a call out of
+            tail position, which is dubious. Warn about it. *)
+         Location.prerr_warning (Debuginfo.Scoped_location.to_location apply.loc)
+           Warnings.Not_a_tailcall
+      end;
       let over_app_region = Variable.create "over_app_region" in
       Some (over_app_region, Continuation.create ())
     | Alloc_heap, true | Alloc_local, _ -> None
