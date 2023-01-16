@@ -64,6 +64,15 @@ let remove_block t label =
   t.layout <- List.filter (fun l -> not (Label.equal l label)) t.layout;
   t.new_labels <- Label.Set.remove label t.new_labels
 
+let remove_blocks t labels_to_remove =
+  if not (Label.Set.is_empty labels_to_remove) then begin
+    Label.Set.iter
+      (fun label -> Cfg.remove_block_exn t.cfg label)
+      labels_to_remove;
+    t.layout <- List.filter (fun l -> not (Label.Set.mem l labels_to_remove)) t.layout;
+    t.new_labels <- Label.Set.diff t.new_labels labels_to_remove
+  end
+
 let add_block t (block : Cfg.basic_block) ~after =
   t.new_labels <- Label.Set.add block.start t.new_labels;
   let initial_len = List.length t.layout in
