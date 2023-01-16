@@ -47,8 +47,8 @@
 (* CR gyorsh: with the new requirement on b1 (that it cannot raise) this pass is
    even closer to eliminate_fallthrough_blocks. The only difference I think is
    that b1's body need not be empty here. *)
-let rec merge_blocks (removed : Label.Set.t) (cfg_with_layout : Cfg_with_layout.t) :
-    Label.Set.t =
+let rec merge_blocks (removed : Label.Set.t)
+    (cfg_with_layout : Cfg_with_layout.t) : Label.Set.t =
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   let new_removed =
     Label.Tbl.fold
