@@ -472,7 +472,7 @@ module Make (T : S) = struct
             spec_args_bound_in_the_wrapper;
           kind = Direct (Closure_id.wrap new_fun_var);
           dbg = Debuginfo.none;
-          reg_close = Rc_normal;
+          reg_close = Ap_default;
           mode;
           inlined = Default_inlined;
           specialise = Default_specialise;

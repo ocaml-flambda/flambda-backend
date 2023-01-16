@@ -898,7 +898,7 @@ let close_exact_or_unknown_apply acc env
        inlined;
        probe;
        mode;
-       region_close;
+       apply_position;
        region;
        return = _
      } :
@@ -948,9 +948,9 @@ let close_exact_or_unknown_apply acc env
     match probe with None -> None | Some { name } -> Some name
   in
   let position =
-    match region_close with
-    | Rc_normal | Rc_close_at_apply -> Apply.Position.Normal
-    | Rc_nontail -> Apply.Position.Nontail
+    match apply_position with
+    | Ap_default | Ap_tail {close_region=_} -> Apply.Position.Normal
+    | Ap_nontail -> Apply.Position.Nontail
   in
   let apply =
     Apply.create ~callee ~continuation:(Return continuation)
@@ -1874,9 +1874,9 @@ let wrap_over_application acc env full_call (apply : IR.apply) over_args
       match apply.probe with None -> None | Some { name } -> Some name
     in
     let position =
-      match apply.region_close with
-      | Rc_normal | Rc_close_at_apply -> Apply.Position.Normal
-      | Rc_nontail -> Apply.Position.Nontail
+      match apply.apply_position with
+      | Ap_default | Ap_tail {close_region=_} -> Apply.Position.Normal
+      | Ap_nontail -> Apply.Position.Nontail
     in
     let call_kind =
       Call_kind.indirect_function_call_unknown_arity

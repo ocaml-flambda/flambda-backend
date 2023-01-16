@@ -678,8 +678,8 @@ and simplify_apply env r ~(apply : Flambda.apply) : Flambda.t * R.t =
   } = apply in
   let r =
     match reg_close, mode with
-    | (Rc_normal | Rc_nontail), Alloc_heap -> r
-    | Rc_close_at_apply, _
+    | (Ap_default | Ap_nontail | Ap_tail {close_region=false}), Alloc_heap -> r
+    | Ap_tail {close_region=true}, _
     | _, Alloc_local -> R.set_region_use r true
   in
   let dbg = E.add_inlined_debuginfo env ~dbg in
@@ -856,8 +856,8 @@ and simplify_partial_application env r ~lhs_of_application
         args = Parameter.List.vars freshened_params;
         kind = Direct closure_id_being_applied;
         dbg;
-        reg_close = Rc_normal;
         mode = result_mode;
+        reg_close = Ap_default;
         inlined = Default_inlined;
         specialise = Default_specialise;
         probe = None;
@@ -910,14 +910,14 @@ and simplify_over_application env r ~args ~args_approxs ~function_decls
     simplify_full_application env r ~function_decls ~lhs_of_application
       ~closure_id_being_applied ~function_decl ~value_set_of_closures
       ~args:full_app_args ~args_approxs:full_app_approxs ~dbg
-      ~reg_close:Lambda.Rc_normal ~mode:mode'
+      ~reg_close:Lambda.Ap_default ~mode:mode'
       ~inlined_requested ~specialise_requested ~probe_requested:None
   in
   let func_var = Variable.create Internal_variable_names.full_apply in
   let expr : Flambda.t =
     Flambda.create_let func_var (Expr expr)
       (Apply { func = func_var; args = remaining_args; kind = Indirect; dbg;
-               reg_close = Rc_normal; mode;
+               reg_close = Ap_default; mode;
                inlined = inlined_requested; specialise = specialise_requested;
                probe = None})
   in
@@ -928,9 +928,9 @@ and simplify_over_application env r ~args ~args_approxs ~function_decls
     | _ -> expr
   in
   let expr =
-    match reg_close with
-    | Lambda.Rc_close_at_apply -> Flambda.Tail expr
-    | Lambda.Rc_normal | Lambda.Rc_nontail-> expr
+    match (reg_close : Lambda.apply_position) with
+    | Ap_tail {close_region=true} -> Flambda.Tail expr
+    | Ap_default | Ap_nontail | Ap_tail {close_region=false} -> expr
   in
   simplify (E.set_never_inline env) r expr
 

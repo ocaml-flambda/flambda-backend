@@ -115,10 +115,14 @@ and uconstant ppf = function
   | Uconst_int i -> fprintf ppf "%i" i
 
 and apply_kind ppf : apply_kind -> unit = function
-  | (Rc_normal | Rc_nontail) , Alloc_heap -> fprintf ppf "apply"
-  | Rc_close_at_apply, Alloc_heap -> fprintf ppf "apply[end_region]"
-  | (Rc_normal | Rc_nontail), Alloc_local -> fprintf ppf "apply[L]"
-  | Rc_close_at_apply, Alloc_local -> fprintf ppf "apply[end_region][L]"
+  | (Ap_default | Ap_nontail | Ap_tail {close_region=false}), Alloc_heap ->
+     fprintf ppf "apply"
+  | Ap_tail {close_region=true}, Alloc_heap ->
+     fprintf ppf "apply[end_region]"
+  | (Ap_default | Ap_nontail | Ap_tail {close_region=false}), Alloc_local ->
+     fprintf ppf "apply[L]"
+  | Ap_tail {close_region=true}, Alloc_local ->
+     fprintf ppf "apply[end_region][L]"
 
 and lam ppf = function
   | Uvar id ->
@@ -259,8 +263,8 @@ and lam ppf = function
   | Usend (k, met, obj, largs, (pos,_) , _) ->
       let form =
         match pos with
-        | Rc_normal | Rc_nontail -> "send"
-        | Rc_close_at_apply -> "send[end_region]"
+        | Ap_default | Ap_nontail | Ap_tail {close_region=false} -> "send"
+        | Ap_tail {close_region=true} -> "send[end_region]"
       in
       let args ppf largs =
         List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in

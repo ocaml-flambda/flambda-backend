@@ -129,9 +129,9 @@ let inline_by_copying_function_body ~env ~r
       body
   in
   let body =
-    match reg_close with
-    | Lambda.Rc_close_at_apply -> Flambda.Tail body
-    | Lambda.Rc_normal | Lambda.Rc_nontail -> body
+    match (reg_close : Lambda.apply_position) with
+    | Ap_tail {close_region=true} -> Flambda.Tail body
+    | Ap_default | Ap_nontail | Ap_tail {close_region=false} -> body
   in
   let bindings_for_params_to_args =
     (* Bind the function's parameters to the arguments from the call site. *)
@@ -613,7 +613,7 @@ let inline_by_copying_function_declaration
     ~(free_vars : Flambda.specialised_to Variable.Map.t)
     ~(direct_call_surrogates : Closure_id.t Closure_id.Map.t)
     ~(dbg : Debuginfo.t)
-    ~(reg_close : Lambda.region_close)
+    ~(reg_close : Lambda.apply_position)
     ~(mode : Lambda.alloc_mode)
     ~(simplify : Inlining_decision_intf.simplify) =
   let state = empty_state in

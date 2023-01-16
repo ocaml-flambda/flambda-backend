@@ -837,9 +837,9 @@ let apply_cont_with_extra_args acc env ccenv ~dbg cont traps args =
 let wrap_return_continuation acc env ccenv (apply : IR.apply) =
   let extra_args = Env.extra_args_for_continuation env apply.continuation in
   let close_early, region =
-    match apply.region_close with
-    | Rc_normal | Rc_nontail -> false, apply.region
-    | Rc_close_at_apply -> true, Env.my_region env
+    match apply.apply_position with
+    | Ap_default | Ap_nontail | Ap_tail {close_region=false} -> false, apply.region
+    | Ap_tail {close_region=true} -> true, Env.my_region env
   in
   let body acc ccenv continuation =
     match extra_args with
@@ -1066,7 +1066,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
       { ap_func;
         ap_args;
         ap_result_layout;
-        ap_region_close;
+        ap_position;
         ap_mode;
         ap_loc;
         ap_tailcall = _;
@@ -1078,7 +1078,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
        have it on the corresponding [Simple]s in the environment. *)
     maybe_insert_let_cont "apply_result" ap_result_layout k acc env ccenv
       (fun acc env ccenv k ->
-        cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode
+        cps_tail_apply acc env ccenv ap_func ap_args ap_position ap_mode
           ap_loc ap_inlined ap_probe ap_result_layout k k_exn)
   | Lfunction func ->
     let id = Ident.create_local (name_for_function func) in
@@ -1290,7 +1290,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                         exn_continuation;
                         args;
                         loc;
-                        region_close = pos;
+                        apply_position = pos;
                         inlined = Default_inlined;
                         probe = None;
                         mode;
@@ -1472,7 +1472,7 @@ and cps_non_tail_var name acc env ccenv lam kind k k_exn =
           k acc env ccenv var))
     k_exn
 
-and cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode ap_loc
+and cps_tail_apply acc env ccenv ap_func ap_args ap_position ap_mode ap_loc
     ap_inlined ap_probe ap_return (k : Continuation.t) (k_exn : Continuation.t)
     : Expr_with_acc.t =
   cps_non_tail_list acc env ccenv ap_args
@@ -1492,7 +1492,7 @@ and cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode ap_loc
               exn_continuation;
               args;
               loc = ap_loc;
-              region_close = ap_region_close;
+              apply_position = ap_position;
               inlined = ap_inlined;
               probe = ap_probe;
               mode = ap_mode;

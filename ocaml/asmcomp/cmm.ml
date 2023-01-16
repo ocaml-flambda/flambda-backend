@@ -152,7 +152,7 @@ type memory_chunk =
   | Double
 
 and operation =
-    Capply of machtype * Lambda.region_close
+    Capply of machtype * Lambda.apply_position
   | Cextcall of string * machtype * exttype list * bool
   | Cload of memory_chunk * Asttypes.mutable_flag
   | Calloc of Lambda.alloc_mode

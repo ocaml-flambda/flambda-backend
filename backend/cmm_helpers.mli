@@ -1095,7 +1095,7 @@ val store :
 val direct_call :
   dbg:Debuginfo.t ->
   machtype ->
-  Lambda.region_close ->
+  Lambda.apply_position ->
   expression ->
   expression list ->
   expression
@@ -1104,7 +1104,7 @@ val direct_call :
 val indirect_call :
   dbg:Debuginfo.t ->
   machtype ->
-  Lambda.region_close ->
+  Lambda.apply_position ->
   Lambda.alloc_mode ->
   expression ->
   expression list ->
@@ -1115,7 +1115,7 @@ val indirect_call :
 val indirect_full_call :
   dbg:Debuginfo.t ->
   machtype ->
-  Lambda.region_close ->
+  Lambda.apply_position ->
   Lambda.alloc_mode ->
   expression ->
   expression list ->

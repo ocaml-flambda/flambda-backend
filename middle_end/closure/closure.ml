@@ -911,8 +911,8 @@ let direct_apply env fundesc ufunct uargs pos mode ~probe ~loc ~attribute =
   | Some(params, body), _  ->
      let body =
        match pos with
-       | Rc_normal | Rc_nontail -> body
-       | Rc_close_at_apply -> tail body
+       | Ap_default | Ap_nontail | Ap_tail {close_region=false} -> body
+       | Ap_tail {close_region=true} -> tail body
      in
      bind_params env loc fundesc params uargs ufunct body
 
@@ -1020,7 +1020,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
 
     (* We convert [f a] to [let a' = a in let f' = f in fun b c -> f' a' b c]
        when fun_arity > nargs *)
-  | Lapply{ap_func = funct; ap_args = args; ap_region_close=pos; ap_mode=mode;
+  | Lapply{ap_func = funct; ap_args = args; ap_position=pos; ap_mode=mode;
            ap_probe = probe; ap_loc = loc;
            ap_inlined = attribute} ->
       let nargs = List.length args in
@@ -1100,7 +1100,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
                  ap_func=(Lvar funct_var);
                  ap_args=internal_args;
                  ap_result_layout=Lambda.layout_top;
-                 ap_region_close=Rc_normal;
+                 ap_position=Ap_default;
                  ap_mode=ret_mode;
                  ap_tailcall=Default_tailcall;
                  ap_inlined=Default_inlined;
@@ -1139,9 +1139,9 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
           let body =
             Ugeneric_apply(direct_apply { env with kinds } ~loc ~attribute
                               fundesc ufunct first_args
-                              Rc_normal mode'
+                              Ap_default mode'
                               ~probe,
-                           rem_args, (Rc_normal, mode), dbg)
+                           rem_args, (Ap_default, mode), dbg)
           in
           let body =
             match mode, fundesc.fun_region with
@@ -1150,8 +1150,8 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
           in
           let body =
             match pos with
-            | Rc_normal | Rc_nontail -> body
-            | Rc_close_at_apply -> tail body
+            | Ap_default | Ap_nontail | Ap_tail {close_region=false} -> body
+            | Ap_tail {close_region=true} -> tail body
           in
           let result =
             List.fold_left (fun body (id, defining_expr) ->

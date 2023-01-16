@@ -97,10 +97,10 @@ type initialization_or_assignment =
   | Heap_initialization
   | Root_initialization
 
-type region_close =
-  | Rc_normal
-  | Rc_nontail
-  | Rc_close_at_apply
+type apply_position =
+  | Ap_default                      (* may TCO if in tail position *)
+  | Ap_nontail                      (* must not TCO *)
+  | Ap_tail of {close_region: bool} (* must TCO, close region if specified *)
 
 type primitive =
   | Pbytes_to_string
@@ -442,7 +442,7 @@ type lambda =
   | Lassign of Ident.t * lambda
   | Lsend of
       meth_kind * lambda * lambda * lambda list
-      * region_close * alloc_mode * scoped_location * layout
+      * apply_position * alloc_mode * scoped_location * layout
   | Levent of lambda * lambda_event
   | Lifused of Ident.t * lambda
   | Lregion of lambda
@@ -477,7 +477,7 @@ and lambda_apply =
   { ap_func : lambda;
     ap_args : lambda list;
     ap_result_layout : layout;
-    ap_region_close : region_close;
+    ap_position : apply_position;
     ap_mode : alloc_mode;
     ap_loc : scoped_location;
     ap_tailcall : tailcall_attribute;
@@ -1072,13 +1072,13 @@ let shallow_map ~tail ~non_tail:f = function
   | Lvar _
   | Lmutvar _
   | Lconst _ as lam -> lam
-  | Lapply { ap_func; ap_args; ap_result_layout; ap_region_close; ap_mode; ap_loc; ap_tailcall;
+  | Lapply { ap_func; ap_args; ap_result_layout; ap_position; ap_mode; ap_loc; ap_tailcall;
              ap_inlined; ap_specialised; ap_probe } ->
       Lapply {
         ap_func = f ap_func;
         ap_args = List.map f ap_args;
         ap_result_layout;
-        ap_region_close;
+        ap_position;
         ap_mode;
         ap_loc;
         ap_tailcall;
