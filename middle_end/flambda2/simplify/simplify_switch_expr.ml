@@ -210,8 +210,8 @@ let find_cse_simple dacc required_names prim =
     match DE.find_cse (DA.denv dacc) with_fixed_value with
     | None -> None
     | Some simple ->
-      filter_and_choose_alias required_names (find_all_aliases (DA.typing_env dacc) simple)
-  )
+      filter_and_choose_alias required_names
+        (find_all_aliases (DA.typing_env dacc) simple))
 
 let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
     ~dacc_before_switch uacc ~after_rebuild =
@@ -299,7 +299,10 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
             UA.notify_removed ~operation:Removed_operations.branch uacc
           in
           let tagging_prim : P.t = Unary (Tag_immediate, scrutinee) in
-          match find_cse_simple dacc_before_switch (UA.required_names uacc) tagging_prim with
+          match
+            find_cse_simple dacc_before_switch (UA.required_names uacc)
+              tagging_prim
+          with
           | None -> normal_case uacc
           | Some tagged_scrutinee ->
             let apply_cont =
@@ -319,7 +322,10 @@ let rebuild_switch ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
             let not_scrutinee = Variable.create "not_scrutinee" in
             let not_scrutinee' = Simple.var not_scrutinee in
             let tagging_prim : P.t = Unary (Tag_immediate, scrutinee) in
-            match find_cse_simple dacc_before_switch (UA.required_names uacc) tagging_prim with
+            match
+              find_cse_simple dacc_before_switch (UA.required_names uacc)
+                tagging_prim
+            with
             | None -> normal_case uacc
             | Some tagged_scrutinee ->
               let do_tagging =
