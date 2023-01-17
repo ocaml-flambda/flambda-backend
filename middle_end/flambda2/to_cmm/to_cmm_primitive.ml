@@ -662,23 +662,26 @@ let arg ?consider_inlining_effectful_expressions ~dbg env res simple =
   C.simple ?consider_inlining_effectful_expressions ~dbg env res simple
 
 let arg_list ?consider_inlining_effectful_expressions ~dbg env res l =
-  let aux (list, env, res, effs) x =
-    let y, env, res, eff =
+  let aux (list, free_names, env, res, effs) x =
+    let y, y_free_names, env, res, eff =
       arg ?consider_inlining_effectful_expressions ~dbg env res x
     in
-    y :: list, env, res, Ece.join eff effs
+    let free_names = Backend_var.Set.union free_names y_free_names in
+    y :: list, free_names, env, res, Ece.join eff effs
   in
-  let args, env, res, effs =
-    List.fold_left aux ([], env, res, Ece.pure_can_be_duplicated) l
+  let args, free_names, env, res, effs =
+    List.fold_left aux
+      ([], Backend_var.Set.empty, env, res, Ece.pure_can_be_duplicated)
+      l
   in
-  List.rev args, env, res, effs
+  List.rev args, free_names, env, res, effs
 
 let arg_list' ?consider_inlining_effectful_expressions ~dbg env res l =
   let aux (list, env, res, effs) x =
-    let y, env, res, eff =
+    let y, free_names, env, res, eff =
       arg ?consider_inlining_effectful_expressions ~dbg env res x
     in
-    (y, eff) :: list, env, res, Ece.join eff effs
+    (y, eff, free_names) :: list, env, res, Ece.join eff effs
   in
   let args, env, res, effs =
     List.fold_left aux ([], env, res, Ece.pure_can_be_duplicated) l
@@ -730,8 +733,8 @@ let prim_simple env res dbg p =
   let arg = arg ?consider_inlining_effectful_expressions ~dbg in
   (* Somewhat counter-intuitively, the left-to-right translation below (e.g. [x]
      before [y] in the [Binary] case) correctly matches right-to-left evaluation
-     order---ensuring maximal inlining---since [C.simple_list] translates the
-     first [Simple] in the list first. Consider in pseudo-code:
+     order---ensuring maximal inlining---since [arg_list] translates the first
+     [Simple] in the list first. Consider in pseudo-code:
 
      let x = <effect-x> in let y = <effect-y> in Make_block [y; x]
 
@@ -745,31 +748,38 @@ let prim_simple env res dbg p =
      order. This therefore matches the original source code. *)
   match (p : P.t) with
   | Nullary prim ->
+    let free_names = Backend_var.Set.empty in
     let extra, res, expr = nullary_primitive env res dbg prim in
-    Env.simple expr, extra, env, res, Ece.pure
+    Env.simple expr free_names, extra, env, res, Ece.pure
   | Unary (unary, x) ->
-    let x, env, res, eff = arg env res x in
+    let x, free_names, env, res, eff = arg env res x in
     let extra, res, expr = unary_primitive env res dbg unary x in
-    Env.simple expr, extra, env, res, eff
+    Env.simple expr free_names, extra, env, res, eff
   | Binary (binary, x, y) ->
-    let x, env, res, effx = arg env res x in
-    let y, env, res, effy = arg env res y in
+    let x, x_free_names, env, res, effx = arg env res x in
+    let y, y_free_names, env, res, effy = arg env res y in
+    let free_names = Backend_var.Set.union x_free_names y_free_names in
     let effs = Ece.join effx effy in
     let expr = binary_primitive env dbg binary x y in
-    Env.simple expr, None, env, res, effs
+    Env.simple expr free_names, None, env, res, effs
   | Ternary (ternary, x, y, z) ->
-    let x, env, res, effx = arg env res x in
-    let y, env, res, effy = arg env res y in
-    let z, env, res, effz = arg env res z in
+    let x, x_free_names, env, res, effx = arg env res x in
+    let y, y_free_names, env, res, effy = arg env res y in
+    let z, z_free_names, env, res, effz = arg env res z in
+    let free_names =
+      Backend_var.Set.union
+        (Backend_var.Set.union x_free_names y_free_names)
+        z_free_names
+    in
     let effs = Ece.join (Ece.join effx effy) effz in
     let expr = ternary_primitive env dbg ternary x y z in
-    Env.simple expr, None, env, res, effs
+    Env.simple expr free_names, None, env, res, effs
   | Variadic (((Make_block _ | Make_array _) as variadic), l) ->
-    let args, env, res, effs =
+    let args, free_names, env, res, effs =
       arg_list ?consider_inlining_effectful_expressions ~dbg env res l
     in
     let expr = variadic_primitive env dbg variadic args in
-    Env.simple expr, None, env, res, effs
+    Env.simple expr free_names, None, env, res, effs
 
 let prim_complex env res dbg p =
   let consider_inlining_effectful_expressions =
@@ -784,21 +794,25 @@ let prim_complex env res dbg p =
       prim', [], Ece.pure_can_be_duplicated, env, res
     | Unary (unary, x) ->
       let prim' = P.Without_args.Unary unary in
-      let x, env, res, eff = arg env res x in
-      prim', [x, eff], eff, env, res
+      let x, x_free_names, env, res, eff = arg env res x in
+      prim', [x, eff, x_free_names], eff, env, res
     | Binary (binary, x, y) ->
       let prim' = P.Without_args.Binary binary in
-      let x, env, res, effx = arg env res x in
-      let y, env, res, effy = arg env res y in
+      let x, x_free_names, env, res, effx = arg env res x in
+      let y, y_free_names, env, res, effy = arg env res y in
       let effs = Ece.join effx effy in
-      prim', [x, effx; y, effy], effs, env, res
+      prim', [x, effx, x_free_names; y, effy, y_free_names], effs, env, res
     | Ternary (ternary, x, y, z) ->
       let prim' = P.Without_args.Ternary ternary in
-      let x, env, res, effx = arg env res x in
-      let y, env, res, effy = arg env res y in
-      let z, env, res, effz = arg env res z in
+      let x, x_free_names, env, res, effx = arg env res x in
+      let y, y_free_names, env, res, effy = arg env res y in
+      let z, z_free_names, env, res, effz = arg env res z in
       let effs = Ece.join (Ece.join effx effy) effz in
-      prim', [x, effx; y, effy; z, effz], effs, env, res
+      ( prim',
+        [x, effx, x_free_names; y, effy, y_free_names; z, effz, z_free_names],
+        effs,
+        env,
+        res )
     | Variadic (((Make_block _ | Make_array _) as variadic), l) ->
       let prim' = P.Without_args.Variadic variadic in
       let args, env, res, effs =

@@ -38,12 +38,17 @@ let bind_var_to_simple ~dbg env res v ~num_normal_occurrences_of_bound_vars s =
   | Some (alias_of, _coercion) ->
     Env.add_alias env res ~var:v ~num_normal_occurrences_of_bound_vars ~alias_of
   | None ->
-    let defining_expr, env, res, effects_and_coeffects_of_defining_expr =
+    let ( defining_expr,
+          free_names_of_defining_expr,
+          env,
+          res,
+          effects_and_coeffects_of_defining_expr ) =
       C.simple ~dbg env res s
     in
     let env, res =
       Env.bind_variable env res v ~effects_and_coeffects_of_defining_expr
-        ~defining_expr ~num_normal_occurrences_of_bound_vars
+        ~defining_expr ~free_names_of_defining_expr
+        ~num_normal_occurrences_of_bound_vars
     in
     env, res
 
@@ -58,8 +63,11 @@ let translate_apply0 env res apply =
      effects/coeffects values currently ignored on the following two lines. At
      the moment they can be ignored as we always deem all calls to have
      arbitrary effects and coeffects. *)
-  let callee, env, res, _ = C.simple ~dbg env res callee_simple in
-  let args, env, res, _ = C.simple_list ~dbg env res args in
+  let callee, callee_free_names, env, res, _ =
+    C.simple ~dbg env res callee_simple
+  in
+  let args, args_free_names, env, res, _ = C.simple_list ~dbg env res args in
+  let free_names = Backend_var.Set.union callee_free_names args_free_names in
   let fail_if_probe apply =
     match Apply.probe_name apply with
     | None -> ()
@@ -99,6 +107,7 @@ let translate_apply0 env res apply =
       ( C.direct_call ~dbg ty pos
           (C.symbol_from_linkage_name ~dbg code_linkage_name)
           args,
+        free_names,
         env,
         res,
         Ece.all )
@@ -107,6 +116,7 @@ let translate_apply0 env res apply =
           ~handler_code_linkage_name:(Linkage_name.to_string code_linkage_name)
           ~args
         |> C.return_unit dbg,
+        free_names,
         env,
         res,
         Ece.all ))
@@ -115,6 +125,7 @@ let translate_apply0 env res apply =
     ( C.indirect_call ~dbg Cmm.typ_val pos
         (Alloc_mode.For_types.to_lambda alloc_mode)
         callee args,
+      free_names,
       env,
       res,
       Ece.all )
@@ -136,6 +147,7 @@ let translate_apply0 env res apply =
       ( C.indirect_full_call ~dbg ty pos
           (Alloc_mode.For_types.to_lambda alloc_mode)
           callee args,
+        free_names,
         env,
         res,
         Ece.all )
@@ -174,15 +186,21 @@ let translate_apply0 env res apply =
     in
     ( wrap dbg
         (C.extcall ~dbg ~alloc ~is_c_builtin ~returns ~ty_args callee ty args),
+      free_names,
       env,
       res,
       Ece.all )
   | Call_kind.Method { kind; obj; alloc_mode } ->
     fail_if_probe apply;
-    let obj, env, res, _ = C.simple ~dbg env res obj in
+    let obj, obj_free_names, env, res, _ = C.simple ~dbg env res obj in
+    let free_names = Backend_var.Set.union free_names obj_free_names in
     let kind = Call_kind.Method_kind.to_lambda kind in
     let alloc_mode = Alloc_mode.For_types.to_lambda alloc_mode in
-    C.send kind callee obj args (pos, alloc_mode) dbg, env, res, Ece.all
+    ( C.send kind callee obj args (pos, alloc_mode) dbg,
+      free_names,
+      env,
+      res,
+      Ece.all )
 
 (* Function calls that have an exn continuation with extra arguments must be
    wrapped with assignments for the mutable variables used to pass the extra
@@ -190,7 +208,7 @@ let translate_apply0 env res apply =
 (* CR mshinwell: Add first-class support in Cmm for the concept of an exception
    handler with extra arguments. *)
 let translate_apply env res apply =
-  let call, env, res, effs = translate_apply0 env res apply in
+  let call, free_names, env, res, effs = translate_apply0 env res apply in
   let dbg = Apply.dbg apply in
   let k_exn = Apply.exn_continuation apply in
   let mut_vars =
@@ -203,13 +221,13 @@ let translate_apply env res apply =
        `To_cmm_shared.simple_list`, namely the first simple translated (and
        potentially inlined/substituted) is evaluted last. *)
     let aux (call, env, res) (arg, _k) v =
-      let arg, env, res, _ = C.simple ~dbg env res arg in
+      let arg, _arg_free_names, env, res, _ = C.simple ~dbg env res arg in
       C.sequence (C.assign v arg) call, env, res
     in
     let call, env, res =
       List.fold_left2 aux (call, env, res) extra_args mut_vars
     in
-    call, env, res, effs
+    call, free_names, env, res, effs
   else
     Misc.fatal_errorf
       "Length of [extra_args] in exception continuation %a@ does not match \
@@ -236,8 +254,11 @@ let translate_raise env res apply exn_handler args =
           Apply_cont.print apply
     in
     let dbg = Apply_cont.debuginfo apply in
-    let exn, env, res, _ = C.simple ~dbg env res exn in
-    let extra, env, res, _ = C.simple_list ~dbg env res extra in
+    let exn, exn_free_names, env, res, _ = C.simple ~dbg env res exn in
+    let extra, extra_free_names, env, res, _ =
+      C.simple_list ~dbg env res extra
+    in
+    let free_names = Backend_var.Set.union exn_free_names extra_free_names in
     let mut_vars = Env.get_exn_extra_args env exn_handler in
     let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
     let cmm =
@@ -246,7 +267,8 @@ let translate_raise env res apply exn_handler args =
         (C.raise_prim raise_kind exn dbg)
         extra mut_vars
     in
-    wrap cmm, res
+    let cmm, free_names = wrap cmm free_names in
+    cmm, free_names, res
   | [] ->
     Misc.fatal_errorf "Exception continuation %a has no arguments:@ \n%a"
       Continuation.print exn_handler Apply_cont.print apply
@@ -263,9 +285,10 @@ let translate_jump_to_continuation env res apply types cont args =
         [Cmm.Push cont]
     in
     let dbg = Apply_cont.debuginfo apply in
-    let args, env, res, _ = C.simple_list ~dbg env res args in
+    let args, free_names, env, res, _ = C.simple_list ~dbg env res args in
     let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
-    wrap (C.cexit cont args trap_actions), res
+    let cmm, free_names = wrap (C.cexit cont args trap_actions) free_names in
+    cmm, free_names, res
   else
     Misc.fatal_errorf "Types (%a) do not match arguments of@ %a"
       (Format.pp_print_list ~pp_sep:Format.pp_print_space Printcmm.machtype)
@@ -277,11 +300,19 @@ let translate_jump_to_return_continuation env res apply return_cont args =
   match args with
   | [return_value] -> (
     let dbg = Apply_cont.debuginfo apply in
-    let return_value, env, res, _ = C.simple ~dbg env res return_value in
+    let return_value, free_names, env, res, _ =
+      C.simple ~dbg env res return_value
+    in
     let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
     match Apply_cont.trap_action apply with
-    | None -> wrap return_value, res
-    | Some (Pop _) -> wrap (C.trap_return return_value [Cmm.Pop]), res
+    | None ->
+      let cmm, free_names = wrap return_value free_names in
+      cmm, free_names, res
+    | Some (Pop _) ->
+      let cmm, free_names =
+        wrap (C.trap_return return_value [Cmm.Pop]) free_names
+      in
+      cmm, free_names, res
     | Some (Push _) ->
       Misc.fatal_errorf
         "Return continuation %a should not be applied with a Push trap action"
@@ -296,14 +327,16 @@ let translate_jump_to_return_continuation env res apply return_cont args =
 
 (* The main set of translation functions for expressions *)
 
-let rec expr env res e =
+let rec expr env res e : Cmm.expression * Backend_var.Set.t * To_cmm_result.t =
   match Expr.descr e with
   | Let e' -> let_expr env res e'
   | Let_cont e' -> let_cont env res e'
   | Apply e' -> apply_expr env res e'
   | Apply_cont e' -> apply_cont env res e'
   | Switch e' -> switch env res e'
-  | Invalid { message } -> C.invalid res ~message
+  | Invalid { message } ->
+    let cmm, res = C.invalid res ~message in
+    cmm, Backend_var.Set.empty, res
 
 and let_prim env res ~num_normal_occurrences_of_bound_vars v p dbg body =
   let v = Bound_var.var v in
@@ -376,30 +409,38 @@ and let_expr0 env res let_expr (bound_pattern : Bound_pattern.t)
     let wrap, env, res =
       Env.flush_delayed_lets ~mode:Flush_everything env res
     in
-    let cmm, res =
+    let cmm, free_names, res =
       let_prim env res ~num_normal_occurrences_of_bound_vars v p dbg body
     in
-    wrap cmm, res
+    let cmm, free_names = wrap cmm free_names in
+    cmm, free_names, res
   | Singleton v, Prim (p, dbg) ->
     let_prim env res ~num_normal_occurrences_of_bound_vars v p dbg body
   | Set_of_closures bound_vars, Set_of_closures soc ->
     To_cmm_set_of_closures.let_dynamic_set_of_closures env res ~body ~bound_vars
       ~num_normal_occurrences_of_bound_vars soc ~translate_expr:expr
   | Static bound_static, Static_consts consts -> (
-    let env, res, update_opt =
+    let env, res, update_opt, update_free_names =
       To_cmm_static.static_consts env res
         ~params_and_body:
           (To_cmm_set_of_closures.params_and_body ~translate_expr:expr)
         bound_static consts
     in
     match update_opt with
-    | None -> expr env res body
+    | None ->
+      if not (Backend_var.Set.is_empty update_free_names)
+      then Misc.fatal_errorf "Non_empty free_names for an empty update";
+      expr env res body
     | Some update ->
       let wrap, env, res =
         Env.flush_delayed_lets ~mode:Branching_point env res
       in
-      let body, res = expr env res body in
-      wrap (C.sequence update body), res)
+      let body, body_free_names, res = expr env res body in
+      let free_names =
+        Backend_var.Set.union update_free_names body_free_names
+      in
+      let cmm, free_names = wrap (C.sequence update body) free_names in
+      cmm, free_names, res)
   | Singleton _, Rec_info _ -> expr env res body
   | Singleton _, (Set_of_closures _ | Static_consts _)
   | Set_of_closures _, (Simple _ | Prim _ | Static_consts _ | Rec_info _)
@@ -460,11 +501,13 @@ and let_cont_not_inlined env res k handler body =
      expression. *)
   let wrap, env, res = Env.flush_delayed_lets ~mode:Branching_point env res in
   let is_exn_handler = Continuation_handler.is_exn_handler handler in
-  let vars, arity, handler, res = continuation_handler env res handler in
+  let vars, arity, handler, free_names_of_handler, res =
+    continuation_handler env res handler
+  in
   let catch_id, env =
     Env.add_jump_cont env k ~param_types:(List.map snd vars)
   in
-  let cmm, res =
+  let cmm, free_names_of_body, res =
     (* Exception continuations are translated specially -- these will be reached
        via the raising of exceptions, whereas other continuations are reached
        using a normal jump. *)
@@ -472,12 +515,17 @@ and let_cont_not_inlined env res k handler body =
     then let_cont_exn_handler env res k body vars handler ~catch_id arity
     else
       let dbg = Debuginfo.none (* CR mshinwell: fix debuginfo *) in
-      let body, res = expr env res body in
+      let body, free_names, res = expr env res body in
       ( C.create_ccatch ~rec_flag:false ~body
           ~handlers:[C.handler ~dbg catch_id vars handler],
+        free_names,
         res )
   in
-  wrap cmm, res
+  let free_names =
+    Backend_var.Set.union free_names_of_handler free_names_of_body
+  in
+  let cmm, free_names = wrap cmm free_names in
+  cmm, free_names, res
 
 (* Exception continuations are translated using delayed Ctrywith blocks. The
    exception handler parts of these blocks are identified by the [catch_id]s.
@@ -504,7 +552,7 @@ and let_cont_exn_handler env res k body vars handler ~catch_id arity =
         C.letin extra_param ~defining_expr:(C.var mut_var) ~body:handler)
       handler mut_vars extra_params
   in
-  let body, res = expr env_body res body in
+  let body, free_names_of_body, res = expr env_body res body in
   let dbg = Debuginfo.none (* CR mshinwell: fix debuginfo *) in
   let trywith =
     C.trywith ~dbg ~kind:(Delayed catch_id) ~body ~exn_var ~handler ()
@@ -531,7 +579,7 @@ and let_cont_exn_handler env res k body vars handler ~catch_id arity =
         C.letin_mut mut_var (C.machtype_of_kind kind) dummy_value cmm)
       trywith mut_vars
   in
-  cmm, res
+  cmm, free_names_of_body, res
 
 and let_cont_rec env res invariant_params conts body =
   (* Flush the env now to avoid inlining something inside of a recursive
@@ -562,36 +610,47 @@ and let_cont_rec env res invariant_params conts body =
   let conts_to_handlers, res =
     Continuation.Map.fold
       (fun k handler (conts_to_handlers, res) ->
-        let vars, _arity, handler, res = continuation_handler env res handler in
+        let vars, _arity, handler, free_names_of_handler, res =
+          continuation_handler env res handler
+        in
+        let free_names =
+          C.remove_vars_with_machtype free_names_of_handler invariant_vars
+        in
         ( Continuation.Map.add k
-            (invariant_vars @ vars, handler)
+            (invariant_vars @ vars, handler, free_names)
             conts_to_handlers,
           res ))
       conts_to_handlers
       (Continuation.Map.empty, res)
   in
   let dbg = Debuginfo.none (* CR mshinwell: fix debuginfo *) in
+  let body, free_names_of_body, res = expr env res body in
   (* Setup the Cmm handlers for the Ccatch *)
-  let handlers =
+  let handlers, free_names =
     Continuation.Map.fold
-      (fun k (vars, handler) acc ->
+      (fun k (vars, handler, free_names_of_handler) (handlers, free_names) ->
+        let free_names =
+          Backend_var.Set.union free_names free_names_of_handler
+        in
         let id = Env.get_cmm_continuation env k in
-        C.handler ~dbg id vars handler :: acc)
-      conts_to_handlers []
+        C.handler ~dbg id vars handler :: handlers, free_names)
+      conts_to_handlers ([], free_names_of_body)
   in
-  let body, res = expr env res body in
-  wrap (C.create_ccatch ~rec_flag:true ~body ~handlers), res
+  let cmm = C.create_ccatch ~rec_flag:true ~body ~handlers in
+  let cmm, free_names = wrap cmm free_names in
+  cmm, free_names, res
 
 and continuation_handler env res handler =
   Continuation_handler.pattern_match' handler
     ~f:(fun params ~num_normal_occurrences_of_params:_ ~handler ->
       let arity = Bound_parameters.arity params in
       let env, vars = C.bound_parameters env params in
-      let expr, res = expr env res handler in
-      vars, arity, expr, res)
+      let expr, free_names_of_handler, res = expr env res handler in
+      let free_names = C.remove_vars_with_machtype free_names_of_handler vars in
+      vars, arity, expr, free_names, res)
 
 and apply_expr env res apply =
-  let call, env, res, effs = translate_apply env res apply in
+  let call, free_names, env, res, effs = translate_apply env res apply in
   (* With respect to flushing the environment we have three cases:
 
      1. The call never returns or jumps to another function
@@ -616,11 +675,13 @@ and apply_expr env res apply =
   | Never_returns ->
     (* Case 1 *)
     let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
-    wrap call, res
+    let cmm, free_names = wrap call free_names in
+    cmm, free_names, res
   | Return k when Continuation.equal (Env.return_continuation env) k ->
     (* Case 1 *)
     let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
-    wrap call, res
+    let cmm, free_names = wrap call free_names in
+    cmm, free_names, res
   | Return k -> (
     let[@inline always] unsupported () =
       (* CR gbury: add support using unboxed tuples *)
@@ -635,7 +696,8 @@ and apply_expr env res apply =
     | Jump { param_types = [_]; cont } ->
       (* Case 2 *)
       let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
-      wrap (C.cexit cont [call] []), res
+      let cmm, free_names = wrap (C.cexit cont [call] []) free_names in
+      cmm, free_names, res
     | Inline { handler_params; handler_body = body; handler_params_occurrences }
       -> (
       (* Case 3 *)
@@ -647,6 +709,7 @@ and apply_expr env res apply =
         let env, res =
           Env.bind_variable env res var
             ~effects_and_coeffects_of_defining_expr:effs ~defining_expr:call
+            ~free_names_of_defining_expr:free_names
             ~num_normal_occurrences_of_bound_vars:handler_params_occurrences
         in
         expr env res body
@@ -695,7 +758,9 @@ and apply_cont env res apply_cont =
 and switch env res switch =
   let scrutinee = Switch.scrutinee switch in
   let dbg = Switch.condition_dbg switch in
-  let untagged_scrutinee_cmm, env, res, _ = C.simple ~dbg env res scrutinee in
+  let untagged_scrutinee_cmm, scrutinee_free_names, env, res, _ =
+    C.simple ~dbg env res scrutinee
+  in
   let arms = Switch.arms switch in
   (* For binary switches, which can be translated to an if-then-else, it can be
      interesting for the scrutinee to be tagged (particularly for switches
@@ -739,8 +804,8 @@ and switch env res switch =
   in
   let make_arm ~must_tag_discriminant env res (d, action) =
     let d = prepare_discriminant ~must_tag:must_tag_discriminant d in
-    let cmm_action, res = apply_cont env res action in
-    (d, cmm_action, Apply_cont.debuginfo action), res
+    let cmm_action, action_free_names, res = apply_cont env res action in
+    (d, cmm_action, action_free_names, Apply_cont.debuginfo action), res
   in
   match Targetint_31_63.Map.cardinal arms with
   (* Binary case: if-then-else *)
@@ -754,19 +819,34 @@ and switch env res switch =
        before creating an if-then-else, introducing an indirection that might
        prevent some optimizations performed by Selectgen/Emit when the condition
        is inlined in the if-then-else. Instead we use [C.ite]. *)
-    | (0, else_, else_dbg), (_, then_, then_dbg)
-    | (_, then_, then_dbg), (0, else_, else_dbg) ->
-      wrap (C.ite ~dbg scrutinee ~then_dbg ~then_ ~else_dbg ~else_), res
+    | ( (0, else_, else_free_names, else_dbg),
+        (_, then_, then_free_names, then_dbg) )
+    | ( (_, then_, then_free_names, then_dbg),
+        (0, else_, else_free_names, else_dbg) ) ->
+      let free_names =
+        Backend_var.Set.union scrutinee_free_names
+          (Backend_var.Set.union else_free_names then_free_names)
+      in
+      let cmm, free_names =
+        wrap (C.ite ~dbg scrutinee ~then_dbg ~then_ ~else_dbg ~else_) free_names
+      in
+      cmm, free_names, res
     (* Similar case to the previous but none of the arms match 0, so we have to
        generate an equality test, and make sure it is inside the condition to
        ensure Selectgen and Emit can take advantage of it. *)
-    | (x, if_x, if_x_dbg), (_, if_not, if_not_dbg) ->
+    | ( (x, if_x, if_x_free_names, if_x_dbg),
+        (_, if_not, if_not_free_names, if_not_dbg) ) ->
+      let free_names =
+        Backend_var.Set.union scrutinee_free_names
+          (Backend_var.Set.union if_x_free_names if_not_free_names)
+      in
       let expr =
         C.ite ~dbg
           (C.eq ~dbg (C.int ~dbg x) scrutinee)
           ~then_dbg:if_x_dbg ~then_:if_x ~else_dbg:if_not_dbg ~else_:if_not
       in
-      wrap expr, res)
+      let cmm, free_names = wrap expr free_names in
+      cmm, free_names, res)
   (* General case *)
   | n ->
     (* transl_switch_clambda expects an [index] array such that index.(d) is the
@@ -776,19 +856,22 @@ and switch env res switch =
     let unreachable, res = C.invalid res ~message:"unreachable switch case" in
     let cases = Array.make (n + 1) unreachable in
     let index = Array.make (m + 1) n in
-    let _, res =
+    let _, res, free_names =
       Targetint_31_63.Map.fold
-        (fun discriminant action (i, res) ->
-          let (d, cmm_action, _dbg), res =
+        (fun discriminant action (i, res, free_names) ->
+          let (d, cmm_action, action_free_names, _dbg), res =
             make_arm ~must_tag_discriminant env res (discriminant, action)
           in
+          let free_names = Backend_var.Set.union free_names action_free_names in
           cases.(i) <- cmm_action;
           index.(d) <- i;
-          i + 1, res)
-        arms (0, res)
+          i + 1, res, free_names)
+        arms
+        (0, res, scrutinee_free_names)
     in
     (* CR-someday poechsel: Put a more precise value kind here *)
     let expr =
       C.transl_switch_clambda dbg (Vval Pgenval) scrutinee index cases
     in
-    wrap expr, res
+    let cmm, free_names = wrap expr free_names in
+    cmm, free_names, res

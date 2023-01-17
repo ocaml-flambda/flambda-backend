@@ -16,6 +16,16 @@ open! Cmm_helpers
 open! Cmm_builtins
 module Ece = Effects_and_coeffects
 
+let remove_var_with_provenance free_names var =
+  let v = Backend_var.With_provenance.var var in
+  Backend_var.Set.remove v free_names
+
+let remove_vars_with_machtype free_names vars =
+  List.fold_left
+    (fun free_names (cmm_var, _machtype) ->
+      remove_var_with_provenance free_names cmm_var)
+    free_names vars
+
 let exttype_of_kind (k : Flambda_kind.t) : Cmm.exttype =
   match k with
   | Value -> XInt
@@ -67,7 +77,11 @@ let name0 ?consider_inlining_effectful_expressions env res name =
         res v)
     ~symbol:(fun s ->
       (* CR mshinwell: fix debuginfo? *)
-      symbol ~dbg:Debuginfo.none s, env, res, Ece.pure_can_be_duplicated)
+      ( symbol ~dbg:Debuginfo.none s,
+        Backend_var.Set.empty,
+        env,
+        res,
+        Ece.pure_can_be_duplicated ))
 
 let name env name = name0 env name
 
@@ -85,7 +99,8 @@ let simple ?consider_inlining_effectful_expressions ~dbg env res s =
   Simple.pattern_match s
     ~name:(fun n ~coercion:_ ->
       name0 ?consider_inlining_effectful_expressions env res n)
-    ~const:(fun c -> const ~dbg c, env, res, Ece.pure_can_be_duplicated)
+    ~const:(fun c ->
+      const ~dbg c, Backend_var.Set.empty, env, res, Ece.pure_can_be_duplicated)
 
 let name_static name =
   Name.pattern_match name
@@ -113,16 +128,19 @@ let simple_static s =
 let simple_list ?consider_inlining_effectful_expressions ~dbg env res l =
   (* Note that [To_cmm_primitive] relies on this function translating the
      [Simple] at the head of the list first. *)
-  let aux (list, env, res, effs) x =
-    let y, env, res, eff =
+  let aux (list, free_names, env, res, effs) x =
+    let y, y_free_names, env, res, eff =
       simple ?consider_inlining_effectful_expressions ~dbg env res x
     in
-    y :: list, env, res, Ece.join eff effs
+    let free_names = Backend_var.Set.union free_names y_free_names in
+    y :: list, free_names, env, res, Ece.join eff effs
   in
-  let args, env, res, effs =
-    List.fold_left aux ([], env, res, Ece.pure_can_be_duplicated) l
+  let args, free_names, env, res, effs =
+    List.fold_left aux
+      ([], Backend_var.Set.empty, env, res, Ece.pure_can_be_duplicated)
+      l
   in
-  List.rev args, env, res, effs
+  List.rev args, free_names, env, res, effs
 
 let bound_parameters env l =
   let flambda_vars = Bound_parameters.vars l in
@@ -166,12 +184,13 @@ let invalid res ~message =
   call_expr, res
 
 let make_update env res dbg kind ~symbol var ~index ~prev_updates =
-  let e, env, res, _ece = To_cmm_env.inline_variable env res var in
+  let e, free_names, env, res, _ece = To_cmm_env.inline_variable env res var in
   let addr = field_address symbol index dbg in
   let update = store ~dbg kind Initialization ~addr ~new_value:e in
   match prev_updates with
-  | None -> env, res, Some update
-  | Some prev_updates -> env, res, Some (sequence prev_updates update)
+  | None -> env, res, free_names, Some update
+  | Some prev_updates ->
+    env, res, free_names, Some (sequence prev_updates update)
 
 let check_arity arity args =
   Flambda_arity.With_subkinds.cardinal arity = List.length args
