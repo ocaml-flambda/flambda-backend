@@ -34,14 +34,20 @@ end
 (* Bind a Cmm variable to the result of translating a [Simple] into Cmm. *)
 
 let bind_var_to_simple ~dbg env res v ~num_normal_occurrences_of_bound_vars s =
-  let defining_expr, env, res, effects_and_coeffects_of_defining_expr =
-    C.simple ~dbg env res s
-  in
-  let env, res =
-    Env.bind_variable env res v ~effects_and_coeffects_of_defining_expr
-      ~defining_expr ~num_normal_occurrences_of_bound_vars
-  in
-  env, res
+  match Simple.must_be_var s with
+  | Some (alias_of, _coercion) when Flambda_features.classic_mode () ->
+    Env.add_alias env res ~var:v
+      ~num_normal_occurrences_of_bound_vars
+      ~alias_of
+  | Some _ | None ->
+    let defining_expr, env, res, effects_and_coeffects_of_defining_expr =
+      C.simple ~dbg env res s
+    in
+    let env, res =
+      Env.bind_variable env res v ~effects_and_coeffects_of_defining_expr
+        ~defining_expr ~num_normal_occurrences_of_bound_vars
+    in
+    env, res
 
 (* Helpers for the translation of [Apply] expressions. *)
 
