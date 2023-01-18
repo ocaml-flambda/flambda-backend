@@ -42,7 +42,9 @@
  *  - its prececessors are set to empty;
  *  - (its other fields are left unchanged).
  *
- *  As a consequence, `b2` becomes dead. *)
+ *  As a consequence, `b2` becomes dead and is removed.
+ *  This pass does remove any other dead blocks.
+*)
 
 (* CR gyorsh: with the new requirement on b1 (that it cannot raise) this pass is
    even closer to eliminate_fallthrough_blocks. The only difference I think is
