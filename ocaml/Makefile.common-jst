@@ -208,7 +208,7 @@ install_for_test: _install
          $(cpl) stdlib/dynlink/dynlink* otherlibs/dynlink; \
          $(cpl) stdlib/str/{lib,}str* otherlibs/str; \
          ${cpl} stdlib/bigarray/bigarray* otherlibs/bigarray; \
-	 ln -s ../_build/main/$(ocamldir)/toplevel/.ocamltoplevel.objs/byte toplevel; \
+	 ln -s ../_build/main/$(ocamldir)/toplevel/byte/.ocamltoplevel.objs/byte toplevel; \
 	)
 
 	# Various directories are put on the -I paths by tools/Makefile;
