@@ -204,10 +204,10 @@ install_for_test: _install
 	 ln -s _install/lib/ocaml/compiler-libs compilerlibs; \
 	 mkdir -p otherlibs/{unix,dynlink/native,str,bigarray}; \
 	 ln -s ../stdlib/threads otherlibs/systhreads; \
-         $(cpl) stdlib/{lib,}unix* otherlibs/unix; \
-         $(cpl) stdlib/dynlink* otherlibs/dynlink; \
-         $(cpl) stdlib/{lib,}str* otherlibs/str; \
-         ${cpl} stdlib/bigarray* otherlibs/bigarray; \
+         $(cpl) stdlib/unix/{lib,}unix* otherlibs/unix; \
+         $(cpl) stdlib/dynlink/dynlink* otherlibs/dynlink; \
+         $(cpl) stdlib/str/{lib,}str* otherlibs/str; \
+         ${cpl} stdlib/bigarray/bigarray* otherlibs/bigarray; \
 	 ln -s ../_build/main/$(ocamldir)/toplevel/.ocamltoplevel.objs/byte toplevel; \
 	)
 
