@@ -166,6 +166,8 @@ val add_block_exn : t -> basic_block -> unit
 
 val remove_block_exn : t -> Label.t -> unit
 
+val remove_blocks : t -> Label.Set.t -> unit
+
 val get_block : t -> Label.t -> basic_block option
 
 val get_block_exn : t -> Label.t -> basic_block

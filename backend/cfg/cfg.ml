@@ -227,6 +227,11 @@ let remove_block_exn t label =
     Misc.fatal_errorf "Cfg.remove_block_exn: block %d not found" label
   | _ -> Label.Tbl.remove t.blocks label
 
+let remove_blocks t labels_to_remove =
+  Label.Tbl.filter_map_inplace (fun l b ->
+    if Label.Set.mem l labels_to_remove then None else (Some b))
+    t.blocks
+
 let get_block t label = Label.Tbl.find_opt t.blocks label
 
 let get_block_exn t label =

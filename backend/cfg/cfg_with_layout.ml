@@ -67,9 +67,7 @@ let remove_block t label =
 let remove_blocks t labels_to_remove =
   if not (Label.Set.is_empty labels_to_remove)
   then (
-    Label.Set.iter
-      (fun label -> Cfg.remove_block_exn t.cfg label)
-      labels_to_remove;
+    Cfg.remove_blocks t.cfg labels_to_remove;
     t.layout
       <- List.filter (fun l -> not (Label.Set.mem l labels_to_remove)) t.layout;
     t.new_labels <- Label.Set.diff t.new_labels labels_to_remove)
