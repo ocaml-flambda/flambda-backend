@@ -42,17 +42,19 @@
  *  - its prececessors are set to empty;
  *  - (its other fields are left unchanged).
  *
- *  As a consequence, `b2` becomes dead. *)
+ *  As a consequence, `b2` becomes dead and is removed.
+ *  This pass does remove any other dead blocks.
+ *)
 
 (* CR gyorsh: with the new requirement on b1 (that it cannot raise) this pass is
    even closer to eliminate_fallthrough_blocks. The only difference I think is
    that b1's body need not be empty here. *)
-let rec merge_blocks (modified : bool) (cfg_with_layout : Cfg_with_layout.t) :
-    bool =
+let rec merge_blocks (removed : Label.Set.t)
+    (cfg_with_layout : Cfg_with_layout.t) : Label.Set.t =
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
-  let merged =
+  let new_removed =
     Label.Tbl.fold
-      (fun b1_label (b1_block : Cfg.basic_block) merged ->
+      (fun b1_label (b1_block : Cfg.basic_block) acc ->
         let b1_successors =
           Cfg.successor_labels ~normal:true ~exn:false b1_block
         in
@@ -86,13 +88,15 @@ let rec merge_blocks (modified : bool) (cfg_with_layout : Cfg_with_layout.t) :
             b2_block.terminator
               <- { b2_block.terminator with desc = Cfg_intf.S.Never };
             b2_block.exn <- None;
-            true)
-          else merged
-        | _ -> merged)
-      cfg.blocks false
+            Label.Set.add b2_label acc)
+          else acc
+        | _ -> acc)
+      cfg.blocks Label.Set.empty
   in
-  if merged then merge_blocks true cfg_with_layout else modified
+  if not (Label.Set.is_empty new_removed)
+  then merge_blocks (Label.Set.union new_removed removed) cfg_with_layout
+  else removed
 
 let run (cfg_with_layout : Cfg_with_layout.t) : unit =
-  let modified = merge_blocks false cfg_with_layout in
-  if modified then Eliminate_dead_code.run_dead_block cfg_with_layout
+  merge_blocks Label.Set.empty cfg_with_layout
+  |> Cfg_with_layout.remove_blocks cfg_with_layout

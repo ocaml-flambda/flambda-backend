@@ -64,8 +64,6 @@ let run_dead_block : Cfg_with_layout.t -> unit =
         block.terminator <- { block.terminator with desc = Cfg_intf.S.Never };
         block.exn <- None)
       unreachable_labels;
-    Label.Set.iter
-      (fun label -> Cfg_with_layout.remove_block cfg_with_layout label)
-      unreachable_labels;
+    Cfg_with_layout.remove_blocks cfg_with_layout unreachable_labels;
     (* CR xclerc for xclerc: temporary. *)
     Eliminate_dead_blocks.run cfg_with_layout
