@@ -74,6 +74,9 @@ let mk_no_long_frames f =
 let mk_debug_long_frames_threshold f =
   "-debug-long-frames-threshold", Arg.Int f, "n debug only: set long frames threshold"
 
+let mk_caml_apply_inline_fast_path f =
+  "-caml-apply-inline-fast-path", Arg.Unit f, " Inline the fast path of caml_applyN"
+
 let mk_dump_inlining_paths f =
   "-dump-inlining-paths", Arg.Unit f, " Dump inlining paths when dumping flambda2 terms"
 
@@ -476,6 +479,7 @@ module type Flambda_backend_options = sig
   val no_long_frames : unit -> unit
   val long_frames_threshold : int -> unit
 
+  val caml_apply_inline_fast_path : unit -> unit
   val internal_assembler : unit -> unit
 
   val flambda2_join_points : unit -> unit
@@ -556,6 +560,8 @@ struct
     mk_long_frames F.long_frames;
     mk_no_long_frames F.no_long_frames;
     mk_debug_long_frames_threshold F.long_frames_threshold;
+
+    mk_caml_apply_inline_fast_path F.caml_apply_inline_fast_path;
 
     mk_internal_assembler F.internal_assembler;
 
@@ -673,6 +679,9 @@ module Flambda_backend_options_impl = struct
   let long_frames =  set' Flambda_backend_flags.allow_long_frames
   let no_long_frames = clear' Flambda_backend_flags.allow_long_frames
   let long_frames_threshold n = set_long_frames_threshold n
+
+  let caml_apply_inline_fast_path =
+    set' Flambda_backend_flags.caml_apply_inline_fast_path
 
   let internal_assembler = set' Flambda_backend_flags.internal_assembler
 
@@ -882,6 +891,8 @@ module Extra_params = struct
              (Printf.sprintf "Expected integer between 0 and %d"
                 Flambda_backend_flags.max_long_frames_threshold))
       end
+    | "caml-apply-inline-fast-path" ->
+      set' Flambda_backend_flags.caml_apply_inline_fast_path
     | "dasm-comments" -> set' Flambda_backend_flags.dasm_comments
     | "gupstream-dwarf" -> set' Debugging.restrict_to_upstream_dwarf
     | "gstartup" -> set' Debugging.dwarf_for_startup_file

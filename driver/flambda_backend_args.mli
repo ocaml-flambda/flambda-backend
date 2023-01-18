@@ -43,6 +43,7 @@ module type Flambda_backend_options = sig
   val no_long_frames : unit -> unit
   val long_frames_threshold : int -> unit
 
+  val caml_apply_inline_fast_path : unit -> unit
   val internal_assembler : unit -> unit
 
   val flambda2_join_points : unit -> unit
