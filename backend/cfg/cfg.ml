@@ -228,8 +228,8 @@ let remove_block_exn t label =
   | _ -> Label.Tbl.remove t.blocks label
 
 let remove_blocks t labels_to_remove =
-  Label.Tbl.filter_map_inplace (fun l b ->
-    if Label.Set.mem l labels_to_remove then None else (Some b))
+  Label.Tbl.filter_map_inplace
+    (fun l b -> if Label.Set.mem l labels_to_remove then None else Some b)
     t.blocks
 
 let get_block t label = Label.Tbl.find_opt t.blocks label
