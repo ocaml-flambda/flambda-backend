@@ -42,7 +42,7 @@ let mk_reorder_blocks_random f =
 let mk_basic_block_sections f =
   if Config.function_sections then
     "-basic-block-sections",  Arg.Unit f,
-    " Emit each basic block in a separate section if target supports it. Implies \
+    " Emit each basic block in a separate section if target supports it. Requires \
      -ocamlcfg."
   else
     let err () =
@@ -669,8 +669,7 @@ module Flambda_backend_options_impl = struct
   let reorder_blocks_random seed =
     Flambda_backend_flags.reorder_blocks_random := Some seed
   let basic_block_sections () =
-    set' Flambda_backend_flags.basic_block_sections ();
-    set' Flambda_backend_flags.use_ocamlcfg ()
+    set' Flambda_backend_flags.basic_block_sections ()
 
   let dasm_comments =
     set' Flambda_backend_flags.dasm_comments
@@ -886,11 +885,7 @@ module Extra_params = struct
     | "dump-inlining-paths" -> set' Flambda_backend_flags.dump_inlining_paths
     | "reorder-blocks-random" ->
        set_int_option' Flambda_backend_flags.reorder_blocks_random
-    | "basic-block-sections" ->
-      let options = [ Flambda_backend_flags.basic_block_sections;
-                      Flambda_backend_flags.use_ocamlcfg ] in
-      Compenv.setter ppf (fun b -> b) name options v;
-      true
+    | "basic-block-sections" -> set' Flambda_backend_flags.basic_block_sections
     | "heap-reduction-threshold" -> set_int' Flambda_backend_flags.heap_reduction_threshold
     | "alloc-check" -> set' Flambda_backend_flags.alloc_check
     | "dump-checkmach" -> set' Flambda_backend_flags.dump_checkmach
