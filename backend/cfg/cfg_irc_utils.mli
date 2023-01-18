@@ -83,7 +83,7 @@ module Spilling_heuristics : sig
   type t =
     | Set_choose
     | Flat_uses
-  (* CR xclerc for xclerc: | Hierarchical_uses *)
+    | Hierarchical_uses
 
   val all : t list
 

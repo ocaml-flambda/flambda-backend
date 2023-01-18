@@ -396,29 +396,49 @@ let update_live_fields : Cfg_with_layout.t -> liveness -> unit =
       Cfg.BasicInstructionList.iter block.body ~f:set_liveness;
       set_liveness block.terminator)
 
-let update_spill_cost : Cfg_with_layout.t -> unit =
- fun cfg_with_layout ->
+let pow10 n =
+  let res = ref 1 in
+  for _ = 1 to n do
+    res := !res * 10
+  done;
+  !res
+
+let update_spill_cost : Cfg_with_layout.t -> flat:bool -> unit -> unit =
+ fun cfg_with_layout ~flat () ->
   List.iter (Reg.all_registers ()) ~f:(fun reg -> reg.Reg.spill_cost <- 0);
-  let update_reg (reg : Reg.t) : unit =
-    reg.Reg.spill_cost <- reg.Reg.spill_cost + 1
+  let update_reg (cost : int) (reg : Reg.t) : unit =
+    reg.Reg.spill_cost <- reg.Reg.spill_cost + cost
   in
-  let update_array (regs : Reg.t array) : unit =
-    Array.iter regs ~f:update_reg
+  let update_array (cost : int) (regs : Reg.t array) : unit =
+    Array.iter regs ~f:(fun reg -> update_reg cost reg)
   in
-  let update_instr (instr : _ Cfg.instruction) : unit =
-    update_array instr.arg;
-    update_array instr.res
+  let update_instr (cost : int) (instr : _ Cfg.instruction) : unit =
+    update_array cost instr.arg;
+    update_array cost instr.res
   in
-  Cfg_with_layout.iter_instructions cfg_with_layout ~instruction:update_instr
-    ~terminator:(fun (term : Cfg.terminator Cfg.instruction) ->
+  let cfg = Cfg_with_layout.cfg cfg_with_layout in
+  let loops_depths : Cfg_loop_infos.loop_depths =
+    if flat then Label.Map.empty else (Cfg_loop_infos.build cfg).loop_depths
+  in
+  Cfg.iter_blocks cfg ~f:(fun label block ->
+      let cost =
+        match Label.Map.find_opt label loops_depths with
+        | None ->
+          assert flat;
+          1
+        | Some depth -> pow10 depth
+      in
+      Cfg.BasicInstructionList.iter
+        ~f:(fun instr -> update_instr cost instr)
+        block.body;
       (* Ignore probes *)
-      match term.desc with
+      match block.terminator.desc with
       | Prim { op = Probe _; _ } -> ()
       | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
       | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
       | Tailcall_func _ | Call_no_return _ | Call _ | Prim _
       | Specific_can_raise _ | Poll_and_jump _ ->
-        update_instr term)
+        update_instr cost block.terminator)
 
 let is_spilled reg = reg.Reg.irc_work_list = Reg.Spilled
 

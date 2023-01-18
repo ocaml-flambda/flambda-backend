@@ -228,12 +228,16 @@ let select_spilling_register_using_heuristics : State.t -> Reg.t =
       match Reg.Set.choose_opt spill_work_list with
       | Some reg -> reg
       | None -> fatal "spill_work_list is empty"))
-  | Flat_uses -> (
+  | Flat_uses | Hierarchical_uses -> (
     (* note: this assumes that `Reg.spill_cost` has been updated as needed (only
        when `rewrite` is called); the value computed here can however not be
        similarly cached because it depends on the degree (which does not need a
        call to `rewrite` to change). *)
     let weighted_cost (reg : Reg.t) =
+      if irc_debug
+      then
+        log ~indent:2 "register %a has spill cost %d" Printmach.reg reg
+          reg.Reg.spill_cost;
       (float reg.Reg.spill_cost /. float reg.Reg.degree)
       (* note: while this magic constant is questionable, it is key to not favor
          the introduced temporaries which, by construct, have very few
@@ -246,6 +250,10 @@ let select_spilling_register_using_heuristics : State.t -> Reg.t =
       State.fold_spill_work_list state ~init:(Reg.dummy, Float.max_float)
         ~f:(fun ((_curr_reg, curr_min_cost) as acc) reg ->
           let reg_cost = weighted_cost reg in
+          if irc_debug
+          then
+            log ~indent:2 "register %a has weighted cost %f" Printmach.reg reg
+              reg_cost;
           if reg_cost < curr_min_cost then reg, reg_cost else acc)
       |> fst)
 
@@ -532,7 +540,11 @@ let rec main : round:int -> State.t -> Cfg_with_liveness.t -> unit =
     then (
       if not !spill_cost_is_up_to_date
       then (
-        update_spill_cost cfg_with_layout;
+        (match Lazy.force Spilling_heuristics.env with
+        | Set_choose ->
+          (* note: `spill_cost` will not be used by the heuristics *) ()
+        | Flat_uses -> update_spill_cost cfg_with_layout ~flat:true ()
+        | Hierarchical_uses -> update_spill_cost cfg_with_layout ~flat:false ());
         spill_cost_is_up_to_date := true);
       select_spill state)
     else continue := false;
