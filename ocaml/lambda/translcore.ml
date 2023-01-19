@@ -126,7 +126,7 @@ let may_allocate_in_region lam =
        | None | Some Alloc_heap ->
           List.iter loop args
        end
-    | Lregion _body ->
+    | Lregion (_body, _layout) ->
        (* [_body] might do local allocations, but not in the current region *)
        ()
     | Lwhile {wh_cond_region=false} -> raise Exit
@@ -147,7 +147,7 @@ let may_allocate_in_region lam =
     | exception Exit -> true
   end
 
-let maybe_region lam =
+let maybe_region layout lam =
   let rec remove_tail_markers = function
     | Lapply ({ap_region_close = Rc_close_at_apply} as ap) ->
        Lapply ({ap with ap_region_close = Rc_normal})
@@ -158,7 +158,7 @@ let maybe_region lam =
        Lambda.shallow_map ~tail:remove_tail_markers ~non_tail:Fun.id lam
   in
   if not Config.stack_allocation then lam
-  else if may_allocate_in_region lam then Lregion lam
+  else if may_allocate_in_region lam then Lregion (lam, layout)
   else remove_tail_markers lam
 
 (* Push the default values under the functional abstractions *)
@@ -589,10 +589,10 @@ and transl_exp0 ~in_new_scope ~scopes e =
       let cond = transl_exp ~scopes wh_cond in
       let body = transl_exp ~scopes wh_body in
       Lwhile {
-        wh_cond = if wh_cond_region then maybe_region cond else cond;
+        wh_cond = if wh_cond_region then maybe_region layout_int cond else cond;
         wh_cond_region;
         wh_body = event_before ~scopes wh_body
-                    (if wh_body_region then maybe_region body else body);
+                    (if wh_body_region then maybe_region layout_unit body else body);
         wh_body_region;
       }
   | Texp_arr_comprehension (body, blocks) ->
@@ -613,7 +613,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
         for_to = transl_exp ~scopes for_to;
         for_dir;
         for_body = event_before ~scopes for_body
-                     (if for_region then maybe_region body else body);
+                     (if for_region then maybe_region layout_unit body else body);
         for_region;
       }
   | Texp_send(expr, met, pos) ->
@@ -773,7 +773,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
                             ~loc:(of_location ~scopes e.exp_loc)
                             ~mode:alloc_heap
                             ~region:true
-                            ~body:(maybe_region (transl_exp ~scopes e))
+                            ~body:(maybe_region (layout e.exp_env e.exp_type) (transl_exp ~scopes e))
          in
           Lprim(Pmakeblock(Config.lazy_tag, Mutable, None, alloc_heap), [fn],
                 of_location ~scopes e.exp_loc)
@@ -1201,7 +1201,7 @@ and transl_function ~scopes e param cases partial warnings region curry =
   in
   let attr = default_function_attribute in
   let loc = of_location ~scopes e.exp_loc in
-  let body = if region then maybe_region body else body in
+  let body = if region then maybe_region return body else body in
   let lam = lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region in
   Translattribute.add_function_attributes lam e.exp_loc e.exp_attributes
 
@@ -1237,7 +1237,7 @@ and transl_let ~scopes ?(add_regions=false) ?(in_structure=false)
       | {vb_pat=pat; vb_expr=expr; vb_attributes=attr; vb_loc} :: rem ->
           let lam = transl_bound_exp ~scopes ~in_structure pat expr in
           let lam = Translattribute.add_function_attributes lam vb_loc attr in
-          let lam = if add_regions then maybe_region lam else lam in
+          let lam = if add_regions then maybe_region (layout expr.exp_env expr.exp_type) lam else lam in
           let mk_body = transl rem in
           fun body ->
             Matching.for_let ~scopes pat.pat_loc lam pat body_kind (mk_body body)
@@ -1255,7 +1255,7 @@ and transl_let ~scopes ?(add_regions=false) ?(in_structure=false)
         let lam =
           Translattribute.add_function_attributes lam vb_loc vb_attributes
         in
-        let lam = if add_regions then maybe_region lam else lam in
+        let lam = if add_regions then maybe_region (layout expr.exp_env expr.exp_type) lam else lam in
         begin match transl_exp_mode expr, lam with
         | Alloc_heap, _ -> ()
         | Alloc_local, Lfunction _ -> ()
@@ -1539,7 +1539,7 @@ and transl_letop ~scopes loc env let_ ands param case partial warnings =
     in
     let attr = default_function_attribute in
     let loc = of_location ~scopes case.c_rhs.exp_loc in
-    let body = maybe_region body in
+    let body = maybe_region return body in
     lfunction ~kind ~params ~return ~body ~attr ~loc
               ~mode:alloc_heap ~region:true
   in
@@ -1560,17 +1560,17 @@ and transl_letop ~scopes loc env let_ ands param case partial warnings =
    that can only return global values *)
 
 let transl_exp ~scopes exp =
-  maybe_region (transl_exp ~scopes exp)
+  maybe_region (layout exp.exp_env exp.exp_type) (transl_exp ~scopes exp)
 
 let transl_let ~scopes ?in_structure rec_flag pat_expr_list =
   transl_let ~scopes ~add_regions:true ?in_structure rec_flag pat_expr_list
 
 let transl_scoped_exp ~scopes exp =
-  maybe_region (transl_scoped_exp ~scopes exp)
+  maybe_region (layout exp.exp_env exp.exp_type) (transl_scoped_exp ~scopes exp)
 
 let transl_apply
       ~scopes ?tailcall ?inlined ?specialised ?position ?mode fn args loc =
-  maybe_region (transl_apply
+  maybe_region Lambda.layout_top (transl_apply
       ~scopes ?tailcall ?inlined ?specialised ?position ?mode fn args loc)
 
 (* Error report *)

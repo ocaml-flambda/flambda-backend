@@ -1419,7 +1419,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
       close env lam
   | Lifused _ ->
       assert false
-  | Lregion lam ->
+  | Lregion (lam, _) ->
       let ulam, approx = close env lam in
       region ulam, approx
 

@@ -516,7 +516,7 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
       | None -> fun ~tail : Lambda.lambda -> Lsequence (lam, letrec.pre ~tail)
     in
     { letrec with pre }
-  | Lregion body ->
+  | Lregion (body, _) ->
     let letrec = prepare_letrec recursive_set current_let body letrec in
     { letrec with needs_region = true }
   [@@ocaml.warning "-fragile-match"]
@@ -600,7 +600,7 @@ let dissect_letrec ~bindings ~body =
   then substituted
   else
     Lstaticcatch
-      ( Lregion (Lambda.rename bound_ids_freshening substituted),
+      ( Lregion (Lambda.rename bound_ids_freshening substituted, Lambda.layout_top),
         ( cont,
           List.map (fun (bound_id, _) -> bound_id, Lambda.layout_top) bindings
         ),

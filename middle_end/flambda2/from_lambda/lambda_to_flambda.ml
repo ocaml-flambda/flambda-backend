@@ -1391,9 +1391,9 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
        by completely removing it (replacing by unit). *)
     Misc.fatal_error
       "[Lifused] should have been removed by [Simplif.simplify_lets]"
-  | Lregion body when not (Flambda_features.stack_allocation_enabled ()) ->
+  | Lregion (body, _) when not (Flambda_features.stack_allocation_enabled ()) ->
     cps acc env ccenv body k k_exn
-  | Lregion body ->
+  | Lregion (body, layout) ->
     (* Here we need to build the region closure continuation (see long comment
        above). Since we're not in tail position, we also need to have a new
        continuation for the code after the body. *)
@@ -1403,12 +1403,12 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
       Flambda_kind.With_subkind.region
       (Begin_region { try_region_parent = None })
       ~body:(fun acc ccenv ->
-        maybe_insert_let_cont "body_return" Lambda.layout_top k acc env ccenv
+        maybe_insert_let_cont "body_return" layout k acc env ccenv
           (fun acc env ccenv k ->
             let wrap_return = Ident.create_local "region_return" in
             let_cont_nonrecursive_with_extra_params acc env ccenv
               ~is_exn_handler:false
-              ~params:[wrap_return, Not_user_visible, Lambda.layout_top]
+              ~params:[wrap_return, Not_user_visible, layout]
               ~body:(fun acc env ccenv continuation_closing_region ->
                 (* We register this region to be closed by the newly-created
                    region closure continuation. When we reach a point in [body]
