@@ -148,18 +148,20 @@ module BasicInstructionList = struct
 
   let length t = t.length
 
+  let remove t curr =
+    if !curr.prev == dummy_node
+    then t.first <- !curr.next
+    else !curr.prev.next <- !curr.next;
+    if !curr.next == dummy_node
+    then t.last <- !curr.prev
+    else !curr.next.prev <- !curr.prev;
+    t.length <- pred t.length
+
   let filter_left t ~f =
     let curr = ref t.first in
     while !curr != dummy_node do
       if not (f !curr.instr)
-      then (
-        if !curr.prev == dummy_node
-        then t.first <- !curr.next
-        else !curr.prev.next <- !curr.next;
-        if !curr.next == dummy_node
-        then t.last <- !curr.prev
-        else !curr.next.prev <- !curr.prev;
-        t.length <- pred t.length);
+      then remove t curr;
       curr := !curr.next
     done
 
@@ -167,14 +169,7 @@ module BasicInstructionList = struct
     let curr = ref t.last in
     while !curr != dummy_node do
       if not (f !curr.instr)
-      then (
-        if !curr.prev == dummy_node
-        then t.first <- !curr.next
-        else !curr.prev.next <- !curr.next;
-        if !curr.next == dummy_node
-        then t.last <- !curr.prev
-        else !curr.next.prev <- !curr.prev;
-        t.length <- pred t.length);
+      then remove t curr;
       curr := !curr.prev
     done
 
