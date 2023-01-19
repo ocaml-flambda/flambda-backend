@@ -160,16 +160,14 @@ module BasicInstructionList = struct
   let filter_left t ~f =
     let curr = ref t.first in
     while !curr != dummy_node do
-      if not (f !curr.instr)
-      then remove t !curr;
+      if not (f !curr.instr) then remove t !curr;
       curr := !curr.next
     done
 
   let filter_right t ~f =
     let curr = ref t.last in
     while !curr != dummy_node do
-      if not (f !curr.instr)
-      then remove t !curr;
+      if not (f !curr.instr) then remove t !curr;
       curr := !curr.prev
     done
 
