@@ -78,6 +78,7 @@ end
 
 module EdgeMap : Map.S with type key = Edge.t = Map.Make (Edge)
 
+(* CR-soon xclerc for xclerc: consider deduplicating. *)
 let compute_back_edges cfg dominators =
   Cfg.fold_blocks cfg ~init:[] ~f:(fun src_label src_block acc ->
       let dst_labels =
@@ -110,7 +111,9 @@ let compute_loop_of_back_edge cfg { Edge.src; dst } =
   in
   visit [src] (Label.Set.add src (Label.Set.singleton dst))
 
-type loops = Label.Set.t EdgeMap.t
+type loop = Label.Set.t
+
+type loops = loop EdgeMap.t
 
 let compute_loops_of_back_edges cfg back_edges =
   List.fold_left back_edges ~init:EdgeMap.empty ~f:(fun acc edge ->

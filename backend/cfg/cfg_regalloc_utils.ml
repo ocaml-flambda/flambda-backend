@@ -396,6 +396,7 @@ let update_live_fields : Cfg_with_layout.t -> liveness -> unit =
       Cfg.BasicInstructionList.iter block.body ~f:set_liveness;
       set_liveness block.terminator)
 
+(* CR-soon xclerc for xclerc: consider adding an overflow check. *)
 let pow10 n =
   let res = ref 1 in
   for _ = 1 to n do
@@ -407,6 +408,7 @@ let update_spill_cost : Cfg_with_layout.t -> flat:bool -> unit -> unit =
  fun cfg_with_layout ~flat () ->
   List.iter (Reg.all_registers ()) ~f:(fun reg -> reg.Reg.spill_cost <- 0);
   let update_reg (cost : int) (reg : Reg.t) : unit =
+    (* CR-soon xclerc for xclerc: consider adding an overflow check. *)
     reg.Reg.spill_cost <- reg.Reg.spill_cost + cost
   in
   let update_array (cost : int) (regs : Reg.t array) : unit =
