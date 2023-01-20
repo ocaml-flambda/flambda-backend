@@ -30,8 +30,8 @@ val compute_loop_of_back_edge : Cfg.t -> Edge.t -> Label.Set.t
 (* Assumes the passed edge is a back edge. *)
 
 type loop = Label.Set.t
-(* Blocks in a loop; if a node is part of several/nested loops, it will
-   appear in several sets. *)
+(* Blocks in a loop; if a node is part of several/nested loops, it will appear
+   in several sets. *)
 
 type loops = loop EdgeMap.t
 
