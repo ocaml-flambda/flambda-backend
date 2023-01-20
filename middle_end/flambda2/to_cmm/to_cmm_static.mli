@@ -29,4 +29,4 @@ val static_consts :
     Cmm.fundecl * To_cmm_result.t) ->
   Bound_static.t ->
   Static_const_group.t ->
-  To_cmm_env.t * To_cmm_result.t * Cmm.expression option
+  To_cmm_env.t * To_cmm_result.t * Cmm.expression option * Backend_var.Set.t

@@ -18,4 +18,4 @@ val expr :
   To_cmm_env.t ->
   To_cmm_result.t ->
   Flambda.Expr.t ->
-  Cmm.expression * To_cmm_result.t
+  Cmm.expression * Backend_var.Set.t * To_cmm_result.t
