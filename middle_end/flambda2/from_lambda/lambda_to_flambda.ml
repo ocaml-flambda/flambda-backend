@@ -457,7 +457,7 @@ let extra_args_for_exn_continuation env exn_handler =
   let more_extra_args =
     Env.extra_args_for_continuation_with_kinds env exn_handler
   in
-  List.map (fun (arg, kind) : (IR.simple * _) -> Var arg, kind) more_extra_args
+  List.map (fun (arg, kind) : (IR.simple * _) -> Var arg, Flambda_kind.With_subkind.from_lambda kind) more_extra_args
 
 let _print_stack ppf stack =
   Format.fprintf ppf "%a"
@@ -761,8 +761,9 @@ let let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler
   let { Env.body_env; handler_env; extra_params } =
     Env.add_continuation env cont ~push_to_try_stack:is_exn_handler Nonrecursive
   in
+  let params = List.map (fun (id, visible, kind) -> (id, visible, Flambda_kind.With_subkind.from_lambda kind)) params in
   let extra_params =
-    List.map (fun (id, kind) -> id, IR.User_visible, kind) extra_params
+    List.map (fun (id, kind) -> id, IR.User_visible, Flambda_kind.With_subkind.from_lambda kind) extra_params
   in
   let handler acc ccenv = handler acc handler_env ccenv in
   let body acc ccenv = body acc body_env ccenv cont in
@@ -1246,7 +1247,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
         in
         let params =
           List.map
-            (fun (arg, kind) -> arg, IR.User_visible, kind)
+            (fun (arg, kind) -> arg, IR.User_visible, Flambda_kind.With_subkind.from_lambda kind)
             (args @ extra_params)
         in
         let handler acc ccenv =
@@ -1282,7 +1283,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                         probe = None;
                         mode;
                         region = Env.current_region env;
-                        return = Lambda.layout_top;
+                        return = Flambda_kind.With_subkind.from_lambda Lambda.layout_top;
                       }
                     in
                     wrap_return_continuation acc env ccenv apply))
@@ -1482,7 +1483,7 @@ and cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode ap_loc
               probe = ap_probe;
               mode = ap_mode;
               region = Env.current_region env;
-              return = ap_return;
+              return = Flambda_kind.With_subkind.from_lambda ap_return;
             }
           in
           wrap_return_continuation acc env ccenv apply)
@@ -1612,6 +1613,8 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
     let ccenv = CCenv.set_path_to_root ccenv loc in
     cps_tail acc new_env ccenv body body_cont body_exn_cont
   in
+  let params = List.map (fun (param, kind) -> param, Flambda_kind.With_subkind.from_lambda kind) params in
+  let return = Flambda_kind.With_subkind.from_lambda return in
   Function_decl.create ~let_rec_ident:(Some fid) ~function_slot ~kind ~params
     ~return ~return_continuation:body_cont ~exn_continuation ~my_region ~body
     ~attr ~loc ~free_idents_of_body recursive ~closure_alloc_mode:mode

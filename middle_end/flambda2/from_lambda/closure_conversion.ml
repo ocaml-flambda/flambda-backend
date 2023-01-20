@@ -565,7 +565,7 @@ let close_exn_continuation acc env (exn_continuation : IR.exn_continuation) =
     List.fold_left_map
       (fun acc (simple, kind) ->
         let acc, simple = find_simple acc env simple in
-        acc, (simple, K.With_subkind.from_lambda kind))
+        acc, (simple, kind))
       acc exn_continuation.extra_args
   in
   ( acc,
@@ -847,7 +847,7 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
   let params_with_kinds =
     List.map
       (fun (param, user_visible, kind) ->
-        param, user_visible, K.With_subkind.from_lambda kind)
+        param, user_visible, kind)
       params
   in
   let handler_env, params = Env.add_vars_like env params_with_kinds in
@@ -1230,7 +1230,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
     List.fold_right
       (fun (id, kind) env ->
         let env, _var =
-          Env.add_var_like env id User_visible (K.With_subkind.from_lambda kind)
+          Env.add_var_like env id User_visible kind
         in
         env)
       params closure_env
@@ -1261,7 +1261,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
   in
   let params =
     List.map
-      (fun (var, kind) -> BP.create var (K.With_subkind.from_lambda kind))
+      (fun (var, kind) -> BP.create var kind)
       param_vars
     |> Bound_parameters.create
   in
@@ -1386,7 +1386,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
       ~free_names_of_params_and_body:(Acc.free_names acc) ~params_arity
       ~num_trailing_local_params:(Function_decl.num_trailing_local_params decl)
       ~result_arity:
-        (Flambda_arity.With_subkinds.create [K.With_subkind.from_lambda return])
+        (Flambda_arity.With_subkinds.create [return])
       ~result_types:Unknown
       ~contains_no_escaping_local_allocs:
         (Function_decl.contains_no_escaping_local_allocs decl)
@@ -1491,13 +1491,13 @@ let close_functions acc external_env ~current_region function_declarations =
         let params = Function_decl.params decl in
         let params_arity =
           List.map
-            (fun (_, kind) -> Flambda_kind.With_subkind.from_lambda kind)
+            (fun (_, kind) -> kind)
             params
           |> Flambda_arity.With_subkinds.create
         in
         let return = Function_decl.return decl in
         let result_arity =
-          Flambda_arity.With_subkinds.create [K.With_subkind.from_lambda return]
+          Flambda_arity.With_subkinds.create [return]
         in
         let poll_attribute =
           Poll_attribute.from_lambda (Function_decl.poll_attribute decl)
@@ -1769,9 +1769,9 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
   let params =
     (* CR keryan: We should use the arity to produce better kinds *)
     List.mapi
-      (fun n _kind_with_subkind ->
+      (fun n kind_with_subkind ->
         ( Ident.create_local ("param" ^ string_of_int (args_arity + n)),
-          Lambda.layout_top ))
+          kind_with_subkind ))
       (Flambda_arity.With_subkinds.to_list missing_args)
   in
   let return_continuation = Continuation.create ~sort:Return () in
@@ -1835,7 +1835,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
     (* CR keryan: Same as above, better kind for return type *)
     [ Function_decl.create ~let_rec_ident:(Some wrapper_id) ~function_slot
         ~kind:(Lambda.Curried { nlocal = num_trailing_local_params })
-        ~params ~return:Lambda.layout_top ~return_continuation ~exn_continuation
+        ~params ~return:apply.return ~return_continuation ~exn_continuation
         ~my_region:apply.region ~body:fbody ~attr ~loc:apply.loc
         ~free_idents_of_body ~closure_alloc_mode ~num_trailing_local_params
         ~contains_no_escaping_local_allocs Recursive.Non_recursive ]
