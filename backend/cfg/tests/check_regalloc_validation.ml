@@ -347,7 +347,6 @@ let base_templ () : Cfg_desc.t * (unit -> int) =
 
 let check name f ~exp_std ~exp_err =
   let before, after = f () in
-  Printf.eprintf "XXX check/1\n%!";
   let with_wrap_ppf ppf f =
     Format.pp_print_flush ppf ();
     let buf = Buffer.create 0 in
@@ -360,12 +359,10 @@ let check name f ~exp_std ~exp_err =
     Format.pp_set_formatter_out_functions ppf old_out_func;
     res, buf |> Buffer.to_bytes |> Bytes.to_string |> String.trim
   in
-  Printf.eprintf "XXX check/2\n%!";
   let ((), err_out), std_out =
     with_wrap_ppf Format.std_formatter (fun () ->
         with_wrap_ppf Format.err_formatter (fun () ->
             try
-              Printf.eprintf "XXX check/2/1\n%!";
               let desc =
                 try Cfg_regalloc_validate.Description.create before
                 with Misc.Fatal_error ->
@@ -373,7 +370,6 @@ let check name f ~exp_std ~exp_err =
                     "fatal exception raised when creating description";
                   raise Break_test
               in
-              Printf.eprintf "XXX check/2/2\n%!";
               let res =
                 try Cfg_regalloc_validate.test desc after
                 with Misc.Fatal_error ->
@@ -381,20 +377,16 @@ let check name f ~exp_std ~exp_err =
                     "fatal exception raised when validating description";
                   raise Break_test
               in
-              Printf.eprintf "XXX check/2/3\n%!";
               match res with
               | Ok cfg ->
-                Printf.eprintf "XXX check/2/4\n%!";
                 if cfg = after
                 then ()
                 else Format.printf "Validation changed cfg";
-                Printf.eprintf "XXX check/2/5\n%!"
               | Error error ->
                 Format.printf "Validation failed: %a"
                   Cfg_regalloc_validate.Error.print error
             with Break_test -> ()))
   in
-  Printf.eprintf "XXX check/3\n%!";
   if exp_std = std_out && exp_err = err_out
   then Format.printf "%s: OK\n%!" name
   else
@@ -634,11 +626,8 @@ let () =
                  :: templ.blocks
              }
            in
-           Printf.eprintf "XXX pt1\n%!";
            templ.&(add_label).terminator.desc <- Always tmp_label;
-           Printf.eprintf "XXX pt2\n%!";
            let cfg2 = Cfg_desc.make_post templ in
-           Printf.eprintf "XXX pt3\n%!";
            cfg1, cfg2)
          ~exp_std:"" ~exp_err:""
   *)
