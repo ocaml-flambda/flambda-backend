@@ -2299,9 +2299,12 @@ let apply_function_body (arity, (mode : Lambda.alloc_mode)) =
   (* In the slowpath, a region is necessary in case the initial applications do
      local allocations *)
   let region =
-    match mode with
-    | Alloc_heap -> Some (V.create_local "region")
-    | Alloc_local -> None
+    if not Config.stack_allocation
+    then None
+    else
+      match mode with
+      | Alloc_heap -> Some (V.create_local "region")
+      | Alloc_local -> None
   in
   let rec app_fun clos n =
     if n = arity - 1
