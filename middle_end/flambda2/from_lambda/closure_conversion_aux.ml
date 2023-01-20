@@ -63,7 +63,8 @@ module IR = struct
       inlined : Lambda.inlined_attribute;
       probe : Lambda.probe;
       mode : Lambda.alloc_mode;
-      region : Ident.t
+      region : Ident.t;
+      return : Lambda.layout;
     }
 
   type switch =

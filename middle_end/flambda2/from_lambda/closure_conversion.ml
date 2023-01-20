@@ -900,7 +900,8 @@ let close_exact_or_unknown_apply acc env
        probe;
        mode;
        region_close;
-       region
+       region;
+       return = _;
      } :
       IR.apply) callee_approx ~replace_region : Expr_with_acc.t =
   let callee = find_simple_from_id env func in

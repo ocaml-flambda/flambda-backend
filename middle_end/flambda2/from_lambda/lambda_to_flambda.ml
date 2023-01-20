@@ -612,7 +612,7 @@ let transform_primitive env (prim : L.primitive) args loc =
   | Pignore, [arg] ->
     let ident = Ident.create_local "ignore" in
     let result = L.Lconst (Const_base (Const_int 0)) in
-    Transformed (L.Llet (Strict, Lambda.layout_top, ident, arg, result))
+    Transformed (L.Llet (Strict, Lambda.layout_any_value, ident, arg, result))
   | Pfield _, [L.Lprim (Pgetglobal cu, [], _)]
     when Compilation_unit.equal cu (Env.current_unit env) ->
     Misc.fatal_error
@@ -847,7 +847,7 @@ let wrap_return_continuation acc env ccenv (apply : IR.apply) =
           { apply with continuation = wrapper_cont; region }
       in
       CC.close_let_cont acc ccenv ~name:wrapper_cont ~is_exn_handler:false
-        ~params:[return_value, Not_user_visible, Lambda.layout_top]
+        ~params:[return_value, Not_user_visible, apply.return]
         ~recursive:Nonrecursive ~body ~handler
   in
   restore_continuation_context acc env ccenv apply.continuation ~close_early
@@ -1067,7 +1067,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     maybe_insert_let_cont "apply_result" ap_result_layout k acc env ccenv
       (fun acc env ccenv k ->
         cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode
-          ap_loc ap_inlined ap_probe k k_exn)
+          ap_loc ap_inlined ap_probe ap_result_layout k k_exn)
   | Lfunction func ->
     let id = Ident.create_local (name_for_function func) in
     let dbg = Debuginfo.from_location func.loc in
@@ -1281,7 +1281,8 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                         inlined = Default_inlined;
                         probe = None;
                         mode;
-                        region = Env.current_region env
+                        region = Env.current_region env;
+                        return = Lambda.layout_top;
                       }
                     in
                     wrap_return_continuation acc env ccenv apply))
@@ -1457,7 +1458,7 @@ and cps_non_tail_var name acc env ccenv lam kind k k_exn =
     k_exn
 
 and cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode ap_loc
-    ap_inlined ap_probe (k : Continuation.t) (k_exn : Continuation.t) :
+    ap_inlined ap_probe ap_return (k : Continuation.t) (k_exn : Continuation.t) :
     Expr_with_acc.t =
   cps_non_tail_list acc env ccenv ap_args
     (fun acc env ccenv args ->
@@ -1480,7 +1481,8 @@ and cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode ap_loc
               inlined = ap_inlined;
               probe = ap_probe;
               mode = ap_mode;
-              region = Env.current_region env
+              region = Env.current_region env;
+              return = ap_return;
             }
           in
           wrap_return_continuation acc env ccenv apply)
