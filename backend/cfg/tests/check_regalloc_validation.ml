@@ -381,7 +381,7 @@ let check name f ~exp_std ~exp_err =
               | Ok cfg ->
                 if cfg = after
                 then ()
-                else Format.printf "Validation changed cfg";
+                else Format.printf "Validation changed cfg"
               | Error error ->
                 Format.printf "Validation failed: %a"
                   Cfg_regalloc_validate.Error.print error
