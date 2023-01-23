@@ -157,7 +157,7 @@ let classify_expression : Typedtree.expression -> sd =
     | Texp_letexception (_, e) ->
         classify_expression env e
 
-    | Texp_construct (_, {cstr_tag = Cstr_unboxed}, [e]) ->
+    | Texp_construct (_, {cstr_tag = Cstr_unboxed}, [e], _) ->
         classify_expression env e
     | Texp_construct _ ->
         Static
@@ -168,10 +168,10 @@ let classify_expression : Typedtree.expression -> sd =
     | Texp_record _ ->
         Static
 
-    | Texp_apply ({exp_desc = Texp_ident (_, _, vd, Id_prim _)}, _, _)
+    | Texp_apply ({exp_desc = Texp_ident (_, _, vd, Id_prim _)}, _, _, _)
       when is_ref vd ->
         Static
-    | Texp_apply (_, args, _)
+    | Texp_apply (_, args, _, _)
       when List.exists is_abstracted_arg args ->
         Static
     | Texp_apply _ ->
@@ -587,7 +587,7 @@ let rec expression : Typedtree.expression -> term_judg =
     | Texp_instvar (self_path, pth, _inst_var) ->
         join [path self_path << Dereference; path pth]
     | Texp_apply
-        ({exp_desc = Texp_ident (_, _, vd, Id_prim _)}, [_, Arg arg], _)
+        ({exp_desc = Texp_ident (_, _, vd, Id_prim _)}, [_, Arg arg], _, _)
       when is_ref vd ->
       (*
         G |- e: m[Guard]
@@ -595,7 +595,7 @@ let rec expression : Typedtree.expression -> term_judg =
         G |- ref e: m
       *)
       expression arg << Guard
-    | Texp_apply (e, args, _)  ->
+    | Texp_apply (e, args, _, _)  ->
         let arg (_, arg) =
           match arg with
           | Omitted _ -> empty
@@ -609,9 +609,9 @@ let rec expression : Typedtree.expression -> term_judg =
           else Dereference
         in
         join [expression e; list arg args] << app_mode
-    | Texp_tuple exprs ->
+    | Texp_tuple (exprs, _) ->
       list expression exprs << Guard
-    | Texp_array exprs ->
+    | Texp_array (exprs, _) ->
       let array_mode = match Typeopt.array_kind exp with
         | Lambda.Pfloatarray ->
             (* (flat) float arrays unbox their elements *)
@@ -625,7 +625,7 @@ let rec expression : Typedtree.expression -> term_judg =
             Guard
       in
       list expression exprs << array_mode
-    | Texp_construct (_, desc, exprs) ->
+    | Texp_construct (_, desc, exprs, _) ->
       let access_constructor =
         match desc.cstr_tag with
         | Cstr_extension (pth, _) ->
@@ -648,7 +648,7 @@ let rec expression : Typedtree.expression -> term_judg =
         ------------------   -----------
         G |- `A e: m         [] |- `A: m
       *)
-      option expression eo << Guard
+      option (fun (e, _) -> expression e) eo << Guard
     | Texp_record { fields = es; extended_expression = eo;
                     representation = rep } ->
         let field_mode = match rep with
@@ -681,7 +681,7 @@ let rec expression : Typedtree.expression -> term_judg =
         expression ifso;
         option expression ifnot;
       ]
-    | Texp_setfield (e1, _, _, e2) ->
+    | Texp_setfield (e1, _, _, _, e2) ->
       (*
         G1 |- e1: m[Dereference]
         G2 |- e2: m[Dereference]
@@ -720,7 +720,7 @@ let rec expression : Typedtree.expression -> term_judg =
         expression wh_cond << Dereference;
         expression wh_body << Guard;
       ]
-    | Texp_send (e1, _, _) ->
+    | Texp_send (e1, _, _, _) ->
       (*
         G |- e: m[Dereference]
         ---------------------- (plus weird 'eo' option)
@@ -729,7 +729,7 @@ let rec expression : Typedtree.expression -> term_judg =
       join [
         expression e1 << Dereference
       ]
-    | Texp_field (e, _, _) ->
+    | Texp_field (e, _, _, _) ->
       (*
         G |- e: m[Dereference]
         -----------------------

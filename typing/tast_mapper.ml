@@ -277,18 +277,18 @@ let expr sub x =
         let (rec_flag, list) = sub.value_bindings sub (rec_flag, list) in
         Texp_let (rec_flag, list, sub.expr sub exp)
     | Texp_function { arg_label; param; cases;
-                      partial; region; curry; warnings } ->
+                      partial; region; curry; warnings; alloc_mode } ->
         let cases = List.map (sub.case sub) cases in
         Texp_function { arg_label; param; cases;
-                        partial; region; curry; warnings }
-    | Texp_apply (exp, list, pos) ->
+                        partial; region; curry; warnings; alloc_mode }
+    | Texp_apply (exp, list, pos, am) ->
         Texp_apply (
           sub.expr sub exp,
           List.map (function
             | (lbl, Arg exp) -> (lbl, Arg (sub.expr sub exp))
             | (lbl, Omitted o) -> (lbl, Omitted o))
             list,
-          pos
+          pos, am
         )
     | Texp_match (exp, cases, p) ->
         Texp_match (
@@ -301,13 +301,13 @@ let expr sub x =
           sub.expr sub exp,
           List.map (sub.case sub) cases
         )
-    | Texp_tuple list ->
-        Texp_tuple (List.map (sub.expr sub) list)
-    | Texp_construct (lid, cd, args) ->
-        Texp_construct (lid, cd, List.map (sub.expr sub) args)
+    | Texp_tuple (list, am) ->
+        Texp_tuple (List.map (sub.expr sub) list, am)
+    | Texp_construct (lid, cd, args, am) ->
+        Texp_construct (lid, cd, List.map (sub.expr sub) args, am)
     | Texp_variant (l, expo) ->
-        Texp_variant (l, Option.map (sub.expr sub) expo)
-    | Texp_record { fields; representation; extended_expression } ->
+        Texp_variant (l, Option.map (fun (e, am) -> (sub.expr sub e, am)) expo)
+    | Texp_record { fields; representation; extended_expression; alloc_mode } ->
         let fields = Array.map (function
             | label, Kept t -> label, Kept t
             | label, Overridden (lid, exp) ->
@@ -317,18 +317,20 @@ let expr sub x =
         Texp_record {
           fields; representation;
           extended_expression = Option.map (sub.expr sub) extended_expression;
+          alloc_mode
         }
-    | Texp_field (exp, lid, ld) ->
-        Texp_field (sub.expr sub exp, lid, ld)
-    | Texp_setfield (exp1, lid, ld, exp2) ->
+    | Texp_field (exp, lid, ld, am) ->
+        Texp_field (sub.expr sub exp, lid, ld, am)
+    | Texp_setfield (exp1, am, lid, ld, exp2) ->
         Texp_setfield (
           sub.expr sub exp1,
+          am,
           lid,
           ld,
           sub.expr sub exp2
         )
-    | Texp_array list ->
-        Texp_array (List.map (sub.expr sub) list)
+    | Texp_array (list, am) ->
+        Texp_array (List.map (sub.expr sub) list, am)
     | Texp_ifthenelse (exp1, exp2, expo) ->
         Texp_ifthenelse (
           sub.expr sub exp1,
@@ -358,12 +360,13 @@ let expr sub x =
         Texp_for {tf with for_from = sub.expr sub tf.for_from;
                           for_to = sub.expr sub tf.for_to;
                           for_body = sub.expr sub tf.for_body}
-    | Texp_send (exp, meth, ap) ->
+    | Texp_send (exp, meth, ap, am) ->
         Texp_send
           (
             sub.expr sub exp,
             meth,
-            ap
+            ap,
+            am
           )
     | Texp_new _
     | Texp_instvar _ as d -> d

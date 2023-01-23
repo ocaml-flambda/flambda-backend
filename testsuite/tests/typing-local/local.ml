@@ -1904,7 +1904,7 @@ val primloc : int32 -> int = <fun>
 |}]
 
 (* (&&) and (||) tail call on the right *)
-let testbool1 f = let local_ r = ref 42 in (f r || false) && true 
+let testbool1 f = let local_ r = ref 42 in (f r || false) && true
 
 let testbool2 f = let local_ r = ref 42 in true && (false || f r)
 [%%expect{|
@@ -2577,7 +2577,7 @@ Error: This value escapes its region
 
 (* on construction of array, we ensure elements are global *)
 
-let f (local_ x : string) = 
+let f (local_ x : string) =
   [|x; "foo"|]
 [%%expect{|
 Line 2, characters 4-5:
@@ -2586,21 +2586,21 @@ Line 2, characters 4-5:
 Error: This value escapes its region
 |}]
 
-let f (x : string) = 
+let f (x : string) =
   [|x; "foo"|]
 [%%expect{|
 val f : string -> string array = <fun>
-|}]  
+|}]
 
 
-(* on pattern matching of array, 
-   elements are strengthened to global 
+(* on pattern matching of array,
+   elements are strengthened to global
   even if array itself is local *)
-let f (local_ a : string array) = 
+let f (local_ a : string array) =
   match a with
   | [| x; _ |] -> ref x
   | _ -> ref "foo"
 
 [%%expect{|
 val f : local_ string array -> string ref = <fun>
-|}]  
+|}]

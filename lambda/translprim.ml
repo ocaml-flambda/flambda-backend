@@ -884,8 +884,8 @@ let transl_primitive_application loc p env ty mode path exp args arg_exps pos =
   in
   let has_constant_constructor =
     match arg_exps with
-    | [_; {exp_desc = Texp_construct(_, {cstr_tag = Cstr_constant _}, _)}]
-    | [{exp_desc = Texp_construct(_, {cstr_tag = Cstr_constant _}, _)}; _]
+    | [_; {exp_desc = Texp_construct(_, {cstr_tag = Cstr_constant _}, _, _)}]
+    | [{exp_desc = Texp_construct(_, {cstr_tag = Cstr_constant _}, _, _)}; _]
     | [_; {exp_desc = Texp_variant(_, None)}]
     | [{exp_desc = Texp_variant(_, None)}; _] -> true
     | _ -> false

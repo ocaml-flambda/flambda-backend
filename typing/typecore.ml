@@ -418,8 +418,9 @@ let register_allocation_mode alloc_mode =
   | Amodevar _ -> allocations := alloc_mode :: !allocations
 
 let register_allocation_value_mode mode =
-  register_allocation_mode
-    (Value_mode.regional_to_global_alloc mode)
+  let alloc_mode = Value_mode.regional_to_global_alloc mode in
+  register_allocation_mode alloc_mode;
+  alloc_mode
 
 let register_allocation (expected_mode : expected_mode) =
   register_allocation_value_mode expected_mode.mode
@@ -479,21 +480,22 @@ let constant_or_raise env loc cst =
 let type_option ty =
   newty (Tconstr(Predef.path_option,[ty], ref Mnil))
 
-let mkexp exp_desc exp_type exp_mode exp_loc exp_env =
-  { exp_desc; exp_type; exp_mode;
+let mkexp exp_desc exp_type exp_loc exp_env =
+  { exp_desc; exp_type;
     exp_loc; exp_env; exp_extra = []; exp_attributes = [] }
 
 let option_none env ty mode loc =
+  let alloc_mode = Value_mode.regional_to_global_alloc mode in
   let lid = Longident.Lident "None" in
   let cnone = Env.find_ident_constructor Predef.ident_none env in
-  mkexp (Texp_construct(mknoloc lid, cnone, [])) ty mode loc env
+  mkexp (Texp_construct(mknoloc lid, cnone, [], alloc_mode)) ty loc env
 
 let option_some env texp mode =
-  register_allocation_value_mode mode;
+  let alloc_mode  = register_allocation_value_mode mode in
   let lid = Longident.Lident "Some" in
   let csome = Env.find_ident_constructor Predef.ident_some env in
-  mkexp ( Texp_construct(mknoloc lid , csome, [texp]) )
-    (type_option texp.exp_type) mode texp.exp_loc texp.exp_env
+  mkexp ( Texp_construct(mknoloc lid , csome, [texp], alloc_mode) )
+    (type_option texp.exp_type) texp.exp_loc texp.exp_env
 
 let extract_option_type env ty =
   match get_desc (expand_head env ty) with
@@ -2857,9 +2859,9 @@ let type_omitted_parameters expected_mode env ty_ret mode_ret args =
     List.fold_left
       (fun (ty_ret, mode_ret, open_args, closed_args, args) (lbl, arg) ->
          match arg with
-         | Arg exp as arg ->
-             let open_args = (exp.exp_mode, exp) :: open_args in
-             let args = (lbl, arg) :: args in
+         | Arg (exp, exp_mode) ->
+             let open_args = (exp_mode, exp) :: open_args in
+             let args = (lbl, Arg exp) :: args in
              (ty_ret, mode_ret, open_args, closed_args, args)
          | Omitted { mode_fun; ty_arg; mode_arg; level } ->
              let arrow_desc = (lbl, mode_arg, mode_ret) in
@@ -2878,7 +2880,7 @@ let type_omitted_parameters expected_mode env ty_ret mode_ret args =
              let closed_args = new_closed_args @ closed_args in
              let open_args = [] in
              let mode_closure = Alloc_mode.join (mode_fun :: closed_args) in
-             register_allocation_mode mode_closure;
+             ignore (register_allocation_mode mode_closure);
              let arg = Omitted { mode_closure; mode_arg; mode_ret } in
              let args = (lbl, arg) :: args in
              (ty_ret, mode_closure, open_args, closed_args, args))
@@ -2895,11 +2897,11 @@ let rec is_nonexpansive exp =
   | Texp_unreachable
   | Texp_function _
   | Texp_probe_is_enabled _
-  | Texp_array [] -> true
+  | Texp_array ([], _) -> true
   | Texp_let(_rec_flag, pat_exp_list, body) ->
       List.for_all (fun vb -> is_nonexpansive vb.vb_expr) pat_exp_list &&
       is_nonexpansive body
-  | Texp_apply(e, (_,Omitted _)::el, _) ->
+  | Texp_apply(e, (_,Omitted _)::el, _, _) ->
       is_nonexpansive e && List.for_all is_nonexpansive_arg (List.map snd el)
   | Texp_match(e, cases, _) ->
      (* Not sure this is necessary, if [e] is nonexpansive then we shouldn't
@@ -2918,11 +2920,11 @@ let rec is_nonexpansive exp =
            && not (contains_exception_pat c_lhs)
         ) cases
   | Texp_probe {handler} -> is_nonexpansive handler
-  | Texp_tuple el ->
+  | Texp_tuple (el, _) ->
       List.for_all is_nonexpansive el
-  | Texp_construct( _, _, el) ->
+  | Texp_construct( _, _, el, _) ->
       List.for_all is_nonexpansive el
-  | Texp_variant(_, arg) -> is_nonexpansive_opt arg
+  | Texp_variant(_, arg) -> is_nonexpansive_opt (Option.map fst arg)
   | Texp_record { fields; extended_expression } ->
       Array.for_all
         (fun (lbl, definition) ->
@@ -2932,7 +2934,7 @@ let rec is_nonexpansive exp =
            | Kept _ -> true)
         fields
       && is_nonexpansive_opt extended_expression
-  | Texp_field(exp, _, _) -> is_nonexpansive exp
+  | Texp_field(exp, _, _, _) -> is_nonexpansive exp
   | Texp_ifthenelse(_cond, ifso, ifnot) ->
       is_nonexpansive ifso && is_nonexpansive_opt ifnot
   | Texp_sequence (_e1, e2) -> is_nonexpansive e2  (* PR#4354 *)
@@ -2972,9 +2974,9 @@ let rec is_nonexpansive exp =
              Val_prim {Primitive.prim_name =
                          ("%raise" | "%reraise" | "%raise_notrace")}},
              Id_prim _) },
-      [Nolabel, Arg e], _) ->
+      [Nolabel, Arg e], _, _) ->
      is_nonexpansive e
-  | Texp_array (_ :: _)
+  | Texp_array (_ :: _, _)
   | Texp_apply _
   | Texp_try _
   | Texp_setfield _
@@ -3684,11 +3686,10 @@ and type_expect_
       ruem ~mode ~expected_mode {
         exp_desc; exp_loc = loc; exp_extra = [];
         exp_type = desc.val_type;
-        exp_mode = expected_mode.mode;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_constant(Pconst_string (str, _, _) as cst) ->
-    register_allocation expected_mode;
+    ignore (register_allocation expected_mode);
     let cst = constant_or_raise env loc cst in
     (* Terrible hack for format strings *)
     let ty_exp = expand_head env ty_expected in
@@ -3714,7 +3715,6 @@ and type_expect_
         exp_desc = Texp_constant cst;
         exp_loc = loc; exp_extra = [];
         exp_type = instance Predef.type_string;
-        exp_mode = expected_mode.mode;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
     end
@@ -3724,7 +3724,6 @@ and type_expect_
         exp_desc = Texp_constant cst;
         exp_loc = loc; exp_extra = [];
         exp_type = type_constant cst;
-        exp_mode = expected_mode.mode;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_let(Nonrecursive,
@@ -3758,7 +3757,6 @@ and type_expect_
         exp_desc = Texp_let(rec_flag, pat_exp_list, body);
         exp_loc = loc; exp_extra = [];
         exp_type = body.exp_type;
-        exp_mode = expected_mode.mode;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_fun (l, Some default, spat, sbody) ->
@@ -3924,10 +3922,10 @@ and type_expect_
       in
 
       rue {
-        exp_desc = Texp_apply(funct, args, position);
+        exp_desc = Texp_apply(funct, args, position,
+          Value_mode.regional_to_global_alloc expected_mode.mode);
         exp_loc = loc; exp_extra = [];
         exp_type = ty_res;
-        exp_mode = expected_mode.mode;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_match(sarg, caselist) ->
@@ -3953,7 +3951,6 @@ and type_expect_
         exp_desc = Texp_match(arg, cases, partial);
         exp_loc = loc; exp_extra = [];
         exp_type = instance ty_expected;
-        exp_mode = expected_mode.mode;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_try(sbody, caselist) ->
@@ -3969,13 +3966,12 @@ and type_expect_
         exp_desc = Texp_try(body, cases);
         exp_loc = loc; exp_extra = [];
         exp_type = body.exp_type;
-        exp_mode = expected_mode.mode;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_tuple sexpl ->
       let arity = List.length sexpl in
       assert (arity >= 2);
-      register_allocation expected_mode;
+      let alloc_mode = register_allocation expected_mode in
       let subtypes = List.map (fun _ -> newgenvar ()) sexpl in
       let to_unify = newgenty (Ttuple subtypes) in
       with_explanation (fun () ->
@@ -3997,11 +3993,10 @@ and type_expect_
           sexpl types_and_modes
       in
       re {
-        exp_desc = Texp_tuple expl;
+        exp_desc = Texp_tuple (expl, alloc_mode);
         exp_loc = loc; exp_extra = [];
         (* Keep sharing *)
         exp_type = newty (Ttuple (List.map (fun e -> e.exp_type) expl));
-        exp_mode = expected_mode.mode;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_construct(lid, sarg) ->
@@ -4009,8 +4004,6 @@ and type_expect_
         sarg ty_expected_explained sexp.pexp_attributes
   | Pexp_variant(l, sarg) ->
       (* Keep sharing *)
-      if sarg <> None then
-        register_allocation expected_mode;
       let ty_expected0 = instance ty_expected in
       let argument_mode = mode_subcomponent expected_mode in
       begin try match
@@ -4024,18 +4017,22 @@ and type_expect_
           with
             Rpresent (Some ty), Rpresent (Some ty0) ->
               let arg = type_argument env argument_mode sarg ty ty0 in
-              re { exp_desc = Texp_variant(l, Some arg);
+              let alloc_mode = register_allocation expected_mode in
+              re { exp_desc = Texp_variant(l, Some (arg, alloc_mode));
                    exp_loc = loc; exp_extra = [];
                    exp_type = ty_expected0;
-                   exp_mode = expected_mode.mode;
                    exp_attributes = sexp.pexp_attributes;
                    exp_env = env }
           | _ -> raise Exit
           end
       | _ -> raise Exit
       with Exit ->
-        let arg = Option.map (type_exp env argument_mode) sarg in
-        let arg_type = Option.map (fun arg -> arg.exp_type) arg in
+        let arg = match sarg with
+        | None -> None
+        | Some sarg -> Some (type_exp env argument_mode sarg,
+                        register_allocation expected_mode)
+        in
+        let arg_type = Option.map (fun (arg, _) -> arg.exp_type) arg in
         let row =
           create_row
             ~fields: [l, rf_present arg_type]
@@ -4048,7 +4045,6 @@ and type_expect_
           exp_desc = Texp_variant(l, arg);
           exp_loc = loc; exp_extra = [];
           exp_type = newty (Tvariant row);
-          exp_mode = expected_mode.mode;
           exp_attributes = sexp.pexp_attributes;
           exp_env = env }
       end
@@ -4117,8 +4113,7 @@ and type_expect_
             | _, { lbl_repres = Record_unboxed _; _ }, _ -> false
             | _ -> true)
            lbl_exp_list then
-        register_allocation expected_mode;
-
+        ignore (register_allocation expected_mode);
       (* type_label_a_list returns a list of labels sorted by lbl_pos *)
       (* note: check_duplicates would better be implemented in
          type_label_a_list directly *)
@@ -4197,11 +4192,11 @@ and type_expect_
       re {
         exp_desc = Texp_record {
             fields; representation;
-            extended_expression = opt_exp
+            extended_expression = opt_exp;
+            alloc_mode = Value_mode.regional_to_global_alloc expected_mode.mode
           };
         exp_loc = loc; exp_extra = [];
         exp_type = instance ty_expected;
-        exp_mode = expected_mode.mode;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_field(srecord, lid) ->
@@ -4233,10 +4228,11 @@ and type_expect_
         end;
       let mode = mode_cross env ty_arg mode in
       ruem ~mode ~expected_mode {
-        exp_desc = Texp_field(record, lid, label);
+        exp_desc = Texp_field(record, lid, label,
+            Value_mode.regional_to_global_alloc expected_mode.mode
+          );
         exp_loc = loc; exp_extra = [];
         exp_type = ty_arg;
-        exp_mode = expected_mode.mode;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_setfield(srecord, lid, snewval) ->
@@ -4251,14 +4247,15 @@ and type_expect_
       if label.lbl_mut = Immutable then
         raise(Error(loc, env, Label_not_mutable lid.txt));
       rue {
-        exp_desc = Texp_setfield(record, label_loc, label, newval);
+        exp_desc = Texp_setfield(record,
+          Value_mode.regional_to_global_alloc rmode,
+          label_loc, label, newval);
         exp_loc = loc; exp_extra = [];
         exp_type = instance Predef.type_unit;
-        exp_mode = expected_mode.mode;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_array(sargl) ->
-      register_allocation expected_mode;
+      let alloc_mode = register_allocation expected_mode in
       let ty = newgenvar() in
       let to_unify = Predef.type_array ty in
       with_explanation (fun () ->
@@ -4270,10 +4267,9 @@ and type_expect_
           sargl
       in
       re {
-        exp_desc = Texp_array argl;
+        exp_desc = Texp_array (argl, alloc_mode);
         exp_loc = loc; exp_extra = [];
         exp_type = instance ty_expected;
-        exp_mode = expected_mode.mode;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_ifthenelse(scond, sifso, sifnot) ->
@@ -4290,7 +4286,6 @@ and type_expect_
             exp_desc = Texp_ifthenelse(cond, ifso, None);
             exp_loc = loc; exp_extra = [];
             exp_type = ifso.exp_type;
-            exp_mode = expected_mode.mode;
             exp_attributes = sexp.pexp_attributes;
             exp_env = env }
       | Some sifnot ->
@@ -4306,7 +4301,6 @@ and type_expect_
             exp_desc = Texp_ifthenelse(cond, ifso, Some ifnot);
             exp_loc = loc; exp_extra = [];
             exp_type = ifso.exp_type;
-            exp_mode = expected_mode.mode;
             exp_attributes = sexp.pexp_attributes;
             exp_env = env }
       end
@@ -4318,7 +4312,6 @@ and type_expect_
         exp_desc = Texp_sequence(exp1, exp2);
         exp_loc = loc; exp_extra = [];
         exp_type = exp2.exp_type;
-        exp_mode = expected_mode.mode;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_while(scond, sbody) ->
@@ -4342,7 +4335,6 @@ and type_expect_
           Texp_while {wh_cond; wh_cond_region; wh_body; wh_body_region};
         exp_loc = loc; exp_extra = [];
         exp_type = instance Predef.type_unit;
-        exp_mode = expected_mode.mode;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_for(param, slow, shigh, dir, sbody) ->
@@ -4369,7 +4361,6 @@ and type_expect_
                              for_dir = dir; for_body; for_region};
         exp_loc = loc; exp_extra = [];
         exp_type = instance Predef.type_unit;
-        exp_mode = expected_mode.mode;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_constraint (sarg, sty) ->
@@ -4389,7 +4380,6 @@ and type_expect_
         exp_desc = arg.exp_desc;
         exp_loc = arg.exp_loc;
         exp_type = ty';
-        exp_mode = expected_mode.mode;
         exp_attributes = arg.exp_attributes;
         exp_env = env;
         exp_extra =
@@ -4474,7 +4464,6 @@ and type_expect_
         exp_desc = arg.exp_desc;
         exp_loc = arg.exp_loc;
         exp_type = ty';
-        exp_mode = expected_mode.mode;
         exp_attributes = arg.exp_attributes;
         exp_env = env;
         exp_extra = (Texp_coerce (cty, cty'), loc, sexp.pexp_attributes) ::
@@ -4585,10 +4574,11 @@ and type_expect_
             assert false
       in
       rue {
-        exp_desc = Texp_send(obj, meth, ap_pos);
+        exp_desc = Texp_send(obj, meth, ap_pos,
+          Value_mode.regional_to_global_alloc expected_mode.mode
+        );
         exp_loc = loc; exp_extra = [];
         exp_type = typ;
-        exp_mode = expected_mode.mode;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_new cl ->
@@ -4602,7 +4592,7 @@ and type_expect_
               exp_desc =
                 Texp_new (cl_path, cl, cl_decl, ap_pos);
               exp_loc = loc; exp_extra = [];
-              exp_type = instance ty; exp_mode = Value_mode.global;
+              exp_type = instance ty;
               exp_attributes = sexp.pexp_attributes;
               exp_env = env }
         end
@@ -4622,7 +4612,7 @@ and type_expect_
           rue {
             exp_desc = Texp_setinstvar(path_self, path, lab, newval);
             exp_loc = loc; exp_extra = [];
-            exp_type = instance Predef.type_unit; exp_mode = Value_mode.global;
+            exp_type = instance Predef.type_unit;
             exp_attributes = sexp.pexp_attributes;
             exp_env = env }
       | _ ->
@@ -4664,7 +4654,6 @@ and type_expect_
             exp_desc = Texp_override(path_self, modifs);
             exp_loc = loc; exp_extra = [];
             exp_type = self_ty;
-            exp_mode = expected_mode.mode;
             exp_attributes = sexp.pexp_attributes;
             exp_env = env }
       | _ ->
@@ -4712,7 +4701,6 @@ and type_expect_
         exp_desc = Texp_letmodule(id, name, pres, modl, body);
         exp_loc = loc; exp_extra = [];
         exp_type = ty;
-        exp_mode = expected_mode.mode;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_letexception(cd, sbody) ->
@@ -4724,7 +4712,6 @@ and type_expect_
         exp_desc = Texp_letexception(cd, body);
         exp_loc = loc; exp_extra = [];
         exp_type = body.exp_type;
-        exp_mode = expected_mode.mode;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
 
@@ -4735,7 +4722,7 @@ and type_expect_
       in
       let exp_type =
         match cond.exp_desc with
-        | Texp_construct(_, {cstr_name="false"}, _) ->
+        | Texp_construct(_, {cstr_name="false"}, _, _) ->
             instance ty_expected
         | _ ->
             instance Predef.type_unit
@@ -4744,7 +4731,6 @@ and type_expect_
         exp_desc = Texp_assert cond;
         exp_loc = loc; exp_extra = [];
         exp_type;
-        exp_mode = expected_mode.mode;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env;
       }
@@ -4759,7 +4745,6 @@ and type_expect_
         exp_desc = Texp_lazy arg;
         exp_loc = loc; exp_extra = [];
         exp_type = instance ty_expected;
-        exp_mode = expected_mode.mode;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env;
       }
@@ -4769,7 +4754,6 @@ and type_expect_
         exp_desc = Texp_object (desc, meths);
         exp_loc = loc; exp_extra = [];
         exp_type = desc.cstr_type.csig_self;
-        exp_mode = expected_mode.mode;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env;
       }
@@ -4876,7 +4860,6 @@ and type_expect_
         exp_desc = Texp_pack modl;
         exp_loc = loc; exp_extra = [];
         exp_type = newty (Tpackage (p, fl'));
-        exp_mode = expected_mode.mode;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_open (od, e) ->
@@ -4889,7 +4872,6 @@ and type_expect_
       re {
         exp_desc = Texp_open (od, exp);
         exp_type = exp.exp_type;
-        exp_mode = expected_mode.mode;
         exp_loc = loc;
         exp_extra = [];
         exp_attributes = sexp.pexp_attributes;
@@ -4968,7 +4950,6 @@ and type_expect_
             exp_loc = sexp.pexp_loc;
             exp_extra = [];
             exp_type = instance ty_result;
-            exp_mode = expected_mode.mode;
             exp_env = env;
             exp_attributes = sexp.pexp_attributes; }
 
@@ -4991,7 +4972,6 @@ and type_expect_
             exp_desc = Texp_extension_constructor (lid, path);
             exp_loc = loc; exp_extra = [];
             exp_type = instance Predef.type_extension_constructor;
-            exp_mode = expected_mode.mode;
             exp_attributes = sexp.pexp_attributes;
             exp_env = env }
       | _ ->
@@ -5020,7 +5000,6 @@ and type_expect_
           exp_desc = Texp_probe {name; handler=exp};
           exp_loc = loc; exp_extra = [];
           exp_type = instance Predef.type_unit;
-          exp_mode = expected_mode.mode;
           exp_attributes = sexp.pexp_attributes;
           exp_env = env }
       | _ -> raise (Error (loc, env, Probe_format))
@@ -5043,7 +5022,6 @@ and type_expect_
           exp_desc = Texp_probe_is_enabled {name};
           exp_loc = loc; exp_extra = [];
           exp_type = instance Predef.type_bool;
-          exp_mode = expected_mode.mode;
           exp_attributes = sexp.pexp_attributes;
           exp_env = env }
       | _ -> raise (Error (loc, env, Probe_is_enabled_format))
@@ -5053,7 +5031,7 @@ and type_expect_
                     _ ) as extension)  ->
     if Clflags.Extension.(is_enabled Comprehensions) then
       let ext_expr = Extensions.extension_expr_of_payload ~loc extension in
-      type_extension ~loc ~env ~ty_expected ~expected_mode ~sexp ext_expr
+      type_extension ~loc ~env ~ty_expected ~sexp ext_expr
     else
       raise
         (Error (loc, env, Extension_not_enabled(Clflags.Extension.Comprehensions)))
@@ -5064,7 +5042,6 @@ and type_expect_
       re { exp_desc = Texp_unreachable;
            exp_loc = loc; exp_extra = [];
            exp_type = instance ty_expected;
-           exp_mode = expected_mode.mode;
            exp_attributes = sexp.pexp_attributes;
            exp_env = env }
 
@@ -5120,8 +5097,7 @@ and type_binding_op_ident env s =
 and type_function ?in_function loc attrs env (expected_mode : expected_mode)
       ty_expected_explained arg_label ~has_local ~has_poly caselist =
   let { ty = ty_expected; explanation } = ty_expected_explained in
-  register_allocation expected_mode;
-  let alloc_mode = Value_mode.regional_to_global_alloc expected_mode.mode in
+  let alloc_mode = register_allocation expected_mode in
   let (loc_fun, ty_fun) =
     match in_function with
     | Some (loc_fun, ty_fun, _) -> (loc_fun, ty_fun)
@@ -5267,12 +5243,11 @@ and type_function ?in_function loc attrs env (expected_mode : expected_mode)
   re {
     exp_desc =
       Texp_function
-        { arg_label; param; cases; partial; region; curry; warnings };
+        { arg_label; param; cases; partial; region; curry; warnings; alloc_mode };
     exp_loc = loc; exp_extra = [];
     exp_type =
       instance (newgenty (Tarrow((arg_label,arg_mode,ret_mode),
                                  ty_arg, ty_res, commu_ok)));
-    exp_mode = expected_mode.mode;
     exp_attributes = attrs;
     exp_env = env }
 
@@ -5725,7 +5700,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       if args = [] then texp else begin
       (* In this case, we're allocating a new closure, so [sarg] needs
          to be valid at [mode_subcomponent mode], not just [mode] *)
-      register_allocation mode;
+      let alloc_mode = register_allocation mode in
       submode ~loc:sarg.pexp_loc ~env exp_mode (mode_subcomponent mode);
       (* eta-expand to avoid side effects *)
       let var_pair ~mode name ty =
@@ -5741,7 +5716,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
         {pat_desc = Tpat_var (id, mknoloc name); pat_type = ty;pat_extra=[];
          pat_mode = mode; pat_attributes = [];
          pat_loc = Location.none; pat_env = env},
-        {exp_type = ty; exp_mode = mode; exp_loc = Location.none; exp_env = exp_env;
+        {exp_type = ty; exp_loc = Location.none; exp_env = exp_env;
          exp_extra = []; exp_attributes = [];
          exp_desc =
          Texp_ident(Path.Pident id, mknoloc (Longident.Lident name),
@@ -5752,10 +5727,11 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       let func texp =
         let ret_mode = Value_mode.of_alloc mret in
         let e =
-          {texp with exp_type = ty_res; exp_mode = ret_mode; exp_desc =
+          {texp with exp_type = ty_res; exp_desc =
            Texp_apply
              (texp,
-              args @ [Nolabel, Arg eta_var], Nontail)}
+              args @ [Nolabel, Arg eta_var], Nontail,
+              Value_mode.regional_to_global_alloc ret_mode)}
         in
         let cases = [case eta_pat e] in
         let param = name_cases "param" cases in
@@ -5763,10 +5739,11 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
           Alloc_mode.join [marg; Value_mode.regional_to_global_alloc mode.mode]
         in
         let curry = Final_arg {partial_mode} in
-        { texp with exp_type = ty_fun; exp_mode = mode.mode;
+        { texp with exp_type = ty_fun;
             exp_desc = Texp_function { arg_label = Nolabel; param; cases;
                                        partial = Total; region = false; curry;
-                                       warnings = Warnings.backup () } }
+                                       warnings = Warnings.backup ();
+                                       alloc_mode } }
       in
       Location.prerr_warning texp.exp_loc
         (Warnings.Eliminated_optional_arguments
@@ -5774,8 +5751,8 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       if warn then Location.prerr_warning texp.exp_loc
           (Warnings.Non_principal_labels "eliminated optional argument");
       (* let-expand to have side effects *)
-      let let_pat, let_var = var_pair ~mode:texp.exp_mode "arg" texp.exp_type in
-      re { texp with exp_type = ty_fun; exp_mode = mode.mode;
+      let let_pat, let_var = var_pair ~mode:exp_mode "arg" texp.exp_type in
+      re { texp with exp_type = ty_fun;
              exp_desc =
                Texp_let (Nonrecursive,
                          [{vb_pat=let_pat; vb_expr=texp; vb_attributes=[];
@@ -5802,7 +5779,7 @@ and type_apply_arg env ~app_loc ~funct ~index ~position ~partial_app (lbl, arg) 
       in
       if is_optional lbl then
         unify_exp env arg (type_option(newvar()));
-      (lbl, Arg arg)
+      (lbl, Arg (arg, expected_mode.mode))
   | Arg (Known_arg { sarg; ty_arg; ty_arg0;
                      mode_arg; wrapped_in_some }) ->
       let mode, _ = Alloc_mode.newvar_below mode_arg in
@@ -5859,13 +5836,13 @@ and type_apply_arg env ~app_loc ~funct ~index ~position ~partial_app (lbl, arg) 
           {arg with exp_type = instance arg.exp_type}
         end
       in
-      (lbl, Arg arg)
+      (lbl, Arg (arg, expected_mode.mode))
   | Arg (Eliminated_optional_arg { ty_arg; _ }) ->
       let arg =
         option_none env (instance ty_arg)
           Value_mode.global Location.none
       in
-      (lbl, Arg arg)
+      (lbl, Arg (arg, Value_mode.global))
   | Omitted _ as arg -> (lbl, arg)
 
 and type_application env app_loc expected_mode position funct funct_mode sargs ret_tvar =
@@ -5974,10 +5951,11 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
   let (ty_args, ty_res, _) = instance_constructor constr in
   let texp =
     re {
-      exp_desc = Texp_construct(lid, constr, []);
+      exp_desc = Texp_construct(lid, constr, [],
+        Value_mode.regional_to_global_alloc expected_mode.mode
+      );
       exp_loc = loc; exp_extra = [];
       exp_type = ty_res;
-      exp_mode = expected_mode.mode;
       exp_attributes = attrs;
       exp_env = env } in
   if separate then begin
@@ -6017,7 +5995,7 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
        assert (sargs = []);
        expected_mode
     | Cstr_block _ | Cstr_extension _ ->
-       register_allocation expected_mode;
+       ignore (register_allocation expected_mode);
        mode_subcomponent expected_mode
   in
   let args =
@@ -6044,7 +6022,8 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
     end;
   (* NOTE: shouldn't we call "re" on this final expression? -- AF *)
   { texp with
-    exp_desc = Texp_construct(lid, constr, args) }
+    exp_desc = Texp_construct(lid, constr, args,
+      Value_mode.regional_to_global_alloc expected_mode.mode) }
 
 (* Typing of statements (expressions whose values are discarded) *)
 
@@ -6125,7 +6104,6 @@ and type_unpacks ?(in_function : (Location.t * type_expr * bool) option)
       exp_attributes;
       exp_extra = [];
       exp_type = ty;
-      exp_mode = expected_mode.mode;
       exp_env = env }
   ) body tunpacks
 
@@ -6707,19 +6685,19 @@ and type_andops env sarg sands expected_ty =
   let let_arg, rev_ands = loop env sarg (List.rev sands) expected_ty in
   let_arg, List.rev rev_ands
 
-  and type_extension ~loc ~env ~ty_expected ~expected_mode ~sexp = function
+  and type_extension ~loc ~env ~ty_expected ~sexp = function
   | Extensions.Eexp_list_comprehension (sbody, comp_typell) ->
-    type_comprehension ~loc ~env ~ty_expected ~expected_mode
+    type_comprehension ~loc ~env ~ty_expected
       ~sexp ~sbody ~comp_typell
       ~container_type:Predef.type_list ~build:(fun body comp_type ->
           Texp_list_comprehension (body, comp_type))
 | Extensions.Eexp_arr_comprehension (sbody, comp_typell) ->
-    type_comprehension ~loc ~env ~ty_expected ~expected_mode
+    type_comprehension ~loc ~env ~ty_expected
       ~sexp ~sbody ~comp_typell
       ~container_type:Predef.type_array ~build:(fun body comp_type ->
           Texp_arr_comprehension (body, comp_type))
 
-  and type_comprehension ~loc ~env ~ty_expected ~(expected_mode : expected_mode)
+  and type_comprehension ~loc ~env ~ty_expected
       ~sexp ~sbody ~comp_typell
       ~container_type ~build =
     if !Clflags.principal then begin_def ();
@@ -6739,7 +6717,6 @@ and type_andops env sarg sands expected_ty =
       exp_desc = build body comp_type;
       exp_loc = loc; exp_extra = [];
       exp_type = instance (container_type body.exp_type);
-      exp_mode = expected_mode.mode;
       exp_attributes = sexp.pexp_attributes;
       exp_env = env }
 

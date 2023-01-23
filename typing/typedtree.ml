@@ -87,7 +87,6 @@ and expression =
     exp_loc: Location.t;
     exp_extra: (exp_extra * Location.t * attribute list) list;
     exp_type: type_expr;
-    exp_mode: value_mode;
     exp_env: Env.t;
     exp_attributes: attribute list;
    }
@@ -111,23 +110,24 @@ and expression_desc =
   | Texp_function of { arg_label : arg_label; param : Ident.t;
       cases : value case list; partial : partial;
       region : bool; curry : fun_curry_state;
-      warnings : Warnings.state; }
-  | Texp_apply of expression * (arg_label * apply_arg) list * apply_position
+      warnings : Warnings.state; alloc_mode : Types.alloc_mode }
+  | Texp_apply of expression * (arg_label * apply_arg) list * apply_position * Types.alloc_mode
   | Texp_match of expression * computation case list * partial
   | Texp_try of expression * value case list
-  | Texp_tuple of expression list
+  | Texp_tuple of expression list * Types.alloc_mode
   | Texp_construct of
-      Longident.t loc * constructor_description * expression list
-  | Texp_variant of label * expression option
+      Longident.t loc * constructor_description * expression list * Types.alloc_mode
+  | Texp_variant of label * (expression * Types.alloc_mode) option
   | Texp_record of {
       fields : ( Types.label_description * record_label_definition ) array;
       representation : Types.record_representation;
       extended_expression : expression option;
+      alloc_mode : Types.alloc_mode
     }
-  | Texp_field of expression * Longident.t loc * label_description
+  | Texp_field of expression * Longident.t loc * label_description * Types.alloc_mode
   | Texp_setfield of
-      expression * Longident.t loc * label_description * expression
-  | Texp_array of expression list
+      expression * Types.alloc_mode * Longident.t loc * label_description * expression
+  | Texp_array of expression list * Types.alloc_mode
   | Texp_ifthenelse of expression * expression * expression option
   | Texp_sequence of expression * expression
   | Texp_while of {
@@ -149,7 +149,7 @@ and expression_desc =
       for_body : expression;
       for_region : bool;
     }
-  | Texp_send of expression * meth * apply_position
+  | Texp_send of expression * meth * apply_position * Types.alloc_mode
   | Texp_new of
       Path.t * Longident.t loc * Types.class_declaration * apply_position
   | Texp_instvar of Path.t * Path.t * string loc

@@ -437,7 +437,7 @@ let expression sub exp =
         Pexp_fun (label, None, Pat.var ~loc {loc;txt = name },
           Exp.match_ ~loc (Exp.ident ~loc {loc;txt= Lident name})
                           (List.map (sub.case sub) cases))
-    | Texp_apply (exp, list, _) ->
+    | Texp_apply (exp, list, _, _) ->
         Pexp_apply (sub.expr sub exp,
           List.fold_right (fun (label, arg) list ->
               match arg with
@@ -448,9 +448,9 @@ let expression sub exp =
       Pexp_match (sub.expr sub exp, List.map (sub.case sub) cases)
     | Texp_try (exp, cases) ->
         Pexp_try (sub.expr sub exp, List.map (sub.case sub) cases)
-    | Texp_tuple list ->
+    | Texp_tuple (list, _) ->
         Pexp_tuple (List.map (sub.expr sub) list)
-    | Texp_construct (lid, _, args) ->
+    | Texp_construct (lid, _, args, _) ->
         Pexp_construct (map_loc sub lid,
           (match args with
               [] -> None
@@ -460,7 +460,7 @@ let expression sub exp =
                 (Exp.tuple ~loc (List.map (sub.expr sub) args))
           ))
     | Texp_variant (label, expo) ->
-        Pexp_variant (label, Option.map (sub.expr sub) expo)
+        Pexp_variant (label, Option.map (fun (e, _) -> sub.expr sub e) expo)
     | Texp_record { fields; extended_expression; _ } ->
         let list = Array.fold_left (fun l -> function
             | _, Kept _ -> l
@@ -468,12 +468,12 @@ let expression sub exp =
             [] fields
         in
         Pexp_record (list, Option.map (sub.expr sub) extended_expression)
-    | Texp_field (exp, lid, _label) ->
+    | Texp_field (exp, lid, _label, _) ->
         Pexp_field (sub.expr sub exp, map_loc sub lid)
-    | Texp_setfield (exp1, lid, _label, exp2) ->
+    | Texp_setfield (exp1, _, lid, _label, exp2) ->
         Pexp_setfield (sub.expr sub exp1, map_loc sub lid,
           sub.expr sub exp2)
-    | Texp_array list ->
+    | Texp_array (list, _) ->
         Pexp_array (List.map (sub.expr sub) list)
     | Texp_ifthenelse (exp1, exp2, expo) ->
         Pexp_ifthenelse (sub.expr sub exp1,
@@ -497,7 +497,7 @@ let expression sub exp =
         Pexp_for (for_pat,
           sub.expr sub for_from, sub.expr sub for_to,
           for_dir, sub.expr sub for_body)
-    | Texp_send (exp, meth, _) ->
+    | Texp_send (exp, meth, _, _) ->
         Pexp_send (sub.expr sub exp, match meth with
             Tmeth_name name -> mkloc name loc
           | Tmeth_val id -> mkloc (Ident.name id) loc
