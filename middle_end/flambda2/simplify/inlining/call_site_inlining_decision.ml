@@ -62,7 +62,6 @@ let speculative_inlining dacc ~apply ~function_type ~simplify_expr ~return_arity
     Inlining_transforms.inline dacc ~apply ~unroll_to:None
       ~was_inline_always:false function_type
   in
-  let scope = DE.get_continuation_scope (DA.denv dacc) in
   let dummy_toplevel_cont =
     Continuation.create ~name:"speculative_inlining_toplevel_continuation" ()
   in
@@ -107,7 +106,6 @@ let speculative_inlining dacc ~apply ~function_type ~simplify_expr ~return_arity
           UE.add_function_return_or_exn_continuation
             (UE.create (DA.are_rebuilding_terms dacc))
             (Exn_continuation.exn_handler exn_continuation)
-            scope
             (Flambda_arity.With_subkinds.create
                [Flambda_kind.With_subkind.any_value])
         in
@@ -116,7 +114,7 @@ let speculative_inlining dacc ~apply ~function_type ~simplify_expr ~return_arity
           | Never_returns -> uenv
           | Return return_continuation ->
             UE.add_function_return_or_exn_continuation uenv return_continuation
-              scope return_arity
+              return_arity
         in
         let uacc =
           UA.create ~flow_result ~compute_slot_offsets:false uenv dacc
