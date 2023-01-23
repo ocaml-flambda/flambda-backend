@@ -46,6 +46,10 @@ val mk_internal:
   ?loc:Location.t -> string Location.loc -> Parsetree.payload ->
   Parsetree.attribute
 
+(** Used to record attributes that should be tracked for the purpose of
+    misplaced attribute warnings.  *)
+val register_attr: string Location.loc -> unit
+
 (** Marks alert attributes used for the purposes of misplaced attribute
     warnings.  Call this when moving things with alert attributes into the
     environment. *)

@@ -92,9 +92,12 @@ let builtin_attrs =
 
 let is_builtin_attr s = Hashtbl.mem builtin_attrs s
 
-let mk_internal ?(loc= !default_loc) name payload =
+let register_attr name =
   if is_builtin_attr name.txt
-  then Attribute_table.add unused_attrs name ();
+  then Attribute_table.replace unused_attrs name ()
+
+let mk_internal ?(loc= !default_loc) name payload =
+  register_attr name;
   Attr.mk ~loc name payload
 
 
