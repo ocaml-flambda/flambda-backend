@@ -673,9 +673,9 @@ val local_closure : unit -> unit = <fun>
  *)
 let toplevel_stack = local_ {contents=42}
 [%%expect{|
-Line 1, characters 4-18:
+Line 1, characters 21-41:
 1 | let toplevel_stack = local_ {contents=42}
-        ^^^^^^^^^^^^^^
+                         ^^^^^^^^^^^^^^^^^^^^
 Error: This value escapes its region
 |}]
 
@@ -688,9 +688,9 @@ module M : sig end
 
 let _ = local_ {contents=42}
 [%%expect{|
-Line 1, characters 4-5:
+Line 1, characters 8-28:
 1 | let _ = local_ {contents=42}
-        ^
+            ^^^^^^^^^^^^^^^^^^^^
 Error: This value escapes its region
 |}]
 

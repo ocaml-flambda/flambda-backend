@@ -2546,17 +2546,16 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
         in
         Tstr_eval (expr, attrs), [], shape_map, env
     | Pstr_value(rec_flag, sdefs) ->
+        let force_global =
+          (* Values bound by '_' still escape in the toplevel, because
+             they may be printed even though they are not named *)
+          Option.is_some toplevel
+        in
         let (defs, newenv) =
-          Typecore.type_binding env rec_flag sdefs in
+          Typecore.type_binding env rec_flag ~force_global sdefs in
         let () = if rec_flag = Recursive then
           Typecore.check_recursive_bindings env defs
         in
-        if Option.is_some toplevel then begin
-          (* Values bound by '_' still escape in the toplevel, because
-              they may be printed even though they are not named *)
-          defs |> List.iter (fun vb ->
-            Typecore.escape ~loc:vb.vb_pat.pat_loc ~env:newenv vb.vb_expr.exp_mode);
-        end;
         (* Note: Env.find_value does not trigger the value_used event. Values
            will be marked as being used during the signature inclusion test. *)
         let items, shape_map =

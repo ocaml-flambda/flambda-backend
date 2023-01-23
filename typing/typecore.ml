@@ -6341,6 +6341,7 @@ and type_cases
 and type_let
     ?(check = fun s -> Warnings.Unused_var s)
     ?(check_strict = fun s -> Warnings.Unused_var_strict s)
+    ?(force_global = false)
     existential_context
     env rec_flag spat_sexp_list allow =
   let open Ast_helper in
@@ -6392,7 +6393,9 @@ and type_let
            | _ -> spat
          in
          let pat_mode, exp_mode =
-           match rec_mode_var with
+           if force_global
+           then simple_pat_mode Value_mode.global, mode_global
+           else match rec_mode_var with
            | None -> begin
                match pat_tuple_arity spat with
                | Not_local_tuple | Maybe_local_tuple ->
@@ -6813,12 +6816,13 @@ and type_andops env sarg sands expected_ty =
 
 (* Typing of toplevel bindings *)
 
-let type_binding env rec_flag spat_sexp_list =
+let type_binding env rec_flag ?force_global spat_sexp_list =
   Typetexp.TyVarEnv.reset ();
   let (pat_exp_list, new_env, _unpacks) =
     type_let
       ~check:(fun s -> Warnings.Unused_value_declaration s)
       ~check_strict:(fun s -> Warnings.Unused_value_declaration s)
+      ?force_global
       At_toplevel
       env rec_flag spat_sexp_list false
   in

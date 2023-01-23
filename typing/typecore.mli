@@ -102,6 +102,7 @@ type existential_restriction =
 
 val type_binding:
         Env.t -> rec_flag ->
+          ?force_global:bool ->
           Parsetree.value_binding list ->
           Typedtree.value_binding list * Env.t
 val type_let:
