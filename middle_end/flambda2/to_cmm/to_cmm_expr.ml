@@ -629,8 +629,8 @@ and let_cont_rec env res invariant_params conts body =
         let free_names =
           List.fold_left
             (fun acc (cmm_var, _) ->
-               let v = Backend_var.With_provenance.var cmm_var in
-               Backend_var.Set.remove v acc)
+              let v = Backend_var.With_provenance.var cmm_var in
+              Backend_var.Set.remove v acc)
             free_names_of_handler invariant_vars
         in
         ( Continuation.Map.add k

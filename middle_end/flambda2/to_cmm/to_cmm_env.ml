@@ -616,8 +616,7 @@ let rec add_binding_to_env ?extra env res var (Binding binding as b) =
 and split_in_env ?ensure_in_env env res var binding =
   let res, split_result = split_complex_binding ~env ~res binding in
   match split_result with
-  | Already_split ->
-    env, res, binding
+  | Already_split -> env, res, binding
   | Split { new_bindings; split_binding } ->
     let env =
       (* for duplicated bindings, we need to replace the original splittable
@@ -803,23 +802,18 @@ let inline_variable ?consider_inlining_effectful_expressions env res var =
       e, free_names, env, res, Ece.pure_can_be_duplicated)
   | Binding binding -> (
     match binding.inline with
-    | Do_not_inline ->
-      will_not_inline_simple env res binding
-    | Must_inline_and_duplicate ->
-      split_and_inline env res var binding
+    | Do_not_inline -> will_not_inline_simple env res binding
+    | Must_inline_and_duplicate -> split_and_inline env res var binding
     | Must_inline_once -> (
       let env = remove_binding env var in
       match To_cmm_effects.classify_by_effects_and_coeffects binding.effs with
-      | Pure | Generative_immutable ->
-        will_inline_complex env res binding
+      | Pure | Generative_immutable -> will_inline_complex env res binding
       | Effect | Coeffect_only -> (
         match
           pop_if_in_top_stage ?consider_inlining_effectful_expressions env var
         with
-        | None ->
-          split_and_inline env res var binding
-        | Some env ->
-          will_inline_complex env res binding))
+        | None -> split_and_inline env res var binding
+        | Some env -> will_inline_complex env res binding))
     | May_inline_once -> (
       match To_cmm_effects.classify_by_effects_and_coeffects binding.effs with
       | Pure ->
@@ -917,17 +911,21 @@ let flush_delayed_lets ~mode env res =
           Misc.fatal_errorf
             "Complex bindings should have been split prior to being flushed."
         | Split { cmm_expr; free_names } | Simple { cmm_expr; free_names } ->
-          if debug () then begin
+          if debug ()
+          then
             Format.eprintf
-              "*** to_cmm_env / wrap_flush ***@\nbinding: %a@\nfree_names: %a@\nacc: %a@\n@."
-              print_binding b
-              Backend_var.Set.print acc_free_names
-              Printcmm.expression acc
-          end;
+              "*** to_cmm_env / wrap_flush ***@\n\
+               binding: %a@\n\
+               free_names: %a@\n\
+               acc: %a@\n\
+               @."
+              print_binding b Backend_var.Set.print acc_free_names
+              Printcmm.expression acc;
           let v = Backend_var.With_provenance.var b.cmm_var in
-          if not (Backend_var.Set.mem v acc_free_names) && can_be_removed b.effs then begin
-            acc, acc_free_names
-          end else begin
+          if (not (Backend_var.Set.mem v acc_free_names))
+             && can_be_removed b.effs
+          then acc, acc_free_names
+          else
             let expr =
               Cmm_helpers.letin b.cmm_var ~defining_expr:cmm_expr ~body:acc
             in
@@ -935,8 +933,7 @@ let flush_delayed_lets ~mode env res =
               Backend_var.Set.union free_names
                 (Backend_var.Set.remove v acc_free_names)
             in
-            expr, free_names
-          end)
+            expr, free_names)
       order_map (e, free_names)
   in
   (* CR-someday mshinwell: work out a criterion for allowing substitutions into

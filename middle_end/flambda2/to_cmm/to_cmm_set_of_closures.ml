@@ -363,8 +363,8 @@ let params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
   if not (Backend_var.Set.is_empty fun_free_names)
   then
     Misc.fatal_errorf
-      "Unbound free_names in function body when translating to cmm: %a@\nfunction body: %a"
-      Backend_var.Set.print fun_free_names
+      "Unbound free_names in function body when translating to cmm: %a@\n\
+       function body: %a" Backend_var.Set.print fun_free_names
       Printcmm.expression fun_body;
   let fun_flags =
     transl_check_attrib check
