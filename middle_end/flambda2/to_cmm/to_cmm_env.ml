@@ -617,10 +617,8 @@ and split_in_env ?ensure_in_env env res var binding =
   let res, split_result = split_complex_binding ~env ~res binding in
   match split_result with
   | Already_split ->
-    if debug () then Format.eprintf "split_in_env: Already_split\n%!";
     env, res, binding
   | Split { new_bindings; split_binding } ->
-    if debug () then Format.eprintf "split_in_env: Split\n%!";
     let env =
       (* for duplicated bindings, we need to replace the original splittable
          binding with the new split binding in the bindings map of the env *)
@@ -806,27 +804,21 @@ let inline_variable ?consider_inlining_effectful_expressions env res var =
   | Binding binding -> (
     match binding.inline with
     | Do_not_inline ->
-      if debug () then Format.eprintf "inline_variable: Do_not_inline\n%!";
       will_not_inline_simple env res binding
     | Must_inline_and_duplicate ->
-      if debug () then Format.eprintf "inline_variable: Must_inline_and_dup\n%!";
       split_and_inline env res var binding
     | Must_inline_once -> (
-      if debug () then Format.eprintf "inline_variable: Must_inline_once...\n%!";
       let env = remove_binding env var in
       match To_cmm_effects.classify_by_effects_and_coeffects binding.effs with
       | Pure | Generative_immutable ->
-        if debug () then Format.eprintf "...Pure/Gen_immut\n%!";
         will_inline_complex env res binding
       | Effect | Coeffect_only -> (
         match
           pop_if_in_top_stage ?consider_inlining_effectful_expressions env var
         with
         | None ->
-          if debug () then Format.eprintf "Eff/Coeff_only: None\n%!";
           split_and_inline env res var binding
         | Some env ->
-          if debug () then Format.eprintf "Eff/Coeff_only: Some\n%!";
           will_inline_complex env res binding))
     | May_inline_once -> (
       match To_cmm_effects.classify_by_effects_and_coeffects binding.effs with
@@ -845,12 +837,6 @@ let inline_variable ?consider_inlining_effectful_expressions env res var =
 (* Handling of aliases between variables *)
 
 let add_alias env res ~var ~alias_of ~num_normal_occurrences_of_bound_vars =
-  if debug ()
-  then
-    Format.eprintf "add_alias var=%a (occs %a), alias_of=%a\n%!" Variable.print
-      var
-      (Variable.Map.print Num_occurrences.print)
-      num_normal_occurrences_of_bound_vars Variable.print alias_of;
   let num_occurrences_of_var : Num_occurrences.t =
     match Variable.Map.find var num_normal_occurrences_of_bound_vars with
     | exception Not_found -> More_than_one (* TODO: that should not happen *)
