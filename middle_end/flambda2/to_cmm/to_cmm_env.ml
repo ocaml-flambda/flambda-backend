@@ -916,6 +916,11 @@ type flush_mode =
   | Branching_point
   | Flush_everything
 
+let can_be_removed effs =
+  match (effs : Effects_and_coeffects.t) with
+  | Arbitrary_effects, _, _ -> false
+  | (Only_generative_effects _ | No_effects), _, _ -> true
+
 let flush_delayed_lets ~mode env res =
   (* Generate a wrapper function to introduce the delayed let-bindings. *)
   let wrap_flush order_map e free_names =
@@ -926,15 +931,26 @@ let flush_delayed_lets ~mode env res =
           Misc.fatal_errorf
             "Complex bindings should have been split prior to being flushed."
         | Split { cmm_expr; free_names } | Simple { cmm_expr; free_names } ->
-          let expr =
-            Cmm_helpers.letin b.cmm_var ~defining_expr:cmm_expr ~body:acc
-          in
+          if debug () then begin
+            Format.eprintf
+              "*** to_cmm_env / wrap_flush ***@\nbinding: %a@\nfree_names: %a@\nacc: %a@\n@."
+              print_binding b
+              Backend_var.Set.print acc_free_names
+              Printcmm.expression acc
+          end;
           let v = Backend_var.With_provenance.var b.cmm_var in
-          let free_names =
-            Backend_var.Set.union free_names
-              (Backend_var.Set.remove v acc_free_names)
-          in
-          expr, free_names)
+          if not (Backend_var.Set.mem v acc_free_names) && can_be_removed b.effs then begin
+            acc, acc_free_names
+          end else begin
+            let expr =
+              Cmm_helpers.letin b.cmm_var ~defining_expr:cmm_expr ~body:acc
+            in
+            let free_names =
+              Backend_var.Set.union free_names
+                (Backend_var.Set.remove v acc_free_names)
+            in
+            expr, free_names
+          end)
       order_map (e, free_names)
   in
   (* CR-someday mshinwell: work out a criterion for allowing substitutions into

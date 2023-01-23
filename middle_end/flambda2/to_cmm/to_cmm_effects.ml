@@ -100,3 +100,4 @@ let classify_continuation_handler k handler ~num_free_occurrences
      && cont_is_known_to_have_exactly_one_occurrence k num_free_occurrences
   then May_inline
   else Regular
+
