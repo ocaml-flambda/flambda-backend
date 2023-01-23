@@ -88,10 +88,16 @@ module Make (N : Container_types.S) = struct
        collision (since the first is the one that will actually act on the
        key) *)
     let forwards = left_union first.forwards second.forwards in
-    (* Add a correction for each chained triple [n1, n2, n3]. The new forward
-       direction will map each [n1] to [n3]. Unfortunately, these keys are in no
-       particular structure, so we just have to [fold] and add them one at a
-       time. *)
+    (* Add a correction for each chained triple [n1, n2, n3]. The above left
+       union maps [n1] to [n2], and we need it to map to [n3] instead. One might
+       worry that the left union also includes an erroneous binding from [n2] to
+       [n3], but this is not so: We know that [first n2 <> n2] because [first]
+       is a permutation and [first n1 = n2]. Therefore [first.forwards] must
+       have [n2] as a key, so our left union already clobbered the binding from
+       [n2] to [n3] that appeared in [second.forwards].
+
+       Unfortunately, these keys are in no particular structure, so we just have
+       to [fold] and add them one at a time. *)
     let forwards =
       N.Map.fold (fun _ (n1, n3) -> add_to_map n1 n3) chained forwards
     in
