@@ -187,9 +187,10 @@ let is_simple (lam : Lambda.lambda) =
   match lam with Lvar _ | Lconst _ -> true | _ -> false
   [@@ocaml.warning "-fragile-match"]
 
-let assert_not_local : Lambda.alloc_mode -> unit = function
+let assert_not_local ~lam : Lambda.alloc_mode -> unit = function
   | Alloc_heap -> ()
-  | Alloc_local -> Misc.fatal_error "Invalid stack allocation found"
+  | Alloc_local ->
+     Misc.fatal_errorf "Invalid stack allocation found in %a" Printlambda.lambda lam
 
 let dead_code lam letrec =
   (* Some cases generate code without effects, and bound to nothing. We use this
@@ -207,7 +208,7 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
       (lam : Lambda.lambda) (letrec : letrec) =
   match lam with
   | Lfunction funct -> (
-    assert_not_local funct.mode;
+    assert_not_local ~lam funct.mode;
     match current_let with
     | Some current_let when Ident.Set.mem current_let.ident recursive_set ->
       { letrec with functions = (current_let.ident, funct) :: letrec.functions }
@@ -228,7 +229,7 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
     when not (List.for_all is_simple args) ->
     (match prim with
     | Pmakeblock (_, _, _, mode) | Pmakearray (_, _, mode) ->
-      assert_not_local mode
+      assert_not_local ~lam mode
     | _ -> ());
     (* If there are some non-trivial expressions as arguments, we first extract
        the arguments (to let-bound variables) before deconstructing. Arguments
@@ -257,14 +258,14 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
     prepare_letrec recursive_set current_let lam letrec
   | Lprim (Pmakeblock (_, _, _, mode), args, _)
   | Lprim (Pmakearray ((Paddrarray | Pintarray), _, mode), args, _) -> (
-    assert_not_local mode;
+    assert_not_local ~lam mode;
     match current_let with
     | Some cl -> build_block cl (List.length args) (Normal 0) lam letrec
     | None -> dead_code lam letrec
     (* We know that [args] are all "simple" at this point, so no effects *))
   | Lprim (Pmakearray (Pfloatarray, _, mode), args, _)
   | Lprim (Pmakefloatblock (_, mode), args, _) -> (
-    assert_not_local mode;
+    assert_not_local ~lam mode;
     match current_let with
     | Some cl -> build_block cl (List.length args) Boxed_float lam letrec
     | None -> dead_code lam letrec)
