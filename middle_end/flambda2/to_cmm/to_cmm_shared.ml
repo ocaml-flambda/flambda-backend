@@ -16,6 +16,15 @@ open! Cmm_helpers
 open! Cmm_builtins
 module Ece = Effects_and_coeffects
 
+let remove_var_with_provenance free_names var =
+  let v = Backend_var.With_provenance.var var in
+  Backend_var.Set.remove v free_names
+
+let remove_vars_with_machtype free_names vars =
+  List.fold_left (fun free_names (cmm_var, _machtype) ->
+      remove_var_with_provenance free_names cmm_var
+    ) free_names vars
+
 let exttype_of_kind (k : Flambda_kind.t) : Cmm.exttype =
   match k with
   | Value -> XInt

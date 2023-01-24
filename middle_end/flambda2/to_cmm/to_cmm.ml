@@ -103,9 +103,7 @@ let unit0 ~offsets flambda_unit ~all_code =
     To_cmm_expr.expr env r (Flambda_unit.body flambda_unit)
   in
   let free_names =
-    Backend_var.Set.remove
-      (Backend_var.With_provenance.var toplevel_region_var)
-      body_free_names
+    To_cmm_shared.remove_var_with_provenance body_free_names toplevel_region_var
   in
   if not (Backend_var.Set.is_empty free_names)
   then

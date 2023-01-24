@@ -627,11 +627,7 @@ and let_cont_rec env res invariant_params conts body =
           continuation_handler env res handler
         in
         let free_names =
-          List.fold_left
-            (fun acc (cmm_var, _) ->
-              let v = Backend_var.With_provenance.var cmm_var in
-              Backend_var.Set.remove v acc)
-            free_names_of_handler invariant_vars
+          C.remove_vars_with_machtype free_names_of_handler invariant_vars
         in
         ( Continuation.Map.add k
             (invariant_vars @ vars, handler, free_names)
@@ -664,11 +660,7 @@ and continuation_handler env res handler =
       let env, vars = C.bound_parameters env params in
       let expr, free_names_of_handler, res = expr env res handler in
       let free_names =
-        List.fold_left
-          (fun acc (cmm_var, _) ->
-            let v = Backend_var.With_provenance.var cmm_var in
-            Backend_var.Set.remove v acc)
-          free_names_of_handler vars
+        C.remove_vars_with_machtype free_names_of_handler vars
       in
       vars, arity, expr, free_names, res)
 

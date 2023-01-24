@@ -351,13 +351,8 @@ let params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
   let env, fun_params = C.bound_parameters env params in
   let fun_body, fun_body_free_names, res = translate_expr env res body in
   let fun_free_names =
-    List.fold_left
-      (fun acc (var, _) ->
-        let v = Backend_var.With_provenance.var var in
-        Backend_var.Set.remove v acc)
-      (Backend_var.Set.remove
-         (Backend_var.With_provenance.var my_region_var)
-         fun_body_free_names)
+    C.remove_vars_with_machtype
+      (C.remove_var_with_provenance fun_body_free_names my_region_var)
       fun_params
   in
   if not (Backend_var.Set.is_empty fun_free_names)
