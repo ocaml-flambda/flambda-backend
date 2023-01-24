@@ -659,9 +659,7 @@ and continuation_handler env res handler =
       let arity = Bound_parameters.arity params in
       let env, vars = C.bound_parameters env params in
       let expr, free_names_of_handler, res = expr env res handler in
-      let free_names =
-        C.remove_vars_with_machtype free_names_of_handler vars
-      in
+      let free_names = C.remove_vars_with_machtype free_names_of_handler vars in
       vars, arity, expr, free_names, res)
 
 and apply_expr env res apply =

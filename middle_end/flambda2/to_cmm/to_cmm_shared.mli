@@ -20,7 +20,9 @@ val remove_var_with_provenance :
   Backend_var.Set.t -> Backend_var.With_provenance.t -> Backend_var.Set.t
 
 val remove_vars_with_machtype :
-  Backend_var.Set.t -> (Backend_var.With_provenance.t * Cmm.machtype) list -> Backend_var.Set.t
+  Backend_var.Set.t ->
+  (Backend_var.With_provenance.t * Cmm.machtype) list ->
+  Backend_var.Set.t
 
 val exttype_of_kind : Flambda_kind.t -> Cmm.exttype
 
