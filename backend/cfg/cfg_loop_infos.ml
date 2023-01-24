@@ -93,6 +93,8 @@ let compute_back_edges cfg dominators =
           else acc)
         dst_labels acc)
 
+type loop = Label.Set.t
+
 let compute_loop_of_back_edge cfg { Edge.src; dst } =
   let rec visit stack acc =
     match stack with
@@ -110,8 +112,6 @@ let compute_loop_of_back_edge cfg { Edge.src; dst } =
       visit stack acc
   in
   visit [src] (Label.Set.add src (Label.Set.singleton dst))
-
-type loop = Label.Set.t
 
 type loops = loop EdgeMap.t
 

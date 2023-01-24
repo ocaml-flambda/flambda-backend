@@ -26,12 +26,12 @@ module EdgeMap : Map.S with type key = Edge.t
 
 val compute_back_edges : Cfg.t -> dominators -> Edge.t list
 
-val compute_loop_of_back_edge : Cfg.t -> Edge.t -> loop
-(* Assumes the passed edge is a back edge. *)
-
 type loop = Label.Set.t
 (* Blocks in a loop; if a node is part of several/nested loops, it will appear
    in several sets. *)
+
+val compute_loop_of_back_edge : Cfg.t -> Edge.t -> loop
+(* Assumes the passed edge is a back edge. *)
 
 type loops = loop EdgeMap.t
 
