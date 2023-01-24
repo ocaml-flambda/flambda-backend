@@ -61,6 +61,8 @@ module BasicInstructionList = struct
   let rec dummy_node =
     { instr = dummy_instruction; prev = dummy_node; next = dummy_node }
 
+  let is_dummy_node node = node.instr.id < 0
+
   let[@inline] unattached_node instr =
     { instr; prev = dummy_node; next = dummy_node }
 
@@ -81,7 +83,7 @@ module BasicInstructionList = struct
     new_node.next <- cell.node;
     cell.node.prev <- new_node;
     cell.t.length <- succ cell.t.length;
-    if new_node.prev == dummy_node
+    if is_dummy_node new_node.prev
     then cell.t.first <- new_node
     else new_node.prev.next <- new_node
 
@@ -91,7 +93,7 @@ module BasicInstructionList = struct
     new_node.prev <- cell.node;
     cell.node.next <- new_node;
     cell.t.length <- succ cell.t.length;
-    if new_node.next == dummy_node
+    if is_dummy_node new_node.next
     then cell.t.last <- new_node
     else new_node.next.prev <- new_node
 
@@ -105,11 +107,11 @@ module BasicInstructionList = struct
 
   let hd t =
     let first = t.first in
-    if first == dummy_node then None else Some first.instr
+    if is_dummy_node first then None else Some first.instr
 
   let last t =
     let last = t.last in
-    if last == dummy_node then None else Some last.instr
+    if is_dummy_node last then None else Some last.instr
 
   let add_begin t instr =
     let node = unattached_node instr in
@@ -149,38 +151,38 @@ module BasicInstructionList = struct
   let length t = t.length
 
   let remove t curr =
-    if curr.prev == dummy_node
+    if is_dummy_node curr.prev
     then t.first <- curr.next
     else curr.prev.next <- curr.next;
-    if curr.next == dummy_node
+    if is_dummy_node curr.next
     then t.last <- curr.prev
     else curr.next.prev <- curr.prev;
     t.length <- pred t.length
 
   let filter_left t ~f =
     let curr = ref t.first in
-    while !curr != dummy_node do
+    while not (is_dummy_node !curr) do
       if not (f !curr.instr) then remove t !curr;
       curr := !curr.next
     done
 
   let filter_right t ~f =
     let curr = ref t.last in
-    while !curr != dummy_node do
+    while not (is_dummy_node !curr) do
       if not (f !curr.instr) then remove t !curr;
       curr := !curr.prev
     done
 
   let iter t ~f =
     let curr = ref t.first in
-    while !curr != dummy_node do
+    while not (is_dummy_node !curr) do
       f !curr.instr;
       curr := !curr.next
     done
 
   let iter_cell t ~f =
     let curr = ref t.first in
-    while !curr != dummy_node do
+    while not (is_dummy_node !curr) do
       let next = !curr.next in
       let cell = { node = !curr; t } in
       f cell;
@@ -190,18 +192,18 @@ module BasicInstructionList = struct
   let iter2 t t' ~f =
     let curr = ref t.first in
     let curr' = ref t'.first in
-    while !curr != dummy_node && !curr' != dummy_node do
+    while (not (is_dummy_node !curr)) && not (is_dummy_node !curr') do
       f !curr.instr !curr'.instr;
       curr := !curr.next;
       curr' := !curr'.next
     done;
-    if not (Bool.equal (!curr != dummy_node) (!curr' != dummy_node))
+    if not (Bool.equal (is_dummy_node !curr) (is_dummy_node !curr'))
     then invalid_arg "BasicInstructionList.iter2"
 
   let fold_left t ~f ~init =
     let res = ref init in
     let curr = ref t.first in
-    while !curr != dummy_node do
+    while not (is_dummy_node !curr) do
       res := f !res !curr.instr;
       curr := !curr.next
     done;
@@ -210,7 +212,7 @@ module BasicInstructionList = struct
   let fold_right t ~f ~init =
     let res = ref init in
     let curr = ref t.last in
-    while !curr != dummy_node do
+    while not (is_dummy_node !curr) do
       res := f !curr.instr !res;
       curr := !curr.prev
     done;
