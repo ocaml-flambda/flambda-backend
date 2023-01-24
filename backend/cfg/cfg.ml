@@ -61,8 +61,7 @@ module BasicInstructionList = struct
   let rec dummy_node =
     { instr = dummy_instruction; prev = dummy_node; next = dummy_node }
 
-  let is_dummy_node node =
-    node.instr.id < 0
+  let is_dummy_node node = node.instr.id < 0
 
   let[@inline] unattached_node instr =
     { instr; prev = dummy_node; next = dummy_node }
@@ -193,7 +192,7 @@ module BasicInstructionList = struct
   let iter2 t t' ~f =
     let curr = ref t.first in
     let curr' = ref t'.first in
-    while not (is_dummy_node !curr) && not (is_dummy_node !curr') do
+    while (not (is_dummy_node !curr)) && not (is_dummy_node !curr') do
       f !curr.instr !curr'.instr;
       curr := !curr.next;
       curr' := !curr'.next
