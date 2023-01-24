@@ -149,14 +149,10 @@ let get_field env ptr n dbg =
 
 type rhs_kind =
   | RHS_block of Lambda.alloc_mode * int
-  | RHS_infix of { blocksize : int; offset : int }
+  | RHS_infix of { blocksize : int; offset : int; blockmode: Lambda.alloc_mode }
   | RHS_floatblock of Lambda.alloc_mode * int
   | RHS_nonrec
 ;;
-
-let assert_not_local : Lambda.alloc_mode -> unit = function
-  | Alloc_heap -> ()
-  | Alloc_local -> Misc.fatal_error "Invalid stack allocation found"
 
 let rec expr_size env = function
   | Uvar id ->
@@ -184,7 +180,6 @@ let rec expr_size env = function
   | Uprim(Pmakearray(Pfloatarray, _, mode), args, _) ->
       RHS_floatblock (mode, List.length args)
   | Uprim(Pmakearray(Pgenarray, _, mode), _, _) ->
-      assert_not_local mode;
      (* Pgenarray is excluded from recursive bindings by the
         check in Translcore.check_recursive_lambda *)
      RHS_nonrec
@@ -204,9 +199,8 @@ let rec expr_size env = function
       expr_size env exp'
   | Uoffset (exp, offset) ->
       (match expr_size env exp with
-      | RHS_block (mode, blocksize) ->
-         assert_not_local mode;
-         RHS_infix { blocksize; offset }
+      | RHS_block (blockmode, blocksize) ->
+         RHS_infix { blocksize; offset; blockmode }
       | RHS_nonrec -> RHS_nonrec
       | _ -> assert false)
   | Uregion exp ->
@@ -1439,16 +1433,19 @@ and transl_letrec env bindings cont =
         args, dbg) in
   let rec init_blocks = function
     | [] -> fill_nonrec bsz
-    | (id, _exp, RHS_block (mode, sz)) :: rem ->
-        assert_not_local mode;
+    | (_, _,
+       (RHS_block (Alloc_local, _) |
+        RHS_infix {blockmode=Alloc_local; _} |
+        RHS_floatblock (Alloc_local, _))) :: _ ->
+      Misc.fatal_error "Invalid stack allocation found"
+    | (id, _exp, RHS_block (Alloc_heap, sz)) :: rem ->
         Clet(id, op_alloc "caml_alloc_dummy" [int_const dbg sz],
           init_blocks rem)
-    | (id, _exp, RHS_infix { blocksize; offset}) :: rem ->
+    | (id, _exp, RHS_infix { blocksize; offset; blockmode=Alloc_heap }) :: rem ->
         Clet(id, op_alloc "caml_alloc_dummy_infix"
              [int_const dbg blocksize; int_const dbg offset],
              init_blocks rem)
-    | (id, _exp, RHS_floatblock (mode, sz)) :: rem ->
-        assert_not_local mode;
+    | (id, _exp, RHS_floatblock (Alloc_heap, sz)) :: rem ->
         Clet(id, op_alloc "caml_alloc_dummy_float" [int_const dbg sz],
           init_blocks rem)
     | (id, _exp, RHS_nonrec) :: rem ->
