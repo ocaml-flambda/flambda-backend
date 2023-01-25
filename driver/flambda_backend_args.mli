@@ -46,6 +46,8 @@ module type Flambda_backend_options = sig
   val caml_apply_inline_fast_path : unit -> unit
   val internal_assembler : unit -> unit
 
+  val gc_timings : unit -> unit
+
   val flambda2_join_points : unit -> unit
   val no_flambda2_join_points : unit -> unit
   val flambda2_result_types_functors_only : unit -> unit

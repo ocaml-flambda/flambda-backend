@@ -47,6 +47,8 @@ let opt_level = ref Default
 
 let internal_assembler = ref false
 
+let gc_timings = ref false
+
 let flags_by_opt_level ~opt_level ~default ~oclassic ~o2 ~o3 =
   match opt_level with
   | Default -> default

@@ -5,5 +5,5 @@
   (:standard -principal))
  (ocamlopt_flags
   (:include %{project_root}/ocamlopt_flags.sexp))
- (libraries ocamloptcomp flambda2)
+ (libraries ocamloptcomp flambda2 gc_timings)
  (modules optcompile))

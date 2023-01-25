@@ -37,6 +37,7 @@ module Options = Flambda_backend_args.Make_optcomp_options
         (Flambda_backend_args.Default.Optmain)
 
 let main unix argv ppf ~flambda2 =
+  if !Flambda_backend_flags.gc_timings then Gc_timings.start_collection ();
   native_code := true;
   let columns =
     match Sys.getenv "COLUMNS" with
@@ -158,5 +159,6 @@ let main unix argv ppf ~flambda2 =
     Location.report_exception ppf x;
     2
   | () ->
+    if !Flambda_backend_flags.gc_timings then Gc_timings.print Format.std_formatter;
     Profile.print Format.std_formatter !Clflags.profile_columns ~timings_precision:!Clflags.timings_precision;
     0
