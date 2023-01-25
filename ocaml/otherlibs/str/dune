@@ -39,7 +39,7 @@
     (str.cma as str/str.cma)
     (str.mli as str/str.mli)
     (.str.objs/byte/str.cmi as str/str.cmi)
-    (.str.objs/byte/str.cmti as tr/str.cmti)
+    (.str.objs/byte/str.cmti as str/str.cmti)
   )
   (section lib)
   (package ocaml))
