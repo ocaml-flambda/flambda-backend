@@ -159,6 +159,7 @@ let main unix argv ppf ~flambda2 =
     Location.report_exception ppf x;
     2
   | () ->
-    if !Flambda_backend_flags.gc_timings then Gc_timings.print Format.std_formatter;
+    if !Flambda_backend_flags.gc_timings then
+      Gc_timings.print ~precision:!Clflags.timings_precision Format.std_formatter;
     Profile.print Format.std_formatter !Clflags.profile_columns ~timings_precision:!Clflags.timings_precision;
     0
