@@ -213,15 +213,14 @@ module Spilling_heuristics = struct
   type t =
     | Set_choose
     | Flat_uses
-  (* CR xclerc for xclerc: | Hierarchical_uses *)
+    | Hierarchical_uses
 
-  let all =
-    [Set_choose; Flat_uses (* CR xclerc for xclerc: Hierarchical_uses; *)]
+  let all = [Set_choose; Flat_uses; Hierarchical_uses]
 
   let to_string = function
     | Set_choose -> "set_choose"
     | Flat_uses -> "flat_uses"
-  (* CR xclerc for xclerc: | Hierarchical_uses -> "hierarchical_uses" *)
+    | Hierarchical_uses -> "hierarchical_uses"
 
   let env =
     let available_heuristics () =
@@ -239,8 +238,7 @@ module Spilling_heuristics = struct
         match String.lowercase_ascii id with
         | "set_choose" | "set-choose" -> Set_choose
         | "flat_uses" | "flat-uses" -> Flat_uses
-        (* CR xclerc for xclerc: | "hierarchical_uses" | "hierarchical-uses" ->
-           Hierarchical_uses *)
+        | "hierarchical_uses" | "hierarchical-uses" -> Hierarchical_uses
         | _ ->
           fatal "unknown heuristics %S (possible values: %s)" id
             (available_heuristics ())))
