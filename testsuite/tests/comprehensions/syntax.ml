@@ -1,7 +1,7 @@
 (* TEST
    include ocamlcommon *)
 
-let () = Clflags.Extension.enable "comprehensions";;
+let () = Clflags.Extension.enable "comprehensions_experimental";;
 
 let printf = Printf.printf;;
 

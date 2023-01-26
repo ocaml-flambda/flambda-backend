@@ -37,7 +37,7 @@ let _disabled_extension = [%extension.comprehensions] ();;
 Line 1, characters 26-56:
 1 | let _disabled_extension = [%extension.comprehensions] ();;
                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The extension "comprehensions" is disabled and cannot be used
+Error: The extension "comprehensions_experimental" is disabled and cannot be used
 |}];;
 
 let _unnamed_extension = [%extension] ();;
