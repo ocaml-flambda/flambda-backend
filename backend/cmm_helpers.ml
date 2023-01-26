@@ -414,7 +414,7 @@ let create_loop body dbg =
   let cont = Lambda.next_raise_count () in
   let call_cont = Cexit (Lbl cont, [], []) in
   let body = Csequence (body, call_cont) in
-  Ccatch (Recursive, [cont, [], body, dbg], call_cont, Vval Pgenval)
+  Ccatch (Recursive, [cont, [], body, dbg], call_cont, Any)
 
 (* Turning integer divisions into multiply-high then shift. The
    [division_parameters] function is used in module Emit for those target
@@ -576,7 +576,7 @@ let rec div_int c1 c2 is_safe dbg =
                 dbg,
                 raise_symbol dbg "caml_exn_Division_by_zero",
                 dbg,
-                Vint )))
+                Any )))
 
 let mod_int c1 c2 is_safe dbg =
   match c1, c2 with
@@ -622,7 +622,7 @@ let mod_int c1 c2 is_safe dbg =
                 dbg,
                 raise_symbol dbg "caml_exn_Division_by_zero",
                 dbg,
-                Vint )))
+                Any )))
 
 (* Division or modulo on boxed integers. The overflow case min_int / -1 can
    occur, in which case we force x / -1 = -x and x mod -1 = 0. (PR#5513). *)
@@ -651,11 +651,11 @@ let safe_divmod_bi mkop kind is_safe mkm1 c1 c2 bi dbg =
           else c))
 
 let safe_div_bi is_safe =
-  safe_divmod_bi div_int Vint is_safe (fun c1 dbg ->
+  safe_divmod_bi div_int Any is_safe (fun c1 dbg ->
       Cop (Csubi, [Cconst_int (0, dbg); c1], dbg))
 
 let safe_mod_bi is_safe =
-  safe_divmod_bi mod_int Vint is_safe (fun _ dbg -> Cconst_int (0, dbg))
+  safe_divmod_bi mod_int Any is_safe (fun _ dbg -> Cconst_int (0, dbg))
 
 (* Bool *)
 
@@ -673,7 +673,7 @@ let test_bool dbg cmm =
 let box_float dbg m c = Cop (Calloc m, [alloc_float_header m dbg; c], dbg)
 
 let rec unbox_float dbg =
-  map_tail ~kind:Vfloat (function
+  map_tail ~kind:Any (function
     | Cop (Calloc _, [Cconst_natint (hdr, _); c], _)
       when Nativeint.equal hdr float_header
            || Nativeint.equal hdr float_local_header ->
@@ -686,7 +686,7 @@ let rec unbox_float dbg =
       (* It is valid to push unboxing inside a Cregion except when the extra
          unboxing logic pushes a tail call out of tail position *)
       match
-        map_tail ~kind:Vfloat
+        map_tail ~kind:Any
           (function
             | Cop (Capply (_, Rc_close_at_apply), _, _) -> raise Exit
             | Ctail e -> Ctail (unbox_float dbg e)
@@ -1523,7 +1523,7 @@ let rec unbox_int dbg bi =
           [Cop (Cadda, [arg; Cconst_int (size_addr, dbg)], dbg)],
           dbg )
   in
-  map_tail ~kind:Vint (function
+  map_tail ~kind:Any (function
     | Cop
         ( Calloc _,
           [hdr; ops; Cop (Clsl, [contents; Cconst_int (32, _)], _dbg')],
@@ -1564,7 +1564,7 @@ let rec unbox_int dbg bi =
       (* It is valid to push unboxing inside a Cregion except when the extra
          unboxing logic pushes a tail call out of tail position *)
       match
-        map_tail ~kind:Vint
+        map_tail ~kind:Any
           (function
             | Cop (Capply (_, Rc_close_at_apply), _, _) -> raise Exit
             | Ctail e -> Ctail (unbox_int dbg bi e)
@@ -2077,7 +2077,7 @@ module SArgBlocks = struct
 
   type loc = Debuginfo.t
 
-  type layout = value_kind
+  type layout = kind_for_unboxing
 
   (* CR mshinwell: GPR#2294 will fix the Debuginfo here *)
 
@@ -2298,7 +2298,7 @@ let call_caml_apply extended_ty extended_args_type mut clos args pos mode dbg =
                 dbg,
                 really_call_caml_apply clos args,
                 dbg,
-                Vval Pgenval (* dummy, for unboxing only *) )))
+                Any )))
   else really_call_caml_apply clos args
 
 let generic_apply mut clos args args_type result (pos, mode) dbg =
@@ -2396,7 +2396,7 @@ let cache_public_method meths tag cache dbg =
                                  dbg,
                                  Cassign (li, Cvar mi),
                                  dbg,
-                                 Vint (* unit *) ),
+                                 Any ),
                              Cifthenelse
                                ( Cop (Ccmpi Cge, [Cvar li; Cvar hi], dbg),
                                  dbg,
@@ -2404,11 +2404,11 @@ let cache_public_method meths tag cache dbg =
                                  dbg,
                                  Ctuple [],
                                  dbg,
-                                 Vint (* unit *) ) ) ))
+                                 Any ) ) ))
                     dbg,
                   Ctuple [],
                   dbg,
-                  Vint (* unit *) ),
+                  Any ),
               Clet
                 ( VP.create tagged,
                   Cop
@@ -2519,7 +2519,7 @@ let apply_function_body arity result (mode : Lambda.alloc_mode) =
                  Csequence (Cop (Cendregion, [Cvar region], dbg ()), Cvar res)
                )),
             dbg (),
-            Vval Pgenval (* Incorrect but only used for unboxing *) ))
+            Any ))
     | arg :: args ->
       let newclos = V.create_local "clos" in
       Clet
@@ -2563,7 +2563,7 @@ let apply_function_body arity result (mode : Lambda.alloc_mode) =
           dbg (),
           code,
           dbg (),
-          Vval Pgenval (* incorrect but only used for unboxing *) ) )
+          Any ) )
 
 let send_function (arity, result, mode) =
   let dbg = placeholder_dbg in
@@ -2604,7 +2604,7 @@ let send_function (arity, result, mode) =
                     dbg (),
                     cached_pos,
                     dbg (),
-                    Vval Pgenval ),
+                    Any ),
                 Cop
                   ( Cload (Word_val, Mutable),
                     [ Cop
@@ -3006,7 +3006,7 @@ let arraylength kind arg dbg =
                 dbg,
                 Cop (Clsr, [hdr; Cconst_int (numfloat_shift, dbg)], dbg),
                 dbg,
-                Vint ))
+                Any ))
     in
     Cop (Cor, [len; Cconst_int (1, dbg)], dbg)
   | Paddrarray | Pintarray ->
@@ -3260,7 +3260,7 @@ let arrayref_unsafe kind arg1 arg2 dbg =
                 dbg,
                 float_array_ref arr idx dbg,
                 dbg,
-                Vval Pgenval )))
+                Any )))
   | Paddrarray -> addr_array_ref arg1 arg2 dbg
   | Pintarray ->
     (* CR mshinwell: for int/addr_array_ref move "dbg" to first arg *)
@@ -3285,7 +3285,7 @@ let arrayref_safe kind arg1 arg2 dbg =
                           dbg,
                           float_array_ref arr idx dbg,
                           dbg,
-                          Vval Pgenval ) )
+                          Any ) )
                 else
                   Cifthenelse
                     ( is_addr_array_hdr hdr dbg,
@@ -3300,7 +3300,7 @@ let arrayref_safe kind arg1 arg2 dbg =
                             [float_array_length_shifted hdr dbg; idx],
                           float_array_ref arr idx dbg ),
                       dbg,
-                      Vval Pgenval ))))
+                      Any ))))
   | Paddrarray ->
     bind "index" arg2 (fun idx ->
         bind "arr" arg1 (fun arr ->
@@ -3379,7 +3379,7 @@ let arrayset_unsafe kind arg1 arg2 arg3 dbg =
                       dbg,
                       float_array_set arr index (unbox_float dbg newval) dbg,
                       dbg,
-                      Vint (* unit *) ))))
+                      Any ))))
     | Paddrarray -> addr_array_set arg1 arg2 arg3 dbg
     | Pintarray -> int_array_set arg1 arg2 arg3 dbg
     | Pfloatarray -> float_array_set arg1 arg2 arg3 dbg)
@@ -3406,7 +3406,7 @@ let arrayset_safe kind arg1 arg2 arg3 dbg =
                                 float_array_set arr idx (unbox_float dbg newval)
                                   dbg,
                                 dbg,
-                                Vint (* unit *) ) )
+                                Any ) )
                       else
                         Cifthenelse
                           ( is_addr_array_hdr hdr dbg,
@@ -3422,7 +3422,7 @@ let arrayset_safe kind arg1 arg2 arg3 dbg =
                                 float_array_set arr idx (unbox_float dbg newval)
                                   dbg ),
                             dbg,
-                            Vint (* unit*) )))))
+                            Any )))))
     | Paddrarray ->
       bind "newval" arg3 (fun newval ->
           bind "index" arg2 (fun idx ->
@@ -3836,19 +3836,10 @@ let sequence x y =
   | _, _ -> Csequence (x, y)
 
 let ite ~dbg ~then_dbg ~then_ ~else_dbg ~else_ cond =
-  Cifthenelse
-    ( cond,
-      then_dbg,
-      then_,
-      else_dbg,
-      else_,
-      dbg,
-      (* CR-someday poechsel: Put a correct value kind here *)
-      Vval Pgenval )
+  Cifthenelse (cond, then_dbg, then_, else_dbg, else_, dbg, Any)
 
 let trywith ~dbg ~kind ~body ~exn_var ~handler () =
-  (* CR-someday poechsel: Put a correct value kind here *)
-  Ctrywith (body, kind, exn_var, handler, dbg, Vval Pgenval)
+  Ctrywith (body, kind, exn_var, handler, dbg, Any)
 
 type static_handler =
   int
@@ -3865,7 +3856,7 @@ let trap_return arg trap_actions =
 
 let create_ccatch ~rec_flag ~handlers ~body =
   let rec_flag = if rec_flag then Cmm.Recursive else Cmm.Nonrecursive in
-  Cmm.Ccatch (rec_flag, handlers, body, Vval Pgenval)
+  Cmm.Ccatch (rec_flag, handlers, body, Any)
 
 let unary op ~dbg x = Cop (op, [x], dbg)
 
@@ -4137,11 +4128,10 @@ let transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list = function
 
 let kind_of_layout (layout : Lambda.layout) =
   match layout with
-  | Ptop | Pbottom ->
-    (* This is incorrect but only used for unboxing *)
-    Vval Pgenval
-  | Punboxed_float -> Vfloat
-  | Punboxed_int _ -> Vint
-  | Pvalue kind -> Vval kind
+  | Pvalue Pfloatval -> Boxed_float
+  | Pvalue (Pboxedintval bi) -> Boxed_integer bi
+  | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)
+  | Ptop | Pbottom | Punboxed_float | Punboxed_int _ ->
+    Any
 
 let make_tuple l = match l with [e] -> e | _ -> Ctuple l
