@@ -6,5 +6,5 @@ let start_collection () =
   collect_gc_timings ()
 
 let print ?(precision=3) ppf =
-  Format.fprintf ppf "minor_s %0.*f\n" precision (gc_minor_ns () *. 1e-9);
-  Format.fprintf ppf "major_s %0.*f\n" precision (gc_major_ns () *. 1e-9)
+  Format.fprintf ppf "%0.*fs gc_minor\n" precision (gc_minor_ns () *. 1e-9);
+  Format.fprintf ppf "%0.*fs gc_major\n" precision (gc_major_ns () *. 1e-9)

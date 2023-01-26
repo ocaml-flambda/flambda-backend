@@ -84,7 +84,7 @@ let mk_internal_assembler f =
   "-internal-assembler", Arg.Unit f, "Write object files directly instead of using the system assembler (x86-64 ELF only)"
 
 let mk_gc_timings f =
-  "-gc-timings", Arg.Unit f, "Output information about time spend in the GC"
+  "-dgc-timings", Arg.Unit f, "Output information about time spend in the GC"
 
 module Flambda2 = Flambda_backend_flags.Flambda2
 
@@ -880,7 +880,7 @@ module Extra_params = struct
     in
     match name with
     | "internal-assembler" -> set' Flambda_backend_flags.internal_assembler
-    | "gc-timings" -> set' Flambda_backend_flags.gc_timings
+    | "dgc-timings" -> set' Flambda_backend_flags.gc_timings
     | "ocamlcfg" -> set' Flambda_backend_flags.use_ocamlcfg
     | "cfg-invariants" -> set' Flambda_backend_flags.cfg_invariants
     | "cfg-equivalence-check" -> set' Flambda_backend_flags.cfg_equivalence_check
