@@ -37,7 +37,6 @@ module Options = Flambda_backend_args.Make_optcomp_options
         (Flambda_backend_args.Default.Optmain)
 
 let main unix argv ppf ~flambda2 =
-  if !Flambda_backend_flags.gc_timings then Gc_timings.start_collection ();
   native_code := true;
   let columns =
     match Sys.getenv "COLUMNS" with
@@ -67,6 +66,7 @@ let main unix argv ppf ~flambda2 =
     Clflags.Opt_flag_handler.set Flambda_backend_flags.opt_flag_handler;
     Compenv.parse_arguments (ref argv) Compenv.anonymous "ocamlopt";
     Compmisc.read_clflags_from_env ();
+    if !Flambda_backend_flags.gc_timings then Gc_timings.start_collection ();
     if !Clflags.plugin then
       Compenv.fatal "-plugin is only supported up to OCaml 4.08.0";
     begin try
