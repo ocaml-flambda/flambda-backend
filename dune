@@ -87,8 +87,9 @@
 
    ;; lambda/
    debuginfo lambda matching printlambda runtimedef tmc simplif switch
-   translattribute translclass translcomprehension translcore translmod
-   translobj translprim
+   transl_comprehension_utils
+   transl_array_comprehension transl_list_comprehension
+   translattribute translclass translcore translmod translobj translprim
 
    ;; bytecomp/
    debug_event meta opcodes bytesections dll symtable

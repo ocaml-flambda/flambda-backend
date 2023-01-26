@@ -207,11 +207,14 @@ val dump_dir : string option ref
 
 module Extension : sig
   type t = Comprehensions | Local | Include_functor | Polymorphic_parameters
+  val all : t list
+
   val enable : string -> unit
   val is_enabled : t -> bool
-  val to_string : t -> string
-  val all : t list
   val disable_all : unit -> unit
+
+  val to_string : t -> string
+  val of_string : string -> t option
 end
 
 (* Support for flags that can also be set from an environment variable *)

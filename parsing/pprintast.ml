@@ -665,7 +665,9 @@ and expression ctxt f x =
   if x.pexp_attributes <> [] then
     pp f "((%a)@,%a)" (expression ctxt) {x with pexp_attributes=[]}
       (attributes ctxt) x.pexp_attributes
-  else match x.pexp_desc with
+  else match Extensions.extension_expr_of_expr x with
+    | Some eexpr -> extension_expr ctxt f eexpr
+    | None -> match x.pexp_desc with
     | Pexp_function _ | Pexp_fun _ | Pexp_match _ | Pexp_try _ | Pexp_sequence _
     | Pexp_newtype _
       when ctxt.pipe || ctxt.semi ->
@@ -1758,6 +1760,49 @@ and directive_argument f x =
   | Pdir_int (n, Some m) -> pp f "@ %s%c" n m
   | Pdir_ident (li) -> pp f "@ %a" longident li
   | Pdir_bool (b) -> pp f "@ %s" (string_of_bool b)
+
+and extension_expr ctxt f (x : Extensions.extension_expr) =
+  match x with
+  | Eexp_comprehension comp -> comprehension_expr ctxt f comp
+
+and comprehension_expr ctxt f (x : Extensions.Comprehensions.comprehension_expr) =
+  match x with
+  | Cexp_list_comprehension  comp ->
+      comprehension ctxt f ~open_:"[" ~close:"]" comp
+  | Cexp_array_comprehension comp ->
+      comprehension ctxt f ~open_:"[|" ~close:"|]" comp
+
+and comprehension ctxt f ~open_ ~close x =
+  let Extensions.Comprehensions.{ body; clauses } = x in
+  pp f "@[<hv0>@[<hv2>%s%a@ @[<hv2>%a@]%s@]@]"
+    open_
+    (expression ctxt) body
+    (list ~sep:"@ " (comprehension_clause ctxt)) clauses
+    close
+
+and comprehension_clause ctxt f (x : Extensions.Comprehensions.clause) =
+  match x with
+  | For bindings ->
+      pp f "@[for %a@]" (list ~sep:"@]@ @[and " (comprehension_binding ctxt)) bindings
+  | When cond ->
+      pp f "@[when %a@]" (expression ctxt) cond
+
+and comprehension_binding ctxt f x =
+  let Extensions.Comprehensions.{ pattern = pat; iterator; attributes = attrs } = x in
+  pp f "%a%a %a"
+    (attributes ctxt) attrs
+    (pattern ctxt) pat
+    (comprehension_iterator ctxt) iterator
+
+and comprehension_iterator ctxt f (x : Extensions.Comprehensions.iterator) =
+  match x with
+  | Range { start; stop; direction } ->
+      pp f "=@ %a %a%a"
+        (expression ctxt) start
+        direction_flag direction
+        (expression ctxt) stop
+  | In seq ->
+      pp f "in %a" (expression ctxt) seq
 
 let toplevel_phrase f x =
   match x with

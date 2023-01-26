@@ -396,23 +396,43 @@ let value_binding sub vb =
     (sub.pat sub vb.vb_pat)
     (sub.expr sub vb.vb_expr)
 
+let comprehension ~loc sub comp_type comp =
+  let open Extensions.Comprehensions in
+  let iterator = function
+    | Texp_comp_range { ident = _; pattern; start ; stop ; direction } ->
+        pattern,
+        Range { start = sub.expr sub start
+              ; stop  = sub.expr sub stop
+              ; direction }
+    | Texp_comp_in { pattern; sequence } ->
+        sub.pat sub pattern,
+        In (sub.expr sub sequence)
+  in
+  let binding { comp_cb_iterator ; comp_cb_attributes } =
+    let pattern, iterator = iterator comp_cb_iterator in
+    { pattern
+    ; iterator
+    ; attributes = comp_cb_attributes }
+  in
+  let clause = function
+    | Texp_comp_for  bindings -> For (List.map binding bindings)
+    | Texp_comp_when cond     -> When (sub.expr sub cond)
+  in
+  let comprehension { comp_body; comp_clauses } =
+    { body    = sub.expr sub comp_body
+    ; clauses = List.map clause comp_clauses }
+  in
+  let comprehension_expr =
+    Extensions.expr_of_extension_expr
+      ~loc
+      Comprehensions
+      (Eexp_comprehension (comp_type (comprehension comp)))
+  in
+  comprehension_expr.pexp_desc
+
 let expression sub exp =
   let loc = sub.location sub exp.exp_loc in
   let attrs = sub.attributes sub exp.exp_attributes in
-  let map_comprehension comp_types=
-      List.map (fun {clauses; guard}  ->
-        let clauses =
-          List.map (fun comp_type ->
-            match comp_type with
-            | From_to (_, p, e2, e3, dir) ->
-              Extensions.From_to(p, sub.expr sub e2, sub.expr sub e3, dir)
-            | In (p, e2) -> Extensions.In(sub.pat sub p, sub.expr sub e2)
-          ) clauses
-        in
-        ({clauses; guard=(Option.map (sub.expr sub) guard)}
-            : Extensions.comprehension )
-      ) comp_types
-  in
   let desc =
     match exp.exp_desc with
       Texp_ident (_path, lid, _, _) -> Pexp_ident (map_loc sub lid)
@@ -475,6 +495,10 @@ let expression sub exp =
           sub.expr sub exp2)
     | Texp_array (list, _) ->
         Pexp_array (List.map (sub.expr sub) list)
+    | Texp_list_comprehension comp ->
+        comprehension ~loc sub (fun comp -> Cexp_list_comprehension comp) comp
+    | Texp_array_comprehension comp ->
+        comprehension ~loc sub (fun comp -> Cexp_array_comprehension comp) comp
     | Texp_ifthenelse (exp1, exp2, expo) ->
         Pexp_ifthenelse (sub.expr sub exp1,
           sub.expr sub exp2,
@@ -483,16 +507,6 @@ let expression sub exp =
         Pexp_sequence (sub.expr sub exp1, sub.expr sub exp2)
     | Texp_while {wh_cond; wh_body} ->
         Pexp_while (sub.expr sub wh_cond, sub.expr sub wh_body)
-    | Texp_list_comprehension(exp1, type_comp) ->
-      Pexp_extension
-      (Extensions.payload_of_extension_expr ~loc
-        (Extensions.Eexp_list_comprehension(
-          sub.expr sub exp1, map_comprehension type_comp)))
-    | Texp_arr_comprehension(exp1, type_comp) ->
-      Pexp_extension
-        (Extensions.payload_of_extension_expr ~loc
-          (Extensions.Eexp_arr_comprehension(
-            sub.expr sub exp1, map_comprehension type_comp)))
     | Texp_for {for_pat; for_from; for_to; for_dir; for_body} ->
         Pexp_for (for_pat,
           sub.expr sub for_from, sub.expr sub for_to,

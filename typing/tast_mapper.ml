@@ -256,18 +256,39 @@ let expr sub x =
   in
   let exp_extra = List.map (tuple3 extra id id) x.exp_extra in
   let exp_env = sub.env sub x.exp_env in
-  let map_comprehension comp_types=
-      List.map (fun {clauses; guard}  ->
-        let clauses =
-          List.map (fun comp_type ->
-            match comp_type with
-            | From_to (id, p, e2, e3, dir) ->
-              From_to(id, p, sub.expr sub e2, sub.expr sub e3, dir)
-            | In (p, e2) -> In(sub.pat sub p, sub.expr sub e2)
-          ) clauses
-        in
-        {clauses; guard=(Option.map (sub.expr sub) guard)}
-      ) comp_types
+  let map_comprehension {comp_body; comp_clauses} =
+    { comp_body =
+        sub.expr sub comp_body
+    ; comp_clauses =
+        List.map
+          (function
+            | Texp_comp_for bindings ->
+                Texp_comp_for
+                  (List.map
+                     (fun {comp_cb_iterator; comp_cb_attributes} ->
+                        let comp_cb_iterator = match comp_cb_iterator with
+                          | Texp_comp_range
+                              { ident; pattern; start; stop; direction }
+                            ->
+                              Texp_comp_range
+                                { ident
+                                ; pattern
+                                    (* Just mirroring [ident], ignored (see
+                                       [Texp_for] *)
+                                ; start = sub.expr sub start
+                                ; stop  = sub.expr sub stop
+                                ; direction }
+                          | Texp_comp_in { pattern; sequence } ->
+                              Texp_comp_in
+                                { pattern = sub.pat sub pattern
+                                ; sequence = sub.expr sub sequence }
+                        in
+                        {comp_cb_iterator; comp_cb_attributes})
+                     bindings)
+            | Texp_comp_when exp ->
+              Texp_comp_when (sub.expr sub exp))
+          comp_clauses
+    }
   in
   let exp_desc =
     match x.exp_desc with
@@ -331,6 +352,10 @@ let expr sub x =
         )
     | Texp_array (list, am) ->
         Texp_array (List.map (sub.expr sub) list, am)
+    | Texp_list_comprehension comp ->
+        Texp_list_comprehension (map_comprehension comp)
+    | Texp_array_comprehension comp ->
+        Texp_array_comprehension (map_comprehension comp)
     | Texp_ifthenelse (exp1, exp2, expo) ->
         Texp_ifthenelse (
           sub.expr sub exp1,
@@ -346,16 +371,6 @@ let expr sub x =
         Texp_while { wh with wh_cond = sub.expr sub wh.wh_cond;
                              wh_body = sub.expr sub wh.wh_body
                    }
-    | Texp_list_comprehension(e1, type_comp) ->
-        Texp_list_comprehension(
-          sub.expr sub e1,
-          map_comprehension type_comp
-        )
-    | Texp_arr_comprehension(e1, type_comp) ->
-      Texp_arr_comprehension(
-        sub.expr sub e1,
-        map_comprehension type_comp
-      )
     | Texp_for tf ->
         Texp_for {tf with for_from = sub.expr sub tf.for_from;
                           for_to = sub.expr sub tf.for_to;

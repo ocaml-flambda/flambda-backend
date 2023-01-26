@@ -565,6 +565,15 @@ and transl_exp0 ~in_new_scope ~scopes e =
         Lprim(Pmakearray (kind, Mutable, mode), ll,
               of_location ~scopes e.exp_loc)
       end
+  | Texp_list_comprehension comp ->
+      let loc = of_location ~scopes e.exp_loc in
+      Transl_list_comprehension.comprehension
+        ~transl_exp ~scopes ~loc comp
+  | Texp_array_comprehension comp ->
+      let loc = of_location ~scopes e.exp_loc in
+      let array_kind = Typeopt.array_kind e in
+      Transl_array_comprehension.comprehension
+        ~transl_exp ~scopes ~loc ~array_kind comp
   | Texp_ifthenelse(cond, ifso, Some ifnot) ->
       Lifthenelse(transl_exp ~scopes cond,
                   event_before ~scopes ifso (transl_exp ~scopes ifso),
@@ -588,16 +597,6 @@ and transl_exp0 ~in_new_scope ~scopes e =
                     (if wh_body_region then maybe_region body else body);
         wh_body_region;
       }
-  | Texp_arr_comprehension (body, blocks) ->
-    (*One block consists of comprehension statements connected by "and".*)
-    let loc = of_location ~scopes e.exp_loc in
-    let array_kind = Typeopt.array_kind e in
-    Translcomprehension.transl_arr_comprehension
-      body blocks ~array_kind ~scopes ~loc ~transl_exp
-  | Texp_list_comprehension (body, blocks) ->
-    let loc = of_location ~scopes e.exp_loc in
-    Translcomprehension.transl_list_comprehension
-      body blocks ~scopes ~loc ~transl_exp
   | Texp_for {for_id; for_from; for_to; for_dir; for_body; for_region} ->
       let body = transl_exp ~scopes for_body in
       Lfor {

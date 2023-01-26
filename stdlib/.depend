@@ -139,11 +139,9 @@ camlinternalAtomic.cmx : \
 camlinternalAtomic.cmi :
 camlinternalComprehension.cmo : \
     stdlib.cmi \
-    stdlib__List.cmi \
     camlinternalComprehension.cmi
 camlinternalComprehension.cmx : \
     stdlib.cmx \
-    stdlib__List.cmx \
     camlinternalComprehension.cmi
 camlinternalComprehension.cmi :
 camlinternalFormat.cmo : \

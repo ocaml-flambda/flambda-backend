@@ -391,11 +391,11 @@ module Extension = struct
     | Polymorphic_parameters -> "polymorphic_parameters"
 
   let of_string = function
-    | "comprehensions" -> Comprehensions
-    | "local" -> Local
-    | "include_functor" -> Include_functor
-    | "polymorphic_parameters" -> Polymorphic_parameters
-    | extn -> raise (Arg.Bad(Printf.sprintf "Extension %s is not known" extn))
+    | "comprehensions" -> Some Comprehensions
+    | "local" -> Some Local
+    | "include_functor" -> Some Include_functor
+    | "polymorphic_parameters" -> Some Polymorphic_parameters
+    | _ -> None
 
   let disable_all_extensions = ref false             (* -disable-all-extensions *)
 
@@ -415,9 +415,12 @@ module Extension = struct
         "Cannot enable extension %s: \
          incompatible with compiler flag -disable-all-extensions"
         extn));
-    let t = of_string (String.lowercase_ascii extn) in
-    if not (List.exists (equal t) !extensions) then
-      extensions := t :: !extensions
+    match of_string (String.lowercase_ascii extn) with
+    | Some extension ->
+        if not (List.exists (equal extension) !extensions) then
+          extensions := extension :: !extensions
+    | None ->
+        raise (Arg.Bad (Printf.sprintf "Unknown extension \"%s\"" extn))
 
   let is_enabled ext =
     not !disable_all_extensions

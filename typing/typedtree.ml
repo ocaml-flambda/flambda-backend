@@ -128,6 +128,8 @@ and expression_desc =
   | Texp_setfield of
       expression * Types.alloc_mode * Longident.t loc * label_description * expression
   | Texp_array of expression list * Types.alloc_mode
+  | Texp_list_comprehension of comprehension
+  | Texp_array_comprehension of comprehension
   | Texp_ifthenelse of expression * expression * expression option
   | Texp_sequence of expression * expression
   | Texp_while of {
@@ -136,10 +138,6 @@ and expression_desc =
       wh_body : expression;
       wh_body_region : bool
     }
-  | Texp_list_comprehension of
-      expression * comprehension list
-  | Texp_arr_comprehension of
-      expression * comprehension list
   | Texp_for of {
       for_id  : Ident.t;
       for_pat : Parsetree.pattern;
@@ -185,15 +183,31 @@ and meth =
   | Tmeth_ancestor of Ident.t * Path.t
 
 and comprehension =
-   {
-      clauses: comprehension_clause list;
-      guard : expression option
-   }
+  {
+    comp_body : expression;
+    comp_clauses : comprehension_clause list
+  }
 
 and comprehension_clause =
-  | From_to of Ident.t * Parsetree.pattern *
-      expression * expression * direction_flag
-  | In of pattern * expression
+  | Texp_comp_for of comprehension_clause_binding list
+  | Texp_comp_when of expression
+
+and comprehension_clause_binding =
+  {
+    comp_cb_iterator : comprehension_iterator;
+    comp_cb_attributes : attribute list
+  }
+
+and comprehension_iterator =
+  | Texp_comp_range of
+      { ident     : Ident.t
+      ; pattern   : Parsetree.pattern
+      ; start     : expression
+      ; stop      : expression
+      ; direction : direction_flag }
+  | Texp_comp_in of
+      { pattern  : pattern
+      ; sequence : expression }
 
 and 'k case =
     {

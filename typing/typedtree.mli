@@ -279,6 +279,8 @@ and expression_desc =
     (* alloc_mode is the mode of the record *)
   | Texp_array of expression list * Types.alloc_mode
     (* alloc_mode is the mode of the array *)
+  | Texp_list_comprehension of comprehension
+  | Texp_array_comprehension of comprehension
   | Texp_ifthenelse of expression * expression * expression option
   | Texp_sequence of expression * expression
   | Texp_while of {
@@ -287,10 +289,6 @@ and expression_desc =
       wh_body : expression;
       wh_body_region : bool  (* False means allocates in outer region *)
     }
-  | Texp_list_comprehension of
-      expression * comprehension list
-  | Texp_arr_comprehension of
-      expression * comprehension list
   | Texp_for of {
       for_id  : Ident.t;
       for_pat : Parsetree.pattern;
@@ -339,16 +337,35 @@ and meth =
   | Tmeth_val of Ident.t
   | Tmeth_ancestor of Ident.t * Path.t
 
-  and comprehension =
+and comprehension =
   {
-     clauses: comprehension_clause list;
-     guard : expression option
+    comp_body : expression;
+    comp_clauses : comprehension_clause list
   }
 
 and comprehension_clause =
- | From_to of Ident.t * Parsetree.pattern *
-     expression * expression * direction_flag
- | In of pattern * expression
+  | Texp_comp_for of comprehension_clause_binding list
+  | Texp_comp_when of expression
+
+and comprehension_clause_binding =
+  {
+    comp_cb_iterator : comprehension_iterator;
+    comp_cb_attributes : attribute list
+  }
+  (* We move the pattern into the [comprehension_iterator], compared to the
+     untyped syntax tree, so that range-based iterators can have just an
+     identifier instead of a full pattern *)
+
+and comprehension_iterator =
+  | Texp_comp_range of
+      { ident     : Ident.t
+      ; pattern   : Parsetree.pattern (* Redundant with [ident] *)
+      ; start     : expression
+      ; stop      : expression
+      ; direction : direction_flag }
+  | Texp_comp_in of
+      { pattern  : pattern
+      ; sequence : expression }
 
 and 'k case =
     {
