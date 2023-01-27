@@ -32,11 +32,11 @@ Line 1, characters 25-69:
 Error: Unknown extension "this_extension_doesn't_exist" referenced via an [%extension.this_extension_doesn't_exist] extension node
 |}];;
 
-let _disabled_extension = [%extension.comprehensions] ();;
+let _disabled_extension = [%extension.comprehensions_experimental] ();;
 [%%expect{|
-Line 1, characters 26-56:
-1 | let _disabled_extension = [%extension.comprehensions] ();;
-                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 26-69:
+1 | let _disabled_extension = [%extension.comprehensions_experimental] ();;
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The extension "comprehensions_experimental" is disabled and cannot be used
 |}];;
 
