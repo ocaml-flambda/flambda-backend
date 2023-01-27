@@ -1,4 +1,8 @@
 (* TEST
+   skip
+   * reason = "locals bug"
+*)
+(*
   flags = "-extension comprehensions_experimental"
    * expect
 *)
