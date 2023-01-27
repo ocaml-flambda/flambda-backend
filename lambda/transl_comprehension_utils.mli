@@ -25,29 +25,17 @@ module Let_binding : sig
   end
 
   (** The first-class (in OCaml) type of let bindings. *)
-  type t =
+  type t = private
     { let_kind   : Let_kind.t
     ; value_kind : value_kind
     ; id         : Ident.t
-    ; init       : lambda }
+    ; init       : lambda   (* initial value *)
+    ; var        : lambda   (* occurrence of this variable *)
+    }
 
-  (** Create a fresh local identifier to bind (from a string), and return that
-      it along with the Lambda variable (with [Lvar]) for it and the
-      corresponding let binding. *)
-  val make_id_var :
-    Let_kind.t -> value_kind -> string -> lambda -> Ident.t * lambda * t
-
-  (** Create a fresh local identifier to bind (from a string), and return it
-      along with the corresponding let binding. *)
-  val make_id : Let_kind.t -> value_kind -> string -> lambda -> Ident.t * t
-
-  (** Create a fresh local identifier to bind (from a string), and return its
-      corresponding Lambda variable (with [Lvar]) and let binding. *)
-  val make_var : Let_kind.t -> value_kind -> string -> lambda -> lambda * t
-
-  (** Create a fresh local identifier to bind (from a string), and return the
-      corresponding let binding. *)
-  val make_id_binding : Let_kind.t -> value_kind -> string -> lambda -> t
+  (** Create a fresh local identifier (with name as given by the string
+      argument) to bind to an initial value given by the lambda argument. *)
+  val make : Let_kind.t -> value_kind -> string -> lambda -> t
 
   (** Create a Lambda let-binding (with [Llet]) from a first-class let
       binding, providing the body. *)

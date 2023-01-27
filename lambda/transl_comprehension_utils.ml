@@ -11,22 +11,16 @@ module Let_binding = struct
     { let_kind   : Let_kind.t
     ; value_kind : value_kind
     ; id         : Ident.t
-    ; init       : lambda }
+    ; init       : lambda
+    ; var        : lambda }
 
-  let make_id let_kind value_kind name init =
+  let make (let_kind : Let_kind.t) value_kind name init =
     let id = Ident.create_local name in
-    id, {let_kind; value_kind; id; init}
-
-  let make_id_binding let_kind value_kind name init =
-    snd @@ make_id let_kind value_kind name init
-
-  let make_id_var let_kind value_kind name init =
-    let id, binding = make_id let_kind value_kind name init in
-    id, Lvar id, binding
-
-  let make_var let_kind value_kind name init =
-    let _id, var, binding = make_id_var let_kind value_kind name init in
-    var, binding
+    let var = match let_kind with
+      | Mutable -> Lmutvar id
+      | Immutable _ -> Lvar id
+    in
+    {let_kind; value_kind; id; init; var}
 
   let let_one {let_kind; value_kind; id; init} body =
     match let_kind with

@@ -1,6 +1,5 @@
 (* TEST
   flags = "-extension comprehensions_experimental"
-   * skip
 *)
 
 (******************************************************************************

@@ -168,7 +168,7 @@ let iterator ~transl_exp ~scopes = function
       (* We have to let-bind [start] and [stop] so that they're evaluated in the
          correct (i.e., left-to-right) order *)
       let transl_bound var bound =
-        Let_binding.make_id_binding
+        Let_binding.make
           (Immutable Strict) Pintval
           var (transl_exp ~scopes bound)
       in
@@ -184,7 +184,7 @@ let iterator ~transl_exp ~scopes = function
       }
   | Texp_comp_in { pattern; sequence } ->
       let iter_list =
-        Let_binding.make_id_binding (Immutable Strict) Pgenval
+        Let_binding.make (Immutable Strict) Pgenval
           "iter_list" (transl_exp ~scopes sequence)
       in
       (* Create a fresh variable to use as the function argument *)
