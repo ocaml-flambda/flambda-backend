@@ -88,8 +88,6 @@ $(LIBNAME).cmxs: $(LIBNAME).cmxa $(STUBSLIB)
 lib$(CLIBNAME).$(A): $(COBJS)
 	$(MKLIB_CMD) -oc $(CLIBNAME) $(COBJS) $(LDOPTS)
 
-INSTALL_LIBDIR_LIBNAME = $(INSTALL_LIBDIR)/$(LIBNAME)
-
 install::
 	if test -f dll$(CLIBNAME)$(EXT_DLL); then \
 	  $(INSTALL_PROG) \
@@ -98,21 +96,15 @@ install::
 ifneq "$(STUBSLIB)" ""
 	$(INSTALL_DATA) $(STUBSLIB) "$(INSTALL_LIBDIR)/"
 endif
-# If installing over a previous OCaml version, ensure the library is removed
-# from the previous installation.
-	rm -f $(addprefix "$(INSTALL_LIBDIR)"/, \
-          $(LIBNAME).cma $(CMIFILES) \
-          $(CMIFILES:.cmi=.mli) $(CMIFILES:.cmi=.cmti) \
-          $(CAMLOBJS_NAT) $(LIBNAME).cmxa $(LIBNAME).cmxs $(LIBNAME).$(A))
-	$(MKDIR) "$(INSTALL_LIBDIR_LIBNAME)"
+
 	$(INSTALL_DATA) \
 	  $(LIBNAME).cma $(CMIFILES) \
-	  "$(INSTALL_LIBDIR_LIBNAME)/"
+	  "$(INSTALL_LIBDIR)/"
 ifeq "$(INSTALL_SOURCE_ARTIFACTS)" "true"
 	$(INSTALL_DATA) \
 	  $(CMIFILES:.cmi=.mli) \
           $(CMIFILES:.cmi=.cmti) \
-	  "$(INSTALL_LIBDIR_LIBNAME)/"
+	  "$(INSTALL_LIBDIR)/"
 endif
 	if test -n "$(HEADERS)"; then \
 	  $(INSTALL_DATA) $(HEADERS) "$(INSTALL_LIBDIR)/caml/"; \
@@ -121,9 +113,9 @@ endif
 installopt:
 	$(INSTALL_DATA) \
 	   $(CAMLOBJS_NAT) $(LIBNAME).cmxa $(LIBNAME).$(A) \
-	   "$(INSTALL_LIBDIR_LIBNAME)/"
+	   "$(INSTALL_LIBDIR)/"
 	if test -f $(LIBNAME).cmxs; then \
-	  $(INSTALL_PROG) $(LIBNAME).cmxs "$(INSTALL_LIBDIR_LIBNAME)"; \
+	  $(INSTALL_PROG) $(LIBNAME).cmxs "$(INSTALL_LIBDIR)"; \
 	fi
 
 partialclean:

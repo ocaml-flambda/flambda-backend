@@ -6257,7 +6257,6 @@ driver/compmisc.cmx : \
     utils/clflags.cmx \
     driver/compmisc.cmi
 driver/compmisc.cmi : \
-    utils/load_path.cmi \
     typing/env.cmi \
     utils/clflags.cmi
 driver/errors.cmo : \
