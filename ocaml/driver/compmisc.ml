@@ -13,16 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
-let auto_include find_in_dir fn =
-  if !Clflags.no_std_include then
-    raise Not_found
-  else
-    let alert = Location.auto_include_alert in
-    Load_path.auto_include_otherlibs alert find_in_dir fn
-
 (* Initialize the search path.
-   [dir] (default: the current directory)
-   is always searched first  unless -nocwd is specified,
+   [dir] is always searched first (default: the current directory),
    then the directories specified with the -I option (in command-line order),
    then the standard library directory (unless the -nostdlib option is given).
  *)
@@ -38,13 +30,8 @@ let init_path ?(dir="") () =
     !Compenv.first_include_dirs
   in
   let exp_dirs =
-    List.map (Misc.expand_directory Config.standard_library) dirs
-  in
-  let dirs =
-    (if !Clflags.no_cwd then [] else [dir])
-    @ List.rev_append exp_dirs (Clflags.std_include_dir ())
-  in
-  Load_path.init ~auto_include dirs;
+    List.map (Misc.expand_directory Config.standard_library) dirs in
+  Load_path.init (dir :: List.rev_append exp_dirs (Clflags.std_include_dir ()));
   Env.reset_cache ~preserve_persistent_env:false
 
 (* Return the initial environment in which compilation proceeds. *)
