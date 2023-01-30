@@ -26,9 +26,6 @@ type loc = {
   loc_ghost: bool;
 }
 
-val ghost_loc_in_file : string -> loc
-(** Return an empty ghost range located in a given file *)
-
 type field_usage_warning =
   | Unused
   | Not_read
