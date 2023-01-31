@@ -44,8 +44,19 @@ let check_file kind fn =
     close_in ic;
     try
       invariants kind ast
-    with exn ->
-      Location.report_exception Format.std_formatter exn
+    with
+    (* CR aspectorzabusky: Is this the right way to handle this? *)
+    (* One test case intentionally triggers should-be-unreachable errors in the
+       modular extensions machinery; these only fire when [invariants] tries to
+       desugar things, so we test for it here. *)
+    | Extensions_parsing.Error.Error ({loc_start = { pos_fname; _ }; _}, _)
+      when String.ends_with
+             ~suffix:"testsuite/tests/jst-modular-extensions/user_error.ml"
+             pos_fname
+      ->
+        close_in ic
+    | exn ->
+        Location.report_exception Format.std_formatter exn
 
 type file_kind =
   | Regular_file

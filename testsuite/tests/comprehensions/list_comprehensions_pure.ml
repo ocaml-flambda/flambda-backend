@@ -10,10 +10,11 @@
 (******************************************************************************
  *                        ******** ATTENTION! ********                        *
  *                                                                            *
- * This file should be kept in sync with the file                             *
- * "array_comprehensions_pure.ml".  If you're adding a test to one, add it to *
- * the other as well; if the test output changes in one file and not the      *
- * other (except as documented in comments), this is a bug.                   *
+ * This file should be kept in sync with the files                            *
+ * "array_comprehensions_pure.ml" and "iarray_comprehensions_pure.ml".  If    *
+ * you're adding a test to one, add it to the others as well; if the test     *
+ * output changes in one file and not the others (except as documented in     *
+ * comments), this is a bug.                                                  *
  ******************************************************************************)
 
 (******************************************************************************)
@@ -150,7 +151,7 @@ let xs = [2;7;18;28] in
 
 (* This would take ~forever for lists if the empty list were iterated over
    later, but works no matter where the empty array is, ; see
-   "array_comprehensions_special.ml" for more nuance on what can happen here
+   "(i)array_comprehensions_special.ml" for more nuance on what can happen here
    with arrays. *)
 [i,j,k for i in [] and j = 0 to Int.max_int and k = 0 downto Int.min_int];;
 [%%expect{|

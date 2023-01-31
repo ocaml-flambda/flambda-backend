@@ -26,6 +26,7 @@ let empty_type loc = err loc "Type declarations cannot be empty."
 let complex_id loc = err loc "Functor application not allowed here."
 let module_type_substitution_missing_rhs loc =
   err loc "Module type substitution with no right hand side"
+let empty_comprehension loc = err loc "Comprehension with no clauses"
 
 let simple_longident id =
   let rec is_simple = function
@@ -70,6 +71,15 @@ let iterator =
       List.iter (fun (id, _) -> simple_longident id) fields
     | _ -> ()
   in
+  let eexpr _self loc (eexp : Extensions.Expression.t) =
+    match eexp with
+    | Eexp_comprehension
+        ( Cexp_list_comprehension {clauses = []; body = _}
+        | Cexp_array_comprehension (_, {clauses = []; body = _}) )
+      ->
+        empty_comprehension loc
+    | Eexp_comprehension _ | Eexp_immutable_array _ -> ()
+  in
   let expr self exp =
     begin match exp.pexp_desc with
     | Pexp_construct (_, Some ({pexp_desc = Pexp_tuple _} as e))
@@ -79,6 +89,9 @@ let iterator =
         super.expr self exp
     end;
     let loc = exp.pexp_loc in
+    match Extensions.Expression.of_ast exp with
+    | Some eexp -> eexpr self exp.pexp_loc eexp
+    | None ->
     match exp.pexp_desc with
     | Pexp_tuple ([] | [_]) -> invalid_tuple loc
     | Pexp_record ([], _) -> empty_record loc

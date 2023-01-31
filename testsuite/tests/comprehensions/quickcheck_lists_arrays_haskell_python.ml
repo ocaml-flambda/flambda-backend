@@ -5,7 +5,7 @@
    processes, one each for Haskell, Python, and OCaml, and we can't count on the
    first two existing.  But it would be a shame to delete this code and just
    leave `comprehensions_from_quickcheck.ml`; if things change, it's good to
-   have access to QuickCheck.  What should we do with this, do we think? *) 
+   have access to QuickCheck.  What should we do with this, do we think? *)
 
 module No_polymorphic_compare = struct
   let ( = )      = Int.equal
@@ -721,7 +721,15 @@ module Comprehension = struct
   end
 
   module To_string = struct
-    type format = OCaml_list | OCaml_array | Haskell | Python
+    type ocaml_type =
+      | List
+      | Mutable_array
+      | Immutable_array
+
+    type format =
+      | OCaml of ocaml_type
+      | Haskell
+      | Python
 
     let surround o c s = o ^ s ^ c
 
@@ -733,30 +741,31 @@ module Comprehension = struct
     let comma_separated = String.concat ", "
 
     let comprehension_clauses o = match o with
-      | OCaml_list | OCaml_array | Python -> tokens
-      | Haskell                           -> comma_separated
+      | OCaml _ | Python -> tokens
+      | Haskell          -> comma_separated
 
     let tuple = function
       | [tok] -> tok
       | toks  -> toks |> comma_separated |> parenthesize
 
     let sequence = function
-      | OCaml_list | Haskell | Python -> bracket
-      | OCaml_array                   -> surround "[|" "|]"
+      | OCaml List | Haskell | Python -> bracket
+      | OCaml Mutable_array           -> surround "[|" "|]"
+      | OCaml Immutable_array         -> surround "[:" ":]"
 
     let mod_ = function
-      | OCaml_list | OCaml_array -> "mod"
-      | Haskell                  -> "`mod`"
-      | Python                   -> "%"
+      | OCaml _ -> "mod"
+      | Haskell -> "`mod`"
+      | Python  -> "%"
 
     let eq = function
-      | OCaml_list | OCaml_array -> "="
-      | Haskell | Python         -> "=="
+      | OCaml _          -> "="
+      | Haskell | Python -> "=="
 
     let neq = function
-      | OCaml_list | OCaml_array -> "<>"
-      | Haskell                  -> "/="
-      | Python                   -> "!="
+      | OCaml _ -> "<>"
+      | Haskell -> "/="
+      | Python  -> "!="
 
     let int_term = function
       | Literal  n -> Int.to_string n
@@ -778,15 +787,15 @@ module Comprehension = struct
       | Nonzero  -> [], [neq o; "0"]
       | Even -> begin
           match o with
-          | OCaml_list | OCaml_array -> ["abs"],  modulo_check o "0"
-          | Haskell                  -> ["even"], []
-          | Python                   -> [],       modulo_check o "0"
+          | OCaml _ -> ["abs"],  modulo_check o "0"
+          | Haskell -> ["even"], []
+          | Python  -> [],       modulo_check o "0"
         end
       | Odd -> begin
           match o with
-          | OCaml_list | OCaml_array -> ["abs"], modulo_check o "1"
-          | Haskell                  -> ["odd"], []
-          | Python                   -> [],      modulo_check o "1"
+          | OCaml _ -> ["abs"], modulo_check o "1"
+          | Haskell -> ["odd"], []
+          | Python  -> [],      modulo_check o "1"
         end
 
     let ocaml_direction = function
@@ -797,7 +806,7 @@ module Comprehension = struct
       let iter = match iterator with
         | Range {start; direction; stop} -> begin
             match o with
-            | OCaml_list | OCaml_array ->
+            | OCaml _ ->
                 tokens [ "="
                        ; int_term start
                        ; ocaml_direction direction
@@ -836,7 +845,7 @@ module Comprehension = struct
               | _, _ -> []
             in
             let sep = match o with
-              | OCaml_list | OCaml_array -> ";"
+              | OCaml _          -> ";"
               | Haskell | Python -> ","
             in
             let seq = seq
@@ -845,8 +854,8 @@ module Comprehension = struct
                       |> sequence o
             in
             let bind = match o with
-              | OCaml_list | OCaml_array | Python -> "in"
-              | Haskell                           -> "<-"
+              | OCaml _ | Python -> "in"
+              | Haskell          -> "<-"
             in
             tokens ([bind; seq] @ maybe_type_annotation)
       in
@@ -1002,7 +1011,7 @@ module Comprehension = struct
       | For bindings ->
           let intro, sep, (extra_clauses, bindings) =
             match o with
-            | OCaml_list | OCaml_array ->
+            | OCaml _ ->
                 ["for"], " and ", ([], bindings)
             | Haskell ->
                 [],
@@ -1021,23 +1030,23 @@ module Comprehension = struct
              [bindings |> List.map (binding o) |> String.concat sep])
       | When(pred, x) ->
           let kwd = match o with
-            | OCaml_list | OCaml_array -> ["when"]
-            | Haskell                  -> []
-            | Python                   -> ["if"]
+            | OCaml _ -> ["when"]
+            | Haskell -> []
+            | Python  -> ["if"]
           in
           let pred_pre, pred_post = predicate o pred in
           tokens (kwd @ pred_pre @ (x :: pred_post))
 
     let comprehension o {env; clauses} =
       let clauses = match o with
-        | OCaml_list | OCaml_array | Haskell -> clauses
-        | Python -> Make_all_variables_unique.clauses clauses
+        | OCaml _ | Haskell -> clauses
+        | Python            -> Make_all_variables_unique.clauses clauses
       in
       let body    = tuple (Environment.variables env) in
       let clauses = comprehension_clauses o (List.map (clause o) clauses) in
       let sep     = match o with
-        | OCaml_list | OCaml_array | Python -> " "
-        | Haskell                           -> " | "
+        | OCaml _ | Python -> " "
+        | Haskell          -> " | "
       in
       sequence o (body ^ sep ^ clauses)
   end
@@ -1106,9 +1115,10 @@ module Interactive_command = struct
     let stop  = String.rindex raw_list ']' in
     let list  = String.sub raw_list start (stop - start + 1) in
     list
-    |> Str.global_replace (Str.regexp "[ \n]+") " "
-    |> Str.global_replace (Str.regexp "|")      ""
-    |> Str.global_replace (Str.regexp ";")      ","
+    |> Str.global_replace (Str.regexp "[ \n]+")  " "
+    |> Str.global_replace (Str.regexp "\\[[|:]") "["
+    |> Str.global_replace (Str.regexp "[|:]\\]") "]"
+    |> Str.global_replace (Str.regexp ";")       ","
 
   let input_haskell_list_as_python_list i =
     i |> input_line |> Str.global_replace (Str.regexp ",") ", "
@@ -1117,6 +1127,7 @@ module Interactive_command = struct
     command
       "../../../ocaml"
       [ "-extension"; "comprehensions"
+      ; "-extension"; "immutable_arrays"
       ; "-noprompt"; "-no-version"
       ; "-w"; "no-unused-var" ]
       ~setup:(fun output ->
@@ -1153,7 +1164,7 @@ module Log_test_cases = struct
     try
       output_string oc
 {|(* TEST
-  flags = "-extension comprehensions"
+   flags = "-extension comprehensions -extension immutable_arrays"
    * expect
 *)
 
@@ -1173,17 +1184,19 @@ module Log_test_cases = struct
 end
 
 module Main = struct
-  type output = { ocaml_list  : string
-                ; ocaml_array : string
-                ; haskell     : string
-                ; python      : string }
+  type output = { ocaml_list            : string
+                ; ocaml_mutable_array   : string
+                ; ocaml_immutable_array : string
+                ; haskell               : string
+                ; python                : string }
 
   let output_for o output =
     match (o : Comprehension.To_string.format) with
-    | OCaml_list  -> output.ocaml_list
-    | OCaml_array -> output.ocaml_array
-    | Haskell     -> output.haskell
-    | Python      -> output.python
+    | OCaml List            -> output.ocaml_list
+    | OCaml Mutable_array   -> output.ocaml_mutable_array
+    | OCaml Immutable_array -> output.ocaml_immutable_array
+    | Haskell               -> output.haskell
+    | Python                -> output.python
 
   let print_counterexample oc counterexample data =
     let printf format_string = Printf.fprintf oc format_string in
@@ -1197,10 +1210,11 @@ module Main = struct
       printf          "  %s:%s %s\n"      tag    align counterexample_str;
       printf_for_data "  %s %s   = %s\n"  indent align (output_for o)
     in
-    print_comprehension "OCaml list" " " OCaml_list;
-    print_comprehension "OCaml array" "" OCaml_array;
-    print_comprehension "Haskell" "    " Haskell;
-    print_comprehension "Python" "     " Python
+    print_comprehension "OCaml list" "  " (OCaml List);
+    print_comprehension "OCaml array" " " (OCaml Mutable_array);
+    print_comprehension "OCaml iarray" "" (OCaml Immutable_array);
+    print_comprehension "Haskell" "     " Haskell;
+    print_comprehension "Python" "      " Python
 
   let different_comprehensions_agree ?seed ?output max_tests =
     let ( = ) = String.equal in
@@ -1215,15 +1229,23 @@ module Main = struct
         Comprehension.generator Comprehension.shrink
         print_counterexample
         (fun c ->
-           let ocaml_list  = ocaml   (Comprehension.to_string OCaml_list  c) in
-           let ocaml_array = ocaml   (Comprehension.to_string OCaml_array c) in
-           let haskell     = haskell (Comprehension.to_string Haskell     c) in
-           let python      = python  (Comprehension.to_string Python      c) in
-           if ocaml_list  = ocaml_array &&
-              ocaml_array = haskell     &&
-              haskell     = python
+           let run repl fmt = repl (Comprehension.to_string fmt c) in
+           let ocaml_list            = run ocaml   (OCaml List)            in
+           let ocaml_mutable_array   = run ocaml   (OCaml Mutable_array)   in
+           let ocaml_immutable_array = run ocaml   (OCaml Immutable_array) in
+           let haskell               = run haskell Haskell                 in
+           let python                = run python  Python                  in
+           if ocaml_list            = ocaml_mutable_array   &&
+              ocaml_mutable_array   = ocaml_immutable_array &&
+              ocaml_immutable_array = haskell               &&
+              haskell               = python
            then OK
-           else Failed_with {ocaml_list; ocaml_array; haskell; python})))))
+           else Failed_with
+                  { ocaml_list
+                  ; ocaml_mutable_array
+                  ; ocaml_immutable_array
+                  ; haskell
+                  ; python })))))
 end
 
 let () = Main.different_comprehensions_agree 1_000

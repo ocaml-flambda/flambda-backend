@@ -1,14 +1,15 @@
 (* TEST
-  flags = "-extension comprehensions_experimental"
+   flags = "-extension comprehensions_experimental"
 *)
 
 (******************************************************************************
  *                        ******** ATTENTION! ********                        *
  *                                                                            *
- * This file should be kept in sync with the file                             *
- * "list_comprehensions_side_effects.ml".  If you're adding a test to one,    *
- * add it to the other as well; if the test output changes in one file and    *
- * not the other (except as documented in comments), this is a bug.           *
+ * This file should be kept in sync with the files                            *
+ * "list_comprehensions_side_effects.ml" and                                  *
+ * "iarray_comprehensions_side_effects.ml".  If you're adding a test to one,  *
+ * add it to the others as well; if the test output changes in one file and   *
+ * not the others (except as documented in comments), this is a bug.          *
  ******************************************************************************)
 
 (******************************************************************************)

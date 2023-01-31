@@ -25,7 +25,7 @@ open Ctype
 
 type comprehension_type =
   | List_comprehension
-  | Array_comprehension
+  | Array_comprehension of mutable_flag
 
 type type_forcing_context =
   | If_conditional
@@ -918,7 +918,8 @@ and build_as_type_aux ~refine (env : Env.t ref) p =
       in
       p.pat_type, mode
   | Tpat_any | Tpat_var _
-  | Tpat_array _ | Tpat_lazy _ -> p.pat_type, p.pat_mode
+  | Tpat_array _ | Tpat_lazy _ ->
+      p.pat_type, p.pat_mode
 
 (* Constraint solving during typing of patterns *)
 
@@ -1077,11 +1078,15 @@ let solve_Ppat_record_field ~refine loc env label label_lid record_ty =
   generalize_structure ty_arg;
   ty_arg
 
-let solve_Ppat_array ~refine loc env expected_ty =
+let solve_Ppat_array ~refine loc env mutability expected_ty =
+  let type_some_array = match mutability with
+    | Immutable -> Predef.type_iarray
+    | Mutable -> Predef.type_array
+  in
   let ty_elt = newgenvar() in
   let expected_ty = generic_instance expected_ty in
   unify_pat_types ~refine
-    loc env (Predef.type_array ty_elt) expected_ty;
+    loc env (type_some_array ty_elt) expected_ty;
   ty_elt
 
 let solve_Ppat_lazy  ~refine loc env expected_ty =
@@ -1702,7 +1707,10 @@ type 'case_pattern half_typed_case =
     unpacks: module_variable list;
     contains_gadt: bool; }
 
-let rec has_literal_pattern p = match p.ppat_desc with
+let rec has_literal_pattern p =
+  match Extensions.Pattern.of_ast p with
+  | Some epat -> has_literal_pattern_extension epat
+  | None      -> match p.ppat_desc with
   | Ppat_constant _
   | Ppat_interval _ ->
      true
@@ -1729,6 +1737,9 @@ let rec has_literal_pattern p = match p.ppat_desc with
      List.exists (fun (_,p) -> has_literal_pattern p) ps
   | Ppat_or (p, q) ->
      has_literal_pattern p || has_literal_pattern q
+and has_literal_pattern_extension : Extensions.Pattern.t -> _ = function
+  | Epat_immutable_array (Iapat_immutable_array ps) ->
+     List.exists has_literal_pattern ps
 
 let check_scope_escape loc env level ty =
   try Ctype.check_scope_escape env level ty
@@ -2019,6 +2030,33 @@ and type_pat_aux
     | Some Backtrack_or -> false
     | Some (Refine_or {inside_nonsplit_or}) -> inside_nonsplit_or
   in
+  let type_pat_array mutability spl =
+    (* Sharing the code between the two array cases means we're guaranteed to
+       keep them in sync, at the cost of a worse diff with upstream; it
+       shouldn't be too bad.  We can inline this when we upstream this code and
+       combine the two array pattern constructors. *)
+    let ty_elt = solve_Ppat_array ~refine loc env mutability expected_ty in
+      map_fold_cont (fun p -> type_pat ~alloc_mode:(simple_pat_mode Value_mode.global)
+       Value p ty_elt) spl (fun pl ->
+        rvp k {
+        pat_desc = Tpat_array (mutability, pl);
+        pat_loc = loc; pat_extra=[];
+        pat_type = instance expected_ty;
+        pat_mode = alloc_mode.mode;
+        pat_attributes = sp.ppat_attributes;
+        pat_env = !env })
+  in
+  match Extensions.Pattern.of_ast sp with
+  | Some epat -> begin
+      (* Normally this would go to an auxiliary function, but this function
+         takes so many parameters, has such a complex type, and uses so many
+         local definitions, it seems better to just put the pattern matching
+         here.  This shouldn't mess up the diff *too* much. *)
+      match epat with
+      | Epat_immutable_array (Iapat_immutable_array spl) ->
+          type_pat_array Immutable spl
+    end
+  | None ->
   match sp.ppat_desc with
     Ppat_any ->
       let k' d = rvp k {
@@ -2328,16 +2366,7 @@ and type_pat_aux
             (fun lbl_pat_list -> k' (make_record_pat lbl_pat_list))
       end
   | Ppat_array spl ->
-      let ty_elt = solve_Ppat_array ~refine loc env expected_ty in
-      map_fold_cont (fun p -> type_pat ~alloc_mode:(simple_pat_mode Value_mode.global)
-       Value p ty_elt) spl (fun pl ->
-        rvp k {
-        pat_desc = Tpat_array pl;
-        pat_loc = loc; pat_extra=[];
-        pat_type = instance expected_ty;
-        pat_mode = alloc_mode.mode;
-        pat_attributes = sp.ppat_attributes;
-        pat_env = !env })
+      type_pat_array Mutable spl
   | Ppat_or(sp1, sp2) ->
       begin match mode with
       | Normal ->
@@ -2650,6 +2679,9 @@ let combine_pat_tuple_arity a b =
       else Not_local_tuple
 
 let rec pat_tuple_arity spat =
+  match Extensions.Pattern.of_ast spat with
+  | Some epat -> pat_tuple_arity_extension epat
+  | None      ->
   match spat.ppat_desc with
   | Ppat_tuple args -> Local_tuple (List.length args)
   | Ppat_any | Ppat_exception _ | Ppat_var _ -> Maybe_local_tuple
@@ -2660,6 +2692,8 @@ let rec pat_tuple_arity spat =
   | Ppat_or(sp1, sp2) ->
       combine_pat_tuple_arity (pat_tuple_arity sp1) (pat_tuple_arity sp2)
   | Ppat_constraint(p, _) | Ppat_open(_, p) | Ppat_alias(p, _) -> pat_tuple_arity p
+and pat_tuple_arity_extension : Extensions.Pattern.t -> _ = function
+  | Epat_immutable_array (Iapat_immutable_array _) -> Not_local_tuple
 
 let rec cases_tuple_arity cases =
   match cases with
@@ -2958,7 +2992,7 @@ let rec is_nonexpansive exp =
   | Texp_unreachable
   | Texp_function _
   | Texp_probe_is_enabled _
-  | Texp_array ([], _) -> true
+  | Texp_array (_, [], _) -> true
   | Texp_let(_rec_flag, pat_exp_list, body) ->
       List.for_all (fun vb -> is_nonexpansive vb.vb_expr) pat_exp_list &&
       is_nonexpansive body
@@ -3037,7 +3071,7 @@ let rec is_nonexpansive exp =
              Id_prim _) },
       [Nolabel, Arg e], _, _) ->
      is_nonexpansive e
-  | Texp_array (_ :: _, _)
+  | Texp_array (_, _ :: _, _)
   | Texp_apply _
   | Texp_try _
   | Texp_setfield _
@@ -3126,6 +3160,13 @@ let is_local_returning_expr e =
         raise(Error(loc2, Env.empty, Local_return_annotation_mismatch loc1))
   in
   let rec loop e =
+    match Extensions.Expression.of_ast e with
+    | Some eexp -> begin
+        match eexp with
+        | Eexp_comprehension   _ -> false, e.pexp_loc
+        | Eexp_immutable_array _ -> false, e.pexp_loc
+      end
+    | None      ->
     match e.pexp_desc with
     | Pexp_apply
         ({ pexp_desc = Pexp_extension(
@@ -3237,7 +3278,13 @@ let rec approx_type env sty =
       end
   | _ -> newvar ()
 
+let type_pattern_approx_extension : Extensions.Pattern.t -> _ = function
+  | Epat_immutable_array _ -> ()
+
 let type_pattern_approx env spat ty_expected =
+  match Extensions.Pattern.of_ast spat with
+  | Some epat -> type_pattern_approx_extension epat
+  | None      ->
   match spat.ppat_desc with
   | Ppat_constraint(_, ({ptyp_desc=Ptyp_poly _} as sty)) ->
       let arg_type_mode =
@@ -3297,7 +3344,7 @@ let rec type_function_approx env loc label spato sexp in_function ty_expected =
   type_approx_aux env sexp in_function ty_res
 
 and type_approx_aux env sexp in_function ty_expected =
-  match Extensions.extension_expr_of_expr sexp with
+  match Extensions.Expression.of_ast sexp with
   | Some eexp -> type_approx_aux_extension eexp
   | None      -> match sexp.pexp_desc with
     Pexp_let (_, _, e) -> type_approx_aux env e None ty_expected
@@ -3342,8 +3389,9 @@ and type_approx_aux env sexp in_function ty_expected =
     type_approx_aux env e None ty_expected
   | _ -> ()
 
-and type_approx_aux_extension : Extensions.extension_expr -> _ = function
-  | Eexp_comprehension _ -> ()
+and type_approx_aux_extension : Extensions.Expression.t -> _ = function
+  | Eexp_comprehension _
+  | Eexp_immutable_array _ -> ()
 
 let type_approx env sexp ty =
   type_approx_aux env sexp None ty
@@ -3521,7 +3569,13 @@ let contains_variant_either ty =
   try loop ty; unmark_type ty; false
   with Exit -> unmark_type ty; true
 
+let shallow_iter_ppat_extension f : Extensions.Pattern.t -> _ = function
+  | Epat_immutable_array (Iapat_immutable_array pats) -> List.iter f pats
+
 let shallow_iter_ppat f p =
+  match Extensions.Pattern.of_ast p with
+  | Some epat -> shallow_iter_ppat_extension f epat
+  | None      ->
   match p.ppat_desc with
   | Ppat_any | Ppat_var _ | Ppat_constant _ | Ppat_interval _
   | Ppat_construct (_, None)
@@ -3638,7 +3692,7 @@ let unify_exp env exp expected_ty =
    the "expected type" provided by the context. *)
 
 let rec is_inferred sexp =
-  match Extensions.extension_expr_of_expr sexp with
+  match Extensions.Expression.of_ast sexp with
   | Some eexp -> is_inferred_extension eexp
   | None      -> match sexp.pexp_desc with
   | Pexp_ident _ | Pexp_apply _ | Pexp_field _ | Pexp_constraint _
@@ -3646,8 +3700,9 @@ let rec is_inferred sexp =
   | Pexp_sequence (_, e) | Pexp_open (_, e) -> is_inferred e
   | Pexp_ifthenelse (_, e1, Some e2) -> is_inferred e1 && is_inferred e2
   | _ -> false
-and is_inferred_extension : Extensions.extension_expr -> _ = function
-  | Eexp_comprehension _ -> false
+and is_inferred_extension : Extensions.Expression.t -> _ = function
+  | Eexp_comprehension _
+  | Eexp_immutable_array _ -> false
 
 (* check if the type of %apply or %revapply matches the type expected by
    the specialized typing rule for those primitives.
@@ -3731,9 +3786,10 @@ and type_expect_
     submode ~env ~loc:exp.exp_loc ~reason:Other mode expected_mode;
     exp
   in
-  match Extensions.extension_expr_of_expr sexp with
+  match Extensions.Expression.of_ast sexp with
   | Some eexp ->
-      type_expect_extension ~loc ~env ~expected_mode ~ty_expected eexp
+      type_expect_extension
+        ~loc ~env ~expected_mode ~ty_expected ~explanation eexp
   | None      -> match sexp.pexp_desc with
   | Pexp_ident lid ->
       let path, mode, desc, kind = type_ident env ~recarg lid in
@@ -4336,23 +4392,16 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_array(sargl) ->
-      let alloc_mode = register_allocation expected_mode in
-      let ty = newgenvar() in
-      let to_unify = Predef.type_array ty in
-      with_explanation (fun () ->
-        unify_exp_types loc env to_unify (generic_instance ty_expected));
-      let argument_mode = expect_mode_cross env ty mode_global in
-      let argl =
-        List.map
-          (fun sarg -> type_expect env argument_mode sarg (mk_expected ty))
-          sargl
-      in
-      re {
-        exp_desc = Texp_array (argl, alloc_mode);
-        exp_loc = loc; exp_extra = [];
-        exp_type = instance ty_expected;
-        exp_attributes = sexp.pexp_attributes;
-        exp_env = env }
+      type_generic_array
+        ~loc
+        ~env
+        ~expected_mode
+        ~ty_expected
+        ~explanation
+        ~type_:Predef.type_array
+        ~mutability:Mutable
+        ~attributes:sexp.pexp_attributes
+        sargl
   | Pexp_ifthenelse(scond, sifso, sifnot) ->
       let cond =
         type_expect env (mode_var ()) scond
@@ -4445,7 +4494,7 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_constraint (sarg, sty) ->
-      (* Pretend separate = true, 1% slowdown for lablgtk *)
+     (* Pretend separate = true, 1% slowdown for lablgtk *)
       begin_def ();
       let type_mode =
         if has_local_attr_exp sexp then Alloc_mode.Local
@@ -6402,7 +6451,7 @@ and type_let
         false
   in
   let rec sexp_is_fun sexp =
-    match Extensions.extension_expr_of_expr sexp with
+    match Extensions.Expression.of_ast sexp with
     | Some eexp -> eexp_is_fun eexp
     | None      -> match sexp.pexp_desc with
     | Pexp_fun _ | Pexp_function _ -> true
@@ -6413,8 +6462,9 @@ and type_let
           {txt = "extension.local"|"ocaml.local"|"local"}, PStr []) },
        [Nolabel, e]) -> sexp_is_fun e
     | _ -> false
-  and eexp_is_fun : Extensions.extension_expr -> _ = function
-    | Eexp_comprehension _ -> false
+  and eexp_is_fun : Extensions.Expression.t -> _ = function
+    | Eexp_comprehension _
+    | Eexp_immutable_array _ -> false
   in
   let vb_is_fun { pvb_expr = sexp; _ } = sexp_is_fun sexp in
   let entirely_functions = List.for_all vb_is_fun spat_sexp_list in
@@ -6756,10 +6806,44 @@ and type_andops env sarg sands expected_ty =
   let let_arg, rev_ands = loop env sarg (List.rev sands) expected_ty in
   let_arg, List.rev rev_ands
 
-and type_expect_extension ~loc ~env ~ty_expected
-  : Extensions.extension_expr -> _ = function
+(* Can be re-inlined when we upstream immutable arrays *)
+and type_generic_array
+      ~loc
+      ~env
+      ~expected_mode
+      ~ty_expected
+      ~explanation
+      ~type_
+      ~mutability
+      ~attributes
+      sargl
+  =
+  let alloc_mode = register_allocation expected_mode in
+  let ty = newgenvar() in
+  let to_unify = type_ ty in
+  with_explanation explanation (fun () ->
+    unify_exp_types loc env to_unify (generic_instance ty_expected));
+  let argument_mode = expect_mode_cross env ty mode_global in
+  let argl =
+    List.map
+      (fun sarg -> type_expect env argument_mode sarg (mk_expected ty))
+      sargl
+  in
+  re {
+    exp_desc = Texp_array (mutability, argl, alloc_mode);
+    exp_loc = loc; exp_extra = [];
+    exp_type = instance ty_expected;
+    exp_attributes = attributes;
+    exp_env = env }
+
+and type_expect_extension ~loc ~env ~expected_mode ~ty_expected ~explanation
+  : Extensions.Expression.t -> _ = function
   | Eexp_comprehension cexpr ->
-      type_comprehension_expr ~loc ~env ~ty_expected cexpr
+      type_comprehension_expr
+        ~loc ~env ~expected_mode ~ty_expected ~explanation cexpr
+  | Eexp_immutable_array iaexpr ->
+      type_immutable_array
+        ~loc ~env ~expected_mode ~ty_expected ~explanation iaexpr
 
 (* What modes should comprehensions use?  Let us be generic over the sequence
    type we use for comprehensions, calling it [sequence] (standing for either
@@ -6836,7 +6920,8 @@ and type_expect_extension ~loc ~env ~ty_expected
    we need to provide modes while typechecking comprehensions, we will reference
    this comment by its incipit (the initial question, right at the start). *)
 
-and type_comprehension_expr ~loc ~env ~ty_expected ~expected_mode:_ cexpr =
+and type_comprehension_expr
+      ~loc ~env ~expected_mode:_ ~ty_expected ~explanation:_ cexpr =
   let open Extensions.Comprehensions in
   (* - [comprehension_type]:
          For printing nicer error messages.
@@ -6855,10 +6940,14 @@ and type_comprehension_expr ~loc ~env ~ty_expected ~expected_mode:_ cexpr =
         Predef.type_list,
         (fun tcomp -> Texp_list_comprehension tcomp),
         comp
-    | Cexp_array_comprehension comp ->
-        Array_comprehension,
-        Predef.type_array,
-        (fun tcomp -> Texp_array_comprehension tcomp),
+    | Cexp_array_comprehension (amut, comp) ->
+        let container_type = match amut with
+          | Mutable   -> Predef.type_array
+          | Immutable -> Predef.type_iarray
+        in
+        Array_comprehension amut,
+        container_type,
+        (fun tcomp -> Texp_array_comprehension (amut, tcomp)),
         comp
   in
   if !Clflags.principal then begin_def ();
@@ -6994,6 +7083,20 @@ and type_comprehension_iterator
           item_ty
       in
       Texp_comp_in { pattern; sequence }
+
+and type_immutable_array ~loc ~env ~expected_mode ~ty_expected ~explanation
+    : Extensions.Immutable_arrays.expression -> _ = function
+  | Iaexp_immutable_array elts ->
+      type_generic_array
+        ~loc
+        ~env
+        ~expected_mode
+        ~ty_expected
+        ~explanation
+        ~type_:Predef.type_iarray
+        ~mutability:Immutable
+        ~attributes:[] (* CR aspectorzabusky: This can't be right *)
+        elts
 
 (* Typing of toplevel bindings *)
 
@@ -7138,8 +7241,9 @@ let report_type_expected_explanation expl ppf =
   | Comprehension_in_iterator comp_ty ->
       let a_comp_ty =
         match comp_ty with
-        | List_comprehension  -> "a list"
-        | Array_comprehension -> "an array"
+        | List_comprehension            -> "a list"
+        | Array_comprehension Mutable   -> "an array"
+        | Array_comprehension Immutable -> "an immutable array"
       in
       because ("a for-in iterator in " ^ a_comp_ty ^ " comprehension")
   | Comprehension_for_start ->

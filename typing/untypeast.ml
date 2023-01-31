@@ -357,7 +357,16 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
     | Tpat_record (list, closed) ->
         Ppat_record (List.map (fun (lid, _, pat) ->
             map_loc sub lid, sub.pat sub pat) list, closed)
-    | Tpat_array list -> Ppat_array (List.map (sub.pat sub) list)
+    | Tpat_array (am, list) -> begin
+        let pats = List.map (sub.pat sub) list in
+        match am with
+        | Mutable   -> Ppat_array pats
+        | Immutable -> (Extensions.Pattern.ast_of
+                          ~loc
+                          Immutable_arrays
+                          (Epat_immutable_array (Iapat_immutable_array pats))
+                       ).ppat_desc
+      end
     | Tpat_lazy p -> Ppat_lazy (sub.pat sub p)
 
     | Tpat_exception p -> Ppat_exception (sub.pat sub p)
@@ -423,7 +432,7 @@ let comprehension ~loc sub comp_type comp =
     ; clauses = List.map clause comp_clauses }
   in
   let comprehension_expr =
-    Extensions.expr_of_extension_expr
+    Extensions.Expression.ast_of
       ~loc
       Comprehensions
       (Eexp_comprehension (comp_type (comprehension comp)))
@@ -493,12 +502,27 @@ let expression sub exp =
     | Texp_setfield (exp1, _, lid, _label, exp2) ->
         Pexp_setfield (sub.expr sub exp1, map_loc sub lid,
           sub.expr sub exp2)
-    | Texp_array (list, _) ->
-        Pexp_array (List.map (sub.expr sub) list)
+    | Texp_array (amut, list, _) -> begin
+        (* Can be inlined when we get to upstream immutable arrays *)
+        let plist = List.map (sub.expr sub) list in
+        match amut with
+        | Mutable ->
+            Pexp_array plist
+        | Immutable ->
+          let expr =
+            Extensions.Expression.ast_of
+              ~loc
+              Immutable_arrays
+              (Eexp_immutable_array (Iaexp_immutable_array plist))
+          in
+          expr.pexp_desc
+      end
     | Texp_list_comprehension comp ->
-        comprehension ~loc sub (fun comp -> Cexp_list_comprehension comp) comp
-    | Texp_array_comprehension comp ->
-        comprehension ~loc sub (fun comp -> Cexp_array_comprehension comp) comp
+        comprehension
+          ~loc sub (fun comp -> Cexp_list_comprehension comp) comp
+    | Texp_array_comprehension (amut, comp) ->
+        comprehension
+          ~loc sub (fun comp -> Cexp_array_comprehension (amut, comp)) comp
     | Texp_ifthenelse (exp1, exp2, expo) ->
         Pexp_ifthenelse (sub.expr sub exp1,
           sub.expr sub exp2,

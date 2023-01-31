@@ -117,8 +117,10 @@ and 'k pattern_desc =
 
             Invariant: n > 0
          *)
-  | Tpat_array : value general_pattern list -> value pattern_desc
-        (** [| P1; ...; Pn |] *)
+  | Tpat_array :
+      mutable_flag * value general_pattern list -> value pattern_desc
+        (** [| P1; ...; Pn |]    (flag = Mutable)
+            [: P1; ...; Pn :]    (flag = Immutable) *)
   | Tpat_lazy : value general_pattern -> value pattern_desc
         (** lazy P *)
   (* computation patterns *)
@@ -281,9 +283,9 @@ and expression_desc =
   | Texp_setfield of
       expression * Types.alloc_mode * Longident.t loc * Types.label_description * expression
     (** [alloc_mode] translates to the [modify_mode] of the record *)
-  | Texp_array of expression list * Types.alloc_mode
+  | Texp_array of mutable_flag * expression list * Types.alloc_mode
   | Texp_list_comprehension of comprehension
-  | Texp_array_comprehension of comprehension
+  | Texp_array_comprehension of mutable_flag * comprehension
   | Texp_ifthenelse of expression * expression * expression option
   | Texp_sequence of expression * expression
   | Texp_while of {

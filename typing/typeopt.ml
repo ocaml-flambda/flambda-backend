@@ -129,7 +129,8 @@ let classify env ty : classification =
 
 let array_type_kind env ty =
   match scrape_poly env ty with
-  | Tconstr(p, [elt_ty], _) when Path.same p Predef.path_array ->
+  | Tconstr(p, [elt_ty], _)
+    when Path.same p Predef.path_array || Path.same p Predef.path_iarray ->
       begin match classify env elt_ty with
       | Any -> if Config.flat_float_array then Pgenarray else Paddrarray
       | Float -> if Config.flat_float_array then Pfloatarray else Paddrarray

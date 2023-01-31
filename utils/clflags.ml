@@ -376,10 +376,26 @@ let set_dumped_pass s enabled =
   end
 
 module Extension = struct
-  type t = Comprehensions | Local | Include_functor | Polymorphic_parameters
+  type t =
+    | Comprehensions
+    | Local
+    | Include_functor
+    | Polymorphic_parameters
+    | Immutable_arrays
 
-  let all = [ Comprehensions; Local; Include_functor; Polymorphic_parameters ]
-  let default_extensions = [ Local; Include_functor; Polymorphic_parameters ]
+  let all =
+    [ Comprehensions
+    ; Local
+    ; Include_functor
+    ; Polymorphic_parameters
+    ; Immutable_arrays
+    ]
+
+  let default_extensions =
+    [ Local
+    ; Include_functor
+    ; Polymorphic_parameters
+    ]
 
   let extensions = ref ([] : t list)   (* -extension *)
   let equal (a : t) (b : t) = (a = b)
@@ -389,12 +405,14 @@ module Extension = struct
     | Local -> "local"
     | Include_functor -> "include_functor"
     | Polymorphic_parameters -> "polymorphic_parameters"
+    | Immutable_arrays -> "immutable_arrays_experimental"
 
   let of_string = function
     | "comprehensions_experimental" -> Some Comprehensions
     | "local" -> Some Local
     | "include_functor" -> Some Include_functor
     | "polymorphic_parameters" -> Some Polymorphic_parameters
+    | "immutable_arrays_experimental" -> Some Immutable_arrays
     | _ -> None
 
   let disable_all_extensions = ref false             (* -disable-all-extensions *)

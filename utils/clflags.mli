@@ -206,7 +206,13 @@ val dump_into_file : bool ref
 val dump_dir : string option ref
 
 module Extension : sig
-  type t = Comprehensions | Local | Include_functor | Polymorphic_parameters
+  type t =
+    | Comprehensions
+    | Local
+    | Include_functor
+    | Polymorphic_parameters
+    | Immutable_arrays
+
   val all : t list
 
   val enable : string -> unit

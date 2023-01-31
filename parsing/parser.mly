@@ -302,6 +302,42 @@ let unclosed opening_name opening_loc closing_name closing_loc =
   raise(Syntaxerr.Error(Syntaxerr.Unclosed(make_loc opening_loc, opening_name,
                                            make_loc closing_loc, closing_name)))
 
+(* Normal mutable arrays and immutable arrays are parsed identically, just with
+   different delimiters.  The parsing is done by the [array_exprs] rule, and the
+   [Generic_array] module provides (1) a type representing the possible results,
+   and (2) a function for going from that type to an AST fragment representing
+   an array. *)
+module Generic_array = struct
+  (** The three possible ways to parse an array (writing [[? ... ?]] for either
+      [[| ... |]] or [[: ... :]]): *)
+  type t =
+    | Literal of expression list
+    (** A plain array literal, [[? x; y; z ?]] *)
+    | Opened_literal of open_declaration *
+                        Lexing.position *
+                        Lexing.position *
+                        expression list
+    (** An array literal with a local open, [Module.[? x; y; z ?]] *)
+    | Unclosed of (Lexing.position * Lexing.position) *
+                  (Lexing.position * Lexing.position)
+    (** Parse error: an unclosed array literal, [\[? x; y; z] with no closing
+        [?\]]. *)
+
+  let expression open_ close array = function
+    | Literal elts ->
+       array elts
+    | Opened_literal(od, startpos, endpos, elts) ->
+       Pexp_open(od, mkexp ~loc:(startpos, endpos) (array elts))
+    | Unclosed(startpos, endpos) ->
+       unclosed open_ startpos close endpos
+end
+
+let ppat_iarray loc elts =
+  (Extensions.Pattern.ast_of
+     ~loc:(make_loc loc)
+     Immutable_arrays
+     (Epat_immutable_array (Iapat_immutable_array elts))).ppat_desc
+
 let expecting loc nonterm =
     raise Syntaxerr.(Error(Expecting(make_loc loc, nonterm)))
 
@@ -374,6 +410,8 @@ let bigarray_untuplify = function
     { pexp_desc = Pexp_tuple explist; pexp_loc = _ } -> explist
   | exp -> [exp]
 
+(* Immutable array indexing is a regular operator, so it doesn't need a special
+   case here *)
 let builtin_arraylike_name loc _ ~assign paren_kind n =
   let opname = if assign then "set" else "get" in
   let opname = if !Clflags.unsafe then "unsafe_" ^ opname else opname in
@@ -728,6 +766,7 @@ let mk_directive ~loc name arg =
 %token COLONCOLON             "::"
 %token COLONEQUAL             ":="
 %token COLONGREATER           ":>"
+%token COLONRBRACKET          ":]"
 %token COMMA                  ","
 %token CONSTRAINT             "constraint"
 %token DO                     "do"
@@ -771,6 +810,7 @@ let mk_directive ~loc name arg =
 %token LBRACELESS             "{<"
 %token LBRACKET               "["
 %token LBRACKETBAR            "[|"
+%token LBRACKETCOLON          "[:"
 %token LBRACKETLESS           "[<"
 %token LBRACKETGREATER        "[>"
 %token LBRACKETPERCENT        "[%"
@@ -905,7 +945,7 @@ The precedences must be listed from low to high.
 %nonassoc DOT DOTOP
 /* Finally, the first tokens of simple_expr are above everything else. */
 %nonassoc BACKQUOTE BANG BEGIN CHAR FALSE FLOAT INT OBJECT
-          LBRACE LBRACELESS LBRACKET LBRACKETBAR LIDENT LPAREN
+          LBRACE LBRACELESS LBRACKET LBRACKETBAR LBRACKETCOLON LIDENT LPAREN
           NEW PREFIXOP STRING TRUE UIDENT
           LBRACKETPERCENT QUOTED_STRING_EXPR
 
@@ -2471,6 +2511,8 @@ simple_expr:
       { mkexp_constraint ~loc:$sloc $2 $3 }
   | indexop_expr(DOT, seq_expr, { None })
       { mk_indexop_expr builtin_indexing_operators ~loc:$sloc $1 }
+  (* Immutable array indexing is a regular operator, so it doesn't need its own
+     rule and is handled by the next case *)
   | indexop_expr(qualified_dotop, expr_semi_list, { None })
       { mk_indexop_expr user_indexing_operators ~loc:$sloc $1 }
   | indexop_error (DOT, seq_expr) { $1 }
@@ -2541,16 +2583,34 @@ comprehension_clause:
   | comprehension(LBRACKET,RBRACKET)
       { Extensions.Comprehensions.Cexp_list_comprehension  $1 }
   | comprehension(LBRACKETBAR,BARRBRACKET)
-      { Extensions.Comprehensions.Cexp_array_comprehension $1 }
+      { Extensions.Comprehensions.Cexp_array_comprehension (Mutable, $1) }
+  | comprehension(LBRACKETCOLON,COLONRBRACKET)
+      { Extensions.Comprehensions.Cexp_array_comprehension (Immutable, $1) }
 ;
 
 %inline comprehension_expr:
   comprehension_ext_expr
-    { (Extensions.expr_of_extension_expr
+    { (Extensions.Expression.ast_of
          ~loc:(make_loc $sloc)
          Comprehensions
          (Eexp_comprehension $1)).pexp_desc }
 ;
+
+%inline array_exprs(ARR_OPEN, ARR_CLOSE):
+  | ARR_OPEN expr_semi_list ARR_CLOSE
+      { Generic_array.Literal $2 }
+  | ARR_OPEN expr_semi_list error
+      { Generic_array.Unclosed($loc($1),$loc($3)) }
+  | ARR_OPEN ARR_CLOSE
+      { Generic_array.Literal [] }
+  | od=open_dot_declaration DOT ARR_OPEN expr_semi_list ARR_CLOSE
+      { Generic_array.Opened_literal(od, $startpos($3), $endpos, $4) }
+  | od=open_dot_declaration DOT ARR_OPEN ARR_CLOSE
+      { (* TODO: review the location of Pexp_array *)
+        Generic_array.Opened_literal(od, $startpos($3), $endpos, []) }
+  | mod_longident DOT
+    ARR_OPEN expr_semi_list error
+      { Generic_array.Unclosed($loc($3), $loc($5)) }
 
 %inline simple_expr_:
   | mkrhs(val_longident)
@@ -2601,20 +2661,20 @@ comprehension_clause:
                         (Pexp_record(fields, exten))) }
   | mod_longident DOT LBRACE record_expr_content error
       { unclosed "{" $loc($3) "}" $loc($5) }
-  | LBRACKETBAR expr_semi_list BARRBRACKET
-      { Pexp_array($2) }
-  | LBRACKETBAR expr_semi_list error
-      { unclosed "[|" $loc($1) "|]" $loc($3) }
-  | LBRACKETBAR BARRBRACKET
-      { Pexp_array [] }
-  | od=open_dot_declaration DOT LBRACKETBAR expr_semi_list BARRBRACKET
-      { Pexp_open(od, mkexp ~loc:($startpos($3), $endpos) (Pexp_array($4))) }
-  | od=open_dot_declaration DOT LBRACKETBAR BARRBRACKET
-      { (* TODO: review the location of Pexp_array *)
-        Pexp_open(od, mkexp ~loc:($startpos($3), $endpos) (Pexp_array [])) }
-  | mod_longident DOT
-    LBRACKETBAR expr_semi_list error
-      { unclosed "[|" $loc($3) "|]" $loc($5) }
+  | array_exprs(LBRACKETBAR, BARRBRACKET)
+      { Generic_array.expression
+          "[|" "|]"
+          (fun elts -> Pexp_array elts)
+          $1 }
+  | array_exprs(LBRACKETCOLON, COLONRBRACKET)
+      { Generic_array.expression
+          "[:" ":]"
+          (fun elts ->
+            (Extensions.Expression.ast_of
+               ~loc:(make_loc $sloc)
+               Immutable_arrays
+               (Eexp_immutable_array (Iaexp_immutable_array elts))).pexp_desc)
+          $1 }
   | LBRACKET expr_semi_list RBRACKET
       { fst (mktailexp $loc($3) $2) }
   | LBRACKET expr_semi_list error
@@ -3032,6 +3092,10 @@ simple_delimited_pattern:
       { Ppat_array $2 }
     | LBRACKETBAR BARRBRACKET
       { Ppat_array [] }
+    | LBRACKETCOLON pattern_semi_list COLONRBRACKET
+      { ppat_iarray $sloc $2 }
+    | LBRACKETCOLON COLONRBRACKET
+      { ppat_iarray $sloc [] }
     | LBRACKETBAR pattern_semi_list error
       { unclosed "[|" $loc($1) "|]" $loc($3) }
   ) { $1 }

@@ -21,7 +21,7 @@ let _malformed_extensions_wrong_arguments = [%extension.something] "two" "argume
 Line 1, characters 46-65:
 1 | let _malformed_extensions_wrong_arguments = [%extension.something] "two" "arguments";;
                                                   ^^^^^^^^^^^^^^^^^^^
-Error: Extension extension nodes must be applied to exactly one unlabeled argument, but "extension.something" was applied to 2 arguments
+Error: Expression extension extension nodes must be applied to exactly one unlabeled argument, but "extension.something" was applied to 2 arguments
 |}];;
 
 let _unknown_extension = [%extension.this_extension_doesn't_exist] ();;

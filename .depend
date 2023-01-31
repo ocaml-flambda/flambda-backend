@@ -265,6 +265,7 @@ parsing/ast_invariants.cmo : \
     parsing/syntaxerr.cmi \
     parsing/parsetree.cmi \
     parsing/longident.cmi \
+    parsing/extensions.cmi \
     parsing/builtin_attributes.cmi \
     parsing/asttypes.cmi \
     parsing/ast_iterator.cmi \
@@ -273,6 +274,7 @@ parsing/ast_invariants.cmx : \
     parsing/syntaxerr.cmx \
     parsing/parsetree.cmi \
     parsing/longident.cmx \
+    parsing/extensions.cmx \
     parsing/builtin_attributes.cmx \
     parsing/asttypes.cmi \
     parsing/ast_iterator.cmx \
@@ -371,6 +373,7 @@ parsing/depend.cmo : \
     utils/misc.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
+    parsing/extensions.cmi \
     utils/clflags.cmi \
     parsing/builtin_attributes.cmi \
     parsing/asttypes.cmi \
@@ -380,6 +383,7 @@ parsing/depend.cmx : \
     utils/misc.cmx \
     parsing/longident.cmx \
     parsing/location.cmx \
+    parsing/extensions.cmx \
     utils/clflags.cmx \
     parsing/builtin_attributes.cmx \
     parsing/asttypes.cmi \
@@ -405,6 +409,7 @@ parsing/extensions.cmo : \
     parsing/parsetree.cmi \
     utils/misc.cmi \
     parsing/location.cmi \
+    parsing/extensions_parsing.cmi \
     utils/clflags.cmi \
     parsing/asttypes.cmi \
     parsing/ast_helper.cmi \
@@ -413,11 +418,33 @@ parsing/extensions.cmx : \
     parsing/parsetree.cmi \
     utils/misc.cmx \
     parsing/location.cmx \
+    parsing/extensions_parsing.cmx \
     utils/clflags.cmx \
     parsing/asttypes.cmi \
     parsing/ast_helper.cmx \
     parsing/extensions.cmi
 parsing/extensions.cmi : \
+    parsing/parsetree.cmi \
+    parsing/location.cmi \
+    utils/clflags.cmi \
+    parsing/asttypes.cmi
+parsing/extensions_parsing.cmo : \
+    parsing/parsetree.cmi \
+    utils/misc.cmi \
+    parsing/location.cmi \
+    utils/clflags.cmi \
+    parsing/asttypes.cmi \
+    parsing/ast_helper.cmi \
+    parsing/extensions_parsing.cmi
+parsing/extensions_parsing.cmx : \
+    parsing/parsetree.cmi \
+    utils/misc.cmx \
+    parsing/location.cmx \
+    utils/clflags.cmx \
+    parsing/asttypes.cmi \
+    parsing/ast_helper.cmx \
+    parsing/extensions_parsing.cmi
+parsing/extensions_parsing.cmi : \
     parsing/parsetree.cmi \
     parsing/location.cmi \
     utils/clflags.cmi \
@@ -1008,6 +1035,7 @@ typing/parmatch.cmo : \
     parsing/longident.cmi \
     parsing/location.cmi \
     typing/ident.cmi \
+    parsing/extensions.cmi \
     typing/env.cmi \
     typing/ctype.cmi \
     utils/config.cmi \
@@ -1031,6 +1059,7 @@ typing/parmatch.cmx : \
     parsing/longident.cmx \
     parsing/location.cmx \
     typing/ident.cmx \
+    parsing/extensions.cmx \
     typing/env.cmx \
     typing/ctype.cmx \
     utils/config.cmx \
@@ -6560,6 +6589,7 @@ toplevel/genprintval.cmo : \
     typing/datarepr.cmi \
     typing/ctype.cmi \
     typing/btype.cmi \
+    parsing/asttypes.cmi \
     toplevel/genprintval.cmi
 toplevel/genprintval.cmx : \
     typing/types.cmx \
@@ -6578,6 +6608,7 @@ toplevel/genprintval.cmx : \
     typing/datarepr.cmx \
     typing/ctype.cmx \
     typing/btype.cmx \
+    parsing/asttypes.cmi \
     toplevel/genprintval.cmi
 toplevel/genprintval.cmi : \
     typing/types.cmi \
