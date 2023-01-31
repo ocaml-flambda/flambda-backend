@@ -325,6 +325,8 @@ and alloc_mode i ppf m =
   | None -> "<modevar>"
   )
 
+and alloc_mode_option i ppf m = Option.iter (alloc_mode i ppf) m
+
 and expression_alloc_mode i ppf (expr, am) =
   alloc_mode i ppf am;
   expression i ppf expr
@@ -377,7 +379,7 @@ and expression i ppf x =
       list i expression ppf l;
   | Texp_construct (li, _, eo, am) ->
       line i ppf "Texp_construct %a\n" fmt_longident li;
-      alloc_mode i ppf am;
+      alloc_mode_option i ppf am;
       list i expression ppf eo;
   | Texp_variant (l, eo) ->
       line i ppf "Texp_variant \"%s\"\n" l;
@@ -385,7 +387,7 @@ and expression i ppf x =
   | Texp_record { fields; representation; extended_expression; alloc_mode = am} ->
       line i ppf "Texp_record\n";
       let i = i+1 in
-      alloc_mode i ppf am;
+      alloc_mode_option i ppf am;
       line i ppf "fields =\n";
       array (i+1) record_field ppf fields;
       line i ppf "representation =\n";
@@ -394,7 +396,7 @@ and expression i ppf x =
       option (i+1) expression ppf extended_expression;
   | Texp_field (e, li, _, am) ->
       line i ppf "Texp_field\n";
-      alloc_mode i ppf am;
+      alloc_mode_option i ppf am;
       expression i ppf e;
       longident i ppf li;
   | Texp_setfield (e1, am, li, _, e2) ->

@@ -87,6 +87,7 @@
 
    ;; lambda/
    debuginfo lambda matching printlambda runtimedef tmc simplif switch
+   translmode
    transl_comprehension_utils
    transl_array_comprehension transl_list_comprehension
    translattribute translclass translcore translmod translobj translprim
@@ -317,6 +318,7 @@
     (runtimedef.mli as compiler-libs/runtimedef.mli)
     (simplif.mli as compiler-libs/simplif.mli)
     (switch.mli as compiler-libs/switch.mli)
+    (translmode.mli as compiler-libs/translmode.mli)
     (translattribute.mli as compiler-libs/translattribute.mli)
     (translclass.mli as compiler-libs/translclass.mli)
     (translcore.mli as compiler-libs/translcore.mli)

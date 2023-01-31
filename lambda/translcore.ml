@@ -23,6 +23,7 @@ open Types
 open Typedtree
 open Typeopt
 open Lambda
+open Translmode
 open Debuginfo.Scoped_location
 
 type error =
@@ -92,11 +93,6 @@ let extract_constant = function
 let extract_float = function
     Const_base(Const_float f) -> f
   | _ -> fatal_error "Translcore.extract_float"
-
-let transl_alloc_mode alloc_mode =
-  match Alloc_mode.constrain_lower alloc_mode with
-  | Global -> alloc_heap
-  | Local -> alloc_local
 
 let transl_apply_position position =
   match position with
@@ -302,8 +298,7 @@ let rec iter_exn_names f pat =
 
 let transl_ident loc env ty path desc kind =
   match desc.val_kind, kind with
-  | Val_prim p, Id_prim pmode ->
-      let poly_mode = Option.map transl_alloc_mode pmode in
+  | Val_prim p, Id_prim poly_mode ->
       Translprim.transl_primitive loc p env ty ~poly_mode (Some path)
   | Val_anc _, Id_value ->
       raise(Error(to_location loc, Free_super_var))
@@ -378,10 +373,9 @@ and transl_exp0 ~in_new_scope ~scopes e =
         if extra_args = [] then transl_apply_position pos
         else Rc_normal
       in
-      let prim_mode = Option.map transl_alloc_mode pmode in
       let lam =
         Translprim.transl_primitive_application
-          (of_location ~scopes e.exp_loc) p e.exp_env prim_type prim_mode
+          (of_location ~scopes e.exp_loc) p e.exp_env prim_type pmode
           path prim_exp args arg_exps position
       in
       if extra_args = [] then lam
@@ -439,7 +433,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
             Lconst(Const_block(n, List.map extract_constant ll))
           with Not_constant ->
             Lprim(Pmakeblock(n, Immutable, Some shape,
-                             transl_alloc_mode alloc_mode),
+                             transl_alloc_mode (Option.get alloc_mode)),
                   ll,
                   of_location ~scopes e.exp_loc)
           end
@@ -449,7 +443,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
           if is_const then lam
           else
             Lprim(Pmakeblock(0, Immutable, Some (Pgenval :: shape),
-                             transl_alloc_mode alloc_mode),
+                             transl_alloc_mode (Option.get alloc_mode)),
                   lam :: ll, of_location ~scopes e.exp_loc)
       end
   | Texp_extension_constructor (_, path) ->
@@ -471,7 +465,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
       end
   | Texp_record {fields; representation; extended_expression; alloc_mode} ->
       transl_record ~scopes e.exp_loc e.exp_env
-        (transl_alloc_mode alloc_mode)
+        (Option.map transl_alloc_mode alloc_mode)
         fields representation extended_expression
   | Texp_field(arg, _, lbl, alloc_mode) ->
       let targ = transl_exp ~scopes arg in
@@ -486,7 +480,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
                  of_location ~scopes e.exp_loc)
         | Record_unboxed _ -> targ
         | Record_float ->
-          let mode = transl_alloc_mode alloc_mode in
+          let mode = transl_alloc_mode (Option.get alloc_mode) in
           Lprim (Pfloatfield (lbl.lbl_pos, sem, mode), [targ],
                  of_location ~scopes e.exp_loc)
         | Record_extension _ ->
@@ -495,7 +489,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
       end
   | Texp_setfield(arg, arg_mode, _, lbl, newval) ->
       let mode =
-        Assignment (transl_alloc_mode arg_mode)
+        Assignment (transl_modify_mode arg_mode)
       in
       let access =
         match lbl.lbl_repres with
@@ -1245,7 +1239,7 @@ and transl_let ~scopes ?(add_regions=false) ?(in_structure=false)
       fun body -> Lletrec(lam_bds, body)
 
 and transl_setinstvar ~scopes loc self var expr =
-  Lprim(Psetfield_computed (maybe_pointer expr, Assignment alloc_heap),
+  Lprim(Psetfield_computed (maybe_pointer expr, Assignment modify_heap),
     [self; var; transl_exp ~scopes expr], loc)
 
 and transl_record ~scopes loc env mode fields repres opt_init_expr =
@@ -1253,7 +1247,11 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
   (* Determine if there are "enough" fields (only relevant if this is a
      functional-style record update *)
   let no_init = match opt_init_expr with None -> true | _ -> false in
-  if no_init || size < Config.max_young_wosize || is_local_mode mode
+  let on_heap = match mode with
+    | None -> false (* unboxed is not on heap *)
+    | Some m -> is_heap_mode m
+  in
+  if no_init || size < Config.max_young_wosize || not on_heap
   then begin
     (* Allocate new record with given fields (and remaining fields
        taken from init_expr if any *)
@@ -1307,15 +1305,15 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
         let loc = of_location ~scopes loc in
         match repres with
           Record_regular ->
-            Lprim(Pmakeblock(0, mut, Some shape, mode), ll, loc)
+            Lprim(Pmakeblock(0, mut, Some shape, Option.get mode), ll, loc)
         | Record_inlined tag ->
-            Lprim(Pmakeblock(tag, mut, Some shape, mode), ll, loc)
+            Lprim(Pmakeblock(tag, mut, Some shape, Option.get mode), ll, loc)
         | Record_unboxed _ -> (match ll with [v] -> v | _ -> assert false)
         | Record_float ->
-            Lprim(Pmakefloatblock (mut, mode), ll, loc)
+            Lprim(Pmakefloatblock (mut, Option.get mode), ll, loc)
         | Record_extension path ->
             let slot = transl_extension_path loc env path in
-            Lprim(Pmakeblock(0, mut, Some (Pgenval :: shape), mode),
+            Lprim(Pmakeblock(0, mut, Some (Pgenval :: shape), Option.get mode),
                   slot :: ll, loc)
     in
     begin match opt_init_expr with
@@ -1336,14 +1334,14 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
               Record_regular
             | Record_inlined _ ->
                 let ptr = maybe_pointer expr in
-                Psetfield(lbl.lbl_pos, ptr, Assignment alloc_heap)
+                Psetfield(lbl.lbl_pos, ptr, Assignment modify_heap)
             | Record_unboxed _ -> assert false
             | Record_float ->
-                Psetfloatfield (lbl.lbl_pos, Assignment alloc_heap)
+                Psetfloatfield (lbl.lbl_pos, Assignment modify_heap)
             | Record_extension _ ->
                 let pos = lbl.lbl_pos + 1 in
                 let ptr = maybe_pointer expr in
-                Psetfield(pos, ptr, Assignment alloc_heap)
+                Psetfield(pos, ptr, Assignment modify_heap)
           in
           Lsequence(Lprim(upd, [Lvar copy_id; transl_exp ~scopes expr],
                           of_location ~scopes loc),
@@ -1352,7 +1350,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
     begin match opt_init_expr with
       None -> assert false
     | Some init_expr ->
-        assert (is_heap_mode mode); (* Pduprecord must be Alloc_heap *)
+        assert (is_heap_mode (Option.get mode)); (* Pduprecord must be Alloc_heap and not unboxed *)
         Llet(Strict, Pgenval, copy_id,
              Lprim(Pduprecord (repres, size), [transl_exp ~scopes init_expr],
                    of_location ~scopes loc),

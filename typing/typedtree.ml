@@ -116,15 +116,15 @@ and expression_desc =
   | Texp_try of expression * value case list
   | Texp_tuple of expression list * Types.alloc_mode
   | Texp_construct of
-      Longident.t loc * constructor_description * expression list * Types.alloc_mode
+      Longident.t loc * constructor_description * expression list * Types.alloc_mode option
   | Texp_variant of label * (expression * Types.alloc_mode) option
   | Texp_record of {
       fields : ( Types.label_description * record_label_definition ) array;
       representation : Types.record_representation;
       extended_expression : expression option;
-      alloc_mode : Types.alloc_mode
+      alloc_mode : Types.alloc_mode option
     }
-  | Texp_field of expression * Longident.t loc * label_description * Types.alloc_mode
+  | Texp_field of expression * Longident.t loc * label_description * Types.alloc_mode option
   | Texp_setfield of
       expression * Types.alloc_mode * Longident.t loc * label_description * expression
   | Texp_array of expression list * Types.alloc_mode

@@ -209,8 +209,6 @@ and expression_desc =
 
             partial_mode is the mode of the resulting closure if this function
             is partially applied to a single argument.
-
-            alloc_mode is the mode of the function (stack/heap)
          *)
   | Texp_apply of expression * (arg_label * apply_arg) list * apply_position * Types.alloc_mode
         (** E0 ~l1:E1 ... ~ln:En
@@ -242,22 +240,25 @@ and expression_desc =
   | Texp_tuple of expression list * Types.alloc_mode
         (** (E1, ..., EN) *)
   | Texp_construct of
-      Longident.t loc * Types.constructor_description * expression list * Types.alloc_mode
+      Longident.t loc * Types.constructor_description * expression list * Types.alloc_mode option
         (** C                []
             C E              [E]
             C (E1, ..., En)  [E1;...;En]
 
-            alloc_mode is the mode of the construct (heap/stack)
+            [alloc_mode] is the allocation mode of the construct,
+            or [None] if the constructor is [Cstr_unboxed] or [Cstr_constant],
+            in which case it does not need allocation.
          *)
   | Texp_variant of label * (expression * Types.alloc_mode) option
-        (* alloc_mode is the mode of the variant;
-           needed only when the variant has an argument, for otherwise
-           it would be an immediate *)
+        (** [alloc_mode] is the allocation mode of the variant,
+            or [None] if the variant has no argument,
+            in which case it does not need allocation.
+          *)
   | Texp_record of {
       fields : ( Types.label_description * record_label_definition ) array;
       representation : Types.record_representation;
       extended_expression : expression option;
-      alloc_mode : Types.alloc_mode
+      alloc_mode : Types.alloc_mode option
     }
         (** { l1=P1; ...; ln=Pn }           (extended_expression = None)
             { E0 with l1=P1; ...; ln=Pn }   (extended_expression = Some E0)
@@ -269,16 +270,18 @@ and expression_desc =
             Texp_record
               { fields = [| l1, Kept t1; l2 Override P2 |]; representation;
                 extended_expression = Some E0 }
-            alloc_mode is the mode of the record (stack/heap)
-        *)
-  | Texp_field of expression * Longident.t loc * Types.label_description * Types.alloc_mode
-    (* alloc_mode is the mode of the result; used when getting a field from a
-    record of all floats to decide where to allocate the returned float *)
+            [alloc_mode] is the allocation mode of the record,
+            or [None] if it is [Record_unboxed],
+            in which case it does not need allocation.
+          *)
+  | Texp_field of expression * Longident.t loc * Types.label_description * Types.alloc_mode option
+    (** [alloc_mode] is the allocation mode of the result; available ONLY
+        when getting a (float) field from a [Record_float] record
+      *)
   | Texp_setfield of
       expression * Types.alloc_mode * Longident.t loc * Types.label_description * expression
-    (* alloc_mode is the mode of the record *)
+    (** [alloc_mode] translates to the [modify_mode] of the record *)
   | Texp_array of expression list * Types.alloc_mode
-    (* alloc_mode is the mode of the array *)
   | Texp_list_comprehension of comprehension
   | Texp_array_comprehension of comprehension
   | Texp_ifthenelse of expression * expression * expression option
@@ -301,7 +304,7 @@ and expression_desc =
          it may allocated in the containing region *)
     }
   | Texp_send of expression * meth * apply_position * Types.alloc_mode
-    (* alloc_mode is the mode of the result *)
+    (** [alloc_mode] is the allocation mode of the result *)
   | Texp_new of
       Path.t * Longident.t loc * Types.class_declaration * apply_position
   | Texp_instvar of Path.t * Path.t * string loc

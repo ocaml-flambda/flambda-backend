@@ -497,17 +497,16 @@ let mkexp exp_desc exp_type exp_loc exp_env =
   { exp_desc; exp_type;
     exp_loc; exp_env; exp_extra = []; exp_attributes = [] }
 
-let option_none env ty mode loc =
-  let alloc_mode = Value_mode.regional_to_global_alloc mode in
+let option_none env ty loc =
   let lid = Longident.Lident "None" in
   let cnone = Env.find_ident_constructor Predef.ident_none env in
-  mkexp (Texp_construct(mknoloc lid, cnone, [], alloc_mode)) ty loc env
+  mkexp (Texp_construct(mknoloc lid, cnone, [], None)) ty loc env
 
 let option_some env texp mode =
   let alloc_mode  = register_allocation_value_mode mode in
   let lid = Longident.Lident "Some" in
   let csome = Env.find_ident_constructor Predef.ident_some env in
-  mkexp ( Texp_construct(mknoloc lid , csome, [texp], alloc_mode) )
+  mkexp (Texp_construct(mknoloc lid , csome, [texp], Some alloc_mode))
     (type_option texp.exp_type) texp.exp_loc texp.exp_env
 
 let extract_option_type env ty =
@@ -516,14 +515,14 @@ let extract_option_type env ty =
   | _ -> assert false
 
 type record_extraction_result =
-  | Record_type of Path.t * Path.t * Types.label_declaration list
+  | Record_type of Path.t * Path.t * Types.label_declaration list * record_representation
   | Not_a_record_type
   | Maybe_a_record_type
 
 let extract_concrete_record env ty =
   match extract_concrete_typedecl env ty with
-  | Typedecl(p0, p, {type_kind=Type_record (fields, _)}) ->
-    Record_type (p0, p, fields)
+  | Typedecl(p0, p, {type_kind=Type_record (fields, repres)}) ->
+    Record_type (p0, p, fields, repres)
   | Has_no_typedecl | Typedecl(_, _, _) -> Not_a_record_type
   | May_have_typedecl -> Maybe_a_record_type
 
@@ -543,7 +542,7 @@ let extract_concrete_variant env ty =
 
 let extract_label_names env ty =
   match extract_concrete_record env ty with
-  | Record_type (_, _,fields) -> List.map (fun l -> l.Types.ld_id) fields
+  | Record_type (_, _,fields, _) -> List.map (fun l -> l.Types.ld_id) fields
   | Not_a_record_type | Maybe_a_record_type -> assert false
 
 let is_principal ty =
@@ -2283,7 +2282,7 @@ and type_pat_aux
       assert (lid_sp_list <> []);
       let expected_type, record_ty =
         match extract_concrete_record !env expected_ty with
-        | Record_type(p0, p, _) ->
+        | Record_type(p0, p, _, _) ->
             let ty = generic_instance expected_ty in
             Some (p0, p, is_principal expected_ty), ty
         | Maybe_a_record_type -> None, newvar ()
@@ -2465,7 +2464,7 @@ and type_pat_aux
       let path, new_env =
         !type_open Asttypes.Fresh !env sp.ppat_loc lid in
       env := new_env;
-      type_pat category ~env p expected_ty ( fun p ->
+      type_pat category ~env p expected_ty (fun p ->
         let new_env = !env in
         begin match Env.remove_last_open path new_env with
         | None -> assert false
@@ -2942,7 +2941,7 @@ let type_omitted_parameters expected_mode env ty_ret mode_ret args =
              let closed_args = new_closed_args @ closed_args in
              let open_args = [] in
              let mode_closure = Alloc_mode.join (mode_fun :: closed_args) in
-             ignore (register_allocation_mode mode_closure);
+             register_allocation_mode mode_closure;
              let arg = Omitted { mode_closure; mode_arg; mode_ret } in
              let args = (lbl, arg) :: args in
              (ty_ret, mode_closure, open_args, closed_args, args))
@@ -2984,7 +2983,7 @@ let rec is_nonexpansive exp =
   | Texp_probe {handler} -> is_nonexpansive handler
   | Texp_tuple (el, _) ->
       List.for_all is_nonexpansive el
-  | Texp_construct( _, _, el, _) ->
+  | Texp_construct(_, _, el, _) ->
       List.for_all is_nonexpansive el
   | Texp_variant(_, arg) -> is_nonexpansive_opt (Option.map fst arg)
   | Texp_record { fields; extended_expression } ->
@@ -3763,7 +3762,6 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_constant(Pconst_string (str, _, _) as cst) ->
-      ignore (register_allocation expected_mode);
       let cst = constant_or_raise env loc cst in
       (* Terrible hack for format strings *)
       let ty_exp = expand_head env ty_expected in
@@ -4103,8 +4101,10 @@ and type_expect_
       with Exit ->
         let arg = match sarg with
         | None -> None
-        | Some sarg -> Some (type_exp env argument_mode sarg,
-                        register_allocation expected_mode)
+        | Some sarg ->
+            let arg = type_exp env argument_mode sarg in
+            let alloc_mode = register_allocation expected_mode in
+            Some (arg, alloc_mode)
         in
         let arg_type = Option.map (fun (arg, _) -> arg.exp_type) arg in
         let row =
@@ -4140,7 +4140,7 @@ and type_expect_
       let ty_record, expected_type =
         let expected_opath =
           match extract_concrete_record env ty_expected with
-          | Record_type (p0, p, _) -> Some (p0, p, is_principal ty_expected)
+          | Record_type (p0, p, _, _) -> Some (p0, p, is_principal ty_expected)
           | Maybe_a_record_type -> None
           | Not_a_record_type ->
             let error =
@@ -4153,7 +4153,7 @@ and type_expect_
           | None -> None
           | Some exp ->
             match extract_concrete_record env exp.exp_type with
-            | Record_type (p0, p, _) -> Some (p0, p, is_principal exp.exp_type)
+            | Record_type (p0, p, _, _) -> Some (p0, p, is_principal exp.exp_type)
             | Maybe_a_record_type -> None
             | Not_a_record_type ->
               let error = Expr_not_a_record_type exp.exp_type in
@@ -4182,12 +4182,16 @@ and type_expect_
       in
       with_explanation (fun () ->
         unify_exp_types loc env (instance ty_record) (instance ty_expected));
-      if List.exists
-           (function
-            | _, { lbl_repres = Record_unboxed _; _ }, _ -> false
-            | _ -> true)
-           lbl_exp_list then
-        ignore (register_allocation expected_mode);
+      let alloc_mode =
+        if List.exists
+            (function
+              | _, { lbl_repres = Record_unboxed _; _ }, _ -> false
+              | _ -> true)
+            lbl_exp_list then
+          Some (register_allocation expected_mode)
+        else
+          None
+      in
       (* type_label_a_list returns a list of labels sorted by lbl_pos *)
       (* note: check_duplicates would better be implemented in
          type_label_a_list directly *)
@@ -4267,7 +4271,7 @@ and type_expect_
         exp_desc = Texp_record {
             fields; representation;
             extended_expression = opt_exp;
-            alloc_mode = Value_mode.regional_to_global_alloc expected_mode.mode
+            alloc_mode
           };
         exp_loc = loc; exp_extra = [];
         exp_type = instance ty_expected;
@@ -4276,6 +4280,11 @@ and type_expect_
   | Pexp_field(srecord, lid) ->
       let (record, rmode, label, _) =
         type_label_access env srecord Env.Projection lid
+      in
+      let alloc_mode = match label.lbl_repres with
+      (* projecting out of packed-float-record needs allocation *)
+        | Record_float -> Some (register_allocation expected_mode)
+        | _ -> None
       in
       let mode =
         match label.lbl_global with
@@ -4302,9 +4311,7 @@ and type_expect_
         end;
       let mode = mode_cross env ty_arg mode in
       ruem ~mode ~expected_mode {
-        exp_desc = Texp_field(record, lid, label,
-            Value_mode.regional_to_global_alloc expected_mode.mode
-          );
+        exp_desc = Texp_field(record, lid, label, alloc_mode);
         exp_loc = loc; exp_extra = [];
         exp_type = ty_arg;
         exp_attributes = sexp.pexp_attributes;
@@ -4322,7 +4329,7 @@ and type_expect_
         raise(Error(loc, env, Label_not_mutable lid.txt));
       rue {
         exp_desc = Texp_setfield(record,
-          Value_mode.regional_to_global_alloc rmode,
+          Value_mode.regional_to_local_alloc rmode,
           label_loc, label, newval);
         exp_loc = loc; exp_extra = [];
         exp_type = instance Predef.type_unit;
@@ -4649,7 +4656,7 @@ and type_expect_
       in
       rue {
         exp_desc = Texp_send(obj, meth, ap_pos,
-          Value_mode.regional_to_global_alloc expected_mode.mode
+          register_allocation expected_mode
         );
         exp_loc = loc; exp_extra = [];
         exp_type = typ;
@@ -5328,7 +5335,7 @@ and type_label_access env srecord usage lid =
   let ty_exp = record.exp_type in
   let expected_type =
     match extract_concrete_record env ty_exp with
-    | Record_type(p0, p, _) ->
+    | Record_type(p0, p, _, _) ->
         Some(p0, p, is_principal ty_exp)
     | Maybe_a_record_type -> None
     | Not_a_record_type ->
@@ -5733,11 +5740,10 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       end;
       let rec make_args args ty_fun =
         match get_desc (expand_head env ty_fun) with
-        | Tarrow ((l,marg,_mret),ty_arg,ty_fun,_) when is_optional l ->
-            let marg = Value_mode.of_alloc marg in
+        | Tarrow ((l,_marg,_mret),ty_arg,ty_fun,_) when is_optional l ->
             let ty =
               option_none env (instance (tpoly_get_mono ty_arg))
-                marg sarg.pexp_loc
+                sarg.pexp_loc
             in
             make_args ((l, Arg ty) :: args) ty_fun
         | Tarrow ((l,_,_),_,ty_res',_) when l = Nolabel || !Clflags.classic ->
@@ -5904,10 +5910,7 @@ and type_apply_arg env ~app_loc ~funct ~index ~position ~partial_app (lbl, arg) 
       in
       (lbl, Arg (arg, expected_mode.mode))
   | Arg (Eliminated_optional_arg { ty_arg; _ }) ->
-      let arg =
-        option_none env (instance ty_arg)
-          Value_mode.global Location.none
-      in
+      let arg = option_none env (instance ty_arg) Location.none in
       (lbl, Arg (arg, Value_mode.global))
   | Omitted _ as arg -> (lbl, arg)
 
@@ -6018,9 +6021,7 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
   let (ty_args, ty_res, _) = instance_constructor constr in
   let texp =
     re {
-      exp_desc = Texp_construct(lid, constr, [],
-        Value_mode.regional_to_global_alloc expected_mode.mode
-      );
+      exp_desc = Texp_construct(lid, constr, [], None);
       exp_loc = loc; exp_extra = [];
       exp_type = ty_res;
       exp_attributes = attrs;
@@ -6055,15 +6056,15 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
         raise (Error(loc, env, Inlined_record_expected))
       end
   in
-  let argument_mode =
+  let (argument_mode, alloc_mode) =
     match constr.cstr_tag with
-    | Cstr_unboxed -> expected_mode
+    | Cstr_unboxed -> expected_mode, None
     | Cstr_constant _ ->
        assert (sargs = []);
-       expected_mode
+       expected_mode, None
     | Cstr_block _ | Cstr_extension _ ->
-       ignore (register_allocation expected_mode);
-       mode_subcomponent expected_mode
+       mode_subcomponent expected_mode,
+       Some (register_allocation expected_mode)
   in
   let args =
     List.map2
@@ -6089,8 +6090,7 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
     end;
   (* NOTE: shouldn't we call "re" on this final expression? -- AF *)
   { texp with
-    exp_desc = Texp_construct(lid, constr, args,
-      Value_mode.regional_to_global_alloc expected_mode.mode) }
+    exp_desc = Texp_construct(lid, constr, args, alloc_mode) }
 
 (* Typing of statements (expressions whose values are discarded) *)
 

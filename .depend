@@ -403,6 +403,7 @@ parsing/docstrings.cmi : \
     parsing/location.cmi
 parsing/extensions.cmo : \
     parsing/parsetree.cmi \
+    utils/misc.cmi \
     parsing/location.cmi \
     utils/clflags.cmi \
     parsing/asttypes.cmi \
@@ -410,6 +411,7 @@ parsing/extensions.cmo : \
     parsing/extensions.cmi
 parsing/extensions.cmx : \
     parsing/parsetree.cmi \
+    utils/misc.cmx \
     parsing/location.cmx \
     utils/clflags.cmx \
     parsing/asttypes.cmi \
@@ -1547,9 +1549,7 @@ typing/typecore.cmi : \
     typing/ident.cmi \
     typing/errortrace.cmi \
     typing/env.cmi \
-    typing/ctype.cmi \
     utils/clflags.cmi \
-    typing/btype.cmi \
     parsing/asttypes.cmi
 typing/typedecl.cmo : \
     utils/warnings.cmi \
@@ -3823,14 +3823,17 @@ lambda/transl_array_comprehension.cmi : \
 lambda/transl_comprehension_utils.cmo : \
     typing/primitive.cmi \
     lambda/lambda.cmi \
+    typing/ident.cmi \
     lambda/transl_comprehension_utils.cmi
 lambda/transl_comprehension_utils.cmx : \
     typing/primitive.cmx \
     lambda/lambda.cmx \
+    typing/ident.cmx \
     lambda/transl_comprehension_utils.cmi
 lambda/transl_comprehension_utils.cmi : \
     parsing/location.cmi \
-    lambda/lambda.cmi
+    lambda/lambda.cmi \
+    typing/ident.cmi
 lambda/transl_list_comprehension.cmo : \
     typing/typeopt.cmi \
     typing/typedtree.cmi \
@@ -3929,6 +3932,7 @@ lambda/translcore.cmo : \
     typing/typecore.cmi \
     lambda/translprim.cmi \
     lambda/translobj.cmi \
+    lambda/translmode.cmi \
     lambda/translattribute.cmi \
     lambda/transl_list_comprehension.cmi \
     lambda/transl_array_comprehension.cmi \
@@ -3961,6 +3965,7 @@ lambda/translcore.cmx : \
     typing/typecore.cmx \
     lambda/translprim.cmx \
     lambda/translobj.cmx \
+    lambda/translmode.cmx \
     lambda/translattribute.cmx \
     lambda/transl_list_comprehension.cmx \
     lambda/transl_array_comprehension.cmx \
@@ -3986,7 +3991,6 @@ lambda/translcore.cmx : \
     parsing/asttypes.cmi \
     lambda/translcore.cmi
 lambda/translcore.cmi : \
-    typing/types.cmi \
     typing/typedtree.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
@@ -4050,6 +4054,17 @@ lambda/translmod.cmi : \
     lambda/lambda.cmi \
     typing/ident.cmi \
     utils/compilation_unit.cmi
+lambda/translmode.cmo : \
+    typing/types.cmi \
+    lambda/lambda.cmi \
+    lambda/translmode.cmi
+lambda/translmode.cmx : \
+    typing/types.cmx \
+    lambda/lambda.cmx \
+    lambda/translmode.cmi
+lambda/translmode.cmi : \
+    typing/types.cmi \
+    lambda/lambda.cmi
 lambda/translobj.cmo : \
     typing/primitive.cmi \
     utils/misc.cmi \
@@ -4083,6 +4098,7 @@ lambda/translprim.cmo : \
     typing/types.cmi \
     typing/typeopt.cmi \
     typing/typedtree.cmi \
+    lambda/translmode.cmi \
     typing/primitive.cmi \
     typing/predef.cmi \
     typing/path.cmi \
@@ -4101,6 +4117,7 @@ lambda/translprim.cmx : \
     typing/types.cmx \
     typing/typeopt.cmx \
     typing/typedtree.cmx \
+    lambda/translmode.cmx \
     typing/primitive.cmx \
     typing/predef.cmx \
     typing/path.cmx \

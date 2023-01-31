@@ -144,7 +144,7 @@ val type_argument:
 val option_some:
   Env.t -> Typedtree.expression -> value_mode -> Typedtree.expression
 val option_none:
-  Env.t -> type_expr -> value_mode -> Location.t -> Typedtree.expression
+  Env.t -> type_expr -> Location.t -> Typedtree.expression
 val extract_option_type: Env.t -> type_expr -> type_expr
 val generalizable: int -> type_expr -> bool
 val reset_delayed_checks: unit -> unit

@@ -22,6 +22,7 @@ open Typedtree
 open Typeopt
 open Lambda
 open Debuginfo.Scoped_location
+open Translmode
 
 type error =
   | Unknown_builtin_primitive of string
@@ -122,11 +123,19 @@ let to_alloc_mode ~poly = function
   | Prim_poly, _ ->
     match poly with
     | None -> assert false
-    | Some mode -> mode
+    | Some mode -> transl_alloc_mode mode
+
+let to_modify_mode ~poly = function
+  | Prim_global, _ -> modify_heap
+  | Prim_local, _ -> modify_maybe_stack
+  | Prim_poly, _ ->
+    match poly with
+    | None -> assert false
+    | Some mode -> transl_modify_mode mode
 
 let lookup_primitive loc poly pos p =
   let mode = to_alloc_mode ~poly p.prim_native_repr_res in
-  let arg_modes = List.map (to_alloc_mode ~poly) p.prim_native_repr_args in
+  let arg_modes = List.map (to_modify_mode ~poly) p.prim_native_repr_args in
   let prim = match p.prim_name with
     | "%identity" -> Identity
     | "%bytes_to_string" -> Primitive (Pbytes_to_string, 1)
@@ -759,8 +768,8 @@ let lambda_of_prim prim_name prim loc args arg_exps =
 let check_primitive_arity loc p =
   let mode =
     match p.prim_native_repr_res with
-    | Prim_global, _ | Prim_poly, _ -> Some alloc_heap
-    | Prim_local, _ -> Some alloc_local
+    | Prim_global, _ | Prim_poly, _ -> Some Alloc_mode.global
+    | Prim_local, _ -> Some Alloc_mode.local
   in
   let prim = lookup_primitive loc mode Rc_normal p in
   let ok =
