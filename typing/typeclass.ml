@@ -1329,7 +1329,8 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
         List.fold_right
           (fun (id, modes) (vals, met_env) ->
              List.iter
-               (fun (loc, mode) -> Typecore.escape ~loc ~env:val_env mode)
+               (fun (loc, mode) ->
+                  Typecore.escape ~loc ~env:val_env ~reason:Other mode)
                modes;
              let path = Pident id in
              (* do not mark the value as used *)

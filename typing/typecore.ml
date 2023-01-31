@@ -101,6 +101,10 @@ type existential_restriction =
   | In_class_def  (** or in [class c = let ... in ...] *)
   | In_self_pattern (** or in self pattern *)
 
+type submode_reason =
+  | Application of type_expr
+  | Other
+
 type error =
   | Constructor_arity_mismatch of Longident.t * int * int
   | Label_mismatch of Longident.t * Errortrace.unification_error
@@ -180,7 +184,7 @@ type error =
   | Missing_type_constraint
   | Wrong_expected_kind of wrong_kind_sort * wrong_kind_context * type_expr
   | Expr_not_a_record_type of type_expr
-  | Local_value_escapes of Value_mode.error * Env.escaping_context option
+  | Local_value_escapes of Value_mode.error * submode_reason * Env.escaping_context option
   | Param_mode_mismatch of type_expr
   | Uncurried_function_escapes
   | Local_return_annotation_mismatch of Location.t
@@ -386,7 +390,7 @@ let mode_lazy =
   let tuple_modes = [] in
   { position; escaping_context; mode; tuple_modes }
 
-let submode ~loc ~env mode expected_mode =
+let submode ~loc ~env ~reason mode expected_mode =
   let res =
     match expected_mode.tuple_modes with
     | [] -> Value_mode.submode mode expected_mode.mode
@@ -394,12 +398,13 @@ let submode ~loc ~env mode expected_mode =
   in
   match res with
   | Ok () -> ()
-  | Error reason ->
+  | Error failure_reason ->
       let context = expected_mode.escaping_context in
-      raise (Error(loc, env, Local_value_escapes(reason, context)))
+      let error = Local_value_escapes(failure_reason, reason, context) in
+      raise (Error(loc, env, error))
 
-let escape ~loc ~env m =
-  submode ~loc ~env m mode_global
+let escape ~loc ~env ~reason m =
+  submode ~loc ~env ~reason m mode_global
 
 let eqmode ~loc ~env m1 m2 err =
   match Alloc_mode.equate m1 m2 with
@@ -744,7 +749,7 @@ let enter_variable ?(is_module=false) ?(is_as_variable=false) loc name mode ty
     (* Note: unpack patterns enter a variable of the same name *)
     if not !allow_modules then
       raise (Error (loc, Env.empty, Modules_not_allowed));
-    escape ~loc ~env:Env.empty mode;
+    escape ~loc ~env:Env.empty ~reason:Other mode;
     module_variables := (name, loc) :: !module_variables
   end;
   id
@@ -2929,7 +2934,7 @@ let type_omitted_parameters expected_mode env ty_ret mode_ret args =
              let new_closed_args =
                List.map
                  (fun (marg, exp) ->
-                    submode ~loc:exp.exp_loc ~env
+                    submode ~loc:exp.exp_loc ~env ~reason:Other
                       marg (mode_partial_application expected_mode);
                     Value_mode.regional_to_local_alloc marg)
                  open_args
@@ -3724,7 +3729,7 @@ and type_expect_
   in
   let ruem ~mode ~expected_mode exp =
     let exp = rue exp in
-    submode ~env ~loc:exp.exp_loc mode expected_mode;
+    submode ~env ~loc:exp.exp_loc ~reason:Other mode expected_mode;
     exp
   in
   match Extensions.extension_expr_of_expr sexp with
@@ -3894,7 +3899,7 @@ and type_expect_
       if not (Clflags.Extension.is_enabled Local) then
         raise (Typetexp.Error (loc, Env.empty, Unsupported_extension Local));
       let mode = expect_mode_cross env ty_expected mode_local in
-      submode ~loc ~env Value_mode.local expected_mode;
+      submode ~loc ~env ~reason:Other Value_mode.local expected_mode;
       let exp =
         type_expect ?in_function ~recarg env mode sbody
           ty_expected_explained
@@ -3904,7 +3909,7 @@ and type_expect_
       ({ pexp_desc = Pexp_extension({txt = ("ocaml.local" | "local")}, PStr []) },
        [Nolabel, sbody]) ->
       let mode = expect_mode_cross env ty_expected mode_local in
-      submode ~loc ~env mode.mode expected_mode;
+      submode ~loc ~env ~reason:Other mode.mode expected_mode;
       let exp =
         type_expect ?in_function ~recarg env mode sbody
           ty_expected_explained
@@ -5138,7 +5143,7 @@ and type_binding_op_ident env s =
   let loc = s.loc in
   let lid = Location.mkloc (Longident.Lident s.txt) loc in
   let path, mode, desc, kind = type_ident env lid in
-  submode ~env ~loc:lid.loc mode mode_global;
+  submode ~env ~loc:lid.loc ~reason:Other mode mode_global;
   let path =
     match desc.val_kind with
     | Val_ivar _ ->
@@ -5761,7 +5766,8 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       (* In this case, we're allocating a new closure, so [sarg] needs
          to be valid at [mode_subcomponent mode], not just [mode] *)
       let alloc_mode = register_allocation mode in
-      submode ~loc:sarg.pexp_loc ~env exp_mode (mode_subcomponent mode);
+      submode ~loc:sarg.pexp_loc ~env ~reason:Other
+        exp_mode (mode_subcomponent mode);
       (* eta-expand to avoid side effects *)
       let var_pair ~mode name ty =
         let id = Ident.create_local name in
@@ -5923,7 +5929,7 @@ and type_application env app_loc expected_mode position funct funct_mode sargs r
         generalize_structure ty_res
       end;
       let mode = mode_cross env ty_res (Value_mode.of_alloc mres) in
-      submode ~loc:app_loc ~env
+      submode ~loc:app_loc ~env ~reason:Other
         mode expected_mode;
       let marg =
         mode_argument ~funct ~index:0 ~position ~partial_app:false marg
@@ -5971,7 +5977,8 @@ and type_application env app_loc expected_mode position funct funct_mode sargs r
         generalize_structure ty_ret
       end;
       let mode = mode_cross env ty_ret (Value_mode.of_alloc mode_ret) in
-      submode ~loc:app_loc ~env mode expected_mode;
+      submode ~loc:app_loc ~env ~reason:(Application ty_ret)
+        mode expected_mode;
       args, ty_ret, position
 
 and type_construct env (expected_mode : expected_mode) loc lid sarg
@@ -7142,8 +7149,9 @@ let report_type_expected_explanation expl ppf =
   | Comprehension_when ->
       because "a when-clause in a comprehension"
 
-let escaping_hint reason (context : Env.escaping_context option) =
-  match reason, context with
+let escaping_hint failure_reason submode_reason
+      (context : Env.escaping_context option) =
+  begin match failure_reason, context with
   | `Locality, Some Return ->
       [ Location.msg
           "@[Hint: Cannot return local value without an explicit@ \
@@ -7158,6 +7166,43 @@ let escaping_hint reason (context : Env.escaping_context option) =
       [ Location.msg
           "@[Hint: It is captured by a partial application@]" ]
   | _, _ -> []
+  end
+  @
+  begin match submode_reason with
+  | Application result_ty ->
+    (* [get_non_local_arity ty] returns [Some (n_args, sureness)] iff [ty] is a
+       function type with [n_args] arguments and its return type is
+       local. [sureness] <=> the return type is definitely local. *)
+    let get_non_local_arity ty =
+      let rec loop sureness n ty =
+        match get_desc ty with
+        | Tarrow ((_, _, res_mode), _, res_ty, _) ->
+          begin match Alloc_mode.check_const res_mode with
+          | Some Global ->
+            Some (n+1, true)
+          | (None | Some Local) as res_mode ->
+            let sureness = sureness && Option.is_some res_mode in
+            loop sureness (n+1) res_ty
+          end
+        | _ ->
+          if n = 0
+          then None
+          else Some (n, sureness)
+      in
+      loop true 0 ty
+    in
+    begin match get_non_local_arity result_ty with
+    | Some (n, sure) ->
+      let args = if n = 1 then "argument" else "arguments" in
+      let qualifier = if sure then "will" else "may" in
+      [ Location.msg
+          "Hint: @[This is a partial application@,\
+                   Adding %d more %s %s make the value non-local@]"
+          n args qualifier ]
+    | None -> []
+    end
+  | Other -> []
+  end
 
 let report_type_expected_explanation_opt expl ppf =
   match expl with
@@ -7586,10 +7631,10 @@ let report_error ~loc env = function
         "This expression has type %a@ \
          which is not a record type."
         Printtyp.type_expr ty
-  | Local_value_escapes(reason, context) ->
-      let sub = escaping_hint reason context in
+  | Local_value_escapes(failure_reason, submode_reason, context) ->
+      let sub = escaping_hint failure_reason submode_reason context in
       let mode =
-        match reason with
+        match failure_reason with
         | `Locality -> "local "
         | `Regionality -> ""
       in

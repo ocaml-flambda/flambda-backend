@@ -159,7 +159,15 @@ val has_poly_constraint : Parsetree.pattern -> bool
 val name_pattern : string -> Typedtree.pattern list -> Ident.t
 val name_cases : string -> Typedtree.value Typedtree.case list -> Ident.t
 
-val escape : loc:Location.t -> env:Env.t -> value_mode -> unit
+(* Why are we calling [submode]? This tells us why. *)
+type submode_reason =
+  | Application of type_expr
+      (* Check that the result of an application is a submode of the expected mode
+         from the context *)
+
+  | Other (* add more cases here for better hints *)
+
+val escape : loc:Location.t -> env:Env.t -> reason:submode_reason -> value_mode -> unit
 
 val self_coercion : (Path.t * Location.t list ref) list ref
 
@@ -244,7 +252,7 @@ type error =
   | Missing_type_constraint
   | Wrong_expected_kind of wrong_kind_sort * wrong_kind_context * type_expr
   | Expr_not_a_record_type of type_expr
-  | Local_value_escapes of Value_mode.error * Env.escaping_context option
+  | Local_value_escapes of Value_mode.error * submode_reason * Env.escaping_context option
   | Param_mode_mismatch of type_expr
   | Uncurried_function_escapes
   | Local_return_annotation_mismatch of Location.t

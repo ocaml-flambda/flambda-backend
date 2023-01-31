@@ -2562,7 +2562,8 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
           List.fold_left
             (fun (acc, shape_map) (id, modes) ->
               List.iter
-                (fun (loc, mode) -> Typecore.escape ~loc ~env:newenv mode)
+                (fun (loc, mode) ->
+                   Typecore.escape ~loc ~env:newenv ~reason:Other mode)
                 modes;
               let (first_loc, _) = List.hd modes in
               Signature_names.check_value names first_loc id;

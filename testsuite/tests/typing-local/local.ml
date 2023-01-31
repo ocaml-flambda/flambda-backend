@@ -269,6 +269,8 @@ Line 1, characters 15-21:
                    ^^^^^^
 Error: This local value escapes its region
   Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: This is a partial application
+        Adding 2 more arguments will make the value non-local
 |}]
 let apply3 x = f4 x x x
 [%%expect{|
@@ -277,6 +279,8 @@ Line 1, characters 15-23:
                    ^^^^^^^^
 Error: This local value escapes its region
   Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: This is a partial application
+        Adding 1 more argument will make the value non-local
 |}]
 let apply4 x =
   f4 x x x x
@@ -313,6 +317,8 @@ Line 1, characters 15-18:
                    ^^^
 Error: This local value escapes its region
   Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: This is a partial application
+        Adding 1 more argument will make the value non-local
 |}]
 let apply2 x = g x x
 [%%expect{|
@@ -325,6 +331,8 @@ Line 1, characters 15-22:
                    ^^^^^^^
 Error: This local value escapes its region
   Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: This is a partial application
+        Adding 1 more argument will make the value non-local
 |}]
 let apply4 x = g x x x x
 [%%expect{|
@@ -417,6 +425,8 @@ Line 1, characters 52-65:
                                                         ^^^^^^^^^^^^^
 Error: This local value escapes its region
   Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: This is a partial application
+        Adding 1 more argument will make the value non-local
 |}]
 let app42' (f : a:local_ int ref -> (int -> b:local_ int ref -> c:int -> unit)) =
   f ~a:(ref 1) 2 ~c:4
@@ -498,6 +508,8 @@ Line 2, characters 11-25:
 2 |   fun f -> f ~foo:"hello"
                ^^^^^^^^^^^^^^
 Error: This value escapes its region
+  Hint: This is a partial application
+        Adding 1 more argument will make the value non-local
 |}]
 
 let bug4' () =
@@ -510,6 +522,8 @@ Line 3, characters 25-31:
                              ^^^^^^
 Error: This local value escapes its region
   Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: This is a partial application
+        Adding 1 more argument may make the value non-local
 |}]
 
 (*
@@ -552,6 +566,8 @@ Line 1, characters 61-65:
                                                                  ^^^^
 Error: This local value escapes its region
   Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: This is a partial application
+        Adding 1 more argument will make the value non-local
 |}]
 
 (* Optional argument elimination eta-expands and therefore allocates *)
@@ -2603,4 +2619,29 @@ let f (local_ a : string array) =
 
 [%%expect{|
 val f : local_ string array -> string ref = <fun>
+|}]
+
+(* reported internal to Jane Street as TANDC-1742 *)
+
+module M = struct
+  let fold_until :
+    'a list -> init:'accum ->
+    f:local_ ('accum -> 'a -> ('accum, 'final) Either.t) ->
+    finish:local_ ('accum -> 'final) ->
+    'final =
+    fun _ -> assert false
+
+  (* this led to a poor error message about a value that escapes its region,
+     but really it's just under-applied *)
+  let f () = fold_until [] ~init:0 ~f:(fun _ _ -> Right ())
+end
+
+[%%expect {|
+Line 11, characters 13-59:
+11 |   let f () = fold_until [] ~init:0 ~f:(fun _ _ -> Right ())
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This local value escapes its region
+  Hint: Cannot return local value without an explicit "local_" annotation
+  Hint: This is a partial application
+        Adding 1 more argument will make the value non-local
 |}]
