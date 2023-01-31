@@ -535,8 +535,7 @@ let rec main : round:int -> State.t -> Cfg_with_liveness.t -> unit =
           log ~indent:1 "(%d, %d) <- adj_set" (RegisterStamp.fst p)
             (RegisterStamp.snd p)));
   Profile.record ~accumulate:true "make_work_list"
-    (fun () -> make_work_list state)
-    ();
+    make_work_list state;
   State.invariant state;
   if irc_debug then log_work_list_desc "before loop";
   let spill_cost_is_up_to_date = ref false in
