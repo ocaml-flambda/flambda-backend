@@ -534,21 +534,18 @@ let rec main : round:int -> State.t -> Cfg_with_liveness.t -> unit =
       RegisterStamp.PairSet.iter adj_set ~f:(fun p ->
           log ~indent:1 "(%d, %d) <- adj_set" (RegisterStamp.fst p)
             (RegisterStamp.snd p)));
-  Profile.record ~accumulate:true "make_work_list"
-    make_work_list state;
+  Profile.record ~accumulate:true "make_work_list" make_work_list state;
   State.invariant state;
   if irc_debug then log_work_list_desc "before loop";
   let spill_cost_is_up_to_date = ref false in
   let continue = ref true in
   while !continue do
     if not (State.is_empty_simplify_work_list state)
-    then
-      Profile.record ~accumulate:true "simplify" (fun () -> simplify state) ()
+    then Profile.record ~accumulate:true "simplify" simplify state
     else if not (State.is_empty_work_list_moves state)
-    then
-      Profile.record ~accumulate:true "coalesce" (fun () -> coalesce state) ()
+    then Profile.record ~accumulate:true "coalesce" coalesce state
     else if not (State.is_empty_freeze_work_list state)
-    then Profile.record ~accumulate:true "freeze" (fun () -> freeze state) ()
+    then Profile.record ~accumulate:true "freeze" freeze state
     else if not (State.is_empty_spill_work_list state)
     then
       Profile.record ~accumulate:true "select_spill"
