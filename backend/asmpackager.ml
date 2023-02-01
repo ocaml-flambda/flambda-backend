@@ -116,17 +116,21 @@ let make_package_object unix ~ppf_dump members targetobj targetname coercion
         Translmod.transl_package_flambda components coercion
       in
       let module_initializer = Simplif.simplify_lambda module_initializer in
+      let program =
+        { Lambda.
+          code = module_initializer;
+          main_module_block_size;
+          compilation_unit;
+          required_globals;
+        }
+      in
       Asmgen.compile_implementation_flambda2 unix
         ~filename:targetname
         ~prefixname
-        ~size:main_module_block_size
-        ~compilation_unit
-        ~module_initializer
         ~flambda2
         ~ppf_dump
-        ~required_globals:required_globals
         ~keep_symbol_tables:true
-        ()
+        program
     end else begin
       let program, middle_end =
         if Config.flambda then

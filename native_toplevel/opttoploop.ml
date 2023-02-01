@@ -281,13 +281,10 @@ let default_load ppf (program : Lambda.program) =
   if Config.flambda2 then begin
     Asmgen.compile_implementation_flambda2
       (module Unix : Compiler_owee.Unix_intf.S)
-      () ~toplevel:need_symbol
+      ~toplevel:need_symbol
       ~filename ~prefixname:filename
       ~flambda2:Flambda2.lambda_to_cmm ~ppf_dump:ppf
-      ~size:program.main_module_block_size
-      ~compilation_unit:program.compilation_unit
-      ~module_initializer:program.code
-      ~required_globals:program.required_globals
+      program
   end
   else begin
     let middle_end =

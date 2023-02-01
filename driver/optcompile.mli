@@ -24,10 +24,8 @@ val implementation
     ppf_dump:Format.formatter ->
     prefixname:string ->
     filename:string ->
-    compilation_unit:Compilation_unit.t ->
-    module_block_size_in_words:int ->
-    module_initializer:Lambda.lambda ->
     keep_symbol_tables:bool ->
+    Lambda.program ->
     Cmm.phrase list)
   -> start_from:Clflags.Compiler_pass.t
   -> source_file:string -> output_prefix:string -> keep_symbol_tables:bool
