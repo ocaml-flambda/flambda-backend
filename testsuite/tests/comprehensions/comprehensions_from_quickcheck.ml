@@ -1,9 +1,5 @@
 (* TEST
-   skip
-   * reason = "locals bug"
-*)
-(*
-   flags = "-extension comprehensions_experimental -extension immutable_arrays"
+   flags = "-extension comprehensions_experimental -extension immutable_arrays_experimental"
    * expect
 *)
 

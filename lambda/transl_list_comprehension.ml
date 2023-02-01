@@ -235,7 +235,9 @@ let rec translate_bindings
       in
       let body_func =
         Lambda.lfunction
-          ~kind:(Curried { nlocal = 1 }) (* The accumulator is local *)
+          ~kind:(Curried { nlocal = 2 })
+          (* Only the accumulator is local, but since the function itself is
+             local, [nlocal] has to be equal to the number of parameters *)
           ~params:[element, element_kind; inner_acc, Pgenval]
           ~return:Pgenval
           ~attr:default_function_attribute
