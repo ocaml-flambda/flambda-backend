@@ -644,7 +644,8 @@ let rec lam ppf = function
   | Lfunction{kind; params; return; body; attr; mode; region} ->
       let pr_params ppf params =
         match kind with
-        | Curried _ ->
+        | Curried {nlocal} ->
+            fprintf ppf "@ {nlocal = %d}" nlocal;
             List.iter (fun (param, k) ->
                 fprintf ppf "@ %a%a" Ident.print param value_kind k) params
         | Tupled ->

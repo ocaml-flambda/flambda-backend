@@ -175,7 +175,7 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
 (setglobal Test_locations!
   (letrec
     (fib
-       (function n[int] : int
+       (function {nlocal = 0} n[int] : int
          (funct-body Test_locations.fib test_locations.ml(17):548-606
            (if (isout 1 n)
              (before Test_locations.fib test_locations.ml(19):581-606
