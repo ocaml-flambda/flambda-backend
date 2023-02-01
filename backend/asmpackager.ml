@@ -112,13 +112,13 @@ let make_package_object unix ~ppf_dump members targetobj targetname coercion
     let prefixname = Filename.remove_extension objtemp in
     let required_globals = Compilation_unit.Set.empty in
     if Config.flambda2 then begin
-      let main_module_block_size, module_initializer =
+      let main_module_block_size, code =
         Translmod.transl_package_flambda components coercion
       in
-      let module_initializer = Simplif.simplify_lambda module_initializer in
+      let code = Simplif.simplify_lambda code in
       let program =
         { Lambda.
-          code = module_initializer;
+          code;
           main_module_block_size;
           compilation_unit;
           required_globals;
