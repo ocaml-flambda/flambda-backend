@@ -29,14 +29,12 @@ let interface ~source_file ~output_prefix =
   ~hook_typed_tree:(Compiler_hooks.execute Compiler_hooks.Typed_tree_intf)
     info
 
-let (|>>) (x, y) f = (x, f y)
-
 (** Native compilation backend for .ml files. *)
 
-let flambda_and_flambda2 i typed ~compile_implementation =
+let compile i typed ~transl_style ~compile_implementation =
   typed
   |> Profile.(record transl)
-    (Translmod.transl_implementation i.module_name ~style:Plain_block)
+    (Translmod.transl_implementation i.module_name ~style:transl_style)
   |> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.program
   |> Compiler_hooks.execute_and_pipe Compiler_hooks.Raw_lambda
   |> Profile.(record generate)
@@ -50,7 +48,7 @@ let flambda_and_flambda2 i typed ~compile_implementation =
            Compilenv.save_unit_info (cmx i)))
 
 let flambda2_ unix i ~flambda2 ~keep_symbol_tables typed =
-  flambda_and_flambda2 i typed
+  compile i typed ~transl_style:Plain_block
     ~compile_implementation:(fun program ->
       Asmgen.compile_implementation_flambda2
         unix
@@ -62,7 +60,7 @@ let flambda2_ unix i ~flambda2 ~keep_symbol_tables typed =
         program)
 
 let flambda unix i backend typed =
-  flambda_and_flambda2 i typed
+  compile i typed ~transl_style:Plain_block
     ~compile_implementation:(fun program ->
       Asmgen.compile_implementation
         unix
@@ -75,25 +73,16 @@ let flambda unix i backend typed =
 
 let clambda unix i backend typed =
   Clflags.set_oclassic ();
-  typed
-  |> Profile.(record transl)
-    (Translmod.transl_implementation i.module_name ~style:Set_individual_fields)
-  |> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.program
-  |> Compiler_hooks.execute_and_pipe Compiler_hooks.Raw_lambda
-  |> Profile.(record generate)
-    (fun program ->
-       let code = Simplif.simplify_lambda program.Lambda.code in
-       { program with Lambda.code }
-       |> print_if i.ppf_dump Clflags.dump_lambda Printlambda.program
-       |> Compiler_hooks.execute_and_pipe Compiler_hooks.Lambda
-       |> Asmgen.compile_implementation
-            unix
-            ~backend
-            ~filename:i.source_file
-            ~prefixname:i.output_prefix
-            ~middle_end:Closure_middle_end.lambda_to_clambda
-            ~ppf_dump:i.ppf_dump;
-       Compilenv.save_unit_info (cmx i))
+  compile i typed ~transl_style:Set_individual_fields
+    ~compile_implementation:(fun program ->
+      Asmgen.compile_implementation
+        unix
+        ~backend
+        ~filename:i.source_file
+        ~prefixname:i.output_prefix
+        ~middle_end:Closure_middle_end.lambda_to_clambda
+        ~ppf_dump:i.ppf_dump
+        program)
 
 (* Emit assembly directly from Linear IR *)
 let emit unix i =
