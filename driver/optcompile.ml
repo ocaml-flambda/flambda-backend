@@ -31,7 +31,7 @@ let interface ~source_file ~output_prefix =
 
 (** Native compilation backend for .ml files. *)
 
-let compile i typed ~transl_style ~compile_implementation =
+let compile i typed ~transl_style ~unix ~pipeline =
   typed
   |> Profile.(record transl)
     (Translmod.transl_implementation i.module_name ~style:transl_style)
@@ -44,8 +44,14 @@ let compile i typed ~transl_style ~compile_implementation =
       |> print_if i.ppf_dump Clflags.dump_lambda Printlambda.program
       |> Compiler_hooks.execute_and_pipe Compiler_hooks.Lambda
       |> (fun program ->
-           compile_implementation program;
-           Compilenv.save_unit_info (cmx i)))
+           Asmgen.compile_implementation
+             unix
+             ~pipeline
+             ~filename:i.source_file
+             ~prefixname:i.output_prefix
+             ~ppf_dump:i.ppf_dump
+             program);
+           Compilenv.save_unit_info (cmx i))
 
 type flambda2 =
   ppf_dump:Format.formatter ->
@@ -56,42 +62,21 @@ type flambda2 =
   Cmm.phrase list
 
 let flambda2_ unix i ~(flambda2 : flambda2) ~keep_symbol_tables typed =
-  compile i typed ~transl_style:Plain_block
-    ~compile_implementation:(fun program ->
-      Asmgen.compile_implementation
-        unix
-        ~pipeline:(Direct_to_cmm (flambda2 ~keep_symbol_tables))
-        ~filename:i.source_file
-        ~prefixname:i.output_prefix
-        ~ppf_dump:i.ppf_dump
-        program)
+  compile i typed ~unix ~transl_style:Plain_block
+    ~pipeline:(Direct_to_cmm (flambda2 ~keep_symbol_tables))
 
 let flambda unix i backend typed =
-  compile i typed ~transl_style:Plain_block
-    ~compile_implementation:(fun program ->
-      Asmgen.compile_implementation
-        unix
-        ~pipeline:(Via_clambda
-                     { backend;
-                       middle_end = Flambda_middle_end.lambda_to_clambda })
-        ~filename:i.source_file
-        ~prefixname:i.output_prefix
-        ~ppf_dump:i.ppf_dump
-        program)
+  compile i typed ~unix ~transl_style:Plain_block
+    ~pipeline:(Via_clambda
+                  { backend;
+                    middle_end = Flambda_middle_end.lambda_to_clambda })
 
 let clambda unix i backend typed =
   Clflags.set_oclassic ();
-  compile i typed ~transl_style:Set_individual_fields
-    ~compile_implementation:(fun program ->
-      Asmgen.compile_implementation
-        unix
-        ~pipeline:(Via_clambda
-                     { backend;
-                       middle_end = Closure_middle_end.lambda_to_clambda })
-        ~filename:i.source_file
-        ~prefixname:i.output_prefix
-        ~ppf_dump:i.ppf_dump
-        program)
+  compile i typed ~unix ~transl_style:Set_individual_fields
+    ~pipeline:(Via_clambda
+                  { backend;
+                    middle_end = Closure_middle_end.lambda_to_clambda })
 
 (* Emit assembly directly from Linear IR *)
 let emit unix i =

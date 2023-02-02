@@ -278,28 +278,22 @@ let default_load ppf (program : Lambda.program) =
     else Filename.temp_file ("caml" ^ !phrase_name) ext_dll
   in
   let filename = Filename.chop_extension dll in
-  if Config.flambda2 then begin
-    Asmgen.compile_implementation
-      (module Unix : Compiler_owee.Unix_intf.S)
-      ~toplevel:need_symbol
-      ~filename ~prefixname:filename
-      ~pipeline:(Direct_to_cmm
-                   (Flambda2.lambda_to_cmm ~keep_symbol_tables:true))
-      ~ppf_dump:ppf
-      program
-  end
-  else begin
-    let middle_end =
-      if Config.flambda then Flambda_middle_end.lambda_to_clambda
-      else Closure_middle_end.lambda_to_clambda
-    in
-    Asmgen.compile_implementation
-      (module Unix : Compiler_owee.Unix_intf.S)
-      ~toplevel:need_symbol
-      ~filename ~prefixname:filename
-      ~pipeline:(Via_clambda { middle_end; backend })
-      ~ppf_dump:ppf program
-  end;
+  let pipeline : Asmgen.pipeline =
+    if Config.flambda2 then
+      Direct_to_cmm (Flambda2.lambda_to_cmm ~keep_symbol_tables:true)
+    else
+      let middle_end =
+        if Config.flambda then Flambda_middle_end.lambda_to_clambda
+        else Closure_middle_end.lambda_to_clambda
+      in
+      Via_clambda { middle_end; backend }
+  in
+  Asmgen.compile_implementation
+    (module Unix : Compiler_owee.Unix_intf.S)
+    ~toplevel:need_symbol
+    ~filename ~prefixname:filename
+    ~pipeline ~ppf_dump:ppf
+    program;
   Asmlink.call_linker_shared [filename ^ ext_obj] dll;
   Sys.remove (filename ^ ext_obj);
   let dll =
