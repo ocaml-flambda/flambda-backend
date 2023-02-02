@@ -61,39 +61,32 @@ type flambda2 =
   Lambda.program ->
   Cmm.phrase list
 
-let flambda2_ unix i ~(flambda2 : flambda2) ~keep_symbol_tables typed =
-  compile i typed ~unix ~transl_style:Plain_block
-    ~pipeline:(Direct_to_cmm (flambda2 ~keep_symbol_tables))
-
-let flambda unix i backend typed =
-  compile i typed ~unix ~transl_style:Plain_block
-    ~pipeline:(Via_clambda
-                  { backend;
-                    middle_end = Flambda_middle_end.lambda_to_clambda })
-
-let clambda unix i backend typed =
-  Clflags.set_oclassic ();
-  compile i typed ~unix ~transl_style:Set_individual_fields
-    ~pipeline:(Via_clambda
-                  { backend;
-                    middle_end = Closure_middle_end.lambda_to_clambda })
-
 (* Emit assembly directly from Linear IR *)
 let emit unix i =
   Compilenv.reset i.module_name;
   Asmgen.compile_implementation_linear unix
     i.output_prefix ~progname:i.source_file
 
-let implementation unix ~backend ~flambda2 ~start_from ~source_file
+let implementation unix ~backend ~(flambda2 : flambda2) ~start_from ~source_file
     ~output_prefix ~keep_symbol_tables =
   let backend info ({ structure; coercion; _ } : Typedtree.implementation) =
     Compilenv.reset info.module_name;
     let typed = structure, coercion in
-    if Config.flambda
-    then flambda unix info backend typed
-    else if Config.flambda2
-    then flambda2_ unix info ~flambda2 ~keep_symbol_tables typed
-    else clambda unix info backend typed
+    let transl_style : Translmod.compilation_unit_style =
+      if Config.flambda || Config.flambda2 then Plain_block
+      else Set_individual_fields
+    in
+    let pipeline : Asmgen.pipeline =
+      if Config.flambda2 then Direct_to_cmm (flambda2 ~keep_symbol_tables)
+      else
+        let middle_end =
+          if Config.flambda then Flambda_middle_end.lambda_to_clambda
+          else Closure_middle_end.lambda_to_clambda
+        in
+        Via_clambda { middle_end; backend; }
+    in
+    if not (Config.flambda || Config.flambda2) then Clflags.set_oclassic ();
+    compile info typed ~unix ~transl_style ~pipeline
   in
   with_info ~source_file ~output_prefix ~dump_ext:"cmx" @@ fun info ->
   if !Flambda_backend_flags.internal_assembler then
