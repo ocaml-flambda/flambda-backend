@@ -37,7 +37,7 @@ let (|>>) (x, y) f = (x, f y)
 let flambda i backend Typedtree.{structure; coercion; _} =
   (structure, coercion)
   |> Profile.(record transl)
-      (Translmod.transl_implementation_flambda i.module_name)
+      (Translmod.transl_implementation i.module_name ~style:Plain_block)
   |> Profile.(record generate)
     (fun {Lambda.compilation_unit; main_module_block_size;
           required_globals; code } ->
@@ -66,7 +66,7 @@ let clambda i backend Typedtree.{structure; coercion; _} =
   Clflags.set_oclassic ();
   (structure, coercion)
   |> Profile.(record transl)
-    (Translmod.transl_store_implementation i.module_name)
+    (Translmod.transl_implementation i.module_name ~style:Set_individual_fields)
   |> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.program
   |> Profile.(record generate)
     (fun program ->

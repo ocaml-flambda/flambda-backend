@@ -114,7 +114,8 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
     let program, middle_end =
       if Config.flambda then
         let main_module_block_size, code =
-          Translmod.transl_package_flambda components coercion
+          Translmod.transl_package components compilation_unit coercion
+            ~style:Plain_block
         in
         let code = Simplif.simplify_lambda code in
         let program =
@@ -128,8 +129,8 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
         program, Flambda_middle_end.lambda_to_clambda
       else
         let main_module_block_size, code =
-          Translmod.transl_store_package components
-            compilation_unit coercion
+          Translmod.transl_package components compilation_unit coercion
+            ~style:Set_individual_fields
         in
         let code = Simplif.simplify_lambda code in
         let program =

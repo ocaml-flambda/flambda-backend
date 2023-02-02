@@ -207,8 +207,8 @@ let execute_phrase print_outcome ppf phr =
         if Config.flambda then
           let { Lambda.compilation_unit; main_module_block_size = size;
                 required_globals; code = res } =
-            Translmod.transl_implementation_flambda phrase_comp_unit
-              (str, Tcoerce_none)
+            Translmod.transl_implementation phrase_comp_unit (str, Tcoerce_none)
+              ~style:Plain_block
           in
           remember compilation_unit 0 sg';
           compilation_unit, close_phrase res, required_globals, size

@@ -36,7 +36,7 @@ let (|>>) (x, y) f = (x, f y)
 let flambda_and_flambda2 i typed ~compile_implementation =
   typed
   |> Profile.(record transl)
-    (Translmod.transl_implementation_flambda i.module_name)
+    (Translmod.transl_implementation i.module_name ~style:Plain_block)
   |> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.program
   |> Compiler_hooks.execute_and_pipe Compiler_hooks.Raw_lambda
   |> Profile.(record generate)
@@ -77,7 +77,7 @@ let clambda unix i backend typed =
   Clflags.set_oclassic ();
   typed
   |> Profile.(record transl)
-    (Translmod.transl_store_implementation i.module_name)
+    (Translmod.transl_implementation i.module_name ~style:Set_individual_fields)
   |> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.program
   |> Compiler_hooks.execute_and_pipe Compiler_hooks.Raw_lambda
   |> Profile.(record generate)
