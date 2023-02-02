@@ -47,16 +47,23 @@ let compile i typed ~transl_style ~compile_implementation =
            compile_implementation program;
            Compilenv.save_unit_info (cmx i)))
 
-let flambda2_ unix i ~flambda2 ~keep_symbol_tables typed =
+type flambda2 =
+  ppf_dump:Format.formatter ->
+  prefixname:string ->
+  filename:string ->
+  keep_symbol_tables:bool ->
+  Lambda.program ->
+  Cmm.phrase list
+
+let flambda2_ unix i ~(flambda2 : flambda2) ~keep_symbol_tables typed =
   compile i typed ~transl_style:Plain_block
     ~compile_implementation:(fun program ->
-      Asmgen.compile_implementation_flambda2
+      Asmgen.compile_implementation
         unix
+        ~pipeline:(Direct_to_cmm (flambda2 ~keep_symbol_tables))
         ~filename:i.source_file
         ~prefixname:i.output_prefix
-        ~flambda2
         ~ppf_dump:i.ppf_dump
-        ~keep_symbol_tables
         program)
 
 let flambda unix i backend typed =
@@ -64,10 +71,11 @@ let flambda unix i backend typed =
     ~compile_implementation:(fun program ->
       Asmgen.compile_implementation
         unix
-        ~backend
+        ~pipeline:(Via_clambda
+                     { backend;
+                       middle_end = Flambda_middle_end.lambda_to_clambda })
         ~filename:i.source_file
         ~prefixname:i.output_prefix
-        ~middle_end:Flambda_middle_end.lambda_to_clambda
         ~ppf_dump:i.ppf_dump
         program)
 
@@ -77,10 +85,11 @@ let clambda unix i backend typed =
     ~compile_implementation:(fun program ->
       Asmgen.compile_implementation
         unix
-        ~backend
+        ~pipeline:(Via_clambda
+                     { backend;
+                       middle_end = Closure_middle_end.lambda_to_clambda })
         ~filename:i.source_file
         ~prefixname:i.output_prefix
-        ~middle_end:Closure_middle_end.lambda_to_clambda
         ~ppf_dump:i.ppf_dump
         program)
 

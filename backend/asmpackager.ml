@@ -83,8 +83,16 @@ let check_units members =
 
 (* Make the .o file for the package *)
 
+type flambda2 =
+  ppf_dump:Format.formatter ->
+  prefixname:string ->
+  filename:string ->
+  keep_symbol_tables:bool ->
+  Lambda.program ->
+  Cmm.phrase list
+
 let make_package_object unix ~ppf_dump members targetobj targetname coercion
-      ~backend ~flambda2 =
+      ~backend ~(flambda2 : flambda2) =
   Profile.record_call (Printf.sprintf "pack(%s)" targetname) (fun () ->
     let objtemp =
       if !Clflags.keep_asm_file
@@ -129,22 +137,21 @@ let make_package_object unix ~ppf_dump members targetobj targetname coercion
       }
     in
     if Config.flambda2 then begin
-      Asmgen.compile_implementation_flambda2 unix
+      Asmgen.compile_implementation unix
+        ~pipeline:(Direct_to_cmm (flambda2 ~keep_symbol_tables:true))
         ~filename:targetname
         ~prefixname
-        ~flambda2
         ~ppf_dump
-        ~keep_symbol_tables:true
         program
     end else begin
       let middle_end =
         if Config.flambda then Flambda_middle_end.lambda_to_clambda
         else Closure_middle_end.lambda_to_clambda
       in
-      Asmgen.compile_implementation ~backend unix
+      Asmgen.compile_implementation unix
+        ~pipeline:(Via_clambda { middle_end; backend })
         ~filename:targetname
         ~prefixname
-        ~middle_end
         ~ppf_dump
         program
     end;

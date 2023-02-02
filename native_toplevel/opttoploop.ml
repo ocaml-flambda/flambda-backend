@@ -279,11 +279,13 @@ let default_load ppf (program : Lambda.program) =
   in
   let filename = Filename.chop_extension dll in
   if Config.flambda2 then begin
-    Asmgen.compile_implementation_flambda2
+    Asmgen.compile_implementation
       (module Unix : Compiler_owee.Unix_intf.S)
       ~toplevel:need_symbol
       ~filename ~prefixname:filename
-      ~flambda2:Flambda2.lambda_to_cmm ~ppf_dump:ppf
+      ~pipeline:(Direct_to_cmm
+                   (Flambda2.lambda_to_cmm ~keep_symbol_tables:true))
+      ~ppf_dump:ppf
       program
   end
   else begin
@@ -294,8 +296,9 @@ let default_load ppf (program : Lambda.program) =
     Asmgen.compile_implementation
       (module Unix : Compiler_owee.Unix_intf.S)
       ~toplevel:need_symbol
-      ~backend ~filename ~prefixname:filename
-      ~middle_end ~ppf_dump:ppf program
+      ~filename ~prefixname:filename
+      ~pipeline:(Via_clambda { middle_end; backend })
+      ~ppf_dump:ppf program
   end;
   Asmlink.call_linker_shared [filename ^ ext_obj] dll;
   Sys.remove (filename ^ ext_obj);
