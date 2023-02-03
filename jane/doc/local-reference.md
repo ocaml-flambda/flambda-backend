@@ -486,6 +486,16 @@ then a variable `local_ x` of type `string glob list` is a local list
 of global strings, and while the list itself cannot be returned out of
 a region, the `contents` field of any of its elements can.
 
+The same overriding can be used on constructor arguments. To imitate the example 
+for record fields:
+
+    type ('a, 'b) t = Foo of global_ 'a * 'b
+
+    let f () = 
+      let local_ packed = Foo (x, y) in 
+      match packed with
+      | Foo (foo, bar) -> foo
+
 ### Mutability
 
 Mutable fields are always `global_`, including array elements. That is, while
