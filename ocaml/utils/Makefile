@@ -100,6 +100,7 @@ config.ml: config.mlp $(ROOTDIR)/Makefile.config Makefile
 	    $(call SUBST,AS_HAS_DEBUG_PREFIX_MAP) \
 	    $(call SUBST,STACK_ALLOCATION) \
 	    $(call SUBST,POLL_INSERTION) \
+	    $(call SUBST,STDLIB_LAYOUT_OCAML5) \
 	    $< > $@
 
 # Test for the substitution functions above

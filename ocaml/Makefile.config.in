@@ -254,6 +254,7 @@ INTEL_JCC_BUG_CFLAGS=@intel_jcc_bug_cflags@
 STACK_ALLOCATION=@stack_allocation@
 POLL_INSERTION=@poll_insertion@
 DUNE=@dune@
+STDLIB_LAYOUT_OCAML5=@stdlib_layout_ocaml5@
 
 ### Native command to build ocamlrun.exe
 

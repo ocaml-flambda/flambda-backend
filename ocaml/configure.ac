@@ -175,6 +175,7 @@ AC_SUBST([intel_jcc_bug_cflags])
 AC_SUBST([stack_allocation])
 AC_SUBST([poll_insertion])
 AC_SUBST([dune])
+AC_SUBST([stdlib_layout_ocaml5])
 
 ## Generated files
 
@@ -2044,6 +2045,13 @@ AS_IF([test x"$enable_poll_insertion" = "xyes"],
   [AC_DEFINE([POLL_INSERTION])
    poll_insertion=true],
   [poll_insertion=false])
+
+AC_ARG_ENABLE([stdlib-layout-ocaml5],
+  [AS_HELP_STRING([--enable-stdlib-layout-ocaml5], [OCaml's lib
+  directory layout changed in 5.0.  Dynlink, Str and Unix moved to
+  a subdirectory of lib in the compiler distribution.])],
+  [stdlib_layout_ocaml5=true],
+  [stdlib_layout_ocaml5=false])
 
 oc_cflags="$common_cflags $internal_cflags"
 oc_cppflags="$common_cppflags $internal_cppflags"

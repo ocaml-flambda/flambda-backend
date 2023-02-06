@@ -276,6 +276,10 @@ val stack_allocation : bool
 val poll_insertion : bool
 (** Whether to insert poll points *)
 
+val stdlib_layout_ocaml5 : bool
+(** The layout of [standard_library] directory changed in OCaml 5.
+    Whether to use the OCaml 5 layout. *)
+
 (** Access to configuration values *)
 val print_config : out_channel -> unit
 
