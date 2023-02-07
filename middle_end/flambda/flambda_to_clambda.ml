@@ -360,8 +360,10 @@ let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda =
     in
     Uassign (id, subst_var env new_value)
   | Send { kind; meth; obj; args; dbg; reg_close; mode } ->
+    let args_layout = assert false in
+    let result_layout = assert false in
     Usend (kind, subst_var env meth, subst_var env obj,
-      subst_vars env args, (reg_close,mode), dbg)
+      subst_vars env args, args_layout, result_layout, (reg_close,mode), dbg)
   | Region body ->
       let body = to_clambda t env body in
       let is_trivial =

@@ -263,7 +263,7 @@ and lam ppf = function
        lam hi lam body
   | Uassign(id, expr) ->
       fprintf ppf "@[<2>(assign@ %a@ %a)@]" V.print id lam expr
-  | Usend (k, met, obj, largs, (pos,_) , _) ->
+  | Usend (k, met, obj, largs, _, _, (pos,_) , _) ->
       let form =
         match pos with
         | Rc_normal | Rc_nontail -> "send"
