@@ -589,7 +589,7 @@ let rec add_binding_to_env ?extra env res var (Binding binding as b) =
       { env with stages }, res)
 
 (* CR gbury: find a better name for this function *)
-and split_in_env ?ensure_in_env env res var binding =
+and split_in_env env res var binding =
   let res, split_result = split_complex_binding ~env ~res binding in
   match split_result with
   | Already_split -> env, res, binding
@@ -603,8 +603,7 @@ and split_in_env ?ensure_in_env env res var binding =
         }
       in
       match split_binding.inline with
-      | Must_inline_once ->
-        if Option.is_none ensure_in_env then env else update_env ()
+      | Must_inline_once -> env
       | Must_inline_and_duplicate -> update_env ()
     in
     let env, res =
