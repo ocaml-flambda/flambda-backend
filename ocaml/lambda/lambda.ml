@@ -571,6 +571,9 @@ let layout_lazy_contents = Pvalue Pgenval
 let layout_any_value = Pvalue Pgenval
 
 let layout_top = Pvalue Pgenval
+let layout_bottom =
+  (* CR pchambart: this should be an actual bottom *)
+  Pvalue Pgenval
 
 let default_function_attribute = {
   inline = Default_inline;
