@@ -90,7 +90,8 @@ type 'kind binding =
     effs : Ece.t;
     inline : 'kind inline;
     bound_expr : 'kind bound_expr;
-    cmm_var : Backend_var.With_provenance.t
+    cmm_var : Backend_var.With_provenance.t;
+    machtype : Cmm.machtype
   }
 
 type any_binding = Binding : _ binding -> any_binding [@@unboxed]
@@ -130,7 +131,7 @@ type t =
        handlers. *)
     vars_extra : extra_info Variable.Map.t;
     (* Extra information associated with Flambda variables. *)
-    vars : Cmm.expression Variable.Map.t;
+    vars : (Cmm.expression * Cmm.machtype) Variable.Map.t;
     (* Cmm expressions (of the form [Cvar ...]) for all bound variables in
        scope. *)
     bindings : any_binding Variable.Map.t;
@@ -187,18 +188,20 @@ let [@ocamlformat "disable"] print_bound_expr (type a) ppf (b : a bound_expr) =
       (Format.pp_print_list (fun ppf (cmm, _) -> Printcmm.expression ppf cmm)) args
 
 let [@ocamlformat "disable"] print_binding (type a) ppf
-    ({ order; inline; effs; cmm_var; bound_expr; } : a binding) =
+    ({ order; inline; effs; cmm_var; bound_expr; machtype } : a binding) =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(order@ %d)@]@ \
       @[<hov 1>(inline@ %a)@]@ \
       @[<hov 1>(effs@ %a)@]@ \
       @[<hov 1>(var@ %a)@]@ \
+      @[<hov 1>(machtype@ %a)@]@ \
       @[<hov 1>(expr@ %a)@]\
       )@]"
     order
     print_inline inline
     Ece.print effs
     Backend_var.With_provenance.print cmm_var
+    Printcmm.machtype machtype
     print_bound_expr bound_expr
 
 let _print_any_binding ppf (Binding binding) = print_binding ppf binding
@@ -237,18 +240,18 @@ let gen_variable v =
   (* CR mshinwell: Fix [provenance] *)
   Backend_var.With_provenance.create ?provenance:None v
 
-let add_bound_param env v v' =
+let add_bound_param env v v' machtype =
   let v'' = Backend_var.With_provenance.var v' in
-  let vars = Variable.Map.add v (C.var v'') env.vars in
+  let vars = Variable.Map.add v (C.var v'', machtype) env.vars in
   { env with vars }
 
-let create_bound_parameter env v =
+let create_bound_parameter env (v, machtype) =
   if Variable.Map.mem v env.vars
   then
     Misc.fatal_errorf "Cannot rebind variable %a in To_cmm environment"
       Variable.print v;
   let v' = gen_variable v in
-  let env = add_bound_param env v v' in
+  let env = add_bound_param env v v' machtype in
   env, v'
 
 let create_bound_parameters env vs =
@@ -343,7 +346,7 @@ let is_cmm_simple cmm =
 
 (* Helper function to create bindings *)
 
-let create_binding_aux (type a) effs var ~(inline : a inline)
+let create_binding_aux (type a) effs var machtype ~(inline : a inline)
     (bound_expr : a bound_expr) =
   let order =
     let incr =
@@ -355,10 +358,12 @@ let create_binding_aux (type a) effs var ~(inline : a inline)
     !next_order
   in
   let cmm_var = gen_variable var in
-  let binding = Binding { order; inline; effs; cmm_var; bound_expr } in
+  let binding =
+    Binding { order; inline; effs; cmm_var; machtype; bound_expr }
+  in
   binding
 
-let create_binding (type a) effs var ~(inline : a inline)
+let create_binding (type a) effs var machtype ~(inline : a inline)
     (bound_expr : a bound_expr) =
   (* In order to avoid generating binding of the form: "let x = y in ...", when
      'y' is trivial i.e. is a value that fits in a register, we mark 'x' as a
@@ -369,10 +374,10 @@ let create_binding (type a) effs var ~(inline : a inline)
     (* trivial/simple cmm expression (as decided by [is_cmm_simple]) do not have
        effects and coeffects *)
     let effs = Ece.pure_can_be_duplicated in
-    create_binding_aux effs var ~inline:Must_inline_and_duplicate
+    create_binding_aux effs var machtype ~inline:Must_inline_and_duplicate
       (Split { cmm_expr })
   | Simple _ | Split _ | Splittable_prim _ ->
-    create_binding_aux effs var ~inline bound_expr
+    create_binding_aux effs var machtype ~inline bound_expr
 
 (* Binding splitting *)
 (* CR gbury: we actually need to "lie" about the effects and coeffects of
@@ -421,7 +426,7 @@ type split_result =
 let new_bindings_for_splitting order args =
   let (new_bindings, _), new_cmm_args =
     List.fold_left_map
-      (fun (new_bindings, order) (cmm_arg, arg_effs) ->
+      (fun (new_bindings, order) (cmm_arg, arg_effs, arg_machtype) ->
         (* CR gbury: here, instead of using [is_cmm_simple], we could instead
            look at [arg_effs] and not create a new binding if it has
            `pure_can_be_duplicated` effects (or any ece that allows
@@ -445,7 +450,8 @@ let new_bindings_for_splitting order args =
                 effs = arg_effs;
                 inline = Do_not_inline;
                 bound_expr = Simple { cmm_expr = cmm_arg };
-                cmm_var = new_cmm_var
+                cmm_var = new_cmm_var;
+                machtype = arg_machtype
               }
           in
           ( (binding :: new_bindings, order - 1),
@@ -493,6 +499,12 @@ let split_complex_binding ~env ~res (binding : complex binding) =
   | Split _ -> res, Already_split
   | Splittable_prim { dbg; prim; args } ->
     let new_bindings, new_cmm_args =
+      let args =
+        List.map2
+          (fun (arg, ece) kind -> arg, ece, To_cmm_utils.machtype_of_kind kind)
+          args
+          (P.Without_args.args_kind prim ~args)
+      in
       new_bindings_for_splitting binding.order args
     in
     let new_cmm_expr, res = rebuild_prim ~dbg ~env ~res prim new_cmm_args in
@@ -515,18 +527,20 @@ let split_complex_binding ~env ~res (binding : complex binding) =
         effs;
         inline = binding.inline;
         bound_expr = Split { cmm_expr = new_cmm_expr };
-        cmm_var = binding.cmm_var
+        cmm_var = binding.cmm_var;
+        machtype =
+          P.Without_args.result_kind prim |> To_cmm_utils.machtype_of_kind
       }
     in
     res, Split { new_bindings; split_binding }
 
 (* Adding binding to the env and split them *)
 
-let rec add_binding_to_env ?extra env res var (Binding binding as b) =
+let rec add_binding_to_env ?extra env res var machtype (Binding binding as b) =
   let env =
     let bindings = Variable.Map.add var b env.bindings in
     let cmm_expr = C.var (Backend_var.With_provenance.var binding.cmm_var) in
-    let vars = Variable.Map.add var cmm_expr env.vars in
+    let vars = Variable.Map.add var (cmm_expr, machtype) env.vars in
     let vars_extra =
       match extra with
       | None -> env.vars_extra
@@ -600,14 +614,15 @@ and split_in_env env res var binding =
       List.fold_left
         (fun (env, res) new_binding ->
           let flambda_var = Variable.create "to_cmm_tmp" in
-          add_binding_to_env env res flambda_var new_binding)
+          let (Binding { machtype; _ }) = new_binding in
+          add_binding_to_env env res flambda_var machtype new_binding)
         (env, res) new_bindings
     in
     env, res, split_binding
 
 let bind_variable_with_decision (type a) ?extra env res var ~inline
-    ~(defining_expr : a bound_expr) ~effects_and_coeffects_of_defining_expr:effs
-    =
+    ~(defining_expr : a bound_expr) ~machtype_of_defining_expr
+    ~effects_and_coeffects_of_defining_expr:effs =
   let effs =
     let classification =
       To_cmm_effects.classify_by_effects_and_coeffects effs
@@ -648,10 +663,12 @@ let bind_variable_with_decision (type a) ?extra env res var ~inline
       | _, _, Strict -> Ece.pure)
     | _, _ -> effs
   in
-  let binding = create_binding ~inline effs var defining_expr in
-  add_binding_to_env ?extra env res var binding
+  let binding =
+    create_binding ~inline effs var machtype_of_defining_expr defining_expr
+  in
+  add_binding_to_env ?extra env res var machtype_of_defining_expr binding
 
-let bind_variable ?extra env res var ~defining_expr
+let bind_variable ?extra env res var ~defining_expr ~machtype_of_defining_expr
     ~num_normal_occurrences_of_bound_vars
     ~effects_and_coeffects_of_defining_expr =
   let inline =
@@ -665,39 +682,42 @@ let bind_variable ?extra env res var ~defining_expr
     let defining_expr = simple defining_expr in
     bind_variable_with_decision ?extra env res var
       ~effects_and_coeffects_of_defining_expr ~defining_expr
-      ~inline:Do_not_inline
+      ~machtype_of_defining_expr ~inline:Do_not_inline
   | May_inline_once ->
     let defining_expr = simple defining_expr in
     bind_variable_with_decision ?extra env res var
       ~effects_and_coeffects_of_defining_expr ~defining_expr
-      ~inline:May_inline_once
+      ~machtype_of_defining_expr ~inline:May_inline_once
   | Must_inline_once ->
     let defining_expr = complex_no_split defining_expr in
     bind_variable_with_decision ?extra env res var
       ~effects_and_coeffects_of_defining_expr ~defining_expr
-      ~inline:Must_inline_once
+      ~machtype_of_defining_expr ~inline:Must_inline_once
   | Must_inline_and_duplicate ->
     let defining_expr = complex_no_split defining_expr in
     bind_variable_with_decision ?extra env res var
       ~effects_and_coeffects_of_defining_expr ~defining_expr
-      ~inline:Must_inline_and_duplicate
+      ~machtype_of_defining_expr ~inline:Must_inline_and_duplicate
 
 let bind_variable_to_primitive = bind_variable_with_decision
 
 (* Variable lookup (for potential inlining) *)
 
-let will_inline_simple env res { effs; bound_expr = Simple { cmm_expr }; _ } =
-  cmm_expr, env, res, effs
+let will_inline_simple env res
+    { effs; bound_expr = Simple { cmm_expr }; machtype; _ } =
+  cmm_expr, machtype, env, res, effs
 
-let will_inline_complex env res { effs; bound_expr; _ } =
+let will_inline_complex env res { effs; bound_expr; machtype; _ } =
   match bound_expr with
-  | Split { cmm_expr } -> cmm_expr, env, res, effs
+  | Split { cmm_expr } -> cmm_expr, machtype, env, res, effs
   | Splittable_prim { dbg; prim; args } ->
     let cmm_expr, res = rebuild_prim ~dbg ~env ~res prim (List.map fst args) in
-    cmm_expr, env, res, effs
+    cmm_expr, machtype, env, res, effs
 
-let will_not_inline_simple env res { cmm_var; bound_expr = Simple _; _ } =
+let will_not_inline_simple env res
+    { cmm_var; bound_expr = Simple _; machtype; _ } =
   ( C.var (Backend_var.With_provenance.var cmm_var),
+    machtype,
     env,
     res,
     Ece.pure_can_be_duplicated )
@@ -751,10 +771,10 @@ let inline_variable ?consider_inlining_effectful_expressions env res var =
     match Variable.Map.find var env.vars with
     | exception Not_found ->
       Misc.fatal_errorf "Variable %a not found in env" Variable.print var
-    | e ->
+    | e, machtype ->
       (* the env.vars map only contain bindings to expressions of the form
          [Cmm.Cvar _], hence the effects. *)
-      e, env, res, Ece.pure_can_be_duplicated)
+      e, machtype, env, res, Ece.pure_can_be_duplicated)
   | Binding binding -> (
     match binding.inline with
     | Do_not_inline -> will_not_inline_simple env res binding

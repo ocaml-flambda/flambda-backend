@@ -16,10 +16,6 @@
     this module, unlike the ones in [Cmm_helpers], depend on Flambda 2 data
     types. *)
 
-val exttype_of_kind : Flambda_kind.t -> Cmm.exttype
-
-val machtype_of_kind : Flambda_kind.t -> Cmm.machtype_component array
-
 val machtype_of_kinded_parameter :
   Bound_parameter.t -> Cmm.machtype_component array
 
@@ -40,7 +36,11 @@ val name :
   To_cmm_env.t ->
   To_cmm_result.t ->
   Name.t ->
-  Cmm.expression * To_cmm_env.t * To_cmm_result.t * Effects_and_coeffects.t
+  Cmm.expression
+  * Cmm.machtype
+  * To_cmm_env.t
+  * To_cmm_result.t
+  * Effects_and_coeffects.t
 
 val const : dbg:Debuginfo.t -> Reg_width_const.t -> Cmm.expression
 
@@ -55,6 +55,18 @@ val simple :
   Simple.t ->
   Cmm.expression * To_cmm_env.t * To_cmm_result.t * Effects_and_coeffects.t
 
+val simple_with_machtype :
+  ?consider_inlining_effectful_expressions:bool ->
+  dbg:Debuginfo.t ->
+  To_cmm_env.t ->
+  To_cmm_result.t ->
+  Simple.t ->
+  Cmm.expression
+  * Cmm.machtype
+  * To_cmm_env.t
+  * To_cmm_result.t
+  * Effects_and_coeffects.t
+
 val simple_static :
   Simple.t -> [`Data of Cmm.data_item list | `Var of Variable.t]
 
@@ -67,6 +79,17 @@ val simple_list :
   To_cmm_result.t ->
   Simple.t list ->
   Cmm.expression list * To_cmm_env.t * To_cmm_result.t * Effects_and_coeffects.t
+
+val simple_with_machtype_list :
+  ?consider_inlining_effectful_expressions:bool ->
+  dbg:Debuginfo.t ->
+  To_cmm_env.t ->
+  To_cmm_result.t ->
+  Simple.t list ->
+  (Cmm.expression * Cmm.machtype) list
+  * To_cmm_env.t
+  * To_cmm_result.t
+  * Effects_and_coeffects.t
 
 val bound_parameters :
   To_cmm_env.t ->

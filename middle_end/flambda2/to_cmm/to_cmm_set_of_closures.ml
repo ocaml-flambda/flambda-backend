@@ -315,7 +315,9 @@ let params_and_body0 env res code_id ~fun_dbg ~check ~return_continuation
      code, so we don't need any binder for it (this is why we can ignore
      [_bound_var]). If it does end up in generated code, Selection will complain
      and refuse to compile the code. *)
-  let env, _bound_var = Env.create_bound_parameter env my_region in
+  let env, _bound_var =
+    Env.create_bound_parameter env (my_region, [| Cmm.Int |])
+  in
   (* Translate the arg list and body *)
   let env, fun_args = C.bound_parameters env params in
   let fun_body, res = translate_expr env res body in
@@ -482,6 +484,7 @@ let lift_set_of_closures env res ~body ~bound_vars layout set ~translate_expr
         let v = Bound_var.var v in
         let sym = C.symbol ~dbg (Function_slot.Map.find cid closure_symbols) in
         Env.bind_variable env res v ~defining_expr:sym
+          ~machtype_of_defining_expr:[| Cmm.Val |]
           ~num_normal_occurrences_of_bound_vars
           ~effects_and_coeffects_of_defining_expr:Ece.pure_can_be_duplicated)
       (env, res) cids bound_vars
@@ -522,10 +525,13 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
   let env, res =
     Env.bind_variable_to_primitive env res soc_var ~inline:Env.Do_not_inline
       ~defining_expr ~effects_and_coeffects_of_defining_expr:effs
+      ~machtype_of_defining_expr:[| Cmm.Val |]
   in
   (* Get from the env the cmm variable that was created and bound to the
      compiled set of closures. *)
-  let soc_cmm_var, env, res, peff = Env.inline_variable env res soc_var in
+  let soc_cmm_var, _machtype, env, res, peff =
+    Env.inline_variable env res soc_var
+  in
   assert (
     match To_cmm_effects.classify_by_effects_and_coeffects peff with
     | Pure -> true
@@ -553,7 +559,8 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
           let v = Bound_var.var v in
           Env.bind_variable env res v ~defining_expr
             ~num_normal_occurrences_of_bound_vars
-            ~effects_and_coeffects_of_defining_expr)
+            ~effects_and_coeffects_of_defining_expr
+            ~machtype_of_defining_expr:[| Cmm.Val |])
       (env, res)
       (Function_slot.Lmap.keys decls)
       bound_vars

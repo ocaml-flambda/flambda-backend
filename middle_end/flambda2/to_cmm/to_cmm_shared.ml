@@ -16,30 +16,9 @@ open! Cmm_helpers
 open! Cmm_builtins
 module Ece = Effects_and_coeffects
 
-let exttype_of_kind (k : Flambda_kind.t) : Cmm.exttype =
-  match k with
-  | Value -> XInt
-  | Naked_number Naked_float -> XFloat
-  | Naked_number Naked_int64 -> XInt64
-  | Naked_number Naked_int32 -> XInt32
-  | Naked_number (Naked_immediate | Naked_nativeint) -> (
-    match Targetint_32_64.num_bits with
-    | Thirty_two -> XInt32
-    | Sixty_four -> XInt64)
-  | Region -> Misc.fatal_error "[Region] kind not expected here"
-  | Rec_info -> Misc.fatal_error "[Rec_info] kind not expected here"
-
-let machtype_of_kind (k : Flambda_kind.t) =
-  match k with
-  | Value -> Cmm.typ_val
-  | Naked_number Naked_float -> Cmm.typ_float
-  | Naked_number Naked_int64 -> typ_int64
-  | Naked_number (Naked_immediate | Naked_int32 | Naked_nativeint) ->
-    Cmm.typ_int
-  | Region | Rec_info -> assert false
-
 let machtype_of_kinded_parameter p =
-  Bound_parameter.kind p |> Flambda_kind.With_subkind.kind |> machtype_of_kind
+  Bound_parameter.kind p |> Flambda_kind.With_subkind.kind
+  |> To_cmm_utils.machtype_of_kind
 
 let targetint ~dbg t =
   match Targetint_32_64.repr t with
@@ -67,7 +46,11 @@ let name0 ?consider_inlining_effectful_expressions env res name =
         res v)
     ~symbol:(fun s ->
       (* CR mshinwell: fix debuginfo? *)
-      symbol ~dbg:Debuginfo.none s, env, res, Ece.pure_can_be_duplicated)
+      ( symbol ~dbg:Debuginfo.none s,
+        [| Cmm.Val |],
+        env,
+        res,
+        Ece.pure_can_be_duplicated ))
 
 let name env name = name0 env name
 
@@ -81,11 +64,26 @@ let const ~dbg cst =
   | Naked_int64 i -> int64 ~dbg i
   | Naked_nativeint t -> targetint ~dbg t
 
-let simple ?consider_inlining_effectful_expressions ~dbg env res s =
+let machtype_of_const cst =
+  match Reg_width_const.descr cst with
+  | Naked_immediate _ | Tagged_immediate _ | Naked_int32 _ | Naked_int64 _
+  | Naked_nativeint _ ->
+    [| Cmm.Int |]
+  | Naked_float _ -> [| Cmm.Float |]
+
+let simple_with_machtype ?consider_inlining_effectful_expressions ~dbg env res s
+    =
   Simple.pattern_match s
     ~name:(fun n ~coercion:_ ->
       name0 ?consider_inlining_effectful_expressions env res n)
-    ~const:(fun c -> const ~dbg c, env, res, Ece.pure_can_be_duplicated)
+    ~const:(fun c ->
+      const ~dbg c, machtype_of_const c, env, res, Ece.pure_can_be_duplicated)
+
+let simple ?consider_inlining_effectful_expressions ~dbg env res s =
+  let e, _machtype, env, res, ece =
+    simple_with_machtype ?consider_inlining_effectful_expressions ~dbg env res s
+  in
+  e, env, res, ece
 
 let name_static name =
   Name.pattern_match name
@@ -124,8 +122,27 @@ let simple_list ?consider_inlining_effectful_expressions ~dbg env res l =
   in
   List.rev args, env, res, effs
 
+let simple_with_machtype_list ?consider_inlining_effectful_expressions ~dbg env
+    res l =
+  let aux (list, env, res, effs) x =
+    let y, machtype, env, res, eff =
+      simple_with_machtype ?consider_inlining_effectful_expressions ~dbg env res
+        x
+    in
+    (y, machtype) :: list, env, res, Ece.join eff effs
+  in
+  let args, env, res, effs =
+    List.fold_left aux ([], env, res, Ece.pure_can_be_duplicated) l
+  in
+  List.rev args, env, res, effs
+
 let bound_parameters env l =
-  let flambda_vars = Bound_parameters.vars l in
+  let flambda_vars =
+    List.map2
+      (fun var kind -> var, To_cmm_utils.machtype_of_kind kind)
+      (Bound_parameters.vars l)
+      (Bound_parameters.arity l |> Flambda_arity.to_list)
+  in
   let env, cmm_vars = To_cmm_env.create_bound_parameters env flambda_vars in
   let vars =
     List.map2
@@ -166,7 +183,7 @@ let invalid res ~message =
   call_expr, res
 
 let make_update env res dbg kind ~symbol var ~index ~prev_updates =
-  let e, env, res, _ece = To_cmm_env.inline_variable env res var in
+  let e, _machtype, env, res, _ece = To_cmm_env.inline_variable env res var in
   let addr = field_address symbol index dbg in
   let update = store ~dbg kind Initialization ~addr ~new_value:e in
   match prev_updates with
@@ -183,7 +200,7 @@ let machtype_of_return_arity arity =
   match Flambda_arity.to_list arity with
   | [] -> Cmm.typ_void
   (* Regular functions with a single return value *)
-  | [k] -> machtype_of_kind k
+  | [k] -> To_cmm_utils.machtype_of_kind k
   | _ ->
     (* CR gbury: update when unboxed tuples are used *)
     Misc.fatal_errorf "Functions are currently limited to a single return value"

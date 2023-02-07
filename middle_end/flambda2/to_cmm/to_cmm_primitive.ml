@@ -555,7 +555,7 @@ let unary_primitive env res dbg f arg =
     ( None,
       res,
       C.extcall ~dbg ~alloc:false ~returns:true ~is_c_builtin:false
-        ~ty_args:[C.exttype_of_kind K.naked_int64]
+        ~ty_args:[To_cmm_utils.exttype_of_kind K.naked_int64]
         "caml_int64_float_of_bits_unboxed" Cmm.typ_float [arg] )
   | Unbox_number kind -> None, res, unbox_number ~dbg kind arg
   | Untag_immediate -> Some (Env.Untag arg), res, C.untag_int arg dbg
@@ -659,7 +659,10 @@ let variadic_primitive _env dbg f args =
   | Make_array (kind, _mut, alloc_mode) -> make_array ~dbg kind alloc_mode args
 
 let arg ?consider_inlining_effectful_expressions ~dbg env res simple =
-  C.simple ?consider_inlining_effectful_expressions ~dbg env res simple
+  let e, env, res, eff =
+    C.simple ?consider_inlining_effectful_expressions ~dbg env res simple
+  in
+  e, env, res, eff
 
 let arg_list ?consider_inlining_effectful_expressions ~dbg env res l =
   let aux (list, env, res, effs) x =

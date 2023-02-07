@@ -1984,6 +1984,29 @@ module Without_args = struct
     | Binary prim -> effects_and_coeffects_of_binary_primitive prim
     | Ternary prim -> effects_and_coeffects_of_ternary_primitive prim
     | Variadic prim -> effects_and_coeffects_of_variadic_primitive prim
+
+  let args_kind (t : t) ~args =
+    match t with
+    | Nullary _ -> []
+    | Unary prim -> [arg_kind_of_unary_primitive prim]
+    | Binary prim ->
+      let kind1, kind2 = args_kind_of_binary_primitive prim in
+      [kind1; kind2]
+    | Ternary prim ->
+      let kind1, kind2, kind3 = args_kind_of_ternary_primitive prim in
+      [kind1; kind2; kind3]
+    | Variadic prim -> (
+      match args_kind_of_variadic_primitive prim with
+      | Variadic kinds -> kinds
+      | Variadic_all_of_kind kind -> List.map (fun _ -> kind) args)
+
+  let result_kind (t : t) =
+    match t with
+    | Nullary prim -> result_kind_of_nullary_primitive' prim
+    | Unary prim -> result_kind_of_unary_primitive' prim
+    | Binary prim -> result_kind_of_binary_primitive' prim
+    | Ternary prim -> result_kind_of_ternary_primitive' prim
+    | Variadic prim -> result_kind_of_variadic_primitive' prim
 end
 
 let is_begin_or_end_region t =

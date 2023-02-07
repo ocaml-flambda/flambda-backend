@@ -388,6 +388,10 @@ module Without_args : sig
   (** Describe the effects and coeffects that the application of the given
       primitive may have. *)
   val effects_and_coeffects : t -> Effects_and_coeffects.t
+
+  val args_kind : t -> args:_ list -> Flambda_kind.t list
+
+  val result_kind : t -> Flambda_kind.t
 end
 
 (** A description of the kind of values which a unary primitive expects as its

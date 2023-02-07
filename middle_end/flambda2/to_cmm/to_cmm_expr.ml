@@ -34,12 +34,17 @@ end
 (* Bind a Cmm variable to the result of translating a [Simple] into Cmm. *)
 
 let bind_var_to_simple ~dbg env res v ~num_normal_occurrences_of_bound_vars s =
-  let defining_expr, env, res, effects_and_coeffects_of_defining_expr =
-    C.simple ~dbg env res s
+  let ( defining_expr,
+        machtype_of_defining_expr,
+        env,
+        res,
+        effects_and_coeffects_of_defining_expr ) =
+    C.simple_with_machtype ~dbg env res s
   in
   let env, res =
     Env.bind_variable env res v ~effects_and_coeffects_of_defining_expr
-      ~defining_expr ~num_normal_occurrences_of_bound_vars
+      ~machtype_of_defining_expr ~defining_expr
+      ~num_normal_occurrences_of_bound_vars
   in
   env, res
 
@@ -55,7 +60,10 @@ let translate_apply0 env res apply =
      the moment they can be ignored as we always deem all calls to have
      arbitrary effects and coeffects. *)
   let callee, env, res, _ = C.simple ~dbg env res callee_simple in
-  let args, env, res, _ = C.simple_list ~dbg env res args in
+  let args_with_machtypes, env, res, _ =
+    C.simple_with_machtype_list ~dbg env res args
+  in
+  let args = List.map fst args_with_machtypes in
   let fail_if_probe apply =
     match Apply.probe_name apply with
     | None -> ()
@@ -95,6 +103,7 @@ let translate_apply0 env res apply =
       ( C.direct_call ~dbg ty pos
           (C.symbol_from_linkage_name ~dbg code_linkage_name)
           args,
+        ty,
         env,
         res,
         Ece.all )
@@ -103,14 +112,17 @@ let translate_apply0 env res apply =
           ~handler_code_linkage_name:(Linkage_name.to_string code_linkage_name)
           ~args
         |> C.return_unit dbg,
+        ty,
         env,
         res,
         Ece.all ))
   | Function { function_call = Indirect_unknown_arity; alloc_mode } ->
     fail_if_probe apply;
+    let _args_ty, ty = Cmm.(List.map snd args_with_machtypes, [| Val |]) in
     ( C.indirect_call ~dbg Cmm.typ_val pos
         (Alloc_mode.For_types.to_lambda alloc_mode)
         callee args,
+      ty,
       env,
       res,
       Ece.all )
@@ -129,9 +141,16 @@ let translate_apply0 env res apply =
         return_arity |> Flambda_arity.With_subkinds.to_arity
         |> C.machtype_of_return_arity
       in
+      let _args_ty =
+        List.map
+          (fun k ->
+            To_cmm_utils.machtype_of_kind (Flambda_kind.With_subkind.kind k))
+          (Flambda_arity.With_subkinds.to_list param_arity)
+      in
       ( C.indirect_full_call ~dbg ty pos
           (Alloc_mode.For_types.to_lambda alloc_mode)
           callee args,
+        ty,
         env,
         res,
         Ece.all )
@@ -166,19 +185,21 @@ let translate_apply0 env res apply =
           "C functions are currently limited to a single return value"
     in
     let ty_args =
-      List.map C.exttype_of_kind (Flambda_arity.to_list param_arity)
+      List.map To_cmm_utils.exttype_of_kind (Flambda_arity.to_list param_arity)
     in
     ( wrap dbg
         (C.extcall ~dbg ~alloc ~is_c_builtin ~returns ~ty_args callee ty args),
+      ty,
       env,
       res,
       Ece.all )
   | Call_kind.Method { kind; obj; alloc_mode } ->
     fail_if_probe apply;
     let obj, env, res, _ = C.simple ~dbg env res obj in
+    let _args_ty, ty = Cmm.(List.map snd args_with_machtypes, [| Val |]) in
     let kind = Call_kind.Method_kind.to_lambda kind in
     let alloc_mode = Alloc_mode.For_types.to_lambda alloc_mode in
-    C.send kind callee obj args (pos, alloc_mode) dbg, env, res, Ece.all
+    C.send kind callee obj args (pos, alloc_mode) dbg, ty, env, res, Ece.all
 
 (* Function calls that have an exn continuation with extra arguments must be
    wrapped with assignments for the mutable variables used to pass the extra
@@ -186,7 +207,7 @@ let translate_apply0 env res apply =
 (* CR mshinwell: Add first-class support in Cmm for the concept of an exception
    handler with extra arguments. *)
 let translate_apply env res apply =
-  let call, env, res, effs = translate_apply0 env res apply in
+  let call, ty, env, res, effs = translate_apply0 env res apply in
   let dbg = Apply.dbg apply in
   let k_exn = Apply.exn_continuation apply in
   let mut_vars =
@@ -205,7 +226,7 @@ let translate_apply env res apply =
     let call, env, res =
       List.fold_left2 aux (call, env, res) extra_args mut_vars
     in
-    call, env, res, effs
+    call, ty, env, res, effs
   else
     Misc.fatal_errorf
       "Length of [extra_args] in exception continuation %a@ does not match \
@@ -306,6 +327,9 @@ and let_prim env res ~num_normal_occurrences_of_bound_vars v p dbg body =
   let effects_and_coeffects_of_prim =
     Flambda_primitive.effects_and_coeffects p
   in
+  let result_machtype =
+    Flambda_primitive.result_kind' p |> To_cmm_utils.machtype_of_kind
+  in
   let inline =
     To_cmm_effects.classify_let_binding v ~num_normal_occurrences_of_bound_vars
       ~effects_and_coeffects_of_defining_expr:effects_and_coeffects_of_prim
@@ -319,6 +343,7 @@ and let_prim env res ~num_normal_occurrences_of_bound_vars v p dbg body =
     in
     let env, res =
       Env.bind_variable_to_primitive ?extra env res v ~inline
+        ~machtype_of_defining_expr:result_machtype
         ~effects_and_coeffects_of_defining_expr ~defining_expr
     in
     expr env res body
@@ -332,6 +357,7 @@ and let_prim env res ~num_normal_occurrences_of_bound_vars v p dbg body =
     in
     let env, res =
       Env.bind_variable_to_primitive env res v ~inline
+        ~machtype_of_defining_expr:result_machtype
         ~effects_and_coeffects_of_defining_expr ~defining_expr
     in
     expr env res body
@@ -524,7 +550,7 @@ and let_cont_exn_handler env res k body vars handler ~catch_id arity =
             Misc.fatal_errorf "No dummy value available for kind %a" K.print
               kind
         in
-        C.letin_mut mut_var (C.machtype_of_kind kind) dummy_value cmm)
+        C.letin_mut mut_var (To_cmm_utils.machtype_of_kind kind) dummy_value cmm)
       trywith mut_vars
   in
   cmm, res
@@ -587,7 +613,7 @@ and continuation_handler env res handler =
       vars, arity, expr, res)
 
 and apply_expr env res apply =
-  let call, env, res, effs = translate_apply env res apply in
+  let call, result_machtype, env, res, effs = translate_apply env res apply in
   (* With respect to flushing the environment we have three cases:
 
      1. The call never returns or jumps to another function
@@ -643,6 +669,7 @@ and apply_expr env res apply =
         let env, res =
           Env.bind_variable env res var
             ~effects_and_coeffects_of_defining_expr:effs ~defining_expr:call
+            ~machtype_of_defining_expr:result_machtype
             ~num_normal_occurrences_of_bound_vars:handler_params_occurrences
         in
         expr env res body

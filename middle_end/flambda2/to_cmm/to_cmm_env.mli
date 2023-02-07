@@ -103,11 +103,13 @@ val exported_offsets : t -> Exported_offsets.t
     the new environment and the created variable. Will produce a fatal error if
     the given variable is already bound. *)
 val create_bound_parameter :
-  t -> Variable.t -> t * Backend_var.With_provenance.t
+  t -> Variable.t * Cmm.machtype -> t * Backend_var.With_provenance.t
 
 (** Same as {!create_variable} but for a list of variables. *)
 val create_bound_parameters :
-  t -> Variable.t list -> t * Backend_var.With_provenance.t list
+  t ->
+  (Variable.t * Cmm.machtype) list ->
+  t * Backend_var.With_provenance.t list
 
 (** {2 Delayed let-bindings}
 
@@ -206,6 +208,7 @@ val bind_variable_to_primitive :
   Variable.t ->
   inline:'a inline ->
   defining_expr:'a bound_expr ->
+  machtype_of_defining_expr:Cmm.machtype ->
   effects_and_coeffects_of_defining_expr:Effects_and_coeffects.t ->
   t * To_cmm_result.t
 
@@ -217,6 +220,7 @@ val bind_variable :
   To_cmm_result.t ->
   Variable.t ->
   defining_expr:Cmm.expression ->
+  machtype_of_defining_expr:Cmm.machtype ->
   num_normal_occurrences_of_bound_vars:Num_occurrences.t Variable.Map.t ->
   effects_and_coeffects_of_defining_expr:Effects_and_coeffects.t ->
   t * To_cmm_result.t
@@ -227,7 +231,7 @@ val inline_variable :
   t ->
   To_cmm_result.t ->
   Variable.t ->
-  Cmm.expression * t * To_cmm_result.t * Effects_and_coeffects.t
+  Cmm.expression * Cmm.machtype * t * To_cmm_result.t * Effects_and_coeffects.t
 
 type flush_mode =
   | Entering_loop

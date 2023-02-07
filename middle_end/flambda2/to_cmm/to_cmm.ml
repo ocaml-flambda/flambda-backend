@@ -96,7 +96,7 @@ let unit0 ~offsets flambda_unit ~all_code =
   (* See comment in [To_cmm_set_of_closures] about binding [my_region] *)
   let env, _bound_var =
     Env.create_bound_parameter env
-      (Flambda_unit.toplevel_my_region flambda_unit)
+      (Flambda_unit.toplevel_my_region flambda_unit, [| Cmm.Int |])
   in
   let r = R.create ~module_symbol:(Flambda_unit.module_symbol flambda_unit) in
   let body, res = To_cmm_expr.expr env r (Flambda_unit.body flambda_unit) in
