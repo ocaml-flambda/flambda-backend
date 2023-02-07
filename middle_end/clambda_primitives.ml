@@ -168,3 +168,5 @@ and raise_kind = Lambda.raise_kind =
   | Raise_notrace
 
 let equal (x: primitive) (y: primitive) = x = y
+
+let result_layout _p = Lambda.layout_any_value
