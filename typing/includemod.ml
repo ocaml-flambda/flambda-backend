@@ -190,10 +190,7 @@ let expand_modtype_path env path =
      | x -> Some x
 
 let expand_module_alias ~strengthen env path =
-  match
-    if strengthen then Env.find_strengthened_module ~aliasable:true path env
-    else (Env.find_module path env).md_type
-  with
+  match Mtype.find_type_of_module ~strengthen ~aliasable:true env path with
   | x -> Ok x
   | exception Not_found -> Error (Error.Unbound_module_path path)
 
@@ -1230,8 +1227,7 @@ let strengthened_module_decl ~loc ~aliasable env ~mark md1 path1 md2 =
 let expand_module_alias ~strengthen env path =
   match expand_module_alias ~strengthen env path with
   | Ok x -> x
-  | Result.Error _ ->
-      raise (Error(env,In_Expansion(Error.Unbound_module_path path)))
+  | Result.Error e -> raise (Error(env,In_Expansion e))
 
 let check_modtype_equiv ~loc env id mty1 mty2 =
   match check_modtype_equiv ~in_eq:false ~loc env ~mark:Mark_both mty1 mty2 with
