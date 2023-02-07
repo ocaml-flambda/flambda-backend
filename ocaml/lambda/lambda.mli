@@ -237,6 +237,8 @@ val equal_value_kind : value_kind -> value_kind -> bool
 
 val equal_layout : layout -> layout -> bool
 
+val compatible_layout : layout -> layout -> bool
+
 val equal_boxed_integer : boxed_integer -> boxed_integer -> bool
 
 val must_be_value : layout -> value_kind
