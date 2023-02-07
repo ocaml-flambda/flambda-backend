@@ -557,6 +557,7 @@ let layout_block = Pvalue Pgenval
 let layout_list =
   Pvalue (Pvariant { consts = [0] ; non_consts = [0, [Pgenval; Pgenval]] })
 let layout_field = Pvalue Pgenval
+let layout_exception = Pvalue Pgenval
 let layout_function = Pvalue Pgenval
 let layout_object = Pvalue Pgenval
 let layout_class = Pvalue Pgenval
