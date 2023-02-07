@@ -531,7 +531,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
       List.map (fun (ident, kind) ->
           (Variable.create_with_same_name_as_ident ident, kind)) ids
     in
-    Static_catch (st_exn, List.map fst vars, close t env body,
+    Static_catch (st_exn, vars, close t env body,
       close t (Env.add_vars env (List.map fst ids) vars) handler, kind)
   | Ltrywith (body, id, handler, kind) ->
     let var = Variable.create_with_same_name_as_ident id in

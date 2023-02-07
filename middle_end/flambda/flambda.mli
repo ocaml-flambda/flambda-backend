@@ -112,7 +112,7 @@ type t =
                      * Lambda.layout
   (** Restrictions on [Lambda.Lstringswitch] also apply to [String_switch]. *)
   | Static_raise of Static_exception.t * Variable.t list
-  | Static_catch of Static_exception.t * Variable.t list * t * t * Lambda.layout
+  | Static_catch of Static_exception.t * ( Variable.t * Lambda.layout ) list * t * t * Lambda.layout
   | Try_with of t * Variable.t * t * Lambda.layout
   | While of t * t
   | For of for_loop

@@ -181,7 +181,7 @@ let variable_and_symbol_invariants (program : Flambda.program) =
       ignore_static_exception static_exn;
       ignore_layout kind;
       loop env body;
-      loop (add_binding_occurrences env vars) handler
+      loop (add_binding_occurrences env (List.map fst vars)) handler
     | Try_with (body, var, handler, kind) ->
       loop env body;
       ignore_layout kind;
