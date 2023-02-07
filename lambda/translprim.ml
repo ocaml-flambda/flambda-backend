@@ -489,7 +489,7 @@ let specialize_primitive env ty ~has_constant_constructor prim =
       | _, _ -> Some (Primitive (Pbigarrayset(unsafe, n, k, l), arity))
     end
   | Primitive (Pmakeblock(tag, mut, None, mode), arity), fields -> begin
-      let shape = List.map (Typeopt.value_kind env) fields in
+      let shape = List.map (fun typ -> Lambda.must_be_value (Typeopt.layout env typ)) fields in
       let useful = List.exists (fun knd -> knd <> Pgenval) shape in
       if useful then
         Some (Primitive (Pmakeblock(tag, mut, Some shape, mode),arity))
@@ -706,7 +706,7 @@ let lambda_of_prim prim_name prim loc args arg_exps =
         | Some [exn_exp; _] -> event_after loc exn_exp (Lvar vexn)
         | Some _ -> assert false
       in
-      Llet(Strict, Pgenval, vexn, exn,
+      Llet(Strict, Lambda.layout_block, vexn, exn,
            Lsequence(Lprim(Pccall caml_restore_raw_backtrace,
                            [Lvar vexn; bt],
                            loc),
@@ -796,7 +796,7 @@ let transl_primitive loc p env ty ~poly_mode path =
   in
   let rec make_params n =
     if n <= 0 then []
-    else (Ident.create_local "prim", Pgenval) :: make_params (n-1)
+    else (Ident.create_local "prim", Lambda.layout_top) :: make_params (n-1)
   in
   let params = make_params p.prim_arity in
   let args = List.map (fun (id, _) -> Lvar id) params in
@@ -826,7 +826,7 @@ let transl_primitive loc p env ty ~poly_mode path =
      lfunction
        ~kind:(Curried {nlocal})
        ~params
-       ~return:Pgenval
+       ~return:Lambda.layout_top
        ~attr:default_stub_attribute
        ~loc
        ~body

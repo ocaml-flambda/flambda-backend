@@ -596,27 +596,27 @@ let rec transl env e =
           (untag_int (transl env arg) dbg)
           s.us_index_consts
           (Array.map (fun expr -> transl env expr, dbg) s.us_actions_consts)
-          dbg (Vval kind)
+          dbg (kind_of_layout kind)
       else if Array.length s.us_index_consts = 0 then
         bind "switch" (transl env arg) (fun arg ->
-          transl_switch dbg (Vval kind) env (get_tag arg dbg)
+          transl_switch dbg (kind_of_layout kind) env (get_tag arg dbg)
             s.us_index_blocks s.us_actions_blocks)
       else
         bind "switch" (transl env arg) (fun arg ->
           Cifthenelse(
           Cop(Cand, [arg; Cconst_int (1, dbg)], dbg),
           dbg,
-          transl_switch dbg (Vval kind) env
+          transl_switch dbg (kind_of_layout kind) env
             (untag_int arg dbg) s.us_index_consts s.us_actions_consts,
           dbg,
-          transl_switch dbg (Vval kind) env
+          transl_switch dbg (kind_of_layout kind) env
             (get_tag arg dbg) s.us_index_blocks s.us_actions_blocks,
-          dbg, Vval kind))
+          dbg, kind_of_layout kind))
   | Ustringswitch(arg,sw,d, kind) ->
       let dbg = Debuginfo.none in
       bind "switch" (transl env arg)
         (fun arg ->
-          strmatch_compile dbg (Vval kind) arg (Option.map (transl env) d)
+          strmatch_compile dbg (kind_of_layout kind) arg (Option.map (transl env) d)
             (List.map (fun (s,act) -> s,transl env act) sw))
   | Ustaticfail (nfail, args) ->
       let cargs = List.map (transl env) args in
@@ -624,13 +624,13 @@ let rec transl env e =
       Cexit (nfail, cargs)
   | Ucatch(nfail, [], body, handler, kind) ->
       let dbg = Debuginfo.none in
-      make_catch (Vval kind) nfail (transl env body) (transl env handler) dbg
+      make_catch (kind_of_layout kind) nfail (transl env body) (transl env handler) dbg
   | Ucatch(nfail, ids, body, handler, kind) ->
       let dbg = Debuginfo.none in
-      transl_catch (Vval kind) env nfail ids body handler dbg
+      transl_catch (kind_of_layout kind) env nfail ids body handler dbg
   | Utrywith(body, exn, handler, kind) ->
       let dbg = Debuginfo.none in
-      Ctrywith(transl env body, exn, transl env handler, dbg, Vval kind)
+      Ctrywith(transl env body, exn, transl env handler, dbg, kind_of_layout kind)
   | Uifthenelse(cond, ifso, ifnot, kind) ->
       let ifso_dbg = Debuginfo.none in
       let ifnot_dbg = Debuginfo.none in
@@ -643,7 +643,7 @@ let rec transl env e =
         | Cconst_int (3, _), Cconst_int (1, _) -> Then_true_else_false
         | _, _ -> Unknown
       in
-      transl_if env (Vval kind) approx dbg cond
+      transl_if env (kind_of_layout kind) approx dbg cond
         ifso_dbg ifso ifnot_dbg ifnot
   | Usequence(exp1, exp2) ->
       Csequence(remove_unit(transl env exp1), transl env exp2)
@@ -717,7 +717,7 @@ and transl_catch (kind : Cmm.value_kind) env nfail ids body handler dbg =
      each argument.  *)
   let report args =
     List.iter2
-      (fun (_id, kind, u) c ->
+      (fun (_id, Pvalue kind, u) c ->
          let strict =
            match kind with
            | Pfloatval | Pboxedintval _ -> false
@@ -1167,7 +1167,7 @@ and transl_unbox_sized size dbg env exp =
   | Thirty_two -> transl_unbox_int dbg env Pint32 exp
   | Sixty_four -> transl_unbox_int dbg env Pint64 exp
 
-and transl_let env str (kind : Lambda.value_kind) id exp transl_body =
+and transl_let env str (Pvalue kind : Lambda.layout) id exp transl_body =
   let dbg = Debuginfo.none in
   let cexp = transl env exp in
   let unboxing =

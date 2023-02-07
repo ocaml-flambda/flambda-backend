@@ -239,9 +239,9 @@ let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda =
   match flam with
   | Var var -> subst_var env var
   | Let { var; defining_expr; body; _ } ->
-    (* TODO: synthesize proper value_kind *)
+    (* TODO: synthesize proper layout *)
     let id, env_body = Env.add_fresh_ident env var in
-    Ulet (Immutable, Pgenval, VP.create id,
+    Ulet (Immutable, Lambda.layout_top, VP.create id,
       to_clambda_named t env var defining_expr,
       to_clambda t env_body body)
   | Let_mutable { var = mut_var; initial_value = var; body; contents_kind } ->
@@ -325,7 +325,7 @@ let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda =
     let env_handler, ids =
       List.fold_right (fun var (env, ids) ->
           let id, env = Env.add_fresh_ident env var in
-          env, (VP.create id, Lambda.Pgenval) :: ids)
+          env, (VP.create id, Lambda.layout_top) :: ids)
         vars (env, [])
     in
     Ucatch (Static_exception.to_int static_exn, ids,
@@ -561,7 +561,7 @@ and to_clambda_set_of_closures t env
     let env_body, params =
       List.fold_right (fun var (env, params) ->
           let id, env = Env.add_fresh_ident env (Parameter.var var) in
-          env, id :: params)
+          env, (VP.create id, Parameter.kind var) :: params)
         function_decl.params (env, [])
     in
     let label =
@@ -571,11 +571,8 @@ and to_clambda_set_of_closures t env
     in
     { label;
       arity = clambda_arity function_decl;
-      params =
-        List.map
-          (fun var -> VP.create var, Lambda.Pgenval)
-          (params @ [env_var]);
-      return = Lambda.Pgenval;
+      params = params @ [VP.create env_var, Lambda.layout_function];
+      return = Lambda.layout_top;
       body = to_clambda t env_body function_decl.body;
       dbg = function_decl.dbg;
       env = Some env_var;
@@ -586,7 +583,9 @@ and to_clambda_set_of_closures t env
   let functions = List.map to_clambda_function all_functions in
   let not_scanned_fv, scanned_fv =
     Variable.Map.partition (fun _ (free_var : Flambda.specialised_to) ->
-        Lambda.equal_value_kind free_var.kind Pintval)
+        match free_var.kind with
+        | Pvalue Pintval -> true
+        | Pvalue _ -> false)
       free_vars
   in
   let to_closure_args free_vars =
@@ -622,7 +621,7 @@ and to_clambda_closed_set_of_closures t env symbol
     let env_body, params =
       List.fold_right (fun var (env, params) ->
           let id, env = Env.add_fresh_ident env (Parameter.var var) in
-          env, id :: params)
+          env, (VP.create id, Parameter.kind var) :: params)
         function_decl.params (env, [])
     in
     let body =
@@ -636,8 +635,8 @@ and to_clambda_closed_set_of_closures t env symbol
     in
     { label;
       arity = clambda_arity function_decl;
-      params = List.map (fun var -> VP.create var, Lambda.Pgenval) params;
-      return = Lambda.Pgenval;
+      params;
+      return = Lambda.layout_top;
       body;
       dbg = function_decl.dbg;
       env = None;

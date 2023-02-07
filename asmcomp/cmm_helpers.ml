@@ -1573,7 +1573,8 @@ struct
   type arg = expression
   type test = expression
   type act = expression
-  type nonrec value_kind = value_kind
+
+  type layout = value_kind
 
   (* CR mshinwell: GPR#2294 will fix the Debuginfo here *)
 
@@ -2997,3 +2998,6 @@ let emit_preallocated_blocks preallocated_blocks cont =
   in
   let c1 = emit_gc_roots_table ~symbols cont in
   List.fold_left preallocate_block c1 preallocated_blocks
+
+let kind_of_layout (Lambda.Pvalue kind) = Vval kind
+

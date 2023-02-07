@@ -344,7 +344,7 @@ let add_fun_var ~lhs_of_application ~closure_id_being_applied ~state ~fun_var =
     in
     let let_bindings = (outside_var, expr) :: state.let_bindings in
     let spec : Flambda.specialised_to =
-      { var = outside_var; projection = None; kind = Pgenval }
+      { var = outside_var; projection = None; kind = Lambda.layout_top }
     in
     let new_free_vars_with_old_projections =
       Variable.Map.add inside_var spec state.new_free_vars_with_old_projections

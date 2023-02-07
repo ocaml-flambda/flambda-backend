@@ -19,8 +19,8 @@ open! Int_replace_polymorphic_compare
 
 module Env = struct
   type t = {
-    variables : (Variable.t * Lambda.value_kind) Ident.tbl;
-    mutable_variables : (Mutable_variable.t * Lambda.value_kind) Ident.tbl;
+    variables : (Variable.t * Lambda.layout) Ident.tbl;
+    mutable_variables : (Mutable_variable.t * Lambda.layout) Ident.tbl;
     static_exceptions : Static_exception.t Numbers.Int.Map.t;
     globals : Symbol.t Numbers.Int.Map.t;
     at_toplevel : bool;
@@ -92,7 +92,7 @@ module Function_decls = struct
       kind : Lambda.function_kind;
       mode : Lambda.alloc_mode;
       region : bool;
-      params : (Ident.t * Lambda.value_kind) list;
+      params : (Ident.t * Lambda.layout) list;
       body : Lambda.lambda;
       free_idents_of_body : Ident.Set.t;
       attr : Lambda.function_attribute;
@@ -184,7 +184,7 @@ module Function_decls = struct
       (* For "let rec"-bound functions. *)
       List.fold_right (fun function_decl env ->
           Env.add_var env (Function_decl.let_rec_ident function_decl)
-            (Function_decl.closure_bound_var function_decl) Pgenval)
+            (Function_decl.closure_bound_var function_decl) Lambda.layout_function)
         t.function_decls (Env.clear_local_bindings external_env)
     in
     (* For free variables. *)
