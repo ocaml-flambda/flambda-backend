@@ -489,6 +489,7 @@ val layout_lazy_contents : layout
 val layout_any_value : layout
 
 val layout_top : layout
+val layout_bottom : layout
 
 val name_lambda: let_kind -> lambda -> layout -> (Ident.t -> lambda) -> lambda
 val name_lambda_list: (lambda * layout) list -> (lambda list -> lambda) -> lambda
