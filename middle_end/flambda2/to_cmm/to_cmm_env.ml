@@ -18,9 +18,6 @@ module R = To_cmm_result
 module P = Flambda_primitive
 module Ece = Effects_and_coeffects
 
-let debug () =
-  match Sys.getenv "DEBUG" with exception Not_found -> false | _ -> true
-
 type cont =
   | Jump of
       { cont : Cmm.label;
@@ -367,7 +364,6 @@ let create_binding_aux (type a) effs var ~(inline : a inline)
   in
   let cmm_var = gen_variable var in
   let binding = Binding { order; inline; effs; cmm_var; bound_expr } in
-  if debug () then Format.eprintf "new binding: %a@." print_any_binding binding;
   binding
 
 let create_binding (type a) effs var ~(inline : a inline)
@@ -460,10 +456,6 @@ let new_bindings_for_splitting order args =
                 cmm_var = new_cmm_var
               }
           in
-          if debug ()
-          then
-            Format.eprintf "new arg binding for split: %a@." print_any_binding
-              binding;
           ( (binding :: new_bindings, order - 1),
             C.var (Backend_var.With_provenance.var new_cmm_var) ))
       ([], order - 1)
@@ -508,8 +500,6 @@ let split_complex_binding ~env ~res (binding : complex binding) =
   match binding.bound_expr with
   | Split _ -> res, Already_split
   | Splittable_prim { dbg; prim; args } ->
-    if debug ()
-    then Format.eprintf "splitting binding: %a@." print_binding binding;
     let new_bindings, new_cmm_args =
       new_bindings_for_splitting binding.order args
     in
@@ -851,10 +841,6 @@ let add_alias env res ~var ~alias_of ~num_normal_occurrences_of_bound_vars =
         Variable.print var Variable.print alias_of
     | num_occurrences -> num_occurrences
   in
-  if debug ()
-  then
-    Format.eprintf "add_alias var=%a (occs %a), alias_of=%a\n%!" Variable.print
-      var Num_occurrences.print num_occurrences_of_var Variable.print alias_of;
   match Variable.Map.find alias_of env.bindings with
   | Binding ({ inline = Must_inline_once; _ } as b) -> (
     match num_occurrences_of_var with
