@@ -55,7 +55,7 @@ and ulambda =
   | Udirect_apply of
       function_label * ulambda list * Lambda.probe * apply_kind * Debuginfo.t
   | Ugeneric_apply of
-      ulambda * ulambda list * apply_kind * Debuginfo.t
+      ulambda * ulambda list * Lambda.layout list * Lambda.layout * apply_kind * Debuginfo.t
   | Uclosure of {
       functions : ufunction list ;
       not_scanned_slots : ulambda list ;
