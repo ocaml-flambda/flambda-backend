@@ -87,7 +87,7 @@ type specialised_to = {
       [specialised_args] respectively) in the same set of closures.
       As such, this field describes a relation of projections between
       either the [free_vars] or the [specialised_args]. *)
-  kind : Lambda.value_kind;
+  kind : Lambda.layout;
 }
 
 (** Flambda terms are partitioned in a pseudo-ANF manner; many terms are
@@ -105,14 +105,14 @@ type t =
   | Apply of apply
   | Send of send
   | Assign of assign
-  | If_then_else of Variable.t * t * t * Lambda.value_kind
+  | If_then_else of Variable.t * t * t * Lambda.layout
   | Switch of Variable.t * switch
   | String_switch of Variable.t * (string * t) list * t option
-                     * Lambda.value_kind
+                     * Lambda.layout
   (** Restrictions on [Lambda.Lstringswitch] also apply to [String_switch]. *)
   | Static_raise of Static_exception.t * Variable.t list
-  | Static_catch of Static_exception.t * Variable.t list * t * t * Lambda.value_kind
-  | Try_with of t * Variable.t * t * Lambda.value_kind
+  | Static_catch of Static_exception.t * Variable.t list * t * t * Lambda.layout
+  | Try_with of t * Variable.t * t * Lambda.layout
   | While of t * t
   | For of for_loop
   | Region of t
@@ -188,7 +188,7 @@ and let_expr = private {
 and let_mutable = {
   var : Mutable_variable.t;
   initial_value : Variable.t;
-  contents_kind : Lambda.value_kind;
+  contents_kind : Lambda.layout;
   body : t;
 }
 
@@ -350,7 +350,7 @@ and switch = {
   numblocks : Numbers.Int.Set.t; (** Number of tag block cases *)
   blocks : (int * t) list; (** Tag block cases *)
   failaction : t option; (** Action to take if none matched *)
-  kind : Lambda.value_kind
+  kind : Lambda.layout
 }
 
 (** Equivalent to the similar type in [Lambda]. *)

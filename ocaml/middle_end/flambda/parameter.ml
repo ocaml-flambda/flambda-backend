@@ -24,7 +24,7 @@ open! Int_replace_polymorphic_compare
 type parameter = {
   var : Variable.t;
   mode : Lambda.alloc_mode;
-  kind : Lambda.value_kind;
+  kind : Lambda.layout;
 }
 
 let wrap var mode kind = { var; mode; kind }
@@ -55,7 +55,7 @@ module M =
         | Lambda.Alloc_heap -> ""
         | Lambda.Alloc_local -> "[->L]" in
       Format.fprintf ppf "%a%s[%a]"
-        Variable.print var mode Printlambda.value_kind kind
+        Variable.print var mode Printlambda.layout kind
 
     let output o { var; mode = _ ; kind = _ } =
       Variable.output o var
