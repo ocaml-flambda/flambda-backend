@@ -190,14 +190,15 @@ let variable_and_symbol_invariants (program : Flambda.program) =
     | Var var -> check_variable_is_bound env var
     | Apply { func; args; kind; dbg; inlined; specialise; probe;
               reg_close = (Rc_close_at_apply|Rc_normal|Rc_nontail);
-              mode = (Alloc_heap|Alloc_local) } ->
+              mode = (Alloc_heap|Alloc_local); result_layout } ->
       check_variable_is_bound env func;
       check_variables_are_bound env args;
       ignore_call_kind kind;
       ignore_debuginfo dbg;
       ignore_inlined_attribute inlined;
       ignore_specialise_attribute specialise;
-      ignore_probe probe
+      ignore_probe probe;
+      ignore result_layout
     | Assign { being_assigned; new_value; } ->
       check_mutable_variable_is_bound env being_assigned;
       check_variable_is_bound env new_value
