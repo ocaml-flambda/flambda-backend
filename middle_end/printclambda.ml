@@ -140,7 +140,7 @@ and lam ppf = function
         | Some {name} -> fprintf ppf " (probe %s)" name
       in
       fprintf ppf "@[<2>(%a*@ %s %a%a)@]" apply_kind kind f lams largs pr probe
-  | Ugeneric_apply(lfun, largs, kind, _) ->
+  | Ugeneric_apply(lfun, largs, _, _, kind, _) ->
       let lams ppf largs =
         List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in
       fprintf ppf "@[<2>(%a@ %a%a)@]" apply_kind kind lam lfun lams largs

@@ -105,7 +105,7 @@ let occurs_var var u =
       Uvar v -> v = var
     | Uconst _ -> false
     | Udirect_apply(_lbl, args, _, _, _) -> List.exists occurs args
-    | Ugeneric_apply(funct, args, _, _) ->
+    | Ugeneric_apply(funct, args, _, _, _, _) ->
         occurs funct || List.exists occurs args
     | Uclosure { functions = _ ; not_scanned_slots ; scanned_slots } ->
       List.exists occurs not_scanned_slots || List.exists occurs scanned_slots
@@ -198,7 +198,7 @@ let lambda_smaller lam threshold =
     (* We aim for probe points to not affect inlining decisions.
        Actual cost is either 1, 5 or 6 bytes, depending on their kind,
        on x86-64. *)
-    | Ugeneric_apply(fn, args, _, _) ->
+    | Ugeneric_apply(fn, args, _, _, _, _) ->
         size := !size + 6; lambda_size fn; lambda_list_size args
     | Uclosure _ ->
         raise Exit (* inlining would duplicate function definitions *)
@@ -609,10 +609,11 @@ let rec substitute loc ((backend, fpc) as st) sb rn ulam =
       let dbg = subst_debuginfo loc dbg in
       Udirect_apply(lbl, List.map (substitute loc st sb rn) args,
                     probe, kind, dbg)
-  | Ugeneric_apply(fn, args, kind, dbg) ->
+  | Ugeneric_apply(fn, args, args_layout, return_layout, kind, dbg) ->
       let dbg = subst_debuginfo loc dbg in
       Ugeneric_apply(substitute loc st sb rn fn,
-                     List.map (substitute loc st sb rn) args, kind, dbg)
+                     List.map (substitute loc st sb rn) args,
+                     args_layout, return_layout, kind, dbg)
   | Uclosure { functions ; not_scanned_slots ; scanned_slots } ->
       (* Question: should we rename function labels as well?  Otherwise,
          there is a risk that function labels are not globally unique.
@@ -1022,7 +1023,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
        when fun_arity > nargs *)
   | Lapply{ap_func = funct; ap_args = args; ap_region_close=pos; ap_mode=mode;
            ap_probe = probe; ap_loc = loc;
-           ap_inlined = attribute} ->
+           ap_inlined = attribute; ap_result_layout} ->
       let nargs = List.length args in
       if nargs = 0 && probe = None then
         Misc.fatal_errorf "Closure: 0-ary application at %a"
@@ -1143,7 +1144,10 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
                               fundesc ufunct first_args
                               Rc_normal mode'
                               ~probe,
-                           rem_args, (Rc_normal, mode), dbg)
+                           rem_args,
+                           List.map (fun _ -> Lambda.layout_top) rem_args,
+                           ap_result_layout,
+                           (Rc_normal, mode), dbg)
           in
           let body =
             match mode, fundesc.fun_region with
@@ -1167,7 +1171,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
           let dbg = Debuginfo.from_location loc in
           warning_if_forced_inlined ~loc ~attribute "Unknown function";
           fail_if_probe ~probe "Unknown function";
-          (Ugeneric_apply(ufunct, uargs, (pos, mode), dbg), Value_unknown)
+          (Ugeneric_apply(ufunct, uargs, List.map (fun _ -> Lambda.layout_top) uargs, ap_result_layout, (pos, mode), dbg), Value_unknown)
       end
   | Lsend(kind, met, obj, args, pos, mode, loc, _result_layout) ->
       let (umet, _) = close env met in
@@ -1726,7 +1730,7 @@ let collect_exported_structured_constants a =
     | Uvar _ -> ()
     | Uconst c -> const c
     | Udirect_apply (_, ul, _, _, _) -> List.iter ulam ul
-    | Ugeneric_apply (u, ul, _, _) -> ulam u; List.iter ulam ul
+    | Ugeneric_apply (u, ul, _, _, _, _) -> ulam u; List.iter ulam ul
     | Uclosure { functions ; not_scanned_slots ; scanned_slots } ->
         List.iter (fun f -> ulam f.body) functions;
         List.iter ulam not_scanned_slots;

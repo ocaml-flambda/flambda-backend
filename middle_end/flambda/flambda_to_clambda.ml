@@ -277,8 +277,10 @@ let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda =
     to_clambda_direct_apply t func args direct_func probe dbg reg_close mode env
   | Apply { func; args; kind = Indirect; probe = None; dbg; reg_close; mode } ->
     let callee = subst_var env func in
+    let args_layout = assert false in
+    let result_layout = assert false in
     Ugeneric_apply (check_closure t callee (Flambda.Expr (Var func)),
-      subst_vars env args, (reg_close, mode), dbg)
+      subst_vars env args, args_layout, result_layout, (reg_close, mode), dbg)
   | Apply { probe = Some {name}; _ } ->
     Misc.fatal_errorf "Cannot apply indirect handler for probe %s" name ()
   | Switch (arg, sw) ->

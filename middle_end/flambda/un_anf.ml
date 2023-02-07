@@ -141,9 +141,11 @@ let make_var_info (clam : Clambda.ulambda) : var_info =
       List.iter (loop ~depth) args;
       ignore_apply_kind info;
       ignore_debuginfo dbg
-    | Ugeneric_apply (func, args, info, dbg) ->
+    | Ugeneric_apply (func, args, args_layout, result_layout, info, dbg) ->
       loop ~depth func;
       List.iter (loop ~depth) args;
+      List.iter ignore_layout args_layout;
+      ignore_layout result_layout;
       ignore_apply_kind info;
       ignore_debuginfo dbg
     | Uclosure { functions; not_scanned_slots ; scanned_slots } ->
@@ -319,8 +321,10 @@ let let_bound_vars_that_can_be_moved var_info (clam : Clambda.ulambda) =
       ignore_probe probe;
       ignore_apply_kind info;
       ignore_debuginfo dbg
-    | Ugeneric_apply (func, args, info, dbg) ->
+    | Ugeneric_apply (func, args, args_layout, result_layout, info, dbg) ->
       examine_argument_list (args @ [func]);
+      List.iter ignore_layout args_layout;
+      ignore_layout result_layout;
       ignore_apply_kind info;
       ignore_debuginfo dbg
     | Uclosure { functions ; not_scanned_slots ; scanned_slots } ->
@@ -499,10 +503,10 @@ let rec substitute_let_moveable is_let_moveable env (clam : Clambda.ulambda)
   | Udirect_apply (label, args, probe, kind, dbg) ->
     let args = substitute_let_moveable_list is_let_moveable env args in
     Udirect_apply (label, args, probe, kind, dbg)
-  | Ugeneric_apply (func, args, kind, dbg) ->
+  | Ugeneric_apply (func, args, args_layout, result_layout, kind, dbg) ->
     let func = substitute_let_moveable is_let_moveable env func in
     let args = substitute_let_moveable_list is_let_moveable env args in
-    Ugeneric_apply (func, args, kind, dbg)
+    Ugeneric_apply (func, args, args_layout, result_layout, kind, dbg)
   | Uclosure { functions ; not_scanned_slots ; scanned_slots } ->
     let functions =
       List.map (fun (ufunction : Clambda.ufunction) ->
@@ -703,10 +707,10 @@ let rec un_anf_and_moveable var_info env (clam : Clambda.ulambda)
   | Udirect_apply (label, args, probe, kind, dbg) ->
     let args = un_anf_list var_info env args in
     Udirect_apply (label, args, probe, kind, dbg), Fixed
-  | Ugeneric_apply (func, args, kind, dbg) ->
+  | Ugeneric_apply (func, args, args_layout, result_layout, kind, dbg) ->
     let func = un_anf var_info env func in
     let args = un_anf_list var_info env args in
-    Ugeneric_apply (func, args, kind, dbg), Fixed
+    Ugeneric_apply (func, args, args_layout, result_layout, kind, dbg), Fixed
   | Uclosure { functions ; not_scanned_slots ; scanned_slots } ->
     let functions =
       List.map (fun (ufunction : Clambda.ufunction) ->

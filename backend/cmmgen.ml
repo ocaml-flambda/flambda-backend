@@ -493,11 +493,11 @@ let rec transl env e =
   | Udirect_apply(lbl, args, None, kind, dbg) ->
       let args = List.map (transl env) args in
       direct_apply lbl args kind dbg
-  | Ugeneric_apply(clos, args, kind, dbg) ->
+  | Ugeneric_apply(clos, args, args_layout, result_layout, kind, dbg) ->
       let clos = transl env clos in
       let args = List.map (transl env) args in
-      let args_type = List.map (fun _ -> typ_val) args in
-      let return = typ_val in
+      let args_type = List.map machtype_of_layout args_layout in
+      let return = machtype_of_layout result_layout in
       generic_apply (mut_from_env env clos) clos args args_type return kind dbg
   | Usend(kind, met, obj, args, pos, dbg) ->
       let met = transl env met in
