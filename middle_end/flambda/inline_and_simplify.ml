@@ -610,6 +610,7 @@ and simplify_set_of_closures original_env r
     let function_decl =
       Flambda.create_function_declaration
         ~params:function_decl.params
+        ~return_layout:function_decl.return_layout
         ~alloc_mode:function_decl.alloc_mode ~region:function_decl.region
         ~body ~stub:function_decl.stub
         ~inline:function_decl.inline ~specialise:function_decl.specialise
@@ -880,6 +881,7 @@ and simplify_partial_application env r ~lhs_of_application
       ~alloc_mode:partial_mode
       ~region:function_decl.A.region
       ~params:remaining_args
+      ~return_layout:function_decl.A.return_layout
       ~free_variables
   in
   let with_known_args =
@@ -1509,6 +1511,7 @@ and duplicate_function ~env ~(set_of_closures : Flambda.set_of_closures)
   let function_decl =
     Flambda.create_function_declaration
       ~params:function_decl.params
+      ~return_layout:function_decl.return_layout
       ~alloc_mode:function_decl.alloc_mode ~region:function_decl.region
       ~body ~stub:function_decl.stub
       ~inline:function_decl.inline ~specialise:function_decl.specialise

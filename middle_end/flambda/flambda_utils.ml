@@ -343,7 +343,7 @@ let toplevel_substitution_named sb named =
   | _ -> assert false
 
 let make_closure_declaration
-      ~is_classic_mode ~id ~alloc_mode ~region ~body ~params ~free_variables : Flambda.t =
+      ~is_classic_mode ~id ~alloc_mode ~region ~body ~params ~return_layout ~free_variables : Flambda.t =
   let param_set = Parameter.Set.vars params in
   let free_variables_set = Variable.Map.keys free_variables in
   if not (Variable.Set.subset param_set free_variables_set) then begin
@@ -363,6 +363,7 @@ let make_closure_declaration
   let function_declaration =
     Flambda.create_function_declaration
       ~params:(List.map subst_param params) ~alloc_mode  ~region
+      ~return_layout
       ~body ~stub:true ~inline:Default_inline
       ~specialise:Default_specialise ~check:Default_check ~is_a_functor:false
       ~closure_origin:(Closure_origin.create (Closure_id.wrap id))

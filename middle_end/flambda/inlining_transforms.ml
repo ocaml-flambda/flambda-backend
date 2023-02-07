@@ -541,6 +541,7 @@ let rewrite_function ~lhs_of_application ~closure_id_being_applied
     Flambda.create_function_declaration
       ~params ~alloc_mode:function_decl.alloc_mode ~region:function_decl.region
       ~body
+      ~return_layout:function_decl.return_layout
       ~stub:function_body.stub
       ~inline:function_body.inline
       ~specialise:function_body.specialise
