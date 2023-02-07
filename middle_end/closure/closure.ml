@@ -59,8 +59,8 @@ let rec add_to_closure_env env_param pos cenv = function
 
 let is_gc_ignorable kind =
   match kind with
-  | Pintval -> true
-  | Pgenval | Pfloatval | Pboxedintval _ | Pvariant _ | Parrayval _ -> false
+  | Pvalue Pintval -> true
+  | Pvalue (Pgenval | Pfloatval | Pboxedintval _ | Pvariant _ | Parrayval _) -> false
 
 let split_closure_fv kinds fv =
   List.partition (fun id -> is_gc_ignorable (V.Map.find id kinds)) fv
@@ -768,7 +768,7 @@ type env = {
   cenv : ulambda V.Map.t;
   fenv : value_approximation V.Map.t;
   mutable_vars : V.Set.t;
-  kinds: value_kind V.Map.t;
+  kinds: layout V.Map.t;
   catch_env : int Int.Map.t;
 }
 
@@ -831,7 +831,7 @@ let bind_params { backend; mutable_vars; _ } loc fdesc params args funct body =
           in
           let body' = aux (V.Map.add (VP.var p1) u2 subst) pl al body in
           if occurs_var (VP.var p1) body then
-            Ulet(Immutable, Pgenval, p1', u1, body')
+            Ulet(Immutable, Lambda.layout_top, p1', u1, body')
           else if is_erasable a1 then body'
           else Usequence(a1, body')
         end
@@ -896,14 +896,14 @@ let direct_apply env fundesc ufunct uargs pos mode ~probe ~loc ~attribute =
        List.fold_left (fun app (binding,_) ->
            match binding with
            | None -> app
-           | Some (v, e) -> Ulet(Immutable, Pgenval, v, e, app))
+           | Some (v, e) -> Ulet(Immutable, Lambda.layout_top, v, e, app))
          (if fundesc.fun_closed then
             Usequence (ufunct,
                        Udirect_apply (fundesc.fun_label, app_args,
                                       probe, kind, dbg))
           else
             let clos = V.create_local "clos" in
-            Ulet(Immutable, Pgenval, VP.create clos, ufunct,
+            Ulet(Immutable, Lambda.layout_function, VP.create clos, ufunct,
                  Udirect_apply(fundesc.fun_label, app_args @ [Uvar clos],
                                probe, kind, dbg)))
          args
@@ -1055,7 +1055,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
           (V.create_local "arg", arg) ) uargs in
         (* CR mshinwell: Edit when Lapply has kinds *)
         let kinds =
-          List.fold_left (fun kinds (arg, _) -> V.Map.add arg Pgenval kinds)
+          List.fold_left (fun kinds (arg, _) -> V.Map.add arg Lambda.layout_top kinds)
             kinds first_args
         in
         let final_args =
@@ -1066,7 +1066,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
               [] -> body
             | (arg1, arg2) :: args ->
               iter args
-                (Ulet (Immutable, Pgenval, VP.create arg1, arg2, body))
+                (Ulet (Immutable, Lambda.layout_top, VP.create arg1, arg2, body))
         in
         let internal_args =
           (List.map (fun (arg1, _arg2) -> Lvar arg1) first_args)
@@ -1074,7 +1074,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
         in
         let funct_var = V.create_local "funct" in
         let fenv = V.Map.add funct_var fapprox fenv in
-        let kinds = V.Map.add funct_var Pgenval kinds in
+        let kinds = V.Map.add funct_var Lambda.layout_function kinds in
         let new_clos_mode, kind =
           (* If the closure has a local suffix, and we've supplied
              enough args to hit it, then the closure must be local
@@ -1093,8 +1093,8 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
           close { backend; fenv; cenv; mutable_vars; kinds; catch_env }
           (lfunction
                ~kind
-               ~return:Pgenval
-               ~params:(List.map (fun v -> v, Pgenval) final_args)
+               ~return:Lambda.layout_top
+               ~params:(List.map (fun v -> v, Lambda.layout_top) final_args)
                ~body:(Lapply{
                  ap_loc=loc;
                  ap_func=(Lvar funct_var);
@@ -1113,7 +1113,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
         in
         let new_fun =
           iter first_args
-            (Ulet (Immutable, Pgenval, VP.create funct_var, ufunct, new_fun))
+            (Ulet (Immutable, Lambda.layout_function, VP.create funct_var, ufunct, new_fun))
         in
         warning_if_forced_inlined ~loc ~attribute "Partial application";
         fail_if_probe ~probe "Partial application";
@@ -1125,7 +1125,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
           let args = List.map (fun arg -> V.create_local "arg", arg) uargs in
           (* CR mshinwell: Edit when Lapply has kinds *)
           let kinds =
-            List.fold_left (fun kinds (var, _) -> V.Map.add var Pgenval kinds)
+            List.fold_left (fun kinds (var, _) -> V.Map.add var Lambda.layout_top kinds)
               kinds args
           in
           let (first_args, rem_args) = split_list nparams args in
@@ -1154,7 +1154,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
           in
           let result =
             List.fold_left (fun body (id, defining_expr) ->
-                Ulet (Immutable, Pgenval, VP.create id, defining_expr, body))
+                Ulet (Immutable, Lambda.layout_top, VP.create id, defining_expr, body))
               body
               args
           in
@@ -1220,8 +1220,8 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
             infos fenv in
         let kinds_body =
           List.fold_right
-            (fun (id, _pos, _approx) kinds -> V.Map.add id Pgenval kinds)
-            infos (V.Map.add clos_ident Pgenval kinds)
+            (fun (id, _pos, _approx) kinds -> V.Map.add id Lambda.layout_function kinds)
+            infos (V.Map.add clos_ident Lambda.layout_function kinds)
         in
         let (ubody, approx) =
           close
@@ -1239,14 +1239,14 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
             (fun (id, pos, _approx) sb ->
               V.Map.add id (Uoffset(Uvar clos_ident, pos)) sb)
             infos V.Map.empty in
-        (Ulet(Immutable, Pgenval, VP.create clos_ident, clos,
+        (Ulet(Immutable, Lambda.layout_function, VP.create clos_ident, clos,
               substitute Debuginfo.none (backend, !Clflags.float_const_prop) sb
                 None ubody),
          approx)
       end else begin
         (* General case: recursive definition of values *)
         let kinds =
-          List.fold_left (fun kinds (id, _) -> V.Map.add id Pgenval kinds)
+          List.fold_left (fun kinds (id, _) -> V.Map.add id Lambda.layout_top kinds)
             kinds defs
         in
         let rec clos_defs = function
@@ -1276,7 +1276,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
       in
       let arg, _approx = close env arg in
       let id = Ident.create_local "dummy" in
-      Ulet(Immutable, Pgenval, VP.create id, arg, cst), approx
+      Ulet(Immutable, Lambda.layout_top, VP.create id, arg, cst), approx
   | Lprim(Pignore, [arg], _loc) ->
       let expr, approx = make_const_int 0 in
       Usequence(fst (close env arg), expr), approx
@@ -1383,7 +1383,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
   | Ltrywith(body, id, handler, kind) ->
       let (ubody, _) = close env body in
       let (uhandler, _) =
-        close { env with kinds = V.Map.add id Pgenval kinds } handler
+        close { env with kinds = V.Map.add id Lambda.layout_block kinds } handler
       in
       (Utrywith(ubody, VP.create id, uhandler, kind), Value_unknown)
   | Lifthenelse(arg, ifso, ifnot, kind) ->
@@ -1408,7 +1408,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
       let (ulo, _) = close env for_from in
       let (uhi, _) = close env for_to in
       let (ubody, _) =
-        close { env with kinds = V.Map.add for_id Pintval kinds } for_body
+        close { env with kinds = V.Map.add for_id Lambda.layout_int kinds } for_body
       in
       (Ufor(VP.create for_id, ulo, uhi, for_dir, ubody), Value_unknown)
   | Lassign(id, lam) ->
@@ -1506,7 +1506,7 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
     List.fold_right
       (fun (id, _params, _return, _body, _mode, _attrib, _fundesc, _dbg)
            kinds ->
-         V.Map.add id Pgenval kinds)
+         V.Map.add id Lambda.layout_function kinds)
       uncurried_defs kinds in
   (* Determine the offsets of each function's closure in the shared block *)
   let env_pos = ref (-1) in
@@ -1542,7 +1542,7 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
     let kinds_body =
       List.fold_right
         (fun (id, kind) kinds -> V.Map.add id kind kinds)
-        params (V.Map.add env_param Pgenval kinds_rec)
+        params (V.Map.add env_param Lambda.layout_function kinds_rec)
     in
     let (ubody, approx) =
       close
@@ -1559,7 +1559,7 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
     let fun_params =
       if !useless_env
       then params
-      else params @ [env_param, Pgenval]
+      else params @ [env_param, Lambda.layout_function]
     in
     let f =
       {

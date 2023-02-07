@@ -44,12 +44,12 @@ let add_default_argument_wrappers lam =
                    mode; region}, body) ->
       begin match
         Simplif.split_default_wrapper ~id ~kind ~params
-          ~body:fbody ~return:Pgenval ~attr ~loc ~mode ~region
+          ~body:fbody ~return:Lambda.layout_top ~attr ~loc ~mode ~region
       with
-      | [fun_id, def] -> Llet (Alias, Pgenval, fun_id, def, body)
+      | [fun_id, def] -> Llet (Alias, Lambda.layout_function, fun_id, def, body)
       | [fun_id, def; inner_fun_id, def_inner] ->
-        Llet (Alias, Pgenval, inner_fun_id, def_inner,
-              Llet (Alias, Pgenval, fun_id, def, body))
+        Llet (Alias, Lambda.layout_function, inner_fun_id, def_inner,
+              Llet (Alias, Lambda.layout_function, fun_id, def, body))
       | _ -> assert false
       end
     | Lletrec (defs, body) as lam ->
@@ -61,7 +61,7 @@ let add_default_argument_wrappers lam =
                  | (id, Lambda.Lfunction {kind; params; body; attr; loc;
                                           mode; region}) ->
                    Simplif.split_default_wrapper ~id ~kind ~params ~body
-                     ~return:Pgenval ~attr ~loc ~mode ~region
+                     ~return:Lambda.layout_top ~attr ~loc ~mode ~region
                  | _ -> assert false)
                defs)
         in
@@ -103,7 +103,7 @@ let tupled_function_call_stub original_params unboxed_version ~closure_bound_var
   in
   (* Tupled functions are always Alloc_heap. See translcore.ml *)
   let alloc_mode = Lambda.alloc_heap in
-  let tuple_param = Parameter.wrap tuple_param_var alloc_mode Pgenval in
+  let tuple_param = Parameter.wrap tuple_param_var alloc_mode Lambda.layout_block in
   Flambda.create_function_declaration ~params:[tuple_param] ~alloc_mode ~region
     ~body ~stub:true ~inline:Default_inline
     ~specialise:Default_specialise ~check:Default_check ~is_a_functor:false
@@ -196,12 +196,12 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
   | Lconst cst ->
     let cst, name = close_const t cst in
     name_expr cst ~name
-  | Llet ((Strict | Alias | StrictOpt), value_kind, id, defining_expr, body) ->
+  | Llet ((Strict | Alias | StrictOpt), layout, id, defining_expr, body) ->
     let var = Variable.create_with_same_name_as_ident id in
     let defining_expr =
       close_let_bound_expression t var env defining_expr
     in
-    let body = close t (Env.add_var env id var value_kind) body in
+    let body = close t (Env.add_var env id var layout) body in
     Flambda.create_let var defining_expr body
   | Lmutlet (block_kind, id, defining_expr, body) ->
     let mut_var = Mutable_variable.create_with_same_name_as_ident id in
@@ -263,7 +263,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
   | Lletrec (defs, body) ->
     let env =
       List.fold_right (fun (id,  _) env ->
-          Env.add_var env id (Variable.create_with_same_name_as_ident id) Pgenval)
+          Env.add_var env id (Variable.create_with_same_name_as_ident id) Lambda.layout_top)
         defs env
     in
     let function_declarations =
@@ -398,7 +398,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
                      case in the array data types work.
                      mshinwell: deferred CR *)
                   name_expr ~name:Names.result
-                    (Prim (prim, [numerator; denominator], dbg)), Pintval))))))
+                    (Prim (prim, [numerator; denominator], dbg)), Lambda.layout_int))))))
   | Lprim ((Pdivint Safe | Pmodint Safe
            | Pdivbint { is_safe = Safe } | Pmodbint { is_safe = Safe }), _, _)
       when not !Clflags.unsafe ->
@@ -410,7 +410,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
     let cond = Variable.create Names.cond_sequor in
     Flambda.create_let const_true (Const (Int 1))
       (Flambda.create_let cond (Expr arg1)
-        (If_then_else (cond, Var const_true, arg2, Pintval)))
+        (If_then_else (cond, Var const_true, arg2, Lambda.layout_int)))
   | Lprim (Psequand, [arg1; arg2], _) ->
     let arg1 = close t env arg1 in
     let arg2 = close t env arg2 in
@@ -418,7 +418,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
     let cond = Variable.create Names.const_sequand in
     Flambda.create_let const_false (Const (Int 0))
       (Flambda.create_let cond (Expr arg1)
-        (If_then_else (cond, arg2, Var const_false, Pintval)))
+        (If_then_else (cond, arg2, Var const_false, Lambda.layout_int)))
   | Lprim ((Psequand | Psequor), _, _) ->
     Misc.fatal_error "Psequand / Psequor must have exactly two arguments"
   | Lprim ((Pbytes_to_string | Pbytes_of_string | Pobj_magic),
@@ -455,7 +455,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
         end
       in
       close t env
-        (Lambda.Llet(Strict, Pgenval, Ident.create_local "dummy",
+        (Lambda.Llet(Strict, Lambda.layout_unit, Ident.create_local "dummy",
                      arg, Lconst const))
   | Lprim (Pfield _, [Lprim (Pgetglobal cu, [],_)], _)
       when Compilation_unit.equal cu t.current_unit ->
@@ -534,7 +534,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
   | Ltrywith (body, id, handler, kind) ->
     let var = Variable.create_with_same_name_as_ident id in
     Try_with (close t env body, var,
-              close t (Env.add_var env id var Pgenval) handler,
+              close t (Env.add_var env id var Lambda.layout_block) handler,
               kind)
   | Lifthenelse (cond, ifso, ifnot, kind) ->
     let cond = close t env cond in
@@ -552,7 +552,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
     let bound_var = Variable.create_with_same_name_as_ident for_id in
     let from_value = Variable.create Names.for_from in
     let to_value = Variable.create Names.for_to in
-    let body = close t (Env.add_var env for_id bound_var Pintval) for_body in
+    let body = close t (Env.add_var env for_id bound_var Lambda.layout_int) for_body in
     Flambda.create_let from_value (Expr (close t env for_from))
       (Flambda.create_let to_value (Expr (close t env for_to))
         (For { bound_var; from_value; to_value; direction=for_dir; body; }))

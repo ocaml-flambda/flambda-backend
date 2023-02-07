@@ -52,7 +52,7 @@ let ignore_tag (_ : Tag.t) = ()
 let ignore_inlined_attribute (_ : Lambda.inlined_attribute) = ()
 let ignore_specialise_attribute (_ : Lambda.specialise_attribute) = ()
 let ignore_probe (_ : Lambda.probe) = ()
-let ignore_value_kind (_ : Lambda.value_kind) = ()
+let ignore_layout (_ : Lambda.layout) = ()
 
 exception Binding_occurrence_not_from_current_compilation_unit of Variable.t
 exception Mutable_binding_occurrence_not_from_current_compilation_unit of
@@ -158,7 +158,7 @@ let variable_and_symbol_invariants (program : Flambda.program) =
       loop (add_binding_occurrence env var) body
     | Let_mutable { var = mut_var; initial_value = var;
                     body; contents_kind } ->
-      ignore_value_kind contents_kind;
+      ignore_layout contents_kind;
       check_variable_is_bound env var;
       loop (add_mutable_binding_occurrence env mut_var) body
     | Let_rec (defs, body) ->
@@ -179,12 +179,12 @@ let variable_and_symbol_invariants (program : Flambda.program) =
       loop (add_binding_occurrence env bound_var) body
     | Static_catch (static_exn, vars, body, handler, kind) ->
       ignore_static_exception static_exn;
-      ignore_value_kind kind;
+      ignore_layout kind;
       loop env body;
       loop (add_binding_occurrences env vars) handler
     | Try_with (body, var, handler, kind) ->
       loop env body;
-      ignore_value_kind kind;
+      ignore_layout kind;
       loop (add_binding_occurrence env var) handler
     (* Everything else: *)
     | Var var -> check_variable_is_bound env var
@@ -211,14 +211,14 @@ let variable_and_symbol_invariants (program : Flambda.program) =
       ignore_debuginfo dbg
     | If_then_else (cond, ifso, ifnot, kind) ->
       check_variable_is_bound env cond;
-      ignore_value_kind kind;
+      ignore_layout kind;
       loop env ifso;
       loop env ifnot
     | Switch (arg, { numconsts; consts; numblocks; blocks; failaction; kind }) ->
       check_variable_is_bound env arg;
       ignore_int_set numconsts;
       ignore_int_set numblocks;
-      ignore_value_kind kind;
+      ignore_layout kind;
       List.iter (fun (n, e) ->
           ignore_int n;
           loop env e)
@@ -230,7 +230,7 @@ let variable_and_symbol_invariants (program : Flambda.program) =
           ignore_string label;
           loop env case)
         cases;
-      ignore_value_kind kind;
+      ignore_layout kind;
       Option.iter (loop env) e_opt
     | Static_raise (static_exn, es) ->
       ignore_static_exception static_exn;

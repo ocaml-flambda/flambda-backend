@@ -658,3 +658,5 @@ val emit_preallocated_blocks :
   Clambda.preallocated_block list -> phrase list -> phrase list
 
 val make_symbol : ?compilation_unit:Compilation_unit.t -> string -> string
+
+val kind_of_layout : Lambda.layout -> value_kind

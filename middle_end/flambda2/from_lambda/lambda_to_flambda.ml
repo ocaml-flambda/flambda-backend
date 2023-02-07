@@ -40,15 +40,14 @@ module Env : sig
 
   val is_mutable : t -> Ident.t -> bool
 
-  val register_mutable_variable :
-    t -> Ident.t -> Lambda.value_kind -> t * Ident.t
+  val register_mutable_variable : t -> Ident.t -> Lambda.layout -> t * Ident.t
 
   val update_mutable_variable : t -> Ident.t -> t * Ident.t
 
   type add_continuation_result = private
     { body_env : t;
       handler_env : t;
-      extra_params : (Ident.t * Lambda.value_kind) list
+      extra_params : (Ident.t * Lambda.layout) list
     }
 
   val add_continuation :
@@ -74,12 +73,11 @@ module Env : sig
   val extra_args_for_continuation : t -> Continuation.t -> Ident.t list
 
   val extra_args_for_continuation_with_kinds :
-    t -> Continuation.t -> (Ident.t * Lambda.value_kind) list
+    t -> Continuation.t -> (Ident.t * Lambda.layout) list
 
   val get_mutable_variable : t -> Ident.t -> Ident.t
 
-  val get_mutable_variable_with_kind :
-    t -> Ident.t -> Ident.t * Lambda.value_kind
+  val get_mutable_variable_with_kind : t -> Ident.t -> Ident.t * Lambda.layout
 
   (** About local allocation regions:
 
@@ -175,7 +173,7 @@ end = struct
   type t =
     { current_unit : Compilation_unit.t;
       current_values_of_mutables_in_scope :
-        (Ident.t * Lambda.value_kind) Ident.Map.t;
+        (Ident.t * Lambda.layout) Ident.Map.t;
       mutables_needed_by_continuations : Ident.Set.t Continuation.Map.t;
       try_stack : Continuation.t list;
       try_stack_at_handler : Continuation.t list Continuation.Map.t;
@@ -237,7 +235,7 @@ end = struct
   type add_continuation_result =
     { body_env : t;
       handler_env : t;
-      extra_params : (Ident.t * Lambda.value_kind) list
+      extra_params : (Ident.t * Lambda.layout) list
     }
 
   let add_continuation t cont ~push_to_try_stack (recursive : Asttypes.rec_flag)
@@ -581,39 +579,40 @@ let transform_primitive env (prim : L.primitive) args loc =
     Transformed
       (L.Llet
          ( Strict,
-           Pgenval,
+           Lambda.layout_int,
            const_true,
            Lconst (Const_base (Const_int 1)),
            L.Llet
              ( Strict,
-               Pgenval,
+               Lambda.layout_int,
                cond,
                arg1,
                switch_for_if_then_else ~cond:(L.Lvar cond)
-                 ~ifso:(L.Lvar const_true) ~ifnot:arg2 ~kind:Pintval ) ))
+                 ~ifso:(L.Lvar const_true) ~ifnot:arg2 ~kind:Lambda.layout_int
+             ) ))
   | Psequand, [arg1; arg2] ->
     let const_false = Ident.create_local "const_false" in
     let cond = Ident.create_local "cond_sequand" in
     Transformed
       (L.Llet
          ( Strict,
-           Pgenval,
+           Lambda.layout_int,
            const_false,
            Lconst (Const_base (Const_int 0)),
            L.Llet
              ( Strict,
-               Pgenval,
+               Lambda.layout_int,
                cond,
                arg1,
                switch_for_if_then_else ~cond:(L.Lvar cond) ~ifso:arg2
-                 ~ifnot:(L.Lvar const_false) ~kind:Pintval ) ))
+                 ~ifnot:(L.Lvar const_false) ~kind:Lambda.layout_int ) ))
   | (Psequand | Psequor), _ ->
     Misc.fatal_error "Psequand / Psequor must have exactly two arguments"
   | (Pbytes_to_string | Pbytes_of_string), [arg] -> Transformed arg
   | Pignore, [arg] ->
     let ident = Ident.create_local "ignore" in
     let result = L.Lconst (Const_base (Const_int 0)) in
-    Transformed (L.Llet (Strict, Pgenval, ident, arg, result))
+    Transformed (L.Llet (Strict, Lambda.layout_top, ident, arg, result))
   | Pfield _, [L.Lprim (Pgetglobal cu, [], _)]
     when Compilation_unit.equal cu (Env.current_unit env) ->
     Misc.fatal_error
@@ -687,15 +686,15 @@ let rec_catch_for_while_loop env cond body =
         (cont, []),
         Llet
           ( Strict,
-            Pgenval,
+            Lambda.layout_int,
             cond_result,
             cond,
             Lifthenelse
               ( Lvar cond_result,
                 Lsequence (body, Lstaticraise (cont, [])),
                 Lconst (Const_base (Const_int 0)),
-                Pgenval ) ),
-        Pgenval )
+                Lambda.layout_unit ) ),
+        Lambda.layout_unit )
   in
   env, lam
 
@@ -727,29 +726,29 @@ let rec_catch_for_for_loop env ident start stop (dir : Asttypes.direction_flag)
        for-loop, if the lower bound is [min_int]. *)
     Llet
       ( Strict,
-        Pgenval,
+        Lambda.layout_int,
         start_ident,
         start,
         Llet
           ( Strict,
-            Pgenval,
+            Lambda.layout_int,
             stop_ident,
             stop,
             Lifthenelse
               ( first_test,
                 Lstaticcatch
                   ( Lstaticraise (cont, [L.Lvar start_ident]),
-                    (cont, [ident, Pgenval]),
+                    (cont, [ident, Lambda.layout_int]),
                     Lsequence
                       ( body,
                         Lifthenelse
                           ( subsequent_test,
                             Lstaticraise (cont, [next_value_of_counter]),
                             L.lambda_unit,
-                            Pgenval ) ),
-                    Pgenval ),
+                            Lambda.layout_unit ) ),
+                    Lambda.layout_unit ),
                 L.lambda_unit,
-                Pgenval ) ) )
+                Lambda.layout_unit ) ) )
   in
   env, lam
 
@@ -848,7 +847,7 @@ let wrap_return_continuation acc env ccenv (apply : IR.apply) =
           { apply with continuation = wrapper_cont; region }
       in
       CC.close_let_cont acc ccenv ~name:wrapper_cont ~is_exn_handler:false
-        ~params:[return_value, Not_user_visible, Pgenval]
+        ~params:[return_value, Not_user_visible, Lambda.layout_top]
         ~recursive:Nonrecursive ~body ~handler
   in
   restore_continuation_context acc env ccenv apply.continuation ~close_early
@@ -1064,7 +1063,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
       } ->
     (* Note that we don't need kind information about [ap_args] since we already
        have it on the corresponding [Simple]s in the environment. *)
-    maybe_insert_let_cont "apply_result" Pgenval k acc env ccenv
+    maybe_insert_let_cont "apply_result" Lambda.layout_top k acc env ccenv
       (fun acc env ccenv k ->
         cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode
           ap_loc ap_inlined ap_probe k k_exn)
@@ -1089,8 +1088,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
         CC.close_let acc ccenv new_id User_visible
           (Flambda_kind.With_subkind.from_lambda value_kind)
           (Simple (Var temp_id)) ~body)
-  | Llet ((Strict | Alias | StrictOpt), Pgenval, fun_id, Lfunction func, body)
-    ->
+  | Llet ((Strict | Alias | StrictOpt), _, fun_id, Lfunction func, body) ->
     (* This case is here to get function names right. *)
     let bindings = cps_function_bindings env [fun_id, L.Lfunction func] in
     let body acc ccenv = cps acc env ccenv body k k_exn in
@@ -1102,22 +1100,15 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
         body bindings
     in
     let_expr acc ccenv
-  | Llet
-      ( (Strict | Alias | StrictOpt),
-        (( Pgenval | Pfloatval | Pboxedintval _ | Pintval | Pvariant _
-         | Parrayval _ ) as value_kind),
-        id,
-        Lconst const,
-        body ) ->
+  | Llet ((Strict | Alias | StrictOpt), layout, id, Lconst const, body) ->
     (* This case avoids extraneous continuations. *)
     let body acc ccenv = cps acc env ccenv body k k_exn in
     CC.close_let acc ccenv id User_visible
-      (Flambda_kind.With_subkind.from_lambda value_kind)
+      (Flambda_kind.With_subkind.from_lambda layout)
       (Simple (Const const)) ~body
   | Llet
       ( ((Strict | Alias | StrictOpt) as let_kind),
-        (( Pgenval | Pfloatval | Pboxedintval _ | Pintval | Pvariant _
-         | Parrayval _ ) as value_kind),
+        layout,
         id,
         Lprim (prim, args, loc),
         body ) -> (
@@ -1138,16 +1129,15 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
           let body acc ccenv = cps acc env ccenv body k k_exn in
           let region = Env.current_region env in
           CC.close_let acc ccenv id User_visible
-            (Flambda_kind.With_subkind.from_lambda value_kind)
+            (Flambda_kind.With_subkind.from_lambda layout)
             (Prim { prim; args; loc; exn_continuation; region })
             ~body)
         k_exn
     | Transformed lam ->
-      cps acc env ccenv (L.Llet (let_kind, value_kind, id, lam, body)) k k_exn)
+      cps acc env ccenv (L.Llet (let_kind, layout, id, lam, body)) k k_exn)
   | Llet
       ( (Strict | Alias | StrictOpt),
-        ( Pgenval | Pfloatval | Pboxedintval _ | Pintval | Pvariant _
-        | Parrayval _ ),
+        _,
         id,
         Lassign (being_assigned, new_value),
         body ) ->
@@ -1173,15 +1163,9 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
           (Flambda_kind.With_subkind.from_lambda value_kind)
           (Simple new_value) ~body)
       k_exn
-  | Llet
-      ( (Strict | Alias | StrictOpt),
-        (( Pgenval | Pfloatval | Pboxedintval _ | Pintval | Pvariant _
-         | Parrayval _ ) as value_kind),
-        id,
-        defining_expr,
-        body ) ->
+  | Llet ((Strict | Alias | StrictOpt), layout, id, defining_expr, body) ->
     let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler:false
-      ~params:[id, IR.User_visible, value_kind]
+      ~params:[id, IR.User_visible, layout]
       ~body:(fun acc env ccenv after_defining_expr ->
         cps_tail acc env ccenv defining_expr after_defining_expr k_exn)
       ~handler:(fun acc env ccenv -> cps acc env ccenv body k k_exn)
@@ -1247,9 +1231,8 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
         in
         compile_staticfail acc env ccenv ~continuation ~args:(args @ extra_args))
       k_exn
-  | Lstaticcatch (body, (static_exn, args), handler, _kind) ->
-    (* CR-someday poechsel: Use [kind] *)
-    maybe_insert_let_cont "staticcatch_result" Pgenval k acc env ccenv
+  | Lstaticcatch (body, (static_exn, args), handler, layout) ->
+    maybe_insert_let_cont "staticcatch_result" layout k acc env ccenv
       (fun acc env ccenv k ->
         let continuation = Continuation.create () in
         let { Env.body_env; handler_env; extra_params } =
@@ -1279,8 +1262,8 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
           (fun acc env ccenv meth ->
             cps_non_tail_list acc env ccenv args
               (fun acc env ccenv args ->
-                maybe_insert_let_cont "send_result" Pgenval k acc env ccenv
-                  (fun acc env ccenv k ->
+                maybe_insert_let_cont "send_result" Lambda.layout_top k acc env
+                  ccenv (fun acc env ccenv k ->
                     let exn_continuation : IR.exn_continuation =
                       { exn_handler = k_exn;
                         extra_args = extra_args_for_exn_continuation env k_exn
@@ -1330,7 +1313,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
             let env = Env.entering_try_region env region in
             let_cont_nonrecursive_with_extra_params acc env ccenv
               ~is_exn_handler:true
-              ~params:[id, User_visible, Pgenval]
+              ~params:[id, User_visible, Lambda.layout_block]
               ~body:(fun acc env ccenv handler_continuation ->
                 let_cont_nonrecursive_with_extra_params acc env ccenv
                   ~is_exn_handler:false
@@ -1362,7 +1345,9 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     cps acc env ccenv lam k k_exn
   | Lsequence (lam1, lam2) ->
     let ident = Ident.create_local "sequence" in
-    cps acc env ccenv (L.Llet (Strict, Pgenval, ident, lam1, lam2)) k k_exn
+    cps acc env ccenv
+      (L.Llet (Strict, Lambda.layout_top, ident, lam1, lam2))
+      k k_exn
   | Lwhile
       { wh_cond = cond; wh_body = body; wh_cond_region = _; wh_body_region = _ }
     ->
@@ -1417,12 +1402,12 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
       Flambda_kind.With_subkind.region
       (Begin_region { try_region_parent = None })
       ~body:(fun acc ccenv ->
-        maybe_insert_let_cont "body_return" Pgenval k acc env ccenv
+        maybe_insert_let_cont "body_return" Lambda.layout_top k acc env ccenv
           (fun acc env ccenv k ->
             let wrap_return = Ident.create_local "region_return" in
             let_cont_nonrecursive_with_extra_params acc env ccenv
               ~is_exn_handler:false
-              ~params:[wrap_return, Not_user_visible, Pgenval]
+              ~params:[wrap_return, Not_user_visible, Lambda.layout_top]
               ~body:(fun acc env ccenv continuation_closing_region ->
                 (* We register this region to be closed by the newly-created
                    region closure continuation. When we reach a point in [body]

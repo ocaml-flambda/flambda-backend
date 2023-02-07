@@ -1901,7 +1901,7 @@ module SArgBlocks = struct
 
   type loc = Debuginfo.t
 
-  type nonrec value_kind = value_kind
+  type layout = value_kind
 
   (* CR mshinwell: GPR#2294 will fix the Debuginfo here *)
 
@@ -3889,3 +3889,5 @@ let transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list = function
   | Default_check -> []
   | Assert p -> [Assert (transl_property p)]
   | Assume p -> [Assume (transl_property p)]
+
+let kind_of_layout (Lambda.Pvalue kind) = Vval kind

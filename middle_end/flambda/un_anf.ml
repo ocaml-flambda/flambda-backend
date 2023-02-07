@@ -56,10 +56,10 @@ let ignore_primitive (_ : Clambda_primitives.primitive) = ()
 let ignore_string (_ : string) = ()
 let ignore_int_array (_ : int array) = ()
 let ignore_var_with_provenance (_ : VP.t) = ()
-let ignore_params_with_value_kind (_ : (VP.t * Lambda.value_kind) list) = ()
+let ignore_params_with_layout (_ : (VP.t * Lambda.layout) list) = ()
 let ignore_direction_flag (_ : Asttypes.direction_flag) = ()
 let ignore_meth_kind (_ : Lambda.meth_kind) = ()
-let ignore_value_kind (_ : Lambda.value_kind) = ()
+let ignore_layout (_ : Lambda.layout) = ()
 
 (* CR-soon mshinwell: check we aren't traversing function bodies more than
    once (need to analyse exactly what the calls are from Cmmgen into this
@@ -156,8 +156,8 @@ let make_var_info (clam : Clambda.ulambda) : var_info =
              environment_vars :=
                V.Set.add (VP.var env_var) !environment_vars);
           ignore_function_label label;
-          ignore_params_with_value_kind params;
-          ignore_value_kind return;
+          ignore_params_with_layout params;
+          ignore_layout return;
           loop ~depth:(depth + 1) body;
           ignore_debuginfo dbg;
           ignore_var_option env)
@@ -165,7 +165,7 @@ let make_var_info (clam : Clambda.ulambda) : var_info =
     | Uoffset (expr, offset) ->
       loop ~depth expr;
       ignore_int offset
-    | Ulet (_let_kind, _value_kind, var, def, body) ->
+    | Ulet (_let_kind, _layout, var, def, body) ->
       add_definition t (VP.var var) depth;
       loop ~depth def;
       loop ~depth body
@@ -202,9 +202,9 @@ let make_var_info (clam : Clambda.ulambda) : var_info =
       ignore_int static_exn;
       List.iter (loop ~depth) args
     | Ucatch (static_exn, vars, body, handler, kind) ->
-      ignore_value_kind kind;
+      ignore_layout kind;
       ignore_int static_exn;
-      ignore_params_with_value_kind vars;
+      ignore_params_with_layout vars;
       loop ~depth body;
       loop ~depth handler
     | Utrywith (body, var, handler, _kind) ->
@@ -329,8 +329,8 @@ let let_bound_vars_that_can_be_moved var_info (clam : Clambda.ulambda) =
       List.iter (fun {Clambda. label; arity=_; params; return; body; dbg; env; mode=_;
                       check=_; poll=_} ->
           ignore_function_label label;
-          ignore_params_with_value_kind params;
-          ignore_value_kind return;
+          ignore_params_with_layout params;
+          ignore_layout return;
           let_stack := [];
           loop body;
           let_stack := [];
@@ -341,7 +341,7 @@ let let_bound_vars_that_can_be_moved var_info (clam : Clambda.ulambda) =
       (* [expr] should usually be a variable. *)
       examine_argument_list [expr];
       ignore_int offset
-    | Ulet (_let_kind, _value_kind, var, def, body) ->
+    | Ulet (_let_kind, _layout, var, def, body) ->
       let var = VP.var var in
       begin match def with
       | Uconst _ ->
@@ -393,7 +393,7 @@ let let_bound_vars_that_can_be_moved var_info (clam : Clambda.ulambda) =
           loop action)
         us_actions_blocks;
       ignore_debuginfo dbg;
-      ignore_value_kind kind;
+      ignore_layout kind;
       let_stack := []
     | Ustringswitch (cond, branches, default, kind) ->
       examine_argument_list [cond];
@@ -404,15 +404,15 @@ let let_bound_vars_that_can_be_moved var_info (clam : Clambda.ulambda) =
         branches;
       let_stack := [];
       Option.iter loop default;
-      ignore_value_kind kind;
+      ignore_layout kind;
       let_stack := []
     | Ustaticfail (static_exn, args) ->
       ignore_int static_exn;
       examine_argument_list args
     | Ucatch (static_exn, vars, body, handler, kind) ->
-      ignore_value_kind kind;
+      ignore_layout kind;
       ignore_int static_exn;
-      ignore_params_with_value_kind vars;
+      ignore_params_with_layout vars;
       let_stack := [];
       loop body;
       let_stack := [];
@@ -424,7 +424,7 @@ let let_bound_vars_that_can_be_moved var_info (clam : Clambda.ulambda) =
       let_stack := [];
       ignore_var_with_provenance var;
       loop handler;
-      ignore_value_kind kind;
+      ignore_layout kind;
       let_stack := []
     | Uifthenelse (cond, ifso, ifnot, kind) ->
       examine_argument_list [cond];
@@ -432,7 +432,7 @@ let let_bound_vars_that_can_be_moved var_info (clam : Clambda.ulambda) =
       loop ifso;
       let_stack := [];
       loop ifnot;
-      ignore_value_kind kind;
+      ignore_layout kind;
       let_stack := []
     | Usequence (e1, e2) ->
       loop e1;
@@ -523,7 +523,7 @@ let rec substitute_let_moveable is_let_moveable env (clam : Clambda.ulambda)
   | Uoffset (clam, n) ->
     let clam = substitute_let_moveable is_let_moveable env clam in
     Uoffset (clam, n)
-  | Ulet (let_kind, value_kind, var, def, body) ->
+  | Ulet (let_kind, layout, var, def, body) ->
     let def = substitute_let_moveable is_let_moveable env def in
     if V.Set.mem (VP.var var) is_let_moveable then
       let env = V.Map.add (VP.var var) def env in
@@ -543,7 +543,7 @@ let rec substitute_let_moveable is_let_moveable env (clam : Clambda.ulambda)
         | _ ->
           Uphantom_let (var, None, body)
     else
-      Ulet (let_kind, value_kind,
+      Ulet (let_kind, layout,
             var, def, substitute_let_moveable is_let_moveable env body)
   | Uphantom_let (var, defining_expr, body) ->
     let body = substitute_let_moveable is_let_moveable env body in
@@ -721,10 +721,10 @@ let rec un_anf_and_moveable var_info env (clam : Clambda.ulambda)
   | Uoffset (clam, n) ->
     let clam, moveable = un_anf_and_moveable var_info env clam in
     Uoffset (clam, n), both_moveable Moveable moveable
-  | Ulet (_let_kind, _value_kind, var, def, Uvar var')
+  | Ulet (_let_kind, _layout, var, def, Uvar var')
       when V.same (VP.var var) var' ->
     un_anf_and_moveable var_info env def
-  | Ulet (let_kind, value_kind, var, def, body) ->
+  | Ulet (let_kind, layout, var, def, body) ->
     let def, def_moveable = un_anf_and_moveable var_info env def in
     let is_linear = V.Set.mem (VP.var var) var_info.linear_let_bound_vars in
     let is_used = V.Set.mem (VP.var var) var_info.used_let_bound_vars in
@@ -773,7 +773,7 @@ let rec un_anf_and_moveable var_info env (clam : Clambda.ulambda)
         (* Moveable but not used linearly. *)
     | Fixed, _, _, _ ->
       let body, body_moveable = un_anf_and_moveable var_info env body in
-      Ulet (let_kind, value_kind, var, def, body),
+      Ulet (let_kind, layout, var, def, body),
       both_moveable def_moveable body_moveable
     end
   | Uphantom_let (var, defining_expr, body) ->

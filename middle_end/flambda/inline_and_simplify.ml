@@ -864,7 +864,7 @@ and simplify_partial_application env r ~lhs_of_application
         (List.map (fun p -> Parameter.var p, Parameter.kind p) freshened_params)
     in
     let free_variables =
-      Variable.Map.add lhs_of_application Lambda.Pgenval free_variables
+      Variable.Map.add lhs_of_application Lambda.layout_function free_variables
     in
     Flambda_utils.make_closure_declaration ~id:closure_variable
       ~is_classic_mode:false

@@ -21,7 +21,7 @@ type lifter = Flambda.program -> Flambda.program
 
 type def =
   | Immutable of Variable.t * Flambda.named Flambda.With_free_variables.t
-  | Mutable of Mutable_variable.t * Variable.t * Lambda.value_kind
+  | Mutable of Mutable_variable.t * Variable.t * Lambda.layout
 
 let rebuild_let (defs : def list) (body : Flambda.t) =
   let module W = Flambda.With_free_variables in

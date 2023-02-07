@@ -58,31 +58,31 @@ and ulambda =
       scanned_slots : ulambda list ;
     }
   | Uoffset of ulambda * int
-  | Ulet of mutable_flag * value_kind * Backend_var.With_provenance.t
+  | Ulet of mutable_flag * layout * Backend_var.With_provenance.t
       * ulambda * ulambda
   | Uphantom_let of Backend_var.With_provenance.t
       * uphantom_defining_expr option * ulambda
   | Uletrec of (Backend_var.With_provenance.t * ulambda) list * ulambda
   | Uprim of Clambda_primitives.primitive * ulambda list * Debuginfo.t
-  | Uswitch of ulambda * ulambda_switch * Debuginfo.t * Lambda.value_kind
+  | Uswitch of ulambda * ulambda_switch * Debuginfo.t * layout
   | Ustringswitch of
       ulambda *
       (string * ulambda) list *
       ulambda option *
-      Lambda.value_kind
+      layout
   | Ustaticfail of int * ulambda list
   | Ucatch of
       int *
-      (Backend_var.With_provenance.t * value_kind) list *
+      (Backend_var.With_provenance.t * layout) list *
       ulambda *
       ulambda *
-      Lambda.value_kind
+      layout
   | Utrywith of
       ulambda *
       Backend_var.With_provenance.t *
       ulambda *
-      Lambda.value_kind
-  | Uifthenelse of ulambda * ulambda * ulambda * Lambda.value_kind
+      layout
+  | Uifthenelse of ulambda * ulambda * ulambda * layout
   | Usequence of ulambda * ulambda
   | Uwhile of ulambda * ulambda
   | Ufor of Backend_var.With_provenance.t * ulambda * ulambda
@@ -98,8 +98,8 @@ and ulambda =
 and ufunction = {
   label  : function_label;
   arity  : arity;
-  params : (Backend_var.With_provenance.t * value_kind) list;
-  return : value_kind;
+  params : (Backend_var.With_provenance.t * layout) list;
+  return : layout;
   body   : ulambda;
   dbg    : Debuginfo.t;
   env    : Backend_var.t option;
