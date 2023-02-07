@@ -1117,6 +1117,7 @@ method emit_expr (env:environment) exp =
         end
       end
   | Cregion e ->
+     assert(Config.stack_allocation);
      let reg = self#regs_for typ_int in
      self#insert env (Iop Ibeginregion) [| |] reg;
      let env = { env with regions = reg::env.regions; region_tail = true } in
@@ -1529,6 +1530,7 @@ method emit_tail (env:environment) exp =
         end
       end
   | Cregion e ->
+      assert(Config.stack_allocation);
       if env.region_tail then
         self#emit_return env exp (pop_all_traps env)
       else begin
