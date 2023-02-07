@@ -857,8 +857,10 @@ let make_alias env res var alias_of =
    bind the new variable with a `must_inline` inline status *)
 let split_binding_and_rebind ~num_occurrences_of_var env res ~var ~alias_of
     binding =
-  let cmm_expr, free_names, env, res, ece = split_and_inline env res alias_of binding in
-  let defining_expr : _ bound_expr = Split { cmm_expr; free_names; } in
+  let cmm_expr, free_names, env, res, ece =
+    split_and_inline env res alias_of binding
+  in
+  let defining_expr : _ bound_expr = Split { cmm_expr; free_names } in
   let inline =
     match (num_occurrences_of_var : Num_occurrences.t) with
     | Zero | One -> Must_inline_once
