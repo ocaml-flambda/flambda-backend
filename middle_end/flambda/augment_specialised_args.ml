@@ -544,6 +544,7 @@ module Make (T : S) = struct
     let new_function_decl =
       Flambda.create_function_declaration
         ~params:wrapper_params
+        ~return_layout:function_decl.return_layout
         ~alloc_mode
         ~region:function_decl.region
         ~body:wrapper_body
@@ -651,6 +652,7 @@ module Make (T : S) = struct
       let rewritten_function_decl =
         Flambda.create_function_declaration
           ~params:all_params
+          ~return_layout:function_decl.return_layout
           ~alloc_mode:function_decl.alloc_mode
           ~region:function_decl.region
           ~body:function_decl.body

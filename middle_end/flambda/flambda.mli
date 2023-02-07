@@ -313,6 +313,7 @@ and function_declarations = private {
 and function_declaration = private {
   closure_origin: Closure_origin.t;
   params : Parameter.t list;
+  return_layout : Lambda.layout;
   alloc_mode : Lambda.alloc_mode;
   region : bool;
   body : t;
@@ -570,6 +571,7 @@ val create_function_declaration
   -> region:bool
   -> body:t
   -> stub:bool
+  -> return_layout:Lambda.layout
   -> inline:Lambda.inline_attribute
   -> specialise:Lambda.specialise_attribute
   -> check:Lambda.check_attribute

@@ -129,6 +129,7 @@ and function_declarations = {
 and function_declaration = {
   closure_origin: Closure_origin.t;
   params : Parameter.t list;
+  return_layout : Lambda.layout;
   alloc_mode : Lambda.alloc_mode;
   region : bool;
   body : t;
@@ -1042,6 +1043,7 @@ let update_body_of_function_declaration (func_decl: function_declaration)
       ~body : function_declaration =
   { closure_origin = func_decl.closure_origin;
     params = func_decl.params;
+    return_layout = func_decl.return_layout;
     alloc_mode = func_decl.alloc_mode;
     region = func_decl.region;
     body;
@@ -1065,6 +1067,7 @@ let rec check_param_modes mode = function
      check_param_modes m params
 
 let create_function_declaration ~params ~alloc_mode ~region ~body ~stub
+      ~(return_layout : Lambda.layout)
       ~(inline : Lambda.inline_attribute)
       ~(specialise : Lambda.specialise_attribute)
       ~(check : Lambda.check_attribute)
@@ -1093,6 +1096,7 @@ let create_function_declaration ~params ~alloc_mode ~region ~body ~stub
   check_param_modes alloc_mode params;
   { closure_origin;
     params;
+    return_layout;
     alloc_mode;
     region;
     body;

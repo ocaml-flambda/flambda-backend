@@ -102,7 +102,7 @@ let clambda_arity (func : Flambda.function_declaration) : Clambda.arity =
   {
     function_kind = Curried {nlocal} ;
     params_layout = List.map Parameter.kind func.params ;
-    return_layout = Lambda.layout_top ; (* Need func.return *)
+    return_layout = func.return_layout ;
   }
 
 let check_field t ulam pos named_opt : Clambda.ulambda =
