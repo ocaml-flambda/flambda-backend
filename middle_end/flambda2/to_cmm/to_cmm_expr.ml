@@ -35,9 +35,9 @@ end
 
 let bind_var_to_simple ~dbg env res v ~num_normal_occurrences_of_bound_vars s =
   match Simple.must_be_var s with
-  | Some (alias_of, _coercion) when Flambda_features.classic_mode () ->
+  | Some (alias_of, _coercion) ->
     Env.add_alias env res ~var:v ~num_normal_occurrences_of_bound_vars ~alias_of
-  | Some _ | None ->
+  | None ->
     let defining_expr, env, res, effects_and_coeffects_of_defining_expr =
       C.simple ~dbg env res s
     in

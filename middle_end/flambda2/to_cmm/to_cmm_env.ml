@@ -204,7 +204,7 @@ let [@ocamlformat "disable"] print_binding (type a) ppf
     Backend_var.With_provenance.print cmm_var
     print_bound_expr bound_expr
 
-let print_any_binding ppf (Binding binding) = print_binding ppf binding
+let _print_any_binding ppf (Binding binding) = print_binding ppf binding
 
 let print_stage ppf = function
   | Effect v -> Format.fprintf ppf "(Effect %a)" Variable.print v
