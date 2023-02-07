@@ -490,7 +490,7 @@ let for_call_site ~env ~r ~(function_decls : A.function_declarations)
       ~(function_decl : A.function_declaration)
       ~(value_set_of_closures : A.value_set_of_closures)
       ~args ~args_approxs ~dbg ~reg_close ~mode ~simplify ~inlined_requested
-      ~specialise_requested ~probe_requested =
+      ~specialise_requested ~probe_requested ~result_layout =
   if List.length args <> List.length args_approxs then begin
     Misc.fatal_error "Inlining_decision.for_call_site: inconsistent lengths \
         of [args] and [args_approxs]"
@@ -514,6 +514,7 @@ let for_call_site ~env ~r ~(function_decls : A.function_declarations)
     Flambda.Apply {
       func = lhs_of_application;
       args;
+      result_layout;
       kind = Direct closure_id_being_applied;
       dbg;
       reg_close;

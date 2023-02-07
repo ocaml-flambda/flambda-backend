@@ -38,6 +38,7 @@ val for_call_site
   -> inlined_requested:Lambda.inlined_attribute
   -> specialise_requested:Lambda.specialise_attribute
   -> probe_requested:Lambda.probe
+  -> result_layout:Lambda.layout
   -> Flambda.t * Inline_and_simplify_aux.Result.t
 
 (** When a function declaration is encountered by [for_call_site], the body

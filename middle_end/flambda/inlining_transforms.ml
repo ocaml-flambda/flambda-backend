@@ -674,7 +674,7 @@ let inline_by_copying_function_declaration
       in
       let apply : Flambda.apply =
         { func = closure_var; args; kind = Direct closure_id; dbg;
-          reg_close; mode;
+          reg_close; mode; result_layout = function_decl.return_layout;
           inlined = inlined_requested; specialise = Default_specialise;
           probe = probe_requested;
         }

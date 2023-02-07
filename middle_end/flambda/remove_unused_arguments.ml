@@ -95,6 +95,7 @@ let make_stub unused var (fun_decl : Flambda.function_declaration)
     Apply {
       func = renamed;
       args = Parameter.List.vars args;
+      result_layout = fun_decl.return_layout;
       kind;
       dbg = fun_decl.dbg;
       reg_close = Rc_normal;

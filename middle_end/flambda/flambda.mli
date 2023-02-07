@@ -36,6 +36,7 @@ type apply = {
      lhs_of_application -> callee *)
   func : Variable.t;
   args : Variable.t list;
+  result_layout : Lambda.layout;
   kind : call_kind;
   dbg : Debuginfo.t;
   reg_close : Lambda.region_close;

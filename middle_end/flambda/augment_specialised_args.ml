@@ -470,6 +470,7 @@ module Make (T : S) = struct
           args =
             (Parameter.List.vars wrapper_params) @
             spec_args_bound_in_the_wrapper;
+          result_layout = function_decl.return_layout;
           kind = Direct (Closure_id.wrap new_fun_var);
           dbg = Debuginfo.none;
           reg_close = Rc_normal;

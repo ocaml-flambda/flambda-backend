@@ -275,10 +275,9 @@ let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda =
        do the equivalent of the previous paragraph when it generates a direct
        call to [caml_apply]. *)
     to_clambda_direct_apply t func args direct_func probe dbg reg_close mode env
-  | Apply { func; args; kind = Indirect; probe = None; dbg; reg_close; mode } ->
+  | Apply { func; args; kind = Indirect; probe = None; dbg; reg_close; mode; result_layout } ->
     let callee = subst_var env func in
-    let args_layout = List.map (fun _ -> Lambda.layout_top) args in
-    let result_layout = Lambda.layout_top in
+    let args_layout = assert false in
     Ugeneric_apply (check_closure t callee (Flambda.Expr (Var func)),
       subst_vars env args, args_layout, result_layout, (reg_close, mode), dbg)
   | Apply { probe = Some {name}; _ } ->
