@@ -94,7 +94,7 @@ and ulambda =
   | Uassign of Backend_var.t * ulambda
   | Usend of
       meth_kind * ulambda * ulambda * ulambda list
-      * apply_kind * Debuginfo.t
+      * Lambda.layout list * Lambda.layout * apply_kind * Debuginfo.t
   | Uunreachable
   | Uregion of ulambda
   | Utail of ulambda
