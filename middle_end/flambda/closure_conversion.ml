@@ -82,6 +82,7 @@ let tupled_function_call_stub original_params unboxed_version ~closure_bound_var
     Apply ({
         func = unboxed_version;
         args = params;
+        result_layout = return_layout;
         (* CR-someday mshinwell for mshinwell: investigate if there is some
            redundancy here (func is also unboxed_version) *)
         kind = Direct (Closure_id.wrap unboxed_version);
@@ -239,7 +240,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
     in
     Flambda.create_let set_of_closures_var set_of_closures
       (name_expr (Project_closure (project_closure)) ~name)
-  | Lapply { ap_func; ap_args; ap_loc; ap_region_close; ap_mode;
+  | Lapply { ap_func; ap_args; ap_loc; ap_region_close; ap_mode; ap_result_layout;
              ap_tailcall = _; ap_inlined; ap_specialised; ap_probe; } ->
     Lift_code.lifting_helper (close_list t env ap_args)
       ~evaluation_order:`Right_to_left
@@ -251,6 +252,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
           (Apply ({
               func = func_var;
               args;
+              result_layout = ap_result_layout;
               kind = Indirect;
               dbg = Debuginfo.from_location ap_loc;
               reg_close = ap_region_close;

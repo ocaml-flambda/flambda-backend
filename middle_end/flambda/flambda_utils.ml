@@ -263,11 +263,11 @@ let toplevel_substitution sb tree =
       let new_value = sb new_value in
       Assign { being_assigned; new_value; }
     | Apply { func; args; kind; dbg; reg_close; mode;
-              inlined; specialise; probe; } ->
+              inlined; specialise; probe; result_layout; } ->
       let func = sb func in
       let args = List.map sb args in
       Apply { func; args; kind; dbg; reg_close; mode;
-              inlined; specialise; probe; }
+              inlined; specialise; probe; result_layout; }
     | If_then_else (cond, e1, e2, kind) ->
       let cond = sb cond in
       If_then_else (cond, e1, e2, kind)
@@ -717,7 +717,7 @@ let substitute_read_symbol_field_for_variables
       bind_to_value @@
       Flambda.For { bound_var; from_value; to_value; direction; body }
     | Apply { func; args; kind; dbg; reg_close; mode;
-              inlined; specialise; probe } ->
+              inlined; specialise; probe; result_layout } ->
       let func, bind_func = make_var_subst func in
       let args, bind_args =
         List.split (List.map make_var_subst args)
@@ -725,7 +725,7 @@ let substitute_read_symbol_field_for_variables
       bind_func @@
       List.fold_right (fun f expr -> f expr) bind_args @@
       Flambda.Apply { func; args; kind; dbg; reg_close; mode;
-                      inlined; specialise; probe }
+                      inlined; specialise; probe; result_layout }
     | Send { kind; meth; obj; args; dbg; reg_close; mode } ->
       let meth, bind_meth = make_var_subst meth in
       let obj, bind_obj = make_var_subst obj in
