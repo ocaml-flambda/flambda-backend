@@ -23,16 +23,22 @@
  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
  (library_flags (:standard -linkall)))
 
+
+(rule
+  (deps dune_install_ocaml5.inc)
+  (target dune_install.inc)
+  (enabled_if %{env:STDLIB_LAYOUT_OCAML5=false})
+  (action (copy %{deps} %{target})))
+
+(rule
+  (deps dune_install_default.inc)
+  (target dune_install.inc)
+  (enabled_if (not %{env:STDLIB_LAYOUT_OCAML5=false}))
+  (action (copy %{deps} %{target})))
+
 (install
   (files
-    (.bigarray.objs/native/bigarray.cmx as bigarray/bigarray.cmx)
-    (bigarray.cmxa as bigarray/bigarray.cmxa)
-    (bigarray.a as bigarray/bigarray.a)
-    (bigarray.cmxs as bigarray/bigarray.cmxs)
-    (bigarray.cma as bigarray/bigarray.cma)
-    (.bigarray.objs/byte/bigarray.cmi as bigarray/bigarray.cmi)
-    (.bigarray.objs/byte/bigarray.cmti as bigarray/bigarray.cmti)
-    (bigarray.mli as bigarray/bigarray.mli)
+    (include dune_install.inc)
   )
   (section lib)
   (package ocaml))

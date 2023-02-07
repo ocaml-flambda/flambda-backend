@@ -27,19 +27,21 @@
           (:include %{project_root}/sharedlib_cflags.sexp)
           (:include %{project_root}/oc_cppflags.sexp)))))
 
+(rule
+  (deps dune_install_ocaml5.inc)
+  (target dune_install.inc)
+  (enabled_if %{env:STDLIB_LAYOUT_OCAML5=false})
+  (action (copy %{deps} %{target})))
+
+(rule
+  (deps dune_install_default.inc)
+  (target dune_install.inc)
+  (enabled_if (not %{env:STDLIB_LAYOUT_OCAML5=false}))
+  (action (copy %{deps} %{target})))
+
 (install
   (files
-    (.str.objs/native/str.cmx as str/str.cmx)
-    (libstr_stubs.a as str/libstr_stubs.a)
-    (libstr_stubs.a as libstr_stubs_native.a) ; for special_dune compat
-    (dllstr_stubs.so as stublibs/dllstr_stubs.so)
-    (str.cmxa as str/str.cmxa)
-    (str.a as str/str.a)
-    (str.cmxs as str/str.cmxs)
-    (str.cma as str/str.cma)
-    (str.mli as str/str.mli)
-    (.str.objs/byte/str.cmi as str/str.cmi)
-    (.str.objs/byte/str.cmti as str/str.cmti)
+    (include dune_install.inc)
   )
   (section lib)
   (package ocaml))

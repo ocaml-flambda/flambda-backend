@@ -1,0 +1,10 @@
+(
+  (.bigarray.objs/native/bigarray.cmx as bigarray/bigarray.cmx)
+    (bigarray.cmxa as bigarray/bigarray.cmxa)
+    (bigarray.a as bigarray/bigarray.a)
+    (bigarray.cmxs as bigarray/bigarray.cmxs)
+    (bigarray.cma as bigarray/bigarray.cma)
+    (.bigarray.objs/byte/bigarray.cmi as bigarray/bigarray.cmi)
+    (.bigarray.objs/byte/bigarray.cmti as bigarray/bigarray.cmti)
+    (bigarray.mli as bigarray/bigarray.mli)
+)
