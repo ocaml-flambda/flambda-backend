@@ -139,6 +139,14 @@ _install: compiler
 	$(cpl) -R _build/install/runtime_stdlib/lib/ocaml_runtime_stdlib/* _install/lib/ocaml/
 	rm -f _install/lib/ocaml/{META,dune-package,Makefile.config,dynlink.cmxa}
 	$(cpl) -R _build/install/main/lib/ocaml/* _install/lib/ocaml/
+	if [ "x$(legacy_layout)" == "xyes" ] ;\
+	then\
+	  echo "Legacy mode";\
+          for libdir in unix str dynlink bigarray ; do\
+	    mv _install/lib/ocaml/$${libdir}/* _install/lib/ocaml/ ;\
+            rmdir _install/lib/ocaml/$${libdir} ;\
+          done;\
+	fi
 	rm -f _install/lib/ocaml/{META,dune-package}
 	rm -f _install/lib/ocaml/compiler-libs/*.cmo
 	$(cpl) {_build/install/main,_install}/lib/ocaml/compiler-libs/topstart.cmo
