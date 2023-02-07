@@ -76,7 +76,7 @@ type t =
   | String_switch of Variable.t * (string * t) list * t option
                      * Lambda.layout
   | Static_raise of Static_exception.t * Variable.t list
-  | Static_catch of Static_exception.t * Variable.t list * t * t * Lambda.layout
+  | Static_catch of Static_exception.t * ( Variable.t * Lambda.layout ) list * t * t * Lambda.layout
   | Try_with of t * Variable.t * t * Lambda.layout
   | While of t * t
   | For of for_loop
@@ -338,7 +338,7 @@ let rec lam ppf (flam : t) =
            | [] -> ()
            | _ ->
                List.iter
-                 (fun x -> fprintf ppf " %a" Variable.print x)
+                 (fun (x, _layout) -> fprintf ppf " %a" Variable.print x)
                  vars)
         vars
         lam lhandler
@@ -608,7 +608,7 @@ let rec variables_usage ?ignore_uses_as_callee ?ignore_uses_as_argument
       | Static_raise (_, es) ->
         List.iter free_variable es
       | Static_catch (_, vars, e1, e2, _) ->
-        List.iter bound_variable vars;
+        List.iter (fun (var, _layout) -> bound_variable var) vars;
         aux e1;
         aux e2
       | Try_with (e1, var, e2, _kind) ->
