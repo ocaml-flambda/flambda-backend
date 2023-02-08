@@ -777,7 +777,12 @@ and transl_catch (kind : Cmm.value_kind) env nfail ids body handler dbg =
      each argument.  *)
   let report args =
     List.iter2
-      (fun (_id, Pvalue kind, u) c ->
+      (fun (id, (layout : Lambda.layout), u) c ->
+         match layout with
+         | Ptop | Pbottom ->
+           Misc.fatal_errorf "Variable %a with layout %a can't be compiled"
+             VP.print id Printlambda.layout layout
+         | Pvalue kind ->
          let strict = is_strict kind in
          u := join_unboxed_number_kind ~strict !u
              (is_unboxed_number_cmm c)
@@ -1225,9 +1230,16 @@ and transl_unbox_sized size dbg env exp =
   | Thirty_two -> transl_unbox_int dbg env Pint32 exp
   | Sixty_four -> transl_unbox_int dbg env Pint64 exp
 
-and transl_let env str (Pvalue kind : Lambda.layout) id exp transl_body =
+and transl_let env str (layout : Lambda.layout) id exp transl_body =
   let dbg = Debuginfo.none in
   let cexp = transl env exp in
+  let kind =
+    match layout with
+    | Ptop | Pbottom ->
+      Misc.fatal_errorf "Variable %a with layout %a can't be compiled"
+        VP.print id Printlambda.layout layout
+    | Pvalue kind -> kind
+  in
   let unboxing =
     (* If [id] is a mutable variable (introduced to eliminate a local
        reference) and it contains a type of unboxable numbers, then
