@@ -499,17 +499,16 @@ and to_clambda_named t env var (named : Flambda.named) : Clambda.ulambda * Lambd
       ((get_fun_offset t move_to) - (get_fun_offset t start_from)))
       named,
     Lambda.layout_any_value
-  | Project_var { closure; var; closure_id } ->
+  | Project_var { closure; var; closure_id; kind } ->
     let ulam, _closure_layout = subst_var env closure in
     let fun_offset = get_fun_offset t closure_id in
     let var_offset = get_fv_offset t var in
     let pos = var_offset - fun_offset in
-    let result_layout = assert false in
     Uprim (Pfield pos,
       [check_field t (check_closure t ulam (Expr (Var closure)))
          pos (Some named)],
       Debuginfo.none),
-    result_layout
+    kind
   | Prim (Pfield index, [block], dbg) ->
     let block, _block_layout = subst_var env block in
     Uprim (Pfield index, [check_field t block index None], dbg),

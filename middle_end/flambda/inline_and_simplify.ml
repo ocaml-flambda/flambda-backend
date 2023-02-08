@@ -468,6 +468,7 @@ let rec simplify_project_var env r ~(project_var : Flambda.project_var)
           closure;
           closure_id;
           var;
+          kind = project_var.kind;
         }
       in
       begin match E.find_projection env ~projection with
@@ -477,7 +478,9 @@ let rec simplify_project_var env r ~(project_var : Flambda.project_var)
           Expr (Var var), ret r var_approx)
       | None ->
         let approx = A.approx_for_bound_var value_set_of_closures var in
-        let expr : Flambda.named = Project_var { closure; closure_id; var; } in
+        let expr : Flambda.named =
+          Project_var { closure; closure_id; var; kind = project_var.kind; }
+        in
         let unwrapped = Var_within_closure.unwrap var in
         let expr =
           if E.mem env unwrapped then

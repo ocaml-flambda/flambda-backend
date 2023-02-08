@@ -32,13 +32,15 @@ let new_var name =
     user-specified function as an [Flambda.named] value that projects the
     variable from its closure. *)
 let fold_over_projections_of_vars_bound_by_closure ~closure_id_being_applied
-      ~lhs_of_application ~bound_variables ~init ~f =
+      ~lhs_of_application ~bound_variables
+      ~(free_vars : Flambda.specialised_to Variable.Map.t) ~init ~f =
   Variable.Set.fold (fun var acc ->
       let expr : Flambda.named =
         Project_var {
           closure = lhs_of_application;
           closure_id = closure_id_being_applied;
           var = Var_within_closure.wrap var;
+          kind = (Variable.Map.find var free_vars).kind;
         }
       in
       f ~acc ~var ~expr)
@@ -97,6 +99,7 @@ let inline_by_copying_function_body ~env ~r
       ~(function_decl : A.function_declaration)
       ~(function_body : A.function_body)
       ~fun_vars
+      ~(free_vars : Flambda.specialised_to Variable.Map.t)
       ~args ~dbg ~reg_close ~mode:_ ~simplify =
   assert (E.mem env lhs_of_application);
   assert (List.for_all (E.mem env) args);
@@ -150,6 +153,7 @@ let inline_by_copying_function_body ~env ~r
     fold_over_projections_of_vars_bound_by_closure ~closure_id_being_applied
       ~lhs_of_application ~bound_variables ~init:bindings_for_params_to_args
       ~f:(fun ~acc:body ~var ~expr -> Flambda.create_let var expr body)
+      ~free_vars
   in
   (* Add bindings for variables corresponding to the functions introduced by
      the whole set of closures.  Each such variable will be bound to a closure;
@@ -231,6 +235,7 @@ let bind_free_vars ~lhs_of_application ~closure_id_being_applied
            closure = lhs_of_application;
            closure_id = closure_id_being_applied;
            var = Var_within_closure.wrap free_var;
+           kind = spec.kind;
          }
        in
        let let_bindings = (var_clos, expr) :: state.let_bindings in

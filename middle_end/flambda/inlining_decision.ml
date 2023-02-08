@@ -201,7 +201,7 @@ let inline env r ~lhs_of_application
       Inlining_transforms.inline_by_copying_function_body ~env
         ~r:(R.reset_benefit r) ~lhs_of_application
         ~closure_id_being_applied ~specialise_requested ~inlined_requested
-        ~probe_requested
+        ~probe_requested ~free_vars:value_set_of_closures.A.free_vars
         ~function_decl ~function_body ~fun_vars ~args ~dbg ~reg_close ~mode ~simplify
     in
     let num_direct_applications_seen =
@@ -537,7 +537,7 @@ let for_call_site ~env ~r ~(function_decls : A.function_declarations)
         Inlining_transforms.inline_by_copying_function_body ~env
           ~r ~fun_vars ~lhs_of_application
           ~closure_id_being_applied ~specialise_requested ~inlined_requested
-          ~probe_requested
+          ~probe_requested ~free_vars:value_set_of_closures.free_vars
           ~function_decl ~function_body ~args ~dbg ~reg_close ~mode ~simplify
       in
       simplify env r body
@@ -576,7 +576,7 @@ let for_call_site ~env ~r ~(function_decls : A.function_declarations)
               Inlining_transforms.inline_by_copying_function_body ~env
                 ~r ~function_body ~lhs_of_application
                 ~closure_id_being_applied ~specialise_requested
-                ~probe_requested
+                ~probe_requested ~free_vars:value_set_of_closures.free_vars
                 ~inlined_requested ~function_decl ~fun_vars ~args
                 ~dbg ~reg_close ~mode ~simplify
             in
