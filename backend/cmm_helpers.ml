@@ -2507,7 +2507,7 @@ let tuplify_function arity return =
   if List.exists (function [| Val |] -> false | _ -> true) arity
   then
     Misc.fatal_error
-      "typlify_function is currently unsupported if arity contains non-values";
+      "tuplify_function is currently unsupported if arity contains non-values";
   let arity = List.length arity in
   let dbg = placeholder_dbg in
   let arg = V.create_local "arg" in
