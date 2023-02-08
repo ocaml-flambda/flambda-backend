@@ -59,6 +59,7 @@ let rec add_to_closure_env env_param pos cenv = function
 
 let is_gc_ignorable kind =
   match kind with
+  | Ptop | Pbottom -> Misc.fatal_error "Wrong layout"
   | Pvalue Pintval -> true
   | Pvalue (Pgenval | Pfloatval | Pboxedintval _ | Pvariant _ | Parrayval _) -> false
 
