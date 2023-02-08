@@ -1263,8 +1263,8 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
           (fun acc env ccenv meth ->
             cps_non_tail_list acc env ccenv args
               (fun acc env ccenv args ->
-                maybe_insert_let_cont "send_result" layout k acc env
-                  ccenv (fun acc env ccenv k ->
+                maybe_insert_let_cont "send_result" layout k acc env ccenv
+                  (fun acc env ccenv k ->
                     let exn_continuation : IR.exn_continuation =
                       { exn_handler = k_exn;
                         extra_args = extra_args_for_exn_continuation env k_exn
