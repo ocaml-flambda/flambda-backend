@@ -1,5 +1,5 @@
 (executables
-  (names flexpect fldiff parseflambda)
+  (names flexpect fldiff parseflambda roundtrip)
   (modes native)
   (flags (:standard -principal))
   (libraries

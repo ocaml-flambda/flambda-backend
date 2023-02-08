@@ -32,14 +32,6 @@ module Test_outcome = struct
     | Fail of { corrected : Fexpr.expect_test_spec }
 end
 
-let dump_error (e : Parse_flambda.error) =
-  match e with
-  | Parsing_error (msg, loc) ->
-    Format.eprintf "%a:@.Syntax error: %s@." Location.print_loc loc msg
-  | Lexing_error (error, loc) ->
-    Format.eprintf "%a:@.Lex error: %a@." Location.print_loc loc
-      Flambda_lex.pp_error error
-
 let run_expect_test ~get_module_info ~extension ~filename
     ({ before; after = expected } : Fexpr.expect_test_spec) : Test_outcome.t =
   let comp_unit = Parse_flambda.make_compilation_unit ~extension ~filename () in
@@ -81,15 +73,15 @@ let run_flt_file filename : Outcome.t =
       run_expect_test ~get_module_info ~extension:".flt" ~filename test_spec
     with
     | Pass ->
-      Format.eprintf "PASS@.";
+      Format.eprintf "%s: PASS@." filename;
       Success
     | Fail { corrected } ->
-      Format.eprintf "FAIL@.";
+      Format.eprintf "%s: FAIL@." filename;
       save_corrected corrected ~desc:"test" ~print:Print_fexpr.expect_test_spec
         ~orig_filename:filename;
       Failure)
   | Error e ->
-    dump_error e;
+    Test_utils.dump_error e;
     Error
 
 let run_mdflx_file filename : Outcome.t =
@@ -122,7 +114,7 @@ let run_mdflx_file filename : Outcome.t =
         ~print:Print_fexpr.markdown_doc ~orig_filename:filename;
       Failure)
   | Error e ->
-    dump_error e;
+    Test_utils.dump_error e;
     Error
 
 let _ =

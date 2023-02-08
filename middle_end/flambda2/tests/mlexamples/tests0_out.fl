@@ -1,0 +1,12 @@
+let code f_0 deleted in
+let code size(0) newer_version_of(f_0)
+      f_0_1 (param : imm tagged)
+        my_closure my_region my_depth
+        -> k * k1
+        : imm tagged =
+  cont k (0)
+in
+let $camlTests0__f_1 = closure f_0_1 @f in
+let $camlTests0 = Block 0 ($camlTests0__f_1) in
+cont done ($camlTests0)
+

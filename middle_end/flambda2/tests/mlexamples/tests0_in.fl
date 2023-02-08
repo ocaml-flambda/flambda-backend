@@ -1,0 +1,30 @@
+let $camlTests0__first_const19 = Block 0 () in
+let code size(30)
+      f_0 (param : imm tagged)
+        my_closure my_region my_depth
+        -> k * k1
+        : imm tagged =
+  (let prim = %is_int 0 in
+   let is_scrutinee_int = %Tag_imm prim in
+   let untagged = %untag_imm is_scrutinee_int in
+   switch untagged
+     | 0 -> k2
+     | 1 -> k3)
+    where k3 =
+      cont k (0)
+    where k2 =
+      let prim = %get_tag 0 in
+      let scrutinee_tag = %Tag_imm prim in
+      let untagged = %untag_imm scrutinee_tag in
+      switch untagged
+        | 0 -> k (1)
+        | 1 -> k (2)
+in
+(let f = closure f_0 @f in
+ let Pmakeblock = %Block 0 (f) in
+ cont k (Pmakeblock))
+  where k define_root_symbol (module_block) =
+    let field_0 = %block_load tag(0) size(1) (module_block, 0) in
+    let $camlTests0 = Block 0 (field_0) in
+    cont done ($camlTests0)
+
