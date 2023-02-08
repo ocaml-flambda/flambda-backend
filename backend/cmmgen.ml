@@ -179,7 +179,7 @@ let rec expr_size env = function
       RHS_block (mode, List.length args)
   | Uprim(Pmakearray(Pfloatarray, _, mode), args, _) ->
       RHS_floatblock (mode, List.length args)
-  | Uprim(Pmakearray(Pgenarray, _, mode), _, _) ->
+  | Uprim(Pmakearray(Pgenarray, _, _mode), _, _) ->
      (* Pgenarray is excluded from recursive bindings by the
         check in Translcore.check_recursive_lambda *)
      RHS_nonrec
