@@ -570,6 +570,7 @@ let layout_boxedint bi = Pvalue (Pboxedintval bi)
 let layout_lazy = Pvalue Pgenval
 let layout_lazy_contents = Pvalue Pgenval
 let layout_any_value = Pvalue Pgenval
+let layout_letrec = layout_any_value
 
 let layout_top = Pvalue Pgenval
 let layout_bottom =

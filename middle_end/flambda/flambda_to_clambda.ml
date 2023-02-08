@@ -367,7 +367,7 @@ let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda * Lambda.layout =
     let env_handler, ids =
       List.fold_right (fun (var, layout) (env, ids) ->
           let id, env = Env.add_fresh_ident env var layout in
-          env, (VP.create id, Lambda.layout_top) :: ids)
+          env, (VP.create id, layout) :: ids)
         vars (env, [])
     in
     let body, body_layout = to_clambda t env body in
