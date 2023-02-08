@@ -204,12 +204,13 @@ let variable_and_symbol_invariants (program : Flambda.program) =
       check_variable_is_bound env new_value
     | Send { kind; meth; obj; args; dbg;
              reg_close = (Rc_normal | Rc_close_at_apply | Rc_nontail);
-             mode = (Alloc_heap | Alloc_local) } ->
+             mode = (Alloc_heap | Alloc_local); result_layout; } ->
       ignore_meth_kind kind;
       check_variable_is_bound env meth;
       check_variable_is_bound env obj;
       check_variables_are_bound env args;
-      ignore_debuginfo dbg
+      ignore_debuginfo dbg;
+      ignore_layout result_layout
     | If_then_else (cond, ifso, ifnot, kind) ->
       check_variable_is_bound env cond;
       ignore_layout kind;
