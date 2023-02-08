@@ -1173,12 +1173,11 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
           fail_if_probe ~probe "Unknown function";
           (Ugeneric_apply(ufunct, uargs, List.map (fun _ -> Lambda.layout_top) uargs, ap_result_layout, (pos, mode), dbg), Value_unknown)
       end
-  | Lsend(kind, met, obj, args, pos, mode, loc, _result_layout) ->
+  | Lsend(kind, met, obj, args, pos, mode, loc, result_layout) ->
       let (umet, _) = close env met in
       let (uobj, _) = close env obj in
       let dbg = Debuginfo.from_location loc in
-      let args_layout = assert false in
-      let result_layout = assert false in
+      let args_layout = List.map (fun _ -> Lambda.layout_top) args in
       (Usend(kind, umet, uobj, close_list env args, args_layout, result_layout, (pos,mode), dbg),
        Value_unknown)
   | Llet(str, kind, id, lam, body) ->
