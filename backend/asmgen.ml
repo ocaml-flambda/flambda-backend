@@ -300,8 +300,11 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
           ++ Profile.record ~accumulate:true "cfg_deadcode" Cfg_deadcode.run
         in
         let cfg_description =
-          Profile.record ~accumulate:true "cfg_create_description"
-            Cfg_regalloc_validate.Description.create (Cfg_with_liveness.cfg_with_layout cfg)
+          match !Flambda_backend_flags.cfg_regalloc_validate with
+          | false -> None
+          | true ->
+            Some (Profile.record ~accumulate:true "cfg_create_description"
+                    Cfg_regalloc_validate.Description.create (Cfg_with_liveness.cfg_with_layout cfg))
         in
         cfg
         ++ begin match regalloc with
@@ -310,9 +313,9 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
           | Upstream -> assert false
         end
         ++ Cfg_with_liveness.cfg_with_layout
-        ++ begin match !Flambda_backend_flags.cfg_regalloc_validate with
-          | true -> Profile.record ~accumulate:true "cfg_validate_description" (Cfg_regalloc_validate.run cfg_description)
-          | false -> Fun.id
+        ++ begin match cfg_description with
+          | None -> Fun.id
+          | Some cfg_description -> Profile.record ~accumulate:true "cfg_validate_description" (Cfg_regalloc_validate.run cfg_description)
         end
         ++ Profile.record ~accumulate:true "cfg_simplify" Cfg_regalloc_utils.simplify_cfg
         ++ Profile.record ~accumulate:true "save_cfg" save_cfg
