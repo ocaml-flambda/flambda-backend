@@ -190,7 +190,8 @@ let is_simple (lam : Lambda.lambda) =
 let assert_not_local ~lam : Lambda.alloc_mode -> unit = function
   | Alloc_heap -> ()
   | Alloc_local ->
-     Misc.fatal_errorf "Invalid stack allocation found in %a" Printlambda.lambda lam
+    Misc.fatal_errorf "Invalid stack allocation found in %a" Printlambda.lambda
+      lam
 
 let dead_code lam letrec =
   (* Some cases generate code without effects, and bound to nothing. We use this
