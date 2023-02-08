@@ -141,6 +141,7 @@ end = struct
     match c with
     | 'A'..'Z' -> true
     | '_' | '0'..'9' | 'a'..'z' -> not first_char
+    | _ -> false
 
   let parse_for_pack pack =
     let prefix = String.split_on_char '.' pack in
