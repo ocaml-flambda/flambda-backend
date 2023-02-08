@@ -279,11 +279,11 @@ let toplevel_substitution sb tree =
     | String_switch (cond, branches, def, kind) ->
       let cond = sb cond in
       String_switch (cond, branches, def, kind)
-    | Send { kind; meth; obj; args; dbg; reg_close; mode } ->
+    | Send { kind; meth; obj; args; dbg; reg_close; mode; result_layout } ->
       let meth = sb meth in
       let obj = sb obj in
       let args = List.map sb args in
-      Send { kind; meth; obj; args; dbg; reg_close; mode }
+      Send { kind; meth; obj; args; dbg; reg_close; mode; result_layout }
     | For { bound_var; from_value; to_value; direction; body } ->
       let from_value = sb from_value in
       let to_value = sb to_value in
@@ -728,7 +728,7 @@ let substitute_read_symbol_field_for_variables
       List.fold_right (fun f expr -> f expr) bind_args @@
       Flambda.Apply { func; args; kind; dbg; reg_close; mode;
                       inlined; specialise; probe; result_layout }
-    | Send { kind; meth; obj; args; dbg; reg_close; mode } ->
+    | Send { kind; meth; obj; args; dbg; reg_close; mode; result_layout } ->
       let meth, bind_meth = make_var_subst meth in
       let obj, bind_obj = make_var_subst obj in
       let args, bind_args =
@@ -737,7 +737,7 @@ let substitute_read_symbol_field_for_variables
       bind_meth @@
       bind_obj @@
       List.fold_right (fun f expr -> f expr) bind_args @@
-      Flambda.Send { kind; meth; obj; args; dbg; reg_close; mode }
+      Flambda.Send { kind; meth; obj; args; dbg; reg_close; mode; result_layout }
     | Proved_unreachable
     | Region _
     | Tail _
