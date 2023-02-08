@@ -99,7 +99,11 @@ let clambda_arity (func : Flambda.function_declaration) : Clambda.arity =
            Lambda.is_local_mode (Parameter.alloc_mode p))
     |> List.length
   in
-  Curried {nlocal}, Flambda_utils.function_arity func
+  {
+    function_kind = Curried {nlocal} ;
+    params_layout = List.map Parameter.kind func.params ;
+    return_layout = assert false ; (* Need func.return *)
+  }
 
 let check_field t ulam pos named_opt : Clambda.ulambda =
   if not !Clflags.clambda_checks then ulam
@@ -562,7 +566,7 @@ and to_clambda_set_of_closures t env
     let env_body, params =
       List.fold_right (fun var (env, params) ->
           let id, env = Env.add_fresh_ident env (Parameter.var var) in
-          env, (VP.create id, Parameter.kind var) :: params)
+          env, VP.create id :: params)
         function_decl.params (env, [])
     in
     let label =
@@ -572,8 +576,7 @@ and to_clambda_set_of_closures t env
     in
     { label;
       arity = clambda_arity function_decl;
-      params = params @ [VP.create env_var, Lambda.layout_function];
-      return = Lambda.layout_top;
+      params = params @ [VP.create env_var];
       body = to_clambda t env_body function_decl.body;
       dbg = function_decl.dbg;
       env = Some env_var;
@@ -623,7 +626,7 @@ and to_clambda_closed_set_of_closures t env symbol
     let env_body, params =
       List.fold_right (fun var (env, params) ->
           let id, env = Env.add_fresh_ident env (Parameter.var var) in
-          env, (VP.create id, Parameter.kind var) :: params)
+          env, VP.create id :: params)
         function_decl.params (env, [])
     in
     let body =
@@ -641,7 +644,6 @@ and to_clambda_closed_set_of_closures t env symbol
     { label;
       arity = clambda_arity function_decl;
       params;
-      return = Lambda.layout_top;
       body;
       dbg = function_decl.dbg;
       env = None;

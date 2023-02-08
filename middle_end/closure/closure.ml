@@ -1029,18 +1029,18 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
           Location.print_loc (Debuginfo.Scoped_location.to_location loc);
       begin match (close env funct, close_list env args) with
         ((ufunct, Value_closure(_,
-                                ({fun_arity=(Tupled, nparams)} as fundesc),
+                                ({fun_arity={function_kind = Tupled ; params_layout = params_layout; _}} as fundesc),
                                 approx_res)),
          [Uprim(P.Pmakeblock _, uargs, _)])
-        when List.length uargs = nparams ->
+        when List.length uargs = List.length params_layout ->
           let app =
             direct_apply env ~loc ~attribute fundesc ufunct uargs
               pos mode ~probe in
           (app, strengthen_approx app approx_res)
       | ((ufunct, Value_closure(_,
-                                ({fun_arity=(Curried _, nparams)} as fundesc),
+                                ({fun_arity={function_kind = Curried _ ; params_layout ; _}} as fundesc),
                                 approx_res)), uargs)
-        when nargs = nparams ->
+        when nargs = List.length params_layout ->
           let app =
             direct_apply env ~loc ~attribute fundesc ufunct uargs
               pos mode ~probe in
@@ -1048,9 +1048,10 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
 
       | ((ufunct, (Value_closure(
             clos_mode,
-            ({fun_arity=(Curried {nlocal}, nparams)} as fundesc),
+            ({fun_arity={ function_kind = Curried {nlocal} ; params_layout ; _ }} as fundesc),
             _) as fapprox)), uargs)
-          when nargs < nparams ->
+          when nargs < List.length params_layout ->
+        let nparams = List.length params_layout in
         let first_args = List.map (fun arg ->
           (V.create_local "arg", arg) ) uargs in
         (* CR mshinwell: Edit when Lapply has kinds *)
@@ -1120,9 +1121,10 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
         fail_if_probe ~probe "Partial application";
         (new_fun, approx)
 
-      | ((ufunct, Value_closure(_, ({fun_arity = (Curried _, nparams)} as fundesc),
+      | ((ufunct, Value_closure(_, ({fun_arity = { function_kind = Curried _; params_layout ; _}} as fundesc),
                                 _approx_res)), uargs)
-        when nargs > nparams ->
+        when nargs > List.length params_layout ->
+          let nparams = List.length params_layout in
           let args = List.map (fun arg -> V.create_local "arg", arg) uargs in
           (* CR mshinwell: Edit when Lapply has kinds *)
           let kinds =
@@ -1155,6 +1157,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
           in
           let result =
             List.fold_left (fun body (id, defining_expr) ->
+                (* CR ncourant: we need to know the layout of defining_expr here, this is hard *)
                 Ulet (Immutable, Lambda.layout_top, VP.create id, defining_expr, body))
               body
               args
@@ -1277,7 +1280,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
       in
       let arg, _approx = close env arg in
       let id = Ident.create_local "dummy" in
-      Ulet(Immutable, Lambda.layout_top, VP.create id, arg, cst), approx
+      Ulet(Immutable, Lambda.layout_unit, VP.create id, arg, cst), approx
   | Lprim(Pignore, [arg], _loc) ->
       let expr, approx = make_const_int 0 in
       Usequence(fst (close env arg), expr), approx
@@ -1484,10 +1487,9 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
               |> Symbol.linkage_name
               |> Linkage_name.to_string
             in
-            let arity = List.length params in
             let fundesc =
               {fun_label = label;
-               fun_arity = (kind, arity);
+               fun_arity = { function_kind = kind ; params_layout = List.map snd params ; return_layout = return };
                fun_closed = initially_closed;
                fun_inline = None;
                fun_float_const_prop = !Clflags.float_const_prop;
@@ -1516,7 +1518,7 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
       (fun (_id, _params, _return, _body, _mode, _attrib, fundesc, _dbg) ->
         let pos = !env_pos + 1 in
         env_pos := !env_pos + 1 +
-          (match fundesc.fun_arity with (Curried _, (0|1)) -> 2 | _ -> 3);
+          (match fundesc.fun_arity with { function_kind = Curried _; params_layout = ([] | [_]); _} -> 2 | _ -> 3);
         pos)
       uncurried_defs in
   let fv_pos = !env_pos in
@@ -1566,8 +1568,7 @@ and close_functions { backend; fenv; cenv; mutable_vars; kinds; catch_env } fun_
       {
         label  = fundesc.fun_label;
         arity  = fundesc.fun_arity;
-        params = List.map (fun (var, kind) -> VP.create var, kind) fun_params;
-        return;
+        params = List.map (fun (var, _) -> VP.create var) fun_params;
         body   = ubody;
         dbg;
         env = Some env_param;

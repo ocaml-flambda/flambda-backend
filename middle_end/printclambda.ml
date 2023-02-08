@@ -78,16 +78,22 @@ let rec structured_constant ppf = function
 
 and one_fun ppf f =
   let idents ppf =
-    List.iter
-      (fun (x, k) ->
-         fprintf ppf "@ %a%a"
-           VP.print x
-           Printlambda.layout k
-      )
+    let rec iter params layouts =
+      match params, layouts with
+      | [], [] -> ()
+      | [param], [] ->
+        fprintf ppf "@ %a%a"
+          VP.print param Printlambda.layout Lambda.layout_function
+      | param :: params, layout :: layouts ->
+        fprintf ppf "@ %a%a"
+          VP.print param Printlambda.layout layout
+      | _ -> Misc.fatal_error "arity inconsistent with params"
+    in
+    iter f.params f.arity.params_layout
   in
-  fprintf ppf "(fun@ %s%s%a@ %d@ @[<2>%a@]@ @[<2>%a@])"
-    f.label (layout f.return) Printlambda.check_attribute f.check
-    (snd f.arity) idents f.params lam f.body
+  fprintf ppf "(fun@ %s%s%a@ %d@ @[<2>%t@]@ @[<2>%a@])"
+    f.label (layout f.arity.return_layout) Printlambda.check_attribute f.check
+    (List.length f.arity.params_layout) idents lam f.body
 
 and phantom_defining_expr ppf = function
   | Uphantom_const const -> uconstant ppf const
@@ -291,10 +297,10 @@ let rec approx ppf = function
     Value_closure(_, fundesc, a) ->
       Format.fprintf ppf "@[<2>function %s"
         fundesc.fun_label;
-      begin match fundesc.fun_arity with
-      | Tupled, n -> Format.fprintf ppf "@ arity -%i" n
-      | Curried {nlocal=0}, n -> Format.fprintf ppf "@ arity %i" n
-      | Curried {nlocal=k}, n -> Format.fprintf ppf "@ arity %i(%i L)" n k
+      begin match fundesc.fun_arity.function_kind with
+      | Tupled -> Format.fprintf ppf "@ arity -%i" (List.length fundesc.fun_arity.params_layout)
+      | Curried {nlocal=0} -> Format.fprintf ppf "@ arity %i" (List.length fundesc.fun_arity.params_layout)
+      | Curried {nlocal=k} -> Format.fprintf ppf "@ arity %i(%i L)" (List.length fundesc.fun_arity.params_layout) k
       end;
       if fundesc.fun_closed then begin
         Format.fprintf ppf "@ (closed)"
