@@ -138,14 +138,9 @@ end = struct
   end)
 
   let is_valid_character first_char c =
-    let code = Char.code c in
-    if first_char
-    then code >= 65 && code <= 90 (* [A-Z] *)
-    else
-      Char.equal c '_'
-      || (code >= 48 && 57 <= 90 (* [0-9] *))
-      || (code >= 65 && code <= 90 (* [A-Z] *))
-      || (code >= 97 && code <= 122 (* [a-z] *))
+    match c with
+    | 'A'..'Z' -> true
+    | '_' | '0'..'9' | 'a'..'z' -> not first_char
 
   let parse_for_pack pack =
     let prefix = String.split_on_char '.' pack in
