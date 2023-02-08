@@ -198,7 +198,7 @@ let variable_and_symbol_invariants (program : Flambda.program) =
       ignore_inlined_attribute inlined;
       ignore_specialise_attribute specialise;
       ignore_probe probe;
-      ignore result_layout
+      ignore_layout result_layout
     | Assign { being_assigned; new_value; } ->
       check_mutable_variable_is_bound env being_assigned;
       check_variable_is_bound env new_value
@@ -263,10 +263,11 @@ let variable_and_symbol_invariants (program : Flambda.program) =
       check_variable_is_bound env closure;
       ignore_closure_id start_from;
       ignore_closure_id move_to;
-    | Project_var { closure; closure_id; var; } ->
+    | Project_var { closure; closure_id; var; kind } ->
       check_variable_is_bound env closure;
       ignore_closure_id closure_id;
-      ignore_var_within_closure var
+      ignore_var_within_closure var;
+      ignore_layout kind
     | Prim (prim, args, dbg) ->
       ignore_primitive prim;
       check_variables_are_bound env args;
