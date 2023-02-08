@@ -3555,12 +3555,12 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
         | arity ->
           (Cint (infix_header pos) :: closure_symbol f2)
           @ Csymbol_address
-              (curry_function_sym arity.function_kind
-                 (List.map machtype_of_layout arity.params_layout)
-                 (machtype_of_layout arity.return_layout))
+              (curry_function_sym (fst arity)
+                 (List.init (snd arity) (fun _ -> typ_val))
+                 typ_val)
             :: Cint
                  (closure_info
-                    ~arity:(arity.function_kind, List.length arity.params_layout)
+                    ~arity
                     ~startenv:(startenv - pos) ~is_last)
             :: Csymbol_address f2.label
             :: emit_others (pos + 4) rem)
@@ -3577,12 +3577,12 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
       :: emit_others 3 remainder
     | arity ->
       Csymbol_address
-        (curry_function_sym arity.function_kind
-           (List.map machtype_of_layout arity.params_layout)
-           (machtype_of_layout arity.return_layout))
+        (curry_function_sym (fst arity)
+           (List.init (snd arity) (fun _ -> typ_val))
+           typ_val)
       :: Cint
            (closure_info
-              ~arity:(arity.function_kind, List.length arity.params_layout)
+              ~arity
               ~startenv ~is_last)
       :: Csymbol_address f1.label :: emit_others 4 remainder)
 

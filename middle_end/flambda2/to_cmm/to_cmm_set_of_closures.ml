@@ -50,8 +50,8 @@ let get_func_decl_params_arity t code_id =
       Lambda.Curried { nlocal = Code_metadata.num_trailing_local_params info }
   in
   let closure_code_pointers =
-    match kind, num_params with
-    | Curried _, (0 | 1) -> Full_application_only
+    match kind, params_ty with
+    | Curried _, ([] | [_]) -> Full_application_only
     | (Curried _ | Tupled), _ -> Full_and_partial_application
   in
   let arity = kind, params_ty, result_ty in
@@ -157,7 +157,7 @@ end = struct
         get_func_decl_params_arity env code_id
       in
       let closure_info =
-        C.closure_info ~arity ~startenv:(startenv - slot_offset)
+        C.closure_info ~arity:(kind, List.length params_ty) ~startenv:(startenv - slot_offset)
           ~is_last:last_function_slot
       in
       let acc =
