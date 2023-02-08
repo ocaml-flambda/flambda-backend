@@ -20,7 +20,11 @@ open Asttypes
 open Lambda
 
 type function_label = string
-type arity = Lambda.function_kind * int
+type arity = {
+  function_kind : Lambda.function_kind ;
+  params_layout : Lambda.layout list ;
+  return_layout : Lambda.layout ;
+}
 type apply_kind = Lambda.region_close * Lambda.alloc_mode
 
 type ustructured_constant =
@@ -98,8 +102,7 @@ and ulambda =
 and ufunction = {
   label  : function_label;
   arity  : arity;
-  params : (Backend_var.With_provenance.t * layout) list;
-  return : layout;
+  params : Backend_var.With_provenance.t list;
   body   : ulambda;
   dbg    : Debuginfo.t;
   env    : Backend_var.t option;

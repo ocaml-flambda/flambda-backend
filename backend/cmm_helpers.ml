@@ -3520,7 +3520,7 @@ let fundecls_size fundecls =
     (fun (f : Clambda.ufunction) ->
       let indirect_call_code_pointer_size =
         match f.arity with
-        | Curried _, (0 | 1) ->
+        | { function_kind = Curried _; params_layout = [] | [_]; _ } ->
           0
           (* arity 1 does not need an indirect call handler. arity 0 cannot be
              indirect called *)
@@ -3557,18 +3557,24 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
       | (f2 : Clambda.ufunction) :: rem -> (
         let is_last = match rem with [] -> true | _ :: _ -> false in
         match f2.arity with
-        | (Curried _, (0 | 1)) as arity ->
+        | { function_kind = Curried _; params_layout = [] | [_]; _ } as arity ->
           (Cint (infix_header pos) :: closure_symbol f2)
           @ Csymbol_address f2.label
-            :: Cint (closure_info ~arity ~startenv:(startenv - pos) ~is_last)
+            :: Cint
+                 (closure_info
+                    ~arity:(arity.function_kind, List.length arity.params_layout)
+                    ~startenv:(startenv - pos) ~is_last)
             :: emit_others (pos + 3) rem
         | arity ->
           (Cint (infix_header pos) :: closure_symbol f2)
           @ Csymbol_address
-              (curry_function_sym (fst arity)
-                 (List.init (snd arity) (fun _ -> typ_val))
-                 typ_val)
-            :: Cint (closure_info ~arity ~startenv:(startenv - pos) ~is_last)
+              (curry_function_sym arity.function_kind
+                 (List.map machtype_of_layout arity.params_layout)
+                 (machtype_of_layout arity.return_layout))
+            :: Cint
+                 (closure_info
+                    ~arity:(arity.function_kind, List.length arity.params_layout)
+                    ~startenv:(startenv - pos) ~is_last)
             :: Csymbol_address f2.label
             :: emit_others (pos + 4) rem)
     in
@@ -3578,16 +3584,22 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
     @ closure_symbol f1
     @
     match f1.arity with
-    | (Curried _, (0 | 1)) as arity ->
+    | { function_kind = Curried _; params_layout = [] | [_]; _ } as arity ->
       Csymbol_address f1.label
-      :: Cint (closure_info ~arity ~startenv ~is_last)
+      :: Cint
+           (closure_info
+              ~arity:(arity.function_kind, List.length arity.params_layout)
+              ~startenv ~is_last)
       :: emit_others 3 remainder
     | arity ->
       Csymbol_address
-        (curry_function_sym (fst arity)
-           (List.init (snd arity) (fun _ -> typ_val))
-           typ_val)
-      :: Cint (closure_info ~arity ~startenv ~is_last)
+        (curry_function_sym arity.function_kind
+           (List.map machtype_of_layout arity.params_layout)
+           (machtype_of_layout arity.return_layout))
+      :: Cint
+           (closure_info
+              ~arity:(arity.function_kind, List.length arity.params_layout)
+              ~startenv ~is_last)
       :: Csymbol_address f1.label :: emit_others 4 remainder)
 
 (* Build the NULL terminated array of gc roots *)

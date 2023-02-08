@@ -56,6 +56,7 @@ let ignore_primitive (_ : Clambda_primitives.primitive) = ()
 let ignore_string (_ : string) = ()
 let ignore_int_array (_ : int array) = ()
 let ignore_var_with_provenance (_ : VP.t) = ()
+let ignore_params (_ : VP.t list) = ()
 let ignore_params_with_layout (_ : (VP.t * Lambda.layout) list) = ()
 let ignore_direction_flag (_ : Asttypes.direction_flag) = ()
 let ignore_meth_kind (_ : Lambda.meth_kind) = ()
@@ -67,9 +68,10 @@ let ignore_layout (_ : Lambda.layout) = ()
 
 let closure_environment_var (ufunction:Clambda.ufunction) =
   (* The argument after the arity is the environment *)
-  match ufunction.arity with
-  | Curried _, n when List.length ufunction.params = n + 1 ->
-    let (env_var, _) = List.nth ufunction.params n in
+  let n = List.length ufunction.arity.params_layout in
+  match ufunction.arity.function_kind with
+  | Curried _ when List.length ufunction.params = n + 1 ->
+    let env_var = List.nth ufunction.params n in
     assert (VP.name env_var = "env");
     Some env_var
   | _ ->
@@ -148,7 +150,7 @@ let make_var_info (clam : Clambda.ulambda) : var_info =
       List.iter (loop ~depth) not_scanned_slots;
       List.iter (loop ~depth) scanned_slots;
       List.iter (fun (
-        { Clambda. label; arity=_; params; return; body; dbg; env; mode=_;
+        { Clambda. label; arity=_; params; body; dbg; env; mode=_;
             check=_; poll=_ } as clos) ->
           (match closure_environment_var clos with
            | None -> ()
@@ -156,8 +158,7 @@ let make_var_info (clam : Clambda.ulambda) : var_info =
              environment_vars :=
                V.Set.add (VP.var env_var) !environment_vars);
           ignore_function_label label;
-          ignore_params_with_layout params;
-          ignore_layout return;
+          ignore_params params;
           loop ~depth:(depth + 1) body;
           ignore_debuginfo dbg;
           ignore_var_option env)
@@ -326,11 +327,10 @@ let let_bound_vars_that_can_be_moved var_info (clam : Clambda.ulambda) =
       ignore_ulambda_list not_scanned_slots;
       ignore_ulambda_list scanned_slots;
       (* Start a new let stack for speed. *)
-      List.iter (fun {Clambda. label; arity=_; params; return; body; dbg; env; mode=_;
+      List.iter (fun {Clambda. label; arity=_; params; body; dbg; env; mode=_;
                       check=_; poll=_} ->
           ignore_function_label label;
-          ignore_params_with_layout params;
-          ignore_layout return;
+          ignore_params params;
           let_stack := [];
           loop body;
           let_stack := [];
