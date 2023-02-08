@@ -771,7 +771,7 @@ let rec lam ppf = function
        lam for_to (alloc_mode mode) lam for_body
   | Lassign(id, expr) ->
       fprintf ppf "@[<2>(assign@ %a@ %a)@]" Ident.print id lam expr
-  | Lsend (k, met, obj, largs, pos, reg, _) ->
+  | Lsend (k, met, obj, largs, pos, reg, _, _) ->
       let args ppf largs =
         List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in
       let kind =
