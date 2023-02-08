@@ -15,7 +15,7 @@ else
 endif
 
 define dune_boot_context
-(lang dune 2.8)
+(lang dune 3.5)
 ; We need to call the boot context "default" so that dune selects it for merlin
 (context (default
   (name default)
@@ -24,7 +24,7 @@ define dune_boot_context
 endef
 
 define dune_runtime_stdlib_context
-(lang dune 2.8)
+(lang dune 3.5)
 (context (default
   (name runtime_stdlib)
   (profile main)
@@ -36,7 +36,7 @@ define dune_runtime_stdlib_context
 endef
 
 define dune_main_context
-(lang dune 2.8)
+(lang dune 3.5)
 (context (default
   (name main)
   (profile main)
