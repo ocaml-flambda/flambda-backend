@@ -84,7 +84,7 @@ let mk_internal_assembler f =
   "-internal-assembler", Arg.Unit f, "Write object files directly instead of using the system assembler (x86-64 ELF only)"
 
 let mk_gc_timings f =
-  "-dgc-timings", Arg.Unit f, "Output information about time spend in the GC"
+  "-dgc-timings", Arg.Unit f, "Output information about time spent in the GC"
 
 module Flambda2 = Flambda_backend_flags.Flambda2
 

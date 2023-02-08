@@ -15,6 +15,7 @@
 #include <time.h>
 #endif
 
+/* [time_counter] is extracted from ocaml/runtime/eventlog.c */
 int64_t time_counter(void)
 {
 #ifdef _WIN32
@@ -53,10 +54,11 @@ int64_t time_counter(void)
   return
     (int64_t)t.tv_sec  * (int64_t)1000000000 +
     (int64_t)t.tv_nsec;
-
-
+#else
+  return 0;
 #endif
 }
+
 int64_t caml_timing_major_gc = 0.;
 int64_t caml_timing_minor_gc = 0.;
 

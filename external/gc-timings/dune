@@ -7,7 +7,7 @@
    ((:include %{project_root}/oc_cflags.sexp)
     (:include %{project_root}/sharedlib_cflags.sexp)
     (:include %{project_root}/oc_cppflags.sexp))))
- (synopsis "OCaml library to work with DWARF format"))
+ (synopsis "OCaml library to extract timing information from the GC"))
 
 (install
  (files

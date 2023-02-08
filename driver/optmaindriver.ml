@@ -159,7 +159,14 @@ let main unix argv ppf ~flambda2 =
     Location.report_exception ppf x;
     2
   | () ->
-    if !Flambda_backend_flags.gc_timings then
-      Gc_timings.print ~precision:!Clflags.timings_precision Format.std_formatter;
+    if !Flambda_backend_flags.gc_timings then begin
+      let minor = Gc_timings.gc_minor_ns () in
+      let major = Gc_timings.gc_major_ns () in
+      let secs x = x *. 1e-9 in
+      let precision = !Clflags.timings_precision in
+      Format.fprintf ppf "%0.*fs gc\n" precision (secs (minor +. major));
+      Format.fprintf ppf "  %0.*fs minor\n" precision (secs minor);
+      Format.fprintf ppf "  %0.*fs major\n" precision (secs major)
+    end;
     Profile.print Format.std_formatter !Clflags.profile_columns ~timings_precision:!Clflags.timings_precision;
     0
