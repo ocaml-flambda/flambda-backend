@@ -310,26 +310,35 @@ let unclosed opening_name opening_loc closing_name closing_loc =
 module Generic_array = struct
   (** The three possible ways to parse an array (writing [[? ... ?]] for either
       [[| ... |]] or [[: ... :]]): *)
-  type t =
-    | Literal of expression list
-    (** A plain array literal, [[? x; y; z ?]] *)
-    | Opened_literal of open_declaration *
-                        Lexing.position *
-                        Lexing.position *
-                        expression list
-    (** An array literal with a local open, [Module.[? x; y; z ?]] *)
-    | Unclosed of (Lexing.position * Lexing.position) *
-                  (Lexing.position * Lexing.position)
+  type (_, _) t =
+    | Literal : 'ast list -> ('ast, 'ast_desc) t
+    (** A plain array literal/pattern, [[? x; y; z ?]] *)
+    | Opened_literal : open_declaration *
+                       Lexing.position *
+                       Lexing.position *
+                       expression list
+                     -> (expression, expression_desc) t
+    (** An array literal with a local open, [Module.[? x; y; z ?]] (only valid in
+        expressions) *)
+    | Unclosed : (Lexing.position * Lexing.position) *
+                 (Lexing.position * Lexing.position)
+               -> (_, _) t
     (** Parse error: an unclosed array literal, [\[? x; y; z] with no closing
         [?\]]. *)
 
-  let expression open_ close array = function
+  let to_ast (type ast ast_desc)
+             (open_ : string) (close : string)
+             (array : ast list -> ast_desc)
+        : (ast, ast_desc) t -> ast_desc = function
     | Literal elts ->
-       array elts
+        array elts
     | Opened_literal(od, startpos, endpos, elts) ->
-       Pexp_open(od, mkexp ~loc:(startpos, endpos) (array elts))
+        (Pexp_open(od, mkexp ~loc:(startpos, endpos) (array elts)) : ast_desc)
     | Unclosed(startpos, endpos) ->
-       unclosed open_ startpos close endpos
+        unclosed open_ startpos close endpos
+
+  let expression : _ -> _ -> _ -> (expression, expression_desc) t -> _ = to_ast
+  let pattern    : _ -> _ -> _ -> (pattern,    pattern_desc)    t -> _ = to_ast
 end
 
 let ppat_iarray loc elts =
@@ -2596,13 +2605,18 @@ comprehension_clause:
          (Eexp_comprehension $1)).pexp_desc }
 ;
 
-%inline array_exprs(ARR_OPEN, ARR_CLOSE):
-  | ARR_OPEN expr_semi_list ARR_CLOSE
+%inline array_simple(ARR_OPEN, ARR_CLOSE, contents_semi_list):
+  | ARR_OPEN contents_semi_list ARR_CLOSE
       { Generic_array.Literal $2 }
-  | ARR_OPEN expr_semi_list error
+  | ARR_OPEN contents_semi_list error
       { Generic_array.Unclosed($loc($1),$loc($3)) }
   | ARR_OPEN ARR_CLOSE
       { Generic_array.Literal [] }
+;
+
+%inline array_exprs(ARR_OPEN, ARR_CLOSE):
+  | array_simple(ARR_OPEN, ARR_CLOSE, expr_semi_list)
+      { $1 }
   | od=open_dot_declaration DOT ARR_OPEN expr_semi_list ARR_CLOSE
       { Generic_array.Opened_literal(od, $startpos($3), $endpos, $4) }
   | od=open_dot_declaration DOT ARR_OPEN ARR_CLOSE
@@ -2611,6 +2625,12 @@ comprehension_clause:
   | mod_longident DOT
     ARR_OPEN expr_semi_list error
       { Generic_array.Unclosed($loc($3), $loc($5)) }
+;
+
+%inline array_patterns(ARR_OPEN, ARR_CLOSE):
+  | array_simple(ARR_OPEN, ARR_CLOSE, pattern_semi_list)
+      { $1 }
+;
 
 %inline simple_expr_:
   | mkrhs(val_longident)
@@ -3088,16 +3108,16 @@ simple_delimited_pattern:
       { fst (mktailpat $loc($3) $2) }
     | LBRACKET pattern_semi_list error
       { unclosed "[" $loc($1) "]" $loc($3) }
-    | LBRACKETBAR pattern_semi_list BARRBRACKET
-      { Ppat_array $2 }
-    | LBRACKETBAR BARRBRACKET
-      { Ppat_array [] }
-    | LBRACKETCOLON pattern_semi_list COLONRBRACKET
-      { ppat_iarray $sloc $2 }
-    | LBRACKETCOLON COLONRBRACKET
-      { ppat_iarray $sloc [] }
-    | LBRACKETBAR pattern_semi_list error
-      { unclosed "[|" $loc($1) "|]" $loc($3) }
+    | array_patterns(LBRACKETBAR, BARRBRACKET)
+        { Generic_array.pattern
+            "[|" "|]"
+            (fun elts -> Ppat_array elts)
+            $1 }
+    | array_patterns(LBRACKETCOLON, COLONRBRACKET)
+        { Generic_array.pattern
+            "[:" ":]"
+            (ppat_iarray $sloc)
+            $1 }
   ) { $1 }
 
 pattern_comma_list(self):
