@@ -157,8 +157,9 @@ end = struct
         get_func_decl_params_arity env code_id
       in
       let closure_info =
-        C.closure_info ~arity:(kind, List.length params_ty) ~startenv:(startenv - slot_offset)
-          ~is_last:last_function_slot
+        C.closure_info
+          ~arity:(kind, List.length params_ty)
+          ~startenv:(startenv - slot_offset) ~is_last:last_function_slot
       in
       let acc =
         match for_static_sets with

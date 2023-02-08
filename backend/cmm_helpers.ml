@@ -3558,10 +3558,7 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
               (curry_function_sym (fst arity)
                  (List.init (snd arity) (fun _ -> typ_val))
                  typ_val)
-            :: Cint
-                 (closure_info
-                    ~arity
-                    ~startenv:(startenv - pos) ~is_last)
+            :: Cint (closure_info ~arity ~startenv:(startenv - pos) ~is_last)
             :: Csymbol_address f2.label
             :: emit_others (pos + 4) rem)
     in
@@ -3580,10 +3577,7 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
         (curry_function_sym (fst arity)
            (List.init (snd arity) (fun _ -> typ_val))
            typ_val)
-      :: Cint
-           (closure_info
-              ~arity
-              ~startenv ~is_last)
+      :: Cint (closure_info ~arity ~startenv ~is_last)
       :: Csymbol_address f1.label :: emit_others 4 remainder)
 
 (* Build the NULL terminated array of gc roots *)
