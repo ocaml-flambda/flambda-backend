@@ -118,7 +118,7 @@ let may_allocate_in_region lam =
     | Lfunction {mode=Alloc_local} -> raise Exit
 
     | Lapply {ap_mode=Alloc_local}
-    | Lsend (_,_,_,_,_,Alloc_local,_) -> raise Exit
+    | Lsend (_,_,_,_,_,Alloc_local,_,_) -> raise Exit
 
     | Lprim (prim, args, _) ->
        begin match Lambda.primitive_may_allocate prim with
@@ -151,8 +151,8 @@ let maybe_region lam =
   let rec remove_tail_markers = function
     | Lapply ({ap_region_close = Rc_close_at_apply} as ap) ->
        Lapply ({ap with ap_region_close = Rc_normal})
-    | Lsend (k, lmet, lobj, largs, Rc_close_at_apply, mode, loc) ->
-       Lsend (k, lmet, lobj, largs, Rc_normal, mode, loc)
+    | Lsend (k, lmet, lobj, largs, Rc_close_at_apply, mode, loc, layout) ->
+       Lsend (k, lmet, lobj, largs, Rc_normal, mode, loc, layout)
     | Lregion _ as lam -> lam
     | lam ->
        Lambda.shallow_map ~tail:remove_tail_markers ~non_tail:Fun.id lam
@@ -621,20 +621,22 @@ and transl_exp0 ~in_new_scope ~scopes e =
         let pos = transl_apply_position pos in
         let mode = transl_exp_mode e in
         let loc = of_location ~scopes e.exp_loc in
+        let layout = Typeopt.layout e.exp_env e.exp_type in
         match met with
         | Tmeth_val id ->
             let obj = transl_exp ~scopes expr in
-            Lsend (Self, Lvar id, obj, [], pos, mode, loc)
+            Lsend (Self, Lvar id, obj, [], pos, mode, loc, layout)
         | Tmeth_name nm ->
             let obj = transl_exp ~scopes expr in
             let (tag, cache) = Translobj.meth obj nm in
             let kind = if cache = [] then Public else Cached in
-            Lsend (kind, tag, obj, cache, pos, mode, loc)
+            Lsend (kind, tag, obj, cache, pos, mode, loc, layout)
         | Tmeth_ancestor(meth, path_self) ->
             let self = transl_value_path loc e.exp_env path_self in
             Lapply {ap_loc = loc;
                     ap_func = Lvar meth;
                     ap_args = [self];
+                    ap_result_layout = layout;
                     ap_mode = mode;
                     ap_region_close = pos;
                     ap_probe = None;
@@ -652,6 +654,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
           Lprim(Pfield (0, Reads_vary),
               [transl_class_path loc e.exp_env cl], loc);
         ap_args=[lambda_unit];
+        ap_result_layout=Typeopt.layout e.exp_env e.exp_type;
         ap_region_close=pos;
         ap_mode=alloc_heap;
         ap_tailcall=Default_tailcall;
@@ -678,6 +681,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
              ap_loc=Loc_unknown;
              ap_func=Translobj.oo_prim "copy";
              ap_args=[self];
+             ap_result_layout=Lambda.layout_object;
              ap_region_close=Rc_normal;
              ap_mode=alloc_heap;
              ap_tailcall=Default_tailcall;
@@ -849,6 +853,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
       let app =
         { ap_func = Lvar funcid;
           ap_args = List.map (fun id -> Lvar id) arg_idents;
+          ap_result_layout = Typeopt.layout exp.exp_env exp.exp_type;
           ap_region_close = Rc_normal;
           ap_mode = alloc_heap;
           ap_loc = of_location e.exp_loc ~scopes;
@@ -940,24 +945,25 @@ and transl_apply ~scopes
       lam sargs loc
   =
   let lapply funct args loc pos mode =
+    let result_layout = Lambda.layout_top in
     match funct, pos with
-    | Lsend((Self | Public) as k, lmet, lobj, [], _, _, _), _ ->
-        Lsend(k, lmet, lobj, args, pos, mode, loc)
-    | Lsend(Cached, lmet, lobj, ([_; _] as largs), _, _, _), _ ->
-        Lsend(Cached, lmet, lobj, largs @ args, pos, mode, loc)
-    | Lsend(k, lmet, lobj, largs, (Rc_normal | Rc_nontail), _, _),
+    | Lsend((Self | Public) as k, lmet, lobj, [], _, _, _, _), _ ->
+        Lsend(k, lmet, lobj, args, pos, mode, loc, result_layout)
+    | Lsend(Cached, lmet, lobj, ([_; _] as largs), _, _, _, _), _ ->
+        Lsend(Cached, lmet, lobj, largs @ args, pos, mode, loc, result_layout)
+    | Lsend(k, lmet, lobj, largs, (Rc_normal | Rc_nontail), _, _, _),
       (Rc_normal | Rc_nontail) ->
-        Lsend(k, lmet, lobj, largs @ args, pos, mode, loc)
+        Lsend(k, lmet, lobj, largs @ args, pos, mode, loc, result_layout)
     | Levent(
-      Lsend((Self | Public) as k, lmet, lobj, [], _, _, _), _), _ ->
-        Lsend(k, lmet, lobj, args, pos, mode, loc)
+      Lsend((Self | Public) as k, lmet, lobj, [], _, _, _, _), _), _ ->
+        Lsend(k, lmet, lobj, args, pos, mode, loc, result_layout)
     | Levent(
-      Lsend(Cached, lmet, lobj, ([_; _] as largs), _, _, _), _), _ ->
-        Lsend(Cached, lmet, lobj, largs @ args, pos, mode, loc)
+      Lsend(Cached, lmet, lobj, ([_; _] as largs), _, _, _, _), _), _ ->
+        Lsend(Cached, lmet, lobj, largs @ args, pos, mode, loc, result_layout)
     | Levent(
-      Lsend(k, lmet, lobj, largs, (Rc_normal | Rc_nontail), _, _), _),
+      Lsend(k, lmet, lobj, largs, (Rc_normal | Rc_nontail), _, _, _), _),
       (Rc_normal | Rc_nontail) ->
-        Lsend(k, lmet, lobj, largs @ args, pos, mode, loc)
+        Lsend(k, lmet, lobj, largs @ args, pos, mode, loc, result_layout)
     | Lapply ({ ap_region_close = (Rc_normal | Rc_nontail) } as ap),
       (Rc_normal | Rc_nontail) ->
         Lapply
@@ -968,6 +974,7 @@ and transl_apply ~scopes
           ap_loc=loc;
           ap_func=lexp;
           ap_args=args;
+          ap_result_layout=result_layout;
           ap_region_close=pos;
           ap_mode=mode;
           ap_tailcall=tailcall;
@@ -1505,6 +1512,7 @@ and transl_letop ~scopes loc env let_ ands param case partial warnings =
                ap_loc = of_location ~scopes and_.bop_loc;
                ap_func = op;
                ap_args=[Lvar left_id; Lvar right_id];
+               ap_result_layout = layout;
                ap_region_close=Rc_normal;
                ap_mode=alloc_heap;
                ap_tailcall = Default_tailcall;
@@ -1539,6 +1547,7 @@ and transl_letop ~scopes loc env let_ ands param case partial warnings =
     ap_loc = of_location ~scopes loc;
     ap_func = op;
     ap_args=[exp; func];
+    ap_result_layout=Lambda.layout_top;
     ap_region_close=Rc_normal;
     ap_mode=alloc_heap;
     ap_tailcall = Default_tailcall;
