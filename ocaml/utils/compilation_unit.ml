@@ -139,8 +139,8 @@ end = struct
 
   let is_valid_character first_char c =
     match c with
-    | 'A'..'Z' -> true
-    | '_' | '0'..'9' | 'a'..'z' -> not first_char
+    | 'A' .. 'Z' -> true
+    | '_' | '0' .. '9' | 'a' .. 'z' -> not first_char
     | _ -> false
 
   let parse_for_pack pack =
