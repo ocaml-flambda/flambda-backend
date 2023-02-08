@@ -308,10 +308,10 @@ val augment_with_symbol_field : t -> Symbol.t -> int -> t
 val replace_description : t -> descr -> t
 
 (** Improve the description by taking the kind into account *)
-val augment_with_kind : t -> Lambda.layout -> t
+val augment_with_kind : t -> Lambda.value_kind -> t
 
 (** Improve the kind by taking the description into account *)
-val augment_kind_with_approx : t -> Lambda.layout -> Lambda.layout
+val augment_kind_with_approx : t -> Lambda.value_kind -> Lambda.value_kind
 
 val equal_boxed_int : 'a boxed_int -> 'a -> 'b boxed_int -> 'b -> bool
 
