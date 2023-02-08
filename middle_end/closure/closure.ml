@@ -1166,7 +1166,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
           fail_if_probe ~probe "Unknown function";
           (Ugeneric_apply(ufunct, uargs, (pos, mode), dbg), Value_unknown)
       end
-  | Lsend(kind, met, obj, args, pos, mode, loc, result_layout) ->
+  | Lsend(kind, met, obj, args, pos, mode, loc, _result_layout) ->
       let (umet, _) = close env met in
       let (uobj, _) = close env obj in
       let dbg = Debuginfo.from_location loc in
