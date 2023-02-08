@@ -465,8 +465,8 @@ let rec transl env e =
                                    ~startenv:(startenv - pos) ~is_last dbg ::
                 transl_fundecls (pos + 3) rem
               | arity ->
-                Cconst_symbol (curry_function_sym arity, dbg) ::
-                alloc_closure_info ~arity
+                Cconst_symbol (curry_function_sym arity.function_kind (List.map machtype_of_layout arity.params_layout) (machtype_of_layout arity.return_layout), dbg) ::
+                alloc_closure_info ~arity:(arity.function_kind, List.length arity.params_layout)
                                    ~startenv:(startenv - pos) ~is_last dbg ::
                 Cconst_symbol (f.label, dbg) ::
                 transl_fundecls (pos + 4) rem
@@ -496,12 +496,16 @@ let rec transl env e =
   | Ugeneric_apply(clos, args, kind, dbg) ->
       let clos = transl env clos in
       let args = List.map (transl env) args in
-      generic_apply (mut_from_env env clos) clos args kind dbg
+      let args_type = List.map (fun _ -> typ_val) args in
+      let return = typ_val in
+      generic_apply (mut_from_env env clos) clos args args_type return kind dbg
   | Usend(kind, met, obj, args, pos, dbg) ->
       let met = transl env met in
       let obj = transl env obj in
       let args = List.map (transl env) args in
-      send kind met obj args pos dbg
+      let args_type = List.map (fun _ -> typ_val) args in
+      let return = typ_val in
+      send kind met obj args args_type return pos dbg
   | Ulet(str, kind, id, exp, body) ->
       transl_let env str kind id exp (fun env -> transl env body)
   | Uphantom_let (var, defining_expr, body) ->
