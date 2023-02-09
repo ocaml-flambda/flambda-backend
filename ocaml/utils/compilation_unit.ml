@@ -248,12 +248,14 @@ end = struct
     let () =
       if not empty_prefix
       then (
-        if not empty_arguments
-        then
-          (* CR-someday lmaurer: [for_pack_prefix] and [arguments] would make
-             for better output but it doesn't seem worth moving both [error] and
-             [print] to before this point *)
-          raise (Error (Packed_instance { name = name |> Name.to_string }));
+        let () =
+          if not empty_arguments
+          then
+            (* CR-someday lmaurer: [for_pack_prefix] and [arguments] would make
+               for better output but it doesn't seem worth moving both [error]
+               and [print] to before this point *)
+            raise (Error (Packed_instance { name = name |> Name.to_string }))
+        in
         Name.check_as_path_component name;
         ListLabels.iter ~f:Name.check_as_path_component
           (for_pack_prefix |> Prefix.to_list))
