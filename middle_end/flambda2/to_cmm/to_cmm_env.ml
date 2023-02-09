@@ -135,6 +135,8 @@ type t =
        scope. *)
     bindings : any_binding Variable.Map.t;
     (* All bindings currently in env. *)
+    inline_once_aliases : Variable.t Variable.Map.t;
+    (* Maps for `Must_inline_once` variable that end up aliased. *)
     stages : stage list (* Stages of let-bindings, most recent at the head. *)
   }
 
@@ -147,6 +149,7 @@ let create offsets functions_info ~trans_prim ~return_continuation
     trans_prim;
     stages = [];
     bindings = Variable.Map.empty;
+    inline_once_aliases = Variable.Map.empty;
     vars_extra = Variable.Map.empty;
     vars = Variable.Map.empty;
     conts = Continuation.Map.empty;
@@ -261,6 +264,11 @@ let extra_info env simple =
     match Variable.Map.find var env.vars_extra with
     | extra_info -> Some extra_info
     | exception Not_found -> None)
+
+let resolve_alias env var =
+  match Variable.Map.find var env.inline_once_aliases with
+  | exception Not_found -> var
+  | v -> v
 
 (* Continuations *)
 
@@ -744,6 +752,7 @@ let pop_if_in_top_stage ?consider_inlining_effectful_expressions env var =
     else None
 
 let inline_variable ?consider_inlining_effectful_expressions env res var =
+  let var = resolve_alias env var in
   match Variable.Map.find var env.bindings with
   | exception Not_found -> (
     (* this happens for continuation parameters and bindings that have been
@@ -783,6 +792,72 @@ let inline_variable ?consider_inlining_effectful_expressions env res var =
           let env = remove_binding env var in
           will_inline_simple env res binding)))
 
+(* Handling of aliases between variables *)
+
+(* Situation: [alias_of] is a `must_inline_once` and [var] is used exactly once
+
+   In this case, we do not want to split the binding in this case, but instead
+   just transfer the binding to the new variable, so that we can decide whether
+   to split it at its effective use (and not here where we rebind it to a
+   used-only-once variable).
+
+   Since `Must_inline_once` bindings (or rather the bound variable) can be
+   arbitrarily deep in the stage stack, it would be too costly to change the
+   whole stack, so we use an alias map on the side instead. *)
+let make_alias env res var alias_of =
+  let inline_once_aliases =
+    Variable.Map.add var alias_of env.inline_once_aliases
+  in
+  let env = { env with inline_once_aliases } in
+  env, res
+
+(* Situation: [alias_of] is a must_inline (once or duplicate), and [var] is used
+   more than once.
+
+   In this case, we want to force splitting of the original binding, and then
+   bind the new variable with a `must_inline` inline status *)
+let split_binding_and_rebind ~num_occurrences_of_var env res ~var ~alias_of
+    binding =
+  let cmm_expr, env, res, ece = split_and_inline env res alias_of binding in
+  let defining_expr : _ bound_expr = Split { cmm_expr } in
+  let inline =
+    match (num_occurrences_of_var : Num_occurrences.t) with
+    | Zero | One -> Must_inline_once
+    | More_than_one -> Must_inline_and_duplicate
+  in
+  bind_variable_with_decision env res var ~inline ~defining_expr
+    ~effects_and_coeffects_of_defining_expr:ece
+
+let add_alias env res ~var ~alias_of ~num_normal_occurrences_of_bound_vars =
+  let alias_of = resolve_alias env alias_of in
+  let num_occurrences_of_var : Num_occurrences.t =
+    match Variable.Map.find var num_normal_occurrences_of_bound_vars with
+    | exception Not_found ->
+      Misc.fatal_errorf
+        "Missing occurrence in to_cmm for variable %a aliased to %a"
+        Variable.print var Variable.print alias_of
+    | num_occurrences -> num_occurrences
+  in
+  match Variable.Map.find alias_of env.bindings with
+  | Binding ({ inline = Must_inline_once; _ } as b) -> (
+    match num_occurrences_of_var with
+    | Zero ->
+      let env = remove_binding env alias_of in
+      env, res
+    | One -> make_alias env res var alias_of
+    | More_than_one ->
+      let env = remove_binding env alias_of in
+      split_binding_and_rebind ~num_occurrences_of_var env res ~var ~alias_of b)
+  | Binding ({ inline = Must_inline_and_duplicate; _ } as b) ->
+    split_binding_and_rebind ~num_occurrences_of_var env res ~var ~alias_of b
+  | (exception Not_found)
+  | Binding { inline = Do_not_inline | May_inline_once; _ } ->
+    (* generic case, we just inline the var/binding, and rebind it *)
+    let cmm_expr, env, res, ece = inline_variable env res alias_of in
+    bind_variable env res var ~defining_expr:cmm_expr
+      ~effects_and_coeffects_of_defining_expr:ece
+      ~num_normal_occurrences_of_bound_vars
+
 (* Flushing delayed bindings *)
 
 (* Map on integers in descending order *)
@@ -818,7 +893,10 @@ let flush_delayed_lets ~mode env res =
   let bindings_to_flush = ref M.empty in
   let flush (Binding b as binding) =
     if M.mem b.order !bindings_to_flush
-    then Misc.fatal_errorf "Duplicate order for bindings when flushing";
+    then
+      Misc.fatal_errorf "Duplicate order for bindings when flushing: %a = %a"
+        Backend_var.With_provenance.print b.cmm_var print_bound_expr
+        b.bound_expr;
     bindings_to_flush := M.add b.order binding !bindings_to_flush
   in
   let bindings_to_keep =
