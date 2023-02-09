@@ -148,7 +148,7 @@
  (action
  (no-infer
   (progn
-   (chdir yacc (run make -sj8 OCAMLYACC_INCLUDE_PATH=%{ocaml_where}))
+   (chdir yacc (run make -s OCAMLYACC_INCLUDE_PATH=%{ocaml_where}))
    (copy yacc/ocamlyacc ocamlyacc)))))
 
 (install
