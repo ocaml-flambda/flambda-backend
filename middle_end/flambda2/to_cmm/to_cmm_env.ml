@@ -597,14 +597,12 @@ and split_in_env env res var binding =
     let env =
       (* for duplicated bindings, we need to replace the original splittable
          binding with the new split binding in the bindings map of the env *)
-      let[@inline] update_env () =
+      match split_binding.inline with
+      | Must_inline_once -> env
+      | Must_inline_and_duplicate ->
         { env with
           bindings = Variable.Map.add var (Binding split_binding) env.bindings
         }
-      in
-      match split_binding.inline with
-      | Must_inline_once -> env
-      | Must_inline_and_duplicate -> update_env ()
     in
     let env, res =
       List.fold_left
@@ -818,7 +816,7 @@ let make_alias env res var alias_of =
 
    In this case, we want to force splitting of the original binding, and then
    bind the new variable with a `must_inline` inline status *)
-let split_binding_and_rebind ~num_occurrences_of_var env res var alias_of
+let split_binding_and_rebind ~num_occurrences_of_var env res ~var ~alias_of
     binding =
   let cmm_expr, env, res, ece = split_and_inline env res alias_of binding in
   let defining_expr : _ bound_expr = Split { cmm_expr } in
@@ -849,9 +847,9 @@ let add_alias env res ~var ~alias_of ~num_normal_occurrences_of_bound_vars =
     | One -> make_alias env res var alias_of
     | More_than_one ->
       let env = remove_binding env alias_of in
-      split_binding_and_rebind ~num_occurrences_of_var env res var alias_of b)
+      split_binding_and_rebind ~num_occurrences_of_var env res ~var ~alias_of b)
   | Binding ({ inline = Must_inline_and_duplicate; _ } as b) ->
-    split_binding_and_rebind ~num_occurrences_of_var env res var alias_of b
+    split_binding_and_rebind ~num_occurrences_of_var env res ~var ~alias_of b
   | (exception Not_found)
   | Binding { inline = Do_not_inline | May_inline_once; _ } ->
     (* generic case, we just inline the var/binding, and rebind it *)
