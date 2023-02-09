@@ -92,14 +92,14 @@ let builtin_attrs =
 
 let is_builtin_attr s = Hashtbl.mem builtin_attrs s
 
-let register_attr name =
-  if is_builtin_attr name.txt
-  then Attribute_table.replace unused_attrs name ()
+type attr_tracking_time = Parser | Invariant_check
 
-let mk_internal ?(loc= !default_loc) name payload =
-  register_attr name;
-  Attr.mk ~loc name payload
-
+let register_attr attr_tracking_time name =
+  match attr_tracking_time with
+  | Parser when !Clflags.all_ppx <> [] -> ()
+  | Parser | Invariant_check ->
+    if is_builtin_attr name.txt then
+      Attribute_table.replace unused_attrs name ()
 
 let ident_of_payload = function
   | PStr[{pstr_desc=Pstr_eval({pexp_desc=Pexp_ident {txt=Lident id}},_)}] ->
@@ -219,6 +219,16 @@ let mark_warn_on_literal_pattern_used l =
       mark_used a.attr_name
     | _ -> ())
     l
+
+let mark_payload_attrs_used payload =
+  let iter =
+    { Ast_iterator.default_iterator
+      with attribute = fun self a ->
+        mark_used a.attr_name;
+        Ast_iterator.default_iterator.attribute self a
+    }
+  in
+  iter.payload iter payload
 
 let alerts_of_attrs l =
   List.fold_left

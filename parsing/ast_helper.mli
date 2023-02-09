@@ -57,10 +57,6 @@ end
 
 (** {1 Attributes} *)
 module Attr : sig
-  (** This should be used by all external tools (e.g., ppxs) to create
-      attributes.  Inside the compiler, this should be used only when it is
-      known the attribute does not need to be tracked for misplaced attribute
-      warnings.  Otherwise, use [Builtin_attributes.mk_internal]. *)
   val mk: ?loc:loc -> str -> payload -> attribute
 end
 

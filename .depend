@@ -300,7 +300,6 @@ parsing/ast_mapper.cmo : \
     utils/load_path.cmi \
     utils/config.cmi \
     utils/clflags.cmi \
-    parsing/builtin_attributes.cmi \
     parsing/asttypes.cmi \
     parsing/ast_helper.cmi \
     parsing/ast_mapper.cmi
@@ -312,7 +311,6 @@ parsing/ast_mapper.cmx : \
     utils/load_path.cmx \
     utils/config.cmx \
     utils/clflags.cmx \
-    parsing/builtin_attributes.cmx \
     parsing/asttypes.cmi \
     parsing/ast_helper.cmx \
     parsing/ast_mapper.cmi
@@ -346,6 +344,7 @@ parsing/builtin_attributes.cmo : \
     utils/config.cmi \
     utils/clflags.cmi \
     parsing/asttypes.cmi \
+    parsing/ast_iterator.cmi \
     parsing/ast_helper.cmi \
     parsing/builtin_attributes.cmi
 parsing/builtin_attributes.cmx : \
@@ -357,6 +356,7 @@ parsing/builtin_attributes.cmx : \
     utils/config.cmx \
     utils/clflags.cmx \
     parsing/asttypes.cmi \
+    parsing/ast_iterator.cmx \
     parsing/ast_helper.cmx \
     parsing/builtin_attributes.cmi
 parsing/builtin_attributes.cmi : \

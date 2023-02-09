@@ -61,6 +61,7 @@ PARSING = \
   parsing/ast_helper.cmo \
   parsing/extensions_parsing.cmo parsing/extensions.cmo \
   parsing/pprintast.cmo \
+  parsing/ast_iterator.cmo \
   parsing/builtin_attributes.cmo \
   parsing/camlinternalMenhirLib.cmo \
   parsing/parser.cmo \
@@ -68,7 +69,6 @@ PARSING = \
   parsing/parse.cmo \
   parsing/printast.cmo \
   parsing/ast_mapper.cmo \
-  parsing/ast_iterator.cmo \
   parsing/attr_helper.cmo \
   parsing/ast_invariants.cmo \
   parsing/depend.cmo

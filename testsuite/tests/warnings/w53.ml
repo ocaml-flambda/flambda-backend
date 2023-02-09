@@ -375,3 +375,6 @@ module TestPollStruct = struct
     "x"
   external z : int64 -> int64 = "x" [@@poll error] (* rejected *)
 end
+
+(* Attributes in attributes shouldn't be tracked for w53 *)
+[@@@foo [@@@deprecated]]

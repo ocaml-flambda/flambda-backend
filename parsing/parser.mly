@@ -151,8 +151,12 @@ let mkuplus ~oploc name arg =
 
 let local_ext_loc loc = mkloc "extension.local" loc
 
+let mk_attr ~loc name payload =
+  Builtin_attributes.(register_attr Parser name);
+  Attr.mk ~loc name payload
+
 let local_attr loc =
-  Builtin_attributes.mk_internal ~loc (local_ext_loc loc) (PStr [])
+  mk_attr ~loc (local_ext_loc loc) (PStr [])
 
 let local_extension loc =
   Exp.mk ~loc:Location.none
@@ -161,8 +165,7 @@ let local_extension loc =
 let include_functor_ext_loc loc = mkloc "extension.include_functor" loc
 
 let include_functor_attr loc =
-  Builtin_attributes.mk_internal ~loc:loc (include_functor_ext_loc loc)
-    (PStr [])
+  mk_attr ~loc:loc (include_functor_ext_loc loc) (PStr [])
 
 let mkexp_stack ~loc ~kwd_loc exp =
   ghexp ~loc (Pexp_apply(local_extension (make_loc kwd_loc), [Nolabel, exp]))
@@ -189,8 +192,7 @@ let wrap_exp_local_if p exp loc =
   if p then wrap_exp_stack exp (make_loc loc) else exp
 
 let curry_attr loc =
-  Builtin_attributes.mk_internal ~loc:Location.none
-    (mkloc "extension.curry" loc) (PStr [])
+  mk_attr ~loc:Location.none (mkloc "extension.curry" loc) (PStr [])
 
 let is_curry_attr attr =
   attr.attr_name.txt = "extension.curry"
@@ -208,12 +210,12 @@ let maybe_curry_typ typ loc =
 let global_loc loc = mkloc "extension.global" loc
 
 let global_attr loc =
-  Builtin_attributes.mk_internal ~loc:loc (global_loc loc) (PStr [])
+  mk_attr ~loc:loc (global_loc loc) (PStr [])
 
 let nonlocal_loc loc = mkloc "extension.nonlocal" loc
 
 let nonlocal_attr loc =
-  Builtin_attributes.mk_internal ~loc:Location.none (nonlocal_loc loc) (PStr [])
+  mk_attr ~loc:Location.none (nonlocal_loc loc) (PStr [])
 
 let mkld_global ld loc =
   { ld with pld_attributes = global_attr loc :: ld.pld_attributes }
@@ -4177,17 +4179,17 @@ attr_id:
   ) { $1 }
 ;
 attribute:
-  LBRACKETAT attr_id payload RBRACKET
-    { Builtin_attributes.mk_internal ~loc:(make_loc $sloc) $2 $3 }
+  LBRACKETAT attr_id attr_payload RBRACKET
+    { mk_attr ~loc:(make_loc $sloc) $2 $3 }
 ;
 post_item_attribute:
-  LBRACKETATAT attr_id payload RBRACKET
-    { Builtin_attributes.mk_internal ~loc:(make_loc $sloc) $2 $3 }
+  LBRACKETATAT attr_id attr_payload RBRACKET
+    { mk_attr ~loc:(make_loc $sloc) $2 $3 }
 ;
 floating_attribute:
-  LBRACKETATATAT attr_id payload RBRACKET
+  LBRACKETATATAT attr_id attr_payload RBRACKET
     { mark_symbol_docs $sloc;
-      Builtin_attributes.mk_internal ~loc:(make_loc $sloc) $2 $3 }
+      mk_attr ~loc:(make_loc $sloc) $2 $3 }
 ;
 %inline post_item_attributes:
   post_item_attribute*
@@ -4226,5 +4228,11 @@ payload:
   | COLON core_type { PTyp $2 }
   | QUESTION pattern { PPat ($2, None) }
   | QUESTION pattern WHEN seq_expr { PPat ($2, Some $4) }
+;
+attr_payload:
+  payload
+    { Builtin_attributes.mark_payload_attrs_used $1;
+      $1
+    }
 ;
 %%
