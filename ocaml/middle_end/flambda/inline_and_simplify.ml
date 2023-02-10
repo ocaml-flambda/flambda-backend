@@ -675,11 +675,12 @@ and simplify_apply env r ~(apply : Flambda.apply) : Flambda.t * R.t =
     inlined = inlined_requested; specialise = specialise_requested;
     probe = probe_requested;
   } = apply in
-  (* TODO: Most applications do not do local allocations in the current region,
-     but this is not yet tracked, so we conservatively assume they may.
-     Note that tail calls should always set the region used to true, because
-     removing the surrounding region would change their meaning. *)
-  let r = R.set_region_use r true in
+  let r =
+    match reg_close, mode with
+    | (Rc_normal | Rc_nontail), Alloc_heap -> r
+    | Rc_close_at_apply, _
+    | _, Alloc_local -> R.set_region_use r true
+  in
   let dbg = E.add_inlined_debuginfo env ~dbg in
   simplify_free_variable env lhs_of_application
     ~f:(fun env lhs_of_application lhs_of_application_approx ->
@@ -840,6 +841,13 @@ and simplify_partial_application env r ~lhs_of_application
     List.fold_left (fun _mode (p,_) -> Parameter.alloc_mode p)
       function_decl.A.alloc_mode applied_args
   in
+  if not (Lambda.sub_mode partial_mode mode) then
+    Misc.fatal_errorf "Partial application of %a with wrong mode at %s"
+      Closure_id.print closure_id_being_applied
+      (Debuginfo.to_string dbg);
+  let result_mode =
+    if function_decl.A.region then Lambda.alloc_heap else Lambda.alloc_local
+  in
   let wrapper_accepting_remaining_args =
     let body : Flambda.t =
       Apply {
@@ -848,7 +856,7 @@ and simplify_partial_application env r ~lhs_of_application
         kind = Direct closure_id_being_applied;
         dbg;
         reg_close = Rc_normal;
-        mode;
+        mode = result_mode;
         inlined = Default_inlined;
         specialise = Default_specialise;
         probe = None;
