@@ -644,6 +644,7 @@ let rec transl env e =
          | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _
          | Pasrbint _ | Pbintcomp (_, _) | Pstring_load _ | Pbytes_load _
          | Pbytes_set _ | Pbigstring_load _ | Pbigstring_set _
+         | Punbox_float | Pbox_float _
          | Pbbswap _), _)
         ->
           fatal_error "Cmmgen.transl:prim"
@@ -782,6 +783,8 @@ and transl_catch (kind : Cmm.value_kind) env nfail ids body handler dbg =
          | Ptop | Pbottom ->
            Misc.fatal_errorf "Variable %a with layout %a can't be compiled"
              VP.print id Printlambda.layout layout
+         | Punboxed_float ->
+           failwith "TODO transl_catch"
          | Pvalue kind ->
          let strict = is_strict kind in
          u := join_unboxed_number_kind ~strict !u
@@ -914,6 +917,10 @@ and transl_prim_1 env p arg dbg =
   | Poffsetref n ->
       offsetref n (transl env arg) dbg
   (* Floating-point operations *)
+  | Punbox_float ->
+      transl_unbox_float dbg env arg
+  | Pbox_float m ->
+      box_float dbg m (transl env arg)
   | Pfloatofint m ->
       box_float dbg m (Cop(Cfloatofint, [untag_int(transl env arg) dbg], dbg))
   | Pintoffloat ->
@@ -1148,6 +1155,7 @@ and transl_prim_2 env p arg1 arg2 dbg =
   | Pnegbint _ | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _)
   | Pbigarraydim _ | Pbytes_set _ | Pbigstring_set _ | Pbbswap _
   | Pprobe_is_enabled _
+  | Punbox_float | Pbox_float _
     ->
       fatal_errorf "Cmmgen.transl_prim_2: %a"
         Printclambda_primitives.primitive p
@@ -1208,6 +1216,7 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
   | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _) | Pbigarraydim _
   | Pstring_load _ | Pbytes_load _ | Pbigstring_load _ | Pbbswap _
   | Pprobe_is_enabled _
+  | Punbox_float | Pbox_float _
     ->
       fatal_errorf "Cmmgen.transl_prim_3: %a"
         Printclambda_primitives.primitive p
@@ -1230,16 +1239,9 @@ and transl_unbox_sized size dbg env exp =
   | Thirty_two -> transl_unbox_int dbg env Pint32 exp
   | Sixty_four -> transl_unbox_int dbg env Pint64 exp
 
-and transl_let env str (layout : Lambda.layout) id exp transl_body =
+and transl_let_value env str (kind : Lambda.value_kind) id exp transl_body =
   let dbg = Debuginfo.none in
   let cexp = transl env exp in
-  let kind =
-    match layout with
-    | Ptop | Pbottom ->
-      Misc.fatal_errorf "Variable %a with layout %a can't be compiled"
-        VP.print id Printlambda.layout layout
-    | Pvalue kind -> kind
-  in
   let unboxing =
     (* If [id] is a mutable variable (introduced to eliminate a local
        reference) and it contains a type of unboxable numbers, then
@@ -1276,6 +1278,29 @@ and transl_let env str (layout : Lambda.layout) id exp transl_body =
       | (Immutable | Immutable_unique), _ -> Clet (v, cexp, body)
       | Mutable, bn -> Clet_mut (v, typ_of_boxed_number bn, cexp, body)
       end
+
+and transl_let env str (layout : Lambda.layout) id exp transl_body =
+  match layout with
+  | Ptop ->
+    Misc.fatal_errorf "Variable %a with layout %a can't be compiled"
+      VP.print id Printlambda.layout layout
+  | Pbottom ->
+    let cexp = transl env exp in
+    (* N.B. [body] must still be traversed even if [exp] will never return:
+       there may be constant closures inside that need lifting out. *)
+    let _cbody = transl_body env in
+    cexp
+  | Punboxed_float -> begin
+      let cexp = transl env exp in
+      let cbody = transl_body env in
+      match str with
+      | (Immutable | Immutable_unique) ->
+        Clet(id, cexp, cbody)
+      | Mutable ->
+        Clet_mut(id, typ_float, cexp, cbody)
+  end
+  | Pvalue kind ->
+    transl_let_value env str kind id exp transl_body
 
 and make_catch (kind : Cmm.value_kind) ncatch body handler dbg =
   match body with

@@ -2635,7 +2635,11 @@ let rec make_curry_apply result narity args_type args clos n =
           :: args)
           newclos (n - 1) )
 
-let machtype_of_layout = function Lambda.Pvalue _ -> typ_val
+let machtype_of_layout (layout : Lambda.layout) =
+  match layout with
+  | Ptop | Pbottom -> Misc.fatal_error "No machtype for layout"
+  | Punboxed_float -> typ_float
+  | Pvalue _ -> typ_val
 
 let final_curry_function nlocal arity result =
   let last_arg = V.create_local "arg" in
@@ -3979,4 +3983,8 @@ let transl_attrib : Lambda.check_attribute -> Cmm.codegen_option list = function
   | Assert p -> [Assert (transl_property p)]
   | Assume p -> [Assume (transl_property p)]
 
-let kind_of_layout (Lambda.Pvalue kind) = Vval kind
+let kind_of_layout (layout : Lambda.layout) =
+  match layout with
+  | Ptop | Pbottom -> Misc.fatal_error "No machtype for layout"
+  | Punboxed_float -> Vfloat
+  | Pvalue kind -> Vval kind

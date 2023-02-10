@@ -212,6 +212,8 @@ type primitive =
   (* Primitives for [Obj] *)
   | Pobj_dup
   | Pobj_magic
+  | Punbox_float
+  | Pbox_float of alloc_mode
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -230,6 +232,7 @@ and value_kind =
 and layout =
   | Ptop
   | Pvalue of value_kind
+  | Punboxed_float
   | Pbottom
 
 and block_shape =
@@ -303,6 +306,9 @@ let compatible_layout x y =
   | Pbottom, _
   | _, Pbottom -> true
   | Pvalue _, Pvalue _ -> true
+  | Punboxed_float, Punboxed_float -> true
+  | Punboxed_float, Pvalue _
+  | Pvalue _, Punboxed_float -> false
   | Ptop, Ptop -> true
   | Ptop, _ | _, Ptop -> false
 
@@ -1337,6 +1343,8 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pprobe_is_enabled _ -> None
   | Pobj_dup -> Some alloc_heap
   | Pobj_magic -> None
+  | Punbox_float -> None
+  | Pbox_float m -> Some m
 
 let constant_layout = function
   | Const_int _ | Const_char _ -> Pvalue Pintval

@@ -700,6 +700,7 @@ and to_clambda_set_of_closures t env
         match free_var.kind with
         | Ptop -> Misc.fatal_error "Layout top in a closure"
         | Pbottom -> Misc.fatal_error "Layout bottom in a closure"
+        | Punboxed_float -> true
         | Pvalue Pintval -> true
         | Pvalue _ -> false)
       free_vars

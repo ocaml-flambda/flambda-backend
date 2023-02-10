@@ -519,6 +519,7 @@ module With_subkind = struct
   let from_lambda (layout : Lambda.layout) =
     match layout with
     | Pvalue vk -> from_lambda_value_kind vk
+    | Punboxed_float -> naked_float
     | Ptop -> Misc.fatal_error "Can't convert layout top to flambda kind"
     | Pbottom -> Misc.fatal_error "Can't convert layout bottom to flambda kind"
 

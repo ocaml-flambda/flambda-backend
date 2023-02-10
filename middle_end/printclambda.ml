@@ -54,6 +54,7 @@ let value_kind kind = Format.asprintf "%a" value_kind0 kind
 let layout (layout : Lambda.layout) =
   match layout with
   | Pvalue kind -> value_kind kind
+  | Punboxed_float -> "unboxed_float"
   | Ptop -> "top"
   | Pbottom -> "bottom"
 
