@@ -566,7 +566,7 @@ let used_closure_ids (program:Flambda.program) =
     | Move_within_set_of_closures { closure = _; start_from; move_to; } ->
       used := Closure_id.Set.add start_from !used;
       used := Closure_id.Set.add move_to !used
-    | Project_var { closure = _; closure_id; var = _ } ->
+    | Project_var { closure = _; closure_id; var = _; kind = _ } ->
       used := Closure_id.Set.add closure_id !used
     | Set_of_closures _ | Symbol _ | Const _ | Allocated_const _
     | Prim _ | Expr _ | Read_mutable _ | Read_symbol_field _ -> ()
@@ -580,7 +580,7 @@ let used_vars_within_closures (flam:Flambda.program) =
   let used = ref Var_within_closure.Set.empty in
   let f (flam : Flambda.named) =
     match flam with
-    | Project_var { closure = _; closure_id = _; var; } ->
+    | Project_var { closure = _; closure_id = _; var; kind = _ } ->
       used := Var_within_closure.Set.add var !used
     | _ -> ()
   in
