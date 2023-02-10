@@ -378,3 +378,9 @@ end
 
 (* Attributes in attributes shouldn't be tracked for w53 *)
 [@@@foo [@@@deprecated]]
+
+module TestNewtypeAttr = struct
+  (* Check for handling of attributes on Pexp_newtype *)
+  let f1 = fun [@inline] (type a) (x : a) -> x (* accepted *)
+  let f2 = fun [@immediate] (type a) (x : a) -> x (* rejected *)
+end
