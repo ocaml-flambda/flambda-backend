@@ -174,4 +174,7 @@ and raise_kind = Lambda.raise_kind =
 
 let equal (x: primitive) (y: primitive) = x = y
 
-let result_layout _p = Lambda.layout_any_value
+let result_layout (p : primitive) =
+  match p with
+  | Punbox_float -> Lambda.Punboxed_float
+  | _ -> Lambda.layout_any_value
