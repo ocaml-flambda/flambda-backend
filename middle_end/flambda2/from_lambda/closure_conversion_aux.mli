@@ -68,7 +68,7 @@ module IR : sig
       probe : Lambda.probe;
       mode : Lambda.alloc_mode;
       region : Ident.t;
-      return : Flambda_kind.With_subkind.t;
+      return : Flambda_kind.With_subkind.t
     }
 
   type switch =

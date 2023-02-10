@@ -846,8 +846,7 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
         Continuation.print name);
   let params_with_kinds =
     List.map
-      (fun (param, user_visible, kind) ->
-        param, user_visible, kind)
+      (fun (param, user_visible, kind) -> param, user_visible, kind)
       params
   in
   let handler_env, params = Env.add_vars_like env params_with_kinds in
@@ -901,7 +900,7 @@ let close_exact_or_unknown_apply acc env
        mode;
        region_close;
        region;
-       return = _;
+       return = _
      } :
       IR.apply) callee_approx ~replace_region : Expr_with_acc.t =
   let callee = find_simple_from_id env func in
@@ -1229,9 +1228,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
   let closure_env =
     List.fold_right
       (fun (id, kind) env ->
-        let env, _var =
-          Env.add_var_like env id User_visible kind
-        in
+        let env, _var = Env.add_var_like env id User_visible kind in
         env)
       params closure_env
   in
@@ -1260,9 +1257,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
     List.map (fun (id, kind) -> fst (Env.find_var closure_env id), kind) params
   in
   let params =
-    List.map
-      (fun (var, kind) -> BP.create var kind)
-      param_vars
+    List.map (fun (var, kind) -> BP.create var kind) param_vars
     |> Bound_parameters.create
   in
   let acc = Acc.with_seen_a_function acc false in
@@ -1385,8 +1380,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
     Code.create code_id ~params_and_body
       ~free_names_of_params_and_body:(Acc.free_names acc) ~params_arity
       ~num_trailing_local_params:(Function_decl.num_trailing_local_params decl)
-      ~result_arity:
-        (Flambda_arity.With_subkinds.create [return])
+      ~result_arity:(Flambda_arity.With_subkinds.create [return])
       ~result_types:Unknown
       ~contains_no_escaping_local_allocs:
         (Function_decl.contains_no_escaping_local_allocs decl)
@@ -1490,15 +1484,11 @@ let close_functions acc external_env ~current_region function_declarations =
         let code_id = Function_slot.Map.find function_slot function_code_ids in
         let params = Function_decl.params decl in
         let params_arity =
-          List.map
-            (fun (_, kind) -> kind)
-            params
+          List.map (fun (_, kind) -> kind) params
           |> Flambda_arity.With_subkinds.create
         in
         let return = Function_decl.return decl in
-        let result_arity =
-          Flambda_arity.With_subkinds.create [return]
-        in
+        let result_arity = Flambda_arity.With_subkinds.create [return] in
         let poll_attribute =
           Poll_attribute.from_lambda (Function_decl.poll_attribute decl)
         in
