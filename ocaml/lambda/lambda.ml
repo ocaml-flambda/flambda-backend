@@ -585,7 +585,7 @@ let layout_lazy_contents = Pvalue Pgenval
 let layout_any_value = Pvalue Pgenval
 let layout_letrec = layout_any_value
 
-let layout_top = Ptop
+let layout_top = layout_any_value
 let layout_bottom = Pbottom
 
 let default_function_attribute = {
