@@ -600,7 +600,8 @@ let dissect_letrec ~bindings ~body =
   then substituted
   else
     Lstaticcatch
-      ( Lregion (Lambda.rename bound_ids_freshening substituted, Lambda.layout_top),
+      ( Lregion
+          (Lambda.rename bound_ids_freshening substituted, Lambda.layout_top),
         ( cont,
           List.map (fun (bound_id, _) -> bound_id, Lambda.layout_top) bindings
         ),
