@@ -665,7 +665,8 @@ let box_float dbg m c = Cop (Calloc m, [alloc_float_header m dbg; c], dbg)
 let unbox_float dbg =
   map_tail ~kind:Vfloat (function
     | Cop (Calloc _, [Cconst_natint (hdr, _); c], _)
-      when Nativeint.equal hdr float_header ->
+      when Nativeint.equal hdr float_header
+           || Nativeint.equal hdr float_local_header ->
       c
     | Cconst_symbol (s, _dbg) as cmm -> (
       match Cmmgen_state.structured_constant_of_sym s with
@@ -1377,12 +1378,17 @@ let split_int64_for_32bit_target arg dbg =
 let alloc_matches_boxed_int bi ~hdr ~ops =
   match (bi : Primitive.boxed_integer), hdr, ops with
   | Pnativeint, Cconst_natint (hdr, _dbg), Cconst_symbol (sym, _) ->
-    Nativeint.equal hdr boxedintnat_header
+    (Nativeint.equal hdr boxedintnat_header
+    || Nativeint.equal hdr boxedintnat_local_header)
     && String.equal sym caml_nativeint_ops
   | Pint32, Cconst_natint (hdr, _dbg), Cconst_symbol (sym, _) ->
-    Nativeint.equal hdr boxedint32_header && String.equal sym caml_int32_ops
+    (Nativeint.equal hdr boxedint32_header
+    || Nativeint.equal hdr boxedint32_local_header)
+    && String.equal sym caml_int32_ops
   | Pint64, Cconst_natint (hdr, _dbg), Cconst_symbol (sym, _) ->
-    Nativeint.equal hdr boxedint64_header && String.equal sym caml_int64_ops
+    (Nativeint.equal hdr boxedint64_header
+    || Nativeint.equal hdr boxedint64_local_header)
+    && String.equal sym caml_int64_ops
   | (Pnativeint | Pint32 | Pint64), _, _ -> false
 
 let unbox_int dbg bi =
