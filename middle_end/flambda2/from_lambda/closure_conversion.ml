@@ -1757,7 +1757,6 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
   in
   let args_arity = List.length args in
   let params =
-    (* CR keryan: We should use the arity to produce better kinds *)
     List.mapi
       (fun n kind_with_subkind ->
         ( Ident.create_local ("param" ^ string_of_int (args_arity + n)),
@@ -1822,7 +1821,6 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
       Ident.print apply.IR.func
       (Debuginfo.Scoped_location.string_of_scoped_location apply.IR.loc);
   let function_declarations =
-    (* CR keryan: Same as above, better kind for return type *)
     [ Function_decl.create ~let_rec_ident:(Some wrapper_id) ~function_slot
         ~kind:(Lambda.Curried { nlocal = num_trailing_local_params })
         ~params ~return:apply.return ~return_continuation ~exn_continuation
