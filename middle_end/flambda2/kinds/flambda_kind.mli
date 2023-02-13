@@ -123,6 +123,8 @@ module Boxable_number : sig
 end
 
 module With_subkind : sig
+  type with_subkind
+
   module Subkind : sig
     type t =
       | Anything
@@ -133,7 +135,7 @@ module With_subkind : sig
       | Tagged_immediate
       | Variant of
           { consts : Targetint_31_63.Set.t;
-            non_consts : t list Tag.Scannable.Map.t
+            non_consts : with_subkind list Tag.Scannable.Map.t
           }
       | Float_block of { num_fields : int }
       | Float_array
@@ -144,9 +146,7 @@ module With_subkind : sig
     include Container_types.S with type t := t
   end
 
-  type kind = t
-
-  type t
+  type t = with_subkind
 
   val create : kind -> Subkind.t -> t
 

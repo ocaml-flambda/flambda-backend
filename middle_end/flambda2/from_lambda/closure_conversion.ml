@@ -1380,12 +1380,39 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
       then Default_loopify_and_tailrec
       else Default_loopify_and_not_tailrec
   in
-  let code =
+  let open struct
+    type multi_return =
+      | Single_return
+      | Multiple_return of Flambda_arity.With_subkinds.t
+  end in
+  let return_kind = K.With_subkind.from_lambda return in
+  let should_unbox =
+    if Function_decl.is_a_functor decl then Single_return else
+    match K.With_subkind.subkind return_kind with
+    | Variant { consts; non_consts } ->
+      if Targetint_31_63.Set.is_empty consts then
+        match Tag.Scannable.Map.get_singleton non_consts with
+        | None -> Single_return
+        | Some (tag, arity) ->
+          if Tag.Scannable.equal tag Tag.Scannable.zero
+          then
+            Multiple_return (Flambda_arity.With_subkinds.create arity)
+          else Single_return
+      else Single_return
+    | Anything | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
+    | Tagged_immediate | Float_block _ | Float_array | Immediate_array | Value_array
+    | Generic_array -> Single_return
+  in
+  let result_arity =
+    match should_unbox with
+    | Single_return -> Flambda_arity.With_subkinds.create [return_kind]
+    | Multiple_return kinds -> kinds
+  in
+  let main_code =
     Code.create code_id ~params_and_body
       ~free_names_of_params_and_body:(Acc.free_names acc) ~params_arity
       ~num_trailing_local_params:(Function_decl.num_trailing_local_params decl)
-      ~result_arity:
-        (Flambda_arity.With_subkinds.create [K.With_subkind.from_lambda return])
+      ~result_arity
       ~result_types:Unknown
       ~contains_no_escaping_local_allocs:
         (Function_decl.contains_no_escaping_local_allocs decl)
@@ -1400,6 +1427,111 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot decl
       ~is_my_closure_used:
         (Function_params_and_body.is_my_closure_used params_and_body)
       ~inlining_decision ~absolute_history ~relative_history ~loopify
+  in
+  let code, by_function_slot =
+    match should_unbox with
+    | Single_return -> main_code, by_function_slot
+    | Multiple_return kinds ->
+      let wrapper_name = (Function_slot.name function_slot) ^ "_unboxed" in
+      let comp_unit = Compilation_unit.get_current_exn () in
+      let wrapper_code_id = Code_id.create wrapper_name comp_unit in
+      let wrapper_function_slot = Function_slot.create comp_unit ~name:wrapper_name in
+      let wrapper_closure = Variable.create wrapper_name in
+      let return_continuation = Continuation.create () in
+      let exn_continuation = Continuation.create () in
+      let my_closure = Variable.create "my_closure" in
+      let my_region = Variable.create "my_region" in
+      let my_depth = Variable.create "my_depth" in
+      let body =
+        let cont = Continuation.create () in
+        let main_application =
+          Apply_expr.create ~callee:(Simple.var wrapper_closure) ~continuation:cont
+            (Exn_continuation.create ~exn_handler:exn_continuation ~extra_args:[])
+            ~args:(Bound_parameters.simples params)
+            ~call_kind:(Call_kind.direct_function_call main_code ~return_arity:kinds
+                          Alloc_mode.For_types.unknown) Debuginfo.none
+            ~inlined:Inlined_attribute.default_inlined
+            ~inlining_state:(Inlining_state.default ~round:0)
+            ~probe_name:None
+            ~position:Normal
+            ~relative_history:(Env.relative_history_from_scoped ~loc env)
+            ~region:my_region
+        in
+        let handler =
+          let params =
+            Bound_parameters.create
+              (List.map (fun kind ->
+                   let var = Variable.create "unboxed_return" in
+                   Bound_parameter.create var kind)
+                  (Flambda_arity.With_subkinds.to_list kinds))
+          in
+          let handler, free_names_of_handler =
+            let block = Variable.create () in
+            let return_apply_cont =
+              Apply_cont.create return_continuation ~args:[Simple.var block] ~dbg:Debuginfo.none
+            in
+            let make_block =
+              Named.create_prim
+                (Flambda_primitive.Variadic
+                   (Make_block (Values, Immutable,
+                                if Function_decl.contains_no_escaping_local_allocs decl
+                                then Alloc_mode.For_allocations.heap
+                                else Alloc_mode.For_allocations.local my_region),
+                    Bound_parameters.simples params))
+                Debuginfo.none
+            in
+            Expr.create_let
+              (Let_expr.create
+                 (Bound_pattern.singleton (Bound_var.create block Name_mode.normal))
+                 make_block
+                 ~body:(Expr.create_apply_cont return_apply_cont)
+                 ~free_names_of_body:(Apply_cont.free_names return_apply_cont)),
+            Name_occurrences.union (Named.free_names make_block)
+              (Name_occurrences.remove_var (Apply_cont.free_names return_apply_cont) ~var:block)
+          in
+          Continuation_handler.create params ~handler ~free_names_of_handler
+            ~is_exn_handler:false
+        in
+        let body =
+          Expr.create_let
+            (Let_expr.create
+               (Bound_pattern.singleton (Bound_var.create wrapper_closure Name_mode.normal))
+               (Named.create_prim
+                  (Flambda_primitive.Unary (Project_function_slot { move_from: function_slot;
+                                                                    move_to: wrapper_function_slot },
+                                            Simple.var my_closure))
+                    Debuginfo.none)
+               ~body:(Expr.create_apply main_application)
+               ~free_names_of_body:(Apply_expr.free_names main_application))
+        in
+        Let_cont_expr.create_non_recursive cont handler
+          ~body
+          ~free_names_of_body:(Name_occurrences.add_variable
+      in
+      let wrapper_params_and_body =
+        Function_params_and_body.create
+          ~return_continuation ~exn_continuation params ~body
+          ~free_names_of_body ~my_closure ~my_region ~my_depth
+      in
+      let wrapper_code =
+        Code.create code_id ~params_and_body:wrapper_params_and_body
+      ~free_names_of_params_and_body ~params_arity
+      ~num_trailing_local_params:(Function_decl.num_trailing_local_params decl)
+      ~result_arity:(Flambda_arity.With_subkinds.create [return_kind])
+      ~result_types:Unknown
+      ~contains_no_escaping_local_allocs:
+        (Function_decl.contains_no_escaping_local_allocs decl)
+      ~stub:true ~inline
+      ~poll_attribute:
+        (Poll_attribute.from_lambda (Function_decl.poll_attribute decl))
+      ~check:(Check_attribute.from_lambda (Function_decl.check_attribute decl))
+      ~is_a_functor:(Function_decl.is_a_functor decl)
+      ~recursive ~newer_version_of:None ~cost_metrics
+      ~inlining_arguments:(Inlining_arguments.create ~round:0)
+      ~dbg ~is_tupled
+      ~is_my_closure_used:true
+      ~inlining_decision ~absolute_history ~relative_history ~loopify
+      in
   in
   let approx =
     let code = Code_or_metadata.create code in
