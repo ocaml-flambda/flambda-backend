@@ -283,7 +283,7 @@ let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda * Lambda.layout =
        For an indirect call, we do not need to do anything here; Cmmgen will
        do the equivalent of the previous paragraph when it generates a direct
        call to [caml_apply]. *)
-    to_clambda_direct_apply t func args direct_func probe dbg reg_close mode env,
+    to_clambda_direct_apply t func args direct_func probe dbg reg_close mode result_layout env,
     result_layout
   | Apply { func; args; kind = Indirect; probe = None; dbg; reg_close; mode; result_layout } ->
     let callee, callee_layout = subst_var env func in
@@ -573,7 +573,7 @@ and to_clambda_switch t env cases num_keys default kind =
   | [| |] -> [| |], [| |]  (* May happen when [default] is [None]. *)
   | _ -> index, actions
 
-and to_clambda_direct_apply t func args direct_func probe dbg pos mode env
+and to_clambda_direct_apply t func args direct_func probe dbg pos mode result_layout env
   : Clambda.ulambda =
   let closed = is_function_constant t direct_func in
   let label =
@@ -591,7 +591,6 @@ and to_clambda_direct_apply t func args direct_func probe dbg pos mode env
       assert(Lambda.compatible_layout func_layout Lambda.layout_function);
       uargs @ [func]
   in
-  let result_layout = Lambda.layout_top in
   Udirect_apply (label, uargs, probe, result_layout, (pos, mode), dbg)
 
 (* Describe how to build a runtime closure block that corresponds to the

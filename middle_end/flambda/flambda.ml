@@ -213,7 +213,7 @@ let rec lam ppf (flam : t) =
   match flam with
   | Var (id) ->
       Variable.print ppf id
-  | Apply({func; args; kind; inlined; probe; dbg}) ->
+  | Apply({func; args; kind; inlined; probe; dbg; result_layout}) ->
     let direct ppf () =
       match kind with
       | Indirect -> ()
@@ -232,8 +232,9 @@ let rec lam ppf (flam : t) =
       | None -> ()
       | Some {name} -> fprintf ppf "<probe %s>" name
     in
-    fprintf ppf "@[<2>(apply%a%a%a<%s>@ %a%a)@]" direct () inlined () probe ()
+    fprintf ppf "@[<2>(apply%a%a%a<%s>%a@ %a%a)@]" direct () inlined () probe ()
       (Debuginfo.to_string dbg)
+      Printlambda.layout result_layout
       Variable.print func Variable.print_list args
   | Assign { being_assigned; new_value; } ->
     fprintf ppf "@[<2>(assign@ %a@ %a)@]"
