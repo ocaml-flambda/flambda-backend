@@ -2344,15 +2344,12 @@ let curry_function (kind, arity, return) =
   | Lambda.Curried { nlocal } ->
     intermediate_curry_functions ~nlocal ~arity return
 
-let default_generic_fns : Cmx_format.generic_fns =
-  { curry_fun = [];
-    apply_fun =
-      [ [typ_val; typ_val], typ_val, Lambda.alloc_heap;
-        [typ_val; typ_val; typ_val], typ_val, Lambda.alloc_heap ];
-    send_fun = []
-  }
 (* These apply funs are always present in the main program because the run-time
    system needs them (cf. runtime/<arch>.S) . *)
+
+let default_apply =
+  [ [typ_val; typ_val], typ_val, Lambda.alloc_heap;
+    [typ_val; typ_val; typ_val], typ_val, Lambda.alloc_heap ]
 
 module Generic_fns_tbl = struct
   type t =
@@ -2367,35 +2364,30 @@ module Generic_fns_tbl = struct
       send = Hashtbl.create 10
     }
 
-  let add t Cmx_format.{ curry_fun; apply_fun; send_fun } =
+  let add t (curry_fun, apply_fun, send_fun) =
     List.iter (fun f -> Hashtbl.replace t.curry f ()) curry_fun;
     List.iter (fun f -> Hashtbl.replace t.apply f ()) apply_fun;
     List.iter (fun f -> Hashtbl.replace t.send f ()) send_fun
 
-  let of_fns fns =
-    let t = make () in
-    add t fns;
-    t
-
-  let entries t : Cmx_format.generic_fns =
+  let entries t =
     let sorted_keys tbl =
       let keys = Hashtbl.fold (fun k () acc -> k :: acc) tbl [] in
       List.sort compare keys
     in
-    { curry_fun = sorted_keys t.curry;
-      apply_fun = sorted_keys t.apply;
-      send_fun = sorted_keys t.send
-    }
+    (sorted_keys t.curry, sorted_keys t.apply, sorted_keys t.send)
 end
 
-let generic_functions shared tbl =
-  if not shared then Generic_fns_tbl.add tbl default_generic_fns;
-  let ({ curry_fun; apply_fun; send_fun } : Cmx_format.generic_fns) =
-    Generic_fns_tbl.entries tbl
-  in
-  List.concat_map curry_function curry_fun
-  @ List.map send_function send_fun
-  @ List.map apply_function apply_fun
+let generic_functions shared units =
+  let tbl = Generic_fns_tbl.make () in
+  if not shared then Generic_fns_tbl.add tbl ([], default_apply, []);
+  List.iter (fun (ui : Cmx_format.unit_infos) ->
+      Generic_fns_tbl.add tbl
+        (ui.ui_curry_fun, ui.ui_apply_fun, ui.ui_send_fun)
+    ) units;
+  let (curry, apply, send) = Generic_fns_tbl.entries tbl in
+  List.concat_map curry_function curry
+  @ List.map send_function send
+  @ List.map apply_function apply
 
 (* Primitives *)
 

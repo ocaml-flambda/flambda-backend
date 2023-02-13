@@ -57,11 +57,14 @@ val approx_for_global: Compilation_unit.t -> Export_info.t option
            flambda-only *)
 
 val need_curry_fun:
-  Lambda.function_kind -> Cmm.machtype list -> Cmm.machtype -> unit
+  Lambda.function_kind ->
+  Cmx_format.machtype list ->
+  Cmx_format.machtype ->
+  unit
 val need_apply_fun:
-  Cmm.machtype list -> Cmm.machtype -> Lambda.alloc_mode -> unit
+  Cmx_format.machtype list -> Cmx_format.machtype -> Lambda.alloc_mode -> unit
 val need_send_fun:
-  Cmm.machtype list -> Cmm.machtype -> Lambda.alloc_mode -> unit
+  Cmx_format.machtype list -> Cmx_format.machtype -> Lambda.alloc_mode -> unit
         (* Record the need of a currying (resp. application,
            message sending) function with the given arity *)
 

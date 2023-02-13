@@ -161,16 +161,23 @@ let print_global_table table =
 open Cmx_format
 open Cmxs_format
 
+(* Redefined here to avoid depending on [Cmm_helpers]. *)
+let machtype_identifier t =
+  let char_of_component = function
+    | Val -> 'V' | Int -> 'I' | Float -> 'F' | Addr -> 'A'
+  in
+  String.of_seq (Seq.map char_of_component (Array.to_seq t))
+
 let unique_arity_identifier arity =
-  if List.for_all (function [|Cmm.Val|] -> true | _ -> false) arity then
+  if List.for_all (function [|Val|] -> true | _ -> false) arity then
     Int.to_string (List.length arity)
   else
-    String.concat "_" (List.map Cmm_helpers.machtype_identifier arity)
+    String.concat "_" (List.map machtype_identifier arity)
 
 let return_arity_identifier t =
   match t with
-  | [|Cmm.Val|] -> ""
-  | _ -> "_R" ^ Cmm_helpers.machtype_identifier t
+  | [|Val|] -> ""
+  | _ -> "_R" ^ machtype_identifier t
 
 let print_cmx_infos (ui, crc) =
   (* ocamlobjinfo has historically printed the name of the unit without
