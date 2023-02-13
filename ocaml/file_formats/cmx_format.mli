@@ -39,14 +39,6 @@ type machtype = machtype_component array
 
 type apply_fn := machtype list * machtype * Lambda.alloc_mode
 
-(* Symbols of function that pass certain checks for special properties. *)
-type checks =
-  {
-    (* CR gyorsh: refactor to use lists. *)
-    mutable ui_noalloc_functions: Misc.Stdlib.String.Set.t;
-    (* Functions without allocations and indirect calls *)
-  }
-
 type unit_infos =
   { mutable ui_unit: Compilation_unit.t;  (* Compilation unit implemented *)
     mutable ui_defines: Compilation_unit.t list;
