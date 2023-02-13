@@ -2262,14 +2262,15 @@ let has_local_allocs e =
 
 let remove_region_tail e =
   let rec has_tail = function
-    | Ctail _ | Cop (Capply (_, Ap_tail {close_region=true}), _, _) -> raise Exit
+    | Ctail _ | Cop (Capply (_, Ap_tail { close_region = true }), _, _) ->
+      raise Exit
     | Cregion _ -> ()
     | e -> ignore (iter_shallow_tail has_tail e)
   in
   let rec remove_tail = function
     | Ctail e -> e
-    | Cop (Capply (mach, Ap_tail {close_region=true}), args, dbg) ->
-      Cop (Capply (mach, Ap_tail {close_region=false}), args, dbg)
+    | Cop (Capply (mach, Ap_tail { close_region = true }), args, dbg) ->
+      Cop (Capply (mach, Ap_tail { close_region = false }), args, dbg)
     | Cregion _ as e -> e
     | e -> map_shallow_tail remove_tail e
   in
@@ -3351,7 +3352,8 @@ let entry_point namelist =
       (fun name next ->
         let entry_sym = make_symbol ~compilation_unit:name "entry" in
         Csequence
-          ( Cop (Capply (typ_void, Ap_default), [cconst_symbol entry_sym], dbg ()),
+          ( Cop
+              (Capply (typ_void, Ap_default), [cconst_symbol entry_sym], dbg ()),
             Csequence (incr_global_inited (), next) ))
       namelist (cconst_int 1)
   in

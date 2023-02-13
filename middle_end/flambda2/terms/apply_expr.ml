@@ -66,7 +66,7 @@ module Position = struct
     | Normal, Normal -> true
     | Nontail, Nontail -> true
     | Tail, Tail -> true
-    | (Normal|Nontail|Tail), _ -> false
+    | (Normal | Nontail | Tail), _ -> false
 end
 
 type t =

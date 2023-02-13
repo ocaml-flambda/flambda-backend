@@ -838,8 +838,9 @@ let wrap_return_continuation acc env ccenv (apply : IR.apply) =
   let extra_args = Env.extra_args_for_continuation env apply.continuation in
   let close_early, region =
     match apply.apply_position with
-    | Ap_default | Ap_nontail | Ap_tail {close_region=false} -> false, apply.region
-    | Ap_tail {close_region=true} -> true, Env.my_region env
+    | Ap_default | Ap_nontail | Ap_tail { close_region = false } ->
+      false, apply.region
+    | Ap_tail { close_region = true } -> true, Env.my_region env
   in
   let body acc ccenv continuation =
     match extra_args with
@@ -1078,8 +1079,8 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
        have it on the corresponding [Simple]s in the environment. *)
     maybe_insert_let_cont "apply_result" ap_result_layout k acc env ccenv
       (fun acc env ccenv k ->
-        cps_tail_apply acc env ccenv ap_func ap_args ap_position ap_mode
-          ap_loc ap_inlined ap_probe ap_result_layout k k_exn)
+        cps_tail_apply acc env ccenv ap_func ap_args ap_position ap_mode ap_loc
+          ap_inlined ap_probe ap_result_layout k k_exn)
   | Lfunction func ->
     let id = Ident.create_local (name_for_function func) in
     let dbg = Debuginfo.from_location func.loc in
