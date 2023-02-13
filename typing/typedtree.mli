@@ -49,7 +49,6 @@ and 'a pattern_data =
     pat_loc: Location.t;
     pat_extra : (pat_extra * Location.t * attributes) list;
     pat_type: Types.type_expr;
-    pat_mode: Types.value_mode;
     pat_env: Env.t;
     pat_attributes: attributes;
    }
@@ -76,10 +75,10 @@ and 'k pattern_desc =
   (* value patterns *)
   | Tpat_any : value pattern_desc
         (** _ *)
-  | Tpat_var : Ident.t * string loc -> value pattern_desc
+  | Tpat_var : Ident.t * string loc * Types.value_mode -> value pattern_desc
         (** x *)
   | Tpat_alias :
-      value general_pattern * Ident.t * string loc -> value pattern_desc
+      value general_pattern * Ident.t * string loc * Types.value_mode -> value pattern_desc
         (** P as a *)
   | Tpat_constant : constant -> value pattern_desc
         (** 1, 'a', "true", 1.0, 1l, 1L, 1n *)
@@ -198,7 +197,9 @@ and expression_desc =
   | Texp_function of { arg_label : arg_label; param : Ident.t;
       cases : value case list; partial : partial;
       region : bool; curry : fun_curry_state;
-      warnings : Warnings.state; alloc_mode : Types.alloc_mode}
+      warnings : Warnings.state;
+      arg_mode : Types.alloc_mode;
+      alloc_mode : Types.alloc_mode}
         (** [Pexp_fun] and [Pexp_function] both translate to [Texp_function].
             See {!Parsetree} for more details.
 

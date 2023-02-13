@@ -174,7 +174,7 @@ let rec trivial_pat pat =
   match pat.pat_desc with
     Tpat_var _
   | Tpat_any -> true
-  | Tpat_alias (p, _, _) ->
+  | Tpat_alias (p, _, _, _) ->
       trivial_pat p
   | Tpat_construct (_, cd, [], _) ->
       not cd.cstr_generalized && cd.cstr_consts = 1 && cd.cstr_nonconsts = 0
@@ -182,23 +182,23 @@ let rec trivial_pat pat =
       List.for_all trivial_pat patl
   | _ -> false
 
-let rec push_defaults loc bindings use_lhs cases partial warnings =
+let rec push_defaults loc bindings use_lhs arg_mode cases partial warnings =
   match cases with
     [{c_lhs=pat; c_guard=None;
       c_rhs={exp_desc = Texp_function { arg_label; param; cases; partial;
-                                        region; curry; warnings; alloc_mode } }
+                                        region; curry; warnings; arg_mode; alloc_mode } }
         as exp}] when bindings = [] || trivial_pat pat ->
-      let cases = push_defaults exp.exp_loc bindings false cases partial warnings in
+      let cases = push_defaults exp.exp_loc bindings false arg_mode cases partial warnings in
       [{c_lhs=pat; c_guard=None;
         c_rhs={exp with exp_desc = Texp_function { arg_label; param; cases;
-          partial; region; curry; warnings; alloc_mode }}}]
+          partial; region; curry; warnings; arg_mode; alloc_mode }}}]
   | [{c_lhs=pat; c_guard=None;
       c_rhs={exp_attributes=[{Parsetree.attr_name = {txt="#default"};_}];
              exp_desc = Texp_let
                (Nonrecursive, binds,
                 ({exp_desc = Texp_function _} as e2))}}] ->
       push_defaults loc (Bind_value binds :: bindings) true
-                   [{c_lhs=pat;c_guard=None;c_rhs=e2}]
+                   arg_mode [{c_lhs=pat;c_guard=None;c_rhs=e2}]
                    partial warnings
   | [{c_lhs=pat; c_guard=None;
       c_rhs={exp_attributes=[{Parsetree.attr_name = {txt="#modulepat"};_}];
@@ -206,19 +206,20 @@ let rec push_defaults loc bindings use_lhs cases partial warnings =
                (Some id, name, pres, mexpr,
                 ({exp_desc = Texp_function _} as e2))}}] ->
       push_defaults loc (Bind_module (id, name, pres, mexpr) :: bindings) true
-                   [{c_lhs=pat;c_guard=None;c_rhs=e2}]
+                   arg_mode [{c_lhs=pat;c_guard=None;c_rhs=e2}]
                    partial warnings
   | [{c_lhs=pat; c_guard=None; c_rhs=exp} as case]
     when use_lhs || trivial_pat pat && exp.exp_desc <> Texp_unreachable ->
       [{case with c_rhs = wrap_bindings bindings exp}]
   | {c_lhs=pat; c_rhs=exp; c_guard=_} :: _ when bindings <> [] ->
+      let mode = Value_mode.of_alloc arg_mode in
       let param = Typecore.name_cases "param" cases in
       let desc =
         {val_type = pat.pat_type; val_kind = Val_reg;
          val_attributes = []; Types.val_loc = Location.none;
          val_uid = Types.Uid.internal_not_actually_unique; }
       in
-      let env = Env.add_value param desc exp.exp_env in
+      let env = Env.add_value ~mode param desc exp.exp_env in
       let name = Ident.name param in
       let exp =
         let cases =
@@ -233,7 +234,7 @@ let rec push_defaults loc bindings use_lhs cases partial warnings =
                  desc, Id_value)},
              cases, partial) }
       in
-      [{c_lhs = {pat with pat_desc = Tpat_var (param, mknoloc name)};
+      [{c_lhs = {pat with pat_desc = Tpat_var (param, mknoloc name, mode)};
         c_guard = None; c_rhs= wrap_bindings bindings exp}]
   | _ ->
       cases
@@ -290,8 +291,8 @@ let rec cut n l =
 
 let rec iter_exn_names f pat =
   match pat.pat_desc with
-  | Tpat_var (id, _) -> f id
-  | Tpat_alias (p, id, _) ->
+  | Tpat_var (id, _, _) -> f id
+  | Tpat_alias (p, id, _, _) ->
       f id;
       iter_exn_names f p
   | _ -> ()
@@ -353,12 +354,12 @@ and transl_exp0 ~in_new_scope ~scopes e =
       transl_let ~scopes rec_flag pat_expr_list
         body_kind (event_before ~scopes body (transl_exp ~scopes body))
   | Texp_function { arg_label = _; param; cases; partial;
-                    region; curry; warnings; alloc_mode } ->
+                    region; curry; warnings; arg_mode; alloc_mode } ->
       let scopes =
         if in_new_scope then scopes
         else enter_anonymous_function ~scopes
       in
-      transl_function ~scopes e alloc_mode param cases partial warnings region curry
+      transl_function ~scopes e alloc_mode param arg_mode cases partial warnings region curry
   | Texp_apply({ exp_desc = Texp_ident(path, _, {val_kind = Val_prim p},
                                        Id_prim pmode);
                 exp_type = prim_type; } as funct, oargs, pos, alloc_mode)
@@ -1181,12 +1182,12 @@ and transl_function0
     in
     ((Curried {nlocal}, [param, kind], return, region), body)
 
-and transl_function ~scopes e alloc_mode param cases partial warnings region curry =
+and transl_function ~scopes e alloc_mode param arg_mode cases partial warnings region curry =
   let mode = transl_alloc_mode alloc_mode in
   let ((kind, params, return, region), body) =
     event_function ~scopes e
       (function repr ->
-         let pl = push_defaults e.exp_loc cases partial warnings in
+         let pl = push_defaults e.exp_loc arg_mode cases partial warnings in
          let return_kind = function_return_value_kind e.exp_env e.exp_type in
          transl_curried_function ~scopes e.exp_loc return_kind
            repr ~region ~curry partial warnings param pl)
@@ -1251,7 +1252,7 @@ and transl_let ~scopes ?(add_regions=false) ?(in_structure=false)
       let idlist =
         List.map
           (fun {vb_pat=pat} -> match pat.pat_desc with
-              Tpat_var (id,_) -> id
+              Tpat_var (id,_,_) -> id
             | _ -> assert false)
         pat_expr_list in
       let transl_case {vb_expr=expr; vb_attributes; vb_loc; vb_pat} id =

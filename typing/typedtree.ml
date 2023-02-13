@@ -40,7 +40,6 @@ and 'a pattern_data =
     pat_loc: Location.t;
     pat_extra : (pat_extra * Location.t * attribute list) list;
     pat_type: type_expr;
-    pat_mode: value_mode;
     pat_env: Env.t;
     pat_attributes: attribute list;
    }
@@ -54,9 +53,9 @@ and pat_extra =
 and 'k pattern_desc =
   (* value patterns *)
   | Tpat_any : value pattern_desc
-  | Tpat_var : Ident.t * string loc -> value pattern_desc
+  | Tpat_var : Ident.t * string loc * value_mode -> value pattern_desc
   | Tpat_alias :
-      value general_pattern * Ident.t * string loc -> value pattern_desc
+      value general_pattern * Ident.t * string loc * value_mode -> value pattern_desc
   | Tpat_constant : constant -> value pattern_desc
   | Tpat_tuple : value general_pattern list -> value pattern_desc
   | Tpat_construct :
@@ -111,7 +110,9 @@ and expression_desc =
   | Texp_function of { arg_label : arg_label; param : Ident.t;
       cases : value case list; partial : partial;
       region : bool; curry : fun_curry_state;
-      warnings : Warnings.state; alloc_mode : Types.alloc_mode }
+      warnings : Warnings.state;
+      arg_mode : Types.alloc_mode;
+      alloc_mode : Types.alloc_mode }
   | Texp_apply of expression * (arg_label * apply_arg) list * apply_position * Types.alloc_mode
   | Texp_match of expression * computation case list * partial
   | Texp_try of expression * value case list
@@ -717,7 +718,6 @@ let as_computation_pattern (p : pattern) : computation general_pattern =
     pat_loc = p.pat_loc;
     pat_extra = [];
     pat_type = p.pat_type;
-    pat_mode = p.pat_mode;
     pat_env = p.pat_env;
     pat_attributes = [];
   }
@@ -754,7 +754,7 @@ type pattern_action =
 let shallow_iter_pattern_desc
   : type k . pattern_action -> k pattern_desc -> unit
   = fun f -> function
-  | Tpat_alias(p, _, _) -> f.f p
+  | Tpat_alias(p, _, _, _) -> f.f p
   | Tpat_tuple patl -> List.iter f.f patl
   | Tpat_construct(_, _, patl, _) -> List.iter f.f patl
   | Tpat_variant(_, pat, _) -> Option.iter f.f pat
@@ -774,8 +774,8 @@ type pattern_transformation =
 let shallow_map_pattern_desc
   : type k . pattern_transformation -> k pattern_desc -> k pattern_desc
   = fun f d -> match d with
-  | Tpat_alias (p1, id, s) ->
-      Tpat_alias (f.f p1, id, s)
+  | Tpat_alias (p1, id, s, m) ->
+      Tpat_alias (f.f p1, id, s, m)
   | Tpat_tuple pats ->
       Tpat_tuple (List.map f.f pats)
   | Tpat_record (lpats, closed) ->
@@ -836,9 +836,9 @@ let rec iter_bound_idents
   : type k . _ -> k general_pattern -> _
   = fun f pat ->
   match pat.pat_desc with
-  | Tpat_var (id, s) ->
+  | Tpat_var (id, s, _mode) ->
      f (id,s,pat.pat_type)
-  | Tpat_alias(p, id, s) ->
+  | Tpat_alias(p, id, s, _mode) ->
       iter_bound_idents f p;
       f (id,s,pat.pat_type)
   | Tpat_or(p1, _, _) ->
@@ -874,11 +874,11 @@ let let_bound_idents_with_modes bindings =
   let rec loop : type k . k general_pattern -> _ =
     fun pat ->
       match pat.pat_desc with
-      | Tpat_var (id, { loc }) ->
-          Ident.Tbl.add modes id (loc, pat.pat_mode)
-      | Tpat_alias(p, id, { loc }) ->
+      | Tpat_var (id, { loc }, mode) ->
+          Ident.Tbl.add modes id (loc, mode)
+      | Tpat_alias(p, id, { loc }, mode) ->
           loop p;
-          Ident.Tbl.add modes id (loc, pat.pat_mode)
+          Ident.Tbl.add modes id (loc, mode)
       | d -> shallow_iter_pattern_desc { f = loop } d
   in
   List.iter (fun vb -> loop vb.vb_pat) bindings;
@@ -896,14 +896,14 @@ let alpha_var env id = List.assoc id env
 let rec alpha_pat
   : type k . _ -> k general_pattern -> k general_pattern
   = fun env p -> match p.pat_desc with
-  | Tpat_var (id, s) -> (* note the ``Not_found'' case *)
+  | Tpat_var (id, s, mode) -> (* note the ``Not_found'' case *)
       {p with pat_desc =
-       try Tpat_var (alpha_var env id, s) with
+       try Tpat_var (alpha_var env id, s, mode) with
        | Not_found -> Tpat_any}
-  | Tpat_alias (p1, id, s) ->
+  | Tpat_alias (p1, id, s, mode) ->
       let new_p =  alpha_pat env p1 in
       begin try
-        {p with pat_desc = Tpat_alias (new_p, alpha_var env id, s)}
+        {p with pat_desc = Tpat_alias (new_p, alpha_var env id, s, mode)}
       with
       | Not_found -> new_p
       end

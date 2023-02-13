@@ -242,9 +242,12 @@ and pattern : type k . _ -> _ -> k general_pattern -> unit = fun i ppf x ->
   end;
   match x.pat_desc with
   | Tpat_any -> line i ppf "Tpat_any\n";
-  | Tpat_var (s,_) -> line i ppf "Tpat_var \"%a\"\n" fmt_ident s;
-  | Tpat_alias (p, s,_) ->
+  | Tpat_var (s,_,m) ->
+      line i ppf "Tpat_var \"%a\"\n" fmt_ident s;
+      value_mode i ppf m
+  | Tpat_alias (p, s,_,m) ->
       line i ppf "Tpat_alias \"%a\"\n" fmt_ident s;
+      value_mode i ppf m;
       pattern i ppf p;
   | Tpat_constant (c) -> line i ppf "Tpat_constant %a\n" fmt_constant c;
   | Tpat_tuple (l) ->
@@ -326,6 +329,15 @@ and alloc_mode i ppf m =
   )
 
 and alloc_mode_option i ppf m = Option.iter (alloc_mode i ppf) m
+
+and value_mode i ppf m =
+  line i ppf "alloc_mode %s\n"
+  (match Types.Value_mode.check_const m with
+  | Some Global ->  "global"
+  | Some Local ->  "local"
+  | Some Regional -> "regional"
+  | None -> "<modevar>"
+  )
 
 and expression_alloc_mode i ppf (expr, am) =
   alloc_mode i ppf am;

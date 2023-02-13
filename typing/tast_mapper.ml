@@ -234,7 +234,7 @@ let pat
     | Tpat_record (l, closed) ->
         Tpat_record (List.map (tuple3 id id (sub.pat sub)) l, closed)
     | Tpat_array (am, l) -> Tpat_array (am, List.map (sub.pat sub) l)
-    | Tpat_alias (p, id, s) -> Tpat_alias (sub.pat sub p, id, s)
+    | Tpat_alias (p, id, s, m) -> Tpat_alias (sub.pat sub p, id, s, m)
     | Tpat_lazy p -> Tpat_lazy (sub.pat sub p)
     | Tpat_value p ->
        (as_computation_pattern (sub.pat sub (p :> pattern))).pat_desc
@@ -298,10 +298,10 @@ let expr sub x =
         let (rec_flag, list) = sub.value_bindings sub (rec_flag, list) in
         Texp_let (rec_flag, list, sub.expr sub exp)
     | Texp_function { arg_label; param; cases;
-                      partial; region; curry; warnings; alloc_mode } ->
+                      partial; region; curry; warnings; arg_mode; alloc_mode } ->
         let cases = List.map (sub.case sub) cases in
         Texp_function { arg_label; param; cases;
-                        partial; region; curry; warnings; alloc_mode }
+                        partial; region; curry; warnings; arg_mode; alloc_mode }
     | Texp_apply (exp, list, pos, am) ->
         Texp_apply (
           sub.expr sub exp,

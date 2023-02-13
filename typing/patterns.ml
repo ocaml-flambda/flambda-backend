@@ -25,7 +25,6 @@ let omega = {
   pat_loc = Location.none;
   pat_extra = [];
   pat_type = Ctype.none;
-  pat_mode = Value_mode.min_mode;
   pat_env = Env.empty;
   pat_attributes = [];
 }
@@ -80,18 +79,18 @@ end
 module General = struct
   type view = [
     | Half_simple.view
-    | `Var of Ident.t * string loc
-    | `Alias of pattern * Ident.t * string loc
+    | `Var of Ident.t * string loc * value_mode
+    | `Alias of pattern * Ident.t * string loc * value_mode
   ]
   type pattern = view pattern_data
 
   let view_desc = function
     | Tpat_any ->
        `Any
-    | Tpat_var (id, str) ->
-       `Var (id, str)
-    | Tpat_alias (p, id, str) ->
-       `Alias (p, id, str)
+    | Tpat_var (id, str, mode) ->
+       `Var (id, str, mode)
+    | Tpat_alias (p, id, str, mode) ->
+       `Alias (p, id, str, mode)
     | Tpat_constant cst ->
        `Constant cst
     | Tpat_tuple ps ->
@@ -111,8 +110,8 @@ module General = struct
 
   let erase_desc = function
     | `Any -> Tpat_any
-    | `Var (id, str) -> Tpat_var (id, str)
-    | `Alias (p, id, str) -> Tpat_alias (p, id, str)
+    | `Var (id, str, mode) -> Tpat_var (id, str, mode)
+    | `Alias (p, id, str, mode) -> Tpat_alias (p, id, str, mode)
     | `Constant cst -> Tpat_constant cst
     | `Tuple ps -> Tpat_tuple ps
     | `Construct (cstr, cst_descr, args) ->
@@ -130,7 +129,7 @@ module General = struct
 
   let rec strip_vars (p : pattern) : Half_simple.pattern =
     match p.pat_desc with
-    | `Alias (p, _, _) -> strip_vars (view p)
+    | `Alias (p, _, _, _) -> strip_vars (view p)
     | `Var _ -> { p with pat_desc = `Any }
     | #Half_simple.view as view -> { p with pat_desc = view }
 end
