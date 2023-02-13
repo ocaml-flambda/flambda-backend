@@ -18,6 +18,8 @@ module R = To_cmm_result
 module P = Flambda_primitive
 module Ece = Effects_and_coeffects
 
+type free_names = Backend_var.Set.t
+
 type cont =
   | Jump of
       { cont : Cmm.label;
@@ -59,8 +61,6 @@ type 'env trans_prim =
   }
 
 (* Delayed let-bindings (see the .mli) *)
-
-type free_names = Backend_var.Set.t
 
 (* the binding kinds *)
 type simple = Simple

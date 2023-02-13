@@ -20,7 +20,7 @@ type translate_expr =
   To_cmm_env.t ->
   To_cmm_result.t ->
   Expr.t ->
-  Cmm.expression * Backend_var.Set.t * To_cmm_result.t
+  Cmm.expression * To_cmm_env.free_names * To_cmm_result.t
 
 val let_static_set_of_closures :
   To_cmm_env.t ->
@@ -32,7 +32,7 @@ val let_static_set_of_closures :
   * To_cmm_result.t
   * Cmm.data_item list
   * Cmm.expression option
-  * Backend_var.Set.t
+  * To_cmm_env.free_names
 
 val let_dynamic_set_of_closures :
   To_cmm_env.t ->
@@ -42,7 +42,7 @@ val let_dynamic_set_of_closures :
   num_normal_occurrences_of_bound_vars:Num_occurrences.t Variable.Map.t ->
   Set_of_closures.t ->
   translate_expr:translate_expr ->
-  Cmm.expression * Backend_var.Set.t * To_cmm_result.t
+  Cmm.expression * To_cmm_env.free_names * To_cmm_result.t
 
 val params_and_body :
   To_cmm_env.t ->

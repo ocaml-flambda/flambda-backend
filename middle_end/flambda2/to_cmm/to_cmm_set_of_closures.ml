@@ -27,7 +27,7 @@ type translate_expr =
   To_cmm_env.t ->
   To_cmm_result.t ->
   Expr.t ->
-  Cmm.expression * Backend_var.Set.t * To_cmm_result.t
+  Cmm.expression * To_cmm_env.free_names * To_cmm_result.t
 
 (* Filling of closure blocks *)
 
@@ -78,7 +78,7 @@ module Make_layout_filler (P : sig
     To_cmm_result.t ->
     Simple.t ->
     [`Data of cmm_term list | `Var of Variable.t]
-    * Backend_var.Set.t
+    * To_cmm_env.free_names
     * To_cmm_env.t
     * To_cmm_result.t
     * Ece.t
@@ -101,7 +101,7 @@ end) : sig
     prev_updates:Cmm.expression option ->
     (int * Slot_offsets.Layout.slot) list ->
     P.cmm_term list
-    * Backend_var.Set.t
+    * To_cmm_env.free_names
     * int
     * Env.t
     * To_cmm_result.t
@@ -518,8 +518,11 @@ let lift_set_of_closures env res ~body ~bound_vars layout set ~translate_expr
   if not (Backend_var.Set.is_empty updates_free_names)
   then
     Misc.fatal_errorf
-      "non-empy free_names of [updates] when lifting set of closures: %a"
-      Set_of_closures.print set;
+      "non-empty free_names of an **empty** [updates] when lifting set of \
+       closures:@\n\
+       %a@\n\
+       %a"
+      Backend_var.Set.print updates_free_names Set_of_closures.print set;
   (* Update the result with the new static data *)
   let res = R.archive_data (R.set_data res static_data) in
   (* Bind the variables to the symbols for function slots. *)

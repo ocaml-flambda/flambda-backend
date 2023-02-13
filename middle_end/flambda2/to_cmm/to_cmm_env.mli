@@ -18,6 +18,9 @@
 (** Environment for Flambda to Cmm translation *)
 type t
 
+(** Free names for cmm expressions *)
+type free_names = Backend_var.Set.t
+
 (** Printing function *)
 val print : Format.formatter -> t -> unit
 
@@ -165,9 +168,6 @@ val create_bound_parameters :
     we have a notion of "complex" bound argument that, in addition to a cmm
     expression, also contains the arguments and a way to re-build the
     expression. *)
-
-(** Free names for cmm expressions *)
-type free_names = Backend_var.Set.t
 
 (** Some uniques and different types *)
 type simple = Simple
