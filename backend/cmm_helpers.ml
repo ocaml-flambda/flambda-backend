@@ -2120,8 +2120,8 @@ let ptr_offset ptr offset dbg =
   then ptr
   else Cop (Caddv, [ptr; Cconst_int (offset * size_addr, dbg)], dbg)
 
-let direct_apply lbl args (pos, _mode) dbg =
-  Cop (Capply (typ_val, pos), Cconst_symbol (lbl, dbg) :: args, dbg)
+let direct_apply lbl args result (pos, _mode) dbg =
+  Cop (Capply (result, pos), Cconst_symbol (lbl, dbg) :: args, dbg)
 
 let call_caml_apply ty args_type mut clos args pos mode dbg =
   let really_call_caml_apply clos args =

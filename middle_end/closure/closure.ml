@@ -106,7 +106,7 @@ let occurs_var var u =
   let rec occurs = function
       Uvar v -> v = var
     | Uconst _ -> false
-    | Udirect_apply(_lbl, args, _, _, _) -> List.exists occurs args
+    | Udirect_apply(_lbl, args, _, _, _, _) -> List.exists occurs args
     | Ugeneric_apply(funct, args, _, _, _, _) ->
         occurs funct || List.exists occurs args
     | Uclosure { functions = _ ; not_scanned_slots ; scanned_slots } ->
@@ -194,7 +194,7 @@ let lambda_smaller lam threshold =
     match lam with
       Uvar _ -> ()
     | Uconst _ -> incr size
-    | Udirect_apply(_, args, None, _, _) ->
+    | Udirect_apply(_, args, None, _, _, _) ->
         size := !size + 4; lambda_list_size args
     | Udirect_apply _ -> ()
     (* We aim for probe points to not affect inlining decisions.
@@ -607,10 +607,10 @@ let rec substitute loc ((backend, fpc) as st) sb rn ulam =
     Uvar v ->
       begin try V.Map.find v sb with Not_found -> ulam end
   | Uconst _ -> ulam
-  | Udirect_apply(lbl, args, probe, kind, dbg) ->
+  | Udirect_apply(lbl, args, probe, return_layout, kind, dbg) ->
       let dbg = subst_debuginfo loc dbg in
       Udirect_apply(lbl, List.map (substitute loc st sb rn) args,
-                    probe, kind, dbg)
+                    probe, return_layout, kind, dbg)
   | Ugeneric_apply(fn, args, args_layout, return_layout, kind, dbg) ->
       let dbg = subst_debuginfo loc dbg in
       Ugeneric_apply(substitute loc st sb rn fn,
@@ -866,7 +866,7 @@ let fail_if_probe ~probe msg =
 
 (* Generate a direct application *)
 
-let direct_apply env fundesc ufunct uargs pos mode ~probe ~loc ~attribute =
+let direct_apply env fundesc ufunct uargs pos mode ~result_layout ~probe ~loc ~attribute =
   match fundesc.fun_inline, attribute with
   | _, Never_inlined
   | None, _ ->
@@ -884,10 +884,10 @@ let direct_apply env fundesc ufunct uargs pos mode ~probe ~loc ~attribute =
        fail_if_probe ~probe "Erroneously marked to be inlined"
      end;
      if fundesc.fun_closed && is_pure ufunct then
-       Udirect_apply(fundesc.fun_label, uargs, probe, kind, dbg)
+       Udirect_apply(fundesc.fun_label, uargs, probe, result_layout, kind, dbg)
      else if not fundesc.fun_closed &&
                is_substituable ~mutable_vars:env.mutable_vars ufunct then
-       Udirect_apply(fundesc.fun_label, uargs @ [ufunct], probe, kind, dbg)
+       Udirect_apply(fundesc.fun_label, uargs @ [ufunct], probe, result_layout, kind, dbg)
      else begin
        let args = List.map (fun arg ->
          if is_substituable ~mutable_vars:env.mutable_vars arg then
@@ -903,12 +903,12 @@ let direct_apply env fundesc ufunct uargs pos mode ~probe ~loc ~attribute =
          (if fundesc.fun_closed then
             Usequence (ufunct,
                        Udirect_apply (fundesc.fun_label, app_args,
-                                      probe, kind, dbg))
+                                      probe, result_layout, kind, dbg))
           else
             let clos = V.create_local "clos" in
             Ulet(Immutable, Lambda.layout_function, VP.create clos, ufunct,
                  Udirect_apply(fundesc.fun_label, app_args @ [Uvar clos],
-                               probe, kind, dbg)))
+                               probe, result_layout, kind, dbg)))
          args
        end
   | Some(params, body), _  ->
@@ -1038,7 +1038,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
         when List.length uargs = List.length params_layout ->
           let app =
             direct_apply env ~loc ~attribute fundesc ufunct uargs
-              pos mode ~probe in
+              pos mode ~probe ~result_layout:ap_result_layout in
           (app, strengthen_approx app approx_res)
       | ((ufunct, Value_closure(_,
                                 ({fun_arity={function_kind = Curried _ ; params_layout ; _}} as fundesc),
@@ -1046,7 +1046,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
         when nargs = List.length params_layout ->
           let app =
             direct_apply env ~loc ~attribute fundesc ufunct uargs
-              pos mode ~probe in
+              pos mode ~probe ~result_layout:ap_result_layout in
           (app, strengthen_approx app approx_res)
 
       | ((ufunct, (Value_closure(
@@ -1145,6 +1145,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars; kinds; catch_env } as env) 
             Ugeneric_apply(direct_apply { env with kinds } ~loc ~attribute
                               fundesc ufunct first_args
                               Rc_normal mode'
+                              ~result_layout:Lambda.layout_function
                               ~probe,
                            rem_args,
                            List.map (fun _ -> Lambda.layout_top) rem_args,
@@ -1732,7 +1733,7 @@ let collect_exported_structured_constants a =
   and ulam = function
     | Uvar _ -> ()
     | Uconst c -> const c
-    | Udirect_apply (_, ul, _, _, _) -> List.iter ulam ul
+    | Udirect_apply (_, ul, _, _, _, _) -> List.iter ulam ul
     | Ugeneric_apply (u, ul, _, _, _, _) -> ulam u; List.iter ulam ul
     | Uclosure { functions ; not_scanned_slots ; scanned_slots } ->
         List.iter (fun f -> ulam f.body) functions;

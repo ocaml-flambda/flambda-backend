@@ -283,7 +283,7 @@ let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda * Lambda.layout =
        For an indirect call, we do not need to do anything here; Cmmgen will
        do the equivalent of the previous paragraph when it generates a direct
        call to [caml_apply]. *)
-    to_clambda_direct_apply t func args direct_func probe dbg reg_close mode env,
+    to_clambda_direct_apply t func args direct_func probe dbg reg_close mode result_layout env,
     result_layout
   | Apply { func; args; kind = Indirect; probe = None; dbg; reg_close; mode; result_layout } ->
     let callee, callee_layout = subst_var env func in
@@ -573,7 +573,7 @@ and to_clambda_switch t env cases num_keys default kind =
   | [| |] -> [| |], [| |]  (* May happen when [default] is [None]. *)
   | _ -> index, actions
 
-and to_clambda_direct_apply t func args direct_func probe dbg pos mode env
+and to_clambda_direct_apply t func args direct_func probe dbg pos mode result_layout env
   : Clambda.ulambda =
   let closed = is_function_constant t direct_func in
   let label =
@@ -591,7 +591,7 @@ and to_clambda_direct_apply t func args direct_func probe dbg pos mode env
       assert(Lambda.compatible_layout func_layout Lambda.layout_function);
       uargs @ [func]
   in
-  Udirect_apply (label, uargs, probe, (pos, mode), dbg)
+  Udirect_apply (label, uargs, probe, result_layout, (pos, mode), dbg)
 
 (* Describe how to build a runtime closure block that corresponds to the
    given Flambda set of closures.
@@ -748,10 +748,16 @@ and to_clambda_closed_set_of_closures t env symbol
           env, VP.create id :: params)
         function_decl.params (env, [])
     in
+    let label =
+      Symbol_utils.Flambda.for_code_of_closure (Closure_id.wrap id)
+      |> Symbol.linkage_name
+      |> Linkage_name.to_string
+    in
     let body =
       let body, body_layout = to_clambda t env_body function_decl.body in
       if not (Lambda.compatible_layout body_layout function_decl.return_layout) then begin
-        Format.printf "body: %a@.function: %a@.%a@."
+        Format.printf "In function %s@. body: %a@.function: %a@.%a@."
+          label
           Printlambda.layout body_layout
           Printlambda.layout function_decl.return_layout
           Printclambda.clambda body;
@@ -762,11 +768,6 @@ and to_clambda_closed_set_of_closures t env symbol
     assert (
       Option.equal (fun dbg1 dbg2 -> Debuginfo.compare dbg1 dbg2 = 0)
         (Variable.debug_info id) (Some function_decl.dbg));
-    let label =
-      Symbol_utils.Flambda.for_code_of_closure (Closure_id.wrap id)
-      |> Symbol.linkage_name
-      |> Linkage_name.to_string
-    in
     { label;
       arity = clambda_arity function_decl;
       params;

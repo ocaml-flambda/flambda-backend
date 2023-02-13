@@ -748,7 +748,7 @@ val ptr_offset : expression -> int -> Debuginfo.t -> expression
 
 (** Direct application of a function via a symbol *)
 val direct_apply :
-  string -> expression list -> Clambda.apply_kind -> Debuginfo.t -> expression
+  string -> expression list -> machtype -> Clambda.apply_kind -> Debuginfo.t -> expression
 
 (** Generic application of a function to one or several arguments. The
     mutable_flag argument annotates the loading of the code pointer from the
