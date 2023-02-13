@@ -1786,7 +1786,7 @@ let ptr_offset ptr offset dbg =
   then ptr
   else Cop(Caddv, [ptr; Cconst_int(offset * size_addr, dbg)], dbg)
 
-let direct_apply ty lbl args (pos, _mode) dbg =
+let direct_apply lbl ty args (pos, _mode) dbg =
   Cop (Capply (ty, pos), Cconst_symbol (lbl, dbg) :: args, dbg)
 
 let generic_apply mut clos args args_type result (pos, mode) dbg =
@@ -2160,13 +2160,16 @@ let tuplify_function arity return =
 let max_arity_optimized = 15
 
 let machtype_stored_size t =
-  Array.fold_left
-    (fun cur c ->
-      match c with
-      | Addr -> Misc.fatal_error "[Addr] cannot be stored"
-      | Val | Int -> cur + 1
-      | Float -> cur + if Arch.size_int = 4 then 2 else 1)
-    0 t
+  if Arch.size_int = 4 then
+    Array.fold_left
+      (fun cur c ->
+         match c with
+         | Addr -> Misc.fatal_error "[Addr] cannot be stored"
+         | Val | Int -> cur + 1
+         | Float -> cur + 2)
+      0 t
+  else
+    Array.length t
 
 let machtype_non_scanned_size t =
   Array.fold_left
@@ -2178,19 +2181,19 @@ let machtype_non_scanned_size t =
       | Float -> cur + if Arch.size_int = 4 then 2 else 1)
     0 t
 
-let layout_machtype_for_closure t v =
+let value_slot_given_machtype t v =
   if Array.length t > 1
   then
     Misc.fatal_error
-      "[layout_machtype_for_closure] currently does not support complex \
+      "[value_slot_given_machtype] currently does not support complex \
        machtypes";
   [Cvar v]
 
-let read_machtype_from_closure t clos base_offset dbg =
+let read_from_closure_given_machtype t clos base_offset dbg =
   if Array.length t <> 1
   then
     Misc.fatal_error
-      "[read_machtype_from_closure] currently does not support complex \
+      "[read_from_closure_given_machtype] currently does not support complex \
        machtypes";
   let memory_chunk =
     match t.(0) with
@@ -2224,7 +2227,7 @@ let rec make_curry_apply result narity args_type args clos n =
       ( VP.create newclos,
         get_field_gen Asttypes.Mutable (Cvar clos) clos_pos (dbg ()),
         make_curry_apply result narity args_type
-          (read_machtype_from_closure arg_type (Cvar clos) arg_pos (dbg ())
+          (read_from_closure_given_machtype arg_type (Cvar clos) arg_pos (dbg ())
           :: args)
           newclos (n - 1) )
 
@@ -2292,7 +2295,7 @@ let intermediate_curry_functions ~nlocal ~arity result =
                         (name1 ^ "_" ^ Int.to_string (num + 1) ^ "_app", dbg ())
                     ]
                   else [])
-                @ layout_machtype_for_closure arg_type arg
+                @ value_slot_given_machtype arg_type arg
                 @ [Cvar clos],
                 dbg () );
           fun_codegen_options = [];

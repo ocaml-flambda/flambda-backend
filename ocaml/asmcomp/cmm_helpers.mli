@@ -324,6 +324,10 @@ val opaque : expression -> Debuginfo.t -> expression
 
 (** Generic application functions *)
 
+(** Get an identifier for a given machtype, used in the name of the generic
+    functions. *)
+val machtype_identifier : machtype -> string
+
 (** Get the symbol for the generic application with [n] arguments, and ensure
     its presence in the set of defined symbols *)
 val apply_function_sym :
@@ -560,7 +564,7 @@ val ptr_offset : expression -> int -> Debuginfo.t -> expression
 
 (** Direct application of a function via a symbol *)
 val direct_apply :
-  string -> expression list -> Clambda.apply_kind
+  string -> machtype -> expression list -> Clambda.apply_kind
   -> Debuginfo.t -> expression
 
 (** Generic application of a function to one or several arguments.

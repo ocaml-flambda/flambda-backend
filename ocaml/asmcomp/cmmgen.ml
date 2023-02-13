@@ -436,7 +436,8 @@ let rec transl env e =
         (Cop(Cprobe { name; handler_code_sym; }, args, dbg))
   | Udirect_apply(lbl, args, None, kind, dbg) ->
       let args = List.map (transl env) args in
-      direct_apply lbl args kind dbg
+      let return = typ_val in
+      direct_apply lbl return args kind dbg
   | Ugeneric_apply(clos, args, kind, dbg) ->
       let clos = transl env clos in
       let args = List.map (transl env) args in
