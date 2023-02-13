@@ -2567,16 +2567,16 @@ let tuplify_function arity return =
 let max_arity_optimized = 15
 
 let machtype_stored_size t =
-  if Arch.size_int = 4 then
+  if Arch.size_int = 4
+  then
     Array.fold_left
       (fun cur c ->
-         match c with
-         | Addr -> Misc.fatal_error "[Addr] cannot be stored"
-         | Val | Int -> cur + 1
-         | Float -> cur + 2)
+        match c with
+        | Addr -> Misc.fatal_error "[Addr] cannot be stored"
+        | Val | Int -> cur + 1
+        | Float -> cur + 2)
       0 t
-  else
-    Array.length t
+  else Array.length t
 
 let machtype_non_scanned_size t =
   Array.fold_left
@@ -2592,8 +2592,7 @@ let value_slot_given_machtype t v =
   if Array.length t > 1
   then
     Misc.fatal_error
-      "[value_slot_given_machtype] currently does not support complex \
-       machtypes";
+      "[value_slot_given_machtype] currently does not support complex machtypes";
   [Cvar v]
 
 let read_from_closure_given_machtype t clos base_offset dbg =
@@ -2634,7 +2633,8 @@ let rec make_curry_apply result narity args_type args clos n =
       ( VP.create newclos,
         get_field_gen Asttypes.Mutable (Cvar clos) clos_pos (dbg ()),
         make_curry_apply result narity args_type
-          (read_from_closure_given_machtype arg_type (Cvar clos) arg_pos (dbg ())
+          (read_from_closure_given_machtype arg_type (Cvar clos) arg_pos
+             (dbg ())
           :: args)
           newclos (n - 1) )
 
