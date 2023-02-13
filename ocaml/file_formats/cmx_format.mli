@@ -33,7 +33,22 @@ type export_info =
   | Clambda of Clambda.value_approximation
   | Flambda of Export_info.t
 
-type apply_fn := int * Lambda.alloc_mode
+type apply_fn := Cmm.machtype list * Cmm.machtype * Lambda.alloc_mode
+
+(* Curry/apply/send functions *)
+type generic_fns =
+  { curry_fun: (Lambda.function_kind * Cmm.machtype list * Cmm.machtype) list;
+    apply_fun: apply_fn list;
+    send_fun: apply_fn list }
+
+(* Symbols of function that pass certain checks for special properties. *)
+type checks =
+  {
+    (* CR gyorsh: refactor to use lists. *)
+    mutable ui_noalloc_functions: Misc.Stdlib.String.Set.t;
+    (* Functions without allocations and indirect calls *)
+  }
+
 type unit_infos =
   { mutable ui_unit: Compilation_unit.t;  (* Compilation unit implemented *)
     mutable ui_defines: Compilation_unit.t list;
